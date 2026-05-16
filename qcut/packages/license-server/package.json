@@ -10,10 +10,11 @@
 		"test:watch": "bunx vitest --config vitest.config.ts"
 	},
 	"dependencies": {
+		"@daytona/sdk": "^0.175.0",
+		"@noble/hashes": "^1.8.0",
 		"@qcut/auth": "workspace:*",
 		"@qcut/db": "workspace:*",
 		"@supabase/supabase-js": "^2.49.0",
-		"@noble/hashes": "^1.8.0",
 		"better-auth": "1.1.6",
 		"drizzle-orm": "^0.45.1",
 		"e2b": "^1.0.0",

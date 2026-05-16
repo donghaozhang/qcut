@@ -10,8 +10,10 @@ E2B 三家都吃同一个 `Dockerfile.cli`，但**各自实体化成不同的产
 | -------------------------------------------------- | ------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------- | --------------------------- |
 | `qcut-cli:agents-smoke`（本地 Docker 镜像）        | 本地 Docker daemon        | ✅ 按 `linux/amd64` 构建；`qcut-smoke` 验过 qcut、Codex CLI `0.130.0`、Claude Code `2.1.142`                                                                 | n/a                         |
 | `qcut-cli:codex-auth-smoke`（本地 Docker 镜像）   | 本地 Docker daemon        | ✅ 按 `linux/amd64` 构建；验证 qcut smoke、`CODEX_AUTH_JSON` 运行时 Codex 登录启动、prompt env 解码                                                           | n/a                         |
+| `qcut-cli:youtube-fix`（本地 Docker 镜像）        | 本地 Docker daemon        | ✅ 按 `linux/amd64` 构建；`qcut-smoke` 验过 `yt-dlp` `2026.03.17`、Deno `2.7.4`、Codex、Claude 和 native-cli；真实 YouTube `.mp4` 能写到 `/tmp/qcut-output` | n/a                         |
 | `qcut-cli:dev`（本地 Docker 镜像）                 | 本地 Docker daemon        | ✅ 已构建、**对生产端到端验证过**                                                                                                                           | n/a                         |
 | `ghcr.io/quriosity-agent/qcut-cli:v0`              | GitHub Container Registry | ✅ workflow run `25902797671` 已重新发布；推后 `qcut-smoke` 验过 qcut、Codex CLI `0.130.0`、Claude Code `2.1.142`、`native-cli` skill、最新 entrypoint            | ✅ public，匿名 pull 已验证 |
+| `ghcr.io/quriosity-agent/qcut-cli:youtube-fix-20260516` | GitHub Container Registry | ✅ workflow run `25949183927` 已发布；digest `sha256:48aa813162bf7a4b20d38ec694ccc0e1ffc9b61dcdc8c9e1447749d77b500923`；推后 smoke、本地 pull smoke、website YouTube E2E 都通过 | ✅ public，匿名 pull 已验证 |
 | E2B 模板 `qcut-cli`（ID `<your-e2b-template-id>`） | E2B 构建集群              | ⚠️ **建好了但有 bug** —— `Sandbox.create()` 能用，但 `qcut` 包装脚本的 shebang 被搞坏（`#!/usr/bin/env bashnexec ...`）。需要按现在 `e2b.Dockerfile` 重建。 | n/a（E2B 私有）             |
 
 当前能用：
@@ -37,6 +39,10 @@ E2B 三家都吃同一个 `Dockerfile.cli`，但**各自实体化成不同的产
   `0.130.0` 和 Claude Code `2.1.142`。本地 `linux/amd64`
   `qcut-cli:agents-smoke` 镜像已经证明这两个 binary 能在 Daytona
   使用的同架构里启动。
+- `Dockerfile.cli` 现在也会安装固定版本 YouTube 工具：`yt-dlp`
+  `2026.03.17`、Deno `2.7.4`，并写入 `/etc/yt-dlp.conf` 的
+  `--remote-components ejs:github`。这样 Codex 在 Daytona 里可以直接用
+  `yt-dlp`，不会把 Python 工具临时装进 `/tmp/qcut-output`。
 - `electron/native-pipeline/container/entrypoint.sh` 现在会在运行时启动
   Codex 登录。`CODEX_AUTH_JSON` 会先用 `jq` 校验，再写到权限 `0600`
   的 `~/.codex/auth.json`，不会进入 `~/.qcut/.env`。如果 Codex 任务
@@ -81,9 +87,33 @@ E2B 三家都吃同一个 `Dockerfile.cli`，但**各自实体化成不同的产
   - fake `CODEX_AUTH_JSON` 能写入 `~/.codex/auth.json`
   - auth 文件权限验证为 `0600`
   - `QCUT_CODEX_PROMPT_B64` 能在镜像内解码，不经过 shell 插值
+- 本地 YouTube 镜像 smoke 已通过：
+  - image `qcut-cli:youtube-fix`
+  - platform `linux/amd64`
+  - `qcut-smoke` 验过 `yt-dlp`、Deno、Codex、Claude 和 native-cli
+  - `yt-dlp` 已把 `https://www.youtube.com/watch?v=jNQXAC9IVRw`
+    下载成 `/tmp/qcut-output/youtube-test.mp4`（312 KB）
+  - 之前的 `BaW_jenozKc` probe 现在应视为无效，因为 YouTube 对这个 ID
+    本身就返回 `Video unavailable`，跟 QCut 无关
+- GHCR YouTube 镜像发布已通过：
+  - workflow run `25949183927`
+  - image `ghcr.io/quriosity-agent/qcut-cli:youtube-fix-20260516`
+  - digest `sha256:48aa813162bf7a4b20d38ec694ccc0e1ffc9b61dcdc8c9e1447749d77b500923`
+  - CI 里的 pushed-image smoke 通过，本地 pull + `qcut-smoke` 也通过
+- Website Chat Agent YouTube E2E 已通过：
+  - job `3b19b2cd-cb17-4576-add0-89ba9aca2e4e`
+  - runner `aca4aa3b-941b-41cd-9ca9-fb28235c16ac`
+  - status `succeeded`，exit code `0`
+  - artifacts 包含可下载的 `youtube-e2e.mp4`（464.8 KB）、
+    `youtube-e2e-summary.json`、`qcut-output.tar`、`codex-last-message.md`
+    和 `codex-events.jsonl`
+  - Playwright 点击 MP4 Download 按钮后保存了
+    `.playwright-cli/youtube-e2e.mp4`
 
 当前还需要外部 provider 工作：
 
+- GHCR / Daytona：合并后决定是把已验证镜像重发成 `v0` / `latest`，还是
+  继续使用上面的 digest pin。
 - E2B：如果要刷新浏览器沙箱模板，移走 workspace `node_modules`
   后重跑 `e2b template create qcut-cli -d e2b.Dockerfile
 --cpu-count 2 --memory-mb 4096`（见下面 "绕路"）。现在
@@ -92,10 +122,10 @@ E2B 三家都吃同一个 `Dockerfile.cli`，但**各自实体化成不同的产
 ## 下一个子任务
 
 GHCR/Daytona 镜像路径已经证明能跑，GHCR `v0` 现在也已经带 Codex auth
-bootstrap。下一步继续 Phase 3 的产品硬化：
+bootstrap；YouTube-capable 镜像也已经通过 live Chat Agent 页面验证。
 
-1. merge/deploy worker 修复：Supabase row normalize、Daytona 使用
-   `/tmp/qcut-output`。
+1. 合并 `qcut-cli-v2`，然后决定把这个 digest 发布成 `v0` / `latest`，
+   还是继续使用 digest pin。
 2. 实现 sandbox spawn 失败时退 credit。
 3. 设计并迁移 `agent_secrets.value` 加密。
 4. 把 wzrdagentstudio `/sandbox` 的 localStorage token 占位换成真的

@@ -12,6 +12,7 @@
  *   QCUT_IMAGE_TAG   (default: qcut-cli:dev)
  *   DAYTONA_API_KEY  (when present, the run path swaps in run-on-daytona)
  *   IDLE_POLL_MS     (default: 5000)
+ *   AGENT_SESSION_CLEANUP_MS (default: 60000)
  *
  * The worker keeps a Realtime subscription to agent_jobs INSERTs as a
  * wake-up hint, and falls back to polling so a network blip doesn't
@@ -35,6 +36,9 @@ import { uploadArtifacts } from "./upload-artifacts.js";
 const SUPABASE_URL = process.env.SUPABASE_URL;
 const SUPABASE_SERVICE_ROLE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY;
 const IDLE_POLL_MS = Number(process.env.IDLE_POLL_MS ?? "5000");
+const AGENT_SESSION_CLEANUP_MS = Number(
+	process.env.AGENT_SESSION_CLEANUP_MS ?? "60000"
+);
 
 if (!SUPABASE_URL || !SUPABASE_SERVICE_ROLE_KEY) {
 	console.error(
@@ -79,12 +83,32 @@ async function chooseRunner(job: AgentJob): Promise<ContainerResult> {
 	return runContainer(supabase, job);
 }
 
+async function cleanupAgentSessions(): Promise<void> {
+	if (!process.env.DAYTONA_API_KEY) {
+		return;
+	}
+	try {
+		const { cleanupDaytonaAgentSessions } = await import("./run-on-daytona.js");
+		const count = await cleanupDaytonaAgentSessions({
+			supabase,
+			runnerId: RUNNER_ID,
+		});
+		if (count > 0) {
+			console.log(`[agent-worker] cleaned up ${count} agent session(s)`);
+		}
+	} catch (err) {
+		console.error("[agent-worker] agent session cleanup failed:", err);
+	}
+}
+
 async function executeJob(job: AgentJob): Promise<void> {
 	let outputDir: string | undefined;
 	try {
 		const result = await chooseRunner(job);
 		outputDir = result.outputDir;
-		await streamEvents(supabase, job, result.stderr);
+		if (!result.eventsStreamed) {
+			await streamEvents(supabase, job, result.stderr);
+		}
 		await uploadArtifacts({ supabase, job, dir: result.outputDir });
 
 		const status = result.exitCode === 0 ? "succeeded" : "failed";
@@ -161,10 +185,15 @@ const channel = supabase
 	});
 
 const idleTimer = setInterval(() => void tryDrain(), IDLE_POLL_MS);
+const sessionCleanupTimer = setInterval(
+	() => void cleanupAgentSessions(),
+	AGENT_SESSION_CLEANUP_MS
+);
 
 async function shutdown(sig: string): Promise<void> {
 	console.log(`[agent-worker ${RUNNER_ID}] ${sig}, draining…`);
 	clearInterval(idleTimer);
+	clearInterval(sessionCleanupTimer);
 	await channel.unsubscribe();
 	process.exit(0);
 }
@@ -173,3 +202,4 @@ process.on("SIGTERM", () => void shutdown("SIGTERM"));
 
 // Kick once on startup so a row queued before subscription gets picked up.
 void tryDrain();
+void cleanupAgentSessions();

@@ -10,11 +10,28 @@ import type { AgentJob } from "@qcut/db";
 import {
 	buildDaytonaCommand,
 	buildDaytonaEnv,
+	cleanupDaytonaAgentSessions,
 	runOnDaytona,
 } from "./run-on-daytona";
 
 const originalDaytonaApiKey = process.env.DAYTONA_API_KEY;
 const CODEX_AGENT_COMMAND = "codex exec --skip-git-repo-check --json -";
+const EXPECTED_QCUT_DOCTOR_DAYTONA_COMMAND = [
+	"mkdir -p /tmp/qcut-output",
+	"set +e",
+	"/usr/local/bin/qcut-entrypoint qcut system doctor --json --skip-health -o /tmp/qcut-output > /tmp/qcut-output/qcut-stdout.txt 2> /tmp/qcut-output/qcut-stderr.txt",
+	"exit_code=$?",
+	'printf \'{"exitCode":%s}\\n\' "$exit_code" > /tmp/qcut-output/qcut-exit.json',
+	'[ "$exit_code" -eq 0 ]',
+].join("; ");
+const EXPECTED_QCUT_IMAGE_DAYTONA_COMMAND = [
+	"mkdir -p /tmp/qcut-output",
+	"set +e",
+	"/usr/local/bin/qcut-entrypoint qcut gen image -t icon,logo -m flux_dev --json -o /tmp/qcut-output > /tmp/qcut-output/qcut-stdout.txt 2> /tmp/qcut-output/qcut-stderr.txt",
+	"exit_code=$?",
+	'printf \'{"exitCode":%s}\\n\' "$exit_code" > /tmp/qcut-output/qcut-exit.json',
+	'[ "$exit_code" -eq 0 ]',
+].join("; ");
 
 afterEach(() => {
 	process.env.DAYTONA_API_KEY = originalDaytonaApiKey;
@@ -25,6 +42,7 @@ function makeJob(overrides: Partial<AgentJob> = {}): AgentJob {
 	return {
 		id: "job-1",
 		userId: "user-1",
+		sessionId: null,
 		status: "running",
 		command: "qcut system doctor --json --skip-health",
 		args: {},
@@ -40,13 +58,17 @@ function makeJob(overrides: Partial<AgentJob> = {}): AgentJob {
 
 function makeSupabase({
 	secrets = [{ key: "OPENAI_API_KEY", value: "sk-test" }],
+	agentSessions = [],
 }: {
 	secrets?: Array<{ key: string; value: string }>;
+	agentSessions?: Array<Record<string, unknown>>;
 } = {}): {
 	client: SupabaseClient;
 	insertedEvents: unknown[];
+	sessionUpdates: Array<Record<string, unknown>>;
 } {
 	const insertedEvents: unknown[] = [];
+	const sessionUpdates: Array<Record<string, unknown>> = [];
 	const client = {
 		from(table: string) {
 			if (table === "agent_secrets") {
@@ -55,6 +77,52 @@ function makeSupabase({
 						return {
 							eq() {
 								return Promise.resolve({ data: secrets, error: null });
+							},
+						};
+					},
+				};
+			}
+			if (table === "agent_sessions") {
+				return {
+					select() {
+						const filters: Record<string, unknown> = {};
+						const chain = {
+							eq(column: string, value: unknown) {
+								filters[column] = value;
+								return chain;
+							},
+							maybeSingle() {
+								const row = agentSessions.find((session) =>
+									Object.entries(filters).every(
+										([column, value]) => session[column] === value
+									)
+								);
+								return Promise.resolve({ data: row ?? null, error: null });
+							},
+							in() {
+								return chain;
+							},
+							or() {
+								return chain;
+							},
+							limit() {
+								return Promise.resolve({
+									data: agentSessions,
+									error: null,
+								});
+							},
+						};
+						return chain;
+					},
+					update(values: Record<string, unknown>) {
+						sessionUpdates.push(values);
+						return {
+							eq() {
+								return {
+									eq() {
+										return Promise.resolve({ data: null, error: null });
+									},
+								};
 							},
 						};
 					},
@@ -70,7 +138,25 @@ function makeSupabase({
 		},
 	} as unknown as SupabaseClient;
 
-	return { client, insertedEvents };
+	return { client, insertedEvents, sessionUpdates };
+}
+
+function flattenInsertedEvents({
+	insertedEvents,
+}: {
+	insertedEvents: unknown[];
+}): Array<{ kind?: unknown; payload?: unknown }> {
+	const rows: Array<{ kind?: unknown; payload?: unknown }> = [];
+	for (const entry of insertedEvents) {
+		if (Array.isArray(entry)) {
+			for (const row of entry) {
+				rows.push(row as { kind?: unknown; payload?: unknown });
+			}
+			continue;
+		}
+		rows.push(entry as { kind?: unknown; payload?: unknown });
+	}
+	return rows;
 }
 
 describe("buildDaytonaCommand", () => {
@@ -79,10 +165,30 @@ describe("buildDaytonaCommand", () => {
 			buildDaytonaCommand({
 				command: "qcut system doctor --json --skip-health",
 			})
-		).toEqual({
-			command:
-				"mkdir -p /tmp/qcut-output && /usr/local/bin/qcut-entrypoint qcut system doctor --json --skip-health -o /tmp/qcut-output",
-			archiveCommand: "tar -C /tmp/qcut-output -cf /tmp/qcut-output.tar .",
+		).toMatchObject({
+			command: EXPECTED_QCUT_DOCTOR_DAYTONA_COMMAND,
+			archiveCommand:
+				"tar --exclude='.qcut-agent-*' -C /tmp/qcut-output -cf /tmp/qcut-output.tar .",
+			streams: [
+				{
+					path: "/tmp/qcut-output/qcut-stdout.txt",
+					kind: "daytona_stdout",
+					source: "qcut-stdout.txt",
+				},
+				{
+					path: "/tmp/qcut-output/qcut-stderr.txt",
+					kind: "daytona_stderr",
+					source: "qcut-stderr.txt",
+				},
+				{
+					path: "/tmp/qcut-output/.qcut-agent-wrapper-stderr",
+					kind: "daytona_stderr",
+					source: ".qcut-agent-wrapper-stderr",
+				},
+			],
+			stdoutPath: "/tmp/qcut-output/qcut-stdout.txt",
+			stderrPath: "/tmp/qcut-output/qcut-stderr.txt",
+			exitPath: "/tmp/qcut-output/qcut-exit.json",
 		});
 	});
 
@@ -91,10 +197,10 @@ describe("buildDaytonaCommand", () => {
 			buildDaytonaCommand({
 				command: "qcut gen image -t icon,logo -m flux_dev --json",
 			})
-		).toEqual({
-			command:
-				"mkdir -p /tmp/qcut-output && /usr/local/bin/qcut-entrypoint qcut gen image -t icon,logo -m flux_dev --json -o /tmp/qcut-output",
-			archiveCommand: "tar -C /tmp/qcut-output -cf /tmp/qcut-output.tar .",
+		).toMatchObject({
+			command: EXPECTED_QCUT_IMAGE_DAYTONA_COMMAND,
+			archiveCommand:
+				"tar --exclude='.qcut-agent-*' -C /tmp/qcut-output -cf /tmp/qcut-output.tar .",
 		});
 	});
 
@@ -105,16 +211,40 @@ describe("buildDaytonaCommand", () => {
 	});
 
 	it("builds a codex stdin command without interpolating the prompt", () => {
-		expect(
-			buildDaytonaCommand({
-				command: CODEX_AGENT_COMMAND,
-				args: { codexPrompt: "Explain QCut's agent path." },
-			})
-		).toEqual({
-			command:
-				"set -o pipefail; mkdir -p /tmp/qcut-output; printf '%s' \"$QCUT_CODEX_PROMPT_B64\" | base64 -d | /usr/local/bin/qcut-entrypoint codex exec --skip-git-repo-check --sandbox danger-full-access --json --output-last-message /tmp/qcut-output/codex-last-message.md - > /tmp/qcut-output/codex-events.jsonl",
-			archiveCommand: "tar -C /tmp/qcut-output -cf /tmp/qcut-output.tar .",
+		const commandParts = buildDaytonaCommand({
+			command: CODEX_AGENT_COMMAND,
+			args: { codexPrompt: "Explain QCut's agent path." },
 		});
+		expect(commandParts).toMatchObject({
+			archiveCommand:
+				"tar --exclude='.qcut-agent-*' -C /tmp/qcut-output -cf /tmp/qcut-output.tar .",
+			streams: [
+				{
+					path: "/tmp/qcut-output/codex-live-stdout.log",
+					kind: "codex_stdout",
+					source: "codex-live-stdout.log",
+				},
+				{
+					path: "/tmp/qcut-output/codex-events.jsonl",
+					kind: "codex_event",
+					source: "codex-events.jsonl",
+				},
+				{
+					path: "/tmp/qcut-output/.qcut-agent-wrapper-stderr",
+					kind: "daytona_stderr",
+					source: ".qcut-agent-wrapper-stderr",
+				},
+			],
+			stdoutPath: "/tmp/qcut-output/codex-events.jsonl",
+			stderrPath: "/tmp/qcut-output/.qcut-agent-wrapper-stderr",
+			exitPath: "/tmp/qcut-output/qcut-exit.json",
+		});
+		const command = commandParts.command;
+		expect(command).toContain("export QCUT_CODEX_PROMPT_B64=");
+		expect(command).toContain("export QCUT_BOOTSTRAP_CODEX=1");
+		expect(command).toContain("/usr/local/bin/qcut-entrypoint codex exec");
+		expect(command).toContain("--dangerously-bypass-approvals-and-sandbox");
+		expect(command).not.toContain("Explain QCut's agent path.");
 	});
 });
 
@@ -170,9 +300,10 @@ describe("buildDaytonaEnv", () => {
 describe("runOnDaytona", () => {
 	it("creates an ephemeral image sandbox, executes qcut, downloads artifacts, and deletes the sandbox", async () => {
 		process.env.DAYTONA_API_KEY = "daytona-test";
-		const { client } = makeSupabase();
+		const { client, insertedEvents } = makeSupabase();
 		const outputDir = await mkdtemp(join(tmpdir(), "qcut-daytona-test-"));
 		const sessionCalls: string[] = [];
+		let stdoutReads = 0;
 		const clientConfigs: Array<{ apiKey: string }> = [];
 		const createCalls: unknown[] = [];
 		const deleteCalls: string[] = [];
@@ -195,6 +326,40 @@ describe("runOnDaytona", () => {
 					timeout?: number
 				) {
 					sessionCalls.push(`${sessionId}:${request.command}:${timeout}`);
+					if (
+						request.command.startsWith("cat ") &&
+						request.command.includes("qcut-stdout.txt")
+					) {
+						stdoutReads += 1;
+						if (stdoutReads === 1) {
+							return Promise.reject(
+								new Error(
+									'DaytonaError: failed to execute command: bad request: failed to convert exit code to int: strconv.Atoi: parsing "": invalid syntax'
+								)
+							);
+						}
+						return Promise.resolve({
+							stdout: '{"kind":"cli_progress","message":"halfway"}\n',
+							stderr: "",
+							exitCode: 0,
+						});
+					}
+					if (
+						request.command.includes("qcut-stderr.txt") ||
+						request.command.includes(".qcut-agent-wrapper-stderr")
+					) {
+						return Promise.resolve({ stdout: "", stderr: "", exitCode: 0 });
+					}
+					if (request.command.includes(".qcut-agent-done")) {
+						return Promise.resolve({ stdout: "yes", stderr: "", exitCode: 0 });
+					}
+					if (request.command.includes("qcut-exit.json")) {
+						return Promise.resolve({
+							stdout: '{"exitCode":0}\n',
+							stderr: "",
+							exitCode: 0,
+						});
+					}
 					return Promise.resolve({
 						stdout: "ok",
 						stderr: "",
@@ -220,6 +385,12 @@ describe("runOnDaytona", () => {
 				return Promise.resolve(sandbox);
 			}
 
+			get() {
+				return Promise.reject(
+					new Error("get should not run for one-shot jobs")
+				);
+			}
+
 			delete(target: { id: string }) {
 				deleteCalls.push(target.id);
 				return Promise.resolve();
@@ -233,6 +404,7 @@ describe("runOnDaytona", () => {
 				DaytonaClient: FakeDaytonaClient,
 				makeOutputDir: () => Promise.resolve(outputDir),
 				makeSessionId: () => "session-1",
+				sleep: () => Promise.resolve(),
 				extractArchive: () => Promise.resolve(),
 			},
 		});
@@ -241,7 +413,7 @@ describe("runOnDaytona", () => {
 		expect(createCalls).toEqual([
 			{
 				image:
-					"ghcr.io/quriosity-agent/qcut-cli@sha256:2b9b8c7aa80bc2e5db874f04ccca302bbce0693a7d90274fe2b8645049fdbb7b",
+					"ghcr.io/quriosity-agent/qcut-cli@sha256:48aa813162bf7a4b20d38ec694ccc0e1ffc9b61dcdc8c9e1447749d77b500923",
 				envVars: {
 					QCUT_SESSION_ROLE: "agent",
 					OPENAI_API_KEY: "sk-test",
@@ -251,11 +423,13 @@ describe("runOnDaytona", () => {
 				autoStopInterval: 30,
 			},
 		]);
+		expect(
+			sessionCalls.some((call) => call.includes("rm -rf /tmp/qcut-output"))
+		).toBe(true);
+		expect(sessionCalls.some((call) => call.includes("&;"))).toBe(false);
+		expect(sessionCalls.some((call) => call.includes("& pid=$!"))).toBe(true);
 		expect(sessionCalls).toContain(
-			"session-1:mkdir -p /tmp/qcut-output && /usr/local/bin/qcut-entrypoint qcut system doctor --json --skip-health -o /tmp/qcut-output:1800"
-		);
-		expect(sessionCalls).toContain(
-			"session-1:tar -C /tmp/qcut-output -cf /tmp/qcut-output.tar .:1800"
+			"session-1:tar --exclude='.qcut-agent-*' -C /tmp/qcut-output -cf /tmp/qcut-output.tar .:1800"
 		);
 		expect(downloaded).toEqual([
 			{
@@ -265,11 +439,130 @@ describe("runOnDaytona", () => {
 		]);
 		expect(deleteCalls).toEqual(["sandbox-1"]);
 		expect(result).toMatchObject({
-			stdout: "ok",
+			stdout: '{"kind":"cli_progress","message":"halfway"}\n',
 			stderr: "",
 			exitCode: 0,
 			outputDir,
 			artifactsFallback: false,
+			eventsStreamed: true,
+		});
+		expect(
+			flattenInsertedEvents({ insertedEvents }).map((event) => event.kind)
+		).toEqual([
+			"daytona_sandbox_ready",
+			"daytona_command_started",
+			"cli_progress",
+			"daytona_command_finished",
+		]);
+		expect(stdoutReads).toBeGreaterThan(1);
+
+		await rm(outputDir, { recursive: true, force: true });
+	});
+
+	it("streams Codex live stdout without duplicating final aggregated output", async () => {
+		process.env.DAYTONA_API_KEY = "daytona-test";
+		const { client, insertedEvents } = makeSupabase();
+		const outputDir = await mkdtemp(join(tmpdir(), "qcut-daytona-test-"));
+		const codexEvent = JSON.stringify({
+			item: {
+				id: "item_0",
+				type: "command_execution",
+				status: "completed",
+				command:
+					"/bin/bash -lc 'echo LIVE_1 | tee -a /tmp/qcut-output/codex-live-stdout.log'",
+				exit_code: 0,
+				aggregated_output: "LIVE_1\n",
+			},
+			type: "item.completed",
+		});
+		const sandbox = {
+			id: "sandbox-1",
+			process: {
+				createSession() {
+					return Promise.resolve();
+				},
+				deleteSession() {
+					return Promise.resolve();
+				},
+				executeSessionCommand(
+					_sessionId: string,
+					request: { command: string }
+				) {
+					if (request.command.includes("codex-live-stdout.log")) {
+						return Promise.resolve({
+							stdout: "LIVE_1\n",
+							stderr: "",
+							exitCode: 0,
+						});
+					}
+					if (request.command.includes("codex-events.jsonl")) {
+						return Promise.resolve({
+							stdout: `${codexEvent}\n`,
+							stderr: "",
+							exitCode: 0,
+						});
+					}
+					if (request.command.includes(".qcut-agent-wrapper-stderr")) {
+						return Promise.resolve({ stdout: "", stderr: "", exitCode: 0 });
+					}
+					if (request.command.includes(".qcut-agent-done")) {
+						return Promise.resolve({ stdout: "yes", stderr: "", exitCode: 0 });
+					}
+					if (request.command.includes("qcut-exit.json")) {
+						return Promise.resolve({
+							stdout: '{"exitCode":0}\n',
+							stderr: "",
+							exitCode: 0,
+						});
+					}
+					return Promise.resolve({ stdout: "ok", stderr: "", exitCode: 0 });
+				},
+			},
+			fs: {
+				downloadFile() {
+					return Promise.resolve();
+				},
+			},
+		};
+
+		class FakeDaytonaClient {
+			create() {
+				return Promise.resolve(sandbox);
+			}
+
+			get() {
+				return Promise.reject(
+					new Error("get should not run for one-shot jobs")
+				);
+			}
+
+			delete() {
+				return Promise.resolve();
+			}
+		}
+
+		await runOnDaytona({
+			supabase: client,
+			job: makeJob({
+				command: CODEX_AGENT_COMMAND,
+				args: { codexPrompt: "Run a streaming probe." },
+			}),
+			deps: {
+				DaytonaClient: FakeDaytonaClient,
+				makeOutputDir: () => Promise.resolve(outputDir),
+				makeSessionId: () => "session-1",
+				sleep: () => Promise.resolve(),
+				extractArchive: () => Promise.resolve(),
+			},
+		});
+
+		const stdoutEvents = flattenInsertedEvents({ insertedEvents }).filter(
+			(event) => event.kind === "codex_stdout"
+		);
+		expect(stdoutEvents).toHaveLength(1);
+		expect(stdoutEvents[0]?.payload).toMatchObject({
+			message: "LIVE_1",
+			source: "codex-live-stdout.log",
 		});
 
 		await rm(outputDir, { recursive: true, force: true });
@@ -291,7 +584,33 @@ describe("runOnDaytona", () => {
 				deleteSession() {
 					return Promise.resolve();
 				},
-				executeSessionCommand() {
+				executeSessionCommand(
+					_sessionId: string,
+					request: { command: string }
+				) {
+					if (request.command.includes("qcut-stderr.txt")) {
+						return Promise.resolve({
+							stdout: "stderr text",
+							stderr: "",
+							exitCode: 0,
+						});
+					}
+					if (
+						request.command.includes("qcut-stdout.txt") ||
+						request.command.includes(".qcut-agent-wrapper-stderr")
+					) {
+						return Promise.resolve({ stdout: "", stderr: "", exitCode: 0 });
+					}
+					if (request.command.includes(".qcut-agent-done")) {
+						return Promise.resolve({ stdout: "yes", stderr: "", exitCode: 0 });
+					}
+					if (request.command.includes("qcut-exit.json")) {
+						return Promise.resolve({
+							stdout: '{"exitCode":0}\n',
+							stderr: "",
+							exitCode: 0,
+						});
+					}
 					return Promise.resolve({
 						stdout: "",
 						stderr: "stderr text",
@@ -315,6 +634,12 @@ describe("runOnDaytona", () => {
 				return Promise.resolve(sandbox);
 			}
 
+			get() {
+				return Promise.reject(
+					new Error("get should not run for one-shot jobs")
+				);
+			}
+
 			delete() {
 				return Promise.resolve();
 			}
@@ -327,6 +652,7 @@ describe("runOnDaytona", () => {
 				DaytonaClient: FakeDaytonaClient,
 				makeOutputDir: () => Promise.resolve(outputDir),
 				makeSessionId: () => "session-1",
+				sleep: () => Promise.resolve(),
 			},
 		});
 
@@ -334,9 +660,541 @@ describe("runOnDaytona", () => {
 			"stderr text"
 		);
 		expect(clientConfigs).toEqual([{ apiKey: "daytona-test" }]);
-		expect(insertedEvents).toHaveLength(1);
+		expect(
+			flattenInsertedEvents({ insertedEvents }).some(
+				(event) => event.kind === "artifact_fallback"
+			)
+		).toBe(true);
 		expect(result.artifactsFallback).toBe(true);
 
 		await rm(outputDir, { recursive: true, force: true });
+	});
+
+	it("reuses a persisted agent session sandbox and keeps it alive after the job", async () => {
+		process.env.DAYTONA_API_KEY = "daytona-test";
+		const { client, insertedEvents, sessionUpdates } = makeSupabase({
+			agentSessions: [
+				{
+					id: "agent-session-1",
+					user_id: "user-1",
+					status: "active",
+					provider_session_id: "sandbox-persisted",
+					image_tag:
+						"ghcr.io/quriosity-agent/qcut-cli@sha256:48aa813162bf7a4b20d38ec694ccc0e1ffc9b61dcdc8c9e1447749d77b500923",
+					last_active_at: "2026-05-14T00:00:00.000Z",
+					expires_at: "2099-01-01T00:00:00.000Z",
+					end_reason: null,
+				},
+			],
+		});
+		const outputDir = await mkdtemp(join(tmpdir(), "qcut-daytona-test-"));
+		const getCalls: string[] = [];
+		const deleteCalls: string[] = [];
+
+		const sandbox = {
+			id: "sandbox-persisted",
+			process: {
+				createSession() {
+					return Promise.resolve();
+				},
+				deleteSession() {
+					return Promise.resolve();
+				},
+				executeSessionCommand(
+					_sessionId: string,
+					request: { command: string }
+				) {
+					if (request.command.includes(".qcut-agent-done")) {
+						return Promise.resolve({ stdout: "yes", stderr: "", exitCode: 0 });
+					}
+					if (request.command.includes("qcut-exit.json")) {
+						return Promise.resolve({
+							stdout: '{"exitCode":0}\n',
+							stderr: "",
+							exitCode: 0,
+						});
+					}
+					return Promise.resolve({ stdout: "", stderr: "", exitCode: 0 });
+				},
+			},
+			fs: {
+				downloadFile() {
+					return Promise.resolve();
+				},
+			},
+		};
+
+		class FakeDaytonaClient {
+			get(sandboxId: string) {
+				getCalls.push(sandboxId);
+				return Promise.resolve(sandbox);
+			}
+
+			create() {
+				return Promise.reject(
+					new Error("create should not run for an existing session")
+				);
+			}
+
+			delete(target: { id: string }) {
+				deleteCalls.push(target.id);
+				return Promise.resolve();
+			}
+		}
+
+		await runOnDaytona({
+			supabase: client,
+			job: makeJob({ sessionId: "agent-session-1" }),
+			deps: {
+				DaytonaClient: FakeDaytonaClient,
+				makeOutputDir: () => Promise.resolve(outputDir),
+				makeSessionId: () => "session-1",
+				sleep: () => Promise.resolve(),
+				extractArchive: () => Promise.resolve(),
+			},
+		});
+
+		expect(getCalls).toEqual(["sandbox-persisted"]);
+		expect(deleteCalls).toEqual([]);
+		expect(sessionUpdates).toEqual(
+			expect.arrayContaining([
+				expect.objectContaining({
+					provider_session_id: "sandbox-persisted",
+					runner_id: "runner-1",
+				}),
+			])
+		);
+		expect(
+			flattenInsertedEvents({ insertedEvents }).map((event) => event.kind)
+		).toContain("agent_session_ready");
+
+		await rm(outputDir, { recursive: true, force: true });
+	});
+
+	it("creates a persistent sandbox for a new agent session and leaves it running", async () => {
+		process.env.DAYTONA_API_KEY = "daytona-test";
+		const { client, insertedEvents, sessionUpdates } = makeSupabase({
+			agentSessions: [
+				{
+					id: "agent-session-1",
+					user_id: "user-1",
+					status: "active",
+					provider_session_id: null,
+					image_tag: "qcut-cli:session-row",
+					last_active_at: "2026-05-14T00:00:00.000Z",
+					expires_at: "2099-01-01T00:00:00.000Z",
+					end_reason: null,
+				},
+			],
+		});
+		const outputDir = await mkdtemp(join(tmpdir(), "qcut-daytona-test-"));
+		const createCalls: unknown[] = [];
+		const deleteCalls: string[] = [];
+		const sandbox = {
+			id: "sandbox-new-session",
+			process: {
+				createSession() {
+					return Promise.resolve();
+				},
+				deleteSession() {
+					return Promise.resolve();
+				},
+				executeSessionCommand(
+					_sessionId: string,
+					request: { command: string }
+				) {
+					if (request.command.includes(".qcut-agent-done")) {
+						return Promise.resolve({ stdout: "yes", stderr: "", exitCode: 0 });
+					}
+					if (request.command.includes("qcut-exit.json")) {
+						return Promise.resolve({
+							stdout: '{"exitCode":0}\n',
+							stderr: "",
+							exitCode: 0,
+						});
+					}
+					return Promise.resolve({ stdout: "", stderr: "", exitCode: 0 });
+				},
+			},
+			fs: {
+				downloadFile() {
+					return Promise.resolve();
+				},
+			},
+		};
+
+		class FakeDaytonaClient {
+			get() {
+				return Promise.reject(new Error("no existing sandbox"));
+			}
+
+			create(params: unknown) {
+				createCalls.push(params);
+				return Promise.resolve(sandbox);
+			}
+
+			delete(target: { id: string }) {
+				deleteCalls.push(target.id);
+				return Promise.resolve();
+			}
+		}
+
+		await runOnDaytona({
+			supabase: client,
+			job: makeJob({ sessionId: "agent-session-1" }),
+			deps: {
+				DaytonaClient: FakeDaytonaClient,
+				makeOutputDir: () => Promise.resolve(outputDir),
+				makeSessionId: () => "session-1",
+				sleep: () => Promise.resolve(),
+				extractArchive: () => Promise.resolve(),
+			},
+		});
+
+		expect(createCalls).toEqual([
+			expect.objectContaining({
+				image: "qcut-cli:session-row",
+				autoStopInterval: 120,
+			}),
+		]);
+		expect(deleteCalls).toEqual([]);
+		expect(sessionUpdates).toEqual(
+			expect.arrayContaining([
+				expect.objectContaining({
+					provider_session_id: "sandbox-new-session",
+					runner_id: "runner-1",
+				}),
+			])
+		);
+		expect(
+			flattenInsertedEvents({ insertedEvents }).find(
+				(event) => event.kind === "agent_session_ready"
+			)?.payload
+		).toMatchObject({
+			sessionId: "agent-session-1",
+			sandboxId: "sandbox-new-session",
+			reused: false,
+		});
+
+		await rm(outputDir, { recursive: true, force: true });
+	});
+
+	it("replaces a missing persisted agent session sandbox without deleting the replacement", async () => {
+		process.env.DAYTONA_API_KEY = "daytona-test";
+		vi.spyOn(console, "warn").mockImplementation(() => {});
+		const { client, insertedEvents, sessionUpdates } = makeSupabase({
+			agentSessions: [
+				{
+					id: "agent-session-1",
+					user_id: "user-1",
+					status: "active",
+					provider_session_id: "sandbox-gone",
+					image_tag: "qcut-cli:session-row",
+					last_active_at: "2026-05-14T00:00:00.000Z",
+					expires_at: "2099-01-01T00:00:00.000Z",
+					end_reason: null,
+				},
+			],
+		});
+		const outputDir = await mkdtemp(join(tmpdir(), "qcut-daytona-test-"));
+		const createCalls: unknown[] = [];
+		const deleteCalls: string[] = [];
+		const sandbox = {
+			id: "sandbox-replacement",
+			process: {
+				createSession() {
+					return Promise.resolve();
+				},
+				deleteSession() {
+					return Promise.resolve();
+				},
+				executeSessionCommand(
+					_sessionId: string,
+					request: { command: string }
+				) {
+					if (request.command.includes(".qcut-agent-done")) {
+						return Promise.resolve({ stdout: "yes", stderr: "", exitCode: 0 });
+					}
+					if (request.command.includes("qcut-exit.json")) {
+						return Promise.resolve({
+							stdout: '{"exitCode":0}\n',
+							stderr: "",
+							exitCode: 0,
+						});
+					}
+					return Promise.resolve({ stdout: "", stderr: "", exitCode: 0 });
+				},
+			},
+			fs: {
+				downloadFile() {
+					return Promise.resolve();
+				},
+			},
+		};
+
+		class FakeDaytonaClient {
+			get() {
+				return Promise.reject(new Error("sandbox not found"));
+			}
+
+			create(params: unknown) {
+				createCalls.push(params);
+				return Promise.resolve(sandbox);
+			}
+
+			delete(target: { id: string }) {
+				deleteCalls.push(target.id);
+				return Promise.resolve();
+			}
+		}
+
+		await runOnDaytona({
+			supabase: client,
+			job: makeJob({ sessionId: "agent-session-1" }),
+			deps: {
+				DaytonaClient: FakeDaytonaClient,
+				makeOutputDir: () => Promise.resolve(outputDir),
+				makeSessionId: () => "session-1",
+				sleep: () => Promise.resolve(),
+				extractArchive: () => Promise.resolve(),
+			},
+		});
+
+		expect(createCalls).toEqual([
+			expect.objectContaining({ image: "qcut-cli:session-row" }),
+		]);
+		expect(deleteCalls).toEqual([]);
+		expect(sessionUpdates).toEqual(
+			expect.arrayContaining([
+				expect.objectContaining({
+					provider_session_id: "sandbox-replacement",
+				}),
+			])
+		);
+		expect(
+			flattenInsertedEvents({ insertedEvents }).find(
+				(event) => event.kind === "agent_session_ready"
+			)?.payload
+		).toMatchObject({ reused: false, sandboxId: "sandbox-replacement" });
+
+		await rm(outputDir, { recursive: true, force: true });
+	});
+
+	it("cleans up idle Daytona agent sessions", async () => {
+		process.env.DAYTONA_API_KEY = "daytona-test";
+		const { client, insertedEvents, sessionUpdates } = makeSupabase({
+			agentSessions: [
+				{
+					id: "agent-session-1",
+					user_id: "user-1",
+					status: "active",
+					provider_session_id: "sandbox-persisted",
+					image_tag: "qcut-cli",
+					last_active_at: "2026-05-14T00:00:00.000Z",
+					expires_at: "2099-01-01T00:00:00.000Z",
+					end_reason: null,
+				},
+			],
+		});
+		const deleteCalls: string[] = [];
+		const sandbox = {
+			id: "sandbox-persisted",
+			process: {
+				createSession() {
+					return Promise.resolve();
+				},
+				deleteSession() {
+					return Promise.resolve();
+				},
+				executeSessionCommand() {
+					return Promise.resolve({ stdout: "", stderr: "", exitCode: 0 });
+				},
+			},
+			fs: {
+				downloadFile() {
+					return Promise.resolve();
+				},
+			},
+		};
+
+		class FakeDaytonaClient {
+			get() {
+				return Promise.resolve(sandbox);
+			}
+
+			create() {
+				return Promise.reject(
+					new Error("create should not run during cleanup")
+				);
+			}
+
+			delete(target: { id: string }) {
+				deleteCalls.push(target.id);
+				return Promise.resolve();
+			}
+		}
+
+		const count = await cleanupDaytonaAgentSessions({
+			supabase: client,
+			runnerId: "runner-cleanup",
+			deps: { DaytonaClient: FakeDaytonaClient },
+		});
+
+		expect(count).toBe(1);
+		expect(deleteCalls).toEqual(["sandbox-persisted"]);
+		expect(sessionUpdates).toEqual([
+			expect.objectContaining({
+				status: "ended",
+				end_reason: "idle_timeout",
+				runner_id: "runner-cleanup",
+			}),
+		]);
+		expect(
+			flattenInsertedEvents({ insertedEvents }).map((event) => event.kind)
+		).toContain("agent_session_ended");
+	});
+
+	it("marks expired sessions with the ttl cleanup reason", async () => {
+		process.env.DAYTONA_API_KEY = "daytona-test";
+		const { client, sessionUpdates } = makeSupabase({
+			agentSessions: [
+				{
+					id: "agent-session-1",
+					user_id: "user-1",
+					status: "active",
+					provider_session_id: null,
+					image_tag: "qcut-cli",
+					last_active_at: "2099-01-01T00:00:00.000Z",
+					expires_at: "2000-01-01T00:00:00.000Z",
+					end_reason: null,
+				},
+			],
+		});
+
+		class FakeDaytonaClient {
+			get() {
+				return Promise.reject(new Error("get should not run without sandbox"));
+			}
+
+			create() {
+				return Promise.reject(
+					new Error("create should not run during cleanup")
+				);
+			}
+
+			delete() {
+				return Promise.reject(
+					new Error("delete should not run without sandbox")
+				);
+			}
+		}
+
+		const count = await cleanupDaytonaAgentSessions({
+			supabase: client,
+			runnerId: "runner-cleanup",
+			deps: { DaytonaClient: FakeDaytonaClient },
+		});
+
+		expect(count).toBe(1);
+		expect(sessionUpdates).toEqual([
+			expect.objectContaining({ status: "ended", end_reason: "ttl" }),
+		]);
+	});
+
+	it("marks stopping sessions with the user_kill cleanup reason", async () => {
+		process.env.DAYTONA_API_KEY = "daytona-test";
+		const { client, sessionUpdates } = makeSupabase({
+			agentSessions: [
+				{
+					id: "agent-session-1",
+					user_id: "user-1",
+					status: "stopping",
+					provider_session_id: null,
+					image_tag: "qcut-cli",
+					last_active_at: "2099-01-01T00:00:00.000Z",
+					expires_at: "2099-01-01T00:00:00.000Z",
+					end_reason: "user_kill",
+				},
+			],
+		});
+
+		class FakeDaytonaClient {
+			get() {
+				return Promise.reject(new Error("get should not run without sandbox"));
+			}
+
+			create() {
+				return Promise.reject(
+					new Error("create should not run during cleanup")
+				);
+			}
+
+			delete() {
+				return Promise.reject(
+					new Error("delete should not run without sandbox")
+				);
+			}
+		}
+
+		const count = await cleanupDaytonaAgentSessions({
+			supabase: client,
+			runnerId: "runner-cleanup",
+			deps: { DaytonaClient: FakeDaytonaClient },
+		});
+
+		expect(count).toBe(1);
+		expect(sessionUpdates).toEqual([
+			expect.objectContaining({ status: "ended", end_reason: "user_kill" }),
+		]);
+	});
+
+	it("ends cleanup rows even when Daytona delete reports the sandbox is gone", async () => {
+		process.env.DAYTONA_API_KEY = "daytona-test";
+		vi.spyOn(console, "warn").mockImplementation(() => {});
+		const { client, sessionUpdates } = makeSupabase({
+			agentSessions: [
+				{
+					id: "agent-session-1",
+					user_id: "user-1",
+					status: "stopping",
+					provider_session_id: "sandbox-gone",
+					image_tag: "qcut-cli",
+					last_active_at: "2099-01-01T00:00:00.000Z",
+					expires_at: "2099-01-01T00:00:00.000Z",
+					end_reason: "user_kill",
+				},
+			],
+		});
+
+		class FakeDaytonaClient {
+			get() {
+				return Promise.reject(new Error("404 sandbox not found"));
+			}
+
+			create() {
+				return Promise.reject(
+					new Error("create should not run during cleanup")
+				);
+			}
+
+			delete() {
+				return Promise.reject(new Error("delete should not run after 404"));
+			}
+		}
+
+		const count = await cleanupDaytonaAgentSessions({
+			supabase: client,
+			runnerId: "runner-cleanup",
+			deps: { DaytonaClient: FakeDaytonaClient },
+		});
+
+		expect(count).toBe(1);
+		expect(sessionUpdates).toEqual([
+			expect.objectContaining({
+				status: "ended",
+				end_reason: "user_kill",
+				runner_id: "runner-cleanup",
+			}),
+		]);
 	});
 });

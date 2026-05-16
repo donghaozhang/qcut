@@ -73,22 +73,26 @@ export async function markEnded(
 	env: Env,
 	session_id: string,
 	reason: "disconnect" | "idle_timeout" | "ttl" | "error" | "user_kill",
-	exit_code?: number
+	exit_code?: number,
+	table: "sandbox_sessions" | "agent_sessions" = "sandbox_sessions"
 ): Promise<void> {
-	await rest(env, "PATCH", `sandbox_sessions?id=eq.${session_id}`, {
+	await rest(env, "PATCH", `${table}?id=eq.${session_id}`, {
 		status: "ended",
 		ended_at: new Date().toISOString(),
 		end_reason: reason,
-		exit_code: exit_code ?? null,
+		...(table === "sandbox_sessions" ? { exit_code: exit_code ?? null } : {}),
 	});
 }
 
 export async function fetchSession(
 	env: Env,
-	session_id: string
+	session_id: string,
+	session_kind?: "agent" | "sandbox"
 ): Promise<{
 	id: string;
+	type: "agent" | "sandbox";
 	status: string;
+	provider: string;
 	provider_session_id: string;
 	expires_at: string;
 } | null> {
@@ -98,24 +102,16 @@ export async function fetchSession(
 	const ctl = new AbortController();
 	const timer = setTimeout(() => ctl.abort(), REST_TIMEOUT_MS);
 	try {
-		const r = await fetch(
-			`${env.SUPABASE_URL}/rest/v1/sandbox_sessions?id=eq.${session_id}&select=id,status,provider_session_id,expires_at`,
-			{
-				headers: {
-					apikey: env.SUPABASE_SERVICE_ROLE_KEY,
-					Authorization: `Bearer ${env.SUPABASE_SERVICE_ROLE_KEY}`,
-				},
-				signal: ctl.signal,
-			}
+		if (session_kind === "agent") {
+			return await fetchAgentSession({ env, session_id, signal: ctl.signal });
+		}
+		if (session_kind === "sandbox") {
+			return await fetchSandboxSession({ env, session_id, signal: ctl.signal });
+		}
+		return (
+			(await fetchSandboxSession({ env, session_id, signal: ctl.signal })) ??
+			(await fetchAgentSession({ env, session_id, signal: ctl.signal }))
 		);
-		if (!r.ok) return null;
-		const rows = (await r.json()) as Array<{
-			id: string;
-			status: string;
-			provider_session_id: string;
-			expires_at: string;
-		}>;
-		return rows[0] ?? null;
 	} catch (err) {
 		console.error(
 			`[qcut-relay] fetchSession(${session_id}) threw:`,
@@ -124,5 +120,115 @@ export async function fetchSession(
 		return null;
 	} finally {
 		clearTimeout(timer);
+	}
+}
+
+async function fetchSandboxSession({
+	env,
+	session_id,
+	signal,
+}: {
+	env: Env;
+	session_id: string;
+	signal: AbortSignal;
+}): Promise<{
+	id: string;
+	type: "sandbox";
+	status: string;
+	provider: string;
+	provider_session_id: string;
+	expires_at: string;
+} | null> {
+	try {
+		const r = await fetch(
+			`${env.SUPABASE_URL}/rest/v1/sandbox_sessions?id=eq.${session_id}&select=id,status,provider,provider_session_id,expires_at`,
+			{
+				headers: {
+					apikey: env.SUPABASE_SERVICE_ROLE_KEY,
+					Authorization: `Bearer ${env.SUPABASE_SERVICE_ROLE_KEY}`,
+				},
+				signal,
+			}
+		);
+		if (!r.ok) return null;
+		const rows = (await r.json()) as Array<{
+			id: string;
+			status: string;
+			provider?: string;
+			provider_session_id: string;
+			expires_at: string;
+		}>;
+		const row = rows[0];
+		return row
+			? {
+					id: row.id,
+					type: "sandbox",
+					status: row.status,
+					provider: row.provider ?? "e2b",
+					provider_session_id: row.provider_session_id,
+					expires_at: row.expires_at,
+				}
+			: null;
+	} catch (err) {
+		console.error(
+			`[qcut-relay] fetchSandboxSession(${session_id}) threw:`,
+			err instanceof Error ? err.message : String(err)
+		);
+		return null;
+	}
+}
+
+async function fetchAgentSession({
+	env,
+	session_id,
+	signal,
+}: {
+	env: Env;
+	session_id: string;
+	signal: AbortSignal;
+}): Promise<{
+	id: string;
+	type: "agent";
+	status: string;
+	provider: string;
+	provider_session_id: string;
+	expires_at: string;
+} | null> {
+	try {
+		const r = await fetch(
+			`${env.SUPABASE_URL}/rest/v1/agent_sessions?id=eq.${session_id}&select=id,status,provider,provider_session_id,expires_at`,
+			{
+				headers: {
+					apikey: env.SUPABASE_SERVICE_ROLE_KEY,
+					Authorization: `Bearer ${env.SUPABASE_SERVICE_ROLE_KEY}`,
+				},
+				signal,
+			}
+		);
+		if (!r.ok) return null;
+		const rows = (await r.json()) as Array<{
+			id: string;
+			status: string;
+			provider: string;
+			provider_session_id: string | null;
+			expires_at: string;
+		}>;
+		const row = rows[0];
+		return row?.provider_session_id
+			? {
+					id: row.id,
+					type: "agent",
+					status: row.status,
+					provider: row.provider,
+					provider_session_id: row.provider_session_id,
+					expires_at: row.expires_at,
+				}
+			: null;
+	} catch (err) {
+		console.error(
+			`[qcut-relay] fetchAgentSession(${session_id}) threw:`,
+			err instanceof Error ? err.message : String(err)
+		);
+		return null;
 	}
 }

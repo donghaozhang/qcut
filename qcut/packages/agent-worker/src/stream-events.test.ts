@@ -1,11 +1,12 @@
 import { describe, expect, it } from "vitest";
 import type { AgentJob } from "@qcut/db";
-import { parseStderr } from "./stream-events";
+import { parseEventText, parseStderr } from "./stream-events";
 
 function fakeJob(): AgentJob {
 	return {
 		id: "j-1",
 		userId: "user-abc",
+		sessionId: null,
 		status: "running",
 		command: "qcut system doctor --json --skip-health",
 		args: {},
@@ -68,5 +69,64 @@ describe("parseStderr", () => {
 	it("returns empty array for empty input", () => {
 		expect(parseStderr("", fakeJob())).toEqual([]);
 		expect(parseStderr("\n\n\n", fakeJob())).toEqual([]);
+	});
+
+	it("uses caller default kind when JSON has no kind", () => {
+		const rows = parseEventText({
+			text: '{"type":"exec_command","status":"started"}',
+			job: fakeJob(),
+			defaultKind: "codex_event",
+		});
+		expect(rows[0]?.kind).toBe("codex_event");
+		expect(rows[0]?.payload).toMatchObject({
+			type: "exec_command",
+			status: "started",
+		});
+	});
+
+	it("adds source metadata when payload does not provide it", () => {
+		const rows = parseEventText({
+			text: "download started",
+			job: fakeJob(),
+			defaultKind: "daytona_stdout",
+			source: "qcut-stdout.txt",
+		});
+		expect(rows[0]?.payload).toEqual({
+			message: "download started",
+			source: "qcut-stdout.txt",
+		});
+	});
+
+	it("splits Codex command aggregated output into stdout line events", () => {
+		const rows = parseEventText({
+			text: JSON.stringify({
+				item: {
+					id: "item_0",
+					type: "command_execution",
+					status: "completed",
+					command: "/bin/bash -lc 'echo hello'",
+					aggregated_output: "line one\nline two\n",
+				},
+				type: "item.completed",
+			}),
+			job: fakeJob(),
+			defaultKind: "codex_event",
+			source: "codex-events.jsonl",
+		});
+		expect(rows.map((row) => row.kind)).toEqual([
+			"codex_event",
+			"codex_stdout",
+			"codex_stdout",
+		]);
+		expect(rows[1]?.payload).toMatchObject({
+			message: "line one",
+			source: "codex-events.jsonl:aggregated_output",
+			itemId: "item_0",
+			command: "/bin/bash -lc 'echo hello'",
+		});
+		expect(rows[2]?.payload).toMatchObject({
+			message: "line two",
+			source: "codex-events.jsonl:aggregated_output",
+		});
 	});
 });

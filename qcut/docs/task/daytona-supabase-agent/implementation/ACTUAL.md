@@ -35,6 +35,8 @@ into that architecture.
 | `ed99a4ac9` + this follow-up        | **Phase 3 verification** — GHCR owner casing fix, public `qcut-cli:v0` publish, Daytona dogfood, worker row normalization, Daytona writable output dir                                                                                | completes provider verification for PR 05's Daytona swap-in                             |
 | `ce02d4968`                         | `Dockerfile.cli` now installs pinned Codex CLI `0.130.0` and Claude Code CLI `2.1.142`; `qcut-smoke` hard-checks both binaries and versions; GHCR `v0` republished                                                                      | updates PR 02 image contract                                                           |
 | this follow-up                      | Chat Agent Codex mode: license-server accepts the fixed `codex exec --skip-git-repo-check --json -` command, worker passes prompt via base64 env, entrypoint bootstraps Codex auth from `CODEX_AUTH_JSON` or gated `OPENAI_API_KEY` | extends PR 02 + PR 04 for coding-agent sandbox jobs                                    |
+| `qcut-cli-v2` follow-up             | YouTube download support in the Daytona CLI image: preinstalls pinned `yt-dlp` `2026.03.17`, Deno `2.7.4`, and `/etc/yt-dlp.conf` with `--remote-components ejs:github`; Codex prompts now keep temp installs/cache out of `/tmp/qcut-output` | extends PR 02 image contract and PR 04 Codex artifact hygiene                          |
+| `qcut-cli-v2` follow-up             | Daytona jobs now stream live `agent_events` while the sandbox command is still running; the website Codex pending bubble summarizes recent lifecycle/Codex events; internal `.qcut-agent-*` control files are excluded from uploaded artifacts | updates PR 04 worker telemetry and the Chat Agent website                              |
 
 ## Live verification (against production)
 
@@ -56,6 +58,11 @@ ap-southeast-2) and `qcutlove@qcut.app` user `79bf60b02770d2cc510da53e471590f4`:
 | GHCR native-cli skill image publish                                               | Workflow run `25902797671` republished `ghcr.io/quriosity-agent/qcut-cli:v0`; digest `sha256:2b9b8c7aa80bc2e5db874f04ccca302bbce0693a7d90274fe2b8645049fdbb7b`; pushed-image smoke verified `.claude/skills/native-cli/SKILL.md` |
 | Local Codex auth bootstrap smoke                                                  | `qcut-cli:codex-auth-smoke` built for `linux/amd64`; fake `CODEX_AUTH_JSON` wrote `~/.codex/auth.json` with mode `0600`; `QCUT_CODEX_PROMPT_B64` decoded correctly inside the image |
 | Website Codex → QCut CLI image E2E                                                | Chat Agent job `9b8a7693-00e0-4cff-8635-a7d78135d2d8` succeeded with exit `0`; Codex ran `qcut gen image ... -o /tmp/qcut-output`; uploaded JPG artifact `flux_dev_small-blue-square-icon-on-a-clean-white-background_1778827141210.jpg` |
+| Local YouTube-capable CLI image smoke                                             | `qcut-cli:youtube-fix` built for `linux/amd64`; `qcut-smoke` passed; `yt-dlp` + Deno downloaded a YouTube `.mp4` into `/tmp/qcut-output` without installing tools into the artifact directory |
+| GHCR YouTube-capable image publish                                                | Workflow run `25949183927` published `ghcr.io/quriosity-agent/qcut-cli:youtube-fix-20260516`; digest `sha256:48aa813162bf7a4b20d38ec694ccc0e1ffc9b61dcdc8c9e1447749d77b500923`; pushed-image and local pull smoke passed |
+| Website Codex → YouTube artifact E2E                                              | Chat Agent job `3b19b2cd-cb17-4576-add0-89ba9aca2e4e` succeeded with exit `0`; Codex used `yt-dlp` with cache under `/tmp/qcut-tools`; artifacts include downloadable `youtube-e2e.mp4` (464.8 KB) and summary JSON |
+| Website Codex realtime streaming E2E                                              | Chat Agent job `9d870b84-f2ba-4b43-b9df-c5ac9c2d14a9` succeeded with exit `0`; while the job was still running, the pending Codex bubble showed `daytona_command_started`, `thread.started`, `turn.started`, and `item.started`; artifacts included `ui-stream-summary.json` |
+| Daytona artifact-control-file hygiene                                             | `qcut --help --json` job `229f19e9-50ad-40f7-a83d-84df1f454c77` succeeded with exit `0`; uploaded artifacts are `qcut-exit.json`, `qcut-stdout.txt`, `qcut-stderr.txt`, and `qcut-output.tar`, with internal `.qcut-agent-*` files excluded |
 
 ## What is now done after `b536d61b2`
 
@@ -105,7 +112,7 @@ ap-southeast-2) and `qcutlove@qcut.app` user `79bf60b02770d2cc510da53e471590f4`:
     license-server only accepts the fixed stdin-based Codex command, the
     prompt travels as `args.codexPrompt`, the worker base64-encodes it into
     `QCUT_CODEX_PROMPT_B64`, and Daytona runs:
-    `codex exec --skip-git-repo-check --sandbox danger-full-access --json --output-last-message ... -`.
+    `codex exec --skip-git-repo-check --dangerously-bypass-approvals-and-sandbox --json --output-last-message ... -`.
     The explicit sandbox mode is required because Daytona already provides
     the external sandbox; Codex's default command sandbox can fail before a
     shell starts inside this image.
@@ -134,25 +141,237 @@ ap-southeast-2) and `qcutlove@qcut.app` user `79bf60b02770d2cc510da53e471590f4`:
     blob with the user's QCut auth token or the configured default agent
     account, then triggers a browser download without exposing Supabase
     service-role credentials to the frontend.
+15. **Daytona qcut jobs now capture CLI stdio as artifacts.**
+    E2E probes found that successful non-generation commands such as
+    `qcut system check-keys --json` returned `exit_code=0` but uploaded only
+    an empty `qcut-output.tar`, while failed commands returned `error=null`
+    with no visible reason. The Daytona runner now writes
+    `qcut-stdout.txt`, `qcut-stderr.txt`, and `qcut-exit.json` into
+    `/tmp/qcut-output` for every qcut job. The wrapper records the real CLI
+    exit code without closing the persistent Daytona session shell. Live
+    follow-up jobs verified both the failure path
+    (`575b396e-db81-480d-922d-20835650a63e`) and a real image generation
+    path (`9785346b-b385-4d45-bde1-525e8139d088`).
+16. **The next CLI image can handle YouTube download workflows.**
+    The previous Codex YouTube probe had two separate problems: the test
+    video `BaW_jenozKc` now returns `Video unavailable`, and the published
+    CLI image did not include `yt-dlp` or a JavaScript runtime, so Codex
+    installed tools inside `/tmp/qcut-output` and polluted artifacts.
+    `Dockerfile.cli` now preinstalls `yt-dlp` `2026.03.17`, Deno `2.7.4`,
+    and `/etc/yt-dlp.conf` with `--remote-components ejs:github`.
+    The Codex operating prompt also tells the sandbox to put temporary
+    tools/cache under `/tmp/qcut-tools` or `/tmp`, leaving
+    `/tmp/qcut-output` for final artifacts and small diagnostics only.
+    Workflow run `25949183927` published this as
+    `ghcr.io/quriosity-agent/qcut-cli:youtube-fix-20260516`; the Daytona
+    runner default image digest has been updated to
+    `sha256:48aa813162bf7a4b20d38ec694ccc0e1ffc9b61dcdc8c9e1447749d77b500923`.
+17. **Daytona jobs now stream while they run.**
+    The worker starts the sandbox command in the background, polls the
+    relevant output files every 2 seconds, and inserts new complete lines into
+    `agent_events` before the job reaches a terminal state. Codex jobs stream
+    `codex-events.jsonl`; direct qcut jobs stream `qcut-stdout.txt` and
+    `qcut-stderr.txt`. The main worker marks Daytona results as already
+    streamed so it does not duplicate stderr after completion. A live probe
+    caught an async-start shell bug (`&;`); the runner now uses a valid
+    background command, records start failures immediately, and avoids a fake
+    30-minute "running" state.
+18. **Chat Agent shows live Codex progress in the conversation.**
+    The website still renders the full Events panel, and now also updates the
+    pending Codex chat bubble with a short rolling summary of recent events.
+    Job `9d870b84-f2ba-4b43-b9df-c5ac9c2d14a9` verified the user-visible
+    behavior: before completion, the bubble showed the Daytona session event
+    plus Codex `thread.started`, `turn.started`, and `item.started`; after
+    completion it was replaced by `UI_STREAM_DONE /tmp/qcut-output/ui-stream-summary.json`.
+
+## Live CLI E2E coverage and timing
+
+This round verified **9 live agent jobs** covering **5 CLI command shapes**:
+help, auth/key inspection, model listing, expected validation failure, and
+real image generation. Durations below are measured from production
+`agent_jobs.created_at`, `claimed_at`, and `finished_at`; `queue` is time
+waiting for the worker, and `run` is Daytona sandbox execution plus artifact
+download/upload.
+
+| Job | Command | Result | Total | Queue | Run | Artifacts | What it proved |
+| --- | --- | --- | ---: | ---: | ---: | ---: | --- |
+| `bcec5b30` | `qcut gen image -t small-blue-square-icon-on-a-clean-white-background -m flux_dev --json` | succeeded / 0 | 12.1s | 1.1s | 11.0s | 3 | Website Chat Agent can run real image generation and return image/json/tar artifacts. |
+| `0dd0e898` | `qcut --help --json` | succeeded / 0 | 5.3s | 1.2s | 4.2s | 1 | Pre-fix probe: command succeeded but only uploaded empty tar, exposing missing stdout artifact. |
+| `c6732148` | `qcut system check-keys --json` | succeeded / 0 | 7.5s | 4.3s | 3.2s | 1 | Pre-fix probe: auth/key command succeeded but output was not visible to users. |
+| `7d823624` | `qcut system models --json` | succeeded / 0 | 10.5s | 6.7s | 3.8s | 1 | Pre-fix probe: model listing had the same missing-output problem. |
+| `d7e6813f` | `qcut gen image -m flux_dev --json` | failed / 1 | 4.8s | 0.5s | 4.3s | 1 | Pre-fix failure probe: validation failure had `error=null` and no readable reason. |
+| `575b396e` | `qcut gen image -m flux_dev --json` | failed / 1 | 235.0s | 229.0s | 6.0s | 4 | Post-fix failure probe: readable `qcut-stdout.txt` now contains `Missing --text/-t`; long total was caused by the intentionally unstuck queue. |
+| `da5a8216` | `qcut system check-keys --json` | succeeded / 0 | 6.1s | 0.9s | 5.2s | 4 | Post-fix success probe: stdout/stderr/exit artifacts are now uploaded for non-generation commands. |
+| `9785346b` | `qcut gen image -t tiny-red-circle-icon-on-white-background -m flux_dev --json` | succeeded / 0 | 13.5s | 1.1s | 12.4s | 6 | Post-fix real image generation still works; returned image/json plus stdio/exit artifacts. |
+| `899a9d6c` | `qcut --help --json` | succeeded / 0 | 7.4s | 1.3s | 6.1s | 4 | Deployed license-server source probe and post-fix help command artifact check. |
+
+Observed steady-state timing after the fix:
+
+- Light CLI commands (`help`, `check-keys`) usually finish in **6-8s total**.
+- Intentional validation failures finish in about **6s run time** once claimed.
+- Real `flux_dev` image generation finishes in about **12-14s total** in this
+  Daytona path for the tested prompts.
+- Queue time is normally about **1s** with the single live worker idle; the
+  `575b396e` row is an outlier because it sat behind a deliberately failed
+  hung-wrapper probe while the worker was restarted.
+
+## Live Codex conversation and YouTube artifact test
+
+The website Codex mode was tested as a three-turn browser session:
+
+| Job | Prompt shape | Result | Total | Queue | Run | Artifacts | What it proved |
+| --- | --- | --- | ---: | ---: | ---: | ---: | --- |
+| `8bac5fba` | Remember `sapphire-bridge-481` | succeeded / 0 | 11.1s | 1.4s | 9.8s | 3 | First Codex turn returned `stored sapphire-bridge-481` and uploaded `codex-last-message.md`. |
+| `19ff765e` | Ask what phrase was remembered, without repeating it | succeeded / 0 | 12.7s | 1.0s | 11.8s | 3 | Multi-turn context works in the current implementation: the page rebuilt the prompt from prior messages and Codex answered `sapphire-bridge-481`. |
+| `619d2ec1` | Download the public youtube-dl test video `BaW_jenozKc` into `/tmp/qcut-output` | succeeded / 0 | 104.4s | 1.4s | 103.0s | 7 | Pre-fix probe: Codex executed shell steps and uploaded diagnostics, but YouTube/yt-dlp returned `Video unavailable`; no `.mp4` artifact was produced. |
+| `3b19b2cd` | Download currently available YouTube URL `jNQXAC9IVRw` into `/tmp/qcut-output` | succeeded / 0 | ~2m | live website poll | live Daytona run | 5 | Post-fix E2E: Codex used preinstalled `yt-dlp` + Deno and wrote `youtube-e2e.mp4` plus summary JSON. The website Download button fetched the MP4 successfully. |
+| `4ceb713b` | Realtime streaming E2E: create `realtime-stream-summary.json` after a 4-step shell loop | succeeded / 0 | ~31s | live website poll | live Daytona run | 5 | Worker streamed Daytona lifecycle events and Codex JSONL events before completion; final reply was `STREAM_TEST_DONE /tmp/qcut-output/realtime-stream-summary.json`. |
+| `9d870b84` | Realtime UI smoke: create `ui-stream-summary.json` after a 2-step shell loop | succeeded / 0 | ~18s | live website poll | live Daytona run | 5 | Website pending Codex bubble updated while running with recent `daytona_command_started` and `codex_event` summaries, then resolved to `UI_STREAM_DONE ...`. |
+
+Current Codex conversation behavior:
+
+- Multi-turn works while the browser page remains open because the frontend
+  includes previous user/assistant messages in the next `codexPrompt`.
+- It is **not yet a persistent Codex session**. Each turn is a new Daytona
+  job, and refresh loses the in-memory conversation unless job history is
+  reloaded later.
+- Codex file artifacts work: `codex-events.jsonl`, `codex-last-message.md`,
+  and any files written to `/tmp/qcut-output` are uploaded.
+
+YouTube download result:
+
+- The job created `youtube-download-summary.json`,
+  `youtube-download-stdout.txt`, and `youtube-download-error.txt`.
+- `youtube-download-summary.json` reported `exit_status: 1`,
+  `downloaded_filename: ""`, and `byte_size: 0`.
+- `youtube-download-error.txt` contained
+  `ERROR: [youtube] BaW_jenozKc: Video unavailable`.
+- No `.mp4` appeared in artifacts because the download did not complete.
+- Follow-up fix verified end-to-end: workflow run `25949183927` published
+  the refreshed image, the local worker was restarted with
+  `QCUT_IMAGE_TAG=ghcr.io/quriosity-agent/qcut-cli:youtube-fix-20260516`,
+  and website job `3b19b2cd-cb17-4576-add0-89ba9aca2e4e` produced:
+  - `youtube-e2e.mp4` (`video`, 464.8 KB)
+  - `youtube-e2e-summary.json` (`json`, 96 bytes, `exit_status: 0`)
+  - `qcut-output.tar` (480.0 KB)
+  - `codex-last-message.md`
+  - `codex-events.jsonl`
+- The website artifact download route also works for the MP4: clicking the
+  `youtube-e2e.mp4` Download button fetched
+  `/api/agent/jobs/3b19b2cd-cb17-4576-add0-89ba9aca2e4e/artifacts/.../download`
+  with HTTP 200 and saved `youtube-e2e.mp4` in the Playwright session.
+- The previous `BaW_jenozKc` URL should not be reused as a success probe
+  because it now returns unavailable independently of QCut.
+
+## Terminal session artifact download fix
+
+Production bug:
+
+- The PTY session artifact route
+  `/api/agent/sessions/:sessionId/artifacts/:filename/download` failed in
+  Cloudflare Workers with
+  `"Buffer" is not supported: Module "buffer" is not available in the
+  "serverless" runtime`.
+- Cause: Daytona SDK `sandbox.fs.downloadFile()` parses the download multipart
+  body through Node `Buffer`; the Worker runtime does not expose that module.
+
+Fix shipped:
+
+- `packages/license-server/src/services/daytona-download.ts` now calls
+  Daytona's lower-level `downloadFiles` API with `responseType: "arraybuffer"`.
+- The license-server parses Daytona's multipart response with Web-standard
+  `Uint8Array`/`TextEncoder`/`TextDecoder` only, then returns the artifact bytes
+  directly from the session download route.
+- `packages/license-server/src/routes/agent.test.ts` now asserts the session
+  download path does **not** call `sandbox.fs.downloadFile()`.
+- `packages/license-server/src/services/daytona-download.test.ts` covers
+  multipart file extraction, multipart error parts, and raw byte fallback.
+
+Verification:
+
+```bash
+bun --cwd packages/license-server test src/routes/agent.test.ts src/services/daytona-download.test.ts
+node --test packages/nexusai-website/js/agent-chat.test.js
+bunx tsc --noEmit --strict --moduleResolution bundler --module ESNext --target ES2022 --typeRoots /tmp/qcut-empty-types packages/license-server/src/services/daytona-download.ts
+```
+
+Production E2E on 2026-05-16:
+
+| Step | Evidence |
+| --- | --- |
+| Deployed license-server | version `0c0f9734-0bdc-4632-a62a-eb7b9696bb4f` |
+| Deployed relay | version `3d0ec83e-5aa1-477d-aafa-09115e27ab68` |
+| Session | `c4b059cc-d8c2-480d-8c8a-0dd07950b45d` |
+| Daytona sandbox | `960e6ecc-a2ea-4e00-9f9a-70c283ece3c9` |
+| PTY proof | WebSocket opened, then wrote `/tmp/qcut-output/download-check.txt` |
+| Artifact list | returned `download-check.txt` |
+| Download proof | deployed route returned exact text `qcut artifact download ok` |
+
+## Persistent Codex-on-connect update
+
+Implementation update:
+
+- The deployed PTY design now treats Codex as the default terminal process, not
+  an optional shell command.
+- On attach, `qcut-relay` runs `qcut-entrypoint`, marks `/home/qcut/qcut` as a
+  trusted Codex project, writes QCut Chat Agent defaults into sandbox
+  `AGENTS.md`, then starts an idle interactive Codex TUI with
+  `--dangerously-bypass-approvals-and-sandbox`, `--no-alt-screen`, and
+  `-C /home/qcut/qcut`.
+- The relay temporarily disables PTY input echo while writing startup files so
+  the user does not see the `AGENTS.md` bootstrap script in terminal scrollback.
+- The `AGENTS.md` section points Codex at
+  `/home/qcut/qcut/.claude/skills/native-cli/SKILL.md` and tells it to write
+  final files to `/tmp/qcut-output` for the website Artifacts panel. This keeps
+  the first live user turn free for the actual task.
+- The website Send button now sends bracketed paste plus carriage return into
+  the persistent Codex PTY instead of spawning a new `codex exec` command per
+  turn.
+
+Focused verification:
+
+```bash
+node --test packages/nexusai-website/js/agent-chat.test.js
+bun --cwd packages/qcut-relay test
+bunx tsc -p packages/qcut-relay/tsconfig.json --noEmit
+bun --cwd packages/license-server test
+```
+
+Production E2E result:
+
+- New Daytona session connected through deployed `qcut-relay`.
+- Codex opened by default in YOLO mode, without the workspace trust prompt.
+- Bootstrap setup no longer leaked the `AGENTS.md` heredoc into terminal
+  scrollback.
+- A prompt sent through the PTY made Codex create
+  `/tmp/qcut-output/direct-1778919565593.txt`.
+- Deployed `qcut-license-server` listed that file through
+  `/api/agent/sessions/:id/artifacts` and downloaded it with matching content.
+- Artifact listing now uses Daytona `fs.listFiles()` first and falls back to a
+  `sh -lc` process namespace listing for `/tmp/qcut-output`.
 
 ## What still needs doing (gates on credentials / external services)
 
-1. **Merge/deploy the worker fixes** from this follow-up. The provider
-   path is verified locally against production services; deployed worker
-   code needs the same row-normalization and Daytona output-dir fixes.
+1. **Merge the `qcut-cli-v2` follow-up branch** once the stdio artifact
+   capture, YouTube image fix, realtime streaming worker changes, website
+   progress UI, and E2E notes are reviewed.
 2. **Set/confirm license-server secrets** (`wrangler secret put`):
    `E2B_API_KEY`, `RELAY_SIGNING_SECRET`, `RELAY_HOST`, `QCUT_IMAGE_TAG`.
-3. **Deploy/confirm `@qcut/relay`** via `wrangler deploy` in
+3. **After merge, decide whether to republish `v0`/`latest` or keep the
+   verified digest pin.** The tested image is currently available as
+   `ghcr.io/quriosity-agent/qcut-cli:youtube-fix-20260516`, and the worker
+   default pin points at its digest.
+4. **Deploy/confirm `@qcut/relay`** via `wrangler deploy` in
    `packages/qcut-relay`.
-4. **Rotate the leaked Supabase PAT** (`sbp_b303...`) — it has been seen
+5. **Rotate the leaked Supabase PAT** (`sbp_b303...`) — it has been seen
    by GitHub's secret scanner. Generate a new one at
    supabase.com/dashboard/account/tokens.
-5. **Wire QCut login into wzrdagentstudio.** SandboxPage currently reads
+6. **Wire QCut login into wzrdagentstudio.** SandboxPage currently reads
    `localStorage.qcut_auth_token` as a v0 stash — replace with a real
    QCut sign-in component.
-6. **Refund on spawn failure.** PR 12's `routes/sandbox.ts` deducts
+7. **Refund on spawn failure.** PR 12's `routes/sandbox.ts` deducts
    credits up-front but does not refund yet if E2B fails after billing.
-7. **Capture stderr properly when docker is missing.** PR 11 worker
+8. **Capture stderr properly when docker is missing.** PR 11 worker
    `exit_code` lands but `error` column stays null if execa cannot
    spawn.
 

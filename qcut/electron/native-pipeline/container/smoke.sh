@@ -22,6 +22,12 @@ git --version
 echo "▶ ffmpeg -version (first line)"
 ffmpeg -version | head -n 1
 
+echo "▶ yt-dlp --version"
+yt-dlp --version
+
+echo "▶ deno --version"
+deno --version | head -n 1
+
 echo "▶ which qcut"
 which qcut
 

@@ -29,6 +29,10 @@ const CODEX_SANDBOX_CONTEXT = [
 	`The QCut native CLI skill is available at ${NATIVE_CLI_SKILL_PATH}.`,
 	`Related native-cli references live under ${NATIVE_CLI_SKILL_DIR}/references and editor docs live under ${NATIVE_CLI_SKILL_DIR}/editor.`,
 	"Read that skill before running nontrivial QCut CLI workflows or when command syntax is unclear.",
+	"yt-dlp and deno are available for authorized video download probes.",
+	"For long-running shell commands, stream user-visible stdout with tee -a /tmp/qcut-output/codex-live-stdout.log.",
+	"Put temporary tools, caches, and package installs under /tmp/qcut-tools or /tmp, not /tmp/qcut-output.",
+	"Write only final user-requested files and small diagnostic summaries/logs under /tmp/qcut-output.",
 ].join("\n");
 
 // Anything beyond simple whitespace-separated tokens with the usual
@@ -42,6 +46,8 @@ export interface ContainerResult {
 	stderr: string;
 	exitCode: number;
 	outputDir: string;
+	/** True when the runner already streamed agent_events during execution. */
+	eventsStreamed?: boolean;
 	/** True when outputDir holds a stand-in (e.g. downloadDir failed), not real artifacts. */
 	artifactsFallback?: boolean;
 }
@@ -111,7 +117,7 @@ export function buildCodexShellCommand({
 	return [
 		"set -o pipefail",
 		`mkdir -p ${outputDir}`,
-		`printf '%s' "$${CODEX_PROMPT_ENV}" | base64 -d | /usr/local/bin/qcut-entrypoint codex exec --skip-git-repo-check --sandbox danger-full-access --json --output-last-message ${outputDir}/codex-last-message.md - > ${outputDir}/codex-events.jsonl`,
+		`printf '%s' "$${CODEX_PROMPT_ENV}" | base64 -d | /usr/local/bin/qcut-entrypoint codex exec --skip-git-repo-check --dangerously-bypass-approvals-and-sandbox --json --output-last-message ${outputDir}/codex-last-message.md - > ${outputDir}/codex-events.jsonl`,
 	].join("; ");
 }
 
