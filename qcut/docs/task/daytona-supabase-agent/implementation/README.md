@@ -17,6 +17,12 @@
 > how Connect creates/reuses a Daytona session, attaches the PTY relay, boots
 > Codex automatically, sends prompts into the persistent Codex TUI, and exposes
 > `/tmp/qcut-output` artifacts.
+>
+> 🧪 **For repeatable verification, read
+> [`12-agent-chat-e2e-cli.md`](12-agent-chat-e2e-cli.md) and
+> [`13-qcut-cli-command-survey.md`](13-qcut-cli-command-survey.md).** These
+> document the Chat Agent E2E command and the QCut CLI command-family smoke
+> matrix.
 
 Nine PR-sized task specs, each consumable by `/implementit`. Each file says exactly what to build, where the files go, what tests to add, and what to run to verify "done."
 
@@ -93,3 +99,5 @@ Every PR spec follows the same skeleton:
 - [`../README.md`](../README.md) — folder index
 - [`../core-plan/architecture.md`](../core-plan/architecture.md) — exit-code contract referenced from every spec
 - [`../core-plan/secrets-supabase.md`](../core-plan/secrets-supabase.md) — `agent_secrets` loader the worker reuses
+- [`12-agent-chat-e2e-cli.md`](12-agent-chat-e2e-cli.md) — Chat Agent E2E test command
+- [`13-qcut-cli-command-survey.md`](13-qcut-cli-command-survey.md) — QCut CLI smoke-test matrix
