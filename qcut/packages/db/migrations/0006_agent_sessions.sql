@@ -1,7 +1,7 @@
 -- Persistent headless Daytona sessions for website Codex chat. Jobs can
 -- attach to a session so follow-up prompts reuse the same sandbox until
 -- TTL or idle cleanup ends it.
-CREATE TABLE "agent_sessions" (
+CREATE TABLE IF NOT EXISTS "agent_sessions" (
 	"id" text PRIMARY KEY NOT NULL,
 	"user_id" text NOT NULL,
 	"status" text NOT NULL,
@@ -18,23 +18,39 @@ CREATE TABLE "agent_sessions" (
 --> statement-breakpoint
 ALTER TABLE "agent_sessions" ENABLE ROW LEVEL SECURITY;
 --> statement-breakpoint
-ALTER TABLE "agent_sessions"
-	ADD CONSTRAINT "agent_sessions_user_id_users_id_fk"
-	FOREIGN KEY ("user_id") REFERENCES "public"."users"("id")
-	ON DELETE cascade ON UPDATE no action;
+DO $$
+BEGIN
+	IF NOT EXISTS (
+		SELECT 1 FROM pg_constraint
+		WHERE conname = 'agent_sessions_user_id_users_id_fk'
+	) THEN
+		ALTER TABLE "agent_sessions"
+			ADD CONSTRAINT "agent_sessions_user_id_users_id_fk"
+			FOREIGN KEY ("user_id") REFERENCES "public"."users"("id")
+			ON DELETE cascade ON UPDATE no action;
+	END IF;
+END $$;
 --> statement-breakpoint
-ALTER TABLE "agent_jobs" ADD COLUMN "session_id" text;
+ALTER TABLE "agent_jobs" ADD COLUMN IF NOT EXISTS "session_id" text;
 --> statement-breakpoint
-ALTER TABLE "agent_jobs"
-	ADD CONSTRAINT "agent_jobs_session_id_agent_sessions_id_fk"
-	FOREIGN KEY ("session_id") REFERENCES "public"."agent_sessions"("id")
-	ON DELETE set null ON UPDATE no action;
+DO $$
+BEGIN
+	IF NOT EXISTS (
+		SELECT 1 FROM pg_constraint
+		WHERE conname = 'agent_jobs_session_id_agent_sessions_id_fk'
+	) THEN
+		ALTER TABLE "agent_jobs"
+			ADD CONSTRAINT "agent_jobs_session_id_agent_sessions_id_fk"
+			FOREIGN KEY ("session_id") REFERENCES "public"."agent_sessions"("id")
+			ON DELETE set null ON UPDATE no action;
+	END IF;
+END $$;
 --> statement-breakpoint
-CREATE INDEX "agent_sessions_user_status_last_active_idx"
+CREATE INDEX IF NOT EXISTS "agent_sessions_user_status_last_active_idx"
 	ON "agent_sessions" USING btree ("user_id","status","last_active_at");
 --> statement-breakpoint
-CREATE INDEX "agent_sessions_expires_active_idx"
+CREATE INDEX IF NOT EXISTS "agent_sessions_expires_active_idx"
 	ON "agent_sessions" USING btree ("expires_at");
 --> statement-breakpoint
-CREATE INDEX "agent_jobs_session_created_idx"
+CREATE INDEX IF NOT EXISTS "agent_jobs_session_created_idx"
 	ON "agent_jobs" USING btree ("session_id","created_at");

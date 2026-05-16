@@ -198,11 +198,53 @@ Known verification gap:
   before checking these changes because the workspace is missing the implicit
   `sharp` type definition.
 
+## Production E2E - 2026-05-15
+
+Deployment and migration:
+
+- Applied the production Supabase schema for `agent_sessions` and
+  `agent_jobs.session_id`.
+- Redeployed `qcut-license-server` to Cloudflare Workers.
+- Verified the temporary migration route was removed after use; the route now
+  returns `404`.
+- Restarted the production-shaped `qcut-agent-worker` tmux worker from the
+  current `qcut-cli-v2` checkout with
+  `QCUT_IMAGE_TAG=ghcr.io/quriosity-agent/qcut-cli:youtube-fix-20260516`.
+- Verified `https://quriosity.com.au/chat-agent.html` and
+  `https://quriosity.com.au/js/agent-chat.js` include the session UI and
+  session API client code.
+
+Real session reuse test:
+
+| Step | Evidence |
+| --- | --- |
+| Create/reuse session | `b6423733-cef4-4a94-b031-c06737d78d3b` |
+| First Codex job | `970686e6-19d5-4d91-aded-dc227d01b7ae` succeeded |
+| First job behavior | Codex wrote `session-e2e-1778901412` into `/tmp/qcut-tools/session-e2e/marker.txt` |
+| First sandbox event | `agent_session_ready.reused=false`, sandbox `2df92162-0f45-4ec6-8a7a-0b7395672f97` |
+| Second Codex job | `2f488dd9-ba75-4cec-875f-ce03d6dc54d0` succeeded |
+| Second job behavior | Codex read the marker left by the first job and replied `SECOND_OK_SAME_SANDBOX_session-e2e-1778901412` |
+| Second sandbox event | `agent_session_ready.reused=true`, same sandbox `2df92162-0f45-4ec6-8a7a-0b7395672f97` |
+
+Live website test:
+
+| Step | Evidence |
+| --- | --- |
+| Website URL | `https://quriosity.com.au/chat-agent.html` |
+| UI-created Codex job | `ec2e282d-7a3a-4e9a-9a26-6c552601f19d` succeeded |
+| UI session | `b6423733-cef4-4a94-b031-c06737d78d3b` |
+| UI sandbox event | `agent_session_ready.reused=true`, sandbox `2df92162-0f45-4ec6-8a7a-0b7395672f97` |
+| UI Codex response | `WEBSITE_CODEX_SESSION_UI_OK` |
+
+Screenshot:
+
+- `/Users/peter/Desktop/code/qcut/qcut/output/playwright/live-chat-agent-session-e2e.png`
+
 ## Follow-ups
 
 - Persistent Codex PTY/daemon process inside the same sandbox.
 - Session artifact browser that can show prior job artifacts within a chat.
 - User-visible "session will expire soon" countdown.
 - Per-session credit policy if idle warm sandboxes become costly.
-- Apply `packages/db/migrations/0006_agent_sessions.sql` to production
-  Supabase before deploying the license-server/worker session routes.
+- Add a normal migration-runner path so production schema changes do not need a
+  one-off Cloudflare route when the Supabase CLI lacks the DB password.
