@@ -1,5 +1,5 @@
 import { execFileSync, spawnSync } from "node:child_process";
-import { existsSync, mkdirSync, readdirSync, rmSync } from "node:fs";
+import { existsSync, mkdirSync, readdirSync, rmSync, statSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 
@@ -27,24 +27,39 @@ const appName = apps[0].replace(/\.app$/, "");
 // Derive version from electron-builder's .zip artifact so DMG and .zip filenames
 // stay in sync (electron-builder normalizes package.json's `version` via semver
 // and the literal version string from package.json may differ).
-const zipMatch = readdirSync(distDir).find((f) =>
-	new RegExp(`^${escapeRegex(appName)}-(.+)-arm64-mac\\.zip$`).test(f)
-);
+const zipPattern = new RegExp(`^${escapeRegex(appName)}-(.+)-arm64-mac\\.zip$`);
+const zipMatch = getNewestMatchingFile({
+	directory: distDir,
+	pattern: zipPattern,
+});
 if (!zipMatch) {
 	throw new Error(
 		`expected electron-builder .zip in ${distDir} to derive version from`
 	);
 }
-const version = zipMatch.replace(
-	new RegExp(`^${escapeRegex(appName)}-(.+)-arm64-mac\\.zip$`),
-	"$1"
-);
+const version = zipMatch.replace(zipPattern, "$1");
 const productName = appName;
 
 const dmgFile = join(distDir, `${productName}-${version}-arm64.dmg`);
 
 function escapeRegex(s: string): string {
 	return s.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+}
+
+function getNewestMatchingFile({
+	directory,
+	pattern,
+}: {
+	directory: string;
+	pattern: RegExp;
+}): string | undefined {
+	return readdirSync(directory)
+		.filter((file) => pattern.test(file))
+		.map((file) => ({
+			file,
+			mtimeMs: statSync(join(directory, file)).mtimeMs,
+		}))
+		.sort((left, right) => right.mtimeMs - left.mtimeMs)[0]?.file;
 }
 const stagingDir = join(distDir, ".dmg-staging-arm64");
 
