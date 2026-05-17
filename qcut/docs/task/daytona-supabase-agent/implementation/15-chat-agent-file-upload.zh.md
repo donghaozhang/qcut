@@ -10,9 +10,15 @@
 
 - 在 `packages/nexusai-website/chat-agent.html` 增加了上传控件。
 - 在 `packages/nexusai-website/js/agent-chat.js` 增加了 multipart 上传逻辑。
-- 增加了一个虚拟 sandbox 文件浏览器，合并显示两个目录：
+- 增加了第一版虚拟 sandbox 文件浏览器，合并显示两个目录：
   - `/tmp/qcut-input`：用户上传的文件和图片。
   - `/tmp/qcut-output`：Codex 或 QCut CLI 生成的文件。
+- 已升级成完整的当前 sandbox filesystem 浏览器：
+  - UI 从 `/` 开始。
+  - 用户可以点击文件夹进入。
+  - 用户可以回到 root，也可以返回上一级目录。
+  - 上传文件会进入当前选中的 sandbox 目录。
+  - 文件可以按完整 sandbox path 下载。
 - 前端下载逻辑现在支持下载上传文件和生成文件。
 - 更新了网站端 Codex agent prompt，让 Codex 知道用户上传文件在 `/tmp/qcut-input`。
 - 更新了 relay 启动提示，让持久 Codex session 也知道上传目录。
@@ -21,7 +27,11 @@
 - license-server 增加了三个 API：
   - `GET /api/agent/sessions/:sessionId/files`
   - `POST /api/agent/sessions/:sessionId/files`
+  - `GET /api/agent/sessions/:sessionId/files/download?path=/absolute/sandbox/path`
   - `GET /api/agent/sessions/:sessionId/files/:folder/:filename/download`
+- `GET /files` 和 `POST /files` 现在支持 `?path=/absolute/sandbox/folder`。
+- 旧的 input/output 下载接口继续保留，避免破坏兼容性。
+- 新增 path normalization：允许绝对路径，但拒绝 `..`、反斜杠和空字节，避免路径穿越。
 - 修复了 multipart 解析，改成 `parseBody({ all: true })`；第一次真实 E2E 发现默认解析只保留同名 form field 的最后一个文件。
 - 已部署 Workers：
   - `qcut-license-server` version `b831fc20-e03e-4a12-b28c-809cd7f56a2c`
@@ -33,9 +43,9 @@
 已通过：
 
 - `node --test packages/nexusai-website/js/agent-chat.test.js`
-  - 23 个测试通过。
+  - 26 个测试通过。
 - 在 `packages/license-server` 执行 `bun run test`
-  - 120 个测试通过。
+  - 124 个测试通过。
 - 在 `packages/qcut-relay` 执行 `bun run test`
   - 10 个测试通过。
 - `bunx @biomejs/biome check --write packages/license-server/src/routes/agent.ts packages/license-server/src/routes/agent.test.ts packages/qcut-relay/src/pty-session.ts`
@@ -68,6 +78,6 @@
 ## 下一步子任务
 
 1. 给大文件上传加进度显示。
-2. 如果后面要上传项目目录，再考虑 nested folder 支持。
+2. 如果要让它更像轻量文件管理器，可以继续加创建文件夹和删除文件。
 3. 给图片加缩略图预览，给音频/视频加播放控件。
-4. 给虚拟目录增加删除 stale 文件的操作。
+4. 部署 license-server 更新后，再跑一次线上 E2E，截图确认 root 浏览、目录跳转、上传到当前目录、按完整路径下载都正常。
