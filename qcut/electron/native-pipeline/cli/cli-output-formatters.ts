@@ -80,16 +80,16 @@ export function formatCommandOutput(command: string, result: CLIResult): void {
 				requiredFor?: string[];
 			}[];
 		};
+		const configured = data.keys.filter((key) => key.configured);
+		const missing = data.keys.filter((key) => !key.configured);
 		const summary = data.summary ?? {
-			configured: data.keys.filter((key) => key.configured).length,
-			missing: data.keys.filter((key) => !key.configured).length,
+			configured: configured.length,
+			missing: missing.length,
 			total: data.keys.length,
 		};
 		console.log(
 			`\nQCut keys (${summary.configured} configured, ${summary.missing} missing, ${summary.total} total)\n`
 		);
-		const configured = data.keys.filter((key) => key.configured);
-		const missing = data.keys.filter((key) => !key.configured);
 
 		if (configured.length > 0) {
 			console.log("Configured");
