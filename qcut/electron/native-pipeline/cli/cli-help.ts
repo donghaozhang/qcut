@@ -58,7 +58,7 @@ Editor Commands (requires running QCut — use --project-id for most):
   Use <command> --help --json for detailed flag info per command.
 
 Global Options:
-  --output-dir, -o    Output directory (default: ~/Documents/QCut/exports)
+  --output-dir, -o    Output directory (default: $QCUT_OUTPUT_DIR or ~/Documents/QCut/exports)
   --model, -m         Model key (e.g. kling_2_6_pro, flux_dev)
   --policy            Path to JSON action policy file
   --resume            Resume and autosave a named CLI session

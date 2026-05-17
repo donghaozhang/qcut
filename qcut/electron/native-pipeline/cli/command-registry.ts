@@ -36,7 +36,7 @@ function f(
 export const GLOBAL_FLAGS: FlagDef[] = [
 	f("--output-dir", "string", "Output directory", {
 		short: "-o",
-		default: "./output",
+		default: "$QCUT_OUTPUT_DIR or ~/Documents/QCut/exports",
 	}),
 	f("--model", "string", "Model key (e.g. kling_2_6_pro, flux_dev)", {
 		short: "-m",

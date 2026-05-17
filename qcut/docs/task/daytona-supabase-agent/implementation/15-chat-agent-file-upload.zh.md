@@ -17,6 +17,7 @@
 - 更新了网站端 Codex agent prompt，让 Codex 知道用户上传文件在 `/tmp/qcut-input`。
 - 更新了 relay 启动提示，让持久 Codex session 也知道上传目录。
 - Daytona PTY 启动时现在会创建 `/tmp/qcut-input`、`/tmp/qcut-output`、`/tmp/qcut-tools`。
+- 更新了 QCut CLI 默认输出策略：website sandbox 里 `QCUT_OUTPUT_DIR=/tmp/qcut-output` 会成为默认输出目录；普通桌面用户没有设置这个环境变量时仍然回落到 `~/Documents/QCut/exports`。
 - license-server 增加了三个 API：
   - `GET /api/agent/sessions/:sessionId/files`
   - `POST /api/agent/sessions/:sessionId/files`

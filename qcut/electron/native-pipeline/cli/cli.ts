@@ -54,6 +54,13 @@ const COMMANDS = Object.keys(COMMANDS_REGISTRY);
 
 type Command = string;
 
+function getDefaultOutputDir(): string {
+	const envOutputDir = process.env.QCUT_OUTPUT_DIR?.trim();
+	return (
+		envOutputDir || path.join(os.homedir(), "Documents", "QCut", "exports")
+	);
+}
+
 /** Parse process argv into CLIRunOptions, exiting on --help/--version. */
 export function parseCliArgs(argv: string[]): CLIRunOptions {
 	let command = argv[0];
@@ -415,9 +422,7 @@ export function parseCliArgs(argv: string[]): CLIRunOptions {
 		imageUrl: values["image-url"] as string | undefined,
 		videoUrl: values["video-url"] as string | undefined,
 		audioUrl: values["audio-url"] as string | undefined,
-		outputDir:
-			(values["output-dir"] as string) ||
-			path.join(os.homedir(), "Documents", "QCut", "exports"),
+		outputDir: (values["output-dir"] as string) || getDefaultOutputDir(),
 		outputDirExplicit: !!(values["output-dir"] as string),
 		duration: values.duration as string | undefined,
 		aspectRatio: values["aspect-ratio"] as string | undefined,

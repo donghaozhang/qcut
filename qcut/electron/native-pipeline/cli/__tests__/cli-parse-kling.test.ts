@@ -1,7 +1,42 @@
-import { describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it } from "vitest";
 import { parseCliArgs } from "../cli.js";
 
 describe("parseCliArgs — Kling V3 Omni flags", () => {
+	const originalQcutOutputDir = process.env.QCUT_OUTPUT_DIR;
+
+	afterEach(() => {
+		if (originalQcutOutputDir === undefined) {
+			delete process.env.QCUT_OUTPUT_DIR;
+			return;
+		}
+		process.env.QCUT_OUTPUT_DIR = originalQcutOutputDir;
+	});
+
+	it("uses QCUT_OUTPUT_DIR as the default output directory", () => {
+		process.env.QCUT_OUTPUT_DIR = "/tmp/qcut-output";
+
+		const opts = parseCliArgs(["gen", "image", "-t", "test"]);
+
+		expect(opts.outputDir).toBe("/tmp/qcut-output");
+		expect(opts.outputDirExplicit).toBe(false);
+	});
+
+	it("lets --output-dir override QCUT_OUTPUT_DIR", () => {
+		process.env.QCUT_OUTPUT_DIR = "/tmp/qcut-output";
+
+		const opts = parseCliArgs([
+			"gen",
+			"image",
+			"-t",
+			"test",
+			"-o",
+			"/tmp/custom-output",
+		]);
+
+		expect(opts.outputDir).toBe("/tmp/custom-output");
+		expect(opts.outputDirExplicit).toBe(true);
+	});
+
 	it("parses --sound on", () => {
 		const opts = parseCliArgs([
 			"gen",

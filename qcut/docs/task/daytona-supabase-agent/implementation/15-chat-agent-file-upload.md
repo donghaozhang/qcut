@@ -16,6 +16,7 @@ Make `https://quriosity.com.au/chat-agent.html` support user file and image uplo
 - Added frontend download routing for both uploaded input files and generated output files.
 - Updated the Codex website agent prompt and relay startup instructions so Codex knows uploaded files are under `/tmp/qcut-input`.
 - Updated the Daytona PTY startup command to create `/tmp/qcut-input`, `/tmp/qcut-output`, and `/tmp/qcut-tools`.
+- Updated the QCut CLI default output policy so `QCUT_OUTPUT_DIR=/tmp/qcut-output` becomes the default output directory inside the website sandbox, while desktop users still fall back to `~/Documents/QCut/exports` when the env var is unset.
 - Added license-server API routes:
   - `GET /api/agent/sessions/:sessionId/files`
   - `POST /api/agent/sessions/:sessionId/files`

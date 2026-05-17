@@ -76,6 +76,24 @@ qcut <command> [options]             # Legacy flat syntax (deprecated)
 qcut-pipeline <group> <action> [options]         # Production binary
 ```
 
+## Output Directory Contract
+
+For website Daytona Chat Agent sessions, uploaded files are under
+`/tmp/qcut-input` and downloadable outputs must land under
+`/tmp/qcut-output`.
+
+The CLI default output directory can be overridden with:
+
+```bash
+export QCUT_OUTPUT_DIR=/tmp/qcut-output
+```
+
+When running generation, analysis, transcription, music, translation, or
+pipeline commands in that sandbox, use `-o /tmp/qcut-output` when a command
+supports `--output-dir/-o`, or move final user-requested files into
+`/tmp/qcut-output` before finishing. Keep scratch files and package installs
+under `/tmp/qcut-tools` or `/tmp`.
+
 ### Command Groups
 
 | Group | Description | Example |
