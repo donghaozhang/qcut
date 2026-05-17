@@ -5,6 +5,8 @@ import { basename, join, resolve } from "node:path";
 import { chromium, type Browser, type Page } from "playwright";
 
 const DEFAULT_URL = "https://quriosity.com.au/chat-agent.html";
+const DEFAULT_LICENSE_SERVER_URL =
+	"https://qcut-license-server.zdhpeter.workers.dev";
 const LOCAL_AGENT_CHAT_JS = resolve(
 	process.cwd(),
 	"packages/nexusai-website/js/agent-chat.js"
@@ -31,6 +33,7 @@ type StepResult = {
 
 type Config = {
 	url: string;
+	licenseServerUrl: string;
 	outDir: string;
 	headed: boolean;
 	injectLocalAgentChatJs: boolean;
@@ -48,13 +51,7 @@ type RunState = {
 	steps: StepResult[];
 };
 
-function readOption({
-	argv,
-	name,
-}: {
-	argv: string[];
-	name: string;
-}): string {
+function readOption({ argv, name }: { argv: string[]; name: string }): string {
 	const index = argv.indexOf(name);
 	if (index === -1) {
 		return "";
@@ -100,6 +97,10 @@ function parseArgs({ argv }: { argv: string[] }): Config {
 			readOption({ argv, name: "--url" }) ||
 			process.env.AGENT_CHAT_E2E_URL ||
 			DEFAULT_URL,
+		licenseServerUrl:
+			readOption({ argv, name: "--license-server-url" }) ||
+			process.env.QCUT_LICENSE_SERVER_URL ||
+			DEFAULT_LICENSE_SERVER_URL,
 		outDir: resolve(readOption({ argv, name: "--out-dir" }) || defaultOutDir),
 		headed:
 			hasFlag({ argv, name: "--headed" }) ||
@@ -139,6 +140,10 @@ Usage:
 
 Options:
   --url <url>                         Chat Agent URL. Default: ${DEFAULT_URL}
+  --license-server-url <url>          License server base URL fallback when
+                                      window.PaymentAPI is unavailable. Also
+                                      reads QCUT_LICENSE_SERVER_URL env.
+                                      Default: ${DEFAULT_LICENSE_SERVER_URL}
   --out-dir <path>                    Screenshot/result output directory.
   --headed, --headful                 Show the browser.
   --inject-local-agent-chat-js        Route js/agent-chat.js to the local file while keeping the page origin.
@@ -326,13 +331,7 @@ async function waitForTerminalCompletionMarker({
 	);
 }
 
-async function submitPrompt({
-	page,
-	prompt,
-}: {
-	page: Page;
-	prompt: string;
-}) {
+async function submitPrompt({ page, prompt }: { page: Page; prompt: string }) {
 	await page.locator("#agent-prompt").fill(prompt);
 	await page.locator("#agent-submit").click();
 }
@@ -348,7 +347,8 @@ async function waitForArtifact({
 }) {
 	await page.waitForFunction(
 		(expectedFilename) => {
-			const text = document.querySelector("#agent-artifacts")?.textContent || "";
+			const text =
+				document.querySelector("#agent-artifacts")?.textContent || "";
 			return text.includes(expectedFilename);
 		},
 		filename,
@@ -378,33 +378,37 @@ async function downloadArtifactWithButton({
 async function fetchArtifactTextFromPage({
 	page,
 	filename,
+	licenseServerUrl,
 }: {
 	page: Page;
 	filename: string;
+	licenseServerUrl: string;
 }): Promise<string> {
-	return page.evaluate(async (artifactFilename) => {
-		const apiBase =
-			window.PaymentAPI?.getApiBaseUrl?.() ||
-			"https://qcut-license-server.zdhpeter.workers.dev";
-		const token = window.PaymentAPI?.getAuthToken?.() || "";
-		const sessionId = window.localStorage.getItem("qcut_agent_session_id") || "";
-		if (sessionId.length === 0) {
-			throw new Error("missing agent session id");
-		}
-		const response = await fetch(
-			`${apiBase}/api/agent/sessions/${encodeURIComponent(
-				sessionId
-			)}/artifacts/${encodeURIComponent(artifactFilename)}/download`,
-			{
-				headers:
-					token.length === 0 ? {} : { Authorization: `Bearer ${token}` },
+	return page.evaluate(
+		async ({ artifactFilename, fallbackApiBase }) => {
+			const apiBase = window.PaymentAPI?.getApiBaseUrl?.() || fallbackApiBase;
+			const token = window.PaymentAPI?.getAuthToken?.() || "";
+			const sessionId =
+				window.localStorage.getItem("qcut_agent_session_id") || "";
+			if (sessionId.length === 0) {
+				throw new Error("missing agent session id");
 			}
-		);
-		if (!response.ok) {
-			throw new Error(`download fetch failed with ${response.status}`);
-		}
-		return response.text();
-	}, filename);
+			const response = await fetch(
+				`${apiBase}/api/agent/sessions/${encodeURIComponent(
+					sessionId
+				)}/artifacts/${encodeURIComponent(artifactFilename)}/download`,
+				{
+					headers:
+						token.length === 0 ? {} : { Authorization: `Bearer ${token}` },
+				}
+			);
+			if (!response.ok) {
+				throw new Error(`download fetch failed with ${response.status}`);
+			}
+			return response.text();
+		},
+		{ artifactFilename: filename, fallbackApiBase: licenseServerUrl }
+	);
 }
 
 async function disconnectTerminal({ page }: { page: Page }) {
@@ -557,6 +561,7 @@ async function main() {
 				const fetchedText = await fetchArtifactTextFromPage({
 					page,
 					filename: artifactFilename,
+					licenseServerUrl: config.licenseServerUrl,
 				});
 				assertCondition({
 					condition: fetchedText.trim() === artifactText,
