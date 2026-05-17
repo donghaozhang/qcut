@@ -21,9 +21,11 @@ const MAX_CODEX_PROMPT_LENGTH = 12_000;
 const MAX_AGENT_SOURCE_LENGTH = 120;
 const MAX_TEXT_ARTIFACT_BYTES = 256_000;
 const MAX_TERMINAL_ARTIFACTS = 80;
+const MAX_SESSION_UPLOAD_BYTES = 25 * 1024 * 1024;
 const AGENT_SESSION_TTL_MS = 2 * 60 * 60 * 1000;
 const AGENT_SESSION_SANDBOX_AUTO_STOP_MINUTES = 120;
 const DAYTONA_CREATE_TIMEOUT_SECONDS = 300;
+const TERMINAL_INPUT_DIR = "/tmp/qcut-input";
 const TERMINAL_OUTPUT_DIR = "/tmp/qcut-output";
 const SAFE_COMMAND_TOKEN = /^[A-Za-z0-9_\-./:=,@+]+$/;
 const CODEX_AGENT_COMMAND = "codex exec --skip-git-repo-check --json -";
@@ -131,6 +133,57 @@ agentRoutes.get("/sessions/:sessionId/artifacts", async (c) => {
 		);
 	}
 });
+
+agentRoutes.get("/sessions/:sessionId/files", async (c) => {
+	try {
+		return await listAgentSessionFiles(c);
+	} catch (error) {
+		return c.json(
+			{
+				error:
+					error instanceof Error
+						? `Failed to list session files: ${error.message}`
+						: "Failed to list session files",
+			},
+			500
+		);
+	}
+});
+
+agentRoutes.post("/sessions/:sessionId/files", async (c) => {
+	try {
+		return await uploadAgentSessionFiles(c);
+	} catch (error) {
+		return c.json(
+			{
+				error:
+					error instanceof Error
+						? `Failed to upload session file: ${error.message}`
+						: "Failed to upload session file",
+			},
+			500
+		);
+	}
+});
+
+agentRoutes.get(
+	"/sessions/:sessionId/files/:folder/:filename/download",
+	async (c) => {
+		try {
+			return await downloadAgentSessionFile(c);
+		} catch (error) {
+			return c.json(
+				{
+					error:
+						error instanceof Error
+							? `Failed to download session file: ${error.message}`
+							: "Failed to download session file",
+				},
+				500
+			);
+		}
+	}
+);
 
 agentRoutes.get(
 	"/sessions/:sessionId/artifacts/:filename/download",
@@ -608,6 +661,90 @@ async function listAgentSessionArtifacts(c: Context) {
 	return c.json({ artifacts });
 }
 
+async function listAgentSessionFiles(c: Context) {
+	const userId = c.get("userId") as string;
+	const session = await getRequestAgentSession({ c, userId });
+	if (!session) {
+		return c.json({ error: "agent_session_not_found" }, 404);
+	}
+	if (!session.providerSessionId) {
+		return c.json({ files: [] });
+	}
+
+	const sandbox = await getDaytonaSandboxForSession({ session });
+	const [inputFiles, outputFiles] = await Promise.all([
+		listTerminalFilesForDir({
+			sandbox,
+			dir: TERMINAL_INPUT_DIR,
+			folder: "input",
+		}),
+		listTerminalFilesForDir({
+			sandbox,
+			dir: TERMINAL_OUTPUT_DIR,
+			folder: "output",
+		}),
+	]);
+
+	return c.json({
+		files: [...inputFiles, ...outputFiles]
+			.slice(0, MAX_TERMINAL_ARTIFACTS)
+			.map((file) => serializeSessionFile({ sessionId: session.id, file })),
+	});
+}
+
+async function uploadAgentSessionFiles(c: Context) {
+	const userId = c.get("userId") as string;
+	const session = await getRequestAgentSession({ c, userId });
+	if (!session) {
+		return c.json({ error: "agent_session_not_found" }, 404);
+	}
+	if (!session.providerSessionId) {
+		return c.json({ error: "agent_session_sandbox_not_ready" }, 409);
+	}
+
+	const body = await c.req.parseBody({ all: true });
+	const uploads = extractUploadFiles({ body });
+	if (uploads.length === 0) {
+		return c.json({ error: "upload_file_required" }, 400);
+	}
+
+	const sandbox = await getDaytonaSandboxForSession({ session });
+	await sandbox.fs.createFolder(TERMINAL_INPUT_DIR, "755").catch(() => {});
+
+	const uploaded: Array<{ filename: string; bytes: number }> = [];
+	for (const file of uploads) {
+		const filename = normalizeUploadedFilename({ value: file.name });
+		if (!filename) {
+			return c.json({ error: "upload_filename_invalid" }, 400);
+		}
+		if (file.size > MAX_SESSION_UPLOAD_BYTES) {
+			return c.json({ error: "upload_file_too_large" }, 413);
+		}
+		await sandbox.fs.uploadFile(
+			file as unknown as Buffer,
+			`${TERMINAL_INPUT_DIR}/${filename}`,
+			10 * 60
+		);
+		uploaded.push({ filename, bytes: file.size });
+	}
+
+	return c.json(
+		{
+			files: uploaded.map((file) =>
+				serializeSessionFile({
+					sessionId: session.id,
+					file: {
+						...file,
+						folder: "input",
+						dir: TERMINAL_INPUT_DIR,
+					},
+				})
+			),
+		},
+		201
+	);
+}
+
 async function downloadAgentSessionArtifact(c: Context) {
 	const userId = c.get("userId") as string;
 	const session = await getRequestAgentSession({ c, userId });
@@ -630,6 +767,44 @@ async function downloadAgentSessionArtifact(c: Context) {
 	const fileBytes = await downloadDaytonaFileBytes({
 		sandbox,
 		remotePath,
+		timeoutSeconds: 10 * 60,
+	});
+	const headers: Record<string, string> = {
+		"Content-Disposition": `attachment; filename="${escapeContentDispositionFilename({ filename })}"`,
+		"Content-Type": getContentTypeByFilename({ filename }),
+		"Content-Length": String(fileBytes.byteLength),
+	};
+
+	return c.body(fileBytes, 200, headers);
+}
+
+async function downloadAgentSessionFile(c: Context) {
+	const userId = c.get("userId") as string;
+	const session = await getRequestAgentSession({ c, userId });
+	if (!session) {
+		return c.json({ error: "agent_session_not_found" }, 404);
+	}
+	if (!session.providerSessionId) {
+		return c.json({ error: "agent_session_sandbox_not_ready" }, 409);
+	}
+
+	const folder = normalizeSessionFileFolder({ value: c.req.param("folder") });
+	if (!folder) {
+		return c.json({ error: "session_file_folder_invalid" }, 400);
+	}
+
+	const filename = normalizeTerminalArtifactFilename({
+		value: c.req.param("filename"),
+	});
+	if (!filename) {
+		return c.json({ error: "session_file_filename_invalid" }, 400);
+	}
+
+	const dir = folder === "input" ? TERMINAL_INPUT_DIR : TERMINAL_OUTPUT_DIR;
+	const sandbox = await getDaytonaSandboxForSession({ session });
+	const fileBytes = await downloadDaytonaFileBytes({
+		sandbox,
+		remotePath: `${dir}/${filename}`,
 		timeoutSeconds: 10 * 60,
 	});
 	const headers: Record<string, string> = {
@@ -824,6 +999,52 @@ function normalizeTerminalArtifactFilename({
 	return trimmed;
 }
 
+function normalizeUploadedFilename({
+	value,
+}: {
+	value: unknown;
+}): string | null {
+	if (typeof value !== "string") {
+		return null;
+	}
+	const base = value.split(/[\\/]/).pop() ?? "";
+	const trimmed = base.trim();
+	if (!normalizeTerminalArtifactFilename({ value: trimmed })) {
+		return null;
+	}
+	return trimmed;
+}
+
+function normalizeSessionFileFolder({
+	value,
+}: {
+	value: unknown;
+}): "input" | "output" | null {
+	if (value === "input" || value === "output") {
+		return value;
+	}
+	return null;
+}
+
+function isUploadFile(value: unknown): value is File {
+	return Boolean(
+		value &&
+			typeof value === "object" &&
+			typeof (value as File).name === "string" &&
+			typeof (value as File).size === "number" &&
+			typeof (value as File).arrayBuffer === "function"
+	);
+}
+
+function extractUploadFiles({
+	body,
+}: {
+	body: Record<string, unknown>;
+}): File[] {
+	const values = [body.file, body.files].flat();
+	return values.filter(isUploadFile);
+}
+
 async function parseCreateAgentJobBody({
 	c,
 }: {
@@ -902,6 +1123,35 @@ async function listTerminalArtifactsViaShell({
 	);
 	const stdout = typeof result.result === "string" ? result.result : "";
 	return parseTerminalArtifactList({ stdout });
+}
+
+async function listTerminalFilesForDir({
+	sandbox,
+	dir,
+	folder,
+}: {
+	sandbox: DaytonaSandbox;
+	dir: string;
+	folder: "input" | "output";
+}): Promise<
+	Array<{
+		filename: string;
+		bytes: number;
+		folder: "input" | "output";
+		dir: string;
+	}>
+> {
+	let files: Array<{ isDir?: boolean; name?: string; size?: number }>;
+	try {
+		files = await sandbox.fs.listFiles(dir);
+	} catch {
+		files = [];
+	}
+	return parseTerminalArtifactFiles({ files }).map((file) => ({
+		...file,
+		folder,
+		dir,
+	}));
 }
 
 function buildTerminalArtifactListCommand(): string {
@@ -1121,6 +1371,35 @@ function serializeTerminalArtifact({
 	};
 }
 
+function serializeSessionFile({
+	sessionId,
+	file,
+}: {
+	sessionId: string;
+	file: {
+		filename: string;
+		bytes: number;
+		folder: "input" | "output";
+		dir: string;
+	};
+}) {
+	return {
+		id: `${file.folder}/${file.filename}`,
+		sessionId,
+		jobId: null,
+		userId: null,
+		kind: classifyArtifactKind({ filename: file.filename }),
+		storagePath: `${file.dir}/${file.filename}`,
+		bytes: file.bytes,
+		meta: {
+			filename: file.filename,
+			folder: file.folder,
+			source: file.folder === "input" ? "upload" : "terminal",
+		},
+		createdAt: null,
+	};
+}
+
 function classifyArtifactKind({
 	filename,
 }: {
@@ -1148,6 +1427,7 @@ export {
 	agentRoutes,
 	buildTerminalArtifactListCommand,
 	getDefaultAgentUserId,
+	normalizeUploadedFilename,
 	parseTerminalArtifactFiles,
 	parseTerminalArtifactList,
 	validateAgentJobBody,
