@@ -166,7 +166,11 @@ export class CLIPipelineRunner {
 		}
 
 		// Resolve --provider to --model if model not explicitly set
-		if (resolvedOptions.provider && !resolvedOptions.model) {
+		if (
+			resolvedOptions.provider &&
+			!resolvedOptions.model &&
+			resolvedOptions.command !== "transcribe"
+		) {
 			const match = ModelRegistry.findByProvider(resolvedOptions.provider);
 			if (match) {
 				resolvedOptions = { ...resolvedOptions, model: match.key };

@@ -19,4 +19,20 @@ export function registerSpeechToTextModels(): void {
 		costEstimate: 0.08,
 		processingTime: 15,
 	});
+
+	ModelRegistry.register({
+		key: "elevenlabs_scribe_v2",
+		name: "ElevenLabs Scribe v2 (direct)",
+		provider: "ElevenLabs",
+		endpoint: "speech-to-text",
+		categories: ["speech_to_text"],
+		description:
+			"Direct ElevenLabs transcription with speaker diarization and multilingual support",
+		pricing: { per_minute: 0.008 },
+		providerBackend: "elevenlabs",
+		defaults: { model_id: "scribe_v2" },
+		features: ["transcription", "speaker_diarization", "multilingual"],
+		costEstimate: 0.08,
+		processingTime: 15,
+	});
 }

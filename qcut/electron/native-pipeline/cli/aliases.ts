@@ -56,6 +56,7 @@ export const COMMAND_ALIASES: Record<string, string> = {
 	"set-key": "system set-key",
 	"get-key": "system get-key",
 	"delete-key": "system delete-key",
+	"keys": "system keys",
 	"check-keys": "system check-keys",
 	"init-project": "system project-init",
 	"organize-project": "system project-organize",

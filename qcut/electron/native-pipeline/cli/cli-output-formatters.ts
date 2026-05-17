@@ -65,21 +65,49 @@ export function formatCommandOutput(command: string, result: CLIResult): void {
 		return;
 	}
 
-	if (command === "check-keys") {
+	if (command === "check-keys" || command === "keys") {
 		const data = result.data as {
+			summary?: {
+				configured: number;
+				missing: number;
+				total: number;
+			};
 			keys: {
 				name: string;
 				configured: boolean;
 				source: string;
 				masked?: string;
+				requiredFor?: string[];
 			}[];
 		};
-		console.log("\nAPI Key Status:\n");
-		for (const k of data.keys) {
-			const status = k.configured
-				? `configured (${k.source}) ${k.masked || ""}`
-				: "not set";
-			console.log(`  ${k.name.padEnd(25)} ${status}`);
+		const configured = data.keys.filter((key) => key.configured);
+		const missing = data.keys.filter((key) => !key.configured);
+		const summary = data.summary ?? {
+			configured: configured.length,
+			missing: missing.length,
+			total: data.keys.length,
+		};
+		console.log(
+			`\nQCut keys (${summary.configured} configured, ${summary.missing} missing, ${summary.total} total)\n`
+		);
+
+		if (configured.length > 0) {
+			console.log("Configured");
+			for (const key of configured) {
+				const categories = key.requiredFor?.join(", ") || "-";
+				console.log(
+					`  OK  ${key.name.padEnd(20)} ${key.source.padEnd(8)} ${(key.masked ?? "").padEnd(12)} ${categories}`
+				);
+			}
+			console.log("");
+		}
+
+		if (missing.length > 0) {
+			console.log("Missing");
+			for (const key of missing) {
+				const categories = key.requiredFor?.join(", ") || "-";
+				console.log(`  --  ${key.name.padEnd(20)} ${categories}`);
+			}
 		}
 		return;
 	}

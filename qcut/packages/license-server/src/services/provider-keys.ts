@@ -15,7 +15,7 @@ export type AiProvider =
 	| "imarouter";
 
 interface ProviderConfig {
-	envVar: string;
+	envVar: string | string[];
 	/** Builds the auth headers for this provider given the resolved key. */
 	buildHeaders: (key: string) => Record<string, string>;
 	/** URL prefixes that the proxy is allowed to forward requests to. */
@@ -24,7 +24,7 @@ interface ProviderConfig {
 
 const PROVIDER_CONFIGS: Record<AiProvider, ProviderConfig> = {
 	fal: {
-		envVar: "FAL_API_KEY",
+		envVar: ["FAL_API_KEY", "FAL_KEY"],
 		buildHeaders: (key) => ({ Authorization: `Key ${key}` }),
 		allowedPrefixes: [
 			"https://queue.fal.run/",
@@ -90,8 +90,14 @@ export function getProviderConfig(provider: AiProvider): ProviderConfig {
 /** Resolves the API key for a provider from environment variables. */
 export function getProviderKey(provider: AiProvider): string | undefined {
 	const config = PROVIDER_CONFIGS[provider];
-	const key = process.env[config.envVar]?.trim();
-	return key && key.length > 0 ? key : undefined;
+	const envVars = Array.isArray(config.envVar)
+		? config.envVar
+		: [config.envVar];
+	for (const envVar of envVars) {
+		const key = process.env[envVar]?.trim();
+		if (key && key.length > 0) return key;
+	}
+	return undefined;
 }
 
 /** Builds the auth headers for a provider using the key from env. */

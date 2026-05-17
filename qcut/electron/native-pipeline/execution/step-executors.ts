@@ -9,6 +9,7 @@
 import * as path from "path";
 import type { ModelCategory, ModelDefinition } from "../infra/registry.js";
 import {
+	callElevenLabsSpeechToText,
 	callModelApi,
 	downloadOutput,
 	uploadToFalStorage,
@@ -792,6 +793,29 @@ async function executeSTT(
 		signal?: AbortSignal;
 	}
 ): Promise<StepOutput> {
+	if (provider === "elevenlabs") {
+		if (!input.audioUrl) {
+			return { success: false, error: "Missing audio input", duration: 0 };
+		}
+		options.onProgress?.(10, "Uploading audio to ElevenLabs...");
+		const result = await callElevenLabsSpeechToText({
+			endpoint: model.endpoint,
+			audioInput: input.audioUrl,
+			payload,
+			signal: options.signal,
+		});
+		if (result.success) {
+			const text = extractTextFromResult(result.data);
+			return {
+				success: true,
+				text,
+				data: result.data,
+				duration: result.duration,
+			};
+		}
+		return { success: false, error: result.error, duration: result.duration };
+	}
+
 	if (input.audioUrl) {
 		let resolvedUrl = input.audioUrl;
 		// Upload local files to FAL storage for FAL-routed endpoints

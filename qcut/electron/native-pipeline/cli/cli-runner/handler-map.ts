@@ -183,7 +183,8 @@ export const HANDLER_MAP: Record<string, CommandHandler> = {
 	"setup": wrap0(adminHandleSetup),
 	"set-key": wrap(adminHandleSetKey),
 	"get-key": wrap(adminHandleGetKey),
-	"check-keys": wrap0(adminHandleCheckKeys),
+	"keys": wrap(adminHandleCheckKeys),
+	"check-keys": wrap(adminHandleCheckKeys),
 	"delete-key": wrap(adminHandleDeleteKey),
 	"system-doctor": wrap(handleSystemDoctor),
 

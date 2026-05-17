@@ -21,9 +21,11 @@ const MAX_CODEX_PROMPT_LENGTH = 12_000;
 const MAX_AGENT_SOURCE_LENGTH = 120;
 const MAX_TEXT_ARTIFACT_BYTES = 256_000;
 const MAX_TERMINAL_ARTIFACTS = 80;
+const MAX_SESSION_UPLOAD_BYTES = 25 * 1024 * 1024;
 const AGENT_SESSION_TTL_MS = 2 * 60 * 60 * 1000;
 const AGENT_SESSION_SANDBOX_AUTO_STOP_MINUTES = 120;
 const DAYTONA_CREATE_TIMEOUT_SECONDS = 300;
+const TERMINAL_INPUT_DIR = "/tmp/qcut-input";
 const TERMINAL_OUTPUT_DIR = "/tmp/qcut-output";
 const SAFE_COMMAND_TOKEN = /^[A-Za-z0-9_\-./:=,@+]+$/;
 const CODEX_AGENT_COMMAND = "codex exec --skip-git-repo-check --json -";
@@ -131,6 +133,73 @@ agentRoutes.get("/sessions/:sessionId/artifacts", async (c) => {
 		);
 	}
 });
+
+agentRoutes.get("/sessions/:sessionId/files", async (c) => {
+	try {
+		return await listAgentSessionFiles(c);
+	} catch (error) {
+		return c.json(
+			{
+				error:
+					error instanceof Error
+						? `Failed to list session files: ${error.message}`
+						: "Failed to list session files",
+			},
+			500
+		);
+	}
+});
+
+agentRoutes.post("/sessions/:sessionId/files", async (c) => {
+	try {
+		return await uploadAgentSessionFiles(c);
+	} catch (error) {
+		return c.json(
+			{
+				error:
+					error instanceof Error
+						? `Failed to upload session file: ${error.message}`
+						: "Failed to upload session file",
+			},
+			500
+		);
+	}
+});
+
+agentRoutes.get("/sessions/:sessionId/files/download", async (c) => {
+	try {
+		return await downloadAgentSessionFilesystemPath(c);
+	} catch (error) {
+		return c.json(
+			{
+				error:
+					error instanceof Error
+						? `Failed to download session file: ${error.message}`
+						: "Failed to download session file",
+			},
+			500
+		);
+	}
+});
+
+agentRoutes.get(
+	"/sessions/:sessionId/files/:folder/:filename/download",
+	async (c) => {
+		try {
+			return await downloadAgentSessionFile(c);
+		} catch (error) {
+			return c.json(
+				{
+					error:
+						error instanceof Error
+							? `Failed to download session file: ${error.message}`
+							: "Failed to download session file",
+				},
+				500
+			);
+		}
+	}
+);
 
 agentRoutes.get(
 	"/sessions/:sessionId/artifacts/:filename/download",
@@ -608,6 +677,138 @@ async function listAgentSessionArtifacts(c: Context) {
 	return c.json({ artifacts });
 }
 
+async function listAgentSessionFiles(c: Context) {
+	const userId = c.get("userId") as string;
+	const session = await getRequestAgentSession({ c, userId });
+	if (!session) {
+		return c.json({ error: "agent_session_not_found" }, 404);
+	}
+	if (!session.providerSessionId) {
+		const path = normalizeSandboxPath({ value: c.req.query("path") });
+		if (c.req.query("path") !== undefined && !path) {
+			return c.json({ error: "session_file_path_invalid" }, 400);
+		}
+		return c.json({
+			path: path ?? null,
+			parentPath: path ? getSandboxParentPath({ path }) : null,
+			files: [],
+		});
+	}
+
+	const sandbox = await getDaytonaSandboxForSession({ session });
+	const requestedPath = c.req.query("path");
+	if (requestedPath !== undefined) {
+		const path = normalizeSandboxPath({ value: requestedPath });
+		if (!path) {
+			return c.json({ error: "session_file_path_invalid" }, 400);
+		}
+		const files = await listSandboxFilesForPath({ sandbox, path });
+		return c.json({
+			path,
+			parentPath: getSandboxParentPath({ path }),
+			files: files
+				.slice(0, MAX_TERMINAL_ARTIFACTS)
+				.map((file) => serializeSandboxFile({ sessionId: session.id, file })),
+		});
+	}
+
+	const [inputFiles, outputFiles] = await Promise.all([
+		listTerminalFilesForDir({
+			sandbox,
+			dir: TERMINAL_INPUT_DIR,
+			folder: "input",
+		}),
+		listTerminalFilesForDir({
+			sandbox,
+			dir: TERMINAL_OUTPUT_DIR,
+			folder: "output",
+		}),
+	]);
+
+	return c.json({
+		files: [...inputFiles, ...outputFiles]
+			.slice(0, MAX_TERMINAL_ARTIFACTS)
+			.map((file) => serializeSessionFile({ sessionId: session.id, file })),
+	});
+}
+
+async function uploadAgentSessionFiles(c: Context) {
+	const userId = c.get("userId") as string;
+	const session = await getRequestAgentSession({ c, userId });
+	if (!session) {
+		return c.json({ error: "agent_session_not_found" }, 404);
+	}
+	if (!session.providerSessionId) {
+		return c.json({ error: "agent_session_sandbox_not_ready" }, 409);
+	}
+
+	const requestedPath = c.req.query("path");
+	const uploadDir =
+		requestedPath === undefined
+			? TERMINAL_INPUT_DIR
+			: normalizeSandboxPath({ value: requestedPath });
+	if (!uploadDir) {
+		return c.json({ error: "session_file_path_invalid" }, 400);
+	}
+	const body = await c.req.parseBody({ all: true });
+	const uploads = extractUploadFiles({ body });
+	if (uploads.length === 0) {
+		return c.json({ error: "upload_file_required" }, 400);
+	}
+
+	const sandbox = await getDaytonaSandboxForSession({ session });
+	if (uploadDir !== "/") {
+		await sandbox.fs.createFolder(uploadDir, "755").catch(() => {});
+	}
+
+	const uploaded: Array<{ filename: string; bytes: number }> = [];
+	for (const file of uploads) {
+		const filename = normalizeUploadedFilename({ value: file.name });
+		if (!filename) {
+			return c.json({ error: "upload_filename_invalid" }, 400);
+		}
+		if (file.size > MAX_SESSION_UPLOAD_BYTES) {
+			return c.json({ error: "upload_file_too_large" }, 413);
+		}
+		await sandbox.fs.uploadFile(
+			file as unknown as Buffer,
+			joinSandboxPath({ dir: uploadDir, filename }),
+			10 * 60
+		);
+		uploaded.push({ filename, bytes: file.size });
+	}
+
+	return c.json(
+		{
+			files: uploaded.map((file) => {
+				if (requestedPath !== undefined) {
+					return serializeSandboxFile({
+						sessionId: session.id,
+						file: {
+							...file,
+							isDir: false,
+							path: joinSandboxPath({
+								dir: uploadDir,
+								filename: file.filename,
+							}),
+							parentPath: uploadDir,
+						},
+					});
+				}
+				return serializeSessionFile({
+					sessionId: session.id,
+					file: {
+						...file,
+						folder: "input",
+						dir: TERMINAL_INPUT_DIR,
+					},
+				});
+			}),
+		},
+		201
+	);
+}
+
 async function downloadAgentSessionArtifact(c: Context) {
 	const userId = c.get("userId") as string;
 	const session = await getRequestAgentSession({ c, userId });
@@ -630,6 +831,79 @@ async function downloadAgentSessionArtifact(c: Context) {
 	const fileBytes = await downloadDaytonaFileBytes({
 		sandbox,
 		remotePath,
+		timeoutSeconds: 10 * 60,
+	});
+	const headers: Record<string, string> = {
+		"Content-Disposition": `attachment; filename="${escapeContentDispositionFilename({ filename })}"`,
+		"Content-Type": getContentTypeByFilename({ filename }),
+		"Content-Length": String(fileBytes.byteLength),
+	};
+
+	return c.body(fileBytes, 200, headers);
+}
+
+async function downloadAgentSessionFilesystemPath(c: Context) {
+	const userId = c.get("userId") as string;
+	const session = await getRequestAgentSession({ c, userId });
+	if (!session) {
+		return c.json({ error: "agent_session_not_found" }, 404);
+	}
+	if (!session.providerSessionId) {
+		return c.json({ error: "agent_session_sandbox_not_ready" }, 409);
+	}
+
+	const path = normalizeSandboxPath({ value: c.req.query("path") });
+	if (!path || path === "/") {
+		return c.json({ error: "session_file_path_invalid" }, 400);
+	}
+
+	const filename = getSandboxPathBasename({ path });
+	if (!filename) {
+		return c.json({ error: "session_file_filename_invalid" }, 400);
+	}
+
+	const sandbox = await getDaytonaSandboxForSession({ session });
+	const fileBytes = await downloadDaytonaFileBytes({
+		sandbox,
+		remotePath: path,
+		timeoutSeconds: 10 * 60,
+	});
+	const headers: Record<string, string> = {
+		"Content-Disposition": `attachment; filename="${escapeContentDispositionFilename({ filename })}"`,
+		"Content-Type": getContentTypeByFilename({ filename }),
+		"Content-Length": String(fileBytes.byteLength),
+	};
+
+	return c.body(fileBytes, 200, headers);
+}
+
+async function downloadAgentSessionFile(c: Context) {
+	const userId = c.get("userId") as string;
+	const session = await getRequestAgentSession({ c, userId });
+	if (!session) {
+		return c.json({ error: "agent_session_not_found" }, 404);
+	}
+	if (!session.providerSessionId) {
+		return c.json({ error: "agent_session_sandbox_not_ready" }, 409);
+	}
+
+	const folder = normalizeSessionFileFolder({ value: c.req.param("folder") });
+	if (!folder) {
+		return c.json({ error: "session_file_folder_invalid" }, 400);
+	}
+
+	const filename = normalizeTerminalArtifactFilename({
+		value: c.req.param("filename"),
+	});
+	if (!filename) {
+		return c.json({ error: "session_file_filename_invalid" }, 400);
+	}
+
+	const dir = folder === "input" ? TERMINAL_INPUT_DIR : TERMINAL_OUTPUT_DIR;
+	const sandbox = await getDaytonaSandboxForSession({ session });
+	const fileBytes = await downloadDaytonaFileBytes({
+		sandbox,
+		remotePath: `${dir}/${filename}`,
 		timeoutSeconds: 10 * 60,
 	});
 	const headers: Record<string, string> = {
@@ -824,6 +1098,99 @@ function normalizeTerminalArtifactFilename({
 	return trimmed;
 }
 
+function normalizeUploadedFilename({
+	value,
+}: {
+	value: unknown;
+}): string | null {
+	if (typeof value !== "string") {
+		return null;
+	}
+	const base = value.split(/[\\/]/).pop() ?? "";
+	const trimmed = base.trim();
+	if (!normalizeTerminalArtifactFilename({ value: trimmed })) {
+		return null;
+	}
+	return trimmed;
+}
+
+function normalizeSandboxPath({ value }: { value: unknown }): string | null {
+	if (typeof value !== "string") {
+		return null;
+	}
+	const trimmed = value.trim();
+	if (
+		trimmed.length === 0 ||
+		!trimmed.startsWith("/") ||
+		trimmed.includes("\\") ||
+		trimmed.includes("\0")
+	) {
+		return null;
+	}
+	const segments = trimmed.split("/").filter((segment) => segment.length > 0);
+	if (segments.some((segment) => segment === "." || segment === "..")) {
+		return null;
+	}
+	return `/${segments.join("/")}`;
+}
+
+function getSandboxParentPath({ path }: { path: string }): string | null {
+	if (path === "/") {
+		return null;
+	}
+	const segments = path.split("/").filter((segment) => segment.length > 0);
+	if (segments.length <= 1) {
+		return "/";
+	}
+	return `/${segments.slice(0, -1).join("/")}`;
+}
+
+function getSandboxPathBasename({ path }: { path: string }): string | null {
+	const segments = path.split("/").filter((segment) => segment.length > 0);
+	const basename = segments[segments.length - 1] || "";
+	return normalizeTerminalArtifactFilename({ value: basename });
+}
+
+function joinSandboxPath({
+	dir,
+	filename,
+}: {
+	dir: string;
+	filename: string;
+}): string {
+	return dir === "/" ? `/${filename}` : `${dir}/${filename}`;
+}
+
+function normalizeSessionFileFolder({
+	value,
+}: {
+	value: unknown;
+}): "input" | "output" | null {
+	if (value === "input" || value === "output") {
+		return value;
+	}
+	return null;
+}
+
+function isUploadFile(value: unknown): value is File {
+	return Boolean(
+		value &&
+			typeof value === "object" &&
+			typeof (value as File).name === "string" &&
+			typeof (value as File).size === "number" &&
+			typeof (value as File).arrayBuffer === "function"
+	);
+}
+
+function extractUploadFiles({
+	body,
+}: {
+	body: Record<string, unknown>;
+}): File[] {
+	const values = [body.file, body.files].flat();
+	return values.filter(isUploadFile);
+}
+
 async function parseCreateAgentJobBody({
 	c,
 }: {
@@ -902,6 +1269,83 @@ async function listTerminalArtifactsViaShell({
 	);
 	const stdout = typeof result.result === "string" ? result.result : "";
 	return parseTerminalArtifactList({ stdout });
+}
+
+async function listTerminalFilesForDir({
+	sandbox,
+	dir,
+	folder,
+}: {
+	sandbox: DaytonaSandbox;
+	dir: string;
+	folder: "input" | "output";
+}): Promise<
+	Array<{
+		filename: string;
+		bytes: number;
+		folder: "input" | "output";
+		dir: string;
+	}>
+> {
+	let files: Array<{ isDir?: boolean; name?: string; size?: number }>;
+	try {
+		files = await sandbox.fs.listFiles(dir);
+	} catch {
+		files = [];
+	}
+	return parseTerminalArtifactFiles({ files }).map((file) => ({
+		...file,
+		folder,
+		dir,
+	}));
+}
+
+async function listSandboxFilesForPath({
+	sandbox,
+	path,
+}: {
+	sandbox: DaytonaSandbox;
+	path: string;
+}): Promise<
+	Array<{
+		filename: string;
+		bytes: number;
+		isDir: boolean;
+		path: string;
+		parentPath: string;
+	}>
+> {
+	let files: Array<{ isDir?: boolean; name?: string; size?: number }>;
+	try {
+		files = await sandbox.fs.listFiles(path);
+	} catch {
+		files = [];
+	}
+	return files
+		.flatMap((file) => {
+			const filename = normalizeTerminalArtifactFilename({
+				value: file.name,
+			});
+			if (!filename) {
+				return [];
+			}
+			const bytes = Number(file.size);
+			return [
+				{
+					filename,
+					bytes: Number.isFinite(bytes) && bytes >= 0 ? bytes : 0,
+					isDir: Boolean(file.isDir),
+					path: joinSandboxPath({ dir: path, filename }),
+					parentPath: path,
+				},
+			];
+		})
+		.sort((left, right) => {
+			if (left.isDir !== right.isDir) {
+				return left.isDir ? -1 : 1;
+			}
+			return left.filename.localeCompare(right.filename);
+		});
 }
 
 function buildTerminalArtifactListCommand(): string {
@@ -1121,6 +1565,70 @@ function serializeTerminalArtifact({
 	};
 }
 
+function serializeSessionFile({
+	sessionId,
+	file,
+}: {
+	sessionId: string;
+	file: {
+		filename: string;
+		bytes: number;
+		folder: "input" | "output";
+		dir: string;
+	};
+}) {
+	return {
+		id: `${file.folder}/${file.filename}`,
+		sessionId,
+		jobId: null,
+		userId: null,
+		kind: classifyArtifactKind({ filename: file.filename }),
+		storagePath: `${file.dir}/${file.filename}`,
+		bytes: file.bytes,
+		meta: {
+			filename: file.filename,
+			folder: file.folder,
+			source: file.folder === "input" ? "upload" : "terminal",
+		},
+		createdAt: null,
+	};
+}
+
+function serializeSandboxFile({
+	sessionId,
+	file,
+}: {
+	sessionId: string;
+	file: {
+		filename: string;
+		bytes: number;
+		isDir: boolean;
+		path: string;
+		parentPath: string;
+	};
+}) {
+	return {
+		id: file.path,
+		sessionId,
+		jobId: null,
+		userId: null,
+		kind: file.isDir
+			? "folder"
+			: classifyArtifactKind({ filename: file.filename }),
+		storagePath: file.path,
+		bytes: file.isDir ? 0 : file.bytes,
+		meta: {
+			filename: file.filename,
+			path: file.path,
+			parentPath: file.parentPath,
+			isDir: file.isDir,
+			folder: "filesystem",
+			source: "sandbox_fs",
+		},
+		createdAt: null,
+	};
+}
+
 function classifyArtifactKind({
 	filename,
 }: {
@@ -1148,6 +1656,7 @@ export {
 	agentRoutes,
 	buildTerminalArtifactListCommand,
 	getDefaultAgentUserId,
+	normalizeUploadedFilename,
 	parseTerminalArtifactFiles,
 	parseTerminalArtifactList,
 	validateAgentJobBody,

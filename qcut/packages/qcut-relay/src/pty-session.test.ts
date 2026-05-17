@@ -22,6 +22,10 @@ describe("buildCodexStartupCommand", () => {
 		expect(command).toContain(
 			"/home/qcut/qcut/.claude/skills/native-cli/SKILL.md"
 		);
+		expect(command).toContain("export QCUT_OUTPUT_DIR=/tmp/qcut-output");
+		expect(command).toContain("/tmp/qcut-tools/bin/qcut");
+		expect(command).toContain('--output-dir "$QCUT_OUTPUT_DIR"');
+		expect(command).toContain("export PATH=/tmp/qcut-tools/bin:$PATH");
 		expect(command).toContain("/tmp/qcut-output");
 		expect(command).not.toContain("/tmp/qcut-codex-boot.md");
 	});

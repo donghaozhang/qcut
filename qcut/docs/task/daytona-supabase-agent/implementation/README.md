@@ -11,6 +11,23 @@
 > qcut-cli image exists anywhere (local Docker, GHCR, or E2B). The
 > three paths (local / GHCR / E2B template) are documented separately
 > from the PR specs because each provider needs its own build step.
+>
+> 🧭 **For the current website Chat Agent runtime, read
+> [`11-chat-agent-runtime-flow.md`](11-chat-agent-runtime-flow.md).** It explains
+> how Connect creates/reuses a Daytona session, attaches the PTY relay, boots
+> Codex automatically, sends prompts into the persistent Codex TUI, and exposes
+> `/tmp/qcut-output` artifacts.
+>
+> 🧪 **For repeatable verification, read
+> [`12-agent-chat-e2e-cli.md`](12-agent-chat-e2e-cli.md) and
+> [`13-qcut-cli-command-survey.md`](13-qcut-cli-command-survey.md).** These
+> document the Chat Agent E2E command and the QCut CLI command-family smoke
+> matrix.
+>
+> 🔑 **For the next key-management CLI improvement, read
+> [`14-qcut-system-keys-plan.md`](14-qcut-system-keys-plan.md).** It defines
+> the proposed `qcut system keys` command, JSON contract, redaction rules, and
+> Chat Agent preflight flow.
 
 Nine PR-sized task specs, each consumable by `/implementit`. Each file says exactly what to build, where the files go, what tests to add, and what to run to verify "done."
 
@@ -87,3 +104,6 @@ Every PR spec follows the same skeleton:
 - [`../README.md`](../README.md) — folder index
 - [`../core-plan/architecture.md`](../core-plan/architecture.md) — exit-code contract referenced from every spec
 - [`../core-plan/secrets-supabase.md`](../core-plan/secrets-supabase.md) — `agent_secrets` loader the worker reuses
+- [`12-agent-chat-e2e-cli.md`](12-agent-chat-e2e-cli.md) — Chat Agent E2E test command
+- [`13-qcut-cli-command-survey.md`](13-qcut-cli-command-survey.md) — QCut CLI smoke-test matrix
+- [`14-qcut-system-keys-plan.md`](14-qcut-system-keys-plan.md) — proposed `qcut system keys` command

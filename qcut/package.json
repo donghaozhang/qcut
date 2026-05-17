@@ -130,6 +130,8 @@
 		"test:payments": "cd packages/license-server && bun run test",
 		"test:e2e": "playwright test",
 		"test:e2e:bg": "bun scripts/e2e-virtual-display.ts",
+		"test:agent:e2e": "bun scripts/agent-chat-e2e.ts",
+		"test:agent:e2e:prod": "bun scripts/agent-chat-e2e.ts --url https://quriosity.com.au/chat-agent.html",
 		"test:cli-e2e": "bash apps/web/src/test/cli-e2e/run-all.sh",
 		"test:e2e:record": "bun scripts/run-e2e-record.ts",
 		"test:e2e:combine": "bun scripts/combine-e2e-videos.ts",

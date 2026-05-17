@@ -8,7 +8,7 @@
  */
 
 /** Supported provider backends for model execution. */
-export type ProviderBackend = "fal" | "gmi" | "imarouter";
+export type ProviderBackend = "fal" | "gmi" | "imarouter" | "elevenlabs";
 
 export type ModelCategory =
 	| "text_to_image"

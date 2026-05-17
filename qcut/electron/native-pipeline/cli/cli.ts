@@ -54,6 +54,13 @@ const COMMANDS = Object.keys(COMMANDS_REGISTRY);
 
 type Command = string;
 
+function getDefaultOutputDir(): string {
+	const envOutputDir = process.env.QCUT_OUTPUT_DIR?.trim();
+	return (
+		envOutputDir || path.join(os.homedir(), "Documents", "QCut", "exports")
+	);
+}
+
 /** Parse process argv into CLIRunOptions, exiting on --help/--version. */
 export function parseCliArgs(argv: string[]): CLIRunOptions {
 	let command = argv[0];
@@ -135,6 +142,8 @@ export function parseCliArgs(argv: string[]): CLIRunOptions {
 			verbose: { type: "boolean", short: "v", default: false },
 			help: { type: "boolean", short: "h", default: false },
 			category: { type: "string" },
+			configured: { type: "boolean", default: false },
+			missing: { type: "boolean", default: false },
 			prompt: { type: "string" },
 			layout: { type: "string" },
 			upscale: { type: "string" },
@@ -413,9 +422,7 @@ export function parseCliArgs(argv: string[]): CLIRunOptions {
 		imageUrl: values["image-url"] as string | undefined,
 		videoUrl: values["video-url"] as string | undefined,
 		audioUrl: values["audio-url"] as string | undefined,
-		outputDir:
-			(values["output-dir"] as string) ||
-			path.join(os.homedir(), "Documents", "QCut", "exports"),
+		outputDir: (values["output-dir"] as string) || getDefaultOutputDir(),
 		outputDirExplicit: !!(values["output-dir"] as string),
 		duration: values.duration as string | undefined,
 		aspectRatio: values["aspect-ratio"] as string | undefined,
@@ -436,6 +443,8 @@ export function parseCliArgs(argv: string[]): CLIRunOptions {
 		verbose: (values.verbose as boolean) ?? false,
 		quiet: (values.quiet as boolean) ?? false,
 		category: values.category as string | undefined,
+		configured: (values.configured as boolean) ?? false,
+		missing: (values.missing as boolean) ?? false,
 		prompt: values.prompt as string | undefined,
 		layout: values.layout as string | undefined,
 		upscale: values.upscale as string | undefined,
