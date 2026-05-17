@@ -36,6 +36,9 @@
 - 已部署 Workers：
   - `qcut-license-server` version `b831fc20-e03e-4a12-b28c-809cd7f56a2c`
   - `qcut-relay` version `e490005e-c4a4-4c3d-88e0-3a31b7da6f55`
+- 已部署完整 sandbox filesystem 更新：
+  - `qcut-license-server` version `cc854321-af0d-4b79-8243-1c573ed8151b`
+  - `nexusai-website/master` commit `b76d0d6`
 - 已推送 website commit `c2f5cf3` 到 `nexusai-website/master`。
 
 ## 验证
@@ -67,6 +70,18 @@
 - 从网页下载 `upload-e2e-proof.txt`，并确认内容包含：
   - 两个上传文件名
   - `qcut-upload-proof.txt` 的文本内容
+- 完整 sandbox filesystem 部署后，打开了 `https://quriosity.com.au/chat-agent.html?fs-v=8f15127b`。
+- 已连接持久 Daytona Codex terminal，并确认页面显示：
+  - session `6829578c-1100-40f6-8c33-f9be3adc8a32`
+  - terminal status 是 `connected`
+  - Codex 在 `~/qcut` 目录运行，并且是 YOLO permission 模式
+- 确认文件浏览器能列出真实 sandbox 根目录 `/`，包括 `/bin`、`/home`、`/tmp`、`/usr`、`/var` 和 `/.dockerenv`。
+- 确认 UI 目录跳转可用：从页面进入了 `/sys`。
+- 确认生产 API 可以浏览 `/tmp`，返回了 `/tmp/qcut-input`、`/tmp/qcut-output` 和 `/tmp/qcut-tools`。
+- 确认生产环境 full-path 上传和下载可用：
+  - 通过 `POST /files?path=/tmp/qcut-input` 上传了 `qcut-full-fs-proof.txt`。
+  - 通过 `GET /files/download?path=/tmp/qcut-input/qcut-full-fs-proof.txt` 下载了它。
+  - 下载文本和 `qcut full sandbox fs proof 2026-05-17` 一致。
 
 证据文件：
 
@@ -74,10 +89,12 @@
 - `output/playwright/chat-agent-upload/02-codex-output-artifact.png`
 - `output/playwright/chat-agent-upload/downloaded-qcut-upload-proof.txt`
 - `output/playwright/chat-agent-upload/downloaded-upload-e2e-proof.txt`
+- `output/playwright/chat-agent-full-fs/01-root-filesystem.png`
+- `output/playwright/chat-agent-full-fs/04-tmp-filesystem.png`（这张截图展示的是打开 `/sys` 后的目录跳转结果；文件名沿用了探索测试时的名字）
 
 ## 下一步子任务
 
 1. 给大文件上传加进度显示。
 2. 如果要让它更像轻量文件管理器，可以继续加创建文件夹和删除文件。
 3. 给图片加缩略图预览，给音频/视频加播放控件。
-4. 部署 license-server 更新后，再跑一次线上 E2E，截图确认 root 浏览、目录跳转、上传到当前目录、按完整路径下载都正常。
+4. 给文件行加更明确的 data attribute 或唯一按钮 label，方便之后 Playwright 直接按文件夹名点击，不依赖重复的 `Open` 按钮。

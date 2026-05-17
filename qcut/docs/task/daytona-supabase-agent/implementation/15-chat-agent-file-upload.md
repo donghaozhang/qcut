@@ -35,6 +35,9 @@ Make `https://quriosity.com.au/chat-agent.html` support user file and image uplo
 - Deployed updated Workers:
   - `qcut-license-server` version `b831fc20-e03e-4a12-b28c-809cd7f56a2c`
   - `qcut-relay` version `e490005e-c4a4-4c3d-88e0-3a31b7da6f55`
+- Deployed the full-sandbox filesystem update:
+  - `qcut-license-server` version `cc854321-af0d-4b79-8243-1c573ed8151b`
+  - `nexusai-website/master` commit `b76d0d6`
 - Pushed website commit `c2f5cf3` to `nexusai-website/master`.
 
 ## Verification
@@ -66,6 +69,18 @@ Live E2E passed on `https://quriosity.com.au/chat-agent.html`:
 - Downloaded `upload-e2e-proof.txt` from the page and verified it contained:
   - both uploaded filenames
   - the text content from `qcut-upload-proof.txt`
+- After the full-sandbox filesystem deploy, opened `https://quriosity.com.au/chat-agent.html?fs-v=8f15127b`.
+- Connected the persistent Daytona Codex terminal and confirmed the page showed:
+  - session `6829578c-1100-40f6-8c33-f9be3adc8a32`
+  - terminal status `connected`
+  - Codex running in `~/qcut` with YOLO permissions
+- Confirmed the file browser listed the real sandbox root `/`, including `/bin`, `/home`, `/tmp`, `/usr`, `/var`, and `/.dockerenv`.
+- Confirmed folder navigation works by opening `/sys` from the UI.
+- Confirmed the production API can browse `/tmp` and returns `/tmp/qcut-input`, `/tmp/qcut-output`, and `/tmp/qcut-tools`.
+- Confirmed full-path upload and download works on production:
+  - Uploaded `qcut-full-fs-proof.txt` to `/tmp/qcut-input` through `POST /files?path=/tmp/qcut-input`.
+  - Downloaded it through `GET /files/download?path=/tmp/qcut-input/qcut-full-fs-proof.txt`.
+  - Verified the downloaded text matched `qcut full sandbox fs proof 2026-05-17`.
 
 Evidence files:
 
@@ -73,10 +88,12 @@ Evidence files:
 - `output/playwright/chat-agent-upload/02-codex-output-artifact.png`
 - `output/playwright/chat-agent-upload/downloaded-qcut-upload-proof.txt`
 - `output/playwright/chat-agent-upload/downloaded-upload-e2e-proof.txt`
+- `output/playwright/chat-agent-full-fs/01-root-filesystem.png`
+- `output/playwright/chat-agent-full-fs/04-tmp-filesystem.png` (this screenshot shows folder navigation after opening `/sys`; filename kept from the exploratory run)
 
 ## Next Subtasks
 
 1. Add a small progress indicator for large uploads.
 2. Add create-folder and delete-file controls if we want the browser to behave like a lightweight file manager.
 3. Add artifact preview thumbnails for images and playable controls for audio/video.
-4. Run another production E2E after deploying the license-server update and capture screenshots for root browsing, nested navigation, upload-to-current-folder, and full-path download.
+4. Add a more precise UI locator or per-row data attribute so future Playwright screenshots can click a named folder without relying on repeated `Open` buttons.
