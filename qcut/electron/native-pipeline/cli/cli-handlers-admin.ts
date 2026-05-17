@@ -112,7 +112,7 @@ export function handleGetKey(options: CLIRunOptions): CLIResult {
 }
 
 export function handleCheckKeys(
-	options: CLIRunOptions = {} as CLIRunOptions
+	options: Partial<CLIRunOptions> = {}
 ): CLIResult {
 	try {
 		const filter = normalizeKeyFilter({
