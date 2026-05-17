@@ -139,6 +139,68 @@ The CLI is too broad to test every command on every run. The useful split is:
    reported provider `fal` and an endpoint/application mismatch. This should be
    investigated before promoting transcription into the release smoke suite.
 
+### Transcribe Provider Fix - 2026-05-17
+
+Implemented the proper direct ElevenLabs STT route:
+
+- Added `elevenlabs_scribe_v2` with provider backend `elevenlabs`.
+- Direct endpoint is `https://api.elevenlabs.io/v1/speech-to-text`.
+- Request body uses `multipart/form-data` with the audio file and
+  `model_id=scribe_v2`.
+- `analyze transcribe --provider elevenlabs` now maps to the direct model
+  instead of the legacy FAL-backed `scribe_v2` model.
+- `analyze transcribe` with no provider now also defaults to
+  `elevenlabs_scribe_v2`, so the common command path works without extra flags.
+- The generic CLI runner no longer pre-resolves `--provider` for `transcribe`,
+  so the transcribe handler owns the provider-to-model mapping.
+- Unknown transcribe providers are rejected by the transcribe handler instead
+  of silently falling back to the default model.
+- The legacy FAL-backed `scribe_v2` compatibility route still works when
+  selected explicitly with `--model scribe_v2`.
+- The license-server FAL key lookup now accepts both `FAL_API_KEY` and
+  `FAL_KEY`, matching the local QCut env naming.
+- Proxy-mode FAL STT no longer logs a misleading missing-`outputUrl` warning
+  when the provider returns text/word transcription data.
+
+Verification:
+
+```bash
+bunx vitest run \
+  electron/native-pipeline/registry-data/__tests__/speech-to-text.test.ts \
+  electron/native-pipeline/infra/__tests__/api-caller-elevenlabs-stt.test.ts \
+  electron/native-pipeline/cli/__tests__/cli-handlers-media-transcribe.test.ts
+
+bunx tsc --noEmit -p electron/tsconfig.json
+
+bun electron/native-pipeline/cli/cli.ts analyze transcribe \
+  -i apps/web/src/test/e2e/fixtures/media/sample-audio.mp3 \
+  --provider elevenlabs --language en --srt --raw-json --json \
+  -o output/qcut-cli-transcribe-elevenlabs-direct-20260517-010224
+```
+
+Result:
+
+- Unit tests passed: `8` tests / `3` files.
+- Proxy retry/STT text-result coverage passed with the same QCut test run:
+  `15` tests / `4` files.
+- License-server provider/proxy tests passed: `43` tests / `2` files.
+- Electron TypeScript check passed.
+- `ELEVENLABS_API_KEY` was refreshed in local `~/.qcut/.env` and Supabase
+  project secrets for `kbrtxitvavpuimuihppz`.
+- Live CLI route reached ElevenLabs directly and no longer used FAL.
+- Live transcription succeeded in `0.6s`.
+- Created:
+  - `output/qcut-cli-transcribe-elevenlabs-direct-20260517-010224/transcription_raw.json`
+  - `output/qcut-cli-transcribe-elevenlabs-direct-20260517-010224/transcription.srt`
+- Fixture output text was `[beep]`, language `eng`, probability `1`.
+- Bare default command passed:
+  `output/qcut-default-transcribe-elevenlabs-20260517-011327/transcription_raw.json`.
+- Explicit legacy FAL-backed command passed:
+  `output/qcut-fal-scribe-v2-check-20260517-011327/transcription_raw.json`.
+
+Next subtask: add this direct ElevenLabs transcribe command to the release smoke
+matrix once paid-provider smoke is allowed for the run.
+
 ## Paid Provider Verification - 2026-05-16
 
 User requested real paid runs after the safe survey. I ran three provider-backed

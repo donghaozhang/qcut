@@ -54,6 +54,14 @@ export interface ApiCallResult {
 	cost?: number;
 }
 
+export interface ElevenLabsSpeechToTextOptions {
+	endpoint: string;
+	audioInput: string;
+	payload: Record<string, unknown>;
+	signal?: AbortSignal;
+	timeoutMs?: number;
+}
+
 interface FalQueueResponse {
 	request_id: string;
 	status: string;
@@ -136,6 +144,9 @@ const FAL_STORAGE_INITIATE =
 	"https://rest.alpha.fal.ai/storage/upload/initiate?storage_type=fal-cdn-v3";
 
 const MIME_TYPES: Record<string, string> = {
+	".aac": "audio/aac",
+	".flac": "audio/flac",
+	".m4a": "audio/mp4",
 	".mp4": "video/mp4",
 	".mov": "video/quicktime",
 	".webm": "video/webm",
@@ -146,6 +157,100 @@ const MIME_TYPES: Record<string, string> = {
 	".mp3": "audio/mpeg",
 	".wav": "audio/wav",
 };
+
+function getContentTypeForPath(filePath: string): string {
+	const ext = path.extname(filePath).toLowerCase();
+	return MIME_TYPES[ext] || "application/octet-stream";
+}
+
+function filenameFromInput({ input }: { input: string }): string {
+	if (!/^https?:\/\//i.test(input)) return path.basename(input);
+	try {
+		const url = new URL(input);
+		const name = path.basename(url.pathname);
+		return name || "audio";
+	} catch {
+		return "audio";
+	}
+}
+
+function appendSpeechToTextField({
+	form,
+	key,
+	value,
+}: {
+	form: FormData;
+	key: string;
+	value: unknown;
+}): void {
+	if (value === undefined || value === null) return;
+	if (Array.isArray(value)) {
+		form.append(key, JSON.stringify(value));
+		return;
+	}
+	if (typeof value === "object") {
+		form.append(key, JSON.stringify(value));
+		return;
+	}
+	form.append(key, String(value));
+}
+
+async function buildAudioBlob({
+	audioInput,
+	signal,
+}: {
+	audioInput: string;
+	signal?: AbortSignal;
+}): Promise<{ blob: Blob; filename: string }> {
+	if (/^https?:\/\//i.test(audioInput)) {
+		const response = await fetch(audioInput, { signal });
+		if (!response.ok) {
+			throw new Error(`Failed to fetch audio URL: ${response.status}`);
+		}
+		const contentType =
+			response.headers.get("content-type") || getContentTypeForPath(audioInput);
+		const bytes = await response.arrayBuffer();
+		return {
+			blob: new Blob([bytes], { type: contentType }),
+			filename: filenameFromInput({ input: audioInput }),
+		};
+	}
+
+	const fileBytes = fs.readFileSync(audioInput);
+	return {
+		blob: new Blob([new Uint8Array(fileBytes)], {
+			type: getContentTypeForPath(audioInput),
+		}),
+		filename: filenameFromInput({ input: audioInput }),
+	};
+}
+
+function buildElevenLabsSpeechToTextForm({
+	audio,
+	payload,
+}: {
+	audio: { blob: Blob; filename: string };
+	payload: Record<string, unknown>;
+}): FormData {
+	const form = new FormData();
+	form.append("file", audio.blob, audio.filename);
+	form.append("model_id", String(payload.model_id ?? "scribe_v2"));
+
+	const payloadFields = { ...payload };
+	delete payloadFields.model_id;
+	if (
+		typeof payloadFields.language === "string" &&
+		typeof payloadFields.language_code !== "string"
+	) {
+		payloadFields.language_code = payloadFields.language;
+	}
+	delete payloadFields.language;
+
+	for (const [key, value] of Object.entries(payloadFields)) {
+		appendSpeechToTextField({ form, key, value });
+	}
+	return form;
+}
 
 /**
  * Upload a local file to FAL CDN storage.
@@ -990,6 +1095,65 @@ export async function callModelApi(
 		return {
 			success: false,
 			error: msg.includes("aborted") ? "Cancelled" : msg,
+			duration: (Date.now() - startTime) / 1000,
+		};
+	} finally {
+		clearTimeout(timer);
+	}
+}
+
+export async function callElevenLabsSpeechToText({
+	endpoint,
+	audioInput,
+	payload,
+	signal,
+	timeoutMs = DEFAULT_TIMEOUT_MS,
+}: ElevenLabsSpeechToTextOptions): Promise<ApiCallResult> {
+	const startTime = Date.now();
+	const apiKey = await getApiKey("elevenlabs");
+	if (!apiKey) {
+		return {
+			success: false,
+			error: "No API key configured for provider: elevenlabs",
+			duration: 0,
+		};
+	}
+
+	const controller = new AbortController();
+	const combinedSignal = signal
+		? AbortSignal.any([signal, controller.signal])
+		: controller.signal;
+	const timer = setTimeout(() => controller.abort(), timeoutMs);
+
+	try {
+		const audio = await buildAudioBlob({ audioInput, signal: combinedSignal });
+		const form = buildElevenLabsSpeechToTextForm({ audio, payload });
+		const response = await fetch(buildUrl("elevenlabs", endpoint), {
+			method: "POST",
+			headers: { "xi-api-key": apiKey },
+			body: form,
+			signal: combinedSignal,
+		});
+
+		if (!response.ok) {
+			const errorText = await response.text();
+			return {
+				success: false,
+				error: `ElevenLabs API error ${response.status}: ${errorText}`,
+				duration: (Date.now() - startTime) / 1000,
+			};
+		}
+
+		const data = await response.json();
+		return {
+			success: true,
+			data,
+			duration: (Date.now() - startTime) / 1000,
+		};
+	} catch (err) {
+		return {
+			success: false,
+			error: err instanceof Error ? err.message : String(err),
 			duration: (Date.now() - startTime) / 1000,
 		};
 	} finally {

@@ -47,6 +47,14 @@ export async function isProxyAvailable(): Promise<boolean> {
 	return token.length > 0;
 }
 
+function hasTextResult(data: Record<string, unknown>): boolean {
+	return (
+		typeof data.text === "string" ||
+		typeof data.transcription === "string" ||
+		Array.isArray(data.words)
+	);
+}
+
 export interface ProxyRequestOptions {
 	provider: string;
 	endpoint: string;
@@ -564,7 +572,7 @@ async function pollViaProxy({
 						duration: (Date.now() - startTime) / 1000,
 					};
 				}
-				if (!extracted) {
+				if (!extracted && !hasTextResult(data)) {
 					console.error(
 						`[proxy-client] FAL ${endpoint} returned no recognized outputUrl. Raw keys: ${Object.keys(data ?? {}).join(", ")}. Data preview: ${JSON.stringify(data).slice(0, 500)}`
 					);

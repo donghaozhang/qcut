@@ -39,6 +39,26 @@ type ProgressFn = (progress: {
 	model?: string;
 }) => void;
 
+function resolveTranscribeModel({
+	model,
+	provider,
+}: {
+	model?: string;
+	provider?: string;
+}): { model?: string; error?: string } {
+	if (model) return { model };
+	if (!provider) return { model: "elevenlabs_scribe_v2" };
+
+	const normalizedProvider = provider.toLowerCase();
+	if (normalizedProvider === "elevenlabs") {
+		return { model: "elevenlabs_scribe_v2" };
+	}
+
+	return {
+		error: `Unknown provider '${provider}'. Supported transcribe providers: elevenlabs.`,
+	};
+}
+
 export async function handleAnalyzeVideo(
 	options: CLIRunOptions,
 	onProgress: ProgressFn,
@@ -570,7 +590,14 @@ export async function handleTranscribe(
 		return { success: false, error: "Missing --input/-i (audio path/URL)" };
 	}
 
-	const model = options.model || "scribe_v2";
+	const modelResolution = resolveTranscribeModel({
+		model: options.model,
+		provider: options.provider,
+	});
+	if (modelResolution.error) {
+		return { success: false, error: modelResolution.error };
+	}
+	const model = modelResolution.model ?? "scribe_v2";
 	if (!ModelRegistry.has(model)) {
 		return { success: false, error: `Unknown model '${model}'` };
 	}

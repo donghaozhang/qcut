@@ -133,6 +133,65 @@ QCut CLI 太大，不适合每次把所有命令都跑一遍。建议分层：
    endpoint/application mismatch。把转写放进 release smoke 前，需要先修这条
    provider route。
 
+### Transcribe Provider 修复 - 2026-05-17
+
+已经实现真正 direct ElevenLabs STT route：
+
+- 新增 `elevenlabs_scribe_v2`，provider backend 是 `elevenlabs`。
+- Direct endpoint 是 `https://api.elevenlabs.io/v1/speech-to-text`。
+- 请求体使用 `multipart/form-data`，上传音频文件并带
+  `model_id=scribe_v2`。
+- `analyze transcribe --provider elevenlabs` 现在映射到 direct model，
+  不再映射到旧的 FAL-backed `scribe_v2`。
+- 不带 provider 的 `analyze transcribe` 现在也默认使用
+  `elevenlabs_scribe_v2`，常用命令不再需要额外参数。
+- CLI runner 不再提前为 `transcribe` 做通用 `--provider -> --model`
+  解析；转写命令自己的 handler 负责 provider 映射。
+- 未知 transcribe provider 会被 handler 明确拒绝，不会静默回落到默认模型。
+- 旧的 FAL-backed `scribe_v2` 兼容路径仍然可用；显式
+  `--model scribe_v2` 会走它。
+- license-server 的 FAL key 查找现在同时接受 `FAL_API_KEY` 和 `FAL_KEY`，
+  和本地 QCut env 命名保持兼容。
+- Proxy-mode FAL STT 返回 text/words 时，不再误报缺少 `outputUrl`。
+
+验证：
+
+```bash
+bunx vitest run \
+  electron/native-pipeline/registry-data/__tests__/speech-to-text.test.ts \
+  electron/native-pipeline/infra/__tests__/api-caller-elevenlabs-stt.test.ts \
+  electron/native-pipeline/cli/__tests__/cli-handlers-media-transcribe.test.ts
+
+bunx tsc --noEmit -p electron/tsconfig.json
+
+bun electron/native-pipeline/cli/cli.ts analyze transcribe \
+  -i apps/web/src/test/e2e/fixtures/media/sample-audio.mp3 \
+  --provider elevenlabs --language en --srt --raw-json --json \
+  -o output/qcut-cli-transcribe-elevenlabs-direct-20260517-010224
+```
+
+结果：
+
+- 单测通过：`3` 个文件 / `8` 个测试。
+- 同轮 QCut proxy/STT 文本结果相关测试通过：`4` 个文件 / `15` 个测试。
+- license-server provider/proxy 测试通过：`2` 个文件 / `43` 个测试。
+- Electron TypeScript check 通过。
+- `ELEVENLABS_API_KEY` 已刷新到本地 `~/.qcut/.env` 和 Supabase project
+  `kbrtxitvavpuimuihppz` 的 secrets。
+- 真实 CLI 已经直连 ElevenLabs，不再走 FAL。
+- 真实转写成功，耗时 `0.6s`。
+- 已生成：
+  - `output/qcut-cli-transcribe-elevenlabs-direct-20260517-010224/transcription_raw.json`
+  - `output/qcut-cli-transcribe-elevenlabs-direct-20260517-010224/transcription.srt`
+- fixture 输出文本是 `[beep]`，语言 `eng`，概率 `1`。
+- 不带 provider 的默认命令已通过：
+  `output/qcut-default-transcribe-elevenlabs-20260517-011327/transcription_raw.json`。
+- 显式旧 FAL-backed 命令已通过：
+  `output/qcut-fal-scribe-v2-check-20260517-011327/transcription_raw.json`。
+
+下一步：如果当前 release smoke 允许跑付费 provider，把这条 direct
+ElevenLabs transcribe 命令加入 release smoke matrix。
+
 ## 真实付费 Provider 验证 - 2026-05-16
 
 安全 survey 之后，用户要求跑真实付费命令。我跑了 3 个 provider-backed probe，

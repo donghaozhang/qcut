@@ -47,6 +47,12 @@ describe("getProviderKey", () => {
 		expect(getProviderKey("fal")).toBe("fal-key-123");
 	});
 
+	it("falls back to FAL_KEY for FAL compatibility", () => {
+		delete process.env.FAL_API_KEY;
+		process.env.FAL_KEY = "legacy-fal-key";
+		expect(getProviderKey("fal")).toBe("legacy-fal-key");
+	});
+
 	it("returns undefined when env var is missing", () => {
 		delete process.env.GEMINI_API_KEY;
 		expect(getProviderKey("gemini")).toBeUndefined();
