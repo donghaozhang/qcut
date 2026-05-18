@@ -15,7 +15,9 @@ vi.mock("../db/supabase", () => ({
 
 const daytonaMocks = vi.hoisted(() => ({
 	Daytona: vi.fn(),
+	ImageBase: vi.fn(),
 	create: vi.fn(),
+	createSandbox: vi.fn(),
 	get: vi.fn(),
 	executeCommand: vi.fn(),
 	createFolder: vi.fn(),
@@ -27,6 +29,7 @@ const daytonaMocks = vi.hoisted(() => ({
 
 vi.mock("@daytona/sdk", () => ({
 	Daytona: daytonaMocks.Daytona,
+	Image: { base: daytonaMocks.ImageBase },
 }));
 
 const { db } = await import("../db/drizzle");
@@ -83,6 +86,12 @@ function mockSelectRowsOnce({ rows }: { rows: unknown[] }): void {
 	const limit = vi.fn().mockResolvedValue(rows);
 	const orderBy = vi.fn().mockReturnValue({ limit });
 	const where = vi.fn().mockReturnValue({ limit, orderBy });
+	const from = vi.fn().mockReturnValue({ where });
+	vi.mocked(db.select).mockReturnValueOnce({ from } as never);
+}
+
+function mockSelectWhereRowsOnce({ rows }: { rows: unknown[] }): void {
+	const where = vi.fn().mockResolvedValue(rows);
 	const from = vi.fn().mockReturnValue({ where });
 	vi.mocked(db.select).mockReturnValueOnce({ from } as never);
 }
@@ -178,9 +187,13 @@ beforeEach(() => {
 	daytonaMocks.Daytona.mockImplementation(function DaytonaMock() {
 		return {
 			create: daytonaMocks.create,
+			sandboxApi: { createSandbox: daytonaMocks.createSandbox },
 			get: daytonaMocks.get,
 		};
 	});
+	daytonaMocks.ImageBase.mockImplementation((image: string) => ({
+		dockerfile: `FROM ${image}\n`,
+	}));
 });
 
 afterEach(() => {
@@ -362,6 +375,105 @@ describe("POST /api/agent/sessions/:sessionId/end", () => {
 		expect(res.status).toBe(404);
 		expect(await res.json()).toEqual({ error: "agent_session_not_found" });
 		expect(set).not.toHaveBeenCalled();
+	});
+});
+
+describe("POST /api/agent/sessions/:sessionId/pty-token", () => {
+	it("starts a Daytona sandbox without waiting for the cold image to boot", async () => {
+		process.env.DAYTONA_API_KEY = "daytona-test";
+		process.env.RELAY_SIGNING_SECRET = "relay-secret";
+		process.env.QCUT_IMAGE_TAG = "qcut-cli:new";
+		mockSelectRowsOnce({ rows: [makeAgentSession()] });
+		mockSelectWhereRowsOnce({
+			rows: [{ key: "IMAROUTER_API_KEY", value: "imarouter-test" }],
+		});
+		const { set } = mockUpdateChain();
+		const { values } = mockInsertChain();
+		daytonaMocks.createSandbox.mockResolvedValue({
+			data: { id: "sandbox-1", state: "starting" },
+		});
+
+		const res = await buildApp().request(
+			"/api/agent/sessions/agent-session-1/pty-token",
+			{
+				method: "POST",
+				headers: jsonHeaders(),
+				body: JSON.stringify({}),
+			}
+		);
+
+		const body = await res.json();
+		expect(res.status, JSON.stringify(body)).toBe(202);
+		expect(body.status).toBe("starting");
+		expect(body.retry_after_ms).toBe(3000);
+		expect(body.session.providerSessionId).toBe("sandbox-1");
+		expect(daytonaMocks.create).not.toHaveBeenCalled();
+		expect(daytonaMocks.ImageBase).toHaveBeenCalledWith("qcut-cli:new");
+		expect(daytonaMocks.createSandbox).toHaveBeenCalledWith(
+			expect.objectContaining({
+				buildInfo: { dockerfileContent: "FROM qcut-cli:new\n" },
+				env: {
+					QCUT_SESSION_ROLE: "agent",
+					IMAROUTER_API_KEY: "imarouter-test",
+				},
+				labels: { "code-toolbox-language": "python" },
+				cpu: 2,
+				memory: 4,
+				autoStopInterval: 120,
+				autoDeleteInterval: 0,
+			}),
+			undefined,
+			{ timeout: 45_000 }
+		);
+		expect(set).toHaveBeenCalledWith(
+			expect.objectContaining({
+				providerSessionId: "sandbox-1",
+				imageTag: "qcut-cli:new",
+			})
+		);
+		expect(values).toHaveBeenCalledWith(
+			expect.objectContaining({
+				kind: "agent_terminal_starting",
+				payload: expect.objectContaining({ sandboxId: "sandbox-1" }),
+			})
+		);
+	});
+
+	it("returns a relay websocket token once the Daytona sandbox is started", async () => {
+		process.env.DAYTONA_API_KEY = "daytona-test";
+		process.env.RELAY_SIGNING_SECRET = "relay-secret";
+		mockSelectRowsOnce({
+			rows: [makeAgentSession({ providerSessionId: "sandbox-1" })],
+		});
+		const { set } = mockUpdateChain();
+		const { values } = mockInsertChain();
+		daytonaMocks.get.mockResolvedValue({ id: "sandbox-1", state: "started" });
+
+		const res = await buildApp().request(
+			"/api/agent/sessions/agent-session-1/pty-token",
+			{
+				method: "POST",
+				headers: jsonHeaders(),
+				body: JSON.stringify({}),
+			}
+		);
+
+		expect(res.status).toBe(200);
+		const body = await res.json();
+		expect(body.ws_url).toMatch(
+			/^wss:\/\/qcut-relay\.zdhpeter\.workers\.dev\/pty\?token=/
+		);
+		expect(daytonaMocks.get).toHaveBeenCalledWith("sandbox-1");
+		expect(daytonaMocks.createSandbox).not.toHaveBeenCalled();
+		expect(set).toHaveBeenCalledWith(
+			expect.objectContaining({ providerSessionId: "sandbox-1" })
+		);
+		expect(values).toHaveBeenCalledWith(
+			expect.objectContaining({
+				kind: "agent_terminal_ready",
+				payload: expect.objectContaining({ sandboxId: "sandbox-1" }),
+			})
+		);
 	});
 });
 

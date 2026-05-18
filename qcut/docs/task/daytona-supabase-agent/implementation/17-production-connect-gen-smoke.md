@@ -251,11 +251,17 @@ new Daytona sessions start with the CLI default video model fix.
 Deployment result:
 
 - GitHub Actions run `26022125848` built, pushed, and smoke-tested the image.
-- Switching production `QCUT_IMAGE_TAG` to the tag and to the digest both caused
-  new terminal Connect attempts to fail inside `qcut-license-server` with:
+- Initial switch of production `QCUT_IMAGE_TAG` to the tag and to the digest both
+  caused new terminal Connect attempts to fail inside `qcut-license-server` with:
   `Too many subrequests by single Worker invocation`.
 - The failure happens while synchronously creating a new Daytona sandbox from the
   cold image. The image itself is valid; the current Worker invocation model
   cannot absorb the cold-pull create loop.
-- Production was rolled back to the previously working image tag:
-  `ghcr.io/quriosity-agent/qcut-cli:youtube-fix-20260516`.
+- Cloudflare rejected a Worker limits-based fix on the current plan:
+  `CPU limits are not supported for the Free plan`.
+- Code fix: `POST /api/agent/sessions/:id/pty-token` now starts the Daytona
+  sandbox without waiting for SDK `waitUntilStarted()`, stores the sandbox id,
+  returns `202 starting`, and lets the website retry until Daytona reports
+  `started`.
+- Production should point `QCUT_IMAGE_TAG` at the new digest:
+  `ghcr.io/quriosity-agent/qcut-cli@sha256:91577894c04bbb7dbf1358f289050cc41e37b5c80291351cc85a2c931c9e673d`.

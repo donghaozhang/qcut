@@ -1,6 +1,6 @@
 import { Hono, type Context, type Next } from "hono";
 import { and, desc, eq, gt } from "drizzle-orm";
-import { Daytona } from "@daytona/sdk";
+import { Daytona, Image } from "@daytona/sdk";
 import { SignJWT } from "jose";
 import {
 	agentArtifacts,
@@ -24,7 +24,8 @@ const MAX_TERMINAL_ARTIFACTS = 80;
 const MAX_SESSION_UPLOAD_BYTES = 25 * 1024 * 1024;
 const AGENT_SESSION_TTL_MS = 2 * 60 * 60 * 1000;
 const AGENT_SESSION_SANDBOX_AUTO_STOP_MINUTES = 120;
-const DAYTONA_CREATE_TIMEOUT_SECONDS = 300;
+const DAYTONA_CREATE_REQUEST_TIMEOUT_MS = 45_000;
+const AGENT_TERMINAL_RETRY_AFTER_MS = 3_000;
 const TERMINAL_INPUT_DIR = "/tmp/qcut-input";
 const TERMINAL_OUTPUT_DIR = "/tmp/qcut-output";
 const SAFE_COMMAND_TOKEN = /^[A-Za-z0-9_\-./:=,@+]+$/;
@@ -566,6 +567,21 @@ async function endAgentSession(c: Context) {
 
 type DaytonaClient = InstanceType<typeof Daytona>;
 type DaytonaSandbox = Awaited<ReturnType<DaytonaClient["create"]>>;
+type AgentTerminalSandboxSnapshot = Pick<DaytonaSandbox, "id"> & {
+	state?: string;
+	errorReason?: string;
+};
+type DaytonaSandboxCreateApi = {
+	createSandbox: (
+		body: Record<string, unknown>,
+		organizationId?: unknown,
+		options?: { timeout?: number }
+	) => Promise<{ data: AgentTerminalSandboxSnapshot }>;
+};
+type DaytonaCreateOnlyClient = {
+	sandboxApi: DaytonaSandboxCreateApi;
+	target?: string;
+};
 
 async function createAgentPtyToken(c: Context) {
 	const userId = c.get("userId") as string;
@@ -600,6 +616,12 @@ async function createAgentPtyToken(c: Context) {
 		userId,
 	});
 	const now = new Date();
+	const latestSession = {
+		...session,
+		providerSessionId: sandbox.id,
+		imageTag: getAgentImageTag(),
+		lastActiveAt: now,
+	};
 	await db
 		.update(agentSessions)
 		.set({
@@ -610,6 +632,41 @@ async function createAgentPtyToken(c: Context) {
 		.where(
 			and(eq(agentSessions.id, session.id), eq(agentSessions.userId, userId))
 		);
+
+	if (isAgentTerminalSandboxFailed({ sandbox })) {
+		return c.json(
+			{
+				error: "agent_terminal_sandbox_failed",
+				status: sandbox.state,
+				reason: sandbox.errorReason || "",
+			},
+			502
+		);
+	}
+
+	if (!isAgentTerminalSandboxStarted({ sandbox })) {
+		await db.insert(agentEvents).values({
+			jobId: null,
+			userId,
+			kind: "agent_terminal_starting",
+			payload: {
+				sessionId: session.id,
+				sandboxId: sandbox.id,
+				provider: "daytona",
+				status: sandbox.state || "unknown",
+			},
+			createdAt: now,
+		});
+		return c.json(
+			{
+				session: serializeAgentSession(latestSession),
+				status: "starting",
+				retry_after_ms: AGENT_TERMINAL_RETRY_AFTER_MS,
+			},
+			202
+		);
+	}
+
 	await db.insert(agentEvents).values({
 		jobId: null,
 		userId,
@@ -632,12 +689,7 @@ async function createAgentPtyToken(c: Context) {
 	const expiresAt = serializeDate({ value: session.expiresAt });
 
 	return c.json({
-		session: serializeAgentSession({
-			...session,
-			providerSessionId: sandbox.id,
-			imageTag: getAgentImageTag(),
-			lastActiveAt: now,
-		}),
+		session: serializeAgentSession(latestSession),
 		ws_url: `wss://${getRelayHost()}/pty?token=${wsToken}`,
 		expires_at: expiresAt,
 	});
@@ -957,7 +1009,7 @@ async function getOrCreateAgentTerminalSandbox({
 	daytona: DaytonaClient;
 	session: typeof agentSessions.$inferSelect;
 	userId: string;
-}): Promise<DaytonaSandbox> {
+}): Promise<AgentTerminalSandboxSnapshot> {
 	if (session.providerSessionId) {
 		try {
 			return await daytona.get(session.providerSessionId);
@@ -976,17 +1028,53 @@ async function getOrCreateAgentTerminalSandbox({
 		}
 	}
 
+	return createAgentTerminalSandbox({ daytona, userId });
+}
+
+async function createAgentTerminalSandbox({
+	daytona,
+	userId,
+}: {
+	daytona: DaytonaClient;
+	userId: string;
+}): Promise<AgentTerminalSandboxSnapshot> {
 	const envVars = await buildAgentTerminalEnv({ userId });
-	return daytona.create(
+	const imageTag = getAgentImageTag();
+	const createClient = daytona as unknown as DaytonaCreateOnlyClient;
+	const response = await createClient.sandboxApi.createSandbox(
 		{
-			image: getAgentImageTag(),
-			envVars,
-			resources: { cpu: 2, memory: 4 },
-			ephemeral: true,
+			buildInfo: { dockerfileContent: Image.base(imageTag).dockerfile },
+			env: envVars,
+			labels: { "code-toolbox-language": "python" },
+			target: createClient.target,
+			cpu: 2,
+			memory: 4,
 			autoStopInterval: AGENT_SESSION_SANDBOX_AUTO_STOP_MINUTES,
+			autoDeleteInterval: 0,
 		},
-		{ timeout: DAYTONA_CREATE_TIMEOUT_SECONDS }
+		undefined,
+		{ timeout: DAYTONA_CREATE_REQUEST_TIMEOUT_MS }
 	);
+	if (!response.data?.id) {
+		throw new Error("agent_terminal_sandbox_create_invalid_response");
+	}
+	return response.data;
+}
+
+function isAgentTerminalSandboxStarted({
+	sandbox,
+}: {
+	sandbox: AgentTerminalSandboxSnapshot;
+}): boolean {
+	return sandbox.state === "started";
+}
+
+function isAgentTerminalSandboxFailed({
+	sandbox,
+}: {
+	sandbox: AgentTerminalSandboxSnapshot;
+}): boolean {
+	return ["build_failed", "destroyed", "error"].includes(sandbox.state || "");
 }
 
 async function buildAgentTerminalEnv({
