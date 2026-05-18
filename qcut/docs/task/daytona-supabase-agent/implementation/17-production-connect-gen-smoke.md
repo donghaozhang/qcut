@@ -242,7 +242,20 @@ Deployment image tag:
 
 ```text
 ghcr.io/quriosity-agent/qcut-cli:seedance-fast-default-20260518-012452
+ghcr.io/quriosity-agent/qcut-cli@sha256:91577894c04bbb7dbf1358f289050cc41e37b5c80291351cc85a2c931c9e673d
 ```
 
 Production `qcut-license-server` should point `QCUT_IMAGE_TAG` at this image so
 new Daytona sessions start with the CLI default video model fix.
+
+Deployment result:
+
+- GitHub Actions run `26022125848` built, pushed, and smoke-tested the image.
+- Switching production `QCUT_IMAGE_TAG` to the tag and to the digest both caused
+  new terminal Connect attempts to fail inside `qcut-license-server` with:
+  `Too many subrequests by single Worker invocation`.
+- The failure happens while synchronously creating a new Daytona sandbox from the
+  cold image. The image itself is valid; the current Worker invocation model
+  cannot absorb the cold-pull create loop.
+- Production was rolled back to the previously working image tag:
+  `ghcr.io/quriosity-agent/qcut-cli:youtube-fix-20260516`.
