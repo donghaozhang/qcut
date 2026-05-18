@@ -256,7 +256,7 @@ const CORE_COMMANDS: Record<string, CommandDef> = {
 			f("--text", "string", "Text prompt", { short: "-t", required: true }),
 			f("--model", "string", "Model key", {
 				short: "-m",
-				default: "ltx23_fast_t2v",
+				default: "imarouter_seedance_2_0_fast_t2v",
 				enum: [
 					"ltx23_fast_t2v",
 					"ltx23_fast_i2v",

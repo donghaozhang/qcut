@@ -15,7 +15,7 @@ PAYMENTS_WEBHOOK_ENABLED = "true"
 PAYMENTS_CANARY_ONLY = "false"
 CORS_ALLOWED_ORIGINS = ""
 AI_PROXY_RATE_LIMIT = "60"
-QCUT_IMAGE_TAG = "ghcr.io/quriosity-agent/qcut-cli:youtube-fix-20260516"
+QCUT_IMAGE_TAG = "ghcr.io/quriosity-agent/qcut-cli@sha256:91577894c04bbb7dbf1358f289050cc41e37b5c80291351cc85a2c931c9e673d"
 
 # AI provider keys are stored as Wrangler secrets (not vars):
 # wrangler secret put FAL_API_KEY

@@ -57,6 +57,79 @@ export function buildOutputBasename(
 	return `output_${stamp}${indexSuffix}`;
 }
 
+export function getDefaultModelForCommand({
+	command,
+}: {
+	command: string;
+}): string | undefined {
+	if (command === "generate-image") return "nano_banana_pro";
+	if (command === "create-video") return "imarouter_seedance_2_0_fast_t2v";
+	return undefined;
+}
+
+function normalizeDurationForComparison({
+	duration,
+}: {
+	duration: string | number;
+}): string {
+	const raw = String(duration).trim().toLowerCase();
+	if (/^\d+(\.\d+)?s$/.test(raw)) {
+		return raw.slice(0, -1);
+	}
+	return raw;
+}
+
+function formatDurationOption({
+	duration,
+}: {
+	duration: string | number;
+}): string {
+	const text = String(duration).trim();
+	return /^\d+(\.\d+)?$/.test(text) ? `${text}s` : text;
+}
+
+function formatDurationOptions({
+	durationOptions,
+}: {
+	durationOptions: (string | number)[];
+}): string {
+	return durationOptions
+		.map((duration) => formatDurationOption({ duration }))
+		.join(", ");
+}
+
+export function validateDurationOption({
+	modelKey,
+	duration,
+}: {
+	modelKey: string;
+	duration: string | undefined;
+}): string | undefined {
+	if (!duration) return undefined;
+	const model = ModelRegistry.get(modelKey);
+	if (model.durationOptions.length === 0) return undefined;
+
+	const allowedDurations = new Set(
+		model.durationOptions.map((option) =>
+			normalizeDurationForComparison({ duration: option })
+		)
+	);
+	const requestedDuration = normalizeDurationForComparison({ duration });
+	if (allowedDurations.has(requestedDuration)) return undefined;
+
+	return `Invalid --duration '${duration}' for ${modelKey}. Supported durations: ${formatDurationOptions({ durationOptions: model.durationOptions })}.`;
+}
+
+function coerceDurationParam({
+	duration,
+}: {
+	duration: string;
+}): string | number {
+	const stripped = duration.trim().replace(/s$/i, "");
+	const asNum = Number(stripped);
+	return Number.isFinite(asNum) ? asNum : duration;
+}
+
 /** Write a sidecar JSON file with prompt + parameters next to the output. */
 async function writeSidecarJson(
 	basenamePath: string,
@@ -252,20 +325,34 @@ export async function handleGenerate(
 	signal: AbortSignal
 ): Promise<CLIResult> {
 	if (!options.model) {
-		if (options.command === "generate-image") {
-			options.model = "nano_banana_pro";
-		} else {
+		const defaultModel = getDefaultModelForCommand({
+			command: options.command,
+		});
+		if (!defaultModel) {
 			return {
 				success: false,
 				error: "Missing --model. Run --help for usage.",
 			};
 		}
+		options.model = defaultModel;
 	}
 	if (!ModelRegistry.has(options.model)) {
 		return {
 			success: false,
 			error: `Unknown model '${options.model}'. Run list-models to see available models.`,
 		};
+	}
+	if (options.command === "create-video") {
+		const durationError = validateDurationOption({
+			modelKey: options.model,
+			duration: options.duration,
+		});
+		if (durationError) {
+			return {
+				success: false,
+				error: durationError,
+			};
+		}
 	}
 
 	const hasTextInput = !!options.text;
@@ -311,11 +398,8 @@ export async function handleGenerate(
 
 	const params: Record<string, unknown> = {};
 	if (options.duration) {
-		// Coerce pure-numeric durations ("6", "10") to numbers for APIs that
-		// require integers. Keep string durations like "8s" (Veo) as-is.
-		const stripped = options.duration.replace(/s$/, "");
-		const asNum = Number(stripped);
-		params.duration = Number.isFinite(asNum) ? asNum : options.duration;
+		// Provider adapters re-stringify the few APIs that require literal enums.
+		params.duration = coerceDurationParam({ duration: options.duration });
 	}
 	if (options.aspectRatio) params.aspect_ratio = options.aspectRatio;
 	if (options.resolution) params.resolution = options.resolution;
