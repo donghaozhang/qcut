@@ -286,3 +286,36 @@ Production smoke results:
 
 Conclusion: production Connect now handles a Daytona cold start through
 polling instead of a single long Worker invocation.
+
+## 2026-05-18 Full Chat Agent E2E
+
+Ran the production Playwright E2E against:
+
+```text
+https://quriosity.com.au/chat-agent.html
+```
+
+First run failed at `turn two creates an artifact`: Codex created
+`/tmp/qcut-output/agent-e2e-1779126939719.txt`, and the production API returned
+it, but the UI file panel was still browsing `/`. Fix deployed in website commit
+`2694429`: default the file panel to `/tmp/qcut-output` and make the
+`Artifacts` button return to that path.
+
+Rerun result:
+
+```text
+status: passed
+runId: 1779127442896
+result: output/playwright/agent-chat-prod-e2e-20260518-deploy-rerun/result.json
+```
+
+Passed steps:
+
+- load page without auto-connect
+- stay disconnected before click
+- manual connect opens Codex
+- turn one reaches persistent Codex
+- turn two creates an artifact (`agent-e2e-1779127442896.txt`)
+- artifact downloads from the web UI
+- disconnect clears terminal state
+- reconnect opens Codex again
