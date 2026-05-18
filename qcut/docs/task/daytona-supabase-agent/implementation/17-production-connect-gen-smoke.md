@@ -265,3 +265,24 @@ Deployment result:
   `started`.
 - Production should point `QCUT_IMAGE_TAG` at the new digest:
   `ghcr.io/quriosity-agent/qcut-cli@sha256:91577894c04bbb7dbf1358f289050cc41e37b5c80291351cc85a2c931c9e673d`.
+
+## 2026-05-18 Cold Start Fix Deploy
+
+Deployed `qcut-license-server` with the async Daytona terminal start flow:
+
+```text
+Worker version: 94bb16be-f803-4fe6-9dce-ecbae0ed5122
+QCUT_IMAGE_TAG: ghcr.io/quriosity-agent/qcut-cli@sha256:91577894c04bbb7dbf1358f289050cc41e37b5c80291351cc85a2c931c9e673d
+```
+
+Production smoke results:
+
+- `POST /api/agent/sessions/:id/pty-token` first returned `202 starting` and
+  persisted Daytona sandbox id `bc675909-fea1-49fd-8f35-dd94676a21d0`.
+- A follow-up `pty-token` poll returned a relay `ws_url`, confirming the sandbox
+  reached `started` without hitting the Cloudflare subrequest limit.
+- Browser smoke against `https://quriosity.com.au/chat-agent.html` clicked
+  Connect and reached terminal status `connected` with the Codex banner visible.
+
+Conclusion: production Connect now handles a Daytona cold start through
+polling instead of a single long Worker invocation.
