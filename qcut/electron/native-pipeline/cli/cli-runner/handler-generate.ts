@@ -73,7 +73,7 @@ function normalizeDurationForComparison({
 	duration: string | number;
 }): string {
 	const raw = String(duration).trim().toLowerCase();
-	if (/^-?\d+(\.\d+)?s$/.test(raw)) {
+	if (/^\d+(\.\d+)?s$/.test(raw)) {
 		return raw.slice(0, -1);
 	}
 	return raw;

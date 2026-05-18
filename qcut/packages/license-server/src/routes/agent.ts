@@ -964,7 +964,7 @@ async function downloadAgentSessionFilesystemDirectory({
 		const fileBytes = await downloadDaytonaFileBytes({
 			sandbox,
 			remotePath: archivePath,
-			timeoutSeconds: 10 * 60,
+			timeoutSeconds: 5 * 60,
 		});
 		const archiveFilename = `${filename}.tar.gz`;
 		const headers: Record<string, string> = {
@@ -1520,7 +1520,9 @@ async function createSandboxDirectoryArchive({
 		'  printf "not_directory\\n" >&2',
 		"  exit 66",
 		"fi",
-		"archive=$(mktemp /tmp/qcut-folder-download.XXXXXX.tar.gz)",
+		"archive=$(mktemp /tmp/qcut-folder-download.XXXXXX)",
+		'mv "$archive" "$archive.tar.gz"',
+		'archive="$archive.tar.gz"',
 		'parent=$(dirname "$src")',
 		'base=$(basename "$src")',
 		'tar -C "$parent" -czf "$archive" "$base"',
