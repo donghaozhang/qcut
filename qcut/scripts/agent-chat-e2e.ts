@@ -365,8 +365,10 @@ async function downloadArtifactWithButton({
 	filename: string;
 	outDir: string;
 }): Promise<string> {
-	const row = page.locator("#agent-artifacts .card", { hasText: filename });
-	const button = row.getByRole("button", { name: "Download" });
+	const row = page.locator("#agent-artifacts .sandbox-file-tile", {
+		hasText: filename,
+	});
+	const button = row.getByRole("button", { name: /Download file/ });
 	const downloadPromise = page.waitForEvent("download", { timeout: 30_000 });
 	await button.click();
 	const download = await downloadPromise;
