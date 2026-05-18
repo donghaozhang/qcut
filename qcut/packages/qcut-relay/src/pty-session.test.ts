@@ -30,6 +30,9 @@ describe("buildCodexStartupCommand", () => {
 		expect(command).toContain(
 			"export PATH=/tmp/qcut-tools/bin:/tmp/qcut-tools/npm-global/bin:$PATH"
 		);
+		expect(command).toContain(
+			"npm install -g @openai/codex >/tmp/qcut-tools/codex-bootstrap.log 2>&1 || true"
+		);
 		expect(command).toContain("/tmp/qcut-output");
 		expect(command).not.toContain("/tmp/qcut-codex-boot.md");
 	});

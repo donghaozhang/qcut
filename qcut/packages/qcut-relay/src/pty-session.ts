@@ -310,6 +310,8 @@ export function buildCodexStartupCommand({
 		"chmod +x /tmp/qcut-tools/bin/qcut",
 		"ln -sf /tmp/qcut-tools/bin/qcut /tmp/qcut-tools/bin/qcut-pipeline",
 		"export PATH=/tmp/qcut-tools/bin:/tmp/qcut-tools/npm-global/bin:$PATH",
+		"npm install -g @openai/codex >/tmp/qcut-tools/codex-bootstrap.log 2>&1 || true",
+		"hash -r 2>/dev/null || true",
 		"mkdir -p /home/qcut/.codex",
 		"if ! grep -Fq '[projects.\"/home/qcut/qcut\"]' /home/qcut/.codex/config.toml 2>/dev/null; then",
 		"cat >> /home/qcut/.codex/config.toml <<'QCUT_CODEX_TRUST'",
