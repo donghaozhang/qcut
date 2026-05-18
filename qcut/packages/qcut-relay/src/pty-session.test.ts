@@ -23,8 +23,12 @@ describe("buildCodexStartupCommand", () => {
 			"/home/qcut/qcut/.claude/skills/native-cli/SKILL.md"
 		);
 		expect(command).toContain("export QCUT_OUTPUT_DIR=/tmp/qcut-output");
-		expect(command).toContain("export NPM_CONFIG_PREFIX=/tmp/qcut-tools/npm-global");
-		expect(command).toContain("export NPM_CONFIG_CACHE=/tmp/qcut-tools/npm-cache");
+		expect(command).toContain(
+			"export NPM_CONFIG_PREFIX=/tmp/qcut-tools/npm-global"
+		);
+		expect(command).toContain(
+			"export NPM_CONFIG_CACHE=/tmp/qcut-tools/npm-cache"
+		);
 		expect(command).toContain("/tmp/qcut-tools/bin/qcut");
 		expect(command).toContain('--output-dir "$QCUT_OUTPUT_DIR"');
 		expect(command).toContain(
