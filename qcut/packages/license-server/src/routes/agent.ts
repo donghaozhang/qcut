@@ -915,6 +915,14 @@ async function downloadAgentSessionFilesystemPath(c: Context) {
 	}
 
 	const sandbox = await getDaytonaSandboxForSession({ session });
+	if (c.req.query("archive") === "tar") {
+		return downloadAgentSessionFilesystemDirectory({
+			c,
+			sandbox,
+			path,
+			filename,
+		});
+	}
 	const fileBytes = await downloadDaytonaFileBytes({
 		sandbox,
 		remotePath: path,
@@ -927,6 +935,54 @@ async function downloadAgentSessionFilesystemPath(c: Context) {
 	};
 
 	return c.body(fileBytes, 200, headers);
+}
+
+async function downloadAgentSessionFilesystemDirectory({
+	c,
+	sandbox,
+	path,
+	filename,
+}: {
+	c: Context;
+	sandbox: DaytonaSandbox;
+	path: string;
+	filename: string;
+}) {
+	let archivePath: string;
+	try {
+		archivePath = await createSandboxDirectoryArchive({ sandbox, path });
+	} catch (error) {
+		if (
+			error instanceof Error &&
+			error.message === "session_file_path_not_directory"
+		) {
+			return c.json({ error: "session_file_path_not_directory" }, 400);
+		}
+		throw error;
+	}
+	try {
+		const fileBytes = await downloadDaytonaFileBytes({
+			sandbox,
+			remotePath: archivePath,
+			timeoutSeconds: 10 * 60,
+		});
+		const archiveFilename = `${filename}.tar.gz`;
+		const headers: Record<string, string> = {
+			"Content-Disposition": `attachment; filename="${escapeContentDispositionFilename({ filename: archiveFilename })}"`,
+			"Content-Type": "application/gzip",
+			"Content-Length": String(fileBytes.byteLength),
+		};
+		return c.body(fileBytes, 200, headers);
+	} finally {
+		await sandbox.process
+			.executeCommand(
+				`rm -f ${shellSingleQuote({ value: archivePath })}`,
+				"/tmp",
+				undefined,
+				30
+			)
+			.catch(() => {});
+	}
 }
 
 async function downloadAgentSessionFile(c: Context) {
@@ -1448,6 +1504,50 @@ function buildTerminalArtifactListCommand(): string {
 		"fi",
 	].join("\n");
 	return `sh -lc ${shellSingleQuote({ value: script })}`;
+}
+
+async function createSandboxDirectoryArchive({
+	sandbox,
+	path,
+}: {
+	sandbox: DaytonaSandbox;
+	path: string;
+}): Promise<string> {
+	const script = [
+		"set -eu",
+		`src=${shellSingleQuote({ value: path })}`,
+		'if [ ! -d "$src" ]; then',
+		'  printf "not_directory\\n" >&2',
+		"  exit 66",
+		"fi",
+		"archive=$(mktemp /tmp/qcut-folder-download.XXXXXX.tar.gz)",
+		'parent=$(dirname "$src")',
+		'base=$(basename "$src")',
+		'tar -C "$parent" -czf "$archive" "$base"',
+		'printf "%s\\n" "$archive"',
+	].join("\n");
+	const result = await sandbox.process.executeCommand(
+		`sh -lc ${shellSingleQuote({ value: script })}`,
+		"/tmp",
+		undefined,
+		10 * 60
+	);
+	const exitCode = Number(result.exitCode);
+	if (Number.isFinite(exitCode) && exitCode !== 0) {
+		if (exitCode === 66) {
+			throw new Error("session_file_path_not_directory");
+		}
+		throw new Error("session_file_directory_archive_failed");
+	}
+	const archivePath =
+		typeof result.result === "string"
+			? result.result.trim().split("\n").pop()
+			: "";
+	const normalizedArchivePath = normalizeSandboxPath({ value: archivePath });
+	if (!normalizedArchivePath || !normalizedArchivePath.startsWith("/tmp/")) {
+		throw new Error("session_file_directory_archive_invalid");
+	}
+	return normalizedArchivePath;
 }
 
 function shellSingleQuote({ value }: { value: string }): string {

@@ -955,6 +955,64 @@ describe("agent terminal artifacts", () => {
 		);
 	});
 
+	it("downloads a sandbox filesystem folder as a tar archive", async () => {
+		process.env.DAYTONA_API_KEY = "daytona-test";
+		mockSelectRowsOnce({
+			rows: [makeAgentSession({ providerSessionId: "sandbox-1" })],
+		});
+		const boundary = "qcut-folder-boundary";
+		daytonaMocks.executeCommand
+			.mockResolvedValueOnce({
+				exitCode: 0,
+				result: "/tmp/qcut-folder-download.abcd12.tar.gz\n",
+			})
+			.mockResolvedValueOnce({ exitCode: 0, result: "" });
+		daytonaMocks.get.mockResolvedValue({
+			process: {
+				executeCommand: daytonaMocks.executeCommand,
+			},
+			fs: {
+				apiClient: {
+					downloadFiles: daytonaMocks.downloadFiles.mockResolvedValue({
+						data: buildMultipartDownload({
+							boundary,
+							filename: "/tmp/qcut-folder-download.abcd12.tar.gz",
+							bytes: new Uint8Array([10, 11, 12]),
+						}),
+						headers: {
+							"content-type": `multipart/form-data; boundary=${boundary}`,
+						},
+					}),
+				},
+			},
+		});
+
+		const res = await buildApp().request(
+			"/api/agent/sessions/agent-session-1/files/download?path=%2Ftmp%2Fqcut-output&archive=tar"
+		);
+
+		expect(res.status).toBe(200);
+		expect(res.headers.get("Content-Type")).toBe("application/gzip");
+		expect(res.headers.get("Content-Disposition")).toBe(
+			'attachment; filename="qcut-output.tar.gz"'
+		);
+		expect(new Uint8Array(await res.arrayBuffer())).toEqual(
+			new Uint8Array([10, 11, 12])
+		);
+		expect(daytonaMocks.executeCommand).toHaveBeenCalledTimes(2);
+		expect(daytonaMocks.executeCommand).toHaveBeenNthCalledWith(
+			1,
+			expect.stringContaining("tar -C"),
+			"/tmp",
+			undefined,
+			600
+		);
+		expect(daytonaMocks.downloadFiles).toHaveBeenCalledWith(
+			{ paths: ["/tmp/qcut-folder-download.abcd12.tar.gz"] },
+			{ responseType: "arraybuffer", timeout: 600_000 }
+		);
+	});
+
 	it("normalizes uploaded browser filenames without allowing paths", () => {
 		expect(
 			normalizeUploadedFilename({ value: "C:\\fakepath\\source.png" })
