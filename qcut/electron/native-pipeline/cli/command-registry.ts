@@ -1652,14 +1652,27 @@ const CORE_COMMANDS: Record<string, CommandDef> = {
 	},
 	"vimax:generate-storyboard": {
 		name: "vimax:generate-storyboard",
-		description: "Generate storyboard from script",
+		description: "Generate storyboard from flow scenes or script",
 		category: "vimax",
 		flags: [
-			f("--script", "string", "Script file path", { required: true }),
+			f("--scenes", "string", "flow scenes JSON path"),
+			f("--script", "string", "Script JSON path"),
+			f("--input", "string", "Scenes or script JSON path"),
+			f("--project", "string", "Project slug; reads scenes.json by default"),
+			f("--portraits", "string", "Portrait registry JSON path"),
 			f("--image-model", "string", "Image generation model"),
+			f(
+				"--style",
+				"string",
+				"Preset slug or free-form style text for storyboard prompts"
+			),
+			f("--reference-model", "string", "Reference image model"),
+			f("--reference-strength", "number", "Reference strength (0-1)"),
 		],
 		examples: [
-			"qcut-pipeline vimax:generate-storyboard --script screenplay.txt",
+			"qcut flow storyboard --scenes /tmp/qcut-output/scenes.json -o /tmp/qcut-output/storyboard",
+			"qcut flow storyboard --project my-story --image-model gpt_image_2_ima",
+			"qcut-pipeline vimax:generate-storyboard --script screenplay.json",
 		],
 	},
 	"vimax:generate-portraits": {

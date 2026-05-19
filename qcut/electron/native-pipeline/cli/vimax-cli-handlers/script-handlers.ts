@@ -8,6 +8,10 @@ import * as fs from "node:fs";
 import * as path from "node:path";
 import type { CLIRunOptions, CLIResult } from "../cli-runner/types.js";
 import { resolveOutputDir } from "../../output/output-utils.js";
+import {
+	resolveProjectPaths,
+	safeProjectSlug,
+} from "../../output/project-paths.js";
 
 type ProgressFn = (progress: {
 	stage: string;
@@ -15,6 +19,62 @@ type ProgressFn = (progress: {
 	message: string;
 	model?: string;
 }) => void;
+
+type StoryboardInputKind = "scenes" | "script";
+
+type StoryboardInput = {
+	path: string;
+	kind: StoryboardInputKind;
+};
+
+function resolveStoryboardInput({
+	options,
+}: {
+	options: CLIRunOptions;
+}):
+	| { success: true; input: StoryboardInput }
+	| { success: false; error: string } {
+	const explicitScenesPath = options.scenes;
+	if (explicitScenesPath) {
+		return {
+			success: true,
+			input: { path: explicitScenesPath, kind: "scenes" },
+		};
+	}
+
+	const explicitScriptPath = options.script || options.input;
+	if (explicitScriptPath) {
+		return {
+			success: true,
+			input: {
+				path: explicitScriptPath,
+				kind: options.script
+					? "script"
+					: inferStoryboardInputKind(explicitScriptPath),
+			},
+		};
+	}
+
+	if (options.projectId) {
+		const paths = resolveProjectPaths(safeProjectSlug(options.projectId));
+		return {
+			success: true,
+			input: { path: path.join(paths.root, "scenes.json"), kind: "scenes" },
+		};
+	}
+
+	return {
+		success: false,
+		error:
+			"Missing --scenes, --script, --input, or --project (flow scenes JSON is preferred)",
+	};
+}
+
+function inferStoryboardInputKind(filePath: string): StoryboardInputKind {
+	return path.basename(filePath).toLowerCase().includes("scene")
+		? "scenes"
+		: "script";
+}
 
 /** vimax:generate-script — Generate screenplay from idea using Screenwriter agent. */
 export async function handleVimaxGenerateScript(
@@ -81,18 +141,16 @@ export async function handleVimaxGenerateStoryboard(
 	options: CLIRunOptions,
 	onProgress: ProgressFn
 ): Promise<CLIResult> {
-	const scriptPath = options.script || options.input;
-	if (!scriptPath) {
-		return {
-			success: false,
-			error: "Missing --script or --input (script JSON path)",
-		};
+	const resolvedInput = resolveStoryboardInput({ options });
+	if (!resolvedInput.success) {
+		return { success: false, error: resolvedInput.error };
 	}
+	const storyboardInput = resolvedInput.input;
 
 	onProgress({
 		stage: "starting",
 		percent: 0,
-		message: "Generating storyboard...",
+		message: `Generating storyboard from ${storyboardInput.kind}...`,
 	});
 
 	try {
@@ -102,15 +160,24 @@ export async function handleVimaxGenerateStoryboard(
 
 		let scriptData: string;
 		try {
-			scriptData = fs.readFileSync(scriptPath, "utf-8");
+			scriptData = fs.readFileSync(storyboardInput.path, "utf-8");
 		} catch {
-			return { success: false, error: `Cannot read script: ${scriptPath}` };
+			return {
+				success: false,
+				error: `Cannot read ${storyboardInput.kind}: ${storyboardInput.path}`,
+			};
 		}
 
 		const script = JSON.parse(scriptData);
 		const startTime = Date.now();
 		const sessionId = `cli-${Date.now()}`;
-		const outputDir = resolveOutputDir(options.outputDir, sessionId);
+		const projectPaths = options.projectId
+			? resolveProjectPaths(safeProjectSlug(options.projectId))
+			: undefined;
+		const outputDir =
+			projectPaths && !options.outputDirExplicit
+				? projectPaths.storyboardDir
+				: resolveOutputDir(options.outputDir, sessionId);
 
 		// Load portrait registry if --portraits is specified
 		let portraitRegistry:
@@ -171,6 +238,8 @@ export async function handleVimaxGenerateStoryboard(
 				title: result.result?.title,
 				images: result.result?.images.length ?? 0,
 				total_cost: result.result?.total_cost ?? 0,
+				input: storyboardInput.path,
+				input_kind: storyboardInput.kind,
 			},
 		};
 	} catch (err) {
