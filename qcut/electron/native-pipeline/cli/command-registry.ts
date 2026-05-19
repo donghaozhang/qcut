@@ -1668,6 +1668,7 @@ const CORE_COMMANDS: Record<string, CommandDef> = {
 			),
 			f("--reference-model", "string", "Reference image model"),
 			f("--reference-strength", "number", "Reference strength (0-1)"),
+			f("--concurrency", "number", "Parallel images in flight (max 6)"),
 		],
 		examples: [
 			"qcut flow storyboard --scenes /tmp/qcut-output/scenes.json -o /tmp/qcut-output/storyboard",

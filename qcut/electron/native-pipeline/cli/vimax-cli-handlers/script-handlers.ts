@@ -203,6 +203,9 @@ export async function handleVimaxGenerateStoryboard(
 		const artist = new StoryboardArtist({
 			image_model: options.imageModel,
 			output_dir: outputDir,
+			...(options.concurrency !== undefined
+				? { concurrency: options.concurrency }
+				: {}),
 			...(options.style ? { style_prefix: options.style } : {}),
 			...(portraitRegistry ? { use_character_references: true } : {}),
 			...(options.referenceModel
