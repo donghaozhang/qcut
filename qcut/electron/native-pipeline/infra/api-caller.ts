@@ -707,12 +707,10 @@ async function pollGmiQueue(
 			if (options?.onProgress) {
 				options.onProgress(100, "Completed");
 			}
-			const videoUrl =
-				status.outcome?.video_url || status.outcome?.media_urls?.[0]?.url;
 			return {
 				success: true,
 				data: status,
-				outputUrl: videoUrl,
+				outputUrl: extractOutputUrl(status.outcome ?? status),
 				duration: (Date.now() - startTime) / 1000,
 			};
 		}

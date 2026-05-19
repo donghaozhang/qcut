@@ -59,7 +59,7 @@ describe("text-to-image registry", () => {
 		const model = ModelRegistry.get("gpt_image_2_gmi");
 		expect(model.name).toBe("GPT-Image-2 (GMI)");
 		expect(model.provider).toBe("OpenAI (via GMI)");
-		expect(model.endpoint).toBe("gpt-image-2");
+		expect(model.endpoint).toBe("gpt-image-2-generate");
 		expect(model.providerBackend).toBe("gmi");
 		expect(model.categories).toContain("text_to_image");
 		expect(model.categories).toContain("image_to_image");

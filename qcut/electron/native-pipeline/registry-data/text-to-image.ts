@@ -294,7 +294,7 @@ export function registerTextToImageModels(): void {
 		key: "gpt_image_2_gmi",
 		name: "GPT-Image-2 (GMI)",
 		provider: "OpenAI (via GMI)",
-		endpoint: "gpt-image-2",
+		endpoint: "gpt-image-2-generate",
 		categories: ["text_to_image", "image_to_image"],
 		description:
 			"OpenAI GPT-Image-2 via GMI Cloud — photorealistic, strong prompt adherence, accurate in-image text",

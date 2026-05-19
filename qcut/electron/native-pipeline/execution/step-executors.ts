@@ -340,8 +340,13 @@ async function executeTextToImage(
 			"3:2": "1536x1024",
 			"2:3": "1024x1536",
 		};
-		payload.image_size =
-			gptSizeMap[payload.aspect_ratio as string] || "1024x1024";
+		const size = gptSizeMap[payload.aspect_ratio as string] || "1024x1024";
+		if (provider === "gmi") {
+			payload.size = size;
+			delete payload.image_size;
+		} else {
+			payload.image_size = size;
+		}
 		delete payload.aspect_ratio;
 	}
 
