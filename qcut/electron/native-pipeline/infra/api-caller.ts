@@ -804,8 +804,12 @@ function getImaRouterErrorMessage(status: ImaRouterStatusResponse): string {
  * (`queued | in_progress | completed | failed`) and surfaces error
  * payloads when the task ends in `failed`.
  */
-async function pollImaRouterTask(
+type ImaRouterTaskKind = "video" | "image";
+
+async function pollImaRouterGenericTask(
 	taskId: string,
+	taskPath: string,
+	kind: ImaRouterTaskKind,
 	options?: {
 		onProgress?: (percent: number, message: string) => void;
 		signal?: AbortSignal;
@@ -814,10 +818,8 @@ async function pollImaRouterTask(
 	const startTime = Date.now();
 	const apiKey = await getApiKey("imarouter");
 	const headers = buildHeaders("imarouter", apiKey);
-	const statusUrl = buildProviderUrl(
-		"imarouter",
-		`${IMAROUTER_VIDEO_GENERATIONS_PATH}/${taskId}`
-	);
+	const statusUrl = buildProviderUrl("imarouter", `${taskPath}/${taskId}`);
+	const kindLabel = kind === "image" ? "image " : "";
 
 	let lastPercent = -1;
 	while (Date.now() - startTime < IMAROUTER_MAX_POLL_MS) {
@@ -834,82 +836,7 @@ async function pollImaRouterTask(
 			const body = await res.text();
 			return {
 				success: false,
-				error: `IMA Router status error ${res.status}: ${redactErrorPreview(body)}`,
-				duration: (Date.now() - startTime) / 1000,
-			};
-		}
-		const status = (await res.json()) as ImaRouterStatusResponse;
-		const state = getImaRouterStatus(status);
-
-		const percent =
-			typeof status.progress === "number"
-				? Math.max(0, Math.min(100, Math.round(status.progress)))
-				: lastPercent;
-		if (options?.onProgress && percent !== lastPercent) {
-			lastPercent = percent;
-			options.onProgress(percent, status.status ?? "in_progress");
-		}
-
-		if (state === "completed" || state === "succeeded") {
-			const payload = getImaRouterStatusPayload(status);
-			return {
-				success: true,
-				data: status,
-				outputUrl: extractOutputUrl(payload) ?? extractOutputUrl(status),
-				duration: (Date.now() - startTime) / 1000,
-			};
-		}
-		if (state === "failed" || state === "error") {
-			const errMsg = getImaRouterErrorMessage(status);
-			return {
-				success: false,
-				error: `IMA Router task ${taskId} failed: ${errMsg}`,
-				duration: (Date.now() - startTime) / 1000,
-			};
-		}
-
-		const interval = getAdaptivePollInterval(Date.now() - startTime);
-		await new Promise((r) => setTimeout(r, interval));
-	}
-
-	return {
-		success: false,
-		error: `IMA Router task ${taskId} timed out after ${IMAROUTER_MAX_POLL_MS / 1000}s`,
-		duration: (Date.now() - startTime) / 1000,
-	};
-}
-
-async function pollImaRouterImageTask(
-	taskId: string,
-	options?: {
-		onProgress?: (percent: number, message: string) => void;
-		signal?: AbortSignal;
-	}
-): Promise<ApiCallResult> {
-	const startTime = Date.now();
-	const apiKey = await getApiKey("imarouter");
-	const headers = buildHeaders("imarouter", apiKey);
-	const statusUrl = buildProviderUrl(
-		"imarouter",
-		`${IMAROUTER_IMAGE_GENERATIONS_PATH}/${taskId}`
-	);
-
-	let lastPercent = -1;
-	while (Date.now() - startTime < IMAROUTER_MAX_POLL_MS) {
-		if (options?.signal?.aborted) {
-			return {
-				success: false,
-				error: "Cancelled",
-				duration: (Date.now() - startTime) / 1000,
-			};
-		}
-
-		const res = await fetch(statusUrl, { headers, signal: options?.signal });
-		if (!res.ok) {
-			const body = await res.text();
-			return {
-				success: false,
-				error: `IMA Router image status error ${res.status}: ${redactErrorPreview(body)}`,
+				error: `IMA Router ${kindLabel}status error ${res.status}: ${redactErrorPreview(body)}`,
 				duration: (Date.now() - startTime) / 1000,
 			};
 		}
@@ -928,7 +855,7 @@ async function pollImaRouterImageTask(
 			options.onProgress(percent, state || "processing");
 		}
 
-		if (state === "succeeded" || state === "completed") {
+		if (state === "completed" || state === "succeeded") {
 			return {
 				success: true,
 				data: status,
@@ -939,7 +866,7 @@ async function pollImaRouterImageTask(
 		if (state === "failed" || state === "error") {
 			return {
 				success: false,
-				error: `IMA Router image task ${taskId} failed: ${getImaRouterErrorMessage(status)}`,
+				error: `IMA Router ${kindLabel}task ${taskId} failed: ${getImaRouterErrorMessage(status)}`,
 				duration: (Date.now() - startTime) / 1000,
 			};
 		}
@@ -950,9 +877,39 @@ async function pollImaRouterImageTask(
 
 	return {
 		success: false,
-		error: `IMA Router image task ${taskId} timed out after ${IMAROUTER_MAX_POLL_MS / 1000}s`,
+		error: `IMA Router ${kindLabel}task ${taskId} timed out after ${IMAROUTER_MAX_POLL_MS / 1000}s`,
 		duration: (Date.now() - startTime) / 1000,
 	};
+}
+
+async function pollImaRouterTask(
+	taskId: string,
+	options?: {
+		onProgress?: (percent: number, message: string) => void;
+		signal?: AbortSignal;
+	}
+): Promise<ApiCallResult> {
+	return pollImaRouterGenericTask(
+		taskId,
+		IMAROUTER_VIDEO_GENERATIONS_PATH,
+		"video",
+		options
+	);
+}
+
+async function pollImaRouterImageTask(
+	taskId: string,
+	options?: {
+		onProgress?: (percent: number, message: string) => void;
+		signal?: AbortSignal;
+	}
+): Promise<ApiCallResult> {
+	return pollImaRouterGenericTask(
+		taskId,
+		IMAROUTER_IMAGE_GENERATIONS_PATH,
+		"image",
+		options
+	);
 }
 
 export { extractOutputUrl, pollImaRouterTask, pollImaRouterImageTask };

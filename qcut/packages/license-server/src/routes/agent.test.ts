@@ -48,7 +48,7 @@ const {
 
 const ORIGINAL_ENV = { ...process.env };
 const DEFAULT_PINNED_QCUT_IMAGE =
-	"ghcr.io/quriosity-agent/qcut-cli:imarouter-gpt-image-20260519061748";
+	"ghcr.io/quriosity-agent/qcut-cli@sha256:c266afcb3a0da99ef0ff191bb4f929ada47f4a7f25b118228cfb6acc0ce575ca";
 
 function resetEnv(): void {
 	for (const key of Object.keys(process.env)) {

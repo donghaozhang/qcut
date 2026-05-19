@@ -245,10 +245,23 @@ function isRemoteUrl(url: string): boolean {
 
 async function resolveReferenceImageUrl({
 	referenceImage,
+	provider,
 }: {
 	referenceImage: string;
+	provider: ImageProvider;
 }): Promise<string> {
 	if (isRemoteUrl(referenceImage)) return referenceImage;
+	if (referenceImage.startsWith("data:")) return referenceImage;
+	// IMA Router speaks an OpenAI-compatible API that accepts data URIs, so
+	// inline local files instead of routing through FAL — this lets
+	// IMAROUTER-only environments use local reference images without
+	// requiring FAL upload credentials.
+	if (provider === "imarouter") {
+		const ext = path.extname(referenceImage).slice(1).toLowerCase() || "png";
+		const mime = ext === "jpg" ? "image/jpeg" : `image/${ext}`;
+		const buffer = fs.readFileSync(referenceImage);
+		return `data:${mime};base64,${buffer.toString("base64")}`;
+	}
 	const upload = await uploadToFalStorage(referenceImage);
 	if (!upload.success || !upload.url) {
 		throw new Error(upload.error || "Failed to upload reference image");
@@ -464,6 +477,7 @@ export class ImageGeneratorAdapter extends BaseAdapter<string, ImageOutput> {
 			isImaRouterGptImage2(model) || model === "gpt_image_2_fal"
 				? await resolveReferenceImageUrl({
 						referenceImage,
+						provider,
 					})
 				: referenceImage;
 

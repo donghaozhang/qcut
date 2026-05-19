@@ -347,7 +347,7 @@ aiProxyRoutes.get("/status", async (c) => {
 				return c.json({ error: "Invalid endpoint format" }, 400);
 			}
 			const basePath =
-				endpoint.replace(/^\/+/, "") === "v1/images/generations"
+				endpoint.replace(/^\/+|\/+$/g, "") === "v1/images/generations"
 					? "v1/images/generations"
 					: "v1/videos";
 			statusUrl = `https://api.imarouter.com/${basePath}/${requestId}`;
