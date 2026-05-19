@@ -64,12 +64,14 @@ describe("text2image-models registry", () => {
 		expect(TEXT2IMAGE_MODEL_ORDER).not.toContain("seeddream-v4-5-edit");
 	});
 
-	it("gpt-image-2-gmi is registered with OpenAI (via GMI) as the provider", () => {
-		const model = TEXT2IMAGE_MODELS["gpt-image-2-gmi"];
+	it("gpt-image-2-ima is registered with OpenAI via IMA Router as the provider", () => {
+		const model = TEXT2IMAGE_MODELS["gpt-image-2-ima"];
 		expect(model).toBeDefined();
-		expect(model?.provider).toBe("OpenAI (via GMI)");
+		expect(model?.provider).toBe("OpenAI (via IMA Router)");
 		expect(model?.name).toBe("GPT-Image-2");
-		expect(model?.endpoint).toContain("console.gmicloud.ai");
+		expect(model?.endpoint).toContain(
+			"api.imarouter.com/v1/images/generations"
+		);
 	});
 
 	it("gpt-image-2-fal is registered with OpenAI (via FAL) as the provider", () => {
@@ -80,12 +82,12 @@ describe("text2image-models registry", () => {
 		expect(model?.endpoint).toContain("fal.run/openai/gpt-image-2");
 	});
 
-	it("FAL variant takes top-of-order; GMI variant is kept out of the picker", () => {
+	it("FAL variant takes top-of-order; IMA Router variant is kept out of the picker", () => {
 		expect(TEXT2IMAGE_MODEL_ORDER[0]).toBe("gpt-image-2-fal");
-		// GMI variant is registered but excluded from the picker until a
-		// GMI-aware generation client exists (GUI flow routes through FAL).
+		// IMA Router variant is registered but excluded from the picker until an
+		// IMA Router image generation client exists (GUI flow routes through FAL).
 		expect(TEXT2IMAGE_MODEL_ORDER as readonly string[]).not.toContain(
-			"gpt-image-2-gmi"
+			"gpt-image-2-ima"
 		);
 	});
 
@@ -120,6 +122,14 @@ describe("getModelRoutingBadge", () => {
 		).toBe("GMI");
 	});
 
+	it("returns 'IMA Router' for imarouter endpoints", () => {
+		expect(
+			getModelRoutingBadge({
+				endpoint: "https://api.imarouter.com/v1/images/generations",
+			})
+		).toBe("IMA Router");
+	});
+
 	it("returns null for unknown/empty endpoints", () => {
 		expect(getModelRoutingBadge({ endpoint: "" })).toBeNull();
 		expect(
@@ -140,9 +150,9 @@ describe("getModelDisplayName", () => {
 		expect(getModelDisplayName(gpt)).toBe("GPT-Image-2 (FAL)");
 	});
 
-	it("appends (GMI) for the gmicloud-routed variant", () => {
-		const gpt = TEXT2IMAGE_MODELS["gpt-image-2-gmi"];
-		expect(getModelDisplayName(gpt)).toBe("GPT-Image-2 (GMI)");
+	it("appends (IMA Router) for the imarouter-routed variant", () => {
+		const gpt = TEXT2IMAGE_MODELS["gpt-image-2-ima"];
+		expect(getModelDisplayName(gpt)).toBe("GPT-Image-2 (IMA Router)");
 	});
 
 	it("every model in TEXT2IMAGE_MODEL_ORDER gets a recognised badge", () => {

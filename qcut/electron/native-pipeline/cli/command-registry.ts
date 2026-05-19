@@ -38,7 +38,7 @@ export const GLOBAL_FLAGS: FlagDef[] = [
 		short: "-o",
 		default: "$QCUT_OUTPUT_DIR or ~/Documents/QCut/exports",
 	}),
-	f("--model", "string", "Model key (e.g. kling_2_6_pro, flux_dev)", {
+	f("--model", "string", "Model key (e.g. gpt_image_2_ima, kling_2_6_pro)", {
 		short: "-m",
 	}),
 	f("--policy", "string", "Path to a JSON action policy file"),
@@ -211,8 +211,11 @@ const CORE_COMMANDS: Record<string, CommandDef> = {
 			f("--text", "string", "Text prompt", { short: "-t", required: true }),
 			f("--model", "string", "Model key", {
 				short: "-m",
-				default: "flux_dev",
+				default: "gpt_image_2_ima",
 				enum: [
+					"gpt_image_2_ima",
+					"gpt_image_2_gmi",
+					"gpt_image_2_fal",
 					"flux_dev",
 					"flux_pro",
 					"kling_2_6_pro",
@@ -235,6 +238,7 @@ const CORE_COMMANDS: Record<string, CommandDef> = {
 				"Multiple prompts for batch generation (repeatable)"
 			),
 			f("--image-url", "string", "Reference image URL"),
+			f("--reference-images", "string[]", "Reference images (repeatable)"),
 			f("--grid", "string", "Generate image grid (e.g. 2x2, 3x3, 2x3)", {
 				enum: ["2x2", "3x3", "2x3", "3x2", "1x2", "2x1"],
 			}),
@@ -243,7 +247,8 @@ const CORE_COMMANDS: Record<string, CommandDef> = {
 		],
 		examples: [
 			"qcut-pipeline generate-image -t 'A cat in space'",
-			"qcut-pipeline generate-image -t 'Ocean sunset' -m flux_dev --aspect-ratio 16:9",
+			"qcut-pipeline generate-image -t 'Ocean sunset' --aspect-ratio 16:9",
+			"qcut-pipeline generate-image -t 'Make the character wear a red jacket' --image-url https://example.com/character.png",
 			"qcut-pipeline generate-image -t 'Logo design' --count 4 --json",
 			"qcut-pipeline generate-image -t 'Seasons of a tree' --grid 2x2",
 		],
@@ -366,7 +371,10 @@ const CORE_COMMANDS: Record<string, CommandDef> = {
 				short: "-t",
 				required: true,
 			}),
-			f("--model", "string", "Model key", { short: "-m", default: "flux_dev" }),
+			f("--model", "string", "Model key", {
+				short: "-m",
+				default: "gpt_image_2_ima",
+			}),
 			f("--layout", "string", "Grid layout", {
 				default: "2x2",
 				enum: ["2x2", "3x3", "2x3", "3x2", "1x2", "2x1"],
@@ -1654,6 +1662,7 @@ const CORE_COMMANDS: Record<string, CommandDef> = {
 			f("--reference-model", "string", "Reference model"),
 			f("--reference-strength", "number", "Reference strength (0-1)"),
 			f("--views", "string", "Portrait views to generate"),
+			f("--concurrency", "number", "Parallel characters in flight (default 3)"),
 			f("--save-registry", "boolean", "Save portrait registry", {
 				default: true,
 			}),

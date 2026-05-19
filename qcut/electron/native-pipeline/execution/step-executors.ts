@@ -27,6 +27,7 @@ export interface StepInput {
 
 export interface StepOutput {
 	success: boolean;
+	endpoint?: string;
 	outputUrl?: string;
 	outputPath?: string;
 	text?: string;
@@ -99,6 +100,83 @@ function getProviderForEndpoint(endpoint: string): ProviderName {
 	)
 		return "openrouter";
 	return "fal";
+}
+
+function isRemoteUrl(url: string): boolean {
+	return /^https?:\/\//i.test(url);
+}
+
+function collectReferenceImages({
+	input,
+	payload,
+}: {
+	input: StepInput;
+	payload: Record<string, unknown>;
+}): string[] {
+	const refs: string[] = [];
+	const append = (value: unknown) => {
+		if (typeof value === "string" && value.trim()) refs.push(value);
+	};
+	append(input.imageUrl);
+	for (const key of ["image", "image_urls", "reference_images"]) {
+		const value = payload[key];
+		if (Array.isArray(value)) {
+			for (const item of value) append(item);
+		}
+	}
+	return [...new Set(refs)];
+}
+
+type ReferenceImageResolution =
+	| { success: true; url: string }
+	| { success: false; error: string };
+
+async function resolveReferenceImages({
+	refs,
+	provider,
+	options,
+}: {
+	refs: string[];
+	provider: ProviderName;
+	options: {
+		onProgress?: (p: number, m: string) => void;
+		signal?: AbortSignal;
+	};
+}): Promise<
+	{ success: true; urls: string[] } | { success: false; error: string }
+> {
+	const shouldUploadLocal =
+		provider === "fal" ||
+		provider === "gmi" ||
+		provider === "gmi-llm" ||
+		provider === "imarouter";
+	const uploads = refs.map(async (ref): Promise<ReferenceImageResolution> => {
+		if (isRemoteUrl(ref) || !shouldUploadLocal)
+			return { success: true, url: ref };
+		if (options.signal?.aborted) {
+			return {
+				success: false,
+				error: "Step cancelled before reference upload",
+			};
+		}
+		options.onProgress?.(10, "Uploading reference image...");
+		const upload = await uploadToFalStorage(ref);
+		if (!upload.success || !upload.url) {
+			return {
+				success: false,
+				error: upload.error || "Failed to upload reference image",
+			};
+		}
+		return { success: true, url: upload.url };
+	});
+	const resolved = await Promise.all(uploads);
+	const failed = resolved.find((item) => !item.success);
+	if (failed) return { success: false, error: failed.error };
+	const urls = resolved.flatMap((item) => (item.success ? [item.url] : []));
+	return {
+		success: true,
+		urls,
+	};
 }
 
 /**
@@ -312,6 +390,50 @@ async function executeTextToImage(
 	}
 ): Promise<StepOutput> {
 	payload.prompt = input.text || payload.prompt;
+	const referenceImages = collectReferenceImages({ input, payload });
+	let endpoint = model.endpoint;
+	const isImaRouterGptImage2 =
+		model.key === "gpt_image_2_ima" || model.key === "gpt_image_2_gmi";
+	const isFalGptImage2 = model.key === "gpt_image_2_fal";
+	if (isImaRouterGptImage2) {
+		payload.model = "gpt-image-2";
+	}
+	if (
+		referenceImages.length > 0 &&
+		(provider === "gmi" || provider === "imarouter" || isFalGptImage2)
+	) {
+		const refs = await resolveReferenceImages({
+			refs: referenceImages,
+			provider,
+			options,
+		});
+		if (!refs.success) {
+			return {
+				success: false,
+				error: refs.error,
+				duration: 0,
+			};
+		}
+		if (provider === "imarouter" && isImaRouterGptImage2) {
+			payload.images = refs.urls;
+			delete payload.image;
+		} else if (isFalGptImage2) {
+			payload.image_urls = refs.urls;
+			payload.image_size = "auto";
+			delete payload.aspect_ratio;
+			delete payload.image;
+			endpoint = "openai/gpt-image-2/edit";
+		} else {
+			payload.image = refs.urls;
+		}
+		if (!isFalGptImage2) {
+			delete payload.image_urls;
+		}
+		delete payload.reference_images;
+		if (provider === "gmi" && isImaRouterGptImage2) {
+			endpoint = "gpt-image-2-edit";
+		}
+	}
 
 	// Models that use image_size instead of aspect_ratio
 	const usesImageSize =
@@ -332,7 +454,10 @@ async function executeTextToImage(
 	}
 
 	// GPT Image uses image_size with pixel dimensions
-	if (model.endpoint.includes("gpt-image") && payload.aspect_ratio) {
+	if (
+		(model.endpoint.includes("gpt-image") || isImaRouterGptImage2) &&
+		payload.aspect_ratio
+	) {
 		const gptSizeMap: Record<string, string> = {
 			"1:1": "1024x1024",
 			"16:9": "1536x1024",
@@ -340,20 +465,25 @@ async function executeTextToImage(
 			"3:2": "1536x1024",
 			"2:3": "1024x1536",
 		};
-		payload.image_size =
-			gptSizeMap[payload.aspect_ratio as string] || "1024x1024";
+		const size = gptSizeMap[payload.aspect_ratio as string] || "1024x1024";
+		if (provider === "gmi" || provider === "imarouter") {
+			payload.size = size;
+			delete payload.image_size;
+		} else {
+			payload.image_size = size;
+		}
 		delete payload.aspect_ratio;
 	}
 
 	const result = await callModelApi({
-		endpoint: model.endpoint,
+		endpoint,
 		modelKey: model.key,
 		payload,
 		provider,
 		onProgress: options.onProgress,
 		signal: options.signal,
 	});
-	return mapApiResult(result, options.outputDir);
+	return mapApiResult(result, options.outputDir, endpoint);
 }
 
 async function executeTextToVideo(
@@ -596,8 +726,10 @@ async function executeImageToImage(
 	if (input.imageUrl) {
 		let resolvedUrl = input.imageUrl;
 
-		// Upload local files to FAL storage for FAL-routed endpoints
-		if (provider === "fal" && !input.imageUrl.startsWith("http")) {
+		if (
+			(provider === "fal" || provider === "gmi" || provider === "gmi-llm") &&
+			!isRemoteUrl(input.imageUrl)
+		) {
 			options.onProgress?.(10, "Uploading image to FAL storage...");
 			const upload = await uploadToFalStorage(input.imageUrl);
 			if (!upload.success || !upload.url) {
@@ -1106,11 +1238,13 @@ function extractTextFromResult(data: unknown): string | undefined {
 /** Map a raw API result to a normalized step output. */
 async function mapApiResult(
 	result: ApiCallResult,
-	outputDir?: string
+	outputDir?: string,
+	endpoint?: string
 ): Promise<StepOutput> {
 	if (!result.success) {
 		return {
 			success: false,
+			endpoint,
 			error: result.error,
 			duration: result.duration,
 		};
@@ -1130,6 +1264,7 @@ async function mapApiResult(
 
 	return {
 		success: true,
+		endpoint,
 		outputUrl: result.outputUrl,
 		outputPath,
 		data: result.data,

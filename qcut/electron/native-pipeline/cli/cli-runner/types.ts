@@ -337,6 +337,7 @@ export interface CLIRunOptions {
 /** Standard result returned by a CLI command handler. */
 export interface CLIResult {
 	success: boolean;
+	endpoint?: string;
 	outputPath?: string;
 	outputPaths?: string[];
 	error?: string;

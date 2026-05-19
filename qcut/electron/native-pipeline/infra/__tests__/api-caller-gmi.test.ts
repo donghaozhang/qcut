@@ -165,7 +165,6 @@ describe("callModelApi with GMI provider", () => {
 	});
 
 	it("calls onProgress during GMI polling", async () => {
-		vi.useFakeTimers();
 		const onProgress = vi.fn();
 
 		// Submit
@@ -179,7 +178,10 @@ describe("callModelApi with GMI provider", () => {
 		mockFetch.mockResolvedValueOnce({
 			ok: true,
 			json: () =>
-				Promise.resolve({ request_id: "gmi-req-prog", status: "processing" }),
+				Promise.resolve({
+					request_id: "gmi-req-prog",
+					status: "processing",
+				}),
 		});
 
 		// Poll 2: success
@@ -193,25 +195,18 @@ describe("callModelApi with GMI provider", () => {
 				}),
 		});
 
-		const resultPromise = callModelApi({
+		const result = await callModelApi({
 			endpoint: "veo-3.1-lite-generate-001",
 			payload: { prompt: "test" },
 			provider: "gmi",
 			onProgress,
 		});
 
-		// Advance past poll sleep intervals
-		await vi.advanceTimersByTimeAsync(15000);
-
-		const result = await resultPromise;
-
 		expect(result.success).toBe(true);
 		expect(onProgress).toHaveBeenCalled();
 		// Last call should be 100% completion
 		const lastCall = onProgress.mock.calls[onProgress.mock.calls.length - 1];
 		expect(lastCall[0]).toBe(100);
-
-		vi.useRealTimers();
 	});
 
 	it("returns error when no GMI API key is configured", async () => {
@@ -255,5 +250,34 @@ describe("callModelApi with GMI provider", () => {
 			model: "kling-v3-omni",
 			payload: { prompt: "test", mode: "pro", duration: "5" },
 		});
+	});
+
+	it("extracts image URLs from successful GMI image outcomes", async () => {
+		mockFetch.mockResolvedValueOnce({
+			ok: true,
+			json: () => Promise.resolve({ request_id: "gmi-image-req" }),
+			text: () => Promise.resolve(""),
+		});
+
+		mockFetch.mockResolvedValueOnce({
+			ok: true,
+			json: () =>
+				Promise.resolve({
+					request_id: "gmi-image-req",
+					status: "success",
+					outcome: {
+						images: [{ url: "https://gmi.cloud/image/out.png" }],
+					},
+				}),
+		});
+
+		const result = await callModelApi({
+			endpoint: "gpt-image-2-generate",
+			payload: { prompt: "test", size: "1024x1024" },
+			provider: "gmi",
+		});
+
+		expect(result.success).toBe(true);
+		expect(result.outputUrl).toBe("https://gmi.cloud/image/out.png");
 	});
 });

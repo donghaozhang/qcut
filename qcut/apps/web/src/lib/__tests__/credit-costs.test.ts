@@ -106,7 +106,7 @@ describe("credit-costs — registry-driven pricing (1 credit ≈ $0.01)", () => 
 	it.each([
 		// modelKey, expectedCredits — costPerImage in cents rounds to credits.
 		["gpt-image-2-fal", 4], // costPerImage: 4.2 → 4
-		["gpt-image-2-gmi", 4], // costPerImage: 4.2 → 4
+		["gpt-image-2-ima", 4], // costPerImage: 4.2 → 4
 		["nano-banana", 4], // costPerImage: 3.9 → 4
 		["seeddream-v4", 5], // costPerImage: 5
 		["flux-pro-v11-ultra", 7], // costPerImage: 7

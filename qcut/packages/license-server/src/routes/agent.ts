@@ -31,7 +31,7 @@ const TERMINAL_OUTPUT_DIR = "/tmp/qcut-output";
 const SAFE_COMMAND_TOKEN = /^[A-Za-z0-9_\-./:=,@+]+$/;
 const CODEX_AGENT_COMMAND = "codex exec --skip-git-repo-check --json -";
 const DEFAULT_DAYTONA_IMAGE =
-	"ghcr.io/quriosity-agent/qcut-cli@sha256:48aa813162bf7a4b20d38ec694ccc0e1ffc9b61dcdc8c9e1447749d77b500923";
+	"ghcr.io/quriosity-agent/qcut-cli:imarouter-gpt-image-20260519061748";
 const TEXT_ARTIFACT_KINDS = new Set(["json", "log"]);
 const CONTENT_TYPE_BY_EXTENSION: Record<string, string> = {
 	".gif": "image/gif",
@@ -964,7 +964,7 @@ async function downloadAgentSessionFilesystemDirectory({
 		const fileBytes = await downloadDaytonaFileBytes({
 			sandbox,
 			remotePath: archivePath,
-			timeoutSeconds: 5 * 60,
+			timeoutSeconds: 10 * 60,
 		});
 		const archiveFilename = `${filename}.tar.gz`;
 		const headers: Record<string, string> = {

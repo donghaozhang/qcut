@@ -354,7 +354,11 @@ export async function handleVimaxGeneratePortraits(
 
 		// Print pre-flight estimate before burning image credits.
 		printEstimate(
-			estimatePortraits(characters.length, views ? views.length : 1)
+			estimatePortraits(
+				characters.length,
+				views ? views.length : 1,
+				options.concurrency
+			)
 		);
 
 		// Honour --style (preset slug or free-form), or reuse the style
@@ -418,6 +422,9 @@ export async function handleVimaxGeneratePortraits(
 			image_model: options.imageModel,
 			llm_model: options.llmModel,
 			output_dir: portraitsDir,
+			...(options.concurrency !== undefined
+				? { concurrency: options.concurrency }
+				: {}),
 			...(views ? { views } : {}),
 			...(resolvedStyle ? { style: resolvedStyle } : {}),
 		});

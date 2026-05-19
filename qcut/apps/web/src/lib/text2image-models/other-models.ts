@@ -73,31 +73,30 @@ export const OTHER_MODELS: Record<string, Text2ImageModel> = {
 			"Images containing readable text",
 			"Strong prompt adherence across complex scenes",
 			"Image editing with mask-based inpainting",
-			"Working fallback while GMI's gpt-image-2 relay is degraded",
+			"Fallback route when the IMA Router GPT Image path is unavailable",
 		],
 
 		strengths: [
-			"Independent of GMI's OpenAI relay outage",
-			"Webp output support (GMI variant does not expose webp)",
+			"Independent FAL routing",
+			"Webp output support",
 			"FAL preset sizes are simpler for UI users than pixel strings",
 			"Native inpainting via image_urls + mask_url",
 		],
 
 		limitations: [
-			"No 'auto' quality tier (GMI variant has it)",
+			"No 'auto' quality tier",
 			"Preset image sizes only — no arbitrary pixel dimensions via QCut UI",
-			"Pricing tier table not published by FAL; flat $0.042 is a GMI-derived estimate",
+			"Pricing tier table not published by FAL; flat $0.042 is an estimate",
 		],
 	},
 
-	"gpt-image-2-gmi": {
-		id: "gpt-image-2-gmi",
+	"gpt-image-2-ima": {
+		id: "gpt-image-2-ima",
 		name: "GPT-Image-2",
 		description:
-			"OpenAI GPT-Image-2 via GMI Cloud — photorealistic generation with accurate in-image text and strong prompt adherence",
-		provider: "OpenAI (via GMI)",
-		endpoint:
-			"https://console.gmicloud.ai/api/v1/ie/requestqueue/apikey/requests",
+			"OpenAI GPT-Image-2 via IMA Router — photorealistic generation with accurate in-image text and strong prompt adherence",
+		provider: "OpenAI (via IMA Router)",
+		endpoint: "https://api.imarouter.com/v1/images/generations",
 
 		qualityRating: 5,
 		speedRating: 4,

@@ -49,6 +49,7 @@ export interface PipelineProgress {
 
 export interface StepResult {
 	success: boolean;
+	endpoint?: string;
 	outputPath?: string;
 	outputUrl?: string;
 	text?: string;
@@ -187,6 +188,7 @@ export class PipelineExecutor {
 		const result = await executeStep(model, input, step.params, options);
 		return {
 			success: result.success,
+			endpoint: result.endpoint,
 			outputPath: result.outputPath,
 			outputUrl: result.outputUrl,
 			text: result.text,

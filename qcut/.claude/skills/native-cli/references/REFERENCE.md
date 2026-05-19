@@ -19,7 +19,7 @@ Generate an image from a text prompt.
 | Flag | Short | Type | Description |
 |------|-------|------|-------------|
 | `--text` | `-t` | string | Text prompt (required) |
-| `--model` | `-m` | string | Model key, e.g. `flux_dev`, `flux_schnell` (default: `nano_banana_pro`) |
+| `--model` | `-m` | string | Model key, e.g. `gpt_image_2_ima`, `gpt_image_2_fal`, `flux_dev` (default: `gpt_image_2_ima`) |
 | `--aspect-ratio` | | string | e.g. `16:9`, `9:16`, `1:1` |
 | `--resolution` | | string | e.g. `1080p`, `720p` |
 | `--negative-prompt` | | string | Negative prompt |
@@ -82,7 +82,7 @@ Generate a grid of images from a prompt. Use `--grid` with `gen image` to produc
 | Flag | Short | Type | Default | Description |
 |------|-------|------|---------|-------------|
 | `--text` | `-t` | string | | Prompt (required) |
-| `--model` | `-m` | string | `flux_dev` | Image model |
+| `--model` | `-m` | string | `gpt_image_2_ima` | Image model |
 | `--grid` | | string | | Grid layout: `2x2`, `3x3`, `2x3`, `3x2`, `1x2`, `2x1` |
 | `--style` | | string | | Style prefix prepended to prompt |
 | `--grid-upscale` | | float | | Upscale factor after compositing |

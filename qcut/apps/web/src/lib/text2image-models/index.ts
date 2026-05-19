@@ -18,9 +18,9 @@ export const TEXT2IMAGE_MODELS: Record<string, Text2ImageModel> = {
 // ============================================
 // Shared priority order (cheapest ➜ premium)
 // ============================================
-// NOTE: `gpt-image-2-gmi` is intentionally absent from the picker order.
+// NOTE: `gpt-image-2-ima` is intentionally absent from the picker order.
 // The model is registered in TEXT2IMAGE_MODELS for CLI/programmatic use, but
-// GUI generation flows through FalAIClient and has no GMI-aware routing yet,
+// GUI generation flows through FalAIClient and has no IMA Router image routing yet,
 // so exposing it in the picker would produce confusing auth/URL failures.
 export const TEXT2IMAGE_MODEL_ORDER = [
 	"gpt-image-2-fal",
@@ -71,18 +71,19 @@ export function getModelRoutingBadge(
 	if (endpoint.includes("fal.run")) return "FAL";
 	if (endpoint.includes("gmicloud.ai") || endpoint.includes("gmi.cloud"))
 		return "GMI";
+	if (endpoint.includes("imarouter.com")) return "IMA Router";
 	return null;
 }
 
 /**
  * Returns the name a user should see in the picker / status labels with a
- * trailing `(FAL)` / `(GMI)` suffix derived from the endpoint. Any legacy
- * hard-coded `(FAL)` / `(GMI)` suffix already present in `model.name` is
- * stripped first so we don't end up with doubles like "X (FAL) (FAL)".
+ * trailing provider suffix derived from the endpoint. Any legacy hard-coded
+ * suffix already present in `model.name` is stripped first so we don't end up
+ * with doubles like "X (FAL) (FAL)".
  */
 export function getModelDisplayName(model: Text2ImageModel): string {
 	const badge = getModelRoutingBadge(model);
-	const base = model.name.replace(/\s*\((FAL|GMI)\)\s*$/i, "");
+	const base = model.name.replace(/\s*\((FAL|GMI|IMA Router)\)\s*$/i, "");
 	return badge ? `${base} (${badge})` : model.name;
 }
 

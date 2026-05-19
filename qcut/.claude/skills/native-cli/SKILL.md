@@ -82,6 +82,9 @@ For website Daytona Chat Agent sessions, uploaded files are under
 `/tmp/qcut-input` and downloadable outputs must land under
 `/tmp/qcut-output`.
 
+For image generation, the CLI default model is `gpt_image_2_ima`. Do not pass
+`--model/-m` unless the user explicitly requests a specific image model.
+
 The CLI default output directory can be overridden with:
 
 ```bash
@@ -383,7 +386,7 @@ For agent or programmatic use, import `run()` or `runChain()` directly instead o
 import { run, runChain } from "./cli-runner/index.js";
 
 // Single command
-const result = await run("generate-image -t 'A cat' --model flux");
+const result = await run("generate-image -t 'A cat'");
 // → { success, exit_code, duration_ms, command_id, outputPath?, ... }
 
 // Chained commands (output piped as --input to next)
