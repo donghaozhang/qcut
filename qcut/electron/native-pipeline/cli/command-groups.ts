@@ -76,6 +76,8 @@ export const COMMAND_GROUPS: CommandGroup[] = [
 			"lint-scripts": "vimax:lint-scripts",
 			script: "vimax:generate-script",
 			characters: "vimax:extract-characters",
+			scene: "vimax:extract-scenes",
+			scenes: "vimax:extract-scenes",
 			portraits: "vimax:generate-portraits",
 			storyboard: "vimax:generate-storyboard",
 			"registry-create": "vimax:create-registry",

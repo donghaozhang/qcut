@@ -39,6 +39,7 @@ export const COMMAND_ALIASES: Record<string, string> = {
 	"vimax:novel2movie": "flow novel2movie",
 	"vimax:generate-script": "flow script",
 	"vimax:extract-characters": "flow characters",
+	"vimax:extract-scenes": "flow scenes",
 	"vimax:generate-portraits": "flow portraits",
 	"vimax:generate-storyboard": "flow storyboard",
 	"vimax:create-registry": "flow registry-create",

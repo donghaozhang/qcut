@@ -169,6 +169,7 @@ export const CATEGORIES: CategoryDef[] = [
 			"vimax:novel2video",
 			"vimax:lint-scripts",
 			"vimax:extract-characters",
+			"vimax:extract-scenes",
 			"vimax:generate-script",
 			"vimax:generate-storyboard",
 			"vimax:generate-portraits",
@@ -1615,6 +1616,24 @@ const CORE_COMMANDS: Record<string, CommandDef> = {
 			"qcut flow characters --novel story.md --project my-story",
 			"qcut flow characters --novel story.md --project my-story --cast-quality photogenic",
 			"qcut flow characters --novel story.md --project my-story --region east-asian --cast-quality model-grade",
+		],
+	},
+	"vimax:extract-scenes": {
+		name: "vimax:extract-scenes",
+		description: "Extract scenes from a novel or raw text",
+		category: "vimax",
+		flags: [
+			f("--novel", "string", "Novel file path (markdown or plain text)"),
+			f("--text", "string", "Raw text to extract from", { short: "-t" }),
+			f("--input", "string", "Text or novel file path"),
+			f("--project", "string", "Project slug under ~/Documents/QCut/projects/"),
+			f("--title", "string", "Project title"),
+			f("--max-scenes", "number", "Max scenes to keep"),
+			f("--llm-model", "string", "LLM model"),
+		],
+		examples: [
+			"qcut flow scenes --novel story.md -o /tmp/qcut-output --json",
+			"qcut flow scene --novel story.md --llm-model gemini-3.1-flash-lite --json",
 		],
 	},
 	"vimax:generate-script": {
