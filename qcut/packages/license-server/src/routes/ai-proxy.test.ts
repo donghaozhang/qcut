@@ -516,6 +516,25 @@ describe("GET /api/ai/status", () => {
 		expect(opts.headers.Authorization).toBe("Bearer test-imarouter-key");
 	});
 
+	it("polls IMA Router image status when endpoint is images/generations", async () => {
+		mockProviderResponse({
+			data: {
+				status: "succeeded",
+				url: "https://imarouter.example/out.png",
+			},
+		});
+
+		await buildApp().request(
+			"/api/ai/status?provider=imarouter&endpoint=v1%2Fimages%2Fgenerations&requestId=img_123"
+		);
+
+		const [url, opts] = mockFetch.mock.calls[0];
+		expect(url).toBe(
+			"https://api.imarouter.com/v1/images/generations/img_123"
+		);
+		expect(opts.headers.Authorization).toBe("Bearer test-imarouter-key");
+	});
+
 	it("returns 400 for providers that don't support polling", async () => {
 		const res = await buildApp().request(
 			"/api/ai/status?provider=gemini&requestId=abc"

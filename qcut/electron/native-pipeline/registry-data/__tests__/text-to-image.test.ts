@@ -54,24 +54,33 @@ describe("text-to-image registry", () => {
 		expect(ModelRegistry.has("imagen4")).toBe(true);
 	});
 
-	it("registers gpt_image_2_gmi against GMI Cloud with image-editing support", () => {
-		expect(ModelRegistry.has("gpt_image_2_gmi")).toBe(true);
-		const model = ModelRegistry.get("gpt_image_2_gmi");
-		expect(model.name).toBe("GPT-Image-2 (GMI)");
-		expect(model.provider).toBe("OpenAI (via GMI)");
-		expect(model.endpoint).toBe("gpt-image-2-generate");
-		expect(model.providerBackend).toBe("gmi");
+	it("registers gpt_image_2_ima against IMA Router with image-editing support", () => {
+		expect(ModelRegistry.has("gpt_image_2_ima")).toBe(true);
+		const model = ModelRegistry.get("gpt_image_2_ima");
+		expect(model.name).toBe("GPT-Image-2 (IMA Router)");
+		expect(model.provider).toBe("OpenAI (via IMA Router)");
+		expect(model.endpoint).toBe("v1/images/generations");
+		expect(model.providerBackend).toBe("imarouter");
 		expect(model.categories).toContain("text_to_image");
 		expect(model.categories).toContain("image_to_image");
 		expect(model.costEstimate).toBe(0.042);
 	});
 
-	it("gpt_image_2_gmi defaults match GMI's medium 1024x1024 tier", () => {
-		const model = ModelRegistry.get("gpt_image_2_gmi");
+	it("gpt_image_2_ima defaults match IMA Router's medium 1024x1024 tier", () => {
+		const model = ModelRegistry.get("gpt_image_2_ima");
+		expect(model.defaults?.model).toBe("gpt-image-2");
 		expect(model.defaults?.size).toBe("1024x1024");
 		expect(model.defaults?.quality).toBe("medium");
 		expect(model.defaults?.output_format).toBe("png");
 		expect(model.defaults?.n).toBe(1);
+	});
+
+	it("keeps gpt_image_2_gmi as a legacy alias for IMA Router", () => {
+		expect(ModelRegistry.has("gpt_image_2_gmi")).toBe(true);
+		const model = ModelRegistry.get("gpt_image_2_gmi");
+		expect(model.providerBackend).toBe("imarouter");
+		expect(model.endpoint).toBe("v1/images/generations");
+		expect(model.defaults?.model).toBe("gpt-image-2");
 	});
 
 	it("does not register the bare gpt_image_2 key post-rename", () => {
@@ -98,12 +107,12 @@ describe("text-to-image registry", () => {
 		expect(model.defaults?.num_images).toBe(1);
 	});
 
-	it("FAL and GMI variants are distinct, symmetric entries", () => {
+	it("FAL and default GPT Image 2 variants are distinct entries", () => {
 		const fal = ModelRegistry.get("gpt_image_2_fal");
-		const gmi = ModelRegistry.get("gpt_image_2_gmi");
+		const ima = ModelRegistry.get("gpt_image_2_ima");
 		expect(fal.providerBackend).toBe("fal");
-		expect(gmi.providerBackend).toBe("gmi");
-		expect(fal.endpoint).not.toBe(gmi.endpoint);
-		expect(fal.provider).not.toBe(gmi.provider);
+		expect(ima.providerBackend).toBe("imarouter");
+		expect(fal.endpoint).not.toBe(ima.endpoint);
+		expect(fal.provider).not.toBe(ima.provider);
 	});
 });

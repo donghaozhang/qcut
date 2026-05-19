@@ -38,7 +38,7 @@ export const GLOBAL_FLAGS: FlagDef[] = [
 		short: "-o",
 		default: "$QCUT_OUTPUT_DIR or ~/Documents/QCut/exports",
 	}),
-	f("--model", "string", "Model key (e.g. gpt_image_2_gmi, kling_2_6_pro)", {
+	f("--model", "string", "Model key (e.g. gpt_image_2_ima, kling_2_6_pro)", {
 		short: "-m",
 	}),
 	f("--policy", "string", "Path to a JSON action policy file"),
@@ -211,8 +211,9 @@ const CORE_COMMANDS: Record<string, CommandDef> = {
 			f("--text", "string", "Text prompt", { short: "-t", required: true }),
 			f("--model", "string", "Model key", {
 				short: "-m",
-				default: "gpt_image_2_gmi",
+				default: "gpt_image_2_ima",
 				enum: [
+					"gpt_image_2_ima",
 					"gpt_image_2_gmi",
 					"gpt_image_2_fal",
 					"flux_dev",
@@ -372,7 +373,7 @@ const CORE_COMMANDS: Record<string, CommandDef> = {
 			}),
 			f("--model", "string", "Model key", {
 				short: "-m",
-				default: "gpt_image_2_gmi",
+				default: "gpt_image_2_ima",
 			}),
 			f("--layout", "string", "Grid layout", {
 				default: "2x2",
@@ -1661,6 +1662,7 @@ const CORE_COMMANDS: Record<string, CommandDef> = {
 			f("--reference-model", "string", "Reference model"),
 			f("--reference-strength", "number", "Reference strength (0-1)"),
 			f("--views", "string", "Portrait views to generate"),
+			f("--concurrency", "number", "Parallel characters in flight (default 3)"),
 			f("--save-registry", "boolean", "Save portrait registry", {
 				default: true,
 			}),

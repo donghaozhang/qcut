@@ -29,7 +29,7 @@ const mockedUploadToFalStorage = uploadToFalStorage as unknown as {
 };
 
 beforeEach(() => {
-	if (!ModelRegistry.has("gpt_image_2_gmi")) {
+	if (!ModelRegistry.has("gpt_image_2_ima")) {
 		registerTextToImageModels();
 	}
 	vi.clearAllMocks();
@@ -46,8 +46,8 @@ beforeEach(() => {
 });
 
 describe("executeTextToImage — GPT Image 2", () => {
-	it("uses the GMI generate model id and maps aspect ratio to OpenAI size", async () => {
-		const model = ModelRegistry.get("gpt_image_2_gmi");
+	it("uses the IMA Router GPT Image 2 model id and maps aspect ratio to OpenAI size", async () => {
+		const model = ModelRegistry.get("gpt_image_2_ima");
 
 		await executeStep(
 			model,
@@ -58,16 +58,17 @@ describe("executeTextToImage — GPT Image 2", () => {
 
 		expect(mockedCallModelApi).toHaveBeenCalledTimes(1);
 		const call = mockedCallModelApi.mock.calls[0][0];
-		expect(call.provider).toBe("gmi");
-		expect(call.endpoint).toBe("gpt-image-2-generate");
+		expect(call.provider).toBe("imarouter");
+		expect(call.endpoint).toBe("v1/images/generations");
+		expect(call.payload.model).toBe("gpt-image-2");
 		expect(call.payload.prompt).toBe("a red apple on a white plate");
 		expect(call.payload.size).toBe("1536x1024");
 		expect(call.payload).not.toHaveProperty("image_size");
 		expect(call.payload).not.toHaveProperty("aspect_ratio");
 	});
 
-	it("uses the GMI edit model id when reference images are provided", async () => {
-		const model = ModelRegistry.get("gpt_image_2_gmi");
+	it("uses the IMA Router image endpoint when reference images are provided", async () => {
+		const model = ModelRegistry.get("gpt_image_2_ima");
 
 		await executeStep(
 			model,
@@ -83,10 +84,11 @@ describe("executeTextToImage — GPT Image 2", () => {
 		);
 
 		const call = mockedCallModelApi.mock.calls[0][0];
-		expect(call.provider).toBe("gmi");
-		expect(call.endpoint).toBe("gpt-image-2-edit");
+		expect(call.provider).toBe("imarouter");
+		expect(call.endpoint).toBe("v1/images/generations");
+		expect(call.payload.model).toBe("gpt-image-2");
 		expect(call.payload.prompt).toBe("make the same astronaut bronze");
-		expect(call.payload.image).toEqual([
+		expect(call.payload.images).toEqual([
 			"https://example.com/astronaut.png",
 			"https://example.com/helmet.png",
 		]);
@@ -95,8 +97,8 @@ describe("executeTextToImage — GPT Image 2", () => {
 		expect(call.payload).not.toHaveProperty("aspect_ratio");
 	});
 
-	it("uploads local GMI reference images before calling the edit model", async () => {
-		const model = ModelRegistry.get("gpt_image_2_gmi");
+	it("uploads local IMA Router reference images before calling the image endpoint", async () => {
+		const model = ModelRegistry.get("gpt_image_2_ima");
 
 		await executeStep(
 			model,
@@ -109,8 +111,8 @@ describe("executeTextToImage — GPT Image 2", () => {
 			"/tmp/local-ref.png"
 		);
 		const call = mockedCallModelApi.mock.calls[0][0];
-		expect(call.endpoint).toBe("gpt-image-2-edit");
-		expect(call.payload.image).toEqual([
+		expect(call.endpoint).toBe("v1/images/generations");
+		expect(call.payload.images).toEqual([
 			"https://fal.media/uploaded/local-ref.png",
 		]);
 	});

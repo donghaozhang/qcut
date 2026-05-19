@@ -418,6 +418,9 @@ export async function handleVimaxGeneratePortraits(
 			image_model: options.imageModel,
 			llm_model: options.llmModel,
 			output_dir: portraitsDir,
+			...(options.concurrency !== undefined
+				? { concurrency: options.concurrency }
+				: {}),
 			...(views ? { views } : {}),
 			...(resolvedStyle ? { style: resolvedStyle } : {}),
 		});

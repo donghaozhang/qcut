@@ -82,7 +82,7 @@ For website Daytona Chat Agent sessions, uploaded files are under
 `/tmp/qcut-input` and downloadable outputs must land under
 `/tmp/qcut-output`.
 
-For image generation, the CLI default model is `gpt_image_2_gmi`. Do not pass
+For image generation, the CLI default model is `gpt_image_2_ima`. Do not pass
 `--model/-m` unless the user explicitly requests a specific image model.
 
 The CLI default output directory can be overridden with:

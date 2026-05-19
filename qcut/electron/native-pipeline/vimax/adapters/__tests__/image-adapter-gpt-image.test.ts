@@ -46,17 +46,23 @@ beforeEach(() => {
 describe("ImageGeneratorAdapter — GPT Image 2", () => {
 	it("advertises GPT Image 2 models for flow image generation", () => {
 		expect(ImageGeneratorAdapter.getAvailableModels()).toContain(
+			"gpt_image_2_ima"
+		);
+		expect(ImageGeneratorAdapter.getAvailableModels()).toContain(
 			"gpt_image_2_gmi"
 		);
 		expect(ImageGeneratorAdapter.getAvailableModels()).toContain(
 			"gpt_image_2_fal"
 		);
 		expect(ImageGeneratorAdapter.getAvailableReferenceModels()).toContain(
-			"gpt_image_2_gmi"
+			"gpt_image_2_ima"
 		);
 		expect(ImageGeneratorAdapter.getAvailableReferenceModels()).toContain(
 			"gpt_image_2_fal"
 		);
+		expect(
+			ImageGeneratorAdapter.supportsReferenceImages("gpt_image_2_ima")
+		).toBe(true);
 		expect(
 			ImageGeneratorAdapter.supportsReferenceImages("gpt_image_2_gmi")
 		).toBe(true);
@@ -65,9 +71,9 @@ describe("ImageGeneratorAdapter — GPT Image 2", () => {
 		).toBe(true);
 	});
 
-	it("routes flow portrait/storyboard text generation through GMI GPT Image 2", async () => {
+	it("routes flow portrait/storyboard text generation through IMA Router GPT Image 2", async () => {
 		const adapter = new ImageGeneratorAdapter({
-			model: "gpt_image_2_gmi",
+			model: "gpt_image_2_ima",
 			output_dir: "/tmp/qcut-vimax",
 		});
 
@@ -77,9 +83,10 @@ describe("ImageGeneratorAdapter — GPT Image 2", () => {
 		});
 
 		const call = mockedCallModelApi.mock.calls[0][0];
-		expect(call.provider).toBe("gmi");
-		expect(call.endpoint).toBe("gpt-image-2-generate");
+		expect(call.provider).toBe("imarouter");
+		expect(call.endpoint).toBe("v1/images/generations");
 		expect(call.payload).toEqual({
+			model: "gpt-image-2",
 			prompt: "portrait of a brass space captain",
 			size: "1024x1536",
 			quality: "medium",
@@ -111,9 +118,38 @@ describe("ImageGeneratorAdapter — GPT Image 2", () => {
 		});
 	});
 
-	it("routes GMI reference generation through the GPT Image 2 edit endpoint", async () => {
+	it("routes the legacy gpt_image_2_gmi alias through IMA Router", async () => {
 		const adapter = new ImageGeneratorAdapter({
-			reference_model: "gpt_image_2_gmi",
+			model: "gpt_image_2_gmi",
+			output_dir: "/tmp/qcut-vimax",
+		});
+
+		await adapter.generate("portrait of a brass space captain", {
+			aspect_ratio: "1:1",
+			output_path: "/tmp/qcut-vimax/legacy.png",
+		});
+
+		const call = mockedCallModelApi.mock.calls[0][0];
+		expect(call.provider).toBe("imarouter");
+		expect(call.endpoint).toBe("v1/images/generations");
+		expect(call.payload.model).toBe("gpt-image-2");
+	});
+
+	it("rejects unknown text-to-image models instead of falling back", async () => {
+		const adapter = new ImageGeneratorAdapter({
+			model: "gpt_image_2_typo",
+			output_dir: "/tmp/qcut-vimax",
+		});
+
+		await expect(adapter.generate("portrait")).rejects.toThrow(
+			"Unknown image model 'gpt_image_2_typo'"
+		);
+		expect(mockedCallModelApi.mock.calls).toHaveLength(0);
+	});
+
+	it("routes IMA Router reference generation through the GPT Image 2 image endpoint", async () => {
+		const adapter = new ImageGeneratorAdapter({
+			reference_model: "gpt_image_2_ima",
 			output_dir: "/tmp/qcut-vimax",
 		});
 
@@ -121,18 +157,19 @@ describe("ImageGeneratorAdapter — GPT Image 2", () => {
 			"keep identity, change outfit to a red jacket",
 			"https://example.com/portrait.png",
 			{
-				model: "gpt_image_2_gmi",
+				model: "gpt_image_2_ima",
 				aspect_ratio: "1:1",
 				output_path: "/tmp/qcut-vimax/gmi-ref.png",
 			}
 		);
 
 		const call = mockedCallModelApi.mock.calls[0][0];
-		expect(call.provider).toBe("gmi");
-		expect(call.endpoint).toBe("gpt-image-2-edit");
+		expect(call.provider).toBe("imarouter");
+		expect(call.endpoint).toBe("v1/images/generations");
 		expect(call.payload).toEqual({
+			model: "gpt-image-2",
 			prompt: "keep identity, change outfit to a red jacket",
-			image: ["https://example.com/portrait.png"],
+			images: ["https://example.com/portrait.png"],
 			size: "1024x1024",
 			quality: "medium",
 			output_format: "png",
@@ -168,9 +205,21 @@ describe("ImageGeneratorAdapter — GPT Image 2", () => {
 		});
 	});
 
+	it("rejects unknown reference models instead of falling back", async () => {
+		const adapter = new ImageGeneratorAdapter({
+			reference_model: "gpt_image_2_typo",
+			output_dir: "/tmp/qcut-vimax",
+		});
+
+		await expect(
+			adapter.generateWithReference("portrait", "https://example.com/ref.png")
+		).rejects.toThrow("Unknown reference image model 'gpt_image_2_typo'");
+		expect(mockedCallModelApi.mock.calls).toHaveLength(0);
+	});
+
 	it("uploads local GPT Image 2 reference images before edit calls", async () => {
 		const adapter = new ImageGeneratorAdapter({
-			reference_model: "gpt_image_2_gmi",
+			reference_model: "gpt_image_2_ima",
 			output_dir: "/tmp/qcut-vimax",
 		});
 
@@ -178,7 +227,7 @@ describe("ImageGeneratorAdapter — GPT Image 2", () => {
 			"make a matching product still",
 			"/tmp/local-portrait.png",
 			{
-				model: "gpt_image_2_gmi",
+				model: "gpt_image_2_ima",
 				output_path: "/tmp/qcut-vimax/local-ref.png",
 			}
 		);
@@ -187,7 +236,7 @@ describe("ImageGeneratorAdapter — GPT Image 2", () => {
 			"/tmp/local-portrait.png"
 		);
 		const call = mockedCallModelApi.mock.calls[0][0];
-		expect(call.payload.image).toEqual([
+		expect(call.payload.images).toEqual([
 			"https://cdn.example.com/uploaded-ref.png",
 		]);
 	});

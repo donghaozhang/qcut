@@ -32,7 +32,7 @@ const CODEX_AGENT_INSTRUCTIONS = [
 	"When a user references an uploaded file, inspect /tmp/qcut-input before asking them to resend it.",
 	"Write final user-requested files under /tmp/qcut-output so the website Sandbox files panel can list and download them.",
 	"The QCut CLI default output directory is set with QCUT_OUTPUT_DIR=/tmp/qcut-output in this sandbox.",
-	"For image generation, the QCut CLI default model is gpt_image_2_gmi. Do not pass --model/-m unless the user explicitly requests a specific image model.",
+	"For image generation, the QCut CLI default model is gpt_image_2_ima. Do not pass --model/-m unless the user explicitly requests a specific image model.",
 	"Put temporary tools, caches, and package installs under /tmp/qcut-tools or /tmp, not /tmp/qcut-output.",
 	"yt-dlp and deno are available for authorized video download probes.",
 	"Codex is already running inside an externally isolated Daytona sandbox. Approval prompts and Codex sandboxing have been disabled intentionally for this environment.",

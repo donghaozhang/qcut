@@ -343,11 +343,14 @@ aiProxyRoutes.get("/status", async (c) => {
 		} else if (provider === "gmi") {
 			statusUrl = `https://console.gmicloud.ai/api/v1/ie/requestqueue/apikey/requests/${requestId}`;
 		} else if (provider === "imarouter") {
-			// IMA Router poll shape: GET /v1/videos/{task_id} → { status,
-			// progress, results: [{ url }] }. Status enum is lowercase
-			// `queued | in_progress | completed | failed` (proxy-client
-			// normalises to upper-case in pollViaProxy).
-			statusUrl = `https://api.imarouter.com/v1/videos/${requestId}`;
+			if (endpoint.length > 0 && !VALID_ENDPOINT_PATH.test(endpoint)) {
+				return c.json({ error: "Invalid endpoint format" }, 400);
+			}
+			const basePath =
+				endpoint.replace(/^\/+/, "") === "v1/images/generations"
+					? "v1/images/generations"
+					: "v1/videos";
+			statusUrl = `https://api.imarouter.com/${basePath}/${requestId}`;
 		} else {
 			return c.json(
 				{ error: `Polling not supported for provider: ${provider}` },

@@ -456,6 +456,10 @@ export async function callModelApiViaProxy(
 		}
 
 		if (provider === "imarouter") {
+			const nestedData =
+				data.data && typeof data.data === "object"
+					? (data.data as Record<string, unknown>)
+					: {};
 			// Submit response shape: `{ task_id }` (or `{ id }` in older builds).
 			// pollViaProxy uppercases the status enum so IMA Router's lowercase
 			// `completed | failed` falls into the existing COMPLETED / FAILED
@@ -466,7 +470,11 @@ export async function callModelApiViaProxy(
 					? data.task_id
 					: typeof data.id === "string"
 						? data.id
-						: "";
+						: typeof nestedData.task_id === "string"
+							? nestedData.task_id
+							: typeof nestedData.id === "string"
+								? nestedData.id
+								: "";
 			if (taskId) {
 				return pollViaProxy({
 					provider: "imarouter",
@@ -532,16 +540,29 @@ async function pollViaProxy({
 
 		const poll = await proxyPollStatus({
 			provider,
-			endpoint: provider === "fal" ? endpoint : undefined,
+			endpoint:
+				provider === "fal" || provider === "imarouter" ? endpoint : undefined,
 			requestId,
 			statusUrl,
 			signal,
 		});
 
 		const status = poll.data as Record<string, unknown>;
-		const statusStr = String(status?.status ?? "").toUpperCase();
+		const statusPayload =
+			provider === "imarouter" &&
+			status?.data &&
+			typeof status.data === "object"
+				? (status.data as Record<string, unknown>)
+				: status;
+		const statusStr = String(
+			statusPayload?.status ?? status?.status ?? ""
+		).toUpperCase();
 
-		if (statusStr === "COMPLETED" || statusStr === "SUCCESS") {
+		if (
+			statusStr === "COMPLETED" ||
+			statusStr === "SUCCESS" ||
+			statusStr === "SUCCEEDED"
+		) {
 			if (provider === "fal") {
 				const result = await proxyFetchResult({
 					provider: "fal",
@@ -588,15 +609,25 @@ async function pollViaProxy({
 			return {
 				success: true,
 				data: status,
-				outputUrl: extractOutputUrl(outcome ?? status),
+				outputUrl: extractOutputUrl(outcome ?? statusPayload ?? status),
 				duration: (Date.now() - startTime) / 1000,
 			};
 		}
 
-		if (statusStr === "FAILED" || statusStr === "CANCELLED") {
+		if (
+			statusStr === "FAILED" ||
+			statusStr === "CANCELLED" ||
+			statusStr === "ERROR"
+		) {
+			const error = statusPayload?.error ?? status?.error;
+			const message =
+				typeof error === "string"
+					? error
+					: ((error as { message?: string } | undefined)?.message ??
+						"unknown error");
 			return {
 				success: false,
-				error: `Job ${statusStr.toLowerCase()}: ${String(status?.error ?? "unknown error")}`,
+				error: `Job ${statusStr.toLowerCase()}: ${message}`,
 				duration: (Date.now() - startTime) / 1000,
 			};
 		}

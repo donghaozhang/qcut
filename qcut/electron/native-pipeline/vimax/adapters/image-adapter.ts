@@ -64,11 +64,16 @@ const MODEL_MAP: Record<string, string> = {
 
 /** Model → GMI endpoint for text-to-image. */
 const GMI_MODEL_MAP: Record<string, string> = {
-	gpt_image_2_gmi: "gpt-image-2-generate",
 	gmi_gemini_3_pro_image: "gemini-3-pro-image-preview",
 	gmi_gemini_31_flash_image: "gemini-3.1-flash-image-preview",
 	gmi_seedream_4: "seedream-4.0",
 	gmi_seedream_5_lite: "seedream-5.0-lite",
+};
+
+/** Model → IMA Router endpoint for text-to-image. */
+const IMAROUTER_MODEL_MAP: Record<string, string> = {
+	gpt_image_2_ima: "v1/images/generations",
+	gpt_image_2_gmi: "v1/images/generations",
 };
 
 /** Model → FAL endpoint for image-to-image with reference. */
@@ -76,7 +81,8 @@ const REFERENCE_MODEL_MAP: Record<string, string> = {
 	nano_banana_pro: "fal-ai/nano-banana-pro/edit",
 	nano_banana_2: "fal-ai/nano-banana-2/edit",
 	gpt_image_2_fal: "openai/gpt-image-2/edit",
-	gpt_image_2_gmi: "gpt-image-2-edit",
+	gpt_image_2_ima: "v1/images/generations",
+	gpt_image_2_gmi: "v1/images/generations",
 	flux_kontext: "fal-ai/flux-kontext/max/image-to-image",
 	flux_redux: "fal-ai/flux-pro/v1.1-ultra/redux",
 	seededit_v3: "fal-ai/seededit-v3",
@@ -103,6 +109,7 @@ const COST_MAP: Record<string, number> = {
 	nano_banana_pro: 0.002,
 	nano_banana_2: 0.08,
 	gpt_image_2_fal: 0.042,
+	gpt_image_2_ima: 0.042,
 	gpt_image_2_gmi: 0.042,
 	gmi_gemini_3_pro_image: 0.04,
 	gmi_gemini_31_flash_image: 0.02,
@@ -113,6 +120,7 @@ const COST_MAP: Record<string, number> = {
 	nano_banana_pro_edit: 0.15,
 	nano_banana_2_edit: 0.08,
 	gpt_image_2_fal_edit: 0.042,
+	gpt_image_2_ima_edit: 0.042,
 	gpt_image_2_gmi_edit: 0.042,
 	flux_kontext: 0.025,
 	flux_redux: 0.02,
@@ -128,6 +136,7 @@ const MAX_STEPS_MAP: Record<string, number> = {
 	nano_banana_pro: 50,
 	nano_banana_2: 50,
 	gpt_image_2_fal: 50,
+	gpt_image_2_ima: 50,
 	gpt_image_2_gmi: 50,
 	gpt_image_1_5: 50,
 	seedream_v3: 50,
@@ -161,6 +170,73 @@ function aspectToGmiGptSize(aspectRatio: string): string {
 		"2:3": "1024x1536",
 	};
 	return sizes[aspectRatio] ?? "1024x1024";
+}
+
+function isImaRouterGptImage2(model: string): boolean {
+	return model === "gpt_image_2_ima" || model === "gpt_image_2_gmi";
+}
+
+type ImageProvider = "fal" | "gmi" | "imarouter";
+
+function resolveTextToImageModel({ model }: { model: string }): {
+	endpoint: string;
+	provider: ImageProvider;
+	isGmi: boolean;
+	isImaRouter: boolean;
+} {
+	const falEndpoint = MODEL_MAP[model];
+	if (falEndpoint) {
+		return {
+			endpoint: falEndpoint,
+			provider: "fal",
+			isGmi: false,
+			isImaRouter: false,
+		};
+	}
+
+	const gmiEndpoint = GMI_MODEL_MAP[model];
+	if (gmiEndpoint) {
+		return {
+			endpoint: gmiEndpoint,
+			provider: "gmi",
+			isGmi: true,
+			isImaRouter: false,
+		};
+	}
+
+	const imaRouterEndpoint = IMAROUTER_MODEL_MAP[model];
+	if (imaRouterEndpoint) {
+		return {
+			endpoint: imaRouterEndpoint,
+			provider: "imarouter",
+			isGmi: false,
+			isImaRouter: true,
+		};
+	}
+
+	throw new Error(
+		`Unknown image model '${model}'. Run 'qcut system models --json' to list supported image models.`
+	);
+}
+
+function resolveReferenceImageModel({ model }: { model: string }): {
+	endpoint: string;
+	provider: ImageProvider;
+	isImaRouter: boolean;
+} {
+	const endpoint = REFERENCE_MODEL_MAP[model];
+	if (!endpoint) {
+		throw new Error(
+			`Unknown reference image model '${model}'. Run 'qcut system models --json' to list supported image models.`
+		);
+	}
+
+	const isImaRouter = isImaRouterGptImage2(model);
+	return {
+		endpoint,
+		provider: isImaRouter ? "imarouter" : "fal",
+		isImaRouter,
+	};
 }
 
 function isRemoteUrl(url: string): boolean {
@@ -198,12 +274,17 @@ export class ImageGeneratorAdapter extends BaseAdapter<string, ImageOutput> {
 
 	/** Returns list of supported text-to-image model keys. */
 	static getAvailableModels(): string[] {
-		return [...Object.keys(MODEL_MAP), ...Object.keys(GMI_MODEL_MAP)];
+		return [
+			...Object.keys(MODEL_MAP),
+			...Object.keys(GMI_MODEL_MAP),
+			...Object.keys(IMAROUTER_MODEL_MAP),
+		];
 	}
 
 	/** Returns metadata for a specific model. */
 	static getModelInfo(model: string): ModelInfo | undefined {
-		const endpoint = MODEL_MAP[model] ?? GMI_MODEL_MAP[model];
+		const endpoint =
+			MODEL_MAP[model] ?? GMI_MODEL_MAP[model] ?? IMAROUTER_MODEL_MAP[model];
 		if (!endpoint) return;
 		return {
 			key: model,
@@ -226,12 +307,14 @@ export class ImageGeneratorAdapter extends BaseAdapter<string, ImageOutput> {
 		// only needs to know whether SOMETHING upstream will work.
 		const falKey = process.env.FAL_KEY ?? process.env.FAL_API_KEY ?? "";
 		const gmiKey = process.env.GMI_API_KEY ?? "";
-		const hasLocalKey = falKey.length > 0 || gmiKey.length > 0;
+		const imaRouterKey = process.env.IMAROUTER_API_KEY ?? "";
+		const hasLocalKey =
+			falKey.length > 0 || gmiKey.length > 0 || imaRouterKey.length > 0;
 		const hasProxy = await isProxyAvailable().catch(() => false);
 		this._hasApiKey = hasLocalKey || hasProxy;
 		if (!this._hasApiKey) {
 			console.warn(
-				"[vimax.image] No FAL_KEY/GMI_API_KEY and no proxy session — using mock mode"
+				"[vimax.image] No FAL_KEY/GMI_API_KEY/IMAROUTER_API_KEY and no proxy session — using mock mode"
 			);
 		}
 		return true;
@@ -256,6 +339,7 @@ export class ImageGeneratorAdapter extends BaseAdapter<string, ImageOutput> {
 
 		const model = options?.model ?? this.config.model;
 		const aspectRatio = options?.aspect_ratio ?? this.config.aspect_ratio;
+		const resolvedModel = resolveTextToImageModel({ model });
 
 		if (!this._hasApiKey) {
 			return this._mockGenerate(
@@ -267,14 +351,12 @@ export class ImageGeneratorAdapter extends BaseAdapter<string, ImageOutput> {
 		}
 
 		const startTime = Date.now();
-		const isGmi = model in GMI_MODEL_MAP;
-		const endpoint = isGmi
-			? GMI_MODEL_MAP[model]
-			: (MODEL_MAP[model] ?? MODEL_MAP.flux_dev);
+		const { endpoint, isGmi, isImaRouter, provider } = resolvedModel;
 
 		let payload: Record<string, unknown>;
-		if (model === "gpt_image_2_gmi") {
+		if (isImaRouterGptImage2(model)) {
 			payload = {
+				model: "gpt-image-2",
 				prompt,
 				size: aspectToGmiGptSize(aspectRatio),
 				quality: "medium",
@@ -317,7 +399,7 @@ export class ImageGeneratorAdapter extends BaseAdapter<string, ImageOutput> {
 		const result = await callModelApi({
 			endpoint,
 			payload,
-			provider: isGmi ? "gmi" : "fal",
+			provider,
 		});
 
 		const generationTime = (Date.now() - startTime) / 1000;
@@ -363,6 +445,7 @@ export class ImageGeneratorAdapter extends BaseAdapter<string, ImageOutput> {
 		const aspectRatio = options?.aspect_ratio ?? this.config.aspect_ratio;
 		const refStrength =
 			options?.reference_strength ?? this.config.reference_strength;
+		const resolvedModel = resolveReferenceImageModel({ model });
 
 		if (!this._hasApiKey) {
 			return this._mockGenerateWithReference(
@@ -376,12 +459,9 @@ export class ImageGeneratorAdapter extends BaseAdapter<string, ImageOutput> {
 		}
 
 		const startTime = Date.now();
-		const endpoint =
-			REFERENCE_MODEL_MAP[model] ?? REFERENCE_MODEL_MAP.nano_banana_pro;
-		const isGmi = model === "gpt_image_2_gmi";
-		const provider = isGmi ? "gmi" : "fal";
+		const { endpoint, isImaRouter, provider } = resolvedModel;
 		const resolvedReferenceImage =
-			model === "gpt_image_2_gmi" || model === "gpt_image_2_fal"
+			isImaRouterGptImage2(model) || model === "gpt_image_2_fal"
 				? await resolveReferenceImageUrl({
 						referenceImage,
 					})
@@ -389,10 +469,11 @@ export class ImageGeneratorAdapter extends BaseAdapter<string, ImageOutput> {
 
 		let payload: Record<string, unknown>;
 
-		if (model === "gpt_image_2_gmi") {
+		if (isImaRouterGptImage2(model)) {
 			payload = {
+				model: "gpt-image-2",
 				prompt,
-				image: [resolvedReferenceImage],
+				images: [resolvedReferenceImage],
 				size: aspectToGmiGptSize(aspectRatio),
 				quality: "medium",
 				output_format: "png",
@@ -451,7 +532,7 @@ export class ImageGeneratorAdapter extends BaseAdapter<string, ImageOutput> {
 
 		const costKey =
 			ARRAY_IMAGE_MODELS.has(model) ||
-			model === "gpt_image_2_gmi" ||
+			isImaRouterGptImage2(model) ||
 			model === "gpt_image_2_fal"
 				? `${model}_edit`
 				: model;

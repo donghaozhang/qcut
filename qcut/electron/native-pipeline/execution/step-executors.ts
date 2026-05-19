@@ -146,7 +146,10 @@ async function resolveReferenceImages({
 	{ success: true; urls: string[] } | { success: false; error: string }
 > {
 	const shouldUploadLocal =
-		provider === "fal" || provider === "gmi" || provider === "gmi-llm";
+		provider === "fal" ||
+		provider === "gmi" ||
+		provider === "gmi-llm" ||
+		provider === "imarouter";
 	const uploads = refs.map(async (ref): Promise<ReferenceImageResolution> => {
 		if (isRemoteUrl(ref) || !shouldUploadLocal)
 			return { success: true, url: ref };
@@ -389,7 +392,15 @@ async function executeTextToImage(
 	payload.prompt = input.text || payload.prompt;
 	const referenceImages = collectReferenceImages({ input, payload });
 	let endpoint = model.endpoint;
-	if (referenceImages.length > 0 && provider === "gmi") {
+	const isImaRouterGptImage2 =
+		model.key === "gpt_image_2_ima" || model.key === "gpt_image_2_gmi";
+	if (isImaRouterGptImage2) {
+		payload.model = "gpt-image-2";
+	}
+	if (
+		referenceImages.length > 0 &&
+		(provider === "gmi" || provider === "imarouter")
+	) {
 		const refs = await resolveReferenceImages({
 			refs: referenceImages,
 			provider,
@@ -402,10 +413,15 @@ async function executeTextToImage(
 				duration: 0,
 			};
 		}
-		payload.image = refs.urls;
+		if (provider === "imarouter" && isImaRouterGptImage2) {
+			payload.images = refs.urls;
+			delete payload.image;
+		} else {
+			payload.image = refs.urls;
+		}
 		delete payload.image_urls;
 		delete payload.reference_images;
-		if (model.key === "gpt_image_2_gmi") {
+		if (provider === "gmi" && isImaRouterGptImage2) {
 			endpoint = "gpt-image-2-edit";
 		}
 	}
@@ -429,7 +445,10 @@ async function executeTextToImage(
 	}
 
 	// GPT Image uses image_size with pixel dimensions
-	if (model.endpoint.includes("gpt-image") && payload.aspect_ratio) {
+	if (
+		(model.endpoint.includes("gpt-image") || isImaRouterGptImage2) &&
+		payload.aspect_ratio
+	) {
 		const gptSizeMap: Record<string, string> = {
 			"1:1": "1024x1024",
 			"16:9": "1536x1024",
@@ -438,7 +457,7 @@ async function executeTextToImage(
 			"2:3": "1024x1536",
 		};
 		const size = gptSizeMap[payload.aspect_ratio as string] || "1024x1024";
-		if (provider === "gmi") {
+		if (provider === "gmi" || provider === "imarouter") {
 			payload.size = size;
 			delete payload.image_size;
 		} else {

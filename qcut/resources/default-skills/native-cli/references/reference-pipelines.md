@@ -28,7 +28,7 @@ Run a multi-step YAML pipeline.
 name: my-pipeline
 steps:
   - type: text_to_image       # ModelCategory value
-    model: gpt_image_2_gmi     # model key
+    model: gpt_image_2_ima     # model key
     params:                    # model-specific params
       image_size: landscape_16_9
     enabled: true              # optional, default true
@@ -38,7 +38,7 @@ steps:
     merge_strategy: COLLECT_ALL
     steps:
       - type: text_to_image
-        model: gpt_image_2_gmi
+        model: gpt_image_2_ima
 
 config:
   output_dir: ./output

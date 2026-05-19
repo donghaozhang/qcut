@@ -86,6 +86,10 @@ export function extractOutputUrl(data: unknown): string | undefined {
 		const first = obj.results[0] as Record<string, unknown>;
 		if (typeof first?.url === "string") return first.url;
 	}
+	if (typeof obj.data === "object" && obj.data !== null) {
+		const data = obj.data as Record<string, unknown>;
+		if (typeof data.url === "string") return data.url;
+	}
 	// GMI outcome shape: `{ outcome: { video_url: "..." } }` for Seedance 2.0 and
 	// Veo-family models. Proxy-mode responses go through this function, so
 	// missing the bare snake_case string here means the video URL is dropped

@@ -105,6 +105,18 @@ describe("extractOutputUrl", () => {
 			})
 		).toBe("https://imarouter.example/v.mp4");
 	});
+
+	it("extracts IMA Router image data.url shape", () => {
+		expect(
+			extractOutputUrl({
+				code: "success",
+				data: {
+					status: "succeeded",
+					url: "https://imarouter.example/image.png",
+				},
+			})
+		).toBe("https://imarouter.example/image.png");
+	});
 });
 
 describe("buildProviderUrl", () => {

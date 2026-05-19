@@ -3,7 +3,7 @@
  * @module electron/native-pipeline/registry-data/text-to-image
  */
 
-import { ModelRegistry } from "../infra/registry.js";
+import { ModelRegistry, type ModelDefinitionInput } from "../infra/registry.js";
 
 /** Register all text-to-image models in the pipeline registry. */
 export function registerTextToImageModels(): void {
@@ -288,19 +288,20 @@ export function registerTextToImageModels(): void {
 		processingTime: 20,
 	});
 
-	// ── GMI Cloud Image Models ──────────────────────────────────
+	// ── IMA Router Image Models ──────────────────────────────────
 
-	ModelRegistry.register({
-		key: "gpt_image_2_gmi",
-		name: "GPT-Image-2 (GMI)",
-		provider: "OpenAI (via GMI)",
-		endpoint: "gpt-image-2-generate",
+	const gptImage2ImaModel = {
+		key: "gpt_image_2_ima",
+		name: "GPT-Image-2 (IMA Router)",
+		provider: "OpenAI (via IMA Router)",
+		endpoint: "v1/images/generations",
 		categories: ["text_to_image", "image_to_image"],
 		description:
-			"OpenAI GPT-Image-2 via GMI Cloud — photorealistic, strong prompt adherence, accurate in-image text",
+			"OpenAI GPT-Image-2 via IMA Router — photorealistic, strong prompt adherence, accurate in-image text",
 		pricing: { per_image: 0.042 },
 		aspectRatios: ["1:1", "3:2", "2:3"],
 		defaults: {
+			model: "gpt-image-2",
 			size: "1024x1024",
 			quality: "medium",
 			output_format: "png",
@@ -315,7 +316,16 @@ export function registerTextToImageModels(): void {
 		],
 		costEstimate: 0.042,
 		processingTime: 30,
-		providerBackend: "gmi",
+		providerBackend: "imarouter",
+	} satisfies ModelDefinitionInput;
+
+	ModelRegistry.register(gptImage2ImaModel);
+	ModelRegistry.register({
+		...gptImage2ImaModel,
+		key: "gpt_image_2_gmi",
+		name: "GPT-Image-2 (IMA Router, legacy GMI alias)",
+		description:
+			"Deprecated alias for gpt_image_2_ima; routes to OpenAI GPT-Image-2 via IMA Router",
 	});
 
 	ModelRegistry.register({

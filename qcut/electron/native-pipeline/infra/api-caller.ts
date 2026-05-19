@@ -92,11 +92,33 @@ interface GmiStatusResponse {
 interface ImaRouterSubmitResponse {
 	task_id?: string;
 	id?: string;
+	data?: {
+		task_id?: string;
+		id?: string;
+	};
 	code?: number | string;
 	message?: string;
 }
 
 interface ImaRouterStatusResponse {
+	code?: string;
+	data?: {
+		task_id?: string;
+		status?:
+			| "queued"
+			| "processing"
+			| "succeeded"
+			| "completed"
+			| "failed"
+			| "error"
+			| string;
+		format?: string;
+		url?: string;
+		error?: { code?: number | string; message?: string } | string | null;
+		metadata?: unknown;
+		amount_usd?: number;
+		usage?: unknown;
+	};
 	status?: "queued" | "in_progress" | "completed" | "failed" | string;
 	progress?: number;
 	results?: Array<{ url?: string }>;
@@ -351,6 +373,8 @@ export { GEMINI_BASE, OPENROUTER_BASE, VOLCENGINE_BASE };
 const DEFAULT_TIMEOUT_MS = 10 * 60 * 1000;
 const GMI_TIMEOUT_MS = 30 * 60 * 1000;
 const DEFAULT_RETRIES = 3;
+const IMAROUTER_IMAGE_GENERATIONS_PATH = "v1/images/generations";
+const IMAROUTER_VIDEO_GENERATIONS_PATH = "v1/videos";
 
 export { getAdaptivePollInterval };
 
@@ -745,6 +769,30 @@ async function pollGmiQueue(
 
 const IMAROUTER_MAX_POLL_MS = 30 * 60 * 1000; // 30 min ceiling
 
+function getImaRouterStatusPayload(
+	status: ImaRouterStatusResponse
+): Record<string, unknown> {
+	const data = status.data;
+	if (data && typeof data === "object") return data as Record<string, unknown>;
+	return status as Record<string, unknown>;
+}
+
+function getImaRouterStatus(status: ImaRouterStatusResponse): string {
+	const payload = getImaRouterStatusPayload(status);
+	return String(payload.status ?? status.status ?? "").toLowerCase();
+}
+
+function getImaRouterErrorMessage(status: ImaRouterStatusResponse): string {
+	const payload = getImaRouterStatusPayload(status);
+	const error = payload.error ?? status.error;
+	if (typeof error === "string") return error;
+	if (error && typeof error === "object") {
+		const message = (error as { message?: unknown }).message;
+		if (typeof message === "string") return message;
+	}
+	return status.message ?? "task failed";
+}
+
 /**
  * Poll an IMA Router video task until completion, failure, or timeout.
  *
@@ -766,7 +814,10 @@ async function pollImaRouterTask(
 	const startTime = Date.now();
 	const apiKey = await getApiKey("imarouter");
 	const headers = buildHeaders("imarouter", apiKey);
-	const statusUrl = buildProviderUrl("imarouter", `v1/videos/${taskId}`);
+	const statusUrl = buildProviderUrl(
+		"imarouter",
+		`${IMAROUTER_VIDEO_GENERATIONS_PATH}/${taskId}`
+	);
 
 	let lastPercent = -1;
 	while (Date.now() - startTime < IMAROUTER_MAX_POLL_MS) {
@@ -788,6 +839,7 @@ async function pollImaRouterTask(
 			};
 		}
 		const status = (await res.json()) as ImaRouterStatusResponse;
+		const state = getImaRouterStatus(status);
 
 		const percent =
 			typeof status.progress === "number"
@@ -798,19 +850,17 @@ async function pollImaRouterTask(
 			options.onProgress(percent, status.status ?? "in_progress");
 		}
 
-		if (status.status === "completed") {
+		if (state === "completed" || state === "succeeded") {
+			const payload = getImaRouterStatusPayload(status);
 			return {
 				success: true,
 				data: status,
-				outputUrl: extractOutputUrl(status),
+				outputUrl: extractOutputUrl(payload) ?? extractOutputUrl(status),
 				duration: (Date.now() - startTime) / 1000,
 			};
 		}
-		if (status.status === "failed") {
-			const errMsg =
-				typeof status.error === "string"
-					? status.error
-					: (status.error?.message ?? status.message ?? "task failed");
+		if (state === "failed" || state === "error") {
+			const errMsg = getImaRouterErrorMessage(status);
 			return {
 				success: false,
 				error: `IMA Router task ${taskId} failed: ${errMsg}`,
@@ -829,7 +879,83 @@ async function pollImaRouterTask(
 	};
 }
 
-export { extractOutputUrl, pollImaRouterTask };
+async function pollImaRouterImageTask(
+	taskId: string,
+	options?: {
+		onProgress?: (percent: number, message: string) => void;
+		signal?: AbortSignal;
+	}
+): Promise<ApiCallResult> {
+	const startTime = Date.now();
+	const apiKey = await getApiKey("imarouter");
+	const headers = buildHeaders("imarouter", apiKey);
+	const statusUrl = buildProviderUrl(
+		"imarouter",
+		`${IMAROUTER_IMAGE_GENERATIONS_PATH}/${taskId}`
+	);
+
+	let lastPercent = -1;
+	while (Date.now() - startTime < IMAROUTER_MAX_POLL_MS) {
+		if (options?.signal?.aborted) {
+			return {
+				success: false,
+				error: "Cancelled",
+				duration: (Date.now() - startTime) / 1000,
+			};
+		}
+
+		const res = await fetch(statusUrl, { headers, signal: options?.signal });
+		if (!res.ok) {
+			const body = await res.text();
+			return {
+				success: false,
+				error: `IMA Router image status error ${res.status}: ${redactErrorPreview(body)}`,
+				duration: (Date.now() - startTime) / 1000,
+			};
+		}
+
+		const status = (await res.json()) as ImaRouterStatusResponse;
+		const payload = getImaRouterStatusPayload(status);
+		const state = getImaRouterStatus(status);
+		const percent =
+			typeof status.progress === "number"
+				? Math.max(0, Math.min(100, Math.round(status.progress)))
+				: state === "succeeded" || state === "completed"
+					? 100
+					: lastPercent;
+		if (options?.onProgress && percent !== lastPercent) {
+			lastPercent = percent;
+			options.onProgress(percent, state || "processing");
+		}
+
+		if (state === "succeeded" || state === "completed") {
+			return {
+				success: true,
+				data: status,
+				outputUrl: extractOutputUrl(payload) ?? extractOutputUrl(status),
+				duration: (Date.now() - startTime) / 1000,
+			};
+		}
+		if (state === "failed" || state === "error") {
+			return {
+				success: false,
+				error: `IMA Router image task ${taskId} failed: ${getImaRouterErrorMessage(status)}`,
+				duration: (Date.now() - startTime) / 1000,
+			};
+		}
+
+		const interval = getAdaptivePollInterval(Date.now() - startTime);
+		await new Promise((r) => setTimeout(r, interval));
+	}
+
+	return {
+		success: false,
+		error: `IMA Router image task ${taskId} timed out after ${IMAROUTER_MAX_POLL_MS / 1000}s`,
+		duration: (Date.now() - startTime) / 1000,
+	};
+}
+
+export { extractOutputUrl, pollImaRouterTask, pollImaRouterImageTask };
 
 /**
  * Call a provider endpoint and normalize the result payload.
@@ -1022,9 +1148,9 @@ export async function callModelApi(
 				signal: combinedSignal,
 			});
 		} else if (provider === "imarouter") {
-			// IMA Router: POST /v1/videos with the full payload (no model-name
-			// envelope like GMI); endpoint is the path, payload already includes
-			// `model`, `prompt`, etc. assembled by the step executor.
+			// IMA Router: POST the full payload (no GMI-style { model, payload }
+			// envelope). Videos and images share the `{ id | task_id }` async task
+			// shape but use different polling paths.
 			const submitRes = await fetchWithRetry(
 				url,
 				{
@@ -1046,7 +1172,11 @@ export async function callModelApi(
 			}
 
 			const submitData = (await submitRes.json()) as ImaRouterSubmitResponse;
-			const taskId = submitData.task_id || submitData.id;
+			const taskId =
+				submitData.task_id ||
+				submitData.id ||
+				submitData.data?.task_id ||
+				submitData.data?.id;
 			if (!taskId) {
 				return {
 					success: false,
@@ -1055,10 +1185,14 @@ export async function callModelApi(
 				};
 			}
 
-			return pollImaRouterTask(taskId, {
+			const pollOptions = {
 				onProgress: options.onProgress,
 				signal: combinedSignal,
-			});
+			};
+			if (endpoint.replace(/^\/+/, "") === IMAROUTER_IMAGE_GENERATIONS_PATH) {
+				return pollImaRouterImageTask(taskId, pollOptions);
+			}
+			return pollImaRouterTask(taskId, pollOptions);
 		}
 
 		const response = await fetchWithRetry(

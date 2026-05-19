@@ -62,7 +62,7 @@ export function getDefaultModelForCommand({
 }: {
 	command: string;
 }): string | undefined {
-	if (command === "generate-image") return "gpt_image_2_gmi";
+	if (command === "generate-image") return "gpt_image_2_ima";
 	if (command === "create-video") return "imarouter_seedance_2_0_fast_t2v";
 	return undefined;
 }

@@ -71,6 +71,87 @@ describe("callModelApi with IMA Router provider", () => {
 		expect(submitBody.metadata.resolution).toBe("1080p");
 	});
 
+	it("submits to /v1/images/generations and polls image status until success", async () => {
+		mockFetch.mockResolvedValueOnce({
+			ok: true,
+			json: () =>
+				Promise.resolve({ code: "success", data: { task_id: "img_task_1" } }),
+			text: () => Promise.resolve(""),
+		});
+		mockFetch.mockResolvedValueOnce({
+			ok: true,
+			json: () =>
+				Promise.resolve({
+					code: "success",
+					data: {
+						task_id: "img_task_1",
+						status: "succeeded",
+						format: "png",
+						url: "https://imarouter.example/image.png",
+						amount_usd: 0.042,
+					},
+				}),
+		});
+
+		const result = await callModelApi({
+			endpoint: "v1/images/generations",
+			payload: {
+				model: "gpt-image-2",
+				prompt: "A matte black cube",
+				size: "1024x1024",
+				quality: "medium",
+				output_format: "png",
+			},
+			provider: "imarouter",
+		});
+
+		expect(result.success).toBe(true);
+		expect(result.outputUrl).toBe("https://imarouter.example/image.png");
+
+		const submitCall = mockFetch.mock.calls[0];
+		expect(submitCall[0]).toBe(
+			"https://api.imarouter.com/v1/images/generations"
+		);
+		expect(JSON.parse(submitCall[1].body)).toEqual({
+			model: "gpt-image-2",
+			prompt: "A matte black cube",
+			size: "1024x1024",
+			quality: "medium",
+			output_format: "png",
+		});
+		const pollCall = mockFetch.mock.calls[1];
+		expect(pollCall[0]).toBe(
+			"https://api.imarouter.com/v1/images/generations/img_task_1"
+		);
+	});
+
+	it("surfaces failed image tasks", async () => {
+		mockFetch.mockResolvedValueOnce({
+			ok: true,
+			json: () => Promise.resolve({ task_id: "img_fail" }),
+			text: () => Promise.resolve(""),
+		});
+		mockFetch.mockResolvedValueOnce({
+			ok: true,
+			json: () =>
+				Promise.resolve({
+					data: {
+						status: "failed",
+						error: { message: "image prompt rejected" },
+					},
+				}),
+		});
+
+		const result = await callModelApi({
+			endpoint: "v1/images/generations",
+			payload: { model: "gpt-image-2", prompt: "test" },
+			provider: "imarouter",
+		});
+
+		expect(result.success).toBe(false);
+		expect(result.error).toContain("image prompt rejected");
+	});
+
 	it("surfaces a 4xx submit error", async () => {
 		mockFetch.mockResolvedValueOnce({
 			ok: false,

@@ -35,6 +35,7 @@ export interface PortraitsGeneratorConfig extends AgentConfig {
 	style: string;
 	aspect_ratio: string;
 	output_dir: string;
+	concurrency: number;
 }
 
 /** Create a {@link PortraitsGeneratorConfig} with sensible defaults. */
@@ -52,6 +53,7 @@ export function createPortraitsGeneratorConfig(
 		style: "detailed character portrait, natural lighting, photorealistic",
 		aspect_ratio: "9:16",
 		output_dir: "media/generated/vimax/portraits",
+		concurrency: 3,
 		...partial,
 	};
 }
@@ -82,6 +84,17 @@ function safeSlug(value: string): string {
 	return safe || "unknown";
 }
 
+function normalizeConcurrency({
+	concurrency,
+	itemCount,
+}: {
+	concurrency: number;
+	itemCount: number;
+}): number {
+	const normalized = Number.isFinite(concurrency) ? Math.trunc(concurrency) : 3;
+	return Math.max(1, Math.min(normalized, itemCount));
+}
+
 /** Agent that generates multi-angle character portraits for visual consistency. */
 export class CharacterPortraitsGenerator extends BaseAgent<
 	CharacterInNovel,
@@ -90,12 +103,23 @@ export class CharacterPortraitsGenerator extends BaseAgent<
 	declare config: PortraitsGeneratorConfig;
 	private _imageAdapter: ImageGeneratorAdapter | null = null;
 	private _llm: LLMAdapter | null = null;
+	private _adapterInit: Promise<void> | null = null;
 
 	constructor(config?: Partial<PortraitsGeneratorConfig>) {
 		super(createPortraitsGeneratorConfig(config));
 	}
 
 	private async _ensureAdapters(): Promise<void> {
+		if (!this._adapterInit) {
+			this._adapterInit = this._initializeAdapters().catch((err: unknown) => {
+				this._adapterInit = null;
+				throw err;
+			});
+		}
+		await this._adapterInit;
+	}
+
+	private async _initializeAdapters(): Promise<void> {
 		if (!this._imageAdapter) {
 			this._imageAdapter = new ImageGeneratorAdapter({
 				model: this.config.image_model,
@@ -220,12 +244,39 @@ export class CharacterPortraitsGenerator extends BaseAgent<
 	async generateBatch(
 		characters: CharacterInNovel[]
 	): Promise<AgentResult<Record<string, CharacterPortrait>>> {
+		if (characters.length === 0) {
+			return agentOk(
+				{},
+				{ cost: 0, errors: undefined, concurrency: 0, characters: 0 }
+			);
+		}
+
+		const results = new Array<AgentResult<CharacterPortrait>>(
+			characters.length
+		);
+		const concurrency = normalizeConcurrency({
+			concurrency: this.config.concurrency,
+			itemCount: characters.length,
+		});
+		let nextIndex = 0;
+
+		const runNext = async (): Promise<void> => {
+			const index = nextIndex++;
+			if (index >= characters.length) return;
+			results[index] = await this.process(characters[index]);
+			return runNext();
+		};
+
+		const workers = Array.from({ length: concurrency }, () => runNext());
+		await Promise.all(workers);
+
 		const portraits: Record<string, CharacterPortrait> = {};
 		let totalCost = 0;
 		const errors: string[] = [];
 
-		for (const char of characters) {
-			const result = await this.process(char);
+		for (let index = 0; index < characters.length; index++) {
+			const char = characters[index];
+			const result = results[index];
 			if (result.success && result.result) {
 				portraits[char.name] = result.result;
 				totalCost += (result.metadata.cost as number) ?? 0;
@@ -242,6 +293,7 @@ export class CharacterPortraitsGenerator extends BaseAgent<
 
 		return agentOk(portraits, {
 			cost: totalCost,
+			concurrency,
 			errors: errors.length > 0 ? errors : undefined,
 		});
 	}
