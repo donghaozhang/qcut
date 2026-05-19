@@ -394,12 +394,13 @@ async function executeTextToImage(
 	let endpoint = model.endpoint;
 	const isImaRouterGptImage2 =
 		model.key === "gpt_image_2_ima" || model.key === "gpt_image_2_gmi";
+	const isFalGptImage2 = model.key === "gpt_image_2_fal";
 	if (isImaRouterGptImage2) {
 		payload.model = "gpt-image-2";
 	}
 	if (
 		referenceImages.length > 0 &&
-		(provider === "gmi" || provider === "imarouter")
+		(provider === "gmi" || provider === "imarouter" || isFalGptImage2)
 	) {
 		const refs = await resolveReferenceImages({
 			refs: referenceImages,
@@ -416,10 +417,18 @@ async function executeTextToImage(
 		if (provider === "imarouter" && isImaRouterGptImage2) {
 			payload.images = refs.urls;
 			delete payload.image;
+		} else if (isFalGptImage2) {
+			payload.image_urls = refs.urls;
+			payload.image_size = "auto";
+			delete payload.aspect_ratio;
+			delete payload.image;
+			endpoint = "openai/gpt-image-2/edit";
 		} else {
 			payload.image = refs.urls;
 		}
-		delete payload.image_urls;
+		if (!isFalGptImage2) {
+			delete payload.image_urls;
+		}
 		delete payload.reference_images;
 		if (provider === "gmi" && isImaRouterGptImage2) {
 			endpoint = "gpt-image-2-edit";
