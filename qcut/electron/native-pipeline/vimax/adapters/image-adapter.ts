@@ -14,7 +14,11 @@ import {
 	type AdapterConfig,
 	createAdapterConfig,
 } from "./base-adapter.js";
-import { callModelApi, downloadOutput } from "../../infra/api-caller.js";
+import {
+	callModelApi,
+	downloadOutput,
+	uploadToFalStorage,
+} from "../../infra/api-caller.js";
 import { isProxyAvailable } from "../../infra/proxy-client.js";
 import type { ImageOutput } from "../types/output.js";
 import { createImageOutput } from "../types/output.js";
@@ -53,12 +57,14 @@ const MODEL_MAP: Record<string, string> = {
 	imagen4: "google/imagen-4",
 	nano_banana_pro: "fal-ai/nano-banana-pro",
 	nano_banana_2: "fal-ai/nano-banana-2",
+	gpt_image_2_fal: "openai/gpt-image-2",
 	gpt_image_1_5: "fal-ai/gpt-image-1-5",
 	seedream_v3: "fal-ai/seedream-v3",
 };
 
 /** Model → GMI endpoint for text-to-image. */
 const GMI_MODEL_MAP: Record<string, string> = {
+	gpt_image_2_gmi: "gpt-image-2-generate",
 	gmi_gemini_3_pro_image: "gemini-3-pro-image-preview",
 	gmi_gemini_31_flash_image: "gemini-3.1-flash-image-preview",
 	gmi_seedream_4: "seedream-4.0",
@@ -69,6 +75,8 @@ const GMI_MODEL_MAP: Record<string, string> = {
 const REFERENCE_MODEL_MAP: Record<string, string> = {
 	nano_banana_pro: "fal-ai/nano-banana-pro/edit",
 	nano_banana_2: "fal-ai/nano-banana-2/edit",
+	gpt_image_2_fal: "openai/gpt-image-2/edit",
+	gpt_image_2_gmi: "gpt-image-2-edit",
 	flux_kontext: "fal-ai/flux-kontext/max/image-to-image",
 	flux_redux: "fal-ai/flux-pro/v1.1-ultra/redux",
 	seededit_v3: "fal-ai/seededit-v3",
@@ -94,6 +102,8 @@ const COST_MAP: Record<string, number> = {
 	imagen4: 0.004,
 	nano_banana_pro: 0.002,
 	nano_banana_2: 0.08,
+	gpt_image_2_fal: 0.042,
+	gpt_image_2_gmi: 0.042,
 	gmi_gemini_3_pro_image: 0.04,
 	gmi_gemini_31_flash_image: 0.02,
 	gmi_seedream_4: 0.02,
@@ -102,6 +112,8 @@ const COST_MAP: Record<string, number> = {
 	seedream_v3: 0.002,
 	nano_banana_pro_edit: 0.15,
 	nano_banana_2_edit: 0.08,
+	gpt_image_2_fal_edit: 0.042,
+	gpt_image_2_gmi_edit: 0.042,
 	flux_kontext: 0.025,
 	flux_redux: 0.02,
 	seededit_v3: 0.025,
@@ -115,6 +127,8 @@ const MAX_STEPS_MAP: Record<string, number> = {
 	imagen4: 50,
 	nano_banana_pro: 50,
 	nano_banana_2: 50,
+	gpt_image_2_fal: 50,
+	gpt_image_2_gmi: 50,
 	gpt_image_1_5: 50,
 	seedream_v3: 50,
 	flux_kontext: 28,
@@ -132,6 +146,38 @@ function aspectToSize(aspectRatio: string): string {
 		"3:4": "portrait_4_3",
 	};
 	return sizes[aspectRatio] ?? "square";
+}
+
+function aspectToFalGptSize(aspectRatio: string): string {
+	return aspectRatio === "1:1" ? "square_hd" : aspectToSize(aspectRatio);
+}
+
+function aspectToGmiGptSize(aspectRatio: string): string {
+	const sizes: Record<string, string> = {
+		"1:1": "1024x1024",
+		"16:9": "1536x1024",
+		"9:16": "1024x1536",
+		"3:2": "1536x1024",
+		"2:3": "1024x1536",
+	};
+	return sizes[aspectRatio] ?? "1024x1024";
+}
+
+function isRemoteUrl(url: string): boolean {
+	return /^https?:\/\//i.test(url);
+}
+
+async function resolveReferenceImageUrl({
+	referenceImage,
+}: {
+	referenceImage: string;
+}): Promise<string> {
+	if (isRemoteUrl(referenceImage)) return referenceImage;
+	const upload = await uploadToFalStorage(referenceImage);
+	if (!upload.success || !upload.url) {
+		throw new Error(upload.error || "Failed to upload reference image");
+	}
+	return upload.url;
 }
 
 export interface ModelInfo {
@@ -152,12 +198,12 @@ export class ImageGeneratorAdapter extends BaseAdapter<string, ImageOutput> {
 
 	/** Returns list of supported text-to-image model keys. */
 	static getAvailableModels(): string[] {
-		return Object.keys(MODEL_MAP);
+		return [...Object.keys(MODEL_MAP), ...Object.keys(GMI_MODEL_MAP)];
 	}
 
 	/** Returns metadata for a specific model. */
 	static getModelInfo(model: string): ModelInfo | undefined {
-		const endpoint = MODEL_MAP[model];
+		const endpoint = MODEL_MAP[model] ?? GMI_MODEL_MAP[model];
 		if (!endpoint) return;
 		return {
 			key: model,
@@ -227,7 +273,23 @@ export class ImageGeneratorAdapter extends BaseAdapter<string, ImageOutput> {
 			: (MODEL_MAP[model] ?? MODEL_MAP.flux_dev);
 
 		let payload: Record<string, unknown>;
-		if (isGmi) {
+		if (model === "gpt_image_2_gmi") {
+			payload = {
+				prompt,
+				size: aspectToGmiGptSize(aspectRatio),
+				quality: "medium",
+				output_format: "png",
+				n: 1,
+			};
+		} else if (model === "gpt_image_2_fal") {
+			payload = {
+				prompt,
+				image_size: aspectToFalGptSize(aspectRatio),
+				quality: "high",
+				output_format: "png",
+				num_images: 1,
+			};
+		} else if (isGmi) {
 			payload = {
 				prompt,
 				aspect_ratio: aspectRatio,
@@ -316,13 +378,39 @@ export class ImageGeneratorAdapter extends BaseAdapter<string, ImageOutput> {
 		const startTime = Date.now();
 		const endpoint =
 			REFERENCE_MODEL_MAP[model] ?? REFERENCE_MODEL_MAP.nano_banana_pro;
+		const isGmi = model === "gpt_image_2_gmi";
+		const provider = isGmi ? "gmi" : "fal";
+		const resolvedReferenceImage =
+			model === "gpt_image_2_gmi" || model === "gpt_image_2_fal"
+				? await resolveReferenceImageUrl({
+						referenceImage,
+					})
+				: referenceImage;
 
 		let payload: Record<string, unknown>;
 
-		if (ARRAY_IMAGE_MODELS.has(model)) {
+		if (model === "gpt_image_2_gmi") {
 			payload = {
 				prompt,
-				image_urls: [referenceImage],
+				image: [resolvedReferenceImage],
+				size: aspectToGmiGptSize(aspectRatio),
+				quality: "medium",
+				output_format: "png",
+				n: 1,
+			};
+		} else if (model === "gpt_image_2_fal") {
+			payload = {
+				prompt,
+				image_urls: [resolvedReferenceImage],
+				image_size: "auto",
+				quality: "high",
+				num_images: 1,
+				output_format: "png",
+			};
+		} else if (ARRAY_IMAGE_MODELS.has(model)) {
+			payload = {
+				prompt,
+				image_urls: [resolvedReferenceImage],
 				aspect_ratio: aspectRatio || "16:9",
 				num_images: 1,
 			};
@@ -331,7 +419,7 @@ export class ImageGeneratorAdapter extends BaseAdapter<string, ImageOutput> {
 			const numSteps = Math.min(this.config.num_inference_steps, maxSteps);
 			payload = {
 				prompt,
-				image_url: referenceImage,
+				image_url: resolvedReferenceImage,
 				strength: refStrength,
 				image_size: aspectToSize(aspectRatio),
 				num_inference_steps: numSteps,
@@ -342,7 +430,7 @@ export class ImageGeneratorAdapter extends BaseAdapter<string, ImageOutput> {
 		const result = await callModelApi({
 			endpoint,
 			payload,
-			provider: "fal",
+			provider,
 		});
 
 		const generationTime = (Date.now() - startTime) / 1000;
@@ -361,7 +449,12 @@ export class ImageGeneratorAdapter extends BaseAdapter<string, ImageOutput> {
 			await downloadOutput(result.outputUrl, imagePath);
 		}
 
-		const costKey = ARRAY_IMAGE_MODELS.has(model) ? `${model}_edit` : model;
+		const costKey =
+			ARRAY_IMAGE_MODELS.has(model) ||
+			model === "gpt_image_2_gmi" ||
+			model === "gpt_image_2_fal"
+				? `${model}_edit`
+				: model;
 
 		return createImageOutput({
 			image_path: imagePath,
@@ -374,7 +467,7 @@ export class ImageGeneratorAdapter extends BaseAdapter<string, ImageOutput> {
 			cost: COST_MAP[costKey] ?? COST_MAP[model] ?? 0.025,
 			metadata: {
 				aspect_ratio: aspectRatio,
-				reference_image: referenceImage,
+				reference_image: resolvedReferenceImage,
 				reference_strength: refStrength,
 				with_reference: true,
 			},
