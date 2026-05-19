@@ -211,8 +211,10 @@ const CORE_COMMANDS: Record<string, CommandDef> = {
 			f("--text", "string", "Text prompt", { short: "-t", required: true }),
 			f("--model", "string", "Model key", {
 				short: "-m",
-				default: "flux_dev",
+				default: "gpt_image_2_gmi",
 				enum: [
+					"gpt_image_2_gmi",
+					"gpt_image_2_fal",
 					"flux_dev",
 					"flux_pro",
 					"kling_2_6_pro",
@@ -235,6 +237,7 @@ const CORE_COMMANDS: Record<string, CommandDef> = {
 				"Multiple prompts for batch generation (repeatable)"
 			),
 			f("--image-url", "string", "Reference image URL"),
+			f("--reference-images", "string[]", "Reference images (repeatable)"),
 			f("--grid", "string", "Generate image grid (e.g. 2x2, 3x3, 2x3)", {
 				enum: ["2x2", "3x3", "2x3", "3x2", "1x2", "2x1"],
 			}),
@@ -243,7 +246,8 @@ const CORE_COMMANDS: Record<string, CommandDef> = {
 		],
 		examples: [
 			"qcut-pipeline generate-image -t 'A cat in space'",
-			"qcut-pipeline generate-image -t 'Ocean sunset' -m flux_dev --aspect-ratio 16:9",
+			"qcut-pipeline generate-image -t 'Ocean sunset' --aspect-ratio 16:9",
+			"qcut-pipeline generate-image -t 'Make the character wear a red jacket' --image-url https://example.com/character.png",
 			"qcut-pipeline generate-image -t 'Logo design' --count 4 --json",
 			"qcut-pipeline generate-image -t 'Seasons of a tree' --grid 2x2",
 		],

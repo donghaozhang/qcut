@@ -296,7 +296,7 @@ describe("CLI pipeline", () => {
 	});
 
 	describe("CLIPipelineRunner — generate validation", () => {
-		it("defaults to nano_banana_pro when model is missing for generate-image", async () => {
+		it("defaults to gpt_image_2_gmi when model is missing for generate-image", async () => {
 			const mockExecuteStep = vi
 				.spyOn(PipelineExecutor.prototype, "executeStep")
 				.mockResolvedValue({
@@ -314,6 +314,7 @@ describe("CLI pipeline", () => {
 			);
 
 			expect(result.success).toBe(true);
+			expect(mockExecuteStep.mock.calls[0][0].model).toBe("gpt_image_2_gmi");
 			mockExecuteStep.mockRestore();
 		});
 

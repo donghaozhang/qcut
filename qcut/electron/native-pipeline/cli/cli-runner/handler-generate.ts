@@ -62,7 +62,7 @@ export function getDefaultModelForCommand({
 }: {
 	command: string;
 }): string | undefined {
-	if (command === "generate-image") return "nano_banana_pro";
+	if (command === "generate-image") return "gpt_image_2_gmi";
 	if (command === "create-video") return "imarouter_seedance_2_0_fast_t2v";
 	return undefined;
 }
@@ -139,7 +139,12 @@ async function writeSidecarJson(
 	prompt: string,
 	params: Record<string, unknown>,
 	options: CLIRunOptions,
-	result: { outputUrl?: string; outputPath?: string; cost?: number },
+	result: {
+		endpoint?: string;
+		outputUrl?: string;
+		outputPath?: string;
+		cost?: number;
+	},
 	timestamp: number,
 	durationSeconds: number
 ): Promise<void> {
@@ -296,13 +301,19 @@ async function runSingleGeneration(
 			sidecarBase,
 			options.command,
 			options.model,
-			ModelRegistry.has(options.model ?? "")
-				? ModelRegistry.get(options.model!).endpoint
-				: undefined,
+			result.endpoint ??
+				(ModelRegistry.has(options.model ?? "")
+					? ModelRegistry.get(options.model!).endpoint
+					: undefined),
 			promptText,
 			params,
 			options,
-			{ outputUrl: result.outputUrl, outputPath: result.outputPath, cost },
+			{
+				endpoint: result.endpoint,
+				outputUrl: result.outputUrl,
+				outputPath: result.outputPath,
+				cost,
+			},
 			outputTimestamp,
 			(Date.now() - startTime) / 1000
 		);
@@ -310,6 +321,7 @@ async function runSingleGeneration(
 
 	return {
 		success: true,
+		endpoint: result.endpoint,
 		outputPath: result.outputPath,
 		outputPaths: result.outputPath ? [result.outputPath] : undefined,
 		cost,
@@ -458,6 +470,13 @@ export async function handleGenerate(
 		(options.model === "wan_v2_7_edit" || options.model === "wan_v2_7_pro_edit")
 	) {
 		params.image_urls = [options.imageUrl];
+	}
+	if (
+		options.command === "generate-image" &&
+		options.referenceImages &&
+		options.referenceImages.length > 0
+	) {
+		params.image_urls = options.referenceImages;
 	}
 
 	// Validate --count
