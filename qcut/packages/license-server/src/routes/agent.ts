@@ -30,8 +30,11 @@ const TERMINAL_INPUT_DIR = "/tmp/qcut-input";
 const TERMINAL_OUTPUT_DIR = "/tmp/qcut-output";
 const SAFE_COMMAND_TOKEN = /^[A-Za-z0-9_\-./:=,@+]+$/;
 const CODEX_AGENT_COMMAND = "codex exec --skip-git-repo-check --json -";
+// Pinned to an immutable manifest digest so the default agent image cannot
+// drift if the upstream tag is republished. Human-readable tag for this
+// digest: `imarouter-gpt-image-20260519061748`.
 const DEFAULT_DAYTONA_IMAGE =
-	"ghcr.io/quriosity-agent/qcut-cli:imarouter-gpt-image-20260519061748";
+	"ghcr.io/quriosity-agent/qcut-cli@sha256:c266afcb3a0da99ef0ff191bb4f929ada47f4a7f25b118228cfb6acc0ce575ca";
 const TEXT_ARTIFACT_KINDS = new Set(["json", "log"]);
 const CONTENT_TYPE_BY_EXTENSION: Record<string, string> = {
 	".gif": "image/gif",

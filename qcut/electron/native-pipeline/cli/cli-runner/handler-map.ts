@@ -41,6 +41,7 @@ import {
 } from "../cli-handlers-element.js";
 import {
 	handleVimaxExtractCharacters,
+	handleVimaxExtractScenes,
 	handleVimaxGenerateScript,
 	handleVimaxGenerateStoryboard,
 	handleVimaxGeneratePortraits,
@@ -223,6 +224,7 @@ export const HANDLER_MAP: Record<string, CommandHandler> = {
 	"vimax:novel2video": wrapOP(handleVimaxNovel2Video),
 	"vimax:lint-scripts": wrapOP(handleVimaxLintScripts),
 	"vimax:extract-characters": wrapOP(handleVimaxExtractCharacters),
+	"vimax:extract-scenes": wrapOP(handleVimaxExtractScenes),
 	"vimax:generate-script": wrapOP(handleVimaxGenerateScript),
 	"vimax:generate-storyboard": wrapOP(handleVimaxGenerateStoryboard),
 	"vimax:generate-portraits": wrapOP(handleVimaxGeneratePortraits),

@@ -1,3 +1,6 @@
+import * as fs from "fs";
+import * as os from "os";
+import * as path from "path";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 vi.mock("../../../infra/api-caller.js", () => ({
@@ -217,27 +220,36 @@ describe("ImageGeneratorAdapter — GPT Image 2", () => {
 		expect(mockedCallModelApi.mock.calls).toHaveLength(0);
 	});
 
-	it("uploads local GPT Image 2 reference images before edit calls", async () => {
-		const adapter = new ImageGeneratorAdapter({
-			reference_model: "gpt_image_2_ima",
-			output_dir: "/tmp/qcut-vimax",
-		});
+	it("inlines local IMA Router reference images as base64 data URIs without FAL upload", async () => {
+		const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), "qcut-imatest-"));
+		const localImagePath = path.join(tmpDir, "local-portrait.png");
+		const pngBytes = Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a]);
+		fs.writeFileSync(localImagePath, pngBytes);
 
-		await adapter.generateWithReference(
-			"make a matching product still",
-			"/tmp/local-portrait.png",
-			{
-				model: "gpt_image_2_ima",
-				output_path: "/tmp/qcut-vimax/local-ref.png",
-			}
-		);
+		try {
+			const adapter = new ImageGeneratorAdapter({
+				reference_model: "gpt_image_2_ima",
+				output_dir: "/tmp/qcut-vimax",
+			});
 
-		expect(mockedUploadToFalStorage.mock.calls[0][0]).toBe(
-			"/tmp/local-portrait.png"
-		);
-		const call = mockedCallModelApi.mock.calls[0][0];
-		expect(call.payload.images).toEqual([
-			"https://cdn.example.com/uploaded-ref.png",
-		]);
+			await adapter.generateWithReference(
+				"make a matching product still",
+				localImagePath,
+				{
+					model: "gpt_image_2_ima",
+					output_path: "/tmp/qcut-vimax/local-ref.png",
+				}
+			);
+
+			expect(mockedUploadToFalStorage.mock.calls).toHaveLength(0);
+			const call = mockedCallModelApi.mock.calls[0][0];
+			const images = call.payload.images as string[];
+			expect(images).toHaveLength(1);
+			expect(images[0]).toBe(
+				`data:image/png;base64,${pngBytes.toString("base64")}`
+			);
+		} finally {
+			fs.rmSync(tmpDir, { recursive: true, force: true });
+		}
 	});
 });

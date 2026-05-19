@@ -166,6 +166,7 @@ export function parseCliArgs(argv: string[]): CLIRunOptions {
 			genre: { type: "string" },
 			"target-duration": { type: "string" },
 			script: { type: "string" },
+			scenes: { type: "string" },
 			novel: { type: "string" },
 			title: { type: "string" },
 			"max-scenes": { type: "string" },
@@ -467,6 +468,7 @@ export function parseCliArgs(argv: string[]): CLIRunOptions {
 		genre: values.genre as string | undefined,
 		targetDuration: values["target-duration"] as string | undefined,
 		script: values.script as string | undefined,
+		scenes: values.scenes as string | undefined,
 		novel: values.novel as string | undefined,
 		title: values.title as string | undefined,
 		maxScenes: values["max-scenes"]

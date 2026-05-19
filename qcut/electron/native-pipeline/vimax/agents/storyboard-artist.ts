@@ -52,6 +52,7 @@ export interface StoryboardArtistConfig extends AgentConfig {
 	use_character_references: boolean;
 	reference_model: string;
 	reference_strength: number;
+	concurrency: number;
 }
 
 /** Create a {@link StoryboardArtistConfig} with sensible defaults. */
@@ -67,8 +68,26 @@ export function createStoryboardArtistConfig(
 		use_character_references: true,
 		reference_model: "nano_banana_pro",
 		reference_strength: 0.6,
+		concurrency: 6,
 		...partial,
 	};
+}
+
+const MAX_STORYBOARD_CONCURRENCY = 6;
+
+function normalizeConcurrency({
+	concurrency,
+	itemCount,
+}: {
+	concurrency: number;
+	itemCount: number;
+}): number {
+	if (itemCount === 0) return 0;
+	const normalized = Number.isFinite(concurrency) ? Math.trunc(concurrency) : 6;
+	return Math.max(
+		1,
+		Math.min(normalized, itemCount, MAX_STORYBOARD_CONCURRENCY)
+	);
 }
 
 /** Shot type hints for prompt building. */
@@ -78,6 +97,12 @@ const SHOT_TYPE_HINTS: Record<string, string> = {
 	close_up: "close-up shot, face and expression detail",
 	extreme_close_up: "extreme close-up, detail shot",
 };
+
+interface StoryboardImageTask {
+	prompt: string;
+	outputPath: string;
+	referenceImage?: string;
+}
 
 /** Agent that generates storyboard images from screenplay scripts. */
 export class StoryboardArtist extends BaseAgent<Script, StoryboardResult> {
@@ -92,6 +117,51 @@ export class StoryboardArtist extends BaseAgent<Script, StoryboardResult> {
 	) {
 		super(createStoryboardArtistConfig(config));
 		this._portraitRegistry = portraitRegistry ?? null;
+	}
+
+	private async _generateStoryboardTasks({
+		tasks,
+		concurrency,
+	}: {
+		tasks: StoryboardImageTask[];
+		concurrency: number;
+	}): Promise<ImageOutput[]> {
+		const results = new Array<ImageOutput | undefined>(tasks.length);
+		let nextIndex = 0;
+
+		const runNext = async (): Promise<void> => {
+			const index = nextIndex++;
+			if (index >= tasks.length) return;
+
+			const task = tasks[index];
+			results[index] = task.referenceImage
+				? await this._imageAdapter!.generateWithReference(
+						task.prompt,
+						task.referenceImage,
+						{
+							model: this.config.reference_model,
+							reference_strength: this.config.reference_strength,
+							aspect_ratio: this.config.aspect_ratio,
+							output_path: task.outputPath,
+						}
+					)
+				: await this._imageAdapter!.generate(task.prompt, {
+						aspect_ratio: this.config.aspect_ratio,
+						output_path: task.outputPath,
+					});
+
+			return runNext();
+		};
+
+		const workers = Array.from({ length: concurrency }, () => runNext());
+		await Promise.all(workers);
+
+		return results.map((result, index) => {
+			if (!result) {
+				throw new Error(`Storyboard image task ${index + 1} did not finish`);
+			}
+			return result;
+		});
 	}
 
 	private async _ensureAdapter(): Promise<void> {
@@ -232,13 +302,14 @@ export class StoryboardArtist extends BaseAgent<Script, StoryboardResult> {
 			}
 
 			let shotIndex = 0;
+			const tasks: StoryboardImageTask[] = [];
 			let imageLimitReached = false;
 			for (let sceneIdx = 0; sceneIdx < script.scenes.length; sceneIdx++) {
 				if (imageLimitReached) break;
 				const scene = script.scenes[sceneIdx];
 
 				for (const shot of scene.shots) {
-					if (maxImages != null && images.length >= maxImages) {
+					if (maxImages != null && tasks.length >= maxImages) {
 						console.log(
 							`[storyboard] Image cap reached (${maxImages}), stopping generation`
 						);
@@ -254,7 +325,7 @@ export class StoryboardArtist extends BaseAgent<Script, StoryboardResult> {
 					const sceneSlug = safeSlug(scene.title).slice(0, 30);
 					const outputPath = path.join(
 						outputDir,
-						`scene_${String(sceneIdx + 1).padStart(3, "0")}_${shotTypeStr}_${sceneSlug}.png`
+						`scene_${String(sceneIdx + 1).padStart(3, "0")}_shot_${String(shotIndex).padStart(3, "0")}_${shotTypeStr}_${sceneSlug}.png`
 					);
 
 					let referenceImage = useRefs
@@ -267,29 +338,23 @@ export class StoryboardArtist extends BaseAgent<Script, StoryboardResult> {
 						referenceImage = undefined;
 					}
 
-					let result: ImageOutput;
-					if (referenceImage) {
-						result = await this._imageAdapter!.generateWithReference(
-							prompt,
-							referenceImage,
-							{
-								model: this.config.reference_model,
-								reference_strength: this.config.reference_strength,
-								aspect_ratio: this.config.aspect_ratio,
-								output_path: outputPath,
-							}
-						);
-					} else {
-						result = await this._imageAdapter!.generate(prompt, {
-							aspect_ratio: this.config.aspect_ratio,
-							output_path: outputPath,
-						});
-					}
-
-					images.push(result);
-					totalCost += result.cost;
+					tasks.push({ prompt, outputPath, referenceImage });
 				}
 			}
+
+			const concurrency = normalizeConcurrency({
+				concurrency: this.config.concurrency,
+				itemCount: tasks.length,
+			});
+			if (tasks.length > 0) {
+				console.log(
+					`[storyboard] Running ${tasks.length} image task(s) with concurrency ${concurrency}`
+				);
+				images.push(
+					...(await this._generateStoryboardTasks({ tasks, concurrency }))
+				);
+			}
+			totalCost = images.reduce((sum, image) => sum + image.cost, 0);
 
 			const storyboard: StoryboardResult = {
 				title: script.title,
@@ -306,6 +371,7 @@ export class StoryboardArtist extends BaseAgent<Script, StoryboardResult> {
 			return agentOk(storyboard, {
 				image_count: images.length,
 				cost: totalCost,
+				concurrency,
 				used_references: useRefs,
 			});
 		} catch (err) {

@@ -77,6 +77,7 @@ export interface CLIRunOptions {
 	genre?: string;
 	targetDuration?: string;
 	script?: string;
+	scenes?: string;
 	novel?: string;
 	title?: string;
 	maxScenes?: number;

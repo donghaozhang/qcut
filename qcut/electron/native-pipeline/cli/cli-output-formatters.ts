@@ -233,6 +233,23 @@ export function formatCommandOutput(command: string, result: CLIResult): void {
 		return;
 	}
 
+	if (command === "vimax:extract-scenes") {
+		const data = result.data as {
+			title?: string;
+			scenes: number;
+			shots: number;
+			total_duration?: number;
+		};
+		const duration =
+			typeof data.total_duration === "number"
+				? `, ${data.total_duration.toFixed(1)}s`
+				: "";
+		console.log(
+			`\nExtracted ${data.scenes} scenes (${data.shots} shots${duration})`
+		);
+		return;
+	}
+
 	if (command === "vimax:generate-script") {
 		const data = result.data as {
 			title: string;

@@ -169,6 +169,7 @@ export const CATEGORIES: CategoryDef[] = [
 			"vimax:novel2video",
 			"vimax:lint-scripts",
 			"vimax:extract-characters",
+			"vimax:extract-scenes",
 			"vimax:generate-script",
 			"vimax:generate-storyboard",
 			"vimax:generate-portraits",
@@ -1617,6 +1618,24 @@ const CORE_COMMANDS: Record<string, CommandDef> = {
 			"qcut flow characters --novel story.md --project my-story --region east-asian --cast-quality model-grade",
 		],
 	},
+	"vimax:extract-scenes": {
+		name: "vimax:extract-scenes",
+		description: "Extract scenes from a novel or raw text",
+		category: "vimax",
+		flags: [
+			f("--novel", "string", "Novel file path (markdown or plain text)"),
+			f("--text", "string", "Raw text to extract from", { short: "-t" }),
+			f("--input", "string", "Text or novel file path"),
+			f("--project", "string", "Project slug under ~/Documents/QCut/projects/"),
+			f("--title", "string", "Project title"),
+			f("--max-scenes", "number", "Max scenes to keep"),
+			f("--llm-model", "string", "LLM model"),
+		],
+		examples: [
+			"qcut flow scenes --novel story.md -o /tmp/qcut-output --json",
+			"qcut flow scene --novel story.md --llm-model gemini-3.1-flash-lite --json",
+		],
+	},
 	"vimax:generate-script": {
 		name: "vimax:generate-script",
 		description: "Generate screenplay from idea",
@@ -1633,14 +1652,28 @@ const CORE_COMMANDS: Record<string, CommandDef> = {
 	},
 	"vimax:generate-storyboard": {
 		name: "vimax:generate-storyboard",
-		description: "Generate storyboard from script",
+		description: "Generate storyboard from flow scenes or script",
 		category: "vimax",
 		flags: [
-			f("--script", "string", "Script file path", { required: true }),
+			f("--scenes", "string", "flow scenes JSON path"),
+			f("--script", "string", "Script JSON path"),
+			f("--input", "string", "Scenes or script JSON path"),
+			f("--project", "string", "Project slug; reads scenes.json by default"),
+			f("--portraits", "string", "Portrait registry JSON path"),
 			f("--image-model", "string", "Image generation model"),
+			f(
+				"--style",
+				"string",
+				"Preset slug or free-form style text for storyboard prompts"
+			),
+			f("--reference-model", "string", "Reference image model"),
+			f("--reference-strength", "number", "Reference strength (0-1)"),
+			f("--concurrency", "number", "Parallel images in flight (max 6)"),
 		],
 		examples: [
-			"qcut-pipeline vimax:generate-storyboard --script screenplay.txt",
+			"qcut flow storyboard --scenes /tmp/qcut-output/scenes.json -o /tmp/qcut-output/storyboard",
+			"qcut flow storyboard --project my-story --image-model gpt_image_2_ima",
+			"qcut-pipeline vimax:generate-storyboard --script screenplay.json",
 		],
 	},
 	"vimax:generate-portraits": {

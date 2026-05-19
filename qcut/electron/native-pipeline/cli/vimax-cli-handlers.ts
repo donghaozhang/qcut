@@ -10,6 +10,8 @@ export {
 	handleVimaxGeneratePortraits,
 } from "./vimax-cli-handlers/character-handlers.js";
 
+export { handleVimaxExtractScenes } from "./vimax-cli-handlers/scene-handlers.js";
+
 export {
 	handleVimaxGenerateScript,
 	handleVimaxGenerateStoryboard,
