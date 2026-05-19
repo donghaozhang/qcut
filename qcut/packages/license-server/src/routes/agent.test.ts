@@ -47,6 +47,8 @@ const {
 } = await import("./agent");
 
 const ORIGINAL_ENV = { ...process.env };
+const DEFAULT_PINNED_QCUT_IMAGE =
+	"ghcr.io/quriosity-agent/qcut-cli:imarouter-gpt-image-20260519061748";
 
 function resetEnv(): void {
 	for (const key of Object.keys(process.env)) {
@@ -379,6 +381,48 @@ describe("POST /api/agent/sessions/:sessionId/end", () => {
 });
 
 describe("POST /api/agent/sessions/:sessionId/pty-token", () => {
+	it("uses the pinned default Daytona image when no override is configured", async () => {
+		process.env.DAYTONA_API_KEY = "daytona-test";
+		process.env.RELAY_SIGNING_SECRET = "relay-secret";
+		delete process.env.QCUT_IMAGE_TAG;
+		mockSelectRowsOnce({ rows: [makeAgentSession()] });
+		mockSelectWhereRowsOnce({ rows: [] });
+		const { set } = mockUpdateChain();
+		daytonaMocks.createSandbox.mockResolvedValue({
+			data: { id: "sandbox-1", state: "starting" },
+		});
+
+		const res = await buildApp().request(
+			"/api/agent/sessions/agent-session-1/pty-token",
+			{
+				method: "POST",
+				headers: jsonHeaders(),
+				body: JSON.stringify({}),
+			}
+		);
+
+		const body = await res.json();
+		expect(res.status, JSON.stringify(body)).toBe(202);
+		expect(daytonaMocks.ImageBase).toHaveBeenCalledWith(
+			DEFAULT_PINNED_QCUT_IMAGE
+		);
+		expect(daytonaMocks.createSandbox).toHaveBeenCalledWith(
+			expect.objectContaining({
+				buildInfo: {
+					dockerfileContent: `FROM ${DEFAULT_PINNED_QCUT_IMAGE}\n`,
+				},
+			}),
+			undefined,
+			{ timeout: 45_000 }
+		);
+		expect(set).toHaveBeenCalledWith(
+			expect.objectContaining({
+				providerSessionId: "sandbox-1",
+				imageTag: DEFAULT_PINNED_QCUT_IMAGE,
+			})
+		);
+	});
+
 	it("starts a Daytona sandbox without waiting for the cold image to boot", async () => {
 		process.env.DAYTONA_API_KEY = "daytona-test";
 		process.env.RELAY_SIGNING_SECRET = "relay-secret";

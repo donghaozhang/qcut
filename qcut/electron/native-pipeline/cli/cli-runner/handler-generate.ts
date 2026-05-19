@@ -195,19 +195,27 @@ async function runSingleGeneration(
 	params: Record<string, unknown>
 ): Promise<CLIResult> {
 	const startTime = Date.now();
-	const model = ModelRegistry.get(options.model!);
+	const modelKey = options.model;
+	if (!modelKey) {
+		return {
+			success: false,
+			error: "Missing model",
+			duration: (Date.now() - startTime) / 1000,
+		};
+	}
+	const model = ModelRegistry.get(modelKey);
 	const prefix = jobIndex >= 0 ? `[${jobIndex + 1}] ` : "";
 
 	onProgress({
 		stage: "starting",
 		percent: 0,
 		message: `${prefix}Starting ${model.name}...`,
-		model: options.model,
+		model: modelKey,
 	});
 
 	const step: PipelineStep = {
 		type: model.categories[0],
-		model: options.model!,
+		model: modelKey,
 		params,
 		enabled: true,
 		retryCount: 0,
@@ -227,7 +235,7 @@ async function runSingleGeneration(
 				stage: "processing",
 				percent,
 				message: `${prefix}${message}`,
-				model: options.model,
+				model: modelKey,
 			});
 		},
 		signal,
@@ -284,10 +292,10 @@ async function runSingleGeneration(
 		stage: "complete",
 		percent: 100,
 		message: `${prefix}Done`,
-		model: options.model,
+		model: modelKey,
 	});
 
-	const cost = result.cost ?? estimateCost(options.model!, params).totalCost;
+	const cost = result.cost ?? estimateCost(modelKey, params).totalCost;
 
 	// Sidecar JSON next to the output captures the prompt + every param
 	// the run was given. Lets users reproduce a generation without
@@ -300,11 +308,8 @@ async function runSingleGeneration(
 		await writeSidecarJson(
 			sidecarBase,
 			options.command,
-			options.model,
-			result.endpoint ??
-				(ModelRegistry.has(options.model ?? "")
-					? ModelRegistry.get(options.model!).endpoint
-					: undefined),
+			modelKey,
+			result.endpoint ?? model.endpoint,
 			promptText,
 			params,
 			options,
