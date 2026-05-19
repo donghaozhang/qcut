@@ -17,6 +17,7 @@ import type { CLIRunOptions, CLIResult, ProgressFn } from "./types.js";
 
 const VALID_LAYOUTS = ["2x2", "3x3", "2x3", "3x2", "1x2", "2x1"] as const;
 type GridLayout = (typeof VALID_LAYOUTS)[number];
+const DEFAULT_GRID_IMAGE_MODEL = "gpt_image_2_gmi";
 
 export async function handleGenerateGrid(
 	options: CLIRunOptions,
@@ -33,7 +34,7 @@ export async function handleGenerateGrid(
 			};
 		}
 
-		const model = options.model || "flux_dev";
+		const model = options.model || DEFAULT_GRID_IMAGE_MODEL;
 		if (!ModelRegistry.has(model)) {
 			return { success: false, error: `Unknown model '${model}'` };
 		}

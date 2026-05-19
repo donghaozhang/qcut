@@ -38,7 +38,7 @@ export const GLOBAL_FLAGS: FlagDef[] = [
 		short: "-o",
 		default: "$QCUT_OUTPUT_DIR or ~/Documents/QCut/exports",
 	}),
-	f("--model", "string", "Model key (e.g. kling_2_6_pro, flux_dev)", {
+	f("--model", "string", "Model key (e.g. gpt_image_2_gmi, kling_2_6_pro)", {
 		short: "-m",
 	}),
 	f("--policy", "string", "Path to a JSON action policy file"),
@@ -370,7 +370,10 @@ const CORE_COMMANDS: Record<string, CommandDef> = {
 				short: "-t",
 				required: true,
 			}),
-			f("--model", "string", "Model key", { short: "-m", default: "flux_dev" }),
+			f("--model", "string", "Model key", {
+				short: "-m",
+				default: "gpt_image_2_gmi",
+			}),
 			f("--layout", "string", "Grid layout", {
 				default: "2x2",
 				enum: ["2x2", "3x3", "2x3", "3x2", "1x2", "2x1"],
