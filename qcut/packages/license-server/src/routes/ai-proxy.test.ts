@@ -529,9 +529,7 @@ describe("GET /api/ai/status", () => {
 		);
 
 		const [url, opts] = mockFetch.mock.calls[0];
-		expect(url).toBe(
-			"https://api.imarouter.com/v1/images/generations/img_123"
-		);
+		expect(url).toBe("https://api.imarouter.com/v1/images/generations/img_123");
 		expect(opts.headers.Authorization).toBe("Bearer test-imarouter-key");
 	});
 

@@ -5,7 +5,7 @@ Branch: `Qcut-sandbox-v6`
 
 ## Summary
 
-Status: local live verification passed; Codex-in-Daytona preflight failed on the deployed production image because the sandbox image has not picked up this branch yet.
+Status: local live verification passed; real Codex-in-Daytona E2E passed after publishing and pinning a rebuilt CLI image.
 
 The implementation now uses `gpt_image_2_ima` as QCut's public default image key and keeps `gpt_image_2_gmi` as a legacy alias. Both keys route through IMA Router's documented GPT Image API:
 
@@ -17,6 +17,85 @@ The implementation now uses `gpt_image_2_ima` as QCut's public default image key
 Note: the live evidence below was generated immediately before the key rename, so the copied sidecar JSON and filenames still show the legacy alias `gpt_image_2_gmi`. The endpoint evidence is unchanged.
 
 ## Real Codex-In-Daytona Test
+
+Final successful run:
+
+- license-server agent session: `0b236251-2e6c-4244-81d7-8d4e3de7fe21`
+- Daytona sandbox id: `f8bf9ba1-424b-4011-9a69-90f3db151271`
+- deployed image tag: `ghcr.io/quriosity-agent/qcut-cli:imarouter-gpt-image-20260519061748`
+- license-server deploy version: `1fdd2cfb-3da7-41de-924a-026eec735b4c`
+- result: `SUCCESS`
+- elapsed: `242s`
+- output count: 6 PNG portraits
+- output dimensions: every PNG validated as `1024x1536`
+
+Successful command executed by Codex inside the Daytona sandbox:
+
+```bash
+qcut flow portraits \
+  --input /tmp/qcut-input/characters-six-ima-codex.json \
+  --max-characters 6 \
+  --views front \
+  --image-model gpt_image_2_ima \
+  --concurrency 6 \
+  -o /tmp/qcut-output/portraits-ima-codex-concurrency-6 \
+  --json 2>&1 | tee /tmp/qcut-output/portraits-ima-codex-concurrency-6/live.log
+```
+
+Sandbox evidence files:
+
+```text
+/tmp/qcut-output/codex-real-e2e-done.txt
+/tmp/qcut-output/codex-real-e2e-portraits-ima-concurrency-6.md
+/tmp/qcut-output/portraits-ima-codex-concurrency-6/png-validation.json
+/tmp/qcut-output/portraits-ima-codex-concurrency-6/live.log
+```
+
+Preflight result:
+
+- `qcut --version`: `1.0.0`
+- `qcut system models --json` contains `gpt_image_2_ima`: yes
+- `qcut flow portraits --help --json` contains `--concurrency`: yes
+
+Concurrency evidence from `live.log`: all six `Generating portraits for` lines appeared before any `Generated portraits for` line:
+
+```text
+[portraits] Generating portraits for: Mara Venn
+[portraits] Generating portraits for: Jalen Orr
+[portraits] Generating portraits for: Sera Quill
+[portraits] Generating portraits for: Niko Stray
+[portraits] Generating portraits for: Dr. Ilya Morrow
+[portraits] Generating portraits for: Tala Reeve
+[portraits] Generated portraits for Niko Stray
+[portraits] Generated portraits for Jalen Orr
+[portraits] Generated portraits for Tala Reeve
+[portraits] Generated portraits for Mara Venn
+[portraits] Generated portraits for Dr. Ilya Morrow
+[portraits] Generated portraits for Sera Quill
+```
+
+PNG validation:
+
+```json
+{
+  "status": "SUCCESS",
+  "expected_png_count": 6,
+  "actual_png_count": 6,
+  "valid_png_count": 6,
+  "errors": []
+}
+```
+
+Outputs:
+
+- `/tmp/qcut-output/portraits-ima-codex-concurrency-6/portraits/Dr._Ilya_Morrow/front.png` — 1024x1536
+- `/tmp/qcut-output/portraits-ima-codex-concurrency-6/portraits/Jalen_Orr/front.png` — 1024x1536
+- `/tmp/qcut-output/portraits-ima-codex-concurrency-6/portraits/Mara_Venn/front.png` — 1024x1536
+- `/tmp/qcut-output/portraits-ima-codex-concurrency-6/portraits/Niko_Stray/front.png` — 1024x1536
+- `/tmp/qcut-output/portraits-ima-codex-concurrency-6/portraits/Sera_Quill/front.png` — 1024x1536
+- `/tmp/qcut-output/portraits-ima-codex-concurrency-6/portraits/Tala_Reeve/front.png` — 1024x1536
+
+Earlier failed production-image preflight:
 
 Session:
 
@@ -56,7 +135,7 @@ Evidence conclusion:
 - 6-image generation: not executed, by design, because the preflight failed
 - PNG outputs: `0`
 
-Conclusion: the deployed Daytona image is older than this branch. The branch changes need to be committed, pushed, and published into `ghcr.io/quriosity-agent/qcut-cli:latest`, then the same Codex-in-Daytona prompt should be rerun.
+Conclusion from the failed run: the deployed Daytona image was older than this branch. Publishing `ghcr.io/quriosity-agent/qcut-cli:latest` was not enough because Daytona still resolved the old cached tag; pinning `QCUT_IMAGE_TAG` to the immutable `imarouter-gpt-image-20260519061748` image tag fixed the real Codex-in-Daytona path.
 
 ## Unit And Type Checks
 

@@ -48,20 +48,22 @@ export function estimateCharacters(novelChars: number): StageEstimate {
 /** Estimate stage 2 (portraits) from character count. */
 export function estimatePortraits(
 	characterCount: number,
-	views = 1
+	views = 1,
+	concurrency = 3
 ): StageEstimate {
-	// Observed: flash-image portrait ~30-90s, $0.02/image.
 	const calls = characterCount * views;
+	const workers = Math.max(1, Math.floor(concurrency));
+	const waves = Math.max(1, Math.ceil(calls / workers));
 	return {
 		title: "Stage 2 — Generate portraits",
-		inputSummary: `${characterCount} characters × ${views} view(s) = ${calls} image calls`,
-		estLowSeconds: 30 * calls,
-		estHighSeconds: 90 * calls,
+		inputSummary: `${characterCount} characters × ${views} view(s) = ${calls} image calls, concurrency ${workers}`,
+		estLowSeconds: 30 * waves,
+		estHighSeconds: 90 * waves,
 		estLowCostUsd: 0.02 * calls,
 		estHighCostUsd: 0.03 * calls,
 		notes: [
-			"Portraits are generated sequentially — budget grows linearly",
-			"GMI flash-image default; swap with --image-model for other providers",
+			`Runs up to ${workers} portrait image calls concurrently`,
+			"Default image model is gpt_image_2_ima; pass --image-model to override",
 		],
 	};
 }

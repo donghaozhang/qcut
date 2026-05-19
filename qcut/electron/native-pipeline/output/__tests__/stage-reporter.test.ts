@@ -44,14 +44,16 @@ describe("estimateCharacters", () => {
 });
 
 describe("estimatePortraits", () => {
-	it("scales linearly with character count and view count", () => {
-		const one = estimatePortraits(1, 1);
-		const five = estimatePortraits(5, 1);
+	it("scales cost linearly and duration by concurrency waves", () => {
+		const one = estimatePortraits(1, 1, 3);
+		const five = estimatePortraits(5, 1, 3);
 		expect(five.estLowCostUsd).toBeCloseTo(one.estLowCostUsd * 5, 5);
 		expect(five.estHighCostUsd).toBeCloseTo(one.estHighCostUsd * 5, 5);
+		expect(five.estLowSeconds).toBeCloseTo(one.estLowSeconds * 2, 5);
 
-		const multiView = estimatePortraits(1, 4);
-		expect(multiView.estLowSeconds).toBeCloseTo(one.estLowSeconds * 4, 5);
+		const multiView = estimatePortraits(1, 4, 2);
+		expect(multiView.estLowSeconds).toBeCloseTo(one.estLowSeconds * 2, 5);
+		expect(multiView.inputSummary).toContain("concurrency 2");
 	});
 });
 
