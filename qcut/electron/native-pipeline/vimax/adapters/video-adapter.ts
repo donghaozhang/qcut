@@ -66,6 +66,8 @@ interface ResolvedModelSpec {
 	endpoint: string;
 	/** Which backend `callModelApi` should use. */
 	providerBackend: VideoProviderBackend;
+	/** Registry defaults required by providers like IMA Router. */
+	defaults: Record<string, unknown>;
 	/** Best-effort cost-per-second for the returned VideoOutput. */
 	costPerSecond: number;
 }
@@ -84,6 +86,7 @@ export function resolveVideoModelSpec(model: string): ResolvedModelSpec {
 		canonicalKey,
 		endpoint: def.endpoint,
 		providerBackend: (def.providerBackend as VideoProviderBackend) ?? "fal",
+		defaults: def.defaults ?? {},
 		costPerSecond: extractCostPerSecond(def.pricing),
 	};
 }
@@ -361,6 +364,7 @@ export class VideoGeneratorAdapter extends BaseAdapter<
 			modelKey: spec.canonicalKey,
 		});
 		const payload: Record<string, unknown> = {
+			...spec.defaults,
 			prompt,
 			...imageField,
 			duration: buildDurationField({ duration, spec }),

@@ -31,12 +31,14 @@ const mockedCallModelApi = callModelApi as unknown as {
 };
 
 const originalGmiApiKey = process.env.GMI_API_KEY;
+const originalImaRouterApiKey = process.env.IMAROUTER_API_KEY;
 
 registerImageToVideoModels();
 
 beforeEach(() => {
 	vi.clearAllMocks();
 	process.env.GMI_API_KEY = "test-gmi-key";
+	process.env.IMAROUTER_API_KEY = "test-ima-key";
 	mockedCallModelApi.mockResolvedValue({
 		success: true,
 		outputUrl: "https://cdn.example.com/video.mp4",
@@ -47,6 +49,7 @@ beforeEach(() => {
 
 afterEach(() => {
 	process.env.GMI_API_KEY = originalGmiApiKey;
+	process.env.IMAROUTER_API_KEY = originalImaRouterApiKey;
 });
 
 describe("VideoGeneratorAdapter — GMI Seedance I2V", () => {
@@ -91,5 +94,31 @@ describe("VideoGeneratorAdapter — GMI Seedance I2V", () => {
 		expect(
 			resolveVideoModelSpec("imarouter_seedance_2_0_fast_i2v").providerBackend
 		).toBe("imarouter");
+	});
+
+	it("sends IMA Router Seedance defaults and remote storyboard URL", async () => {
+		const adapter = new VideoGeneratorAdapter({
+			model: "imarouter_seedance_2_0_fast_i2v",
+			output_dir: "/tmp/qcut-video",
+		});
+
+		await adapter.generate("https://cdn.example.com/storyboard.png", "pan left", {
+			duration: 5,
+			output_path: "/tmp/qcut-video/out.mp4",
+		});
+
+		const call = mockedCallModelApi.mock.calls[0][0];
+		expect(call.provider).toBe("imarouter");
+		expect(call.endpoint).toBe("v1/videos");
+		expect(call.modelKey).toBe("imarouter_seedance_2_0_fast_i2v");
+		expect(call.payload).toMatchObject({
+			model: "seedance-2.0-fast",
+			prompt: "pan left",
+			images: ["https://cdn.example.com/storyboard.png"],
+			duration: "5",
+			resolution: "720p",
+			aspect_ratio: "16:9",
+			role_mode: "frame",
+		});
 	});
 });
