@@ -4,6 +4,7 @@ import { afterEach, vi } from "vitest";
 import type { AgentJob } from "@qcut/db";
 
 import {
+	buildMaterializeQcutEnvCommand,
 	buildDaytonaCommand,
 	buildDaytonaEnv,
 	cleanupDaytonaAgentSessions,
@@ -11,6 +12,7 @@ import {
 } from "./run-on-daytona";
 
 export {
+	buildMaterializeQcutEnvCommand,
 	buildDaytonaCommand,
 	buildDaytonaEnv,
 	cleanupDaytonaAgentSessions,
@@ -22,16 +24,18 @@ const originalDaytonaApiKey = process.env.DAYTONA_API_KEY;
 export const CODEX_AGENT_COMMAND = "codex exec --skip-git-repo-check --json -";
 export const EXPECTED_QCUT_DOCTOR_DAYTONA_COMMAND = [
 	"mkdir -p /tmp/qcut-output",
+	"set -a; [ ! -f /tmp/qcut-agent-env ] || . /tmp/qcut-agent-env; set +a",
 	"set +e",
-	"/usr/local/bin/qcut-entrypoint qcut system doctor --json --skip-health -o /tmp/qcut-output > /tmp/qcut-output/qcut-stdout.txt 2> /tmp/qcut-output/qcut-stderr.txt",
+	"qcut system doctor --json --skip-health -o /tmp/qcut-output > /tmp/qcut-output/qcut-stdout.txt 2> /tmp/qcut-output/qcut-stderr.txt",
 	"exit_code=$?",
 	"printf '{\"exitCode\":%s}\\n' \"$exit_code\" > /tmp/qcut-output/qcut-exit.json",
 	'[ "$exit_code" -eq 0 ]',
 ].join("; ");
 export const EXPECTED_QCUT_IMAGE_DAYTONA_COMMAND = [
 	"mkdir -p /tmp/qcut-output",
+	"set -a; [ ! -f /tmp/qcut-agent-env ] || . /tmp/qcut-agent-env; set +a",
 	"set +e",
-	"/usr/local/bin/qcut-entrypoint qcut gen image -t icon,logo -m flux_dev --json -o /tmp/qcut-output > /tmp/qcut-output/qcut-stdout.txt 2> /tmp/qcut-output/qcut-stderr.txt",
+	"qcut gen image -t icon,logo -m flux_dev --json -o /tmp/qcut-output > /tmp/qcut-output/qcut-stdout.txt 2> /tmp/qcut-output/qcut-stderr.txt",
 	"exit_code=$?",
 	"printf '{\"exitCode\":%s}\\n' \"$exit_code\" > /tmp/qcut-output/qcut-exit.json",
 	'[ "$exit_code" -eq 0 ]',

@@ -30,6 +30,12 @@ export interface DaytonaSandbox {
 	process: {
 		createSession(sessionId: string): Promise<void>;
 		deleteSession(sessionId: string): Promise<void>;
+		executeCommand?(
+			command: string,
+			cwd?: string,
+			env?: Record<string, string>,
+			timeout?: number
+		): Promise<DaytonaSessionCommandResult>;
 		executeSessionCommand(
 			sessionId: string,
 			request: {

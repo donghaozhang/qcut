@@ -5,6 +5,7 @@ import { join } from "node:path";
 import { describe, expect, it, vi } from "vitest";
 
 import {
+	buildMaterializeQcutEnvCommand,
 	CODEX_AGENT_COMMAND,
 	flattenInsertedEvents,
 	makeJob,
@@ -21,12 +22,26 @@ describe("runOnDaytona ephemeral jobs", () => {
 		let stdoutReads = 0;
 		const clientConfigs: Array<{ apiKey: string }> = [];
 		const createCalls: unknown[] = [];
+		const executeCommandCalls: Array<{
+			command: string;
+			env?: Record<string, string>;
+			timeout?: number;
+		}> = [];
 		const deleteCalls: string[] = [];
 		const downloaded: Array<{ remotePath: string; localPath: string }> = [];
 
 		const sandbox = {
 			id: "sandbox-1",
 			process: {
+				executeCommand(
+					command: string,
+					_cwd?: string,
+					env?: Record<string, string>,
+					timeout?: number
+				) {
+					executeCommandCalls.push({ command, env, timeout });
+					return Promise.resolve({ stdout: "", stderr: "", exitCode: 0 });
+				},
 				createSession(sessionId: string) {
 					sessionCalls.push(`create:${sessionId}`);
 					return Promise.resolve();
@@ -136,6 +151,18 @@ describe("runOnDaytona ephemeral jobs", () => {
 				resources: { cpu: 2, memory: 4 },
 				ephemeral: true,
 				autoStopInterval: 30,
+			},
+		]);
+		expect(executeCommandCalls).toEqual([
+			{
+				command: buildMaterializeQcutEnvCommand({
+					envVars: {
+						QCUT_SESSION_ROLE: "agent",
+						OPENAI_API_KEY: "sk-test",
+					},
+				}),
+				env: undefined,
+				timeout: 120,
 			},
 		]);
 		expect(

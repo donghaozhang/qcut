@@ -12,6 +12,7 @@ import {
 	CODEX_LIVE_STDOUT_FILE,
 	DAYTONA_OUTPUT_DIR,
 	OUTPUT_ARCHIVE,
+	QCUT_ENV_FILE,
 	QCUT_EXIT_FILE,
 	QCUT_STDERR_FILE,
 	QCUT_STDOUT_FILE,
@@ -40,9 +41,10 @@ export function quoteShellArg({ arg }: { arg: string }): string {
 }
 
 function buildQcutShellCommand({ quotedArgv }: { quotedArgv: string }): string {
-	const qcutCommand = `/usr/local/bin/qcut-entrypoint ${quotedArgv} -o ${DAYTONA_OUTPUT_DIR}`;
+	const qcutCommand = `${quotedArgv} -o ${DAYTONA_OUTPUT_DIR}`;
 	return [
 		`mkdir -p ${DAYTONA_OUTPUT_DIR}`,
+		`set -a; [ ! -f ${QCUT_ENV_FILE} ] || . ${QCUT_ENV_FILE}; set +a`,
 		"set +e",
 		`${qcutCommand} > ${DAYTONA_OUTPUT_DIR}/${QCUT_STDOUT_FILE} 2> ${DAYTONA_OUTPUT_DIR}/${QCUT_STDERR_FILE}`,
 		"exit_code=$?",

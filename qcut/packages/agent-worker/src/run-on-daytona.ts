@@ -20,6 +20,7 @@ import {
 	buildAsyncStartCommand,
 	buildDaytonaCommand,
 	parseExitCode,
+	quoteShellArg,
 } from "./daytona/command.js";
 import { buildDaytonaEnv } from "./daytona/env.js";
 import { recordAgentEvent } from "./daytona/events.js";
@@ -35,7 +36,7 @@ import {
 	updateAgentSession,
 } from "./daytona/sessions.js";
 import { waitForRemoteCommand } from "./daytona/streaming.js";
-import { TIMEOUT_SECONDS } from "./daytona/constants.js";
+import { QCUT_ENV_FILE, TIMEOUT_SECONDS } from "./daytona/constants.js";
 import type {
 	AgentSecretRow,
 	DaytonaClientCtor,
@@ -46,6 +47,63 @@ import type {
 
 function sleep({ ms }: { ms: number }): Promise<void> {
 	return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
+const ENV_KEY_PATTERN = /^[A-Z_][A-Z0-9_]*$/;
+
+function quoteEnvValue({ value }: { value: string }): string {
+	return `'${value.replaceAll("'", "'\\''")}'`;
+}
+
+function buildQcutEnvFileContent({
+	envVars,
+}: {
+	envVars: Record<string, string>;
+}): string {
+	const lines = ["# qcut Daytona agent env"];
+	for (const [key, value] of Object.entries(envVars)) {
+		if (!ENV_KEY_PATTERN.test(key)) continue;
+		lines.push(`${key}=${quoteEnvValue({ value })}`);
+	}
+	return `${lines.join("\n")}\n`;
+}
+
+export function buildMaterializeQcutEnvCommand({
+	envVars,
+}: {
+	envVars: Record<string, string>;
+}): string {
+	const encodedEnv = Buffer.from(
+		buildQcutEnvFileContent({ envVars }),
+		"utf8"
+	).toString("base64");
+	return `umask 077; printf ${quoteShellArg({ arg: encodedEnv })} | base64 -d > ${QCUT_ENV_FILE}`;
+}
+
+async function materializeQcutEnv({
+	sandbox,
+	envVars,
+}: {
+	sandbox: DaytonaSandbox;
+	envVars: Record<string, string>;
+}): Promise<void> {
+	if (!sandbox.process.executeCommand) {
+		console.warn(
+			"[agent-worker] Daytona SDK executeCommand unavailable; qcut session will rely on sandbox env inheritance"
+		);
+		return;
+	}
+	const result = await sandbox.process.executeCommand(
+		buildMaterializeQcutEnvCommand({ envVars }),
+		undefined,
+		undefined,
+		120
+	);
+	if (typeof result.exitCode === "number" && result.exitCode !== 0) {
+		throw new Error(
+			`Failed to materialize qcut env in Daytona sandbox: exit ${result.exitCode}`
+		);
+	}
 }
 
 export { buildDaytonaCommand } from "./daytona/command.js";
@@ -111,6 +169,7 @@ export async function runOnDaytona({
 		deleteSandboxOnFinish = prepared.deleteSandboxOnFinish;
 		agentSessionId = prepared.agentSessionId;
 
+		await materializeQcutEnv({ sandbox, envVars });
 		await sandbox.process.createSession(sessionId);
 		await recordAgentEvent({
 			supabase,

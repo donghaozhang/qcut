@@ -5,6 +5,7 @@ export const TIMEOUT_SECONDS = 30 * 60;
 export const DAYTONA_CREATE_TIMEOUT_SECONDS = 300;
 export const DAYTONA_OUTPUT_DIR = "/tmp/qcut-output";
 export const OUTPUT_ARCHIVE = "/tmp/qcut-output.tar";
+export const QCUT_ENV_FILE = "/tmp/qcut-agent-env";
 export const ARCHIVE_COMMAND = `tar --exclude='.qcut-agent-*' -C ${DAYTONA_OUTPUT_DIR} -cf ${OUTPUT_ARCHIVE} .`;
 export const QCUT_STDOUT_FILE = "qcut-stdout.txt";
 export const QCUT_STDERR_FILE = "qcut-stderr.txt";
