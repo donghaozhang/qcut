@@ -349,12 +349,12 @@ describe("agent terminal artifacts", () => {
 			"755"
 		);
 		expect(daytonaMocks.uploadFile).toHaveBeenCalledWith(
-			expect.objectContaining({ name: "source.png", size: 3 }),
+			Buffer.from([1, 2, 3]),
 			"/tmp/qcut-input/source.png",
 			600
 		);
 		expect(daytonaMocks.uploadFile).toHaveBeenCalledWith(
-			expect.objectContaining({ name: "notes.txt", size: 5 }),
+			Buffer.from("hello"),
 			"/tmp/qcut-input/notes.txt",
 			600
 		);
@@ -406,7 +406,7 @@ describe("agent terminal artifacts", () => {
 			"755"
 		);
 		expect(daytonaMocks.uploadFile).toHaveBeenCalledWith(
-			expect.objectContaining({ name: "notes.txt", size: 5 }),
+			Buffer.from("hello"),
 			"/tmp/qcut-output/notes.txt",
 			600
 		);

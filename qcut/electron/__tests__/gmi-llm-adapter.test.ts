@@ -40,6 +40,9 @@ describe("LLM Adapter — GMI LLM models", () => {
 
 	afterEach(() => {
 		delete process.env.GMI_API_KEY;
+		// Cleared here (not inline) so env state is restored even when a test
+		// throws on an assertion before reaching its own teardown.
+		delete process.env.OPENROUTER_API_KEY;
 		vi.restoreAllMocks();
 	});
 
@@ -133,7 +136,6 @@ describe("LLM Adapter — GMI LLM models", () => {
 		const opts = mockCallModelApi.mock.calls[0][0];
 		expect(opts.provider).toBe("openrouter");
 		expect(opts.endpoint).toBe("chat/completions");
-		delete process.env.OPENROUTER_API_KEY;
 	});
 
 	it("resolves explicit OpenRouter Gemini 3.5 Flash aliases", async () => {
@@ -152,7 +154,6 @@ describe("LLM Adapter — GMI LLM models", () => {
 		expect(firstCall[0].payload.model).toBe("google/gemini-3.5-flash");
 		expect(secondCall[0].provider).toBe("openrouter");
 		expect(secondCall[0].payload.model).toBe("google/gemini-3.5-flash");
-		delete process.env.OPENROUTER_API_KEY;
 	});
 
 	it("uses sync mode (async: false) for GMI LLM", async () => {

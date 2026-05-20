@@ -21,7 +21,7 @@ Make the Daytona sandbox file browser usable as a lightweight artifact explorer,
 3. Add image thumbnails in the sandbox grid for previewable images.
 4. Add a modal preview surface:
    - image modal for bitmap files;
-   - text modal for markdown, JSON, and plain text;
+   - text modal for Markdown, JSON, and plain text;
    - JSON pretty formatting when parsing succeeds;
    - clear fallback for files that are too large or not previewable.
 5. Add `Preview` to the right-click menu for previewable files.

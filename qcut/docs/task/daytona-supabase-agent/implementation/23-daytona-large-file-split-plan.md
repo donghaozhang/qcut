@@ -87,7 +87,7 @@ Passed:
 
 Line audit:
 
-- `rg -l "Daytona|daytona|sandbox|Sandbox|agent-chat|qcut-output|qcut-input" packages docs/task/daytona-supabase-agent ... >800` returned no active Daytona sandbox files over 800 lines.
+- `rg -l "Daytona|daytona|sandbox|Sandbox|agent-chat|qcut-output|qcut-input" packages docs/task/daytona-supabase-agent | xargs wc -l | awk '$1 > 800'` returned no active Daytona sandbox files over 800 lines. (The `rg -l` list is piped to `wc -l`, then `awk` filters for files whose line count exceeds the 800-line threshold.)
 
 Known verification note:
 

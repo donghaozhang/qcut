@@ -60,33 +60,38 @@ export async function createAgentJob(c: Context) {
 	const jobId = crypto.randomUUID();
 	const createdAt = new Date();
 
-	await db.insert(agentJobs).values({
-		id: jobId,
-		userId,
-		sessionId: session?.id ?? null,
-		status: "queued",
-		command,
-		args: body.args ?? {},
-		createdAt,
+	await db.transaction(async (tx) => {
+		await tx.insert(agentJobs).values({
+			id: jobId,
+			userId,
+			sessionId: session?.id ?? null,
+			status: "queued",
+			command,
+			args: body.args ?? {},
+			createdAt,
+		});
+		await tx.insert(agentEvents).values({
+			jobId,
+			userId,
+			kind: "job_submitted",
+			payload: {
+				source: getAgentJobSource({ args: body.args }),
+				...(session ? { sessionId: session.id } : {}),
+			},
+			createdAt,
+		});
+		if (session) {
+			await tx
+				.update(agentSessions)
+				.set({ lastActiveAt: createdAt })
+				.where(
+					and(
+						eq(agentSessions.id, session.id),
+						eq(agentSessions.userId, userId)
+					)
+				);
+		}
 	});
-	await db.insert(agentEvents).values({
-		jobId,
-		userId,
-		kind: "job_submitted",
-		payload: {
-			source: getAgentJobSource({ args: body.args }),
-			...(session ? { sessionId: session.id } : {}),
-		},
-		createdAt,
-	});
-	if (session) {
-		await db
-			.update(agentSessions)
-			.set({ lastActiveAt: createdAt })
-			.where(
-				and(eq(agentSessions.id, session.id), eq(agentSessions.userId, userId))
-			);
-	}
 
 	return c.json(
 		{
@@ -143,6 +148,13 @@ export async function getAgentArtifactText(c: Context) {
 
 	if (error || !data) {
 		return c.json({ error: "artifact_download_failed" }, 502);
+	}
+
+	// Enforce the cap even when the row has no byte metadata, so an oversized
+	// blob can't bypass the limit via data.text().
+	const size = artifact.bytes ?? data.size;
+	if (size > MAX_TEXT_ARTIFACT_BYTES) {
+		return c.json({ error: "artifact_too_large" }, 413);
 	}
 
 	return c.text(await data.text(), 200, {

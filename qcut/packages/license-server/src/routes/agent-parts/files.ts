@@ -146,7 +146,13 @@ export async function uploadAgentSessionFiles(c: Context) {
 		await sandbox.fs.createFolder(uploadDir, "755").catch(() => {});
 	}
 
-	const uploaded: Array<{ filename: string; bytes: number }> = [];
+	// Validate the entire batch before writing anything, so a later invalid
+	// entry can't leave earlier files persisted with a failed response.
+	const validatedUploads: Array<{
+		file: File;
+		filename: string;
+		bytes: number;
+	}> = [];
 	for (const file of uploads) {
 		const filename = normalizeUploadedFilename({ value: file.name });
 		if (!filename) {
@@ -155,12 +161,17 @@ export async function uploadAgentSessionFiles(c: Context) {
 		if (file.size > MAX_SESSION_UPLOAD_BYTES) {
 			return c.json({ error: "upload_file_too_large" }, 413);
 		}
+		validatedUploads.push({ file, filename, bytes: file.size });
+	}
+
+	const uploaded: Array<{ filename: string; bytes: number }> = [];
+	for (const { file, filename, bytes } of validatedUploads) {
 		await sandbox.fs.uploadFile(
-			file as unknown as Buffer,
+			Buffer.from(await file.arrayBuffer()),
 			joinSandboxPath({ dir: uploadDir, filename }),
 			10 * 60
 		);
-		uploaded.push({ filename, bytes: file.size });
+		uploaded.push({ filename, bytes });
 	}
 
 	return c.json(

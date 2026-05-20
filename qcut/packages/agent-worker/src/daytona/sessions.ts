@@ -173,12 +173,16 @@ export async function prepareDaytonaSandbox({
 		daytona,
 		session: agentSession,
 	});
+	// A reused sandbox keeps its existing image; a freshly created one uses the
+	// session's pinned tag (falling back to the worker default). Persist that
+	// actual tag instead of unconditionally overwriting with IMAGE_TAG.
+	const sandboxImageTag = agentSession.image_tag || IMAGE_TAG;
 	const sandbox =
 		reusableSandbox ??
 		(await createDaytonaSandbox({
 			daytona,
 			envVars,
-			imageTag: agentSession.image_tag || IMAGE_TAG,
+			imageTag: sandboxImageTag,
 			autoStopInterval: SESSION_SANDBOX_AUTO_STOP_MINUTES,
 		}));
 	await updateAgentSession({
@@ -187,7 +191,7 @@ export async function prepareDaytonaSandbox({
 		userId: job.userId,
 		values: {
 			provider_session_id: sandbox.id,
-			image_tag: IMAGE_TAG,
+			image_tag: sandboxImageTag,
 			last_active_at: new Date().toISOString(),
 			runner_id: job.runnerId ?? null,
 		},
@@ -200,7 +204,7 @@ export async function prepareDaytonaSandbox({
 			sessionId: agentSession.id,
 			sandboxId: sandbox.id,
 			reused: Boolean(reusableSandbox),
-			image: IMAGE_TAG,
+			image: sandboxImageTag,
 		},
 	});
 	return {
@@ -253,7 +257,7 @@ async function endDaytonaAgentSession({
 			);
 		}
 	}
-	await supabase
+	const { error: updateError } = await supabase
 		.from("agent_sessions")
 		.update({
 			status: "ended",
@@ -262,7 +266,10 @@ async function endDaytonaAgentSession({
 			runner_id: runnerId,
 		})
 		.eq("id", session.id);
-	await supabase.from("agent_events").insert({
+	if (updateError) {
+		throw new Error(`agent_sessions end update failed: ${updateError.message}`);
+	}
+	const { error: eventError } = await supabase.from("agent_events").insert({
 		job_id: null,
 		user_id: session.user_id,
 		kind: "agent_session_ended",
@@ -273,6 +280,9 @@ async function endDaytonaAgentSession({
 		},
 		created_at: now.toISOString(),
 	});
+	if (eventError) {
+		throw new Error(`agent_events end insert failed: ${eventError.message}`);
+	}
 }
 
 export async function cleanupDaytonaAgentSessions({

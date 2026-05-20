@@ -28,7 +28,7 @@ export const EXPECTED_QCUT_DOCTOR_DAYTONA_COMMAND = [
 	"set +e",
 	"qcut system doctor --json --skip-health -o /tmp/qcut-output > /tmp/qcut-output/qcut-stdout.txt 2> /tmp/qcut-output/qcut-stderr.txt",
 	"exit_code=$?",
-	"printf '{\"exitCode\":%s}\\n' \"$exit_code\" > /tmp/qcut-output/qcut-exit.json",
+	'printf \'{"exitCode":%s}\\n\' "$exit_code" > /tmp/qcut-output/qcut-exit.json',
 	'[ "$exit_code" -eq 0 ]',
 ].join("; ");
 export const EXPECTED_QCUT_IMAGE_DAYTONA_COMMAND = [
@@ -37,12 +37,16 @@ export const EXPECTED_QCUT_IMAGE_DAYTONA_COMMAND = [
 	"set +e",
 	"qcut gen image -t icon,logo -m flux_dev --json -o /tmp/qcut-output > /tmp/qcut-output/qcut-stdout.txt 2> /tmp/qcut-output/qcut-stderr.txt",
 	"exit_code=$?",
-	"printf '{\"exitCode\":%s}\\n' \"$exit_code\" > /tmp/qcut-output/qcut-exit.json",
+	'printf \'{"exitCode":%s}\\n\' "$exit_code" > /tmp/qcut-output/qcut-exit.json',
 	'[ "$exit_code" -eq 0 ]',
 ].join("; ");
 
 afterEach(() => {
-	process.env.DAYTONA_API_KEY = originalDaytonaApiKey;
+	if (originalDaytonaApiKey !== undefined) {
+		process.env.DAYTONA_API_KEY = originalDaytonaApiKey;
+	} else {
+		Reflect.deleteProperty(process.env, "DAYTONA_API_KEY");
+	}
 	vi.restoreAllMocks();
 });
 

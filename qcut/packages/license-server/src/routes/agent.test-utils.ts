@@ -1,13 +1,17 @@
 import { afterEach, beforeEach, vi } from "vitest";
 import { Hono } from "hono";
 
-vi.mock("../db/drizzle", () => ({
-	db: {
+vi.mock("../db/drizzle", () => {
+	const db = {
 		insert: vi.fn(),
 		select: vi.fn(),
 		update: vi.fn(),
-	},
-}));
+		transaction: vi.fn(async (callback: (tx: unknown) => unknown) =>
+			callback(db)
+		),
+	};
+	return { db };
+});
 
 vi.mock("../db/supabase", () => ({
 	getSupabase: vi.fn(),
@@ -56,7 +60,7 @@ const ORIGINAL_ENV = { ...process.env };
 function resetEnv(): void {
 	for (const key of Object.keys(process.env)) {
 		if (!(key in ORIGINAL_ENV)) {
-			delete process.env[key];
+			Reflect.deleteProperty(process.env, key);
 		}
 	}
 	for (const [key, value] of Object.entries(ORIGINAL_ENV)) {

@@ -16,7 +16,7 @@ describe("POST /api/agent/sessions/:sessionId/pty-token", () => {
 	it("uses the pinned default Daytona image when no override is configured", async () => {
 		process.env.DAYTONA_API_KEY = "daytona-test";
 		process.env.RELAY_SIGNING_SECRET = "relay-secret";
-		delete process.env.QCUT_IMAGE_TAG;
+		Reflect.deleteProperty(process.env, "QCUT_IMAGE_TAG");
 		mockSelectRowsOnce({ rows: [makeAgentSession()] });
 		mockSelectWhereRowsOnce({ rows: [] });
 		const { set } = mockUpdateChain();

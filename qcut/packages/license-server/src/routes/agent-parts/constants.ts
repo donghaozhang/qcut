@@ -46,6 +46,18 @@ export function getDefaultAgentUserId(): string {
 	return typeof value === "string" ? value.trim() : "";
 }
 
+/**
+ * The unauthenticated default-user fallback is an auth bypass and must be opted
+ * into explicitly. It is only honored in local development or when
+ * QCUT_AGENT_ALLOW_DEFAULT_USER is set, never implicitly in production.
+ */
+export function isDefaultAgentUserAllowed(): boolean {
+	return (
+		process.env.QCUT_AGENT_ALLOW_DEFAULT_USER === "true" ||
+		process.env.NODE_ENV === "development"
+	);
+}
+
 export function getDaytonaApiKey(): string {
 	const value = process.env.DAYTONA_API_KEY;
 	return typeof value === "string" ? value.trim() : "";

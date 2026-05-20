@@ -26,16 +26,6 @@ const agentRoutes = new Hono();
 
 type AgentHandler = (c: Context) => Promise<Response>;
 
-function routeError({
-	error,
-	fallback,
-}: {
-	error: unknown;
-	fallback: string;
-}): string {
-	return error instanceof Error ? `${fallback}: ${error.message}` : fallback;
-}
-
 function withRouteError({
 	handler,
 	fallback,
@@ -47,7 +37,10 @@ function withRouteError({
 		try {
 			return await handler(c);
 		} catch (error) {
-			return c.json({ error: routeError({ error, fallback }) }, 500);
+			// Log the full error server-side, but never leak internal messages
+			// (storage paths, SQL, provider errors) to clients.
+			console.error(`[agent] ${fallback}:`, error);
+			return c.json({ error: fallback }, 500);
 		}
 	};
 }
@@ -134,16 +127,34 @@ agentRoutes.post(
 	})
 );
 
-agentRoutes.get("/jobs", listAgentJobs);
+agentRoutes.get(
+	"/jobs",
+	withRouteError({
+		handler: listAgentJobs,
+		fallback: "Failed to list agent jobs",
+	})
+);
 agentRoutes.get(
 	"/jobs/:jobId/artifacts/:artifactId/text",
-	getAgentArtifactText
+	withRouteError({
+		handler: getAgentArtifactText,
+		fallback: "Failed to get artifact text",
+	})
 );
 agentRoutes.get(
 	"/jobs/:jobId/artifacts/:artifactId/download",
-	downloadAgentArtifact
+	withRouteError({
+		handler: downloadAgentArtifact,
+		fallback: "Failed to download artifact",
+	})
 );
-agentRoutes.get("/jobs/:jobId", getAgentJobDetail);
+agentRoutes.get(
+	"/jobs/:jobId",
+	withRouteError({
+		handler: getAgentJobDetail,
+		fallback: "Failed to get agent job detail",
+	})
+);
 
 export {
 	CODEX_AGENT_COMMAND,

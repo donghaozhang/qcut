@@ -81,6 +81,7 @@ describe("agent default user auth", () => {
 	it("uses QCUT_AGENT_DEFAULT_USER_ID when no bearer token is supplied", async () => {
 		process.env.MOCK_MODE = "false";
 		process.env.QCUT_AGENT_DEFAULT_USER_ID = "default-agent-user";
+		process.env.QCUT_AGENT_ALLOW_DEFAULT_USER = "true";
 		const { values } = mockInsertChain();
 
 		const res = await buildApp().request("/api/agent/jobs", {
