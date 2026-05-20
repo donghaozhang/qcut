@@ -195,6 +195,90 @@ interface PipelinePlan {
 	generatePortraits: boolean;
 }
 
+interface ClipShotCandidate {
+	key: string;
+	durationSeconds: number;
+	order: number;
+}
+
+function buildClipShotKey({
+	chunkIndex,
+	sceneIndex,
+	shotIndex,
+}: {
+	chunkIndex: number;
+	sceneIndex: number;
+	shotIndex: number;
+}): string {
+	return `${chunkIndex}:${sceneIndex}:${shotIndex}`;
+}
+
+function normalizedClipDuration({ value }: { value: number }): number {
+	return Number.isFinite(value) && value > 0 ? value : Number.POSITIVE_INFINITY;
+}
+
+export function selectShortestClipShotKeys({
+	scripts,
+	maxClips,
+}: {
+	scripts: Script[];
+	maxClips: number;
+}): Set<string> {
+	if (maxClips <= 0) return new Set<string>();
+
+	const candidates: ClipShotCandidate[] = [];
+	let order = 0;
+	for (let chunkIndex = 0; chunkIndex < scripts.length; chunkIndex++) {
+		const script = scripts[chunkIndex];
+		for (let sceneIndex = 0; sceneIndex < script.scenes.length; sceneIndex++) {
+			const scene = script.scenes[sceneIndex];
+			for (let shotIndex = 0; shotIndex < scene.shots.length; shotIndex++) {
+				const shot = scene.shots[shotIndex];
+				candidates.push({
+					key: buildClipShotKey({ chunkIndex, sceneIndex, shotIndex }),
+					durationSeconds: normalizedClipDuration({
+						value: shot.duration_seconds,
+					}),
+					order,
+				});
+				order++;
+			}
+		}
+	}
+
+	candidates.sort(
+		(a, b) => a.durationSeconds - b.durationSeconds || a.order - b.order
+	);
+
+	return new Set(
+		candidates.slice(0, maxClips).map((candidate) => candidate.key)
+	);
+}
+
+export function filterScriptToClipShotKeys({
+	script,
+	chunkIndex,
+	selectedKeys,
+}: {
+	script: Script;
+	chunkIndex: number;
+	selectedKeys: Set<string>;
+}): Script {
+	return {
+		...script,
+		scenes: script.scenes
+			.map((scene, sceneIndex) => ({
+				...scene,
+				shots: scene.shots.filter((_, shotIndex) =>
+					selectedKeys.has(
+						buildClipShotKey({ chunkIndex, sceneIndex, shotIndex })
+					)
+				),
+			}))
+			.filter((scene) => scene.shots.length > 0),
+	};
+}
+
 function printStage(
 	step: number,
 	totalSteps: number,
@@ -545,7 +629,6 @@ export class Novel2MoviePipeline {
 			if (this.config.save_intermediate) {
 				fs.mkdirSync(scriptsDir, { recursive: true });
 			}
-
 			let totalImagesGenerated = 0;
 
 			for (let i = 0; i < chunks.length; i++) {
@@ -610,84 +693,80 @@ export class Novel2MoviePipeline {
 						)
 					);
 				}
+			}
 
-				// Skip image/video generation in scripts_only mode
-				if (this.config.scripts_only) {
-					continue;
-				}
+			if (!this.config.scripts_only) {
+				const selectedClipShotKeys =
+					this.config.max_clips > 0 &&
+					!this.config.storyboard_only &&
+					!imagesCapped
+						? selectShortestClipShotKeys({
+								scripts: result.scripts,
+								maxClips: this.config.max_clips,
+							})
+						: undefined;
 
-				// Skip storyboard if image cap already reached
-				if (imagesCapped && totalImagesGenerated >= this.config.max_images) {
+				if (selectedClipShotKeys && selectedClipShotKeys.size > 0) {
 					console.log(
-						`  Skipping images (${totalImagesGenerated}/${this.config.max_images} cap reached)`
+						`  Clip cap: selected ${selectedClipShotKeys.size} shortest shot(s) for video generation`
 					);
-					continue;
 				}
 
-				// If --max-clips is set (and video gen will run), also cap
-				// storyboard generation to avoid rendering images that won't
-				// become videos.
-				let storyboardCap: number | undefined;
-				if (imagesCapped) {
-					storyboardCap = this.config.max_images - totalImagesGenerated;
-				} else if (this.config.max_clips > 0) {
-					const remainingClips = this.config.max_clips - allVideos.length;
-					if (remainingClips <= 0) {
-						console.log(
-							`  Clip cap reached (${this.config.max_clips}), skipping remaining chunks`
-						);
-						break;
+				for (let i = 0; i < result.scripts.length; i++) {
+					const scriptForStoryboard = selectedClipShotKeys
+						? filterScriptToClipShotKeys({
+								script: result.scripts[i],
+								chunkIndex: i,
+								selectedKeys: selectedClipShotKeys,
+							})
+						: result.scripts[i];
+					const selectedShotCount = scriptForStoryboard.scenes.reduce(
+						(sum, scene) => sum + scene.shots.length,
+						0
+					);
+					if (selectedShotCount === 0) {
+						if (selectedClipShotKeys) {
+							console.log(
+								`  Skipping chunk ${i + 1} (no selected short clips)`
+							);
+						}
+						continue;
 					}
-					storyboardCap = remainingClips;
-				}
 
-				// Generate storyboard with character references
-				const storyboardResult = await this.storyboard_artist.process(
-					segResult.result,
-					result.portrait_registry,
-					i + 1,
-					storyboardCap
-				);
-				if (!storyboardResult.success || !storyboardResult.result) {
-					continue;
-				}
-				result.total_cost += (storyboardResult.metadata.cost as number) ?? 0;
-				totalImagesGenerated += storyboardResult.result?.images?.length ?? 0;
-
-				// (chunk JSON was already persisted above before the
-				// scripts_only / storyboard branches diverged — no second
-				// write needed here.)
-
-				// When max_images is set, skip video generation (preview mode)
-				if (this.config.storyboard_only || imagesCapped) {
-					continue;
-				}
-
-				// Enforce --max-clips cap: truncate storyboard images to remaining headroom
-				if (this.config.max_clips > 0) {
-					const remainingClips = this.config.max_clips - allVideos.length;
-					if (remainingClips <= 0) {
+					if (imagesCapped && totalImagesGenerated >= this.config.max_images) {
 						console.log(
-							`  Clip cap reached (${this.config.max_clips}), skipping video generation`
+							`  Skipping images (${totalImagesGenerated}/${this.config.max_images} cap reached)`
 						);
 						continue;
 					}
-					if (storyboardResult.result.images.length > remainingClips) {
-						console.log(
-							`  Trimming chunk ${i + 1} videos from ${storyboardResult.result.images.length} to ${remainingClips} (cap: ${this.config.max_clips})`
-						);
-						storyboardResult.result.images =
-							storyboardResult.result.images.slice(0, remainingClips);
-					}
-				}
 
-				// Generate videos
-				const videoResult = await this.camera_generator.process(
-					storyboardResult.result
-				);
-				if (videoResult.success && videoResult.result?.videos) {
-					allVideos.push(...videoResult.result.videos);
-					result.total_cost += (videoResult.metadata.cost as number) ?? 0;
+					const storyboardCap = imagesCapped
+						? this.config.max_images - totalImagesGenerated
+						: undefined;
+
+					const storyboardResult = await this.storyboard_artist.process(
+						scriptForStoryboard,
+						result.portrait_registry,
+						i + 1,
+						storyboardCap
+					);
+					if (!storyboardResult.success || !storyboardResult.result) {
+						continue;
+					}
+					result.total_cost += (storyboardResult.metadata.cost as number) ?? 0;
+					totalImagesGenerated += storyboardResult.result?.images?.length ?? 0;
+
+					if (this.config.storyboard_only || imagesCapped) {
+						continue;
+					}
+
+					const videoResult = await this.camera_generator.process(
+						storyboardResult.result
+					);
+					if (videoResult.success && videoResult.result?.videos) {
+						allVideos.push(...videoResult.result.videos);
+						result.total_cost += (videoResult.metadata.cost as number) ?? 0;
+					}
 				}
 			}
 

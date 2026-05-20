@@ -136,6 +136,25 @@ describe("LLM Adapter — GMI LLM models", () => {
 		delete process.env.OPENROUTER_API_KEY;
 	});
 
+	it("resolves explicit OpenRouter Gemini 3.5 Flash aliases", async () => {
+		process.env.OPENROUTER_API_KEY = "test-or-key";
+		const adapter = new LLMAdapter();
+		await adapter.initialize();
+		await adapter.chat([{ role: "user", content: "hi" }], {
+			model: "openrouter-gemini-3.5-flash",
+		});
+		await adapter.chat([{ role: "user", content: "hi" }], {
+			model: "or-gemini-3.5-flash",
+		});
+
+		const [firstCall, secondCall] = mockCallModelApi.mock.calls;
+		expect(firstCall[0].provider).toBe("openrouter");
+		expect(firstCall[0].payload.model).toBe("google/gemini-3.5-flash");
+		expect(secondCall[0].provider).toBe("openrouter");
+		expect(secondCall[0].payload.model).toBe("google/gemini-3.5-flash");
+		delete process.env.OPENROUTER_API_KEY;
+	});
+
 	it("uses sync mode (async: false) for GMI LLM", async () => {
 		const adapter = new LLMAdapter();
 		await adapter.initialize();

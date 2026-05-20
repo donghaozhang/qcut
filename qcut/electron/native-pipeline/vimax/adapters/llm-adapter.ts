@@ -60,6 +60,8 @@ const MODEL_ALIASES: Record<string, string> = {
 	"gpt-4": "openai/gpt-4-turbo",
 	"gpt-4o": "openai/gpt-4o",
 	"gemini-pro": "google/gemini-pro",
+	"openrouter-gemini-3.5-flash": "google/gemini-3.5-flash",
+	"or-gemini-3.5-flash": "google/gemini-3.5-flash",
 	// GMI Cloud LLM models (routed via gmi-llm provider at api.gmi-serving.com)
 	"glm-5.1": "gmi/zai-org/GLM-5.1-FP8",
 	"gemini-3.5-flash": "gmi/google/gemini-3.5-flash",
@@ -79,6 +81,7 @@ const COST_TABLE: Record<string, [number, number]> = {
 	"openai/gpt-4-turbo": [0.01, 0.03],
 	"openai/gpt-4o": [0.005, 0.015],
 	"google/gemini-pro": [0.000_25, 0.0005],
+	"google/gemini-3.5-flash": [0.0015, 0.009],
 	// GMI Cloud LLM models (via api.gmi-serving.com)
 	"gmi/zai-org/GLM-5.1-FP8": [0.0005, 0.002],
 	"gmi/google/gemini-3.5-flash": [0.0005, 0.003],

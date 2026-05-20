@@ -1,5 +1,45 @@
 import { describe, it, expect } from "vitest";
-import { splitNovelText } from "../novel2movie";
+import {
+	filterScriptToClipShotKeys,
+	selectShortestClipShotKeys,
+	splitNovelText,
+} from "../novel2movie";
+import type { Script } from "../../agents/screenwriter";
+import {
+	CameraMovement,
+	ShotType,
+	createScene,
+	createShotDescription,
+} from "../../types/shot";
+
+function makeScript({
+	title,
+	durations,
+}: {
+	title: string;
+	durations: number[];
+}): Script {
+	return {
+		title,
+		logline: "",
+		total_duration: durations.reduce((sum, duration) => sum + duration, 0),
+		scenes: [
+			createScene({
+				scene_id: `${title}-scene`,
+				title: `${title} scene`,
+				shots: durations.map((duration, index) =>
+					createShotDescription({
+						shot_id: `${title}-shot-${index + 1}`,
+						description: `${title} shot ${index + 1}`,
+						duration_seconds: duration,
+						shot_type: ShotType.MEDIUM,
+						camera_movement: CameraMovement.STATIC,
+					})
+				),
+			}),
+		],
+	};
+}
 
 describe("splitNovelText", () => {
 	it("throws when overlap is greater than or equal to chunk_size", () => {
@@ -43,5 +83,60 @@ describe("splitNovelText", () => {
 		const chunks = splitNovelText(text, { chunk_size: 100, overlap: 10 });
 		// First chunk should end on paragraph break (not mid-word).
 		expect(chunks[0].endsWith("\n\n")).toBe(true);
+	});
+});
+
+describe("novel2movie clip selection", () => {
+	it("selects the globally shortest shots while preserving original order in filtered scripts", () => {
+		const scripts = [
+			makeScript({ title: "chunk-a", durations: [8, 3, 6] }),
+			makeScript({ title: "chunk-b", durations: [2, 7, 4] }),
+		];
+
+		const selectedKeys = selectShortestClipShotKeys({ scripts, maxClips: 3 });
+		const firstChunk = filterScriptToClipShotKeys({
+			script: scripts[0],
+			chunkIndex: 0,
+			selectedKeys,
+		});
+		const secondChunk = filterScriptToClipShotKeys({
+			script: scripts[1],
+			chunkIndex: 1,
+			selectedKeys,
+		});
+
+		expect(firstChunk.scenes.flatMap((scene) => scene.shots)).toHaveLength(1);
+		expect(
+			firstChunk.scenes[0]?.shots.map((shot) => shot.duration_seconds)
+		).toEqual([3]);
+		expect(
+			secondChunk.scenes[0]?.shots.map((shot) => shot.duration_seconds)
+		).toEqual([2, 4]);
+	});
+
+	it("breaks equal-duration ties by original script order", () => {
+		const scripts = [
+			makeScript({ title: "chunk-a", durations: [5, 3] }),
+			makeScript({ title: "chunk-b", durations: [3, 2] }),
+		];
+
+		const selectedKeys = selectShortestClipShotKeys({ scripts, maxClips: 2 });
+		const firstChunk = filterScriptToClipShotKeys({
+			script: scripts[0],
+			chunkIndex: 0,
+			selectedKeys,
+		});
+		const secondChunk = filterScriptToClipShotKeys({
+			script: scripts[1],
+			chunkIndex: 1,
+			selectedKeys,
+		});
+
+		expect(
+			firstChunk.scenes[0]?.shots.map((shot) => shot.duration_seconds)
+		).toEqual([3]);
+		expect(
+			secondChunk.scenes[0]?.shots.map((shot) => shot.duration_seconds)
+		).toEqual([2]);
 	});
 });
