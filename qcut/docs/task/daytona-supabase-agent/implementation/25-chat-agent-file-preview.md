@@ -71,7 +71,7 @@ node --test \
   packages/nexusai-website/js/agent-chat.prompt.test.js
 ```
 
-Result: 42 tests passed.
+Result: 43 tests passed.
 
 Real Daytona web E2E:
 
@@ -107,3 +107,30 @@ Passed steps:
 6. Used `Open preview in new tab` and verified the new tab contained the artifact marker.
 7. Used context-menu `Download to local` and verified the downloaded JSON marker.
 8. Right-clicked a folder and verified `Open folder`, `Download folder to local`, `Copy path`, and `Copy folder name`.
+
+Follow-up confirmation E2E:
+
+- URL: `https://quriosity.com.au/chat-agent.html?context-menu-confirm=1779244302846`
+- Output folder: `output/playwright/sandbox-context-menu-confirm-2026-05-20T02-31-42-846Z`
+- Finding: the earlier screenshot review exposed that opening a preview tab after awaiting the artifact fetch could trip browser popup blocking. The implementation now pre-opens a blank tab from the user click and navigates it once the preview blob is ready.
+
+Confirmed screenshots:
+
+- File context menu: `04-right-click-file-shows-full-file-action-menu.png`
+- Text file modal preview: `text-file-preview-modal.png`
+- Copy path status: `06-copy-path-action-writes-sandbox-path.png`
+- New-tab text preview: `new-tab-text-preview.png`
+- Download from context menu: `08-download-to-local-from-context-menu.png`
+- Folder context menu: `09-right-click-folder-shows-folder-action-menu.png`
+
+Passed steps:
+
+1. Loaded production origin with local context-menu UI.
+2. Connected to a real Daytona Codex terminal.
+3. Created `.md`, `.json`, and folder artifacts under `/tmp/qcut-output`.
+4. Verified the full file action menu.
+5. Opened a text file in the modal preview.
+6. Copied the sandbox path and verified clipboard/status text.
+7. Opened the text preview in another page without popup-blocker failure.
+8. Downloaded JSON from the context menu and verified the marker.
+9. Verified the folder action menu.
