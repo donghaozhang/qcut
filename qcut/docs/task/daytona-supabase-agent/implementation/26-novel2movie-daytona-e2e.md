@@ -17,89 +17,110 @@ forced under `/tmp/qcut-output` so the website file browser can download it.
 
 ## Result
 
-Status: failed before script/storyboard generation.
+Status: passed for the full online Daytona `novel2movie` smoke with two real
+IMA Router Seedance clips.
 
-All three modes reached the `novel2movie` pipeline but failed during LLM-backed
-novel segmentation:
+Final command:
 
-```text
-LLM call failed: API error 503: {"error":"API key not configured for provider: openrouter"}
+```bash
+qcut flow novel2movie \
+  --title n2m-gpt2-gemini35-2clips-ima-assets-20260520014612 \
+  --max-scenes 1 \
+  --max-clips 2 \
+  --no-portraits \
+  --image-model gpt_image_2_ima \
+  --llm-model gemini-3.5-flash \
+  --video-model imarouter_seedance_2_0_fast_i2v \
+  --json
 ```
 
-Even when the command included `--llm-model gemini-3.5-flash`, the Daytona image
-still routed the LLM call through `openrouter`. This indicates the online image
-is either older than the GMI LLM routing changes or `novel2movie` in that image
-does not correctly apply the `--llm-model` override.
+Image:
+
+```text
+ghcr.io/quriosity-agent/qcut-cli:novel2movie-gpt2-gemini35-2clips-ima-assets-20260520012816
+```
+
+The run generated two GPT Image 2 storyboard images, uploaded them through IMA
+Router assets, generated two real Seedance 2.0 fast clips, and assembled a final
+movie.
+
+Summary:
+
+```json
+{
+  "success": true,
+  "script_count": 1,
+  "total_shots": 36,
+  "character_count": 6,
+  "storyboard_only": false,
+  "video_count": 2,
+  "total_cost": 1.284,
+  "errors": []
+}
+```
 
 ## Evidence
 
-Daytona session:
+Successful Daytona job:
 
 ```text
-6e5c9efc-0dc0-49b6-8d2e-78cba39320a2
+dogfood-7f0ef7a5-019b-444a-8f8d-3f5d452164e9
 ```
 
-Remote evidence folder:
+Local downloaded archive/extract:
 
 ```text
-/tmp/qcut-output/novel2movie-e2e-N2M_PTY_1779248464287
+/tmp/qcut-daytona-e2e-artifacts/dogfood-7f0ef7a5-019b-444a-8f8d-3f5d452164e9
 ```
 
-Local downloaded archive:
+Key files:
 
 ```text
-output/playwright/novel2movie-daytona-pty-evidence-download/novel2movie-e2e-N2M_PTY_1779248464287.tar
+n2m-gpt2-gemini35-2clips-ima-assets-20260520014612_202605200847/storyboard/chapter_001_untitled/scene_001_shot_001_medium_untitled.png
+n2m-gpt2-gemini35-2clips-ima-assets-20260520014612_202605200847/storyboard/chapter_001_untitled/scene_001_shot_002_medium_untitled.png
+n2m-gpt2-gemini35-2clips-ima-assets-20260520014612_202605200847/videos/从弃女到巅峰：苏家千金归来/scene_1_shot_13.mp4
+n2m-gpt2-gemini35-2clips-ima-assets-20260520014612_202605200847/videos/从弃女到巅峰：苏家千金归来/scene_1_shot_17.mp4
+n2m-gpt2-gemini35-2clips-ima-assets-20260520014612_202605200847/final_movie.mp4
 ```
 
-Downloaded archive contains:
+Video verification:
 
 ```text
-scripts-only/stdout.log
-scripts-only/stderr.log
-scripts-only/exit_code.txt
-scripts-only/.../summary.json
-storyboard-only/stdout.log
-storyboard-only/stderr.log
-storyboard-only/exit_code.txt
-storyboard-only/.../summary.json
-max-images-5/stdout.log
-max-images-5/stderr.log
-max-images-5/exit_code.txt
-max-images-5/.../summary.json
+scene_1_shot_13.mp4: ISO Media MP4, h264 1280x720, aac, duration 5.061950s
+scene_1_shot_17.mp4: ISO Media MP4, h264 1280x720, aac, duration 5.061950s
+final_movie.mp4: ISO Media MP4, h264 1280x720, aac, duration 10.147120s
 ```
 
-Exit codes:
+Relevant stdout:
 
 ```text
-scripts-only: 1
-storyboard-only: 1
-max-images-5: 1
+[storyboard] Running 2 image task(s) with concurrency 2
+[storyboard] Generated: 2 images, $0.084 cost
+[camera_gen] Generated 2 videos, final: 10.0s
+-> Concatenating 2 video clips into final movie
 ```
 
-Counts from the internal summaries:
+Earlier failed attempts:
 
 ```text
-scripts-only: script_count=0, total_shots=0, character_count=0
-storyboard-only: script_count=0, total_shots=0, character_count=0
-max-images-5: script_count=0, total_shots=0, character_count=0
+dogfood-174747cc-9e7e-456b-b283-3f2ba904bdbe:
+  exit 0 but video_count=0.
+  IMA Router rejected direct storyboard image URLs with
+  InputImageSensitiveContentDetected.PrivacyInformation.
+
+Fix:
+  flow video adapter now uploads remote IMA Router references through
+  /v1/assets/create and submits asset:// references to Seedance.
 ```
 
 ## Download Check
 
-The website filesystem download endpoint successfully downloaded the complete
-remote evidence folder as a tar archive to local disk. So file/folder download
-works for this E2E evidence folder.
+The Supabase artifact archive downloaded successfully from the online Daytona
+job and extracted locally. MP4 files were verified with `file` and `ffprobe`, so
+the archive contains real videos, not mock text placeholders.
 
 ## Follow-Up
 
-Fix the deployed Daytona image or `novel2movie` LLM model override so
-`--llm-model gemini-3.5-flash` routes to GMI, or use the explicit OpenRouter
-alias `--llm-model openrouter-gemini-3.5-flash` after adding
-`OPENROUTER_API_KEY` to Supabase/license-server. Then rerun the same three
-commands. Once LLM segmentation succeeds, verify:
-
-```text
-scripts-only creates scripts/chunk_*.json and zero images
-storyboard-only creates storyboard images and zero videos
-max-images 5 creates between 1 and 5 images and zero videos
-```
+GMI Gemini 3.5 Flash still hit 429s during segmentation, but the fallback
+completed. If this becomes flaky, prefer `openrouter-gemini-3.5-flash` for E2E
+stability while still using Gemini 3.5 Flash as the LLM.
