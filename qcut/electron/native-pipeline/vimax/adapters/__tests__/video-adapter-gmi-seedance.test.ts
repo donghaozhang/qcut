@@ -9,9 +9,21 @@ import { registerImageToVideoModels } from "../../../registry-data/image-to-vide
 vi.mock("../../../infra/api-caller.js", () => ({
 	callModelApi: vi.fn(),
 	downloadOutput: vi.fn(async (_url: string, dest: string) => dest),
+	envApiKeyProvider: vi.fn(async () => "test-ima-key"),
+}));
+
+vi.mock("../../../infra/imarouter-assets.js", () => ({
+	channelFor: vi.fn(() => ({
+		region: "overseas",
+		uploadModel: "seedance-upload",
+		groupIdKey: "groupIdOverseas",
+	})),
+	ensureGroup: vi.fn(async () => "asset-group-1"),
+	uploadAsset: vi.fn(async () => "asset://storyboard-asset-1"),
 }));
 
 import { callModelApi } from "../../../infra/api-caller.js";
+import { ensureGroup, uploadAsset } from "../../../infra/imarouter-assets.js";
 import {
 	VideoGeneratorAdapter,
 	buildImageField,
@@ -28,6 +40,12 @@ type ApiCall = {
 const mockedCallModelApi = callModelApi as unknown as {
 	mockResolvedValue: (value: unknown) => void;
 	mock: { calls: Array<[ApiCall]> };
+};
+const mockedEnsureGroup = ensureGroup as unknown as {
+	mock: { calls: unknown[] };
+};
+const mockedUploadAsset = uploadAsset as unknown as {
+	mock: { calls: Array<[string, unknown, string, unknown]> };
 };
 
 const originalGmiApiKey = process.env.GMI_API_KEY;
@@ -96,7 +114,7 @@ describe("VideoGeneratorAdapter — GMI Seedance I2V", () => {
 		).toBe("imarouter");
 	});
 
-	it("sends IMA Router Seedance defaults and remote storyboard URL", async () => {
+	it("uploads IMA Router storyboard URL before video generation", async () => {
 		const adapter = new VideoGeneratorAdapter({
 			model: "imarouter_seedance_2_0_fast_i2v",
 			output_dir: "/tmp/qcut-video",
@@ -108,13 +126,17 @@ describe("VideoGeneratorAdapter — GMI Seedance I2V", () => {
 		});
 
 		const call = mockedCallModelApi.mock.calls[0][0];
+		expect(mockedEnsureGroup.mock.calls).toHaveLength(1);
+		expect(mockedUploadAsset.mock.calls[0][0]).toBe(
+			"https://cdn.example.com/storyboard.png"
+		);
 		expect(call.provider).toBe("imarouter");
 		expect(call.endpoint).toBe("v1/videos");
 		expect(call.modelKey).toBe("imarouter_seedance_2_0_fast_i2v");
 		expect(call.payload).toMatchObject({
 			model: "seedance-2.0-fast",
 			prompt: "pan left",
-			images: ["https://cdn.example.com/storyboard.png"],
+			images: ["asset://storyboard-asset-1"],
 			duration: "5",
 			resolution: "720p",
 			aspect_ratio: "16:9",

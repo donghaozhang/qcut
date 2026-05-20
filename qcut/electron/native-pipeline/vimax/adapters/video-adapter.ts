@@ -21,7 +21,16 @@ import {
 	type AdapterConfig,
 	createAdapterConfig,
 } from "./base-adapter.js";
-import { callModelApi, downloadOutput } from "../../infra/api-caller.js";
+import {
+	callModelApi,
+	downloadOutput,
+	envApiKeyProvider,
+} from "../../infra/api-caller.js";
+import {
+	channelFor,
+	ensureGroup,
+	uploadAsset,
+} from "../../infra/imarouter-assets.js";
 import { ModelRegistry } from "../../infra/registry.js";
 import type { VideoOutput, ImageOutput } from "../types/output.js";
 import { createVideoOutput } from "../types/output.js";
@@ -225,6 +234,34 @@ export function buildImageField({
 	};
 }
 
+async function buildProviderImageField({
+	imagePath,
+	provider,
+	modelKey,
+}: {
+	imagePath: string;
+	provider: VideoProviderBackend;
+	modelKey: string;
+}): Promise<Record<string, unknown>> {
+	if (provider !== "imarouter") {
+		return buildImageField({ imagePath, provider, modelKey });
+	}
+
+	const isRemote = /^https?:/i.test(imagePath);
+	if (!isRemote) {
+		return buildImageField({ imagePath, provider, modelKey });
+	}
+
+	const apiKey = await envApiKeyProvider("imarouter");
+	if (!apiKey) {
+		throw new Error("IMAROUTER_API_KEY not configured");
+	}
+	const channel = channelFor(modelKey);
+	const groupId = await ensureGroup(channel, { apiKey });
+	const assetUrl = await uploadAsset(imagePath, channel, groupId, { apiKey });
+	return { images: [assetUrl] };
+}
+
 function isGmiSeedanceI2vModel({ modelKey }: { modelKey: string }): boolean {
 	return /^gmi_seedance_2_0(?:_fast)?_260128_i2v$/.test(modelKey);
 }
@@ -358,7 +395,7 @@ export class VideoGeneratorAdapter extends BaseAdapter<
 		const startTime = Date.now();
 		// Provider-specific image field; Seedance I2V is the odd GMI model
 		// that requires `first_frame` instead of the generic `image`.
-		const imageField = buildImageField({
+		const imageField = await buildProviderImageField({
 			imagePath,
 			provider: spec.providerBackend,
 			modelKey: spec.canonicalKey,
