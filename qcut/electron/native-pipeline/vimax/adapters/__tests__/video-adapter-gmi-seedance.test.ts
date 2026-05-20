@@ -120,10 +120,14 @@ describe("VideoGeneratorAdapter — GMI Seedance I2V", () => {
 			output_dir: "/tmp/qcut-video",
 		});
 
-		await adapter.generate("https://cdn.example.com/storyboard.png", "pan left", {
-			duration: 5,
-			output_path: "/tmp/qcut-video/out.mp4",
-		});
+		await adapter.generate(
+			"https://cdn.example.com/storyboard.png",
+			"pan left",
+			{
+				duration: 5,
+				output_path: "/tmp/qcut-video/out.mp4",
+			}
+		);
 
 		const call = mockedCallModelApi.mock.calls[0][0];
 		expect(mockedEnsureGroup.mock.calls).toHaveLength(1);
