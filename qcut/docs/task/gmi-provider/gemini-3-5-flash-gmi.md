@@ -65,3 +65,18 @@ curl -sS -H "Authorization: Bearer $GMI_API_KEY" \
 Result: `HTTP=200`, response model `google/gemini-3.5-flash`, content `qcut-gmi-3.5-flash-ok`.
 
 Note: `max_tokens=32` returned `HTTP=200` but `content:null` with `finish_reason:"length"` because the model used reasoning tokens before producing text. The CLI defaults are much larger (`4096`/`8192` depending on path), so normal QCut calls should have enough room.
+
+Real QCut CLI E2E:
+
+```bash
+bun run pipeline -- flow scenes \
+  --novel /tmp/qcut-input/gemini-3-5-flash-story.txt \
+  --llm-model gemini-3.5-flash \
+  --max-scenes 2 \
+  -o /tmp/qcut-output/gemini-3-5-flash-e2e \
+  --json
+```
+
+Result: passed in 11.0s. The CLI wrote `/tmp/qcut-output/gemini-3-5-flash-e2e/scenes.json` with title `Lanterns Under Glass`, 2 scenes, and 4 shots. The first scene was `The Workshop in the Rain`.
+
+Routing evidence: `gemini-3.5-flash` maps to `gmi/google/gemini-3.5-flash` in `electron/native-pipeline/vimax/adapters/llm-adapter.ts`, so this `flow scenes` test selected the GMI Gemini 3.5 Flash path rather than the existing `gemini-3-flash` default.
