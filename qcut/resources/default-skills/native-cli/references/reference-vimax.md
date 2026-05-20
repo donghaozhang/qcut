@@ -80,11 +80,38 @@ Extract character descriptions from text.
 
 | Flag | Short | Type | Description |
 |------|-------|------|-------------|
+| `--novel` | | string | Novel file path |
 | `--text` | `-t` | string | Input text or file path (required) |
 | `--input` | `-i` | string | Alias (reads file if path exists) |
+| `--project` | | string | Project slug under `~/Documents/QCut/projects/` |
 | `--llm-model` | | string | LLM override |
 
 Output: `characters.json`
+
+### `flow scenes` / `flow scene`
+
+Extract scene and shot structure from a novel or raw text. This is the preferred staged input for storyboard generation.
+
+| Flag | Short | Type | Description |
+|------|-------|------|-------------|
+| `--novel` | | string | Novel file path |
+| `--text` | `-t` | string | Raw text |
+| `--input` | | string | Text or novel file path |
+| `--project` | | string | Project slug; writes `scenes.json` into the project |
+| `--title` | | string | Override title |
+| `--max-scenes` | | integer | Keep at most this many scenes |
+| `--llm-model` | | string | LLM override |
+
+Output: `scenes.json`
+
+```bash
+qcut flow scenes \
+  --novel /tmp/qcut-input/novel.txt \
+  --llm-model gemini-3.1-flash-lite \
+  --max-scenes 3 \
+  -o /tmp/qcut-output \
+  --json
+```
 
 ### `flow script`
 
@@ -118,17 +145,29 @@ Output: `portraits/` directory + `registry.json`
 
 ### `flow storyboard`
 
-Generate storyboard images from a script.
+Generate storyboard images from `flow scenes` output or a screenplay script. Prefer `--scenes` when the input came from a novel.
 
 | Flag | Short | Type | Description |
 |------|-------|------|-------------|
-| `--script` | | string | Script JSON path (required) |
-| `--input` | `-i` | string | Alias |
+| `--scenes` | | string | `flow scenes` JSON path |
+| `--script` | | string | Script JSON path |
+| `--input` | | string | Scenes or script JSON path |
+| `--project` | | string | Project slug; reads `scenes.json` by default |
 | `--portraits` | `-p` | string | Portrait registry path |
 | `--image-model` | | string | Image model override |
 | `--style` | | string | Style prefix for prompts |
 | `--reference-model` | | string | Reference injection model |
 | `--reference-strength` | | float | Reference strength (0.0-1.0) |
+| `--concurrency` | | integer | Parallel image requests; capped at 6 |
+
+```bash
+qcut flow storyboard \
+  --scenes /tmp/qcut-output/scenes.json \
+  --image-model gpt_image_2_ima \
+  --concurrency 3 \
+  -o /tmp/qcut-output/storyboard \
+  --json
+```
 
 ### `flow registry-create`
 
