@@ -17,9 +17,10 @@ All `flow` workflow commands share these override flags:
 
 The default LLM for all ViMax agents is `google/gemini-3-flash-preview` (via OpenRouter). Common alternatives:
 
-| Alias | OpenRouter ID | Notes |
-|-------|---------------|-------|
+| Alias | Provider ID | Notes |
+|-------|-------------|-------|
 | `gemini-3-flash` | `google/gemini-3-flash-preview` | **Default** — fast, good structured output |
+| `gemini-3.5-flash` | `google/gemini-3.5-flash` via GMI | Select explicitly for Gemini 3.5 Flash; requires GMI credentials/proxy |
 | `gemini-2.5-flash` | `google/gemini-2.5-flash` | Stable, slightly slower |
 | `gpt-4o` | `openai/gpt-4o` | High quality, higher cost |
 | `claude-3.5-sonnet` | `anthropic/claude-3.5-sonnet` | High quality, higher cost |

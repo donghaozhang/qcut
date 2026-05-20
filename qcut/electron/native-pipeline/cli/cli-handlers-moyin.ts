@@ -57,6 +57,7 @@ const MODEL_ALIASES: Record<string, string> = {
  */
 const GMI_MODEL_ALIASES: Record<string, string> = {
 	"gmi-glm-5.1": "zai-org/GLM-5.1-FP8",
+	"gmi-gemini-3.5-flash": "google/gemini-3.5-flash",
 	"gmi-gemini-3.1-flash-lite": "google/gemini-3.1-flash-lite-preview",
 	"gmi-gemini-3.1-pro": "google/gemini-3.1-pro-preview",
 };

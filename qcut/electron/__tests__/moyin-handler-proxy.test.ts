@@ -209,6 +209,31 @@ describe("moyin-handler callLLM GMI routing", () => {
 		expect(body.model).toBe("google/gemini-3.1-flash-lite-preview");
 	});
 
+	it("routes selectable Gemini 3.5 Flash through GMI", async () => {
+		mocks.getDecryptedApiKeys.mockResolvedValue({
+			...EMPTY_KEYS,
+			gmiApiKey: "gmi-local-key",
+		});
+		globalThis.fetch = mocks.fetch as unknown as typeof fetch;
+		mocks.fetch.mockResolvedValue(
+			new Response(
+				JSON.stringify({
+					choices: [{ message: { content: "gemini flash reply" } }],
+				}),
+				{ status: 200, headers: { "Content-Type": "application/json" } }
+			)
+		);
+
+		const result = await callLLM("sys", "user", {
+			model: "gmi-gemini-3.5-flash",
+		});
+
+		expect(result).toBe("gemini flash reply");
+		const [, init] = mocks.fetch.mock.calls[0];
+		const body = JSON.parse(init.body as string) as { model: string };
+		expect(body.model).toBe("google/gemini-3.5-flash");
+	});
+
 	it("surfaces a 402 insufficient-credits error from the GMI proxy path", async () => {
 		mocks.getDecryptedApiKeys.mockResolvedValue({ ...EMPTY_KEYS });
 		mocks.isProxyAvailable.mockResolvedValue(true);
@@ -260,6 +285,10 @@ describe("resolveLlmProvider alias map", () => {
 		expect(resolveLlmProvider("gmi-glm-5.1")).toEqual({
 			provider: "gmi-llm",
 			model: "zai-org/GLM-5.1-FP8",
+		});
+		expect(resolveLlmProvider("gmi-gemini-3.5-flash")).toEqual({
+			provider: "gmi-llm",
+			model: "google/gemini-3.5-flash",
 		});
 		expect(resolveLlmProvider("gmi-gemini-3.1-flash-lite")).toEqual({
 			provider: "gmi-llm",

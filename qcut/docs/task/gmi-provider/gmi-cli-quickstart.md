@@ -196,6 +196,7 @@ bun run pipeline logout
 | Alias | GMI Model ID | Provider |
 |-------|-------------|----------|
 | `glm-5.1` | `zai-org/GLM-5.1-FP8` | ZhipuAI |
+| `gemini-3.5-flash` | `google/gemini-3.5-flash` | Google |
 | `gemini-3.1-pro` | `google/gemini-3.1-pro-preview` | Google |
 | `gemini-3.1-flash-lite` | `google/gemini-3.1-flash-lite-preview` | Google |
 | `gpt-5.4` | `openai/gpt-5.4` | OpenAI |

@@ -72,6 +72,11 @@ const COST_OVERRIDES: Record<
 		amountPerUnitCredits: 10,
 		label: "GLM 5.1",
 	},
+	"gmi-gemini-3.5-flash": {
+		unit: "fixed",
+		amountPerUnitCredits: 10,
+		label: "Gemini 3.5 Flash",
+	},
 	"gmi-gemini-3.1-pro": {
 		unit: "fixed",
 		amountPerUnitCredits: 20,

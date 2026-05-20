@@ -69,6 +69,23 @@ describe("LLM Adapter — GMI LLM models", () => {
 		expect(opts.payload.model).toBe("google/gemini-3.1-pro-preview");
 	});
 
+	it("resolves selectable Gemini 3.5 Flash GMI aliases without changing the OpenRouter default", async () => {
+		const adapter = new LLMAdapter();
+		await adapter.initialize();
+		await adapter.chat([{ role: "user", content: "hi" }], {
+			model: "gemini-3.5-flash",
+		});
+		await adapter.chat([{ role: "user", content: "hi" }], {
+			model: "gmi-gemini-3.5-flash",
+		});
+
+		const [firstCall, secondCall] = mockCallModelApi.mock.calls;
+		expect(firstCall[0].provider).toBe("gmi-llm");
+		expect(firstCall[0].payload.model).toBe("google/gemini-3.5-flash");
+		expect(secondCall[0].provider).toBe("gmi-llm");
+		expect(secondCall[0].payload.model).toBe("google/gemini-3.5-flash");
+	});
+
 	it("resolves gpt-5.4 to gmi/openai/gpt-5.4", async () => {
 		const adapter = new LLMAdapter();
 		await adapter.initialize();
