@@ -57,7 +57,7 @@ describe("runOnDaytona ephemeral jobs", () => {
 				) {
 					sessionCalls.push(`${sessionId}:${request.command}:${timeout}`);
 					if (
-						request.command.startsWith("cat ") &&
+						request.command.includes("__QCUT_FILE_SIZE__=") &&
 						request.command.includes("qcut-stdout.txt")
 					) {
 						stdoutReads += 1;
@@ -68,6 +68,17 @@ describe("runOnDaytona ephemeral jobs", () => {
 								)
 							);
 						}
+						return Promise.resolve({
+							stdout:
+								'__QCUT_FILE_SIZE__=43\n{"kind":"cli_progress","message":"halfway"}\n',
+							stderr: "",
+							exitCode: 0,
+						});
+					}
+					if (
+						request.command.startsWith("cat ") &&
+						request.command.includes("qcut-stdout.txt")
+					) {
 						return Promise.resolve({
 							stdout: '{"kind":"cli_progress","message":"halfway"}\n',
 							stderr: "",
@@ -230,9 +241,33 @@ describe("runOnDaytona ephemeral jobs", () => {
 					_sessionId: string,
 					request: { command: string }
 				) {
+					if (
+						request.command.includes("__QCUT_FILE_SIZE__=") &&
+						request.command.includes("codex-live-stdout.log")
+					) {
+						return Promise.resolve({
+							stdout: request.command.includes("offset=0")
+								? "__QCUT_FILE_SIZE__=7\nLIVE_1\n"
+								: "__QCUT_FILE_SIZE__=7\n",
+							stderr: "",
+							exitCode: 0,
+						});
+					}
 					if (request.command.includes("codex-live-stdout.log")) {
 						return Promise.resolve({
 							stdout: "LIVE_1\n",
+							stderr: "",
+							exitCode: 0,
+						});
+					}
+					if (
+						request.command.includes("__QCUT_FILE_SIZE__=") &&
+						request.command.includes("codex-events.jsonl")
+					) {
+						return Promise.resolve({
+							stdout: request.command.includes("offset=0")
+								? `__QCUT_FILE_SIZE__=${Buffer.byteLength(`${codexEvent}\n`)}\n${codexEvent}\n`
+								: `__QCUT_FILE_SIZE__=${Buffer.byteLength(`${codexEvent}\n`)}\n`,
 							stderr: "",
 							exitCode: 0,
 						});

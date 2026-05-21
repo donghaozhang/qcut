@@ -5,6 +5,7 @@ import {
 	MAX_AGENT_SOURCE_LENGTH,
 	MAX_CODEX_PROMPT_LENGTH,
 	MAX_COMMAND_LENGTH,
+	SAFE_COMMAND_QUOTED_TOKEN,
 	SAFE_COMMAND_TOKEN,
 } from "./constants";
 
@@ -171,6 +172,58 @@ export function shellSingleQuote({ value }: { value: string }): string {
 	return `'${value.replace(/'/g, "'\"'\"'")}'`;
 }
 
+function tokenizeCommandForValidation({
+	command,
+}: {
+	command: string;
+}): string[] | null {
+	const tokens: string[] = [];
+	let token = "";
+	let quote: '"' | "'" | null = null;
+	let tokenStarted = false;
+
+	for (const char of command.trim()) {
+		if (quote) {
+			if (char === quote) {
+				quote = null;
+				continue;
+			}
+			token += char;
+			tokenStarted = true;
+			continue;
+		}
+		if (char === '"' || char === "'") {
+			quote = char;
+			tokenStarted = true;
+			continue;
+		}
+		if (/\s/.test(char)) {
+			if (tokenStarted) {
+				tokens.push(token);
+				token = "";
+				tokenStarted = false;
+			}
+			continue;
+		}
+		token += char;
+		tokenStarted = true;
+	}
+
+	if (quote) {
+		return null;
+	}
+	if (tokenStarted) {
+		tokens.push(token);
+	}
+	return tokens;
+}
+
+function isSafeCommandToken({ token }: { token: string }): boolean {
+	return token.includes(" ")
+		? SAFE_COMMAND_QUOTED_TOKEN.test(token)
+		: SAFE_COMMAND_TOKEN.test(token);
+}
+
 export function validateCommand({ command }: { command: string }): string {
 	if (command.length === 0) {
 		return "command_required";
@@ -182,9 +235,12 @@ export function validateCommand({ command }: { command: string }): string {
 		return "command_must_start_with_qcut_or_codex_exec";
 	}
 
-	const tokens = command.split(/\s+/).filter(Boolean);
+	const tokens = tokenizeCommandForValidation({ command });
+	if (!tokens) {
+		return "command_contains_unsafe_token";
+	}
 	for (const token of tokens) {
-		if (!SAFE_COMMAND_TOKEN.test(token)) {
+		if (!isSafeCommandToken({ token })) {
 			return "command_contains_unsafe_token";
 		}
 	}

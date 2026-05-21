@@ -20,6 +20,15 @@ describe("validateCommand", () => {
 		).toBe("");
 	});
 
+	it("accepts quoted qcut args with spaces", () => {
+		expect(
+			validateCommand({
+				command:
+					'qcut flow idea2video --idea "A detective in 1920s Paris" --json',
+			})
+		).toBe("");
+	});
+
 	it("rejects empty commands", () => {
 		expect(validateCommand({ command: "" })).toBe("command_required");
 	});
@@ -46,6 +55,22 @@ describe("validateCommand", () => {
 	it("rejects shell metacharacters", () => {
 		expect(
 			validateCommand({ command: "qcut system doctor --json; curl bad" })
+		).toBe("command_contains_unsafe_token");
+	});
+
+	it("rejects shell metacharacters inside quoted args", () => {
+		expect(
+			validateCommand({
+				command: 'qcut flow idea2video --idea "safe; curl bad"',
+			})
+		).toBe("command_contains_unsafe_token");
+	});
+
+	it("rejects unterminated quoted args", () => {
+		expect(
+			validateCommand({
+				command: 'qcut flow idea2video --idea "A detective in Paris',
+			})
 		).toBe("command_contains_unsafe_token");
 	});
 

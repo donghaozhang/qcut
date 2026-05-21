@@ -54,9 +54,28 @@ describe("buildDaytonaCommand", () => {
 		});
 	});
 
+	it("tokenizes quoted qcut args and re-quotes them for the shell", () => {
+		expect(
+			buildDaytonaCommand({
+				command:
+					'qcut flow idea2video --idea "A detective in 1920s Paris" --json',
+			}).command
+		).toContain(
+			"qcut flow idea2video --idea 'A detective in 1920s Paris' --json"
+		);
+	});
+
 	it("rejects shell metacharacters before building the SDK command string", () => {
 		expect(() =>
 			buildDaytonaCommand({ command: "qcut system doctor; curl bad" })
+		).toThrow("shell-metacharacters");
+	});
+
+	it("rejects shell metacharacters inside quoted qcut args", () => {
+		expect(() =>
+			buildDaytonaCommand({
+				command: 'qcut flow idea2video --idea "safe; curl bad"',
+			})
 		).toThrow("shell-metacharacters");
 	});
 

@@ -10,7 +10,7 @@ import {
 } from "./constants.js";
 import { outputPath } from "./command.js";
 import { recordAgentEvent } from "./events.js";
-import { readRemoteFile, remoteFileExists } from "./remote-files.js";
+import { readRemoteFileFromOffset, remoteFileExists } from "./remote-files.js";
 import { insertAgentEvents, parseEventText } from "../stream-events.js";
 import type {
 	DaytonaSandbox,
@@ -34,6 +34,43 @@ export function takeNewCompleteLines({
 	}
 	const chunk = text.slice(cursor.size);
 	cursor.size = text.length;
+	if (chunk.length === 0) {
+		if (!includePartial) return "";
+		const partial = cursor.partial;
+		cursor.partial = "";
+		return partial;
+	}
+	const combined = `${cursor.partial}${chunk}`;
+	if (includePartial) {
+		cursor.partial = "";
+		return combined;
+	}
+	if (!combined.includes("\n")) {
+		cursor.partial = combined;
+		return "";
+	}
+	const lines = combined.split("\n");
+	cursor.partial = lines.pop() ?? "";
+	return lines.join("\n");
+}
+
+export function takeNewCompleteLinesFromChunk({
+	chunk,
+	cursor,
+	size,
+	truncated,
+	includePartial = false,
+}: {
+	chunk: string;
+	cursor: StreamCursor;
+	size: number;
+	truncated: boolean;
+	includePartial?: boolean;
+}): string {
+	if (truncated) {
+		cursor.partial = "";
+	}
+	cursor.size = size;
 	if (chunk.length === 0) {
 		if (!includePartial) return "";
 		const partial = cursor.partial;
@@ -108,13 +145,20 @@ export async function flushStreamEvents({
 	for (const stream of streams) {
 		const cursor = cursors.get(stream.path) ?? { partial: "", size: 0 };
 		cursors.set(stream.path, cursor);
-		const text = await readRemoteFile({
+		const { text, size, truncated } = await readRemoteFileFromOffset({
 			sandbox,
 			sessionId,
 			path: stream.path,
+			offset: cursor.size,
 			allowEmptyExitCodeError: true,
 		});
-		const newLines = takeNewCompleteLines({ text, cursor, includePartial });
+		const newLines = takeNewCompleteLinesFromChunk({
+			chunk: text,
+			cursor,
+			size,
+			truncated,
+			includePartial,
+		});
 		const rows = parseEventText({
 			text: newLines,
 			job,

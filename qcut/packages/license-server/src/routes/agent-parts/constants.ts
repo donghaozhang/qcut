@@ -11,6 +11,7 @@ export const AGENT_TERMINAL_RETRY_AFTER_MS = 3_000;
 export const TERMINAL_INPUT_DIR = "/tmp/qcut-input";
 export const TERMINAL_OUTPUT_DIR = "/tmp/qcut-output";
 export const SAFE_COMMAND_TOKEN = /^[A-Za-z0-9_\-./:=,@+]+$/;
+export const SAFE_COMMAND_QUOTED_TOKEN = /^[A-Za-z0-9_\-./:=,@+ ]+$/;
 export const CODEX_AGENT_COMMAND = "codex exec --skip-git-repo-check --json -";
 
 // Pinned to an immutable manifest digest so the default agent image cannot
