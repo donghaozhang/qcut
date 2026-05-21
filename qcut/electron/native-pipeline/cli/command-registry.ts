@@ -1469,6 +1469,11 @@ const CORE_COMMANDS: Record<string, CommandDef> = {
 			f("--image-model", "string", "Image generation model"),
 			f("--video-model", "string", "Video generation model"),
 			f(
+				"--video-concurrency",
+				"number",
+				"Parallel video clips in flight (default 1, max 6)"
+			),
+			f(
 				"--video-reference-mode",
 				"string",
 				"Video inputs: storyboard, references, or storyboard+references"
@@ -1484,6 +1489,7 @@ const CORE_COMMANDS: Record<string, CommandDef> = {
 			"qcut-pipeline vimax:novel2movie --scripts-only",
 			"qcut-pipeline vimax:novel2movie --max-images 5",
 			"qcut-pipeline vimax:novel2movie --max-scenes 20 --max-clips 5",
+			"qcut-pipeline vimax:novel2movie --max-clips 2 --video-concurrency 2",
 		],
 	},
 	"vimax:novel2script": {

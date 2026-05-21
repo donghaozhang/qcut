@@ -148,5 +148,6 @@ describe("novel2movie defaults", () => {
 
 		expect(config.video_model).toBe("imarouter_seedance_2_0_ref2v");
 		expect(config.video_reference_mode).toBe("storyboard+references");
+		expect(config.video_concurrency).toBe(1);
 	});
 });

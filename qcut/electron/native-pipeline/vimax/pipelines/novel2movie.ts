@@ -65,6 +65,8 @@ export interface Novel2MovieConfig {
 	video_reference_images: string[];
 	/** Hard cap for provider reference image lists. */
 	max_video_references: number;
+	/** Parallel video clip generations in flight. Capped by CameraImageGenerator. */
+	video_concurrency: number;
 }
 
 /** Create a {@link Novel2MovieConfig} with sensible defaults. */
@@ -92,6 +94,7 @@ export function createNovel2MovieConfig(
 		video_reference_mode: "storyboard+references",
 		video_reference_images: [],
 		max_video_references: 14,
+		video_concurrency: 1,
 		...partial,
 	};
 }
@@ -438,6 +441,7 @@ export class Novel2MoviePipeline {
 			video_reference_mode: this.config.video_reference_mode,
 			video_reference_images: this.config.video_reference_images,
 			max_video_references: this.config.max_video_references,
+			video_concurrency: this.config.video_concurrency,
 		});
 	}
 

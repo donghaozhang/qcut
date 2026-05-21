@@ -92,3 +92,77 @@ That means five remote jobs are serialized. The earlier portrait and storyboard 
 ## Follow-Up
 
 If we want this command to be faster for `--max-clips 5`, the next engineering step is bounded video concurrency, likely `--video-concurrency` with a default of 1 and a hard cap such as 2 or 3. That needs provider/cost consideration because concurrent Seedance jobs can spend credits faster and can hit upstream rate limits.
+
+## Parallel Video Trial
+
+Implemented bounded video concurrency for `CameraImageGenerator`.
+
+New CLI option:
+
+```bash
+qcut flow novel2movie --novel story.txt --max-scenes 20 --max-clips 2 --video-concurrency 2
+```
+
+Defaults and caps:
+
+- Default `video_concurrency`: `1`
+- Hard cap: `6`
+- `--video-concurrency` is preferred for `novel2movie`
+- Existing generic `--concurrency` is also accepted as a fallback
+- Output videos and `video_reference_audit.json` remain in script shot order even when remote tasks finish out of order
+
+Real E2E command:
+
+```bash
+bun /Users/peter/Desktop/code/qcut/qcut/electron/native-pipeline/cli/cli.ts \
+  flow novel2movie \
+  --novel story.txt \
+  --max-scenes 20 \
+  --max-clips 2 \
+  --video-concurrency 2 \
+  -o /tmp/qcut-kpop-parallel-e2e/output \
+  --json
+```
+
+Real E2E output:
+
+- Run directory: `/tmp/qcut-kpop-parallel-e2e/output/story_202605211559`
+- Downloaded artifact directory: `/Users/peter/Downloads/qcut-kpop-parallel-e2e-artifacts`
+- Final movie: `/Users/peter/Downloads/qcut-kpop-parallel-e2e-artifacts/final_movie.mp4`
+- Final duration: 22.08 seconds
+- Final size: 31 MB
+- Clips generated: 2
+- Provider cost reported by QCut: `$6.762`
+- Summary errors: `[]`
+
+Log evidence:
+
+```text
+[camera_gen] Running 2 video task(s) with concurrency 2
+[camera_gen] SHOT_001: video refs=0, storyboard=yes
+[camera_gen] SHOT_005: video refs=2, storyboard=yes
+[vimax.video] imarouter_seedance_2_0_ref2v: 100% completed
+[vimax.video] imarouter_seedance_2_0_ref2v: 100% completed
+```
+
+This confirms both clips were submitted into the video stage concurrently.
+
+Timing:
+
+| Stage | Evidence | Approx time | Parallel? | Notes |
+| --- | --- | ---: | --- | --- |
+| Full command | `/usr/bin/time`: `real 984.65` | 16m25s | mixed | Full run, including LLM/images/videos |
+| Character extraction | `characters.json` 08:59:37 | ~4s | no | One LLM call |
+| Portrait generation | portrait files 09:00:07 and 09:00:10 | ~33s | yes | Two portrait tasks overlapped |
+| Storyboard generation | storyboard files 09:00:45 and 09:01:21 | ~71s | yes | Two image tasks with concurrency 2 |
+| Video generation | `SHOT_001` 09:11:10, `SHOT_005` 09:15:58 | ~14m37s | yes | Both started together, but one provider job finished much later |
+| Concatenate final movie | final movie 09:15:58 | <1s | no | Cheap local concat |
+
+Reference audit:
+
+| Clip | Storyboard image | Portrait reference count | Notes |
+| --- | --- | ---: | --- |
+| `SHOT_001` | yes | 0 | Establishing/environment shot |
+| `SHOT_005` | yes | 2 | Multi-reference: Lin Yue + Park Mina |
+
+Conclusion: parallel clip generation works with IMA Router Seedance Ref2V, but the provider can still queue or complete one job much later than another. For production, defaulting to `1` remains safest; user-requested runs can use `--video-concurrency 2` when speed matters and cost/rate-limit risk is acceptable.
