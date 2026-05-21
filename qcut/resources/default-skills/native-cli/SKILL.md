@@ -17,7 +17,7 @@ Run QCut's built-in TypeScript pipeline CLI (`qcut-pipeline` / `qcut`).
 
 - For standalone CLI commands (generate, analyze, transcribe, autoclip, models, help, output formats), see [REFERENCE.md](references/REFERENCE.md)
 - For YAML pipelines, API key management, project management, see [reference-pipelines.md](references/reference-pipelines.md)
-- For ViMax commands (idea2video, script2video, novel2movie, portraits), see [reference-vimax.md](references/reference-vimax.md)
+- For ViMax commands (idea2video, script2video, novel2movie, scenes, portraits), see [reference-vimax.md](references/reference-vimax.md)
 - For editor core reference: connection, flags, batch limits, env vars, common workflows, see [editor-core.md](editor/editor-core.md)
 - For editor media & project commands, project.json schema, see [editor-media.md](editor/editor-media.md)
 - For editor timeline & editing commands, see [editor-timeline.md](editor/editor-timeline.md)
@@ -270,6 +270,8 @@ qcut youtube:upload \
 qcut flow idea2video --idea "A detective in 1920s Paris" -d 120
 qcut flow script2video --script script.json --portraits registry.json
 qcut flow novel2movie --novel book.txt --max-scenes 20
+qcut flow scenes --novel book.txt -o /tmp/qcut-output --json
+qcut flow storyboard --scenes /tmp/qcut-output/scenes.json --image-model gpt_image_2_ima --concurrency 3 --json
 ```
 
 ## API Key Setup

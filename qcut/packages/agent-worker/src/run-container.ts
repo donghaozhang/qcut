@@ -35,11 +35,11 @@ const CODEX_SANDBOX_CONTEXT = [
 	"Write only final user-requested files and small diagnostic summaries/logs under /tmp/qcut-output.",
 ].join("\n");
 
-// Anything beyond simple whitespace-separated tokens with the usual
-// flag punctuation (-, =, ., /, :, ,) gets rejected so a forged
-// `agent_jobs.command` row can't smuggle shell metacharacters into
-// `bash -c`. Real CLI invocations only need this set.
+// Anything beyond CLI args with the usual flag punctuation gets rejected so a
+// forged `agent_jobs.command` row can't smuggle shell metacharacters into
+// `bash -c`. Quoted args may contain spaces; they are re-quoted before use.
 const SAFE_ARG = /^[A-Za-z0-9_\-./:=,@+]+$/;
+const SAFE_QUOTED_ARG = /^[A-Za-z0-9_\-./:=,@+ ]+$/;
 
 export interface ContainerResult {
 	stdout: string;
@@ -52,18 +52,64 @@ export interface ContainerResult {
 	artifactsFallback?: boolean;
 }
 
+function tokenizeShellLikeCommand(command: string): string[] {
+	const tokens: string[] = [];
+	let token = "";
+	let quote: '"' | "'" | null = null;
+	let tokenStarted = false;
+
+	for (const char of command.trim()) {
+		if (quote) {
+			if (char === quote) {
+				quote = null;
+				continue;
+			}
+			token += char;
+			tokenStarted = true;
+			continue;
+		}
+		if (char === '"' || char === "'") {
+			quote = char;
+			tokenStarted = true;
+			continue;
+		}
+		if (/\s/.test(char)) {
+			if (tokenStarted) {
+				tokens.push(token);
+				token = "";
+				tokenStarted = false;
+			}
+			continue;
+		}
+		token += char;
+		tokenStarted = true;
+	}
+
+	if (quote) {
+		throw new Error("agent_jobs.command contains an unterminated quote");
+	}
+	if (tokenStarted) {
+		tokens.push(token);
+	}
+	return tokens;
+}
+
+function isSafeArg({ arg }: { arg: string }): boolean {
+	return arg.includes(" ") ? SAFE_QUOTED_ARG.test(arg) : SAFE_ARG.test(arg);
+}
+
 /**
- * Whitespace-split a stored `agent_jobs.command` and reject any token
- * containing shell metacharacters. Exported so the Daytona runner can
- * apply the same gate even though its SDK requires a string command.
+ * Tokenize a stored `agent_jobs.command` and reject any token containing shell
+ * metacharacters. Exported so the Daytona runner can apply the same gate even
+ * though its SDK requires a string command.
  */
 export function tokenizeCommand(command: string): string[] {
-	const tokens = command.trim().split(/\s+/).filter(Boolean);
+	const tokens = tokenizeShellLikeCommand(command);
 	if (tokens.length === 0) {
 		throw new Error("agent_jobs.command is empty");
 	}
 	for (const t of tokens) {
-		if (!SAFE_ARG.test(t)) {
+		if (!isSafeArg({ arg: t })) {
 			throw new Error(
 				`agent_jobs.command contains unsafe token (shell-metacharacters not allowed): ${JSON.stringify(
 					t

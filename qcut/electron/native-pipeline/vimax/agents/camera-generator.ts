@@ -124,9 +124,10 @@ export class CameraImageGenerator extends BaseAgent<
 
 					const motionPrompt = this._getMotionPrompt(shot);
 					const outputPath = path.join(outputDir, `${shot.shot_id}.mp4`);
+					const sourceImage = image.image_url ?? image.image_path;
 
 					const video = await this._videoAdapter!.generate(
-						image.image_path,
+						sourceImage,
 						motionPrompt,
 						{
 							duration: shot.duration_seconds || this.config.default_duration,
@@ -184,8 +185,9 @@ export class CameraImageGenerator extends BaseAgent<
 		const videos: VideoOutput[] = [];
 
 		for (let i = 0; i < images.length; i++) {
+			const sourceImage = images[i].image_url ?? images[i].image_path;
 			const video = await this._videoAdapter!.generate(
-				images[i].image_path,
+				sourceImage,
 				prompts[i],
 				{ duration: durs[i] }
 			);

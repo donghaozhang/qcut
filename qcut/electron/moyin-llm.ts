@@ -64,6 +64,8 @@ export function resolveLlmProvider(modelAlias?: string): {
 	switch (modelAlias) {
 		case "gmi-glm-5.1":
 			return { provider: "gmi-llm", model: "zai-org/GLM-5.1-FP8" };
+		case "gmi-gemini-3.5-flash":
+			return { provider: "gmi-llm", model: "google/gemini-3.5-flash" };
 		case "gmi-gemini-3.1-flash-lite":
 			return {
 				provider: "gmi-llm",

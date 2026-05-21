@@ -21,7 +21,16 @@ import {
 	type AdapterConfig,
 	createAdapterConfig,
 } from "./base-adapter.js";
-import { callModelApi, downloadOutput } from "../../infra/api-caller.js";
+import {
+	callModelApi,
+	downloadOutput,
+	envApiKeyProvider,
+} from "../../infra/api-caller.js";
+import {
+	channelFor,
+	ensureGroup,
+	uploadAsset,
+} from "../../infra/imarouter-assets.js";
 import { ModelRegistry } from "../../infra/registry.js";
 import type { VideoOutput, ImageOutput } from "../types/output.js";
 import { createVideoOutput } from "../types/output.js";
@@ -57,13 +66,17 @@ const LEGACY_MODEL_ALIASES: Record<string, string> = {
 	kling: "kling_2_1",
 };
 
+type VideoProviderBackend = "fal" | "gmi" | "imarouter";
+
 interface ResolvedModelSpec {
 	/** The canonical registry key (after alias resolution). */
 	canonicalKey: string;
 	/** Provider-specific endpoint path (e.g. "fal-ai/kling-video/v2.1/…"). */
 	endpoint: string;
 	/** Which backend `callModelApi` should use. */
-	providerBackend: "fal" | "gmi";
+	providerBackend: VideoProviderBackend;
+	/** Registry defaults required by providers like IMA Router. */
+	defaults: Record<string, unknown>;
 	/** Best-effort cost-per-second for the returned VideoOutput. */
 	costPerSecond: number;
 }
@@ -81,7 +94,8 @@ export function resolveVideoModelSpec(model: string): ResolvedModelSpec {
 	return {
 		canonicalKey,
 		endpoint: def.endpoint,
-		providerBackend: (def.providerBackend as "fal" | "gmi") ?? "fal",
+		providerBackend: (def.providerBackend as VideoProviderBackend) ?? "fal",
+		defaults: def.defaults ?? {},
 		costPerSecond: extractCostPerSecond(def.pricing),
 	};
 }
@@ -168,25 +182,43 @@ export async function callVideoApiWithRetry<
  *
  *   - FAL's image-to-video endpoints take `image_url` and accept remote
  *     URLs or data URIs directly.
- *   - GMI's endpoints take `image` and accept remote URLs or raw base64
- *     strings (no `data:…;base64,` prefix — matches the payload shape in
- *     `cli-handlers-element.ts` and `gmi-image-to-video.ts`).
+ *   - GMI's endpoints usually take `image`; Seedance I2V takes
+ *     `first_frame`. Both accept remote URLs or raw base64 strings.
  *
  * Local filesystem paths are read from disk and encoded accordingly.
  */
-export function buildImageField(
-	imagePath: string,
-	provider: "fal" | "gmi"
-): Record<string, string> {
+export function buildImageField({
+	imagePath,
+	provider,
+	modelKey = "",
+}: {
+	imagePath: string;
+	provider: VideoProviderBackend;
+	modelKey?: string;
+}): Record<string, unknown> {
 	const isRemote = /^https?:/i.test(imagePath);
 	const isDataUri = imagePath.startsWith("data:");
 
 	if (provider === "gmi") {
-		if (isRemote || isDataUri) {
-			return { image: imagePath };
+		const imageValue =
+			isRemote || isDataUri
+				? imagePath
+				: fs.readFileSync(imagePath).toString("base64");
+		if (isGmiSeedanceI2vModel({ modelKey })) {
+			return { first_frame: imageValue };
 		}
-		// Local file — encode to raw base64 (GMI's documented format).
-		return { image: fs.readFileSync(imagePath).toString("base64") };
+		return { image: imageValue };
+	}
+
+	if (provider === "imarouter") {
+		if (isRemote || isDataUri) {
+			return { images: [imagePath] };
+		}
+		const ext = path.extname(imagePath).slice(1).toLowerCase() || "png";
+		const buffer = fs.readFileSync(imagePath);
+		return {
+			images: [`data:image/${ext};base64,${buffer.toString("base64")}`],
+		};
 	}
 
 	// FAL path
@@ -200,6 +232,54 @@ export function buildImageField(
 	return {
 		image_url: `data:image/${ext};base64,${buffer.toString("base64")}`,
 	};
+}
+
+async function buildProviderImageField({
+	imagePath,
+	provider,
+	modelKey,
+}: {
+	imagePath: string;
+	provider: VideoProviderBackend;
+	modelKey: string;
+}): Promise<Record<string, unknown>> {
+	if (provider !== "imarouter") {
+		return buildImageField({ imagePath, provider, modelKey });
+	}
+
+	const isRemote = /^https?:/i.test(imagePath);
+	if (!isRemote) {
+		return buildImageField({ imagePath, provider, modelKey });
+	}
+
+	const apiKey = await envApiKeyProvider("imarouter");
+	if (!apiKey) {
+		throw new Error("IMAROUTER_API_KEY not configured");
+	}
+	const channel = channelFor(modelKey);
+	const groupId = await ensureGroup(channel, { apiKey });
+	const assetUrl = await uploadAsset(imagePath, channel, groupId, { apiKey });
+	return { images: [assetUrl] };
+}
+
+function isGmiSeedanceI2vModel({ modelKey }: { modelKey: string }): boolean {
+	return /^gmi_seedance_2_0(?:_fast)?_260128_i2v$/.test(modelKey);
+}
+
+function buildDurationField({
+	duration,
+	spec,
+}: {
+	duration: number;
+	spec: ResolvedModelSpec;
+}): string | number {
+	if (
+		spec.providerBackend === "gmi" &&
+		isGmiSeedanceI2vModel({ modelKey: spec.canonicalKey })
+	) {
+		return Math.round(duration);
+	}
+	return String(Math.round(duration));
 }
 
 /**
@@ -230,6 +310,7 @@ export class VideoGeneratorAdapter extends BaseAdapter<
 	declare config: VideoAdapterConfig;
 	private _hasFalKey = false;
 	private _hasGmiKey = false;
+	private _hasImaRouterKey = false;
 
 	constructor(config?: Partial<VideoAdapterConfig>) {
 		super(createVideoAdapterConfig(config));
@@ -250,17 +331,20 @@ export class VideoGeneratorAdapter extends BaseAdapter<
 	async initialize(): Promise<boolean> {
 		this._hasFalKey = Boolean(process.env.FAL_KEY ?? process.env.FAL_API_KEY);
 		this._hasGmiKey = Boolean(process.env.GMI_API_KEY);
-		if (!this._hasFalKey && !this._hasGmiKey) {
+		this._hasImaRouterKey = Boolean(process.env.IMAROUTER_API_KEY);
+		if (!this._hasFalKey && !this._hasGmiKey && !this._hasImaRouterKey) {
 			console.warn(
-				"[vimax.video] No FAL_KEY or GMI_API_KEY set — using mock mode"
+				"[vimax.video] No FAL_KEY/GMI_API_KEY/IMAROUTER_API_KEY set — using mock mode"
 			);
 		}
 		return true;
 	}
 
 	/** True if the adapter can make a real call for the given provider. */
-	private _hasKeyFor(provider: "fal" | "gmi"): boolean {
-		return provider === "gmi" ? this._hasGmiKey : this._hasFalKey;
+	private _hasKeyFor(provider: VideoProviderBackend): boolean {
+		if (provider === "gmi") return this._hasGmiKey;
+		if (provider === "imarouter") return this._hasImaRouterKey;
+		return this._hasFalKey;
 	}
 
 	async execute(input: Record<string, unknown>): Promise<VideoOutput> {
@@ -309,16 +393,18 @@ export class VideoGeneratorAdapter extends BaseAdapter<
 		}
 
 		const startTime = Date.now();
-		// Provider-specific payload shape — FAL expects `image_url` with
-		// either a remote URL or a data URI, while GMI expects `image` with
-		// a raw base64 string (no `data:…` prefix). Matches the working
-		// payloads used elsewhere in the codebase (gmi-image-to-video.ts /
-		// cli-handlers-element.ts).
-		const imageField = buildImageField(imagePath, spec.providerBackend);
+		// Provider-specific image field; Seedance I2V is the odd GMI model
+		// that requires `first_frame` instead of the generic `image`.
+		const imageField = await buildProviderImageField({
+			imagePath,
+			provider: spec.providerBackend,
+			modelKey: spec.canonicalKey,
+		});
 		const payload: Record<string, unknown> = {
+			...spec.defaults,
 			prompt,
 			...imageField,
-			duration: String(Math.round(duration)),
+			duration: buildDurationField({ duration, spec }),
 		};
 
 		// Wrap the call in a retry loop — GMI's upstream video providers
@@ -331,6 +417,11 @@ export class VideoGeneratorAdapter extends BaseAdapter<
 				payload,
 				provider: spec.providerBackend,
 				modelKey: spec.canonicalKey,
+				onProgress: (percent, message) => {
+					console.log(
+						`[vimax.video] ${spec.canonicalKey}: ${percent}% ${message}`
+					);
+				},
 			})
 		);
 

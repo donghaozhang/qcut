@@ -1,0 +1,21 @@
+export const DEFAULT_DAYTONA_IMAGE =
+	"ghcr.io/quriosity-agent/qcut-cli@sha256:48aa813162bf7a4b20d38ec694ccc0e1ffc9b61dcdc8c9e1447749d77b500923";
+export const IMAGE_TAG = process.env.QCUT_IMAGE_TAG ?? DEFAULT_DAYTONA_IMAGE;
+export const TIMEOUT_SECONDS = 30 * 60;
+export const DAYTONA_CREATE_TIMEOUT_SECONDS = 300;
+export const DAYTONA_OUTPUT_DIR = "/tmp/qcut-output";
+export const OUTPUT_ARCHIVE = "/tmp/qcut-output.tar";
+export const QCUT_ENV_FILE = "/tmp/qcut-agent-env";
+export const ARCHIVE_COMMAND = `tar --exclude='.qcut-agent-*' -C ${DAYTONA_OUTPUT_DIR} -cf ${OUTPUT_ARCHIVE} .`;
+export const QCUT_STDOUT_FILE = "qcut-stdout.txt";
+export const QCUT_STDERR_FILE = "qcut-stderr.txt";
+export const QCUT_EXIT_FILE = "qcut-exit.json";
+export const AGENT_DONE_FILE = ".qcut-agent-done";
+export const AGENT_PID_FILE = ".qcut-agent-pid";
+export const WRAPPER_STDOUT_FILE = ".qcut-agent-wrapper-stdout";
+export const WRAPPER_STDERR_FILE = ".qcut-agent-wrapper-stderr";
+export const CODEX_LIVE_STDOUT_FILE = "codex-live-stdout.log";
+export const STREAM_POLL_MS = 2000;
+export const SESSION_SANDBOX_AUTO_STOP_MINUTES = 120;
+export const DEFAULT_AGENT_SESSION_IDLE_MS = 20 * 60 * 1000;
+export const AGENT_SESSION_CLEANUP_LIMIT = 20;
