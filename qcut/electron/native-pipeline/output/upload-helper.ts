@@ -118,6 +118,17 @@ function getFalApiKey(): string | undefined {
 	return process.env.FAL_KEY || process.env.FAL_API_KEY || undefined;
 }
 
+async function getUploadAuthToken({
+	authToken,
+}: {
+	authToken?: string;
+}): Promise<string> {
+	if (authToken !== undefined) return authToken.trim();
+	const sessionToken = (await getSessionToken()).trim();
+	if (sessionToken) return sessionToken;
+	return process.env.QCUT_AUTH_TOKEN?.trim() ?? "";
+}
+
 /**
  * Vend a signed upload URL via the license-server proxy.
  *
@@ -259,7 +270,7 @@ export async function uploadFileForReference(
 	const fileName = path.basename(filePath);
 	const contentType = options.contentType ?? inferContentType(filePath);
 
-	const authToken = options.authToken ?? (await getSessionToken());
+	const authToken = await getUploadAuthToken({ authToken: options.authToken });
 	const falKey = getFalApiKey();
 
 	// ── Step 1: vend signed URL (proxy preferred, direct FAL fallback) ──

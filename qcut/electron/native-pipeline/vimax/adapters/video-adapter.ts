@@ -32,6 +32,7 @@ import {
 	uploadAsset,
 } from "../../infra/imarouter-assets.js";
 import { ModelRegistry } from "../../infra/registry.js";
+import { uploadFileForReference } from "../../output/upload-helper.js";
 import type { VideoOutput, ImageOutput } from "../types/output.js";
 import { createVideoOutput } from "../types/output.js";
 
@@ -67,6 +68,14 @@ const LEGACY_MODEL_ALIASES: Record<string, string> = {
 };
 
 type VideoProviderBackend = "fal" | "gmi" | "imarouter";
+
+export interface VideoGenerateOptions {
+	model?: string;
+	duration?: number;
+	output_path?: string;
+	reference_images?: string[];
+	include_source_image?: boolean;
+}
 
 interface ResolvedModelSpec {
 	/** The canonical registry key (after alias resolution). */
@@ -234,22 +243,102 @@ export function buildImageField({
 	};
 }
 
+function isRemoteImageRef(imagePath: string): boolean {
+	return /^https?:/i.test(imagePath);
+}
+
+function isDataUriImageRef(imagePath: string): boolean {
+	return imagePath.startsWith("data:");
+}
+
+function isAssetImageRef(imagePath: string): boolean {
+	return imagePath.startsWith("asset://");
+}
+
+function uniqueImageRefs(imageRefs: string[]): string[] {
+	const seen = new Set<string>();
+	const unique: string[] = [];
+	for (const imageRef of imageRefs) {
+		const trimmed = imageRef.trim();
+		if (!trimmed || seen.has(trimmed)) continue;
+		seen.add(trimmed);
+		unique.push(trimmed);
+	}
+	return unique;
+}
+
+async function resolveImaRouterAssetRef({
+	imagePath,
+	modelKey,
+	apiKey,
+	groupId,
+}: {
+	imagePath: string;
+	modelKey: string;
+	apiKey: string;
+	groupId: string;
+}): Promise<string> {
+	if (isAssetImageRef(imagePath) || isDataUriImageRef(imagePath)) {
+		return imagePath;
+	}
+	const channel = channelFor(modelKey);
+	const imageUrl = isRemoteImageRef(imagePath)
+		? imagePath
+		: (await uploadFileForReference({ filePath: imagePath })).url;
+	return uploadAsset(imageUrl, channel, groupId, { apiKey });
+}
+
+async function resolveFetchableImageRef(imagePath: string): Promise<string> {
+	if (
+		isRemoteImageRef(imagePath) ||
+		isDataUriImageRef(imagePath) ||
+		isAssetImageRef(imagePath)
+	) {
+		return imagePath;
+	}
+	return (await uploadFileForReference({ filePath: imagePath })).url;
+}
+
 async function buildProviderImageField({
 	imagePath,
 	provider,
 	modelKey,
+	referenceImages = [],
+	includeSourceImage = true,
 }: {
 	imagePath: string;
 	provider: VideoProviderBackend;
 	modelKey: string;
+	referenceImages?: string[];
+	includeSourceImage?: boolean;
 }): Promise<Record<string, unknown>> {
+	const imageRefs = uniqueImageRefs([
+		...(includeSourceImage ? [imagePath] : []),
+		...referenceImages,
+	]).slice(0, 14);
+
+	if (provider === "gmi" && isGmiSeedanceRef2vModel({ modelKey })) {
+		const resolvedRefs: string[] = [];
+		for (const imageRef of imageRefs) {
+			resolvedRefs.push(await resolveFetchableImageRef(imageRef));
+		}
+		return { reference_images: resolvedRefs };
+	}
+
+	if (provider === "fal" && isFalSeedanceRef2vModel({ modelKey })) {
+		const resolvedRefs: string[] = [];
+		for (const imageRef of imageRefs.slice(0, 9)) {
+			resolvedRefs.push(await resolveFetchableImageRef(imageRef));
+		}
+		return { image_urls: resolvedRefs };
+	}
+
 	if (provider !== "imarouter") {
 		return buildImageField({ imagePath, provider, modelKey });
 	}
 
-	const isRemote = /^https?:/i.test(imagePath);
-	if (!isRemote) {
-		return buildImageField({ imagePath, provider, modelKey });
+	if (imageRefs.length === 0) {
+		throw new Error("IMA Router video generation requires at least one image");
 	}
 
 	const apiKey = await envApiKeyProvider("imarouter");
@@ -258,12 +347,29 @@ async function buildProviderImageField({
 	}
 	const channel = channelFor(modelKey);
 	const groupId = await ensureGroup(channel, { apiKey });
-	const assetUrl = await uploadAsset(imagePath, channel, groupId, { apiKey });
-	return { images: [assetUrl] };
+	const images: string[] = [];
+	for (const imageRef of imageRefs) {
+		const assetRef = await resolveImaRouterAssetRef({
+			imagePath: imageRef,
+			modelKey,
+			apiKey,
+			groupId,
+		});
+		images.push(assetRef);
+	}
+	return { images };
 }
 
 function isGmiSeedanceI2vModel({ modelKey }: { modelKey: string }): boolean {
 	return /^gmi_seedance_2_0(?:_fast)?_260128_i2v$/.test(modelKey);
+}
+
+function isGmiSeedanceRef2vModel({ modelKey }: { modelKey: string }): boolean {
+	return /^gmi_seedance_2_0(?:_fast)?_260128_ref2v$/.test(modelKey);
+}
+
+function isFalSeedanceRef2vModel({ modelKey }: { modelKey: string }): boolean {
+	return modelKey === "seedance_2_0_ref2v";
 }
 
 function buildDurationField({
@@ -364,11 +470,7 @@ export class VideoGeneratorAdapter extends BaseAdapter<
 	async generate(
 		imagePath: string,
 		prompt: string,
-		options?: {
-			model?: string;
-			duration?: number;
-			output_path?: string;
-		}
+		options?: VideoGenerateOptions
 	): Promise<VideoOutput> {
 		await this.ensureInitialized();
 
@@ -399,6 +501,8 @@ export class VideoGeneratorAdapter extends BaseAdapter<
 			imagePath,
 			provider: spec.providerBackend,
 			modelKey: spec.canonicalKey,
+			referenceImages: options?.reference_images,
+			includeSourceImage: options?.include_source_image,
 		});
 		const payload: Record<string, unknown> = {
 			...spec.defaults,
@@ -575,6 +679,8 @@ export async function generateVideo(
 		model?: string;
 		duration?: number;
 		output_path?: string;
+		reference_images?: string[];
+		include_source_image?: boolean;
 	}
 ): Promise<VideoOutput> {
 	const adapter = new VideoGeneratorAdapter({ model: options?.model });

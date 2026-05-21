@@ -1468,6 +1468,16 @@ const CORE_COMMANDS: Record<string, CommandDef> = {
 			f("--llm-model", "string", "LLM model"),
 			f("--image-model", "string", "Image generation model"),
 			f("--video-model", "string", "Video generation model"),
+			f(
+				"--video-reference-mode",
+				"string",
+				"Video inputs: storyboard, references, or storyboard+references"
+			),
+			f(
+				"--video-reference-images",
+				"string[]",
+				"Extra video reference images (repeatable)"
+			),
 		],
 		examples: [
 			"qcut-pipeline vimax:novel2movie --novel story.txt --max-scenes 10",

@@ -1,5 +1,6 @@
 import { describe, it, expect } from "vitest";
 import {
+	createNovel2MovieConfig,
 	filterScriptToClipShotKeys,
 	selectShortestClipShotKeys,
 	splitNovelText,
@@ -138,5 +139,14 @@ describe("novel2movie clip selection", () => {
 		expect(
 			secondChunk.scenes[0]?.shots.map((shot) => shot.duration_seconds)
 		).toEqual([2]);
+	});
+});
+
+describe("novel2movie defaults", () => {
+	it("uses Seedance Ref2V so default video generation can consume multiple references", () => {
+		const config = createNovel2MovieConfig();
+
+		expect(config.video_model).toBe("imarouter_seedance_2_0_ref2v");
+		expect(config.video_reference_mode).toBe("storyboard+references");
 	});
 });

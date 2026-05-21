@@ -20,9 +20,11 @@ import {
 	CharacterPortraitsGenerator,
 	StoryboardArtist,
 	CameraImageGenerator,
+	type VideoReferenceMode,
 	NovelSegmenter,
 	buildPromptDescriptions,
 } from "../agents/index.js";
+import { ImageGeneratorAdapter } from "../adapters/image-adapter.js";
 import { VideoGeneratorAdapter } from "../adapters/video-adapter.js";
 import type {
 	CharacterInNovel,
@@ -57,6 +59,12 @@ export interface Novel2MovieConfig {
 	max_scenes: number;
 	/** Cap the number of shot videos generated (0 = unlimited). */
 	max_clips: number;
+	/** Which images the video model should receive as references. */
+	video_reference_mode: VideoReferenceMode;
+	/** Extra video reference images supplied by the CLI/caller. */
+	video_reference_images: string[];
+	/** Hard cap for provider reference image lists. */
+	max_video_references: number;
 }
 
 /** Create a {@link Novel2MovieConfig} with sensible defaults. */
@@ -65,7 +73,7 @@ export function createNovel2MovieConfig(
 ): Novel2MovieConfig {
 	return {
 		output_dir: "media/generated/vimax/novel2movie",
-		video_model: "kling",
+		video_model: "imarouter_seedance_2_0_ref2v",
 		image_model: "gmi_gemini_3_pro_image",
 		llm_model: "google/gemini-3-flash-preview",
 		shot_duration: 15,
@@ -81,6 +89,9 @@ export function createNovel2MovieConfig(
 		max_images: 0,
 		max_scenes: 0,
 		max_clips: 0,
+		video_reference_mode: "storyboard+references",
+		video_reference_images: [],
+		max_video_references: 14,
 		...partial,
 	};
 }
@@ -413,12 +424,20 @@ export class Novel2MoviePipeline {
 
 		this.storyboard_artist = new StoryboardArtist({
 			image_model: this.config.image_model,
+			reference_model: ImageGeneratorAdapter.supportsReferenceImages(
+				this.config.image_model
+			)
+				? this.config.image_model
+				: "gpt_image_2_ima",
 			output_dir: `${base}/storyboard`,
 		});
 
 		this.camera_generator = new CameraImageGenerator({
 			video_model: this.config.video_model,
 			output_dir: `${base}/videos`,
+			video_reference_mode: this.config.video_reference_mode,
+			video_reference_images: this.config.video_reference_images,
+			max_video_references: this.config.max_video_references,
 		});
 	}
 
@@ -751,6 +770,10 @@ export class Novel2MoviePipeline {
 						storyboardCap
 					);
 					if (!storyboardResult.success || !storyboardResult.result) {
+						result.errors.push(
+							storyboardResult.error ??
+								`Storyboard generation failed for chunk ${i + 1}`
+						);
 						continue;
 					}
 					result.total_cost += (storyboardResult.metadata.cost as number) ?? 0;
@@ -761,8 +784,15 @@ export class Novel2MoviePipeline {
 					}
 
 					const videoResult = await this.camera_generator.process(
-						storyboardResult.result
+						storyboardResult.result,
+						result.portrait_registry
 					);
+					if (videoResult.result?.errors?.length) {
+						result.errors.push(...videoResult.result.errors);
+					}
+					if (!videoResult.success && videoResult.error) {
+						result.errors.push(videoResult.error);
+					}
 					if (videoResult.success && videoResult.result?.videos) {
 						allVideos.push(...videoResult.result.videos);
 						result.total_cost += (videoResult.metadata.cost as number) ?? 0;
@@ -806,7 +836,23 @@ export class Novel2MoviePipeline {
 				};
 			}
 
-			result.success = result.scripts.length > 0;
+			if (
+				!this.config.scripts_only &&
+				!this.config.storyboard_only &&
+				!imagesCapped &&
+				allVideos.length === 0 &&
+				result.errors.length === 0
+			) {
+				result.errors.push("No videos generated");
+			}
+
+			result.success =
+				result.scripts.length > 0 &&
+				result.errors.length === 0 &&
+				(this.config.scripts_only ||
+					this.config.storyboard_only ||
+					imagesCapped ||
+					allVideos.length > 0);
 			result.completed_at = new Date().toISOString();
 
 			if (this.config.save_intermediate) {

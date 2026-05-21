@@ -1434,6 +1434,12 @@ export function registerImageToVideoModels(): void {
 			resolution: "1080p",
 			aspect_ratio: "16:9",
 			role_mode: "reference",
+			metadata: {
+				audio: false,
+				resolution: "1080p",
+				aspect_ratio: "16:9",
+				role_mode: "reference",
+			},
 		},
 		features: [
 			"multi_reference",
@@ -1547,6 +1553,12 @@ export function registerImageToVideoModels(): void {
 			resolution: "1080p",
 			aspect_ratio: "16:9",
 			role_mode: "reference",
+			metadata: {
+				audio: false,
+				resolution: "1080p",
+				aspect_ratio: "16:9",
+				role_mode: "reference",
+			},
 		},
 		features: ["multi_reference", "native_audio"],
 		maxDuration: 15,

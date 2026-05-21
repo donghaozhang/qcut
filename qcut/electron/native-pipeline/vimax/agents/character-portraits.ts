@@ -220,11 +220,12 @@ export class CharacterPortraitsGenerator extends BaseAgent<
 
 				totalCost += result.cost;
 
-				if (view === "front") portrait.front_view = result.image_path;
-				else if (view === "side") portrait.side_view = result.image_path;
-				else if (view === "back") portrait.back_view = result.image_path;
+				const referenceImage = result.image_url ?? result.image_path;
+				if (view === "front") portrait.front_view = referenceImage;
+				else if (view === "side") portrait.side_view = referenceImage;
+				else if (view === "back") portrait.back_view = referenceImage;
 				else if (view === "three_quarter")
-					portrait.three_quarter_view = result.image_path;
+					portrait.three_quarter_view = referenceImage;
 			}
 
 			console.log(`[portraits] Generated portraits for ${character.name}`);

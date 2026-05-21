@@ -19,7 +19,12 @@ vi.mock("../../../infra/imarouter-assets.js", () => ({
 		groupIdKey: "groupIdOverseas",
 	})),
 	ensureGroup: vi.fn(async () => "asset-group-1"),
-	uploadAsset: vi.fn(async () => "asset://storyboard-asset-1"),
+	uploadAsset: vi.fn(async (url: string) => {
+		if (url.includes("storyboard")) return "asset://storyboard-asset-1";
+		if (url.includes("mara")) return "asset://mara-asset-1";
+		if (url.includes("jon")) return "asset://jon-asset-1";
+		return "asset://image-asset-1";
+	}),
 }));
 
 import { callModelApi } from "../../../infra/api-caller.js";
@@ -108,6 +113,41 @@ describe("VideoGeneratorAdapter — GMI Seedance I2V", () => {
 		).toEqual({ image: "https://cdn.example.com/frame.png" });
 	});
 
+	it("passes multiple images as GMI Seedance Ref2V references", async () => {
+		const adapter = new VideoGeneratorAdapter({
+			model: "gmi_seedance_2_0_fast_260128_ref2v",
+			output_dir: "/tmp/qcut-video",
+		});
+
+		await adapter.generate(
+			"https://cdn.example.com/storyboard.png",
+			"gentle handheld motion",
+			{
+				duration: 5,
+				output_path: "/tmp/qcut-video/gmi-ref2v.mp4",
+				reference_images: [
+					"https://cdn.example.com/mara.png",
+					"https://cdn.example.com/jon.png",
+				],
+			}
+		);
+
+		const call = mockedCallModelApi.mock.calls[0][0];
+		expect(call.provider).toBe("gmi");
+		expect(call.modelKey).toBe("gmi_seedance_2_0_fast_260128_ref2v");
+		expect(call.payload).toMatchObject({
+			prompt: "gentle handheld motion",
+			reference_images: [
+				"https://cdn.example.com/storyboard.png",
+				"https://cdn.example.com/mara.png",
+				"https://cdn.example.com/jon.png",
+			],
+			duration: "5",
+		});
+		expect(call.payload).not.toHaveProperty("image");
+		expect(call.payload).not.toHaveProperty("first_frame");
+	});
+
 	it("resolves IMA Router video models without falling back to FAL", () => {
 		expect(
 			resolveVideoModelSpec("imarouter_seedance_2_0_fast_i2v").providerBackend
@@ -146,5 +186,77 @@ describe("VideoGeneratorAdapter — GMI Seedance I2V", () => {
 			aspect_ratio: "16:9",
 			role_mode: "frame",
 		});
+	});
+
+	it("passes storyboard plus multiple references to IMA Router Ref2V", async () => {
+		const adapter = new VideoGeneratorAdapter({
+			model: "imarouter_seedance_2_0_ref2v",
+			output_dir: "/tmp/qcut-video",
+		});
+
+		await adapter.generate(
+			"https://cdn.example.com/storyboard.png",
+			"slow push toward the table",
+			{
+				duration: 5,
+				output_path: "/tmp/qcut-video/ref2v.mp4",
+				reference_images: [
+					"https://cdn.example.com/mara.png",
+					"https://cdn.example.com/jon.png",
+				],
+			}
+		);
+
+		const call = mockedCallModelApi.mock.calls[0][0];
+		expect(mockedEnsureGroup.mock.calls).toHaveLength(1);
+		expect(mockedUploadAsset.mock.calls.map((args) => args[0])).toEqual([
+			"https://cdn.example.com/storyboard.png",
+			"https://cdn.example.com/mara.png",
+			"https://cdn.example.com/jon.png",
+		]);
+		expect(call.payload).toMatchObject({
+			model: "seedance-2.0",
+			prompt: "slow push toward the table",
+			images: [
+				"asset://storyboard-asset-1",
+				"asset://mara-asset-1",
+				"asset://jon-asset-1",
+			],
+			duration: "5",
+			resolution: "1080p",
+			aspect_ratio: "16:9",
+			role_mode: "reference",
+		});
+	});
+
+	it("can send only reference images when source storyboard is disabled", async () => {
+		const adapter = new VideoGeneratorAdapter({
+			model: "imarouter_seedance_2_0_ref2v",
+			output_dir: "/tmp/qcut-video",
+		});
+
+		await adapter.generate(
+			"https://cdn.example.com/storyboard.png",
+			"animate the two characters talking",
+			{
+				duration: 5,
+				output_path: "/tmp/qcut-video/ref-only.mp4",
+				include_source_image: false,
+				reference_images: [
+					"https://cdn.example.com/mara.png",
+					"https://cdn.example.com/jon.png",
+				],
+			}
+		);
+
+		const call = mockedCallModelApi.mock.calls[0][0];
+		expect(mockedUploadAsset.mock.calls.map((args) => args[0])).toEqual([
+			"https://cdn.example.com/mara.png",
+			"https://cdn.example.com/jon.png",
+		]);
+		expect(call.payload.images).toEqual([
+			"asset://mara-asset-1",
+			"asset://jon-asset-1",
+		]);
 	});
 });

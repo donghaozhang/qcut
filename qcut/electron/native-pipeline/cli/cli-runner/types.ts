@@ -93,6 +93,8 @@ export interface CLIRunOptions {
 	llmModel?: string;
 	imageModel?: string;
 	videoModel?: string;
+	videoReferenceMode?: string;
+	videoReferenceImages?: string[];
 	image?: string;
 	stream?: boolean;
 	configDir?: string;
