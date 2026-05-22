@@ -16,7 +16,7 @@ import {
 import { PipelineExecutor } from "../execution/executor.js";
 import type { PipelineStep } from "../execution/executor.js";
 
-const DEFAULT_MODEL = "fal_video_qa";
+const DEFAULT_MODEL = "openrouter_gemini_3_5_flash_video";
 
 export interface AnalyzerOptions {
 	model?: string;

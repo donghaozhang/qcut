@@ -17,6 +17,8 @@ import type { PipelineExecutor } from "../execution/executor.js";
 import { resolveOutputDir } from "../output/output-utils.js";
 import { createEditorClient } from "../editor/editor-api-client.js";
 
+const DEFAULT_VIDEO_ANALYSIS_MODEL = "openrouter_gemini_3_5_flash_video";
+
 function isUrl(input: string): boolean {
 	return /^https?:\/\//i.test(input);
 }
@@ -70,7 +72,7 @@ export async function handleAnalyzeVideo(
 		return { success: false, error: "Missing --input/-i (video path/URL)" };
 	}
 
-	const model = options.model || "fal_video_qa";
+	const model = options.model || DEFAULT_VIDEO_ANALYSIS_MODEL;
 	if (!ModelRegistry.has(model)) {
 		return { success: false, error: `Unknown model '${model}'` };
 	}
@@ -350,7 +352,7 @@ export async function handleQueryVideo(
 		};
 	}
 
-	const model = options.model || "fal_video_qa";
+	const model = options.model || DEFAULT_VIDEO_ANALYSIS_MODEL;
 	if (!ModelRegistry.has(model)) {
 		return { success: false, error: `Unknown model '${model}'` };
 	}

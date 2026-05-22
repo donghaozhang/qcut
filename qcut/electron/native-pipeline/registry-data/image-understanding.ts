@@ -10,6 +10,7 @@ export function registerImageUnderstandingModels(): void {
 		key: "gemini_describe",
 		name: "Gemini Describe",
 		provider: "Google",
+		providerBackend: "google",
 		endpoint: "google/gemini/describe",
 		categories: ["image_understanding"],
 		description: "Basic image description",
@@ -24,6 +25,7 @@ export function registerImageUnderstandingModels(): void {
 		key: "gemini_detailed",
 		name: "Gemini Detailed",
 		provider: "Google",
+		providerBackend: "google",
 		endpoint: "google/gemini/detailed",
 		categories: ["image_understanding"],
 		description: "Detailed image analysis",
@@ -38,6 +40,7 @@ export function registerImageUnderstandingModels(): void {
 		key: "gemini_classify",
 		name: "Gemini Classify",
 		provider: "Google",
+		providerBackend: "google",
 		endpoint: "google/gemini/classify",
 		categories: ["image_understanding"],
 		description: "Image classification and categorization",
@@ -52,6 +55,7 @@ export function registerImageUnderstandingModels(): void {
 		key: "gemini_objects",
 		name: "Gemini Objects",
 		provider: "Google",
+		providerBackend: "google",
 		endpoint: "google/gemini/objects",
 		categories: ["image_understanding"],
 		description: "Object detection and identification",
@@ -66,6 +70,7 @@ export function registerImageUnderstandingModels(): void {
 		key: "gemini_ocr",
 		name: "Gemini OCR",
 		provider: "Google",
+		providerBackend: "google",
 		endpoint: "google/gemini/ocr",
 		categories: ["image_understanding"],
 		description: "Text extraction (OCR)",
@@ -80,6 +85,7 @@ export function registerImageUnderstandingModels(): void {
 		key: "gemini_composition",
 		name: "Gemini Composition",
 		provider: "Google",
+		providerBackend: "google",
 		endpoint: "google/gemini/composition",
 		categories: ["image_understanding"],
 		description: "Artistic and technical composition analysis",
@@ -94,6 +100,7 @@ export function registerImageUnderstandingModels(): void {
 		key: "gemini_qa",
 		name: "Gemini Q&A",
 		provider: "Google",
+		providerBackend: "google",
 		endpoint: "google/gemini/qa",
 		categories: ["image_understanding"],
 		description: "Question and answer system for images",
@@ -102,6 +109,31 @@ export function registerImageUnderstandingModels(): void {
 		features: ["qa", "interactive"],
 		costEstimate: 0.001,
 		processingTime: 4,
+	});
+
+	ModelRegistry.register({
+		key: "openrouter_gemini_3_5_flash_video",
+		name: "OpenRouter Gemini 3.5 Flash Video",
+		provider: "OpenRouter",
+		providerBackend: "openrouter",
+		endpoint: "chat/completions",
+		categories: ["image_understanding"],
+		description:
+			"Video understanding via OpenRouter Gemini 3.5 Flash chat completions",
+		pricing: { per_request: 0.005 },
+		defaults: {
+			model: "google/gemini-3.5-flash",
+			max_tokens: 4096,
+		},
+		features: [
+			"qa",
+			"video_analysis",
+			"interactive",
+			"temporal_awareness",
+			"multimodal",
+		],
+		costEstimate: 0.005,
+		processingTime: 15,
 	});
 
 	ModelRegistry.register({
@@ -123,6 +155,7 @@ export function registerImageUnderstandingModels(): void {
 		key: "doubao_video_understanding",
 		name: "Doubao Video Understanding",
 		provider: "Volcengine",
+		providerBackend: "volcengine",
 		endpoint: "volcengine/chat/completions",
 		categories: ["image_understanding"],
 		description:
@@ -149,6 +182,7 @@ export function registerImageUnderstandingModels(): void {
 		key: "doubao_seed_2_pro",
 		name: "Doubao Seed 2.0 Pro",
 		provider: "Volcengine",
+		providerBackend: "volcengine",
 		endpoint: "volcengine/responses",
 		categories: ["image_understanding"],
 		description:
@@ -176,6 +210,7 @@ export function registerImageUnderstandingModels(): void {
 		key: "doubao_seed_2_lite",
 		name: "Doubao Seed 2.0 Lite",
 		provider: "Volcengine",
+		providerBackend: "volcengine",
 		endpoint: "volcengine/responses",
 		categories: ["image_understanding"],
 		description:

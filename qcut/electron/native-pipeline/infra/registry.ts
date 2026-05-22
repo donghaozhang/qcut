@@ -8,7 +8,16 @@
  */
 
 /** Supported provider backends for model execution. */
-export type ProviderBackend = "fal" | "gmi" | "imarouter" | "elevenlabs";
+export type ProviderBackend =
+	| "fal"
+	| "elevenlabs"
+	| "google"
+	| "openrouter"
+	| "volcengine"
+	| "gmi"
+	| "gmi-llm"
+	| "runway"
+	| "imarouter";
 
 export type ModelCategory =
 	| "text_to_image"
