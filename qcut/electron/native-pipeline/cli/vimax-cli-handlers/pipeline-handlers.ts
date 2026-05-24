@@ -18,6 +18,22 @@ type ProgressFn = (progress: {
 	model?: string;
 }) => void;
 
+function resolveVideoReferenceMode(
+	mode?: string
+): "storyboard" | "references" | "storyboard+references" | undefined {
+	if (!mode) return;
+	if (
+		mode === "storyboard" ||
+		mode === "references" ||
+		mode === "storyboard+references"
+	) {
+		return mode;
+	}
+	throw new Error(
+		`Invalid --video-reference-mode "${mode}". Use storyboard, references, or storyboard+references.`
+	);
+}
+
 /** vimax:idea2video — Full pipeline from idea to video. */
 export async function handleVimaxIdea2Video(
 	options: CLIRunOptions,
@@ -296,6 +312,20 @@ export async function handleVimaxNovel2Movie(
 			...(options.maxScenes != null ? { max_scenes: options.maxScenes } : {}),
 			...(options.maxClips != null ? { max_clips: options.maxClips } : {}),
 			...(resolvedStyle ? { visual_style: resolvedStyle } : {}),
+			...(options.videoReferenceMode
+				? {
+						video_reference_mode: resolveVideoReferenceMode(
+							options.videoReferenceMode
+						),
+					}
+				: {}),
+			...(options.videoReferenceImages
+				? { video_reference_images: options.videoReferenceImages }
+				: {}),
+			...(() => {
+				const vc = options.videoConcurrency ?? options.concurrency;
+				return vc !== undefined ? { video_concurrency: vc } : {};
+			})(),
 		};
 		if (options.videoModel) pipelineConfig.video_model = options.videoModel;
 		if (options.imageModel) pipelineConfig.image_model = options.imageModel;

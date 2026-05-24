@@ -7,6 +7,7 @@
  */
 
 import * as path from "path";
+import { readFileSync } from "node:fs";
 import type { ModelCategory, ModelDefinition } from "../infra/registry.js";
 import {
 	callElevenLabsSpeechToText,
@@ -104,6 +105,33 @@ function getProviderForEndpoint(endpoint: string): ProviderName {
 
 function isRemoteUrl(url: string): boolean {
 	return /^https?:\/\//i.test(url);
+}
+
+function getMediaMimeType({ input }: { input: string }): string {
+	switch (path.extname(input).toLowerCase()) {
+		case ".mov":
+			return "video/quicktime";
+		case ".webm":
+			return "video/webm";
+		case ".mpeg":
+		case ".mpg":
+			return "video/mpeg";
+		case ".png":
+			return "image/png";
+		case ".jpg":
+		case ".jpeg":
+			return "image/jpeg";
+		case ".webp":
+			return "image/webp";
+		default:
+			return "video/mp4";
+	}
+}
+
+function toOpenRouterMediaUrl({ input }: { input: string }): string {
+	if (isRemoteUrl(input) || input.startsWith("data:")) return input;
+	const media = readFileSync(input);
+	return `data:${getMediaMimeType({ input })};base64,${media.toString("base64")}`;
 }
 
 function collectReferenceImages({
@@ -999,6 +1027,10 @@ async function executeImageUnderstanding(
 		signal?: AbortSignal;
 	}
 ): Promise<StepOutput> {
+	if (provider === "openrouter") {
+		return executeOpenRouterMediaUnderstanding(model, input, payload, options);
+	}
+
 	// Volcengine Ark uses OpenAI-compatible Chat Completions format
 	if (provider === "volcengine") {
 		return executeVolcengineVideoUnderstanding(model, input, payload, options);
@@ -1032,6 +1064,82 @@ async function executeImageUnderstanding(
 		onProgress: options.onProgress,
 		signal: options.signal,
 	});
+	if (result.success) {
+		const text = extractTextFromResult(result.data);
+		return {
+			success: true,
+			text,
+			data: result.data,
+			duration: result.duration,
+		};
+	}
+	return { success: false, error: result.error, duration: result.duration };
+}
+
+async function executeOpenRouterMediaUnderstanding(
+	model: ModelDefinition,
+	input: StepInput,
+	payload: Record<string, unknown>,
+	options: {
+		outputDir?: string;
+		onProgress?: (p: number, m: string) => void;
+		signal?: AbortSignal;
+	}
+): Promise<StepOutput> {
+	const mediaInput = input.videoUrl || input.imageUrl;
+	if (!mediaInput) {
+		return {
+			success: false,
+			error: "OpenRouter understanding requires a video or image URL",
+			duration: 0,
+		};
+	}
+
+	let mediaUrl: string;
+	try {
+		mediaUrl = toOpenRouterMediaUrl({ input: mediaInput });
+	} catch (error) {
+		return {
+			success: false,
+			error: `Failed to read media for OpenRouter: ${error instanceof Error ? error.message : String(error)}`,
+			duration: 0,
+		};
+	}
+
+	const prompt = (payload.prompt as string) || "Describe this media in detail";
+	const content =
+		input.videoUrl !== undefined
+			? [
+					{ type: "text", text: prompt },
+					{ type: "video_url", video_url: { url: mediaUrl } },
+				]
+			: [
+					{ type: "text", text: prompt },
+					{ type: "image_url", image_url: { url: mediaUrl } },
+				];
+	const apiPayload: Record<string, unknown> = {
+		model: payload.model || model.defaults.model,
+		messages: [{ role: "user", content }],
+		stream: false,
+	};
+
+	if (payload.max_tokens !== undefined) {
+		apiPayload.max_tokens = payload.max_tokens;
+	}
+	if (payload.temperature !== undefined) {
+		apiPayload.temperature = payload.temperature;
+	}
+
+	const result = await callModelApi({
+		endpoint: model.endpoint,
+		modelKey: model.key,
+		payload: apiPayload,
+		provider: "openrouter",
+		async: false,
+		onProgress: options.onProgress,
+		signal: options.signal,
+	});
+
 	if (result.success) {
 		const text = extractTextFromResult(result.data);
 		return {

@@ -27,7 +27,7 @@ interface OutlineOptions {
 	signal?: AbortSignal;
 }
 
-const DEFAULT_MODEL = "google/gemini-3-flash-preview";
+const DEFAULT_MODEL = "google/gemini-3.5-flash";
 
 /**
  * Parse the LLM outline response into structured topics.

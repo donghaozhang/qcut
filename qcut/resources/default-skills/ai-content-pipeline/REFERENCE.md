@@ -339,7 +339,7 @@ QCut's Claude HTTP server (port 8765) exposes video analysis endpoints that acce
 
 | Type | Description | Provider |
 |------|-------------|----------|
-| `timeline` (default) | Detailed second-by-second breakdown | FAL (Gemini via OpenRouter) |
+| `timeline` (default) | Detailed second-by-second breakdown | OpenRouter Gemini 3.5 Flash |
 | `describe` | Video description and summary | Gemini direct |
 | `transcribe` | Audio transcription with timestamps | Gemini direct |
 
@@ -347,7 +347,8 @@ QCut's Claude HTTP server (port 8765) exposes video analysis endpoints that acce
 
 | Key | Provider | Model ID | Notes |
 |-----|----------|----------|-------|
-| `gemini-2.5-flash` (default) | FAL | `google/gemini-2.5-flash` | Fast, cost-effective |
+| `openrouter_gemini_3_5_flash_video` (default) | OpenRouter | `google/gemini-3.5-flash` | Fast multimodal video analysis |
+| `gemini-2.5-flash` | FAL | `google/gemini-2.5-flash` | Legacy FAL route |
 | `gemini-2.5-pro` | FAL | `google/gemini-2.5-pro` | Higher quality |
 | `gemini-3-pro` | FAL | `google/gemini-3-pro-preview` | Highest quality |
 | `gemini-direct` | Gemini | `gemini-2.0-flash-exp` | Requires GEMINI_API_KEY |

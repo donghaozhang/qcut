@@ -115,7 +115,7 @@ Analyze a video with AI vision.
 |------|-------|------|---------|-------------|
 | `--input` | `-i` | string | | Video file or URL (required) |
 | `--video-url` | | string | | Alias for input |
-| `--model` | `-m` | string | `gemini_qa` | Vision model |
+| `--model` | `-m` | string | `openrouter_gemini_3_5_flash_video` | Vision model |
 | `--analysis-type` | | string | `timeline` | `timeline`, `summary`, `description`, `transcript` |
 | `--prompt` | | string | | Custom prompt (overrides analysis-type) |
 | `--text` | `-t` | string | | Alias for prompt |
@@ -162,7 +162,7 @@ Extract highlight clips from a video using subtitle-based LLM analysis. Runs a 4
 | `--input` | `-i` | string | | Input video file path (required) |
 | `--srt-file` | `-s` | string | | SRT/VTT subtitle file (auto-detects if omitted) |
 | `--output` | `-o` | string | | Output directory for clips and metadata |
-| `--model` | `-m` | string | `google/gemini-3-flash-preview` | LLM model for analysis |
+| `--model` | `-m` | string | `google/gemini-3.5-flash` | LLM model for analysis |
 | `--min-score` | | number | `0.7` | Minimum score threshold 0–1 |
 | `--step` | | number | | Run only a specific step (1–4) |
 | `--chunk-minutes` | | number | `30` | Subtitle chunk interval in minutes |

@@ -184,6 +184,9 @@ export function parseCliArgs(argv: string[]): CLIRunOptions {
 			"llm-model": { type: "string" },
 			"image-model": { type: "string" },
 			"video-model": { type: "string" },
+			"video-reference-mode": { type: "string" },
+			"video-reference-images": { type: "string", multiple: true },
+			"video-concurrency": { type: "string" },
 			image: { type: "string" },
 			stream: { type: "boolean", default: false },
 			"config-dir": { type: "string" },
@@ -510,6 +513,15 @@ export function parseCliArgs(argv: string[]): CLIRunOptions {
 		llmModel: values["llm-model"] as string | undefined,
 		imageModel: values["image-model"] as string | undefined,
 		videoModel: values["video-model"] as string | undefined,
+		videoReferenceMode: values["video-reference-mode"] as string | undefined,
+		videoReferenceImages: values["video-reference-images"] as
+			| string[]
+			| undefined,
+		videoConcurrency: values["video-concurrency"]
+			? Number.isNaN(parseInt(values["video-concurrency"] as string, 10))
+				? undefined
+				: parseInt(values["video-concurrency"] as string, 10)
+			: undefined,
 		image: values.image as string | undefined,
 		stream: (values.stream as boolean) ?? false,
 		configDir: values["config-dir"] as string | undefined,

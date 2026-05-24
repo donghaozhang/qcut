@@ -553,7 +553,7 @@ const CORE_COMMANDS: Record<string, CommandDef> = {
 			}),
 			f("--model", "string", "Model key", {
 				short: "-m",
-				default: "fal_video_qa",
+				default: "openrouter_gemini_3_5_flash_video",
 			}),
 			f("--analysis-type", "string", "Analysis type", {
 				enum: ["timeline", "summary", "description", "transcript"],
@@ -575,7 +575,10 @@ const CORE_COMMANDS: Record<string, CommandDef> = {
 			}),
 			f("--prompt", "string", "Custom query prompt"),
 			f("--text", "string", "Query text (alias)", { short: "-t" }),
-			f("--model", "string", "Model key", { short: "-m" }),
+			f("--model", "string", "Model key", {
+				short: "-m",
+				default: "openrouter_gemini_3_5_flash_video",
+			}),
 		],
 		examples: [
 			"qcut-pipeline query-video -i video.mp4 --prompt 'Find all action scenes'",
@@ -631,14 +634,10 @@ const CORE_COMMANDS: Record<string, CommandDef> = {
 				}
 			),
 			f("--output", "string", "Output directory", { short: "-o" }),
-			f(
-				"--model",
-				"string",
-				"LLM model (default: google/gemini-3-flash-preview)",
-				{
-					short: "-m",
-				}
-			),
+			f("--model", "string", "LLM model (default: google/gemini-3.5-flash)", {
+				short: "-m",
+				default: "google/gemini-3.5-flash",
+			}),
 			f("--min-score", "number", "Minimum score threshold 0-1 (default: 0.7)"),
 			f("--step", "number", "Run only a specific step (1-4)"),
 			f(
@@ -1468,12 +1467,28 @@ const CORE_COMMANDS: Record<string, CommandDef> = {
 			f("--llm-model", "string", "LLM model"),
 			f("--image-model", "string", "Image generation model"),
 			f("--video-model", "string", "Video generation model"),
+			f(
+				"--video-concurrency",
+				"number",
+				"Parallel video clips in flight (default 1, max 6)"
+			),
+			f(
+				"--video-reference-mode",
+				"string",
+				"Video inputs: storyboard, references, or storyboard+references"
+			),
+			f(
+				"--video-reference-images",
+				"string[]",
+				"Extra video reference images (repeatable)"
+			),
 		],
 		examples: [
 			"qcut-pipeline vimax:novel2movie --novel story.txt --max-scenes 10",
 			"qcut-pipeline vimax:novel2movie --scripts-only",
 			"qcut-pipeline vimax:novel2movie --max-images 5",
 			"qcut-pipeline vimax:novel2movie --max-scenes 20 --max-clips 5",
+			"qcut-pipeline vimax:novel2movie --max-clips 2 --video-concurrency 2",
 		],
 	},
 	"vimax:novel2script": {
