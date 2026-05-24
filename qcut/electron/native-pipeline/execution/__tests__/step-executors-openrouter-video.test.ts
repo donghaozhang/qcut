@@ -70,7 +70,7 @@ describe("executeImageUnderstanding — OpenRouter video", () => {
 		expect(content[0]).toEqual({ type: "text", text: "Describe the clip" });
 		expect(content[1]).toEqual({
 			type: "video_url",
-			videoUrl: { url: "https://example.com/clip.mp4" },
+			video_url: { url: "https://example.com/clip.mp4" },
 		});
 	});
 
@@ -91,7 +91,7 @@ describe("executeImageUnderstanding — OpenRouter video", () => {
 		const content = getContentItems({ payload: call.payload });
 		expect(content[1]).toEqual({
 			type: "video_url",
-			videoUrl: { url: "data:video/mp4;base64,ZmFrZS12aWRlbw==" },
+			video_url: { url: "data:video/mp4;base64,ZmFrZS12aWRlbw==" },
 		});
 	});
 });

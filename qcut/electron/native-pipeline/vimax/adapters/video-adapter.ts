@@ -318,6 +318,11 @@ async function buildProviderImageField({
 	]).slice(0, 14);
 
 	if (provider === "gmi" && isGmiSeedanceRef2vModel({ modelKey })) {
+		if (imageRefs.length === 0) {
+			throw new Error(
+				"GMI Seedance Ref2V requires at least one reference image"
+			);
+		}
 		const resolvedRefs = await Promise.all(
 			imageRefs.map((imageRef) => resolveFetchableImageRef(imageRef))
 		);
@@ -325,6 +330,11 @@ async function buildProviderImageField({
 	}
 
 	if (provider === "fal" && isFalSeedanceRef2vModel({ modelKey })) {
+		if (imageRefs.length === 0) {
+			throw new Error(
+				"FAL Seedance Ref2V requires at least one reference image"
+			);
+		}
 		const resolvedRefs = await Promise.all(
 			imageRefs
 				.slice(0, 9)

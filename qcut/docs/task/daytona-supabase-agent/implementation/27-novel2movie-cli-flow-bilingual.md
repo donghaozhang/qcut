@@ -362,7 +362,7 @@ Typical output files:
 常见输出文件：
 
 - `characters.json`: extracted character profiles / 抽取出来的人物信息
-- `portrait_registry.json`: portrait reference registry / 人物图 reference 注册表
+- `portraits/registry.json`: portrait reference registry / 人物图 reference 注册表
 - `portraits/<character>/front.png`: generated portrait image / 角色正面图
 - `scripts/chunk_*.json`: screenplay chunks / 影视脚本分块
 - `storyboard/.../*.png`: storyboard images / 分镜图片

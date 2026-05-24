@@ -1111,7 +1111,7 @@ async function executeOpenRouterMediaUnderstanding(
 		input.videoUrl !== undefined
 			? [
 					{ type: "text", text: prompt },
-					{ type: "video_url", videoUrl: { url: mediaUrl } },
+					{ type: "video_url", video_url: { url: mediaUrl } },
 				]
 			: [
 					{ type: "text", text: prompt },

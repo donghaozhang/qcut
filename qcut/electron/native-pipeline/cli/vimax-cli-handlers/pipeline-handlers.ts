@@ -322,9 +322,10 @@ export async function handleVimaxNovel2Movie(
 			...(options.videoReferenceImages
 				? { video_reference_images: options.videoReferenceImages }
 				: {}),
-			...((options.videoConcurrency ?? options.concurrency)
-				? { video_concurrency: options.videoConcurrency ?? options.concurrency }
-				: {}),
+			...(() => {
+				const vc = options.videoConcurrency ?? options.concurrency;
+				return vc !== undefined ? { video_concurrency: vc } : {};
+			})(),
 		};
 		if (options.videoModel) pipelineConfig.video_model = options.videoModel;
 		if (options.imageModel) pipelineConfig.image_model = options.imageModel;
