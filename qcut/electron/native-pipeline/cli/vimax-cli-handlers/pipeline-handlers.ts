@@ -18,11 +18,9 @@ type ProgressFn = (progress: {
 	model?: string;
 }) => void;
 
-function resolveVideoReferenceMode(mode?: string):
-	| "storyboard"
-	| "references"
-	| "storyboard+references"
-	| undefined {
+function resolveVideoReferenceMode(
+	mode?: string
+): "storyboard" | "references" | "storyboard+references" | undefined {
 	if (!mode) return;
 	if (
 		mode === "storyboard" ||
@@ -324,7 +322,7 @@ export async function handleVimaxNovel2Movie(
 			...(options.videoReferenceImages
 				? { video_reference_images: options.videoReferenceImages }
 				: {}),
-			...(options.videoConcurrency ?? options.concurrency
+			...((options.videoConcurrency ?? options.concurrency)
 				? { video_concurrency: options.videoConcurrency ?? options.concurrency }
 				: {}),
 		};
