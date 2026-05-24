@@ -1,6 +1,65 @@
 import { describe, expect, it } from "vitest";
 
-import { buildCodexStartupCommand } from "./pty-session";
+import {
+	buildDaytonaPtyId,
+	buildCodexStartupCommand,
+	parsePtyClientControlMessage,
+} from "./pty-session";
+
+describe("parsePtyClientControlMessage", () => {
+	it("keeps numeric keypresses as terminal input", () => {
+		expect(parsePtyClientControlMessage({ data: "1" })).toBeNull();
+		expect(parsePtyClientControlMessage({ data: "12345" })).toBeNull();
+	});
+
+	it("keeps ordinary text and JSON primitives as terminal input", () => {
+		expect(parsePtyClientControlMessage({ data: "a" })).toBeNull();
+		expect(parsePtyClientControlMessage({ data: "true" })).toBeNull();
+		expect(parsePtyClientControlMessage({ data: "null" })).toBeNull();
+		expect(parsePtyClientControlMessage({ data: '"quoted"' })).toBeNull();
+	});
+
+	it("parses resize control messages", () => {
+		expect(
+			parsePtyClientControlMessage({
+				data: JSON.stringify({ kind: "resize", cols: 120, rows: 40 }),
+			})
+		).toEqual({ kind: "resize", cols: 120, rows: 40 });
+	});
+
+	it("ignores malformed resize control messages", () => {
+		expect(
+			parsePtyClientControlMessage({
+				data: JSON.stringify({ kind: "resize", cols: "120", rows: 40 }),
+			})
+		).toBeNull();
+		expect(
+			parsePtyClientControlMessage({
+				data: JSON.stringify({ kind: "input", text: "1" }),
+			})
+		).toBeNull();
+	});
+});
+
+describe("buildDaytonaPtyId", () => {
+	it("adds a nonce so stale Daytona PTYs do not block reconnects", () => {
+		expect(
+			buildDaytonaPtyId({
+				sessionId: "53183dac-8d01-47ee-bfa1-5c6766d2dee7",
+				nonce: "abc12345",
+			})
+		).toBe("qcut-agent-53183dac-8d0-abc12345");
+	});
+
+	it("removes unsafe characters from the session prefix", () => {
+		expect(
+			buildDaytonaPtyId({
+				sessionId: "session../with spaces",
+				nonce: "safe",
+			})
+		).toBe("qcut-agent-sessionwiths-safe");
+	});
+});
 
 describe("buildCodexStartupCommand", () => {
 	it("starts Codex with bypassed approvals and QCut skill guidance", () => {

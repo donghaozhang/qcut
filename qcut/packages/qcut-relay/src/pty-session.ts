@@ -20,6 +20,12 @@ import { verifyToken } from "./verify-token.js";
 import type { Env } from "./index.js";
 import { Daytona } from "@daytona/sdk";
 
+type PtyClientControlMessage = {
+	kind: "resize";
+	cols: number;
+	rows: number;
+};
+
 const CODEX_AGENT_INSTRUCTIONS = [
 	"## QCut Website Chat Agent Defaults",
 	"",
@@ -127,7 +133,7 @@ export class PtySession {
 				const daytona = new Daytona({ apiKey: this.env.DAYTONA_API_KEY });
 				const sandbox = await daytona.get(session.provider_session_id);
 				const pty = await sandbox.process.createPty({
-					id: `qcut-agent-${claims.session_id.slice(0, 12)}`,
+					id: buildDaytonaPtyId({ sessionId: claims.session_id }),
 					cols: 100,
 					rows: 30,
 					cwd: "/home/qcut/qcut",
@@ -188,20 +194,12 @@ export class PtySession {
 				void (async () => {
 					const data = ev.data;
 					if (typeof data === "string") {
-						try {
-							const ctrl = JSON.parse(data);
-							if (
-								ctrl &&
-								ctrl.kind === "resize" &&
-								typeof ctrl.rows === "number" &&
-								typeof ctrl.cols === "number"
-							) {
-								await resize?.(ctrl.cols, ctrl.rows);
-								return;
-							}
-						} catch {
-							await sendInput?.(data);
+						const controlMessage = parsePtyClientControlMessage({ data });
+						if (controlMessage) {
+							await resize?.(controlMessage.cols, controlMessage.rows);
+							return;
 						}
+						await sendInput?.(data);
 						return;
 					}
 					try {
@@ -270,6 +268,44 @@ export class PtySession {
 			return new Response("session_init_failed", { status: 502 });
 		}
 	}
+}
+
+export function parsePtyClientControlMessage({
+	data,
+}: {
+	data: string;
+}): PtyClientControlMessage | null {
+	let value: unknown;
+	try {
+		value = JSON.parse(data);
+	} catch {
+		return null;
+	}
+	if (typeof value !== "object" || value === null || Array.isArray(value)) {
+		return null;
+	}
+	const record = value as Record<string, unknown>;
+	const { kind, cols, rows } = record;
+	if (kind !== "resize") {
+		return null;
+	}
+	if (typeof cols !== "number" || typeof rows !== "number") {
+		return null;
+	}
+	return { kind, cols, rows };
+}
+
+export function buildDaytonaPtyId({
+	sessionId,
+	nonce = crypto.randomUUID().slice(0, 8),
+}: {
+	sessionId: string;
+	nonce?: string;
+}) {
+	const safeSessionPrefix = sessionId
+		.replace(/[^0-9A-Za-z-]/g, "")
+		.slice(0, 12);
+	return `qcut-agent-${safeSessionPrefix}-${nonce}`;
 }
 
 export function buildCodexStartupCommand({
