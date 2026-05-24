@@ -318,18 +318,18 @@ async function buildProviderImageField({
 	]).slice(0, 14);
 
 	if (provider === "gmi" && isGmiSeedanceRef2vModel({ modelKey })) {
-		const resolvedRefs: string[] = [];
-		for (const imageRef of imageRefs) {
-			resolvedRefs.push(await resolveFetchableImageRef(imageRef));
-		}
+		const resolvedRefs = await Promise.all(
+			imageRefs.map((imageRef) => resolveFetchableImageRef(imageRef))
+		);
 		return { reference_images: resolvedRefs };
 	}
 
 	if (provider === "fal" && isFalSeedanceRef2vModel({ modelKey })) {
-		const resolvedRefs: string[] = [];
-		for (const imageRef of imageRefs.slice(0, 9)) {
-			resolvedRefs.push(await resolveFetchableImageRef(imageRef));
-		}
+		const resolvedRefs = await Promise.all(
+			imageRefs
+				.slice(0, 9)
+				.map((imageRef) => resolveFetchableImageRef(imageRef))
+		);
 		return { image_urls: resolvedRefs };
 	}
 
@@ -347,16 +347,16 @@ async function buildProviderImageField({
 	}
 	const channel = channelFor(modelKey);
 	const groupId = await ensureGroup(channel, { apiKey });
-	const images: string[] = [];
-	for (const imageRef of imageRefs) {
-		const assetRef = await resolveImaRouterAssetRef({
-			imagePath: imageRef,
-			modelKey,
-			apiKey,
-			groupId,
-		});
-		images.push(assetRef);
-	}
+	const images = await Promise.all(
+		imageRefs.map((imageRef) =>
+			resolveImaRouterAssetRef({
+				imagePath: imageRef,
+				modelKey,
+				apiKey,
+				groupId,
+			})
+		)
+	);
 	return { images };
 }
 
