@@ -375,7 +375,7 @@ export function buildCodexStartupCommand({
 		"[ -x /tmp/qcut-tools/npm-global/bin/codex ] || npm install -g @openai/codex >/tmp/qcut-tools/codex-bootstrap.log 2>&1 || true",
 		"hash -r 2>/dev/null || true",
 		'if ! grep -Fq \'[projects."/home/qcut/qcut"]\' "$CODEX_HOME/config.toml" 2>/dev/null; then',
-		'cat >> "$CODEX_HOME/config.toml" <<\'QCUT_CODEX_TRUST\'',
+		"cat >> \"$CODEX_HOME/config.toml\" <<'QCUT_CODEX_TRUST'",
 		"",
 		'[projects."/home/qcut/qcut"]',
 		'trust_level = "trusted"',
@@ -398,13 +398,17 @@ export function buildCodexStartupCommand({
 			"--dangerously-bypass-approvals-and-sandbox",
 			"--no-alt-screen",
 			"-C /home/qcut/qcut",
-			].join(" "),
-			"printf '\\nCodex exited. QCut shell fallback is ready; run qcut commands here.\\n'",
-			"exec /bin/bash -l",
-		].join("\n")}\n`;
-	}
+		].join(" "),
+		"printf '\\nCodex exited. QCut shell fallback is ready; run qcut commands here.\\n'",
+		"exec /bin/bash -l",
+	].join("\n")}\n`;
+}
 
-function buildCodexHomeSessionName({ sessionId }: { sessionId: string }): string {
+function buildCodexHomeSessionName({
+	sessionId,
+}: {
+	sessionId: string;
+}): string {
 	const safe = sessionId.replace(/[^0-9A-Za-z-]/g, "").slice(0, 32);
 	return safe.length > 0 ? safe : "session";
 }

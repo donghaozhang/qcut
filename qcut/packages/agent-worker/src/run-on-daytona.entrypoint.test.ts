@@ -79,8 +79,12 @@ describe("qcut-entrypoint Codex auth bootstrap", () => {
 			});
 
 			expect(result.exitCode).toBe(0);
-			expect(result.stderr).toContain("CODEX_AUTH_JSON access token is expired");
-			await expect(readFile(join(codeHome, "auth.json"), "utf8")).rejects.toThrow();
+			expect(result.stderr).toContain(
+				"CODEX_AUTH_JSON access token is expired"
+			);
+			await expect(
+				readFile(join(codeHome, "auth.json"), "utf8")
+			).rejects.toThrow();
 			expect(await readFile(fakeCodex.loginStdin, "utf8")).toBe("sk-test");
 			expect(await readFile(fakeCodex.calls, "utf8")).toBe(
 				"login:login --with-api-key\ncmd:--version\n"
@@ -120,7 +124,9 @@ describe("qcut-entrypoint Codex auth bootstrap", () => {
 			});
 
 			expect(result.exitCode).toBe(0);
-			expect(await readFile(join(codeHome, "auth.json"), "utf8")).toBe(validAuth);
+			expect(await readFile(join(codeHome, "auth.json"), "utf8")).toBe(
+				validAuth
+			);
 			expect(await readFile(fakeCodex.calls, "utf8")).toBe("cmd:--version\n");
 			await expect(readFile(fakeCodex.loginStdin, "utf8")).rejects.toThrow();
 		} finally {
