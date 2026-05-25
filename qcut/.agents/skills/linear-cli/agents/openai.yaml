@@ -1,0 +1,4 @@
+interface:
+  display_name: "Linear CLI"
+  short_description: "Manage Linear issues from the command line"
+  default_prompt: "Use the Linear CLI skill to inspect, create, update, or organize Linear issues from this repository."

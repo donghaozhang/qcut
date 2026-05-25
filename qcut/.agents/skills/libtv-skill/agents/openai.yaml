@@ -1,0 +1,4 @@
+interface:
+  display_name: "LibTV Media"
+  short_description: "Generate and edit AI images and videos with liblib.tv"
+  default_prompt: "Use this skill for AI image or video generation, editing, style transfer, video continuation, storyboards, ads, music videos, or liblib.tv progress checks."

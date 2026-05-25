@@ -1,0 +1,4 @@
+interface:
+  display_name: "QCut Toolkit"
+  short_description: "Use QCut media, FFmpeg, AI generation, and editor tools"
+  default_prompt: "Use the QCut toolkit for media workflows, file organization, video processing, AI generation, editor control, video prompts, or content pipeline tasks."

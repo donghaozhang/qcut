@@ -1,0 +1,317 @@
+# QCut Editor CLI — Agent Automation
+
+Commands for AI agent workflows: accessibility snapshots, console capture, visual diffs, session persistence, and action policy.
+
+See [editor-core.md](editor-core.md) for connection options, flags, and workflows.
+
+---
+
+## Accessibility Snapshots
+
+Get a ref-based accessibility tree of the visible editor UI. Each interactive element gets a deterministic `@eN` ref that is stable across repeated snapshots.
+
+### Take snapshot
+
+```bash
+# Full snapshot (capped at 256 KB / 500 elements by default)
+qcut editor:snapshot --json
+
+# Only actionable elements, limited depth
+qcut editor:snapshot --interactive --depth 2 --json
+
+# Lift the size cap for a giant view (still bounded by Electron IPC ~1MB)
+qcut editor:snapshot --max-bytes 524288 --max-nodes 1000 --json
+```
+
+| Flag | Type | Default | Description |
+|------|------|---------|-------------|
+| `--interactive` | boolean | false | Only include actionable UI elements |
+| `--depth` | number | 8 | Maximum DOM traversal depth |
+| `--max-bytes` | number | 262144 (256 KB) | Soft cap on serialized payload size |
+| `--max-nodes` | number | 500 | Hard cap on element count |
+
+Returns `elements[]` with `ref`, `role`, `tagName`, `name`, `actionable`, `bounds`, and `children`.
+
+**Truncation envelope:** when the snapshot exceeds `--max-bytes` or `--max-nodes`, the response is replaced with a deterministic envelope instead of a corrupt blob:
+
+```json
+{
+  "truncated": true,
+  "reason": "Snapshot exceeds maxBytes (262144). Got 312456 bytes across 712 elements.",
+  "suggestion": "Re-run with --interactive (actionable elements only), --depth N to limit DOM traversal, --max-nodes N for an explicit element cap, or --max-bytes N to lift the byte cap.",
+  "meta": { "totalNodes": 712, "serializedBytes": 312456, "maxBytes": 262144, "maxNodes": 500 }
+}
+```
+
+Branch on `response.truncated === true` to handle this case. The default cap exists because Electron's `executeJavaScript` IPC silently mangles very large payloads — a corrupt JSON string was the original bug ([docs/task/editor-cli-results-2026-04-30/](../../../../docs/task/editor-cli-results-2026-04-30/IMPLEMENTATION-PLAN.md)).
+
+### Click an element
+
+```bash
+qcut editor:snapshot:click --ref @e1 --json
+```
+
+Clicks the element tagged with the given ref from the latest snapshot.
+
+### Fill a text input
+
+```bash
+qcut editor:snapshot:fill --ref @e2 --text "Updated title" --json
+```
+
+Fills a text input or contenteditable element by ref.
+
+### Select a dropdown option
+
+```bash
+qcut editor:snapshot:select --ref @e3 --value "720p" --json
+```
+
+Selects an option from a `<select>`, combobox, or listbox by ref. Matches by option value or visible text.
+
+### Toggle a checkbox or switch
+
+```bash
+# Check
+qcut editor:snapshot:check --ref @e4 --checked --json
+
+# Uncheck
+qcut editor:snapshot:check --ref @e4 --no-checked --json
+```
+
+Toggles a checkbox, radio button, or switch role by ref.
+
+### Snapshot command summary
+
+| Command | Required flags | Description |
+|---------|---------------|-------------|
+| `editor:snapshot` | — | Get accessibility tree |
+| `editor:snapshot:click` | `--ref` | Click element by ref |
+| `editor:snapshot:fill` | `--ref`, `--text` | Fill text input by ref |
+| `editor:snapshot:select` | `--ref`, `--value` | Select dropdown option by ref |
+| `editor:snapshot:check` | `--ref`, `--checked` | Toggle checkbox/switch by ref |
+
+---
+
+## Console Capture
+
+Read, filter, and stream console messages from the QCut renderer process.
+
+### List messages
+
+```bash
+# Last 50 messages (default)
+qcut editor:console --json
+
+# Filter by level
+qcut editor:console --level error --json
+
+# Messages from last 30 seconds
+qcut editor:console --since 30s --json
+
+# Errors shortcut
+qcut editor:errors --json
+```
+
+### Clear buffer
+
+```bash
+qcut editor:console --clear --json
+```
+
+### Stream real-time
+
+```bash
+qcut editor:console --stream
+```
+
+Streams live console entries via SSE until interrupted (Ctrl+C).
+
+| Flag | Type | Description |
+|------|------|-------------|
+| `--level` | string | Filter: `log`, `warn`, `error`, `info`, `debug` |
+| `--since` | string | Time window: `5s`, `30s`, `1m`, `5m` |
+| `--clear` | boolean | Clear the console buffer |
+| `--stream` | boolean | Real-time SSE stream |
+
+### Console command summary
+
+| Command | Description |
+|---------|-------------|
+| `editor:console` | List/filter/clear/stream console messages |
+| `editor:errors` | Shortcut for `editor:console --level error` |
+
+---
+
+## Visual Diffs
+
+Compare saved snapshots or screenshots to verify that actions had the expected effect.
+
+### Snapshot diff
+
+```bash
+qcut editor:diff:snapshot --before before.json --after after.json --json
+```
+
+Compares two saved accessibility snapshot JSON files. Returns `added`, `removed`, `changed` counts and element-level details. Elements are matched semantically (by role + name) rather than by raw ref.
+
+### Screenshot diff
+
+```bash
+# Default threshold (10)
+qcut editor:diff:screenshot --before before.png --after after.png --json
+
+# Custom sensitivity
+qcut editor:diff:screenshot --before a.png --after b.png --threshold 20 --json
+```
+
+Pixel-level PNG comparison using sharp. Generates a diff image (changed pixels in red) saved alongside the before file.
+
+| Flag | Type | Description |
+|------|------|-------------|
+| `--before` | string | Path to earlier snapshot/screenshot (required) |
+| `--after` | string | Path to later snapshot/screenshot (required) |
+| `--threshold` | number | Per-channel difference threshold 0-255 (default 10, screenshot only) |
+
+### Diff command summary
+
+| Command | Required flags | Description |
+|---------|---------------|-------------|
+| `editor:diff:snapshot` | `--before`, `--after` | Tree diff of two snapshot JSON files |
+| `editor:diff:screenshot` | `--before`, `--after` | Pixel diff of two PNG screenshots |
+
+---
+
+## Session Persistence
+
+Save and restore named CLI sessions. Sessions store `projectId`, `lastPanel`, `lastTab`, and command history under QCut's resolved state directory.
+
+### Save session
+
+```bash
+qcut editor:session:save --session-name my-session --project-id <id> --panel moyin --tab characters --json
+```
+
+### Load session
+
+```bash
+qcut editor:session:load --session-name my-session --json
+```
+
+### List sessions
+
+```bash
+qcut editor:session:list --json
+# → { "status": "ok", "data": { "sessions": [...], "count": 3 } }
+```
+
+### Delete session
+
+```bash
+qcut editor:session:delete --session-name my-session --json
+```
+
+### Resume a session
+
+Use `--resume` with any command to hydrate options from a saved session and autosave after execution:
+
+```bash
+# One-shot with resume
+qcut editor:timeline:export --resume my-session --json
+
+# Interactive REPL with resume
+qcut --session --resume my-session
+```
+
+### Session command summary
+
+| Command | Required flags | Description |
+|---------|---------------|-------------|
+| `editor:session:save` | — | Save current context (uses `--session-name` or active resume session) |
+| `editor:session:load` | `--session-name` | Load a saved session |
+| `editor:session:list` | — | List all saved sessions |
+| `editor:session:delete` | `--session-name` | Delete a saved session |
+
+---
+
+## Action Policy
+
+Safety layer that categorizes commands into allow/confirm/deny buckets.
+
+### Default behavior
+
+- **allow**: Read-only commands run without confirmation
+- **confirm**: Destructive commands (delete, batch-delete, auth mutations) require `--force` to proceed
+- **deny**: Blocked commands cannot run even with `--force`
+
+### Custom policy file
+
+```bash
+qcut editor:snapshot:click --ref @e1 --policy ./agent-policy.json --json
+```
+
+Policy JSON format:
+
+```json
+{
+  "allow": ["editor:media:list", "editor:snapshot*"],
+  "confirm": ["editor:project:delete", "editor:timeline:batch-delete"],
+  "deny": []
+}
+```
+
+### Flag-sensitive matching
+
+Policy rules can target specific flag combinations:
+
+```json
+{
+  "confirm": ["editor:auth:token --set", "editor:auth:token --reveal", "editor:console --clear"]
+}
+```
+
+| Flag | Type | Description |
+|------|------|-------------|
+| `--policy` | string | Path to custom policy JSON file |
+| `--force` | boolean | Bypass confirm-tier policy checks (deny-tier still blocked) |
+
+---
+
+## Typical Agent Workflow
+
+```bash
+# 1. Take a snapshot to discover UI elements
+qcut editor:snapshot --interactive --json
+
+# 2. Interact with elements by ref
+qcut editor:snapshot:click --ref @e5 --json
+qcut editor:snapshot:fill --ref @e8 --text "New title" --json
+
+# 3. Verify the action succeeded — check for errors
+qcut editor:console --level error --since 5s --json
+
+# 4. Take a second snapshot and diff
+qcut editor:snapshot --interactive --json > after.json
+qcut editor:diff:snapshot --before before.json --after after.json --json
+
+# 5. Save session for later resumption
+qcut editor:session:save --session-name my-workflow --json
+```
+
+---
+
+## Key Source Files
+
+| Component | File |
+|-----------|------|
+| Snapshot CLI handlers | `electron/native-pipeline/cli/cli-handlers-snapshot.ts` |
+| Console CLI handlers | `electron/native-pipeline/cli/cli-handlers-console.ts` |
+| Diff CLI handlers | `electron/native-pipeline/cli/cli-handlers-diff.ts` |
+| Session CLI handlers | `electron/native-pipeline/cli/cli-handlers-session.ts` |
+| Session persistence | `electron/native-pipeline/cli/session-state.ts` |
+| Action policy | `electron/native-pipeline/cli/action-policy.ts` |
+| Snapshot DOM handler | `electron/claude/handlers/claude-snapshot-handler.ts` |
+| Console capture handler | `electron/claude/handlers/claude-console-handler.ts` |
+| Snapshot HTTP routes | `electron/claude/http/claude-http-snapshot-routes.ts` |
+| Console HTTP routes | `electron/claude/http/claude-http-console-routes.ts` |
+| Command registry | `electron/native-pipeline/cli/command-registry-editor-extra.ts` |

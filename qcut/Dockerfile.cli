@@ -101,7 +101,13 @@ RUN mkdir -p /home/qcut/.local/bin \
       '#!/usr/bin/env bash' \
       'exec bun /home/qcut/qcut/electron/native-pipeline/cli/cli.ts "$@"' \
     > /home/qcut/.local/bin/qcut \
- && chmod 0755 /home/qcut/.local/bin/qcut
+ && printf '%s\n' \
+      '#!/usr/bin/env bash' \
+      'export QCUT_BOOTSTRAP_CODEX=1' \
+      'exec /usr/local/bin/qcut-entrypoint /usr/local/bin/codex "$@"' \
+    > /home/qcut/.local/bin/codex \
+ && chmod 0755 /home/qcut/.local/bin/qcut \
+ && chmod 0755 /home/qcut/.local/bin/codex
 ENV PATH="/home/qcut/.local/bin:${PATH}"
 
 ENTRYPOINT ["/usr/local/bin/qcut-entrypoint"]
