@@ -1,0 +1,4 @@
+interface:
+  display_name: "QCut Native CLI"
+  short_description: "Run QCut pipeline and editor automation commands"
+  default_prompt: "Use QCut's native CLI for AI generation, media analysis, transcription, YAML pipelines, ViMax production, project management, or deterministic editor automation."

@@ -1,0 +1,4 @@
+interface:
+  display_name: "QAgent"
+  short_description: "Orchestrate parallel QCut development agents"
+  default_prompt: "Use QAgent to spawn agents, check session status, manage PR work, handle CI failures, or batch-process QCut development tasks."

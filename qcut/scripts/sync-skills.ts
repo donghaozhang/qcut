@@ -8,7 +8,14 @@
  * Usage: bun scripts/sync-skills.ts
  */
 
-import { cpSync, existsSync, mkdirSync, readdirSync, rmSync } from "node:fs";
+import {
+	cpSync,
+	existsSync,
+	mkdirSync,
+	readdirSync,
+	rmSync,
+	writeFileSync,
+} from "node:fs";
 import { join } from "node:path";
 
 const SOURCE_DIR = ".claude/skills";
@@ -26,6 +33,57 @@ const CODEX_SKILLS = [
 	"qagent",
 	"qcut-toolkit",
 ];
+const CODEX_OPENAI_METADATA: Record<
+	string,
+	{
+		displayName: string;
+		shortDescription: string;
+		defaultPrompt: string;
+	}
+> = {
+	"codex-delegate": {
+		displayName: "Codex Delegate",
+		shortDescription: "Decide when to delegate QCut work to Codex",
+		defaultPrompt:
+			"Use this skill to decide whether a QCut task should be handled directly or delegated to Codex CLI, then follow the recommended path.",
+	},
+	"libtv-skill": {
+		displayName: "LibTV Media",
+		shortDescription: "Generate and edit AI images and videos with liblib.tv",
+		defaultPrompt:
+			"Use this skill for AI image or video generation, editing, style transfer, video continuation, storyboards, ads, music videos, or liblib.tv progress checks.",
+	},
+	"linear-cli": {
+		displayName: "Linear CLI",
+		shortDescription: "Manage Linear issues from the command line",
+		defaultPrompt:
+			"Use the Linear CLI skill to inspect, create, update, or organize Linear issues from this repository.",
+	},
+	"native-cli": {
+		displayName: "QCut Native CLI",
+		shortDescription: "Run QCut pipeline and editor automation commands",
+		defaultPrompt:
+			"Use QCut's native CLI for AI generation, media analysis, transcription, YAML pipelines, ViMax production, project management, or deterministic editor automation.",
+	},
+	"pr-comments": {
+		displayName: "PR Comments",
+		shortDescription: "Export and fix GitHub PR review comments",
+		defaultPrompt:
+			"Use this skill to export GitHub PR review comments, preprocess review feedback, and address actionable CodeRabbit, Gemini, Devin, or human review comments.",
+	},
+	qagent: {
+		displayName: "QAgent",
+		shortDescription: "Orchestrate parallel QCut development agents",
+		defaultPrompt:
+			"Use QAgent to spawn agents, check session status, manage PR work, handle CI failures, or batch-process QCut development tasks.",
+	},
+	"qcut-toolkit": {
+		displayName: "QCut Toolkit",
+		shortDescription: "Use QCut media, FFmpeg, AI generation, and editor tools",
+		defaultPrompt:
+			"Use the QCut toolkit for media workflows, file organization, video processing, AI generation, editor control, video prompts, or content pipeline tasks.",
+	},
+};
 
 function syncSkillSet(targetDir: string, skillNames: string[]) {
 	if (!existsSync(targetDir)) {
@@ -52,6 +110,26 @@ function syncSkillSet(targetDir: string, skillNames: string[]) {
 	}
 }
 
+function quoteYaml(value: string) {
+	return JSON.stringify(value);
+}
+
+function writeCodexOpenAiMetadata() {
+	for (const [skillName, metadata] of Object.entries(CODEX_OPENAI_METADATA)) {
+		const agentsDir = join(CODEX_TARGET_DIR, skillName, "agents");
+		mkdirSync(agentsDir, { recursive: true });
+		const content = [
+			"interface:",
+			`  display_name: ${quoteYaml(metadata.displayName)}`,
+			`  short_description: ${quoteYaml(metadata.shortDescription)}`,
+			`  default_prompt: ${quoteYaml(metadata.defaultPrompt)}`,
+			"",
+		].join("\n");
+		writeFileSync(join(agentsDir, "openai.yaml"), content);
+		process.stdout.write(`✅ Wrote OpenAI metadata: ${skillName}\n`);
+	}
+}
+
 function syncSkills() {
 	process.stdout.write(
 		"📦 Syncing skills from .claude/skills/ → resources/default-skills/\n"
@@ -62,6 +140,7 @@ function syncSkills() {
 		"📦 Syncing skills from .claude/skills/ → .agents/skills/\n"
 	);
 	syncSkillSet(CODEX_TARGET_DIR, CODEX_SKILLS);
+	writeCodexOpenAiMetadata();
 
 	process.stdout.write("✨ Skills sync complete!\n");
 }

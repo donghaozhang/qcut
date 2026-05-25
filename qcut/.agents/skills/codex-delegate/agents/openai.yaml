@@ -1,0 +1,4 @@
+interface:
+  display_name: "Codex Delegate"
+  short_description: "Decide when to delegate QCut work to Codex"
+  default_prompt: "Use this skill to decide whether a QCut task should be handled directly or delegated to Codex CLI, then follow the recommended path."

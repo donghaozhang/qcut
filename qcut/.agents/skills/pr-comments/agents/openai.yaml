@@ -1,0 +1,4 @@
+interface:
+  display_name: "PR Comments"
+  short_description: "Export and fix GitHub PR review comments"
+  default_prompt: "Use this skill to export GitHub PR review comments, preprocess review feedback, and address actionable CodeRabbit, Gemini, Devin, or human review comments."
