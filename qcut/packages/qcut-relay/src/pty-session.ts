@@ -364,18 +364,20 @@ export function buildCodexStartupCommand({
 		marker,
 		"fi",
 		"stty echo",
-		"clear",
-		`printf '%s\\n' ${shellSingleQuote({
-			value: `qcut codex terminal | session ${sessionId.slice(0, 8)} | provider ${provider} | expires ${expiresAt}`,
-		})}`,
-		[
-			"exec codex",
-			"--dangerously-bypass-approvals-and-sandbox",
-			"--no-alt-screen",
-			"-C /home/qcut/qcut",
-		].join(" "),
-	].join("\n")}\n`;
-}
+			"clear",
+			`printf '%s\\n' ${shellSingleQuote({
+				value: `qcut codex terminal | session ${sessionId.slice(0, 8)} | provider ${provider} | expires ${expiresAt}`,
+			})}`,
+			[
+				"codex",
+				"--dangerously-bypass-approvals-and-sandbox",
+				"--no-alt-screen",
+				"-C /home/qcut/qcut",
+			].join(" "),
+			"printf '\\nCodex exited. QCut shell fallback is ready; run qcut commands here.\\n'",
+			"exec /bin/bash -l",
+		].join("\n")}\n`;
+	}
 
 function shellSingleQuote({ value }: { value: string }): string {
 	return `'${value.replace(/'/g, "'\"'\"'")}'`;

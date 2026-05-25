@@ -67,13 +67,16 @@ describe("buildCodexStartupCommand", () => {
 			sessionId: "agent-session-1",
 			provider: "daytona",
 			expiresAt: "2026-05-16T09:00:00.000Z",
-		});
+			});
 
-		expect(command).toContain("/usr/local/bin/qcut-entrypoint /bin/true");
-		expect(command).toContain("--dangerously-bypass-approvals-and-sandbox");
-		expect(command).not.toContain("-a never");
-		expect(command).toContain("-C /home/qcut/qcut");
-		expect(command).toContain("stty echo");
+			expect(command).toContain("/usr/local/bin/qcut-entrypoint /bin/true");
+			expect(command).toContain("--dangerously-bypass-approvals-and-sandbox");
+			expect(command).toContain("Codex exited. QCut shell fallback is ready");
+			expect(command).toContain("exec /bin/bash -l");
+			expect(command).not.toContain("-a never");
+			expect(command).not.toContain("exec codex");
+			expect(command).toContain("-C /home/qcut/qcut");
+			expect(command).toContain("stty echo");
 		expect(command).toContain('[projects."/home/qcut/qcut"]');
 		expect(command).toContain('trust_level = "trusted"');
 		expect(command).toContain("/home/qcut/qcut/AGENTS.md");
