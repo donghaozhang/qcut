@@ -1,4 +1,4 @@
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 
 import {
 	buildDaytonaPtyId,
@@ -17,6 +17,17 @@ describe("parsePtyClientControlMessage", () => {
 		expect(parsePtyClientControlMessage({ data: "true" })).toBeNull();
 		expect(parsePtyClientControlMessage({ data: "null" })).toBeNull();
 		expect(parsePtyClientControlMessage({ data: '"quoted"' })).toBeNull();
+	});
+
+	it("skips JSON parsing for messages that cannot be object controls", () => {
+		const parseSpy = vi.spyOn(JSON, "parse");
+
+		expect(parsePtyClientControlMessage({ data: "1" })).toBeNull();
+		expect(parsePtyClientControlMessage({ data: "[1,2]" })).toBeNull();
+		expect(parsePtyClientControlMessage({ data: " resize" })).toBeNull();
+
+		expect(parseSpy).not.toHaveBeenCalled();
+		parseSpy.mockRestore();
 	});
 
 	it("parses resize control messages", () => {

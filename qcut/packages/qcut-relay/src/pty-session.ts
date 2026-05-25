@@ -275,6 +275,9 @@ export function parsePtyClientControlMessage({
 }: {
 	data: string;
 }): PtyClientControlMessage | null {
+	if (!startsWithJsonObject({ data })) {
+		return null;
+	}
 	let value: unknown;
 	try {
 		value = JSON.parse(data);
@@ -293,6 +296,18 @@ export function parsePtyClientControlMessage({
 		return null;
 	}
 	return { kind, cols, rows };
+}
+
+function startsWithJsonObject({ data }: { data: string }) {
+	for (const char of data) {
+		if (char === "{") {
+			return true;
+		}
+		if (char !== " " && char !== "\n" && char !== "\r" && char !== "\t") {
+			return false;
+		}
+	}
+	return false;
 }
 
 export function buildDaytonaPtyId({
