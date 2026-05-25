@@ -1,5 +1,12 @@
 #!/usr/bin/env bun
-import { existsSync, statSync, readdirSync, unlinkSync, renameSync } from "fs";
+import {
+  copyFileSync,
+  existsSync,
+  statSync,
+  readdirSync,
+  unlinkSync,
+  renameSync,
+} from "fs";
 import { basename, dirname, extname, join, resolve } from "path";
 import { spawn } from "child_process";
 
@@ -146,10 +153,20 @@ async function processFile(
 
   const outputSize = statSync(tempOutput).size;
 
+  try {
+    renameSync(tempOutput, output);
+  } catch (error) {
+    const renameError = error as { code?: string };
+    if (renameError.code !== "EXDEV") {
+      throw error;
+    }
+    copyFileSync(tempOutput, output);
+    unlinkSync(tempOutput);
+  }
+
   if (!opts.keep && absInput !== output) {
     unlinkSync(absInput);
   }
-  renameSync(tempOutput, output);
 
   return {
     input: absInput,
@@ -262,6 +279,7 @@ async function main() {
     }
 
     const results: Result[] = [];
+    let failedFiles = 0;
     for (const file of files) {
       try {
         const r = await processFile(compressor, file, { ...opts, output: undefined });
@@ -271,6 +289,7 @@ async function main() {
           console.log(`${r.input} → ${r.output} (${formatSize(r.inputSize)} → ${formatSize(r.outputSize)}, ${reduction}% reduction)`);
         }
       } catch (e) {
+        failedFiles++;
         if (!opts.json) console.error(`Error processing ${file}: ${(e as Error).message}`);
       }
     }
@@ -286,6 +305,7 @@ async function main() {
             totalInputSize: totalInput,
             totalOutputSize: totalOutput,
             ratio: totalInput > 0 ? totalOutput / totalInput : 0,
+            failedFiles,
             compressor,
           },
         }, null, 2)
@@ -293,9 +313,10 @@ async function main() {
     } else {
       const totalInput = results.reduce((s, r) => s + r.inputSize, 0);
       const totalOutput = results.reduce((s, r) => s + r.outputSize, 0);
-      const reduction = Math.round((1 - totalOutput / totalInput) * 100);
+      const reduction = totalInput > 0 ? Math.round((1 - totalOutput / totalInput) * 100) : 0;
       console.log(`\nProcessed ${results.length} files: ${formatSize(totalInput)} → ${formatSize(totalOutput)} (${reduction}% reduction)`);
     }
+    if (failedFiles > 0) process.exit(1);
   } else {
     try {
       const r = await processFile(compressor, input, opts);

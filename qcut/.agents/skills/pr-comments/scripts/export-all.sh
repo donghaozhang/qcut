@@ -41,7 +41,7 @@ echo "--- Main Thread Comments ---"
 THREAD_TEMP=$(mktemp)
 trap "rm -f $THREAD_TEMP" EXIT
 
-gh api "repos/${REPO}/issues/${PR}/comments" > "$THREAD_TEMP" 2>/dev/null || {
+gh api --paginate "repos/${REPO}/issues/${PR}/comments" | jq -s 'add // []' > "$THREAD_TEMP" 2>/dev/null || {
     echo "Warning: Could not fetch thread comments"
 }
 
@@ -79,7 +79,7 @@ echo ""
 echo "--- Inline Review Comments ---"
 
 REVIEW_TEMP=$(mktemp)
-gh api "repos/${REPO}/pulls/${PR}/comments" > "$REVIEW_TEMP" 2>/dev/null || {
+gh api --paginate "repos/${REPO}/pulls/${PR}/comments" | jq -s 'add // []' > "$REVIEW_TEMP" 2>/dev/null || {
     echo "Warning: Could not fetch review comments"
 }
 

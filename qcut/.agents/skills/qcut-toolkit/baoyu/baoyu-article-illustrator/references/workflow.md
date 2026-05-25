@@ -347,7 +347,7 @@ Add: `Include a subtle watermark "[content]" at [position].`
 ### 5.5 Generate
 
 1. For each illustration:
-   - **Backup rule**: If image file exists, rename to `NN-{type}-{slug}-backup-YYYYMMDD-HHMMSS.md`
+   - **Backup rule**: If image file exists, preserve its extension and rename to `NN-{type}-{slug}-backup-YYYYMMDD-HHMMSS.{ext}`
    - If references with `direct` usage: include `--ref` parameter
    - Generate image
 2. After each: "Generated X/N"

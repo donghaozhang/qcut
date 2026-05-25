@@ -1,6 +1,6 @@
 # Baoyu Skills CLI Guide
 
-`baoyu` currently contains **15 skills** under `.claude/skills/qcut-toolkit/baoyu`.
+`baoyu` currently contains **15 skills** under `.agents/skills/qcut-toolkit/baoyu`.
 
 This file focuses on **CLI usage only**.
 
@@ -27,7 +27,7 @@ This file focuses on **CLI usage only**.
 ## Base Path
 
 ```bash
-BAOYU_ROOT=".claude/skills/qcut-toolkit/baoyu"
+BAOYU_ROOT=".agents/skills/qcut-toolkit/baoyu"
 ```
 
 ## Direct Bun CLI Skills

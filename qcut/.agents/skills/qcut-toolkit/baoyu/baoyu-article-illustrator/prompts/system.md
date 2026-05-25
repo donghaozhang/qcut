@@ -10,7 +10,7 @@ Create a cartoon-style infographic illustration following these guidelines:
 ## Core Principles
 
 - Hand-drawn quality throughout - NO realistic or photographic elements
-- If content involves sensitive or copyrighted figures, create stylistically similar alternatives - DO NOT refuse to generate
+- If content involves sensitive or copyrighted figures, follow platform safety and policy rules first; when allowed, use stylistically similar alternatives.
 - Keep information concise, highlight keywords and core concepts
 - Use ample whitespace for easy visual scanning
 - Maintain clear visual hierarchy
