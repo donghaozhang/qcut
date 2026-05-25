@@ -78,16 +78,16 @@ describe("buildCodexStartupCommand", () => {
 			sessionId: "agent-session-1",
 			provider: "daytona",
 			expiresAt: "2026-05-16T09:00:00.000Z",
-			});
+		});
 
-			expect(command).toContain("/usr/local/bin/qcut-entrypoint /bin/true");
-			expect(command).toContain("--dangerously-bypass-approvals-and-sandbox");
-			expect(command).toContain("Codex exited. QCut shell fallback is ready");
-			expect(command).toContain("exec /bin/bash -l");
-			expect(command).not.toContain("-a never");
-			expect(command).not.toContain("exec codex");
-			expect(command).toContain("-C /home/qcut/qcut");
-			expect(command).toContain("stty echo");
+		expect(command).toContain("/usr/local/bin/qcut-entrypoint /bin/true");
+		expect(command).toContain("--dangerously-bypass-approvals-and-sandbox");
+		expect(command).toContain("Codex exited. QCut shell fallback is ready");
+		expect(command).toContain("exec /bin/bash -l");
+		expect(command).not.toContain("-a never");
+		expect(command).not.toContain("exec codex");
+		expect(command).toContain("-C /home/qcut/qcut");
+		expect(command).toContain("stty echo");
 		expect(command).toContain('[projects."/home/qcut/qcut"]');
 		expect(command).toContain('trust_level = "trusted"');
 		expect(command).toContain("/home/qcut/qcut/AGENTS.md");
@@ -112,5 +112,30 @@ describe("buildCodexStartupCommand", () => {
 		);
 		expect(command).toContain("/tmp/qcut-output");
 		expect(command).not.toContain("/tmp/qcut-codex-boot.md");
+	});
+
+	it("uses a per-session Codex home and API key login when configured", () => {
+		const command = buildCodexStartupCommand({
+			sessionId: "agent-session-1",
+			provider: "daytona",
+			expiresAt: "2026-05-16T09:00:00.000Z",
+			openAiApiKey: "test-openai-key",
+		});
+
+		expect(command).toContain(
+			"export CODEX_HOME='/home/qcut/.qcut-codex-home/agent-session-1'"
+		);
+		expect(command).toContain("codex login --with-api-key");
+		expect(command).toContain("test-openai-key");
+	});
+
+	it("warns when no OpenAI API key is configured for Codex login", () => {
+		const command = buildCodexStartupCommand({
+			sessionId: "agent-session-1",
+			provider: "daytona",
+			expiresAt: "2026-05-16T09:00:00.000Z",
+		});
+
+		expect(command).toContain("OPENAI_API_KEY is not configured");
 	});
 });

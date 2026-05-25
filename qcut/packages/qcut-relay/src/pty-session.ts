@@ -181,6 +181,7 @@ export class PtySession {
 						sessionId: claims.session_id,
 						provider: session.provider,
 						expiresAt: session.expires_at,
+						openAiApiKey: this.env.OPENAI_API_KEY,
 					})
 				)
 			);
@@ -327,18 +328,27 @@ export function buildCodexStartupCommand({
 	sessionId,
 	provider,
 	expiresAt,
+	openAiApiKey,
 }: {
 	sessionId: string;
 	provider: string;
 	expiresAt: string;
+	openAiApiKey?: string;
 }): string {
 	const marker = `QCUT_CODEX_AGENT_${sessionId.replace(/[^A-Za-z0-9_]/g, "_")}`;
+	const codexHome = `/home/qcut/.qcut-codex-home/${buildCodexHomeSessionName({
+		sessionId,
+	})}`;
 	return `${[
 		"/usr/local/bin/qcut-entrypoint /bin/true",
+		"set +o history 2>/dev/null || true",
 		"cd /home/qcut/qcut 2>/dev/null || exit 1",
 		"mkdir -p /tmp/qcut-input /tmp/qcut-output /tmp/qcut-tools",
 		"mkdir -p /tmp/qcut-tools/bin",
 		"mkdir -p /tmp/qcut-tools/npm-global /tmp/qcut-tools/npm-cache",
+		"export HISTFILE=/dev/null",
+		`export CODEX_HOME=${shellSingleQuote({ value: codexHome })}`,
+		'mkdir -p "$CODEX_HOME"',
 		"export QCUT_OUTPUT_DIR=/tmp/qcut-output",
 		"export NPM_CONFIG_PREFIX=/tmp/qcut-tools/npm-global",
 		"export NPM_CONFIG_CACHE=/tmp/qcut-tools/npm-cache",
@@ -364,9 +374,8 @@ export function buildCodexStartupCommand({
 		"export PATH=/tmp/qcut-tools/bin:/tmp/qcut-tools/npm-global/bin:$PATH",
 		"[ -x /tmp/qcut-tools/npm-global/bin/codex ] || npm install -g @openai/codex >/tmp/qcut-tools/codex-bootstrap.log 2>&1 || true",
 		"hash -r 2>/dev/null || true",
-		"mkdir -p /home/qcut/.codex",
-		"if ! grep -Fq '[projects.\"/home/qcut/qcut\"]' /home/qcut/.codex/config.toml 2>/dev/null; then",
-		"cat >> /home/qcut/.codex/config.toml <<'QCUT_CODEX_TRUST'",
+		'if ! grep -Fq \'[projects."/home/qcut/qcut"]\' "$CODEX_HOME/config.toml" 2>/dev/null; then',
+		'cat >> "$CODEX_HOME/config.toml" <<\'QCUT_CODEX_TRUST\'',
 		"",
 		'[projects."/home/qcut/qcut"]',
 		'trust_level = "trusted"',
@@ -378,21 +387,45 @@ export function buildCodexStartupCommand({
 		CODEX_AGENT_INSTRUCTIONS,
 		marker,
 		"fi",
+		buildCodexApiKeyLoginCommand({ openAiApiKey }),
 		"stty echo",
-			"clear",
-			`printf '%s\\n' ${shellSingleQuote({
-				value: `qcut codex terminal | session ${sessionId.slice(0, 8)} | provider ${provider} | expires ${expiresAt}`,
-			})}`,
-			[
-				"codex",
-				"--dangerously-bypass-approvals-and-sandbox",
-				"--no-alt-screen",
-				"-C /home/qcut/qcut",
+		"clear",
+		`printf '%s\\n' ${shellSingleQuote({
+			value: `qcut codex terminal | session ${sessionId.slice(0, 8)} | provider ${provider} | expires ${expiresAt}`,
+		})}`,
+		[
+			"codex",
+			"--dangerously-bypass-approvals-and-sandbox",
+			"--no-alt-screen",
+			"-C /home/qcut/qcut",
 			].join(" "),
 			"printf '\\nCodex exited. QCut shell fallback is ready; run qcut commands here.\\n'",
 			"exec /bin/bash -l",
 		].join("\n")}\n`;
 	}
+
+function buildCodexHomeSessionName({ sessionId }: { sessionId: string }): string {
+	const safe = sessionId.replace(/[^0-9A-Za-z-]/g, "").slice(0, 32);
+	return safe.length > 0 ? safe : "session";
+}
+
+function buildCodexApiKeyLoginCommand({
+	openAiApiKey,
+}: {
+	openAiApiKey?: string;
+}): string {
+	const trimmedKey =
+		typeof openAiApiKey === "string" ? openAiApiKey.trim() : "";
+	if (trimmedKey.length === 0) {
+		return "printf '%s\\n' 'OPENAI_API_KEY is not configured; Codex may require device auth.'";
+	}
+	return [
+		`printf '%s' ${shellSingleQuote({ value: trimmedKey })} | codex login --with-api-key >/tmp/qcut-tools/codex-login.log 2>&1`,
+		"if [ $? -ne 0 ]; then",
+		"  printf '%s\\n' 'Codex API key login failed; see /tmp/qcut-tools/codex-login.log'",
+		"fi",
+	].join("\n");
+}
 
 function shellSingleQuote({ value }: { value: string }): string {
 	return `'${value.replace(/'/g, "'\"'\"'")}'`;

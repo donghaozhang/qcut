@@ -19,6 +19,7 @@ export interface Env {
 	RELAY_SIGNING_SECRET: string;
 	E2B_API_KEY: string;
 	DAYTONA_API_KEY: string;
+	OPENAI_API_KEY?: string;
 }
 
 export default {
