@@ -853,6 +853,26 @@ What remains for live proof after deploy:
 - 点击 `Reconnect`，确认可见 session id 保持不变，同时 fresh PTY/Codex attachment 启动。
 - reconnect 后提交第二条 prompt，并确认 `history.jsonl` 写入该 prompt。
 
+Commit and PR evidence:
+
+Commit / PR 证据：
+
+- Website repo `donghaozhang/nexusai-website`:
+  - branch: `master`
+  - commit: `4998409` (`Fix chat terminal reconnect diagnostics`)
+- Main repo `Quriosity-agent/qcut`:
+  - branch: `image-cli-v11`
+  - commit: `9708913cf` (`Fix agent terminal reconnect diagnostics`)
+  - PR: `https://github.com/Quriosity-agent/qcut/pull/311`
+
+- Website repo `donghaozhang/nexusai-website`：
+  - branch：`master`
+  - commit：`4998409`（`Fix chat terminal reconnect diagnostics`）
+- Main repo `Quriosity-agent/qcut`：
+  - branch：`image-cli-v11`
+  - commit：`9708913cf`（`Fix agent terminal reconnect diagnostics`）
+  - PR：`https://github.com/Quriosity-agent/qcut/pull/311`
+
 ## Suggested First Implementation Slice / 建议第一步实现范围
 
 Start small:
