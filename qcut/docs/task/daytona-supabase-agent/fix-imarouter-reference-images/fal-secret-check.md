@@ -49,6 +49,21 @@ FAL_KEY
 FAL_API_KEY
 ```
 
+Direct Daytona sandbox environment check:
+
+```text
+sandboxId=daa84f1c-9989-4dc9-a86a-e0d7f44c4d59
+state=started
+HAS_FAL_KEY=no
+FAL_KEY_LENGTH=0
+HAS_FAL_API_KEY=no
+FAL_API_KEY_LENGTH=0
+HAS_IMAROUTER_API_KEY=yes
+IMAROUTER_API_KEY_LENGTH=52
+```
+
+This confirms the running sandbox itself has the IMA Router key but does not have either FAL upload secret.
+
 ## Local Smoke With Local File
 
 Command shape:
