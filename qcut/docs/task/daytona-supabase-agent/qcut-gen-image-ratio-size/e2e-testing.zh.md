@@ -1,26 +1,26 @@
-# E2E Testing Guide
+# E2E 测试手册
 
-## Principle
+## 原则
 
-This must verify the real Daytona chat agent path, not only the local CLI.
+这次要验的是 Daytona chat agent 真实链路，不只是本地 CLI。
 
-Minimum requirements:
+最低要求：
 
-- Start from the Web / Daytona chat agent.
-- Run commands inside a real sandbox.
-- Use the real `qcut gen image` binary or the CLI inside the deployed image.
-- Send real IMA Router GPT Image 2 requests.
-- Generate real image files.
-- Read final image dimensions programmatically.
-- After the first generation finishes, submit a second command in the same Codex terminal / PTY session.
+- 从 Web / Daytona chat agent 发起。
+- 命令在真实 sandbox 里执行。
+- 使用真实 `qcut gen image` 二进制或镜像内 CLI。
+- 使用真实 IMA Router GPT Image 2 请求。
+- 生成真实图片文件。
+- 用程序读取最终图片尺寸。
+- 在第一轮生成结束后，在同一个 Codex terminal / PTY session 再提交第二条命令。
 
-Do not use mocks, do not stop at parser tests, and do not fall back to another model.
+不要用 mock、不要只看 parser 单测、不要 fallback 到其它模型。
 
-## Recommended E2E Scenarios
+## 推荐 E2E 场景
 
-### Scenario A: Ratio Parameters
+### 场景 A：比例参数
 
-Run these commands through the Daytona chat agent:
+在 Daytona chat agent 中执行这些命令：
 
 ```bash
 set -euo pipefail
@@ -58,14 +58,14 @@ qcut gen image \
   --json | tee "$ROOT/aspect-4-3.json"
 ```
 
-Expected:
+期望：
 
-- All four commands succeed.
-- Each output directory contains an image file and sidecar JSON.
-- The final dimensions match `16:9`, `9:16`, `3:4`, and `4:3`.
-- Sidecar JSON records `gpt_image_2_ima` as the model.
+- 四条命令都成功。
+- 输出目录中有图片文件和 sidecar JSON。
+- `16:9`、`9:16`、`3:4`、`4:3` 的最终图片尺寸比例正确。
+- sidecar JSON 中的 `model` 是 `gpt_image_2_ima`。
 
-### Scenario B: Custom Width And Height
+### 场景 B：自定义宽高
 
 ```bash
 set -euo pipefail
@@ -83,31 +83,31 @@ qcut gen image \
   --json | tee "$ROOT/custom-2000x1152.json"
 ```
 
-Expected:
+期望：
 
-- The command succeeds.
-- The final image size is `2000x1152`.
-- The sidecar JSON params include `size: "2000x1152"`.
+- 命令成功。
+- 最终图片尺寸是 `2000x1152`。
+- sidecar JSON 中的 params 包含 `size: "2000x1152"`。
 
-### Scenario C: Second Input In The Same Terminal
+### 场景 C：第二次输入
 
-In the same Daytona Codex terminal / PTY session, after all image generation commands finish, submit another independent command:
+在同一个 Daytona Codex terminal / PTY session 中，在上面的图片生成全部结束后，再提交一条独立命令：
 
 ```bash
 echo "SECOND_INPUT_OK $(date -Iseconds)" > "$ROOT/second-input-ok.txt"
 qcut --version | tee "$ROOT/qcut-version-after-second-input.txt"
 ```
 
-Expected:
+期望：
 
-- The second message submits successfully.
-- The terminal is not stuck in composer/editor state.
-- `$ROOT/second-input-ok.txt` exists.
-- `$ROOT/qcut-version-after-second-input.txt` contains version output.
+- 第二条消息能正常提交。
+- terminal 没有卡在 composer/editor 状态。
+- `$ROOT/second-input-ok.txt` 存在。
+- `$ROOT/qcut-version-after-second-input.txt` 有版本输出。
 
-## Dimension Validation Script
+## 尺寸校验脚本
 
-Run this inside the sandbox:
+在 sandbox 中执行：
 
 ```bash
 set -euo pipefail
@@ -181,7 +181,7 @@ if (failed.length > 0) process.exit(1);
 BUN
 ```
 
-Expected output:
+期望输出：
 
 ```json
 {
@@ -190,27 +190,27 @@ Expected output:
 }
 ```
 
-## Suggested Prompt For The Chat Agent
+## 建议给 chat agent 的完整 prompt
 
-Send this to the Daytona chat agent:
+可以直接把下面这段发给 Daytona chat agent：
 
 ```text
-Please run a real QCut image ratio/size E2E in the current Daytona sandbox. Do not mock anything and do not fall back to another model.
+请在当前 Daytona sandbox 中做 QCut image ratio/size 的真实 E2E，不要 mock，不要 fallback 到其它模型。
 
-Requirements:
-1. Run qcut gen image with model fixed to gpt_image_2_ima.
-2. Test --aspect-ratio 16:9, --ratio 9:16, --aspect-ratio 3:4, and --aspect-ratio 4:3.
-3. Also test --width 2000 --height 1152.
-4. Put all outputs under /tmp/qcut-output/gen-image-ratio-size-e2e-<timestamp>.
-5. Use @napi-rs/canvas or another reliable method to read final image dimensions and write dimension-validation.json.
-6. In the same terminal session, after image generation finishes, submit a second command that writes second-input-ok.txt and runs qcut --version into qcut-version-after-second-input.txt.
-7. If qcut system models --json does not include gpt_image_2_ima, or qcut gen image --help does not include --ratio, --width, and --height, fail immediately and write preflight-failed.txt. Do not switch models.
-8. Final response must include: run directory, each image path, dimensions, sidecar JSON paths, and whether the second input succeeded.
+要求：
+1. 运行 qcut gen image，模型固定为 gpt_image_2_ima。
+2. 分别测试 --aspect-ratio 16:9、--ratio 9:16、--aspect-ratio 3:4、--aspect-ratio 4:3。
+3. 再测试 --width 2000 --height 1152。
+4. 把所有输出放在 /tmp/qcut-output/gen-image-ratio-size-e2e-<timestamp>。
+5. 用 @napi-rs/canvas 或其它可靠方式读取最终图片尺寸，写 dimension-validation.json。
+6. 在同一个 terminal session 中，图片生成结束后再提交第二条命令，写 second-input-ok.txt，并运行 qcut --version 写 qcut-version-after-second-input.txt。
+7. 如果 qcut system models --json 中没有 gpt_image_2_ima，或者 qcut gen image --help 中没有 --ratio、--width、--height，请直接失败并写 preflight-failed.txt，不要换模型。
+8. 最后输出：运行目录、每张图片路径、尺寸、sidecar JSON 路径、第二次输入是否成功。
 ```
 
 ## Preflight
 
-Run before real generation:
+真实 E2E 前先检查：
 
 ```bash
 set -euo pipefail
@@ -225,13 +225,13 @@ grep -q -- "--width" /tmp/qcut-output/gen-image-help.txt
 grep -q -- "--height" /tmp/qcut-output/gen-image-help.txt
 ```
 
-If preflight fails, the Daytona image or deployed environment does not include this fix. Do not continue generation, because that would only test an old image.
+如果 preflight 失败，说明 Daytona 镜像或部署环境还不是包含这次修复的版本。此时不要继续跑生成，因为继续跑只会验证旧镜像。
 
-## Failure Diagnosis
+## 失败时怎么判断原因
 
-### `--ratio` did not take effect
+### `--ratio` 没生效
 
-Check whether the final image is still at the default ratio. Then inspect sidecar JSON for:
+看最终图片是否还是默认比例。再看 sidecar JSON 是否有：
 
 ```json
 {
@@ -241,11 +241,11 @@ Check whether the final image is still at the default ratio. Then inspect sideca
 }
 ```
 
-If the sidecar has no `aspect_ratio`, the CLI/session parser did not capture the alias.
+如果 sidecar 没有 `aspect_ratio`，说明 CLI/session parser 没接住 alias。
 
-### `--width/--height` did not take effect
+### `--width/--height` 没生效
 
-Check sidecar JSON for:
+看 sidecar JSON 是否有：
 
 ```json
 {
@@ -255,11 +255,11 @@ Check sidecar JSON for:
 }
 ```
 
-If the sidecar has `size` but the final dimensions are not `2000x1152`, the provider behavior or deployed backend needs deeper investigation.
+如果 sidecar 有 size 但最终尺寸不是 `2000x1152`，说明 provider 或部署镜像的后端行为需要继续排查。
 
-### Second input failed
+### 第二次输入失败
 
-Check whether chat-agent / relay wrote this Codex config:
+看 chat-agent / relay 的 Codex config 是否写入了：
 
 ```toml
 [tui.keymap.composer]
@@ -269,5 +269,5 @@ submit = ["enter", "ctrl-m", "ctrl-j"]
 insert_newline = ["shift-enter"]
 ```
 
-If it is missing, the issue is in PTY session bootstrap or an old image. If it is present and still fails, capture terminal events and Codex TUI state.
+如果没有，问题在 PTY session bootstrap 或旧镜像；如果有但仍失败，需要抓 terminal 事件和 Codex TUI 状态。
 
