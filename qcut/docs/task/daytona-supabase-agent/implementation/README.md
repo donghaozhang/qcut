@@ -35,7 +35,6 @@ Reference docs (background, why, schemas) live in the sibling folders:
 
 - [`../core-plan/`](../core-plan/) — architecture, container setup, secrets
 - [`../web-sandbox/`](../web-sandbox/) — browser sandbox surface
-- [`../vm0-reference/`](../vm0-reference/) — lessons from vm0
 
 These implementation specs cite that material; they don't re-derive it.
 
@@ -94,7 +93,7 @@ Every PR spec follows the same skeleton:
 
 ## What this plan does NOT cover
 
-- mitmproxy credential injection (Phase 3, [`../vm0-reference/secrets-proxy.md`](../vm0-reference/secrets-proxy.md) §Phase 2)
+- mitmproxy credential injection (Phase 3)
 - Warm pool / pre-spawned containers (Phase 3, when latency demands it)
 - Multi-tenant firewall policies (Phase 3+)
 - `qcut editor:*` / `record*` / `edit:remotion` commands (out of scope by design — they need an Electron renderer)

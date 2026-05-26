@@ -150,8 +150,7 @@ describe("claude-snapshot-handler", () => {
 		).rejects.toThrow("No element found for snapshot ref @e9.");
 	});
 
-	// Truncation guard tests — pin the contract for the bug-fix landed in
-	// docs/task/editor-cli-results-2026-04-30/IMPLEMENTATION-PLAN.md
+	// Truncation guard tests — pin the snapshot truncation contract.
 	describe("truncation envelope", () => {
 		it("forwards maxBytes and maxNodes into the renderer script", async () => {
 			const { window, executeJavaScript } = createSnapshotWindow({

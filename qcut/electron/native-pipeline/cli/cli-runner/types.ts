@@ -285,7 +285,7 @@ export interface CLIRunOptions {
 	 * editor:state:snapshot: include raw `data:` thumbnail URLs in the
 	 * `media` section. Default is `false` because base64 thumbnails can
 	 * push the response past HTTP/IPC transport limits and break JSON
-	 * parsing. See docs/task/editor-cli-results-2026-04-30/.
+	 * parsing.
 	 */
 	withThumbnails?: boolean;
 	/** editor:snapshot: hard cap on payload size before returning `truncated: true`. */

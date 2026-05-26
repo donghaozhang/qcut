@@ -44,7 +44,7 @@
 - `bun.lock`、package workspace metadata、root package scripts，除非目标 worker 也变成 QCut 风格的 Bun workspace。
 - `packages/db/src/schema.ts` 作为 WZRD authoritative schema file。
 - 没有重新审视 WZRD secret policy 前，不要复制 QCut 的 `agent_secrets` plaintext storage 模型。
-- QCut release docs 和 `docs/task/daytona-supabase-agent/vm0/**`。
+- QCut release docs。
 - `packages/nexusai-website` 下的 QCut website UI 文件，除非明确要复制视觉行为。
 - `qagent.yaml` 和 Agent Orchestrator configs；它们属于开发编排，不是 sandbox runtime。
 

@@ -44,7 +44,7 @@ These are either QCut-specific or likely to create drift.
 - `bun.lock`, package workspace metadata, and root package scripts unless the target worker becomes a QCut-style Bun workspace.
 - `packages/db/src/schema.ts` as an authoritative WZRD schema file.
 - QCut's `agent_secrets` plaintext storage model without revisiting WZRD's secret policy.
-- QCut release docs and `docs/task/daytona-supabase-agent/vm0/**`.
+- QCut release docs.
 - QCut website UI files under `packages/nexusai-website` unless you are copying visual behavior intentionally.
 - `qagent.yaml` and Agent Orchestrator configs; they are development orchestration, not sandbox runtime.
 

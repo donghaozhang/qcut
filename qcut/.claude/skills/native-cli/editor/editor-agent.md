@@ -43,7 +43,7 @@ Returns `elements[]` with `ref`, `role`, `tagName`, `name`, `actionable`, `bound
 }
 ```
 
-Branch on `response.truncated === true` to handle this case. The default cap exists because Electron's `executeJavaScript` IPC silently mangles very large payloads — a corrupt JSON string was the original bug ([docs/task/editor-cli-results-2026-04-30/](../../../../docs/task/editor-cli-results-2026-04-30/IMPLEMENTATION-PLAN.md)).
+Branch on `response.truncated === true` to handle this case. The default cap exists because Electron's `executeJavaScript` IPC silently mangles very large payloads — a corrupt JSON string was the original bug.
 
 ### Click an element
 

@@ -32,7 +32,6 @@
 
 - [`../core-plan/`](../core-plan/) —— 架构、容器、密钥
 - [`../web-sandbox/`](../web-sandbox/) —— 浏览器沙箱
-- [`../vm0-reference/`](../vm0-reference/) —— vm0 经验
 
 这些实现规约**引用**那些材料，不重复推导。
 
@@ -91,7 +90,7 @@ Phase 2 各 PR 在**依赖已合入 main 之后**可乱序，但 06 → 07 → 0
 
 ## 这份计划**不**覆盖
 
-- mitmproxy 凭证注入（Phase 3，见 [`../vm0-reference/secrets-proxy.md`](../vm0-reference/secrets-proxy.md) §Phase 2）
+- mitmproxy 凭证注入（Phase 3）
 - 暖池 / 预热容器（Phase 3，等延迟要求逼上来）
 - 多租户防火墙策略（Phase 3+）
 - `qcut editor:*` / `record*` / `edit:remotion`（设计上超范围——它们要 Electron 渲染进程）

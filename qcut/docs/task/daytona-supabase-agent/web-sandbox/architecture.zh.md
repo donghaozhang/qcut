@@ -174,7 +174,7 @@ RLS：workspace 成员能 SELECT 自家行；只有 service role 能 INSERT/UPDA
 | 会话中 WS 断 | xterm 显 "disconnected" | 用户点重连；中继 30 s 内能重绑同一 PTY |
 | 用户关 tab | idle 定时器最终触发 | 会话进 `idle_timeout` 被 kill |
 | qcut 二进制丢/坏 | 第一行提示 `qcut: command not found` | Layer 2 在用户看到前就挡掉 |
-| 输入里漏 token | masker 改写成 `***` 后再插审计 | 复用 [`vm0-job-pipeline.zh.md`](../vm0-reference/job-pipeline.zh.md) 里的 masker 模块 |
+| 输入里漏 token | masker 改写成 `***` 后再插审计 | 持久化前应用 masker 模块 |
 
 ## 我们**不**做的
 

@@ -373,8 +373,7 @@ export function parseCliArgs(argv: string[]): CLIRunOptions {
 			// state snapshot flags
 			include: { type: "string" },
 			// editor:state:snapshot — opt back into raw `data:` thumbnail URLs.
-			// Default is stripped (sentinel `<stripped>`); see
-			// docs/task/editor-cli-results-2026-04-30/IMPLEMENTATION-PLAN.md
+			// Default is stripped (sentinel `<stripped>`).
 			"with-thumbnails": { type: "boolean", default: false },
 			// editor:snapshot — render-side size guards (renderer returns a
 			// `truncated: true` envelope past `--max-bytes` instead of a
