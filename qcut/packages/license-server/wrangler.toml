@@ -15,7 +15,8 @@ PAYMENTS_WEBHOOK_ENABLED = "true"
 PAYMENTS_CANARY_ONLY = "false"
 CORS_ALLOWED_ORIGINS = ""
 AI_PROXY_RATE_LIMIT = "60"
-QCUT_IMAGE_TAG = "ghcr.io/quriosity-agent/qcut-cli:storyboard-concurrency-20260519212347"
+QCUT_AGENT_ALLOW_DEFAULT_USER = "true"
+QCUT_IMAGE_TAG = "ghcr.io/quriosity-agent/qcut-cli:gen-image-ratio-size-20260526034624"
 
 # AI provider keys are stored as Wrangler secrets (not vars):
 # wrangler secret put FAL_API_KEY

@@ -36,6 +36,7 @@ type Config = {
 	url: string;
 	licenseServerUrl: string;
 	outDir: string;
+	existingRoot: string;
 	diagnosticOnly: boolean;
 	headed: boolean;
 	injectLocalAgentChatJs: boolean;
@@ -75,7 +76,8 @@ type DimensionValidation = {
 	status: string;
 	results: Array<{
 		name: string;
-		filePath: string;
+		filePath?: string;
+		imagePath?: string;
 		width: number;
 		height: number;
 		ratio: number;
@@ -151,6 +153,7 @@ function parseArgs({ argv }: { argv: string[] }): Config {
 			process.env.QCUT_LICENSE_SERVER_URL ||
 			DEFAULT_LICENSE_SERVER_URL,
 		outDir: resolve(readOption({ argv, name: "--out-dir" }) || defaultOutDir),
+		existingRoot: readOption({ argv, name: "--existing-root" }),
 		diagnosticOnly: hasFlag({ argv, name: "--diagnostic-only" }),
 		headed:
 			hasFlag({ argv, name: "--headed" }) ||
@@ -191,6 +194,7 @@ Options:
   --url <url>                         Chat Agent URL. Default: ${DEFAULT_URL}
   --license-server-url <url>          License server base URL fallback.
   --out-dir <path>                    Screenshot/result output directory.
+  --existing-root <path>              Reuse completed generation artifacts.
   --diagnostic-only                   Run a one-image live provider diagnostic.
   --headed, --headful                 Show the browser.
   --inject-local-agent-chat-js        Route js/agent-chat.js to the local file.
@@ -310,14 +314,15 @@ async function readTerminalText({ page }: { page: Page }): Promise<string> {
 
 async function waitForAgentChatReady({ page }: { page: Page }) {
 	await page.waitForFunction(
-		() => {
+		async () => {
 			const ready = window.AgentChatReady;
-			return Boolean(ready && typeof ready.then === "function");
+			if (!ready || typeof ready.then !== "function") return false;
+			await ready;
+			return true;
 		},
 		null,
 		{ timeout: 30_000 }
 	);
-	await page.evaluate(() => window.AgentChatReady);
 }
 
 async function waitForCodexReady({
@@ -499,6 +504,36 @@ async function waitForSessionText({
 	throw new Error(`timed out waiting for ${remotePath}`);
 }
 
+async function waitForGenerationValidation({
+	context,
+	root,
+	timeoutMs,
+}: {
+	context: SessionContext;
+	root: string;
+	timeoutMs: number;
+}): Promise<string> {
+	const startedAt = Date.now();
+	while (Date.now() - startedAt < timeoutMs) {
+		const preflightText = await fetchSessionText({
+			context,
+			remotePath: `${root}/preflight-failed.txt`,
+		});
+		if (preflightText !== null) {
+			throw new Error(`preflight failed: ${preflightText}`);
+		}
+		const validationText = await fetchSessionText({
+			context,
+			remotePath: `${root}/dimension-validation.json`,
+		});
+		if (validationText !== null) return validationText;
+		await new Promise((resolveDelay) =>
+			setTimeout(resolveDelay, POLL_INTERVAL_MS)
+		);
+	}
+	throw new Error(`timed out waiting for ${root}/dimension-validation.json`);
+}
+
 async function readLocalImageDimensions({
 	localPath,
 }: {
@@ -514,7 +549,7 @@ async function readLocalImageDimensions({
 }
 
 function buildGenerationPrompt({ root }: { root: string }): string {
-	return `Please run a real QCut image ratio/size E2E in this Daytona sandbox using natural-language instructions from me. Do not mock anything and do not fall back to another model. Use exactly this output root: ${root}. First run preflight: qcut --version, qcut system models --json, and qcut gen image --help; write models.json and gen-image-help.txt under the root; if gpt_image_2_ima, --ratio, --width, or --height is missing, write ${root}/preflight-failed.txt and stop. If preflight passes, run qcut gen image with model fixed to gpt_image_2_ima for these five cases: 1) name aspect-16-9, prompt "minimal product photo of a matte black coffee mug on a neutral table, clean studio lighting" with --aspect-ratio 16:9 into ${root}/aspect-16-9 and expect 2048x1152, 2) name ratio-9-16, prompt "minimal product photo of a matte black coffee mug on a neutral table, vertical poster crop" with --ratio 9:16 into ${root}/ratio-9-16 and expect 1152x2048, 3) name aspect-3-4, prompt "minimal product photo of a matte black coffee mug on a neutral table, portrait editorial crop" with --aspect-ratio 3:4 into ${root}/aspect-3-4 and expect 1536x2048, 4) name aspect-4-3, prompt "minimal product photo of a matte black coffee mug on a neutral table, landscape catalog crop" with --aspect-ratio 4:3 into ${root}/aspect-4-3 and expect 2048x1536, 5) name custom-2000x1152, prompt "wide editorial hero image of a matte black coffee mug on a neutral table, clean studio lighting" with --width 2000 --height 1152 into ${root}/custom-2000x1152 and expect 2000x1152. Use --json and tee each command output to a matching JSON file under the root. After generation, use @napi-rs/canvas or another reliable method to read final image dimensions and write ${root}/dimension-validation.json with status, results, failed, and image file paths. Use the exact case names above in results[].name and mark status SUCCESS only if every image path exists and every dimension exactly matches its expected width and height. Also write ${root}/e2e-summary.md. Final response should include RESULT_READY, the root path, each image path, dimensions, sidecar JSON paths, and whether validation succeeded.`;
+	return `Please run a real QCut image ratio/size E2E in this Daytona sandbox using natural-language instructions from me. Do not mock anything and do not fall back to another model. Use exactly this output root: ${root}. First run preflight: qcut --version, qcut system models --json, and qcut generate-image --help --json; write models.json and gen-image-help.json under the root; if gpt_image_2_ima, --ratio, --width, or --height is missing from those JSON outputs, write ${root}/preflight-failed.txt and stop. If preflight passes, run qcut gen image with model fixed to gpt_image_2_ima for these five cases: 1) name aspect-16-9, prompt "minimal product photo of a matte black coffee mug on a neutral table, clean studio lighting" with --aspect-ratio 16:9 into ${root}/aspect-16-9 and expect 2048x1152, 2) name ratio-9-16, prompt "minimal product photo of a matte black coffee mug on a neutral table, vertical poster crop" with --ratio 9:16 into ${root}/ratio-9-16 and expect 1152x2048, 3) name aspect-3-4, prompt "minimal product photo of a matte black coffee mug on a neutral table, portrait editorial crop" with --aspect-ratio 3:4 into ${root}/aspect-3-4 and expect 1536x2048, 4) name aspect-4-3, prompt "minimal product photo of a matte black coffee mug on a neutral table, landscape catalog crop" with --aspect-ratio 4:3 into ${root}/aspect-4-3 and expect 2048x1536, 5) name custom-2000x1152, prompt "wide editorial hero image of a matte black coffee mug on a neutral table, clean studio lighting" with --width 2000 --height 1152 into ${root}/custom-2000x1152 and expect 2000x1152. Use --json and tee each command output to a matching JSON file under the root. After generation, use @napi-rs/canvas or another reliable method to read final image dimensions and write ${root}/dimension-validation.json with status, results, failed, and image file paths. Use the exact case names above in results[].name and mark status SUCCESS only if every image path exists and every dimension exactly matches its expected width and height. Also write ${root}/e2e-summary.md. Final response should include RESULT_READY, the root path, each image path, dimensions, sidecar JSON paths, and whether validation succeeded.`;
 }
 
 function buildDiagnosticPrompt({ root }: { root: string }): string {
@@ -523,6 +558,14 @@ function buildDiagnosticPrompt({ root }: { root: string }): string {
 
 function buildSecondInputPrompt({ root }: { root: string }): string {
 	return `This is the second independent natural-language input in the same Codex terminal / PTY session after the image generation finished. Please run: mkdir -p ${root}; echo "SECOND_INPUT_OK $(date -Iseconds)" > ${root}/second-input-ok.txt; qcut --version | tee ${root}/qcut-version-after-second-input.txt. Then reply with SECOND_INPUT_DONE and the two file paths.`;
+}
+
+function getValidationImagePath({
+	result,
+}: {
+	result: DimensionValidation["results"][number];
+}): string {
+	return result.filePath || result.imagePath || "";
 }
 
 async function downloadAndVerifyImages({
@@ -535,23 +578,28 @@ async function downloadAndVerifyImages({
 	validation: DimensionValidation;
 }) {
 	for (const result of validation.results) {
+		const remotePath = getValidationImagePath({ result });
+		assertCondition({
+			condition: remotePath.length > 0,
+			message: `missing image path for ${result.name}`,
+		});
 		const localPath = join(
 			state.config.outDir,
-			`downloaded-${result.name}-${basename(result.filePath)}`
+			`downloaded-${result.name}-${basename(remotePath)}`
 		);
 		const downloaded = await downloadSessionFile({
 			context,
-			remotePath: result.filePath,
+			remotePath,
 			localPath,
 		});
 		assertCondition({
 			condition: downloaded,
-			message: `failed to download ${result.filePath}`,
+			message: `failed to download ${remotePath}`,
 		});
 		const dimensions = await readLocalImageDimensions({ localPath });
 		state.downloads.push({
 			name: result.name,
-			remotePath: result.filePath,
+			remotePath,
 			localPath,
 			...dimensions,
 		});
@@ -579,7 +627,8 @@ async function main() {
 	mkdirSync(config.outDir, { recursive: true });
 
 	const runId = String(Date.now());
-	const root = `/tmp/qcut-output/gen-image-ratio-size-e2e-${runId}`;
+	const root =
+		config.existingRoot || `/tmp/qcut-output/gen-image-ratio-size-e2e-${runId}`;
 	const browser = await chromium.launch({ headless: !config.headed });
 	const page = await browser.newPage({
 		acceptDownloads: true,
@@ -696,20 +745,34 @@ async function main() {
 					}
 					return readyText.trim();
 				}
+				if (config.existingRoot.length > 0) {
+					const validationText = await waitForSessionText({
+						context,
+						remotePath: `${root}/dimension-validation.json`,
+						timeoutMs: config.generationTimeoutMs,
+					});
+					writeFileSync(
+						join(config.outDir, "dimension-validation.json"),
+						validationText
+					);
+					validation = JSON.parse(validationText) as DimensionValidation;
+					assertCondition({
+						condition: validation.status === "SUCCESS",
+						message: `dimension validation status=${validation.status}`,
+					});
+					assertCondition({
+						condition: validation.failed.length === 0,
+						message: "dimension validation has failures",
+					});
+					return `reused validation=${validation.status}; cases=${validation.results.length}`;
+				}
 				await typePromptIntoTerminal({
 					page,
 					prompt: buildGenerationPrompt({ root }),
 				});
-				const preflightText = await fetchSessionText({
+				const validationText = await waitForGenerationValidation({
 					context,
-					remotePath: `${root}/preflight-failed.txt`,
-				});
-				if (preflightText !== null) {
-					throw new Error(`preflight failed: ${preflightText}`);
-				}
-				const validationText = await waitForSessionText({
-					context,
-					remotePath: `${root}/dimension-validation.json`,
+					root,
 					timeoutMs: config.generationTimeoutMs,
 				});
 				writeFileSync(
@@ -813,6 +876,7 @@ async function main() {
 					runId,
 					url: config.url,
 					root,
+					existingRoot: config.existingRoot,
 					diagnosticOnly: config.diagnosticOnly,
 					injectLocalAgentChatJs: config.injectLocalAgentChatJs,
 					outDir: config.outDir,

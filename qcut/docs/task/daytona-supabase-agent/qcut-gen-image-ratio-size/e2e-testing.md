@@ -204,7 +204,7 @@ Requirements:
 4. Put all outputs under /tmp/qcut-output/gen-image-ratio-size-e2e-<timestamp>.
 5. Use @napi-rs/canvas or another reliable method to read final image dimensions and write dimension-validation.json.
 6. In the same terminal session, after image generation finishes, submit a second command that writes second-input-ok.txt and runs qcut --version into qcut-version-after-second-input.txt.
-7. If qcut system models --json does not include gpt_image_2_ima, or qcut gen image --help does not include --ratio, --width, and --height, fail immediately and write preflight-failed.txt. Do not switch models.
+7. If qcut system models --json does not include gpt_image_2_ima, or qcut generate-image --help --json does not include --ratio, --width, and --height, fail immediately and write preflight-failed.txt. Do not switch models.
 8. Final response must include: run directory, each image path, dimensions, sidecar JSON paths, and whether the second input succeeded.
 ```
 
@@ -217,12 +217,12 @@ set -euo pipefail
 
 qcut --version
 qcut system models --json | tee /tmp/qcut-output/models.json
-qcut gen image --help | tee /tmp/qcut-output/gen-image-help.txt
+qcut generate-image --help --json | tee /tmp/qcut-output/gen-image-help.json
 
 grep -q "gpt_image_2_ima" /tmp/qcut-output/models.json
-grep -q -- "--ratio" /tmp/qcut-output/gen-image-help.txt
-grep -q -- "--width" /tmp/qcut-output/gen-image-help.txt
-grep -q -- "--height" /tmp/qcut-output/gen-image-help.txt
+grep -q -- "--ratio" /tmp/qcut-output/gen-image-help.json
+grep -q -- "--width" /tmp/qcut-output/gen-image-help.json
+grep -q -- "--height" /tmp/qcut-output/gen-image-help.json
 ```
 
 If preflight fails, the Daytona image or deployed environment does not include this fix. Do not continue generation, because that would only test an old image.
@@ -271,3 +271,44 @@ insert_newline = ["shift-enter"]
 
 If it is missing, the issue is in PTY session bootstrap or an old image. If it is present and still fails, capture terminal events and Codex TUI state.
 
+## Run Results
+
+### 2026-05-26: Passed
+
+Environment:
+
+- Chat page: `https://quriosity.com.au/chat-agent.html`
+- License server: `https://qcut-license-server.zdhpeter.workers.dev`
+- License server deployment: `8aab4d06-35de-4330-997a-b743244e9e15`
+- CLI image: `ghcr.io/quriosity-agent/qcut-cli:gen-image-ratio-size-20260526034624`
+- GitHub Actions image build: `26431056624`
+- Daytona session: `88906ab5-35ad-46e7-b97a-bf3ab4196ad4`
+- Remote root: `/tmp/qcut-output/gen-image-ratio-size-e2e-1779769061133`
+- Local proof directory: `output/playwright/agent-chat-image-ratio-size-e2e-2026-05-26T04-24-50-222Z`
+
+Validation:
+
+| Case | Command input | Dimensions | Result |
+| --- | --- | ---: | --- |
+| `aspect-16-9` | `--aspect-ratio 16:9` | `2048x1152` | Pass |
+| `ratio-9-16` | `--ratio 9:16` | `1152x2048` | Pass |
+| `aspect-3-4` | `--aspect-ratio 3:4` | `1536x2048` | Pass |
+| `aspect-4-3` | `--aspect-ratio 4:3` | `2048x1536` | Pass |
+| `custom-2000x1152` | `--width 2000 --height 1152` | `2000x1152` | Pass |
+
+Proof artifacts:
+
+- `dimension-validation.json`: `status=SUCCESS`, `failed=[]`.
+- Local downloaded images:
+  - `downloaded-aspect-16-9-gpt_image_2_ima_minimal-product-photo-of-a-matte-black-coffee-mug-on-a_1779769163509.png`
+  - `downloaded-ratio-9-16-gpt_image_2_ima_minimal-product-photo-of-a-matte-black-coffee-mug-on-a_1779769218141.png`
+  - `downloaded-aspect-3-4-gpt_image_2_ima_minimal-product-photo-of-a-matte-black-coffee-mug-on-a_1779769288568.png`
+  - `downloaded-aspect-4-3-gpt_image_2_ima_minimal-product-photo-of-a-matte-black-coffee-mug-on-a_1779769353823.png`
+  - `downloaded-custom-2000x1152-gpt_image_2_ima_wide-editorial-hero-image-of-a-matte-black-coffee-mug-on-a_1779769409357.png`
+- Final terminal screenshot: `07-final-proof.png`.
+- Second natural-language input proof: `second-input-ok.txt` contains `SECOND_INPUT_OK 2026-05-26T04:25:07+00:00`, and `qcut-version-after-second-input.txt` contains `1.0.0`.
+
+Failures fixed during this run:
+
+- The first real provider run returned `IMA Router submit error 403` for `size: "16:9"`. A diagnostic run in the same Web / Daytona path proved the key and model were valid by generating a real `1024x1024` image. Fix: map GPT Image 2 ratio flags to pixel dimensions before calling IMA Router.
+- The original preflight checked `qcut gen image --help`, which prints top-level help. Fix: check `qcut generate-image --help --json`.
