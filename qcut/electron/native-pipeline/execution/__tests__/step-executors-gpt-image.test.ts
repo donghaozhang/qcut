@@ -67,7 +67,7 @@ describe("executeTextToImage — GPT Image 2", () => {
 		expect(call.payload).not.toHaveProperty("aspect_ratio");
 	});
 
-	it("passes IMA Router native image size ratios for GPT Image 2", async () => {
+	it("maps IMA Router GPT Image 2 ratios to pixel sizes", async () => {
 		const model = ModelRegistry.get("gpt_image_2_ima");
 
 		await executeStep(
@@ -79,7 +79,7 @@ describe("executeTextToImage — GPT Image 2", () => {
 
 		const call = mockedCallModelApi.mock.calls[0][0];
 		expect(call.provider).toBe("imarouter");
-		expect(call.payload.size).toBe("16:9");
+		expect(call.payload.size).toBe("2048x1152");
 		expect(call.payload).not.toHaveProperty("image_size");
 		expect(call.payload).not.toHaveProperty("aspect_ratio");
 	});
@@ -126,7 +126,7 @@ describe("executeTextToImage — GPT Image 2", () => {
 			"https://example.com/astronaut.png",
 			"https://example.com/helmet.png",
 		]);
-		expect(call.payload.size).toBe("1:1");
+		expect(call.payload.size).toBe("1024x1024");
 		expect(call.payload).not.toHaveProperty("image_urls");
 		expect(call.payload).not.toHaveProperty("aspect_ratio");
 	});

@@ -251,23 +251,22 @@ const GPT_IMAGE_SIZE_BY_RATIO: Record<string, string> = {
 	"2:3": "1024x1536",
 };
 
-const IMA_ROUTER_GPT_IMAGE_2_NATIVE_SIZES = new Set([
-	"1:1",
-	"3:4",
-	"9:16",
-	"4:3",
-	"16:9",
-]);
+const IMA_ROUTER_GPT_IMAGE_2_SIZE_BY_RATIO: Record<string, string> = {
+	"1:1": "1024x1024",
+	"16:9": "2048x1152",
+	"9:16": "1152x2048",
+	"4:3": "2048x1536",
+	"3:4": "1536x2048",
+	"3:2": "1536x1024",
+	"2:3": "1024x1536",
+};
 
 function getImaRouterGptImage2Size({
 	aspectRatio,
 }: {
 	aspectRatio: string;
 }): string {
-	if (IMA_ROUTER_GPT_IMAGE_2_NATIVE_SIZES.has(aspectRatio)) {
-		return aspectRatio;
-	}
-	return GPT_IMAGE_SIZE_BY_RATIO[aspectRatio] ?? "1024x1024";
+	return IMA_ROUTER_GPT_IMAGE_2_SIZE_BY_RATIO[aspectRatio] ?? "1024x1024";
 }
 
 /** Execute a single pipeline step with the given model, input, and parameters. */
