@@ -799,6 +799,60 @@ After the failing layer is identified, likely fixes are:
 - 增加 relay input audit event。
 - 增加 watchdog：如果浏览器侧 `WebSocket.send(...)` 增加了，但短时间内没有 relay ack/output，显示明确恢复动作。
 
+Implemented fix status:
+
+已实现修复状态：
+
+- Done: explicit `Reconnect` button in `chat-agent.html`.
+- Done: reconnect closes the current browser attachment and then reconnects to the same stored active session id.
+- Done: `Connect` prefers the stored active session id before creating a new session.
+- Done: relay sends `pty_input_ack`, `pty_input_error`, and `pty_input_timeout` server-control messages to the browser.
+- Done: front-end parses those control messages without writing them into xterm output.
+- Done: front-end has a 7-second ack watchdog after `WebSocket.send(...)`.
+- Done: relay audit and browser debug avoid raw input text.
+
+- 已完成：`chat-agent.html` 中加入显式 `Reconnect` 按钮。
+- 已完成：reconnect 会关闭当前 browser attachment，然后重新连接同一个已保存的 active session id。
+- 已完成：`Connect` 会优先使用已保存的 active session id，然后才创建新 session。
+- 已完成：relay 会向浏览器发送 `pty_input_ack`、`pty_input_error` 和 `pty_input_timeout` server-control message。
+- 已完成：前端会解析这些 control message，不会把它们写入 xterm output。
+- 已完成：前端在 `WebSocket.send(...)` 后加入 7 秒 ack watchdog。
+- 已完成：relay audit 和浏览器 debug 都避免记录原始输入文本。
+
+Verification evidence:
+
+验证证据：
+
+```bash
+node --test packages/nexusai-website/js/agent-chat.prompt.test.js
+# 12 passed
+
+cd packages/qcut-relay && bun run test
+# 21 passed
+
+bunx biome check \
+  packages/nexusai-website/js/agent-chat/03-terminal-job.js \
+  packages/nexusai-website/js/agent-chat/04-bootstrap.js \
+  packages/qcut-relay/src/pty-session.ts \
+  packages/qcut-relay/src/pty-session.test.ts \
+  --max-diagnostics=120
+# Checked 4 files. No fixes applied.
+```
+
+What remains for live proof after deploy:
+
+部署后仍需做的 live proof：
+
+- Open the Chat Agent page, connect an existing session, type one character, and confirm the debug line shows both `input #... sent` and `ack #...`.
+- Reproduce or simulate a stale input path and confirm the 7-second watchdog surfaces the missing ack.
+- Click `Reconnect` and confirm the same session id remains visible while a fresh PTY/Codex attachment starts.
+- Submit a second prompt after reconnect and confirm `history.jsonl` gets the prompt.
+
+- 打开 Chat Agent 页面，连接已有 session，输入一个字符，并确认 debug line 同时显示 `input #... sent` 和 `ack #...`。
+- 复现或模拟 stale input path，并确认 7 秒 watchdog 会暴露 missing ack。
+- 点击 `Reconnect`，确认可见 session id 保持不变，同时 fresh PTY/Codex attachment 启动。
+- reconnect 后提交第二条 prompt，并确认 `history.jsonl` 写入该 prompt。
+
 ## Suggested First Implementation Slice / 建议第一步实现范围
 
 Start small:

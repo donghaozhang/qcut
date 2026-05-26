@@ -3,6 +3,7 @@ import { describe, expect, it, vi } from "vitest";
 import {
 	buildDaytonaPtyId,
 	buildCodexStartupCommand,
+	buildPtyServerControlMessage,
 	parsePtyClientControlMessage,
 } from "./pty-session";
 
@@ -69,6 +70,41 @@ describe("buildDaytonaPtyId", () => {
 				nonce: "safe",
 			})
 		).toBe("qcut-agent-sessionwiths-safe");
+	});
+});
+
+describe("buildPtyServerControlMessage", () => {
+	it("serializes input acknowledgements without raw terminal input", () => {
+		expect(
+			JSON.parse(
+				buildPtyServerControlMessage({
+					kind: "pty_input_ack",
+					messageIndex: 7,
+					bytes: 1,
+					elapsedMs: 4,
+				})
+			)
+		).toEqual({
+			kind: "pty_input_ack",
+			messageIndex: 7,
+			bytes: 1,
+			elapsedMs: 4,
+		});
+	});
+
+	it("limits error control payloads", () => {
+		const message = JSON.parse(
+			buildPtyServerControlMessage({
+				kind: "pty_input_timeout",
+				messageIndex: 3,
+				bytes: 2,
+				error: "x".repeat(300),
+			})
+		);
+
+		expect(message.error).toHaveLength(240);
+		expect(message).not.toHaveProperty("text");
+		expect(message).not.toHaveProperty("data");
 	});
 });
 
