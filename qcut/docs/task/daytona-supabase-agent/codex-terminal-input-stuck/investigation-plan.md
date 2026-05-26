@@ -799,6 +799,145 @@ After the failing layer is identified, likely fixes are:
 - 增加 relay input audit event。
 - 增加 watchdog：如果浏览器侧 `WebSocket.send(...)` 增加了，但短时间内没有 relay ack/output，显示明确恢复动作。
 
+Implemented fix status:
+
+已实现修复状态：
+
+- Done: explicit `Reconnect` button in `chat-agent.html`.
+- Done: reconnect closes the current browser attachment and then reconnects to the same stored active session id.
+- Done: `Connect` prefers the stored active session id before creating a new session.
+- Done: relay sends `pty_input_ack`, `pty_input_error`, and `pty_input_timeout` server-control messages to the browser.
+- Done: front-end parses those control messages without writing them into xterm output.
+- Done: front-end has a 7-second ack watchdog after `WebSocket.send(...)`.
+- Done: relay audit and browser debug avoid raw input text.
+
+- 已完成：`chat-agent.html` 中加入显式 `Reconnect` 按钮。
+- 已完成：reconnect 会关闭当前 browser attachment，然后重新连接同一个已保存的 active session id。
+- 已完成：`Connect` 会优先使用已保存的 active session id，然后才创建新 session。
+- 已完成：relay 会向浏览器发送 `pty_input_ack`、`pty_input_error` 和 `pty_input_timeout` server-control message。
+- 已完成：前端会解析这些 control message，不会把它们写入 xterm output。
+- 已完成：前端在 `WebSocket.send(...)` 后加入 7 秒 ack watchdog。
+- 已完成：relay audit 和浏览器 debug 都避免记录原始输入文本。
+
+Verification evidence:
+
+验证证据：
+
+```bash
+node --test packages/nexusai-website/js/agent-chat.prompt.test.js
+# 12 passed
+
+cd packages/qcut-relay && bun run test
+# 21 passed
+
+bunx biome check \
+  packages/nexusai-website/js/agent-chat/03-terminal-job.js \
+  packages/nexusai-website/js/agent-chat/04-bootstrap.js \
+  packages/qcut-relay/src/pty-session.ts \
+  packages/qcut-relay/src/pty-session.test.ts \
+  --max-diagnostics=120
+# Checked 4 files. No fixes applied.
+```
+
+Live proof after deploy:
+
+部署后的 live proof：
+
+Production website and relay were both updated before the final live test.
+
+最终 live test 前，生产网站和 relay 都已经更新。
+
+- Website: `https://quriosity.com.au/chat-agent.html`
+- Website repo: `donghaozhang/nexusai-website@25a21d5`
+- GitHub Pages deploy: run `26437358937`, completed successfully.
+- Relay: `https://qcut-relay.zdhpeter.workers.dev`
+- Relay deploy version: `6e430112-10fe-48bc-a00c-b52b97666f9e`
+
+- 网站：`https://quriosity.com.au/chat-agent.html`
+- 网站仓库：`donghaozhang/nexusai-website@25a21d5`
+- GitHub Pages deploy：run `26437358937`，已成功完成。
+- Relay：`https://qcut-relay.zdhpeter.workers.dev`
+- Relay deploy version：`6e430112-10fe-48bc-a00c-b52b97666f9e`
+
+The final production E2E passed:
+
+最终生产 E2E 已通过：
+
+```bash
+bun scripts/agent-chat-e2e.ts \
+  --url https://quriosity.com.au/chat-agent.html \
+  --connect-timeout-ms 300000 \
+  --prompt-timeout-ms 300000 \
+  --artifact-timeout-ms 420000 \
+  --wait-no-auto-connect-ms 3000
+
+# status: passed
+# result: output/playwright/agent-chat-e2e-2026-05-26T07-00-24-883Z/result.json
+```
+
+Important passed steps:
+
+关键通过步骤：
+
+- `manual connect opens Codex`: passed in `12372ms`.
+- `direct terminal qcut image generation creates artifacts`: passed in `112895ms`.
+- `second terminal input works after image generation`: passed in `5748ms`.
+- `terminal-generated image artifacts download from the web UI`: passed in `2246ms`.
+- `reconnect opens Codex again`: passed in `3683ms` with the same session id `3c07f57f-43bd-44ab-85fd-4e2bd24123b3`.
+- `input works after explicit reconnect`: passed in `10883ms`.
+- `disconnect clears terminal state`: passed in `405ms`.
+
+- `manual connect opens Codex`：`12372ms` 通过。
+- `direct terminal qcut image generation creates artifacts`：`112895ms` 通过。
+- `second terminal input works after image generation`：`5748ms` 通过。
+- `terminal-generated image artifacts download from the web UI`：`2246ms` 通过。
+- `reconnect opens Codex again`：`3683ms` 通过，并保持同一个 session id `3c07f57f-43bd-44ab-85fd-4e2bd24123b3`。
+- `input works after explicit reconnect`：`10883ms` 通过。
+- `disconnect clears terminal state`：`405ms` 通过。
+
+The E2E also verified the new debug/ack path:
+
+E2E 同时验证了新的 debug/ack 链路：
+
+```text
+after image prompt:
+socket #2 open · input #465 sent 1 bytes ... · ack #465 1 bytes ...
+
+second input after image generation:
+socket #2 open · input #663 sent 1 bytes ... · ack #663 1 bytes ...
+
+after explicit Reconnect:
+socket #3 open · input #186 sent 1 bytes ... · ack #186 1 bytes ...
+```
+
+The final E2E result contains no `no relay ack` stale-input warning.
+
+最终 E2E 结果中没有 `no relay ack` stale-input 误报。
+
+Commit and PR evidence:
+
+Commit / PR 证据：
+
+- Website repo `donghaozhang/nexusai-website`:
+  - branch: `master`
+  - commit: `4998409` (`Fix chat terminal reconnect diagnostics`)
+  - commit: `0112bb9` (`Fix stale agent session reconnect fallback`)
+  - commit: `25a21d5` (`Reset terminal ack counters on reconnect`)
+- Main repo `Quriosity-agent/qcut`:
+  - branch: `image-cli-v11`
+  - commits: `9708913cf` (`Fix agent terminal reconnect diagnostics`), `e153a46d8` (`Document agent terminal fix PR`), `f00d15ebb` (`fix(relay): mutate shared audit stats and bring in reconnect fallbacks`), plus this final evidence update.
+  - PR: `https://github.com/Quriosity-agent/qcut/pull/311`
+
+- Website repo `donghaozhang/nexusai-website`：
+  - branch：`master`
+  - commit：`4998409`（`Fix chat terminal reconnect diagnostics`）
+  - commit：`0112bb9`（`Fix stale agent session reconnect fallback`）
+  - commit：`25a21d5`（`Reset terminal ack counters on reconnect`）
+- Main repo `Quriosity-agent/qcut`：
+  - branch：`image-cli-v11`
+  - commits：`9708913cf`（`Fix agent terminal reconnect diagnostics`）、`e153a46d8`（`Document agent terminal fix PR`）、`f00d15ebb`（`fix(relay): mutate shared audit stats and bring in reconnect fallbacks`），以及当前最终证据更新。
+  - PR：`https://github.com/Quriosity-agent/qcut/pull/311`
+
 ## Suggested First Implementation Slice / 建议第一步实现范围
 
 Start small:

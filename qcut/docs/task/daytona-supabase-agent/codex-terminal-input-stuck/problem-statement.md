@@ -577,3 +577,63 @@ The user can lose confidence because the UI says connected and ready while the t
 The current safest recovery is to preserve/download needed artifacts first, then use `Disconnect` + `Connect` to create a fresh attachment for the same active session. Starting a new session is not necessary unless reconnect fails. However, that is a workaround, not a fix.
 
 当前最安全的恢复方式是先保留或下载需要的 artifact，然后用 `Disconnect` + `Connect` 为同一个 active session 创建新的 attachment。除非重连失败，否则不需要新建 session。但这只是 workaround，不是根本修复。
+
+## Implemented Fix / 已实现修复
+
+Date / 日期: 2026-05-26
+
+The implementation now turns the proven recovery path into an explicit product action and adds input-path evidence instead of relying on the visual `connected` state.
+
+当前实现已经把有证据证明有效的恢复路径变成明确的产品动作，并且加入输入链路证据，不再只依赖视觉上的 `connected` 状态。
+
+- Added a visible `Reconnect` button next to `Connect` and `Disconnect`.
+- `Reconnect` closes the current browser WebSocket attachment, waits for it to close, and then opens a fresh PTY attachment for the same stored active session.
+- `Connect` now prefers the stored active session id before creating a new session, so reconnect-style recovery preserves the server-side session and files.
+- Relay now sends browser-readable `pty_input_ack`, `pty_input_error`, and `pty_input_timeout` control messages after terminal input is forwarded to `pty.sendInput(...)`.
+- The browser debug line now shows input send state, relay ack state, output state, and stale-input errors.
+- If browser-side input is sent but no relay ack arrives within 7 seconds, the UI reports that the input path is stale and points the user to `Reconnect`.
+- Relay audit still records `pty_input`, `pty_input_error`, and `pty_input_timeout` without logging raw terminal input.
+
+- 新增了可见的 `Reconnect` 按钮，位置在 `Connect` 和 `Disconnect` 旁边。
+- `Reconnect` 会关闭当前 browser WebSocket attachment，等待它关闭，然后为同一个已保存的 active session 打开新的 PTY attachment。
+- `Connect` 现在会优先复用已保存的 active session id，然后才创建新 session，因此 reconnect 式恢复会保留 server-side session 和文件。
+- relay 现在会在 terminal input 转发给 `pty.sendInput(...)` 后，向浏览器发送可识别的 `pty_input_ack`、`pty_input_error` 和 `pty_input_timeout` control message。
+- 浏览器 debug line 现在显示 input send 状态、relay ack 状态、output 状态，以及 stale-input 错误。
+- 如果浏览器侧 input 已发送但 7 秒内没有收到 relay ack，UI 会提示 input path stale，并指向 `Reconnect`。
+- relay audit 仍然记录 `pty_input`、`pty_input_error` 和 `pty_input_timeout`，但不记录原始 terminal input。
+
+This does not claim to prove the internal Codex TUI root cause. It fixes the user-visible stuck state by detecting the unhealthy input path and providing an explicit same-session recovery action. Final production E2E also proved that a second terminal input works after real image generation, and that input still works after explicit `Reconnect`.
+
+这并不声称已经证明 Codex TUI 内部根因。它修复的是用户可见的卡住状态：检测不健康的输入链路，并提供明确的同 session 恢复动作。最终生产 E2E 也证明了真实图片生成之后第二次 terminal 输入可以继续工作，并且显式 `Reconnect` 之后输入仍可工作。
+
+## Follow-up Fixes / 后续修复
+
+Date / 日期: 2026-05-26
+
+After the initial implementation, three additional fixes were applied to keep the recovery path reliable and to address a concurrency review on the relay audit code.
+
+初次实现之后，又应用了三个修复，用来保持恢复路径可靠，并处理 relay audit 代码上的一条并发评审。
+
+- Relay: `sendInputWithAudit` now mutates a shared `PtyInputAuditStats` object synchronously after each `await`, instead of taking a snapshot and writing back via callback. This removes a race in `inputAuditBytes` / `inputAuditMessages` accumulation when multiple terminal input messages were forwarded concurrently. (Gemini PR #311 review.)
+- Website: `shouldCreateFreshTerminalSession` now also treats `session_not_found` as a stale session and falls back to a new session.
+- Website: `connectAgentTerminal` resets `terminalInputSequence` and `terminalLastAckedInputId` on each reconnect so the 7-second ack watchdog does not flag pre-reconnect input ids as stale.
+- Production E2E: the final run passed the image-generation workflow, the second input after image generation, explicit same-session `Reconnect`, post-reconnect input, and artifact download.
+
+- relay：`sendInputWithAudit` 在每次 `await` 之后会同步修改一个共享的 `PtyInputAuditStats` 对象，而不再使用“快照 + callback 回写”。这消除了多条 terminal input 并发转发时，`inputAuditBytes` / `inputAuditMessages` 累加上的 race。（来自 Gemini 对 PR #311 的评审。）
+- 网站：`shouldCreateFreshTerminalSession` 现在也把 `session_not_found` 视为 stale session，并 fallback 到新建 session。
+- 网站：`connectAgentTerminal` 在每次重连时会重置 `terminalInputSequence` 和 `terminalLastAckedInputId`，避免 7 秒 ack watchdog 把重连前的 input id 误判为 stale。
+- 生产 E2E：最终运行通过了 image-generation workflow、图片生成后的第二次输入、显式同 session `Reconnect`、reconnect 后输入，以及 artifact download。
+
+Final production evidence:
+
+最终生产证据：
+
+```text
+result: output/playwright/agent-chat-e2e-2026-05-26T07-00-24-883Z/result.json
+status: passed
+image generation: passed in 112895ms
+second input after image: passed in 5748ms
+explicit reconnect: passed in 3683ms, same session id 3c07f57f-43bd-44ab-85fd-4e2bd24123b3
+input after reconnect: passed in 10883ms
+debug ack examples: input #465 / ack #465, input #663 / ack #663, input #186 / ack #186
+```

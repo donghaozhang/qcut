@@ -182,26 +182,32 @@ describe("buildImageField", () => {
 	});
 
 	it("FAL + remote URL → image_url passthrough", () => {
-		const out = buildImageField("https://cdn.example.com/frame.png", "fal");
+		const out = buildImageField({
+			imagePath: "https://cdn.example.com/frame.png",
+			provider: "fal",
+		});
 		expect(out).toEqual({
 			image_url: "https://cdn.example.com/frame.png",
 		});
 	});
 
 	it("GMI + remote URL → image passthrough (renamed field)", () => {
-		const out = buildImageField("https://cdn.example.com/frame.png", "gmi");
+		const out = buildImageField({
+			imagePath: "https://cdn.example.com/frame.png",
+			provider: "gmi",
+		});
 		expect(out).toEqual({ image: "https://cdn.example.com/frame.png" });
 		expect(out).not.toHaveProperty("image_url");
 	});
 
 	it("FAL + local path → image_url as data URI", () => {
-		const out = buildImageField(localPng, "fal");
+		const out = buildImageField({ imagePath: localPng, provider: "fal" });
 		expect(out.image_url).toMatch(/^data:image\/png;base64,/);
 		expect(out.image_url.length).toBeGreaterThan(50);
 	});
 
 	it("GMI + local path → image as RAW base64 (no data URI prefix)", () => {
-		const out = buildImageField(localPng, "gmi");
+		const out = buildImageField({ imagePath: localPng, provider: "gmi" });
 		expect(out.image).not.toMatch(/^data:/);
 		// Pure base64 — verify it's valid and decodes to the PNG bytes.
 		const decoded = Buffer.from(out.image, "base64");
@@ -210,13 +216,13 @@ describe("buildImageField", () => {
 
 	it("FAL + data URI stays untouched (pass-through)", () => {
 		const dataUri = "data:image/png;base64,iVBORw0KGgo=";
-		const out = buildImageField(dataUri, "fal");
+		const out = buildImageField({ imagePath: dataUri, provider: "fal" });
 		expect(out).toEqual({ image_url: dataUri });
 	});
 
 	it("GMI + data URI stays untouched (caller's responsibility)", () => {
 		const dataUri = "data:image/png;base64,iVBORw0KGgo=";
-		const out = buildImageField(dataUri, "gmi");
+		const out = buildImageField({ imagePath: dataUri, provider: "gmi" });
 		expect(out).toEqual({ image: dataUri });
 	});
 });
