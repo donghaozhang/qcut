@@ -16,7 +16,7 @@ PAYMENTS_CANARY_ONLY = "false"
 CORS_ALLOWED_ORIGINS = ""
 AI_PROXY_RATE_LIMIT = "60"
 QCUT_AGENT_ALLOW_DEFAULT_USER = "true"
-QCUT_IMAGE_TAG = "ghcr.io/quriosity-agent/qcut-cli:gen-image-ratio-size-20260526034624"
+QCUT_IMAGE_TAG = "ghcr.io/quriosity-agent/qcut-cli:cli-image-v12-ref2v-20260526205824"
 
 # AI provider keys are stored as Wrangler secrets (not vars):
 # wrangler secret put FAL_API_KEY

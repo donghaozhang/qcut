@@ -107,6 +107,10 @@ function isRemoteUrl(url: string): boolean {
 	return /^https?:\/\//i.test(url);
 }
 
+function isImaRouterAssetUrl({ url }: { url: string }): boolean {
+	return /^asset:\/\//i.test(url);
+}
+
 function getMediaMimeType({ input }: { input: string }): string {
 	switch (path.extname(input).toLowerCase()) {
 		case ".mov":
@@ -126,6 +130,17 @@ function getMediaMimeType({ input }: { input: string }): string {
 		default:
 			return "video/mp4";
 	}
+}
+
+function asRecord({
+	value,
+}: {
+	value: unknown;
+}): Record<string, unknown> | undefined {
+	if (typeof value !== "object" || value === null || Array.isArray(value)) {
+		return undefined;
+	}
+	return value as Record<string, unknown>;
 }
 
 function toOpenRouterMediaUrl({ input }: { input: string }): string {
@@ -157,6 +172,10 @@ function collectReferenceImages({
 
 type ReferenceImageResolution =
 	| { success: true; url: string }
+	| { success: false; error: string };
+
+type ReferenceImagesResolution =
+	| { success: true; urls: string[] }
 	| { success: false; error: string };
 
 async function resolveReferenceImages({
@@ -207,6 +226,108 @@ async function resolveReferenceImages({
 	};
 }
 
+async function resolveImaRouterUploadSource({
+	entry,
+	options,
+}: {
+	entry: string;
+	options: {
+		onProgress?: (p: number, m: string) => void;
+		signal?: AbortSignal;
+	};
+}): Promise<ReferenceImageResolution> {
+	if (isImaRouterAssetUrl({ url: entry }) || isRemoteUrl(entry)) {
+		return { success: true, url: entry };
+	}
+	if (options.signal?.aborted) {
+		return {
+			success: false,
+			error: "Step cancelled before reference image upload",
+		};
+	}
+	options.onProgress?.(8, "Uploading reference image...");
+	const upload = await uploadToFalStorage(entry);
+	if (!upload.success || !upload.url) {
+		return {
+			success: false,
+			error: upload.error || `Failed to upload reference image: ${entry}`,
+		};
+	}
+	return { success: true, url: upload.url };
+}
+
+async function resolveImaRouterReferenceImages({
+	entries,
+	modelKey,
+	options,
+}: {
+	entries: string[];
+	modelKey: string;
+	options: {
+		onProgress?: (p: number, m: string) => void;
+		signal?: AbortSignal;
+	};
+}): Promise<ReferenceImagesResolution> {
+	const raw = entries
+		.filter((entry) => typeof entry === "string" && entry.trim())
+		.slice(0, 14);
+	if (raw.length === 0) return { success: true, urls: [] };
+	if (raw.every((entry) => isImaRouterAssetUrl({ url: entry }))) {
+		return { success: true, urls: raw };
+	}
+
+	const { channelFor, ensureGroup, uploadAsset } = await import(
+		"../infra/imarouter-assets.js"
+	);
+	const { envApiKeyProvider } = await import("../infra/api-caller.js");
+	const apiKey = await envApiKeyProvider("imarouter");
+	if (!apiKey) {
+		return {
+			success: false,
+			error: "IMAROUTER_API_KEY not configured",
+		};
+	}
+
+	const channel = channelFor(modelKey);
+	const groupId = await ensureGroup(channel, { apiKey });
+	const uploadSources = await Promise.all(
+		raw.map((entry) => resolveImaRouterUploadSource({ entry, options }))
+	);
+	const sourceFailure = uploadSources.find((item) => !item.success);
+	if (sourceFailure) return { success: false, error: sourceFailure.error };
+
+	const assets = await Promise.all(
+		uploadSources.map(async (item): Promise<ReferenceImageResolution> => {
+			if (!item.success) return item;
+			if (isImaRouterAssetUrl({ url: item.url })) {
+				return { success: true, url: item.url };
+			}
+			try {
+				const assetUrl = await uploadAsset(item.url, channel, groupId, {
+					apiKey,
+					signal: options.signal,
+				});
+				return { success: true, url: assetUrl };
+			} catch (error) {
+				return {
+					success: false,
+					error:
+						error instanceof Error
+							? error.message
+							: "Failed to upload IMA Router reference image",
+				};
+			}
+		})
+	);
+	const assetFailure = assets.find((item) => !item.success);
+	if (assetFailure) return { success: false, error: assetFailure.error };
+
+	return {
+		success: true,
+		urls: assets.flatMap((item) => (item.success ? [item.url] : [])),
+	};
+}
+
 /**
  * Reshape a flat payload into the IMA Router `/v1/videos` body shape:
  * top-level `{ model, prompt, duration, images?, size? }` plus a nested
@@ -218,7 +339,8 @@ function reshapeForImaRouter(
 	payload: Record<string, unknown>
 ): Record<string, unknown> {
 	const out: Record<string, unknown> = {};
-	const metadata: Record<string, unknown> = {};
+	const flatMetadata: Record<string, unknown> = {};
+	const nestedMetadata = { ...(asRecord({ value: payload.metadata }) ?? {}) };
 	const METADATA_KEYS = new Set([
 		"resolution",
 		"aspect_ratio",
@@ -226,12 +348,15 @@ function reshapeForImaRouter(
 		"role_mode",
 		"reference_video_urls",
 		"reference_audio_urls",
+		"first_frame_image",
 	]);
 	for (const [k, v] of Object.entries(payload)) {
 		if (v === undefined || v === null) continue;
-		if (METADATA_KEYS.has(k)) metadata[k] = v;
+		if (k === "metadata") continue;
+		if (METADATA_KEYS.has(k)) flatMetadata[k] = v;
 		else out[k] = v;
 	}
+	const metadata = { ...nestedMetadata, ...flatMetadata };
 	// `size` (WxH) overrides `resolution` per IMA Router spec — drop the
 	// duplicate metadata.resolution so the API picks the explicit size.
 	if (typeof out.size === "string" && "resolution" in metadata) {
@@ -602,7 +727,9 @@ async function executeImageToVideo(
 		// Auto-upload local paths to FAL CDN so any provider (GMI, FAL, etc.)
 		// receives a fetchable HTTPS URL.
 		let imageUrl = input.imageUrl;
-		if (!/^https?:\/\//i.test(imageUrl)) {
+		const isImaRouterAssetInput =
+			provider === "imarouter" && isImaRouterAssetUrl({ url: imageUrl });
+		if (!isRemoteUrl(imageUrl) && !isImaRouterAssetInput) {
 			if (options.signal?.aborted) {
 				return {
 					success: false,
@@ -685,35 +812,54 @@ async function executeImageToVideo(
 				payload.duration = String(payload.duration);
 			}
 		} else if (provider === "imarouter") {
-			// IMA Router routes through `/v1/assets/create` for portrait /
-			// real-people refs (rejected as inline URLs with Error 601400),
-			// then sends `images: ["asset://..."]` to `/v1/videos`. Channel
-			// (overseas vs CN) determines the upload model — never mix.
-			const { channelFor, ensureGroup, uploadAsset } = await import(
-				"../infra/imarouter-assets.js"
-			);
-			const channel = channelFor(model.key);
-			const { envApiKeyProvider } = await import("../infra/api-caller.js");
-			const apiKey = await envApiKeyProvider("imarouter");
-			if (!apiKey) {
+			const refs = await resolveImaRouterReferenceImages({
+				entries: [imageUrl],
+				modelKey: model.key,
+				options,
+			});
+			if (!refs.success) {
 				return {
 					success: false,
-					error: "IMAROUTER_API_KEY not configured",
+					error: refs.error,
 					duration: 0,
 				};
 			}
-			const groupId = await ensureGroup(channel, { apiKey });
-			const assetUrl = await uploadAsset(imageUrl, channel, groupId, {
-				apiKey,
-				signal: options.signal,
-			});
-			payload.images = [assetUrl];
+			payload.images = refs.urls;
 		} else {
 			payload.image_url = imageUrl;
 		}
 	}
 	if (input.text) {
 		payload.prompt = input.text;
+	}
+
+	const isImaRouterRef2V =
+		provider === "imarouter" &&
+		(model.key === "imarouter_seedance_2_0_ref2v" ||
+			model.key === "imarouter_seedance_2_0_cn_ref2v");
+	if (isImaRouterRef2V && Array.isArray(payload.image_urls)) {
+		const existingImages = Array.isArray(payload.images)
+			? (payload.images as unknown[]).flatMap((entry) =>
+					typeof entry === "string" ? [entry] : []
+				)
+			: [];
+		const imageUrls = (payload.image_urls as unknown[]).flatMap((entry) =>
+			typeof entry === "string" ? [entry] : []
+		);
+		const refs = await resolveImaRouterReferenceImages({
+			entries: [...existingImages, ...imageUrls],
+			modelKey: model.key,
+			options,
+		});
+		if (!refs.success) {
+			return {
+				success: false,
+				error: refs.error,
+				duration: 0,
+			};
+		}
+		payload.images = refs.urls;
+		delete payload.image_urls;
 	}
 
 	// Happy Horse Ref2V can receive multiple references via the CLI's

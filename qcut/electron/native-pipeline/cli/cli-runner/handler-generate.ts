@@ -530,8 +530,9 @@ export async function handleGenerate(
 		}
 	}
 
-	// Happy Horse models reuse --reference-images / --audio-setting:
+	// Ref2V models reuse --reference-images / --audio-setting:
 	// - happy_horse_ref2v: 1–9 images become payload `image_urls`
+	// - imarouter_*_ref2v: 1–14 images become IMA Router `images`
 	// - happy_horse_video_edit: ≤5 images become payload `reference_image_urls`
 	// Field-name mapping happens inside step-executors per-model branches;
 	// the CLI just stages the array under a stable key the executor reads.
@@ -539,6 +540,11 @@ export async function handleGenerate(
 		if (options.referenceImages && options.referenceImages.length > 0) {
 			if (options.model === "happy_horse_ref2v") {
 				params.image_urls = options.referenceImages.slice(0, 9);
+			} else if (
+				options.model === "imarouter_seedance_2_0_ref2v" ||
+				options.model === "imarouter_seedance_2_0_cn_ref2v"
+			) {
+				params.image_urls = options.referenceImages.slice(0, 14);
 			} else if (options.model === "happy_horse_video_edit") {
 				params.reference_image_urls = options.referenceImages.slice(0, 5);
 			}

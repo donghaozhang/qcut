@@ -6,6 +6,7 @@ import {
 } from "../../../execution/executor.js";
 import type { StepInput } from "../../../execution/step-executors.js";
 import { ModelRegistry } from "../../../infra/registry.js";
+import { registerImageToVideoModels } from "../../../registry-data/image-to-video.js";
 import { registerTextToVideoModels } from "../../../registry-data/text-to-video.js";
 import {
 	getDefaultModelForCommand,
@@ -62,6 +63,9 @@ describe("create-video duration validation", () => {
 	beforeAll(() => {
 		if (!ModelRegistry.has("imarouter_seedance_2_0_fast_t2v")) {
 			registerTextToVideoModels();
+		}
+		if (!ModelRegistry.has("imarouter_seedance_2_0_ref2v")) {
+			registerImageToVideoModels();
 		}
 	});
 
@@ -122,6 +126,30 @@ describe("create-video duration validation", () => {
 				duration: "5s",
 			})
 		).toBeUndefined();
+	});
+
+	it("stages IMA Router Ref2V reference images for executor upload", async () => {
+		const executor = new CapturingExecutor();
+
+		const result = await handleGenerate(
+			{
+				...buildVideoOptions({
+					model: "imarouter_seedance_2_0_ref2v",
+				}),
+				referenceImages: ["/tmp/a.png", "/tmp/b.png"],
+			},
+			ignoreProgress,
+			executor,
+			new AbortController().signal
+		);
+
+		expect(result.success).toBe(false);
+		expect(result.error).toContain("executor reached");
+		expect(executor.steps).toHaveLength(1);
+		expect(executor.steps[0].params.image_urls).toEqual([
+			"/tmp/a.png",
+			"/tmp/b.png",
+		]);
 	});
 });
 
