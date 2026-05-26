@@ -35,6 +35,7 @@ type Config = {
 	licenseServerUrl: string;
 	outDir: string;
 	referenceImageUrl: string;
+	useLocalReferenceFile: boolean;
 	headed: boolean;
 	connectTimeoutMs: number;
 	generationTimeoutMs: number;
@@ -115,6 +116,7 @@ function parseArgs({ argv }: { argv: string[] }): Config {
 			readOption({ argv, name: "--reference-image-url" }) ||
 			process.env.IMAROUTER_REF2V_E2E_REFERENCE_IMAGE_URL ||
 			DEFAULT_REFERENCE_IMAGE_URL,
+		useLocalReferenceFile: hasFlag({ argv, name: "--local-reference-file" }),
 		headed:
 			hasFlag({ argv, name: "--headed" }) ||
 			hasFlag({ argv, name: "--headful" }),
@@ -142,6 +144,7 @@ Options:
   --license-server-url <url>          License server base URL fallback.
   --out-dir <path>                    Screenshot/result output directory.
   --reference-image-url <url>         Public image URL to pass via --reference-images.
+  --local-reference-file              Download the reference URL in the sandbox, then pass the local file path.
   --headed, --headful                 Show the browser.
   --connect-timeout-ms <ms>           Connect/Codex ready timeout.
   --generation-timeout-ms <ms>        Ref2V generation timeout.
@@ -440,10 +443,17 @@ async function waitForRef2VReady({
 function buildGenerationPrompt({
 	root,
 	referenceImageUrl,
+	useLocalReferenceFile,
 }: {
 	root: string;
 	referenceImageUrl: string;
+	useLocalReferenceFile: boolean;
 }): string {
+	const referenceInput = useLocalReferenceFile ? "$ROOT/reference.png" : "$REF";
+	const localReferenceSetup = useLocalReferenceFile
+		? `curl -fsSL "$REF" -o "$ROOT/reference.png"
+REFERENCE_INPUT="$ROOT/reference.png"`
+		: `REFERENCE_INPUT="$REF"`;
 	return `Please run a real online QCut IMA Router Ref2V smoke test in this Daytona sandbox. Do not mock anything, do not use a different model, and do not print or write any API secret.
 
 Run this exact shell script as-is:
@@ -454,6 +464,7 @@ set -u
 ROOT="${root}"
 REF="${referenceImageUrl}"
 mkdir -p "$ROOT/generated"
+${localReferenceSetup}
 
 {
   if [ -n "\${IMAROUTER_API_KEY:-}" ]; then
@@ -474,7 +485,7 @@ qcut system models --json > "$ROOT/models.json" 2> "$ROOT/models.stderr" || true
 set +e
 QCUT_OUTPUT_DIR="$ROOT/generated" qcut gen video \
   -m imarouter_seedance_2_0_ref2v \
-  --reference-images "$REF" \
+  --reference-images "${referenceInput}" \
   -t "5 second video using the reference image, clean product turntable shot" \
   -d 5s \
   --aspect-ratio 16:9 \
@@ -496,17 +507,18 @@ fi
 
 ffprobe -v error -show_streams -show_format -of json "$video_path" > "$ROOT/ffprobe.json"
 
-python3 - "$ROOT/ref2v-result.json" "$REF" "$video_path" "$sidecar_path" "$ROOT/ffprobe.json" <<'PY'
+python3 - "$ROOT/ref2v-result.json" "$REF" "$REFERENCE_INPUT" "$video_path" "$sidecar_path" "$ROOT/ffprobe.json" <<'PY'
 import json
 import sys
 
-out, ref, video, sidecar, ffprobe = sys.argv[1:]
+out, ref, reference_input, video, sidecar, ffprobe = sys.argv[1:]
 with open(out, "w", encoding="utf-8") as handle:
     json.dump(
         {
             "status": "SUCCESS",
             "model": "imarouter_seedance_2_0_ref2v",
             "referenceImageUrl": ref,
+            "referenceInput": reference_input,
             "videoPath": video,
             "sidecarPath": sidecar,
             "ffprobePath": ffprobe,
@@ -638,6 +650,7 @@ async function main() {
 					prompt: buildGenerationPrompt({
 						root,
 						referenceImageUrl: config.referenceImageUrl,
+						useLocalReferenceFile: config.useLocalReferenceFile,
 					}),
 				});
 				readyText = await waitForRef2VReady({
@@ -728,6 +741,7 @@ async function main() {
 					url: config.url,
 					root,
 					referenceImageUrl: config.referenceImageUrl,
+					useLocalReferenceFile: config.useLocalReferenceFile,
 					outDir: config.outDir,
 					steps: state.steps,
 					readyText,
