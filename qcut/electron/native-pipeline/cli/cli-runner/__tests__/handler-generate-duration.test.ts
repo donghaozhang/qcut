@@ -12,6 +12,7 @@ import {
 	handleGenerate,
 	validateDurationOption,
 } from "../handler-generate.js";
+import { parseSessionLine } from "../session.js";
 import type { CLIRunOptions, ProgressFn } from "../types.js";
 
 class CapturingExecutor extends PipelineExecutor {
@@ -121,5 +122,18 @@ describe("create-video duration validation", () => {
 				duration: "5s",
 			})
 		).toBeUndefined();
+	});
+});
+
+describe("session command parsing", () => {
+	it("parses --ratio as an aspect-ratio alias", () => {
+		const options = parseSessionLine(
+			'generate-image -t "poster" --ratio 9:16',
+			{
+				outputDir: "/tmp/qcut-session-parse-test",
+			}
+		);
+
+		expect(options?.aspectRatio).toBe("9:16");
 	});
 });

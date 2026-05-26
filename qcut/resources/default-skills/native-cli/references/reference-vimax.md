@@ -21,6 +21,8 @@ The default LLM for all ViMax agents is `google/gemini-3-flash-preview` (via Ope
 |-------|-------------|-------|
 | `gemini-3-flash` | `google/gemini-3-flash-preview` | **Default** — fast, good structured output |
 | `gemini-3.5-flash` | `google/gemini-3.5-flash` via GMI | Select explicitly for Gemini 3.5 Flash; requires GMI credentials/proxy |
+| `openrouter-gemini-3.5-flash` | `google/gemini-3.5-flash` via OpenRouter | Select explicitly for OpenRouter's Gemini 3.5 Flash route; requires OpenRouter credentials/proxy |
+| `or-gemini-3.5-flash` | `google/gemini-3.5-flash` via OpenRouter | Short alias for the OpenRouter route |
 | `gemini-2.5-flash` | `google/gemini-2.5-flash` | Stable, slightly slower |
 | `gpt-4o` | `openai/gpt-4o` | High quality, higher cost |
 | `claude-3.5-sonnet` | `anthropic/claude-3.5-sonnet` | High quality, higher cost |

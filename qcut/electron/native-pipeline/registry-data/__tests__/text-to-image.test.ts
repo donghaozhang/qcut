@@ -75,6 +75,20 @@ describe("text-to-image registry", () => {
 		expect(model.defaults?.n).toBe(1);
 	});
 
+	it("advertises CLI-normalized landscape and portrait ratios for GPT Image 2", () => {
+		const model = ModelRegistry.get("gpt_image_2_ima");
+
+		expect(model.aspectRatios).toEqual([
+			"1:1",
+			"3:4",
+			"9:16",
+			"4:3",
+			"16:9",
+			"3:2",
+			"2:3",
+		]);
+	});
+
 	it("keeps gpt_image_2_gmi as a legacy alias for IMA Router", () => {
 		expect(ModelRegistry.has("gpt_image_2_gmi")).toBe(true);
 		const model = ModelRegistry.get("gpt_image_2_gmi");

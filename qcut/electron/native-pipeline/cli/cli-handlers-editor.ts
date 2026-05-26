@@ -366,7 +366,7 @@ async function handleStateCommand(
 			// `--with-thumbnails` flips the default. Default is to strip
 			// `data:image/...;base64,…` thumbnail URLs because they routinely
 			// blow past the HTTP/IPC transport limit and break JSON parsing
-			// in clients (see docs/task/editor-cli-results-2026-04-30/).
+			// in clients.
 			const params = new URLSearchParams();
 			if (options.include) params.set("include", options.include);
 			if (options.withThumbnails) params.set("media.includeThumbnails", "1");

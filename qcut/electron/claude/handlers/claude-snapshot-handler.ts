@@ -386,8 +386,7 @@ function buildSnapshotScript({
 		// Size guard — Electron's executeJavaScript IPC silently mangles
 		// objects that serialise past ~hundreds of KB. Returning a
 		// dedicated truncation envelope is more useful than letting the
-		// caller's JSON.parse fail on a corrupt blob. See
-		// docs/task/editor-cli-results-2026-04-30/IMPLEMENTATION-PLAN.md.
+		// caller's JSON.parse fail on a corrupt blob.
 		let serialized = "";
 		try {
 			serialized = JSON.stringify(fullPayload);

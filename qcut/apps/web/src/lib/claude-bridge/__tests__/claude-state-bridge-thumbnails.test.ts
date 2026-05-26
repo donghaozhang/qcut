@@ -1,14 +1,10 @@
 /**
  * Pins the thumbnail-stripping contract that fixes the 19 MB snapshot
- * truncation reported in
- * docs/task/editor-cli-results-2026-04-30/README.md.
+ * truncation bug.
  *
  * Exercises the pure helper directly — testing the full
  * `buildEditorStateSnapshot` requires faking five Zustand stores, which
- * would obscure the contract this commit is locking down. The end-to-end
- * wiring is verified by the live re-test in
- * docs/task/editor-cli-results-2026-04-30/IMPLEMENTATION-PLAN.md
- * Subtask 4.
+ * would obscure the contract this commit is locking down.
  */
 
 import { describe, expect, it } from "vitest";

@@ -188,4 +188,3 @@ jobs:
 - [`web-sandbox-architecture.zh.md`](architecture.zh.md) —— 验证的是什么
 - [`web-sandbox-integration.zh.md`](integration.zh.md) —— 探针接在哪
 - [`architecture.md`](../core-plan/architecture.md) —— 上面引用的退出码和 `agent_events` schema
-- [`vm0-job-pipeline.zh.md`](../vm0-reference/job-pipeline.zh.md) —— 审计 mask 复用的 masker 模块

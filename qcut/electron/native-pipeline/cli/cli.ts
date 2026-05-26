@@ -128,6 +128,8 @@ export function parseCliArgs(argv: string[]): CLIRunOptions {
 			"output-dir": { type: "string", short: "o" },
 			duration: { type: "string", short: "d" },
 			"aspect-ratio": { type: "string" },
+			ratio: { type: "string" },
+			aspect: { type: "string" },
 			resolution: { type: "string" },
 			config: { type: "string", short: "c" },
 			policy: { type: "string" },
@@ -371,8 +373,7 @@ export function parseCliArgs(argv: string[]): CLIRunOptions {
 			// state snapshot flags
 			include: { type: "string" },
 			// editor:state:snapshot — opt back into raw `data:` thumbnail URLs.
-			// Default is stripped (sentinel `<stripped>`); see
-			// docs/task/editor-cli-results-2026-04-30/IMPLEMENTATION-PLAN.md
+			// Default is stripped (sentinel `<stripped>`).
 			"with-thumbnails": { type: "boolean", default: false },
 			// editor:snapshot — render-side size guards (renderer returns a
 			// `truncated: true` envelope past `--max-bytes` instead of a
@@ -429,7 +430,9 @@ export function parseCliArgs(argv: string[]): CLIRunOptions {
 		outputDir: (values["output-dir"] as string) || getDefaultOutputDir(),
 		outputDirExplicit: !!(values["output-dir"] as string),
 		duration: values.duration as string | undefined,
-		aspectRatio: values["aspect-ratio"] as string | undefined,
+		aspectRatio: (values["aspect-ratio"] ?? values.ratio ?? values.aspect) as
+			| string
+			| undefined,
 		resolution: values.resolution as string | undefined,
 		config: values.config as string | undefined,
 		policy: values.policy as string | undefined,

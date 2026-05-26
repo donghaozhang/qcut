@@ -188,4 +188,3 @@ Until those four hold, ship as a feature-flagged beta. After them, default-on pe
 - [`web-sandbox-architecture.md`](architecture.md) — what is being verified
 - [`web-sandbox-integration.md`](integration.md) — where the probe is wired
 - [`architecture.md`](../core-plan/architecture.md) — exit codes and `agent_events` schema referenced above
-- [`vm0-job-pipeline.md`](../vm0-reference/job-pipeline.md) — masker module reused for audit redaction

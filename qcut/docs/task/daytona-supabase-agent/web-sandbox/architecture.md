@@ -174,7 +174,7 @@ Per workspace:
 | WS drop mid-session | xterm shows "disconnected" | User clicks reconnect; relay rebinds to same PTY within 30 s grace |
 | User closes tab | idle timer eventually fires | Session reaches `idle_timeout`, killed |
 | qcut binary missing/corrupted | `qcut: command not found` on first prompt | Layer 2 catches before user sees it |
-| Token leak in input | masker rewrites to `***` before audit insert | Reuse masker module from [`vm0-job-pipeline.md`](../vm0-reference/job-pipeline.md) |
+| Token leak in input | masker rewrites to `***` before audit insert | Apply masker module before persistence |
 
 ## What we are not building
 

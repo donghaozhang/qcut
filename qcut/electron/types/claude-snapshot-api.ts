@@ -11,8 +11,6 @@ export const EDITOR_SNAPSHOT_STATE_KEY = "__qcutSnapshotState";
  *
  * Callers can lift the cap with `request.maxBytes` but the IPC ceiling
  * still applies — past a few hundred KB the response will arrive corrupt.
- *
- * See docs/task/editor-cli-results-2026-04-30/IMPLEMENTATION-PLAN.md
  */
 export const DEFAULT_SNAPSHOT_MAX_BYTES = 256 * 1024;
 

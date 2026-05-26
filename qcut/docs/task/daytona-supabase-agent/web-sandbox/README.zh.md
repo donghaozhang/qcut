@@ -51,7 +51,7 @@
 - **复用容器镜像**自 [`container-setup.md`](../core-plan/container-setup.md)。一个镜像两个入口（headless 走 `bun run agent`，interactive 走包了一层的 `bash`）。
 - **复用密钥加载器**自 [`secrets-supabase.md`](../core-plan/secrets-supabase.md)。Option A（文件层）一字不改——沙箱启动时按 0600 写 `~/.qcut/.env`，和 agent 冷启时同形态。
 - **复用 telemetry 表**自 [`architecture.md`](../core-plan/architecture.md)。`agent_events` 新增 `kind = 'sandbox_*'` 系列，审计"谁、何时 shell 进来、跑了什么"不需要另起一套日志路径。
-- **不复用 JobProvider 模式**（来自 [`vm0-job-pipeline.md`](../vm0-reference/job-pipeline.md)）。交互会话没有 discover/claim/complete 形态——用户点一下就拉起，断开就 kill。
+- **不复用 JobProvider 模式**（来自 vm0）。交互会话没有 discover/claim/complete 形态——用户点一下就拉起，断开就 kill。
 
 ## 速查
 

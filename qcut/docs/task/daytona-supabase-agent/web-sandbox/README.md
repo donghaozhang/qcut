@@ -51,7 +51,7 @@ Read in that order. Chinese counterparts append `.zh.md`.
 - **Reuses container image** from [`container-setup.md`](../core-plan/container-setup.md). One image, two entry points (`bun run agent` for headless, wrapped `bash` for interactive).
 - **Reuses secret loader** from [`secrets-supabase.md`](../core-plan/secrets-supabase.md). Option A (file tier) works identically — the sandbox writes `~/.qcut/.env` on spawn, mode 0600, just like the agent does on cold start.
 - **Reuses telemetry rows** from [`architecture.md`](../core-plan/architecture.md). `agent_events` gets `kind = 'sandbox_*'` rows so we audit "who shelled in, when, what they ran" without inventing a parallel logging path.
-- **Does NOT reuse the JobProvider pattern** from [`vm0-job-pipeline.md`](../vm0-reference/job-pipeline.md). Interactive sessions don't have a discover/claim/complete shape — they're spawned on user click, killed on disconnect.
+- **Does NOT reuse the JobProvider pattern** from vm0. Interactive sessions don't have a discover/claim/complete shape — they're spawned on user click, killed on disconnect.
 
 ## Quick reference
 

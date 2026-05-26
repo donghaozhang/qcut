@@ -22,8 +22,7 @@ export interface EditorStateRequest {
 	 * Per-section options. Today only `media.includeThumbnails` is honoured —
 	 * default is **false** because raw `data:image/jpeg;base64,…` thumbnail
 	 * URLs can push the snapshot past the HTTP/IPC transport limits and
-	 * break JSON parsing in clients (see
-	 * docs/task/editor-cli-results-2026-04-30/IMPLEMENTATION-PLAN.md).
+	 * break JSON parsing in clients.
 	 *
 	 * When `false`, populated `thumbnailUrl` fields are replaced with the
 	 * sentinel string `"<stripped>"` so callers can detect existence

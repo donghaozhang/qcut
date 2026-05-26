@@ -446,6 +446,5 @@ Expected: status `succeeded`, exit_code `0`, ≥ 1 row in `agent_events`.
 ## See also
 
 - [`../core-plan/architecture.md`](../core-plan/architecture.md) — exit-code → retry mapping, event taxonomy
-- [`../vm0-reference/job-pipeline.md`](../vm0-reference/job-pipeline.md) — what *not* to copy from vm0 (e.g., JobProvider trait — overkill at our scale)
 - [`02-container-image.md`](02-container-image.md) — image this worker spawns
 - [`03-supabase-schema.md`](03-supabase-schema.md) — tables this worker writes

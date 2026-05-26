@@ -197,6 +197,8 @@ function parseSessionArgs(args: string[]): Partial<CLIRunOptions> {
 				threshold: { type: "string" },
 				duration: { type: "string", short: "d" },
 				"aspect-ratio": { type: "string" },
+				ratio: { type: "string" },
+				aspect: { type: "string" },
 				resolution: { type: "string" },
 				"project-id": { type: "string" },
 				"media-id": { type: "string" },
@@ -259,8 +261,11 @@ function parseSessionArgs(args: string[]): Partial<CLIRunOptions> {
 			if (!Number.isNaN(parsed)) result.threshold = parsed;
 		}
 		if (values.duration) result.duration = values.duration as string;
-		if (values["aspect-ratio"])
-			result.aspectRatio = values["aspect-ratio"] as string;
+		if (values["aspect-ratio"] || values.ratio || values.aspect) {
+			result.aspectRatio = (values["aspect-ratio"] ??
+				values.ratio ??
+				values.aspect) as string;
+		}
 		if (values.resolution) result.resolution = values.resolution as string;
 		if (values["project-id"]) result.projectId = values["project-id"] as string;
 		if (values["media-id"]) result.mediaId = values["media-id"] as string;

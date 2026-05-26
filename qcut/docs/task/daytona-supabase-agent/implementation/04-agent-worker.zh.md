@@ -374,6 +374,5 @@ psql "$DATABASE_URL" -c "select count(*) from agent_events where job_id = (selec
 ## 相关文档
 
 - [`../core-plan/architecture.md`](../core-plan/architecture.md) —— 退出码 → 重试映射、event 分类
-- [`../vm0-reference/job-pipeline.md`](../vm0-reference/job-pipeline.md) —— **不**抄 vm0 的什么（JobProvider trait 在我们规模过度）
 - [`02-container-image.md`](02-container-image.md) —— 这个 worker 起的镜像
 - [`03-supabase-schema.md`](03-supabase-schema.md) —— 这个 worker 写的表

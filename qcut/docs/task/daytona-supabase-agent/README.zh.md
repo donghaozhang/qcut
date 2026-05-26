@@ -33,15 +33,6 @@
 | [container-setup.zh.md](core-plan/container-setup.zh.md)   | Dockerfile、Daytona devcontainer 配置、构建步骤、运行时依赖      |
 | [secrets-supabase.zh.md](core-plan/secrets-supabase.zh.md) | API key 表结构、密钥加载脚本、三种优先级策略                     |
 
-vm0 参考分析（来自 [vm0-ai/vm0](https://github.com/vm0-ai/vm0) 的经验）：
-
-| 文件                                                         | 内容                                                         |
-| ------------------------------------------------------------ | ------------------------------------------------------------ |
-| [vm0-overview.zh.md](vm0-reference/overview.zh.md)           | 整体对比、仓库布局、哪些值得搬 / 推迟 / 跳过                 |
-| [vm0-sandbox.zh.md](vm0-reference/sandbox.zh.md)             | Firecracker microVM + NBD COW + netns 池；我们为啥继续用容器 |
-| [vm0-job-pipeline.zh.md](vm0-reference/job-pipeline.zh.md)   | JobProvider trait、推拉发现、guest-agent 模块全景            |
-| [vm0-secrets-proxy.zh.md](vm0-reference/secrets-proxy.zh.md) | mitmproxy 凭证注入、防火墙规则、回港分阶段                   |
-
 浏览器沙箱扩展（wzrdagentstudio 里的交互式入口）：
 
 | 文件                                                             | 内容                                                                         |

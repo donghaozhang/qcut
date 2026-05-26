@@ -299,7 +299,7 @@ export function registerTextToImageModels(): void {
 		description:
 			"OpenAI GPT-Image-2 via IMA Router — photorealistic, strong prompt adherence, accurate in-image text",
 		pricing: { per_image: 0.042 },
-		aspectRatios: ["1:1", "3:2", "2:3"],
+		aspectRatios: ["1:1", "3:4", "9:16", "4:3", "16:9", "3:2", "2:3"],
 		defaults: {
 			model: "gpt-image-2",
 			size: "1024x1024",

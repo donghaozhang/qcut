@@ -90,6 +90,11 @@ describe("buildCodexStartupCommand", () => {
 		expect(command).toContain("stty echo");
 		expect(command).toContain('[projects."/home/qcut/qcut"]');
 		expect(command).toContain('trust_level = "trusted"');
+		expect(command).toContain("# QCut web terminal keymap");
+		expect(command).toContain("[tui.keymap.composer]");
+		expect(command).toContain('submit = ["enter", "ctrl-m", "ctrl-j"]');
+		expect(command).toContain('insert_newline = ["shift-enter"]');
+		expect(command).toContain("[tui.keymap.editor]");
 		expect(command).toContain("/home/qcut/qcut/AGENTS.md");
 		expect(command).toContain("## QCut Website Chat Agent Defaults");
 		expect(command).toContain(

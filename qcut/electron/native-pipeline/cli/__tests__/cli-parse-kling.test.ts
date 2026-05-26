@@ -78,6 +78,50 @@ describe("parseCliArgs — Kling V3 Omni flags", () => {
 		expect(opts.watermark).toBe(true);
 	});
 
+	it("parses --ratio as an image aspect-ratio alias", () => {
+		const opts = parseCliArgs([
+			"gen",
+			"image",
+			"-t",
+			"poster",
+			"--ratio",
+			"9:16",
+		]);
+
+		expect(opts.aspectRatio).toBe("9:16");
+	});
+
+	it("prefers --aspect-ratio over ratio aliases", () => {
+		const opts = parseCliArgs([
+			"gen",
+			"image",
+			"-t",
+			"banner",
+			"--ratio",
+			"9:16",
+			"--aspect-ratio",
+			"16:9",
+		]);
+
+		expect(opts.aspectRatio).toBe("16:9");
+	});
+
+	it("parses custom image width and height", () => {
+		const opts = parseCliArgs([
+			"gen",
+			"image",
+			"-t",
+			"banner",
+			"--width",
+			"2000",
+			"--height",
+			"1152",
+		]);
+
+		expect(opts.width).toBe(2000);
+		expect(opts.height).toBe(1152);
+	});
+
 	it("defaults watermark to false when omitted", () => {
 		const opts = parseCliArgs([
 			"gen",
