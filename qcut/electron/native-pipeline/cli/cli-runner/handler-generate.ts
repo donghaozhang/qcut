@@ -68,7 +68,11 @@ export function getDefaultModelForCommand({
 	return undefined;
 }
 
-function isImaRouterGptImage2Model({ modelKey }: { modelKey?: string }): boolean {
+function isImaRouterGptImage2Model({
+	modelKey,
+}: {
+	modelKey?: string;
+}): boolean {
 	return modelKey === "gpt_image_2_ima" || modelKey === "gpt_image_2_gmi";
 }
 
@@ -106,7 +110,8 @@ function shouldCropGeneratedImage({
 }: {
 	options: CLIRunOptions;
 }): boolean {
-	if (options.command !== "generate-image" || !options.aspectRatio) return false;
+	if (options.command !== "generate-image" || !options.aspectRatio)
+		return false;
 	if (isImaRouterGptImage2Model({ modelKey: options.model })) return false;
 	return options.width === undefined && options.height === undefined;
 }

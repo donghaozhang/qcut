@@ -528,8 +528,7 @@ async function executeTextToImage(
 			}
 			delete payload.image_size;
 		} else {
-			payload.image_size =
-				GPT_IMAGE_SIZE_BY_RATIO[aspectRatio] ?? "1024x1024";
+			payload.image_size = GPT_IMAGE_SIZE_BY_RATIO[aspectRatio] ?? "1024x1024";
 		}
 		delete payload.aspect_ratio;
 	}

@@ -127,9 +127,12 @@ describe("create-video duration validation", () => {
 
 describe("session command parsing", () => {
 	it("parses --ratio as an aspect-ratio alias", () => {
-		const options = parseSessionLine('generate-image -t "poster" --ratio 9:16', {
-			outputDir: "/tmp/qcut-session-parse-test",
-		});
+		const options = parseSessionLine(
+			'generate-image -t "poster" --ratio 9:16',
+			{
+				outputDir: "/tmp/qcut-session-parse-test",
+			}
+		);
 
 		expect(options?.aspectRatio).toBe("9:16");
 	});

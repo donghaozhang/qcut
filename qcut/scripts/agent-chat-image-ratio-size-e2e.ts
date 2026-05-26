@@ -382,7 +382,8 @@ async function resetServerSessionThroughUi({
 			const sessionId =
 				window.localStorage.getItem("qcut_agent_session_id") || "";
 			const text =
-				document.querySelector("#agent-session-status")?.textContent?.trim() || "";
+				document.querySelector("#agent-session-status")?.textContent?.trim() ||
+				"";
 			return (
 				status === "disconnected" &&
 				sessionId.length === 0 &&
@@ -405,9 +406,7 @@ async function typePromptIntoTerminal({
 	prompt: string;
 }) {
 	const terminal = page.locator("#agent-terminal");
-	const helperTextarea = page.locator(
-		"#agent-terminal .xterm-helper-textarea"
-	);
+	const helperTextarea = page.locator("#agent-terminal .xterm-helper-textarea");
 	await helperTextarea.waitFor({ state: "attached", timeout: 10_000 });
 	await terminal.click({ position: { x: 260, y: 420 } });
 	await helperTextarea.focus();
@@ -426,7 +425,8 @@ async function getSessionContext({
 	return page.evaluate((apiBaseFallback) => {
 		const apiBase = window.PaymentAPI?.getApiBaseUrl?.() || apiBaseFallback;
 		const token = window.PaymentAPI?.getAuthToken?.() || "";
-		const sessionId = window.localStorage.getItem("qcut_agent_session_id") || "";
+		const sessionId =
+			window.localStorage.getItem("qcut_agent_session_id") || "";
 		if (sessionId.length === 0) {
 			throw new Error("missing agent session id");
 		}
@@ -605,7 +605,8 @@ async function downloadAndVerifyImages({
 		});
 		assertCondition({
 			condition:
-				dimensions.width === result.width && dimensions.height === result.height,
+				dimensions.width === result.width &&
+				dimensions.height === result.height,
 			message: `local dimensions mismatch for ${result.name}`,
 		});
 		const expected = EXPECTED_IMAGE_DIMENSIONS[result.name];
@@ -830,7 +831,10 @@ async function main() {
 					remotePath: `${root}/qcut-version-after-second-input.txt`,
 					timeoutMs: config.secondInputTimeoutMs,
 				});
-				writeFileSync(join(config.outDir, "second-input-ok.txt"), secondInputText);
+				writeFileSync(
+					join(config.outDir, "second-input-ok.txt"),
+					secondInputText
+				);
 				writeFileSync(
 					join(config.outDir, "qcut-version-after-second-input.txt"),
 					versionText
