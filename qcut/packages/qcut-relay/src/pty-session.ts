@@ -26,6 +26,10 @@ type PtyClientControlMessage = {
 	rows: number;
 };
 
+const PTY_INPUT_TIMEOUT_MS = 5_000;
+const PTY_INPUT_AUDIT_MIN_MS = 2_000;
+const PTY_INPUT_AUDIT_MIN_BYTES = 16;
+
 const CODEX_AGENT_INSTRUCTIONS = [
 	"## QCut Website Chat Agent Defaults",
 	"",
@@ -94,6 +98,10 @@ export class PtySession {
 		let resize: ((cols: number, rows: number) => Promise<void>) | undefined;
 		let closePty: (() => Promise<void>) | undefined;
 		let closeSandbox: (() => Promise<void>) | undefined;
+		let inputMessageCount = 0;
+		let inputAuditBytes = 0;
+		let inputAuditMessages = 0;
+		let lastInputAudit = Date.now();
 
 		try {
 			const pair = new WebSocketPair();
@@ -198,16 +206,62 @@ export class PtySession {
 						const controlMessage = parsePtyClientControlMessage({ data });
 						if (controlMessage) {
 							await resize?.(controlMessage.cols, controlMessage.rows);
+							void auditEvent(this.env, claims.session_id, "pty_control", {
+								kind: controlMessage.kind,
+								cols: controlMessage.cols,
+								rows: controlMessage.rows,
+								provider: session.provider,
+							});
 							return;
 						}
-						await sendInput?.(data);
+						inputMessageCount += 1;
+						await sendInputWithAudit({
+							env: this.env,
+							sessionId: claims.session_id,
+							provider: session.provider,
+							sendInput,
+							data,
+							messageIndex: inputMessageCount,
+							stats: {
+								bytes: inputAuditBytes,
+								messages: inputAuditMessages,
+								lastAudit: lastInputAudit,
+							},
+							updateStats: ({ bytes, messages, lastAudit }) => {
+								inputAuditBytes = bytes;
+								inputAuditMessages = messages;
+								lastInputAudit = lastAudit;
+							},
+						});
 						return;
 					}
+					inputMessageCount += 1;
 					try {
 						const buf = new Uint8Array(data as ArrayBuffer);
-						await sendInput?.(buf);
-					} catch {
-						/* sandbox gone; ignore */
+						await sendInputWithAudit({
+							env: this.env,
+							sessionId: claims.session_id,
+							provider: session.provider,
+							sendInput,
+							data: buf,
+							messageIndex: inputMessageCount,
+							stats: {
+								bytes: inputAuditBytes,
+								messages: inputAuditMessages,
+								lastAudit: lastInputAudit,
+							},
+							updateStats: ({ bytes, messages, lastAudit }) => {
+								inputAuditBytes = bytes;
+								inputAuditMessages = messages;
+								lastInputAudit = lastAudit;
+							},
+						});
+					} catch (err) {
+						void auditEvent(this.env, claims.session_id, "pty_input_error", {
+							provider: session.provider,
+							messageIndex: inputMessageCount,
+							error: err instanceof Error ? err.message : String(err),
+						});
 					}
 				})();
 			});
@@ -297,6 +351,124 @@ export function parsePtyClientControlMessage({
 		return null;
 	}
 	return { kind, cols, rows };
+}
+
+type SendInput = (data: Uint8Array | string) => Promise<void>;
+
+type PtyInputAuditStats = {
+	bytes: number;
+	messages: number;
+	lastAudit: number;
+};
+
+async function sendInputWithAudit({
+	env,
+	sessionId,
+	provider,
+	sendInput,
+	data,
+	messageIndex,
+	stats,
+	updateStats,
+}: {
+	env: Env;
+	sessionId: string;
+	provider: string;
+	sendInput: SendInput | undefined;
+	data: Uint8Array | string;
+	messageIndex: number;
+	stats: PtyInputAuditStats;
+	updateStats: (stats: PtyInputAuditStats) => void;
+}) {
+	const startedAt = Date.now();
+	const bytes = getInputByteLength({ data });
+	const payloadType = typeof data === "string" ? "text" : "binary";
+	if (!sendInput) {
+		void auditEvent(env, sessionId, "pty_input_error", {
+			provider,
+			messageIndex,
+			payloadType,
+			bytes,
+			error: "missing_send_input",
+		});
+		return;
+	}
+	try {
+		await withTimeout({
+			promise: sendInput(data),
+			ms: PTY_INPUT_TIMEOUT_MS,
+			label: "pty_send_input",
+		});
+		const elapsedMs = Date.now() - startedAt;
+		const nextStats = {
+			bytes: stats.bytes + bytes,
+			messages: stats.messages + 1,
+			lastAudit: stats.lastAudit,
+		};
+		const shouldAudit =
+			messageIndex <= 8 ||
+			Date.now() - stats.lastAudit >= PTY_INPUT_AUDIT_MIN_MS ||
+			nextStats.bytes >= PTY_INPUT_AUDIT_MIN_BYTES;
+		if (!shouldAudit) {
+			updateStats(nextStats);
+			return;
+		}
+		void auditEvent(env, sessionId, "pty_input", {
+			provider,
+			payloadType,
+			messageIndex,
+			messages: nextStats.messages,
+			bytes: nextStats.bytes,
+			elapsedMs,
+		});
+		updateStats({ bytes: 0, messages: 0, lastAudit: Date.now() });
+	} catch (err) {
+		const elapsedMs = Date.now() - startedAt;
+		const error = err instanceof Error ? err.message : String(err);
+		const kind = error.includes("pty_send_input_timeout")
+			? "pty_input_timeout"
+			: "pty_input_error";
+		void auditEvent(env, sessionId, kind, {
+			provider,
+			payloadType,
+			messageIndex,
+			bytes,
+			elapsedMs,
+			error,
+		});
+	}
+}
+
+function getInputByteLength({ data }: { data: Uint8Array | string }) {
+	return typeof data === "string"
+		? new TextEncoder().encode(data).byteLength
+		: data.byteLength;
+}
+
+async function withTimeout<T>({
+	promise,
+	ms,
+	label,
+}: {
+	promise: Promise<T>;
+	ms: number;
+	label: string;
+}): Promise<T> {
+	let timeoutId: ReturnType<typeof setTimeout> | undefined;
+	try {
+		return await Promise.race([
+			promise,
+			new Promise<never>((_, reject) => {
+				timeoutId = setTimeout(() => {
+					reject(new Error(`${label}_timeout_${ms}ms`));
+				}, ms);
+			}),
+		]);
+	} finally {
+		if (timeoutId !== undefined) {
+			clearTimeout(timeoutId);
+		}
+	}
 }
 
 function startsWithJsonObject({ data }: { data: string }) {
