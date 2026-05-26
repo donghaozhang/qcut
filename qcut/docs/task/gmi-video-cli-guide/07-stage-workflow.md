@@ -208,7 +208,7 @@ Every AI command deducts credits from your account. Sign up once (free tier incl
 
 Beta testers: use the @qcut.app credentials emailed to you. Each test account is pre-loaded with 1000 credits on the free plan.
 
-Local test credentials live in `./.env.test-accounts` at the repo root (gitignored). The file defines `QCUT_TEST_EMAIL` and `QCUT_TEST_PASSWORD` — source it before running `qcut system login`. See [docs/task/invite-test/testers.md](../invite-test/testers.md) for the full tester roster.
+Local test credentials live in `./.env.test-accounts` at the repo root (gitignored). The file defines `QCUT_TEST_EMAIL` and `QCUT_TEST_PASSWORD` — source it before running `qcut system login`. See [docs/task/license-server-rollout/testers.md](../license-server-rollout/testers.md) for the full tester roster.
 
 Verify with `qcut system check-keys --json` — a successful login shows your user email and remaining credits.
 
