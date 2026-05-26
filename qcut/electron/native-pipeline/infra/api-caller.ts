@@ -288,7 +288,7 @@ export async function uploadToFalStorage(
 
 		// Proxy mode: server vends the signed URL (key never leaves server)
 		const useProxy = await isProxyAvailable();
-		const apiKey = useProxy ? "" : await getApiKey("fal");
+		const apiKey = await getApiKey("fal");
 
 		if (!useProxy && !apiKey) {
 			return { success: false, error: "No FAL API key configured" };
@@ -298,41 +298,34 @@ export async function uploadToFalStorage(
 		let fileUrl: string;
 
 		if (useProxy) {
-			const urls = await proxyUploadUrl({
-				fileName: filename,
+			try {
+				const urls = await proxyUploadUrl({
+					fileName: filename,
+					contentType,
+				});
+				uploadUrl = urls.uploadUrl;
+				fileUrl = urls.fileUrl;
+			} catch (error) {
+				if (!apiKey) throw error;
+				console.warn(
+					`[api-caller] Proxy upload URL failed (${error instanceof Error ? error.message : String(error)}); falling back to local FAL_KEY`
+				);
+				const urls = await createFalUploadUrls({
+					filename,
+					contentType,
+					apiKey,
+				});
+				uploadUrl = urls.uploadUrl;
+				fileUrl = urls.fileUrl;
+			}
+		} else {
+			const urls = await createFalUploadUrls({
+				filename,
 				contentType,
+				apiKey,
 			});
 			uploadUrl = urls.uploadUrl;
 			fileUrl = urls.fileUrl;
-		} else {
-			const initRes = await fetch(FAL_STORAGE_INITIATE, {
-				method: "POST",
-				headers: {
-					Authorization: `Key ${apiKey}`,
-					"Content-Type": "application/json",
-				},
-				body: JSON.stringify({
-					file_name: filename,
-					content_type: contentType,
-				}),
-			});
-
-			if (!initRes.ok) {
-				return {
-					success: false,
-					error: `FAL upload initiate failed: ${initRes.status}`,
-				};
-			}
-
-			const initData = (await initRes.json()) as {
-				upload_url?: string;
-				file_url?: string;
-			};
-			if (!initData.upload_url || !initData.file_url) {
-				return { success: false, error: "FAL API did not return upload URLs" };
-			}
-			uploadUrl = initData.upload_url;
-			fileUrl = initData.file_url;
 		}
 
 		// Step 2: Read file and PUT to signed URL
@@ -366,6 +359,41 @@ export async function uploadToFalStorage(
 			error: `FAL upload error: ${err instanceof Error ? err.message : String(err)}`,
 		};
 	}
+}
+
+async function createFalUploadUrls({
+	filename,
+	contentType,
+	apiKey,
+}: {
+	filename: string;
+	contentType: string;
+	apiKey: string;
+}): Promise<{ uploadUrl: string; fileUrl: string }> {
+	const initRes = await fetch(FAL_STORAGE_INITIATE, {
+		method: "POST",
+		headers: {
+			Authorization: `Key ${apiKey}`,
+			"Content-Type": "application/json",
+		},
+		body: JSON.stringify({
+			file_name: filename,
+			content_type: contentType,
+		}),
+	});
+
+	if (!initRes.ok) {
+		throw new Error(`FAL upload initiate failed: ${initRes.status}`);
+	}
+
+	const initData = (await initRes.json()) as {
+		upload_url?: string;
+		file_url?: string;
+	};
+	if (!initData.upload_url || !initData.file_url) {
+		throw new Error("FAL API did not return upload URLs");
+	}
+	return { uploadUrl: initData.upload_url, fileUrl: initData.file_url };
 }
 
 export { GEMINI_BASE, OPENROUTER_BASE, VOLCENGINE_BASE };
