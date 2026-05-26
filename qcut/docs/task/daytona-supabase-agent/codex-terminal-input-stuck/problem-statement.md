@@ -605,3 +605,19 @@ The implementation now turns the proven recovery path into an explicit product a
 This does not claim to prove the internal Codex TUI root cause. It fixes the user-visible stuck state by detecting the unhealthy input path and providing an explicit same-session recovery action whose effectiveness was already proven live with `Disconnect` + `Connect`.
 
 这并不声称已经证明 Codex TUI 内部根因。它修复的是用户可见的卡住状态：检测不健康的输入链路，并提供明确的同 session 恢复动作；这个恢复动作的有效性已经通过 live `Disconnect` + `Connect` 证明过。
+
+## Follow-up Fixes / 后续修复
+
+Date / 日期: 2026-05-26
+
+After the initial implementation, three additional fixes were applied to keep the recovery path reliable and to address a concurrency review on the relay audit code.
+
+初次实现之后，又应用了三个修复，用来保持恢复路径可靠，并处理 relay audit 代码上的一条并发评审。
+
+- Relay: `sendInputWithAudit` now mutates a shared `PtyInputAuditStats` object synchronously after each `await`, instead of taking a snapshot and writing back via callback. This removes a race in `inputAuditBytes` / `inputAuditMessages` accumulation when multiple terminal input messages were forwarded concurrently. (Gemini PR #311 review.)
+- Website: `shouldCreateFreshTerminalSession` now also treats `session_not_found` as a stale session and falls back to a new session.
+- Website: `connectAgentTerminal` resets `terminalInputSequence` and `terminalLastAckedInputId` on each reconnect so the 7-second ack watchdog does not flag pre-reconnect input ids as stale.
+
+- relay：`sendInputWithAudit` 在每次 `await` 之后会同步修改一个共享的 `PtyInputAuditStats` 对象，而不再使用“快照 + callback 回写”。这消除了多条 terminal input 并发转发时，`inputAuditBytes` / `inputAuditMessages` 累加上的 race。（来自 Gemini 对 PR #311 的评审。）
+- 网站：`shouldCreateFreshTerminalSession` 现在也把 `session_not_found` 视为 stale session，并 fallback 到新建 session。
+- 网站：`connectAgentTerminal` 在每次重连时会重置 `terminalInputSequence` 和 `terminalLastAckedInputId`，避免 7 秒 ack watchdog 把重连前的 input id 误判为 stale。

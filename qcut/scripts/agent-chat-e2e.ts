@@ -202,6 +202,10 @@ async function readTerminalStatus({ page }: { page: Page }): Promise<string> {
 	).trim();
 }
 
+async function readTerminalDebug({ page }: { page: Page }): Promise<string> {
+	return readText({ page, selector: "#agent-terminal-debug" });
+}
+
 async function runStep({
 	state,
 	name,
@@ -302,6 +306,24 @@ async function waitForCodexReady({
 	);
 }
 
+async function readStoredAgentSessionId({ page }: { page: Page }) {
+	return page.evaluate(
+		() => window.localStorage.getItem("qcut_agent_session_id") || ""
+	);
+}
+
+async function waitForRelayInputAck({ page }: { page: Page }) {
+	await page.waitForFunction(
+		() => {
+			const debugText =
+				document.querySelector("#agent-terminal-debug")?.textContent || "";
+			return /ack #\d+ \d+ bytes/.test(debugText);
+		},
+		null,
+		{ timeout: 15_000 }
+	);
+}
+
 async function resetServerSessionThroughUi({
 	page,
 	timeoutMs,
@@ -359,6 +381,7 @@ async function typePromptIntoTerminal({
 	await page.keyboard.type(prompt, { delay: 1 });
 	await page.waitForTimeout(750);
 	await page.keyboard.press("Enter");
+	await waitForRelayInputAck({ page });
 	if (echoNeedle && echoNeedle.length > 0) {
 		await page.waitForFunction(
 			(needle) => {
@@ -622,14 +645,58 @@ async function main() {
 					namePrefix: imageNamePrefix,
 					timeoutMs: config.artifactTimeoutMs,
 				});
-				return `marker=${artifactFilename}; image=${imageFilename}`;
+				const debugText = await readTerminalDebug({ page });
+				assertCondition({
+					condition: /ack #\d+ \d+ bytes/.test(debugText),
+					message: `expected relay ack after image prompt, got ${debugText}`,
+				});
+				assertCondition({
+					condition: !debugText.includes("no relay ack"),
+					message: `unexpected stale ack warning after image prompt: ${debugText}`,
+				});
+				return `marker=${artifactFilename}; image=${imageFilename}; debug=${debugText}`;
+			},
+		});
+
+		const secondArtifactFilename = `terminal-second-input-e2e-${runId}.txt`;
+		const secondArtifactText = `second input ok ${runId}`;
+		await runStep({
+			state,
+			name: "second terminal input works after image generation",
+			screenshotName: "06-second-input-after-image",
+			action: async () => {
+				await typePromptIntoTerminal({
+					page,
+					prompt: `This is the second input after image generation. Write "${secondArtifactText}" into /tmp/qcut-output/${secondArtifactFilename}, then reply SECOND_INPUT_DONE_${runId}.`,
+					echoNeedle: secondArtifactFilename,
+				});
+				await waitForArtifact({
+					page,
+					filename: secondArtifactFilename,
+					timeoutMs: config.promptTimeoutMs,
+				});
+				const fetchedText = await fetchArtifactTextFromPage({
+					page,
+					filename: secondArtifactFilename,
+					licenseServerUrl: config.licenseServerUrl,
+				});
+				assertCondition({
+					condition: fetchedText.trim() === secondArtifactText,
+					message: `second input artifact mismatch: ${fetchedText.trim()}`,
+				});
+				const debugText = await readTerminalDebug({ page });
+				assertCondition({
+					condition: !debugText.includes("no relay ack"),
+					message: `unexpected stale ack warning after second input: ${debugText}`,
+				});
+				return `second=${secondArtifactFilename}; debug=${debugText}`;
 			},
 		});
 
 		await runStep({
 			state,
 			name: "terminal-generated image artifacts download from the web UI",
-			screenshotName: "06-artifact-download",
+			screenshotName: "07-artifact-download",
 			action: async () => {
 				const downloadedMarkerPath = await downloadArtifactWithButton({
 					page,
@@ -656,8 +723,64 @@ async function main() {
 
 		await runStep({
 			state,
+			name: "reconnect opens Codex again",
+			screenshotName: "08-reconnect-codex-ready",
+			action: async () => {
+				const beforeSessionId = await readStoredAgentSessionId({ page });
+				await page.locator("#agent-terminal-reconnect").click();
+				await waitForCodexReady({
+					page,
+					timeoutMs: config.connectTimeoutMs,
+				});
+				const afterSessionId = await readStoredAgentSessionId({ page });
+				assertCondition({
+					condition:
+						beforeSessionId.length > 0 && beforeSessionId === afterSessionId,
+					message: `reconnect changed session ${beforeSessionId} -> ${afterSessionId}`,
+				});
+				return `sameSession=${afterSessionId}`;
+			},
+		});
+
+		const reconnectArtifactFilename = `terminal-reconnect-e2e-${runId}.txt`;
+		const reconnectArtifactText = `reconnect input ok ${runId}`;
+		await runStep({
+			state,
+			name: "input works after explicit reconnect",
+			screenshotName: "09-input-after-reconnect",
+			action: async () => {
+				await typePromptIntoTerminal({
+					page,
+					prompt: `After explicit Reconnect, write "${reconnectArtifactText}" into /tmp/qcut-output/${reconnectArtifactFilename}, then reply RECONNECT_INPUT_DONE_${runId}.`,
+					echoNeedle: reconnectArtifactFilename,
+				});
+				await waitForArtifact({
+					page,
+					filename: reconnectArtifactFilename,
+					timeoutMs: config.promptTimeoutMs,
+				});
+				const fetchedText = await fetchArtifactTextFromPage({
+					page,
+					filename: reconnectArtifactFilename,
+					licenseServerUrl: config.licenseServerUrl,
+				});
+				assertCondition({
+					condition: fetchedText.trim() === reconnectArtifactText,
+					message: `reconnect artifact mismatch: ${fetchedText.trim()}`,
+				});
+				const debugText = await readTerminalDebug({ page });
+				assertCondition({
+					condition: !debugText.includes("no relay ack"),
+					message: `unexpected stale ack warning after reconnect input: ${debugText}`,
+				});
+				return `reconnect=${reconnectArtifactFilename}; debug=${debugText}`;
+			},
+		});
+
+		await runStep({
+			state,
 			name: "disconnect clears terminal state",
-			screenshotName: "07-disconnected-clean",
+			screenshotName: "10-disconnected-clean",
 			action: async () => {
 				await disconnectTerminal({ page });
 				await page.waitForTimeout(300);
@@ -676,20 +799,6 @@ async function main() {
 					message: "disconnect left stale Codex text in the terminal",
 				});
 				return "terminal reset";
-			},
-		});
-
-		await runStep({
-			state,
-			name: "reconnect opens Codex again",
-			screenshotName: "08-reconnect-codex-ready",
-			action: async () => {
-				await page.locator("#agent-terminal-connect").click();
-				await waitForCodexReady({
-					page,
-					timeoutMs: config.connectTimeoutMs,
-				});
-				return "Codex ready after reconnect";
 			},
 		});
 	} catch (error) {

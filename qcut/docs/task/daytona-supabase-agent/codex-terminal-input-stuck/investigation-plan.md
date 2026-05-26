@@ -860,17 +860,21 @@ Commit / PR 证据：
 - Website repo `donghaozhang/nexusai-website`:
   - branch: `master`
   - commit: `4998409` (`Fix chat terminal reconnect diagnostics`)
+  - commit: `0112bb9` (`Fix stale agent session reconnect fallback`)
+  - commit: `25a21d5` (`Reset terminal ack counters on reconnect`)
 - Main repo `Quriosity-agent/qcut`:
   - branch: `image-cli-v11`
-  - commit: `9708913cf` (`Fix agent terminal reconnect diagnostics`)
+  - commits: `9708913cf` (`Fix agent terminal reconnect diagnostics`), `e153a46d8` (`Document agent terminal fix PR`), plus a follow-up commit addressing the Gemini race-condition review and bumping the website submodule to `25a21d5`.
   - PR: `https://github.com/Quriosity-agent/qcut/pull/311`
 
 - Website repo `donghaozhang/nexusai-website`：
   - branch：`master`
   - commit：`4998409`（`Fix chat terminal reconnect diagnostics`）
+  - commit：`0112bb9`（`Fix stale agent session reconnect fallback`）
+  - commit：`25a21d5`（`Reset terminal ack counters on reconnect`）
 - Main repo `Quriosity-agent/qcut`：
   - branch：`image-cli-v11`
-  - commit：`9708913cf`（`Fix agent terminal reconnect diagnostics`）
+  - commits：`9708913cf`（`Fix agent terminal reconnect diagnostics`）、`e153a46d8`（`Document agent terminal fix PR`），以及一条处理 Gemini race-condition 评审并把 website submodule pointer 升到 `25a21d5` 的 follow-up commit。
   - PR：`https://github.com/Quriosity-agent/qcut/pull/311`
 
 ## Suggested First Implementation Slice / 建议第一步实现范围

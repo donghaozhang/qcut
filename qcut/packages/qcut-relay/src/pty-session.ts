@@ -104,9 +104,11 @@ export class PtySession {
 		let closePty: (() => Promise<void>) | undefined;
 		let closeSandbox: (() => Promise<void>) | undefined;
 		let inputMessageCount = 0;
-		let inputAuditBytes = 0;
-		let inputAuditMessages = 0;
-		let lastInputAudit = Date.now();
+		const inputAuditStats: PtyInputAuditStats = {
+			bytes: 0,
+			messages: 0,
+			lastAudit: Date.now(),
+		};
 
 		try {
 			const pair = new WebSocketPair();
@@ -255,16 +257,7 @@ export class PtySession {
 							data,
 							messageIndex: inputMessageCount,
 							notifyClient: sendControl,
-							stats: {
-								bytes: inputAuditBytes,
-								messages: inputAuditMessages,
-								lastAudit: lastInputAudit,
-							},
-							updateStats: ({ bytes, messages, lastAudit }) => {
-								inputAuditBytes = bytes;
-								inputAuditMessages = messages;
-								lastInputAudit = lastAudit;
-							},
+							stats: inputAuditStats,
 						});
 						return;
 					}
@@ -279,16 +272,7 @@ export class PtySession {
 							data: buf,
 							messageIndex: inputMessageCount,
 							notifyClient: sendControl,
-							stats: {
-								bytes: inputAuditBytes,
-								messages: inputAuditMessages,
-								lastAudit: lastInputAudit,
-							},
-							updateStats: ({ bytes, messages, lastAudit }) => {
-								inputAuditBytes = bytes;
-								inputAuditMessages = messages;
-								lastInputAudit = lastAudit;
-							},
+							stats: inputAuditStats,
 						});
 					} catch (err) {
 						void auditEvent(this.env, claims.session_id, "pty_input_error", {
@@ -428,7 +412,6 @@ async function sendInputWithAudit({
 	messageIndex,
 	notifyClient,
 	stats,
-	updateStats,
 }: {
 	env: Env;
 	sessionId: string;
@@ -444,7 +427,6 @@ async function sendInputWithAudit({
 		error?: string;
 	}) => void;
 	stats: PtyInputAuditStats;
-	updateStats: (stats: PtyInputAuditStats) => void;
 }) {
 	const startedAt = Date.now();
 	const bytes = getInputByteLength({ data });
@@ -478,28 +460,26 @@ async function sendInputWithAudit({
 			bytes,
 			elapsedMs,
 		});
-		const nextStats = {
-			bytes: stats.bytes + bytes,
-			messages: stats.messages + 1,
-			lastAudit: stats.lastAudit,
-		};
+		stats.bytes += bytes;
+		stats.messages += 1;
 		const shouldAudit =
 			messageIndex <= 8 ||
 			Date.now() - stats.lastAudit >= PTY_INPUT_AUDIT_MIN_MS ||
-			nextStats.bytes >= PTY_INPUT_AUDIT_MIN_BYTES;
+			stats.bytes >= PTY_INPUT_AUDIT_MIN_BYTES;
 		if (!shouldAudit) {
-			updateStats(nextStats);
 			return;
 		}
 		void auditEvent(env, sessionId, "pty_input", {
 			provider,
 			payloadType,
 			messageIndex,
-			messages: nextStats.messages,
-			bytes: nextStats.bytes,
+			messages: stats.messages,
+			bytes: stats.bytes,
 			elapsedMs,
 		});
-		updateStats({ bytes: 0, messages: 0, lastAudit: Date.now() });
+		stats.bytes = 0;
+		stats.messages = 0;
+		stats.lastAudit = Date.now();
 	} catch (err) {
 		const elapsedMs = Date.now() - startedAt;
 		const error = err instanceof Error ? err.message : String(err);
