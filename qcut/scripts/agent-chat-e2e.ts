@@ -336,7 +336,7 @@ async function resetServerSessionThroughUi({
 			return status === "disconnected" && sessionId.length === 0;
 		},
 		null,
-		{ timeout: 60_000 }
+		{ timeout: timeoutMs }
 	);
 	return oldSessionId.length > 0
 		? `ended=${oldSessionId}`
@@ -352,12 +352,9 @@ async function typePromptIntoTerminal({
 	prompt: string;
 	echoNeedle?: string;
 }) {
-	const terminal = page.locator("#agent-terminal");
-	const helperTextarea = page.locator(
-		"#agent-terminal .xterm-helper-textarea"
-	);
+	const helperTextarea = page.locator("#agent-terminal .xterm-helper-textarea");
 	await helperTextarea.waitFor({ state: "attached", timeout: 10_000 });
-	await terminal.click({ position: { x: 260, y: 420 } });
+	await helperTextarea.click();
 	await helperTextarea.focus();
 	await page.keyboard.type(prompt, { delay: 1 });
 	await page.waitForTimeout(750);
@@ -365,7 +362,8 @@ async function typePromptIntoTerminal({
 	if (echoNeedle && echoNeedle.length > 0) {
 		await page.waitForFunction(
 			(needle) => {
-				const text = document.querySelector("#agent-terminal")?.textContent || "";
+				const text =
+					document.querySelector("#agent-terminal")?.textContent || "";
 				return text.includes(needle);
 			},
 			echoNeedle,
@@ -431,8 +429,7 @@ async function waitForImageArtifact({
 		.map((path) => basename(path))
 		.find(
 			(filename) =>
-				filename.startsWith(namePrefix) &&
-				/\.(jpe?g|png|webp)$/i.test(filename)
+				filename.startsWith(namePrefix) && /\.(jpe?g|png|webp)$/i.test(filename)
 		);
 	if (!match) {
 		throw new Error(`missing image artifact with prefix ${namePrefix}`);

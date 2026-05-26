@@ -137,26 +137,35 @@ export async function cropImageToAspectRatio({
 
 		const ext = path.extname(filePath) || ".png";
 		const tempPath = `${filePath}.qcut-ratio${ext}`;
-		const canvas = canvasModule.createCanvas(cropBox.width, cropBox.height);
-		const ctx = canvas.getContext("2d");
-		ctx.drawImage(
-			image,
-			cropBox.left,
-			cropBox.top,
-			cropBox.width,
-			cropBox.height,
-			0,
-			0,
-			cropBox.width,
-			cropBox.height
-		);
-		await fs.writeFile(tempPath, canvas.toBuffer(getMimeType({ filePath })));
-		await fs.rename(tempPath, filePath);
-		return {
-			changed: true,
-			width: cropBox.width,
-			height: cropBox.height,
-		};
+		let tempFileCreated = false;
+		try {
+			const canvas = canvasModule.createCanvas(cropBox.width, cropBox.height);
+			const ctx = canvas.getContext("2d");
+			ctx.drawImage(
+				image,
+				cropBox.left,
+				cropBox.top,
+				cropBox.width,
+				cropBox.height,
+				0,
+				0,
+				cropBox.width,
+				cropBox.height
+			);
+			await fs.writeFile(tempPath, canvas.toBuffer(getMimeType({ filePath })));
+			tempFileCreated = true;
+			await fs.rename(tempPath, filePath);
+			tempFileCreated = false;
+			return {
+				changed: true,
+				width: cropBox.width,
+				height: cropBox.height,
+			};
+		} finally {
+			if (tempFileCreated) {
+				await fs.rm(tempPath, { force: true }).catch(() => {});
+			}
+		}
 	} catch (error) {
 		return {
 			changed: false,

@@ -231,6 +231,7 @@ const CORE_COMMANDS: Record<string, CommandDef> = {
 			}),
 			f("--aspect-ratio", "string", "Aspect ratio (e.g. 16:9, 9:16)"),
 			f("--ratio", "string", "Alias for --aspect-ratio"),
+			f("--aspect", "string", "Alias for --aspect-ratio"),
 			f(
 				"--width",
 				"number",

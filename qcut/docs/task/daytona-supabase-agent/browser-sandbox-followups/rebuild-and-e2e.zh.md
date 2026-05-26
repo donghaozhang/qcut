@@ -82,7 +82,7 @@ PLATFORMS=linux/amd64,linux/arm64 bun run build:cli-image
 - `agent.jobs.test.ts`、`agent.sessions.test.ts`、`agent.artifacts.test.ts`
 - `auth.test.ts`、`admin.test.ts`、`ai-proxy.test.ts`
 
-在进程内挂起 Hono app，断响应。**Spawn 接口本身（`sandbox.ts`）
+在进程内挂起 Hono app，断言响应。**Spawn 接口本身（`sandbox.ts`）
 没有专门的测试文件**——只在下面的 dogfood 脚本里被间接覆盖。
 
 ### c. Agent-worker 集成测试 —— `packages/agent-worker/src/`
