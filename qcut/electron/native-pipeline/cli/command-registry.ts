@@ -230,6 +230,17 @@ const CORE_COMMANDS: Record<string, CommandDef> = {
 				],
 			}),
 			f("--aspect-ratio", "string", "Aspect ratio (e.g. 16:9, 9:16)"),
+			f("--ratio", "string", "Alias for --aspect-ratio"),
+			f(
+				"--width",
+				"number",
+				"Custom image width in pixels (IMA Router GPT Image 2)"
+			),
+			f(
+				"--height",
+				"number",
+				"Custom image height in pixels (IMA Router GPT Image 2)"
+			),
 			f("--resolution", "string", "Resolution (e.g. 1080p, 720p)"),
 			f("--negative-prompt", "string", "Negative prompt"),
 			f("--count", "number", "Generate N copies in parallel"),

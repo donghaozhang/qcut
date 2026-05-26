@@ -241,6 +241,35 @@ function reshapeForImaRouter(
 	return out;
 }
 
+const GPT_IMAGE_SIZE_BY_RATIO: Record<string, string> = {
+	"1:1": "1024x1024",
+	"16:9": "1536x1024",
+	"9:16": "1024x1536",
+	"4:3": "1536x1024",
+	"3:4": "1024x1536",
+	"3:2": "1536x1024",
+	"2:3": "1024x1536",
+};
+
+const IMA_ROUTER_GPT_IMAGE_2_NATIVE_SIZES = new Set([
+	"1:1",
+	"3:4",
+	"9:16",
+	"4:3",
+	"16:9",
+]);
+
+function getImaRouterGptImage2Size({
+	aspectRatio,
+}: {
+	aspectRatio: string;
+}): string {
+	if (IMA_ROUTER_GPT_IMAGE_2_NATIVE_SIZES.has(aspectRatio)) {
+		return aspectRatio;
+	}
+	return GPT_IMAGE_SIZE_BY_RATIO[aspectRatio] ?? "1024x1024";
+}
+
 /** Execute a single pipeline step with the given model, input, and parameters. */
 export async function executeStep(
 	model: ModelDefinition,
@@ -370,7 +399,9 @@ export async function executeStep(
 
 	switch (category) {
 		case "text_to_image":
-			return executeTextToImage(model, input, payload, provider, options);
+			return executeTextToImage(model, input, payload, provider, options, {
+				hasExplicitSize: params.size !== undefined,
+			});
 		case "text_to_video":
 			return executeTextToVideo(model, input, payload, provider, options);
 		case "image_to_video":
@@ -415,6 +446,9 @@ async function executeTextToImage(
 		outputDir?: string;
 		onProgress?: (p: number, m: string) => void;
 		signal?: AbortSignal;
+	},
+	context: {
+		hasExplicitSize: boolean;
 	}
 ): Promise<StepOutput> {
 	payload.prompt = input.text || payload.prompt;
@@ -481,24 +515,22 @@ async function executeTextToImage(
 		delete payload.aspect_ratio;
 	}
 
-	// GPT Image uses image_size with pixel dimensions
+	// GPT Image uses provider-specific size fields.
 	if (
 		(model.endpoint.includes("gpt-image") || isImaRouterGptImage2) &&
 		payload.aspect_ratio
 	) {
-		const gptSizeMap: Record<string, string> = {
-			"1:1": "1024x1024",
-			"16:9": "1536x1024",
-			"9:16": "1024x1536",
-			"3:2": "1536x1024",
-			"2:3": "1024x1536",
-		};
-		const size = gptSizeMap[payload.aspect_ratio as string] || "1024x1024";
+		const aspectRatio = String(payload.aspect_ratio);
 		if (provider === "gmi" || provider === "imarouter") {
-			payload.size = size;
+			if (!context.hasExplicitSize) {
+				payload.size = isImaRouterGptImage2
+					? getImaRouterGptImage2Size({ aspectRatio })
+					: (GPT_IMAGE_SIZE_BY_RATIO[aspectRatio] ?? "1024x1024");
+			}
 			delete payload.image_size;
 		} else {
-			payload.image_size = size;
+			payload.image_size =
+				GPT_IMAGE_SIZE_BY_RATIO[aspectRatio] ?? "1024x1024";
 		}
 		delete payload.aspect_ratio;
 	}

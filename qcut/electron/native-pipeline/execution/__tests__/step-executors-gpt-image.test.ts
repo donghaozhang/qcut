@@ -46,7 +46,7 @@ beforeEach(() => {
 });
 
 describe("executeTextToImage — GPT Image 2", () => {
-	it("uses the IMA Router GPT Image 2 model id and maps aspect ratio to OpenAI size", async () => {
+	it("uses the IMA Router GPT Image 2 model id and keeps legacy OpenAI pixel sizes", async () => {
 		const model = ModelRegistry.get("gpt_image_2_ima");
 
 		await executeStep(
@@ -63,6 +63,40 @@ describe("executeTextToImage — GPT Image 2", () => {
 		expect(call.payload.model).toBe("gpt-image-2");
 		expect(call.payload.prompt).toBe("a red apple on a white plate");
 		expect(call.payload.size).toBe("1536x1024");
+		expect(call.payload).not.toHaveProperty("image_size");
+		expect(call.payload).not.toHaveProperty("aspect_ratio");
+	});
+
+	it("passes IMA Router native image size ratios for GPT Image 2", async () => {
+		const model = ModelRegistry.get("gpt_image_2_ima");
+
+		await executeStep(
+			model,
+			{ text: "a wide cinematic frame" },
+			{ aspect_ratio: "16:9" },
+			{}
+		);
+
+		const call = mockedCallModelApi.mock.calls[0][0];
+		expect(call.provider).toBe("imarouter");
+		expect(call.payload.size).toBe("16:9");
+		expect(call.payload).not.toHaveProperty("image_size");
+		expect(call.payload).not.toHaveProperty("aspect_ratio");
+	});
+
+	it("keeps explicit IMA Router custom sizes ahead of aspect ratio", async () => {
+		const model = ModelRegistry.get("gpt_image_2_ima");
+
+		await executeStep(
+			model,
+			{ text: "a product shot banner" },
+			{ aspect_ratio: "16:9", size: "2000x1152" },
+			{}
+		);
+
+		const call = mockedCallModelApi.mock.calls[0][0];
+		expect(call.provider).toBe("imarouter");
+		expect(call.payload.size).toBe("2000x1152");
 		expect(call.payload).not.toHaveProperty("image_size");
 		expect(call.payload).not.toHaveProperty("aspect_ratio");
 	});
@@ -92,7 +126,7 @@ describe("executeTextToImage — GPT Image 2", () => {
 			"https://example.com/astronaut.png",
 			"https://example.com/helmet.png",
 		]);
-		expect(call.payload.size).toBe("1024x1024");
+		expect(call.payload.size).toBe("1:1");
 		expect(call.payload).not.toHaveProperty("image_urls");
 		expect(call.payload).not.toHaveProperty("aspect_ratio");
 	});

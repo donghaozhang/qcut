@@ -41,6 +41,7 @@ type Config = {
 	connectTimeoutMs: number;
 	promptTimeoutMs: number;
 	artifactTimeoutMs: number;
+	resetSessionBeforeConnect: boolean;
 };
 
 type RunState = {
@@ -129,6 +130,10 @@ function parseArgs({ argv }: { argv: string[] }): Config {
 			name: "--artifact-timeout-ms",
 			defaultValue: 180_000,
 		}),
+		resetSessionBeforeConnect: !hasFlag({
+			argv,
+			name: "--skip-session-reset",
+		}),
 	};
 }
 
@@ -151,24 +156,12 @@ Options:
   --connect-timeout-ms <ms>           Connect/Codex ready timeout. Default: 240000.
   --prompt-timeout-ms <ms>            Prompt completion timeout. Default: 180000.
   --artifact-timeout-ms <ms>          Artifact visibility timeout. Default: 180000.
+  --skip-session-reset                Reuse the current active server-side session.
 `);
 }
 
 function log({ message }: { message: string }) {
 	console.log(`[agent-chat-e2e] ${message}`);
-}
-
-function countOccurrences({
-	value,
-	needle,
-}: {
-	value: string;
-	needle: string;
-}): number {
-	if (needle.length === 0) {
-		return 0;
-	}
-	return value.split(needle).length - 1;
 }
 
 async function screenshot({
@@ -309,31 +302,76 @@ async function waitForCodexReady({
 	);
 }
 
-async function waitForTerminalCompletionMarker({
+async function resetServerSessionThroughUi({
 	page,
-	marker,
-	beforeCount,
 	timeoutMs,
 }: {
 	page: Page;
-	marker: string;
-	beforeCount: number;
 	timeoutMs: number;
 }) {
+	await page.locator("#agent-terminal-connect").click();
 	await page.waitForFunction(
-		({ expectedMarker, previousCount }) => {
-			const text = document.querySelector("#agent-terminal")?.textContent || "";
-			const count = text.split(expectedMarker).length - 1;
-			return count > previousCount + 1 || text.includes(`• ${expectedMarker}`);
+		() => {
+			const status = document
+				.querySelector("#agent-terminal-status")
+				?.textContent?.trim();
+			const sessionId =
+				window.localStorage.getItem("qcut_agent_session_id") || "";
+			return status === "connected" && sessionId.length > 0;
 		},
-		{ expectedMarker: marker, previousCount: beforeCount },
+		null,
 		{ timeout: timeoutMs }
 	);
+	const oldSessionId = await page.evaluate(
+		() => window.localStorage.getItem("qcut_agent_session_id") || ""
+	);
+	await page.locator("#agent-new-session").click();
+	await page.waitForFunction(
+		() => {
+			const status = document
+				.querySelector("#agent-terminal-status")
+				?.textContent?.trim();
+			const sessionId =
+				window.localStorage.getItem("qcut_agent_session_id") || "";
+			return status === "disconnected" && sessionId.length === 0;
+		},
+		null,
+		{ timeout: 60_000 }
+	);
+	return oldSessionId.length > 0
+		? `ended=${oldSessionId}`
+		: "reset without stored session";
 }
 
-async function submitPrompt({ page, prompt }: { page: Page; prompt: string }) {
-	await page.locator("#agent-prompt").fill(prompt);
-	await page.locator("#agent-submit").click();
+async function typePromptIntoTerminal({
+	page,
+	prompt,
+	echoNeedle,
+}: {
+	page: Page;
+	prompt: string;
+	echoNeedle?: string;
+}) {
+	const terminal = page.locator("#agent-terminal");
+	const helperTextarea = page.locator(
+		"#agent-terminal .xterm-helper-textarea"
+	);
+	await helperTextarea.waitFor({ state: "attached", timeout: 10_000 });
+	await terminal.click({ position: { x: 260, y: 420 } });
+	await helperTextarea.focus();
+	await page.keyboard.type(prompt, { delay: 1 });
+	await page.waitForTimeout(750);
+	await page.keyboard.press("Enter");
+	if (echoNeedle && echoNeedle.length > 0) {
+		await page.waitForFunction(
+			(needle) => {
+				const text = document.querySelector("#agent-terminal")?.textContent || "";
+				return text.includes(needle);
+			},
+			echoNeedle,
+			{ timeout: 15_000 }
+		);
+	}
 }
 
 async function waitForArtifact({
@@ -354,6 +392,52 @@ async function waitForArtifact({
 		filename,
 		{ timeout: timeoutMs }
 	);
+}
+
+async function readArtifactPaths({ page }: { page: Page }): Promise<string[]> {
+	return page.evaluate(() =>
+		Array.from(document.querySelectorAll("#agent-artifacts .sandbox-file-tile"))
+			.map((element) => element.getAttribute("data-path") || "")
+			.filter((value) => value.length > 0)
+	);
+}
+
+async function waitForImageArtifact({
+	page,
+	namePrefix,
+	timeoutMs,
+}: {
+	page: Page;
+	namePrefix: string;
+	timeoutMs: number;
+}): Promise<string> {
+	await page.waitForFunction(
+		({ expectedPrefix }) =>
+			Array.from(
+				document.querySelectorAll("#agent-artifacts .sandbox-file-tile")
+			).some((element) => {
+				const path = element.getAttribute("data-path") || "";
+				const filename = path.split("/").pop() || "";
+				return (
+					filename.startsWith(expectedPrefix) &&
+					/\.(jpe?g|png|webp)$/i.test(filename)
+				);
+			}),
+		{ expectedPrefix: namePrefix },
+		{ timeout: timeoutMs }
+	);
+	const paths = await readArtifactPaths({ page });
+	const match = paths
+		.map((path) => basename(path))
+		.find(
+			(filename) =>
+				filename.startsWith(namePrefix) &&
+				/\.(jpe?g|png|webp)$/i.test(filename)
+		);
+	if (!match) {
+		throw new Error(`missing image artifact with prefix ${namePrefix}`);
+	}
+	return match;
 }
 
 async function downloadArtifactWithButton({
@@ -434,6 +518,9 @@ async function main() {
 		acceptDownloads: true,
 		viewport: { width: 1180, height: 920 },
 	});
+	await page.addInitScript(() => {
+		window.localStorage.removeItem("qcut_agent_session_id");
+	});
 	const state: RunState = { browser, page, config, runId, steps: [] };
 
 	let exitCode = 0;
@@ -487,10 +574,23 @@ async function main() {
 			},
 		});
 
+		if (config.resetSessionBeforeConnect) {
+			await runStep({
+				state,
+				name: "reset active server session before terminal test",
+				screenshotName: "03-reset-active-session",
+				action: async () =>
+					resetServerSessionThroughUi({
+						page,
+						timeoutMs: config.connectTimeoutMs,
+					}),
+			});
+		}
+
 		await runStep({
 			state,
 			name: "manual connect opens Codex",
-			screenshotName: "03-connect-codex-ready",
+			screenshotName: "04-connect-codex-ready",
 			action: async () => {
 				await page.locator("#agent-terminal-connect").click();
 				await waitForCodexReady({
@@ -501,63 +601,47 @@ async function main() {
 			},
 		});
 
-		const turnOneMarker = `AGENT_E2E_TURN_ONE_${runId}`;
+		const artifactFilename = `terminal-image-e2e-${runId}.txt`;
+		const artifactText = `qcut image generated ${runId}`;
+		const imageNamePrefix = `terminal-image-e2e-${runId}`;
+		let imageFilename = "";
 		await runStep({
 			state,
-			name: "turn one reaches persistent Codex",
-			screenshotName: "04-turn-one",
-			action: async () => {
-				const beforeText = await readTerminalText({ page });
-				const beforeCount = countOccurrences({
-					value: beforeText,
-					needle: turnOneMarker,
-				});
-				await submitPrompt({
-					page,
-					prompt: `Reply with only this exact marker on its own line: ${turnOneMarker}`,
-				});
-				await waitForTerminalCompletionMarker({
-					page,
-					marker: turnOneMarker,
-					beforeCount,
-					timeoutMs: config.promptTimeoutMs,
-				});
-				return `marker=${turnOneMarker}`;
-			},
-		});
-
-		const artifactFilename = `agent-e2e-${runId}.txt`;
-		const artifactText = `agent e2e artifact ${runId}`;
-		await runStep({
-			state,
-			name: "turn two creates an artifact",
+			name: "direct terminal qcut image generation creates artifacts",
 			screenshotName: "05-artifact-visible",
 			action: async () => {
-				await submitPrompt({
+				await typePromptIntoTerminal({
 					page,
-					prompt: [
-						"Run this exact shell command in the sandbox:",
-						`mkdir -p /tmp/qcut-output && printf '${artifactText}\\n' > /tmp/qcut-output/${artifactFilename}`,
-						`After it succeeds, reply with ARTIFACT_DONE_${runId} and the file path.`,
-					].join("\n"),
+					prompt: `Run qcut CLI image generation in the sandbox: qcut gen image -t "e2e ${runId} small blue square icon on a clean white background" --json -o /tmp/qcut-output. After it succeeds, copy one generated image to /tmp/qcut-output/${imageNamePrefix} with the same image extension, write "${artifactText}" into /tmp/qcut-output/${artifactFilename}, and reply with IMAGE_DONE_${runId} plus the artifact paths.`,
+					echoNeedle: imageNamePrefix,
 				});
 				await waitForArtifact({
 					page,
 					filename: artifactFilename,
 					timeoutMs: config.artifactTimeoutMs,
 				});
-				return `artifact=${artifactFilename}`;
+				imageFilename = await waitForImageArtifact({
+					page,
+					namePrefix: imageNamePrefix,
+					timeoutMs: config.artifactTimeoutMs,
+				});
+				return `marker=${artifactFilename}; image=${imageFilename}`;
 			},
 		});
 
 		await runStep({
 			state,
-			name: "artifact downloads from the web UI",
+			name: "terminal-generated image artifacts download from the web UI",
 			screenshotName: "06-artifact-download",
 			action: async () => {
-				const downloadedPath = await downloadArtifactWithButton({
+				const downloadedMarkerPath = await downloadArtifactWithButton({
 					page,
 					filename: artifactFilename,
+					outDir: config.outDir,
+				});
+				const downloadedImagePath = await downloadArtifactWithButton({
+					page,
+					filename: imageFilename,
 					outDir: config.outDir,
 				});
 				const fetchedText = await fetchArtifactTextFromPage({
@@ -569,7 +653,7 @@ async function main() {
 					condition: fetchedText.trim() === artifactText,
 					message: `artifact content mismatch: ${fetchedText.trim()}`,
 				});
-				return `downloaded=${downloadedPath}`;
+				return `downloaded=${downloadedMarkerPath}; image=${downloadedImagePath}`;
 			},
 		});
 

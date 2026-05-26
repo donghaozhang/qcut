@@ -14,6 +14,7 @@ import type { PipelineStep } from "../../execution/executor.js";
 import { estimateCost } from "../../infra/cost-calculator.js";
 import { downloadOutput } from "../../infra/api-caller.js";
 import { resolveOutputDir } from "../../output/output-utils.js";
+import { cropImageToAspectRatio } from "../../output/image-aspect-ratio.js";
 import type { CLIRunOptions, CLIResult, ProgressFn } from "./types.js";
 import { guessExtFromCommand } from "./progress.js";
 
@@ -65,6 +66,49 @@ export function getDefaultModelForCommand({
 	if (command === "generate-image") return "gpt_image_2_ima";
 	if (command === "create-video") return "imarouter_seedance_2_0_fast_t2v";
 	return undefined;
+}
+
+function isImaRouterGptImage2Model({ modelKey }: { modelKey?: string }): boolean {
+	return modelKey === "gpt_image_2_ima" || modelKey === "gpt_image_2_gmi";
+}
+
+function validateCustomImageSize({
+	width,
+	height,
+}: {
+	width?: number;
+	height?: number;
+}): string | undefined {
+	if (width === undefined && height === undefined) return undefined;
+	const hasInvalidWidth =
+		typeof width !== "number" || !Number.isInteger(width) || width <= 0;
+	const hasInvalidHeight =
+		typeof height !== "number" || !Number.isInteger(height) || height <= 0;
+	if (hasInvalidWidth || hasInvalidHeight) {
+		return "--width and --height must be positive integers when used for image generation.";
+	}
+	return undefined;
+}
+
+function formatCustomImageSize({
+	width,
+	height,
+}: {
+	width?: number;
+	height?: number;
+}): string | undefined {
+	if (width === undefined || height === undefined) return undefined;
+	return `${width}x${height}`;
+}
+
+function shouldCropGeneratedImage({
+	options,
+}: {
+	options: CLIRunOptions;
+}): boolean {
+	if (options.command !== "generate-image" || !options.aspectRatio) return false;
+	if (isImaRouterGptImage2Model({ modelKey: options.model })) return false;
+	return options.width === undefined && options.height === undefined;
 }
 
 function normalizeDurationForComparison({
@@ -288,6 +332,13 @@ async function runSingleGeneration(
 		}
 	}
 
+	if (shouldCropGeneratedImage({ options })) {
+		await cropImageToAspectRatio({
+			filePath: result.outputPath,
+			aspectRatio: options.aspectRatio,
+		});
+	}
+
 	onProgress({
 		stage: "complete",
 		percent: 100,
@@ -386,6 +437,32 @@ export async function handleGenerate(
 			error: "Missing --text/-t (prompt for image generation).",
 		};
 	}
+	if (options.command === "generate-image") {
+		const customImageSizeError = validateCustomImageSize({
+			width: options.width,
+			height: options.height,
+		});
+		if (customImageSizeError) {
+			return {
+				success: false,
+				error: customImageSizeError,
+			};
+		}
+		const customImageSize = formatCustomImageSize({
+			width: options.width,
+			height: options.height,
+		});
+		if (
+			customImageSize &&
+			!isImaRouterGptImage2Model({ modelKey: options.model })
+		) {
+			return {
+				success: false,
+				error:
+					"--width/--height custom image size is currently supported for gpt_image_2_ima and gpt_image_2_gmi.",
+			};
+		}
+	}
 	if (
 		options.command === "create-video" &&
 		!hasTextInput &&
@@ -419,6 +496,13 @@ export async function handleGenerate(
 		params.duration = coerceDurationParam({ duration: options.duration });
 	}
 	if (options.aspectRatio) params.aspect_ratio = options.aspectRatio;
+	const customImageSize = formatCustomImageSize({
+		width: options.width,
+		height: options.height,
+	});
+	if (options.command === "generate-image" && customImageSize) {
+		params.size = customImageSize;
+	}
 	if (options.resolution) params.resolution = options.resolution;
 	if (options.negativePrompt) params.negative_prompt = options.negativePrompt;
 	if (options.voiceId) params.voice_id = options.voiceId;
