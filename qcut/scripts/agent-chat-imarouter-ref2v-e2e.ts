@@ -8,6 +8,7 @@ const DEFAULT_URL = "https://quriosity.com.au/chat-agent.html";
 const DEFAULT_LICENSE_SERVER_URL =
 	"https://qcut-license-server.zdhpeter.workers.dev";
 const POLL_INTERVAL_MS = 15_000;
+const SESSION_FETCH_TIMEOUT_MS = 30_000;
 const DEFAULT_REFERENCE_IMAGE_URL =
 	"https://storage.googleapis.com/gmi-video-assests-prod/user-assets/3e51f140-4e66-4cb2-bca4-6f412e5d6113/780402b5-bbc0-4941-b029-a4ce0cdab845/gmi-videogen/generated/source_image_c4046b99-7fad-4e4d-b681-fef11bd431e3579b9b15-2a03-45a3-94e5-42fa4a8ab5a4.png";
 
@@ -327,7 +328,7 @@ async function typePromptIntoTerminal({
 	const terminal = page.locator("#agent-terminal");
 	const helperTextarea = page.locator("#agent-terminal .xterm-helper-textarea");
 	await helperTextarea.waitFor({ state: "attached", timeout: 10_000 });
-	await terminal.click({ position: { x: 260, y: 420 } });
+	await terminal.click();
 	await helperTextarea.focus();
 	await page.keyboard.type(prompt, { delay: 1 });
 	await page.waitForTimeout(750);
@@ -377,6 +378,7 @@ async function fetchSessionText({
 			context.token.length === 0
 				? undefined
 				: { Authorization: `Bearer ${context.token}` },
+		signal: AbortSignal.timeout(SESSION_FETCH_TIMEOUT_MS),
 	});
 	if (!response.ok) return null;
 	return response.text();
@@ -396,6 +398,7 @@ async function downloadSessionFile({
 			context.token.length === 0
 				? undefined
 				: { Authorization: `Bearer ${context.token}` },
+		signal: AbortSignal.timeout(SESSION_FETCH_TIMEOUT_MS),
 	});
 	if (!response.ok) return false;
 	const bytes = Buffer.from(await response.arrayBuffer());
@@ -440,6 +443,10 @@ async function waitForRef2VReady({
 	throw new Error(`timed out waiting for ${root}/ref2v-ready.txt`);
 }
 
+function shellQuote(value: string): string {
+	return `'${value.replace(/'/g, `'\\''`)}'`;
+}
+
 function buildGenerationPrompt({
 	root,
 	referenceImageUrl,
@@ -462,7 +469,7 @@ cat > /tmp/qcut-imarouter-ref2v-e2e.sh <<'SH'
 set -u
 
 ROOT="${root}"
-REF="${referenceImageUrl}"
+REF=${shellQuote(referenceImageUrl)}
 mkdir -p "$ROOT/generated"
 ${localReferenceSetup}
 
@@ -667,9 +674,15 @@ async function main() {
 					condition: readyText.includes("REF2V_READY"),
 					message: "ready marker missing",
 				});
+				let resultStatus = "";
+				try {
+					resultStatus =
+						(JSON.parse(resultText) as { status?: string }).status ?? "";
+				} catch {
+					resultStatus = "";
+				}
 				assertCondition({
-					condition:
-						resultText.includes('"status"') && resultText.includes("SUCCESS"),
+					condition: resultStatus === "SUCCESS",
 					message: "result JSON did not report SUCCESS",
 				});
 				return readyText.trim();

@@ -380,6 +380,7 @@ async function createFalUploadUrls({
 			file_name: filename,
 			content_type: contentType,
 		}),
+		signal: AbortSignal.timeout(15_000),
 	});
 
 	if (!initRes.ok) {

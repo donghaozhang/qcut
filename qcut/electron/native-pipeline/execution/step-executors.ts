@@ -268,9 +268,13 @@ async function resolveImaRouterReferenceImages({
 		signal?: AbortSignal;
 	};
 }): Promise<ReferenceImagesResolution> {
-	const raw = entries
-		.filter((entry) => typeof entry === "string" && entry.trim())
-		.slice(0, 14);
+	const raw = Array.from(
+		new Set(
+			entries
+				.filter((entry) => typeof entry === "string" && entry.trim())
+				.map((entry) => entry.trim())
+		)
+	).slice(0, 14);
 	if (raw.length === 0) return { success: true, urls: [] };
 	if (raw.every((entry) => isImaRouterAssetUrl({ url: entry }))) {
 		return { success: true, urls: raw };
@@ -280,7 +284,16 @@ async function resolveImaRouterReferenceImages({
 		"../infra/imarouter-assets.js"
 	);
 	const { envApiKeyProvider } = await import("../infra/api-caller.js");
-	const apiKey = await envApiKeyProvider("imarouter");
+	let apiKey = await envApiKeyProvider("imarouter");
+	if (!apiKey) {
+		try {
+			const { getDecryptedApiKeys } = await import("../../api-key-handler.js");
+			const keys = await getDecryptedApiKeys();
+			apiKey = (keys as { imarouterApiKey?: string }).imarouterApiKey || "";
+		} catch {
+			// Not in Electron — env-var-only resolution already attempted above
+		}
+	}
 	if (!apiKey) {
 		return {
 			success: false,

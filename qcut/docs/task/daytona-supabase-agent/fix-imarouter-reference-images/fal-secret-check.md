@@ -23,7 +23,7 @@ The upload path was fixed by refreshing `QCUT_AUTH_TOKEN` for the default agent 
 Current unauthenticated online agent session resolves to default user:
 
 ```text
-userId=79bf60b02770d2cc510da53e471590f4
+userId=<redacted-default-user-id>
 imageTag=ghcr.io/quriosity-agent/qcut-cli:cli-image-v12-ref2v-20260526205824
 ```
 
@@ -54,7 +54,7 @@ FAL_API_KEY
 Direct Daytona sandbox environment check:
 
 ```text
-sandboxId=daa84f1c-9989-4dc9-a86a-e0d7f44c4d59
+sandboxId=<redacted-sandbox-id>
 state=started
 HAS_FAL_KEY=no
 FAL_KEY_LENGTH=0
@@ -71,7 +71,7 @@ This confirms the running sandbox itself has the IMA Router key but does not hav
 A fresh QCut session token was inserted into `sessions` for:
 
 ```text
-user_id=79bf60b02770d2cc510da53e471590f4
+user_id=<redacted-default-user-id>
 ```
 
 Then `agent_secrets.QCUT_AUTH_TOKEN` for that user was updated to the new token value.
@@ -195,7 +195,7 @@ Observed media:
 The complete online local-file E2E now passes through the QCut proxy. If we also want direct BYOK FAL fallback inside the sandbox, add a valid FAL upload secret for the default agent user:
 
 ```text
-user_id=79bf60b02770d2cc510da53e471590f4
+user_id=<redacted-default-user-id>
 key=FAL_KEY
 value=<valid fal key>
 ```
