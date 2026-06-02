@@ -1,8 +1,8 @@
-# Docker_debug 文件夹结构理解
+# FFAS 审评导出调试文件夹结构理解
 
 ## 总结
 
-`docs/task/daytona-supabase-agent/Docker_debug/` 是一个本地调试和导出资料包，不是 QCut 应用代码的一部分。它主要保存了「GenAI 工作群」视频课程的审评意见导出文件，并把这些 Excel 审评表整理成 CSV 和一个可本地浏览的 HTML 页面。
+`docs/task/daytona-supabase-agent/ffas-review-export-debug/` 是一个本地调试和导出资料包，不是 QCut 应用代码的一部分。它主要保存了「GenAI 工作群」视频课程的审评意见导出文件，并把这些 Excel 审评表整理成 CSV 和一个可本地浏览的 HTML 页面。
 
 这个目录继续被 git 忽略是合理的，因为它包含生成物、审评截图、Excel 导出、个人设备配置说明，以及带有本地路径的资料说明。
 

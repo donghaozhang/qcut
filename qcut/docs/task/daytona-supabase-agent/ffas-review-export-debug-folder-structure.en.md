@@ -1,8 +1,8 @@
-# Docker_debug Folder Structure
+# FFAS Review Export Debug Folder Structure
 
 ## Summary
 
-`docs/task/daytona-supabase-agent/Docker_debug/` is a local debug/export bundle, not part of the QCut application code. It appears to collect review exports for a "GenAI Working Group" video course package, then turns those Excel exports into a CSV and a browsable local HTML review page.
+`docs/task/daytona-supabase-agent/ffas-review-export-debug/` is a local debug/export bundle, not part of the QCut application code. It appears to collect review exports for a "GenAI Working Group" video course package, then turns those Excel exports into a CSV and a browsable local HTML review page.
 
 The folder is correctly ignored by git because it contains generated artifacts, review screenshots, spreadsheet exports, personal setup notes, and local source-path documentation.
 
