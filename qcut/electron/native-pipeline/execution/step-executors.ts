@@ -256,6 +256,12 @@ async function resolveImaRouterUploadSource({
 	return { success: true, url: upload.url };
 }
 
+/**
+ * Resolve raw reference-image entries into IMA Router asset URLs. Deduplicates
+ * and caps entries at 14, short-circuits when all are already asset URLs, and
+ * otherwise uploads each source to the model's asset channel. Returns the
+ * resolved URLs or a failure with the first upload error.
+ */
 async function resolveImaRouterReferenceImages({
 	entries,
 	modelKey,

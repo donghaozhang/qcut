@@ -361,6 +361,11 @@ export async function uploadToFalStorage(
 	}
 }
 
+/**
+ * Vend FAL storage upload URLs directly via the FAL API using a local key
+ * (the BYOK fallback when the proxy path is unavailable). The initiate POST is
+ * bounded by a 15s timeout. Throws if FAL doesn't return both URLs.
+ */
 async function createFalUploadUrls({
 	filename,
 	contentType,

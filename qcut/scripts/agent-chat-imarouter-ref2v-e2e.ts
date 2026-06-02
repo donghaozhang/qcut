@@ -66,16 +66,19 @@ type RunState = {
 	downloads: Array<{ remotePath: string; localPath: string }>;
 };
 
+/** Read the value following a named CLI flag, or "" when the flag is absent. */
 function readOption({ argv, name }: { argv: string[]; name: string }): string {
 	const index = argv.indexOf(name);
 	if (index === -1) return "";
 	return argv[index + 1] || "";
 }
 
+/** Return true when a boolean CLI flag is present in argv. */
 function hasFlag({ argv, name }: { argv: string[]; name: string }): boolean {
 	return argv.includes(name);
 }
 
+/** Parse a numeric CLI option, falling back to defaultValue when missing or non-positive. */
 function readNumberOption({
 	argv,
 	name,
@@ -91,6 +94,7 @@ function readNumberOption({
 	return Number.isFinite(value) && value > 0 ? value : defaultValue;
 }
 
+/** Build the run Config from argv, env-var fallbacks, and defaults (exits on --help). */
 function parseArgs({ argv }: { argv: string[] }): Config {
 	if (hasFlag({ argv, name: "--help" }) || hasFlag({ argv, name: "-h" })) {
 		printHelp();
@@ -134,6 +138,7 @@ function parseArgs({ argv }: { argv: string[] }): Config {
 	};
 }
 
+/** Print CLI usage and the supported options to stdout. */
 function printHelp() {
 	console.log(`QCut IMA Router Ref2V Chat Agent E2E
 
@@ -152,10 +157,12 @@ Options:
 `);
 }
 
+/** Write a namespaced progress line to stdout. */
 function log({ message }: { message: string }) {
 	console.log(`[agent-chat-imarouter-ref2v-e2e] ${message}`);
 }
 
+/** Throw an Error with the given message when condition is false. */
 function assertCondition({
 	condition,
 	message,
@@ -166,6 +173,7 @@ function assertCondition({
 	if (!condition) throw new Error(message);
 }
 
+/** Capture a full-page screenshot into outDir and return its file path. */
 async function screenshot({
 	page,
 	outDir,
@@ -180,6 +188,10 @@ async function screenshot({
 	return path;
 }
 
+/**
+ * Run a named step: execute its action, capture a screenshot, and record a
+ * passed/failed StepResult with timing. Re-throws after recording on failure.
+ */
 async function runStep({
 	state,
 	name,
@@ -227,6 +239,7 @@ async function runStep({
 	}
 }
 
+/** Wait until the page's `window.AgentChatReady` promise resolves (30s cap). */
 async function waitForAgentChatReady({ page }: { page: Page }) {
 	await page.waitForFunction(
 		async () => {
@@ -240,12 +253,14 @@ async function waitForAgentChatReady({ page }: { page: Page }) {
 	);
 }
 
+/** Read the trimmed text of the `#agent-terminal-status` element. */
 async function readTerminalStatus({ page }: { page: Page }): Promise<string> {
 	return (
 		await page.locator("#agent-terminal-status").innerText({ timeout: 5_000 })
 	).trim();
 }
 
+/** Read the terminal's inner text, returning "" if it isn't available yet. */
 async function readTerminalText({ page }: { page: Page }): Promise<string> {
 	try {
 		return await page.locator("#agent-terminal").innerText({ timeout: 2_000 });
@@ -254,6 +269,7 @@ async function readTerminalText({ page }: { page: Page }): Promise<string> {
 	}
 }
 
+/** Wait until the terminal reports `connected` and shows the Codex banner. */
 async function waitForCodexReady({
 	page,
 	timeoutMs,
@@ -275,6 +291,11 @@ async function waitForCodexReady({
 	);
 }
 
+/**
+ * Tear down any lingering server session via the page API and the "new
+ * session" button, then wait for a clean disconnected state. Returns a
+ * human-readable summary of what was reset.
+ */
 async function resetServerSessionThroughUi({ page }: { page: Page }) {
 	await page.waitForTimeout(2_000);
 	const endedSessionId = await page.evaluate(async () => {
@@ -318,6 +339,7 @@ async function resetServerSessionThroughUi({ page }: { page: Page }) {
 		: "confirmed no active session";
 }
 
+/** Focus the xterm helper textarea, type the prompt, and submit it (Ctrl+M). */
 async function typePromptIntoTerminal({
 	page,
 	prompt,
@@ -335,6 +357,10 @@ async function typePromptIntoTerminal({
 	await page.keyboard.press("Control+M");
 }
 
+/**
+ * Read the active session's API base, auth token, and session id from the
+ * page. Throws when no agent session id is present in localStorage.
+ */
 async function getSessionContext({
 	page,
 	fallbackApiBase,
@@ -354,6 +380,7 @@ async function getSessionContext({
 	}, fallbackApiBase);
 }
 
+/** Build the session file-download URL for a given remote path. */
 function buildSessionFileUrl({
 	context,
 	remotePath,
@@ -366,6 +393,10 @@ function buildSessionFileUrl({
 	)}/files/download?path=${encodeURIComponent(remotePath)}`;
 }
 
+/**
+ * Fetch a session file as text, returning null on a non-OK response. The
+ * request is bounded by SESSION_FETCH_TIMEOUT_MS so a stall can't hang polling.
+ */
 async function fetchSessionText({
 	context,
 	remotePath,
@@ -384,6 +415,10 @@ async function fetchSessionText({
 	return response.text();
 }
 
+/**
+ * Download a session file to localPath, returning false on a non-OK response.
+ * The request is bounded by SESSION_FETCH_TIMEOUT_MS to avoid hanging downloads.
+ */
 async function downloadSessionFile({
 	context,
 	remotePath,
@@ -406,6 +441,10 @@ async function downloadSessionFile({
 	return true;
 }
 
+/**
+ * Poll the sandbox for Ref2V completion markers until ready or timeout.
+ * Throws on preflight/generation failure markers; returns the ready-file text.
+ */
 async function waitForRef2VReady({
 	context,
 	root,
@@ -443,10 +482,18 @@ async function waitForRef2VReady({
 	throw new Error(`timed out waiting for ${root}/ref2v-ready.txt`);
 }
 
+/**
+ * Wrap a value in single quotes for safe embedding in the generated shell
+ * script, escaping embedded single quotes via the `'\''` idiom.
+ */
 function shellQuote(value: string): string {
 	return `'${value.replace(/'/g, `'\\''`)}'`;
 }
 
+/**
+ * Build the natural-language prompt that instructs the sandbox agent to run
+ * the real IMA Router Ref2V smoke-test shell script and report REF2V_READY.
+ */
 function buildGenerationPrompt({
 	root,
 	referenceImageUrl,
@@ -549,6 +596,10 @@ After the script finishes, reply with REF2V_READY and the root path: ${root}.
 Final response should include REF2V_READY and the root path.`;
 }
 
+/**
+ * Download each remote evidence path into the run's output directory and
+ * record successful downloads on the run state.
+ */
 async function downloadEvidenceFiles({
 	state,
 	context,
@@ -571,6 +622,11 @@ async function downloadEvidenceFiles({
 	}
 }
 
+/**
+ * Orchestrate the full E2E run: launch the browser, reset and connect a
+ * session, drive the Ref2V generation, download evidence, write result.json,
+ * and exit with a status code reflecting success or failure.
+ */
 async function main() {
 	const config = parseArgs({ argv: process.argv.slice(2) });
 	mkdirSync(config.outDir, { recursive: true });
