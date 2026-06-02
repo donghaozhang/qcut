@@ -71,3 +71,71 @@ bun x tsc -p electron/tsconfig.json --noEmit
 bunx biome check electron/native-pipeline/video-review electron/native-pipeline/cli/cli-handlers-media.ts electron/native-pipeline/cli/cli.ts electron/native-pipeline/cli/command-registry.ts electron/native-pipeline/cli/cli-runner/types.ts electron/native-pipeline/cli/__tests__/cli-handlers-media-review.test.ts packages/nexusai-website/prompts/video-review-agent
 ```
 
+## 真实 E2E Smoke
+
+日期：2026-06-02
+
+真实模型 smoke 使用了已有的短视频：
+
+```text
+/Users/peter/Desktop/code/qcut/qcut/output/playwright/upload-artifacts-e2e-1779389330/input/upload-video-1779389330.mp4
+```
+
+Provider 尝试结果：
+
+- 默认 `openrouter_gemini_3_5_flash_video`：失败。本机没有配置 `OPENROUTER_API_KEY`，proxy 返回 `401 Invalid token`。
+- `fal_video_qa`：失败。本地 FAL upload initiate 返回 `401`。
+- `doubao_video_understanding`：成功。使用本机 `ARK_API_KEY`，把这个很小的测试视频转成 base64 `data:video/mp4` URL 后提交。
+
+成功命令形态：
+
+```bash
+set -a
+source /Users/peter/.qcut/.env
+set +a
+
+OUT="/tmp/qcut-video-review-doubao-dataurl-e2e-1780384273"
+VIDEO="/Users/peter/Desktop/code/qcut/qcut/output/playwright/upload-artifacts-e2e-1779389330/input/upload-video-1779389330.mp4"
+DATA_URL="data:video/mp4;base64,$(base64 -i "$VIDEO" | tr -d '\n')"
+
+bun /Users/peter/Desktop/code/qcut/qcut/electron/native-pipeline/cli/cli.ts analyze video \
+  -i "$DATA_URL" \
+  --model doubao_video_understanding \
+  --analysis-type review \
+  --review-language zh \
+  -o "$OUT" \
+  --json
+```
+
+结果：
+
+```json
+{
+  "video": "inline-video.mp4",
+  "model": "doubao_video_understanding",
+  "promptLanguage": "zh",
+  "count": 1,
+  "first": {
+    "timestamp": "00:00:00",
+    "category": "画面瑕疵",
+    "severity": "high",
+    "comment": "00:00:00全程画面显示彩色测试条纹图，无实际剧情或有效内容呈现",
+    "fix": "替换为符合视频主题的实际画面素材"
+  }
+}
+```
+
+已写出产物：
+
+```text
+/tmp/qcut-video-review-doubao-dataurl-e2e-1780384273/cli-result.json
+/tmp/qcut-video-review-doubao-dataurl-e2e-1780384273/raw-analysis.json
+/tmp/qcut-video-review-doubao-dataurl-e2e-1780384273/review-agent-report.md
+/tmp/qcut-video-review-doubao-dataurl-e2e-1780384273/review-comments.csv
+/tmp/qcut-video-review-doubao-dataurl-e2e-1780384273/review-comments.json
+/tmp/qcut-video-review-doubao-dataurl-e2e-1780384273/review-feedback-browser.html
+/tmp/qcut-video-review-doubao-dataurl-e2e-1780384273/review-feedback-summary.html
+/tmp/qcut-video-review-doubao-dataurl-e2e-1780384273/review-agent-prompts/*.zh.md
+```
+
+这次真实 smoke 还暴露了一个 data URL 输入的显示名问题。CLI 现在会把 `data:video/*` 输入显示为 `inline-video.mp4`，不会再把 base64 片段写进 `review-agent-report.md` 和 HTML 页面。

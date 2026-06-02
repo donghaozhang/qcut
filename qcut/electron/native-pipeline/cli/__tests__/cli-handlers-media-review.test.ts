@@ -25,13 +25,15 @@ function registerReviewModel(): void {
 function makeAnalyzeOptions({
 	outputDir,
 	reviewLanguage = "zh",
+	input = "sample-video.mp4",
 }: {
 	outputDir: string;
 	reviewLanguage?: string;
+	input?: string;
 }): CLIRunOptions {
 	return {
 		command: "analyze-video",
-		input: "sample-video.mp4",
+		input,
 		outputDir,
 		analysisType: "review",
 		reviewLanguage,
@@ -213,5 +215,33 @@ describe("handleAnalyzeVideo review mode", () => {
 		);
 		expect(rawAnalysis).toContain("Review response did not contain valid JSON");
 		expect(rawAnalysis).toContain("not json, but keep this raw output");
+	});
+
+	it("uses a readable display name for inline data URL videos", async () => {
+		const outputDir = mkdtempSync(path.join(os.tmpdir(), "qcut-review-data-"));
+		const captured: PipelineStep[] = [];
+
+		const result = await handleAnalyzeVideo(
+			makeAnalyzeOptions({
+				outputDir,
+				input: "data:video/mp4;base64,ZmFrZS12aWRlbw==",
+			}),
+			() => undefined,
+			makeExecutor({ captured }) as never,
+			new AbortController().signal
+		);
+
+		expect(result.success).toBe(true);
+
+		const reviewJson = JSON.parse(
+			readFileSync(path.join(outputDir, "review-comments.json"), "utf-8")
+		) as { video: string };
+		expect(reviewJson.video).toBe("inline-video.mp4");
+
+		const report = readFileSync(
+			path.join(outputDir, "review-agent-report.md"),
+			"utf-8"
+		);
+		expect(report).toContain("Video: inline-video.mp4");
 	});
 });

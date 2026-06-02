@@ -37,6 +37,12 @@ function filenameFromUrl(url: string): string {
 	}
 }
 
+function displayNameForVideoInput({ input }: { input: string }): string {
+	if (input.startsWith("data:video/")) return "inline-video.mp4";
+	if (isUrl(input)) return filenameFromUrl(input);
+	return basename(input);
+}
+
 type ProgressFn = (progress: {
 	stage: string;
 	percent: number;
@@ -183,7 +189,7 @@ Rules: Break into individual shots at scene cuts. Be precise with timing. Write 
 
 	const output = {
 		type: analysisType,
-		video: basename(videoInput),
+		video: displayNameForVideoInput({ input: videoInput }),
 		model,
 		duration: (Date.now() - startTime) / 1000,
 		content: parsed,
@@ -193,7 +199,7 @@ Rules: Break into individual shots at scene cuts. Be precise with timing. Write 
 		const review = parseReviewModelResponse({ response: resultData });
 		const artifacts = writeReviewArtifacts({
 			outputDir,
-			video: basename(videoInput),
+			video: output.video,
 			model,
 			duration: output.duration,
 			promptSet: reviewPromptSet,
