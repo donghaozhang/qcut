@@ -144,6 +144,8 @@ export interface CLIRunOptions {
 	// analyze-video options
 	analysisType?: string;
 	outputFormat?: string;
+	reviewLanguage?: string;
+	reviewPromptDir?: string;
 	before?: string;
 	after?: string;
 	// upscale-image options

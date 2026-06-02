@@ -255,6 +255,8 @@ export function parseCliArgs(argv: string[]): CLIRunOptions {
 			// analyze-video options
 			"analysis-type": { type: "string" },
 			"output-format": { type: "string", short: "f" },
+			"review-language": { type: "string" },
+			"review-prompt-dir": { type: "string" },
 			before: { type: "string" },
 			after: { type: "string" },
 			// upscale-image options
@@ -629,6 +631,8 @@ export function parseCliArgs(argv: string[]): CLIRunOptions {
 		// analyze-video options
 		analysisType: values["analysis-type"] as string | undefined,
 		outputFormat: values["output-format"] as string | undefined,
+		reviewLanguage: values["review-language"] as string | undefined,
+		reviewPromptDir: values["review-prompt-dir"] as string | undefined,
 		before: values.before as string | undefined,
 		after: values.after as string | undefined,
 		// upscale-image options

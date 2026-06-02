@@ -568,12 +568,17 @@ const CORE_COMMANDS: Record<string, CommandDef> = {
 				default: "openrouter_gemini_3_5_flash_video",
 			}),
 			f("--analysis-type", "string", "Analysis type", {
-				enum: ["timeline", "summary", "description", "transcript"],
+				enum: ["timeline", "summary", "description", "transcript", "review"],
 			}),
 			f("--output-format", "string", "Output format", { short: "-f" }),
+			f("--review-language", "string", "Review prompt language", {
+				enum: ["zh", "en"],
+			}),
+			f("--review-prompt-dir", "string", "Custom review prompt directory"),
 		],
 		examples: [
 			"qcut-pipeline analyze-video -i video.mp4 --analysis-type timeline --json",
+			"qcut analyze video -i video.mp4 --analysis-type review --review-language zh --json",
 		],
 	},
 	"query-video": {

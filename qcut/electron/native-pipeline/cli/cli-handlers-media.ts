@@ -16,6 +16,9 @@ import type { PipelineStep } from "../execution/executor.js";
 import type { PipelineExecutor } from "../execution/executor.js";
 import { resolveOutputDir } from "../output/output-utils.js";
 import { createEditorClient } from "../editor/editor-api-client.js";
+import { getVideoReviewPromptSet } from "../video-review/review-prompts.js";
+import { parseReviewModelResponse } from "../video-review/review-normalize.js";
+import { writeReviewArtifacts } from "../video-review/review-artifacts.js";
 
 const DEFAULT_VIDEO_ANALYSIS_MODEL = "openrouter_gemini_3_5_flash_video";
 
@@ -87,6 +90,13 @@ export async function handleAnalyzeVideo(
 
 	// Analysis type determines the default prompt
 	const analysisType = options.analysisType || "timeline";
+	const reviewPromptSet =
+		analysisType === "review"
+			? getVideoReviewPromptSet({
+					language: options.reviewLanguage,
+					promptDir: options.reviewPromptDir,
+				})
+			: undefined;
 	const promptMap: Record<string, string> = {
 		timeline:
 			'Analyze this video and return a JSON array of timestamped events. Each entry should have "start" (seconds), "end" (seconds), "label" (short description), and "tags" (array of keywords). Example: [{"start":0,"end":2.5,"label":"City skyline establishing shot","tags":["establishing","city"]}]. Return ONLY valid JSON, no markdown.',
@@ -107,7 +117,9 @@ Output ONLY valid JSON matching this schema — no markdown fences, no commentar
 Rules: Break into individual shots at scene cuts. Be precise with timing. Write vivid AI generation prompts. Capture on-screen text. Identify 3-5 dominant hex colors. Transcribe spoken audio. Duration must equal endTime - startTime.`,
 	};
 	const defaultPrompt =
-		promptMap[analysisType] || "Describe this video in detail";
+		reviewPromptSet?.master.content ||
+		promptMap[analysisType] ||
+		"Describe this video in detail";
 
 	const step: PipelineStep = {
 		type: "image_understanding",
@@ -138,7 +150,7 @@ Rules: Break into individual shots at scene cuts. Be precise with timing. Write 
 		};
 	}
 
-	// Always save JSON alongside the video (same name, .json extension)
+	// Non-review analyses keep the legacy same-name JSON behavior.
 	// Output dir: explicit -o flag > video's directory (use cwd for URLs)
 	const videoFilename = isUrl(videoInput)
 		? filenameFromUrl(videoInput)
@@ -176,6 +188,36 @@ Rules: Break into individual shots at scene cuts. Be precise with timing. Write 
 		duration: (Date.now() - startTime) / 1000,
 		content: parsed,
 	};
+
+	if (analysisType === "review" && reviewPromptSet) {
+		const review = parseReviewModelResponse({ response: resultData });
+		const artifacts = writeReviewArtifacts({
+			outputDir,
+			video: basename(videoInput),
+			model,
+			duration: output.duration,
+			promptSet: reviewPromptSet,
+			comments: review.comments,
+			rawAnalysis: {
+				...output,
+				content: review.parsed,
+				rawText: review.rawText,
+			},
+		});
+
+		return {
+			success: true,
+			outputPath: artifacts.reportPath,
+			data: {
+				...output,
+				content: {
+					comments: review.comments,
+					artifacts,
+				},
+			},
+			duration: output.duration,
+		};
+	}
 
 	try {
 		mkdirSync(outputDir, { recursive: true });
