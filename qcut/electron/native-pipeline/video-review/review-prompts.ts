@@ -303,6 +303,11 @@ Return ONLY a JSON array. If no issues are found, return [].`,
 	},
 ];
 
+/**
+ * Normalize a free-form language hint into a supported prompt language.
+ * Accepts `"en"`/`"english"` (any case) for English; everything else,
+ * including `undefined`, falls back to Chinese (`"zh"`).
+ */
 export function normalizeReviewPromptLanguage({
 	language,
 }: {
@@ -313,6 +318,10 @@ export function normalizeReviewPromptLanguage({
 	return "zh";
 }
 
+/**
+ * Build the on-disk filename for a prompt document, e.g.
+ * `00-master-video-review-agent-prompt.zh.md`, from its base name and language.
+ */
 export function reviewPromptFilename({
 	baseName,
 	language,
@@ -323,6 +332,10 @@ export function reviewPromptFilename({
 	return `${baseName}.${language}.md`;
 }
 
+/**
+ * Render the built-in prompt text for a descriptor when no on-disk override
+ * file is available, combining the localized title and body into Markdown.
+ */
 function renderFallbackPrompt({
 	descriptor,
 	language,
@@ -336,6 +349,12 @@ ${descriptor.body[language]}
 `;
 }
 
+/**
+ * Resolve the directory that holds prompt override files, checking, in order:
+ * an explicit `promptDir`, the `QCUT_VIDEO_REVIEW_PROMPT_DIR` env var, and the
+ * default path under the working directory. Returns the first that exists, or
+ * `undefined` when none are present (callers then use built-in prompts).
+ */
 function resolvePromptDir({
 	promptDir,
 }: {
@@ -353,6 +372,10 @@ function resolvePromptDir({
 	return undefined;
 }
 
+/**
+ * Load a single prompt document, preferring the override file in `sourceDir`
+ * when it exists and otherwise falling back to the built-in prompt text.
+ */
 function readPromptDocument({
 	descriptor,
 	language,
@@ -375,6 +398,12 @@ function readPromptDocument({
 	return { filename, content, language };
 }
 
+/**
+ * Build the complete set of video-review prompts for the requested language.
+ * Resolves the prompt override directory, loads every descriptor (using
+ * built-in fallbacks when needed), and returns the master prompt plus all
+ * category documents.
+ */
 export function getVideoReviewPromptSet({
 	language,
 	promptDir,

@@ -33,6 +33,10 @@ const REVIEW_CATEGORIES = new Set([
 	"other",
 ]);
 
+/**
+ * Narrow an unknown value to a plain object record, returning `null` for
+ * `null`, non-objects, and arrays so callers can safely index string keys.
+ */
 function asRecord({
 	value,
 }: {
@@ -42,6 +46,10 @@ function asRecord({
 	return value as Record<string, unknown>;
 }
 
+/**
+ * Coerce a primitive value to a trimmed string. Strings are trimmed, numbers
+ * and booleans are stringified, and any other type yields an empty string.
+ */
 function stringifyValue({ value }: { value: unknown }): string {
 	if (typeof value === "string") return value.trim();
 	if (typeof value === "number" || typeof value === "boolean") {
@@ -50,6 +58,7 @@ function stringifyValue({ value }: { value: unknown }): string {
 	return "";
 }
 
+/** Convert a (clamped, floored) number of seconds to an `HH:MM:SS` timestamp. */
 function secondsToTimestamp({ seconds }: { seconds: number }): string {
 	const safeSeconds = Math.max(0, Math.floor(seconds));
 	const hours = Math.floor(safeSeconds / 3600);
@@ -60,6 +69,12 @@ function secondsToTimestamp({ seconds }: { seconds: number }): string {
 		.join(":");
 }
 
+/**
+ * Normalize a timestamp from arbitrary model output into `HH:MM:SS`. Handles
+ * numeric seconds, `MM:SS`/`HH:MM:SS` strings, and numeric-seconds strings
+ * (e.g. `"12.5s"`); unrecognized text is returned as-is, empty input as
+ * `"00:00:00"`.
+ */
 function normalizeTimestamp({ value }: { value: unknown }): string {
 	if (typeof value === "number" && Number.isFinite(value)) {
 		return secondsToTimestamp({ seconds: value });
@@ -77,6 +92,10 @@ function normalizeTimestamp({ value }: { value: unknown }): string {
 	return text;
 }
 
+/**
+ * Map arbitrary severity input to `"high"`, `"medium"`, or `"low"`, accepting
+ * the English words and Chinese severity terms; defaults to `"low"`.
+ */
 function normalizeSeverity({
 	value,
 }: {
@@ -89,12 +108,20 @@ function normalizeSeverity({
 	return "low";
 }
 
+/**
+ * Return a recognized review category unchanged; otherwise pass through the
+ * provided text, falling back to `"其他"` (other) when empty.
+ */
 function normalizeCategory({ value }: { value: unknown }): string {
 	const category = stringifyValue({ value });
 	if (REVIEW_CATEGORIES.has(category)) return category;
 	return category || "其他";
 }
 
+/**
+ * Return the first non-empty stringified value found across `keys` in `record`,
+ * or an empty string when none of the keys hold usable text.
+ */
 function firstString({
 	record,
 	keys,
@@ -109,6 +136,11 @@ function firstString({
 	return "";
 }
 
+/**
+ * Normalize a single raw review item into a {@link ReviewComment}, accepting
+ * English and Chinese field aliases for each property. Returns `null` when the
+ * item is not an object or has no usable comment text.
+ */
 function normalizeReviewItem({
 	value,
 }: {
@@ -138,12 +170,18 @@ function normalizeReviewItem({
 	};
 }
 
+/** Strip a surrounding Markdown code fence (```json) from model output, if present. */
 function cleanJsonText({ text }: { text: string }): string {
 	const trimmed = text.trim();
 	const fenced = trimmed.match(/^```(?:json)?\s*([\s\S]*?)\s*```$/);
 	return fenced?.[1]?.trim() ?? trimmed;
 }
 
+/**
+ * Parse model output into JSON, first trying a direct parse and then falling
+ * back to extracting the outermost `[...]` array slice. Throws when no valid
+ * JSON can be recovered.
+ */
 function parseJsonCandidate({ text }: { text: string }): unknown {
 	const cleaned = cleanJsonText({ text });
 	try {
@@ -158,6 +196,11 @@ function parseJsonCandidate({ text }: { text: string }): unknown {
 	}
 }
 
+/**
+ * Extract the array of raw comment items from parsed output, accepting either a
+ * top-level array or an object wrapping one under a known key
+ * (`comments`, `items`, `issues`, `review`, `data`). Returns `[]` otherwise.
+ */
 function extractCommentArray({ parsed }: { parsed: unknown }): unknown[] {
 	if (Array.isArray(parsed)) return parsed;
 	const record = asRecord({ value: parsed });
@@ -175,6 +218,11 @@ function extractCommentArray({ parsed }: { parsed: unknown }): unknown[] {
 	return [];
 }
 
+/**
+ * Serialize an arbitrary value to text for the raw-response record without ever
+ * throwing: tries `JSON.stringify`, then `String(value)`, then an empty string,
+ * so circular references or `BigInt` values cannot crash review parsing.
+ */
 function serializeResponseText({ value }: { value: unknown }): string {
 	try {
 		return JSON.stringify(value ?? null) ?? String(value);
@@ -187,6 +235,12 @@ function serializeResponseText({ value }: { value: unknown }): string {
 	}
 }
 
+/**
+ * Parse a raw review-model response into normalized comments. Accepts either a
+ * JSON string or an already-parsed value, tolerates malformed input (recording
+ * a parse error rather than throwing), and returns the normalized comments
+ * alongside the parsed object and the raw text.
+ */
 export function parseReviewModelResponse({
 	response,
 }: {

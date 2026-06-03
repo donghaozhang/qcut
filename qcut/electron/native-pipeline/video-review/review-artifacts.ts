@@ -25,6 +25,7 @@ interface WriteReviewArtifactsOptions {
 	rawAnalysis: unknown;
 }
 
+/** Escape the five HTML-significant characters so review text renders safely. */
 function escapeHtml({ value }: { value: string }): string {
 	return value.replace(/[&<>"']/g, (char) => {
 		const escapes: Record<string, string> = {
@@ -38,11 +39,16 @@ function escapeHtml({ value }: { value: string }): string {
 	});
 }
 
+/**
+ * Quote a CSV field when it contains commas, quotes, or newlines, doubling any
+ * embedded quotes per RFC 4180. Values without special characters pass through.
+ */
 function escapeCsv({ value }: { value: string }): string {
 	if (!/[",\n\r]/.test(value)) return value;
 	return `"${value.replace(/"/g, '""')}"`;
 }
 
+/** Write a value to `filePath` as pretty-printed JSON with a trailing newline. */
 function writeJson({
 	filePath,
 	value,
@@ -53,6 +59,10 @@ function writeJson({
 	writeFileSync(filePath, `${JSON.stringify(value, null, 2)}\n`, "utf-8");
 }
 
+/**
+ * Write review comments to a CSV file with a fixed header row
+ * (timestamp, category, severity, comment, fix), escaping each field.
+ */
 function writeReviewCsv({
 	filePath,
 	comments,
@@ -80,6 +90,7 @@ function writeReviewCsv({
 	writeFileSync(filePath, `${rows.join("\n")}\n`, "utf-8");
 }
 
+/** Tally how many comments fall into each category, keyed by category name. */
 function groupedCounts({
 	comments,
 }: {
@@ -92,6 +103,7 @@ function groupedCounts({
 	return counts;
 }
 
+/** Render review comments as escaped `<tr>` table rows for the browser report. */
 function renderCommentRows({
 	comments,
 }: {
@@ -111,6 +123,10 @@ function renderCommentRows({
 		.join("\n");
 }
 
+/**
+ * Build a standalone dark-themed HTML page that lists every review comment in a
+ * sortable-looking table, used for browsing the full feedback set.
+ */
 function renderBrowserHtml({
 	video,
 	comments,
@@ -159,6 +175,10 @@ ${renderCommentRows({ comments })}
 `;
 }
 
+/**
+ * Build a standalone HTML summary page that groups comments by category
+ * (most-frequent first), giving a quick overview rather than the full table.
+ */
 function renderSummaryHtml({
 	video,
 	comments,
@@ -208,6 +228,10 @@ li{margin:8px 0}code{color:var(--accent)}
 `;
 }
 
+/**
+ * Build the Markdown review report covering run metadata (video, model,
+ * language, runtime), per-category counts, and the list of emitted artifacts.
+ */
 function renderReportMarkdown({
 	video,
 	model,
@@ -250,6 +274,11 @@ ${countLines || "- No review comments"}
 `;
 }
 
+/**
+ * Write a copy of every prompt document used for the run into a
+ * `review-agent-prompts/` subfolder and return that directory's path, so each
+ * review run records the exact prompts it was given.
+ */
 function writePromptSnapshot({
 	outputDir,
 	promptSet,
@@ -273,6 +302,12 @@ function writePromptSnapshot({
 	return promptsDir;
 }
 
+/**
+ * Write the full set of video-review artifacts to `outputDir`: the comments
+ * JSON and CSV, the browser and summary HTML pages, the Markdown report, a
+ * snapshot of the prompts, and the raw model analysis. Returns the resolved
+ * paths and the comment count.
+ */
 export function writeReviewArtifacts({
 	outputDir,
 	video,

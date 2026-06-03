@@ -22,6 +22,7 @@ import { writeReviewArtifacts } from "../video-review/review-artifacts.js";
 
 const DEFAULT_VIDEO_ANALYSIS_MODEL = "openrouter_gemini_3_5_flash_video";
 
+/** Return true when the input looks like an `http(s)` URL rather than a local path. */
 function isUrl(input: string): boolean {
 	return /^https?:\/\//i.test(input);
 }
@@ -37,6 +38,10 @@ function filenameFromUrl(url: string): string {
 	}
 }
 
+/**
+ * Derive a human-readable display name for a video input, handling inline
+ * data URIs, remote URLs, and local file paths.
+ */
 function displayNameForVideoInput({ input }: { input: string }): string {
 	if (input.startsWith("data:video/")) return "inline-video.mp4";
 	if (isUrl(input)) return filenameFromUrl(input);
@@ -50,6 +55,11 @@ type ProgressFn = (progress: {
 	model?: string;
 }) => void;
 
+/**
+ * Resolve which transcription model to use from an explicit model or a provider
+ * name. An explicit model wins; otherwise the provider selects a default
+ * (defaulting to ElevenLabs). Returns an `error` for unsupported providers.
+ */
 function resolveTranscribeModel({
 	model,
 	provider,
@@ -70,6 +80,11 @@ function resolveTranscribeModel({
 	};
 }
 
+/**
+ * CLI handler for the analyze-video command: validates the input and model,
+ * runs the analysis pipeline with progress reporting, and optionally imports
+ * the results into the editor timeline.
+ */
 export async function handleAnalyzeVideo(
 	options: CLIRunOptions,
 	onProgress: ProgressFn,
@@ -381,6 +396,11 @@ interface QueryVideoSegment {
 	action: "keep" | "cut";
 }
 
+/**
+ * CLI handler for the query-video command: runs a natural-language query over a
+ * video, reporting progress and optionally importing the resulting keep/cut
+ * segments into the editor timeline.
+ */
 export async function handleQueryVideo(
 	options: CLIRunOptions,
 	onProgress: ProgressFn,
@@ -629,6 +649,11 @@ async function addQuerySegmentsToTimeline(
 	return { success: true };
 }
 
+/**
+ * CLI handler for the transcribe command: resolves the transcription model from
+ * the requested model/provider and runs the transcription pipeline with
+ * progress reporting.
+ */
 export async function handleTranscribe(
 	options: CLIRunOptions,
 	onProgress: ProgressFn,

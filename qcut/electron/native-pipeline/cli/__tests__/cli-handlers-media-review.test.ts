@@ -9,6 +9,7 @@ import { handleAnalyzeVideo } from "../cli-handlers-media.js";
 import { parseCliArgs } from "../cli.js";
 import type { CLIRunOptions } from "../cli-runner/types.js";
 
+/** Register the test video-review model in the registry so handlers accept it. */
 function registerReviewModel(): void {
 	ModelRegistry.register({
 		key: "openrouter_gemini_3_5_flash_video",
@@ -22,6 +23,7 @@ function registerReviewModel(): void {
 	});
 }
 
+/** Build CLIRunOptions for an analyze-video run in review mode for tests. */
 function makeAnalyzeOptions({
 	outputDir,
 	reviewLanguage = "zh",
@@ -44,6 +46,10 @@ function makeAnalyzeOptions({
 	};
 }
 
+/**
+ * Build a stub pipeline executor that records the steps it receives and returns
+ * a canned (or caller-supplied) review JSON payload.
+ */
 function makeExecutor({
 	captured,
 	text,
