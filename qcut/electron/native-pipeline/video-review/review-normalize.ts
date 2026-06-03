@@ -175,13 +175,27 @@ function extractCommentArray({ parsed }: { parsed: unknown }): unknown[] {
 	return [];
 }
 
+function serializeResponseText({ value }: { value: unknown }): string {
+	try {
+		return JSON.stringify(value ?? null) ?? String(value);
+	} catch {
+		try {
+			return String(value);
+		} catch {
+			return "";
+		}
+	}
+}
+
 export function parseReviewModelResponse({
 	response,
 }: {
 	response: unknown;
 }): ParsedReviewResponse {
 	const rawText =
-		typeof response === "string" ? response : JSON.stringify(response ?? null);
+		typeof response === "string"
+			? response
+			: serializeResponseText({ value: response });
 	const parsed =
 		typeof response === "string"
 			? (() => {
