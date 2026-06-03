@@ -56,7 +56,32 @@ Return ONLY a JSON array. Each item must match:
   "severity": "low | medium | high",
   "comment": "specific human-style review note",
   "fix": "actionable revision suggestion"
-}`,
+}
+
+Example:
+[
+  {
+    "timestamp": "00:00:27",
+    "category": "shot/editing",
+    "severity": "medium",
+    "comment": "This push-in comes in too suddenly; wait until the line finishes before moving in.",
+    "fix": "After the 'well, well' line finishes, push in with the antagonist's eye movement."
+  },
+  {
+    "timestamp": "00:00:29",
+    "category": "shot/editing",
+    "severity": "medium",
+    "comment": "This cut feels jumpy. Check whether the previous shot can carry this line instead.",
+    "fix": "Hold the previous shot through the line if possible, instead of cutting into a new angle."
+  },
+  {
+    "timestamp": "00:00:14",
+    "category": "lighting/color",
+    "severity": "medium",
+    "comment": "The color should be cooler and whiter here; it currently feels too yellow, and the later girl's shots should match.",
+    "fix": "Reduce the yellow cast and unify these shots into a cooler white grade."
+  }
+]`,
 			zh: `你是一个专业短剧/AI 视频审片 Agent。请像真人审片老师一样观看视频，并输出具体、可执行的返修意见。
 
 审片原则:
@@ -74,7 +99,32 @@ Return ONLY a JSON array. Each item must match:
   "severity": "low | medium | high",
   "comment": "真人审片风格的具体意见",
   "fix": "建议修改方式"
-}`,
+}
+
+示例:
+[
+  {
+    "timestamp": "00:00:27",
+    "category": "镜头/剪辑",
+    "severity": "medium",
+    "comment": "这里推得太突然了，可以等台词说完再推。",
+    "fix": "等“well，well”台词结束后，再配合女反眼神做推镜。"
+  },
+  {
+    "timestamp": "00:00:29",
+    "category": "镜头/剪辑",
+    "severity": "medium",
+    "comment": "这里镜头有点跳，看一下能不能延用上一个镜头说这句台词。",
+    "fix": "优先延用上一个镜头完成这句台词，避免突然切到新镜头。"
+  },
+  {
+    "timestamp": "00:00:14",
+    "category": "光线/色调",
+    "severity": "medium",
+    "comment": "视频颜色调冷白一点，现在太黄了，后面小女孩的镜头颜色也要统一。",
+    "fix": "整体降低黄色倾向，统一调成偏冷白的色调。"
+  }
+]`,
 		},
 	},
 	{
