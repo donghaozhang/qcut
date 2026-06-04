@@ -161,7 +161,8 @@ function partCountForPayload({
  * @returns The timestamp converted to seconds, or `0` if it cannot be parsed.
  */
 function timestampToSeconds({ timestamp }: { timestamp: string }): number {
-	const parts = timestamp.split(":").map(Number);
+	const parts = timestamp.split(":").map((part) => Number(part));
+	if (parts.some((part) => !Number.isFinite(part))) return 0;
 	if (parts.length === 3) return parts[0] * 3600 + parts[1] * 60 + parts[2];
 	if (parts.length === 2) return parts[0] * 60 + parts[1];
 	return 0;
@@ -174,7 +175,9 @@ function timestampToSeconds({ timestamp }: { timestamp: string }): number {
  * @returns The formatted `HH:MM:SS` string.
  */
 function secondsToTimestamp({ seconds }: { seconds: number }): string {
-	const rounded = Math.max(0, Math.round(seconds));
+	const rounded = Number.isFinite(seconds)
+		? Math.max(0, Math.round(seconds))
+		: 0;
 	const hours = Math.floor(rounded / 3600);
 	const minutes = Math.floor((rounded % 3600) / 60);
 	const secs = rounded % 60;

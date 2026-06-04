@@ -156,6 +156,16 @@ Rules: Break into individual shots at scene cuts. Be precise with timing. Write 
 		options.outputDir ||
 		(isUrl(videoInput) ? process.cwd() : dirname(videoInput));
 
+	if (
+		options.maxTokens !== undefined &&
+		(!Number.isInteger(options.maxTokens) || options.maxTokens <= 0)
+	) {
+		return {
+			success: false,
+			error: "--max-tokens must be a positive integer",
+		};
+	}
+
 	const step: PipelineStep = {
 		type: "image_understanding",
 		model,
