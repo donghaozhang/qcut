@@ -42,6 +42,10 @@ type Config = {
 	promptTimeoutMs: number;
 	artifactTimeoutMs: number;
 	resetSessionBeforeConnect: boolean;
+	terminalPrompt: string;
+	terminalPromptEchoNeedle: string;
+	expectedArtifacts: string[];
+	expectedArtifactText: Array<{ filename: string; contains: string }>;
 };
 
 type RunState = {
@@ -58,6 +62,23 @@ function readOption({ argv, name }: { argv: string[]; name: string }): string {
 		return "";
 	}
 	return argv[index + 1] || "";
+}
+
+function readRepeatedOptions({
+	argv,
+	name,
+}: {
+	argv: string[];
+	name: string;
+}): string[] {
+	const values: string[] = [];
+	for (let index = 0; index < argv.length; index += 1) {
+		if (argv[index] !== name) continue;
+		const value = argv[index + 1] || "";
+		if (value.length > 0) values.push(value);
+		index += 1;
+	}
+	return values;
 }
 
 function hasFlag({ argv, name }: { argv: string[]; name: string }): boolean {
@@ -79,6 +100,39 @@ function readNumberOption({
 	}
 	const value = Number(raw);
 	return Number.isFinite(value) && value > 0 ? value : defaultValue;
+}
+
+function parseExpectedArtifactText({
+	values,
+}: {
+	values: string[];
+}): Array<{ filename: string; contains: string }> {
+	const expectations: Array<{ filename: string; contains: string }> = [];
+	for (const value of values) {
+		const separator = value.indexOf("=");
+		if (separator <= 0) {
+			throw new Error(
+				`--expect-artifact-text must use filename=substring, got ${value}`
+			);
+		}
+		const filename = value.slice(0, separator).trim();
+		const contains = value.slice(separator + 1);
+		if (filename.length === 0 || contains.length === 0) {
+			throw new Error(
+				`--expect-artifact-text must include both filename and substring, got ${value}`
+			);
+		}
+		expectations.push({ filename, contains });
+	}
+	return expectations;
+}
+
+function readTerminalPrompt({ argv }: { argv: string[] }): string {
+	const promptFile = readOption({ argv, name: "--terminal-prompt-file" });
+	if (promptFile.length > 0) {
+		return readFileSync(resolve(promptFile), "utf8").trim();
+	}
+	return readOption({ argv, name: "--terminal-prompt" }).trim();
 }
 
 function parseArgs({ argv }: { argv: string[] }): Config {
@@ -134,6 +188,21 @@ function parseArgs({ argv }: { argv: string[] }): Config {
 			argv,
 			name: "--skip-session-reset",
 		}),
+		terminalPrompt: readTerminalPrompt({ argv }),
+		terminalPromptEchoNeedle: readOption({
+			argv,
+			name: "--terminal-prompt-echo-needle",
+		}),
+		expectedArtifacts: readRepeatedOptions({
+			argv,
+			name: "--expect-artifact",
+		}),
+		expectedArtifactText: parseExpectedArtifactText({
+			values: readRepeatedOptions({
+				argv,
+				name: "--expect-artifact-text",
+			}),
+		}),
 	};
 }
 
@@ -157,6 +226,11 @@ Options:
   --prompt-timeout-ms <ms>            Prompt completion timeout. Default: 180000.
   --artifact-timeout-ms <ms>          Artifact visibility timeout. Default: 180000.
   --skip-session-reset                Reuse the current active server-side session.
+  --terminal-prompt <text>            Run this custom prompt after Codex connects.
+  --terminal-prompt-file <path>       Read the custom prompt from a file.
+  --terminal-prompt-echo-needle <str> Wait until terminal echoes this text after input.
+  --expect-artifact <filename>        Wait for an artifact filename. Repeatable.
+  --expect-artifact-text <file=text>  Download artifact and assert it contains text. Repeatable.
 `);
 }
 
@@ -621,161 +695,207 @@ async function main() {
 			},
 		});
 
-		const artifactFilename = `terminal-image-e2e-${runId}.txt`;
-		const artifactText = `qcut image generated ${runId}`;
-		const imageNamePrefix = `terminal-image-e2e-${runId}`;
-		let imageFilename = "";
-		await runStep({
-			state,
-			name: "direct terminal qcut image generation creates artifacts",
-			screenshotName: "05-artifact-visible",
-			action: async () => {
-				await typePromptIntoTerminal({
-					page,
-					prompt: `Run qcut CLI image generation in the sandbox: qcut gen image -t "e2e ${runId} small blue square icon on a clean white background" --json -o /tmp/qcut-output. After it succeeds, copy one generated image to /tmp/qcut-output/${imageNamePrefix} with the same image extension, write "${artifactText}" into /tmp/qcut-output/${artifactFilename}, and reply with IMAGE_DONE_${runId} plus the artifact paths.`,
-					echoNeedle: imageNamePrefix,
-				});
-				await waitForArtifact({
-					page,
-					filename: artifactFilename,
-					timeoutMs: config.artifactTimeoutMs,
-				});
-				imageFilename = await waitForImageArtifact({
-					page,
-					namePrefix: imageNamePrefix,
-					timeoutMs: config.artifactTimeoutMs,
-				});
-				const debugText = await readTerminalDebug({ page });
-				assertCondition({
-					condition: /ack #\d+ \d+ bytes/.test(debugText),
-					message: `expected relay ack after image prompt, got ${debugText}`,
-				});
-				assertCondition({
-					condition: !debugText.includes("no relay ack"),
-					message: `unexpected stale ack warning after image prompt: ${debugText}`,
-				});
-				return `marker=${artifactFilename}; image=${imageFilename}; debug=${debugText}`;
-			},
-		});
+		if (config.terminalPrompt.length > 0) {
+			await runStep({
+				state,
+				name: "custom terminal prompt creates expected artifacts",
+				screenshotName: "05-custom-terminal-prompt",
+				action: async () => {
+					await typePromptIntoTerminal({
+						page,
+						prompt: config.terminalPrompt,
+						echoNeedle:
+							config.terminalPromptEchoNeedle ||
+							config.expectedArtifacts[0] ||
+							"",
+					});
+					for (const filename of config.expectedArtifacts) {
+						await waitForArtifact({
+							page,
+							filename,
+							timeoutMs: config.artifactTimeoutMs,
+						});
+					}
+					for (const expectation of config.expectedArtifactText) {
+						const fetchedText = await fetchArtifactTextFromPage({
+							page,
+							filename: expectation.filename,
+							licenseServerUrl: config.licenseServerUrl,
+						});
+						assertCondition({
+							condition: fetchedText.includes(expectation.contains),
+							message: `${expectation.filename} did not contain ${expectation.contains}`,
+						});
+					}
+					const debugText = await readTerminalDebug({ page });
+					assertCondition({
+						condition: /ack #\d+ \d+ bytes/.test(debugText),
+						message: `expected relay ack after custom prompt, got ${debugText}`,
+					});
+					assertCondition({
+						condition: !debugText.includes("no relay ack"),
+						message: `unexpected stale ack warning after custom prompt: ${debugText}`,
+					});
+					return `artifacts=${config.expectedArtifacts.join(",")}; debug=${debugText}`;
+				},
+			});
+		} else {
+			const artifactFilename = `terminal-image-e2e-${runId}.txt`;
+			const artifactText = `qcut image generated ${runId}`;
+			const imageNamePrefix = `terminal-image-e2e-${runId}`;
+			let imageFilename = "";
+			await runStep({
+				state,
+				name: "direct terminal qcut image generation creates artifacts",
+				screenshotName: "05-artifact-visible",
+				action: async () => {
+					await typePromptIntoTerminal({
+						page,
+						prompt: `Run qcut CLI image generation in the sandbox: qcut gen image -t "e2e ${runId} small blue square icon on a clean white background" --json -o /tmp/qcut-output. After it succeeds, copy one generated image to /tmp/qcut-output/${imageNamePrefix} with the same image extension, write "${artifactText}" into /tmp/qcut-output/${artifactFilename}, and reply with IMAGE_DONE_${runId} plus the artifact paths.`,
+						echoNeedle: imageNamePrefix,
+					});
+					await waitForArtifact({
+						page,
+						filename: artifactFilename,
+						timeoutMs: config.artifactTimeoutMs,
+					});
+					imageFilename = await waitForImageArtifact({
+						page,
+						namePrefix: imageNamePrefix,
+						timeoutMs: config.artifactTimeoutMs,
+					});
+					const debugText = await readTerminalDebug({ page });
+					assertCondition({
+						condition: /ack #\d+ \d+ bytes/.test(debugText),
+						message: `expected relay ack after image prompt, got ${debugText}`,
+					});
+					assertCondition({
+						condition: !debugText.includes("no relay ack"),
+						message: `unexpected stale ack warning after image prompt: ${debugText}`,
+					});
+					return `marker=${artifactFilename}; image=${imageFilename}; debug=${debugText}`;
+				},
+			});
 
-		const secondArtifactFilename = `terminal-second-input-e2e-${runId}.txt`;
-		const secondArtifactText = `second input ok ${runId}`;
-		await runStep({
-			state,
-			name: "second terminal input works after image generation",
-			screenshotName: "06-second-input-after-image",
-			action: async () => {
-				await typePromptIntoTerminal({
-					page,
-					prompt: `This is the second input after image generation. Write "${secondArtifactText}" into /tmp/qcut-output/${secondArtifactFilename}, then reply SECOND_INPUT_DONE_${runId}.`,
-					echoNeedle: secondArtifactFilename,
-				});
-				await waitForArtifact({
-					page,
-					filename: secondArtifactFilename,
-					timeoutMs: config.promptTimeoutMs,
-				});
-				const fetchedText = await fetchArtifactTextFromPage({
-					page,
-					filename: secondArtifactFilename,
-					licenseServerUrl: config.licenseServerUrl,
-				});
-				assertCondition({
-					condition: fetchedText.trim() === secondArtifactText,
-					message: `second input artifact mismatch: ${fetchedText.trim()}`,
-				});
-				const debugText = await readTerminalDebug({ page });
-				assertCondition({
-					condition: !debugText.includes("no relay ack"),
-					message: `unexpected stale ack warning after second input: ${debugText}`,
-				});
-				return `second=${secondArtifactFilename}; debug=${debugText}`;
-			},
-		});
+			const secondArtifactFilename = `terminal-second-input-e2e-${runId}.txt`;
+			const secondArtifactText = `second input ok ${runId}`;
+			await runStep({
+				state,
+				name: "second terminal input works after image generation",
+				screenshotName: "06-second-input-after-image",
+				action: async () => {
+					await typePromptIntoTerminal({
+						page,
+						prompt: `This is the second input after image generation. Write "${secondArtifactText}" into /tmp/qcut-output/${secondArtifactFilename}, then reply SECOND_INPUT_DONE_${runId}.`,
+						echoNeedle: secondArtifactFilename,
+					});
+					await waitForArtifact({
+						page,
+						filename: secondArtifactFilename,
+						timeoutMs: config.promptTimeoutMs,
+					});
+					const fetchedText = await fetchArtifactTextFromPage({
+						page,
+						filename: secondArtifactFilename,
+						licenseServerUrl: config.licenseServerUrl,
+					});
+					assertCondition({
+						condition: fetchedText.trim() === secondArtifactText,
+						message: `second input artifact mismatch: ${fetchedText.trim()}`,
+					});
+					const debugText = await readTerminalDebug({ page });
+					assertCondition({
+						condition: !debugText.includes("no relay ack"),
+						message: `unexpected stale ack warning after second input: ${debugText}`,
+					});
+					return `second=${secondArtifactFilename}; debug=${debugText}`;
+				},
+			});
 
-		await runStep({
-			state,
-			name: "terminal-generated image artifacts download from the web UI",
-			screenshotName: "07-artifact-download",
-			action: async () => {
-				const downloadedMarkerPath = await downloadArtifactWithButton({
-					page,
-					filename: artifactFilename,
-					outDir: config.outDir,
-				});
-				const downloadedImagePath = await downloadArtifactWithButton({
-					page,
-					filename: imageFilename,
-					outDir: config.outDir,
-				});
-				const fetchedText = await fetchArtifactTextFromPage({
-					page,
-					filename: artifactFilename,
-					licenseServerUrl: config.licenseServerUrl,
-				});
-				assertCondition({
-					condition: fetchedText.trim() === artifactText,
-					message: `artifact content mismatch: ${fetchedText.trim()}`,
-				});
-				return `downloaded=${downloadedMarkerPath}; image=${downloadedImagePath}`;
-			},
-		});
+			await runStep({
+				state,
+				name: "terminal-generated image artifacts download from the web UI",
+				screenshotName: "07-artifact-download",
+				action: async () => {
+					const downloadedMarkerPath = await downloadArtifactWithButton({
+						page,
+						filename: artifactFilename,
+						outDir: config.outDir,
+					});
+					const downloadedImagePath = await downloadArtifactWithButton({
+						page,
+						filename: imageFilename,
+						outDir: config.outDir,
+					});
+					const fetchedText = await fetchArtifactTextFromPage({
+						page,
+						filename: artifactFilename,
+						licenseServerUrl: config.licenseServerUrl,
+					});
+					assertCondition({
+						condition: fetchedText.trim() === artifactText,
+						message: `artifact content mismatch: ${fetchedText.trim()}`,
+					});
+					return `downloaded=${downloadedMarkerPath}; image=${downloadedImagePath}`;
+				},
+			});
 
-		await runStep({
-			state,
-			name: "reconnect opens Codex again",
-			screenshotName: "08-reconnect-codex-ready",
-			action: async () => {
-				const beforeSessionId = await readStoredAgentSessionId({ page });
-				await page.locator("#agent-terminal-reconnect").click();
-				await waitForCodexReady({
-					page,
-					timeoutMs: config.connectTimeoutMs,
-				});
-				const afterSessionId = await readStoredAgentSessionId({ page });
-				assertCondition({
-					condition:
-						beforeSessionId.length > 0 && beforeSessionId === afterSessionId,
-					message: `reconnect changed session ${beforeSessionId} -> ${afterSessionId}`,
-				});
-				return `sameSession=${afterSessionId}`;
-			},
-		});
+			await runStep({
+				state,
+				name: "reconnect opens Codex again",
+				screenshotName: "08-reconnect-codex-ready",
+				action: async () => {
+					const beforeSessionId = await readStoredAgentSessionId({ page });
+					await page.locator("#agent-terminal-reconnect").click();
+					await waitForCodexReady({
+						page,
+						timeoutMs: config.connectTimeoutMs,
+					});
+					const afterSessionId = await readStoredAgentSessionId({ page });
+					assertCondition({
+						condition:
+							beforeSessionId.length > 0 && beforeSessionId === afterSessionId,
+						message: `reconnect changed session ${beforeSessionId} -> ${afterSessionId}`,
+					});
+					return `sameSession=${afterSessionId}`;
+				},
+			});
 
-		const reconnectArtifactFilename = `terminal-reconnect-e2e-${runId}.txt`;
-		const reconnectArtifactText = `reconnect input ok ${runId}`;
-		await runStep({
-			state,
-			name: "input works after explicit reconnect",
-			screenshotName: "09-input-after-reconnect",
-			action: async () => {
-				await typePromptIntoTerminal({
-					page,
-					prompt: `After explicit Reconnect, write "${reconnectArtifactText}" into /tmp/qcut-output/${reconnectArtifactFilename}, then reply RECONNECT_INPUT_DONE_${runId}.`,
-					echoNeedle: reconnectArtifactFilename,
-				});
-				await waitForArtifact({
-					page,
-					filename: reconnectArtifactFilename,
-					timeoutMs: config.promptTimeoutMs,
-				});
-				const fetchedText = await fetchArtifactTextFromPage({
-					page,
-					filename: reconnectArtifactFilename,
-					licenseServerUrl: config.licenseServerUrl,
-				});
-				assertCondition({
-					condition: fetchedText.trim() === reconnectArtifactText,
-					message: `reconnect artifact mismatch: ${fetchedText.trim()}`,
-				});
-				const debugText = await readTerminalDebug({ page });
-				assertCondition({
-					condition: !debugText.includes("no relay ack"),
-					message: `unexpected stale ack warning after reconnect input: ${debugText}`,
-				});
-				return `reconnect=${reconnectArtifactFilename}; debug=${debugText}`;
-			},
-		});
+			const reconnectArtifactFilename = `terminal-reconnect-e2e-${runId}.txt`;
+			const reconnectArtifactText = `reconnect input ok ${runId}`;
+			await runStep({
+				state,
+				name: "input works after explicit reconnect",
+				screenshotName: "09-input-after-reconnect",
+				action: async () => {
+					await typePromptIntoTerminal({
+						page,
+						prompt: `After explicit Reconnect, write "${reconnectArtifactText}" into /tmp/qcut-output/${reconnectArtifactFilename}, then reply RECONNECT_INPUT_DONE_${runId}.`,
+						echoNeedle: reconnectArtifactFilename,
+					});
+					await waitForArtifact({
+						page,
+						filename: reconnectArtifactFilename,
+						timeoutMs: config.promptTimeoutMs,
+					});
+					const fetchedText = await fetchArtifactTextFromPage({
+						page,
+						filename: reconnectArtifactFilename,
+						licenseServerUrl: config.licenseServerUrl,
+					});
+					assertCondition({
+						condition: fetchedText.trim() === reconnectArtifactText,
+						message: `reconnect artifact mismatch: ${fetchedText.trim()}`,
+					});
+					const debugText = await readTerminalDebug({ page });
+					assertCondition({
+						condition: !debugText.includes("no relay ack"),
+						message: `unexpected stale ack warning after reconnect input: ${debugText}`,
+					});
+					return `reconnect=${reconnectArtifactFilename}; debug=${debugText}`;
+				},
+			});
+		}
 
 		await runStep({
 			state,

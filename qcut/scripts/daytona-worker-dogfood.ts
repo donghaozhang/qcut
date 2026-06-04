@@ -18,6 +18,8 @@
  * Optional env:
  *   QCUT_IMAGE_TAG=ghcr.io/quriosity-agent/qcut-cli:v0
  *   QCUT_DOGFOOD_COMMAND="qcut system doctor --json --skip-health"
+ *   QCUT_DOGFOOD_CODEX_PROMPT="Review a video and write artifacts..."
+ *   QCUT_DOGFOOD_CODEX_PROMPT_FILE=/tmp/prompt.txt
  *   QCUT_DOGFOOD_TIMEOUT_MS=600000
  */
 
@@ -32,6 +34,7 @@ const REQUIRED_ENV = [
 	"SUPABASE_SERVICE_ROLE_KEY",
 	"QCUT_DOGFOOD_USER_ID",
 ] as const;
+const CODEX_AGENT_COMMAND = "codex exec --skip-git-repo-check --json -";
 
 type RequiredEnv = (typeof REQUIRED_ENV)[number];
 type TerminalStatus = "succeeded" | "failed" | "cancelled";
@@ -43,6 +46,7 @@ interface DogfoodEnv {
 	QCUT_DOGFOOD_USER_ID: string;
 	QCUT_IMAGE_TAG: string;
 	QCUT_DOGFOOD_COMMAND: string;
+	QCUT_DOGFOOD_CODEX_PROMPT: string;
 	QCUT_DOGFOOD_TIMEOUT_MS: number;
 }
 
@@ -87,6 +91,14 @@ function loadQcutEnvFile() {
 	}
 }
 
+function readCodexPrompt(): string {
+	const promptFile = process.env.QCUT_DOGFOOD_CODEX_PROMPT_FILE;
+	if (promptFile && promptFile.trim().length > 0) {
+		return readFileSync(promptFile, "utf8").trim();
+	}
+	return (process.env.QCUT_DOGFOOD_CODEX_PROMPT ?? "").trim();
+}
+
 function getEnv(): DogfoodEnv {
 	const missing: RequiredEnv[] = [];
 	for (const key of REQUIRED_ENV) {
@@ -96,6 +108,13 @@ function getEnv(): DogfoodEnv {
 		throw new Error(`Missing required env: ${missing.join(", ")}`);
 	}
 
+	const codexPrompt = readCodexPrompt();
+	const command =
+		process.env.QCUT_DOGFOOD_COMMAND ??
+		(codexPrompt.length > 0
+			? CODEX_AGENT_COMMAND
+			: "qcut system doctor --json --skip-health");
+
 	return {
 		DAYTONA_API_KEY: process.env.DAYTONA_API_KEY as string,
 		SUPABASE_URL: process.env.SUPABASE_URL as string,
@@ -103,9 +122,8 @@ function getEnv(): DogfoodEnv {
 		QCUT_DOGFOOD_USER_ID: process.env.QCUT_DOGFOOD_USER_ID as string,
 		QCUT_IMAGE_TAG:
 			process.env.QCUT_IMAGE_TAG ?? "ghcr.io/quriosity-agent/qcut-cli:v0",
-		QCUT_DOGFOOD_COMMAND:
-			process.env.QCUT_DOGFOOD_COMMAND ??
-			"qcut system doctor --json --skip-health",
+		QCUT_DOGFOOD_COMMAND: command,
+		QCUT_DOGFOOD_CODEX_PROMPT: codexPrompt,
 		QCUT_DOGFOOD_TIMEOUT_MS: Number(
 			process.env.QCUT_DOGFOOD_TIMEOUT_MS ?? "600000"
 		),
@@ -172,7 +190,10 @@ async function insertJob({ env, jobId }: { env: DogfoodEnv; jobId: string }) {
 				user_id: env.QCUT_DOGFOOD_USER_ID,
 				status: "queued",
 				command: env.QCUT_DOGFOOD_COMMAND,
-				args: {},
+				args:
+					env.QCUT_DOGFOOD_CODEX_PROMPT.length > 0
+						? { codexPrompt: env.QCUT_DOGFOOD_CODEX_PROMPT }
+						: {},
 				created_at: now,
 			}),
 		},
@@ -282,6 +303,11 @@ const jobId = `dogfood-${randomUUID()}`;
 console.log(`[dogfood] image=${env.QCUT_IMAGE_TAG}`);
 console.log(`[dogfood] user=${env.QCUT_DOGFOOD_USER_ID}`);
 console.log(`[dogfood] command=${env.QCUT_DOGFOOD_COMMAND}`);
+if (env.QCUT_DOGFOOD_CODEX_PROMPT.length > 0) {
+	console.log(
+		`[dogfood] codexPromptChars=${env.QCUT_DOGFOOD_CODEX_PROMPT.length}`
+	);
+}
 
 const secretCount = await countSecrets({ env });
 console.log(`[dogfood] agent_secrets count=${secretCount}`);

@@ -97,6 +97,50 @@ supports `--output-dir/-o`, or move final user-requested files into
 `/tmp/qcut-output` before finishing. Keep scratch files and package installs
 under `/tmp/qcut-tools` or `/tmp`.
 
+## Video Review / 审片
+
+Use QCut's review mode when the user asks for video review, 审片, timestamped
+feedback, CSV/JSON comments, or human-style short-drama notes. Do not use
+generic `aicp analyze-video` for this workflow.
+
+```bash
+QCUT_DEBUG_OPENROUTER_VIDEO=1 \
+QCUT_OUTPUT_DIR=/tmp/qcut-output \
+qcut analyze video \
+  --video-url /tmp/qcut-input/video.mp4 \
+  --analysis-type review \
+  --review-language zh \
+  --max-tokens 16000 \
+  -m openrouter_gemini_3_5_flash_video \
+  --json \
+  -o /tmp/qcut-output
+```
+
+For English review comments, use `--review-language en`. The review output is
+written under `/tmp/qcut-output`:
+
+```text
+review-comments.json
+review-comments.csv
+review-feedback-browser.html
+review-feedback-summary.html
+review-agent-report.md
+review-agent-prompts/
+raw-analysis.json
+review-split-manifest.json   # only when the video is split
+```
+
+Long local videos are split automatically when the estimated base64 payload is
+too large. If a part fails because OpenRouter returned truncated JSON, inspect
+`review-split-manifest.json` and rerun the failed part rather than rerunning the
+whole episode. The parser salvages complete comments from partial JSON arrays,
+so non-empty `raw-analysis.json` with empty CSV usually means the model did not
+emit complete comment objects.
+
+In Daytona Chat Agent sessions, local host paths such as `/Users/peter/...` are
+not available. First upload the file into the session, use its `/tmp/qcut-input`
+path, or use a public/network URL that the model provider can read.
+
 ### Command Groups
 
 | Group | Description | Example |

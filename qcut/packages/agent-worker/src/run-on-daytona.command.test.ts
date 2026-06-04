@@ -153,6 +153,9 @@ describe("buildDaytonaEnv", () => {
 		);
 		expect(
 			Buffer.from(env.QCUT_CODEX_PROMPT_B64, "base64").toString("utf8")
+		).toContain("qcut analyze video --analysis-type review");
+		expect(
+			Buffer.from(env.QCUT_CODEX_PROMPT_B64, "base64").toString("utf8")
 		).toContain("User task:\nExplain QCut's agent path.");
 	});
 

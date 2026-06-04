@@ -148,6 +148,62 @@ aicp analyze-video -i video.mp4 -t transcribe
 aicp analyze-video -i video.mp4 -t describe -f json
 ```
 
+### Review Video (QCut CLI)
+
+Use QCut's review path when the user asks for video review, 审片, review
+comments, timestamped feedback, CSV/JSON review export, or human-style short
+drama notes. Do not use generic `aicp analyze-video` for this workflow.
+
+```bash
+QCUT_OUTPUT_DIR=/tmp/qcut-output \
+bun run qcut analyze video \
+  --video-url /path/to/video.mp4 \
+  --analysis-type review \
+  --review-language zh \
+  -m openrouter_gemini_3_5_flash_video \
+  --json
+```
+
+Useful options:
+
+```bash
+--review-language zh          # Chinese human review style
+--review-language en          # English review output
+--max-tokens 16000            # Larger response budget for long reviews
+```
+
+Useful debug environment:
+
+```bash
+QCUT_DEBUG_OPENROUTER_VIDEO=1
+QCUT_OPENROUTER_HEARTBEAT=1
+QCUT_REVIEW_SPLIT_MAX_PAYLOAD_CHARS=18000000
+```
+
+Review outputs are written under `QCUT_OUTPUT_DIR`:
+
+```text
+review-comments.json
+review-comments.csv
+review-feedback-browser.html
+review-feedback-summary.html
+review-agent-report.md
+review-agent-prompts/
+raw-analysis.json
+review-split-manifest.json   # present when the video was split
+```
+
+Long local videos are split automatically when the estimated base64 payload is
+too large. If one split part fails because OpenRouter returned truncated JSON,
+rerun only that part and merge the comments; do not rerun the full episode
+unless the split files are missing.
+
+For Daytona/online agent sessions, remember that local host paths such as
+`/Users/peter/...` are not available inside the sandbox. Upload the source file
+to the sandbox first, or pass a public/network URL that the model provider can
+read. Always write outputs to `/tmp/qcut-output` so the online agent artifact
+poller can find and download them.
+
 ### Analyze Video (HTTP API)
 
 QCut exposes video analysis through the Claude HTTP server (port 8765).
