@@ -75,8 +75,10 @@ function readRepeatedOptions({
 	for (let index = 0; index < argv.length; index += 1) {
 		if (argv[index] !== name) continue;
 		const value = argv[index + 1] || "";
-		if (value.length > 0) values.push(value);
-		index += 1;
+		if (value.length > 0 && !value.startsWith("-")) {
+			values.push(value);
+			index += 1;
+		}
 	}
 	return values;
 }
@@ -717,6 +719,11 @@ async function main() {
 						});
 					}
 					for (const expectation of config.expectedArtifactText) {
+						await waitForArtifact({
+							page,
+							filename: expectation.filename,
+							timeoutMs: config.artifactTimeoutMs,
+						});
 						const fetchedText = await fetchArtifactTextFromPage({
 							page,
 							filename: expectation.filename,
