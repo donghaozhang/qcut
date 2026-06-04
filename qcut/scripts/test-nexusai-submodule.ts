@@ -4,7 +4,7 @@ import path from "node:path";
 const EXPECTED_SUBMODULE = {
 	path: "qcut/packages/nexusai-website",
 	url: "https://github.com/donghaozhang/nexusai-website.git",
-	branch: "master",
+	branch: "cli-image-reviewer",
 } as const;
 
 /** Execute a shell command and trim its UTF-8 stdout. */
