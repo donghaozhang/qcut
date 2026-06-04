@@ -116,10 +116,23 @@ Analyze a video with AI vision.
 | `--input` | `-i` | string | | Video file or URL (required) |
 | `--video-url` | | string | | Alias for input |
 | `--model` | `-m` | string | `openrouter_gemini_3_5_flash_video` | Vision model |
-| `--analysis-type` | | string | `timeline` | `timeline`, `summary`, `description`, `transcript` |
+| `--analysis-type` | | string | `timeline` | `timeline`, `summary`, `description`, `transcript`, `review` |
 | `--prompt` | | string | | Custom prompt (overrides analysis-type) |
 | `--text` | `-t` | string | | Alias for prompt |
 | `--output-format` | `-f` | string | `md` | `md`, `json`, `both` |
+| `--review-language` | | string | `zh` | Review prompt language: `zh` or `en` |
+| `--review-prompt-dir` | | string | | Custom directory for review prompt markdown files |
+| `--max-tokens` | | integer | `12000` for review | Maximum model output tokens |
+
+Review mode writes `review-comments.json`, `review-comments.csv`,
+`review-feedback-browser.html`, `review-feedback-summary.html`,
+`review-agent-report.md`, `raw-analysis.json`, and a
+`review-agent-prompts/` snapshot to the output directory. Oversized local
+videos are split automatically and also write `review-split-manifest.json`.
+
+```bash
+qcut analyze video -i video.mp4 --analysis-type review --review-language zh --max-tokens 16000 --json -o /tmp/qcut-output
+```
 
 ### `analyze transcribe`
 

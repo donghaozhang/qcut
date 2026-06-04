@@ -16,9 +16,9 @@ export const CODEX_AGENT_COMMAND = "codex exec --skip-git-repo-check --json -";
 
 // Pinned to an immutable manifest digest so the default agent image cannot
 // drift if the upstream tag is republished. Human-readable tag for this
-// digest: `imarouter-gpt-image-20260519061748`.
+// digest: `review-agent-20260604025944`.
 export const DEFAULT_DAYTONA_IMAGE =
-	"ghcr.io/quriosity-agent/qcut-cli@sha256:c266afcb3a0da99ef0ff191bb4f929ada47f4a7f25b118228cfb6acc0ce575ca";
+	"ghcr.io/quriosity-agent/qcut-cli@sha256:1baf3bbae082bb38c4056718f672c5965195f1888980f73b1e51759e7a480f56";
 
 export const TEXT_ARTIFACT_KINDS = new Set(["json", "log"]);
 

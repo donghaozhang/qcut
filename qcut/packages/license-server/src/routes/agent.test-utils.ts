@@ -53,7 +53,7 @@ export const {
 } = await import("./agent");
 
 export const DEFAULT_PINNED_QCUT_IMAGE =
-	"ghcr.io/quriosity-agent/qcut-cli@sha256:c266afcb3a0da99ef0ff191bb4f929ada47f4a7f25b118228cfb6acc0ce575ca";
+	"ghcr.io/quriosity-agent/qcut-cli@sha256:1baf3bbae082bb38c4056718f672c5965195f1888980f73b1e51759e7a480f56";
 
 const ORIGINAL_ENV = { ...process.env };
 
