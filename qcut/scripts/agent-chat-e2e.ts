@@ -56,6 +56,7 @@ type RunState = {
 	steps: StepResult[];
 };
 
+/** Return the value following a single-value CLI option, or "" if absent. */
 function readOption({ argv, name }: { argv: string[]; name: string }): string {
 	const index = argv.indexOf(name);
 	if (index === -1) {
@@ -64,6 +65,11 @@ function readOption({ argv, name }: { argv: string[]; name: string }): string {
 	return argv[index + 1] || "";
 }
 
+/**
+ * Collect every value for a repeatable CLI option (e.g. `--expect-artifact`).
+ * Flag-like values (starting with `-`) are skipped so a value-less option does
+ * not accidentally swallow the next flag.
+ */
 function readRepeatedOptions({
 	argv,
 	name,
@@ -83,10 +89,12 @@ function readRepeatedOptions({
 	return values;
 }
 
+/** Return whether a boolean CLI flag is present in argv. */
 function hasFlag({ argv, name }: { argv: string[]; name: string }): boolean {
 	return argv.includes(name);
 }
 
+/** Read a positive, finite numeric CLI option, falling back to defaultValue. */
 function readNumberOption({
 	argv,
 	name,
@@ -104,6 +112,7 @@ function readNumberOption({
 	return Number.isFinite(value) && value > 0 ? value : defaultValue;
 }
 
+/** Parse `filename=substring` pairs into artifact-text assertion objects. */
 function parseExpectedArtifactText({
 	values,
 }: {
@@ -129,6 +138,7 @@ function parseExpectedArtifactText({
 	return expectations;
 }
 
+/** Resolve the custom terminal prompt from `--terminal-prompt-file` or `--terminal-prompt`. */
 function readTerminalPrompt({ argv }: { argv: string[] }): string {
 	const promptFile = readOption({ argv, name: "--terminal-prompt-file" });
 	if (promptFile.length > 0) {
@@ -137,6 +147,7 @@ function readTerminalPrompt({ argv }: { argv: string[] }): string {
 	return readOption({ argv, name: "--terminal-prompt" }).trim();
 }
 
+/** Build the run {@link Config} from raw CLI argv, applying env and defaults. */
 function parseArgs({ argv }: { argv: string[] }): Config {
 	if (hasFlag({ argv, name: "--help" }) || hasFlag({ argv, name: "-h" })) {
 		printHelp();
@@ -208,6 +219,7 @@ function parseArgs({ argv }: { argv: string[] }): Config {
 	};
 }
 
+/** Print CLI usage and the full option list to stdout. */
 function printHelp() {
 	console.log(`QCut Chat Agent E2E
 
@@ -236,10 +248,12 @@ Options:
 `);
 }
 
+/** Write a namespaced `[agent-chat-e2e]` line to the console. */
 function log({ message }: { message: string }) {
 	console.log(`[agent-chat-e2e] ${message}`);
 }
 
+/** Capture a full-page screenshot into outDir and return its file path. */
 async function screenshot({
 	page,
 	outDir,
@@ -254,6 +268,7 @@ async function screenshot({
 	return path;
 }
 
+/** Read a selector's innerText, returning "" if it is not found within 2s. */
 async function readText({
 	page,
 	selector,
@@ -268,20 +283,28 @@ async function readText({
 	}
 }
 
+/** Read the visible text of the terminal pane. */
 async function readTerminalText({ page }: { page: Page }): Promise<string> {
 	return readText({ page, selector: "#agent-terminal" });
 }
 
+/** Read and trim the terminal connection status (e.g. "connected"). */
 async function readTerminalStatus({ page }: { page: Page }): Promise<string> {
 	return (
 		await page.locator("#agent-terminal-status").innerText({ timeout: 5_000 })
 	).trim();
 }
 
+/** Read the text of the terminal debug pane (relay ack diagnostics). */
 async function readTerminalDebug({ page }: { page: Page }): Promise<string> {
 	return readText({ page, selector: "#agent-terminal-debug" });
 }
 
+/**
+ * Run a named test step: execute its action, screenshot the result, and record
+ * a passed/failed {@link StepResult}. Re-throws on failure after capturing a
+ * `-failed` screenshot.
+ */
 async function runStep({
 	state,
 	name,
@@ -329,6 +352,7 @@ async function runStep({
 	}
 }
 
+/** Throw an Error with the given message when condition is false. */
 function assertCondition({
 	condition,
 	message,
@@ -341,6 +365,7 @@ function assertCondition({
 	}
 }
 
+/** When enabled, serve the local agent-chat.js for the page's JS request. */
 async function setupLocalJsRoute({
 	page,
 	enabled,
@@ -361,6 +386,7 @@ async function setupLocalJsRoute({
 	});
 }
 
+/** Wait until the terminal reports "connected" and shows the OpenAI Codex banner. */
 async function waitForCodexReady({
 	page,
 	timeoutMs,
@@ -382,12 +408,14 @@ async function waitForCodexReady({
 	);
 }
 
+/** Read the agent session id persisted in localStorage, or "" if none. */
 async function readStoredAgentSessionId({ page }: { page: Page }) {
 	return page.evaluate(
 		() => window.localStorage.getItem("qcut_agent_session_id") || ""
 	);
 }
 
+/** Wait for the debug pane to show a relay input-ack line (`ack #N N bytes`). */
 async function waitForRelayInputAck({ page }: { page: Page }) {
 	await page.waitForFunction(
 		() => {
@@ -400,6 +428,10 @@ async function waitForRelayInputAck({ page }: { page: Page }) {
 	);
 }
 
+/**
+ * Connect to establish a server session, then start a fresh one via the UI.
+ * Returns the ended session id (or a note when none was stored).
+ */
 async function resetServerSessionThroughUi({
 	page,
 	timeoutMs,
@@ -441,6 +473,10 @@ async function resetServerSessionThroughUi({
 		: "reset without stored session";
 }
 
+/**
+ * Type a prompt into the terminal, submit it, and wait for the relay ack.
+ * When echoNeedle is set, also wait until the terminal echoes that text.
+ */
 async function typePromptIntoTerminal({
 	page,
 	prompt,
@@ -471,6 +507,7 @@ async function typePromptIntoTerminal({
 	}
 }
 
+/** Wait until the given filename appears in the artifacts pane. */
 async function waitForArtifact({
 	page,
 	filename,
@@ -491,6 +528,7 @@ async function waitForArtifact({
 	);
 }
 
+/** Return the `data-path` of every artifact tile in the artifacts pane. */
 async function readArtifactPaths({ page }: { page: Page }): Promise<string[]> {
 	return page.evaluate(() =>
 		Array.from(document.querySelectorAll("#agent-artifacts .sandbox-file-tile"))
@@ -499,6 +537,7 @@ async function readArtifactPaths({ page }: { page: Page }): Promise<string[]> {
 	);
 }
 
+/** Wait for an image artifact whose filename starts with namePrefix, returning that filename. */
 async function waitForImageArtifact({
 	page,
 	namePrefix,
@@ -536,6 +575,7 @@ async function waitForImageArtifact({
 	return match;
 }
 
+/** Click an artifact row's download button and save the file under outDir. */
 async function downloadArtifactWithButton({
 	page,
 	filename,
@@ -557,6 +597,7 @@ async function downloadArtifactWithButton({
 	return targetPath;
 }
 
+/** Fetch an artifact's text content via the session's download API from the page context. */
 async function fetchArtifactTextFromPage({
 	page,
 	filename,
@@ -593,6 +634,7 @@ async function fetchArtifactTextFromPage({
 	);
 }
 
+/** Click disconnect and wait until the terminal status becomes "disconnected". */
 async function disconnectTerminal({ page }: { page: Page }) {
 	await page.locator("#agent-terminal-disconnect").click();
 	await page.waitForFunction(
@@ -604,6 +646,10 @@ async function disconnectTerminal({ page }: { page: Page }) {
 	);
 }
 
+/**
+ * Entry point: parse CLI args, drive the full chat-agent E2E flow through its
+ * steps, write results/screenshots to the out dir, and exit non-zero on failure.
+ */
 async function main() {
 	const config = parseArgs({ argv: process.argv.slice(2) });
 	mkdirSync(config.outDir, { recursive: true });
