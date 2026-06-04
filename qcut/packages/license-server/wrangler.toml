@@ -17,8 +17,8 @@ CORS_ALLOWED_ORIGINS = ""
 AI_PROXY_RATE_LIMIT = "60"
 QCUT_AGENT_ALLOW_DEFAULT_USER = "true"
 # Pinned to immutable digest so retags can't silently change sandbox runtime.
-# Human-readable tag: cli-image-v12-ref2v-20260526205824
-QCUT_IMAGE_TAG = "ghcr.io/quriosity-agent/qcut-cli@sha256:ff56c1087655b6e1893dc44766a4a9a6e3ae156e6b625f77871624a9fbe79cf6"
+# Human-readable tag: review-agent-20260604025944
+QCUT_IMAGE_TAG = "ghcr.io/quriosity-agent/qcut-cli@sha256:1baf3bbae082bb38c4056718f672c5965195f1888980f73b1e51759e7a480f56"
 
 # AI provider keys are stored as Wrangler secrets (not vars):
 # wrangler secret put FAL_API_KEY

@@ -154,7 +154,7 @@ describe("runOnDaytona ephemeral jobs", () => {
 		expect(createCalls).toEqual([
 			{
 				image:
-					"ghcr.io/quriosity-agent/qcut-cli@sha256:48aa813162bf7a4b20d38ec694ccc0e1ffc9b61dcdc8c9e1447749d77b500923",
+					"ghcr.io/quriosity-agent/qcut-cli@sha256:1baf3bbae082bb38c4056718f672c5965195f1888980f73b1e51759e7a480f56",
 				envVars: {
 					QCUT_SESSION_ROLE: "agent",
 					OPENAI_API_KEY: "sk-test",
