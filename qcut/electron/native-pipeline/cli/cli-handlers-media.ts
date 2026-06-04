@@ -19,8 +19,10 @@ import { createEditorClient } from "../editor/editor-api-client.js";
 import { getVideoReviewPromptSet } from "../video-review/review-prompts.js";
 import { parseReviewModelResponse } from "../video-review/review-normalize.js";
 import { writeReviewArtifacts } from "../video-review/review-artifacts.js";
+import { runSplitReviewIfNeeded } from "../video-review/review-split-runner.js";
 
 const DEFAULT_VIDEO_ANALYSIS_MODEL = "openrouter_gemini_3_5_flash_video";
+const DEFAULT_REVIEW_MAX_TOKENS = 12_000;
 
 /** Return true when the input looks like an `http(s)` URL rather than a local path. */
 function isUrl(input: string): boolean {
@@ -141,6 +143,18 @@ Rules: Break into individual shots at scene cuts. Be precise with timing. Write 
 		reviewPromptSet?.master.content ||
 		promptMap[analysisType] ||
 		"Describe this video in detail";
+	const videoFilename = isUrl(videoInput)
+		? filenameFromUrl(videoInput)
+		: basename(videoInput);
+	const extWithDot = videoFilename.includes(".")
+		? `.${videoFilename.split(".").pop()}`
+		: "";
+	const videoBasename = extWithDot
+		? videoFilename.slice(0, -extWithDot.length)
+		: videoFilename;
+	const outputDir =
+		options.outputDir ||
+		(isUrl(videoInput) ? process.cwd() : dirname(videoInput));
 
 	const step: PipelineStep = {
 		type: "image_understanding",
@@ -148,15 +162,70 @@ Rules: Break into individual shots at scene cuts. Be precise with timing. Write 
 		params: {
 			prompt: options.prompt || options.text || defaultPrompt,
 			analysis_type: analysisType,
+			...(analysisType === "review"
+				? {
+						max_tokens: options.maxTokens ?? DEFAULT_REVIEW_MAX_TOKENS,
+					}
+				: options.maxTokens !== undefined
+					? { max_tokens: options.maxTokens }
+					: {}),
 		},
 		enabled: true,
 		retryCount: 0,
 	};
 
+	if (analysisType === "review" && reviewPromptSet) {
+		try {
+			const splitReview = await runSplitReviewIfNeeded({
+				videoInput,
+				outputDir,
+				videoDisplayName: displayNameForVideoInput({ input: videoInput }),
+				model,
+				step,
+				executor,
+				promptSet: reviewPromptSet,
+				onProgress,
+				signal,
+				startTime,
+			});
+			if (splitReview) {
+				onProgress({ stage: "complete", percent: 100, message: "Done", model });
+				return {
+					success: true,
+					outputPath: splitReview.artifacts.reportPath,
+					data: {
+						type: analysisType,
+						video: displayNameForVideoInput({ input: videoInput }),
+						model,
+						duration: (Date.now() - startTime) / 1000,
+						content: {
+							comments: splitReview.comments,
+							artifacts: splitReview.artifacts,
+							splitReview: splitReview.rawAnalysis,
+						},
+					},
+					duration: (Date.now() - startTime) / 1000,
+				};
+			}
+		} catch (error) {
+			return {
+				success: false,
+				error: `Split review failed: ${error instanceof Error ? error.message : String(error)}`,
+				duration: (Date.now() - startTime) / 1000,
+			};
+		}
+	}
+
 	const result = await executor.executeStep(
 		step,
 		{ videoUrl: videoInput },
-		{ outputDir: options.outputDir, signal }
+		{
+			outputDir,
+			onProgress: (percent, message) => {
+				onProgress({ stage: "analyzing", percent, message, model });
+			},
+			signal,
+		}
 	);
 
 	onProgress({ stage: "complete", percent: 100, message: "Done", model });
@@ -173,18 +242,6 @@ Rules: Break into individual shots at scene cuts. Be precise with timing. Write 
 
 	// Non-review analyses keep the legacy same-name JSON behavior.
 	// Output dir: explicit -o flag > video's directory (use cwd for URLs)
-	const videoFilename = isUrl(videoInput)
-		? filenameFromUrl(videoInput)
-		: basename(videoInput);
-	const extWithDot = videoFilename.includes(".")
-		? `.${videoFilename.split(".").pop()}`
-		: "";
-	const videoBasename = extWithDot
-		? videoFilename.slice(0, -extWithDot.length)
-		: videoFilename;
-	const outputDir =
-		options.outputDir ||
-		(isUrl(videoInput) ? process.cwd() : dirname(videoInput));
 	const jsonPath = join(outputDir, `${videoBasename}.json`);
 
 	// Parse structured JSON from model response if possible

@@ -91,6 +91,12 @@ export function getOutputDataType(category: ModelCategory): DataType {
 	}
 }
 
+/**
+ * Maps an endpoint identifier to the provider that should handle it.
+ *
+ * @param endpoint - The model endpoint string (e.g. `google/...`, `openrouter/...`).
+ * @returns The resolved provider name, defaulting to `fal`.
+ */
 function getProviderForEndpoint(endpoint: string): ProviderName {
 	if (endpoint.startsWith("elevenlabs/")) return "elevenlabs";
 	if (endpoint.startsWith("google/")) return "google";
@@ -103,14 +109,32 @@ function getProviderForEndpoint(endpoint: string): ProviderName {
 	return "fal";
 }
 
+/**
+ * Returns whether a string is an `http(s)` URL.
+ *
+ * @param url - The candidate URL.
+ * @returns `true` if the value starts with `http://` or `https://`.
+ */
 function isRemoteUrl(url: string): boolean {
 	return /^https?:\/\//i.test(url);
 }
 
+/**
+ * Returns whether a URL is an IMA Router `asset://` reference.
+ *
+ * @param url - The candidate URL.
+ * @returns `true` if the value uses the `asset://` scheme.
+ */
 function isImaRouterAssetUrl({ url }: { url: string }): boolean {
 	return /^asset:\/\//i.test(url);
 }
 
+/**
+ * Infers a media MIME type from a file path's extension.
+ *
+ * @param input - The media file path.
+ * @returns The matching MIME type, defaulting to `video/mp4`.
+ */
 function getMediaMimeType({ input }: { input: string }): string {
 	switch (path.extname(input).toLowerCase()) {
 		case ".mov":
@@ -132,6 +156,12 @@ function getMediaMimeType({ input }: { input: string }): string {
 	}
 }
 
+/**
+ * Narrows an unknown value to a plain object record.
+ *
+ * @param value - The value to inspect.
+ * @returns The value typed as a record, or `undefined` if it is not a plain object.
+ */
 function asRecord({
 	value,
 }: {
@@ -143,12 +173,60 @@ function asRecord({
 	return value as Record<string, unknown>;
 }
 
-function toOpenRouterMediaUrl({ input }: { input: string }): string {
-	if (isRemoteUrl(input) || input.startsWith("data:")) return input;
-	const media = readFileSync(input);
-	return `data:${getMediaMimeType({ input })};base64,${media.toString("base64")}`;
+/**
+ * Emits an OpenRouter video debug log line when `QCUT_DEBUG_OPENROUTER_VIDEO=1`.
+ *
+ * @param message - The debug message.
+ * @param metadata - Optional metadata (or a lazy factory evaluated only when logging is on).
+ */
+function logOpenRouterVideoDebug({
+	message,
+	metadata,
+}: {
+	message: string;
+	metadata?: Record<string, unknown> | (() => Record<string, unknown>);
+}): void {
+	if (process.env.QCUT_DEBUG_OPENROUTER_VIDEO !== "1") return;
+	const value = typeof metadata === "function" ? metadata() : metadata;
+	const suffix = value ? ` ${JSON.stringify(value)}` : "";
+	console.warn(`[openrouter-video-debug] ${message}${suffix}`);
 }
 
+/**
+ * Converts a media input into a URL OpenRouter can consume.
+ *
+ * Remote and existing data URLs pass through unchanged; local files are read and
+ * encoded as a base64 data URL.
+ *
+ * @param input - A remote URL, data URL, or local file path.
+ * @returns A URL or data URL suitable for an OpenRouter request.
+ */
+function toOpenRouterMediaUrl({ input }: { input: string }): string {
+	if (isRemoteUrl(input) || input.startsWith("data:")) return input;
+	const startTime = Date.now();
+	const media = readFileSync(input);
+	const mimeType = getMediaMimeType({ input });
+	const encoded = media.toString("base64");
+	logOpenRouterVideoDebug({
+		message: "encoded local media as data URL",
+		metadata: {
+			input,
+			mimeType,
+			fileBytes: media.byteLength,
+			base64Chars: encoded.length,
+			durationMs: Date.now() - startTime,
+		},
+	});
+	return `data:${mimeType};base64,${encoded}`;
+}
+
+/**
+ * Gathers de-duplicated reference image URLs from the step input and payload.
+ *
+ * @param input - The step input (its `imageUrl` is included when present).
+ * @param payload - The step payload; `image`, `image_urls`, and `reference_images` arrays are scanned.
+ * @returns A de-duplicated list of non-empty reference image strings.
+ */
 function collectReferenceImages({
 	input,
 	payload,
@@ -157,6 +235,7 @@ function collectReferenceImages({
 	payload: Record<string, unknown>;
 }): string[] {
 	const refs: string[] = [];
+	/** Pushes a value onto `refs` when it is a non-empty string. */
 	const append = (value: unknown) => {
 		if (typeof value === "string" && value.trim()) refs.push(value);
 	};
@@ -178,6 +257,17 @@ type ReferenceImagesResolution =
 	| { success: true; urls: string[] }
 	| { success: false; error: string };
 
+/**
+ * Resolves reference images to usable URLs, uploading local files when the provider requires it.
+ *
+ * Remote URLs pass through; for upload-capable providers (`fal`, `gmi`, `gmi-llm`,
+ * `imarouter`) local files are uploaded to FAL storage.
+ *
+ * @param refs - Reference image paths or URLs.
+ * @param provider - The target provider, which decides whether local uploads are needed.
+ * @param options - Progress and cancellation hooks.
+ * @returns Resolved URLs on success, or the first failure encountered.
+ */
 async function resolveReferenceImages({
 	refs,
 	provider,
@@ -226,6 +316,15 @@ async function resolveReferenceImages({
 	};
 }
 
+/**
+ * Resolves a single IMA Router reference entry into an uploadable source URL.
+ *
+ * Existing `asset://` or remote URLs pass through; local files are uploaded to FAL storage.
+ *
+ * @param entry - A reference image path or URL.
+ * @param options - Progress and cancellation hooks.
+ * @returns The resolved URL on success, or a failure with the upload error.
+ */
 async function resolveImaRouterUploadSource({
 	entry,
 	options,
@@ -405,6 +504,12 @@ const IMA_ROUTER_GPT_IMAGE_2_SIZE_BY_RATIO: Record<string, string> = {
 	"2:3": "1024x1536",
 };
 
+/**
+ * Maps an aspect ratio to the closest supported IMA Router GPT-Image-2 output size.
+ *
+ * @param aspectRatio - The requested aspect ratio (e.g. `16:9`).
+ * @returns The pixel size string, defaulting to `1024x1024`.
+ */
 function getImaRouterGptImage2Size({
 	aspectRatio,
 }: {
@@ -580,6 +685,16 @@ export async function executeStep(
 	}
 }
 
+/**
+ * Executes a text-to-image generation step.
+ *
+ * @param model - The resolved model definition.
+ * @param input - The step input (prompt and related fields).
+ * @param payload - Provider-specific request parameters.
+ * @param provider - The provider that will service the request.
+ * @param options - Output directory, progress, and cancellation hooks.
+ * @returns The step output describing the generated image.
+ */
 async function executeTextToImage(
 	model: ModelDefinition,
 	input: StepInput,
@@ -688,6 +803,16 @@ async function executeTextToImage(
 	return mapApiResult(result, options.outputDir, endpoint);
 }
 
+/**
+ * Executes a text-to-video generation step.
+ *
+ * @param model - The resolved model definition.
+ * @param input - The step input (prompt and related fields).
+ * @param payload - Provider-specific request parameters.
+ * @param provider - The provider that will service the request.
+ * @param options - Output directory, progress, and cancellation hooks.
+ * @returns The step output describing the generated video.
+ */
 async function executeTextToVideo(
 	model: ModelDefinition,
 	input: StepInput,
@@ -731,6 +856,16 @@ async function executeTextToVideo(
 	return mapApiResult(result, options.outputDir);
 }
 
+/**
+ * Executes an image-to-video generation step.
+ *
+ * @param model - The resolved model definition.
+ * @param input - The step input (source image and related fields).
+ * @param payload - Provider-specific request parameters.
+ * @param provider - The provider that will service the request.
+ * @param options - Output directory, progress, and cancellation hooks.
+ * @returns The step output describing the generated video.
+ */
 async function executeImageToVideo(
 	model: ModelDefinition,
 	input: StepInput,
@@ -935,6 +1070,16 @@ const ARRAY_IMAGE_URL_ENDPOINTS = new Set([
 	"fal-ai/nano-banana-2/edit",
 ]);
 
+/**
+ * Executes an image-to-image generation/edit step.
+ *
+ * @param model - The resolved model definition.
+ * @param input - The step input (source image and related fields).
+ * @param payload - Provider-specific request parameters.
+ * @param provider - The provider that will service the request.
+ * @param options - Output directory, progress, and cancellation hooks.
+ * @returns The step output describing the generated image.
+ */
 async function executeImageToImage(
 	model: ModelDefinition,
 	input: StepInput,
@@ -988,6 +1133,16 @@ async function executeImageToImage(
 	return mapApiResult(result, options.outputDir);
 }
 
+/**
+ * Executes a video-to-video transformation step.
+ *
+ * @param model - The resolved model definition.
+ * @param input - The step input (source video and related fields).
+ * @param payload - Provider-specific request parameters.
+ * @param provider - The provider that will service the request.
+ * @param options - Output directory, progress, and cancellation hooks.
+ * @returns The step output describing the generated video.
+ */
 async function executeVideoToVideo(
 	model: ModelDefinition,
 	input: StepInput,
@@ -1067,6 +1222,16 @@ async function executeVideoToVideo(
 	return mapApiResult(result, options.outputDir);
 }
 
+/**
+ * Executes an avatar (talking-head) generation step.
+ *
+ * @param model - The resolved model definition.
+ * @param input - The step input (driving image/audio and related fields).
+ * @param payload - Provider-specific request parameters.
+ * @param provider - The provider that will service the request.
+ * @param options - Output directory, progress, and cancellation hooks.
+ * @returns The step output describing the generated avatar video.
+ */
 async function executeAvatar(
 	model: ModelDefinition,
 	input: StepInput,
@@ -1098,6 +1263,16 @@ async function executeAvatar(
 	return mapApiResult(result, options.outputDir);
 }
 
+/**
+ * Executes a text-to-speech step.
+ *
+ * @param model - The resolved model definition.
+ * @param input - The step input (text and voice fields).
+ * @param payload - Provider-specific request parameters.
+ * @param provider - The provider that will service the request.
+ * @param options - Output directory, progress, and cancellation hooks.
+ * @returns The step output describing the generated audio.
+ */
 async function executeTTS(
 	model: ModelDefinition,
 	input: StepInput,
@@ -1137,6 +1312,16 @@ async function executeTTS(
 	return mapApiResult(result, options.outputDir);
 }
 
+/**
+ * Executes a speech-to-text (transcription) step.
+ *
+ * @param model - The resolved model definition.
+ * @param input - The step input (source audio and related fields).
+ * @param payload - Provider-specific request parameters.
+ * @param provider - The provider that will service the request.
+ * @param options - Output directory, progress, and cancellation hooks.
+ * @returns The step output describing the transcription result.
+ */
 async function executeSTT(
 	model: ModelDefinition,
 	input: StepInput,
@@ -1211,6 +1396,16 @@ async function executeSTT(
 	return { success: false, error: result.error, duration: result.duration };
 }
 
+/**
+ * Executes an image-understanding (vision) step.
+ *
+ * @param model - The resolved model definition.
+ * @param input - The step input (source image and prompt fields).
+ * @param payload - Provider-specific request parameters.
+ * @param provider - The provider that will service the request.
+ * @param options - Output directory, progress, and cancellation hooks.
+ * @returns The step output describing the model's analysis.
+ */
 async function executeImageUnderstanding(
 	model: ModelDefinition,
 	input: StepInput,
@@ -1271,6 +1466,15 @@ async function executeImageUnderstanding(
 	return { success: false, error: result.error, duration: result.duration };
 }
 
+/**
+ * Executes a media-understanding step routed through OpenRouter.
+ *
+ * @param model - The resolved model definition.
+ * @param input - The step input (source media and prompt fields).
+ * @param payload - Provider-specific request parameters.
+ * @param options - Output directory, progress, and cancellation hooks.
+ * @returns The step output describing the model's analysis.
+ */
 async function executeOpenRouterMediaUnderstanding(
 	model: ModelDefinition,
 	input: StepInput,
@@ -1292,6 +1496,15 @@ async function executeOpenRouterMediaUnderstanding(
 
 	let mediaUrl: string;
 	try {
+		logOpenRouterVideoDebug({
+			message: "preparing media input",
+			metadata: {
+				modelKey: model.key,
+				inputKind: input.videoUrl !== undefined ? "video" : "image",
+				isRemote: isRemoteUrl(mediaInput),
+				isDataUrl: mediaInput.startsWith("data:"),
+			},
+		});
 		mediaUrl = toOpenRouterMediaUrl({ input: mediaInput });
 	} catch (error) {
 		return {
@@ -1325,6 +1538,17 @@ async function executeOpenRouterMediaUnderstanding(
 		apiPayload.temperature = payload.temperature;
 	}
 
+	logOpenRouterVideoDebug({
+		message: "calling OpenRouter media understanding",
+		metadata: () => ({
+			modelKey: model.key,
+			endpoint: model.endpoint,
+			payloadChars: JSON.stringify(apiPayload).length,
+			mediaUrlChars: mediaUrl.length,
+			timeoutHandledBy: "callModelApi",
+		}),
+	});
+	const startTime = Date.now();
 	const result = await callModelApi({
 		endpoint: model.endpoint,
 		modelKey: model.key,
@@ -1333,6 +1557,14 @@ async function executeOpenRouterMediaUnderstanding(
 		async: false,
 		onProgress: options.onProgress,
 		signal: options.signal,
+	});
+	logOpenRouterVideoDebug({
+		message: "OpenRouter media understanding returned",
+		metadata: {
+			success: result.success,
+			durationMs: Date.now() - startTime,
+			error: result.error,
+		},
 	});
 
 	if (result.success) {
@@ -1487,6 +1719,16 @@ function extractVolcengineText(
 	return extractTextFromResult(data);
 }
 
+/**
+ * Executes a prompt-generation step that produces text prompts from the input.
+ *
+ * @param model - The resolved model definition.
+ * @param input - The step input (seed text and related fields).
+ * @param payload - Provider-specific request parameters.
+ * @param provider - The provider that will service the request.
+ * @param options - Output directory, progress, and cancellation hooks.
+ * @returns The step output containing the generated prompt(s).
+ */
 async function executePromptGeneration(
 	model: ModelDefinition,
 	input: StepInput,

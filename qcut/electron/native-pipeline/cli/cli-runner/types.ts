@@ -333,6 +333,7 @@ export interface CLIRunOptions {
 	// speech generation options
 	exaggeration?: number;
 	temperature?: number;
+	maxTokens?: number;
 	cfg?: number;
 	seed?: number;
 	voice?: string;

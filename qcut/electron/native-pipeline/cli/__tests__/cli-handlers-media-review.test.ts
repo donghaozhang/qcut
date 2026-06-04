@@ -1,10 +1,12 @@
-import { mkdtempSync, readFileSync, readdirSync } from "node:fs";
+import { mkdtempSync, readFileSync, readdirSync, writeFileSync } from "node:fs";
 import os from "node:os";
 import path from "node:path";
 import { beforeEach, describe, expect, it } from "vitest";
 import type { PipelineStep } from "../../execution/executor.js";
 import type { StepInput, StepOutput } from "../../execution/step-executors.js";
 import { ModelRegistry } from "../../infra/registry.js";
+import { getVideoReviewPromptSet } from "../../video-review/review-prompts.js";
+import { runSplitReviewIfNeeded } from "../../video-review/review-split-runner.js";
 import { handleAnalyzeVideo } from "../cli-handlers-media.js";
 import { parseCliArgs } from "../cli.js";
 import type { CLIRunOptions } from "../cli-runner/types.js";
@@ -113,6 +115,7 @@ describe("handleAnalyzeVideo review mode", () => {
 		const params = captured[0]?.params as Record<string, unknown>;
 		expect(params.prompt).toContain("真人审片老师");
 		expect(params.analysis_type).toBe("review");
+		expect(params.max_tokens).toBe(12_000);
 
 		const reviewJson = JSON.parse(
 			readFileSync(path.join(outputDir, "review-comments.json"), "utf-8")
@@ -177,7 +180,7 @@ describe("handleAnalyzeVideo review mode", () => {
 		expect(promptFiles).toHaveLength(10);
 	});
 
-	it("parses review language flags from the command line", () => {
+	it("parses review flags from the command line", () => {
 		const parsed = parseCliArgs([
 			"analyze",
 			"video",
@@ -187,11 +190,14 @@ describe("handleAnalyzeVideo review mode", () => {
 			"review",
 			"--review-language",
 			"en",
+			"--max-tokens",
+			"16000",
 		]);
 
 		expect(parsed.command).toBe("analyze-video");
 		expect(parsed.analysisType).toBe("review");
 		expect(parsed.reviewLanguage).toBe("en");
+		expect(parsed.maxTokens).toBe(16_000);
 	});
 
 	it("keeps raw analysis artifacts when the model returns malformed JSON", async () => {
@@ -221,6 +227,161 @@ describe("handleAnalyzeVideo review mode", () => {
 		);
 		expect(rawAnalysis).toContain("Review response did not contain valid JSON");
 		expect(rawAnalysis).toContain("not json, but keep this raw output");
+	});
+
+	it("salvages complete review comments from a truncated JSON array", async () => {
+		const outputDir = mkdtempSync(
+			path.join(os.tmpdir(), "qcut-review-partial-")
+		);
+		const captured: PipelineStep[] = [];
+
+		const result = await handleAnalyzeVideo(
+			makeAnalyzeOptions({ outputDir }),
+			() => undefined,
+			makeExecutor({
+				captured,
+				text: `\`\`\`json
+[
+  {
+    "timestamp": "00:00:01",
+    "category": "表情/面部",
+    "severity": "high",
+    "comment": "红发女主被泼水这里切得太硬。",
+    "fix": "增加闭眼和缩脖子的受惊过渡。"
+  },
+  {
+    "timestamp": "00:00:23",
+    "category": "口型/音画",
+    "severity": "medium",
+    "comment": "这句台词口型慢了半拍。",
+    "fix": "把口型开始帧向前移动。"
+  },
+  {
+    "timestamp": "00:48:`,
+			}) as never,
+			new AbortController().signal
+		);
+
+		expect(result.success).toBe(true);
+
+		const reviewJson = JSON.parse(
+			readFileSync(path.join(outputDir, "review-comments.json"), "utf-8")
+		) as { comments: Array<{ comment: string }> };
+		expect(reviewJson.comments).toHaveLength(2);
+		expect(reviewJson.comments[0]?.comment).toContain("红发女主");
+
+		const csv = readFileSync(
+			path.join(outputDir, "review-comments.csv"),
+			"utf-8"
+		);
+		expect(csv).toContain("这句台词口型慢了半拍。");
+	});
+
+	it("runs oversized local review inputs as split parts and merges timestamps", async () => {
+		const outputDir = mkdtempSync(path.join(os.tmpdir(), "qcut-review-split-"));
+		const inputPath = path.join(outputDir, "large-review-input.mp4");
+		writeFileSync(inputPath, Buffer.alloc(100));
+		const promptSet = getVideoReviewPromptSet({ language: "zh" });
+		const capturedInputs: string[] = [];
+		const progressMessages: string[] = [];
+		const step: PipelineStep = {
+			type: "image_understanding",
+			model: "openrouter_gemini_3_5_flash_video",
+			params: {
+				prompt: promptSet.master.content,
+				analysis_type: "review",
+				max_tokens: 12_000,
+			},
+			enabled: true,
+			retryCount: 0,
+		};
+
+		const result = await runSplitReviewIfNeeded({
+			videoInput: inputPath,
+			outputDir,
+			videoDisplayName: "large-review-input.mp4",
+			model: "openrouter_gemini_3_5_flash_video",
+			step,
+			executor: {
+				async executeStep(_step: PipelineStep, input: StepInput) {
+					const videoUrl = input.videoUrl ?? "";
+					capturedInputs.push(videoUrl);
+					const isSecondPart = videoUrl.includes("part-002");
+					return {
+						success: true,
+						text: JSON.stringify([
+							{
+								timestamp: isSecondPart ? "00:00:03" : "00:00:02",
+								category: "镜头/剪辑",
+								severity: "medium",
+								comment: isSecondPart
+									? "第二段这里镜头跳了一下。"
+									: "第一段这里切点太早。",
+								fix: "延长上一个镜头。",
+							},
+						]),
+						duration: 0.1,
+					};
+				},
+			} as never,
+			promptSet,
+			onProgress: (progress) => progressMessages.push(progress.message),
+			signal: new AbortController().signal,
+			startTime: Date.now(),
+			maxPayloadChars: 100,
+			splitter: {
+				async probeDurationSeconds() {
+					return 20;
+				},
+				async splitVideo({ outputDir: splitOutputDir, partCount }) {
+					expect(partCount).toBe(2);
+					return [
+						{
+							index: 0,
+							startSeconds: 0,
+							durationSeconds: 10,
+							filePath: path.join(splitOutputDir, "part-001-0000s.mp4"),
+							outputDir: path.join(splitOutputDir, "part-001-review"),
+						},
+						{
+							index: 1,
+							startSeconds: 10,
+							durationSeconds: 10,
+							filePath: path.join(splitOutputDir, "part-002-0010s.mp4"),
+							outputDir: path.join(splitOutputDir, "part-002-review"),
+						},
+					];
+				},
+			},
+		});
+
+		expect(result).not.toBeNull();
+		expect(result?.comments.map((comment) => comment.timestamp)).toEqual([
+			"00:00:02",
+			"00:00:13",
+		]);
+		expect(capturedInputs).toHaveLength(2);
+		expect(progressMessages).toContain("Reviewing split part 1/2");
+		expect(progressMessages).toContain("Reviewing split part 2/2");
+
+		const reviewJson = JSON.parse(
+			readFileSync(path.join(outputDir, "review-comments.json"), "utf-8")
+		) as { comments: Array<{ timestamp: string }> };
+		expect(reviewJson.comments).toHaveLength(2);
+		expect(reviewJson.comments[1]?.timestamp).toBe("00:00:13");
+
+		const report = readFileSync(
+			path.join(outputDir, "review-agent-report.md"),
+			"utf-8"
+		);
+		expect(report).toContain("Split review enabled: 2 parts");
+
+		const rawAnalysis = readFileSync(
+			path.join(outputDir, "raw-analysis.json"),
+			"utf-8"
+		);
+		expect(rawAnalysis).toContain('"splitReview"');
+		expect(rawAnalysis).toContain('"partCount": 2');
 	});
 
 	it("uses a readable display name for inline data URL videos", async () => {

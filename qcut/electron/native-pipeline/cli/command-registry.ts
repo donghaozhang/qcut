@@ -575,6 +575,7 @@ const CORE_COMMANDS: Record<string, CommandDef> = {
 				enum: ["zh", "en"],
 			}),
 			f("--review-prompt-dir", "string", "Custom review prompt directory"),
+			f("--max-tokens", "number", "Maximum review output tokens"),
 		],
 		examples: [
 			"qcut-pipeline analyze-video -i video.mp4 --analysis-type timeline --json",

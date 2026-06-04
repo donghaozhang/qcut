@@ -23,6 +23,7 @@ interface WriteReviewArtifactsOptions {
 	promptSet: ReviewPromptSet;
 	comments: ReviewComment[];
 	rawAnalysis: unknown;
+	reportNotes?: string[];
 }
 
 /** Escape the five HTML-significant characters so review text renders safely. */
@@ -238,18 +239,23 @@ function renderReportMarkdown({
 	duration,
 	promptSet,
 	comments,
+	reportNotes,
 }: {
 	video: string;
 	model: string;
 	duration: number;
 	promptSet: ReviewPromptSet;
 	comments: ReviewComment[];
+	reportNotes?: string[];
 }): string {
 	const counts = groupedCounts({ comments });
 	const countLines = Object.entries(counts)
 		.sort(([, left], [, right]) => right - left)
 		.map(([category, count]) => `- ${category}: ${count}`)
 		.join("\n");
+	const noteLines = reportNotes?.length
+		? `\n## Notes\n\n${reportNotes.map((note) => `- ${note}`).join("\n")}\n`
+		: "";
 
 	return `# Video Review Agent Report
 
@@ -262,6 +268,7 @@ function renderReportMarkdown({
 ## Category Counts
 
 ${countLines || "- No review comments"}
+${noteLines}
 
 ## Artifacts
 
@@ -316,6 +323,7 @@ export function writeReviewArtifacts({
 	promptSet,
 	comments,
 	rawAnalysis,
+	reportNotes,
 }: WriteReviewArtifactsOptions): ReviewArtifactResult {
 	mkdirSync(outputDir, { recursive: true });
 
@@ -350,7 +358,14 @@ export function writeReviewArtifacts({
 	);
 	writeFileSync(
 		reportPath,
-		renderReportMarkdown({ video, model, duration, promptSet, comments }),
+		renderReportMarkdown({
+			video,
+			model,
+			duration,
+			promptSet,
+			comments,
+			reportNotes,
+		}),
 		"utf-8"
 	);
 	writeJson({ filePath: rawAnalysisPath, value: rawAnalysis });

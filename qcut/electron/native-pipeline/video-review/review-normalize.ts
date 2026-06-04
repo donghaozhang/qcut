@@ -174,7 +174,92 @@ function normalizeReviewItem({
 function cleanJsonText({ text }: { text: string }): string {
 	const trimmed = text.trim();
 	const fenced = trimmed.match(/^```(?:json)?\s*([\s\S]*?)\s*```$/);
-	return fenced?.[1]?.trim() ?? trimmed;
+	if (fenced?.[1]) return fenced[1].trim();
+	if (trimmed.startsWith("```")) {
+		const firstLineEnd = trimmed.indexOf("\n");
+		if (firstLineEnd >= 0) return trimmed.slice(firstLineEnd + 1).trim();
+	}
+	return trimmed;
+}
+
+/**
+ * Attempts to parse a `[start, end]` slice of text as a complete JSON object.
+ *
+ * @param text - The full text containing the candidate object.
+ * @param start - Index of the object's opening brace.
+ * @param end - Index of the object's closing brace.
+ * @returns The parsed object, or `null` if the slice is not valid JSON.
+ */
+function parseCompleteObjectSlice({
+	text,
+	start,
+	end,
+}: {
+	text: string;
+	start: number;
+	end: number;
+}): unknown | null {
+	try {
+		return JSON.parse(text.slice(start, end + 1));
+	} catch {
+		return null;
+	}
+}
+
+/**
+ * Extracts every complete top-level object from the first JSON array in the text.
+ *
+ * Scans brace depth while respecting strings/escapes so that partial or truncated
+ * model output still yields the objects that were fully emitted.
+ *
+ * @param text - Text expected to contain a JSON array of objects.
+ * @returns The successfully parsed objects (empty if no array is present).
+ */
+function extractCompleteArrayObjects({ text }: { text: string }): unknown[] {
+	const arrayStart = text.indexOf("[");
+	if (arrayStart < 0) return [];
+
+	const objects: unknown[] = [];
+	let objectStart = -1;
+	let objectDepth = 0;
+	let inString = false;
+	let escaping = false;
+
+	for (let index = arrayStart + 1; index < text.length; index += 1) {
+		const char = text[index];
+		if (escaping) {
+			escaping = false;
+			continue;
+		}
+		if (char === "\\") {
+			escaping = inString;
+			continue;
+		}
+		if (char === '"') {
+			inString = !inString;
+			continue;
+		}
+		if (inString) continue;
+		if (char === "{") {
+			if (objectDepth === 0) objectStart = index;
+			objectDepth += 1;
+			continue;
+		}
+		if (char !== "}") continue;
+
+		objectDepth -= 1;
+		if (objectDepth !== 0 || objectStart < 0) continue;
+
+		const parsed = parseCompleteObjectSlice({
+			text,
+			start: objectStart,
+			end: index,
+		});
+		if (parsed) objects.push(parsed);
+		objectStart = -1;
+	}
+
+	return objects;
 }
 
 /**
@@ -192,6 +277,8 @@ function parseJsonCandidate({ text }: { text: string }): unknown {
 		if (arrayStart >= 0 && arrayEnd > arrayStart) {
 			return JSON.parse(cleaned.slice(arrayStart, arrayEnd + 1));
 		}
+		const completeObjects = extractCompleteArrayObjects({ text: cleaned });
+		if (completeObjects.length > 0) return completeObjects;
 		throw new Error("Review response did not contain valid JSON");
 	}
 }
