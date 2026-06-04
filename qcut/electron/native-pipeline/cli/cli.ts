@@ -54,6 +54,14 @@ const COMMANDS = Object.keys(COMMANDS_REGISTRY);
 
 type Command = string;
 
+/**
+ * Resolves the default export output directory.
+ *
+ * Uses the `QCUT_OUTPUT_DIR` env var when set, otherwise falls back to
+ * `~/Documents/QCut/exports`.
+ *
+ * @returns The absolute path to the default output directory.
+ */
 function getDefaultOutputDir(): string {
 	const envOutputDir = process.env.QCUT_OUTPUT_DIR?.trim();
 	return (
@@ -240,6 +248,7 @@ export function parseCliArgs(argv: string[]): CLIRunOptions {
 			// speech generation options
 			exaggeration: { type: "string" },
 			temperature: { type: "string" },
+			"max-tokens": { type: "string" },
 			cfg: { type: "string" },
 			seed: { type: "string" },
 			voice: { type: "string" },
@@ -255,6 +264,8 @@ export function parseCliArgs(argv: string[]): CLIRunOptions {
 			// analyze-video options
 			"analysis-type": { type: "string" },
 			"output-format": { type: "string", short: "f" },
+			"review-language": { type: "string" },
+			"review-prompt-dir": { type: "string" },
 			before: { type: "string" },
 			after: { type: "string" },
 			// upscale-image options
@@ -595,6 +606,11 @@ export function parseCliArgs(argv: string[]): CLIRunOptions {
 		temperature: values.temperature
 			? parseFloat(values.temperature as string)
 			: undefined,
+		maxTokens: values["max-tokens"]
+			? Number.isNaN(parseInt(values["max-tokens"] as string, 10))
+				? undefined
+				: parseInt(values["max-tokens"] as string, 10)
+			: undefined,
 		cfg: values.cfg ? parseFloat(values.cfg as string) : undefined,
 		seed: values.seed ? parseInt(values.seed as string, 10) : undefined,
 		voice: values.voice as string | undefined,
@@ -629,6 +645,8 @@ export function parseCliArgs(argv: string[]): CLIRunOptions {
 		// analyze-video options
 		analysisType: values["analysis-type"] as string | undefined,
 		outputFormat: values["output-format"] as string | undefined,
+		reviewLanguage: values["review-language"] as string | undefined,
+		reviewPromptDir: values["review-prompt-dir"] as string | undefined,
 		before: values.before as string | undefined,
 		after: values.after as string | undefined,
 		// upscale-image options

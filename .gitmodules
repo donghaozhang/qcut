@@ -5,7 +5,7 @@
 [submodule "qcut/packages/nexusai-website"]
 	path = qcut/packages/nexusai-website
 	url = https://github.com/donghaozhang/nexusai-website.git
-	branch = master
+	branch = cli-image-reviewer
 [submodule "qcut/.claude/skills/qcut-toolkit/Generative-Media-Skills"]
 	path = qcut/.claude/skills/qcut-toolkit/Generative-Media-Skills
 	url = https://github.com/donghaozhang/Generative-Media-Skills

@@ -89,6 +89,129 @@ interface GmiStatusResponse {
 	error?: string;
 }
 
+/**
+ * Emits an OpenRouter video debug log line when `QCUT_DEBUG_OPENROUTER_VIDEO=1`.
+ *
+ * @param message - The debug message.
+ * @param metadata - Optional metadata (or a lazy factory evaluated only when logging is on).
+ */
+function logOpenRouterVideoDebug({
+	message,
+	metadata,
+}: {
+	message: string;
+	metadata?: Record<string, unknown> | (() => Record<string, unknown>);
+}): void {
+	if (process.env.QCUT_DEBUG_OPENROUTER_VIDEO !== "1") return;
+	const value = typeof metadata === "function" ? metadata() : metadata;
+	const suffix = value ? ` ${JSON.stringify(value)}` : "";
+	console.warn(`[openrouter-video-debug] ${message}${suffix}`);
+}
+
+/**
+ * Starts a periodic "still waiting" heartbeat for long-running OpenRouter calls.
+ *
+ * The heartbeat is a no-op for non-OpenRouter providers or when disabled via
+ * `QCUT_OPENROUTER_HEARTBEAT=0`.
+ *
+ * @param provider - The provider servicing the request.
+ * @param stage - Human-readable stage label included in the heartbeat message.
+ * @param modelKey - Optional model identifier included in the message.
+ * @param startTime - Epoch ms when the request started, used to compute elapsed time.
+ * @param timeoutMs - Configured request timeout, reported in the message.
+ * @param onProgress - Optional progress callback invoked on each heartbeat.
+ * @returns A cleanup function that stops the heartbeat timer.
+ */
+function startApiHeartbeat({
+	provider,
+	stage,
+	modelKey,
+	startTime,
+	timeoutMs,
+	onProgress,
+}: {
+	provider: ProviderName;
+	stage: string;
+	modelKey?: string;
+	startTime: number;
+	timeoutMs: number;
+	onProgress?: (percent: number, message: string) => void;
+}): () => void {
+	if (provider !== "openrouter") return () => undefined;
+	if (process.env.QCUT_OPENROUTER_HEARTBEAT === "0") return () => undefined;
+
+	const timer = setInterval(() => {
+		const elapsedSeconds = Math.round((Date.now() - startTime) / 1000);
+		const timeoutSeconds = Math.round(timeoutMs / 1000);
+		const modelSuffix = modelKey ? ` for ${modelKey}` : "";
+		const message = `Still waiting for ${provider} ${stage}${modelSuffix}: ${elapsedSeconds}s elapsed, timeout ${timeoutSeconds}s`;
+		onProgress?.(45, message);
+		console.warn(`[api-caller] ${message}`);
+	}, 30_000);
+
+	return () => clearInterval(timer);
+}
+
+/**
+ * Reads and JSON-parses a response body while emitting a waiting heartbeat.
+ *
+ * @param response - The fetch response whose body is read.
+ * @param provider - The provider servicing the request.
+ * @param modelKey - Optional model identifier for heartbeat messages.
+ * @param startTime - Epoch ms when the request started.
+ * @param timeoutMs - Configured request timeout.
+ * @param onProgress - Optional progress callback for heartbeats.
+ * @returns The parsed JSON body.
+ */
+async function readJsonResponseWithHeartbeat({
+	response,
+	provider,
+	modelKey,
+	startTime,
+	timeoutMs,
+	onProgress,
+}: {
+	response: Response;
+	provider: ProviderName;
+	modelKey?: string;
+	startTime: number;
+	timeoutMs: number;
+	onProgress?: (percent: number, message: string) => void;
+}): Promise<unknown> {
+	logOpenRouterVideoDebug({
+		message: "reading direct API response body",
+		metadata: {
+			provider,
+			status: response.status,
+			contentLength: response.headers.get("content-length"),
+			contentType: response.headers.get("content-type"),
+		},
+	});
+	const stopBodyHeartbeat = startApiHeartbeat({
+		provider,
+		stage: "response body",
+		modelKey,
+		startTime,
+		timeoutMs,
+		onProgress,
+	});
+	let bodyText: string;
+	try {
+		bodyText = await response.text();
+	} finally {
+		stopBodyHeartbeat();
+	}
+	logOpenRouterVideoDebug({
+		message: "direct API response body received",
+		metadata: {
+			provider,
+			bodyChars: bodyText.length,
+			elapsedMs: Date.now() - startTime,
+		},
+	});
+	return JSON.parse(bodyText);
+}
+
 interface ImaRouterSubmitResponse {
 	task_id?: string;
 	id?: string;
@@ -180,11 +303,23 @@ const MIME_TYPES: Record<string, string> = {
 	".wav": "audio/wav",
 };
 
+/**
+ * Resolves a MIME content type from a file path's extension.
+ *
+ * @param filePath - The file path to inspect.
+ * @returns The matching MIME type, defaulting to `application/octet-stream`.
+ */
 function getContentTypeForPath(filePath: string): string {
 	const ext = path.extname(filePath).toLowerCase();
 	return MIME_TYPES[ext] || "application/octet-stream";
 }
 
+/**
+ * Derives a filename from a local path or remote URL.
+ *
+ * @param input - A local file path or `http(s)` URL.
+ * @returns The basename, falling back to `"audio"` when none can be derived.
+ */
 function filenameFromInput({ input }: { input: string }): string {
 	if (!/^https?:\/\//i.test(input)) return path.basename(input);
 	try {
@@ -196,6 +331,15 @@ function filenameFromInput({ input }: { input: string }): string {
 	}
 }
 
+/**
+ * Appends a single field to a speech-to-text multipart form.
+ *
+ * Skips null/undefined values and JSON-encodes arrays and objects.
+ *
+ * @param form - The form to mutate.
+ * @param key - The field name.
+ * @param value - The field value to append.
+ */
 function appendSpeechToTextField({
 	form,
 	key,
@@ -217,6 +361,14 @@ function appendSpeechToTextField({
 	form.append(key, String(value));
 }
 
+/**
+ * Loads an audio input into a {@link Blob}, fetching remote URLs or reading local files.
+ *
+ * @param audioInput - A local file path or `http(s)` URL.
+ * @param signal - Optional abort signal for the remote fetch.
+ * @returns The audio blob and its derived filename.
+ * @throws If a remote URL cannot be fetched.
+ */
 async function buildAudioBlob({
 	audioInput,
 	signal,
@@ -247,6 +399,16 @@ async function buildAudioBlob({
 	};
 }
 
+/**
+ * Builds the multipart form for an ElevenLabs speech-to-text request.
+ *
+ * Sets the audio file and `model_id` (default `scribe_v2`), maps `language` to
+ * `language_code`, and appends the remaining payload fields.
+ *
+ * @param audio - The audio blob and filename to upload.
+ * @param payload - Additional request parameters.
+ * @returns The assembled {@link FormData}.
+ */
 function buildElevenLabsSpeechToTextForm({
 	audio,
 	payload,
@@ -803,6 +965,14 @@ async function pollGmiQueue(
 
 const IMAROUTER_MAX_POLL_MS = 30 * 60 * 1000; // 30 min ceiling
 
+/**
+ * Returns the status payload object from an IMA Router response.
+ *
+ * Prefers the nested `data` object and falls back to the top-level response.
+ *
+ * @param status - The IMA Router status response.
+ * @returns The payload record to read status/error fields from.
+ */
 function getImaRouterStatusPayload(
 	status: ImaRouterStatusResponse
 ): Record<string, unknown> {
@@ -811,11 +981,23 @@ function getImaRouterStatusPayload(
 	return status as Record<string, unknown>;
 }
 
+/**
+ * Extracts the normalized (lowercased) task status from an IMA Router response.
+ *
+ * @param status - The IMA Router status response.
+ * @returns The status string in lower case, or an empty string if absent.
+ */
 function getImaRouterStatus(status: ImaRouterStatusResponse): string {
 	const payload = getImaRouterStatusPayload(status);
 	return String(payload.status ?? status.status ?? "").toLowerCase();
 }
 
+/**
+ * Extracts a human-readable error message from a failed IMA Router response.
+ *
+ * @param status - The IMA Router status response.
+ * @returns The error string, nested error message, top-level message, or `"task failed"`.
+ */
 function getImaRouterErrorMessage(status: ImaRouterStatusResponse): string {
 	const payload = getImaRouterStatusPayload(status);
 	const error = payload.error ?? status.error;
@@ -840,6 +1022,15 @@ function getImaRouterErrorMessage(status: ImaRouterStatusResponse): string {
  */
 type ImaRouterTaskKind = "video" | "image";
 
+/**
+ * Polls an IMA Router task endpoint until it completes, fails, or is cancelled.
+ *
+ * @param taskId - The IMA Router task identifier to poll.
+ * @param taskPath - The status endpoint path for the task kind.
+ * @param kind - Whether the task produces an image or video, used to shape the result.
+ * @param options - Optional progress and cancellation hooks.
+ * @returns The final API call result for the task.
+ */
 async function pollImaRouterGenericTask(
 	taskId: string,
 	taskPath: string,
@@ -916,6 +1107,13 @@ async function pollImaRouterGenericTask(
 	};
 }
 
+/**
+ * Polls an IMA Router video-generation task to completion.
+ *
+ * @param taskId - The IMA Router task identifier.
+ * @param options - Optional progress and cancellation hooks.
+ * @returns The final API call result for the video task.
+ */
 async function pollImaRouterTask(
 	taskId: string,
 	options?: {
@@ -931,6 +1129,13 @@ async function pollImaRouterTask(
 	);
 }
 
+/**
+ * Polls an IMA Router image-generation task to completion.
+ *
+ * @param taskId - The IMA Router task identifier.
+ * @param options - Optional progress and cancellation hooks.
+ * @returns The final API call result for the image task.
+ */
 async function pollImaRouterImageTask(
 	taskId: string,
 	options?: {
@@ -991,10 +1196,40 @@ export async function callModelApi(
 		const credits = options.modelKey
 			? estimateProxyCredits(options.modelKey, options.payload)
 			: undefined;
-		const proxyResult = await callModelApiViaProxy(
-			{ ...options, credits, timeoutMs },
-			startTime
-		);
+		logOpenRouterVideoDebug({
+			message: "calling proxy",
+			metadata: () => ({
+				provider,
+				modelKey: options.modelKey,
+				timeoutMs,
+				payloadChars: JSON.stringify(payload).length,
+			}),
+		});
+		const stopProxyHeartbeat = startApiHeartbeat({
+			provider,
+			stage: "proxy",
+			modelKey: options.modelKey,
+			startTime,
+			timeoutMs,
+			onProgress: options.onProgress,
+		});
+		let proxyResult: ApiCallResult;
+		try {
+			proxyResult = await callModelApiViaProxy(
+				{ ...options, credits, timeoutMs },
+				startTime
+			);
+		} finally {
+			stopProxyHeartbeat();
+		}
+		logOpenRouterVideoDebug({
+			message: "proxy returned",
+			metadata: {
+				success: proxyResult.success,
+				error: proxyResult.error,
+				duration: proxyResult.duration,
+			},
+		});
 		if (proxyResult.success || !apiKey) {
 			return proxyResult;
 		}
@@ -1186,16 +1421,48 @@ export async function callModelApi(
 			return pollImaRouterTask(taskId, pollOptions);
 		}
 
-		const response = await fetchWithRetry(
-			url,
-			{
-				method: "POST",
-				headers,
-				body: JSON.stringify(payload),
-				signal: combinedSignal,
+		logOpenRouterVideoDebug({
+			message: "calling direct API",
+			metadata: () => ({
+				provider,
+				url,
+				timeoutMs,
+				retries,
+				payloadChars: JSON.stringify(payload).length,
+			}),
+		});
+		const stopDirectHeartbeat = startApiHeartbeat({
+			provider,
+			stage: "direct API",
+			modelKey: options.modelKey,
+			startTime,
+			timeoutMs,
+			onProgress: options.onProgress,
+		});
+		let response: Response;
+		try {
+			response = await fetchWithRetry(
+				url,
+				{
+					method: "POST",
+					headers,
+					body: JSON.stringify(payload),
+					signal: combinedSignal,
+				},
+				retries
+			);
+		} finally {
+			stopDirectHeartbeat();
+		}
+		logOpenRouterVideoDebug({
+			message: "direct API response received",
+			metadata: {
+				provider,
+				status: response.status,
+				ok: response.ok,
+				elapsedMs: Date.now() - startTime,
 			},
-			retries
-		);
+		});
 
 		if (!response.ok) {
 			const errorText = await response.text();
@@ -1206,7 +1473,23 @@ export async function callModelApi(
 			};
 		}
 
-		const data = await response.json();
+		let data: unknown;
+		try {
+			data = await readJsonResponseWithHeartbeat({
+				response,
+				provider,
+				modelKey: options.modelKey,
+				startTime,
+				timeoutMs,
+				onProgress: options.onProgress,
+			});
+		} catch (error) {
+			return {
+				success: false,
+				error: `Failed to read API response JSON: ${error instanceof Error ? error.message : String(error)}`,
+				duration: (Date.now() - startTime) / 1000,
+			};
+		}
 		return {
 			success: true,
 			data,
@@ -1225,6 +1508,18 @@ export async function callModelApi(
 	}
 }
 
+/**
+ * Calls the ElevenLabs speech-to-text API and returns the transcription result.
+ *
+ * Loads the audio, builds the multipart form, and posts it with a timeout/abort guard.
+ *
+ * @param endpoint - The ElevenLabs endpoint identifier.
+ * @param audioInput - A local path or `http(s)` URL to the audio to transcribe.
+ * @param payload - Additional request parameters (model, language, etc.).
+ * @param signal - Optional abort signal.
+ * @param timeoutMs - Request timeout in milliseconds (defaults to the module default).
+ * @returns The API call result containing the transcription.
+ */
 export async function callElevenLabsSpeechToText({
 	endpoint,
 	audioInput,

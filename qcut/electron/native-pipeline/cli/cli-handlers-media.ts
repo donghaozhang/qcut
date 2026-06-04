@@ -16,9 +16,15 @@ import type { PipelineStep } from "../execution/executor.js";
 import type { PipelineExecutor } from "../execution/executor.js";
 import { resolveOutputDir } from "../output/output-utils.js";
 import { createEditorClient } from "../editor/editor-api-client.js";
+import { getVideoReviewPromptSet } from "../video-review/review-prompts.js";
+import { parseReviewModelResponse } from "../video-review/review-normalize.js";
+import { writeReviewArtifacts } from "../video-review/review-artifacts.js";
+import { runSplitReviewIfNeeded } from "../video-review/review-split-runner.js";
 
 const DEFAULT_VIDEO_ANALYSIS_MODEL = "openrouter_gemini_3_5_flash_video";
+const DEFAULT_REVIEW_MAX_TOKENS = 12_000;
 
+/** Return true when the input looks like an `http(s)` URL rather than a local path. */
 function isUrl(input: string): boolean {
 	return /^https?:\/\//i.test(input);
 }
@@ -34,6 +40,16 @@ function filenameFromUrl(url: string): string {
 	}
 }
 
+/**
+ * Derive a human-readable display name for a video input, handling inline
+ * data URIs, remote URLs, and local file paths.
+ */
+function displayNameForVideoInput({ input }: { input: string }): string {
+	if (input.startsWith("data:video/")) return "inline-video.mp4";
+	if (isUrl(input)) return filenameFromUrl(input);
+	return basename(input);
+}
+
 type ProgressFn = (progress: {
 	stage: string;
 	percent: number;
@@ -41,6 +57,11 @@ type ProgressFn = (progress: {
 	model?: string;
 }) => void;
 
+/**
+ * Resolve which transcription model to use from an explicit model or a provider
+ * name. An explicit model wins; otherwise the provider selects a default
+ * (defaulting to ElevenLabs). Returns an `error` for unsupported providers.
+ */
 function resolveTranscribeModel({
 	model,
 	provider,
@@ -61,6 +82,11 @@ function resolveTranscribeModel({
 	};
 }
 
+/**
+ * CLI handler for the analyze-video command: validates the input and model,
+ * runs the analysis pipeline with progress reporting, and optionally imports
+ * the results into the editor timeline.
+ */
 export async function handleAnalyzeVideo(
 	options: CLIRunOptions,
 	onProgress: ProgressFn,
@@ -87,6 +113,13 @@ export async function handleAnalyzeVideo(
 
 	// Analysis type determines the default prompt
 	const analysisType = options.analysisType || "timeline";
+	const reviewPromptSet =
+		analysisType === "review"
+			? getVideoReviewPromptSet({
+					language: options.reviewLanguage,
+					promptDir: options.reviewPromptDir,
+				})
+			: undefined;
 	const promptMap: Record<string, string> = {
 		timeline:
 			'Analyze this video and return a JSON array of timestamped events. Each entry should have "start" (seconds), "end" (seconds), "label" (short description), and "tags" (array of keywords). Example: [{"start":0,"end":2.5,"label":"City skyline establishing shot","tags":["establishing","city"]}]. Return ONLY valid JSON, no markdown.',
@@ -107,7 +140,31 @@ Output ONLY valid JSON matching this schema — no markdown fences, no commentar
 Rules: Break into individual shots at scene cuts. Be precise with timing. Write vivid AI generation prompts. Capture on-screen text. Identify 3-5 dominant hex colors. Transcribe spoken audio. Duration must equal endTime - startTime.`,
 	};
 	const defaultPrompt =
-		promptMap[analysisType] || "Describe this video in detail";
+		reviewPromptSet?.master.content ||
+		promptMap[analysisType] ||
+		"Describe this video in detail";
+	const videoFilename = isUrl(videoInput)
+		? filenameFromUrl(videoInput)
+		: basename(videoInput);
+	const extWithDot = videoFilename.includes(".")
+		? `.${videoFilename.split(".").pop()}`
+		: "";
+	const videoBasename = extWithDot
+		? videoFilename.slice(0, -extWithDot.length)
+		: videoFilename;
+	const outputDir =
+		options.outputDir ||
+		(isUrl(videoInput) ? process.cwd() : dirname(videoInput));
+
+	if (
+		options.maxTokens !== undefined &&
+		(!Number.isInteger(options.maxTokens) || options.maxTokens <= 0)
+	) {
+		return {
+			success: false,
+			error: "--max-tokens must be a positive integer",
+		};
+	}
 
 	const step: PipelineStep = {
 		type: "image_understanding",
@@ -115,15 +172,70 @@ Rules: Break into individual shots at scene cuts. Be precise with timing. Write 
 		params: {
 			prompt: options.prompt || options.text || defaultPrompt,
 			analysis_type: analysisType,
+			...(analysisType === "review"
+				? {
+						max_tokens: options.maxTokens ?? DEFAULT_REVIEW_MAX_TOKENS,
+					}
+				: options.maxTokens !== undefined
+					? { max_tokens: options.maxTokens }
+					: {}),
 		},
 		enabled: true,
 		retryCount: 0,
 	};
 
+	if (analysisType === "review" && reviewPromptSet) {
+		try {
+			const splitReview = await runSplitReviewIfNeeded({
+				videoInput,
+				outputDir,
+				videoDisplayName: displayNameForVideoInput({ input: videoInput }),
+				model,
+				step,
+				executor,
+				promptSet: reviewPromptSet,
+				onProgress,
+				signal,
+				startTime,
+			});
+			if (splitReview) {
+				onProgress({ stage: "complete", percent: 100, message: "Done", model });
+				return {
+					success: true,
+					outputPath: splitReview.artifacts.reportPath,
+					data: {
+						type: analysisType,
+						video: displayNameForVideoInput({ input: videoInput }),
+						model,
+						duration: (Date.now() - startTime) / 1000,
+						content: {
+							comments: splitReview.comments,
+							artifacts: splitReview.artifacts,
+							splitReview: splitReview.rawAnalysis,
+						},
+					},
+					duration: (Date.now() - startTime) / 1000,
+				};
+			}
+		} catch (error) {
+			return {
+				success: false,
+				error: `Split review failed: ${error instanceof Error ? error.message : String(error)}`,
+				duration: (Date.now() - startTime) / 1000,
+			};
+		}
+	}
+
 	const result = await executor.executeStep(
 		step,
 		{ videoUrl: videoInput },
-		{ outputDir: options.outputDir, signal }
+		{
+			outputDir,
+			onProgress: (percent, message) => {
+				onProgress({ stage: "analyzing", percent, message, model });
+			},
+			signal,
+		}
 	);
 
 	onProgress({ stage: "complete", percent: 100, message: "Done", model });
@@ -138,20 +250,8 @@ Rules: Break into individual shots at scene cuts. Be precise with timing. Write 
 		};
 	}
 
-	// Always save JSON alongside the video (same name, .json extension)
+	// Non-review analyses keep the legacy same-name JSON behavior.
 	// Output dir: explicit -o flag > video's directory (use cwd for URLs)
-	const videoFilename = isUrl(videoInput)
-		? filenameFromUrl(videoInput)
-		: basename(videoInput);
-	const extWithDot = videoFilename.includes(".")
-		? `.${videoFilename.split(".").pop()}`
-		: "";
-	const videoBasename = extWithDot
-		? videoFilename.slice(0, -extWithDot.length)
-		: videoFilename;
-	const outputDir =
-		options.outputDir ||
-		(isUrl(videoInput) ? process.cwd() : dirname(videoInput));
 	const jsonPath = join(outputDir, `${videoBasename}.json`);
 
 	// Parse structured JSON from model response if possible
@@ -171,11 +271,41 @@ Rules: Break into individual shots at scene cuts. Be precise with timing. Write 
 
 	const output = {
 		type: analysisType,
-		video: basename(videoInput),
+		video: displayNameForVideoInput({ input: videoInput }),
 		model,
 		duration: (Date.now() - startTime) / 1000,
 		content: parsed,
 	};
+
+	if (analysisType === "review" && reviewPromptSet) {
+		const review = parseReviewModelResponse({ response: resultData });
+		const artifacts = writeReviewArtifacts({
+			outputDir,
+			video: output.video,
+			model,
+			duration: output.duration,
+			promptSet: reviewPromptSet,
+			comments: review.comments,
+			rawAnalysis: {
+				...output,
+				content: review.parsed,
+				rawText: review.rawText,
+			},
+		});
+
+		return {
+			success: true,
+			outputPath: artifacts.reportPath,
+			data: {
+				...output,
+				content: {
+					comments: review.comments,
+					artifacts,
+				},
+			},
+			duration: output.duration,
+		};
+	}
 
 	try {
 		mkdirSync(outputDir, { recursive: true });
@@ -333,6 +463,11 @@ interface QueryVideoSegment {
 	action: "keep" | "cut";
 }
 
+/**
+ * CLI handler for the query-video command: runs a natural-language query over a
+ * video, reporting progress and optionally importing the resulting keep/cut
+ * segments into the editor timeline.
+ */
 export async function handleQueryVideo(
 	options: CLIRunOptions,
 	onProgress: ProgressFn,
@@ -581,6 +716,11 @@ async function addQuerySegmentsToTimeline(
 	return { success: true };
 }
 
+/**
+ * CLI handler for the transcribe command: resolves the transcription model from
+ * the requested model/provider and runs the transcription pipeline with
+ * progress reporting.
+ */
 export async function handleTranscribe(
 	options: CLIRunOptions,
 	onProgress: ProgressFn,

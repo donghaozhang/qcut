@@ -186,6 +186,7 @@ docs/task/bytedance-hackathon/*.png
 
 # Local reference clones (kept out of git)
 docs/task/daytona-supabase-agent/vm0/
+docs/task/daytona-supabase-agent/ffas-review-export-debug/
 
 # Deprioritized task docs (parked locally, not tracked)
 docs/task/Low-priority/
