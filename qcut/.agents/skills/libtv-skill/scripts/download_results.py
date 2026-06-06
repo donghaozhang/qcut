@@ -6,10 +6,9 @@ import json
 import os
 import re
 import sys
-import urllib.error
 import urllib.request
+import urllib.error
 from concurrent.futures import ThreadPoolExecutor, as_completed
-from urllib.parse import urlparse
 
 sys.path.insert(0, os.path.dirname(__file__))
 from _common import query_session
@@ -58,10 +57,6 @@ def extract_urls_from_messages(messages):
 
 def download_file(url, filepath):
     """下载单个文件"""
-    parsed = urlparse(url)
-    if parsed.scheme not in {"http", "https"}:
-        return filepath, f"unsupported URL scheme: {parsed.scheme or 'unknown'}"
-
     req = urllib.request.Request(url, headers={"User-Agent": "LibTV-Skill/1.0"})
     try:
         with urllib.request.urlopen(req, timeout=60) as resp:

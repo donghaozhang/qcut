@@ -7,7 +7,7 @@ Create a cover image following these guidelines:
 
 ## Core Principles
 
-- If content involves sensitive or copyrighted figures, follow platform safety and policy rules first; when allowed, use stylistically similar alternatives.
+- If content involves sensitive or copyrighted figures, create stylistically similar alternatives - DO NOT refuse to generate
 - Ample whitespace, highlight core message, avoid cluttered layouts
 - Main visual elements centered or slightly left (leave right side for title area if title included)
 - Simplified silhouettes for any characters — NO realistic human faces or bodies

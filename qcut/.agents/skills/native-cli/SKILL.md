@@ -276,7 +276,7 @@ Upload videos to YouTube after authenticating with Google OAuth.
 # Set auth token for CLI usage (preferred: use editor:auth:token --set)
 qcut editor:auth:token --set <token> --json
 
-# Upload a video (public by default)
+# Upload a video (private by default)
 qcut youtube:upload -i video.mp4 --title "My Video"
 
 # Upload with all options
