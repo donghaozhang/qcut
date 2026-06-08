@@ -1,0 +1,119 @@
+name: WZRD Daytona Image
+
+on:
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: "Image tag to publish, e.g. test-20260608"
+        required: true
+        default: "test-20260608"
+        type: string
+      wzrd_repository:
+        description: "WZRD repository to checkout"
+        required: true
+        default: "gratitude5dee/wzrdagentstudio"
+        type: string
+      wzrd_ref:
+        description: "WZRD git ref to build"
+        required: true
+        default: "qcut-cli"
+        type: string
+      platforms:
+        description: "Build platforms"
+        required: false
+        default: "linux/amd64"
+        type: string
+      push_latest:
+        description: "Also push :latest"
+        required: false
+        default: false
+        type: boolean
+
+permissions:
+  contents: read
+  packages: write
+
+jobs:
+  publish:
+    name: Build, Smoke, And Push WZRD Daytona Image
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout WZRD
+        uses: actions/checkout@v5
+        with:
+          repository: ${{ inputs.wzrd_repository }}
+          ref: ${{ inputs.wzrd_ref }}
+          path: wzrdagentstudio
+          token: ${{ secrets.WZRD_REPO_READ_TOKEN || github.token }}
+
+      - name: Prepare image names
+        id: image
+        shell: bash
+        run: |
+          owner="${GITHUB_REPOSITORY_OWNER,,}"
+          tag="${{ inputs.tag }}"
+          name="ghcr.io/${owner}/wzrdagentstudio-daytona-agent"
+          tags="${name}:${tag}"
+          if [[ "${{ inputs.push_latest }}" == "true" ]]; then
+            tags="${tags}"$'\n'"${name}:latest"
+          fi
+
+          {
+            echo "name=${name}"
+            echo "tag=${tag}"
+            echo "tags<<EOF"
+            echo "${tags}"
+            echo "EOF"
+          } >> "${GITHUB_OUTPUT}"
+
+      - name: Validate smoke platform coverage
+        shell: bash
+        run: |
+          platforms="${{ inputs.platforms || 'linux/amd64' }}"
+          if [[ "${platforms}" != "linux/amd64" ]]; then
+            echo "::error::WZRD Daytona image smoke currently verifies linux/amd64 only; refusing to publish unsmoked platforms: ${platforms}"
+            exit 1
+          fi
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Log in to GHCR
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Build local smoke image
+        uses: docker/build-push-action@v6
+        with:
+          context: ./wzrdagentstudio
+          file: ./wzrdagentstudio/Dockerfile.daytona-agent
+          platforms: linux/amd64
+          load: true
+          tags: wzrd-daytona-agent:ci
+          build-args: |
+            WZRD_AGENT_VERSION=${{ steps.image.outputs.tag }}
+          cache-from: type=gha,scope=wzrd-daytona-agent
+          cache-to: type=gha,mode=max,scope=wzrd-daytona-agent
+
+      - name: Smoke WZRD Daytona image
+        run: DAYTONA_AGENT_IMAGE=wzrd-daytona-agent:ci bash wzrdagentstudio/scripts/daytona-agent-image-smoke.sh
+
+      - name: Push image
+        uses: docker/build-push-action@v6
+        with:
+          context: ./wzrdagentstudio
+          file: ./wzrdagentstudio/Dockerfile.daytona-agent
+          platforms: ${{ inputs.platforms || 'linux/amd64' }}
+          push: true
+          tags: ${{ steps.image.outputs.tags }}
+          build-args: |
+            WZRD_AGENT_VERSION=${{ steps.image.outputs.tag }}
+          cache-from: type=gha,scope=wzrd-daytona-agent
+          cache-to: type=gha,mode=max,scope=wzrd-daytona-agent
+
+      - name: Verify pushed manifest
+        run: docker buildx imagetools inspect "${{ steps.image.outputs.name }}:${{ steps.image.outputs.tag }}"
