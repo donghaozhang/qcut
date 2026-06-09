@@ -2,7 +2,7 @@
 # PR Comments Exporter - All Comments (Thread + Review)
 # Usage: ./export-all.sh owner/repo pr_number [output_dir]
 
-set -e
+set -euo pipefail
 
 REPO=${1:-""}
 PR=${2:-""}
@@ -39,10 +39,12 @@ echo ""
 echo "--- Main Thread Comments ---"
 
 THREAD_TEMP=$(mktemp)
-trap "rm -f $THREAD_TEMP" EXIT
+REVIEW_TEMP=$(mktemp)
+trap 'rm -f "$THREAD_TEMP" "$REVIEW_TEMP"' EXIT
 
-gh api "repos/${REPO}/issues/${PR}/comments" > "$THREAD_TEMP" 2>/dev/null || {
+gh api --paginate "repos/${REPO}/issues/${PR}/comments" 2>/dev/null | jq -s 'add // []' > "$THREAD_TEMP" || {
     echo "Warning: Could not fetch thread comments"
+    printf '[]\n' > "$THREAD_TEMP"
 }
 
 thread_count=$(jq 'length' "$THREAD_TEMP" 2>/dev/null || echo "0")
@@ -78,9 +80,9 @@ done
 echo ""
 echo "--- Inline Review Comments ---"
 
-REVIEW_TEMP=$(mktemp)
-gh api "repos/${REPO}/pulls/${PR}/comments" > "$REVIEW_TEMP" 2>/dev/null || {
+gh api --paginate "repos/${REPO}/pulls/${PR}/comments" 2>/dev/null | jq -s 'add // []' > "$REVIEW_TEMP" || {
     echo "Warning: Could not fetch review comments"
+    printf '[]\n' > "$REVIEW_TEMP"
 }
 
 review_count=$(jq 'length' "$REVIEW_TEMP" 2>/dev/null || echo "0")
@@ -115,8 +117,6 @@ for ((i=0; i<review_count; i++)); do
 ${body}
 ENDFILE
 done
-
-rm -f "$REVIEW_TEMP"
 
 # ===== SUMMARY =====
 echo ""

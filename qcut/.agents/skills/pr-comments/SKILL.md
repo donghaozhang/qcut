@@ -17,7 +17,7 @@ Export GitHub PR review comments, preprocess for evaluation, and fix or reject e
 Export all review comments from a PR to individual markdown files.
 
 ```bash
-bash .claude/skills/pr-comments/scripts/export.sh $1 $2 $3
+bash .agents/skills/pr-comments/scripts/export.sh $1 $2 $3
 ```
 
 **Output:** `docs/pr-comments/pr-{number}/` with one file per comment.
@@ -27,7 +27,7 @@ bash .claude/skills/pr-comments/scripts/export.sh $1 $2 $3
 Clean exported comments for agentic evaluation (removes `<details>` blocks, adds evaluation prompt).
 
 ```bash
-bash .claude/skills/pr-comments/scripts/batch-preprocess.sh $1
+bash .agents/skills/pr-comments/scripts/batch-preprocess.sh $1
 ```
 
 **Output:** `{input-dir}-tasks/` with cleaned task files.
@@ -37,7 +37,7 @@ bash .claude/skills/pr-comments/scripts/batch-preprocess.sh $1
 Show comments grouped by source file with recommended processing order.
 
 ```bash
-bash .claude/skills/pr-comments/scripts/analyze.sh $1
+bash .agents/skills/pr-comments/scripts/analyze.sh $1
 ```
 
 **Output:** Table showing which files have multiple comments and line numbers (sorted for bottom-up fixing).
@@ -64,7 +64,7 @@ Follow instructions in [review-batch.md](review-batch.md).
 Resolve a PR review thread on GitHub and move task to completed folder.
 
 ```bash
-bash .claude/skills/pr-comments/scripts/resolve-thread.sh $1 $2 $3 $4
+bash .agents/skills/pr-comments/scripts/resolve-thread.sh $1 $2 $3 $4
 ```
 
 **Example:**

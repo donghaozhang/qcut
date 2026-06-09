@@ -28,7 +28,7 @@ THREAD_ID=$(gh api graphql -f query="query {
         nodes {
           id
           isResolved
-          comments(first: 10) {
+          comments(first: 100) {
             nodes {
               databaseId
             }

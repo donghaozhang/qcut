@@ -5,6 +5,7 @@ import os
 import sys
 import urllib.request
 import urllib.error
+from urllib.parse import quote
 
 # 默认 im 环境
 IM_BASE = os.environ.get("OPENAPI_IM_BASE", os.environ.get("IM_BASE_URL", "https://im.liblib.tv"))
@@ -89,7 +90,7 @@ def query_session(session_id: str, after_seq: int = 0) -> dict:
     查询会话消息列表。
     返回 data: { messages: [...] }。
     """
-    path = f"/openapi/session/{session_id}"
+    path = f"/openapi/session/{quote(session_id, safe='')}"
     if after_seq > 0:
         path += f"?afterSeq={after_seq}"
     resp = api_get(path)

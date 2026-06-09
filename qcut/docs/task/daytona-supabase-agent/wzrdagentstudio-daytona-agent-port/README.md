@@ -2,7 +2,7 @@
 
 ## Goal
 
-This directory explains how to add QCut's Daytona online chat agent capability to `/Users/peter/Desktop/code/wzrdagentstudio`.
+This directory explains how to add QCut's Daytona online chat agent capability to `<WZRD_ROOT>`.
 
 The goal is not to copy the QCut implementation wholesale. The clean split is:
 
@@ -14,9 +14,9 @@ The goal is not to copy the QCut implementation wholesale. The clean split is:
 
 WZRD already has a logical agent session table:
 
-- `/Users/peter/Desktop/code/wzrdagentstudio/supabase/migrations/20260503191248_add_wzrd_agent_sessions_and_export_indexes.sql`
-- `/Users/peter/Desktop/code/wzrdagentstudio/supabase/functions/_shared/wzrdAgentContract.ts`
-- `/Users/peter/Desktop/code/wzrdagentstudio/supabase/functions/generate-workflow/index.ts`
+- `<WZRD_ROOT>/supabase/migrations/20260503191248_add_wzrd_agent_sessions_and_export_indexes.sql`
+- `<WZRD_ROOT>/supabase/functions/_shared/wzrdAgentContract.ts`
+- `<WZRD_ROOT>/supabase/functions/generate-workflow/index.ts`
 
 That table supports the `generate-workflow` planning/materialize/repair flow. A Daytona online chat agent is a different runtime capability: it needs a real sandbox, PTY, file upload/download, relay tokens, and runtime audit events.
 

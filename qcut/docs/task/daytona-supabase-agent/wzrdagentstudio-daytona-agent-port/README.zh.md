@@ -2,7 +2,7 @@
 
 ## 目标
 
-这个目录说明如何把 QCut 里的 Daytona online chat agent 能力迁移到 `/Users/peter/Desktop/code/wzrdagentstudio`。
+这个目录说明如何把 QCut 里的 Daytona online chat agent 能力迁移到 `<WZRD_ROOT>`。
 
 目标不是把 QCut 代码整包复制过去，而是拆成三层：
 
@@ -14,9 +14,9 @@
 
 WZRD 已经有一个逻辑型 agent 表：
 
-- `/Users/peter/Desktop/code/wzrdagentstudio/supabase/migrations/20260503191248_add_wzrd_agent_sessions_and_export_indexes.sql`
-- `/Users/peter/Desktop/code/wzrdagentstudio/supabase/functions/_shared/wzrdAgentContract.ts`
-- `/Users/peter/Desktop/code/wzrdagentstudio/supabase/functions/generate-workflow/index.ts`
+- `<WZRD_ROOT>/supabase/migrations/20260503191248_add_wzrd_agent_sessions_and_export_indexes.sql`
+- `<WZRD_ROOT>/supabase/functions/_shared/wzrdAgentContract.ts`
+- `<WZRD_ROOT>/supabase/functions/generate-workflow/index.ts`
 
 这个表当前服务于 `generate-workflow` 的 planning/materialize/repair 流程。Daytona online chat agent 是另一类能力：它需要真实 sandbox、PTY、文件上传下载、relay token、runtime audit。
 

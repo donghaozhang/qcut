@@ -5,7 +5,7 @@
 Add these areas to the WZRD repo:
 
 ```text
-/Users/peter/Desktop/code/wzrdagentstudio
+<WZRD_ROOT>
   packages/
     wzrd-agent-relay/
   supabase/

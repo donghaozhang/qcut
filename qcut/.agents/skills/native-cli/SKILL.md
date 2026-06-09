@@ -297,7 +297,7 @@ qcut youtube:upload \
 | `--title` | Video title (required) |
 | `--text` | Video description |
 | `--data` | Comma-separated tags |
-| `--mode` | Privacy: `public`, `unlisted`, `private` (default: `public`) |
+| `--mode` | Privacy: `public`, `unlisted`, `private` (default: `private`) |
 | `--category` | YouTube category ID (default: `22` = People & Blogs) |
 | `--image` | Path to thumbnail image |
 

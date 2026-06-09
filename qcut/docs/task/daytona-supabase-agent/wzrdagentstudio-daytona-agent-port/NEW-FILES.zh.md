@@ -5,7 +5,7 @@
 建议在 WZRD repo 中新增这些区域：
 
 ```text
-/Users/peter/Desktop/code/wzrdagentstudio
+<WZRD_ROOT>
   packages/
     wzrd-agent-relay/
   supabase/

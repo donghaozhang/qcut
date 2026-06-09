@@ -40,22 +40,30 @@ jobs:
 
     steps:
       - name: Checkout WZRD
-        uses: actions/checkout@v5
+        uses: actions/checkout@93cb6efe18208431cddfb8368fd83d5badbf9bfd
         with:
           repository: ${{ inputs.wzrd_repository }}
           ref: ${{ inputs.wzrd_ref }}
           path: wzrdagentstudio
           token: ${{ secrets.WZRD_REPO_READ_TOKEN || github.token }}
+          persist-credentials: false
 
       - name: Prepare image names
         id: image
         shell: bash
+        env:
+          INPUT_PUSH_LATEST: ${{ inputs.push_latest }}
+          INPUT_TAG: ${{ inputs.tag }}
         run: |
           owner="${GITHUB_REPOSITORY_OWNER,,}"
-          tag="${{ inputs.tag }}"
+          tag="${INPUT_TAG}"
+          if [[ ! "${tag}" =~ ^[A-Za-z0-9._-]+$ ]]; then
+            echo "::error::Invalid image tag: ${tag}"
+            exit 1
+          fi
           name="ghcr.io/${owner}/wzrdagentstudio-daytona-agent"
           tags="${name}:${tag}"
-          if [[ "${{ inputs.push_latest }}" == "true" ]]; then
+          if [[ "${INPUT_PUSH_LATEST}" == "true" ]]; then
             tags="${tags}"$'\n'"${name}:latest"
           fi
 
@@ -69,25 +77,27 @@ jobs:
 
       - name: Validate smoke platform coverage
         shell: bash
+        env:
+          INPUT_PLATFORMS: ${{ inputs.platforms }}
         run: |
-          platforms="${{ inputs.platforms || 'linux/amd64' }}"
+          platforms="${INPUT_PLATFORMS:-linux/amd64}"
           if [[ "${platforms}" != "linux/amd64" ]]; then
             echo "::error::WZRD Daytona image smoke currently verifies linux/amd64 only; refusing to publish unsmoked platforms: ${platforms}"
             exit 1
           fi
 
       - name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@v3
+        uses: docker/setup-buildx-action@8d2750c68a42422c14e847fe6c8ac0403b4cbd6f
 
       - name: Log in to GHCR
-        uses: docker/login-action@v3
+        uses: docker/login-action@c94ce9fb468520275223c153574b00df6fe4bcc9
         with:
           registry: ghcr.io
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Build local smoke image
-        uses: docker/build-push-action@v6
+        uses: docker/build-push-action@10e90e3645eae34f1e60eeb005ba3a3d33f178e8
         with:
           context: ./wzrdagentstudio
           file: ./wzrdagentstudio/Dockerfile.daytona-agent
@@ -103,7 +113,7 @@ jobs:
         run: DAYTONA_AGENT_IMAGE=wzrd-daytona-agent:ci bash wzrdagentstudio/scripts/daytona-agent-image-smoke.sh
 
       - name: Push image
-        uses: docker/build-push-action@v6
+        uses: docker/build-push-action@10e90e3645eae34f1e60eeb005ba3a3d33f178e8
         with:
           context: ./wzrdagentstudio
           file: ./wzrdagentstudio/Dockerfile.daytona-agent
@@ -116,4 +126,7 @@ jobs:
           cache-to: type=gha,mode=max,scope=wzrd-daytona-agent
 
       - name: Verify pushed manifest
-        run: docker buildx imagetools inspect "${{ steps.image.outputs.name }}:${{ steps.image.outputs.tag }}"
+        env:
+          IMAGE_NAME: ${{ steps.image.outputs.name }}
+          IMAGE_TAG: ${{ steps.image.outputs.tag }}
+        run: docker buildx imagetools inspect "${IMAGE_NAME}:${IMAGE_TAG}"
