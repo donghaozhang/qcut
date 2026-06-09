@@ -11,6 +11,7 @@ When no EXTEND.md is found, guide user through preference setup.
 
 **⛔ BLOCKING OPERATION**: This setup MUST complete before ANY other workflow steps. Do NOT:
 - Ask about content/source material
+- Ask questions outside this setup flow
 - Proceed to content analysis
 
 ONLY ask the questions in this setup flow, save EXTEND.md, then continue.

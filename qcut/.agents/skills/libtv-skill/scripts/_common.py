@@ -3,28 +3,12 @@
 import json
 import os
 import sys
-import urllib.error
 import urllib.request
-from urllib.parse import quote, urlparse
+import urllib.error
+from urllib.parse import quote
 
 # 默认 im 环境
-DEFAULT_IM_BASE = "https://im.liblib.tv"
-
-
-def _validated_base_url(value: str) -> str:
-    parsed = urlparse(value or DEFAULT_IM_BASE)
-    if parsed.scheme not in {"http", "https"}:
-        print(
-            f"错误：IM_BASE 只允许 http/https，当前为 {parsed.scheme or '空'}",
-            file=sys.stderr,
-        )
-        sys.exit(1)
-    return value or DEFAULT_IM_BASE
-
-
-IM_BASE = _validated_base_url(
-    os.environ.get("OPENAPI_IM_BASE", os.environ.get("IM_BASE_URL", DEFAULT_IM_BASE))
-)
+IM_BASE = os.environ.get("OPENAPI_IM_BASE", os.environ.get("IM_BASE_URL", "https://im.liblib.tv"))
 ACCESS_KEY = os.environ.get("LIBTV_ACCESS_KEY", "")
 
 # 项目画布地址前缀，拼上 projectId 即项目地址
