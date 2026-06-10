@@ -259,10 +259,10 @@ const CORE_COMMANDS: Record<string, CommandDef> = {
 			f("--grid-upscale", "number", "Upscale factor for grid composite"),
 			f("--style", "string", "Style prefix prepended to prompt"),
 		],
-			examples: [
-				"qcut-pipeline generate-image -t 'A cat in space'",
-				"qcut-pipeline generate-image -t 'A teddy bear in sunglasses playing electric guitar' -m luma_uni_1_image --aspect-ratio 16:9",
-				"qcut-pipeline generate-image -t 'Ocean sunset' --aspect-ratio 16:9",
+		examples: [
+			"qcut-pipeline generate-image -t 'A cat in space'",
+			"qcut-pipeline generate-image -t 'A teddy bear in sunglasses playing electric guitar' -m luma_uni_1_image --aspect-ratio 16:9",
+			"qcut-pipeline generate-image -t 'Ocean sunset' --aspect-ratio 16:9",
 			"qcut-pipeline generate-image -t 'Make the character wear a red jacket' --image-url https://example.com/character.png",
 			"qcut-pipeline generate-image -t 'Logo design' --count 4 --json",
 			"qcut-pipeline generate-image -t 'Seasons of a tree' --grid 2x2",
@@ -321,26 +321,26 @@ const CORE_COMMANDS: Record<string, CommandDef> = {
 			f("--hdr", "boolean", "Luma Ray 3.2: enable HDR output"),
 			f("--exr-export", "boolean", "Luma Ray 3.2: export EXR frames"),
 			f("--image-url", "string", "Input image URL (img2vid)"),
-				f(
-					"--video-url",
-					"string",
-					"Input video URL (video-edit models, e.g. happy_horse_video_edit)"
-				),
-				f(
-					"--source-generation-id",
-					"string",
-					"Luma Ray 3.2 edit: previous completed Luma video generation id"
-				),
-				f(
-					"--reference-images",
-					"string[]",
-					"Reference image URLs (repeatable). Used by happy_horse_ref2v (1–9), happy_horse_video_edit (≤5), or luma_ray_3_2_edit guide frame (first image)"
-				),
-				f(
-					"--edit-strength",
-					"string",
-					"Luma Ray 3.2 edit strength: adhere_1..3, flex_1..3, reimagine_1..3"
-				),
+			f(
+				"--video-url",
+				"string",
+				"Input video URL (video-edit models, e.g. happy_horse_video_edit)"
+			),
+			f(
+				"--source-generation-id",
+				"string",
+				"Luma Ray 3.2 edit: previous completed Luma video generation id"
+			),
+			f(
+				"--reference-images",
+				"string[]",
+				"Reference image URLs (repeatable). Used by happy_horse_ref2v (1–9), happy_horse_video_edit (≤5), or luma_ray_3_2_edit guide frame (first image)"
+			),
+			f(
+				"--edit-strength",
+				"string",
+				"Luma Ray 3.2 edit strength: adhere_1..3, flex_1..3, reimagine_1..3"
+			),
 			f(
 				"--audio-setting",
 				"string",
@@ -363,11 +363,11 @@ const CORE_COMMANDS: Record<string, CommandDef> = {
 			f("--watermark", "boolean", "Kling V3 Omni: enable watermark on output"),
 		],
 		examples: [
-				"qcut-pipeline create-video -t 'Ocean waves' -m kling_2_6_pro -d 5s",
-				"qcut-pipeline create-video -t 'slow dolly through a misty greenhouse' -m luma_ray_3_2 --aspect-ratio 16:9 --resolution 720p -d 5s",
-				"qcut-pipeline create-video -t 'a perfect looping product turntable' -m luma_ray_3_2 --loop",
-				"qcut-pipeline create-video -t 'Transform the scene into moonlit 35mm film footage' -m luma_ray_3_2_edit --source-generation-id d290f1ee-6c54-4b01-90e6-d701748f0851 --resolution 720p",
-				"qcut-pipeline create-video -t 'A flower blooming' --image-url https://example.com/flower.jpg",
+			"qcut-pipeline create-video -t 'Ocean waves' -m kling_2_6_pro -d 5s",
+			"qcut-pipeline create-video -t 'slow dolly through a misty greenhouse' -m luma_ray_3_2 --aspect-ratio 16:9 --resolution 720p -d 5s",
+			"qcut-pipeline create-video -t 'a perfect looping product turntable' -m luma_ray_3_2 --loop",
+			"qcut-pipeline create-video -t 'Transform the scene into moonlit 35mm film footage' -m luma_ray_3_2_edit --source-generation-id d290f1ee-6c54-4b01-90e6-d701748f0851 --resolution 720p",
+			"qcut-pipeline create-video -t 'A flower blooming' --image-url https://example.com/flower.jpg",
 			"qcut-pipeline create-video -t '<<<element_1>>> walks in park' -m gmi_kling_v3_omni_t2v --element-ids abc123",
 			"qcut-pipeline create-video -t '<<<element_1>>> sings on stage' -m gmi_kling_v3_omni_i2v --element-ids abc --sound on --watermark",
 			"qcut-pipeline create-video -t 'neon city at dusk' -m happy_horse_t2v -d 5s --aspect-ratio 16:9 --resolution 1080p",

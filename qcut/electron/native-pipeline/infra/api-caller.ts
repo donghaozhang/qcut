@@ -1174,11 +1174,7 @@ function getLumaInitialWaitMs(): number {
 	return Number.isFinite(parsed) && parsed >= 0 ? parsed : 30_000;
 }
 
-function formatLumaFailure({
-	data,
-}: {
-	data: LumaGenerationResponse;
-}): string {
+function formatLumaFailure({ data }: { data: LumaGenerationResponse }): string {
 	const reason = data.failure_reason || "Luma generation failed";
 	return data.failure_code ? `${reason} (${data.failure_code})` : reason;
 }
@@ -1234,11 +1230,14 @@ async function pollLumaGeneration({
 			return { success: false, error: "Cancelled", duration: 0 };
 		}
 
-		const statusRes = await fetch(buildUrl("luma", `generations/${generationId}`), {
-			method: "GET",
-			headers: options.headers,
-			signal: options.signal,
-		});
+		const statusRes = await fetch(
+			buildUrl("luma", `generations/${generationId}`),
+			{
+				method: "GET",
+				headers: options.headers,
+				signal: options.signal,
+			}
+		);
 		if (!statusRes.ok) {
 			const errorText = await statusRes.text();
 			return {

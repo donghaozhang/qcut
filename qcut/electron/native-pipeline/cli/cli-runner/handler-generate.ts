@@ -488,7 +488,8 @@ export async function handleGenerate(
 	) {
 		return {
 			success: false,
-			error: "Luma Ray 3.2 requires --text/-t even when anchor frames are provided.",
+			error:
+				"Luma Ray 3.2 requires --text/-t even when anchor frames are provided.",
 		};
 	}
 	if (

@@ -556,7 +556,8 @@ function buildLumaVideoPayload({
 	if (refs.length > 0 && video.duration === "10s") {
 		return {
 			success: false,
-			error: "Luma Ray 3.2 does not support 10s duration with start_frame or end_frame.",
+			error:
+				"Luma Ray 3.2 does not support 10s duration with start_frame or end_frame.",
 		};
 	}
 
@@ -643,7 +644,8 @@ function buildLumaVideoEditPayload({
 		typeof payload.source_generation_id === "string"
 			? payload.source_generation_id.trim()
 			: "";
-	const sourceVideo = typeof payload.video_url === "string" ? payload.video_url : "";
+	const sourceVideo =
+		typeof payload.video_url === "string" ? payload.video_url : "";
 	if (sourceGenerationId && sourceVideo) {
 		return {
 			success: false,
@@ -654,7 +656,8 @@ function buildLumaVideoEditPayload({
 	if (!sourceGenerationId && !sourceVideo) {
 		return {
 			success: false,
-			error: "Luma Ray 3.2 edit requires --video-url or --source-generation-id.",
+			error:
+				"Luma Ray 3.2 edit requires --video-url or --source-generation-id.",
 		};
 	}
 	if (isEnabledPayloadFlag({ value: payload.loop })) {
