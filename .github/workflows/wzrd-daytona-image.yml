@@ -46,16 +46,20 @@ jobs:
           ref: ${{ inputs.wzrd_ref }}
           path: wzrdagentstudio
           token: ${{ secrets.WZRD_REPO_READ_TOKEN || github.token }}
+          persist-credentials: false
 
       - name: Prepare image names
         id: image
         shell: bash
+        env:
+          INPUT_TAG: ${{ inputs.tag }}
+          PUSH_LATEST: ${{ inputs.push_latest }}
         run: |
           owner="${GITHUB_REPOSITORY_OWNER,,}"
-          tag="${{ inputs.tag }}"
+          tag="${INPUT_TAG}"
           name="ghcr.io/${owner}/wzrdagentstudio-daytona-agent"
           tags="${name}:${tag}"
-          if [[ "${{ inputs.push_latest }}" == "true" ]]; then
+          if [[ "${PUSH_LATEST}" == "true" ]]; then
             tags="${tags}"$'\n'"${name}:latest"
           fi
 
@@ -69,10 +73,11 @@ jobs:
 
       - name: Validate smoke platform coverage
         shell: bash
+        env:
+          PLATFORMS: ${{ inputs.platforms || 'linux/amd64' }}
         run: |
-          platforms="${{ inputs.platforms || 'linux/amd64' }}"
-          if [[ "${platforms}" != "linux/amd64" ]]; then
-            echo "::error::WZRD Daytona image smoke currently verifies linux/amd64 only; refusing to publish unsmoked platforms: ${platforms}"
+          if [[ "${PLATFORMS}" != "linux/amd64" ]]; then
+            echo "::error::WZRD Daytona image smoke currently verifies linux/amd64 only; refusing to publish unsmoked platforms: ${PLATFORMS}"
             exit 1
           fi
 
