@@ -494,6 +494,11 @@ type LumaMediaRef =
 	| { url: string; media_type: string }
 	| { data: string; media_type: string };
 
+function formatLumaMediaReadError({ error }: { error: unknown }): string {
+	const message = error instanceof Error ? error.message : String(error);
+	return `Failed to read local media for Luma: ${message}`;
+}
+
 function toLumaImageRef({ input }: { input: string }): LumaImageRef {
 	if (isRemoteUrl(input)) return { url: input };
 	const media = readFileSync(input);
@@ -610,8 +615,12 @@ function buildLumaVideoPayload({
 			error: "Luma Ray 3.2 requires --hdr when --exr-export is used.",
 		};
 	}
-	if (refs[0]) video.start_frame = toLumaImageRef({ input: refs[0] });
-	if (refs[1]) video.end_frame = toLumaImageRef({ input: refs[1] });
+	try {
+		if (refs[0]) video.start_frame = toLumaImageRef({ input: refs[0] });
+		if (refs[1]) video.end_frame = toLumaImageRef({ input: refs[1] });
+	} catch (error) {
+		return { success: false, error: formatLumaMediaReadError({ error }) };
+	}
 
 	const out: Record<string, unknown> = {};
 	for (const [key, value] of Object.entries(payload)) {
@@ -671,7 +680,12 @@ function buildLumaVideoEditPayload({
 		};
 	}
 	if (sourceVideo && !isRemoteUrl(sourceVideo)) {
-		const sizeBytes = statSync(sourceVideo).size;
+		let sizeBytes: number;
+		try {
+			sizeBytes = statSync(sourceVideo).size;
+		} catch (error) {
+			return { success: false, error: formatLumaMediaReadError({ error }) };
+		}
 		if (sizeBytes > MAX_LUMA_INLINE_VIDEO_BYTES) {
 			return {
 				success: false,
@@ -719,7 +733,11 @@ function buildLumaVideoEditPayload({
 	if (Object.keys(edit).length > 0) video.edit = edit;
 
 	const refs = collectReferenceImages({ input, payload }).slice(0, 1);
-	if (refs[0]) video.start_frame = toLumaImageRef({ input: refs[0] });
+	try {
+		if (refs[0]) video.start_frame = toLumaImageRef({ input: refs[0] });
+	} catch (error) {
+		return { success: false, error: formatLumaMediaReadError({ error }) };
+	}
 
 	const out: Record<string, unknown> = {};
 	for (const [key, value] of Object.entries(payload)) {
@@ -744,9 +762,13 @@ function buildLumaVideoEditPayload({
 		}
 		if (value !== undefined && value !== null) out[key] = value;
 	}
-	out.source = sourceGenerationId
-		? { generation_id: sourceGenerationId }
-		: toLumaVideoSource({ input: sourceVideo });
+	try {
+		out.source = sourceGenerationId
+			? { generation_id: sourceGenerationId }
+			: toLumaVideoSource({ input: sourceVideo });
+	} catch (error) {
+		return { success: false, error: formatLumaMediaReadError({ error }) };
+	}
 	if (Object.keys(video).length > 0) out.video = video;
 	return { success: true, payload: out };
 }

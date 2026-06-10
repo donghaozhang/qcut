@@ -108,7 +108,7 @@ For production polling:
 
 - Use a hard timeout so a stuck generation cannot hang the agent.
 - Luma recommends not polling immediately for image generation; video should use a longer initial wait and a longer hard timeout.
-- A reasonable starting point for Ray 3.2 is a 30 second initial wait and a 10 minute hard timeout.
+- A reasonable starting point for Ray 3.2 is a 30-second initial wait and a 10-minute hard timeout.
 - Poll `GET /v1/generations/{generation_id}` until `state` is `completed` or `failed`.
 
 When completed, output is delivered as a presigned URL. Download promptly; the docs state that generated image and video presigned URLs expire after 1 hour. Polling the generation again can refresh the URL.

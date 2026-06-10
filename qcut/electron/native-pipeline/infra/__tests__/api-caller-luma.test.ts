@@ -3,6 +3,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 const mockFetch = vi.fn();
 const originalFetch = globalThis.fetch;
 const originalInitialWait = process.env.QCUT_LUMA_INITIAL_WAIT_MS;
+const originalLumaKey = process.env.LUMA_AGENTS_API_KEY;
 
 vi.mock("../../api-key-handler.js", () => ({
 	getDecryptedApiKeys: vi.fn().mockResolvedValue({}),
@@ -17,7 +18,11 @@ beforeEach(() => {
 
 afterEach(() => {
 	globalThis.fetch = originalFetch;
-	process.env.LUMA_AGENTS_API_KEY = "";
+	if (originalLumaKey === undefined) {
+		delete process.env.LUMA_AGENTS_API_KEY;
+	} else {
+		process.env.LUMA_AGENTS_API_KEY = originalLumaKey;
+	}
 	if (originalInitialWait === undefined) {
 		delete process.env.QCUT_LUMA_INITIAL_WAIT_MS;
 	} else {

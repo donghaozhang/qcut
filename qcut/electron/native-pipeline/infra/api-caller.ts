@@ -1242,7 +1242,7 @@ async function pollLumaGeneration({
 			const errorText = await statusRes.text();
 			return {
 				success: false,
-				error: `Luma status error ${statusRes.status}: ${errorText}`,
+				error: `Luma status error ${statusRes.status}: ${redactErrorPreview(errorText)}`,
 				duration: (Date.now() - startTime) / 1000,
 			};
 		}
@@ -1566,7 +1566,7 @@ export async function callModelApi(
 				const errorText = await submitRes.text();
 				return {
 					success: false,
-					error: `Luma submit error ${submitRes.status}: ${errorText}`,
+					error: `Luma submit error ${submitRes.status}: ${redactErrorPreview(errorText)}`,
 					duration: (Date.now() - startTime) / 1000,
 				};
 			}
