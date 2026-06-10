@@ -118,6 +118,7 @@ describe("buildCodexStartupCommand", () => {
 
 		expect(command).toContain("/usr/local/bin/qcut-entrypoint /bin/true");
 		expect(command).toContain("--dangerously-bypass-approvals-and-sandbox");
+		expect(command).toContain("--dangerously-bypass-hook-trust");
 		expect(command).toContain("Codex exited. QCut shell fallback is ready");
 		expect(command).toContain("exec /bin/bash -l");
 		expect(command).not.toContain("-a never");
