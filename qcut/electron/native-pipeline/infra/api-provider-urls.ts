@@ -12,7 +12,8 @@ export type ProviderName =
 	| "gmi"
 	| "gmi-llm"
 	| "runway"
-	| "imarouter";
+	| "imarouter"
+	| "luma";
 
 export const FAL_BASE = "https://queue.fal.run";
 export const FAL_STATUS_BASE = "https://queue.fal.run";
@@ -24,6 +25,7 @@ const GMI_BASE = "https://console.gmicloud.ai/api/v1/ie/requestqueue/apikey";
 const GMI_LLM_BASE = "https://api.gmi-serving.com/v1";
 const RUNWAY_BASE = "https://api.runwayml.com/v1";
 export const IMAROUTER_BASE = "https://api.imarouter.com";
+export const LUMA_AGENTS_BASE = "https://agents.lumalabs.ai/v1";
 
 /** Build a fully qualified provider URL from a logical endpoint path. */
 export function buildProviderUrl(
@@ -49,6 +51,8 @@ export function buildProviderUrl(
 			return `${RUNWAY_BASE}/${endpoint}`;
 		case "imarouter":
 			return `${IMAROUTER_BASE}/${endpoint.replace(/^\/+/, "")}`;
+		case "luma":
+			return `${LUMA_AGENTS_BASE}/${endpoint.replace(/^\/+/, "")}`;
 	}
 }
 
@@ -80,6 +84,13 @@ export function extractOutputUrl(data: unknown): string | undefined {
 	if (Array.isArray(obj.media_urls) && obj.media_urls.length > 0) {
 		const first = obj.media_urls[0] as Record<string, unknown>;
 		if (typeof first?.url === "string") return first.url;
+	}
+	if (Array.isArray(obj.output) && obj.output.length > 0) {
+		const first = obj.output[0] as Record<string, unknown>;
+		if (typeof first?.url === "string") return first.url;
+	} else if (typeof obj.output === "object" && obj.output !== null) {
+		const output = obj.output as Record<string, unknown>;
+		if (typeof output.url === "string") return output.url;
 	}
 	// IMA Router shape: `{ status: "completed", results: [{ url: "..." }] }`
 	if (Array.isArray(obj.results) && obj.results.length > 0) {

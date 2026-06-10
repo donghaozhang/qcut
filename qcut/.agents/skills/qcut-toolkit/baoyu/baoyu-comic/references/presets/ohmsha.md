@@ -41,16 +41,16 @@ Every technical concept MUST be visualized as a metaphor:
 
 ### Character Roles (Required)
 
-**DEFAULT: Use original, non-infringing character archetypes** unless user explicitly specifies `--characters` with licensed/authorized references or has approved character presets in EXTEND.md.
+**DEFAULT: Use generic non-proprietary archetypes** unless user explicitly specifies `--characters` or has character presets in EXTEND.md.
 
 | Role | Default Character | Visual | Traits |
 |------|-------------------|--------|--------|
-| Student (Role A) | Curious Student | Young learner with round glasses and bright casual clothes | Confused, asks basic but crucial questions, represents reader |
-| Mentor (Role B) | Gadget Mentor | Friendly guide with a compact tool satchel and glowing teaching props | Knowledgeable, patient, uses gadgets as technical metaphors |
-| Challenge (Role C) | Misconception Rival | Expressive peer with bold posture and warm-colored outfit | Represents misunderstanding, or "noise" in the data |
-| Support (Role D) | Insight Friend | Thoughtful classmate with neat short hair and soft-colored clothes | Asks clarifying questions, provides alternative perspectives |
+| Student (Role A) | Curious student | School-age learner, expressive face, simple casual outfit | Confused, asks basic but crucial questions, represents reader |
+| Mentor (Role B) | Gadget mentor | Friendly guide with a compact tool bag and visual demonstration props | Knowledgeable, patient, uses gadgets as technical metaphors |
+| Challenge (Role C) | Misconception challenger | Bold, energetic peer with exaggerated confident gestures | Represents misunderstanding, or "noise" in the data |
+| Support (Role D) | Clarifying supporter | Thoughtful peer with notebook or visual cue cards | Asks clarifying questions, provides alternative perspectives |
 
-**IMPORTANT**: Do not default to proprietary characters. Generate original characters with equivalent narrative roles unless the user provides authorized references.
+**IP compliance**: Franchise characters are examples only and require explicit user opt-in through `--characters` or EXTEND.md. Without opt-in, generate original character definitions from the generic archetypes above.
 
 To use custom characters: `--characters "Student:小明,Mentor:教授"` or define in EXTEND.md.
 

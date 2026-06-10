@@ -47,7 +47,7 @@ Options:
   --team           <team>    - Filter by team key                   
   --all-teams                - Show projects from all teams         
   --status         <status>  - Filter by status name                
-  --web                      - Open in web browser
+  -w, --web                  - Open in web browser                  
   -a, --app                  - Open in Linear.app                   
   -j, --json                 - Output as JSON
 ```

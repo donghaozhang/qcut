@@ -54,6 +54,20 @@ describe("text-to-image registry", () => {
 		expect(ModelRegistry.has("imagen4")).toBe(true);
 	});
 
+	it("registers Luma Uni 1 image generation", () => {
+		expect(ModelRegistry.has("luma_uni_1_image")).toBe(true);
+		const model = ModelRegistry.get("luma_uni_1_image");
+		expect(model.name).toBe("Luma Uni 1 Image");
+		expect(model.providerBackend).toBe("luma");
+		expect(model.endpoint).toBe("generations");
+		expect(model.categories).toContain("text_to_image");
+		expect(model.defaults).toMatchObject({
+			model: "uni-1",
+			type: "image",
+			aspect_ratio: "16:9",
+		});
+	});
+
 	it("registers gpt_image_2_ima against IMA Router with image-editing support", () => {
 		expect(ModelRegistry.has("gpt_image_2_ima")).toBe(true);
 		const model = ModelRegistry.get("gpt_image_2_ima");

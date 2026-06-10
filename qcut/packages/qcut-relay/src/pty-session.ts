@@ -644,6 +644,7 @@ export function buildCodexStartupCommand({
 		[
 			"codex",
 			"--dangerously-bypass-approvals-and-sandbox",
+			"--dangerously-bypass-hook-trust",
 			"--no-alt-screen",
 			"-C /home/qcut/qcut",
 		].join(" "),

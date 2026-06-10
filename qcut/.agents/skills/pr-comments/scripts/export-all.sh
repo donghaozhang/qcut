@@ -39,12 +39,13 @@ echo ""
 echo "--- Main Thread Comments ---"
 
 THREAD_TEMP=$(mktemp)
-trap "rm -f $THREAD_TEMP" EXIT
+REVIEW_TEMP=$(mktemp)
+trap 'rm -f "$THREAD_TEMP" "$REVIEW_TEMP"' EXIT
 
-if ! { gh api --paginate "repos/${REPO}/issues/${PR}/comments" | jq -s 'add // []' > "$THREAD_TEMP"; } 2>/dev/null; then
+gh api --paginate "repos/${REPO}/issues/${PR}/comments" 2>/dev/null | jq -s 'add // []' > "$THREAD_TEMP" || {
     echo "Warning: Could not fetch thread comments"
     printf '[]\n' > "$THREAD_TEMP"
-fi
+}
 
 thread_count=$(jq 'length' "$THREAD_TEMP" 2>/dev/null || echo "0")
 echo "Found $thread_count thread comments"
@@ -79,11 +80,10 @@ done
 echo ""
 echo "--- Inline Review Comments ---"
 
-REVIEW_TEMP=$(mktemp)
-if ! { gh api --paginate "repos/${REPO}/pulls/${PR}/comments" | jq -s 'add // []' > "$REVIEW_TEMP"; } 2>/dev/null; then
+gh api --paginate "repos/${REPO}/pulls/${PR}/comments" 2>/dev/null | jq -s 'add // []' > "$REVIEW_TEMP" || {
     echo "Warning: Could not fetch review comments"
     printf '[]\n' > "$REVIEW_TEMP"
-fi
+}
 
 review_count=$(jq 'length' "$REVIEW_TEMP" 2>/dev/null || echo "0")
 echo "Found $review_count review comments"
@@ -117,8 +117,6 @@ for ((i=0; i<review_count; i++)); do
 ${body}
 ENDFILE
 done
-
-rm -f "$REVIEW_TEMP"
 
 # ===== SUMMARY =====
 echo ""

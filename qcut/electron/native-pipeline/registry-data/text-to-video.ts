@@ -254,6 +254,40 @@ export function registerTextToVideoModels(): void {
 	});
 
 	ModelRegistry.register({
+		key: "luma_ray_3_2",
+		name: "Luma Ray 3.2",
+		provider: "Luma Agents",
+		endpoint: "generations",
+		categories: ["text_to_video"],
+		description:
+			"Ray 3.2 text-to-video and image-anchored video via Luma Agents",
+		pricing: { type: "external", provider: "luma_agents" },
+		durationOptions: ["5s", "10s"],
+		aspectRatios: ["9:16", "3:4", "1:1", "4:3", "16:9", "21:9"],
+		resolutions: ["540p", "720p", "1080p"],
+		providerBackend: "luma",
+		defaults: {
+			model: "ray-3.2",
+			type: "video",
+			aspect_ratio: "16:9",
+			duration: "5s",
+			resolution: "720p",
+		},
+		features: [
+			"text_to_video",
+			"image_to_video",
+			"start_frame",
+			"end_frame",
+			"loop",
+			"hdr",
+			"exr_export",
+		],
+		maxDuration: 10,
+		costEstimate: 0,
+		processingTime: 300,
+	});
+
+	ModelRegistry.register({
 		key: "sora_2",
 		name: "Sora 2",
 		provider: "OpenAI (via FAL)",
