@@ -62,8 +62,11 @@ vi.mock("electron", () => ({
 	},
 }));
 
-vi.mock("os", async (importOriginal) => {
-	const actual = (await importOriginal()) as typeof import("os");
+// Both factories import the original via the explicit `node:os` specifier:
+// `importOriginal()` on the bare "os" specifier resolves to a
+// `__vite-browser-external` virtual id on Windows and crashes the suite.
+vi.mock("os", async () => {
+	const actual = await vi.importActual<typeof import("node:os")>("node:os");
 	return {
 		...actual,
 		homedir: () => tempDirs.home,
@@ -71,8 +74,8 @@ vi.mock("os", async (importOriginal) => {
 	};
 });
 
-vi.mock("node:os", async (importOriginal) => {
-	const actual = (await importOriginal()) as typeof import("node:os");
+vi.mock("node:os", async () => {
+	const actual = await vi.importActual<typeof import("node:os")>("node:os");
 	return {
 		...actual,
 		homedir: () => tempDirs.home,
