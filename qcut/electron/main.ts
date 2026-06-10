@@ -10,6 +10,7 @@
 import {
 	app,
 	BrowserWindow,
+	dialog,
 	ipcMain,
 	protocol,
 	session,
@@ -24,6 +25,7 @@ import * as http from "http";
 import { parseChangelog } from "./release-notes-utils.js";
 import { registerMainIpcHandlers } from "./main-ipc.js";
 import { registerAppProtocol } from "./app-protocol-handler.js";
+import { nextPortAction, resolveRendererTarget } from "./launch-policy.js";
 import {
 	startUtilityProcess,
 	stopUtilityProcess,
@@ -475,11 +477,21 @@ function createStaticServer(): Promise<http.Server> {
 
 		function tryListen(port: number): void {
 			const errorHandler = (err: NodeJS.ErrnoException) => {
-				if (err.code === "EADDRINUSE" && port < MAX_PORT) {
+				const action = nextPortAction({
+					code: err.code,
+					port,
+					maxPort: MAX_PORT,
+				});
+				if (action === "retry-next") {
 					logger.log(
-						`[Static Server] Port ${port} in use, trying ${port + 1}...`
+						`[Static Server] Port ${port} unavailable (${err.code}), trying ${port + 1}...`
 					);
 					tryListen(port + 1);
+				} else if (action === "fallback-random") {
+					logger.warn(
+						`[Static Server] Ports up to ${MAX_PORT} unavailable (${err.code}), falling back to an OS-assigned port...`
+					);
+					tryListen(0);
 				} else {
 					reject(err);
 				}
@@ -489,8 +501,13 @@ function createStaticServer(): Promise<http.Server> {
 			server.listen(port, "localhost", () => {
 				// Remove the error listener on successful bind
 				server.removeListener("error", errorHandler);
-				staticServerPort = port;
-				logger.log(`[Static Server] Started on http://localhost:${port}`);
+				// Read the port back: with the port-0 fallback the OS picks it.
+				const address = server.address();
+				staticServerPort =
+					typeof address === "object" && address !== null ? address.port : port;
+				logger.log(
+					`[Static Server] Started on http://localhost:${staticServerPort}`
+				);
 				resolve(server);
 			});
 		}
@@ -601,16 +618,42 @@ function createWindow(): void {
 		logger.log("[E2E] Window hidden (opacity=0, ignoreMouseEvents=true)");
 	}
 
-	// Load the app
-	const isDev = process.env.NODE_ENV === "development";
+	// Load the app. Packaged builds must ignore an inherited NODE_ENV —
+	// a machine with NODE_ENV=development set globally would otherwise
+	// load the absent Vite dev server and white-screen.
+	const { isDev, url: rendererUrl } = resolveRendererTarget({
+		isPackaged: app.isPackaged,
+		nodeEnv: process.env.NODE_ENV,
+	});
+	mainWindow.loadURL(rendererUrl);
 	if (isDev) {
-		mainWindow.loadURL("http://localhost:5173");
-		// Open DevTools in development
 		mainWindow.webContents.openDevTools();
-	} else {
-		// Use custom app protocol to avoid file:// restrictions
-		mainWindow.loadURL("app://./index.html");
 	}
+
+	// Surface renderer load failures instead of leaving a silent white
+	// screen. ERR_ABORTED (-3) also fires on benign navigation aborts, so
+	// it never gets a dialog.
+	mainWindow.webContents.on(
+		"did-fail-load",
+		(_event, errorCode, errorDescription, validatedURL, isMainFrame) => {
+			logger.error(
+				`[Renderer] did-fail-load code=${errorCode} desc=${errorDescription} url=${validatedURL} mainFrame=${isMainFrame}`
+			);
+			if (isMainFrame && errorCode !== -3) {
+				dialog.showErrorBox(
+					"QCut failed to load",
+					`The editor page failed to load (${errorDescription || errorCode}).\n` +
+						`URL: ${validatedURL}\nLogs: ${app.getPath("logs")}`
+				);
+			}
+		}
+	);
+
+	mainWindow.webContents.on("render-process-gone", (_event, details) => {
+		logger.error(
+			`[Renderer] render-process-gone reason=${details.reason} exitCode=${details.exitCode}`
+		);
+	});
 
 	mainWindow.webContents.on("did-finish-load", () => {
 		if (!pendingLicenseActivationToken) {
@@ -772,130 +815,154 @@ if (isCliKeyCommand && !isHeadlessRecorder) {
 }
 
 if (!isCliKeyCommand && !isHeadlessRecorder) {
-	app.whenReady().then(async () => {
-		// Set macOS dock icon (requires PNG format)
-		if (process.platform === "darwin" && app.dock) {
-			const iconPath = app.isPackaged
-				? path.join(process.resourcesPath, "icon.png")
-				: path.join(__dirname, "../../build/icon.png");
-			if (fs.existsSync(iconPath)) {
-				app.dock.setIcon(iconPath);
-			}
-		}
-
-		// Register custom app:// protocol handler. Extracted into its own
-		// module so headless-recorder mode can register it too.
-		registerAppProtocol({ logger });
-
-		// Start the static server to serve FFmpeg WASM files
-		staticServer = await createStaticServer();
-
-		createWindow();
-
-		// Register all IPC handlers with try/catch to prevent cascade failures
-		const handlers: [string, () => void | Promise<void>][] = [
-			["FFmpegIPC", setupFFmpegIPC],
-			["SoundIPC", setupSoundIPC],
-			["ThemeIPC", setupThemeIPC],
-			["ApiKeyIPC", setupApiKeyIPC],
-			["GeminiHandlers", setupGeminiHandlers],
-			["ElevenLabsTranscribe", registerElevenLabsTranscribeHandler],
-			["GeminiChatIPC", setupGeminiChatIPC],
-			["AIFillerIPC", setupAIFillerIPC],
-			["PtyIPC", setupUtilityPtyIPC],
-			["AIVideoHandlers", registerAIVideoHandlers],
-			["SkillsIPC", setupSkillsIPC],
-			["SkillsSyncIPC", setupSkillsSyncIPC],
-			["AIPipelineIPC", setupAIPipelineIPC],
-			["WallpaperIPC", setupWallpaperIPC],
-			["MediaImportIPC", setupMediaImportIPC],
-			["ProjectFolderIPC", setupProjectFolderIPC],
-			["ProjectJsonIPC", setupProjectJsonIPC],
-			["VideoSearchIPC", setupVideoSearchIPC],
-			["ClaudeIPC", setupAllClaudeIPC],
-			[
-				"PiAgentIPC",
-				async () => {
-					if (setupPiAgentIPC) {
-						await setupPiAgentIPC();
-					} else {
-						console.log("⚠️ PiAgentIPC skipped (pi-mono not available)");
-					}
-				},
-			],
-			["RemotionFolderIPC", setupRemotionFolderIPC],
-			["ScreenRecordingIPC", setupScreenRecordingIPC],
-			["MoyinIPC", setupMoyinIPC],
-			["MoyinMediaIPC", setupMoyinMediaIPC],
-			["LicenseIPC", setupLicenseIPC],
-			["YouTubeIPC", () => setupYouTubeIPC(() => mainWindow)],
-		];
-
-		for (const [name, setup] of handlers) {
-			try {
-				await Promise.resolve(setup());
-				console.log(`✅ ${name} registered`);
-			} catch (err: unknown) {
-				const message = err instanceof Error ? err.message : String(err);
-				const stack = err instanceof Error ? err.stack : undefined;
-				console.error(`❌ ${name} FAILED:`, message, stack);
-			}
-		}
-
-		// Screenshot capture (needs mainWindow reference)
-		ipcMain.handle(
-			"screenshot:capture",
-			async (_event: unknown, options?: { fileName?: string }) => {
-				if (!mainWindow) throw new Error("No active window");
-				return captureScreenshot(mainWindow, options);
-			}
-		);
-
-		initFFmpegHealthCheck();
-		migrateAIVideosToDocuments()
-			.then(
-				(result: {
-					copied: number;
-					skipped: number;
-					projectsProcessed: number;
-					errors: string[];
-				}) => {
-					console.log(
-						`[AI Video Migration] Done: copied=${result.copied}, skipped=${result.skipped}, projects=${result.projectsProcessed}, errors=${result.errors.length}`
-					);
-					if (result.errors.length > 0) {
-						console.warn("[AI Video Migration] Errors:", result.errors);
-					}
+	app
+		.whenReady()
+		.then(async () => {
+			// Set macOS dock icon (requires PNG format)
+			if (process.platform === "darwin" && app.dock) {
+				const iconPath = app.isPackaged
+					? path.join(process.resourcesPath, "icon.png")
+					: path.join(__dirname, "../../build/icon.png");
+				if (fs.existsSync(iconPath)) {
+					app.dock.setIcon(iconPath);
 				}
-			)
-			.catch((err: Error) => {
-				console.error("[AI Video Migration] Failed:", err.message);
+			}
+
+			// Register custom app:// protocol handler. Extracted into its own
+			// module so headless-recorder mode can register it too.
+			registerAppProtocol({ logger });
+
+			// Start the static server to serve FFmpeg WASM files
+			staticServer = await createStaticServer();
+
+			createWindow();
+
+			// Register all IPC handlers with try/catch to prevent cascade failures
+			const handlers: [string, () => void | Promise<void>][] = [
+				["FFmpegIPC", setupFFmpegIPC],
+				["SoundIPC", setupSoundIPC],
+				["ThemeIPC", setupThemeIPC],
+				["ApiKeyIPC", setupApiKeyIPC],
+				["GeminiHandlers", setupGeminiHandlers],
+				["ElevenLabsTranscribe", registerElevenLabsTranscribeHandler],
+				["GeminiChatIPC", setupGeminiChatIPC],
+				["AIFillerIPC", setupAIFillerIPC],
+				["PtyIPC", setupUtilityPtyIPC],
+				["AIVideoHandlers", registerAIVideoHandlers],
+				["SkillsIPC", setupSkillsIPC],
+				["SkillsSyncIPC", setupSkillsSyncIPC],
+				["AIPipelineIPC", setupAIPipelineIPC],
+				["WallpaperIPC", setupWallpaperIPC],
+				["MediaImportIPC", setupMediaImportIPC],
+				["ProjectFolderIPC", setupProjectFolderIPC],
+				["ProjectJsonIPC", setupProjectJsonIPC],
+				["VideoSearchIPC", setupVideoSearchIPC],
+				["ClaudeIPC", setupAllClaudeIPC],
+				[
+					"PiAgentIPC",
+					async () => {
+						if (setupPiAgentIPC) {
+							await setupPiAgentIPC();
+						} else {
+							console.log("⚠️ PiAgentIPC skipped (pi-mono not available)");
+						}
+					},
+				],
+				["RemotionFolderIPC", setupRemotionFolderIPC],
+				["ScreenRecordingIPC", setupScreenRecordingIPC],
+				["MoyinIPC", setupMoyinIPC],
+				["MoyinMediaIPC", setupMoyinMediaIPC],
+				["LicenseIPC", setupLicenseIPC],
+				["YouTubeIPC", () => setupYouTubeIPC(() => mainWindow)],
+			];
+
+			for (const [name, setup] of handlers) {
+				try {
+					await Promise.resolve(setup());
+					console.log(`✅ ${name} registered`);
+				} catch (err: unknown) {
+					const message = err instanceof Error ? err.message : String(err);
+					const stack = err instanceof Error ? err.stack : undefined;
+					console.error(`❌ ${name} FAILED:`, message, stack);
+				}
+			}
+
+			// Screenshot capture (needs mainWindow reference)
+			ipcMain.handle(
+				"screenshot:capture",
+				async (_event: unknown, options?: { fileName?: string }) => {
+					if (!mainWindow) throw new Error("No active window");
+					return captureScreenshot(mainWindow, options);
+				}
+			);
+
+			initFFmpegHealthCheck();
+			migrateAIVideosToDocuments()
+				.then(
+					(result: {
+						copied: number;
+						skipped: number;
+						projectsProcessed: number;
+						errors: string[];
+					}) => {
+						console.log(
+							`[AI Video Migration] Done: copied=${result.copied}, skipped=${result.skipped}, projects=${result.projectsProcessed}, errors=${result.errors.length}`
+						);
+						if (result.errors.length > 0) {
+							console.warn("[AI Video Migration] Errors:", result.errors);
+						}
+					}
+				)
+				.catch((err: Error) => {
+					console.error("[AI Video Migration] Failed:", err.message);
+				});
+			// Note: font-resolver removed - handler not implemented
+
+			// Start utility process (HTTP server + PTY sessions)
+			try {
+				startUtilityProcess();
+				logger.log("✅ Utility process started (HTTP server + PTY)");
+			} catch (err: any) {
+				logger.error("❌ Utility process failed to start:", err.message);
+			}
+
+			// Configure auto-updater for production builds
+			if (app.isPackaged) {
+				setupAutoUpdater();
+			}
+
+			// Register inline IPC handlers (audio/video, FAL, dialogs, storage, updates, etc.)
+			registerMainIpcHandlers({
+				getMainWindow: () => mainWindow,
+				logger,
+				autoUpdater,
+				getReleasesDir,
+				readChangelogFallback,
 			});
-		// Note: font-resolver removed - handler not implemented
-
-		// Start utility process (HTTP server + PTY sessions)
-		try {
-			startUtilityProcess();
-			logger.log("✅ Utility process started (HTTP server + PTY)");
-		} catch (err: any) {
-			logger.error("❌ Utility process failed to start:", err.message);
-		}
-
-		// Configure auto-updater for production builds
-		if (app.isPackaged) {
-			setupAutoUpdater();
-		}
-
-		// Register inline IPC handlers (audio/video, FAL, dialogs, storage, updates, etc.)
-		registerMainIpcHandlers({
-			getMainWindow: () => mainWindow,
-			logger,
-			autoUpdater,
-			getReleasesDir,
-			readChangelogFallback,
+		})
+		.catch((err: unknown) => {
+			// Without this, a failure before createWindow() (e.g. the static
+			// server unable to bind any port) leaves a running process with no
+			// window and no error anywhere — the "QCut won't open" report.
+			const message =
+				err instanceof Error ? (err.stack ?? err.message) : String(err);
+			logger.error("[Startup] Fatal error before window creation:", message);
+			dialog.showErrorBox(
+				"QCut failed to start",
+				`${message}\n\nLogs: ${app.getPath("logs")}`
+			);
 		});
-	});
 } // end if (!isCliKeyCommand && !isHeadlessRecorder)
+
+// GPU process failures are a known silent cause of blank/missing windows
+// on machines with broken graphics drivers — make them diagnosable.
+app.on("child-process-gone", (_event, details) => {
+	if (details.type === "GPU") {
+		logger.error(
+			`[GPU] process gone reason=${details.reason} exitCode=${details.exitCode}`
+		);
+	}
+});
 
 app.on("window-all-closed", () => {
 	// The headless-recorder process owns no visible window, so a stray

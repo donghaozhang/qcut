@@ -181,7 +181,7 @@ FAQ before shipping any code changes.
 ## Status
 
 - [x] Launch-path audit of `electron/main.ts` / `app-protocol-handler.ts`
+- [x] Implement fixes 1-3 (see [FIX-PLAN.md](FIX-PLAN.md); `electron/launch-policy.ts` + `main.ts`, unit-tested in `electron/__tests__/launch-policy.test.ts`)
 - [ ] Reproduce B1 on a Windows VM with an excluded-port range covering 8080-8090
-- [ ] Implement fixes 1-3 (single PR)
 - [ ] Implement fixes 4-5
 - [ ] User-facing FAQ entry (SmartScreen, AV, profile reset)

@@ -169,7 +169,7 @@ asar 里存在 `apps/web/dist/index.html`。
 ## 状态
 
 - [x] `electron/main.ts` / `app-protocol-handler.ts` 启动路径审计
+- [x] 实施修复 1-3(见 [FIX-PLAN.zh-CN.md](FIX-PLAN.zh-CN.md);`electron/launch-policy.ts` + `main.ts`,单元测试在 `electron/__tests__/launch-policy.test.ts`)
 - [ ] 在排除端口区间覆盖 8080-8090 的 Windows 虚拟机上复现 B1
-- [ ] 实施修复 1-3(单个 PR)
 - [ ] 实施修复 4-5
 - [ ] 面向用户的 FAQ 条目(SmartScreen、杀软、配置重置)
