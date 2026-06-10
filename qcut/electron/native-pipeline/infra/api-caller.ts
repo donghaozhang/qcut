@@ -1546,10 +1546,12 @@ export async function callModelApi(
 				onProgress: options.onProgress,
 				signal: combinedSignal,
 			};
+			// Must await inside the try block so polling rejections (network
+			// errors, aborts, bad JSON) are mapped to a graceful failure result.
 			if (endpoint.replace(/^\/+/, "") === IMAROUTER_IMAGE_GENERATIONS_PATH) {
-				return pollImaRouterImageTask(taskId, pollOptions);
+				return await pollImaRouterImageTask(taskId, pollOptions);
 			}
-			return pollImaRouterTask(taskId, pollOptions);
+			return await pollImaRouterTask(taskId, pollOptions);
 		} else if (provider === "luma") {
 			const submitRes = await fetchWithRetry(
 				url,
