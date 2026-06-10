@@ -225,4 +225,49 @@ export function registerVideoToVideoModels(): void {
 		costEstimate: 0,
 		processingTime: 90,
 	});
+
+	ModelRegistry.register({
+		key: "luma_ray_3_2_edit",
+		name: "Luma Ray 3.2 Video Edit",
+		provider: "Luma Agents",
+		endpoint: "generations",
+		categories: ["video_to_video"],
+		description:
+			"Ray 3.2 prompt-driven video editing via Luma Agents with source videos and optional guide frames.",
+		pricing: { type: "external", provider: "luma_agents" },
+		resolutions: ["540p", "720p", "1080p"],
+		providerBackend: "luma",
+		defaults: {
+			model: "ray-3.2",
+			type: "video_edit",
+			resolution: "720p",
+			auto_controls: true,
+		},
+		features: [
+			"video_edit",
+			"source_generation_id",
+			"source_url",
+			"source_data",
+			"guide_frame",
+			"hdr",
+			"exr_export",
+		],
+		maxDuration: 30,
+		inputRequirements: {
+			required: ["prompt", "source"],
+			optional: [
+				"source_generation_id",
+				"video_url",
+				"resolution",
+				"start_frame",
+				"strength",
+				"auto_controls",
+				"hdr",
+				"exr_export",
+			],
+		},
+		extendedParams: ["source_generation_id", "edit_strength"],
+		costEstimate: 0,
+		processingTime: 300,
+	});
 }

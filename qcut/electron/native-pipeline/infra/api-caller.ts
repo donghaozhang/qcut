@@ -249,6 +249,14 @@ interface ImaRouterStatusResponse {
 	message?: string;
 }
 
+interface LumaGenerationResponse {
+	id?: string;
+	state?: "queued" | "processing" | "completed" | "failed" | string;
+	output?: Array<{ url?: string }>;
+	failure_reason?: string | null;
+	failure_code?: string | null;
+}
+
 const FAL_TRUSTED_HOSTS = [".fal.run", ".fal.ai"];
 
 /**
@@ -568,6 +576,7 @@ export { GEMINI_BASE, OPENROUTER_BASE, VOLCENGINE_BASE };
 
 const DEFAULT_TIMEOUT_MS = 10 * 60 * 1000;
 const GMI_TIMEOUT_MS = 30 * 60 * 1000;
+const LUMA_TIMEOUT_MS = 10 * 60 * 1000;
 const DEFAULT_RETRIES = 3;
 const IMAROUTER_IMAGE_GENERATIONS_PATH = "v1/images/generations";
 const IMAROUTER_VIDEO_GENERATIONS_PATH = "v1/videos";
@@ -598,6 +607,8 @@ export function envApiKeyProvider(provider: ProviderName): Promise<string> {
 			return Promise.resolve(process.env.RUNWAY_API_KEY || "");
 		case "imarouter":
 			return Promise.resolve(process.env.IMAROUTER_API_KEY || "");
+		case "luma":
+			return Promise.resolve(process.env.LUMA_AGENTS_API_KEY || "");
 	}
 }
 
@@ -638,6 +649,8 @@ async function defaultApiKeyProvider(provider: ProviderName): Promise<string> {
 					(keys as { imarouterApiKey?: string }).imarouterApiKey ||
 					""
 				);
+			case "luma":
+				return process.env.LUMA_AGENTS_API_KEY || "";
 		}
 	} catch {
 		// Not in Electron — fall through to env vars
@@ -690,6 +703,9 @@ function buildHeaders(
 			headers["X-Runway-Version"] = "2024-11-06";
 			break;
 		case "imarouter":
+			headers.Authorization = `Bearer ${apiKey}`;
+			break;
+		case "luma":
 			headers.Authorization = `Bearer ${apiKey}`;
 			break;
 	}
@@ -1151,6 +1167,119 @@ async function pollImaRouterImageTask(
 	);
 }
 
+function getLumaInitialWaitMs(): number {
+	const raw = process.env.QCUT_LUMA_INITIAL_WAIT_MS;
+	if (raw === undefined) return 30_000;
+	const parsed = Number(raw);
+	return Number.isFinite(parsed) && parsed >= 0 ? parsed : 30_000;
+}
+
+function formatLumaFailure({ data }: { data: LumaGenerationResponse }): string {
+	const reason = data.failure_reason || "Luma generation failed";
+	return data.failure_code ? `${reason} (${data.failure_code})` : reason;
+}
+
+async function sleepWithAbort({
+	ms,
+	signal,
+}: {
+	ms: number;
+	signal?: AbortSignal;
+}): Promise<void> {
+	if (ms <= 0) return;
+	await new Promise<void>((resolve, reject) => {
+		let timer: ReturnType<typeof setTimeout> | undefined;
+		const onAbort = () => {
+			if (timer) clearTimeout(timer);
+			reject(new Error("Cancelled"));
+		};
+		const finish = () => {
+			if (signal) signal.removeEventListener("abort", onAbort);
+			resolve();
+		};
+		timer = setTimeout(finish, ms);
+		if (!signal) return;
+		if (signal.aborted) {
+			onAbort();
+			return;
+		}
+		signal.addEventListener("abort", onAbort, { once: true });
+	});
+}
+
+async function pollLumaGeneration({
+	generationId,
+	options,
+}: {
+	generationId: string;
+	options: {
+		headers: Record<string, string>;
+		timeoutMs: number;
+		onProgress?: (percent: number, message: string) => void;
+		signal?: AbortSignal;
+	};
+}): Promise<ApiCallResult> {
+	const startTime = Date.now();
+	await sleepWithAbort({
+		ms: getLumaInitialWaitMs(),
+		signal: options.signal,
+	});
+
+	while (Date.now() - startTime < options.timeoutMs) {
+		if (options.signal?.aborted) {
+			return { success: false, error: "Cancelled", duration: 0 };
+		}
+
+		const statusRes = await fetch(
+			buildUrl("luma", `generations/${generationId}`),
+			{
+				method: "GET",
+				headers: options.headers,
+				signal: options.signal,
+			}
+		);
+		if (!statusRes.ok) {
+			const errorText = await statusRes.text();
+			return {
+				success: false,
+				error: `Luma status error ${statusRes.status}: ${redactErrorPreview(errorText)}`,
+				duration: (Date.now() - startTime) / 1000,
+			};
+		}
+
+		const data = (await statusRes.json()) as LumaGenerationResponse;
+		if (data.state === "completed") {
+			options.onProgress?.(100, "Luma generation completed");
+			return {
+				success: true,
+				data,
+				outputUrl: extractOutputUrl(data),
+				duration: (Date.now() - startTime) / 1000,
+			};
+		}
+		if (data.state === "failed") {
+			return {
+				success: false,
+				error: formatLumaFailure({ data }),
+				duration: (Date.now() - startTime) / 1000,
+			};
+		}
+
+		const elapsedMs = Date.now() - startTime;
+		options.onProgress?.(50, `Luma generation ${data.state ?? "processing"}`);
+		await sleepWithAbort({
+			ms: getAdaptivePollInterval(elapsedMs),
+			signal: options.signal,
+		});
+	}
+
+	return {
+		success: false,
+		error: `Luma generation ${generationId} timed out`,
+		duration: (Date.now() - startTime) / 1000,
+	};
+}
+
 export { extractOutputUrl, pollImaRouterTask, pollImaRouterImageTask };
 
 /**
@@ -1168,7 +1297,9 @@ export async function callModelApi(
 		provider,
 		timeoutMs = provider === "gmi" || provider === "imarouter"
 			? GMI_TIMEOUT_MS
-			: DEFAULT_TIMEOUT_MS,
+			: provider === "luma"
+				? LUMA_TIMEOUT_MS
+				: DEFAULT_TIMEOUT_MS,
 		retries = DEFAULT_RETRIES,
 		signal,
 	} = options;
@@ -1176,7 +1307,7 @@ export async function callModelApi(
 	const apiKey = await getApiKey(provider);
 	const proxyAvailable = await isProxyAvailable();
 
-	if (!apiKey && !proxyAvailable) {
+	if (!apiKey && (!proxyAvailable || provider === "luma")) {
 		return {
 			success: false,
 			error: `No API key configured for provider: ${provider}`,
@@ -1192,7 +1323,7 @@ export async function callModelApi(
 	// GMI ops (kling-create-element, ~5 min) would otherwise abort at the
 	// proxy-client default. `retries` is intentionally not forwarded: the
 	// proxy has its own fixed retry budget (PROXY_RETRIES).
-	if (proxyAvailable) {
+	if (proxyAvailable && provider !== "luma") {
 		const credits = options.modelKey
 			? estimateProxyCredits(options.modelKey, options.payload)
 			: undefined;
@@ -1415,10 +1546,68 @@ export async function callModelApi(
 				onProgress: options.onProgress,
 				signal: combinedSignal,
 			};
+			// Must await inside the try block so polling rejections (network
+			// errors, aborts, bad JSON) are mapped to a graceful failure result.
 			if (endpoint.replace(/^\/+/, "") === IMAROUTER_IMAGE_GENERATIONS_PATH) {
-				return pollImaRouterImageTask(taskId, pollOptions);
+				return await pollImaRouterImageTask(taskId, pollOptions);
 			}
-			return pollImaRouterTask(taskId, pollOptions);
+			return await pollImaRouterTask(taskId, pollOptions);
+		} else if (provider === "luma") {
+			const submitRes = await fetchWithRetry(
+				url,
+				{
+					method: "POST",
+					headers,
+					body: JSON.stringify(payload),
+					signal: combinedSignal,
+				},
+				retries
+			);
+
+			if (!submitRes.ok) {
+				const errorText = await submitRes.text();
+				return {
+					success: false,
+					error: `Luma submit error ${submitRes.status}: ${redactErrorPreview(errorText)}`,
+					duration: (Date.now() - startTime) / 1000,
+				};
+			}
+
+			const submitData = (await submitRes.json()) as LumaGenerationResponse;
+			if (submitData.state === "completed") {
+				return {
+					success: true,
+					data: submitData,
+					outputUrl: extractOutputUrl(submitData),
+					duration: (Date.now() - startTime) / 1000,
+				};
+			}
+			if (submitData.state === "failed") {
+				return {
+					success: false,
+					error: formatLumaFailure({ data: submitData }),
+					duration: (Date.now() - startTime) / 1000,
+				};
+			}
+			if (!submitData.id) {
+				return {
+					success: false,
+					error: "Luma submit did not return a generation id",
+					duration: (Date.now() - startTime) / 1000,
+				};
+			}
+
+			// Must await inside the try block so polling rejections (network
+			// errors, aborts, bad JSON) are mapped to a graceful failure result.
+			return await pollLumaGeneration({
+				generationId: submitData.id,
+				options: {
+					headers,
+					timeoutMs,
+					onProgress: options.onProgress,
+					signal: combinedSignal,
+				},
+			});
 		}
 
 		logOpenRouterVideoDebug({

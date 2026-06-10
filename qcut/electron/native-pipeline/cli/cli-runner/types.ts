@@ -18,6 +18,7 @@ export interface CLIRunOptions {
 	imageUrl?: string;
 	videoUrl?: string;
 	audioUrl?: string;
+	sourceGenerationId?: string;
 	outputDir: string;
 	/** True when the user explicitly passed --output-dir / -o */
 	outputDirExplicit?: boolean;
@@ -26,6 +27,10 @@ export interface CLIRunOptions {
 	duration?: string;
 	aspectRatio?: string;
 	resolution?: string;
+	loop?: boolean;
+	hdr?: boolean;
+	exrExport?: boolean;
+	editStrength?: string;
 	saveIntermediates: boolean;
 	parallel?: boolean;
 	maxWorkers?: number;

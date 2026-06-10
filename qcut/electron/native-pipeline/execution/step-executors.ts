@@ -7,7 +7,7 @@
  */
 
 import * as path from "path";
-import { readFileSync } from "node:fs";
+import { readFileSync, statSync } from "node:fs";
 import type { ModelCategory, ModelDefinition } from "../infra/registry.js";
 import {
 	callElevenLabsSpeechToText,
@@ -484,6 +484,295 @@ function reshapeForImaRouter(
 	return out;
 }
 
+// Inline base64 upload cap: larger files risk OOM / V8 string-length limits
+// when encoded into the JSON request body. Hosted URLs have no such cap.
+const MAX_LUMA_INLINE_VIDEO_BYTES = 100 * 1024 * 1024;
+
+type LumaImageRef = { url: string } | { data: string; media_type: string };
+type LumaMediaRef =
+	| { generation_id: string }
+	| { url: string; media_type: string }
+	| { data: string; media_type: string };
+
+function formatLumaMediaReadError({ error }: { error: unknown }): string {
+	const message = error instanceof Error ? error.message : String(error);
+	return `Failed to read local media for Luma: ${message}`;
+}
+
+function toLumaImageRef({ input }: { input: string }): LumaImageRef {
+	if (isRemoteUrl(input)) return { url: input };
+	const media = readFileSync(input);
+	return {
+		data: media.toString("base64"),
+		media_type: getMediaMimeType({ input }),
+	};
+}
+
+function toLumaVideoSource({ input }: { input: string }): LumaMediaRef {
+	const mediaType = getMediaMimeType({ input });
+	if (isRemoteUrl(input)) {
+		return { url: input, media_type: mediaType };
+	}
+	const media = readFileSync(input);
+	return {
+		data: media.toString("base64"),
+		media_type: mediaType,
+	};
+}
+
+function normalizeLumaDuration({
+	duration,
+}: {
+	duration: unknown;
+}): "5s" | "10s" | undefined {
+	if (duration === undefined) return undefined;
+	const raw = String(duration).trim().toLowerCase();
+	const value = raw.endsWith("s") ? raw : `${raw}s`;
+	if (value === "5s" || value === "10s") return value;
+	return undefined;
+}
+
+function isEnabledPayloadFlag({ value }: { value: unknown }): boolean {
+	return value === true || value === "true";
+}
+
+function buildLumaVideoPayload({
+	input,
+	payload,
+}: {
+	input: StepInput;
+	payload: Record<string, unknown>;
+}):
+	| { success: true; payload: Record<string, unknown> }
+	| { success: false; error: string } {
+	const video = { ...(asRecord({ value: payload.video }) ?? {}) };
+	const duration = normalizeLumaDuration({ duration: payload.duration });
+	if (payload.duration !== undefined && !duration) {
+		return {
+			success: false,
+			error: `Luma Ray 3.2 duration must be 5s or 10s (got ${String(payload.duration)})`,
+		};
+	}
+	if (duration) video.duration = duration;
+	if (typeof payload.resolution === "string") {
+		video.resolution = payload.resolution;
+	}
+	for (const key of ["loop", "hdr", "exr_export"]) {
+		if (payload[key] !== undefined) video[key] = payload[key];
+	}
+
+	const refs = collectReferenceImages({ input, payload }).slice(0, 2);
+	if (refs.length > 0 && video.duration === "10s") {
+		return {
+			success: false,
+			error:
+				"Luma Ray 3.2 does not support 10s duration with start_frame or end_frame.",
+		};
+	}
+
+	const hasHdr = isEnabledPayloadFlag({ value: video.hdr });
+	const hasLoop = isEnabledPayloadFlag({ value: video.loop });
+	const hasExrExport = isEnabledPayloadFlag({ value: video.exr_export });
+	if (hasHdr && video.duration === "10s") {
+		return {
+			success: false,
+			error: "Luma Ray 3.2 does not support HDR with 10s duration.",
+		};
+	}
+	if (hasHdr && video.resolution === "540p") {
+		return {
+			success: false,
+			error: "Luma Ray 3.2 does not support HDR at 540p resolution.",
+		};
+	}
+	if (hasHdr && refs.length > 0) {
+		return {
+			success: false,
+			error: "Luma Ray 3.2 does not support HDR with start_frame or end_frame.",
+		};
+	}
+	if (hasLoop && video.duration === "10s") {
+		return {
+			success: false,
+			error: "Luma Ray 3.2 does not support loop with 10s duration.",
+		};
+	}
+	if (hasLoop && hasHdr) {
+		return {
+			success: false,
+			error: "Luma Ray 3.2 does not support loop with HDR.",
+		};
+	}
+	if (hasLoop && refs.length > 1) {
+		return {
+			success: false,
+			error: "Luma Ray 3.2 does not support loop with end_frame.",
+		};
+	}
+	if (hasExrExport && !hasHdr) {
+		return {
+			success: false,
+			error: "Luma Ray 3.2 requires --hdr when --exr-export is used.",
+		};
+	}
+	try {
+		if (refs[0]) video.start_frame = toLumaImageRef({ input: refs[0] });
+		if (refs[1]) video.end_frame = toLumaImageRef({ input: refs[1] });
+	} catch (error) {
+		return { success: false, error: formatLumaMediaReadError({ error }) };
+	}
+
+	const out: Record<string, unknown> = {};
+	for (const [key, value] of Object.entries(payload)) {
+		if (
+			[
+				"resolution",
+				"duration",
+				"loop",
+				"hdr",
+				"exr_export",
+				"image_urls",
+				"reference_images",
+				"video",
+			].includes(key)
+		) {
+			continue;
+		}
+		if (value !== undefined && value !== null) out[key] = value;
+	}
+	if (Object.keys(video).length > 0) out.video = video;
+	return { success: true, payload: out };
+}
+
+function buildLumaVideoEditPayload({
+	input,
+	payload,
+}: {
+	input: StepInput;
+	payload: Record<string, unknown>;
+}):
+	| { success: true; payload: Record<string, unknown> }
+	| { success: false; error: string } {
+	const sourceGenerationId =
+		typeof payload.source_generation_id === "string"
+			? payload.source_generation_id.trim()
+			: "";
+	const sourceVideo =
+		typeof payload.video_url === "string" ? payload.video_url : "";
+	if (sourceGenerationId && sourceVideo) {
+		return {
+			success: false,
+			error:
+				"Luma Ray 3.2 edit accepts exactly one source: --video-url or --source-generation-id.",
+		};
+	}
+	if (!sourceGenerationId && !sourceVideo) {
+		return {
+			success: false,
+			error:
+				"Luma Ray 3.2 edit requires --video-url or --source-generation-id.",
+		};
+	}
+	if (isEnabledPayloadFlag({ value: payload.loop })) {
+		return {
+			success: false,
+			error: "Luma Ray 3.2 edit does not support --loop.",
+		};
+	}
+	if (sourceVideo && !isRemoteUrl(sourceVideo)) {
+		let sizeBytes: number;
+		try {
+			sizeBytes = statSync(sourceVideo).size;
+		} catch (error) {
+			return { success: false, error: formatLumaMediaReadError({ error }) };
+		}
+		if (sizeBytes > MAX_LUMA_INLINE_VIDEO_BYTES) {
+			return {
+				success: false,
+				error: `Source video is ${(sizeBytes / (1024 * 1024)).toFixed(1)}MB; inline upload supports up to 100MB. Pass a hosted URL via --video-url instead.`,
+			};
+		}
+	}
+
+	const video = { ...(asRecord({ value: payload.video }) ?? {}) };
+	const duration = normalizeLumaDuration({ duration: payload.duration });
+	if (payload.duration !== undefined && !duration) {
+		return {
+			success: false,
+			error: `Luma Ray 3.2 edit duration must be 5s or 10s (got ${String(payload.duration)})`,
+		};
+	}
+	if (duration) video.duration = duration;
+	if (typeof payload.resolution === "string") {
+		video.resolution = payload.resolution;
+	}
+	if (payload.hdr !== undefined) video.hdr = payload.hdr;
+	if (payload.exr_export !== undefined) video.exr_export = payload.exr_export;
+
+	const hasHdr = isEnabledPayloadFlag({ value: video.hdr });
+	const hasExrExport = isEnabledPayloadFlag({ value: video.exr_export });
+	if (hasHdr && video.resolution === "540p") {
+		return {
+			success: false,
+			error: "Luma Ray 3.2 edit does not support HDR at 540p resolution.",
+		};
+	}
+	if (hasExrExport && !hasHdr) {
+		return {
+			success: false,
+			error: "Luma Ray 3.2 edit requires --hdr when --exr-export is used.",
+		};
+	}
+
+	const edit = { ...(asRecord({ value: video.edit }) ?? {}) };
+	if (typeof payload.edit_strength === "string" && payload.edit_strength) {
+		edit.strength = payload.edit_strength;
+	} else if (payload.auto_controls !== undefined) {
+		edit.auto_controls = payload.auto_controls;
+	}
+	if (Object.keys(edit).length > 0) video.edit = edit;
+
+	const refs = collectReferenceImages({ input, payload }).slice(0, 1);
+	try {
+		if (refs[0]) video.start_frame = toLumaImageRef({ input: refs[0] });
+	} catch (error) {
+		return { success: false, error: formatLumaMediaReadError({ error }) };
+	}
+
+	const out: Record<string, unknown> = {};
+	for (const [key, value] of Object.entries(payload)) {
+		if (
+			[
+				"resolution",
+				"duration",
+				"loop",
+				"hdr",
+				"exr_export",
+				"image_urls",
+				"reference_images",
+				"video",
+				"video_url",
+				"source_generation_id",
+				"edit_strength",
+				"auto_controls",
+				"aspect_ratio",
+			].includes(key)
+		) {
+			continue;
+		}
+		if (value !== undefined && value !== null) out[key] = value;
+	}
+	try {
+		out.source = sourceGenerationId
+			? { generation_id: sourceGenerationId }
+			: toLumaVideoSource({ input: sourceVideo });
+	} catch (error) {
+		return { success: false, error: formatLumaMediaReadError({ error }) };
+	}
+	if (Object.keys(video).length > 0) out.video = video;
+	return { success: true, payload: out };
+}
+
 const GPT_IMAGE_SIZE_BY_RATIO: Record<string, string> = {
 	"1:1": "1024x1024",
 	"16:9": "1536x1024",
@@ -842,8 +1131,21 @@ async function executeTextToVideo(
 		payload.frame_interpolation = model.defaults.frame_interpolation;
 	}
 
-	const submitPayload =
-		provider === "imarouter" ? reshapeForImaRouter(payload) : payload;
+	let submitPayload = payload;
+	if (provider === "imarouter") {
+		submitPayload = reshapeForImaRouter(payload);
+	}
+	if (provider === "luma") {
+		const lumaPayload = buildLumaVideoPayload({ input, payload });
+		if (!lumaPayload.success) {
+			return {
+				success: false,
+				error: lumaPayload.error,
+				duration: 0,
+			};
+		}
+		submitPayload = lumaPayload.payload;
+	}
 
 	const result = await callModelApi({
 		endpoint: model.endpoint,
@@ -1211,10 +1513,23 @@ async function executeVideoToVideo(
 		payload.reference_image_urls = resolvedRefs;
 	}
 
+	let submitPayload = payload;
+	if (provider === "luma" && model.key === "luma_ray_3_2_edit") {
+		const lumaPayload = buildLumaVideoEditPayload({ input, payload });
+		if (!lumaPayload.success) {
+			return {
+				success: false,
+				error: lumaPayload.error,
+				duration: 0,
+			};
+		}
+		submitPayload = lumaPayload.payload;
+	}
+
 	const result = await callModelApi({
 		endpoint: model.endpoint,
 		modelKey: model.key,
-		payload,
+		payload: submitPayload,
 		provider,
 		onProgress: options.onProgress,
 		signal: options.signal,
