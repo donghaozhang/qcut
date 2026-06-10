@@ -1,3 +1,11 @@
+// @vitest-environment node
+//
+// Main-process test — must run in the node environment. Under jsdom, vite
+// marks node builtins as browser-external, and resolving the mocked "os"
+// original through the __vite-browser-external virtual id crashes on
+// Windows (fileURLToPath rejects the id). The config-level
+// environmentMatchGlobs that used to route electron tests to node was
+// removed in vitest 4, so the routing lives here now.
 import * as fs from "node:fs";
 import * as path from "node:path";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
