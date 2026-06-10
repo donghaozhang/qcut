@@ -88,6 +88,9 @@ export function extractOutputUrl(data: unknown): string | undefined {
 	if (Array.isArray(obj.output) && obj.output.length > 0) {
 		const first = obj.output[0] as Record<string, unknown>;
 		if (typeof first?.url === "string") return first.url;
+	} else if (typeof obj.output === "object" && obj.output !== null) {
+		const output = obj.output as Record<string, unknown>;
+		if (typeof output.url === "string") return output.url;
 	}
 	// IMA Router shape: `{ status: "completed", results: [{ url: "..." }] }`
 	if (Array.isArray(obj.results) && obj.results.length > 0) {

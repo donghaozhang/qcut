@@ -7,7 +7,7 @@
  */
 
 import * as path from "path";
-import { readFileSync } from "node:fs";
+import { readFileSync, statSync } from "node:fs";
 import type { ModelCategory, ModelDefinition } from "../infra/registry.js";
 import {
 	callElevenLabsSpeechToText,
@@ -484,6 +484,10 @@ function reshapeForImaRouter(
 	return out;
 }
 
+// Inline base64 upload cap: larger files risk OOM / V8 string-length limits
+// when encoded into the JSON request body. Hosted URLs have no such cap.
+const MAX_LUMA_INLINE_VIDEO_BYTES = 100 * 1024 * 1024;
+
 type LumaImageRef = { url: string } | { data: string; media_type: string };
 type LumaMediaRef =
 	| { generation_id: string }
@@ -665,6 +669,15 @@ function buildLumaVideoEditPayload({
 			success: false,
 			error: "Luma Ray 3.2 edit does not support --loop.",
 		};
+	}
+	if (sourceVideo && !isRemoteUrl(sourceVideo)) {
+		const sizeBytes = statSync(sourceVideo).size;
+		if (sizeBytes > MAX_LUMA_INLINE_VIDEO_BYTES) {
+			return {
+				success: false,
+				error: `Source video is ${(sizeBytes / (1024 * 1024)).toFixed(1)}MB; inline upload supports up to 100MB. Pass a hosted URL via --video-url instead.`,
+			};
+		}
 	}
 
 	const video = { ...(asRecord({ value: payload.video }) ?? {}) };

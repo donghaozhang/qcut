@@ -1595,7 +1595,9 @@ export async function callModelApi(
 				};
 			}
 
-			return pollLumaGeneration({
+			// Must await inside the try block so polling rejections (network
+			// errors, aborts, bad JSON) are mapped to a graceful failure result.
+			return await pollLumaGeneration({
 				generationId: submitData.id,
 				options: {
 					headers,
