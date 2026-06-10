@@ -482,6 +482,38 @@ export async function handleGenerate(
 		};
 	}
 	if (
+		options.command === "create-video" &&
+		options.model === "luma_ray_3_2" &&
+		!hasTextInput
+	) {
+		return {
+			success: false,
+			error: "Luma Ray 3.2 requires --text/-t even when anchor frames are provided.",
+		};
+	}
+	if (
+		options.command === "create-video" &&
+		options.model === "luma_ray_3_2_edit" &&
+		!hasTextInput
+	) {
+		return {
+			success: false,
+			error: "Luma Ray 3.2 edit requires --text/-t.",
+		};
+	}
+	if (
+		options.command === "create-video" &&
+		options.model === "luma_ray_3_2_edit" &&
+		!options.videoUrl &&
+		!options.sourceGenerationId
+	) {
+		return {
+			success: false,
+			error:
+				"Luma Ray 3.2 edit requires --video-url or --source-generation-id.",
+		};
+	}
+	if (
 		options.command === "generate-avatar" &&
 		!hasTextInput &&
 		!hasAudioInput
@@ -509,6 +541,13 @@ export async function handleGenerate(
 		params.size = customImageSize;
 	}
 	if (options.resolution) params.resolution = options.resolution;
+	if (options.loop) params.loop = true;
+	if (options.hdr) params.hdr = true;
+	if (options.exrExport) params.exr_export = true;
+	if (options.sourceGenerationId) {
+		params.source_generation_id = options.sourceGenerationId;
+	}
+	if (options.editStrength) params.edit_strength = options.editStrength;
 	if (options.negativePrompt) params.negative_prompt = options.negativePrompt;
 	if (options.voiceId) params.voice_id = options.voiceId;
 	if (options.elementIds && options.elementIds.length > 0) {
@@ -534,6 +573,7 @@ export async function handleGenerate(
 	// - happy_horse_ref2v: 1–9 images become payload `image_urls`
 	// - imarouter_*_ref2v: 1–14 images become IMA Router `images`
 	// - happy_horse_video_edit: ≤5 images become payload `reference_image_urls`
+	// - luma_ray_3_2_edit: first image becomes the optional guide frame
 	// Field-name mapping happens inside step-executors per-model branches;
 	// the CLI just stages the array under a stable key the executor reads.
 	if (options.command === "create-video") {
@@ -547,6 +587,10 @@ export async function handleGenerate(
 				params.image_urls = options.referenceImages.slice(0, 14);
 			} else if (options.model === "happy_horse_video_edit") {
 				params.reference_image_urls = options.referenceImages.slice(0, 5);
+			} else if (options.model === "luma_ray_3_2_edit") {
+				params.image_urls = options.referenceImages.slice(0, 1);
+			} else if (options.model === "luma_ray_3_2") {
+				params.image_urls = options.referenceImages.slice(0, 2);
 			}
 		}
 		if (options.audioSetting && options.model === "happy_horse_video_edit") {

@@ -17,7 +17,8 @@ export type ProviderBackend =
 	| "gmi"
 	| "gmi-llm"
 	| "runway"
-	| "imarouter";
+	| "imarouter"
+	| "luma";
 
 export type ModelCategory =
 	| "text_to_image"

@@ -8,6 +8,7 @@ import type { StepInput } from "../../../execution/step-executors.js";
 import { ModelRegistry } from "../../../infra/registry.js";
 import { registerImageToVideoModels } from "../../../registry-data/image-to-video.js";
 import { registerTextToVideoModels } from "../../../registry-data/text-to-video.js";
+import { registerVideoToVideoModels } from "../../../registry-data/video-to-video.js";
 import {
 	getDefaultModelForCommand,
 	handleGenerate,
@@ -66,6 +67,9 @@ describe("create-video duration validation", () => {
 		}
 		if (!ModelRegistry.has("imarouter_seedance_2_0_ref2v")) {
 			registerImageToVideoModels();
+		}
+		if (!ModelRegistry.has("luma_ray_3_2_edit")) {
+			registerVideoToVideoModels();
 		}
 	});
 
@@ -150,6 +154,120 @@ describe("create-video duration validation", () => {
 			"/tmp/a.png",
 			"/tmp/b.png",
 		]);
+	});
+
+	it("stages Luma Ray 3.2 reference images as start/end frame candidates", async () => {
+		const executor = new CapturingExecutor();
+
+		const result = await handleGenerate(
+			{
+				...buildVideoOptions({
+					model: "luma_ray_3_2",
+				}),
+				referenceImages: ["/tmp/start.png", "/tmp/end.png", "/tmp/ignored.png"],
+			},
+			ignoreProgress,
+			executor,
+			new AbortController().signal
+		);
+
+		expect(result.success).toBe(false);
+		expect(result.error).toContain("executor reached");
+		expect(executor.steps).toHaveLength(1);
+		expect(executor.steps[0].params.image_urls).toEqual([
+			"/tmp/start.png",
+			"/tmp/end.png",
+		]);
+	});
+
+	it("requires a prompt for Luma Ray 3.2 even with an anchor image", async () => {
+		const executor = new CapturingExecutor();
+
+		const result = await handleGenerate(
+			{
+				...buildVideoOptions({
+					model: "luma_ray_3_2",
+				}),
+				text: undefined,
+				imageUrl: "https://example.com/start.jpg",
+			},
+			ignoreProgress,
+			executor,
+			new AbortController().signal
+		);
+
+		expect(result.success).toBe(false);
+		expect(result.error).toContain("requires --text");
+		expect(executor.steps).toHaveLength(0);
+	});
+
+	it("passes Luma Ray 3.2 advanced video toggles into params", async () => {
+		const executor = new CapturingExecutor();
+
+		const result = await handleGenerate(
+			{
+				...buildVideoOptions({
+					model: "luma_ray_3_2",
+				}),
+				loop: true,
+				hdr: true,
+				exrExport: true,
+			},
+			ignoreProgress,
+			executor,
+			new AbortController().signal
+		);
+
+		expect(result.success).toBe(false);
+		expect(result.error).toContain("executor reached");
+		expect(executor.steps[0].params).toMatchObject({
+			loop: true,
+			hdr: true,
+			exr_export: true,
+		});
+	});
+
+	it("stages Luma Ray 3.2 edit source and guide frame params", async () => {
+		const executor = new CapturingExecutor();
+
+		const result = await handleGenerate(
+			{
+				...buildVideoOptions({
+					model: "luma_ray_3_2_edit",
+				}),
+				sourceGenerationId: "d290f1ee-6c54-4b01-90e6-d701748f0851",
+				editStrength: "flex_2",
+				referenceImages: ["/tmp/guide.png", "/tmp/ignored.png"],
+			},
+			ignoreProgress,
+			executor,
+			new AbortController().signal
+		);
+
+		expect(result.success).toBe(false);
+		expect(result.error).toContain("executor reached");
+		expect(executor.steps[0].params).toMatchObject({
+			source_generation_id: "d290f1ee-6c54-4b01-90e6-d701748f0851",
+			edit_strength: "flex_2",
+			image_urls: ["/tmp/guide.png"],
+		});
+	});
+
+	it("requires a source for Luma Ray 3.2 edit", async () => {
+		const executor = new CapturingExecutor();
+
+		const result = await handleGenerate(
+			buildVideoOptions({
+				model: "luma_ray_3_2_edit",
+			}),
+			ignoreProgress,
+			executor,
+			new AbortController().signal
+		);
+
+		expect(result.success).toBe(false);
+		expect(result.error).toContain("--video-url or --source-generation-id");
+		expect(executor.steps).toHaveLength(0);
 	});
 });
 

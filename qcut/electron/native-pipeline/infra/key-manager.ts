@@ -44,6 +44,7 @@ const KEY_NAMES = [
 	"ARK_API_KEY",
 	"GMI_API_KEY",
 	"IMAROUTER_API_KEY",
+	"LUMA_AGENTS_API_KEY",
 	"QCUT_AUTH_TOKEN",
 ] as const;
 

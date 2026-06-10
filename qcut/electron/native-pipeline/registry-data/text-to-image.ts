@@ -219,6 +219,26 @@ export function registerTextToImageModels(): void {
 		processingTime: 5,
 	});
 
+	ModelRegistry.register({
+		key: "luma_uni_1_image",
+		name: "Luma Uni 1 Image",
+		provider: "Luma Agents",
+		endpoint: "generations",
+		categories: ["text_to_image"],
+		description: "Uni 1 text-to-image generation via Luma Agents",
+		pricing: { type: "external", provider: "luma_agents" },
+		aspectRatios: ["1:1", "16:9", "9:16", "4:3", "3:4"],
+		providerBackend: "luma",
+		defaults: {
+			model: "uni-1",
+			type: "image",
+			aspect_ratio: "16:9",
+		},
+		features: ["text_to_image", "high_quality"],
+		costEstimate: 0,
+		processingTime: 60,
+	});
+
 	// Wan 2.7 text-to-image models
 	ModelRegistry.register({
 		key: "wan_v2_7_t2i",
