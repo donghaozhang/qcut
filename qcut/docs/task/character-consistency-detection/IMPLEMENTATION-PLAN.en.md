@@ -66,7 +66,7 @@ qcut analyze consistency \
 
 1. PARSE & VALIDATE
    ├─ ≥1 reference image exists; video exists/URL valid
-   └─ resolve model (default openrouter_gemini_3_5_flash_video)
+   └─ resolve model (default openrouter_gemini_2_5_flash_video, switchable to 3.5)
 
 2. PROBE VIDEO (frame-extractor.ts)
    ├─ ffprobe → fps (r_frame_rate), duration, total frames
@@ -105,7 +105,7 @@ qcut analyze consistency \
 |---|---|---|---|
 | `--ref` (repeatable) | `string[]` | — (≥1 required) | Reference image path(s) |
 | `--input` / `-i` | `string` | — (required) | Video path or URL |
-| `--model` / `-m` | `string` | `openrouter_gemini_3_5_flash_video` | Model key |
+| `--model` / `-m` | `string` | `openrouter_gemini_2_5_flash_video` | Model key (default 2.5; switch to `openrouter_gemini_3_5_flash_video` for 3.5) |
 | `--language` | `string` | `zh` | Prompt language (`zh` \| `en`) |
 | `--fps` | `number` | `1` | Keyframe sampling rate |
 | `--scene-detect` | `boolean` | `false` | Use scene-change selection instead of fixed fps |
@@ -118,7 +118,7 @@ qcut analyze consistency \
 ```json
 {
   "video": "scene.mp4",
-  "model": "openrouter_gemini_3_5_flash_video",
+  "model": "openrouter_gemini_2_5_flash_video",
   "videoFps": 30,
   "totalFrames": 4500,
   "referenceImages": ["ref1.jpg"],
@@ -159,7 +159,7 @@ The prompt and a post-filter both enforce restraint:
 |---|---|---|
 | Single-media executor to extend | [execution/step-executors.ts:1793](../../../electron/native-pipeline/execution/step-executors.ts) | `executeOpenRouterMediaUnderstanding` |
 | Dispatch by step category | [execution/step-executors.ts:958](../../../electron/native-pipeline/execution/step-executors.ts) | switch on `image_understanding` |
-| Model defs | [registry-data/image-understanding.ts:115](../../../electron/native-pipeline/registry-data/image-understanding.ts) | `openrouter_gemini_3_5_flash_video` |
+| Model defs (add a 2.5 entry mirroring the 3.5 one) | [registry-data/image-understanding.ts:114](../../../electron/native-pipeline/registry-data/image-understanding.ts) | add `openrouter_gemini_2_5_flash_video` → `google/gemini-2.5-flash`; existing 3.5 entry is `openrouter_gemini_3_5_flash_video` |
 | Command shape to mirror | [cli/command-registry.ts:577](../../../electron/native-pipeline/cli/command-registry.ts) | `analyze-video` entry |
 | Flag helper / `FlagDef` | [cli/command-registry-types.ts:10](../../../electron/native-pipeline/cli/command-registry-types.ts) | `f()` + `FlagDef` |
 | Handler dispatch table | [cli/cli-runner/handler-map.ts:172](../../../electron/native-pipeline/cli/cli-runner/handler-map.ts) | `"analyze-video": mediaHandleAnalyzeVideo` |
@@ -170,12 +170,13 @@ The prompt and a post-filter both enforce restraint:
 
 ## 8. Key decisions & trade-offs
 
-1. **Multi-image, not multi-video.** Higher spatial fidelity, far cheaper, no 2.5+ requirement, and we control exactly which frames are compared. (See §2.)
+1. **Multi-image, not multi-video.** Higher spatial fidelity, far cheaper, no hard version lock-in, and we control exactly which frames are compared. (See §2.)
 2. **New executor function, not a mutation of the single-media path.** Keeps the proven path untouched; long-term maintainability over a clever in-place hack. New step input shape `{ images: MediaPart[] }` flows through a new `executeMultiImageUnderstanding`.
 3. **Reference repeated per batch.** The baseline must be present in every request, since each request is an independent model call.
 4. **Downscale frames (~768px) + batch (K=6).** Keeps inline payload under Gemini's 20 MB limit without the File API for typical clips; both are flags so large jobs can tune them.
 5. **fps from `ffprobe r_frame_rate`.** Required to honor the requirement "report frame X → frame Y". `frameNumber = round(timeSeconds * fps)`.
 6. **Conservative by default (`--min-severity high`).** Matches the user's "only report when really problematic" requirement.
+7. **Default to Gemini 2.5 Flash, switchable to 3.5.** Default model key is `openrouter_gemini_2_5_flash_video` (→ `google/gemini-2.5-flash`); `--model openrouter_gemini_3_5_flash_video` switches to 3.5. This requires **adding a new OpenRouter 2.5 registry entry** that mirrors the existing 3.5 one (only 3.5 is registered today on this path; the existing 2.5 `fal_video_qa` uses a different FAL endpoint and is not the multi-image chat-completions path). The approach itself is version-agnostic — multi-image works on both.
 
 ## 9. Out of scope (explicitly)
 

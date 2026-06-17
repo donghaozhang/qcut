@@ -128,10 +128,12 @@
 
 ---
 
-## 任务 8 — 命令注册与分发
-**目标：** 让 `qcut analyze consistency` 可运行。
-**约 30 分钟**
+## 任务 8 — 命令、模型与分发注册
+**目标：** 让 `qcut analyze consistency` 可运行，并以 Gemini 2.5 为默认模型。
+**约 45 分钟**
 
+- **修改** `electron/native-pipeline/registry-data/image-understanding.ts`
+  - 新增条目 `openrouter_gemini_2_5_flash_video` → `defaults.model: "google/gemini-2.5-flash"`，参照 [114 行](../../../electron/native-pipeline/registry-data/image-understanding.ts) 现有的 3.5 条目（同样 `providerBackend: "openrouter"`、`endpoint: "chat/completions"`、`categories: ["image_understanding"]`）。它作为本功能默认值；3.5（`openrouter_gemini_3_5_flash_video`）通过 `--model` 仍可用。（现有的 2.5 `fal_video_qa` 是 FAL 路由 endpoint，不是多图 chat-completions 路径，故此处**不复用**。）
 - **修改** `electron/native-pipeline/cli/command-registry.ts`
   - 往 `CORE_COMMANDS` 加 `"analyze-consistency"`（参照 [577 行](../../../electron/native-pipeline/cli/command-registry.ts) 的 `analyze-video`），flags 取自方案文档里的选项表；加到 `analysis` 分类。
 - **修改** `electron/native-pipeline/cli/cli-runner/handler-map.ts`
@@ -177,6 +179,7 @@
 
 **修改**
 - `electron/native-pipeline/execution/step-executors.ts`（+ step 输入类型）
+- `electron/native-pipeline/registry-data/image-understanding.ts`（新增 `openrouter_gemini_2_5_flash_video`，默认）
 - `electron/native-pipeline/cli/command-registry.ts`
 - `electron/native-pipeline/cli/cli-runner/handler-map.ts`
 - `CLIRunOptions` 类型（`cli/` 下定义处）

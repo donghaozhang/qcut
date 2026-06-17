@@ -128,10 +128,12 @@ This feature is well beyond 20 minutes, so it is split into ordered subtasks. Ea
 
 ---
 
-## Task 8 — Command registration & dispatch
-**Goal:** Make `qcut analyze consistency` runnable.
-**~30 min**
+## Task 8 — Command, model & dispatch registration
+**Goal:** Make `qcut analyze consistency` runnable with Gemini 2.5 as the default model.
+**~45 min**
 
+- **Modify** `electron/native-pipeline/registry-data/image-understanding.ts`
+  - Add a new entry `openrouter_gemini_2_5_flash_video` → `defaults.model: "google/gemini-2.5-flash"`, mirroring the existing 3.5 entry at [line 114](../../../electron/native-pipeline/registry-data/image-understanding.ts) (same `providerBackend: "openrouter"`, `endpoint: "chat/completions"`, `categories: ["image_understanding"]`). This becomes the feature default; 3.5 (`openrouter_gemini_3_5_flash_video`) stays available via `--model`. (The existing 2.5 `fal_video_qa` is a FAL-routed endpoint, not the multi-image chat-completions path, so it is **not** reused here.)
 - **Modify** `electron/native-pipeline/cli/command-registry.ts`
   - Add `"analyze-consistency"` to `CORE_COMMANDS` (mirror `analyze-video` at [line 577](../../../electron/native-pipeline/cli/command-registry.ts)) with flags from the options table in the plan; add it to the `analysis` category.
 - **Modify** `electron/native-pipeline/cli/cli-runner/handler-map.ts`
@@ -177,6 +179,7 @@ This feature is well beyond 20 minutes, so it is split into ordered subtasks. Ea
 
 **Modified**
 - `electron/native-pipeline/execution/step-executors.ts` (+ step-input type)
+- `electron/native-pipeline/registry-data/image-understanding.ts` (add `openrouter_gemini_2_5_flash_video`, default)
 - `electron/native-pipeline/cli/command-registry.ts`
 - `electron/native-pipeline/cli/cli-runner/handler-map.ts`
 - `CLIRunOptions` type (wherever defined under `cli/`)
