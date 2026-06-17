@@ -6,6 +6,13 @@
 
 **总预估：约 6–9 小时**（单人）。
 
+## 拆分与维护规则
+
+- 每个任务必须列出明确的代码路径和测试路径；不能只写"接 CLI"或"改执行器"这种泛描述。
+- 如果实现时某个任务超过约 2 小时，继续拆成 A/B 子任务，并保持每个子任务都有独立验收。
+- 优先做长期可维护结构：新功能逻辑放在 `electron/native-pipeline/character-consistency/`，共享 OpenRouter content 构造放在 `electron/native-pipeline/execution/openrouter-media-content.ts`，不要把临时逻辑堆进 CLI handler 或继续扩大 `step-executors.ts`。
+- 每个任务都要配测试；新增能力必须同时有旧路径回归测试，避免短期实现破坏现有 media understanding。
+
 ---
 
 ## 任务 0 — 类型与模块脚手架
@@ -19,6 +26,7 @@
   - `ConsistencyFinding = { startFrame; endFrame; startTime; endTime; category; severity; comment; fix }`
   - `ConsistencyRunOptions`（refs[]、videoInput、model、language、fps、sceneDetect、batchSize、minSeverity、maxTokens、outputDir）
   - `ConsistencyResult = { video; model; videoFps; totalFrames; referenceImages; samplingFps; minSeverity; findings: ConsistencyFinding[] }`
+  - `DEFAULT_CONSISTENCY_OPTIONS`：`model: "openrouter_gemini_3_5_flash_video"`、`language: "zh"`、`fps: 1`、`batchSize: 6`、`minSeverity: "high"`、`maxTokens: 8000`
 
 **验收：** `bun check-types` 通过；暂无行为。
 
@@ -53,14 +61,30 @@
 
 ---
 
-## 任务 3 — 多图执行路径
-**目标：** 让执行器在不动单媒体路径的前提下，一次请求发 `参考图 + N 帧`。
-**约 1.5 小时**
+## 任务 3A — OpenRouter media content helper
+**目标：** 把 OpenRouter 媒体 URL 编码和 content 构造从大执行器里抽出来，先保护旧路径。
+**约 45 分钟**
+
+- **新建** `electron/native-pipeline/execution/openrouter-media-content.ts`
+  - 迁移/封装现有 [step-executors.ts:204](../../../electron/native-pipeline/execution/step-executors.ts) 的 `toOpenRouterMediaUrl({ input })` 行为。
+  - 新增 `buildOpenRouterSingleMediaContent({ prompt, mediaUrl, mediaKind })`，返回 text + `image_url` 或 `video_url`。
+  - 新增 `buildOpenRouterMultiImageContent({ prompt, imageUrls })`，返回 text + 多个 `image_url`，保持输入顺序。
+- **修改** `electron/native-pipeline/execution/step-executors.ts`
+  - `executeOpenRouterMediaUnderstanding` 改用 helper，但外部行为不变。
+- **新建测试** `electron/native-pipeline/execution/__tests__/openrouter-media-content.test.ts`
+  - 覆盖远程 URL、data URL、本地文件 data URL、单图片 content、单视频 content、多图 content 顺序。
+
+**验收：** 旧的单媒体 OpenRouter 请求 payload 与改动前等价；新 helper 测试通过。
+
+---
+
+## 任务 3B — 多图执行路径
+**目标：** 让执行器在不破坏单媒体路径的前提下，一次请求发 `参考图 + N 帧`。
+**约 1 小时**
 
 - **修改** `electron/native-pipeline/execution/step-executors.ts`
-  - 在 [executeOpenRouterMediaUnderstanding:1793](../../../electron/native-pipeline/execution/step-executors.ts) 附近新增 `executeMultiImageUnderstanding(model, input, payload, options)`。构造 `content = [ {type:"text", text}, ...images.map(u => ({ type:"image_url", image_url:{ url:u } })) ]`，并像现有函数那样调用 `callModelApi(... provider:"openrouter")`。
-  - 新增 `StepInput.images?: string[]`（data URL / 路径 → 复用 `toOpenRouterMediaUrl`）。当 `input.images?.length` 有值时走多图函数；否则保持现有行为。
-- **修改** step 输入类型（同文件或 `execution/types.ts`）加上 `images?: string[]`。
+  - 在 [executeOpenRouterMediaUnderstanding:1793](../../../electron/native-pipeline/execution/step-executors.ts) 附近新增 `executeMultiImageUnderstanding(model, input, payload, options)`，复用 `buildOpenRouterMultiImageContent`，并像现有函数那样调用 `callModelApi(... provider:"openrouter")`。
+  - 在 [StepInput:21](../../../electron/native-pipeline/execution/step-executors.ts) 加 `images?: string[]`。当 `input.images?.length` 有值时走多图函数；否则保持现有行为。
 - **新建测试** `electron/native-pipeline/execution/__tests__/multi-image-understanding.test.ts`
   - mock `callModelApi`；断言外发 `content` 数组按序含 1 个 text + K 个 `image_url`，且单媒体调用不受影响（回归）。
 
@@ -128,17 +152,17 @@
 
 ---
 
-## 任务 8 — 命令、模型与分发注册
-**目标：** 让 `qcut analyze consistency` 可运行，并以 Gemini 2.5 为默认模型。
-**约 45 分钟**
+## 任务 8 — 命令注册与分发
+**目标：** 让 `qcut analyze consistency` 可运行，并默认使用 `openrouter_gemini_3_5_flash_video`。
+**约 30 分钟**
 
-- **修改** `electron/native-pipeline/registry-data/image-understanding.ts`
-  - 新增条目 `openrouter_gemini_2_5_flash_video` → `defaults.model: "google/gemini-2.5-flash"`，参照 [114 行](../../../electron/native-pipeline/registry-data/image-understanding.ts) 现有的 3.5 条目（同样 `providerBackend: "openrouter"`、`endpoint: "chat/completions"`、`categories: ["image_understanding"]`）。它作为本功能默认值；3.5（`openrouter_gemini_3_5_flash_video`）通过 `--model` 仍可用。（现有的 2.5 `fal_video_qa` 是 FAL 路由 endpoint，不是多图 chat-completions 路径，故此处**不复用**。）
 - **修改** `electron/native-pipeline/cli/command-registry.ts`
   - 往 `CORE_COMMANDS` 加 `"analyze-consistency"`（参照 [577 行](../../../electron/native-pipeline/cli/command-registry.ts) 的 `analyze-video`），flags 取自方案文档里的选项表；加到 `analysis` 分类。
 - **修改** `electron/native-pipeline/cli/cli-runner/handler-map.ts`
   - 导入 handler，在 `HANDLER_MAP` 里加 `"analyze-consistency": handleAnalyzeConsistency`（[172 行](../../../electron/native-pipeline/cli/cli-runner/handler-map.ts) 附近）。
-- **修改** CLI 选项类型（`CLIRunOptions`），若未覆盖则补 `refs?: string[]`、`language?`、`fps?`、`sceneDetect?`、`batchSize?`、`minSeverity?`，并确保 `--ref` 解析为可重复的 `string[]`。
+- **修改** [electron/native-pipeline/cli/cli-runner/types.ts:12](../../../electron/native-pipeline/cli/cli-runner/types.ts)
+  - 在 `CLIRunOptions` 补 `refs?: string[]`、`language?`、`fps?`、`sceneDetect?`、`batchSize?`、`minSeverity?`、`maxTokens?`，字段名与 command registry 输出保持一致。
+  - 确保 `--ref` 解析为可重复的 `string[]`。
 - **新建/扩展测试** `electron/native-pipeline/cli/__tests__/command-registry.test.ts`（若已存在）—— 断言命令 + flags 已注册，且 `--ref` 为 `string[]`。
 
 **验收：** `qcut analyze consistency --help` 列出 flags；arg-parse 测试通过。
@@ -155,6 +179,42 @@
 
 **验收：** 文档更新；手动冒烟符合预期。
 
+### 当前实现用法
+
+```bash
+qcut analyze consistency \
+  --ref ref.jpg \
+  --input scene.mp4 \
+  --language zh \
+  --min-severity high \
+  --output-dir ./consistency-report \
+  --json
+```
+
+多参考图：
+
+```bash
+qcut analyze consistency \
+  --ref ref-front.jpg \
+  --ref ref-side.jpg \
+  --input scene.mp4 \
+  --fps 2 \
+  --batch-size 4
+```
+
+产物：
+
+- `consistency-findings.json`
+- `consistency-findings.csv`
+- `consistency-report.html`
+- `consistency-report.md`
+
+实现偏差 / 说明：
+
+- 真实命令通过 group alias 运行：`qcut analyze consistency ...`，内部命令名是 `analyze-consistency`。
+- `--ref` 解析为 `refs: string[]`，同时保留旧 `ref` 单值为第一个 reference，避免影响已有 editor 命令。
+- 抽帧单测不 mock 内置 `child_process`，而是给 `frame-extractor` 注入 command runner；生产路径仍默认调用系统 `ffprobe` / `ffmpeg`。
+
 ---
 
 ## 提交前检查清单
@@ -167,6 +227,7 @@
 ## 文件汇总（新增 vs 修改）
 **新增**
 - `electron/native-pipeline/character-consistency/types.ts`
+- `electron/native-pipeline/execution/openrouter-media-content.ts`
 - `electron/native-pipeline/character-consistency/frame-extractor.ts`
 - `electron/native-pipeline/character-consistency/consistency-prompts.ts`
 - `electron/native-pipeline/character-consistency/consistency-normalize.ts`
@@ -175,11 +236,11 @@
 - `electron/native-pipeline/cli/cli-handlers-character-consistency.ts`
 - `electron/native-pipeline/character-consistency/__tests__/*.test.ts`（5 个文件）
 - `electron/native-pipeline/cli/__tests__/cli-handlers-character-consistency.test.ts`
+- `electron/native-pipeline/execution/__tests__/openrouter-media-content.test.ts`
 - `electron/native-pipeline/execution/__tests__/multi-image-understanding.test.ts`
 
 **修改**
 - `electron/native-pipeline/execution/step-executors.ts`（+ step 输入类型）
-- `electron/native-pipeline/registry-data/image-understanding.ts`（新增 `openrouter_gemini_2_5_flash_video`，默认）
 - `electron/native-pipeline/cli/command-registry.ts`
 - `electron/native-pipeline/cli/cli-runner/handler-map.ts`
-- `CLIRunOptions` 类型（`cli/` 下定义处）
+- `electron/native-pipeline/cli/cli-runner/types.ts`（`CLIRunOptions`）

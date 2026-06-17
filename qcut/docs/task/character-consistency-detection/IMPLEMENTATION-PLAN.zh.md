@@ -52,9 +52,18 @@ electron/native-pipeline/character-consistency/
 
 外加接线：
 - `cli/cli-handlers-character-consistency.ts` —— CLI handler。
+- `execution/openrouter-media-content.ts` —— OpenRouter 单媒体/多图 content 构造与本地文件 data URL 编码 helper。
 - `execution/step-executors.ts` —— 新增 `executeMultiImageUnderstanding`（多图 content 构造）。
 - `cli/command-registry.ts` —— 注册 `analyze-consistency` 命令。
 - `cli/cli-runner/handler-map.ts` —— 命令 → handler 映射。
+
+### 长期维护原则
+
+- **不要把功能逻辑塞进 CLI handler。** Handler 只做参数校验、默认值解析、调用 runner、写出 `CLIResult`；抽帧、分批、合并、过滤都留在 `character-consistency/` 模块内。
+- **不要继续膨胀 `step-executors.ts`。** 多图请求需要复用 OpenRouter 的媒体 URL 编码和 content 构造，因此先抽出 `execution/openrouter-media-content.ts`；`step-executors.ts` 只负责选择执行路径和调用 provider。
+- **默认值集中定义。** `DEFAULT_CONSISTENCY_OPTIONS` 放在 `character-consistency/types.ts` 或同目录轻量 config export 中，CLI flag、runner 和文档都引用同一组默认值，避免后续模型切换时多处漂移。
+- **每个子任务必须有文件路径和测试路径。** 如果实现时某个任务超过约 2 小时，拆成 A/B 子任务；不要用一次性大改换短期速度。
+- **保留旧路径行为。** 单图片/单视频 `image_understanding` 的行为必须有回归测试，确保新增多图能力不改变现有 `analyze-video` / media understanding。
 
 ### 端到端流程
 
@@ -66,7 +75,7 @@ qcut analyze consistency \
 
 1. 解析 & 校验
    ├─ ≥1 张参考图存在；视频存在 / URL 合法
-   └─ 解析模型（默认 openrouter_gemini_2_5_flash_video，可切换到 3.5）
+   └─ 解析模型（默认 openrouter_gemini_3_5_flash_video）
 
 2. 探测视频（frame-extractor.ts）
    ├─ ffprobe → fps（r_frame_rate）、时长、总帧数
@@ -105,7 +114,7 @@ qcut analyze consistency \
 |---|---|---|---|
 | `--ref`（可重复） | `string[]` | —（≥1 必填） | 参考图路径 |
 | `--input` / `-i` | `string` | —（必填） | 视频路径或 URL |
-| `--model` / `-m` | `string` | `openrouter_gemini_2_5_flash_video` | 模型 key（默认 2.5；换成 `openrouter_gemini_3_5_flash_video` 即用 3.5） |
+| `--model` / `-m` | `string` | `openrouter_gemini_3_5_flash_video` | 模型 key |
 | `--language` | `string` | `zh` | Prompt 语言（`zh` \| `en`） |
 | `--fps` | `number` | `1` | 关键帧采样率 |
 | `--scene-detect` | `boolean` | `false` | 用场景切换选帧替代固定 fps |
@@ -118,7 +127,7 @@ qcut analyze consistency \
 ```json
 {
   "video": "scene.mp4",
-  "model": "openrouter_gemini_2_5_flash_video",
+  "model": "openrouter_gemini_3_5_flash_video",
   "videoFps": 30,
   "totalFrames": 4500,
   "referenceImages": ["ref1.jpg"],
@@ -158,11 +167,14 @@ qcut analyze consistency \
 | 内容 | 文件 | 锚点 |
 |---|---|---|
 | 待扩展的单媒体执行器 | [execution/step-executors.ts:1793](../../../electron/native-pipeline/execution/step-executors.ts) | `executeOpenRouterMediaUnderstanding` |
+| 建议新增的 OpenRouter content helper | `electron/native-pipeline/execution/openrouter-media-content.ts` | `toOpenRouterMediaUrl`、single-media content、multi-image content |
 | 按 step 分类分发 | [execution/step-executors.ts:958](../../../electron/native-pipeline/execution/step-executors.ts) | `image_understanding` 分支 |
-| 模型定义（参照 3.5 条目新增一个 2.5 条目） | [registry-data/image-understanding.ts:114](../../../electron/native-pipeline/registry-data/image-understanding.ts) | 新增 `openrouter_gemini_2_5_flash_video` → `google/gemini-2.5-flash`；现有 3.5 条目为 `openrouter_gemini_3_5_flash_video` |
+| 模型定义 | [registry-data/image-understanding.ts:114](../../../electron/native-pipeline/registry-data/image-understanding.ts) | 复用现有 `openrouter_gemini_3_5_flash_video` |
 | 可镜像的命令结构 | [cli/command-registry.ts:577](../../../electron/native-pipeline/cli/command-registry.ts) | `analyze-video` 条目 |
 | flag 辅助函数 / `FlagDef` | [cli/command-registry-types.ts:10](../../../electron/native-pipeline/cli/command-registry-types.ts) | `f()` + `FlagDef` |
 | handler 分发表 | [cli/cli-runner/handler-map.ts:172](../../../electron/native-pipeline/cli/cli-runner/handler-map.ts) | `"analyze-video": mediaHandleAnalyzeVideo` |
+| CLI 选项类型 | [cli/cli-runner/types.ts:12](../../../electron/native-pipeline/cli/cli-runner/types.ts) | `CLIRunOptions` |
+| step 输入类型 | [execution/step-executors.ts:21](../../../electron/native-pipeline/execution/step-executors.ts) | `StepInput` |
 | 可复用的 ffmpeg/ffprobe 写法 | [video-review/review-split-runner.ts:243](../../../electron/native-pipeline/video-review/review-split-runner.ts) | `execFileAsync("ffprobe"/"ffmpeg", …)` |
 | 可镜像的产物写法 | [video-review/review-artifacts.ts](../../../electron/native-pipeline/video-review/review-artifacts.ts) | `writeReviewArtifacts` |
 | handler 签名 | [cli/cli-runner/handler-map.ts:103](../../../electron/native-pipeline/cli/cli-runner/handler-map.ts) | `CommandHandler` 类型 |
@@ -176,7 +188,7 @@ qcut analyze consistency \
 4. **缩放帧（~768px）+ 分批（K=6）。** 不走 File API 也能让典型片段的内联载荷低于 Gemini 20 MB 上限；两者都是 flag，大任务可调。
 5. **fps 取自 `ffprobe r_frame_rate`。** 这是满足"上报第几帧到第几帧"的前提。`frameNumber = round(timeSeconds * fps)`。
 6. **默认保守（`--min-severity high`）。** 对应用户"只有特别有问题才上报"的要求。
-7. **默认 Gemini 2.5 Flash，可切换 3.5。** 默认模型 key 为 `openrouter_gemini_2_5_flash_video`（→ `google/gemini-2.5-flash`）；`--model openrouter_gemini_3_5_flash_video` 即切到 3.5。这需要**新增一个 OpenRouter 2.5 注册条目**，参照现有的 3.5 条目（目前这条路径上只注册了 3.5；现有的 2.5 `fal_video_qa` 走的是另一个 FAL endpoint，不是多图 chat-completions 路径）。方案本身与版本无关 —— 多图在两者上都能用。
+7. **默认 Gemini 3.5 Flash。** 默认模型 key 为 `openrouter_gemini_3_5_flash_video`，直接复用当前已注册的 OpenRouter 多模态 chat-completions 路径。方案本身与版本无关 —— 多图能力也可迁移到其他 Gemini 模型，但本期默认先锁定 3.5。
 
 ## 9. 明确不做的范围
 
@@ -188,7 +200,7 @@ qcut analyze consistency \
 
 | 风险 | 缓解 |
 |---|---|
-| 选定的 Gemini 模型在 OpenRouter 路由下多图可能传不干净 | 在子任务 3 早期用「2 张图」冒烟验证；必要时记录回退到原生 Gemini provider 条目 |
+| 选定的 Gemini 模型在 OpenRouter 路由下多图可能传不干净 | 在子任务 3B 早期用「2 张图」冒烟验证；必要时记录回退到原生 Gemini provider 条目 |
 | 长视频 / 多帧导致内联载荷 > 20 MB | 缩放 + 分批；仍超则调低 `--fps` 或 `--batch-size`；未来：File API 上传 |
 | 机位/姿势混淆导致误报 | 保守 prompt + 默认 `--min-severity high` + 文档定位为"供人复核" |
 | 打包后的 app 里 ffmpeg/ffprobe 不在 PATH | 复用现有 review-split-runner 的调用写法；缺失时给出清晰报错（与现有审片功能一致） |

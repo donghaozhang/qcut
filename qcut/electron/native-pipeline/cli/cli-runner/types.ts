@@ -151,6 +151,10 @@ export interface CLIRunOptions {
 	outputFormat?: string;
 	reviewLanguage?: string;
 	reviewPromptDir?: string;
+	refs?: string[];
+	sceneDetect?: boolean;
+	batchSize?: number;
+	minSeverity?: string;
 	before?: string;
 	after?: string;
 	// upscale-image options

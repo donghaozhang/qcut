@@ -6,6 +6,13 @@ This feature is well beyond 20 minutes, so it is split into ordered subtasks. Ea
 
 **Estimated total: ~6–9 hours** (1 engineer).
 
+## Splitting & Maintenance Rules
+
+- Every task must name concrete code paths and test paths; avoid vague entries such as "wire CLI" or "change executor".
+- If a task grows beyond roughly 2 hours during implementation, split it into A/B subtasks and keep each subtask independently acceptable.
+- Prefer long-term structure over short-term speed: feature logic belongs in `electron/native-pipeline/character-consistency/`, shared OpenRouter content construction belongs in `electron/native-pipeline/execution/openrouter-media-content.ts`, and temporary logic should not accumulate in the CLI handler or further bloat `step-executors.ts`.
+- Every task needs tests; new behavior must include old-path regression coverage so existing media understanding does not break.
+
 ---
 
 ## Task 0 — Types & module scaffold
@@ -19,6 +26,7 @@ This feature is well beyond 20 minutes, so it is split into ordered subtasks. Ea
   - `ConsistencyFinding = { startFrame; endFrame; startTime; endTime; category; severity; comment; fix }`
   - `ConsistencyRunOptions` (refs[], videoInput, model, language, fps, sceneDetect, batchSize, minSeverity, maxTokens, outputDir)
   - `ConsistencyResult = { video; model; videoFps; totalFrames; referenceImages; samplingFps; minSeverity; findings: ConsistencyFinding[] }`
+  - `DEFAULT_CONSISTENCY_OPTIONS`: `model: "openrouter_gemini_3_5_flash_video"`, `language: "zh"`, `fps: 1`, `batchSize: 6`, `minSeverity: "high"`, `maxTokens: 8000`
 
 **Acceptance:** `bun check-types` passes; no behavior yet.
 
@@ -53,14 +61,30 @@ This feature is well beyond 20 minutes, so it is split into ordered subtasks. Ea
 
 ---
 
-## Task 3 — Multi-image executor path
-**Goal:** Let the executor send `reference + N frames` in one request without touching the single-media path.
-**~1.5 h**
+## Task 3A — OpenRouter media content helper
+**Goal:** Extract OpenRouter media URL encoding and content construction from the large executor first, protecting the old path.
+**~45 min**
+
+- **Create** `electron/native-pipeline/execution/openrouter-media-content.ts`
+  - Move/wrap the current `toOpenRouterMediaUrl({ input })` behavior from [step-executors.ts:204](../../../electron/native-pipeline/execution/step-executors.ts).
+  - Add `buildOpenRouterSingleMediaContent({ prompt, mediaUrl, mediaKind })`, returning text + `image_url` or `video_url`.
+  - Add `buildOpenRouterMultiImageContent({ prompt, imageUrls })`, returning text + multiple `image_url` parts while preserving input order.
+- **Modify** `electron/native-pipeline/execution/step-executors.ts`
+  - Update `executeOpenRouterMediaUnderstanding` to use the helper without changing external behavior.
+- **Create test** `electron/native-pipeline/execution/__tests__/openrouter-media-content.test.ts`
+  - Cover remote URL, data URL, local-file data URL, single-image content, single-video content, and multi-image content order.
+
+**Acceptance:** The existing single-media OpenRouter request payload is equivalent to before; new helper tests pass.
+
+---
+
+## Task 3B — Multi-image executor path
+**Goal:** Let the executor send `reference + N frames` in one request without breaking the single-media path.
+**~1 h**
 
 - **Modify** `electron/native-pipeline/execution/step-executors.ts`
-  - Add `executeMultiImageUnderstanding(model, input, payload, options)` near [executeOpenRouterMediaUnderstanding:1793](../../../electron/native-pipeline/execution/step-executors.ts). Build `content = [ {type:"text", text}, ...images.map(u => ({ type:"image_url", image_url:{ url:u } })) ]` and call `callModelApi(... provider:"openrouter")` exactly like the existing function.
-  - Accept a new `StepInput.images?: string[]` (data URLs / paths → reuse `toOpenRouterMediaUrl`). Route to the multi-image fn when `input.images?.length` is set; otherwise keep existing behavior.
-- **Modify** the step-input type (same file or `execution/types.ts`) to add `images?: string[]`.
+  - Add `executeMultiImageUnderstanding(model, input, payload, options)` near [executeOpenRouterMediaUnderstanding:1793](../../../electron/native-pipeline/execution/step-executors.ts), reuse `buildOpenRouterMultiImageContent`, and call `callModelApi(... provider:"openrouter")` exactly like the existing function.
+  - Add `images?: string[]` to [StepInput:21](../../../electron/native-pipeline/execution/step-executors.ts). Route to the multi-image fn when `input.images?.length` is set; otherwise keep existing behavior.
 - **Create test** `electron/native-pipeline/execution/__tests__/multi-image-understanding.test.ts`
   - Mock `callModelApi`; assert the outgoing `content` array contains 1 text + K `image_url` parts in order, and that single-media calls are unchanged (regression).
 
@@ -128,17 +152,17 @@ This feature is well beyond 20 minutes, so it is split into ordered subtasks. Ea
 
 ---
 
-## Task 8 — Command, model & dispatch registration
-**Goal:** Make `qcut analyze consistency` runnable with Gemini 2.5 as the default model.
-**~45 min**
+## Task 8 — Command registration & dispatch
+**Goal:** Make `qcut analyze consistency` runnable with `openrouter_gemini_3_5_flash_video` as the default model.
+**~30 min**
 
-- **Modify** `electron/native-pipeline/registry-data/image-understanding.ts`
-  - Add a new entry `openrouter_gemini_2_5_flash_video` → `defaults.model: "google/gemini-2.5-flash"`, mirroring the existing 3.5 entry at [line 114](../../../electron/native-pipeline/registry-data/image-understanding.ts) (same `providerBackend: "openrouter"`, `endpoint: "chat/completions"`, `categories: ["image_understanding"]`). This becomes the feature default; 3.5 (`openrouter_gemini_3_5_flash_video`) stays available via `--model`. (The existing 2.5 `fal_video_qa` is a FAL-routed endpoint, not the multi-image chat-completions path, so it is **not** reused here.)
 - **Modify** `electron/native-pipeline/cli/command-registry.ts`
   - Add `"analyze-consistency"` to `CORE_COMMANDS` (mirror `analyze-video` at [line 577](../../../electron/native-pipeline/cli/command-registry.ts)) with flags from the options table in the plan; add it to the `analysis` category.
 - **Modify** `electron/native-pipeline/cli/cli-runner/handler-map.ts`
   - Import the handler and add `"analyze-consistency": handleAnalyzeConsistency` to `HANDLER_MAP` (near [line 172](../../../electron/native-pipeline/cli/cli-runner/handler-map.ts)).
-- **Modify** the CLI options type (`CLIRunOptions`) to include `refs?: string[]`, `language?`, `fps?`, `sceneDetect?`, `batchSize?`, `minSeverity?` if not already covered, and ensure `--ref` parses as repeatable `string[]`.
+- **Modify** [electron/native-pipeline/cli/cli-runner/types.ts:12](../../../electron/native-pipeline/cli/cli-runner/types.ts)
+  - Add `refs?: string[]`, `language?`, `fps?`, `sceneDetect?`, `batchSize?`, `minSeverity?`, `maxTokens?` to `CLIRunOptions`, keeping field names aligned with command-registry output.
+  - Ensure `--ref` parses as repeatable `string[]`.
 - **Create/extend test** `electron/native-pipeline/cli/__tests__/command-registry.test.ts` (if exists) — assert the command + flags are registered and `--ref` is `string[]`.
 
 **Acceptance:** `qcut analyze consistency --help` lists flags; arg-parse test green.
@@ -155,6 +179,42 @@ This feature is well beyond 20 minutes, so it is split into ordered subtasks. Ea
 
 **Acceptance:** Docs updated; manual smoke matches expectations.
 
+### Current implementation usage
+
+```bash
+qcut analyze consistency \
+  --ref ref.jpg \
+  --input scene.mp4 \
+  --language zh \
+  --min-severity high \
+  --output-dir ./consistency-report \
+  --json
+```
+
+Multiple reference images:
+
+```bash
+qcut analyze consistency \
+  --ref ref-front.jpg \
+  --ref ref-side.jpg \
+  --input scene.mp4 \
+  --fps 2 \
+  --batch-size 4
+```
+
+Artifacts:
+
+- `consistency-findings.json`
+- `consistency-findings.csv`
+- `consistency-report.html`
+- `consistency-report.md`
+
+Implementation notes / deviations:
+
+- The public command runs through the group alias `qcut analyze consistency ...`; the internal command name is `analyze-consistency`.
+- `--ref` parses to `refs: string[]`, while the older single `ref` option is preserved as the first reference to avoid impacting existing editor commands.
+- Frame-extractor unit tests inject a command runner instead of mocking built-in `child_process`; production still calls system `ffprobe` / `ffmpeg` by default.
+
 ---
 
 ## Pre-commit checklist
@@ -167,6 +227,7 @@ This feature is well beyond 20 minutes, so it is split into ordered subtasks. Ea
 ## File summary (new vs modified)
 **New**
 - `electron/native-pipeline/character-consistency/types.ts`
+- `electron/native-pipeline/execution/openrouter-media-content.ts`
 - `electron/native-pipeline/character-consistency/frame-extractor.ts`
 - `electron/native-pipeline/character-consistency/consistency-prompts.ts`
 - `electron/native-pipeline/character-consistency/consistency-normalize.ts`
@@ -175,11 +236,11 @@ This feature is well beyond 20 minutes, so it is split into ordered subtasks. Ea
 - `electron/native-pipeline/cli/cli-handlers-character-consistency.ts`
 - `electron/native-pipeline/character-consistency/__tests__/*.test.ts` (5 files)
 - `electron/native-pipeline/cli/__tests__/cli-handlers-character-consistency.test.ts`
+- `electron/native-pipeline/execution/__tests__/openrouter-media-content.test.ts`
 - `electron/native-pipeline/execution/__tests__/multi-image-understanding.test.ts`
 
 **Modified**
 - `electron/native-pipeline/execution/step-executors.ts` (+ step-input type)
-- `electron/native-pipeline/registry-data/image-understanding.ts` (add `openrouter_gemini_2_5_flash_video`, default)
 - `electron/native-pipeline/cli/command-registry.ts`
 - `electron/native-pipeline/cli/cli-runner/handler-map.ts`
-- `CLIRunOptions` type (wherever defined under `cli/`)
+- `electron/native-pipeline/cli/cli-runner/types.ts` (`CLIRunOptions`)

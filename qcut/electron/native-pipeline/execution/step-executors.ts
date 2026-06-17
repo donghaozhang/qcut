@@ -17,10 +17,16 @@ import {
 	type ApiCallResult,
 	type ProviderName,
 } from "../infra/api-caller.js";
+import {
+	buildOpenRouterMultiImageContent,
+	buildOpenRouterSingleMediaContent,
+	toOpenRouterMediaUrl,
+} from "./openrouter-media-content.js";
 
 export interface StepInput {
 	text?: string;
 	imageUrl?: string;
+	images?: string[];
 	videoUrl?: string;
 	audioUrl?: string;
 	filePath?: string;
@@ -190,34 +196,6 @@ function logOpenRouterVideoDebug({
 	const value = typeof metadata === "function" ? metadata() : metadata;
 	const suffix = value ? ` ${JSON.stringify(value)}` : "";
 	console.warn(`[openrouter-video-debug] ${message}${suffix}`);
-}
-
-/**
- * Converts a media input into a URL OpenRouter can consume.
- *
- * Remote and existing data URLs pass through unchanged; local files are read and
- * encoded as a base64 data URL.
- *
- * @param input - A remote URL, data URL, or local file path.
- * @returns A URL or data URL suitable for an OpenRouter request.
- */
-function toOpenRouterMediaUrl({ input }: { input: string }): string {
-	if (isRemoteUrl(input) || input.startsWith("data:")) return input;
-	const startTime = Date.now();
-	const media = readFileSync(input);
-	const mimeType = getMediaMimeType({ input });
-	const encoded = media.toString("base64");
-	logOpenRouterVideoDebug({
-		message: "encoded local media as data URL",
-		metadata: {
-			input,
-			mimeType,
-			fileBytes: media.byteLength,
-			base64Chars: encoded.length,
-			durationMs: Date.now() - startTime,
-		},
-	});
-	return `data:${mimeType};base64,${encoded}`;
 }
 
 /**
@@ -1733,6 +1711,9 @@ async function executeImageUnderstanding(
 	}
 ): Promise<StepOutput> {
 	if (provider === "openrouter") {
+		if (input.images?.length) {
+			return executeMultiImageUnderstanding(model, input, payload, options);
+		}
 		return executeOpenRouterMediaUnderstanding(model, input, payload, options);
 	}
 
@@ -1830,16 +1811,11 @@ async function executeOpenRouterMediaUnderstanding(
 	}
 
 	const prompt = (payload.prompt as string) || "Describe this media in detail";
-	const content =
-		input.videoUrl !== undefined
-			? [
-					{ type: "text", text: prompt },
-					{ type: "video_url", video_url: { url: mediaUrl } },
-				]
-			: [
-					{ type: "text", text: prompt },
-					{ type: "image_url", image_url: { url: mediaUrl } },
-				];
+	const content = buildOpenRouterSingleMediaContent({
+		prompt,
+		mediaUrl,
+		mediaKind: input.videoUrl !== undefined ? "video" : "image",
+	});
 	const apiPayload: Record<string, unknown> = {
 		model: payload.model || model.defaults.model,
 		messages: [{ role: "user", content }],
@@ -1880,6 +1856,79 @@ async function executeOpenRouterMediaUnderstanding(
 			durationMs: Date.now() - startTime,
 			error: result.error,
 		},
+	});
+
+	if (result.success) {
+		const text = extractTextFromResult(result.data);
+		return {
+			success: true,
+			text,
+			data: result.data,
+			duration: result.duration,
+		};
+	}
+	return { success: false, error: result.error, duration: result.duration };
+}
+
+async function executeMultiImageUnderstanding(
+	model: ModelDefinition,
+	input: StepInput,
+	payload: Record<string, unknown>,
+	options: {
+		outputDir?: string;
+		onProgress?: (p: number, m: string) => void;
+		signal?: AbortSignal;
+	}
+): Promise<StepOutput> {
+	if (!input.images?.length) {
+		return {
+			success: false,
+			error: "OpenRouter multi-image understanding requires images",
+			duration: 0,
+		};
+	}
+
+	let imageUrls: string[];
+	try {
+		imageUrls = input.images.map((image) =>
+			toOpenRouterMediaUrl({ input: image })
+		);
+	} catch (error) {
+		return {
+			success: false,
+			error: `Failed to read images for OpenRouter: ${error instanceof Error ? error.message : String(error)}`,
+			duration: 0,
+		};
+	}
+
+	const prompt =
+		(payload.prompt as string) || "Describe these images in detail";
+	const apiPayload: Record<string, unknown> = {
+		model: payload.model || model.defaults.model,
+		messages: [
+			{
+				role: "user",
+				content: buildOpenRouterMultiImageContent({ prompt, imageUrls }),
+			},
+		],
+		stream: false,
+	};
+
+	if (payload.max_tokens !== undefined) {
+		apiPayload.max_tokens = payload.max_tokens;
+	}
+	if (payload.temperature !== undefined) {
+		apiPayload.temperature = payload.temperature;
+	}
+
+	const result = await callModelApi({
+		endpoint: model.endpoint,
+		modelKey: model.key,
+		payload: apiPayload,
+		provider: "openrouter",
+		async: false,
+		onProgress: options.onProgress,
+		signal: options.signal,
 	});
 
 	if (result.success) {

@@ -103,7 +103,12 @@ export const CATEGORIES: CategoryDef[] = [
 	{
 		name: "analysis",
 		label: "Analysis Commands",
-		commands: ["analyze-video", "query-video", "transcribe"],
+		commands: [
+			"analyze-video",
+			"analyze-consistency",
+			"query-video",
+			"transcribe",
+		],
 	},
 	{
 		name: "models",
@@ -600,6 +605,46 @@ const CORE_COMMANDS: Record<string, CommandDef> = {
 		examples: [
 			"qcut-pipeline analyze-video -i video.mp4 --analysis-type timeline --json",
 			"qcut analyze video -i video.mp4 --analysis-type review --review-language zh --json",
+		],
+	},
+	"analyze-consistency": {
+		name: "analyze-consistency",
+		description: "Detect character consistency issues using reference images",
+		category: "analysis",
+		flags: [
+			f("--ref", "string[]", "Reference image path or URL", {
+				required: true,
+			}),
+			f("--input", "string", "Video path or URL", {
+				short: "-i",
+				required: true,
+			}),
+			f("--model", "string", "Model key", {
+				short: "-m",
+				default: "openrouter_gemini_3_5_flash_video",
+			}),
+			f("--language", "string", "Prompt language", {
+				enum: ["zh", "en"],
+				default: "zh",
+			}),
+			f("--fps", "number", "Keyframe sampling rate", { default: 1 }),
+			f("--scene-detect", "boolean", "Use scene-change keyframe selection", {
+				default: false,
+			}),
+			f("--batch-size", "number", "Keyframes per model request", {
+				default: 6,
+			}),
+			f("--min-severity", "string", "Minimum severity to report", {
+				enum: ["low", "medium", "high"],
+				default: "high",
+			}),
+			f("--max-tokens", "number", "Maximum output tokens per request", {
+				default: 8000,
+			}),
+		],
+		examples: [
+			"qcut analyze consistency --ref ref.jpg -i scene.mp4 --json",
+			"qcut analyze consistency --ref ref1.jpg --ref ref2.jpg -i scene.mp4 --fps 2 --min-severity medium",
 		],
 	},
 	"query-video": {

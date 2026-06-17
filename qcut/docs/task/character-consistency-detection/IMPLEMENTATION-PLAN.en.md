@@ -52,9 +52,18 @@ electron/native-pipeline/character-consistency/
 
 Plus wiring:
 - `cli/cli-handlers-character-consistency.ts` — the CLI handler.
+- `execution/openrouter-media-content.ts` — OpenRouter single-media/multi-image content construction and local-file data URL helper.
 - `execution/step-executors.ts` — new `executeMultiImageUnderstanding` (multi-image content builder).
 - `cli/command-registry.ts` — register the `analyze-consistency` command.
 - `cli/cli-runner/handler-map.ts` — map command → handler.
+
+### Long-term maintenance principles
+
+- **Do not put feature logic in the CLI handler.** The handler should validate options, resolve defaults, call the runner, and return `CLIResult`; frame extraction, batching, merging, and filtering belong in the `character-consistency/` module.
+- **Do not keep growing `step-executors.ts`.** Multi-image requests should reuse OpenRouter media URL encoding and content construction, so first extract `execution/openrouter-media-content.ts`; `step-executors.ts` should only choose the execution path and call the provider.
+- **Centralize defaults.** Put `DEFAULT_CONSISTENCY_OPTIONS` in `character-consistency/types.ts` or a lightweight config export in the same folder. CLI flags, runner, and docs should share the same default values so future model changes do not drift.
+- **Every subtask must name file paths and test paths.** If a task grows beyond roughly 2 hours during implementation, split it into A/B subtasks; avoid one-off large edits for short-term speed.
+- **Preserve old-path behavior.** Single-image/single-video `image_understanding` behavior must have regression coverage so adding multi-image support does not change existing `analyze-video` / media-understanding behavior.
 
 ### End-to-end flow
 
@@ -66,7 +75,7 @@ qcut analyze consistency \
 
 1. PARSE & VALIDATE
    ├─ ≥1 reference image exists; video exists/URL valid
-   └─ resolve model (default openrouter_gemini_2_5_flash_video, switchable to 3.5)
+   └─ resolve model (default openrouter_gemini_3_5_flash_video)
 
 2. PROBE VIDEO (frame-extractor.ts)
    ├─ ffprobe → fps (r_frame_rate), duration, total frames
@@ -105,7 +114,7 @@ qcut analyze consistency \
 |---|---|---|---|
 | `--ref` (repeatable) | `string[]` | — (≥1 required) | Reference image path(s) |
 | `--input` / `-i` | `string` | — (required) | Video path or URL |
-| `--model` / `-m` | `string` | `openrouter_gemini_2_5_flash_video` | Model key (default 2.5; switch to `openrouter_gemini_3_5_flash_video` for 3.5) |
+| `--model` / `-m` | `string` | `openrouter_gemini_3_5_flash_video` | Model key |
 | `--language` | `string` | `zh` | Prompt language (`zh` \| `en`) |
 | `--fps` | `number` | `1` | Keyframe sampling rate |
 | `--scene-detect` | `boolean` | `false` | Use scene-change selection instead of fixed fps |
@@ -118,7 +127,7 @@ qcut analyze consistency \
 ```json
 {
   "video": "scene.mp4",
-  "model": "openrouter_gemini_2_5_flash_video",
+  "model": "openrouter_gemini_3_5_flash_video",
   "videoFps": 30,
   "totalFrames": 4500,
   "referenceImages": ["ref1.jpg"],
@@ -158,11 +167,14 @@ The prompt and a post-filter both enforce restraint:
 | What | File | Anchor |
 |---|---|---|
 | Single-media executor to extend | [execution/step-executors.ts:1793](../../../electron/native-pipeline/execution/step-executors.ts) | `executeOpenRouterMediaUnderstanding` |
+| Proposed OpenRouter content helper | `electron/native-pipeline/execution/openrouter-media-content.ts` | `toOpenRouterMediaUrl`, single-media content, multi-image content |
 | Dispatch by step category | [execution/step-executors.ts:958](../../../electron/native-pipeline/execution/step-executors.ts) | switch on `image_understanding` |
-| Model defs (add a 2.5 entry mirroring the 3.5 one) | [registry-data/image-understanding.ts:114](../../../electron/native-pipeline/registry-data/image-understanding.ts) | add `openrouter_gemini_2_5_flash_video` → `google/gemini-2.5-flash`; existing 3.5 entry is `openrouter_gemini_3_5_flash_video` |
+| Model defs | [registry-data/image-understanding.ts:114](../../../electron/native-pipeline/registry-data/image-understanding.ts) | reuse the existing `openrouter_gemini_3_5_flash_video` |
 | Command shape to mirror | [cli/command-registry.ts:577](../../../electron/native-pipeline/cli/command-registry.ts) | `analyze-video` entry |
 | Flag helper / `FlagDef` | [cli/command-registry-types.ts:10](../../../electron/native-pipeline/cli/command-registry-types.ts) | `f()` + `FlagDef` |
 | Handler dispatch table | [cli/cli-runner/handler-map.ts:172](../../../electron/native-pipeline/cli/cli-runner/handler-map.ts) | `"analyze-video": mediaHandleAnalyzeVideo` |
+| CLI options type | [cli/cli-runner/types.ts:12](../../../electron/native-pipeline/cli/cli-runner/types.ts) | `CLIRunOptions` |
+| Step input type | [execution/step-executors.ts:21](../../../electron/native-pipeline/execution/step-executors.ts) | `StepInput` |
 | ffmpeg/ffprobe pattern to reuse | [video-review/review-split-runner.ts:243](../../../electron/native-pipeline/video-review/review-split-runner.ts) | `execFileAsync("ffprobe"/"ffmpeg", …)` |
 | Artifacts pattern to mirror | [video-review/review-artifacts.ts](../../../electron/native-pipeline/video-review/review-artifacts.ts) | `writeReviewArtifacts` |
 | Handler signature | [cli/cli-runner/handler-map.ts:103](../../../electron/native-pipeline/cli/cli-runner/handler-map.ts) | `CommandHandler` type |
@@ -176,7 +188,7 @@ The prompt and a post-filter both enforce restraint:
 4. **Downscale frames (~768px) + batch (K=6).** Keeps inline payload under Gemini's 20 MB limit without the File API for typical clips; both are flags so large jobs can tune them.
 5. **fps from `ffprobe r_frame_rate`.** Required to honor the requirement "report frame X → frame Y". `frameNumber = round(timeSeconds * fps)`.
 6. **Conservative by default (`--min-severity high`).** Matches the user's "only report when really problematic" requirement.
-7. **Default to Gemini 2.5 Flash, switchable to 3.5.** Default model key is `openrouter_gemini_2_5_flash_video` (→ `google/gemini-2.5-flash`); `--model openrouter_gemini_3_5_flash_video` switches to 3.5. This requires **adding a new OpenRouter 2.5 registry entry** that mirrors the existing 3.5 one (only 3.5 is registered today on this path; the existing 2.5 `fal_video_qa` uses a different FAL endpoint and is not the multi-image chat-completions path). The approach itself is version-agnostic — multi-image works on both.
+7. **Default to Gemini 3.5 Flash.** Default model key is `openrouter_gemini_3_5_flash_video`, reusing the currently registered OpenRouter multimodal chat-completions path. The approach itself is version-agnostic — the multi-image path can move to other Gemini models later, but this phase defaults to 3.5.
 
 ## 9. Out of scope (explicitly)
 
@@ -188,7 +200,7 @@ The prompt and a post-filter both enforce restraint:
 
 | Risk | Mitigation |
 |---|---|
-| OpenRouter route may not pass multi-image cleanly for the chosen Gemini model | Validate early in Subtask 3 with a 2-image smoke test; document a fallback to native Gemini provider entry if needed |
+| OpenRouter route may not pass multi-image cleanly for the chosen Gemini model | Validate early in Subtask 3B with a 2-image smoke test; document a fallback to native Gemini provider entry if needed |
 | Inline payload > 20 MB on long videos / many frames | Downscale + batch; if still large, lower `--fps` or `--batch-size`; future: File API upload |
 | False positives from camera/pose confounds | Conservative prompt + `--min-severity high` default + docs framing as "for human review" |
 | ffmpeg/ffprobe not on PATH in packaged app | Reuse the existing review-split-runner invocation pattern; surface a clear error if missing (same behavior as today's review feature) |
