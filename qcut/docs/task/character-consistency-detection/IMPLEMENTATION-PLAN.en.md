@@ -63,7 +63,18 @@ Plus wiring:
 - **Do not keep growing `step-executors.ts`.** Multi-image requests should reuse OpenRouter media URL encoding and content construction, so first extract `execution/openrouter-media-content.ts`; `step-executors.ts` should only choose the execution path and call the provider.
 - **Centralize defaults.** Put `DEFAULT_CONSISTENCY_OPTIONS` in `character-consistency/types.ts` or a lightweight config export in the same folder. CLI flags, runner, and docs should share the same default values so future model changes do not drift.
 - **Every subtask must name file paths and test paths.** If a task grows beyond roughly 2 hours during implementation, split it into A/B subtasks; avoid one-off large edits for short-term speed.
+- **Split cross-boundary work before implementing.** If one change touches model requests, ffmpeg extraction, CLI parsing, and artifact output at the same time, or is expected to modify more than 3 production modules / 300 lines, split it into independent subtasks with owner files, test files, and acceptance commands.
 - **Preserve old-path behavior.** Single-image/single-video `image_understanding` behavior must have regression coverage so adding multi-image support does not change existing `analyze-video` / media-understanding behavior.
+
+### Long-term support boundaries by file owner
+
+| Concern | Main files | Test files | Long-term constraint |
+|---|---|---|---|
+| CLI options and defaults | `electron/native-pipeline/cli/cli-handlers-character-consistency.ts`, `electron/native-pipeline/cli/command-registry.ts`, `electron/native-pipeline/cli/cli-runner/types.ts` | `electron/native-pipeline/cli/__tests__/cli-handlers-character-consistency.test.ts`, `electron/native-pipeline/cli/__tests__/command-registry-character-consistency.test.ts` | Keep business logic out of the handler; every new flag must update types, help text, and tests |
+| OpenRouter multi-image protocol | `electron/native-pipeline/execution/openrouter-media-content.ts`, `electron/native-pipeline/execution/step-executors.ts` | `electron/native-pipeline/execution/__tests__/openrouter-media-content.test.ts`, `electron/native-pipeline/execution/__tests__/multi-image-understanding.test.ts` | Keep the multi-image path separate; protect the single-media path with regression tests |
+| Video probing and frame extraction | `electron/native-pipeline/character-consistency/frame-extractor.ts` | `electron/native-pipeline/character-consistency/__tests__/frame-extractor.test.ts` | Production may call system ffmpeg/ffprobe; tests use an injected runner and do not depend on real ffmpeg in CI |
+| Model-output normalization | `electron/native-pipeline/character-consistency/consistency-normalize.ts`, `electron/native-pipeline/character-consistency/consistency-runner.ts` | `electron/native-pipeline/character-consistency/__tests__/consistency-normalize.test.ts`, `electron/native-pipeline/character-consistency/__tests__/consistency-runner.test.ts` | Bad model output must not crash the CLI; frame-range math needs tests that pin off-by-one behavior |
+| Report artifacts | `electron/native-pipeline/character-consistency/consistency-artifacts.ts` | `electron/native-pipeline/character-consistency/__tests__/consistency-artifacts.test.ts` | JSON/CSV/HTML/Markdown fields stay stable for later UI or automation consumption |
 
 ### End-to-end flow
 
@@ -212,3 +223,4 @@ The prompt and a post-filter both enforce restraint:
 - `bun check-types` — clean.
 - `bun lint:clean` — clean (run biome before committing).
 - Manual smoke: run `analyze consistency` on a short clip with an intentionally rescaled character; confirm the bad range is reported with frame numbers and a `proportion/height` category, and that a clean clip yields `findings: []`.
+- Daytona online chat agent smoke: in the online Daytona environment, pull the current branch or apply the equivalent patch, run `qcut analyze consistency --help --json`, and verify that the command exists, `--ref` exists, and the default model is `openrouter_gemini_3_5_flash_video`. If the remote environment lacks an API key, the full real-video call may be marked environment-blocked, but it does not replace the local real CLI E2E.

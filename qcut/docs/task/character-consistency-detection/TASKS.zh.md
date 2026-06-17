@@ -10,6 +10,7 @@
 
 - 每个任务必须列出明确的代码路径和测试路径；不能只写"接 CLI"或"改执行器"这种泛描述。
 - 如果实现时某个任务超过约 2 小时，继续拆成 A/B 子任务，并保持每个子任务都有独立验收。
+- 如果某个任务同时覆盖模型调用、CLI 参数、ffmpeg 抽帧、产物输出中的 3 类以上，或预计修改超过 3 个生产模块 / 300 行代码，先拆成更小 subtask；每个 subtask 必须写清 owner 文件、测试文件、验收命令。
 - 优先做长期可维护结构：新功能逻辑放在 `electron/native-pipeline/character-consistency/`，共享 OpenRouter content 构造放在 `electron/native-pipeline/execution/openrouter-media-content.ts`，不要把临时逻辑堆进 CLI handler 或继续扩大 `step-executors.ts`。
 - 每个任务都要配测试；新增能力必须同时有旧路径回归测试，避免短期实现破坏现有 media understanding。
 
@@ -40,7 +41,7 @@
   - `probeVideoMeta(input): Promise<{ fps; durationSeconds; totalFrames }>` —— `ffprobe -show_entries stream=r_frame_rate,duration`。复用 [video-review/review-split-runner.ts:243](../../../electron/native-pipeline/video-review/review-split-runner.ts) 里的 `execFileAsync("ffprobe", …)` 写法。
   - `extractKeyframes({ input, fps, sceneDetect, outputDir, maxLongEdge=768 }): Promise<Keyframe[]>` —— `ffmpeg -vf "fps=N,scale='min(768,iw)':-2"`（`sceneDetect` 时用 `select='gt(scene,0.4)'`），把 JPEG 写到 `<outputDir>/consistency-frames/`，计算 `frameNumber = round(timeSeconds * videoFps)`。
 - **新建测试** `electron/native-pipeline/character-consistency/__tests__/frame-extractor.test.ts`
-  - 用 vitest `vi.mock` mock 掉 `child_process.execFile`，断言 ffmpeg/ffprobe argv 正确；验证 `r_frame_rate` 解析（`"30000/1001"` → `29.97`）、帧号换算、JPEG 命名。CI 不跑真 ffmpeg。
+  - 通过注入 command runner 断言 ffmpeg/ffprobe argv 正确；验证 `r_frame_rate` 解析（`"30000/1001"` → `29.97`）、帧号换算、JPEG 命名。CI 不跑真 ffmpeg。
 
 **验收：** 单测通过；给定假时长，关键帧列表的时间戳+帧号正确。
 
@@ -176,8 +177,9 @@
 - **更新** 本文件夹文档，补一段最终"用法"片段及实现中发现的偏差。
 - **可选：** 若 `docs/` 下有 native-pipeline CLI 参考文档，补一小节。
 - **手动冒烟**（非 CI）：对一段「故意缩放过角色」的真实短片运行；确认坏的帧范围被报出、带帧号 + `proportion/height`，干净片段得到 `findings: []`。
+- **Daytona online chat agent 冒烟**：在在线 Daytona 环境里拉当前分支或应用等价 patch，运行 `qcut analyze consistency --help --json`，确认命令、`--ref` 和默认模型存在。若远端环境没有 API key，完整真实视频调用可记录为环境阻塞，但本地真实 CLI E2E 仍必须通过。
 
-**验收：** 文档更新；手动冒烟符合预期。
+**验收：** 文档更新；本地手动冒烟符合预期；Daytona online chat agent 至少通过 help/命令注册冒烟。
 
 ### 当前实现用法
 

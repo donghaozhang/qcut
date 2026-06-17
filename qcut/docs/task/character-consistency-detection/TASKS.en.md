@@ -10,6 +10,7 @@ This feature is well beyond 20 minutes, so it is split into ordered subtasks. Ea
 
 - Every task must name concrete code paths and test paths; avoid vague entries such as "wire CLI" or "change executor".
 - If a task grows beyond roughly 2 hours during implementation, split it into A/B subtasks and keep each subtask independently acceptable.
+- If a task spans 3 or more of model calls, CLI options, ffmpeg extraction, and artifact output, or is expected to modify more than 3 production modules / 300 lines, split it first. Each subtask must name owner files, test files, and acceptance commands.
 - Prefer long-term structure over short-term speed: feature logic belongs in `electron/native-pipeline/character-consistency/`, shared OpenRouter content construction belongs in `electron/native-pipeline/execution/openrouter-media-content.ts`, and temporary logic should not accumulate in the CLI handler or further bloat `step-executors.ts`.
 - Every task needs tests; new behavior must include old-path regression coverage so existing media understanding does not break.
 
@@ -40,7 +41,7 @@ This feature is well beyond 20 minutes, so it is split into ordered subtasks. Ea
   - `probeVideoMeta(input): Promise<{ fps: number; durationSeconds: number; totalFrames: number }>` — `ffprobe -show_entries stream=r_frame_rate,duration`. Reuse the `execFileAsync("ffprobe", …)` pattern from [video-review/review-split-runner.ts:243](../../../electron/native-pipeline/video-review/review-split-runner.ts).
   - `extractKeyframes({ input, fps, sceneDetect, outputDir, maxLongEdge=768 }): Promise<Keyframe[]>` — `ffmpeg -vf "fps=N,scale='min(768,iw)':-2"` (or `select='gt(scene,0.4)'` when `sceneDetect`), write JPEGs to `<outputDir>/consistency-frames/`, compute `frameNumber = round(timeSeconds * videoFps)`.
 - **Create test** `electron/native-pipeline/character-consistency/__tests__/frame-extractor.test.ts`
-  - Mock `child_process.execFile` (vitest `vi.mock`) to assert correct ffmpeg/ffprobe argv; verify `r_frame_rate` parsing (`"30000/1001"` → `29.97`), frame-number math, and JPEG naming. No real ffmpeg in CI.
+  - Inject a command runner to assert correct ffmpeg/ffprobe argv; verify `r_frame_rate` parsing (`"30000/1001"` → `29.97`), frame-number math, and JPEG naming. No real ffmpeg in CI.
 
 **Acceptance:** Unit tests green; given a fake duration the keyframe list has correct timestamps + frame numbers.
 
@@ -176,8 +177,9 @@ This feature is well beyond 20 minutes, so it is split into ordered subtasks. Ea
 - **Update** this folder's docs with a final "Usage" snippet and any deviations discovered during implementation.
 - **Optional:** add a short section to the native-pipeline CLI reference if one exists under `docs/`.
 - **Manual smoke** (not CI): run on a real short clip with a rescaled character; confirm the bad range is reported with frame numbers + `proportion/height`, and a clean clip yields `findings: []`.
+- **Daytona online chat agent smoke**: in the online Daytona environment, pull the current branch or apply the equivalent patch, run `qcut analyze consistency --help --json`, and verify that the command, `--ref`, and default model exist. If the remote environment lacks an API key, the full real-video call may be recorded as environment-blocked, but the local real CLI E2E still must pass.
 
-**Acceptance:** Docs updated; manual smoke matches expectations.
+**Acceptance:** Docs updated; local manual smoke matches expectations; Daytona online chat agent passes at least the help/command-registration smoke.
 
 ### Current implementation usage
 

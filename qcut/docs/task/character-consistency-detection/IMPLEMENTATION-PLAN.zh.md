@@ -63,7 +63,18 @@ electron/native-pipeline/character-consistency/
 - **不要继续膨胀 `step-executors.ts`。** 多图请求需要复用 OpenRouter 的媒体 URL 编码和 content 构造，因此先抽出 `execution/openrouter-media-content.ts`；`step-executors.ts` 只负责选择执行路径和调用 provider。
 - **默认值集中定义。** `DEFAULT_CONSISTENCY_OPTIONS` 放在 `character-consistency/types.ts` 或同目录轻量 config export 中，CLI flag、runner 和文档都引用同一组默认值，避免后续模型切换时多处漂移。
 - **每个子任务必须有文件路径和测试路径。** 如果实现时某个任务超过约 2 小时，拆成 A/B 子任务；不要用一次性大改换短期速度。
+- **遇到跨边界任务先拆。** 如果一个改动同时碰到模型请求、ffmpeg 抽帧、CLI 解析和产物输出，或预计会改超过 3 个生产模块 / 300 行代码，先拆出独立 subtask，并为每个 subtask 写清 owner 文件、测试文件和验收命令。
 - **保留旧路径行为。** 单图片/单视频 `image_understanding` 的行为必须有回归测试，确保新增多图能力不改变现有 `analyze-video` / media understanding。
+
+### 长期支持边界（按文件归属）
+
+| 关注点 | 主要文件 | 测试文件 | 长期约束 |
+|---|---|---|---|
+| CLI 参数、默认值接线 | `electron/native-pipeline/cli/cli-handlers-character-consistency.ts`、`electron/native-pipeline/cli/command-registry.ts`、`electron/native-pipeline/cli/cli-runner/types.ts` | `electron/native-pipeline/cli/__tests__/cli-handlers-character-consistency.test.ts`、`electron/native-pipeline/cli/__tests__/command-registry-character-consistency.test.ts` | Handler 不承载业务逻辑；新增 flag 必须同步类型、帮助文本和测试 |
+| OpenRouter 多图协议 | `electron/native-pipeline/execution/openrouter-media-content.ts`、`electron/native-pipeline/execution/step-executors.ts` | `electron/native-pipeline/execution/__tests__/openrouter-media-content.test.ts`、`electron/native-pipeline/execution/__tests__/multi-image-understanding.test.ts` | 多图路径独立；单媒体路径必须有回归保护 |
+| 视频探测与抽帧 | `electron/native-pipeline/character-consistency/frame-extractor.ts` | `electron/native-pipeline/character-consistency/__tests__/frame-extractor.test.ts` | 生产可调用系统 ffmpeg/ffprobe；测试用注入 runner，不依赖 CI 安装真实 ffmpeg |
+| 模型输出可信化 | `electron/native-pipeline/character-consistency/consistency-normalize.ts`、`electron/native-pipeline/character-consistency/consistency-runner.ts` | `electron/native-pipeline/character-consistency/__tests__/consistency-normalize.test.ts`、`electron/native-pipeline/character-consistency/__tests__/consistency-runner.test.ts` | 模型返回异常不能让 CLI 崩溃；帧范围换算用测试锁住 off-by-one |
+| 报告产物 | `electron/native-pipeline/character-consistency/consistency-artifacts.ts` | `electron/native-pipeline/character-consistency/__tests__/consistency-artifacts.test.ts` | JSON/CSV/HTML/Markdown 字段稳定，方便后续 UI 或自动化消费 |
 
 ### 端到端流程
 
@@ -212,3 +223,4 @@ qcut analyze consistency \
 - `bun check-types` —— 无错。
 - `bun lint:clean` —— 无错（提交前先跑 biome）。
 - 手动冒烟：对一段「故意把角色缩放过」的短片跑 `analyze consistency`，确认坏的帧范围被报出来、带帧号且分类为 `proportion/height`；对干净片段应得到 `findings: []`。
+- Daytona online chat agent 冒烟：在在线 Daytona 环境中拉取当前分支或应用同等 patch，执行 `qcut analyze consistency --help --json` 并至少验证命令存在、`--ref` 存在、默认模型为 `openrouter_gemini_3_5_flash_video`。若远端缺少 API key，可把完整真实视频调用标记为环境阻塞，但不能替代本地真实 CLI E2E。
