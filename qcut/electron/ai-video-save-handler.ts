@@ -64,7 +64,14 @@ export function redactPath(message: string): string {
 	} catch {
 		return message;
 	}
-	return message.split(base).join("<project>");
+	// fs error messages may spell the same path with either separator (and
+	// any casing on Windows), so an exact substring split would leak it.
+	const pattern = base
+		.split(/[\\/]+/)
+		.map((part) => part.replace(/[.*+?^${}()|[\]\\]/g, "\\$&"))
+		.join("[\\\\/]+");
+	const flags = process.platform === "win32" ? "gi" : "g";
+	return message.replace(new RegExp(pattern, flags), "<project>");
 }
 
 /**

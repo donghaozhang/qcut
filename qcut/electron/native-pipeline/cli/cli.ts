@@ -318,7 +318,7 @@ export function parseCliArgs(argv: string[]): CLIRunOptions {
 			clear: { type: "boolean", default: false },
 			interactive: { type: "boolean", default: false },
 			depth: { type: "string" },
-			ref: { type: "string" },
+			ref: { type: "string", multiple: true },
 			checked: { type: "boolean" },
 			replace: { type: "boolean", default: false },
 			ripple: { type: "boolean", default: false },
@@ -341,6 +341,9 @@ export function parseCliArgs(argv: string[]): CLIRunOptions {
 			url: { type: "string" },
 			filename: { type: "string" },
 			fps: { type: "string" },
+			"scene-detect": { type: "boolean", default: false },
+			"batch-size": { type: "string" },
+			"min-severity": { type: "string" },
 			width: { type: "string" },
 			height: { type: "string" },
 			mode: { type: "string" },
@@ -657,6 +660,14 @@ export function parseCliArgs(argv: string[]): CLIRunOptions {
 		outputFormat: values["output-format"] as string | undefined,
 		reviewLanguage: values["review-language"] as string | undefined,
 		reviewPromptDir: values["review-prompt-dir"] as string | undefined,
+		refs: values.ref as string[] | undefined,
+		sceneDetect: (values["scene-detect"] as boolean) ?? false,
+		batchSize: values["batch-size"]
+			? Number.isNaN(parseInt(values["batch-size"] as string, 10))
+				? undefined
+				: parseInt(values["batch-size"] as string, 10)
+			: undefined,
+		minSeverity: values["min-severity"] as string | undefined,
 		before: values.before as string | undefined,
 		after: values.after as string | undefined,
 		// upscale-image options
@@ -753,7 +764,7 @@ export function parseCliArgs(argv: string[]): CLIRunOptions {
 				? undefined
 				: parseInt(values.depth as string, 10)
 			: undefined,
-		ref: values.ref as string | undefined,
+		ref: (values.ref as string[] | undefined)?.[0],
 		selectValue: values.value as string | undefined,
 		checked: values.checked as boolean | undefined,
 		replace: (values.replace as boolean) ?? false,

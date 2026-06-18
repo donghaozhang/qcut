@@ -68,6 +68,12 @@ jobs:
         run: cd apps/web && bunx vitest run --coverage
         continue-on-error: true
 
+      # The electron main-process suite (1400+ tests) was previously not run
+      # anywhere in CI — regressions like a broken callModelApi path shipped
+      # unnoticed. No continue-on-error: this step is a real gate.
+      - name: Run electron unit tests
+        run: bunx vitest run electron/__tests__/
+
       - name: Upload coverage to Codecov
         if: matrix.os == 'ubuntu'
         uses: codecov/codecov-action@v5

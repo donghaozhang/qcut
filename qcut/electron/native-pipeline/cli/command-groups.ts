@@ -41,6 +41,7 @@ export const COMMAND_GROUPS: CommandGroup[] = [
 		description: "Analyze, transcribe, translate, and query media content",
 		actions: {
 			video: "analyze-video",
+			consistency: "analyze-consistency",
 			query: "query-video",
 			transcribe: "transcribe",
 			translate: "translate-video",

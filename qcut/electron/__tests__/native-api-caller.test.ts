@@ -109,6 +109,10 @@ describe("api-caller", () => {
 
 			globalThis.fetch = vi.fn().mockResolvedValue({
 				ok: true,
+				// readJsonResponseWithHeartbeat logs content-length/type, so the
+				// mock needs a headers lookup like a real Response. Headers (not
+				// Map) matches a real Response: case-insensitive .get().
+				headers: new Headers([["content-type", "application/json"]]),
 				json: () => Promise.resolve(mockResponse),
 				text: () => Promise.resolve(JSON.stringify(mockResponse)),
 			});
