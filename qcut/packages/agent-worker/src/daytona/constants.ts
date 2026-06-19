@@ -1,5 +1,5 @@
 export const DEFAULT_DAYTONA_IMAGE =
-	"ghcr.io/quriosity-agent/qcut-cli@sha256:1baf3bbae082bb38c4056718f672c5965195f1888980f73b1e51759e7a480f56";
+	"ghcr.io/quriosity-agent/qcut-cli@sha256:5036f6915281d1770e07ad90d9bc95fb29b259e2cadcee3a8c3da137dac8f50d";
 export const IMAGE_TAG = process.env.QCUT_IMAGE_TAG ?? DEFAULT_DAYTONA_IMAGE;
 export const TIMEOUT_SECONDS = 30 * 60;
 export const DAYTONA_CREATE_TIMEOUT_SECONDS = 300;

@@ -22,7 +22,7 @@ describe("runOnDaytona persisted sessions", () => {
 					status: "active",
 					provider_session_id: "sandbox-persisted",
 					image_tag:
-						"ghcr.io/quriosity-agent/qcut-cli@sha256:1baf3bbae082bb38c4056718f672c5965195f1888980f73b1e51759e7a480f56",
+						"ghcr.io/quriosity-agent/qcut-cli@sha256:5036f6915281d1770e07ad90d9bc95fb29b259e2cadcee3a8c3da137dac8f50d",
 					last_active_at: "2026-05-14T00:00:00.000Z",
 					expires_at: "2099-01-01T00:00:00.000Z",
 					end_reason: null,
