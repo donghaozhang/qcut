@@ -42,6 +42,7 @@ export const COMMAND_GROUPS: CommandGroup[] = [
 		actions: {
 			video: "analyze-video",
 			consistency: "analyze-consistency",
+			"image-consistency": "analyze-image-consistency",
 			query: "query-video",
 			transcribe: "transcribe",
 			translate: "translate-video",
