@@ -32,11 +32,20 @@ RULE>>>`;
 }
 
 function zhPrompt({ rule }: { rule: string }): string {
-	return `你是图像一致性 / 规则检查员。输入图片按顺序排列：最前面的 REFERENCE 图片定义标准（角色设计、道具材质、场景 / 背景、配色、比例等以参考图为准）；后续每张 CANDIDATE 图片都带有序号（index），是需要被检查的生成图。${
+	return `你是图像一致性检查员。REFERENCE 图片是唯一基准：其中出现的每个角色、道具、场景/背景的设计、外观、材质、配色、结构和相互比例，都以 REFERENCE 为准。后续每张 CANDIDATE 图片都带有序号（index），是需要被检查的生成图。${
 		rule ? ruleBlockZh({ rule }) : ""
 	}
 
-把每张 CANDIDATE 与 REFERENCE${rule ? "（以及上面的额外规则）" : ""}对比，只报告普通观众在正常观看下也会明显察觉、或明显违反规则的不一致。不确定就不要报告。明确忽略由镜头角度、裁切、光照、姿势、透视或景别造成的合理差异。
+逐一核对每张 CANDIDATE 里出现的对象是否与 REFERENCE 保持同一设计。只依据 REFERENCE${rule ? "、上面的额外规则" : ""}以及 CANDIDATE 之间的相互比对来判断，不要预设“应该是什么样”的具体结论，也不要引入 REFERENCE 之外的要求。
+
+重点核对以下维度（一律以 REFERENCE 为准，不要假设固定答案）：
+- 角色身份与外观：脸型、五官、毛色花纹、特殊标记、服装款式与图案、所戴道具（帽子/眼镜/蝴蝶结等）是否一致，有无穿模、缺失或方向错误。
+- 人物比例：每个角色的头身比、四肢长度、体型体量是否与 REFERENCE 一致；多角色同框时，角色之间的大小层级是否与 REFERENCE 一致。注意区分透视——前景角色显大、远景显小是合理的，不要把镜头透视造成的画面大小误当成真实比例变化。
+- 道具与材质：道具的形状、材质质感、表面纹理与图案是否与 REFERENCE 一致。
+- 场景/背景一致性：建筑或场景是否仍是 REFERENCE 中的同一处——整体轮廓、屋顶、墙面、门窗、门廊/栏杆、装饰语言、周边环境是否一致，不能像换成了另一栋建筑或另一个地点。
+- 整体风格与配色是否一致。
+
+只报告普通观众在正常观看下也会明显察觉的不一致。不确定、无法从 REFERENCE 确认、或可由镜头角度/裁切/光照/姿势/透视/景别合理解释的差异，一律不报。
 
 建议分类（可自定义）：
 ${categoryList}
@@ -50,13 +59,22 @@ imageIndex 从 0 开始，对应 CANDIDATE 图片的序号。如果没有明显�
 }
 
 function enPrompt({ rule }: { rule: string }): string {
-	return `You are an image-consistency / rule checker. The input images are ordered: the leading REFERENCE image(s) define the standard (character design, prop material, scene / background, palette, proportions are governed by the reference); each following CANDIDATE image is labeled with an index and is a generated image to be checked.${
+	return `You are an image-consistency checker. The REFERENCE image(s) are the sole basis: the design, appearance, material, palette, structure, and relative proportions of every character, prop, and scene/background they contain are governed by the REFERENCE. Each following CANDIDATE image is labeled with an index and is a generated image to be checked.${
 		rule ? ruleBlockEn({ rule }) : ""
 	}
 
-Compare each CANDIDATE against the REFERENCE${
-		rule ? " (and the additional rule above)" : ""
-	}, and only report inconsistencies an ordinary viewer would clearly notice during normal viewing, or clear rule violations. When uncertain, report nothing. Explicitly ignore reasonable differences caused by camera angle, crop, lighting, pose, perspective, or shot size.
+Check, object by object, whether each CANDIDATE keeps the same design as the REFERENCE. Judge only from the REFERENCE${
+		rule ? ", the additional rule above," : ""
+	} and cross-candidate comparison; do not presuppose any specific "correct" answer and do not introduce requirements beyond the REFERENCE.
+
+Focus on these dimensions (always relative to the REFERENCE, assuming no fixed answer):
+- Character identity & appearance: face shape, features, fur color/markings, special marks, clothing cut and pattern, worn props (hat/glasses/bow) — consistent, with no clipping, missing parts, or wrong orientation.
+- Character proportions: each character's head-to-body ratio, limb length, and body volume vs the REFERENCE; with multiple characters in frame, whether the size hierarchy between them matches the REFERENCE. Distinguish perspective — a foreground character looking larger or a background one smaller is fine; do not mistake camera perspective for a real proportion change.
+- Props & material: a prop's shape, material texture, and surface pattern/texture vs the REFERENCE.
+- Scene/background consistency: whether the building or location is still the same one as in the REFERENCE — overall outline, roof, walls, doors/windows, porch/railings, decorative language, and surroundings; it must not look like a different building or place.
+- Overall style and palette.
+
+Only report inconsistencies an ordinary viewer would clearly notice during normal viewing. When uncertain, when it cannot be confirmed from the REFERENCE, or when it is explainable by camera angle / crop / lighting / pose / perspective / shot size, report nothing.
 
 Suggested categories (customizable):
 ${categoryList}

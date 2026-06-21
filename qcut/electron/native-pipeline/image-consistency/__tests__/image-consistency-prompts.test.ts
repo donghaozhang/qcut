@@ -2,20 +2,25 @@ import { describe, expect, it } from "vitest";
 import { getImageConsistencyPromptSet } from "../image-consistency-prompts.js";
 
 describe("getImageConsistencyPromptSet", () => {
-	it("returns a zh prompt with suggested categories and imageIndex output", () => {
+	it("returns a zh prompt with general dimensions and imageIndex output", () => {
 		const set = getImageConsistencyPromptSet({ language: "zh" });
 		expect(set.language).toBe("zh");
 		expect(set.ruleApplied).toBe(false);
 		expect(set.system).toContain("imageIndex");
 		expect(set.system).toContain("prop/material");
+		// general check dimensions are always present, even with no rule
+		expect(set.system).toContain("人物比例");
+		expect(set.system).toContain("场景/背景一致性");
 		expect(set.system).not.toContain("<<<RULE");
 	});
 
-	it("returns an en prompt for language=en", () => {
+	it("returns an en prompt with general dimensions for language=en", () => {
 		const set = getImageConsistencyPromptSet({ language: "en" });
 		expect(set.language).toBe("en");
 		expect(set.system).toContain("CANDIDATE");
 		expect(set.system).toContain("Suggested categories");
+		expect(set.system).toContain("Character proportions");
+		expect(set.system).toContain("Scene/background consistency");
 	});
 
 	it("injects rule text wrapped in delimiters and flags ruleApplied", () => {
