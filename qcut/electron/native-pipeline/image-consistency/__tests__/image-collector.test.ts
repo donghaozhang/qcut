@@ -1,4 +1,4 @@
-import { mkdtempSync, writeFileSync } from "node:fs";
+import { mkdirSync, mkdtempSync, writeFileSync } from "node:fs";
 import os from "node:os";
 import path from "node:path";
 import { describe, expect, it } from "vitest";
@@ -33,6 +33,19 @@ describe("collectCandidates", () => {
 			"a.png",
 			"b.png",
 			"c.JPG",
+		]);
+	});
+
+	it("ignores directories whose names look like image files", () => {
+		const dir = makeDir({
+			files: ["keep.png"],
+		});
+		mkdirSync(path.join(dir, "folder.png"));
+
+		const result = collectCandidates({ dir });
+
+		expect(result.map((candidate) => path.basename(candidate.path))).toEqual([
+			"keep.png",
 		]);
 	});
 

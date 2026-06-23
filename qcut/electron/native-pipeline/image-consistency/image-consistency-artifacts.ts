@@ -27,6 +27,18 @@ function escapeCsv({ value }: { value: string }): string {
 	return `"${value.replace(/"/g, '""')}"`;
 }
 
+function escapeMarkdownCell({ value }: { value: string }): string {
+	return value.replace(/\|/g, "\\|").replace(/\r?\n/g, "<br>");
+}
+
+function htmlLanguage({
+	language,
+}: {
+	language: ImageConsistencyResult["language"];
+}) {
+	return language === "en" ? "en" : "zh-CN";
+}
+
 function writeJson({
 	filePath,
 	value,
@@ -88,7 +100,7 @@ function renderFindingRows({ findings }: { findings: ImageFinding[] }): string {
 
 function renderHtml({ result }: { result: ImageConsistencyResult }): string {
 	return `<!doctype html>
-<html lang="zh-CN">
+<html lang="${htmlLanguage({ language: result.language })}">
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
@@ -137,7 +149,7 @@ function renderMarkdown({
 	const rows = result.findings
 		.map(
 			(finding) =>
-				`| ${finding.imageIndex} | ${finding.imagePath} | ${finding.category} | ${finding.severity} | ${finding.comment} | ${finding.fix} |`
+				`| ${finding.imageIndex} | ${escapeMarkdownCell({ value: finding.imagePath })} | ${escapeMarkdownCell({ value: finding.category })} | ${finding.severity} | ${escapeMarkdownCell({ value: finding.comment })} | ${escapeMarkdownCell({ value: finding.fix })} |`
 		)
 		.join("\n");
 

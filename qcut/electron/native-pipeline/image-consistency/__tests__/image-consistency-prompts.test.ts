@@ -8,6 +8,8 @@ describe("getImageConsistencyPromptSet", () => {
 		expect(set.ruleApplied).toBe(false);
 		expect(set.system).toContain("imageIndex");
 		expect(set.system).toContain("prop/material");
+		expect(set.system).toContain("exact index");
+		expect(set.system).toContain("不要改成当前批次内从 0 开始");
 		// general check dimensions are always present, even with no rule
 		expect(set.system).toContain("人物比例");
 		expect(set.system).toContain("场景/背景一致性");
@@ -21,6 +23,8 @@ describe("getImageConsistencyPromptSet", () => {
 		expect(set.system).toContain("Suggested categories");
 		expect(set.system).toContain("Character proportions");
 		expect(set.system).toContain("Scene/background consistency");
+		expect(set.system).toContain("exact index shown in the CANDIDATE label");
+		expect(set.system).toContain("do not renumber images from 0");
 	});
 
 	it("injects rule text wrapped in delimiters and flags ruleApplied", () => {

@@ -58,7 +58,7 @@ describe("parseImageConsistencyResponse", () => {
 			response: JSON.stringify([
 				{
 					imageIndex: 0,
-					category: "house/roof",
+					category: "红纸飞机材质/roof",
 					severity: "严重",
 					comment: "屋顶不一致",
 					fix: "对齐参考",
@@ -67,7 +67,39 @@ describe("parseImageConsistencyResponse", () => {
 			batchCandidates,
 		});
 		expect(findings[0]?.severity).toBe("high");
-		expect(findings[0]?.category).toBe("house/roof");
+		expect(findings[0]?.category).toBe("红纸飞机材质/roof");
+	});
+
+	it("rejects non-integer image indexes instead of rounding", () => {
+		const findings = parseImageConsistencyResponse({
+			response: JSON.stringify([
+				{
+					imageIndex: 0.6,
+					category: "other",
+					severity: "high",
+					comment: "would round to candidate 1",
+					fix: "reject",
+				},
+				{
+					imageIndex: "1.6",
+					category: "other",
+					severity: "high",
+					comment: "would parse to candidate 1.6",
+					fix: "reject",
+				},
+				{
+					imageIndex: "1",
+					category: "other",
+					severity: "high",
+					comment: "valid string integer",
+					fix: "keep",
+				},
+			]),
+			batchCandidates,
+		});
+
+		expect(findings).toHaveLength(1);
+		expect(findings[0]?.imageIndex).toBe(1);
 	});
 
 	it("drops out-of-range index and items missing comment", () => {

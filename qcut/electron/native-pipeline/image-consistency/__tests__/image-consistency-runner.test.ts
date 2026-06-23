@@ -98,4 +98,66 @@ describe("runImageConsistencyCheck", () => {
 		expect(result.ruleApplied).toBe(false);
 		expect(result.candidateImages).toHaveLength(3);
 	});
+
+	it("rejects invalid batch sizes before chunking", async () => {
+		await expect(
+			runImageConsistencyCheck({
+				options: {
+					...DEFAULT_IMAGE_CONSISTENCY_OPTIONS,
+					refs: ["data:image/png;base64,ref"],
+					candidates: [],
+					outputDir: "/tmp/qcut-image-consistency-runner",
+					batchSize: 0,
+				},
+				executor: makeExecutor({
+					capturedInputs: [],
+					capturedPrompts: [],
+				}),
+				collector,
+			})
+		).rejects.toThrow("batchSize must be a positive integer");
+	});
+
+	it("keeps distinct findings whose text only differs by delimiter placement", async () => {
+		const result = await runImageConsistencyCheck({
+			options: {
+				...DEFAULT_IMAGE_CONSISTENCY_OPTIONS,
+				refs: ["data:image/png;base64,ref"],
+				candidates: [],
+				outputDir: "/tmp/qcut-image-consistency-runner",
+				batchSize: 2,
+			},
+			executor: {
+				async executeStep() {
+					return {
+						success: true,
+						duration: 0.1,
+						text: JSON.stringify([
+							{
+								imageIndex: 0,
+								category: "a|b",
+								severity: "high",
+								comment: "c",
+								fix: "fix one",
+							},
+							{
+								imageIndex: 0,
+								category: "a",
+								severity: "high",
+								comment: "b|c",
+								fix: "fix two",
+							},
+						]),
+					};
+				},
+			},
+			collector,
+		});
+
+		expect(result.findings).toHaveLength(2);
+		expect(result.findings.map((finding) => finding.fix)).toEqual([
+			"fix one",
+			"fix two",
+		]);
+	});
 });

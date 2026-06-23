@@ -55,7 +55,7 @@ ${categoryList}
 只输出 JSON 数组，不要 markdown，不要解释。数组元素必须是：
 {"imageIndex": 0, "category": "prop/material", "severity": "high", "comment": "说明问题", "fix": "修改建议"}
 
-imageIndex 从 0 开始，对应 CANDIDATE 图片的序号。如果没有明显问题，输出 []。`;
+imageIndex 必须使用 CANDIDATE 标签中给出的 exact index，不要改成当前批次内从 0 开始的序号。如果没有明显问题，输出 []。`;
 }
 
 function enPrompt({ rule }: { rule: string }): string {
@@ -84,7 +84,7 @@ Severity must be low, medium, or high. Be conservative by default; use high only
 Output only a JSON array, no markdown and no commentary. Each item must be:
 {"imageIndex": 0, "category": "prop/material", "severity": "high", "comment": "problem description", "fix": "recommended fix"}
 
-imageIndex starts at 0, matching the CANDIDATE image order. If there are no obvious issues, output [].`;
+imageIndex must use the exact index shown in the CANDIDATE label; do not renumber images from 0 within the current batch. If there are no obvious issues, output [].`;
 }
 
 export function getImageConsistencyPromptSet({

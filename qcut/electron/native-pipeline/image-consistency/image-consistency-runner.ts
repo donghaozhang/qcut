@@ -58,6 +58,9 @@ function chunkCandidates({
 	candidates: ImageCandidate[];
 	batchSize: number;
 }): ImageCandidate[][] {
+	if (!Number.isInteger(batchSize) || batchSize <= 0) {
+		throw new Error("Image consistency batchSize must be a positive integer");
+	}
 	const chunks: ImageCandidate[][] = [];
 	for (let index = 0; index < candidates.length; index += batchSize) {
 		chunks.push(candidates.slice(index, index + batchSize));
@@ -98,12 +101,12 @@ function dedupeFindings({
 	const seen = new Set<string>();
 	const deduped: ImageFinding[] = [];
 	for (const finding of findings) {
-		const key = [
+		const key = JSON.stringify([
 			finding.imageIndex,
 			finding.category,
 			finding.severity,
 			finding.comment,
-		].join("|");
+		]);
 		if (seen.has(key)) continue;
 		seen.add(key);
 		deduped.push(finding);
@@ -190,10 +193,10 @@ async function runBatchesSequentially({
 	onProgress?: ProgressFn;
 	signal?: AbortSignal;
 }): Promise<ImageFinding[]> {
-	return batches.reduce<Promise<ImageFinding[]>>(
-		async (previousPromise, batch, batchIndex) => {
-			const previous = await previousPromise;
-			const findings = await runBatch({
+	let chain = Promise.resolve<ImageFinding[]>([]);
+	for (const [batchIndex, batch] of batches.entries()) {
+		chain = chain.then(async (previous) => {
+			const nextFindings = await runBatch({
 				batch,
 				batchIndex,
 				totalBatches: batches.length,
@@ -204,10 +207,10 @@ async function runBatchesSequentially({
 				onProgress,
 				signal,
 			});
-			return [...previous, ...findings];
-		},
-		Promise.resolve([])
-	);
+			return [...previous, ...nextFindings];
+		});
+	}
+	return chain;
 }
 
 export async function runImageConsistencyCheck({

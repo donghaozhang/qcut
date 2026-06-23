@@ -47,19 +47,19 @@ function valueForKey({
 }
 
 function imageIndexFromValue({ value }: { value: unknown }): number | null {
-	if (typeof value === "number" && Number.isFinite(value)) {
-		return Math.round(value);
+	if (typeof value === "number") {
+		return Number.isInteger(value) ? value : null;
 	}
 	const text = stringifyValue({ value });
 	if (!text) return null;
-	const number = Number.parseFloat(text);
-	return Number.isFinite(number) ? Math.round(number) : null;
+	const number = Number(text);
+	return Number.isInteger(number) ? number : null;
 }
 
 function normalizeCategory({ value }: { value: unknown }): string {
 	const text = stringifyValue({ value })
 		.toLowerCase()
-		.replace(/[^a-z0-9_/+\- ]/g, "")
+		.replace(/[^\p{L}\p{N}_/+\- ]/gu, "")
 		.trim()
 		.slice(0, MAX_CATEGORY_LENGTH)
 		.trim();

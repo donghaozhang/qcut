@@ -7,12 +7,14 @@ import type { ImageConsistencyResult } from "../types.js";
 
 function makeResult({
 	findings,
+	language = "zh",
 }: {
 	findings: ImageConsistencyResult["findings"];
+	language?: ImageConsistencyResult["language"];
 }): ImageConsistencyResult {
 	return {
 		model: "openrouter_gemini_3_5_flash_video",
-		language: "zh",
+		language,
 		referenceImages: ["ref.png"],
 		candidateImages: ["gen0.png", "gen1.png"],
 		ruleApplied: true,
@@ -63,5 +65,33 @@ describe("writeImageConsistencyArtifacts", () => {
 		const report = readFileSync(artifacts.reportPath, "utf-8");
 		expect(report).toContain("Findings: 0");
 		expect(report).toContain("No obvious image consistency issues.");
+	});
+
+	it("escapes Markdown table cells and uses the report language in HTML", () => {
+		const outputDir = mkdtempSync(path.join(os.tmpdir(), "qcut-image-art-"));
+		const artifacts = writeImageConsistencyArtifacts({
+			outputDir,
+			result: makeResult({
+				language: "en",
+				findings: [
+					{
+						imageIndex: 0,
+						imagePath: "gen|0.png",
+						category: "prop|material",
+						severity: "high",
+						comment: "line one\nline | two",
+						fix: "fix | it",
+					},
+				],
+			}),
+		});
+
+		const report = readFileSync(artifacts.reportPath, "utf-8");
+		expect(report).toContain("gen\\|0.png");
+		expect(report).toContain("line one<br>line \\| two");
+		expect(report).toContain("fix \\| it");
+
+		const html = readFileSync(artifacts.htmlPath, "utf-8");
+		expect(html).toContain('<html lang="en">');
 	});
 });

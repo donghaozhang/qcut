@@ -13,8 +13,15 @@ function hasImageExtension({ input }: { input: string }): boolean {
 }
 
 function readImageDir({ dir }: { dir: string }): string[] {
-	return readdirSync(dir)
-		.filter((name) => hasImageExtension({ input: name }))
+	return readdirSync(dir, { withFileTypes: true })
+		.filter(
+			(entry) =>
+				entry.isFile() &&
+				hasImageExtension({
+					input: entry.name,
+				})
+		)
+		.map((entry) => entry.name)
 		.sort((left, right) => left.localeCompare(right))
 		.map((name) => join(dir, name));
 }
