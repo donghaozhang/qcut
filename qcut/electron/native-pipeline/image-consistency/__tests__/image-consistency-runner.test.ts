@@ -1,3 +1,6 @@
+import { mkdtempSync } from "node:fs";
+import os from "node:os";
+import path from "node:path";
 import { describe, expect, it } from "vitest";
 import type { PipelineStep } from "../../execution/executor.js";
 import type { StepInput, StepOutput } from "../../execution/step-executors.js";
@@ -13,6 +16,10 @@ const collector = {
 		];
 	},
 };
+
+function makeOutputDir(): string {
+	return mkdtempSync(path.join(os.tmpdir(), "qcut-image-consistency-runner-"));
+}
 
 function makeExecutor({
 	capturedInputs,
@@ -75,7 +82,7 @@ describe("runImageConsistencyCheck", () => {
 				...DEFAULT_IMAGE_CONSISTENCY_OPTIONS,
 				refs: ["data:image/png;base64,ref"],
 				candidates: [],
-				outputDir: "/tmp/qcut-image-consistency-runner",
+				outputDir: makeOutputDir(),
 				batchSize: 2,
 				minSeverity: "high",
 			},
@@ -106,7 +113,7 @@ describe("runImageConsistencyCheck", () => {
 					...DEFAULT_IMAGE_CONSISTENCY_OPTIONS,
 					refs: ["data:image/png;base64,ref"],
 					candidates: [],
-					outputDir: "/tmp/qcut-image-consistency-runner",
+					outputDir: makeOutputDir(),
 					batchSize: 0,
 				},
 				executor: makeExecutor({
@@ -124,7 +131,7 @@ describe("runImageConsistencyCheck", () => {
 				...DEFAULT_IMAGE_CONSISTENCY_OPTIONS,
 				refs: ["data:image/png;base64,ref"],
 				candidates: [],
-				outputDir: "/tmp/qcut-image-consistency-runner",
+				outputDir: makeOutputDir(),
 				batchSize: 2,
 			},
 			executor: {
