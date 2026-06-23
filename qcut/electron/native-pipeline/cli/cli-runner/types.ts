@@ -157,6 +157,15 @@ export interface CLIRunOptions {
 	minSeverity?: string;
 	before?: string;
 	after?: string;
+	// analyze-image-consistency options
+	/** Candidate images to check (repeatable --candidate) */
+	candidates?: string[];
+	/** Directory of candidate images (--dir) */
+	dir?: string;
+	/** Inline rule text used as the verdict basis (--rule) */
+	rule?: string;
+	/** Path to a rule file whose contents become the verdict basis (--rules-file) */
+	rulesFile?: string;
 	// upscale-image options
 	target?: string;
 	// upscale-video options

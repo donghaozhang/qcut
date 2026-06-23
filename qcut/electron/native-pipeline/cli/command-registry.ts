@@ -106,6 +106,7 @@ export const CATEGORIES: CategoryDef[] = [
 		commands: [
 			"analyze-video",
 			"analyze-consistency",
+			"analyze-image-consistency",
 			"query-video",
 			"transcribe",
 		],
@@ -645,6 +646,47 @@ const CORE_COMMANDS: Record<string, CommandDef> = {
 		examples: [
 			"qcut analyze consistency --ref ref.jpg -i scene.mp4 --json",
 			"qcut analyze consistency --ref ref1.jpg --ref ref2.jpg -i scene.mp4 --fps 2 --min-severity medium",
+		],
+	},
+	"analyze-image-consistency": {
+		name: "analyze-image-consistency",
+		description:
+			"Check candidate images against reference images and an optional rule",
+		category: "analysis",
+		flags: [
+			f("--ref", "string[]", "Reference image path or URL", {
+				required: true,
+			}),
+			f("--candidate", "string[]", "Candidate image path or URL (repeatable)"),
+			f("--dir", "string", "Directory of candidate images"),
+			f("--rule", "string", "Inline rule text used as the verdict basis"),
+			f(
+				"--rules-file",
+				"string",
+				"Path to a rule file (e.g. a requirement md)"
+			),
+			f("--model", "string", "Model key", {
+				short: "-m",
+				default: "openrouter_gemini_3_5_flash_video",
+			}),
+			f("--language", "string", "Prompt language", {
+				enum: ["zh", "en"],
+				default: "zh",
+			}),
+			f("--batch-size", "number", "Candidate images per model request", {
+				default: 6,
+			}),
+			f("--min-severity", "string", "Minimum severity to report", {
+				enum: ["low", "medium", "high"],
+				default: "high",
+			}),
+			f("--max-tokens", "number", "Maximum output tokens per request", {
+				default: 8000,
+			}),
+		],
+		examples: [
+			"qcut analyze image-consistency --ref ref.png --candidate gen.png --json",
+			"qcut analyze image-consistency --ref ref.png --dir ./frames --rules-file rule.md --min-severity medium",
 		],
 	},
 	"query-video": {

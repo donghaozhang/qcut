@@ -344,6 +344,10 @@ export function parseCliArgs(argv: string[]): CLIRunOptions {
 			"scene-detect": { type: "boolean", default: false },
 			"batch-size": { type: "string" },
 			"min-severity": { type: "string" },
+			candidate: { type: "string", multiple: true },
+			dir: { type: "string" },
+			rule: { type: "string" },
+			"rules-file": { type: "string" },
 			width: { type: "string" },
 			height: { type: "string" },
 			mode: { type: "string" },
@@ -661,6 +665,11 @@ export function parseCliArgs(argv: string[]): CLIRunOptions {
 		reviewLanguage: values["review-language"] as string | undefined,
 		reviewPromptDir: values["review-prompt-dir"] as string | undefined,
 		refs: values.ref as string[] | undefined,
+		// analyze-image-consistency options
+		candidates: values.candidate as string[] | undefined,
+		dir: values.dir as string | undefined,
+		rule: values.rule as string | undefined,
+		rulesFile: values["rules-file"] as string | undefined,
 		sceneDetect: (values["scene-detect"] as boolean) ?? false,
 		batchSize: values["batch-size"]
 			? Number.isNaN(parseInt(values["batch-size"] as string, 10))

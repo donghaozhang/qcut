@@ -17,6 +17,7 @@ import {
 	handleQueryVideo as mediaHandleQueryVideo,
 } from "../cli-handlers-media.js";
 import { handleAnalyzeConsistency } from "../cli-handlers-character-consistency.js";
+import { handleAnalyzeImageConsistency } from "../cli-handlers-image-consistency.js";
 import { handleGenerateRemotion } from "../cli-handlers-remotion.js";
 import { handleMoyinParseScript } from "../cli-handlers-moyin.js";
 import {
@@ -172,6 +173,7 @@ export const HANDLER_MAP: Record<string, CommandHandler> = {
 	// ── Analysis ──
 	"analyze-video": mediaHandleAnalyzeVideo,
 	"analyze-consistency": handleAnalyzeConsistency,
+	"analyze-image-consistency": handleAnalyzeImageConsistency,
 	"query-video": mediaHandleQueryVideo,
 	"transcribe": mediaHandleTranscribe,
 
