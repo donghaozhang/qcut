@@ -334,6 +334,89 @@ describe("create-video duration validation", () => {
 		expect(result.error).toContain("--video-url or --source-generation-id");
 		expect(executor.steps).toHaveLength(0);
 	});
+
+	it("stages Luma Ray 3.2 reframe aspect ratio and resolution params", async () => {
+		const executor = new CapturingExecutor();
+
+		const result = await handleGenerate(
+			{
+				...buildVideoOptions({
+					model: "luma_ray_3_2_reframe",
+				}),
+				videoUrl: "https://example.com/clip.mp4",
+				aspectRatio: "16:9",
+				resolution: "720p",
+			},
+			ignoreProgress,
+			executor,
+			new AbortController().signal
+		);
+
+		expect(result.success).toBe(false);
+		expect(result.error).toContain("executor reached");
+		expect(executor.steps).toHaveLength(1);
+		expect(executor.steps[0].model).toBe("luma_ray_3_2_reframe");
+		expect(executor.steps[0].params).toMatchObject({
+			aspect_ratio: "16:9",
+			resolution: "720p",
+		});
+	});
+
+	it("requires a source video for Luma Ray 3.2 reframe", async () => {
+		const executor = new CapturingExecutor();
+
+		const result = await handleGenerate(
+			{
+				...buildVideoOptions({ model: "luma_ray_3_2_reframe" }),
+				aspectRatio: "16:9",
+			},
+			ignoreProgress,
+			executor,
+			new AbortController().signal
+		);
+
+		expect(result.success).toBe(false);
+		expect(result.error).toContain("requires --video-url");
+		expect(executor.steps).toHaveLength(0);
+	});
+
+	it("requires a target aspect ratio for Luma Ray 3.2 reframe", async () => {
+		const executor = new CapturingExecutor();
+
+		const result = await handleGenerate(
+			{
+				...buildVideoOptions({ model: "luma_ray_3_2_reframe" }),
+				videoUrl: "https://example.com/clip.mp4",
+			},
+			ignoreProgress,
+			executor,
+			new AbortController().signal
+		);
+
+		expect(result.success).toBe(false);
+		expect(result.error).toContain("requires --aspect-ratio");
+		expect(executor.steps).toHaveLength(0);
+	});
+
+	it("requires a fill prompt for Luma Ray 3.2 reframe", async () => {
+		const executor = new CapturingExecutor();
+
+		const result = await handleGenerate(
+			{
+				...buildVideoOptions({ model: "luma_ray_3_2_reframe" }),
+				text: undefined,
+				videoUrl: "https://example.com/clip.mp4",
+				aspectRatio: "16:9",
+			},
+			ignoreProgress,
+			executor,
+			new AbortController().signal
+		);
+
+		expect(result.success).toBe(false);
+		expect(result.error).toContain("requires --text");
+		expect(executor.steps).toHaveLength(0);
+	});
 });
 
 describe("session command parsing", () => {

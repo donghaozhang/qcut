@@ -384,6 +384,7 @@ const CORE_COMMANDS: Record<string, CommandDef> = {
 			"qcut-pipeline create-video -t 'a perfect looping product turntable' -m luma_ray_3_2 --loop",
 			"qcut-pipeline create-video -t 'three storyboard beats in sequence' -m luma_ray_3_2 --keyframe-images ./beat1.png --keyframe-images ./beat2.png --keyframe-images ./beat3.png --keyframe-indexes 0 --keyframe-indexes 60 --keyframe-indexes 120",
 			"qcut-pipeline create-video -t 'Transform the scene into moonlit 35mm film footage' -m luma_ray_3_2_edit --source-generation-id d290f1ee-6c54-4b01-90e6-d701748f0851 --resolution 720p",
+			"qcut-pipeline create-video -m luma_ray_3_2_reframe --video-url ./clip.mp4 -t 'extend the scene with a matching snowy background' --aspect-ratio 16:9 --resolution 720p",
 			"qcut-pipeline create-video -t 'A flower blooming' --image-url https://example.com/flower.jpg",
 			"qcut-pipeline create-video -t '<<<element_1>>> walks in park' -m gmi_kling_v3_omni_t2v --element-ids abc123",
 			"qcut-pipeline create-video -t '<<<element_1>>> sings on stage' -m gmi_kling_v3_omni_i2v --element-ids abc --sound on --watermark",

@@ -520,6 +520,35 @@ export async function handleGenerate(
 				"Luma Ray 3.2 requires --text/-t even when anchor frames are provided.",
 		};
 	}
+	// Ray 3.2 Reframe (FAL): all three of source video, target ratio, and a
+	// fill prompt are required by the endpoint — fail fast with a clear message
+	// instead of surfacing a provider-side validation error.
+	if (
+		options.command === "create-video" &&
+		options.model === "luma_ray_3_2_reframe"
+	) {
+		if (!hasVideoInput) {
+			return {
+				success: false,
+				error:
+					"luma_ray_3_2_reframe requires --video-url (the source video to reframe, 30s or less).",
+			};
+		}
+		if (!options.aspectRatio) {
+			return {
+				success: false,
+				error:
+					"luma_ray_3_2_reframe requires --aspect-ratio (target canvas ratio, e.g. 16:9).",
+			};
+		}
+		if (!hasTextInput) {
+			return {
+				success: false,
+				error:
+					"luma_ray_3_2_reframe requires --text/-t (prompt describing what to paint into the new canvas area).",
+			};
+		}
+	}
 	if (
 		options.command === "create-video" &&
 		options.model === "luma_ray_3_2_edit" &&

@@ -270,4 +270,37 @@ export function registerVideoToVideoModels(): void {
 		costEstimate: 0,
 		processingTime: 300,
 	});
+
+	// FAL-hosted Ray 3.2 Reframe. Unlike `luma_ray_3_2_edit` (Luma Agents
+	// backend, needs LUMA_AGENTS_API_KEY), this routes through FAL and uses the
+	// existing FAL_KEY. It reframes a source video to a new aspect ratio and
+	// AI-paints (outpaints) the newly exposed canvas from `prompt`.
+	// API: https://fal.ai/models/luma/agent/ray/v3.2/reframe/api
+	ModelRegistry.register({
+		key: "luma_ray_3_2_reframe",
+		name: "Luma Ray 3.2 Reframe",
+		provider: "Luma (via FAL)",
+		endpoint: "luma/agent/ray/v3.2/reframe",
+		categories: ["video_to_video"],
+		description:
+			"Reframe a source video to a new aspect ratio, AI-painting the newly exposed canvas from a prompt (outpaint). Source must be 30s or less. Routes through FAL.",
+		pricing: { type: "external", provider: "fal" },
+		aspectRatios: ["3:4", "4:3", "1:1", "9:16", "16:9", "21:9"],
+		resolutions: ["540p", "720p", "1080p"],
+		defaults: { resolution: "540p" },
+		features: [
+			"Aspect-ratio reframing / outpaint",
+			"Prompt-guided canvas fill",
+			"Optional normalized source rectangle (source_position)",
+			"Up to 30s source video",
+		],
+		maxDuration: 30,
+		inputRequirements: {
+			required: ["prompt", "video_url", "aspect_ratio"],
+			optional: ["resolution", "source_position"],
+		},
+		extendedParams: ["source_position"],
+		costEstimate: 0,
+		processingTime: 180,
+	});
 }
