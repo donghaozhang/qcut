@@ -180,6 +180,71 @@ describe("create-video duration validation", () => {
 		]);
 	});
 
+	it("stages Luma Ray 3.2 keyframe images and indexes", async () => {
+		const executor = new CapturingExecutor();
+
+		const result = await handleGenerate(
+			{
+				...buildVideoOptions({
+					model: "luma_ray_3_2",
+				}),
+				keyframeImages: ["/tmp/beat-1.png", "/tmp/beat-2.png"],
+				keyframeIndexes: ["0", "120"],
+			},
+			ignoreProgress,
+			executor,
+			new AbortController().signal
+		);
+
+		expect(result.success).toBe(false);
+		expect(result.error).toContain("executor reached");
+		expect(executor.steps).toHaveLength(1);
+		expect(executor.steps[0].params).toMatchObject({
+			keyframe_images: ["/tmp/beat-1.png", "/tmp/beat-2.png"],
+			keyframe_indexes: ["0", "120"],
+		});
+	});
+
+	it("rejects Luma keyframe indexes without keyframe images", async () => {
+		const executor = new CapturingExecutor();
+
+		const result = await handleGenerate(
+			{
+				...buildVideoOptions({
+					model: "luma_ray_3_2",
+				}),
+				keyframeIndexes: ["0"],
+			},
+			ignoreProgress,
+			executor,
+			new AbortController().signal
+		);
+
+		expect(result.success).toBe(false);
+		expect(result.error).toContain("requires --keyframe-images");
+		expect(executor.steps).toHaveLength(0);
+	});
+
+	it("rejects Luma keyframe images on non-Ray models", async () => {
+		const executor = new CapturingExecutor();
+
+		const result = await handleGenerate(
+			{
+				...buildVideoOptions({
+					model: "imarouter_seedance_2_0_fast_t2v",
+				}),
+				keyframeImages: ["/tmp/beat-1.png"],
+			},
+			ignoreProgress,
+			executor,
+			new AbortController().signal
+		);
+
+		expect(result.success).toBe(false);
+		expect(result.error).toContain("only with -m luma_ray_3_2");
+		expect(executor.steps).toHaveLength(0);
+	});
+
 	it("requires a prompt for Luma Ray 3.2 even with an anchor image", async () => {
 		const executor = new CapturingExecutor();
 
@@ -281,5 +346,17 @@ describe("session command parsing", () => {
 		);
 
 		expect(options?.aspectRatio).toBe("9:16");
+	});
+
+	it("parses Luma Ray 3.2 keyframe flags in session mode", () => {
+		const options = parseSessionLine(
+			'create-video -m luma_ray_3_2 -t "beats" --keyframe-images a.png --keyframe-images b.png --keyframe-indexes 0 --keyframe-indexes 120',
+			{
+				outputDir: "/tmp/qcut-session-parse-test",
+			}
+		);
+
+		expect(options?.keyframeImages).toEqual(["a.png", "b.png"]);
+		expect(options?.keyframeIndexes).toEqual(["0", "120"]);
 	});
 });

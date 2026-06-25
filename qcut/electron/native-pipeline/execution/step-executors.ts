@@ -466,7 +466,11 @@ function reshapeForImaRouter(
 // when encoded into the JSON request body. Hosted URLs have no such cap.
 const MAX_LUMA_INLINE_VIDEO_BYTES = 100 * 1024 * 1024;
 
-type LumaImageRef = { url: string } | { data: string; media_type: string };
+type LumaImageRef =
+	| { url: string }
+	| { data: string; media_type: string }
+	| { file_id: string }
+	| { generation_id: string };
 type LumaMediaRef =
 	| { generation_id: string }
 	| { url: string; media_type: string }
@@ -478,11 +482,18 @@ function formatLumaMediaReadError({ error }: { error: unknown }): string {
 }
 
 function toLumaImageRef({ input }: { input: string }): LumaImageRef {
-	if (isRemoteUrl(input)) return { url: input };
-	const media = readFileSync(input);
+	const value = input.trim();
+	if (value.startsWith("file_id:")) {
+		return { file_id: value.slice("file_id:".length).trim() };
+	}
+	if (value.startsWith("generation_id:")) {
+		return { generation_id: value.slice("generation_id:".length).trim() };
+	}
+	if (isRemoteUrl(value)) return { url: value };
+	const media = readFileSync(value);
 	return {
 		data: media.toString("base64"),
-		media_type: getMediaMimeType({ input }),
+		media_type: getMediaMimeType({ input: value }),
 	};
 }
 
@@ -508,6 +519,83 @@ function normalizeLumaDuration({
 	const value = raw.endsWith("s") ? raw : `${raw}s`;
 	if (value === "5s" || value === "10s") return value;
 	return undefined;
+}
+
+const LUMA_RAY_FPS = 24;
+const LUMA_RAY_MAX_KEYFRAMES = 64;
+
+function lumaDurationFrameMax({
+	duration,
+}: {
+	duration: "5s" | "10s";
+}): number {
+	return Number(duration.slice(0, -1)) * LUMA_RAY_FPS;
+}
+
+function collectLumaKeyframeImages({
+	payload,
+}: {
+	payload: Record<string, unknown>;
+}): string[] {
+	const value = payload.keyframe_images;
+	if (!Array.isArray(value)) return [];
+	const images: string[] = [];
+	for (const item of value) {
+		if (typeof item !== "string") continue;
+		const image = item.trim();
+		if (image) images.push(image);
+	}
+	return images;
+}
+
+function parseLumaKeyframeIndexes({
+	rawIndexes,
+	imageCount,
+	frameMax,
+}: {
+	rawIndexes: unknown;
+	imageCount: number;
+	frameMax: number;
+}): { success: true; indexes: number[] } | { success: false; error: string } {
+	if (!Array.isArray(rawIndexes) || rawIndexes.length === 0) {
+		if (imageCount === 1) return { success: true, indexes: [0] };
+		const indexes: number[] = [];
+		for (let index = 0; index < imageCount; index += 1) {
+			indexes.push(Math.round((frameMax * index) / (imageCount - 1)));
+		}
+		return { success: true, indexes };
+	}
+	if (rawIndexes.length !== imageCount) {
+		return {
+			success: false,
+			error: `Luma Ray 3.2 keyframe index count (${rawIndexes.length}) must match keyframe image count (${imageCount}).`,
+		};
+	}
+	const indexes: number[] = [];
+	for (const rawIndex of rawIndexes) {
+		const value =
+			typeof rawIndex === "number" ? rawIndex : Number(String(rawIndex).trim());
+		if (!Number.isInteger(value) || value < 0) {
+			return {
+				success: false,
+				error: `Luma Ray 3.2 keyframe indexes must be non-negative integers (got ${String(rawIndex)}).`,
+			};
+		}
+		if (value > frameMax) {
+			return {
+				success: false,
+				error: `Luma Ray 3.2 keyframe index ${value} exceeds the ${frameMax} frame limit for this duration.`,
+			};
+		}
+		indexes.push(value);
+	}
+	if (new Set(indexes).size !== indexes.length) {
+		return {
+			success: false,
+			error: "Luma Ray 3.2 keyframe indexes must be unique.",
+		};
+	}
+	return { success: true, indexes };
 }
 
 function isEnabledPayloadFlag({ value }: { value: unknown }): boolean {
@@ -540,6 +628,39 @@ function buildLumaVideoPayload({
 	}
 
 	const refs = collectReferenceImages({ input, payload }).slice(0, 2);
+	const keyframeImages = collectLumaKeyframeImages({ payload });
+	const hasHdr = isEnabledPayloadFlag({ value: video.hdr });
+	const hasLoop = isEnabledPayloadFlag({ value: video.loop });
+	const hasExrExport = isEnabledPayloadFlag({ value: video.exr_export });
+	if (keyframeImages.length > LUMA_RAY_MAX_KEYFRAMES) {
+		return {
+			success: false,
+			error: `Luma Ray 3.2 supports at most ${LUMA_RAY_MAX_KEYFRAMES} keyframe images.`,
+		};
+	}
+	if (keyframeImages.length > 0 && refs.length > 0) {
+		return {
+			success: false,
+			error:
+				"Luma Ray 3.2 keyframes are mutually exclusive with --image-url and --reference-images start/end frames.",
+		};
+	}
+	if (keyframeImages.length > 0 && hasLoop) {
+		return {
+			success: false,
+			error: "Luma Ray 3.2 keyframes are mutually exclusive with --loop.",
+		};
+	}
+	if (
+		keyframeImages.length > 0 &&
+		(video.start_frame !== undefined || video.end_frame !== undefined)
+	) {
+		return {
+			success: false,
+			error:
+				"Luma Ray 3.2 keyframes are mutually exclusive with video.start_frame and video.end_frame.",
+		};
+	}
 	if (refs.length > 0 && video.duration === "10s") {
 		return {
 			success: false,
@@ -548,10 +669,7 @@ function buildLumaVideoPayload({
 		};
 	}
 
-	const hasHdr = isEnabledPayloadFlag({ value: video.hdr });
-	const hasLoop = isEnabledPayloadFlag({ value: video.loop });
-	const hasExrExport = isEnabledPayloadFlag({ value: video.exr_export });
-	if (hasHdr && video.duration === "10s") {
+	if (hasHdr && video.duration === "10s" && keyframeImages.length === 0) {
 		return {
 			success: false,
 			error: "Luma Ray 3.2 does not support HDR with 10s duration.",
@@ -594,8 +712,24 @@ function buildLumaVideoPayload({
 		};
 	}
 	try {
-		if (refs[0]) video.start_frame = toLumaImageRef({ input: refs[0] });
-		if (refs[1]) video.end_frame = toLumaImageRef({ input: refs[1] });
+		if (keyframeImages.length > 0) {
+			const frameMax = lumaDurationFrameMax({
+				duration: duration ?? "5s",
+			});
+			const indexes = parseLumaKeyframeIndexes({
+				rawIndexes: payload.keyframe_indexes,
+				imageCount: keyframeImages.length,
+				frameMax,
+			});
+			if (!indexes.success) return indexes;
+			video.keyframes = keyframeImages.map((input) =>
+				toLumaImageRef({ input })
+			);
+			video.keyframe_indexes = indexes.indexes;
+		} else {
+			if (refs[0]) video.start_frame = toLumaImageRef({ input: refs[0] });
+			if (refs[1]) video.end_frame = toLumaImageRef({ input: refs[1] });
+		}
 	} catch (error) {
 		return { success: false, error: formatLumaMediaReadError({ error }) };
 	}
@@ -611,6 +745,8 @@ function buildLumaVideoPayload({
 				"exr_export",
 				"image_urls",
 				"reference_images",
+				"keyframe_images",
+				"keyframe_indexes",
 				"video",
 			].includes(key)
 		) {

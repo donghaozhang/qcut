@@ -209,6 +209,8 @@ async function writeSidecarJson(
 			video_url: options.videoUrl,
 			audio_url: options.audioUrl,
 			reference_images: options.referenceImages,
+			keyframe_images: options.keyframeImages,
+			keyframe_indexes: options.keyframeIndexes,
 		},
 		output: {
 			path: result.outputPath,
@@ -435,6 +437,10 @@ export async function handleGenerate(
 	const hasPrompts = options.prompts && options.prompts.length > 0;
 	const hasReferenceImages =
 		!!options.referenceImages && options.referenceImages.length > 0;
+	const hasKeyframeImages =
+		!!options.keyframeImages && options.keyframeImages.length > 0;
+	const hasKeyframeIndexes =
+		!!options.keyframeIndexes && options.keyframeIndexes.length > 0;
 
 	if (options.command === "generate-image" && !hasTextInput && !hasPrompts) {
 		return {
@@ -473,12 +479,34 @@ export async function handleGenerate(
 		!hasTextInput &&
 		!hasImageInput &&
 		!hasVideoInput &&
-		!hasReferenceImages
+		!hasReferenceImages &&
+		!hasKeyframeImages
 	) {
 		return {
 			success: false,
 			error:
-				"Missing input. Provide --text/-t, --image-url, --video-url (video-edit), or --reference-images.",
+				"Missing input. Provide --text/-t, --image-url, --video-url (video-edit), --reference-images, or --keyframe-images.",
+		};
+	}
+	if (
+		options.command === "create-video" &&
+		hasKeyframeIndexes &&
+		!hasKeyframeImages
+	) {
+		return {
+			success: false,
+			error: "--keyframe-indexes requires --keyframe-images.",
+		};
+	}
+	if (
+		options.command === "create-video" &&
+		hasKeyframeImages &&
+		options.model !== "luma_ray_3_2"
+	) {
+		return {
+			success: false,
+			error:
+				"--keyframe-images is currently supported only with -m luma_ray_3_2.",
 		};
 	}
 	if (
@@ -578,6 +606,12 @@ export async function handleGenerate(
 	// Field-name mapping happens inside step-executors per-model branches;
 	// the CLI just stages the array under a stable key the executor reads.
 	if (options.command === "create-video") {
+		if (options.keyframeImages && options.keyframeImages.length > 0) {
+			params.keyframe_images = options.keyframeImages;
+			if (options.keyframeIndexes && options.keyframeIndexes.length > 0) {
+				params.keyframe_indexes = options.keyframeIndexes;
+			}
+		}
 		if (options.referenceImages && options.referenceImages.length > 0) {
 			if (options.model === "happy_horse_ref2v") {
 				params.image_urls = options.referenceImages.slice(0, 9);

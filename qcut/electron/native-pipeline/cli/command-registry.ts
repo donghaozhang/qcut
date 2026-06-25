@@ -343,6 +343,16 @@ const CORE_COMMANDS: Record<string, CommandDef> = {
 				"Reference image URLs (repeatable). Used by happy_horse_ref2v (1–9), happy_horse_video_edit (≤5), or luma_ray_3_2_edit guide frame (first image)"
 			),
 			f(
+				"--keyframe-images",
+				"string[]",
+				"Luma Ray 3.2: repeatable guide frame paths/URLs for video.keyframes"
+			),
+			f(
+				"--keyframe-indexes",
+				"string[]",
+				"Luma Ray 3.2: repeatable output-frame indexes matching --keyframe-images; auto-spaced when omitted"
+			),
+			f(
 				"--edit-strength",
 				"string",
 				"Luma Ray 3.2 edit strength: adhere_1..3, flex_1..3, reimagine_1..3"
@@ -372,6 +382,7 @@ const CORE_COMMANDS: Record<string, CommandDef> = {
 			"qcut-pipeline create-video -t 'Ocean waves' -m kling_2_6_pro -d 5s",
 			"qcut-pipeline create-video -t 'slow dolly through a misty greenhouse' -m luma_ray_3_2 --aspect-ratio 16:9 --resolution 720p -d 5s",
 			"qcut-pipeline create-video -t 'a perfect looping product turntable' -m luma_ray_3_2 --loop",
+			"qcut-pipeline create-video -t 'three storyboard beats in sequence' -m luma_ray_3_2 --keyframe-images ./beat1.png --keyframe-images ./beat2.png --keyframe-images ./beat3.png --keyframe-indexes 0 --keyframe-indexes 60 --keyframe-indexes 120",
 			"qcut-pipeline create-video -t 'Transform the scene into moonlit 35mm film footage' -m luma_ray_3_2_edit --source-generation-id d290f1ee-6c54-4b01-90e6-d701748f0851 --resolution 720p",
 			"qcut-pipeline create-video -t 'A flower blooming' --image-url https://example.com/flower.jpg",
 			"qcut-pipeline create-video -t '<<<element_1>>> walks in park' -m gmi_kling_v3_omni_t2v --element-ids abc123",

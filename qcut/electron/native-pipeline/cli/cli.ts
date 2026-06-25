@@ -264,6 +264,8 @@ export function parseCliArgs(argv: string[]): CLIRunOptions {
 			"no-sound": { type: "boolean", default: false },
 			// generate-avatar options (also reused by happy_horse_ref2v / happy_horse_video_edit)
 			"reference-images": { type: "string", multiple: true },
+			"keyframe-images": { type: "string", multiple: true },
+			"keyframe-indexes": { type: "string", multiple: true },
 			// happy_horse_video_edit: 'auto' | 'origin'
 			"audio-setting": { type: "string" },
 			// analyze-video options
@@ -657,6 +659,8 @@ export function parseCliArgs(argv: string[]): CLIRunOptions {
 		noSound: (values["no-sound"] as boolean) ?? false,
 		// generate-avatar options (also reused by happy_horse_ref2v / happy_horse_video_edit)
 		referenceImages: values["reference-images"] as string[] | undefined,
+		keyframeImages: values["keyframe-images"] as string[] | undefined,
+		keyframeIndexes: values["keyframe-indexes"] as string[] | undefined,
 		// happy_horse_video_edit
 		audioSetting: values["audio-setting"] as string | undefined,
 		// analyze-video options

@@ -233,6 +233,172 @@ describe("executeTextToVideo — Luma Ray 3.2", () => {
 		});
 	});
 
+	it("submits Ray 3.2 multi-keyframes with auto-spaced indexes", async () => {
+		const model = ModelRegistry.get("luma_ray_3_2");
+
+		await executeStep(
+			model,
+			{ text: "follow three storyboard beats" },
+			{
+				duration: "5s",
+				keyframe_images: [
+					"https://example.com/beat-1.jpg",
+					"https://example.com/beat-2.jpg",
+					"https://example.com/beat-3.jpg",
+				],
+			},
+			{}
+		);
+
+		const call = mockedCallModelApi.mock.calls[0][0];
+		expect(call.payload.video).toMatchObject({
+			duration: "5s",
+			keyframes: [
+				{ url: "https://example.com/beat-1.jpg" },
+				{ url: "https://example.com/beat-2.jpg" },
+				{ url: "https://example.com/beat-3.jpg" },
+			],
+			keyframe_indexes: [0, 60, 120],
+		});
+		expect(call.payload.video).not.toHaveProperty("start_frame");
+		expect(call.payload.video).not.toHaveProperty("end_frame");
+		expect(call.payload).not.toHaveProperty("keyframe_images");
+		expect(call.payload).not.toHaveProperty("keyframe_indexes");
+	});
+
+	it("supports explicit Ray 3.2 keyframe indexes with 10s HDR", async () => {
+		const model = ModelRegistry.get("luma_ray_3_2");
+
+		await executeStep(
+			model,
+			{ text: "hold the first beat and land on the final beat" },
+			{
+				duration: "10s",
+				hdr: true,
+				keyframe_images: [
+					"https://example.com/beat-1.jpg",
+					"https://example.com/beat-2.jpg",
+				],
+				keyframe_indexes: ["0", "240"],
+			},
+			{}
+		);
+
+		const call = mockedCallModelApi.mock.calls[0][0];
+		expect(call.payload.video).toMatchObject({
+			duration: "10s",
+			hdr: true,
+			keyframes: [
+				{ url: "https://example.com/beat-1.jpg" },
+				{ url: "https://example.com/beat-2.jpg" },
+			],
+			keyframe_indexes: [0, 240],
+		});
+	});
+
+	it("encodes local Ray 3.2 keyframe images inline", async () => {
+		const dir = mkdtempSync(join(tmpdir(), "qcut-luma-keyframes-"));
+		const imagePath = join(dir, "beat.png");
+		writeFileSync(imagePath, "fake-keyframe");
+		const model = ModelRegistry.get("luma_ray_3_2");
+
+		await executeStep(
+			model,
+			{ text: "animate one precise beat" },
+			{ keyframe_images: [imagePath] },
+			{}
+		);
+
+		const call = mockedCallModelApi.mock.calls[0][0];
+		expect(call.payload.video).toMatchObject({
+			keyframes: [
+				{
+					data: "ZmFrZS1rZXlmcmFtZQ==",
+					media_type: "image/png",
+				},
+			],
+			keyframe_indexes: [0],
+		});
+	});
+
+	it("rejects Ray 3.2 keyframes mixed with legacy start/end references", async () => {
+		const model = ModelRegistry.get("luma_ray_3_2");
+
+		const result = await executeStep(
+			model,
+			{
+				text: "ambiguous frame controls",
+				imageUrl: "https://example.com/start.jpg",
+			},
+			{
+				keyframe_images: ["https://example.com/beat.jpg"],
+			},
+			{}
+		);
+
+		expect(result.success).toBe(false);
+		expect(result.error).toContain("mutually exclusive");
+		expect(mockedCallModelApi.mock.calls).toHaveLength(0);
+	});
+
+	it("rejects Ray 3.2 keyframes mixed with loop", async () => {
+		const model = ModelRegistry.get("luma_ray_3_2");
+
+		const result = await executeStep(
+			model,
+			{ text: "looping keyframe request" },
+			{
+				loop: true,
+				keyframe_images: ["https://example.com/beat.jpg"],
+			},
+			{}
+		);
+
+		expect(result.success).toBe(false);
+		expect(result.error).toContain("mutually exclusive with --loop");
+		expect(mockedCallModelApi.mock.calls).toHaveLength(0);
+	});
+
+	it("rejects mismatched Ray 3.2 keyframe indexes", async () => {
+		const model = ModelRegistry.get("luma_ray_3_2");
+
+		const result = await executeStep(
+			model,
+			{ text: "bad indexes" },
+			{
+				keyframe_images: [
+					"https://example.com/beat-1.jpg",
+					"https://example.com/beat-2.jpg",
+				],
+				keyframe_indexes: ["0"],
+			},
+			{}
+		);
+
+		expect(result.success).toBe(false);
+		expect(result.error).toContain("must match keyframe image count");
+		expect(mockedCallModelApi.mock.calls).toHaveLength(0);
+	});
+
+	it("rejects Ray 3.2 keyframe indexes outside the duration frame range", async () => {
+		const model = ModelRegistry.get("luma_ray_3_2");
+
+		const result = await executeStep(
+			model,
+			{ text: "bad frame range" },
+			{
+				duration: "5s",
+				keyframe_images: ["https://example.com/beat.jpg"],
+				keyframe_indexes: ["121"],
+			},
+			{}
+		);
+
+		expect(result.success).toBe(false);
+		expect(result.error).toContain("exceeds the 120 frame limit");
+		expect(mockedCallModelApi.mock.calls).toHaveLength(0);
+	});
+
 	it("nests HDR and EXR toggles under the Luma video payload", async () => {
 		const model = ModelRegistry.get("luma_ray_3_2");
 
