@@ -399,6 +399,46 @@ describe("executeTextToVideo — Luma Ray 3.2", () => {
 		expect(mockedCallModelApi.mock.calls).toHaveLength(0);
 	});
 
+	it("rejects Ray 3.2 keyframe indexes that are not in ascending order", async () => {
+		const model = ModelRegistry.get("luma_ray_3_2");
+
+		const result = await executeStep(
+			model,
+			{ text: "unsorted indexes" },
+			{
+				duration: "5s",
+				keyframe_images: [
+					"https://example.com/a.jpg",
+					"https://example.com/b.jpg",
+					"https://example.com/c.jpg",
+				],
+				keyframe_indexes: ["60", "0", "120"],
+			},
+			{}
+		);
+
+		expect(result.success).toBe(false);
+		expect(result.error).toContain("ascending order");
+		expect(mockedCallModelApi.mock.calls).toHaveLength(0);
+	});
+
+	it("maps a base64 data: URI keyframe to an inline Luma image ref", async () => {
+		const model = ModelRegistry.get("luma_ray_3_2");
+
+		await executeStep(
+			model,
+			{ text: "data uri keyframe" },
+			{ keyframe_images: ["data:image/png;base64,ZmFrZS1rZXlmcmFtZQ=="] },
+			{}
+		);
+
+		const call = mockedCallModelApi.mock.calls[0][0];
+		expect(call.payload.video).toMatchObject({
+			keyframes: [{ data: "ZmFrZS1rZXlmcmFtZQ==", media_type: "image/png" }],
+			keyframe_indexes: [0],
+		});
+	});
+
 	it("nests HDR and EXR toggles under the Luma video payload", async () => {
 		const model = ModelRegistry.get("luma_ray_3_2");
 

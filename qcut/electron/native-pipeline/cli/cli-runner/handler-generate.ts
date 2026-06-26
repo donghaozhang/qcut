@@ -501,13 +501,38 @@ export async function handleGenerate(
 	if (
 		options.command === "create-video" &&
 		hasKeyframeImages &&
-		options.model !== "luma_ray_3_2"
+		options.model !== "luma_ray_3_2" &&
+		options.model !== "luma_ray_3_2_v2v"
 	) {
 		return {
 			success: false,
 			error:
-				"--keyframe-images is currently supported only with -m luma_ray_3_2.",
+				"--keyframe-images is supported only with -m luma_ray_3_2 or -m luma_ray_3_2_v2v.",
 		};
+	}
+	// Ray 3.2 v2v multi-keyframe editing anchors each keyframe to a source
+	// frame index, so indexes are required (and must match the image count).
+	if (
+		options.command === "create-video" &&
+		options.model === "luma_ray_3_2_v2v" &&
+		hasKeyframeImages
+	) {
+		if (!hasKeyframeIndexes) {
+			return {
+				success: false,
+				error:
+					"luma_ray_3_2_v2v keyframes require --keyframe-indexes (a source frame index per --keyframe-images).",
+			};
+		}
+		if (
+			(options.keyframeImages?.length ?? 0) !==
+			(options.keyframeIndexes?.length ?? 0)
+		) {
+			return {
+				success: false,
+				error: `luma_ray_3_2_v2v keyframe image count (${options.keyframeImages?.length}) must match index count (${options.keyframeIndexes?.length}).`,
+			};
+		}
 	}
 	if (
 		options.command === "create-video" &&
@@ -546,6 +571,27 @@ export async function handleGenerate(
 				success: false,
 				error:
 					"luma_ray_3_2_reframe requires --text/-t (prompt describing what to paint into the new canvas area).",
+			};
+		}
+	}
+	// Ray 3.2 Video-to-Video (FAL): edits a source video; needs the video and a
+	// prompt. The first-frame guidance image (--reference-images) is optional.
+	if (
+		options.command === "create-video" &&
+		options.model === "luma_ray_3_2_v2v"
+	) {
+		if (!hasVideoInput) {
+			return {
+				success: false,
+				error:
+					"luma_ray_3_2_v2v requires --video-url (the source video to edit).",
+			};
+		}
+		if (!hasTextInput) {
+			return {
+				success: false,
+				error:
+					"luma_ray_3_2_v2v requires --text/-t (a prompt describing how to edit the video).",
 			};
 		}
 	}
@@ -655,6 +701,10 @@ export async function handleGenerate(
 				params.image_urls = options.referenceImages.slice(0, 1);
 			} else if (options.model === "luma_ray_3_2") {
 				params.image_urls = options.referenceImages.slice(0, 2);
+			} else if (options.model === "luma_ray_3_2_v2v") {
+				// First reference image becomes the FAL `start_image_url`
+				// first-frame guidance for the edit.
+				params.start_image_url = options.referenceImages[0];
 			}
 		}
 		if (options.audioSetting && options.model === "happy_horse_video_edit") {

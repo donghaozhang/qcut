@@ -489,6 +489,15 @@ function toLumaImageRef({ input }: { input: string }): LumaImageRef {
 	if (value.startsWith("generation_id:")) {
 		return { generation_id: value.slice("generation_id:".length).trim() };
 	}
+	// Inline base64 data URIs (common in web/JS callers) map directly to Luma's
+	// `{ data, media_type }` ref; without this they fall through to readFileSync
+	// and fail because a data: URI is not a local path.
+	if (value.startsWith("data:")) {
+		const match = value.match(/^data:([^;]+);base64,(.+)$/);
+		if (match) {
+			return { data: match[2], media_type: match[1] };
+		}
+	}
 	if (isRemoteUrl(value)) return { url: value };
 	const media = readFileSync(value);
 	return {
@@ -572,6 +581,11 @@ function parseLumaKeyframeIndexes({
 		};
 	}
 	const indexes: number[] = [];
+	// Indexes must be chronological: enforce strictly ascending order in a
+	// single pass (which also guarantees uniqueness) by tracking the previous
+	// value. Out-of-order indexes (e.g. [60, 0, 120]) otherwise reach the API
+	// and produce errors or scrambled keyframe anchoring.
+	let previous = -1;
 	for (const rawIndex of rawIndexes) {
 		const value =
 			typeof rawIndex === "number" ? rawIndex : Number(String(rawIndex).trim());
@@ -587,13 +601,14 @@ function parseLumaKeyframeIndexes({
 				error: `Luma Ray 3.2 keyframe index ${value} exceeds the ${frameMax} frame limit for this duration.`,
 			};
 		}
+		if (value <= previous) {
+			return {
+				success: false,
+				error: `Luma Ray 3.2 keyframe indexes must be unique and in ascending order (got ${value} after ${previous}).`,
+			};
+		}
+		previous = value;
 		indexes.push(value);
-	}
-	if (new Set(indexes).size !== indexes.length) {
-		return {
-			success: false,
-			error: "Luma Ray 3.2 keyframe indexes must be unique.",
-		};
 	}
 	return { success: true, indexes };
 }
@@ -1031,6 +1046,19 @@ export async function executeStep(
 		}
 		if (payload.audio_url === undefined) {
 			payload.audio_url = null;
+		}
+	}
+
+	// Luma Ray 3.2 FAL video-to-video uses the "5s"/"10s" duration enum, but the
+	// CLI coerces `--duration 5s` to the bare number 5. Restringify with the "s"
+	// suffix so the FAL endpoint accepts it.
+	if (model.key === "luma_ray_3_2_v2v" && payload.duration !== undefined) {
+		const d =
+			typeof payload.duration === "string"
+				? Number(payload.duration)
+				: payload.duration;
+		if (typeof d === "number" && Number.isFinite(d)) {
+			payload.duration = `${d}s`;
 		}
 	}
 
@@ -1589,6 +1617,98 @@ async function executeVideoToVideo(
 	}
 	if (input.text) {
 		payload.prompt = input.text;
+	}
+
+	// Ray 3.2 v2v: the optional first-frame guidance image (`start_image_url`)
+	// must be a fetchable URL. Upload local paths to the FAL CDN the same way
+	// the source video is handled.
+	if (
+		model.key === "luma_ray_3_2_v2v" &&
+		typeof payload.start_image_url === "string" &&
+		payload.start_image_url.length > 0 &&
+		provider === "fal" &&
+		!/^https?:/i.test(payload.start_image_url)
+	) {
+		if (options.signal?.aborted) {
+			return {
+				success: false,
+				error: "Step cancelled before guidance frame upload",
+				duration: 0,
+			};
+		}
+		options.onProgress?.(15, "Uploading guidance frame...");
+		const upload = await uploadToFalStorage(payload.start_image_url);
+		if (!upload.success || !upload.url) {
+			return {
+				success: false,
+				error: upload.error || "Failed to upload guidance frame",
+				duration: 0,
+			};
+		}
+		payload.start_image_url = upload.url;
+	}
+
+	// Ray 3.2 v2v: multi-keyframe editing. The CLI stages `keyframe_images`
+	// (local paths/URLs) + `keyframe_indexes` (source frame positions). FAL
+	// expects `keyframes` (fetchable URLs) + `keyframe_indexes` (integers), so
+	// upload local images and pair each with its index, preserving order.
+	if (
+		model.key === "luma_ray_3_2_v2v" &&
+		Array.isArray(payload.keyframe_images) &&
+		payload.keyframe_images.length > 0
+	) {
+		const rawImages = payload.keyframe_images as unknown[];
+		const rawIndexes = Array.isArray(payload.keyframe_indexes)
+			? (payload.keyframe_indexes as unknown[])
+			: [];
+		if (rawIndexes.length !== rawImages.length) {
+			return {
+				success: false,
+				error: `Ray 3.2 v2v keyframe count (${rawImages.length}) must match keyframe index count (${rawIndexes.length}).`,
+				duration: 0,
+			};
+		}
+		const keyframeUrls: string[] = [];
+		const keyframeIndexes: number[] = [];
+		for (let i = 0; i < rawImages.length; i += 1) {
+			const image = String(rawImages[i]).trim();
+			const index = Number(String(rawIndexes[i]).trim());
+			if (!Number.isInteger(index) || index < 0) {
+				return {
+					success: false,
+					error: `Ray 3.2 v2v keyframe indexes must be non-negative integers (got ${String(rawIndexes[i])}).`,
+					duration: 0,
+				};
+			}
+			let url = image;
+			if (provider === "fal" && !/^https?:/i.test(image)) {
+				if (options.signal?.aborted) {
+					return {
+						success: false,
+						error: "Step cancelled before keyframe upload",
+						duration: 0,
+					};
+				}
+				options.onProgress?.(
+					18,
+					`Uploading keyframe ${i + 1}/${rawImages.length}...`
+				);
+				const upload = await uploadToFalStorage(image);
+				if (!upload.success || !upload.url) {
+					return {
+						success: false,
+						error: upload.error || "Failed to upload keyframe image",
+						duration: 0,
+					};
+				}
+				url = upload.url;
+			}
+			keyframeUrls.push(url);
+			keyframeIndexes.push(index);
+		}
+		payload.keyframes = keyframeUrls;
+		payload.keyframe_indexes = keyframeIndexes;
+		payload.keyframe_images = undefined;
 	}
 
 	// Happy Horse video-edit: optional `reference_image_urls` (≤5, used in

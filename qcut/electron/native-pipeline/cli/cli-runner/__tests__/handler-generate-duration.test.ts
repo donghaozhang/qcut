@@ -417,6 +417,111 @@ describe("create-video duration validation", () => {
 		expect(result.error).toContain("requires --text");
 		expect(executor.steps).toHaveLength(0);
 	});
+
+	it("stages Luma Ray 3.2 v2v guidance frame as start_image_url", async () => {
+		const executor = new CapturingExecutor();
+
+		const result = await handleGenerate(
+			{
+				...buildVideoOptions({ model: "luma_ray_3_2_v2v" }),
+				videoUrl: "https://example.com/clip.mp4",
+				referenceImages: ["/tmp/flame.png", "/tmp/ignored.png"],
+				editStrength: "flex_2",
+				resolution: "720p",
+			},
+			ignoreProgress,
+			executor,
+			new AbortController().signal
+		);
+
+		expect(result.success).toBe(false);
+		expect(result.error).toContain("executor reached");
+		expect(executor.steps).toHaveLength(1);
+		expect(executor.steps[0].model).toBe("luma_ray_3_2_v2v");
+		expect(executor.steps[0].params).toMatchObject({
+			start_image_url: "/tmp/flame.png",
+			edit_strength: "flex_2",
+			resolution: "720p",
+		});
+	});
+
+	it("requires a source video for Luma Ray 3.2 v2v", async () => {
+		const executor = new CapturingExecutor();
+
+		const result = await handleGenerate(
+			buildVideoOptions({ model: "luma_ray_3_2_v2v" }),
+			ignoreProgress,
+			executor,
+			new AbortController().signal
+		);
+
+		expect(result.success).toBe(false);
+		expect(result.error).toContain("requires --video-url");
+		expect(executor.steps).toHaveLength(0);
+	});
+
+	it("stages Luma Ray 3.2 v2v keyframes and matching indexes", async () => {
+		const executor = new CapturingExecutor();
+
+		const result = await handleGenerate(
+			{
+				...buildVideoOptions({ model: "luma_ray_3_2_v2v" }),
+				videoUrl: "https://example.com/clip.mp4",
+				keyframeImages: ["/tmp/kf0.png", "/tmp/kf30.png"],
+				keyframeIndexes: ["0", "30"],
+			},
+			ignoreProgress,
+			executor,
+			new AbortController().signal
+		);
+
+		expect(result.success).toBe(false);
+		expect(result.error).toContain("executor reached");
+		expect(executor.steps).toHaveLength(1);
+		expect(executor.steps[0].params).toMatchObject({
+			keyframe_images: ["/tmp/kf0.png", "/tmp/kf30.png"],
+			keyframe_indexes: ["0", "30"],
+		});
+	});
+
+	it("requires keyframe indexes for Luma Ray 3.2 v2v keyframes", async () => {
+		const executor = new CapturingExecutor();
+
+		const result = await handleGenerate(
+			{
+				...buildVideoOptions({ model: "luma_ray_3_2_v2v" }),
+				videoUrl: "https://example.com/clip.mp4",
+				keyframeImages: ["/tmp/kf0.png"],
+			},
+			ignoreProgress,
+			executor,
+			new AbortController().signal
+		);
+
+		expect(result.success).toBe(false);
+		expect(result.error).toContain("require --keyframe-indexes");
+		expect(executor.steps).toHaveLength(0);
+	});
+
+	it("rejects mismatched Luma Ray 3.2 v2v keyframe/index counts", async () => {
+		const executor = new CapturingExecutor();
+
+		const result = await handleGenerate(
+			{
+				...buildVideoOptions({ model: "luma_ray_3_2_v2v" }),
+				videoUrl: "https://example.com/clip.mp4",
+				keyframeImages: ["/tmp/kf0.png", "/tmp/kf30.png"],
+				keyframeIndexes: ["0"],
+			},
+			ignoreProgress,
+			executor,
+			new AbortController().signal
+		);
+
+		expect(result.success).toBe(false);
+		expect(result.error).toContain("must match index count");
+		expect(executor.steps).toHaveLength(0);
+	});
 });
 
 describe("session command parsing", () => {

@@ -303,4 +303,46 @@ export function registerVideoToVideoModels(): void {
 		costEstimate: 0,
 		processingTime: 180,
 	});
+
+	// FAL-hosted Ray 3.2 Video-to-Video edit. Like reframe, this routes through
+	// FAL (existing FAL_KEY) rather than the Luma Agents backend. It restyles /
+	// edits a source video from a prompt while preserving its motion, and can be
+	// steered by a first-frame guidance image (`start_image_url`) plus an
+	// edit-strength tier (adhere_/flex_/reimagine_).
+	// API: https://fal.ai/models/luma/agent/ray/v3.2/video-to-video/api
+	ModelRegistry.register({
+		key: "luma_ray_3_2_v2v",
+		name: "Luma Ray 3.2 Video-to-Video",
+		provider: "Luma (via FAL)",
+		endpoint: "luma/agent/ray/v3.2/video-to-video",
+		categories: ["video_to_video"],
+		description:
+			"Prompt-driven Ray 3.2 video edit that preserves the source motion, optionally guided by a first-frame image (start_image_url) and an edit-strength tier. Routes through FAL.",
+		pricing: { type: "external", provider: "fal" },
+		durationOptions: ["5s", "10s"],
+		resolutions: ["540p", "720p", "1080p"],
+		defaults: { resolution: "540p", duration: "5s" },
+		features: [
+			"Prompt-driven edit preserving source motion",
+			"First-frame guidance image (start_image_url)",
+			"Edit strength: adhere / flex / reimagine",
+			"Per-signal conditioning (pose, depth, face) via auto_controls",
+		],
+		maxDuration: 10,
+		inputRequirements: {
+			required: ["prompt", "video_url"],
+			optional: [
+				"start_image_url",
+				"edit_strength",
+				"resolution",
+				"duration",
+				"auto_controls",
+				"hdr",
+				"exr_export",
+			],
+		},
+		extendedParams: ["start_image_url", "edit_strength"],
+		costEstimate: 0,
+		processingTime: 180,
+	});
 }

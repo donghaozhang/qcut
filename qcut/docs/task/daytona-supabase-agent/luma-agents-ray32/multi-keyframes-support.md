@@ -81,8 +81,8 @@ Files to update:
 Local verification should include:
 
 ```bash
-npx vitest run electron/native-pipeline/execution/__tests__/step-executors-luma.test.ts
-npx vitest run electron/native-pipeline/cli/cli-runner/__tests__/handler-generate-duration.test.ts
+npx vitest run qcut/electron/native-pipeline/execution/__tests__/step-executors-luma.test.ts
+npx vitest run qcut/electron/native-pipeline/cli/cli-runner/__tests__/handler-generate-duration.test.ts
 ```
 
 The target evidence is not a real Luma spend test; it is deterministic verification that QCut emits the official payload shape and rejects invalid combinations before the request leaves the CLI.
