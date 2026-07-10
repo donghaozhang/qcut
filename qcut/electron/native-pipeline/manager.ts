@@ -33,6 +33,7 @@ import {
 	handleVimaxListModels,
 } from "./cli/vimax-cli-handlers.js";
 import type { CLIRunOptions } from "./cli/cli-runner/types.js";
+import { handleGenerateSpeech } from "./cli/cli-handlers-speech.js";
 
 // Re-export types from the original handler for compatibility
 export interface GenerateOptions {
@@ -40,6 +41,7 @@ export interface GenerateOptions {
 		| "generate-image"
 		| "create-video"
 		| "generate-avatar"
+		| "generate-speech"
 		| "list-models"
 		| "estimate-cost"
 		| "run-pipeline"
@@ -168,6 +170,13 @@ export class NativePipelineManager {
 					return this.handleGenerate(options, sessionId, onProgress, startTime);
 				case "generate-avatar":
 					return this.handleGenerate(options, sessionId, onProgress, startTime);
+				case "generate-speech":
+					return this.handleGenerateSpeech(
+						options,
+						sessionId,
+						onProgress,
+						startTime
+					);
 				case "run-pipeline":
 					return this.handleRunPipeline(
 						options,
@@ -358,6 +367,54 @@ export class NativePipelineManager {
 		} catch (err) {
 			this.activeRequests.delete(sessionId);
 			throw err;
+		}
+	}
+
+	private async handleGenerateSpeech(
+		options: GenerateOptions,
+		sessionId: string,
+		onProgress: (progress: PipelineProgress) => void,
+		startTime: number
+	): Promise<PipelineResult> {
+		const abortController = new AbortController();
+		this.activeRequests.set(sessionId, abortController);
+		const outputDir = this.resolveOutputDir(options, sessionId);
+		const args = options.args;
+		const cliOptions = {
+			command: "generate-speech",
+			outputDir,
+			saveIntermediates: false,
+			json: true,
+			verbose: false,
+			quiet: false,
+			model: args.model as string | undefined,
+			provider: args.provider as string | undefined,
+			text: args.text as string | undefined,
+			audioUrl: (args["audio-url"] ?? args.audio_url) as string | undefined,
+			voice: args.voice as string | undefined,
+			stability: args.stability as number | undefined,
+			languageCode: (args["language-code"] ?? args.language_code) as
+				| string
+				| undefined,
+			exaggeration: args.exaggeration as number | undefined,
+			temperature: args.temperature as number | undefined,
+			cfg: args.cfg as number | undefined,
+			seed: args.seed as number | undefined,
+		} satisfies Partial<CLIRunOptions>;
+
+		try {
+			const result = await handleGenerateSpeech(
+				cliOptions as CLIRunOptions,
+				onProgress,
+				abortController.signal
+			);
+			const pipelineResult: PipelineResult = {
+				...result,
+				duration: result.duration ?? (Date.now() - startTime) / 1000,
+			};
+			return this.maybeAutoImport(options, pipelineResult);
+		} finally {
+			this.activeRequests.delete(sessionId);
 		}
 	}
 
@@ -641,6 +698,8 @@ export class NativePipelineManager {
 			case "create-video":
 			case "generate-avatar":
 				return ".mp4";
+			case "generate-speech":
+				return ".wav";
 			default:
 				return ".bin";
 		}

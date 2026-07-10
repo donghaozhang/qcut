@@ -28,6 +28,8 @@ import {
 	buildImageOverlayFilters,
 	buildCaptionOverlayFilters,
 } from "../export-cli/filters";
+import { buildTextASSOverlay } from "../export-cli/filters/text-ass-overlay";
+import { resolveTextStyle } from "@/lib/text/text-style";
 import {
 	extractVideoSources,
 	extractVideoInputPath,
@@ -356,8 +358,40 @@ export class CLIExportEngine extends ExportEngine {
 		console.log(
 			"🔍 [TEXT EXPORT DEBUG] Starting text filter chain generation..."
 		);
-		const textFilterChain = buildTextOverlayFilters(this.tracks);
-		if (textFilterChain) {
+		const textAssLayers: Array<{
+			content: string;
+			blendMode: NonNullable<
+				Extract<TimelineElement, { type: "text" }>["blendMode"]
+			>;
+		}> = [];
+		const assRenderedElementIds = new Set<string>();
+		for (const track of this.tracks) {
+			for (const element of track.elements) {
+				if (element.type !== "text") continue;
+				const layer = buildTextASSOverlay({
+					tracks: [{ ...track, elements: [element] }],
+					canvasWidth: this.canvas.width,
+					canvasHeight: this.canvas.height,
+					fps: this.getFrameRate(),
+				});
+				if (!layer.content) continue;
+				textAssLayers.push({
+					content: layer.content,
+					blendMode: resolveTextStyle(element).blendMode,
+				});
+				assRenderedElementIds.add(element.id);
+			}
+		}
+		const textFilterChain = buildTextOverlayFilters(
+			this.tracks,
+			(window.electronAPI?.platform ?? "darwin") as
+				| "win32"
+				| "darwin"
+				| "linux",
+			this.getFrameRate(),
+			assRenderedElementIds
+		);
+		if (textFilterChain || textAssLayers.length > 0) {
 			console.log(
 				"✅ [TEXT EXPORT DEBUG] Text filter chain generated successfully"
 			);
@@ -471,7 +505,8 @@ export class CLIExportEngine extends ExportEngine {
 		}
 
 		// Mode decision
-		const hasTextFilters = textFilterChain.length > 0;
+		const hasTextFilters =
+			textFilterChain.length > 0 || textAssLayers.length > 0;
 		const hasStickerFilters = (stickerFilterChain?.length ?? 0) > 0;
 
 		const visibleVideoCount = this.countVisibleVideoElements();
@@ -554,6 +589,7 @@ export class CLIExportEngine extends ExportEngine {
 			audioFiles,
 			combinedFilterChain,
 			textFilterChain,
+			textAssLayers,
 			stickerFilterChain,
 			stickerSources,
 			imageFilterChain,

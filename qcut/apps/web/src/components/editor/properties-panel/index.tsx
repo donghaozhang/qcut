@@ -159,9 +159,7 @@ export function PropertiesPanel() {
 
 									const showEffects = EFFECTS_ENABLED && hasEffects(element.id);
 									const showTransform =
-										element.type === "text" ||
-										element.type === "markdown" ||
-										showEffects;
+										element.type === "markdown" || showEffects;
 
 									return (
 										<div key={elementId}>

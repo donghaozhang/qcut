@@ -1793,12 +1793,26 @@ async function executeAvatar(
 	}
 ): Promise<StepOutput> {
 	if (input.imageUrl) {
-		payload.image_url = input.imageUrl;
+		let resolvedUrl = input.imageUrl;
+		if (provider === "fal" && !isRemoteUrl(input.imageUrl)) {
+			options.onProgress?.(10, "Uploading avatar image to FAL storage...");
+			const upload = await uploadToFalStorage(input.imageUrl);
+			if (!upload.success || !upload.url) {
+				return {
+					success: false,
+					error: upload.error || "Failed to upload avatar image",
+					duration: 0,
+				};
+			}
+			resolvedUrl = upload.url;
+		}
+		payload.image_url = resolvedUrl;
 	}
 	if (input.audioUrl) {
 		payload.audio_url = input.audioUrl;
 	}
 	if (input.text) {
+		payload.text = input.text;
 		payload.prompt = input.text;
 	}
 	const result = await callModelApi({

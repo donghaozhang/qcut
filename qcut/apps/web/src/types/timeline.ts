@@ -4,6 +4,8 @@ export type {
 	TrackType,
 	MediaElement,
 	TextElement,
+	TextKeyframeProperty,
+	TextPropertyKeyframe,
 	StickerElement,
 	CaptionElement,
 	SubtitleStyle,

@@ -42,6 +42,21 @@ interface BaseTimelineElement {
 	colorLabel?: string;
 }
 
+export type TextKeyframeProperty =
+	| "x"
+	| "y"
+	| "rotation"
+	| "opacity"
+	| "fontSize";
+
+export interface TextPropertyKeyframe {
+	id: string;
+	/** Frame relative to the beginning of the text element. */
+	frame: number;
+	value: number;
+	easing: "linear" | "easeIn" | "easeOut" | "easeInOut" | "spring";
+}
+
 export interface MediaElement extends BaseTimelineElement {
 	type: "media";
 	mediaId: string;
@@ -63,6 +78,38 @@ export interface TextElement extends BaseTimelineElement {
 	y: number;
 	rotation: number;
 	opacity: number;
+	/** Horizontal character spacing in canvas pixels. */
+	letterSpacing?: number;
+	/** Line-height multiplier, where 1 is the font size. */
+	lineHeight?: number;
+	verticalAlign?: "top" | "middle" | "bottom";
+	strokeColor?: string;
+	strokeWidth?: number;
+	strokeOpacity?: number;
+	backgroundOpacity?: number;
+	backgroundRadius?: number;
+	backgroundPadding?: number;
+	shadowColor?: string;
+	shadowOpacity?: number;
+	shadowOffsetX?: number;
+	shadowOffsetY?: number;
+	shadowBlur?: number;
+	glowColor?: string;
+	glowOpacity?: number;
+	glowBlur?: number;
+	/** Total text arc in degrees. Negative bends upward, positive bends downward. */
+	curve?: number;
+	animationType?: "none" | "fade" | "slide-up" | "slide-left";
+	animationDuration?: number;
+	animationDelay?: number;
+	keyframes?: Partial<Record<TextKeyframeProperty, TextPropertyKeyframe[]>>;
+	blendMode?:
+		| "normal"
+		| "multiply"
+		| "screen"
+		| "overlay"
+		| "darken"
+		| "lighten";
 }
 
 export interface StickerElement extends BaseTimelineElement {
@@ -202,6 +249,8 @@ export interface TextItemDragData {
 	type: "text";
 	name: string;
 	content: string;
+	/** Full style payload for template drags; older drag data can omit it. */
+	textTemplate?: Partial<TextElement>;
 }
 
 export interface StickerItemDragData {

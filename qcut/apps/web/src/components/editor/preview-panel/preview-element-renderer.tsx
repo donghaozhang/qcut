@@ -5,6 +5,15 @@ import { VideoPlayer } from "@/components/ui/video-player";
 import { TEST_MEDIA_ID } from "@/constants/timeline-constants";
 import { FONT_CLASS_MAP } from "@/lib/font-config";
 import type { VideoSource } from "@/lib/media/media-source";
+import {
+	buildTextShadow,
+	colorWithOpacity,
+	resolveTextStyle,
+	verticalAlignToFlex,
+} from "@/lib/text/text-style";
+import { getTextAnimationState } from "@/lib/text/text-animation";
+import { resolveTextKeyframes } from "@/lib/text/text-keyframes";
+import { getCurvedTextTransforms } from "@/lib/text/curved-text";
 import type { TextElementDragState } from "@/types/editor";
 import type { TProject } from "@/types/project";
 import type { TimelineElement } from "@/types/timeline";
@@ -170,19 +179,37 @@ export function PreviewElementRenderer({
 		const elementKey = `${element.id}-${elementData.track.id}`;
 
 		if (element.type === "text") {
+			const displayElement = resolveTextKeyframes(
+				element,
+				currentTime,
+				activeProject?.fps ?? 30
+			);
 			const fontClassName =
-				FONT_CLASS_MAP[element.fontFamily as keyof typeof FONT_CLASS_MAP] || "";
+				FONT_CLASS_MAP[
+					displayElement.fontFamily as keyof typeof FONT_CLASS_MAP
+				] || "";
+			const textStyle = resolveTextStyle(displayElement);
+			const animationState = getTextAnimationState(element, currentTime);
+			const curvedCharacters = getCurvedTextTransforms({
+				text: displayElement.content,
+				width: Math.max(1, textStyle.width - textStyle.backgroundPadding * 2),
+				curve: textStyle.curve,
+			});
 
 			const scaleRatio = previewDimensions.width / canvasSize.width;
 			const isDraggingThisElement =
 				dragState.isDragging && dragState.elementId === element.id;
-			const displayX = isDraggingThisElement ? dragState.currentX : element.x;
-			const displayY = isDraggingThisElement ? dragState.currentY : element.y;
+			const displayX = isDraggingThisElement
+				? dragState.currentX
+				: displayElement.x;
+			const displayY = isDraggingThisElement
+				? dragState.currentY
+				: displayElement.y;
 
 			return (
 				<div
 					key={elementKey}
-					className="absolute flex items-center justify-center cursor-grab"
+					className="absolute flex cursor-grab"
 					onClick={() => onElementSelect({ elementId: element.id })}
 					onKeyDown={(event) => {
 						if (event.key !== "Enter" && event.key !== " ") {
@@ -198,30 +225,76 @@ export function PreviewElementRenderer({
 					role="button"
 					aria-label={`Select ${element.type} element`}
 					style={{
-						left: `${50 + (displayX / canvasSize.width) * 100}%`,
-						top: `${50 + (displayY / canvasSize.height) * 100}%`,
-						transform: `translate(-50%, -50%) rotate(${element.rotation}deg) scale(${scaleRatio})`,
-						opacity: element.opacity,
+						left: `${50 + ((displayX + animationState.offsetX) / canvasSize.width) * 100}%`,
+						top: `${50 + ((displayY + animationState.offsetY) / canvasSize.height) * 100}%`,
+						transform: `translate(-50%, -50%) rotate(${displayElement.rotation}deg) scale(${scaleRatio})`,
+						opacity: displayElement.opacity * animationState.opacity,
+						width: `${textStyle.width}px`,
+						height: `${textStyle.height}px`,
+						mixBlendMode: textStyle.blendMode,
 						zIndex: 100 + index,
 					}}
 				>
 					<div
 						className={fontClassName}
 						style={{
-							fontSize: `${element.fontSize}px`,
-							color: element.color,
-							backgroundColor: element.backgroundColor,
-							textAlign: element.textAlign,
-							fontWeight: element.fontWeight,
-							fontStyle: element.fontStyle,
-							textDecoration: element.textDecoration,
-							padding: "4px 8px",
-							borderRadius: "2px",
-							whiteSpace: "nowrap",
-							...(fontClassName ? {} : { fontFamily: element.fontFamily }),
+							display: "flex",
+							flexDirection: "column",
+							alignItems: "stretch",
+							justifyContent: verticalAlignToFlex(textStyle.verticalAlign),
+							boxSizing: "border-box",
+							width: "100%",
+							height: "100%",
+							fontSize: `${displayElement.fontSize}px`,
+							color: displayElement.color,
+							backgroundColor: colorWithOpacity(
+								displayElement.backgroundColor,
+								textStyle.backgroundOpacity
+							),
+							textAlign: displayElement.textAlign,
+							fontWeight: displayElement.fontWeight,
+							fontStyle: displayElement.fontStyle,
+							textDecoration: displayElement.textDecoration,
+							letterSpacing: `${textStyle.letterSpacing}px`,
+							lineHeight: textStyle.lineHeight,
+							padding: `${textStyle.backgroundPadding}px`,
+							borderRadius: `${textStyle.backgroundRadius}px`,
+							whiteSpace: "pre-wrap",
+							overflowWrap: "anywhere",
+							overflow: "hidden",
+							WebkitTextStroke:
+								textStyle.strokeWidth > 0
+									? `${textStyle.strokeWidth}px ${colorWithOpacity(textStyle.strokeColor, textStyle.strokeOpacity)}`
+									: undefined,
+							textShadow: buildTextShadow(textStyle),
+							...(fontClassName
+								? {}
+								: { fontFamily: displayElement.fontFamily }),
 						}}
 					>
-						{element.content}
+						{textStyle.curve !== 0 ? (
+							<span
+								className="relative block h-full w-full"
+								aria-label={displayElement.content}
+							>
+								{curvedCharacters.map((character, characterIndex) => (
+									<span
+										key={`${characterIndex}-${character.character}`}
+										aria-hidden="true"
+										className="absolute left-1/2 top-1/2"
+										style={{
+											transform: `translate(-50%, -50%) translate(${character.x}px, ${character.y}px) rotate(${character.rotation}deg)`,
+										}}
+									>
+										{character.character === " "
+											? "\u00a0"
+											: character.character}
+									</span>
+								))}
+							</span>
+						) : (
+							<span style={{ width: "100%" }}>{displayElement.content}</span>
+						)}
 					</div>
 				</div>
 			);

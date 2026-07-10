@@ -146,6 +146,40 @@ describe("buildFFmpegArgs", () => {
 			expect(args.join(" ")).toContain("volume=0.8");
 			expect(args).toContain("[a_0]");
 		});
+
+		it("renders an ASS text document after drawtext filters", () => {
+			const args = buildFFmpegArgs(
+				createBaseOptions({
+					useVideoInput: true,
+					videoInputPath: "/input.mp4",
+					textFilterChain: "drawtext=text='Markdown'",
+					textAssPath: "/tmp/text-overlays.ass",
+				})
+			);
+
+			const filter = args[args.indexOf("-filter_complex") + 1];
+			expect(filter).toContain("drawtext=text='Markdown'");
+			expect(filter).toContain("ass=filename='/tmp/text-overlays.ass'");
+			expect(filter.indexOf("drawtext=")).toBeLessThan(
+				filter.indexOf("ass=filename=")
+			);
+		});
+
+		it("builds alpha-masked ASS blend mode layers", () => {
+			const args = buildFFmpegArgs(
+				createBaseOptions({
+					useVideoInput: true,
+					videoInputPath: "/input.mp4",
+					textAssLayers: [{ path: "/tmp/multiply.ass", blendMode: "multiply" }],
+				})
+			);
+
+			const filter = args[args.indexOf("-filter_complex") + 1];
+			expect(filter).toContain("ass=filename='/tmp/multiply.ass':alpha=1");
+			expect(filter).toContain("blend=all_mode=multiply");
+			expect(filter).toContain("alphaextract");
+			expect(filter).toContain("alphamerge");
+		});
 	});
 
 	describe("Direct Copy Mode", () => {

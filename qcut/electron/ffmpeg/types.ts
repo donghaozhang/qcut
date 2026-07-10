@@ -143,6 +143,17 @@ export interface ExportOptions {
 	filterChain?: string;
 	/** Optional FFmpeg drawtext filter chain for text overlays */
 	textFilterChain?: string;
+	/** Ordered ASS documents for advanced text overlays and blend modes */
+	textAssLayers?: Array<{
+		content: string;
+		blendMode:
+			| "normal"
+			| "multiply"
+			| "screen"
+			| "overlay"
+			| "darken"
+			| "lighten";
+	}>;
 	/** Optional FFmpeg overlay filter chain for stickers */
 	stickerFilterChain?: string;
 	/** Sticker image sources for overlay (when stickerFilterChain is provided) */

@@ -30,6 +30,7 @@ import {
 } from "@/stores/screen-recording-store";
 import { useWebcamOverlayStore } from "@/stores/webcam-overlay-store";
 import { useFigureAnnotationsStore } from "@/stores/figure-annotations-store";
+import { renderTextToCanvas } from "@/lib/text/text-canvas-renderer";
 
 let exportCompositor: ScreenRecordingExportCompositor | null = null;
 let compositorFrameCanvas: HTMLCanvasElement | null = null;
@@ -181,7 +182,13 @@ async function renderElement(
 	if (element.type === "media" && mediaItem) {
 		await renderMediaElement(context, element, mediaItem, elementTimeOffset);
 	} else if (element.type === "text") {
-		renderTextElement(context.ctx, element);
+		renderTextElement(
+			context.ctx,
+			context.canvas,
+			element,
+			currentTime,
+			context.fps
+		);
 	} else if (element.type === "captions") {
 		renderCaptionElement(
 			context.ctx,
@@ -564,20 +571,13 @@ export async function renderOverlayStickers(
 /** Render text element */
 export function renderTextElement(
 	ctx: CanvasRenderingContext2D,
-	element: TimelineElement
+	canvas: HTMLCanvasElement,
+	element: TimelineElement,
+	currentTime: number,
+	fps: number
 ): void {
 	if (element.type !== "text") return;
-	if (!element.content || !element.content.trim()) return;
-
-	ctx.fillStyle = element.color || "#ffffff";
-	ctx.font = `${element.fontSize || 24}px ${element.fontFamily || "Arial"}`;
-	ctx.textAlign = "left";
-	ctx.textBaseline = "top";
-
-	const x = element.x ?? 50;
-	const y = element.y ?? 50;
-
-	ctx.fillText(element.content, x, y);
+	renderTextToCanvas({ ctx, canvas, element, currentTime, fps });
 }
 
 /** Render caption element with subtitle styling */

@@ -1,19 +1,287 @@
+import { useEffect, useState } from "react";
+import {
+	AudioLines,
+	AlignCenter,
+	AlignLeft,
+	AlignRight,
+	Bold,
+	Grid3X3,
+	Italic,
+	Loader2,
+	MousePointer2,
+	RotateCcw,
+	Save,
+	Sparkles,
+	Strikethrough,
+	Trash2,
+	Unlink,
+	Underline,
+} from "lucide-react";
+import { platform } from "@qcut/platform-core";
+import { toast } from "sonner";
 import { Textarea } from "@/components/ui/textarea";
 import { FontPicker } from "@/components/ui/font-picker";
-import { FontFamily } from "@/constants/font-constants";
-import { TextElement } from "@/types/timeline";
+import type { FontFamily } from "@/constants/font-constants";
+import type { AIPipelineResult } from "@/types/electron";
+import type {
+	TextElement,
+	TextKeyframeProperty,
+	TextPropertyKeyframe,
+} from "@/types/timeline";
 import { useTimelineStore } from "@/stores/timeline/timeline-store";
 import { useEditorStore } from "@/stores/editor/editor-store";
+import { usePlaybackStore } from "@/stores/editor/playback-store";
+import { useProjectStore } from "@/stores/project-store";
+import { useMediaStore } from "@/stores/media/media-store";
+import { useScreenRecordingEnhancementStore } from "@/stores/screen-recording-store";
 import { Slider } from "@/components/ui/slider";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
-import { useState, useEffect } from "react";
+import {
+	Select,
+	SelectContent,
+	SelectItem,
+	SelectTrigger,
+	SelectValue,
+} from "@/components/ui/select";
+import {
+	colorWithOpacity,
+	resolveTextStyle,
+	TEXT_BLEND_MODES,
+} from "@/lib/text/text-style";
+import {
+	BUILT_IN_TEXT_PRESETS,
+	captureTextPreset,
+	loadCustomTextPresets,
+	storeCustomTextPresets,
+	type TextStylePreset,
+} from "@/lib/text/text-presets";
+import {
+	resolveTextAnimation,
+	TEXT_ANIMATION_TYPES,
+} from "@/lib/text/text-animation";
+import {
+	TEXT_KEYFRAME_PROPERTIES,
+	upsertTextKeyframe,
+} from "@/lib/text/text-keyframes";
+import type { EasingType, Keyframe } from "@/lib/remotion/keyframe-converter";
 import {
 	PropertyItem,
 	PropertyItemLabel,
 	PropertyItemValue,
 	PropertyGroup,
 } from "./property-item";
+import { KeyframeEditor } from "./keyframe-editor";
+import { useAIPipeline } from "@/hooks/use-ai-pipeline";
+import { syncProjectMediaIfNeeded } from "@/lib/claude-bridge/claude-timeline-bridge-helpers";
+import { buildCursorTextTrackingKeyframes } from "@/lib/text/cursor-text-tracking";
+
+type TextUpdates = Parameters<
+	ReturnType<typeof useTimelineStore.getState>["updateTextElement"]
+>[2];
+
+interface NumberControlProps {
+	label: string;
+	value: number;
+	min: number;
+	max: number;
+	step?: number;
+	onChange: (value: number) => void;
+	suffix?: string;
+}
+
+function NumberControl({
+	label,
+	value,
+	min,
+	max,
+	step = 1,
+	onChange,
+	suffix,
+}: NumberControlProps) {
+	const [inputValue, setInputValue] = useState(String(value));
+
+	useEffect(() => setInputValue(String(value)), [value]);
+
+	const commit = (raw: string) => {
+		const parsed = Number(raw);
+		const next = Number.isFinite(parsed)
+			? Math.min(max, Math.max(min, parsed))
+			: value;
+		setInputValue(String(next));
+		onChange(next);
+	};
+
+	return (
+		<PropertyItem direction="column">
+			<PropertyItemLabel>{label}</PropertyItemLabel>
+			<PropertyItemValue>
+				<div className="flex items-center gap-2">
+					<Slider
+						aria-label={label}
+						value={[value]}
+						min={min}
+						max={max}
+						step={step}
+						onValueChange={([next]) => onChange(next)}
+						className="min-w-0 flex-1"
+					/>
+					<div className="flex w-20 items-center gap-1">
+						<Input
+							type="number"
+							aria-label={`${label} value`}
+							value={inputValue}
+							min={min}
+							max={max}
+							step={step}
+							onChange={(event) => {
+								const raw = event.target.value;
+								setInputValue(raw);
+								if (raw.trim()) commit(raw);
+							}}
+							onBlur={() => commit(inputValue)}
+							className="h-7 w-14 rounded-sm px-1 text-center !text-xs [appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none"
+						/>
+						{suffix ? (
+							<span className="text-[10px] text-muted-foreground">
+								{suffix}
+							</span>
+						) : null}
+					</div>
+				</div>
+			</PropertyItemValue>
+		</PropertyItem>
+	);
+}
+
+function ColorControl({
+	label,
+	value,
+	onChange,
+}: {
+	label: string;
+	value: string;
+	onChange: (value: string) => void;
+}) {
+	return (
+		<PropertyItem direction="row">
+			<PropertyItemLabel>{label}</PropertyItemLabel>
+			<PropertyItemValue className="flex justify-end">
+				<Input
+					type="color"
+					aria-label={label}
+					value={value === "transparent" ? "#000000" : value}
+					onChange={(event) => onChange(event.target.value)}
+					className="h-8 w-16 cursor-pointer rounded-sm p-1"
+				/>
+			</PropertyItemValue>
+		</PropertyItem>
+	);
+}
+
+function IconToggle({
+	label,
+	pressed,
+	onClick,
+	children,
+}: {
+	label: string;
+	pressed: boolean;
+	onClick: () => void;
+	children: React.ReactNode;
+}) {
+	return (
+		<Button
+			type="button"
+			aria-label={label}
+			aria-pressed={pressed}
+			title={label}
+			variant={pressed ? "default" : "outline"}
+			size="icon"
+			className="size-8"
+			onClick={onClick}
+		>
+			{children}
+		</Button>
+	);
+}
+
+function PresetButton({
+	preset,
+	onApply,
+	onDelete,
+}: {
+	preset: TextStylePreset;
+	onApply: () => void;
+	onDelete?: () => void;
+}) {
+	const backgroundOpacity = preset.updates.backgroundOpacity ?? 0;
+	const strokeWidth = preset.updates.strokeWidth ?? 0;
+	const glowOpacity = preset.updates.glowOpacity ?? 0;
+	const shadowOpacity = preset.updates.shadowOpacity ?? 0;
+	const shadows: string[] = [];
+	if (shadowOpacity > 0) {
+		shadows.push(
+			`${preset.updates.shadowOffsetX ?? 3}px ${preset.updates.shadowOffsetY ?? 3}px ${preset.updates.shadowBlur ?? 6}px ${colorWithOpacity(preset.updates.shadowColor ?? "#000000", shadowOpacity)}`
+		);
+	}
+	if (glowOpacity > 0) {
+		shadows.push(
+			`0 0 ${preset.updates.glowBlur ?? 12}px ${colorWithOpacity(preset.updates.glowColor ?? "#ffffff", glowOpacity)}`
+		);
+	}
+
+	return (
+		<div className="relative">
+			<button
+				type="button"
+				aria-label={`Apply ${preset.name} text preset`}
+				title={preset.name}
+				onClick={onApply}
+				className="flex aspect-square w-full items-center justify-center overflow-hidden rounded-sm border border-border bg-muted transition-colors hover:border-primary"
+				style={{
+					backgroundColor:
+						backgroundOpacity > 0
+							? colorWithOpacity(
+									preset.updates.backgroundColor ?? "#000000",
+									backgroundOpacity
+								)
+							: undefined,
+				}}
+			>
+				<span
+					className="text-xl"
+					style={{
+						color: preset.updates.color ?? "#ffffff",
+						fontFamily: preset.updates.fontFamily,
+						fontWeight: preset.updates.fontWeight,
+						fontStyle: preset.updates.fontStyle,
+						WebkitTextStroke:
+							strokeWidth > 0
+								? `${Math.min(2, strokeWidth)}px ${colorWithOpacity(preset.updates.strokeColor ?? "#000000", preset.updates.strokeOpacity ?? 1)}`
+								: undefined,
+						textShadow: shadows.length > 0 ? shadows.join(", ") : undefined,
+					}}
+				>
+					T
+				</span>
+			</button>
+			{onDelete ? (
+				<Button
+					type="button"
+					variant="destructive"
+					size="icon"
+					className="absolute -right-1 -top-1 size-5"
+					aria-label={`Delete ${preset.name} preset`}
+					title="Delete preset"
+					onClick={onDelete}
+				>
+					<Trash2 className="size-3" />
+				</Button>
+			) : null}
+		</div>
+	);
+}
 
 export function TextProperties({
 	element,
@@ -22,484 +290,996 @@ export function TextProperties({
 	element: TextElement;
 	trackId: string;
 }) {
-	const { updateTextElement } = useTimelineStore();
-	const { canvasSize } = useEditorStore();
-
-	// Local state for input values to allow temporary empty/invalid states
-	const [fontSizeInput, setFontSizeInput] = useState(
-		element.fontSize.toString()
+	const updateTextElement = useTimelineStore(
+		(state) => state.updateTextElement
 	);
-	const [opacityInput, setOpacityInput] = useState(
-		Math.round(element.opacity * 100).toString()
+	const canvasSize = useEditorStore((state) => state.canvasSize);
+	const currentTime = usePlaybackStore((state) => state.currentTime);
+	const fps = useProjectStore((state) => state.activeProject?.fps ?? 30);
+	const projectId = useProjectStore((state) => state.activeProject?.id);
+	const mediaItems = useMediaStore((state) => state.mediaItems);
+	const cursorTelemetry = useScreenRecordingEnhancementStore(
+		(state) => state.cursorTelemetry
 	);
-	const [xInput, setXInput] = useState((element.x || 0).toString());
-	const [yInput, setYInput] = useState((element.y || 0).toString());
-	const [rotationInput, setRotationInput] = useState(
-		(element.rotation || 0).toString()
+	const style = resolveTextStyle(element);
+	const animation = resolveTextAnimation(element);
+	const [customPresets, setCustomPresets] = useState(loadCustomTextPresets);
+	const [keyframeProperty, setKeyframeProperty] =
+		useState<TextKeyframeProperty>("x");
+	const [isRewriting, setIsRewriting] = useState(false);
+	const [speechModel, setSpeechModel] = useState("chatterbox_tts");
+	const [avatarImageId, setAvatarImageId] = useState("");
+	const [generationKind, setGenerationKind] = useState<
+		"speech" | "avatar" | null
+	>(null);
+	const {
+		generate: generateAI,
+		isAvailable: isSpeechAvailable,
+		isGenerating: isGeneratingAI,
+		progress: speechProgress,
+	} = useAIPipeline();
+	const avatarImages = mediaItems.filter(
+		(item) =>
+			item.type === "image" &&
+			Boolean(item.localPath || item.originalUrl || item.url)
 	);
 
-	// Sync inputs when element changes externally (e.g., by dragging or other external updates)
-	useEffect(() => {
-		setFontSizeInput(element.fontSize.toString());
-		setOpacityInput(Math.round(element.opacity * 100).toString());
-		setXInput((element.x ?? 0).toString());
-		setYInput((element.y ?? 0).toString());
-		setRotationInput((element.rotation ?? 0).toString());
-	}, [
-		element.fontSize,
-		element.opacity,
-		element.x,
-		element.y,
-		element.rotation,
-	]);
+	const update = (updates: TextUpdates) =>
+		updateTextElement(trackId, element.id, updates);
 
-	// Generic handler for slider changes to reduce code duplication
-	const handleSliderChange = (prop: "x" | "y" | "rotation", value: number) => {
-		const setter = {
-			x: setXInput,
-			y: setYInput,
-			rotation: setRotationInput,
-		}[prop];
-		updateTextElement(trackId, element.id, { [prop]: value });
-		setter(value.toString());
-	};
-
-	// Generic validation function that handles both integers and floats
-	const parseAndValidateValue = (
-		value: string,
-		min: number,
-		max: number,
-		fallback: number,
-		isInteger = false
-	): number => {
-		const parsed = isInteger ? parseInt(value, 10) : parseFloat(value);
-		if (isNaN(parsed)) return fallback;
-		return Math.max(min, Math.min(max, parsed));
-	};
-
-	const handleFontSizeChange = (value: string) => {
-		setFontSizeInput(value);
-
-		if (value.trim() !== "") {
-			const fontSize = parseAndValidateValue(
-				value,
-				8,
-				300,
-				element.fontSize,
-				true
-			);
-			updateTextElement(trackId, element.id, { fontSize });
-		}
-	};
-
-	const handleFontSizeBlur = () => {
-		const fontSize = parseAndValidateValue(
-			fontSizeInput,
-			8,
-			300,
-			element.fontSize,
-			true
-		);
-		setFontSizeInput(fontSize.toString());
-		updateTextElement(trackId, element.id, { fontSize });
-	};
-
-	const handleOpacityChange = (value: string) => {
-		setOpacityInput(value);
-
-		if (value.trim() !== "") {
-			const opacityPercent = parseAndValidateValue(
-				value,
-				0,
-				100,
-				Math.round(element.opacity * 100),
-				true
-			);
-			updateTextElement(trackId, element.id, { opacity: opacityPercent / 100 });
-		}
-	};
-
-	const handleOpacityBlur = () => {
-		const opacityPercent = parseAndValidateValue(
-			opacityInput,
+	const quickPosition = (column: 0 | 1 | 2, row: 0 | 1 | 2) => {
+		const horizontal = [
+			-canvasSize.width / 2 + style.width / 2,
 			0,
-			100,
-			Math.round(element.opacity * 100),
-			true
-		);
-		setOpacityInput(opacityPercent.toString());
-		updateTextElement(trackId, element.id, { opacity: opacityPercent / 100 });
+			canvasSize.width / 2 - style.width / 2,
+		] as const;
+		const vertical = [
+			-canvasSize.height / 2 + style.height / 2,
+			0,
+			canvasSize.height / 2 - style.height / 2,
+		] as const;
+		update({ x: Math.round(horizontal[column]), y: Math.round(vertical[row]) });
 	};
 
-	// Generic handlers for position and rotation properties
-	type PositionProp = "x" | "y" | "rotation";
+	const resetVisualStyle = () =>
+		update({
+			letterSpacing: 0,
+			lineHeight: 1.2,
+			strokeWidth: 0,
+			strokeOpacity: 1,
+			backgroundOpacity: 0,
+			backgroundRadius: 4,
+			backgroundPadding: 12,
+			shadowOpacity: 0,
+			shadowOffsetX: 4,
+			shadowOffsetY: 4,
+			shadowBlur: 8,
+			glowOpacity: 0,
+			glowBlur: 12,
+			curve: 0,
+			blendMode: "normal",
+		});
 
-	const getPropertyConfig = (prop: PositionProp) => {
-		const configs = {
-			x: {
-				input: xInput,
-				setter: setXInput,
-				min: -canvasSize.width / 2,
-				max: canvasSize.width / 2,
-				fallback: element.x || 0,
-			},
-			y: {
-				input: yInput,
-				setter: setYInput,
-				min: -canvasSize.height / 2,
-				max: canvasSize.height / 2,
-				fallback: element.y || 0,
-			},
-			rotation: {
-				input: rotationInput,
-				setter: setRotationInput,
-				min: -180,
-				max: 180,
-				fallback: element.rotation || 0,
-			},
+	const saveCurrentPreset = () => {
+		const nextPreset: TextStylePreset = {
+			id:
+				typeof crypto !== "undefined" && "randomUUID" in crypto
+					? crypto.randomUUID()
+					: `custom-${Date.now()}`,
+			name: `Custom ${customPresets.length + 1}`,
+			updates: captureTextPreset(element),
+			custom: true,
 		};
-		return configs[prop];
+		const next = [...customPresets, nextPreset];
+		setCustomPresets(next);
+		storeCustomTextPresets(next);
 	};
 
-	const handlePropertyChange = (prop: PositionProp, value: string) => {
-		const config = getPropertyConfig(prop);
-		config.setter(value);
+	const deletePreset = (presetId: string) => {
+		const next = customPresets.filter((preset) => preset.id !== presetId);
+		setCustomPresets(next);
+		storeCustomTextPresets(next);
+	};
 
-		if (value.trim() !== "") {
-			const validatedValue = parseAndValidateValue(
-				value,
-				config.min,
-				config.max,
-				config.fallback,
-				false
+	const propertyKeyframes = element.keyframes?.[keyframeProperty] ?? [];
+	const durationInFrames = Math.max(
+		1,
+		Math.round((element.duration - element.trimStart - element.trimEnd) * fps)
+	);
+	const currentFrame = Math.min(
+		durationInFrames,
+		Math.max(0, Math.round((currentTime - element.startTime) * fps))
+	);
+
+	const setPropertyKeyframes = (keyframes: TextPropertyKeyframe[]) => {
+		update({
+			keyframes: {
+				...element.keyframes,
+				[keyframeProperty]: keyframes,
+			},
+		});
+	};
+
+	const addKeyframe = (frame: number, value: unknown) => {
+		const existing = propertyKeyframes.find((item) => item.frame === frame);
+		const keyframe: TextPropertyKeyframe = {
+			id:
+				existing?.id ??
+				(typeof crypto !== "undefined" && "randomUUID" in crypto
+					? crypto.randomUUID()
+					: `keyframe-${Date.now()}`),
+			frame,
+			value: Number(value),
+			easing: existing?.easing ?? "linear",
+		};
+		setPropertyKeyframes(
+			upsertTextKeyframe({ keyframes: propertyKeyframes, keyframe })
+		);
+	};
+
+	const updateKeyframe = (
+		id: string,
+		frame: number,
+		value: unknown,
+		easing: EasingType = "linear"
+	) => {
+		setPropertyKeyframes(
+			upsertTextKeyframe({
+				keyframes: propertyKeyframes,
+				keyframe: { id, frame, value: Number(value), easing },
+			})
+		);
+	};
+
+	const deleteKeyframe = (id: string) => {
+		setPropertyKeyframes(propertyKeyframes.filter((item) => item.id !== id));
+	};
+
+	const rewriteText = async (mode: "shorter" | "punchier" | "professional") => {
+		if (!element.content.trim() || isRewriting) return;
+		setIsRewriting(true);
+
+		try {
+			const result = await platform().moyin.callLLM({
+				systemPrompt:
+					"You edit concise on-screen text for videos. Preserve the source language and meaning. Return only the rewritten text without quotation marks or commentary.",
+				userPrompt: `Rewrite this text to be ${mode}:\n\n${element.content}`,
+				temperature: 0.5,
+				maxTokens: 256,
+			});
+			if (!result.success || !result.text?.trim()) {
+				throw new Error(result.error || "Text rewrite returned no content");
+			}
+			update({ content: result.text.trim() });
+		} catch (error) {
+			toast.error(
+				error instanceof Error ? error.message : "Text rewrite failed"
 			);
-			updateTextElement(trackId, element.id, { [prop]: validatedValue });
+		} finally {
+			setIsRewriting(false);
 		}
 	};
 
-	const handlePropertyBlur = (prop: PositionProp) => {
-		const config = getPropertyConfig(prop);
-		const validatedValue = parseAndValidateValue(
-			config.input,
-			config.min,
-			config.max,
-			config.fallback,
-			false
-		);
-		config.setter(validatedValue.toString());
-		updateTextElement(trackId, element.id, { [prop]: validatedValue });
+	const addGeneratedMedia = async (
+		result: AIPipelineResult,
+		messages: { timeline: string; library: string }
+	) => {
+		if (!projectId) return;
+		await syncProjectMediaIfNeeded({ projectId });
+		const mediaItem = useMediaStore
+			.getState()
+			.mediaItems.find(
+				(item) =>
+					item.id === result.mediaId ||
+					item.localPath === result.importedPath ||
+					item.localPath === result.outputPath
+			);
+		if (mediaItem) {
+			useTimelineStore.getState().addMediaAtTime(mediaItem, element.startTime);
+			toast.success(messages.timeline);
+		} else {
+			toast.success(messages.library);
+		}
 	};
 
-	// Create specific handlers using the generic functions
-	const handleXChange = (value: string) => handlePropertyChange("x", value);
-	const handleXBlur = () => handlePropertyBlur("x");
-	const handleYChange = (value: string) => handlePropertyChange("y", value);
-	const handleYBlur = () => handlePropertyBlur("y");
-	const handleRotationChange = (value: string) =>
-		handlePropertyChange("rotation", value);
-	const handleRotationBlur = () => handlePropertyBlur("rotation");
+	const createSpeech = async () => {
+		if (!projectId || !element.content.trim() || isGeneratingAI) return;
+		setGenerationKind("speech");
+		try {
+			const result = await generateAI({
+				command: "generate-speech",
+				args: {
+					model: speechModel,
+					text: element.content,
+				},
+				projectId,
+				autoImport: true,
+			});
+
+			if (!result.success) {
+				toast.error(result.error || "Speech generation failed");
+				return;
+			}
+			await addGeneratedMedia(result, {
+				timeline: "Speech added to the timeline",
+				library: "Speech generated and added to the media library",
+			});
+		} finally {
+			setGenerationKind(null);
+		}
+	};
+
+	const createAvatar = async () => {
+		if (!projectId || !avatarImageId || isGeneratingAI) return;
+		const image = avatarImages.find((item) => item.id === avatarImageId);
+		const imageUrl = image?.localPath || image?.originalUrl || image?.url;
+		if (!imageUrl) return;
+
+		setGenerationKind("avatar");
+		try {
+			const result = await generateAI({
+				command: "generate-avatar",
+				args: {
+					model: "fabric_1_0_text",
+					text: element.content,
+					"image-url": imageUrl,
+					resolution: "720p",
+				},
+				projectId,
+				autoImport: true,
+			});
+			if (!result.success) {
+				toast.error(result.error || "Digital human generation failed");
+				return;
+			}
+			await addGeneratedMedia(result, {
+				timeline: "Digital human added to the timeline",
+				library: "Digital human added to the media library",
+			});
+		} finally {
+			setGenerationKind(null);
+		}
+	};
+
+	const applyCursorTracking = () => {
+		if (!cursorTelemetry) return;
+		const tracking = buildCursorTextTrackingKeyframes({
+			telemetry: cursorTelemetry,
+			canvasSize,
+			elementStartTime: element.startTime,
+			elementDuration: element.duration - element.trimStart - element.trimEnd,
+			fps,
+		});
+		if (tracking.x.length === 0) {
+			toast.error("No cursor movement overlaps this text clip");
+			return;
+		}
+
+		const generatedFrames = new Set(
+			tracking.x.map((keyframe) => keyframe.frame)
+		);
+		const keepManual = (keyframes: TextPropertyKeyframe[] = []) =>
+			keyframes.filter(
+				(keyframe) =>
+					!keyframe.id.startsWith("cursor-") &&
+					!generatedFrames.has(keyframe.frame)
+			);
+		update({
+			keyframes: {
+				...element.keyframes,
+				x: [...keepManual(element.keyframes?.x), ...tracking.x].sort(
+					(a, b) => a.frame - b.frame
+				),
+				y: [...keepManual(element.keyframes?.y), ...tracking.y].sort(
+					(a, b) => a.frame - b.frame
+				),
+			},
+		});
+		toast.success(`Added ${tracking.x.length} cursor tracking keyframes`);
+	};
+
+	const clearCursorTracking = () => {
+		update({
+			keyframes: {
+				...element.keyframes,
+				x: element.keyframes?.x?.filter(
+					(keyframe) => !keyframe.id.startsWith("cursor-")
+				),
+				y: element.keyframes?.y?.filter(
+					(keyframe) => !keyframe.id.startsWith("cursor-")
+				),
+			},
+		});
+	};
 
 	return (
-		<div className="space-y-6 p-5">
+		<div className="space-y-5 p-5" data-testid="text-properties">
 			<Textarea
-				placeholder="Name"
-				defaultValue={element.content}
-				className="min-h-18 resize-none bg-background/50"
-				onChange={(e) =>
-					updateTextElement(trackId, element.id, { content: e.target.value })
-				}
+				aria-label="Text content"
+				placeholder="Enter text"
+				value={element.content}
+				className="min-h-24 resize-y bg-background/50"
+				onChange={(event) => update({ content: event.target.value })}
 			/>
 
-			<PropertyGroup title="Font" defaultExpanded={true}>
-				<PropertyItem direction="row">
-					<PropertyItemLabel>Font</PropertyItemLabel>
-					<PropertyItemValue>
-						<FontPicker
-							aria-label="Font family"
-							defaultValue={element.fontFamily}
-							onValueChange={(value: FontFamily) =>
-								updateTextElement(trackId, element.id, { fontFamily: value })
-							}
-						/>
-					</PropertyItemValue>
-				</PropertyItem>
-				<PropertyItem direction="column">
+			<PropertyGroup title="Style presets" defaultExpanded>
+				<div className="space-y-3">
+					<div className="grid grid-cols-5 gap-2">
+						{[...BUILT_IN_TEXT_PRESETS, ...customPresets].map((preset) => (
+							<PresetButton
+								key={preset.id}
+								preset={preset}
+								onApply={() => update(preset.updates)}
+								onDelete={
+									preset.custom ? () => deletePreset(preset.id) : undefined
+								}
+							/>
+						))}
+					</div>
+					<Button
+						type="button"
+						variant="outline"
+						className="w-full"
+						onClick={saveCurrentPreset}
+					>
+						<Save className="mr-2 size-4" /> Save current style
+					</Button>
+				</div>
+			</PropertyGroup>
+
+			<PropertyGroup title="Animation" defaultExpanded={false}>
+				<div className="space-y-4">
+					<div className="grid grid-cols-2 gap-2">
+						{TEXT_ANIMATION_TYPES.map((animationType) => (
+							<Button
+								key={animationType}
+								type="button"
+								aria-pressed={animation.type === animationType}
+								variant={
+									animation.type === animationType ? "default" : "outline"
+								}
+								size="sm"
+								className="h-8 capitalize"
+								onClick={() => update({ animationType })}
+							>
+								{animationType.replace("-", " ")}
+							</Button>
+						))}
+					</div>
+					{animation.type !== "none" ? (
+						<>
+							<NumberControl
+								label="Duration"
+								value={animation.duration}
+								min={0.1}
+								max={3}
+								step={0.1}
+								onChange={(animationDuration) => update({ animationDuration })}
+								suffix="s"
+							/>
+							<NumberControl
+								label="Delay"
+								value={animation.delay}
+								min={0}
+								max={5}
+								step={0.1}
+								onChange={(animationDelay) => update({ animationDelay })}
+								suffix="s"
+							/>
+						</>
+					) : null}
+				</div>
+			</PropertyGroup>
+
+			<PropertyGroup title="AI writing and speech" defaultExpanded={false}>
+				<div className="space-y-4">
+					<PropertyItem direction="column">
+						<PropertyItemLabel>Rewrite</PropertyItemLabel>
+						<PropertyItemValue>
+							<div className="grid grid-cols-3 gap-2">
+								{(["shorter", "punchier", "professional"] as const).map(
+									(mode) => (
+										<Button
+											key={mode}
+											type="button"
+											variant="outline"
+											size="sm"
+											className="h-8 px-2 text-[10px] capitalize"
+											disabled={isRewriting || !element.content.trim()}
+											onClick={() => rewriteText(mode)}
+										>
+											{isRewriting ? (
+												<Loader2 className="size-3 animate-spin" />
+											) : (
+												<Sparkles className="mr-1 size-3" />
+											)}
+											{mode}
+										</Button>
+									)
+								)}
+							</div>
+						</PropertyItemValue>
+					</PropertyItem>
+
+					<PropertyItem direction="row">
+						<PropertyItemLabel>Voice model</PropertyItemLabel>
+						<PropertyItemValue>
+							<Select value={speechModel} onValueChange={setSpeechModel}>
+								<SelectTrigger className="h-8 text-xs">
+									<SelectValue />
+								</SelectTrigger>
+								<SelectContent>
+									<SelectItem value="chatterbox_tts">Chatterbox</SelectItem>
+									<SelectItem value="chatterbox_tts_turbo">
+										Chatterbox Turbo
+									</SelectItem>
+									<SelectItem value="elevenlabs_v3">ElevenLabs v3</SelectItem>
+									<SelectItem value="qwen3_tts">Qwen3 TTS</SelectItem>
+								</SelectContent>
+							</Select>
+						</PropertyItemValue>
+					</PropertyItem>
+					<Button
+						type="button"
+						className="w-full"
+						disabled={
+							!isSpeechAvailable ||
+							isGeneratingAI ||
+							!element.content.trim() ||
+							!projectId
+						}
+						title={
+							isSpeechAvailable
+								? "Generate speech"
+								: "Configure a FAL API key to generate speech"
+						}
+						onClick={createSpeech}
+					>
+						{isGeneratingAI && generationKind === "speech" ? (
+							<Loader2 className="mr-2 size-4 animate-spin" />
+						) : (
+							<AudioLines className="mr-2 size-4" />
+						)}
+						{isGeneratingAI && generationKind === "speech"
+							? (speechProgress?.message ?? "Generating speech")
+							: "Generate speech"}
+					</Button>
+				</div>
+			</PropertyGroup>
+
+			<PropertyGroup title="Digital human" defaultExpanded={false}>
+				<div className="space-y-4">
+					<PropertyItem direction="row">
+						<PropertyItemLabel>Portrait</PropertyItemLabel>
+						<PropertyItemValue>
+							<Select value={avatarImageId} onValueChange={setAvatarImageId}>
+								<SelectTrigger className="h-8 text-xs">
+									<SelectValue placeholder="Choose an image" />
+								</SelectTrigger>
+								<SelectContent>
+									{avatarImages.map((image) => (
+										<SelectItem key={image.id} value={image.id}>
+											{image.name}
+										</SelectItem>
+									))}
+								</SelectContent>
+							</Select>
+						</PropertyItemValue>
+					</PropertyItem>
+					<Button
+						type="button"
+						className="w-full"
+						disabled={
+							!isSpeechAvailable ||
+							isGeneratingAI ||
+							!avatarImageId ||
+							!element.content.trim() ||
+							!projectId
+						}
+						title={
+							avatarImages.length > 0
+								? "Generate a talking portrait"
+								: "Import a portrait image first"
+						}
+						onClick={createAvatar}
+					>
+						{isGeneratingAI && generationKind === "avatar" ? (
+							<Loader2 className="mr-2 size-4 animate-spin" />
+						) : (
+							<Sparkles className="mr-2 size-4" />
+						)}
+						{isGeneratingAI && generationKind === "avatar"
+							? (speechProgress?.message ?? "Generating digital human")
+							: "Generate digital human"}
+					</Button>
+				</div>
+			</PropertyGroup>
+
+			<PropertyGroup title="Tracking" defaultExpanded={false}>
+				<div className="grid grid-cols-2 gap-2">
+					<Button
+						type="button"
+						disabled={!cursorTelemetry}
+						title={
+							cursorTelemetry
+								? "Follow the recorded cursor"
+								: "Cursor telemetry is available for screen recordings"
+						}
+						onClick={applyCursorTracking}
+					>
+						<MousePointer2 className="mr-2 size-4" /> Track cursor
+					</Button>
+					<Button
+						type="button"
+						variant="outline"
+						disabled={
+							![
+								...(element.keyframes?.x ?? []),
+								...(element.keyframes?.y ?? []),
+							].some((keyframe) => keyframe.id.startsWith("cursor-"))
+						}
+						onClick={clearCursorTracking}
+					>
+						<Unlink className="mr-2 size-4" /> Clear
+					</Button>
+				</div>
+			</PropertyGroup>
+
+			<PropertyGroup title="Keyframes" defaultExpanded={false}>
+				<div className="space-y-4">
+					<PropertyItem direction="row">
+						<PropertyItemLabel>Property</PropertyItemLabel>
+						<PropertyItemValue>
+							<Select
+								value={keyframeProperty}
+								onValueChange={(value) =>
+									setKeyframeProperty(value as TextKeyframeProperty)
+								}
+							>
+								<SelectTrigger className="h-8 text-xs">
+									<SelectValue />
+								</SelectTrigger>
+								<SelectContent>
+									{TEXT_KEYFRAME_PROPERTIES.map((property) => (
+										<SelectItem key={property.value} value={property.value}>
+											{property.label}
+										</SelectItem>
+									))}
+								</SelectContent>
+							</Select>
+						</PropertyItemValue>
+					</PropertyItem>
+					<KeyframeEditor
+						propName={keyframeProperty}
+						propLabel={
+							TEXT_KEYFRAME_PROPERTIES.find(
+								(property) => property.value === keyframeProperty
+							)?.label ?? keyframeProperty
+						}
+						propType="number"
+						keyframes={propertyKeyframes as Keyframe[]}
+						durationInFrames={durationInFrames}
+						fps={fps}
+						currentFrame={currentFrame}
+						currentValueWhenEmpty={element[keyframeProperty]}
+						onKeyframeAdd={addKeyframe}
+						onKeyframeUpdate={updateKeyframe}
+						onKeyframeDelete={deleteKeyframe}
+					/>
+				</div>
+			</PropertyGroup>
+
+			<PropertyGroup title="Typography" defaultExpanded>
+				<div className="space-y-4">
+					<PropertyItem direction="row">
+						<PropertyItemLabel>Font</PropertyItemLabel>
+						<PropertyItemValue>
+							<FontPicker
+								value={element.fontFamily as FontFamily}
+								onValueChange={(fontFamily) => update({ fontFamily })}
+							/>
+						</PropertyItemValue>
+					</PropertyItem>
+
+					<NumberControl
+						label="Font size"
+						value={element.fontSize}
+						min={8}
+						max={300}
+						onChange={(fontSize) => update({ fontSize })}
+						suffix="px"
+					/>
+
 					<PropertyItem direction="row">
 						<PropertyItemLabel>Style</PropertyItemLabel>
 						<PropertyItemValue>
-							<div className="flex items-center gap-2">
-								<Button
-									type="button"
-									aria-pressed={element.fontWeight === "bold"}
-									variant={
-										element.fontWeight === "bold" ? "default" : "outline"
-									}
-									size="sm"
+							<div className="flex flex-wrap gap-2">
+								<IconToggle
+									label="Bold"
+									pressed={element.fontWeight === "bold"}
 									onClick={() =>
-										updateTextElement(trackId, element.id, {
+										update({
 											fontWeight:
 												element.fontWeight === "bold" ? "normal" : "bold",
 										})
 									}
-									className="h-8 px-3 font-bold"
 								>
-									B
-								</Button>
-								<Button
-									type="button"
-									aria-pressed={element.fontStyle === "italic"}
-									variant={
-										element.fontStyle === "italic" ? "default" : "outline"
-									}
-									size="sm"
+									<Bold className="size-4" />
+								</IconToggle>
+								<IconToggle
+									label="Italic"
+									pressed={element.fontStyle === "italic"}
 									onClick={() =>
-										updateTextElement(trackId, element.id, {
+										update({
 											fontStyle:
 												element.fontStyle === "italic" ? "normal" : "italic",
 										})
 									}
-									className="h-8 px-3 italic"
 								>
-									I
-								</Button>
-								<Button
-									type="button"
-									aria-pressed={element.textDecoration === "underline"}
-									variant={
-										element.textDecoration === "underline"
-											? "default"
-											: "outline"
-									}
-									size="sm"
+									<Italic className="size-4" />
+								</IconToggle>
+								<IconToggle
+									label="Underline"
+									pressed={element.textDecoration === "underline"}
 									onClick={() =>
-										updateTextElement(trackId, element.id, {
+										update({
 											textDecoration:
 												element.textDecoration === "underline"
 													? "none"
 													: "underline",
 										})
 									}
-									className="h-8 px-3 underline"
 								>
-									U
-								</Button>
-								<Button
-									type="button"
-									aria-pressed={element.textDecoration === "line-through"}
-									variant={
-										element.textDecoration === "line-through"
-											? "default"
-											: "outline"
-									}
-									size="sm"
+									<Underline className="size-4" />
+								</IconToggle>
+								<IconToggle
+									label="Strikethrough"
+									pressed={element.textDecoration === "line-through"}
 									onClick={() =>
-										updateTextElement(trackId, element.id, {
+										update({
 											textDecoration:
 												element.textDecoration === "line-through"
 													? "none"
 													: "line-through",
 										})
 									}
-									className="h-8 px-3 line-through"
 								>
-									S
-								</Button>
+									<Strikethrough className="size-4" />
+								</IconToggle>
 							</div>
 						</PropertyItemValue>
 					</PropertyItem>
-					<PropertyItemLabel>Font size</PropertyItemLabel>
-					<PropertyItemValue>
-						<div className="flex items-center gap-2">
-							<Slider
-								aria-label="Font size"
-								value={[element.fontSize]}
-								min={8}
-								max={300}
-								step={1}
-								onValueChange={([value]) => {
-									updateTextElement(trackId, element.id, { fontSize: value });
-									setFontSizeInput(value.toString());
-								}}
-								className="w-full"
-							/>
-							<Input
-								type="number"
-								aria-label="Font size (number)"
-								value={fontSizeInput}
-								min={8}
-								max={300}
-								onChange={(e) => handleFontSizeChange(e.target.value)}
-								onBlur={handleFontSizeBlur}
-								className="w-12 !text-xs h-7 rounded-sm text-center
-                 [appearance:textfield]
-                 [&::-webkit-outer-spin-button]:appearance-none
-                 [&::-webkit-inner-spin-button]:appearance-none"
-							/>
-						</div>
-					</PropertyItemValue>
-				</PropertyItem>
+
+					<NumberControl
+						label="Letter spacing"
+						value={style.letterSpacing}
+						min={-20}
+						max={100}
+						onChange={(letterSpacing) => update({ letterSpacing })}
+						suffix="px"
+					/>
+					<NumberControl
+						label="Line height"
+						value={style.lineHeight}
+						min={0.5}
+						max={3}
+						step={0.05}
+						onChange={(lineHeight) => update({ lineHeight })}
+						suffix="x"
+					/>
+
+					<PropertyItem direction="row">
+						<PropertyItemLabel>Alignment</PropertyItemLabel>
+						<PropertyItemValue>
+							<div className="flex flex-wrap gap-2">
+								{(
+									[
+										["left", AlignLeft],
+										["center", AlignCenter],
+										["right", AlignRight],
+									] as const
+								).map(([alignment, Icon]) => (
+									<IconToggle
+										key={alignment}
+										label={`Align ${alignment}`}
+										pressed={element.textAlign === alignment}
+										onClick={() => update({ textAlign: alignment })}
+									>
+										<Icon className="size-4" />
+									</IconToggle>
+								))}
+								{(["top", "middle", "bottom"] as const).map((alignment) => (
+									<Button
+										key={alignment}
+										type="button"
+										aria-pressed={style.verticalAlign === alignment}
+										variant={
+											style.verticalAlign === alignment ? "default" : "outline"
+										}
+										size="sm"
+										className="h-8 px-2 text-[10px] capitalize"
+										onClick={() => update({ verticalAlign: alignment })}
+									>
+										{alignment}
+									</Button>
+								))}
+							</div>
+						</PropertyItemValue>
+					</PropertyItem>
+				</div>
 			</PropertyGroup>
 
-			<PropertyGroup title="Appearance" defaultExpanded={true}>
-				<PropertyItem direction="row">
-					<PropertyItemLabel>Color</PropertyItemLabel>
-					<PropertyItemValue>
-						<Input
-							type="color"
-							aria-label="Text color"
-							value={element.color || "#ffffff"}
-							onChange={(e) => {
-								const color = e.target.value;
-								updateTextElement(trackId, element.id, { color });
-							}}
-							className="w-full cursor-pointer rounded-full"
-						/>
-					</PropertyItemValue>
-				</PropertyItem>
-				<PropertyItem direction="row">
-					<PropertyItemLabel>Background</PropertyItemLabel>
-					<PropertyItemValue>
-						<Input
-							type="color"
-							aria-label="Background color"
-							value={
-								element.backgroundColor === "transparent"
-									? "#000000"
-									: element.backgroundColor || "#000000"
-							}
-							onChange={(e) => {
-								const backgroundColor = e.target.value;
-								updateTextElement(trackId, element.id, { backgroundColor });
-							}}
-							className="w-full cursor-pointer rounded-full"
-						/>
-					</PropertyItemValue>
-				</PropertyItem>
-				<PropertyItem direction="column">
-					<PropertyItemLabel>Opacity</PropertyItemLabel>
-					<PropertyItemValue>
-						<div className="flex items-center gap-2">
-							<Slider
-								aria-label="Opacity"
-								value={[element.opacity * 100]}
-								min={0}
-								max={100}
-								step={1}
-								onValueChange={([value]) => {
-									updateTextElement(trackId, element.id, {
-										opacity: value / 100,
-									});
-									setOpacityInput(value.toString());
-								}}
-								className="w-full"
-							/>
-							<Input
-								type="number"
-								aria-label="Opacity percent"
-								value={opacityInput}
-								min={0}
-								max={100}
-								onChange={(e) => handleOpacityChange(e.target.value)}
-								onBlur={handleOpacityBlur}
-								className="w-12 !text-xs h-7 rounded-sm text-center
-                 [appearance:textfield]
-                 [&::-webkit-outer-spin-button]:appearance-none
-                 [&::-webkit-inner-spin-button]:appearance-none"
-							/>
-						</div>
-					</PropertyItemValue>
-				</PropertyItem>
+			<PropertyGroup title="Layout" defaultExpanded>
+				<div className="space-y-4">
+					<NumberControl
+						label="Text box width"
+						value={style.width}
+						min={40}
+						max={Math.max(40, canvasSize.width)}
+						onChange={(width) => update({ width })}
+						suffix="px"
+					/>
+					<NumberControl
+						label="Text box height"
+						value={style.height}
+						min={40}
+						max={Math.max(40, canvasSize.height)}
+						onChange={(height) => update({ height })}
+						suffix="px"
+					/>
+					<NumberControl
+						label="X position"
+						value={element.x}
+						min={-canvasSize.width / 2}
+						max={canvasSize.width / 2}
+						onChange={(x) => update({ x })}
+						suffix="px"
+					/>
+					<NumberControl
+						label="Y position"
+						value={element.y}
+						min={-canvasSize.height / 2}
+						max={canvasSize.height / 2}
+						onChange={(y) => update({ y })}
+						suffix="px"
+					/>
+					<NumberControl
+						label="Rotation"
+						value={element.rotation}
+						min={-180}
+						max={180}
+						onChange={(rotation) => update({ rotation })}
+						suffix="deg"
+					/>
+
+					<PropertyItem direction="row">
+						<PropertyItemLabel className="flex items-center gap-1.5">
+							<Grid3X3 className="size-3.5" /> Position
+						</PropertyItemLabel>
+						<PropertyItemValue className="flex justify-end">
+							<div className="grid grid-cols-3 gap-1">
+								{([0, 1, 2] as const).flatMap((row) =>
+									([0, 1, 2] as const).map((column) => (
+										<Button
+											key={`${column}-${row}`}
+											type="button"
+											variant="outline"
+											size="icon"
+											className="size-7"
+											aria-label={`Place text at ${column}-${row}`}
+											title="Place text on canvas"
+											onClick={() => quickPosition(column, row)}
+										>
+											<span className="size-1.5 rounded-full bg-current" />
+										</Button>
+									))
+								)}
+							</div>
+						</PropertyItemValue>
+					</PropertyItem>
+				</div>
 			</PropertyGroup>
 
-			<PropertyGroup title="Position" defaultExpanded={true}>
-				<PropertyItem direction="column">
-					<PropertyItemLabel>X Position</PropertyItemLabel>
-					<PropertyItemValue>
-						<div className="flex items-center gap-2">
-							<Slider
-								aria-label="X Position"
-								value={[element.x || 0]}
-								min={-canvasSize.width / 2}
-								max={canvasSize.width / 2}
-								step={1}
-								onValueChange={([value]) => handleSliderChange("x", value)}
-								className="w-full"
-							/>
-							<Input
-								type="number"
-								aria-label="X Position (number)"
-								value={xInput}
-								onChange={(e) => handleXChange(e.target.value)}
-								onBlur={handleXBlur}
-								className="w-12 !text-xs h-7 rounded-sm text-center
-                 [appearance:textfield]
-                 [&::-webkit-outer-spin-button]:appearance-none
-                 [&::-webkit-inner-spin-button]:appearance-none"
-							/>
-						</div>
-					</PropertyItemValue>
-				</PropertyItem>
-				<PropertyItem direction="column">
-					<PropertyItemLabel>Y Position</PropertyItemLabel>
-					<PropertyItemValue>
-						<div className="flex items-center gap-2">
-							<Slider
-								aria-label="Y Position"
-								value={[element.y || 0]}
-								min={-canvasSize.height / 2}
-								max={canvasSize.height / 2}
-								step={1}
-								onValueChange={([value]) => handleSliderChange("y", value)}
-								className="w-full"
-							/>
-							<Input
-								type="number"
-								aria-label="Y Position (number)"
-								value={yInput}
-								onChange={(e) => handleYChange(e.target.value)}
-								onBlur={handleYBlur}
-								className="w-12 !text-xs h-7 rounded-sm text-center
-                 [appearance:textfield]
-                 [&::-webkit-outer-spin-button]:appearance-none
-                 [&::-webkit-inner-spin-button]:appearance-none"
-							/>
-						</div>
-					</PropertyItemValue>
-				</PropertyItem>
-			</PropertyGroup>
-
-			<PropertyGroup title="Transform" defaultExpanded={true}>
-				<PropertyItem direction="column">
-					<PropertyItemLabel>Rotation</PropertyItemLabel>
-					<PropertyItemValue>
-						<div className="flex items-center gap-2">
-							<Slider
-								aria-label="Rotation"
-								value={[element.rotation || 0]}
-								min={-180}
-								max={180}
-								step={1}
-								onValueChange={([value]) =>
-									handleSliderChange("rotation", value)
+			<PropertyGroup title="Appearance" defaultExpanded>
+				<div className="space-y-4">
+					<ColorControl
+						label="Text color"
+						value={element.color}
+						onChange={(color) => update({ color })}
+					/>
+					<NumberControl
+						label="Opacity"
+						value={Math.round(element.opacity * 100)}
+						min={0}
+						max={100}
+						onChange={(opacity) => update({ opacity: opacity / 100 })}
+						suffix="%"
+					/>
+					<PropertyItem direction="row">
+						<PropertyItemLabel>Blend mode</PropertyItemLabel>
+						<PropertyItemValue>
+							<Select
+								value={style.blendMode}
+								onValueChange={(blendMode) =>
+									update({
+										blendMode: blendMode as NonNullable<
+											TextElement["blendMode"]
+										>,
+									})
 								}
-								className="w-full"
-							/>
-							<Input
-								type="number"
-								aria-label="Rotation (degrees)"
-								value={rotationInput}
-								onChange={(e) => handleRotationChange(e.target.value)}
-								onBlur={handleRotationBlur}
-								className="w-12 !text-xs h-7 rounded-sm text-center
-                 [appearance:textfield]
-                 [&::-webkit-outer-spin-button]:appearance-none
-                 [&::-webkit-inner-spin-button]:appearance-none"
-							/>
-							<span className="text-xs text-muted-foreground">°</span>
-						</div>
-					</PropertyItemValue>
-				</PropertyItem>
+							>
+								<SelectTrigger className="h-8 text-xs">
+									<SelectValue />
+								</SelectTrigger>
+								<SelectContent>
+									{TEXT_BLEND_MODES.map((mode) => (
+										<SelectItem key={mode} value={mode} className="capitalize">
+											{mode}
+										</SelectItem>
+									))}
+								</SelectContent>
+							</Select>
+						</PropertyItemValue>
+					</PropertyItem>
+				</div>
 			</PropertyGroup>
+
+			<PropertyGroup title="Stroke" defaultExpanded={false}>
+				<div className="space-y-4">
+					<ColorControl
+						label="Color"
+						value={style.strokeColor}
+						onChange={(strokeColor) => update({ strokeColor })}
+					/>
+					<NumberControl
+						label="Width"
+						value={style.strokeWidth}
+						min={0}
+						max={20}
+						step={0.5}
+						onChange={(strokeWidth) => update({ strokeWidth })}
+						suffix="px"
+					/>
+					<NumberControl
+						label="Opacity"
+						value={Math.round(style.strokeOpacity * 100)}
+						min={0}
+						max={100}
+						onChange={(strokeOpacity) =>
+							update({ strokeOpacity: strokeOpacity / 100 })
+						}
+						suffix="%"
+					/>
+				</div>
+			</PropertyGroup>
+
+			<PropertyGroup title="Background" defaultExpanded={false}>
+				<div className="space-y-4">
+					<ColorControl
+						label="Color"
+						value={element.backgroundColor}
+						onChange={(backgroundColor) => update({ backgroundColor })}
+					/>
+					<NumberControl
+						label="Opacity"
+						value={Math.round(style.backgroundOpacity * 100)}
+						min={0}
+						max={100}
+						onChange={(backgroundOpacity) =>
+							update({ backgroundOpacity: backgroundOpacity / 100 })
+						}
+						suffix="%"
+					/>
+					<NumberControl
+						label="Corner radius"
+						value={style.backgroundRadius}
+						min={0}
+						max={100}
+						onChange={(backgroundRadius) => update({ backgroundRadius })}
+						suffix="px"
+					/>
+					<NumberControl
+						label="Padding"
+						value={style.backgroundPadding}
+						min={0}
+						max={100}
+						onChange={(backgroundPadding) => update({ backgroundPadding })}
+						suffix="px"
+					/>
+				</div>
+			</PropertyGroup>
+
+			<PropertyGroup title="Shadow" defaultExpanded={false}>
+				<div className="space-y-4">
+					<ColorControl
+						label="Color"
+						value={style.shadowColor}
+						onChange={(shadowColor) => update({ shadowColor })}
+					/>
+					<NumberControl
+						label="Opacity"
+						value={Math.round(style.shadowOpacity * 100)}
+						min={0}
+						max={100}
+						onChange={(shadowOpacity) =>
+							update({ shadowOpacity: shadowOpacity / 100 })
+						}
+						suffix="%"
+					/>
+					<NumberControl
+						label="Horizontal offset"
+						value={style.shadowOffsetX}
+						min={-100}
+						max={100}
+						onChange={(shadowOffsetX) => update({ shadowOffsetX })}
+						suffix="px"
+					/>
+					<NumberControl
+						label="Vertical offset"
+						value={style.shadowOffsetY}
+						min={-100}
+						max={100}
+						onChange={(shadowOffsetY) => update({ shadowOffsetY })}
+						suffix="px"
+					/>
+					<NumberControl
+						label="Blur"
+						value={style.shadowBlur}
+						min={0}
+						max={100}
+						onChange={(shadowBlur) => update({ shadowBlur })}
+						suffix="px"
+					/>
+				</div>
+			</PropertyGroup>
+
+			<PropertyGroup title="Glow" defaultExpanded={false}>
+				<div className="space-y-4">
+					<ColorControl
+						label="Color"
+						value={style.glowColor}
+						onChange={(glowColor) => update({ glowColor })}
+					/>
+					<NumberControl
+						label="Opacity"
+						value={Math.round(style.glowOpacity * 100)}
+						min={0}
+						max={100}
+						onChange={(glowOpacity) =>
+							update({ glowOpacity: glowOpacity / 100 })
+						}
+						suffix="%"
+					/>
+					<NumberControl
+						label="Blur"
+						value={style.glowBlur}
+						min={0}
+						max={100}
+						onChange={(glowBlur) => update({ glowBlur })}
+						suffix="px"
+					/>
+				</div>
+			</PropertyGroup>
+
+			<PropertyGroup title="Curve" defaultExpanded={false}>
+				<NumberControl
+					label="Arc"
+					value={style.curve}
+					min={-180}
+					max={180}
+					onChange={(curve) => update({ curve })}
+					suffix="deg"
+				/>
+			</PropertyGroup>
+
+			<Button
+				type="button"
+				variant="outline"
+				className="w-full"
+				onClick={resetVisualStyle}
+			>
+				<RotateCcw className="mr-2 size-4" /> Reset visual style
+			</Button>
 		</div>
 	);
 }

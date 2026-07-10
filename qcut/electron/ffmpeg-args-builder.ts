@@ -34,6 +34,17 @@ export interface BuildFFmpegArgsOptions {
 	audioFiles?: AudioFile[];
 	filterChain?: string;
 	textFilterChain?: string;
+	textAssPath?: string;
+	textAssLayers?: Array<{
+		path: string;
+		blendMode:
+			| "normal"
+			| "multiply"
+			| "screen"
+			| "overlay"
+			| "darken"
+			| "lighten";
+	}>;
 	useDirectCopy?: boolean;
 	videoSources?: VideoSource[];
 	stickerFilterChain?: string;
@@ -57,6 +68,14 @@ function resolveQuality(quality: "high" | "medium" | "low"): QualitySettings {
 
 function normalizeConcatPath(filePath: string): string {
 	return filePath.replace(/\\/g, "/").replace(/'/g, "'\\''");
+}
+
+function escapeFilterPath(filePath: string): string {
+	return filePath
+		.replace(/\\/g, "/")
+		.replace(/'/g, "\\'")
+		.replace(/:/g, "\\:")
+		.replace(/([,;[\]])/g, "\\$1");
 }
 
 function buildAudioFilters(
@@ -133,6 +152,8 @@ function buildCompositeEncodeArgs(
 		audioFiles = [],
 		filterChain,
 		textFilterChain,
+		textAssPath,
+		textAssLayers = [],
 		stickerSources = [],
 		imageSources = [],
 		useVideoInput = false,
@@ -353,6 +374,51 @@ function buildCompositeEncodeArgs(
 		filterSteps.push(
 			`[${currentVideoLabel}]${textFilterChain}[${outputLabel}]`
 		);
+		currentVideoLabel = outputLabel;
+	}
+
+	const resolvedTextAssLayers = [
+		...(textAssPath
+			? [{ path: textAssPath, blendMode: "normal" as const }]
+			: []),
+		...textAssLayers,
+	];
+	for (const [index, layer] of resolvedTextAssLayers.entries()) {
+		if (!fs.existsSync(layer.path)) {
+			throw new Error(`ASS text overlay file not found: ${layer.path}`);
+		}
+		const overlayLabel = `text_ass_overlay_${index}`;
+		filterSteps.push(
+			`color=c=black@0.0:s=${width}x${height}:d=${duration}:r=${fps},format=rgba,ass=filename='${escapeFilterPath(layer.path)}':alpha=1[${overlayLabel}]`
+		);
+		const outputLabel = `v_text_ass_${filterLabelIndex++}`;
+		if (layer.blendMode === "normal") {
+			filterSteps.push(
+				`[${currentVideoLabel}][${overlayLabel}]overlay=shortest=1:format=auto[${outputLabel}]`
+			);
+		} else {
+			const baseOriginal = `text_base_original_${index}`;
+			const baseBlendInput = `text_base_blend_input_${index}`;
+			const baseBlend = `text_base_blend_${index}`;
+			const textBlend = `text_blend_input_${index}`;
+			const textAlpha = `text_alpha_input_${index}`;
+			const blended = `text_blended_${index}`;
+			const mask = `text_mask_${index}`;
+			const blendedWithAlpha = `text_blended_alpha_${index}`;
+			filterSteps.push(
+				`[${currentVideoLabel}]split=2[${baseOriginal}][${baseBlendInput}]`
+			);
+			filterSteps.push(`[${baseBlendInput}]format=rgba[${baseBlend}]`);
+			filterSteps.push(`[${overlayLabel}]split=2[${textBlend}][${textAlpha}]`);
+			filterSteps.push(
+				`[${baseBlend}][${textBlend}]blend=all_mode=${layer.blendMode}[${blended}]`
+			);
+			filterSteps.push(`[${textAlpha}]alphaextract[${mask}]`);
+			filterSteps.push(`[${blended}][${mask}]alphamerge[${blendedWithAlpha}]`);
+			filterSteps.push(
+				`[${baseOriginal}][${blendedWithAlpha}]overlay=shortest=1:format=auto[${outputLabel}]`
+			);
+		}
 		currentVideoLabel = outputLabel;
 	}
 

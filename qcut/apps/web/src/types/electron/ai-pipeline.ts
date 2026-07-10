@@ -16,6 +16,7 @@ export interface AIPipelineGenerateOptions {
 		| "generate-image"
 		| "create-video"
 		| "generate-avatar"
+		| "generate-speech"
 		| "list-models"
 		| "estimate-cost"
 		| "run-pipeline";

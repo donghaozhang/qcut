@@ -56,6 +56,7 @@ export function setupExportHandler(tempManager: TempManager): void {
 				duration,
 				audioFiles = [],
 				textFilterChain,
+				textAssLayers = [],
 				stickerFilterChain,
 				stickerSources,
 				useDirectCopy = false,
@@ -159,6 +160,7 @@ export function setupExportHandler(tempManager: TempManager): void {
 			const effectiveUseDirectCopy =
 				useDirectCopy &&
 				!textFilterChain &&
+				textAssLayers.length === 0 &&
 				!stickerFilterChain &&
 				!options.filterChain &&
 				!options.imageFilterChain &&
@@ -176,6 +178,21 @@ export function setupExportHandler(tempManager: TempManager): void {
 				const frameDir: string = tempManager.getFrameDir(sessionId);
 				const outputDir: string = tempManager.getOutputDir(sessionId);
 				const outputFile: string = path.join(outputDir, "output.mp4");
+				const textAssLayerPaths: Array<{
+					path: string;
+					blendMode: (typeof textAssLayers)[number]["blendMode"];
+				}> = [];
+				if (textAssLayers.length > 0) {
+					fs.mkdirSync(frameDir, { recursive: true });
+					for (const [index, layer] of textAssLayers.entries()) {
+						const layerPath = path.join(frameDir, `text-overlay-${index}.ass`);
+						fs.writeFileSync(layerPath, layer.content, "utf8");
+						textAssLayerPaths.push({
+							path: layerPath,
+							blendMode: layer.blendMode,
+						});
+					}
+				}
 
 				// Construct FFmpeg arguments
 				let ffmpegPath: string;
@@ -198,6 +215,7 @@ export function setupExportHandler(tempManager: TempManager): void {
 						audioFiles,
 						filterChain: options.filterChain,
 						textFilterChain,
+						textAssLayers: textAssLayerPaths,
 						useDirectCopy: effectiveUseDirectCopy,
 						videoSources: options.videoSources,
 						stickerFilterChain,

@@ -94,6 +94,16 @@ export interface BuildExportOptionsParams {
 	audioFiles: AudioFileInput[];
 	combinedFilterChain: string;
 	textFilterChain: string;
+	textAssLayers: Array<{
+		content: string;
+		blendMode:
+			| "normal"
+			| "multiply"
+			| "screen"
+			| "overlay"
+			| "darken"
+			| "lighten";
+	}>;
 	stickerFilterChain: string | undefined;
 	stickerSources: StickerSourceForFilter[];
 	imageFilterChain: string | undefined;
@@ -118,6 +128,7 @@ export function buildExportOptions(params: BuildExportOptionsParams) {
 		audioFiles,
 		combinedFilterChain,
 		textFilterChain,
+		textAssLayers,
 		stickerFilterChain,
 		stickerSources,
 		imageFilterChain,
@@ -142,6 +153,7 @@ export function buildExportOptions(params: BuildExportOptionsParams) {
 		audioFiles,
 		filterChain: combinedFilterChain || undefined,
 		textFilterChain: hasTextFilters ? textFilterChain : undefined,
+		textAssLayers: textAssLayers.length > 0 ? textAssLayers : undefined,
 		stickerFilterChain,
 		stickerSources,
 		imageFilterChain,
