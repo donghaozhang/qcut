@@ -4,7 +4,14 @@ import { useAsyncMediaStoreActions } from "@/hooks/media/use-async-media-store";
 import { useParams } from "@tanstack/react-router";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Wand2, Loader2, ImagePlus, Video } from "lucide-react";
+import {
+	Wand2,
+	Loader2,
+	ImagePlus,
+	Video,
+	UserRound,
+	ScanSearch,
+} from "lucide-react";
 import {
 	segmentVideoWithText,
 	segmentWithText,
@@ -28,6 +35,7 @@ import { ObjectList } from "./ObjectList";
 import { PromptToolbar } from "./PromptToolbar";
 import { SegmentationCanvas } from "./SegmentationCanvas";
 import { ImageUploader } from "./ImageUploader";
+import { LocalPersonCutoutPanel } from "./LocalPersonCutoutPanel";
 
 /**
  * SegmentationPanel
@@ -59,6 +67,8 @@ export function SegmentationPanel() {
 		segmentedVideoUrl,
 		clearCurrentPrompts,
 		showObjectList,
+		videoBackend,
+		setVideoBackend,
 	} = useSegmentationStore();
 
 	const {
@@ -224,6 +234,8 @@ export function SegmentationPanel() {
 		(mode === "image" ? sourceImageUrl : sourceVideoUrl) &&
 		currentTextPrompt.trim() &&
 		!isProcessing;
+	const isLocalPersonVideo =
+		mode === "video" && videoBackend === "local-person";
 
 	// Handle media store loading/error states
 	if (mediaStoreError) {
@@ -270,32 +282,59 @@ export function SegmentationPanel() {
 				</TabsList>
 			</Tabs>
 
-			{/* Segment Button */}
-			<div className="flex-shrink-0">
-				<Button
-					onClick={handleSegment}
-					disabled={!canSegment}
-					className="w-full"
-					size="lg"
+			{mode === "video" && (
+				<Tabs
+					value={videoBackend}
+					onValueChange={(value) =>
+						setVideoBackend(value as "local-person" | "sam3")
+					}
 				>
-					{isProcessing ? (
-						<>
-							<Loader2 className="w-4 h-4 mr-2 animate-spin" />
-							Segmenting...
-						</>
-					) : (
-						<>
-							<Wand2 className="w-4 h-4 mr-2" />
-							Segment Objects
-						</>
-					)}
-				</Button>
-			</div>
+					<TabsList className="grid w-full grid-cols-2">
+						<TabsTrigger
+							value="local-person"
+							className="flex items-center gap-2"
+						>
+							<UserRound className="size-4" />
+							Local person
+						</TabsTrigger>
+						<TabsTrigger value="sam3" className="flex items-center gap-2">
+							<ScanSearch className="size-4" />
+							Cloud object
+						</TabsTrigger>
+					</TabsList>
+				</Tabs>
+			)}
+
+			{/* Segment Button */}
+			{!isLocalPersonVideo && (
+				<div className="flex-shrink-0">
+					<Button
+						onClick={handleSegment}
+						disabled={!canSegment}
+						className="w-full"
+						size="lg"
+					>
+						{isProcessing ? (
+							<>
+								<Loader2 className="w-4 h-4 mr-2 animate-spin" />
+								Segmenting...
+							</>
+						) : (
+							<>
+								<Wand2 className="w-4 h-4 mr-2" />
+								Segment Objects
+							</>
+						)}
+					</Button>
+				</div>
+			)}
 
 			{/* Prompt Toolbar */}
-			<div className="flex-shrink-0">
-				<PromptToolbar />
-			</div>
+			{!isLocalPersonVideo && (
+				<div className="flex-shrink-0">
+					<PromptToolbar />
+				</div>
+			)}
 
 			{/* Source Upload Section */}
 			<div className="flex-shrink-0">
@@ -314,7 +353,14 @@ export function SegmentationPanel() {
 			</div>
 
 			{/* Main Content Area */}
-			{mode === "video" && (segmentedVideoUrl || sourceVideoUrl) ? (
+			{isLocalPersonVideo && sourceVideoFile && sourceVideoUrl ? (
+				<LocalPersonCutoutPanel
+					projectId={projectId}
+					sourceFile={sourceVideoFile}
+					sourceUrl={sourceVideoUrl}
+					addMediaItem={addMediaItem}
+				/>
+			) : mode === "video" && (segmentedVideoUrl || sourceVideoUrl) ? (
 				<div className="flex-1 min-h-0">
 					<video
 						controls
@@ -341,9 +387,15 @@ export function SegmentationPanel() {
 				<div className="flex-1 flex items-center justify-center text-center text-muted-foreground">
 					<div>
 						<div className="text-6xl mb-4">&#9986;</div>
-						<h3 className="text-lg font-medium mb-2">AI Object Segmentation</h3>
+						<h3 className="text-lg font-medium mb-2">
+							{isLocalPersonVideo
+								? "Local Person Cutout"
+								: "AI Object Segmentation"}
+						</h3>
 						<p className="text-sm">
-							Upload an image and describe what to segment
+							{isLocalPersonVideo
+								? "Choose a video to remove its background"
+								: "Upload an image and describe what to segment"}
 						</p>
 					</div>
 				</div>

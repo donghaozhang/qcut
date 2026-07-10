@@ -215,6 +215,9 @@ export function MediaProperties({
 	const setSegmentationPrompt = useSegmentationStore(
 		(state) => state.setTextPrompt
 	);
+	const setSegmentationBackend = useSegmentationStore(
+		(state) => state.setVideoBackend
+	);
 	const [keyframeProperty, setKeyframeProperty] =
 		useState<MediaKeyframeProperty>("x");
 	const interactionActive = useRef(false);
@@ -310,12 +313,19 @@ export function MediaProperties({
 		updateLive({
 			adjustments: { ...visual.adjustments, [property]: value },
 		});
-	const openSegmentation = (prompt: string) => {
+	const openSegmentation = ({
+		backend,
+		prompt,
+	}: {
+		backend: "local-person" | "sam3";
+		prompt: string;
+	}) => {
 		if (mediaItem?.file) {
 			const sourceUrl =
 				mediaItem.url || createObjectURL(mediaItem.file, "media-properties-ai");
 			setSegmentationSource(mediaItem.file, sourceUrl);
 			setSegmentationMode("video");
+			setSegmentationBackend(backend);
 			setSegmentationPrompt(prompt);
 		}
 		setActiveMediaTab("segmentation");
@@ -1266,14 +1276,18 @@ export function MediaProperties({
 							<Button
 								type="button"
 								variant="outline"
-								onClick={() => openSegmentation("person")}
+								onClick={() =>
+									openSegmentation({ backend: "local-person", prompt: "" })
+								}
 							>
 								Auto cutout
 							</Button>
 							<Button
 								type="button"
 								variant="outline"
-								onClick={() => openSegmentation("")}
+								onClick={() =>
+									openSegmentation({ backend: "sam3", prompt: "" })
+								}
 							>
 								Object tracking
 							</Button>

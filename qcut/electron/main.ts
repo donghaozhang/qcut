@@ -519,7 +519,7 @@ function createWindow(): void {
 			// Set complete new CSP policy, exactly matching index.html meta tag
 			responseHeaders["Content-Security-Policy"] = [
 				"default-src 'self' blob: data: app: https://cdn.tldraw.com; " +
-					"script-src 'self' 'unsafe-inline' 'unsafe-eval' blob: app:; " +
+					"script-src 'self' 'unsafe-inline' 'unsafe-eval' 'wasm-unsafe-eval' blob: app:; " +
 					"worker-src 'self' blob: app:; " +
 					"style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; " +
 					"font-src 'self' https://fonts.gstatic.com https://cdn.tldraw.com; " +

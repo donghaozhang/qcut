@@ -20,7 +20,10 @@ export function PromptToolbar() {
 		setTextPrompt,
 		currentPointPrompts,
 		currentBoxPrompts,
+		mode,
+		videoBackend,
 	} = useSegmentationStore();
+	if (mode === "video" && videoBackend === "local-person") return null;
 
 	const handleModeChange = (value: string) => {
 		if (value) {
