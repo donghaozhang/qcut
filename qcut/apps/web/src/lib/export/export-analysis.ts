@@ -3,6 +3,8 @@
 import type { TimelineTrack, MediaElement } from "@/types/timeline";
 import type { MediaItem } from "@/stores/media/media-store-types";
 import { ExportUnsupportedError } from "./export-errors";
+import { hasMediaVisualEdits } from "@/lib/video/video-properties";
+import { getMediaTimelineDuration } from "@/lib/video/video-timing";
 
 /**
  * Analysis result determining export optimization strategy.
@@ -23,6 +25,8 @@ export interface ExportAnalysis {
 	hasStickers: boolean;
 	/** Contains visual effects requiring FFmpeg filters */
 	hasEffects: boolean;
+	/** Contains transform, crop, perspective, opacity, or blend edits on video clips */
+	hasVideoVisualEdits: boolean;
 	/** Multiple videos that may need concatenation */
 	hasMultipleVideoSources: boolean;
 	/** Videos overlap in time; requires compositing, not concat */
@@ -315,6 +319,7 @@ export function analyzeTimelineForExport(
 	let hasTextElements = false;
 	let hasStickers = overlayStickersCount != null && overlayStickersCount > 0;
 	let hasEffects = false;
+	let hasVideoVisualEdits = false;
 	let videoElementCount = 0;
 	const videoTimeRanges: Array<{ start: number; end: number }> = [];
 	const videoElements: MediaElement[] = [];
@@ -352,9 +357,12 @@ export function analyzeTimelineForExport(
 
 				// Track video elements and their time ranges
 				if (mediaItem.type === "video") {
+					if (hasMediaVisualEdits(mediaElement)) {
+						hasVideoVisualEdits = true;
+						hasEffects = true;
+					}
 					videoElementCount++;
-					const effectiveDuration =
-						element.duration - element.trimStart - element.trimEnd;
+					const effectiveDuration = getMediaTimelineDuration(mediaElement);
 
 					// Validate effective duration is positive
 					if (effectiveDuration <= 0) {
@@ -597,6 +605,7 @@ export function analyzeTimelineForExport(
 		hasTextElements,
 		hasStickers,
 		hasEffects,
+		hasVideoVisualEdits,
 		allVideosHaveLocalPath,
 		canUseDirectCopy,
 		optimizationStrategy,
@@ -653,6 +662,7 @@ export function analyzeTimelineForExport(
 		hasTextElements,
 		hasStickers,
 		hasEffects,
+		hasVideoVisualEdits,
 		hasMultipleVideoSources,
 		hasOverlappingVideos,
 		canUseDirectCopy,

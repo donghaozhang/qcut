@@ -19,6 +19,11 @@ import type {
 } from "./ffmpeg/types";
 
 import { QUALITY_SETTINGS, debugLog, debugWarn } from "./ffmpeg/utils";
+import {
+	buildSpeedSamples,
+	buildVideoTimelineFilters,
+	outputTimeAtSource,
+} from "./ffmpeg-video-transform";
 
 /**
  * Object options for FFmpeg arg generation.
@@ -55,6 +60,7 @@ export interface BuildFFmpegArgsOptions {
 	videoInputPath?: string;
 	trimStart?: number;
 	trimEnd?: number;
+	backgroundColor?: string;
 }
 
 interface AudioFilterBuildResult {
@@ -68,6 +74,23 @@ function resolveQuality(quality: "high" | "medium" | "low"): QualitySettings {
 
 function normalizeConcatPath(filePath: string): string {
 	return filePath.replace(/\\/g, "/").replace(/'/g, "'\\''");
+}
+
+function buildAtempoFilters(rate: number): string[] {
+	const filters: string[] = [];
+	let remaining = Math.min(8, Math.max(0.1, rate));
+	while (remaining > 2) {
+		filters.push("atempo=2");
+		remaining /= 2;
+	}
+	while (remaining < 0.5) {
+		filters.push("atempo=0.5");
+		remaining /= 0.5;
+	}
+	if (Math.abs(remaining - 1) > 1e-6) {
+		filters.push(`atempo=${remaining}`);
+	}
+	return filters;
 }
 
 function escapeFilterPath(filePath: string): string {
@@ -90,7 +113,19 @@ function buildAudioFilters(
 	if (
 		singleAudio &&
 		(singleAudio.startTime ?? 0) <= 0 &&
-		(singleAudio.volume ?? 1) === 1
+		(singleAudio.volume ?? 1) === 1 &&
+		(singleAudio.trimStart ?? 0) === 0 &&
+		(singleAudio.trimEnd ?? 0) === 0 &&
+		singleAudio.duration === undefined &&
+		(singleAudio.fadeIn ?? 0) === 0 &&
+		(singleAudio.fadeOut ?? 0) === 0 &&
+		!singleAudio.normalize &&
+		(singleAudio.denoise ?? 0) === 0 &&
+		(singleAudio.pan ?? 0) === 0 &&
+		(singleAudio.playbackRate ?? 1) === 1 &&
+		(singleAudio.speedKeyframes?.length ?? 0) === 0 &&
+		!singleAudio.reverse &&
+		(singleAudio.freezeFrameDuration ?? 0) === 0
 	) {
 		return {
 			mapAudio: `${audioStartIndex}:a`,
@@ -106,19 +141,165 @@ function buildAudioFilters(
 		const volume = audioFile.volume ?? 1;
 		const outputLabel = `a_${index}`;
 		const transforms: string[] = [];
+		const trimStart = Math.max(0, audioFile.trimStart ?? 0);
+		const trimEnd = Math.max(0, audioFile.trimEnd ?? 0);
+		const sourceDuration = audioFile.duration;
+		const effectiveDuration =
+			sourceDuration === undefined
+				? undefined
+				: Math.max(0.01, sourceDuration - trimStart - trimEnd);
 
-		if (delayMs > 0) {
-			transforms.push(`adelay=${delayMs}|${delayMs}`);
+		const inputIndex = audioStartIndex + index;
+		let currentLabel = `${inputIndex}:a`;
+		const sourceTransforms: string[] = [];
+		if (trimStart > 0 || effectiveDuration !== undefined) {
+			const trimParts = [`start=${trimStart}`];
+			if (effectiveDuration !== undefined) {
+				trimParts.push(`duration=${effectiveDuration}`);
+			}
+			sourceTransforms.push(
+				`atrim=${trimParts.join(":")}`,
+				"asetpts=PTS-STARTPTS"
+			);
+		}
+		if (audioFile.reverse) sourceTransforms.push("areverse");
+		if (sourceTransforms.length > 0) {
+			const prepared = `a_${index}_prepared`;
+			filterSteps.push(
+				`[${currentLabel}]${sourceTransforms.join(",")}[${prepared}]`
+			);
+			currentLabel = prepared;
+		}
+
+		let speedDuration = effectiveDuration;
+		let speedSamples =
+			effectiveDuration === undefined
+				? []
+				: buildSpeedSamples(audioFile, effectiveDuration, 30);
+		if (speedSamples.length > 0) {
+			speedDuration = speedSamples[speedSamples.length - 1].outputEnd;
+		}
+		if (
+			(audioFile.speedKeyframes?.length ?? 0) > 0 &&
+			speedSamples.length > 0
+		) {
+			const splitLabels = speedSamples.map(
+				(_sample, sampleIndex) => `a_${index}_speed_split_${sampleIndex}`
+			);
+			filterSteps.push(
+				`[${currentLabel}]asplit=${speedSamples.length}${splitLabels.map((label) => `[${label}]`).join("")}`
+			);
+			const segmentLabels = speedSamples.map((sample, sampleIndex) => {
+				const label = `a_${index}_speed_segment_${sampleIndex}`;
+				const atempo = buildAtempoFilters(sample.rate);
+				filterSteps.push(
+					`[${splitLabels[sampleIndex]}]atrim=start=${sample.sourceStart}:end=${sample.sourceEnd},` +
+						`asetpts=PTS-STARTPTS${atempo.length > 0 ? `,${atempo.join(",")}` : ""}[${label}]`
+				);
+				return label;
+			});
+			const sped = `a_${index}_sped`;
+			filterSteps.push(
+				`${segmentLabels.map((label) => `[${label}]`).join("")}concat=n=${segmentLabels.length}:v=0:a=1[${sped}]`
+			);
+			currentLabel = sped;
+		} else {
+			const playbackRate = Math.min(
+				8,
+				Math.max(0.1, audioFile.playbackRate ?? 1)
+			);
+			const atempo = buildAtempoFilters(playbackRate);
+			if (atempo.length > 0) {
+				const sped = `a_${index}_sped`;
+				filterSteps.push(`[${currentLabel}]${atempo.join(",")}[${sped}]`);
+				currentLabel = sped;
+			}
+		}
+
+		const freezeDuration = Math.max(0, audioFile.freezeFrameDuration ?? 0);
+		if (
+			freezeDuration > 0 &&
+			effectiveDuration !== undefined &&
+			speedDuration !== undefined
+		) {
+			if (speedSamples.length === 0) {
+				speedSamples = buildSpeedSamples(audioFile, effectiveDuration, 30);
+			}
+			const freezeStart = outputTimeAtSource(
+				speedSamples,
+				Math.min(
+					effectiveDuration,
+					Math.max(0, audioFile.freezeFrameTime ?? effectiveDuration)
+				)
+			);
+			const normalized = `a_${index}_freeze_input`;
+			const beforeSource = `a_${index}_freeze_before_source`;
+			const afterSource = `a_${index}_freeze_after_source`;
+			const before = `a_${index}_freeze_before`;
+			const silence = `a_${index}_freeze_silence`;
+			const after = `a_${index}_freeze_after`;
+			const frozen = `a_${index}_with_freeze`;
+			filterSteps.push(
+				`[${currentLabel}]aformat=sample_rates=48000:channel_layouts=stereo[${normalized}]`
+			);
+			filterSteps.push(
+				`[${normalized}]asplit=2[${beforeSource}][${afterSource}]`
+			);
+			filterSteps.push(
+				`[${beforeSource}]atrim=start=0:end=${freezeStart},asetpts=PTS-STARTPTS[${before}]`
+			);
+			filterSteps.push(
+				`anullsrc=r=48000:cl=stereo:d=${freezeDuration}[${silence}]`
+			);
+			filterSteps.push(
+				`[${afterSource}]atrim=start=${freezeStart}:end=${speedDuration},asetpts=PTS-STARTPTS[${after}]`
+			);
+			filterSteps.push(
+				`[${before}][${silence}][${after}]concat=n=3:v=0:a=1[${frozen}]`
+			);
+			currentLabel = frozen;
+		}
+
+		const denoise = Math.min(100, Math.max(0, audioFile.denoise ?? 0));
+		if (denoise > 0) {
+			transforms.push(`afftdn=nf=${-50 + denoise * 0.25}`);
+		}
+		if (audioFile.normalize) transforms.push("loudnorm=I=-16:LRA=11:TP=-1.5");
+
+		const pan = Math.min(1, Math.max(-1, audioFile.pan ?? 0));
+		if (pan !== 0) {
+			transforms.push(
+				"aformat=channel_layouts=stereo",
+				`stereotools=balance_out=${pan}`
+			);
+		}
+
+		const fadeIn = Math.min(
+			Math.max(0, audioFile.fadeIn ?? 0),
+			effectiveDuration ?? Number.POSITIVE_INFINITY
+		);
+		if (fadeIn > 0) transforms.push(`afade=t=in:st=0:d=${fadeIn}`);
+		const fadeOut = Math.min(
+			Math.max(0, audioFile.fadeOut ?? 0),
+			effectiveDuration ?? 0
+		);
+		if (fadeOut > 0 && effectiveDuration !== undefined) {
+			transforms.push(
+				`afade=t=out:st=${Math.max(0, effectiveDuration - fadeOut)}:d=${fadeOut}`
+			);
 		}
 
 		if (volume !== 1) {
 			transforms.push(`volume=${volume}`);
 		}
 
+		if (delayMs > 0) {
+			transforms.push(`adelay=${delayMs}|${delayMs}`);
+		}
+
 		const transformChain =
 			transforms.length > 0 ? transforms.join(",") : "anull";
-		const inputIndex = audioStartIndex + index;
-		filterSteps.push(`[${inputIndex}:a]${transformChain}[${outputLabel}]`);
+		filterSteps.push(`[${currentLabel}]${transformChain}[${outputLabel}]`);
 		mixedLabels.push(`[${outputLabel}]`);
 	}
 
@@ -160,11 +341,13 @@ function buildCompositeEncodeArgs(
 		videoInputPath,
 		videoSources = [],
 		trimStart,
+		backgroundColor = "#000000",
 	} = options;
 	const { crf, preset } = qualitySettings;
 	const args: string[] = ["-y"];
 
 	let hasBaseVideoInput = false;
+	let baseInputCount = 1;
 
 	if (useVideoInput && videoInputPath) {
 		debugLog("[FFmpeg] MODE 2: Using direct video input with filters");
@@ -179,37 +362,12 @@ function buildCompositeEncodeArgs(
 		hasBaseVideoInput = true;
 	} else if (videoSources.length > 0) {
 		debugLog("[FFmpeg] MODE 2: Using videoSources as base video input");
-		if (videoSources.length === 1) {
-			const videoSource = videoSources[0];
+		baseInputCount = videoSources.length;
+		for (const videoSource of videoSources) {
 			if (!fs.existsSync(videoSource.path)) {
 				throw new Error(`Video source not found: ${videoSource.path}`);
 			}
-			if ((videoSource.trimStart ?? 0) > 0) {
-				args.push("-ss", String(videoSource.trimStart));
-			}
 			args.push("-i", videoSource.path);
-		} else {
-			const hasTrimmedSources = videoSources.some(
-				(video) => (video.trimStart ?? 0) > 0 || (video.trimEnd ?? 0) > 0
-			);
-			if (hasTrimmedSources) {
-				throw new Error(
-					"Image/video composite with multiple trimmed videos is not supported. Use a single base video for now."
-				);
-			}
-
-			const concatFileContent = videoSources
-				.map((video) => {
-					if (!fs.existsSync(video.path)) {
-						throw new Error(`Video source not found: ${video.path}`);
-					}
-					return `file '${normalizeConcatPath(video.path)}'`;
-				})
-				.join("\n");
-
-			const concatFilePath = path.join(inputDir, "concat-composite-list.txt");
-			fs.writeFileSync(concatFilePath, concatFileContent);
-			args.push("-f", "concat", "-safe", "0", "-i", concatFilePath);
 		}
 		hasBaseVideoInput = true;
 	} else if (imageSources.length > 0) {
@@ -288,6 +446,18 @@ function buildCompositeEncodeArgs(
 	const filterSteps: string[] = [];
 	let currentVideoLabel = "0:v";
 	let filterLabelIndex = 0;
+	if (videoSources.length > 0) {
+		const timeline = buildVideoTimelineFilters({
+			videoSources,
+			width,
+			height,
+			fps,
+			totalDuration: duration,
+			backgroundColor,
+		});
+		filterSteps.push(...timeline.filterSteps);
+		currentVideoLabel = timeline.outputLabel;
+	}
 
 	if (filterChain) {
 		const outputLabel = `v_fx_${filterLabelIndex++}`;
@@ -296,7 +466,7 @@ function buildCompositeEncodeArgs(
 	}
 
 	for (const [index, image] of validImages.entries()) {
-		const imageInputIndex = 1 + index;
+		const imageInputIndex = baseInputCount + index;
 		const scaledLabel = `img_scaled_${index}`;
 		const paddedLabel = `img_padded_${index}`;
 		const timedLabel = `img_timed_${index}`;
@@ -318,7 +488,7 @@ function buildCompositeEncodeArgs(
 		currentVideoLabel = outputLabel;
 	}
 
-	const stickerInputStartIndex = 1 + validImages.length;
+	const stickerInputStartIndex = baseInputCount + validImages.length;
 	for (const [index, sticker] of validStickers.entries()) {
 		const stickerInputIndex = stickerInputStartIndex + index;
 		const scaledLabel = `sticker_scaled_${index}`;
@@ -422,7 +592,8 @@ function buildCompositeEncodeArgs(
 		currentVideoLabel = outputLabel;
 	}
 
-	const audioInputStartIndex = 1 + validImages.length + validStickers.length;
+	const audioInputStartIndex =
+		baseInputCount + validImages.length + validStickers.length;
 	const audioResult = buildAudioFilters(audioFiles, audioInputStartIndex);
 	for (const step of audioResult.filterSteps) {
 		filterSteps.push(step);

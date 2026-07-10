@@ -189,9 +189,9 @@ export interface Sam3VideoInput {
 	/** URL of video to segment (required) */
 	video_url: string;
 	/** Text description of object to segment */
-	text_prompt?: string;
+	prompt?: string;
 	/** Point prompts for click-based segmentation with frame indices */
-	prompts?: Sam3VideoPointPrompt[];
+	point_prompts?: Sam3VideoPointPrompt[];
 	/** Box prompts for region-based segmentation with frame indices */
 	box_prompts?: Sam3VideoBoxPrompt[];
 	/** Apply mask overlay to output video (default: true) */

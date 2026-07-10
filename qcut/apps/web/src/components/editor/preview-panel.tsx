@@ -2,7 +2,8 @@
 
 import { platform } from "@qcut/platform-core";
 import { useTimelineStore } from "@/stores/timeline/timeline-store";
-import type { RemotionElement } from "@/types/timeline";
+import type { RemotionElement, TimelineElement } from "@/types/timeline";
+import { getMediaTimelineDuration } from "@/lib/video/video-timing";
 import { useAsyncMediaItems } from "@/hooks/media/use-async-media-store";
 import { usePlaybackStore } from "@/stores/editor/playback-store";
 import { useEditorStore } from "@/stores/editor/editor-store";
@@ -46,6 +47,12 @@ import { PreviewAgentView } from "./preview-panel/preview-agent-view";
 import { CursorOverlay } from "./preview-panel/cursor-overlay";
 import { RecordingBackground } from "./preview-panel/recording-background";
 import { useScreenRecordingPreview } from "./preview-panel/use-screen-recording-preview";
+
+function getPreviewElementDuration(element: TimelineElement): number {
+	return element.type === "media"
+		? getMediaTimelineDuration(element)
+		: element.duration - element.trimStart - element.trimEnd;
+}
 
 /** Main preview panel component for video playback, MCP apps, and element overlays. */
 export function PreviewPanel() {
@@ -92,7 +99,7 @@ export function PreviewPanel() {
 			for (const track of tracks) {
 				for (const el of track.elements) {
 					if (el.hidden) continue;
-					const end = el.startTime + (el.duration - el.trimStart - el.trimEnd);
+					const end = el.startTime + getPreviewElementDuration(el);
 					if (time >= el.startTime && time < end) {
 						activeIds += el.id + ",";
 					}
@@ -295,8 +302,7 @@ export function PreviewPanel() {
 
 					const elementStart = element.startTime;
 					const elementEnd =
-						element.startTime +
-						(element.duration - element.trimStart - element.trimEnd);
+						element.startTime + getPreviewElementDuration(element);
 
 					// Use playbackTime during playback (updates on element boundary crossings),
 					// fall back to store currentTime when paused
@@ -507,7 +513,7 @@ export function PreviewPanel() {
 				index={index}
 				previewDimensions={previewDimensions}
 				canvasSize={canvasSize}
-				currentTime={currentTime}
+				currentTime={isPlaying ? smoothTime : currentTime}
 				filterStyle={filterStyle}
 				hasEnabledEffects={hasEnabledEffects}
 				videoSourcesById={videoSourcesById}
@@ -515,6 +521,7 @@ export function PreviewPanel() {
 				dragState={dragState}
 				isPlaying={isPlaying}
 				activeProject={activeProject}
+				tracks={tracks}
 				onTextPointerDown={handleTextPointerDown}
 				onElementSelect={({ elementId }) => setSelectedElementId(elementId)}
 				onElementResize={handleElementResize}
@@ -532,7 +539,9 @@ export function PreviewPanel() {
 			hasEnabledEffects,
 			isPlaying,
 			previewDimensions,
+			smoothTime,
 			videoSourcesById,
+			tracks,
 		]
 	);
 
@@ -726,16 +735,18 @@ export function PreviewPanel() {
 
 							{/* Interactive element overlays for elements with effects */}
 							{EFFECTS_ENABLED &&
-								activeElements.map((elementData) => (
-									<InteractiveElementOverlay
-										key={`${elementData.element.id}-${elementData.track.id}`}
-										element={elementData.element}
-										isSelected={selectedElementId === elementData.element.id}
-										canvasSize={canvasSize}
-										previewDimensions={previewDimensions}
-										onTransformUpdate={handleTransformUpdate}
-									/>
-								))}
+								activeElements
+									.filter((elementData) => elementData.element.type !== "media")
+									.map((elementData) => (
+										<InteractiveElementOverlay
+											key={`${elementData.element.id}-${elementData.track.id}`}
+											element={elementData.element}
+											isSelected={selectedElementId === elementData.element.id}
+											canvasSize={canvasSize}
+											previewDimensions={previewDimensions}
+											onTransformUpdate={handleTransformUpdate}
+										/>
+									))}
 
 							{/* Hidden canvas for frame caching - non-visual */}
 							<canvas

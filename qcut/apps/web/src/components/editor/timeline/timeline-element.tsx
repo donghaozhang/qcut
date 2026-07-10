@@ -32,6 +32,7 @@ import { TimelineElementProps, TrackType } from "@/types/timeline";
 import { useTimelineElementResize } from "@/hooks/timeline/use-timeline-element-resize";
 import { withErrorBoundary } from "@/components/error-boundary";
 import { stripMarkdownSyntax } from "@/lib/markdown";
+import { getMediaTimelineDuration } from "@/lib/video/video-timing";
 
 // Helper function to get display name for element type
 function getElementTypeName(element: { type: string }): string {
@@ -141,7 +142,9 @@ function TimelineElementComponent({
 
 	// Compute element dimensions (needed by filmstrip hook, must be before conditional returns)
 	const effectiveDuration =
-		element.duration - element.trimStart - element.trimEnd;
+		element.type === "media"
+			? getMediaTimelineDuration(element)
+			: element.duration - element.trimStart - element.trimEnd;
 	const elementWidth = Math.max(
 		TIMELINE_CONSTANTS.ELEMENT_MIN_WIDTH,
 		effectiveDuration * TIMELINE_CONSTANTS.PIXELS_PER_SECOND * zoomLevel

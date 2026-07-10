@@ -23,6 +23,7 @@ import { createTimelineOperations } from "./timeline-store-operations";
 import { createAutoSaveHelpers } from "./timeline-store-autosave";
 import { createCrudOperations } from "./timeline-store-crud";
 import { createPersistenceOperations } from "./timeline-store-persistence";
+import { getMediaTimelineDuration } from "@/lib/video/video-timing";
 
 export const useTimelineStore = create<TimelineStore>((set, get) => {
 	// Create auto-save helpers (closure-level functions)
@@ -158,9 +159,9 @@ export const useTimelineStore = create<TimelineStore>((set, get) => {
 			const overlap = track.elements.some((element) => {
 				const elementEnd =
 					element.startTime +
-					element.duration -
-					element.trimStart -
-					element.trimEnd;
+					(element.type === "media"
+						? getMediaTimelineDuration(element)
+						: element.duration - element.trimStart - element.trimEnd);
 
 				if (element.id === excludeElementId) {
 					return false;

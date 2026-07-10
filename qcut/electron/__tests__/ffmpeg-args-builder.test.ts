@@ -147,6 +147,40 @@ describe("buildFFmpegArgs", () => {
 			expect(args).toContain("[a_0]");
 		});
 
+		it("applies per-clip audio processing before mixing", () => {
+			const args = buildFFmpegArgs(
+				createBaseOptions({
+					useVideoInput: true,
+					videoInputPath: "/input.mp4",
+					audioFiles: [
+						{
+							path: "/audio.mp3",
+							startTime: 1,
+							volume: 0.7,
+							trimStart: 0.5,
+							trimEnd: 0.25,
+							duration: 4,
+							fadeIn: 0.4,
+							fadeOut: 0.6,
+							normalize: true,
+							denoise: 100,
+							pan: -0.25,
+						},
+					],
+				})
+			);
+
+			const filter = args[args.indexOf("-filter_complex") + 1];
+			expect(filter).toContain("atrim=start=0.5:duration=3.25");
+			expect(filter).toContain("afftdn=nf=-25");
+			expect(filter).toContain("loudnorm=I=-16:LRA=11:TP=-1.5");
+			expect(filter).toContain("stereotools=balance_out=-0.25");
+			expect(filter).toContain("afade=t=in:st=0:d=0.4");
+			expect(filter).toContain("afade=t=out:st=2.65:d=0.6");
+			expect(filter).toContain("volume=0.7");
+			expect(filter).toContain("adelay=1000|1000");
+		});
+
 		it("renders an ASS text document after drawtext filters", () => {
 			const args = buildFFmpegArgs(
 				createBaseOptions({

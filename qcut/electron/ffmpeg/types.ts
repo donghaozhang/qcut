@@ -18,8 +18,25 @@ export interface AudioFile {
 	volume?: number;
 	/** Trim offset within the source audio/video in seconds */
 	trimStart?: number;
+	/** Trim offset from the end of the source in seconds */
+	trimEnd?: number;
 	/** Maximum source duration to include in seconds */
 	duration?: number;
+	fadeIn?: number;
+	fadeOut?: number;
+	normalize?: boolean;
+	denoise?: number;
+	pan?: number;
+	playbackRate?: number;
+	speedKeyframes?: Array<{
+		id: string;
+		frame: number;
+		value: number;
+		easing: "linear" | "easeIn" | "easeOut" | "easeInOut" | "spring";
+	}>;
+	reverse?: boolean;
+	freezeFrameTime?: number;
+	freezeFrameDuration?: number;
 }
 
 /** Options for rendering the timeline audio mix to a standalone MP3 file. */
@@ -54,6 +71,7 @@ export interface GifConversionOptions {
  * Contains file path and timing information for video elements
  */
 export interface VideoSource {
+	elementId?: string;
 	/** File system path to the video file */
 	path: string;
 	/** Start time in the final timeline (seconds) */
@@ -64,6 +82,116 @@ export interface VideoSource {
 	trimStart?: number;
 	/** Trim end time within the source video (seconds) */
 	trimEnd?: number;
+	playbackRate?: number;
+	speedKeyframes?: Array<{
+		id: string;
+		frame: number;
+		value: number;
+		easing: "linear" | "easeIn" | "easeOut" | "easeInOut" | "spring";
+	}>;
+	reverse?: boolean;
+	freezeFrameTime?: number;
+	freezeFrameDuration?: number;
+	visual?: VideoVisual;
+	effectFilter?: string;
+}
+
+export interface VideoVisual {
+	x: number;
+	y: number;
+	rotation: number;
+	scaleX: number;
+	scaleY: number;
+	flipHorizontal: boolean;
+	flipVertical: boolean;
+	opacity: number;
+	blendMode:
+		| "normal"
+		| "multiply"
+		| "screen"
+		| "overlay"
+		| "darken"
+		| "lighten";
+	fitMode: "cover" | "contain" | "fill";
+	crop: { top: number; right: number; bottom: number; left: number };
+	perspective: {
+		topLeftX: number;
+		topLeftY: number;
+		topRightX: number;
+		topRightY: number;
+		bottomRightX: number;
+		bottomRightY: number;
+		bottomLeftX: number;
+		bottomLeftY: number;
+	};
+	animationInType?:
+		| "none"
+		| "fade"
+		| "slide-left"
+		| "slide-right"
+		| "slide-up"
+		| "slide-down"
+		| "zoom-in"
+		| "zoom-out";
+	animationInDuration?: number;
+	animationOutType?:
+		| "none"
+		| "fade"
+		| "slide-left"
+		| "slide-right"
+		| "slide-up"
+		| "slide-down"
+		| "zoom-in"
+		| "zoom-out";
+	animationOutDuration?: number;
+	comboAnimationType?: "none" | "pulse" | "drift";
+	comboAnimationIntensity?: number;
+	adjustments?: {
+		brightness: number;
+		contrast: number;
+		saturation: number;
+		temperature: number;
+		tint: number;
+		sharpness: number;
+		fade: number;
+		vignette: number;
+	};
+	mask?: {
+		type: "none" | "rectangle" | "ellipse" | "linear";
+		centerX: number;
+		centerY: number;
+		width: number;
+		height: number;
+		rotation: number;
+		feather: number;
+		invert: boolean;
+	};
+	chromaKey?: {
+		enabled: boolean;
+		color: string;
+		similarity: number;
+		blend: number;
+	};
+	enhancements?: {
+		stabilization: number;
+		denoise: number;
+		clarity: number;
+		upscale: 1 | 2 | 4;
+		relight: number;
+		beauty: number;
+	};
+	keyframes?: Partial<
+		Record<
+			string,
+			Array<{
+				id: string;
+				frame: number;
+				value: number;
+				easing: "linear" | "easeIn" | "easeOut" | "easeInOut" | "spring";
+			}>
+		>
+	>;
+	keyframeFps: number;
 }
 
 /**
@@ -187,6 +315,7 @@ export interface ExportOptions {
 	}>;
 	/** Audio crossfade duration used between keep segments in word filter mode */
 	crossfadeMs?: number;
+	backgroundColor?: string;
 }
 
 /**

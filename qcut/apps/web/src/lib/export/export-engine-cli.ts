@@ -9,6 +9,7 @@ import { platform } from "@qcut/platform-core";
 import { debugLog, debugError, debugWarn } from "@/lib/debug/debug-config";
 import { useEffectsStore } from "@/stores/ai/effects-store";
 import { useStickersOverlayStore } from "@/stores/stickers-overlay-store";
+import { useProjectStore } from "@/stores/project-store";
 import {
 	analyzeTimelineForExport,
 	type ExportAnalysis,
@@ -309,6 +310,8 @@ export class CLIExportEngine extends ExportEngine {
 				mediaItems,
 				sessionId: this.sessionId,
 				tracks,
+				includeEmbeddedVideoAudio:
+					this.exportAnalysis?.optimizationStrategy !== "direct-copy",
 			});
 		} else {
 			debugLog(
@@ -350,9 +353,10 @@ export class CLIExportEngine extends ExportEngine {
 				}
 			}
 		}
-		const combinedFilterChain = Array.from(elementFilterChains.values()).join(
-			","
-		);
+		const hasPerClipVideoEffects = elementFilterChains.size > 0;
+		const combinedFilterChain = hasPerClipVideoEffects
+			? ""
+			: Array.from(elementFilterChains.values()).join(",");
 
 		// Build text overlay filter chain
 		console.log(
@@ -370,6 +374,7 @@ export class CLIExportEngine extends ExportEngine {
 				if (element.type !== "text") continue;
 				const layer = buildTextASSOverlay({
 					tracks: [{ ...track, elements: [element] }],
+					allTracks: this.tracks,
 					canvasWidth: this.canvas.width,
 					canvasHeight: this.canvas.height,
 					fps: this.getFrameRate(),
@@ -517,7 +522,11 @@ export class CLIExportEngine extends ExportEngine {
 				visibleVideoCount === 1);
 
 		const { hasWordFilters } = resolveWordFilters(this.totalDuration, null);
-		const needsVideoInput = canUseMode2 || hasWordFilters;
+		const hasVideoVisualEdits =
+			this.exportAnalysis?.hasVideoVisualEdits ?? false;
+		const needsVideoInput =
+			(canUseMode2 && !hasVideoVisualEdits && !hasPerClipVideoEffects) ||
+			hasWordFilters;
 		const videoInput: {
 			path: string;
 			trimStart: number;
@@ -546,6 +555,8 @@ export class CLIExportEngine extends ExportEngine {
 		);
 
 		const shouldExtractVideoSources =
+			hasVideoVisualEdits ||
+			hasPerClipVideoEffects ||
 			this.exportAnalysis?.optimizationStrategy === "video-normalization" ||
 			(this.exportAnalysis?.canUseDirectCopy &&
 				!hasTextFilters &&
@@ -554,15 +565,20 @@ export class CLIExportEngine extends ExportEngine {
 				visibleVideoCount > 0 &&
 				!videoInput);
 
-		const videoSources: VideoSourceInput[] = shouldExtractVideoSources
+		const extractedVideoSources: VideoSourceInput[] = shouldExtractVideoSources
 			? await extractVideoSources(
 					this.tracks,
 					this.mediaItems,
 					this.sessionId,
 					undefined,
-					debugLog
+					debugLog,
+					this.fps
 				)
 			: [];
+		const videoSources = extractedVideoSources.map((source) => ({
+			...source,
+			effectFilter: elementFilterChains.get(source.elementId),
+		}));
 
 		if (
 			this.exportAnalysis?.optimizationStrategy === "image-video-composite" &&
@@ -600,6 +616,8 @@ export class CLIExportEngine extends ExportEngine {
 			wordFilterSegments,
 			videoSources,
 			videoInput,
+			backgroundColor:
+				useProjectStore.getState().activeProject?.backgroundColor ?? "#000000",
 		});
 
 		logExportConfiguration(exportOptions, {

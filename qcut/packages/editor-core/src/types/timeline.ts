@@ -57,10 +57,142 @@ export interface TextPropertyKeyframe {
 	easing: "linear" | "easeIn" | "easeOut" | "easeInOut" | "spring";
 }
 
+export type MediaBlendMode =
+	| "normal"
+	| "multiply"
+	| "screen"
+	| "overlay"
+	| "darken"
+	| "lighten";
+
+export type MediaFitMode = "cover" | "contain" | "fill";
+
+export interface MediaCrop {
+	top: number;
+	right: number;
+	bottom: number;
+	left: number;
+}
+
+export interface MediaPerspective {
+	topLeftX: number;
+	topLeftY: number;
+	topRightX: number;
+	topRightY: number;
+	bottomRightX: number;
+	bottomRightY: number;
+	bottomLeftX: number;
+	bottomLeftY: number;
+}
+
+export type MediaKeyframeProperty =
+	| "x"
+	| "y"
+	| "scaleX"
+	| "scaleY"
+	| "rotation"
+	| "opacity"
+	| "cropTop"
+	| "cropRight"
+	| "cropBottom"
+	| "cropLeft"
+	| keyof MediaPerspective;
+
+export interface MediaPropertyKeyframe {
+	id: string;
+	/** Frame relative to the beginning of the media element. */
+	frame: number;
+	value: number;
+	easing: "linear" | "easeIn" | "easeOut" | "easeInOut" | "spring";
+}
+
+export type MediaAnimationType =
+	| "none"
+	| "fade"
+	| "slide-left"
+	| "slide-right"
+	| "slide-up"
+	| "slide-down"
+	| "zoom-in"
+	| "zoom-out";
+
+export type MediaComboAnimationType = "none" | "pulse" | "drift";
+
+export interface MediaAdjustments {
+	brightness: number;
+	contrast: number;
+	saturation: number;
+	temperature: number;
+	tint: number;
+	sharpness: number;
+	fade: number;
+	vignette: number;
+}
+
+export type MediaMaskType = "none" | "rectangle" | "ellipse" | "linear";
+
+export interface MediaMask {
+	type: MediaMaskType;
+	centerX: number;
+	centerY: number;
+	width: number;
+	height: number;
+	rotation: number;
+	feather: number;
+	invert: boolean;
+}
+
+export interface MediaChromaKey {
+	enabled: boolean;
+	color: string;
+	similarity: number;
+	blend: number;
+}
+
+export interface MediaEnhancements {
+	stabilization: number;
+	denoise: number;
+	clarity: number;
+	upscale: 1 | 2 | 4;
+	relight: number;
+	beauty: number;
+}
+
 export interface MediaElement extends BaseTimelineElement {
 	type: "media";
 	mediaId: string;
 	volume?: number;
+	scaleX?: number;
+	scaleY?: number;
+	maintainAspectRatio?: boolean;
+	flipHorizontal?: boolean;
+	flipVertical?: boolean;
+	opacity?: number;
+	blendMode?: MediaBlendMode;
+	fitMode?: MediaFitMode;
+	crop?: MediaCrop;
+	perspective?: MediaPerspective;
+	keyframes?: Partial<Record<MediaKeyframeProperty, MediaPropertyKeyframe[]>>;
+	animationInType?: MediaAnimationType;
+	animationInDuration?: number;
+	animationOutType?: MediaAnimationType;
+	animationOutDuration?: number;
+	comboAnimationType?: MediaComboAnimationType;
+	comboAnimationIntensity?: number;
+	adjustments?: MediaAdjustments;
+	mask?: MediaMask;
+	chromaKey?: MediaChromaKey;
+	enhancements?: MediaEnhancements;
+	audioFadeIn?: number;
+	audioFadeOut?: number;
+	audioNormalize?: boolean;
+	audioDenoise?: number;
+	audioPan?: number;
+	playbackRate?: number;
+	speedKeyframes?: MediaPropertyKeyframe[];
+	reverse?: boolean;
+	freezeFrameTime?: number;
+	freezeFrameDuration?: number;
 }
 
 export interface TextElement extends BaseTimelineElement {
@@ -110,6 +242,10 @@ export interface TextElement extends BaseTimelineElement {
 		| "overlay"
 		| "darken"
 		| "lighten";
+	trackingTargetId?: string;
+	trackingOffsetX?: number;
+	trackingOffsetY?: number;
+	trackingRotation?: boolean;
 }
 
 export interface StickerElement extends BaseTimelineElement {

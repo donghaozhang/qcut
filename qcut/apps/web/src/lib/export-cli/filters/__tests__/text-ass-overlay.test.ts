@@ -118,4 +118,43 @@ describe("buildTextASSOverlay", () => {
 		expect(result.content).toContain("\\pos(500.00,328.80)");
 		expect(result.content).toContain("\\frz-15");
 	});
+
+	it("binds text to a video transform during ASS export", () => {
+		const textTrack = createTrack(
+			createTextElement({ duration: 1, trackingTargetId: "video-1" })
+		);
+		const mediaTrack: TimelineTrack = {
+			id: "media-track",
+			name: "Main",
+			type: "media",
+			elements: [
+				{
+					id: "video-1",
+					type: "media",
+					mediaId: "asset-1",
+					name: "Tracked video",
+					duration: 1,
+					startTime: 0,
+					trimStart: 0,
+					trimEnd: 0,
+					keyframes: {
+						x: [
+							{ id: "x0", frame: 0, value: -50, easing: "linear" },
+							{ id: "x1", frame: 2, value: 50, easing: "linear" },
+						],
+					},
+				},
+			],
+		};
+		const result = buildTextASSOverlay({
+			tracks: [textTrack],
+			allTracks: [mediaTrack, textTrack],
+			canvasWidth: 1000,
+			canvasHeight: 600,
+			fps: 2,
+		});
+
+		expect(result.content).toContain("\\org(450.00,300.00)");
+		expect(result.content).toContain("\\org(500.00,300.00)");
+	});
 });

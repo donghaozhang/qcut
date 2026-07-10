@@ -126,6 +126,7 @@ export async function prepareAudioFilesForExport({
 	mediaItems,
 	sessionId,
 	tracks,
+	includeEmbeddedVideoAudio = false,
 }: {
 	fileExists: ({ filePath }: { filePath: string }) => Promise<boolean>;
 	invokeIfAvailable: ({
@@ -138,6 +139,7 @@ export async function prepareAudioFilesForExport({
 	mediaItems: MediaItem[];
 	sessionId: string | null;
 	tracks: TimelineTrack[];
+	includeEmbeddedVideoAudio?: boolean;
 }): Promise<AudioFileInput[]> {
 	try {
 		if (!platform().isElectron) {
@@ -221,7 +223,8 @@ export async function prepareAudioFilesForExport({
 					}
 				},
 			},
-			debugLog
+			debugLog,
+			{ includeEmbeddedVideoAudio }
 		);
 
 		if (results.length === 0) {

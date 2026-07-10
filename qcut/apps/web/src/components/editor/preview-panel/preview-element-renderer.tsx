@@ -13,10 +13,21 @@ import {
 } from "@/lib/text/text-style";
 import { getTextAnimationState } from "@/lib/text/text-animation";
 import { resolveTextKeyframes } from "@/lib/text/text-keyframes";
+import { resolveTrackedTextElement } from "@/lib/text/text-tracking";
 import { getCurvedTextTransforms } from "@/lib/text/curved-text";
+import { resolveMediaKeyframes } from "@/lib/video/video-properties";
+import { buildCssPerspectiveTransform } from "@/lib/video/video-perspective";
+import {
+	buildMediaChromaKeyCssFilter,
+	buildMediaCssFilter,
+	buildMediaEnhancementCssFilter,
+	buildMediaMaskStyle,
+	buildMediaVignetteBackground,
+	getMediaAnimationState,
+} from "@/lib/video/video-animation";
 import type { TextElementDragState } from "@/types/editor";
 import type { TProject } from "@/types/project";
-import type { TimelineElement } from "@/types/timeline";
+import type { TimelineElement, TimelineTrack } from "@/types/timeline";
 import { MarkdownOverlay } from "@/components/editor/canvas/markdown-overlay";
 import { RemotionPreview } from "./remotion-preview";
 import type { ActiveElement, PreviewDimensions } from "./types";
@@ -40,6 +51,7 @@ interface PreviewElementRendererProps {
 	dragState: TextElementDragState;
 	isPlaying: boolean;
 	activeProject: TProject | null;
+	tracks: TimelineTrack[];
 	onTextPointerDown: (
 		event: React.PointerEvent<HTMLDivElement>,
 		element: Pick<TimelineElement, "id" | "x" | "y">,
@@ -118,6 +130,7 @@ export function PreviewBlurBackground({
 						trimStart={element.trimStart}
 						trimEnd={element.trimEnd}
 						clipDuration={element.duration}
+						clipVolume={0}
 						className="object-cover"
 						style={shouldApplyFilter ? { filter: filterStyle } : undefined}
 					/>
@@ -170,6 +183,7 @@ export function PreviewElementRenderer({
 	dragState,
 	isPlaying,
 	activeProject,
+	tracks,
 	onTextPointerDown,
 	onElementSelect,
 	onElementResize,
@@ -179,11 +193,16 @@ export function PreviewElementRenderer({
 		const elementKey = `${element.id}-${elementData.track.id}`;
 
 		if (element.type === "text") {
-			const displayElement = resolveTextKeyframes(
-				element,
+			const displayElement = resolveTrackedTextElement({
+				element: resolveTextKeyframes(
+					element,
+					currentTime,
+					activeProject?.fps ?? 30
+				),
+				tracks,
 				currentTime,
-				activeProject?.fps ?? 30
-			);
+				fps: activeProject?.fps ?? 30,
+			});
 			const fontClassName =
 				FONT_CLASS_MAP[
 					displayElement.fontFamily as keyof typeof FONT_CLASS_MAP
@@ -375,24 +394,106 @@ export function PreviewElementRenderer({
 
 				const shouldApplyFilter =
 					hasEnabledEffects && element.id === currentMediaElement?.element.id;
+				const isDraggingThisElement =
+					dragState.isDragging && dragState.elementId === element.id;
+				const visual = resolveMediaKeyframes({
+					element,
+					currentTime,
+					fps: activeProject?.fps ?? 30,
+				});
+				const mediaAnimation = getMediaAnimationState({
+					element,
+					currentTime,
+					canvasWidth: canvasSize.width,
+					canvasHeight: canvasSize.height,
+				});
+				const displayX = isDraggingThisElement ? dragState.currentX : visual.x;
+				const displayY = isDraggingThisElement ? dragState.currentY : visual.y;
+				const previewWidth = previewDimensions.width || canvasSize.width;
+				const previewHeight = previewDimensions.height || canvasSize.height;
+				const perspectiveTransform = buildCssPerspectiveTransform({
+					width: previewWidth,
+					height: previewHeight,
+					perspective: visual.perspective,
+				});
+				const adjustmentFilter = buildMediaCssFilter(visual.adjustments);
+				const enhancementFilter = buildMediaEnhancementCssFilter(
+					visual.enhancements
+				);
+				const chromaKeyFilter = buildMediaChromaKeyCssFilter(visual.chromaKey);
+				const combinedFilter = [
+					adjustmentFilter,
+					enhancementFilter,
+					chromaKeyFilter,
+					shouldApplyFilter ? filterStyle : "",
+				]
+					.filter(Boolean)
+					.join(" ");
+				const vignette = buildMediaVignetteBackground(visual.adjustments);
+				const maskStyle = buildMediaMaskStyle(visual.mask);
 
 				return (
 					<div
 						key={elementKey}
-						className="absolute inset-0 flex items-center justify-center"
-						style={{ width: "100%", height: "100%" }}
+						className="absolute cursor-grab"
+						onClick={() => onElementSelect({ elementId: element.id })}
+						onKeyDown={(event) => {
+							if (event.key !== "Enter" && event.key !== " ") return;
+							event.preventDefault();
+							onElementSelect({ elementId: element.id });
+						}}
+						onPointerDown={(event) =>
+							onTextPointerDown(event, element, elementData.track.id)
+						}
+						tabIndex={0}
+						role="button"
+						aria-label={`Video: ${element.name}`}
+						style={{
+							left: `${50 + ((displayX + mediaAnimation.offsetX) / canvasSize.width) * 100}%`,
+							top: `${50 + ((displayY + mediaAnimation.offsetY) / canvasSize.height) * 100}%`,
+							width: "100%",
+							height: "100%",
+							transform: `translate(-50%, -50%) rotate(${visual.rotation}deg) scale(${visual.scaleX * mediaAnimation.scale * (visual.flipHorizontal ? -1 : 1)}, ${visual.scaleY * mediaAnimation.scale * (visual.flipVertical ? -1 : 1)})`,
+							transformOrigin: "center",
+							opacity: visual.opacity * mediaAnimation.opacity,
+							mixBlendMode: visual.blendMode,
+							zIndex: 10 + index,
+						}}
 					>
-						<VideoPlayer
-							videoSource={source}
-							poster={mediaItem.thumbnailUrl}
-							clipStartTime={element.startTime}
-							trimStart={element.trimStart}
-							trimEnd={element.trimEnd}
-							clipDuration={element.duration}
-							className="object-cover"
-							videoId={mediaItem.id}
-							style={shouldApplyFilter ? { filter: filterStyle } : undefined}
-						/>
+						<div
+							className="size-full"
+							style={{
+								clipPath: `inset(${visual.crop.top * 100}% ${visual.crop.right * 100}% ${visual.crop.bottom * 100}% ${visual.crop.left * 100}%)`,
+								transform: perspectiveTransform,
+								transformOrigin: "0 0",
+								...maskStyle,
+							}}
+						>
+							<VideoPlayer
+								videoSource={source}
+								poster={mediaItem.thumbnailUrl}
+								clipStartTime={element.startTime}
+								trimStart={element.trimStart}
+								trimEnd={element.trimEnd}
+								clipDuration={element.duration}
+								clipVolume={element.volume ?? 1}
+								fadeIn={element.audioFadeIn ?? 0}
+								fadeOut={element.audioFadeOut ?? 0}
+								clipPlaybackRate={element.playbackRate ?? 1}
+								timingElement={element}
+								videoId={mediaItem.id}
+								style={{
+									objectFit: visual.fitMode,
+									filter: combinedFilter || undefined,
+								}}
+							/>
+							{vignette ? (
+								<div
+									className="pointer-events-none absolute inset-0"
+									style={{ background: vignette }}
+								/>
+							) : null}
+						</div>
 					</div>
 				);
 			}

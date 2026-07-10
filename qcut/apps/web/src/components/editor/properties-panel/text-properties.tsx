@@ -37,6 +37,7 @@ import { useScreenRecordingEnhancementStore } from "@/stores/screen-recording-st
 import { Slider } from "@/components/ui/slider";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
+import { Switch } from "@/components/ui/switch";
 import {
 	Select,
 	SelectContent,
@@ -293,6 +294,7 @@ export function TextProperties({
 	const updateTextElement = useTimelineStore(
 		(state) => state.updateTextElement
 	);
+	const tracks = useTimelineStore((state) => state.tracks);
 	const canvasSize = useEditorStore((state) => state.canvasSize);
 	const currentTime = usePlaybackStore((state) => state.currentTime);
 	const fps = useProjectStore((state) => state.activeProject?.fps ?? 30);
@@ -323,6 +325,9 @@ export function TextProperties({
 			item.type === "image" &&
 			Boolean(item.localPath || item.originalUrl || item.url)
 	);
+	const trackingTargets = tracks
+		.flatMap((track) => track.elements)
+		.filter((candidate) => candidate.type === "media");
 
 	const update = (updates: TextUpdates) =>
 		updateTextElement(trackId, element.id, updates);
@@ -796,32 +801,88 @@ export function TextProperties({
 			</PropertyGroup>
 
 			<PropertyGroup title="Tracking" defaultExpanded={false}>
-				<div className="grid grid-cols-2 gap-2">
-					<Button
-						type="button"
-						disabled={!cursorTelemetry}
-						title={
-							cursorTelemetry
-								? "Follow the recorded cursor"
-								: "Cursor telemetry is available for screen recordings"
-						}
-						onClick={applyCursorTracking}
-					>
-						<MousePointer2 className="mr-2 size-4" /> Track cursor
-					</Button>
-					<Button
-						type="button"
-						variant="outline"
-						disabled={
-							![
-								...(element.keyframes?.x ?? []),
-								...(element.keyframes?.y ?? []),
-							].some((keyframe) => keyframe.id.startsWith("cursor-"))
-						}
-						onClick={clearCursorTracking}
-					>
-						<Unlink className="mr-2 size-4" /> Clear
-					</Button>
+				<div className="space-y-4">
+					<PropertyItem direction="row">
+						<PropertyItemLabel>Follow clip</PropertyItemLabel>
+						<PropertyItemValue>
+							<Select
+								value={element.trackingTargetId ?? "none"}
+								onValueChange={(value) =>
+									update({
+										trackingTargetId: value === "none" ? undefined : value,
+									})
+								}
+							>
+								<SelectTrigger className="h-8 text-xs">
+									<SelectValue />
+								</SelectTrigger>
+								<SelectContent>
+									<SelectItem value="none">None</SelectItem>
+									{trackingTargets.map((target) => (
+										<SelectItem key={target.id} value={target.id}>
+											{target.name}
+										</SelectItem>
+									))}
+								</SelectContent>
+							</Select>
+						</PropertyItemValue>
+					</PropertyItem>
+					{element.trackingTargetId ? (
+						<>
+							<NumberControl
+								label="Horizontal offset"
+								value={element.trackingOffsetX ?? 0}
+								min={-canvasSize.width}
+								max={canvasSize.width}
+								onChange={(trackingOffsetX) => update({ trackingOffsetX })}
+								suffix="px"
+							/>
+							<NumberControl
+								label="Vertical offset"
+								value={element.trackingOffsetY ?? 0}
+								min={-canvasSize.height}
+								max={canvasSize.height}
+								onChange={(trackingOffsetY) => update({ trackingOffsetY })}
+								suffix="px"
+							/>
+							<div className="flex items-center justify-between gap-3">
+								<PropertyItemLabel>Follow rotation</PropertyItemLabel>
+								<Switch
+									checked={element.trackingRotation ?? false}
+									onCheckedChange={(trackingRotation) =>
+										update({ trackingRotation })
+									}
+								/>
+							</div>
+						</>
+					) : null}
+					<div className="grid grid-cols-2 gap-2">
+						<Button
+							type="button"
+							disabled={!cursorTelemetry}
+							title={
+								cursorTelemetry
+									? "Follow the recorded cursor"
+									: "Cursor telemetry is available for screen recordings"
+							}
+							onClick={applyCursorTracking}
+						>
+							<MousePointer2 className="mr-2 size-4" /> Track cursor
+						</Button>
+						<Button
+							type="button"
+							variant="outline"
+							disabled={
+								![
+									...(element.keyframes?.x ?? []),
+									...(element.keyframes?.y ?? []),
+								].some((keyframe) => keyframe.id.startsWith("cursor-"))
+							}
+							onClick={clearCursorTracking}
+						>
+							<Unlink className="mr-2 size-4" /> Clear
+						</Button>
+					</div>
 				</div>
 			</PropertyGroup>
 

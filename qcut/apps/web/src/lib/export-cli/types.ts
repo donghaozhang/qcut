@@ -9,12 +9,123 @@
  * Video source input for FFmpeg direct copy optimization.
  * Matches IPC handler expectations for video segment data.
  */
+export interface VideoVisualInput {
+	x: number;
+	y: number;
+	rotation: number;
+	scaleX: number;
+	scaleY: number;
+	flipHorizontal: boolean;
+	flipVertical: boolean;
+	opacity: number;
+	blendMode:
+		| "normal"
+		| "multiply"
+		| "screen"
+		| "overlay"
+		| "darken"
+		| "lighten";
+	fitMode: "cover" | "contain" | "fill";
+	crop: { top: number; right: number; bottom: number; left: number };
+	perspective: {
+		topLeftX: number;
+		topLeftY: number;
+		topRightX: number;
+		topRightY: number;
+		bottomRightX: number;
+		bottomRightY: number;
+		bottomLeftX: number;
+		bottomLeftY: number;
+	};
+	animationInType:
+		| "none"
+		| "fade"
+		| "slide-left"
+		| "slide-right"
+		| "slide-up"
+		| "slide-down"
+		| "zoom-in"
+		| "zoom-out";
+	animationInDuration: number;
+	animationOutType:
+		| "none"
+		| "fade"
+		| "slide-left"
+		| "slide-right"
+		| "slide-up"
+		| "slide-down"
+		| "zoom-in"
+		| "zoom-out";
+	animationOutDuration: number;
+	comboAnimationType: "none" | "pulse" | "drift";
+	comboAnimationIntensity: number;
+	adjustments: {
+		brightness: number;
+		contrast: number;
+		saturation: number;
+		temperature: number;
+		tint: number;
+		sharpness: number;
+		fade: number;
+		vignette: number;
+	};
+	mask: {
+		type: "none" | "rectangle" | "ellipse" | "linear";
+		centerX: number;
+		centerY: number;
+		width: number;
+		height: number;
+		rotation: number;
+		feather: number;
+		invert: boolean;
+	};
+	chromaKey: {
+		enabled: boolean;
+		color: string;
+		similarity: number;
+		blend: number;
+	};
+	enhancements: {
+		stabilization: number;
+		denoise: number;
+		clarity: number;
+		upscale: 1 | 2 | 4;
+		relight: number;
+		beauty: number;
+	};
+	keyframes?: Partial<
+		Record<
+			string,
+			Array<{
+				id: string;
+				frame: number;
+				value: number;
+				easing: "linear" | "easeIn" | "easeOut" | "easeInOut" | "spring";
+			}>
+		>
+	>;
+	keyframeFps: number;
+}
+
 export interface VideoSourceInput {
+	elementId: string;
 	path: string;
 	startTime: number;
 	duration: number;
 	trimStart: number;
 	trimEnd: number;
+	playbackRate: number;
+	speedKeyframes?: Array<{
+		id: string;
+		frame: number;
+		value: number;
+		easing: "linear" | "easeIn" | "easeOut" | "easeInOut" | "spring";
+	}>;
+	reverse: boolean;
+	freezeFrameTime?: number;
+	freezeFrameDuration: number;
+	visual?: VideoVisualInput;
+	effectFilter?: string;
 }
 
 /**
@@ -26,7 +137,23 @@ export interface AudioFileInput {
 	startTime: number;
 	volume: number;
 	trimStart?: number;
+	trimEnd?: number;
 	duration?: number;
+	fadeIn?: number;
+	fadeOut?: number;
+	normalize?: boolean;
+	denoise?: number;
+	pan?: number;
+	playbackRate?: number;
+	speedKeyframes?: Array<{
+		id: string;
+		frame: number;
+		value: number;
+		easing: "linear" | "easeIn" | "easeOut" | "easeInOut" | "spring";
+	}>;
+	reverse?: boolean;
+	freezeFrameTime?: number;
+	freezeFrameDuration?: number;
 }
 
 /**

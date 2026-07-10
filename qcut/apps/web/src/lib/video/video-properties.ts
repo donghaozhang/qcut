@@ -1,0 +1,355 @@
+import type {
+	MediaCrop,
+	MediaAdjustments,
+	MediaElement,
+	MediaMask,
+	MediaChromaKey,
+	MediaEnhancements,
+	MediaKeyframeProperty,
+	MediaPerspective,
+	MediaPropertyKeyframe,
+} from "@/types/timeline";
+import {
+	interpolateNumber,
+	type Keyframe,
+} from "@/lib/remotion/keyframe-converter";
+
+export const DEFAULT_MEDIA_CROP: MediaCrop = {
+	top: 0,
+	right: 0,
+	bottom: 0,
+	left: 0,
+};
+
+export const DEFAULT_MEDIA_PERSPECTIVE: MediaPerspective = {
+	topLeftX: 0,
+	topLeftY: 0,
+	topRightX: 1,
+	topRightY: 0,
+	bottomRightX: 1,
+	bottomRightY: 1,
+	bottomLeftX: 0,
+	bottomLeftY: 1,
+};
+
+export const DEFAULT_MEDIA_ADJUSTMENTS: MediaAdjustments = {
+	brightness: 0,
+	contrast: 0,
+	saturation: 0,
+	temperature: 0,
+	tint: 0,
+	sharpness: 0,
+	fade: 0,
+	vignette: 0,
+};
+
+export const DEFAULT_MEDIA_MASK: MediaMask = {
+	type: "none",
+	centerX: 0.5,
+	centerY: 0.5,
+	width: 0.8,
+	height: 0.8,
+	rotation: 0,
+	feather: 0,
+	invert: false,
+};
+
+export const DEFAULT_MEDIA_CHROMA_KEY: MediaChromaKey = {
+	enabled: false,
+	color: "#00ff00",
+	similarity: 0.2,
+	blend: 0.1,
+};
+
+export const DEFAULT_MEDIA_ENHANCEMENTS: MediaEnhancements = {
+	stabilization: 0,
+	denoise: 0,
+	clarity: 0,
+	upscale: 1,
+	relight: 0,
+	beauty: 0,
+};
+
+export interface ResolvedMediaVisualProperties {
+	x: number;
+	y: number;
+	rotation: number;
+	scaleX: number;
+	scaleY: number;
+	maintainAspectRatio: boolean;
+	flipHorizontal: boolean;
+	flipVertical: boolean;
+	opacity: number;
+	blendMode: NonNullable<MediaElement["blendMode"]>;
+	fitMode: NonNullable<MediaElement["fitMode"]>;
+	crop: MediaCrop;
+	perspective: MediaPerspective;
+	animationInType: NonNullable<MediaElement["animationInType"]>;
+	animationInDuration: number;
+	animationOutType: NonNullable<MediaElement["animationOutType"]>;
+	animationOutDuration: number;
+	comboAnimationType: NonNullable<MediaElement["comboAnimationType"]>;
+	comboAnimationIntensity: number;
+	adjustments: MediaAdjustments;
+	mask: MediaMask;
+	chromaKey: MediaChromaKey;
+	enhancements: MediaEnhancements;
+}
+
+export const MEDIA_KEYFRAME_PROPERTIES: Array<{
+	value: MediaKeyframeProperty;
+	label: string;
+}> = [
+	{ value: "x", label: "X position" },
+	{ value: "y", label: "Y position" },
+	{ value: "scaleX", label: "Horizontal scale" },
+	{ value: "scaleY", label: "Vertical scale" },
+	{ value: "rotation", label: "Rotation" },
+	{ value: "opacity", label: "Opacity" },
+	{ value: "cropTop", label: "Crop top" },
+	{ value: "cropRight", label: "Crop right" },
+	{ value: "cropBottom", label: "Crop bottom" },
+	{ value: "cropLeft", label: "Crop left" },
+	{ value: "topLeftX", label: "Top-left X" },
+	{ value: "topLeftY", label: "Top-left Y" },
+	{ value: "topRightX", label: "Top-right X" },
+	{ value: "topRightY", label: "Top-right Y" },
+	{ value: "bottomRightX", label: "Bottom-right X" },
+	{ value: "bottomRightY", label: "Bottom-right Y" },
+	{ value: "bottomLeftX", label: "Bottom-left X" },
+	{ value: "bottomLeftY", label: "Bottom-left Y" },
+];
+
+const CROP_KEY_MAP = {
+	cropTop: "top",
+	cropRight: "right",
+	cropBottom: "bottom",
+	cropLeft: "left",
+} as const;
+
+function finiteOr(value: number | undefined, fallback: number): number {
+	return typeof value === "number" && Number.isFinite(value) ? value : fallback;
+}
+
+export function clampMediaCrop(crop?: Partial<MediaCrop>): MediaCrop {
+	const next = {
+		top: Math.min(0.95, Math.max(0, finiteOr(crop?.top, 0))),
+		right: Math.min(0.95, Math.max(0, finiteOr(crop?.right, 0))),
+		bottom: Math.min(0.95, Math.max(0, finiteOr(crop?.bottom, 0))),
+		left: Math.min(0.95, Math.max(0, finiteOr(crop?.left, 0))),
+	};
+	if (next.left + next.right >= 0.99) {
+		const factor = 0.98 / (next.left + next.right);
+		next.left *= factor;
+		next.right *= factor;
+	}
+	if (next.top + next.bottom >= 0.99) {
+		const factor = 0.98 / (next.top + next.bottom);
+		next.top *= factor;
+		next.bottom *= factor;
+	}
+	return next;
+}
+
+export function clampMediaPerspective(
+	perspective?: Partial<MediaPerspective>
+): MediaPerspective {
+	return Object.fromEntries(
+		(
+			Object.entries(DEFAULT_MEDIA_PERSPECTIVE) as Array<
+				[keyof MediaPerspective, number]
+			>
+		).map(([key, fallback]) => [
+			key,
+			Math.min(1, Math.max(0, finiteOr(perspective?.[key], fallback))),
+		])
+	) as unknown as MediaPerspective;
+}
+
+export function resolveMediaVisualProperties(
+	element: MediaElement
+): ResolvedMediaVisualProperties {
+	return {
+		x: finiteOr(element.x, 0),
+		y: finiteOr(element.y, 0),
+		rotation: finiteOr(element.rotation, 0),
+		scaleX: Math.max(0.01, finiteOr(element.scaleX, 1)),
+		scaleY: Math.max(0.01, finiteOr(element.scaleY, 1)),
+		maintainAspectRatio: element.maintainAspectRatio ?? true,
+		flipHorizontal: element.flipHorizontal ?? false,
+		flipVertical: element.flipVertical ?? false,
+		opacity: Math.min(1, Math.max(0, finiteOr(element.opacity, 1))),
+		blendMode: element.blendMode ?? "normal",
+		fitMode: element.fitMode ?? "cover",
+		crop: clampMediaCrop(element.crop),
+		perspective: clampMediaPerspective(element.perspective),
+		animationInType: element.animationInType ?? "none",
+		animationInDuration: Math.max(
+			0.05,
+			finiteOr(element.animationInDuration, 0.5)
+		),
+		animationOutType: element.animationOutType ?? "none",
+		animationOutDuration: Math.max(
+			0.05,
+			finiteOr(element.animationOutDuration, 0.5)
+		),
+		comboAnimationType: element.comboAnimationType ?? "none",
+		comboAnimationIntensity: Math.min(
+			1,
+			Math.max(0, finiteOr(element.comboAnimationIntensity, 0.5))
+		),
+		adjustments: {
+			...DEFAULT_MEDIA_ADJUSTMENTS,
+			...element.adjustments,
+		},
+		mask: { ...DEFAULT_MEDIA_MASK, ...element.mask },
+		chromaKey: { ...DEFAULT_MEDIA_CHROMA_KEY, ...element.chromaKey },
+		enhancements: {
+			...DEFAULT_MEDIA_ENHANCEMENTS,
+			...element.enhancements,
+		},
+	};
+}
+
+export function getMediaPropertyValue(
+	element: MediaElement,
+	property: MediaKeyframeProperty
+): number {
+	const resolved = resolveMediaVisualProperties(element);
+	if (property in CROP_KEY_MAP) {
+		return resolved.crop[CROP_KEY_MAP[property as keyof typeof CROP_KEY_MAP]];
+	}
+	if (property in DEFAULT_MEDIA_PERSPECTIVE) {
+		return resolved.perspective[property as keyof MediaPerspective];
+	}
+	return resolved[property as keyof ResolvedMediaVisualProperties] as number;
+}
+
+export function getMediaKeyframeValue({
+	element,
+	property,
+	currentTime,
+	fps,
+}: {
+	element: MediaElement;
+	property: MediaKeyframeProperty;
+	currentTime: number;
+	fps: number;
+}): number {
+	const keyframes = element.keyframes?.[property];
+	if (!keyframes || keyframes.length === 0) {
+		return getMediaPropertyValue(element, property);
+	}
+	const localFrame = Math.max(
+		0,
+		Math.round((currentTime - element.startTime) * fps)
+	);
+	return interpolateNumber(keyframes as Keyframe[], localFrame);
+}
+
+export function resolveMediaKeyframes({
+	element,
+	currentTime,
+	fps,
+}: {
+	element: MediaElement;
+	currentTime: number;
+	fps: number;
+}): ResolvedMediaVisualProperties {
+	const resolved = resolveMediaVisualProperties(element);
+	if (!element.keyframes) return resolved;
+
+	const crop = { ...resolved.crop };
+	const perspective = { ...resolved.perspective };
+	const numeric = {
+		x: resolved.x,
+		y: resolved.y,
+		scaleX: resolved.scaleX,
+		scaleY: resolved.scaleY,
+		rotation: resolved.rotation,
+		opacity: resolved.opacity,
+	};
+	for (const property of MEDIA_KEYFRAME_PROPERTIES.map((item) => item.value)) {
+		if (!element.keyframes[property]?.length) continue;
+		const value = getMediaKeyframeValue({
+			element,
+			property,
+			currentTime,
+			fps,
+		});
+		if (property in CROP_KEY_MAP) {
+			crop[CROP_KEY_MAP[property as keyof typeof CROP_KEY_MAP]] = value;
+		} else if (property in DEFAULT_MEDIA_PERSPECTIVE) {
+			perspective[property as keyof MediaPerspective] = value;
+		} else {
+			numeric[property as keyof typeof numeric] = value;
+		}
+	}
+
+	return {
+		...resolved,
+		...numeric,
+		opacity: Math.min(1, Math.max(0, numeric.opacity)),
+		scaleX: Math.max(0.01, numeric.scaleX),
+		scaleY: Math.max(0.01, numeric.scaleY),
+		crop: clampMediaCrop(crop),
+		perspective: clampMediaPerspective(perspective),
+	};
+}
+
+export function upsertMediaKeyframe({
+	keyframes,
+	keyframe,
+}: {
+	keyframes: MediaPropertyKeyframe[];
+	keyframe: MediaPropertyKeyframe;
+}): MediaPropertyKeyframe[] {
+	const existingIndex = keyframes.findIndex((item) => item.id === keyframe.id);
+	const next = [...keyframes];
+	if (existingIndex >= 0) next[existingIndex] = keyframe;
+	else next.push(keyframe);
+	return next.sort((a, b) => a.frame - b.frame);
+}
+
+export function hasMediaVisualEdits(element: MediaElement): boolean {
+	const visual = resolveMediaVisualProperties(element);
+	return (
+		visual.x !== 0 ||
+		visual.y !== 0 ||
+		visual.rotation !== 0 ||
+		visual.scaleX !== 1 ||
+		visual.scaleY !== 1 ||
+		visual.flipHorizontal ||
+		visual.flipVertical ||
+		visual.opacity !== 1 ||
+		visual.blendMode !== "normal" ||
+		visual.fitMode !== "cover" ||
+		Object.values(visual.crop).some((value) => value !== 0) ||
+		Object.entries(visual.perspective).some(
+			([key, value]) =>
+				value !== DEFAULT_MEDIA_PERSPECTIVE[key as keyof MediaPerspective]
+		) ||
+		visual.animationInType !== "none" ||
+		visual.animationOutType !== "none" ||
+		visual.comboAnimationType !== "none" ||
+		Object.values(visual.adjustments).some((value) => value !== 0) ||
+		visual.mask.type !== "none" ||
+		visual.chromaKey.enabled ||
+		Object.entries(visual.enhancements).some(([key, value]) =>
+			key === "upscale" ? value !== 1 : value !== 0
+		) ||
+		(element.playbackRate ?? 1) !== 1 ||
+		(element.speedKeyframes?.length ?? 0) > 0 ||
+		(element.reverse ?? false) ||
+		(element.freezeFrameDuration ?? 0) > 0 ||
+		(element.volume ?? 1) !== 1 ||
+		(element.audioFadeIn ?? 0) > 0 ||
+		(element.audioFadeOut ?? 0) > 0 ||
+		(element.audioNormalize ?? false) ||
+		(element.audioDenoise ?? 0) > 0 ||
+		(element.audioPan ?? 0) !== 0 ||
+		Object.values(element.keyframes ?? {}).some(
+			(keyframes) => (keyframes?.length ?? 0) > 0
+		)
+	);
+}

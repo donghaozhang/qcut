@@ -367,6 +367,10 @@ export interface TimelineStore {
 				| "animationDelay"
 				| "keyframes"
 				| "blendMode"
+				| "trackingTargetId"
+				| "trackingOffsetX"
+				| "trackingOffsetY"
+				| "trackingRotation"
 			>
 		>,
 		pushHistory?: boolean
@@ -428,7 +432,48 @@ export interface TimelineStore {
 	updateMediaElement: (
 		trackId: string,
 		elementId: string,
-		updates: Partial<Pick<MediaElement, "volume">>,
+		updates: Partial<
+			Pick<
+				MediaElement,
+				| "volume"
+				| "x"
+				| "y"
+				| "width"
+				| "height"
+				| "rotation"
+				| "scaleX"
+				| "scaleY"
+				| "maintainAspectRatio"
+				| "flipHorizontal"
+				| "flipVertical"
+				| "opacity"
+				| "blendMode"
+				| "fitMode"
+				| "crop"
+				| "perspective"
+				| "keyframes"
+				| "animationInType"
+				| "animationInDuration"
+				| "animationOutType"
+				| "animationOutDuration"
+				| "comboAnimationType"
+				| "comboAnimationIntensity"
+				| "adjustments"
+				| "mask"
+				| "chromaKey"
+				| "enhancements"
+				| "audioFadeIn"
+				| "audioFadeOut"
+				| "audioNormalize"
+				| "audioDenoise"
+				| "audioPan"
+				| "playbackRate"
+				| "speedKeyframes"
+				| "reverse"
+				| "freezeFrameTime"
+				| "freezeFrameDuration"
+			>
+		>,
 		pushHistory?: boolean
 	) => void;
 	updateRemotionElement: (

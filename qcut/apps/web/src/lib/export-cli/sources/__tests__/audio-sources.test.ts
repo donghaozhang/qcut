@@ -9,6 +9,11 @@ const makeMediaElement = (params: {
 	startTime: number;
 	hidden?: boolean;
 	volume?: number;
+	audioFadeIn?: number;
+	audioFadeOut?: number;
+	audioNormalize?: boolean;
+	audioDenoise?: number;
+	audioPan?: number;
 }) => {
 	return {
 		id: params.id,
@@ -21,6 +26,11 @@ const makeMediaElement = (params: {
 		trimEnd: 0,
 		hidden: params.hidden ?? false,
 		volume: params.volume,
+		audioFadeIn: params.audioFadeIn,
+		audioFadeOut: params.audioFadeOut,
+		audioNormalize: params.audioNormalize,
+		audioDenoise: params.audioDenoise,
+		audioPan: params.audioPan,
 	};
 };
 
@@ -241,7 +251,18 @@ describe("extractAudioFileInputs", () => {
 				startTime: 2,
 				volume: 0.75,
 				trimStart: 0,
+				trimEnd: 0,
 				duration: 5,
+				fadeIn: 0,
+				fadeOut: 0,
+				normalize: false,
+				denoise: 0,
+				pan: 0,
+				playbackRate: 1,
+				speedKeyframes: undefined,
+				reverse: false,
+				freezeFrameTime: undefined,
+				freezeFrameDuration: 0,
 			},
 		]);
 	});

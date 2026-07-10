@@ -3,8 +3,14 @@ import { useSegmentationStore } from "@/stores/ai/segmentation-store";
 import { useAsyncMediaStoreActions } from "@/hooks/media/use-async-media-store";
 import { useParams } from "@tanstack/react-router";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
 import { Wand2, Loader2, ImagePlus, Video } from "lucide-react";
-import { segmentWithText } from "@/lib/ai-clients/sam3-client";
+import {
+	segmentVideoWithText,
+	segmentWithText,
+} from "@/lib/ai-clients/sam3-client";
+import { uploadVideoToFal } from "@/lib/ai-video/core/fal-upload";
+import { getFalApiKeyAsync } from "@/lib/ai-video/core/fal-request";
 import { debugLog } from "@/lib/debug/debug-config";
 import { createObjectURL } from "@/lib/media/blob-manager";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -38,7 +44,10 @@ export function SegmentationPanel() {
 		setMode,
 		sourceImageUrl,
 		sourceImageFile,
+		sourceVideoUrl,
+		sourceVideoFile,
 		setSourceImage,
+		setSourceVideo,
 		objects,
 		currentTextPrompt,
 		isProcessing,
@@ -46,16 +55,25 @@ export function SegmentationPanel() {
 		addObject,
 		setCompositeImage,
 		setMasks,
+		setSegmentedVideo,
+		segmentedVideoUrl,
 		clearCurrentPrompts,
 		showObjectList,
 	} = useSegmentationStore();
 
-	const { loading: mediaStoreLoading, error: mediaStoreError } =
-		useAsyncMediaStoreActions();
+	const {
+		loading: mediaStoreLoading,
+		error: mediaStoreError,
+		addMediaItem,
+	} = useAsyncMediaStoreActions();
 
 	const handleImageSelect = (file: File) => {
 		const url = createObjectURL(file, "segmentation-image-select");
 		setSourceImage(file, url);
+	};
+	const handleVideoSelect = (file: File) => {
+		const url = createObjectURL(file, "segmentation-video-select");
+		setSourceVideo(file, url);
 	};
 
 	const handleSegment = async () => {
@@ -64,8 +82,12 @@ export function SegmentationPanel() {
 			return;
 		}
 
-		if (!sourceImageFile || !sourceImageUrl) {
+		if (mode === "image" && (!sourceImageFile || !sourceImageUrl)) {
 			alert("Please upload an image first.");
+			return;
+		}
+		if (mode === "video" && (!sourceVideoFile || !sourceVideoUrl)) {
+			alert("Please upload a video first.");
 			return;
 		}
 
@@ -79,12 +101,54 @@ export function SegmentationPanel() {
 				elapsedTime: 0,
 			});
 
-			// Upload image to FAL
+			if (mode === "video") {
+				const apiKey = await getFalApiKeyAsync();
+				if (!apiKey)
+					throw new Error("FAL API key is required for video tracking");
+				const uploadedVideoUrl = await uploadVideoToFal(
+					sourceVideoFile!,
+					apiKey
+				);
+				const result = await segmentVideoWithText(
+					uploadedVideoUrl,
+					currentTextPrompt.trim(),
+					{ apply_mask: true, detection_threshold: 0.5 }
+				);
+				if (result.video?.url) {
+					setSegmentedVideo(result.video.url);
+					if (addMediaItem) {
+						const response = await fetch(result.video.url);
+						if (!response.ok)
+							throw new Error("Failed to download tracked video");
+						const blob = await response.blob();
+						const file = new File([blob], `sam3-tracked-${Date.now()}.mp4`, {
+							type: "video/mp4",
+						});
+						await addMediaItem(projectId, {
+							name: `Tracked: ${currentTextPrompt.trim()}`,
+							type: "video",
+							file,
+							url: result.video.url,
+							duration: 10,
+							width: 1920,
+							height: 1080,
+						});
+					}
+				}
+				setProcessingState({
+					isProcessing: false,
+					progress: 100,
+					statusMessage: "Video tracking complete",
+					elapsedTime: (Date.now() - startTime) / 1000,
+				});
+				return;
+			}
+
 			debugLog("Uploading image to FAL for segmentation...");
 			const { uploadImageToFAL } = await import(
 				"@/lib/ai-clients/image-edit-client"
 			);
-			const uploadedImageUrl = await uploadImageToFAL(sourceImageFile);
+			const uploadedImageUrl = await uploadImageToFAL(sourceImageFile!);
 
 			setProcessingState({
 				isProcessing: true,
@@ -157,7 +221,9 @@ export function SegmentationPanel() {
 	};
 
 	const canSegment =
-		sourceImageUrl && currentTextPrompt.trim() && !isProcessing;
+		(mode === "image" ? sourceImageUrl : sourceVideoUrl) &&
+		currentTextPrompt.trim() &&
+		!isProcessing;
 
 	// Handle media store loading/error states
 	if (mediaStoreError) {
@@ -231,13 +297,32 @@ export function SegmentationPanel() {
 				<PromptToolbar />
 			</div>
 
-			{/* Image Upload Section */}
+			{/* Source Upload Section */}
 			<div className="flex-shrink-0">
-				<ImageUploader onImageSelect={handleImageSelect} />
+				{mode === "image" ? (
+					<ImageUploader onImageSelect={handleImageSelect} />
+				) : (
+					<Input
+						type="file"
+						accept="video/*"
+						onChange={(event) => {
+							const file = event.target.files?.[0];
+							if (file) handleVideoSelect(file);
+						}}
+					/>
+				)}
 			</div>
 
 			{/* Main Content Area */}
-			{sourceImageUrl ? (
+			{mode === "video" && (segmentedVideoUrl || sourceVideoUrl) ? (
+				<div className="flex-1 min-h-0">
+					<video
+						controls
+						className="size-full object-contain"
+						src={segmentedVideoUrl || sourceVideoUrl || undefined}
+					/>
+				</div>
+			) : sourceImageUrl ? (
 				<div className="flex-1 flex gap-4 min-h-0">
 					{/* Canvas */}
 					<div className="flex-1 min-w-0">

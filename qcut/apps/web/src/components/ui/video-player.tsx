@@ -1,9 +1,14 @@
 "use client";
 
-import { useRef, useEffect } from "react";
+import { useRef, useEffect, useCallback } from "react";
 import type { CSSProperties } from "react";
 import { usePlaybackStore } from "@/stores/editor/playback-store";
 import type { VideoSource } from "@/lib/media/media-source";
+import type { MediaElement } from "@/types/timeline";
+import {
+	getMediaTimelineDuration,
+	mapMediaTimelineTime,
+} from "@/lib/video/video-timing";
 import {
 	getOrCreateObjectURL,
 	releaseObjectURL,
@@ -21,6 +26,11 @@ interface VideoPlayerProps {
 	trimStart: number;
 	trimEnd: number;
 	clipDuration: number;
+	clipVolume?: number;
+	fadeIn?: number;
+	fadeOut?: number;
+	clipPlaybackRate?: number;
+	timingElement?: MediaElement;
 }
 
 export function VideoPlayer({
@@ -33,6 +43,11 @@ export function VideoPlayer({
 	trimStart,
 	trimEnd,
 	clipDuration,
+	clipVolume = 1,
+	fadeIn = 0,
+	fadeOut = 0,
+	clipPlaybackRate = 1,
+	timingElement,
 }: VideoPlayerProps) {
 	const videoRef = useRef<HTMLVideoElement>(null);
 	const blobUrlRef = useRef<string | null>(null);
@@ -47,10 +62,40 @@ export function VideoPlayer({
 		timelineTimeRef.current = currentTime;
 	}, [currentTime]);
 
-	// Calculate if we're within this clip's timeline range
-	const clipEndTime = clipStartTime + (clipDuration - trimStart - trimEnd);
+	const timelineDuration = timingElement
+		? getMediaTimelineDuration(timingElement)
+		: clipDuration - trimStart - trimEnd;
+	const clipEndTime = clipStartTime + timelineDuration;
 	const isInClipRange =
 		currentTime >= clipStartTime && currentTime < clipEndTime;
+	const requiresManualTiming = Boolean(
+		timingElement &&
+			(timingElement.reverse ||
+				(timingElement.freezeFrameDuration ?? 0) > 0 ||
+				(timingElement.speedKeyframes?.length ?? 0) > 0)
+	);
+	const getVideoTime = useCallback(
+		(timelineTime: number) => {
+			if (!timingElement) {
+				return Math.max(
+					trimStart,
+					Math.min(
+						clipDuration - trimEnd,
+						timelineTime - clipStartTime + trimStart
+					)
+				);
+			}
+			const timing = mapMediaTimelineTime({
+				element: timingElement,
+				localTimelineTime: timelineTime - clipStartTime,
+			});
+			return Math.max(
+				trimStart,
+				Math.min(clipDuration - trimEnd, trimStart + timing.sourceTime)
+			);
+		},
+		[timingElement, trimStart, trimEnd, clipDuration, clipStartTime]
+	);
 
 	// Sync playback events
 	useEffect(() => {
@@ -63,28 +108,19 @@ export function VideoPlayer({
 		const handleSeekEvent = (e: CustomEvent) => {
 			// Always update video time, even if outside clip range
 			const timelineTime = e.detail.time;
-			const videoTime = Math.max(
-				trimStart,
-				Math.min(
-					clipDuration - trimEnd,
-					timelineTime - clipStartTime + trimStart
-				)
-			);
+			const videoTime = getVideoTime(timelineTime);
 			video.currentTime = videoTime;
 		};
 
 		const handleUpdateEvent = (e: CustomEvent) => {
 			// Always update video time, even if outside clip range
 			const timelineTime = e.detail.time;
-			const targetTime = Math.max(
-				trimStart,
-				Math.min(
-					clipDuration - trimEnd,
-					timelineTime - clipStartTime + trimStart
-				)
-			);
+			const targetTime = getVideoTime(timelineTime);
 
-			if (Math.abs(video.currentTime - targetTime) > 0.5) {
+			if (
+				requiresManualTiming ||
+				Math.abs(video.currentTime - targetTime) > 0.5
+			) {
 				video.currentTime = targetTime;
 			}
 		};
@@ -114,7 +150,7 @@ export function VideoPlayer({
 				handleSpeed as EventListener
 			);
 		};
-	}, [clipStartTime, trimStart, trimEnd, clipDuration, isInClipRange]);
+	}, [isInClipRange, requiresManualTiming, getVideoTime]);
 
 	// Sync playback state with readyState check
 	useEffect(() => {
@@ -138,7 +174,7 @@ export function VideoPlayer({
 			}
 		};
 
-		if (isPlaying && isInClipRange) {
+		if (isPlaying && isInClipRange && !requiresManualTiming) {
 			tryPlay();
 		} else {
 			video.pause();
@@ -147,7 +183,7 @@ export function VideoPlayer({
 		// Listen for direct play trigger dispatched synchronously from user gesture
 		// This preserves the user gesture context on iOS/iPad where autoplay is restricted
 		const handleDirectPlay = () => {
-			if (isInClipRange) {
+			if (isInClipRange && !requiresManualTiming) {
 				tryPlay();
 			}
 		};
@@ -157,17 +193,46 @@ export function VideoPlayer({
 		return () => {
 			window.removeEventListener("playback-play", handleDirectPlay);
 		};
-	}, [isPlaying, isInClipRange]);
+	}, [isPlaying, isInClipRange, requiresManualTiming]);
 
-	// Sync volume and speed
+	// Sync global playback controls with per-clip volume and fades.
 	useEffect(() => {
 		const video = videoRef.current;
 		if (!video) return;
 
-		video.volume = volume;
+		const effectiveDuration = timelineDuration;
+		const clipTime = Math.max(0, currentTime - clipStartTime);
+		const fadeInGain = fadeIn > 0 ? Math.min(1, clipTime / fadeIn) : 1;
+		const remaining = Math.max(0, effectiveDuration - clipTime);
+		const fadeOutGain = fadeOut > 0 ? Math.min(1, remaining / fadeOut) : 1;
+		video.volume = Math.min(
+			1,
+			Math.max(0, volume * clipVolume * fadeInGain * fadeOutGain)
+		);
 		video.muted = muted;
-		video.playbackRate = speed;
-	}, [volume, speed, muted]);
+		const timingRate = timingElement
+			? mapMediaTimelineTime({
+					element: timingElement,
+					localTimelineTime: currentTime - clipStartTime,
+				}).playbackRate
+			: clipPlaybackRate;
+		video.playbackRate = Math.min(
+			16,
+			Math.max(0.0625, speed * Math.max(0.0625, timingRate))
+		);
+	}, [
+		volume,
+		speed,
+		muted,
+		clipVolume,
+		fadeIn,
+		fadeOut,
+		clipPlaybackRate,
+		clipStartTime,
+		currentTime,
+		timingElement,
+		timelineDuration,
+	]);
 
 	// Check video element dimensions on mount
 	useEffect(() => {

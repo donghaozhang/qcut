@@ -296,7 +296,13 @@ const electronAPI: ElectronAPI & Record<string, unknown> = {
 				startTime: number;
 				volume?: number;
 				trimStart?: number;
+				trimEnd?: number;
 				duration?: number;
+				fadeIn?: number;
+				fadeOut?: number;
+				normalize?: boolean;
+				denoise?: number;
+				pan?: number;
 			}>;
 			bitrate: number;
 			sampleRate: number;

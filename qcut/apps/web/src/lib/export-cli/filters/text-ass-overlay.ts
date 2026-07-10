@@ -6,6 +6,7 @@ import {
 	resolveTextAnimation,
 } from "@/lib/text/text-animation";
 import { resolveTextKeyframes } from "@/lib/text/text-keyframes";
+import { resolveTrackedTextElement } from "@/lib/text/text-tracking";
 import { resolveTextStyle } from "@/lib/text/text-style";
 import type { TextElement, TimelineTrack } from "@/types/timeline";
 
@@ -418,11 +419,13 @@ function buildElementEvents({
 
 export function buildTextASSOverlay({
 	tracks,
+	allTracks = tracks,
 	canvasWidth,
 	canvasHeight,
 	fps = 30,
 }: {
 	tracks: TimelineTrack[];
+	allTracks?: TimelineTrack[];
 	canvasWidth: number;
 	canvasHeight: number;
 	fps?: number;
@@ -442,9 +445,11 @@ export function buildTextASSOverlay({
 				continue;
 			}
 
-			const hasKeyframes = Object.values(element.keyframes ?? {}).some(
-				(keyframes) => (keyframes?.length ?? 0) > 0
-			);
+			const hasKeyframes =
+				Boolean(element.trackingTargetId) ||
+				Object.values(element.keyframes ?? {}).some(
+					(keyframes) => (keyframes?.length ?? 0) > 0
+				);
 			if (hasKeyframes) {
 				const visibleStart = element.startTime + element.trimStart;
 				const visibleEnd =
@@ -455,7 +460,12 @@ export function buildTextASSOverlay({
 					const frameStart = Math.max(visibleStart, frame / fps);
 					const frameEnd = Math.min(visibleEnd, (frame + 1) / fps);
 					if (frameEnd <= frameStart) continue;
-					const resolved = resolveTextKeyframes(element, frameStart, fps);
+					const resolved = resolveTrackedTextElement({
+						element: resolveTextKeyframes(element, frameStart, fps),
+						tracks: allTracks,
+						currentTime: frameStart,
+						fps,
+					});
 					const animation = getTextAnimationState(element, frameStart);
 					const sampled: TextElement = {
 						...resolved,
@@ -477,7 +487,12 @@ export function buildTextASSOverlay({
 				}
 			} else {
 				const result = buildElementEvents({
-					element,
+					element: resolveTrackedTextElement({
+						element,
+						tracks: allTracks,
+						currentTime: element.startTime,
+						fps,
+					}),
 					index: index++,
 					canvasWidth,
 					canvasHeight,
