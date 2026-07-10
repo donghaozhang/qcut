@@ -1,9 +1,13 @@
 import { describe, expect, it } from "vitest";
 import type { MediaElement } from "@/types/timeline";
 import {
+	DEFAULT_MEDIA_MASK,
 	DEFAULT_MEDIA_PERSPECTIVE,
 	clampMediaCrop,
 	hasMediaVisualEdits,
+	normalizeMediaMask,
+	resolveMediaMasks,
+	resolveMediaMasksAtTime,
 	resolveMediaKeyframes,
 	resolveMediaVisualProperties,
 } from "../video-properties";
@@ -52,16 +56,8 @@ describe("video visual properties", () => {
 				fade: 0,
 				vignette: 0,
 			},
-			mask: {
-				type: "none",
-				centerX: 0.5,
-				centerY: 0.5,
-				width: 0.8,
-				height: 0.8,
-				rotation: 0,
-				feather: 0,
-				invert: false,
-			},
+			mask: normalizeMediaMask(DEFAULT_MEDIA_MASK),
+			masks: [],
 			chromaKey: {
 				enabled: false,
 				color: "#00ff00",
@@ -129,5 +125,69 @@ describe("video visual properties", () => {
 				})
 			)
 		).toBe(true);
+	});
+
+	it("migrates a legacy mask into a stable mask stack", () => {
+		const element = mediaElement({
+			mask: {
+				type: "ellipse",
+				centerX: 0.4,
+				centerY: 0.6,
+				width: 0.7,
+				height: 0.5,
+				rotation: 12,
+				feather: 0.1,
+				invert: false,
+			},
+		});
+
+		expect(resolveMediaMasks(element)).toMatchObject([
+			{
+				id: "mask-1",
+				name: "Mask 1",
+				type: "ellipse",
+				blendMode: "add",
+				centerX: 0.4,
+			},
+		]);
+	});
+
+	it("prefers the ordered mask stack and interpolates each mask independently", () => {
+		const element = mediaElement({
+			startTime: 2,
+			mask: { ...DEFAULT_MEDIA_MASK, type: "rectangle", centerX: 0.1 },
+			masks: [
+				{
+					...DEFAULT_MEDIA_MASK,
+					id: "subject",
+					name: "Subject",
+					type: "ellipse",
+					centerX: 0.2,
+					keyframes: {
+						centerX: [
+							{ id: "x0", frame: 0, value: 0.2, easing: "linear" },
+							{ id: "x1", frame: 30, value: 0.8, easing: "linear" },
+						],
+					},
+				},
+				{
+					...DEFAULT_MEDIA_MASK,
+					id: "cutout",
+					name: "Cutout",
+					type: "rectangle",
+					blendMode: "subtract",
+				},
+			],
+		});
+
+		const masks = resolveMediaMasksAtTime({
+			element,
+			currentTime: 2.5,
+			fps: 30,
+		});
+		expect(masks).toHaveLength(2);
+		expect(masks[0].id).toBe("subject");
+		expect(masks[0].centerX).toBeCloseTo(0.5);
+		expect(masks[1].blendMode).toBe("subtract");
 	});
 });

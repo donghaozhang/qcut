@@ -9,6 +9,11 @@
 
 import type { TimelineElement, TimelineTrack } from "@/types/timeline";
 import { clampMarkdownDuration } from "@/lib/markdown";
+import {
+	DEFAULT_MEDIA_MASK,
+	normalizeMediaMask,
+	resolveMediaMasks,
+} from "@/lib/video/video-properties";
 import { TIMELINE_CONSTANTS } from "@/constants/timeline-constants";
 
 export function normalizeMarkdownElement({
@@ -50,6 +55,7 @@ export function normalizeMediaElement({
 	element: TimelineElement;
 }): TimelineElement {
 	if (element.type !== "media") return element;
+	const masks = resolveMediaMasks(element);
 
 	return {
 		...element,
@@ -91,16 +97,8 @@ export function normalizeMediaElement({
 			fade: 0,
 			vignette: 0,
 		},
-		mask: element.mask ?? {
-			type: "none",
-			centerX: 0.5,
-			centerY: 0.5,
-			width: 0.8,
-			height: 0.8,
-			rotation: 0,
-			feather: 0,
-			invert: false,
-		},
+		mask: masks[0] ?? normalizeMediaMask(element.mask ?? DEFAULT_MEDIA_MASK),
+		masks,
 		chromaKey: element.chromaKey ?? {
 			enabled: false,
 			color: "#00ff00",

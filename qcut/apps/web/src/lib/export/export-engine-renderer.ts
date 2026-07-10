@@ -1,4 +1,8 @@
-import type { TimelineElement, TrackType } from "@/types/timeline";
+import type {
+	MediaElement,
+	TimelineElement,
+	TrackType,
+} from "@/types/timeline";
 import type { MediaItem } from "@/stores/media/media-store-types";
 import type { OverlaySticker } from "@/types/sticker-overlay";
 import { debugLog, debugError, debugWarn } from "@/lib/debug/debug-config";
@@ -31,6 +35,8 @@ import {
 import { useWebcamOverlayStore } from "@/stores/webcam-overlay-store";
 import { useFigureAnnotationsStore } from "@/stores/figure-annotations-store";
 import { renderTextToCanvas } from "@/lib/text/text-canvas-renderer";
+import { resolveMediaKeyframes } from "@/lib/video/video-properties";
+import { drawMediaSourceWithMasks } from "@/lib/video/media-mask-canvas";
 
 let exportCompositor: ScreenRecordingExportCompositor | null = null;
 let compositorFrameCanvas: HTMLCanvasElement | null = null;
@@ -223,7 +229,12 @@ async function renderMediaElement(
 
 	try {
 		if (mediaItem.type === "image") {
-			await renderImage(context, element, mediaItem);
+			await renderImage(
+				context,
+				element,
+				mediaItem,
+				element.startTime + timeOffset
+			);
 		} else if (mediaItem.type === "video") {
 			await renderVideo(context, element, mediaItem, timeOffset);
 		}
@@ -236,7 +247,8 @@ async function renderMediaElement(
 export async function renderImage(
 	context: RenderContext,
 	element: TimelineElement,
-	mediaItem: MediaItem
+	mediaItem: MediaItem,
+	currentTime = element.startTime
 ): Promise<void> {
 	const { ctx, canvas } = context;
 
@@ -251,7 +263,7 @@ export async function renderImage(
 		const img = new Image();
 		img.crossOrigin = "anonymous";
 
-		img.onload = () => {
+		img.onload = async () => {
 			try {
 				const { x, y, width, height } = calculateElementBounds(
 					element,
@@ -264,6 +276,21 @@ export async function renderImage(
 				debugLog(
 					`🖼️ EXPORT: Rendered image "${mediaItem.name || mediaItem.id}" at position (${x}, ${y}) with size ${width}x${height}`
 				);
+				const visual = resolveMediaKeyframes({
+					element: element as MediaElement,
+					currentTime,
+					fps: context.fps,
+				});
+				const drawImage = () =>
+					drawMediaSourceWithMasks({
+						context: ctx,
+						source: img,
+						x,
+						y,
+						width,
+						height,
+						masks: visual.masks,
+					});
 
 				if (EFFECTS_ENABLED) {
 					try {
@@ -288,14 +315,14 @@ export async function renderImage(
 								mergedParams
 							);
 							applyEffectsToCanvas(ctx, mergedParams);
-							ctx.drawImage(img, x, y, width, height);
+							await drawImage();
 							applyAdvancedCanvasEffects(ctx, mergedParams);
 							ctx.restore();
 						} else {
 							debugLog(
 								`🚫 EXPORT ENGINE: No enabled effects for image element ${element.id}, drawing normally`
 							);
-							ctx.drawImage(img, x, y, width, height);
+							await drawImage();
 						}
 					} catch (error) {
 						debugError(
@@ -303,10 +330,10 @@ export async function renderImage(
 							error
 						);
 						debugWarn(`[Export] Effects failed for ${element.id}:`, error);
-						ctx.drawImage(img, x, y, width, height);
+						await drawImage();
 					}
 				} else {
-					ctx.drawImage(img, x, y, width, height);
+					await drawImage();
 				}
 
 				resolve();
@@ -429,6 +456,21 @@ async function renderVideoAttempt(
 			canvas.width,
 			canvas.height
 		);
+		const visual = resolveMediaKeyframes({
+			element: element as MediaElement,
+			currentTime: element.startTime + timeOffset,
+			fps: context.fps,
+		});
+		const drawVideo = () =>
+			drawMediaSourceWithMasks({
+				context: ctx,
+				source: video,
+				x,
+				y,
+				width,
+				height,
+				masks: visual.masks,
+			});
 
 		if (EFFECTS_ENABLED) {
 			try {
@@ -447,7 +489,7 @@ async function renderVideoAttempt(
 						debugLog(
 							`🚫 EXPORT ENGINE: No enabled effects for video element ${element.id}, drawing normally`
 						);
-						ctx.drawImage(video, x, y, width, height);
+						await drawVideo();
 						return;
 					}
 
@@ -460,14 +502,14 @@ async function renderVideoAttempt(
 						mergedParams
 					);
 					applyEffectsToCanvas(ctx, mergedParams);
-					ctx.drawImage(video, x, y, width, height);
+					await drawVideo();
 					applyAdvancedCanvasEffects(ctx, mergedParams);
 					ctx.restore();
 				} else {
 					debugLog(
 						`🚫 EXPORT ENGINE: No effects found for video element ${element.id}, drawing normally`
 					);
-					ctx.drawImage(video, x, y, width, height);
+					await drawVideo();
 				}
 			} catch (error) {
 				debugError(
@@ -475,10 +517,10 @@ async function renderVideoAttempt(
 					error
 				);
 				debugWarn(`[Export] Video effects failed for ${element.id}:`, error);
-				ctx.drawImage(video, x, y, width, height);
+				await drawVideo();
 			}
 		} else {
-			ctx.drawImage(video, x, y, width, height);
+			await drawVideo();
 		}
 
 		const frameValidation = validateRenderedFrame(

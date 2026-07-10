@@ -15,7 +15,6 @@ import {
 import type {
 	MediaElement,
 	MediaKeyframeProperty,
-	MediaMaskType,
 	MediaPerspective,
 	MediaPropertyKeyframe,
 } from "@/types/timeline";
@@ -72,6 +71,7 @@ import {
 } from "./property-item";
 import { VolumeControl } from "./volume-control";
 import { KeyframeEditor } from "./keyframe-editor";
+import { MediaMaskProperties } from "./media-mask-properties";
 
 type MediaUpdates = Parameters<
 	ReturnType<typeof useTimelineStore.getState>["updateMediaElement"]
@@ -1057,102 +1057,14 @@ export function MediaProperties({
 
 				<TabsContent value="advanced" className="mt-4 space-y-4">
 					<PropertyGroup title="Mask" defaultExpanded>
-						<div className="space-y-4">
-							<PropertyItem>
-								<PropertyItemLabel>Shape</PropertyItemLabel>
-								<PropertyItemValue>
-									<Select
-										value={visual.mask.type}
-										onValueChange={(type) =>
-											update({
-												mask: {
-													...visual.mask,
-													type: type as MediaMaskType,
-												},
-											})
-										}
-									>
-										<SelectTrigger className="h-8 text-xs">
-											<SelectValue />
-										</SelectTrigger>
-										<SelectContent>
-											<SelectItem value="none">None</SelectItem>
-											<SelectItem value="rectangle">Rectangle</SelectItem>
-											<SelectItem value="ellipse">Ellipse</SelectItem>
-											<SelectItem value="linear">Linear</SelectItem>
-										</SelectContent>
-									</Select>
-								</PropertyItemValue>
-							</PropertyItem>
-							{visual.mask.type === "none" ? null : (
-								<>
-									{visual.mask.type === "linear"
-										? null
-										: (
-												[
-													["centerX", "Center X"],
-													["centerY", "Center Y"],
-													["width", "Width"],
-													["height", "Height"],
-												] as const
-											).map(([property, label]) => (
-												<NumberControl
-													key={property}
-													label={label}
-													value={visual.mask[property] * 100}
-													min={property.startsWith("center") ? 0 : 1}
-													max={100}
-													suffix="%"
-													onChange={(value) =>
-														updateLive({
-															mask: {
-																...visual.mask,
-																[property]: value / 100,
-															},
-														})
-													}
-													onInteractionStart={beginInteraction}
-													onInteractionEnd={endInteraction}
-												/>
-											))}
-									<NumberControl
-										label="Rotation"
-										value={visual.mask.rotation}
-										min={-180}
-										max={180}
-										suffix="°"
-										onChange={(rotation) =>
-											updateLive({ mask: { ...visual.mask, rotation } })
-										}
-										onInteractionStart={beginInteraction}
-										onInteractionEnd={endInteraction}
-									/>
-									<NumberControl
-										label="Feather"
-										value={visual.mask.feather * 100}
-										min={0}
-										max={50}
-										suffix="%"
-										onChange={(value) =>
-											updateLive({
-												mask: { ...visual.mask, feather: value / 100 },
-											})
-										}
-										onInteractionStart={beginInteraction}
-										onInteractionEnd={endInteraction}
-									/>
-									<div className="flex items-center justify-between gap-3">
-										<PropertyItemLabel>Invert</PropertyItemLabel>
-										<Switch
-											checked={visual.mask.invert}
-											onCheckedChange={(invert) =>
-												update({ mask: { ...visual.mask, invert } })
-											}
-										/>
-									</div>
-								</>
-							)}
-						</div>
+						<MediaMaskProperties
+							elementId={element.id}
+							masks={visual.masks}
+							currentFrame={currentFrame}
+							onChange={(masks, history = true) => update({ masks }, history)}
+							onInteractionStart={beginInteraction}
+							onInteractionEnd={endInteraction}
+						/>
 					</PropertyGroup>
 
 					<PropertyGroup title="Chroma key" defaultExpanded>

@@ -430,7 +430,7 @@ export function PreviewElementRenderer({
 					.filter(Boolean)
 					.join(" ");
 				const vignette = buildMediaVignetteBackground(visual.adjustments);
-				const maskStyle = buildMediaMaskStyle(visual.mask);
+				const maskStyle = buildMediaMaskStyle(visual.masks);
 
 				return (
 					<div

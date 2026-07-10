@@ -460,6 +460,7 @@ export interface TimelineStore {
 				| "comboAnimationIntensity"
 				| "adjustments"
 				| "mask"
+				| "masks"
 				| "chromaKey"
 				| "enhancements"
 				| "audioFadeIn"

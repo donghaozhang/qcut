@@ -5,6 +5,8 @@
  * Extracted from export-engine-cli.ts for reuse across filter and source modules.
  */
 
+import type { MediaMask } from "@/types/timeline";
+
 /**
  * Video source input for FFmpeg direct copy optimization.
  * Matches IPC handler expectations for video segment data.
@@ -69,16 +71,8 @@ export interface VideoVisualInput {
 		fade: number;
 		vignette: number;
 	};
-	mask: {
-		type: "none" | "rectangle" | "ellipse" | "linear";
-		centerX: number;
-		centerY: number;
-		width: number;
-		height: number;
-		rotation: number;
-		feather: number;
-		invert: boolean;
-	};
+	mask: MediaMask;
+	masks: MediaMask[];
 	chromaKey: {
 		enabled: boolean;
 		color: string;

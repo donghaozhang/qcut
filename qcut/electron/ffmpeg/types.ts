@@ -96,6 +96,73 @@ export interface VideoSource {
 	effectFilter?: string;
 }
 
+export interface VideoMask {
+	id?: string;
+	name?: string;
+	enabled?: boolean;
+	type:
+		| "none"
+		| "rectangle"
+		| "ellipse"
+		| "linear"
+		| "mirror"
+		| "pen"
+		| "text"
+		| "star"
+		| "heart"
+		| "person"
+		| "object";
+	blendMode?: "add" | "subtract" | "intersect";
+	centerX: number;
+	centerY: number;
+	width: number;
+	height: number;
+	rotation: number;
+	feather: number;
+	roundness?: number;
+	expansion?: number;
+	opacity?: number;
+	maintainAspectRatio?: boolean;
+	invert: boolean;
+	points?: Array<{
+		x: number;
+		y: number;
+		handleIn?: { x: number; y: number };
+		handleOut?: { x: number; y: number };
+	}>;
+	text?: string;
+	fontFamily?: string;
+	fontWeight?: "normal" | "bold";
+	keyframes?: Partial<
+		Record<
+			string,
+			Array<{
+				id: string;
+				frame: number;
+				value: number;
+				easing: "linear" | "easeIn" | "easeOut" | "easeInOut" | "spring";
+			}>
+		>
+	>;
+	sourceMediaId?: string;
+	stroke?: {
+		style:
+			| "none"
+			| "solid"
+			| "glow"
+			| "offset"
+			| "triple"
+			| "sketch"
+			| "dashed";
+		color: string;
+		width: number;
+		opacity: number;
+		glow: number;
+		offsetX: number;
+		offsetY: number;
+	};
+}
+
 export interface VideoVisual {
 	x: number;
 	y: number;
@@ -156,16 +223,8 @@ export interface VideoVisual {
 		fade: number;
 		vignette: number;
 	};
-	mask?: {
-		type: "none" | "rectangle" | "ellipse" | "linear";
-		centerX: number;
-		centerY: number;
-		width: number;
-		height: number;
-		rotation: number;
-		feather: number;
-		invert: boolean;
-	};
+	mask?: VideoMask;
+	masks?: VideoMask[];
 	chromaKey?: {
 		enabled: boolean;
 		color: string;

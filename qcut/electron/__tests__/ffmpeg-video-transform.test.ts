@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import {
+	buildVideoMaskExpression,
 	buildVideoKeyframeExpression,
 	buildVideoTimelineFilters,
 } from "../ffmpeg-video-transform";
@@ -66,5 +67,59 @@ describe("FFmpeg video transform filters", () => {
 		expect(filter).toContain("rotate=angle=");
 		expect(filter).toContain("blend=all_mode=screen");
 		expect(filter).toContain("concat=n=3:v=1:a=0");
+	});
+
+	it("combines animated masks with add, subtract, and intersect", () => {
+		const expression = buildVideoMaskExpression({
+			...visual,
+			masks: [
+				{
+					id: "ellipse",
+					type: "ellipse",
+					centerX: 0.5,
+					centerY: 0.5,
+					width: 0.8,
+					height: 0.8,
+					rotation: 0,
+					feather: 0,
+					invert: false,
+					keyframes: {
+						centerX: [
+							{ id: "x0", frame: 0, value: 0.25, easing: "linear" },
+							{ id: "x1", frame: 30, value: 0.75, easing: "linear" },
+						],
+					},
+				},
+				{
+					id: "cutout",
+					type: "rectangle",
+					blendMode: "subtract",
+					centerX: 0.5,
+					centerY: 0.5,
+					width: 0.2,
+					height: 0.2,
+					rotation: 0,
+					feather: 0,
+					invert: false,
+				},
+				{
+					id: "star",
+					type: "star",
+					blendMode: "intersect",
+					centerX: 0.5,
+					centerY: 0.5,
+					width: 1,
+					height: 1,
+					rotation: 0,
+					feather: 0,
+					invert: false,
+				},
+			],
+		});
+
+		expect(expression).toContain("N/30");
+		expect(expression).toContain("*(1-(");
+		expect(expression).toContain("mod(");
+		expect(expression).not.toContain("lt(T,");
 	});
 });

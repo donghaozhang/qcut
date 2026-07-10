@@ -12,6 +12,7 @@ import {
 	DEFAULT_MEDIA_MASK,
 	resolveMediaVisualProperties,
 } from "./video-properties";
+import { mediaMaskSvgDataUrl } from "./media-mask-svg";
 import { getMediaTimelineDuration } from "./video-timing";
 
 export interface MediaAnimationState {
@@ -153,40 +154,30 @@ export function buildMediaEnhancementCssFilter(
 	return filters.join(" ");
 }
 
-function svgDataUrl(svg: string): string {
-	return `url("data:image/svg+xml,${encodeURIComponent(svg)}")`;
-}
-
-export function buildMediaMaskStyle(mask?: Partial<MediaMask>): {
+export function buildMediaMaskStyle(
+	maskOrMasks?: Partial<MediaMask> | MediaMask[]
+): {
 	maskImage?: string;
 	WebkitMaskImage?: string;
 	maskSize?: string;
 	WebkitMaskSize?: string;
+	maskRepeat?: string;
+	WebkitMaskRepeat?: string;
 } {
-	const values = { ...DEFAULT_MEDIA_MASK, ...mask };
-	if (values.type === "none") return {};
-	const visible = values.invert ? "black" : "white";
-	const hidden = values.invert ? "white" : "black";
-	const blur = Math.max(0, values.feather) * 50;
-	const filter = blur > 0 ? ' filter="url(%23blur)"' : "";
-	let shape: string;
-	if (values.type === "rectangle") {
-		shape = `<rect x="${(values.centerX - values.width / 2) * 100}" y="${(values.centerY - values.height / 2) * 100}" width="${values.width * 100}" height="${values.height * 100}" fill="${visible}" transform="rotate(${values.rotation} ${values.centerX * 100} ${values.centerY * 100})"${filter}/>`;
-	} else if (values.type === "ellipse") {
-		shape = `<ellipse cx="${values.centerX * 100}" cy="${values.centerY * 100}" rx="${values.width * 50}" ry="${values.height * 50}" fill="${visible}" transform="rotate(${values.rotation} ${values.centerX * 100} ${values.centerY * 100})"${filter}/>`;
-	} else {
-		const spread = Math.min(49, Math.max(0.1, values.feather * 100));
-		const first = values.invert ? "white" : "black";
-		const second = values.invert ? "black" : "white";
-		shape = `<rect width="100" height="100" transform="rotate(${values.rotation} 50 50)" fill="url(%23gradient)"/><defs><linearGradient id="gradient"><stop offset="${50 - spread}%" stop-color="${first}"/><stop offset="${50 + spread}%" stop-color="${second}"/></linearGradient></defs>`;
-	}
-	const svg = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100"><defs><filter id="blur"><feGaussianBlur stdDeviation="${blur}"/></filter></defs><rect width="100" height="100" fill="${hidden}"/>${shape}</svg>`;
-	const image = svgDataUrl(svg);
+	const masks = Array.isArray(maskOrMasks)
+		? maskOrMasks
+		: maskOrMasks?.type && maskOrMasks.type !== "none"
+			? [{ ...DEFAULT_MEDIA_MASK, ...maskOrMasks }]
+			: [];
+	const image = mediaMaskSvgDataUrl(masks as MediaMask[]);
+	if (!image) return {};
 	return {
 		maskImage: image,
 		WebkitMaskImage: image,
 		maskSize: "100% 100%",
 		WebkitMaskSize: "100% 100%",
+		maskRepeat: "no-repeat",
+		WebkitMaskRepeat: "no-repeat",
 	};
 }
 

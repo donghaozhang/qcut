@@ -17,6 +17,11 @@ import {
 } from "@/lib/debug/error-handler";
 import { clampMarkdownDuration } from "@/lib/markdown";
 import { TIMELINE_CONSTANTS } from "@/constants/timeline-constants";
+import {
+	DEFAULT_MEDIA_MASK,
+	normalizeMediaMask,
+	resolveMediaMasks,
+} from "@/lib/video/video-properties";
 import type { TimelineStore } from "./index";
 import { createTrack } from "./index";
 import type { StoreGet, StoreSet } from "./timeline-store-operations";
@@ -557,11 +562,33 @@ export function createCrudOperations(
 					t.id === trackId
 						? {
 								...t,
-								elements: t.elements.map((el) =>
-									el.id === elementId && el.type === "media"
-										? { ...el, ...updates }
-										: el
-								),
+								elements: t.elements.map((el) => {
+									if (el.id !== elementId || el.type !== "media") return el;
+									if (updates.masks !== undefined) {
+										const masks = updates.masks
+											.filter((mask) => mask.type !== "none")
+											.map((mask, index) => normalizeMediaMask(mask, index));
+										return {
+											...el,
+											...updates,
+											masks,
+											mask: masks[0] ?? normalizeMediaMask(DEFAULT_MEDIA_MASK),
+										};
+									}
+									if (updates.mask) {
+										const existing = resolveMediaMasks(el);
+										const first = normalizeMediaMask(
+											{ ...existing[0], ...updates.mask },
+											0
+										);
+										const masks =
+											first.type === "none"
+												? []
+												: [first, ...existing.slice(1)];
+										return { ...el, ...updates, mask: first, masks };
+									}
+									return { ...el, ...updates };
+								}),
 							}
 						: t
 				)

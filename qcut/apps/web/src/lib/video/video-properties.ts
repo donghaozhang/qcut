@@ -3,6 +3,7 @@ import type {
 	MediaAdjustments,
 	MediaElement,
 	MediaMask,
+	MediaMaskKeyframeProperty,
 	MediaChromaKey,
 	MediaEnhancements,
 	MediaKeyframeProperty,
@@ -44,14 +45,31 @@ export const DEFAULT_MEDIA_ADJUSTMENTS: MediaAdjustments = {
 };
 
 export const DEFAULT_MEDIA_MASK: MediaMask = {
+	id: "mask-1",
+	name: "Mask 1",
+	enabled: true,
 	type: "none",
+	blendMode: "add",
 	centerX: 0.5,
 	centerY: 0.5,
 	width: 0.8,
 	height: 0.8,
 	rotation: 0,
 	feather: 0,
+	roundness: 0,
+	expansion: 0,
+	opacity: 1,
+	maintainAspectRatio: false,
 	invert: false,
+	stroke: {
+		style: "none",
+		color: "#ffffff",
+		width: 0,
+		opacity: 1,
+		glow: 0,
+		offsetX: 0,
+		offsetY: 0,
+	},
 };
 
 export const DEFAULT_MEDIA_CHROMA_KEY: MediaChromaKey = {
@@ -92,6 +110,7 @@ export interface ResolvedMediaVisualProperties {
 	comboAnimationIntensity: number;
 	adjustments: MediaAdjustments;
 	mask: MediaMask;
+	masks: MediaMask[];
 	chromaKey: MediaChromaKey;
 	enhancements: MediaEnhancements;
 }
@@ -120,6 +139,21 @@ export const MEDIA_KEYFRAME_PROPERTIES: Array<{
 	{ value: "bottomLeftY", label: "Bottom-left Y" },
 ];
 
+export const MEDIA_MASK_KEYFRAME_PROPERTIES: Array<{
+	value: MediaMaskKeyframeProperty;
+	label: string;
+}> = [
+	{ value: "centerX", label: "Mask X position" },
+	{ value: "centerY", label: "Mask Y position" },
+	{ value: "width", label: "Mask width" },
+	{ value: "height", label: "Mask height" },
+	{ value: "rotation", label: "Mask rotation" },
+	{ value: "feather", label: "Mask feather" },
+	{ value: "roundness", label: "Mask roundness" },
+	{ value: "expansion", label: "Mask expansion" },
+	{ value: "opacity", label: "Mask opacity" },
+];
+
 const CROP_KEY_MAP = {
 	cropTop: "top",
 	cropRight: "right",
@@ -129,6 +163,113 @@ const CROP_KEY_MAP = {
 
 function finiteOr(value: number | undefined, fallback: number): number {
 	return typeof value === "number" && Number.isFinite(value) ? value : fallback;
+}
+
+export function normalizeMediaMask(
+	mask: Partial<MediaMask>,
+	index = 0
+): MediaMask {
+	const fallbackName = `Mask ${index + 1}`;
+	return {
+		...DEFAULT_MEDIA_MASK,
+		...mask,
+		id: mask.id?.trim() || `mask-${index + 1}`,
+		name: mask.name?.trim() || fallbackName,
+		enabled: mask.enabled ?? true,
+		blendMode: mask.blendMode ?? "add",
+		centerX: finiteOr(mask.centerX, DEFAULT_MEDIA_MASK.centerX),
+		centerY: finiteOr(mask.centerY, DEFAULT_MEDIA_MASK.centerY),
+		width: Math.max(0.001, finiteOr(mask.width, DEFAULT_MEDIA_MASK.width)),
+		height: Math.max(0.001, finiteOr(mask.height, DEFAULT_MEDIA_MASK.height)),
+		rotation: finiteOr(mask.rotation, DEFAULT_MEDIA_MASK.rotation),
+		feather: Math.max(0, finiteOr(mask.feather, DEFAULT_MEDIA_MASK.feather)),
+		roundness: Math.min(
+			1,
+			Math.max(0, finiteOr(mask.roundness, DEFAULT_MEDIA_MASK.roundness ?? 0))
+		),
+		expansion: Math.min(
+			1,
+			Math.max(-1, finiteOr(mask.expansion, DEFAULT_MEDIA_MASK.expansion ?? 0))
+		),
+		opacity: Math.min(
+			1,
+			Math.max(0, finiteOr(mask.opacity, DEFAULT_MEDIA_MASK.opacity ?? 1))
+		),
+		maintainAspectRatio: mask.maintainAspectRatio ?? false,
+		invert: mask.invert ?? false,
+		points: mask.points?.map((point) => ({
+			...point,
+			handleIn: point.handleIn ? { ...point.handleIn } : undefined,
+			handleOut: point.handleOut ? { ...point.handleOut } : undefined,
+		})),
+		keyframes: mask.keyframes
+			? Object.fromEntries(
+					Object.entries(mask.keyframes).map(([property, keyframes]) => [
+						property,
+						keyframes?.map((keyframe) => ({ ...keyframe })),
+					])
+				)
+			: undefined,
+		tracking: mask.tracking ? { ...mask.tracking } : undefined,
+		stroke: {
+			...DEFAULT_MEDIA_MASK.stroke!,
+			...mask.stroke,
+		},
+	};
+}
+
+export function resolveMediaMasks(element: MediaElement): MediaMask[] {
+	const source = element.masks?.length
+		? element.masks
+		: element.mask && element.mask.type !== "none"
+			? [element.mask]
+			: [];
+	return source
+		.filter((mask) => mask.type !== "none")
+		.map((mask, index) => normalizeMediaMask(mask, index));
+}
+
+export function resolveMediaMaskKeyframes({
+	mask,
+	currentTime,
+	elementStartTime,
+	fps,
+}: {
+	mask: MediaMask;
+	currentTime: number;
+	elementStartTime: number;
+	fps: number;
+}): MediaMask {
+	const resolved = normalizeMediaMask(mask);
+	const localFrame = Math.max(
+		0,
+		Math.round((currentTime - elementStartTime) * fps)
+	);
+	for (const { value: property } of MEDIA_MASK_KEYFRAME_PROPERTIES) {
+		const keyframes = mask.keyframes?.[property];
+		if (!keyframes?.length) continue;
+		resolved[property] = interpolateNumber(keyframes as Keyframe[], localFrame);
+	}
+	return resolved;
+}
+
+export function resolveMediaMasksAtTime({
+	element,
+	currentTime,
+	fps,
+}: {
+	element: MediaElement;
+	currentTime: number;
+	fps: number;
+}): MediaMask[] {
+	return resolveMediaMasks(element).map((mask) =>
+		resolveMediaMaskKeyframes({
+			mask,
+			currentTime,
+			elementStartTime: element.startTime,
+			fps,
+		})
+	);
 }
 
 export function clampMediaCrop(crop?: Partial<MediaCrop>): MediaCrop {
@@ -169,6 +310,7 @@ export function clampMediaPerspective(
 export function resolveMediaVisualProperties(
 	element: MediaElement
 ): ResolvedMediaVisualProperties {
+	const masks = resolveMediaMasks(element);
 	return {
 		x: finiteOr(element.x, 0),
 		y: finiteOr(element.y, 0),
@@ -202,7 +344,10 @@ export function resolveMediaVisualProperties(
 			...DEFAULT_MEDIA_ADJUSTMENTS,
 			...element.adjustments,
 		},
-		mask: { ...DEFAULT_MEDIA_MASK, ...element.mask },
+		mask:
+			masks[0] ??
+			normalizeMediaMask({ ...DEFAULT_MEDIA_MASK, ...element.mask }),
+		masks,
 		chromaKey: { ...DEFAULT_MEDIA_CHROMA_KEY, ...element.chromaKey },
 		enhancements: {
 			...DEFAULT_MEDIA_ENHANCEMENTS,
@@ -257,7 +402,10 @@ export function resolveMediaKeyframes({
 	fps: number;
 }): ResolvedMediaVisualProperties {
 	const resolved = resolveMediaVisualProperties(element);
-	if (!element.keyframes) return resolved;
+	const masks = resolveMediaMasksAtTime({ element, currentTime, fps });
+	if (!element.keyframes) {
+		return { ...resolved, masks, mask: masks[0] ?? resolved.mask };
+	}
 
 	const crop = { ...resolved.crop };
 	const perspective = { ...resolved.perspective };
@@ -294,6 +442,8 @@ export function resolveMediaKeyframes({
 		scaleY: Math.max(0.01, numeric.scaleY),
 		crop: clampMediaCrop(crop),
 		perspective: clampMediaPerspective(perspective),
+		masks,
+		mask: masks[0] ?? resolved.mask,
 	};
 }
 
@@ -333,7 +483,7 @@ export function hasMediaVisualEdits(element: MediaElement): boolean {
 		visual.animationOutType !== "none" ||
 		visual.comboAnimationType !== "none" ||
 		Object.values(visual.adjustments).some((value) => value !== 0) ||
-		visual.mask.type !== "none" ||
+		visual.masks.length > 0 ||
 		visual.chromaKey.enabled ||
 		Object.entries(visual.enhancements).some(([key, value]) =>
 			key === "upscale" ? value !== 1 : value !== 0

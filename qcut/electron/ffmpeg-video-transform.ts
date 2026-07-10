@@ -1,4 +1,4 @@
-import type { VideoSource, VideoVisual } from "./ffmpeg/types";
+import type { VideoMask, VideoSource, VideoVisual } from "./ffmpeg/types";
 
 const DEFAULT_ADJUSTMENTS: NonNullable<VideoVisual["adjustments"]> = {
 	brightness: 0,
@@ -12,13 +12,21 @@ const DEFAULT_ADJUSTMENTS: NonNullable<VideoVisual["adjustments"]> = {
 };
 
 const DEFAULT_MASK: NonNullable<VideoVisual["mask"]> = {
+	id: "mask-1",
+	name: "Mask 1",
+	enabled: true,
 	type: "none",
+	blendMode: "add",
 	centerX: 0.5,
 	centerY: 0.5,
 	width: 0.8,
 	height: 0.8,
 	rotation: 0,
 	feather: 0,
+	roundness: 0,
+	expansion: 0,
+	opacity: 1,
+	maintainAspectRatio: false,
 	invert: false,
 };
 
@@ -68,6 +76,7 @@ const DEFAULT_VISUAL: VideoVisual = {
 	comboAnimationIntensity: 0.5,
 	adjustments: DEFAULT_ADJUSTMENTS,
 	mask: DEFAULT_MASK,
+	masks: [],
 	chromaKey: DEFAULT_CHROMA_KEY,
 	enhancements: DEFAULT_ENHANCEMENTS,
 	keyframeFps: 30,
@@ -143,6 +152,10 @@ function resolveVisual(source: VideoSource): VideoVisual {
 			...source.visual?.adjustments,
 		},
 		mask: { ...DEFAULT_MASK, ...source.visual?.mask },
+		masks: source.visual?.masks?.map((mask) => ({
+			...DEFAULT_MASK,
+			...mask,
+		})),
 		chromaKey: { ...DEFAULT_CHROMA_KEY, ...source.visual?.chromaKey },
 		enhancements: {
 			...DEFAULT_ENHANCEMENTS,
@@ -332,34 +345,148 @@ function buildEnhancementFilter(
 	return filters.join(",");
 }
 
-function buildMaskExpression(visual: VideoVisual): string {
-	const mask = { ...DEFAULT_MASK, ...visual.mask };
-	if (mask.type === "none") return "1";
-	const angle = (-mask.rotation * Math.PI) / 180;
-	const x = `((X/W-${mask.centerX})*${Math.cos(angle)}-(Y/H-${mask.centerY})*${Math.sin(angle)})`;
-	const y = `((X/W-${mask.centerX})*${Math.sin(angle)}+(Y/H-${mask.centerY})*${Math.cos(angle)})`;
-	const feather = Math.max(0, mask.feather);
-	let expression: string;
-	if (mask.type === "rectangle") {
-		const distance = `max(abs(${x})-${mask.width / 2},abs(${y})-${mask.height / 2})`;
-		expression =
-			feather > 0
-				? `max(0,min(1,-(${distance})/${feather}))`
-				: `lte(${distance},0)`;
-	} else if (mask.type === "ellipse") {
-		const distance = `sqrt(pow(${x}/${Math.max(0.001, mask.width / 2)},2)+pow(${y}/${Math.max(0.001, mask.height / 2)},2))`;
-		expression =
-			feather > 0
-				? `max(0,min(1,(1-(${distance}))/${feather}))`
-				: `lte(${distance},1)`;
-	} else {
-		const projection = `(${x})`;
-		expression =
-			feather > 0
-				? `max(0,min(1,0.5+(${projection})/${feather}))`
-				: `gte(${projection},0)`;
+function buildMaskKeyframeExpression({
+	mask,
+	property,
+	fallback,
+	fps,
+}: {
+	mask: VideoMask;
+	property: string;
+	fallback: number;
+	fps: number;
+}): string {
+	const keyframes = [...(mask.keyframes?.[property] ?? [])].sort(
+		(a, b) => a.frame - b.frame
+	);
+	if (keyframes.length === 0) return String(fallback);
+	if (keyframes.length === 1) return String(keyframes[0].value);
+	const time = `(N/${Math.max(1, fps)})`;
+	const timeAt = (frame: number) => frame / Math.max(1, fps);
+	let expression = String(keyframes[keyframes.length - 1].value);
+	for (let index = keyframes.length - 2; index >= 0; index -= 1) {
+		const from = keyframes[index];
+		const to = keyframes[index + 1];
+		const start = timeAt(from.frame);
+		const end = timeAt(to.frame);
+		const progress = `(${time}-${start})/${Math.max(0.001, end - start)}`;
+		const eased = easingExpression(progress, to.easing);
+		const value = `(${from.value})+((${to.value})-(${from.value}))*(${eased})`;
+		expression = `if(lt(${time},${end}),${value},${expression})`;
 	}
-	return mask.invert ? `1-(${expression})` : expression;
+	return `if(lt(${time},${timeAt(keyframes[0].frame)}),${keyframes[0].value},${expression})`;
+}
+
+function polygonMaskExpression({
+	points,
+	x,
+	y,
+}: {
+	points: Array<{ x: number; y: number }>;
+	x: string;
+	y: string;
+}): string {
+	if (points.length < 3) return "0";
+	const crossings = points.map((point, index) => {
+		const next = points[(index + 1) % points.length];
+		const crossesY = `neq(gt(${point.y},${y}),gt(${next.y},${y}))`;
+		const edgeX = `${point.x}+(${next.x}-${point.x})*(${y}-${point.y})/((${next.y}-${point.y})+0.000001)`;
+		return `((${crossesY})*lt(${x},${edgeX}))`;
+	});
+	return `mod(${crossings.join("+")},2)`;
+}
+
+function starMaskExpression(x: string, y: string): string {
+	const points = Array.from({ length: 10 }, (_, index) => {
+		const angle = -Math.PI / 2 + (index * Math.PI) / 5;
+		const radius = index % 2 === 0 ? 0.5 : 0.22;
+		return {
+			x: 0.5 + Math.cos(angle) * radius,
+			y: 0.5 + Math.sin(angle) * radius,
+		};
+	});
+	return polygonMaskExpression({ points, x, y });
+}
+
+function buildSingleMaskExpression(input: VideoMask, fps: number): string {
+	const mask = { ...DEFAULT_MASK, ...input };
+	const value = (property: string, fallback: number) =>
+		buildMaskKeyframeExpression({ mask, property, fallback, fps });
+	const centerX = value("centerX", mask.centerX);
+	const centerY = value("centerY", mask.centerY);
+	const width = `max(0.001,(${value("width", mask.width)})+2*(${value("expansion", mask.expansion ?? 0)}))`;
+	const height = `max(0.001,(${value("height", mask.height)})+2*(${value("expansion", mask.expansion ?? 0)}))`;
+	const rotation = value("rotation", mask.rotation);
+	const angle = `(-(${rotation})*PI/180)`;
+	const x = `((X/W-(${centerX}))*cos(${angle})-(Y/H-(${centerY}))*sin(${angle}))`;
+	const y = `((X/W-(${centerX}))*sin(${angle})+(Y/H-(${centerY}))*cos(${angle}))`;
+	const feather = `max(0,${value("feather", mask.feather)})`;
+	let expression: string;
+	if (mask.type === "rectangle" || mask.type === "text") {
+		const radius = `min(${width},${height})*${value("roundness", mask.roundness ?? 0)}*0.5`;
+		const qx = `abs(${x})-(${width})/2+(${radius})`;
+		const qy = `abs(${y})-(${height})/2+(${radius})`;
+		const distance = `min(max(${qx},${qy}),0)+sqrt(pow(max(${qx},0),2)+pow(max(${qy},0),2))-(${radius})`;
+		expression = `if(gt(${feather},0),max(0,min(1,-(${distance})/max(0.000001,${feather}))),lte(${distance},0))`;
+	} else if (mask.type === "ellipse") {
+		const distance = `sqrt(pow(${x}/((${width})/2),2)+pow(${y}/((${height})/2),2))-1`;
+		expression = `if(gt(${feather},0),max(0,min(1,-(${distance})/max(0.000001,${feather}))),lte(${distance},0))`;
+	} else if (mask.type === "linear") {
+		expression = `if(gt(${feather},0),max(0,min(1,0.5+(${x})/max(0.000001,${feather}))),gte(${x},0))`;
+	} else if (mask.type === "mirror") {
+		const distance = `abs(${x})-(${width})/2`;
+		expression = `if(gt(${feather},0),max(0,min(1,-(${distance})/max(0.000001,${feather}))),lte(${distance},0))`;
+	} else if (mask.type === "star") {
+		const localX = `(${x})/(${width})+0.5`;
+		const localY = `(${y})/(${height})+0.5`;
+		expression = starMaskExpression(localX, localY);
+	} else if (mask.type === "heart") {
+		const localX = `((${x})/((${width})/2))`;
+		const localY = `(-(${y})/((${height})/2))`;
+		const heart = `pow(pow(${localX},2)+pow(${localY},2)-1,3)-pow(${localX},2)*pow(${localY},3)`;
+		expression = `lte(${heart},0)`;
+	} else if (mask.type === "pen") {
+		const localX = `(${x})/(${width})+0.5`;
+		const localY = `(${y})/(${height})+0.5`;
+		expression = polygonMaskExpression({
+			points: mask.points ?? [],
+			x: localX,
+			y: localY,
+		});
+	} else if (mask.type === "person" || mask.type === "object") {
+		expression = "0";
+	} else {
+		expression = "1";
+	}
+	if (mask.invert) expression = `1-(${expression})`;
+	return `(${expression})*(${value("opacity", mask.opacity ?? 1)})`;
+}
+
+export function buildVideoMaskExpression(visual: VideoVisual): string {
+	const masks = (
+		visual.masks?.length
+			? visual.masks
+			: visual.mask && visual.mask.type !== "none"
+				? [visual.mask]
+				: []
+	).filter((mask) => mask.enabled !== false && mask.type !== "none");
+	if (masks.length === 0) return "1";
+	let expression = buildSingleMaskExpression(
+		masks[0],
+		visual.keyframeFps || 30
+	);
+	for (let index = 1; index < masks.length; index += 1) {
+		const mask = masks[index];
+		const next = buildSingleMaskExpression(mask, visual.keyframeFps || 30);
+		if (mask.blendMode === "subtract") {
+			expression = `(${expression})*(1-(${next}))`;
+		} else if (mask.blendMode === "intersect") {
+			expression = `(${expression})*(${next})`;
+		} else {
+			expression = `max(${expression},${next})`;
+		}
+	}
+	return expression;
 }
 
 interface AnimationExpressions {
@@ -560,7 +687,7 @@ function buildSegmentFilters({
 		property: "cropBottom",
 		fallback: crop.bottom,
 	});
-	const mask = buildMaskExpression(visual);
+	const mask = buildVideoMaskExpression(visual);
 	const cropped = `video_${segmentIndex}_cropped`;
 	steps.push(
 		`[${current}]geq=` +
