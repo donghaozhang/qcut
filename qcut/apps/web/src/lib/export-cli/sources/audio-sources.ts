@@ -30,6 +30,8 @@ interface TimelineAudioCandidate {
 	mediaItem: MediaItem;
 	startTime: number;
 	volume: number;
+	trimStart: number;
+	duration: number;
 }
 
 function guessExtension(mediaItem: MediaItem): string {
@@ -49,15 +51,19 @@ function guessExtension(mediaItem: MediaItem): string {
 
 function collectAudioCandidates(
 	tracks: TimelineTrack[],
-	mediaItems: MediaItem[]
+	mediaItems: MediaItem[],
+	includeEmbeddedVideoAudio: boolean
 ): TimelineAudioCandidate[] {
 	const mediaMap = new Map(mediaItems.map((item) => [item.id, item]));
 	const candidates: TimelineAudioCandidate[] = [];
 
 	for (const track of tracks) {
-		// Only timeline audio-track elements are overlay inputs.
-		// Media-track video audio stays in the base video stream via normal mode mappings.
-		if (track.type !== "audio") {
+		// Video-track audio stays in the base video stream during normal video
+		// exports, but standalone audio export needs to collect it explicitly.
+		if (
+			track.type !== "audio" &&
+			!(includeEmbeddedVideoAudio && track.type === "media")
+		) {
 			continue;
 		}
 
@@ -85,6 +91,8 @@ function collectAudioCandidates(
 				mediaItem,
 				startTime: element.startTime,
 				volume: element.volume ?? 1.0,
+				trimStart: element.trimStart,
+				duration: element.duration,
 			});
 		}
 	}
@@ -185,10 +193,15 @@ export async function extractAudioFileInputs(
 	mediaItems: MediaItem[],
 	sessionId: string | null,
 	api: AudioSourceAPI,
-	logger: LogFn = console.log
+	logger: LogFn = console.log,
+	options: { includeEmbeddedVideoAudio?: boolean } = {}
 ): Promise<AudioFileInput[]> {
 	try {
-		const candidates = collectAudioCandidates(tracks, mediaItems);
+		const candidates = collectAudioCandidates(
+			tracks,
+			mediaItems,
+			options.includeEmbeddedVideoAudio === true
+		);
 		logger(
 			`[AudioSources] Collected ${candidates.length} audio candidate(s) from timeline`
 		);
@@ -212,6 +225,8 @@ export async function extractAudioFileInputs(
 						path,
 						startTime: candidate.startTime,
 						volume: candidate.volume,
+						trimStart: candidate.trimStart,
+						duration: candidate.duration,
 					} as AudioFileInput;
 				} catch (error) {
 					logger(

@@ -25,6 +25,8 @@ export interface AudioFileInput {
 	path: string;
 	startTime: number;
 	volume: number;
+	trimStart?: number;
+	duration?: number;
 }
 
 /**

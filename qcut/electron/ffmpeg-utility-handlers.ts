@@ -17,9 +17,13 @@ import type {
 	FrameProcessOptions,
 	ExtractAudioOptions,
 	ExtractAudioResult,
+	AudioExportOptions,
+	AudioExportResult,
+	GifConversionOptions,
 } from "./ffmpeg/types";
 
 import { getFFmpegPath } from "./ffmpeg/utils";
+import { convertToGif } from "./claude/handlers/claude-export-handler/gif-convert.js";
 
 /**
  * Registers utility FFmpeg IPC handlers.
@@ -28,6 +32,126 @@ import { getFFmpegPath } from "./ffmpeg/utils";
  * save-sticker-for-export
  */
 export function setupUtilityHandlers(tempManager: TempManager): void {
+	ipcMain.handle(
+		"export-audio-cli",
+		async (
+			_event: IpcMainInvokeEvent,
+			options: AudioExportOptions
+		): Promise<AudioExportResult> => {
+			const supportedBitrates = new Set([128, 192, 256, 320]);
+			const supportedSampleRates = new Set([44_100, 48_000]);
+			if (!supportedBitrates.has(options.bitrate)) {
+				throw new Error("Audio bitrate must be 128, 192, 256, or 320 kbps");
+			}
+			if (!supportedSampleRates.has(options.sampleRate)) {
+				throw new Error("Audio sample rate must be 44100 or 48000 Hz");
+			}
+			if (!Number.isFinite(options.duration) || options.duration <= 0) {
+				throw new Error("Audio export duration must be greater than zero");
+			}
+			if (
+				!Array.isArray(options.audioFiles) ||
+				options.audioFiles.length === 0
+			) {
+				throw new Error("No audio sources are available for export");
+			}
+
+			for (const audioFile of options.audioFiles) {
+				if (!fs.existsSync(audioFile.path)) {
+					throw new Error(`Audio source not found: ${audioFile.path}`);
+				}
+			}
+
+			await fs.promises.mkdir(path.dirname(options.outputPath), {
+				recursive: true,
+			});
+			const inputArgs = options.audioFiles.flatMap((file) => ["-i", file.path]);
+			const preparedLabels = options.audioFiles.map((file, index) => {
+				const delayMs = Math.max(0, Math.round(file.startTime * 1000));
+				const trimStart = Math.max(0, file.trimStart ?? 0);
+				const sourceDuration = Math.max(
+					0.01,
+					Math.min(file.duration ?? options.duration, options.duration)
+				);
+				const volume = Number.isFinite(file.volume) ? file.volume : 1;
+				return `[${index}:a]atrim=start=${trimStart}:duration=${sourceDuration},asetpts=PTS-STARTPTS,volume=${volume},adelay=${delayMs}:all=1[a${index}]`;
+			});
+			const inputLabels = options.audioFiles
+				.map((_file, index) => `[a${index}]`)
+				.join("");
+			const mixFilter = `${inputLabels}amix=inputs=${options.audioFiles.length}:duration=longest:dropout_transition=0:normalize=0,atrim=duration=${options.duration}[mix]`;
+			const args = [
+				"-y",
+				...inputArgs,
+				"-filter_complex",
+				[...preparedLabels, mixFilter].join(";"),
+				"-map",
+				"[mix]",
+				"-vn",
+				"-c:a",
+				"libmp3lame",
+				"-b:a",
+				`${options.bitrate}k`,
+				"-ar",
+				String(options.sampleRate),
+				"-ac",
+				String(options.channels ?? 2),
+				options.outputPath,
+			];
+
+			await new Promise<void>((resolve, reject) => {
+				const ffmpeg = spawn(getFFmpegPath(), args, {
+					windowsHide: true,
+					stdio: ["ignore", "pipe", "pipe"],
+				});
+				let stderr = "";
+				ffmpeg.stderr?.on("data", (data) => {
+					stderr += data.toString();
+				});
+				ffmpeg.on("error", reject);
+				ffmpeg.on("close", (code) => {
+					if (code === 0) resolve();
+					else
+						reject(
+							new Error(
+								`FFmpeg audio export failed (${code}): ${stderr.slice(-800)}`
+							)
+						);
+				});
+			});
+
+			const stats = await fs.promises.stat(options.outputPath);
+			return { outputPath: options.outputPath, fileSize: stats.size };
+		}
+	);
+
+	ipcMain.handle(
+		"convert-video-to-gif",
+		async (
+			_event: IpcMainInvokeEvent,
+			options: GifConversionOptions
+		): Promise<{ outputPath: string; fileSize: number }> => {
+			const outputDir = tempManager.getOutputDir(options.sessionId);
+			const resolvedInput = path.resolve(options.inputPath);
+			if (!resolvedInput.startsWith(path.resolve(outputDir))) {
+				throw new Error("GIF input must be inside the active export session");
+			}
+			const outputPath = path.join(outputDir, "output.gif");
+			await convertToGif({
+				inputPath: resolvedInput,
+				outputPath,
+				width: options.width,
+				height: options.height,
+				fps: options.fps,
+				loop: options.loop,
+				quality: options.quality,
+				tempDir: outputDir,
+			});
+			const stats = await fs.promises.stat(outputPath);
+			return { outputPath, fileSize: stats.size };
+		}
+	);
+
 	// Validate filter chain
 	ipcMain.handle(
 		"validate-filter-chain",

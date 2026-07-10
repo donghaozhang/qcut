@@ -60,7 +60,7 @@ export class ExportEngine {
 	protected tracks: TimelineTrack[];
 	protected mediaItems: MediaItem[];
 	protected totalDuration: number;
-	protected fps = 30; // Fixed framerate for now
+	protected fps: number;
 
 	// MediaRecorder properties
 	private mediaRecorder: MediaRecorder | null = null;
@@ -90,6 +90,7 @@ export class ExportEngine {
 		this.tracks = tracks;
 		this.mediaItems = mediaItems;
 		this.totalDuration = totalDuration;
+		this.fps = settings.frameRate ?? 30;
 
 		// Check if we should use FFmpeg WASM export
 		this.useFFmpegExport = isFFmpegExportEnabled();

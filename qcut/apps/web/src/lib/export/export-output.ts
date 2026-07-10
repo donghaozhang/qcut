@@ -6,11 +6,30 @@
  * - Web fallback: Browser download via <a> element
  */
 
+import { platform } from "@qcut/platform-core";
+
 /** Result of a save operation */
 export interface SaveResult {
 	success: boolean;
 	filePath?: string;
 	error?: string;
+}
+
+/** Replace the final filename extension while preserving its directory. */
+export function replaceFileExtension(
+	filePath: string,
+	extension: string
+): string {
+	const normalizedExtension = extension.startsWith(".")
+		? extension
+		: `.${extension}`;
+	const separatorIndex = Math.max(
+		filePath.lastIndexOf("/"),
+		filePath.lastIndexOf("\\")
+	);
+	const dotIndex = filePath.lastIndexOf(".");
+	const extensionIndex = dotIndex > separatorIndex ? dotIndex : filePath.length;
+	return `${filePath.slice(0, extensionIndex)}${normalizedExtension}`;
 }
 
 /**
@@ -21,8 +40,26 @@ export interface SaveResult {
  */
 export async function saveExportedVideo(
 	blob: Blob,
-	filename: string
+	filename: string,
+	outputPath?: string
 ): Promise<SaveResult> {
+	if (outputPath) {
+		try {
+			const saved = await platform().files.writeFile(
+				outputPath,
+				await blob.arrayBuffer()
+			);
+			return saved
+				? { success: true, filePath: outputPath }
+				: { success: false, error: "Could not write the exported video" };
+		} catch (err) {
+			return {
+				success: false,
+				error: err instanceof Error ? err.message : String(err),
+			};
+		}
+	}
+
 	// On iPad, navigator.share is the most memory-efficient way (avoids base64 conversion)
 	const file = new File([blob], filename, { type: blob.type });
 	if (
@@ -44,6 +81,15 @@ export async function saveExportedVideo(
 
 	// Browser fallback: download via <a> tag
 	return saveViaBrowserDownload(blob, filename);
+}
+
+/** Save any generated export or sidecar file through the platform output path. */
+export async function saveExportedFile(
+	blob: Blob,
+	filename: string,
+	outputPath?: string
+): Promise<SaveResult> {
+	return saveExportedVideo(blob, filename, outputPath);
 }
 
 /**

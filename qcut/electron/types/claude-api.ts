@@ -193,6 +193,13 @@ export interface ExportJobRequest {
 		systemAudio?: boolean;
 	};
 
+	/** Standalone MP3 export settings */
+	audioExportConfig?: {
+		bitrate?: number;
+		sampleRate?: number;
+		channels?: 1 | 2;
+	};
+
 	/** Zoom enhancement options */
 	zoomConfig?: {
 		/** Zoom motion blur intensity (0–1, default 0) */

@@ -90,6 +90,7 @@ export interface BuildExportOptionsParams {
 	canvasHeight: number;
 	quality: string;
 	totalDuration: number;
+	fps: number;
 	audioFiles: AudioFileInput[];
 	combinedFilterChain: string;
 	textFilterChain: string;
@@ -113,6 +114,7 @@ export function buildExportOptions(params: BuildExportOptionsParams) {
 		canvasHeight,
 		quality,
 		totalDuration,
+		fps,
 		audioFiles,
 		combinedFilterChain,
 		textFilterChain,
@@ -134,7 +136,7 @@ export function buildExportOptions(params: BuildExportOptionsParams) {
 		sessionId,
 		width: canvasWidth,
 		height: canvasHeight,
-		fps: 30,
+		fps,
 		quality: quality || "medium",
 		duration: totalDuration,
 		audioFiles,
@@ -146,6 +148,7 @@ export function buildExportOptions(params: BuildExportOptionsParams) {
 		imageSources,
 		useDirectCopy: !!(
 			exportAnalysis?.canUseDirectCopy &&
+			fps === 30 &&
 			exportAnalysis?.optimizationStrategy !== "video-normalization" &&
 			!hasTextFilters &&
 			!hasStickerFilters &&

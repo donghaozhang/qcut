@@ -136,11 +136,12 @@ const getDefaultSettings = (): ExportSettings => {
 	const resolution = QUALITY_RESOLUTIONS[quality];
 
 	return {
-		format: ExportFormat.WEBM,
+		format: ExportFormat.MP4,
 		quality,
 		filename: getDefaultFilename(),
 		width: resolution.width,
 		height: resolution.height,
+		frameRate: 30,
 	};
 };
 

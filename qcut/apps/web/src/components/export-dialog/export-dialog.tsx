@@ -11,13 +11,23 @@ import { Download, X, Square } from "lucide-react";
 import { useElectron } from "@/hooks/useElectron";
 import {
 	extractCaptionSegments,
-	downloadCaptions,
+	saveCaptions,
 	type CaptionFormat,
 } from "@/lib/captions/caption-export";
 
 // Custom hook imports
-import type { ExportFormat, ExportQuality, GifFrameRate } from "@/types/export";
-import { DEFAULT_GIF_CONFIG, isValidGifFrameRate } from "@/types/export";
+import type {
+	ExportFormat,
+	ExportQuality,
+	GifFrameRate,
+	GifSizePreset,
+} from "@/types/export";
+import {
+	DEFAULT_GIF_CONFIG,
+	calculateGifDimensions,
+	isValidGifFrameRate,
+	getExportFilename,
+} from "@/types/export";
 import { useExportSettings } from "@/hooks/export/use-export-settings";
 import { useExportProgress } from "@/hooks/export/use-export-progress";
 import { debugLog, debugWarn } from "@/lib/debug/debug-config";
@@ -30,12 +40,20 @@ import {
 	getCodecForFormat,
 } from "@/lib/export/audio-export-config";
 import { detectAudioSources } from "@/lib/export-cli/sources";
+import {
+	exportTimelineAudio,
+	type AudioExportBitrate,
+	type AudioExportSampleRate,
+} from "@/lib/export/audio-export";
+import { replaceFileExtension } from "@/lib/export/export-output";
 
 // Sub-components
 import {
 	PresetGrid,
 	FilenameCard,
+	DestinationCard,
 	QualityCard,
+	FrameRateCard,
 	EngineCard,
 	FormatCard,
 	DetailsCard,
@@ -56,6 +74,10 @@ export function ExportDialog() {
 
 	// Audio export state (non-breaking addition)
 	const [includeAudio, setIncludeAudio] = useState(true); // Default to true for backward compatibility
+	const [exportAudioSeparately, setExportAudioSeparately] = useState(false);
+	const [audioBitrate, setAudioBitrate] = useState<AudioExportBitrate>(192);
+	const [audioSampleRate, setAudioSampleRate] =
+		useState<AudioExportSampleRate>(44_100);
 
 	// GIF export state
 	const [gifFrameRate, setGifFrameRate] = useState<GifFrameRate>(
@@ -63,6 +85,9 @@ export function ExportDialog() {
 	);
 	const [gifLoop, setGifLoop] = useState(DEFAULT_GIF_CONFIG.loop);
 	const [gifQuality, setGifQuality] = useState(DEFAULT_GIF_CONFIG.quality);
+	const [gifSizePreset, setGifSizePreset] = useState<GifSizePreset>(
+		DEFAULT_GIF_CONFIG.sizePreset
+	);
 
 	// Check if there are caption tracks available
 	const hasCaptions = tracks.some(
@@ -77,14 +102,22 @@ export function ExportDialog() {
 
 	// Custom hooks for export state management
 	const exportSettings = useExportSettings();
+	const effectiveResolution =
+		exportSettings.format === "gif"
+			? calculateGifDimensions(
+					exportSettings.resolution.width,
+					exportSettings.resolution.height,
+					gifSizePreset
+				)
+			: exportSettings.resolution;
 	const exportProgress = useExportProgress();
 	const exportValidation = useExportValidation(
 		{
 			quality: exportSettings.quality,
 			format: exportSettings.format,
 			filename: exportSettings.filename,
-			width: exportSettings.resolution.width,
-			height: exportSettings.resolution.height,
+			width: effectiveResolution.width,
+			height: effectiveResolution.height,
 		},
 		exportSettings.timelineDuration
 	);
@@ -131,9 +164,13 @@ export function ExportDialog() {
 					{
 						quality: settings.quality as ExportQuality,
 						format: settings.format as ExportFormat,
-						filename: settings.filename,
+						filename: getExportFilename({
+							filename: settings.filename,
+							format: settings.format as ExportFormat,
+						}),
 						engineType: "auto",
 						resolution,
+						frameRate: 30,
 						includeAudio: hasAudio,
 						audioCodec,
 						audioBitrate: 128,
@@ -182,12 +219,22 @@ export function ExportDialog() {
 		}
 
 		canvasRef.current?.updateDimensions();
+		let outputPath = exportSettings.outputPath;
+		if (isElectron() && !outputPath) {
+			outputPath = (await exportSettings.chooseOutputPath()) ?? "";
+			if (!outputPath) return;
+		}
+
+		const exportFilename = getExportFilename({
+			filename: exportSettings.filename,
+			format: exportSettings.format,
+		});
 
 		debugLog("[ExportPanel] starting export", {
 			engineType: exportSettings.engineType,
 			quality: exportSettings.quality,
 			format: exportSettings.format,
-			resolution: exportSettings.resolution,
+			resolution: effectiveResolution,
 		});
 
 		// Export captions separately if enabled
@@ -195,20 +242,58 @@ export function ExportDialog() {
 			try {
 				const captionSegments = extractCaptionSegments(tracks);
 				if (captionSegments.length > 0) {
-					downloadCaptions(
+					const captionOutputPath = outputPath
+						? replaceFileExtension(outputPath, captionFormat)
+						: undefined;
+					const result = await saveCaptions(
 						captionSegments,
 						captionFormat,
 						exportSettings.filename,
-						{ format: captionFormat }
+						{ format: captionFormat },
+						captionOutputPath
 					);
+					if (!result.success) {
+						throw new Error(result.error || "Caption export failed");
+					}
 					debugLog("[ExportPanel] Caption export successful", {
 						segmentCount: captionSegments.length,
 						format: captionFormat,
+						filePath: result.filePath,
 					});
 				}
 			} catch (captionError) {
 				debugWarn("[ExportPanel] Caption export failed", captionError);
-				// Don't block video export if caption export fails
+				useExportStore
+					.getState()
+					.setError(
+						captionError instanceof Error
+							? captionError.message
+							: String(captionError)
+					);
+				return;
+			}
+		}
+
+		if (exportAudioSeparately && hasAudio && outputPath) {
+			try {
+				await exportTimelineAudio({
+					tracks,
+					mediaItems,
+					duration: exportSettings.timelineDuration,
+					outputPath: replaceFileExtension(outputPath, "mp3"),
+					bitrate: audioBitrate,
+					sampleRate: audioSampleRate,
+				});
+			} catch (audioError) {
+				debugWarn("[ExportPanel] Standalone audio export failed", audioError);
+				useExportStore
+					.getState()
+					.setError(
+						audioError instanceof Error
+							? audioError.message
+							: String(audioError)
+					);
+				return;
 			}
 		}
 
@@ -233,9 +318,11 @@ export function ExportDialog() {
 		await exportProgress.handleExport(canvas, exportSettings.timelineDuration, {
 			quality: exportSettings.quality,
 			format: exportSettings.format,
-			filename: exportSettings.filename,
+			filename: exportFilename,
 			engineType: exportSettings.engineType,
-			resolution: exportSettings.resolution,
+			resolution: effectiveResolution,
+			frameRate: exportSettings.frameRate,
+			outputPath: outputPath || undefined,
 			includeAudio: audioEnabled,
 			audioCodec,
 			audioBitrate: 128,
@@ -245,7 +332,7 @@ export function ExportDialog() {
 							frameRate: gifFrameRate,
 							loop: gifLoop,
 							quality: gifQuality,
-							sizePreset: "original" as const,
+							sizePreset: gifSizePreset,
 						}
 					: undefined,
 		});
@@ -384,12 +471,28 @@ export function ExportDialog() {
 					isExporting={isExporting}
 				/>
 
+				{isElectron() && (
+					<DestinationCard
+						outputPath={exportSettings.outputPath}
+						onChooseOutputPath={exportSettings.chooseOutputPath}
+						isExporting={isExporting}
+					/>
+				)}
+
 				<QualityCard
 					quality={exportSettings.quality}
 					estimatedSize={exportSettings.estimatedSize}
 					onQualityChange={exportSettings.handleQualityChange}
 					isExporting={isExporting}
 				/>
+
+				{exportSettings.format !== "gif" && (
+					<FrameRateCard
+						frameRate={exportSettings.frameRate}
+						onFrameRateChange={exportSettings.handleFrameRateChange}
+						isExporting={isExporting}
+					/>
+				)}
 
 				<EngineCard
 					engineType={exportSettings.engineType}
@@ -418,15 +521,21 @@ export function ExportDialog() {
 						onLoopChange={setGifLoop}
 						quality={gifQuality}
 						onQualityChange={setGifQuality}
+						sizePreset={gifSizePreset}
+						onSizePresetChange={setGifSizePreset}
 						isExporting={isExporting}
 					/>
 				)}
 
 				<DetailsCard
-					resolution={exportSettings.resolution}
+					resolution={{
+						...effectiveResolution,
+						label: `${effectiveResolution.width}×${effectiveResolution.height}`,
+					}}
 					estimatedSize={exportSettings.estimatedSize}
 					timelineDuration={exportSettings.timelineDuration}
 					format={exportSettings.format}
+					frameRate={exportSettings.frameRate}
 					engineRecommendation={exportSettings.engineRecommendation}
 				/>
 
@@ -447,6 +556,13 @@ export function ExportDialog() {
 					<AudioExportCard
 						includeAudio={includeAudio}
 						onIncludeAudioChange={setIncludeAudio}
+						exportAudioSeparately={exportAudioSeparately}
+						onExportAudioSeparatelyChange={setExportAudioSeparately}
+						bitrate={audioBitrate}
+						onBitrateChange={setAudioBitrate}
+						sampleRate={audioSampleRate}
+						onSampleRateChange={setAudioSampleRate}
+						standaloneExportAvailable={isElectron()}
 						isExporting={isExporting}
 					/>
 				)}

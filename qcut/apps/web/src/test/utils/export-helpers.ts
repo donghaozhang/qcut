@@ -31,8 +31,6 @@ export function mockExportProgress(
 	});
 }
 
-const DEFAULT_FPS = 30;
-
 export type ExportSettingsSnapshot = {
 	format: ExportFormat;
 	quality: ExportQuality;
@@ -46,6 +44,6 @@ export function getExportSettings(): ExportSettingsSnapshot {
 		format: settings.format ?? ExportFormat.WEBM,
 		quality: settings.quality ?? ExportQuality.HIGH,
 		resolution: `${settings.width ?? 1920}x${settings.height ?? 1080}`,
-		fps: DEFAULT_FPS,
+		fps: settings.frameRate ?? 30,
 	};
 }

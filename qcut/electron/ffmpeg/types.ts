@@ -16,6 +16,37 @@ export interface AudioFile {
 	startTime: number;
 	/** Audio volume level (0.0-1.0, optional) */
 	volume?: number;
+	/** Trim offset within the source audio/video in seconds */
+	trimStart?: number;
+	/** Maximum source duration to include in seconds */
+	duration?: number;
+}
+
+/** Options for rendering the timeline audio mix to a standalone MP3 file. */
+export interface AudioExportOptions {
+	outputPath: string;
+	duration: number;
+	audioFiles: AudioFile[];
+	bitrate: number;
+	sampleRate: number;
+	channels?: 1 | 2;
+}
+
+/** Result of a standalone audio export. */
+export interface AudioExportResult {
+	outputPath: string;
+	fileSize: number;
+}
+
+/** Options for converting a temporary video export to GIF. */
+export interface GifConversionOptions {
+	sessionId: string;
+	inputPath: string;
+	width: number;
+	height: number;
+	fps: number;
+	loop: boolean;
+	quality: number;
 }
 
 /**
@@ -318,4 +349,10 @@ export interface FFmpegHandlers {
 	"extract-audio": (
 		options: ExtractAudioOptions
 	) => Promise<ExtractAudioResult>;
+	"export-audio-cli": (
+		options: AudioExportOptions
+	) => Promise<AudioExportResult>;
+	"convert-video-to-gif": (
+		options: GifConversionOptions
+	) => Promise<{ outputPath: string; fileSize: number }>;
 }

@@ -5,10 +5,14 @@ import {
 	ExportQuality,
 	ExportFormat,
 	QUALITY_RESOLUTIONS,
-	QUALITY_SIZE_ESTIMATES,
+	FORMAT_INFO,
 	getSupportedFormats,
+	getEstimatedExportSize,
+	getExportFilename,
+	type ExportFrameRate,
 } from "@/types/export";
 import { useElectron } from "@/hooks/useElectron";
+import { platform } from "@qcut/platform-core";
 // Export engine factory and types will be imported dynamically when needed
 import { debugLog, debugWarn } from "@/lib/debug/debug-config";
 
@@ -26,6 +30,9 @@ export function useExportSettings() {
 	const [quality, setQuality] = useState<ExportQuality>(settings.quality);
 	const [format, setFormat] = useState<ExportFormat>(settings.format);
 	const [filename, setFilename] = useState(settings.filename);
+	const [frameRate, setFrameRate] = useState<ExportFrameRate>(
+		settings.frameRate ?? 30
+	);
 	const [engineType, setEngineType] = useState<"standard" | "ffmpeg" | "cli">(
 		isElectron() ? "cli" : "standard"
 	);
@@ -34,13 +41,17 @@ export function useExportSettings() {
 		string | null
 	>(null);
 
-	const supportedFormats = getSupportedFormats();
+	const supportedFormats = isElectron()
+		? [ExportFormat.MP4, ExportFormat.GIF]
+		: getSupportedFormats();
 	const resolution =
 		QUALITY_RESOLUTIONS[quality] || QUALITY_RESOLUTIONS[ExportQuality.HIGH];
-	const estimatedSize =
-		QUALITY_SIZE_ESTIMATES[quality] ||
-		QUALITY_SIZE_ESTIMATES[ExportQuality.HIGH];
 	const timelineDuration = getTotalDuration();
+	const estimatedSize = getEstimatedExportSize({
+		quality,
+		durationSeconds: timelineDuration,
+	});
+	const outputPath = settings.outputPath ?? "";
 
 	// Engine recommendation effect with multiple dependencies
 	useEffect(() => {
@@ -134,14 +145,38 @@ export function useExportSettings() {
 	};
 
 	const handleFormatChange = (newFormat: ExportFormat) => {
-		debugLog("Format changing from", format, "to", newFormat);
-		setFormat(newFormat);
-		updateSettings({ format: newFormat });
+		const supportedFormat =
+			isElectron() &&
+			newFormat !== ExportFormat.MP4 &&
+			newFormat !== ExportFormat.GIF
+				? ExportFormat.MP4
+				: newFormat;
+		debugLog("Format changing from", format, "to", supportedFormat);
+		setFormat(supportedFormat);
+		updateSettings({ format: supportedFormat, outputPath: undefined });
 	};
 
 	const handleFilenameChange = (newFilename: string) => {
 		setFilename(newFilename);
-		updateSettings({ filename: newFilename });
+		updateSettings({ filename: newFilename, outputPath: undefined });
+	};
+
+	const handleFrameRateChange = (newFrameRate: ExportFrameRate) => {
+		setFrameRate(newFrameRate);
+		updateSettings({ frameRate: newFrameRate });
+	};
+
+	const chooseOutputPath = async (): Promise<string | null> => {
+		if (!isElectron()) return null;
+		const exportFilename = getExportFilename({ filename, format });
+		const selectedPath = await platform().files.saveFileDialog(exportFilename, [
+			{
+				name: `${FORMAT_INFO[format].label} Export`,
+				extensions: [FORMAT_INFO[format].extension.slice(1)],
+			},
+		]);
+		if (selectedPath) updateSettings({ outputPath: selectedPath });
+		return selectedPath;
 	};
 
 	return {
@@ -149,6 +184,8 @@ export function useExportSettings() {
 		quality,
 		format,
 		filename,
+		frameRate,
+		outputPath,
 		engineType,
 		ffmpegAvailable,
 		engineRecommendation,
@@ -160,6 +197,8 @@ export function useExportSettings() {
 		handleQualityChange,
 		handleFormatChange,
 		handleFilenameChange,
+		handleFrameRateChange,
+		chooseOutputPath,
 		setEngineType,
 		// Store integration
 		updateSettings,

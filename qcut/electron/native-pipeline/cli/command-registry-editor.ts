@@ -536,6 +536,7 @@ export const EDITOR_COMMANDS: Record<string, CommandDef> = {
 		f("--filename", "string", "Output filename"),
 		f("--export-format", "string", "Export format"),
 		f("--format", "string", "Export format (alias)"),
+		f("--fps", "number", "Video frame rate (24|25|30|50|60)"),
 		// GIF options
 		f("--gif-fps", "number", "GIF frame rate (15|20|25|30)"),
 		f("--gif-loop", "boolean", "GIF loop (true=infinite)"),
@@ -555,6 +556,26 @@ export const EDITOR_COMMANDS: Record<string, CommandDef> = {
 		f("--mic", "boolean", "Enable microphone capture"),
 		f("--system-audio", "boolean", "Enable system audio capture"),
 	]),
+	"editor:export:audio": ed(
+		"editor:export:audio",
+		"Export the timeline audio mix as MP3",
+		[
+			PID,
+			POLL,
+			f("--filename", "string", "Output filename"),
+			f("--bitrate", "number", "MP3 bitrate (128|192|256|320)"),
+			f("--sample-rate", "number", "Sample rate (44100|48000)"),
+		]
+	),
+	"editor:export:captions": ed(
+		"editor:export:captions",
+		"Export timeline captions as a sidecar file",
+		[
+			PID,
+			f("--filename", "string", "Output filename"),
+			f("--format", "string", "Caption format (srt|vtt|ass|ttml)"),
+		]
+	),
 	"editor:export:status": ed("editor:export:status", "Get export job status", [
 		PID,
 		JID,

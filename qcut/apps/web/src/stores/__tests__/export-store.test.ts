@@ -15,7 +15,8 @@ describe("ExportStore", () => {
 	it("initializes with default settings", () => {
 		const { result } = renderHook(() => useExportStore());
 
-		expect(result.current.settings.format).toBe("webm");
+		expect(result.current.settings.format).toBe("mp4");
+		expect(result.current.settings.frameRate).toBe(30);
 		expect(result.current.settings.quality).toBe("1080p");
 		expect(result.current.settings.width).toBe(1920);
 		expect(result.current.settings.height).toBe(1080);
@@ -40,7 +41,7 @@ describe("ExportStore", () => {
 		expect(result.current.settings.width).toBe(1280);
 		expect(result.current.settings.height).toBe(720);
 		// Format should remain unchanged
-		expect(result.current.settings.format).toBe("webm");
+		expect(result.current.settings.format).toBe("mp4");
 	});
 
 	it("updates export format", () => {
@@ -249,7 +250,7 @@ describe("ExportStore", () => {
 		expect(result.current.error).toBe(null);
 		// Settings should be reset to defaults
 		expect(result.current.settings.quality).toBe("1080p");
-		expect(result.current.settings.format).toBe("webm");
+		expect(result.current.settings.format).toBe("mp4");
 	});
 
 	it("maintains settings across reset", () => {
@@ -271,7 +272,7 @@ describe("ExportStore", () => {
 
 		// Settings should be reset to defaults, not maintained
 		expect(result.current.settings).not.toEqual(settingsBeforeReset);
-		expect(result.current.settings.format).toBe("webm");
+		expect(result.current.settings.format).toBe("mp4");
 		expect(result.current.settings.quality).toBe("1080p");
 	});
 });

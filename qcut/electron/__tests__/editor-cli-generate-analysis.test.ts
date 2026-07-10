@@ -120,6 +120,70 @@ describe("Generate handlers — uncovered actions", () => {
 		});
 	});
 
+	describe("export:start video frame rate", () => {
+		it("forwards a supported --fps value", async () => {
+			mockRoute("POST", "/api/claude/export/p1/start", {
+				success: true,
+				data: { jobId: "ej1" },
+			});
+			const result = await handleGenerateExportCommand(
+				client,
+				makeOpts({
+					command: "editor:export:start",
+					projectId: "p1",
+					fps: 24,
+				}),
+				noopProgress
+			);
+
+			expect(result.success).toBe(true);
+			expect(JSON.parse(lastCapturedBody!).fps).toBe(24);
+		});
+
+		it("rejects unsupported frame rates", async () => {
+			const result = await handleGenerateExportCommand(
+				client,
+				makeOpts({
+					command: "editor:export:start",
+					projectId: "p1",
+					fps: 29,
+				}),
+				noopProgress
+			);
+
+			expect(result.success).toBe(false);
+			expect(result.error).toContain("24, 25, 30, 50, 60");
+		});
+	});
+
+	describe("standalone export commands", () => {
+		it("configures an MP3 job with bitrate and sample rate", async () => {
+			mockRoute("POST", "/api/claude/export/p1/start", {
+				success: true,
+				data: { jobId: "audio1" },
+			});
+			const result = await handleGenerateExportCommand(
+				client,
+				makeOpts({
+					command: "editor:export:audio",
+					projectId: "p1",
+					bitrate: 320,
+					sampleRate: 48_000,
+				}),
+				noopProgress
+			);
+
+			expect(result.success).toBe(true);
+			const body = JSON.parse(lastCapturedBody!);
+			expect(body.format).toBe("mp3");
+			expect(body.audioExportConfig).toEqual({
+				bitrate: 320,
+				sampleRate: 48_000,
+				channels: 2,
+			});
+		});
+	});
+
 	describe("unknown generate/export/diagnostics/mcp action", () => {
 		it("unknown generate action", async () => {
 			const result = await handleGenerateExportCommand(

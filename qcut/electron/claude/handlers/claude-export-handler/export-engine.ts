@@ -83,6 +83,14 @@ export function resolveExportSettings({
 			(format === "gif" && typeof gifConfig?.frameRate === "number"
 				? gifConfig.frameRate
 				: preset.fps);
+		const audioBitrate = request.audioExportConfig?.bitrate ?? 192;
+		const audioSampleRate = request.audioExportConfig?.sampleRate ?? 44_100;
+		if (![128, 192, 256, 320].includes(audioBitrate)) {
+			throw new Error("Audio bitrate must be 128, 192, 256, or 320 kbps");
+		}
+		if (![44_100, 48_000].includes(audioSampleRate)) {
+			throw new Error("Audio sample rate must be 44100 or 48000 Hz");
+		}
 
 		return {
 			presetId: preset.id,
@@ -100,6 +108,9 @@ export function resolveExportSettings({
 			gifLoop: resolvedGifLoop,
 			gifQuality:
 				typeof gifConfig?.quality === "number" ? gifConfig.quality : undefined,
+			audioBitrate,
+			audioSampleRate,
+			audioChannels: request.audioExportConfig?.channels ?? 2,
 
 			// Pass through enhancement configs
 			cursorConfig: request.cursorConfig,
@@ -547,17 +558,6 @@ export async function executeExportJob({
 
 		await ensureDirectory({ directory: path.dirname(outputPath) });
 
-		// For GIF exports, all intermediate video steps (concat, sticker overlay)
-		// must use an .mp4 path since FFmpeg infers container from extension
-		// and .gif doesn't support H.264.
-		const videoOutputPath =
-			settings.format === "gif"
-				? path.join(
-						path.dirname(outputPath),
-						path.basename(outputPath).replace(/\.gif$/i, ".mp4")
-					)
-				: outputPath;
-
 		let tempBase: string;
 		try {
 			tempBase = app.getPath("temp");
@@ -567,6 +567,13 @@ export async function executeExportJob({
 		tempDir = await fsPromises.mkdtemp(
 			path.join(tempBase, "qcut-claude-export-")
 		);
+
+		// GIF and MP3 need an MP4 intermediary. Keep it in the export session
+		// directory so an existing user file can never be overwritten or deleted.
+		const needsIntermediateVideo = ["gif", "mp3"].includes(settings.format);
+		const videoOutputPath = needsIntermediateVideo
+			? path.join(tempDir, "intermediate.mp4")
+			: outputPath;
 
 		const segmentOutputs: string[] = [];
 		const scaleFilter = `scale=${settings.width}:${settings.height}:force_original_aspect_ratio=decrease,pad=${settings.width}:${settings.height}:(ow-iw)/2:(oh-ih)/2:black`;
@@ -847,6 +854,7 @@ export async function executeExportJob({
 					height: settings.height,
 					fps: settings.fps,
 					loop: settings.gifLoop !== false,
+					quality: settings.gifQuality,
 					tempDir,
 					onProgress: (p) => {
 						updateJobProgress({ jobId, progress: 0.94 + p * 0.04 });
@@ -867,6 +875,37 @@ export async function executeExportJob({
 				await fsPromises.unlink(videoOutputPath);
 			} catch {
 				/* ignore */
+			}
+		}
+
+		if (settings.format === "mp3") {
+			claudeLog.info(HANDLER_NAME, "Extracting standalone MP3 export...");
+			updateJobProgress({ jobId, progress: 0.96 });
+			await runFFmpegCommand({
+				args: [
+					"-y",
+					"-i",
+					videoOutputPath,
+					"-vn",
+					"-c:a",
+					"libmp3lame",
+					"-b:a",
+					`${settings.audioBitrate ?? 192}k`,
+					"-ar",
+					String(settings.audioSampleRate ?? 44_100),
+					"-ac",
+					String(settings.audioChannels ?? 2),
+					outputPath,
+				],
+				estimatedDuration: segments.reduce(
+					(sum, segment) => sum + segment.duration,
+					0
+				),
+			});
+			try {
+				await fsPromises.unlink(videoOutputPath);
+			} catch {
+				// Ignore cleanup errors.
 			}
 		}
 

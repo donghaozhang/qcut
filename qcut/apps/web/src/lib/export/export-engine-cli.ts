@@ -74,6 +74,7 @@ export class CLIExportEngine extends ExportEngine {
 	private effectsStore?: EffectsStore;
 	private exportAnalysis: ExportAnalysis | null = null;
 	private audioOptions: AudioExportOptions;
+	private gifConfig: ExportSettingsWithAudio["gifConfig"];
 
 	constructor(
 		canvas: HTMLCanvasElement,
@@ -92,6 +93,7 @@ export class CLIExportEngine extends ExportEngine {
 			audioSampleRate: settings.audioSampleRate,
 			audioChannels: settings.audioChannels,
 		};
+		this.gifConfig = settings.gifConfig;
 
 		if (typeof platform().ffmpeg.exportVideoCLI !== "function") {
 			throw new Error("CLI Export Engine requires Electron environment");
@@ -128,7 +130,7 @@ export class CLIExportEngine extends ExportEngine {
 			`[CLIExportEngine] 📏 Original timeline duration: ${this.totalDuration.toFixed(3)}s`
 		);
 		debugLog(
-			`[CLIExportEngine] 🎬 Target frames: ${this.calculateTotalFrames()} frames at 30fps`
+			`[CLIExportEngine] 🎬 Target frames: ${this.calculateTotalFrames()} frames at ${this.fps}fps`
 		);
 
 		progressCallback?.(5, "Setting up export session...");
@@ -195,7 +197,23 @@ export class CLIExportEngine extends ExportEngine {
 			}
 
 			progressCallback?.(85, "Encoding with FFmpeg CLI...");
-			const outputFile = await this.exportWithCLI(progressCallback);
+			let outputFile = await this.exportWithCLI(progressCallback);
+
+			if (this.settings.format === "gif") {
+				if (!this.sessionId) throw new Error("No active GIF export session");
+				progressCallback?.(92, "Converting video to GIF...");
+				const gifConfig = this.gifConfig;
+				const converted = await platform().ffmpeg.convertVideoToGif({
+					sessionId: this.sessionId,
+					inputPath: outputFile,
+					width: this.canvas.width,
+					height: this.canvas.height,
+					fps: gifConfig?.frameRate ?? 20,
+					loop: gifConfig?.loop ?? true,
+					quality: gifConfig?.quality ?? 10,
+				});
+				outputFile = converted.outputPath;
+			}
 
 			progressCallback?.(95, "Reading output...");
 			const videoBlob = await this.readOutputFile(outputFile);
@@ -207,13 +225,13 @@ export class CLIExportEngine extends ExportEngine {
 
 			const expectedDuration = this.totalDuration;
 			const actualFramesRendered = this.calculateTotalFrames();
-			const calculatedDuration = actualFramesRendered / 30;
+			const calculatedDuration = actualFramesRendered / this.fps;
 
 			debugLog(
 				`[CLIExportEngine] ⏱️  Expected duration: ${expectedDuration.toFixed(3)}s`
 			);
 			debugLog(
-				`[CLIExportEngine] ⏱️  Calculated duration: ${calculatedDuration.toFixed(3)}s (${actualFramesRendered} frames / 30fps)`
+				`[CLIExportEngine] ⏱️  Calculated duration: ${calculatedDuration.toFixed(3)}s (${actualFramesRendered} frames / ${this.fps}fps)`
 			);
 			debugLog(
 				`[CLIExportEngine] 📊 Duration ratio: ${(calculatedDuration / expectedDuration).toFixed(3)}x`
@@ -532,6 +550,7 @@ export class CLIExportEngine extends ExportEngine {
 			canvasHeight: this.canvas.height,
 			quality: this.settings.quality || "medium",
 			totalDuration: this.totalDuration,
+			fps: this.fps,
 			audioFiles,
 			combinedFilterChain,
 			textFilterChain,
@@ -564,11 +583,13 @@ export class CLIExportEngine extends ExportEngine {
 		if (!buffer) {
 			throw new Error(`Failed to read exported file: ${outputPath}`);
 		}
-		return new Blob([buffer], { type: "video/mp4" });
+		return new Blob([buffer], {
+			type: this.settings.format === "gif" ? "image/gif" : "video/mp4",
+		});
 	}
 
 	calculateTotalFrames(): number {
-		return Math.ceil(this.totalDuration * 30);
+		return Math.ceil(this.totalDuration * this.fps);
 	}
 
 	private async cleanup(): Promise<void> {

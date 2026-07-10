@@ -6,6 +6,7 @@ import type {
 } from "@/types/timeline";
 import type { WordItem } from "@/types/word-timeline";
 import { generateASS } from "./ass-generator";
+import { saveExportedFile, type SaveResult } from "@/lib/export/export-output";
 
 /** Supported caption export format identifiers. */
 export type CaptionFormat = "srt" | "vtt" | "ass" | "ass-karaoke" | "ttml";
@@ -405,4 +406,18 @@ export function downloadCaptions(
 	document.body.removeChild(link);
 
 	URL.revokeObjectURL(url);
+}
+
+/** Save captions using the native destination in Electron or download on web. */
+export async function saveCaptions(
+	segments: TranscriptionSegment[],
+	format: CaptionFormat,
+	filename: string,
+	options: Partial<CaptionExportOptions> & { words?: WordItem[] } = {},
+	outputPath?: string
+): Promise<SaveResult> {
+	const content = exportCaptions(segments, format, options);
+	const extension = getCaptionFileExtension(format);
+	const blob = new Blob([content], { type: getCaptionMimeType(format) });
+	return saveExportedFile(blob, `${filename}.${extension}`, outputPath);
 }

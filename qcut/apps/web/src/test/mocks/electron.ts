@@ -99,6 +99,14 @@ export const mockElectronAPI: ElectronAPI = {
 			audioPath: "/tmp/audio.mp3",
 			fileSize: 1024,
 		}),
+		exportAudioCLI: vi.fn().mockResolvedValue({
+			outputPath: "/tmp/audio.mp3",
+			fileSize: 1024,
+		}),
+		convertVideoToGif: vi.fn().mockResolvedValue({
+			outputPath: "/tmp/output.gif",
+			fileSize: 2048,
+		}),
 		getPath: vi.fn().mockResolvedValue("/usr/bin/ffmpeg"),
 		checkHealth: vi.fn().mockResolvedValue({
 			ffmpegOk: true,

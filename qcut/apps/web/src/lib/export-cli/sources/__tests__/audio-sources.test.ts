@@ -198,6 +198,54 @@ describe("extractAudioFileInputs", () => {
 		expect(api.saveTemp).toHaveBeenCalledTimes(1);
 	});
 
+	it("includes embedded video audio for standalone audio export", async () => {
+		const tracks: TimelineTrack[] = [
+			makeTrack({
+				id: "media-track",
+				type: "media",
+				elements: [
+					makeMediaElement({
+						id: "video-el",
+						mediaId: "video-1",
+						startTime: 2,
+						volume: 0.75,
+					}),
+				],
+			}),
+		];
+		const mediaItems = [
+			makeMediaItem({
+				id: "video-1",
+				type: "video",
+				name: "interview.mp4",
+				localPath: "/tmp/interview.mp4",
+			}),
+		];
+		const api: AudioSourceAPI = {
+			fileExists: vi.fn(async () => true),
+			saveTemp: vi.fn(),
+		};
+
+		const result = await extractAudioFileInputs(
+			tracks,
+			mediaItems,
+			"session-standalone",
+			api,
+			undefined,
+			{ includeEmbeddedVideoAudio: true }
+		);
+
+		expect(result).toEqual([
+			{
+				path: "/tmp/interview.mp4",
+				startTime: 2,
+				volume: 0.75,
+				trimStart: 0,
+				duration: 5,
+			},
+		]);
+	});
+
 	it("uses URL fetch fallback when no localPath and empty file", async () => {
 		const emptyAudioFile = new File([], "remote.mp3", { type: "audio/mpeg" });
 		const tracks: TimelineTrack[] = [
