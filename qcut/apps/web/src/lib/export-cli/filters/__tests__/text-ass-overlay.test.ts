@@ -66,7 +66,7 @@ describe("buildTextASSOverlay", () => {
 		expect(result.content).toContain("[V4+ Styles]");
 		expect(result.content).toContain("}QCut");
 		expect(result.content).toContain("}Studio");
-		expect(result.content).toContain("\\frz12");
+		expect(result.content).toContain("\\frz-12");
 		expect(result.content).toContain("\\move(");
 		expect(result.content).toContain("\\p1");
 		expect(result.content).toContain("\\blur8");
@@ -116,6 +116,6 @@ describe("buildTextASSOverlay", () => {
 		expect(result.content).toContain("\\org(500.00,300.00)");
 		expect(result.content).toContain("\\pos(400.00,271.20)");
 		expect(result.content).toContain("\\pos(500.00,328.80)");
-		expect(result.content).toContain("\\frz15");
+		expect(result.content).toContain("\\frz-15");
 	});
 });

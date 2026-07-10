@@ -254,7 +254,7 @@ function buildElementEvents({
 		eventEnd ?? element.startTime + element.duration - element.trimEnd;
 	const centerX = canvasWidth / 2 + element.x;
 	const centerY = canvasHeight / 2 + element.y;
-	const baseTags = `\\org(${centerX.toFixed(2)},${centerY.toFixed(2)})\\frz${element.rotation}\\fsp${style.letterSpacing}`;
+	const baseTags = `\\org(${centerX.toFixed(2)},${centerY.toFixed(2)})\\frz${-element.rotation}\\fsp${style.letterSpacing}`;
 	const styles = [styleLine(styleName, element)];
 	const events: string[] = [];
 
@@ -266,7 +266,7 @@ function buildElementEvents({
 		const top = canvasHeight / 2 + element.y - style.height / 2;
 		const tags = [
 			"\\an7\\p1\\bord0\\shad0",
-			`\\org(${centerX.toFixed(2)},${centerY.toFixed(2)})\\frz${element.rotation}`,
+			`\\org(${centerX.toFixed(2)},${centerY.toFixed(2)})\\frz${-element.rotation}`,
 			`\\1c${assOverrideColor(element.backgroundColor)}`,
 			motionTags({
 				element,
@@ -371,7 +371,7 @@ function buildElementEvents({
 			const y = canvasHeight / 2 + element.y + character.y;
 			const tags = [
 				"\\an5",
-				`\\frz${element.rotation + character.rotation}`,
+				`\\frz${-(element.rotation + character.rotation)}`,
 				motionTags({
 					element,
 					x,
