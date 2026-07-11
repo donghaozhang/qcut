@@ -286,10 +286,14 @@ export function normalizeProjectAudioMixSettings({
 		buses.push(bus);
 	}
 	return {
-		master: normalizeAudioMixBus({
-			bus: audioMix?.master,
-			fallback: defaults.master,
-		}),
+		master: {
+			...normalizeAudioMixBus({
+				bus: audioMix?.master,
+				fallback: defaults.master,
+			}),
+			id: MASTER_AUDIO_BUS_ID,
+			name: "Master",
+		},
 		buses,
 	};
 }

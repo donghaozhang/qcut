@@ -17,6 +17,7 @@ import {
 	AudioPitchSettings,
 	AudioVoiceEnhancementSettings,
 } from "./audio-voice-processing-settings";
+import { AudioLevelMeter } from "./audio-level-meter";
 
 function denoiseStatusText({
 	denoise,
@@ -32,8 +33,10 @@ function denoiseStatusText({
 
 export function AudioBasicSettings({
 	bindings,
+	trackId,
 }: {
 	bindings: AudioSettingsEditorBindings;
+	trackId: string;
 }) {
 	const {
 		settings,
@@ -62,6 +65,7 @@ export function AudioBasicSettings({
 
 	return (
 		<div data-testid="audio-basic-settings">
+			<AudioLevelMeter trackId={trackId} />
 			<AudioModuleSection
 				title="Basic"
 				enabled={settings.enabled}

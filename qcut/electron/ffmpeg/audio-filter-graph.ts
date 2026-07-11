@@ -1,4 +1,4 @@
-import type { AudioFile } from "../ffmpeg/types";
+import type { AudioCrossfade, AudioFile } from "../ffmpeg/types";
 import {
 	buildAudioEffectTransforms,
 	buildAudioEnvelopeFilter,
@@ -15,6 +15,162 @@ import {
 export interface AudioFilterGraph {
 	mapAudio: string | null;
 	filterSteps: string[];
+}
+
+interface AudioTransitionEnvelope {
+	role: "from" | "to";
+	start: number;
+	duration: number;
+	curve: AudioCrossfade["curve"];
+}
+
+interface PreparedAudioFile {
+	file: AudioFile;
+	envelopes: AudioTransitionEnvelope[];
+	baseTrimStart: number;
+	baseTrimEnd: number;
+	handleBefore: number;
+	handleAfter: number;
+}
+
+function canUseAudioCrossfadeHandles({
+	audioFile,
+}: {
+	audioFile: AudioFile;
+}): boolean {
+	return (
+		audioFile.duration !== undefined &&
+		!audioFile.reverse &&
+		(audioFile.speedKeyframes?.length ?? 0) === 0 &&
+		(audioFile.freezeFrameDuration ?? 0) === 0
+	);
+}
+
+function prepareAudioCrossfades({
+	audioFiles,
+	audioCrossfades,
+}: {
+	audioFiles: AudioFile[];
+	audioCrossfades: AudioCrossfade[];
+}): PreparedAudioFile[] {
+	const prepared: PreparedAudioFile[] = audioFiles.map((audioFile) => ({
+		file: { ...audioFile },
+		envelopes: [] as AudioTransitionEnvelope[],
+		baseTrimStart: Math.max(0, audioFile.trimStart ?? 0),
+		baseTrimEnd: Math.max(0, audioFile.trimEnd ?? 0),
+		handleBefore: 0,
+		handleAfter: 0,
+	}));
+	const sortedCrossfades = [...audioCrossfades].sort((left, right) => {
+		const leftFile = audioFiles.find(
+			(file) =>
+				file.trackId === left.trackId && file.elementId === left.fromElementId
+		);
+		const rightFile = audioFiles.find(
+			(file) =>
+				file.trackId === right.trackId && file.elementId === right.fromElementId
+		);
+		return (leftFile?.startTime ?? 0) - (rightFile?.startTime ?? 0);
+	});
+
+	for (const crossfade of sortedCrossfades) {
+		const fromFiles = prepared.filter(
+			(item) =>
+				item.file.trackId === crossfade.trackId &&
+				item.file.elementId === crossfade.fromElementId
+		);
+		const toFiles = prepared.filter(
+			(item) =>
+				item.file.trackId === crossfade.trackId &&
+				item.file.elementId === crossfade.toElementId
+		);
+		const halfDuration = crossfade.duration / 2;
+		const hasUsableHandles =
+			halfDuration > 0 &&
+			fromFiles.length > 0 &&
+			toFiles.length > 0 &&
+			fromFiles.every((item) => {
+				const rate = Math.min(8, Math.max(0.1, item.file.playbackRate ?? 1));
+				return (
+					canUseAudioCrossfadeHandles({ audioFile: item.file }) &&
+					item.baseTrimEnd >= halfDuration * rate
+				);
+			}) &&
+			toFiles.every((item) => {
+				const rate = Math.min(8, Math.max(0.1, item.file.playbackRate ?? 1));
+				return (
+					canUseAudioCrossfadeHandles({ audioFile: item.file }) &&
+					item.baseTrimStart >= halfDuration * rate
+				);
+			});
+		if (!hasUsableHandles) continue;
+
+		for (const item of toFiles) {
+			item.handleBefore = Math.max(item.handleBefore, halfDuration);
+			item.envelopes.push({
+				role: "to",
+				start: 0,
+				duration: crossfade.duration,
+				curve: crossfade.curve,
+			});
+		}
+		for (const item of fromFiles) {
+			const rate = Math.min(8, Math.max(0.1, item.file.playbackRate ?? 1));
+			const visibleDuration =
+				((item.file.duration ?? 0) - item.baseTrimStart - item.baseTrimEnd) /
+				rate;
+			item.handleAfter = Math.max(item.handleAfter, halfDuration);
+			item.envelopes.push({
+				role: "from",
+				start: item.handleBefore + visibleDuration - halfDuration,
+				duration: crossfade.duration,
+				curve: crossfade.curve,
+			});
+		}
+	}
+
+	for (const item of prepared) {
+		const rate = Math.min(8, Math.max(0.1, item.file.playbackRate ?? 1));
+		item.file = {
+			...item.file,
+			startTime: item.file.startTime - item.handleBefore,
+			trimStart: Math.max(0, item.baseTrimStart - item.handleBefore * rate),
+			trimEnd: Math.max(0, item.baseTrimEnd - item.handleAfter * rate),
+		};
+	}
+	return prepared;
+}
+
+function buildTransitionEnvelopeFilter({
+	envelope,
+}: {
+	envelope: AudioTransitionEnvelope;
+}): string {
+	const progress =
+		"(t-" + envelope.start + ")/" + Math.max(0.001, envelope.duration);
+	const active =
+		envelope.curve === "equal-power"
+			? envelope.role === "from"
+				? "cos((" + progress + ")*PI/2)"
+				: "sin((" + progress + ")*PI/2)"
+			: envelope.role === "from"
+				? "1-(" + progress + ")"
+				: progress;
+	const before = envelope.role === "from" ? "1" : "0";
+	const after = envelope.role === "from" ? "0" : "1";
+	const expression =
+		"if(lt(t," +
+		envelope.start +
+		")," +
+		before +
+		",if(lt(t," +
+		(envelope.start + envelope.duration) +
+		")," +
+		active +
+		"," +
+		after +
+		"))";
+	return "volume='" + expression + "':eval=frame";
 }
 
 function appendEffectStage({
@@ -260,27 +416,41 @@ function buildLegacyTransforms({
 /** Builds the one canonical FFmpeg graph for every timeline audio export path. */
 export function buildTimelineAudioFilters({
 	audioFiles,
+	audioCrossfades = [],
 	audioStartIndex,
 	fps,
 }: {
 	audioFiles: AudioFile[];
+	audioCrossfades?: AudioCrossfade[];
 	audioStartIndex: number;
 	fps: number;
 }): AudioFilterGraph {
 	if (audioFiles.length === 0) {
 		return { mapAudio: null, filterSteps: [] };
 	}
+	const preparedAudioFiles = prepareAudioCrossfades({
+		audioFiles,
+		audioCrossfades,
+	});
+	const hasTransitionEnvelopes = preparedAudioFiles.some(
+		(item) => item.envelopes.length > 0
+	);
 
 	if (
-		audioFiles.length === 1 &&
-		canMapAudioInputDirectly({ audioFile: audioFiles[0], fps })
+		preparedAudioFiles.length === 1 &&
+		!hasTransitionEnvelopes &&
+		canMapAudioInputDirectly({
+			audioFile: preparedAudioFiles[0].file,
+			fps,
+		})
 	) {
 		return { mapAudio: `${audioStartIndex}:a`, filterSteps: [] };
 	}
 
 	const filterSteps: string[] = [];
 	const mixedLabels: string[] = [];
-	for (const [index, audioFile] of audioFiles.entries()) {
+	for (const [index, preparedAudioFile] of preparedAudioFiles.entries()) {
+		const audioFile = preparedAudioFile.file;
 		const timing = appendSourceTiming({
 			audioFile,
 			currentLabel: `${audioStartIndex + index}:a`,
@@ -359,6 +529,11 @@ export function buildTimelineAudioFilters({
 				})
 			);
 		}
+		transforms.push(
+			...preparedAudioFile.envelopes.map((envelope) =>
+				buildTransitionEnvelopeFilter({ envelope })
+			)
+		);
 		const delayMs = Math.max(0, Math.round((audioFile.startTime ?? 0) * 1000));
 		if ((audioFile.sourceGain ?? 1) !== 1) {
 			transforms.push(`volume=${Math.max(0, audioFile.sourceGain ?? 1)}`);

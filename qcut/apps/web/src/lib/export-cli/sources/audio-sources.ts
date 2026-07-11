@@ -11,7 +11,7 @@ import type {
 	TimelineElement,
 } from "@/types/timeline";
 import type { MediaItem } from "@/stores/media/media-store";
-import type { AudioFileInput } from "../types";
+import type { AudioCrossfadeInput, AudioFileInput } from "../types";
 import { normalizeMediaAudioSettings } from "@/lib/audio/audio-properties";
 import { selectMediaAudioSources } from "@/lib/audio/audio-source-selection";
 
@@ -33,6 +33,8 @@ export interface AudioSourceAPI {
 
 interface TimelineAudioCandidate {
 	elementId: string;
+	timelineElementId: string;
+	trackId: string;
 	mediaItem: MediaItem;
 	startTime: number;
 	volume: number;
@@ -112,6 +114,8 @@ function collectAudioCandidates(
 				if (!selectedMediaItem || selectedMediaItem.type === "image") continue;
 				candidates.push({
 					elementId: `${element.id}-${selectedSource.stem ?? selectedSource.source}`,
+					timelineElementId: element.id,
+					trackId: track.id,
 					mediaItem: selectedMediaItem,
 					startTime: element.startTime,
 					volume: element.volume ?? 1.0,
@@ -263,6 +267,8 @@ export async function extractAudioFileInputs(
 						return null;
 					}
 					return {
+						elementId: candidate.timelineElementId,
+						trackId: candidate.trackId,
 						path,
 						startTime: candidate.startTime,
 						volume: candidate.volume,
@@ -302,4 +308,24 @@ export async function extractAudioFileInputs(
 		logger("[AudioSources] Extraction failed:", error);
 		return [];
 	}
+}
+
+export function extractAudioCrossfadeInputs({
+	tracks,
+}: {
+	tracks: TimelineTrack[];
+}): AudioCrossfadeInput[] {
+	return tracks.flatMap((track) => {
+		if (
+			track.hidden ||
+			track.muted ||
+			(track.type !== "media" && track.type !== "audio")
+		) {
+			return [];
+		}
+		return (track.audioCrossfades ?? []).map((crossfade) => ({
+			...crossfade,
+			trackId: track.id,
+		}));
+	});
 }

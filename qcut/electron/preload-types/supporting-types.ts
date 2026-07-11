@@ -140,6 +140,7 @@ export interface ExportOptions {
 	fps: number;
 	duration: number;
 	audioFiles?: AudioFile[];
+	audioCrossfades?: import("../ffmpeg/types").AudioCrossfade[];
 	metadata?: Record<string, string>;
 	useDirectCopy?: boolean;
 	videoSources?: VideoSource[];

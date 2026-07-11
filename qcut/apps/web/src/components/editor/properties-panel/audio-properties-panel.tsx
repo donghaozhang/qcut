@@ -408,7 +408,7 @@ export function AudioPropertiesPanel({
 					</TabsTrigger>
 				</TabsList>
 				<TabsContent value="basic" className="m-0 px-3">
-					<AudioBasicSettings bindings={bindings} />
+					<AudioBasicSettings bindings={bindings} trackId={trackId} />
 				</TabsContent>
 				<TabsContent value="voice" className="m-0 px-3">
 					<AudioVoiceSettings bindings={bindings} />

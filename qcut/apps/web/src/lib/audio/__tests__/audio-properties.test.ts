@@ -53,6 +53,9 @@ describe("media audio properties", () => {
 		expect(settings.loudness.enabled).toBe(true);
 		expect(settings.denoise).toMatchObject({ enabled: true, amount: 35 });
 		expect(settings.pan).toBe(-0.25);
+		expect(settings.channelMode).toBe("stereo");
+		expect(settings.parametricEqualizer.bands).toHaveLength(4);
+		expect(settings.repair.noiseGate.enabled).toBe(false);
 	});
 
 	it("keeps nested defaults when a stored settings object is incomplete", () => {

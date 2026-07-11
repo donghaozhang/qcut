@@ -31,6 +31,7 @@ interface AudioPreviewOptions {
 export function useMediaAudioPreview({
 	mediaRef,
 	element,
+	trackId = "preview-default",
 	duration,
 	trackMuted = false,
 	forceMuted = false,
@@ -40,6 +41,7 @@ export function useMediaAudioPreview({
 }: {
 	mediaRef: RefObject<HTMLMediaElement | null>;
 	element?: MediaElement;
+	trackId?: string;
 	duration: number;
 	trackMuted?: boolean;
 	forceMuted?: boolean;
@@ -132,9 +134,9 @@ export function useMediaAudioPreview({
 	useEffect(() => {
 		const mediaElement = mediaRef.current;
 		if (!mediaElement || !elementId) return;
-		graphRef.current = acquireMediaAudioPreview({ mediaElement });
+		graphRef.current = acquireMediaAudioPreview({ mediaElement, trackId });
 		return () => releaseMediaAudioPreview({ mediaElement });
-	}, [elementId, mediaRef]);
+	}, [elementId, mediaRef, trackId]);
 
 	useEffect(() => {
 		applyAtTimeRef.current(currentTime);

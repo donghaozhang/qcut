@@ -17,6 +17,7 @@ interface AudioPlayerProps {
 	trimEnd: number;
 	clipDuration: number;
 	trackMuted?: boolean;
+	trackId?: string;
 	element: MediaElement;
 }
 
@@ -24,6 +25,7 @@ export function AudioPlayer({
 	src,
 	className = "",
 	trackMuted = false,
+	trackId,
 	element,
 }: AudioPlayerProps) {
 	const audioRef = useRef<HTMLAudioElement>(null);
@@ -38,6 +40,7 @@ export function AudioPlayer({
 	useMediaAudioPreview({
 		mediaRef: audioRef,
 		element,
+		trackId,
 		duration: timelineDuration,
 		trackMuted,
 		forceMuted: element.reverse === true && !reversed.url,

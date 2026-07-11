@@ -119,6 +119,72 @@ function readFramePixelAt({
 	return Array.from(result.stdout.subarray(0, 3));
 }
 
+function readMonoAudioSamples({
+	inputPath,
+	time,
+	duration = 0.1,
+}: {
+	inputPath: string;
+	time: number;
+	duration?: number;
+}): number[] {
+	const result = spawnSync(
+		ffmpegPath,
+		[
+			"-v",
+			"error",
+			"-ss",
+			String(time),
+			"-i",
+			inputPath,
+			"-t",
+			String(duration),
+			"-vn",
+			"-ac",
+			"1",
+			"-ar",
+			"48000",
+			"-f",
+			"f32le",
+			"-",
+		],
+		{ timeout: 60_000 }
+	);
+	if (result.status !== 0) throw new Error(result.stderr.toString());
+	const view = new DataView(
+		result.stdout.buffer,
+		result.stdout.byteOffset,
+		result.stdout.byteLength
+	);
+	const samples: number[] = [];
+	for (let offset = 0; offset + 4 <= view.byteLength; offset += 4) {
+		samples.push(view.getFloat32(offset, true));
+	}
+	return samples;
+}
+
+function toneMagnitude({
+	samples,
+	frequency,
+	sampleRate = 48_000,
+}: {
+	samples: number[];
+	frequency: number;
+	sampleRate?: number;
+}): number {
+	let real = 0;
+	let imaginary = 0;
+	for (let index = 0; index < samples.length; index++) {
+		const angle = (2 * Math.PI * frequency * index) / sampleRate;
+		real += samples[index] * Math.cos(angle);
+		imaginary -= samples[index] * Math.sin(angle);
+	}
+	return (
+		(2 * Math.sqrt(real * real + imaginary * imaginary)) /
+		Math.max(1, samples.length)
+	);
+}
+
 function defaultVisual(overrides: Partial<VideoVisual> = {}): VideoVisual {
 	return {
 		x: 0,
@@ -499,6 +565,143 @@ describe.skipIf(!fs.existsSync(ffmpegPath))(
 				expect(waitingPixel[0]).toBeGreaterThan(180);
 				expect(waitingPixel[2]).toBeLessThan(80);
 			}
+		});
+
+		it("exports an optional equal-power audio crossfade without changing duration", () => {
+			const videoPath = path.join(tempDir, "audio-crossfade-video.mp4");
+			const fromAudioPath = path.join(tempDir, "audio-crossfade-440.wav");
+			const toAudioPath = path.join(tempDir, "audio-crossfade-880.wav");
+			const video = createColorSequence({
+				segments: [{ color: "black", duration: 4 }],
+				outputPath: videoPath,
+			});
+			const fromAudio = runFFmpeg([
+				"-y",
+				"-f",
+				"lavfi",
+				"-i",
+				"sine=frequency=440:duration=3:sample_rate=48000",
+				"-c:a",
+				"pcm_s16le",
+				fromAudioPath,
+			]);
+			const toAudio = runFFmpeg([
+				"-y",
+				"-f",
+				"lavfi",
+				"-i",
+				"sine=frequency=880:duration=3:sample_rate=48000",
+				"-c:a",
+				"pcm_s16le",
+				toAudioPath,
+			]);
+			expect(video.status, video.stderr?.toString()).toBe(0);
+			expect(fromAudio.status, fromAudio.stderr?.toString()).toBe(0);
+			expect(toAudio.status, toAudio.stderr?.toString()).toBe(0);
+
+			const outputPath = path.join(tempDir, "audio-crossfade-output.mp4");
+			const result = runFFmpeg(
+				buildFFmpegArgs({
+					inputDir: tempDir,
+					outputFile: outputPath,
+					width: 160,
+					height: 90,
+					fps: 30,
+					quality: "low",
+					duration: 4,
+					videoSources: [
+						{
+							elementId: "video",
+							trackId: "video-track",
+							path: videoPath,
+							startTime: 0,
+							duration: 4,
+							trackOrder: 0,
+							elementOrder: 0,
+						},
+					],
+					audioFiles: [
+						{
+							elementId: "clip-a",
+							trackId: "track-1",
+							path: fromAudioPath,
+							startTime: 0,
+							duration: 3,
+							trimStart: 0,
+							trimEnd: 1,
+							playbackRate: 1,
+						},
+						{
+							elementId: "clip-b",
+							trackId: "track-1",
+							path: toAudioPath,
+							startTime: 2,
+							duration: 3,
+							trimStart: 0.5,
+							trimEnd: 0.5,
+							playbackRate: 1,
+						},
+					],
+					audioCrossfades: [
+						{
+							id: "audio-crossfade-1",
+							trackId: "track-1",
+							fromElementId: "clip-a",
+							toElementId: "clip-b",
+							duration: 1,
+							curve: "equal-power",
+						},
+					],
+				})
+			);
+			expect(result.status, result.stderr?.toString()).toBe(0);
+
+			const durationResult = spawnSync(
+				ffprobePath,
+				[
+					"-v",
+					"error",
+					"-show_entries",
+					"format=duration",
+					"-of",
+					"default=nw=1:nk=1",
+					outputPath,
+				],
+				{ encoding: "utf8", timeout: 60_000 }
+			);
+			expect(Number(durationResult.stdout.trim())).toBeCloseTo(4, 1);
+
+			const quarterSamples = readMonoAudioSamples({
+				inputPath: outputPath,
+				time: 1.75,
+			});
+			const midpointSamples = readMonoAudioSamples({
+				inputPath: outputPath,
+				time: 2,
+			});
+			const quarter440 = toneMagnitude({
+				samples: quarterSamples,
+				frequency: 440,
+			});
+			const quarter880 = toneMagnitude({
+				samples: quarterSamples,
+				frequency: 880,
+			});
+			const midpoint440 = toneMagnitude({
+				samples: midpointSamples,
+				frequency: 440,
+			});
+			const midpoint880 = toneMagnitude({
+				samples: midpointSamples,
+				frequency: 880,
+			});
+			expect(quarter440).toBeGreaterThan(0.06);
+			expect(quarter880).toBeGreaterThan(0.02);
+			expect(quarter440).toBeGreaterThan(quarter880);
+			expect(midpoint440).toBeGreaterThan(0.04);
+			expect(midpoint880).toBeGreaterThan(0.04);
+			expect(midpoint440 / midpoint880).toBeGreaterThan(0.6);
+			expect(midpoint440 / midpoint880).toBeLessThan(1.6);
 		});
 
 		it("renders transform, crop, perspective, blend, and keyframes", () => {
@@ -1092,6 +1295,96 @@ describe.skipIf(!fs.existsSync(ffmpegPath))(
 			const result = runFFmpeg(args);
 			expect(result.status, result.stderr?.toString()).toBe(0);
 			expect(fs.statSync(outputPath).size).toBeGreaterThan(1_000);
+		});
+
+		it("renders cumulative custom cutout correction frames", () => {
+			const redPath = path.join(tempDir, "custom-cutout-red.mp4");
+			const source = runFFmpeg([
+				"-y",
+				"-f",
+				"lavfi",
+				"-i",
+				"color=c=red:s=320x180:d=1:r=30",
+				"-c:v",
+				"libx264",
+				"-pix_fmt",
+				"yuv420p",
+				redPath,
+			]);
+			expect(source.status, source.stderr?.toString()).toBe(0);
+
+			const outputPath = path.join(tempDir, "custom-cutout-corrections.mp4");
+			const result = runFFmpeg(
+				buildFFmpegArgs({
+					inputDir: tempDir,
+					outputFile: outputPath,
+					width: 320,
+					height: 180,
+					fps: 30,
+					quality: "low",
+					duration: 1,
+					videoSources: [
+						{
+							path: redPath,
+							startTime: 0,
+							duration: 1,
+							visual: defaultVisual({
+								customCutout: {
+									enabled: true,
+									applyStrokes: true,
+									status: "idle",
+									strokes: [
+										{
+											id: "foreground-center",
+											frame: 0,
+											mode: "foreground",
+											size: 0.24,
+											points: [{ x: 0.5, y: 0.5 }],
+										},
+										{
+											id: "background-correction",
+											frame: 15,
+											mode: "background",
+											size: 0.1,
+											points: [{ x: 0.5, y: 0.5 }],
+										},
+									],
+								},
+							}),
+						},
+					],
+				})
+			);
+			expect(result.status, result.stderr?.toString()).toBe(0);
+
+			const earlyCenter = readFramePixelAt({
+				inputPath: outputPath,
+				time: 0.2,
+				x: 160,
+				y: 90,
+			});
+			const earlyCorner = readFramePixelAt({
+				inputPath: outputPath,
+				time: 0.2,
+				x: 20,
+				y: 20,
+			});
+			const correctedCenter = readFramePixelAt({
+				inputPath: outputPath,
+				time: 0.75,
+				x: 160,
+				y: 90,
+			});
+			const correctedRing = readFramePixelAt({
+				inputPath: outputPath,
+				time: 0.75,
+				x: 195,
+				y: 90,
+			});
+			expect(earlyCenter[0]).toBeGreaterThan(180);
+			expect(earlyCorner[0]).toBeLessThan(40);
+			expect(correctedCenter[0]).toBeLessThan(40);
+			expect(correctedRing[0]).toBeGreaterThan(180);
 		});
 	}
 );

@@ -17,6 +17,7 @@ import {
 
 // Import extracted modules
 import type {
+	AudioCrossfadeInput,
 	StickerSourceForFilter,
 	ImageSourceInput,
 	ProgressCallback,
@@ -30,6 +31,7 @@ import {
 	buildImageOverlayFilters,
 } from "../export-cli/filters";
 import {
+	extractAudioCrossfadeInputs,
 	extractVideoSources,
 	extractVideoTransitions,
 	extractVideoInputPath,
@@ -63,6 +65,7 @@ import { buildTimelineAssLayers } from "./export-engine-cli-text";
 
 // Re-export types for backward compatibility (using export from)
 export type {
+	AudioCrossfadeInput,
 	ProgressCallback,
 	VideoSourceInput,
 	VideoTransitionInput,
@@ -589,6 +592,8 @@ export class CLIExportEngine extends ExportEngine {
 					fps: this.fps,
 				})
 			: [];
+		const audioCrossfades: AudioCrossfadeInput[] =
+			extractAudioCrossfadeInputs({ tracks: this.tracks });
 
 		if (
 			this.exportAnalysis?.optimizationStrategy === "image-video-composite" &&
@@ -613,6 +618,7 @@ export class CLIExportEngine extends ExportEngine {
 			totalDuration: this.totalDuration,
 			fps: this.fps,
 			audioFiles,
+			audioCrossfades,
 			combinedFilterChain,
 			textFilterChain,
 			textAssLayers,

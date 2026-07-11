@@ -6,6 +6,7 @@
  */
 
 import type {
+	AudioCrossfade,
 	ClipTransitionDirection,
 	ClipTransitionEasing,
 	ClipTransitionType,
@@ -13,6 +14,10 @@ import type {
 	MediaColorSettings,
 	MediaMask,
 } from "@/types/timeline";
+
+export interface AudioCrossfadeInput extends AudioCrossfade {
+	trackId: string;
+}
 
 export interface VideoTransitionInput {
 	id: string;
@@ -181,6 +186,8 @@ export interface VideoSourceInput {
  * Contains path, timing, and volume information for audio mixing.
  */
 export interface AudioFileInput {
+	elementId?: string;
+	trackId?: string;
 	path: string;
 	startTime: number;
 	volume: number;

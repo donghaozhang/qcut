@@ -5,6 +5,7 @@
 import type { StickerSource } from "../../../../../electron/ffmpeg-handler";
 import type { FFmpegHealthResult } from "../../../../../electron/ffmpeg/types";
 import type {
+	AudioCrossfadeInput,
 	VideoSourceInput,
 	VideoTransitionInput,
 	AudioFileInput,
@@ -40,6 +41,7 @@ export interface ElectronFFmpegOps {
 			stickerSources?: StickerSource[];
 			duration?: number;
 			audioFiles?: AudioFileInput[];
+			audioCrossfades?: AudioCrossfadeInput[];
 			useDirectCopy?: boolean;
 			videoSources?: VideoSourceInput[];
 			videoTransitions?: VideoTransitionInput[];

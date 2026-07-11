@@ -3,23 +3,20 @@ import { dbToGain } from "./audio-properties";
 import { clampPlaybackRate } from "@/lib/video/video-timing";
 import { FormantCorrectionNode } from "@soundtouchjs/formant-correction-worklet";
 import formantProcessorUrl from "@soundtouchjs/formant-correction-worklet/processor?url";
+import {
+	getAudioMixContext,
+	getAudioTrackInput,
+	resumeAudioMixEngine,
+} from "./audio-mix-engine";
 
 interface MediaAudioPreviewGraph {
 	update: ({ state }: { state: AudioPreviewState }) => void;
 	setConnected: ({ connected }: { connected: boolean }) => void;
+	setTrackId: ({ trackId }: { trackId: string }) => void;
 }
 
-let sharedContext: AudioContext | null = null;
 const graphs = new WeakMap<HTMLMediaElement, MediaAudioPreviewGraph>();
 const pitchRegistrations = new WeakMap<BaseAudioContext, Promise<void>>();
-
-function getAudioContext(): AudioContext | null {
-	if (typeof window === "undefined") return null;
-	const Context = window.AudioContext;
-	if (!Context) return null;
-	sharedContext ??= new Context({ latencyHint: "interactive" });
-	return sharedContext;
-}
 
 function smooth({
 	parameter,
@@ -75,9 +72,11 @@ function registerPitchProcessor({
 function createGraph({
 	context,
 	mediaElement,
+	trackId,
 }: {
 	context: AudioContext;
 	mediaElement: HTMLMediaElement;
+	trackId: string;
 }): MediaAudioPreviewGraph {
 	const source = context.createMediaElementSource(mediaElement);
 	const input = context.createGain();
@@ -163,7 +162,11 @@ function createGraph({
 	delay.connect(feedbackGain);
 	feedbackGain.connect(delay);
 	panner.connect(output);
-	output.connect(context.destination);
+	let connectedTrackId = trackId;
+	const initialTrackInput = getAudioTrackInput({ trackId });
+	if (!initialTrackInput) throw new Error("Audio track input is unavailable");
+	let trackInput: AudioNode = initialTrackInput;
+	output.connect(trackInput);
 	let connected = true;
 	let impulseSignature = "";
 	let pitchNode: FormantCorrectionNode | null = null;
@@ -377,27 +380,39 @@ function createGraph({
 		},
 		setConnected: ({ connected: shouldConnect }) => {
 			if (connected === shouldConnect) return;
-			if (shouldConnect) output.connect(context.destination);
+			if (shouldConnect) output.connect(trackInput);
 			else output.disconnect();
 			connected = shouldConnect;
+		},
+		setTrackId: ({ trackId: nextTrackId }) => {
+			if (connectedTrackId === nextTrackId) return;
+			const nextTrackInput = getAudioTrackInput({ trackId: nextTrackId });
+			if (!nextTrackInput) return;
+			if (connected) output.disconnect();
+			connectedTrackId = nextTrackId;
+			trackInput = nextTrackInput;
+			if (connected) output.connect(trackInput);
 		},
 	};
 }
 
 export function acquireMediaAudioPreview({
 	mediaElement,
+	trackId,
 }: {
 	mediaElement: HTMLMediaElement;
+	trackId: string;
 }): MediaAudioPreviewGraph | null {
 	const existing = graphs.get(mediaElement);
 	if (existing) {
+		existing.setTrackId({ trackId });
 		existing.setConnected({ connected: true });
 		return existing;
 	}
-	const context = getAudioContext();
+	const context = getAudioMixContext();
 	if (!context) return null;
 	try {
-		const graph = createGraph({ context, mediaElement });
+		const graph = createGraph({ context, mediaElement, trackId });
 		graphs.set(mediaElement, graph);
 		return graph;
 	} catch {
@@ -415,6 +430,5 @@ export function releaseMediaAudioPreview({
 }
 
 export async function resumeMediaAudioPreview(): Promise<void> {
-	const context = getAudioContext();
-	if (context?.state === "suspended") await context.resume();
+	await resumeAudioMixEngine();
 }

@@ -19,6 +19,7 @@ export { detectAudioSources, type AudioSourceInfo } from "./audio-detection";
 
 // Audio source extraction for CLI FFmpeg export
 export {
+	extractAudioCrossfadeInputs,
 	extractAudioFileInputs,
 	type AudioSourceAPI,
 } from "./audio-sources";

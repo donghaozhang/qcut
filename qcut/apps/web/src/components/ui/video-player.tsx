@@ -34,6 +34,8 @@ interface VideoPlayerProps {
 	clipPlaybackRate?: number;
 	timingElement?: MediaElement;
 	playbackWindow?: { startTime: number; endTime: number };
+	trackId?: string;
+	trackMuted?: boolean;
 }
 
 function getVideoPlaybackRate({
@@ -77,6 +79,8 @@ export function VideoPlayer({
 	clipPlaybackRate = 1,
 	timingElement,
 	playbackWindow,
+	trackId,
+	trackMuted = false,
 }: VideoPlayerProps) {
 	const videoRef = useRef<HTMLVideoElement>(null);
 	const blobUrlRef = useRef<string | null>(null);
@@ -102,7 +106,9 @@ export function VideoPlayer({
 	useMediaAudioPreview({
 		mediaRef: videoRef,
 		element: timingElement,
+		trackId,
 		duration: timelineDuration,
+		trackMuted,
 		forceMuted: clipVolume <= 0,
 		fallbackGain: clipVolume,
 		fallbackFadeIn: fadeIn,

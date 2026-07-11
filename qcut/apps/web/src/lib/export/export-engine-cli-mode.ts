@@ -10,6 +10,7 @@ import { calculateKeepSegments } from "../transcription/segment-calculator";
 import { debugLog, debugWarn } from "@/lib/debug/debug-config";
 import type { ExportAnalysis } from "./export-analysis";
 import type {
+	AudioCrossfadeInput,
 	AudioFileInput,
 	VideoSourceInput,
 	VideoTransitionInput,
@@ -93,6 +94,7 @@ export interface BuildExportOptionsParams {
 	totalDuration: number;
 	fps: number;
 	audioFiles: AudioFileInput[];
+	audioCrossfades: AudioCrossfadeInput[];
 	combinedFilterChain: string;
 	textFilterChain: string;
 	textAssLayers: Array<{
@@ -131,6 +133,7 @@ export function buildExportOptions(params: BuildExportOptionsParams) {
 		totalDuration,
 		fps,
 		audioFiles,
+		audioCrossfades,
 		combinedFilterChain,
 		textFilterChain,
 		textAssLayers,
@@ -158,6 +161,8 @@ export function buildExportOptions(params: BuildExportOptionsParams) {
 		quality: quality || "medium",
 		duration: totalDuration,
 		audioFiles,
+		audioCrossfades:
+			audioCrossfades.length > 0 ? audioCrossfades : undefined,
 		filterChain: combinedFilterChain || undefined,
 		textFilterChain: hasTextFilters ? textFilterChain : undefined,
 		textAssLayers: textAssLayers.length > 0 ? textAssLayers : undefined,
@@ -172,6 +177,7 @@ export function buildExportOptions(params: BuildExportOptionsParams) {
 			!hasTextFilters &&
 			!hasStickerFilters &&
 			!hasImageFilters &&
+			audioCrossfades.length === 0 &&
 			!wordFilterSegments
 		),
 		videoSources: videoSources.length > 0 ? videoSources : undefined,

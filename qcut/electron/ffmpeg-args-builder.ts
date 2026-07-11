@@ -11,6 +11,7 @@ import path from "path";
 import fs from "fs";
 
 import type {
+	AudioCrossfade,
 	AudioFile,
 	VideoSource,
 	VideoTransition,
@@ -42,6 +43,7 @@ export interface BuildFFmpegArgsOptions {
 	quality: "high" | "medium" | "low";
 	duration: number;
 	audioFiles?: AudioFile[];
+	audioCrossfades?: AudioCrossfade[];
 	filterChain?: string;
 	textFilterChain?: string;
 	textAssPath?: string;
@@ -305,6 +307,7 @@ function buildCompositeEncodeArgs(
 		fps,
 		duration,
 		audioFiles = [],
+		audioCrossfades = [],
 		filterChain,
 		textFilterChain,
 		textAssPath,
@@ -616,6 +619,7 @@ function buildCompositeEncodeArgs(
 		baseInputCount + validImages.length + validStickers.length;
 	const audioResult = buildTimelineAudioFilters({
 		audioFiles,
+		audioCrossfades,
 		audioStartIndex: audioInputStartIndex,
 		fps,
 	});
@@ -735,6 +739,7 @@ export function buildFFmpegArgs(options: BuildFFmpegArgsOptions): string[] {
 			}
 			const audioGraph = buildTimelineAudioFilters({
 				audioFiles,
+				audioCrossfades: options.audioCrossfades ?? [],
 				audioStartIndex: 1,
 				fps: options.fps,
 			});

@@ -13,6 +13,8 @@ import type { VideoColorSettings } from "./color-settings";
  * Defines audio track placement and mixing parameters
  */
 export interface AudioFile {
+	elementId?: string;
+	trackId?: string;
 	/** File system path to the audio file */
 	path: string;
 	/** Start time in seconds for audio placement in video */
@@ -43,6 +45,15 @@ export interface AudioFile {
 	reverse?: boolean;
 	freezeFrameTime?: number;
 	freezeFrameDuration?: number;
+}
+
+export interface AudioCrossfade {
+	id: string;
+	trackId: string;
+	fromElementId: string;
+	toElementId: string;
+	duration: number;
+	curve: "linear" | "equal-power";
 }
 
 /** Options for rendering the timeline audio mix to a standalone MP3 file. */
@@ -389,6 +400,7 @@ export interface ExportOptions {
 	duration: number;
 	/** Optional array of audio files to mix into the video */
 	audioFiles?: AudioFile[];
+	audioCrossfades?: AudioCrossfade[];
 	/** Optional FFmpeg filter chain string for video effects */
 	filterChain?: string;
 	/** Optional FFmpeg drawtext filter chain for text overlays */
