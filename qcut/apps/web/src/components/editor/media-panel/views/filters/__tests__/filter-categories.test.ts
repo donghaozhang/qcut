@@ -3,9 +3,10 @@ import { FILTER_PRESETS } from "@/lib/filters/filter-registry";
 import {
 	FILTER_CATEGORIES,
 	filterPresetMatchesCategory,
+	type FilterCategoryId,
 } from "../filter-categories";
 
-const referenceCategoryIds = [
+const referenceCategoryIds: FilterCategoryId[] = [
 	"summer",
 	"portrait",
 	"landscape",
