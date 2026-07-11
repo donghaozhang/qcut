@@ -213,6 +213,9 @@ function defaultVisual(overrides: Partial<VideoVisual> = {}): VideoVisual {
 
 describe.skipIf(!fs.existsSync(ffmpegPath))(
 	"Video transform export - real FFmpeg",
+	// Real ffmpeg renders take 6-7s per test on CI runners — the 5s default
+	// testTimeout flakes. Matches the 60s ceiling runFFmpeg already uses.
+	{ timeout: 60_000 },
 	() => {
 		let sourcePath: string;
 
