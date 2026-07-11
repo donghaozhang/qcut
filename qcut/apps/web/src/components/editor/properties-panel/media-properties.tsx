@@ -72,6 +72,7 @@ import { KeyframeEditor } from "./keyframe-editor";
 import { MediaMaskProperties } from "./media-mask-properties";
 import { MaskIconButton } from "./media-mask-controls";
 import { MediaAutomaticCutoutProperties } from "./media-automatic-cutout-properties";
+import { MediaChromaKeyProperties } from "./media-chroma-key-properties";
 import {
 	AudioPropertiesPanel,
 	defaultAudioUpdates,
@@ -1308,65 +1309,7 @@ export function MediaProperties({
 
 				<TabsContent value="cutout" className="mt-4 space-y-4">
 					<MediaAutomaticCutoutProperties element={element} />
-
-					<PropertyGroup title="Chroma key" defaultExpanded>
-						<div className="space-y-4">
-							<div className="flex items-center justify-between gap-3">
-								<PropertyItemLabel>Enable</PropertyItemLabel>
-								<Switch
-									checked={visual.chromaKey.enabled}
-									onCheckedChange={(enabled) =>
-										update({
-											chromaKey: { ...visual.chromaKey, enabled },
-										})
-									}
-								/>
-							</div>
-							{visual.chromaKey.enabled ? (
-								<>
-									<Input
-										type="color"
-										aria-label="Chroma key color"
-										value={visual.chromaKey.color}
-										onChange={(event) =>
-											update({
-												chromaKey: {
-													...visual.chromaKey,
-													color: event.target.value,
-												},
-											})
-										}
-										className="h-8 w-14 p-1"
-									/>
-									{(
-										[
-											["similarity", "Similarity"],
-											["blend", "Edge blend"],
-										] as const
-									).map(([property, label]) => (
-										<NumberControl
-											key={property}
-											label={label}
-											value={visual.chromaKey[property] * 100}
-											min={property === "similarity" ? 1 : 0}
-											max={100}
-											suffix="%"
-											onChange={(value) =>
-												updateLive({
-													chromaKey: {
-														...visual.chromaKey,
-														[property]: value / 100,
-													},
-												})
-											}
-											onInteractionStart={beginInteraction}
-											onInteractionEnd={endInteraction}
-										/>
-									))}
-								</>
-							) : null}
-						</div>
-					</PropertyGroup>
+					<MediaChromaKeyProperties element={element} trackId={trackId} />
 				</TabsContent>
 
 				<TabsContent value="portrait" className="mt-4">

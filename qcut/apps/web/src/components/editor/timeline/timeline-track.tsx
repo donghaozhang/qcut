@@ -36,6 +36,11 @@ import {
 	getTimelineElementDuration,
 	getTimelineElementEndTime,
 } from "@/lib/timeline";
+import { TimelineTransitionMarker } from "./timeline-transition-marker";
+import {
+	isTransitionDrag,
+	useTransitionDrop,
+} from "./use-transition-drop";
 
 function TimelineTrackContentComponent({
 	track,
@@ -84,6 +89,11 @@ function TimelineTrackContentComponent({
 
 	// Initialize all hooks before any conditional returns
 	const timelineRef = useRef<HTMLDivElement>(null);
+	const { handleTransitionDragOver, handleTransitionDrop } = useTransitionDrop({
+		track,
+		zoomLevel,
+		timelineRef,
+	});
 	// Ref (not state) so recording the mouse-down position does NOT trigger a
 	// re-render. Re-rendering the clip subtree between mousedown and mouseup
 	// causes the browser to drop the synthetic click event, breaking selection.
@@ -575,14 +585,36 @@ function TimelineTrackContentComponent({
 				const target = e.target as HTMLElement;
 				const onElement = !!target.closest(".timeline-element");
 				const onGap = !!target.closest("[data-gap-indicator]");
-				if (!onElement && !onGap) {
+				const onTransition = !!target.closest("[data-transition-marker]");
+				if (!onElement && !onGap && !onTransition) {
 					clearSelectedElements();
 				}
 			}}
-			onDragOver={track.locked ? undefined : handleTrackDragOver}
-			onDragEnter={track.locked ? undefined : handleTrackDragEnter}
+			onDragOver={
+				track.locked
+					? undefined
+					: (event) =>
+							isTransitionDrag({ event })
+								? handleTransitionDragOver(event)
+								: handleTrackDragOver(event)
+			}
+			onDragEnter={
+				track.locked
+					? undefined
+					: (event) =>
+							isTransitionDrag({ event })
+								? handleTransitionDragOver(event)
+								: handleTrackDragEnter(event)
+			}
 			onDragLeave={track.locked ? undefined : handleTrackDragLeave}
-			onDrop={track.locked ? undefined : handleTrackDrop}
+			onDrop={
+				track.locked
+					? undefined
+					: (event) =>
+							isTransitionDrag({ event })
+								? handleTransitionDrop(event)
+								: handleTrackDrop(event)
+			}
 			data-track-locked={track.locked || undefined}
 		>
 			<div
@@ -670,6 +702,14 @@ function TimelineTrackContentComponent({
 								/>
 							);
 						})}
+						{(track.transitions ?? []).map((transition) => (
+							<TimelineTransitionMarker
+								key={transition.id}
+								track={track}
+								transition={transition}
+								zoomLevel={zoomLevel}
+							/>
+						))}
 					</>
 				)}
 			</div>

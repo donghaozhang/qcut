@@ -1,5 +1,7 @@
 import type { SelectedElement } from "@/stores/timeline/types";
 import type { MediaElement, TimelineTrack } from "@/types/timeline";
+import { resolveClipTransition } from "@/types/timeline";
+import { getTimelineElementDuration } from "@/lib/timeline";
 
 export type TransitionApplyState =
 	| {
@@ -7,16 +9,15 @@ export type TransitionApplyState =
 			trackId: string;
 			fromElementId: string;
 			toElementId: string;
+			fromMediaId: string;
+			toMediaId: string;
+			maxDuration: number;
 			message: string;
 	  }
 	| {
 			status: "disabled";
 			message: string;
 	  };
-
-function getElementEndTime({ element }: { element: MediaElement }): number {
-	return element.startTime + element.duration - element.trimEnd;
-}
 
 function findSelectedMediaElements({
 	selectedElements,
@@ -81,11 +82,22 @@ export function getTransitionApplyState({
 		(a, b) => a.element.startTime - b.element.startTime
 	);
 	const [from, to] = sorted;
-	const seamGap = Math.abs(
-		getElementEndTime({ element: from.element }) - to.element.startTime
-	);
+	const resolved = resolveClipTransition({
+		track: from.track,
+		transition: {
+			id: "transition-selection-probe",
+			fromElementId: from.element.id,
+			toElementId: to.element.id,
+			presetId: "dissolve",
+			type: "dissolve",
+			duration: 1,
+			easing: "easeInOut",
+		},
+		getElementDuration: ({ element }) =>
+			getTimelineElementDuration({ element }),
+	});
 
-	if (seamGap > 0.03) {
+	if (!resolved) {
 		return {
 			status: "disabled",
 			message: "The selected clips need to touch at a cut point.",
@@ -97,6 +109,9 @@ export function getTransitionApplyState({
 		trackId: from.track.id,
 		fromElementId: from.element.id,
 		toElementId: to.element.id,
+		fromMediaId: from.element.mediaId,
+		toMediaId: to.element.mediaId,
+		maxDuration: resolved.maxDuration,
 		message: `Ready between ${from.element.name} and ${to.element.name}.`,
 	};
 }

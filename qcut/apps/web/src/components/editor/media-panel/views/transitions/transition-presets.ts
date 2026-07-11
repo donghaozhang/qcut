@@ -34,6 +34,11 @@ export interface TransitionPreset {
 	latest?: boolean;
 }
 
+export interface ClipTransitionPresetConfig {
+	type: ClipTransitionType;
+	direction?: ClipTransitionDirection;
+}
+
 export const transitionPresets: TransitionPreset[] = [
 	{
 		id: "dissolve",
@@ -158,3 +163,37 @@ export function filterTransitionPresets({
 		return searchable.includes(normalizedQuery);
 	});
 }
+
+export function getClipTransitionPresetConfig({
+	preset,
+}: {
+	preset: TransitionPreset;
+}): ClipTransitionPresetConfig | null {
+	if (!preset.downloaded) return null;
+
+	switch (preset.id) {
+		case "dissolve":
+			return { type: "dissolve" };
+		case "fade-to-black":
+			return { type: "fade-black" };
+		case "slide-left":
+		case "slide-right":
+			return { type: "slide", direction: preset.direction };
+		case "wipe-left":
+			return { type: "wipe", direction: preset.direction };
+		default:
+			return null;
+	}
+}
+
+export function getTransitionPresetById({
+	presetId,
+}: {
+	presetId: string;
+}): TransitionPreset | undefined {
+	return transitionPresets.find((preset) => preset.id === presetId);
+}
+import type {
+	ClipTransitionDirection,
+	ClipTransitionType,
+} from "@/types/timeline";

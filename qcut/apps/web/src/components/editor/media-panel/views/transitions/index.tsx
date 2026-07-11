@@ -6,20 +6,30 @@ import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { useTimelineStore } from "@/stores/timeline/timeline-store";
+import { useMediaStore } from "@/stores/media/media-store";
 import { transitionCategories } from "./transition-categories";
 import {
 	filterTransitionPresets,
+	getClipTransitionPresetConfig,
+	type ClipTransitionPresetConfig,
 	type TransitionCategory,
 	type TransitionPreset,
 } from "./transition-presets";
 import { TransitionCard } from "./transition-card";
 import { getTransitionApplyState } from "./transition-apply-state";
 
-function encodeDragPayload({ preset }: { preset: TransitionPreset }): string {
+function encodeDragPayload({
+	preset,
+	config,
+}: {
+	preset: TransitionPreset;
+	config: ClipTransitionPresetConfig;
+}): string {
 	return JSON.stringify({
 		kind: "qcut-transition-preset",
 		id: preset.id,
-		type: preset.type,
+		type: config.type,
+		direction: config.direction,
 		defaultDuration: preset.defaultDuration,
 	});
 }
@@ -30,6 +40,8 @@ export function TransitionsView() {
 	const [selectedPresetId, setSelectedPresetId] = useState("dissolve");
 	const selectedElements = useTimelineStore((state) => state.selectedElements);
 	const tracks = useTimelineStore((state) => state.tracks);
+	const addTransition = useTimelineStore((state) => state.addTransition);
+	const mediaItems = useMediaStore((state) => state.mediaItems);
 
 	const visiblePresets = useMemo(
 		() => filterTransitionPresets({ category, query }),
@@ -40,14 +52,48 @@ export function TransitionsView() {
 		visiblePresets[0];
 	const applyState = getTransitionApplyState({ selectedElements, tracks });
 	const canApply = applyState.status === "ready";
+	const selectedConfig = selectedPreset
+		? getClipTransitionPresetConfig({ preset: selectedPreset })
+		: null;
+	const previewSources = useMemo(() => {
+		if (applyState.status !== "ready") return;
+		const fromMedia = mediaItems.find(
+			(item) => item.id === applyState.fromMediaId
+		);
+		const toMedia = mediaItems.find((item) => item.id === applyState.toMediaId);
+		return {
+			from: fromMedia?.thumbnailUrl,
+			to: toMedia?.thumbnailUrl,
+		};
+	}, [applyState, mediaItems]);
 
 	const handleApply = ({ preset }: { preset: TransitionPreset }) => {
 		if (applyState.status !== "ready") {
 			toast.error(applyState.message);
 			return;
 		}
+		const config = getClipTransitionPresetConfig({ preset });
+		if (!config) {
+			toast.info(`${preset.name} will be available in a later transition pack.`);
+			return;
+		}
 
-		toast.info(`${preset.name} is ready for the selected cut point.`);
+		const transitionId = addTransition({
+			trackId: applyState.trackId,
+			fromElementId: applyState.fromElementId,
+			toElementId: applyState.toElementId,
+			presetId: preset.id,
+			type: config.type,
+			direction: config.direction,
+			duration: Math.min(preset.defaultDuration, applyState.maxDuration),
+			easing: "easeInOut",
+		});
+		if (!transitionId) {
+			toast.error("This cut does not have enough room for a transition.");
+			return;
+		}
+
+		toast.success(`${preset.name} applied.`);
 	};
 
 	const handleDragStart = ({
@@ -57,10 +103,15 @@ export function TransitionsView() {
 		event: DragEvent<HTMLDivElement>;
 		preset: TransitionPreset;
 	}) => {
+		const config = getClipTransitionPresetConfig({ preset });
+		if (!config) {
+			event.preventDefault();
+			return;
+		}
 		event.dataTransfer.effectAllowed = "copy";
 		event.dataTransfer.setData(
 			"application/qcut-transition",
-			encodeDragPayload({ preset })
+			encodeDragPayload({ preset, config })
 		);
 		event.dataTransfer.setData("text/plain", preset.name);
 	};
@@ -112,13 +163,17 @@ export function TransitionsView() {
 				</div>
 				<div className="min-h-0 flex-1 overflow-y-auto p-3">
 					{visiblePresets.length > 0 ? (
-						<div className="grid grid-cols-2 gap-2 2xl:grid-cols-3">
+						<div className="grid grid-cols-2 gap-2 lg:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5">
 							{visiblePresets.map((preset) => (
 								<TransitionCard
 									key={preset.id}
 									preset={preset}
 									selected={selectedPreset?.id === preset.id}
 									canApply={canApply}
+									available={Boolean(
+										getClipTransitionPresetConfig({ preset })
+									)}
+									previewSources={previewSources}
 									onSelect={({ preset: nextPreset }) =>
 										setSelectedPresetId(nextPreset.id)
 									}
@@ -139,7 +194,7 @@ export function TransitionsView() {
 						variant="secondary"
 						size="sm"
 						className="h-8 w-full text-xs"
-						disabled={!canApply || !selectedPreset}
+						disabled={!canApply || !selectedPreset || !selectedConfig}
 						onClick={() =>
 							selectedPreset && handleApply({ preset: selectedPreset })
 						}

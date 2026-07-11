@@ -32,9 +32,10 @@ import {
 	useScreenRecordingEnhancementStore,
 	hasActiveEnhancements,
 } from "@/stores/screen-recording-store";
+import { TransitionProperties } from "./transition-properties";
 
 export function PropertiesPanel() {
-	const { selectedElements, tracks } = useTimelineStore();
+	const { selectedElements, selectedTransition, tracks } = useTimelineStore();
 	const {
 		mediaItems,
 		loading: mediaItemsLoading,
@@ -51,9 +52,11 @@ export function PropertiesPanel() {
 
 	const panelView = useExportStore((s) => s.panelView);
 	const setPanelView = useExportStore((s) => s.setPanelView);
-	const selectionSignature = selectedElements
-		.map(({ trackId, elementId }) => `${trackId}:${elementId}`)
-		.join("|");
+	const selectionSignature = selectedTransition
+		? `${selectedTransition.trackId}:transition:${selectedTransition.transitionId}`
+		: selectedElements
+				.map(({ trackId, elementId }) => `${trackId}:${elementId}`)
+				.join("|");
 	const previousSelectionSignature = useRef("");
 	useEffect(() => {
 		if (
@@ -75,6 +78,16 @@ export function PropertiesPanel() {
 			}),
 		[selectedElements, tracks]
 	);
+	const resolvedTransition = useMemo(() => {
+		if (!selectedTransition) return null;
+		const track = tracks.find(
+			(candidate) => candidate.id === selectedTransition.trackId
+		);
+		const transition = track?.transitions?.find(
+			(candidate) => candidate.id === selectedTransition.transitionId
+		);
+		return track && transition ? { track, transition } : null;
+	}, [selectedTransition, tracks]);
 	const audioBatchSelections = useMemo(
 		() =>
 			resolvedSelections.flatMap(({ trackId, element }) => {
@@ -194,7 +207,12 @@ export function PropertiesPanel() {
 					<SettingsView />
 				) : (
 					<ScrollArea className="h-full bg-panel rounded-sm">
-						{resolvedSelections.length > 0 ? (
+						{resolvedTransition ? (
+							<TransitionProperties
+								track={resolvedTransition.track}
+								transition={resolvedTransition.transition}
+							/>
+						) : resolvedSelections.length > 0 ? (
 							<div
 								className={
 									isSingleAudioSelection || isAudioBatchSelection
