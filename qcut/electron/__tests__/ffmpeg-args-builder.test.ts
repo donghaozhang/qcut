@@ -304,6 +304,58 @@ describe("buildFFmpegArgs", () => {
 				filter.indexOf("[visual_text_ass_0]overlay")
 			);
 		});
+
+		it("builds one transition run across image and video inputs", () => {
+			const args = buildFFmpegArgs(
+				createBaseOptions({
+					duration: 4,
+					videoSources: [
+						{
+							elementId: "video",
+							trackId: "main",
+							trackOrder: 0,
+							elementOrder: 1,
+							path: "/video.mp4",
+							startTime: 2,
+							duration: 2,
+						},
+					],
+					imageSources: [
+						{
+							elementId: "image",
+							trackId: "main",
+							trackOrder: 0,
+							elementOrder: 0,
+							path: "/image.png",
+							startTime: 0,
+							duration: 2,
+							trimStart: 0,
+							trimEnd: 0,
+						},
+					],
+					videoTransitions: [
+						{
+							id: "image-to-video",
+							trackId: "main",
+							fromElementId: "image",
+							toElementId: "video",
+							presetId: "dissolve",
+							type: "dissolve",
+							easing: "linear",
+							duration: 1,
+						},
+					],
+				})
+			);
+			const filter = args[args.indexOf("-filter_complex") + 1];
+
+			expect(filter).toContain("[1:v]trim=");
+			expect(filter).toContain("[0:v]trim=");
+			expect(filter.indexOf("[1:v]trim=")).toBeLessThan(
+				filter.indexOf("[0:v]trim=")
+			);
+			expect(filter).toContain("xfade=transition=custom:duration=1:offset=1.5");
+		});
 	});
 
 	describe("Direct Copy Mode", () => {

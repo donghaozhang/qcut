@@ -7,16 +7,29 @@
 
 import type {
 	AudioCrossfade,
+	AudioMixBusSettings,
 	ClipTransitionDirection,
 	ClipTransitionEasing,
 	ClipTransitionType,
 	MediaAudioSettings,
 	MediaColorSettings,
 	MediaMask,
+	TimelineTrackAudioSettings,
 } from "@/types/timeline";
 
 export interface AudioCrossfadeInput extends AudioCrossfade {
 	trackId: string;
+}
+
+export interface AudioTrackMixInput extends TimelineTrackAudioSettings {
+	trackId: string;
+	muted: boolean;
+}
+
+export interface AudioMixConfigInput {
+	master: AudioMixBusSettings;
+	buses: AudioMixBusSettings[];
+	tracks: AudioTrackMixInput[];
 }
 
 export interface VideoTransitionInput {

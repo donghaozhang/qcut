@@ -40,10 +40,13 @@ import { resolveMediaKeyframes } from "@/lib/video/video-properties";
 import { getMediaSourcePlaybackTime } from "@/lib/video/video-timing";
 import { drawColorGradedSourceWithMasks } from "@/lib/color/browser-color-rendering";
 import { resolveTimelineStickerVisual } from "@/lib/stickers/timeline-sticker-visual";
+import { resolveTimelineElementEffects } from "@/lib/effects/adjustment-layer";
 
 let exportCompositor: ScreenRecordingExportCompositor | null = null;
 let compositorFrameCanvas: HTMLCanvasElement | null = null;
 let compositorFrameCtx: CanvasRenderingContext2D | null = null;
+let adjustmentFrameCanvas: HTMLCanvasElement | null = null;
+let adjustmentFrameCtx: CanvasRenderingContext2D | null = null;
 
 /** Get or create the screen recording export compositor. */
 function getExportCompositor(
@@ -92,6 +95,8 @@ export function destroyExportCompositor(): void {
 	exportCompositor = null;
 	compositorFrameCanvas = null;
 	compositorFrameCtx = null;
+	adjustmentFrameCanvas = null;
+	adjustmentFrameCtx = null;
 }
 
 /** Context passed to renderer functions */
@@ -208,11 +213,47 @@ async function renderElement(
 			element,
 			currentTime,
 		});
+	} else if (element.type === "adjustment") {
+		applyCanvasAdjustment({ context, element, currentTime });
 	} else if (element.type === "remotion") {
 		// Remotion elements are handled by RemotionExportEngine.compositeRemotionFrames()
 		// Skip in standard canvas render to avoid double-rendering
 		return;
 	}
+}
+
+function applyCanvasAdjustment({
+	context,
+	element,
+	currentTime,
+}: {
+	context: RenderContext;
+	element: import("@/types/timeline").AdjustmentElement;
+	currentTime: number;
+}): void {
+	const { canvas, ctx } = context;
+	if (
+		!adjustmentFrameCanvas ||
+		adjustmentFrameCanvas.width !== canvas.width ||
+		adjustmentFrameCanvas.height !== canvas.height
+	) {
+		adjustmentFrameCanvas = document.createElement("canvas");
+		adjustmentFrameCanvas.width = canvas.width;
+		adjustmentFrameCanvas.height = canvas.height;
+		adjustmentFrameCtx = adjustmentFrameCanvas.getContext("2d");
+	}
+	if (!adjustmentFrameCtx) return;
+
+	adjustmentFrameCtx.clearRect(0, 0, canvas.width, canvas.height);
+	adjustmentFrameCtx.drawImage(canvas, 0, 0);
+	const parameters = resolveTimelineElementEffects({ element, currentTime });
+	ctx.clearRect(0, 0, canvas.width, canvas.height);
+	ctx.save();
+	ctx.globalAlpha = element.opacity ?? 1;
+	applyEffectsToCanvas(ctx, parameters);
+	ctx.drawImage(adjustmentFrameCanvas, 0, 0);
+	ctx.restore();
+	applyAdvancedCanvasEffects(ctx, parameters);
 }
 
 async function renderTimelineStickerElement({

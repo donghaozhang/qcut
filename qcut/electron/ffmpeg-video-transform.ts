@@ -955,6 +955,7 @@ function buildLayeredVideoTimelineFilters({
 interface IndexedVideoSource {
 	source: VideoSource;
 	inputIndex: number;
+	segmentIndex: number;
 }
 
 interface TransitionRun {
@@ -1065,6 +1066,7 @@ export function buildVideoTimelineLayers({
 	videoTransitions = [],
 	inputIndexOffset = 0,
 	segmentIndexOffset = 0,
+	inputIndexes,
 	width,
 	height,
 	fps,
@@ -1075,6 +1077,7 @@ export function buildVideoTimelineLayers({
 	videoTransitions?: VideoTransition[];
 	inputIndexOffset?: number;
 	segmentIndexOffset?: number;
+	inputIndexes?: number[];
 	width: number;
 	height: number;
 	fps: number;
@@ -1083,7 +1086,8 @@ export function buildVideoTimelineLayers({
 }): VideoTimelineLayerFilterResult {
 	const indexedSources = videoSources.map((source, sourceIndex) => ({
 		source,
-		inputIndex: inputIndexOffset + sourceIndex,
+		inputIndex: inputIndexes?.[sourceIndex] ?? inputIndexOffset + sourceIndex,
+		segmentIndex: segmentIndexOffset + sourceIndex,
 	}));
 	const filterSteps: string[] = [];
 	const layers: VideoTimelineLayer[] = [];
@@ -1095,8 +1099,7 @@ export function buildVideoTimelineLayers({
 				(left.source.trackOrder ?? Number.MAX_SAFE_INTEGER);
 			if (trackDifference !== 0) return trackDifference;
 			const elementDifference =
-				(left.source.elementOrder ?? 0) -
-				(right.source.elementOrder ?? 0);
+				(left.source.elementOrder ?? 0) - (right.source.elementOrder ?? 0);
 			if (elementDifference !== 0) return elementDifference;
 			const timeDifference = left.source.startTime - right.source.startTime;
 			return timeDifference !== 0
@@ -1105,11 +1108,11 @@ export function buildVideoTimelineLayers({
 		});
 
 		for (let layerIndex = 0; layerIndex < sortedSources.length; layerIndex++) {
-			const { source, inputIndex } = sortedSources[layerIndex];
+			const { source, inputIndex, segmentIndex } = sortedSources[layerIndex];
 			const segment = buildSegmentFilters({
 				source,
 				inputIndex,
-				segmentIndex: segmentIndexOffset + layerIndex,
+				segmentIndex,
 				width,
 				height,
 				fps,
@@ -1156,25 +1159,27 @@ export function buildVideoTimelineLayers({
 		});
 
 		for (const run of runs) {
-			const builtSegments = run.sources.map(({ source, inputIndex }, index) => {
-				const preparation = prepareTransitionSource({
-					source,
-					previousTransition: run.transitions[index - 1],
-					nextTransition: run.transitions[index],
-				});
-				const segment = buildSegmentFilters({
-					source: preparation.source,
-					inputIndex,
-					segmentIndex: segmentIndexOffset + inputIndex - inputIndexOffset,
-					width,
-					height,
-					fps,
-					backgroundColor,
-					transparentOutput: true,
-				});
-				filterSteps.push(...segment.steps);
-				return { source, inputIndex, segment, preparation };
-			});
+			const builtSegments = run.sources.map(
+				({ source, inputIndex, segmentIndex }, index) => {
+					const preparation = prepareTransitionSource({
+						source,
+						previousTransition: run.transitions[index - 1],
+						nextTransition: run.transitions[index],
+					});
+					const segment = buildSegmentFilters({
+						source: preparation.source,
+						inputIndex,
+						segmentIndex,
+						width,
+						height,
+						fps,
+						backgroundColor,
+						transparentOutput: true,
+					});
+					filterSteps.push(...segment.steps);
+					return { source, inputIndex, segment, preparation };
+				}
+			);
 			const preparedLabels: string[] = [];
 			for (let index = 0; index < builtSegments.length; index++) {
 				const built = builtSegments[index];

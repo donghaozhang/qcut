@@ -141,6 +141,25 @@ function buildCanonicalVisualFilters({
 	const filterSteps: string[] = [];
 	const layers: PreparedVisualLayer[] = [];
 	let baseLabel = "0:v";
+	const imageSources: VideoSource[] = images.map((image) => ({
+		elementId: image.elementId,
+		trackId: image.trackId,
+		trackOrder: image.trackOrder,
+		elementOrder: image.elementOrder,
+		path: image.path,
+		startTime: image.startTime,
+		duration: image.duration,
+		trimStart: image.trimStart,
+		trimEnd: image.trimEnd,
+		visual: image.visual,
+		effectFilter: image.effectFilter,
+	}));
+	const timelineSources = [...videoSources, ...imageSources];
+	const inputIndexes = timelineSources.map((_source, index) =>
+		index < videoSources.length
+			? index
+			: baseInputCount + index - videoSources.length
+	);
 
 	if (videoSources.length > 0) {
 		baseLabel = "visual_timeline_background";
@@ -148,17 +167,21 @@ function buildCanonicalVisualFilters({
 			`color=c=${ffmpegColorValue(backgroundColor)}:s=${width}x${height}:d=${duration}:r=${fps},` +
 				`format=rgba,settb=AVTB,setpts=PTS-STARTPTS[${baseLabel}]`
 		);
-		const builtVideo = buildVideoTimelineLayers({
-			videoSources,
+	}
+
+	if (timelineSources.length > 0) {
+		const builtTimeline = buildVideoTimelineLayers({
+			videoSources: timelineSources,
 			videoTransitions,
+			inputIndexes,
 			width,
 			height,
 			fps,
 			totalDuration: duration,
 			backgroundColor,
 		});
-		filterSteps.push(...builtVideo.filterSteps);
-		for (const layer of builtVideo.layers) {
+		filterSteps.push(...builtTimeline.filterSteps);
+		for (const layer of builtTimeline.layers) {
 			layers.push({
 				inputLabel: layer.outputLabel,
 				kind: "video",
@@ -166,46 +189,6 @@ function buildCanonicalVisualFilters({
 				elementOrder: layer.elementOrder,
 				sourceOrder: layer.sourceIndex,
 				legacyOrder: 0,
-				blendMode: layer.blendMode,
-				startTime: layer.startTime,
-				endTime: layer.endTime,
-			});
-		}
-	}
-
-	if (images.length > 0) {
-		const imageSources: VideoSource[] = images.map((image) => ({
-			elementId: image.elementId,
-			trackId: image.trackId,
-			trackOrder: image.trackOrder,
-			elementOrder: image.elementOrder,
-			path: image.path,
-			startTime: image.startTime,
-			duration: image.duration,
-			trimStart: image.trimStart,
-			trimEnd: image.trimEnd,
-			visual: image.visual,
-			effectFilter: image.effectFilter,
-		}));
-		const builtImages = buildVideoTimelineLayers({
-			videoSources: imageSources,
-			inputIndexOffset: baseInputCount,
-			segmentIndexOffset: videoSources.length,
-			width,
-			height,
-			fps,
-			totalDuration: duration,
-			backgroundColor,
-		});
-		filterSteps.push(...builtImages.filterSteps);
-		for (const layer of builtImages.layers) {
-			layers.push({
-				inputLabel: layer.outputLabel,
-				kind: "image",
-				trackOrder: layer.trackOrder,
-				elementOrder: layer.elementOrder,
-				sourceOrder: layer.sourceIndex,
-				legacyOrder: 1,
 				blendMode: layer.blendMode,
 				startTime: layer.startTime,
 				endTime: layer.endTime,

@@ -7,13 +7,22 @@
 
 import type {
 	MediaElement,
+	ProjectAudioMixSettings,
 	TimelineTrack,
 	TimelineElement,
 } from "@/types/timeline";
 import type { MediaItem } from "@/stores/media/media-store";
-import type { AudioCrossfadeInput, AudioFileInput } from "../types";
+import type {
+	AudioCrossfadeInput,
+	AudioFileInput,
+	AudioMixConfigInput,
+} from "../types";
 import { normalizeMediaAudioSettings } from "@/lib/audio/audio-properties";
 import { selectMediaAudioSources } from "@/lib/audio/audio-source-selection";
+import {
+	normalizeProjectAudioMixSettings,
+	normalizeTrackAudioSettings,
+} from "@/lib/audio/audio-mix-settings";
 
 type LogFn = (...args: unknown[]) => void;
 
@@ -328,4 +337,28 @@ export function extractAudioCrossfadeInputs({
 			trackId: track.id,
 		}));
 	});
+}
+
+export function extractAudioMixConfig({
+	tracks,
+	audioMix,
+}: {
+	tracks: TimelineTrack[];
+	audioMix?: ProjectAudioMixSettings;
+}): AudioMixConfigInput {
+	const mix = normalizeProjectAudioMixSettings({ audioMix });
+	return {
+		master: mix.master,
+		buses: mix.buses,
+		tracks: tracks.flatMap((track) => {
+			if (track.type !== "media" && track.type !== "audio") return [];
+			return [
+				{
+					...normalizeTrackAudioSettings({ audio: track.audio }),
+					trackId: track.id,
+					muted: track.muted === true || track.hidden === true,
+				},
+			];
+		}),
+	};
 }

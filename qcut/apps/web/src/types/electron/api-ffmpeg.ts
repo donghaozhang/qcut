@@ -9,6 +9,7 @@ import type {
 	VideoSourceInput,
 	VideoTransitionInput,
 	AudioFileInput,
+	AudioMixConfigInput,
 } from "../../lib/export/export-engine-cli";
 
 export interface ElectronFFmpegOps {
@@ -42,6 +43,7 @@ export interface ElectronFFmpegOps {
 			duration?: number;
 			audioFiles?: AudioFileInput[];
 			audioCrossfades?: AudioCrossfadeInput[];
+			audioMixConfig?: AudioMixConfigInput;
 			useDirectCopy?: boolean;
 			videoSources?: VideoSourceInput[];
 			videoTransitions?: VideoTransitionInput[];

@@ -56,6 +56,67 @@ export interface AudioCrossfade {
 	curve: "linear" | "equal-power";
 }
 
+export interface AudioParametricEqBand {
+	id: string;
+	enabled: boolean;
+	type: "bell" | "low-shelf" | "high-shelf" | "notch";
+	frequencyHz: number;
+	gainDb: number;
+	q: number;
+}
+
+export interface AudioBusEffects {
+	parametricEqualizer: {
+		enabled: boolean;
+		lowCutHz: number;
+		highCutHz: number;
+		bands: AudioParametricEqBand[];
+	};
+	compressor: {
+		enabled: boolean;
+		thresholdDb: number;
+		ratio: number;
+		attackMs: number;
+		releaseMs: number;
+		makeupGainDb: number;
+	};
+	limiter: { enabled: boolean; ceilingDb: number; releaseMs: number };
+}
+
+export interface AudioMixBus {
+	id: string;
+	name: string;
+	gainDb: number;
+	pan: number;
+	muted: boolean;
+	solo: boolean;
+	effects: AudioBusEffects;
+}
+
+export interface AudioTrackMix {
+	trackId: string;
+	muted: boolean;
+	gainDb: number;
+	pan: number;
+	solo: boolean;
+	busId: string;
+	effects: AudioBusEffects;
+	ducking: {
+		enabled: boolean;
+		sourceTrackIds: string[];
+		thresholdDb: number;
+		reductionDb: number;
+		attackMs: number;
+		releaseMs: number;
+	};
+}
+
+export interface AudioMixConfig {
+	master: AudioMixBus;
+	buses: AudioMixBus[];
+	tracks: AudioTrackMix[];
+}
+
 /** Options for rendering the timeline audio mix to a standalone MP3 file. */
 export interface AudioExportOptions {
 	outputPath: string;
@@ -64,6 +125,8 @@ export interface AudioExportOptions {
 	bitrate: number;
 	sampleRate: number;
 	channels?: 1 | 2;
+	audioMixConfig?: AudioMixConfig;
+	audioCrossfades?: AudioCrossfade[];
 }
 
 /** Result of a standalone audio export. */
@@ -401,6 +464,7 @@ export interface ExportOptions {
 	/** Optional array of audio files to mix into the video */
 	audioFiles?: AudioFile[];
 	audioCrossfades?: AudioCrossfade[];
+	audioMixConfig?: AudioMixConfig;
 	/** Optional FFmpeg filter chain string for video effects */
 	filterChain?: string;
 	/** Optional FFmpeg drawtext filter chain for text overlays */

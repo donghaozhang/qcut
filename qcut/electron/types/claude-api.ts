@@ -92,6 +92,7 @@ export interface ClaudeElement {
 		| "image"
 		| "text"
 		| "sticker"
+		| "adjustment"
 		| "captions"
 		| "remotion"
 		| "media"

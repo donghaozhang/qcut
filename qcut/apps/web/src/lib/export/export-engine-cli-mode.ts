@@ -12,6 +12,7 @@ import type { ExportAnalysis } from "./export-analysis";
 import type {
 	AudioCrossfadeInput,
 	AudioFileInput,
+	AudioMixConfigInput,
 	VideoSourceInput,
 	VideoTransitionInput,
 	StickerSourceForFilter,
@@ -95,6 +96,7 @@ export interface BuildExportOptionsParams {
 	fps: number;
 	audioFiles: AudioFileInput[];
 	audioCrossfades: AudioCrossfadeInput[];
+	audioMixConfig: AudioMixConfigInput;
 	combinedFilterChain: string;
 	textFilterChain: string;
 	textAssLayers: Array<{
@@ -134,6 +136,7 @@ export function buildExportOptions(params: BuildExportOptionsParams) {
 		fps,
 		audioFiles,
 		audioCrossfades,
+		audioMixConfig,
 		combinedFilterChain,
 		textFilterChain,
 		textAssLayers,
@@ -163,6 +166,7 @@ export function buildExportOptions(params: BuildExportOptionsParams) {
 		audioFiles,
 		audioCrossfades:
 			audioCrossfades.length > 0 ? audioCrossfades : undefined,
+		audioMixConfig,
 		filterChain: combinedFilterChain || undefined,
 		textFilterChain: hasTextFilters ? textFilterChain : undefined,
 		textAssLayers: textAssLayers.length > 0 ? textAssLayers : undefined,

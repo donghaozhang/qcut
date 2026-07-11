@@ -24,6 +24,7 @@ import type {
 	VideoSourceInput,
 	VideoTransitionInput,
 	AudioFileInput,
+	AudioMixConfigInput,
 } from "../export-cli/types";
 import {
 	buildTextOverlayFilters,
@@ -37,6 +38,7 @@ import {
 	extractVideoInputPath,
 	extractStickerSources,
 	extractImageSources,
+	extractAudioMixConfig,
 } from "../export-cli/sources";
 import {
 	prepareAudioFilesForExport,
@@ -70,6 +72,7 @@ export type {
 	VideoSourceInput,
 	VideoTransitionInput,
 	AudioFileInput,
+	AudioMixConfigInput,
 } from "../export-cli/types";
 
 type EffectsStore = ReturnType<typeof useEffectsStore.getState>;
@@ -594,6 +597,10 @@ export class CLIExportEngine extends ExportEngine {
 			: [];
 		const audioCrossfades: AudioCrossfadeInput[] =
 			extractAudioCrossfadeInputs({ tracks: this.tracks });
+		const audioMixConfig: AudioMixConfigInput = extractAudioMixConfig({
+			tracks: this.tracks,
+			audioMix: useProjectStore.getState().activeProject?.audioMix,
+		});
 
 		if (
 			this.exportAnalysis?.optimizationStrategy === "image-video-composite" &&
@@ -619,6 +626,7 @@ export class CLIExportEngine extends ExportEngine {
 			fps: this.fps,
 			audioFiles,
 			audioCrossfades,
+			audioMixConfig,
 			combinedFilterChain,
 			textFilterChain,
 			textAssLayers,
