@@ -473,16 +473,15 @@ test.describe("Main-track video properties", () => {
 			(previewBounds?.x ?? 0) + 90,
 			(previewBounds?.y ?? 0) + 90
 		);
-		await expect
-			.poll(async () =>
-				page.evaluate(() => {
-					const tracks = (window as any).__timelineStore.getState().tracks;
-					return tracks
-						.flatMap((track: any) => track.elements)
-						.find((item: any) => item.type === "media")?.chromaKey?.color;
-				})
-			)
-			.toMatch(/^#[0-9a-f]{6}$/i);
+		const selectedChromaColor = () =>
+			page.evaluate(() => {
+				const tracks = (window as any).__timelineStore.getState().tracks;
+				return tracks
+					.flatMap((track: any) => track.elements)
+					.find((item: any) => item.type === "media")?.chromaKey?.color;
+			});
+		await expect.poll(selectedChromaColor).not.toBe("#00ff00");
+		expect(await selectedChromaColor()).toMatch(/^#[0-9a-f]{6}$/i);
 
 		await visualTabs.getByRole("tab", { name: "Basic", exact: true }).click();
 		await properties
