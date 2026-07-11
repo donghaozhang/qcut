@@ -21,18 +21,7 @@ import {
 	ErrorCategory,
 	ErrorSeverity,
 } from "@/lib/debug/error-handler";
-import {
-	Upload,
-	Download,
-	FileAudio,
-	FileVideo,
-	Loader2,
-	CheckCircle,
-	AlertCircle,
-	Play,
-	Pause,
-	Plus,
-} from "lucide-react";
+import { Upload, Loader2, CheckCircle, AlertCircle, Plus } from "lucide-react";
 import { useDragDrop } from "@/hooks/use-drag-drop";
 import { cn, openInNewTab } from "@/lib/utils";
 // DEPRECATED: Modal Whisper utilities removed for Gemini migration
@@ -47,9 +36,11 @@ import type {
 	TranscriptionResult,
 	TranscriptionSegment,
 } from "@/types/captions";
+import type { SubtitleStyle } from "@/types/timeline";
 // REMOVED: import { r2Client } from "@/lib/storage/r2-client";
 import { useTimelineStore } from "@/stores/timeline/timeline-store";
 import { useCaptionsStore } from "@/stores/captions-store";
+import { CaptionWorkbench } from "./caption-workbench";
 // DEPRECATED: Modal Whisper API removed for Gemini migration
 // import { transcribeAudio } from "@/lib/api-adapter";
 
@@ -105,10 +96,18 @@ export function CaptionsView() {
 	}, []);
 
 	const addCaptionsToTimeline = useCallback(
-		(result: TranscriptionResult) => {
+		({
+			result,
+			style,
+		}: {
+			result: TranscriptionResult;
+			style?: SubtitleStyle;
+		}) => {
 			try {
 				// Create caption elements from transcription result
-				const captionElements = createCaptionElements(result);
+				const captionElements = createCaptionElements(result).map((element) =>
+					style ? { ...element, style } : element
+				);
 
 				if (captionElements.length === 0) {
 					toast.warning("No captions were generated from the transcription");
@@ -179,12 +178,15 @@ export function CaptionsView() {
 	);
 
 	const startTranscription = useCallback(
-		async (file: File, fileKey?: string) => {
+		async (
+			file: File,
+			fileKey?: string
+		): Promise<TranscriptionResult | null> => {
 			if (!configured) {
 				toast.error(
 					`Transcription not configured. Missing: ${missingVars.join(", ")}`
 				);
-				return;
+				return null;
 			}
 
 			updateState({
@@ -437,6 +439,7 @@ export function CaptionsView() {
 						});
 					}
 				}
+				return result;
 			} catch (error) {
 				console.error("[Gemini Transcription] ❌ Error:", error);
 				handleError(error, {
@@ -513,6 +516,7 @@ export function CaptionsView() {
 				} else {
 					toast.error(`Transcription failed: ${errorMessage}`);
 				}
+				return null;
 			}
 		},
 		[
@@ -578,6 +582,24 @@ export function CaptionsView() {
 			startTranscription(file, fileKey);
 		},
 		[getCachedTranscription, startTranscription]
+	);
+
+	const transcribeFileForWorkbench = useCallback(
+		async ({ file }: { file: File }): Promise<TranscriptionResult | null> => {
+			const fileKey = `${file.name}-${file.size}-${file.lastModified}`;
+			const cachedResult = getCachedTranscription(fileKey);
+			if (cachedResult) {
+				updateState({
+					currentFile: file,
+					error: null,
+					result: cachedResult,
+				});
+				return cachedResult;
+			}
+
+			return startTranscription(file, fileKey);
+		},
+		[getCachedTranscription, startTranscription, updateState]
 	);
 
 	const { isDragOver, dragProps } = useDragDrop({
@@ -770,7 +792,7 @@ export function CaptionsView() {
 							size="sm"
 							variant="outline"
 							onClick={() =>
-								state.result && addCaptionsToTimeline(state.result)
+								state.result && addCaptionsToTimeline({ result: state.result })
 							}
 						>
 							<Plus className="size-4 mr-2" />
@@ -799,6 +821,13 @@ export function CaptionsView() {
 					</div>
 				</div>
 			)}
+
+			<CaptionWorkbench
+				result={state.result}
+				mediaFile={state.currentFile}
+				onAddToTimeline={addCaptionsToTimeline}
+				onTranscribeFile={transcribeFileForWorkbench}
+			/>
 
 			{/* Hidden File Input */}
 			<input

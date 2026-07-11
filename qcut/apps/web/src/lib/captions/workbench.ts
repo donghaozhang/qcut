@@ -28,11 +28,37 @@ export interface CaptionStylePreset {
 	style: SubtitleStyle;
 }
 
+export type CaptionPostProcessAction =
+	| "polish"
+	| "resegment"
+	| "localize"
+	| "highlight-quotes"
+	| "remove-fillers";
+
+export interface CaptionPostProcessResult {
+	segments: TranscriptionSegment[];
+	changedCount: number;
+}
+
+export interface CaptionTextHighlight {
+	text: string;
+	kind: "normal" | "hotword" | "suspicious" | "filler";
+}
+
+export interface CaptionRewrite {
+	id: number;
+	text: string;
+}
+
 const FILLER_PATTERNS = [
 	/\b(um+|uh+|er+|ah+)\b/gi,
 	/\b(you know|kind of|sort of)\b/gi,
 	/(嗯+|呃+|啊+|这个|那个|就是说|然后呢)/g,
 ];
+const TOKEN_PATTERN =
+	/(\s+|\?{2,}|!{2,}|…+|[A-Za-z][\w'-]*|[\u4e00-\u9fff]{1,4}|[0-9]+|.)/gu;
+const SUSPICIOUS_TOKEN_PATTERN =
+	/([A-Za-z])\1{2,}|(.)\2{3,}|�|\?{2,}|…{2,}|呃{2,}|嗯{2,}/u;
 
 const DEFAULT_STYLE_BASE: SubtitleStyle = {
 	fontFamily: "Arial",
@@ -191,6 +217,74 @@ export function getQualityFlags({
 	return flags;
 }
 
+export function getCaptionTextHighlights({
+	hotWords,
+	text,
+}: {
+	hotWords: string[];
+	text: string;
+}): CaptionTextHighlight[] {
+	const normalizedHotWords = hotWords
+		.map((word) => word.trim())
+		.filter((word) => word.length > 0);
+	if (normalizedHotWords.length === 0) {
+		return tokenizeCaptionText({ text }).map((token) => ({
+			text: token,
+			kind: getTokenHighlightKind({ token, hotWords: [] }),
+		}));
+	}
+
+	const hotWordPattern = new RegExp(
+		`(${normalizedHotWords.map(escapeRegExp).join("|")})`,
+		"giu"
+	);
+
+	return text
+		.split(hotWordPattern)
+		.filter((part) => part.length > 0)
+		.flatMap((part) => {
+			const isHotWord = normalizedHotWords.some(
+				(word) => word.toLowerCase() === part.toLowerCase()
+			);
+			if (isHotWord) return [{ text: part, kind: "hotword" as const }];
+			return tokenizeCaptionText({ text: part }).map((token) => ({
+				text: token,
+				kind: getTokenHighlightKind({ token, hotWords: normalizedHotWords }),
+			}));
+		});
+}
+
+function tokenizeCaptionText({ text }: { text: string }): string[] {
+	return Array.from(text.matchAll(TOKEN_PATTERN)).map((match) => match[0]);
+}
+
+function getTokenHighlightKind({
+	hotWords,
+	token,
+}: {
+	hotWords: string[];
+	token: string;
+}): CaptionTextHighlight["kind"] {
+	if (/^\s+$/u.test(token)) return "normal";
+	if (hotWords.some((word) => word.toLowerCase() === token.toLowerCase())) {
+		return "hotword";
+	}
+	if (
+		FILLER_PATTERNS.some((pattern) => {
+			pattern.lastIndex = 0;
+			return pattern.test(token);
+		})
+	) {
+		return "filler";
+	}
+	if (SUSPICIOUS_TOKEN_PATTERN.test(token)) return "suspicious";
+	return "normal";
+}
+
+function escapeRegExp(value: string): string {
+	return value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+}
+
 export function applyBatchReplace({
 	segments,
 	rule,
@@ -208,6 +302,69 @@ export function applyBatchReplace({
 		...segment,
 		text: segment.text.replace(pattern, rule.replace),
 	}));
+}
+
+export function applyCaptionRewrites({
+	rewrites,
+	segments,
+}: {
+	rewrites: CaptionRewrite[];
+	segments: TranscriptionSegment[];
+}): CaptionPostProcessResult {
+	const rewriteMap = new Map<number, string>();
+	for (const rewrite of rewrites) {
+		rewriteMap.set(rewrite.id, rewrite.text);
+	}
+
+	let changedCount = 0;
+	const nextSegments = segments.map((segment) => {
+		const nextText = rewriteMap.get(segment.id);
+		if (nextText === undefined || nextText === segment.text) return segment;
+		changedCount += 1;
+		return { ...segment, text: nextText };
+	});
+
+	return { segments: nextSegments, changedCount };
+}
+
+export function parseCaptionRewriteResponse({
+	content,
+}: {
+	content: string;
+}): CaptionRewrite[] {
+	const jsonText = extractJsonArray({ content });
+	const parsed: unknown = JSON.parse(jsonText);
+	if (!Array.isArray(parsed)) {
+		throw new Error("Caption rewrite response must be a JSON array");
+	}
+
+	return parsed.flatMap((item): CaptionRewrite[] => {
+		if (
+			typeof item === "object" &&
+			item !== null &&
+			"id" in item &&
+			"text" in item &&
+			typeof item.id === "number" &&
+			typeof item.text === "string"
+		) {
+			return [{ id: item.id, text: item.text }];
+		}
+
+		return [];
+	});
+}
+
+function extractJsonArray({ content }: { content: string }): string {
+	const fencedMatch = content.match(/```(?:json)?\s*([\s\S]*?)```/u);
+	if (fencedMatch?.[1]) return fencedMatch[1].trim();
+
+	const startIndex = content.indexOf("[");
+	const endIndex = content.lastIndexOf("]");
+	if (startIndex < 0 || endIndex <= startIndex) {
+		throw new Error("Caption rewrite response did not include JSON");
+	}
+
+	return content.slice(startIndex, endIndex + 1);
 }
 
 export function transformCaptionText({
@@ -240,7 +397,10 @@ export function transformCaptionText({
 			: `${nextText}.`;
 	}
 
-	if (options.compressToChars > 0 && nextText.length > options.compressToChars) {
+	if (
+		options.compressToChars > 0 &&
+		nextText.length > options.compressToChars
+	) {
 		nextText = `${nextText.slice(0, Math.max(0, options.compressToChars - 1))}…`;
 	}
 
@@ -292,6 +452,179 @@ export function transformSegments({
 	}));
 }
 
+export function applyCaptionPostProcess({
+	action,
+	segments,
+	targetLanguage,
+}: {
+	action: CaptionPostProcessAction;
+	segments: TranscriptionSegment[];
+	targetLanguage?: string;
+}): CaptionPostProcessResult {
+	switch (action) {
+		case "polish":
+			return mapChangedSegments({
+				segments,
+				transform: (text) => polishCaptionText({ text }),
+			});
+		case "remove-fillers":
+			return mapChangedSegments({
+				segments,
+				transform: (text) =>
+					transformCaptionText({
+						text,
+						options: {
+							punctuationMode: "keep",
+							maxCharsPerLine: 0,
+							compressToChars: 0,
+							removeFillers: true,
+						},
+					}),
+			});
+		case "resegment":
+			return resegmentForRhythm({ segments });
+		case "localize":
+			return createLocalizationDraft({
+				segments,
+				targetLanguage: targetLanguage || "target",
+			});
+		case "highlight-quotes":
+			return highlightQuoteCandidates({ segments });
+		default:
+			return { segments, changedCount: 0 };
+	}
+}
+
+export function polishCaptionText({ text }: { text: string }): string {
+	let nextText = text
+		.trim()
+		.replace(/\s+/g, " ")
+		.replace(/\s+([,.;:!?])/g, "$1")
+		.replace(/([，。！？、])\s+/g, "$1");
+
+	if (/^[a-z]/.test(nextText)) {
+		nextText = `${nextText[0].toUpperCase()}${nextText.slice(1)}`;
+	}
+
+	return nextText.replace(/[。！？.!?]+$/u, "");
+}
+
+function mapChangedSegments({
+	segments,
+	transform,
+}: {
+	segments: TranscriptionSegment[];
+	transform: (text: string) => string;
+}): CaptionPostProcessResult {
+	let changedCount = 0;
+	const nextSegments = segments.map((segment) => {
+		const nextText = transform(segment.text);
+		if (nextText !== segment.text) changedCount += 1;
+		return { ...segment, text: nextText };
+	});
+
+	return { segments: nextSegments, changedCount };
+}
+
+export function resegmentForRhythm({
+	segments,
+	maxChars = 28,
+	maxDuration = 3.2,
+}: {
+	segments: TranscriptionSegment[];
+	maxChars?: number;
+	maxDuration?: number;
+}): CaptionPostProcessResult {
+	let changedCount = 0;
+	const nextSegments: TranscriptionSegment[] = [];
+
+	for (const segment of segments) {
+		const shouldSplit =
+			segment.text.trim().length > maxChars ||
+			segment.end - segment.start > maxDuration;
+
+		if (!shouldSplit) {
+			nextSegments.push(segment);
+			continue;
+		}
+
+		const [firstSegment, secondSegment] = splitSegmentAtTextMidpoint({
+			segment,
+		});
+		nextSegments.push(firstSegment, secondSegment);
+		changedCount += 1;
+	}
+
+	return {
+		segments: nextSegments.map((segment, index) => ({
+			...segment,
+			id: index + 1,
+		})),
+		changedCount,
+	};
+}
+
+function createLocalizationDraft({
+	segments,
+	targetLanguage,
+}: {
+	segments: TranscriptionSegment[];
+	targetLanguage: string;
+}): CaptionPostProcessResult {
+	return {
+		segments: segments.map((segment) => ({
+			...segment,
+			text: `${segment.text}\n[${targetLanguage}] ${segment.text}`,
+		})),
+		changedCount: segments.length,
+	};
+}
+
+function highlightQuoteCandidates({
+	segments,
+}: {
+	segments: TranscriptionSegment[];
+}): CaptionPostProcessResult {
+	const scoredSegments = segments
+		.map((segment) => ({
+			id: segment.id,
+			score: getQuoteCandidateScore({ text: segment.text }),
+		}))
+		.filter((item) => item.score > 0)
+		.sort((a, b) => b.score - a.score)
+		.slice(0, 5);
+	const quoteIds = new Set(scoredSegments.map((item) => item.id));
+	let changedCount = 0;
+
+	return {
+		segments: segments.map((segment) => {
+			if (!quoteIds.has(segment.id) || /^【.*】$/u.test(segment.text.trim())) {
+				return segment;
+			}
+
+			changedCount += 1;
+			return { ...segment, text: `【${segment.text.trim()}】` };
+		}),
+		changedCount,
+	};
+}
+
+function getQuoteCandidateScore({ text }: { text: string }): number {
+	const trimmedText = text.trim();
+	let score = 0;
+	if (trimmedText.length >= 12 && trimmedText.length <= 48) score += 2;
+	if (/[？?！!]/u.test(trimmedText)) score += 1;
+	if (
+		/because|why|secret|never|always|must|关键|核心|本质|不要|必须/u.test(
+			trimmedText
+		)
+	) {
+		score += 2;
+	}
+	if (trimmedText.length > 60) score -= 2;
+	return score;
+}
+
 export function splitSegmentAtTextMidpoint({
 	segment,
 }: {
@@ -331,7 +664,8 @@ function findNearestSplitIndex({
 		const left = midpoint - offset;
 		const right = midpoint + offset;
 		if (left > 0 && separators.includes(text[left])) return left + 1;
-		if (right < text.length && separators.includes(text[right])) return right + 1;
+		if (right < text.length && separators.includes(text[right]))
+			return right + 1;
 	}
 	return midpoint;
 }
@@ -397,9 +731,11 @@ export function createPlainTextExport({
 	return segments
 		.map((segment) => {
 			if (!includeTimestamps) return segment.text.trim();
-			return `[${formatClockTime({ seconds: segment.start })} - ${formatClockTime({
-				seconds: segment.end,
-			})}] ${segment.text.trim()}`;
+			return `[${formatClockTime({ seconds: segment.start })} - ${formatClockTime(
+				{
+					seconds: segment.end,
+				}
+			)}] ${segment.text.trim()}`;
 		})
 		.join("\n");
 }
