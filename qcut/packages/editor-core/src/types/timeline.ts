@@ -124,11 +124,7 @@ export type MediaAnimationType =
 	| "zoom-in"
 	| "zoom-out";
 
-export type ClipTransitionType =
-	| "dissolve"
-	| "fade-black"
-	| "slide"
-	| "wipe";
+export type ClipTransitionType = "dissolve" | "fade-black" | "slide" | "wipe";
 
 export type ClipTransitionDirection = "left" | "right" | "up" | "down";
 

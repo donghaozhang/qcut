@@ -30,10 +30,30 @@ describe("visual layer compositor", () => {
 	it("sorts every visual kind from lower timeline tracks to upper tracks", () => {
 		const ordered = sortPreparedVisualLayers({
 			layers: [
-				layer({ inputLabel: "title", kind: "text", trackOrder: 0, legacyOrder: 4 }),
-				layer({ inputLabel: "video", kind: "video", trackOrder: 3, legacyOrder: 0 }),
-				layer({ inputLabel: "sticker", kind: "sticker", trackOrder: 1, legacyOrder: 2 }),
-				layer({ inputLabel: "image", kind: "image", trackOrder: 2, legacyOrder: 1 }),
+				layer({
+					inputLabel: "title",
+					kind: "text",
+					trackOrder: 0,
+					legacyOrder: 4,
+				}),
+				layer({
+					inputLabel: "video",
+					kind: "video",
+					trackOrder: 3,
+					legacyOrder: 0,
+				}),
+				layer({
+					inputLabel: "sticker",
+					kind: "sticker",
+					trackOrder: 1,
+					legacyOrder: 2,
+				}),
+				layer({
+					inputLabel: "image",
+					kind: "image",
+					trackOrder: 2,
+					legacyOrder: 1,
+				}),
 			],
 		});
 
@@ -49,9 +69,24 @@ describe("visual layer compositor", () => {
 		const result = composePreparedVisualLayers({
 			baseLabel: "background",
 			layers: [
-				layer({ inputLabel: "top_text", kind: "text", trackOrder: 0, legacyOrder: 4 }),
-				layer({ inputLabel: "bottom_video", kind: "video", trackOrder: 2, legacyOrder: 0 }),
-				layer({ inputLabel: "middle_image", kind: "image", trackOrder: 1, legacyOrder: 1 }),
+				layer({
+					inputLabel: "top_text",
+					kind: "text",
+					trackOrder: 0,
+					legacyOrder: 4,
+				}),
+				layer({
+					inputLabel: "bottom_video",
+					kind: "video",
+					trackOrder: 2,
+					legacyOrder: 0,
+				}),
+				layer({
+					inputLabel: "middle_image",
+					kind: "image",
+					trackOrder: 1,
+					legacyOrder: 1,
+				}),
 			],
 		});
 		const graph = result.filterSteps.join(";");

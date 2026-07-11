@@ -18,7 +18,11 @@ function clampPlaybackRate({ rate }: { rate: number | undefined }): number {
 	return Math.min(8, Math.max(0.1, rate ?? 1));
 }
 
-function hasKeyframes({ keyframes }: { keyframes: object | undefined }): boolean {
+function hasKeyframes({
+	keyframes,
+}: {
+	keyframes: object | undefined;
+}): boolean {
 	return Object.values(keyframes ?? {}).some(
 		(value) => Array.isArray(value) && value.length > 0
 	);
@@ -75,10 +79,7 @@ export function prepareTransitionSource({
 	previousTransition?: VideoTransition;
 	nextTransition?: VideoTransition;
 }): PreparedTransitionSource {
-	const requestedBefore = Math.max(
-		0,
-		(previousTransition?.duration ?? 0) / 2
-	);
+	const requestedBefore = Math.max(0, (previousTransition?.duration ?? 0) / 2);
 	const requestedAfter = Math.max(0, (nextTransition?.duration ?? 0) / 2);
 	const usesSourceHandles = canUseTransitionSourceHandles({ source });
 	const rate = clampPlaybackRate({ rate: source.playbackRate });
@@ -281,8 +282,7 @@ export function buildXfadeTransitionFilter({
 	if (transition.type === "dissolve") {
 		return {
 			transition: "custom",
-			expression:
-				"A*(1-(" + progress + "))+B*(" + progress + ")",
+			expression: "A*(1-(" + progress + "))+B*(" + progress + ")",
 		};
 	}
 	if (transition.type === "fade-black") {
@@ -296,8 +296,7 @@ export function buildXfadeTransitionFilter({
 			")-1))";
 		return {
 			transition: "custom",
-			expression:
-				"if(eq(PLANE,3),255," + colorExpression + ")",
+			expression: "if(eq(PLANE,3),255," + colorExpression + ")",
 		};
 	}
 	if (transition.type === "slide") {

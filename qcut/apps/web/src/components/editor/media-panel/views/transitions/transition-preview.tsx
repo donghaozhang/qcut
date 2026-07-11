@@ -38,19 +38,19 @@ function previewTransition({
 }
 
 function PreviewLayer({
-	role,
+	layerRole,
 	transition,
 	progress,
 	source,
 }: {
-	role: ClipTransitionRole;
+	layerRole: ClipTransitionRole;
 	transition: ClipTransition;
 	progress: number;
 	source: string;
 }) {
 	const presentation = getClipTransitionLayerPresentation({
 		transition,
-		role,
+		role: layerRole,
 		progress,
 		canvasWidth: 240,
 		canvasHeight: 135,
@@ -112,13 +112,13 @@ export function TransitionPreview({
 	return (
 		<div className="relative h-full w-full overflow-hidden bg-neutral-950">
 			<PreviewLayer
-				role="from"
+				layerRole="from"
 				transition={transition}
 				progress={progress}
 				source={fromSource}
 			/>
 			<PreviewLayer
-				role="to"
+				layerRole="to"
 				transition={transition}
 				progress={progress}
 				source={toSource}

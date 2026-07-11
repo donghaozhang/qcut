@@ -198,10 +198,7 @@ describe("clip transitions", () => {
 
 		const reconciled = reconcileTrackTransitions({ track });
 
-		expect(reconciled.transitions).toEqual([
-			left,
-			{ ...right, duration: 0.5 },
-		]);
+		expect(reconciled.transitions).toEqual([left, { ...right, duration: 0.5 }]);
 		expect(
 			getTransitionMaxDuration({
 				track,
@@ -255,16 +252,14 @@ describe("clip transitions", () => {
 			}),
 		];
 
-		expect(
-			reconcileTrackAudioCrossfades({ track }).audioCrossfades
-		).toEqual([
+		expect(reconcileTrackAudioCrossfades({ track }).audioCrossfades).toEqual([
 			track.audioCrossfades[0],
 			{ ...track.audioCrossfades[1], duration: 0.5 },
 		]);
 
 		track.elements[2] = { ...track.elements[2], startTime: 5 };
-		expect(
-			reconcileTrackAudioCrossfades({ track }).audioCrossfades
-		).toEqual([track.audioCrossfades[0]]);
+		expect(reconcileTrackAudioCrossfades({ track }).audioCrossfades).toEqual([
+			track.audioCrossfades[0],
+		]);
 	});
 });

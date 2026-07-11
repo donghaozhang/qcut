@@ -107,7 +107,7 @@ export function buildTimelineAssLayers({
 					blendMode: "normal",
 					trackOrder,
 					elementOrder,
-					});
+				});
 				continue;
 			}
 

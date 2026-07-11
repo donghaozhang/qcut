@@ -563,9 +563,9 @@ export class CLIExportEngine extends ExportEngine {
 
 		const shouldExtractVideoSources =
 			hasVideoVisualEdits ||
-				hasPerClipVideoEffects ||
-				hasTransitions ||
-				(hasLayeredVisualOverlays && visibleVideoCount > 0) ||
+			hasPerClipVideoEffects ||
+			hasTransitions ||
+			(hasLayeredVisualOverlays && visibleVideoCount > 0) ||
 			this.exportAnalysis?.optimizationStrategy === "video-normalization" ||
 			(this.exportAnalysis?.canUseDirectCopy &&
 				!hasTextFilters &&
@@ -595,8 +595,9 @@ export class CLIExportEngine extends ExportEngine {
 					fps: this.fps,
 				})
 			: [];
-		const audioCrossfades: AudioCrossfadeInput[] =
-			extractAudioCrossfadeInputs({ tracks: this.tracks });
+		const audioCrossfades: AudioCrossfadeInput[] = extractAudioCrossfadeInputs({
+			tracks: this.tracks,
+		});
 		const audioMixConfig: AudioMixConfigInput = extractAudioMixConfig({
 			tracks: this.tracks,
 			audioMix: useProjectStore.getState().activeProject?.audioMix,

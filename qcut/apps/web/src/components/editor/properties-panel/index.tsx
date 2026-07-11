@@ -233,11 +233,11 @@ export function PropertiesPanel() {
 									(() => {
 										const { trackId, element } = resolvedSelections[0];
 										const showEffects =
-							EFFECTS_ENABLED &&
-							(element.type === "adjustment" || hasEffects(element.id));
-						const showTransform =
-							element.type === "markdown" ||
-							(showEffects && element.type !== "adjustment");
+											EFFECTS_ENABLED &&
+											(element.type === "adjustment" || hasEffects(element.id));
+										const showTransform =
+											element.type === "markdown" ||
+											(showEffects && element.type !== "adjustment");
 										return (
 											<div key={element.id}>
 												{showEffects ? (

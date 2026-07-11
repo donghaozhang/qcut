@@ -35,7 +35,7 @@ export function easeClipTransitionProgress({
 	if (easing === "linear") return clamped;
 	return clamped < 0.5
 		? 4 * clamped * clamped * clamped
-		: 1 - Math.pow(-2 * clamped + 2, 3) / 2;
+		: 1 - (-2 * clamped + 2) ** 3 / 2;
 }
 
 function wipeClipPath({

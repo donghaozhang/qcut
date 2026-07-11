@@ -50,8 +50,7 @@ export function validateElementTrackCompatibility(
 		const errorMessages: Record<string, string> = {
 			text: "Text elements can only be placed on text tracks",
 			sticker: "Sticker elements can only be placed on sticker tracks",
-			adjustment:
-				"Adjustment elements can only be placed on adjustment tracks",
+			adjustment: "Adjustment elements can only be placed on adjustment tracks",
 			captions: "Caption elements can only be placed on caption tracks",
 			remotion: "Remotion elements can only be placed on Remotion tracks",
 			markdown: "Markdown elements can only be placed on markdown tracks",

@@ -74,7 +74,9 @@ export function TransitionsView() {
 		}
 		const config = getClipTransitionPresetConfig({ preset });
 		if (!config) {
-			toast.info(`${preset.name} will be available in a later transition pack.`);
+			toast.info(
+				`${preset.name} will be available in a later transition pack.`
+			);
 			return;
 		}
 
@@ -170,9 +172,7 @@ export function TransitionsView() {
 									preset={preset}
 									selected={selectedPreset?.id === preset.id}
 									canApply={canApply}
-									available={Boolean(
-										getClipTransitionPresetConfig({ preset })
-									)}
+									available={Boolean(getClipTransitionPresetConfig({ preset }))}
 									previewSources={previewSources}
 									onSelect={({ preset: nextPreset }) =>
 										setSelectedPresetId(nextPreset.id)

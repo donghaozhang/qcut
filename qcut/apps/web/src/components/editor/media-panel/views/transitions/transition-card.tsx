@@ -1,8 +1,4 @@
-import {
-	CrownIcon,
-	DownloadIcon,
-	MousePointerClickIcon,
-} from "lucide-react";
+import { CrownIcon, DownloadIcon, MousePointerClickIcon } from "lucide-react";
 import type { DragEvent, KeyboardEvent } from "react";
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
@@ -68,9 +64,7 @@ export function TransitionCard({
 			tabIndex={0}
 			onClick={() => onSelect({ preset })}
 			onKeyDown={(event) => handleKeyDown({ event })}
-			onDragStart={(event) =>
-				available && onDragStart({ event, preset })
-			}
+			onDragStart={(event) => available && onDragStart({ event, preset })}
 			onMouseEnter={() => setIsPreviewing(true)}
 			onMouseLeave={() => setIsPreviewing(false)}
 			onFocus={() => setIsPreviewing(true)}

@@ -2,11 +2,7 @@ import { describe, expect, it } from "vitest";
 import { buildTimelineAudioFilters } from "../ffmpeg/audio-filter-graph";
 import type { AudioCrossfade, AudioFile } from "../ffmpeg/types";
 
-function audioFiles({
-	withHandles,
-}: {
-	withHandles: boolean;
-}): AudioFile[] {
+function audioFiles({ withHandles }: { withHandles: boolean }): AudioFile[] {
 	return [
 		{
 			elementId: "clip-a",

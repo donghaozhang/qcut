@@ -59,8 +59,7 @@ export function createAutoSaveHelpers(get: StoreGet, set: StoreSet) {
 					(track) =>
 						track.id === selectedTransition.trackId &&
 						track.transitions?.some(
-							(transition) =>
-								transition.id === selectedTransition.transitionId
+							(transition) => transition.id === selectedTransition.transitionId
 						)
 				)
 			: false;

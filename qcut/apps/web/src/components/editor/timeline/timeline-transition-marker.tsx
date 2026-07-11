@@ -30,8 +30,7 @@ export function TimelineTransitionMarker({
 	});
 	if (!resolved) return null;
 
-	const pixelsPerSecond =
-		TIMELINE_CONSTANTS.PIXELS_PER_SECOND * zoomLevel;
+	const pixelsPerSecond = TIMELINE_CONSTANTS.PIXELS_PER_SECOND * zoomLevel;
 	const width = Math.max(20, transition.duration * pixelsPerSecond);
 	const left = resolved.cutTime * pixelsPerSecond - width / 2;
 	const selected =

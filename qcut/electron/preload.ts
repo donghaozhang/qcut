@@ -289,7 +289,7 @@ const electronAPI: ElectronAPI & Record<string, unknown> = {
 			audioPath: string;
 			fileSize: number;
 		}> => ipcRenderer.invoke("extract-audio", options),
-			exportAudioCLI: (options: {
+		exportAudioCLI: (options: {
 			outputPath: string;
 			duration: number;
 			audioFiles: Array<{
@@ -303,8 +303,8 @@ const electronAPI: ElectronAPI & Record<string, unknown> = {
 				fadeOut?: number;
 				normalize?: boolean;
 				denoise?: number;
-					pan?: number;
-					audio?: AudioSettings;
+				pan?: number;
+				audio?: AudioSettings;
 			}>;
 			bitrate: number;
 			sampleRate: number;

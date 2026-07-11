@@ -53,23 +53,25 @@ function syncStickerVisualToTimeline({
 	sticker: OverlaySticker;
 	pushHistory?: boolean;
 }): void {
-	void import("@/stores/timeline/timeline-store").then(({ useTimelineStore }) => {
-		const timeline = useTimelineStore.getState();
-		for (const track of timeline._tracks) {
-			const element = track.elements.find(
-				(candidate) =>
-					candidate.type === "sticker" && candidate.stickerId === sticker.id
-			);
-			if (!element) continue;
-			timeline.updateStickerElement(
-				track.id,
-				element.id,
-				stickerVisualUpdatesFromOverlay({ sticker }),
-				pushHistory
-			);
-			return;
+	void import("@/stores/timeline/timeline-store").then(
+		({ useTimelineStore }) => {
+			const timeline = useTimelineStore.getState();
+			for (const track of timeline._tracks) {
+				const element = track.elements.find(
+					(candidate) =>
+						candidate.type === "sticker" && candidate.stickerId === sticker.id
+				);
+				if (!element) continue;
+				timeline.updateStickerElement(
+					track.id,
+					element.id,
+					stickerVisualUpdatesFromOverlay({ sticker }),
+					pushHistory
+				);
+				return;
+			}
 		}
-	});
+	);
 }
 
 function resolveStickerProjection({
@@ -334,7 +336,8 @@ export const useStickersOverlayStore = create<StickerOverlayStore>()(
 					};
 				});
 				const updatedSticker = get().overlayStickers.get(id);
-				if (updatedSticker) syncStickerVisualToTimeline({ sticker: updatedSticker });
+				if (updatedSticker)
+					syncStickerVisualToTimeline({ sticker: updatedSticker });
 			},
 
 			// Clear all stickers

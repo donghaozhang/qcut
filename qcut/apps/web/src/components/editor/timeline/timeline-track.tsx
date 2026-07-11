@@ -37,10 +37,7 @@ import {
 	getTimelineElementEndTime,
 } from "@/lib/timeline";
 import { TimelineTransitionMarker } from "./timeline-transition-marker";
-import {
-	isTransitionDrag,
-	useTransitionDrop,
-} from "./use-transition-drop";
+import { isTransitionDrag, useTransitionDrop } from "./use-transition-drop";
 
 function TimelineTrackContentComponent({
 	track,

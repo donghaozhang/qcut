@@ -126,9 +126,7 @@ describe("timeline transition operations", () => {
 			duration: 0.5,
 		});
 
-		useTimelineStore
-			.getState()
-			.updateElementStartTime("track-1", "b", 2.5);
+		useTimelineStore.getState().updateElementStartTime("track-1", "b", 2.5);
 
 		expect(useTimelineStore.getState().tracks[0].transitions).toEqual([]);
 		expect(useTimelineStore.getState().selectedTransition).toBeNull();
@@ -144,9 +142,9 @@ describe("timeline transition operations", () => {
 			duration: 20,
 		});
 
-		expect(useTimelineStore.getState().tracks[0].transitions?.[0].duration).toBe(
-			4
-		);
+		expect(
+			useTimelineStore.getState().tracks[0].transitions?.[0].duration
+		).toBe(4);
 	});
 
 	it("prevents neighboring transition windows from overlapping a short clip", () => {
@@ -184,16 +182,15 @@ describe("timeline transition operations", () => {
 		});
 
 		const updatedTrack = useTimelineStore.getState().tracks[0];
-		expect(updatedTrack.transitions?.map((item) => item.duration)).toEqual([
-			1.5, 0.5,
-		]);
+		const transitions = updatedTrack.transitions ?? [];
+		expect(transitions.map((item) => item.duration)).toEqual([1.5, 0.5]);
 		const left = resolveClipTransition({
 			track: updatedTrack,
-			transition: updatedTrack.transitions?.[0]!,
+			transition: transitions[0],
 		});
 		const right = resolveClipTransition({
 			track: updatedTrack,
-			transition: updatedTrack.transitions?.[1]!,
+			transition: transitions[1],
 		});
 		expect(left?.windowEnd).toBe(right?.windowStart);
 	});
@@ -226,14 +223,11 @@ describe("timeline transition operations", () => {
 		{
 			name: "delete",
 			edit: () =>
-				useTimelineStore
-					.getState()
-					.removeElementFromTrack("track-1", "b"),
+				useTimelineStore.getState().removeElementFromTrack("track-1", "b"),
 		},
 		{
 			name: "split",
-			edit: () =>
-				useTimelineStore.getState().splitElement("track-1", "a", 1),
+			edit: () => useTimelineStore.getState().splitElement("track-1", "a", 1),
 		},
 		{
 			name: "move to another track",
@@ -282,9 +276,7 @@ describe("timeline transition operations", () => {
 			direction: "left",
 			duration: 0.75,
 		});
-		const persistedTracks = structuredClone(
-			useTimelineStore.getState().tracks
-		);
+		const persistedTracks = structuredClone(useTimelineStore.getState().tracks);
 		const save = vi
 			.spyOn(storageService, "saveProjectTimeline")
 			.mockResolvedValue();

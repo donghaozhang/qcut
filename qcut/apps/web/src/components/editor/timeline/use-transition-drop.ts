@@ -31,10 +31,7 @@ function isTransitionType(value: unknown): value is ClipTransitionType {
 
 function isDirection(value: unknown): value is ClipTransitionDirection {
 	return (
-		value === "left" ||
-		value === "right" ||
-		value === "up" ||
-		value === "down"
+		value === "left" || value === "right" || value === "up" || value === "down"
 	);
 }
 
@@ -105,8 +102,7 @@ export function useTransitionDrop({
 		}
 
 		const bounds = timeline.getBoundingClientRect();
-		const pixelsPerSecond =
-			TIMELINE_CONSTANTS.PIXELS_PER_SECOND * zoomLevel;
+		const pixelsPerSecond = TIMELINE_CONSTANTS.PIXELS_PER_SECOND * zoomLevel;
 		const time = Math.max(0, (event.clientX - bounds.left) / pixelsPerSecond);
 		const seam = findClosestMediaSeam({
 			track,

@@ -164,8 +164,7 @@ export function buildExportOptions(params: BuildExportOptionsParams) {
 		quality: quality || "medium",
 		duration: totalDuration,
 		audioFiles,
-		audioCrossfades:
-			audioCrossfades.length > 0 ? audioCrossfades : undefined,
+		audioCrossfades: audioCrossfades.length > 0 ? audioCrossfades : undefined,
 		audioMixConfig,
 		filterChain: combinedFilterChain || undefined,
 		textFilterChain: hasTextFilters ? textFilterChain : undefined,

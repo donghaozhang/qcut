@@ -153,59 +153,64 @@ describe("FFmpeg video transform filters", () => {
 		type: VideoTransition["type"];
 		direction?: VideoTransition["direction"];
 		expectedExpression: string;
-	}>)(
-		"builds centered $type transitions without shortening the timeline",
-		({ type, direction, expectedExpression }) => {
-			const sources: VideoSource[] = [
-				{
-					elementId: "clip-a",
-					trackId: "track-1",
-					path: "/one.mp4",
-					startTime: 0,
-					duration: 2,
-					trackOrder: 0,
-					elementOrder: 0,
-				},
-				{
-					elementId: "clip-b",
-					trackId: "track-1",
-					path: "/two.mp4",
-					startTime: 2,
-					duration: 2,
-					trackOrder: 0,
-					elementOrder: 1,
-				},
-			];
-			const transition: VideoTransition = {
-				id: "transition-1",
+	}>)("builds centered $type transitions without shortening the timeline", ({
+		type,
+		direction,
+		expectedExpression,
+	}) => {
+		const sources: VideoSource[] = [
+			{
+				elementId: "clip-a",
 				trackId: "track-1",
-				fromElementId: "clip-a",
-				toElementId: "clip-b",
-				presetId: type,
-				type,
-				direction,
-				easing: "linear",
-				duration: 1,
-			};
+				path: "/one.mp4",
+				startTime: 0,
+				duration: 2,
+				trackOrder: 0,
+				elementOrder: 0,
+			},
+			{
+				elementId: "clip-b",
+				trackId: "track-1",
+				path: "/two.mp4",
+				startTime: 2,
+				duration: 2,
+				trackOrder: 0,
+				elementOrder: 1,
+			},
+		];
+		const transition: VideoTransition = {
+			id: "transition-1",
+			trackId: "track-1",
+			fromElementId: "clip-a",
+			toElementId: "clip-b",
+			presetId: type,
+			type,
+			direction,
+			easing: "linear",
+			duration: 1,
+		};
 
-			const result = buildVideoTimelineFilters({
-				videoSources: sources,
-				videoTransitions: [transition],
-				width: 640,
-				height: 360,
-				fps: 30,
-				totalDuration: 4,
-			});
-			const filter = result.filterSteps.join(";");
+		const result = buildVideoTimelineFilters({
+			videoSources: sources,
+			videoTransitions: [transition],
+			width: 640,
+			height: 360,
+			fps: 30,
+			totalDuration: 4,
+		});
+		const filter = result.filterSteps.join(";");
 
-			expect(filter).toContain("start_duration=0:stop_mode=clone:stop_duration=0.5");
-			expect(filter).toContain("start_duration=0.5:stop_mode=clone:stop_duration=0");
-			expect(filter).toContain("xfade=transition=custom:duration=1:offset=1.5");
-			expect(filter).toContain(expectedExpression);
-			expect(filter).toContain("trim=duration=4");
-			expect(result.segmentCount).toBe(2);
-		}
-	);
+		expect(filter).toContain(
+			"start_duration=0:stop_mode=clone:stop_duration=0.5"
+		);
+		expect(filter).toContain(
+			"start_duration=0.5:stop_mode=clone:stop_duration=0"
+		);
+		expect(filter).toContain("xfade=transition=custom:duration=1:offset=1.5");
+		expect(filter).toContain(expectedExpression);
+		expect(filter).toContain("trim=duration=4");
+		expect(result.segmentCount).toBe(2);
+	});
 
 	it("combines animated masks with add, subtract, and intersect", () => {
 		const expression = buildVideoMaskExpression({

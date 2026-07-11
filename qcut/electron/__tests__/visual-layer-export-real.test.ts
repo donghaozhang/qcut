@@ -38,7 +38,13 @@ function readFramePixel({ inputPath }: { inputPath: string }): number[] {
 	return Array.from(result.stdout.subarray(0, 3));
 }
 
-function createSolidVideo({ color, outputPath }: { color: string; outputPath: string }) {
+function createSolidVideo({
+	color,
+	outputPath,
+}: {
+	color: string;
+	outputPath: string;
+}) {
 	const result = runFFmpeg({
 		args: [
 			"-y",
@@ -56,7 +62,13 @@ function createSolidVideo({ color, outputPath }: { color: string; outputPath: st
 	expect(result.status, result.stderr?.toString()).toBe(0);
 }
 
-function createSolidImage({ color, outputPath }: { color: string; outputPath: string }) {
+function createSolidImage({
+	color,
+	outputPath,
+}: {
+	color: string;
+	outputPath: string;
+}) {
 	const result = runFFmpeg({
 		args: [
 			"-y",
@@ -136,7 +148,11 @@ describe.skipIf(!fs.existsSync(ffmpegPath))(
 				orders: { video: 3, image: 2, sticker: 1, text: 0 },
 				expected: [255, 255, 255],
 			},
-		])("renders $name on top after reordering mixed visual tracks", ({ name, orders, expected }) => {
+		])("renders $name on top after reordering mixed visual tracks", ({
+			name,
+			orders,
+			expected,
+		}) => {
 			const outputPath = path.join(tempDir, `top-${name}.mp4`);
 			const args = buildFFmpegArgs({
 				inputDir: tempDir,

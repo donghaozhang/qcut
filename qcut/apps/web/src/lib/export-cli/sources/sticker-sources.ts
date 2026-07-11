@@ -185,7 +185,9 @@ export async function extractStickerSources(
 
 		const timingMap = getStickerTimingMap();
 		const stickerById = new Map(
-			stickersStore.getStickersForExport().map((sticker) => [sticker.id, sticker])
+			stickersStore
+				.getStickersForExport()
+				.map((sticker) => [sticker.id, sticker])
 		);
 		for (const timing of timingMap.values()) {
 			if (!timing.element) continue;

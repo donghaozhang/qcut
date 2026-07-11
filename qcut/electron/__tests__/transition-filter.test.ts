@@ -124,15 +124,16 @@ describe("FFmpeg transition filters", () => {
 		type: VideoTransition["type"];
 		direction: VideoTransition["direction"] | undefined;
 		expected: string;
-	}>)(
-		"builds a custom parity expression for $type",
-		({ type, direction, expected }) => {
-			const filter = buildXfadeTransitionFilter({
-				transition: transition({ type, direction }),
-			});
-			expect(filter.transition).toBe("custom");
-			expect(filter.expression).toContain(expected);
-			expect(filter.expression).toContain("pow((1-P),3)");
-		}
-	);
+	}>)("builds a custom parity expression for $type", ({
+		type,
+		direction,
+		expected,
+	}) => {
+		const filter = buildXfadeTransitionFilter({
+			transition: transition({ type, direction }),
+		});
+		expect(filter.transition).toBe("custom");
+		expect(filter.expression).toContain(expected);
+		expect(filter.expression).toContain("pow((1-P),3)");
+	});
 });

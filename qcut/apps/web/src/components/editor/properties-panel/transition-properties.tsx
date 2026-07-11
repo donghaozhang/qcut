@@ -26,12 +26,7 @@ import {
 	PropertyItemLabel,
 } from "./property-item";
 
-const DIRECTIONS: ClipTransitionDirection[] = [
-	"left",
-	"right",
-	"up",
-	"down",
-];
+const DIRECTIONS: ClipTransitionDirection[] = ["left", "right", "up", "down"];
 
 function clampDuration({
 	duration,
