@@ -1,3 +1,8 @@
+import type {
+	ClipTransitionDirection,
+	ClipTransitionType,
+} from "@/types/timeline";
+
 export type TransitionCategory =
 	| "all"
 	| "basic"
@@ -96,6 +101,17 @@ export const transitionPresets: TransitionPreset[] = [
 		downloaded: true,
 	},
 	{
+		id: "wipe-right",
+		name: "Wipe Right",
+		category: "wipe",
+		type: "wipe",
+		direction: "right",
+		defaultDuration: 0.5,
+		tags: ["reveal", "edge", "right", "clean"],
+		description: "Reveal the incoming clip from the right edge.",
+		downloaded: true,
+	},
+	{
 		id: "zoom-blur",
 		name: "Zoom Blur",
 		category: "zoom",
@@ -180,6 +196,7 @@ export function getClipTransitionPresetConfig({
 		case "slide-right":
 			return { type: "slide", direction: preset.direction };
 		case "wipe-left":
+		case "wipe-right":
 			return { type: "wipe", direction: preset.direction };
 		default:
 			return null;
@@ -193,7 +210,3 @@ export function getTransitionPresetById({
 }): TransitionPreset | undefined {
 	return transitionPresets.find((preset) => preset.id === presetId);
 }
-import type {
-	ClipTransitionDirection,
-	ClipTransitionType,
-} from "@/types/timeline";
