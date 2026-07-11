@@ -4,10 +4,7 @@ import { toast } from "sonner";
 import type { AudioStemName } from "@/types/timeline";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import {
-	ToggleGroup,
-	ToggleGroupItem,
-} from "@/components/ui/toggle-group";
+import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
 import { DEFAULT_MEDIA_AUDIO_SETTINGS } from "@/lib/audio/audio-properties";
 import {
 	AudioModuleSection,
@@ -60,7 +57,14 @@ export function AudioSeparationSettings({
 			onReset={() =>
 				onSettingsChange({
 					...settings,
-					separation: { ...DEFAULT_MEDIA_AUDIO_SETTINGS.separation },
+					separation: {
+						...settings.separation,
+						enabled: false,
+						stemGains: Object.fromEntries(
+							stemEntries.map(([stem]) => [stem, 1])
+						),
+						error: undefined,
+					},
 				})
 			}
 			testId="audio-module-separation"
@@ -193,7 +197,9 @@ export function AudioVoiceConversionSettings({
 				onSettingsChange({
 					...settings,
 					voiceConversion: {
-						...DEFAULT_MEDIA_AUDIO_SETTINGS.voiceConversion,
+						...settings.voiceConversion,
+						enabled: false,
+						error: undefined,
 					},
 				})
 			}
@@ -252,9 +258,7 @@ export function AudioVoiceConversionSettings({
 				<div className="flex items-center justify-between gap-2">
 					<ToggleGroup
 						type="single"
-						value={
-							settings.voiceConversion.enabled ? "converted" : "original"
-						}
+						value={settings.voiceConversion.enabled ? "converted" : "original"}
 						onValueChange={(value) => {
 							if (value !== "converted" && value !== "original") return;
 							onSettingsChange({
@@ -272,10 +276,7 @@ export function AudioVoiceConversionSettings({
 						<ToggleGroupItem value="original" className="h-7 text-[10px]">
 							Original
 						</ToggleGroupItem>
-						<ToggleGroupItem
-							value="converted"
-							className="h-7 text-[10px]"
-						>
+						<ToggleGroupItem value="converted" className="h-7 text-[10px]">
 							Converted
 						</ToggleGroupItem>
 					</ToggleGroup>
