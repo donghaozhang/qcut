@@ -361,9 +361,14 @@ export function MediaCustomCutoutProperties({
 				type="button"
 				variant={editingThisClip ? "secondary" : "outline"}
 				className="w-full"
-				onClick={() =>
-					editingThisClip ? stopEditing() : startEditing(element.id)
-				}
+				onClick={() => {
+					if (editingThisClip) {
+						stopEditing();
+						return;
+					}
+					useMaskEditorStore.getState().clearSelection();
+					startEditing(element.id);
+				}}
 			>
 				{editingThisClip ? (
 					<MousePointer2 className="size-4" />

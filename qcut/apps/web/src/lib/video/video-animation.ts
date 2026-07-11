@@ -167,6 +167,7 @@ export function buildMediaMaskStyle(
 ): {
 	maskImage?: string;
 	WebkitMaskImage?: string;
+	maskMode?: "luminance";
 	maskSize?: string;
 	WebkitMaskSize?: string;
 	maskRepeat?: string;
@@ -186,6 +187,7 @@ export function buildMediaMaskStyle(
 	return {
 		maskImage: image,
 		WebkitMaskImage: image,
+		maskMode: "luminance",
 		maskSize: "100% 100%",
 		WebkitMaskSize: "100% 100%",
 		maskRepeat: "no-repeat",

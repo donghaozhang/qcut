@@ -444,6 +444,22 @@ test.describe("Main-track video properties", () => {
 		});
 
 		await properties.getByRole("button", { name: "Smart cutout" }).click();
+		await page.evaluate(() => {
+			const store = (window as any).__timelineStore.getState();
+			const track = store.tracks.find((item: any) => item.type === "media");
+			const element = track.elements[0];
+			store.updateMediaElement(
+				track.id,
+				element.id,
+				{
+					masks: (element.masks ?? []).map((mask: any) => ({
+						...mask,
+						enabled: false,
+					})),
+				},
+				false
+			);
+		});
 		const customCutout = properties.getByTestId(
 			"media-custom-cutout-properties"
 		);
@@ -552,12 +568,38 @@ test.describe("Main-track video properties", () => {
 			path: path.join(outputDir, "11cd-custom-cutout-controls.png"),
 			animations: "disabled",
 		});
-		await page.screenshot({
+		await page.getByTestId("preview-panel").screenshot({
 			path: path.join(outputDir, "11ce-custom-cutout-canvas.png"),
 			animations: "disabled",
 		});
+		const customMaskStyle = await page
+			.getByRole("button", { name: /^Video:/ })
+			.locator('div[style*="mask-image"]')
+			.first()
+			.evaluate((node) => (node as HTMLElement).style.maskImage);
+		expect(decodeURIComponent(customMaskStyle)).toContain("custom-cutout-mask");
 		await customCutout.getByRole("button", { name: "Finish brushing" }).click();
 		await expect(customCutoutOverlay).toHaveCount(0);
+		await page.getByTestId("preview-panel").screenshot({
+			path: path.join(outputDir, "11cf-custom-cutout-result.png"),
+			animations: "disabled",
+		});
+		await page.evaluate(() => {
+			const store = (window as any).__timelineStore.getState();
+			const track = store.tracks.find((item: any) => item.type === "media");
+			const element = track.elements[0];
+			store.updateMediaElement(
+				track.id,
+				element.id,
+				{
+					masks: (element.masks ?? []).map((mask: any) => ({
+						...mask,
+						enabled: true,
+					})),
+				},
+				false
+			);
+		});
 
 		const chromaKey = properties.getByTestId("media-chroma-key-properties");
 		await expect(

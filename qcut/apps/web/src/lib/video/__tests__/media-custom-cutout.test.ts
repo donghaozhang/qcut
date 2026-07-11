@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import type { MediaCustomCutout } from "@/types/timeline";
+import { buildMediaMaskStyle } from "../video-animation";
 import {
 	activeCustomCutoutStrokes,
 	appendCustomCutoutPoint,
@@ -76,6 +77,14 @@ describe("media custom cutout", () => {
 		expect(svg).toContain('fill="black"');
 		expect(svg).toContain('stroke="white"');
 		expect(svg).toContain('<circle cx="30" cy="30"');
+	});
+
+	it("uses luminance mode so black SVG pixels become transparent", () => {
+		const style = buildMediaMaskStyle([], customCutout, 25);
+		expect(style.maskMode).toBe("luminance");
+		expect(decodeURIComponent(style.maskImage ?? "")).toContain(
+			"custom-cutout-mask"
+		);
 	});
 
 	it("erases only strokes touched on the active correction frame", () => {
