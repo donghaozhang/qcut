@@ -18,6 +18,7 @@ interface GifConvertOptions {
 	height: number;
 	fps: number;
 	loop: boolean;
+	quality?: number;
 	tempDir: string;
 	onProgress?: (normalizedProgress: number) => void;
 }
@@ -36,6 +37,7 @@ export async function convertToGif(options: GifConvertOptions): Promise<void> {
 		height,
 		fps,
 		loop,
+		quality = 10,
 		tempDir,
 		onProgress,
 	} = options;
@@ -43,6 +45,8 @@ export async function convertToGif(options: GifConvertOptions): Promise<void> {
 	const ffmpegPath = getFFmpegPath();
 	const palettePath = path.join(tempDir, "gif-palette.png");
 	const scaleFilter = `fps=${fps},scale=${width}:${height}:flags=lanczos`;
+	const normalizedQuality = Math.min(20, Math.max(1, quality));
+	const maxColors = Math.round(256 - ((normalizedQuality - 1) / 19) * 192);
 
 	// Pass 1: Generate palette
 	claudeLog.info(HANDLER_NAME, "GIF Pass 1: Generating palette...");
@@ -53,7 +57,7 @@ export async function convertToGif(options: GifConvertOptions): Promise<void> {
 		"-i",
 		inputPath,
 		"-vf",
-		`${scaleFilter},palettegen=stats_mode=diff`,
+		`${scaleFilter},palettegen=stats_mode=diff:max_colors=${maxColors}`,
 		palettePath,
 	]);
 

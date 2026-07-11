@@ -5,16 +5,193 @@
  * Extracted from export-engine-cli.ts for reuse across filter and source modules.
  */
 
+import type {
+	AudioCrossfade,
+	AudioMixBusSettings,
+	ClipTransitionDirection,
+	ClipTransitionEasing,
+	ClipTransitionType,
+	MediaAudioSettings,
+	MediaColorSettings,
+	MediaMask,
+	TimelineTrackAudioSettings,
+} from "@/types/timeline";
+
+export interface AudioCrossfadeInput extends AudioCrossfade {
+	trackId: string;
+}
+
+export interface AudioTrackMixInput extends TimelineTrackAudioSettings {
+	trackId: string;
+	muted: boolean;
+}
+
+export interface AudioMixConfigInput {
+	master: AudioMixBusSettings;
+	buses: AudioMixBusSettings[];
+	tracks: AudioTrackMixInput[];
+}
+
+export interface VideoTransitionInput {
+	id: string;
+	trackId: string;
+	fromElementId: string;
+	toElementId: string;
+	presetId: string;
+	type: ClipTransitionType;
+	direction?: ClipTransitionDirection;
+	easing: ClipTransitionEasing;
+	duration: number;
+}
+
 /**
  * Video source input for FFmpeg direct copy optimization.
  * Matches IPC handler expectations for video segment data.
  */
+export interface VideoVisualInput {
+	x: number;
+	y: number;
+	rotation: number;
+	scaleX: number;
+	scaleY: number;
+	flipHorizontal: boolean;
+	flipVertical: boolean;
+	opacity: number;
+	blendMode:
+		| "normal"
+		| "multiply"
+		| "screen"
+		| "overlay"
+		| "darken"
+		| "lighten";
+	fitMode: "cover" | "contain" | "fill";
+	crop: { top: number; right: number; bottom: number; left: number };
+	perspective: {
+		topLeftX: number;
+		topLeftY: number;
+		topRightX: number;
+		topRightY: number;
+		bottomRightX: number;
+		bottomRightY: number;
+		bottomLeftX: number;
+		bottomLeftY: number;
+	};
+	animationInType:
+		| "none"
+		| "fade"
+		| "slide-left"
+		| "slide-right"
+		| "slide-up"
+		| "slide-down"
+		| "zoom-in"
+		| "zoom-out";
+	animationInDuration: number;
+	animationOutType:
+		| "none"
+		| "fade"
+		| "slide-left"
+		| "slide-right"
+		| "slide-up"
+		| "slide-down"
+		| "zoom-in"
+		| "zoom-out";
+	animationOutDuration: number;
+	comboAnimationType: "none" | "pulse" | "drift";
+	comboAnimationIntensity: number;
+	adjustments: {
+		brightness: number;
+		contrast: number;
+		saturation: number;
+		temperature: number;
+		tint: number;
+		sharpness: number;
+		fade: number;
+		vignette: number;
+	};
+	color: MediaColorSettings;
+	mask: MediaMask;
+	masks: MediaMask[];
+	customCutout: {
+		enabled: boolean;
+		applyStrokes: boolean;
+		strokes: Array<{
+			id: string;
+			frame: number;
+			mode: "foreground" | "background";
+			size: number;
+			points: Array<{ x: number; y: number }>;
+		}>;
+		status?: "idle" | "processing" | "ready" | "error";
+		error?: string;
+		sourceMediaId?: string;
+		resultMaskId?: string;
+		generatedFrom?: string;
+	};
+	chromaKey: {
+		enabled: boolean;
+		color: string;
+		similarity: number;
+		blend: number;
+		shadow: number;
+		cleanup: number;
+		spill: number;
+		keyframes?: Partial<
+			Record<
+				"similarity" | "blend" | "shadow" | "cleanup" | "spill",
+				Array<{
+					id: string;
+					frame: number;
+					value: number;
+					easing: "linear" | "easeIn" | "easeOut" | "easeInOut" | "spring";
+				}>
+			>
+		>;
+	};
+	enhancements: {
+		stabilization: number;
+		denoise: number;
+		clarity: number;
+		upscale: 1 | 2 | 4;
+		relight: number;
+		beauty: number;
+	};
+	keyframes?: Partial<
+		Record<
+			string,
+			Array<{
+				id: string;
+				frame: number;
+				value: number;
+				easing: "linear" | "easeIn" | "easeOut" | "easeInOut" | "spring";
+			}>
+		>
+	>;
+	keyframeFps: number;
+}
+
 export interface VideoSourceInput {
+	elementId: string;
+	trackId?: string;
+	/** UI order, top to bottom. Lower values composite later. */
+	trackOrder?: number;
+	elementOrder?: number;
 	path: string;
 	startTime: number;
 	duration: number;
 	trimStart: number;
 	trimEnd: number;
+	playbackRate: number;
+	speedKeyframes?: Array<{
+		id: string;
+		frame: number;
+		value: number;
+		easing: "linear" | "easeIn" | "easeOut" | "easeInOut" | "spring";
+	}>;
+	reverse: boolean;
+	freezeFrameTime?: number;
+	freezeFrameDuration: number;
+	visual?: VideoVisualInput;
+	effectFilter?: string;
 }
 
 /**
@@ -22,9 +199,31 @@ export interface VideoSourceInput {
  * Contains path, timing, and volume information for audio mixing.
  */
 export interface AudioFileInput {
+	elementId?: string;
+	trackId?: string;
 	path: string;
 	startTime: number;
 	volume: number;
+	sourceGain?: number;
+	trimStart?: number;
+	trimEnd?: number;
+	duration?: number;
+	fadeIn?: number;
+	fadeOut?: number;
+	normalize?: boolean;
+	denoise?: number;
+	pan?: number;
+	audio?: MediaAudioSettings;
+	playbackRate?: number;
+	speedKeyframes?: Array<{
+		id: string;
+		frame: number;
+		value: number;
+		easing: "linear" | "easeIn" | "easeOut" | "easeInOut" | "spring";
+	}>;
+	reverse?: boolean;
+	freezeFrameTime?: number;
+	freezeFrameDuration?: number;
 }
 
 /**
@@ -33,6 +232,9 @@ export interface AudioFileInput {
  */
 export interface ImageSourceInput {
 	path: string; // Local file path for FFmpeg
+	trackId?: string;
+	trackOrder?: number;
+	elementOrder?: number;
 	startTime: number; // When image appears on timeline
 	duration: number; // How long image is visible
 	width?: number; // Original image width
@@ -40,6 +242,8 @@ export interface ImageSourceInput {
 	trimStart: number; // Trim start (usually 0 for images)
 	trimEnd: number; // Trim end (usually 0 for images)
 	elementId: string; // For debugging
+	visual?: VideoVisualInput;
+	effectFilter?: string;
 }
 
 /**
@@ -48,6 +252,9 @@ export interface ImageSourceInput {
  */
 export interface StickerSourceForFilter {
 	id: string;
+	trackId?: string;
+	trackOrder?: number;
+	elementOrder?: number;
 	path: string;
 	x: number;
 	y: number;

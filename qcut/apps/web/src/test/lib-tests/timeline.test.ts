@@ -84,6 +84,34 @@ describe("Timeline Calculations", () => {
 
 			expect(checkElementOverlaps(elements)).toBe(false);
 		});
+
+		it("uses playback-adjusted duration when checking overlaps", () => {
+			const elements: TimelineElement[] = [
+				{
+					id: "fast",
+					type: "media",
+					mediaId: "media-001",
+					name: "Fast video",
+					startTime: 0,
+					duration: 10,
+					trimStart: 0,
+					trimEnd: 0,
+					playbackRate: 2,
+				},
+				{
+					id: "next",
+					type: "media",
+					mediaId: "media-002",
+					name: "Next video",
+					startTime: 5,
+					duration: 5,
+					trimStart: 0,
+					trimEnd: 0,
+				},
+			];
+
+			expect(checkElementOverlaps(elements)).toBe(false);
+		});
 	});
 
 	describe("resolveElementOverlaps", () => {

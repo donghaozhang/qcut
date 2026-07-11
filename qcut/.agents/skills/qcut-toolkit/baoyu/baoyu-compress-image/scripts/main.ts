@@ -1,5 +1,5 @@
 #!/usr/bin/env bun
-import { copyFileSync, existsSync, statSync, readdirSync, unlinkSync, renameSync } from "fs";
+import { existsSync, statSync, readdirSync, unlinkSync, renameSync } from "fs";
 import { basename, dirname, extname, join, resolve } from "path";
 import { spawn } from "child_process";
 
@@ -132,21 +132,6 @@ function formatSize(bytes: number): string {
   return `${(bytes / (1024 * 1024)).toFixed(1)}MB`;
 }
 
-function commitTempOutput(tempOutput: string, output: string): void {
-  try {
-    renameSync(tempOutput, output);
-    return;
-  } catch (error) {
-    const renameError = error as NodeJS.ErrnoException;
-    if (renameError.code !== "EXDEV") {
-      throw error;
-    }
-  }
-
-  copyFileSync(tempOutput, output);
-  unlinkSync(tempOutput);
-}
-
 async function processFile(
   compressor: Compressor,
   input: string,
@@ -161,10 +146,10 @@ async function processFile(
 
   const outputSize = statSync(tempOutput).size;
 
-  commitTempOutput(tempOutput, output);
   if (!opts.keep && absInput !== output) {
     unlinkSync(absInput);
   }
+  renameSync(tempOutput, output);
 
   return {
     input: absInput,
@@ -308,7 +293,7 @@ async function main() {
     } else {
       const totalInput = results.reduce((s, r) => s + r.inputSize, 0);
       const totalOutput = results.reduce((s, r) => s + r.outputSize, 0);
-      const reduction = totalInput > 0 ? Math.round((1 - totalOutput / totalInput) * 100) : 0;
+      const reduction = Math.round((1 - totalOutput / totalInput) * 100);
       console.log(`\nProcessed ${results.length} files: ${formatSize(totalInput)} → ${formatSize(totalOutput)} (${reduction}% reduction)`);
     }
   } else {

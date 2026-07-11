@@ -5,17 +5,145 @@
  * Extracted for reuse across modules and renderer process typings.
  */
 
+import type { AudioSettings } from "./audio-settings";
+import type { VideoColorSettings } from "./color-settings";
+
 /**
  * Audio file configuration for FFmpeg video export
  * Defines audio track placement and mixing parameters
  */
 export interface AudioFile {
+	elementId?: string;
+	trackId?: string;
 	/** File system path to the audio file */
 	path: string;
 	/** Start time in seconds for audio placement in video */
 	startTime: number;
 	/** Audio volume level (0.0-1.0, optional) */
 	volume?: number;
+	/** Per-derived-source gain, used when one clip resolves to multiple stems. */
+	sourceGain?: number;
+	/** Trim offset within the source audio/video in seconds */
+	trimStart?: number;
+	/** Trim offset from the end of the source in seconds */
+	trimEnd?: number;
+	/** Maximum source duration to include in seconds */
+	duration?: number;
+	fadeIn?: number;
+	fadeOut?: number;
+	normalize?: boolean;
+	denoise?: number;
+	pan?: number;
+	audio?: AudioSettings;
+	playbackRate?: number;
+	speedKeyframes?: Array<{
+		id: string;
+		frame: number;
+		value: number;
+		easing: "linear" | "easeIn" | "easeOut" | "easeInOut" | "spring";
+	}>;
+	reverse?: boolean;
+	freezeFrameTime?: number;
+	freezeFrameDuration?: number;
+}
+
+export interface AudioCrossfade {
+	id: string;
+	trackId: string;
+	fromElementId: string;
+	toElementId: string;
+	duration: number;
+	curve: "linear" | "equal-power";
+}
+
+export interface AudioParametricEqBand {
+	id: string;
+	enabled: boolean;
+	type: "bell" | "low-shelf" | "high-shelf" | "notch";
+	frequencyHz: number;
+	gainDb: number;
+	q: number;
+}
+
+export interface AudioBusEffects {
+	parametricEqualizer: {
+		enabled: boolean;
+		lowCutHz: number;
+		highCutHz: number;
+		bands: AudioParametricEqBand[];
+	};
+	compressor: {
+		enabled: boolean;
+		thresholdDb: number;
+		ratio: number;
+		attackMs: number;
+		releaseMs: number;
+		makeupGainDb: number;
+	};
+	limiter: { enabled: boolean; ceilingDb: number; releaseMs: number };
+}
+
+export interface AudioMixBus {
+	id: string;
+	name: string;
+	gainDb: number;
+	pan: number;
+	muted: boolean;
+	solo: boolean;
+	effects: AudioBusEffects;
+}
+
+export interface AudioTrackMix {
+	trackId: string;
+	muted: boolean;
+	gainDb: number;
+	pan: number;
+	solo: boolean;
+	busId: string;
+	effects: AudioBusEffects;
+	ducking: {
+		enabled: boolean;
+		sourceTrackIds: string[];
+		thresholdDb: number;
+		reductionDb: number;
+		attackMs: number;
+		releaseMs: number;
+	};
+}
+
+export interface AudioMixConfig {
+	master: AudioMixBus;
+	buses: AudioMixBus[];
+	tracks: AudioTrackMix[];
+}
+
+/** Options for rendering the timeline audio mix to a standalone MP3 file. */
+export interface AudioExportOptions {
+	outputPath: string;
+	duration: number;
+	audioFiles: AudioFile[];
+	bitrate: number;
+	sampleRate: number;
+	channels?: 1 | 2;
+	audioMixConfig?: AudioMixConfig;
+	audioCrossfades?: AudioCrossfade[];
+}
+
+/** Result of a standalone audio export. */
+export interface AudioExportResult {
+	outputPath: string;
+	fileSize: number;
+}
+
+/** Options for converting a temporary video export to GIF. */
+export interface GifConversionOptions {
+	sessionId: string;
+	inputPath: string;
+	width: number;
+	height: number;
+	fps: number;
+	loop: boolean;
+	quality: number;
 }
 
 /**
@@ -23,6 +151,11 @@ export interface AudioFile {
  * Contains file path and timing information for video elements
  */
 export interface VideoSource {
+	elementId?: string;
+	trackId?: string;
+	/** UI order, top to bottom. Lower values composite later. */
+	trackOrder?: number;
+	elementOrder?: number;
 	/** File system path to the video file */
 	path: string;
 	/** Start time in the final timeline (seconds) */
@@ -33,6 +166,220 @@ export interface VideoSource {
 	trimStart?: number;
 	/** Trim end time within the source video (seconds) */
 	trimEnd?: number;
+	playbackRate?: number;
+	speedKeyframes?: Array<{
+		id: string;
+		frame: number;
+		value: number;
+		easing: "linear" | "easeIn" | "easeOut" | "easeInOut" | "spring";
+	}>;
+	reverse?: boolean;
+	freezeFrameTime?: number;
+	freezeFrameDuration?: number;
+	visual?: VideoVisual;
+	effectFilter?: string;
+}
+
+export interface VideoTransition {
+	id: string;
+	trackId: string;
+	fromElementId: string;
+	toElementId: string;
+	presetId: string;
+	type: "dissolve" | "fade-black" | "slide" | "wipe";
+	direction?: "left" | "right" | "up" | "down";
+	easing: "linear" | "easeInOut";
+	duration: number;
+}
+
+export interface VideoMask {
+	id?: string;
+	name?: string;
+	enabled?: boolean;
+	type:
+		| "none"
+		| "rectangle"
+		| "ellipse"
+		| "linear"
+		| "mirror"
+		| "pen"
+		| "text"
+		| "star"
+		| "heart"
+		| "person"
+		| "object";
+	blendMode?: "add" | "subtract" | "intersect";
+	centerX: number;
+	centerY: number;
+	width: number;
+	height: number;
+	rotation: number;
+	feather: number;
+	roundness?: number;
+	expansion?: number;
+	opacity?: number;
+	maintainAspectRatio?: boolean;
+	invert: boolean;
+	points?: Array<{
+		id?: string;
+		x: number;
+		y: number;
+		handleIn?: { x: number; y: number };
+		handleOut?: { x: number; y: number };
+	}>;
+	closed?: boolean;
+	text?: string;
+	fontFamily?: string;
+	fontWeight?: "normal" | "bold";
+	keyframes?: Partial<
+		Record<
+			string,
+			Array<{
+				id: string;
+				frame: number;
+				value: number;
+				easing: "linear" | "easeIn" | "easeOut" | "easeInOut" | "spring";
+			}>
+		>
+	>;
+	sourceMediaId?: string;
+	stroke?: {
+		style:
+			| "none"
+			| "solid"
+			| "glow"
+			| "offset"
+			| "triple"
+			| "sketch"
+			| "dashed";
+		color: string;
+		width: number;
+		opacity: number;
+		glow: number;
+		offsetX: number;
+		offsetY: number;
+	};
+}
+
+export interface VideoVisual {
+	x: number;
+	y: number;
+	rotation: number;
+	scaleX: number;
+	scaleY: number;
+	flipHorizontal: boolean;
+	flipVertical: boolean;
+	opacity: number;
+	blendMode:
+		| "normal"
+		| "multiply"
+		| "screen"
+		| "overlay"
+		| "darken"
+		| "lighten";
+	fitMode: "cover" | "contain" | "fill";
+	crop: { top: number; right: number; bottom: number; left: number };
+	perspective: {
+		topLeftX: number;
+		topLeftY: number;
+		topRightX: number;
+		topRightY: number;
+		bottomRightX: number;
+		bottomRightY: number;
+		bottomLeftX: number;
+		bottomLeftY: number;
+	};
+	animationInType?:
+		| "none"
+		| "fade"
+		| "slide-left"
+		| "slide-right"
+		| "slide-up"
+		| "slide-down"
+		| "zoom-in"
+		| "zoom-out";
+	animationInDuration?: number;
+	animationOutType?:
+		| "none"
+		| "fade"
+		| "slide-left"
+		| "slide-right"
+		| "slide-up"
+		| "slide-down"
+		| "zoom-in"
+		| "zoom-out";
+	animationOutDuration?: number;
+	comboAnimationType?: "none" | "pulse" | "drift";
+	comboAnimationIntensity?: number;
+	adjustments?: {
+		brightness: number;
+		contrast: number;
+		saturation: number;
+		temperature: number;
+		tint: number;
+		sharpness: number;
+		fade: number;
+		vignette: number;
+	};
+	color?: VideoColorSettings;
+	mask?: VideoMask;
+	masks?: VideoMask[];
+	customCutout?: {
+		enabled: boolean;
+		applyStrokes: boolean;
+		strokes: Array<{
+			id: string;
+			frame: number;
+			mode: "foreground" | "background";
+			size: number;
+			points: Array<{ x: number; y: number }>;
+		}>;
+		status?: "idle" | "processing" | "ready" | "error";
+		error?: string;
+		sourceMediaId?: string;
+		resultMaskId?: string;
+		generatedFrom?: string;
+	};
+	chromaKey?: {
+		enabled: boolean;
+		color: string;
+		similarity: number;
+		blend: number;
+		shadow: number;
+		cleanup: number;
+		spill: number;
+		keyframes?: Partial<
+			Record<
+				"similarity" | "blend" | "shadow" | "cleanup" | "spill",
+				Array<{
+					id: string;
+					frame: number;
+					value: number;
+					easing: "linear" | "easeIn" | "easeOut" | "easeInOut" | "spring";
+				}>
+			>
+		>;
+	};
+	enhancements?: {
+		stabilization: number;
+		denoise: number;
+		clarity: number;
+		upscale: 1 | 2 | 4;
+		relight: number;
+		beauty: number;
+	};
+	keyframes?: Partial<
+		Record<
+			string,
+			Array<{
+				id: string;
+				frame: number;
+				value: number;
+				easing: "linear" | "easeIn" | "easeOut" | "easeInOut" | "spring";
+			}>
+		>
+	>;
+	keyframeFps: number;
 }
 
 /**
@@ -42,6 +389,9 @@ export interface VideoSource {
 export interface ImageSource {
 	/** File system path to the image file */
 	path: string;
+	trackId?: string;
+	trackOrder?: number;
+	elementOrder?: number;
 	/** Start time in seconds for image appearance */
 	startTime: number;
 	/** Duration in seconds for image display */
@@ -56,6 +406,8 @@ export interface ImageSource {
 	trimEnd: number;
 	/** Element identifier for debugging */
 	elementId: string;
+	visual?: VideoVisual;
+	effectFilter?: string;
 }
 
 /**
@@ -65,6 +417,9 @@ export interface ImageSource {
 export interface StickerSource {
 	/** Unique identifier for the sticker */
 	id: string;
+	trackId?: string;
+	trackOrder?: number;
+	elementOrder?: number;
 	/** File system path to the sticker image */
 	path: string;
 	/** X position in pixels (top-left corner) */
@@ -108,10 +463,25 @@ export interface ExportOptions {
 	duration: number;
 	/** Optional array of audio files to mix into the video */
 	audioFiles?: AudioFile[];
+	audioCrossfades?: AudioCrossfade[];
+	audioMixConfig?: AudioMixConfig;
 	/** Optional FFmpeg filter chain string for video effects */
 	filterChain?: string;
 	/** Optional FFmpeg drawtext filter chain for text overlays */
 	textFilterChain?: string;
+	/** Ordered ASS documents for advanced text overlays and blend modes */
+	textAssLayers?: Array<{
+		content: string;
+		blendMode:
+			| "normal"
+			| "multiply"
+			| "screen"
+			| "overlay"
+			| "darken"
+			| "lighten";
+		trackOrder?: number;
+		elementOrder?: number;
+	}>;
 	/** Optional FFmpeg overlay filter chain for stickers */
 	stickerFilterChain?: string;
 	/** Sticker image sources for overlay (when stickerFilterChain is provided) */
@@ -124,6 +494,7 @@ export interface ExportOptions {
 	useDirectCopy?: boolean;
 	/** Video sources for direct copy optimization (when useDirectCopy=true) */
 	videoSources?: VideoSource[];
+	videoTransitions?: VideoTransition[];
 	/** Use video file instead of frames (Mode 2 optimization) */
 	useVideoInput?: boolean;
 	/** Direct video file path for Mode 2 */
@@ -145,6 +516,7 @@ export interface ExportOptions {
 	}>;
 	/** Audio crossfade duration used between keep segments in word filter mode */
 	crossfadeMs?: number;
+	backgroundColor?: string;
 }
 
 /**
@@ -318,4 +690,10 @@ export interface FFmpegHandlers {
 	"extract-audio": (
 		options: ExtractAudioOptions
 	) => Promise<ExtractAudioResult>;
+	"export-audio-cli": (
+		options: AudioExportOptions
+	) => Promise<AudioExportResult>;
+	"convert-video-to-gif": (
+		options: GifConversionOptions
+	) => Promise<{ outputPath: string; fileSize: number }>;
 }

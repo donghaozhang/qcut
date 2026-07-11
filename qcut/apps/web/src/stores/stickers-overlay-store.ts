@@ -16,6 +16,10 @@ import type {
 } from "@/types/sticker-overlay";
 import { Z_INDEX } from "@/types/sticker-overlay";
 import { getStickerTimingMap } from "@/lib/stickers/sticker-timeline-query";
+import {
+	resolveTimelineStickerVisual,
+	stickerVisualUpdatesFromOverlay,
+} from "@/lib/stickers/timeline-sticker-visual";
 
 // Import constants
 const DEFAULTS = {
@@ -41,6 +45,54 @@ const getNextZIndex = (stickers: Map<string, OverlaySticker>): number => {
 	const maxZ = Math.max(...Array.from(stickers.values()).map((s) => s.zIndex));
 	return Math.min(maxZ + Z_INDEX.INCREMENT, Z_INDEX.MAX);
 };
+
+function syncStickerVisualToTimeline({
+	sticker,
+	pushHistory = false,
+}: {
+	sticker: OverlaySticker;
+	pushHistory?: boolean;
+}): void {
+	void import("@/stores/timeline/timeline-store").then(
+		({ useTimelineStore }) => {
+			const timeline = useTimelineStore.getState();
+			for (const track of timeline._tracks) {
+				const element = track.elements.find(
+					(candidate) =>
+						candidate.type === "sticker" && candidate.stickerId === sticker.id
+				);
+				if (!element) continue;
+				timeline.updateStickerElement(
+					track.id,
+					element.id,
+					stickerVisualUpdatesFromOverlay({ sticker }),
+					pushHistory
+				);
+				return;
+			}
+		}
+	);
+}
+
+function resolveStickerProjection({
+	stickers,
+}: {
+	stickers: Map<string, OverlaySticker>;
+}): Map<string, OverlaySticker> {
+	const projected = new Map(stickers);
+	for (const timing of getStickerTimingMap().values()) {
+		if (!timing.element) continue;
+		projected.set(
+			timing.element.stickerId,
+			resolveTimelineStickerVisual({
+				element: timing.element,
+				fallback: projected.get(timing.element.stickerId),
+				elementOrder: timing.elementOrder,
+			})
+		);
+	}
+	return projected;
+}
 
 /**
  * Validate a single sticker object
@@ -283,6 +335,9 @@ export const useStickersOverlayStore = create<StickerOverlayStore>()(
 						overlayStickers: newStickers,
 					};
 				});
+				const updatedSticker = get().overlayStickers.get(id);
+				if (updatedSticker)
+					syncStickerVisualToTimeline({ sticker: updatedSticker });
 			},
 
 			// Clear all stickers
@@ -323,6 +378,8 @@ export const useStickersOverlayStore = create<StickerOverlayStore>()(
 
 					return { overlayStickers: newStickers };
 				});
+				const sticker = get().overlayStickers.get(id);
+				if (sticker) syncStickerVisualToTimeline({ sticker });
 			},
 
 			sendToBack: (id: string) => {
@@ -342,6 +399,8 @@ export const useStickersOverlayStore = create<StickerOverlayStore>()(
 
 					return { overlayStickers: newStickers };
 				});
+				const sticker = get().overlayStickers.get(id);
+				if (sticker) syncStickerVisualToTimeline({ sticker });
 			},
 
 			bringForward: (id: string) => {
@@ -365,6 +424,8 @@ export const useStickersOverlayStore = create<StickerOverlayStore>()(
 
 					return state;
 				});
+				const sticker = get().overlayStickers.get(id);
+				if (sticker) syncStickerVisualToTimeline({ sticker });
 			},
 
 			sendBackward: (id: string) => {
@@ -391,6 +452,8 @@ export const useStickersOverlayStore = create<StickerOverlayStore>()(
 
 					return state;
 				});
+				const sticker = get().overlayStickers.get(id);
+				if (sticker) syncStickerVisualToTimeline({ sticker });
 			},
 
 			// UI State management
@@ -415,6 +478,9 @@ export const useStickersOverlayStore = create<StickerOverlayStore>()(
 						},
 					};
 				});
+				for (const sticker of get().overlayStickers.values()) {
+					syncStickerVisualToTimeline({ sticker });
+				}
 			},
 
 			redo: () => {
@@ -433,6 +499,9 @@ export const useStickersOverlayStore = create<StickerOverlayStore>()(
 						},
 					};
 				});
+				for (const sticker of get().overlayStickers.values()) {
+					syncStickerVisualToTimeline({ sticker });
+				}
 			},
 
 			saveHistorySnapshot: () => {
@@ -444,6 +513,9 @@ export const useStickersOverlayStore = create<StickerOverlayStore>()(
 						history: { past: newPast, future: [] },
 					};
 				});
+				void import("@/stores/timeline/timeline-store").then(
+					({ useTimelineStore }) => useTimelineStore.getState().pushHistory()
+				);
 			},
 
 			// Clean up stickers with missing media items
@@ -541,14 +613,19 @@ export const useStickersOverlayStore = create<StickerOverlayStore>()(
 					}
 
 					// Convert validated data back to Map
-					const stickersMap = new Map(
-						validData.map((sticker) => [sticker.id, sticker])
-					);
+					const stickersMap = resolveStickerProjection({
+						stickers: new Map(
+							validData.map((sticker) => [sticker.id, sticker])
+						),
+					});
 					set({
 						overlayStickers: stickersMap,
 						selectedStickerId: null,
 						history: { past: [], future: [] },
 					});
+					for (const sticker of stickersMap.values()) {
+						syncStickerVisualToTimeline({ sticker });
+					}
 
 					debugLog(`[StickerStore] Loaded ${stickersMap.size} stickers`);
 				} catch (error) {
@@ -556,9 +633,11 @@ export const useStickersOverlayStore = create<StickerOverlayStore>()(
 						`[StickerStore] ❌ LOAD FAILED for project ${projectId}:`,
 						error
 					);
-					// Ensure clean state on failure
+					const timelineProjection = resolveStickerProjection({
+						stickers: new Map(),
+					});
 					set({
-						overlayStickers: new Map(),
+						overlayStickers: timelineProjection,
 						selectedStickerId: null,
 						history: { past: [], future: [] },
 					});
@@ -567,18 +646,22 @@ export const useStickersOverlayStore = create<StickerOverlayStore>()(
 
 			// Export helpers
 			getStickersForExport: () => {
-				const state = get();
-				return Array.from(state.overlayStickers.values()).sort(
+				const projected = resolveStickerProjection({
+					stickers: get().overlayStickers,
+				});
+				return Array.from(projected.values()).sort(
 					(a, b) => a.zIndex - b.zIndex
 				);
 			},
 
 			getVisibleStickersAtTime: (time: number) => {
-				const state = get();
+				const projected = resolveStickerProjection({
+					stickers: get().overlayStickers,
+				});
 				// Timeline is the source of truth for timing
 				const timingMap = getStickerTimingMap();
 
-				return Array.from(state.overlayStickers.values())
+				return Array.from(projected.values())
 					.filter((sticker) => {
 						const timing = timingMap.get(sticker.id);
 						if (!timing) return true; // Not on timeline → always visible (backward compat)

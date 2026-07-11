@@ -42,6 +42,13 @@ describe("GIF export types", () => {
 			expect(dims).toEqual({ width: 640, height: 480 });
 		});
 
+		it("scales a 1080p source down to the small 240p preset", () => {
+			expect(calculateGifDimensions(1920, 1080, "small")).toEqual({
+				width: 428,
+				height: 240,
+			});
+		});
+
 		it("scales down to medium preset (720p)", () => {
 			const dims = calculateGifDimensions(1920, 1080, "medium");
 			expect(dims.height).toBe(720);
@@ -71,6 +78,8 @@ describe("GIF export types", () => {
 
 	describe("constants", () => {
 		it("has correct GIF size presets", () => {
+			expect(GIF_SIZE_PRESETS.small.maxHeight).toBe(240);
+			expect(GIF_SIZE_PRESETS.compact.maxHeight).toBe(480);
 			expect(GIF_SIZE_PRESETS.medium.maxHeight).toBe(720);
 			expect(GIF_SIZE_PRESETS.large.maxHeight).toBe(1080);
 			expect(GIF_SIZE_PRESETS.original.maxHeight).toBe(Infinity);
@@ -83,7 +92,7 @@ describe("GIF export types", () => {
 		it("has sensible defaults", () => {
 			expect(DEFAULT_GIF_CONFIG.frameRate).toBe(20);
 			expect(DEFAULT_GIF_CONFIG.loop).toBe(true);
-			expect(DEFAULT_GIF_CONFIG.sizePreset).toBe("medium");
+			expect(DEFAULT_GIF_CONFIG.sizePreset).toBe("small");
 			expect(DEFAULT_GIF_CONFIG.quality).toBe(10);
 		});
 	});

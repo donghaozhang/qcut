@@ -15,6 +15,8 @@ import type {
 	Sam3ImageOutput,
 	Sam3SegmentationMode,
 } from "@/types/sam3";
+import type { PersonCutoutMaskOptions } from "@/lib/segmentation/person-cutout-mask";
+import type { MediaMaskTrackingDirection } from "@/types/timeline";
 
 // ============================================
 // Object Colors for Multi-Object Segmentation
@@ -104,9 +106,17 @@ export interface SegmentationState {
 	showBoundingBoxes: boolean;
 
 	// Video-specific state
+	videoBackend: "local-person" | "sam3";
+	personCutoutSettings: PersonCutoutMaskOptions;
 	currentFrame: number;
 	totalFrames: number;
 	segmentedVideoUrl: string | null;
+	trackingRequest: {
+		elementId: string;
+		maskId: string;
+		direction: MediaMaskTrackingDirection;
+		anchorFrame: number;
+	} | null;
 }
 
 export interface SegmentationActions {
@@ -156,8 +166,16 @@ export interface SegmentationActions {
 	toggleBoundingBoxes: () => void;
 
 	// Video controls
+	setVideoBackend: (backend: "local-person" | "sam3") => void;
+	updatePersonCutoutSettings: (
+		settings: Partial<SegmentationState["personCutoutSettings"]>
+	) => void;
 	setCurrentFrame: (frame: number) => void;
 	setTotalFrames: (frames: number) => void;
+	setTrackingRequest: (
+		request: NonNullable<SegmentationState["trackingRequest"]>
+	) => void;
+	clearTrackingRequest: () => void;
 
 	// Reset
 	resetStore: () => void;
@@ -201,9 +219,17 @@ const initialState: SegmentationState = {
 	maskOpacity: 1.0, // Full visibility of segmentation mask by default
 	showBoundingBoxes: false,
 
+	videoBackend: "local-person",
+	personCutoutSettings: {
+		threshold: 0.5,
+		temporalSmoothing: 0.65,
+		edgeShift: 0,
+		feather: 2,
+	},
 	currentFrame: 0,
 	totalFrames: 0,
 	segmentedVideoUrl: null,
+	trackingRequest: null,
 };
 
 // ============================================
@@ -241,6 +267,7 @@ export const useSegmentationStore = create<SegmentationStore>()(
 						sourceVideoUrl: url,
 						sourceImageFile: null,
 						sourceImageUrl: null,
+						segmentedVideoUrl: null,
 						mode: "video",
 					},
 					false,
@@ -467,11 +494,36 @@ export const useSegmentationStore = create<SegmentationStore>()(
 				),
 
 			// Video controls
+			setVideoBackend: (videoBackend) =>
+				set({ videoBackend }, false, "segmentation/setVideoBackend"),
+
+			updatePersonCutoutSettings: (settings) =>
+				set(
+					(state) => ({
+						personCutoutSettings: {
+							...state.personCutoutSettings,
+							...settings,
+						},
+					}),
+					false,
+					"segmentation/updatePersonCutoutSettings"
+				),
+
 			setCurrentFrame: (frame) =>
 				set({ currentFrame: frame }, false, "segmentation/setCurrentFrame"),
 
 			setTotalFrames: (frames) =>
 				set({ totalFrames: frames }, false, "segmentation/setTotalFrames"),
+
+			setTrackingRequest: (trackingRequest) =>
+				set({ trackingRequest }, false, "segmentation/setTrackingRequest"),
+
+			clearTrackingRequest: () =>
+				set(
+					{ trackingRequest: null },
+					false,
+					"segmentation/clearTrackingRequest"
+				),
 
 			// Reset
 			resetStore: () => set(initialState, false, "segmentation/reset"),

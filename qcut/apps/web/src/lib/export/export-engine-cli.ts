@@ -3,12 +3,13 @@ import type {
 	ExportSettingsWithAudio,
 	AudioExportOptions,
 } from "@/types/export";
-import { TimelineTrack, TimelineElement } from "@/types/timeline";
+import type { TimelineTrack, TimelineElement } from "@/types/timeline";
 import { MediaItem } from "@/stores/media/media-store";
 import { platform } from "@qcut/platform-core";
 import { debugLog, debugError, debugWarn } from "@/lib/debug/debug-config";
 import { useEffectsStore } from "@/stores/ai/effects-store";
 import { useStickersOverlayStore } from "@/stores/stickers-overlay-store";
+import { useProjectStore } from "@/stores/project-store";
 import {
 	analyzeTimelineForExport,
 	type ExportAnalysis,
@@ -16,23 +17,28 @@ import {
 
 // Import extracted modules
 import type {
+	AudioCrossfadeInput,
 	StickerSourceForFilter,
 	ImageSourceInput,
 	ProgressCallback,
 	VideoSourceInput,
+	VideoTransitionInput,
 	AudioFileInput,
+	AudioMixConfigInput,
 } from "../export-cli/types";
 import {
 	buildTextOverlayFilters,
 	buildStickerOverlayFilters,
 	buildImageOverlayFilters,
-	buildCaptionOverlayFilters,
 } from "../export-cli/filters";
 import {
+	extractAudioCrossfadeInputs,
 	extractVideoSources,
+	extractVideoTransitions,
 	extractVideoInputPath,
 	extractStickerSources,
 	extractImageSources,
+	extractAudioMixConfig,
 } from "../export-cli/sources";
 import {
 	prepareAudioFilesForExport,
@@ -57,12 +63,16 @@ import {
 	logActualVideoDurationCLI,
 	logMode2Detection,
 } from "./export-engine-cli-debug";
+import { buildTimelineAssLayers } from "./export-engine-cli-text";
 
 // Re-export types for backward compatibility (using export from)
 export type {
+	AudioCrossfadeInput,
 	ProgressCallback,
 	VideoSourceInput,
+	VideoTransitionInput,
 	AudioFileInput,
+	AudioMixConfigInput,
 } from "../export-cli/types";
 
 type EffectsStore = ReturnType<typeof useEffectsStore.getState>;
@@ -74,6 +84,7 @@ export class CLIExportEngine extends ExportEngine {
 	private effectsStore?: EffectsStore;
 	private exportAnalysis: ExportAnalysis | null = null;
 	private audioOptions: AudioExportOptions;
+	private gifConfig: ExportSettingsWithAudio["gifConfig"];
 
 	constructor(
 		canvas: HTMLCanvasElement,
@@ -92,6 +103,7 @@ export class CLIExportEngine extends ExportEngine {
 			audioSampleRate: settings.audioSampleRate,
 			audioChannels: settings.audioChannels,
 		};
+		this.gifConfig = settings.gifConfig;
 
 		if (typeof platform().ffmpeg.exportVideoCLI !== "function") {
 			throw new Error("CLI Export Engine requires Electron environment");
@@ -128,7 +140,7 @@ export class CLIExportEngine extends ExportEngine {
 			`[CLIExportEngine] 📏 Original timeline duration: ${this.totalDuration.toFixed(3)}s`
 		);
 		debugLog(
-			`[CLIExportEngine] 🎬 Target frames: ${this.calculateTotalFrames()} frames at 30fps`
+			`[CLIExportEngine] 🎬 Target frames: ${this.calculateTotalFrames()} frames at ${this.fps}fps`
 		);
 
 		progressCallback?.(5, "Setting up export session...");
@@ -195,7 +207,23 @@ export class CLIExportEngine extends ExportEngine {
 			}
 
 			progressCallback?.(85, "Encoding with FFmpeg CLI...");
-			const outputFile = await this.exportWithCLI(progressCallback);
+			let outputFile = await this.exportWithCLI(progressCallback);
+
+			if (this.settings.format === "gif") {
+				if (!this.sessionId) throw new Error("No active GIF export session");
+				progressCallback?.(92, "Converting video to GIF...");
+				const gifConfig = this.gifConfig;
+				const converted = await platform().ffmpeg.convertVideoToGif({
+					sessionId: this.sessionId,
+					inputPath: outputFile,
+					width: this.canvas.width,
+					height: this.canvas.height,
+					fps: gifConfig?.frameRate ?? 20,
+					loop: gifConfig?.loop ?? true,
+					quality: gifConfig?.quality ?? 10,
+				});
+				outputFile = converted.outputPath;
+			}
 
 			progressCallback?.(95, "Reading output...");
 			const videoBlob = await this.readOutputFile(outputFile);
@@ -207,13 +235,13 @@ export class CLIExportEngine extends ExportEngine {
 
 			const expectedDuration = this.totalDuration;
 			const actualFramesRendered = this.calculateTotalFrames();
-			const calculatedDuration = actualFramesRendered / 30;
+			const calculatedDuration = actualFramesRendered / this.fps;
 
 			debugLog(
 				`[CLIExportEngine] ⏱️  Expected duration: ${expectedDuration.toFixed(3)}s`
 			);
 			debugLog(
-				`[CLIExportEngine] ⏱️  Calculated duration: ${calculatedDuration.toFixed(3)}s (${actualFramesRendered} frames / 30fps)`
+				`[CLIExportEngine] ⏱️  Calculated duration: ${calculatedDuration.toFixed(3)}s (${actualFramesRendered} frames / ${this.fps}fps)`
 			);
 			debugLog(
 				`[CLIExportEngine] 📊 Duration ratio: ${(calculatedDuration / expectedDuration).toFixed(3)}x`
@@ -289,6 +317,9 @@ export class CLIExportEngine extends ExportEngine {
 				mediaItems,
 				sessionId: this.sessionId,
 				tracks,
+				fps: this.getFrameRate(),
+				includeEmbeddedVideoAudio:
+					this.exportAnalysis?.optimizationStrategy !== "direct-copy",
 			});
 		} else {
 			debugLog(
@@ -330,16 +361,34 @@ export class CLIExportEngine extends ExportEngine {
 				}
 			}
 		}
-		const combinedFilterChain = Array.from(elementFilterChains.values()).join(
-			","
-		);
+		const hasPerClipVideoEffects = elementFilterChains.size > 0;
+		const combinedFilterChain = hasPerClipVideoEffects
+			? ""
+			: Array.from(elementFilterChains.values()).join(",");
 
 		// Build text overlay filter chain
 		console.log(
 			"🔍 [TEXT EXPORT DEBUG] Starting text filter chain generation..."
 		);
-		const textFilterChain = buildTextOverlayFilters(this.tracks);
-		if (textFilterChain) {
+		const {
+			layers: textAssLayers,
+			renderedTextElementIds: assRenderedElementIds,
+		} = buildTimelineAssLayers({
+			tracks: this.tracks,
+			canvasWidth: this.canvas.width,
+			canvasHeight: this.canvas.height,
+			fps: this.getFrameRate(),
+		});
+		const textFilterChain = buildTextOverlayFilters(
+			this.tracks,
+			(window.electronAPI?.platform ?? "darwin") as
+				| "win32"
+				| "darwin"
+				| "linux",
+			this.getFrameRate(),
+			assRenderedElementIds
+		);
+		if (textFilterChain || textAssLayers.length > 0) {
 			console.log(
 				"✅ [TEXT EXPORT DEBUG] Text filter chain generated successfully"
 			);
@@ -427,8 +476,13 @@ export class CLIExportEngine extends ExportEngine {
 					this.mediaItems,
 					this.sessionId,
 					undefined,
-					debugLog
+					debugLog,
+					this.fps
 				);
+				imageSources = imageSources.map((source) => ({
+					...source,
+					effectFilter: elementFilterChains.get(source.elementId),
+				}));
 				if (imageSources.length > 0) {
 					imageFilterChain = buildImageOverlayFilters(
 						imageSources,
@@ -453,7 +507,8 @@ export class CLIExportEngine extends ExportEngine {
 		}
 
 		// Mode decision
-		const hasTextFilters = textFilterChain.length > 0;
+		const hasTextFilters =
+			textFilterChain.length > 0 || textAssLayers.length > 0;
 		const hasStickerFilters = (stickerFilterChain?.length ?? 0) > 0;
 
 		const visibleVideoCount = this.countVisibleVideoElements();
@@ -464,7 +519,21 @@ export class CLIExportEngine extends ExportEngine {
 				visibleVideoCount === 1);
 
 		const { hasWordFilters } = resolveWordFilters(this.totalDuration, null);
-		const needsVideoInput = canUseMode2 || hasWordFilters;
+		const hasVideoVisualEdits =
+			this.exportAnalysis?.hasVideoVisualEdits ?? false;
+		const hasTransitions = this.exportAnalysis?.hasTransitions ?? false;
+		const hasLayeredVisualOverlays =
+			imageSources.length > 0 ||
+			stickerSources.length > 0 ||
+			textAssLayers.length > 0 ||
+			textFilterChain.length > 0;
+		const needsVideoInput =
+			(!hasLayeredVisualOverlays &&
+				canUseMode2 &&
+				!hasVideoVisualEdits &&
+				!hasPerClipVideoEffects &&
+				!hasTransitions) ||
+			hasWordFilters;
 		const videoInput: {
 			path: string;
 			trimStart: number;
@@ -493,6 +562,10 @@ export class CLIExportEngine extends ExportEngine {
 		);
 
 		const shouldExtractVideoSources =
+			hasVideoVisualEdits ||
+			hasPerClipVideoEffects ||
+			hasTransitions ||
+			(hasLayeredVisualOverlays && visibleVideoCount > 0) ||
 			this.exportAnalysis?.optimizationStrategy === "video-normalization" ||
 			(this.exportAnalysis?.canUseDirectCopy &&
 				!hasTextFilters &&
@@ -501,15 +574,34 @@ export class CLIExportEngine extends ExportEngine {
 				visibleVideoCount > 0 &&
 				!videoInput);
 
-		const videoSources: VideoSourceInput[] = shouldExtractVideoSources
+		const extractedVideoSources: VideoSourceInput[] = shouldExtractVideoSources
 			? await extractVideoSources(
 					this.tracks,
 					this.mediaItems,
 					this.sessionId,
 					undefined,
-					debugLog
+					debugLog,
+					this.fps
 				)
 			: [];
+		const videoSources = extractedVideoSources.map((source) => ({
+			...source,
+			effectFilter: elementFilterChains.get(source.elementId),
+		}));
+		const videoTransitions: VideoTransitionInput[] = hasTransitions
+			? extractVideoTransitions({
+					tracks: this.tracks,
+					mediaItems: this.mediaItems,
+					fps: this.fps,
+				})
+			: [];
+		const audioCrossfades: AudioCrossfadeInput[] = extractAudioCrossfadeInputs({
+			tracks: this.tracks,
+		});
+		const audioMixConfig: AudioMixConfigInput = extractAudioMixConfig({
+			tracks: this.tracks,
+			audioMix: useProjectStore.getState().activeProject?.audioMix,
+		});
 
 		if (
 			this.exportAnalysis?.optimizationStrategy === "image-video-composite" &&
@@ -532,9 +624,13 @@ export class CLIExportEngine extends ExportEngine {
 			canvasHeight: this.canvas.height,
 			quality: this.settings.quality || "medium",
 			totalDuration: this.totalDuration,
+			fps: this.fps,
 			audioFiles,
+			audioCrossfades,
+			audioMixConfig,
 			combinedFilterChain,
 			textFilterChain,
+			textAssLayers,
 			stickerFilterChain,
 			stickerSources,
 			imageFilterChain,
@@ -544,7 +640,10 @@ export class CLIExportEngine extends ExportEngine {
 			hasStickerFilters,
 			wordFilterSegments,
 			videoSources,
+			videoTransitions,
 			videoInput,
+			backgroundColor:
+				useProjectStore.getState().activeProject?.backgroundColor ?? "#000000",
 		});
 
 		logExportConfiguration(exportOptions, {
@@ -564,11 +663,13 @@ export class CLIExportEngine extends ExportEngine {
 		if (!buffer) {
 			throw new Error(`Failed to read exported file: ${outputPath}`);
 		}
-		return new Blob([buffer], { type: "video/mp4" });
+		return new Blob([buffer], {
+			type: this.settings.format === "gif" ? "image/gif" : "video/mp4",
+		});
 	}
 
 	calculateTotalFrames(): number {
-		return Math.ceil(this.totalDuration * 30);
+		return Math.ceil(this.totalDuration * this.fps);
 	}
 
 	private async cleanup(): Promise<void> {

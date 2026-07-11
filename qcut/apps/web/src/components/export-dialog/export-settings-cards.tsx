@@ -7,14 +7,19 @@ import { Button } from "@/components/ui/button";
 import { Switch } from "@/components/ui/switch";
 import { Slider } from "@/components/ui/slider";
 import { cn } from "@/lib/utils";
-import { ChevronDown } from "lucide-react";
+import { ChevronDown, FolderOpen } from "lucide-react";
 import {
 	ExportQuality,
 	ExportFormat,
 	QUALITY_RESOLUTIONS,
 	FORMAT_INFO,
 	EXPORT_PRESETS,
+	EXPORT_FRAME_RATES,
 	type ExportPreset,
+	type ExportFrameRate,
+	type ExportEngineSelection,
+	type GifSizePreset,
+	GIF_SIZE_PRESETS,
 } from "@/types/export";
 
 // ---------------------------------------------------------------------------
@@ -98,11 +103,23 @@ export interface QualityCardProps {
 	isExporting: boolean;
 }
 
+export interface DestinationCardProps {
+	outputPath: string;
+	onChooseOutputPath: () => Promise<string | null>;
+	isExporting: boolean;
+}
+
+export interface FrameRateCardProps {
+	frameRate: ExportFrameRate;
+	onFrameRateChange: (frameRate: ExportFrameRate) => void;
+	isExporting: boolean;
+}
+
 export interface EngineCardProps {
-	engineType: "standard" | "ffmpeg" | "cli";
+	engineType: ExportEngineSelection;
 	ffmpegAvailable: boolean;
 	isElectron: boolean;
-	onEngineTypeChange: (type: "standard" | "ffmpeg" | "cli") => void;
+	onEngineTypeChange: (type: ExportEngineSelection) => void;
 	isExporting: boolean;
 }
 
@@ -118,7 +135,44 @@ export interface DetailsCardProps {
 	estimatedSize: string;
 	timelineDuration: number;
 	format: ExportFormat;
+	frameRate: ExportFrameRate;
 	engineRecommendation: string | null;
+}
+
+// ---------------------------------------------------------------------------
+// DestinationCard
+// ---------------------------------------------------------------------------
+
+export function DestinationCard({
+	outputPath,
+	onChooseOutputPath,
+	isExporting,
+}: DestinationCardProps) {
+	return (
+		<div
+			className="flex items-center gap-3 rounded-lg border border-border/50 bg-card px-3 py-2.5"
+			data-testid="export-destination"
+		>
+			<div className="min-w-0 flex-1">
+				<div className="text-xs font-medium text-muted-foreground">Save to</div>
+				<div className="truncate text-sm font-medium" title={outputPath}>
+					{outputPath || "Choose a location"}
+				</div>
+			</div>
+			<Button
+				type="button"
+				variant="outline"
+				size="icon"
+				onClick={() => void onChooseOutputPath()}
+				disabled={isExporting}
+				className="size-8 shrink-0"
+				aria-label="Choose export destination"
+				title="Choose export destination"
+			>
+				<FolderOpen className="size-4" />
+			</Button>
+		</div>
+	);
 }
 
 export interface GifOptionsCardProps {
@@ -128,6 +182,8 @@ export interface GifOptionsCardProps {
 	onLoopChange: (loop: boolean) => void;
 	quality: number;
 	onQualityChange: (q: number) => void;
+	sizePreset: GifSizePreset;
+	onSizePresetChange: (preset: GifSizePreset) => void;
 	isExporting: boolean;
 }
 
@@ -291,7 +347,7 @@ export function QualityCard({
 								<div>
 									<div className="font-medium">{resolution.label}</div>
 									<div className="text-xs text-muted-foreground">
-										~{estimatedSize}
+										{estimatedSize}
 									</div>
 								</div>
 							</Label>
@@ -304,10 +360,59 @@ export function QualityCard({
 }
 
 // ---------------------------------------------------------------------------
+// FrameRateCard
+// ---------------------------------------------------------------------------
+
+export function FrameRateCard({
+	frameRate,
+	onFrameRateChange,
+	isExporting,
+}: FrameRateCardProps) {
+	const [open, setOpen] = useState(false);
+
+	return (
+		<SettingRow
+			label="Frame Rate"
+			value={`${frameRate} fps`}
+			open={open}
+			onToggle={() => setOpen(!open)}
+			disabled={isExporting}
+			testId="export-frame-rate-select"
+		>
+			<RadioGroup
+				value={String(frameRate)}
+				onValueChange={(value) => {
+					onFrameRateChange(Number(value) as ExportFrameRate);
+					setOpen(false);
+				}}
+				disabled={isExporting}
+				className="grid grid-cols-3 gap-2"
+			>
+				{EXPORT_FRAME_RATES.map((fps) => (
+					<Label
+						key={fps}
+						className={cn(
+							"flex cursor-pointer items-center justify-center rounded border px-2 py-1.5 text-xs transition-colors",
+							frameRate === fps
+								? "border-primary bg-primary/5"
+								: "border-border/50 hover:bg-muted/40"
+						)}
+					>
+						<RadioGroupItem value={String(fps)} className="sr-only" />
+						{fps} fps
+					</Label>
+				))}
+			</RadioGroup>
+		</SettingRow>
+	);
+}
+
+// ---------------------------------------------------------------------------
 // EngineCard
 // ---------------------------------------------------------------------------
 
 const ENGINE_LABELS: Record<string, string> = {
+	auto: "Automatic",
 	standard: "Standard",
 	ffmpeg: "FFmpeg WASM",
 	cli: "Native CLI",
@@ -334,11 +439,22 @@ export function EngineCard({
 			<RadioGroup
 				value={engineType}
 				onValueChange={(value) => {
-					onEngineTypeChange(value as "standard" | "ffmpeg" | "cli");
+					onEngineTypeChange(value as ExportEngineSelection);
 					setOpen(false);
 				}}
 				disabled={isExporting}
 			>
+				{!isElectron && (
+					<div className="flex items-start space-x-2 py-1">
+						<RadioGroupItem value="auto" id="auto" className="mt-0.5" />
+						<Label
+							htmlFor="auto"
+							className="text-sm cursor-pointer flex-1 min-w-0"
+						>
+							<span>Automatic</span>
+						</Label>
+					</div>
+				)}
 				<div className="flex items-start space-x-2 py-1">
 					<RadioGroupItem value="standard" id="standard" className="mt-0.5" />
 					<Label
@@ -437,6 +553,7 @@ export function DetailsCard({
 	estimatedSize,
 	timelineDuration,
 	format,
+	frameRate,
 	engineRecommendation,
 }: DetailsCardProps) {
 	return (
@@ -467,6 +584,10 @@ export function DetailsCard({
 					<span className="text-muted-foreground">Format</span>
 					<span className="font-medium">{FORMAT_INFO[format].label}</span>
 				</div>
+				<div className="flex justify-between">
+					<span className="text-muted-foreground">Frame rate</span>
+					<span className="font-medium">{frameRate} fps</span>
+				</div>
 				{engineRecommendation && (
 					<div className="col-span-2 text-blue-600 dark:text-blue-400">
 						Engine: {engineRecommendation}
@@ -490,6 +611,8 @@ export function GifOptionsCard({
 	onLoopChange,
 	quality,
 	onQualityChange,
+	sizePreset,
+	onSizePresetChange,
 	isExporting,
 }: GifOptionsCardProps) {
 	const [open, setOpen] = useState(true);
@@ -504,6 +627,33 @@ export function GifOptionsCard({
 			testId="gif-options-card"
 		>
 			<div className="space-y-3">
+				<div className="space-y-1.5">
+					<Label className="text-xs text-muted-foreground">Resolution</Label>
+					<RadioGroup
+						value={sizePreset}
+						onValueChange={(value) =>
+							onSizePresetChange(value as GifSizePreset)
+						}
+						className="grid grid-cols-3 gap-2"
+						disabled={isExporting}
+					>
+						{Object.entries(GIF_SIZE_PRESETS).map(([preset, info]) => (
+							<Label
+								key={preset}
+								className={cn(
+									"flex cursor-pointer items-center justify-center rounded border px-2 py-1.5 text-xs",
+									sizePreset === preset
+										? "border-primary bg-primary/5"
+										: "border-border/50 hover:bg-muted/40"
+								)}
+							>
+								<RadioGroupItem value={preset} className="sr-only" />
+								{info.label}
+							</Label>
+						))}
+					</RadioGroup>
+				</div>
+
 				{/* Frame rate */}
 				<div className="space-y-1.5">
 					<Label className="text-xs text-muted-foreground">Frame Rate</Label>

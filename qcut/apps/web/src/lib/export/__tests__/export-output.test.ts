@@ -1,7 +1,14 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 
+const { mockPlatformWriteFile } = vi.hoisted(() => ({
+	mockPlatformWriteFile: vi.fn(),
+}));
 const mockWriteFile = vi.fn();
 const mockShareShare = vi.fn();
+
+vi.mock("@qcut/platform-core", () => ({
+	platform: () => ({ files: { writeFile: mockPlatformWriteFile } }),
+}));
 
 // Mock Capacitor modules that may not be installed
 vi.mock("@capacitor/share", () => ({
@@ -13,7 +20,22 @@ vi.mock("@capacitor/filesystem", () => ({
 	Directory: { Documents: "DOCUMENTS" },
 }));
 
-import { saveExportedVideo, shareExportedVideo } from "../export-output";
+import {
+	replaceFileExtension,
+	saveExportedVideo,
+	shareExportedVideo,
+} from "../export-output";
+
+describe("replaceFileExtension", () => {
+	it("derives native sidecar paths without changing the directory", () => {
+		expect(replaceFileExtension("/tmp/my.video.mp4", "mp3")).toBe(
+			"/tmp/my.video.mp3"
+		);
+		expect(replaceFileExtension("C:\\Exports\\clip", ".srt")).toBe(
+			"C:\\Exports\\clip.srt"
+		);
+	});
+});
 
 describe("export-output", () => {
 	let originalCreateObjectURL: typeof URL.createObjectURL;
@@ -68,6 +90,29 @@ describe("export-output", () => {
 			const blob = new Blob(["video data"], { type: "video/mp4" });
 			const result = await saveExportedVideo(blob, "export.mp4");
 			expect(result.success).toBe(true);
+		});
+	});
+
+	describe("saveExportedVideo (desktop destination)", () => {
+		it("writes the blob to the selected output path", async () => {
+			mockPlatformWriteFile.mockResolvedValue(true);
+			const blob = new Blob(["video data"], { type: "video/mp4" });
+
+			const result = await saveExportedVideo(
+				blob,
+				"export.mp4",
+				"/tmp/export.mp4"
+			);
+
+			expect(result).toEqual({
+				success: true,
+				filePath: "/tmp/export.mp4",
+			});
+			expect(mockPlatformWriteFile).toHaveBeenCalledWith(
+				"/tmp/export.mp4",
+				expect.any(ArrayBuffer)
+			);
+			expect(URL.createObjectURL).not.toHaveBeenCalled();
 		});
 	});
 

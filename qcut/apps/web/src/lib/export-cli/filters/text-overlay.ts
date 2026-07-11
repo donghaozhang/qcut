@@ -18,6 +18,9 @@ import {
 } from "./text-escape";
 import { resolveFontPath } from "./font-resolver";
 import { stripMarkdownSyntax } from "@/lib/markdown";
+import { resolveTextStyle } from "@/lib/text/text-style";
+import { buildFFmpegTextAnimationExpressions } from "@/lib/text/text-animation";
+import { buildFFmpegKeyframeExpression } from "@/lib/text/text-keyframes";
 
 /**
  * Convert a TextElement to FFmpeg drawtext filter string.
@@ -29,7 +32,8 @@ import { stripMarkdownSyntax } from "@/lib/markdown";
  */
 export function convertTextElementToDrawtext(
 	element: TextElement,
-	platform?: Platform
+	platform?: Platform,
+	fps = 30
 ): string {
 	// Skip empty or hidden elements
 	if (!element.content?.trim() || element.hidden) {
@@ -44,6 +48,28 @@ export function convertTextElementToDrawtext(
 		platform
 	);
 	const fontColor = colorToFFmpeg(element.color || "#ffffff");
+	const style = resolveTextStyle(element);
+	const animation = buildFFmpegTextAnimationExpressions(element);
+	const xKeyframes = buildFFmpegKeyframeExpression({
+		element,
+		property: "x",
+		fps,
+	});
+	const yKeyframes = buildFFmpegKeyframeExpression({
+		element,
+		property: "y",
+		fps,
+	});
+	const opacityKeyframes = buildFFmpegKeyframeExpression({
+		element,
+		property: "opacity",
+		fps,
+	});
+	const fontSizeKeyframes = buildFFmpegKeyframeExpression({
+		element,
+		property: "fontSize",
+		fps,
+	});
 
 	// Calculate timing (accounting for trim)
 	const trimStart = element.trimStart ?? 0;
@@ -55,8 +81,12 @@ export function convertTextElementToDrawtext(
 	// Build base filter parameters
 	const filterParams: string[] = [
 		`text='${escapedText}'`,
-		`fontsize=${element.fontSize || 24}`,
+		fontSizeKeyframes
+			? `fontsize='${fontSizeKeyframes}'`
+			: `fontsize=${element.fontSize || 24}`,
 		`fontcolor=${fontColor}`,
+		`line_spacing=${Math.round(element.fontSize * (style.lineHeight - 1))}`,
+		"fix_bounds=1",
 	];
 
 	// Add font parameter (platform-specific)
@@ -74,37 +104,73 @@ export function convertTextElementToDrawtext(
 
 	const xOffset = Math.round(element.x ?? 0);
 	const yOffset = Math.round(element.y ?? 0);
-	const anchorXExpr = `w/2${formatOffset(xOffset)}`;
-	const yExpr = `(h-text_h)/2${formatOffset(yOffset)}`;
+	const anchorXExpr = xKeyframes
+		? `w/2+(${xKeyframes})`
+		: `w/2${formatOffset(xOffset)}`;
+	const anchorYExpr = yKeyframes
+		? `h/2+(${yKeyframes})`
+		: `h/2${formatOffset(yOffset)}`;
+	const boxLeftExpr = `${anchorXExpr}-${Math.round(style.width / 2)}`;
+	const boxTopExpr = `${anchorYExpr}-${Math.round(style.height / 2)}`;
 
 	// Apply text alignment
-	let xExpr = `${anchorXExpr}-(text_w/2)`; // Default: center
+	let xExpr = `${anchorXExpr}-(text_w/2)`;
 	if (element.textAlign === "left") {
-		xExpr = `${anchorXExpr}`;
+		xExpr = `${boxLeftExpr}+${Math.round(style.backgroundPadding)}`;
 	} else if (element.textAlign === "right") {
-		xExpr = `${anchorXExpr}-text_w`;
+		xExpr = `${boxLeftExpr}+${Math.round(style.width - style.backgroundPadding)}-text_w`;
 	}
 
-	filterParams.push(`x=${xExpr}`, `y=${yExpr}`);
+	let yExpr = `${anchorYExpr}-(text_h/2)`;
+	if (style.verticalAlign === "top") {
+		yExpr = `${boxTopExpr}+${Math.round(style.backgroundPadding)}`;
+	} else if (style.verticalAlign === "bottom") {
+		yExpr = `${boxTopExpr}+${Math.round(style.height - style.backgroundPadding)}-text_h`;
+	}
+	if (animation.xOffset) xExpr = `${xExpr}+${animation.xOffset}`;
+	if (animation.yOffset) yExpr = `${yExpr}+${animation.yOffset}`;
 
-	// Add border for readability
-	filterParams.push("borderw=2", "bordercolor=black");
+	filterParams.push(`x='${xExpr}'`, `y='${yExpr}'`);
+
+	if (style.strokeWidth > 0) {
+		filterParams.push(
+			`borderw=${style.strokeWidth}`,
+			`bordercolor=${colorToFFmpeg(style.strokeColor)}@${style.strokeOpacity}`
+		);
+	}
+
+	if (style.shadowOpacity > 0) {
+		filterParams.push(
+			`shadowcolor=${colorToFFmpeg(style.shadowColor)}@${style.shadowOpacity}`,
+			`shadowx=${style.shadowOffsetX}`,
+			`shadowy=${style.shadowOffsetY}`
+		);
+	}
 
 	// Handle opacity (FFmpeg alpha accepts 0.0-1.0 directly)
-	if (element.opacity !== undefined && element.opacity < 1) {
+	if (animation.alpha || opacityKeyframes) {
+		filterParams.push(
+			`alpha='${animation.alpha ? `(${animation.alpha})*` : ""}${opacityKeyframes ? `(${opacityKeyframes})` : (element.opacity ?? 1)}'`
+		);
+	} else if (element.opacity !== undefined && element.opacity < 1) {
 		filterParams.push(`alpha=${element.opacity}`);
 	}
 
-	// Handle rotation
-	if (element.rotation && element.rotation !== 0) {
-		const radians = (element.rotation * Math.PI) / 180;
-		filterParams.push(`angle=${radians}`);
-	}
+	// Rotation is intentionally not emitted: drawtext has no `angle` option and
+	// an unknown option aborts the whole filtergraph. Rotated plain text goes
+	// through the ASS overlay pipeline (\frz); drawtext-rendered elements
+	// export unrotated.
 
 	// Handle background color
 	if (element.backgroundColor && element.backgroundColor !== "transparent") {
 		const bgColor = colorToFFmpeg(element.backgroundColor);
-		filterParams.push("box=1", `boxcolor=${bgColor}@0.5`, "boxborderw=5");
+		if (style.backgroundOpacity > 0) {
+			filterParams.push(
+				"box=1",
+				`boxcolor=${bgColor}@${style.backgroundOpacity}`,
+				`boxborderw=${style.backgroundPadding}`
+			);
+		}
 	}
 
 	// Add timing constraint
@@ -115,7 +181,8 @@ export function convertTextElementToDrawtext(
 
 export function convertMarkdownElementToDrawtext(
 	element: MarkdownElement,
-	platform?: Platform
+	platform?: Platform,
+	fps = 30
 ): string {
 	const plainText = stripMarkdownSyntax({
 		markdown: element.markdownContent || "",
@@ -147,7 +214,7 @@ export function convertMarkdownElementToDrawtext(
 		opacity: element.opacity,
 	};
 
-	return convertTextElementToDrawtext(textElement, platform);
+	return convertTextElementToDrawtext(textElement, platform, fps);
 }
 
 /**
@@ -173,7 +240,9 @@ interface TextElementWithOrder {
  */
 export function buildTextOverlayFilters(
 	tracks: TimelineTrack[],
-	platform?: Platform
+	platform?: Platform,
+	fps = 30,
+	excludedElementIds: ReadonlySet<string> = new Set()
 ): string {
 	const textElementsWithOrder: TextElementWithOrder[] = [];
 
@@ -188,7 +257,8 @@ export function buildTextOverlayFilters(
 			const element = track.elements[elementIndex];
 			if (
 				(element.type !== "text" && element.type !== "markdown") ||
-				element.hidden
+				element.hidden ||
+				excludedElementIds.has(element.id)
 			) {
 				continue;
 			}
@@ -210,9 +280,9 @@ export function buildTextOverlayFilters(
 	return textElementsWithOrder
 		.map((item) => {
 			if (item.element.type === "markdown") {
-				return convertMarkdownElementToDrawtext(item.element, platform);
+				return convertMarkdownElementToDrawtext(item.element, platform, fps);
 			}
-			return convertTextElementToDrawtext(item.element, platform);
+			return convertTextElementToDrawtext(item.element, platform, fps);
 		})
 		.filter((f) => f !== "")
 		.join(",");

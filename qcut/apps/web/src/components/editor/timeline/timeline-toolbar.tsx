@@ -19,6 +19,7 @@ import {
 	LayersIcon,
 	Sparkles,
 	FileText,
+	Plus,
 } from "lucide-react";
 import { Button } from "../../ui/button";
 import {
@@ -46,6 +47,28 @@ import {
 } from "@/constants/timeline-constants";
 import { toast } from "sonner";
 import { debugLog, debugError } from "@/lib/debug/debug-config";
+import { getTimelineElementEndTime } from "@/lib/timeline";
+import {
+	DropdownMenu,
+	DropdownMenuContent,
+	DropdownMenuItem,
+	DropdownMenuLabel,
+	DropdownMenuSeparator,
+	DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+import type { TrackType } from "@/types/timeline";
+import { TrackIcon } from "./track-icon";
+
+const ADD_TRACK_OPTIONS: Array<{ type: TrackType; label: string }> = [
+	{ type: "media", label: "Media" },
+	{ type: "audio", label: "Audio" },
+	{ type: "text", label: "Text" },
+	{ type: "captions", label: "Captions" },
+	{ type: "sticker", label: "Sticker" },
+	{ type: "adjustment", label: "Adjustment Layer" },
+	{ type: "remotion", label: "Remotion" },
+	{ type: "markdown", label: "Markdown" },
+];
 
 export interface TimelineToolbarProps {
 	zoomLevel: number;
@@ -120,9 +143,7 @@ export function TimelineToolbar({
 			const element = track?.elements.find((c) => c.id === elementId);
 			if (element && track) {
 				const effectiveStart = element.startTime;
-				const effectiveEnd =
-					element.startTime +
-					(element.duration - element.trimStart - element.trimEnd);
+				const effectiveEnd = getTimelineElementEndTime({ element });
 				if (currentTime > effectiveStart && currentTime < effectiveEnd) {
 					const newElementId = splitElement(trackId, elementId, currentTime);
 					if (newElementId) splitCount++;
@@ -143,10 +164,7 @@ export function TimelineToolbar({
 			const track = tracks.find((t) => t.id === trackId);
 			const element = track?.elements.find((el) => el.id === elementId);
 			if (element) {
-				const newStartTime =
-					element.startTime +
-					(element.duration - element.trimStart - element.trimEnd) +
-					0.1;
+				const newStartTime = getTimelineElementEndTime({ element }) + 0.1;
 				const { id, ...elementWithoutId } = element;
 				addElementToTrack(trackId, {
 					...elementWithoutId,
@@ -171,9 +189,7 @@ export function TimelineToolbar({
 		const element = track?.elements.find((c) => c.id === elementId);
 		if (!element) return;
 		const effectiveStart = element.startTime;
-		const effectiveEnd =
-			element.startTime +
-			(element.duration - element.trimStart - element.trimEnd);
+		const effectiveEnd = getTimelineElementEndTime({ element });
 		if (currentTime <= effectiveStart || currentTime >= effectiveEnd) {
 			toast.error("Playhead must be within selected element");
 			return;
@@ -191,9 +207,7 @@ export function TimelineToolbar({
 		const element = track?.elements.find((c) => c.id === elementId);
 		if (!element) return;
 		const effectiveStart = element.startTime;
-		const effectiveEnd =
-			element.startTime +
-			(element.duration - element.trimStart - element.trimEnd);
+		const effectiveEnd = getTimelineElementEndTime({ element });
 		if (currentTime <= effectiveStart || currentTime >= effectiveEnd) {
 			toast.error("Playhead must be within selected element");
 			return;
@@ -308,6 +322,22 @@ export function TimelineToolbar({
 	};
 
 	const currentBookmarked = isBookmarked(currentTime);
+	const addTrackFromMenu = ({ type }: { type: TrackType }) => {
+		const trackId = addTrack(type);
+		if (type !== "adjustment") return;
+		const projectEnd = useTimelineStore.getState().getTotalDuration();
+		addElementToTrack(trackId, {
+			type: "adjustment",
+			name: "Adjustment Layer",
+			startTime: currentTime,
+			duration: Math.max(5, projectEnd - currentTime),
+			trimStart: 0,
+			trimEnd: 0,
+			opacity: 1,
+			effects: [],
+			effectChains: [],
+		});
+	};
 
 	return (
 		<div
@@ -316,6 +346,34 @@ export function TimelineToolbar({
 		>
 			<div className="flex items-center gap-1">
 				<TooltipProvider delayDuration={500}>
+					<DropdownMenu>
+						<DropdownMenuTrigger asChild>
+							<Button
+								variant="text"
+								size="icon"
+								type="button"
+								aria-label="Add track"
+								title="Add track"
+								data-testid="add-track-button"
+							>
+								<Plus className="h-4 w-4" />
+							</Button>
+						</DropdownMenuTrigger>
+						<DropdownMenuContent align="start">
+							<DropdownMenuLabel>Add track</DropdownMenuLabel>
+							<DropdownMenuSeparator />
+							{ADD_TRACK_OPTIONS.map((option) => (
+								<DropdownMenuItem
+									key={option.type}
+									onSelect={() => addTrackFromMenu({ type: option.type })}
+								>
+									<TrackIcon type={option.type} />
+									{option.label}
+								</DropdownMenuItem>
+							))}
+						</DropdownMenuContent>
+					</DropdownMenu>
+
 					<Tooltip>
 						<TooltipTrigger asChild>
 							<Button

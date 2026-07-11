@@ -31,10 +31,18 @@ export function registerFileIoHandlers(deps: MainIpcDeps): void {
 		async (
 			_event: IpcMainInvokeEvent,
 			filePath: string,
-			data: string | Buffer
+			data: string | Buffer | ArrayBuffer | Uint8Array
 		): Promise<boolean> => {
 			try {
-				await fs.promises.writeFile(filePath, data);
+				let fileData: string | Buffer;
+				if (typeof data === "string" || Buffer.isBuffer(data)) {
+					fileData = data;
+				} else if (data instanceof ArrayBuffer) {
+					fileData = Buffer.from(new Uint8Array(data));
+				} else {
+					fileData = Buffer.from(data);
+				}
+				await fs.promises.writeFile(filePath, fileData);
 				return true;
 			} catch (error: any) {
 				logger.error("Error writing file:", error);

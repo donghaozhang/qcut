@@ -1,4 +1,5 @@
 import { afterAll, afterEach, beforeAll, describe, expect, it } from "vitest";
+import { fileURLToPath } from "node:url";
 import { handleMediaProjectCommand } from "../native-pipeline/editor/editor-handlers-media.js";
 import { EditorApiClient } from "../native-pipeline/editor/editor-api-client.js";
 import {
@@ -116,6 +117,40 @@ describe("Media handlers — uncovered actions", () => {
 			);
 			const body = JSON.parse(lastCapturedBody!);
 			expect(body.filename).toBe("my-video.mp4");
+		});
+	});
+
+	describe("media:import local file", () => {
+		it("adds the imported media to the timeline when requested", async () => {
+			mockRoute("POST", "/api/claude/media/p1/import", {
+				success: true,
+				data: { id: "m-local", name: "source.mp4", type: "video" },
+			});
+			mockRoute("POST", "/api/claude/timeline/p1/elements", {
+				success: true,
+				data: { elementId: "element-1" },
+			});
+
+			const result = await handleMediaProjectCommand(
+				client,
+				makeOpts({
+					command: "editor:media:import",
+					projectId: "p1",
+					source: fileURLToPath(import.meta.url),
+					addToTimeline: true,
+				}),
+				noopProgress
+			);
+
+			expect(result.success).toBe(true);
+			expect(result.data).toMatchObject({
+				id: "m-local",
+				timelineElementId: "element-1",
+			});
+			expect(JSON.parse(lastCapturedBody!)).toEqual({
+				type: "media",
+				sourceId: "m-local",
+			});
 		});
 	});
 

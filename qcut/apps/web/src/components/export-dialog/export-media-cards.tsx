@@ -6,6 +6,10 @@ import {
 	getCaptionFileExtension,
 	type CaptionFormat,
 } from "@/lib/captions/caption-export";
+import type {
+	AudioExportBitrate,
+	AudioExportSampleRate,
+} from "@/lib/export/audio-export";
 
 // ---------------------------------------------------------------------------
 // Shared caption format definitions
@@ -46,6 +50,13 @@ export interface CaptionExportCardProps {
 export interface AudioExportCardProps {
 	includeAudio: boolean;
 	onIncludeAudioChange: (checked: boolean) => void;
+	exportAudioSeparately: boolean;
+	onExportAudioSeparatelyChange: (checked: boolean) => void;
+	bitrate: AudioExportBitrate;
+	onBitrateChange: (bitrate: AudioExportBitrate) => void;
+	sampleRate: AudioExportSampleRate;
+	onSampleRateChange: (sampleRate: AudioExportSampleRate) => void;
+	standaloneExportAvailable: boolean;
 	isExporting: boolean;
 }
 
@@ -134,6 +145,13 @@ export function CaptionExportCard({
 export function AudioExportCard({
 	includeAudio,
 	onIncludeAudioChange,
+	exportAudioSeparately,
+	onExportAudioSeparatelyChange,
+	bitrate,
+	onBitrateChange,
+	sampleRate,
+	onSampleRateChange,
+	standaloneExportAvailable,
 	isExporting,
 }: AudioExportCardProps) {
 	return (
@@ -159,6 +177,86 @@ export function AudioExportCard({
 				{includeAudio && (
 					<div className="text-xs text-muted-foreground pl-6">
 						Audio tracks will be mixed and included in the exported video
+					</div>
+				)}
+
+				{standaloneExportAvailable && (
+					<div className="border-t border-border/50 pt-4">
+						<div className="flex items-center space-x-2">
+							<Checkbox
+								id="export-audio-separately"
+								checked={exportAudioSeparately}
+								onCheckedChange={(checked) =>
+									onExportAudioSeparatelyChange(checked as boolean)
+								}
+								disabled={isExporting}
+								data-testid="export-audio-separately-checkbox"
+							/>
+							<Label
+								htmlFor="export-audio-separately"
+								className="cursor-pointer text-sm"
+							>
+								Export MP3 separately
+							</Label>
+						</div>
+
+						{exportAudioSeparately && (
+							<div className="mt-3 space-y-3 pl-6">
+								<div>
+									<Label className="text-xs text-muted-foreground">
+										Bitrate
+									</Label>
+									<RadioGroup
+										value={String(bitrate)}
+										onValueChange={(value) =>
+											onBitrateChange(Number(value) as AudioExportBitrate)
+										}
+										className="mt-1 grid grid-cols-4 gap-2"
+										disabled={isExporting}
+									>
+										{[128, 192, 256, 320].map((value) => (
+											<Label
+												key={value}
+												className="flex cursor-pointer items-center justify-center rounded border border-border/50 px-1 py-1.5 text-xs has-[[data-state=checked]]:border-primary"
+											>
+												<RadioGroupItem
+													value={String(value)}
+													className="sr-only"
+												/>
+												{value}k
+											</Label>
+										))}
+									</RadioGroup>
+								</div>
+
+								<div>
+									<Label className="text-xs text-muted-foreground">
+										Sample Rate
+									</Label>
+									<RadioGroup
+										value={String(sampleRate)}
+										onValueChange={(value) =>
+											onSampleRateChange(Number(value) as AudioExportSampleRate)
+										}
+										className="mt-1 grid grid-cols-2 gap-2"
+										disabled={isExporting}
+									>
+										{[44_100, 48_000].map((value) => (
+											<Label
+												key={value}
+												className="flex cursor-pointer items-center justify-center rounded border border-border/50 px-2 py-1.5 text-xs has-[[data-state=checked]]:border-primary"
+											>
+												<RadioGroupItem
+													value={String(value)}
+													className="sr-only"
+												/>
+												{value / 1000} kHz
+											</Label>
+										))}
+									</RadioGroup>
+								</div>
+							</div>
+						)}
 					</div>
 				)}
 			</CardContent>

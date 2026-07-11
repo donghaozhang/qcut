@@ -92,6 +92,7 @@ export interface ClaudeElement {
 		| "image"
 		| "text"
 		| "sticker"
+		| "adjustment"
 		| "captions"
 		| "remotion"
 		| "media"
@@ -191,6 +192,13 @@ export interface ExportJobRequest {
 		mic?: boolean;
 		/** Enable system audio capture */
 		systemAudio?: boolean;
+	};
+
+	/** Standalone MP3 export settings */
+	audioExportConfig?: {
+		bitrate?: number;
+		sampleRate?: number;
+		channels?: 1 | 2;
 	};
 
 	/** Zoom enhancement options */

@@ -1,10 +1,15 @@
 "use client";
 
+import { useEffect, useMemo, useRef } from "react";
 import { useAsyncMediaItems } from "@/hooks/media/use-async-media-store";
 import { useTimelineStore } from "@/stores/timeline/timeline-store";
 import type { TimelineElement, CaptionElement } from "@/types/timeline";
 import { ScrollArea } from "../../ui/scroll-area";
 import { AudioProperties } from "./audio-properties";
+import {
+	AudioMultiSelectionProperties,
+	type AudioBatchSelection,
+} from "./audio-multi-selection-properties";
 import { MediaProperties } from "./media-properties";
 import { TextProperties } from "./text-properties";
 import { PanelTabs } from "./panel-tabs";
@@ -27,9 +32,11 @@ import {
 	useScreenRecordingEnhancementStore,
 	hasActiveEnhancements,
 } from "@/stores/screen-recording-store";
+import { TransitionProperties } from "./transition-properties";
+import { AdjustmentProperties } from "./adjustment-properties";
 
 export function PropertiesPanel() {
-	const { selectedElements, tracks } = useTimelineStore();
+	const { selectedElements, selectedTransition, tracks } = useTimelineStore();
 	const {
 		mediaItems,
 		loading: mediaItemsLoading,
@@ -46,6 +53,60 @@ export function PropertiesPanel() {
 
 	const panelView = useExportStore((s) => s.panelView);
 	const setPanelView = useExportStore((s) => s.setPanelView);
+	const selectionSignature = selectedTransition
+		? `${selectedTransition.trackId}:transition:${selectedTransition.transitionId}`
+		: selectedElements
+				.map(({ trackId, elementId }) => `${trackId}:${elementId}`)
+				.join("|");
+	const previousSelectionSignature = useRef("");
+	useEffect(() => {
+		if (
+			selectionSignature &&
+			selectionSignature !== previousSelectionSignature.current
+		) {
+			setPanelView(PanelView.PROPERTIES);
+		}
+		previousSelectionSignature.current = selectionSignature;
+	}, [selectionSignature, setPanelView]);
+	const resolvedSelections = useMemo(
+		() =>
+			selectedElements.flatMap(({ trackId, elementId }) => {
+				const track = tracks.find((candidate) => candidate.id === trackId);
+				const element = track?.elements.find(
+					(candidate) => candidate.id === elementId
+				);
+				return element ? [{ trackId, element }] : [];
+			}),
+		[selectedElements, tracks]
+	);
+	const resolvedTransition = useMemo(() => {
+		if (!selectedTransition) return null;
+		const track = tracks.find(
+			(candidate) => candidate.id === selectedTransition.trackId
+		);
+		const transition = track?.transitions?.find(
+			(candidate) => candidate.id === selectedTransition.transitionId
+		);
+		return track && transition ? { track, transition } : null;
+	}, [selectedTransition, tracks]);
+	const audioBatchSelections = useMemo(
+		() =>
+			resolvedSelections.flatMap(({ trackId, element }) => {
+				if (element.type !== "media") return [];
+				const mediaItem = mediaItems.find(
+					(candidate) => candidate.id === element.mediaId
+				);
+				return mediaItem?.type === "audio"
+					? ([{ trackId, element }] satisfies AudioBatchSelection[])
+					: [];
+			}),
+		[mediaItems, resolvedSelections]
+	);
+	const isSingleAudioSelection =
+		resolvedSelections.length === 1 && audioBatchSelections.length === 1;
+	const isAudioBatchSelection =
+		resolvedSelections.length > 1 &&
+		audioBatchSelections.length === resolvedSelections.length;
 	const showScreenRecordingPanel = useScreenRecordingEnhancementStore(
 		(s) => s.cursorTelemetry !== null || hasActiveEnhancements(s)
 	);
@@ -119,6 +180,10 @@ export function PropertiesPanel() {
 			return <MarkdownProperties element={element} trackId={trackId} />;
 		}
 
+		if (element.type === "adjustment") {
+			return <AdjustmentProperties />;
+		}
+
 		if (element.type === "captions" || (element as any).type === "caption") {
 			console.log(
 				"[CaptionDebug] Properties panel rendering CaptionProperties for element:",
@@ -147,38 +212,53 @@ export function PropertiesPanel() {
 					<SettingsView />
 				) : (
 					<ScrollArea className="h-full bg-panel rounded-sm">
-						{selectedElements.length > 0 ? (
-							<div className="p-5 space-y-4">
-								{selectedElements.map(({ trackId, elementId }) => {
-									const track = tracks.find((t) => t.id === trackId);
-									const element = track?.elements.find(
-										(e) => e.id === elementId
-									);
-
-									if (!element) return null;
-
-									const showEffects = EFFECTS_ENABLED && hasEffects(element.id);
-									const showTransform =
-										element.type === "text" ||
-										element.type === "markdown" ||
-										showEffects;
-
-									return (
-										<div key={elementId}>
-											{showEffects && (
-												<EffectsProperties elementId={element.id} />
-											)}
-											{showTransform && (
-												<TransformProperties
-													element={element}
-													trackId={trackId}
-												/>
-											)}
-											{renderElementProperties(element, trackId)}
-										</div>
-									);
-								})}
-								{showScreenRecordingPanel && <ScreenRecordingPanel />}
+						{resolvedTransition ? (
+							<TransitionProperties
+								track={resolvedTransition.track}
+								transition={resolvedTransition.transition}
+							/>
+						) : resolvedSelections.length > 0 ? (
+							<div
+								className={
+									isSingleAudioSelection || isAudioBatchSelection
+										? ""
+										: "space-y-4 p-5"
+								}
+							>
+								{isAudioBatchSelection ? (
+									<AudioMultiSelectionProperties
+										selections={audioBatchSelections}
+									/>
+								) : resolvedSelections.length === 1 ? (
+									(() => {
+										const { trackId, element } = resolvedSelections[0];
+										const showEffects =
+											EFFECTS_ENABLED &&
+											(element.type === "adjustment" || hasEffects(element.id));
+										const showTransform =
+											element.type === "markdown" ||
+											(showEffects && element.type !== "adjustment");
+										return (
+											<div key={element.id}>
+												{showEffects ? (
+													<EffectsProperties elementId={element.id} />
+												) : null}
+												{showTransform ? (
+													<TransformProperties
+														element={element}
+														trackId={trackId}
+													/>
+												) : null}
+												{renderElementProperties(element, trackId)}
+											</div>
+										);
+									})()
+								) : (
+									<div className="py-8 text-center text-xs text-muted-foreground">
+										{resolvedSelections.length} mixed elements selected
+									</div>
+								)}
+								{showScreenRecordingPanel ? <ScreenRecordingPanel /> : null}
 							</div>
 						) : showScreenRecordingPanel ? (
 							<div className="space-y-4">

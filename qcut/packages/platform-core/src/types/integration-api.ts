@@ -288,7 +288,14 @@ export interface PlatformMediaImportAPI {
 		projectId: string,
 		mediaId: string,
 		newSourcePath: string
-	): Promise<boolean>;
+	): Promise<{
+		success?: boolean;
+		targetPath?: string;
+		importMethod?: "symlink" | "copy";
+		originalPath?: string;
+		fileSize?: number;
+		error?: string;
+	}>;
 	remove(projectId: string, mediaId: string): Promise<boolean>;
 	checkSymlinkSupport(): Promise<boolean>;
 	getMediaPath(projectId: string): Promise<string>;

@@ -203,6 +203,30 @@ describe("Claude export trigger", () => {
 		expect(["queued", "exporting", "completed"]).toContain(job?.status);
 	});
 
+	it("resolves standalone MP3 settings", async () => {
+		const result = await startExportJob({
+			projectId: "project_audio",
+			request: {
+				format: "mp3",
+				outputPath: "/tmp/export-audio.mp3",
+				audioExportConfig: {
+					bitrate: 320,
+					sampleRate: 48_000,
+					channels: 2,
+				},
+			} as import("../types/claude-api").ExportJobRequest & {
+				format: string;
+			},
+			timeline: testTimeline,
+			mediaFiles: testMediaFiles,
+		});
+
+		const job = getExportJobStatus(result.jobId);
+		expect(job?.settings?.format).toBe("mp3");
+		expect(job?.settings?.audioBitrate).toBe(320);
+		expect(job?.settings?.audioSampleRate).toBe(48_000);
+	});
+
 	it("returns job ID immediately", async () => {
 		spawnMode = "hang";
 

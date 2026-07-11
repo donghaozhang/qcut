@@ -144,6 +144,10 @@ export interface CLIRunOptions {
 	noSound?: boolean;
 	// generate-avatar options (also reused by happy_horse_ref2v / happy_horse_video_edit)
 	referenceImages?: string[];
+	/** Luma Ray 3.2: repeatable guide frames for video.keyframes */
+	keyframeImages?: string[];
+	/** Luma Ray 3.2: repeatable output-frame indexes for video.keyframes */
+	keyframeIndexes?: string[];
 	/** happy_horse_video_edit: 'auto' (model decides) | 'origin' (preserve input audio) */
 	audioSetting?: string;
 	// analyze-video options

@@ -2,6 +2,8 @@
  * Supporting type definitions for the Electron preload API.
  */
 
+import type { AudioSettings } from "../ffmpeg/audio-settings";
+
 // ============================================================================
 // Supporting types
 // ============================================================================
@@ -107,11 +109,27 @@ export interface FrameData {
 }
 
 export interface VideoSource {
+	elementId?: string;
+	trackId?: string;
+	trackOrder?: number;
+	elementOrder?: number;
 	path: string;
 	startTime: number;
 	duration: number;
 	trimStart?: number;
 	trimEnd?: number;
+	playbackRate?: number;
+	speedKeyframes?: Array<{
+		id: string;
+		frame: number;
+		value: number;
+		easing: "linear" | "easeIn" | "easeOut" | "easeInOut" | "spring";
+	}>;
+	reverse?: boolean;
+	freezeFrameTime?: number;
+	freezeFrameDuration?: number;
+	visual?: import("../ffmpeg/types").VideoVisual;
+	effectFilter?: string;
 }
 
 export interface ExportOptions {
@@ -122,9 +140,11 @@ export interface ExportOptions {
 	fps: number;
 	duration: number;
 	audioFiles?: AudioFile[];
+	audioCrossfades?: import("../ffmpeg/types").AudioCrossfade[];
 	metadata?: Record<string, string>;
 	useDirectCopy?: boolean;
 	videoSources?: VideoSource[];
+	videoTransitions?: import("../ffmpeg/types").VideoTransition[];
 	useVideoInput?: boolean;
 	videoInputPath?: string;
 	trimStart?: number;
@@ -140,12 +160,33 @@ export interface ExportOptions {
 		end: number;
 	}>;
 	crossfadeMs?: number;
+	backgroundColor?: string;
 }
 
 export interface AudioFile {
 	path: string;
 	startTime: number;
 	volume?: number;
+	sourceGain?: number;
+	trimStart?: number;
+	trimEnd?: number;
+	duration?: number;
+	fadeIn?: number;
+	fadeOut?: number;
+	normalize?: boolean;
+	denoise?: number;
+	pan?: number;
+	audio?: AudioSettings;
+	playbackRate?: number;
+	speedKeyframes?: Array<{
+		id: string;
+		frame: number;
+		value: number;
+		easing: "linear" | "easeIn" | "easeOut" | "easeInOut" | "spring";
+	}>;
+	reverse?: boolean;
+	freezeFrameTime?: number;
+	freezeFrameDuration?: number;
 }
 
 export interface ApiKeyConfig {

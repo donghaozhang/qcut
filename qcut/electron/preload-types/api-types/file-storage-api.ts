@@ -13,7 +13,10 @@ export interface FileOpsAPI {
 		filters?: FileDialogFilter[]
 	) => Promise<string | null>;
 	readFile: (filePath: string) => Promise<Buffer | null>;
-	writeFile: (filePath: string, data: Buffer | string) => Promise<boolean>;
+	writeFile: (
+		filePath: string,
+		data: Buffer | ArrayBuffer | string
+	) => Promise<boolean>;
 	saveBlob: (
 		data: Buffer | Uint8Array,
 		defaultFilename?: string

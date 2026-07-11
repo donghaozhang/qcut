@@ -23,6 +23,7 @@ import { createTimelineOperations } from "./timeline-store-operations";
 import { createAutoSaveHelpers } from "./timeline-store-autosave";
 import { createCrudOperations } from "./timeline-store-crud";
 import { createPersistenceOperations } from "./timeline-store-persistence";
+import { getMediaTimelineDuration } from "@/lib/video/video-timing";
 
 export const useTimelineStore = create<TimelineStore>((set, get) => {
 	// Create auto-save helpers (closure-level functions)
@@ -34,7 +35,7 @@ export const useTimelineStore = create<TimelineStore>((set, get) => {
 	const sortedInitialTracks = sortTracksByOrder(initialTracks);
 
 	return {
-		_tracks: initialTracks,
+		_tracks: sortedInitialTracks,
 		tracks: sortedInitialTracks,
 		history: [],
 		redoStack: [],
@@ -42,6 +43,7 @@ export const useTimelineStore = create<TimelineStore>((set, get) => {
 		isAutoSaving: false,
 		lastAutoSaveAt: null,
 		selectedElements: [],
+		selectedTransition: null,
 		rippleEditingEnabled: false,
 
 		// Snapping settings defaults
@@ -89,15 +91,20 @@ export const useTimelineStore = create<TimelineStore>((set, get) => {
 								selectedElements: state.selectedElements.filter(
 									(c) => !(c.trackId === trackId && c.elementId === elementId)
 								),
+								selectedTransition: null,
 							}
 						: {
 								selectedElements: [
 									...state.selectedElements,
 									{ trackId, elementId },
 								],
+								selectedTransition: null,
 							};
 				}
-				return { selectedElements: [{ trackId, elementId }] };
+				return {
+					selectedElements: [{ trackId, elementId }],
+					selectedTransition: null,
+				};
 			});
 		},
 
@@ -110,10 +117,11 @@ export const useTimelineStore = create<TimelineStore>((set, get) => {
 		},
 
 		clearSelectedElements: () => {
-			set({ selectedElements: [] });
+			set({ selectedElements: [], selectedTransition: null });
 		},
 
-		setSelectedElements: (elements) => set({ selectedElements: elements }),
+		setSelectedElements: (elements) =>
+			set({ selectedElements: elements, selectedTransition: null }),
 
 		// Snapping actions
 		toggleSnapping: () => {
@@ -158,9 +166,9 @@ export const useTimelineStore = create<TimelineStore>((set, get) => {
 			const overlap = track.elements.some((element) => {
 				const elementEnd =
 					element.startTime +
-					element.duration -
-					element.trimStart -
-					element.trimEnd;
+					(element.type === "media"
+						? getMediaTimelineDuration(element)
+						: element.duration - element.trimStart - element.trimEnd);
 
 				if (element.id === excludeElementId) {
 					return false;

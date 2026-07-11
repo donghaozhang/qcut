@@ -1,8 +1,13 @@
-import type { TimelineElement, TimelineTrack } from "@/types/timeline";
+import {
+	buildCompositionPlan,
+	type TimelineElement,
+	type TimelineTrack,
+} from "@/types/timeline";
 import { TEST_MEDIA_ID } from "@/constants/timeline-constants";
 import type { MediaItem } from "@/stores/media/media-store-types";
 import { debugLog, debugWarn } from "@/lib/debug/debug-config";
 import { useEffectsStore } from "@/stores/ai/effects-store";
+import { getTimelineElementDuration } from "@/lib/timeline";
 
 /** Interface for active elements at a specific time */
 export interface ActiveElement {
@@ -23,36 +28,26 @@ export function calculateTotalFrames(
 export function getActiveElements(
 	tracks: TimelineTrack[],
 	mediaItems: MediaItem[],
-	currentTime: number
+	currentTime: number,
+	fps = 30
 ): ActiveElement[] {
-	const activeElements: ActiveElement[] = [];
-
-	for (const track of tracks) {
-		for (const element of track.elements) {
-			if (element.hidden) {
-				continue;
-			}
-
-			const elementStart = element.startTime;
-			const elementEnd =
-				element.startTime +
-				(element.duration - element.trimStart - element.trimEnd);
-
-			if (currentTime >= elementStart && currentTime < elementEnd) {
-				let mediaItem = null;
-				if (element.type === "media" && element.mediaId !== TEST_MEDIA_ID) {
-					mediaItem =
-						mediaItems.find((item) => item.id === element.mediaId) || null;
-					if (!mediaItem) {
-						debugWarn(
-							`[ExportEngine] Media item not found: ${element.mediaId}`
-						);
-					}
-				}
-				activeElements.push({ element, track, mediaItem });
+	const plan = buildCompositionPlan({
+		tracks,
+		currentTime,
+		getElementDuration: ({ element }) =>
+			getTimelineElementDuration({ element, fps }),
+	});
+	const activeElements = plan.visualLayers.map(({ element, track }) => {
+		let mediaItem = null;
+		if (element.type === "media" && element.mediaId !== TEST_MEDIA_ID) {
+			mediaItem =
+				mediaItems.find((item) => item.id === element.mediaId) || null;
+			if (!mediaItem) {
+				debugWarn(`[ExportEngine] Media item not found: ${element.mediaId}`);
 			}
 		}
-	}
+		return { element, track, mediaItem };
+	});
 
 	// Log active elements for investigation
 	if (activeElements.length > 0 && currentTime % 1 === 0) {

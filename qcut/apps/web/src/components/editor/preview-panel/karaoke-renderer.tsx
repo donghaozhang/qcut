@@ -51,6 +51,7 @@ export function KaraokeRenderer({
 
 	return (
 		<div
+			data-testid="karaoke-renderer"
 			style={{
 				...baseCSS,
 				display: "inline-flex",

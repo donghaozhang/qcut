@@ -36,6 +36,8 @@ export interface SpeechConversionRequest {
 	sourceAudioUrl: string;
 	/** Optional target voice reference audio URL. */
 	targetVoiceAudioUrl?: string;
+	/** Cancels a conversion when the owning properties panel is disposed. */
+	signal?: AbortSignal;
 }
 
 export interface ElevenLabsSpeechRequest {
@@ -162,7 +164,11 @@ export async function convertSpeech(
 		payload.target_voice_audio_url = request.targetVoiceAudioUrl;
 	}
 
-	const response = await makeFalRequest(request.endpoint, payload);
+	const response = await makeFalRequest(request.endpoint, payload, {
+		signal: request.signal,
+		proxyFirst: true,
+		timeout: 10 * 60 * 1000,
+	});
 
 	if (!response.ok) {
 		await handleFalResponse(response, "Convert speech (Chatterbox S2S)");

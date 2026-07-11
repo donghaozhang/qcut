@@ -6,6 +6,7 @@
 
 // Video source extraction
 export { extractVideoSources, extractVideoInputPath } from "./video-sources";
+export { extractVideoTransitions } from "./video-transitions";
 
 // Image source extraction
 export { extractImageSources } from "./image-sources";
@@ -18,6 +19,8 @@ export { detectAudioSources, type AudioSourceInfo } from "./audio-detection";
 
 // Audio source extraction for CLI FFmpeg export
 export {
+	extractAudioCrossfadeInputs,
+	extractAudioMixConfig,
 	extractAudioFileInputs,
 	type AudioSourceAPI,
 } from "./audio-sources";

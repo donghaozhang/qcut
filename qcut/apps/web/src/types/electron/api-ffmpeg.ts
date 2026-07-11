@@ -5,8 +5,11 @@
 import type { StickerSource } from "../../../../../electron/ffmpeg-handler";
 import type { FFmpegHealthResult } from "../../../../../electron/ffmpeg/types";
 import type {
+	AudioCrossfadeInput,
 	VideoSourceInput,
+	VideoTransitionInput,
 	AudioFileInput,
+	AudioMixConfigInput,
 } from "../../lib/export/export-engine-cli";
 
 export interface ElectronFFmpegOps {
@@ -39,8 +42,11 @@ export interface ElectronFFmpegOps {
 			stickerSources?: StickerSource[];
 			duration?: number;
 			audioFiles?: AudioFileInput[];
+			audioCrossfades?: AudioCrossfadeInput[];
+			audioMixConfig?: AudioMixConfigInput;
 			useDirectCopy?: boolean;
 			videoSources?: VideoSourceInput[];
+			videoTransitions?: VideoTransitionInput[];
 			useVideoInput?: boolean;
 			videoInputPath?: string;
 			trimStart?: number;
@@ -69,6 +75,36 @@ export interface ElectronFFmpegOps {
 			audioPath: string;
 			fileSize: number;
 		}>;
+		exportAudioCLI: (options: {
+			outputPath: string;
+			duration: number;
+			audioFiles: Array<{
+				path: string;
+				startTime: number;
+				volume?: number;
+				sourceGain?: number;
+				trimStart?: number;
+				trimEnd?: number;
+				duration?: number;
+				fadeIn?: number;
+				fadeOut?: number;
+				normalize?: boolean;
+				denoise?: number;
+				pan?: number;
+			}>;
+			bitrate: number;
+			sampleRate: number;
+			channels?: 1 | 2;
+		}) => Promise<{ outputPath: string; fileSize: number }>;
+		convertVideoToGif: (options: {
+			sessionId: string;
+			inputPath: string;
+			width: number;
+			height: number;
+			fps: number;
+			loop: boolean;
+			quality: number;
+		}) => Promise<{ outputPath: string; fileSize: number }>;
 		getPath: () => Promise<string>;
 		checkHealth: () => Promise<FFmpegHealthResult>;
 	};

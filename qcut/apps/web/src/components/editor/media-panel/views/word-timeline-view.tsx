@@ -341,6 +341,22 @@ export function WordTimelineView() {
 		[transcribeMedia]
 	);
 
+	useEffect(() => {
+		const handleTranscribeRequest = (event: Event) => {
+			const detail = (event as CustomEvent).detail as
+				| { filePath?: string }
+				| undefined;
+			if (!detail?.filePath) return;
+			void handleMediaSelect(detail.filePath);
+		};
+		window.addEventListener("qcut:transcribe-media", handleTranscribeRequest);
+		return () =>
+			window.removeEventListener(
+				"qcut:transcribe-media",
+				handleTranscribeRequest
+			);
+	}, [handleMediaSelect]);
+
 	const handleWordPrimaryAction = useCallback(
 		(word: WordItem) => {
 			try {

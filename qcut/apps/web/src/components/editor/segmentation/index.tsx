@@ -3,11 +3,25 @@ import { useSegmentationStore } from "@/stores/ai/segmentation-store";
 import { useAsyncMediaStoreActions } from "@/hooks/media/use-async-media-store";
 import { useParams } from "@tanstack/react-router";
 import { Button } from "@/components/ui/button";
-import { Wand2, Loader2, ImagePlus, Video } from "lucide-react";
+import { Input } from "@/components/ui/input";
+import {
+	Wand2,
+	Loader2,
+	ImagePlus,
+	Video,
+	UserRound,
+	ScanSearch,
+} from "lucide-react";
 import { segmentWithText } from "@/lib/ai-clients/sam3-client";
 import { debugLog } from "@/lib/debug/debug-config";
 import { createObjectURL } from "@/lib/media/blob-manager";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { toast } from "sonner";
+import {
+	attachGeneratedMask,
+	failGeneratedMaskTracking,
+} from "@/lib/segmentation/generated-mask-attachment";
+import { generateSam3VideoMask } from "@/lib/segmentation/sam3-video-mask";
 
 // Export individual components
 export { ObjectList } from "./ObjectList";
@@ -22,6 +36,7 @@ import { ObjectList } from "./ObjectList";
 import { PromptToolbar } from "./PromptToolbar";
 import { SegmentationCanvas } from "./SegmentationCanvas";
 import { ImageUploader } from "./ImageUploader";
+import { LocalPersonCutoutPanel } from "./LocalPersonCutoutPanel";
 
 /**
  * SegmentationPanel
@@ -38,7 +53,10 @@ export function SegmentationPanel() {
 		setMode,
 		sourceImageUrl,
 		sourceImageFile,
+		sourceVideoUrl,
+		sourceVideoFile,
 		setSourceImage,
+		setSourceVideo,
 		objects,
 		currentTextPrompt,
 		isProcessing,
@@ -46,16 +64,27 @@ export function SegmentationPanel() {
 		addObject,
 		setCompositeImage,
 		setMasks,
+		setSegmentedVideo,
+		segmentedVideoUrl,
 		clearCurrentPrompts,
 		showObjectList,
+		videoBackend,
+		setVideoBackend,
 	} = useSegmentationStore();
 
-	const { loading: mediaStoreLoading, error: mediaStoreError } =
-		useAsyncMediaStoreActions();
+	const {
+		loading: mediaStoreLoading,
+		error: mediaStoreError,
+		addMediaItem,
+	} = useAsyncMediaStoreActions();
 
 	const handleImageSelect = (file: File) => {
 		const url = createObjectURL(file, "segmentation-image-select");
 		setSourceImage(file, url);
+	};
+	const handleVideoSelect = (file: File) => {
+		const url = createObjectURL(file, "segmentation-video-select");
+		setSourceVideo(file, url);
 	};
 
 	const handleSegment = async () => {
@@ -64,8 +93,12 @@ export function SegmentationPanel() {
 			return;
 		}
 
-		if (!sourceImageFile || !sourceImageUrl) {
+		if (mode === "image" && (!sourceImageFile || !sourceImageUrl)) {
 			alert("Please upload an image first.");
+			return;
+		}
+		if (mode === "video" && (!sourceVideoFile || !sourceVideoUrl)) {
+			alert("Please upload a video first.");
 			return;
 		}
 
@@ -75,16 +108,58 @@ export function SegmentationPanel() {
 			setProcessingState({
 				isProcessing: true,
 				progress: 0,
-				statusMessage: "Uploading image...",
+				statusMessage:
+					mode === "video" ? "Uploading video..." : "Uploading image...",
 				elapsedTime: 0,
 			});
 
-			// Upload image to FAL
+			if (mode === "video") {
+				if (!addMediaItem) throw new Error("Media library is not ready");
+				const prompt = currentTextPrompt.trim();
+				const result = await generateSam3VideoMask({
+					sourceFile: sourceVideoFile!,
+					prompt,
+				});
+				const sourceMediaId = await addMediaItem(projectId, {
+					name: `Tracked: ${prompt}`,
+					type: "video",
+					file: result.file,
+					url: result.url,
+					originalUrl: result.originalUrl,
+					metadata: {
+						source: "sam3-video-mask",
+						hasAlpha: result.hasAlpha,
+						codec: "vp9",
+						prompt,
+					},
+				});
+				const attached = attachGeneratedMask({
+					sourceMediaId,
+					type: "object",
+					source: "sam3",
+					name: `SAM3: ${prompt}`,
+					trackingSamples: result.trackingSamples,
+				});
+				setSegmentedVideo(result.url);
+				toast.success(
+					attached
+						? "SAM3 mask attached to selected clip"
+						: "SAM3 mask video added to Media"
+				);
+				setProcessingState({
+					isProcessing: false,
+					progress: 100,
+					statusMessage: "Video mask tracking complete",
+					elapsedTime: (Date.now() - startTime) / 1000,
+				});
+				return;
+			}
+
 			debugLog("Uploading image to FAL for segmentation...");
 			const { uploadImageToFAL } = await import(
 				"@/lib/ai-clients/image-edit-client"
 			);
-			const uploadedImageUrl = await uploadImageToFAL(sourceImageFile);
+			const uploadedImageUrl = await uploadImageToFAL(sourceImageFile!);
 
 			setProcessingState({
 				isProcessing: true,
@@ -142,6 +217,9 @@ export function SegmentationPanel() {
 			clearCurrentPrompts();
 		} catch (error) {
 			console.error("Segmentation failed:", error);
+			const errorMessage =
+				error instanceof Error ? error.message : "Unknown error occurred";
+			failGeneratedMaskTracking({ message: errorMessage });
 
 			setProcessingState({
 				isProcessing: false,
@@ -150,14 +228,16 @@ export function SegmentationPanel() {
 				elapsedTime: 0,
 			});
 
-			const errorMessage =
-				error instanceof Error ? error.message : "Unknown error occurred";
 			alert(`Segmentation failed: ${errorMessage}`);
 		}
 	};
 
 	const canSegment =
-		sourceImageUrl && currentTextPrompt.trim() && !isProcessing;
+		(mode === "image" ? sourceImageUrl : sourceVideoUrl) &&
+		currentTextPrompt.trim() &&
+		!isProcessing;
+	const isLocalPersonVideo =
+		mode === "video" && videoBackend === "local-person";
 
 	// Handle media store loading/error states
 	if (mediaStoreError) {
@@ -204,40 +284,103 @@ export function SegmentationPanel() {
 				</TabsList>
 			</Tabs>
 
-			{/* Segment Button */}
-			<div className="flex-shrink-0">
-				<Button
-					onClick={handleSegment}
-					disabled={!canSegment}
-					className="w-full"
-					size="lg"
+			{mode === "video" && (
+				<Tabs
+					value={videoBackend}
+					onValueChange={(value) =>
+						setVideoBackend(value as "local-person" | "sam3")
+					}
 				>
-					{isProcessing ? (
-						<>
-							<Loader2 className="w-4 h-4 mr-2 animate-spin" />
-							Segmenting...
-						</>
-					) : (
-						<>
-							<Wand2 className="w-4 h-4 mr-2" />
-							Segment Objects
-						</>
-					)}
-				</Button>
-			</div>
+					<TabsList className="grid w-full grid-cols-2">
+						<TabsTrigger
+							value="local-person"
+							className="flex items-center gap-2"
+						>
+							<UserRound className="size-4" />
+							Local person
+						</TabsTrigger>
+						<TabsTrigger value="sam3" className="flex items-center gap-2">
+							<ScanSearch className="size-4" />
+							Cloud object
+						</TabsTrigger>
+					</TabsList>
+				</Tabs>
+			)}
+
+			{/* Segment Button */}
+			{!isLocalPersonVideo && (
+				<div className="flex-shrink-0">
+					<Button
+						onClick={handleSegment}
+						disabled={!canSegment}
+						className="w-full"
+						size="lg"
+					>
+						{isProcessing ? (
+							<>
+								<Loader2 className="w-4 h-4 mr-2 animate-spin" />
+								Segmenting...
+							</>
+						) : (
+							<>
+								<Wand2 className="w-4 h-4 mr-2" />
+								Segment Objects
+							</>
+						)}
+					</Button>
+				</div>
+			)}
 
 			{/* Prompt Toolbar */}
-			<div className="flex-shrink-0">
-				<PromptToolbar />
-			</div>
+			{!isLocalPersonVideo && (
+				<div className="flex-shrink-0">
+					<PromptToolbar />
+				</div>
+			)}
 
-			{/* Image Upload Section */}
+			{/* Source Upload Section */}
 			<div className="flex-shrink-0">
-				<ImageUploader onImageSelect={handleImageSelect} />
+				{mode === "image" ? (
+					<ImageUploader onImageSelect={handleImageSelect} />
+				) : (
+					<Input
+						type="file"
+						accept="video/*"
+						onChange={(event) => {
+							const file = event.target.files?.[0];
+							if (file) handleVideoSelect(file);
+						}}
+					/>
+				)}
 			</div>
 
 			{/* Main Content Area */}
-			{sourceImageUrl ? (
+			{isLocalPersonVideo && sourceVideoFile && sourceVideoUrl ? (
+				<LocalPersonCutoutPanel
+					projectId={projectId}
+					sourceFile={sourceVideoFile}
+					sourceUrl={sourceVideoUrl}
+					addMediaItem={addMediaItem}
+					onMaskReady={({ sourceMediaId, trackingSamples }) =>
+						attachGeneratedMask({
+							sourceMediaId,
+							type: "person",
+							source: "mediapipe",
+							name: "MediaPipe person",
+							trackingSamples,
+						})
+					}
+					onMaskError={(message) => failGeneratedMaskTracking({ message })}
+				/>
+			) : mode === "video" && (segmentedVideoUrl || sourceVideoUrl) ? (
+				<div className="flex-1 min-h-0">
+					<video
+						controls
+						className="size-full object-contain"
+						src={segmentedVideoUrl || sourceVideoUrl || undefined}
+					/>
+				</div>
+			) : sourceImageUrl ? (
 				<div className="flex-1 flex gap-4 min-h-0">
 					{/* Canvas */}
 					<div className="flex-1 min-w-0">
@@ -256,9 +399,15 @@ export function SegmentationPanel() {
 				<div className="flex-1 flex items-center justify-center text-center text-muted-foreground">
 					<div>
 						<div className="text-6xl mb-4">&#9986;</div>
-						<h3 className="text-lg font-medium mb-2">AI Object Segmentation</h3>
+						<h3 className="text-lg font-medium mb-2">
+							{isLocalPersonVideo
+								? "Local Person Cutout"
+								: "AI Object Segmentation"}
+						</h3>
 						<p className="text-sm">
-							Upload an image and describe what to segment
+							{isLocalPersonVideo
+								? "Choose a video to remove its background"
+								: "Upload an image and describe what to segment"}
 						</p>
 					</div>
 				</div>

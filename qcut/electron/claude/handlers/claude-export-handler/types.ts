@@ -32,6 +32,9 @@ export interface ResolvedExportSettings {
 	bitrate: string;
 	gifLoop?: boolean;
 	gifQuality?: number;
+	audioBitrate?: number;
+	audioSampleRate?: number;
+	audioChannels?: 1 | 2;
 
 	/** Cursor enhancement config (passed through to compositor) */
 	cursorConfig?: {

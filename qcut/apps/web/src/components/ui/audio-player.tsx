@@ -1,7 +1,13 @@
 "use client";
 
-import { useRef, useEffect } from "react";
+import { useCallback, useEffect, useRef } from "react";
 import { usePlaybackStore } from "@/stores/editor/playback-store";
+import { useProjectStore } from "@/stores/project-store";
+import type { MediaElement } from "@/types/timeline";
+import { getMediaTimelineDuration } from "@/lib/video/video-timing";
+import { useMediaAudioPreview } from "@/lib/audio/use-media-audio-preview";
+import { resolveAudioPreviewTiming } from "@/lib/audio/audio-preview-timing";
+import { useReversedAudioUrl } from "@/lib/audio/use-reversed-audio-url";
 
 interface AudioPlayerProps {
 	src: string;
@@ -11,61 +17,104 @@ interface AudioPlayerProps {
 	trimEnd: number;
 	clipDuration: number;
 	trackMuted?: boolean;
+	trackId?: string;
+	previewGain?: number;
+	playbackWindow?: { startTime: number; endTime: number };
+	element: MediaElement;
 }
 
 export function AudioPlayer({
 	src,
 	className = "",
-	clipStartTime,
-	trimStart,
-	trimEnd,
-	clipDuration,
 	trackMuted = false,
+	trackId,
+	previewGain = 1,
+	playbackWindow,
+	element,
 }: AudioPlayerProps) {
 	const audioRef = useRef<HTMLAudioElement>(null);
-	const { isPlaying, currentTime, volume, speed, muted } = usePlaybackStore();
+	const { isPlaying, currentTime, speed } = usePlaybackStore();
+	const fps = useProjectStore((state) => state.activeProject?.fps ?? 30);
+	const reversed = useReversedAudioUrl({
+		source: src,
+		enabled: element.reverse === true,
+	});
+	const effectiveSource = element.reverse ? (reversed.url ?? src) : src;
+	const timelineDuration = getMediaTimelineDuration(element, fps);
+	useMediaAudioPreview({
+		mediaRef: audioRef,
+		element,
+		trackId,
+		duration: timelineDuration,
+		previewGain,
+		trackMuted,
+		forceMuted: element.reverse === true && !reversed.url,
+	});
 
-	// Calculate if we're within this clip's timeline range
-	const clipEndTime = clipStartTime + (clipDuration - trimStart - trimEnd);
+	const clipRangeStart = playbackWindow?.startTime ?? element.startTime;
+	const clipEndTime =
+		playbackWindow?.endTime ?? element.startTime + timelineDuration;
 	const isInClipRange =
-		currentTime >= clipStartTime && currentTime < clipEndTime;
+		currentTime >= clipRangeStart && currentTime < clipEndTime;
+	const syncAudioTiming = useCallback(
+		({
+			timelineTime,
+			playbackSpeed,
+			forcePosition,
+		}: {
+			timelineTime: number;
+			playbackSpeed: number;
+			forcePosition: boolean;
+		}) => {
+			const audio = audioRef.current;
+			if (!audio) return;
+			const timing = resolveAudioPreviewTiming({
+				element,
+				timelineTime,
+				playbackSpeed,
+				fps,
+			});
+			audio.playbackRate = timing.playbackRate;
+			const tolerance =
+				element.reverse || (element.speedKeyframes?.length ?? 0) > 0
+					? 0.12
+					: 0.45;
+			if (
+				forcePosition ||
+				Math.abs(audio.currentTime - timing.mediaTime) > tolerance
+			) {
+				audio.currentTime = timing.mediaTime;
+			}
+		},
+		[element, fps]
+	);
 
-	// Sync playback events
 	useEffect(() => {
 		const audio = audioRef.current;
-		if (!audio || !isInClipRange) return;
+		if (!audio) return;
 
 		const handleSeekEvent = (e: CustomEvent) => {
-			// Always update audio time, even if outside clip range
-			const timelineTime = e.detail.time;
-			const audioTime = Math.max(
-				trimStart,
-				Math.min(
-					clipDuration - trimEnd,
-					timelineTime - clipStartTime + trimStart
-				)
-			);
-			audio.currentTime = audioTime;
+			syncAudioTiming({
+				timelineTime: e.detail.time,
+				playbackSpeed: usePlaybackStore.getState().speed,
+				forcePosition: true,
+			});
 		};
 
 		const handleUpdateEvent = (e: CustomEvent) => {
-			// Always update audio time, even if outside clip range
-			const timelineTime = e.detail.time;
-			const targetTime = Math.max(
-				trimStart,
-				Math.min(
-					clipDuration - trimEnd,
-					timelineTime - clipStartTime + trimStart
-				)
-			);
-
-			if (Math.abs(audio.currentTime - targetTime) > 0.5) {
-				audio.currentTime = targetTime;
-			}
+			syncAudioTiming({
+				timelineTime: e.detail.time,
+				playbackSpeed: usePlaybackStore.getState().speed,
+				forcePosition: false,
+			});
 		};
 
 		const handleSpeed = (e: CustomEvent) => {
-			audio.playbackRate = e.detail.speed;
+			syncAudioTiming({
+				timelineTime: usePlaybackStore.getState().currentTime,
+				playbackSpeed: e.detail.speed,
+				forcePosition: false,
+			});
 		};
 
 		window.addEventListener("playback-seek", handleSeekEvent as EventListener);
@@ -89,7 +138,15 @@ export function AudioPlayer({
 				handleSpeed as EventListener
 			);
 		};
-	}, [clipStartTime, trimStart, trimEnd, clipDuration, isInClipRange]);
+	}, [syncAudioTiming]);
+
+	useEffect(() => {
+		syncAudioTiming({
+			timelineTime: currentTime,
+			playbackSpeed: speed,
+			forcePosition: true,
+		});
+	}, [currentTime, speed, syncAudioTiming]);
 
 	// Sync playback state
 	useEffect(() => {
@@ -120,24 +177,30 @@ export function AudioPlayer({
 		};
 	}, [isPlaying, isInClipRange, trackMuted]);
 
-	// Sync volume and speed
-	useEffect(() => {
-		const audio = audioRef.current;
-		if (!audio) return;
-
-		audio.volume = volume;
-		audio.muted = muted || trackMuted;
-		audio.playbackRate = speed;
-	}, [volume, speed, muted, trackMuted]);
-
 	return (
 		<audio
 			ref={audioRef}
-			src={src}
+			src={effectiveSource}
 			className={className}
 			preload="auto"
 			controls={false}
-			style={{ display: "none" }} // Audio elements don't need visual representation
+			style={{ display: "none" }}
+			data-audio-reverse-preview={
+				element.reverse ? (reversed.url ? "ready" : "loading") : "off"
+			}
+			data-audio-reverse-error={reversed.error}
+			onLoadedMetadata={() =>
+				syncAudioTiming({
+					timelineTime: usePlaybackStore.getState().currentTime,
+					playbackSpeed: usePlaybackStore.getState().speed,
+					forcePosition: true,
+				})
+			}
+			onCanPlay={() => {
+				if (isPlaying && isInClipRange && !trackMuted) {
+					void audioRef.current?.play();
+				}
+			}}
 			onContextMenu={(e) => e.preventDefault()}
 		/>
 	);

@@ -12,6 +12,7 @@ import type { TimelineStore } from "./index";
 import { createAddOps } from "./timeline-add-ops";
 import { createElementOps } from "./timeline-element-ops";
 import { createTrackOps } from "./timeline-track-ops";
+import { createTransitionOps } from "./timeline-transition-ops";
 
 /**
  * Dependencies injected from the store closure.
@@ -47,5 +48,6 @@ export function createTimelineOperations({
 		...createTrackOps(get, set, deps),
 		...createElementOps(get, set, deps),
 		...createAddOps(get, set, deps),
+		...createTransitionOps(get, set, deps),
 	};
 }

@@ -2,7 +2,12 @@
 
 import { platform } from "@qcut/platform-core";
 import { useTimelineStore } from "@/stores/timeline/timeline-store";
-import type { RemotionElement } from "@/types/timeline";
+import {
+	buildCompositionPlan,
+	type RemotionElement,
+	type TimelineElement,
+} from "@/types/timeline";
+import { getMediaTimelineDuration } from "@/lib/video/video-timing";
 import { useAsyncMediaItems } from "@/hooks/media/use-async-media-store";
 import { usePlaybackStore } from "@/stores/editor/playback-store";
 import { useEditorStore } from "@/stores/editor/editor-store";
@@ -16,8 +21,6 @@ import {
 	PreviewToolbar,
 	PreviewModeToggle,
 } from "./preview-panel-components";
-import { StickerCanvas } from "./stickers-overlay/StickerCanvas";
-import { CaptionsDisplay } from "@/components/captions/captions-display";
 import { captureWithFallback } from "@/lib/effects/canvas-utils";
 import { useFrameCache } from "@/hooks/timeline/use-frame-cache";
 import {
@@ -46,9 +49,24 @@ import { PreviewAgentView } from "./preview-panel/preview-agent-view";
 import { CursorOverlay } from "./preview-panel/cursor-overlay";
 import { RecordingBackground } from "./preview-panel/recording-background";
 import { useScreenRecordingPreview } from "./preview-panel/use-screen-recording-preview";
+import { resolveActiveClipTransitionPreview } from "@/lib/transitions/clip-transition-preview";
+import { useAudioMixMonitor } from "@/lib/audio/use-audio-mix-monitor";
+import { resolveActiveAudioCrossfadePreview } from "@/lib/audio/audio-crossfade-preview";
+import {
+	TimelineStickerKeyboardController,
+	useTimelineStickerDrop,
+} from "./preview-panel/timeline-sticker-interactions";
+import { AdjustmentLayerStack } from "./preview-panel/adjustment-layer-stack";
+
+function getPreviewElementDuration(element: TimelineElement): number {
+	return element.type === "media"
+		? getMediaTimelineDuration(element)
+		: element.duration - element.trimStart - element.trimEnd;
+}
 
 /** Main preview panel component for video playback, MCP apps, and element overlays. */
 export function PreviewPanel() {
+	useAudioMixMonitor();
 	const {
 		tracks,
 		getTotalDuration,
@@ -63,6 +81,7 @@ export function PreviewPanel() {
 		error: mediaItemsError,
 	} = useAsyncMediaItems();
 	const { currentTime, toggle, setCurrentTime, isPlaying } = usePlaybackStore();
+	const { activeProject } = useProjectStore();
 	const { canvasSize } = useEditorStore();
 	const previewRef = useRef<HTMLDivElement>(null);
 	const containerRef = useRef<HTMLDivElement>(null);
@@ -92,11 +111,27 @@ export function PreviewPanel() {
 			for (const track of tracks) {
 				for (const el of track.elements) {
 					if (el.hidden) continue;
-					const end = el.startTime + (el.duration - el.trimStart - el.trimEnd);
+					const end = el.startTime + getPreviewElementDuration(el);
 					if (time >= el.startTime && time < end) {
 						activeIds += el.id + ",";
 					}
 				}
+			}
+			const transitionPreview = resolveActiveClipTransitionPreview({
+				tracks,
+				currentTime: time,
+				fps: activeProject?.fps ?? 30,
+			});
+			for (const elementId of transitionPreview.forceActiveElementIds) {
+				activeIds += `transition:${elementId},`;
+			}
+			const audioCrossfadePreview = resolveActiveAudioCrossfadePreview({
+				tracks,
+				currentTime: time,
+				fps: activeProject?.fps ?? 30,
+			});
+			for (const elementId of audioCrossfadePreview.forceActiveElementIds) {
+				activeIds += `audio-crossfade:${elementId},`;
 			}
 			if (activeIds !== lastActiveIdsRef.current) {
 				lastActiveIdsRef.current = activeIds;
@@ -107,9 +142,8 @@ export function PreviewPanel() {
 		window.addEventListener("playback-update", handlePlaybackUpdate);
 		return () =>
 			window.removeEventListener("playback-update", handlePlaybackUpdate);
-	}, [isPlaying, currentTime, tracks]);
+	}, [activeProject?.fps, isPlaying, currentTime, tracks]);
 	const [isExpanded, setIsExpanded] = useState(false);
-	const { activeProject } = useProjectStore();
 	const externalHtml = useMcpAppStore((state) => state.activeHtml);
 	const externalToolName = useMcpAppStore((state) => state.toolName);
 	const localMcpActive = useMcpAppStore((state) => state.localMcpActive);
@@ -282,55 +316,73 @@ export function PreviewPanel() {
 			);
 	}, []);
 
+	const transitionPreviewTime = isPlaying ? smoothTime : currentTime;
+	const activeTransitionPreview = useMemo(
+		() =>
+			resolveActiveClipTransitionPreview({
+				tracks,
+				currentTime: transitionPreviewTime,
+				fps: activeProject?.fps ?? 30,
+			}),
+		[activeProject?.fps, tracks, transitionPreviewTime]
+	);
+	const activeAudioCrossfadePreview = useMemo(
+		() =>
+			resolveActiveAudioCrossfadePreview({
+				tracks,
+				currentTime: transitionPreviewTime,
+				fps: activeProject?.fps ?? 30,
+			}),
+		[activeProject?.fps, tracks, transitionPreviewTime]
+	);
+	const forcedActiveElementIds = useMemo(
+		() =>
+			new Set([
+				...activeTransitionPreview.forceActiveElementIds,
+				...activeAudioCrossfadePreview.forceActiveElementIds,
+			]),
+		[
+			activeAudioCrossfadePreview.forceActiveElementIds,
+			activeTransitionPreview.forceActiveElementIds,
+		]
+	);
 	const hasAnyElements = tracks.some((track) => track.elements.length > 0);
 	const getActiveElements = useCallback((): ActiveElement[] => {
 		try {
-			const activeElements: ActiveElement[] = [];
+			const effectiveTime = isPlaying ? playbackTime : currentTime;
+			const plan = buildCompositionPlan({
+				tracks,
+				currentTime: effectiveTime,
+				forceActiveElementIds: forcedActiveElementIds,
+				getElementDuration: ({ element }) => getPreviewElementDuration(element),
+			});
+			const layers = [...plan.visualLayers, ...plan.audioElements];
 
-			for (const track of tracks) {
-				for (const element of track.elements) {
-					if (element.hidden) {
-						continue;
-					}
-
-					const elementStart = element.startTime;
-					const elementEnd =
-						element.startTime +
-						(element.duration - element.trimStart - element.trimEnd);
-
-					// Use playbackTime during playback (updates on element boundary crossings),
-					// fall back to store currentTime when paused
-					const effectiveTime = isPlaying ? playbackTime : currentTime;
-					if (effectiveTime < elementStart || effectiveTime >= elementEnd) {
-						continue;
-					}
-
-					let mediaItem = null;
-					if (element.type === "media") {
-						mediaItem =
-							element.mediaId === TEST_MEDIA_ID
-								? null
-								: (mediaItems.find((item) => item.id === element.mediaId) ??
-									null);
-					}
-
-					activeElements.push({ element, track, mediaItem });
-				}
-			}
-
-			return activeElements;
+			return layers.map(({ element, track }) => {
+				const mediaItem =
+					element.type === "media" && element.mediaId !== TEST_MEDIA_ID
+						? (mediaItems.find((item) => item.id === element.mediaId) ?? null)
+						: null;
+				return { element, track, mediaItem };
+			});
 		} catch {
 			return [];
 		}
-	}, [tracks, currentTime, playbackTime, isPlaying, mediaItems]);
+	}, [
+		forcedActiveElementIds,
+		tracks,
+		currentTime,
+		playbackTime,
+		isPlaying,
+		mediaItems,
+	]);
 
 	const activeElements = useMemo(
 		() => getActiveElements(),
 		[getActiveElements]
 	);
-
+	const stickerDropHandlers = useTimelineStickerDrop({ currentTime });
 	const {
-		captionSegments,
 		blurBackgroundElements,
 		videoSourcesById,
 		blurBackgroundSource,
@@ -507,7 +559,7 @@ export function PreviewPanel() {
 				index={index}
 				previewDimensions={previewDimensions}
 				canvasSize={canvasSize}
-				currentTime={currentTime}
+				currentTime={isPlaying ? smoothTime : currentTime}
 				filterStyle={filterStyle}
 				hasEnabledEffects={hasEnabledEffects}
 				videoSourcesById={videoSourcesById}
@@ -515,6 +567,13 @@ export function PreviewPanel() {
 				dragState={dragState}
 				isPlaying={isPlaying}
 				activeProject={activeProject}
+				tracks={tracks}
+				transitionState={activeTransitionPreview.statesByElementId.get(
+					elementData.element.id
+				)}
+				audioCrossfadeState={activeAudioCrossfadePreview.statesByElementId.get(
+					elementData.element.id
+				)}
 				onTextPointerDown={handleTextPointerDown}
 				onElementSelect={({ elementId }) => setSelectedElementId(elementId)}
 				onElementResize={handleElementResize}
@@ -522,6 +581,8 @@ export function PreviewPanel() {
 		),
 		[
 			activeProject,
+			activeAudioCrossfadePreview.statesByElementId,
+			activeTransitionPreview.statesByElementId,
 			canvasSize,
 			currentMediaElement,
 			currentTime,
@@ -532,7 +593,9 @@ export function PreviewPanel() {
 			hasEnabledEffects,
 			isPlaying,
 			previewDimensions,
+			smoothTime,
 			videoSourcesById,
+			tracks,
 		]
 	);
 
@@ -629,6 +692,7 @@ export function PreviewPanel() {
 
 	return (
 		<>
+			<TimelineStickerKeyboardController />
 			<div
 				className="h-full w-full flex flex-col min-h-0 min-w-0 bg-panel rounded-sm"
 				data-testid="preview-panel"
@@ -653,6 +717,8 @@ export function PreviewPanel() {
 										? "transparent"
 										: activeProject?.backgroundColor || "#000000",
 							}}
+							onDragOver={stickerDropHandlers.onDragOver}
+							onDrop={stickerDropHandlers.onDrop}
 						>
 							{(() => {
 								const pw = previewDimensions.width || canvasSize.width;
@@ -683,9 +749,11 @@ export function PreviewPanel() {
 												No elements at current time
 											</div>
 										) : (
-											activeElements.map((elementData, index) =>
-												renderElement(elementData, index)
-											)
+											<AdjustmentLayerStack
+												activeElements={activeElements}
+												currentTime={currentTime}
+												renderElement={renderElement}
+											/>
 										)}
 										{cursorOverlay}
 									</div>
@@ -710,32 +778,20 @@ export function PreviewPanel() {
 									</div>
 								)}
 
-							{/* Sticker overlay layer - renders on top of everything */}
-							<StickerCanvas
-								className="absolute inset-0"
-								disabled={isExpanded}
-							/>
-
-							{/* Captions overlay - renders on top of stickers */}
-							<CaptionsDisplay
-								segments={captionSegments}
-								currentTime={currentTime}
-								isVisible={captionSegments.length > 0}
-								className="absolute inset-0 pointer-events-none"
-							/>
-
 							{/* Interactive element overlays for elements with effects */}
 							{EFFECTS_ENABLED &&
-								activeElements.map((elementData) => (
-									<InteractiveElementOverlay
-										key={`${elementData.element.id}-${elementData.track.id}`}
-										element={elementData.element}
-										isSelected={selectedElementId === elementData.element.id}
-										canvasSize={canvasSize}
-										previewDimensions={previewDimensions}
-										onTransformUpdate={handleTransformUpdate}
-									/>
-								))}
+								activeElements
+									.filter((elementData) => elementData.element.type !== "media")
+									.map((elementData) => (
+										<InteractiveElementOverlay
+											key={`${elementData.element.id}-${elementData.track.id}`}
+											element={elementData.element}
+											isSelected={selectedElementId === elementData.element.id}
+											canvasSize={canvasSize}
+											previewDimensions={previewDimensions}
+											onTransformUpdate={handleTransformUpdate}
+										/>
+									))}
 
 							{/* Hidden canvas for frame caching - non-visual */}
 							<canvas

@@ -9,6 +9,8 @@ import type {
 	AudioCodec,
 	ExportSettingsWithAudio,
 	GifExportConfig,
+	ExportFrameRate,
+	ExportEngineSelection,
 } from "@/types/export";
 import type { ExportEngine } from "@/lib/export/export-engine";
 import type {
@@ -56,8 +58,6 @@ export function useExportProgress() {
 		}
 	};
 
-	type EngineSelection = "auto" | "cli" | "ffmpeg" | "standard";
-
 	const handleExport = async (
 		canvas: HTMLCanvasElement,
 		totalDuration: number,
@@ -65,8 +65,10 @@ export function useExportProgress() {
 			quality: ExportQuality;
 			format: ExportFormat;
 			filename: string;
-			engineType: EngineSelection;
+			engineType: ExportEngineSelection;
 			resolution: { width: number; height: number };
+			frameRate: ExportFrameRate;
+			outputPath?: string;
 			includeAudio?: boolean;
 			audioCodec?: AudioCodec;
 			audioBitrate?: number;
@@ -138,6 +140,7 @@ export function useExportProgress() {
 				filename: exportSettings.filename,
 				engineType: selectedEngineType || "auto-recommend",
 				resolution: exportSettings.resolution,
+				frameRate: exportSettings.frameRate,
 				duration: totalDuration,
 			});
 
@@ -149,6 +152,7 @@ export function useExportProgress() {
 					width: exportSettings.resolution.width,
 					height: exportSettings.resolution.height,
 					filename: exportSettings.filename,
+					frameRate: exportSettings.frameRate,
 					includeAudio: exportSettings.includeAudio,
 					audioCodec: exportSettings.audioCodec,
 					audioBitrate: exportSettings.audioBitrate,
@@ -213,7 +217,16 @@ export function useExportProgress() {
 			// Calculate export duration
 			const exportDuration = Date.now() - startTime.getTime();
 
-			// Add to history
+			// Save/download via platform-aware output
+			const saveResult = await saveExportedVideo(
+				blob,
+				exportSettings.filename,
+				exportSettings.outputPath
+			);
+			if (!saveResult.success) {
+				throw new Error(saveResult.error || "Failed to save exported video");
+			}
+
 			addToHistory({
 				filename: exportSettings.filename,
 				settings: {
@@ -222,24 +235,17 @@ export function useExportProgress() {
 					filename: exportSettings.filename,
 					width: exportSettings.resolution.width,
 					height: exportSettings.resolution.height,
+					frameRate: exportSettings.frameRate,
 				},
 				duration: exportDuration,
 				fileSize: blob.size,
 				success: true,
 			});
-
-			// Reset timing state
 			setExportStartTime(null);
-
-			// Save/download via platform-aware output
-			const saveResult = await saveExportedVideo(blob, exportSettings.filename);
-			if (!saveResult.success) {
-				debugWarn("[ExportPanel] Save issue:", saveResult.error);
-			}
 
 			// Show success message
 			toast.success("Export completed successfully!", {
-				description: `${exportSettings.filename} has been downloaded`,
+				description: saveResult.filePath || exportSettings.filename,
 			});
 
 			// Reset export state
@@ -267,6 +273,7 @@ export function useExportProgress() {
 					filename: exportSettings.filename,
 					width: exportSettings.resolution.width,
 					height: exportSettings.resolution.height,
+					frameRate: exportSettings.frameRate,
 				},
 				duration: exportDuration,
 				fileSize: 0,

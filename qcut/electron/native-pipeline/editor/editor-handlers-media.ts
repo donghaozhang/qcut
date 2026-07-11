@@ -157,9 +157,30 @@ async function mediaImport(
 		return { success: false, error: `File not found: ${opts.source}` };
 	}
 
-	const data = await client.post(`/api/claude/media/${opts.projectId}/import`, {
+	const data = await client.post<{
+		id?: string;
+		mediaId?: string;
+		[key: string]: unknown;
+	}>(`/api/claude/media/${encodeURIComponent(opts.projectId)}/import`, {
 		source: opts.source,
 	});
+	if (opts.addToTimeline) {
+		const mediaId = data.id ?? data.mediaId;
+		if (!mediaId) {
+			return {
+				success: false,
+				error: "Media imported, but the response did not include a media ID",
+			};
+		}
+		const timelineElement = await client.post<{ elementId: string }>(
+			`/api/claude/timeline/${encodeURIComponent(opts.projectId)}/elements`,
+			{ type: "media", sourceId: mediaId }
+		);
+		return {
+			success: true,
+			data: { ...data, timelineElementId: timelineElement.elementId },
+		};
+	}
 	return { success: true, data };
 }
 

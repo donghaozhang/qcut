@@ -5,6 +5,9 @@ import { getVideoSource, type VideoSource } from "@/lib/media/media-source";
 import type { MediaItem } from "@/stores/media/media-store-types";
 import type { TranscriptionSegment } from "@/types/captions";
 import type { TProject } from "@/types/project";
+import type { SubtitleStyle } from "@/types/timeline";
+import type { WordItem } from "@/types/word-timeline";
+import { WORD_FILTER_STATE } from "@/types/word-timeline";
 import { useMemo } from "react";
 import type { ActiveElement } from "./types";
 
@@ -16,6 +19,8 @@ interface UsePreviewMediaParams {
 
 interface UsePreviewMediaResult {
 	captionSegments: TranscriptionSegment[];
+	captionStyle?: Partial<SubtitleStyle>;
+	captionWords: WordItem[];
 	blurBackgroundElements: ActiveElement[];
 	videoSourcesById: Map<string, VideoSource>;
 	activeVideoSource: VideoSource | null;
@@ -31,12 +36,13 @@ export function usePreviewMedia({
 }: UsePreviewMediaParams): UsePreviewMediaResult {
 	const currentMediaElement = useMemo(() => {
 		try {
-			return (
-				activeElements.find(
-					(item) =>
-						item.element.type === "media" && item.mediaItem?.type === "video"
-				) ?? null
-			);
+			for (let index = activeElements.length - 1; index >= 0; index--) {
+				const item = activeElements[index];
+				if (item.element.type === "media" && item.mediaItem?.type === "video") {
+					return item;
+				}
+			}
+			return null;
 		} catch {
 			return null;
 		}
@@ -76,6 +82,26 @@ export function usePreviewMedia({
 		} catch {
 			return [];
 		}
+	}, [activeElements]);
+	const captionPresentation = useMemo(() => {
+		const captionWords: WordItem[] = [];
+		let captionStyle: Partial<SubtitleStyle> | undefined;
+		for (const elementData of activeElements) {
+			if (elementData.element.type !== "captions") continue;
+			captionStyle = elementData.element.style;
+			for (const word of elementData.element.words ?? []) {
+				captionWords.push({
+					id: word.id,
+					text: word.text,
+					start: word.start,
+					end: word.end,
+					type: word.type,
+					speaker_id: word.speakerId,
+					filterState: WORD_FILTER_STATE.NONE,
+				});
+			}
+		}
+		return { captionStyle, captionWords };
 	}, [activeElements]);
 
 	const blurBackgroundElements = useMemo(() => {
@@ -149,6 +175,8 @@ export function usePreviewMedia({
 
 	return {
 		captionSegments,
+		captionStyle: captionPresentation.captionStyle,
+		captionWords: captionPresentation.captionWords,
 		blurBackgroundElements,
 		videoSourcesById,
 		activeVideoSource,

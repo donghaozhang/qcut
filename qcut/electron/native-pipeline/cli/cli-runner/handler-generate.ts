@@ -209,6 +209,8 @@ async function writeSidecarJson(
 			video_url: options.videoUrl,
 			audio_url: options.audioUrl,
 			reference_images: options.referenceImages,
+			keyframe_images: options.keyframeImages,
+			keyframe_indexes: options.keyframeIndexes,
 		},
 		output: {
 			path: result.outputPath,
@@ -435,6 +437,10 @@ export async function handleGenerate(
 	const hasPrompts = options.prompts && options.prompts.length > 0;
 	const hasReferenceImages =
 		!!options.referenceImages && options.referenceImages.length > 0;
+	const hasKeyframeImages =
+		!!options.keyframeImages && options.keyframeImages.length > 0;
+	const hasKeyframeIndexes =
+		!!options.keyframeIndexes && options.keyframeIndexes.length > 0;
 
 	if (options.command === "generate-image" && !hasTextInput && !hasPrompts) {
 		return {
@@ -473,13 +479,60 @@ export async function handleGenerate(
 		!hasTextInput &&
 		!hasImageInput &&
 		!hasVideoInput &&
-		!hasReferenceImages
+		!hasReferenceImages &&
+		!hasKeyframeImages
 	) {
 		return {
 			success: false,
 			error:
-				"Missing input. Provide --text/-t, --image-url, --video-url (video-edit), or --reference-images.",
+				"Missing input. Provide --text/-t, --image-url, --video-url (video-edit), --reference-images, or --keyframe-images.",
 		};
+	}
+	if (
+		options.command === "create-video" &&
+		hasKeyframeIndexes &&
+		!hasKeyframeImages
+	) {
+		return {
+			success: false,
+			error: "--keyframe-indexes requires --keyframe-images.",
+		};
+	}
+	if (
+		options.command === "create-video" &&
+		hasKeyframeImages &&
+		options.model !== "luma_ray_3_2" &&
+		options.model !== "luma_ray_3_2_v2v"
+	) {
+		return {
+			success: false,
+			error:
+				"--keyframe-images is supported only with -m luma_ray_3_2 or -m luma_ray_3_2_v2v.",
+		};
+	}
+	// Ray 3.2 v2v multi-keyframe editing anchors each keyframe to a source
+	// frame index, so indexes are required (and must match the image count).
+	if (
+		options.command === "create-video" &&
+		options.model === "luma_ray_3_2_v2v" &&
+		hasKeyframeImages
+	) {
+		if (!hasKeyframeIndexes) {
+			return {
+				success: false,
+				error:
+					"luma_ray_3_2_v2v keyframes require --keyframe-indexes (a source frame index per --keyframe-images).",
+			};
+		}
+		if (
+			(options.keyframeImages?.length ?? 0) !==
+			(options.keyframeIndexes?.length ?? 0)
+		) {
+			return {
+				success: false,
+				error: `luma_ray_3_2_v2v keyframe image count (${options.keyframeImages?.length}) must match index count (${options.keyframeIndexes?.length}).`,
+			};
+		}
 	}
 	if (
 		options.command === "create-video" &&
@@ -491,6 +544,56 @@ export async function handleGenerate(
 			error:
 				"Luma Ray 3.2 requires --text/-t even when anchor frames are provided.",
 		};
+	}
+	// Ray 3.2 Reframe (FAL): all three of source video, target ratio, and a
+	// fill prompt are required by the endpoint — fail fast with a clear message
+	// instead of surfacing a provider-side validation error.
+	if (
+		options.command === "create-video" &&
+		options.model === "luma_ray_3_2_reframe"
+	) {
+		if (!hasVideoInput) {
+			return {
+				success: false,
+				error:
+					"luma_ray_3_2_reframe requires --video-url (the source video to reframe, 30s or less).",
+			};
+		}
+		if (!options.aspectRatio) {
+			return {
+				success: false,
+				error:
+					"luma_ray_3_2_reframe requires --aspect-ratio (target canvas ratio, e.g. 16:9).",
+			};
+		}
+		if (!hasTextInput) {
+			return {
+				success: false,
+				error:
+					"luma_ray_3_2_reframe requires --text/-t (prompt describing what to paint into the new canvas area).",
+			};
+		}
+	}
+	// Ray 3.2 Video-to-Video (FAL): edits a source video; needs the video and a
+	// prompt. The first-frame guidance image (--reference-images) is optional.
+	if (
+		options.command === "create-video" &&
+		options.model === "luma_ray_3_2_v2v"
+	) {
+		if (!hasVideoInput) {
+			return {
+				success: false,
+				error:
+					"luma_ray_3_2_v2v requires --video-url (the source video to edit).",
+			};
+		}
+		if (!hasTextInput) {
+			return {
+				success: false,
+				error:
+					"luma_ray_3_2_v2v requires --text/-t (a prompt describing how to edit the video).",
+			};
+		}
 	}
 	if (
 		options.command === "create-video" &&
@@ -578,6 +681,12 @@ export async function handleGenerate(
 	// Field-name mapping happens inside step-executors per-model branches;
 	// the CLI just stages the array under a stable key the executor reads.
 	if (options.command === "create-video") {
+		if (options.keyframeImages && options.keyframeImages.length > 0) {
+			params.keyframe_images = options.keyframeImages;
+			if (options.keyframeIndexes && options.keyframeIndexes.length > 0) {
+				params.keyframe_indexes = options.keyframeIndexes;
+			}
+		}
 		if (options.referenceImages && options.referenceImages.length > 0) {
 			if (options.model === "happy_horse_ref2v") {
 				params.image_urls = options.referenceImages.slice(0, 9);
@@ -592,6 +701,10 @@ export async function handleGenerate(
 				params.image_urls = options.referenceImages.slice(0, 1);
 			} else if (options.model === "luma_ray_3_2") {
 				params.image_urls = options.referenceImages.slice(0, 2);
+			} else if (options.model === "luma_ray_3_2_v2v") {
+				// First reference image becomes the FAL `start_image_url`
+				// first-frame guidance for the edit.
+				params.start_image_url = options.referenceImages[0];
 			}
 		}
 		if (options.audioSetting && options.model === "happy_horse_video_edit") {

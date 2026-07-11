@@ -8,7 +8,11 @@
  */
 
 import type { TimelineTrack } from "@/types/timeline";
-import { sortTracksByOrder, ensureMainTrack } from "@/types/timeline";
+import {
+	sortTracksByOrder,
+	ensureMainTrack,
+	reconcileTimelineTransitions,
+} from "@/types/timeline";
 import { storageService } from "@/lib/storage/storage-service";
 import {
 	handleError,
@@ -17,6 +21,7 @@ import {
 } from "@/lib/debug/error-handler";
 import { debugLog } from "@/lib/debug/debug-config";
 import type { StoreGet, StoreSet } from "./timeline-store-operations";
+import { getTimelineElementDuration } from "@/lib/timeline";
 
 // Module-level timer for debounced auto-save
 let autoSaveTimer: ReturnType<typeof setTimeout> | null = null;
@@ -41,11 +46,27 @@ export function clearAutoSaveTimer(): void {
  */
 export function createAutoSaveHelpers(get: StoreGet, set: StoreSet) {
 	const updateTracks = (newTracks: TimelineTrack[]) => {
-		const tracksWithMain = ensureMainTrack(newTracks);
+		const reconciledTracks = reconcileTimelineTransitions({
+			tracks: newTracks,
+			getElementDuration: ({ element }) =>
+				getTimelineElementDuration({ element }),
+		});
+		const tracksWithMain = ensureMainTrack(reconciledTracks);
 		const sortedTracks = sortTracksByOrder(tracksWithMain);
+		const selectedTransition = get().selectedTransition;
+		const transitionStillExists = selectedTransition
+			? sortedTracks.some(
+					(track) =>
+						track.id === selectedTransition.trackId &&
+						track.transitions?.some(
+							(transition) => transition.id === selectedTransition.transitionId
+						)
+				)
+			: false;
 		set({
-			_tracks: tracksWithMain,
+			_tracks: sortedTracks,
 			tracks: sortedTracks,
+			selectedTransition: transitionStillExists ? selectedTransition : null,
 		});
 	};
 

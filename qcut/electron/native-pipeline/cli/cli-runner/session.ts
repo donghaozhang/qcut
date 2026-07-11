@@ -187,6 +187,9 @@ function parseSessionArgs(args: string[]): Partial<CLIRunOptions> {
 				"image-url": { type: "string" },
 				"video-url": { type: "string" },
 				"audio-url": { type: "string" },
+				"reference-images": { type: "string", multiple: true },
+				"keyframe-images": { type: "string", multiple: true },
+				"keyframe-indexes": { type: "string", multiple: true },
 				"output-dir": { type: "string", short: "o" },
 				policy: { type: "string" },
 				resume: { type: "string" },
@@ -248,6 +251,12 @@ function parseSessionArgs(args: string[]): Partial<CLIRunOptions> {
 		if (values["image-url"]) result.imageUrl = values["image-url"] as string;
 		if (values["video-url"]) result.videoUrl = values["video-url"] as string;
 		if (values["audio-url"]) result.audioUrl = values["audio-url"] as string;
+		if (values["reference-images"])
+			result.referenceImages = values["reference-images"] as string[];
+		if (values["keyframe-images"])
+			result.keyframeImages = values["keyframe-images"] as string[];
+		if (values["keyframe-indexes"])
+			result.keyframeIndexes = values["keyframe-indexes"] as string[];
 		if (values["output-dir"]) result.outputDir = values["output-dir"] as string;
 		if (values.policy) result.policy = values.policy as string;
 		if (values.resume) result.resume = values.resume as string;

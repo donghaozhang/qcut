@@ -180,6 +180,71 @@ describe("create-video duration validation", () => {
 		]);
 	});
 
+	it("stages Luma Ray 3.2 keyframe images and indexes", async () => {
+		const executor = new CapturingExecutor();
+
+		const result = await handleGenerate(
+			{
+				...buildVideoOptions({
+					model: "luma_ray_3_2",
+				}),
+				keyframeImages: ["/tmp/beat-1.png", "/tmp/beat-2.png"],
+				keyframeIndexes: ["0", "120"],
+			},
+			ignoreProgress,
+			executor,
+			new AbortController().signal
+		);
+
+		expect(result.success).toBe(false);
+		expect(result.error).toContain("executor reached");
+		expect(executor.steps).toHaveLength(1);
+		expect(executor.steps[0].params).toMatchObject({
+			keyframe_images: ["/tmp/beat-1.png", "/tmp/beat-2.png"],
+			keyframe_indexes: ["0", "120"],
+		});
+	});
+
+	it("rejects Luma keyframe indexes without keyframe images", async () => {
+		const executor = new CapturingExecutor();
+
+		const result = await handleGenerate(
+			{
+				...buildVideoOptions({
+					model: "luma_ray_3_2",
+				}),
+				keyframeIndexes: ["0"],
+			},
+			ignoreProgress,
+			executor,
+			new AbortController().signal
+		);
+
+		expect(result.success).toBe(false);
+		expect(result.error).toContain("requires --keyframe-images");
+		expect(executor.steps).toHaveLength(0);
+	});
+
+	it("rejects Luma keyframe images on non-Ray models", async () => {
+		const executor = new CapturingExecutor();
+
+		const result = await handleGenerate(
+			{
+				...buildVideoOptions({
+					model: "imarouter_seedance_2_0_fast_t2v",
+				}),
+				keyframeImages: ["/tmp/beat-1.png"],
+			},
+			ignoreProgress,
+			executor,
+			new AbortController().signal
+		);
+
+		expect(result.success).toBe(false);
+		expect(result.error).toContain("only with -m luma_ray_3_2");
+		expect(executor.steps).toHaveLength(0);
+	});
+
 	it("requires a prompt for Luma Ray 3.2 even with an anchor image", async () => {
 		const executor = new CapturingExecutor();
 
@@ -269,6 +334,194 @@ describe("create-video duration validation", () => {
 		expect(result.error).toContain("--video-url or --source-generation-id");
 		expect(executor.steps).toHaveLength(0);
 	});
+
+	it("stages Luma Ray 3.2 reframe aspect ratio and resolution params", async () => {
+		const executor = new CapturingExecutor();
+
+		const result = await handleGenerate(
+			{
+				...buildVideoOptions({
+					model: "luma_ray_3_2_reframe",
+				}),
+				videoUrl: "https://example.com/clip.mp4",
+				aspectRatio: "16:9",
+				resolution: "720p",
+			},
+			ignoreProgress,
+			executor,
+			new AbortController().signal
+		);
+
+		expect(result.success).toBe(false);
+		expect(result.error).toContain("executor reached");
+		expect(executor.steps).toHaveLength(1);
+		expect(executor.steps[0].model).toBe("luma_ray_3_2_reframe");
+		expect(executor.steps[0].params).toMatchObject({
+			aspect_ratio: "16:9",
+			resolution: "720p",
+		});
+	});
+
+	it("requires a source video for Luma Ray 3.2 reframe", async () => {
+		const executor = new CapturingExecutor();
+
+		const result = await handleGenerate(
+			{
+				...buildVideoOptions({ model: "luma_ray_3_2_reframe" }),
+				aspectRatio: "16:9",
+			},
+			ignoreProgress,
+			executor,
+			new AbortController().signal
+		);
+
+		expect(result.success).toBe(false);
+		expect(result.error).toContain("requires --video-url");
+		expect(executor.steps).toHaveLength(0);
+	});
+
+	it("requires a target aspect ratio for Luma Ray 3.2 reframe", async () => {
+		const executor = new CapturingExecutor();
+
+		const result = await handleGenerate(
+			{
+				...buildVideoOptions({ model: "luma_ray_3_2_reframe" }),
+				videoUrl: "https://example.com/clip.mp4",
+			},
+			ignoreProgress,
+			executor,
+			new AbortController().signal
+		);
+
+		expect(result.success).toBe(false);
+		expect(result.error).toContain("requires --aspect-ratio");
+		expect(executor.steps).toHaveLength(0);
+	});
+
+	it("requires a fill prompt for Luma Ray 3.2 reframe", async () => {
+		const executor = new CapturingExecutor();
+
+		const result = await handleGenerate(
+			{
+				...buildVideoOptions({ model: "luma_ray_3_2_reframe" }),
+				text: undefined,
+				videoUrl: "https://example.com/clip.mp4",
+				aspectRatio: "16:9",
+			},
+			ignoreProgress,
+			executor,
+			new AbortController().signal
+		);
+
+		expect(result.success).toBe(false);
+		expect(result.error).toContain("requires --text");
+		expect(executor.steps).toHaveLength(0);
+	});
+
+	it("stages Luma Ray 3.2 v2v guidance frame as start_image_url", async () => {
+		const executor = new CapturingExecutor();
+
+		const result = await handleGenerate(
+			{
+				...buildVideoOptions({ model: "luma_ray_3_2_v2v" }),
+				videoUrl: "https://example.com/clip.mp4",
+				referenceImages: ["/tmp/flame.png", "/tmp/ignored.png"],
+				editStrength: "flex_2",
+				resolution: "720p",
+			},
+			ignoreProgress,
+			executor,
+			new AbortController().signal
+		);
+
+		expect(result.success).toBe(false);
+		expect(result.error).toContain("executor reached");
+		expect(executor.steps).toHaveLength(1);
+		expect(executor.steps[0].model).toBe("luma_ray_3_2_v2v");
+		expect(executor.steps[0].params).toMatchObject({
+			start_image_url: "/tmp/flame.png",
+			edit_strength: "flex_2",
+			resolution: "720p",
+		});
+	});
+
+	it("requires a source video for Luma Ray 3.2 v2v", async () => {
+		const executor = new CapturingExecutor();
+
+		const result = await handleGenerate(
+			buildVideoOptions({ model: "luma_ray_3_2_v2v" }),
+			ignoreProgress,
+			executor,
+			new AbortController().signal
+		);
+
+		expect(result.success).toBe(false);
+		expect(result.error).toContain("requires --video-url");
+		expect(executor.steps).toHaveLength(0);
+	});
+
+	it("stages Luma Ray 3.2 v2v keyframes and matching indexes", async () => {
+		const executor = new CapturingExecutor();
+
+		const result = await handleGenerate(
+			{
+				...buildVideoOptions({ model: "luma_ray_3_2_v2v" }),
+				videoUrl: "https://example.com/clip.mp4",
+				keyframeImages: ["/tmp/kf0.png", "/tmp/kf30.png"],
+				keyframeIndexes: ["0", "30"],
+			},
+			ignoreProgress,
+			executor,
+			new AbortController().signal
+		);
+
+		expect(result.success).toBe(false);
+		expect(result.error).toContain("executor reached");
+		expect(executor.steps).toHaveLength(1);
+		expect(executor.steps[0].params).toMatchObject({
+			keyframe_images: ["/tmp/kf0.png", "/tmp/kf30.png"],
+			keyframe_indexes: ["0", "30"],
+		});
+	});
+
+	it("requires keyframe indexes for Luma Ray 3.2 v2v keyframes", async () => {
+		const executor = new CapturingExecutor();
+
+		const result = await handleGenerate(
+			{
+				...buildVideoOptions({ model: "luma_ray_3_2_v2v" }),
+				videoUrl: "https://example.com/clip.mp4",
+				keyframeImages: ["/tmp/kf0.png"],
+			},
+			ignoreProgress,
+			executor,
+			new AbortController().signal
+		);
+
+		expect(result.success).toBe(false);
+		expect(result.error).toContain("require --keyframe-indexes");
+		expect(executor.steps).toHaveLength(0);
+	});
+
+	it("rejects mismatched Luma Ray 3.2 v2v keyframe/index counts", async () => {
+		const executor = new CapturingExecutor();
+
+		const result = await handleGenerate(
+			{
+				...buildVideoOptions({ model: "luma_ray_3_2_v2v" }),
+				videoUrl: "https://example.com/clip.mp4",
+				keyframeImages: ["/tmp/kf0.png", "/tmp/kf30.png"],
+				keyframeIndexes: ["0"],
+			},
+			ignoreProgress,
+			executor,
+			new AbortController().signal
+		);
+
+		expect(result.success).toBe(false);
+		expect(result.error).toContain("must match index count");
+		expect(executor.steps).toHaveLength(0);
+	});
 });
 
 describe("session command parsing", () => {
@@ -281,5 +534,17 @@ describe("session command parsing", () => {
 		);
 
 		expect(options?.aspectRatio).toBe("9:16");
+	});
+
+	it("parses Luma Ray 3.2 keyframe flags in session mode", () => {
+		const options = parseSessionLine(
+			'create-video -m luma_ray_3_2 -t "beats" --keyframe-images a.png --keyframe-images b.png --keyframe-indexes 0 --keyframe-indexes 120',
+			{
+				outputDir: "/tmp/qcut-session-parse-test",
+			}
+		);
+
+		expect(options?.keyframeImages).toEqual(["a.png", "b.png"]);
+		expect(options?.keyframeIndexes).toEqual(["0", "120"]);
 	});
 });

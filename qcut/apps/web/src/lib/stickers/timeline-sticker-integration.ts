@@ -264,6 +264,14 @@ export class TimelineStickerIntegration {
 				startTime,
 				trimStart: 0,
 				trimEnd: 0,
+				x: sticker.position.x,
+				y: sticker.position.y,
+				width: sticker.size.width,
+				height: sticker.size.height,
+				rotation: sticker.rotation,
+				opacity: sticker.opacity,
+				maintainAspectRatio: sticker.maintainAspectRatio,
+				zIndex: sticker.zIndex,
 			};
 
 			if (this.config.enableLogging) {

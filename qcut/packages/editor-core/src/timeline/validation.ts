@@ -13,6 +13,7 @@ export function canElementGoOnTrack(
 		| "text"
 		| "media"
 		| "sticker"
+		| "adjustment"
 		| "captions"
 		| "remotion"
 		| "markdown",
@@ -22,6 +23,7 @@ export function canElementGoOnTrack(
 	if (elementType === "media")
 		return trackType === "media" || trackType === "audio";
 	if (elementType === "sticker") return trackType === "sticker";
+	if (elementType === "adjustment") return trackType === "adjustment";
 	if (elementType === "captions") return trackType === "captions";
 	if (elementType === "remotion") return trackType === "remotion";
 	if (elementType === "markdown") return trackType === "markdown";
@@ -31,7 +33,14 @@ export function canElementGoOnTrack(
 /** Validate element-track compatibility with error message. */
 export function validateElementTrackCompatibility(
 	element: {
-		type: "text" | "media" | "sticker" | "captions" | "remotion" | "markdown";
+		type:
+			| "text"
+			| "media"
+			| "sticker"
+			| "adjustment"
+			| "captions"
+			| "remotion"
+			| "markdown";
 	},
 	track: { type: TrackType }
 ): { isValid: boolean; errorMessage?: string } {
@@ -41,6 +50,7 @@ export function validateElementTrackCompatibility(
 		const errorMessages: Record<string, string> = {
 			text: "Text elements can only be placed on text tracks",
 			sticker: "Sticker elements can only be placed on sticker tracks",
+			adjustment: "Adjustment elements can only be placed on adjustment tracks",
 			captions: "Caption elements can only be placed on caption tracks",
 			remotion: "Remotion elements can only be placed on Remotion tracks",
 			markdown: "Markdown elements can only be placed on markdown tracks",

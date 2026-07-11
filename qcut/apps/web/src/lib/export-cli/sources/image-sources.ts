@@ -8,9 +8,14 @@
  */
 
 import type { ImageSourceInput } from "../types";
-import type { TimelineTrack, TimelineElement } from "@/types/timeline";
+import {
+	sortTracksByOrder,
+	type TimelineTrack,
+	type TimelineElement,
+} from "@/types/timeline";
 import type { MediaItem } from "@/stores/media/media-store";
 import { platform } from "@qcut/platform-core";
+import { resolveMediaVisualProperties } from "@/lib/video/video-properties";
 
 /**
  * Logger function type for dependency injection.
@@ -80,15 +85,23 @@ export async function extractImageSources(
 	mediaItems: MediaItem[],
 	sessionId: string | null,
 	imageAPI?: ImageSaveTempAPI,
-	logger: LogFn = console.log
+	logger: LogFn = console.log,
+	fps = 30
 ): Promise<ImageSourceInput[]> {
 	const api = imageAPI ?? (platform().video as unknown as ImageSaveTempAPI);
 	const imageSources: ImageSourceInput[] = [];
+	const orderedTracks = sortTracksByOrder(tracks);
 
-	for (const track of tracks) {
-		if (track.type !== "media") continue;
+	for (let trackOrder = 0; trackOrder < orderedTracks.length; trackOrder++) {
+		const track = orderedTracks[trackOrder];
+		if (track.hidden || track.type !== "media") continue;
 
-		for (const element of track.elements) {
+		for (
+			let elementOrder = 0;
+			elementOrder < track.elements.length;
+			elementOrder++
+		) {
+			const element = track.elements[elementOrder];
 			if (element.hidden || element.type !== "media") continue;
 
 			const mediaItem = mediaItems.find(
@@ -128,6 +141,9 @@ export async function extractImageSources(
 
 			imageSources.push({
 				path: localPath,
+				trackId: track.id,
+				trackOrder,
+				elementOrder,
 				startTime,
 				duration,
 				trimStart,
@@ -135,6 +151,11 @@ export async function extractImageSources(
 				width: mediaItem.width,
 				height: mediaItem.height,
 				elementId: element.id,
+				visual: {
+					...resolveMediaVisualProperties(element),
+					keyframes: element.keyframes,
+					keyframeFps: fps,
+				},
 			});
 
 			logger(

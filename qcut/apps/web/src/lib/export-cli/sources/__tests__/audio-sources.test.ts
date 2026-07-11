@@ -1,6 +1,7 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import { extractAudioFileInputs, type AudioSourceAPI } from "../audio-sources";
-import type { TimelineTrack } from "@/types/timeline";
+import type { MediaElement, TimelineTrack } from "@/types/timeline";
+import { DEFAULT_MEDIA_AUDIO_SETTINGS } from "@/lib/audio/audio-properties";
 import type { MediaItem } from "@/stores/media/media-store-types";
 
 const makeMediaElement = (params: {
@@ -9,6 +10,12 @@ const makeMediaElement = (params: {
 	startTime: number;
 	hidden?: boolean;
 	volume?: number;
+	audioFadeIn?: number;
+	audioFadeOut?: number;
+	audioNormalize?: boolean;
+	audioDenoise?: number;
+	audioPan?: number;
+	audio?: MediaElement["audio"];
 }) => {
 	return {
 		id: params.id,
@@ -21,6 +28,12 @@ const makeMediaElement = (params: {
 		trimEnd: 0,
 		hidden: params.hidden ?? false,
 		volume: params.volume,
+		audioFadeIn: params.audioFadeIn,
+		audioFadeOut: params.audioFadeOut,
+		audioNormalize: params.audioNormalize,
+		audioDenoise: params.audioDenoise,
+		audioPan: params.audioPan,
+		audio: params.audio,
 	};
 };
 
@@ -198,6 +211,66 @@ describe("extractAudioFileInputs", () => {
 		expect(api.saveTemp).toHaveBeenCalledTimes(1);
 	});
 
+	it("includes embedded video audio for standalone audio export", async () => {
+		const tracks: TimelineTrack[] = [
+			makeTrack({
+				id: "media-track",
+				type: "media",
+				elements: [
+					makeMediaElement({
+						id: "video-el",
+						mediaId: "video-1",
+						startTime: 2,
+						volume: 0.75,
+					}),
+				],
+			}),
+		];
+		const mediaItems = [
+			makeMediaItem({
+				id: "video-1",
+				type: "video",
+				name: "interview.mp4",
+				localPath: "/tmp/interview.mp4",
+			}),
+		];
+		const api: AudioSourceAPI = {
+			fileExists: vi.fn(async () => true),
+			saveTemp: vi.fn(),
+		};
+
+		const result = await extractAudioFileInputs(
+			tracks,
+			mediaItems,
+			"session-standalone",
+			api,
+			undefined,
+			{ includeEmbeddedVideoAudio: true }
+		);
+
+		expect(result).toHaveLength(1);
+		expect(result[0]).toMatchObject({
+			path: "/tmp/interview.mp4",
+			startTime: 2,
+			volume: 0.75,
+			sourceGain: 1,
+			trimStart: 0,
+			trimEnd: 0,
+			duration: 5,
+			fadeIn: 0,
+			fadeOut: 0,
+			normalize: false,
+			denoise: 0,
+			pan: 0,
+			playbackRate: 1,
+			speedKeyframes: undefined,
+			reverse: false,
+			freezeFrameTime: undefined,
+			freezeFrameDuration: 0,
+		});
+		expect(result[0].audio?.volumeDb).toBeCloseTo(-2.4988, 3);
+	});
+
 	it("uses URL fetch fallback when no localPath and empty file", async () => {
 		const emptyAudioFile = new File([], "remote.mp3", { type: "audio/mpeg" });
 		const tracks: TimelineTrack[] = [
@@ -248,5 +321,134 @@ describe("extractAudioFileInputs", () => {
 		expect(result[0].path).toBe("/tmp/remote_saved.mp3");
 		expect(fetchSpy).toHaveBeenCalledWith("https://example.com/remote.mp3");
 		expect(api.saveTemp).toHaveBeenCalledTimes(1);
+	});
+
+	it("exports ready separated stems as independently gain-staged sources", async () => {
+		const tracks: TimelineTrack[] = [
+			makeTrack({
+				id: "audio-track",
+				type: "audio",
+				elements: [
+					makeMediaElement({
+						id: "song",
+						mediaId: "original",
+						startTime: 0,
+						audio: {
+							...DEFAULT_MEDIA_AUDIO_SETTINGS,
+							separation: {
+								enabled: true,
+								status: "ready",
+								stemMediaIds: { vocals: "vocals", drums: "drums" },
+								stemGains: { vocals: 0.8, drums: 0.25 },
+							},
+						},
+					}),
+				],
+			}),
+		];
+		const mediaItems = [
+			makeMediaItem({
+				id: "original",
+				type: "audio",
+				name: "song.wav",
+				localPath: "/tmp/song.wav",
+			}),
+			makeMediaItem({
+				id: "vocals",
+				type: "audio",
+				name: "vocals.wav",
+				localPath: "/tmp/vocals.wav",
+			}),
+			makeMediaItem({
+				id: "drums",
+				type: "audio",
+				name: "drums.wav",
+				localPath: "/tmp/drums.wav",
+			}),
+		];
+		const result = await extractAudioFileInputs(tracks, mediaItems, "stems", {
+			fileExists: vi.fn(async () => true),
+			saveTemp: vi.fn(),
+		});
+
+		expect(result.map((item) => item.path)).toEqual([
+			"/tmp/vocals.wav",
+			"/tmp/drums.wav",
+		]);
+		expect(result.map((item) => item.sourceGain)).toEqual([0.8, 0.25]);
+	});
+
+	it("exports an AI cover with converted vocals and original accompaniment stems", async () => {
+		const tracks: TimelineTrack[] = [
+			makeTrack({
+				id: "audio-track",
+				type: "audio",
+				elements: [
+					makeMediaElement({
+						id: "cover",
+						mediaId: "original",
+						startTime: 0,
+						audio: {
+							...DEFAULT_MEDIA_AUDIO_SETTINGS,
+							separation: {
+								enabled: true,
+								status: "ready",
+								stemMediaIds: { vocals: "vocals", drums: "drums" },
+								stemGains: { vocals: 0.9, drums: 0.4 },
+							},
+							voiceConversion: {
+								enabled: true,
+								status: "ready",
+								sourceMediaId: "converted-vocals",
+								inputMediaId: "vocals",
+								sourceStem: "vocals",
+							},
+							cover: {
+								enabled: true,
+								status: "ready",
+								convertedVocalMediaId: "converted-vocals",
+							},
+						},
+					}),
+				],
+			}),
+		];
+		const mediaItems = [
+			makeMediaItem({
+				id: "original",
+				type: "audio",
+				name: "song.wav",
+				localPath: "/tmp/song.wav",
+			}),
+			makeMediaItem({
+				id: "vocals",
+				type: "audio",
+				name: "vocals.wav",
+				localPath: "/tmp/vocals.wav",
+			}),
+			makeMediaItem({
+				id: "converted-vocals",
+				type: "audio",
+				name: "cover-vocals.wav",
+				localPath: "/tmp/cover-vocals.wav",
+			}),
+			makeMediaItem({
+				id: "drums",
+				type: "audio",
+				name: "drums.wav",
+				localPath: "/tmp/drums.wav",
+			}),
+		];
+
+		const result = await extractAudioFileInputs(tracks, mediaItems, "cover", {
+			fileExists: vi.fn(async () => true),
+			saveTemp: vi.fn(),
+		});
+
+		expect(result.map((item) => item.path)).toEqual([
+			"/tmp/cover-vocals.wav",
+			"/tmp/drums.wav",
+		]);
+		expect(result.map((item) => item.sourceGain)).toEqual([0.9, 0.4]);
 	});
 });

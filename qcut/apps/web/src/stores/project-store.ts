@@ -13,6 +13,11 @@ import { generateUUID } from "@/lib/utils";
 import { debugError, debugLog } from "@/lib/debug/debug-config";
 import { syncProjectSkillsForClaude } from "@/lib/claude-bridge/project-skills-sync";
 import {
+	createDefaultProjectAudioMixSettings,
+	normalizeProjectAudioMixSettings,
+} from "@/lib/audio/audio-mix-settings";
+import type { ProjectAudioMixSettings } from "@/types/timeline";
+import {
 	handleError,
 	ErrorCategory,
 	ErrorSeverity,
@@ -70,6 +75,7 @@ interface ProjectStore {
 		options?: { backgroundColor?: string; blurIntensity?: BlurIntensity }
 	) => Promise<void>;
 	updateProjectFps: (fps: number) => Promise<void>;
+	updateProjectAudioMix: (audioMix: ProjectAudioMixSettings) => Promise<void>;
 
 	// Bookmark methods
 	toggleBookmark: (time: number) => Promise<void>;
@@ -210,6 +216,7 @@ export const useProjectStore = create<ProjectStore>((set, get) => ({
 			fps: DEFAULT_FPS,
 			canvasSize: options?.canvasSize ?? DEFAULT_CANVAS_SIZE,
 			canvasMode: "preset",
+			audioMix: createDefaultProjectAudioMixSettings(),
 		};
 
 		set({ activeProject: newProject });
@@ -269,7 +276,13 @@ export const useProjectStore = create<ProjectStore>((set, get) => ({
 			sceneStore.clearScenes();
 
 			// 3. Apply new project state
-			set({ activeProject: project });
+			const normalizedProject = {
+				...project,
+				audioMix: normalizeProjectAudioMixSettings({
+					audioMix: project.audioMix,
+				}),
+			};
+			set({ activeProject: normalizedProject });
 
 			// 4. Load remaining data with error handling
 			debugLog(`[ProjectStore] Loading media for project: ${id}`);
@@ -280,18 +293,16 @@ export const useProjectStore = create<ProjectStore>((set, get) => ({
 
 			// Initialize scenes for the project
 			debugLog(`[ProjectStore] Initializing scenes for project: ${id}`);
-			await sceneStore.initializeProjectScenes(project);
+			await sceneStore.initializeProjectScenes(normalizedProject);
 
-			// Load timeline and stickers in parallel (both may depend on media being loaded)
+			// Timeline owns sticker timing and visual state; legacy overlay data migrates after it loads.
 			const currentSceneId =
 				useSceneStore.getState().currentScene?.id ?? project.currentSceneId;
-			await Promise.all([
-				timelineStore.loadProjectTimeline({
-					projectId: id,
-					sceneId: currentSceneId,
-				}),
-				stickersStore.loadFromProject(id),
-			]);
+			await timelineStore.loadProjectTimeline({
+				projectId: id,
+				sceneId: currentSceneId,
+			});
+			await stickersStore.loadFromProject(id);
 
 			syncProjectSkillsForClaude({ projectId: id });
 
@@ -636,6 +647,26 @@ export const useProjectStore = create<ProjectStore>((set, get) => ({
 
 	clearInvalidProjectIds: () => {
 		set({ invalidProjectIds: new Set() });
+	},
+
+	updateProjectAudioMix: async (audioMix) => {
+		const { activeProject } = get();
+		if (!activeProject) return;
+		const updatedProject: TProject = {
+			...activeProject,
+			audioMix: normalizeProjectAudioMixSettings({ audioMix }),
+			updatedAt: new Date(),
+		};
+		set({ activeProject: updatedProject });
+		try {
+			await storageService.saveProject({ project: updatedProject });
+		} catch (error) {
+			handleStorageError(error, "Update project audio mix", {
+				projectId: activeProject.id,
+				projectName: activeProject.name,
+				operation: "updateProjectAudioMix",
+			});
+		}
 	},
 }));
 

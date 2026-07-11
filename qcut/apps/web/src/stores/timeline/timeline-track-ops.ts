@@ -3,7 +3,12 @@ import {
 	ErrorSeverity,
 	handleError,
 } from "@/lib/debug/error-handler";
-import { checkElementOverlaps, resolveElementOverlaps } from "@/lib/timeline";
+import {
+	checkElementOverlaps,
+	getTimelineElementDuration,
+	getTimelineElementEndTime,
+	resolveElementOverlaps,
+} from "@/lib/timeline";
 import { generateUUID } from "@/lib/utils";
 import type { TimelineElement } from "@/types/timeline";
 import type {
@@ -11,6 +16,7 @@ import type {
 	StoreGet,
 	StoreSet,
 } from "./timeline-store-operations";
+import { getTimelineSplitTrimValues } from "./timeline-split-utils";
 
 export function createTrackOps(
 	get: StoreGet,
@@ -65,9 +71,7 @@ export function createTrackOps(
 			// Find all the time ranges occupied by elements in the track being removed
 			const occupiedRanges = trackToRemove.elements.map((element) => ({
 				startTime: element.startTime,
-				endTime:
-					element.startTime +
-					(element.duration - element.trimStart - element.trimEnd),
+				endTime: getTimelineElementEndTime({ element }),
 			}));
 
 			// Sort ranges by start time
@@ -165,8 +169,7 @@ export function createTrackOps(
 			if (pushHistory) get().pushHistory();
 
 			const elementStartTime = element.startTime;
-			const elementDuration =
-				element.duration - element.trimStart - element.trimEnd;
+			const elementDuration = getTimelineElementDuration({ element });
 			const elementEndTime = elementStartTime + elementDuration;
 
 			// Remove the element and shift all elements that come after it
@@ -299,12 +302,6 @@ export function createTrackOps(
 						? new Set(trackIds)
 						: new Set(_tracks.map((track) => track.id));
 
-				const calculateEffectiveDuration = (element: TimelineElement) =>
-					Math.max(0, element.duration - element.trimStart - element.trimEnd);
-
-				const calculateEffectiveEnd = (element: TimelineElement) =>
-					element.startTime + calculateEffectiveDuration(element);
-
 				let deletedElements = 0;
 				let splitElements = 0;
 
@@ -319,7 +316,7 @@ export function createTrackOps(
 
 					for (const element of track.elements) {
 						const elementStart = element.startTime;
-						const elementEnd = calculateEffectiveEnd(element);
+						const elementEnd = getTimelineElementEndTime({ element });
 						const overlapsRange =
 							elementStart < clampedEndTime && elementEnd > clampedStartTime;
 
@@ -341,14 +338,14 @@ export function createTrackOps(
 							elementEnd <= clampedEndTime;
 						if (overlapsAtEnd) {
 							splitElements++;
-							const keptDuration = Math.max(0, clampedStartTime - elementStart);
-							const updatedTrimEnd = Math.max(
-								0,
-								element.duration - element.trimStart - keptDuration
-							);
+							const splitTrims = getTimelineSplitTrimValues({
+								element,
+								splitTime: clampedStartTime,
+							});
 							nextElements.push({
 								...element,
-								trimEnd: updatedTrimEnd,
+								trimStart: splitTrims.leftTrimStart,
+								trimEnd: splitTrims.leftTrimEnd,
 							});
 							continue;
 						}
@@ -359,15 +356,15 @@ export function createTrackOps(
 							elementEnd > clampedEndTime;
 						if (overlapsAtStart) {
 							splitElements++;
-							const keptDuration = Math.max(0, elementEnd - clampedEndTime);
-							const updatedTrimStart = Math.max(
-								0,
-								element.duration - element.trimEnd - keptDuration
-							);
+							const splitTrims = getTimelineSplitTrimValues({
+								element,
+								splitTime: clampedEndTime,
+							});
 							nextElements.push({
 								...element,
 								startTime: clampedEndTime,
-								trimStart: updatedTrimStart,
+								trimStart: splitTrims.rightTrimStart,
+								trimEnd: splitTrims.rightTrimEnd,
 							});
 							continue;
 						}
@@ -376,29 +373,27 @@ export function createTrackOps(
 							elementStart < clampedStartTime && elementEnd > clampedEndTime;
 						if (spansEntireRange) {
 							splitElements++;
-
-							const leftDuration = Math.max(0, clampedStartTime - elementStart);
-							const rightDuration = Math.max(0, elementEnd - clampedEndTime);
-
-							const leftTrimEnd = Math.max(
-								0,
-								element.duration - element.trimStart - leftDuration
-							);
-							const rightTrimStart = Math.max(
-								0,
-								element.duration - element.trimEnd - rightDuration
-							);
+							const leftSplitTrims = getTimelineSplitTrimValues({
+								element,
+								splitTime: clampedStartTime,
+							});
+							const rightSplitTrims = getTimelineSplitTrimValues({
+								element,
+								splitTime: clampedEndTime,
+							});
 
 							nextElements.push({
 								...element,
-								trimEnd: leftTrimEnd,
+								trimStart: leftSplitTrims.leftTrimStart,
+								trimEnd: leftSplitTrims.leftTrimEnd,
 							});
 
 							nextElements.push({
 								...element,
 								id: generateUUID(),
 								startTime: clampedEndTime,
-								trimStart: rightTrimStart,
+								trimStart: rightSplitTrims.rightTrimStart,
+								trimEnd: rightSplitTrims.rightTrimEnd,
 							});
 							continue;
 						}

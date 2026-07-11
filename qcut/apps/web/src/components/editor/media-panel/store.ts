@@ -99,7 +99,7 @@ export const tabs: { [key in Tab]: { icon: LucideIcon; label: string } } = {
 	// WIP panels below
 	filters: {
 		icon: BlendIcon,
-		label: "Filters (WIP)",
+		label: "Filters",
 	},
 	segmentation: {
 		icon: ScissorsIcon,
@@ -115,7 +115,7 @@ export const tabs: { [key in Tab]: { icon: LucideIcon; label: string } } = {
 	},
 	transitions: {
 		icon: ArrowLeftRightIcon,
-		label: "Transitions (WIP)",
+		label: "Transitions",
 	},
 	moyin: {
 		icon: ClapperboardIcon,

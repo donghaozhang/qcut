@@ -48,6 +48,16 @@ vi.mock("electron-log", () => ({
 const { mockExistsSync } = vi.hoisted(() => ({
 	mockExistsSync: vi.fn(() => true),
 }));
+const { mockDetectScenes } = vi.hoisted(() => ({
+	mockDetectScenes: vi.fn(async () => ({
+		scenes: [
+			{ timestamp: 0, confidence: 1 },
+			{ timestamp: 2.5, confidence: 0.8 },
+		],
+		totalScenes: 2,
+		averageShotDuration: 2.5,
+	})),
+}));
 
 vi.mock("fs", async (importOriginal) => {
 	const actual = await importOriginal<typeof import("fs")>();
@@ -141,14 +151,20 @@ vi.mock("../claude/handlers/claude-timeline-handler", () => ({
 	requestTimelineFromRenderer: vi.fn(),
 }));
 
+vi.mock("../claude/handlers/claude-scene-handler", () => ({
+	detectScenes: mockDetectScenes,
+}));
+
 // ---------------------------------------------------------------------------
 // Tests
 // ---------------------------------------------------------------------------
 
+import { ipcMain } from "electron";
 import type { AnalyzeSource } from "../types/claude-api";
 import {
 	resolveVideoPath,
 	listAnalyzeModels,
+	setupClaudeAnalyzeIPC,
 } from "../claude/handlers/claude-analyze-handler";
 
 describe("listAnalyzeModels", () => {
@@ -169,6 +185,34 @@ describe("listAnalyzeModels", () => {
 		expect(keys).toContain("gemini-2.5-pro");
 		expect(keys).toContain("gemini-3-pro");
 		expect(keys).toContain("gemini-direct");
+	});
+});
+
+describe("scene detection IPC", () => {
+	it("forwards typed scene detection requests to the native detector", async () => {
+		vi.clearAllMocks();
+		setupClaudeAnalyzeIPC();
+		const registration = vi
+			.mocked(ipcMain.handle)
+			.mock.calls.find(([channel]) => channel === "claude:analyze:scenes");
+		expect(registration).toBeDefined();
+		const handler = registration?.[1] as (
+			event: unknown,
+			projectId: string,
+			request: { mediaId: string; threshold?: number }
+		) => Promise<unknown>;
+		const result = await handler({}, "project-1", {
+			mediaId: "media-1",
+			threshold: 0.35,
+		});
+
+		expect(mockDetectScenes).toHaveBeenCalledWith("project-1", {
+			mediaId: "media-1",
+			threshold: 0.35,
+		});
+		expect(result).toEqual(
+			expect.objectContaining({ totalScenes: 2, averageShotDuration: 2.5 })
+		);
 	});
 });
 

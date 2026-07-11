@@ -1,6 +1,8 @@
 import { describe, it, expect } from "vitest";
 import {
 	sortTracksByOrder,
+	normalizeTrackOrder,
+	moveTrack,
 	getMainTrack,
 	ensureMainTrack,
 	getTrackName,
@@ -20,6 +22,47 @@ describe("sortTracksByOrder", () => {
 		];
 		const sorted = sortTracksByOrder(tracks);
 		expect(sorted.map((t) => t.type)).toEqual(["text", "media", "audio"]);
+		expect(sorted.map((t) => t.order)).toEqual([0, 1, 2]);
+	});
+
+	it("uses explicit order instead of type priority", () => {
+		const tracks: TimelineTrack[] = [
+			{ id: "media", name: "Media", type: "media", order: 0, elements: [] },
+			{ id: "text", name: "Text", type: "text", order: 1, elements: [] },
+		];
+
+		expect(sortTracksByOrder(tracks).map((track) => track.id)).toEqual([
+			"media",
+			"text",
+		]);
+	});
+
+	it("preserves array position while assigning order to an inserted track", () => {
+		const tracks: TimelineTrack[] = [
+			{ id: "top", name: "Top", type: "text", order: 0, elements: [] },
+			{ id: "new", name: "New", type: "audio", elements: [] },
+			{ id: "bottom", name: "Bottom", type: "media", order: 1, elements: [] },
+		];
+
+		const normalized = normalizeTrackOrder({ tracks });
+		expect(normalized.map((track) => track.id)).toEqual([
+			"top",
+			"new",
+			"bottom",
+		]);
+		expect(normalized.map((track) => track.order)).toEqual([0, 1, 2]);
+	});
+
+	it("moves tracks and compacts their order", () => {
+		const tracks: TimelineTrack[] = [
+			{ id: "a", name: "A", type: "text", order: 0, elements: [] },
+			{ id: "b", name: "B", type: "media", order: 1, elements: [] },
+			{ id: "c", name: "C", type: "audio", order: 2, elements: [] },
+		];
+
+		const moved = moveTrack({ tracks, trackId: "c", toIndex: 0 });
+		expect(moved.map((track) => track.id)).toEqual(["c", "a", "b"]);
+		expect(moved.map((track) => track.order)).toEqual([0, 1, 2]);
 	});
 
 	it("puts main track first within same type", () => {

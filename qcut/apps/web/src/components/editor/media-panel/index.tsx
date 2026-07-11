@@ -20,6 +20,8 @@ import { UpscaleView } from "./views/upscale";
 import { MoyinView } from "./views/moyin";
 import { GeminiTerminalView } from "./views/gemini-terminal";
 import { SearchView } from "./views/search-view";
+import { TransitionsView } from "./views/transitions";
+import { FiltersView } from "./views/filters";
 import React from "react";
 import { EFFECTS_ENABLED } from "@/config/features";
 
@@ -50,16 +52,8 @@ export function MediaPanel() {
 				Effects view coming soon...
 			</div>
 		),
-		transitions: (
-			<div className="p-4 text-muted-foreground">
-				Transitions view coming soon...
-			</div>
-		),
-		filters: (
-			<div className="p-4 text-muted-foreground">
-				Filters view coming soon...
-			</div>
-		),
+		transitions: <TransitionsView />,
+		filters: <FiltersView />,
 		text2image: <Text2ImageView />,
 		"nano-edit": <SkillsView />,
 		ai: <AiView />,

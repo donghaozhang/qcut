@@ -3,6 +3,7 @@ import type {
 	FrameData,
 	ExportOptions,
 } from "../supporting-types";
+import type { AudioSettings } from "../../ffmpeg/audio-settings";
 
 /** FFmpeg export and frame processing operations. */
 export interface FFmpegExportAPI {
@@ -27,6 +28,37 @@ export interface FFmpegExportAPI {
 			audioPath: string;
 			fileSize: number;
 		}>;
+		exportAudioCLI: (options: {
+			outputPath: string;
+			duration: number;
+			audioFiles: Array<{
+				path: string;
+				startTime: number;
+				volume?: number;
+				sourceGain?: number;
+				trimStart?: number;
+				trimEnd?: number;
+				duration?: number;
+				fadeIn?: number;
+				fadeOut?: number;
+				normalize?: boolean;
+				denoise?: number;
+				pan?: number;
+				audio?: AudioSettings;
+			}>;
+			bitrate: number;
+			sampleRate: number;
+			channels?: 1 | 2;
+		}) => Promise<{ outputPath: string; fileSize: number }>;
+		convertVideoToGif: (options: {
+			sessionId: string;
+			inputPath: string;
+			width: number;
+			height: number;
+			fps: number;
+			loop: boolean;
+			quality: number;
+		}) => Promise<{ outputPath: string; fileSize: number }>;
 		validateFilterChain: (filterChain: string) => Promise<boolean>;
 		saveStickerForExport: (data: {
 			sessionId: string;

@@ -17,6 +17,9 @@ import {
 	type EffectChain,
 } from "@/lib/effects/effects-chaining";
 import { inferEffectType, stripCopySuffix } from "@/lib/utils/effects";
+import { collectTimelineEffectState } from "@/lib/effects/timeline-effect-state";
+import { useTimelineStore } from "@/stores/timeline/timeline-store";
+import type { TimelineTrack } from "@/types/timeline";
 import {
 	FFmpegFilterChain,
 	type EffectParameters as FFmpegEffectParameters,
@@ -439,6 +442,7 @@ interface EffectsStore {
 	effectChains: Map<string, EffectChain[]>; // elementId -> chains
 	selectedCategory: EffectCategory | "all";
 	selectedEffect: EffectInstance | null;
+	hydrateFromTimeline: (tracks: TimelineTrack[]) => void;
 
 	// Actions
 	applyEffect: (elementId: string, preset: EffectPreset) => void;
@@ -491,12 +495,20 @@ interface EffectsStore {
 	getFFmpegFilterChain: (elementId: string) => string;
 }
 
+let hydratingFromTimeline = false;
+
 export const useEffectsStore = create<EffectsStore>((set, get) => ({
 	presets: EFFECT_PRESETS,
 	activeEffects: new Map(),
 	effectChains: new Map(),
 	selectedCategory: "all",
 	selectedEffect: null,
+	hydrateFromTimeline: (tracks) => {
+		const timelineState = collectTimelineEffectState({ tracks });
+		hydratingFromTimeline = true;
+		set(timelineState);
+		hydratingFromTimeline = false;
+	},
 
 	applyEffect: (elementId, preset) => {
 		console.log(
@@ -733,7 +745,11 @@ export const useEffectsStore = create<EffectsStore>((set, get) => ({
 
 	// Effect Chaining Methods
 	createChain: (elementId, name, effectIds) => {
-		const chain = createEffectChain(name, effectIds, get().presets);
+		const chain = createEffectChain(
+			name,
+			effectIds,
+			get().activeEffects.get(elementId) ?? []
+		);
 
 		set((state) => {
 			const chains = state.effectChains.get(elementId) || [];
@@ -850,3 +866,38 @@ export const useEffectsStore = create<EffectsStore>((set, get) => ({
 		return filterChain;
 	},
 }));
+
+useEffectsStore.subscribe((state, previous) => {
+	if (hydratingFromTimeline) return;
+	const elementIds = new Set([
+		...state.activeEffects.keys(),
+		...previous.activeEffects.keys(),
+		...state.effectChains.keys(),
+		...previous.effectChains.keys(),
+	]);
+	const timeline = useTimelineStore.getState();
+	for (const elementId of elementIds) {
+		if (
+			state.activeEffects.get(elementId) ===
+				previous.activeEffects.get(elementId) &&
+			state.effectChains.get(elementId) === previous.effectChains.get(elementId)
+		) {
+			continue;
+		}
+		timeline.setElementEffectState({
+			elementId,
+			effects: state.activeEffects.get(elementId) ?? [],
+			effectChains: state.effectChains.get(elementId) ?? [],
+			pushHistory: false,
+		});
+	}
+});
+
+useTimelineStore.subscribe((state, previous) => {
+	if (state._tracks === previous._tracks) return;
+	useEffectsStore.getState().hydrateFromTimeline(state._tracks);
+});
+
+useEffectsStore
+	.getState()
+	.hydrateFromTimeline(useTimelineStore.getState()._tracks);

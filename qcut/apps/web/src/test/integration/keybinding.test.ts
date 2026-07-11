@@ -15,6 +15,11 @@ describe("Keybinding", () => {
 		expect(store.keybindings.space).toBe("toggle-play");
 		expect(store.keybindings.j).toBe("seek-backward");
 		expect(store.keybindings.k).toBe("toggle-play");
+		expect(store.keybindings["ctrl+c"]).toBe("copy-selected");
+		expect(store.keybindings["ctrl+x"]).toBe("cut-selected");
+		expect(store.keybindings["ctrl+v"]).toBe("paste-clipboard");
+		expect(store.keybindings["ctrl+shift+c"]).toBe("copy-attributes-selected");
+		expect(store.keybindings["ctrl+shift+v"]).toBe("paste-attributes-selected");
 	});
 
 	it("updates custom keybinding", () => {

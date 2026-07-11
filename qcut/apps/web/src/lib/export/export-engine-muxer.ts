@@ -10,6 +10,8 @@ import { ExportEngine } from "./export-engine";
 import type { ExportSettings } from "@/types/export";
 import type { TimelineTrack } from "@/types/timeline";
 import type { MediaItem } from "@/stores/media/media-store-types";
+import { shouldIncludeAudio } from "@/types/export";
+import { renderBrowserTimelineAudio } from "@/lib/audio/browser-audio-export";
 
 // Progress callback type
 type ProgressCallback = (progress: number, status: string) => void;
@@ -97,7 +99,14 @@ export class ExportEngineMuxer extends ExportEngine {
 			output.addVideoTrack(videoSource, { frameRate: fps });
 
 			// Prepare audio if timeline has audio elements
-			const audioData = await this.extractTimelineAudio();
+			const audioData = shouldIncludeAudio(this.settings)
+				? await renderBrowserTimelineAudio({
+						tracks: this.tracks,
+						mediaItems: this.mediaItems,
+						totalDuration: this.totalDuration,
+						fps,
+					})
+				: null;
 			let audioSource: InstanceType<typeof AudioBufferSource> | null = null;
 
 			if (audioData) {
@@ -175,100 +184,6 @@ export class ExportEngineMuxer extends ExportEngine {
 		} finally {
 			this.activeOutput = null;
 			this.isExporting = false;
-		}
-	}
-
-	/**
-	 * Extract and mix audio from timeline elements into a single AudioBuffer.
-	 * Returns null if no audio elements are present.
-	 */
-	private async extractTimelineAudio(): Promise<AudioBuffer | null> {
-		const audioElements: Array<{
-			src: string;
-			startTime: number;
-			duration: number;
-			trimStart: number;
-			volume: number;
-		}> = [];
-
-		// Collect audio sources from timeline
-		for (const track of this.tracks) {
-			for (const element of track.elements) {
-				// Only media elements have mediaId/volume
-				if (!("mediaId" in element)) continue;
-				const mediaId = element.mediaId as string;
-
-				const mediaItem = this.mediaItems.find((m) => m.id === mediaId);
-				if (!mediaItem) continue;
-
-				const isAudio = track.type === "audio" || mediaItem.type === "video";
-				if (!isAudio) continue;
-
-				const src =
-					mediaItem.url || mediaItem.originalUrl || mediaItem.localPath;
-				if (!src) continue;
-
-				const vol =
-					"volume" in element && typeof element.volume === "number"
-						? element.volume / 100
-						: 1;
-
-				audioElements.push({
-					src,
-					startTime: element.startTime,
-					duration: element.duration,
-					trimStart: element.trimStart || 0,
-					volume: vol,
-				});
-			}
-		}
-
-		if (audioElements.length === 0) return null;
-
-		try {
-			const sampleRate = 48_000;
-			const channels = 2;
-			const totalSamples = Math.ceil(this.totalDuration * sampleRate);
-			const audioCtx = new OfflineAudioContext(
-				channels,
-				totalSamples,
-				sampleRate
-			);
-
-			// Decode and schedule each audio source
-			for (const el of audioElements) {
-				try {
-					const response = await fetch(el.src);
-					const arrayBuffer = await response.arrayBuffer();
-					const decoded = await audioCtx.decodeAudioData(arrayBuffer);
-
-					const source = audioCtx.createBufferSource();
-					source.buffer = decoded;
-
-					// Apply volume
-					const gainNode = audioCtx.createGain();
-					gainNode.gain.value = el.volume;
-					source.connect(gainNode);
-					gainNode.connect(audioCtx.destination);
-
-					// Schedule with trim offset
-					source.start(el.startTime, el.trimStart, el.duration);
-				} catch (err) {
-					console.warn(
-						"[ExportEngineMuxer] Failed to decode audio source:",
-						el.src,
-						err
-					);
-				}
-			}
-
-			return await audioCtx.startRendering();
-		} catch (err) {
-			console.warn(
-				"[ExportEngineMuxer] Audio extraction failed, exporting without audio:",
-				err
-			);
-			return null;
 		}
 	}
 

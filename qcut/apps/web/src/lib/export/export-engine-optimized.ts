@@ -1,10 +1,17 @@
 import { ExportEngine } from "./export-engine";
 import { ExportSettings } from "@/types/export";
-import { TimelineElement, TimelineTrack } from "@/types/timeline";
+import type {
+	MediaElement,
+	TimelineElement,
+	TimelineTrack,
+} from "@/types/timeline";
 import type { MediaItem } from "@/stores/media/media-store";
 import { handleExportError } from "@/lib/debug/error-handler";
 import { TEST_MEDIA_ID } from "@/constants/timeline-constants";
 import { stripMarkdownSyntax } from "@/lib/markdown";
+import { renderTextToCanvas } from "@/lib/text/text-canvas-renderer";
+import { getTimelineElementEndTime } from "@/lib/timeline";
+import { getMediaSourcePlaybackTime } from "@/lib/video/video-timing";
 
 // Frame cache entry
 interface CachedFrame {
@@ -148,9 +155,10 @@ export class OptimizedExportEngine extends ExportEngine {
 					if (element.hidden) return;
 
 					const elementStart = element.startTime;
-					const elementEnd =
-						element.startTime +
-						(element.duration - element.trimStart - element.trimEnd);
+					const elementEnd = getTimelineElementEndTime({
+						element,
+						fps: this.getFrameRate(),
+					});
 
 					// Check if element overlaps with batch timespan
 					if (elementStart < endTime && elementEnd > startTime) {
@@ -283,7 +291,7 @@ export class OptimizedExportEngine extends ExportEngine {
 
 		// Batch render text
 		if (textBatch.length > 0) {
-			this.renderTextBatch(textBatch, renderCtx);
+			this.renderTextBatch(textBatch, renderCtx, renderCanvas, currentTime);
 		}
 
 		// Copy from offscreen canvas to main canvas if using offscreen
@@ -313,9 +321,10 @@ export class OptimizedExportEngine extends ExportEngine {
 			if (element.hidden) continue;
 
 			const elementStart = element.startTime;
-			const elementEnd =
-				element.startTime +
-				(element.duration - element.trimStart - element.trimEnd);
+			const elementEnd = getTimelineElementEndTime({
+				element,
+				fps: this.getFrameRate(),
+			});
 
 			if (currentTime >= elementStart && currentTime < elementEnd) {
 				activeElements.push({ element, track, mediaItem });
@@ -377,38 +386,19 @@ export class OptimizedExportEngine extends ExportEngine {
 	// Batch render text elements
 	private renderTextBatch(
 		textBatch: TimelineElement[],
-		ctx: CanvasRenderingContext2D | OffscreenCanvasRenderingContext2D
+		ctx: CanvasRenderingContext2D | OffscreenCanvasRenderingContext2D,
+		canvas: HTMLCanvasElement | OffscreenCanvas,
+		currentTime: number
 	): void {
-		// Group by similar styling to reduce context changes
-		const styleGroups = new Map<string, TimelineElement[]>();
-
 		for (const element of textBatch) {
-			if (element.type !== "text") continue;
-
-			const styleKey = `${element.fontFamily}-${element.fontSize}-${element.color}`;
-			if (!styleGroups.has(styleKey)) {
-				styleGroups.set(styleKey, []);
-			}
-			styleGroups.get(styleKey)!.push(element);
-		}
-
-		// Render each style group
-		for (const [styleKey, elements] of styleGroups) {
-			const firstElement = elements[0];
-			if (firstElement.type !== "text") continue;
-
-			// Set style once for the group
-			ctx.fillStyle = firstElement.color || "#ffffff";
-			ctx.font = `${firstElement.fontSize || 24}px ${firstElement.fontFamily || "Arial"}`;
-			ctx.textAlign = "left";
-			ctx.textBaseline = "top";
-
-			// Render all elements with this style
-			for (const element of elements) {
-				if (element.type !== "text" || !element.content?.trim()) continue;
-				const x = element.x || 50;
-				const y = element.y || 50;
-				ctx.fillText(element.content, x, y);
+			if (element.type === "text") {
+				renderTextToCanvas({
+					ctx,
+					canvas,
+					element,
+					currentTime,
+					fps: this.getFrameRate(),
+				});
 			}
 		}
 
@@ -474,7 +464,7 @@ export class OptimizedExportEngine extends ExportEngine {
 
 	// Optimized video rendering (placeholder for future enhancement)
 	private async renderVideoElementOptimized(
-		element: TimelineElement,
+		element: MediaElement,
 		mediaItem: MediaItem,
 		timeOffset: number,
 		ctx: CanvasRenderingContext2D | OffscreenCanvasRenderingContext2D
@@ -493,7 +483,11 @@ export class OptimizedExportEngine extends ExportEngine {
 			});
 
 			// Seek to the correct time
-			video.currentTime = timeOffset + element.trimStart;
+			video.currentTime = getMediaSourcePlaybackTime({
+				element,
+				localTimelineTime: timeOffset,
+				fps: this.getFrameRate(),
+			});
 
 			// Wait for seek to complete with extended timeout for better frame capture
 			await new Promise<void>((resolve, reject) => {

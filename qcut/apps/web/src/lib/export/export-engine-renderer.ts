@@ -1,4 +1,8 @@
-import type { TimelineElement, TrackType } from "@/types/timeline";
+import type {
+	MediaElement,
+	StickerElement,
+	TimelineElement,
+} from "@/types/timeline";
 import type { MediaItem } from "@/stores/media/media-store-types";
 import type { OverlaySticker } from "@/types/sticker-overlay";
 import { debugLog, debugError, debugWarn } from "@/lib/debug/debug-config";
@@ -19,6 +23,7 @@ import {
 import { validateRenderedFrame } from "./export-engine-debug";
 import { stripMarkdownSyntax } from "@/lib/markdown";
 import { resolveSubtitleStyle, hexToRgba } from "@/lib/captions/subtitle-style";
+import { renderKaraokeCaptionToCanvas } from "@/lib/captions/karaoke-canvas-renderer";
 import type { CaptionElement } from "@/types/timeline";
 import {
 	ScreenRecordingExportCompositor,
@@ -30,10 +35,18 @@ import {
 } from "@/stores/screen-recording-store";
 import { useWebcamOverlayStore } from "@/stores/webcam-overlay-store";
 import { useFigureAnnotationsStore } from "@/stores/figure-annotations-store";
+import { renderTextToCanvas } from "@/lib/text/text-canvas-renderer";
+import { resolveMediaKeyframes } from "@/lib/video/video-properties";
+import { getMediaSourcePlaybackTime } from "@/lib/video/video-timing";
+import { drawColorGradedSourceWithMasks } from "@/lib/color/browser-color-rendering";
+import { resolveTimelineStickerVisual } from "@/lib/stickers/timeline-sticker-visual";
+import { resolveTimelineElementEffects } from "@/lib/effects/adjustment-layer";
 
 let exportCompositor: ScreenRecordingExportCompositor | null = null;
 let compositorFrameCanvas: HTMLCanvasElement | null = null;
 let compositorFrameCtx: CanvasRenderingContext2D | null = null;
+let adjustmentFrameCanvas: HTMLCanvasElement | null = null;
+let adjustmentFrameCtx: CanvasRenderingContext2D | null = null;
 
 /** Get or create the screen recording export compositor. */
 function getExportCompositor(
@@ -82,6 +95,8 @@ export function destroyExportCompositor(): void {
 	exportCompositor = null;
 	compositorFrameCanvas = null;
 	compositorFrameCtx = null;
+	adjustmentFrameCanvas = null;
+	adjustmentFrameCtx = null;
 }
 
 /** Context passed to renderer functions */
@@ -112,7 +127,8 @@ export async function renderFrame(
 	const activeElements = getActiveElements(
 		context.tracks,
 		context.mediaItems,
-		currentTime
+		currentTime,
+		context.fps
 	);
 
 	// Log frame rendering details for first frame and every 30th frame
@@ -122,26 +138,18 @@ export async function renderFrame(
 		);
 	}
 
-	// Sort elements by track type (render bottom to top)
-	const trackRenderOrder: Record<TrackType, number> = {
-		audio: 0,
-		media: 1,
-		sticker: 2,
-		remotion: 3,
-		captions: 4,
-		text: 5,
-		markdown: 6,
-	};
-	const sortedElements = activeElements.sort((a, b) => {
-		const orderA = trackRenderOrder[a.track.type] ?? 1;
-		const orderB = trackRenderOrder[b.track.type] ?? 1;
-		return orderA - orderB;
-	});
-
-	// Render each active element
-	for (const { element, mediaItem } of sortedElements) {
+	for (const { element, mediaItem } of activeElements) {
 		await renderElement(context, element, mediaItem, currentTime);
 	}
+
+	const timelineStickerIds = new Set(
+		context.tracks.flatMap((track) =>
+			track.elements.flatMap((element) =>
+				element.type === "sticker" ? [element.stickerId] : []
+			)
+		)
+	);
+	await renderOverlayStickers(context, currentTime, timelineStickerIds);
 
 	// Apply screen recording enhancement compositing (cursor, zoom, background)
 	const compositor = getExportCompositor(canvas);
@@ -164,9 +172,6 @@ export async function renderFrame(
 			compositor.renderFrame(ctx, compositorFrameCanvas, currentTime * 1000);
 		}
 	}
-
-	// Render overlay stickers on top of everything
-	await renderOverlayStickers(context, currentTime);
 }
 
 /** Render individual element (media or text) */
@@ -181,12 +186,19 @@ async function renderElement(
 	if (element.type === "media" && mediaItem) {
 		await renderMediaElement(context, element, mediaItem, elementTimeOffset);
 	} else if (element.type === "text") {
-		renderTextElement(context.ctx, element);
+		renderTextElement(
+			context.ctx,
+			context.canvas,
+			element,
+			currentTime,
+			context.fps
+		);
 	} else if (element.type === "captions") {
 		renderCaptionElement(
 			context.ctx,
 			context.canvas,
-			element as CaptionElement
+			element as CaptionElement,
+			currentTime
 		);
 	} else if (element.type === "markdown") {
 		renderMarkdownElement({
@@ -195,11 +207,76 @@ async function renderElement(
 			element,
 			currentTime,
 		});
+	} else if (element.type === "sticker") {
+		await renderTimelineStickerElement({
+			context,
+			element,
+			currentTime,
+		});
+	} else if (element.type === "adjustment") {
+		applyCanvasAdjustment({ context, element, currentTime });
 	} else if (element.type === "remotion") {
 		// Remotion elements are handled by RemotionExportEngine.compositeRemotionFrames()
 		// Skip in standard canvas render to avoid double-rendering
 		return;
 	}
+}
+
+function applyCanvasAdjustment({
+	context,
+	element,
+	currentTime,
+}: {
+	context: RenderContext;
+	element: import("@/types/timeline").AdjustmentElement;
+	currentTime: number;
+}): void {
+	const { canvas, ctx } = context;
+	if (
+		!adjustmentFrameCanvas ||
+		adjustmentFrameCanvas.width !== canvas.width ||
+		adjustmentFrameCanvas.height !== canvas.height
+	) {
+		adjustmentFrameCanvas = document.createElement("canvas");
+		adjustmentFrameCanvas.width = canvas.width;
+		adjustmentFrameCanvas.height = canvas.height;
+		adjustmentFrameCtx = adjustmentFrameCanvas.getContext("2d");
+	}
+	if (!adjustmentFrameCtx) return;
+
+	adjustmentFrameCtx.clearRect(0, 0, canvas.width, canvas.height);
+	adjustmentFrameCtx.drawImage(canvas, 0, 0);
+	const parameters = resolveTimelineElementEffects({ element, currentTime });
+	ctx.clearRect(0, 0, canvas.width, canvas.height);
+	ctx.save();
+	ctx.globalAlpha = element.opacity ?? 1;
+	applyEffectsToCanvas(ctx, parameters);
+	ctx.drawImage(adjustmentFrameCanvas, 0, 0);
+	ctx.restore();
+	applyAdvancedCanvasEffects(ctx, parameters);
+}
+
+async function renderTimelineStickerElement({
+	context,
+	element,
+	currentTime,
+}: {
+	context: RenderContext;
+	element: StickerElement;
+	currentTime: number;
+}): Promise<void> {
+	const fallback = useStickersOverlayStore
+		.getState()
+		.overlayStickers.get(element.stickerId);
+	const sticker = resolveTimelineStickerVisual({ element, fallback });
+	const mediaItems = new Map(
+		context.mediaItems.map((item) => [item.id, item] as const)
+	);
+	await renderStickersToCanvas(context.ctx, [sticker], mediaItems, {
+		canvasWidth: context.canvas.width,
+		canvasHeight: context.canvas.height,
+		currentTime,
+	});
 }
 
 /** Render media elements (images/videos) */
@@ -216,7 +293,12 @@ async function renderMediaElement(
 
 	try {
 		if (mediaItem.type === "image") {
-			await renderImage(context, element, mediaItem);
+			await renderImage(
+				context,
+				element,
+				mediaItem,
+				element.startTime + timeOffset
+			);
 		} else if (mediaItem.type === "video") {
 			await renderVideo(context, element, mediaItem, timeOffset);
 		}
@@ -229,7 +311,8 @@ async function renderMediaElement(
 export async function renderImage(
 	context: RenderContext,
 	element: TimelineElement,
-	mediaItem: MediaItem
+	mediaItem: MediaItem,
+	currentTime = element.startTime
 ): Promise<void> {
 	const { ctx, canvas } = context;
 
@@ -244,7 +327,7 @@ export async function renderImage(
 		const img = new Image();
 		img.crossOrigin = "anonymous";
 
-		img.onload = () => {
+		img.onload = async () => {
 			try {
 				const { x, y, width, height } = calculateElementBounds(
 					element,
@@ -257,6 +340,23 @@ export async function renderImage(
 				debugLog(
 					`🖼️ EXPORT: Rendered image "${mediaItem.name || mediaItem.id}" at position (${x}, ${y}) with size ${width}x${height}`
 				);
+				const visual = resolveMediaKeyframes({
+					element: element as MediaElement,
+					currentTime,
+					fps: context.fps,
+				});
+				const drawImage = () =>
+					drawColorGradedSourceWithMasks({
+						context: ctx,
+						source: img,
+						x,
+						y,
+						width,
+						height,
+						masks: visual.masks,
+						settings: visual.color,
+						frameSeed: Math.round(currentTime * context.fps),
+					});
 
 				if (EFFECTS_ENABLED) {
 					try {
@@ -281,14 +381,14 @@ export async function renderImage(
 								mergedParams
 							);
 							applyEffectsToCanvas(ctx, mergedParams);
-							ctx.drawImage(img, x, y, width, height);
+							await drawImage();
 							applyAdvancedCanvasEffects(ctx, mergedParams);
 							ctx.restore();
 						} else {
 							debugLog(
 								`🚫 EXPORT ENGINE: No enabled effects for image element ${element.id}, drawing normally`
 							);
-							ctx.drawImage(img, x, y, width, height);
+							await drawImage();
 						}
 					} catch (error) {
 						debugError(
@@ -296,10 +396,10 @@ export async function renderImage(
 							error
 						);
 						debugWarn(`[Export] Effects failed for ${element.id}:`, error);
-						ctx.drawImage(img, x, y, width, height);
+						await drawImage();
 					}
 				} else {
-					ctx.drawImage(img, x, y, width, height);
+					await drawImage();
 				}
 
 				resolve();
@@ -386,7 +486,12 @@ async function renderVideoAttempt(
 			videoCache.set(url, video);
 		}
 
-		const seekTime = timeOffset + element.trimStart;
+		const mediaElement = element as MediaElement;
+		const seekTime = getMediaSourcePlaybackTime({
+			element: mediaElement,
+			localTimelineTime: timeOffset,
+			fps: context.fps,
+		});
 		video.currentTime = seekTime;
 
 		await new Promise<void>((resolve, reject) => {
@@ -422,6 +527,23 @@ async function renderVideoAttempt(
 			canvas.width,
 			canvas.height
 		);
+		const visual = resolveMediaKeyframes({
+			element: element as MediaElement,
+			currentTime: element.startTime + timeOffset,
+			fps: context.fps,
+		});
+		const drawVideo = () =>
+			drawColorGradedSourceWithMasks({
+				context: ctx,
+				source: video,
+				x,
+				y,
+				width,
+				height,
+				masks: visual.masks,
+				settings: visual.color,
+				frameSeed: Math.round((element.startTime + timeOffset) * context.fps),
+			});
 
 		if (EFFECTS_ENABLED) {
 			try {
@@ -440,7 +562,7 @@ async function renderVideoAttempt(
 						debugLog(
 							`🚫 EXPORT ENGINE: No enabled effects for video element ${element.id}, drawing normally`
 						);
-						ctx.drawImage(video, x, y, width, height);
+						await drawVideo();
 						return;
 					}
 
@@ -453,14 +575,14 @@ async function renderVideoAttempt(
 						mergedParams
 					);
 					applyEffectsToCanvas(ctx, mergedParams);
-					ctx.drawImage(video, x, y, width, height);
+					await drawVideo();
 					applyAdvancedCanvasEffects(ctx, mergedParams);
 					ctx.restore();
 				} else {
 					debugLog(
 						`🚫 EXPORT ENGINE: No effects found for video element ${element.id}, drawing normally`
 					);
-					ctx.drawImage(video, x, y, width, height);
+					await drawVideo();
 				}
 			} catch (error) {
 				debugError(
@@ -468,10 +590,10 @@ async function renderVideoAttempt(
 					error
 				);
 				debugWarn(`[Export] Video effects failed for ${element.id}:`, error);
-				ctx.drawImage(video, x, y, width, height);
+				await drawVideo();
 			}
 		} else {
-			ctx.drawImage(video, x, y, width, height);
+			await drawVideo();
 		}
 
 		const frameValidation = validateRenderedFrame(
@@ -497,12 +619,15 @@ async function renderVideoAttempt(
 /** Render overlay stickers on top of video */
 export async function renderOverlayStickers(
 	context: RenderContext,
-	currentTime: number
+	currentTime: number,
+	excludeStickerIds: ReadonlySet<string> = new Set()
 ): Promise<void> {
 	let visibleStickers: OverlaySticker[] = [];
 	try {
 		const stickersStore = useStickersOverlayStore.getState();
-		visibleStickers = stickersStore.getVisibleStickersAtTime(currentTime);
+		visibleStickers = stickersStore
+			.getVisibleStickersAtTime(currentTime)
+			.filter((sticker) => !excludeStickerIds.has(sticker.id));
 
 		debugLog(`[STICKER_FRAME] Frame time: ${currentTime.toFixed(3)}s`);
 		debugLog(
@@ -564,31 +689,36 @@ export async function renderOverlayStickers(
 /** Render text element */
 export function renderTextElement(
 	ctx: CanvasRenderingContext2D,
-	element: TimelineElement
+	canvas: HTMLCanvasElement,
+	element: TimelineElement,
+	currentTime: number,
+	fps: number
 ): void {
 	if (element.type !== "text") return;
-	if (!element.content || !element.content.trim()) return;
-
-	ctx.fillStyle = element.color || "#ffffff";
-	ctx.font = `${element.fontSize || 24}px ${element.fontFamily || "Arial"}`;
-	ctx.textAlign = "left";
-	ctx.textBaseline = "top";
-
-	const x = element.x ?? 50;
-	const y = element.y ?? 50;
-
-	ctx.fillText(element.content, x, y);
+	renderTextToCanvas({ ctx, canvas, element, currentTime, fps });
 }
 
 /** Render caption element with subtitle styling */
 export function renderCaptionElement(
 	ctx: CanvasRenderingContext2D,
 	canvas: HTMLCanvasElement,
-	element: CaptionElement
+	element: CaptionElement,
+	currentTime = element.startTime
 ): void {
 	if (!element.text || !element.text.trim()) return;
 
 	const style = resolveSubtitleStyle(element.style);
+	if (
+		renderKaraokeCaptionToCanvas({
+			ctx,
+			canvas,
+			element,
+			currentTime,
+			style,
+		})
+	) {
+		return;
+	}
 	const fontWeight = style.bold ? "bold" : "normal";
 	const fontStyle = style.italic ? "italic" : "normal";
 

@@ -43,11 +43,7 @@ def main():
     )
     args = parser.parse_args()
 
-    try:
-        data = create_session(session_id=args.session_id or "", message=args.message or "")
-    except Exception as exc:
-        print(f"错误：创建会话失败: {exc}", file=sys.stderr)
-        sys.exit(1)
+    data = create_session(session_id=args.session_id or "", message=args.message or "")
     project_uuid = data.get("projectUuid", "")
     session_id = data.get("sessionId", "")
 

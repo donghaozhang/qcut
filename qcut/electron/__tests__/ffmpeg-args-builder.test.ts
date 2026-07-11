@@ -142,9 +142,219 @@ describe("buildFFmpegArgs", () => {
 			);
 
 			expect(args).toContain("-filter_complex");
-			expect(args.join(" ")).toContain("adelay=2000|2000");
+			expect(args.join(" ")).toContain("adelay=2000:all=1");
 			expect(args.join(" ")).toContain("volume=0.8");
 			expect(args).toContain("[a_0]");
+		});
+
+		it("applies per-clip audio processing before mixing", () => {
+			const args = buildFFmpegArgs(
+				createBaseOptions({
+					useVideoInput: true,
+					videoInputPath: "/input.mp4",
+					audioFiles: [
+						{
+							path: "/audio.mp3",
+							startTime: 1,
+							volume: 0.7,
+							trimStart: 0.5,
+							trimEnd: 0.25,
+							duration: 4,
+							fadeIn: 0.4,
+							fadeOut: 0.6,
+							normalize: true,
+							denoise: 100,
+							pan: -0.25,
+						},
+					],
+				})
+			);
+
+			const filter = args[args.indexOf("-filter_complex") + 1];
+			expect(filter).toContain("atrim=start=0.5:duration=3.25");
+			expect(filter).toContain("afftdn=nf=-25");
+			expect(filter).toContain("loudnorm=I=-16:LRA=11:TP=-1.5");
+			expect(filter).toContain("stereotools=balance_out=-0.25");
+			expect(filter).toContain("afade=t=in:st=0:d=0.4");
+			expect(filter).toContain("afade=t=out:st=2.65:d=0.6");
+			expect(filter).toContain("volume=0.7");
+			expect(filter).toContain("adelay=1000:all=1");
+		});
+
+		it("renders an ASS text document after drawtext filters", () => {
+			const args = buildFFmpegArgs(
+				createBaseOptions({
+					useVideoInput: true,
+					videoInputPath: "/input.mp4",
+					textFilterChain: "drawtext=text='Markdown'",
+					textAssPath: "/tmp/text-overlays.ass",
+				})
+			);
+
+			const filter = args[args.indexOf("-filter_complex") + 1];
+			expect(filter).toContain("drawtext=text='Markdown'");
+			expect(filter).toContain("ass=filename='/tmp/text-overlays.ass'");
+			expect(filter.indexOf("drawtext=")).toBeLessThan(
+				filter.indexOf("ass=filename=")
+			);
+		});
+
+		it("builds alpha-masked ASS blend mode layers", () => {
+			const args = buildFFmpegArgs(
+				createBaseOptions({
+					useVideoInput: true,
+					videoInputPath: "/input.mp4",
+					textAssLayers: [{ path: "/tmp/multiply.ass", blendMode: "multiply" }],
+				})
+			);
+
+			const filter = args[args.indexOf("-filter_complex") + 1];
+			expect(filter).toContain("ass=filename='/tmp/multiply.ass':alpha=1");
+			expect(filter).toContain("blend=all_mode=multiply");
+			expect(filter).toContain("alphaextract");
+			expect(filter).toContain("alphamerge");
+		});
+
+		it("renders ASS layers from lower tracks before upper tracks", () => {
+			const args = buildFFmpegArgs(
+				createBaseOptions({
+					useVideoInput: true,
+					videoInputPath: "/input.mp4",
+					textAssLayers: [
+						{
+							path: "/tmp/top.ass",
+							blendMode: "normal",
+							trackOrder: 0,
+							elementOrder: 0,
+						},
+						{
+							path: "/tmp/bottom.ass",
+							blendMode: "normal",
+							trackOrder: 1,
+							elementOrder: 0,
+						},
+					],
+				})
+			);
+
+			const filter = args[args.indexOf("-filter_complex") + 1];
+			expect(filter.indexOf("bottom.ass")).toBeLessThan(
+				filter.indexOf("top.ass")
+			);
+		});
+
+		it("composites video, image, sticker, and text by one track order", () => {
+			const args = buildFFmpegArgs(
+				createBaseOptions({
+					videoSources: [
+						{
+							path: "/bottom.mp4",
+							startTime: 0,
+							duration: 10,
+							trackOrder: 3,
+							elementOrder: 0,
+						},
+					],
+					imageSources: [
+						{
+							path: "/middle.png",
+							startTime: 0,
+							duration: 10,
+							trimStart: 0,
+							trimEnd: 0,
+							elementId: "image",
+							trackOrder: 2,
+							elementOrder: 0,
+						},
+					],
+					stickerSources: [
+						{
+							id: "sticker",
+							path: "/sticker.png",
+							x: 10,
+							y: 10,
+							width: 64,
+							height: 64,
+							startTime: 0,
+							endTime: 10,
+							zIndex: 1,
+							trackOrder: 1,
+							elementOrder: 0,
+						},
+					],
+					textAssLayers: [
+						{
+							path: "/top.ass",
+							blendMode: "normal",
+							trackOrder: 0,
+							elementOrder: 0,
+						},
+					],
+				})
+			);
+			const filter = args[args.indexOf("-filter_complex") + 1];
+
+			expect(filter.indexOf("[video_0_layer]overlay")).toBeLessThan(
+				filter.indexOf("[video_1_layer]overlay")
+			);
+			expect(filter.indexOf("[video_1_layer]overlay")).toBeLessThan(
+				filter.indexOf("[visual_sticker_scaled_0]overlay")
+			);
+			expect(filter.indexOf("[visual_sticker_scaled_0]overlay")).toBeLessThan(
+				filter.indexOf("[visual_text_ass_0]overlay")
+			);
+		});
+
+		it("builds one transition run across image and video inputs", () => {
+			const args = buildFFmpegArgs(
+				createBaseOptions({
+					duration: 4,
+					videoSources: [
+						{
+							elementId: "video",
+							trackId: "main",
+							trackOrder: 0,
+							elementOrder: 1,
+							path: "/video.mp4",
+							startTime: 2,
+							duration: 2,
+						},
+					],
+					imageSources: [
+						{
+							elementId: "image",
+							trackId: "main",
+							trackOrder: 0,
+							elementOrder: 0,
+							path: "/image.png",
+							startTime: 0,
+							duration: 2,
+							trimStart: 0,
+							trimEnd: 0,
+						},
+					],
+					videoTransitions: [
+						{
+							id: "image-to-video",
+							trackId: "main",
+							fromElementId: "image",
+							toElementId: "video",
+							presetId: "dissolve",
+							type: "dissolve",
+							easing: "linear",
+							duration: 1,
+						},
+					],
+				})
+			);
+			const filter = args[args.indexOf("-filter_complex") + 1];
+
+			expect(filter).toContain("[1:v]trim=");
+			expect(filter).toContain("[0:v]trim=");
+			expect(filter.indexOf("[1:v]trim=")).toBeLessThan(
+				filter.indexOf("[0:v]trim=")
+			);
+			expect(filter).toContain("xfade=transition=custom:duration=1:offset=1.5");
 		});
 	});
 

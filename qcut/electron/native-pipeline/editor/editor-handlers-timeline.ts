@@ -286,7 +286,7 @@ async function timelineUpdateElement(
 	const changes = await resolveJsonInput(raw);
 	const data = await client.patch(
 		`/api/claude/timeline/${opts.projectId}/elements/${opts.elementId}`,
-		{ changes }
+		changes
 	);
 	return { success: true, data };
 }
@@ -643,7 +643,7 @@ async function timelineTrim(
 
 	const data = await client.patch(
 		`/api/claude/timeline/${encodeURIComponent(opts.projectId)}/elements/${encodeURIComponent(opts.elementId)}`,
-		{ changes }
+		changes
 	);
 	return { success: true, data };
 }

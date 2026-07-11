@@ -8,18 +8,24 @@ import {
 import { FONT_OPTIONS, FontFamily } from "@/constants/font-constants";
 
 interface FontPickerProps {
+	value?: FontFamily;
 	defaultValue?: FontFamily;
 	onValueChange?: (value: FontFamily) => void;
 	className?: string;
 }
 
 export function FontPicker({
+	value,
 	defaultValue,
 	onValueChange,
 	className,
 }: FontPickerProps) {
 	return (
-		<Select defaultValue={defaultValue} onValueChange={onValueChange}>
+		<Select
+			value={value}
+			defaultValue={value === undefined ? defaultValue : undefined}
+			onValueChange={onValueChange}
+		>
 			<SelectTrigger className={`w-full text-xs ${className || ""}`}>
 				<SelectValue placeholder="Select a font" />
 			</SelectTrigger>

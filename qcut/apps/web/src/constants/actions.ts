@@ -45,6 +45,11 @@ export type Action =
 	| "delete-selected" // Delete selected elements
 	| "select-all" // Select all elements
 	| "duplicate-selected" // Duplicate selected element
+	| "copy-selected" // Copy selected element
+	| "cut-selected" // Cut selected element
+	| "paste-clipboard" // Paste copied element at the playhead
+	| "copy-attributes-selected" // Copy selected media attributes
+	| "paste-attributes-selected" // Paste media attributes onto selected element
 	| "toggle-snapping" // Toggle snapping
 	| "undo" // Undo last action
 	| "redo" // Redo last undone action

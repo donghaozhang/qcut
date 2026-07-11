@@ -25,12 +25,19 @@ import {
 	getTrackHeight,
 } from "@/constants/timeline-constants";
 import { useProjectStore } from "@/stores/project-store";
+import { useExportStore } from "@/stores/export-store";
 import {
 	useTimelineSnapping,
 	SnapPoint,
 } from "@/hooks/timeline/use-timeline-snapping";
 import { withErrorBoundary } from "@/components/error-boundary";
 import { useTrackDrop } from "./use-track-drop";
+import {
+	getTimelineElementDuration,
+	getTimelineElementEndTime,
+} from "@/lib/timeline";
+import { TimelineTransitionMarker } from "./timeline-transition-marker";
+import { isTransitionDrag, useTransitionDrop } from "./use-transition-drop";
 
 function TimelineTrackContentComponent({
 	track,
@@ -79,6 +86,11 @@ function TimelineTrackContentComponent({
 
 	// Initialize all hooks before any conditional returns
 	const timelineRef = useRef<HTMLDivElement>(null);
+	const { handleTransitionDragOver, handleTransitionDrop } = useTransitionDrop({
+		track,
+		zoomLevel,
+		timelineRef,
+	});
 	// Ref (not state) so recording the mouse-down position does NOT trigger a
 	// re-render. Re-rendering the clip subtree between mousedown and mouseup
 	// causes the browser to drop the synthetic click event, breaking selection.
@@ -120,7 +132,7 @@ function TimelineTrackContentComponent({
 
 	// Set up mouse event listeners for drag - moved before early return to fix hook order
 	useEffect(() => {
-		if (!dragState.isDragging) return;
+		if (!dragState.isDragging || track.locked) return;
 
 		const handleMouseMove = (e: MouseEvent) => {
 			if (!timelineRef.current) return;
@@ -159,8 +171,7 @@ function TimelineTrackContentComponent({
 						(e) => e.id === dragState.elementId
 					);
 					if (element) {
-						elementDuration =
-							element.duration - element.trimStart - element.trimEnd;
+						elementDuration = getTimelineElementDuration({ element });
 					}
 				}
 
@@ -256,10 +267,9 @@ function TimelineTrackContentComponent({
 				);
 
 				if (movingElement) {
-					const movingElementDuration =
-						movingElement.duration -
-						movingElement.trimStart -
-						movingElement.trimEnd;
+					const movingElementDuration = getTimelineElementDuration({
+						element: movingElement,
+					});
 					const movingElementEnd = finalTime + movingElementDuration;
 
 					const targetTrack = tracks.find((t) => t.id === track.id);
@@ -271,11 +281,9 @@ function TimelineTrackContentComponent({
 							return false;
 						}
 						const existingStart = existingElement.startTime;
-						const existingEnd =
-							existingElement.startTime +
-							(existingElement.duration -
-								existingElement.trimStart -
-								existingElement.trimEnd);
+						const existingEnd = getTimelineElementEndTime({
+							element: existingElement,
+						});
 						return finalTime < existingEnd && movingElementEnd > existingStart;
 					});
 
@@ -327,10 +335,9 @@ function TimelineTrackContentComponent({
 				);
 
 				if (movingElement) {
-					const movingElementDuration =
-						movingElement.duration -
-						movingElement.trimStart -
-						movingElement.trimEnd;
+					const movingElementDuration = getTimelineElementDuration({
+						element: movingElement,
+					});
 					const movingElementEnd = finalTime + movingElementDuration;
 
 					const hasOverlap = track.elements.some((existingElement) => {
@@ -338,11 +345,9 @@ function TimelineTrackContentComponent({
 							return false;
 						}
 						const existingStart = existingElement.startTime;
-						const existingEnd =
-							existingElement.startTime +
-							(existingElement.duration -
-								existingElement.trimStart -
-								existingElement.trimEnd);
+						const existingEnd = getTimelineElementEndTime({
+							element: existingElement,
+						});
 						return finalTime < existingEnd && movingElementEnd > existingStart;
 					});
 
@@ -384,6 +389,7 @@ function TimelineTrackContentComponent({
 		tracks,
 		track.id,
 		track.elements,
+		track.locked,
 		updateDragTime,
 		updateElementStartTime,
 		updateElementStartTimeWithRipple,
@@ -403,7 +409,7 @@ function TimelineTrackContentComponent({
 	// Listen for touch-drop events (iOS/iPad touch drag fallback)
 	useEffect(() => {
 		const el = dropZoneRef.current;
-		if (!el) return;
+		if (!el || track.locked) return;
 
 		const onTouchDrop = (e: Event) => {
 			const detail = (e as CustomEvent).detail;
@@ -422,7 +428,7 @@ function TimelineTrackContentComponent({
 
 		el.addEventListener("touch-drop", onTouchDrop);
 		return () => el.removeEventListener("touch-drop", onTouchDrop);
-	}, [handleTouchDrop]);
+	}, [handleTouchDrop, track.locked]);
 
 	// Memoize gap detection to avoid recomputing on every render
 	const trackGaps = useMemo(
@@ -448,6 +454,7 @@ function TimelineTrackContentComponent({
 		e: React.MouseEvent,
 		element: TimelineElementType
 	) => {
+		if (track.locked) return;
 		// Detect right-click (button 2) and handle selection without starting drag
 		const isRightClick = e.button === 2;
 		const isMultiSelect = e.metaKey || e.ctrlKey || e.shiftKey;
@@ -561,6 +568,7 @@ function TimelineTrackContentComponent({
 		if (!isSelected) {
 			selectElement(track.id, element.id, false);
 		}
+		useExportStore.getState().setPanelView("properties");
 	};
 
 	return (
@@ -574,14 +582,37 @@ function TimelineTrackContentComponent({
 				const target = e.target as HTMLElement;
 				const onElement = !!target.closest(".timeline-element");
 				const onGap = !!target.closest("[data-gap-indicator]");
-				if (!onElement && !onGap) {
+				const onTransition = !!target.closest("[data-transition-marker]");
+				if (!onElement && !onGap && !onTransition) {
 					clearSelectedElements();
 				}
 			}}
-			onDragOver={handleTrackDragOver}
-			onDragEnter={handleTrackDragEnter}
-			onDragLeave={handleTrackDragLeave}
-			onDrop={handleTrackDrop}
+			onDragOver={
+				track.locked
+					? undefined
+					: (event) =>
+							isTransitionDrag({ event })
+								? handleTransitionDragOver(event)
+								: handleTrackDragOver(event)
+			}
+			onDragEnter={
+				track.locked
+					? undefined
+					: (event) =>
+							isTransitionDrag({ event })
+								? handleTransitionDragOver(event)
+								: handleTrackDragEnter(event)
+			}
+			onDragLeave={track.locked ? undefined : handleTrackDragLeave}
+			onDrop={
+				track.locked
+					? undefined
+					: (event) =>
+							isTransitionDrag({ event })
+								? handleTransitionDrop(event)
+								: handleTrackDrop(event)
+			}
+			data-track-locked={track.locked || undefined}
 		>
 			<div
 				ref={timelineRef}
@@ -625,9 +656,7 @@ function TimelineTrackContentComponent({
 							const handleElementSplit = () => {
 								const splitTime = currentTime;
 								const effectiveStart = element.startTime;
-								const effectiveEnd =
-									element.startTime +
-									(element.duration - element.trimStart - element.trimEnd);
+								const effectiveEnd = getTimelineElementEndTime({ element });
 
 								if (splitTime > effectiveStart && splitTime < effectiveEnd) {
 									const secondElementId = splitElement(
@@ -649,10 +678,7 @@ function TimelineTrackContentComponent({
 								addElementToTrack(track.id, {
 									...elementWithoutId,
 									name: element.name + " (copy)",
-									startTime:
-										element.startTime +
-										(element.duration - element.trimStart - element.trimEnd) +
-										0.1,
+									startTime: getTimelineElementEndTime({ element }) + 0.1,
 								});
 							};
 
@@ -673,6 +699,14 @@ function TimelineTrackContentComponent({
 								/>
 							);
 						})}
+						{(track.transitions ?? []).map((transition) => (
+							<TimelineTransitionMarker
+								key={transition.id}
+								track={track}
+								transition={transition}
+								zoomLevel={zoomLevel}
+							/>
+						))}
 					</>
 				)}
 			</div>

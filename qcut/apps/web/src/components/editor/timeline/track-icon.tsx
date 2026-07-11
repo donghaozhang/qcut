@@ -5,6 +5,7 @@ import {
 	Sticker,
 	FileText,
 	Captions,
+	SlidersHorizontal,
 } from "lucide-react";
 import type { TrackType } from "@/types/timeline";
 
@@ -22,6 +23,10 @@ export function TrackIcon({ type }: TrackIconProps) {
 			return <Sticker className="w-4 h-4 shrink-0 text-muted-foreground" />;
 		case "captions":
 			return <Captions className="w-4 h-4 shrink-0 text-muted-foreground" />;
+		case "adjustment":
+			return (
+				<SlidersHorizontal className="w-4 h-4 shrink-0 text-muted-foreground" />
+			);
 		case "markdown":
 			return <FileText className="w-4 h-4 shrink-0 text-muted-foreground" />;
 		default:

@@ -63,6 +63,8 @@ jobs:
         run: bun run build
         env:
           FFMPEG_STAGE_TARGETS: ${{ matrix.ffmpeg_targets }}
+          # vite build exceeds Node's default ~2GB heap on the macOS runner
+          NODE_OPTIONS: --max-old-space-size=4096
 
       - name: Run tests with coverage
         run: cd apps/web && bunx vitest run --coverage

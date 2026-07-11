@@ -95,6 +95,80 @@ export async function probeVideoFile(
 	});
 }
 
+/** Returns whether a media file contains at least one decodable audio stream. */
+export async function probeHasAudioStream({
+	mediaPath,
+}: {
+	mediaPath: string;
+}): Promise<boolean> {
+	const ffprobePath = await getFFprobePath();
+
+	return new Promise<boolean>((resolve, reject) => {
+		const ffprobe = spawn(
+			ffprobePath,
+			[
+				"-v",
+				"error",
+				"-select_streams",
+				"a:0",
+				"-show_entries",
+				"stream=index",
+				"-of",
+				"csv=p=0",
+				mediaPath,
+			],
+			{
+				windowsHide: true,
+				stdio: ["ignore", "pipe", "pipe"],
+			}
+		);
+		let stdout = "";
+		let stderr = "";
+		let settled = false;
+		const timeoutId = setTimeout(() => {
+			ffprobe.kill();
+			finish({ error: new Error(`ffprobe timeout for: ${mediaPath}`) });
+		}, 10_000);
+		const finish = ({
+			error,
+			hasAudio,
+		}: {
+			error?: Error;
+			hasAudio?: boolean;
+		}) => {
+			if (settled) return;
+			settled = true;
+			clearTimeout(timeoutId);
+			if (error) {
+				reject(error);
+				return;
+			}
+			resolve(hasAudio === true);
+		};
+
+		ffprobe.stdout?.on("data", (data) => {
+			stdout += data.toString();
+		});
+		ffprobe.stderr?.on("data", (data) => {
+			stderr += data.toString();
+		});
+		ffprobe.on("close", (code) => {
+			if (code !== 0) {
+				finish({
+					error: new Error(
+						`ffprobe failed with code ${code}: ${stderr.trim()}`
+					),
+				});
+				return;
+			}
+			finish({ hasAudio: stdout.trim().length > 0 });
+		});
+		ffprobe.on("error", (error) => {
+			finish({ error: new Error(`Failed to spawn ffprobe: ${error.message}`) });
+		});
+	});
+}
+
 /**
  * Normalize a single video to target resolution and fps using FFmpeg padding.
  */

@@ -32,6 +32,7 @@ export function logExportConfiguration(
 		audioFiles?: unknown[];
 		useDirectCopy?: boolean;
 		videoSources?: unknown[];
+		videoTransitions?: unknown[];
 		wordFilterSegments?: unknown[];
 	},
 	context: {
@@ -59,6 +60,7 @@ export function logExportConfiguration(
 			? (exportOptions.wordFilterSegments as unknown[]).length
 			: 0,
 		videoSources: exportOptions.videoSources?.length || 0,
+		videoTransitions: exportOptions.videoTransitions?.length || 0,
 	});
 	if (context.hasTextFilters) {
 		debugLog(

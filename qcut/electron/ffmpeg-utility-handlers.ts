@@ -17,9 +17,14 @@ import type {
 	FrameProcessOptions,
 	ExtractAudioOptions,
 	ExtractAudioResult,
+	AudioExportOptions,
+	AudioExportResult,
+	GifConversionOptions,
 } from "./ffmpeg/types";
 
 import { getFFmpegPath } from "./ffmpeg/utils";
+import { buildStandaloneAudioExportArgs } from "./ffmpeg/audio-export-args";
+import { convertToGif } from "./claude/handlers/claude-export-handler/gif-convert.js";
 
 /**
  * Registers utility FFmpeg IPC handlers.
@@ -28,6 +33,114 @@ import { getFFmpegPath } from "./ffmpeg/utils";
  * save-sticker-for-export
  */
 export function setupUtilityHandlers(tempManager: TempManager): void {
+	ipcMain.handle(
+		"export-audio-cli",
+		async (
+			_event: IpcMainInvokeEvent,
+			options: AudioExportOptions
+		): Promise<AudioExportResult> => {
+			const supportedBitrates = new Set([128, 192, 256, 320]);
+			const supportedSampleRates = new Set([44_100, 48_000]);
+			if (!supportedBitrates.has(options.bitrate)) {
+				throw new Error("Audio bitrate must be 128, 192, 256, or 320 kbps");
+			}
+			if (!supportedSampleRates.has(options.sampleRate)) {
+				throw new Error("Audio sample rate must be 44100 or 48000 Hz");
+			}
+			if (!Number.isFinite(options.duration) || options.duration <= 0) {
+				throw new Error("Audio export duration must be greater than zero");
+			}
+			if (
+				!Array.isArray(options.audioFiles) ||
+				options.audioFiles.length === 0
+			) {
+				throw new Error("No audio sources are available for export");
+			}
+
+			for (const audioFile of options.audioFiles) {
+				if (!fs.existsSync(audioFile.path)) {
+					throw new Error(`Audio source not found: ${audioFile.path}`);
+				}
+			}
+
+			await fs.promises.mkdir(path.dirname(options.outputPath), {
+				recursive: true,
+			});
+			const args = buildStandaloneAudioExportArgs({ options });
+
+			await new Promise<void>((resolve, reject) => {
+				const ffmpeg = spawn(getFFmpegPath(), args, {
+					windowsHide: true,
+					stdio: ["ignore", "pipe", "pipe"],
+				});
+				let stderr = "";
+				let settled = false;
+				const timer = setTimeout(() => {
+					if (settled) return;
+					settled = true;
+					ffmpeg.kill();
+					reject(new Error("Audio export timeout (5 minutes)"));
+				}, 300_000);
+				ffmpeg.stderr?.on("data", (data) => {
+					stderr += data.toString();
+				});
+				ffmpeg.on("error", (err) => {
+					if (settled) return;
+					settled = true;
+					clearTimeout(timer);
+					reject(err);
+				});
+				ffmpeg.on("close", (code) => {
+					if (settled) return;
+					settled = true;
+					clearTimeout(timer);
+					if (code === 0) resolve();
+					else
+						reject(
+							new Error(
+								`FFmpeg audio export failed (${code}): ${stderr.slice(-800)}`
+							)
+						);
+				});
+			});
+
+			const stats = await fs.promises.stat(options.outputPath);
+			return { outputPath: options.outputPath, fileSize: stats.size };
+		}
+	);
+
+	ipcMain.handle(
+		"convert-video-to-gif",
+		async (
+			_event: IpcMainInvokeEvent,
+			options: GifConversionOptions
+		): Promise<{ outputPath: string; fileSize: number }> => {
+			const outputDir = path.resolve(
+				tempManager.getOutputDir(options.sessionId)
+			);
+			const resolvedInput = path.resolve(options.inputPath);
+			// path.relative is separator-aware: a raw startsWith prefix check would
+			// also accept sibling dirs like `<session>/output-evil/...`.
+			const relativeInput = path.relative(outputDir, resolvedInput);
+			if (relativeInput.startsWith("..") || path.isAbsolute(relativeInput)) {
+				throw new Error("GIF input must be inside the active export session");
+			}
+			const outputPath = path.join(outputDir, "output.gif");
+			await convertToGif({
+				inputPath: resolvedInput,
+				outputPath,
+				width: options.width,
+				height: options.height,
+				fps: options.fps,
+				loop: options.loop,
+				quality: options.quality,
+				tempDir: outputDir,
+			});
+			const stats = await fs.promises.stat(outputPath);
+			return { outputPath, fileSize: stats.size };
+		}
+	);
+
 	// Validate filter chain
 	ipcMain.handle(
 		"validate-filter-chain",

@@ -3,6 +3,9 @@
 import type { TimelineTrack, MediaElement } from "@/types/timeline";
 import type { MediaItem } from "@/stores/media/media-store-types";
 import { ExportUnsupportedError } from "./export-errors";
+import { hasMediaVisualEdits } from "@/lib/video/video-properties";
+import { getMediaTimelineDuration } from "@/lib/video/video-timing";
+import { hasMediaAudioEdits } from "@/lib/audio/audio-properties";
 
 /**
  * Analysis result determining export optimization strategy.
@@ -23,6 +26,10 @@ export interface ExportAnalysis {
 	hasStickers: boolean;
 	/** Contains visual effects requiring FFmpeg filters */
 	hasEffects: boolean;
+	/** Contains transform, crop, perspective, opacity, or blend edits on video clips */
+	hasVideoVisualEdits: boolean;
+	/** Contains clip-to-clip transitions requiring encoded video filters. */
+	hasTransitions: boolean;
 	/** Multiple videos that may need concatenation */
 	hasMultipleVideoSources: boolean;
 	/** Videos overlap in time; requires compositing, not concat */
@@ -315,6 +322,13 @@ export function analyzeTimelineForExport(
 	let hasTextElements = false;
 	let hasStickers = overlayStickersCount != null && overlayStickersCount > 0;
 	let hasEffects = false;
+	let hasVideoVisualEdits = false;
+	const hasTransitions = tracks.some(
+		(track) =>
+			!track.hidden &&
+			track.type === "media" &&
+			(track.transitions?.length ?? 0) > 0
+	);
 	let videoElementCount = 0;
 	const videoTimeRanges: Array<{ start: number; end: number }> = [];
 	const videoElements: MediaElement[] = [];
@@ -352,9 +366,15 @@ export function analyzeTimelineForExport(
 
 				// Track video elements and their time ranges
 				if (mediaItem.type === "video") {
+					if (
+						hasMediaVisualEdits(mediaElement) ||
+						hasMediaAudioEdits({ element: mediaElement })
+					) {
+						hasVideoVisualEdits = true;
+						hasEffects = true;
+					}
 					videoElementCount++;
-					const effectiveDuration =
-						element.duration - element.trimStart - element.trimEnd;
+					const effectiveDuration = getMediaTimelineDuration(mediaElement);
 
 					// Validate effective duration is positive
 					if (effectiveDuration <= 0) {
@@ -376,7 +396,10 @@ export function analyzeTimelineForExport(
 				}
 
 				// Check for effects on this element
-				if (element.effectIds && element.effectIds.length > 0) {
+				if (
+					(element.effects && element.effects.length > 0) ||
+					(element.effectIds && element.effectIds.length > 0)
+				) {
 					hasEffects = true;
 				}
 			}
@@ -399,7 +422,8 @@ export function analyzeTimelineForExport(
 
 	const needsFilterEncoding =
 		hasTextElements || // Text uses FFmpeg drawtext
-		hasStickers; // Stickers use FFmpeg overlay
+		hasStickers || // Stickers use FFmpeg overlay
+		hasTransitions;
 	// Note: Effects can be added here once FFmpeg-compatible effects are identified
 
 	const needsImageProcessing =
@@ -417,6 +441,7 @@ export function analyzeTimelineForExport(
 		!hasTextElements &&
 		!hasStickers &&
 		!hasEffects &&
+		!hasTransitions &&
 		allVideosHaveLocalPath;
 
 	// Validate timeline before proceeding - throws if unsupported
@@ -523,6 +548,7 @@ export function analyzeTimelineForExport(
 		if (hasTextElements) filterReasons.push("text overlays");
 		if (hasStickers) filterReasons.push("stickers");
 		if (hasEffects) filterReasons.push("effects");
+		if (hasTransitions) filterReasons.push("transitions");
 		if (filterReasons.length > 0) {
 			console.log(`   Filters: ${filterReasons.join(", ")}`);
 		}
@@ -546,6 +572,7 @@ export function analyzeTimelineForExport(
 		if (hasTextElements) filterTypes.push("text");
 		if (hasStickers) filterTypes.push("stickers");
 		if (hasEffects) filterTypes.push("effects");
+		if (hasTransitions) filterTypes.push("transitions");
 		reason =
 			filterTypes.length > 0
 				? `Video with ${filterTypes.join("/")} overlays - using FFmpeg filters`
@@ -597,6 +624,8 @@ export function analyzeTimelineForExport(
 		hasTextElements,
 		hasStickers,
 		hasEffects,
+		hasVideoVisualEdits,
+		hasTransitions,
 		allVideosHaveLocalPath,
 		canUseDirectCopy,
 		optimizationStrategy,
@@ -613,7 +642,7 @@ export function analyzeTimelineForExport(
 				trimStart: el.trimStart,
 				trimEnd: el.trimEnd,
 				duration: el.duration,
-				effectiveDuration: el.duration - el.trimStart - el.trimEnd,
+				effectiveDuration: getMediaTimelineDuration(el),
 				hasLocalPath: !!media?.localPath,
 				localPath:
 					media?.localPath?.substring(media.localPath.lastIndexOf("\\") + 1) ||
@@ -653,6 +682,8 @@ export function analyzeTimelineForExport(
 		hasTextElements,
 		hasStickers,
 		hasEffects,
+		hasVideoVisualEdits,
+		hasTransitions,
 		hasMultipleVideoSources,
 		hasOverlappingVideos,
 		canUseDirectCopy,

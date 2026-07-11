@@ -17,6 +17,10 @@ export const ExportQuality = {
 
 export type ExportQuality = (typeof ExportQuality)[keyof typeof ExportQuality];
 
+export const EXPORT_FRAME_RATES = [24, 25, 30, 50, 60] as const;
+export type ExportFrameRate = (typeof EXPORT_FRAME_RATES)[number];
+export type ExportEngineSelection = "auto" | "standard" | "ffmpeg" | "cli";
+
 // Export purpose types
 export const ExportPurpose = {
 	FINAL: "final",
@@ -32,6 +36,8 @@ export interface ExportSettings {
 	filename: string;
 	width: number;
 	height: number;
+	frameRate?: ExportFrameRate;
+	outputPath?: string;
 	purpose?: ExportPurpose; // Optional, defaults to FINAL
 }
 
@@ -65,6 +71,41 @@ export const QUALITY_SIZE_ESTIMATES = {
 	[ExportQuality.MEDIUM]: "~25-50 MB/min",
 	[ExportQuality.LOW]: "~15-25 MB/min",
 } as const;
+
+const QUALITY_SIZE_ESTIMATE_MB_PER_MINUTE = {
+	[ExportQuality.HIGH]: { min: 50, max: 100 },
+	[ExportQuality.MEDIUM]: { min: 25, max: 50 },
+	[ExportQuality.LOW]: { min: 15, max: 25 },
+} as const;
+
+export function getEstimatedExportSize({
+	quality,
+	durationSeconds,
+}: {
+	quality: ExportQuality;
+	durationSeconds: number;
+}): string {
+	if (durationSeconds <= 0) return "--";
+
+	const perMinute = QUALITY_SIZE_ESTIMATE_MB_PER_MINUTE[quality];
+	const durationMinutes = durationSeconds / 60;
+	const min = Math.max(1, Math.round(perMinute.min * durationMinutes));
+	const max = Math.max(min, Math.round(perMinute.max * durationMinutes));
+	return min === max ? `~${min} MB` : `~${min}-${max} MB`;
+}
+
+export function getExportFilename({
+	filename,
+	format,
+}: {
+	filename: string;
+	format: ExportFormat;
+}): string {
+	const extension = FORMAT_INFO[format].extension;
+	return filename.toLowerCase().endsWith(extension)
+		? filename
+		: `${filename}${extension}`;
+}
 
 // Format information and codecs
 export const FORMAT_INFO = {
@@ -329,7 +370,12 @@ export const mergeAudioSettings = (
 export type GifFrameRate = 15 | 20 | 25 | 30;
 
 /** GIF size presets */
-export type GifSizePreset = "medium" | "large" | "original";
+export type GifSizePreset =
+	| "small"
+	| "compact"
+	| "medium"
+	| "large"
+	| "original";
 
 /** GIF export configuration */
 export interface GifExportConfig {
@@ -343,7 +389,7 @@ export interface GifExportConfig {
 export const DEFAULT_GIF_CONFIG: GifExportConfig = {
 	frameRate: 20,
 	loop: true,
-	sizePreset: "medium",
+	sizePreset: "small",
 	quality: 10,
 };
 
@@ -352,6 +398,8 @@ export const GIF_SIZE_PRESETS: Record<
 	GifSizePreset,
 	{ maxHeight: number; label: string }
 > = {
+	small: { maxHeight: 240, label: "240p" },
+	compact: { maxHeight: 480, label: "480p" },
 	medium: { maxHeight: 720, label: "Medium (720p)" },
 	large: { maxHeight: 1080, label: "Large (1080p)" },
 	original: { maxHeight: Infinity, label: "Original" },

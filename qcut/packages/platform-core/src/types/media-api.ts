@@ -205,6 +205,30 @@ export interface PlatformFFmpegAPI {
 		videoPath: string;
 		format?: string;
 	}): Promise<{ audioPath: string; fileSize: number }>;
+	exportAudioCLI(options: {
+		outputPath: string;
+		duration: number;
+		audioFiles: Array<{
+			path: string;
+			startTime: number;
+			volume?: number;
+			sourceGain?: number;
+			trimStart?: number;
+			duration?: number;
+		}>;
+		bitrate: number;
+		sampleRate: number;
+		channels?: 1 | 2;
+	}): Promise<{ outputPath: string; fileSize: number }>;
+	convertVideoToGif(options: {
+		sessionId: string;
+		inputPath: string;
+		width: number;
+		height: number;
+		fps: number;
+		loop: boolean;
+		quality: number;
+	}): Promise<{ outputPath: string; fileSize: number }>;
 	saveStickerForExport(data: {
 		sessionId: string;
 		stickerId: string;

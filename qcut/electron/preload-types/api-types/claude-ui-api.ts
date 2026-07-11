@@ -2,6 +2,8 @@ import type {
 	EditorEvent,
 	EditorStateRequest,
 	EditorStateSnapshot,
+	SceneDetectionRequest,
+	SceneDetectionResult,
 } from "../../types/claude-api";
 
 /** Claude video analysis operations. */
@@ -38,6 +40,10 @@ export interface ClaudeAnalyzeAPI {
 				description: string;
 			}>;
 		}>;
+		scenes: (
+			projectId: string,
+			options: SceneDetectionRequest
+		) => Promise<SceneDetectionResult>;
 	};
 }
 

@@ -1,0 +1,138 @@
+export type EffectType =
+	| "blur"
+	| "brightness"
+	| "contrast"
+	| "saturation"
+	| "hue"
+	| "gamma"
+	| "sepia"
+	| "grayscale"
+	| "invert"
+	| "vintage"
+	| "dramatic"
+	| "warm"
+	| "cool"
+	| "cinematic"
+	| "vignette"
+	| "grain"
+	| "sharpen"
+	| "emboss"
+	| "edge"
+	| "pixelate"
+	| "wave"
+	| "twist"
+	| "bulge"
+	| "fisheye"
+	| "oil-painting"
+	| "watercolor"
+	| "pencil-sketch"
+	| "halftone"
+	| "fade-in"
+	| "fade-out"
+	| "dissolve"
+	| "wipe"
+	| "overlay"
+	| "multiply"
+	| "screen"
+	| "color-dodge";
+
+export interface EffectParameters {
+	opacity?: number;
+	scale?: number;
+	rotate?: number;
+	skewX?: number;
+	skewY?: number;
+	brightness?: number;
+	contrast?: number;
+	saturation?: number;
+	hue?: number;
+	gamma?: number;
+	blur?: number;
+	blurType?: "gaussian" | "box" | "motion";
+	sepia?: number;
+	grayscale?: number;
+	invert?: number;
+	vintage?: number;
+	dramatic?: number;
+	warm?: number;
+	cool?: number;
+	cinematic?: number;
+	vignette?: number;
+	grain?: number;
+	sharpen?: number;
+	emboss?: number;
+	edge?: number;
+	pixelate?: number;
+	chromatic?: number;
+	radiance?: number;
+	wave?: number;
+	waveFrequency?: number;
+	waveAmplitude?: number;
+	twist?: number;
+	twistAngle?: number;
+	bulge?: number;
+	bulgeRadius?: number;
+	fisheye?: number;
+	fisheyeStrength?: number;
+	ripple?: number;
+	swirl?: number;
+	oilPainting?: number;
+	brushSize?: number;
+	watercolor?: number;
+	wetness?: number;
+	pencilSketch?: number;
+	strokeWidth?: number;
+	halftone?: number;
+	dotSize?: number;
+	fadeIn?: number;
+	fadeOut?: number;
+	dissolve?: number;
+	dissolveProgress?: number;
+	wipe?: number;
+	wipeDirection?: "left" | "right" | "up" | "down";
+	wipeProgress?: number;
+	overlay?: number;
+	overlayOpacity?: number;
+	multiply?: number;
+	screen?: number;
+	colorDodge?: number;
+	blendMode?:
+		| "normal"
+		| "multiply"
+		| "screen"
+		| "overlay"
+		| "darken"
+		| "lighten"
+		| "color-dodge"
+		| "color-burn";
+}
+
+export interface EffectKeyframe {
+	time: number;
+	value: number;
+	easing?: "linear" | "ease-in" | "ease-out" | "ease-in-out" | "cubic-bezier";
+	controlPoints?: [number, number, number, number];
+}
+
+export interface AnimatedParameter {
+	parameter: keyof EffectParameters;
+	keyframes: EffectKeyframe[];
+	interpolation?: "linear" | "step" | "smooth";
+}
+
+export interface EffectInstance {
+	id: string;
+	name: string;
+	effectType: EffectType;
+	parameters: EffectParameters;
+	duration: number;
+	enabled: boolean;
+	animations?: AnimatedParameter[];
+}
+
+export interface EffectChain {
+	id: string;
+	name: string;
+	effects: EffectInstance[];
+	blendMode?: "normal" | "overlay" | "multiply" | "screen";
+}

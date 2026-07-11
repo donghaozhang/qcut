@@ -2,6 +2,7 @@ import { useEffect, useCallback } from "react";
 import { usePlaybackStore } from "@/stores/editor/playback-store";
 import { useTimelineStore } from "@/stores/timeline/timeline-store";
 import { toast } from "sonner";
+import { getTimelineElementEndTime } from "@/lib/timeline";
 
 export const usePlaybackControls = () => {
 	const { isPlaying, currentTime, play, pause, seek } = usePlaybackStore();
@@ -28,9 +29,7 @@ export const usePlaybackControls = () => {
 		if (!element) return;
 
 		const effectiveStart = element.startTime;
-		const effectiveEnd =
-			element.startTime +
-			(element.duration - element.trimStart - element.trimEnd);
+		const effectiveEnd = getTimelineElementEndTime({ element });
 
 		if (currentTime <= effectiveStart || currentTime >= effectiveEnd) {
 			toast.error("Playhead must be within selected element");
@@ -53,9 +52,7 @@ export const usePlaybackControls = () => {
 		if (!element) return;
 
 		const effectiveStart = element.startTime;
-		const effectiveEnd =
-			element.startTime +
-			(element.duration - element.trimStart - element.trimEnd);
+		const effectiveEnd = getTimelineElementEndTime({ element });
 
 		if (currentTime <= effectiveStart || currentTime >= effectiveEnd) {
 			toast.error("Playhead must be within selected element");
@@ -78,9 +75,7 @@ export const usePlaybackControls = () => {
 		if (!element) return;
 
 		const effectiveStart = element.startTime;
-		const effectiveEnd =
-			element.startTime +
-			(element.duration - element.trimStart - element.trimEnd);
+		const effectiveEnd = getTimelineElementEndTime({ element });
 
 		if (currentTime <= effectiveStart || currentTime >= effectiveEnd) {
 			toast.error("Playhead must be within selected element");

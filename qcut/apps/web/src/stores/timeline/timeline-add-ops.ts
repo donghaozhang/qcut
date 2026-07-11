@@ -89,7 +89,9 @@ export function createAddOps(
 			return true;
 		},
 
-		addTextAtTime: (item: TextElement, currentTime = 0): boolean => {
+		// Accepts a partial element (e.g. DragData.textTemplate): every field is
+		// defaulted below, so callers never need to fabricate a full TextElement.
+		addTextAtTime: (item: Partial<TextElement>, currentTime = 0): boolean => {
 			const targetTrackId = get().insertTrackAt("text", 0); // Always create new text track at the top
 
 			get().addElementToTrack(targetTrackId, {
@@ -112,6 +114,33 @@ export function createAddOps(
 				y: item.y || 0,
 				rotation: item.rotation || 0,
 				opacity: item.opacity !== undefined ? item.opacity : 1,
+				width: item.width ?? 640,
+				height: item.height ?? 180,
+				letterSpacing: item.letterSpacing ?? 0,
+				lineHeight: item.lineHeight ?? 1.2,
+				verticalAlign: item.verticalAlign ?? "middle",
+				strokeColor: item.strokeColor ?? "#000000",
+				strokeWidth: item.strokeWidth ?? 0,
+				strokeOpacity: item.strokeOpacity ?? 1,
+				backgroundOpacity:
+					item.backgroundOpacity ??
+					(item.backgroundColor === "transparent" ? 0 : 1),
+				backgroundRadius: item.backgroundRadius ?? 4,
+				backgroundPadding: item.backgroundPadding ?? 12,
+				shadowColor: item.shadowColor ?? "#000000",
+				shadowOpacity: item.shadowOpacity ?? 0,
+				shadowOffsetX: item.shadowOffsetX ?? 4,
+				shadowOffsetY: item.shadowOffsetY ?? 4,
+				shadowBlur: item.shadowBlur ?? 8,
+				glowColor: item.glowColor ?? "#ffffff",
+				glowOpacity: item.glowOpacity ?? 0,
+				glowBlur: item.glowBlur ?? 12,
+				curve: item.curve ?? 0,
+				animationType: item.animationType ?? "none",
+				animationDuration: item.animationDuration ?? 0.6,
+				animationDelay: item.animationDelay ?? 0,
+				keyframes: item.keyframes,
+				blendMode: item.blendMode ?? "normal",
 			});
 			return true;
 		},
@@ -172,11 +201,22 @@ export function createAddOps(
 		},
 
 		addTextToNewTrack: (item: TextElement | DragData): boolean => {
+			if (
+				"type" in item &&
+				item.type === "text" &&
+				"textTemplate" in item &&
+				item.textTemplate
+			) {
+				return get().addTextAtTime(item.textTemplate, 0);
+			}
 			const targetTrackId = get().insertTrackAt("text", 0); // Always create new text track at the top
 
 			const dragDataContent =
 				"type" in item && item.type === "text" ? item.content : undefined;
 			const textElementContent = "content" in item ? item.content : undefined;
+			const backgroundColor =
+				("backgroundColor" in item ? item.backgroundColor : "transparent") ||
+				"transparent";
 
 			get().addElementToTrack(targetTrackId, {
 				type: "text",
@@ -192,9 +232,7 @@ export function createAddOps(
 				fontFamily:
 					("fontFamily" in item ? item.fontFamily : "Arial") || "Arial",
 				color: ("color" in item ? item.color : "#ffffff") || "#ffffff",
-				backgroundColor:
-					("backgroundColor" in item ? item.backgroundColor : "transparent") ||
-					"transparent",
+				backgroundColor,
 				textAlign:
 					("textAlign" in item ? item.textAlign : "center") || "center",
 				fontWeight:
@@ -209,6 +247,95 @@ export function createAddOps(
 					"rotation" in item && item.rotation !== undefined ? item.rotation : 0,
 				opacity:
 					"opacity" in item && item.opacity !== undefined ? item.opacity : 1,
+				width: "width" in item && item.width !== undefined ? item.width : 640,
+				height:
+					"height" in item && item.height !== undefined ? item.height : 180,
+				letterSpacing:
+					"letterSpacing" in item && item.letterSpacing !== undefined
+						? item.letterSpacing
+						: 0,
+				lineHeight:
+					"lineHeight" in item && item.lineHeight !== undefined
+						? item.lineHeight
+						: 1.2,
+				verticalAlign:
+					"verticalAlign" in item && item.verticalAlign
+						? item.verticalAlign
+						: "middle",
+				strokeColor:
+					"strokeColor" in item && item.strokeColor
+						? item.strokeColor
+						: "#000000",
+				strokeWidth:
+					"strokeWidth" in item && item.strokeWidth !== undefined
+						? item.strokeWidth
+						: 0,
+				strokeOpacity:
+					"strokeOpacity" in item && item.strokeOpacity !== undefined
+						? item.strokeOpacity
+						: 1,
+				// Same defaulting rule as addTextAtTime: a non-transparent background
+				// with no explicit opacity must render visible, not invisible.
+				backgroundOpacity:
+					"backgroundOpacity" in item && item.backgroundOpacity !== undefined
+						? item.backgroundOpacity
+						: backgroundColor === "transparent"
+							? 0
+							: 1,
+				backgroundRadius:
+					"backgroundRadius" in item && item.backgroundRadius !== undefined
+						? item.backgroundRadius
+						: 4,
+				backgroundPadding:
+					"backgroundPadding" in item && item.backgroundPadding !== undefined
+						? item.backgroundPadding
+						: 12,
+				shadowColor:
+					"shadowColor" in item && item.shadowColor
+						? item.shadowColor
+						: "#000000",
+				shadowOpacity:
+					"shadowOpacity" in item && item.shadowOpacity !== undefined
+						? item.shadowOpacity
+						: 0,
+				shadowOffsetX:
+					"shadowOffsetX" in item && item.shadowOffsetX !== undefined
+						? item.shadowOffsetX
+						: 4,
+				shadowOffsetY:
+					"shadowOffsetY" in item && item.shadowOffsetY !== undefined
+						? item.shadowOffsetY
+						: 4,
+				shadowBlur:
+					"shadowBlur" in item && item.shadowBlur !== undefined
+						? item.shadowBlur
+						: 8,
+				glowColor:
+					"glowColor" in item && item.glowColor ? item.glowColor : "#ffffff",
+				glowOpacity:
+					"glowOpacity" in item && item.glowOpacity !== undefined
+						? item.glowOpacity
+						: 0,
+				glowBlur:
+					"glowBlur" in item && item.glowBlur !== undefined
+						? item.glowBlur
+						: 12,
+				curve: "curve" in item && item.curve !== undefined ? item.curve : 0,
+				animationType:
+					"animationType" in item && item.animationType
+						? item.animationType
+						: "none",
+				animationDuration:
+					"animationDuration" in item && item.animationDuration !== undefined
+						? item.animationDuration
+						: 0.6,
+				animationDelay:
+					"animationDelay" in item && item.animationDelay !== undefined
+						? item.animationDelay
+						: 0,
+				keyframes: "keyframes" in item ? item.keyframes : undefined,
+				blendMode:
+					"blendMode" in item && item.blendMode ? item.blendMode : "normal",
 			});
 			return true;
 		},
@@ -294,6 +421,37 @@ export function createAddOps(
 		// -----------------------------------------------------------------------
 		// Effects management
 		// -----------------------------------------------------------------------
+		setElementEffectState: ({
+			elementId,
+			effects,
+			effectChains,
+			pushHistory = true,
+		}: {
+			elementId: string;
+			effects: import("@/types/effects").EffectInstance[];
+			effectChains: import("@/types/effects").EffectChain[];
+			pushHistory?: boolean;
+		}) => {
+			const { _tracks } = get();
+			let updated = false;
+			const nextTracks = _tracks.map((track) => ({
+				...track,
+				elements: track.elements.map((element) => {
+					if (element.id !== elementId) return element;
+					updated = true;
+					return {
+						...element,
+						effects,
+						effectChains,
+						effectIds: effects.map((effect) => effect.id),
+					};
+				}),
+			}));
+			if (!updated) return;
+			if (pushHistory) get().pushHistory();
+			updateTracks(nextTracks);
+			autoSaveTimeline();
+		},
 
 		addEffectToElement: (elementId: string, effectId: string) => {
 			const { _tracks, pushHistory } = get();

@@ -7,6 +7,7 @@
  * @module preload
  */
 import { contextBridge, ipcRenderer, webUtils } from "electron";
+import type { AudioSettings } from "./ffmpeg/audio-settings";
 import type {
 	ElectronAPI,
 	FileDialogFilter,
@@ -68,11 +69,17 @@ const electronAPI: ElectronAPI & Record<string, unknown> = {
 		defaultFilename?: string,
 		filters?: FileDialogFilter[]
 	): Promise<string | null> =>
-		ipcRenderer.invoke("save-file-dialog", defaultFilename, filters),
+		ipcRenderer
+			.invoke("save-file-dialog", defaultFilename, filters)
+			.then((result: Electron.SaveDialogReturnValue) =>
+				result.canceled ? null : result.filePath || null
+			),
 	readFile: (filePath: string): Promise<Buffer | null> =>
 		ipcRenderer.invoke("read-file", filePath),
-	writeFile: (filePath: string, data: Buffer | string): Promise<boolean> =>
-		ipcRenderer.invoke("write-file", filePath, data),
+	writeFile: (
+		filePath: string,
+		data: Buffer | ArrayBuffer | string
+	): Promise<boolean> => ipcRenderer.invoke("write-file", filePath, data),
 	saveBlob: (
 		data: Buffer | Uint8Array,
 		defaultFilename?: string
@@ -282,6 +289,38 @@ const electronAPI: ElectronAPI & Record<string, unknown> = {
 			audioPath: string;
 			fileSize: number;
 		}> => ipcRenderer.invoke("extract-audio", options),
+		exportAudioCLI: (options: {
+			outputPath: string;
+			duration: number;
+			audioFiles: Array<{
+				path: string;
+				startTime: number;
+				volume?: number;
+				trimStart?: number;
+				trimEnd?: number;
+				duration?: number;
+				fadeIn?: number;
+				fadeOut?: number;
+				normalize?: boolean;
+				denoise?: number;
+				pan?: number;
+				audio?: AudioSettings;
+			}>;
+			bitrate: number;
+			sampleRate: number;
+			channels?: 1 | 2;
+		}): Promise<{ outputPath: string; fileSize: number }> =>
+			ipcRenderer.invoke("export-audio-cli", options),
+		convertVideoToGif: (options: {
+			sessionId: string;
+			inputPath: string;
+			width: number;
+			height: number;
+			fps: number;
+			loop: boolean;
+			quality: number;
+		}): Promise<{ outputPath: string; fileSize: number }> =>
+			ipcRenderer.invoke("convert-video-to-gif", options),
 		saveStickerForExport: (data: {
 			sessionId: string;
 			stickerId: string;

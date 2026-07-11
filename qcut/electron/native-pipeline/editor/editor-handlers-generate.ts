@@ -14,6 +14,10 @@ import type { EditorApiClient } from "../editor/editor-api-client.js";
 import type { CLIRunOptions, CLIResult } from "../cli/cli-runner/types.js";
 import { resolveJsonInput } from "./editor-api-types.js";
 import { jsonPending } from "../cli/json-output.js";
+import {
+	writeTimelineCaptions,
+	type EditorCaptionFormat,
+} from "./editor-caption-export.js";
 
 type ProgressFn = (progress: {
 	stage: string;
@@ -226,6 +230,10 @@ async function dispatchExport(
 			return exportRecommend(client, opts);
 		case "start":
 			return exportStart(client, opts, onProgress);
+		case "audio":
+			return exportAudio(client, opts, onProgress);
+		case "captions":
+			return exportCaptions(client, opts);
 		case "status":
 			return exportStatus(client, opts);
 		case "list-jobs":
@@ -279,6 +287,16 @@ async function exportStart(
 	if (exportFormat) {
 		body.format = exportFormat;
 	}
+	if (opts.fps !== undefined) {
+		const supportedFrameRates = new Set([24, 25, 30, 50, 60]);
+		if (!supportedFrameRates.has(opts.fps)) {
+			return {
+				success: false,
+				error: "--fps must be one of: 24, 25, 30, 50, 60",
+			};
+		}
+		body.fps = opts.fps;
+	}
 
 	if (opts.data) {
 		const settings = await resolveJsonInput(opts.data);
@@ -287,6 +305,13 @@ async function exportStart(
 
 	// GIF config from CLI flags
 	const raw = opts as unknown as Record<string, unknown>;
+	if (exportFormat === "mp3") {
+		body.audioExportConfig = {
+			bitrate: opts.bitrate ?? 192,
+			sampleRate: opts.sampleRate ?? 44_100,
+			channels: 2,
+		};
+	}
 	if (
 		raw["gif-fps"] !== undefined ||
 		raw["gif-loop"] !== undefined ||
@@ -384,6 +409,49 @@ async function exportStart(
 	);
 
 	return { success: true, data: result };
+}
+
+/** Export the project mix as a standalone MP3 file. */
+async function exportAudio(
+	client: EditorApiClient,
+	opts: CLIRunOptions,
+	onProgress: ProgressFn
+): Promise<CLIResult> {
+	return exportStart(
+		client,
+		{ ...opts, format: "mp3", exportFormat: "mp3" },
+		onProgress
+	);
+}
+
+/** Export caption-track elements to a sidecar subtitle file. */
+async function exportCaptions(
+	client: EditorApiClient,
+	opts: CLIRunOptions
+): Promise<CLIResult> {
+	if (!opts.projectId) return { success: false, error: "Missing --project-id" };
+	const format = (opts.format ?? "srt").toLowerCase();
+	if (!["srt", "vtt", "ass", "ttml"].includes(format)) {
+		return {
+			success: false,
+			error: "--format must be one of: srt, vtt, ass, ttml",
+		};
+	}
+
+	const timeline = await client.get<Record<string, unknown>>(
+		`/api/claude/timeline/${opts.projectId}`
+	);
+	const basename = opts.filename || "captions";
+	const filename = basename.toLowerCase().endsWith(`.${format}`)
+		? basename
+		: `${basename}.${format}`;
+	const outputPath = path.resolve(opts.outputDir, filename);
+	const result = await writeTimelineCaptions({
+		timeline,
+		format: format as EditorCaptionFormat,
+		outputPath,
+	});
+	return { success: true, outputPath, data: { ...result, format } };
 }
 
 /** Query the status of a running export job. */

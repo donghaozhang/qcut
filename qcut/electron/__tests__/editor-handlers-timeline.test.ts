@@ -255,10 +255,19 @@ describe("Timeline handlers", () => {
 		});
 
 		it("sends changes to correct endpoint", async () => {
-			mockRoute("PATCH", "/api/claude/timeline/p1/elements/elem1", {
-				success: true,
-				data: { updated: true },
-			});
+			let capturedBody: string | null = null;
+			const origFetch = globalThis.fetch;
+			globalThis.fetch = async (
+				_input: RequestInfo | URL,
+				init?: RequestInit
+			) => {
+				capturedBody = init?.body as string;
+				return new Response(
+					JSON.stringify({ success: true, data: { updated: true } }),
+					{ headers: { "Content-Type": "application/json" } }
+				);
+			};
+
 			const result = await handleTimelineEditingCommand(
 				client,
 				makeOpts({
@@ -270,6 +279,44 @@ describe("Timeline handlers", () => {
 				noopProgress
 			);
 			expect(result.success).toBe(true);
+			expect(JSON.parse(capturedBody!)).toEqual({ startTime: 5 });
+
+			globalThis.fetch = origFetch;
+			installFetchMock(BASE_URL);
+		});
+	});
+
+	describe("trim", () => {
+		it("sends direct timeline fields in the PATCH body", async () => {
+			let capturedBody: string | null = null;
+			const origFetch = globalThis.fetch;
+			globalThis.fetch = async (
+				_input: RequestInfo | URL,
+				init?: RequestInit
+			) => {
+				capturedBody = init?.body as string;
+				return new Response(
+					JSON.stringify({ success: true, data: { updated: true } }),
+					{ headers: { "Content-Type": "application/json" } }
+				);
+			};
+
+			const result = await handleTimelineEditingCommand(
+				client,
+				makeOpts({
+					command: "editor:timeline:trim",
+					projectId: "p1",
+					elementId: "elem1",
+					endTime: 3,
+				}),
+				noopProgress
+			);
+
+			expect(result.success).toBe(true);
+			expect(JSON.parse(capturedBody!)).toEqual({ endTime: 3 });
+
+			globalThis.fetch = origFetch;
+			installFetchMock(BASE_URL);
 		});
 	});
 

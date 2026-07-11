@@ -20,6 +20,7 @@ import type { TimelineStore } from "./index";
 import type { StoreGet, StoreSet } from "./timeline-store-operations";
 import { normalizeLoadedTracks } from "./timeline-store-normalization";
 import { clearAutoSaveTimer } from "./timeline-store-autosave";
+import { getMediaTimelineDuration } from "@/lib/video/video-timing";
 
 export interface PersistenceDeps {
 	updateTracks: (tracks: TimelineTrack[]) => void;
@@ -43,9 +44,9 @@ export function createPersistenceOperations(
 				track.elements.reduce((maxEnd, element) => {
 					const elementEnd =
 						element.startTime +
-						element.duration -
-						element.trimStart -
-						element.trimEnd;
+						(element.type === "media"
+							? getMediaTimelineDuration(element)
+							: element.duration - element.trimStart - element.trimEnd);
 					return Math.max(maxEnd, elementEnd);
 				}, 0)
 			);
@@ -217,7 +218,12 @@ export function createPersistenceOperations(
 		clearTimeline: () => {
 			const defaultTracks = ensureMainTrack([]);
 			updateTracks(defaultTracks);
-			set({ history: [], redoStack: [], selectedElements: [] });
+			set({
+				history: [],
+				redoStack: [],
+				selectedElements: [],
+				selectedTransition: null,
+			});
 		},
 
 		restoreTracks: (tracks: TimelineTrack[]) => {

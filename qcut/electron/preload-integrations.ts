@@ -590,6 +590,8 @@ export function createClaudeAPI(): NonNullable<ElectronAPI["claude"]> {
 			run: (projectId, options) =>
 				ipcRenderer.invoke("claude:analyze:run", projectId, options),
 			models: () => ipcRenderer.invoke("claude:analyze:models"),
+			scenes: (projectId, options) =>
+				ipcRenderer.invoke("claude:analyze:scenes", projectId, options),
 		},
 		events: {
 			emit: (

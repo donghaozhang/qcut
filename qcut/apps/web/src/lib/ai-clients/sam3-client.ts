@@ -326,8 +326,8 @@ class Sam3Client {
 		const startTime = Date.now();
 
 		debugLogger.log(SAM3_LOG_COMPONENT, "VIDEO_SEGMENT_START", {
-			hasTextPrompt: !!input.text_prompt,
-			pointCount: input.prompts?.length || 0,
+			hasTextPrompt: !!input.prompt,
+			pointCount: input.point_prompts?.length || 0,
 			boxCount: input.box_prompts?.length || 0,
 			detectionThreshold: input.detection_threshold,
 		});
@@ -484,11 +484,11 @@ class Sam3Client {
 	async segmentVideoWithText(
 		videoUrl: string,
 		textPrompt: string,
-		options?: Partial<Omit<Sam3VideoInput, "video_url" | "text_prompt">>
+		options?: Partial<Omit<Sam3VideoInput, "video_url" | "prompt">>
 	): Promise<Sam3VideoOutput> {
 		return this.segmentVideo({
 			video_url: videoUrl,
-			text_prompt: textPrompt,
+			prompt: textPrompt,
 			...options,
 		});
 	}
@@ -596,7 +596,7 @@ export async function segmentVideo(
 export async function segmentVideoWithText(
 	videoUrl: string,
 	textPrompt: string,
-	options?: Partial<Omit<Sam3VideoInput, "video_url" | "text_prompt">>
+	options?: Partial<Omit<Sam3VideoInput, "video_url" | "prompt">>
 ): Promise<Sam3VideoOutput> {
 	return sam3Client.segmentVideoWithText(videoUrl, textPrompt, options);
 }

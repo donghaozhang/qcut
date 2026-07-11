@@ -6,9 +6,18 @@ import type {
 } from "@/types/timeline";
 import type { WordItem } from "@/types/word-timeline";
 import { generateASS } from "./ass-generator";
+import { saveExportedFile, type SaveResult } from "@/lib/export/export-output";
+import { createPlainTextExport } from "./workbench";
 
 /** Supported caption export format identifiers. */
-export type CaptionFormat = "srt" | "vtt" | "ass" | "ass-karaoke" | "ttml";
+export type CaptionFormat =
+	| "srt"
+	| "vtt"
+	| "ass"
+	| "ass-karaoke"
+	| "ttml"
+	| "txt"
+	| "timecoded";
 
 /** Options for caption export formatting. */
 export interface CaptionExportOptions {
@@ -338,6 +347,16 @@ export function exportCaptions(
 			return exportAssKaraoke(segments, options.words ?? [], options);
 		case "ttml":
 			return exportTtml(segments, options);
+		case "txt":
+			return createPlainTextExport({
+				segments,
+				includeTimestamps: false,
+			});
+		case "timecoded":
+			return createPlainTextExport({
+				segments,
+				includeTimestamps: true,
+			});
 		default:
 			throw new Error(`Unsupported caption format: ${format}`);
 	}
@@ -357,6 +376,9 @@ export function getCaptionFileExtension(format: CaptionFormat): string {
 			return "ass";
 		case "ttml":
 			return "ttml";
+		case "txt":
+		case "timecoded":
+			return "txt";
 		default:
 			return "txt";
 	}
@@ -376,6 +398,9 @@ export function getCaptionMimeType(format: CaptionFormat): string {
 			return "text/x-ssa";
 		case "ttml":
 			return "application/ttml+xml";
+		case "txt":
+		case "timecoded":
+			return "text/plain";
 		default:
 			return "text/plain";
 	}
@@ -405,4 +430,18 @@ export function downloadCaptions(
 	document.body.removeChild(link);
 
 	URL.revokeObjectURL(url);
+}
+
+/** Save captions using the native destination in Electron or download on web. */
+export async function saveCaptions(
+	segments: TranscriptionSegment[],
+	format: CaptionFormat,
+	filename: string,
+	options: Partial<CaptionExportOptions> & { words?: WordItem[] } = {},
+	outputPath?: string
+): Promise<SaveResult> {
+	const content = exportCaptions(segments, format, options);
+	const extension = getCaptionFileExtension(format);
+	const blob = new Blob([content], { type: getCaptionMimeType(format) });
+	return saveExportedFile(blob, `${filename}.${extension}`, outputPath);
 }

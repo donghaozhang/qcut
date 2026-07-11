@@ -14,10 +14,14 @@ export type {
 	TextElement,
 	MarkdownElement,
 	MediaElement,
+	ClipTransition,
 	RemotionElement,
 	CaptionElement,
+	StickerElement,
+	AdjustmentElement,
 	SubtitleStyle,
 	DragData,
+	TimelineTrackAudioSettings,
 } from "@/types/timeline";
 
 // Re-export shared timeline utility functions
@@ -35,11 +39,16 @@ import type {
 	TextElement,
 	MarkdownElement,
 	MediaElement,
+	ClipTransition,
 	RemotionElement,
 	CaptionElement,
+	StickerElement,
+	AdjustmentElement,
 	DragData,
+	TimelineTrackAudioSettings,
 } from "@/types/timeline";
 import type { MediaItem } from "../media/media-store";
+import type { EffectChain, EffectInstance } from "@/types/effects";
 
 /**
  * Selected element reference for multi-selection
@@ -47,6 +56,11 @@ import type { MediaItem } from "../media/media-store";
 export interface SelectedElement {
 	trackId: string;
 	elementId: string;
+}
+
+export interface SelectedTransition {
+	trackId: string;
+	transitionId: string;
 }
 
 /**
@@ -151,6 +165,8 @@ export interface TimelineStore {
 
 	/** Array of currently selected timeline elements */
 	selectedElements: SelectedElement[];
+	/** Currently selected clip-to-clip transition. */
+	selectedTransition: SelectedTransition | null;
 	/** Select an element, optionally as part of multi-selection */
 	selectElement: (trackId: string, elementId: string, multi?: boolean) => void;
 	/** Deselect a specific element */
@@ -159,6 +175,8 @@ export interface TimelineStore {
 	clearSelectedElements: () => void;
 	/** Set the entire selection to the provided elements array */
 	setSelectedElements: (elements: SelectedElement[]) => void;
+	selectTransition: (selection: SelectedTransition) => void;
+	clearSelectedTransition: () => void;
 
 	/** Current drag operation state for timeline elements */
 	dragState: DragState;
@@ -181,6 +199,8 @@ export interface TimelineStore {
 	addTrack: (type: TrackType) => string;
 	/** Insert a new track at the specified index position */
 	insertTrackAt: (type: TrackType, index: number) => string;
+	/** Move an existing track to a zero-based UI position */
+	moveTrack: (trackId: string, toIndex: number) => void;
 	/** Remove a track from the timeline */
 	removeTrack: (trackId: string) => void;
 	/** Remove a track with ripple editing (affects subsequent elements) */
@@ -225,8 +245,48 @@ export interface TimelineStore {
 		startTime: number,
 		pushHistory?: boolean
 	) => void;
+	addTransition: (input: {
+		trackId: string;
+		fromElementId: string;
+		toElementId: string;
+		presetId: string;
+		type: ClipTransition["type"];
+		duration: number;
+		direction?: ClipTransition["direction"];
+		easing?: ClipTransition["easing"];
+	}) => string | null;
+	updateTransition: (input: {
+		trackId: string;
+		transitionId: string;
+		updates: Partial<
+			Pick<
+				ClipTransition,
+				"presetId" | "type" | "duration" | "direction" | "easing"
+			>
+		>;
+	}) => void;
+	removeTransition: (input: { trackId: string; transitionId: string }) => void;
+	setTransitionAudioCrossfade: (input: {
+		trackId: string;
+		fromElementId: string;
+		toElementId: string;
+		duration: number;
+		enabled: boolean;
+	}) => void;
 	/** Toggle mute state for a track */
 	toggleTrackMute: (trackId: string) => void;
+	/** Update persistent gain, pan, routing, effects, and automation for a track. */
+	updateTrackAudio: (
+		trackId: string,
+		updates: Partial<TimelineTrackAudioSettings>,
+		pushHistory?: boolean
+	) => void;
+	/** Toggle track solo while preserving the existing mute state. */
+	toggleTrackSolo: (trackId: string) => void;
+	/** Toggle whether a visual track participates in preview and export */
+	toggleTrackHidden: (trackId: string) => void;
+	/** Toggle whether timeline edits are allowed on a track */
+	toggleTrackLocked: (trackId: string) => void;
 	/** Toggle hidden/visible state for an element */
 	toggleElementHidden: (trackId: string, elementId: string) => void;
 
@@ -342,6 +402,35 @@ export interface TimelineStore {
 				| "y"
 				| "rotation"
 				| "opacity"
+				| "width"
+				| "height"
+				| "letterSpacing"
+				| "lineHeight"
+				| "verticalAlign"
+				| "strokeColor"
+				| "strokeWidth"
+				| "strokeOpacity"
+				| "backgroundOpacity"
+				| "backgroundRadius"
+				| "backgroundPadding"
+				| "shadowColor"
+				| "shadowOpacity"
+				| "shadowOffsetX"
+				| "shadowOffsetY"
+				| "shadowBlur"
+				| "glowColor"
+				| "glowOpacity"
+				| "glowBlur"
+				| "curve"
+				| "animationType"
+				| "animationDuration"
+				| "animationDelay"
+				| "keyframes"
+				| "blendMode"
+				| "trackingTargetId"
+				| "trackingOffsetX"
+				| "trackingOffsetY"
+				| "trackingRotation"
 			>
 		>,
 		pushHistory?: boolean
@@ -350,6 +439,24 @@ export interface TimelineStore {
 		trackId: string,
 		elementId: string,
 		updates: Partial<Pick<CaptionElement, "text" | "language" | "style">>,
+		pushHistory?: boolean
+	) => void;
+	updateStickerElement: (
+		trackId: string,
+		elementId: string,
+		updates: Partial<
+			Pick<
+				StickerElement,
+				| "x"
+				| "y"
+				| "width"
+				| "height"
+				| "rotation"
+				| "opacity"
+				| "maintainAspectRatio"
+				| "zIndex"
+			>
+		>,
 		pushHistory?: boolean
 	) => void;
 	updateMarkdownElement: (
@@ -380,6 +487,17 @@ export interface TimelineStore {
 	) => void;
 
 	// Interactive element manipulation (for effects)
+	setElementEffectState: ({
+		elementId,
+		effects,
+		effectChains,
+		pushHistory,
+	}: {
+		elementId: string;
+		effects: EffectInstance[];
+		effectChains: EffectChain[];
+		pushHistory?: boolean;
+	}) => void;
 	// Batched transform updater - use this to update multiple properties atomically and avoid history spam
 	updateElementTransform: (
 		elementId: string,
@@ -403,7 +521,54 @@ export interface TimelineStore {
 	updateMediaElement: (
 		trackId: string,
 		elementId: string,
-		updates: Partial<Pick<MediaElement, "volume">>,
+		updates: Partial<
+			Pick<
+				MediaElement,
+				| "volume"
+				| "x"
+				| "y"
+				| "width"
+				| "height"
+				| "rotation"
+				| "effectIds"
+				| "colorLabel"
+				| "scaleX"
+				| "scaleY"
+				| "maintainAspectRatio"
+				| "flipHorizontal"
+				| "flipVertical"
+				| "opacity"
+				| "blendMode"
+				| "fitMode"
+				| "crop"
+				| "perspective"
+				| "keyframes"
+				| "animationInType"
+				| "animationInDuration"
+				| "animationOutType"
+				| "animationOutDuration"
+				| "comboAnimationType"
+				| "comboAnimationIntensity"
+				| "adjustments"
+				| "color"
+				| "mask"
+				| "masks"
+				| "customCutout"
+				| "chromaKey"
+				| "enhancements"
+				| "audio"
+				| "audioFadeIn"
+				| "audioFadeOut"
+				| "audioNormalize"
+				| "audioDenoise"
+				| "audioPan"
+				| "playbackRate"
+				| "speedKeyframes"
+				| "reverse"
+				| "freezeFrameTime"
+				| "freezeFrameDuration"
+			>
+		>,
 		pushHistory?: boolean
 	) => void;
 	updateRemotionElement: (
@@ -422,7 +587,7 @@ export interface TimelineStore {
 	) => boolean;
 	findOrCreateTrack: (trackType: TrackType) => string;
 	addMediaAtTime: (item: MediaItem, currentTime?: number) => boolean;
-	addTextAtTime: (item: TextElement, currentTime?: number) => boolean;
+	addTextAtTime: (item: Partial<TextElement>, currentTime?: number) => boolean;
 	addMarkdownAtTime: (item: MarkdownElement, currentTime?: number) => boolean;
 	addMediaToNewTrack: (item: MediaItem) => boolean;
 	addTextToNewTrack: (item: TextElement | DragData) => boolean;

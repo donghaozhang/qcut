@@ -8,7 +8,10 @@
  */
 
 import type { TimelineElement, TimelineTrack } from "@/types/timeline";
-import { validateElementTrackCompatibility } from "@/types/timeline";
+import {
+	moveTrack as reorderTracks,
+	validateElementTrackCompatibility,
+} from "@/types/timeline";
 import { generateUUID } from "@/lib/utils";
 import {
 	handleError,
@@ -17,9 +20,15 @@ import {
 } from "@/lib/debug/error-handler";
 import { clampMarkdownDuration } from "@/lib/markdown";
 import { TIMELINE_CONSTANTS } from "@/constants/timeline-constants";
+import {
+	DEFAULT_MEDIA_MASK,
+	normalizeMediaMask,
+	resolveMediaMasks,
+} from "@/lib/video/video-properties";
 import type { TimelineStore } from "./index";
 import { createTrack } from "./index";
 import type { StoreGet, StoreSet } from "./timeline-store-operations";
+import { normalizeTrackAudioSettings } from "@/lib/audio/audio-mix-settings";
 
 export interface CrudDeps {
 	updateTracksAndSave: (tracks: TimelineTrack[]) => void;
@@ -49,6 +58,24 @@ export function createCrudOperations(
 			newTracks.splice(clampedIndex, 0, newTrack);
 			updateTracksAndSave(newTracks);
 			return newTrack.id;
+		},
+
+		moveTrack: (trackId, toIndex) => {
+			const reorderedTracks = reorderTracks({
+				tracks: get()._tracks,
+				trackId,
+				toIndex,
+			});
+			if (
+				reorderedTracks.every(
+					(track, index) => track.id === get()._tracks[index]?.id
+				)
+			) {
+				return;
+			}
+
+			get().pushHistory();
+			updateTracksAndSave(reorderedTracks);
 		},
 
 		addElementToTrack: (
@@ -155,9 +182,9 @@ export function createCrudOperations(
 			const newElement: TimelineElement = {
 				...normalizedElementData,
 				id: generateUUID(),
-				startTime: normalizedElementData.startTime || 0,
-				trimStart: 0,
-				trimEnd: 0,
+				startTime: normalizedElementData.startTime ?? 0,
+				trimStart: normalizedElementData.trimStart ?? 0,
+				trimEnd: normalizedElementData.trimEnd ?? 0,
 			} as TimelineElement; // Type assertion since we trust the caller passes valid data
 
 			// If this is the first element and it's a media element, automatically set the project canvas size
@@ -401,6 +428,59 @@ export function createCrudOperations(
 			);
 		},
 
+		updateTrackAudio: (trackId, updates, pushHistory = true) => {
+			if (pushHistory) get().pushHistory();
+			updateTracksAndSave(
+				get()._tracks.map((track) =>
+					track.id === trackId
+						? {
+								...track,
+								audio: normalizeTrackAudioSettings({
+									audio: { ...track.audio, ...updates },
+								}),
+							}
+						: track
+				)
+			);
+		},
+
+		toggleTrackSolo: (trackId) => {
+			get().pushHistory();
+			updateTracksAndSave(
+				get()._tracks.map((track) =>
+					track.id === trackId
+						? {
+								...track,
+								audio: normalizeTrackAudioSettings({
+									audio: {
+										...track.audio,
+										solo: !track.audio?.solo,
+									},
+								}),
+							}
+						: track
+				)
+			);
+		},
+
+		toggleTrackHidden: (trackId) => {
+			get().pushHistory();
+			updateTracksAndSave(
+				get()._tracks.map((track) =>
+					track.id === trackId ? { ...track, hidden: !track.hidden } : track
+				)
+			);
+		},
+
+		toggleTrackLocked: (trackId) => {
+			get().pushHistory();
+			updateTracksAndSave(
+				get()._tracks.map((track) =>
+					track.id === trackId ? { ...track, locked: !track.locked } : track
+				)
+			);
+		},
+
 		toggleElementHidden: (trackId, elementId) => {
 			get().pushHistory();
 			updateTracksAndSave(
@@ -466,6 +546,24 @@ export function createCrudOperations(
 								),
 							}
 						: t
+				)
+			);
+		},
+
+		updateStickerElement: (trackId, elementId, updates, pushHistory = true) => {
+			if (pushHistory) get().pushHistory();
+			updateTracksAndSave(
+				get()._tracks.map((track) =>
+					track.id === trackId
+						? {
+								...track,
+								elements: track.elements.map((element) =>
+									element.id === elementId && element.type === "sticker"
+										? { ...element, ...updates }
+										: element
+								),
+							}
+						: track
 				)
 			);
 		},
@@ -557,11 +655,33 @@ export function createCrudOperations(
 					t.id === trackId
 						? {
 								...t,
-								elements: t.elements.map((el) =>
-									el.id === elementId && el.type === "media"
-										? { ...el, ...updates }
-										: el
-								),
+								elements: t.elements.map((el) => {
+									if (el.id !== elementId || el.type !== "media") return el;
+									if (updates.masks !== undefined) {
+										const masks = updates.masks
+											.filter((mask) => mask.type !== "none")
+											.map((mask, index) => normalizeMediaMask(mask, index));
+										return {
+											...el,
+											...updates,
+											masks,
+											mask: masks[0] ?? normalizeMediaMask(DEFAULT_MEDIA_MASK),
+										};
+									}
+									if (updates.mask) {
+										const existing = resolveMediaMasks(el);
+										const first = normalizeMediaMask(
+											{ ...existing[0], ...updates.mask },
+											0
+										);
+										const masks =
+											first.type === "none"
+												? []
+												: [first, ...existing.slice(1)];
+										return { ...el, ...updates, mask: first, masks };
+									}
+									return { ...el, ...updates };
+								}),
 							}
 						: t
 				)

@@ -9,7 +9,13 @@
 
 "use client";
 
-import React, { useCallback, useMemo, useState } from "react";
+import {
+	type ChangeEvent,
+	type MouseEvent,
+	useCallback,
+	useMemo,
+	useState,
+} from "react";
 import { Plus, Trash2, Diamond, ChevronDown } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -61,6 +67,8 @@ export interface KeyframeEditorProps {
 	fps?: number;
 	/** Current frame for preview */
 	currentFrame?: number;
+	/** Value used when the property has no keyframes yet. */
+	currentValueWhenEmpty?: unknown;
 	/** Called when a keyframe is added */
 	onKeyframeAdd: (frame: number, value: unknown) => void;
 	/** Called when a keyframe is updated */
@@ -177,7 +185,7 @@ function KeyframeEditPanel({
 	);
 	const [localEasing, setLocalEasing] = useState(keyframe.easing);
 
-	const handleFrameChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+	const handleFrameChange = (e: ChangeEvent<HTMLInputElement>) => {
 		const frame = parseInt(e.target.value, 10);
 		if (!isNaN(frame) && frame >= 0 && frame <= durationInFrames) {
 			setLocalFrame(frame);
@@ -191,7 +199,7 @@ function KeyframeEditPanel({
 		}
 	};
 
-	const handleValueChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+	const handleValueChange = (e: ChangeEvent<HTMLInputElement>) => {
 		const val = e.target.value;
 		setLocalValue(val);
 		if (propType === "number") {
@@ -308,6 +316,7 @@ export function KeyframeEditor({
 	durationInFrames,
 	fps = 30,
 	currentFrame = 0,
+	currentValueWhenEmpty,
 	onKeyframeAdd,
 	onKeyframeUpdate,
 	onKeyframeDelete,
@@ -323,12 +332,14 @@ export function KeyframeEditor({
 
 	// Calculate current interpolated value
 	const currentValue = useMemo(() => {
-		if (keyframes.length === 0) return propType === "color" ? "#000000" : 0;
+		if (keyframes.length === 0) {
+			return currentValueWhenEmpty ?? (propType === "color" ? "#000000" : 0);
+		}
 		if (propType === "color") {
 			return interpolateColor(keyframes, currentFrame);
 		}
 		return interpolateNumber(keyframes, currentFrame);
-	}, [keyframes, currentFrame, propType]);
+	}, [keyframes, currentFrame, currentValueWhenEmpty, propType]);
 
 	// Selected keyframe
 	const selectedKeyframe = useMemo(
@@ -338,9 +349,10 @@ export function KeyframeEditor({
 
 	// Handle adding a keyframe at current frame
 	const handleAddKeyframe = useCallback(() => {
-		const value = propType === "color" ? "#ffffff" : 0;
+		const value =
+			currentValueWhenEmpty ?? (propType === "color" ? "#ffffff" : 0);
 		onKeyframeAdd(currentFrame, value);
-	}, [currentFrame, propType, onKeyframeAdd]);
+	}, [currentFrame, currentValueWhenEmpty, propType, onKeyframeAdd]);
 
 	// Handle updating a keyframe
 	const handleUpdateKeyframe = useCallback(
@@ -362,7 +374,7 @@ export function KeyframeEditor({
 
 	// Handle clicking on the track to add a keyframe
 	const handleTrackClick = useCallback(
-		(e: React.MouseEvent<HTMLDivElement>) => {
+		(e: MouseEvent<HTMLDivElement>) => {
 			if (disabled) return;
 
 			const rect = e.currentTarget.getBoundingClientRect();
@@ -382,13 +394,22 @@ export function KeyframeEditor({
 				setSelectedKeyframeId(nearbyKeyframe.id);
 			} else {
 				const value =
-					propType === "color"
-						? interpolateColor(keyframes, frame)
-						: interpolateNumber(keyframes, frame);
+					keyframes.length === 0
+						? (currentValueWhenEmpty ?? (propType === "color" ? "#ffffff" : 0))
+						: propType === "color"
+							? interpolateColor(keyframes, frame)
+							: interpolateNumber(keyframes, frame);
 				onKeyframeAdd(frame, value);
 			}
 		},
-		[disabled, durationInFrames, keyframes, propType, onKeyframeAdd]
+		[
+			disabled,
+			durationInFrames,
+			keyframes,
+			propType,
+			currentValueWhenEmpty,
+			onKeyframeAdd,
+		]
 	);
 
 	// Current playhead position percentage (guard against division by zero)
@@ -398,10 +419,19 @@ export function KeyframeEditor({
 	return (
 		<div className="space-y-2">
 			{/* Header */}
-			<button
-				type="button"
+			<div
+				role="button"
+				tabIndex={0}
 				className="flex items-center justify-between w-full text-left hover:bg-accent/50 rounded px-1 py-0.5 -mx-1"
 				onClick={() => setIsExpanded(!isExpanded)}
+				onKeyDown={(event) => {
+					if (event.target !== event.currentTarget) return;
+					if (event.key !== "Enter" && event.key !== " ") return;
+					event.preventDefault();
+					setIsExpanded(!isExpanded);
+				}}
+				aria-expanded={isExpanded}
+				aria-label={`${isExpanded ? "Collapse" : "Expand"} ${propLabel} keyframes`}
 			>
 				<div className="flex items-center gap-2">
 					<ChevronDown
@@ -431,9 +461,11 @@ export function KeyframeEditor({
 						<Tooltip>
 							<TooltipTrigger asChild>
 								<Button
+									type="button"
 									variant="outline"
 									size="icon"
 									className="h-5 w-5"
+									aria-label="Add keyframe at current frame"
 									onClick={(e) => {
 										e.stopPropagation();
 										handleAddKeyframe();
@@ -447,7 +479,7 @@ export function KeyframeEditor({
 						</Tooltip>
 					</TooltipProvider>
 				</div>
-			</button>
+			</div>
 
 			{/* Timeline Track */}
 			{isExpanded && (
@@ -500,6 +532,7 @@ export function KeyframeEditor({
 						{sortedKeyframes.length >= 2 && propType === "number" && (
 							<svg
 								className="absolute inset-0 w-full h-full pointer-events-none"
+								viewBox="0 0 100 100"
 								preserveAspectRatio="none"
 								aria-hidden="true"
 							>
@@ -522,7 +555,7 @@ export function KeyframeEditor({
 												100 -
 												(((kf.value as number) - minVal) / range) * 80 -
 												10;
-											return `${x}%,${y}%`;
+											return `${x},${y}`;
 										})
 										.join(" ")}
 									fill="none"

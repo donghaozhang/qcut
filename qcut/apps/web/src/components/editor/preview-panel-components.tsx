@@ -28,10 +28,9 @@ import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
 import { formatTimeCode } from "@/lib/time";
 import { EditableTimecode } from "@/components/ui/editable-timecode";
 import { BackgroundSettings } from "../background-settings";
-// Import sticker overlay for fullscreen mode
-import { StickerCanvas } from "./stickers-overlay/StickerCanvas";
 import type { TProject } from "@/types/project";
 import type { ActiveElement } from "./preview-panel/types";
+import { AdjustmentLayerStack } from "./preview-panel/adjustment-layer-stack";
 
 // Component 1: FullscreenToolbar (no dependencies)
 export function FullscreenToolbar({
@@ -262,13 +261,13 @@ export function FullscreenPreview({
 							No elements at current time
 						</div>
 					) : (
-						activeElements.map((elementData, index) =>
-							renderElement(elementData, index)
-						)
+						<AdjustmentLayerStack
+							activeElements={activeElements}
+							currentTime={currentTime}
+							renderElement={renderElement}
+						/>
 					)}
 
-					{/* Sticker overlay in fullscreen mode */}
-					<StickerCanvas className="absolute inset-0" />
 					{activeProject?.backgroundType === "blur" &&
 						blurBackgroundElements.length === 0 &&
 						activeElements.length > 0 && (

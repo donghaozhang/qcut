@@ -47,6 +47,11 @@ interface MediaStore extends FolderActions {
 		projectId: string,
 		item: Omit<MediaItem, "id"> & { id?: string }
 	) => Promise<string>;
+	updateMediaItem: (
+		projectId: string,
+		id: string,
+		updates: Partial<Omit<MediaItem, "id">>
+	) => Promise<boolean>;
 	addGeneratedImages: (
 		items: Array<{
 			id?: string;
@@ -326,6 +331,40 @@ export const useMediaStore = create<MediaStore>((set, get) => ({
 				),
 			}));
 			throw error;
+		}
+	},
+
+	updateMediaItem: async (projectId, id, updates) => {
+		const previous = get().mediaItems.find((item) => item.id === id);
+		if (!previous) return false;
+		const updated: MediaItem = { ...previous, ...updates, id };
+		set((state) => ({
+			mediaItems: state.mediaItems.map((item) =>
+				item.id === id ? updated : item
+			),
+		}));
+		try {
+			await storageService.saveMediaItem(projectId, updated);
+			if (
+				updated.type === "video" &&
+				updated.file !== previous.file &&
+				!updated.thumbnailUrl
+			) {
+				void extractVideoMetadataBackground(updated.file, id, projectId);
+			}
+			return true;
+		} catch (error) {
+			set((state) => ({
+				mediaItems: state.mediaItems.map((item) =>
+					item.id === id ? previous : item
+				),
+			}));
+			handleStorageError(error, "Update media item", {
+				projectId,
+				itemId: id,
+				operation: "saveMediaItem",
+			});
+			return false;
 		}
 	},
 
