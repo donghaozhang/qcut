@@ -1,6 +1,7 @@
 import type {
 	MediaAdjustments,
 	MediaChromaKey,
+	MediaCustomCutout,
 	MediaElement,
 	MediaEnhancements,
 	MediaMask,
@@ -160,7 +161,9 @@ export function buildMediaEnhancementCssFilter(
 }
 
 export function buildMediaMaskStyle(
-	maskOrMasks?: Partial<MediaMask> | MediaMask[]
+	maskOrMasks?: Partial<MediaMask> | MediaMask[],
+	customCutout?: Partial<MediaCustomCutout>,
+	currentFrame = 0
 ): {
 	maskImage?: string;
 	WebkitMaskImage?: string;
@@ -174,7 +177,11 @@ export function buildMediaMaskStyle(
 		: maskOrMasks?.type && maskOrMasks.type !== "none"
 			? [{ ...DEFAULT_MEDIA_MASK, ...maskOrMasks }]
 			: [];
-	const image = mediaMaskSvgDataUrl(masks as MediaMask[]);
+	const image = mediaMaskSvgDataUrl(
+		masks as MediaMask[],
+		customCutout,
+		currentFrame
+	);
 	if (!image) return {};
 	return {
 		maskImage: image,

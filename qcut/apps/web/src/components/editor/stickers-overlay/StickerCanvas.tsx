@@ -9,6 +9,7 @@ import React, { useRef, useEffect, memo } from "react";
 import { useStickersOverlayStore } from "@/stores/stickers-overlay-store";
 import { useAsyncMediaStore } from "@/hooks/media/use-async-media-store";
 import { cn } from "@/lib/utils";
+import { useCustomCutoutEditorStore } from "@/stores/editor/custom-cutout-editor-store";
 import { debugLog } from "@/lib/debug/debug-config";
 import { StickerElement } from "./StickerElement";
 import { StickerOverlayAutoSave } from "./AutoSave";
@@ -45,6 +46,9 @@ export const StickerCanvas: React.FC<{
 	const mediaStoreInitialized = mediaStore?.hasInitialized || false;
 	const { activeProject } = useProjectStore();
 	const { currentTime } = usePlaybackStore();
+	const customCutoutEditing = useCustomCutoutEditorStore(
+		(state) => state.editing
+	);
 
 	// Debug state tracking for timing analysis (Task 2.1)
 	useEffect(() => {
@@ -338,7 +342,11 @@ export const StickerCanvas: React.FC<{
 
 			<div
 				ref={canvasRef}
-				className={cn("absolute inset-0 z-50 pointer-events-auto", className)}
+				className={cn(
+					"absolute inset-0 z-50",
+					customCutoutEditing ? "pointer-events-none" : "pointer-events-auto",
+					className
+				)}
 				onClick={handleCanvasClick}
 				onDragOver={handleDragOver}
 				onDrop={handleDrop}

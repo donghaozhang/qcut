@@ -1,5 +1,10 @@
-import type { MediaMask, MediaMaskPoint } from "@/types/timeline";
+import type {
+	MediaCustomCutout,
+	MediaMask,
+	MediaMaskPoint,
+} from "@/types/timeline";
 import { normalizeMediaMask } from "./video-properties";
+import { buildMediaCustomCutoutSvgContent } from "./media-custom-cutout";
 
 const SVG_SIZE = 100;
 
@@ -212,12 +217,18 @@ function buildShape(
 }
 
 export function buildCombinedMediaMaskSvg(
-	inputMasks: MediaMask[]
+	inputMasks: MediaMask[],
+	customCutout?: Partial<MediaCustomCutout>,
+	currentFrame = 0
 ): string | null {
 	const masks = inputMasks
 		.map((mask, index) => normalizeMediaMask(mask, index))
 		.filter((mask) => mask.enabled && mask.type !== "none");
-	if (masks.length === 0) return null;
+	const customContent = buildMediaCustomCutoutSvgContent({
+		customCutout,
+		currentFrame,
+	});
+	if (masks.length === 0 && !customContent) return null;
 
 	const defs: string[] = [];
 	let content = "";
@@ -236,16 +247,31 @@ export function buildCombinedMediaMaskSvg(
 			content += `<rect width="100" height="100" fill="${operation === "subtract" ? "black" : "white"}" mask="url(#${shapeMaskId})"/>`;
 		}
 	}
+	if (customContent) {
+		const customMaskId = "custom-cutout-mask";
+		defs.push(
+			`<mask id="${customMaskId}" maskUnits="userSpaceOnUse"><rect width="100" height="100" fill="${customContent.baseColor}"/>${customContent.shapes}</mask>`
+		);
+		content = `<g mask="url(#${customMaskId})">${content || '<rect width="100" height="100" fill="white"/>'}</g>`;
+	}
 
 	return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100"><defs>${defs.join("")}</defs><rect width="100" height="100" fill="black"/>${content}</svg>`;
 }
 
-export function mediaMaskSvgUrl(masks: MediaMask[]): string | null {
-	const svg = buildCombinedMediaMaskSvg(masks);
+export function mediaMaskSvgUrl(
+	masks: MediaMask[],
+	customCutout?: Partial<MediaCustomCutout>,
+	currentFrame = 0
+): string | null {
+	const svg = buildCombinedMediaMaskSvg(masks, customCutout, currentFrame);
 	return svg ? `data:image/svg+xml,${encodeURIComponent(svg)}` : null;
 }
 
-export function mediaMaskSvgDataUrl(masks: MediaMask[]): string | null {
-	const url = mediaMaskSvgUrl(masks);
+export function mediaMaskSvgDataUrl(
+	masks: MediaMask[],
+	customCutout?: Partial<MediaCustomCutout>,
+	currentFrame = 0
+): string | null {
+	const url = mediaMaskSvgUrl(masks, customCutout, currentFrame);
 	return url ? `url("${url}")` : null;
 }

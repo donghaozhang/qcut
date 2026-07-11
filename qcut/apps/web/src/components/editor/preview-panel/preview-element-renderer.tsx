@@ -38,6 +38,7 @@ import {
 	selectMediaAudioSources,
 } from "@/lib/audio/audio-source-selection";
 import { ColorPreviewCanvas } from "./color-preview-canvas";
+import { CustomCutoutOverlay } from "./custom-cutout-overlay";
 import {
 	selectAudioPreviewBypassed,
 	useAudioPreviewStore,
@@ -533,7 +534,16 @@ export function PreviewElementRenderer({
 				const outputMasks = geometricMasks.filter(
 					(mask) => !mask.id || !gradeMaskIds.has(mask.id)
 				);
-				const maskStyle = buildMediaMaskStyle(outputMasks);
+				const maskStyle = buildMediaMaskStyle(
+					outputMasks,
+					visual.customCutout,
+					Math.max(
+						0,
+						Math.round(
+							(currentTime - element.startTime) * (activeProject?.fps ?? 30)
+						)
+					)
+				);
 				const sourceVideoId = generatedMaskSource
 					? `${mediaItem.id}-mask-${generatedMask?.sourceMediaId}`
 					: mediaItem.id;
@@ -652,6 +662,17 @@ export function PreviewElementRenderer({
 							) : null}
 							{derivedAudioPlayers}
 						</div>
+						<CustomCutoutOverlay
+							element={element}
+							trackId={elementData.track.id}
+							currentFrame={Math.max(
+								0,
+								Math.round(
+									(currentTime - element.startTime) *
+										(activeProject?.fps ?? 30)
+								)
+							)}
+						/>
 						{selectedMask ? (
 							<MediaMaskOverlay
 								element={element}
@@ -681,7 +702,16 @@ export function PreviewElementRenderer({
 				const outputMasks = visual.masks.filter(
 					(mask) => !mask.id || !gradeMaskIds.has(mask.id)
 				);
-				const maskStyle = buildMediaMaskStyle(outputMasks);
+				const maskStyle = buildMediaMaskStyle(
+					outputMasks,
+					visual.customCutout,
+					Math.max(
+						0,
+						Math.round(
+							(currentTime - element.startTime) * (activeProject?.fps ?? 30)
+						)
+					)
+				);
 				const selectedMask =
 					isEditingMask && selectedMaskElementId === element.id
 						? visual.masks.find((mask) => mask.id === selectedMaskId)

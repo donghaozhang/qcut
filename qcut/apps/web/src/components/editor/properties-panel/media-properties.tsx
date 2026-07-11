@@ -62,6 +62,7 @@ import {
 	upsertMediaKeyframe,
 } from "@/lib/video/video-properties";
 import { getMediaTimelineDuration } from "@/lib/video/video-timing";
+import { DEFAULT_MEDIA_CUSTOM_CUTOUT } from "@/lib/video/media-custom-cutout";
 import {
 	PropertyGroup,
 	PropertyItem,
@@ -73,6 +74,7 @@ import { MediaMaskProperties } from "./media-mask-properties";
 import { MaskIconButton } from "./media-mask-controls";
 import { MediaAutomaticCutoutProperties } from "./media-automatic-cutout-properties";
 import { MediaChromaKeyProperties } from "./media-chroma-key-properties";
+import { MediaCustomCutoutProperties } from "./media-custom-cutout-properties";
 import {
 	AudioPropertiesPanel,
 	defaultAudioUpdates,
@@ -519,6 +521,7 @@ export function MediaProperties({
 			comboAnimationIntensity: 0.5,
 			...defaultColorUpdates(),
 			mask: { ...DEFAULT_MEDIA_MASK },
+			customCutout: { ...DEFAULT_MEDIA_CUSTOM_CUTOUT, strokes: [] },
 			chromaKey: { ...DEFAULT_MEDIA_CHROMA_KEY },
 			enhancements: { ...DEFAULT_MEDIA_ENHANCEMENTS },
 			...defaultAudioUpdates(),
@@ -1309,6 +1312,7 @@ export function MediaProperties({
 
 				<TabsContent value="cutout" className="mt-4 space-y-4">
 					<MediaAutomaticCutoutProperties element={element} />
+					<MediaCustomCutoutProperties element={element} trackId={trackId} />
 					<MediaChromaKeyProperties element={element} trackId={trackId} />
 				</TabsContent>
 

@@ -38,6 +38,7 @@ export type MediaAttributeSnapshot = Partial<
 		| "color"
 		| "mask"
 		| "masks"
+		| "customCutout"
 		| "chromaKey"
 		| "enhancements"
 		| "audio"
@@ -84,6 +85,7 @@ const MEDIA_ATTRIBUTE_KEYS = [
 	"color",
 	"mask",
 	"masks",
+	"customCutout",
 	"chromaKey",
 	"enhancements",
 	"audio",

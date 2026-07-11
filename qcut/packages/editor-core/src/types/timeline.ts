@@ -247,6 +247,33 @@ export interface MediaMask {
 	stroke?: MediaMaskStroke;
 }
 
+export type MediaCustomCutoutBrushMode = "foreground" | "background";
+
+export interface MediaCustomCutoutPoint {
+	x: number;
+	y: number;
+}
+
+export interface MediaCustomCutoutStroke {
+	id: string;
+	/** Timeline frame relative to the beginning of the clip. */
+	frame: number;
+	mode: MediaCustomCutoutBrushMode;
+	size: number;
+	points: MediaCustomCutoutPoint[];
+}
+
+export interface MediaCustomCutout {
+	enabled: boolean;
+	applyStrokes: boolean;
+	strokes: MediaCustomCutoutStroke[];
+	status?: "idle" | "processing" | "ready" | "error";
+	error?: string;
+	sourceMediaId?: string;
+	resultMaskId?: string;
+	generatedFrom?: string;
+}
+
 export interface MediaChromaKey {
 	enabled: boolean;
 	color: string;
@@ -369,6 +396,124 @@ export interface AudioTelephoneSettings {
 	mix: number;
 }
 
+export type AudioChannelMode =
+	| "stereo"
+	| "mono"
+	| "left"
+	| "right"
+	| "swap";
+
+export type AudioParametricFilterType =
+	| "bell"
+	| "low-shelf"
+	| "high-shelf"
+	| "notch";
+
+export interface AudioParametricEqBand {
+	id: string;
+	enabled: boolean;
+	type: AudioParametricFilterType;
+	frequencyHz: number;
+	gainDb: number;
+	q: number;
+}
+
+export interface AudioParametricEqualizerSettings {
+	enabled: boolean;
+	lowCutHz: number;
+	highCutHz: number;
+	bands: AudioParametricEqBand[];
+}
+
+export interface AudioRepairSettings {
+	deEsser: {
+		enabled: boolean;
+		amount: number;
+		frequencyHz: number;
+	};
+	deReverb: {
+		enabled: boolean;
+		amount: number;
+	};
+	deHum: {
+		enabled: boolean;
+		frequencyHz: 50 | 60;
+		harmonics: number;
+	};
+	dePlosive: {
+		enabled: boolean;
+		amount: number;
+	};
+	deClick: {
+		enabled: boolean;
+		amount: number;
+	};
+	deClip: {
+		enabled: boolean;
+		amount: number;
+	};
+	noiseGate: {
+		enabled: boolean;
+		thresholdDb: number;
+		attackMs: number;
+		releaseMs: number;
+	};
+}
+
+export interface AudioDuckingSettings {
+	enabled: boolean;
+	sourceTrackIds: string[];
+	thresholdDb: number;
+	reductionDb: number;
+	attackMs: number;
+	releaseMs: number;
+}
+
+export interface AudioAutoCrossfadeSettings {
+	enabled: boolean;
+	defaultDuration: number;
+	curve: "linear" | "equal-power";
+}
+
+export interface AudioCrossfade {
+	id: string;
+	fromElementId: string;
+	toElementId: string;
+	duration: number;
+	curve: "linear" | "equal-power";
+}
+
+export interface AudioBusEffectsSettings {
+	parametricEqualizer: AudioParametricEqualizerSettings;
+	compressor: AudioCompressorSettings;
+	limiter: AudioLimiterSettings;
+}
+
+export interface TimelineTrackAudioSettings {
+	gainDb: number;
+	pan: number;
+	solo: boolean;
+	busId: string;
+	effects: AudioBusEffectsSettings;
+	ducking: AudioDuckingSettings;
+	autoCrossfade: AudioAutoCrossfadeSettings;
+}
+
+export interface AudioMixBusSettings {
+	id: string;
+	name: string;
+	gainDb: number;
+	pan: number;
+	muted: boolean;
+	solo: boolean;
+	effects: AudioBusEffectsSettings;
+}
+
+export interface ProjectAudioMixSettings {
+	master: AudioMixBusSettings;
+	buses: AudioMixBusSettings[];
+}
+
 export type AudioStemName =
 	| "vocals"
 	| "instrumental"
@@ -423,6 +568,9 @@ export interface AudioLyricsSettings {
 	words: AudioLyricsWord[];
 	sourceMediaId?: string;
 	captionTrackId?: string;
+	sourceFormat?: "transcription" | "lrc" | "srt" | "vtt";
+	speakerNames?: Record<string, string>;
+	maxWordsPerLine?: number;
 	error?: string;
 }
 
@@ -431,6 +579,7 @@ export interface MediaAudioSettings {
 	volumeDb: number;
 	fadeIn: number;
 	fadeOut: number;
+	channelMode: AudioChannelMode;
 	panEnabled: boolean;
 	pan: number;
 	loudness: AudioLoudnessSettings;
@@ -438,6 +587,8 @@ export interface MediaAudioSettings {
 	voiceEnhance: AudioVoiceEnhanceSettings;
 	pitch: AudioPitchSettings;
 	equalizer: AudioEqualizerSettings;
+	parametricEqualizer: AudioParametricEqualizerSettings;
+	repair: AudioRepairSettings;
 	compressor: AudioCompressorSettings;
 	limiter: AudioLimiterSettings;
 	reverb: AudioReverbSettings;
@@ -478,6 +629,7 @@ export interface MediaElement extends BaseTimelineElement {
 	mask?: MediaMask;
 	/** Ordered non-destructive mask stack. */
 	masks?: MediaMask[];
+	customCutout?: MediaCustomCutout;
 	chromaKey?: MediaChromaKey;
 	enhancements?: MediaEnhancements;
 	/** Canonical non-destructive audio processing state. */
@@ -671,6 +823,8 @@ export interface TimelineTrack {
 	/** Zero-based UI order. Lower values appear higher and composite later. */
 	order?: number;
 	muted?: boolean;
+	audio?: TimelineTrackAudioSettings;
+	audioCrossfades?: AudioCrossfade[];
 	hidden?: boolean;
 	locked?: boolean;
 	isMain?: boolean;

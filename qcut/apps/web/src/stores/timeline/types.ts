@@ -505,6 +505,7 @@ export interface TimelineStore {
 				| "color"
 				| "mask"
 				| "masks"
+				| "customCutout"
 				| "chromaKey"
 				| "enhancements"
 				| "audio"

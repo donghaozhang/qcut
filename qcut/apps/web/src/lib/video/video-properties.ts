@@ -6,6 +6,7 @@ import type {
 	MediaMask,
 	MediaMaskKeyframeProperty,
 	MediaChromaKey,
+	MediaCustomCutout,
 	MediaEnhancements,
 	MediaKeyframeProperty,
 	MediaPerspective,
@@ -26,6 +27,7 @@ import {
 	normalizeMediaChromaKey,
 	resolveMediaChromaKeyAtTime,
 } from "./media-chroma-key";
+import { normalizeMediaCustomCutout } from "./media-custom-cutout";
 
 export { DEFAULT_MEDIA_CHROMA_KEY } from "./media-chroma-key";
 
@@ -119,6 +121,7 @@ export interface ResolvedMediaVisualProperties {
 	color: MediaColorSettings;
 	mask: MediaMask;
 	masks: MediaMask[];
+	customCutout: MediaCustomCutout;
 	chromaKey: MediaChromaKey;
 	enhancements: MediaEnhancements;
 }
@@ -362,6 +365,7 @@ export function resolveMediaVisualProperties(
 			masks[0] ??
 			normalizeMediaMask({ ...DEFAULT_MEDIA_MASK, ...element.mask }),
 		masks,
+		customCutout: normalizeMediaCustomCutout(element.customCutout),
 		chromaKey: normalizeMediaChromaKey(element.chromaKey),
 		enhancements: {
 			...DEFAULT_MEDIA_ENHANCEMENTS,
@@ -513,6 +517,7 @@ export function hasMediaVisualEdits(element: MediaElement): boolean {
 		visual.comboAnimationType !== "none" ||
 		hasMediaColorEdits({ settings: visual.color }) ||
 		visual.masks.length > 0 ||
+		(visual.customCutout.enabled && visual.customCutout.strokes.length > 0) ||
 		visual.chromaKey.enabled ||
 		Object.entries(visual.enhancements).some(([key, value]) =>
 			key === "upscale" ? value !== 1 : value !== 0
