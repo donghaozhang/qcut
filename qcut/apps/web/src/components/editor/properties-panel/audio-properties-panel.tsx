@@ -81,6 +81,9 @@ export function AudioPropertiesPanel({
 	const setElementBypassed = useAudioPreviewStore(
 		(state) => state.setElementBypassed
 	);
+	const clearPreviewElement = useAudioPreviewStore(
+		(state) => state.clearElement
+	);
 	const settings = normalizeMediaAudioSettings({ element });
 	const resolvedSettings = resolveMediaAudioSettings({
 		element,
@@ -260,6 +263,10 @@ export function AudioPropertiesPanel({
 		});
 		return () => cancelAnimationFrame(animationFrame);
 	}, [audioRequest, element.id]);
+	useEffect(
+		() => () => clearPreviewElement({ elementId: element.id }),
+		[clearPreviewElement, element.id]
+	);
 	const bindings: AudioSettingsEditorBindings = {
 		settings,
 		resolvedSettings,

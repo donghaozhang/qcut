@@ -137,7 +137,8 @@ export function resetMediaAudioProcessing({
 			...next.loudness,
 			measuredLufs: settings.loudness.measuredLufs,
 			measuredTruePeakDb: settings.loudness.measuredTruePeakDb,
-			analysisStatus: settings.loudness.measuredLufs ? "ready" : "idle",
+			analysisStatus:
+				settings.loudness.measuredLufs !== undefined ? "ready" : "idle",
 		},
 		denoise: {
 			...next.denoise,

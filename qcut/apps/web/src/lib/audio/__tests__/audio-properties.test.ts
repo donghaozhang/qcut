@@ -167,6 +167,10 @@ describe("media audio properties", () => {
 			settings: {
 				...DEFAULT_MEDIA_AUDIO_SETTINGS,
 				volumeDb: 8,
+				loudness: {
+					...DEFAULT_MEDIA_AUDIO_SETTINGS.loudness,
+					measuredLufs: 0,
+				},
 				equalizer: {
 					...DEFAULT_MEDIA_AUDIO_SETTINGS.equalizer,
 					enabled: true,
@@ -202,6 +206,7 @@ describe("media audio properties", () => {
 		});
 
 		expect(reset.volumeDb).toBe(0);
+		expect(reset.loudness.analysisStatus).toBe("ready");
 		expect(reset.equalizer.enabled).toBe(false);
 		expect(reset.denoise).toMatchObject({
 			enabled: false,

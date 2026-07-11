@@ -155,6 +155,22 @@ test.describe("Professional audio properties", () => {
 		const panel = page.getByTestId("audio-properties-panel");
 		await expect(panel).toBeVisible();
 		await expect(panel.getByRole("tab")).toHaveCount(5);
+		await panel.getByTestId("audio-preview-playback").click();
+		await expect
+			.poll(() =>
+				page.evaluate(
+					() => (window as any).__playbackStore.getState().isPlaying
+				)
+			)
+			.toBe(true);
+		await panel.getByTestId("audio-preview-playback").click();
+		await expect
+			.poll(() =>
+				page.evaluate(
+					() => (window as any).__playbackStore.getState().isPlaying
+				)
+			)
+			.toBe(false);
 
 		await setAudioNumber({ page, label: "Volume", value: 6 });
 		await panel.getByLabel("Add Volume keyframe").click();
@@ -217,6 +233,12 @@ test.describe("Professional audio properties", () => {
 		await panel.getByTestId("audio-module-pitch").locator("summary").click();
 		await setAudioNumber({ page, label: "Pitch", value: 3 });
 		await page.mouse.move(4, 4);
+		await page.evaluate(() => {
+			if (document.activeElement instanceof HTMLElement) {
+				document.activeElement.blur();
+			}
+		});
+		await page.waitForTimeout(250);
 		await panel.screenshot({
 			path: path.join(outputDir, "03-audio-basic-processing.png"),
 			animations: "disabled",

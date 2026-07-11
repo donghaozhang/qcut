@@ -65,6 +65,7 @@ export function AudioSeparationSettings({
 						),
 						error: undefined,
 					},
+					cover: { ...settings.cover, enabled: false },
 				})
 			}
 			testId="audio-module-separation"
@@ -134,6 +135,16 @@ export function AudioSeparationSettings({
 								separation: {
 									...DEFAULT_MEDIA_AUDIO_SETTINGS.separation,
 								},
+								voiceConversion:
+									settings.voiceConversion.sourceStem === "vocals"
+										? {
+												...DEFAULT_MEDIA_AUDIO_SETTINGS.voiceConversion,
+											}
+										: settings.voiceConversion,
+								cover:
+									settings.voiceConversion.sourceStem === "vocals"
+										? { ...DEFAULT_MEDIA_AUDIO_SETTINGS.cover }
+										: settings.cover,
 							})
 						}
 						onKeyDown={(event) => activateButtonFromKeyboard({ event })}
@@ -201,6 +212,10 @@ export function AudioVoiceConversionSettings({
 						enabled: false,
 						error: undefined,
 					},
+					cover:
+						settings.voiceConversion.sourceStem === "vocals"
+							? { ...settings.cover, enabled: false }
+							: settings.cover,
 				})
 			}
 			testId="audio-module-voice-conversion"
@@ -293,6 +308,10 @@ export function AudioVoiceConversionSettings({
 								voiceConversion: {
 									...DEFAULT_MEDIA_AUDIO_SETTINGS.voiceConversion,
 								},
+								cover:
+									settings.voiceConversion.sourceStem === "vocals"
+										? { ...DEFAULT_MEDIA_AUDIO_SETTINGS.cover }
+										: settings.cover,
 							})
 						}
 						onKeyDown={(event) => activateButtonFromKeyboard({ event })}
