@@ -89,6 +89,9 @@ jobs:
 
       - name: Build web application
         run: bun run build
+        env:
+          # vite build exceeds Node's default ~2GB heap on the macOS runner
+          NODE_OPTIONS: --max-old-space-size=4096
 
       - name: Build Electron scripts
         run: bun run build:electron
@@ -164,6 +167,9 @@ jobs:
 
       - name: Build web application
         run: bun run build
+        env:
+          # vite build exceeds Node's default ~2GB heap on the macOS runner
+          NODE_OPTIONS: --max-old-space-size=4096
 
       - name: Build Electron scripts
         run: bun run build:electron
@@ -253,6 +259,9 @@ jobs:
 
       - name: Build web application
         run: bun run build
+        env:
+          # vite build exceeds Node's default ~2GB heap on the macOS runner
+          NODE_OPTIONS: --max-old-space-size=4096
 
       - name: Build Electron scripts
         run: bun run build:electron
