@@ -8,7 +8,11 @@
  */
 
 import type { VideoSourceInput } from "../types";
-import type { TimelineTrack, TimelineElement } from "@/types/timeline";
+import {
+	sortTracksByOrder,
+	type TimelineTrack,
+	type TimelineElement,
+} from "@/types/timeline";
 import type { MediaItem } from "@/stores/media/media-store";
 import { platform, PlatformCapability } from "@qcut/platform-core";
 import { resolveMediaVisualProperties } from "@/lib/video/video-properties";
@@ -116,11 +120,18 @@ export async function extractVideoSources(
 ): Promise<VideoSourceInput[]> {
 	const api = videoAPI ?? (platform().video as unknown as VideoSaveTempAPI);
 	const videoSources: VideoSourceInput[] = [];
+	const orderedTracks = sortTracksByOrder(tracks);
 
-	for (const track of tracks) {
+	for (let trackOrder = 0; trackOrder < orderedTracks.length; trackOrder++) {
+		const track = orderedTracks[trackOrder];
 		if (track.type !== "media") continue;
 
-		for (const element of track.elements) {
+		for (
+			let elementOrder = 0;
+			elementOrder < track.elements.length;
+			elementOrder++
+		) {
+			const element = track.elements[elementOrder];
 			if (element.hidden || element.type !== "media") continue;
 
 			const mediaItem = mediaItems.find(
@@ -151,6 +162,9 @@ export async function extractVideoSources(
 
 			videoSources.push({
 				elementId: element.id,
+				trackId: track.id,
+				trackOrder,
+				elementOrder,
 				path: localPath,
 				startTime: element.startTime,
 				duration: element.duration,

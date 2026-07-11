@@ -108,6 +108,10 @@ export interface VideoVisualInput {
 
 export interface VideoSourceInput {
 	elementId: string;
+	trackId?: string;
+	/** UI order, top to bottom. Lower values composite later. */
+	trackOrder?: number;
+	elementOrder?: number;
 	path: string;
 	startTime: number;
 	duration: number;
@@ -163,6 +167,9 @@ export interface AudioFileInput {
  */
 export interface ImageSourceInput {
 	path: string; // Local file path for FFmpeg
+	trackId?: string;
+	trackOrder?: number;
+	elementOrder?: number;
 	startTime: number; // When image appears on timeline
 	duration: number; // How long image is visible
 	width?: number; // Original image width

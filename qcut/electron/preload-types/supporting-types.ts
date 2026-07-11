@@ -110,6 +110,9 @@ export interface FrameData {
 
 export interface VideoSource {
 	elementId?: string;
+	trackId?: string;
+	trackOrder?: number;
+	elementOrder?: number;
 	path: string;
 	startTime: number;
 	duration: number;

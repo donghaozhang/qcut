@@ -78,6 +78,10 @@ export interface GifConversionOptions {
  */
 export interface VideoSource {
 	elementId?: string;
+	trackId?: string;
+	/** UI order, top to bottom. Lower values composite later. */
+	trackOrder?: number;
+	elementOrder?: number;
 	/** File system path to the video file */
 	path: string;
 	/** Start time in the final timeline (seconds) */
@@ -269,6 +273,9 @@ export interface VideoVisual {
 export interface ImageSource {
 	/** File system path to the image file */
 	path: string;
+	trackId?: string;
+	trackOrder?: number;
+	elementOrder?: number;
 	/** Start time in seconds for image appearance */
 	startTime: number;
 	/** Duration in seconds for image display */
