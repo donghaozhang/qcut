@@ -8,8 +8,10 @@
  * @module electron/native-pipeline/cli-handlers-media
  */
 
+import { execFile } from "node:child_process";
 import { mkdirSync, writeFileSync } from "node:fs";
 import { basename, dirname, join, resolve } from "node:path";
+import { promisify } from "node:util";
 import type { CLIRunOptions, CLIResult } from "./cli-runner/types.js";
 import { ModelRegistry } from "../infra/registry.js";
 import type { PipelineStep } from "../execution/executor.js";
@@ -23,6 +25,22 @@ import { runSplitReviewIfNeeded } from "../video-review/review-split-runner.js";
 
 const DEFAULT_VIDEO_ANALYSIS_MODEL = "openrouter_gemini_3_5_flash_video";
 const DEFAULT_REVIEW_MAX_TOKENS = 12_000;
+const execFileAsync = promisify(execFile);
+
+interface AnalyzeVideoClipRange {
+	startTime: number;
+	endTime: number;
+}
+
+interface AnalyzeVideoClipper {
+	clipVideoRange: (options: {
+		input: string;
+		outputDir: string;
+		startTime: number;
+		endTime: number;
+		signal: AbortSignal;
+	}) => Promise<string>;
+}
 
 /** Return true when the input looks like an `http(s)` URL rather than a local path. */
 function isUrl(input: string): boolean {
@@ -48,6 +66,93 @@ function displayNameForVideoInput({ input }: { input: string }): string {
 	if (input.startsWith("data:video/")) return "inline-video.mp4";
 	if (isUrl(input)) return filenameFromUrl(input);
 	return basename(input);
+}
+
+function normalizeAnalyzeClipRange({
+	startTime,
+	endTime,
+}: {
+	startTime?: number;
+	endTime?: number;
+}): { range?: AnalyzeVideoClipRange; error?: string } {
+	const hasStart = startTime !== undefined;
+	const hasEnd = endTime !== undefined;
+	if (!hasStart && !hasEnd) return {};
+	if (!hasStart || !hasEnd) {
+		return { error: "Both --start-time and --end-time are required" };
+	}
+	if (
+		!Number.isFinite(startTime) ||
+		!Number.isFinite(endTime) ||
+		startTime < 0 ||
+		endTime <= startTime
+	) {
+		return { error: "--start-time must be >= 0 and less than --end-time" };
+	}
+	return { range: { startTime, endTime } };
+}
+
+function clipOutputFilePath({
+	input,
+	outputDir,
+	startTime,
+	endTime,
+}: {
+	input: string;
+	outputDir: string;
+	startTime: number;
+	endTime: number;
+}): string {
+	const extWithDot = basename(input).includes(".")
+		? `.${basename(input).split(".").pop()}`
+		: ".mp4";
+	const base = basename(input, extWithDot).replace(/[^a-zA-Z0-9._-]+/g, "-");
+	const startMs = Math.round(startTime * 1000);
+	const endMs = Math.round(endTime * 1000);
+	return join(outputDir, "clip-ranges", `${base}-${startMs}-${endMs}.mp4`);
+}
+
+async function clipVideoRange({
+	input,
+	outputDir,
+	startTime,
+	endTime,
+	signal,
+}: {
+	input: string;
+	outputDir: string;
+	startTime: number;
+	endTime: number;
+	signal: AbortSignal;
+}): Promise<string> {
+	const filePath = clipOutputFilePath({ input, outputDir, startTime, endTime });
+	mkdirSync(dirname(filePath), { recursive: true });
+	await execFileAsync(
+		"ffmpeg",
+		[
+			"-y",
+			"-hide_banner",
+			"-loglevel",
+			"error",
+			"-ss",
+			String(startTime),
+			"-i",
+			input,
+			"-t",
+			String(endTime - startTime),
+			"-c",
+			"copy",
+			"-map",
+			"0:v:0",
+			"-map",
+			"0:a:0?",
+			"-movflags",
+			"+faststart",
+			filePath,
+		],
+		{ signal }
+	);
+	return filePath;
 }
 
 type ProgressFn = (progress: {
@@ -91,9 +196,11 @@ export async function handleAnalyzeVideo(
 	options: CLIRunOptions,
 	onProgress: ProgressFn,
 	executor: PipelineExecutor,
-	signal: AbortSignal
+	signal: AbortSignal,
+	clipper: AnalyzeVideoClipper = { clipVideoRange }
 ): Promise<CLIResult> {
-	const videoInput = options.input || options.videoUrl;
+	const requestedVideoInput = options.input || options.videoUrl;
+	let videoInput = requestedVideoInput;
 	if (!videoInput) {
 		return { success: false, error: "Missing --input/-i (video path/URL)" };
 	}
@@ -143,6 +250,46 @@ Rules: Break into individual shots at scene cuts. Be precise with timing. Write 
 		reviewPromptSet?.master.content ||
 		promptMap[analysisType] ||
 		"Describe this video in detail";
+	const outputDir =
+		options.outputDir ||
+		(isUrl(videoInput) ? process.cwd() : dirname(videoInput));
+	const clipRange = normalizeAnalyzeClipRange({
+		startTime: options.startTime,
+		endTime: options.endTime,
+	});
+	if (clipRange.error) {
+		return { success: false, error: clipRange.error };
+	}
+	if (clipRange.range) {
+		if (isUrl(videoInput) || videoInput.startsWith("data:")) {
+			return {
+				success: false,
+				error: "--start-time/--end-time require a local file input",
+			};
+		}
+		onProgress({
+			stage: "preparing",
+			percent: 0,
+			message: "Preparing selected clip range...",
+			model,
+		});
+		try {
+			videoInput = await clipper.clipVideoRange({
+				input: videoInput,
+				outputDir,
+				startTime: clipRange.range.startTime,
+				endTime: clipRange.range.endTime,
+				signal,
+			});
+		} catch (error) {
+			return {
+				success: false,
+				error: `Failed to prepare selected clip range: ${error instanceof Error ? error.message : String(error)}`,
+				duration: (Date.now() - startTime) / 1000,
+			};
+		}
+	}
+
 	const videoFilename = isUrl(videoInput)
 		? filenameFromUrl(videoInput)
 		: basename(videoInput);
@@ -152,9 +299,6 @@ Rules: Break into individual shots at scene cuts. Be precise with timing. Write 
 	const videoBasename = extWithDot
 		? videoFilename.slice(0, -extWithDot.length)
 		: videoFilename;
-	const outputDir =
-		options.outputDir ||
-		(isUrl(videoInput) ? process.cwd() : dirname(videoInput));
 
 	if (
 		options.maxTokens !== undefined &&

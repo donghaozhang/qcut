@@ -10,12 +10,19 @@ import {
 	buildHslFilters,
 	buildLutFilter,
 	buildManagementFilters,
+	buildSecondaryCurvesFilter,
 	buildWheelFilters,
 } from "./color-filter";
 import {
 	buildColorKeyframeExpression,
 	hasColorKeyframes,
 } from "./color-keyframe-filter";
+import {
+	curveShapeEasingAtFrame,
+	curveShapeFrames,
+	resolveVideoCurveShapes,
+} from "./color-curve-shape";
+import { buildColorShapeFilterGraph } from "./color-shape-keyframe-graph";
 import { buildSmartFilters } from "./color-smart-filter";
 
 export interface VideoColorFilterGraph {
@@ -169,32 +176,117 @@ export function buildVideoColorFilterGraph({
 	});
 
 	if (color.curves.enabled) {
-		const mixAnimated = hasColorKeyframes({
-			visual: colorVisual,
-			property: "curves.mix",
+		const shapeFrames = curveShapeFrames({ color, prefix: "curves." });
+		if (shapeFrames.length > 0) {
+			const shapeGraph = buildColorShapeFilterGraph({
+				visual: colorVisual,
+				inputLabel: current,
+				labelPrefix: prefix,
+				stage: "curves",
+				frames: shapeFrames,
+				mixProperty: "curves.mix",
+				mixFallback: color.curves.mix,
+				filterAtFrame: (frame) =>
+					buildCurvesFilter({
+						color: resolveVideoCurveShapes({ color, frame }),
+						mix: 1,
+					}),
+				easingAtFrame: (frame) =>
+					curveShapeEasingAtFrame({ color, prefix: "curves.", frame }),
+			});
+			filterSteps.push(...shapeGraph.filterSteps);
+			current = shapeGraph.outputLabel;
+		} else {
+			const mixAnimated = hasColorKeyframes({
+				visual: colorVisual,
+				property: "curves.mix",
+			});
+			if (!mixAnimated && color.curves.mix >= 100) {
+				const curves = buildCurvesFilter({ color, mix: 1 });
+				append({ filters: curves ? [curves] : [], name: "curves" });
+			} else if (mixAnimated || color.curves.mix > 0) {
+				const base = nextLabel("curves_base");
+				const input = nextLabel("curves_input");
+				const curved = nextLabel("curved");
+				const output = nextLabel("curves_mix");
+				const curves = buildCurvesFilter({ color, mix: 1 });
+				if (curves) {
+					filterSteps.push(`[${current}]split=2[${base}][${input}]`);
+					filterSteps.push(`[${input}]${curves}[${curved}]`);
+					const amount = buildColorKeyframeExpression({
+						visual: colorVisual,
+						property: "curves.mix",
+						fallback: color.curves.mix,
+						timeVariable: "T",
+					});
+					filterSteps.push(
+						`[${base}][${curved}]blend=all_expr='${blendExpression({ amount })}':shortest=1[${output}]`
+					);
+					current = output;
+				}
+			}
+		}
+	}
+
+	if (color.secondaryCurves.enabled) {
+		const shapeFrames = curveShapeFrames({
+			color,
+			prefix: "secondaryCurves.",
 		});
-		if (!mixAnimated && color.curves.mix >= 100) {
-			const curves = buildCurvesFilter({ color, mix: 1 });
-			append({ filters: curves ? [curves] : [], name: "curves" });
-		} else if (mixAnimated || color.curves.mix > 0) {
-			const base = nextLabel("curves_base");
-			const input = nextLabel("curves_input");
-			const curved = nextLabel("curved");
-			const output = nextLabel("curves_mix");
-			const curves = buildCurvesFilter({ color, mix: 1 });
-			if (curves) {
-				filterSteps.push(`[${current}]split=2[${base}][${input}]`);
-				filterSteps.push(`[${input}]${curves}[${curved}]`);
-				const amount = buildColorKeyframeExpression({
-					visual: colorVisual,
-					property: "curves.mix",
-					fallback: color.curves.mix,
-					timeVariable: "T",
+		if (shapeFrames.length > 0) {
+			const shapeGraph = buildColorShapeFilterGraph({
+				visual: colorVisual,
+				inputLabel: current,
+				labelPrefix: prefix,
+				stage: "secondary_curves",
+				frames: shapeFrames,
+				mixProperty: "secondaryCurves.mix",
+				mixFallback: color.secondaryCurves.mix,
+				filterAtFrame: (frame) =>
+					buildSecondaryCurvesFilter({
+						color: resolveVideoCurveShapes({ color, frame }),
+						mix: 100,
+					}),
+				easingAtFrame: (frame) =>
+					curveShapeEasingAtFrame({
+						color,
+						prefix: "secondaryCurves.",
+						frame,
+					}),
+			});
+			filterSteps.push(...shapeGraph.filterSteps);
+			current = shapeGraph.outputLabel;
+		} else {
+			const mixAnimated = hasColorKeyframes({
+				visual: colorVisual,
+				property: "secondaryCurves.mix",
+			});
+			if (!mixAnimated && color.secondaryCurves.mix >= 100) {
+				const secondaryCurves = buildSecondaryCurvesFilter({ color, mix: 100 });
+				append({
+					filters: secondaryCurves ? [secondaryCurves] : [],
+					name: "secondary_curves",
 				});
-				filterSteps.push(
-					`[${base}][${curved}]blend=all_expr='${blendExpression({ amount })}':shortest=1[${output}]`
-				);
-				current = output;
+			} else if (mixAnimated || color.secondaryCurves.mix > 0) {
+				const base = nextLabel("secondary_curves_base");
+				const input = nextLabel("secondary_curves_input");
+				const graded = nextLabel("secondary_curves_graded");
+				const output = nextLabel("secondary_curves_mix");
+				const secondaryCurves = buildSecondaryCurvesFilter({ color, mix: 100 });
+				if (secondaryCurves) {
+					filterSteps.push(`[${current}]split=2[${base}][${input}]`);
+					filterSteps.push(`[${input}]${secondaryCurves}[${graded}]`);
+					const amount = buildColorKeyframeExpression({
+						visual: colorVisual,
+						property: "secondaryCurves.mix",
+						fallback: color.secondaryCurves.mix,
+						timeVariable: "T",
+					});
+					filterSteps.push(
+						`[${base}][${graded}]blend=all_expr='${blendExpression({ amount })}':shortest=1[${output}]`
+					);
+					current = output;
+				}
 			}
 		}
 	}

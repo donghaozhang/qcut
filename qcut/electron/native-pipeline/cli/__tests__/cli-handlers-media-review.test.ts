@@ -30,10 +30,14 @@ function makeAnalyzeOptions({
 	outputDir,
 	reviewLanguage = "zh",
 	input = "sample-video.mp4",
+	startTime,
+	endTime,
 }: {
 	outputDir: string;
 	reviewLanguage?: string;
 	input?: string;
+	startTime?: number;
+	endTime?: number;
 }): CLIRunOptions {
 	return {
 		command: "analyze-video",
@@ -41,6 +45,8 @@ function makeAnalyzeOptions({
 		outputDir,
 		analysisType: "review",
 		reviewLanguage,
+		startTime,
+		endTime,
 		saveIntermediates: false,
 		json: true,
 		verbose: false,
@@ -54,16 +60,19 @@ function makeAnalyzeOptions({
  */
 function makeExecutor({
 	captured,
+	capturedInputs,
 	text,
 }: {
 	captured: PipelineStep[];
+	capturedInputs?: string[];
 	text?: string;
 }): {
 	executeStep: (step: PipelineStep, input: StepInput) => Promise<StepOutput>;
 } {
 	return {
-		async executeStep(step: PipelineStep, _input: StepInput) {
+		async executeStep(step: PipelineStep, input: StepInput) {
 			captured.push(step);
+			capturedInputs?.push(input.videoUrl ?? "");
 			return {
 				success: true,
 				text:
@@ -192,12 +201,60 @@ describe("handleAnalyzeVideo review mode", () => {
 			"en",
 			"--max-tokens",
 			"16000",
+			"--start-time",
+			"1.25",
+			"--end-time",
+			"4.5",
 		]);
 
 		expect(parsed.command).toBe("analyze-video");
 		expect(parsed.analysisType).toBe("review");
 		expect(parsed.reviewLanguage).toBe("en");
 		expect(parsed.maxTokens).toBe(16_000);
+		expect(parsed.startTime).toBe(1.25);
+		expect(parsed.endTime).toBe(4.5);
+	});
+
+	it("prepares a selected source range before review analysis", async () => {
+		const outputDir = mkdtempSync(path.join(os.tmpdir(), "qcut-review-clip-"));
+		const inputPath = path.join(outputDir, "source.mp4");
+		const clippedPath = path.join(
+			outputDir,
+			"clip-ranges",
+			"source-1000-4000.mp4"
+		);
+		const captured: PipelineStep[] = [];
+		const capturedInputs: string[] = [];
+		const clipperCalls: Array<{
+			input: string;
+			outputDir: string;
+			startTime: number;
+			endTime: number;
+		}> = [];
+
+		const result = await handleAnalyzeVideo(
+			makeAnalyzeOptions({
+				outputDir,
+				input: inputPath,
+				startTime: 1,
+				endTime: 4,
+			}),
+			() => undefined,
+			makeExecutor({ captured, capturedInputs }) as never,
+			new AbortController().signal,
+			{
+				async clipVideoRange({ input, outputDir, startTime, endTime }) {
+					clipperCalls.push({ input, outputDir, startTime, endTime });
+					return clippedPath;
+				},
+			}
+		);
+
+		expect(result.success).toBe(true);
+		expect(clipperCalls).toEqual([
+			{ input: inputPath, outputDir, startTime: 1, endTime: 4 },
+		]);
+		expect(capturedInputs).toEqual([clippedPath]);
 	});
 
 	it("keeps raw analysis artifacts when the model returns malformed JSON", async () => {

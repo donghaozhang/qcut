@@ -5,6 +5,7 @@
  * Extracted for reuse across modules and renderer process typings.
  */
 
+import type { AudioSettings } from "./audio-settings";
 import type { VideoColorSettings } from "./color-settings";
 
 /**
@@ -18,6 +19,8 @@ export interface AudioFile {
 	startTime: number;
 	/** Audio volume level (0.0-1.0, optional) */
 	volume?: number;
+	/** Per-derived-source gain, used when one clip resolves to multiple stems. */
+	sourceGain?: number;
 	/** Trim offset within the source audio/video in seconds */
 	trimStart?: number;
 	/** Trim offset from the end of the source in seconds */
@@ -29,6 +32,7 @@ export interface AudioFile {
 	normalize?: boolean;
 	denoise?: number;
 	pan?: number;
+	audio?: AudioSettings;
 	playbackRate?: number;
 	speedKeyframes?: Array<{
 		id: string;
@@ -127,11 +131,13 @@ export interface VideoMask {
 	maintainAspectRatio?: boolean;
 	invert: boolean;
 	points?: Array<{
+		id?: string;
 		x: number;
 		y: number;
 		handleIn?: { x: number; y: number };
 		handleOut?: { x: number; y: number };
 	}>;
+	closed?: boolean;
 	text?: string;
 	fontFamily?: string;
 	fontWeight?: "normal" | "bold";

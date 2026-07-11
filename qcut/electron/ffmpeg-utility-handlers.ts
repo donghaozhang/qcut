@@ -23,6 +23,7 @@ import type {
 } from "./ffmpeg/types";
 
 import { getFFmpegPath } from "./ffmpeg/utils";
+import { buildStandaloneAudioExportArgs } from "./ffmpeg/audio-export-args";
 import { convertToGif } from "./claude/handlers/claude-export-handler/gif-convert.js";
 
 /**
@@ -65,39 +66,7 @@ export function setupUtilityHandlers(tempManager: TempManager): void {
 			await fs.promises.mkdir(path.dirname(options.outputPath), {
 				recursive: true,
 			});
-			const inputArgs = options.audioFiles.flatMap((file) => ["-i", file.path]);
-			const preparedLabels = options.audioFiles.map((file, index) => {
-				const delayMs = Math.max(0, Math.round(file.startTime * 1000));
-				const trimStart = Math.max(0, file.trimStart ?? 0);
-				const sourceDuration = Math.max(
-					0.01,
-					Math.min(file.duration ?? options.duration, options.duration)
-				);
-				const volume = Number.isFinite(file.volume) ? file.volume : 1;
-				return `[${index}:a]atrim=start=${trimStart}:duration=${sourceDuration},asetpts=PTS-STARTPTS,volume=${volume},adelay=${delayMs}:all=1[a${index}]`;
-			});
-			const inputLabels = options.audioFiles
-				.map((_file, index) => `[a${index}]`)
-				.join("");
-			const mixFilter = `${inputLabels}amix=inputs=${options.audioFiles.length}:duration=longest:dropout_transition=0:normalize=0,atrim=duration=${options.duration}[mix]`;
-			const args = [
-				"-y",
-				...inputArgs,
-				"-filter_complex",
-				[...preparedLabels, mixFilter].join(";"),
-				"-map",
-				"[mix]",
-				"-vn",
-				"-c:a",
-				"libmp3lame",
-				"-b:a",
-				`${options.bitrate}k`,
-				"-ar",
-				String(options.sampleRate),
-				"-ac",
-				String(options.channels ?? 2),
-				options.outputPath,
-			];
+			const args = buildStandaloneAudioExportArgs({ options });
 
 			await new Promise<void>((resolve, reject) => {
 				const ffmpeg = spawn(getFFmpegPath(), args, {

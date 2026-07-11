@@ -19,11 +19,8 @@ import type {
 } from "./ffmpeg/types";
 
 import { QUALITY_SETTINGS, debugLog, debugWarn } from "./ffmpeg/utils";
-import {
-	buildSpeedSamples,
-	buildVideoTimelineFilters,
-	outputTimeAtSource,
-} from "./ffmpeg-video-transform";
+import { buildVideoTimelineFilters } from "./ffmpeg-video-transform";
+import { buildTimelineAudioFilters } from "./ffmpeg/audio-filter-graph";
 
 /**
  * Object options for FFmpeg arg generation.
@@ -63,11 +60,6 @@ export interface BuildFFmpegArgsOptions {
 	backgroundColor?: string;
 }
 
-interface AudioFilterBuildResult {
-	mapAudio: string | null;
-	filterSteps: string[];
-}
-
 function resolveQuality(quality: "high" | "medium" | "low"): QualitySettings {
 	return QUALITY_SETTINGS[quality] || QUALITY_SETTINGS.medium;
 }
@@ -76,247 +68,12 @@ function normalizeConcatPath(filePath: string): string {
 	return filePath.replace(/\\/g, "/").replace(/'/g, "'\\''");
 }
 
-function buildAtempoFilters(rate: number): string[] {
-	const filters: string[] = [];
-	let remaining = Math.min(8, Math.max(0.1, rate));
-	while (remaining > 2) {
-		filters.push("atempo=2");
-		remaining /= 2;
-	}
-	while (remaining < 0.5) {
-		filters.push("atempo=0.5");
-		remaining /= 0.5;
-	}
-	if (Math.abs(remaining - 1) > 1e-6) {
-		filters.push(`atempo=${remaining}`);
-	}
-	return filters;
-}
-
 function escapeFilterPath(filePath: string): string {
 	return filePath
 		.replace(/\\/g, "/")
 		.replace(/'/g, "\\'")
 		.replace(/:/g, "\\:")
 		.replace(/([,;[\]])/g, "\\$1");
-}
-
-function buildAudioFilters(
-	audioFiles: AudioFile[],
-	audioStartIndex: number
-): AudioFilterBuildResult {
-	if (audioFiles.length === 0) {
-		return { mapAudio: null, filterSteps: [] };
-	}
-
-	const singleAudio = audioFiles.length === 1 ? audioFiles[0] : null;
-	if (
-		singleAudio &&
-		(singleAudio.startTime ?? 0) <= 0 &&
-		(singleAudio.volume ?? 1) === 1 &&
-		(singleAudio.trimStart ?? 0) === 0 &&
-		(singleAudio.trimEnd ?? 0) === 0 &&
-		singleAudio.duration === undefined &&
-		(singleAudio.fadeIn ?? 0) === 0 &&
-		(singleAudio.fadeOut ?? 0) === 0 &&
-		!singleAudio.normalize &&
-		(singleAudio.denoise ?? 0) === 0 &&
-		(singleAudio.pan ?? 0) === 0 &&
-		(singleAudio.playbackRate ?? 1) === 1 &&
-		(singleAudio.speedKeyframes?.length ?? 0) === 0 &&
-		!singleAudio.reverse &&
-		(singleAudio.freezeFrameDuration ?? 0) === 0
-	) {
-		return {
-			mapAudio: `${audioStartIndex}:a`,
-			filterSteps: [],
-		};
-	}
-
-	const filterSteps: string[] = [];
-	const mixedLabels: string[] = [];
-
-	for (const [index, audioFile] of audioFiles.entries()) {
-		const delayMs = Math.round((audioFile.startTime ?? 0) * 1000);
-		const volume = audioFile.volume ?? 1;
-		const outputLabel = `a_${index}`;
-		const transforms: string[] = [];
-		const trimStart = Math.max(0, audioFile.trimStart ?? 0);
-		const trimEnd = Math.max(0, audioFile.trimEnd ?? 0);
-		const sourceDuration = audioFile.duration;
-		const effectiveDuration =
-			sourceDuration === undefined
-				? undefined
-				: Math.max(0.01, sourceDuration - trimStart - trimEnd);
-
-		const inputIndex = audioStartIndex + index;
-		let currentLabel = `${inputIndex}:a`;
-		const sourceTransforms: string[] = [];
-		if (trimStart > 0 || effectiveDuration !== undefined) {
-			const trimParts = [`start=${trimStart}`];
-			if (effectiveDuration !== undefined) {
-				trimParts.push(`duration=${effectiveDuration}`);
-			}
-			sourceTransforms.push(
-				`atrim=${trimParts.join(":")}`,
-				"asetpts=PTS-STARTPTS"
-			);
-		}
-		if (audioFile.reverse) sourceTransforms.push("areverse");
-		if (sourceTransforms.length > 0) {
-			const prepared = `a_${index}_prepared`;
-			filterSteps.push(
-				`[${currentLabel}]${sourceTransforms.join(",")}[${prepared}]`
-			);
-			currentLabel = prepared;
-		}
-
-		let speedDuration = effectiveDuration;
-		let speedSamples =
-			effectiveDuration === undefined
-				? []
-				: buildSpeedSamples(audioFile, effectiveDuration, 30);
-		if (speedSamples.length > 0) {
-			speedDuration = speedSamples[speedSamples.length - 1].outputEnd;
-		}
-		if (
-			(audioFile.speedKeyframes?.length ?? 0) > 0 &&
-			speedSamples.length > 0
-		) {
-			const splitLabels = speedSamples.map(
-				(_sample, sampleIndex) => `a_${index}_speed_split_${sampleIndex}`
-			);
-			filterSteps.push(
-				`[${currentLabel}]asplit=${speedSamples.length}${splitLabels.map((label) => `[${label}]`).join("")}`
-			);
-			const segmentLabels = speedSamples.map((sample, sampleIndex) => {
-				const label = `a_${index}_speed_segment_${sampleIndex}`;
-				const atempo = buildAtempoFilters(sample.rate);
-				filterSteps.push(
-					`[${splitLabels[sampleIndex]}]atrim=start=${sample.sourceStart}:end=${sample.sourceEnd},` +
-						`asetpts=PTS-STARTPTS${atempo.length > 0 ? `,${atempo.join(",")}` : ""}[${label}]`
-				);
-				return label;
-			});
-			const sped = `a_${index}_sped`;
-			filterSteps.push(
-				`${segmentLabels.map((label) => `[${label}]`).join("")}concat=n=${segmentLabels.length}:v=0:a=1[${sped}]`
-			);
-			currentLabel = sped;
-		} else {
-			const playbackRate = Math.min(
-				8,
-				Math.max(0.1, audioFile.playbackRate ?? 1)
-			);
-			const atempo = buildAtempoFilters(playbackRate);
-			if (atempo.length > 0) {
-				const sped = `a_${index}_sped`;
-				filterSteps.push(`[${currentLabel}]${atempo.join(",")}[${sped}]`);
-				currentLabel = sped;
-			}
-		}
-
-		const freezeDuration = Math.max(0, audioFile.freezeFrameDuration ?? 0);
-		if (
-			freezeDuration > 0 &&
-			effectiveDuration !== undefined &&
-			speedDuration !== undefined
-		) {
-			if (speedSamples.length === 0) {
-				speedSamples = buildSpeedSamples(audioFile, effectiveDuration, 30);
-			}
-			const freezeStart = outputTimeAtSource(
-				speedSamples,
-				Math.min(
-					effectiveDuration,
-					Math.max(0, audioFile.freezeFrameTime ?? effectiveDuration)
-				)
-			);
-			const normalized = `a_${index}_freeze_input`;
-			const beforeSource = `a_${index}_freeze_before_source`;
-			const afterSource = `a_${index}_freeze_after_source`;
-			const before = `a_${index}_freeze_before`;
-			const silence = `a_${index}_freeze_silence`;
-			const after = `a_${index}_freeze_after`;
-			const frozen = `a_${index}_with_freeze`;
-			filterSteps.push(
-				`[${currentLabel}]aformat=sample_rates=48000:channel_layouts=stereo[${normalized}]`
-			);
-			filterSteps.push(
-				`[${normalized}]asplit=2[${beforeSource}][${afterSource}]`
-			);
-			filterSteps.push(
-				`[${beforeSource}]atrim=start=0:end=${freezeStart},asetpts=PTS-STARTPTS[${before}]`
-			);
-			filterSteps.push(
-				`anullsrc=r=48000:cl=stereo:d=${freezeDuration}[${silence}]`
-			);
-			filterSteps.push(
-				`[${afterSource}]atrim=start=${freezeStart}:end=${speedDuration},asetpts=PTS-STARTPTS[${after}]`
-			);
-			filterSteps.push(
-				`[${before}][${silence}][${after}]concat=n=3:v=0:a=1[${frozen}]`
-			);
-			currentLabel = frozen;
-		}
-
-		const denoise = Math.min(100, Math.max(0, audioFile.denoise ?? 0));
-		if (denoise > 0) {
-			transforms.push(`afftdn=nf=${-50 + denoise * 0.25}`);
-		}
-		if (audioFile.normalize) transforms.push("loudnorm=I=-16:LRA=11:TP=-1.5");
-
-		const pan = Math.min(1, Math.max(-1, audioFile.pan ?? 0));
-		if (pan !== 0) {
-			transforms.push(
-				"aformat=channel_layouts=stereo",
-				`stereotools=balance_out=${pan}`
-			);
-		}
-
-		const fadeIn = Math.min(
-			Math.max(0, audioFile.fadeIn ?? 0),
-			effectiveDuration ?? Number.POSITIVE_INFINITY
-		);
-		if (fadeIn > 0) transforms.push(`afade=t=in:st=0:d=${fadeIn}`);
-		const fadeOut = Math.min(
-			Math.max(0, audioFile.fadeOut ?? 0),
-			effectiveDuration ?? 0
-		);
-		if (fadeOut > 0 && effectiveDuration !== undefined) {
-			transforms.push(
-				`afade=t=out:st=${Math.max(0, effectiveDuration - fadeOut)}:d=${fadeOut}`
-			);
-		}
-
-		if (volume !== 1) {
-			transforms.push(`volume=${volume}`);
-		}
-
-		if (delayMs > 0) {
-			transforms.push(`adelay=${delayMs}|${delayMs}`);
-		}
-
-		const transformChain =
-			transforms.length > 0 ? transforms.join(",") : "anull";
-		filterSteps.push(`[${currentLabel}]${transformChain}[${outputLabel}]`);
-		mixedLabels.push(`[${outputLabel}]`);
-	}
-
-	if (mixedLabels.length === 1) {
-		return {
-			mapAudio: mixedLabels[0],
-			filterSteps,
-		};
-	}
-
-	filterSteps.push(
-		`${mixedLabels.join("")}amix=inputs=${mixedLabels.length}:duration=longest[a_mix]`
-	);
-	return {
-		mapAudio: "[a_mix]",
-		filterSteps,
-	};
 }
 
 function buildCompositeEncodeArgs(
@@ -594,7 +351,11 @@ function buildCompositeEncodeArgs(
 
 	const audioInputStartIndex =
 		baseInputCount + validImages.length + validStickers.length;
-	const audioResult = buildAudioFilters(audioFiles, audioInputStartIndex);
+	const audioResult = buildTimelineAudioFilters({
+		audioFiles,
+		audioStartIndex: audioInputStartIndex,
+		fps,
+	});
 	for (const step of audioResult.filterSteps) {
 		filterSteps.push(step);
 	}
@@ -709,37 +470,15 @@ export function buildFFmpegArgs(options: BuildFFmpegArgsOptions): string[] {
 				}
 				args.push("-i", audioFile.path);
 			}
-
-			if (audioFiles.length === 1) {
-				const audioFile = audioFiles[0];
-				if (audioFile.startTime > 0) {
-					args.push(
-						"-filter_complex",
-						`[1:a]adelay=${Math.round(audioFile.startTime * 1000)}|${Math.round(audioFile.startTime * 1000)}[audio]`,
-						"-map",
-						"0:v",
-						"-map",
-						"[audio]"
-					);
-				} else {
-					args.push("-map", "0:v", "-map", "1:a");
-				}
-			} else {
-				const audioInputOffset = 1;
-				const inputMaps: string[] = audioFiles.map((_, i) => {
-					return `[${i + audioInputOffset}:a]`;
-				});
-				const mixFilter = `${inputMaps.join("")}amix=inputs=${audioFiles.length}:duration=longest[audio]`;
-
-				args.push(
-					"-filter_complex",
-					mixFilter,
-					"-map",
-					"0:v",
-					"-map",
-					"[audio]"
-				);
+			const audioGraph = buildTimelineAudioFilters({
+				audioFiles,
+				audioStartIndex: 1,
+				fps: options.fps,
+			});
+			if (audioGraph.filterSteps.length > 0) {
+				args.push("-filter_complex", audioGraph.filterSteps.join(";"));
 			}
+			args.push("-map", "0:v", "-map", audioGraph.mapAudio ?? "1:a");
 			args.push("-c:a", "aac", "-b:a", "128k");
 		}
 

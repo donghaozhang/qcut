@@ -56,6 +56,12 @@ function fullColorVisual({
 		{ id: "middle", x: 0.5, y: 0.62 },
 		{ id: "white", x: 1, y: 1 },
 	];
+	color.secondaryCurves.enabled = true;
+	color.secondaryCurves.hueVsSaturation.samples = Array.from(
+		{ length: 257 },
+		(_, index) =>
+			0.5 + Math.max(0, 1 - Math.abs(index / 256 - 240 / 360) * 8) * 0.2
+	);
 	color.wheels.enabled = true;
 	color.wheels.mode = wheelMode;
 	color.wheels.shadows = { x: -0.18, y: 0.12, luminance: 8 };
@@ -115,6 +121,10 @@ function fullColorVisual({
 			{ id: "curve-start", frame: 0, value: 0, easing: "linear" },
 			{ id: "curve-end", frame: 30, value: 100, easing: "easeInOut" },
 		],
+		"secondaryCurves.mix": [
+			{ id: "secondary-start", frame: 0, value: 25, easing: "linear" },
+			{ id: "secondary-end", frame: 30, value: 100, easing: "easeInOut" },
+		],
 		"wheels.shadows.x": [
 			{ id: "wheel-x-start", frame: 0, value: 0, easing: "linear" },
 			{ id: "wheel-x-end", frame: 30, value: -0.18, easing: "linear" },
@@ -130,6 +140,47 @@ function fullColorVisual({
 		"wheels.balance": [
 			{ id: "balance-start", frame: 0, value: -20, easing: "linear" },
 			{ id: "balance-end", frame: 30, value: 20, easing: "linear" },
+		],
+	};
+	color.curveShapeKeyframes = {
+		"curves.master": [
+			{
+				id: "rgb-shape-start",
+				frame: 0,
+				points: [
+					{ id: "black", x: 0, y: 0 },
+					{ id: "middle", x: 0.5, y: 0.5 },
+					{ id: "white", x: 1, y: 1 },
+				],
+				easing: "linear",
+			},
+			{
+				id: "rgb-shape-end",
+				frame: 30,
+				points: color.curves.master.map((point) => ({ ...point })),
+				easing: "easeInOut",
+			},
+		],
+		"secondaryCurves.hueVsSaturation": [
+			{
+				id: "secondary-shape-start",
+				frame: 0,
+				points: [
+					{ id: "start", x: 0, y: 0.5 },
+					{ id: "end", x: 1, y: 0.5 },
+				],
+				samples: new Array<number>(257).fill(0.5),
+				easing: "linear",
+			},
+			{
+				id: "secondary-shape-end",
+				frame: 30,
+				points: color.secondaryCurves.hueVsSaturation.points.map((point) => ({
+					...point,
+				})),
+				samples: [...color.secondaryCurves.hueVsSaturation.samples],
+				easing: "easeInOut",
+			},
 		],
 	};
 

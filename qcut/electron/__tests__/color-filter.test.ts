@@ -38,6 +38,11 @@ function visual(): VideoVisual {
 		{ id: "black", x: 0, y: 0.02 },
 		{ id: "white", x: 1, y: 1 },
 	];
+	color.secondaryCurves.enabled = true;
+	color.secondaryCurves.hueVsSaturation.samples = Array.from(
+		{ length: 257 },
+		(_, index) => 0.5 + Math.max(0, 1 - Math.abs(index / 256 - 0.5) * 10) * 0.2
+	);
 	color.wheels.enabled = true;
 	color.wheels.shadows = { x: -0.04, y: 0.05, luminance: 3 };
 	color.wheels.offset = { x: 0.03, y: -0.02, luminance: 2 };
@@ -87,6 +92,7 @@ describe("native color filter", () => {
 		expect(filter).toContain("lut3d=file='");
 		expect(filter).toContain("huesaturation=");
 		expect(filter).toContain("curves=master=");
+		expect(filter).toContain("qcut-secondary-color-luts");
 		expect(filter).toContain("colorbalance=");
 		const path = /lut3d=file='([^']+)'/.exec(filter)?.[1];
 		expect(path).toBeTruthy();
@@ -180,6 +186,10 @@ describe("native color filter", () => {
 				{ id: "c0", frame: 0, value: 0, easing: "linear" },
 				{ id: "c1", frame: 30, value: 100, easing: "linear" },
 			],
+			"secondaryCurves.mix": [
+				{ id: "sc0", frame: 0, value: 0, easing: "linear" },
+				{ id: "sc1", frame: 30, value: 100, easing: "linear" },
+			],
 			"wheels.shadows.x": [
 				{ id: "w0", frame: 0, value: 0, easing: "linear" },
 				{ id: "w1", frame: 30, value: -0.2, easing: "linear" },
@@ -205,6 +215,7 @@ describe("native color filter", () => {
 		expect(filters).toContain("lut_protection_mix");
 		expect(filters).toContain("huesaturation@clip_0_hsl_red");
 		expect(filters).toContain("curves_mix");
+		expect(filters).toContain("secondary_curves_mix");
 		expect(filters).toContain("colorbalance@clip_0_wheel_shadows");
 	});
 
@@ -225,5 +236,63 @@ describe("native color filter", () => {
 				frame: 10,
 			})
 		).toBeCloseTo(0.25);
+	});
+
+	it("builds animated branches for RGB and secondary curve shapes", () => {
+		const input = visual();
+		input.color!.curveShapeKeyframes = {
+			"curves.master": [
+				{
+					id: "rgb-start",
+					frame: 0,
+					points: [
+						{ id: "black", x: 0, y: 0 },
+						{ id: "white", x: 1, y: 1 },
+					],
+					easing: "linear",
+				},
+				{
+					id: "rgb-end",
+					frame: 30,
+					points: [
+						{ id: "black", x: 0, y: 0.1 },
+						{ id: "white", x: 1, y: 1 },
+					],
+					easing: "easeInOut",
+				},
+			],
+			"secondaryCurves.hueVsSaturation": [
+				{
+					id: "secondary-start",
+					frame: 0,
+					points: [
+						{ id: "start", x: 0, y: 0.5 },
+						{ id: "end", x: 1, y: 0.5 },
+					],
+					samples: new Array<number>(257).fill(0.5),
+					easing: "linear",
+				},
+				{
+					id: "secondary-end",
+					frame: 30,
+					points: [
+						{ id: "start", x: 0, y: 0.7 },
+						{ id: "end", x: 1, y: 0.7 },
+					],
+					samples: new Array<number>(257).fill(0.7),
+					easing: "linear",
+				},
+			],
+		};
+		const graph = buildVideoColorFilterGraph({
+			visual: input,
+			inputLabel: "input",
+			labelPrefix: "clip_0",
+		});
+		const filters = graph.filterSteps.join(";");
+		expect(filters).toContain("clip_0_curves_shape_interval_0");
+		expect(filters).toContain("clip_0_secondary_curves_shape_interval_0");
+		expect(filters).toContain("curves=master=");
+		expect(filters).toContain("qcut-secondary-color-luts");
 	});
 });

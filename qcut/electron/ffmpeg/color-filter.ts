@@ -13,6 +13,7 @@ import {
 	hasColorKeyframes,
 } from "./color-keyframe-filter";
 import { buildColorManagementFilters } from "./color-management-filter";
+import { materializeSecondaryColorLut } from "./secondary-color-lut";
 import { buildSmartFilters } from "./color-smart-filter";
 
 function clamp({
@@ -297,6 +298,21 @@ export function buildCurvesFilter({
 	);
 }
 
+export function buildSecondaryCurvesFilter({
+	color,
+	mix,
+}: {
+	color: VideoColorSettings;
+	mix?: number;
+}): string | undefined {
+	if (!color.secondaryCurves.enabled) return;
+	const filePath = materializeSecondaryColorLut({
+		settings: color.secondaryCurves,
+		mix: mix ?? color.secondaryCurves.mix,
+	});
+	return `lut3d=file='${escapeFfmpegFilterPath(filePath)}':interp=tetrahedral`;
+}
+
 function wheelOffset({
 	x,
 	y,
@@ -526,6 +542,7 @@ export function buildVideoColorFilter({
 		buildLutFilter({ color }),
 		...buildHslFilters({ visual, color }),
 		buildCurvesFilter({ color }),
+		buildSecondaryCurvesFilter({ color }),
 		...buildWheelFilters({ visual, color }),
 		...management.output,
 	].filter((filter): filter is string => Boolean(filter));

@@ -614,6 +614,8 @@ const CORE_COMMANDS: Record<string, CommandDef> = {
 			f("--review-language", "string", "Review prompt language", {
 				enum: ["zh", "en"],
 			}),
+			f("--start-time", "number", "Analyze from this source timestamp"),
+			f("--end-time", "number", "Analyze until this source timestamp"),
 			f("--review-prompt-dir", "string", "Custom review prompt directory"),
 			f("--max-tokens", "number", "Maximum review output tokens"),
 		],

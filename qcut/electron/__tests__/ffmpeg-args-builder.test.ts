@@ -142,7 +142,7 @@ describe("buildFFmpegArgs", () => {
 			);
 
 			expect(args).toContain("-filter_complex");
-			expect(args.join(" ")).toContain("adelay=2000|2000");
+			expect(args.join(" ")).toContain("adelay=2000:all=1");
 			expect(args.join(" ")).toContain("volume=0.8");
 			expect(args).toContain("[a_0]");
 		});
@@ -178,7 +178,7 @@ describe("buildFFmpegArgs", () => {
 			expect(filter).toContain("afade=t=in:st=0:d=0.4");
 			expect(filter).toContain("afade=t=out:st=2.65:d=0.6");
 			expect(filter).toContain("volume=0.7");
-			expect(filter).toContain("adelay=1000|1000");
+			expect(filter).toContain("adelay=1000:all=1");
 		});
 
 		it("renders an ASS text document after drawtext filters", () => {

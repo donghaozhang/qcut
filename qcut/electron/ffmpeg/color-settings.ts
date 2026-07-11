@@ -5,6 +5,14 @@ export interface VideoColorPropertyKeyframe {
 	easing: "linear" | "easeIn" | "easeOut" | "easeInOut" | "spring";
 }
 
+export interface VideoColorCurveShapeKeyframe {
+	id: string;
+	frame: number;
+	points: Array<{ id: string; x: number; y: number }>;
+	samples?: number[];
+	easing: "linear" | "easeIn" | "easeOut" | "easeInOut" | "spring";
+}
+
 export interface VideoColorBasicSettings {
 	enabled: boolean;
 	exposure: number;
@@ -24,8 +32,25 @@ export interface VideoColorBasicSettings {
 	grain: number;
 }
 
+export type VideoSecondaryCurveName =
+	| "hueVsSaturation"
+	| "hueVsHue"
+	| "hueVsLuminance"
+	| "luminanceVsSaturation"
+	| "saturationVsSaturation";
+
+export interface VideoSecondaryCurve {
+	points: Array<{ id: string; x: number; y: number }>;
+	samples: number[];
+}
+
 export interface VideoColorSettings {
 	enabled: boolean;
+	filter: {
+		presetId: string;
+		presetVersion: number;
+		intensity: number;
+	};
 	basic: VideoColorBasicSettings;
 	lut: {
 		enabled: boolean;
@@ -54,6 +79,15 @@ export interface VideoColorSettings {
 		red: Array<{ id: string; x: number; y: number }>;
 		green: Array<{ id: string; x: number; y: number }>;
 		blue: Array<{ id: string; x: number; y: number }>;
+	};
+	secondaryCurves: {
+		enabled: boolean;
+		mix: number;
+		hueVsSaturation: VideoSecondaryCurve;
+		hueVsHue: VideoSecondaryCurve;
+		hueVsLuminance: VideoSecondaryCurve;
+		luminanceVsSaturation: VideoSecondaryCurve;
+		saturationVsSaturation: VideoSecondaryCurve;
 	};
 	wheels: {
 		enabled: boolean;
@@ -91,6 +125,7 @@ export interface VideoColorSettings {
 		peakNits: number;
 	};
 	keyframes?: Partial<Record<string, VideoColorPropertyKeyframe[]>>;
+	curveShapeKeyframes?: Partial<Record<string, VideoColorCurveShapeKeyframe[]>>;
 }
 
 const DEFAULT_CURVE = [
@@ -98,8 +133,27 @@ const DEFAULT_CURVE = [
 	{ id: "white", x: 1, y: 1 },
 ];
 
+const DEFAULT_SECONDARY_CURVE_POINTS = [
+	{ id: "start", x: 0, y: 0.5 },
+	{ id: "end", x: 1, y: 0.5 },
+];
+
+const DEFAULT_SECONDARY_CURVE = {
+	points: DEFAULT_SECONDARY_CURVE_POINTS,
+	samples: new Array<number>(257).fill(0.5),
+};
+
+export const VIDEO_SECONDARY_CURVE_NAMES: VideoSecondaryCurveName[] = [
+	"hueVsSaturation",
+	"hueVsHue",
+	"hueVsLuminance",
+	"luminanceVsSaturation",
+	"saturationVsSaturation",
+];
+
 export const DEFAULT_VIDEO_COLOR_SETTINGS: VideoColorSettings = {
 	enabled: true,
+	filter: { presetId: "none", presetVersion: 1, intensity: 100 },
 	basic: {
 		enabled: true,
 		exposure: 0,
@@ -134,6 +188,15 @@ export const DEFAULT_VIDEO_COLOR_SETTINGS: VideoColorSettings = {
 		green: DEFAULT_CURVE,
 		blue: DEFAULT_CURVE,
 	},
+	secondaryCurves: {
+		enabled: false,
+		mix: 100,
+		hueVsSaturation: structuredClone(DEFAULT_SECONDARY_CURVE),
+		hueVsHue: structuredClone(DEFAULT_SECONDARY_CURVE),
+		hueVsLuminance: structuredClone(DEFAULT_SECONDARY_CURVE),
+		luminanceVsSaturation: structuredClone(DEFAULT_SECONDARY_CURVE),
+		saturationVsSaturation: structuredClone(DEFAULT_SECONDARY_CURVE),
+	},
 	wheels: {
 		enabled: false,
 		mode: "tonal",
@@ -161,6 +224,7 @@ export const DEFAULT_VIDEO_COLOR_SETTINGS: VideoColorSettings = {
 		peakNits: 100,
 	},
 	keyframes: {},
+	curveShapeKeyframes: {},
 };
 
 export function normalizeVideoColorSettings({
@@ -194,6 +258,10 @@ export function normalizeVideoColorSettings({
 	return {
 		...DEFAULT_VIDEO_COLOR_SETTINGS,
 		...color,
+		filter: {
+			...DEFAULT_VIDEO_COLOR_SETTINGS.filter,
+			...color?.filter,
+		},
 		basic: {
 			...DEFAULT_VIDEO_COLOR_SETTINGS.basic,
 			...legacy,
@@ -206,6 +274,25 @@ export function normalizeVideoColorSettings({
 			ranges: { ...color?.hsl?.ranges },
 		},
 		curves: { ...DEFAULT_VIDEO_COLOR_SETTINGS.curves, ...color?.curves },
+		secondaryCurves: {
+			...DEFAULT_VIDEO_COLOR_SETTINGS.secondaryCurves,
+			...color?.secondaryCurves,
+			...Object.fromEntries(
+				VIDEO_SECONDARY_CURVE_NAMES.map((name) => [
+					name,
+					{
+						points: (
+							color?.secondaryCurves?.[name]?.points ??
+							DEFAULT_SECONDARY_CURVE_POINTS
+						).map((point) => ({ ...point })),
+						samples: [
+							...(color?.secondaryCurves?.[name]?.samples ??
+								DEFAULT_SECONDARY_CURVE.samples),
+						],
+					},
+				])
+			),
+		},
 		wheels: {
 			...DEFAULT_VIDEO_COLOR_SETTINGS.wheels,
 			...color?.wheels,
@@ -239,5 +326,17 @@ export function normalizeVideoColorSettings({
 			...color?.management,
 		},
 		keyframes: color?.keyframes,
+		curveShapeKeyframes: Object.fromEntries(
+			Object.entries(color?.curveShapeKeyframes ?? {}).map(
+				([property, keyframes]) => [
+					property,
+					keyframes?.map((keyframe) => ({
+						...keyframe,
+						points: keyframe.points.map((point) => ({ ...point })),
+						samples: keyframe.samples ? [...keyframe.samples] : undefined,
+					})),
+				]
+			)
+		),
 	};
 }

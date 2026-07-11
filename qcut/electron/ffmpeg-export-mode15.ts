@@ -21,6 +21,7 @@ import type {
 } from "./ffmpeg/types";
 
 import { parseProgress, getFFprobePath, normalizeVideo } from "./ffmpeg/utils";
+import { buildTimelineAudioFilters } from "./ffmpeg/audio-filter-graph";
 
 import type { IpcMainInvokeEvent } from "electron";
 
@@ -213,7 +214,7 @@ export async function handleMode1_5(
 
 		// Mix overlay audio files into the concatenated output if present
 		if (audioFiles && audioFiles.length > 0) {
-			await mixOverlayAudio(ffmpegPath, frameDir, outputFile, audioFiles);
+			await mixOverlayAudio(ffmpegPath, frameDir, outputFile, audioFiles, fps);
 		}
 
 		// Overlay stickers onto the output if present (2nd pass)
@@ -265,7 +266,8 @@ async function mixOverlayAudio(
 	ffmpegPath: string,
 	frameDir: string,
 	outputFile: string,
-	audioFiles: AudioFile[]
+	audioFiles: AudioFile[],
+	fps: number
 ): Promise<void> {
 	console.log(
 		`🎧 [MODE 1.5 EXPORT] Mixing ${audioFiles.length} overlay audio file(s) into output...`
@@ -307,49 +309,41 @@ async function mixOverlayAudio(
 		probe.on("error", () => resolve(false));
 	});
 
-	// Build filter_complex for audio mixing
-	const filterParts: string[] = [];
-	const mixInputLabels: string[] = [];
+	const audioGraph = buildTimelineAudioFilters({
+		audioFiles,
+		audioStartIndex: 1,
+		fps,
+	});
+	const filterParts = [...audioGraph.filterSteps];
+	let audioMap = audioGraph.mapAudio ?? "1:a";
 
 	if (hasBaseAudio) {
-		mixInputLabels.push("[0:a]"); // base video audio
+		const overlayInput = audioMap.startsWith("[") ? audioMap : `[${audioMap}]`;
+		filterParts.push(
+			`[0:a]${overlayInput}amix=inputs=2:duration=first:dropout_transition=0:normalize=0[aout]`
+		);
+		audioMap = "[aout]";
 	} else {
 		console.log(
-			"🔇 [MODE 1.5 EXPORT] No base audio stream — mixing overlays only"
+			"[MODE 1.5 EXPORT] No base audio stream - mixing overlays only"
 		);
 	}
-
-	for (let i = 0; i < audioFiles.length; i++) {
-		const af = audioFiles[i];
-		const delayMs = Math.round((af.startTime ?? 0) * 1000);
-		const vol = af.volume ?? 1.0;
-		const label = `[oa${i}]`;
-		filterParts.push(
-			`[${i + 1}:a]adelay=${delayMs}|${delayMs},volume=${vol}${label}`
-		);
-		mixInputLabels.push(label);
-	}
-
-	// Use "first" duration when base audio sets the length, "longest" otherwise
-	const amixDuration = hasBaseAudio ? "first" : "longest";
-	const mixInputCount = mixInputLabels.length;
-	filterParts.push(
-		`${mixInputLabels.join("")}amix=inputs=${mixInputCount}:duration=${amixDuration}:dropout_transition=0[aout]`
-	);
 
 	mixArgs.push(
-		"-filter_complex",
-		filterParts.join(";"),
+		...(filterParts.length > 0
+			? ["-filter_complex", filterParts.join(";")]
+			: []),
 		"-map",
 		"0:v",
 		"-map",
-		"[aout]",
+		audioMap,
 		"-c:v",
 		"copy",
 		"-c:a",
 		"aac",
 		"-b:a",
 		"192k",
+		"-shortest",
 		"-movflags",
 		"+faststart",
 		outputFile
