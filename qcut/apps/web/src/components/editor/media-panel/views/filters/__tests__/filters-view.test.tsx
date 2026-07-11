@@ -1,6 +1,6 @@
 import { act, fireEvent, render, screen } from "@testing-library/react";
 import { toast } from "sonner";
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import {
 	COLOR_PRESET_STORAGE_KEY,
 	COLOR_PRESETS_CHANGED_EVENT,
@@ -149,6 +149,8 @@ function savedPreset({
 }
 
 describe("FiltersView", () => {
+	const originalLocalStorage = window.localStorage;
+
 	beforeEach(() => {
 		vi.clearAllMocks();
 		Object.defineProperty(window, "localStorage", {
@@ -157,6 +159,14 @@ describe("FiltersView", () => {
 			configurable: true,
 		});
 		installTimelineState({ tracks: timelineTracks(), selected: false });
+	});
+
+	afterEach(() => {
+		Object.defineProperty(window, "localStorage", {
+			value: originalLocalStorage,
+			writable: true,
+			configurable: true,
+		});
 	});
 
 	it("renders the library with the None card and full result count", () => {

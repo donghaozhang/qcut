@@ -3,7 +3,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { TransitionPreview } from "../transition-preview";
 import { getTransitionPresetById } from "../transition-presets";
 
-function requirePreset(presetId: string) {
+function requirePreset({ presetId }: { presetId: string }) {
 	const preset = getTransitionPresetById({ presetId });
 	if (!preset) {
 		throw new Error(`Missing preset fixture: ${presetId}`);
@@ -11,15 +11,15 @@ function requirePreset(presetId: string) {
 	return preset;
 }
 
-const dissolve = requirePreset("dissolve");
-const slideLeft = requirePreset("slide-left");
-const zoomBlur = requirePreset("zoom-blur");
+const dissolve = requirePreset({ presetId: "dissolve" });
+const slideLeft = requirePreset({ presetId: "slide-left" });
+const zoomBlur = requirePreset({ presetId: "zoom-blur" });
 
 let nextRafId: number;
 let rafCallbacks: Map<number, FrameRequestCallback>;
 let cancelledIds: number[];
 
-function runFrame(timestamp: number) {
+function runFrame({ timestamp }: { timestamp: number }) {
 	const entry = rafCallbacks.entries().next().value;
 	if (!entry) {
 		throw new Error("No animation frame scheduled");
@@ -29,14 +29,19 @@ function runFrame(timestamp: number) {
 	act(() => callback(timestamp));
 }
 
-function getLayers(container: HTMLElement) {
-	const layers = container.querySelectorAll<HTMLDivElement>(
-		"div.absolute.inset-0"
-	);
-	return { from: layers[0], to: layers[1] };
+function getLayers({ container }: { container: HTMLElement }) {
+	const layers = [
+		...container.querySelectorAll<HTMLDivElement>("div.absolute.inset-0"),
+	];
+	const from = layers.at(0);
+	const to = layers.at(1);
+	if (!from || !to) {
+		throw new Error("Preview layers not rendered");
+	}
+	return { from, to };
 }
 
-function getProgressFill(container: HTMLElement) {
+function getProgressFill({ container }: { container: HTMLElement }) {
 	const fill = container.querySelector<HTMLDivElement>(
 		'[class*="bg-white/25"] > div'
 	);
@@ -100,18 +105,18 @@ describe("TransitionPreview", () => {
 		const { container } = render(
 			<TransitionPreview preset={dissolve} isPlaying={true} />
 		);
-		const fill = getProgressFill(container);
+		const fill = getProgressFill({ container });
 
 		expect(rafCallbacks.size).toBe(1);
 
-		runFrame(1000);
+		runFrame({ timestamp: 1000 });
 		expect(fill.style.width).toBe("0%");
 
 		// dissolve duration is max(400, 0.5s) = 500ms; 250ms in => 50%
-		runFrame(1250);
+		runFrame({ timestamp: 1250 });
 		expect(fill.style.width).toBe("50%");
 
-		const { from, to } = getLayers(container);
+		const { from, to } = getLayers({ container });
 		expect(from.style.opacity).toBe("0.5");
 		expect(to.style.opacity).toBe("0.5");
 	});
@@ -121,26 +126,26 @@ describe("TransitionPreview", () => {
 			<TransitionPreview preset={dissolve} isPlaying={true} />
 		);
 
-		runFrame(1000);
+		runFrame({ timestamp: 1000 });
 		// 625ms elapsed of a 500ms loop => 125ms into the second pass => 25%
-		runFrame(1625);
+		runFrame({ timestamp: 1625 });
 
-		expect(getProgressFill(container).style.width).toBe("25%");
+		expect(getProgressFill({ container }).style.width).toBe("25%");
 	});
 
 	it("cancels the animation and resets progress when playback stops", () => {
 		const { container, rerender } = render(
 			<TransitionPreview preset={dissolve} isPlaying={true} />
 		);
-		runFrame(1000);
-		runFrame(1250);
-		expect(getProgressFill(container).style.width).toBe("50%");
+		runFrame({ timestamp: 1000 });
+		runFrame({ timestamp: 1250 });
+		expect(getProgressFill({ container }).style.width).toBe("50%");
 
 		rerender(<TransitionPreview preset={dissolve} isPlaying={false} />);
 
 		expect(cancelledIds.length).toBeGreaterThan(0);
 		expect(rafCallbacks.size).toBe(0);
-		expect(getProgressFill(container).style.width).toBe("0%");
+		expect(getProgressFill({ container }).style.width).toBe("0%");
 	});
 
 	it("offsets slide layers with a transform", () => {
@@ -148,7 +153,7 @@ describe("TransitionPreview", () => {
 			<TransitionPreview preset={slideLeft} isPlaying={false} />
 		);
 
-		const { from, to } = getLayers(container);
+		const { from, to } = getLayers({ container });
 		expect(from.style.transform).toBe("translate3d(0px, 0px, 0)");
 		expect(to.style.transform).toBe("translate3d(-240px, 0px, 0)");
 	});
@@ -158,7 +163,7 @@ describe("TransitionPreview", () => {
 			<TransitionPreview preset={zoomBlur} isPlaying={false} />
 		);
 
-		const { from, to } = getLayers(container);
+		const { from, to } = getLayers({ container });
 		expect(from.style.opacity).toBe("1");
 		expect(to.style.opacity).toBe("0");
 	});

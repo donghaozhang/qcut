@@ -313,7 +313,8 @@ describe("transition apply state", () => {
 
 		expect(result.status).toBe("ready");
 		if (result.status !== "ready") return;
-		expect(result.maxDuration).toBeGreaterThan(0);
+		// 2 * min(fromDuration = 4, toDuration = 3)
+		expect(result.maxDuration).toBe(6);
 		expect(result.fromMediaId).toBe("clip-a-media");
 		expect(result.toMediaId).toBe("clip-b-media");
 		expect(result.message).toBe("Ready between Clip A and Clip B.");

@@ -337,7 +337,7 @@ describe("TransitionsView", () => {
 			([format]) => format === "application/qcut-transition"
 		);
 		expect(payloadCall).toBeDefined();
-		expect(JSON.parse(payloadCall?.[1] as string)).toEqual({
+		expect(JSON.parse(payloadCall?.at(1) as string)).toEqual({
 			kind: "qcut-transition-preset",
 			id: "slide-left",
 			type: "slide",

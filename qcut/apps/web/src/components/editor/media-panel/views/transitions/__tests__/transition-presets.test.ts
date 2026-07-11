@@ -6,7 +6,7 @@ import {
 	getTransitionPresetById,
 } from "../transition-presets";
 
-function requirePreset(presetId: string): TransitionPreset {
+function requirePreset({ presetId }: { presetId: string }): TransitionPreset {
 	const preset = getTransitionPresetById({ presetId });
 	if (!preset) {
 		throw new Error(`Expected preset "${presetId}" to exist.`);
@@ -85,36 +85,48 @@ describe("getTransitionPresetById", () => {
 describe("getClipTransitionPresetConfig", () => {
 	it("maps dissolve to the dissolve clip transition", () => {
 		expect(
-			getClipTransitionPresetConfig({ preset: requirePreset("dissolve") })
+			getClipTransitionPresetConfig({
+				preset: requirePreset({ presetId: "dissolve" }),
+			})
 		).toEqual({ type: "dissolve" });
 	});
 
 	it("maps fade-to-black to the fade-black clip transition", () => {
 		expect(
-			getClipTransitionPresetConfig({ preset: requirePreset("fade-to-black") })
+			getClipTransitionPresetConfig({
+				preset: requirePreset({ presetId: "fade-to-black" }),
+			})
 		).toEqual({ type: "fade-black" });
 	});
 
 	it("maps slide presets to slide with their direction", () => {
 		expect(
-			getClipTransitionPresetConfig({ preset: requirePreset("slide-left") })
+			getClipTransitionPresetConfig({
+				preset: requirePreset({ presetId: "slide-left" }),
+			})
 		).toEqual({ type: "slide", direction: "left" });
 		expect(
-			getClipTransitionPresetConfig({ preset: requirePreset("slide-right") })
+			getClipTransitionPresetConfig({
+				preset: requirePreset({ presetId: "slide-right" }),
+			})
 		).toEqual({ type: "slide", direction: "right" });
 	});
 
 	it("maps wipe presets to wipe with their direction", () => {
 		expect(
-			getClipTransitionPresetConfig({ preset: requirePreset("wipe-left") })
+			getClipTransitionPresetConfig({
+				preset: requirePreset({ presetId: "wipe-left" }),
+			})
 		).toEqual({ type: "wipe", direction: "left" });
 		expect(
-			getClipTransitionPresetConfig({ preset: requirePreset("wipe-right") })
+			getClipTransitionPresetConfig({
+				preset: requirePreset({ presetId: "wipe-right" }),
+			})
 		).toEqual({ type: "wipe", direction: "right" });
 	});
 
 	it("returns null for presets that are not downloaded", () => {
-		const zoomBlur = requirePreset("zoom-blur");
+		const zoomBlur = requirePreset({ presetId: "zoom-blur" });
 
 		expect(zoomBlur.downloaded).toBeFalsy();
 		expect(getClipTransitionPresetConfig({ preset: zoomBlur })).toBe(null);

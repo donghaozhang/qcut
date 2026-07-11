@@ -9,7 +9,7 @@ vi.mock("../transition-preview", () => ({
 	),
 }));
 
-function requirePreset(presetId: string) {
+function requirePreset({ presetId }: { presetId: string }) {
 	const preset = getTransitionPresetById({ presetId });
 	if (!preset) {
 		throw new Error(`Missing preset fixture: ${presetId}`);
@@ -17,8 +17,8 @@ function requirePreset(presetId: string) {
 	return preset;
 }
 
-const dissolve = requirePreset("dissolve");
-const glitchShift = requirePreset("glitch-shift");
+const dissolve = requirePreset({ presetId: "dissolve" });
+const glitchShift = requirePreset({ presetId: "glitch-shift" });
 
 const handlers = {
 	onSelect: vi.fn(),
