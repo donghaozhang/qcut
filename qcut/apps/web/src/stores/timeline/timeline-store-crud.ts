@@ -8,7 +8,10 @@
  */
 
 import type { TimelineElement, TimelineTrack } from "@/types/timeline";
-import { validateElementTrackCompatibility } from "@/types/timeline";
+import {
+	moveTrack as reorderTracks,
+	validateElementTrackCompatibility,
+} from "@/types/timeline";
 import { generateUUID } from "@/lib/utils";
 import {
 	handleError,
@@ -54,6 +57,24 @@ export function createCrudOperations(
 			newTracks.splice(clampedIndex, 0, newTrack);
 			updateTracksAndSave(newTracks);
 			return newTrack.id;
+		},
+
+		moveTrack: (trackId, toIndex) => {
+			const reorderedTracks = reorderTracks({
+				tracks: get()._tracks,
+				trackId,
+				toIndex,
+			});
+			if (
+				reorderedTracks.every(
+					(track, index) => track.id === get()._tracks[index]?.id
+				)
+			) {
+				return;
+			}
+
+			get().pushHistory();
+			updateTracksAndSave(reorderedTracks);
 		},
 
 		addElementToTrack: (
@@ -160,9 +181,9 @@ export function createCrudOperations(
 			const newElement: TimelineElement = {
 				...normalizedElementData,
 				id: generateUUID(),
-				startTime: normalizedElementData.startTime || 0,
-				trimStart: 0,
-				trimEnd: 0,
+				startTime: normalizedElementData.startTime ?? 0,
+				trimStart: normalizedElementData.trimStart ?? 0,
+				trimEnd: normalizedElementData.trimEnd ?? 0,
 			} as TimelineElement; // Type assertion since we trust the caller passes valid data
 
 			// If this is the first element and it's a media element, automatically set the project canvas size
@@ -402,6 +423,24 @@ export function createCrudOperations(
 			updateTracksAndSave(
 				get()._tracks.map((t) =>
 					t.id === trackId ? { ...t, muted: !t.muted } : t
+				)
+			);
+		},
+
+		toggleTrackHidden: (trackId) => {
+			get().pushHistory();
+			updateTracksAndSave(
+				get()._tracks.map((track) =>
+					track.id === trackId ? { ...track, hidden: !track.hidden } : track
+				)
+			);
+		},
+
+		toggleTrackLocked: (trackId) => {
+			get().pushHistory();
+			updateTracksAndSave(
+				get()._tracks.map((track) =>
+					track.id === trackId ? { ...track, locked: !track.locked } : track
 				)
 			);
 		},

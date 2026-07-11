@@ -100,6 +100,11 @@ export type MediaStore = {
 		projectId: string,
 		item: Omit<MediaItem, "id"> & { id?: string }
 	) => Promise<string>;
+	updateMediaItem: (
+		projectId: string,
+		id: string,
+		updates: Partial<Omit<MediaItem, "id">>
+	) => Promise<boolean>;
 	addGeneratedImages: (
 		items: Array<{
 			id?: string;

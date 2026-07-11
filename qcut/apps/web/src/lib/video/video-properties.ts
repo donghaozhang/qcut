@@ -16,6 +16,7 @@ import {
 	normalizeMediaColorSettings,
 	resolveMediaColorAtTime,
 } from "@/lib/color/color-properties";
+import { resolveColorFilterSettings } from "@/lib/filters/filter-resolver";
 import {
 	interpolateNumber,
 	type Keyframe,
@@ -177,10 +178,11 @@ export function normalizeMediaMask(
 	index = 0
 ): MediaMask {
 	const fallbackName = `Mask ${index + 1}`;
+	const maskId = mask.id?.trim() || `mask-${index + 1}`;
 	return {
 		...DEFAULT_MEDIA_MASK,
 		...mask,
-		id: mask.id?.trim() || `mask-${index + 1}`,
+		id: maskId,
 		name: mask.name?.trim() || fallbackName,
 		enabled: mask.enabled ?? true,
 		blendMode: mask.blendMode ?? "add",
@@ -204,11 +206,13 @@ export function normalizeMediaMask(
 		),
 		maintainAspectRatio: mask.maintainAspectRatio ?? false,
 		invert: mask.invert ?? false,
-		points: mask.points?.map((point) => ({
+		points: mask.points?.map((point, pointIndex) => ({
 			...point,
+			id: point.id?.trim() || `${maskId}-point-${pointIndex + 1}`,
 			handleIn: point.handleIn ? { ...point.handleIn } : undefined,
 			handleOut: point.handleOut ? { ...point.handleOut } : undefined,
 		})),
+		closed: mask.closed ?? true,
 		keyframes: mask.keyframes
 			? Object.fromEntries(
 					Object.entries(mask.keyframes).map(([property, keyframes]) => [
@@ -351,7 +355,9 @@ export function resolveMediaVisualProperties(
 			...DEFAULT_MEDIA_ADJUSTMENTS,
 			...element.adjustments,
 		},
-		color: normalizeMediaColorSettings({ element }),
+		color: resolveColorFilterSettings({
+			settings: normalizeMediaColorSettings({ element }),
+		}),
 		mask:
 			masks[0] ??
 			normalizeMediaMask({ ...DEFAULT_MEDIA_MASK, ...element.mask }),

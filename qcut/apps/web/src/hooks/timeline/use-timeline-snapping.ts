@@ -1,6 +1,7 @@
 import { useCallback } from "react";
 import { TimelineTrack } from "@/types/timeline";
 import { TIMELINE_CONSTANTS } from "@/constants/timeline-constants";
+import { getTimelineElementEndTime } from "@/lib/timeline";
 
 export interface SnapPoint {
 	time: number;
@@ -38,15 +39,13 @@ export function useTimelineSnapping({
 
 			// Add element snap points
 			if (enableElementSnapping) {
-				tracks.forEach((track) => {
-					track.elements.forEach((element) => {
+				for (const track of tracks) {
+					for (const element of track.elements) {
 						// Skip the element being dragged
-						if (element.id === excludeElementId) return;
+						if (element.id === excludeElementId) continue;
 
 						const elementStart = element.startTime;
-						const elementEnd =
-							element.startTime +
-							(element.duration - element.trimStart - element.trimEnd);
+						const elementEnd = getTimelineElementEndTime({ element });
 
 						snapPoints.push(
 							{
@@ -62,8 +61,8 @@ export function useTimelineSnapping({
 								trackId: track.id,
 							}
 						);
-					});
-				});
+					}
+				}
 			}
 
 			// Add playhead snap point

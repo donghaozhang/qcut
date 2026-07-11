@@ -3,6 +3,7 @@ import { ResizeState, TimelineElement, TimelineTrack } from "@/types/timeline";
 import { useAsyncMediaItems } from "@/hooks/media/use-async-media-store";
 import { useTimelineStore } from "@/stores/timeline/timeline-store";
 import { TIMELINE_CONSTANTS } from "@/constants/timeline-constants";
+import { clampPlaybackRate } from "@/lib/video/video-timing";
 
 interface UseTimelineElementResizeProps {
 	element: TimelineElement;
@@ -41,13 +42,15 @@ export function useTimelineElementResize({
 		updateElementDuration,
 		pushHistory,
 	} = useTimelineStore();
+	const trimTimeScale =
+		element.type === "media" ? clampPlaybackRate(element.playbackRate) : 1;
 
 	const getMinEffectiveDuration = useCallback(() => {
 		if (element.type === "markdown") {
 			return TIMELINE_CONSTANTS.MARKDOWN_MIN_DURATION;
 		}
-		return 0.1;
-	}, [element.type]);
+		return 0.1 * trimTimeScale;
+	}, [element.type, trimTimeScale]);
 
 	const getMaxEffectiveDuration = useCallback(() => {
 		if (element.type === "markdown") {
@@ -93,20 +96,22 @@ export function useTimelineElementResize({
 
 			const deltaX = e.clientX - resizing.startX;
 			// Reasonable sensitivity for resize operations - similar to timeline scale
-			const deltaTime = deltaX / (50 * zoomLevel);
+			const timelineDelta = deltaX / (50 * zoomLevel);
+			const sourceDelta = timelineDelta * trimTimeScale;
 
 			if (resizing.side === "left") {
 				// Left resize - different behavior for media vs text/image elements
 				const minEffectiveDuration = getMinEffectiveDuration();
 				const maxAllowed =
 					element.duration - resizing.initialTrimEnd - minEffectiveDuration;
-				const calculated = resizing.initialTrimStart + deltaTime;
+				const calculated = resizing.initialTrimStart + sourceDelta;
 
 				if (calculated >= 0) {
 					// Normal trimming within available content
 					const newTrimStart = Math.min(maxAllowed, calculated);
 					const trimDelta = newTrimStart - resizing.initialTrimStart;
-					const newStartTime = element.startTime + trimDelta;
+					const newStartTime =
+						resizing.initialStartTime + trimDelta / trimTimeScale;
 
 					updateElementTrim(
 						track.id,
@@ -136,7 +141,8 @@ export function useTimelineElementResize({
 							maxExtension,
 							maxDurationFromType
 						);
-						const newStartTime = element.startTime - actualExtension;
+						const newStartTime =
+							resizing.initialStartTime - actualExtension / trimTimeScale;
 						const newDuration = element.duration + actualExtension;
 
 						// Keep trimStart at 0 and extend the element
@@ -153,7 +159,8 @@ export function useTimelineElementResize({
 						// Video/Audio: can't extend beyond original content - limit to trimStart = 0
 						const newTrimStart = 0;
 						const trimDelta = newTrimStart - resizing.initialTrimStart;
-						const newStartTime = element.startTime + trimDelta;
+						const newStartTime =
+							resizing.initialStartTime + trimDelta / trimTimeScale;
 
 						updateElementTrim(
 							track.id,
@@ -167,7 +174,7 @@ export function useTimelineElementResize({
 				}
 			} else {
 				// Right resize - can extend duration for supported element types
-				const calculated = resizing.initialTrimEnd - deltaTime;
+				const calculated = resizing.initialTrimEnd - sourceDelta;
 
 				if (calculated < 0) {
 					// We're trying to extend beyond original duration
@@ -231,6 +238,7 @@ export function useTimelineElementResize({
 			canExtendElementDuration,
 			getMinEffectiveDuration,
 			getMaxEffectiveDuration,
+			trimTimeScale,
 		]
 	);
 
@@ -279,6 +287,7 @@ export function useTimelineElementResize({
 			elementId,
 			side,
 			startX: e.clientX,
+			initialStartTime: element.startTime,
 			initialTrimStart: element.trimStart,
 			initialTrimEnd: element.trimEnd,
 		});

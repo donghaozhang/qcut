@@ -181,6 +181,8 @@ export interface TimelineStore {
 	addTrack: (type: TrackType) => string;
 	/** Insert a new track at the specified index position */
 	insertTrackAt: (type: TrackType, index: number) => string;
+	/** Move an existing track to a zero-based UI position */
+	moveTrack: (trackId: string, toIndex: number) => void;
 	/** Remove a track from the timeline */
 	removeTrack: (trackId: string) => void;
 	/** Remove a track with ripple editing (affects subsequent elements) */
@@ -227,6 +229,10 @@ export interface TimelineStore {
 	) => void;
 	/** Toggle mute state for a track */
 	toggleTrackMute: (trackId: string) => void;
+	/** Toggle whether a visual track participates in preview and export */
+	toggleTrackHidden: (trackId: string) => void;
+	/** Toggle whether timeline edits are allowed on a track */
+	toggleTrackLocked: (trackId: string) => void;
 	/** Toggle hidden/visible state for an element */
 	toggleElementHidden: (trackId: string, elementId: string) => void;
 
@@ -441,6 +447,8 @@ export interface TimelineStore {
 				| "width"
 				| "height"
 				| "rotation"
+				| "effectIds"
+				| "colorLabel"
 				| "scaleX"
 				| "scaleY"
 				| "maintainAspectRatio"
@@ -464,6 +472,7 @@ export interface TimelineStore {
 				| "masks"
 				| "chromaKey"
 				| "enhancements"
+				| "audio"
 				| "audioFadeIn"
 				| "audioFadeOut"
 				| "audioNormalize"

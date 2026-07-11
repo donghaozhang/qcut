@@ -181,6 +181,49 @@ describe("Export Engine Utils", () => {
 			const active = getActiveElements(tracks, [], 2);
 			expect(active).toHaveLength(2);
 		});
+
+		it("returns visual elements in bottom-to-top track order", () => {
+			const topElement = createTextElement("top-element", 0, 5);
+			const bottomElement = createMediaElement("bottom-element", "m1", 0, 5);
+			const tracks: TimelineTrack[] = [
+				{
+					id: "top",
+					name: "Top",
+					type: "text",
+					order: 0,
+					elements: [topElement],
+				},
+				{
+					id: "bottom",
+					name: "Bottom",
+					type: "media",
+					order: 1,
+					elements: [bottomElement],
+				},
+			];
+
+			const active = getActiveElements(tracks, [], 1);
+
+			expect(active.map(({ element }) => element.id)).toEqual([
+				"bottom-element",
+				"top-element",
+			]);
+		});
+
+		it("excludes every element on a hidden track", () => {
+			const tracks: TimelineTrack[] = [
+				{
+					id: "hidden-track",
+					name: "Hidden",
+					type: "text",
+					order: 0,
+					hidden: true,
+					elements: [createTextElement("hidden-element", 0, 5)],
+				},
+			];
+
+			expect(getActiveElements(tracks, [], 1)).toHaveLength(0);
+		});
 	});
 
 	describe("calculateElementBounds", () => {

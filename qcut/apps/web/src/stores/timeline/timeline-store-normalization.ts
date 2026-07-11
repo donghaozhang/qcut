@@ -16,6 +16,10 @@ import {
 } from "@/lib/video/video-properties";
 import { TIMELINE_CONSTANTS } from "@/constants/timeline-constants";
 import {
+	buildLegacyAudioFields,
+	normalizeMediaAudioSettings,
+} from "@/lib/audio/audio-properties";
+import {
 	buildLegacyColorAdjustments,
 	normalizeMediaColorSettings,
 } from "@/lib/color/color-properties";
@@ -60,6 +64,8 @@ export function normalizeMediaElement({
 }): TimelineElement {
 	if (element.type !== "media") return element;
 	const masks = resolveMediaMasks(element);
+	const audio = normalizeMediaAudioSettings({ element });
+	const legacyAudio = buildLegacyAudioFields({ settings: audio });
 	const color = normalizeMediaColorSettings({ element });
 	const legacyColor = buildLegacyColorAdjustments({ settings: color });
 
@@ -111,11 +117,8 @@ export function normalizeMediaElement({
 			relight: 0,
 			beauty: 0,
 		},
-		audioFadeIn: element.audioFadeIn ?? 0,
-		audioFadeOut: element.audioFadeOut ?? 0,
-		audioNormalize: element.audioNormalize ?? false,
-		audioDenoise: element.audioDenoise ?? 0,
-		audioPan: element.audioPan ?? 0,
+		audio,
+		...legacyAudio,
 		playbackRate: element.playbackRate ?? 1,
 		reverse: element.reverse ?? false,
 		freezeFrameDuration: element.freezeFrameDuration ?? 0,

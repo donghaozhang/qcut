@@ -10,6 +10,7 @@ import type {
 	ExportSettingsWithAudio,
 	GifExportConfig,
 	ExportFrameRate,
+	ExportEngineSelection,
 } from "@/types/export";
 import type { ExportEngine } from "@/lib/export/export-engine";
 import type {
@@ -57,8 +58,6 @@ export function useExportProgress() {
 		}
 	};
 
-	type EngineSelection = "auto" | "cli" | "ffmpeg" | "standard";
-
 	const handleExport = async (
 		canvas: HTMLCanvasElement,
 		totalDuration: number,
@@ -66,7 +65,7 @@ export function useExportProgress() {
 			quality: ExportQuality;
 			format: ExportFormat;
 			filename: string;
-			engineType: EngineSelection;
+			engineType: ExportEngineSelection;
 			resolution: { width: number; height: number };
 			frameRate: ExportFrameRate;
 			outputPath?: string;

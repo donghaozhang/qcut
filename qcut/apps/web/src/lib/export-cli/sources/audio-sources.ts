@@ -12,6 +12,8 @@ import type {
 } from "@/types/timeline";
 import type { MediaItem } from "@/stores/media/media-store";
 import type { AudioFileInput } from "../types";
+import { normalizeMediaAudioSettings } from "@/lib/audio/audio-properties";
+import { selectMediaAudioSources } from "@/lib/audio/audio-source-selection";
 
 type LogFn = (...args: unknown[]) => void;
 
@@ -34,6 +36,7 @@ interface TimelineAudioCandidate {
 	mediaItem: MediaItem;
 	startTime: number;
 	volume: number;
+	sourceGain: number;
 	trimStart: number;
 	trimEnd: number;
 	duration: number;
@@ -42,6 +45,7 @@ interface TimelineAudioCandidate {
 	normalize: boolean;
 	denoise: number;
 	pan: number;
+	audio: ReturnType<typeof normalizeMediaAudioSettings>;
 	playbackRate: number;
 	speedKeyframes: MediaElement["speedKeyframes"];
 	reverse: boolean;
@@ -101,25 +105,36 @@ function collectAudioCandidates(
 				continue;
 			}
 
-			candidates.push({
-				elementId: element.id,
-				mediaItem,
-				startTime: element.startTime,
-				volume: element.volume ?? 1.0,
-				trimStart: element.trimStart,
-				trimEnd: element.trimEnd,
-				duration: element.duration,
-				fadeIn: element.audioFadeIn ?? 0,
-				fadeOut: element.audioFadeOut ?? 0,
-				normalize: element.audioNormalize ?? false,
-				denoise: element.audioDenoise ?? 0,
-				pan: element.audioPan ?? 0,
-				playbackRate: element.playbackRate ?? 1,
-				speedKeyframes: element.speedKeyframes,
-				reverse: element.reverse ?? false,
-				freezeFrameTime: element.freezeFrameTime,
-				freezeFrameDuration: element.freezeFrameDuration ?? 0,
-			});
+			const audio = normalizeMediaAudioSettings({ element });
+			const selectedSources = selectMediaAudioSources({ element });
+			for (const selectedSource of selectedSources) {
+				const selectedMediaItem = mediaMap.get(selectedSource.mediaId);
+				if (!selectedMediaItem || selectedMediaItem.type === "image") continue;
+				candidates.push({
+					elementId: `${element.id}-${selectedSource.stem ?? selectedSource.source}`,
+					mediaItem: selectedMediaItem,
+					startTime: element.startTime,
+					volume: element.volume ?? 1.0,
+					sourceGain: selectedSource.gain,
+					trimStart: element.trimStart,
+					trimEnd: element.trimEnd,
+					duration: element.duration,
+					fadeIn: element.audioFadeIn ?? 0,
+					fadeOut: element.audioFadeOut ?? 0,
+					normalize: element.audioNormalize ?? false,
+					denoise: element.audioDenoise ?? 0,
+					pan: element.audioPan ?? 0,
+					audio:
+						selectedSource.source === "ai-denoise"
+							? { ...audio, denoise: { ...audio.denoise, enabled: false } }
+							: audio,
+					playbackRate: element.playbackRate ?? 1,
+					speedKeyframes: element.speedKeyframes,
+					reverse: element.reverse ?? false,
+					freezeFrameTime: element.freezeFrameTime,
+					freezeFrameDuration: element.freezeFrameDuration ?? 0,
+				});
+			}
 		}
 	}
 
@@ -251,6 +266,7 @@ export async function extractAudioFileInputs(
 						path,
 						startTime: candidate.startTime,
 						volume: candidate.volume,
+						sourceGain: candidate.sourceGain,
 						trimStart: candidate.trimStart,
 						trimEnd: candidate.trimEnd,
 						duration: candidate.duration,
@@ -259,6 +275,7 @@ export async function extractAudioFileInputs(
 						normalize: candidate.normalize,
 						denoise: candidate.denoise,
 						pan: candidate.pan,
+						audio: candidate.audio,
 						playbackRate: candidate.playbackRate,
 						speedKeyframes: candidate.speedKeyframes,
 						reverse: candidate.reverse,

@@ -1,4 +1,26 @@
-import { TimelineElement } from "@/types/timeline";
+import type { TimelineElement } from "@/types/timeline";
+import { getMediaTimelineDuration } from "@/lib/video/video-timing";
+
+export function getTimelineElementDuration({
+	element,
+	fps = 30,
+}: {
+	element: TimelineElement;
+	fps?: number;
+}): number {
+	if (element.type === "media") return getMediaTimelineDuration(element, fps);
+	return Math.max(0, element.duration - element.trimStart - element.trimEnd);
+}
+
+export function getTimelineElementEndTime({
+	element,
+	fps = 30,
+}: {
+	element: TimelineElement;
+	fps?: number;
+}): number {
+	return element.startTime + getTimelineElementDuration({ element, fps });
+}
 
 /**
  * Checks if any timeline elements overlap in time
@@ -12,13 +34,10 @@ export const checkElementOverlaps = (elements: TimelineElement[]): boolean => {
 		(a, b) => a.startTime - b.startTime
 	);
 
-	for (let i = 0; i < sortedElements.length - 1; i++) {
-		const current = sortedElements[i];
-		const next = sortedElements[i + 1];
-
-		const currentEnd =
-			current.startTime +
-			(current.duration - current.trimStart - current.trimEnd);
+	for (let index = 0; index < sortedElements.length - 1; index++) {
+		const current = sortedElements[index];
+		const next = sortedElements[index + 1];
+		const currentEnd = getTimelineElementEndTime({ element: current });
 
 		// Check if current element overlaps with next element
 		if (currentEnd > next.startTime) return true; // Overlap detected
@@ -42,14 +61,12 @@ export const resolveElementOverlaps = (
 	);
 	const resolvedElements: TimelineElement[] = [];
 
-	for (let i = 0; i < sortedElements.length; i++) {
-		const current = { ...sortedElements[i] };
+	for (const sortedElement of sortedElements) {
+		const current = { ...sortedElement };
 
 		if (resolvedElements.length > 0) {
 			const previous = resolvedElements[resolvedElements.length - 1];
-			const previousEnd =
-				previous.startTime +
-				(previous.duration - previous.trimStart - previous.trimEnd);
+			const previousEnd = getTimelineElementEndTime({ element: previous });
 
 			// If current element would overlap with previous, push it after previous ends
 			if (current.startTime < previousEnd) {

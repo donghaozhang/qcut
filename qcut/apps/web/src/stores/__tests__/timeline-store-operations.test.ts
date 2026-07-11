@@ -51,7 +51,11 @@ vi.mock("sonner", () => ({
 }));
 
 /** Helper to set up a store with a media element on the main track */
-function setupStoreWithElement() {
+function setupStoreWithElement({
+	overrides = {},
+}: {
+	overrides?: Partial<CreateMediaElement>;
+} = {}) {
 	const { result } = renderHook(() => useTimelineStore());
 	const mainTrackId = result.current.tracks[0].id;
 
@@ -63,6 +67,7 @@ function setupStoreWithElement() {
 		name: "Test Clip",
 		trimStart: 0,
 		trimEnd: 0,
+		...overrides,
 	};
 
 	act(() => {
@@ -190,6 +195,45 @@ describe("Timeline Store Operations", () => {
 
 		expect(secondId).toBeNull();
 		expect(result.current.tracks[0].elements).toHaveLength(1);
+	});
+
+	it("splitElement maps a 2x timeline split to source time", () => {
+		const { result, mainTrackId, elementId } = setupStoreWithElement({
+			overrides: { playbackRate: 2 },
+		});
+
+		let secondId: string | null = null;
+		act(() => {
+			secondId = result.current.splitElement(mainTrackId, elementId, 7.5);
+		});
+
+		const elements = result.current.tracks[0].elements;
+		const left = elements.find((element) => element.id === elementId);
+		const right = elements.find((element) => element.id === secondId);
+		expect(left?.trimEnd).toBeCloseTo(5);
+		expect(right?.trimStart).toBeCloseTo(5);
+		expect(right?.startTime).toBe(7.5);
+	});
+
+	it("deleteTimeRange preserves source boundaries inside a 2x clip", () => {
+		const { result, mainTrackId } = setupStoreWithElement({
+			overrides: { playbackRate: 2 },
+		});
+
+		act(() => {
+			result.current.deleteTimeRange({
+				startTime: 6,
+				endTime: 8,
+				trackIds: [mainTrackId],
+				ripple: false,
+			});
+		});
+
+		const elements = result.current.tracks[0].elements;
+		expect(elements).toHaveLength(2);
+		expect(elements[0].trimEnd).toBeCloseTo(8);
+		expect(elements[1].startTime).toBe(8);
+		expect(elements[1].trimStart).toBeCloseTo(6);
 	});
 
 	it("splitAndKeepLeft trims the right portion", () => {
@@ -407,5 +451,12 @@ describe("Timeline Store Operations", () => {
 		expect(audioTrack).toBeDefined();
 		expect(audioTrack?.elements).toHaveLength(1);
 		expect(audioTrack?.elements[0].name).toContain("audio");
+		const sourceElement = result.current.tracks
+			.find((track) => track.id === mainTrackId)
+			?.elements.find((element) => element.id === elementId);
+		expect(sourceElement?.type).toBe("media");
+		if (sourceElement?.type === "media") {
+			expect(sourceElement.volume).toBe(0);
+		}
 	});
 });

@@ -44,7 +44,7 @@ export function createAutoSaveHelpers(get: StoreGet, set: StoreSet) {
 		const tracksWithMain = ensureMainTrack(newTracks);
 		const sortedTracks = sortTracksByOrder(tracksWithMain);
 		set({
-			_tracks: tracksWithMain,
+			_tracks: sortedTracks,
 			tracks: sortedTracks,
 		});
 	};

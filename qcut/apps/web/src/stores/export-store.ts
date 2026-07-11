@@ -196,7 +196,7 @@ export const useExportStore = create<ExportStore>()(
 		(set, get) => ({
 			// Initial state
 			isDialogOpen: false,
-			panelView: "export",
+			panelView: "properties",
 			settings: getDefaultSettings(),
 			progress: getDefaultProgress(),
 			remotionProgress: getDefaultRemotionProgress(),

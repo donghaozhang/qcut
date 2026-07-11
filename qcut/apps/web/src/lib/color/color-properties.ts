@@ -14,6 +14,17 @@ import {
 	interpolateNumber,
 	type Keyframe,
 } from "@/lib/remotion/keyframe-converter";
+import {
+	COLOR_SECONDARY_CURVE_NAMES,
+	createDefaultSecondaryCurve,
+	normalizeSecondaryCurve,
+} from "./color-secondary-curves";
+import { resolveColorCurveShapes } from "./color-curve-keyframes";
+import {
+	DEFAULT_COLOR_FILTER_APPLICATION,
+	normalizeColorFilterApplication,
+	resolveColorFilterSettings,
+} from "@/lib/filters/filter-resolver";
 
 export const COLOR_HSL_RANGES: ColorHslRangeName[] = [
 	"red",
@@ -41,6 +52,7 @@ const DEFAULT_WHEEL: ColorWheelSettings = { x: 0, y: 0, luminance: 0 };
 
 export const DEFAULT_MEDIA_COLOR_SETTINGS: MediaColorSettings = {
 	enabled: true,
+	filter: { ...DEFAULT_COLOR_FILTER_APPLICATION },
 	basic: {
 		enabled: true,
 		exposure: 0,
@@ -80,6 +92,15 @@ export const DEFAULT_MEDIA_COLOR_SETTINGS: MediaColorSettings = {
 		green: DEFAULT_CURVE.map((point) => ({ ...point })),
 		blue: DEFAULT_CURVE.map((point) => ({ ...point })),
 	},
+	secondaryCurves: {
+		enabled: false,
+		mix: 100,
+		hueVsSaturation: createDefaultSecondaryCurve(),
+		hueVsHue: createDefaultSecondaryCurve(),
+		hueVsLuminance: createDefaultSecondaryCurve(),
+		luminanceVsSaturation: createDefaultSecondaryCurve(),
+		saturationVsSaturation: createDefaultSecondaryCurve(),
+	},
 	wheels: {
 		enabled: false,
 		mode: "tonal",
@@ -107,6 +128,7 @@ export const DEFAULT_MEDIA_COLOR_SETTINGS: MediaColorSettings = {
 		peakNits: 100,
 	},
 	keyframes: {},
+	curveShapeKeyframes: {},
 };
 
 export interface ColorKeyframeDefinition {
@@ -200,6 +222,13 @@ export const COLOR_KEYFRAME_DEFINITIONS: Partial<
 		suffix: "%",
 	},
 	"curves.mix": { label: "Curve mix", min: 0, max: 100, step: 1, suffix: "%" },
+	"secondaryCurves.mix": {
+		label: "Secondary curve mix",
+		min: 0,
+		max: 100,
+		step: 1,
+		suffix: "%",
+	},
 	"wheels.strength": { label: "Strength", min: 0, max: 100, step: 1 },
 	"wheels.balance": { label: "Tonal balance", min: -100, max: 100, step: 1 },
 	"smart.intensity": {
@@ -277,6 +306,7 @@ export function normalizeMediaColorSettings({
 	return {
 		...DEFAULT_MEDIA_COLOR_SETTINGS,
 		...stored,
+		filter: normalizeColorFilterApplication({ filter: stored?.filter }),
 		basic,
 		lut: { ...DEFAULT_MEDIA_COLOR_SETTINGS.lut, ...stored?.lut },
 		hsl: { ...DEFAULT_MEDIA_COLOR_SETTINGS.hsl, ...stored?.hsl, ranges },
@@ -287,6 +317,16 @@ export function normalizeMediaColorSettings({
 			red: normalizeCurve({ points: stored?.curves?.red }),
 			green: normalizeCurve({ points: stored?.curves?.green }),
 			blue: normalizeCurve({ points: stored?.curves?.blue }),
+		},
+		secondaryCurves: {
+			...DEFAULT_MEDIA_COLOR_SETTINGS.secondaryCurves,
+			...stored?.secondaryCurves,
+			...Object.fromEntries(
+				COLOR_SECONDARY_CURVE_NAMES.map((name) => [
+					name,
+					normalizeSecondaryCurve({ curve: stored?.secondaryCurves?.[name] }),
+				])
+			),
 		},
 		wheels: {
 			...DEFAULT_MEDIA_COLOR_SETTINGS.wheels,
@@ -330,6 +370,18 @@ export function normalizeMediaColorSettings({
 				keyframes?.map((keyframe) => ({ ...keyframe })),
 			])
 		) as MediaColorSettings["keyframes"],
+		curveShapeKeyframes: Object.fromEntries(
+			Object.entries(stored?.curveShapeKeyframes ?? {}).map(
+				([property, keyframes]) => [
+					property,
+					keyframes?.map((keyframe) => ({
+						...keyframe,
+						points: keyframe.points.map((point) => ({ ...point })),
+						samples: keyframe.samples ? [...keyframe.samples] : undefined,
+					})),
+				]
+			)
+		) as MediaColorSettings["curveShapeKeyframes"],
 	};
 }
 
@@ -383,6 +435,8 @@ export function getColorPropertyValue({
 			return settings.lut.skinProtection;
 		case "curves.mix":
 			return settings.curves.mix;
+		case "secondaryCurves.mix":
+			return settings.secondaryCurves.mix;
 		case "smart.intensity":
 			return settings.smart.intensity;
 	}
@@ -450,6 +504,11 @@ export function setColorPropertyValue({
 			return { ...settings, lut: { ...settings.lut, skinProtection: value } };
 		case "curves.mix":
 			return { ...settings, curves: { ...settings.curves, mix: value } };
+		case "secondaryCurves.mix":
+			return {
+				...settings,
+				secondaryCurves: { ...settings.secondaryCurves, mix: value },
+			};
 		case "smart.intensity":
 			return { ...settings, smart: { ...settings.smart, intensity: value } };
 	}
@@ -480,7 +539,9 @@ export function resolveMediaColorAtTime({
 			value: interpolateNumber(keyframes as Keyframe[], localFrame),
 		});
 	}
-	return settings;
+	return resolveColorFilterSettings({
+		settings: resolveColorCurveShapes({ settings, frame: localFrame }),
+	});
 }
 
 export function upsertColorKeyframe({
@@ -526,10 +587,12 @@ export function hasMediaColorEdits({
 		Object.keys(COLOR_BASIC_KEYFRAME_DEFINITIONS) as ColorKeyframeProperty[]
 	).some((property) => getColorPropertyValue({ settings, property }) !== 0);
 	return (
+		(settings.filter.presetId !== "none" && settings.filter.intensity > 0) ||
 		(settings.basic.enabled && basicChanged) ||
 		settings.lut.enabled ||
 		settings.hsl.enabled ||
 		settings.curves.enabled ||
+		settings.secondaryCurves.enabled ||
 		settings.wheels.enabled ||
 		settings.smart.enabled ||
 		settings.management.enabled

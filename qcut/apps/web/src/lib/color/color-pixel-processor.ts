@@ -14,6 +14,7 @@ import {
 	applyColorManagementInput,
 	applyColorManagementOutput,
 } from "./color-management";
+import { applySecondaryCurves } from "./color-secondary-curves";
 
 const HSL_CENTERS: Record<ColorHslRangeName, number> = {
 	red: 0,
@@ -321,12 +322,15 @@ export function transformColorPixel({
 	const transformed = applyColorManagementOutput({
 		settings,
 		color: applyWheels(
-			applyCurves(
-				applyHsl(
-					applyLut(
-						applyBasic(
-							applySmart(
-								applyColorManagementInput({ color, settings }),
+			applySecondaryCurves({
+				color: applyCurves(
+					applyHsl(
+						applyLut(
+							applyBasic(
+								applySmart(
+									applyColorManagementInput({ color, settings }),
+									settings
+								),
 								settings
 							),
 							settings
@@ -335,8 +339,8 @@ export function transformColorPixel({
 					),
 					settings
 				),
-				settings
-			),
+				settings: settings.secondaryCurves,
+			}),
 			settings
 		),
 	});

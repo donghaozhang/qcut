@@ -17,6 +17,7 @@ import type {
 	WordFilterState,
 } from "@/types/word-timeline";
 import { WORD_FILTER_STATE } from "@/types/word-timeline";
+import { retimeLyricsWords } from "@/lib/audio/audio-lyrics";
 
 interface AnalyzeFillersResponse {
 	filteredWordIds: Array<{
@@ -73,6 +74,7 @@ interface WordTimelineActions {
 	acceptAllAiSuggestions: () => void;
 	resetAllFilters: () => Promise<void>;
 	undoLastFilterChange: () => void;
+	replaceLyricsText: (text: string) => boolean;
 	clearData: () => void;
 	getVisibleWords: () => WordItem[];
 	getWordById: (wordId: string) => WordItem | undefined;
@@ -618,6 +620,23 @@ export const useWordTimelineStore = create<WordTimelineStore>((set, get) => ({
 			});
 		} catch {
 			return;
+		}
+	},
+
+	replaceLyricsText: (text) => {
+		try {
+			const { data } = get();
+			if (!data) return false;
+			const words = retimeLyricsWords({ text, words: data.words });
+			if (words.length === 0) return false;
+			set({
+				data: { ...data, text: text.trim(), words },
+				selectedWordId: null,
+				filterHistory: [],
+			});
+			return true;
+		} catch {
+			return false;
 		}
 	},
 

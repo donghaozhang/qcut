@@ -35,7 +35,7 @@ export const useTimelineStore = create<TimelineStore>((set, get) => {
 	const sortedInitialTracks = sortTracksByOrder(initialTracks);
 
 	return {
-		_tracks: initialTracks,
+		_tracks: sortedInitialTracks,
 		tracks: sortedInitialTracks,
 		history: [],
 		redoStack: [],

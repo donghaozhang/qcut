@@ -6,6 +6,11 @@ import { useTimelineStore } from "@/stores/timeline/timeline-store";
 import { usePlaybackStore } from "@/stores/editor/playback-store";
 import { useProjectStore } from "@/stores/project-store";
 import { toast } from "sonner";
+import { getTimelineElementEndTime } from "@/lib/timeline";
+import {
+	createPastedTimelineElement,
+	useTimelineClipboardStore,
+} from "@/stores/timeline/timeline-clipboard-store";
 
 /**
  * Custom hook that sets up editor action handlers for keyboard shortcuts and commands
@@ -135,9 +140,7 @@ export function useEditorActions() {
 
 			if (element) {
 				const effectiveStart = element.startTime;
-				const effectiveEnd =
-					element.startTime +
-					(element.duration - element.trimStart - element.trimEnd);
+				const effectiveEnd = getTimelineElementEndTime({ element });
 
 				if (currentTime > effectiveStart && currentTime < effectiveEnd) {
 					splitElement(trackId, elementId, currentTime);
@@ -192,10 +195,7 @@ export function useEditorActions() {
 			const element = track?.elements.find((el: any) => el.id === elementId);
 
 			if (element) {
-				const newStartTime =
-					element.startTime +
-					(element.duration - element.trimStart - element.trimEnd) +
-					0.1;
+				const newStartTime = getTimelineElementEndTime({ element }) + 0.1;
 				const { id, ...elementWithoutId } = element;
 
 				addElementToTrack(trackId, {
@@ -203,6 +203,139 @@ export function useEditorActions() {
 					startTime: newStartTime,
 				});
 			}
+		},
+		undefined
+	);
+
+	useActionHandler(
+		"copy-selected",
+		() => {
+			if (selectedElements.length !== 1) {
+				toast.error("Select exactly one element to copy");
+				return;
+			}
+			const selection = selectedElements[0];
+			const track = tracks.find(
+				(candidate) => candidate.id === selection.trackId
+			);
+			const element = track?.elements.find(
+				(candidate) => candidate.id === selection.elementId
+			);
+			if (!track || !element) return;
+			useTimelineClipboardStore.getState().copyClip({
+				trackId: track.id,
+				trackType: track.type,
+				element,
+			});
+			toast.success("Clip copied");
+		},
+		undefined
+	);
+
+	useActionHandler(
+		"cut-selected",
+		() => {
+			if (selectedElements.length !== 1) {
+				toast.error("Select exactly one element to cut");
+				return;
+			}
+			const selection = selectedElements[0];
+			const track = tracks.find(
+				(candidate) => candidate.id === selection.trackId
+			);
+			const element = track?.elements.find(
+				(candidate) => candidate.id === selection.elementId
+			);
+			if (!track || !element) return;
+			useTimelineClipboardStore.getState().copyClip({
+				trackId: track.id,
+				trackType: track.type,
+				element,
+			});
+			removeElementFromTrack(track.id, element.id);
+			clearSelectedElements();
+			toast.success("Clip cut");
+		},
+		undefined
+	);
+
+	useActionHandler(
+		"paste-clipboard",
+		() => {
+			const entry = useTimelineClipboardStore.getState().clip;
+			if (!entry) {
+				toast.error("Copy or cut a clip first");
+				return;
+			}
+			const sourceTrack = tracks.find(
+				(candidate) => candidate.id === entry.trackId
+			);
+			const targetTrack =
+				sourceTrack?.type === entry.trackType
+					? sourceTrack
+					: tracks.find((candidate) => candidate.type === entry.trackType);
+			if (!targetTrack) {
+				toast.error("No compatible track is available for this clip");
+				return;
+			}
+			const elementId = addElementToTrack(
+				targetTrack.id,
+				createPastedTimelineElement({ entry, startTime: currentTime })
+			);
+			if (!elementId) {
+				toast.error("Failed to paste clip");
+				return;
+			}
+			toast.success("Clip pasted at playhead");
+		},
+		undefined
+	);
+
+	useActionHandler(
+		"copy-attributes-selected",
+		() => {
+			if (selectedElements.length !== 1) {
+				toast.error("Select exactly one media clip");
+				return;
+			}
+			const selection = selectedElements[0];
+			const element = tracks
+				.find((track) => track.id === selection.trackId)
+				?.elements.find((candidate) => candidate.id === selection.elementId);
+			if (element?.type !== "media") {
+				toast.error("Attributes can only be copied from media clips");
+				return;
+			}
+			useTimelineClipboardStore.getState().copyMediaAttributes(element);
+			toast.success("Clip attributes copied");
+		},
+		undefined
+	);
+
+	useActionHandler(
+		"paste-attributes-selected",
+		() => {
+			if (selectedElements.length !== 1) {
+				toast.error("Select exactly one media clip");
+				return;
+			}
+			const attributes = useTimelineClipboardStore.getState().mediaAttributes;
+			if (!attributes) {
+				toast.error("Copy clip attributes first");
+				return;
+			}
+			const selection = selectedElements[0];
+			const element = tracks
+				.find((track) => track.id === selection.trackId)
+				?.elements.find((candidate) => candidate.id === selection.elementId);
+			if (element?.type !== "media") {
+				toast.error("Attributes can only be pasted onto media clips");
+				return;
+			}
+			useTimelineStore
+				.getState()
+				.updateMediaElement(selection.trackId, selection.elementId, attributes);
+			toast.success("Clip attributes pasted");
 		},
 		undefined
 	);

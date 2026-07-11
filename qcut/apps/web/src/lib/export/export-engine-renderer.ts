@@ -1,8 +1,4 @@
-import type {
-	MediaElement,
-	TimelineElement,
-	TrackType,
-} from "@/types/timeline";
+import type { MediaElement, TimelineElement } from "@/types/timeline";
 import type { MediaItem } from "@/stores/media/media-store-types";
 import type { OverlaySticker } from "@/types/sticker-overlay";
 import { debugLog, debugError, debugWarn } from "@/lib/debug/debug-config";
@@ -36,6 +32,7 @@ import { useWebcamOverlayStore } from "@/stores/webcam-overlay-store";
 import { useFigureAnnotationsStore } from "@/stores/figure-annotations-store";
 import { renderTextToCanvas } from "@/lib/text/text-canvas-renderer";
 import { resolveMediaKeyframes } from "@/lib/video/video-properties";
+import { getMediaSourcePlaybackTime } from "@/lib/video/video-timing";
 import { drawColorGradedSourceWithMasks } from "@/lib/color/browser-color-rendering";
 
 let exportCompositor: ScreenRecordingExportCompositor | null = null;
@@ -119,7 +116,8 @@ export async function renderFrame(
 	const activeElements = getActiveElements(
 		context.tracks,
 		context.mediaItems,
-		currentTime
+		currentTime,
+		context.fps
 	);
 
 	// Log frame rendering details for first frame and every 30th frame
@@ -129,25 +127,23 @@ export async function renderFrame(
 		);
 	}
 
-	// Sort elements by track type (render bottom to top)
-	const trackRenderOrder: Record<TrackType, number> = {
-		audio: 0,
-		media: 1,
-		sticker: 2,
-		remotion: 3,
-		captions: 4,
-		text: 5,
-		markdown: 6,
-	};
-	const sortedElements = activeElements.sort((a, b) => {
-		const orderA = trackRenderOrder[a.track.type] ?? 1;
-		const orderB = trackRenderOrder[b.track.type] ?? 1;
-		return orderA - orderB;
-	});
-
-	// Render each active element
-	for (const { element, mediaItem } of sortedElements) {
+	let renderedTimelineStickers = false;
+	for (const { element, track, mediaItem } of activeElements) {
+		if (track.type === "sticker") {
+			if (!renderedTimelineStickers) {
+				await renderOverlayStickers(context, currentTime);
+				renderedTimelineStickers = true;
+			}
+			continue;
+		}
 		await renderElement(context, element, mediaItem, currentTime);
+	}
+
+	const hasTimelineStickers = context.tracks.some(
+		(track) => track.type === "sticker" && track.elements.length > 0
+	);
+	if (!renderedTimelineStickers && !hasTimelineStickers) {
+		await renderOverlayStickers(context, currentTime);
 	}
 
 	// Apply screen recording enhancement compositing (cursor, zoom, background)
@@ -171,9 +167,6 @@ export async function renderFrame(
 			compositor.renderFrame(ctx, compositorFrameCanvas, currentTime * 1000);
 		}
 	}
-
-	// Render overlay stickers on top of everything
-	await renderOverlayStickers(context, currentTime);
 }
 
 /** Render individual element (media or text) */
@@ -422,7 +415,12 @@ async function renderVideoAttempt(
 			videoCache.set(url, video);
 		}
 
-		const seekTime = timeOffset + element.trimStart;
+		const mediaElement = element as MediaElement;
+		const seekTime = getMediaSourcePlaybackTime({
+			element: mediaElement,
+			localTimelineTime: timeOffset,
+			fps: context.fps,
+		});
 		video.currentTime = seekTime;
 
 		await new Promise<void>((resolve, reject) => {

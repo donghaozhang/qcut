@@ -5,6 +5,7 @@ import {
 	duplicateMediaMask,
 	moveMediaMask,
 	removeMediaMask,
+	updateMediaMaskAtFrame,
 	updateMediaMaskInStack,
 	upsertMediaMaskKeyframe,
 } from "../media-mask-stack";
@@ -60,6 +61,39 @@ describe("media mask stack", () => {
 
 		expect(mask.keyframes?.centerX).toEqual([
 			{ id: "replacement", frame: 10, value: 0.75, easing: "easeOut" },
+		]);
+	});
+
+	it("writes animated canvas edits at the current frame without flattening the property", () => {
+		const mask = {
+			...createMediaMask({ id: "animated", type: "ellipse", index: 0 }),
+			centerX: 0.4,
+			keyframes: {
+				centerX: [
+					{ id: "start", frame: 0, value: 0.2, easing: "linear" as const },
+					{ id: "end", frame: 20, value: 0.8, easing: "linear" as const },
+				],
+			},
+		};
+
+		const updated = updateMediaMaskAtFrame({
+			mask,
+			updates: { centerX: 0.6, width: 1.1, rotation: 12 },
+			frame: 10,
+		});
+
+		expect(updated.centerX).toBe(0.4);
+		expect(updated.width).toBe(1.1);
+		expect(updated.rotation).toBe(12);
+		expect(updated.keyframes?.centerX).toEqual([
+			{ id: "start", frame: 0, value: 0.2, easing: "linear" },
+			{
+				id: "animated-centerX-10",
+				frame: 10,
+				value: 0.6,
+				easing: "linear",
+			},
+			{ id: "end", frame: 20, value: 0.8, easing: "linear" },
 		]);
 	});
 });

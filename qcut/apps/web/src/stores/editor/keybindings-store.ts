@@ -50,6 +50,11 @@ export const defaultKeybindings: KeybindingConfig = {
 	s: "split-element",
 	n: "toggle-snapping",
 	"ctrl+a": "select-all",
+	"ctrl+c": "copy-selected",
+	"ctrl+x": "cut-selected",
+	"ctrl+v": "paste-clipboard",
+	"ctrl+shift+c": "copy-attributes-selected",
+	"ctrl+shift+v": "paste-attributes-selected",
 	"ctrl+d": "duplicate-selected",
 	"ctrl+z": "undo",
 	"ctrl+shift+z": "redo",
@@ -190,7 +195,22 @@ export const useKeybindingsStore = create<KeybindingsState>()(
 		}),
 		{
 			name: "qcut-keybindings",
-			version: 1,
+			version: 2,
+			migrate: (persistedState, version) => {
+				const state = persistedState as Partial<KeybindingsState>;
+				if (version >= 2) return state;
+				return {
+					...state,
+					keybindings: {
+						"ctrl+c": "copy-selected",
+						"ctrl+x": "cut-selected",
+						"ctrl+v": "paste-clipboard",
+						"ctrl+shift+c": "copy-attributes-selected",
+						"ctrl+shift+v": "paste-attributes-selected",
+						...state.keybindings,
+					},
+				};
+			},
 		}
 	)
 );

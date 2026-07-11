@@ -47,6 +47,7 @@
 		"@radix-ui/react-separator": "^1.1.8",
 		"@remotion/player": "4.0.424",
 		"@remotion/renderer": "4.0.424",
+		"@soundtouchjs/formant-correction-worklet": "2.1.0",
 		"@t3-oss/env-core": "^0.13.10",
 		"@tanstack/react-router": "^1.161.1",
 		"@upstash/ratelimit": "^2.0.8",

@@ -5,6 +5,7 @@ import type { MediaItem } from "@/stores/media/media-store-types";
 import { ExportUnsupportedError } from "./export-errors";
 import { hasMediaVisualEdits } from "@/lib/video/video-properties";
 import { getMediaTimelineDuration } from "@/lib/video/video-timing";
+import { hasMediaAudioEdits } from "@/lib/audio/audio-properties";
 
 /**
  * Analysis result determining export optimization strategy.
@@ -357,7 +358,10 @@ export function analyzeTimelineForExport(
 
 				// Track video elements and their time ranges
 				if (mediaItem.type === "video") {
-					if (hasMediaVisualEdits(mediaElement)) {
+					if (
+						hasMediaVisualEdits(mediaElement) ||
+						hasMediaAudioEdits({ element: mediaElement })
+					) {
 						hasVideoVisualEdits = true;
 						hasEffects = true;
 					}
@@ -622,7 +626,7 @@ export function analyzeTimelineForExport(
 				trimStart: el.trimStart,
 				trimEnd: el.trimEnd,
 				duration: el.duration,
-				effectiveDuration: el.duration - el.trimStart - el.trimEnd,
+				effectiveDuration: getMediaTimelineDuration(el),
 				hasLocalPath: !!media?.localPath,
 				localPath:
 					media?.localPath?.substring(media.localPath.lastIndexOf("\\") + 1) ||

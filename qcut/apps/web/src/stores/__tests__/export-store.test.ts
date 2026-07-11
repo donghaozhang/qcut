@@ -22,7 +22,7 @@ describe("ExportStore", () => {
 		expect(result.current.settings.height).toBe(1080);
 		expect(result.current.settings.filename).toBeDefined();
 		expect(result.current.isDialogOpen).toBe(false);
-		expect(result.current.panelView).toBe("export");
+		expect(result.current.panelView).toBe("properties");
 	});
 
 	it("updates export settings", () => {
@@ -191,7 +191,7 @@ describe("ExportStore", () => {
 	it("manages panel view", () => {
 		const { result } = renderHook(() => useExportStore());
 
-		expect(result.current.panelView).toBe("export");
+		expect(result.current.panelView).toBe("properties");
 
 		act(() => {
 			result.current.setPanelView("properties");

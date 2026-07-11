@@ -3,6 +3,7 @@ import type {
 	ColorCurvePoint,
 	ColorWheelSettings,
 } from "@/types/timeline";
+import { sampleSmoothCurve } from "./color-curve-math";
 
 export interface RgbColor {
 	r: number;
@@ -75,17 +76,7 @@ export function sampleCurve({
 	points: ColorCurvePoint[];
 	value: number;
 }): number {
-	const sorted = [...points].sort((left, right) => left.x - right.x);
-	if (sorted.length === 0) return clamp01(value);
-	if (value <= sorted[0].x) return clamp01(sorted[0].y);
-	for (let index = 1; index < sorted.length; index += 1) {
-		const to = sorted[index];
-		if (value > to.x) continue;
-		const from = sorted[index - 1];
-		const progress = (value - from.x) / Math.max(0.000001, to.x - from.x);
-		return clamp01(from.y + (to.y - from.y) * progress);
-	}
-	return clamp01(sorted[sorted.length - 1].y);
+	return sampleSmoothCurve({ points, value });
 }
 
 function cubeColor({

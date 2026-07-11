@@ -1,8 +1,13 @@
 import { useRef, useCallback, useEffect } from "react";
 import { openDB, type IDBPDatabase } from "idb";
-import type { TimelineTrack, TimelineElement } from "@/types/timeline";
+import type {
+	MediaElement,
+	TimelineTrack,
+	TimelineElement,
+} from "@/types/timeline";
 import type { MediaItem } from "@/stores/media/media-store-types";
 import type { TProject } from "@/types/project";
+import { getTimelineElementEndTime } from "@/lib/timeline";
 
 interface CachedFrame {
 	imageData: ImageData;
@@ -52,6 +57,14 @@ export function useFrameCache(options: FrameCacheOptions = {}) {
 				trimStart: number;
 				trimEnd: number;
 				mediaId?: string;
+				timing?: Pick<
+					MediaElement,
+					| "playbackRate"
+					| "speedKeyframes"
+					| "reverse"
+					| "freezeFrameTime"
+					| "freezeFrameDuration"
+				>;
 			}> = [];
 
 			for (const track of tracks) {
@@ -63,9 +76,10 @@ export function useFrameCache(options: FrameCacheOptions = {}) {
 					if (isHidden) continue;
 
 					const elementStart = element.startTime;
-					const elementEnd =
-						element.startTime +
-						(element.duration - element.trimStart - element.trimEnd);
+					const elementEnd = getTimelineElementEndTime({
+						element,
+						fps: activeProject?.fps ?? 30,
+					});
 
 					if (time >= elementStart && time < elementEnd) {
 						activeElements.push({
@@ -78,6 +92,16 @@ export function useFrameCache(options: FrameCacheOptions = {}) {
 							mediaId:
 								element.type === "media" && "mediaId" in element
 									? element.mediaId
+									: undefined,
+							timing:
+								element.type === "media"
+									? {
+											playbackRate: element.playbackRate,
+											speedKeyframes: element.speedKeyframes,
+											reverse: element.reverse,
+											freezeFrameTime: element.freezeFrameTime,
+											freezeFrameDuration: element.freezeFrameDuration,
+										}
 									: undefined,
 						});
 					}

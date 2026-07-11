@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { DEFAULT_MEDIA_COLOR_SETTINGS } from "../color-properties";
+import { buildSecondaryCurve } from "../color-secondary-curves";
 import { buildPresetCube } from "../color-lut";
 import { transformColorPixel } from "../color-pixel-processor";
 
@@ -45,7 +46,7 @@ describe("color pixel processor", () => {
 		expect(protectedDistance).toBeLessThan(unprotectedDistance);
 	});
 
-	it("combines HSL, curves, wheels, smart correction, and color management", () => {
+	it("combines HSL, primary and secondary curves, wheels, smart correction, and color management", () => {
 		const grade = settings();
 		grade.basic.enabled = false;
 		grade.hsl.enabled = true;
@@ -56,6 +57,14 @@ describe("color pixel processor", () => {
 			{ id: "middle", x: 0.5, y: 0.58 },
 			{ id: "white", x: 1, y: 1 },
 		];
+		grade.secondaryCurves.enabled = true;
+		grade.secondaryCurves.hueVsSaturation = buildSecondaryCurve({
+			points: [
+				{ id: "start", x: 0, y: 0.5 },
+				{ id: "blue", x: 240 / 360, y: 0.75 },
+				{ id: "end", x: 1, y: 0.5 },
+			],
+		});
 		grade.wheels.enabled = true;
 		grade.wheels.shadows = { x: -0.08, y: 0.06, luminance: 4 };
 		grade.smart = {

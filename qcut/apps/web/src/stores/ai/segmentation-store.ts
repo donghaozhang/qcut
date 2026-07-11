@@ -16,6 +16,7 @@ import type {
 	Sam3SegmentationMode,
 } from "@/types/sam3";
 import type { PersonCutoutMaskOptions } from "@/lib/segmentation/person-cutout-mask";
+import type { MediaMaskTrackingDirection } from "@/types/timeline";
 
 // ============================================
 // Object Colors for Multi-Object Segmentation
@@ -110,6 +111,12 @@ export interface SegmentationState {
 	currentFrame: number;
 	totalFrames: number;
 	segmentedVideoUrl: string | null;
+	trackingRequest: {
+		elementId: string;
+		maskId: string;
+		direction: MediaMaskTrackingDirection;
+		anchorFrame: number;
+	} | null;
 }
 
 export interface SegmentationActions {
@@ -165,6 +172,10 @@ export interface SegmentationActions {
 	) => void;
 	setCurrentFrame: (frame: number) => void;
 	setTotalFrames: (frames: number) => void;
+	setTrackingRequest: (
+		request: NonNullable<SegmentationState["trackingRequest"]>
+	) => void;
+	clearTrackingRequest: () => void;
 
 	// Reset
 	resetStore: () => void;
@@ -218,6 +229,7 @@ const initialState: SegmentationState = {
 	currentFrame: 0,
 	totalFrames: 0,
 	segmentedVideoUrl: null,
+	trackingRequest: null,
 };
 
 // ============================================
@@ -502,6 +514,16 @@ export const useSegmentationStore = create<SegmentationStore>()(
 
 			setTotalFrames: (frames) =>
 				set({ totalFrames: frames }, false, "segmentation/setTotalFrames"),
+
+			setTrackingRequest: (trackingRequest) =>
+				set({ trackingRequest }, false, "segmentation/setTrackingRequest"),
+
+			clearTrackingRequest: () =>
+				set(
+					{ trackingRequest: null },
+					false,
+					"segmentation/clearTrackingRequest"
+				),
 
 			// Reset
 			resetStore: () => set(initialState, false, "segmentation/reset"),

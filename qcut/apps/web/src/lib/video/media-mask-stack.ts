@@ -167,3 +167,37 @@ export function removeMediaMaskKeyframe({
 		},
 	});
 }
+
+export function updateMediaMaskAtFrame({
+	mask,
+	updates,
+	frame,
+}: {
+	mask: MediaMask;
+	updates: Partial<MediaMask>;
+	frame: number;
+}): MediaMask {
+	let nextMask = normalizeMediaMask({ ...mask, ...updates });
+	for (const [property, value] of Object.entries(updates) as Array<
+		[MediaMaskKeyframeProperty, MediaMask[MediaMaskKeyframeProperty]]
+	>) {
+		if (typeof value !== "number") continue;
+		const keyframes = mask.keyframes?.[property] ?? [];
+		if (keyframes.length === 0) continue;
+		const existing = keyframes.find((keyframe) => keyframe.frame === frame);
+		nextMask = upsertMediaMaskKeyframe({
+			mask: {
+				...nextMask,
+				[property]: mask[property],
+			},
+			property,
+			keyframe: {
+				id: existing?.id ?? `${mask.id ?? "mask"}-${property}-${frame}`,
+				frame,
+				value,
+				easing: existing?.easing ?? "linear",
+			},
+		});
+	}
+	return nextMask;
+}

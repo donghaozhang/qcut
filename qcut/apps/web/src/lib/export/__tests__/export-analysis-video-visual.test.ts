@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import type { MediaItem } from "@/stores/media/media-store-types";
 import type { MediaElement, TimelineTrack } from "@/types/timeline";
+import { DEFAULT_MEDIA_AUDIO_SETTINGS } from "@/lib/audio/audio-properties";
 import { analyzeTimelineForExport } from "../export-analysis";
 
 function inputs(overrides: Partial<MediaElement> = {}) {
@@ -77,5 +78,23 @@ describe("video visual export analysis", () => {
 			expect(result.canUseDirectCopy).toBe(false);
 			expect(result.optimizationStrategy).toBe("direct-video-with-filters");
 		}
+	});
+
+	it("routes canonical professional audio effects through the filter pipeline", () => {
+		const { tracks, media } = inputs({
+			audio: {
+				...DEFAULT_MEDIA_AUDIO_SETTINGS,
+				pitch: { enabled: true, semitones: 4, preserveFormants: true },
+			},
+		});
+		const result = analyzeTimelineForExport(tracks, media, {
+			width: 1920,
+			height: 1080,
+			fps: 30,
+		});
+
+		expect(result.hasEffects).toBe(true);
+		expect(result.canUseDirectCopy).toBe(false);
+		expect(result.optimizationStrategy).toBe("direct-video-with-filters");
 	});
 });

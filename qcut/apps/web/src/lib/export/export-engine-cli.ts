@@ -310,6 +310,7 @@ export class CLIExportEngine extends ExportEngine {
 				mediaItems,
 				sessionId: this.sessionId,
 				tracks,
+				fps: this.getFrameRate(),
 				includeEmbeddedVideoAudio:
 					this.exportAnalysis?.optimizationStrategy !== "direct-copy",
 			});

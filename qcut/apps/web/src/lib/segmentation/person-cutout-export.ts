@@ -1,6 +1,10 @@
 import { drawPersonCutoutFrame } from "./person-cutout-canvas";
 import { PersonCutoutClient } from "./person-cutout-client";
 import type { PersonCutoutMaskOptions } from "./person-cutout-mask";
+import {
+	alphaMaskTrackingSample,
+	type MediaMaskTrackingSample,
+} from "@/lib/video/media-mask-tracking";
 
 export type PersonCutoutExportSettings = PersonCutoutMaskOptions;
 
@@ -18,6 +22,7 @@ export interface PersonCutoutExportResult {
 	frameCount: number;
 	hasAudio: boolean;
 	codec: "vp9" | "vp8";
+	trackingSamples: MediaMaskTrackingSample[];
 }
 
 interface ExportPersonCutoutVideoOptions {
@@ -134,6 +139,7 @@ export async function exportPersonCutoutVideo({
 		});
 		const primaryAudioTrack = await input.getPrimaryAudioTrack();
 		let frameCount = 0;
+		const trackingSamples: MediaMaskTrackingSample[] = [];
 
 		conversion = await Conversion.init({
 			input,
@@ -165,6 +171,16 @@ export async function exportPersonCutoutVideo({
 							source: sourceCanvas,
 							mask,
 						});
+						const trackingSample = alphaMaskTrackingSample({
+							alpha: mask.alpha,
+							width: mask.width,
+							height: mask.height,
+							frame: Math.max(
+								0,
+								Math.round((sample.timestamp - firstTimestamp) * frameRate)
+							),
+						});
+						if (trackingSample) trackingSamples.push(trackingSample);
 						frameCount += 1;
 						return outputCanvas;
 					},
@@ -216,6 +232,7 @@ export async function exportPersonCutoutVideo({
 				(track) => track.type === "audio"
 			),
 			codec,
+			trackingSamples,
 		};
 	} finally {
 		if (abortHandler) signal?.removeEventListener("abort", abortHandler);

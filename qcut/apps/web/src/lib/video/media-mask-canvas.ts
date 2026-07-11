@@ -3,7 +3,7 @@ import { mediaMaskSvgUrl } from "./media-mask-svg";
 
 const maskImageCache = new Map<string, Promise<HTMLImageElement>>();
 
-function loadMaskImage(url: string): Promise<HTMLImageElement> {
+export function loadMediaMaskImage(url: string): Promise<HTMLImageElement> {
 	const cached = maskImageCache.get(url);
 	if (cached) return cached;
 	const promise = new Promise<HTMLImageElement>((resolve, reject) => {
@@ -49,7 +49,7 @@ export async function drawMediaSourceWithMasks({
 	frameContext.drawImage(source, 0, 0, pixelWidth, pixelHeight);
 	frameContext.globalCompositeOperation = "destination-in";
 	frameContext.drawImage(
-		await loadMaskImage(maskUrl),
+		await loadMediaMaskImage(maskUrl),
 		0,
 		0,
 		pixelWidth,

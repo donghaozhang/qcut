@@ -7,6 +7,8 @@ import {
 	extractAudioFileInputs,
 } from "../export-cli/sources";
 import { AudioFileInput } from "../export-cli/types";
+import { selectMediaAudioSources } from "@/lib/audio/audio-source-selection";
+import { preparePreservedFormantAudio } from "@/lib/audio/formant-audio-preparation";
 
 /** Hydrate missing audio media items from storage so they can be exported. */
 export async function resolveAudioPreparationInputs({
@@ -37,6 +39,9 @@ export async function resolveAudioPreparationInputs({
 					continue;
 				}
 				referencedMediaIds.add(element.mediaId);
+				for (const source of selectMediaAudioSources({ element })) {
+					referencedMediaIds.add(source.mediaId);
+				}
 			}
 		}
 
@@ -110,6 +115,65 @@ export async function resolveAudioPreparationInputs({
 	}
 }
 
+async function saveTempAudio({
+	audioData,
+	filename,
+	invokeIfAvailable,
+}: {
+	audioData: ArrayBuffer;
+	filename: string;
+	invokeIfAvailable: ({
+		args,
+		channel,
+	}: {
+		args?: unknown[];
+		channel: string;
+	}) => Promise<unknown | null>;
+}): Promise<{ success: boolean; path?: string; error?: string }> {
+	try {
+		try {
+			const path = await platform().audio.saveTemp(
+				new Uint8Array(audioData),
+				filename
+			);
+			if (typeof path === "string" && path.length > 0) {
+				return { success: true, path };
+			}
+		} catch {
+			// Older preload bridges use the IPC fallback below.
+		}
+
+		const result = await invokeIfAvailable({
+			channel: "save-audio-for-export",
+			args: [{ audioData, filename }],
+		});
+		const parsedResult =
+			result && typeof result === "object"
+				? (result as {
+						success?: boolean;
+						path?: string;
+						error?: string;
+					})
+				: null;
+		if (!parsedResult) {
+			return {
+				success: false,
+				error: "No available API to persist audio temp file",
+			};
+		}
+		return {
+			success: parsedResult.success === true,
+			path: parsedResult.path,
+			error: parsedResult.error,
+		};
+	} catch (error) {
+		return {
+			success: false,
+			error: error instanceof Error ? error.message : String(error),
+		};
+	}
+}
+
 /**
  * Prepare audio files referenced by timeline tracks for FFmpeg export.
  *
@@ -127,6 +191,7 @@ export async function prepareAudioFilesForExport({
 	sessionId,
 	tracks,
 	includeEmbeddedVideoAudio = false,
+	fps = 30,
 }: {
 	fileExists: ({ filePath }: { filePath: string }) => Promise<boolean>;
 	invokeIfAvailable: ({
@@ -140,6 +205,7 @@ export async function prepareAudioFilesForExport({
 	sessionId: string | null;
 	tracks: TimelineTrack[];
 	includeEmbeddedVideoAudio?: boolean;
+	fps?: number;
 }): Promise<AudioFileInput[]> {
 	try {
 		if (!platform().isElectron) {
@@ -151,8 +217,22 @@ export async function prepareAudioFilesForExport({
 			trackCount: tracks.length,
 		});
 
-		const results = await extractAudioFileInputs(
+		const saveTemp = ({
+			audioData,
+			filename,
+		}: {
+			audioData: ArrayBuffer;
+			filename: string;
+		}) => saveTempAudio({ audioData, filename, invokeIfAvailable });
+		const formantPreparation = await preparePreservedFormantAudio({
 			tracks,
+			mediaItems,
+			fps,
+			sessionId,
+			saveTemp,
+		});
+		const extractedResults = await extractAudioFileInputs(
+			formantPreparation.remainingTracks,
 			mediaItems,
 			sessionId,
 			{
@@ -167,65 +247,15 @@ export async function prepareAudioFilesForExport({
 						return false;
 					}
 				},
-				saveTemp: async ({
-					audioData,
-					filename,
-				}: {
-					audioData: ArrayBuffer;
-					filename: string;
-				}): Promise<{ success: boolean; path?: string; error?: string }> => {
-					try {
-						try {
-							const path = await platform().audio.saveTemp(
-								new Uint8Array(audioData),
-								filename
-							);
-							if (typeof path === "string" && path.length > 0) {
-								return {
-									success: true,
-									path,
-								};
-							}
-						} catch {
-							// audio.saveTemp not available, fall through to IPC fallback
-						}
-
-						const result = await invokeIfAvailable({
-							channel: "save-audio-for-export",
-							args: [{ audioData, filename }],
-						});
-						const parsedResult =
-							result && typeof result === "object"
-								? (result as {
-										success?: boolean;
-										path?: string;
-										error?: string;
-									})
-								: null;
-
-						if (!parsedResult) {
-							return {
-								success: false,
-								error: "No available API to persist audio temp file",
-							};
-						}
-
-						return {
-							success: parsedResult.success === true,
-							path: parsedResult.path,
-							error: parsedResult.error,
-						};
-					} catch (error) {
-						return {
-							success: false,
-							error: error instanceof Error ? error.message : String(error),
-						};
-					}
-				},
+				saveTemp,
 			},
 			debugLog,
 			{ includeEmbeddedVideoAudio }
 		);
+		const results = [
+			...formantPreparation.audioFiles,
+			...extractedResults,
+		].sort((left, right) => left.startTime - right.startTime);
 
 		if (results.length === 0) {
 			const audioSources = detectAudioSources(tracks, mediaItems);

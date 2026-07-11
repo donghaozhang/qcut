@@ -100,11 +100,58 @@ export function getMediaTimelineDuration(
 	element: MediaElement,
 	fps = 30
 ): number {
+	if ((element.speedKeyframes?.length ?? 0) === 0) {
+		return (
+			getMediaSourceDuration(element) /
+				clampPlaybackRate(element.playbackRate) +
+			Math.max(0, element.freezeFrameDuration ?? 0)
+		);
+	}
 	const profile = buildMediaTimingProfile(element, fps);
 	return (
 		(profile[profile.length - 1]?.timelineTime ?? 0) +
 		Math.max(0, element.freezeFrameDuration ?? 0)
 	);
+}
+
+function mapConstantMediaTimelineTime({
+	element,
+	localTimelineTime,
+}: {
+	element: MediaElement;
+	localTimelineTime: number;
+}): MediaPlaybackTiming {
+	const sourceDuration = getMediaSourceDuration(element);
+	const playbackRate = clampPlaybackRate(element.playbackRate);
+	const speedDuration = sourceDuration / playbackRate;
+	const freezeSourceTime = Math.min(
+		sourceDuration,
+		Math.max(0, element.freezeFrameTime ?? sourceDuration)
+	);
+	const freezeStart = freezeSourceTime / playbackRate;
+	const freezeDuration = Math.max(0, element.freezeFrameDuration ?? 0);
+	const clampedTimelineTime = Math.min(
+		speedDuration + freezeDuration,
+		Math.max(0, localTimelineTime)
+	);
+	const isFrozen =
+		freezeDuration > 0 &&
+		clampedTimelineTime >= freezeStart &&
+		clampedTimelineTime < freezeStart + freezeDuration;
+	const speedTimelineTime = isFrozen
+		? freezeStart
+		: clampedTimelineTime > freezeStart
+			? clampedTimelineTime - freezeDuration
+			: clampedTimelineTime;
+	let sourceTime = Math.min(sourceDuration, speedTimelineTime * playbackRate);
+	if (isFrozen) sourceTime = freezeSourceTime;
+	if (element.reverse) sourceTime = sourceDuration - sourceTime;
+	return {
+		sourceTime,
+		timelineDuration: speedDuration + freezeDuration,
+		playbackRate: isFrozen ? 0 : playbackRate,
+		isFrozen,
+	};
 }
 
 export function mapMediaTimelineTime({
@@ -116,6 +163,9 @@ export function mapMediaTimelineTime({
 	localTimelineTime: number;
 	fps?: number;
 }): MediaPlaybackTiming {
+	if ((element.speedKeyframes?.length ?? 0) === 0) {
+		return mapConstantMediaTimelineTime({ element, localTimelineTime });
+	}
 	const profile = buildMediaTimingProfile(element, fps);
 	const sourceDuration = getMediaSourceDuration(element);
 	const speedDuration = profile[profile.length - 1]?.timelineTime ?? 0;
@@ -166,4 +216,56 @@ export function mapMediaTimelineTime({
 				}),
 		isFrozen,
 	};
+}
+
+export function mapMediaSourceTime({
+	element,
+	sourceTime,
+	fps = 30,
+}: {
+	element: MediaElement;
+	sourceTime: number;
+	fps?: number;
+}): number {
+	const sourceDuration = getMediaSourceDuration(element);
+	const visibleSourceTime = Math.min(
+		sourceDuration,
+		Math.max(0, sourceTime - element.trimStart)
+	);
+	const playbackSourceTime = element.reverse
+		? sourceDuration - visibleSourceTime
+		: visibleSourceTime;
+	const speedTimelineTime =
+		(element.speedKeyframes?.length ?? 0) === 0
+			? playbackSourceTime / clampPlaybackRate(element.playbackRate)
+			: interpolateProfile(
+					buildMediaTimingProfile(element, fps),
+					playbackSourceTime,
+					"sourceTime",
+					"timelineTime"
+				);
+	const freezeSourceTime = Math.min(
+		sourceDuration,
+		Math.max(0, element.freezeFrameTime ?? sourceDuration)
+	);
+	const passedFreezeFrame = playbackSourceTime > freezeSourceTime;
+	return (
+		speedTimelineTime +
+		(passedFreezeFrame ? Math.max(0, element.freezeFrameDuration ?? 0) : 0)
+	);
+}
+
+export function getMediaSourcePlaybackTime({
+	element,
+	localTimelineTime,
+	fps = 30,
+}: {
+	element: MediaElement;
+	localTimelineTime: number;
+	fps?: number;
+}): number {
+	return (
+		element.trimStart +
+		mapMediaTimelineTime({ element, localTimelineTime, fps }).sourceTime
+	);
 }

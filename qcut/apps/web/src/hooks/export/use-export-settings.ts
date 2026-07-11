@@ -10,6 +10,7 @@ import {
 	getEstimatedExportSize,
 	getExportFilename,
 	type ExportFrameRate,
+	type ExportEngineSelection,
 } from "@/types/export";
 import { useElectron } from "@/hooks/useElectron";
 import { platform } from "@qcut/platform-core";
@@ -33,8 +34,8 @@ export function useExportSettings() {
 	const [frameRate, setFrameRate] = useState<ExportFrameRate>(
 		settings.frameRate ?? 30
 	);
-	const [engineType, setEngineType] = useState<"standard" | "ffmpeg" | "cli">(
-		isElectron() ? "cli" : "standard"
+	const [engineType, setEngineType] = useState<ExportEngineSelection>(
+		isElectron() ? "cli" : "auto"
 	);
 	const [ffmpegAvailable, setFfmpegAvailable] = useState(false);
 	const [engineRecommendation, setEngineRecommendation] = useState<

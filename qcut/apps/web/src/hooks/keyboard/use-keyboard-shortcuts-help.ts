@@ -60,6 +60,26 @@ const actionDescriptions: Record<
 		description: "Duplicate selected element",
 		category: "Selection",
 	},
+	"copy-selected": {
+		description: "Copy selected element",
+		category: "Editing",
+	},
+	"cut-selected": {
+		description: "Cut selected element",
+		category: "Editing",
+	},
+	"paste-clipboard": {
+		description: "Paste element at playhead",
+		category: "Editing",
+	},
+	"copy-attributes-selected": {
+		description: "Copy selected clip attributes",
+		category: "Editing",
+	},
+	"paste-attributes-selected": {
+		description: "Paste clip attributes",
+		category: "Editing",
+	},
 	"toggle-snapping": { description: "Toggle snapping", category: "Editing" },
 	undo: { description: "Undo", category: "History" },
 	redo: { description: "Redo", category: "History" },

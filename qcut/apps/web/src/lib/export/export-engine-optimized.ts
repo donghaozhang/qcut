@@ -1,11 +1,17 @@
 import { ExportEngine } from "./export-engine";
 import { ExportSettings } from "@/types/export";
-import { TimelineElement, TimelineTrack } from "@/types/timeline";
+import type {
+	MediaElement,
+	TimelineElement,
+	TimelineTrack,
+} from "@/types/timeline";
 import type { MediaItem } from "@/stores/media/media-store";
 import { handleExportError } from "@/lib/debug/error-handler";
 import { TEST_MEDIA_ID } from "@/constants/timeline-constants";
 import { stripMarkdownSyntax } from "@/lib/markdown";
 import { renderTextToCanvas } from "@/lib/text/text-canvas-renderer";
+import { getTimelineElementEndTime } from "@/lib/timeline";
+import { getMediaSourcePlaybackTime } from "@/lib/video/video-timing";
 
 // Frame cache entry
 interface CachedFrame {
@@ -149,9 +155,10 @@ export class OptimizedExportEngine extends ExportEngine {
 					if (element.hidden) return;
 
 					const elementStart = element.startTime;
-					const elementEnd =
-						element.startTime +
-						(element.duration - element.trimStart - element.trimEnd);
+					const elementEnd = getTimelineElementEndTime({
+						element,
+						fps: this.getFrameRate(),
+					});
 
 					// Check if element overlaps with batch timespan
 					if (elementStart < endTime && elementEnd > startTime) {
@@ -314,9 +321,10 @@ export class OptimizedExportEngine extends ExportEngine {
 			if (element.hidden) continue;
 
 			const elementStart = element.startTime;
-			const elementEnd =
-				element.startTime +
-				(element.duration - element.trimStart - element.trimEnd);
+			const elementEnd = getTimelineElementEndTime({
+				element,
+				fps: this.getFrameRate(),
+			});
 
 			if (currentTime >= elementStart && currentTime < elementEnd) {
 				activeElements.push({ element, track, mediaItem });
@@ -456,7 +464,7 @@ export class OptimizedExportEngine extends ExportEngine {
 
 	// Optimized video rendering (placeholder for future enhancement)
 	private async renderVideoElementOptimized(
-		element: TimelineElement,
+		element: MediaElement,
 		mediaItem: MediaItem,
 		timeOffset: number,
 		ctx: CanvasRenderingContext2D | OffscreenCanvasRenderingContext2D
@@ -475,7 +483,11 @@ export class OptimizedExportEngine extends ExportEngine {
 			});
 
 			// Seek to the correct time
-			video.currentTime = timeOffset + element.trimStart;
+			video.currentTime = getMediaSourcePlaybackTime({
+				element,
+				localTimelineTime: timeOffset,
+				fps: this.getFrameRate(),
+			});
 
 			// Wait for seek to complete with extended timeout for better frame capture
 			await new Promise<void>((resolve, reject) => {

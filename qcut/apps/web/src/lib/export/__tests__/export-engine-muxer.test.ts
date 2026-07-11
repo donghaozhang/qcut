@@ -86,6 +86,8 @@ vi.mock("@/types/export", () => ({
 		mov: { extension: "mov" },
 	},
 	ExportPurpose: { PREVIEW: "preview", FINAL: "final" },
+	shouldIncludeAudio: (settings: { includeAudio?: boolean }) =>
+		settings.includeAudio ?? true,
 }));
 
 /** Create a mock canvas with a stubbed 2D context (JSDOM doesn't support canvas) */

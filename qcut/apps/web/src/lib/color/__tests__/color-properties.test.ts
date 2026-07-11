@@ -84,6 +84,10 @@ describe("color properties", () => {
 		expect(settings.curves.master).not.toBe(
 			DEFAULT_MEDIA_COLOR_SETTINGS.curves.master
 		);
+		expect(settings.secondaryCurves.hueVsSaturation.samples).toHaveLength(257);
+		expect(settings.secondaryCurves.hueVsSaturation).not.toBe(
+			DEFAULT_MEDIA_COLOR_SETTINGS.secondaryCurves.hueVsSaturation
+		);
 		expect(settings.wheels).toMatchObject({
 			strength: 100,
 			offset: { x: 0, y: 0, luminance: 0 },
@@ -112,6 +116,10 @@ describe("color properties", () => {
 							{ id: "g", frame: 0, value: 0, easing: "linear" },
 							{ id: "h", frame: 30, value: 0.2, easing: "linear" },
 						],
+						"secondaryCurves.mix": [
+							{ id: "i", frame: 0, value: 0, easing: "linear" },
+							{ id: "j", frame: 30, value: 100, easing: "linear" },
+						],
 					},
 				},
 			}),
@@ -122,5 +130,6 @@ describe("color properties", () => {
 		expect(settings.hsl.ranges.red.saturation).toBeCloseTo(0);
 		expect(settings.wheels.strength).toBeCloseTo(50);
 		expect(settings.wheels.offset.x).toBeCloseTo(0.1);
+		expect(settings.secondaryCurves.mix).toBeCloseTo(50);
 	});
 });

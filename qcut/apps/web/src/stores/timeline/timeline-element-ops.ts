@@ -4,9 +4,18 @@ import {
 	handleError,
 } from "@/lib/debug/error-handler";
 import { createObjectURL } from "@/lib/media/blob-manager";
-import { checkElementOverlaps, resolveElementOverlaps } from "@/lib/timeline";
+import {
+	checkElementOverlaps,
+	getTimelineElementDuration,
+	getTimelineElementEndTime,
+	resolveElementOverlaps,
+} from "@/lib/timeline";
 import { generateUUID } from "@/lib/utils";
-import type { TimelineElement, TimelineTrack } from "@/types/timeline";
+import type {
+	MediaElement,
+	TimelineElement,
+	TimelineTrack,
+} from "@/types/timeline";
 import type { MediaType } from "../media/media-store-types";
 import { getElementNameWithSuffix } from "./index";
 import type {
@@ -14,6 +23,7 @@ import type {
 	StoreGet,
 	StoreSet,
 } from "./timeline-store-operations";
+import { getTimelineSplitTrimValues } from "./timeline-split-utils";
 
 export function createElementOps(
 	get: StoreGet,
@@ -45,12 +55,9 @@ export function createElementOps(
 			get().pushHistory();
 
 			const oldStartTime = element.startTime;
-			const oldEndTime =
-				element.startTime +
-				(element.duration - element.trimStart - element.trimEnd);
-			const newEndTime =
-				clampedNewStartTime +
-				(element.duration - element.trimStart - element.trimEnd);
+			const elementTimelineDuration = getTimelineElementDuration({ element });
+			const oldEndTime = element.startTime + elementTimelineDuration;
+			const newEndTime = clampedNewStartTime + elementTimelineDuration;
 			const timeDelta = clampedNewStartTime - oldStartTime;
 
 			// Update tracks based on multi-track ripple setting
@@ -129,24 +136,19 @@ export function createElementOps(
 			if (!element) return null;
 
 			const effectiveStart = element.startTime;
-			const effectiveEnd =
-				element.startTime +
-				(element.duration - element.trimStart - element.trimEnd);
+			const effectiveEnd = getTimelineElementEndTime({ element });
 
 			if (splitTime <= effectiveStart || splitTime >= effectiveEnd) return null;
 
 			if (savePushHistory) get().pushHistory();
 
-			const relativeTime = splitTime - element.startTime;
-			const firstDuration = relativeTime;
-			const secondDuration =
-				element.duration - element.trimStart - element.trimEnd - relativeTime;
-
 			const secondElementId = generateUUID();
+			const splitTrims = getTimelineSplitTrimValues({ element, splitTime });
 
 			const leftPart = {
 				...element,
-				trimEnd: element.trimEnd + secondDuration,
+				trimStart: splitTrims.leftTrimStart,
+				trimEnd: splitTrims.leftTrimEnd,
 				name: getElementNameWithSuffix(element.name, "left"),
 			};
 
@@ -154,7 +156,8 @@ export function createElementOps(
 				...element,
 				id: secondElementId,
 				startTime: splitTime,
-				trimStart: element.trimStart + firstDuration,
+				trimStart: splitTrims.rightTrimStart,
+				trimEnd: splitTrims.rightTrimEnd,
 				name: getElementNameWithSuffix(element.name, "right"),
 			};
 
@@ -188,17 +191,13 @@ export function createElementOps(
 			if (!element) return;
 
 			const effectiveStart = element.startTime;
-			const effectiveEnd =
-				element.startTime +
-				(element.duration - element.trimStart - element.trimEnd);
+			const effectiveEnd = getTimelineElementEndTime({ element });
 
 			if (splitTime <= effectiveStart || splitTime >= effectiveEnd) return;
 
 			if (savePushHistory) get().pushHistory();
 
-			const relativeTime = splitTime - element.startTime;
-			const durationToRemove =
-				element.duration - element.trimStart - element.trimEnd - relativeTime;
+			const splitTrims = getTimelineSplitTrimValues({ element, splitTime });
 
 			updateTracksAndSave(
 				get()._tracks.map((track) =>
@@ -209,7 +208,8 @@ export function createElementOps(
 									c.id === elementId
 										? {
 												...c,
-												trimEnd: c.trimEnd + durationToRemove,
+												trimStart: splitTrims.leftTrimStart,
+												trimEnd: splitTrims.leftTrimEnd,
 												name: getElementNameWithSuffix(c.name, "left"),
 											}
 										: c
@@ -234,15 +234,13 @@ export function createElementOps(
 			if (!element) return;
 
 			const effectiveStart = element.startTime;
-			const effectiveEnd =
-				element.startTime +
-				(element.duration - element.trimStart - element.trimEnd);
+			const effectiveEnd = getTimelineElementEndTime({ element });
 
 			if (splitTime <= effectiveStart || splitTime >= effectiveEnd) return;
 
 			if (savePushHistory) get().pushHistory();
 
-			const relativeTime = splitTime - element.startTime;
+			const splitTrims = getTimelineSplitTrimValues({ element, splitTime });
 
 			updateTracksAndSave(
 				get()._tracks.map((track) =>
@@ -254,7 +252,8 @@ export function createElementOps(
 										? {
 												...c,
 												startTime: splitTime,
-												trimStart: c.trimStart + relativeTime,
+												trimStart: splitTrims.rightTrimStart,
+												trimEnd: splitTrims.rightTrimEnd,
 												name: getElementNameWithSuffix(c.name, "right"),
 											}
 										: c
@@ -304,50 +303,70 @@ export function createElementOps(
 			const track = _tracks.find((t) => t.id === trackId);
 			const element = track?.elements.find((c) => c.id === elementId);
 
-			if (!element || track?.type !== "media") return null;
+			if (!element || element.type !== "media" || track?.type !== "media") {
+				return null;
+			}
 
 			get().pushHistory();
 
 			// Find existing audio track or prepare to create one
 			const existingAudioTrack = _tracks.find((t) => t.type === "audio");
 			const audioElementId = generateUUID();
+			const detachedAudioElement: MediaElement = {
+				...element,
+				id: audioElementId,
+				name: getElementNameWithSuffix(element.name, "audio"),
+				audio: element.audio ? { ...element.audio, enabled: true } : undefined,
+			};
+			const muteEmbeddedAudio = (
+				candidate: TimelineElement
+			): TimelineElement =>
+				candidate.id === elementId && candidate.type === "media"
+					? {
+							...candidate,
+							volume: 0,
+							audio: candidate.audio
+								? { ...candidate.audio, enabled: false }
+								: undefined,
+						}
+					: candidate;
 
 			if (existingAudioTrack) {
-				// Add audio element to existing audio track
 				updateTracksAndSave(
-					get()._tracks.map((track) =>
-						track.id === existingAudioTrack.id
+					get()._tracks.map((currentTrack) =>
+						currentTrack.id === existingAudioTrack.id
 							? {
-									...track,
-									elements: [
-										...track.elements,
-										{
-											...element,
-											id: audioElementId,
-											name: getElementNameWithSuffix(element.name, "audio"),
-										},
-									],
+									...currentTrack,
+									elements: [...currentTrack.elements, detachedAudioElement],
 								}
-							: track
+							: currentTrack.id === trackId
+								? {
+										...currentTrack,
+										elements: currentTrack.elements.map(muteEmbeddedAudio),
+									}
+								: currentTrack
 					)
 				);
 			} else {
-				// Create new audio track with the audio element in a single atomic update
 				const newAudioTrack: TimelineTrack = {
 					id: generateUUID(),
 					name: "Audio Track",
 					type: "audio",
-					elements: [
-						{
-							...element,
-							id: audioElementId,
-							name: getElementNameWithSuffix(element.name, "audio"),
-						},
-					],
+					elements: [detachedAudioElement],
 					muted: false,
 				};
 
-				updateTracksAndSave([...get()._tracks, newAudioTrack]);
+				updateTracksAndSave([
+					...get()._tracks.map((currentTrack) =>
+						currentTrack.id === trackId
+							? {
+									...currentTrack,
+									elements: currentTrack.elements.map(muteEmbeddedAudio),
+								}
+							: currentTrack
+					),
+					newAudioTrack,
+				]);
 			}
 
 			return audioElementId;

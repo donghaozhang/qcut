@@ -5,7 +5,11 @@
  * Extracted from export-engine-cli.ts for reuse across filter and source modules.
  */
 
-import type { MediaColorSettings, MediaMask } from "@/types/timeline";
+import type {
+	MediaAudioSettings,
+	MediaColorSettings,
+	MediaMask,
+} from "@/types/timeline";
 
 /**
  * Video source input for FFmpeg direct copy optimization.
@@ -131,6 +135,7 @@ export interface AudioFileInput {
 	path: string;
 	startTime: number;
 	volume: number;
+	sourceGain?: number;
 	trimStart?: number;
 	trimEnd?: number;
 	duration?: number;
@@ -139,6 +144,7 @@ export interface AudioFileInput {
 	normalize?: boolean;
 	denoise?: number;
 	pan?: number;
+	audio?: MediaAudioSettings;
 	playbackRate?: number;
 	speedKeyframes?: Array<{
 		id: string;
