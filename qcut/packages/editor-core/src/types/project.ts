@@ -6,6 +6,7 @@
  */
 
 import type { CanvasSize } from "./editor.js";
+import type { ProjectAudioMixSettings } from "./timeline.js";
 
 export type BlurIntensity = 4 | 8 | 18;
 
@@ -40,4 +41,6 @@ export interface TProject {
 	canvasSize: CanvasSize;
 	/** How the canvas size was decided. */
 	canvasMode: "preset" | "original" | "custom";
+	/** Persistent master and submix bus state for preview and export. */
+	audioMix?: ProjectAudioMixSettings;
 }
