@@ -12,15 +12,16 @@ import {
 	UserRound,
 	ScanSearch,
 } from "lucide-react";
-import {
-	segmentVideoWithText,
-	segmentWithText,
-} from "@/lib/ai-clients/sam3-client";
-import { uploadVideoToFal } from "@/lib/ai-video/core/fal-upload";
-import { getFalApiKeyAsync } from "@/lib/ai-video/core/fal-request";
+import { segmentWithText } from "@/lib/ai-clients/sam3-client";
 import { debugLog } from "@/lib/debug/debug-config";
 import { createObjectURL } from "@/lib/media/blob-manager";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { toast } from "sonner";
+import {
+	attachGeneratedMask,
+	failGeneratedMaskTracking,
+} from "@/lib/segmentation/generated-mask-attachment";
+import { generateSam3VideoMask } from "@/lib/segmentation/sam3-video-mask";
 
 // Export individual components
 export { ObjectList } from "./ObjectList";
@@ -107,48 +108,48 @@ export function SegmentationPanel() {
 			setProcessingState({
 				isProcessing: true,
 				progress: 0,
-				statusMessage: "Uploading image...",
+				statusMessage:
+					mode === "video" ? "Uploading video..." : "Uploading image...",
 				elapsedTime: 0,
 			});
 
 			if (mode === "video") {
-				const apiKey = await getFalApiKeyAsync();
-				if (!apiKey)
-					throw new Error("FAL API key is required for video tracking");
-				const uploadedVideoUrl = await uploadVideoToFal(
-					sourceVideoFile!,
-					apiKey
+				if (!addMediaItem) throw new Error("Media library is not ready");
+				const prompt = currentTextPrompt.trim();
+				const result = await generateSam3VideoMask({
+					sourceFile: sourceVideoFile!,
+					prompt,
+				});
+				const sourceMediaId = await addMediaItem(projectId, {
+					name: `Tracked: ${prompt}`,
+					type: "video",
+					file: result.file,
+					url: result.url,
+					originalUrl: result.originalUrl,
+					metadata: {
+						source: "sam3-video-mask",
+						hasAlpha: result.hasAlpha,
+						codec: "vp9",
+						prompt,
+					},
+				});
+				const attached = attachGeneratedMask({
+					sourceMediaId,
+					type: "object",
+					source: "sam3",
+					name: `SAM3: ${prompt}`,
+					trackingSamples: result.trackingSamples,
+				});
+				setSegmentedVideo(result.url);
+				toast.success(
+					attached
+						? "SAM3 mask attached to selected clip"
+						: "SAM3 mask video added to Media"
 				);
-				const result = await segmentVideoWithText(
-					uploadedVideoUrl,
-					currentTextPrompt.trim(),
-					{ apply_mask: true, detection_threshold: 0.5 }
-				);
-				if (result.video?.url) {
-					setSegmentedVideo(result.video.url);
-					if (addMediaItem) {
-						const response = await fetch(result.video.url);
-						if (!response.ok)
-							throw new Error("Failed to download tracked video");
-						const blob = await response.blob();
-						const file = new File([blob], `sam3-tracked-${Date.now()}.mp4`, {
-							type: "video/mp4",
-						});
-						await addMediaItem(projectId, {
-							name: `Tracked: ${currentTextPrompt.trim()}`,
-							type: "video",
-							file,
-							url: result.video.url,
-							duration: 10,
-							width: 1920,
-							height: 1080,
-						});
-					}
-				}
 				setProcessingState({
 					isProcessing: false,
 					progress: 100,
-					statusMessage: "Video tracking complete",
+					statusMessage: "Video mask tracking complete",
 					elapsedTime: (Date.now() - startTime) / 1000,
 				});
 				return;
@@ -216,6 +217,9 @@ export function SegmentationPanel() {
 			clearCurrentPrompts();
 		} catch (error) {
 			console.error("Segmentation failed:", error);
+			const errorMessage =
+				error instanceof Error ? error.message : "Unknown error occurred";
+			failGeneratedMaskTracking({ message: errorMessage });
 
 			setProcessingState({
 				isProcessing: false,
@@ -224,8 +228,6 @@ export function SegmentationPanel() {
 				elapsedTime: 0,
 			});
 
-			const errorMessage =
-				error instanceof Error ? error.message : "Unknown error occurred";
 			alert(`Segmentation failed: ${errorMessage}`);
 		}
 	};
@@ -359,6 +361,16 @@ export function SegmentationPanel() {
 					sourceFile={sourceVideoFile}
 					sourceUrl={sourceVideoUrl}
 					addMediaItem={addMediaItem}
+					onMaskReady={({ sourceMediaId, trackingSamples }) =>
+						attachGeneratedMask({
+							sourceMediaId,
+							type: "person",
+							source: "mediapipe",
+							name: "MediaPipe person",
+							trackingSamples,
+						})
+					}
+					onMaskError={(message) => failGeneratedMaskTracking({ message })}
 				/>
 			) : mode === "video" && (segmentedVideoUrl || sourceVideoUrl) ? (
 				<div className="flex-1 min-h-0">

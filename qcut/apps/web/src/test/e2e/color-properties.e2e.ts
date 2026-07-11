@@ -238,10 +238,83 @@ test.describe("Professional color properties", () => {
 
 		await panel.getByRole("tab", { name: "Curves" }).click();
 		await enableModule({ panel, name: "RGB curves" });
-		const curveEditor = panel.getByRole("application", {
+		const curveEditor = panel.getByRole("button", {
 			name: "master curve editor",
 		});
 		await curveEditor.click({ position: { x: 120, y: 72 } });
+
+		await enableModule({ panel, name: "Secondary curves" });
+		const secondaryModule = panel.getByTestId("color-module-secondary-curves");
+		await secondaryModule.getByLabel("Hue vs Saturation Red anchor").click();
+		await secondaryModule
+			.getByLabel("Hue vs Saturation point output")
+			.fill("35");
+		await secondaryModule
+			.getByLabel("Hue vs Saturation point output")
+			.press("Tab");
+		await secondaryModule
+			.getByTestId("curve-keyframes-secondaryCurves.hueVsSaturation")
+			.getByLabel("Add curve shape keyframe")
+			.click();
+		await page.evaluate(() => {
+			const element = (window as any).__timelineStore
+				.getState()
+				.tracks.flatMap((track: any) => track.elements)[0];
+			(window as any).__playbackStore.getState().seek(element.startTime + 3);
+		});
+		await secondaryModule
+			.getByLabel("Hue vs Saturation point output")
+			.fill("-20");
+		await secondaryModule
+			.getByLabel("Hue vs Saturation point output")
+			.press("Tab");
+
+		for (const [label, output] of [
+			["Hue vs Hue", 18],
+			["Hue vs Luminance", 22],
+			["Luminance vs Saturation", 28],
+			["Saturation vs Saturation", -24],
+		] as const) {
+			await secondaryModule
+				.getByRole("button", { name: `${label} curve editor` })
+				.click({ position: { x: 165, y: 70 } });
+			await secondaryModule
+				.getByLabel(`${label} point output`)
+				.fill(String(output));
+			await secondaryModule.getByLabel(`${label} point output`).press("Tab");
+		}
+		await secondaryModule.getByLabel("Reset Hue vs Luminance").click();
+		await expect
+			.poll(() =>
+				page.evaluate(() => {
+					const element = (window as any).__timelineStore
+						.getState()
+						.tracks.flatMap((track: any) => track.elements)[0];
+					return element.color.secondaryCurves.hueVsLuminance.points.length;
+				})
+			)
+			.toBe(2);
+		await secondaryModule
+			.getByRole("button", { name: "Hue vs Luminance curve editor" })
+			.click({ position: { x: 165, y: 70 } });
+		await secondaryModule
+			.getByLabel("Hue vs Luminance point output")
+			.fill("22");
+		await secondaryModule
+			.getByLabel("Hue vs Luminance point output")
+			.press("Tab");
+
+		await secondaryModule.getByLabel("Pick Hue vs Saturation color").click();
+		const pickerCanvas = page.getByTestId("color-preview-canvas").first();
+		await expect(pickerCanvas).toHaveClass(/cursor-crosshair/);
+		const pickerBounds = await pickerCanvas.boundingBox();
+		if (!pickerBounds) throw new Error("Color picker canvas has no layout box");
+		await page.mouse.click(pickerBounds.x + 80, pickerBounds.y + 60);
+		await expect(pickerCanvas).not.toHaveClass(/cursor-crosshair/);
+		await secondaryModule.screenshot({
+			path: path.join(outputDir, "04b-secondary-curves.png"),
+			animations: "disabled",
+		});
 		await panel.screenshot({
 			path: path.join(outputDir, "04-curves.png"),
 			animations: "disabled",
@@ -348,6 +421,29 @@ test.describe("Professional color properties", () => {
 			animations: "disabled",
 		});
 
+		await panel.getByLabel("Color preset name").fill("Secondary curve audit");
+		await panel.getByLabel("Save color preset").click();
+		await expect(panel.getByLabel("Saved color preset")).toContainText(
+			"Secondary curve audit"
+		);
+		await panel.getByRole("tab", { name: "Curves" }).click();
+		await setColorNumber({ page, label: "Secondary curve mix", value: 45 });
+		await panel.getByLabel("Apply color preset").click();
+		await expect
+			.poll(() =>
+				page.evaluate(() => {
+					const element = (window as any).__timelineStore
+						.getState()
+						.tracks.flatMap((track: any) => track.elements)[0];
+					return element.color.secondaryCurves.mix;
+				})
+			)
+			.toBe(100);
+		await panel.getByLabel("Show original preview").click();
+		await expect(panel.getByLabel("Show graded preview")).toBeVisible();
+		await panel.getByLabel("Show graded preview").click();
+		await panel.getByLabel("Delete color preset").click();
+
 		const previewCanvas = page.getByTestId("color-preview-canvas").first();
 		await expect(previewCanvas).toBeVisible();
 		await expect
@@ -409,6 +505,31 @@ test.describe("Professional color properties", () => {
 		});
 		expect(state.color.keyframes["hsl.red.hue"]).toHaveLength(2);
 		expect(state.color.curves.master).toHaveLength(3);
+		expect(state.color.secondaryCurves).toMatchObject({
+			enabled: true,
+			mix: 100,
+		});
+		expect(
+			state.color.secondaryCurves.hueVsSaturation.points.length
+		).toBeGreaterThan(3);
+		expect(state.color.secondaryCurves.hueVsHue.points.length).toBeGreaterThan(
+			2
+		);
+		expect(state.color.secondaryCurves.hueVsLuminance.points).toHaveLength(3);
+		expect(
+			state.color.secondaryCurves.luminanceVsSaturation.points
+		).toHaveLength(3);
+		expect(
+			state.color.secondaryCurves.saturationVsSaturation.points
+		).toHaveLength(3);
+		expect(
+			state.color.secondaryCurves.hueVsSaturation.samples.some(
+				(value: number) => Math.abs(value - 0.5) > 0.01
+			)
+		).toBe(true);
+		expect(
+			state.color.curveShapeKeyframes["secondaryCurves.hueVsSaturation"]
+		).toHaveLength(2);
 		expect(state.color.wheels.shadows.x).toBeLessThan(0);
 		expect(state.color.wheels.offset.x).toBeGreaterThan(0);
 		expect(state.color.wheels.strength).toBe(80);
@@ -439,6 +560,8 @@ test.describe("Professional color properties", () => {
 		});
 		await page.getByTestId("export-button").click();
 		await expect(page.getByTestId("export-dialog")).toBeVisible();
+		await page.getByTestId("export-quality-select").click();
+		await page.getByText("854×480", { exact: true }).click();
 		await page.getByTestId("export-start-button").click();
 		await expect
 			.poll(

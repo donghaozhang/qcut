@@ -62,12 +62,43 @@ test.describe("Main-track video properties", () => {
 				.tracks.flatMap((track: any) => track.elements)[0];
 			playbackStore.getState().seek(element.startTime + 0.25);
 		});
-		await page.getByTestId("panel-tab-properties").click();
-
 		const properties = page.getByTestId("media-properties");
 		await expect(properties).toBeVisible();
+		await expect(page.getByTestId("panel-tab-properties")).toHaveClass(
+			/border-primary/
+		);
+		const inspectorPosition = await properties.evaluate((node) => ({
+			left: node.getBoundingClientRect().left,
+			viewportWidth: window.innerWidth,
+		}));
+		expect(inspectorPosition.left).toBeGreaterThan(
+			inspectorPosition.viewportWidth / 2
+		);
+		await page.screenshot({
+			path: path.join(outputDir, "00-selected-video-properties-right.png"),
+			animations: "disabled",
+		});
+		const primaryTabs = properties.getByTestId("media-properties-primary-tabs");
+		const visualTabs = properties.getByTestId("media-properties-visual-tabs");
 		const propertyTabs = properties.getByRole("tab");
-		await expect(propertyTabs).toHaveCount(8);
+		await expect(propertyTabs).toHaveCount(10);
+		for (const tabName of [
+			"Visual",
+			"Audio",
+			"Speed",
+			"Animation",
+			"Adjust",
+			"AI",
+		]) {
+			await expect(
+				primaryTabs.getByRole("tab", { name: tabName, exact: true })
+			).toBeVisible();
+		}
+		for (const tabName of ["Basic", "Cutout", "Mask", "Portrait"]) {
+			await expect(
+				visualTabs.getByRole("tab", { name: tabName, exact: true })
+			).toBeVisible();
+		}
 		const tabLayout = await propertyTabs.evaluateAll((tabs) =>
 			tabs.map((tab) => {
 				const textRange = document.createRange();
@@ -128,7 +159,9 @@ test.describe("Main-track video properties", () => {
 			animations: "disabled",
 		});
 
-		await properties.getByRole("tab", { name: "Crop" }).click();
+		await properties
+			.getByRole("button", { name: "Crop and fit", exact: true })
+			.click();
 		await setNumber(page, "Crop top", 8);
 		await setNumber(page, "Crop right", 6);
 		await setNumber(page, "Crop bottom", 8);
@@ -137,8 +170,13 @@ test.describe("Main-track video properties", () => {
 			path: path.join(outputDir, "02-crop-properties.png"),
 			animations: "disabled",
 		});
+		await properties
+			.getByRole("button", { name: "Crop and fit", exact: true })
+			.click();
 
-		await properties.getByRole("tab", { name: "Perspective" }).click();
+		await properties
+			.getByRole("button", { name: "Perspective", exact: true })
+			.click();
 		await setNumber(page, "Top left X", 8);
 		await setNumber(page, "Top left Y", 10);
 		await setNumber(page, "Top right X", 94);
@@ -147,14 +185,16 @@ test.describe("Main-track video properties", () => {
 			path: path.join(outputDir, "03-perspective-properties.png"),
 			animations: "disabled",
 		});
-
-		await properties.getByRole("button", { name: "Keyframes" }).click();
 		await properties
-			.getByRole("button", {
-				name: "Add keyframe at current frame",
-				exact: true,
-			})
+			.getByRole("button", { name: "Perspective", exact: true })
 			.click();
+
+		await properties.getByLabel("Add X position keyframe").click();
+		await expect(
+			properties.getByLabel("Remove X position keyframe")
+		).toBeVisible();
+		await setNumber(page, "X position", 64);
+		await properties.getByRole("button", { name: "Keyframes" }).click();
 		await expect(properties.getByText("(1 keyframe)")).toBeVisible();
 		await properties.screenshot({
 			path: path.join(outputDir, "04-keyframes-properties.png"),
@@ -180,12 +220,13 @@ test.describe("Main-track video properties", () => {
 				crop: element.crop,
 				perspective: element.perspective,
 				keyframeCount: element.keyframes?.x?.length ?? 0,
+				keyframeValue: element.keyframes?.x?.[0]?.value,
 			};
 		});
 		expect(state).toMatchObject({
 			scaleX: 0.75,
 			scaleY: 0.75,
-			x: 60,
+			x: 64,
 			y: -20,
 			rotation: 12,
 			opacity: 0.8,
@@ -193,6 +234,7 @@ test.describe("Main-track video properties", () => {
 			blendMode: "screen",
 			crop: { top: 0.08, right: 0.06, bottom: 0.08, left: 0.06 },
 			keyframeCount: 1,
+			keyframeValue: 64,
 		});
 		expect(state.perspective.topLeftX).toBeCloseTo(0.08);
 		expect(state.perspective.topLeftY).toBeCloseTo(0.1);
@@ -227,16 +269,56 @@ test.describe("Main-track video properties", () => {
 				reverse: true,
 				freezeFrameTime: 0.5,
 				freezeFrameDuration: 0.4,
-				mask: {
-					type: "ellipse",
-					centerX: 0.5,
-					centerY: 0.5,
-					width: 0.75,
-					height: 0.65,
-					rotation: 12,
-					feather: 0.05,
-					invert: false,
-				},
+				masks: [
+					{
+						id: "portrait-mask",
+						name: "Portrait",
+						enabled: true,
+						blendMode: "add",
+						type: "ellipse",
+						centerX: 0.5,
+						centerY: 0.5,
+						width: 0.75,
+						height: 0.65,
+						rotation: 12,
+						feather: 0.05,
+						invert: false,
+						keyframes: {
+							centerX: [
+								{ id: "mx0", frame: 0, value: 0.4, easing: "linear" },
+								{ id: "mx1", frame: 30, value: 0.6, easing: "linear" },
+							],
+						},
+					},
+					{
+						id: "cutout-mask",
+						name: "Cutout",
+						enabled: true,
+						blendMode: "subtract",
+						type: "rectangle",
+						centerX: 0.5,
+						centerY: 0.5,
+						width: 0.2,
+						height: 0.2,
+						rotation: 0,
+						feather: 0.02,
+						invert: false,
+					},
+					{
+						id: "edge-mask",
+						name: "Edge limit",
+						enabled: true,
+						blendMode: "intersect",
+						type: "linear",
+						centerX: 0.5,
+						centerY: 0.5,
+						width: 1,
+						height: 1,
+						rotation: 20,
+						feather: 0.1,
+						invert: false,
+					},
+				],
 				chromaKey: {
 					enabled: true,
 					color: "#00ff00",
@@ -259,32 +341,138 @@ test.describe("Main-track video properties", () => {
 			["Adjust", "08-adjustments-properties.png"],
 			["Audio", "09-audio-properties.png"],
 			["Speed", "10-speed-properties.png"],
-			["Advanced", "11-advanced-properties.png"],
 		] as const) {
-			await properties.getByRole("tab", { name: tab }).click();
+			await primaryTabs.getByRole("tab", { name: tab, exact: true }).click();
 			await properties.screenshot({
 				path: path.join(outputDir, filename),
 				animations: "disabled",
 			});
 		}
+		await primaryTabs.getByRole("tab", { name: "Visual", exact: true }).click();
+		await visualTabs.getByRole("tab", { name: "Mask", exact: true }).click();
+		await properties.screenshot({
+			path: path.join(outputDir, "11-mask-properties.png"),
+			animations: "disabled",
+		});
+		const maskEditor = properties.getByTestId("media-mask-properties");
+		await expect(
+			maskEditor.getByRole("button", { name: "Select Portrait" })
+		).toBeVisible();
+		await expect(
+			maskEditor.getByRole("button", { name: "Select Cutout" })
+		).toBeVisible();
+		await expect(
+			maskEditor.getByRole("button", { name: "Select Edge limit" })
+		).toBeVisible();
+		await maskEditor.getByRole("button", { name: "Select Portrait" }).click();
+		const maskOverlay = page.getByTestId("media-mask-canvas-overlay");
+		await expect(maskOverlay).toBeVisible();
+		await maskOverlay
+			.getByRole("button", { name: "Move Portrait" })
+			.press("ArrowRight");
+
+		await maskEditor.getByRole("button", { name: "Add", exact: true }).click();
+		await page.getByRole("menuitem", { name: "Pen", exact: true }).click();
+		const maskNameInputs = maskEditor.getByLabel("Mask name");
+		await maskNameInputs.last().fill("Bezier Accent");
+		await maskNameInputs.last().press("Tab");
+		await maskEditor.getByLabel("Expansion value").fill("8");
+		await maskEditor.getByLabel("Expansion value").press("Tab");
+		await maskEditor.getByLabel("Density value").fill("80");
+		await maskEditor.getByLabel("Density value").press("Tab");
+		await maskEditor.getByLabel("Mask blend mode").click();
+		await page.getByRole("option", { name: "Subtract", exact: true }).click();
+		await expect(
+			maskOverlay.getByRole("button", { name: /Edit Bezier Accent point 1/ })
+		).toBeVisible();
+		await expect(
+			maskOverlay.getByRole("button", {
+				name: /Edit Bezier Accent handleIn/,
+			})
+		).toHaveCount(4);
+		await maskEditor.screenshot({
+			path: path.join(outputDir, "11a-multi-mask-editor.png"),
+			animations: "disabled",
+		});
+		await page.getByTestId("preview-panel").screenshot({
+			path: path.join(outputDir, "11aa-bezier-mask-canvas.png"),
+			animations: "disabled",
+		});
 		const propertiesViewport = properties.locator(
 			"xpath=ancestor::*[@data-radix-scroll-area-viewport][1]"
 		);
-		for (const [section, filename] of [
-			["Chroma key", "11b-advanced-chroma-key.png"],
-			["Enhance", "11c-advanced-enhancements.png"],
-			["AI processing", "11d-advanced-ai-processing.png"],
-		] as const) {
-			await properties
-				.getByText(section, { exact: true })
-				.scrollIntoViewIfNeeded();
-			await propertiesViewport.screenshot({
-				path: path.join(outputDir, filename),
-				animations: "disabled",
-			});
-		}
+		await visualTabs.getByRole("tab", { name: "Cutout", exact: true }).click();
+		await expect(
+			properties.getByRole("button", { name: "Automatic cutout" })
+		).toBeVisible();
+		await expect(
+			properties.getByRole("button", { name: "Render and attach mask" })
+		).toBeVisible();
+		await expect(
+			properties.getByText("Chroma key", { exact: true })
+		).toBeVisible();
+		await propertiesViewport.screenshot({
+			path: path.join(outputDir, "11b-cutout-local-person.png"),
+			animations: "disabled",
+		});
+
+		await properties
+			.getByRole("tab", { name: "Cloud object", exact: true })
+			.click();
+		await properties.getByLabel("Object description").fill("person");
+		await expect(
+			properties.getByRole("button", { name: "Generate and attach mask" })
+		).toBeEnabled();
+		await propertiesViewport.screenshot({
+			path: path.join(outputDir, "11c-cutout-cloud-object.png"),
+			animations: "disabled",
+		});
+		await page.screenshot({
+			path: path.join(outputDir, "11cc-cutout-cloud-object-full-editor.png"),
+			animations: "disabled",
+		});
+
+		await visualTabs.getByRole("tab", { name: "Basic", exact: true }).click();
+		await properties
+			.getByRole("button", { name: "Video stabilization", exact: true })
+			.click();
+		await properties
+			.getByRole("button", { name: "Video enhancement", exact: true })
+			.click();
+		await properties.getByText("Local supersampling").scrollIntoViewIfNeeded();
+		await propertiesViewport.screenshot({
+			path: path.join(outputDir, "11d-basic-enhancements.png"),
+			animations: "disabled",
+		});
+
+		await visualTabs
+			.getByRole("tab", { name: "Portrait", exact: true })
+			.click();
+		await expect(properties.getByText("Portrait smoothing")).toBeVisible();
+		await propertiesViewport.screenshot({
+			path: path.join(outputDir, "11e-portrait-enhancement.png"),
+			animations: "disabled",
+		});
+
+		await primaryTabs.getByRole("tab", { name: "AI", exact: true }).click();
+		await expect(
+			properties.getByRole("button", { name: "AI upscale" })
+		).toBeVisible();
+		await expect(
+			properties.getByRole("button", { name: "AI video tools" })
+		).toBeVisible();
+		await propertiesViewport.screenshot({
+			path: path.join(outputDir, "11f-ai-processing.png"),
+			animations: "disabled",
+		});
+		await properties.getByRole("button", { name: "AI upscale" }).click();
+		await expect(
+			page
+				.getByTestId("media-panel")
+				.getByText("sample-video.mp4", { exact: true })
+		).toBeVisible();
 		await page.getByTestId("preview-panel").screenshot({
-			path: path.join(outputDir, "12-advanced-editor-preview.png"),
+			path: path.join(outputDir, "12-editor-preview.png"),
 			animations: "disabled",
 		});
 
@@ -299,7 +487,13 @@ test.describe("Main-track video properties", () => {
 				audioNormalize: element.audioNormalize,
 				playbackRate: element.playbackRate,
 				reverse: element.reverse,
-				maskType: element.mask.type,
+				masks: element.masks.map((mask: any) => ({
+					name: mask.name,
+					blendMode: mask.blendMode,
+					type: mask.type,
+					keyframeCount: mask.keyframes?.centerX?.length ?? 0,
+					pointCount: mask.points?.length ?? 0,
+				})),
 				chromaEnabled: element.chromaKey.enabled,
 				stabilization: element.enhancements.stabilization,
 			};
@@ -310,7 +504,36 @@ test.describe("Main-track video properties", () => {
 			audioNormalize: true,
 			playbackRate: 1.5,
 			reverse: true,
-			maskType: "ellipse",
+			masks: [
+				{
+					name: "Portrait",
+					blendMode: "add",
+					type: "ellipse",
+					keyframeCount: 3,
+					pointCount: 0,
+				},
+				{
+					name: "Cutout",
+					blendMode: "subtract",
+					type: "rectangle",
+					keyframeCount: 0,
+					pointCount: 0,
+				},
+				{
+					name: "Edge limit",
+					blendMode: "intersect",
+					type: "linear",
+					keyframeCount: 0,
+					pointCount: 0,
+				},
+				{
+					name: "Bezier Accent",
+					blendMode: "subtract",
+					type: "pen",
+					keyframeCount: 0,
+					pointCount: 4,
+				},
+			],
 			chromaEnabled: true,
 			stabilization: 20,
 		});

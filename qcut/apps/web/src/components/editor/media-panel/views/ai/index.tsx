@@ -55,6 +55,7 @@ import { AIModelSelectionGrid } from "./components/ai-model-selection-grid";
 import { AITabsContent } from "./components/ai-tabs-content";
 import { AIModelSettingsPanel } from "./components/ai-model-settings-panel";
 import { AIActionsSection } from "./components/ai-actions-section";
+import { subscribeToSelectedVideoUpscale } from "@/lib/ai-video/selected-upscale-source";
 
 /**
  * Render the AI features panel including tabs for Text, Image, Avatar, and Upscale,
@@ -119,6 +120,16 @@ export function AiView({ mode }: { mode?: "upscale" | "angles" } = {}) {
 	const avatarTabState = useAvatarTabState();
 	const upscaleTabState = useUpscaleTabState();
 	const anglesTabState = useAnglesTabState();
+	const handleSelectedVideoUpscale =
+		upscaleTabState.handlers.handleUpscaleVideoChange;
+
+	useEffect(
+		() =>
+			subscribeToSelectedVideoUpscale({
+				onSource: ({ file }) => void handleSelectedVideoUpscale(file),
+			}),
+		[handleSelectedVideoUpscale]
+	);
 
 	const { state: textState, setters: textSetters } = textTabState;
 	const { state: imageState } = imageTabState;

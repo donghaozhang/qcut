@@ -347,7 +347,16 @@ export function ColorWheelSettingsPanel({
 				>
 					Apply all
 				</Button>
-				<Button type="button" size="sm" onClick={bindings.onSavePreset}>
+				<Button
+					type="button"
+					size="sm"
+					onClick={() => bindings.onSavePreset()}
+					onKeyDown={(event) => {
+						if (event.key === "Enter" || event.key === " ") {
+							event.currentTarget.click();
+						}
+					}}
+				>
 					Save preset
 				</Button>
 			</div>

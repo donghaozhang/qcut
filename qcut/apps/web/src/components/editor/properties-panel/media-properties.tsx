@@ -1,4 +1,4 @@
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import {
 	AlignHorizontalJustifyCenter,
 	AlignHorizontalJustifyEnd,
@@ -6,10 +6,13 @@ import {
 	AlignVerticalJustifyCenter,
 	AlignVerticalJustifyEnd,
 	AlignVerticalJustifyStart,
+	Bot,
+	Diamond,
 	FlipHorizontal2,
 	FlipVertical2,
 	Link2,
 	RotateCcw,
+	Sparkles,
 	Unlink2,
 } from "lucide-react";
 import type {
@@ -26,6 +29,7 @@ import { useMediaStore } from "@/stores/media/media-store";
 import { useSegmentationStore } from "@/stores/ai/segmentation-store";
 import { useMediaPanelStore } from "@/components/editor/media-panel/store";
 import { createObjectURL } from "@/lib/media/blob-manager";
+import { requestSelectedVideoUpscale } from "@/lib/ai-video/selected-upscale-source";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Slider } from "@/components/ui/slider";
@@ -52,25 +56,27 @@ import {
 	DEFAULT_MEDIA_MASK,
 	DEFAULT_MEDIA_PERSPECTIVE,
 	MEDIA_KEYFRAME_PROPERTIES,
+	getMediaKeyframeValue,
 	getMediaPropertyValue,
 	resolveMediaVisualProperties,
 	upsertMediaKeyframe,
 } from "@/lib/video/video-properties";
-import {
-	getMediaSourceDuration,
-	getMediaTimelineDuration,
-	mapMediaTimelineTime,
-	resolveSpeedAtSourceTime,
-} from "@/lib/video/video-timing";
+import { getMediaTimelineDuration } from "@/lib/video/video-timing";
 import {
 	PropertyGroup,
 	PropertyItem,
 	PropertyItemLabel,
 	PropertyItemValue,
 } from "./property-item";
-import { VolumeControl } from "./volume-control";
 import { KeyframeEditor } from "./keyframe-editor";
 import { MediaMaskProperties } from "./media-mask-properties";
+import { MaskIconButton } from "./media-mask-controls";
+import { MediaAutomaticCutoutProperties } from "./media-automatic-cutout-properties";
+import {
+	AudioPropertiesPanel,
+	defaultAudioUpdates,
+} from "./audio-properties-panel";
+import { MediaSpeedProperties } from "./media-speed-properties";
 import {
 	ColorPropertiesPanel,
 	defaultColorUpdates,
@@ -88,6 +94,8 @@ interface NumberControlProps {
 	step?: number;
 	suffix?: string;
 	onChange: (value: number) => void;
+	keyframed?: boolean;
+	onToggleKeyframe?: () => void;
 	onInteractionStart: () => void;
 	onInteractionEnd: () => void;
 }
@@ -100,6 +108,8 @@ function NumberControl({
 	step = 1,
 	suffix,
 	onChange,
+	keyframed = false,
+	onToggleKeyframe,
 	onInteractionStart,
 	onInteractionEnd,
 }: NumberControlProps) {
@@ -108,6 +118,21 @@ function NumberControl({
 			<div className="flex items-center justify-between gap-3">
 				<PropertyItemLabel>{label}</PropertyItemLabel>
 				<div className="flex items-center gap-1">
+					{onToggleKeyframe ? (
+						<MaskIconButton
+							label={
+								keyframed ? `Remove ${label} keyframe` : `Add ${label} keyframe`
+							}
+							onClick={onToggleKeyframe}
+							active={keyframed}
+						>
+							<Diamond
+								className={`size-3 ${
+									keyframed ? "fill-primary text-primary" : ""
+								}`}
+							/>
+						</MaskIconButton>
+					) : null}
 					<Input
 						type="number"
 						aria-label={`${label} value`}
@@ -193,6 +218,42 @@ const PERSPECTIVE_FIELDS: Array<{
 	{ x: "bottomRightX", y: "bottomRightY", label: "Bottom right" },
 ];
 
+const CROP_KEYFRAME_PROPERTY = {
+	top: "cropTop",
+	right: "cropRight",
+	bottom: "cropBottom",
+	left: "cropLeft",
+} as const satisfies Record<string, MediaKeyframeProperty>;
+
+const VISUAL_PROPERTY_TABS = ["basic", "cutout", "mask", "portrait"] as const;
+type VisualPropertyTab = (typeof VISUAL_PROPERTY_TABS)[number];
+type MediaPropertiesTab =
+	| VisualPropertyTab
+	| "audio"
+	| "speed"
+	| "animation"
+	| "adjustments"
+	| "ai";
+
+function requestedPropertiesTab({ tab }: { tab: string }): MediaPropertiesTab {
+	if (tab === "crop" || tab === "perspective") return "basic";
+	if (tab === "advanced") return "mask";
+	if (tab === "beauty") return "portrait";
+	if (
+		[
+			...VISUAL_PROPERTY_TABS,
+			"audio",
+			"speed",
+			"animation",
+			"adjustments",
+			"ai",
+		].includes(tab as MediaPropertiesTab)
+	) {
+		return tab as MediaPropertiesTab;
+	}
+	return "basic";
+}
+
 export function MediaProperties({
 	element,
 	trackId,
@@ -221,12 +282,54 @@ export function MediaProperties({
 	const setSegmentationBackend = useSegmentationStore(
 		(state) => state.setVideoBackend
 	);
+	const setMaskTrackingRequest = useSegmentationStore(
+		(state) => state.setTrackingRequest
+	);
 	const [keyframeProperty, setKeyframeProperty] =
 		useState<MediaKeyframeProperty>("x");
-	const [activePropertiesTab, setActivePropertiesTab] = useState("basic");
+	const [activePropertiesTab, setActivePropertiesTab] =
+		useState<MediaPropertiesTab>("basic");
 	const interactionActive = useRef(false);
+	const panelRef = useRef<HTMLDivElement>(null);
 	const visual = resolveMediaVisualProperties(element);
 	const timelineDuration = getMediaTimelineDuration(element, fps);
+
+	useEffect(() => {
+		const handleOpenPropertiesTab = (event: Event) => {
+			const detail = (event as CustomEvent).detail as
+				| {
+						elementId?: string;
+						tab?: string;
+						scrollTo?: string;
+				  }
+				| undefined;
+			if (detail?.elementId !== element.id || !detail.tab) return;
+			setActivePropertiesTab(requestedPropertiesTab({ tab: detail.tab }));
+			if (detail.scrollTo === "lut") {
+				requestAnimationFrame(() => {
+					document
+						.querySelector('[data-testid="color-module-lut"]')
+						?.scrollIntoView({ block: "center", behavior: "smooth" });
+				});
+			}
+		};
+		window.addEventListener(
+			"qcut:open-media-properties-tab",
+			handleOpenPropertiesTab
+		);
+		return () =>
+			window.removeEventListener(
+				"qcut:open-media-properties-tab",
+				handleOpenPropertiesTab
+			);
+	}, [element.id]);
+
+	useEffect(() => {
+		if (!activePropertiesTab || !element.id) return;
+		panelRef.current
+			?.closest<HTMLElement>("[data-radix-scroll-area-viewport]")
+			?.scrollTo({ top: 0, behavior: "auto" });
+	}, [activePropertiesTab, element.id]);
 
 	const update = (updates: MediaUpdates, history = true) =>
 		updateMediaElement(trackId, element.id, updates, history);
@@ -239,39 +342,158 @@ export function MediaProperties({
 		interactionActive.current = false;
 	};
 	const updateLive = (updates: MediaUpdates) => update(updates, false);
+	const keyframesFor = ({ property }: { property: MediaKeyframeProperty }) =>
+		element.keyframes?.[property] ?? [];
+	const currentPropertyValue = ({
+		property,
+	}: {
+		property: MediaKeyframeProperty;
+	}) => getMediaKeyframeValue({ element, property, currentTime, fps });
+	const setPropertyKeyframesFor = ({
+		property,
+		keyframes,
+	}: {
+		property: MediaKeyframeProperty;
+		keyframes: MediaPropertyKeyframe[];
+	}) =>
+		update({
+			keyframes: {
+				...element.keyframes,
+				[property]: keyframes,
+			},
+		});
+	const updateNumericProperties = ({
+		updates,
+		values,
+		history = false,
+	}: {
+		updates: MediaUpdates;
+		values: Partial<Record<MediaKeyframeProperty, number>>;
+		history?: boolean;
+	}) => {
+		let nextKeyframes = element.keyframes;
+		let keyframesChanged = false;
+		for (const [property, value] of Object.entries(values) as Array<
+			[MediaKeyframeProperty, number]
+		>) {
+			const keyframes = keyframesFor({ property });
+			if (keyframes.length === 0) continue;
+			const existing = keyframes.find((item) => item.frame === currentFrame);
+			nextKeyframes = {
+				...nextKeyframes,
+				[property]: upsertMediaKeyframe({
+					keyframes,
+					keyframe: {
+						id: existing?.id ?? `media-keyframe-${property}-${Date.now()}`,
+						frame: currentFrame,
+						value,
+						easing: existing?.easing ?? "linear",
+					},
+				}),
+			};
+			keyframesChanged = true;
+		}
+		update(
+			keyframesChanged ? { ...updates, keyframes: nextKeyframes } : updates,
+			history
+		);
+	};
+	const isKeyframedHere = ({ property }: { property: MediaKeyframeProperty }) =>
+		keyframesFor({ property }).some((item) => item.frame === currentFrame);
+	const togglePropertyKeyframes = ({
+		values,
+	}: {
+		values: Partial<Record<MediaKeyframeProperty, number>>;
+	}) => {
+		const properties = Object.keys(values) as MediaKeyframeProperty[];
+		if (properties.length === 0) return;
+		const removeCurrentFrame = properties.every((property) =>
+			isKeyframedHere({ property })
+		);
+		const nextKeyframes = { ...element.keyframes };
+		for (const property of properties) {
+			const keyframes = keyframesFor({ property });
+			const existing = keyframes.find((item) => item.frame === currentFrame);
+			nextKeyframes[property] = removeCurrentFrame
+				? keyframes.filter((item) => item.frame !== currentFrame)
+				: upsertMediaKeyframe({
+						keyframes,
+						keyframe: {
+							id: existing?.id ?? `media-keyframe-${property}-${Date.now()}`,
+							frame: currentFrame,
+							value: values[property]!,
+							easing: existing?.easing ?? "linear",
+						},
+					});
+		}
+		setKeyframeProperty(properties[0]);
+		update({ keyframes: nextKeyframes });
+	};
+	const resetNumericProperties = ({
+		updates,
+		properties,
+	}: {
+		updates: MediaUpdates;
+		properties: MediaKeyframeProperty[];
+	}) => {
+		const keyframes = { ...element.keyframes };
+		for (const property of properties) keyframes[property] = [];
+		update({ ...updates, keyframes });
+	};
 
 	const setScale = (axis: "x" | "y", percent: number) => {
 		const value = Math.max(0.01, percent / 100);
 		if (visual.maintainAspectRatio) {
-			updateLive({ scaleX: value, scaleY: value });
-		} else {
-			updateLive(axis === "x" ? { scaleX: value } : { scaleY: value });
+			updateNumericProperties({
+				updates: { scaleX: value, scaleY: value },
+				values: { scaleX: value, scaleY: value },
+			});
+			return;
 		}
+		updateNumericProperties({
+			updates: axis === "x" ? { scaleX: value } : { scaleY: value },
+			values: axis === "x" ? { scaleX: value } : { scaleY: value },
+		});
 	};
 
 	const alignX = (alignment: "left" | "center" | "right") => {
-		const offset = ((visual.scaleX - 1) * canvasSize.width) / 2;
-		update({
-			x: alignment === "left" ? offset : alignment === "right" ? -offset : 0,
+		const offset =
+			((currentPropertyValue({ property: "scaleX" }) - 1) * canvasSize.width) /
+			2;
+		const x =
+			alignment === "left" ? offset : alignment === "right" ? -offset : 0;
+		updateNumericProperties({
+			updates: { x },
+			values: { x },
+			history: true,
 		});
 	};
 	const alignY = (alignment: "top" | "center" | "bottom") => {
-		const offset = ((visual.scaleY - 1) * canvasSize.height) / 2;
-		update({
-			y: alignment === "top" ? offset : alignment === "bottom" ? -offset : 0,
+		const offset =
+			((currentPropertyValue({ property: "scaleY" }) - 1) * canvasSize.height) /
+			2;
+		const y =
+			alignment === "top" ? offset : alignment === "bottom" ? -offset : 0;
+		updateNumericProperties({
+			updates: { y },
+			values: { y },
+			history: true,
 		});
 	};
 
 	const resetTransform = () =>
-		update({
-			x: 0,
-			y: 0,
-			rotation: 0,
-			scaleX: 1,
-			scaleY: 1,
-			maintainAspectRatio: true,
-			flipHorizontal: false,
-			flipVertical: false,
+		resetNumericProperties({
+			updates: {
+				x: 0,
+				y: 0,
+				rotation: 0,
+				scaleX: 1,
+				scaleY: 1,
+				maintainAspectRatio: true,
+				flipHorizontal: false,
+				flipVertical: false,
+			},
+			properties: ["x", "y", "scaleX", "scaleY", "rotation"],
 		});
 	const resetAll = () =>
 		update({
@@ -298,11 +520,7 @@ export function MediaProperties({
 			mask: { ...DEFAULT_MEDIA_MASK },
 			chromaKey: { ...DEFAULT_MEDIA_CHROMA_KEY },
 			enhancements: { ...DEFAULT_MEDIA_ENHANCEMENTS },
-			audioFadeIn: 0,
-			audioFadeOut: 0,
-			audioNormalize: false,
-			audioDenoise: 0,
-			audioPan: 0,
+			...defaultAudioUpdates(),
 			playbackRate: 1,
 			speedKeyframes: [],
 			reverse: false,
@@ -327,32 +545,19 @@ export function MediaProperties({
 		}
 		setActiveMediaTab("segmentation");
 	};
+	const openAIUpscale = () => {
+		if (mediaItem?.file) requestSelectedVideoUpscale({ file: mediaItem.file });
+		setActiveMediaTab("upscale");
+	};
 
 	const propertyKeyframes = element.keyframes?.[keyframeProperty] ?? [];
-	const sourceDuration = getMediaSourceDuration(element);
-	const sourceDurationInFrames = Math.max(1, Math.round(sourceDuration * fps));
-	const playbackTiming = mapMediaTimelineTime({
-		element,
-		localTimelineTime: currentTime - element.startTime,
-		fps,
-	});
-	const currentSpeedFrame = Math.min(
-		sourceDurationInFrames,
-		Math.max(0, Math.round(playbackTiming.sourceTime * fps))
-	);
-	const speedKeyframes = element.speedKeyframes ?? [];
 	const durationInFrames = Math.max(1, Math.round(timelineDuration * fps));
 	const currentFrame = Math.min(
 		durationInFrames,
 		Math.max(0, Math.round((currentTime - element.startTime) * fps))
 	);
 	const setPropertyKeyframes = (keyframes: MediaPropertyKeyframe[]) =>
-		update({
-			keyframes: {
-				...element.keyframes,
-				[keyframeProperty]: keyframes,
-			},
-		});
+		setPropertyKeyframesFor({ property: keyframeProperty, keyframes });
 	const addKeyframe = (frame: number, value: unknown) => {
 		const existing = propertyKeyframes.find((item) => item.frame === frame);
 		setPropertyKeyframes(
@@ -385,53 +590,89 @@ export function MediaProperties({
 		);
 	const deleteKeyframe = (id: string) =>
 		setPropertyKeyframes(propertyKeyframes.filter((item) => item.id !== id));
-	const setSpeedKeyframes = (keyframes: MediaPropertyKeyframe[]) =>
-		update({ speedKeyframes: keyframes });
-	const addSpeedKeyframe = (frame: number, value: unknown) => {
-		const existing = speedKeyframes.find((item) => item.frame === frame);
-		setSpeedKeyframes(
-			upsertMediaKeyframe({
-				keyframes: speedKeyframes,
-				keyframe: {
-					id:
-						existing?.id ??
-						(typeof crypto !== "undefined" && "randomUUID" in crypto
-							? crypto.randomUUID()
-							: `speed-keyframe-${Date.now()}`),
-					frame,
-					value: Math.min(8, Math.max(0.1, Number(value))),
-					easing: existing?.easing ?? "linear",
-				},
-			})
-		);
-	};
-
+	const isVisualTab = VISUAL_PROPERTY_TABS.includes(
+		activePropertiesTab as VisualPropertyTab
+	);
 	return (
-		<div className="space-y-4 p-5" data-testid="media-properties">
-			<div className="flex items-center justify-between gap-3">
-				<div className="min-w-0">
-					<p className="truncate text-sm font-medium">{element.name}</p>
-					<p className="text-[11px] text-muted-foreground">
-						{timelineDuration.toFixed(2)}s
-					</p>
+		<div ref={panelRef} className="space-y-4" data-testid="media-properties">
+			<div className="sticky top-0 z-20 space-y-2 bg-background pb-2">
+				<div className="flex items-center justify-between gap-3">
+					<div className="min-w-0">
+						<p className="truncate text-sm font-medium">{element.name}</p>
+						<p className="text-[11px] text-muted-foreground">
+							{timelineDuration.toFixed(2)}s
+						</p>
+					</div>
+					<Button type="button" variant="outline" size="sm" onClick={resetAll}>
+						<RotateCcw className="mr-2 size-3.5" /> Reset all
+					</Button>
 				</div>
-				<Button type="button" variant="outline" size="sm" onClick={resetAll}>
-					<RotateCcw className="mr-2 size-3.5" /> Reset all
-				</Button>
+
+				<Tabs
+					value={isVisualTab ? "visual" : activePropertiesTab}
+					onValueChange={(value) =>
+						setActivePropertiesTab(
+							value === "visual" ? "basic" : (value as MediaPropertiesTab)
+						)
+					}
+				>
+					<TabsList
+						className="grid h-8 w-full grid-cols-6 gap-0.5 rounded-sm p-0.5"
+						data-testid="media-properties-primary-tabs"
+					>
+						<TabsTrigger value="visual" className="min-w-0 px-1 text-[11px]">
+							Visual
+						</TabsTrigger>
+						<TabsTrigger value="audio" className="min-w-0 px-1 text-[11px]">
+							Audio
+						</TabsTrigger>
+						<TabsTrigger value="speed" className="min-w-0 px-1 text-[11px]">
+							Speed
+						</TabsTrigger>
+						<TabsTrigger value="animation" className="min-w-0 px-1 text-[11px]">
+							Animation
+						</TabsTrigger>
+						<TabsTrigger
+							value="adjustments"
+							className="min-w-0 px-1 text-[11px]"
+						>
+							Adjust
+						</TabsTrigger>
+						<TabsTrigger value="ai" className="min-w-0 px-1 text-[11px]">
+							AI
+						</TabsTrigger>
+					</TabsList>
+				</Tabs>
+
+				{isVisualTab ? (
+					<Tabs
+						value={activePropertiesTab}
+						onValueChange={(value) =>
+							setActivePropertiesTab(value as VisualPropertyTab)
+						}
+					>
+						<TabsList
+							className="grid h-8 w-full grid-cols-4 gap-0.5 rounded-sm p-0.5"
+							data-testid="media-properties-visual-tabs"
+						>
+							<TabsTrigger value="basic" className="px-1 text-xs">
+								Basic
+							</TabsTrigger>
+							<TabsTrigger value="cutout" className="px-1 text-xs">
+								Cutout
+							</TabsTrigger>
+							<TabsTrigger value="mask" className="px-1 text-xs">
+								Mask
+							</TabsTrigger>
+							<TabsTrigger value="portrait" className="px-1 text-xs">
+								Portrait
+							</TabsTrigger>
+						</TabsList>
+					</Tabs>
+				) : null}
 			</div>
 
-			<Tabs value={activePropertiesTab} onValueChange={setActivePropertiesTab}>
-				<TabsList className="grid h-auto w-full grid-cols-3 gap-1">
-					<TabsTrigger value="basic">Basic</TabsTrigger>
-					<TabsTrigger value="crop">Crop</TabsTrigger>
-					<TabsTrigger value="perspective">Perspective</TabsTrigger>
-					<TabsTrigger value="animation">Animation</TabsTrigger>
-					<TabsTrigger value="adjustments">Adjust</TabsTrigger>
-					<TabsTrigger value="audio">Audio</TabsTrigger>
-					<TabsTrigger value="speed">Speed</TabsTrigger>
-					<TabsTrigger value="advanced">Advanced</TabsTrigger>
-				</TabsList>
-
+			<Tabs value={activePropertiesTab}>
 				<TabsContent value="basic" className="mt-4 space-y-4">
 					<PropertyGroup title="Position and size" defaultExpanded>
 						<div className="space-y-4">
@@ -456,51 +697,114 @@ export function MediaProperties({
 							</div>
 							<NumberControl
 								label={visual.maintainAspectRatio ? "Scale" : "Scale X"}
-								value={visual.scaleX * 100}
+								value={currentPropertyValue({ property: "scaleX" }) * 100}
 								min={1}
 								max={400}
 								suffix="%"
 								onChange={(value) => setScale("x", value)}
+								keyframed={
+									visual.maintainAspectRatio
+										? isKeyframedHere({ property: "scaleX" }) &&
+											isKeyframedHere({ property: "scaleY" })
+										: isKeyframedHere({ property: "scaleX" })
+								}
+								onToggleKeyframe={() =>
+									togglePropertyKeyframes({
+										values: visual.maintainAspectRatio
+											? {
+													scaleX: currentPropertyValue({
+														property: "scaleX",
+													}),
+													scaleY: currentPropertyValue({
+														property: "scaleY",
+													}),
+												}
+											: {
+													scaleX: currentPropertyValue({
+														property: "scaleX",
+													}),
+												},
+									})
+								}
 								onInteractionStart={beginInteraction}
 								onInteractionEnd={endInteraction}
 							/>
 							{visual.maintainAspectRatio ? null : (
 								<NumberControl
 									label="Scale Y"
-									value={visual.scaleY * 100}
+									value={currentPropertyValue({ property: "scaleY" }) * 100}
 									min={1}
 									max={400}
 									suffix="%"
 									onChange={(value) => setScale("y", value)}
+									keyframed={isKeyframedHere({ property: "scaleY" })}
+									onToggleKeyframe={() =>
+										togglePropertyKeyframes({
+											values: {
+												scaleY: currentPropertyValue({
+													property: "scaleY",
+												}),
+											},
+										})
+									}
 									onInteractionStart={beginInteraction}
 									onInteractionEnd={endInteraction}
 								/>
 							)}
 							<NumberControl
 								label="X position"
-								value={visual.x}
+								value={currentPropertyValue({ property: "x" })}
 								min={-canvasSize.width}
 								max={canvasSize.width}
-								onChange={(x) => updateLive({ x })}
+								onChange={(x) =>
+									updateNumericProperties({ updates: { x }, values: { x } })
+								}
+								keyframed={isKeyframedHere({ property: "x" })}
+								onToggleKeyframe={() =>
+									togglePropertyKeyframes({
+										values: { x: currentPropertyValue({ property: "x" }) },
+									})
+								}
 								onInteractionStart={beginInteraction}
 								onInteractionEnd={endInteraction}
 							/>
 							<NumberControl
 								label="Y position"
-								value={visual.y}
+								value={currentPropertyValue({ property: "y" })}
 								min={-canvasSize.height}
 								max={canvasSize.height}
-								onChange={(y) => updateLive({ y })}
+								onChange={(y) =>
+									updateNumericProperties({ updates: { y }, values: { y } })
+								}
+								keyframed={isKeyframedHere({ property: "y" })}
+								onToggleKeyframe={() =>
+									togglePropertyKeyframes({
+										values: { y: currentPropertyValue({ property: "y" }) },
+									})
+								}
 								onInteractionStart={beginInteraction}
 								onInteractionEnd={endInteraction}
 							/>
 							<NumberControl
 								label="Rotation"
-								value={visual.rotation}
+								value={currentPropertyValue({ property: "rotation" })}
 								min={-180}
 								max={180}
 								suffix="°"
-								onChange={(rotation) => updateLive({ rotation })}
+								onChange={(rotation) =>
+									updateNumericProperties({
+										updates: { rotation },
+										values: { rotation },
+									})
+								}
+								keyframed={isKeyframedHere({ property: "rotation" })}
+								onToggleKeyframe={() =>
+									togglePropertyKeyframes({
+										values: {
+											rotation: currentPropertyValue({ property: "rotation" }),
+										},
+									})
+								}
 								onInteractionStart={beginInteraction}
 								onInteractionEnd={endInteraction}
 							/>
@@ -575,11 +879,25 @@ export function MediaProperties({
 						<div className="space-y-4">
 							<NumberControl
 								label="Opacity"
-								value={visual.opacity * 100}
+								value={currentPropertyValue({ property: "opacity" }) * 100}
 								min={0}
 								max={100}
 								suffix="%"
-								onChange={(opacity) => updateLive({ opacity: opacity / 100 })}
+								onChange={(percent) => {
+									const opacity = percent / 100;
+									updateNumericProperties({
+										updates: { opacity },
+										values: { opacity },
+									});
+								}}
+								keyframed={isKeyframedHere({ property: "opacity" })}
+								onToggleKeyframe={() =>
+									togglePropertyKeyframes({
+										values: {
+											opacity: currentPropertyValue({ property: "opacity" }),
+										},
+									})
+								}
 								onInteractionStart={beginInteraction}
 								onInteractionEnd={endInteraction}
 							/>
@@ -619,10 +937,8 @@ export function MediaProperties({
 							</PropertyItem>
 						</div>
 					</PropertyGroup>
-				</TabsContent>
 
-				<TabsContent value="crop" className="mt-4 space-y-4">
-					<PropertyGroup title="Fit and crop" defaultExpanded>
+					<PropertyGroup title="Crop and fit" defaultExpanded={false}>
 						<div className="space-y-4">
 							<div className="grid grid-cols-3 gap-1">
 								{(["cover", "contain", "fill"] as const).map((mode) => (
@@ -637,37 +953,55 @@ export function MediaProperties({
 									</Button>
 								))}
 							</div>
-							{(["top", "right", "bottom", "left"] as const).map((side) => (
-								<NumberControl
-									key={side}
-									label={`Crop ${side}`}
-									value={visual.crop[side] * 100}
-									min={0}
-									max={95}
-									suffix="%"
-									onChange={(value) =>
-										updateLive({
-											crop: { ...visual.crop, [side]: value / 100 },
-										})
-									}
-									onInteractionStart={beginInteraction}
-									onInteractionEnd={endInteraction}
-								/>
-							))}
+							{(["top", "right", "bottom", "left"] as const).map((side) => {
+								const property = CROP_KEYFRAME_PROPERTY[side];
+								return (
+									<NumberControl
+										key={side}
+										label={`Crop ${side}`}
+										value={currentPropertyValue({ property }) * 100}
+										min={0}
+										max={95}
+										suffix="%"
+										onChange={(percent) => {
+											const value = percent / 100;
+											updateNumericProperties({
+												updates: {
+													crop: { ...visual.crop, [side]: value },
+												},
+												values: { [property]: value },
+											});
+										}}
+										keyframed={isKeyframedHere({ property })}
+										onToggleKeyframe={() =>
+											togglePropertyKeyframes({
+												values: {
+													[property]: currentPropertyValue({ property }),
+												},
+											})
+										}
+										onInteractionStart={beginInteraction}
+										onInteractionEnd={endInteraction}
+									/>
+								);
+							})}
 							<Button
 								type="button"
 								variant="outline"
 								size="sm"
-								onClick={() => update({ crop: { ...DEFAULT_MEDIA_CROP } })}
+								onClick={() =>
+									resetNumericProperties({
+										updates: { crop: { ...DEFAULT_MEDIA_CROP } },
+										properties: Object.values(CROP_KEYFRAME_PROPERTY),
+									})
+								}
 							>
 								<RotateCcw className="mr-2 size-3.5" /> Reset crop
 							</Button>
 						</div>
 					</PropertyGroup>
-				</TabsContent>
 
-				<TabsContent value="perspective" className="mt-4 space-y-4">
-					<PropertyGroup title="Corner pin" defaultExpanded>
+					<PropertyGroup title="Perspective" defaultExpanded={false}>
 						<div className="space-y-3">
 							{PERSPECTIVE_FIELDS.map((field) => (
 								<div key={field.label} className="space-y-1">
@@ -675,33 +1009,68 @@ export function MediaProperties({
 										{field.label}
 									</p>
 									<div className="grid grid-cols-2 gap-2">
-										{([field.x, field.y] as const).map((key, index) => (
-											<div key={key} className="flex items-center gap-1">
-												<span className="w-3 text-[10px] text-muted-foreground">
-													{index === 0 ? "X" : "Y"}
-												</span>
-												<Input
-													type="number"
-													aria-label={`${field.label} ${index === 0 ? "X" : "Y"} value`}
-													value={Math.round(visual.perspective[key] * 100)}
-													min={0}
-													max={100}
-													onFocus={beginInteraction}
-													onBlur={endInteraction}
-													onChange={(event) => {
-														const value = Number(event.target.value);
-														if (!Number.isFinite(value)) return;
-														updateLive({
-															perspective: {
-																...visual.perspective,
-																[key]: value / 100,
-															},
-														});
-													}}
-													className="h-8 text-xs"
-												/>
-											</div>
-										))}
+										{([field.x, field.y] as const).map((key, index) => {
+											const property = key as MediaKeyframeProperty;
+											const axis = index === 0 ? "X" : "Y";
+											return (
+												<div key={key} className="flex items-center gap-1">
+													<span className="w-3 text-[10px] text-muted-foreground">
+														{axis}
+													</span>
+													<MaskIconButton
+														label={
+															isKeyframedHere({ property })
+																? `Remove ${field.label} ${axis} keyframe`
+																: `Add ${field.label} ${axis} keyframe`
+														}
+														active={isKeyframedHere({ property })}
+														onClick={() =>
+															togglePropertyKeyframes({
+																values: {
+																	[property]: currentPropertyValue({
+																		property,
+																	}),
+																},
+															})
+														}
+													>
+														<Diamond
+															className={`size-3 ${
+																isKeyframedHere({ property })
+																	? "fill-primary text-primary"
+																	: ""
+															}`}
+														/>
+													</MaskIconButton>
+													<Input
+														type="number"
+														aria-label={`${field.label} ${axis} value`}
+														value={Math.round(
+															currentPropertyValue({ property }) * 100
+														)}
+														min={0}
+														max={100}
+														onFocus={beginInteraction}
+														onBlur={endInteraction}
+														onChange={(event) => {
+															const percent = Number(event.target.value);
+															if (!Number.isFinite(percent)) return;
+															const value = percent / 100;
+															updateNumericProperties({
+																updates: {
+																	perspective: {
+																		...visual.perspective,
+																		[key]: value,
+																	},
+																},
+																values: { [property]: value },
+															});
+														}}
+														className="h-8 min-w-0 text-xs"
+													/>
+												</div>
+											);
+										})}
 									</div>
 								</div>
 							))}
@@ -710,11 +1079,89 @@ export function MediaProperties({
 								variant="outline"
 								size="sm"
 								onClick={() =>
-									update({ perspective: { ...DEFAULT_MEDIA_PERSPECTIVE } })
+									resetNumericProperties({
+										updates: {
+											perspective: { ...DEFAULT_MEDIA_PERSPECTIVE },
+										},
+										properties: PERSPECTIVE_FIELDS.flatMap(({ x, y }) => [
+											x,
+											y,
+										]),
+									})
 								}
 							>
 								<RotateCcw className="mr-2 size-3.5" /> Reset perspective
 							</Button>
+						</div>
+					</PropertyGroup>
+
+					<PropertyGroup title="Video stabilization" defaultExpanded={false}>
+						<NumberControl
+							label="Local deshake"
+							value={visual.enhancements.stabilization}
+							min={0}
+							max={100}
+							onChange={(stabilization) =>
+								updateLive({
+									enhancements: { ...visual.enhancements, stabilization },
+								})
+							}
+							onInteractionStart={beginInteraction}
+							onInteractionEnd={endInteraction}
+						/>
+					</PropertyGroup>
+
+					<PropertyGroup title="Video enhancement" defaultExpanded={false}>
+						<div className="space-y-4">
+							{(
+								[
+									["denoise", "Video denoise"],
+									["clarity", "Clarity"],
+								] as const
+							).map(([property, label]) => (
+								<NumberControl
+									key={property}
+									label={label}
+									value={visual.enhancements[property]}
+									min={0}
+									max={100}
+									onChange={(value) =>
+										updateLive({
+											enhancements: {
+												...visual.enhancements,
+												[property]: value,
+											},
+										})
+									}
+									onInteractionStart={beginInteraction}
+									onInteractionEnd={endInteraction}
+								/>
+							))}
+							<PropertyItem>
+								<PropertyItemLabel>Local supersampling</PropertyItemLabel>
+								<PropertyItemValue>
+									<Select
+										value={String(visual.enhancements.upscale)}
+										onValueChange={(value) =>
+											update({
+												enhancements: {
+													...visual.enhancements,
+													upscale: Number(value) as 1 | 2 | 4,
+												},
+											})
+										}
+									>
+										<SelectTrigger className="h-8 text-xs">
+											<SelectValue />
+										</SelectTrigger>
+										<SelectContent>
+											<SelectItem value="1">Off</SelectItem>
+											<SelectItem value="2">2x</SelectItem>
+											<SelectItem value="4">4x</SelectItem>
+										</SelectContent>
+									</Select>
+								</PropertyItemValue>
+							</PropertyItem>
 						</div>
 					</PropertyGroup>
 				</TabsContent>
@@ -827,206 +1274,40 @@ export function MediaProperties({
 					<ColorPropertiesPanel element={element} trackId={trackId} />
 				</TabsContent>
 
-				<TabsContent value="audio" className="mt-4 space-y-4">
-					<VolumeControl element={element} trackId={trackId} />
-					<PropertyGroup title="Audio processing" defaultExpanded>
-						<div className="space-y-4">
-							<NumberControl
-								label="Fade in"
-								value={element.audioFadeIn ?? 0}
-								min={0}
-								max={Math.max(
-									0.1,
-									(element.duration - element.trimStart - element.trimEnd) / 2
-								)}
-								step={0.1}
-								suffix="s"
-								onChange={(audioFadeIn) => updateLive({ audioFadeIn })}
-								onInteractionStart={beginInteraction}
-								onInteractionEnd={endInteraction}
-							/>
-							<NumberControl
-								label="Fade out"
-								value={element.audioFadeOut ?? 0}
-								min={0}
-								max={Math.max(
-									0.1,
-									(element.duration - element.trimStart - element.trimEnd) / 2
-								)}
-								step={0.1}
-								suffix="s"
-								onChange={(audioFadeOut) => updateLive({ audioFadeOut })}
-								onInteractionStart={beginInteraction}
-								onInteractionEnd={endInteraction}
-							/>
-							<div className="flex items-center justify-between gap-3">
-								<PropertyItemLabel>Normalize loudness</PropertyItemLabel>
-								<Switch
-									checked={element.audioNormalize ?? false}
-									onCheckedChange={(audioNormalize) =>
-										update({ audioNormalize })
-									}
-								/>
-							</div>
-							<NumberControl
-								label="Noise reduction"
-								value={element.audioDenoise ?? 0}
-								min={0}
-								max={100}
-								suffix="%"
-								onChange={(audioDenoise) => updateLive({ audioDenoise })}
-								onInteractionStart={beginInteraction}
-								onInteractionEnd={endInteraction}
-							/>
-							<NumberControl
-								label="Balance"
-								value={(element.audioPan ?? 0) * 100}
-								min={-100}
-								max={100}
-								suffix="%"
-								onChange={(value) => updateLive({ audioPan: value / 100 })}
-								onInteractionStart={beginInteraction}
-								onInteractionEnd={endInteraction}
-							/>
-							<Button
-								type="button"
-								variant="outline"
-								size="sm"
-								onClick={() =>
-									update({
-										audioFadeIn: 0,
-										audioFadeOut: 0,
-										audioNormalize: false,
-										audioDenoise: 0,
-										audioPan: 0,
-									})
-								}
-							>
-								<RotateCcw className="mr-2 size-3.5" /> Reset audio
-							</Button>
-						</div>
-					</PropertyGroup>
+				<TabsContent value="audio" className="mt-4">
+					<AudioPropertiesPanel element={element} trackId={trackId} />
 				</TabsContent>
 
-				<TabsContent value="speed" className="mt-4 space-y-4">
-					<PropertyGroup title="Playback" defaultExpanded>
-						<div className="space-y-4">
-							<NumberControl
-								label="Speed"
-								value={element.playbackRate ?? 1}
-								min={0.1}
-								max={8}
-								step={0.1}
-								suffix="x"
-								onChange={(playbackRate) => updateLive({ playbackRate })}
-								onInteractionStart={beginInteraction}
-								onInteractionEnd={endInteraction}
-							/>
-							<div className="flex items-center justify-between gap-3">
-								<PropertyItemLabel>Reverse</PropertyItemLabel>
-								<Switch
-									checked={element.reverse ?? false}
-									onCheckedChange={(reverse) => update({ reverse })}
-								/>
-							</div>
-							<div className="flex items-center justify-between gap-3">
-								<PropertyItemLabel>Freeze frame</PropertyItemLabel>
-								<Switch
-									checked={(element.freezeFrameDuration ?? 0) > 0}
-									onCheckedChange={(checked) =>
-										update(
-											checked
-												? {
-														freezeFrameTime: playbackTiming.sourceTime,
-														freezeFrameDuration: 1,
-													}
-												: { freezeFrameDuration: 0 }
-										)
-									}
-								/>
-							</div>
-							{(element.freezeFrameDuration ?? 0) > 0 ? (
-								<>
-									<NumberControl
-										label="Freeze at"
-										value={element.freezeFrameTime ?? 0}
-										min={0}
-										max={Math.max(0.1, sourceDuration)}
-										step={0.1}
-										suffix="s"
-										onChange={(freezeFrameTime) =>
-											updateLive({ freezeFrameTime })
-										}
-										onInteractionStart={beginInteraction}
-										onInteractionEnd={endInteraction}
-									/>
-									<NumberControl
-										label="Freeze duration"
-										value={element.freezeFrameDuration ?? 0}
-										min={0.1}
-										max={10}
-										step={0.1}
-										suffix="s"
-										onChange={(freezeFrameDuration) =>
-											updateLive({ freezeFrameDuration })
-										}
-										onInteractionStart={beginInteraction}
-										onInteractionEnd={endInteraction}
-									/>
-								</>
-							) : null}
-						</div>
-					</PropertyGroup>
-
-					<PropertyGroup title="Speed curve" defaultExpanded>
-						<KeyframeEditor
-							propName="playbackRate"
-							propLabel="Speed"
-							propType="number"
-							keyframes={speedKeyframes as Keyframe[]}
-							durationInFrames={sourceDurationInFrames}
-							fps={fps}
-							currentFrame={currentSpeedFrame}
-							currentValueWhenEmpty={resolveSpeedAtSourceTime({
-								baseRate: element.playbackRate ?? 1,
-								keyframes: speedKeyframes,
-								sourceTime: playbackTiming.sourceTime,
-								fps,
-							})}
-							onKeyframeAdd={addSpeedKeyframe}
-							onKeyframeUpdate={(id, frame, value, easing = "linear") =>
-								setSpeedKeyframes(
-									upsertMediaKeyframe({
-										keyframes: speedKeyframes,
-										keyframe: {
-											id,
-											frame,
-											value: Math.min(8, Math.max(0.1, Number(value))),
-											easing,
-										},
-									})
-								)
-							}
-							onKeyframeDelete={(id) =>
-								setSpeedKeyframes(
-									speedKeyframes.filter((item) => item.id !== id)
-								)
-							}
-						/>
-					</PropertyGroup>
+				<TabsContent value="speed" className="mt-4">
+					<MediaSpeedProperties element={element} trackId={trackId} />
 				</TabsContent>
 
-				<TabsContent value="advanced" className="mt-4 space-y-4">
-					<PropertyGroup title="Mask" defaultExpanded>
-						<MediaMaskProperties
-							elementId={element.id}
-							masks={visual.masks}
-							currentFrame={currentFrame}
-							onChange={(masks, history = true) => update({ masks }, history)}
-							onInteractionStart={beginInteraction}
-							onInteractionEnd={endInteraction}
-						/>
-					</PropertyGroup>
+				<TabsContent value="mask" className="mt-4">
+					<MediaMaskProperties
+						elementId={element.id}
+						masks={visual.masks}
+						currentFrame={currentFrame}
+						onChange={(masks, history = true) => update({ masks }, history)}
+						onInteractionStart={beginInteraction}
+						onInteractionEnd={endInteraction}
+						onTrack={({ mask, direction }) => {
+							if (!mask.id) return;
+							setMaskTrackingRequest({
+								elementId: element.id,
+								maskId: mask.id,
+								direction,
+								anchorFrame: currentFrame,
+							});
+							openSegmentation({
+								backend: mask.type === "person" ? "local-person" : "sam3",
+								prompt: mask.type === "person" ? "" : (mask.name ?? "object"),
+							});
+						}}
+					/>
+				</TabsContent>
+
+				<TabsContent value="cutout" className="mt-4 space-y-4">
+					<MediaAutomaticCutoutProperties element={element} />
 
 					<PropertyGroup title="Chroma key" defaultExpanded>
 						<div className="space-y-4">
@@ -1086,89 +1367,46 @@ export function MediaProperties({
 							) : null}
 						</div>
 					</PropertyGroup>
+				</TabsContent>
 
-					<PropertyGroup title="Enhance" defaultExpanded>
+				<TabsContent value="portrait" className="mt-4">
+					<PropertyGroup title="Portrait enhancement" defaultExpanded>
 						<div className="space-y-4">
-							{(
-								[
-									["stabilization", "Stabilization", 0, 100],
-									["denoise", "Video denoise", 0, 100],
-									["clarity", "Clarity", 0, 100],
-									["relight", "Relight", -100, 100],
-									["beauty", "Beauty", 0, 100],
-								] as const
-							).map(([property, label, min, max]) => (
-								<NumberControl
-									key={property}
-									label={label}
-									value={visual.enhancements[property]}
-									min={min}
-									max={max}
-									onChange={(value) =>
-										updateLive({
-											enhancements: {
-												...visual.enhancements,
-												[property]: value,
-											},
-										})
-									}
-									onInteractionStart={beginInteraction}
-									onInteractionEnd={endInteraction}
-								/>
-							))}
-							<PropertyItem>
-								<PropertyItemLabel>Local upscale</PropertyItemLabel>
-								<PropertyItemValue>
-									<Select
-										value={String(visual.enhancements.upscale)}
-										onValueChange={(value) =>
-											update({
-												enhancements: {
-													...visual.enhancements,
-													upscale: Number(value) as 1 | 2 | 4,
-												},
-											})
-										}
-									>
-										<SelectTrigger className="h-8 text-xs">
-											<SelectValue />
-										</SelectTrigger>
-										<SelectContent>
-											<SelectItem value="1">Off</SelectItem>
-											<SelectItem value="2">2x</SelectItem>
-											<SelectItem value="4">4x</SelectItem>
-										</SelectContent>
-									</Select>
-								</PropertyItemValue>
-							</PropertyItem>
+							<NumberControl
+								label="Relight"
+								value={visual.enhancements.relight}
+								min={-100}
+								max={100}
+								onChange={(relight) =>
+									updateLive({
+										enhancements: { ...visual.enhancements, relight },
+									})
+								}
+								onInteractionStart={beginInteraction}
+								onInteractionEnd={endInteraction}
+							/>
+							<NumberControl
+								label="Portrait smoothing"
+								value={visual.enhancements.beauty}
+								min={0}
+								max={100}
+								onChange={(beauty) =>
+									updateLive({
+										enhancements: { ...visual.enhancements, beauty },
+									})
+								}
+								onInteractionStart={beginInteraction}
+								onInteractionEnd={endInteraction}
+							/>
 						</div>
 					</PropertyGroup>
+				</TabsContent>
 
+				<TabsContent value="ai" className="mt-4">
 					<PropertyGroup title="AI processing" defaultExpanded>
 						<div className="grid grid-cols-2 gap-2">
-							<Button
-								type="button"
-								variant="outline"
-								onClick={() =>
-									openSegmentation({ backend: "local-person", prompt: "" })
-								}
-							>
-								Auto cutout
-							</Button>
-							<Button
-								type="button"
-								variant="outline"
-								onClick={() =>
-									openSegmentation({ backend: "sam3", prompt: "" })
-								}
-							>
-								Object tracking
-							</Button>
-							<Button
-								type="button"
-								variant="outline"
-								onClick={() => setActiveMediaTab("upscale")}
-							>
+							<Button type="button" variant="outline" onClick={openAIUpscale}>
+								<Sparkles className="size-4" />
 								AI upscale
 							</Button>
 							<Button
@@ -1176,14 +1414,15 @@ export function MediaProperties({
 								variant="outline"
 								onClick={() => setActiveMediaTab("ai")}
 							>
-								AI reshape
+								<Bot className="size-4" />
+								AI video tools
 							</Button>
 						</div>
 					</PropertyGroup>
 				</TabsContent>
 			</Tabs>
 
-			{["basic", "crop", "perspective"].includes(activePropertiesTab) ? (
+			{activePropertiesTab === "basic" ? (
 				<PropertyGroup title="Keyframes" defaultExpanded={false}>
 					<div className="space-y-4">
 						<PropertyItem>

@@ -9,6 +9,7 @@ import { createObjectURL } from "@/lib/media/blob-manager";
 import { exportPersonCutoutVideo } from "@/lib/segmentation/person-cutout-export";
 import { useSegmentationStore } from "@/stores/ai/segmentation-store";
 import type { MediaStore } from "@/stores/media/media-store-types";
+import type { MediaMaskTrackingSample } from "@/lib/video/media-mask-tracking";
 import { PersonCutoutPreview } from "./PersonCutoutPreview";
 import { PersonCutoutSettings } from "./PersonCutoutSettings";
 
@@ -17,6 +18,14 @@ interface LocalPersonCutoutPanelProps {
 	sourceFile: File;
 	sourceUrl: string;
 	addMediaItem?: MediaStore["addMediaItem"];
+	onMaskReady?: ({
+		sourceMediaId,
+		trackingSamples,
+	}: {
+		sourceMediaId: string;
+		trackingSamples: MediaMaskTrackingSample[];
+	}) => boolean;
+	onMaskError?: (message: string) => void;
 }
 
 function cutoutFilename(sourceName: string): string {
@@ -37,6 +46,8 @@ export function LocalPersonCutoutPanel({
 	sourceFile,
 	sourceUrl,
 	addMediaItem,
+	onMaskReady,
+	onMaskError,
 }: LocalPersonCutoutPanelProps) {
 	const {
 		personCutoutSettings,
@@ -92,7 +103,7 @@ export function LocalPersonCutoutPanel({
 				lastModified: Date.now(),
 			});
 			const url = createObjectURL(file, "mediapipe-person-cutout");
-			await addMediaItem(projectId, {
+			const sourceMediaId = await addMediaItem(projectId, {
 				name: filename,
 				type: "video",
 				file,
@@ -109,18 +120,35 @@ export function LocalPersonCutoutPanel({
 					hasAudio: result.hasAudio,
 				},
 			});
+			const attached =
+				onMaskReady?.({
+					sourceMediaId,
+					trackingSamples: result.trackingSamples,
+				}) ?? false;
 			setSegmentedVideo(url);
 			setProcessingState({
 				isProcessing: false,
 				progress: 100,
-				statusMessage: "Transparent video added to Media",
+				statusMessage: attached
+					? "Person mask attached to selected clip"
+					: "Transparent video added to Media",
 				elapsedTime: (Date.now() - startedAt) / 1000,
 			});
-			toast.success("Transparent person video added to Media");
+			toast.success(
+				attached
+					? "Person mask attached to selected clip"
+					: "Transparent person video added to Media"
+			);
 		} catch (error) {
 			const canceled =
 				controller.signal.aborted ||
 				(error instanceof DOMException && error.name === "AbortError");
+			const failureMessage = canceled
+				? "Person tracking canceled"
+				: error instanceof Error
+					? error.message
+					: String(error);
+			onMaskError?.(failureMessage);
 			setProcessingState({
 				isProcessing: false,
 				progress: 0,
@@ -130,8 +158,7 @@ export function LocalPersonCutoutPanel({
 				elapsedTime: (Date.now() - startedAt) / 1000,
 			});
 			if (!canceled) {
-				const message = error instanceof Error ? error.message : String(error);
-				toast.error("Person cutout failed", { description: message });
+				toast.error("Person cutout failed", { description: failureMessage });
 			}
 		} finally {
 			if (abortControllerRef.current === controller) {
@@ -191,7 +218,7 @@ export function LocalPersonCutoutPanel({
 					) : (
 						<Download className="size-4" />
 					)}
-					Render transparent WebM
+					{onMaskReady ? "Render and attach mask" : "Render transparent WebM"}
 				</Button>
 				{isProcessing && (
 					<Button

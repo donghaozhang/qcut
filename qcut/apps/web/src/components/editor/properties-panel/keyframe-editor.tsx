@@ -9,7 +9,13 @@
 
 "use client";
 
-import React, { useCallback, useMemo, useState } from "react";
+import {
+	type ChangeEvent,
+	type MouseEvent,
+	useCallback,
+	useMemo,
+	useState,
+} from "react";
 import { Plus, Trash2, Diamond, ChevronDown } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -179,7 +185,7 @@ function KeyframeEditPanel({
 	);
 	const [localEasing, setLocalEasing] = useState(keyframe.easing);
 
-	const handleFrameChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+	const handleFrameChange = (e: ChangeEvent<HTMLInputElement>) => {
 		const frame = parseInt(e.target.value, 10);
 		if (!isNaN(frame) && frame >= 0 && frame <= durationInFrames) {
 			setLocalFrame(frame);
@@ -193,7 +199,7 @@ function KeyframeEditPanel({
 		}
 	};
 
-	const handleValueChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+	const handleValueChange = (e: ChangeEvent<HTMLInputElement>) => {
 		const val = e.target.value;
 		setLocalValue(val);
 		if (propType === "number") {
@@ -368,7 +374,7 @@ export function KeyframeEditor({
 
 	// Handle clicking on the track to add a keyframe
 	const handleTrackClick = useCallback(
-		(e: React.MouseEvent<HTMLDivElement>) => {
+		(e: MouseEvent<HTMLDivElement>) => {
 			if (disabled) return;
 
 			const rect = e.currentTarget.getBoundingClientRect();
@@ -413,10 +419,19 @@ export function KeyframeEditor({
 	return (
 		<div className="space-y-2">
 			{/* Header */}
-			<button
-				type="button"
+			<div
+				role="button"
+				tabIndex={0}
 				className="flex items-center justify-between w-full text-left hover:bg-accent/50 rounded px-1 py-0.5 -mx-1"
 				onClick={() => setIsExpanded(!isExpanded)}
+				onKeyDown={(event) => {
+					if (event.target !== event.currentTarget) return;
+					if (event.key !== "Enter" && event.key !== " ") return;
+					event.preventDefault();
+					setIsExpanded(!isExpanded);
+				}}
+				aria-expanded={isExpanded}
+				aria-label={`${isExpanded ? "Collapse" : "Expand"} ${propLabel} keyframes`}
 			>
 				<div className="flex items-center gap-2">
 					<ChevronDown
@@ -446,6 +461,7 @@ export function KeyframeEditor({
 						<Tooltip>
 							<TooltipTrigger asChild>
 								<Button
+									type="button"
 									variant="outline"
 									size="icon"
 									className="h-5 w-5"
@@ -463,7 +479,7 @@ export function KeyframeEditor({
 						</Tooltip>
 					</TooltipProvider>
 				</div>
-			</button>
+			</div>
 
 			{/* Timeline Track */}
 			{isExpanded && (
@@ -516,6 +532,7 @@ export function KeyframeEditor({
 						{sortedKeyframes.length >= 2 && propType === "number" && (
 							<svg
 								className="absolute inset-0 w-full h-full pointer-events-none"
+								viewBox="0 0 100 100"
 								preserveAspectRatio="none"
 								aria-hidden="true"
 							>
@@ -538,7 +555,7 @@ export function KeyframeEditor({
 												100 -
 												(((kf.value as number) - minVal) / range) * 80 -
 												10;
-											return `${x}%,${y}%`;
+											return `${x},${y}`;
 										})
 										.join(" ")}
 									fill="none"

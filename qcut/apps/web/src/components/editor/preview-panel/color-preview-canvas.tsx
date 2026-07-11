@@ -1,6 +1,9 @@
-import { useEffect, useRef } from "react";
+import { useCallback, useEffect, useRef } from "react";
 import type { MediaColorSettings, MediaMask } from "@/types/timeline";
 import { drawColorGradedSourceWithMasks } from "@/lib/color/browser-color-rendering";
+import { cn } from "@/lib/utils";
+import { useColorPickerStore } from "@/stores/editor/color-picker-store";
+import { useColorPreviewStore } from "@/stores/editor/color-preview-store";
 
 function sourceDimensions(source: HTMLVideoElement | HTMLImageElement) {
 	if (source instanceof HTMLVideoElement) {
@@ -60,6 +63,76 @@ export function ColorPreviewCanvas({
 	filter?: string;
 }) {
 	const canvasRef = useRef<HTMLCanvasElement>(null);
+	const colorPickerActive = useColorPickerStore((state) => state.active);
+	const completeColorPick = useColorPickerStore((state) => state.complete);
+	const previewBypassed = useColorPreviewStore((state) => state.bypassed);
+	const renderedSettings = previewBypassed
+		? { ...settings, enabled: false }
+		: settings;
+	const samplePreviewColor = useCallback(
+		({ clientX, clientY }: { clientX: number; clientY: number }) => {
+			const canvas = canvasRef.current;
+			if (!canvas) return false;
+			const bounds = canvas.getBoundingClientRect();
+			if (
+				clientX < bounds.left ||
+				clientX > bounds.right ||
+				clientY < bounds.top ||
+				clientY > bounds.bottom
+			) {
+				return false;
+			}
+			const x = Math.min(
+				canvas.width - 1,
+				Math.max(
+					0,
+					Math.floor(
+						((clientX - bounds.left) / Math.max(1, bounds.width)) * canvas.width
+					)
+				)
+			);
+			const y = Math.min(
+				canvas.height - 1,
+				Math.max(
+					0,
+					Math.floor(
+						((clientY - bounds.top) / Math.max(1, bounds.height)) *
+							canvas.height
+					)
+				)
+			);
+			const context = canvas.getContext("2d", { willReadFrequently: true });
+			const pixel = context?.getImageData(x, y, 1, 1).data;
+			if (!pixel || pixel[3] === 0) return false;
+			completeColorPick({
+				r: pixel[0] / 255,
+				g: pixel[1] / 255,
+				b: pixel[2] / 255,
+			});
+			return true;
+		},
+		[completeColorPick]
+	);
+	useEffect(() => {
+		if (!colorPickerActive) return;
+		const previousCursor = document.body.style.cursor;
+		document.body.style.cursor = "crosshair";
+		const capturePick = (event: PointerEvent) => {
+			if (event.defaultPrevented) return;
+			if (
+				!samplePreviewColor({ clientX: event.clientX, clientY: event.clientY })
+			) {
+				return;
+			}
+			event.preventDefault();
+			event.stopPropagation();
+		};
+		document.addEventListener("pointerdown", capturePick, true);
+		return () => {
+			document.body.style.cursor = previousCursor;
+			document.removeEventListener("pointerdown", capturePick, true);
+		};
+	}, [colorPickerActive, samplePreviewColor]);
 	useEffect(() => {
 		const canvas = canvasRef.current;
 		const parent = canvas?.parentElement;
@@ -115,7 +188,7 @@ export function ColorPreviewCanvas({
 					width: canvas.width,
 					height: canvas.height,
 					masks,
-					settings,
+					settings: renderedSettings,
 					frameSeed,
 				});
 			} finally {
@@ -151,13 +224,31 @@ export function ColorPreviewCanvas({
 			source.removeEventListener("seeked", redraw);
 			cancelAnimationFrame(animationFrame);
 		};
-	}, [fitMode, frameSeed, masks, settings, sourceSelector]);
+	}, [fitMode, frameSeed, masks, renderedSettings, sourceSelector]);
 	return (
 		<canvas
 			ref={canvasRef}
-			className="pointer-events-none absolute inset-0 size-full"
+			className={cn(
+				"absolute inset-0 size-full",
+				colorPickerActive
+					? "pointer-events-auto z-20 cursor-crosshair"
+					: "pointer-events-none"
+			)}
 			style={{ filter }}
 			data-testid="color-preview-canvas"
+			onPointerDown={(event) => {
+				if (!colorPickerActive) return;
+				if (
+					!samplePreviewColor({
+						clientX: event.clientX,
+						clientY: event.clientY,
+					})
+				) {
+					return;
+				}
+				event.preventDefault();
+				event.stopPropagation();
+			}}
 		/>
 	);
 }

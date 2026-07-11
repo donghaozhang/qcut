@@ -2,7 +2,11 @@
 
 import { platform } from "@qcut/platform-core";
 import { useTimelineStore } from "@/stores/timeline/timeline-store";
-import type { RemotionElement, TimelineElement } from "@/types/timeline";
+import {
+	buildCompositionPlan,
+	type RemotionElement,
+	type TimelineElement,
+} from "@/types/timeline";
 import { getMediaTimelineDuration } from "@/lib/video/video-timing";
 import { useAsyncMediaItems } from "@/hooks/media/use-async-media-store";
 import { usePlaybackStore } from "@/stores/editor/playback-store";
@@ -292,39 +296,21 @@ export function PreviewPanel() {
 	const hasAnyElements = tracks.some((track) => track.elements.length > 0);
 	const getActiveElements = useCallback((): ActiveElement[] => {
 		try {
-			const activeElements: ActiveElement[] = [];
+			const effectiveTime = isPlaying ? playbackTime : currentTime;
+			const plan = buildCompositionPlan({
+				tracks,
+				currentTime: effectiveTime,
+				getElementDuration: ({ element }) => getPreviewElementDuration(element),
+			});
+			const layers = [...plan.visualLayers, ...plan.audioElements];
 
-			for (const track of tracks) {
-				for (const element of track.elements) {
-					if (element.hidden) {
-						continue;
-					}
-
-					const elementStart = element.startTime;
-					const elementEnd =
-						element.startTime + getPreviewElementDuration(element);
-
-					// Use playbackTime during playback (updates on element boundary crossings),
-					// fall back to store currentTime when paused
-					const effectiveTime = isPlaying ? playbackTime : currentTime;
-					if (effectiveTime < elementStart || effectiveTime >= elementEnd) {
-						continue;
-					}
-
-					let mediaItem = null;
-					if (element.type === "media") {
-						mediaItem =
-							element.mediaId === TEST_MEDIA_ID
-								? null
-								: (mediaItems.find((item) => item.id === element.mediaId) ??
-									null);
-					}
-
-					activeElements.push({ element, track, mediaItem });
-				}
-			}
-
-			return activeElements;
+			return layers.map(({ element, track }) => {
+				const mediaItem =
+					element.type === "media" && element.mediaId !== TEST_MEDIA_ID
+						? (mediaItems.find((item) => item.id === element.mediaId) ?? null)
+						: null;
+				return { element, track, mediaItem };
+			});
 		} catch {
 			return [];
 		}
@@ -334,6 +320,29 @@ export function PreviewPanel() {
 		() => getActiveElements(),
 		[getActiveElements]
 	);
+	const overlayZIndexes = useMemo(() => {
+		const visualElements = activeElements.filter(
+			({ track }) => track.type !== "audio"
+		);
+		const getTypeZIndex = ({
+			type,
+			fallback,
+		}: {
+			type: "sticker" | "captions";
+			fallback: number;
+		}) => {
+			let zIndex = -1;
+			for (let index = 0; index < visualElements.length; index++) {
+				if (visualElements[index].track.type === type) zIndex = index + 1;
+			}
+			return zIndex >= 0 ? zIndex : fallback;
+		};
+		const fallback = visualElements.length + 1;
+		return {
+			stickers: getTypeZIndex({ type: "sticker", fallback }),
+			captions: getTypeZIndex({ type: "captions", fallback: fallback + 1 }),
+		};
+	}, [activeElements]);
 
 	const {
 		captionSegments,
@@ -719,19 +728,27 @@ export function PreviewPanel() {
 									</div>
 								)}
 
-							{/* Sticker overlay layer - renders on top of everything */}
-							<StickerCanvas
+							<div
 								className="absolute inset-0"
-								disabled={isExpanded}
-							/>
+								style={{ zIndex: overlayZIndexes.stickers }}
+							>
+								<StickerCanvas
+									className="absolute inset-0"
+									disabled={isExpanded}
+								/>
+							</div>
 
-							{/* Captions overlay - renders on top of stickers */}
-							<CaptionsDisplay
-								segments={captionSegments}
-								currentTime={currentTime}
-								isVisible={captionSegments.length > 0}
+							<div
 								className="absolute inset-0 pointer-events-none"
-							/>
+								style={{ zIndex: overlayZIndexes.captions }}
+							>
+								<CaptionsDisplay
+									segments={captionSegments}
+									currentTime={currentTime}
+									isVisible={captionSegments.length > 0}
+									className="absolute inset-0 pointer-events-none"
+								/>
+							</div>
 
 							{/* Interactive element overlays for elements with effects */}
 							{EFFECTS_ENABLED &&

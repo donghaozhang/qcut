@@ -17,6 +17,7 @@ import {
 	EXPORT_FRAME_RATES,
 	type ExportPreset,
 	type ExportFrameRate,
+	type ExportEngineSelection,
 	type GifSizePreset,
 	GIF_SIZE_PRESETS,
 } from "@/types/export";
@@ -115,10 +116,10 @@ export interface FrameRateCardProps {
 }
 
 export interface EngineCardProps {
-	engineType: "standard" | "ffmpeg" | "cli";
+	engineType: ExportEngineSelection;
 	ffmpegAvailable: boolean;
 	isElectron: boolean;
-	onEngineTypeChange: (type: "standard" | "ffmpeg" | "cli") => void;
+	onEngineTypeChange: (type: ExportEngineSelection) => void;
 	isExporting: boolean;
 }
 
@@ -411,6 +412,7 @@ export function FrameRateCard({
 // ---------------------------------------------------------------------------
 
 const ENGINE_LABELS: Record<string, string> = {
+	auto: "Automatic",
 	standard: "Standard",
 	ffmpeg: "FFmpeg WASM",
 	cli: "Native CLI",
@@ -437,11 +439,22 @@ export function EngineCard({
 			<RadioGroup
 				value={engineType}
 				onValueChange={(value) => {
-					onEngineTypeChange(value as "standard" | "ffmpeg" | "cli");
+					onEngineTypeChange(value as ExportEngineSelection);
 					setOpen(false);
 				}}
 				disabled={isExporting}
 			>
+				{!isElectron && (
+					<div className="flex items-start space-x-2 py-1">
+						<RadioGroupItem value="auto" id="auto" className="mt-0.5" />
+						<Label
+							htmlFor="auto"
+							className="text-sm cursor-pointer flex-1 min-w-0"
+						>
+							<span>Automatic</span>
+						</Label>
+					</div>
+				)}
 				<div className="flex items-start space-x-2 py-1">
 					<RadioGroupItem value="standard" id="standard" className="mt-0.5" />
 					<Label

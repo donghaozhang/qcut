@@ -24,6 +24,7 @@ import { useAsyncMediaItems } from "@/hooks/media/use-async-media-store";
 import { Loader2, Sparkles, RefreshCw, Video, Image } from "lucide-react";
 import type { TimelineElement as TimelineElementType } from "@/types/timeline";
 import { CAMERA_MOTION_PRESETS } from "@/types/generation";
+import { getTimelineElementEndTime } from "@/lib/timeline";
 import { pausePlaybackForGapInteraction } from "./gap-actions";
 
 // ---------------------------------------------------------------------------
@@ -173,7 +174,7 @@ export function GapGenerationModal() {
 
 		// Find clip before gap
 		const clipBefore = sorted.find((c) => {
-			const clipEnd = c.startTime + c.duration - c.trimStart - c.trimEnd;
+			const clipEnd = getTimelineElementEndTime({ element: c });
 			return Math.abs(clipEnd - selectedGap.startTime) < 0.1;
 		});
 

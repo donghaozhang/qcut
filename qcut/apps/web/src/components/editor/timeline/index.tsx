@@ -37,6 +37,9 @@ export function Timeline() {
 	const showEffectsTrack = useTimelineStore((s) => s.showEffectsTrack);
 	const setSelectedElements = useTimelineStore((s) => s.setSelectedElements);
 	const toggleTrackMute = useTimelineStore((s) => s.toggleTrackMute);
+	const toggleTrackHidden = useTimelineStore((s) => s.toggleTrackHidden);
+	const toggleTrackLocked = useTimelineStore((s) => s.toggleTrackLocked);
+	const moveTrack = useTimelineStore((s) => s.moveTrack);
 	const dragState = useTimelineStore((s) => s.dragState);
 	const {
 		store: mediaStore,
@@ -240,7 +243,7 @@ export function Timeline() {
 				{/* Timeline Header with Ruler */}
 				<div className="flex bg-panel sticky top-0 z-10">
 					{/* Track Labels Header */}
-					<div className="w-48 shrink-0 bg-panel border-r flex items-center justify-between px-3 py-2">
+					<div className="w-56 shrink-0 bg-panel border-r flex items-center justify-between px-3 py-2">
 						<span className="text-sm font-medium text-muted-foreground opacity-0">
 							.
 						</span>
@@ -276,6 +279,9 @@ export function Timeline() {
 					dynamicTimelineWidth={dynamicTimelineWidth}
 					clearSelectedElements={clearSelectedElements}
 					toggleTrackMute={toggleTrackMute}
+					toggleTrackHidden={toggleTrackHidden}
+					toggleTrackLocked={toggleTrackLocked}
+					moveTrack={moveTrack}
 					seek={seek}
 					handleSnapPointChange={handleSnapPointChange}
 					handleWheel={handleWheel}

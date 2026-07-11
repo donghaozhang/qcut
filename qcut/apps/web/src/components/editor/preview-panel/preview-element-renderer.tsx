@@ -16,6 +16,7 @@ import { resolveTextKeyframes } from "@/lib/text/text-keyframes";
 import { resolveTrackedTextElement } from "@/lib/text/text-tracking";
 import { getCurvedTextTransforms } from "@/lib/text/curved-text";
 import { resolveMediaKeyframes } from "@/lib/video/video-properties";
+import { useMaskEditorStore } from "@/stores/editor/mask-editor-store";
 import { buildCssPerspectiveTransform } from "@/lib/video/video-perspective";
 import {
 	buildMediaChromaKeyCssFilter,
@@ -29,8 +30,18 @@ import type { TProject } from "@/types/project";
 import type { TimelineElement, TimelineTrack } from "@/types/timeline";
 import { MarkdownOverlay } from "@/components/editor/canvas/markdown-overlay";
 import { RemotionPreview } from "./remotion-preview";
-import { ColorPreviewCanvas } from "./color-preview-canvas";
+import { MediaMaskOverlay } from "./media-mask-overlay";
 import type { ActiveElement, PreviewDimensions } from "./types";
+import { useMediaStore } from "@/stores/media/media-store";
+import {
+	createDerivedAudioElement,
+	selectMediaAudioSources,
+} from "@/lib/audio/audio-source-selection";
+import { ColorPreviewCanvas } from "./color-preview-canvas";
+import {
+	selectAudioPreviewBypassed,
+	useAudioPreviewStore,
+} from "@/stores/editor/audio-preview-store";
 
 interface ElementResizeParams {
 	elementId: string;
@@ -188,6 +199,18 @@ export function PreviewElementRenderer({
 	onElementSelect,
 	onElementResize,
 }: PreviewElementRendererProps): React.ReactNode {
+	const selectedMaskElementId = useMaskEditorStore(
+		(state) => state.selectedElementId
+	);
+	const selectedMaskId = useMaskEditorStore((state) => state.selectedMaskId);
+	const isEditingMask = useMaskEditorStore((state) => state.isEditing);
+	const mediaItems = useMediaStore((state) => state.mediaItems);
+	const audioPreviewBypassed = useAudioPreviewStore((state) =>
+		selectAudioPreviewBypassed({
+			state,
+			elementId: elementData.element.id,
+		})
+	);
 	try {
 		const { element, mediaItem } = elementData;
 		const elementKey = `${element.id}-${elementData.track.id}`;
@@ -251,7 +274,7 @@ export function PreviewElementRenderer({
 						width: `${textStyle.width}px`,
 						height: `${textStyle.height}px`,
 						mixBlendMode: textStyle.blendMode,
-						zIndex: 100 + index,
+						zIndex: index + 1,
 					}}
 				>
 					<div
@@ -351,7 +374,7 @@ export function PreviewElementRenderer({
 						height: `${(element.height ?? 420) * scaleRatio}px`,
 						transform: `translate(-50%, -50%) rotate(${element.rotation ?? 0}deg)`,
 						opacity: element.opacity ?? 1,
-						zIndex: 95 + index,
+						zIndex: index + 1,
 					}}
 				>
 					<MarkdownOverlay
@@ -369,6 +392,7 @@ export function PreviewElementRenderer({
 					<div
 						key={elementKey}
 						className="absolute inset-0 bg-linear-to-br from-blue-500/20 to-purple-500/20 flex items-center justify-center"
+						style={{ zIndex: index + 1 }}
 					>
 						<div className="text-center">
 							<div className="text-2xl mb-2">🎬</div>
@@ -377,6 +401,39 @@ export function PreviewElementRenderer({
 					</div>
 				);
 			}
+			const selectedAudioSources = selectMediaAudioSources({
+				element,
+				bypassed: audioPreviewBypassed,
+			});
+			const hasDerivedAudio = selectedAudioSources.some(
+				(source) => source.source !== "original"
+			);
+			const derivedAudioPlayers = hasDerivedAudio
+				? selectedAudioSources.flatMap((selectedSource, sourceIndex) => {
+						const selectedMedia = mediaItems.find(
+							(item) => item.id === selectedSource.mediaId
+						);
+						const src = selectedMedia?.url || selectedMedia?.originalUrl;
+						if (!src) return [];
+						const derivedElement = createDerivedAudioElement({
+							element,
+							selectedSource,
+							index: sourceIndex,
+						});
+						return [
+							<AudioPlayer
+								key={derivedElement.id}
+								src={src}
+								clipStartTime={element.startTime}
+								trimStart={element.trimStart}
+								trimEnd={element.trimEnd}
+								clipDuration={element.duration}
+								trackMuted={elementData.track.muted}
+								element={derivedElement}
+							/>,
+						];
+					})
+				: [];
 
 			if (mediaItem.type === "video") {
 				const source = videoSourcesById.get(mediaItem.id) ?? null;
@@ -428,7 +485,15 @@ export function PreviewElementRenderer({
 				]
 					.filter(Boolean)
 					.join(" ");
-				const geometricMasks = visual.masks;
+				const generatedMask = visual.masks.find(
+					(mask) => mask.enabled !== false && Boolean(mask.sourceMediaId)
+				);
+				const generatedMaskSource = generatedMask?.sourceMediaId
+					? videoSourcesById.get(generatedMask.sourceMediaId)
+					: undefined;
+				const geometricMasks = generatedMaskSource
+					? visual.masks.filter((mask) => !mask.sourceMediaId)
+					: visual.masks;
 				const gradeMaskIds = visual.color.mask.enabled
 					? new Set(visual.color.mask.maskIds)
 					: new Set<string>();
@@ -436,7 +501,13 @@ export function PreviewElementRenderer({
 					(mask) => !mask.id || !gradeMaskIds.has(mask.id)
 				);
 				const maskStyle = buildMediaMaskStyle(outputMasks);
-				const sourceVideoId = mediaItem.id;
+				const sourceVideoId = generatedMaskSource
+					? `${mediaItem.id}-mask-${generatedMask?.sourceMediaId}`
+					: mediaItem.id;
+				const selectedMask =
+					isEditingMask && selectedMaskElementId === element.id
+						? visual.masks.find((mask) => mask.id === selectedMaskId)
+						: undefined;
 
 				return (
 					<div
@@ -463,7 +534,7 @@ export function PreviewElementRenderer({
 							transformOrigin: "center",
 							opacity: visual.opacity * mediaAnimation.opacity,
 							mixBlendMode: visual.blendMode,
-							zIndex: 10 + index,
+							zIndex: index + 1,
 						}}
 					>
 						<div
@@ -476,18 +547,26 @@ export function PreviewElementRenderer({
 							}}
 						>
 							<VideoPlayer
-								videoSource={source}
-								poster={mediaItem.thumbnailUrl}
+								videoSource={generatedMaskSource ?? source}
+								poster={
+									generatedMaskSource ? undefined : mediaItem.thumbnailUrl
+								}
 								clipStartTime={element.startTime}
 								trimStart={element.trimStart}
 								trimEnd={element.trimEnd}
 								clipDuration={element.duration}
-								clipVolume={element.volume ?? 1}
-								fadeIn={element.audioFadeIn ?? 0}
-								fadeOut={element.audioFadeOut ?? 0}
+								clipVolume={
+									generatedMaskSource || hasDerivedAudio
+										? 0
+										: audioPreviewBypassed
+											? 1
+											: (element.volume ?? 1)
+								}
+								fadeIn={audioPreviewBypassed ? 0 : (element.audioFadeIn ?? 0)}
+								fadeOut={audioPreviewBypassed ? 0 : (element.audioFadeOut ?? 0)}
 								clipPlaybackRate={element.playbackRate ?? 1}
 								timingElement={element}
-								videoId={mediaItem.id}
+								videoId={sourceVideoId}
 								style={{
 									objectFit: visual.fitMode,
 									filter: combinedFilter || undefined,
@@ -506,7 +585,35 @@ export function PreviewElementRenderer({
 									filter={combinedFilter || undefined}
 								/>
 							) : null}
+							{generatedMaskSource && !hasDerivedAudio ? (
+								<VideoPlayer
+									videoSource={source}
+									clipStartTime={element.startTime}
+									trimStart={element.trimStart}
+									trimEnd={element.trimEnd}
+									clipDuration={element.duration}
+									clipVolume={audioPreviewBypassed ? 1 : (element.volume ?? 1)}
+									fadeIn={audioPreviewBypassed ? 0 : (element.audioFadeIn ?? 0)}
+									fadeOut={
+										audioPreviewBypassed ? 0 : (element.audioFadeOut ?? 0)
+									}
+									clipPlaybackRate={element.playbackRate ?? 1}
+									timingElement={element}
+									videoId={`${mediaItem.id}-mask-audio`}
+									className="pointer-events-none absolute inset-0 opacity-0"
+								/>
+							) : null}
+							{derivedAudioPlayers}
 						</div>
+						{selectedMask ? (
+							<MediaMaskOverlay
+								element={element}
+								trackId={elementData.track.id}
+								mask={selectedMask}
+								currentTime={currentTime}
+								fps={activeProject?.fps ?? 30}
+							/>
+						) : null}
 					</div>
 				);
 			}
@@ -528,6 +635,10 @@ export function PreviewElementRenderer({
 					(mask) => !mask.id || !gradeMaskIds.has(mask.id)
 				);
 				const maskStyle = buildMediaMaskStyle(outputMasks);
+				const selectedMask =
+					isEditingMask && selectedMaskElementId === element.id
+						? visual.masks.find((mask) => mask.id === selectedMaskId)
+						: undefined;
 
 				if (element.width !== undefined) {
 					const scaleRatio = previewDimensions.width / canvasSize.width;
@@ -582,7 +693,7 @@ export function PreviewElementRenderer({
 								width: `${currentWidth * scaleRatio}px`,
 								height: `${currentHeight * scaleRatio}px`,
 								transform: `translate(-50%, -50%) rotate(${element.rotation ?? 0}deg)`,
-								zIndex: 90 + index,
+								zIndex: index + 1,
 							}}
 						>
 							<img
@@ -607,6 +718,15 @@ export function PreviewElementRenderer({
 									)}
 								/>
 							) : null}
+							{selectedMask ? (
+								<MediaMaskOverlay
+									element={element}
+									trackId={elementData.track.id}
+									mask={selectedMask}
+									currentTime={currentTime}
+									fps={activeProject?.fps ?? 30}
+								/>
+							) : null}
 						</div>
 					);
 				}
@@ -615,6 +735,7 @@ export function PreviewElementRenderer({
 					<div
 						key={elementKey}
 						className="absolute inset-0 flex items-center justify-center"
+						style={{ zIndex: index + 1 }}
 					>
 						<img
 							src={mediaItem.url}
@@ -633,25 +754,39 @@ export function PreviewElementRenderer({
 								frameSeed={Math.round(currentTime * (activeProject?.fps ?? 30))}
 							/>
 						) : null}
+						{selectedMask ? (
+							<MediaMaskOverlay
+								element={element}
+								trackId={elementData.track.id}
+								mask={selectedMask}
+								currentTime={currentTime}
+								fps={activeProject?.fps ?? 30}
+							/>
+						) : null}
 					</div>
 				);
 			}
 
 			if (mediaItem.type === "audio") {
-				if (!mediaItem.url) {
+				if (!mediaItem.url && !mediaItem.originalUrl && !hasDerivedAudio) {
 					return null;
 				}
 
 				return (
 					<div key={elementKey} className="absolute inset-0">
-						<AudioPlayer
-							src={mediaItem.url}
-							clipStartTime={element.startTime}
-							trimStart={element.trimStart}
-							trimEnd={element.trimEnd}
-							clipDuration={element.duration}
-							trackMuted={elementData.track.muted}
-						/>
+						{hasDerivedAudio ? (
+							derivedAudioPlayers
+						) : (
+							<AudioPlayer
+								src={mediaItem.url || mediaItem.originalUrl || ""}
+								clipStartTime={element.startTime}
+								trimStart={element.trimStart}
+								trimEnd={element.trimEnd}
+								clipDuration={element.duration}
+								trackMuted={elementData.track.muted}
+								element={element}
+							/>
+						)}
 					</div>
 				);
 			}
@@ -671,7 +806,7 @@ export function PreviewElementRenderer({
 				<div
 					key={elementKey}
 					className="absolute inset-0"
-					style={{ zIndex: 50 + index }}
+					style={{ zIndex: index + 1 }}
 				>
 					<RemotionPreview
 						elementId={element.id}

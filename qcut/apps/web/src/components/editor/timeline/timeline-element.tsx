@@ -3,6 +3,7 @@
 import { useState, useRef, useEffect } from "react";
 import { handleMediaProcessingError } from "@/lib/debug/error-handler";
 import { useFilmstripThumbnails } from "@/hooks/timeline/use-filmstrip-thumbnails";
+import { platform } from "@qcut/platform-core";
 import { Button } from "../../ui/button";
 import {
 	MoreVertical,
@@ -21,18 +22,29 @@ import {
 	Volume2,
 	VolumeX,
 	Sparkles,
+	FolderOpen,
+	Download,
+	Palette,
 } from "lucide-react";
 import { useAsyncMediaItems } from "@/hooks/media/use-async-media-store";
-import { useMediaStore } from "@/stores/media/media-store";
+import { getFileType, useMediaStore } from "@/stores/media/media-store";
+import { useMediaPanelStore } from "@/components/editor/media-panel/store";
+import { usePtyTerminalStore } from "@/stores/pty-terminal-store";
 import { useTimelineStore } from "@/stores/timeline/timeline-store";
 import { usePlaybackStore } from "@/stores/editor/playback-store";
+import { useProjectStore } from "@/stores/project-store";
+import { useExportStore } from "@/stores/export-store";
+import { usePropertiesPanelStore } from "@/stores/editor/properties-panel-store";
 import AudioWaveform from "../audio-waveform";
 import { toast } from "sonner";
 import { TimelineElementProps, TrackType } from "@/types/timeline";
 import { useTimelineElementResize } from "@/hooks/timeline/use-timeline-element-resize";
 import { withErrorBoundary } from "@/components/error-boundary";
 import { stripMarkdownSyntax } from "@/lib/markdown";
-import { getMediaTimelineDuration } from "@/lib/video/video-timing";
+import {
+	getTimelineElementDuration,
+	getTimelineElementEndTime,
+} from "@/lib/timeline";
 
 // Helper function to get display name for element type
 function getElementTypeName(element: { type: string }): string {
@@ -75,6 +87,48 @@ import {
 	ContextMenuSubContent,
 } from "../../ui/context-menu";
 import { COLOR_LABELS } from "@/types/generation";
+import { getOrCreateObjectURL } from "@/lib/media/blob-manager";
+import {
+	DEFAULT_MEDIA_COLOR_SETTINGS,
+	normalizeMediaColorSettings,
+} from "@/lib/color/color-properties";
+import { useTimelineClipboardStore } from "@/stores/timeline/timeline-clipboard-store";
+import {
+	applyTimelineSceneSplits,
+	sceneTimelineSplitTimes,
+} from "./timeline-smart-split";
+import { VideoClipContextMenu } from "./video-clip-context-menu";
+
+function shellQuote({ value }: { value: string }): string {
+	return `'${value.replace(/'/g, "'\\''")}'`;
+}
+
+function secondsForCli({ value }: { value: number }): string {
+	return value.toFixed(3).replace(/\.?0+$/, "");
+}
+
+function sourceRangeForElement({
+	element,
+}: {
+	element: { duration: number; trimStart: number; trimEnd: number };
+}): { start: number; end: number; duration: number } {
+	const start = Math.max(0, element.trimStart);
+	const end = Math.max(start, element.duration - element.trimEnd);
+	return { start, end, duration: Math.max(0, end - start) };
+}
+
+function clipExportFilename({
+	name,
+	start,
+	end,
+}: {
+	name: string;
+	start: number;
+	end: number;
+}): string {
+	const base = name.replace(/\.[^/.]+$/, "").replace(/[^a-zA-Z0-9._-]+/g, "-");
+	return `${base || "clip"}-${secondsForCli({ value: start })}-${secondsForCli({ value: end })}.mp4`;
+}
 
 function TimelineElementComponent({
 	element,
@@ -106,11 +160,19 @@ function TimelineElementComponent({
 	const splitAndKeepRight = useTimelineStore((s) => s.splitAndKeepRight);
 	const separateAudio = useTimelineStore((s) => s.separateAudio);
 	const addElementToTrack = useTimelineStore((s) => s.addElementToTrack);
+	const updateMediaElement = useTimelineStore((s) => s.updateMediaElement);
+	const pushHistory = useTimelineStore((s) => s.pushHistory);
 	const replaceElementMedia = useTimelineStore((s) => s.replaceElementMedia);
 	const rippleEditingEnabled = useTimelineStore((s) => s.rippleEditingEnabled);
 	const toggleElementHidden = useTimelineStore((s) => s.toggleElementHidden);
 	const selectElement = useTimelineStore((s) => s.selectElement);
 	const currentTime = usePlaybackStore((s) => s.currentTime);
+	const activeProject = useProjectStore((s) => s.activeProject);
+	const projectFps = activeProject?.fps ?? 30;
+	const updateMediaItem = useMediaStore((s) => s.updateMediaItem);
+	const canPasteAttributes = useTimelineClipboardStore(
+		(state) => state.mediaAttributes !== null
+	);
 
 	const [elementMenuOpen, setElementMenuOpen] = useState(false);
 
@@ -139,12 +201,16 @@ function TimelineElementComponent({
 	const mediaItemUrl = mediaItem?.url;
 
 	const isAudio = mediaItem?.type === "audio";
+	const isVideoClip = element.type === "media" && mediaItem?.type === "video";
+	const isMediaClip = element.type === "media";
+	const canShowVideoClipActions =
+		element.type === "media" && (!mediaItem || mediaItem.type === "video");
 
 	// Compute element dimensions (needed by filmstrip hook, must be before conditional returns)
-	const effectiveDuration =
-		element.type === "media"
-			? getMediaTimelineDuration(element)
-			: element.duration - element.trimStart - element.trimEnd;
+	const effectiveDuration = getTimelineElementDuration({
+		element,
+		fps: projectFps,
+	});
 	const elementWidth = Math.max(
 		TIMELINE_CONSTANTS.ELEMENT_MIN_WIDTH,
 		effectiveDuration * TIMELINE_CONSTANTS.PIXELS_PER_SECOND * zoomLevel
@@ -222,9 +288,7 @@ function TimelineElementComponent({
 	const handleElementSplitContext = (e: React.MouseEvent) => {
 		e.stopPropagation();
 		const effectiveStart = element.startTime;
-		const effectiveEnd =
-			element.startTime +
-			(element.duration - element.trimStart - element.trimEnd);
+		const effectiveEnd = getTimelineElementEndTime({ element });
 
 		if (currentTime > effectiveStart && currentTime < effectiveEnd) {
 			const secondElementId = splitElement(track.id, element.id, currentTime);
@@ -236,16 +300,49 @@ function TimelineElementComponent({
 		}
 	};
 
+	const handleSplitAndKeepLeftContext = (e: React.MouseEvent) => {
+		e.stopPropagation();
+		const effectiveStart = element.startTime;
+		const effectiveEnd = getTimelineElementEndTime({ element });
+		if (currentTime <= effectiveStart || currentTime >= effectiveEnd) {
+			toast.error("Playhead must be within element");
+			return;
+		}
+		splitAndKeepLeft(track.id, element.id, currentTime);
+	};
+
+	const handleSplitAndKeepRightContext = (e: React.MouseEvent) => {
+		e.stopPropagation();
+		const effectiveStart = element.startTime;
+		const effectiveEnd = getTimelineElementEndTime({ element });
+		if (currentTime <= effectiveStart || currentTime >= effectiveEnd) {
+			toast.error("Playhead must be within element");
+			return;
+		}
+		splitAndKeepRight(track.id, element.id, currentTime);
+	};
+
+	const handleSeparateAudioContext = (e: React.MouseEvent) => {
+		e.stopPropagation();
+		if (!isVideoClip) {
+			toast.error("Separate audio is only available for video clips");
+			return;
+		}
+		const audioElementId = separateAudio(track.id, element.id);
+		if (audioElementId) {
+			toast.success("Audio separated to a new track");
+			return;
+		}
+		toast.error("Failed to separate audio");
+	};
+
 	const handleElementDuplicateContext = (e: React.MouseEvent) => {
 		e.stopPropagation();
 		const { id, ...elementWithoutId } = element;
 		addElementToTrack(track.id, {
 			...elementWithoutId,
 			name: element.name + " (copy)",
-			startTime:
-				element.startTime +
-				(element.duration - element.trimStart - element.trimEnd) +
-				0.1,
+			startTime: getTimelineElementEndTime({ element }) + 0.1,
 		});
 	};
 
@@ -256,6 +353,50 @@ function TimelineElementComponent({
 		} else {
 			removeElementFromTrack(track.id, element.id);
 		}
+	};
+
+	const handleCopyClip = (e: React.MouseEvent) => {
+		e.stopPropagation();
+		useTimelineClipboardStore.getState().copyClip({
+			trackId: track.id,
+			trackType: track.type,
+			element,
+		});
+		toast.success("Clip copied");
+	};
+
+	const handleCutClip = (e: React.MouseEvent) => {
+		e.stopPropagation();
+		useTimelineClipboardStore.getState().copyClip({
+			trackId: track.id,
+			trackType: track.type,
+			element,
+		});
+		if (rippleEditingEnabled) {
+			removeElementFromTrackWithRipple(track.id, element.id);
+		} else {
+			removeElementFromTrack(track.id, element.id);
+		}
+		toast.success("Clip cut");
+	};
+
+	const handleCopyAttributes = (e: React.MouseEvent) => {
+		e.stopPropagation();
+		if (element.type !== "media") return;
+		useTimelineClipboardStore.getState().copyMediaAttributes(element);
+		toast.success("Clip attributes copied");
+	};
+
+	const handlePasteAttributes = (e: React.MouseEvent) => {
+		e.stopPropagation();
+		if (element.type !== "media") return;
+		const attributes = useTimelineClipboardStore.getState().mediaAttributes;
+		if (!attributes) {
+			toast.error("Copy clip attributes first");
+			return;
+		}
+		updateMediaElement(track.id, element.id, attributes);
+		toast.success("Clip attributes pasted");
 	};
 
 	const handleToggleElementHidden = (e: React.MouseEvent) => {
@@ -304,6 +445,374 @@ function TimelineElementComponent({
 		input.oncancel = cleanup;
 
 		input.click();
+	};
+
+	const handleOpenFileLocation = async (e: React.MouseEvent) => {
+		e.stopPropagation();
+		if (!mediaItem?.localPath) {
+			toast.error("No local file path available");
+			return;
+		}
+		if (!platform().shell?.showItemInFolder) {
+			toast.error("Only available in desktop app");
+			return;
+		}
+		try {
+			await platform().shell.showItemInFolder(mediaItem.localPath);
+		} catch (error) {
+			console.error("Failed to open file location:", error);
+			toast.error("Failed to open file location");
+		}
+	};
+
+	const handleOpenSpeechTools = (e: React.MouseEvent) => {
+		e.stopPropagation();
+		useMediaPanelStore.getState().setActiveTab("word-timeline");
+		toast.info("Opened Smart Speech tools");
+	};
+
+	const handleRecognizeSpeech = (e: React.MouseEvent) => {
+		e.stopPropagation();
+		if (!mediaItem?.localPath) {
+			toast.error("Speech recognition needs a local media file");
+			return;
+		}
+		useMediaPanelStore.getState().setActiveTab("word-timeline");
+		setTimeout(() => {
+			window.dispatchEvent(
+				new CustomEvent("qcut:transcribe-media", {
+					detail: { filePath: mediaItem.localPath, elementId: element.id },
+				})
+			);
+		}, 0);
+	};
+
+	const handleOpenAiPanel = ({
+		e,
+		mode,
+	}: {
+		e: React.MouseEvent;
+		mode: "text" | "image";
+	}) => {
+		e.stopPropagation();
+		const mediaPanel = useMediaPanelStore.getState();
+		mediaPanel.setActiveTab("ai");
+		mediaPanel.setAiActiveTab(mode);
+	};
+
+	const handleOpenAiAudio = (e: React.MouseEvent) => {
+		e.stopPropagation();
+		useMediaPanelStore.getState().setActiveTab("sounds");
+	};
+
+	const handleOpenLutPanel = (e: React.MouseEvent) => {
+		e.stopPropagation();
+		if (!canShowVideoClipActions) {
+			toast.error("LUT is only available for video clips");
+			return;
+		}
+		selectElement(track.id, element.id, false);
+		useExportStore.getState().setPanelView("properties");
+		setTimeout(() => {
+			window.dispatchEvent(
+				new CustomEvent("qcut:open-media-properties-tab", {
+					detail: {
+						elementId: element.id,
+						tab: "adjustments",
+						scrollTo: "lut",
+					},
+				})
+			);
+		}, 0);
+		toast.info("Opened LUT controls");
+	};
+
+	const openMediaPropertiesSection = ({
+		e,
+		tab,
+		scrollTo,
+	}: {
+		e: React.MouseEvent;
+		tab: "audio" | "speed";
+		scrollTo?: "audio-separation";
+	}) => {
+		e.stopPropagation();
+		selectElement(track.id, element.id, false);
+		useExportStore.getState().setPanelView("properties");
+		if (tab === "audio") {
+			usePropertiesPanelStore.getState().requestAudioPanel({
+				elementId: element.id,
+				tab: scrollTo === "audio-separation" ? "voice" : "basic",
+				section: scrollTo === "audio-separation" ? "separation" : undefined,
+			});
+		}
+		setTimeout(() => {
+			window.dispatchEvent(
+				new CustomEvent("qcut:open-media-properties-tab", {
+					detail: { elementId: element.id, tab },
+				})
+			);
+		}, 0);
+	};
+
+	const handleDisableLut = (e: React.MouseEvent) => {
+		e.stopPropagation();
+		if (element.type !== "media") return;
+		const color = normalizeMediaColorSettings({ element });
+		updateMediaElement(track.id, element.id, {
+			color: {
+				...color,
+				lut: { ...DEFAULT_MEDIA_COLOR_SETTINGS.lut },
+			},
+		});
+		toast.success("LUT disabled");
+	};
+
+	const handleResetSourceRange = (e: React.MouseEvent) => {
+		e.stopPropagation();
+		updateElementTrim(track.id, element.id, 0, 0);
+		toast.success("Source range reset");
+	};
+
+	const handleRelinkClip = (e: React.MouseEvent) => {
+		e.stopPropagation();
+		if (!mediaItem || !activeProject) {
+			toast.error("Relink needs an active project and media item");
+			return;
+		}
+		const input = document.createElement("input");
+		input.type = "file";
+		input.accept = `${mediaItem.type}/*`;
+		const cleanup = () => input.remove();
+		input.onchange = async (event) => {
+			try {
+				const file = (event.target as HTMLInputElement).files?.[0];
+				if (!file) return;
+				if (getFileType(file) !== mediaItem.type) {
+					toast.error(`Choose a ${mediaItem.type} file to relink this clip`);
+					return;
+				}
+				const sourcePath = platform().getPathForFile(file);
+				if (!sourcePath) {
+					toast.error("Unable to resolve the selected file path");
+					return;
+				}
+				const result = await platform().mediaImport.relinkMedia(
+					activeProject.id,
+					mediaItem.id,
+					sourcePath
+				);
+				if (!result.success) {
+					toast.error(result.error || "Failed to relink clip");
+					return;
+				}
+				const updated = await updateMediaItem(activeProject.id, mediaItem.id, {
+					file,
+					url: getOrCreateObjectURL(file, "timeline-relink"),
+					localPath: result.targetPath || sourcePath,
+					isLocalFile: true,
+					thumbnailUrl: undefined,
+					thumbnailStatus: mediaItem.type === "video" ? "pending" : undefined,
+					importMetadata: {
+						importMethod: result.importMethod || "symlink",
+						originalPath: sourcePath,
+						importedAt: Date.now(),
+						fileSize: result.fileSize ?? file.size,
+					},
+				});
+				if (!updated) {
+					toast.error(
+						"Relink succeeded on disk but media metadata was not saved"
+					);
+					return;
+				}
+				toast.success("Clip relinked");
+			} catch (error) {
+				handleMediaProcessingError(error, "Relink clip", {
+					trackId: track.id,
+					elementId: element.id,
+				});
+			} finally {
+				cleanup();
+			}
+		};
+		input.oncancel = cleanup;
+		input.click();
+	};
+
+	const handleSmartShotSplit = async (e: React.MouseEvent) => {
+		e.stopPropagation();
+		if (element.type !== "media" || !activeProject || !mediaItem) return;
+		const analyzeScenes = platform().claude?.analyze.scenes;
+		if (!analyzeScenes) {
+			toast.error("Smart shot split is only available in the desktop app");
+			return;
+		}
+		const toastId = toast.loading("Detecting shot boundaries...");
+		try {
+			const result = await analyzeScenes(activeProject.id, {
+				mediaId: mediaItem.id,
+				threshold: 0.3,
+			});
+			const splitTimes = sceneTimelineSplitTimes({
+				element,
+				scenes: result.scenes,
+				fps: projectFps,
+			});
+			const createdIds = applyTimelineSceneSplits({
+				trackId: track.id,
+				elementId: element.id,
+				splitTimes,
+				pushHistory,
+				splitElement,
+			});
+			if (createdIds.length === 0) {
+				toast.info("No shot boundaries found inside this clip", {
+					id: toastId,
+				});
+				return;
+			}
+			toast.success(`Split into ${createdIds.length + 1} shots`, {
+				id: toastId,
+			});
+		} catch (error) {
+			toast.error(
+				error instanceof Error ? error.message : "Smart shot split failed",
+				{ id: toastId }
+			);
+		}
+	};
+
+	const handleExportSelectedClip = async (e: React.MouseEvent) => {
+		e.stopPropagation();
+		if (!isVideoClip) {
+			toast.error("Export selected clip is only available for video clips");
+			return;
+		}
+		if (!mediaItem?.localPath) {
+			toast.error("Export selected clip needs a local video file");
+			return;
+		}
+		if (
+			!platform().ffmpeg?.exportVideoCLI ||
+			!platform().files?.saveFileDialog
+		) {
+			toast.error("Export selected clip is only available in the desktop app");
+			return;
+		}
+
+		const range = sourceRangeForElement({ element });
+		if (range.duration <= 0) {
+			toast.error("Selected clip has no exportable duration");
+			return;
+		}
+
+		const outputPath = await platform().files.saveFileDialog(
+			clipExportFilename({
+				name: mediaItem.name || element.name,
+				start: range.start,
+				end: range.end,
+			}),
+			[{ name: "MP4 Video", extensions: ["mp4"] }]
+		);
+		if (!outputPath) return;
+
+		let sessionId: string | null = null;
+		try {
+			const session = await platform().ffmpeg.createExportSession();
+			sessionId = session.sessionId;
+			const result = await platform().ffmpeg.exportVideoCLI({
+				sessionId,
+				width: mediaItem.width ?? 1920,
+				height: mediaItem.height ?? 1080,
+				fps: mediaItem.fps ?? projectFps,
+				quality: "high",
+				duration: range.duration,
+				useDirectCopy: true,
+				videoSources: [
+					{
+						elementId: element.id,
+						path: mediaItem.localPath,
+						startTime: 0,
+						duration: element.duration,
+						trimStart: range.start,
+						trimEnd: Math.max(0, element.duration - range.end),
+					},
+				],
+			});
+			const tempOutput = result.outputFile ?? result.outputPath;
+			if (!result.success || !tempOutput) {
+				throw new Error(result.error || "FFmpeg export failed");
+			}
+			const data = await platform().ffmpeg.readOutputFile(tempOutput);
+			if (!data) {
+				throw new Error("Export produced no readable output file");
+			}
+			const saved = await platform().files.writeFile(outputPath, data);
+			if (!saved) {
+				throw new Error("Failed to write exported clip");
+			}
+			toast.success("Selected clip exported");
+			if (platform().shell?.showItemInFolder) {
+				await platform().shell.showItemInFolder(outputPath);
+			}
+		} catch (error) {
+			console.error("Failed to export selected clip:", error);
+			toast.error(
+				error instanceof Error
+					? error.message
+					: "Failed to export selected clip"
+			);
+		} finally {
+			if (sessionId) {
+				void platform().ffmpeg.cleanupExportSession(sessionId);
+			}
+		}
+	};
+
+	const handleReviewSelectedClip = async (e: React.MouseEvent) => {
+		e.stopPropagation();
+		if (!isVideoClip) {
+			toast.error("AI review is only available for video clips");
+			return;
+		}
+		if (!mediaItem?.localPath) {
+			toast.error("AI review needs a local video file");
+			return;
+		}
+
+		const range = sourceRangeForElement({ element });
+		if (range.duration <= 0) {
+			toast.error("Selected clip has no reviewable duration");
+			return;
+		}
+
+		const command = [
+			"qcut analyze video",
+			`-i ${shellQuote({ value: mediaItem.localPath })}`,
+			"--model openrouter_gemini_3_5_flash_video",
+			"--analysis-type review",
+			"--review-language zh",
+			`--start-time ${secondsForCli({ value: range.start })}`,
+			`--end-time ${secondsForCli({ value: range.end })}`,
+			"--json",
+		].join(" ");
+
+		try {
+			const terminal = usePtyTerminalStore.getState();
+			const tabId = terminal.createSession("shell");
+			usePtyTerminalStore.getState().switchSession(tabId);
+			usePtyTerminalStore.getState().setCliProvider("shell");
+			useMediaPanelStore.getState().setActiveTab("pty");
+			await usePtyTerminalStore.getState().connect({
+				manual: true,
+				command,
+			});
+			toast.success("Started AI review in Terminal");
+		} catch (error) {
+			console.error("Failed to start AI review:", error);
+			toast.error("Failed to start AI review");
+		}
 	};
 
 	const renderElementContent = () => {
@@ -617,231 +1126,322 @@ function TimelineElementComponent({
 					</div>
 				</div>
 			</ContextMenuTrigger>
-			<ContextMenuContent className="z-200">
-				<ContextMenuItem onClick={handleElementSplitContext}>
-					<Scissors className="h-4 w-4 mr-2" />
-					Split at playhead
-				</ContextMenuItem>
-				<ContextMenuItem onClick={handleToggleElementHidden}>
-					{isAudio ? (
-						element.hidden ? (
-							<Volume2 className="h-4 w-4 mr-2" />
-						) : (
-							<VolumeX className="h-4 w-4 mr-2" />
-						)
-					) : element.hidden ? (
-						<Eye className="h-4 w-4 mr-2" />
-					) : (
-						<EyeOff className="h-4 w-4 mr-2" />
-					)}
-					<span>
-						{isAudio
-							? element.hidden
-								? "Unmute"
-								: "Mute"
-							: element.hidden
-								? "Show"
-								: "Hide"}{" "}
-						{getElementTypeName(element)}
-					</span>
-				</ContextMenuItem>
-				<ContextMenuItem onClick={handleElementDuplicateContext}>
-					<Copy className="h-4 w-4 mr-2" />
-					Duplicate {getElementTypeName(element)}
-				</ContextMenuItem>
-				{element.type === "media" && (
-					<ContextMenuItem onClick={handleReplaceClip}>
-						<RefreshCw className="h-4 w-4 mr-2" />
-						Replace clip
+			{isVideoClip ? (
+				<VideoClipContextMenu
+					isDisabled={element.hidden === true}
+					canPasteAttributes={canPasteAttributes}
+					hasLocalFile={Boolean(mediaItem?.localPath)}
+					actions={{
+						copy: handleCopyClip,
+						cut: handleCutClip,
+						copyAttributes: handleCopyAttributes,
+						pasteAttributes: handlePasteAttributes,
+						remove: handleElementDeleteContext,
+						duplicate: handleElementDuplicateContext,
+						split: handleElementSplitContext,
+						keepLeft: handleSplitAndKeepLeftContext,
+						keepRight: handleSplitAndKeepRightContext,
+						smartShotSplit: handleSmartShotSplit,
+						openAiTextVideo: (e) => handleOpenAiPanel({ e, mode: "text" }),
+						openAiImageVideo: (e) => handleOpenAiPanel({ e, mode: "image" }),
+						openAiAudio: handleOpenAiAudio,
+						review: handleReviewSelectedClip,
+						openSmartSpeech: handleOpenSpeechTools,
+						recognizeSpeech: handleRecognizeSpeech,
+						openVoiceSeparation: (e) =>
+							openMediaPropertiesSection({
+								e,
+								tab: "audio",
+								scrollTo: "audio-separation",
+							}),
+						separateAudio: handleSeparateAudioContext,
+						exportClip: handleExportSelectedClip,
+						toggleDisabled: handleToggleElementHidden,
+						relink: handleRelinkClip,
+						replace: handleReplaceClip,
+						openLut: handleOpenLutPanel,
+						disableLut: handleDisableLut,
+						openFileLocation: handleOpenFileLocation,
+						resetRange: handleResetSourceRange,
+						openSpeed: (e) => openMediaPropertiesSection({ e, tab: "speed" }),
+					}}
+				/>
+			) : (
+				<ContextMenuContent className="z-200">
+					<ContextMenuItem onClick={handleElementSplitContext}>
+						<Scissors className="h-4 w-4 mr-2" />
+						Split at playhead
 					</ContextMenuItem>
-				)}
-				{/* AI Tools — shown for AI-generated clips */}
-				{element.type === "media" &&
-					(() => {
-						const media = mediaItems.find((m) => m.id === element.mediaId);
-						const genParams = media?.metadata?.generationParams;
-						const takes = media?.metadata?.takes as
-							| Array<{ url: string; createdAt: number }>
-							| undefined;
-						const activeTakeIdx =
-							(media?.metadata?.activeTakeIndex as number) ?? 0;
-						const hasTakes = takes && takes.length > 1;
-
-						if (!genParams) return null;
-
-						return (
-							<>
-								<ContextMenuSeparator />
-								<ContextMenuItem
-									onClick={() => {
-										window.dispatchEvent(
-											new CustomEvent("gap:generate", {
-												detail: {
-													gap: {
-														trackId: track.id,
-														startTime: element.startTime,
-														endTime:
-															element.startTime +
-															element.duration -
-															element.trimStart -
-															element.trimEnd,
-													},
-													mode: genParams.mode || "text-to-video",
-													prompt: genParams.prompt || "",
-													model: genParams.model || "fal-ai/ltx-video/v0.2.3",
-													cameraMotion: genParams.cameraMotion,
-												},
-											})
-										);
-									}}
-								>
-									<Sparkles className="h-4 w-4 mr-2" />
-									Regenerate Shot
-								</ContextMenuItem>
-								{hasTakes && (
-									<div className="flex items-center gap-1 px-2 py-1.5">
-										<button
-											type="button"
-											aria-label="Previous take"
-											className="p-0.5 rounded hover:bg-accent"
-											onClick={(e) => {
-												e.stopPropagation();
-												const { setActiveTake } = useMediaStore.getState();
-												if (setActiveTake && media) {
-													setActiveTake(media.id, activeTakeIdx - 1);
-												}
-											}}
-										>
-											<ChevronLeft className="h-3 w-3" />
-										</button>
-										<span className="text-xs text-muted-foreground">
-											Take: {activeTakeIdx + 1}/{takes.length}
-										</span>
-										<button
-											type="button"
-											aria-label="Next take"
-											className="p-0.5 rounded hover:bg-accent"
-											onClick={(e) => {
-												e.stopPropagation();
-												const { setActiveTake } = useMediaStore.getState();
-												if (setActiveTake && media) {
-													setActiveTake(media.id, activeTakeIdx + 1);
-												}
-											}}
-										>
-											<ChevronRight className="h-3 w-3" />
-										</button>
-									</div>
-								)}
-							</>
-						);
-					})()}
-				<ContextMenuSeparator />
-				<ContextMenuItem
-					onClick={async (e) => {
-						e.stopPropagation();
-						const info = {
-							...element,
-							endTime:
-								element.startTime +
-								(element.duration - element.trimStart - element.trimEnd),
-							trackId: track.id,
-						};
-						try {
-							await navigator.clipboard.writeText(
-								JSON.stringify(info, null, 2)
-							);
-							toast.success("Element info copied to clipboard");
-						} catch (error) {
-							console.error("Failed to copy element info:", error);
-							toast.error("Failed to copy element info");
-						}
-					}}
-				>
-					<FileJson className="h-4 w-4 mr-2" />
-					Copy Element Info
-				</ContextMenuItem>
-				<ContextMenuItem
-					onClick={async (e) => {
-						e.stopPropagation();
-						try {
-							await navigator.clipboard.writeText(element.id);
-							toast.success("Element ID copied");
-						} catch (error) {
-							console.error("Failed to copy element ID:", error);
-							toast.error("Failed to copy element ID");
-						}
-					}}
-				>
-					<Copy className="h-4 w-4 mr-2" />
-					Copy Element ID
-				</ContextMenuItem>
-				{/* Color Labels */}
-				<ContextMenuSub>
-					<ContextMenuSubTrigger>
-						<div className="flex items-center gap-2">
-							{element.colorLabel && (
-								<div
-									className="h-3 w-3 rounded-full"
-									style={{
-										backgroundColor:
-											COLOR_LABELS.find((c) => c.value === element.colorLabel)
-												?.color || "transparent",
-									}}
-								/>
-							)}
-							<span>Color Label</span>
-						</div>
-					</ContextMenuSubTrigger>
-					<ContextMenuSubContent>
-						<ContextMenuItem
-							onClick={() => {
-								const store = useTimelineStore.getState();
-								store.pushHistory();
-								const newTracks = store._tracks.map((t) => ({
-									...t,
-									elements: t.elements.map((el) =>
-										el.id === element.id ? { ...el, colorLabel: undefined } : el
-									),
-								}));
-								store.restoreTracks(newTracks);
-							}}
-						>
-							No Label
+					<ContextMenuItem onClick={handleToggleElementHidden}>
+						{isAudio ? (
+							element.hidden ? (
+								<Volume2 className="h-4 w-4 mr-2" />
+							) : (
+								<VolumeX className="h-4 w-4 mr-2" />
+							)
+						) : element.hidden ? (
+							<Eye className="h-4 w-4 mr-2" />
+						) : (
+							<EyeOff className="h-4 w-4 mr-2" />
+						)}
+						<span>
+							{isAudio
+								? element.hidden
+									? "Unmute"
+									: "Mute"
+								: element.hidden
+									? "Show"
+									: "Hide"}{" "}
+							{getElementTypeName(element)}
+						</span>
+					</ContextMenuItem>
+					<ContextMenuItem onClick={handleElementDuplicateContext}>
+						<Copy className="h-4 w-4 mr-2" />
+						Duplicate {getElementTypeName(element)}
+					</ContextMenuItem>
+					{element.type === "media" && (
+						<ContextMenuItem onClick={handleReplaceClip}>
+							<RefreshCw className="h-4 w-4 mr-2" />
+							Replace clip
 						</ContextMenuItem>
-						{COLOR_LABELS.map(({ value, color }) => (
+					)}
+					{isMediaClip && (
+						<>
+							<ContextMenuSeparator />
+							{canShowVideoClipActions && (
+								<ContextMenuItem onClick={handleReviewSelectedClip}>
+									<Sparkles className="h-4 w-4 mr-2" />
+									AI Review Selected Clip
+								</ContextMenuItem>
+							)}
+							{(canShowVideoClipActions || isAudio) && (
+								<ContextMenuItem onClick={handleOpenSpeechTools}>
+									<Type className="h-4 w-4 mr-2" />
+									Recognize Speech / Captions
+								</ContextMenuItem>
+							)}
+						</>
+					)}
+					<ContextMenuSeparator />
+					<ContextMenuItem onClick={handleSplitAndKeepLeftContext}>
+						<SplitSquareHorizontal className="h-4 w-4 mr-2" />
+						Split and Keep Left
+					</ContextMenuItem>
+					<ContextMenuItem onClick={handleSplitAndKeepRightContext}>
+						<SplitSquareHorizontal className="h-4 w-4 mr-2" />
+						Split and Keep Right
+					</ContextMenuItem>
+					{canShowVideoClipActions && (
+						<ContextMenuItem onClick={handleSeparateAudioContext}>
+							<Music className="h-4 w-4 mr-2" />
+							Separate Audio
+						</ContextMenuItem>
+					)}
+					{canShowVideoClipActions && (
+						<ContextMenuItem onClick={handleExportSelectedClip}>
+							<Download className="h-4 w-4 mr-2" />
+							Export Selected Clip
+						</ContextMenuItem>
+					)}
+					{canShowVideoClipActions && (
+						<ContextMenuItem onClick={handleOpenLutPanel}>
+							<Palette className="h-4 w-4 mr-2" />
+							LUT / Color
+						</ContextMenuItem>
+					)}
+					{mediaItem?.localPath && (
+						<ContextMenuItem onClick={handleOpenFileLocation}>
+							<FolderOpen className="h-4 w-4 mr-2" />
+							Open File Location
+						</ContextMenuItem>
+					)}
+					{/* AI Tools — shown for AI-generated clips */}
+					{element.type === "media" &&
+						(() => {
+							const media = mediaItems.find((m) => m.id === element.mediaId);
+							const genParams = media?.metadata?.generationParams;
+							const takes = media?.metadata?.takes as
+								| Array<{ url: string; createdAt: number }>
+								| undefined;
+							const activeTakeIdx =
+								(media?.metadata?.activeTakeIndex as number) ?? 0;
+							const hasTakes = takes && takes.length > 1;
+
+							if (!genParams) return null;
+
+							return (
+								<>
+									<ContextMenuSeparator />
+									<ContextMenuItem
+										onClick={() => {
+											window.dispatchEvent(
+												new CustomEvent("gap:generate", {
+													detail: {
+														gap: {
+															trackId: track.id,
+															startTime: element.startTime,
+															endTime: getTimelineElementEndTime({
+																element,
+																fps: projectFps,
+															}),
+														},
+														mode: genParams.mode || "text-to-video",
+														prompt: genParams.prompt || "",
+														model: genParams.model || "fal-ai/ltx-video/v0.2.3",
+														cameraMotion: genParams.cameraMotion,
+													},
+												})
+											);
+										}}
+									>
+										<Sparkles className="h-4 w-4 mr-2" />
+										Regenerate Shot
+									</ContextMenuItem>
+									{hasTakes && (
+										<div className="flex items-center gap-1 px-2 py-1.5">
+											<button
+												type="button"
+												aria-label="Previous take"
+												className="p-0.5 rounded hover:bg-accent"
+												onClick={(e) => {
+													e.stopPropagation();
+													const { setActiveTake } = useMediaStore.getState();
+													if (setActiveTake && media) {
+														setActiveTake(media.id, activeTakeIdx - 1);
+													}
+												}}
+											>
+												<ChevronLeft className="h-3 w-3" />
+											</button>
+											<span className="text-xs text-muted-foreground">
+												Take: {activeTakeIdx + 1}/{takes.length}
+											</span>
+											<button
+												type="button"
+												aria-label="Next take"
+												className="p-0.5 rounded hover:bg-accent"
+												onClick={(e) => {
+													e.stopPropagation();
+													const { setActiveTake } = useMediaStore.getState();
+													if (setActiveTake && media) {
+														setActiveTake(media.id, activeTakeIdx + 1);
+													}
+												}}
+											>
+												<ChevronRight className="h-3 w-3" />
+											</button>
+										</div>
+									)}
+								</>
+							);
+						})()}
+					<ContextMenuSeparator />
+					<ContextMenuItem
+						onClick={async (e) => {
+							e.stopPropagation();
+							const info = {
+								...element,
+								endTime: getTimelineElementEndTime({ element }),
+								trackId: track.id,
+							};
+							try {
+								await navigator.clipboard.writeText(
+									JSON.stringify(info, null, 2)
+								);
+								toast.success("Element info copied to clipboard");
+							} catch (error) {
+								console.error("Failed to copy element info:", error);
+								toast.error("Failed to copy element info");
+							}
+						}}
+					>
+						<FileJson className="h-4 w-4 mr-2" />
+						Copy Element Info
+					</ContextMenuItem>
+					<ContextMenuItem
+						onClick={async (e) => {
+							e.stopPropagation();
+							try {
+								await navigator.clipboard.writeText(element.id);
+								toast.success("Element ID copied");
+							} catch (error) {
+								console.error("Failed to copy element ID:", error);
+								toast.error("Failed to copy element ID");
+							}
+						}}
+					>
+						<Copy className="h-4 w-4 mr-2" />
+						Copy Element ID
+					</ContextMenuItem>
+					{/* Color Labels */}
+					<ContextMenuSub>
+						<ContextMenuSubTrigger>
+							<div className="flex items-center gap-2">
+								{element.colorLabel && (
+									<div
+										className="h-3 w-3 rounded-full"
+										style={{
+											backgroundColor:
+												COLOR_LABELS.find((c) => c.value === element.colorLabel)
+													?.color || "transparent",
+										}}
+									/>
+								)}
+								<span>Color Label</span>
+							</div>
+						</ContextMenuSubTrigger>
+						<ContextMenuSubContent>
 							<ContextMenuItem
-								key={value}
 								onClick={() => {
 									const store = useTimelineStore.getState();
 									store.pushHistory();
 									const newTracks = store._tracks.map((t) => ({
 										...t,
 										elements: t.elements.map((el) =>
-											el.id === element.id ? { ...el, colorLabel: value } : el
+											el.id === element.id
+												? { ...el, colorLabel: undefined }
+												: el
 										),
 									}));
 									store.restoreTracks(newTracks);
 								}}
 							>
-								<div
-									className="h-3 w-3 rounded-full mr-2"
-									style={{ backgroundColor: color }}
-								/>
-								<span className="capitalize">{value}</span>
+								No Label
 							</ContextMenuItem>
-						))}
-					</ContextMenuSubContent>
-				</ContextMenuSub>
-				<ContextMenuSeparator />
-				<ContextMenuItem
-					onClick={handleElementDeleteContext}
-					className="text-destructive focus:text-destructive"
-				>
-					<Trash2 className="h-4 w-4 mr-2" />
-					Delete {getElementTypeName(element)}
-				</ContextMenuItem>
-			</ContextMenuContent>
+							{COLOR_LABELS.map(({ value, color }) => (
+								<ContextMenuItem
+									key={value}
+									onClick={() => {
+										const store = useTimelineStore.getState();
+										store.pushHistory();
+										const newTracks = store._tracks.map((t) => ({
+											...t,
+											elements: t.elements.map((el) =>
+												el.id === element.id ? { ...el, colorLabel: value } : el
+											),
+										}));
+										store.restoreTracks(newTracks);
+									}}
+								>
+									<div
+										className="h-3 w-3 rounded-full mr-2"
+										style={{ backgroundColor: color }}
+									/>
+									<span className="capitalize">{value}</span>
+								</ContextMenuItem>
+							))}
+						</ContextMenuSubContent>
+					</ContextMenuSub>
+					<ContextMenuSeparator />
+					<ContextMenuItem
+						onClick={handleElementDeleteContext}
+						className="text-destructive focus:text-destructive"
+					>
+						<Trash2 className="h-4 w-4 mr-2" />
+						Delete {getElementTypeName(element)}
+					</ContextMenuItem>
+				</ContextMenuContent>
+			)}
 		</ContextMenu>
 	);
 }

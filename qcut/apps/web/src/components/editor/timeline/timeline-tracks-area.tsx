@@ -1,8 +1,14 @@
 "use client";
 
-import { useState, useMemo } from "react";
+import { useCallback, useState, useMemo } from "react";
 import { ScrollArea } from "../../ui/scroll-area";
 import { Bookmark } from "lucide-react";
+import {
+	DragDropContext,
+	Draggable,
+	Droppable,
+	type DropResult,
+} from "@hello-pangea/dnd";
 import {
 	ContextMenu,
 	ContextMenuContent,
@@ -12,7 +18,6 @@ import {
 import { SelectionBox } from "../selection-box";
 import { TimelineTrackContent } from "./timeline-track";
 import { EffectsTimeline } from "./effects-timeline";
-import { TrackIcon } from "./track-icon";
 import { SpeedRegionRow } from "./speed-region-row";
 import { useScreenRecordingEnhancementStore } from "@/stores/screen-recording-store";
 import { EFFECTS_ENABLED } from "@/config/features";
@@ -25,6 +30,9 @@ import {
 import type { RefObject } from "react";
 import type { TimelineTrack } from "@/types/timeline";
 import type { SnapPoint } from "@/hooks/timeline/use-timeline-snapping";
+import { getTimelineElementEndTime } from "@/lib/timeline";
+import { cn } from "@/lib/utils";
+import { TimelineTrackLabel } from "./timeline-track-label";
 
 interface TimelineTracksAreaProps {
 	tracks: TimelineTrack[];
@@ -33,6 +41,9 @@ interface TimelineTracksAreaProps {
 	dynamicTimelineWidth: number;
 	clearSelectedElements: () => void;
 	toggleTrackMute: (trackId: string) => void;
+	toggleTrackHidden: (trackId: string) => void;
+	toggleTrackLocked: (trackId: string) => void;
+	moveTrack: (trackId: string, toIndex: number) => void;
 	seek: (time: number) => void;
 	handleSnapPointChange: (snapPoint: SnapPoint | null) => void;
 	handleWheel: (e: React.WheelEvent) => void;
@@ -65,6 +76,9 @@ export function TimelineTracksArea({
 	dynamicTimelineWidth,
 	clearSelectedElements,
 	toggleTrackMute,
+	toggleTrackHidden,
+	toggleTrackLocked,
+	moveTrack,
 	seek,
 	handleSnapPointChange,
 	handleWheel,
@@ -85,14 +99,20 @@ export function TimelineTracksArea({
 	const hasSpeedRegions = useScreenRecordingEnhancementStore(
 		(s) => s.speedRegions.length > 0
 	);
+	const handleTrackDragEnd = useCallback(
+		({ draggableId, destination }: DropResult) => {
+			if (!destination) return;
+			moveTrack(draggableId, destination.index);
+		},
+		[moveTrack]
+	);
 
 	// Compute timeline duration from tracks for speed region positioning
 	const timelineDurationMs = useMemo(
 		() =>
 			tracks.reduce((max, track) => {
 				for (const el of track.elements) {
-					const end =
-						(el.startTime + el.duration - el.trimStart - el.trimEnd) * 1000;
+					const end = getTimelineElementEndTime({ element: el }) * 1000;
 					if (end > max) max = end;
 				}
 				return max;
@@ -106,27 +126,54 @@ export function TimelineTracksArea({
 			{tracks.length > 0 && (
 				<div
 					ref={trackLabelsRef}
-					className="w-48 shrink-0 border-r border-black overflow-y-auto z-200 bg-panel"
+					className="w-56 shrink-0 border-r border-black overflow-y-auto z-200 bg-panel"
 					data-track-labels
 				>
 					<ScrollArea className="w-full h-full" ref={trackLabelsScrollRef}>
-						<div className="flex flex-col gap-1">
-							{tracks.map((track) => (
-								<div
-									key={track.id}
-									className="flex items-center px-3 border-b border-muted/30 group bg-foreground/5"
-									style={{ height: `${getTrackHeight(track.type)}px` }}
-								>
-									<div className="flex items-center flex-1 min-w-0">
-										<TrackIcon type={track.type} />
-									</div>
-									{track.muted && (
-										<span className="ml-2 text-xs text-red-500 font-semibold shrink-0">
-											Muted
-										</span>
+						<div className="flex flex-col">
+							<DragDropContext onDragEnd={handleTrackDragEnd}>
+								<Droppable droppableId="timeline-track-order">
+									{(droppableProvided) => (
+										<div
+											ref={droppableProvided.innerRef}
+											{...droppableProvided.droppableProps}
+										>
+											{tracks.map((track, index) => (
+												<Draggable
+													key={track.id}
+													draggableId={track.id}
+													index={index}
+													isDragDisabled={track.locked}
+												>
+													{(draggableProvided, snapshot) => (
+														<div
+															ref={draggableProvided.innerRef}
+															{...draggableProvided.draggableProps}
+															style={draggableProvided.draggableProps.style}
+														>
+															<TimelineTrackLabel
+																track={track}
+																dragHandleProps={
+																	draggableProvided.dragHandleProps
+																}
+																isDragging={snapshot.isDragging}
+																onToggleHidden={() =>
+																	toggleTrackHidden(track.id)
+																}
+																onToggleLocked={() =>
+																	toggleTrackLocked(track.id)
+																}
+																onToggleMuted={() => toggleTrackMute(track.id)}
+															/>
+														</div>
+													)}
+												</Draggable>
+											))}
+											{droppableProvided.placeholder}
+										</div>
 									)}
-								</div>
-							))}
+								</Droppable>
+							</DragDropContext>
 							{/* Effects Track Label */}
 							{EFFECTS_ENABLED && tracks.length > 0 && showEffectsTrack && (
 								<div
@@ -200,7 +247,11 @@ export function TimelineTracksArea({
 									<ContextMenu key={track.id}>
 										<ContextMenuTrigger asChild>
 											<div
-												className="absolute left-0 right-0 border-b border-muted/30 py-[0.05rem]"
+												className={cn(
+													"absolute left-0 right-0 border-b border-muted/30 py-[0.05rem]",
+													track.hidden && "opacity-55",
+													track.locked && "cursor-not-allowed"
+												)}
 												style={{
 													top: `${getCumulativeHeightBefore(tracks, index)}px`,
 													height: `${getTrackHeight(track.type)}px`,
@@ -223,16 +274,31 @@ export function TimelineTracksArea({
 											</div>
 										</ContextMenuTrigger>
 										<ContextMenuContent className="z-200">
+											{(track.type === "media" || track.type === "audio") && (
+												<ContextMenuItem
+													onClick={(e) => {
+														e.stopPropagation();
+														toggleTrackMute(track.id);
+													}}
+												>
+													{track.muted ? "Unmute Track" : "Mute Track"}
+												</ContextMenuItem>
+											)}
 											<ContextMenuItem
 												onClick={(e) => {
 													e.stopPropagation();
-													toggleTrackMute(track.id);
+													toggleTrackHidden(track.id);
 												}}
 											>
-												{track.muted ? "Unmute Track" : "Mute Track"}
+												{track.hidden ? "Show Track" : "Hide Track"}
 											</ContextMenuItem>
-											<ContextMenuItem onClick={(e) => e.stopPropagation()}>
-												Track settings (soon)
+											<ContextMenuItem
+												onClick={(e) => {
+													e.stopPropagation();
+													toggleTrackLocked(track.id);
+												}}
+											>
+												{track.locked ? "Unlock Track" : "Lock Track"}
 											</ContextMenuItem>
 											{activeProject?.bookmarks?.length &&
 												activeProject.bookmarks.length > 0 && (

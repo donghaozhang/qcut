@@ -1,33 +1,9 @@
 import { useEffect } from "react";
-import {
-	ChevronDown,
-	ChevronUp,
-	Circle,
-	Columns2,
-	Copy,
-	Diamond,
-	Eye,
-	EyeOff,
-	Heart,
-	Link2,
-	PanelTop,
-	PenTool,
-	Plus,
-	RectangleHorizontal,
-	ScanSearch,
-	Square,
-	Star,
-	Trash2,
-	Type,
-	Unlink2,
-	UserRound,
-	type LucideIcon,
-} from "lucide-react";
+import { Link2, PenTool, Plus, Unlink2 } from "lucide-react";
 import type {
 	MediaMask,
-	MediaMaskBlendMode,
 	MediaMaskKeyframeProperty,
-	MediaMaskType,
+	MediaMaskTrackingDirection,
 } from "@/types/timeline";
 import { Button } from "@/components/ui/button";
 import {
@@ -38,210 +14,31 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { Input } from "@/components/ui/input";
 import {
-	Select,
-	SelectContent,
-	SelectItem,
-	SelectTrigger,
-	SelectValue,
-} from "@/components/ui/select";
-import { Slider } from "@/components/ui/slider";
-import { Switch } from "@/components/ui/switch";
-import {
 	Tooltip,
 	TooltipContent,
 	TooltipProvider,
 	TooltipTrigger,
 } from "@/components/ui/tooltip";
-import { cn, generateUUID } from "@/lib/utils";
+import { Switch } from "@/components/ui/switch";
+import { generateUUID } from "@/lib/utils";
 import {
 	addMediaMask,
-	createMediaMask,
-	duplicateMediaMask,
-	moveMediaMask,
 	normalizeMediaMaskStack,
-	removeMediaMask,
 	removeMediaMaskKeyframe,
 	updateMediaMaskInStack,
 	upsertMediaMaskKeyframe,
 } from "@/lib/video/media-mask-stack";
 import { useMaskEditorStore } from "@/stores/editor/mask-editor-store";
+import { MaskNumberControl } from "./media-mask-controls";
+import { MediaMaskLayerList } from "./media-mask-layer-list";
+import { MediaMaskTrackingControls } from "./media-mask-tracking-controls";
+import {
+	createMaskForShape,
+	MASK_PROPERTY_FALLBACKS,
+	MASK_SHAPES,
+	type AddableMaskType,
+} from "./media-mask-shapes";
 import { PropertyItemLabel } from "./property-item";
-
-type AddableMaskType = Exclude<MediaMaskType, "none">;
-
-const MASK_SHAPES: Array<{
-	type: AddableMaskType;
-	label: string;
-	icon: LucideIcon;
-}> = [
-	{ type: "rectangle", label: "Rectangle", icon: RectangleHorizontal },
-	{ type: "ellipse", label: "Ellipse", icon: Circle },
-	{ type: "linear", label: "Linear", icon: PanelTop },
-	{ type: "mirror", label: "Mirror", icon: Columns2 },
-	{ type: "pen", label: "Pen", icon: PenTool },
-	{ type: "text", label: "Text", icon: Type },
-	{ type: "star", label: "Star", icon: Star },
-	{ type: "heart", label: "Heart", icon: Heart },
-	{ type: "person", label: "Person", icon: UserRound },
-	{ type: "object", label: "Object", icon: ScanSearch },
-];
-
-const MASK_PROPERTY_FALLBACKS: Record<MediaMaskKeyframeProperty, number> = {
-	centerX: 0.5,
-	centerY: 0.5,
-	width: 0.8,
-	height: 0.8,
-	rotation: 0,
-	feather: 0,
-	roundness: 0,
-	expansion: 0,
-	opacity: 1,
-};
-
-function maskIcon(type: MediaMaskType): LucideIcon {
-	return MASK_SHAPES.find((shape) => shape.type === type)?.icon ?? Square;
-}
-
-function createMaskForShape(type: AddableMaskType, index: number): MediaMask {
-	const mask = createMediaMask({
-		id: `mask-${generateUUID()}`,
-		type,
-		index,
-	});
-	if (type === "pen") {
-		return {
-			...mask,
-			points: [
-				{ x: 0.2, y: 0.2 },
-				{ x: 0.8, y: 0.2 },
-				{ x: 0.8, y: 0.8 },
-				{ x: 0.2, y: 0.8 },
-			],
-		};
-	}
-	if (type === "text") {
-		return { ...mask, text: "Text", fontFamily: "sans-serif" };
-	}
-	return mask;
-}
-
-function MaskIconButton({
-	label,
-	onClick,
-	disabled,
-	active,
-	children,
-}: {
-	label: string;
-	onClick: () => void;
-	disabled?: boolean;
-	active?: boolean;
-	children: React.ReactNode;
-}) {
-	return (
-		<TooltipProvider>
-			<Tooltip>
-				<TooltipTrigger asChild>
-					<Button
-						type="button"
-						variant={active ? "secondary" : "text"}
-						size="icon"
-						className="size-7 rounded-sm"
-						onClick={onClick}
-						disabled={disabled}
-						aria-label={label}
-					>
-						{children}
-					</Button>
-				</TooltipTrigger>
-				<TooltipContent>{label}</TooltipContent>
-			</Tooltip>
-		</TooltipProvider>
-	);
-}
-
-function MaskNumberControl({
-	label,
-	value,
-	min,
-	max,
-	step = 1,
-	suffix,
-	keyframed,
-	onChange,
-	onToggleKeyframe,
-	onInteractionStart,
-	onInteractionEnd,
-}: {
-	label: string;
-	value: number;
-	min: number;
-	max: number;
-	step?: number;
-	suffix?: string;
-	keyframed: boolean;
-	onChange: (value: number) => void;
-	onToggleKeyframe: () => void;
-	onInteractionStart: () => void;
-	onInteractionEnd: () => void;
-}) {
-	return (
-		<div className="space-y-1.5">
-			<div className="flex items-center gap-2">
-				<PropertyItemLabel className="min-w-0 flex-1">
-					{label}
-				</PropertyItemLabel>
-				<MaskIconButton
-					label={
-						keyframed ? `Remove ${label} keyframe` : `Add ${label} keyframe`
-					}
-					onClick={onToggleKeyframe}
-					active={keyframed}
-				>
-					<Diamond
-						className={cn("size-3", keyframed && "fill-primary text-primary")}
-					/>
-				</MaskIconButton>
-				<div className="flex items-center gap-1">
-					<Input
-						type="number"
-						aria-label={`${label} value`}
-						value={Number(value.toFixed(step < 1 ? 2 : 0))}
-						min={min}
-						max={max}
-						step={step}
-						onFocus={onInteractionStart}
-						onBlur={onInteractionEnd}
-						onChange={(event) => {
-							const next = Number(event.target.value);
-							if (Number.isFinite(next)) onChange(next);
-						}}
-						className="h-7 w-20 text-right text-xs"
-					/>
-					{suffix ? (
-						<span className="w-4 text-[10px] text-muted-foreground">
-							{suffix}
-						</span>
-					) : null}
-				</div>
-			</div>
-			<div
-				onPointerDown={onInteractionStart}
-				onPointerUp={onInteractionEnd}
-				onPointerCancel={onInteractionEnd}
-			>
-				<Slider
-					aria-label={label}
-					value={[Math.min(max, Math.max(min, value))]}
-					min={min}
-					max={max}
-					step={step}
-					onValueChange={([next]) => onChange(next)}
-				/>
-			</div>
-		</div>
-	);
-}
 
 export function MediaMaskProperties({
 	elementId,
@@ -250,6 +47,7 @@ export function MediaMaskProperties({
 	onChange,
 	onInteractionStart,
 	onInteractionEnd,
+	onTrack,
 }: {
 	elementId: string;
 	masks: MediaMask[];
@@ -257,6 +55,10 @@ export function MediaMaskProperties({
 	onChange: (masks: MediaMask[], history?: boolean) => void;
 	onInteractionStart: () => void;
 	onInteractionEnd: () => void;
+	onTrack?: (options: {
+		mask: MediaMask;
+		direction: MediaMaskTrackingDirection;
+	}) => void;
 }) {
 	const selectedElementId = useMaskEditorStore(
 		(state) => state.selectedElementId
@@ -270,7 +72,6 @@ export function MediaMaskProperties({
 			? storedMaskId
 			: (masks[0]?.id ?? null);
 	const selectedMask = masks.find((mask) => mask.id === selectedMaskId);
-	const selectedIndex = masks.findIndex((mask) => mask.id === selectedMaskId);
 
 	useEffect(() => {
 		if (
@@ -285,7 +86,7 @@ export function MediaMaskProperties({
 		onChange(normalizeMediaMaskStack(next), history);
 
 	const addMask = (type: AddableMaskType) => {
-		const mask = createMaskForShape(type, masks.length);
+		const mask = createMaskForShape({ type, index: masks.length });
 		commitMasks(addMediaMask(masks, mask));
 		selectMask(elementId, mask.id!);
 		setEditing(true);
@@ -386,6 +187,18 @@ export function MediaMaskProperties({
 		);
 	};
 
+	const startTracking = (direction: MediaMaskTrackingDirection) => {
+		if (!selectedMask || !onTrack) return;
+		patchSelected({
+			tracking: {
+				direction,
+				status: "processing",
+				source: selectedMask.type === "person" ? "mediapipe" : "sam3",
+			},
+		});
+		onTrack({ mask: selectedMask, direction });
+	};
+
 	const numberControl = (
 		property: MediaMaskKeyframeProperty,
 		label: string,
@@ -448,156 +261,15 @@ export function MediaMaskProperties({
 						<Plus className="size-4" /> Add a mask
 					</button>
 				) : (
-					<div className="space-y-1.5">
-						{masks.map((mask, index) => {
-							const Icon = maskIcon(mask.type);
-							const selected = mask.id === selectedMaskId;
-							return (
-								<div
-									key={mask.id}
-									className={cn(
-										"rounded-md border p-1.5",
-										selected
-											? "border-primary/70 bg-primary/5"
-											: "border-border"
-									)}
-								>
-									<div className="flex items-center gap-1">
-										<button
-											type="button"
-											className="flex size-7 shrink-0 items-center justify-center rounded-sm hover:bg-accent"
-											onClick={() => {
-												selectMask(elementId, mask.id!);
-												setEditing(true);
-											}}
-											aria-label={`Select ${mask.name}`}
-										>
-											<Icon className="size-4" />
-										</button>
-										<Input
-											aria-label="Mask name"
-											value={mask.name ?? `Mask ${index + 1}`}
-											onFocus={() => selectMask(elementId, mask.id!)}
-											onChange={(event) =>
-												commitMasks(
-													updateMediaMaskInStack({
-														masks,
-														maskId: mask.id!,
-														updates: { name: event.target.value },
-													}),
-													false
-												)
-											}
-											className="h-7 min-w-0 flex-1 border-0 bg-transparent px-1 text-xs shadow-none"
-										/>
-										<MaskIconButton
-											label={mask.enabled === false ? "Show mask" : "Hide mask"}
-											onClick={() =>
-												commitMasks(
-													updateMediaMaskInStack({
-														masks,
-														maskId: mask.id!,
-														updates: { enabled: mask.enabled === false },
-													})
-												)
-											}
-										>
-											{mask.enabled === false ? (
-												<EyeOff className="size-3.5" />
-											) : (
-												<Eye className="size-3.5" />
-											)}
-										</MaskIconButton>
-										<MaskIconButton
-											label="Delete mask"
-											onClick={() => {
-												const next = removeMediaMask(masks, mask.id!);
-												commitMasks(next);
-												if (selected) {
-													const fallback =
-														next[Math.min(index, next.length - 1)];
-													if (fallback?.id) selectMask(elementId, fallback.id);
-												}
-											}}
-										>
-											<Trash2 className="size-3.5" />
-										</MaskIconButton>
-									</div>
-									{selected ? (
-										<div className="mt-1.5 flex items-center gap-1 border-t border-border/70 pt-1.5">
-											<Select
-												value={index === 0 ? "add" : (mask.blendMode ?? "add")}
-												onValueChange={(blendMode) =>
-													patchSelected({
-														blendMode: blendMode as MediaMaskBlendMode,
-													})
-												}
-												disabled={index === 0}
-											>
-												<SelectTrigger
-													className="h-7 min-w-0 flex-1 text-[11px]"
-													aria-label="Mask blend mode"
-												>
-													<SelectValue />
-												</SelectTrigger>
-												<SelectContent>
-													<SelectItem value="add">Add</SelectItem>
-													<SelectItem value="subtract">Subtract</SelectItem>
-													<SelectItem value="intersect">Intersect</SelectItem>
-												</SelectContent>
-											</Select>
-											<MaskIconButton
-												label="Move mask up"
-												disabled={index === 0}
-												onClick={() =>
-													commitMasks(
-														moveMediaMask({
-															masks,
-															maskId: mask.id!,
-															toIndex: index - 1,
-														})
-													)
-												}
-											>
-												<ChevronUp className="size-3.5" />
-											</MaskIconButton>
-											<MaskIconButton
-												label="Move mask down"
-												disabled={index === masks.length - 1}
-												onClick={() =>
-													commitMasks(
-														moveMediaMask({
-															masks,
-															maskId: mask.id!,
-															toIndex: index + 1,
-														})
-													)
-												}
-											>
-												<ChevronDown className="size-3.5" />
-											</MaskIconButton>
-											<MaskIconButton
-												label="Duplicate mask"
-												onClick={() => {
-													const newId = `mask-${generateUUID()}`;
-													commitMasks(
-														duplicateMediaMask({
-															masks,
-															maskId: mask.id!,
-															newId,
-														})
-													);
-													selectMask(elementId, newId);
-												}}
-											>
-												<Copy className="size-3.5" />
-											</MaskIconButton>
-										</div>
-									) : null}
-								</div>
-							);
-						})}
-					</div>
+					<MediaMaskLayerList
+						masks={masks}
+						selectedMaskId={selectedMaskId}
+						onChange={commitMasks}
+						onSelect={(maskId) => {
+							selectMask(elementId, maskId);
+							setEditing(true);
+						}}
+					/>
 				)}
 			</div>
 
@@ -660,6 +332,11 @@ export function MediaMaskProperties({
 							<PenTool className="size-3.5" /> Edit points on canvas
 						</Button>
 					) : null}
+
+					<MediaMaskTrackingControls
+						mask={selectedMask}
+						onTrack={onTrack ? startTracking : undefined}
+					/>
 
 					<div className="space-y-4 border-t border-border pt-4">
 						{numberControl(

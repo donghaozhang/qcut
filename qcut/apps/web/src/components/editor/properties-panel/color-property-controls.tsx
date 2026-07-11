@@ -11,14 +11,17 @@ import {
 	TooltipTrigger,
 } from "@/components/ui/tooltip";
 import { cn } from "@/lib/utils";
-import type { ColorKeyframeProperty } from "@/types/timeline";
+import type {
+	ColorCurveShapeProperty,
+	ColorKeyframeProperty,
+} from "@/types/timeline";
 import {
 	COLOR_KEYFRAME_DEFINITIONS,
 	getColorPropertyValue,
 } from "@/lib/color/color-properties";
 import type { ColorSettingsEditorBindings } from "./color-properties-types";
 
-function ColorIconButton({
+export function ColorIconButton({
 	label,
 	onClick,
 	disabled,
@@ -58,6 +61,62 @@ function ColorIconButton({
 				<TooltipContent>{label}</TooltipContent>
 			</Tooltip>
 		</TooltipProvider>
+	);
+}
+
+export function ColorCurveKeyframeControls({
+	property,
+	bindings,
+}: {
+	property: ColorCurveShapeProperty;
+	bindings: ColorSettingsEditorBindings;
+}) {
+	const frames = (bindings.settings.curveShapeKeyframes?.[property] ?? [])
+		.map((keyframe) => keyframe.frame)
+		.sort((left, right) => left - right);
+	const previousFrame = [...frames]
+		.reverse()
+		.find((frame) => frame < bindings.currentFrame);
+	const nextFrame = frames.find((frame) => frame > bindings.currentFrame);
+	const keyframedHere = frames.includes(bindings.currentFrame);
+	return (
+		<div
+			className="flex items-center justify-end"
+			data-testid={`curve-keyframes-${property}`}
+		>
+			<span className="mr-1 text-[10px] text-muted-foreground">Shape</span>
+			<ColorIconButton
+				label="Previous curve shape keyframe"
+				onClick={() => {
+					if (previousFrame !== undefined) bindings.onSeekFrame(previousFrame);
+				}}
+				disabled={previousFrame === undefined}
+			>
+				<ChevronLeft className="size-3" />
+			</ColorIconButton>
+			<ColorIconButton
+				label={
+					keyframedHere
+						? "Remove curve shape keyframe"
+						: "Add curve shape keyframe"
+				}
+				onClick={() => bindings.onToggleCurveKeyframe(property)}
+				active={keyframedHere}
+			>
+				<Diamond
+					className={cn("size-3", keyframedHere && "fill-primary text-primary")}
+				/>
+			</ColorIconButton>
+			<ColorIconButton
+				label="Next curve shape keyframe"
+				onClick={() => {
+					if (nextFrame !== undefined) bindings.onSeekFrame(nextFrame);
+				}}
+				disabled={nextFrame === undefined}
+			>
+				<ChevronRight className="size-3" />
+			</ColorIconButton>
+		</div>
 	);
 }
 

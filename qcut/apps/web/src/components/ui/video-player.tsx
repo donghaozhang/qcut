@@ -6,6 +6,7 @@ import { usePlaybackStore } from "@/stores/editor/playback-store";
 import type { VideoSource } from "@/lib/media/media-source";
 import type { MediaElement } from "@/types/timeline";
 import {
+	getMediaSourcePlaybackTime,
 	getMediaTimelineDuration,
 	mapMediaTimelineTime,
 } from "@/lib/video/video-timing";
@@ -15,6 +16,7 @@ import {
 	revokeObjectURL,
 	createObjectURL,
 } from "@/lib/media/blob-manager";
+import { useMediaAudioPreview } from "@/lib/audio/use-media-audio-preview";
 
 interface VideoPlayerProps {
 	videoId?: string;
@@ -31,6 +33,31 @@ interface VideoPlayerProps {
 	fadeOut?: number;
 	clipPlaybackRate?: number;
 	timingElement?: MediaElement;
+}
+
+function getVideoPlaybackRate({
+	timingElement,
+	clipPlaybackRate,
+	clipStartTime,
+	timelineTime,
+	playbackSpeed,
+}: {
+	timingElement?: MediaElement;
+	clipPlaybackRate: number;
+	clipStartTime: number;
+	timelineTime: number;
+	playbackSpeed: number;
+}): number {
+	const timingRate = timingElement
+		? mapMediaTimelineTime({
+				element: timingElement,
+				localTimelineTime: timelineTime - clipStartTime,
+			}).playbackRate
+		: clipPlaybackRate;
+	return Math.min(
+		16,
+		Math.max(0.0625, playbackSpeed * Math.max(0.0625, timingRate))
+	);
 }
 
 export function VideoPlayer({
@@ -55,7 +82,7 @@ export function VideoPlayer({
 	const videoLoadedRef = useRef(false);
 	const recoveryAttemptRef = useRef(0);
 	const MAX_RECOVERY_ATTEMPTS = 2;
-	const { isPlaying, currentTime, volume, speed, muted } = usePlaybackStore();
+	const { isPlaying, currentTime, speed } = usePlaybackStore();
 	const timelineTimeRef = useRef(currentTime);
 
 	useEffect(() => {
@@ -68,6 +95,15 @@ export function VideoPlayer({
 	const clipEndTime = clipStartTime + timelineDuration;
 	const isInClipRange =
 		currentTime >= clipStartTime && currentTime < clipEndTime;
+	useMediaAudioPreview({
+		mediaRef: videoRef,
+		element: timingElement,
+		duration: timelineDuration,
+		forceMuted: clipVolume <= 0,
+		fallbackGain: clipVolume,
+		fallbackFadeIn: fadeIn,
+		fallbackFadeOut: fadeOut,
+	});
 	const requiresManualTiming = Boolean(
 		timingElement &&
 			(timingElement.reverse ||
@@ -85,17 +121,53 @@ export function VideoPlayer({
 					)
 				);
 			}
-			const timing = mapMediaTimelineTime({
+			return getMediaSourcePlaybackTime({
 				element: timingElement,
 				localTimelineTime: timelineTime - clipStartTime,
 			});
-			return Math.max(
-				trimStart,
-				Math.min(clipDuration - trimEnd, trimStart + timing.sourceTime)
-			);
 		},
 		[timingElement, trimStart, trimEnd, clipDuration, clipStartTime]
 	);
+	const syncVideoTiming = useCallback(
+		({
+			video,
+			timelineTime,
+			playbackSpeed = speed,
+			syncPosition = false,
+		}: {
+			video: HTMLVideoElement;
+			timelineTime: number;
+			playbackSpeed?: number;
+			syncPosition?: boolean;
+		}) => {
+			video.playbackRate = getVideoPlaybackRate({
+				timingElement,
+				clipPlaybackRate,
+				clipStartTime,
+				timelineTime,
+				playbackSpeed,
+			});
+			if (syncPosition) video.currentTime = getVideoTime(timelineTime);
+		},
+		[clipPlaybackRate, clipStartTime, getVideoTime, speed, timingElement]
+	);
+
+	// A seek can mount this player after the playback-seek event has fired.
+	useEffect(() => {
+		const video = videoRef.current;
+		if (!video || !isInClipRange) return;
+		syncVideoTiming({
+			video,
+			timelineTime: currentTime,
+			syncPosition: !isPlaying || requiresManualTiming,
+		});
+	}, [
+		currentTime,
+		isInClipRange,
+		isPlaying,
+		requiresManualTiming,
+		syncVideoTiming,
+	]);
 
 	// Sync playback events
 	useEffect(() => {
@@ -126,7 +198,11 @@ export function VideoPlayer({
 		};
 
 		const handleSpeed = (e: CustomEvent) => {
-			video.playbackRate = e.detail.speed;
+			syncVideoTiming({
+				video,
+				timelineTime: timelineTimeRef.current,
+				playbackSpeed: e.detail.speed,
+			});
 		};
 
 		window.addEventListener("playback-seek", handleSeekEvent as EventListener);
@@ -150,7 +226,7 @@ export function VideoPlayer({
 				handleSpeed as EventListener
 			);
 		};
-	}, [isInClipRange, requiresManualTiming, getVideoTime]);
+	}, [isInClipRange, requiresManualTiming, getVideoTime, syncVideoTiming]);
 
 	// Sync playback state with readyState check
 	useEffect(() => {
@@ -195,44 +271,12 @@ export function VideoPlayer({
 		};
 	}, [isPlaying, isInClipRange, requiresManualTiming]);
 
-	// Sync global playback controls with per-clip volume and fades.
+	// Sync global playback speed with clip-local timing.
 	useEffect(() => {
 		const video = videoRef.current;
 		if (!video) return;
-
-		const effectiveDuration = timelineDuration;
-		const clipTime = Math.max(0, currentTime - clipStartTime);
-		const fadeInGain = fadeIn > 0 ? Math.min(1, clipTime / fadeIn) : 1;
-		const remaining = Math.max(0, effectiveDuration - clipTime);
-		const fadeOutGain = fadeOut > 0 ? Math.min(1, remaining / fadeOut) : 1;
-		video.volume = Math.min(
-			1,
-			Math.max(0, volume * clipVolume * fadeInGain * fadeOutGain)
-		);
-		video.muted = muted;
-		const timingRate = timingElement
-			? mapMediaTimelineTime({
-					element: timingElement,
-					localTimelineTime: currentTime - clipStartTime,
-				}).playbackRate
-			: clipPlaybackRate;
-		video.playbackRate = Math.min(
-			16,
-			Math.max(0.0625, speed * Math.max(0.0625, timingRate))
-		);
-	}, [
-		volume,
-		speed,
-		muted,
-		clipVolume,
-		fadeIn,
-		fadeOut,
-		clipPlaybackRate,
-		clipStartTime,
-		currentTime,
-		timingElement,
-		timelineDuration,
-	]);
+		syncVideoTiming({ video, timelineTime: currentTime });
+	}, [currentTime, syncVideoTiming]);
 
 	// Check video element dimensions on mount
 	useEffect(() => {
@@ -319,6 +363,7 @@ export function VideoPlayer({
 	return (
 		<video
 			ref={videoRef}
+			data-video-id={videoId}
 			poster={poster}
 			className={`object-contain ${className}`}
 			playsInline
@@ -333,9 +378,14 @@ export function VideoPlayer({
 				...style,
 			}}
 			onContextMenu={(e) => e.preventDefault()}
-			onLoadedMetadata={() => {
+			onLoadedMetadata={(event) => {
 				videoLoadedRef.current = true;
 				recoveryAttemptRef.current = 0; // Reset recovery counter on successful load
+				syncVideoTiming({
+					video: event.currentTarget,
+					timelineTime: timelineTimeRef.current,
+					syncPosition: true,
+				});
 				console.log(`[VideoPlayer] ✅ Video loaded: ${videoId ?? "video"}`);
 			}}
 			onError={(e) => {
@@ -399,7 +449,11 @@ export function VideoPlayer({
 
 				videoLoadedRef.current = false;
 			}}
-			onCanPlay={() => {
+			onCanPlay={(event) => {
+				syncVideoTiming({
+					video: event.currentTarget,
+					timelineTime: timelineTimeRef.current,
+				});
 				console.log(
 					`[VideoPlayer] ▶️ Video ready to play: ${videoId ?? "video"}`
 				);

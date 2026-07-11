@@ -1,12 +1,15 @@
-import { useRef } from "react";
+import { useEffect, useRef, useState } from "react";
 import { toast } from "sonner";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Switch } from "@/components/ui/switch";
 import { usePlaybackStore } from "@/stores/editor/playback-store";
+import { useColorPreviewStore } from "@/stores/editor/color-preview-store";
 import { useMediaStore } from "@/stores/media/media-store";
 import { useProjectStore } from "@/stores/project-store";
 import { useTimelineStore } from "@/stores/timeline/timeline-store";
 import type {
+	ColorCurvePoint,
+	ColorCurveShapeProperty,
 	ColorKeyframeProperty,
 	ColorPropertyKeyframe,
 	MediaColorSettings,
@@ -27,15 +30,28 @@ import {
 	upsertColorKeyframe,
 } from "@/lib/color/color-properties";
 import {
+	colorCurvePoints,
+	setColorCurvePoints,
+	upsertCurveShapeKeyframe,
+} from "@/lib/color/color-curve-keyframes";
+import { buildSecondaryCurve } from "@/lib/color/color-secondary-curves";
+import {
+	createColorPreset,
+	loadColorPresets,
+	persistColorPresets,
+} from "@/lib/color/color-presets";
+import {
 	getMediaTimelineDuration,
 	mapMediaTimelineTime,
 } from "@/lib/video/video-timing";
 import { ColorBasicSettings } from "./color-basic-settings";
 import { ColorCurvesSettings } from "./color-curves-settings";
+import { ColorSecondaryCurvesSettings } from "./color-secondary-curves-settings";
 import { ColorHslSettings } from "./color-hsl-settings";
 import { ColorLutSettings } from "./color-lut-settings";
 import { ColorManagementSettingsPanel } from "./color-management-settings";
 import { ColorMaskSettings } from "./color-mask-settings";
+import { ColorPresetControls } from "./color-preset-controls";
 import { ColorScopesPanel } from "./color-scopes-panel";
 import { ColorSmartSettingsPanel } from "./color-smart-settings";
 import { ColorWheelSettingsPanel } from "./color-wheel-settings";
@@ -44,6 +60,17 @@ import type { ColorSettingsEditorBindings } from "./color-properties-types";
 type MediaUpdates = Parameters<
 	ReturnType<typeof useTimelineStore.getState>["updateMediaElement"]
 >[2];
+
+function curveShapeSamples({
+	property,
+	points,
+}: {
+	property: ColorCurveShapeProperty;
+	points: ColorCurvePoint[];
+}): number[] | undefined {
+	if (!property.startsWith("secondaryCurves.")) return;
+	return buildSecondaryCurve({ points }).samples;
+}
 
 export function ColorPropertiesPanel({
 	element,
@@ -64,6 +91,16 @@ export function ColorPropertiesPanel({
 		state.mediaItems.find((item) => item.id === element.mediaId)
 	);
 	const interactionActive = useRef(false);
+	const [presets, setPresets] = useState(loadColorPresets);
+	const [selectedPresetId, setSelectedPresetId] = useState<string>();
+	const previewBypassed = useColorPreviewStore((state) => state.bypassed);
+	const setPreviewBypassed = useColorPreviewStore((state) => state.setBypassed);
+	useEffect(
+		() => () => {
+			useColorPreviewStore.getState().setBypassed(false);
+		},
+		[]
+	);
 	const settings = normalizeMediaColorSettings({ element });
 	const masks = resolveMediaMasks(element);
 	const resolvedSettings = resolveMediaColorAtTime({
@@ -160,6 +197,73 @@ export function ColorPropertiesPanel({
 			},
 		});
 	};
+	const updateCurvePoints = (
+		property: ColorCurveShapeProperty,
+		points: ColorCurvePoint[]
+	) => {
+		const keyframes = settings.curveShapeKeyframes?.[property] ?? [];
+		if (keyframes.length === 0) {
+			persistSettings({
+				next: setColorCurvePoints({ settings, property, points }),
+			});
+			return;
+		}
+		const existing = keyframes.find(
+			(keyframe) => keyframe.frame === currentFrame
+		);
+		persistSettings({
+			next: {
+				...settings,
+				curveShapeKeyframes: {
+					...settings.curveShapeKeyframes,
+					[property]: upsertCurveShapeKeyframe({
+						keyframes,
+						keyframe: {
+							id: existing?.id ?? `color-curve-keyframe-${generateUUID()}`,
+							frame: currentFrame,
+							points: points.map((point) => ({ ...point })),
+							samples: curveShapeSamples({ property, points }),
+							easing: existing?.easing ?? "linear",
+						},
+					}),
+				},
+			},
+		});
+	};
+	const toggleCurveKeyframe = (property: ColorCurveShapeProperty) => {
+		const keyframes = settings.curveShapeKeyframes?.[property] ?? [];
+		const existing = keyframes.find(
+			(keyframe) => keyframe.frame === currentFrame
+		);
+		const resolvedPoints = colorCurvePoints({
+			settings: resolvedSettings,
+			property,
+		}).map((point) => ({ ...point }));
+		const nextKeyframes = existing
+			? keyframes.filter((keyframe) => keyframe.id !== existing.id)
+			: upsertCurveShapeKeyframe({
+					keyframes,
+					keyframe: {
+						id: `color-curve-keyframe-${generateUUID()}`,
+						frame: currentFrame,
+						points: resolvedPoints,
+						samples: curveShapeSamples({
+							property,
+							points: resolvedPoints,
+						}),
+						easing: "linear",
+					},
+				});
+		persistSettings({
+			next: {
+				...settings,
+				curveShapeKeyframes: {
+					...settings.curveShapeKeyframes,
+					[property]: nextKeyframes,
+				},
+			},
+		});
+	};
 	const applySettingsToAllMedia = () => {
 		const color = structuredClone(settings);
 		const adjustments = buildLegacyColorAdjustments({ settings: color });
@@ -181,22 +285,48 @@ export function ColorPropertiesPanel({
 			`Applied color grade to ${applied} clip${applied === 1 ? "" : "s"}`
 		);
 	};
-	const saveColorPreset = () => {
-		const key = "qcut-color-presets";
-		const preset = {
-			id: `color-preset-${generateUUID()}`,
-			name: `Color preset ${new Date().toLocaleString()}`,
-			createdAt: new Date().toISOString(),
-			color: structuredClone(settings),
-		};
+	const saveColorPreset = (name?: string) => {
+		const preset = createColorPreset({ settings, name });
+		const next = [preset, ...presets];
 		try {
-			const stored = JSON.parse(localStorage.getItem(key) ?? "[]");
-			const presets = Array.isArray(stored) ? stored : [];
-			localStorage.setItem(key, JSON.stringify([preset, ...presets]));
+			persistColorPresets({ presets: next });
+			setPresets(next);
+			setSelectedPresetId(preset.id);
 			toast.success("Saved color preset");
 		} catch {
-			localStorage.setItem(key, JSON.stringify([preset]));
-			toast.success("Saved color preset");
+			toast.error("Unable to save color preset");
+		}
+	};
+	const applySelectedPreset = () => {
+		const preset = presets.find(
+			(candidate) => candidate.id === selectedPresetId
+		);
+		if (!preset) return;
+		const normalized = normalizeMediaColorSettings({
+			element: { color: preset.color, adjustments: undefined },
+		});
+		persistSettings({
+			next: {
+				...normalized,
+				mask: structuredClone(settings.mask),
+				keyframes: structuredClone(settings.keyframes ?? {}),
+				curveShapeKeyframes: structuredClone(
+					settings.curveShapeKeyframes ?? {}
+				),
+			},
+		});
+		toast.success(`Applied ${preset.name}`);
+	};
+	const deleteSelectedPreset = () => {
+		if (!selectedPresetId) return;
+		const next = presets.filter((preset) => preset.id !== selectedPresetId);
+		try {
+			persistColorPresets({ presets: next });
+			setPresets(next);
+			setSelectedPresetId(undefined);
+			toast.success("Deleted color preset");
+		} catch {
+			toast.error("Unable to delete color preset");
 		}
 	};
 	const bindings: ColorSettingsEditorBindings = {
@@ -206,6 +336,8 @@ export function ColorPropertiesPanel({
 		onSettingsChange: (next) => persistSettings({ next }),
 		onPropertyChange: updateProperty,
 		onToggleKeyframe: toggleKeyframe,
+		onCurvePointsChange: updateCurvePoints,
+		onToggleCurveKeyframe: toggleCurveKeyframe,
 		onSeekFrame: (frame) => seek(element.startTime + frame / fps),
 		onApplyAll: applySettingsToAllMedia,
 		onSavePreset: saveColorPreset,
@@ -256,6 +388,16 @@ export function ColorPropertiesPanel({
 					}
 				/>
 			</div>
+			<ColorPresetControls
+				presets={presets}
+				selectedPresetId={selectedPresetId}
+				bypassed={previewBypassed}
+				onSelectedPresetChange={setSelectedPresetId}
+				onApplyPreset={applySelectedPreset}
+				onDeletePreset={deleteSelectedPreset}
+				onSavePreset={saveColorPreset}
+				onBypassedChange={setPreviewBypassed}
+			/>
 			<div
 				className={
 					settings.enabled ? undefined : "pointer-events-none opacity-45"
@@ -285,6 +427,7 @@ export function ColorPropertiesPanel({
 					</TabsContent>
 					<TabsContent value="curves" className="mt-2">
 						<ColorCurvesSettings bindings={bindings} />
+						<ColorSecondaryCurvesSettings bindings={bindings} />
 					</TabsContent>
 					<TabsContent value="wheels" className="mt-2">
 						<ColorWheelSettingsPanel bindings={bindings} />

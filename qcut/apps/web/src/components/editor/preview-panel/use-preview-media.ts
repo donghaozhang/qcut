@@ -31,12 +31,13 @@ export function usePreviewMedia({
 }: UsePreviewMediaParams): UsePreviewMediaResult {
 	const currentMediaElement = useMemo(() => {
 		try {
-			return (
-				activeElements.find(
-					(item) =>
-						item.element.type === "media" && item.mediaItem?.type === "video"
-				) ?? null
-			);
+			for (let index = activeElements.length - 1; index >= 0; index--) {
+				const item = activeElements[index];
+				if (item.element.type === "media" && item.mediaItem?.type === "video") {
+					return item;
+				}
+			}
+			return null;
 		} catch {
 			return null;
 		}
