@@ -250,6 +250,22 @@ export interface VideoVisual {
 	color?: VideoColorSettings;
 	mask?: VideoMask;
 	masks?: VideoMask[];
+	customCutout?: {
+		enabled: boolean;
+		applyStrokes: boolean;
+		strokes: Array<{
+			id: string;
+			frame: number;
+			mode: "foreground" | "background";
+			size: number;
+			points: Array<{ x: number; y: number }>;
+		}>;
+		status?: "idle" | "processing" | "ready" | "error";
+		error?: string;
+		sourceMediaId?: string;
+		resultMaskId?: string;
+		generatedFrom?: string;
+	};
 	chromaKey?: {
 		enabled: boolean;
 		color: string;
@@ -316,6 +332,8 @@ export interface ImageSource {
 	trimEnd: number;
 	/** Element identifier for debugging */
 	elementId: string;
+	visual?: VideoVisual;
+	effectFilter?: string;
 }
 
 /**
@@ -325,6 +343,9 @@ export interface ImageSource {
 export interface StickerSource {
 	/** Unique identifier for the sticker */
 	id: string;
+	trackId?: string;
+	trackOrder?: number;
+	elementOrder?: number;
 	/** File system path to the sticker image */
 	path: string;
 	/** X position in pixels (top-left corner) */

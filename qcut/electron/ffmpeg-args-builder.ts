@@ -20,8 +20,15 @@ import type {
 } from "./ffmpeg/types";
 
 import { QUALITY_SETTINGS, debugLog, debugWarn } from "./ffmpeg/utils";
-import { buildVideoTimelineFilters } from "./ffmpeg-video-transform";
+import {
+	buildVideoTimelineFilters,
+	buildVideoTimelineLayers,
+} from "./ffmpeg-video-transform";
 import { buildTimelineAudioFilters } from "./ffmpeg/audio-filter-graph";
+import {
+	composePreparedVisualLayers,
+	type PreparedVisualLayer,
+} from "./ffmpeg/visual-layer-compositor";
 
 /**
  * Object options for FFmpeg arg generation.
@@ -78,6 +85,212 @@ function escapeFilterPath(filePath: string): string {
 		.replace(/'/g, "\\'")
 		.replace(/:/g, "\\:")
 		.replace(/([,;[\]])/g, "\\$1");
+}
+
+interface ResolvedTextAssLayer {
+	path: string;
+	blendMode:
+		| "normal"
+		| "multiply"
+		| "screen"
+		| "overlay"
+		| "darken"
+		| "lighten";
+	trackOrder?: number;
+	elementOrder?: number;
+	sourceIndex: number;
+}
+
+function ffmpegColorValue(color: string): string {
+	if (color.trim().toLowerCase() === "#000000") return "black";
+	const match = /^#([0-9a-f]{6})$/i.exec(color.trim());
+	return match ? `0x${match[1]}` : "black";
+}
+
+function buildCanonicalVisualFilters({
+	videoSources,
+	videoTransitions,
+	images,
+	stickers,
+	textAssLayers,
+	baseInputCount,
+	width,
+	height,
+	fps,
+	duration,
+	backgroundColor,
+	filterChain,
+	textFilterChain,
+}: {
+	videoSources: VideoSource[];
+	videoTransitions: VideoTransition[];
+	images: ImageSource[];
+	stickers: StickerSource[];
+	textAssLayers: ResolvedTextAssLayer[];
+	baseInputCount: number;
+	width: number;
+	height: number;
+	fps: number;
+	duration: number;
+	backgroundColor: string;
+	filterChain?: string;
+	textFilterChain?: string;
+}): { filterSteps: string[]; outputLabel: string } {
+	const filterSteps: string[] = [];
+	const layers: PreparedVisualLayer[] = [];
+	let baseLabel = "0:v";
+
+	if (videoSources.length > 0) {
+		baseLabel = "visual_timeline_background";
+		filterSteps.push(
+			`color=c=${ffmpegColorValue(backgroundColor)}:s=${width}x${height}:d=${duration}:r=${fps},` +
+				`format=rgba,settb=AVTB,setpts=PTS-STARTPTS[${baseLabel}]`
+		);
+		const builtVideo = buildVideoTimelineLayers({
+			videoSources,
+			videoTransitions,
+			width,
+			height,
+			fps,
+			totalDuration: duration,
+			backgroundColor,
+		});
+		filterSteps.push(...builtVideo.filterSteps);
+		for (const layer of builtVideo.layers) {
+			layers.push({
+				inputLabel: layer.outputLabel,
+				kind: "video",
+				trackOrder: layer.trackOrder,
+				elementOrder: layer.elementOrder,
+				sourceOrder: layer.sourceIndex,
+				legacyOrder: 0,
+				blendMode: layer.blendMode,
+				startTime: layer.startTime,
+				endTime: layer.endTime,
+			});
+		}
+	}
+
+	if (images.length > 0) {
+		const imageSources: VideoSource[] = images.map((image) => ({
+			elementId: image.elementId,
+			trackId: image.trackId,
+			trackOrder: image.trackOrder,
+			elementOrder: image.elementOrder,
+			path: image.path,
+			startTime: image.startTime,
+			duration: image.duration,
+			trimStart: image.trimStart,
+			trimEnd: image.trimEnd,
+			visual: image.visual,
+			effectFilter: image.effectFilter,
+		}));
+		const builtImages = buildVideoTimelineLayers({
+			videoSources: imageSources,
+			inputIndexOffset: baseInputCount,
+			segmentIndexOffset: videoSources.length,
+			width,
+			height,
+			fps,
+			totalDuration: duration,
+			backgroundColor,
+		});
+		filterSteps.push(...builtImages.filterSteps);
+		for (const layer of builtImages.layers) {
+			layers.push({
+				inputLabel: layer.outputLabel,
+				kind: "image",
+				trackOrder: layer.trackOrder,
+				elementOrder: layer.elementOrder,
+				sourceOrder: layer.sourceIndex,
+				legacyOrder: 1,
+				blendMode: layer.blendMode,
+				startTime: layer.startTime,
+				endTime: layer.endTime,
+			});
+		}
+	}
+
+	const stickerInputStartIndex = baseInputCount + images.length;
+	for (const [index, sticker] of stickers.entries()) {
+		const stickerInputIndex = stickerInputStartIndex + index;
+		const scaledLabel = `visual_sticker_scaled_${index}`;
+		let preparedLabel = scaledLabel;
+		if (sticker.maintainAspectRatio) {
+			const paddedLabel = `visual_sticker_padded_${index}`;
+			filterSteps.push(
+				`[${stickerInputIndex}:v]scale=${sticker.width}:${sticker.height}:force_original_aspect_ratio=decrease[${scaledLabel}]`
+			);
+			filterSteps.push(
+				`[${scaledLabel}]pad=${sticker.width}:${sticker.height}:(ow-iw)/2:(oh-ih)/2:color=0x00000000[${paddedLabel}]`
+			);
+			preparedLabel = paddedLabel;
+		} else {
+			filterSteps.push(
+				`[${stickerInputIndex}:v]scale=${sticker.width}:${sticker.height}[${scaledLabel}]`
+			);
+		}
+		if ((sticker.rotation ?? 0) !== 0) {
+			const rotatedLabel = `visual_sticker_rotated_${index}`;
+			filterSteps.push(
+				`[${preparedLabel}]rotate=${sticker.rotation}*PI/180:c=none[${rotatedLabel}]`
+			);
+			preparedLabel = rotatedLabel;
+		}
+		if ((sticker.opacity ?? 1) < 1) {
+			const alphaLabel = `visual_sticker_alpha_${index}`;
+			filterSteps.push(
+				`[${preparedLabel}]format=rgba,geq=r='r(X,Y)':g='g(X,Y)':b='b(X,Y)':a='${sticker.opacity}*alpha(X,Y)'[${alphaLabel}]`
+			);
+			preparedLabel = alphaLabel;
+		}
+		layers.push({
+			inputLabel: preparedLabel,
+			kind: "sticker",
+			trackOrder: sticker.trackOrder,
+			elementOrder: sticker.elementOrder,
+			sourceOrder: stickerInputIndex,
+			legacyOrder: 2,
+			blendMode: "normal",
+			startTime: sticker.startTime,
+			endTime: sticker.endTime,
+			x: sticker.x,
+			y: sticker.y,
+		});
+	}
+
+	for (const [index, layer] of textAssLayers.entries()) {
+		if (!fs.existsSync(layer.path)) {
+			throw new Error(`ASS text overlay file not found: ${layer.path}`);
+		}
+		const overlayLabel = `visual_text_ass_${index}`;
+		filterSteps.push(
+			`color=c=black@0.0:s=${width}x${height}:d=${duration}:r=${fps},format=rgba,` +
+				`ass=filename='${escapeFilterPath(layer.path)}':alpha=1[${overlayLabel}]`
+		);
+		layers.push({
+			inputLabel: overlayLabel,
+			kind: "text",
+			trackOrder: layer.trackOrder,
+			elementOrder: layer.elementOrder,
+			sourceOrder: layer.sourceIndex,
+			legacyOrder: 4,
+			blendMode: layer.blendMode,
+		});
+	}
+
+	const composed = composePreparedVisualLayers({ baseLabel, layers });
+	filterSteps.push(...composed.filterSteps);
+	let outputLabel = composed.outputLabel;
+	let postFilterIndex = 0;
+	for (const postFilter of [filterChain, textFilterChain]) {
+		if (!postFilter) continue;
+		const nextLabel = `visual_post_filter_${postFilterIndex++}`;
+		filterSteps.push(`[${outputLabel}]${postFilter}[${nextLabel}]`);
+		outputLabel = nextLabel;
+	}
+
+	return { filterSteps, outputLabel };
 }
 
 function buildCompositeEncodeArgs(
@@ -138,7 +351,7 @@ function buildCompositeEncodeArgs(
 			"-f",
 			"lavfi",
 			"-i",
-			`color=c=black:s=${width}x${height}:d=${duration}:r=${fps}`
+			`color=c=${ffmpegColorValue(backgroundColor)}:s=${width}x${height}:d=${duration}:r=${fps}`
 		);
 	} else {
 		throw new Error("Composite mode requires a video input or image sources.");
@@ -207,117 +420,144 @@ function buildCompositeEncodeArgs(
 
 	const filterSteps: string[] = [];
 	let currentVideoLabel = "0:v";
-	let filterLabelIndex = 0;
-	if (videoSources.length > 0) {
-		const timeline = buildVideoTimelineFilters({
-			videoSources,
-			videoTransitions,
-			width,
-			height,
-			fps,
-			totalDuration: duration,
-			backgroundColor,
-		});
-		filterSteps.push(...timeline.filterSteps);
-		currentVideoLabel = timeline.outputLabel;
-	}
-
-	if (filterChain) {
-		const outputLabel = `v_fx_${filterLabelIndex++}`;
-		filterSteps.push(`[${currentVideoLabel}]${filterChain}[${outputLabel}]`);
-		currentVideoLabel = outputLabel;
-	}
-
-	for (const [index, image] of validImages.entries()) {
-		const imageInputIndex = baseInputCount + index;
-		const scaledLabel = `img_scaled_${index}`;
-		const paddedLabel = `img_padded_${index}`;
-		const timedLabel = `img_timed_${index}`;
-		const outputLabel = `v_img_${filterLabelIndex++}`;
-		const endTime = image.startTime + image.duration;
-
-		filterSteps.push(
-			`[${imageInputIndex}:v]scale=${width}:${height}:force_original_aspect_ratio=decrease[${scaledLabel}]`
-		);
-		filterSteps.push(
-			`[${scaledLabel}]pad=${width}:${height}:(ow-iw)/2:(oh-ih)/2:black[${paddedLabel}]`
-		);
-		filterSteps.push(
-			`[${paddedLabel}]setpts=PTS+${image.startTime}/TB[${timedLabel}]`
-		);
-		filterSteps.push(
-			`[${currentVideoLabel}][${timedLabel}]overlay=x=0:y=0:enable='between(t,${image.startTime},${endTime})'[${outputLabel}]`
-		);
-		currentVideoLabel = outputLabel;
-	}
-
-	const stickerInputStartIndex = baseInputCount + validImages.length;
-	for (const [index, sticker] of validStickers.entries()) {
-		const stickerInputIndex = stickerInputStartIndex + index;
-		const scaledLabel = `sticker_scaled_${index}`;
-		let preparedLabel = scaledLabel;
-
-		if (sticker.maintainAspectRatio) {
-			// Preserve aspect ratio: scale to fit within target box, then pad with transparent pixels
-			const padLabel = `sticker_pad_${index}`;
-			filterSteps.push(
-				`[${stickerInputIndex}:v]scale=${sticker.width}:${sticker.height}:force_original_aspect_ratio=decrease[${scaledLabel}]`
-			);
-			filterSteps.push(
-				`[${scaledLabel}]pad=${sticker.width}:${sticker.height}:(ow-iw)/2:(oh-ih)/2:color=0x00000000[${padLabel}]`
-			);
-			preparedLabel = padLabel;
-		} else {
-			filterSteps.push(
-				`[${stickerInputIndex}:v]scale=${sticker.width}:${sticker.height}[${scaledLabel}]`
-			);
-		}
-
-		if ((sticker.rotation ?? 0) !== 0) {
-			const rotatedLabel = `sticker_rotated_${index}`;
-			filterSteps.push(
-				`[${preparedLabel}]rotate=${sticker.rotation}*PI/180:c=none[${rotatedLabel}]`
-			);
-			preparedLabel = rotatedLabel;
-		}
-
-		let stickerOverlayInputLabel = preparedLabel;
-		if ((sticker.opacity ?? 1) < 1) {
-			const alphaLabel = `sticker_alpha_${index}`;
-			filterSteps.push(
-				`[${preparedLabel}]format=rgba,geq=r='r(X,Y)':g='g(X,Y)':b='b(X,Y)':a='${sticker.opacity}*alpha(X,Y)'[${alphaLabel}]`
-			);
-			stickerOverlayInputLabel = alphaLabel;
-		}
-
-		const outputLabel = `v_sticker_${filterLabelIndex++}`;
-		const overlayParams = [
-			`x=${sticker.x}`,
-			`y=${sticker.y}`,
-			`enable='between(t,${sticker.startTime},${sticker.endTime})'`,
-		];
-		filterSteps.push(
-			`[${currentVideoLabel}][${stickerOverlayInputLabel}]overlay=${overlayParams.join(":")}[${outputLabel}]`
-		);
-		currentVideoLabel = outputLabel;
-	}
-
-	if (textFilterChain) {
-		const outputLabel = `v_text_${filterLabelIndex++}`;
-		filterSteps.push(
-			`[${currentVideoLabel}]${textFilterChain}[${outputLabel}]`
-		);
-		currentVideoLabel = outputLabel;
-	}
-
-	const resolvedTextAssLayers = [
+	const resolvedTextAssLayers: ResolvedTextAssLayer[] = [
 		...(textAssPath
 			? [{ path: textAssPath, blendMode: "normal" as const }]
 			: []),
 		...textAssLayers,
-	]
-		.map((layer, sourceIndex) => ({ ...layer, sourceIndex }))
-		.sort((a, b) => {
+	].map((layer, sourceIndex) => ({ ...layer, sourceIndex }));
+	const usesCanonicalVisualOrder =
+		!useVideoInput &&
+		[
+			...videoSources,
+			...validImages,
+			...validStickers,
+			...resolvedTextAssLayers,
+		].some((layer) => Number.isFinite(layer.trackOrder));
+
+	if (usesCanonicalVisualOrder) {
+		const canonical = buildCanonicalVisualFilters({
+			videoSources,
+			videoTransitions,
+			images: validImages,
+			stickers: validStickers,
+			textAssLayers: resolvedTextAssLayers,
+			baseInputCount,
+			width,
+			height,
+			fps,
+			duration,
+			backgroundColor,
+			filterChain,
+			textFilterChain,
+		});
+		filterSteps.push(...canonical.filterSteps);
+		currentVideoLabel = canonical.outputLabel;
+	} else {
+		let filterLabelIndex = 0;
+		if (videoSources.length > 0) {
+			const timeline = buildVideoTimelineFilters({
+				videoSources,
+				videoTransitions,
+				width,
+				height,
+				fps,
+				totalDuration: duration,
+				backgroundColor,
+			});
+			filterSteps.push(...timeline.filterSteps);
+			currentVideoLabel = timeline.outputLabel;
+		}
+
+		if (filterChain) {
+			const outputLabel = `v_fx_${filterLabelIndex++}`;
+			filterSteps.push(`[${currentVideoLabel}]${filterChain}[${outputLabel}]`);
+			currentVideoLabel = outputLabel;
+		}
+
+		for (const [index, image] of validImages.entries()) {
+			const imageInputIndex = baseInputCount + index;
+			const scaledLabel = `img_scaled_${index}`;
+			const paddedLabel = `img_padded_${index}`;
+			const timedLabel = `img_timed_${index}`;
+			const outputLabel = `v_img_${filterLabelIndex++}`;
+			const endTime = image.startTime + image.duration;
+
+			filterSteps.push(
+				`[${imageInputIndex}:v]scale=${width}:${height}:force_original_aspect_ratio=decrease[${scaledLabel}]`
+			);
+			filterSteps.push(
+				`[${scaledLabel}]pad=${width}:${height}:(ow-iw)/2:(oh-ih)/2:black[${paddedLabel}]`
+			);
+			filterSteps.push(
+				`[${paddedLabel}]setpts=PTS+${image.startTime}/TB[${timedLabel}]`
+			);
+			filterSteps.push(
+				`[${currentVideoLabel}][${timedLabel}]overlay=x=0:y=0:enable='between(t,${image.startTime},${endTime})'[${outputLabel}]`
+			);
+			currentVideoLabel = outputLabel;
+		}
+
+		const stickerInputStartIndex = baseInputCount + validImages.length;
+		for (const [index, sticker] of validStickers.entries()) {
+			const stickerInputIndex = stickerInputStartIndex + index;
+			const scaledLabel = `sticker_scaled_${index}`;
+			let preparedLabel = scaledLabel;
+
+			if (sticker.maintainAspectRatio) {
+				// Preserve aspect ratio: scale to fit within target box, then pad with transparent pixels
+				const padLabel = `sticker_pad_${index}`;
+				filterSteps.push(
+					`[${stickerInputIndex}:v]scale=${sticker.width}:${sticker.height}:force_original_aspect_ratio=decrease[${scaledLabel}]`
+				);
+				filterSteps.push(
+					`[${scaledLabel}]pad=${sticker.width}:${sticker.height}:(ow-iw)/2:(oh-ih)/2:color=0x00000000[${padLabel}]`
+				);
+				preparedLabel = padLabel;
+			} else {
+				filterSteps.push(
+					`[${stickerInputIndex}:v]scale=${sticker.width}:${sticker.height}[${scaledLabel}]`
+				);
+			}
+
+			if ((sticker.rotation ?? 0) !== 0) {
+				const rotatedLabel = `sticker_rotated_${index}`;
+				filterSteps.push(
+					`[${preparedLabel}]rotate=${sticker.rotation}*PI/180:c=none[${rotatedLabel}]`
+				);
+				preparedLabel = rotatedLabel;
+			}
+
+			let stickerOverlayInputLabel = preparedLabel;
+			if ((sticker.opacity ?? 1) < 1) {
+				const alphaLabel = `sticker_alpha_${index}`;
+				filterSteps.push(
+					`[${preparedLabel}]format=rgba,geq=r='r(X,Y)':g='g(X,Y)':b='b(X,Y)':a='${sticker.opacity}*alpha(X,Y)'[${alphaLabel}]`
+				);
+				stickerOverlayInputLabel = alphaLabel;
+			}
+
+			const outputLabel = `v_sticker_${filterLabelIndex++}`;
+			const overlayParams = [
+				`x=${sticker.x}`,
+				`y=${sticker.y}`,
+				`enable='between(t,${sticker.startTime},${sticker.endTime})'`,
+			];
+			filterSteps.push(
+				`[${currentVideoLabel}][${stickerOverlayInputLabel}]overlay=${overlayParams.join(":")}[${outputLabel}]`
+			);
+			currentVideoLabel = outputLabel;
+		}
+
+		if (textFilterChain) {
+			const outputLabel = `v_text_${filterLabelIndex++}`;
+			filterSteps.push(
+				`[${currentVideoLabel}]${textFilterChain}[${outputLabel}]`
+			);
+			currentVideoLabel = outputLabel;
+		}
+
+		const legacyTextAssLayers = resolvedTextAssLayers.sort((a, b) => {
 			const aHasOrder = Number.isFinite(a.trackOrder);
 			const bHasOrder = Number.isFinite(b.trackOrder);
 			if (aHasOrder && bHasOrder) {
@@ -328,43 +568,48 @@ function buildCompositeEncodeArgs(
 			}
 			return a.sourceIndex - b.sourceIndex;
 		});
-	for (const [index, layer] of resolvedTextAssLayers.entries()) {
-		if (!fs.existsSync(layer.path)) {
-			throw new Error(`ASS text overlay file not found: ${layer.path}`);
+		for (const [index, layer] of legacyTextAssLayers.entries()) {
+			if (!fs.existsSync(layer.path)) {
+				throw new Error(`ASS text overlay file not found: ${layer.path}`);
+			}
+			const overlayLabel = `text_ass_overlay_${index}`;
+			filterSteps.push(
+				`color=c=black@0.0:s=${width}x${height}:d=${duration}:r=${fps},format=rgba,ass=filename='${escapeFilterPath(layer.path)}':alpha=1[${overlayLabel}]`
+			);
+			const outputLabel = `v_text_ass_${filterLabelIndex++}`;
+			if (layer.blendMode === "normal") {
+				filterSteps.push(
+					`[${currentVideoLabel}][${overlayLabel}]overlay=shortest=1:format=auto[${outputLabel}]`
+				);
+			} else {
+				const baseOriginal = `text_base_original_${index}`;
+				const baseBlendInput = `text_base_blend_input_${index}`;
+				const baseBlend = `text_base_blend_${index}`;
+				const textBlend = `text_blend_input_${index}`;
+				const textAlpha = `text_alpha_input_${index}`;
+				const blended = `text_blended_${index}`;
+				const mask = `text_mask_${index}`;
+				const blendedWithAlpha = `text_blended_alpha_${index}`;
+				filterSteps.push(
+					`[${currentVideoLabel}]split=2[${baseOriginal}][${baseBlendInput}]`
+				);
+				filterSteps.push(`[${baseBlendInput}]format=rgba[${baseBlend}]`);
+				filterSteps.push(
+					`[${overlayLabel}]split=2[${textBlend}][${textAlpha}]`
+				);
+				filterSteps.push(
+					`[${baseBlend}][${textBlend}]blend=all_mode=${layer.blendMode}[${blended}]`
+				);
+				filterSteps.push(`[${textAlpha}]alphaextract[${mask}]`);
+				filterSteps.push(
+					`[${blended}][${mask}]alphamerge[${blendedWithAlpha}]`
+				);
+				filterSteps.push(
+					`[${baseOriginal}][${blendedWithAlpha}]overlay=shortest=1:format=auto[${outputLabel}]`
+				);
+			}
+			currentVideoLabel = outputLabel;
 		}
-		const overlayLabel = `text_ass_overlay_${index}`;
-		filterSteps.push(
-			`color=c=black@0.0:s=${width}x${height}:d=${duration}:r=${fps},format=rgba,ass=filename='${escapeFilterPath(layer.path)}':alpha=1[${overlayLabel}]`
-		);
-		const outputLabel = `v_text_ass_${filterLabelIndex++}`;
-		if (layer.blendMode === "normal") {
-			filterSteps.push(
-				`[${currentVideoLabel}][${overlayLabel}]overlay=shortest=1:format=auto[${outputLabel}]`
-			);
-		} else {
-			const baseOriginal = `text_base_original_${index}`;
-			const baseBlendInput = `text_base_blend_input_${index}`;
-			const baseBlend = `text_base_blend_${index}`;
-			const textBlend = `text_blend_input_${index}`;
-			const textAlpha = `text_alpha_input_${index}`;
-			const blended = `text_blended_${index}`;
-			const mask = `text_mask_${index}`;
-			const blendedWithAlpha = `text_blended_alpha_${index}`;
-			filterSteps.push(
-				`[${currentVideoLabel}]split=2[${baseOriginal}][${baseBlendInput}]`
-			);
-			filterSteps.push(`[${baseBlendInput}]format=rgba[${baseBlend}]`);
-			filterSteps.push(`[${overlayLabel}]split=2[${textBlend}][${textAlpha}]`);
-			filterSteps.push(
-				`[${baseBlend}][${textBlend}]blend=all_mode=${layer.blendMode}[${blended}]`
-			);
-			filterSteps.push(`[${textAlpha}]alphaextract[${mask}]`);
-			filterSteps.push(`[${blended}][${mask}]alphamerge[${blendedWithAlpha}]`);
-			filterSteps.push(
-				`[${baseOriginal}][${blendedWithAlpha}]overlay=shortest=1:format=auto[${outputLabel}]`
-			);
-		}
-		currentVideoLabel = outputLabel;
 	}
 
 	const audioInputStartIndex =

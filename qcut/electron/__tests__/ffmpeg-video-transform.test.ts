@@ -139,23 +139,23 @@ describe("FFmpeg video transform filters", () => {
 		expect(filter.indexOf("[1:v]trim=")).toBeLessThan(
 			filter.indexOf("[0:v]trim=")
 		);
-		expect(filter).toContain("video_layer_composite_0");
-		expect(filter).toContain("video_layer_composite_1");
+		expect(filter).toContain("video_layer_video_0_composite");
+		expect(filter).toContain("video_layer_video_1_composite");
 		expect(filter).not.toContain("concat=");
 	});
 
 	it.each([
-		{ type: "dissolve", expected: "fade" },
-		{ type: "fade-black", expected: "fadeblack" },
-		{ type: "slide", direction: "right", expected: "slideright" },
-		{ type: "wipe", direction: "left", expected: "wipeleft" },
+		{ type: "dissolve", expectedExpression: "A*(1-(" },
+		{ type: "fade-black", expectedExpression: "eq(PLANE,3)" },
+		{ type: "slide", direction: "right", expectedExpression: "b0(" },
+		{ type: "wipe", direction: "left", expectedExpression: "lt(X" },
 	] satisfies Array<{
 		type: VideoTransition["type"];
 		direction?: VideoTransition["direction"];
-		expected: string;
+		expectedExpression: string;
 	}>)(
 		"builds centered $type transitions without shortening the timeline",
-		({ type, direction, expected }) => {
+		({ type, direction, expectedExpression }) => {
 			const sources: VideoSource[] = [
 				{
 					elementId: "clip-a",
@@ -200,9 +200,8 @@ describe("FFmpeg video transform filters", () => {
 
 			expect(filter).toContain("start_duration=0:stop_mode=clone:stop_duration=0.5");
 			expect(filter).toContain("start_duration=0.5:stop_mode=clone:stop_duration=0");
-			expect(filter).toContain(
-				"xfade=transition=" + expected + ":duration=1:offset=1.5"
-			);
+			expect(filter).toContain("xfade=transition=custom:duration=1:offset=1.5");
+			expect(filter).toContain(expectedExpression);
 			expect(filter).toContain("trim=duration=4");
 			expect(result.segmentCount).toBe(2);
 		}

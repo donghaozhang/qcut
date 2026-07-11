@@ -3,7 +3,7 @@ import { spawnSync } from "child_process";
 import fs from "fs";
 import path from "path";
 import { buildFFmpegArgs } from "../ffmpeg-args-builder";
-import type { VideoVisual } from "../ffmpeg/types";
+import type { VideoTransition, VideoVisual } from "../ffmpeg/types";
 
 const ffmpegPath = path.resolve(
 	__dirname,
@@ -20,6 +20,39 @@ const tempDir = path.resolve(
 
 function runFFmpeg(args: string[]) {
 	return spawnSync(ffmpegPath, args, { encoding: "utf8", timeout: 60_000 });
+}
+
+function createColorSequence({
+	segments,
+	outputPath,
+}: {
+	segments: Array<{ color: string; duration: number }>;
+	outputPath: string;
+}) {
+	const inputs = segments.flatMap((segment) => [
+		"-f",
+		"lavfi",
+		"-i",
+		"color=c=" +
+			segment.color +
+			":s=160x90:d=" +
+			segment.duration +
+			":r=30",
+	]);
+	const labels = segments.map((_segment, index) => "[" + index + ":v]").join("");
+	return runFFmpeg([
+		"-y",
+		...inputs,
+		"-filter_complex",
+		labels + "concat=n=" + segments.length + ":v=1:a=0[sequence]",
+		"-map",
+		"[sequence]",
+		"-c:v",
+		"libx264",
+		"-pix_fmt",
+		"yuv420p",
+		outputPath,
+	]);
 }
 
 function readFramePixel({
@@ -42,6 +75,40 @@ function readFramePixel({
 			"1",
 			"-vf",
 			"scale=1:1,format=rgb24",
+			"-f",
+			"rawvideo",
+			"-",
+		],
+		{ timeout: 60_000 }
+	);
+	if (result.status !== 0) throw new Error(result.stderr.toString());
+	return Array.from(result.stdout.subarray(0, 3));
+}
+
+function readFramePixelAt({
+	inputPath,
+	time,
+	x,
+	y,
+}: {
+	inputPath: string;
+	time: number;
+	x: number;
+	y: number;
+}): number[] {
+	const result = spawnSync(
+		ffmpegPath,
+		[
+			"-v",
+			"error",
+			"-ss",
+			String(time),
+			"-i",
+			inputPath,
+			"-frames:v",
+			"1",
+			"-vf",
+			"crop=2:2:" + x + ":" + y + ",scale=1:1,format=rgb24",
 			"-f",
 			"rawvideo",
 			"-",
@@ -206,6 +273,232 @@ describe.skipIf(!fs.existsSync(ffmpegPath))(
 			expect(midpoint[2]).toBeGreaterThan(70);
 			expect(after[0]).toBeLessThan(80);
 			expect(after[2]).toBeGreaterThan(180);
+		});
+
+		it("uses trimmed source handles before falling back to edge frames", () => {
+			const outgoingPath = path.join(tempDir, "handle-outgoing.mp4");
+			const incomingPath = path.join(tempDir, "handle-incoming.mp4");
+			const outgoing = createColorSequence({
+				segments: [
+					{ color: "red", duration: 2 },
+					{ color: "lime", duration: 1 },
+				],
+				outputPath: outgoingPath,
+			});
+			const incoming = createColorSequence({
+				segments: [
+					{ color: "yellow", duration: 0.5 },
+					{ color: "blue", duration: 2.5 },
+				],
+				outputPath: incomingPath,
+			});
+			expect(outgoing.status, outgoing.stderr?.toString()).toBe(0);
+			expect(incoming.status, incoming.stderr?.toString()).toBe(0);
+
+			const outputPath = path.join(tempDir, "transition-handles.mp4");
+			const result = runFFmpeg(
+				buildFFmpegArgs({
+					inputDir: tempDir,
+					outputFile: outputPath,
+					width: 160,
+					height: 90,
+					fps: 30,
+					quality: "low",
+					duration: 4,
+					videoSources: [
+						{
+							elementId: "clip-outgoing",
+							trackId: "track-1",
+							path: outgoingPath,
+							startTime: 0,
+							duration: 3,
+							trimStart: 0,
+							trimEnd: 1,
+							trackOrder: 0,
+							elementOrder: 0,
+						},
+						{
+							elementId: "clip-incoming",
+							trackId: "track-1",
+							path: incomingPath,
+							startTime: 2,
+							duration: 3,
+							trimStart: 0.5,
+							trimEnd: 0.5,
+							trackOrder: 0,
+							elementOrder: 1,
+						},
+					],
+					videoTransitions: [
+						{
+							id: "transition-handles",
+							trackId: "track-1",
+							fromElementId: "clip-outgoing",
+							toElementId: "clip-incoming",
+							presetId: "dissolve",
+							type: "dissolve",
+							easing: "linear",
+							duration: 1,
+						},
+					],
+				})
+			);
+			expect(result.status, result.stderr?.toString()).toBe(0);
+
+			const beforeCut = readFramePixel({
+				inputPath: outputPath,
+				time: 1.75,
+			});
+			const afterCut = readFramePixel({
+				inputPath: outputPath,
+				time: 2.25,
+			});
+			expect(beforeCut[0]).toBeGreaterThan(180);
+			expect(beforeCut[1]).toBeGreaterThan(30);
+			expect(beforeCut[2]).toBeLessThan(50);
+			expect(afterCut[0]).toBeLessThan(60);
+			expect(afterCut[1]).toBeGreaterThan(30);
+			expect(afterCut[2]).toBeGreaterThan(80);
+		});
+
+		it("matches eased first-release transition directions at fixed frames", () => {
+			const redPath = path.join(tempDir, "parity-red.mp4");
+			const bluePath = path.join(tempDir, "parity-blue.mp4");
+			const red = createColorSequence({
+				segments: [{ color: "red", duration: 2 }],
+				outputPath: redPath,
+			});
+			const blue = createColorSequence({
+				segments: [{ color: "blue", duration: 2 }],
+				outputPath: bluePath,
+			});
+			expect(red.status, red.stderr?.toString()).toBe(0);
+			expect(blue.status, blue.stderr?.toString()).toBe(0);
+
+			const cases: Array<{
+				name: string;
+				type: VideoTransition["type"];
+				direction?: VideoTransition["direction"];
+			}> = [
+				{ name: "dissolve", type: "dissolve" },
+				{ name: "fade-black", type: "fade-black" },
+				{
+					name: "slide-left",
+					type: "slide",
+					direction: "left",
+				},
+				{
+					name: "slide-right",
+					type: "slide",
+					direction: "right",
+				},
+				{
+					name: "wipe-left",
+					type: "wipe",
+					direction: "left",
+				},
+				{
+					name: "wipe-right",
+					type: "wipe",
+					direction: "right",
+				},
+			];
+
+			for (const item of cases) {
+				const outputPath = path.join(tempDir, "parity-" + item.name + ".mp4");
+				const result = runFFmpeg(
+					buildFFmpegArgs({
+						inputDir: tempDir,
+						outputFile: outputPath,
+						width: 160,
+						height: 90,
+						fps: 30,
+						quality: "low",
+						duration: 4,
+						videoSources: [
+							{
+								elementId: "clip-red",
+								trackId: "track-1",
+								path: redPath,
+								startTime: 0,
+								duration: 2,
+								trackOrder: 0,
+								elementOrder: 0,
+							},
+							{
+								elementId: "clip-blue",
+								trackId: "track-1",
+								path: bluePath,
+								startTime: 2,
+								duration: 2,
+								trackOrder: 0,
+								elementOrder: 1,
+							},
+						],
+						videoTransitions: [
+							{
+								id: "transition-" + item.name,
+								trackId: "track-1",
+								fromElementId: "clip-red",
+								toElementId: "clip-blue",
+								presetId: item.name,
+								type: item.type,
+								direction: item.direction,
+								easing: "easeInOut",
+								duration: 1,
+							},
+						],
+					})
+				);
+				expect(result.status, item.name + ": " + result.stderr?.toString()).toBe(
+					0
+				);
+
+				const quarter = readFramePixelAt({
+					inputPath: outputPath,
+					time: 1.75,
+					x: 80,
+					y: 44,
+				});
+				const midpoint = readFramePixelAt({
+					inputPath: outputPath,
+					time: 2,
+					x: 80,
+					y: 44,
+				});
+				if (item.type === "dissolve") {
+					expect(quarter[0]).toBeGreaterThan(180);
+					expect(quarter[2]).toBeLessThan(80);
+					expect(midpoint[0]).toBeGreaterThan(70);
+					expect(midpoint[2]).toBeGreaterThan(70);
+					continue;
+				}
+				if (item.type === "fade-black") {
+					expect(quarter[0]).toBeGreaterThan(180);
+					expect(midpoint[0]).toBeLessThan(30);
+					expect(midpoint[1]).toBeLessThan(30);
+					expect(midpoint[2]).toBeLessThan(30);
+					continue;
+				}
+
+				const entersFromLeft = item.direction === "left";
+				const enteredPixel = readFramePixelAt({
+					inputPath: outputPath,
+					time: 1.75,
+					x: entersFromLeft ? 4 : 154,
+					y: 44,
+				});
+				const waitingPixel = readFramePixelAt({
+					inputPath: outputPath,
+					time: 1.75,
+					x: entersFromLeft ? 20 : 138,
+					y: 44,
+				});
+				expect(enteredPixel[0]).toBeLessThan(80);
+				expect(enteredPixel[2]).toBeGreaterThan(180);
+				expect(waitingPixel[0]).toBeGreaterThan(180);
+				expect(waitingPixel[2]).toBeLessThan(80);
+			}
 		});
 
 		it("renders transform, crop, perspective, blend, and keyframes", () => {

@@ -242,6 +242,68 @@ describe("buildFFmpegArgs", () => {
 				filter.indexOf("top.ass")
 			);
 		});
+
+		it("composites video, image, sticker, and text by one track order", () => {
+			const args = buildFFmpegArgs(
+				createBaseOptions({
+					videoSources: [
+						{
+							path: "/bottom.mp4",
+							startTime: 0,
+							duration: 10,
+							trackOrder: 3,
+							elementOrder: 0,
+						},
+					],
+					imageSources: [
+						{
+							path: "/middle.png",
+							startTime: 0,
+							duration: 10,
+							trimStart: 0,
+							trimEnd: 0,
+							elementId: "image",
+							trackOrder: 2,
+							elementOrder: 0,
+						},
+					],
+					stickerSources: [
+						{
+							id: "sticker",
+							path: "/sticker.png",
+							x: 10,
+							y: 10,
+							width: 64,
+							height: 64,
+							startTime: 0,
+							endTime: 10,
+							zIndex: 1,
+							trackOrder: 1,
+							elementOrder: 0,
+						},
+					],
+					textAssLayers: [
+						{
+							path: "/top.ass",
+							blendMode: "normal",
+							trackOrder: 0,
+							elementOrder: 0,
+						},
+					],
+				})
+			);
+			const filter = args[args.indexOf("-filter_complex") + 1];
+
+			expect(filter.indexOf("[video_0_layer]overlay")).toBeLessThan(
+				filter.indexOf("[video_1_layer]overlay")
+			);
+			expect(filter.indexOf("[video_1_layer]overlay")).toBeLessThan(
+				filter.indexOf("[visual_sticker_scaled_0]overlay")
+			);
+			expect(filter.indexOf("[visual_sticker_scaled_0]overlay")).toBeLessThan(
+				filter.indexOf("[visual_text_ass_0]overlay")
+			);
+		});
 	});
 
 	describe("Direct Copy Mode", () => {

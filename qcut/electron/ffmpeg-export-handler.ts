@@ -249,6 +249,7 @@ export function setupExportHandler(tempManager: TempManager): void {
 						videoInputPath: options.videoInputPath,
 						trimStart: options.trimStart,
 						trimEnd: options.trimEnd,
+						backgroundColor: options.backgroundColor,
 					});
 
 				// Mode 1.5 builds its own args; defer until after Mode 1.5 branch when needed
