@@ -55,7 +55,7 @@ test.describe("Filter library", () => {
 
 		const filters = page.getByTestId("filters-view");
 		await expect(filters.locator('[data-testid^="filter-card-"]')).toHaveCount(
-			21
+			37
 		);
 		await filters.screenshot({
 			path: path.join(outputDirectory, "00-library.png"),

@@ -16,6 +16,18 @@ const showcaseRoot = resolve(
 	repositoryRoot,
 	"packages/nexusai-website/assets/showcase"
 );
+const portraitSource = resolve(
+	showcaseRoot,
+	"podcast/Quriosity-Dress-Mockup-v2.jpg"
+);
+const nightSource = resolve(
+	showcaseRoot,
+	"PandaCoffee2/Panda Coffee Shop Night View.png"
+);
+const outdoorSource = resolve(
+	showcaseRoot,
+	"PandaCoffee2/Panda Coffee Shop Exterior with Logo.png"
+);
 
 const sourceByCategory: Record<FilterCategory, string> = {
 	basic: resolve(showcaseRoot, "PandaCoffee2/Panda Coffee Cafe Interior.png"),
@@ -28,10 +40,14 @@ const sourceByCategory: Record<FilterCategory, string> = {
 		"PandaCoffee2/Panda Coffee Shop Exterior with Logo.png"
 	),
 	food: resolve(showcaseRoot, "PandaCoffee2/Panda Coffee Cups Mockup.png"),
+	camera: portraitSource,
+	night: nightSource,
 	cinematic: resolve(
 		showcaseRoot,
 		"PandaCoffee2/Panda Coffee Shop Night View.png"
 	),
+	outdoor: outdoorSource,
+	stylized: portraitSource,
 	film: resolve(
 		showcaseRoot,
 		"PandaCoffee2/Panda Coffee Shop Interior with Logo.png"
@@ -40,11 +56,45 @@ const sourceByCategory: Record<FilterCategory, string> = {
 		showcaseRoot,
 		"PandaCoffee2/Panda Coffee Shop Street Corner View.png"
 	),
-	portrait: resolve(
-		showcaseRoot,
-		"PandaCoffee2/Panda Coffee Shop Street Corner View.png"
-	),
+	portrait: portraitSource,
+	hd: outdoorSource,
+	indoor: resolve(showcaseRoot, "PandaCoffee2/Panda Coffee Cafe Interior.png"),
 };
+
+function buildPreviewFilter({
+	preset,
+	cubePath,
+}: {
+	preset: FilterPreset;
+	cubePath: string;
+}) {
+	const crop = ["portrait", "camera", "stylized"].includes(preset.category)
+		? "crop=288:180:0:0"
+		: "crop=288:180";
+	const filters = [
+		"scale=288:180:force_original_aspect_ratio=increase",
+		crop,
+		`lut3d=file='${cubePath}'`,
+	];
+	const sharpness = preset.extras?.sharpness ?? 0;
+	if (sharpness > 0) {
+		filters.push(`unsharp=5:5:${Math.min(2, sharpness / 50)}`);
+	}
+	const vignette = preset.extras?.vignette ?? 0;
+	if (vignette > 0) {
+		filters.push(`vignette=angle=PI/2-PI/3*${vignette / 100}`);
+	}
+	const grain = preset.extras?.grain ?? 0;
+	if (grain > 0) {
+		const amount = grain / 100;
+		filters.push(
+			`geq=r='clip(r(X,Y)+(random(1)-0.5)*51*${amount},0,255)':` +
+				`g='clip(g(X,Y)+(random(2)-0.5)*51*${amount},0,255)':` +
+				`b='clip(b(X,Y)+(random(3)-0.5)*51*${amount},0,255)'`
+		);
+	}
+	return filters.join(",");
+}
 
 async function runCommand({
 	command,
@@ -109,7 +159,7 @@ async function renderPreview({
 	);
 	await renderWebp({
 		source: sourceByCategory[preset.category],
-		filter: `scale=288:180:force_original_aspect_ratio=increase,crop=288:180,lut3d=file='${cubePath}'`,
+		filter: buildPreviewFilter({ preset, cubePath }),
 		output: join(outputDirectory, `${preset.id}.webp`),
 		temporaryPng: join(temporaryDirectory, `${preset.id}.png`),
 	});

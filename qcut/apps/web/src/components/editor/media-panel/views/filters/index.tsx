@@ -25,7 +25,11 @@ import type { FilterPreset } from "@/lib/filters/filter-types";
 import { DEFAULT_COLOR_FILTER_APPLICATION } from "@/lib/filters/filter-resolver";
 import { cn } from "@/lib/utils";
 import { useTimelineStore } from "@/stores/timeline/timeline-store";
-import { FILTER_CATEGORIES, type FilterCategoryId } from "./filter-categories";
+import {
+	FILTER_CATEGORIES,
+	filterPresetMatchesCategory,
+	type FilterCategoryId,
+} from "./filter-categories";
 import { updateSelectedMediaColors } from "./filter-application";
 import { FilterCard } from "./filter-card";
 import { getSelectedMediaTargets } from "./filter-selection";
@@ -80,6 +84,7 @@ export function FiltersView() {
 	const activePreset = getFilterPreset({ presetId: activeFilter.presetId });
 	const hasSelection = selectedTargets.length > 0;
 	const favoriteIds = useMemo(() => new Set(favorites), [favorites]);
+	const activeCategory = FILTER_CATEGORIES.find((item) => item.id === category);
 
 	useEffect(() => {
 		const refresh = () => setSavedPresets(loadColorPresets());
@@ -94,13 +99,7 @@ export function FiltersView() {
 	const visiblePresets = useMemo(
 		() =>
 			FILTER_PRESETS.filter((preset) => {
-				if (
-					category !== "all" &&
-					category !== "mine" &&
-					preset.category !== category
-				)
-					return false;
-				if (category === "mine") return false;
+				if (!filterPresetMatchesCategory({ preset, category })) return false;
 				if (mode === "favorites" && !favoriteIds.has(preset.id)) return false;
 				return matchesQuery({ preset, query });
 			}),
@@ -226,7 +225,7 @@ export function FiltersView() {
 			</div>
 
 			<div className="flex min-h-0 flex-1">
-				<aside className="w-[94px] shrink-0 overflow-y-auto border-r border-border/50 p-2">
+				<aside className="w-[104px] shrink-0 overflow-y-auto border-r border-border/50 p-2">
 					<div className="space-y-0.5">
 						{FILTER_CATEGORIES.filter(
 							(item) => mode === "library" || item.id !== "mine"
@@ -243,6 +242,9 @@ export function FiltersView() {
 											: "text-muted-foreground hover:bg-foreground/5 hover:text-foreground"
 									)}
 									aria-pressed={category === item.id}
+									aria-label={`${item.label} / ${item.localizedLabel}`}
+									title={item.label}
+									data-testid={`filter-category-${item.id}`}
 									onClick={() => setCategory(item.id)}
 									onKeyDown={(event) => {
 										if (event.key === "Enter" || event.key === " ") {
@@ -251,7 +253,7 @@ export function FiltersView() {
 									}}
 								>
 									<Icon className="size-3.5 shrink-0" />
-									<span className="truncate">{item.label}</span>
+									<span className="truncate">{item.localizedLabel}</span>
 								</button>
 							);
 						})}
@@ -259,8 +261,15 @@ export function FiltersView() {
 				</aside>
 
 				<section className="flex min-w-0 flex-1 flex-col">
-					<div className="flex h-8 shrink-0 items-center justify-between border-b border-border/40 px-3 text-[10px] text-muted-foreground">
-						<span>{resultCount + (showNoneCard ? 1 : 0)} filters</span>
+					<div className="flex h-9 shrink-0 items-center justify-between border-b border-border/40 px-3 text-[10px] text-muted-foreground">
+						<div className="flex min-w-0 items-center gap-2">
+							<span className="truncate font-medium text-foreground">
+								{activeCategory?.localizedLabel ?? "滤镜"}
+							</span>
+							<span className="tabular-nums">
+								{resultCount + (showNoneCard ? 1 : 0)}
+							</span>
+						</div>
 						<span>
 							{hasSelection
 								? `${selectedTargets.length} clip selected`
@@ -292,6 +301,7 @@ export function FiltersView() {
 										selected={activeFilter.presetId === preset.id}
 										disabled={!hasSelection}
 										favorite={favoriteIds.has(preset.id)}
+										featured={preset.isNew}
 										onSelect={() => applyFilter({ preset })}
 										onFavoriteChange={() =>
 											toggleFavorite({ presetId: preset.id })

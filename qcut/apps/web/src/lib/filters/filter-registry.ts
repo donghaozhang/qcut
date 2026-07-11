@@ -1,8 +1,9 @@
 import type { FilterCategory, FilterPreset } from "./filter-types";
+import { EXTENDED_FILTER_PRESETS } from "./filter-extended-presets";
 
 export const FILTER_NONE_ID = "none";
 
-export const FILTER_PRESETS: FilterPreset[] = [
+const CORE_FILTER_PRESETS: FilterPreset[] = [
 	{
 		id: "clean",
 		version: 1,
@@ -181,7 +182,7 @@ export const FILTER_PRESETS: FilterPreset[] = [
 		version: 1,
 		name: "Teal Gold",
 		localizedName: "青橙电影",
-		category: "cinematic",
+		category: "night",
 		tags: ["cinema", "teal", "orange", "电影", "青橙"],
 		thumbnail: "/images/filter-previews/teal-gold.webp",
 		lutAssetId: "qcut/filter/teal-gold/v1",
@@ -334,6 +335,11 @@ export const FILTER_PRESETS: FilterPreset[] = [
 		},
 		extras: { sharpness: 6 },
 	},
+];
+
+export const FILTER_PRESETS: FilterPreset[] = [
+	...CORE_FILTER_PRESETS,
+	...EXTENDED_FILTER_PRESETS,
 ];
 
 const presetsById = new Map(

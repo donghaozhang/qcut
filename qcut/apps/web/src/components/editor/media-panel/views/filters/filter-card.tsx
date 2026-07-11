@@ -1,4 +1,4 @@
-import { RotateCcw, Star } from "lucide-react";
+import { RotateCcw, Sparkles, Star } from "lucide-react";
 import type { KeyboardEvent } from "react";
 import { cn } from "@/lib/utils";
 
@@ -10,6 +10,7 @@ export function FilterCard({
 	selected,
 	disabled,
 	favorite,
+	featured,
 	reset,
 	onSelect,
 	onFavoriteChange,
@@ -21,6 +22,7 @@ export function FilterCard({
 	selected: boolean;
 	disabled: boolean;
 	favorite?: boolean;
+	featured?: boolean;
 	reset?: boolean;
 	onSelect: () => void;
 	onFavoriteChange?: () => void;
@@ -63,6 +65,14 @@ export function FilterCard({
 				{reset && (
 					<div className="absolute inset-0 flex items-center justify-center bg-black/20">
 						<RotateCcw className="size-5 text-white drop-shadow" />
+					</div>
+				)}
+				{featured && (
+					<div
+						className="absolute left-1.5 top-1.5 flex size-5 items-center justify-center rounded bg-primary/85 text-primary-foreground shadow-sm"
+						title="New filter"
+					>
+						<Sparkles className="size-3" />
 					</div>
 				)}
 				{onFavoriteChange && (

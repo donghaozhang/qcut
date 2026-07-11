@@ -3,10 +3,16 @@ export type FilterCategory =
 	| "summer"
 	| "landscape"
 	| "food"
+	| "camera"
+	| "night"
 	| "cinematic"
+	| "outdoor"
+	| "stylized"
 	| "film"
 	| "monochrome"
-	| "portrait";
+	| "portrait"
+	| "hd"
+	| "indoor";
 
 export interface FilterLutRecipe {
 	exposure?: number;
@@ -39,6 +45,7 @@ export interface FilterPreset {
 	thumbnail: string;
 	lutAssetId: string;
 	defaultIntensity: number;
+	isNew?: boolean;
 	skinProtection?: number;
 	recipe: FilterLutRecipe;
 	extras?: FilterExtras;
