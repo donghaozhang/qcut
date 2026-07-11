@@ -28,6 +28,7 @@ import {
 import type { TimelineStore } from "./index";
 import { createTrack } from "./index";
 import type { StoreGet, StoreSet } from "./timeline-store-operations";
+import { normalizeTrackAudioSettings } from "@/lib/audio/audio-mix-settings";
 
 export interface CrudDeps {
 	updateTracksAndSave: (tracks: TimelineTrack[]) => void;
@@ -423,6 +424,41 @@ export function createCrudOperations(
 			updateTracksAndSave(
 				get()._tracks.map((t) =>
 					t.id === trackId ? { ...t, muted: !t.muted } : t
+				)
+			);
+		},
+
+		updateTrackAudio: (trackId, updates, pushHistory = true) => {
+			if (pushHistory) get().pushHistory();
+			updateTracksAndSave(
+				get()._tracks.map((track) =>
+					track.id === trackId
+						? {
+								...track,
+								audio: normalizeTrackAudioSettings({
+									audio: { ...track.audio, ...updates },
+								}),
+							}
+						: track
+				)
+			);
+		},
+
+		toggleTrackSolo: (trackId) => {
+			get().pushHistory();
+			updateTracksAndSave(
+				get()._tracks.map((track) =>
+					track.id === trackId
+						? {
+								...track,
+								audio: normalizeTrackAudioSettings({
+									audio: {
+										...track.audio,
+										solo: !track.audio?.solo,
+									},
+								}),
+							}
+						: track
 				)
 			);
 		},

@@ -7,6 +7,7 @@
 
 import type { TimelineTrack, TrackType } from "@/types/timeline";
 import { generateUUID } from "@/lib/utils";
+import { createDefaultTrackAudioSettings } from "@/lib/audio/audio-mix-settings";
 
 /**
  * Helper function to manage element naming with suffixes
@@ -67,6 +68,10 @@ export function createTrack(type: TrackType): TimelineTrack {
 		type,
 		elements: [],
 		muted: false,
+		audio:
+			type === "media" || type === "audio"
+				? createDefaultTrackAudioSettings()
+				: undefined,
 	};
 }
 

@@ -19,6 +19,7 @@ export type {
 	CaptionElement,
 	SubtitleStyle,
 	DragData,
+	TimelineTrackAudioSettings,
 } from "@/types/timeline";
 
 // Re-export shared timeline utility functions
@@ -40,6 +41,7 @@ import type {
 	RemotionElement,
 	CaptionElement,
 	DragData,
+	TimelineTrackAudioSettings,
 } from "@/types/timeline";
 import type { MediaItem } from "../media/media-store";
 
@@ -264,6 +266,14 @@ export interface TimelineStore {
 	}) => void;
 	/** Toggle mute state for a track */
 	toggleTrackMute: (trackId: string) => void;
+	/** Update persistent gain, pan, routing, effects, and automation for a track. */
+	updateTrackAudio: (
+		trackId: string,
+		updates: Partial<TimelineTrackAudioSettings>,
+		pushHistory?: boolean
+	) => void;
+	/** Toggle track solo while preserving the existing mute state. */
+	toggleTrackSolo: (trackId: string) => void;
 	/** Toggle whether a visual track participates in preview and export */
 	toggleTrackHidden: (trackId: string) => void;
 	/** Toggle whether timeline edits are allowed on a track */

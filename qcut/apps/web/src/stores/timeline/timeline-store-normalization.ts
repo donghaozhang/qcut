@@ -21,6 +21,7 @@ import {
 	buildLegacyAudioFields,
 	normalizeMediaAudioSettings,
 } from "@/lib/audio/audio-properties";
+import { normalizeTrackAudioSettings } from "@/lib/audio/audio-mix-settings";
 import {
 	buildLegacyColorAdjustments,
 	normalizeMediaColorSettings,
@@ -130,6 +131,14 @@ export function normalizeLoadedTracks({
 }): TimelineTrack[] {
 	return tracks.map((track) => ({
 		...track,
+		audio:
+			track.type === "media" || track.type === "audio"
+				? normalizeTrackAudioSettings({ audio: track.audio })
+				: track.audio,
+		audioCrossfades:
+			track.type === "media" || track.type === "audio"
+				? (track.audioCrossfades ?? []).map((crossfade) => ({ ...crossfade }))
+				: track.audioCrossfades,
 		elements: track.elements.map((element) =>
 			normalizeMediaElement({
 				element: normalizeMarkdownElement({ element }),
