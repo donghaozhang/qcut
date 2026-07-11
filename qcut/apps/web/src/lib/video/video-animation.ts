@@ -7,12 +7,17 @@ import type {
 } from "@/types/timeline";
 import {
 	DEFAULT_MEDIA_ADJUSTMENTS,
-	DEFAULT_MEDIA_CHROMA_KEY,
 	DEFAULT_MEDIA_ENHANCEMENTS,
 	DEFAULT_MEDIA_MASK,
 	resolveMediaVisualProperties,
 } from "./video-properties";
 import { mediaMaskSvgDataUrl } from "./media-mask-svg";
+import {
+	chromaCleanupPasses,
+	chromaScreenType,
+	effectiveChromaSimilarity,
+	normalizeMediaChromaKey,
+} from "./media-chroma-key";
 import { getMediaTimelineDuration } from "./video-timing";
 
 export interface MediaAnimationState {
@@ -184,10 +189,30 @@ export function buildMediaMaskStyle(
 export function buildMediaChromaKeyCssFilter(
 	chromaKey?: Partial<MediaChromaKey>
 ): string {
-	const values = { ...DEFAULT_MEDIA_CHROMA_KEY, ...chromaKey };
+	const values = normalizeMediaChromaKey(chromaKey);
 	if (!values.enabled) return "";
-	const threshold = Math.min(1, Math.max(0.01, values.similarity)) * 2.2;
+	const threshold =
+		effectiveChromaSimilarity({
+			similarity: values.similarity,
+			shadow: values.shadow,
+		}) * 2.2;
 	const slope = 1 / Math.max(0.02, values.blend + 0.02);
-	const svg = `<svg xmlns="http://www.w3.org/2000/svg"><filter id="key" color-interpolation-filters="sRGB"><feFlood flood-color="${values.color}" result="keyColor"/><feBlend in="SourceGraphic" in2="keyColor" mode="difference" result="difference"/><feColorMatrix in="difference" type="matrix" values="1 0 0 0 0 0 1 0 0 0 0 0 1 0 0 1 1 1 0 -${threshold}" result="mask"/><feComponentTransfer in="mask" result="softMask"><feFuncA type="linear" slope="${slope}" intercept="0"/></feComponentTransfer><feComposite in="SourceGraphic" in2="softMask" operator="in"/></filter></svg>`;
+	const cleanupPasses = chromaCleanupPasses({ cleanup: values.cleanup });
+	const cleanup = cleanupPasses
+		? `<feMorphology in="softMask" operator="erode" radius="${cleanupPasses}" result="cleanMask"/>`
+		: "";
+	const cleanedMask = cleanupPasses ? "cleanMask" : "softMask";
+	const feather =
+		values.blend > 0
+			? `<feGaussianBlur in="${cleanedMask}" stdDeviation="${values.blend * 2}" result="featheredMask"/>`
+			: "";
+	const outputMask = values.blend > 0 ? "featheredMask" : cleanedMask;
+	const keep = 1 - values.spill;
+	const mix = values.spill / 2;
+	const spillMatrix =
+		chromaScreenType({ color: values.color }) === "green"
+			? `1 0 0 0 0 ${mix} ${keep} ${mix} 0 0 0 0 1 0 0 0 0 0 1 0`
+			: `1 0 0 0 0 0 1 0 0 0 ${mix} ${mix} ${keep} 0 0 0 0 0 1 0`;
+	const svg = `<svg xmlns="http://www.w3.org/2000/svg"><filter id="key" color-interpolation-filters="sRGB"><feFlood flood-color="${values.color}" result="keyColor"/><feBlend in="SourceGraphic" in2="keyColor" mode="difference" result="difference"/><feColorMatrix in="difference" type="matrix" values="1 0 0 0 0 0 1 0 0 0 0 0 1 0 0 1 1 1 0 -${threshold}" result="mask"/><feComponentTransfer in="mask" result="softMask"><feFuncA type="linear" slope="${slope}" intercept="0"/></feComponentTransfer>${cleanup}${feather}<feColorMatrix in="SourceGraphic" type="matrix" values="${spillMatrix}" result="despilled"/><feComposite in="despilled" in2="${outputMask}" operator="in"/></filter></svg>`;
 	return `url("data:image/svg+xml,${encodeURIComponent(svg)}#key")`;
 }

@@ -324,6 +324,9 @@ test.describe("Main-track video properties", () => {
 					color: "#00ff00",
 					similarity: 0.2,
 					blend: 0.1,
+					shadow: 0,
+					cleanup: 0,
+					spill: 0,
 				},
 				enhancements: {
 					stabilization: 20,
@@ -403,7 +406,7 @@ test.describe("Main-track video properties", () => {
 		);
 		await visualTabs.getByRole("tab", { name: "Cutout", exact: true }).click();
 		await expect(
-			properties.getByRole("button", { name: "Automatic cutout" })
+			properties.getByRole("button", { name: "Smart cutout" })
 		).toBeVisible();
 		await expect(
 			properties.getByRole("button", { name: "Render and attach mask" })
@@ -431,6 +434,50 @@ test.describe("Main-track video properties", () => {
 			path: path.join(outputDir, "11cc-cutout-cloud-object-full-editor.png"),
 			animations: "disabled",
 		});
+
+		await properties.getByRole("button", { name: "Smart cutout" }).click();
+		const chromaKey = properties.getByTestId("media-chroma-key-properties");
+		await expect(
+			chromaKey.getByRole("switch", { name: "Enable Chroma key" })
+		).toBeChecked();
+		for (const label of [
+			"Strength value",
+			"Shadow value",
+			"Edge feather value",
+			"Edge cleanup value",
+			"Spill suppression value",
+		]) {
+			await expect(chromaKey.getByLabel(label)).toBeVisible();
+		}
+		await chromaKey.getByLabel("Shadow value").fill("25");
+		await chromaKey.getByLabel("Shadow value").press("Tab");
+		await chromaKey.getByLabel("Edge cleanup value").fill("40");
+		await chromaKey.getByLabel("Edge cleanup value").press("Tab");
+		await chromaKey.getByLabel("Spill suppression value").fill("35");
+		await chromaKey.getByLabel("Spill suppression value").press("Tab");
+		await chromaKey
+			.getByRole("button", { name: "Add Strength keyframe" })
+			.click();
+		await chromaKey.screenshot({
+			path: path.join(outputDir, "11cd-chroma-key-refinement.png"),
+			animations: "disabled",
+		});
+		await chromaKey
+			.getByRole("button", { name: "Pick color from preview" })
+			.click();
+		const previewCanvas = page.getByTestId("color-preview-canvas").first();
+		await expect(previewCanvas).toBeVisible();
+		await previewCanvas.click({ position: { x: 90, y: 90 } });
+		await expect
+			.poll(async () =>
+				page.evaluate(() => {
+					const tracks = (window as any).__timelineStore.getState().tracks;
+					return tracks
+						.flatMap((track: any) => track.elements)
+						.find((item: any) => item.type === "media")?.chromaKey?.color;
+				})
+			)
+			.toMatch(/^#[0-9a-f]{6}$/i);
 
 		await visualTabs.getByRole("tab", { name: "Basic", exact: true }).click();
 		await properties
@@ -495,6 +542,11 @@ test.describe("Main-track video properties", () => {
 					pointCount: mask.points?.length ?? 0,
 				})),
 				chromaEnabled: element.chromaKey.enabled,
+				chromaShadow: element.chromaKey.shadow,
+				chromaCleanup: element.chromaKey.cleanup,
+				chromaSpill: element.chromaKey.spill,
+				chromaStrengthKeyframes:
+					element.chromaKey.keyframes?.similarity?.length ?? 0,
 				stabilization: element.enhancements.stabilization,
 			};
 		});
@@ -535,6 +587,10 @@ test.describe("Main-track video properties", () => {
 				},
 			],
 			chromaEnabled: true,
+			chromaShadow: 0.25,
+			chromaCleanup: 0.4,
+			chromaSpill: 0.35,
+			chromaStrengthKeyframes: 1,
 			stabilization: 20,
 		});
 	});

@@ -110,7 +110,7 @@ export function MediaAutomaticCutoutProperties({
 	const sourceReady = Boolean(projectId && mediaItem && sourceUrl);
 
 	return (
-		<PropertyGroup title="Automatic cutout" defaultExpanded>
+		<PropertyGroup title="Smart cutout" defaultExpanded>
 			<Tabs
 				value={mode}
 				onValueChange={(value) => setMode(value as AutomaticCutoutMode)}

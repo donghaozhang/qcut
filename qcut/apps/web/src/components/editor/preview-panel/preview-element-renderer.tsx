@@ -42,6 +42,9 @@ import {
 	selectAudioPreviewBypassed,
 	useAudioPreviewStore,
 } from "@/stores/editor/audio-preview-store";
+import { useColorPickerStore } from "@/stores/editor/color-picker-store";
+import type { ClipTransitionPreviewState } from "@/lib/transitions/clip-transition-preview";
+import { getClipTransitionLayerPresentation } from "@/lib/transitions/clip-transition-presentation";
 
 interface ElementResizeParams {
 	elementId: string;
@@ -63,6 +66,7 @@ interface PreviewElementRendererProps {
 	isPlaying: boolean;
 	activeProject: TProject | null;
 	tracks: TimelineTrack[];
+	transitionState?: ClipTransitionPreviewState;
 	onTextPointerDown: (
 		event: React.PointerEvent<HTMLDivElement>,
 		element: Pick<TimelineElement, "id" | "x" | "y">,
@@ -195,6 +199,7 @@ export function PreviewElementRenderer({
 	isPlaying,
 	activeProject,
 	tracks,
+	transitionState,
 	onTextPointerDown,
 	onElementSelect,
 	onElementResize,
@@ -205,6 +210,7 @@ export function PreviewElementRenderer({
 	const selectedMaskId = useMaskEditorStore((state) => state.selectedMaskId);
 	const isEditingMask = useMaskEditorStore((state) => state.isEditing);
 	const mediaItems = useMediaStore((state) => state.mediaItems);
+	const colorPickerActive = useColorPickerStore((state) => state.active);
 	const audioPreviewBypassed = useAudioPreviewStore((state) =>
 		selectAudioPreviewBypassed({
 			state,
@@ -214,6 +220,8 @@ export function PreviewElementRenderer({
 	try {
 		const { element, mediaItem } = elementData;
 		const elementKey = `${element.id}-${elementData.track.id}`;
+		const isColorPickerTarget =
+			colorPickerActive && element.id === currentMediaElement?.element.id;
 
 		if (element.type === "text") {
 			const displayElement = resolveTrackedTextElement({
@@ -387,12 +395,32 @@ export function PreviewElementRenderer({
 		}
 
 		if (element.type === "media") {
+			const transitionPresentation = transitionState
+				? getClipTransitionLayerPresentation({
+						transition: transitionState.transition,
+						role: transitionState.role,
+						progress: transitionState.progress,
+						canvasWidth: canvasSize.width,
+						canvasHeight: canvasSize.height,
+					})
+				: {
+						opacity: 1,
+						contentOpacity: 1,
+						offsetX: 0,
+						offsetY: 0,
+					};
 			if (!mediaItem || element.mediaId === TEST_MEDIA_ID) {
 				return (
 					<div
 						key={elementKey}
 						className="absolute inset-0 bg-linear-to-br from-blue-500/20 to-purple-500/20 flex items-center justify-center"
-						style={{ zIndex: index + 1 }}
+						style={{
+							zIndex: index + 1,
+							opacity: transitionPresentation.opacity,
+							clipPath: transitionPresentation.clipPath,
+							backgroundColor: transitionPresentation.backgroundColor,
+							transform: `translate3d(${transitionPresentation.offsetX}px, ${transitionPresentation.offsetY}px, 0)`,
+						}}
 					>
 						<div className="text-center">
 							<div className="text-2xl mb-2">🎬</div>
@@ -408,7 +436,10 @@ export function PreviewElementRenderer({
 			const hasDerivedAudio = selectedAudioSources.some(
 				(source) => source.source !== "original"
 			);
-			const derivedAudioPlayers = hasDerivedAudio
+			const transitionMuted = Boolean(
+				transitionState && !transitionState.isAudible
+			);
+			const derivedAudioPlayers = hasDerivedAudio && !transitionMuted
 				? selectedAudioSources.flatMap((selectedSource, sourceIndex) => {
 						const selectedMedia = mediaItems.find(
 							(item) => item.id === selectedSource.mediaId
@@ -477,7 +508,9 @@ export function PreviewElementRenderer({
 				const enhancementFilter = buildMediaEnhancementCssFilter(
 					visual.enhancements
 				);
-				const chromaKeyFilter = buildMediaChromaKeyCssFilter(visual.chromaKey);
+				const chromaKeyFilter = isColorPickerTarget
+					? ""
+					: buildMediaChromaKeyCssFilter(visual.chromaKey);
 				const combinedFilter = [
 					enhancementFilter,
 					chromaKeyFilter,
@@ -526,20 +559,26 @@ export function PreviewElementRenderer({
 						role="button"
 						aria-label={`Video: ${element.name}`}
 						style={{
-							left: `${50 + ((displayX + mediaAnimation.offsetX) / canvasSize.width) * 100}%`,
-							top: `${50 + ((displayY + mediaAnimation.offsetY) / canvasSize.height) * 100}%`,
+							left: `${50 + ((displayX + mediaAnimation.offsetX + transitionPresentation.offsetX) / canvasSize.width) * 100}%`,
+							top: `${50 + ((displayY + mediaAnimation.offsetY + transitionPresentation.offsetY) / canvasSize.height) * 100}%`,
 							width: "100%",
 							height: "100%",
 							transform: `translate(-50%, -50%) rotate(${visual.rotation}deg) scale(${visual.scaleX * mediaAnimation.scale * (visual.flipHorizontal ? -1 : 1)}, ${visual.scaleY * mediaAnimation.scale * (visual.flipVertical ? -1 : 1)})`,
 							transformOrigin: "center",
-							opacity: visual.opacity * mediaAnimation.opacity,
+							opacity:
+								visual.opacity *
+								mediaAnimation.opacity *
+								transitionPresentation.opacity,
 							mixBlendMode: visual.blendMode,
 							zIndex: index + 1,
+							clipPath: transitionPresentation.clipPath,
+							backgroundColor: transitionPresentation.backgroundColor,
 						}}
 					>
 						<div
 							className="size-full"
 							style={{
+								opacity: transitionPresentation.contentOpacity,
 								clipPath: `inset(${visual.crop.top * 100}% ${visual.crop.right * 100}% ${visual.crop.bottom * 100}% ${visual.crop.left * 100}%)`,
 								transform: perspectiveTransform,
 								transformOrigin: "0 0",
@@ -556,7 +595,7 @@ export function PreviewElementRenderer({
 								trimEnd={element.trimEnd}
 								clipDuration={element.duration}
 								clipVolume={
-									generatedMaskSource || hasDerivedAudio
+									transitionMuted || generatedMaskSource || hasDerivedAudio
 										? 0
 										: audioPreviewBypassed
 											? 1
@@ -566,6 +605,7 @@ export function PreviewElementRenderer({
 								fadeOut={audioPreviewBypassed ? 0 : (element.audioFadeOut ?? 0)}
 								clipPlaybackRate={element.playbackRate ?? 1}
 								timingElement={element}
+								playbackWindow={transitionState?.playbackWindow}
 								videoId={sourceVideoId}
 								style={{
 									objectFit: visual.fitMode,
@@ -573,7 +613,7 @@ export function PreviewElementRenderer({
 									opacity: usesPixelColor ? 0 : undefined,
 								}}
 							/>
-							{usesPixelColor ? (
+							{usesPixelColor || isColorPickerTarget ? (
 								<ColorPreviewCanvas
 									sourceSelector={`video[data-video-id="${sourceVideoId.replaceAll('"', '\\"')}"]`}
 									settings={visual.color}
@@ -592,13 +632,20 @@ export function PreviewElementRenderer({
 									trimStart={element.trimStart}
 									trimEnd={element.trimEnd}
 									clipDuration={element.duration}
-									clipVolume={audioPreviewBypassed ? 1 : (element.volume ?? 1)}
+									clipVolume={
+										transitionMuted
+											? 0
+											: audioPreviewBypassed
+												? 1
+												: (element.volume ?? 1)
+									}
 									fadeIn={audioPreviewBypassed ? 0 : (element.audioFadeIn ?? 0)}
 									fadeOut={
 										audioPreviewBypassed ? 0 : (element.audioFadeOut ?? 0)
 									}
 									clipPlaybackRate={element.playbackRate ?? 1}
 									timingElement={element}
+									playbackWindow={transitionState?.playbackWindow}
 									videoId={`${mediaItem.id}-mask-audio`}
 									className="pointer-events-none absolute inset-0 opacity-0"
 								/>
@@ -688,36 +735,44 @@ export function PreviewElementRenderer({
 							role="button"
 							aria-label={`Sticker: ${element.name}`}
 							style={{
-								left: `${50 + (displayX / canvasSize.width) * 100}%`,
-								top: `${50 + (displayY / canvasSize.height) * 100}%`,
+								left: `${50 + ((displayX + transitionPresentation.offsetX) / canvasSize.width) * 100}%`,
+								top: `${50 + ((displayY + transitionPresentation.offsetY) / canvasSize.height) * 100}%`,
 								width: `${currentWidth * scaleRatio}px`,
 								height: `${currentHeight * scaleRatio}px`,
 								transform: `translate(-50%, -50%) rotate(${element.rotation ?? 0}deg)`,
 								zIndex: index + 1,
+								opacity: transitionPresentation.opacity,
+								clipPath: transitionPresentation.clipPath,
+								backgroundColor: transitionPresentation.backgroundColor,
 							}}
 						>
-							<img
-								src={mediaItem.url}
-								alt={mediaItem.name}
-								className="w-full h-full object-contain"
-								style={{
-									...maskStyle,
-									opacity: usesPixelColor ? 0 : undefined,
-								}}
-								data-color-source="true"
-								draggable={false}
-							/>
-							{usesPixelColor ? (
-								<ColorPreviewCanvas
-									sourceSelector='img[data-color-source="true"]'
-									settings={visual.color}
-									masks={visual.masks}
-									fitMode="contain"
-									frameSeed={Math.round(
-										currentTime * (activeProject?.fps ?? 30)
-									)}
+							<div
+								className="size-full"
+								style={{ opacity: transitionPresentation.contentOpacity }}
+							>
+								<img
+									src={mediaItem.url}
+									alt={mediaItem.name}
+									className="w-full h-full object-contain"
+									style={{
+										...maskStyle,
+										opacity: usesPixelColor ? 0 : undefined,
+									}}
+									data-color-source="true"
+									draggable={false}
 								/>
-							) : null}
+								{usesPixelColor || isColorPickerTarget ? (
+									<ColorPreviewCanvas
+										sourceSelector='img[data-color-source="true"]'
+										settings={visual.color}
+										masks={visual.masks}
+										fitMode="contain"
+										frameSeed={Math.round(
+											currentTime * (activeProject?.fps ?? 30)
+										)}
+									/>
+								) : null}
+							</div>
 							{selectedMask ? (
 								<MediaMaskOverlay
 									element={element}
@@ -735,25 +790,41 @@ export function PreviewElementRenderer({
 					<div
 						key={elementKey}
 						className="absolute inset-0 flex items-center justify-center"
-						style={{ zIndex: index + 1 }}
+						style={{
+							zIndex: index + 1,
+							opacity: transitionPresentation.opacity,
+							clipPath: transitionPresentation.clipPath,
+							backgroundColor: transitionPresentation.backgroundColor,
+							transform: `translate3d(${transitionPresentation.offsetX}px, ${transitionPresentation.offsetY}px, 0)`,
+						}}
 					>
-						<img
-							src={mediaItem.url}
-							alt={mediaItem.name}
-							className="w-full h-full object-cover"
-							style={{ ...maskStyle, opacity: usesPixelColor ? 0 : undefined }}
-							data-color-source="true"
-							draggable={false}
-						/>
-						{usesPixelColor ? (
-							<ColorPreviewCanvas
-								sourceSelector='img[data-color-source="true"]'
-								settings={visual.color}
-								masks={visual.masks}
-								fitMode="cover"
-								frameSeed={Math.round(currentTime * (activeProject?.fps ?? 30))}
+						<div
+							className="size-full"
+							style={{ opacity: transitionPresentation.contentOpacity }}
+						>
+							<img
+								src={mediaItem.url}
+								alt={mediaItem.name}
+								className="w-full h-full object-cover"
+								style={{
+									...maskStyle,
+									opacity: usesPixelColor ? 0 : undefined,
+								}}
+								data-color-source="true"
+								draggable={false}
 							/>
-						) : null}
+							{usesPixelColor || isColorPickerTarget ? (
+								<ColorPreviewCanvas
+									sourceSelector='img[data-color-source="true"]'
+									settings={visual.color}
+									masks={visual.masks}
+									fitMode="cover"
+									frameSeed={Math.round(
+										currentTime * (activeProject?.fps ?? 30)
+									)}
+								/>
+							) : null}
+						</div>
 						{selectedMask ? (
 							<MediaMaskOverlay
 								element={element}

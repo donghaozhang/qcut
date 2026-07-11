@@ -51,6 +51,7 @@ import { PreviewAgentView } from "./preview-panel/preview-agent-view";
 import { CursorOverlay } from "./preview-panel/cursor-overlay";
 import { RecordingBackground } from "./preview-panel/recording-background";
 import { useScreenRecordingPreview } from "./preview-panel/use-screen-recording-preview";
+import { resolveActiveClipTransitionPreview } from "@/lib/transitions/clip-transition-preview";
 
 function getPreviewElementDuration(element: TimelineElement): number {
 	return element.type === "media"
@@ -74,6 +75,7 @@ export function PreviewPanel() {
 		error: mediaItemsError,
 	} = useAsyncMediaItems();
 	const { currentTime, toggle, setCurrentTime, isPlaying } = usePlaybackStore();
+	const { activeProject } = useProjectStore();
 	const { canvasSize } = useEditorStore();
 	const previewRef = useRef<HTMLDivElement>(null);
 	const containerRef = useRef<HTMLDivElement>(null);
@@ -109,6 +111,14 @@ export function PreviewPanel() {
 					}
 				}
 			}
+			const transitionPreview = resolveActiveClipTransitionPreview({
+				tracks,
+				currentTime: time,
+				fps: activeProject?.fps ?? 30,
+			});
+			for (const elementId of transitionPreview.forceActiveElementIds) {
+				activeIds += `transition:${elementId},`;
+			}
 			if (activeIds !== lastActiveIdsRef.current) {
 				lastActiveIdsRef.current = activeIds;
 				setPlaybackTime(time);
@@ -118,9 +128,8 @@ export function PreviewPanel() {
 		window.addEventListener("playback-update", handlePlaybackUpdate);
 		return () =>
 			window.removeEventListener("playback-update", handlePlaybackUpdate);
-	}, [isPlaying, currentTime, tracks]);
+	}, [activeProject?.fps, isPlaying, currentTime, tracks]);
 	const [isExpanded, setIsExpanded] = useState(false);
-	const { activeProject } = useProjectStore();
 	const externalHtml = useMcpAppStore((state) => state.activeHtml);
 	const externalToolName = useMcpAppStore((state) => state.toolName);
 	const localMcpActive = useMcpAppStore((state) => state.localMcpActive);
@@ -293,6 +302,16 @@ export function PreviewPanel() {
 			);
 	}, []);
 
+	const transitionPreviewTime = isPlaying ? smoothTime : currentTime;
+	const activeTransitionPreview = useMemo(
+		() =>
+			resolveActiveClipTransitionPreview({
+				tracks,
+				currentTime: transitionPreviewTime,
+				fps: activeProject?.fps ?? 30,
+			}),
+		[activeProject?.fps, tracks, transitionPreviewTime]
+	);
 	const hasAnyElements = tracks.some((track) => track.elements.length > 0);
 	const getActiveElements = useCallback((): ActiveElement[] => {
 		try {
@@ -300,6 +319,8 @@ export function PreviewPanel() {
 			const plan = buildCompositionPlan({
 				tracks,
 				currentTime: effectiveTime,
+				forceActiveElementIds:
+					activeTransitionPreview.forceActiveElementIds,
 				getElementDuration: ({ element }) => getPreviewElementDuration(element),
 			});
 			const layers = [...plan.visualLayers, ...plan.audioElements];
@@ -314,7 +335,14 @@ export function PreviewPanel() {
 		} catch {
 			return [];
 		}
-	}, [tracks, currentTime, playbackTime, isPlaying, mediaItems]);
+	}, [
+		activeTransitionPreview.forceActiveElementIds,
+		tracks,
+		currentTime,
+		playbackTime,
+		isPlaying,
+		mediaItems,
+	]);
 
 	const activeElements = useMemo(
 		() => getActiveElements(),
@@ -533,6 +561,9 @@ export function PreviewPanel() {
 				isPlaying={isPlaying}
 				activeProject={activeProject}
 				tracks={tracks}
+				transitionState={activeTransitionPreview.statesByElementId.get(
+					elementData.element.id
+				)}
 				onTextPointerDown={handleTextPointerDown}
 				onElementSelect={({ elementId }) => setSelectedElementId(elementId)}
 				onElementResize={handleElementResize}
@@ -540,6 +571,7 @@ export function PreviewPanel() {
 		),
 		[
 			activeProject,
+			activeTransitionPreview.statesByElementId,
 			canvasSize,
 			currentMediaElement,
 			currentTime,
