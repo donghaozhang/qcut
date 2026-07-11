@@ -87,6 +87,7 @@ interface BatchQueueItem {
 	size: number;
 	status: "queued" | "processing" | "ready" | "failed";
 	retries: number;
+	trackId?: string;
 	segmentCount?: number;
 	error?: string;
 }
@@ -488,7 +489,7 @@ export function CaptionWorkbench({
 					throw new Error("No transcription result returned");
 				}
 
-				addCaptionTrack({
+				const trackId = addCaptionTrack({
 					name: `${item.name} captions`,
 					language: transcriptionResult.language,
 					segments: transcriptionResult.segments,
@@ -502,6 +503,7 @@ export function CaptionWorkbench({
 							? {
 									...queuedItem,
 									status: "ready",
+									trackId,
 									segmentCount: transcriptionResult.segments.length,
 									error: undefined,
 								}
@@ -559,6 +561,59 @@ export function CaptionWorkbench({
 	const clearCompletedBatchItems = useCallback(() => {
 		setBatchQueue((queue) => queue.filter((item) => item.status !== "ready"));
 	}, []);
+
+	const localizeReadyBatchTracks = useCallback(() => {
+		let localizedCount = 0;
+		for (const item of batchQueue) {
+			if (item.status !== "ready" || !item.trackId) continue;
+			const track = captionTracks.find(
+				(candidate) => candidate.id === item.trackId
+			);
+			if (!track) continue;
+
+			const result = applyCaptionPostProcess({
+				action: "localize",
+				segments: track.segments,
+				targetLanguage: localizationLanguage,
+			});
+
+			addCaptionTrack({
+				name: `${track.name} (${localizationLanguage})`,
+				language: localizationLanguage,
+				segments: result.segments,
+				isActive: false,
+				source: "manual",
+			});
+			localizedCount += 1;
+		}
+
+		toast.success(`Created ${localizedCount} localized batch tracks`);
+	}, [addCaptionTrack, batchQueue, captionTracks, localizationLanguage]);
+
+	const addReadyBatchTracksToTimeline = useCallback(() => {
+		if (!selectedPreset) return;
+
+		let addedCount = 0;
+		for (const item of batchQueue) {
+			if (item.status !== "ready" || !item.trackId) continue;
+			const track = captionTracks.find(
+				(candidate) => candidate.id === item.trackId
+			);
+			if (!track) continue;
+
+			onAddToTimeline({
+				result: {
+					text: track.segments.map((segment) => segment.text).join(" "),
+					segments: track.segments,
+					language: track.language,
+				},
+				style: selectedPreset.style,
+			});
+			addedCount += 1;
+		}
+
+		toast.success(`Added ${addedCount} styled batch tracks to timeline`);
+	}, [batchQueue, captionTracks, onAddToTimeline, selectedPreset]);
 
 	const activeSegment = draftSegments.find(
 		(segment) => segment.id === activeSegmentId
@@ -993,6 +1048,26 @@ export function CaptionWorkbench({
 								disabled={isBatchRunning}
 							>
 								Clear Ready
+							</Button>
+						</div>
+						<div className="grid grid-cols-2 gap-2">
+							<Button
+								type="button"
+								variant="outline"
+								onClick={localizeReadyBatchTracks}
+								disabled={isBatchRunning || batchQueue.length === 0}
+							>
+								<Sparkles className="mr-2 size-4" />
+								Localize Ready
+							</Button>
+							<Button
+								type="button"
+								variant="outline"
+								onClick={addReadyBatchTracksToTimeline}
+								disabled={isBatchRunning || batchQueue.length === 0}
+							>
+								<SplitSquareHorizontal className="mr-2 size-4" />
+								Add Styled Ready
 							</Button>
 						</div>
 						<div className="grid grid-cols-3 gap-2 text-xs">
