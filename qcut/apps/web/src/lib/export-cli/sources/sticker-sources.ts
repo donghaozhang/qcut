@@ -247,16 +247,20 @@ export async function extractStickerSources(
 				// Adjust for center-based positioning (sticker position is center, not top-left)
 				const topLeftX = pixelX - pixelWidth / 2;
 				const topLeftY = pixelY - pixelHeight / 2;
+				const timing = timingMap.get(sticker.id);
 
 				stickerSources.push({
 					id: sticker.id,
+					trackId: timing?.trackId,
+					trackOrder: timing?.trackOrder,
+					elementOrder: timing?.elementOrder,
 					path: localPath,
 					x: Math.round(topLeftX),
 					y: Math.round(topLeftY),
 					width: Math.round(pixelWidth),
 					height: Math.round(pixelHeight),
-					startTime: timingMap.get(sticker.id)?.startTime ?? 0,
-					endTime: timingMap.get(sticker.id)?.endTime ?? totalDuration,
+					startTime: timing?.startTime ?? 0,
+					endTime: timing?.endTime ?? totalDuration,
 					zIndex: sticker.zIndex,
 					opacity: sticker.opacity,
 					rotation: sticker.rotation,

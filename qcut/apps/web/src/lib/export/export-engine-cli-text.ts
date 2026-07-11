@@ -6,6 +6,39 @@ import {
 } from "@/types/timeline";
 import { buildTextASSOverlay } from "../export-cli/filters/text-ass-overlay";
 import { resolveTextStyle } from "@/lib/text/text-style";
+import { stripMarkdownSyntax } from "@/lib/markdown";
+
+function markdownAsTextElement({
+	element,
+}: {
+	element: Extract<TimelineElement, { type: "markdown" }>;
+}): Extract<TimelineElement, { type: "text" }> {
+	return {
+		id: element.id,
+		type: "text",
+		name: element.name,
+		duration: element.duration,
+		startTime: element.startTime,
+		trimStart: element.trimStart,
+		trimEnd: element.trimEnd,
+		hidden: element.hidden,
+		content: stripMarkdownSyntax({ markdown: element.markdownContent }),
+		fontSize: element.fontSize,
+		fontFamily: element.fontFamily,
+		color: element.textColor,
+		backgroundColor: element.backgroundColor,
+		textAlign: "left",
+		fontWeight: "normal",
+		fontStyle: "normal",
+		textDecoration: "none",
+		x: element.x,
+		y: element.y,
+		width: element.width,
+		height: element.height,
+		rotation: element.rotation,
+		opacity: element.opacity,
+	};
+}
 
 export interface TimelineAssLayer {
 	content: string;
@@ -74,7 +107,27 @@ export function buildTimelineAssLayers({
 					blendMode: "normal",
 					trackOrder,
 					elementOrder,
+					});
+				continue;
+			}
+
+			if (element.type === "markdown") {
+				const textElement = markdownAsTextElement({ element });
+				const layer = buildTextASSOverlay({
+					tracks: [{ ...track, type: "text", elements: [textElement] }],
+					allTracks: orderedTracks,
+					canvasWidth,
+					canvasHeight,
+					fps,
 				});
+				if (!layer.content) continue;
+				layers.push({
+					content: layer.content,
+					blendMode: "normal",
+					trackOrder,
+					elementOrder,
+				});
+				renderedTextElementIds.add(element.id);
 			}
 		}
 	}

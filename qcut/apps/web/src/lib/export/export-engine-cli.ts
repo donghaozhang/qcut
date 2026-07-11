@@ -470,8 +470,13 @@ export class CLIExportEngine extends ExportEngine {
 					this.mediaItems,
 					this.sessionId,
 					undefined,
-					debugLog
+					debugLog,
+					this.fps
 				);
+				imageSources = imageSources.map((source) => ({
+					...source,
+					effectFilter: elementFilterChains.get(source.elementId),
+				}));
 				if (imageSources.length > 0) {
 					imageFilterChain = buildImageOverlayFilters(
 						imageSources,
@@ -511,8 +516,14 @@ export class CLIExportEngine extends ExportEngine {
 		const hasVideoVisualEdits =
 			this.exportAnalysis?.hasVideoVisualEdits ?? false;
 		const hasTransitions = this.exportAnalysis?.hasTransitions ?? false;
+		const hasLayeredVisualOverlays =
+			imageSources.length > 0 ||
+			stickerSources.length > 0 ||
+			textAssLayers.length > 0 ||
+			textFilterChain.length > 0;
 		const needsVideoInput =
-			(canUseMode2 &&
+			(!hasLayeredVisualOverlays &&
+				canUseMode2 &&
 				!hasVideoVisualEdits &&
 				!hasPerClipVideoEffects &&
 				!hasTransitions) ||
@@ -546,8 +557,9 @@ export class CLIExportEngine extends ExportEngine {
 
 		const shouldExtractVideoSources =
 			hasVideoVisualEdits ||
-			hasPerClipVideoEffects ||
-			hasTransitions ||
+				hasPerClipVideoEffects ||
+				hasTransitions ||
+				(hasLayeredVisualOverlays && visibleVideoCount > 0) ||
 			this.exportAnalysis?.optimizationStrategy === "video-normalization" ||
 			(this.exportAnalysis?.canUseDirectCopy &&
 				!hasTextFilters &&

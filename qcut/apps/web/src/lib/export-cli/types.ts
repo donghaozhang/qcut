@@ -93,6 +93,22 @@ export interface VideoVisualInput {
 	color: MediaColorSettings;
 	mask: MediaMask;
 	masks: MediaMask[];
+	customCutout: {
+		enabled: boolean;
+		applyStrokes: boolean;
+		strokes: Array<{
+			id: string;
+			frame: number;
+			mode: "foreground" | "background";
+			size: number;
+			points: Array<{ x: number; y: number }>;
+		}>;
+		status?: "idle" | "processing" | "ready" | "error";
+		error?: string;
+		sourceMediaId?: string;
+		resultMaskId?: string;
+		generatedFrom?: string;
+	};
 	chromaKey: {
 		enabled: boolean;
 		color: string;
@@ -206,6 +222,8 @@ export interface ImageSourceInput {
 	trimStart: number; // Trim start (usually 0 for images)
 	trimEnd: number; // Trim end (usually 0 for images)
 	elementId: string; // For debugging
+	visual?: VideoVisualInput;
+	effectFilter?: string;
 }
 
 /**
@@ -214,6 +232,9 @@ export interface ImageSourceInput {
  */
 export interface StickerSourceForFilter {
 	id: string;
+	trackId?: string;
+	trackOrder?: number;
+	elementOrder?: number;
 	path: string;
 	x: number;
 	y: number;

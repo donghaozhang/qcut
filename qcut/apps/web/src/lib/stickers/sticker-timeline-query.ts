@@ -7,11 +7,14 @@
  */
 
 import { useTimelineStore } from "@/stores/timeline/timeline-store";
-import type { StickerElement } from "@/types/timeline";
+import { sortTracksByOrder, type StickerElement } from "@/types/timeline";
 
 export interface StickerTiming {
 	startTime: number;
 	endTime: number;
+	trackId: string;
+	trackOrder: number;
+	elementOrder: number;
 }
 
 /**
@@ -21,19 +24,32 @@ export interface StickerTiming {
 export function getStickerTimingMap(): Map<string, StickerTiming> {
 	const timingMap = new Map<string, StickerTiming>();
 	const store = useTimelineStore.getState();
+	const tracks = sortTracksByOrder(store._tracks);
 
-	for (const track of store._tracks) {
-		if (track.type !== "sticker") continue;
+	for (let trackOrder = 0; trackOrder < tracks.length; trackOrder++) {
+		const track = tracks[trackOrder];
+		if (track.hidden || track.type !== "sticker") continue;
 
-		for (const element of track.elements) {
-			if (element.type !== "sticker") continue;
+		for (
+			let elementOrder = 0;
+			elementOrder < track.elements.length;
+			elementOrder++
+		) {
+			const element = track.elements[elementOrder];
+			if (element.hidden || element.type !== "sticker") continue;
 
 			const stickerEl = element as StickerElement;
 			const startTime = stickerEl.startTime + stickerEl.trimStart;
 			const endTime =
 				stickerEl.startTime + stickerEl.duration - stickerEl.trimEnd;
 
-			timingMap.set(stickerEl.stickerId, { startTime, endTime });
+			timingMap.set(stickerEl.stickerId, {
+				startTime,
+				endTime,
+				trackId: track.id,
+				trackOrder,
+				elementOrder,
+			});
 		}
 	}
 
@@ -46,18 +62,28 @@ export function getStickerTimingMap(): Map<string, StickerTiming> {
  */
 export function getStickerTiming(stickerId: string): StickerTiming | null {
 	const store = useTimelineStore.getState();
+	const tracks = sortTracksByOrder(store._tracks);
 
-	for (const track of store._tracks) {
-		if (track.type !== "sticker") continue;
+	for (let trackOrder = 0; trackOrder < tracks.length; trackOrder++) {
+		const track = tracks[trackOrder];
+		if (track.hidden || track.type !== "sticker") continue;
 
-		for (const element of track.elements) {
-			if (element.type !== "sticker") continue;
+		for (
+			let elementOrder = 0;
+			elementOrder < track.elements.length;
+			elementOrder++
+		) {
+			const element = track.elements[elementOrder];
+			if (element.hidden || element.type !== "sticker") continue;
 
 			const stickerEl = element as StickerElement;
 			if (stickerEl.stickerId === stickerId) {
 				return {
 					startTime: stickerEl.startTime + stickerEl.trimStart,
 					endTime: stickerEl.startTime + stickerEl.duration - stickerEl.trimEnd,
+					trackId: track.id,
+					trackOrder,
+					elementOrder,
 				};
 			}
 		}
