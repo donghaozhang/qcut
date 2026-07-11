@@ -3,6 +3,13 @@ import type {
 	MediaAudioSettings,
 	MediaElement,
 } from "@/types/timeline";
+import {
+	createDefaultAudioRepairSettings,
+	createDefaultCompressorSettings,
+	createDefaultLimiterSettings,
+	createDefaultParametricEqualizerSettings,
+	normalizeParametricEqualizer,
+} from "./audio-mix-settings";
 
 export const MIN_AUDIO_VOLUME_DB = -60;
 export const MAX_AUDIO_VOLUME_DB = 12;
@@ -12,6 +19,7 @@ export const DEFAULT_MEDIA_AUDIO_SETTINGS: MediaAudioSettings = {
 	volumeDb: 0,
 	fadeIn: 0,
 	fadeOut: 0,
+	channelMode: "stereo",
 	panEnabled: false,
 	pan: 0,
 	loudness: {
@@ -45,19 +53,10 @@ export const DEFAULT_MEDIA_AUDIO_SETTINGS: MediaAudioSettings = {
 		midGainDb: 0,
 		highGainDb: 0,
 	},
-	compressor: {
-		enabled: false,
-		thresholdDb: -18,
-		ratio: 3,
-		attackMs: 10,
-		releaseMs: 120,
-		makeupGainDb: 0,
-	},
-	limiter: {
-		enabled: false,
-		ceilingDb: -1,
-		releaseMs: 50,
-	},
+	parametricEqualizer: createDefaultParametricEqualizerSettings(),
+	repair: createDefaultAudioRepairSettings(),
+	compressor: createDefaultCompressorSettings(),
+	limiter: createDefaultLimiterSettings(),
 	reverb: {
 		enabled: false,
 		mix: 20,
@@ -102,6 +101,13 @@ export function createDefaultMediaAudioSettings(): MediaAudioSettings {
 		voiceEnhance: { ...DEFAULT_MEDIA_AUDIO_SETTINGS.voiceEnhance },
 		pitch: { ...DEFAULT_MEDIA_AUDIO_SETTINGS.pitch },
 		equalizer: { ...DEFAULT_MEDIA_AUDIO_SETTINGS.equalizer },
+		parametricEqualizer: {
+			...DEFAULT_MEDIA_AUDIO_SETTINGS.parametricEqualizer,
+			bands: DEFAULT_MEDIA_AUDIO_SETTINGS.parametricEqualizer.bands.map((band) => ({
+				...band,
+			})),
+		},
+		repair: structuredClone(DEFAULT_MEDIA_AUDIO_SETTINGS.repair),
 		compressor: { ...DEFAULT_MEDIA_AUDIO_SETTINGS.compressor },
 		limiter: { ...DEFAULT_MEDIA_AUDIO_SETTINGS.limiter },
 		reverb: { ...DEFAULT_MEDIA_AUDIO_SETTINGS.reverb },
@@ -347,6 +353,41 @@ export function normalizeMediaAudioSettings({
 			...DEFAULT_MEDIA_AUDIO_SETTINGS.equalizer,
 			...audio?.equalizer,
 		},
+		parametricEqualizer: normalizeParametricEqualizer({
+			settings: audio?.parametricEqualizer,
+		}),
+		repair: {
+			...createDefaultAudioRepairSettings(),
+			...audio?.repair,
+			deEsser: {
+				...createDefaultAudioRepairSettings().deEsser,
+				...audio?.repair?.deEsser,
+			},
+			deReverb: {
+				...createDefaultAudioRepairSettings().deReverb,
+				...audio?.repair?.deReverb,
+			},
+			deHum: {
+				...createDefaultAudioRepairSettings().deHum,
+				...audio?.repair?.deHum,
+			},
+			dePlosive: {
+				...createDefaultAudioRepairSettings().dePlosive,
+				...audio?.repair?.dePlosive,
+			},
+			deClick: {
+				...createDefaultAudioRepairSettings().deClick,
+				...audio?.repair?.deClick,
+			},
+			deClip: {
+				...createDefaultAudioRepairSettings().deClip,
+				...audio?.repair?.deClip,
+			},
+			noiseGate: {
+				...createDefaultAudioRepairSettings().noiseGate,
+				...audio?.repair?.noiseGate,
+			},
+		},
 		compressor: {
 			...DEFAULT_MEDIA_AUDIO_SETTINGS.compressor,
 			...audio?.compressor,
@@ -408,6 +449,7 @@ export function hasMediaAudioEdits({
 }): boolean {
 	const settings = normalizeMediaAudioSettings({ element });
 	if (!settings.enabled) return true;
+	if (settings.channelMode !== "stereo") return true;
 	if (
 		settings.volumeDb !== 0 ||
 		settings.fadeIn > 0 ||
@@ -472,6 +514,8 @@ export function hasMediaAudioEdits({
 	) {
 		return true;
 	}
+	if (settings.parametricEqualizer.enabled) return true;
+	if (Object.values(settings.repair).some((module) => module.enabled)) return true;
 	if (settings.compressor.enabled || settings.limiter.enabled) return true;
 	if (
 		settings.reverb.enabled &&
