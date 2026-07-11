@@ -550,6 +550,24 @@ export function createCrudOperations(
 			);
 		},
 
+		updateStickerElement: (trackId, elementId, updates, pushHistory = true) => {
+			if (pushHistory) get().pushHistory();
+			updateTracksAndSave(
+				get()._tracks.map((track) =>
+					track.id === trackId
+						? {
+								...track,
+								elements: track.elements.map((element) =>
+									element.id === elementId && element.type === "sticker"
+										? { ...element, ...updates }
+										: element
+								),
+							}
+						: track
+				)
+			);
+		},
+
 		updateMarkdownElement: (
 			trackId,
 			elementId,

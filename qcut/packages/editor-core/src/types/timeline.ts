@@ -8,6 +8,7 @@
  */
 
 import type { MediaColorSettings } from "./color.js";
+import type { EffectChain, EffectInstance } from "./effects.js";
 
 /** Media asset types */
 export type MediaType = "image" | "video" | "audio";
@@ -39,6 +40,10 @@ interface BaseTimelineElement {
 	width?: number;
 	height?: number;
 	rotation?: number;
+	/** Full modifier state persisted with the timeline element. */
+	effects?: EffectInstance[];
+	effectChains?: EffectChain[];
+	/** @deprecated Derived compatibility index for projects saved before effect persistence. */
 	effectIds?: string[];
 	/** 8-color visual label for clip organization (violet/blue/green/yellow/red/rose/orange/mango) */
 	colorLabel?: string;
@@ -699,7 +704,17 @@ export interface StickerElement extends BaseTimelineElement {
 	type: "sticker";
 	stickerId: string;
 	mediaId: string;
+	/** Center position as a percentage of the project canvas. */
+	x?: number;
+	y?: number;
+	/** Size as a percentage of the shorter project-canvas dimension. */
+	width?: number;
+	height?: number;
+	rotation?: number;
 	opacity?: number;
+	maintainAspectRatio?: boolean;
+	/** Legacy intra-track order. New projects use element order on the track. */
+	zIndex?: number;
 }
 
 /** Visual style properties for subtitle/caption elements */

@@ -1,18 +1,16 @@
-import type { EffectInstance, EffectParameters } from "@/types/effects";
+import type {
+	EffectChain,
+	EffectInstance,
+	EffectParameters,
+} from "@/types/effects";
 import { mergeEffectParameters } from "@/lib/effects/effects-utils";
-import { inferEffectType } from "@/lib/utils/effects";
 
 /**
  * Effect Chain Management
  * Handles the sequential application of multiple effects
  */
 
-export interface EffectChain {
-	id: string;
-	name: string;
-	effects: EffectInstance[];
-	blendMode?: "normal" | "overlay" | "multiply" | "screen";
-}
+export type { EffectChain } from "@/types/effects";
 
 /**
  * Process effect chain to get combined parameters
@@ -196,23 +194,24 @@ function blendParameters(
 }
 
 /**
- * Create effect chain from presets
+ * Create an independent chain from active effect instances.
  */
 export function createEffectChain(
 	name: string,
 	effectIds: string[],
-	presets: any[]
+	availableEffects: EffectInstance[]
 ): EffectChain {
 	const effects = effectIds
-		.map((id) => presets.find((p) => p.id === id))
-		.filter(Boolean)
-		.map((preset) => ({
+		.map((id) => availableEffects.find((effect) => effect.id === id))
+		.filter((effect): effect is EffectInstance => effect !== undefined)
+		.map((effect) => ({
+			...effect,
 			id: crypto.randomUUID(),
-			name: preset.name,
-			effectType: inferEffectType(preset.parameters),
-			parameters: preset.parameters,
-			duration: 0,
-			enabled: true,
+			parameters: { ...effect.parameters },
+			animations: effect.animations?.map((animation) => ({
+				...animation,
+				keyframes: animation.keyframes.map((keyframe) => ({ ...keyframe })),
+			})),
 		}));
 
 	return {

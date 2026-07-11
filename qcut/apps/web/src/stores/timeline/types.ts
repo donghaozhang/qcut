@@ -17,6 +17,7 @@ export type {
 	ClipTransition,
 	RemotionElement,
 	CaptionElement,
+	StickerElement,
 	SubtitleStyle,
 	DragData,
 	TimelineTrackAudioSettings,
@@ -40,10 +41,12 @@ import type {
 	ClipTransition,
 	RemotionElement,
 	CaptionElement,
+	StickerElement,
 	DragData,
 	TimelineTrackAudioSettings,
 } from "@/types/timeline";
 import type { MediaItem } from "../media/media-store";
+import type { EffectChain, EffectInstance } from "@/types/effects";
 
 /**
  * Selected element reference for multi-selection
@@ -264,6 +267,13 @@ export interface TimelineStore {
 		trackId: string;
 		transitionId: string;
 	}) => void;
+	setTransitionAudioCrossfade: (input: {
+		trackId: string;
+		fromElementId: string;
+		toElementId: string;
+		duration: number;
+		enabled: boolean;
+	}) => void;
 	/** Toggle mute state for a track */
 	toggleTrackMute: (trackId: string) => void;
 	/** Update persistent gain, pan, routing, effects, and automation for a track. */
@@ -432,6 +442,24 @@ export interface TimelineStore {
 		updates: Partial<Pick<CaptionElement, "text" | "language" | "style">>,
 		pushHistory?: boolean
 	) => void;
+	updateStickerElement: (
+		trackId: string,
+		elementId: string,
+		updates: Partial<
+			Pick<
+				StickerElement,
+				| "x"
+				| "y"
+				| "width"
+				| "height"
+				| "rotation"
+				| "opacity"
+				| "maintainAspectRatio"
+				| "zIndex"
+			>
+		>,
+		pushHistory?: boolean
+	) => void;
 	updateMarkdownElement: (
 		trackId: string,
 		elementId: string,
@@ -460,6 +488,17 @@ export interface TimelineStore {
 	) => void;
 
 	// Interactive element manipulation (for effects)
+	setElementEffectState: ({
+		elementId,
+		effects,
+		effectChains,
+		pushHistory,
+	}: {
+		elementId: string;
+		effects: EffectInstance[];
+		effectChains: EffectChain[];
+		pushHistory?: boolean;
+	}) => void;
 	// Batched transform updater - use this to update multiple properties atomically and avoid history spam
 	updateElementTransform: (
 		elementId: string,

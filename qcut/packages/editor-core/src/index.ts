@@ -142,6 +142,12 @@ export type {
 	TranscriptionProgress,
 	CaptionFormat,
 	CaptionExportOptions,
+	AnimatedParameter,
+	EffectChain,
+	EffectInstance,
+	EffectKeyframe,
+	EffectParameters,
+	EffectType,
 } from "./types/index.js";
 
 // Timeline utilities
@@ -160,10 +166,14 @@ export {
 	getElementNameWithSuffix,
 	TRANSITION_SEAM_TOLERANCE_SECONDS,
 	findClosestMediaSeam,
+	getAudioCrossfadeMaxDuration,
 	getTransitionMaxDuration,
+	reconcileTrackAudioCrossfades,
 	reconcileTimelineTransitions,
 	reconcileTrackTransitions,
+	resolveAudioCrossfade,
 	resolveClipTransition,
+	type ResolvedAudioCrossfade,
 	isMediaElement,
 	isTextElement,
 	isStickerElement,

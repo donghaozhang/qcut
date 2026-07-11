@@ -1,11 +1,13 @@
 import { describe, expect, it } from "vitest";
 import {
 	findClosestMediaSeam,
+	reconcileTrackAudioCrossfades,
 	getTransitionMaxDuration,
 	reconcileTrackTransitions,
 	resolveClipTransition,
 } from "../timeline/transitions.js";
 import type {
+	AudioCrossfade,
 	ClipTransition,
 	MediaElement,
 	TimelineTrack,
@@ -67,6 +69,26 @@ function mediaTrack({
 		type: "media",
 		elements,
 		transitions,
+	};
+}
+
+function audioCrossfade({
+	id,
+	fromElementId,
+	toElementId,
+	duration = 1,
+}: {
+	id: string;
+	fromElementId: string;
+	toElementId: string;
+	duration?: number;
+}): AudioCrossfade {
+	return {
+		id,
+		fromElementId,
+		toElementId,
+		duration,
+		curve: "equal-power",
 	};
 }
 
@@ -208,5 +230,41 @@ describe("clip transitions", () => {
 		expect(
 			findClosestMediaSeam({ track, time: 2.2, maxDistance: 0.1 })
 		).toBeNull();
+	});
+
+	it("reconciles audio crossfades with the same seam and overlap rules", () => {
+		const track = mediaTrack({
+			elements: [
+				mediaElement({ id: "a", startTime: 0, duration: 3 }),
+				mediaElement({ id: "b", startTime: 3, duration: 1 }),
+				mediaElement({ id: "c", startTime: 4, duration: 3 }),
+			],
+		});
+		track.audioCrossfades = [
+			audioCrossfade({
+				id: "ab",
+				fromElementId: "a",
+				toElementId: "b",
+				duration: 1.5,
+			}),
+			audioCrossfade({
+				id: "bc",
+				fromElementId: "b",
+				toElementId: "c",
+				duration: 1.5,
+			}),
+		];
+
+		expect(
+			reconcileTrackAudioCrossfades({ track }).audioCrossfades
+		).toEqual([
+			track.audioCrossfades[0],
+			{ ...track.audioCrossfades[1], duration: 0.5 },
+		]);
+
+		track.elements[2] = { ...track.elements[2], startTime: 5 };
+		expect(
+			reconcileTrackAudioCrossfades({ track }).audioCrossfades
+		).toEqual([track.audioCrossfades[0]]);
 	});
 });

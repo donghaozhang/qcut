@@ -16,6 +16,8 @@ export type MediaAttributeSnapshot = Partial<
 		| "height"
 		| "rotation"
 		| "effectIds"
+		| "effects"
+		| "effectChains"
 		| "colorLabel"
 		| "scaleX"
 		| "scaleY"
@@ -63,6 +65,8 @@ const MEDIA_ATTRIBUTE_KEYS = [
 	"height",
 	"rotation",
 	"effectIds",
+	"effects",
+	"effectChains",
 	"colorLabel",
 	"scaleX",
 	"scaleY",

@@ -317,4 +317,49 @@ describe("timeline transition operations", () => {
 			persistedTracks[0].transitions
 		);
 	});
+
+	it("keeps hard cut by default and synchronizes optional audio crossfade", () => {
+		const transitionId = useTimelineStore.getState().addTransition({
+			trackId: "track-1",
+			fromElementId: "a",
+			toElementId: "b",
+			presetId: "dissolve",
+			type: "dissolve",
+			duration: 0.5,
+		});
+		expect(useTimelineStore.getState().tracks[0].audioCrossfades ?? []).toEqual(
+			[]
+		);
+
+		useTimelineStore.getState().setTransitionAudioCrossfade({
+			trackId: "track-1",
+			fromElementId: "a",
+			toElementId: "b",
+			duration: 0.5,
+			enabled: true,
+		});
+		expect(useTimelineStore.getState().tracks[0].audioCrossfades).toEqual([
+			expect.objectContaining({
+				fromElementId: "a",
+				toElementId: "b",
+				duration: 0.5,
+				curve: "equal-power",
+			}),
+		]);
+
+		useTimelineStore.getState().updateTransition({
+			trackId: "track-1",
+			transitionId: transitionId!,
+			updates: { duration: 0.75 },
+		});
+		expect(
+			useTimelineStore.getState().tracks[0].audioCrossfades?.[0].duration
+		).toBe(0.75);
+
+		useTimelineStore.getState().removeTransition({
+			trackId: "track-1",
+			transitionId: transitionId!,
+		});
+		expect(useTimelineStore.getState().tracks[0].audioCrossfades).toEqual([]);
+	});
 });

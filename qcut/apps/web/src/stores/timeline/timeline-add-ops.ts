@@ -414,6 +414,37 @@ export function createAddOps(
 		// -----------------------------------------------------------------------
 		// Effects management
 		// -----------------------------------------------------------------------
+		setElementEffectState: ({
+			elementId,
+			effects,
+			effectChains,
+			pushHistory = true,
+		}: {
+			elementId: string;
+			effects: import("@/types/effects").EffectInstance[];
+			effectChains: import("@/types/effects").EffectChain[];
+			pushHistory?: boolean;
+		}) => {
+			const { _tracks } = get();
+			let updated = false;
+			const nextTracks = _tracks.map((track) => ({
+				...track,
+				elements: track.elements.map((element) => {
+					if (element.id !== elementId) return element;
+					updated = true;
+					return {
+						...element,
+						effects,
+						effectChains,
+						effectIds: effects.map((effect) => effect.id),
+					};
+				}),
+			}));
+			if (!updated) return;
+			if (pushHistory) get().pushHistory();
+			updateTracks(nextTracks);
+			autoSaveTimeline();
+		},
 
 		addEffectToElement: (elementId: string, effectId: string) => {
 			const { _tracks, pushHistory } = get();

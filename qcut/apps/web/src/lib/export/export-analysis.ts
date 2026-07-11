@@ -396,7 +396,10 @@ export function analyzeTimelineForExport(
 				}
 
 				// Check for effects on this element
-				if (element.effectIds && element.effectIds.length > 0) {
+				if (
+					(element.effects && element.effects.length > 0) ||
+					(element.effectIds && element.effectIds.length > 0)
+				) {
 					hasEffects = true;
 				}
 			}

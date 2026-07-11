@@ -1,6 +1,8 @@
 import { generateUUID } from "@/lib/utils";
 import { getTimelineElementDuration } from "@/lib/timeline";
+import { getAudioCrossfadeMaxDuration } from "@qcut/editor-core/timeline";
 import {
+	type MediaElement,
 	getTransitionMaxDuration,
 	type ClipTransition,
 } from "@/types/timeline";
@@ -94,6 +96,13 @@ export function createTransitionOps(
 									),
 									transition,
 								],
+								audioCrossfades: (candidate.audioCrossfades ?? []).map(
+									(crossfade) =>
+										crossfade.fromElementId === fromElementId &&
+										crossfade.toElementId === toElementId
+											? { ...crossfade, duration: transition.duration }
+											: crossfade
+								),
 							}
 						: candidate
 				)
@@ -132,16 +141,89 @@ export function createTransitionOps(
 					candidate.id === trackId
 						? {
 								...candidate,
-								transitions: (candidate.transitions ?? []).map(
-									(transition) =>
-										transition.id === transitionId
-											? {
-													...transition,
-													...updates,
-													duration: nextDuration,
-												}
-											: transition
+								transitions: (candidate.transitions ?? []).map((transition) =>
+									transition.id === transitionId
+										? {
+												...transition,
+												...updates,
+												duration: nextDuration,
+											}
+										: transition
 								),
+								audioCrossfades: (candidate.audioCrossfades ?? []).map(
+									(crossfade) =>
+										crossfade.fromElementId === existing.fromElementId &&
+										crossfade.toElementId === existing.toElementId
+											? { ...crossfade, duration: nextDuration }
+											: crossfade
+								),
+							}
+						: candidate
+				)
+			);
+		},
+
+		setTransitionAudioCrossfade: ({
+			trackId,
+			fromElementId,
+			toElementId,
+			duration,
+			enabled,
+		}) => {
+			const track = get()._tracks.find((candidate) => candidate.id === trackId);
+			if (!track || (track.type !== "media" && track.type !== "audio")) return;
+			const existing = track.audioCrossfades?.find(
+				(crossfade) =>
+					crossfade.fromElementId === fromElementId &&
+					crossfade.toElementId === toElementId
+			);
+			if (!enabled) {
+				if (!existing) return;
+				get().pushHistory();
+				deps.updateTracksAndSave(
+					get()._tracks.map((candidate) =>
+						candidate.id === trackId
+							? {
+									...candidate,
+									audioCrossfades: (candidate.audioCrossfades ?? []).filter(
+										(crossfade) => crossfade.id !== existing.id
+									),
+								}
+							: candidate
+					)
+				);
+				return;
+			}
+
+			const maxDuration = getAudioCrossfadeMaxDuration({
+				track,
+				fromElementId,
+				toElementId,
+				crossfades: track.audioCrossfades,
+				excludeCrossfadeId: existing?.id,
+				getElementDuration: ({ element }: { element: MediaElement }) =>
+					getTimelineElementDuration({ element }),
+			});
+			const nextDuration = Math.min(Math.max(0, duration), maxDuration);
+			if (nextDuration <= 0) return;
+			get().pushHistory();
+			deps.updateTracksAndSave(
+				get()._tracks.map((candidate) =>
+					candidate.id === trackId
+						? {
+								...candidate,
+								audioCrossfades: [
+									...(candidate.audioCrossfades ?? []).filter(
+										(crossfade) => crossfade.id !== existing?.id
+									),
+									{
+										id: existing?.id ?? generateUUID(),
+										fromElementId,
+										toElementId,
+										duration: nextDuration,
+										curve: "equal-power",
+									},
+								],
 							}
 						: candidate
 				)
@@ -150,7 +232,10 @@ export function createTransitionOps(
 
 		removeTransition: ({ trackId, transitionId }) => {
 			const track = get()._tracks.find((candidate) => candidate.id === trackId);
-			if (!track?.transitions?.some((item) => item.id === transitionId)) {
+			const transition = track?.transitions?.find(
+				(item) => item.id === transitionId
+			);
+			if (!track || !transition) {
 				return;
 			}
 			get().pushHistory();
@@ -161,6 +246,11 @@ export function createTransitionOps(
 								...candidate,
 								transitions: (candidate.transitions ?? []).filter(
 									(transition) => transition.id !== transitionId
+								),
+								audioCrossfades: (candidate.audioCrossfades ?? []).filter(
+									(crossfade) =>
+										crossfade.fromElementId !== transition.fromElementId ||
+										crossfade.toElementId !== transition.toElementId
 								),
 							}
 						: candidate

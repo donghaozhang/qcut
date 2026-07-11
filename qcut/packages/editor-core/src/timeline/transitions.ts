@@ -1,4 +1,5 @@
 import type {
+	AudioCrossfade,
 	ClipTransition,
 	ClipTransitionDirection,
 	ClipTransitionEasing,
@@ -25,6 +26,16 @@ export interface MediaSeam {
 	toElement: MediaElement;
 	cutTime: number;
 	distance: number;
+}
+
+export interface ResolvedAudioCrossfade {
+	crossfade: AudioCrossfade;
+	fromElement: MediaElement;
+	toElement: MediaElement;
+	cutTime: number;
+	windowStart: number;
+	windowEnd: number;
+	maxDuration: number;
 }
 
 type ElementDurationResolver = ({
@@ -73,6 +84,58 @@ function sortedMediaElements({
 		});
 }
 
+function resolveMediaSeamRelation({
+	track,
+	fromElementId,
+	toElementId,
+	getElementDuration,
+	seamTolerance,
+}: {
+	track: TimelineTrack;
+	fromElementId: string;
+	toElementId: string;
+	getElementDuration: ElementDurationResolver;
+	seamTolerance: number;
+}): {
+	fromElement: MediaElement;
+	toElement: MediaElement;
+	fromDuration: number;
+	toDuration: number;
+	cutTime: number;
+	maxDuration: number;
+} | null {
+	if (track.type !== "media" && track.type !== "audio") return null;
+	const mediaElements = sortedMediaElements({ track });
+	const fromIndex = mediaElements.findIndex(
+		(element) => element.id === fromElementId
+	);
+	const toIndex = mediaElements.findIndex(
+		(element) => element.id === toElementId
+	);
+	if (fromIndex < 0 || toIndex !== fromIndex + 1) return null;
+
+	const fromElement = mediaElements[fromIndex];
+	const toElement = mediaElements[toIndex];
+	const fromDuration = Math.max(
+		0,
+		getElementDuration({ element: fromElement })
+	);
+	const toDuration = Math.max(0, getElementDuration({ element: toElement }));
+	const cutTime = fromElement.startTime + fromDuration;
+	if (Math.abs(cutTime - toElement.startTime) > seamTolerance) return null;
+
+	const maxDuration = Math.max(0, 2 * Math.min(fromDuration, toDuration));
+	if (maxDuration <= 0) return null;
+	return {
+		fromElement,
+		toElement,
+		fromDuration,
+		toDuration,
+		cutTime,
+		maxDuration,
+	};
+}
+
 function normalizeTransition({
 	transition,
 }: {
@@ -110,36 +173,168 @@ export function resolveClipTransition({
 	seamTolerance?: number;
 }): ResolvedClipTransition | null {
 	if (track.type !== "media") return null;
-	const mediaElements = sortedMediaElements({ track });
-	const fromIndex = mediaElements.findIndex(
-		(element) => element.id === transition.fromElementId
-	);
-	const toIndex = mediaElements.findIndex(
-		(element) => element.id === transition.toElementId
-	);
-	if (fromIndex < 0 || toIndex !== fromIndex + 1) return null;
-
-	const fromElement = mediaElements[fromIndex];
-	const toElement = mediaElements[toIndex];
-	const fromDuration = Math.max(0, getElementDuration({ element: fromElement }));
-	const toDuration = Math.max(0, getElementDuration({ element: toElement }));
-	const cutTime = fromElement.startTime + fromDuration;
-	if (Math.abs(cutTime - toElement.startTime) > seamTolerance) return null;
-
-	const maxDuration = Math.max(0, 2 * Math.min(fromDuration, toDuration));
-	if (maxDuration <= 0) return null;
-	const duration = Math.min(transition.duration, maxDuration);
+	const relation = resolveMediaSeamRelation({
+		track,
+		fromElementId: transition.fromElementId,
+		toElementId: transition.toElementId,
+		getElementDuration,
+		seamTolerance,
+	});
+	if (!relation) return null;
+	const duration = Math.min(transition.duration, relation.maxDuration);
 	const halfDuration = duration / 2;
 
 	return {
 		transition: { ...transition, duration },
-		fromElement,
-		toElement,
-		cutTime,
-		windowStart: cutTime - halfDuration,
-		windowEnd: cutTime + halfDuration,
-		maxDuration,
+		fromElement: relation.fromElement,
+		toElement: relation.toElement,
+		cutTime: relation.cutTime,
+		windowStart: relation.cutTime - halfDuration,
+		windowEnd: relation.cutTime + halfDuration,
+		maxDuration: relation.maxDuration,
 	};
+}
+
+export function resolveAudioCrossfade({
+	track,
+	crossfade,
+	getElementDuration = defaultElementDuration,
+	seamTolerance = TRANSITION_SEAM_TOLERANCE_SECONDS,
+}: {
+	track: TimelineTrack;
+	crossfade: AudioCrossfade;
+	getElementDuration?: ElementDurationResolver;
+	seamTolerance?: number;
+}): ResolvedAudioCrossfade | null {
+	if (
+		!Number.isFinite(crossfade.duration) ||
+		crossfade.duration <= 0 ||
+		(crossfade.curve !== "linear" && crossfade.curve !== "equal-power")
+	) {
+		return null;
+	}
+	const relation = resolveMediaSeamRelation({
+		track,
+		fromElementId: crossfade.fromElementId,
+		toElementId: crossfade.toElementId,
+		getElementDuration,
+		seamTolerance,
+	});
+	if (!relation) return null;
+	const duration = Math.min(crossfade.duration, relation.maxDuration);
+	const halfDuration = duration / 2;
+	return {
+		crossfade: { ...crossfade, duration },
+		fromElement: relation.fromElement,
+		toElement: relation.toElement,
+		cutTime: relation.cutTime,
+		windowStart: relation.cutTime - halfDuration,
+		windowEnd: relation.cutTime + halfDuration,
+		maxDuration: relation.maxDuration,
+	};
+}
+
+export function getAudioCrossfadeMaxDuration({
+	track,
+	fromElementId,
+	toElementId,
+	crossfades = track.audioCrossfades ?? [],
+	excludeCrossfadeId,
+	getElementDuration = defaultElementDuration,
+}: {
+	track: TimelineTrack;
+	fromElementId: string;
+	toElementId: string;
+	crossfades?: AudioCrossfade[];
+	excludeCrossfadeId?: string;
+	getElementDuration?: ElementDurationResolver;
+}): number {
+	const probe: AudioCrossfade = {
+		id: excludeCrossfadeId ?? "audio-crossfade-probe",
+		fromElementId,
+		toElementId,
+		duration: Number.MAX_SAFE_INTEGER,
+		curve: "equal-power",
+	};
+	const resolved = resolveAudioCrossfade({
+		track,
+		crossfade: probe,
+		getElementDuration,
+	});
+	if (!resolved) return 0;
+
+	let maxDuration = resolved.maxDuration;
+	for (const existing of crossfades) {
+		if (existing.id === excludeCrossfadeId) continue;
+		if (existing.toElementId === fromElementId) {
+			maxDuration = Math.min(
+				maxDuration,
+				Math.max(
+					0,
+					2 * getElementDuration({ element: resolved.fromElement }) -
+						existing.duration
+				)
+			);
+		}
+		if (existing.fromElementId === toElementId) {
+			maxDuration = Math.min(
+				maxDuration,
+				Math.max(
+					0,
+					2 * getElementDuration({ element: resolved.toElement }) -
+						existing.duration
+				)
+			);
+		}
+	}
+	return Math.max(0, maxDuration);
+}
+
+export function reconcileTrackAudioCrossfades({
+	track,
+	getElementDuration = defaultElementDuration,
+}: {
+	track: TimelineTrack;
+	getElementDuration?: ElementDurationResolver;
+}): TimelineTrack {
+	if (!track.audioCrossfades) return track;
+	if (track.type !== "media" && track.type !== "audio") {
+		return { ...track, audioCrossfades: [] };
+	}
+
+	const seenIds = new Set<string>();
+	const seenSeams = new Set<string>();
+	const resolvedCrossfades: ResolvedAudioCrossfade[] = [];
+	for (const candidate of track.audioCrossfades) {
+		if (seenIds.has(candidate.id)) continue;
+		const seamKey = candidate.fromElementId + ":" + candidate.toElementId;
+		if (seenSeams.has(seamKey)) continue;
+		const resolved = resolveAudioCrossfade({
+			track,
+			crossfade: candidate,
+			getElementDuration,
+		});
+		if (!resolved) continue;
+		seenIds.add(candidate.id);
+		seenSeams.add(seamKey);
+		resolvedCrossfades.push(resolved);
+	}
+
+	resolvedCrossfades.sort((left, right) => left.cutTime - right.cutTime);
+	const accepted: AudioCrossfade[] = [];
+	for (const resolved of resolvedCrossfades) {
+		const maxDuration = getAudioCrossfadeMaxDuration({
+			track,
+			fromElementId: resolved.crossfade.fromElementId,
+			toElementId: resolved.crossfade.toElementId,
+			crossfades: accepted,
+			getElementDuration,
+		});
+		const duration = Math.min(resolved.crossfade.duration, maxDuration);
+		if (duration <= 0) continue;
+		accepted.push({ ...resolved.crossfade, duration });
+	}
+	return { ...track, audioCrossfades: accepted };
 }
 
 export function getTransitionMaxDuration({
@@ -266,7 +461,10 @@ export function reconcileTimelineTransitions({
 	getElementDuration?: ElementDurationResolver;
 }): TimelineTrack[] {
 	return tracks.map((track) =>
-		reconcileTrackTransitions({ track, getElementDuration })
+		reconcileTrackAudioCrossfades({
+			track: reconcileTrackTransitions({ track, getElementDuration }),
+			getElementDuration,
+		})
 	);
 }
 

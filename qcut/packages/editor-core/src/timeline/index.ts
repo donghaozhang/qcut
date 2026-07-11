@@ -32,11 +32,15 @@ export {
 export {
 	TRANSITION_SEAM_TOLERANCE_SECONDS,
 	findClosestMediaSeam,
+	getAudioCrossfadeMaxDuration,
 	getTransitionMaxDuration,
+	reconcileTrackAudioCrossfades,
 	reconcileTimelineTransitions,
 	reconcileTrackTransitions,
+	resolveAudioCrossfade,
 	resolveClipTransition,
 	type MediaSeam,
+	type ResolvedAudioCrossfade,
 	type ResolvedClipTransition,
 } from "./transitions.js";
 

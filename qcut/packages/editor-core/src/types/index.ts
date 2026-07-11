@@ -45,6 +45,15 @@ export type {
 } from "./color.js";
 
 export type {
+	AnimatedParameter,
+	EffectChain,
+	EffectInstance,
+	EffectKeyframe,
+	EffectParameters,
+	EffectType,
+} from "./effects.js";
+
+export type {
 	MediaType,
 	TrackType,
 	MediaElement,
