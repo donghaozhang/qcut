@@ -96,8 +96,11 @@ describe("native color filter", () => {
 		expect(filter).toContain("colorbalance=");
 		const path = /lut3d=file='([^']+)'/.exec(filter)?.[1];
 		expect(path).toBeTruthy();
-		expect(existsSync(path ?? "")).toBe(true);
-		expect(readFileSync(path ?? "", "utf8")).toContain("LUT_3D_SIZE 2");
+		// The filter embeds an ffmpeg-escaped path (e.g. `C\:/...` on Windows);
+		// undo escapeFfmpegFilterPath before touching the filesystem.
+		const lutFsPath = (path ?? "").replace(/\\([:'])/g, "$1");
+		expect(existsSync(lutFsPath)).toBe(true);
+		expect(readFileSync(lutFsPath, "utf8")).toContain("LUT_3D_SIZE 2");
 	});
 
 	it("emits per-frame expressions for basic and smart keyframes", () => {
