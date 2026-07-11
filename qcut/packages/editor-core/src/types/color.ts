@@ -43,6 +43,12 @@ export interface ColorLutSettings {
 	cube?: ColorCubeLut;
 }
 
+export interface ColorFilterApplication {
+	presetId: string;
+	presetVersion: number;
+	intensity: number;
+}
+
 export interface ColorHslRangeSettings {
 	hue: number;
 	saturation: number;
@@ -67,6 +73,40 @@ export interface ColorCurvesSettings {
 	red: ColorCurvePoint[];
 	green: ColorCurvePoint[];
 	blue: ColorCurvePoint[];
+}
+
+export type ColorSecondaryCurveName =
+	| "hueVsSaturation"
+	| "hueVsHue"
+	| "hueVsLuminance"
+	| "luminanceVsSaturation"
+	| "saturationVsSaturation";
+
+export interface ColorSecondaryCurve {
+	points: ColorCurvePoint[];
+	samples: number[];
+}
+
+export interface ColorSecondaryCurvesSettings {
+	enabled: boolean;
+	mix: number;
+	hueVsSaturation: ColorSecondaryCurve;
+	hueVsHue: ColorSecondaryCurve;
+	hueVsLuminance: ColorSecondaryCurve;
+	luminanceVsSaturation: ColorSecondaryCurve;
+	saturationVsSaturation: ColorSecondaryCurve;
+}
+
+export type ColorCurveShapeProperty =
+	| `curves.${"master" | "red" | "green" | "blue"}`
+	| `secondaryCurves.${ColorSecondaryCurveName}`;
+
+export interface ColorCurveShapeKeyframe {
+	id: string;
+	frame: number;
+	points: ColorCurvePoint[];
+	samples?: number[];
+	easing: "linear" | "easeIn" | "easeOut" | "easeInOut" | "spring";
 }
 
 export interface ColorWheelSettings {
@@ -144,6 +184,7 @@ export type ColorKeyframeProperty =
 	| "lut.skinProtection"
 	| ColorHslKeyframeProperty
 	| "curves.mix"
+	| "secondaryCurves.mix"
 	| ColorWheelKeyframeProperty
 	| "wheels.strength"
 	| "wheels.balance"
@@ -158,13 +199,18 @@ export interface ColorPropertyKeyframe {
 
 export interface MediaColorSettings {
 	enabled: boolean;
+	filter: ColorFilterApplication;
 	basic: ColorBasicSettings;
 	lut: ColorLutSettings;
 	hsl: ColorHslSettings;
 	curves: ColorCurvesSettings;
+	secondaryCurves: ColorSecondaryCurvesSettings;
 	wheels: ColorWheelsSettings;
 	smart: ColorSmartSettings;
 	mask: ColorGradeMaskSettings;
 	management: ColorManagementSettings;
 	keyframes?: Partial<Record<ColorKeyframeProperty, ColorPropertyKeyframe[]>>;
+	curveShapeKeyframes?: Partial<
+		Record<ColorCurveShapeProperty, ColorCurveShapeKeyframe[]>
+	>;
 }

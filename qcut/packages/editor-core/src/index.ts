@@ -22,7 +22,13 @@ export type {
 	ColorBasicSettings,
 	ColorCubeLut,
 	ColorCurvePoint,
+	ColorCurveShapeKeyframe,
+	ColorCurveShapeProperty,
 	ColorCurvesSettings,
+	ColorFilterApplication,
+	ColorSecondaryCurve,
+	ColorSecondaryCurveName,
+	ColorSecondaryCurvesSettings,
 	ColorGradeMaskSettings,
 	ColorHslKeyframeProperty,
 	ColorHslRangeName,
@@ -64,6 +70,23 @@ export type {
 	MediaMaskTrackingDirection,
 	MediaChromaKey,
 	MediaEnhancements,
+	AudioKeyframeProperty,
+	AudioLoudnessSettings,
+	AudioDenoiseSettings,
+	AudioVoiceEnhanceSettings,
+	AudioPitchSettings,
+	AudioEqualizerSettings,
+	AudioCompressorSettings,
+	AudioLimiterSettings,
+	AudioReverbSettings,
+	AudioEchoSettings,
+	AudioTelephoneSettings,
+	AudioStemName,
+	AudioSeparationSettings,
+	AudioVoiceConversionSettings,
+	AudioLyricsWord,
+	AudioLyricsSettings,
+	MediaAudioSettings,
 	TextElement,
 	TextKeyframeProperty,
 	TextPropertyKeyframe,
@@ -102,6 +125,10 @@ export type {
 // Timeline utilities
 export {
 	sortTracksByOrder,
+	normalizeTrackOrder,
+	moveTrack,
+	compareTrackTypePriority,
+	buildCompositionPlan,
 	getMainTrack,
 	ensureMainTrack,
 	getTrackName,
@@ -119,6 +146,14 @@ export {
 	getActiveRemotionElements,
 	canElementGoOnTrack,
 	validateElementTrackCompatibility,
+} from "./timeline/index.js";
+
+export type {
+	BuildCompositionPlanOptions,
+	CompositionAudioElement,
+	CompositionDurationContext,
+	CompositionLayer,
+	CompositionPlan,
 } from "./timeline/index.js";
 
 // Commands (history/undo-redo)

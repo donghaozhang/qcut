@@ -19,6 +19,7 @@ export type ExportQuality = (typeof ExportQuality)[keyof typeof ExportQuality];
 
 export const EXPORT_FRAME_RATES = [24, 25, 30, 50, 60] as const;
 export type ExportFrameRate = (typeof EXPORT_FRAME_RATES)[number];
+export type ExportEngineSelection = "auto" | "standard" | "ffmpeg" | "cli";
 
 // Export purpose types
 export const ExportPurpose = {

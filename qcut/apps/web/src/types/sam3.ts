@@ -196,6 +196,8 @@ export interface Sam3VideoInput {
 	box_prompts?: Sam3VideoBoxPrompt[];
 	/** Apply mask overlay to output video (default: true) */
 	apply_mask?: boolean;
+	/** Video container/codec returned by the service. */
+	video_output_type?: "X264 (.mp4)" | "VP9 (.webm)";
 	/** Confidence threshold for detection (0.01-1.0, default: 0.5) */
 	detection_threshold?: number;
 	/** Return per-frame bounding box overlays as zip (default: false) */

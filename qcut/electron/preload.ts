@@ -7,6 +7,7 @@
  * @module preload
  */
 import { contextBridge, ipcRenderer, webUtils } from "electron";
+import type { AudioSettings } from "./ffmpeg/audio-settings";
 import type {
 	ElectronAPI,
 	FileDialogFilter,
@@ -288,7 +289,7 @@ const electronAPI: ElectronAPI & Record<string, unknown> = {
 			audioPath: string;
 			fileSize: number;
 		}> => ipcRenderer.invoke("extract-audio", options),
-		exportAudioCLI: (options: {
+			exportAudioCLI: (options: {
 			outputPath: string;
 			duration: number;
 			audioFiles: Array<{
@@ -302,7 +303,8 @@ const electronAPI: ElectronAPI & Record<string, unknown> = {
 				fadeOut?: number;
 				normalize?: boolean;
 				denoise?: number;
-				pan?: number;
+					pan?: number;
+					audio?: AudioSettings;
 			}>;
 			bitrate: number;
 			sampleRate: number;

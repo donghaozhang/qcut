@@ -2,6 +2,8 @@
  * Supporting type definitions for the Electron preload API.
  */
 
+import type { AudioSettings } from "../ffmpeg/audio-settings";
+
 // ============================================================================
 // Supporting types
 // ============================================================================
@@ -160,6 +162,7 @@ export interface AudioFile {
 	path: string;
 	startTime: number;
 	volume?: number;
+	sourceGain?: number;
 	trimStart?: number;
 	trimEnd?: number;
 	duration?: number;
@@ -168,6 +171,7 @@ export interface AudioFile {
 	normalize?: boolean;
 	denoise?: number;
 	pan?: number;
+	audio?: AudioSettings;
 	playbackRate?: number;
 	speedKeyframes?: Array<{
 		id: string;

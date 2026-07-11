@@ -391,6 +391,25 @@ export interface ElectronClaudeOps {
 					description: string;
 				}>;
 			}>;
+			scenes: (
+				projectId: string,
+				options: {
+					mediaId: string;
+					threshold?: number;
+					aiAnalysis?: boolean;
+					model?: string;
+				}
+			) => Promise<{
+				scenes: Array<{
+					timestamp: number;
+					confidence: number;
+					description?: string;
+					shotType?: "wide" | "medium" | "close-up" | "cutaway" | "unknown";
+					transitionType?: "cut" | "dissolve" | "fade" | "unknown";
+				}>;
+				totalScenes: number;
+				averageShotDuration: number;
+			}>;
 		};
 		navigator: {
 			onProjectsRequest: (

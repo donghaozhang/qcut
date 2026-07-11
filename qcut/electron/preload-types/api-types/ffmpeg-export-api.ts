@@ -3,6 +3,7 @@ import type {
 	FrameData,
 	ExportOptions,
 } from "../supporting-types";
+import type { AudioSettings } from "../../ffmpeg/audio-settings";
 
 /** FFmpeg export and frame processing operations. */
 export interface FFmpegExportAPI {
@@ -34,6 +35,7 @@ export interface FFmpegExportAPI {
 				path: string;
 				startTime: number;
 				volume?: number;
+				sourceGain?: number;
 				trimStart?: number;
 				trimEnd?: number;
 				duration?: number;
@@ -42,6 +44,7 @@ export interface FFmpegExportAPI {
 				normalize?: boolean;
 				denoise?: number;
 				pan?: number;
+				audio?: AudioSettings;
 			}>;
 			bitrate: number;
 			sampleRate: number;

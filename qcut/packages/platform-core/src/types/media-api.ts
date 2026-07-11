@@ -212,6 +212,7 @@ export interface PlatformFFmpegAPI {
 			path: string;
 			startTime: number;
 			volume?: number;
+			sourceGain?: number;
 			trimStart?: number;
 			duration?: number;
 		}>;

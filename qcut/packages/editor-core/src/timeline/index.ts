@@ -5,11 +5,23 @@
 
 export {
 	sortTracksByOrder,
+	normalizeTrackOrder,
+	moveTrack,
+	compareTrackTypePriority,
 	getMainTrack,
 	ensureMainTrack,
 	getTrackName,
 	createTrack,
 } from "./track-utils.js";
+
+export {
+	buildCompositionPlan,
+	type BuildCompositionPlanOptions,
+	type CompositionAudioElement,
+	type CompositionDurationContext,
+	type CompositionLayer,
+	type CompositionPlan,
+} from "./composition-plan.js";
 
 export {
 	getEffectiveDuration,

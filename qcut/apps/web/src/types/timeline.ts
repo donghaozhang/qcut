@@ -15,7 +15,13 @@ export type {
 	ColorBasicSettings,
 	ColorCubeLut,
 	ColorCurvePoint,
+	ColorCurveShapeKeyframe,
+	ColorCurveShapeProperty,
 	ColorCurvesSettings,
+	ColorFilterApplication,
+	ColorSecondaryCurve,
+	ColorSecondaryCurveName,
+	ColorSecondaryCurvesSettings,
 	ColorGradeMaskSettings,
 	ColorHslKeyframeProperty,
 	ColorHslRangeName,
@@ -42,6 +48,23 @@ export type {
 	MediaMaskTrackingDirection,
 	MediaChromaKey,
 	MediaEnhancements,
+	AudioKeyframeProperty,
+	AudioLoudnessSettings,
+	AudioDenoiseSettings,
+	AudioVoiceEnhanceSettings,
+	AudioPitchSettings,
+	AudioEqualizerSettings,
+	AudioCompressorSettings,
+	AudioLimiterSettings,
+	AudioReverbSettings,
+	AudioEchoSettings,
+	AudioTelephoneSettings,
+	AudioStemName,
+	AudioSeparationSettings,
+	AudioVoiceConversionSettings,
+	AudioLyricsWord,
+	AudioLyricsSettings,
+	MediaAudioSettings,
 	TextElement,
 	TextKeyframeProperty,
 	TextPropertyKeyframe,
@@ -59,6 +82,11 @@ export type {
 	CreateMarkdownElement,
 	CreateTimelineElement,
 	TimelineTrack,
+	BuildCompositionPlanOptions,
+	CompositionAudioElement,
+	CompositionDurationContext,
+	CompositionLayer,
+	CompositionPlan,
 	MediaItemDragData,
 	TextItemDragData,
 	StickerItemDragData,
@@ -70,6 +98,9 @@ export type {
 // Re-export domain functions from @qcut/editor-core
 export {
 	sortTracksByOrder,
+	normalizeTrackOrder,
+	moveTrack,
+	buildCompositionPlan,
 	getMainTrack,
 	ensureMainTrack,
 	canElementGoOnTrack,
@@ -108,6 +139,7 @@ export interface ResizeState {
 	elementId: string;
 	side: "left" | "right";
 	startX: number;
+	initialStartTime: number;
 	initialTrimStart: number;
 	initialTrimEnd: number;
 }

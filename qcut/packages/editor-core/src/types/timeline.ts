@@ -158,6 +158,7 @@ export type MediaMaskKeyframeProperty =
 	| "opacity";
 
 export interface MediaMaskPoint {
+	id?: string;
 	x: number;
 	y: number;
 	handleIn?: { x: number; y: number };
@@ -211,6 +212,7 @@ export interface MediaMask {
 	maintainAspectRatio?: boolean;
 	invert: boolean;
 	points?: MediaMaskPoint[];
+	closed?: boolean;
 	text?: string;
 	fontFamily?: string;
 	fontWeight?: "normal" | "bold";
@@ -237,6 +239,167 @@ export interface MediaEnhancements {
 	upscale: 1 | 2 | 4;
 	relight: number;
 	beauty: number;
+}
+
+export type AudioKeyframeProperty =
+	| "volumeDb"
+	| "fadeIn"
+	| "fadeOut"
+	| "pan"
+	| "denoiseAmount"
+	| "voiceClarity"
+	| "voiceWarmth"
+	| "voicePresence"
+	| "pitchSemitones"
+	| "eqLowGainDb"
+	| "eqMidGainDb"
+	| "eqHighGainDb"
+	| "compressorThresholdDb"
+	| "compressorRatio"
+	| "reverbMix"
+	| "echoMix";
+
+export interface AudioLoudnessSettings {
+	enabled: boolean;
+	targetLufs: number;
+	truePeakDb: number;
+	loudnessRange: number;
+	measuredLufs?: number;
+	measuredTruePeakDb?: number;
+	analysisStatus?: "idle" | "analyzing" | "ready" | "error";
+	analysisError?: string;
+}
+
+export interface AudioDenoiseSettings {
+	enabled: boolean;
+	amount: number;
+	noiseFloorDb: number;
+	mode?: "realtime" | "ai";
+	status?: "idle" | "processing" | "ready" | "error";
+	processedMediaId?: string;
+	error?: string;
+}
+
+export interface AudioVoiceEnhanceSettings {
+	enabled: boolean;
+	clarity: number;
+	warmth: number;
+	presence: number;
+}
+
+export interface AudioPitchSettings {
+	enabled: boolean;
+	semitones: number;
+	preserveFormants: boolean;
+}
+
+export interface AudioEqualizerSettings {
+	enabled: boolean;
+	lowGainDb: number;
+	midGainDb: number;
+	highGainDb: number;
+}
+
+export interface AudioCompressorSettings {
+	enabled: boolean;
+	thresholdDb: number;
+	ratio: number;
+	attackMs: number;
+	releaseMs: number;
+	makeupGainDb: number;
+}
+
+export interface AudioLimiterSettings {
+	enabled: boolean;
+	ceilingDb: number;
+	releaseMs: number;
+}
+
+export interface AudioReverbSettings {
+	enabled: boolean;
+	mix: number;
+	roomSize: number;
+	damping: number;
+}
+
+export interface AudioEchoSettings {
+	enabled: boolean;
+	mix: number;
+	delayMs: number;
+	feedback: number;
+}
+
+export interface AudioTelephoneSettings {
+	enabled: boolean;
+	mix: number;
+}
+
+export type AudioStemName =
+	| "vocals"
+	| "instrumental"
+	| "drums"
+	| "bass"
+	| "other"
+	| "guitar"
+	| "piano";
+
+export interface AudioSeparationSettings {
+	enabled: boolean;
+	status: "idle" | "processing" | "ready" | "error";
+	stemMediaIds?: Partial<Record<AudioStemName, string>>;
+	stemGains?: Partial<Record<AudioStemName, number>>;
+	error?: string;
+}
+
+export interface AudioVoiceConversionSettings {
+	enabled: boolean;
+	status: "idle" | "processing" | "ready" | "error";
+	sourceMediaId?: string;
+	provider?: string;
+	model?: string;
+	error?: string;
+}
+
+export interface AudioLyricsWord {
+	id: string;
+	text: string;
+	start: number;
+	end: number;
+	type: "word" | "spacing";
+	speakerId?: string;
+}
+
+export interface AudioLyricsSettings {
+	status: "idle" | "transcribing" | "ready" | "error";
+	text: string;
+	language?: string;
+	words: AudioLyricsWord[];
+	sourceMediaId?: string;
+	captionTrackId?: string;
+	error?: string;
+}
+
+export interface MediaAudioSettings {
+	enabled: boolean;
+	volumeDb: number;
+	fadeIn: number;
+	fadeOut: number;
+	panEnabled: boolean;
+	pan: number;
+	loudness: AudioLoudnessSettings;
+	denoise: AudioDenoiseSettings;
+	voiceEnhance: AudioVoiceEnhanceSettings;
+	pitch: AudioPitchSettings;
+	equalizer: AudioEqualizerSettings;
+	compressor: AudioCompressorSettings;
+	limiter: AudioLimiterSettings;
+	reverb: AudioReverbSettings;
+	echo: AudioEchoSettings;
+	telephone: AudioTelephoneSettings;
+	separation: AudioSeparationSettings;
+	voiceConversion: AudioVoiceConversionSettings;
+	lyrics: AudioLyricsSettings;
+	keyframes?: Partial<Record<AudioKeyframeProperty, MediaPropertyKeyframe[]>>;
 }
 
 export interface MediaElement extends BaseTimelineElement {
@@ -269,6 +432,9 @@ export interface MediaElement extends BaseTimelineElement {
 	masks?: MediaMask[];
 	chromaKey?: MediaChromaKey;
 	enhancements?: MediaEnhancements;
+	/** Canonical non-destructive audio processing state. */
+	audio?: MediaAudioSettings;
+	/** Legacy audio fields retained while older projects migrate to `audio`. */
 	audioFadeIn?: number;
 	audioFadeOut?: number;
 	audioNormalize?: boolean;
@@ -452,7 +618,11 @@ export interface TimelineTrack {
 	name: string;
 	type: TrackType;
 	elements: TimelineElement[];
+	/** Zero-based UI order. Lower values appear higher and composite later. */
+	order?: number;
 	muted?: boolean;
+	hidden?: boolean;
+	locked?: boolean;
 	isMain?: boolean;
 }
 

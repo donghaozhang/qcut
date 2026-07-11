@@ -76,6 +76,7 @@ export interface ElectronFFmpegOps {
 				path: string;
 				startTime: number;
 				volume?: number;
+				sourceGain?: number;
 				trimStart?: number;
 				trimEnd?: number;
 				duration?: number;
