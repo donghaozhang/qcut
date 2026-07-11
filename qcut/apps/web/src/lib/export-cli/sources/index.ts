@@ -6,6 +6,7 @@
 
 // Video source extraction
 export { extractVideoSources, extractVideoInputPath } from "./video-sources";
+export { extractVideoTransitions } from "./video-transitions";
 
 // Image source extraction
 export { extractImageSources } from "./image-sources";

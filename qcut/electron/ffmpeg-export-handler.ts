@@ -167,6 +167,7 @@ export function setupExportHandler(tempManager: TempManager): void {
 				!options.filterChain &&
 				!options.imageFilterChain &&
 				!(options.imageSources && options.imageSources.length > 0) &&
+				!(options.videoTransitions && options.videoTransitions.length > 0) &&
 				!hasTrimmedVideos;
 
 			// Validate duration to prevent crashes or excessive resource usage
@@ -239,6 +240,7 @@ export function setupExportHandler(tempManager: TempManager): void {
 						textAssLayers: textAssLayerPaths,
 						useDirectCopy: effectiveUseDirectCopy,
 						videoSources: options.videoSources,
+						videoTransitions: options.videoTransitions,
 						stickerFilterChain,
 						stickerSources,
 						imageFilterChain: options.imageFilterChain,

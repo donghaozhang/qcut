@@ -4,7 +4,12 @@ import {
 	buildVideoKeyframeExpression,
 	buildVideoTimelineFilters,
 } from "../ffmpeg-video-transform";
-import type { VideoSource, VideoVisual } from "../ffmpeg/types";
+import type {
+	VideoSource,
+	VideoTransition,
+	VideoVisual,
+} from "../ffmpeg/types";
+import { buildChromaKeyFilterGraph } from "../ffmpeg/chroma-key-filter";
 
 const visual: VideoVisual = {
 	x: 40,
@@ -38,6 +43,40 @@ const visual: VideoVisual = {
 };
 
 describe("FFmpeg video transform filters", () => {
+	it("builds animated chroma refinement filters", () => {
+		const result = buildChromaKeyFilterGraph({
+			inputLabel: "source",
+			labelPrefix: "clip_chroma",
+			fps: 30,
+			duration: 2,
+			chromaKey: {
+				enabled: true,
+				color: "#00ff00",
+				similarity: 0.2,
+				blend: 0.1,
+				shadow: 0.15,
+				cleanup: 0.25,
+				spill: 0.2,
+				keyframes: {
+					similarity: [
+						{ id: "s0", frame: 0, value: 0.15, easing: "linear" },
+						{ id: "s1", frame: 30, value: 0.3, easing: "easeInOut" },
+					],
+					cleanup: [
+						{ id: "c0", frame: 0, value: 0, easing: "linear" },
+						{ id: "c1", frame: 30, value: 0.5, easing: "linear" },
+					],
+				},
+			},
+		});
+		const filter = result.filterSteps.join(";");
+		expect(filter).toContain("sendcmd=");
+		expect(filter).toContain("chromakey@clip_chroma_filter");
+		expect(filter).toContain("erosion=");
+		expect(filter).toContain("despill@clip_chroma_despill_filter");
+		expect(result.outputLabel).toBe("clip_chroma_despilled");
+	});
+
 	it("builds local-time keyframe expressions", () => {
 		const expression = buildVideoKeyframeExpression({
 			visual,
@@ -104,6 +143,70 @@ describe("FFmpeg video transform filters", () => {
 		expect(filter).toContain("video_layer_composite_1");
 		expect(filter).not.toContain("concat=");
 	});
+
+	it.each([
+		{ type: "dissolve", expected: "fade" },
+		{ type: "fade-black", expected: "fadeblack" },
+		{ type: "slide", direction: "right", expected: "slideright" },
+		{ type: "wipe", direction: "left", expected: "wipeleft" },
+	] satisfies Array<{
+		type: VideoTransition["type"];
+		direction?: VideoTransition["direction"];
+		expected: string;
+	}>)(
+		"builds centered $type transitions without shortening the timeline",
+		({ type, direction, expected }) => {
+			const sources: VideoSource[] = [
+				{
+					elementId: "clip-a",
+					trackId: "track-1",
+					path: "/one.mp4",
+					startTime: 0,
+					duration: 2,
+					trackOrder: 0,
+					elementOrder: 0,
+				},
+				{
+					elementId: "clip-b",
+					trackId: "track-1",
+					path: "/two.mp4",
+					startTime: 2,
+					duration: 2,
+					trackOrder: 0,
+					elementOrder: 1,
+				},
+			];
+			const transition: VideoTransition = {
+				id: "transition-1",
+				trackId: "track-1",
+				fromElementId: "clip-a",
+				toElementId: "clip-b",
+				presetId: type,
+				type,
+				direction,
+				easing: "linear",
+				duration: 1,
+			};
+
+			const result = buildVideoTimelineFilters({
+				videoSources: sources,
+				videoTransitions: [transition],
+				width: 640,
+				height: 360,
+				fps: 30,
+				totalDuration: 4,
+			});
+			const filter = result.filterSteps.join(";");
+
+			expect(filter).toContain("start_duration=0:stop_mode=clone:stop_duration=0.5");
+			expect(filter).toContain("start_duration=0.5:stop_mode=clone:stop_duration=0");
+			expect(filter).toContain(
+				"xfade=transition=" + expected + ":duration=1:offset=1.5"
+			);
+			expect(filter).toContain("trim=duration=4");
+			expect(result.segmentCount).toBe(2);
+		}
+	);
 
 	it("combines animated masks with add, subtract, and intersect", () => {
 		const expression = buildVideoMaskExpression({

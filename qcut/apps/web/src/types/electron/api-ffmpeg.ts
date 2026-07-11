@@ -6,6 +6,7 @@ import type { StickerSource } from "../../../../../electron/ffmpeg-handler";
 import type { FFmpegHealthResult } from "../../../../../electron/ffmpeg/types";
 import type {
 	VideoSourceInput,
+	VideoTransitionInput,
 	AudioFileInput,
 } from "../../lib/export/export-engine-cli";
 
@@ -41,6 +42,7 @@ export interface ElectronFFmpegOps {
 			audioFiles?: AudioFileInput[];
 			useDirectCopy?: boolean;
 			videoSources?: VideoSourceInput[];
+			videoTransitions?: VideoTransitionInput[];
 			useVideoInput?: boolean;
 			videoInputPath?: string;
 			trimStart?: number;

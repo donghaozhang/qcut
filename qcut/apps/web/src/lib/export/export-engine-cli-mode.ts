@@ -12,6 +12,7 @@ import type { ExportAnalysis } from "./export-analysis";
 import type {
 	AudioFileInput,
 	VideoSourceInput,
+	VideoTransitionInput,
 	StickerSourceForFilter,
 	ImageSourceInput,
 } from "../export-cli/types";
@@ -115,6 +116,7 @@ export interface BuildExportOptionsParams {
 	hasStickerFilters: boolean;
 	wordFilterSegments: Array<{ start: number; end: number }> | undefined;
 	videoSources: VideoSourceInput[];
+	videoTransitions?: VideoTransitionInput[];
 	videoInput: { path: string; trimStart: number; trimEnd: number } | null;
 	backgroundColor?: string;
 }
@@ -141,6 +143,7 @@ export function buildExportOptions(params: BuildExportOptionsParams) {
 		hasStickerFilters,
 		wordFilterSegments,
 		videoSources,
+		videoTransitions = [],
 		videoInput,
 		backgroundColor,
 	} = params;
@@ -172,6 +175,8 @@ export function buildExportOptions(params: BuildExportOptionsParams) {
 			!wordFilterSegments
 		),
 		videoSources: videoSources.length > 0 ? videoSources : undefined,
+		videoTransitions:
+			videoTransitions.length > 0 ? videoTransitions : undefined,
 		useVideoInput: !!videoInput,
 		videoInputPath: videoInput?.path,
 		trimStart: videoInput?.trimStart || 0,

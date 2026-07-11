@@ -9,6 +9,10 @@ const ffmpegPath = path.resolve(
 	__dirname,
 	"../resources/ffmpeg/darwin-arm64/ffmpeg"
 );
+const ffprobePath = path.resolve(
+	__dirname,
+	"../resources/ffmpeg/darwin-arm64/ffprobe"
+);
 const tempDir = path.resolve(
 	__dirname,
 	"../../.tmp/video-transform-export-test"
@@ -16,6 +20,36 @@ const tempDir = path.resolve(
 
 function runFFmpeg(args: string[]) {
 	return spawnSync(ffmpegPath, args, { encoding: "utf8", timeout: 60_000 });
+}
+
+function readFramePixel({
+	inputPath,
+	time,
+}: {
+	inputPath: string;
+	time: number;
+}): number[] {
+	const result = spawnSync(
+		ffmpegPath,
+		[
+			"-v",
+			"error",
+			"-ss",
+			String(time),
+			"-i",
+			inputPath,
+			"-frames:v",
+			"1",
+			"-vf",
+			"scale=1:1,format=rgb24",
+			"-f",
+			"rawvideo",
+			"-",
+		],
+		{ timeout: 60_000 }
+	);
+	if (result.status !== 0) throw new Error(result.stderr.toString());
+	return Array.from(result.stdout.subarray(0, 3));
 }
 
 function defaultVisual(overrides: Partial<VideoVisual> = {}): VideoVisual {
@@ -78,6 +112,100 @@ describe.skipIf(!fs.existsSync(ffmpegPath))(
 
 		afterAll(() => {
 			fs.rmSync(tempDir, { recursive: true, force: true });
+		});
+
+		it("preserves timeline duration and blends frames across a centered dissolve", () => {
+			const redPath = path.join(tempDir, "transition-red.mp4");
+			const bluePath = path.join(tempDir, "transition-blue.mp4");
+			for (const [color, outputPath] of [
+				["red", redPath],
+				["blue", bluePath],
+			]) {
+				const source = runFFmpeg([
+					"-y",
+					"-f",
+					"lavfi",
+					"-i",
+					"color=c=" + color + ":s=160x90:d=2:r=30",
+					"-c:v",
+					"libx264",
+					"-pix_fmt",
+					"yuv420p",
+					outputPath,
+				]);
+				expect(source.status, source.stderr?.toString()).toBe(0);
+			}
+
+			const outputPath = path.join(tempDir, "transition-dissolve.mp4");
+			const args = buildFFmpegArgs({
+				inputDir: tempDir,
+				outputFile: outputPath,
+				width: 160,
+				height: 90,
+				fps: 30,
+				quality: "low",
+				duration: 4,
+				videoSources: [
+					{
+						elementId: "clip-red",
+						trackId: "track-1",
+						path: redPath,
+						startTime: 0,
+						duration: 2,
+						trackOrder: 0,
+						elementOrder: 0,
+					},
+					{
+						elementId: "clip-blue",
+						trackId: "track-1",
+						path: bluePath,
+						startTime: 2,
+						duration: 2,
+						trackOrder: 0,
+						elementOrder: 1,
+					},
+				],
+				videoTransitions: [
+					{
+						id: "transition-1",
+						trackId: "track-1",
+						fromElementId: "clip-red",
+						toElementId: "clip-blue",
+						presetId: "dissolve",
+						type: "dissolve",
+						easing: "linear",
+						duration: 1,
+					},
+				],
+			});
+			const result = runFFmpeg(args);
+			expect(result.status, result.stderr?.toString()).toBe(0);
+
+			const durationResult = spawnSync(
+				ffprobePath,
+				[
+					"-v",
+					"error",
+					"-show_entries",
+					"format=duration",
+					"-of",
+					"default=nw=1:nk=1",
+					outputPath,
+				],
+				{ encoding: "utf8", timeout: 60_000 }
+			);
+			expect(durationResult.status, durationResult.stderr).toBe(0);
+			expect(Number(durationResult.stdout.trim())).toBeCloseTo(4, 1);
+
+			const before = readFramePixel({ inputPath: outputPath, time: 1.25 });
+			const midpoint = readFramePixel({ inputPath: outputPath, time: 2 });
+			const after = readFramePixel({ inputPath: outputPath, time: 2.75 });
+			expect(before[0]).toBeGreaterThan(180);
+			expect(before[2]).toBeLessThan(80);
+			expect(midpoint[0]).toBeGreaterThan(70);
+			expect(midpoint[2]).toBeGreaterThan(70);
+			expect(after[0]).toBeLessThan(80);
+			expect(after[2]).toBeGreaterThan(180);
 		});
 
 		it("renders transform, crop, perspective, blend, and keyframes", () => {
@@ -622,6 +750,39 @@ describe.skipIf(!fs.existsSync(ffmpegPath))(
 								color: "#00ff00",
 								similarity: 0.2,
 								blend: 0.1,
+								shadow: 0.15,
+								cleanup: 0.25,
+								spill: 0.2,
+								keyframes: {
+									similarity: [
+										{
+											id: "chroma-start",
+											frame: 0,
+											value: 0.15,
+											easing: "linear",
+										},
+										{
+											id: "chroma-end",
+											frame: 15,
+											value: 0.3,
+											easing: "easeInOut",
+										},
+									],
+									cleanup: [
+										{
+											id: "cleanup-start",
+											frame: 0,
+											value: 0,
+											easing: "linear",
+										},
+										{
+											id: "cleanup-end",
+											frame: 15,
+											value: 0.5,
+											easing: "linear",
+										},
+									],
+								},
 							},
 							enhancements: {
 								stabilization: 20,

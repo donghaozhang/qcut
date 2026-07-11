@@ -14,6 +14,7 @@ import {
 	normalizeMediaMask,
 	resolveMediaMasks,
 } from "@/lib/video/video-properties";
+import { normalizeMediaChromaKey } from "@/lib/video/media-chroma-key";
 import { TIMELINE_CONSTANTS } from "@/constants/timeline-constants";
 import {
 	buildLegacyAudioFields,
@@ -103,12 +104,7 @@ export function normalizeMediaElement({
 		color,
 		mask: masks[0] ?? normalizeMediaMask(element.mask ?? DEFAULT_MEDIA_MASK),
 		masks,
-		chromaKey: element.chromaKey ?? {
-			enabled: false,
-			color: "#00ff00",
-			similarity: 0.2,
-			blend: 0.1,
-		},
+		chromaKey: normalizeMediaChromaKey(element.chromaKey),
 		enhancements: element.enhancements ?? {
 			stabilization: 0,
 			denoise: 0,

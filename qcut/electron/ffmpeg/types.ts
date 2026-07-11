@@ -106,6 +106,18 @@ export interface VideoSource {
 	effectFilter?: string;
 }
 
+export interface VideoTransition {
+	id: string;
+	trackId: string;
+	fromElementId: string;
+	toElementId: string;
+	presetId: string;
+	type: "dissolve" | "fade-black" | "slide" | "wipe";
+	direction?: "left" | "right" | "up" | "down";
+	easing: "linear" | "easeInOut";
+	duration: number;
+}
+
 export interface VideoMask {
 	id?: string;
 	name?: string;
@@ -243,6 +255,20 @@ export interface VideoVisual {
 		color: string;
 		similarity: number;
 		blend: number;
+		shadow: number;
+		cleanup: number;
+		spill: number;
+		keyframes?: Partial<
+			Record<
+				"similarity" | "blend" | "shadow" | "cleanup" | "spill",
+				Array<{
+					id: string;
+					frame: number;
+					value: number;
+					easing: "linear" | "easeIn" | "easeOut" | "easeInOut" | "spring";
+				}>
+			>
+		>;
 	};
 	enhancements?: {
 		stabilization: number;
@@ -371,6 +397,7 @@ export interface ExportOptions {
 	useDirectCopy?: boolean;
 	/** Video sources for direct copy optimization (when useDirectCopy=true) */
 	videoSources?: VideoSource[];
+	videoTransitions?: VideoTransition[];
 	/** Use video file instead of frames (Mode 2 optimization) */
 	useVideoInput?: boolean;
 	/** Direct video file path for Mode 2 */

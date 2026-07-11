@@ -13,6 +13,7 @@ import fs from "fs";
 import type {
 	AudioFile,
 	VideoSource,
+	VideoTransition,
 	ImageSource,
 	StickerSource,
 	QualitySettings,
@@ -51,6 +52,7 @@ export interface BuildFFmpegArgsOptions {
 	}>;
 	useDirectCopy?: boolean;
 	videoSources?: VideoSource[];
+	videoTransitions?: VideoTransition[];
 	stickerFilterChain?: string;
 	stickerSources?: StickerSource[];
 	imageFilterChain?: string;
@@ -99,6 +101,7 @@ function buildCompositeEncodeArgs(
 		useVideoInput = false,
 		videoInputPath,
 		videoSources = [],
+		videoTransitions = [],
 		trimStart,
 		backgroundColor = "#000000",
 	} = options;
@@ -208,6 +211,7 @@ function buildCompositeEncodeArgs(
 	if (videoSources.length > 0) {
 		const timeline = buildVideoTimelineFilters({
 			videoSources,
+			videoTransitions,
 			width,
 			height,
 			fps,

@@ -6,10 +6,25 @@
  */
 
 import type {
+	ClipTransitionDirection,
+	ClipTransitionEasing,
+	ClipTransitionType,
 	MediaAudioSettings,
 	MediaColorSettings,
 	MediaMask,
 } from "@/types/timeline";
+
+export interface VideoTransitionInput {
+	id: string;
+	trackId: string;
+	fromElementId: string;
+	toElementId: string;
+	presetId: string;
+	type: ClipTransitionType;
+	direction?: ClipTransitionDirection;
+	easing: ClipTransitionEasing;
+	duration: number;
+}
 
 /**
  * Video source input for FFmpeg direct copy optimization.
@@ -83,6 +98,20 @@ export interface VideoVisualInput {
 		color: string;
 		similarity: number;
 		blend: number;
+		shadow: number;
+		cleanup: number;
+		spill: number;
+		keyframes?: Partial<
+			Record<
+				"similarity" | "blend" | "shadow" | "cleanup" | "spill",
+				Array<{
+					id: string;
+					frame: number;
+					value: number;
+					easing: "linear" | "easeIn" | "easeOut" | "easeInOut" | "spring";
+				}>
+			>
+		>;
 	};
 	enhancements: {
 		stabilization: number;

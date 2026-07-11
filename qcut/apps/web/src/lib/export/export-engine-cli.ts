@@ -21,6 +21,7 @@ import type {
 	ImageSourceInput,
 	ProgressCallback,
 	VideoSourceInput,
+	VideoTransitionInput,
 	AudioFileInput,
 } from "../export-cli/types";
 import {
@@ -30,6 +31,7 @@ import {
 } from "../export-cli/filters";
 import {
 	extractVideoSources,
+	extractVideoTransitions,
 	extractVideoInputPath,
 	extractStickerSources,
 	extractImageSources,
@@ -63,6 +65,7 @@ import { buildTimelineAssLayers } from "./export-engine-cli-text";
 export type {
 	ProgressCallback,
 	VideoSourceInput,
+	VideoTransitionInput,
 	AudioFileInput,
 } from "../export-cli/types";
 
@@ -507,8 +510,12 @@ export class CLIExportEngine extends ExportEngine {
 		const { hasWordFilters } = resolveWordFilters(this.totalDuration, null);
 		const hasVideoVisualEdits =
 			this.exportAnalysis?.hasVideoVisualEdits ?? false;
+		const hasTransitions = this.exportAnalysis?.hasTransitions ?? false;
 		const needsVideoInput =
-			(canUseMode2 && !hasVideoVisualEdits && !hasPerClipVideoEffects) ||
+			(canUseMode2 &&
+				!hasVideoVisualEdits &&
+				!hasPerClipVideoEffects &&
+				!hasTransitions) ||
 			hasWordFilters;
 		const videoInput: {
 			path: string;
@@ -540,6 +547,7 @@ export class CLIExportEngine extends ExportEngine {
 		const shouldExtractVideoSources =
 			hasVideoVisualEdits ||
 			hasPerClipVideoEffects ||
+			hasTransitions ||
 			this.exportAnalysis?.optimizationStrategy === "video-normalization" ||
 			(this.exportAnalysis?.canUseDirectCopy &&
 				!hasTextFilters &&
@@ -562,6 +570,13 @@ export class CLIExportEngine extends ExportEngine {
 			...source,
 			effectFilter: elementFilterChains.get(source.elementId),
 		}));
+		const videoTransitions: VideoTransitionInput[] = hasTransitions
+			? extractVideoTransitions({
+					tracks: this.tracks,
+					mediaItems: this.mediaItems,
+					fps: this.fps,
+				})
+			: [];
 
 		if (
 			this.exportAnalysis?.optimizationStrategy === "image-video-composite" &&
@@ -598,6 +613,7 @@ export class CLIExportEngine extends ExportEngine {
 			hasStickerFilters,
 			wordFilterSegments,
 			videoSources,
+			videoTransitions,
 			videoInput,
 			backgroundColor:
 				useProjectStore.getState().activeProject?.backgroundColor ?? "#000000",

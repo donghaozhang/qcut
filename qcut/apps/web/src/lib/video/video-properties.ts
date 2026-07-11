@@ -21,6 +21,13 @@ import {
 	interpolateNumber,
 	type Keyframe,
 } from "@/lib/remotion/keyframe-converter";
+import {
+	DEFAULT_MEDIA_CHROMA_KEY,
+	normalizeMediaChromaKey,
+	resolveMediaChromaKeyAtTime,
+} from "./media-chroma-key";
+
+export { DEFAULT_MEDIA_CHROMA_KEY } from "./media-chroma-key";
 
 export const DEFAULT_MEDIA_CROP: MediaCrop = {
 	top: 0,
@@ -77,13 +84,6 @@ export const DEFAULT_MEDIA_MASK: MediaMask = {
 		offsetX: 0,
 		offsetY: 0,
 	},
-};
-
-export const DEFAULT_MEDIA_CHROMA_KEY: MediaChromaKey = {
-	enabled: false,
-	color: "#00ff00",
-	similarity: 0.2,
-	blend: 0.1,
 };
 
 export const DEFAULT_MEDIA_ENHANCEMENTS: MediaEnhancements = {
@@ -362,7 +362,7 @@ export function resolveMediaVisualProperties(
 			masks[0] ??
 			normalizeMediaMask({ ...DEFAULT_MEDIA_MASK, ...element.mask }),
 		masks,
-		chromaKey: { ...DEFAULT_MEDIA_CHROMA_KEY, ...element.chromaKey },
+		chromaKey: normalizeMediaChromaKey(element.chromaKey),
 		enhancements: {
 			...DEFAULT_MEDIA_ENHANCEMENTS,
 			...element.enhancements,
@@ -418,8 +418,20 @@ export function resolveMediaKeyframes({
 	const resolved = resolveMediaVisualProperties(element);
 	const masks = resolveMediaMasksAtTime({ element, currentTime, fps });
 	const color = resolveMediaColorAtTime({ element, currentTime, fps });
+	const chromaKey = resolveMediaChromaKeyAtTime({
+		chromaKey: element.chromaKey,
+		currentTime,
+		elementStartTime: element.startTime,
+		fps,
+	});
 	if (!element.keyframes) {
-		return { ...resolved, color, masks, mask: masks[0] ?? resolved.mask };
+		return {
+			...resolved,
+			color,
+			chromaKey,
+			masks,
+			mask: masks[0] ?? resolved.mask,
+		};
 	}
 
 	const crop = { ...resolved.crop };
@@ -458,6 +470,7 @@ export function resolveMediaKeyframes({
 		crop: clampMediaCrop(crop),
 		perspective: clampMediaPerspective(perspective),
 		color,
+		chromaKey,
 		masks,
 		mask: masks[0] ?? resolved.mask,
 	};

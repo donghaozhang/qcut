@@ -143,6 +143,7 @@ export interface ExportOptions {
 	metadata?: Record<string, string>;
 	useDirectCopy?: boolean;
 	videoSources?: VideoSource[];
+	videoTransitions?: import("../ffmpeg/types").VideoTransition[];
 	useVideoInput?: boolean;
 	videoInputPath?: string;
 	trimStart?: number;

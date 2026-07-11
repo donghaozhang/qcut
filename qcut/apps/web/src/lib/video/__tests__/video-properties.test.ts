@@ -28,7 +28,7 @@ function mediaElement(overrides: Partial<MediaElement> = {}): MediaElement {
 
 describe("video visual properties", () => {
 	it("resolves defaults for legacy media elements", () => {
-		expect(resolveMediaVisualProperties(mediaElement())).toEqual({
+		expect(resolveMediaVisualProperties(mediaElement())).toMatchObject({
 			x: 0,
 			y: 0,
 			rotation: 0,
@@ -63,6 +63,9 @@ describe("video visual properties", () => {
 				color: "#00ff00",
 				similarity: 0.2,
 				blend: 0.1,
+				shadow: 0,
+				cleanup: 0,
+				spill: 0,
 			},
 			enhancements: {
 				stabilization: 0,

@@ -28,6 +28,8 @@ export interface ExportAnalysis {
 	hasEffects: boolean;
 	/** Contains transform, crop, perspective, opacity, or blend edits on video clips */
 	hasVideoVisualEdits: boolean;
+	/** Contains clip-to-clip transitions requiring encoded video filters. */
+	hasTransitions: boolean;
 	/** Multiple videos that may need concatenation */
 	hasMultipleVideoSources: boolean;
 	/** Videos overlap in time; requires compositing, not concat */
@@ -321,6 +323,12 @@ export function analyzeTimelineForExport(
 	let hasStickers = overlayStickersCount != null && overlayStickersCount > 0;
 	let hasEffects = false;
 	let hasVideoVisualEdits = false;
+	const hasTransitions = tracks.some(
+		(track) =>
+			!track.hidden &&
+			track.type === "media" &&
+			(track.transitions?.length ?? 0) > 0
+	);
 	let videoElementCount = 0;
 	const videoTimeRanges: Array<{ start: number; end: number }> = [];
 	const videoElements: MediaElement[] = [];
@@ -411,7 +419,8 @@ export function analyzeTimelineForExport(
 
 	const needsFilterEncoding =
 		hasTextElements || // Text uses FFmpeg drawtext
-		hasStickers; // Stickers use FFmpeg overlay
+		hasStickers || // Stickers use FFmpeg overlay
+		hasTransitions;
 	// Note: Effects can be added here once FFmpeg-compatible effects are identified
 
 	const needsImageProcessing =
@@ -429,6 +438,7 @@ export function analyzeTimelineForExport(
 		!hasTextElements &&
 		!hasStickers &&
 		!hasEffects &&
+		!hasTransitions &&
 		allVideosHaveLocalPath;
 
 	// Validate timeline before proceeding - throws if unsupported
@@ -535,6 +545,7 @@ export function analyzeTimelineForExport(
 		if (hasTextElements) filterReasons.push("text overlays");
 		if (hasStickers) filterReasons.push("stickers");
 		if (hasEffects) filterReasons.push("effects");
+		if (hasTransitions) filterReasons.push("transitions");
 		if (filterReasons.length > 0) {
 			console.log(`   Filters: ${filterReasons.join(", ")}`);
 		}
@@ -558,6 +569,7 @@ export function analyzeTimelineForExport(
 		if (hasTextElements) filterTypes.push("text");
 		if (hasStickers) filterTypes.push("stickers");
 		if (hasEffects) filterTypes.push("effects");
+		if (hasTransitions) filterTypes.push("transitions");
 		reason =
 			filterTypes.length > 0
 				? `Video with ${filterTypes.join("/")} overlays - using FFmpeg filters`
@@ -610,6 +622,7 @@ export function analyzeTimelineForExport(
 		hasStickers,
 		hasEffects,
 		hasVideoVisualEdits,
+		hasTransitions,
 		allVideosHaveLocalPath,
 		canUseDirectCopy,
 		optimizationStrategy,
@@ -667,6 +680,7 @@ export function analyzeTimelineForExport(
 		hasStickers,
 		hasEffects,
 		hasVideoVisualEdits,
+		hasTransitions,
 		hasMultipleVideoSources,
 		hasOverlappingVideos,
 		canUseDirectCopy,

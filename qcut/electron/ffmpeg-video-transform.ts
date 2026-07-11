@@ -1,10 +1,17 @@
-import type { VideoMask, VideoSource, VideoVisual } from "./ffmpeg/types";
+import type {
+	VideoMask,
+	VideoSource,
+	VideoTransition,
+	VideoVisual,
+} from "./ffmpeg/types";
 import {
 	DEFAULT_VIDEO_COLOR_SETTINGS,
 	normalizeVideoColorSettings,
 } from "./ffmpeg/color-settings";
 import { buildVideoColorFilter } from "./ffmpeg/color-filter";
 import { buildVideoColorFilterGraph } from "./ffmpeg/color-filter-graph";
+import { buildChromaKeyFilterGraph } from "./ffmpeg/chroma-key-filter";
+import { buildNumericKeyframeExpression } from "./ffmpeg/keyframe-expression";
 
 const DEFAULT_ADJUSTMENTS: NonNullable<VideoVisual["adjustments"]> = {
 	brightness: 0,
@@ -41,6 +48,9 @@ const DEFAULT_CHROMA_KEY: NonNullable<VideoVisual["chromaKey"]> = {
 	color: "#00ff00",
 	similarity: 0.2,
 	blend: 0.1,
+	shadow: 0,
+	cleanup: 0,
+	spill: 0,
 };
 
 const DEFAULT_ENHANCEMENTS: NonNullable<VideoVisual["enhancements"]> = {
@@ -100,18 +110,6 @@ function ffmpegColor(color: string): string {
 	return match ? `0x${match[1]}` : "black";
 }
 
-function easingExpression(progress: string, easing: string): string {
-	if (easing === "easeIn") return `pow(${progress},2)`;
-	if (easing === "easeOut") return `1-pow(1-${progress},2)`;
-	if (easing === "easeInOut") {
-		return `if(lt(${progress},0.5),2*pow(${progress},2),1-pow(-2*${progress}+2,2)/2)`;
-	}
-	if (easing === "spring") {
-		return `${progress}+sin(${progress}*PI)*0.15*(1-${progress})`;
-	}
-	return progress;
-}
-
 export function buildVideoKeyframeExpression({
 	visual,
 	property,
@@ -123,26 +121,12 @@ export function buildVideoKeyframeExpression({
 	fallback: number;
 	timeVariable?: string;
 }): string {
-	const keyframes = [...(visual.keyframes?.[property] ?? [])].sort(
-		(a, b) => a.frame - b.frame
-	);
-	if (keyframes.length === 0) return String(fallback);
-	if (keyframes.length === 1) return String(keyframes[0].value);
-	const fps = Math.max(1, visual.keyframeFps || 30);
-	const timeAt = (frame: number) => frame / fps;
-	let expression = String(keyframes[keyframes.length - 1]?.value ?? fallback);
-	for (let index = keyframes.length - 2; index >= 0; index--) {
-		const from = keyframes[index];
-		const to = keyframes[index + 1];
-		const start = timeAt(from.frame);
-		const end = timeAt(to.frame);
-		const duration = Math.max(0.001, end - start);
-		const progress = `(${timeVariable}-${start})/${duration}`;
-		const eased = easingExpression(progress, to.easing);
-		const value = `(${from.value})+((${to.value})-(${from.value}))*(${eased})`;
-		expression = `if(lt(${timeVariable},${end}),${value},${expression})`;
-	}
-	return `if(lt(${timeVariable},${timeAt(keyframes[0].frame)}),${keyframes[0].value},${expression})`;
+	return buildNumericKeyframeExpression({
+		keyframes: visual.keyframes?.[property],
+		fps: visual.keyframeFps,
+		fallback,
+		timeVariable,
+	});
 }
 
 function resolveVisual(source: VideoSource): VideoVisual {
@@ -343,25 +327,12 @@ function buildMaskKeyframeExpression({
 	fallback: number;
 	fps: number;
 }): string {
-	const keyframes = [...(mask.keyframes?.[property] ?? [])].sort(
-		(a, b) => a.frame - b.frame
-	);
-	if (keyframes.length === 0) return String(fallback);
-	if (keyframes.length === 1) return String(keyframes[0].value);
-	const time = `(N/${Math.max(1, fps)})`;
-	const timeAt = (frame: number) => frame / Math.max(1, fps);
-	let expression = String(keyframes[keyframes.length - 1].value);
-	for (let index = keyframes.length - 2; index >= 0; index -= 1) {
-		const from = keyframes[index];
-		const to = keyframes[index + 1];
-		const start = timeAt(from.frame);
-		const end = timeAt(to.frame);
-		const progress = `(${time}-${start})/${Math.max(0.001, end - start)}`;
-		const eased = easingExpression(progress, to.easing);
-		const value = `(${from.value})+((${to.value})-(${from.value}))*(${eased})`;
-		expression = `if(lt(${time},${end}),${value},${expression})`;
-	}
-	return `if(lt(${time},${timeAt(keyframes[0].frame)}),${keyframes[0].value},${expression})`;
+	return buildNumericKeyframeExpression({
+		keyframes: mask.keyframes?.[property],
+		fps,
+		fallback,
+		timeVariable: `(N/${Math.max(1, fps)})`,
+	});
 }
 
 function polygonMaskExpression({
@@ -664,14 +635,15 @@ function buildSegmentFilters({
 		steps.push(`[${current}]${enhancementFilter}[${enhanced}]`);
 		current = enhanced;
 	}
-	const chromaKey = { ...DEFAULT_CHROMA_KEY, ...visual.chromaKey };
-	if (chromaKey.enabled) {
-		const keyed = `video_${segmentIndex}_chroma_keyed`;
-		steps.push(
-			`[${current}]chromakey=${ffmpegColor(chromaKey.color)}:${clamp(chromaKey.similarity, 0.01, 1)}:${clamp(chromaKey.blend, 0, 1)}[${keyed}]`
-		);
-		current = keyed;
-	}
+	const chromaGraph = buildChromaKeyFilterGraph({
+		inputLabel: current,
+		labelPrefix: `video_${segmentIndex}_chroma`,
+		chromaKey: visual.chromaKey,
+		fps: visual.keyframeFps || fps,
+		duration,
+	});
+	steps.push(...chromaGraph.filterSteps);
+	current = chromaGraph.outputLabel;
 	if (visual.color?.mask.enabled) {
 		const colorBase = `video_${segmentIndex}_color_base`;
 		const colorInput = `video_${segmentIndex}_color_input`;
@@ -1007,8 +979,211 @@ function buildLayeredVideoTimelineFilters({
 	};
 }
 
+interface IndexedVideoSource {
+	source: VideoSource;
+	inputIndex: number;
+}
+
+interface TransitionRun {
+	sources: IndexedVideoSource[];
+	transitions: VideoTransition[];
+}
+
+function xfadeTransitionName({
+	transition,
+}: {
+	transition: VideoTransition;
+}): string {
+	if (transition.type === "dissolve") return "fade";
+	if (transition.type === "fade-black") return "fadeblack";
+	const direction = transition.direction ?? "left";
+	if (transition.type === "slide") return `slide${direction}`;
+	return `wipe${direction}`;
+}
+
+function transitionRuns({
+	sources,
+	transitions,
+}: {
+	sources: IndexedVideoSource[];
+	transitions: VideoTransition[];
+}): TransitionRun[] {
+	if (sources.length === 0) return [];
+	const transitionByFrom = new Map(
+		transitions.map((transition) => [transition.fromElementId, transition])
+	);
+	const sorted = [...sources].sort((left, right) => {
+		const timeDifference = left.source.startTime - right.source.startTime;
+		return timeDifference !== 0
+			? timeDifference
+			: (left.source.elementOrder ?? 0) - (right.source.elementOrder ?? 0);
+	});
+	const runs: TransitionRun[] = [];
+	let current: TransitionRun = { sources: [sorted[0]], transitions: [] };
+
+	for (let index = 1; index < sorted.length; index++) {
+		const previous = sorted[index - 1];
+		const next = sorted[index];
+		const transition = previous.source.elementId
+			? transitionByFrom.get(previous.source.elementId)
+			: undefined;
+		if (
+			transition &&
+			transition.toElementId === next.source.elementId &&
+			transition.trackId === next.source.trackId
+		) {
+			current.sources.push(next);
+			current.transitions.push(transition);
+			continue;
+		}
+
+		runs.push(current);
+		current = { sources: [next], transitions: [] };
+	}
+	runs.push(current);
+	return runs;
+}
+
+function buildTransitionedLayeredVideoTimelineFilters({
+	videoSources,
+	videoTransitions,
+	width,
+	height,
+	fps,
+	totalDuration,
+	backgroundColor,
+}: {
+	videoSources: VideoSource[];
+	videoTransitions: VideoTransition[];
+	width: number;
+	height: number;
+	fps: number;
+	totalDuration: number;
+	backgroundColor: string;
+}): VideoTimelineFilterResult {
+	const indexedSources = videoSources.map((source, inputIndex) => ({
+		source,
+		inputIndex,
+	}));
+	const sourcesByTrack = new Map<string, IndexedVideoSource[]>();
+	for (const indexed of indexedSources) {
+		const trackKey = indexed.source.trackId ?? "__default_video_track__";
+		const trackSources = sourcesByTrack.get(trackKey) ?? [];
+		trackSources.push(indexed);
+		sourcesByTrack.set(trackKey, trackSources);
+	}
+	const orderedTracks = [...sourcesByTrack.entries()].sort(
+		([, left], [, right]) =>
+			(right[0]?.source.trackOrder ?? Number.MAX_SAFE_INTEGER) -
+			(left[0]?.source.trackOrder ?? Number.MAX_SAFE_INTEGER)
+	);
+
+	const filterSteps: string[] = [];
+	let currentVideoLabel = "video_transition_layers_background";
+	let runIndex = 0;
+	filterSteps.push(
+		`color=c=${ffmpegColor(backgroundColor)}:s=${width}x${height}:d=${totalDuration}:r=${fps},` +
+			`format=rgba,settb=AVTB,setpts=PTS-STARTPTS[${currentVideoLabel}]`
+	);
+
+	for (const [trackId, trackSources] of orderedTracks) {
+		const trackTransitions = videoTransitions.filter(
+			(transition) => transition.trackId === trackId
+		);
+		const runs = transitionRuns({
+			sources: trackSources,
+			transitions: trackTransitions,
+		});
+
+		for (const run of runs) {
+			const builtSegments = run.sources.map(({ source, inputIndex }) => {
+				const segment = buildSegmentFilters({
+					source,
+					inputIndex,
+					segmentIndex: inputIndex,
+					width,
+					height,
+					fps,
+					backgroundColor,
+					transparentOutput: true,
+				});
+				filterSteps.push(...segment.steps);
+				return { source, segment };
+			});
+			const preparedLabels: string[] = [];
+			for (let index = 0; index < builtSegments.length; index++) {
+				const previousTransition = run.transitions[index - 1];
+				const nextTransition = run.transitions[index];
+				const startPad = (previousTransition?.duration ?? 0) / 2;
+				const stopPad = (nextTransition?.duration ?? 0) / 2;
+				const built = builtSegments[index];
+				const preparedLabel = `video_transition_prepared_${runIndex}_${index}`;
+				const preparedDuration = built.segment.duration + startPad + stopPad;
+				filterSteps.push(
+					`[${built.segment.outputLabel}]setpts=PTS-STARTPTS,` +
+						`tpad=start_mode=clone:start_duration=${startPad}:stop_mode=clone:stop_duration=${stopPad},` +
+						`trim=duration=${preparedDuration},setpts=PTS-STARTPTS[${preparedLabel}]`
+				);
+				preparedLabels.push(preparedLabel);
+			}
+
+			const runStart = Math.max(0, builtSegments[0].source.startTime);
+			const lastBuilt = builtSegments[builtSegments.length - 1];
+			const runEnd = Math.min(
+				totalDuration,
+				lastBuilt.source.startTime + lastBuilt.segment.duration
+			);
+			let runOutput = preparedLabels[0];
+			for (let index = 0; index < run.transitions.length; index++) {
+				const transition = run.transitions[index];
+				const nextSource = builtSegments[index + 1].source;
+				const offset = Math.max(
+					0,
+					nextSource.startTime -
+						runStart -
+						transition.duration / 2
+				);
+				const transitioned = `video_transition_xfade_${runIndex}_${index}`;
+				filterSteps.push(
+					`[${runOutput}][${preparedLabels[index + 1]}]xfade=` +
+						`transition=${xfadeTransitionName({ transition })}:` +
+						`duration=${transition.duration}:offset=${offset}[${transitioned}]`
+				);
+				runOutput = transitioned;
+			}
+
+			const timedRun = `video_transition_run_${runIndex}`;
+			filterSteps.push(
+				`[${runOutput}]trim=duration=${Math.max(1 / Math.max(1, fps), runEnd - runStart)},` +
+					`fps=${fps},scale=${width}:${height},setsar=1,format=rgba,settb=AVTB,` +
+					`setpts=PTS-STARTPTS+${runStart}/TB[${timedRun}]`
+			);
+			const outputLabel = `video_transition_composite_${runIndex}`;
+			const enable = `enable='between(t,${runStart},${runEnd})'`;
+			filterSteps.push(
+				`[${currentVideoLabel}][${timedRun}]overlay=` +
+					`eof_action=pass:repeatlast=0:shortest=0:format=auto:${enable}[${outputLabel}]`
+			);
+			currentVideoLabel = outputLabel;
+			runIndex++;
+		}
+	}
+
+	const outputLabel = "video_timeline_base";
+	filterSteps.push(
+		`[${currentVideoLabel}]fps=${fps},scale=${width}:${height},setsar=1,format=yuv420p,settb=AVTB,` +
+			`setpts=PTS-STARTPTS[${outputLabel}]`
+	);
+	return {
+		filterSteps,
+		outputLabel,
+		segmentCount: videoSources.length,
+	};
+}
+
 export function buildVideoTimelineFilters({
 	videoSources,
+	videoTransitions = [],
 	width,
 	height,
 	fps,
@@ -1016,12 +1191,24 @@ export function buildVideoTimelineFilters({
 	backgroundColor = "#000000",
 }: {
 	videoSources: VideoSource[];
+	videoTransitions?: VideoTransition[];
 	width: number;
 	height: number;
 	fps: number;
 	totalDuration: number;
 	backgroundColor?: string;
 }): VideoTimelineFilterResult {
+	if (videoTransitions.length > 0) {
+		return buildTransitionedLayeredVideoTimelineFilters({
+			videoSources,
+			videoTransitions,
+			width,
+			height,
+			fps,
+			totalDuration,
+			backgroundColor,
+		});
+	}
 	if (videoSources.some((source) => Number.isFinite(source.trackOrder))) {
 		return buildLayeredVideoTimelineFilters({
 			videoSources,
