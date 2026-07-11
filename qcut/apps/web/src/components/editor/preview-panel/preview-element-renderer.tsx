@@ -46,6 +46,9 @@ import {
 import { useColorPickerStore } from "@/stores/editor/color-picker-store";
 import type { ClipTransitionPreviewState } from "@/lib/transitions/clip-transition-preview";
 import { getClipTransitionLayerPresentation } from "@/lib/transitions/clip-transition-presentation";
+import { CaptionsDisplay } from "@/components/captions/captions-display";
+import { WORD_FILTER_STATE } from "@/types/word-timeline";
+import { TimelineStickerLayer } from "./timeline-sticker-layer";
 
 interface ElementResizeParams {
 	elementId: string;
@@ -395,6 +398,59 @@ export function PreviewElementRenderer({
 			);
 		}
 
+		if (element.type === "captions") {
+			const segment = {
+				id: 0,
+				seek: element.startTime * 1000,
+				start: element.startTime,
+				end: element.startTime + element.duration,
+				text: element.text,
+				tokens: [],
+				temperature: 0,
+				avg_logprob: -0.5,
+				compression_ratio: 1,
+				no_speech_prob: Math.min(
+					1,
+					Math.max(0, 1 - (element.confidence ?? 1))
+				),
+			};
+			const words = (element.words ?? []).map((word) => ({
+				id: word.id,
+				text: word.text,
+				start: word.start,
+				end: word.end,
+				type: word.type,
+				speaker_id: word.speakerId,
+				filterState: WORD_FILTER_STATE.NONE,
+			}));
+			return (
+				<div
+					key={elementKey}
+					className="absolute inset-0 pointer-events-none"
+					style={{ zIndex: index + 1 }}
+				>
+					<CaptionsDisplay
+						segments={[segment]}
+						currentTime={currentTime}
+						isVisible
+						subtitleStyle={element.style}
+						words={words}
+					/>
+				</div>
+			);
+		}
+
+		if (element.type === "sticker") {
+			return (
+				<TimelineStickerLayer
+					key={elementKey}
+					element={element}
+					elementOrder={index}
+					mediaItems={mediaItems}
+				/>
+			);
+		}
+
 		if (element.type === "media") {
 			const transitionPresentation = transitionState
 				? getClipTransitionLayerPresentation({
@@ -461,6 +517,7 @@ export function PreviewElementRenderer({
 								trimEnd={element.trimEnd}
 								clipDuration={element.duration}
 								trackMuted={elementData.track.muted}
+								trackId={elementData.track.id}
 								element={derivedElement}
 							/>,
 						];
@@ -615,6 +672,8 @@ export function PreviewElementRenderer({
 								fadeOut={audioPreviewBypassed ? 0 : (element.audioFadeOut ?? 0)}
 								clipPlaybackRate={element.playbackRate ?? 1}
 								timingElement={element}
+								trackId={elementData.track.id}
+								trackMuted={elementData.track.muted}
 								playbackWindow={transitionState?.playbackWindow}
 								videoId={sourceVideoId}
 								style={{
@@ -655,6 +714,8 @@ export function PreviewElementRenderer({
 									}
 									clipPlaybackRate={element.playbackRate ?? 1}
 									timingElement={element}
+									trackId={elementData.track.id}
+									trackMuted={elementData.track.muted}
 									playbackWindow={transitionState?.playbackWindow}
 									videoId={`${mediaItem.id}-mask-audio`}
 									className="pointer-events-none absolute inset-0 opacity-0"
@@ -885,6 +946,7 @@ export function PreviewElementRenderer({
 								trimEnd={element.trimEnd}
 								clipDuration={element.duration}
 								trackMuted={elementData.track.muted}
+								trackId={elementData.track.id}
 								element={element}
 							/>
 						)}

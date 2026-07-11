@@ -15,6 +15,7 @@ export interface StickerTiming {
 	trackId: string;
 	trackOrder: number;
 	elementOrder: number;
+	element?: StickerElement;
 }
 
 /**
@@ -49,6 +50,7 @@ export function getStickerTimingMap(): Map<string, StickerTiming> {
 				trackId: track.id,
 				trackOrder,
 				elementOrder,
+				element: stickerEl,
 			});
 		}
 	}
@@ -84,6 +86,7 @@ export function getStickerTiming(stickerId: string): StickerTiming | null {
 					trackId: track.id,
 					trackOrder,
 					elementOrder,
+					element: stickerEl,
 				};
 			}
 		}

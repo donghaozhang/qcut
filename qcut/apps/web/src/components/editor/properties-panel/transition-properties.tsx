@@ -52,6 +52,9 @@ export function TransitionProperties({
 }) {
 	const updateTransition = useTimelineStore((state) => state.updateTransition);
 	const removeTransition = useTimelineStore((state) => state.removeTransition);
+	const setTransitionAudioCrossfade = useTimelineStore(
+		(state) => state.setTransitionAudioCrossfade
+	);
 	const [duration, setDuration] = useState(transition.duration);
 	const maxDuration = getTransitionMaxDuration({
 		track,
@@ -65,6 +68,11 @@ export function TransitionProperties({
 	const preset = getTransitionPresetById({ presetId: transition.presetId });
 	const supportsDirection =
 		transition.type === "slide" || transition.type === "wipe";
+	const hasAudioCrossfade = track.audioCrossfades?.some(
+		(crossfade) =>
+			crossfade.fromElementId === transition.fromElementId &&
+			crossfade.toElementId === transition.toElementId
+	);
 
 	useEffect(() => {
 		setDuration(transition.duration);
@@ -172,6 +180,30 @@ export function TransitionProperties({
 							<SelectContent>
 								<SelectItem value="linear">linear</SelectItem>
 								<SelectItem value="easeInOut">ease in/out</SelectItem>
+							</SelectContent>
+						</Select>
+					</PropertyItem>
+
+					<PropertyItem>
+						<PropertyItemLabel>Audio</PropertyItemLabel>
+						<Select
+							value={hasAudioCrossfade ? "equal-power" : "cut"}
+							onValueChange={(value: "cut" | "equal-power") =>
+								setTransitionAudioCrossfade({
+									trackId: track.id,
+									fromElementId: transition.fromElementId,
+									toElementId: transition.toElementId,
+									duration: transition.duration,
+									enabled: value === "equal-power",
+								})
+							}
+						>
+							<SelectTrigger className="h-8 w-28 text-xs">
+								<SelectValue />
+							</SelectTrigger>
+							<SelectContent>
+								<SelectItem value="cut">hard cut</SelectItem>
+								<SelectItem value="equal-power">equal power</SelectItem>
 							</SelectContent>
 						</Select>
 					</PropertyItem>

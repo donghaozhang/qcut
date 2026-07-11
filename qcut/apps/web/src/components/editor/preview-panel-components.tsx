@@ -28,8 +28,6 @@ import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
 import { formatTimeCode } from "@/lib/time";
 import { EditableTimecode } from "@/components/ui/editable-timecode";
 import { BackgroundSettings } from "../background-settings";
-// Import sticker overlay for fullscreen mode
-import { StickerCanvas } from "./stickers-overlay/StickerCanvas";
 import type { TProject } from "@/types/project";
 import type { ActiveElement } from "./preview-panel/types";
 
@@ -267,8 +265,6 @@ export function FullscreenPreview({
 						)
 					)}
 
-					{/* Sticker overlay in fullscreen mode */}
-					<StickerCanvas className="absolute inset-0" />
 					{activeProject?.backgroundType === "blur" &&
 						blurBackgroundElements.length === 0 &&
 						activeElements.length > 0 && (

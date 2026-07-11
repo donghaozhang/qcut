@@ -1,4 +1,8 @@
-import type { MediaElement, TimelineElement } from "@/types/timeline";
+import type {
+	MediaElement,
+	StickerElement,
+	TimelineElement,
+} from "@/types/timeline";
 import type { MediaItem } from "@/stores/media/media-store-types";
 import type { OverlaySticker } from "@/types/sticker-overlay";
 import { debugLog, debugError, debugWarn } from "@/lib/debug/debug-config";
@@ -35,6 +39,7 @@ import { renderTextToCanvas } from "@/lib/text/text-canvas-renderer";
 import { resolveMediaKeyframes } from "@/lib/video/video-properties";
 import { getMediaSourcePlaybackTime } from "@/lib/video/video-timing";
 import { drawColorGradedSourceWithMasks } from "@/lib/color/browser-color-rendering";
+import { resolveTimelineStickerVisual } from "@/lib/stickers/timeline-sticker-visual";
 
 let exportCompositor: ScreenRecordingExportCompositor | null = null;
 let compositorFrameCanvas: HTMLCanvasElement | null = null;
@@ -128,24 +133,18 @@ export async function renderFrame(
 		);
 	}
 
-	let renderedTimelineStickers = false;
-	for (const { element, track, mediaItem } of activeElements) {
-		if (track.type === "sticker") {
-			if (!renderedTimelineStickers) {
-				await renderOverlayStickers(context, currentTime);
-				renderedTimelineStickers = true;
-			}
-			continue;
-		}
+	for (const { element, mediaItem } of activeElements) {
 		await renderElement(context, element, mediaItem, currentTime);
 	}
 
-	const hasTimelineStickers = context.tracks.some(
-		(track) => track.type === "sticker" && track.elements.length > 0
+	const timelineStickerIds = new Set(
+		context.tracks.flatMap((track) =>
+			track.elements.flatMap((element) =>
+				element.type === "sticker" ? [element.stickerId] : []
+			)
+		)
 	);
-	if (!renderedTimelineStickers && !hasTimelineStickers) {
-		await renderOverlayStickers(context, currentTime);
-	}
+	await renderOverlayStickers(context, currentTime, timelineStickerIds);
 
 	// Apply screen recording enhancement compositing (cursor, zoom, background)
 	const compositor = getExportCompositor(canvas);
@@ -203,11 +202,40 @@ async function renderElement(
 			element,
 			currentTime,
 		});
+	} else if (element.type === "sticker") {
+		await renderTimelineStickerElement({
+			context,
+			element,
+			currentTime,
+		});
 	} else if (element.type === "remotion") {
 		// Remotion elements are handled by RemotionExportEngine.compositeRemotionFrames()
 		// Skip in standard canvas render to avoid double-rendering
 		return;
 	}
+}
+
+async function renderTimelineStickerElement({
+	context,
+	element,
+	currentTime,
+}: {
+	context: RenderContext;
+	element: StickerElement;
+	currentTime: number;
+}): Promise<void> {
+	const fallback = useStickersOverlayStore
+		.getState()
+		.overlayStickers.get(element.stickerId);
+	const sticker = resolveTimelineStickerVisual({ element, fallback });
+	const mediaItems = new Map(
+		context.mediaItems.map((item) => [item.id, item] as const)
+	);
+	await renderStickersToCanvas(context.ctx, [sticker], mediaItems, {
+		canvasWidth: context.canvas.width,
+		canvasHeight: context.canvas.height,
+		currentTime,
+	});
 }
 
 /** Render media elements (images/videos) */
@@ -550,12 +578,15 @@ async function renderVideoAttempt(
 /** Render overlay stickers on top of video */
 export async function renderOverlayStickers(
 	context: RenderContext,
-	currentTime: number
+	currentTime: number,
+	excludeStickerIds: ReadonlySet<string> = new Set()
 ): Promise<void> {
 	let visibleStickers: OverlaySticker[] = [];
 	try {
 		const stickersStore = useStickersOverlayStore.getState();
-		visibleStickers = stickersStore.getVisibleStickersAtTime(currentTime);
+		visibleStickers = stickersStore
+			.getVisibleStickersAtTime(currentTime)
+			.filter((sticker) => !excludeStickerIds.has(sticker.id));
 
 		debugLog(`[STICKER_FRAME] Frame time: ${currentTime.toFixed(3)}s`);
 		debugLog(

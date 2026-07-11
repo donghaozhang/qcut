@@ -21,8 +21,6 @@ import {
 	PreviewToolbar,
 	PreviewModeToggle,
 } from "./preview-panel-components";
-import { StickerCanvas } from "./stickers-overlay/StickerCanvas";
-import { CaptionsDisplay } from "@/components/captions/captions-display";
 import { captureWithFallback } from "@/lib/effects/canvas-utils";
 import { useFrameCache } from "@/hooks/timeline/use-frame-cache";
 import {
@@ -52,6 +50,11 @@ import { CursorOverlay } from "./preview-panel/cursor-overlay";
 import { RecordingBackground } from "./preview-panel/recording-background";
 import { useScreenRecordingPreview } from "./preview-panel/use-screen-recording-preview";
 import { resolveActiveClipTransitionPreview } from "@/lib/transitions/clip-transition-preview";
+import { useAudioMixMonitor } from "@/lib/audio/use-audio-mix-monitor";
+import {
+	TimelineStickerKeyboardController,
+	useTimelineStickerDrop,
+} from "./preview-panel/timeline-sticker-interactions";
 
 function getPreviewElementDuration(element: TimelineElement): number {
 	return element.type === "media"
@@ -61,6 +64,7 @@ function getPreviewElementDuration(element: TimelineElement): number {
 
 /** Main preview panel component for video playback, MCP apps, and element overlays. */
 export function PreviewPanel() {
+	useAudioMixMonitor();
 	const {
 		tracks,
 		getTotalDuration,
@@ -348,34 +352,8 @@ export function PreviewPanel() {
 		() => getActiveElements(),
 		[getActiveElements]
 	);
-	const overlayZIndexes = useMemo(() => {
-		const visualElements = activeElements.filter(
-			({ track }) => track.type !== "audio"
-		);
-		const getTypeZIndex = ({
-			type,
-			fallback,
-		}: {
-			type: "sticker" | "captions";
-			fallback: number;
-		}) => {
-			let zIndex = -1;
-			for (let index = 0; index < visualElements.length; index++) {
-				if (visualElements[index].track.type === type) zIndex = index + 1;
-			}
-			return zIndex >= 0 ? zIndex : fallback;
-		};
-		const fallback = visualElements.length + 1;
-		return {
-			stickers: getTypeZIndex({ type: "sticker", fallback }),
-			captions: getTypeZIndex({ type: "captions", fallback: fallback + 1 }),
-		};
-	}, [activeElements]);
-
+	const stickerDropHandlers = useTimelineStickerDrop({ currentTime });
 	const {
-		captionSegments,
-		captionStyle,
-		captionWords,
 		blurBackgroundElements,
 		videoSourcesById,
 		blurBackgroundSource,
@@ -681,6 +659,7 @@ export function PreviewPanel() {
 
 	return (
 		<>
+			<TimelineStickerKeyboardController />
 			<div
 				className="h-full w-full flex flex-col min-h-0 min-w-0 bg-panel rounded-sm"
 				data-testid="preview-panel"
@@ -705,6 +684,8 @@ export function PreviewPanel() {
 										? "transparent"
 										: activeProject?.backgroundColor || "#000000",
 							}}
+							onDragOver={stickerDropHandlers.onDragOver}
+							onDrop={stickerDropHandlers.onDrop}
 						>
 							{(() => {
 								const pw = previewDimensions.width || canvasSize.width;
@@ -761,30 +742,6 @@ export function PreviewPanel() {
 										Add a video or image to use blur background
 									</div>
 								)}
-
-							<div
-								className="absolute inset-0"
-								style={{ zIndex: overlayZIndexes.stickers }}
-							>
-								<StickerCanvas
-									className="absolute inset-0"
-									disabled={isExpanded}
-								/>
-							</div>
-
-							<div
-								className="absolute inset-0 pointer-events-none"
-								style={{ zIndex: overlayZIndexes.captions }}
-							>
-								<CaptionsDisplay
-									segments={captionSegments}
-									currentTime={currentTime}
-									isVisible={captionSegments.length > 0}
-									className="absolute inset-0 pointer-events-none"
-									subtitleStyle={captionStyle}
-									words={captionWords}
-								/>
-							</div>
 
 							{/* Interactive element overlays for elements with effects */}
 							{EFFECTS_ENABLED &&

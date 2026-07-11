@@ -295,16 +295,14 @@ export const useProjectStore = create<ProjectStore>((set, get) => ({
 			debugLog(`[ProjectStore] Initializing scenes for project: ${id}`);
 			await sceneStore.initializeProjectScenes(normalizedProject);
 
-			// Load timeline and stickers in parallel (both may depend on media being loaded)
+			// Timeline owns sticker timing and visual state; legacy overlay data migrates after it loads.
 			const currentSceneId =
 				useSceneStore.getState().currentScene?.id ?? project.currentSceneId;
-			await Promise.all([
-				timelineStore.loadProjectTimeline({
-					projectId: id,
-					sceneId: currentSceneId,
-				}),
-				stickersStore.loadFromProject(id),
-			]);
+			await timelineStore.loadProjectTimeline({
+				projectId: id,
+				sceneId: currentSceneId,
+			});
+			await stickersStore.loadFromProject(id);
 
 			syncProjectSkillsForClaude({ projectId: id });
 

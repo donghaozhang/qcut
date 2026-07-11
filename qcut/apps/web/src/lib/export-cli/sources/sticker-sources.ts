@@ -10,6 +10,7 @@
 import type { StickerSourceForFilter } from "../types";
 import type { MediaItem } from "@/stores/media/media-store";
 import { getStickerTimingMap } from "@/lib/stickers/sticker-timeline-query";
+import { resolveTimelineStickerVisual } from "@/lib/stickers/timeline-sticker-visual";
 import { rasterizeSvgToPng, isSvgContent } from "./svg-rasterizer";
 import { platform } from "@qcut/platform-core";
 
@@ -182,7 +183,22 @@ export async function extractStickerSources(
 			stickersStore = useStickersOverlayStore.getState();
 		}
 
-		const allStickers = stickersStore.getStickersForExport();
+		const timingMap = getStickerTimingMap();
+		const stickerById = new Map(
+			stickersStore.getStickersForExport().map((sticker) => [sticker.id, sticker])
+		);
+		for (const timing of timingMap.values()) {
+			if (!timing.element) continue;
+			stickerById.set(
+				timing.element.stickerId,
+				resolveTimelineStickerVisual({
+					element: timing.element,
+					fallback: stickerById.get(timing.element.stickerId),
+					elementOrder: timing.elementOrder,
+				})
+			);
+		}
+		const allStickers = Array.from(stickerById.values());
 
 		if (allStickers.length === 0) {
 			logger("[StickerSources] No stickers to export");
@@ -203,9 +219,6 @@ export async function extractStickerSources(
 		}
 
 		const stickerSources: StickerSourceForFilter[] = [];
-
-		// Get timing from timeline (source of truth)
-		const timingMap = getStickerTimingMap();
 
 		let stickerIndex = 0;
 		for (const sticker of allStickers) {
