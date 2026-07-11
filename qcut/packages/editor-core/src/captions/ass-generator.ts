@@ -74,16 +74,43 @@ Format: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text
 		const styleName = styleNames.get(key) || "Default";
 		const startTime = secondsToASSTime(clip.startTime);
 		const endTime = secondsToASSTime(clip.startTime + clip.duration);
-		const text = clip.text.trim().replace(/\n/g, "\\N");
+		const text = captionTextForASS({ clip });
 		content += `Dialogue: 0,${startTime},${endTime},${styleName},,0,0,0,,${text}\n`;
 	}
 
 	return content;
 }
 
+function captionTextForASS({ clip }: { clip: CaptionElement }): string {
+	const text = clip.text.trim().replace(/\n/g, "\\N");
+	const karaokeMode = clip.style?.karaokeMode ?? "none";
+	const words = (clip.words ?? [])
+		.filter((word) => word.type === "word")
+		.sort((left, right) => left.start - right.start);
+	if (karaokeMode === "none" || words.length === 0) return text;
+
+	const clipEnd = clip.startTime + clip.duration;
+	const tag = karaokeMode === "karaoke" ? "kf" : "k";
+	return words
+		.map((word, index) => {
+			const nextStart = words[index + 1]?.start ?? clipEnd;
+			const end = Math.max(word.end, nextStart);
+			const durationCs = Math.max(1, Math.round((end - word.start) * 100));
+			return `{\\${tag}${durationCs}}${word.text.trim()}`;
+		})
+		.join(" ");
+}
+
 function subtitleStyleToASSLine(name: string, style: SubtitleStyle): string {
-	const primary = rgbToASSColor(style.fontColor, style.fontOpacity);
-	const secondary = "&H00FFFFFF";
+	const karaokeEnabled = (style.karaokeMode ?? "none") !== "none";
+	const primary = rgbToASSColor(
+		karaokeEnabled ? (style.highlightColor ?? "#ffff00") : style.fontColor,
+		style.fontOpacity
+	);
+	const secondary = rgbToASSColor(
+		karaokeEnabled ? (style.upcomingColor ?? style.fontColor) : "#ffffff",
+		style.fontOpacity
+	);
 	const outline = rgbToASSColor(style.outlineColor, 1);
 	const back = rgbToASSColor(style.shadowColor, 1);
 	const bold = style.bold ? -1 : 0;

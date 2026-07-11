@@ -19,6 +19,7 @@ import {
 import { validateRenderedFrame } from "./export-engine-debug";
 import { stripMarkdownSyntax } from "@/lib/markdown";
 import { resolveSubtitleStyle, hexToRgba } from "@/lib/captions/subtitle-style";
+import { renderKaraokeCaptionToCanvas } from "@/lib/captions/karaoke-canvas-renderer";
 import type { CaptionElement } from "@/types/timeline";
 import {
 	ScreenRecordingExportCompositor,
@@ -192,7 +193,8 @@ async function renderElement(
 		renderCaptionElement(
 			context.ctx,
 			context.canvas,
-			element as CaptionElement
+			element as CaptionElement,
+			currentTime
 		);
 	} else if (element.type === "markdown") {
 		renderMarkdownElement({
@@ -628,11 +630,23 @@ export function renderTextElement(
 export function renderCaptionElement(
 	ctx: CanvasRenderingContext2D,
 	canvas: HTMLCanvasElement,
-	element: CaptionElement
+	element: CaptionElement,
+	currentTime = element.startTime
 ): void {
 	if (!element.text || !element.text.trim()) return;
 
 	const style = resolveSubtitleStyle(element.style);
+	if (
+		renderKaraokeCaptionToCanvas({
+			ctx,
+			canvas,
+			element,
+			currentTime,
+			style,
+		})
+	) {
+		return;
+	}
 	const fontWeight = style.bold ? "bold" : "normal";
 	const fontStyle = style.italic ? "italic" : "normal";
 

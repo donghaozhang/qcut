@@ -346,6 +346,8 @@ export function PreviewPanel() {
 
 	const {
 		captionSegments,
+		captionStyle,
+		captionWords,
 		blurBackgroundElements,
 		videoSourcesById,
 		blurBackgroundSource,
@@ -747,6 +749,8 @@ export function PreviewPanel() {
 									currentTime={currentTime}
 									isVisible={captionSegments.length > 0}
 									className="absolute inset-0 pointer-events-none"
+									subtitleStyle={captionStyle}
+									words={captionWords}
 								/>
 							</div>
 

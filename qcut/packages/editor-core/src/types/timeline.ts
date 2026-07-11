@@ -355,6 +355,18 @@ export interface AudioVoiceConversionSettings {
 	enabled: boolean;
 	status: "idle" | "processing" | "ready" | "error";
 	sourceMediaId?: string;
+	inputMediaId?: string;
+	sourceStem?: AudioStemName;
+	provider?: string;
+	model?: string;
+	error?: string;
+}
+
+export interface AudioCoverSettings {
+	enabled: boolean;
+	status: "idle" | "separating" | "converting" | "ready" | "error";
+	convertedVocalMediaId?: string;
+	targetVoiceLabel?: string;
 	provider?: string;
 	model?: string;
 	error?: string;
@@ -398,6 +410,7 @@ export interface MediaAudioSettings {
 	telephone: AudioTelephoneSettings;
 	separation: AudioSeparationSettings;
 	voiceConversion: AudioVoiceConversionSettings;
+	cover: AudioCoverSettings;
 	lyrics: AudioLyricsSettings;
 	keyframes?: Partial<Record<AudioKeyframeProperty, MediaPropertyKeyframe[]>>;
 }
@@ -551,6 +564,7 @@ export interface CaptionElement extends BaseTimelineElement {
 	confidence?: number;
 	source: "transcription" | "manual" | "imported";
 	style?: SubtitleStyle;
+	words?: AudioLyricsWord[];
 }
 
 export interface RemotionElement extends BaseTimelineElement {
