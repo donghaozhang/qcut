@@ -138,6 +138,7 @@ tmp/
 playwright-report/
 playwright/.cache/
 /.playwright-mcp/
+/.playwright-cli/
 output/playwright/
 docs/completed/test-results/
 docs/completed/test-results-raw/
