@@ -1,9 +1,10 @@
 import { existsSync } from "node:fs";
 import { resolve } from "node:path";
 import { spawnSync } from "node:child_process";
-import { describe, expect, it } from "vitest";
+import { beforeAll, describe, expect, it } from "vitest";
 import { DEFAULT_MEDIA_COLOR_SETTINGS } from "../../apps/web/src/lib/color/color-properties";
 import { transformColorPixel } from "../../apps/web/src/lib/color/color-pixel-processor";
+import { FILTER_PRESETS } from "../../apps/web/src/lib/filters/filter-registry";
 import { resolveColorFilterSettings } from "../../apps/web/src/lib/filters/filter-resolver";
 import { buildAdjustmentFilter } from "../ffmpeg-video-transform";
 import type { VideoVisual } from "../ffmpeg/types";
@@ -47,17 +48,35 @@ function renderRgbSamples({
 describe.skipIf(!existsSync(ffmpegPath))(
 	"filter library browser/native parity",
 	() => {
-		it("keeps a local LUT within six channel levels across renderers", () => {
-			const color = resolveColorFilterSettings({
+		const input = Buffer.from([38, 82, 146, 196, 112, 58, 222, 205, 178]);
+		let baseline: Buffer;
+
+		beforeAll(() => {
+			baseline = renderRgbSamples({ input });
+		});
+
+		it.each(
+			FILTER_PRESETS
+		)("keeps $id within six channel levels across renderers", (preset) => {
+			const resolved = resolveColorFilterSettings({
 				settings: {
 					...structuredClone(DEFAULT_MEDIA_COLOR_SETTINGS),
 					filter: {
-						presetId: "soft",
-						presetVersion: 1,
-						intensity: 75,
+						presetId: preset.id,
+						presetVersion: preset.version,
+						intensity: preset.defaultIntensity,
 					},
 				},
 			});
+			const color = {
+				...resolved,
+				basic: {
+					...resolved.basic,
+					grain: 0,
+					sharpness: 0,
+					vignette: 0,
+				},
+			};
 			const visual = {
 				adjustments: {
 					brightness: 0,
@@ -72,8 +91,6 @@ describe.skipIf(!existsSync(ffmpegPath))(
 				color,
 				keyframeFps: 30,
 			} as VideoVisual;
-			const input = Buffer.from([38, 82, 146, 196, 112, 58, 222, 205, 178]);
-			const baseline = renderRgbSamples({ input });
 			const native = renderRgbSamples({
 				input,
 				filter: buildAdjustmentFilter(visual),
@@ -94,7 +111,8 @@ describe.skipIf(!existsSync(ffmpegPath))(
 				);
 				for (let channel = 0; channel < 3; channel += 1) {
 					expect(
-						Math.abs(native[offset + channel] - expected[channel])
+						Math.abs(native[offset + channel] - expected[channel]),
+						`${preset.id} pixel ${pixel} channel ${channel}`
 					).toBeLessThanOrEqual(6);
 				}
 			}

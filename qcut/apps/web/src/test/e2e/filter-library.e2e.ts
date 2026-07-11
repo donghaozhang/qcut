@@ -12,6 +12,24 @@ const outputDirectory =
 	process.env.QCUT_FILTER_AUDIT_DIR ??
 	path.join(process.env.TMPDIR ?? "/tmp", "qcut-filter-library-audit");
 
+const categoryCases = [
+	{ id: "summer", count: 3 },
+	{ id: "portrait", count: 3 },
+	{ id: "landscape", count: 3 },
+	{ id: "food", count: 3 },
+	{ id: "camera", count: 3, screenshot: "00-camera.png" },
+	{ id: "latest", count: 9 },
+	{ id: "night", count: 3, screenshot: "00-night.png" },
+	{ id: "cinematic", count: 3 },
+	{ id: "outdoor", count: 2 },
+	{ id: "stylized", count: 2, screenshot: "00-stylized.png" },
+	{ id: "monochrome", count: 2 },
+	{ id: "hd", count: 2, screenshot: "00-hd.png" },
+	{ id: "film", count: 2 },
+	{ id: "basic", count: 3 },
+	{ id: "indoor", count: 2 },
+] as const;
+
 async function addVideo({ page }: { page: Page }) {
 	const mediaItem = page.getByTestId("media-item").first();
 	await expect(mediaItem).toBeVisible();
@@ -61,6 +79,36 @@ test.describe("Filter library", () => {
 			path: path.join(outputDirectory, "00-library.png"),
 			animations: "disabled",
 		});
+		for (const categoryCase of categoryCases) {
+			await filters.getByTestId(`filter-category-${categoryCase.id}`).click();
+			const categoryCards = filters.locator('[data-testid^="filter-card-"]');
+			await expect(categoryCards).toHaveCount(categoryCase.count);
+			const firstCard = categoryCards.first();
+			const firstId = (await firstCard.getAttribute("data-testid"))?.replace(
+				"filter-card-",
+				""
+			);
+			if (!firstId) throw new Error(`${categoryCase.id} has no filter card`);
+			await expect
+				.poll(() =>
+					firstCard.locator("img").evaluate((image: HTMLImageElement) => ({
+						complete: image.complete,
+						naturalWidth: image.naturalWidth,
+					}))
+				)
+				.toEqual({ complete: true, naturalWidth: 288 });
+			await firstCard.click();
+			await expect
+				.poll(async () => (await activeFilter({ page }))?.presetId)
+				.toBe(firstId);
+			if (categoryCase.screenshot) {
+				await filters.screenshot({
+					path: path.join(outputDirectory, categoryCase.screenshot),
+					animations: "disabled",
+				});
+			}
+		}
+		await filters.getByTestId("filter-category-all").click();
 
 		await filters.getByTestId("filter-card-teal-gold").click();
 		await expect
@@ -180,7 +228,7 @@ test.describe("Filter library", () => {
 			);
 			window.dispatchEvent(new Event("qcut:color-presets-changed"));
 		});
-		await filters.getByRole("button", { name: "My filters" }).click();
+		await filters.getByTestId("filter-category-mine").click();
 		await expect(
 			filters.getByTestId("filter-card-e2e-saved-look")
 		).toBeVisible();
