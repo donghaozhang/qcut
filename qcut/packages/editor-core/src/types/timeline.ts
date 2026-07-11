@@ -252,7 +252,20 @@ export interface MediaChromaKey {
 	color: string;
 	similarity: number;
 	blend: number;
+	shadow: number;
+	cleanup: number;
+	spill: number;
+	keyframes?: Partial<
+		Record<MediaChromaKeyKeyframeProperty, MediaPropertyKeyframe[]>
+	>;
 }
+
+export type MediaChromaKeyKeyframeProperty =
+	| "similarity"
+	| "blend"
+	| "shadow"
+	| "cleanup"
+	| "spill";
 
 export interface MediaEnhancements {
 	stabilization: number;

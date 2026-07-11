@@ -35,6 +35,7 @@ export interface BuildCompositionPlanOptions {
 	tracks: TimelineTrack[];
 	currentTime?: number;
 	includeHidden?: boolean;
+	forceActiveElementIds?: ReadonlySet<string>;
 	getElementDuration?: (context: CompositionDurationContext) => number;
 }
 
@@ -43,12 +44,15 @@ function isElementActive({
 	track,
 	currentTime,
 	getElementDuration,
+	forceActiveElementIds,
 }: {
 	element: TimelineElement;
 	track: TimelineTrack;
 	currentTime: number | undefined;
 	getElementDuration: (context: CompositionDurationContext) => number;
+	forceActiveElementIds?: ReadonlySet<string>;
 }): boolean {
+	if (forceActiveElementIds?.has(element.id)) return true;
 	if (currentTime === undefined) return true;
 	const duration = Math.max(0, getElementDuration({ element, track }));
 	return (
@@ -65,6 +69,7 @@ export function buildCompositionPlan({
 	tracks,
 	currentTime,
 	includeHidden = false,
+	forceActiveElementIds,
 	getElementDuration = ({ element }) => getEffectiveDuration(element),
 }: BuildCompositionPlanOptions): CompositionPlan {
 	const orderedTracks = normalizeTrackOrder({ tracks });
@@ -91,6 +96,7 @@ export function buildCompositionPlan({
 					track,
 					currentTime,
 					getElementDuration,
+					forceActiveElementIds,
 				})
 			) {
 				continue;
@@ -124,6 +130,7 @@ export function buildCompositionPlan({
 					track,
 					currentTime,
 					getElementDuration,
+					forceActiveElementIds,
 				})
 			) {
 				continue;

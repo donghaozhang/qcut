@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { buildCompositionPlan } from "../timeline/composition-plan.js";
 import type {
+	MediaElement,
 	TextElement,
 	TimelineElement,
 	TimelineTrack,
@@ -42,6 +43,27 @@ function createTextElement({
 	};
 }
 
+function createMediaElement({
+	id,
+	startTime,
+	duration,
+}: {
+	id: string;
+	startTime: number;
+	duration: number;
+}): MediaElement {
+	return {
+		id,
+		name: id,
+		type: "media",
+		mediaId: `${id}-media`,
+		startTime,
+		duration,
+		trimStart: 0,
+		trimEnd: 0,
+	};
+}
+
 function createTrack({
 	id,
 	order,
@@ -59,6 +81,35 @@ function createTrack({
 }
 
 describe("buildCompositionPlan", () => {
+	it("can force transition partner elements active outside their normal range", () => {
+		const outgoing = createMediaElement({
+			id: "outgoing",
+			startTime: 0,
+			duration: 2,
+		});
+		const incoming = createMediaElement({
+			id: "incoming",
+			startTime: 2,
+			duration: 2,
+		});
+		const track = createTrack({
+			id: "media-track",
+			order: 0,
+			type: "media",
+			elements: [outgoing, incoming],
+		});
+
+		const plan = buildCompositionPlan({
+			tracks: [track],
+			currentTime: 1.8,
+			forceActiveElementIds: new Set(["incoming"]),
+		});
+
+		expect(plan.visualLayers.map(({ element: item }) => item.id)).toEqual([
+			"outgoing",
+			"incoming",
+		]);
+	});
 	it("draws lower UI tracks first and top tracks last", () => {
 		const top = createTrack({
 			id: "top",
