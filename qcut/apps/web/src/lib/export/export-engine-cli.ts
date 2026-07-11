@@ -3,7 +3,7 @@ import type {
 	ExportSettingsWithAudio,
 	AudioExportOptions,
 } from "@/types/export";
-import { TimelineTrack, TimelineElement } from "@/types/timeline";
+import type { TimelineTrack, TimelineElement } from "@/types/timeline";
 import { MediaItem } from "@/stores/media/media-store";
 import { platform } from "@qcut/platform-core";
 import { debugLog, debugError, debugWarn } from "@/lib/debug/debug-config";
@@ -27,10 +27,7 @@ import {
 	buildTextOverlayFilters,
 	buildStickerOverlayFilters,
 	buildImageOverlayFilters,
-	buildCaptionOverlayFilters,
 } from "../export-cli/filters";
-import { buildTextASSOverlay } from "../export-cli/filters/text-ass-overlay";
-import { resolveTextStyle } from "@/lib/text/text-style";
 import {
 	extractVideoSources,
 	extractVideoInputPath,
@@ -60,6 +57,7 @@ import {
 	logActualVideoDurationCLI,
 	logMode2Detection,
 } from "./export-engine-cli-debug";
+import { buildTimelineAssLayers } from "./export-engine-cli-text";
 
 // Re-export types for backward compatibility (using export from)
 export type {
@@ -363,31 +361,15 @@ export class CLIExportEngine extends ExportEngine {
 		console.log(
 			"🔍 [TEXT EXPORT DEBUG] Starting text filter chain generation..."
 		);
-		const textAssLayers: Array<{
-			content: string;
-			blendMode: NonNullable<
-				Extract<TimelineElement, { type: "text" }>["blendMode"]
-			>;
-		}> = [];
-		const assRenderedElementIds = new Set<string>();
-		for (const track of this.tracks) {
-			for (const element of track.elements) {
-				if (element.type !== "text") continue;
-				const layer = buildTextASSOverlay({
-					tracks: [{ ...track, elements: [element] }],
-					allTracks: this.tracks,
-					canvasWidth: this.canvas.width,
-					canvasHeight: this.canvas.height,
-					fps: this.getFrameRate(),
-				});
-				if (!layer.content) continue;
-				textAssLayers.push({
-					content: layer.content,
-					blendMode: resolveTextStyle(element).blendMode,
-				});
-				assRenderedElementIds.add(element.id);
-			}
-		}
+		const {
+			layers: textAssLayers,
+			renderedTextElementIds: assRenderedElementIds,
+		} = buildTimelineAssLayers({
+			tracks: this.tracks,
+			canvasWidth: this.canvas.width,
+			canvasHeight: this.canvas.height,
+			fps: this.getFrameRate(),
+		});
 		const textFilterChain = buildTextOverlayFilters(
 			this.tracks,
 			(window.electronAPI?.platform ?? "darwin") as

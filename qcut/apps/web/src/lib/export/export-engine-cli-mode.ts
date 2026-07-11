@@ -103,6 +103,8 @@ export interface BuildExportOptionsParams {
 			| "overlay"
 			| "darken"
 			| "lighten";
+		trackOrder: number;
+		elementOrder: number;
 	}>;
 	stickerFilterChain: string | undefined;
 	stickerSources: StickerSourceForFilter[];

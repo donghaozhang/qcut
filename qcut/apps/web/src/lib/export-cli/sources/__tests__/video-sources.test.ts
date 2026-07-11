@@ -54,6 +54,9 @@ describe("extractVideoSources", () => {
 		expect(sources).toHaveLength(1);
 		expect(sources[0]).toMatchObject({
 			path: "/tmp/video.mp4",
+			trackId: "main",
+			trackOrder: 0,
+			elementOrder: 0,
 			startTime: 1,
 			duration: 3,
 			trimStart: 0.25,

@@ -377,4 +377,78 @@ describe("extractAudioFileInputs", () => {
 		]);
 		expect(result.map((item) => item.sourceGain)).toEqual([0.8, 0.25]);
 	});
+
+	it("exports an AI cover with converted vocals and original accompaniment stems", async () => {
+		const tracks: TimelineTrack[] = [
+			makeTrack({
+				id: "audio-track",
+				type: "audio",
+				elements: [
+					makeMediaElement({
+						id: "cover",
+						mediaId: "original",
+						startTime: 0,
+						audio: {
+							...DEFAULT_MEDIA_AUDIO_SETTINGS,
+							separation: {
+								enabled: true,
+								status: "ready",
+								stemMediaIds: { vocals: "vocals", drums: "drums" },
+								stemGains: { vocals: 0.9, drums: 0.4 },
+							},
+							voiceConversion: {
+								enabled: true,
+								status: "ready",
+								sourceMediaId: "converted-vocals",
+								inputMediaId: "vocals",
+								sourceStem: "vocals",
+							},
+							cover: {
+								enabled: true,
+								status: "ready",
+								convertedVocalMediaId: "converted-vocals",
+							},
+						},
+					}),
+				],
+			}),
+		];
+		const mediaItems = [
+			makeMediaItem({
+				id: "original",
+				type: "audio",
+				name: "song.wav",
+				localPath: "/tmp/song.wav",
+			}),
+			makeMediaItem({
+				id: "vocals",
+				type: "audio",
+				name: "vocals.wav",
+				localPath: "/tmp/vocals.wav",
+			}),
+			makeMediaItem({
+				id: "converted-vocals",
+				type: "audio",
+				name: "cover-vocals.wav",
+				localPath: "/tmp/cover-vocals.wav",
+			}),
+			makeMediaItem({
+				id: "drums",
+				type: "audio",
+				name: "drums.wav",
+				localPath: "/tmp/drums.wav",
+			}),
+		];
+
+		const result = await extractAudioFileInputs(tracks, mediaItems, "cover", {
+			fileExists: vi.fn(async () => true),
+			saveTemp: vi.fn(),
+		});
+
+		expect(result.map((item) => item.path)).toEqual([
+			"/tmp/cover-vocals.wav",
+			"/tmp/drums.wav",
+		]);
+		expect(result.map((item) => item.sourceGain)).toEqual([0.9, 0.4]);
+	});
 });
