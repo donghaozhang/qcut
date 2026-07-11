@@ -356,6 +356,8 @@ export interface ExportOptions {
 			| "overlay"
 			| "darken"
 			| "lighten";
+		trackOrder?: number;
+		elementOrder?: number;
 	}>;
 	/** Optional FFmpeg overlay filter chain for stickers */
 	stickerFilterChain?: string;

@@ -69,6 +69,42 @@ describe("FFmpeg video transform filters", () => {
 		expect(filter).toContain("concat=n=3:v=1:a=0");
 	});
 
+	it("composites ordered video tracks from bottom to top", () => {
+		const sources: VideoSource[] = [
+			{
+				path: "/top.mp4",
+				startTime: 0,
+				duration: 3,
+				trackOrder: 0,
+				elementOrder: 0,
+			},
+			{
+				path: "/bottom.mp4",
+				startTime: 0,
+				duration: 3,
+				trackOrder: 1,
+				elementOrder: 0,
+			},
+		];
+
+		const result = buildVideoTimelineFilters({
+			videoSources: sources,
+			width: 640,
+			height: 360,
+			fps: 30,
+			totalDuration: 3,
+		});
+		const filter = result.filterSteps.join(";");
+
+		expect(filter).toContain("[1:v]trim=");
+		expect(filter.indexOf("[1:v]trim=")).toBeLessThan(
+			filter.indexOf("[0:v]trim=")
+		);
+		expect(filter).toContain("video_layer_composite_0");
+		expect(filter).toContain("video_layer_composite_1");
+		expect(filter).not.toContain("concat=");
+	});
+
 	it("combines animated masks with add, subtract, and intersect", () => {
 		const expression = buildVideoMaskExpression({
 			...visual,

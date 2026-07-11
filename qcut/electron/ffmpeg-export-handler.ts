@@ -198,6 +198,8 @@ export function setupExportHandler(tempManager: TempManager): void {
 				const textAssLayerPaths: Array<{
 					path: string;
 					blendMode: (typeof textAssLayers)[number]["blendMode"];
+					trackOrder?: number;
+					elementOrder?: number;
 				}> = [];
 				if (textAssLayers.length > 0) {
 					fs.mkdirSync(frameDir, { recursive: true });
@@ -207,6 +209,8 @@ export function setupExportHandler(tempManager: TempManager): void {
 						textAssLayerPaths.push({
 							path: layerPath,
 							blendMode: layer.blendMode,
+							trackOrder: layer.trackOrder,
+							elementOrder: layer.elementOrder,
 						});
 					}
 				}

@@ -214,6 +214,34 @@ describe("buildFFmpegArgs", () => {
 			expect(filter).toContain("alphaextract");
 			expect(filter).toContain("alphamerge");
 		});
+
+		it("renders ASS layers from lower tracks before upper tracks", () => {
+			const args = buildFFmpegArgs(
+				createBaseOptions({
+					useVideoInput: true,
+					videoInputPath: "/input.mp4",
+					textAssLayers: [
+						{
+							path: "/tmp/top.ass",
+							blendMode: "normal",
+							trackOrder: 0,
+							elementOrder: 0,
+						},
+						{
+							path: "/tmp/bottom.ass",
+							blendMode: "normal",
+							trackOrder: 1,
+							elementOrder: 0,
+						},
+					],
+				})
+			);
+
+			const filter = args[args.indexOf("-filter_complex") + 1];
+			expect(filter.indexOf("bottom.ass")).toBeLessThan(
+				filter.indexOf("top.ass")
+			);
+		});
 	});
 
 	describe("Direct Copy Mode", () => {

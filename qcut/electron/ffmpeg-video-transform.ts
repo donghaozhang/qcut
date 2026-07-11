@@ -580,6 +580,7 @@ function buildSegmentFilters({
 	height,
 	fps,
 	backgroundColor,
+	transparentOutput = false,
 }: {
 	source: VideoSource;
 	inputIndex: number;
@@ -588,6 +589,7 @@ function buildSegmentFilters({
 	height: number;
 	fps: number;
 	backgroundColor: string;
+	transparentOutput?: boolean;
 }): { steps: string[]; outputLabel: string; duration: number } {
 	const visual = resolveVisual(source);
 	const trimStart = Math.max(0, source.trimStart ?? 0);
@@ -857,6 +859,15 @@ function buildSegmentFilters({
 			`x='(W-w)/2+(${x})+(${transformAnimation.x})':` +
 			`y='(H-h)/2+(${y})+(${transformAnimation.y})':shortest=1:format=auto[${foreground}]`
 	);
+	if (transparentOutput) {
+		const layer = `video_${segmentIndex}_layer`;
+		const startTime = Math.max(0, source.startTime);
+		steps.push(
+			`[${foreground}]fps=${fps},scale=${width}:${height},setsar=1,format=rgba,settb=AVTB,` +
+				`setpts=PTS-STARTPTS+${startTime}/TB[${layer}]`
+		);
+		return { steps, outputLabel: layer, duration };
+	}
 
 	const background = `video_${segmentIndex}_background`;
 	steps.push(
@@ -893,6 +904,109 @@ function buildSegmentFilters({
 	return { steps, outputLabel: normalized, duration };
 }
 
+function buildLayeredVideoTimelineFilters({
+	videoSources,
+	width,
+	height,
+	fps,
+	totalDuration,
+	backgroundColor,
+}: {
+	videoSources: VideoSource[];
+	width: number;
+	height: number;
+	fps: number;
+	totalDuration: number;
+	backgroundColor: string;
+}): VideoTimelineFilterResult {
+	const indexedSources = videoSources
+		.map((source, inputIndex) => ({ source, inputIndex }))
+		.sort((a, b) => {
+			const trackDifference =
+				(b.source.trackOrder ?? Number.MAX_SAFE_INTEGER) -
+				(a.source.trackOrder ?? Number.MAX_SAFE_INTEGER);
+			if (trackDifference !== 0) return trackDifference;
+
+			const elementDifference =
+				(a.source.elementOrder ?? 0) - (b.source.elementOrder ?? 0);
+			if (elementDifference !== 0) return elementDifference;
+
+			const timeDifference = a.source.startTime - b.source.startTime;
+			return timeDifference !== 0
+				? timeDifference
+				: a.inputIndex - b.inputIndex;
+		});
+	const filterSteps: string[] = [];
+	let currentVideoLabel = "video_layers_background";
+	filterSteps.push(
+		`color=c=${ffmpegColor(backgroundColor)}:s=${width}x${height}:d=${totalDuration}:r=${fps},` +
+			`format=rgba,settb=AVTB,setpts=PTS-STARTPTS[${currentVideoLabel}]`
+	);
+
+	for (let drawOrder = 0; drawOrder < indexedSources.length; drawOrder++) {
+		const { source, inputIndex } = indexedSources[drawOrder];
+		const segment = buildSegmentFilters({
+			source,
+			inputIndex,
+			segmentIndex: drawOrder,
+			width,
+			height,
+			fps,
+			backgroundColor,
+			transparentOutput: true,
+		});
+		filterSteps.push(...segment.steps);
+		const outputLabel = `video_layer_composite_${drawOrder}`;
+		const startTime = Math.max(0, source.startTime);
+		const endTime = Math.min(totalDuration, startTime + segment.duration);
+		const enable = `enable='between(t,${startTime},${endTime})'`;
+		const blendMode = resolveVisual(source).blendMode;
+
+		if (blendMode === "normal") {
+			filterSteps.push(
+				`[${currentVideoLabel}][${segment.outputLabel}]overlay=` +
+					`eof_action=pass:repeatlast=0:shortest=0:format=auto:${enable}[${outputLabel}]`
+			);
+		} else {
+			const baseOriginal = `video_layer_base_original_${drawOrder}`;
+			const baseBlend = `video_layer_base_blend_${drawOrder}`;
+			const foregroundBlend = `video_layer_foreground_blend_${drawOrder}`;
+			const foregroundAlpha = `video_layer_foreground_alpha_${drawOrder}`;
+			const blended = `video_layer_blended_${drawOrder}`;
+			const alphaMask = `video_layer_alpha_mask_${drawOrder}`;
+			const blendedAlpha = `video_layer_blended_alpha_${drawOrder}`;
+			filterSteps.push(
+				`[${currentVideoLabel}]split=2[${baseOriginal}][${baseBlend}]`
+			);
+			filterSteps.push(
+				`[${segment.outputLabel}]split=2[${foregroundBlend}][${foregroundAlpha}]`
+			);
+			filterSteps.push(
+				`[${baseBlend}][${foregroundBlend}]blend=all_mode=${blendMode}:shortest=1[${blended}]`
+			);
+			filterSteps.push(`[${foregroundAlpha}]alphaextract[${alphaMask}]`);
+			filterSteps.push(`[${blended}][${alphaMask}]alphamerge[${blendedAlpha}]`);
+			filterSteps.push(
+				`[${baseOriginal}][${blendedAlpha}]overlay=` +
+					`eof_action=pass:repeatlast=0:shortest=0:format=auto:${enable}[${outputLabel}]`
+			);
+		}
+
+		currentVideoLabel = outputLabel;
+	}
+
+	const outputLabel = "video_timeline_base";
+	filterSteps.push(
+		`[${currentVideoLabel}]fps=${fps},scale=${width}:${height},setsar=1,format=yuv420p,settb=AVTB,` +
+			`setpts=PTS-STARTPTS[${outputLabel}]`
+	);
+	return {
+		filterSteps,
+		outputLabel,
+		segmentCount: indexedSources.length,
+	};
+}
+
 export function buildVideoTimelineFilters({
 	videoSources,
 	width,
@@ -908,6 +1022,17 @@ export function buildVideoTimelineFilters({
 	totalDuration: number;
 	backgroundColor?: string;
 }): VideoTimelineFilterResult {
+	if (videoSources.some((source) => Number.isFinite(source.trackOrder))) {
+		return buildLayeredVideoTimelineFilters({
+			videoSources,
+			width,
+			height,
+			fps,
+			totalDuration,
+			backgroundColor,
+		});
+	}
+
 	const sorted = [...videoSources].sort((a, b) => a.startTime - b.startTime);
 	const filterSteps: string[] = [];
 	const labels: string[] = [];

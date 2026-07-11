@@ -46,6 +46,8 @@ export interface BuildFFmpegArgsOptions {
 			| "overlay"
 			| "darken"
 			| "lighten";
+		trackOrder?: number;
+		elementOrder?: number;
 	}>;
 	useDirectCopy?: boolean;
 	videoSources?: VideoSource[];
@@ -309,7 +311,19 @@ function buildCompositeEncodeArgs(
 			? [{ path: textAssPath, blendMode: "normal" as const }]
 			: []),
 		...textAssLayers,
-	];
+	]
+		.map((layer, sourceIndex) => ({ ...layer, sourceIndex }))
+		.sort((a, b) => {
+			const aHasOrder = Number.isFinite(a.trackOrder);
+			const bHasOrder = Number.isFinite(b.trackOrder);
+			if (aHasOrder && bHasOrder) {
+				const trackDifference = (b.trackOrder ?? 0) - (a.trackOrder ?? 0);
+				if (trackDifference !== 0) return trackDifference;
+				const elementDifference = (a.elementOrder ?? 0) - (b.elementOrder ?? 0);
+				if (elementDifference !== 0) return elementDifference;
+			}
+			return a.sourceIndex - b.sourceIndex;
+		});
 	for (const [index, layer] of resolvedTextAssLayers.entries()) {
 		if (!fs.existsSync(layer.path)) {
 			throw new Error(`ASS text overlay file not found: ${layer.path}`);
