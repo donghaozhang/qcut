@@ -1,7 +1,98 @@
 import { fireEvent, render, screen } from "@testing-library/react";
-import { beforeEach, describe, expect, it } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { toast } from "sonner";
 import { useTimelineStore } from "@/stores/timeline/timeline-store";
+import { clearAutoSaveTimer } from "@/stores/timeline/timeline-store-autosave";
+import { useMediaStore } from "@/stores/media/media-store";
+import type { MediaItem } from "@/stores/media/media-store-types";
+import type { MediaElement, TimelineTrack } from "@/types/timeline";
 import { TransitionsView } from "../index";
+
+vi.mock("sonner", () => ({
+	toast: {
+		success: vi.fn(),
+		error: vi.fn(),
+		info: vi.fn(),
+	},
+}));
+
+function mediaElement({
+	id,
+	name,
+	mediaId,
+	startTime,
+	duration,
+}: {
+	id: string;
+	name: string;
+	mediaId: string;
+	startTime: number;
+	duration: number;
+}): MediaElement {
+	return {
+		id,
+		name,
+		type: "media",
+		mediaId,
+		startTime,
+		duration,
+		trimStart: 0,
+		trimEnd: 0,
+	};
+}
+
+function adjacentClipsTrack(): TimelineTrack {
+	return {
+		id: "track-1",
+		name: "Media",
+		type: "media",
+		isMain: true,
+		elements: [
+			mediaElement({
+				id: "clip-a",
+				name: "Clip A",
+				mediaId: "media-a",
+				startTime: 0,
+				duration: 4,
+			}),
+			mediaElement({
+				id: "clip-b",
+				name: "Clip B",
+				mediaId: "media-b",
+				startTime: 4,
+				duration: 3,
+			}),
+		],
+	};
+}
+
+function mediaItem({
+	id,
+	thumbnailUrl,
+}: {
+	id: string;
+	thumbnailUrl?: string;
+}): MediaItem {
+	return {
+		id,
+		name: `${id}.mp4`,
+		type: "video",
+		file: new File([], `${id}.mp4`),
+		thumbnailUrl,
+	};
+}
+
+function selectAdjacentClips() {
+	const track = adjacentClipsTrack();
+	useTimelineStore.setState({
+		_tracks: [track],
+		tracks: [track],
+		selectedElements: [
+			{ trackId: "track-1", elementId: "clip-a" },
+			{ trackId: "track-1", elementId: "clip-b" },
+		],
+	});
+}
 
 describe("TransitionsView", () => {
 	beforeEach(() => {
@@ -9,7 +100,16 @@ describe("TransitionsView", () => {
 			selectedElements: [],
 			_tracks: [],
 			tracks: [],
+			history: [],
+			redoStack: [],
+			selectedTransition: null,
 		});
+		useMediaStore.setState({ mediaItems: [] });
+	});
+
+	afterEach(() => {
+		clearAutoSaveTimer();
+		vi.clearAllMocks();
 	});
 
 	it("renders transition presets instead of the old placeholder", () => {
@@ -50,5 +150,199 @@ describe("TransitionsView", () => {
 		expect(
 			screen.queryByTestId("transition-card-wipe-left")
 		).not.toBeInTheDocument();
+	});
+
+	it("shows the empty state when no presets match the search", () => {
+		render(<TransitionsView />);
+
+		fireEvent.change(screen.getByLabelText("Search transitions"), {
+			target: { value: "zzzz-no-match" },
+		});
+
+		expect(
+			screen.getByText("No transitions match this search.")
+		).toBeInTheDocument();
+		expect(screen.getByText("0 presets")).toBeInTheDocument();
+	});
+
+	it("falls back selection to the first visible preset when filtered out", () => {
+		render(<TransitionsView />);
+
+		fireEvent.change(screen.getByLabelText("Search transitions"), {
+			target: { value: "rgb" },
+		});
+
+		expect(screen.getByTestId("transition-card-glitch-shift")).toHaveAttribute(
+			"aria-pressed",
+			"true"
+		);
+	});
+
+	it("selects a card on click", () => {
+		render(<TransitionsView />);
+
+		fireEvent.click(screen.getByTestId("transition-card-wipe-left"));
+
+		expect(screen.getByTestId("transition-card-wipe-left")).toHaveAttribute(
+			"aria-pressed",
+			"true"
+		);
+		expect(screen.getByTestId("transition-card-dissolve")).toHaveAttribute(
+			"aria-pressed",
+			"false"
+		);
+	});
+
+	it("disables the apply button without a valid selection", () => {
+		render(<TransitionsView />);
+
+		expect(
+			screen.getByRole("button", { name: "Apply Selected Transition" })
+		).toBeDisabled();
+		expect(
+			screen.getByText(
+				"Select two adjacent media clips to prepare a transition."
+			)
+		).toBeInTheDocument();
+	});
+
+	it("applies the selected preset to the timeline from the footer button", () => {
+		selectAdjacentClips();
+		render(<TransitionsView />);
+
+		expect(
+			screen.getByText("Ready between Clip A and Clip B.")
+		).toBeInTheDocument();
+
+		fireEvent.click(
+			screen.getByRole("button", { name: "Apply Selected Transition" })
+		);
+
+		const track = useTimelineStore
+			.getState()
+			.tracks.find((item) => item.id === "track-1");
+		expect(track?.transitions).toEqual([
+			expect.objectContaining({
+				fromElementId: "clip-a",
+				toElementId: "clip-b",
+				presetId: "dissolve",
+				type: "dissolve",
+				duration: 0.5,
+				easing: "easeInOut",
+			}),
+		]);
+		expect(toast.success).toHaveBeenCalledWith("Dissolve applied.");
+	});
+
+	it("applies a preset from the card apply button", () => {
+		selectAdjacentClips();
+		render(<TransitionsView />);
+
+		fireEvent.click(
+			screen.getByRole("button", { name: "Apply Fade to Black" })
+		);
+
+		const track = useTimelineStore
+			.getState()
+			.tracks.find((item) => item.id === "track-1");
+		expect(track?.transitions).toEqual([
+			expect.objectContaining({
+				presetId: "fade-to-black",
+				type: "fade-black",
+			}),
+		]);
+		expect(toast.success).toHaveBeenCalledWith("Fade to Black applied.");
+	});
+
+	it("shows an error toast when the store rejects the transition", () => {
+		selectAdjacentClips();
+		const originalAddTransition = useTimelineStore.getState().addTransition;
+		const addTransition = vi.fn(() => null);
+		useTimelineStore.setState({ addTransition });
+
+		try {
+			render(<TransitionsView />);
+			fireEvent.click(
+				screen.getByRole("button", { name: "Apply Selected Transition" })
+			);
+
+			expect(addTransition).toHaveBeenCalledWith({
+				trackId: "track-1",
+				fromElementId: "clip-a",
+				toElementId: "clip-b",
+				presetId: "dissolve",
+				type: "dissolve",
+				direction: undefined,
+				duration: 0.5,
+				easing: "easeInOut",
+			});
+			expect(toast.error).toHaveBeenCalledWith(
+				"This cut does not have enough room for a transition."
+			);
+			expect(toast.success).not.toHaveBeenCalled();
+		} finally {
+			useTimelineStore.setState({ addTransition: originalAddTransition });
+		}
+	});
+
+	it("uses the selected clips' thumbnails for card previews", () => {
+		selectAdjacentClips();
+		useMediaStore.setState({
+			mediaItems: [
+				mediaItem({ id: "media-a", thumbnailUrl: "blob:thumb-a" }),
+				mediaItem({ id: "media-b", thumbnailUrl: "blob:thumb-b" }),
+			],
+		});
+		render(<TransitionsView />);
+
+		const card = screen.getByTestId("transition-card-dissolve");
+		const sources = Array.from(card.querySelectorAll("img")).map((img) =>
+			img.getAttribute("src")
+		);
+
+		expect(sources).toEqual(["blob:thumb-a", "blob:thumb-b"]);
+	});
+
+	it("falls back to bundled preview art when no clips are selected", () => {
+		render(<TransitionsView />);
+
+		const card = screen.getByTestId("transition-card-dissolve");
+		const sources = Array.from(card.querySelectorAll("img")).map((img) =>
+			img.getAttribute("src")
+		);
+
+		expect(sources).toEqual([
+			"/images/filter-previews/coastal.webp",
+			"/images/filter-previews/golden-hour.webp",
+		]);
+	});
+
+	it("starts a drag with the encoded transition payload", () => {
+		render(<TransitionsView />);
+		const dataTransfer = {
+			effectAllowed: "",
+			setData: vi.fn(),
+		};
+
+		fireEvent.dragStart(screen.getByTestId("transition-card-slide-left"), {
+			dataTransfer,
+		});
+
+		expect(dataTransfer.effectAllowed).toBe("copy");
+		expect(dataTransfer.setData).toHaveBeenCalledWith(
+			"text/plain",
+			"Slide Left"
+		);
+		const payloadCall = dataTransfer.setData.mock.calls.find(
+			([format]) => format === "application/qcut-transition"
+		);
+		expect(payloadCall).toBeDefined();
+		expect(JSON.parse(payloadCall?.[1] as string)).toEqual({
+			kind: "qcut-transition-preset",
+			id: "slide-left",
+			type: "slide",
+			direction: "left",
+			defaultDuration: 0.45,
+		});
 	});
 });
