@@ -349,6 +349,7 @@ export function FiltersView() {
 								step={1}
 								disabled={!hasSelection}
 								aria-label="Filter intensity"
+								data-testid="filter-intensity-slider"
 								onValueChange={([value]) => updateIntensity({ value })}
 								onValueCommit={() => {
 									intensityInteractionActive.current = false;

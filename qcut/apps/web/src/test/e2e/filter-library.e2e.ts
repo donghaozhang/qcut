@@ -105,12 +105,28 @@ test.describe("Filter library", () => {
 		await filters.getByTestId("filter-card-teal-gold").click();
 
 		const intensity = filters.getByRole("slider", { name: "Filter intensity" });
-		const bounds = await intensity.boundingBox();
-		if (!bounds) throw new Error("Filter intensity slider has no bounds");
-		await page.mouse.click(
-			bounds.x + bounds.width * 0.4,
-			bounds.y + bounds.height / 2
+		await intensity.press("Home");
+		await expect
+			.poll(async () => (await activeFilter({ page }))?.intensity)
+			.toBe(0);
+		const thumbBounds = await intensity.boundingBox();
+		const trackBounds = await filters
+			.getByTestId("filter-intensity-slider")
+			.boundingBox();
+		if (!thumbBounds || !trackBounds) {
+			throw new Error("Filter intensity slider has no bounds");
+		}
+		await page.mouse.move(
+			thumbBounds.x + thumbBounds.width / 2,
+			thumbBounds.y + thumbBounds.height / 2
 		);
+		await page.mouse.down();
+		await page.mouse.move(
+			trackBounds.x + trackBounds.width * 0.4,
+			trackBounds.y + trackBounds.height / 2,
+			{ steps: 8 }
+		);
+		await page.mouse.up();
 		await expect
 			.poll(async () => (await activeFilter({ page }))?.intensity)
 			.toBeGreaterThanOrEqual(35);
@@ -118,7 +134,9 @@ test.describe("Filter library", () => {
 			.poll(async () => (await activeFilter({ page }))?.intensity)
 			.toBeLessThanOrEqual(45);
 
-		await filters.getByRole("button", { name: "Favorite Teal Gold" }).click();
+		await filters
+			.getByRole("button", { name: "Favorite Teal Gold", exact: true })
+			.click();
 		await filters
 			.getByRole("button", { name: "Favorites", exact: true })
 			.click();

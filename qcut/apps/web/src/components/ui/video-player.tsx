@@ -33,6 +33,7 @@ interface VideoPlayerProps {
 	fadeOut?: number;
 	clipPlaybackRate?: number;
 	timingElement?: MediaElement;
+	playbackWindow?: { startTime: number; endTime: number };
 }
 
 function getVideoPlaybackRate({
@@ -75,6 +76,7 @@ export function VideoPlayer({
 	fadeOut = 0,
 	clipPlaybackRate = 1,
 	timingElement,
+	playbackWindow,
 }: VideoPlayerProps) {
 	const videoRef = useRef<HTMLVideoElement>(null);
 	const blobUrlRef = useRef<string | null>(null);
@@ -92,9 +94,11 @@ export function VideoPlayer({
 	const timelineDuration = timingElement
 		? getMediaTimelineDuration(timingElement)
 		: clipDuration - trimStart - trimEnd;
-	const clipEndTime = clipStartTime + timelineDuration;
+	const clipRangeStart = playbackWindow?.startTime ?? clipStartTime;
+	const clipEndTime =
+		playbackWindow?.endTime ?? clipStartTime + timelineDuration;
 	const isInClipRange =
-		currentTime >= clipStartTime && currentTime < clipEndTime;
+		currentTime >= clipRangeStart && currentTime < clipEndTime;
 	useMediaAudioPreview({
 		mediaRef: videoRef,
 		element: timingElement,

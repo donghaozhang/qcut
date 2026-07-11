@@ -23,6 +23,13 @@ describe("Slider Component", () => {
 		expect(slider).toHaveAttribute("aria-valuemax", "90");
 	});
 
+	it("forwards its accessible name to the interactive thumb", () => {
+		render(<Slider defaultValue={[40]} aria-label="Filter intensity" />);
+		expect(
+			screen.getByRole("slider", { name: "Filter intensity" })
+		).toBeInTheDocument();
+	});
+
 	it("handles controlled value", () => {
 		const handleChange = vi.fn();
 		const { rerender } = render(

@@ -78,4 +78,29 @@ describe("VideoPlayer", () => {
 		expect(video.currentTime).toBeCloseTo(1, 4);
 		expect(video.playbackRate).toBe(2);
 	});
+
+	it("holds the first source frame during an incoming transition preroll", () => {
+		const element = media();
+		usePlaybackStore.setState({ currentTime: 9.8 });
+		const { container } = render(
+			<VideoPlayer
+				videoSource={{ type: "remote", src: "https://fal.media/video.mp4" }}
+				clipStartTime={element.startTime}
+				trimStart={element.trimStart}
+				trimEnd={element.trimEnd}
+				clipDuration={element.duration}
+				clipPlaybackRate={element.playbackRate}
+				timingElement={element}
+				playbackWindow={{ startTime: 9.75, endTime: 10.25 }}
+			/>
+		);
+		const video = container.querySelector("video");
+		expect(video).not.toBeNull();
+		if (!video) return;
+
+		video.currentTime = 3;
+		fireEvent.loadedMetadata(video);
+
+		expect(video.currentTime).toBe(0);
+	});
 });
