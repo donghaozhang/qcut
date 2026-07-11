@@ -81,6 +81,65 @@ describe("derived audio source selection", () => {
 		]);
 	});
 
+	it("replaces only the vocal stem for an enabled AI cover", () => {
+		const clip = element({
+			audio: {
+				...DEFAULT_MEDIA_AUDIO_SETTINGS,
+				separation: {
+					enabled: true,
+					status: "ready",
+					stemMediaIds: { vocals: "vocals", drums: "drums" },
+					stemGains: { vocals: 0.9, drums: 0.5 },
+				},
+				voiceConversion: {
+					enabled: true,
+					status: "ready",
+					sourceMediaId: "converted-vocals",
+					inputMediaId: "vocals",
+					sourceStem: "vocals",
+				},
+				cover: {
+					enabled: true,
+					status: "ready",
+					convertedVocalMediaId: "converted-vocals",
+				},
+			},
+		});
+
+		expect(selectMediaAudioSources({ element: clip })).toEqual([
+			{
+				mediaId: "converted-vocals",
+				gain: 0.9,
+				stem: "vocals",
+				source: "voice-conversion",
+			},
+			{ mediaId: "drums", gain: 0.5, stem: "drums", source: "separation" },
+		]);
+	});
+
+	it("does not play an isolated converted vocal when its cover is off", () => {
+		const clip = element({
+			audio: {
+				...DEFAULT_MEDIA_AUDIO_SETTINGS,
+				voiceConversion: {
+					enabled: true,
+					status: "ready",
+					sourceMediaId: "converted-vocals",
+					sourceStem: "vocals",
+				},
+				cover: {
+					enabled: false,
+					status: "ready",
+					convertedVocalMediaId: "converted-vocals",
+				},
+			},
+		});
+
+		expect(selectMediaAudioSources({ element: clip })).toEqual([
+			{ mediaId: "original", gain: 1, source: "original" },
+		]);
+	});
+
 	it("applies a stem gain to preview dB without mutating source settings", () => {
 		const clip = element({
 			audio: {

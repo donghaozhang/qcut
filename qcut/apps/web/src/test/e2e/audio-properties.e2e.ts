@@ -13,7 +13,13 @@ const outputDir =
 	process.env.QCUT_AUDIO_AUDIT_DIR ??
 	path.join(process.env.TMPDIR ?? "/tmp", "qcut-audio-visual-audit");
 
-async function addAudioToTimeline({ page }: { page: Page }) {
+async function addAudioToTimeline({
+	page,
+	expectedCount = 1,
+}: {
+	page: Page;
+	expectedCount?: number;
+}) {
 	const mediaItem = page
 		.getByTestId("media-item")
 		.filter({ hasText: /sample-audio/i })
@@ -25,7 +31,7 @@ async function addAudioToTimeline({ page }: { page: Page }) {
 		page.locator(
 			'[data-testid="timeline-track"][data-track-type="audio"] [data-testid="timeline-element"]'
 		)
-	).toHaveCount(1);
+	).toHaveCount(expectedCount);
 }
 
 async function addVideoToTimeline({ page }: { page: Page }) {
@@ -59,6 +65,62 @@ async function setAudioNumber({
 }
 
 test.describe("Professional audio properties", () => {
+	test("routes every audio selection path to one Sound panel and batch mode", async ({
+		page,
+	}) => {
+		await createTestProject(page, "Audio Selection Routing");
+		await importTestAudio(page);
+		await addAudioToTimeline({ page });
+		await addAudioToTimeline({ page, expectedCount: 2 });
+		const clips = page.locator(
+			'[data-testid="timeline-track"][data-track-type="audio"] [data-testid="timeline-element"]'
+		);
+
+		await clips.first().click();
+		await expect(page.getByTestId("audio-properties-panel")).toBeVisible();
+		await page.getByTestId("panel-tab-export").click();
+		await expect(page.getByTestId("panel-tab-export")).toHaveAttribute(
+			"data-state",
+			"active"
+		);
+
+		await page.evaluate(() => {
+			const store = (window as any).__timelineStore;
+			const track = store
+				.getState()
+				.tracks.find((candidate: any) => candidate.type === "audio");
+			store
+				.getState()
+				.setSelectedElements([
+					{ trackId: track.id, elementId: track.elements[1].id },
+				]);
+		});
+		await expect(page.getByTestId("panel-tab-properties")).toHaveAttribute(
+			"data-state",
+			"active"
+		);
+		await expect(page.getByTestId("audio-properties-panel")).toBeVisible();
+
+		await page.evaluate(() => {
+			const store = (window as any).__timelineStore;
+			const track = store
+				.getState()
+				.tracks.find((candidate: any) => candidate.type === "audio");
+			store.getState().setSelectedElements(
+				track.elements.map((element: any) => ({
+					trackId: track.id,
+					elementId: element.id,
+				}))
+			);
+		});
+		await expect(
+			page.getByTestId("audio-multi-selection-properties")
+		).toContainText("2 audio clips");
+
+		await clips.first().click({ button: "right" });
+		await expect(page.getByTestId("audio-properties-panel")).toBeVisible();
+	});
+
 	test("shares the full panel with audio clips and previews keyframed effects", async ({
 		page,
 	}) => {
@@ -75,7 +137,7 @@ test.describe("Professional audio properties", () => {
 		await page.getByTestId("panel-tab-properties").click();
 		const panel = page.getByTestId("audio-properties-panel");
 		await expect(panel).toBeVisible();
-		await expect(panel.getByRole("tab")).toHaveCount(3);
+		await expect(panel.getByRole("tab")).toHaveCount(5);
 
 		await setAudioNumber({ page, label: "Volume", value: 6 });
 		await panel.getByLabel("Add Volume keyframe").click();
@@ -127,31 +189,59 @@ test.describe("Professional audio properties", () => {
 			animations: "disabled",
 		});
 
-		await panel.getByRole("tab", { name: "Voice" }).click();
 		await expect(panel.getByTestId("audio-module-separation")).toBeVisible();
-		await expect(
-			panel.getByTestId("audio-module-voice-conversion")
-		).toBeVisible();
 		await panel.getByLabel("Enable Voice enhancement").click();
+		await panel
+			.getByTestId("audio-module-voice-enhance")
+			.locator("summary")
+			.click();
 		await setAudioNumber({ page, label: "Clarity", value: 35 });
 		await panel.getByLabel("Enable Pitch").click();
 		await panel.getByTestId("audio-module-pitch").locator("summary").click();
 		await setAudioNumber({ page, label: "Pitch", value: 3 });
-		await page.evaluate(() => {
-			(window as any).__playbackStore.getState().setSpeed(2);
-		});
 		await panel.screenshot({
-			path: path.join(outputDir, "03-audio-voice.png"),
+			path: path.join(outputDir, "03-audio-basic-processing.png"),
+			animations: "disabled",
+		});
+
+		await panel.getByRole("tab", { name: "Voice" }).click();
+		await expect(
+			panel.getByTestId("audio-voice-preset-controls")
+		).toBeVisible();
+		await expect(
+			panel.getByTestId("audio-module-voice-conversion")
+		).toBeVisible();
+		await panel.screenshot({
+			path: path.join(outputDir, "04-audio-voice.png"),
 			animations: "disabled",
 		});
 
 		await panel.getByRole("tab", { name: "Effects" }).click();
+		await expect(panel.getByTestId("audio-preset-controls")).toBeVisible();
 		await panel.getByLabel("Enable Equalizer").click();
 		await setAudioNumber({ page, label: "Low EQ", value: 4 });
 		await panel.getByLabel("Enable Compressor").click();
 		await panel.getByLabel("Enable Limiter").click();
 		await panel.screenshot({
-			path: path.join(outputDir, "04-audio-effects.png"),
+			path: path.join(outputDir, "05-audio-effects.png"),
+			animations: "disabled",
+		});
+
+		await panel.getByRole("tab", { name: "Speed" }).click();
+		await expect(panel.getByTestId("audio-speed-preserve-pitch")).toContainText(
+			"On"
+		);
+		await setAudioNumber({ page, label: "Multiplier", value: 2 });
+		await panel.screenshot({
+			path: path.join(outputDir, "06-audio-speed.png"),
+			animations: "disabled",
+		});
+
+		await panel.getByRole("tab", { name: "Lyrics" }).click();
+		await expect(panel.getByTestId("audio-lyrics-settings")).toBeVisible();
+		await expect(panel.getByTestId("audio-cover-settings")).toBeVisible();
+		await panel.screenshot({
+			path: path.join(outputDir, "07-audio-lyrics-cover.png"),
 			animations: "disabled",
 		});
 
@@ -179,6 +269,22 @@ test.describe("Professional audio properties", () => {
 		);
 		expect(previewGain).toBeGreaterThan(1);
 
+		await panel.getByTestId("audio-preview-bypass").click();
+		await expect
+			.poll(() =>
+				previewAudio.evaluate((audio) => ({
+					effects: audio.dataset.audioPreviewEffects,
+					pitch: audio.dataset.audioPreviewPitch,
+				}))
+			)
+			.toEqual({ effects: "", pitch: "off" });
+		await panel.getByTestId("audio-preview-bypass").click();
+		await expect
+			.poll(() =>
+				previewAudio.evaluate((audio) => audio.dataset.audioPreviewEffects)
+			)
+			.toBe("denoise,voice,equalizer,compressor,limiter");
+
 		const finalState = await page.evaluate(() => {
 			const element = (window as any).__timelineStore
 				.getState()
@@ -194,6 +300,32 @@ test.describe("Professional audio properties", () => {
 		expect(finalState.equalizer).toMatchObject({ enabled: true, lowGainDb: 4 });
 		expect(finalState.compressor.enabled).toBe(true);
 		expect(finalState.limiter.enabled).toBe(true);
+		const playbackRate = await page.evaluate(() => {
+			const element = (window as any).__timelineStore
+				.getState()
+				.tracks.flatMap((track: any) => track.elements)
+				.find((candidate: any) => candidate.type === "media");
+			return element.playbackRate;
+		});
+		expect(playbackRate).toBe(2);
+
+		await panel.getByTestId("audio-reset-all").click();
+		const resetState = await page.evaluate(() => {
+			const element = (window as any).__timelineStore
+				.getState()
+				.tracks.flatMap((track: any) => track.elements)
+				.find((candidate: any) => candidate.type === "media");
+			return {
+				volumeDb: element.audio.volumeDb,
+				equalizerEnabled: element.audio.equalizer.enabled,
+				playbackRate: element.playbackRate,
+			};
+		});
+		expect(resetState).toEqual({
+			volumeDb: 0,
+			equalizerEnabled: false,
+			playbackRate: 2,
+		});
 	});
 
 	test("pre-renders preserved formants before native FFmpeg export", async ({
@@ -213,7 +345,6 @@ test.describe("Professional audio properties", () => {
 		await clip.click();
 		await page.getByTestId("panel-tab-properties").click();
 		const panel = page.getByTestId("audio-properties-panel");
-		await panel.getByRole("tab", { name: "Voice" }).click();
 		await panel.getByLabel("Enable Pitch").click();
 		await panel.getByTestId("audio-module-pitch").locator("summary").click();
 		await setAudioNumber({ page, label: "Pitch", value: 7 });

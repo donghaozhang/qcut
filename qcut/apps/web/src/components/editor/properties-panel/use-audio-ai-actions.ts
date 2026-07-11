@@ -1,5 +1,9 @@
 import { useCallback, useEffect, useRef } from "react";
-import type { MediaAudioSettings, MediaElement } from "@/types/timeline";
+import type {
+	AudioStemName,
+	MediaAudioSettings,
+	MediaElement,
+} from "@/types/timeline";
 import type { MediaItem } from "@/stores/media/media-store-types";
 import { useTimelineStore } from "@/stores/timeline/timeline-store";
 import { useProjectStore } from "@/stores/project-store";
@@ -8,6 +12,7 @@ import {
 	enhanceSpeechAudio,
 	separateAudioStems,
 } from "@/lib/audio/audio-ai-service";
+import type { RemoteAudioFile } from "@/lib/audio/audio-ai-service";
 import {
 	addRemoteAudioMedia,
 	audioFileToFalUrl,
@@ -25,6 +30,50 @@ type PersistSettings = ({
 
 function message(error: unknown): string {
 	return error instanceof Error ? error.message : "Audio AI processing failed";
+}
+
+async function addSeparatedStemMedia({
+	stems,
+	projectId,
+	element,
+	duration,
+	signal,
+}: {
+	stems: Partial<Record<AudioStemName, RemoteAudioFile>>;
+	projectId: string;
+	element: MediaElement;
+	duration: number;
+	signal: AbortSignal;
+}): Promise<{
+	stemMediaIds: Partial<Record<AudioStemName, string>>;
+	stemGains: Partial<Record<AudioStemName, number>>;
+}> {
+	const entries = Object.entries(stems).filter(
+		(entry): entry is [AudioStemName, RemoteAudioFile] => entry[1] !== undefined
+	);
+	const added = await Promise.all(
+		entries.map(async ([stem, remote]) => {
+			const mediaId = await addRemoteAudioMedia({
+				projectId,
+				remote,
+				name: `${element.name}-${stem}.wav`,
+				duration,
+				metadata: {
+					source: "audio-stem-separation",
+					provider: "fal",
+					model: "fal-ai/demucs",
+					stem,
+					sourceMediaId: element.mediaId,
+				},
+				signal,
+			});
+			return [stem, mediaId] as const;
+		})
+	);
+	return {
+		stemMediaIds: Object.fromEntries(added),
+		stemGains: Object.fromEntries(added.map(([stem]) => [stem, 1] as const)),
+	};
 }
 
 export function useAudioAiActions({
@@ -168,8 +217,7 @@ export function useAudioAiActions({
 	}, [
 		begin,
 		duration,
-		element.mediaId,
-		element.name,
+		element,
 		finishOperation,
 		isCurrentOperation,
 		latestSettings,
@@ -200,37 +248,13 @@ export function useAudioAiActions({
 				signal: operation.controller.signal,
 			});
 			if (!isCurrentOperation(operation)) return;
-			const entries = Object.entries(stems).filter(
-				(
-					entry
-				): entry is [
-					keyof typeof stems,
-					NonNullable<(typeof stems)[keyof typeof stems]>,
-				] => entry[1] !== undefined
-			);
-			const added = await Promise.all(
-				entries.map(async ([stem, remote]) => {
-					const mediaId = await addRemoteAudioMedia({
-						projectId: operation.projectId,
-						remote,
-						name: `${element.name}-${stem}.wav`,
-						duration,
-						metadata: {
-							source: "audio-stem-separation",
-							provider: "fal",
-							model: "fal-ai/demucs",
-							stem,
-							sourceMediaId: element.mediaId,
-						},
-						signal: operation.controller.signal,
-					});
-					return [stem, mediaId] as const;
-				})
-			);
-			const stemMediaIds = Object.fromEntries(added);
-			const stemGains = Object.fromEntries(
-				added.map(([stem]) => [stem, 1] as const)
-			);
+			const { stemMediaIds, stemGains } = await addSeparatedStemMedia({
+				stems,
+				projectId: operation.projectId,
+				element,
+				duration,
+				signal: operation.controller.signal,
+			});
 			if (!isCurrentOperation(operation)) return;
 			const latest = latestSettings();
 			persistSettings({
@@ -268,8 +292,7 @@ export function useAudioAiActions({
 	}, [
 		begin,
 		duration,
-		element.mediaId,
-		element.name,
+		element,
 		finishOperation,
 		isCurrentOperation,
 		latestSettings,
@@ -295,8 +318,11 @@ export function useAudioAiActions({
 						status: "processing",
 						provider: "fal",
 						model: "fal-ai/chatterbox/speech-to-speech",
+						inputMediaId: element.mediaId,
+						sourceStem: undefined,
 						error: undefined,
 					},
+					cover: { ...current.cover, enabled: false },
 				},
 				history: false,
 			});
@@ -339,6 +365,8 @@ export function useAudioAiActions({
 							sourceMediaId,
 							provider: "fal",
 							model: "fal-ai/chatterbox/speech-to-speech",
+							inputMediaId: element.mediaId,
+							sourceStem: undefined,
 							error: undefined,
 						},
 					},
@@ -375,5 +403,176 @@ export function useAudioAiActions({
 		]
 	);
 
-	return { runAiDenoise, runSeparation, runVoiceConversion };
+	const runCover = useCallback(
+		async ({
+			targetVoiceUrl,
+			targetVoiceFile,
+		}: {
+			targetVoiceUrl?: string;
+			targetVoiceFile?: File;
+		}) => {
+			const operation = begin();
+			const previous = latestSettings();
+			let stage: "separating" | "converting" = "separating";
+			persistSettings({
+				next: {
+					...previous,
+					separation: {
+						...previous.separation,
+						status: "processing",
+						error: undefined,
+					},
+					cover: {
+						...previous.cover,
+						enabled: false,
+						status: "separating",
+						error: undefined,
+					},
+				},
+				history: false,
+			});
+			try {
+				const targetVoicePromise = targetVoiceFile
+					? audioFileToFalUrl({ file: targetVoiceFile })
+					: Promise.resolve(undefined);
+				const sourceAudioUrl = await mediaItemToFalAudioUrl({
+					mediaItem: operation.mediaItem,
+				});
+				const [stems, uploadedTargetUrl] = await Promise.all([
+					separateAudioStems({
+						audioUrl: sourceAudioUrl,
+						signal: operation.controller.signal,
+					}),
+					targetVoicePromise,
+				]);
+				if (!stems.vocals) {
+					throw new Error("Voice separation did not return a vocal stem");
+				}
+				const { stemMediaIds, stemGains } = await addSeparatedStemMedia({
+					stems,
+					projectId: operation.projectId,
+					element,
+					duration,
+					signal: operation.controller.signal,
+				});
+				if (!isCurrentOperation(operation)) return;
+				stage = "converting";
+				const separated = latestSettings();
+				persistSettings({
+					next: {
+						...separated,
+						separation: {
+							...separated.separation,
+							enabled: true,
+							status: "ready",
+							stemMediaIds,
+							stemGains,
+							error: undefined,
+						},
+						cover: {
+							...separated.cover,
+							status: "converting",
+							error: undefined,
+						},
+					},
+					history: false,
+				});
+				const convertedVocal = await convertClipVoice({
+					sourceAudioUrl: stems.vocals.url,
+					targetVoiceAudioUrl:
+						uploadedTargetUrl || targetVoiceUrl?.trim() || undefined,
+					signal: operation.controller.signal,
+				});
+				if (!isCurrentOperation(operation)) return;
+				const convertedVocalMediaId = await addRemoteAudioMedia({
+					projectId: operation.projectId,
+					remote: convertedVocal,
+					name: `${element.name}-cover-vocals.wav`,
+					duration,
+					metadata: {
+						source: "audio-ai-cover-vocals",
+						provider: "fal",
+						model: "fal-ai/chatterbox/speech-to-speech",
+						sourceMediaId: element.mediaId,
+						inputVocalMediaId: stemMediaIds.vocals,
+					},
+					signal: operation.controller.signal,
+				});
+				if (!isCurrentOperation(operation)) return;
+				const latest = latestSettings();
+				persistSettings({
+					next: {
+						...latest,
+						separation: {
+							...latest.separation,
+							enabled: true,
+							status: "ready",
+							stemMediaIds,
+							stemGains,
+						},
+						voiceConversion: {
+							enabled: true,
+							status: "ready",
+							sourceMediaId: convertedVocalMediaId,
+							inputMediaId: stemMediaIds.vocals,
+							sourceStem: "vocals",
+							provider: "fal",
+							model: "fal-ai/chatterbox/speech-to-speech",
+						},
+						cover: {
+							enabled: true,
+							status: "ready",
+							convertedVocalMediaId,
+							targetVoiceLabel:
+								targetVoiceFile?.name ||
+								(targetVoiceUrl?.trim() ? "Voice URL" : "Default voice"),
+							provider: "fal",
+							model: "fal-ai/chatterbox/speech-to-speech",
+						},
+					},
+					history: false,
+				});
+				finishOperation(operation);
+			} catch (error) {
+				if (!isCurrentOperation(operation)) return;
+				const latest = latestSettings();
+				persistSettings({
+					next: {
+						...latest,
+						separation:
+							stage === "separating"
+								? {
+										...previous.separation,
+										status: "error",
+										error: message(error),
+									}
+								: latest.separation,
+						voiceConversion:
+							stage === "converting"
+								? previous.voiceConversion
+								: latest.voiceConversion,
+						cover: {
+							...previous.cover,
+							status: "error",
+							error: message(error),
+						},
+					},
+					history: false,
+				});
+				finishOperation(operation);
+				throw error;
+			}
+		},
+		[
+			begin,
+			duration,
+			element,
+			finishOperation,
+			isCurrentOperation,
+			latestSettings,
+			persistSettings,
+		]
+	);
+
+	return { runAiDenoise, runSeparation, runVoiceConversion, runCover };
 }

@@ -4,6 +4,7 @@ import type { CreateCaptionElement, MediaElement } from "@/types/timeline";
 import { WORD_FILTER_STATE, type WordItem } from "@/types/word-timeline";
 
 interface TimelineLyricWord {
+	id: string;
 	text: string;
 	start: number;
 	end: number;
@@ -82,6 +83,7 @@ function visibleLyricWords({
 				fps,
 			});
 			return {
+				id: word.id,
 				text: word.text.trim(),
 				start: element.startTime + Math.min(mappedStart, mappedEnd),
 				end: element.startTime + Math.max(mappedStart, mappedEnd),
@@ -140,6 +142,13 @@ export function buildKaraokeCaptionElements({
 			trimStart: 0,
 			trimEnd: 0,
 			text: group.map((word) => word.text).join(" "),
+			words: group.map((word) => ({
+				id: word.id,
+				text: word.text,
+				start: word.start,
+				end: word.end,
+				type: "word" as const,
+			})),
 			language,
 			source: "transcription",
 			style: {

@@ -19,6 +19,10 @@ export interface AudioSettingsEditorBindings {
 		targetVoiceUrl?: string;
 		targetVoiceFile?: File;
 	}) => Promise<void>;
+	onRunCover: (options: {
+		targetVoiceUrl?: string;
+		targetVoiceFile?: File;
+	}) => Promise<void>;
 	onInteractionStart: () => void;
 	onInteractionEnd: () => void;
 }

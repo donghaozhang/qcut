@@ -209,6 +209,7 @@ function presetSnapshot({
 		},
 		separation: { enabled: false, status: "idle" },
 		voiceConversion: { enabled: false, status: "idle" },
+		cover: { enabled: false, status: "idle" },
 		lyrics: { status: "idle", text: "", words: [] },
 		keyframes: {},
 	};
@@ -272,6 +273,7 @@ export function applyAudioPreset({
 		},
 		separation: structuredClone(settings.separation),
 		voiceConversion: structuredClone(settings.voiceConversion),
+		cover: structuredClone(settings.cover),
 		lyrics: {
 			...settings.lyrics,
 			words: settings.lyrics.words.map((word) => ({ ...word })),

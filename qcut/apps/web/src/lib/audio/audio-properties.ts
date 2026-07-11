@@ -82,6 +82,10 @@ export const DEFAULT_MEDIA_AUDIO_SETTINGS: MediaAudioSettings = {
 		enabled: false,
 		status: "idle",
 	},
+	cover: {
+		enabled: false,
+		status: "idle",
+	},
 	lyrics: {
 		status: "idle",
 		text: "",
@@ -105,6 +109,7 @@ export function createDefaultMediaAudioSettings(): MediaAudioSettings {
 		telephone: { ...DEFAULT_MEDIA_AUDIO_SETTINGS.telephone },
 		separation: { ...DEFAULT_MEDIA_AUDIO_SETTINGS.separation },
 		voiceConversion: { ...DEFAULT_MEDIA_AUDIO_SETTINGS.voiceConversion },
+		cover: { ...DEFAULT_MEDIA_AUDIO_SETTINGS.cover },
 		lyrics: {
 			...DEFAULT_MEDIA_AUDIO_SETTINGS.lyrics,
 			words: [],
@@ -148,9 +153,19 @@ export function resetMediaAudioProcessing({
 		voiceConversion: {
 			...next.voiceConversion,
 			sourceMediaId: settings.voiceConversion.sourceMediaId,
+			inputMediaId: settings.voiceConversion.inputMediaId,
+			sourceStem: settings.voiceConversion.sourceStem,
 			provider: settings.voiceConversion.provider,
 			model: settings.voiceConversion.model,
 			status: hasVoiceConversionResult ? "ready" : "idle",
+		},
+		cover: {
+			...next.cover,
+			convertedVocalMediaId: settings.cover.convertedVocalMediaId,
+			targetVoiceLabel: settings.cover.targetVoiceLabel,
+			provider: settings.cover.provider,
+			model: settings.cover.model,
+			status: settings.cover.convertedVocalMediaId ? "ready" : "idle",
 		},
 		lyrics: {
 			...settings.lyrics,
@@ -350,6 +365,10 @@ export function normalizeMediaAudioSettings({
 			...DEFAULT_MEDIA_AUDIO_SETTINGS.voiceConversion,
 			...audio?.voiceConversion,
 		},
+		cover: {
+			...DEFAULT_MEDIA_AUDIO_SETTINGS.cover,
+			...audio?.cover,
+		},
 		lyrics: {
 			...DEFAULT_MEDIA_AUDIO_SETTINGS.lyrics,
 			...audio?.lyrics,
@@ -477,7 +496,8 @@ export function hasMediaAudioEdits({
 	if (
 		settings.voiceConversion.enabled &&
 		settings.voiceConversion.status === "ready" &&
-		settings.voiceConversion.sourceMediaId
+		settings.voiceConversion.sourceMediaId &&
+		(!settings.voiceConversion.sourceStem || settings.cover.enabled)
 	) {
 		return true;
 	}

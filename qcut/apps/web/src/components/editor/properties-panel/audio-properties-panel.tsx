@@ -273,6 +273,7 @@ export function AudioPropertiesPanel({
 		onRunAiDenoise: audioAiActions.runAiDenoise,
 		onRunSeparation: audioAiActions.runSeparation,
 		onRunVoiceConversion: audioAiActions.runVoiceConversion,
+		onRunCover: audioAiActions.runCover,
 		onInteractionStart: beginInteraction,
 		onInteractionEnd: endInteraction,
 	};

@@ -1,14 +1,27 @@
-import { FileText, ListMusic, LoaderCircle, Save } from "lucide-react";
-import { useEffect, useState } from "react";
+import {
+	FileText,
+	ListMusic,
+	LoaderCircle,
+	Mic2,
+	Save,
+	Trash2,
+	Upload,
+} from "lucide-react";
+import { useEffect, useRef, useState } from "react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
+import { Input } from "@/components/ui/input";
+import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
 import { useElevenLabsTranscription } from "@/hooks/media/use-elevenlabs-transcription";
 import {
 	buildKaraokeCaptionElements,
 	retimeLyricsWords,
 } from "@/lib/audio/audio-lyrics";
-import { normalizeMediaAudioSettings } from "@/lib/audio/audio-properties";
+import {
+	DEFAULT_MEDIA_AUDIO_SETTINGS,
+	normalizeMediaAudioSettings,
+} from "@/lib/audio/audio-properties";
 import { useMediaPanelStore } from "@/components/editor/media-panel/store";
 import { useProjectStore } from "@/stores/project-store";
 import type { MediaItem } from "@/stores/media/media-store-types";
@@ -17,6 +30,7 @@ import { useWordTimelineStore } from "@/stores/timeline/word-timeline-store";
 import type { AudioLyricsWord, MediaElement } from "@/types/timeline";
 import { WORD_FILTER_STATE, type WordItem } from "@/types/word-timeline";
 import type { AudioSettingsEditorBindings } from "./audio-properties-types";
+import { activateButtonFromKeyboard } from "./audio-property-controls";
 
 function editableWords({ words }: { words: AudioLyricsWord[] }): WordItem[] {
 	return words.map((word) => ({
@@ -63,7 +77,13 @@ export function AudioLyricsSettings({
 	const { transcribeMedia, isTranscribing, progress, error } =
 		useElevenLabsTranscription();
 	const [draft, setDraft] = useState(bindings.settings.lyrics.text);
+	const [targetVoiceUrl, setTargetVoiceUrl] = useState("");
+	const [targetVoiceFile, setTargetVoiceFile] = useState<File>();
+	const targetVoiceInputRef = useRef<HTMLInputElement>(null);
 	const lyrics = bindings.settings.lyrics;
+	const cover = bindings.settings.cover;
+	const coverBusy =
+		cover.status === "separating" || cover.status === "converting";
 	const sourcePath =
 		mediaItem?.localPath ?? mediaItem?.importMetadata?.originalPath;
 
@@ -199,6 +219,38 @@ export function AudioLyricsSettings({
 		});
 		toast.success(`Created ${captions.length} karaoke captions`);
 	};
+	const runCover = async () => {
+		try {
+			await bindings.onRunCover({ targetVoiceUrl, targetVoiceFile });
+			toast.success("AI cover is ready");
+		} catch (coverError) {
+			toast.error(
+				coverError instanceof Error ? coverError.message : "AI cover failed"
+			);
+		}
+	};
+	const selectCoverSource = ({ value }: { value: "original" | "cover" }) => {
+		const current = latestSettings();
+		const enabled = value === "cover";
+		bindings.onSettingsChange({
+			...current,
+			separation: { ...current.separation, enabled },
+			voiceConversion: { ...current.voiceConversion, enabled },
+			cover: { ...current.cover, enabled },
+		});
+	};
+	const removeCoverResult = () => {
+		const current = latestSettings();
+		bindings.onSettingsChange({
+			...current,
+			separation: { ...current.separation, enabled: false },
+			voiceConversion:
+				current.voiceConversion.sourceStem === "vocals"
+					? { ...DEFAULT_MEDIA_AUDIO_SETTINGS.voiceConversion }
+					: current.voiceConversion,
+			cover: { ...DEFAULT_MEDIA_AUDIO_SETTINGS.cover },
+		});
+	};
 
 	return (
 		<div
@@ -292,6 +344,100 @@ export function AudioLyricsSettings({
 						{lyrics.captionTrackId ? "Update karaoke" : "Add karaoke"}
 					</Button>
 				</div>
+			</section>
+
+			<section className="space-y-3 py-3" data-testid="audio-cover-settings">
+				<div className="flex items-center gap-2">
+					<span className="min-w-0 flex-1 text-xs">AI cover</span>
+					<span className="text-[10px] capitalize text-muted-foreground">
+						{cover.status}
+					</span>
+				</div>
+				<Input
+					value={targetVoiceUrl}
+					onChange={(event) => setTargetVoiceUrl(event.target.value)}
+					placeholder="Target voice URL (optional)"
+					aria-label="AI cover target voice URL"
+				/>
+				<input
+					ref={targetVoiceInputRef}
+					type="file"
+					accept="audio/*"
+					className="sr-only"
+					onChange={(event) => setTargetVoiceFile(event.target.files?.[0])}
+				/>
+				<div className="flex items-center justify-between gap-2">
+					<Button
+						type="button"
+						variant="text"
+						size="sm"
+						onClick={() => targetVoiceInputRef.current?.click()}
+						onKeyDown={(event) => activateButtonFromKeyboard({ event })}
+					>
+						<Upload className="size-3.5" />
+						<span className="max-w-28 truncate">
+							{targetVoiceFile?.name ?? "Reference voice"}
+						</span>
+					</Button>
+					<Button
+						type="button"
+						variant="default"
+						size="sm"
+						disabled={coverBusy}
+						onClick={() => void runCover()}
+						onKeyDown={(event) => activateButtonFromKeyboard({ event })}
+					>
+						{coverBusy ? (
+							<LoaderCircle className="size-3.5 animate-spin" />
+						) : (
+							<Mic2 className="size-3.5" />
+						)}
+						{cover.status === "ready" ? "Regenerate" : "Generate cover"}
+					</Button>
+				</div>
+				{cover.convertedVocalMediaId ? (
+					<div className="flex items-center justify-between gap-2">
+						<ToggleGroup
+							type="single"
+							value={cover.enabled ? "cover" : "original"}
+							onValueChange={(value) => {
+								if (value === "cover" || value === "original") {
+									selectCoverSource({ value });
+								}
+							}}
+							variant="outline"
+							size="sm"
+							aria-label="AI cover result source"
+						>
+							<ToggleGroupItem value="original" className="h-7 text-[10px]">
+								Original
+							</ToggleGroupItem>
+							<ToggleGroupItem value="cover" className="h-7 text-[10px]">
+								Cover
+							</ToggleGroupItem>
+						</ToggleGroup>
+						<Button
+							type="button"
+							variant="text"
+							size="icon"
+							className="size-7"
+							aria-label="Remove AI cover result"
+							title="Remove AI cover result"
+							onClick={removeCoverResult}
+							onKeyDown={(event) => activateButtonFromKeyboard({ event })}
+						>
+							<Trash2 className="size-3.5" />
+						</Button>
+					</div>
+				) : null}
+				{cover.targetVoiceLabel ? (
+					<p className="text-[10px] text-muted-foreground">
+						Voice: {cover.targetVoiceLabel}
+					</p>
+				) : null}
+				{cover.error ? (
+					<p className="text-[10px] text-destructive">{cover.error}</p>
+				) : null}
 			</section>
 		</div>
 	);

@@ -32,13 +32,22 @@ function separatedSources({
 	}
 	const sources: SelectedAudioSource[] = [];
 	for (const stem of STEM_ORDER) {
-		const mediaId = settings.separation.stemMediaIds?.[stem];
+		const separatedMediaId = settings.separation.stemMediaIds?.[stem];
+		const usesConvertedStem =
+			settings.cover.enabled &&
+			settings.voiceConversion.enabled &&
+			settings.voiceConversion.status === "ready" &&
+			settings.voiceConversion.sourceStem === stem &&
+			Boolean(settings.voiceConversion.sourceMediaId);
+		const mediaId = usesConvertedStem
+			? settings.voiceConversion.sourceMediaId
+			: separatedMediaId;
 		if (!mediaId) continue;
 		sources.push({
 			mediaId,
 			gain: Math.max(0, settings.separation.stemGains?.[stem] ?? 1),
 			stem,
-			source: "separation",
+			source: usesConvertedStem ? "voice-conversion" : "separation",
 		});
 	}
 	return sources;
@@ -71,7 +80,8 @@ export function selectMediaAudioSources({
 	if (
 		settings.voiceConversion.enabled &&
 		settings.voiceConversion.status === "ready" &&
-		settings.voiceConversion.sourceMediaId
+		settings.voiceConversion.sourceMediaId &&
+		!settings.voiceConversion.sourceStem
 	) {
 		return [
 			{
