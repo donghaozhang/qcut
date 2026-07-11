@@ -247,9 +247,14 @@ export function PreviewElementRenderer({
 				] || "";
 			const textStyle = resolveTextStyle(displayElement);
 			const animationState = getTextAnimationState(element, currentTime);
+			// Mirror the export cap in text-canvas-renderer.ts, which clamps the
+			// box to 2x the canvas; without it oversized boxes preview differently
+			// than they export.
+			const boxWidth = Math.min(textStyle.width, canvasSize.width * 2);
+			const boxHeight = Math.min(textStyle.height, canvasSize.height * 2);
 			const curvedCharacters = getCurvedTextTransforms({
 				text: displayElement.content,
-				width: Math.max(1, textStyle.width - textStyle.backgroundPadding * 2),
+				width: Math.max(1, boxWidth - textStyle.backgroundPadding * 2),
 				curve: textStyle.curve,
 			});
 
@@ -286,8 +291,8 @@ export function PreviewElementRenderer({
 						top: `${50 + ((displayY + animationState.offsetY) / canvasSize.height) * 100}%`,
 						transform: `translate(-50%, -50%) rotate(${displayElement.rotation}deg) scale(${scaleRatio})`,
 						opacity: displayElement.opacity * animationState.opacity,
-						width: `${textStyle.width}px`,
-						height: `${textStyle.height}px`,
+						width: `${boxWidth}px`,
+						height: `${boxHeight}px`,
 						mixBlendMode: textStyle.blendMode,
 						zIndex: index + 1,
 					}}

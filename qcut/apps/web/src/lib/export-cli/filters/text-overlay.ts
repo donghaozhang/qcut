@@ -60,11 +60,6 @@ export function convertTextElementToDrawtext(
 		property: "y",
 		fps,
 	});
-	const rotationKeyframes = buildFFmpegKeyframeExpression({
-		element,
-		property: "rotation",
-		fps,
-	});
 	const opacityKeyframes = buildFFmpegKeyframeExpression({
 		element,
 		property: "opacity",
@@ -161,13 +156,10 @@ export function convertTextElementToDrawtext(
 		filterParams.push(`alpha=${element.opacity}`);
 	}
 
-	// Handle rotation
-	if (rotationKeyframes) {
-		filterParams.push(`angle='(${rotationKeyframes})*PI/180'`);
-	} else if (element.rotation && element.rotation !== 0) {
-		const radians = (element.rotation * Math.PI) / 180;
-		filterParams.push(`angle=${radians}`);
-	}
+	// Rotation is intentionally not emitted: drawtext has no `angle` option and
+	// an unknown option aborts the whole filtergraph. Rotated plain text goes
+	// through the ASS overlay pipeline (\frz); drawtext-rendered elements
+	// export unrotated.
 
 	// Handle background color
 	if (element.backgroundColor && element.backgroundColor !== "transparent") {

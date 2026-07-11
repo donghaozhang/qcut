@@ -74,11 +74,26 @@ export function setupUtilityHandlers(tempManager: TempManager): void {
 					stdio: ["ignore", "pipe", "pipe"],
 				});
 				let stderr = "";
+				let settled = false;
+				const timer = setTimeout(() => {
+					if (settled) return;
+					settled = true;
+					ffmpeg.kill();
+					reject(new Error("Audio export timeout (5 minutes)"));
+				}, 300_000);
 				ffmpeg.stderr?.on("data", (data) => {
 					stderr += data.toString();
 				});
-				ffmpeg.on("error", reject);
+				ffmpeg.on("error", (err) => {
+					if (settled) return;
+					settled = true;
+					clearTimeout(timer);
+					reject(err);
+				});
 				ffmpeg.on("close", (code) => {
+					if (settled) return;
+					settled = true;
+					clearTimeout(timer);
 					if (code === 0) resolve();
 					else
 						reject(
@@ -100,9 +115,14 @@ export function setupUtilityHandlers(tempManager: TempManager): void {
 			_event: IpcMainInvokeEvent,
 			options: GifConversionOptions
 		): Promise<{ outputPath: string; fileSize: number }> => {
-			const outputDir = tempManager.getOutputDir(options.sessionId);
+			const outputDir = path.resolve(
+				tempManager.getOutputDir(options.sessionId)
+			);
 			const resolvedInput = path.resolve(options.inputPath);
-			if (!resolvedInput.startsWith(path.resolve(outputDir))) {
+			// path.relative is separator-aware: a raw startsWith prefix check would
+			// also accept sibling dirs like `<session>/output-evil/...`.
+			const relativeInput = path.relative(outputDir, resolvedInput);
+			if (relativeInput.startsWith("..") || path.isAbsolute(relativeInput)) {
 				throw new Error("GIF input must be inside the active export session");
 			}
 			const outputPath = path.join(outputDir, "output.gif");

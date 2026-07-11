@@ -1668,18 +1668,39 @@ async function executeVideoToVideo(
 				duration: 0,
 			};
 		}
-		const keyframeUrls: string[] = [];
+		if (rawImages.length > LUMA_RAY_MAX_KEYFRAMES) {
+			return {
+				success: false,
+				error: `Ray 3.2 v2v supports at most ${LUMA_RAY_MAX_KEYFRAMES} keyframes (got ${rawImages.length}).`,
+				duration: 0,
+			};
+		}
+		// Preflight-validate every index before any upload: a bad index late in
+		// the list would otherwise waste uploads for the earlier keyframes.
 		const keyframeIndexes: number[] = [];
-		for (let i = 0; i < rawImages.length; i += 1) {
-			const image = String(rawImages[i]).trim();
-			const index = Number(String(rawIndexes[i]).trim());
+		let previousIndex = -1;
+		for (const rawIndex of rawIndexes) {
+			const index = Number(String(rawIndex).trim());
 			if (!Number.isInteger(index) || index < 0) {
 				return {
 					success: false,
-					error: `Ray 3.2 v2v keyframe indexes must be non-negative integers (got ${String(rawIndexes[i])}).`,
+					error: `Ray 3.2 v2v keyframe indexes must be non-negative integers (got ${String(rawIndex)}).`,
 					duration: 0,
 				};
 			}
+			if (index <= previousIndex) {
+				return {
+					success: false,
+					error: `Ray 3.2 v2v keyframe indexes must be unique and in ascending order (got ${index} after ${previousIndex}).`,
+					duration: 0,
+				};
+			}
+			previousIndex = index;
+			keyframeIndexes.push(index);
+		}
+		const keyframeUrls: string[] = [];
+		for (let i = 0; i < rawImages.length; i += 1) {
+			const image = String(rawImages[i]).trim();
 			let url = image;
 			if (provider === "fal" && !/^https?:/i.test(image)) {
 				if (options.signal?.aborted) {
@@ -1704,7 +1725,6 @@ async function executeVideoToVideo(
 				url = upload.url;
 			}
 			keyframeUrls.push(url);
-			keyframeIndexes.push(index);
 		}
 		payload.keyframes = keyframeUrls;
 		payload.keyframe_indexes = keyframeIndexes;

@@ -265,10 +265,7 @@ export interface TimelineStore {
 			>
 		>;
 	}) => void;
-	removeTransition: (input: {
-		trackId: string;
-		transitionId: string;
-	}) => void;
+	removeTransition: (input: { trackId: string; transitionId: string }) => void;
 	setTransitionAudioCrossfade: (input: {
 		trackId: string;
 		fromElementId: string;
@@ -590,7 +587,7 @@ export interface TimelineStore {
 	) => boolean;
 	findOrCreateTrack: (trackType: TrackType) => string;
 	addMediaAtTime: (item: MediaItem, currentTime?: number) => boolean;
-	addTextAtTime: (item: TextElement, currentTime?: number) => boolean;
+	addTextAtTime: (item: Partial<TextElement>, currentTime?: number) => boolean;
 	addMarkdownAtTime: (item: MarkdownElement, currentTime?: number) => boolean;
 	addMediaToNewTrack: (item: MediaItem) => boolean;
 	addTextToNewTrack: (item: TextElement | DragData) => boolean;

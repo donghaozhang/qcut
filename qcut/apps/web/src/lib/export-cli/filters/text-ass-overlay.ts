@@ -28,10 +28,13 @@ function assOverrideColor(hex: string): string {
 }
 
 function escapeASSText(text: string): string {
+	// `{` opens an ASS override block and would swallow the following text, so
+	// escape it (libass renders `\{` as a literal brace). A bare `}` outside an
+	// override block already renders literally and `\}` is not portable, so it
+	// stays as-is.
 	return text
 		.replaceAll("\\", "\\\\")
-		.replaceAll("{", "(")
-		.replaceAll("}", ")")
+		.replaceAll("{", "\\{")
 		.replace(/\r?\n/g, "\\N");
 }
 
@@ -291,6 +294,54 @@ function buildElementEvents({
 		);
 	}
 
+	// Per-glyph layout for curved text, shared by the main render pass and the
+	// shadow/glow passes so effects follow the curve instead of a straight line.
+	const getCurvedGlyphLayout = (): Array<{
+		text: string;
+		x: number;
+		y: number;
+		anchorTags: string;
+	}> => {
+		const characters = getCurvedTextTransforms({
+			text: element.content,
+			width: Math.max(
+				1,
+				style.width - style.backgroundPadding * 2 - element.fontSize
+			),
+			curve: style.curve,
+		});
+		const layout: Array<{
+			text: string;
+			x: number;
+			y: number;
+			anchorTags: string;
+		}> = [];
+		for (const character of characters) {
+			if (character.character === " ") continue;
+			layout.push({
+				text: character.character,
+				x: canvasWidth / 2 + element.x + character.x,
+				y: canvasHeight / 2 + element.y + character.y,
+				anchorTags: `\\an5\\frz${-(element.rotation + character.rotation)}`,
+			});
+		}
+		return layout;
+	};
+
+	const getEffectLayout = () =>
+		style.curve !== 0
+			? getCurvedGlyphLayout()
+			: getStraightLineLayout({
+					element,
+					canvasWidth,
+					canvasHeight,
+				}).map((line) => ({
+					text: line.text,
+					x: line.x,
+					y: line.y,
+					anchorTags: `\\an${line.alignment}${baseTags}`,
+				}));
+
 	const addEffectEvent = ({
 		color,
 		opacity,
@@ -307,21 +358,16 @@ function buildElementEvents({
 		border: number;
 	}) => {
 		if (opacity <= 0) return;
-		for (const line of getStraightLineLayout({
-			element,
-			canvasWidth,
-			canvasHeight,
-		})) {
+		for (const entry of getEffectLayout()) {
 			const tags = [
-				`\\an${line.alignment}`,
-				baseTags,
+				entry.anchorTags,
 				"\\bord0\\shad0",
 				`\\1c${assOverrideColor(color)}`,
 				`\\blur${blur}`,
 				motionTags({
 					element,
-					x: line.x + offsetX,
-					y: line.y + offsetY,
+					x: entry.x + offsetX,
+					y: entry.y + offsetY,
 					targetOpacity: element.opacity * opacity,
 				}),
 				border > 0
@@ -334,7 +380,7 @@ function buildElementEvents({
 					start,
 					end,
 					style: styleName,
-					text: `{${tags}}${escapeASSText(line.text)}`,
+					text: `{${tags}}${escapeASSText(entry.text)}`,
 				})
 			);
 		}
@@ -358,25 +404,13 @@ function buildElementEvents({
 	});
 
 	if (style.curve !== 0) {
-		const characters = getCurvedTextTransforms({
-			text: element.content,
-			width: Math.max(
-				1,
-				style.width - style.backgroundPadding * 2 - element.fontSize
-			),
-			curve: style.curve,
-		});
-		for (const character of characters) {
-			if (character.character === " ") continue;
-			const x = canvasWidth / 2 + element.x + character.x;
-			const y = canvasHeight / 2 + element.y + character.y;
+		for (const glyph of getCurvedGlyphLayout()) {
 			const tags = [
-				"\\an5",
-				`\\frz${-(element.rotation + character.rotation)}`,
+				glyph.anchorTags,
 				motionTags({
 					element,
-					x,
-					y,
+					x: glyph.x,
+					y: glyph.y,
 					targetOpacity: element.opacity,
 				}),
 			].join("");
@@ -386,7 +420,7 @@ function buildElementEvents({
 					start,
 					end,
 					style: styleName,
-					text: `{${tags}}${escapeASSText(character.character)}`,
+					text: `{${tags}}${escapeASSText(glyph.text)}`,
 				})
 			);
 		}

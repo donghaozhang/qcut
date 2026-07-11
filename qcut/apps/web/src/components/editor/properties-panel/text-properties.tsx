@@ -138,7 +138,13 @@ function NumberControl({
 							onChange={(event) => {
 								const raw = event.target.value;
 								setInputValue(raw);
-								if (raw.trim()) commit(raw);
+								// Mid-edit tokens like "-" parse to NaN; committing them
+								// would snap the field back to the previous value before
+								// the user can finish typing a negative number.
+								const parsed = Number(raw);
+								if (raw.trim() && Number.isFinite(parsed)) {
+									onChange(Math.min(max, Math.max(min, parsed)));
+								}
 							}}
 							onBlur={() => commit(inputValue)}
 							className="h-7 w-14 rounded-sm px-1 text-center !text-xs [appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none"

@@ -241,7 +241,8 @@ export function loadCustomTextPresets(): TextStylePreset[] {
 					(item): item is TextStylePreset =>
 						typeof item?.id === "string" &&
 						typeof item?.name === "string" &&
-						typeof item?.updates === "object"
+						typeof item?.updates === "object" &&
+						item.updates !== null
 				)
 			: [];
 	} catch {

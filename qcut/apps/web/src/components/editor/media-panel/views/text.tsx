@@ -293,6 +293,9 @@ export function TextView() {
 						data-testid="markdown-overlay-button"
 						aria-label="Add default markdown overlay"
 						onClick={() => addMarkdown()}
+						onKeyDown={(event) => {
+							if (event.key === " ") event.preventDefault();
+						}}
 						className="w-full cursor-pointer border-0 bg-transparent p-0"
 						type="button"
 					>

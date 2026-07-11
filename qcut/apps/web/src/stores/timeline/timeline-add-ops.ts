@@ -89,7 +89,9 @@ export function createAddOps(
 			return true;
 		},
 
-		addTextAtTime: (item: TextElement, currentTime = 0): boolean => {
+		// Accepts a partial element (e.g. DragData.textTemplate): every field is
+		// defaulted below, so callers never need to fabricate a full TextElement.
+		addTextAtTime: (item: Partial<TextElement>, currentTime = 0): boolean => {
 			const targetTrackId = get().insertTrackAt("text", 0); // Always create new text track at the top
 
 			get().addElementToTrack(targetTrackId, {
@@ -205,13 +207,16 @@ export function createAddOps(
 				"textTemplate" in item &&
 				item.textTemplate
 			) {
-				return get().addTextAtTime(item.textTemplate as TextElement, 0);
+				return get().addTextAtTime(item.textTemplate, 0);
 			}
 			const targetTrackId = get().insertTrackAt("text", 0); // Always create new text track at the top
 
 			const dragDataContent =
 				"type" in item && item.type === "text" ? item.content : undefined;
 			const textElementContent = "content" in item ? item.content : undefined;
+			const backgroundColor =
+				("backgroundColor" in item ? item.backgroundColor : "transparent") ||
+				"transparent";
 
 			get().addElementToTrack(targetTrackId, {
 				type: "text",
@@ -227,9 +232,7 @@ export function createAddOps(
 				fontFamily:
 					("fontFamily" in item ? item.fontFamily : "Arial") || "Arial",
 				color: ("color" in item ? item.color : "#ffffff") || "#ffffff",
-				backgroundColor:
-					("backgroundColor" in item ? item.backgroundColor : "transparent") ||
-					"transparent",
+				backgroundColor,
 				textAlign:
 					("textAlign" in item ? item.textAlign : "center") || "center",
 				fontWeight:
@@ -271,10 +274,14 @@ export function createAddOps(
 					"strokeOpacity" in item && item.strokeOpacity !== undefined
 						? item.strokeOpacity
 						: 1,
+				// Same defaulting rule as addTextAtTime: a non-transparent background
+				// with no explicit opacity must render visible, not invisible.
 				backgroundOpacity:
 					"backgroundOpacity" in item && item.backgroundOpacity !== undefined
 						? item.backgroundOpacity
-						: 0,
+						: backgroundColor === "transparent"
+							? 0
+							: 1,
 				backgroundRadius:
 					"backgroundRadius" in item && item.backgroundRadius !== undefined
 						? item.backgroundRadius

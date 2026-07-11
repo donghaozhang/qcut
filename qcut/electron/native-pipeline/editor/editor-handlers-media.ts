@@ -161,7 +161,7 @@ async function mediaImport(
 		id?: string;
 		mediaId?: string;
 		[key: string]: unknown;
-	}>(`/api/claude/media/${opts.projectId}/import`, {
+	}>(`/api/claude/media/${encodeURIComponent(opts.projectId)}/import`, {
 		source: opts.source,
 	});
 	if (opts.addToTimeline) {

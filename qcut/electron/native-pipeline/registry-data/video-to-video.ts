@@ -325,6 +325,7 @@ export function registerVideoToVideoModels(): void {
 		features: [
 			"Prompt-driven edit preserving source motion",
 			"First-frame guidance image (start_image_url)",
+			"Multi-keyframe editing (keyframe_images + keyframe_indexes)",
 			"Edit strength: adhere / flex / reimagine",
 			"Per-signal conditioning (pose, depth, face) via auto_controls",
 		],
@@ -333,6 +334,8 @@ export function registerVideoToVideoModels(): void {
 			required: ["prompt", "video_url"],
 			optional: [
 				"start_image_url",
+				"keyframe_images",
+				"keyframe_indexes",
 				"edit_strength",
 				"resolution",
 				"duration",
@@ -341,7 +344,12 @@ export function registerVideoToVideoModels(): void {
 				"exr_export",
 			],
 		},
-		extendedParams: ["start_image_url", "edit_strength"],
+		extendedParams: [
+			"start_image_url",
+			"keyframe_images",
+			"keyframe_indexes",
+			"edit_strength",
+		],
 		costEstimate: 0,
 		processingTime: 180,
 	});

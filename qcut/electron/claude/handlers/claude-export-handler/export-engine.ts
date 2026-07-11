@@ -881,27 +881,37 @@ export async function executeExportJob({
 		if (settings.format === "mp3") {
 			claudeLog.info(HANDLER_NAME, "Extracting standalone MP3 export...");
 			updateJobProgress({ jobId, progress: 0.96 });
-			await runFFmpegCommand({
-				args: [
-					"-y",
-					"-i",
-					videoOutputPath,
-					"-vn",
-					"-c:a",
-					"libmp3lame",
-					"-b:a",
-					`${settings.audioBitrate ?? 192}k`,
-					"-ar",
-					String(settings.audioSampleRate ?? 44_100),
-					"-ac",
-					String(settings.audioChannels ?? 2),
-					outputPath,
-				],
-				estimatedDuration: segments.reduce(
-					(sum, segment) => sum + segment.duration,
-					0
-				),
-			});
+			try {
+				await runFFmpegCommand({
+					args: [
+						"-y",
+						"-i",
+						videoOutputPath,
+						"-vn",
+						"-c:a",
+						"libmp3lame",
+						"-b:a",
+						`${settings.audioBitrate ?? 192}k`,
+						"-ar",
+						String(settings.audioSampleRate ?? 44_100),
+						"-ac",
+						String(settings.audioChannels ?? 2),
+						outputPath,
+					],
+					estimatedDuration: segments.reduce(
+						(sum, segment) => sum + segment.duration,
+						0
+					),
+				});
+			} catch (mp3Error) {
+				// Clean up partial MP3 artifact on failure
+				try {
+					await fsPromises.unlink(outputPath);
+				} catch {
+					/* may not exist */
+				}
+				throw mp3Error;
+			}
 			try {
 				await fsPromises.unlink(videoOutputPath);
 			} catch {

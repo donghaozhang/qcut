@@ -77,10 +77,12 @@ export function upsertTextKeyframe({
 	keyframes: TextPropertyKeyframe[];
 	keyframe: TextPropertyKeyframe;
 }): TextPropertyKeyframe[] {
-	const existingIndex = keyframes.findIndex((item) => item.id === keyframe.id);
-	const next = [...keyframes];
-	if (existingIndex >= 0) next[existingIndex] = keyframe;
-	else next.push(keyframe);
+	// Drop the entry being replaced and any other keyframe already sitting on
+	// the target frame: two keyframes on one frame make interpolation ambiguous.
+	const next = keyframes.filter(
+		(item) => item.id !== keyframe.id && item.frame !== keyframe.frame
+	);
+	next.push(keyframe);
 	return next.sort((a, b) => a.frame - b.frame);
 }
 

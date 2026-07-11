@@ -47,6 +47,13 @@ export function buildCursorTextTrackingKeyframes({
 			(Math.min(1, Math.max(0, normalizedY)) - 0.5) * canvasSize.height +
 			offset.y;
 
+		// The forced last telemetry point can round to the same frame as the
+		// prior sample; keep the newest value instead of emitting a duplicate.
+		if (x.length > 0 && x[x.length - 1].frame === frame) {
+			x.pop();
+			y.pop();
+		}
+
 		x.push({
 			id: `cursor-x-${frame}`,
 			frame,

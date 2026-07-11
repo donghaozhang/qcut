@@ -2,6 +2,7 @@ import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { spawnSync } from "child_process";
 import fs from "fs";
 import path from "path";
+import { fileURLToPath } from "url";
 import type {
 	TextElement,
 	TimelineTrack,
@@ -9,11 +10,16 @@ import type {
 import { buildTextASSOverlay } from "../../apps/web/src/lib/export-cli/filters/text-ass-overlay";
 import { buildFFmpegArgs } from "../ffmpeg-args-builder";
 
-const ffmpegPath = path.resolve(
-	__dirname,
-	"../resources/ffmpeg/darwin-arm64/ffmpeg"
-);
-const tempDir = path.resolve(__dirname, "../../.tmp/text-ass-export-test");
+const testDir = path.dirname(fileURLToPath(import.meta.url));
+const ffmpegPath =
+	process.env.QCUT_TEST_FFMPEG ??
+	path.resolve(
+		testDir,
+		`../resources/ffmpeg/${process.platform}-${process.arch}/ffmpeg${
+			process.platform === "win32" ? ".exe" : ""
+		}`
+	);
+const tempDir = path.resolve(testDir, "../../.tmp/text-ass-export-test");
 
 function runFFmpeg(args: string[]): ReturnType<typeof spawnSync> {
 	return spawnSync(ffmpegPath, args, {
@@ -138,6 +144,29 @@ describe.skipIf(!fs.existsSync(ffmpegPath))(
 			]);
 			expect(frameResult.status, frameResult.stderr?.toString()).toBe(0);
 			expect(fs.statSync(framePath).size).toBeGreaterThan(2_000);
+
+			// A plain source frame also passes the size checks above — prove the
+			// text overlay changed the pixels by comparing against a no-overlay
+			// baseline frame from the solid-color source at the same timestamp.
+			const baselinePath = path.join(tempDir, "baseline.png");
+			const baselineResult = runFFmpeg([
+				"-y",
+				"-ss",
+				"1",
+				"-i",
+				sourcePath,
+				"-frames:v",
+				"1",
+				baselinePath,
+			]);
+			expect(baselineResult.status, baselineResult.stderr?.toString()).toBe(0);
+			const frameBytes = fs.readFileSync(framePath);
+			const baselineBytes = fs.readFileSync(baselinePath);
+			expect(frameBytes.equals(baselineBytes)).toBe(false);
+			// Text glyphs add entropy to the flat-color frame, so the overlaid
+			// PNG must compress larger than the baseline.
+			expect(frameBytes.length).toBeGreaterThan(baselineBytes.length);
+
 			fs.copyFileSync(
 				framePath,
 				path.join(process.env.TMPDIR ?? "/tmp", "qcut-text-ass-export.png")
