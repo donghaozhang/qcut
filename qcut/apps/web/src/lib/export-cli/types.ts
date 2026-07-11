@@ -5,7 +5,7 @@
  * Extracted from export-engine-cli.ts for reuse across filter and source modules.
  */
 
-import type { MediaMask } from "@/types/timeline";
+import type { MediaColorSettings, MediaMask } from "@/types/timeline";
 
 /**
  * Video source input for FFmpeg direct copy optimization.
@@ -71,6 +71,7 @@ export interface VideoVisualInput {
 		fade: number;
 		vignette: number;
 	};
+	color: MediaColorSettings;
 	mask: MediaMask;
 	masks: MediaMask[];
 	chromaKey: {

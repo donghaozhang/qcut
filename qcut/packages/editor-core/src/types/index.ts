@@ -17,6 +17,28 @@ export type {
 } from "./project.js";
 
 export type {
+	ColorBasicSettings,
+	ColorCubeLut,
+	ColorCurvePoint,
+	ColorCurvesSettings,
+	ColorGradeMaskSettings,
+	ColorHslKeyframeProperty,
+	ColorHslRangeName,
+	ColorHslRangeSettings,
+	ColorHslSettings,
+	ColorKeyframeProperty,
+	ColorLutSettings,
+	ColorManagementSettings,
+	ColorPropertyKeyframe,
+	ColorSmartSettings,
+	ColorSpace,
+	ColorWheelKeyframeProperty,
+	ColorWheelSettings,
+	ColorWheelsSettings,
+	MediaColorSettings,
+} from "./color.js";
+
+export type {
 	MediaType,
 	TrackType,
 	MediaElement,

@@ -46,7 +46,6 @@ import {
 } from "@/components/ui/tooltip";
 import type { EasingType, Keyframe } from "@/lib/remotion/keyframe-converter";
 import {
-	DEFAULT_MEDIA_ADJUSTMENTS,
 	DEFAULT_MEDIA_CHROMA_KEY,
 	DEFAULT_MEDIA_CROP,
 	DEFAULT_MEDIA_ENHANCEMENTS,
@@ -72,6 +71,10 @@ import {
 import { VolumeControl } from "./volume-control";
 import { KeyframeEditor } from "./keyframe-editor";
 import { MediaMaskProperties } from "./media-mask-properties";
+import {
+	ColorPropertiesPanel,
+	defaultColorUpdates,
+} from "./color-properties-panel";
 
 type MediaUpdates = Parameters<
 	ReturnType<typeof useTimelineStore.getState>["updateMediaElement"]
@@ -220,6 +223,7 @@ export function MediaProperties({
 	);
 	const [keyframeProperty, setKeyframeProperty] =
 		useState<MediaKeyframeProperty>("x");
+	const [activePropertiesTab, setActivePropertiesTab] = useState("basic");
 	const interactionActive = useRef(false);
 	const visual = resolveMediaVisualProperties(element);
 	const timelineDuration = getMediaTimelineDuration(element, fps);
@@ -290,7 +294,7 @@ export function MediaProperties({
 			animationOutDuration: 0.5,
 			comboAnimationType: "none",
 			comboAnimationIntensity: 0.5,
-			adjustments: { ...DEFAULT_MEDIA_ADJUSTMENTS },
+			...defaultColorUpdates(),
 			mask: { ...DEFAULT_MEDIA_MASK },
 			chromaKey: { ...DEFAULT_MEDIA_CHROMA_KEY },
 			enhancements: { ...DEFAULT_MEDIA_ENHANCEMENTS },
@@ -305,13 +309,6 @@ export function MediaProperties({
 			freezeFrameTime: undefined,
 			freezeFrameDuration: 0,
 			keyframes: {},
-		});
-	const updateAdjustment = (
-		property: keyof typeof DEFAULT_MEDIA_ADJUSTMENTS,
-		value: number
-	) =>
-		updateLive({
-			adjustments: { ...visual.adjustments, [property]: value },
 		});
 	const openSegmentation = ({
 		backend,
@@ -423,7 +420,7 @@ export function MediaProperties({
 				</Button>
 			</div>
 
-			<Tabs defaultValue="basic">
+			<Tabs value={activePropertiesTab} onValueChange={setActivePropertiesTab}>
 				<TabsList className="grid h-auto w-full grid-cols-3 gap-1">
 					<TabsTrigger value="basic">Basic</TabsTrigger>
 					<TabsTrigger value="crop">Crop</TabsTrigger>
@@ -826,44 +823,8 @@ export function MediaProperties({
 					</PropertyGroup>
 				</TabsContent>
 
-				<TabsContent value="adjustments" className="mt-4 space-y-4">
-					<PropertyGroup title="Color adjustments" defaultExpanded>
-						<div className="space-y-4">
-							{(
-								[
-									["brightness", "Brightness", -100, 100],
-									["contrast", "Contrast", -100, 100],
-									["saturation", "Saturation", -100, 100],
-									["temperature", "Temperature", -100, 100],
-									["tint", "Tint", -100, 100],
-									["sharpness", "Sharpness", 0, 100],
-									["fade", "Fade", 0, 100],
-									["vignette", "Vignette", 0, 100],
-								] as const
-							).map(([property, label, min, max]) => (
-								<NumberControl
-									key={property}
-									label={label}
-									value={visual.adjustments[property]}
-									min={min}
-									max={max}
-									onChange={(value) => updateAdjustment(property, value)}
-									onInteractionStart={beginInteraction}
-									onInteractionEnd={endInteraction}
-								/>
-							))}
-							<Button
-								type="button"
-								variant="outline"
-								size="sm"
-								onClick={() =>
-									update({ adjustments: { ...DEFAULT_MEDIA_ADJUSTMENTS } })
-								}
-							>
-								<RotateCcw className="mr-2 size-3.5" /> Reset adjustments
-							</Button>
-						</div>
-					</PropertyGroup>
+				<TabsContent value="adjustments" className="mt-4">
+					<ColorPropertiesPanel element={element} trackId={trackId} />
 				</TabsContent>
 
 				<TabsContent value="audio" className="mt-4 space-y-4">
@@ -1222,55 +1183,57 @@ export function MediaProperties({
 				</TabsContent>
 			</Tabs>
 
-			<PropertyGroup title="Keyframes" defaultExpanded={false}>
-				<div className="space-y-4">
-					<PropertyItem>
-						<PropertyItemLabel>Property</PropertyItemLabel>
-						<PropertyItemValue>
-							<Select
-								value={keyframeProperty}
-								onValueChange={(value) =>
-									setKeyframeProperty(value as MediaKeyframeProperty)
-								}
-							>
-								<SelectTrigger
-									className="h-8 text-xs"
-									aria-label="Keyframe property"
+			{["basic", "crop", "perspective"].includes(activePropertiesTab) ? (
+				<PropertyGroup title="Keyframes" defaultExpanded={false}>
+					<div className="space-y-4">
+						<PropertyItem>
+							<PropertyItemLabel>Property</PropertyItemLabel>
+							<PropertyItemValue>
+								<Select
+									value={keyframeProperty}
+									onValueChange={(value) =>
+										setKeyframeProperty(value as MediaKeyframeProperty)
+									}
 								>
-									<SelectValue />
-								</SelectTrigger>
-								<SelectContent>
-									{MEDIA_KEYFRAME_PROPERTIES.map((property) => (
-										<SelectItem key={property.value} value={property.value}>
-											{property.label}
-										</SelectItem>
-									))}
-								</SelectContent>
-							</Select>
-						</PropertyItemValue>
-					</PropertyItem>
-					<KeyframeEditor
-						propName={keyframeProperty}
-						propLabel={
-							MEDIA_KEYFRAME_PROPERTIES.find(
-								(property) => property.value === keyframeProperty
-							)?.label ?? keyframeProperty
-						}
-						propType="number"
-						keyframes={propertyKeyframes as Keyframe[]}
-						durationInFrames={durationInFrames}
-						fps={fps}
-						currentFrame={currentFrame}
-						currentValueWhenEmpty={getMediaPropertyValue(
-							element,
-							keyframeProperty
-						)}
-						onKeyframeAdd={addKeyframe}
-						onKeyframeUpdate={updateKeyframe}
-						onKeyframeDelete={deleteKeyframe}
-					/>
-				</div>
-			</PropertyGroup>
+									<SelectTrigger
+										className="h-8 text-xs"
+										aria-label="Keyframe property"
+									>
+										<SelectValue />
+									</SelectTrigger>
+									<SelectContent>
+										{MEDIA_KEYFRAME_PROPERTIES.map((property) => (
+											<SelectItem key={property.value} value={property.value}>
+												{property.label}
+											</SelectItem>
+										))}
+									</SelectContent>
+								</Select>
+							</PropertyItemValue>
+						</PropertyItem>
+						<KeyframeEditor
+							propName={keyframeProperty}
+							propLabel={
+								MEDIA_KEYFRAME_PROPERTIES.find(
+									(property) => property.value === keyframeProperty
+								)?.label ?? keyframeProperty
+							}
+							propType="number"
+							keyframes={propertyKeyframes as Keyframe[]}
+							durationInFrames={durationInFrames}
+							fps={fps}
+							currentFrame={currentFrame}
+							currentValueWhenEmpty={getMediaPropertyValue(
+								element,
+								keyframeProperty
+							)}
+							onKeyframeAdd={addKeyframe}
+							onKeyframeUpdate={updateKeyframe}
+							onKeyframeDelete={deleteKeyframe}
+						/>
+					</div>
+				</PropertyGroup>
+			) : null}
 		</div>
 	);
 }

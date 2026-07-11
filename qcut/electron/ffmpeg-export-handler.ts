@@ -34,6 +34,8 @@ import {
 import { buildFFmpegArgs } from "./ffmpeg-args-builder.js";
 import { handleWordFilterCut } from "./ffmpeg-export-word-filter.js";
 import { handleMode1_5 } from "./ffmpeg-export-mode15.js";
+import { validateAudioInputStreams } from "./ffmpeg/audio-input-validation.js";
+import { formatFFmpegFailure } from "./ffmpeg/process-error.js";
 
 /**
  * Registers the export-video-cli IPC handler.
@@ -54,7 +56,7 @@ export function setupExportHandler(tempManager: TempManager): void {
 				fps,
 				quality,
 				duration,
-				audioFiles = [],
+				audioFiles: requestedAudioFiles = [],
 				textFilterChain,
 				textAssLayers = [],
 				stickerFilterChain,
@@ -172,6 +174,21 @@ export function setupExportHandler(tempManager: TempManager): void {
 				Math.max(duration || 0.1, 0.1),
 				MAX_EXPORT_DURATION
 			);
+			const audioValidation = await validateAudioInputStreams({
+				audioFiles: requestedAudioFiles,
+			});
+			const audioFiles = audioValidation.audioFiles;
+			for (const skippedPath of audioValidation.skippedPaths) {
+				debugLog(
+					`[FFmpeg] Skipping media without an audio stream: ${skippedPath}`
+				);
+			}
+			for (const unverifiedPath of audioValidation.unverifiedPaths) {
+				debugLog(
+					`[FFmpeg] Audio stream probe unavailable; retaining input: ${unverifiedPath}`
+				);
+			}
+			const validatedOptions = { ...options, audioFiles };
 
 			return new Promise<ExportResult>((resolve, reject) => {
 				// Get session directories
@@ -255,7 +272,7 @@ export function setupExportHandler(tempManager: TempManager): void {
 					// =============================================================================
 					if (options.optimizationStrategy === "video-normalization") {
 						await handleMode1_5(
-							options,
+							validatedOptions,
 							ffmpegPath,
 							frameDir,
 							outputFile,
@@ -275,7 +292,7 @@ export function setupExportHandler(tempManager: TempManager): void {
 						options.wordFilterSegments.length > 0
 					) {
 						await handleWordFilterCut({
-							options,
+							options: validatedOptions,
 							ffmpegPath,
 							outputFile,
 							event,
@@ -412,7 +429,7 @@ export function setupExportHandler(tempManager: TempManager): void {
 									});
 								} else {
 									const error: FFmpegError = new Error(
-										`FFmpeg exited with code ${code}`
+										formatFFmpegFailure({ code, stderr: stderrOutput })
 									) as FFmpegError;
 									error.code = code || undefined;
 									error.signal = signal || undefined;

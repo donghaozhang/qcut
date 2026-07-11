@@ -7,6 +7,8 @@
  * @module @qcut/editor-core/types/timeline
  */
 
+import type { MediaColorSettings } from "./color.js";
+
 /** Media asset types */
 export type MediaType = "image" | "video" | "audio";
 
@@ -259,6 +261,8 @@ export interface MediaElement extends BaseTimelineElement {
 	comboAnimationType?: MediaComboAnimationType;
 	comboAnimationIntensity?: number;
 	adjustments?: MediaAdjustments;
+	/** Canonical non-destructive color grading state. */
+	color?: MediaColorSettings;
 	/** Legacy single-mask field retained for project compatibility. */
 	mask?: MediaMask;
 	/** Ordered non-destructive mask stack. */

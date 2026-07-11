@@ -19,17 +19,17 @@ import { resolveMediaKeyframes } from "@/lib/video/video-properties";
 import { buildCssPerspectiveTransform } from "@/lib/video/video-perspective";
 import {
 	buildMediaChromaKeyCssFilter,
-	buildMediaCssFilter,
 	buildMediaEnhancementCssFilter,
 	buildMediaMaskStyle,
-	buildMediaVignetteBackground,
 	getMediaAnimationState,
 } from "@/lib/video/video-animation";
+import { hasMediaColorEdits } from "@/lib/color/color-properties";
 import type { TextElementDragState } from "@/types/editor";
 import type { TProject } from "@/types/project";
 import type { TimelineElement, TimelineTrack } from "@/types/timeline";
 import { MarkdownOverlay } from "@/components/editor/canvas/markdown-overlay";
 import { RemotionPreview } from "./remotion-preview";
+import { ColorPreviewCanvas } from "./color-preview-canvas";
 import type { ActiveElement, PreviewDimensions } from "./types";
 
 interface ElementResizeParams {
@@ -416,21 +416,27 @@ export function PreviewElementRenderer({
 					height: previewHeight,
 					perspective: visual.perspective,
 				});
-				const adjustmentFilter = buildMediaCssFilter(visual.adjustments);
+				const usesPixelColor = hasMediaColorEdits({ settings: visual.color });
 				const enhancementFilter = buildMediaEnhancementCssFilter(
 					visual.enhancements
 				);
 				const chromaKeyFilter = buildMediaChromaKeyCssFilter(visual.chromaKey);
 				const combinedFilter = [
-					adjustmentFilter,
 					enhancementFilter,
 					chromaKeyFilter,
 					shouldApplyFilter ? filterStyle : "",
 				]
 					.filter(Boolean)
 					.join(" ");
-				const vignette = buildMediaVignetteBackground(visual.adjustments);
-				const maskStyle = buildMediaMaskStyle(visual.masks);
+				const geometricMasks = visual.masks;
+				const gradeMaskIds = visual.color.mask.enabled
+					? new Set(visual.color.mask.maskIds)
+					: new Set<string>();
+				const outputMasks = geometricMasks.filter(
+					(mask) => !mask.id || !gradeMaskIds.has(mask.id)
+				);
+				const maskStyle = buildMediaMaskStyle(outputMasks);
+				const sourceVideoId = mediaItem.id;
 
 				return (
 					<div
@@ -485,12 +491,19 @@ export function PreviewElementRenderer({
 								style={{
 									objectFit: visual.fitMode,
 									filter: combinedFilter || undefined,
+									opacity: usesPixelColor ? 0 : undefined,
 								}}
 							/>
-							{vignette ? (
-								<div
-									className="pointer-events-none absolute inset-0"
-									style={{ background: vignette }}
+							{usesPixelColor ? (
+								<ColorPreviewCanvas
+									sourceSelector={`video[data-video-id="${sourceVideoId.replaceAll('"', '\\"')}"]`}
+									settings={visual.color}
+									masks={geometricMasks}
+									fitMode={visual.fitMode}
+									frameSeed={Math.round(
+										currentTime * (activeProject?.fps ?? 30)
+									)}
+									filter={combinedFilter || undefined}
 								/>
 							) : null}
 						</div>
@@ -502,6 +515,19 @@ export function PreviewElementRenderer({
 				if (!mediaItem.url) {
 					return null;
 				}
+				const visual = resolveMediaKeyframes({
+					element,
+					currentTime,
+					fps: activeProject?.fps ?? 30,
+				});
+				const usesPixelColor = hasMediaColorEdits({ settings: visual.color });
+				const gradeMaskIds = visual.color.mask.enabled
+					? new Set(visual.color.mask.maskIds)
+					: new Set<string>();
+				const outputMasks = visual.masks.filter(
+					(mask) => !mask.id || !gradeMaskIds.has(mask.id)
+				);
+				const maskStyle = buildMediaMaskStyle(outputMasks);
 
 				if (element.width !== undefined) {
 					const scaleRatio = previewDimensions.width / canvasSize.width;
@@ -563,8 +589,24 @@ export function PreviewElementRenderer({
 								src={mediaItem.url}
 								alt={mediaItem.name}
 								className="w-full h-full object-contain"
+								style={{
+									...maskStyle,
+									opacity: usesPixelColor ? 0 : undefined,
+								}}
+								data-color-source="true"
 								draggable={false}
 							/>
+							{usesPixelColor ? (
+								<ColorPreviewCanvas
+									sourceSelector='img[data-color-source="true"]'
+									settings={visual.color}
+									masks={visual.masks}
+									fitMode="contain"
+									frameSeed={Math.round(
+										currentTime * (activeProject?.fps ?? 30)
+									)}
+								/>
+							) : null}
 						</div>
 					);
 				}
@@ -578,8 +620,19 @@ export function PreviewElementRenderer({
 							src={mediaItem.url}
 							alt={mediaItem.name}
 							className="w-full h-full object-cover"
+							style={{ ...maskStyle, opacity: usesPixelColor ? 0 : undefined }}
+							data-color-source="true"
 							draggable={false}
 						/>
+						{usesPixelColor ? (
+							<ColorPreviewCanvas
+								sourceSelector='img[data-color-source="true"]'
+								settings={visual.color}
+								masks={visual.masks}
+								fitMode="cover"
+								frameSeed={Math.round(currentTime * (activeProject?.fps ?? 30))}
+							/>
+						) : null}
 					</div>
 				);
 			}

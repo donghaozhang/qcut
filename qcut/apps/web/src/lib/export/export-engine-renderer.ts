@@ -36,7 +36,7 @@ import { useWebcamOverlayStore } from "@/stores/webcam-overlay-store";
 import { useFigureAnnotationsStore } from "@/stores/figure-annotations-store";
 import { renderTextToCanvas } from "@/lib/text/text-canvas-renderer";
 import { resolveMediaKeyframes } from "@/lib/video/video-properties";
-import { drawMediaSourceWithMasks } from "@/lib/video/media-mask-canvas";
+import { drawColorGradedSourceWithMasks } from "@/lib/color/browser-color-rendering";
 
 let exportCompositor: ScreenRecordingExportCompositor | null = null;
 let compositorFrameCanvas: HTMLCanvasElement | null = null;
@@ -282,7 +282,7 @@ export async function renderImage(
 					fps: context.fps,
 				});
 				const drawImage = () =>
-					drawMediaSourceWithMasks({
+					drawColorGradedSourceWithMasks({
 						context: ctx,
 						source: img,
 						x,
@@ -290,6 +290,8 @@ export async function renderImage(
 						width,
 						height,
 						masks: visual.masks,
+						settings: visual.color,
+						frameSeed: Math.round(currentTime * context.fps),
 					});
 
 				if (EFFECTS_ENABLED) {
@@ -462,7 +464,7 @@ async function renderVideoAttempt(
 			fps: context.fps,
 		});
 		const drawVideo = () =>
-			drawMediaSourceWithMasks({
+			drawColorGradedSourceWithMasks({
 				context: ctx,
 				source: video,
 				x,
@@ -470,6 +472,8 @@ async function renderVideoAttempt(
 				width,
 				height,
 				masks: visual.masks,
+				settings: visual.color,
+				frameSeed: Math.round((element.startTime + timeOffset) * context.fps),
 			});
 
 		if (EFFECTS_ENABLED) {

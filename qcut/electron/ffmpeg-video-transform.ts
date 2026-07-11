@@ -1,4 +1,10 @@
 import type { VideoMask, VideoSource, VideoVisual } from "./ffmpeg/types";
+import {
+	DEFAULT_VIDEO_COLOR_SETTINGS,
+	normalizeVideoColorSettings,
+} from "./ffmpeg/color-settings";
+import { buildVideoColorFilter } from "./ffmpeg/color-filter";
+import { buildVideoColorFilterGraph } from "./ffmpeg/color-filter-graph";
 
 const DEFAULT_ADJUSTMENTS: NonNullable<VideoVisual["adjustments"]> = {
 	brightness: 0,
@@ -75,6 +81,7 @@ const DEFAULT_VISUAL: VideoVisual = {
 	comboAnimationType: "none",
 	comboAnimationIntensity: 0.5,
 	adjustments: DEFAULT_ADJUSTMENTS,
+	color: DEFAULT_VIDEO_COLOR_SETTINGS,
 	mask: DEFAULT_MASK,
 	masks: [],
 	chromaKey: DEFAULT_CHROMA_KEY,
@@ -151,6 +158,10 @@ function resolveVisual(source: VideoSource): VideoVisual {
 			...DEFAULT_ADJUSTMENTS,
 			...source.visual?.adjustments,
 		},
+		color: normalizeVideoColorSettings({
+			color: source.visual?.color,
+			adjustments: source.visual?.adjustments,
+		}),
 		mask: { ...DEFAULT_MASK, ...source.visual?.mask },
 		masks: source.visual?.masks?.map((mask) => ({
 			...DEFAULT_MASK,
@@ -280,32 +291,8 @@ function buildSpeedSetptsExpression(samples: SpeedSample[]): string {
 	return expression;
 }
 
-function buildAdjustmentFilter(visual: VideoVisual): string {
-	const values: NonNullable<VideoVisual["adjustments"]> = {
-		...DEFAULT_ADJUSTMENTS,
-		...visual.adjustments,
-	};
-	const fade = clamp(values.fade, 0, 100) / 100;
-	const brightness = clamp(values.brightness / 100 + fade * 0.06, -1, 1);
-	const contrast = clamp(1 + values.contrast / 100 - fade * 0.25, 0, 3);
-	const saturation = clamp(1 + values.saturation / 100 - fade * 0.15, 0, 3);
-	const filters = [
-		`eq=brightness=${brightness}:contrast=${contrast}:saturation=${saturation}`,
-	];
-	if (values.temperature !== 0 || values.tint !== 0) {
-		filters.push(
-			`colorbalance=rs=${clamp(values.temperature / 200, -0.5, 0.5)}:` +
-				`bs=${clamp(-values.temperature / 200, -0.5, 0.5)}:` +
-				`gm=${clamp(values.tint / 200, -0.5, 0.5)}`
-		);
-	}
-	if (values.sharpness > 0) {
-		filters.push(`unsharp=5:5:${clamp(values.sharpness / 50, 0, 2)}`);
-	}
-	if (values.vignette > 0) {
-		filters.push(`vignette=angle=PI/4*${clamp(values.vignette / 100, 0, 1)}`);
-	}
-	return filters.join(",");
+export function buildAdjustmentFilter(visual: VideoVisual): string {
+	return buildVideoColorFilter({ visual });
 }
 
 function buildEnhancementFilter(
@@ -489,6 +476,34 @@ export function buildVideoMaskExpression(visual: VideoVisual): string {
 	return expression;
 }
 
+function colorGradeMasks(visual: VideoVisual): VideoMask[] {
+	if (!visual.color?.mask.enabled) return [];
+	const selectedIds = new Set(visual.color.mask.maskIds);
+	return (visual.masks ?? []).filter(
+		(mask) => mask.id !== undefined && selectedIds.has(mask.id)
+	);
+}
+
+function buildColorGradeMaskExpression(visual: VideoVisual): string {
+	const masks = colorGradeMasks(visual);
+	if (masks.length === 0) return "0";
+	const expression = buildVideoMaskExpression({
+		...visual,
+		mask: masks[0],
+		masks,
+	});
+	return visual.color?.mask.invert ? `1-(${expression})` : expression;
+}
+
+function visualWithoutColorGradeMasks(visual: VideoVisual): VideoVisual {
+	if (!visual.color?.mask.enabled) return visual;
+	const selectedIds = new Set(visual.color.mask.maskIds);
+	const masks = (visual.masks ?? []).filter(
+		(mask) => mask.id === undefined || !selectedIds.has(mask.id)
+	);
+	return { ...visual, mask: masks[0] ?? DEFAULT_MASK, masks };
+}
+
 interface AnimationExpressions {
 	x: string;
 	y: string;
@@ -655,11 +670,39 @@ function buildSegmentFilters({
 		);
 		current = keyed;
 	}
-	const adjustmentFilter = buildAdjustmentFilter(visual);
-	if (adjustmentFilter) {
+	if (visual.color?.mask.enabled) {
+		const colorBase = `video_${segmentIndex}_color_base`;
+		const colorInput = `video_${segmentIndex}_color_input`;
+		const gradedMask = `video_${segmentIndex}_color_masked`;
 		const adjusted = `video_${segmentIndex}_adjusted`;
-		steps.push(`[${current}]${adjustmentFilter}[${adjusted}]`);
-		current = adjusted;
+		steps.push(`[${current}]split=2[${colorBase}][${colorInput}]`);
+		const colorGraph = buildVideoColorFilterGraph({
+			visual,
+			inputLabel: colorInput,
+			labelPrefix: `video_${segmentIndex}_color`,
+		});
+		steps.push(...colorGraph.filterSteps);
+		if (colorGraph.applied) {
+			steps.push(
+				`[${colorGraph.outputLabel}]geq=r='r(X,Y)':g='g(X,Y)':b='b(X,Y)':` +
+					`a='alpha(X,Y)*(${buildColorGradeMaskExpression(visual)})'[${gradedMask}]`
+			);
+			steps.push(
+				`[${colorBase}][${gradedMask}]overlay=0:0:format=auto[${adjusted}]`
+			);
+			current = adjusted;
+		} else {
+			steps.push(`[${colorInput}]nullsink`);
+			current = colorBase;
+		}
+	} else {
+		const colorGraph = buildVideoColorFilterGraph({
+			visual,
+			inputLabel: current,
+			labelPrefix: `video_${segmentIndex}_color`,
+		});
+		steps.push(...colorGraph.filterSteps);
+		current = colorGraph.outputLabel;
 	}
 	if (source.effectFilter) {
 		const effected = `video_${segmentIndex}_effects`;
@@ -687,7 +730,7 @@ function buildSegmentFilters({
 		property: "cropBottom",
 		fallback: crop.bottom,
 	});
-	const mask = buildVideoMaskExpression(visual);
+	const mask = buildVideoMaskExpression(visualWithoutColorGradeMasks(visual));
 	const cropped = `video_${segmentIndex}_cropped`;
 	steps.push(
 		`[${current}]geq=` +

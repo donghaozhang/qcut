@@ -5,6 +5,8 @@
  * Extracted for reuse across modules and renderer process typings.
  */
 
+import type { VideoColorSettings } from "./color-settings";
+
 /**
  * Audio file configuration for FFmpeg video export
  * Defines audio track placement and mixing parameters
@@ -223,6 +225,7 @@ export interface VideoVisual {
 		fade: number;
 		vignette: number;
 	};
+	color?: VideoColorSettings;
 	mask?: VideoMask;
 	masks?: VideoMask[];
 	chromaKey?: {

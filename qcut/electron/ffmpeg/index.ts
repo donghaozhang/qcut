@@ -42,6 +42,7 @@ export {
 	parseProgress,
 	// Video probing
 	probeVideoFile,
+	probeHasAudioStream,
 	// Video normalization
 	normalizeVideo,
 	// Health check

@@ -1,6 +1,7 @@
 import type {
 	MediaCrop,
 	MediaAdjustments,
+	MediaColorSettings,
 	MediaElement,
 	MediaMask,
 	MediaMaskKeyframeProperty,
@@ -10,6 +11,11 @@ import type {
 	MediaPerspective,
 	MediaPropertyKeyframe,
 } from "@/types/timeline";
+import {
+	hasMediaColorEdits,
+	normalizeMediaColorSettings,
+	resolveMediaColorAtTime,
+} from "@/lib/color/color-properties";
 import {
 	interpolateNumber,
 	type Keyframe,
@@ -109,6 +115,7 @@ export interface ResolvedMediaVisualProperties {
 	comboAnimationType: NonNullable<MediaElement["comboAnimationType"]>;
 	comboAnimationIntensity: number;
 	adjustments: MediaAdjustments;
+	color: MediaColorSettings;
 	mask: MediaMask;
 	masks: MediaMask[];
 	chromaKey: MediaChromaKey;
@@ -344,6 +351,7 @@ export function resolveMediaVisualProperties(
 			...DEFAULT_MEDIA_ADJUSTMENTS,
 			...element.adjustments,
 		},
+		color: normalizeMediaColorSettings({ element }),
 		mask:
 			masks[0] ??
 			normalizeMediaMask({ ...DEFAULT_MEDIA_MASK, ...element.mask }),
@@ -403,8 +411,9 @@ export function resolveMediaKeyframes({
 }): ResolvedMediaVisualProperties {
 	const resolved = resolveMediaVisualProperties(element);
 	const masks = resolveMediaMasksAtTime({ element, currentTime, fps });
+	const color = resolveMediaColorAtTime({ element, currentTime, fps });
 	if (!element.keyframes) {
-		return { ...resolved, masks, mask: masks[0] ?? resolved.mask };
+		return { ...resolved, color, masks, mask: masks[0] ?? resolved.mask };
 	}
 
 	const crop = { ...resolved.crop };
@@ -442,6 +451,7 @@ export function resolveMediaKeyframes({
 		scaleY: Math.max(0.01, numeric.scaleY),
 		crop: clampMediaCrop(crop),
 		perspective: clampMediaPerspective(perspective),
+		color,
 		masks,
 		mask: masks[0] ?? resolved.mask,
 	};
@@ -482,7 +492,7 @@ export function hasMediaVisualEdits(element: MediaElement): boolean {
 		visual.animationInType !== "none" ||
 		visual.animationOutType !== "none" ||
 		visual.comboAnimationType !== "none" ||
-		Object.values(visual.adjustments).some((value) => value !== 0) ||
+		hasMediaColorEdits({ settings: visual.color }) ||
 		visual.masks.length > 0 ||
 		visual.chromaKey.enabled ||
 		Object.entries(visual.enhancements).some(([key, value]) =>

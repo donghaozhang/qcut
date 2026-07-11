@@ -15,6 +15,10 @@ import {
 	resolveMediaMasks,
 } from "@/lib/video/video-properties";
 import { TIMELINE_CONSTANTS } from "@/constants/timeline-constants";
+import {
+	buildLegacyColorAdjustments,
+	normalizeMediaColorSettings,
+} from "@/lib/color/color-properties";
 
 export function normalizeMarkdownElement({
 	element,
@@ -56,6 +60,8 @@ export function normalizeMediaElement({
 }): TimelineElement {
 	if (element.type !== "media") return element;
 	const masks = resolveMediaMasks(element);
+	const color = normalizeMediaColorSettings({ element });
+	const legacyColor = buildLegacyColorAdjustments({ settings: color });
 
 	return {
 		...element,
@@ -87,16 +93,8 @@ export function normalizeMediaElement({
 		animationOutDuration: element.animationOutDuration ?? 0.5,
 		comboAnimationType: element.comboAnimationType ?? "none",
 		comboAnimationIntensity: element.comboAnimationIntensity ?? 0.5,
-		adjustments: element.adjustments ?? {
-			brightness: 0,
-			contrast: 0,
-			saturation: 0,
-			temperature: 0,
-			tint: 0,
-			sharpness: 0,
-			fade: 0,
-			vignette: 0,
-		},
+		adjustments: legacyColor,
+		color,
 		mask: masks[0] ?? normalizeMediaMask(element.mask ?? DEFAULT_MEDIA_MASK),
 		masks,
 		chromaKey: element.chromaKey ?? {

@@ -1,0 +1,210 @@
+import type { MediaColorSettings, MediaMask } from "@/types/timeline";
+import { drawMediaSourceWithMasks } from "@/lib/video/media-mask-canvas";
+import { mediaMaskSvgUrl } from "@/lib/video/media-mask-svg";
+import { hasMediaColorEdits } from "./color-properties";
+import { buildColorCssFilter } from "./color-rendering";
+import { processColorImageData } from "./color-pixel-processor";
+
+const GRADE_MASK_CACHE_LIMIT = 8;
+const gradeMaskImageCache = new Map<string, Promise<HTMLImageElement>>();
+const gradeMaskCache = new Map<
+	string,
+	Promise<Uint8ClampedArray | undefined>
+>();
+
+function loadGradeMaskImage({
+	url,
+}: {
+	url: string;
+}): Promise<HTMLImageElement> {
+	const cached = gradeMaskImageCache.get(url);
+	if (cached) return cached;
+	const pending = new Promise<HTMLImageElement>((resolve, reject) => {
+		const image = new Image();
+		image.onload = () => resolve(image);
+		image.onerror = () =>
+			reject(new Error("Unable to render color grade mask"));
+		image.src = url;
+	});
+	gradeMaskImageCache.set(url, pending);
+	return pending;
+}
+
+export function maskPixelsFromSvg({
+	data,
+	invert,
+}: {
+	data: Uint8ClampedArray;
+	invert: boolean;
+}): Uint8ClampedArray {
+	const pixels = new Uint8ClampedArray(data);
+	for (let index = 0; index < pixels.length; index += 4) {
+		const luminance =
+			pixels[index] * 0.2126 +
+			pixels[index + 1] * 0.7152 +
+			pixels[index + 2] * 0.0722;
+		pixels[index + 3] = invert ? 255 - luminance : luminance;
+	}
+	return pixels;
+}
+
+function finalMediaMasks({
+	masks,
+	settings,
+}: {
+	masks: MediaMask[];
+	settings: MediaColorSettings;
+}): MediaMask[] {
+	if (!settings.mask.enabled) return masks;
+	const gradeMaskIds = new Set(settings.mask.maskIds);
+	return masks.filter((mask) => !mask.id || !gradeMaskIds.has(mask.id));
+}
+
+async function gradeMaskPixels({
+	masks,
+	settings,
+	width,
+	height,
+}: {
+	masks: MediaMask[];
+	settings: MediaColorSettings;
+	width: number;
+	height: number;
+}): Promise<Uint8ClampedArray | undefined> {
+	if (!settings.mask.enabled) return;
+	const selected = masks.filter(
+		(mask) => Boolean(mask.id) && settings.mask.maskIds.includes(mask.id ?? "")
+	);
+	const cacheKey = JSON.stringify({
+		width,
+		height,
+		invert: settings.mask.invert,
+		masks: selected,
+	});
+	const cached = gradeMaskCache.get(cacheKey);
+	if (cached) return cached;
+	const url = mediaMaskSvgUrl(selected);
+	if (!url) return new Uint8ClampedArray(width * height * 4);
+	if (gradeMaskCache.size >= GRADE_MASK_CACHE_LIMIT) gradeMaskCache.clear();
+	const rendered = (async () => {
+		const canvas = document.createElement("canvas");
+		canvas.width = width;
+		canvas.height = height;
+		const context = canvas.getContext("2d", { willReadFrequently: true });
+		if (!context) return;
+		context.drawImage(await loadGradeMaskImage({ url }), 0, 0, width, height);
+		const data = context.getImageData(0, 0, width, height).data;
+		return maskPixelsFromSvg({ data, invert: settings.mask.invert });
+	})();
+	gradeMaskCache.set(cacheKey, rendered);
+	try {
+		return await rendered;
+	} catch (error) {
+		gradeMaskCache.delete(cacheKey);
+		throw error;
+	}
+}
+
+function drawCssFallback({
+	context,
+	source,
+	width,
+	height,
+	settings,
+}: {
+	context: CanvasRenderingContext2D;
+	source: CanvasImageSource;
+	width: number;
+	height: number;
+	settings: MediaColorSettings;
+}) {
+	context.filter = buildColorCssFilter({ settings }) || "none";
+	context.drawImage(source, 0, 0, width, height);
+	context.filter = "none";
+}
+
+export async function drawColorGradedSourceWithMasks({
+	context,
+	source,
+	x,
+	y,
+	width,
+	height,
+	masks,
+	settings,
+	frameSeed = 0,
+}: {
+	context: CanvasRenderingContext2D;
+	source: CanvasImageSource;
+	x: number;
+	y: number;
+	width: number;
+	height: number;
+	masks: MediaMask[];
+	settings: MediaColorSettings;
+	frameSeed?: number;
+}): Promise<void> {
+	const outputMasks = finalMediaMasks({ masks, settings });
+	if (!hasMediaColorEdits({ settings })) {
+		await drawMediaSourceWithMasks({
+			context,
+			source,
+			x,
+			y,
+			width,
+			height,
+			masks: outputMasks,
+		});
+		return;
+	}
+	const pixelWidth = Math.max(1, Math.round(Math.abs(width)));
+	const pixelHeight = Math.max(1, Math.round(Math.abs(height)));
+	const frame = document.createElement("canvas");
+	frame.width = pixelWidth;
+	frame.height = pixelHeight;
+	const frameContext = frame.getContext("2d", { willReadFrequently: true });
+	if (!frameContext) throw new Error("Unable to create color grading canvas");
+	frameContext.drawImage(source, 0, 0, pixelWidth, pixelHeight);
+	try {
+		const sourceData = frameContext.getImageData(0, 0, pixelWidth, pixelHeight);
+		const maskData = await gradeMaskPixels({
+			masks,
+			settings,
+			width: pixelWidth,
+			height: pixelHeight,
+		});
+		frameContext.putImageData(
+			processColorImageData({
+				imageData: sourceData,
+				settings,
+				maskData,
+				frameSeed,
+			}),
+			0,
+			0
+		);
+	} catch {
+		frameContext.clearRect(0, 0, pixelWidth, pixelHeight);
+		drawCssFallback({
+			context: frameContext,
+			source,
+			width: pixelWidth,
+			height: pixelHeight,
+			settings,
+		});
+	}
+	await drawMediaSourceWithMasks({
+		context,
+		source: frame,
+		x,
+		y,
+		width,
+		height,
+		masks: outputMasks,
+	});
+}
+
+export function clearBrowserColorRenderingCache() {
+	gradeMaskImageCache.clear();
+	gradeMaskCache.clear();
+}

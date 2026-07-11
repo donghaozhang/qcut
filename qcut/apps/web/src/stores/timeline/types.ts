@@ -459,6 +459,7 @@ export interface TimelineStore {
 				| "comboAnimationType"
 				| "comboAnimationIntensity"
 				| "adjustments"
+				| "color"
 				| "mask"
 				| "masks"
 				| "chromaKey"
