@@ -7,7 +7,7 @@ import type {
 import type { CreateCaptionElement } from "@/types/timeline";
 import { generateUUID } from "@/lib/utils";
 
-interface CaptionTrack {
+export interface CaptionTrack {
 	id: string;
 	name: string;
 	language: string;
@@ -17,7 +17,7 @@ interface CaptionTrack {
 	createdAt: string;
 }
 
-interface TranscriptionJob {
+export interface TranscriptionJob {
 	id: string;
 	fileName: string;
 	language: string;
