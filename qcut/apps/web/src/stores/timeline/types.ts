@@ -14,6 +14,7 @@ export type {
 	TextElement,
 	MarkdownElement,
 	MediaElement,
+	ClipTransition,
 	RemotionElement,
 	CaptionElement,
 	SubtitleStyle,
@@ -35,6 +36,7 @@ import type {
 	TextElement,
 	MarkdownElement,
 	MediaElement,
+	ClipTransition,
 	RemotionElement,
 	CaptionElement,
 	DragData,
@@ -47,6 +49,11 @@ import type { MediaItem } from "../media/media-store";
 export interface SelectedElement {
 	trackId: string;
 	elementId: string;
+}
+
+export interface SelectedTransition {
+	trackId: string;
+	transitionId: string;
 }
 
 /**
@@ -151,6 +158,8 @@ export interface TimelineStore {
 
 	/** Array of currently selected timeline elements */
 	selectedElements: SelectedElement[];
+	/** Currently selected clip-to-clip transition. */
+	selectedTransition: SelectedTransition | null;
 	/** Select an element, optionally as part of multi-selection */
 	selectElement: (trackId: string, elementId: string, multi?: boolean) => void;
 	/** Deselect a specific element */
@@ -159,6 +168,8 @@ export interface TimelineStore {
 	clearSelectedElements: () => void;
 	/** Set the entire selection to the provided elements array */
 	setSelectedElements: (elements: SelectedElement[]) => void;
+	selectTransition: (selection: SelectedTransition) => void;
+	clearSelectedTransition: () => void;
 
 	/** Current drag operation state for timeline elements */
 	dragState: DragState;
@@ -227,6 +238,30 @@ export interface TimelineStore {
 		startTime: number,
 		pushHistory?: boolean
 	) => void;
+	addTransition: (input: {
+		trackId: string;
+		fromElementId: string;
+		toElementId: string;
+		presetId: string;
+		type: ClipTransition["type"];
+		duration: number;
+		direction?: ClipTransition["direction"];
+		easing?: ClipTransition["easing"];
+	}) => string | null;
+	updateTransition: (input: {
+		trackId: string;
+		transitionId: string;
+		updates: Partial<
+			Pick<
+				ClipTransition,
+				"presetId" | "type" | "duration" | "direction" | "easing"
+			>
+		>;
+	}) => void;
+	removeTransition: (input: {
+		trackId: string;
+		transitionId: string;
+	}) => void;
 	/** Toggle mute state for a track */
 	toggleTrackMute: (trackId: string) => void;
 	/** Toggle whether a visual track participates in preview and export */

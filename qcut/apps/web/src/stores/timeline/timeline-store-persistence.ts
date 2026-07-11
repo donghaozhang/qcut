@@ -218,7 +218,12 @@ export function createPersistenceOperations(
 		clearTimeline: () => {
 			const defaultTracks = ensureMainTrack([]);
 			updateTracks(defaultTracks);
-			set({ history: [], redoStack: [], selectedElements: [] });
+			set({
+				history: [],
+				redoStack: [],
+				selectedElements: [],
+				selectedTransition: null,
+			});
 		},
 
 		restoreTracks: (tracks: TimelineTrack[]) => {
