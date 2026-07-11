@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import type { ClipTransition } from "@/types/timeline";
 import {
+	CLIP_TRANSITION_PROGRESS_STOPS,
 	easeClipTransitionProgress,
 	getClipTransitionLayerPresentation,
 } from "../clip-transition-presentation";
@@ -22,6 +23,70 @@ function transition({
 }
 
 describe("clip transition presentation", () => {
+	it("keeps fixed parity frames for every first-release transition", () => {
+		const presentations = ({
+			type,
+			direction,
+			role,
+		}: {
+			type: ClipTransition["type"];
+			direction?: ClipTransition["direction"];
+			role: "from" | "to";
+		}) =>
+			CLIP_TRANSITION_PROGRESS_STOPS.map((progress) =>
+				getClipTransitionLayerPresentation({
+					transition: transition({ type, direction }),
+					role,
+					progress,
+					canvasWidth: 100,
+					canvasHeight: 50,
+				})
+			);
+
+		expect(
+			presentations({ type: "dissolve", role: "from" }).map(
+				(item) => item.opacity
+			)
+		).toEqual([1, 0.75, 0.5, 0.25, 0]);
+		expect(
+			presentations({ type: "fade-black", role: "from" }).map(
+				(item) => item.contentOpacity
+			)
+		).toEqual([1, 0.5, 0, 0, 0]);
+		expect(
+			presentations({ type: "fade-black", role: "to" }).map(
+				(item) => item.contentOpacity
+			)
+		).toEqual([0, 0, 0, 0.5, 1]);
+		expect(
+			presentations({
+				type: "slide",
+				direction: "left",
+				role: "from",
+			}).map((item) => item.offsetX)
+		).toEqual([0, 25, 50, 75, 100]);
+		expect(
+			presentations({
+				type: "slide",
+				direction: "left",
+				role: "to",
+			}).map((item) => item.offsetX)
+		).toEqual([-100, -75, -50, -25, 0]);
+		expect(
+			presentations({
+				type: "wipe",
+				direction: "left",
+				role: "to",
+			}).map((item) => item.clipPath)
+		).toEqual([
+			"inset(0 100% 0 0)",
+			"inset(0 75% 0 0)",
+			"inset(0 50% 0 0)",
+			"inset(0 25% 0 0)",
+			"inset(0 0% 0 0)",
+		]);
+	});
+
 	it("crossfades dissolve layers", () => {
 		const dissolve = transition({ type: "dissolve" });
 

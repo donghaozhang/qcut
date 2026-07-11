@@ -41,6 +41,14 @@ export {
 } from "./transitions.js";
 
 export {
+	CLIP_TRANSITION_PROGRESS_STOPS,
+	easeClipTransitionProgress,
+	getClipTransitionLayerPresentation,
+	type ClipTransitionLayerPresentation,
+	type ClipTransitionRole,
+} from "./transition-presentation.js";
+
+export {
 	isMediaElement,
 	isTextElement,
 	isStickerElement,
