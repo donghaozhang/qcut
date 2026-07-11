@@ -396,12 +396,7 @@ export interface AudioTelephoneSettings {
 	mix: number;
 }
 
-export type AudioChannelMode =
-	| "stereo"
-	| "mono"
-	| "left"
-	| "right"
-	| "swap";
+export type AudioChannelMode = "stereo" | "mono" | "left" | "right" | "swap";
 
 export type AudioParametricFilterType =
 	| "bell"

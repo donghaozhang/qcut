@@ -46,7 +46,15 @@ const DEFAULT_EQ_BANDS: AudioParametricEqualizerSettings["bands"] = [
 	},
 ];
 
-function clamp({ value, min, max }: { value: number; min: number; max: number }) {
+function clamp({
+	value,
+	min,
+	max,
+}: {
+	value: number;
+	min: number;
+	max: number;
+}) {
 	return Math.min(max, Math.max(min, Number.isFinite(value) ? value : min));
 }
 
@@ -142,7 +150,10 @@ export function createDefaultAudioMixBus({
 
 export function createDefaultProjectAudioMixSettings(): ProjectAudioMixSettings {
 	return {
-		master: createDefaultAudioMixBus({ id: MASTER_AUDIO_BUS_ID, name: "Master" }),
+		master: createDefaultAudioMixBus({
+			id: MASTER_AUDIO_BUS_ID,
+			name: "Master",
+		}),
 		buses: [],
 	};
 }

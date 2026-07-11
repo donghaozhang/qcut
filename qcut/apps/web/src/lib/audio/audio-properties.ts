@@ -103,9 +103,11 @@ export function createDefaultMediaAudioSettings(): MediaAudioSettings {
 		equalizer: { ...DEFAULT_MEDIA_AUDIO_SETTINGS.equalizer },
 		parametricEqualizer: {
 			...DEFAULT_MEDIA_AUDIO_SETTINGS.parametricEqualizer,
-			bands: DEFAULT_MEDIA_AUDIO_SETTINGS.parametricEqualizer.bands.map((band) => ({
-				...band,
-			})),
+			bands: DEFAULT_MEDIA_AUDIO_SETTINGS.parametricEqualizer.bands.map(
+				(band) => ({
+					...band,
+				})
+			),
 		},
 		repair: structuredClone(DEFAULT_MEDIA_AUDIO_SETTINGS.repair),
 		compressor: { ...DEFAULT_MEDIA_AUDIO_SETTINGS.compressor },
@@ -294,6 +296,7 @@ export function normalizeMediaAudioSettings({
 	>;
 }): MediaAudioSettings {
 	const audio = element.audio;
+	const repairDefaults = createDefaultAudioRepairSettings();
 	const legacyDenoise = clamp({
 		value: finiteOr({ value: element.audioDenoise, fallback: 0 }),
 		min: 0,
@@ -357,34 +360,34 @@ export function normalizeMediaAudioSettings({
 			settings: audio?.parametricEqualizer,
 		}),
 		repair: {
-			...createDefaultAudioRepairSettings(),
+			...repairDefaults,
 			...audio?.repair,
 			deEsser: {
-				...createDefaultAudioRepairSettings().deEsser,
+				...repairDefaults.deEsser,
 				...audio?.repair?.deEsser,
 			},
 			deReverb: {
-				...createDefaultAudioRepairSettings().deReverb,
+				...repairDefaults.deReverb,
 				...audio?.repair?.deReverb,
 			},
 			deHum: {
-				...createDefaultAudioRepairSettings().deHum,
+				...repairDefaults.deHum,
 				...audio?.repair?.deHum,
 			},
 			dePlosive: {
-				...createDefaultAudioRepairSettings().dePlosive,
+				...repairDefaults.dePlosive,
 				...audio?.repair?.dePlosive,
 			},
 			deClick: {
-				...createDefaultAudioRepairSettings().deClick,
+				...repairDefaults.deClick,
 				...audio?.repair?.deClick,
 			},
 			deClip: {
-				...createDefaultAudioRepairSettings().deClip,
+				...repairDefaults.deClip,
 				...audio?.repair?.deClip,
 			},
 			noiseGate: {
-				...createDefaultAudioRepairSettings().noiseGate,
+				...repairDefaults.noiseGate,
 				...audio?.repair?.noiseGate,
 			},
 		},
@@ -515,7 +518,8 @@ export function hasMediaAudioEdits({
 		return true;
 	}
 	if (settings.parametricEqualizer.enabled) return true;
-	if (Object.values(settings.repair).some((module) => module.enabled)) return true;
+	if (Object.values(settings.repair).some((module) => module.enabled))
+		return true;
 	if (settings.compressor.enabled || settings.limiter.enabled) return true;
 	if (
 		settings.reverb.enabled &&
