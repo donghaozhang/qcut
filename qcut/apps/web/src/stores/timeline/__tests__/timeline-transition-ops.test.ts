@@ -1,5 +1,11 @@
-import { beforeEach, describe, expect, it } from "vitest";
-import type { MediaElement, TimelineTrack } from "@/types/timeline";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import {
+	resolveClipTransition,
+	type MediaElement,
+	type TimelineTrack,
+} from "@/types/timeline";
+import { storageService } from "@/lib/storage/storage-service";
+import { clearAutoSaveTimer } from "../timeline-store-autosave";
 import { useTimelineStore } from "../timeline-store";
 
 function mediaElement({
@@ -47,6 +53,11 @@ describe("timeline transition operations", () => {
 			selectedElements: [],
 			selectedTransition: null,
 		});
+	});
+
+	afterEach(() => {
+		clearAutoSaveTimer();
+		vi.restoreAllMocks();
 	});
 
 	it("adds and selects a transition at a valid seam", () => {
@@ -135,6 +146,175 @@ describe("timeline transition operations", () => {
 
 		expect(useTimelineStore.getState().tracks[0].transitions?.[0].duration).toBe(
 			4
+		);
+	});
+
+	it("prevents neighboring transition windows from overlapping a short clip", () => {
+		const shortTrack: TimelineTrack = {
+			...track(),
+			elements: [
+				mediaElement({ id: "a", startTime: 0, duration: 3 }),
+				mediaElement({ id: "b", startTime: 3, duration: 1 }),
+				mediaElement({ id: "c", startTime: 4, duration: 3 }),
+			],
+		};
+		useTimelineStore.setState({
+			_tracks: [shortTrack],
+			tracks: [shortTrack],
+			history: [],
+			redoStack: [],
+		});
+
+		useTimelineStore.getState().addTransition({
+			trackId: "track-1",
+			fromElementId: "a",
+			toElementId: "b",
+			presetId: "dissolve",
+			type: "dissolve",
+			duration: 1.5,
+		});
+		useTimelineStore.getState().addTransition({
+			trackId: "track-1",
+			fromElementId: "b",
+			toElementId: "c",
+			presetId: "wipe-left",
+			type: "wipe",
+			direction: "left",
+			duration: 1.5,
+		});
+
+		const updatedTrack = useTimelineStore.getState().tracks[0];
+		expect(updatedTrack.transitions?.map((item) => item.duration)).toEqual([
+			1.5, 0.5,
+		]);
+		const left = resolveClipTransition({
+			track: updatedTrack,
+			transition: updatedTrack.transitions?.[0]!,
+		});
+		const right = resolveClipTransition({
+			track: updatedTrack,
+			transition: updatedTrack.transitions?.[1]!,
+		});
+		expect(left?.windowEnd).toBe(right?.windowStart);
+	});
+
+	it("restores transition edits through undo and redo", () => {
+		useTimelineStore.getState().addTransition({
+			trackId: "track-1",
+			fromElementId: "a",
+			toElementId: "b",
+			presetId: "dissolve",
+			type: "dissolve",
+			duration: 0.5,
+		});
+		expect(useTimelineStore.getState().tracks[0].transitions).toHaveLength(1);
+
+		useTimelineStore.getState().undo();
+		expect(useTimelineStore.getState().tracks[0].transitions ?? []).toEqual([]);
+
+		useTimelineStore.getState().redo();
+		expect(useTimelineStore.getState().tracks[0].transitions).toEqual([
+			expect.objectContaining({
+				fromElementId: "a",
+				toElementId: "b",
+				duration: 0.5,
+			}),
+		]);
+	});
+
+	it.each([
+		{
+			name: "delete",
+			edit: () =>
+				useTimelineStore
+					.getState()
+					.removeElementFromTrack("track-1", "b"),
+		},
+		{
+			name: "split",
+			edit: () =>
+				useTimelineStore.getState().splitElement("track-1", "a", 1),
+		},
+		{
+			name: "move to another track",
+			edit: () =>
+				useTimelineStore
+					.getState()
+					.moveElementToTrack("track-1", "track-2", "b"),
+		},
+	])("removes a stale transition after $name", ({ edit }) => {
+		const secondTrack: TimelineTrack = {
+			id: "track-2",
+			name: "Second Track",
+			type: "media",
+			elements: [],
+		};
+		useTimelineStore.setState((state) => ({
+			_tracks: [...state._tracks, secondTrack],
+			tracks: [...state.tracks, secondTrack],
+		}));
+		useTimelineStore.getState().addTransition({
+			trackId: "track-1",
+			fromElementId: "a",
+			toElementId: "b",
+			presetId: "dissolve",
+			type: "dissolve",
+			duration: 0.5,
+		});
+
+		edit();
+
+		expect(
+			useTimelineStore
+				.getState()
+				.tracks.flatMap((candidate) => candidate.transitions ?? [])
+		).toEqual([]);
+		expect(useTimelineStore.getState().selectedTransition).toBeNull();
+	});
+
+	it("preserves transitions through explicit save and reload", async () => {
+		useTimelineStore.getState().addTransition({
+			trackId: "track-1",
+			fromElementId: "a",
+			toElementId: "b",
+			presetId: "slide-left",
+			type: "slide",
+			direction: "left",
+			duration: 0.75,
+		});
+		const persistedTracks = structuredClone(
+			useTimelineStore.getState().tracks
+		);
+		const save = vi
+			.spyOn(storageService, "saveProjectTimeline")
+			.mockResolvedValue();
+		await useTimelineStore
+			.getState()
+			.saveProjectTimeline({ projectId: "project-1" });
+		expect(save).toHaveBeenCalledWith(
+			expect.objectContaining({
+				projectId: "project-1",
+				tracks: expect.arrayContaining([
+					expect.objectContaining({
+						transitions: [
+							expect.objectContaining({
+								presetId: "slide-left",
+								direction: "left",
+							}),
+						],
+					}),
+				]),
+			})
+		);
+
+		vi.spyOn(storageService, "loadProjectTimeline").mockResolvedValue(
+			persistedTracks
+		);
+		await useTimelineStore
+			.getState()
+			.loadProjectTimeline({ projectId: "project-1" });
+		expect(useTimelineStore.getState().tracks[0].transitions).toEqual(
+			persistedTracks[0].transitions
 		);
 	});
 });
