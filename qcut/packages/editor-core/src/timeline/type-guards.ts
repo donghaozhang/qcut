@@ -10,6 +10,7 @@ import type {
 	MediaElement,
 	TextElement,
 	StickerElement,
+	AdjustmentElement,
 	CaptionElement,
 	RemotionElement,
 	MarkdownElement,
@@ -32,6 +33,12 @@ export function isStickerElement(
 	element: TimelineElement
 ): element is StickerElement {
 	return element.type === "sticker";
+}
+
+export function isAdjustmentElement(
+	element: TimelineElement
+): element is AdjustmentElement {
+	return element.type === "adjustment";
 }
 
 export function isCaptionElement(

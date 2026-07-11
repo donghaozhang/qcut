@@ -25,6 +25,7 @@ import {
 	FolderOpen,
 	Download,
 	Palette,
+	SlidersHorizontal,
 } from "lucide-react";
 import { useAsyncMediaItems } from "@/hooks/media/use-async-media-store";
 import { getFileType, useMediaStore } from "@/stores/media/media-store";
@@ -55,6 +56,8 @@ function getElementTypeName(element: { type: string }): string {
 			return "captions";
 		case "sticker":
 			return "sticker";
+		case "adjustment":
+			return "adjustment layer";
 		case "markdown":
 			return "markdown";
 		default:
@@ -862,6 +865,17 @@ function TimelineElementComponent({
 				<div className="w-full h-full flex items-center justify-start pl-2">
 					<span className="text-xs text-foreground/80 truncate">
 						{element.text}
+					</span>
+				</div>
+			);
+		}
+
+		if (element.type === "adjustment") {
+			return (
+				<div className="flex h-full w-full items-center gap-1.5 px-2">
+					<SlidersHorizontal className="size-3.5 shrink-0" />
+					<span className="truncate text-xs text-foreground/80">
+						{element.name}
 					</span>
 				</div>
 			);

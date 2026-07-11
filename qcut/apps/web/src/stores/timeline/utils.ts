@@ -47,6 +47,8 @@ export function getTrackName(type: TrackType): string {
 			return "Audio Track";
 		case "sticker":
 			return "Sticker Track";
+		case "adjustment":
+			return "Adjustment Track";
 		case "captions":
 			return "Captions Track";
 		case "remotion":

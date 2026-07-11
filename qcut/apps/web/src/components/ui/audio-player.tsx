@@ -18,6 +18,8 @@ interface AudioPlayerProps {
 	clipDuration: number;
 	trackMuted?: boolean;
 	trackId?: string;
+	previewGain?: number;
+	playbackWindow?: { startTime: number; endTime: number };
 	element: MediaElement;
 }
 
@@ -26,6 +28,8 @@ export function AudioPlayer({
 	className = "",
 	trackMuted = false,
 	trackId,
+	previewGain = 1,
+	playbackWindow,
 	element,
 }: AudioPlayerProps) {
 	const audioRef = useRef<HTMLAudioElement>(null);
@@ -42,13 +46,16 @@ export function AudioPlayer({
 		element,
 		trackId,
 		duration: timelineDuration,
+		previewGain,
 		trackMuted,
 		forceMuted: element.reverse === true && !reversed.url,
 	});
 
-	const clipEndTime = element.startTime + timelineDuration;
+	const clipRangeStart = playbackWindow?.startTime ?? element.startTime;
+	const clipEndTime =
+		playbackWindow?.endTime ?? element.startTime + timelineDuration;
 	const isInClipRange =
-		currentTime >= element.startTime && currentTime < clipEndTime;
+		currentTime >= clipRangeStart && currentTime < clipEndTime;
 	const syncAudioTiming = useCallback(
 		({
 			timelineTime,

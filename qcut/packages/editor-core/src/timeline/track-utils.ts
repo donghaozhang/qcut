@@ -15,6 +15,7 @@ const TRACK_PRIORITY: Record<TrackType, number> = {
 	markdown: 2.5,
 	remotion: 3,
 	sticker: 4,
+	adjustment: 4.5,
 	media: 5,
 	audio: 6,
 };
@@ -174,6 +175,8 @@ export function getTrackName(type: TrackType): string {
 			return "Audio Track";
 		case "sticker":
 			return "Sticker Track";
+		case "adjustment":
+			return "Adjustment Track";
 		case "captions":
 			return "Captions Track";
 		case "remotion":

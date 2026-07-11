@@ -18,6 +18,7 @@ export type {
 	RemotionElement,
 	CaptionElement,
 	StickerElement,
+	AdjustmentElement,
 	SubtitleStyle,
 	DragData,
 	TimelineTrackAudioSettings,
@@ -42,6 +43,7 @@ import type {
 	RemotionElement,
 	CaptionElement,
 	StickerElement,
+	AdjustmentElement,
 	DragData,
 	TimelineTrackAudioSettings,
 } from "@/types/timeline";

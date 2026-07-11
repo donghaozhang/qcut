@@ -20,6 +20,7 @@ export type TrackType =
 	| "audio"
 	| "sticker"
 	| "captions"
+	| "adjustment"
 	| "remotion"
 	| "markdown";
 
@@ -717,6 +718,11 @@ export interface StickerElement extends BaseTimelineElement {
 	zIndex?: number;
 }
 
+export interface AdjustmentElement extends BaseTimelineElement {
+	type: "adjustment";
+	opacity?: number;
+}
+
 /** Visual style properties for subtitle/caption elements */
 export interface SubtitleStyle {
 	fontFamily: string;
@@ -798,6 +804,7 @@ export type TimelineElement =
 	| MediaElement
 	| TextElement
 	| StickerElement
+	| AdjustmentElement
 	| CaptionElement
 	| RemotionElement
 	| MarkdownElement;
@@ -809,6 +816,7 @@ export type TimelineElement =
 export type CreateMediaElement = Omit<MediaElement, "id">;
 export type CreateTextElement = Omit<TextElement, "id">;
 export type CreateStickerElement = Omit<StickerElement, "id">;
+export type CreateAdjustmentElement = Omit<AdjustmentElement, "id">;
 export type CreateCaptionElement = Omit<CaptionElement, "id">;
 export type CreateRemotionElement = Omit<RemotionElement, "id">;
 export type CreateMarkdownElement = Omit<MarkdownElement, "id">;
@@ -816,6 +824,7 @@ export type CreateTimelineElement =
 	| CreateMediaElement
 	| CreateTextElement
 	| CreateStickerElement
+	| CreateAdjustmentElement
 	| CreateCaptionElement
 	| CreateRemotionElement
 	| CreateMarkdownElement;

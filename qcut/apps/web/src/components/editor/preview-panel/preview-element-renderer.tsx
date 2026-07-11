@@ -49,6 +49,7 @@ import { getClipTransitionLayerPresentation } from "@/lib/transitions/clip-trans
 import { CaptionsDisplay } from "@/components/captions/captions-display";
 import { WORD_FILTER_STATE } from "@/types/word-timeline";
 import { TimelineStickerLayer } from "./timeline-sticker-layer";
+import type { AudioCrossfadePreviewState } from "@/lib/audio/audio-crossfade-preview";
 
 interface ElementResizeParams {
 	elementId: string;
@@ -71,6 +72,7 @@ interface PreviewElementRendererProps {
 	activeProject: TProject | null;
 	tracks: TimelineTrack[];
 	transitionState?: ClipTransitionPreviewState;
+	audioCrossfadeState?: AudioCrossfadePreviewState;
 	onTextPointerDown: (
 		event: React.PointerEvent<HTMLDivElement>,
 		element: Pick<TimelineElement, "id" | "x" | "y">,
@@ -204,6 +206,7 @@ export function PreviewElementRenderer({
 	activeProject,
 	tracks,
 	transitionState,
+	audioCrossfadeState,
 	onTextPointerDown,
 	onElementSelect,
 	onElementResize,
@@ -409,10 +412,7 @@ export function PreviewElementRenderer({
 				temperature: 0,
 				avg_logprob: -0.5,
 				compression_ratio: 1,
-				no_speech_prob: Math.min(
-					1,
-					Math.max(0, 1 - (element.confidence ?? 1))
-				),
+				no_speech_prob: Math.min(1, Math.max(0, 1 - (element.confidence ?? 1))),
 			};
 			const words = (element.words ?? []).map((word) => ({
 				id: word.id,
@@ -452,6 +452,11 @@ export function PreviewElementRenderer({
 		}
 
 		if (element.type === "media") {
+			const previewAudioElement =
+				audioCrossfadeState?.previewElement ?? element;
+			const previewAudioGain = audioCrossfadeState?.gain ?? 1;
+			const audioPlaybackWindow =
+				audioCrossfadeState?.playbackWindow ?? transitionState?.playbackWindow;
 			const transitionPresentation = transitionState
 				? getClipTransitionLayerPresentation({
 						transition: transitionState.transition,
@@ -494,35 +499,46 @@ export function PreviewElementRenderer({
 				(source) => source.source !== "original"
 			);
 			const transitionMuted = Boolean(
-				transitionState && !transitionState.isAudible
+				transitionState && !transitionState.isAudible && !audioCrossfadeState
 			);
-			const derivedAudioPlayers = hasDerivedAudio && !transitionMuted
-				? selectedAudioSources.flatMap((selectedSource, sourceIndex) => {
-						const selectedMedia = mediaItems.find(
-							(item) => item.id === selectedSource.mediaId
-						);
-						const src = selectedMedia?.url || selectedMedia?.originalUrl;
-						if (!src) return [];
-						const derivedElement = createDerivedAudioElement({
-							element,
-							selectedSource,
-							index: sourceIndex,
-						});
-						return [
-							<AudioPlayer
-								key={derivedElement.id}
-								src={src}
-								clipStartTime={element.startTime}
-								trimStart={element.trimStart}
-								trimEnd={element.trimEnd}
-								clipDuration={element.duration}
-								trackMuted={elementData.track.muted}
-								trackId={elementData.track.id}
-								element={derivedElement}
-							/>,
-						];
-					})
-				: [];
+			const derivedAudioPlayers =
+				hasDerivedAudio && !transitionMuted
+					? selectedAudioSources.flatMap((selectedSource, sourceIndex) => {
+							const selectedMedia = mediaItems.find(
+								(item) => item.id === selectedSource.mediaId
+							);
+							const src = selectedMedia?.url || selectedMedia?.originalUrl;
+							if (!src) return [];
+							const derivedElement = createDerivedAudioElement({
+								element,
+								selectedSource,
+								index: sourceIndex,
+							});
+							const previewDerivedElement = audioCrossfadeState
+								? {
+										...derivedElement,
+										startTime: previewAudioElement.startTime,
+										trimStart: previewAudioElement.trimStart,
+										trimEnd: previewAudioElement.trimEnd,
+									}
+								: derivedElement;
+							return [
+								<AudioPlayer
+									key={derivedElement.id}
+									src={src}
+									clipStartTime={previewAudioElement.startTime}
+									trimStart={previewAudioElement.trimStart}
+									trimEnd={previewAudioElement.trimEnd}
+									clipDuration={previewAudioElement.duration}
+									trackMuted={elementData.track.muted}
+									trackId={elementData.track.id}
+									previewGain={previewAudioGain}
+									playbackWindow={audioPlaybackWindow}
+									element={previewDerivedElement}
+								/>,
+							];
+						})
+					: [];
 
 			if (mediaItem.type === "video") {
 				const source = videoSourcesById.get(mediaItem.id) ?? null;
@@ -657,10 +673,10 @@ export function PreviewElementRenderer({
 								poster={
 									generatedMaskSource ? undefined : mediaItem.thumbnailUrl
 								}
-								clipStartTime={element.startTime}
-								trimStart={element.trimStart}
-								trimEnd={element.trimEnd}
-								clipDuration={element.duration}
+								clipStartTime={previewAudioElement.startTime}
+								trimStart={previewAudioElement.trimStart}
+								trimEnd={previewAudioElement.trimEnd}
+								clipDuration={previewAudioElement.duration}
 								clipVolume={
 									transitionMuted || generatedMaskSource || hasDerivedAudio
 										? 0
@@ -671,10 +687,11 @@ export function PreviewElementRenderer({
 								fadeIn={audioPreviewBypassed ? 0 : (element.audioFadeIn ?? 0)}
 								fadeOut={audioPreviewBypassed ? 0 : (element.audioFadeOut ?? 0)}
 								clipPlaybackRate={element.playbackRate ?? 1}
-								timingElement={element}
+								timingElement={previewAudioElement}
 								trackId={elementData.track.id}
 								trackMuted={elementData.track.muted}
-								playbackWindow={transitionState?.playbackWindow}
+								previewGain={previewAudioGain}
+								playbackWindow={audioPlaybackWindow}
 								videoId={sourceVideoId}
 								style={{
 									objectFit: visual.fitMode,
@@ -697,10 +714,10 @@ export function PreviewElementRenderer({
 							{generatedMaskSource && !hasDerivedAudio ? (
 								<VideoPlayer
 									videoSource={source}
-									clipStartTime={element.startTime}
-									trimStart={element.trimStart}
-									trimEnd={element.trimEnd}
-									clipDuration={element.duration}
+									clipStartTime={previewAudioElement.startTime}
+									trimStart={previewAudioElement.trimStart}
+									trimEnd={previewAudioElement.trimEnd}
+									clipDuration={previewAudioElement.duration}
 									clipVolume={
 										transitionMuted
 											? 0
@@ -713,10 +730,11 @@ export function PreviewElementRenderer({
 										audioPreviewBypassed ? 0 : (element.audioFadeOut ?? 0)
 									}
 									clipPlaybackRate={element.playbackRate ?? 1}
-									timingElement={element}
+									timingElement={previewAudioElement}
 									trackId={elementData.track.id}
 									trackMuted={elementData.track.muted}
-									playbackWindow={transitionState?.playbackWindow}
+									previewGain={previewAudioGain}
+									playbackWindow={audioPlaybackWindow}
 									videoId={`${mediaItem.id}-mask-audio`}
 									className="pointer-events-none absolute inset-0 opacity-0"
 								/>
@@ -729,8 +747,7 @@ export function PreviewElementRenderer({
 							currentFrame={Math.max(
 								0,
 								Math.round(
-									(currentTime - element.startTime) *
-										(activeProject?.fps ?? 30)
+									(currentTime - element.startTime) * (activeProject?.fps ?? 30)
 								)
 							)}
 						/>
@@ -941,13 +958,15 @@ export function PreviewElementRenderer({
 						) : (
 							<AudioPlayer
 								src={mediaItem.url || mediaItem.originalUrl || ""}
-								clipStartTime={element.startTime}
-								trimStart={element.trimStart}
-								trimEnd={element.trimEnd}
-								clipDuration={element.duration}
+								clipStartTime={previewAudioElement.startTime}
+								trimStart={previewAudioElement.trimStart}
+								trimEnd={previewAudioElement.trimEnd}
+								clipDuration={previewAudioElement.duration}
 								trackMuted={elementData.track.muted}
 								trackId={elementData.track.id}
-								element={element}
+								previewGain={previewAudioGain}
+								playbackWindow={audioPlaybackWindow}
+								element={previewAudioElement}
 							/>
 						)}
 					</div>

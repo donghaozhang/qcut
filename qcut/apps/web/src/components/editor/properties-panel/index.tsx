@@ -33,6 +33,7 @@ import {
 	hasActiveEnhancements,
 } from "@/stores/screen-recording-store";
 import { TransitionProperties } from "./transition-properties";
+import { AdjustmentProperties } from "./adjustment-properties";
 
 export function PropertiesPanel() {
 	const { selectedElements, selectedTransition, tracks } = useTimelineStore();
@@ -179,6 +180,10 @@ export function PropertiesPanel() {
 			return <MarkdownProperties element={element} trackId={trackId} />;
 		}
 
+		if (element.type === "adjustment") {
+			return <AdjustmentProperties />;
+		}
+
 		if (element.type === "captions" || (element as any).type === "caption") {
 			console.log(
 				"[CaptionDebug] Properties panel rendering CaptionProperties for element:",
@@ -228,9 +233,11 @@ export function PropertiesPanel() {
 									(() => {
 										const { trackId, element } = resolvedSelections[0];
 										const showEffects =
-											EFFECTS_ENABLED && hasEffects(element.id);
-										const showTransform =
-											element.type === "markdown" || showEffects;
+							EFFECTS_ENABLED &&
+							(element.type === "adjustment" || hasEffects(element.id));
+						const showTransform =
+							element.type === "markdown" ||
+							(showEffects && element.type !== "adjustment");
 										return (
 											<div key={element.id}>
 												{showEffects ? (

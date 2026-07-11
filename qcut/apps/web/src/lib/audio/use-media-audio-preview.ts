@@ -22,6 +22,7 @@ interface AudioPreviewOptions {
 	trackMuted: boolean;
 	forceMuted: boolean;
 	fallbackGain: number;
+	previewGain: number;
 	fallbackFadeIn: number;
 	fallbackFadeOut: number;
 	fps: number;
@@ -36,6 +37,7 @@ export function useMediaAudioPreview({
 	trackMuted = false,
 	forceMuted = false,
 	fallbackGain = 1,
+	previewGain = 1,
 	fallbackFadeIn = 0,
 	fallbackFadeOut = 0,
 }: {
@@ -46,6 +48,7 @@ export function useMediaAudioPreview({
 	trackMuted?: boolean;
 	forceMuted?: boolean;
 	fallbackGain?: number;
+	previewGain?: number;
 	fallbackFadeIn?: number;
 	fallbackFadeOut?: number;
 }) {
@@ -66,6 +69,7 @@ export function useMediaAudioPreview({
 		trackMuted,
 		forceMuted,
 		fallbackGain,
+		previewGain,
 		fallbackFadeIn,
 		fallbackFadeOut,
 		fps,
@@ -79,6 +83,7 @@ export function useMediaAudioPreview({
 		trackMuted,
 		forceMuted,
 		fallbackGain,
+		previewGain,
 		fallbackFadeIn,
 		fallbackFadeOut,
 		fps,
@@ -105,7 +110,11 @@ export function useMediaAudioPreview({
 				1,
 				Math.max(
 					0,
-					options.masterVolume * options.fallbackGain * fadeInGain * fadeOutGain
+					options.masterVolume *
+						options.fallbackGain *
+						options.previewGain *
+						fadeInGain *
+						fadeOutGain
 				)
 			);
 			mediaElement.muted =
@@ -124,11 +133,13 @@ export function useMediaAudioPreview({
 			bypassed: options.bypassed,
 		});
 		if (!graphRef.current) {
-			mediaElement.volume = Math.min(1, state.outputGain);
+			mediaElement.volume = Math.min(1, state.outputGain * options.previewGain);
 			mediaElement.muted = state.outputGain <= 0;
 			return;
 		}
-		graphRef.current.update({ state });
+		graphRef.current.update({
+			state: { ...state, outputGain: state.outputGain * options.previewGain },
+		});
 	};
 
 	useEffect(() => {

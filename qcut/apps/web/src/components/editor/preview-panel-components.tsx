@@ -30,6 +30,7 @@ import { EditableTimecode } from "@/components/ui/editable-timecode";
 import { BackgroundSettings } from "../background-settings";
 import type { TProject } from "@/types/project";
 import type { ActiveElement } from "./preview-panel/types";
+import { AdjustmentLayerStack } from "./preview-panel/adjustment-layer-stack";
 
 // Component 1: FullscreenToolbar (no dependencies)
 export function FullscreenToolbar({
@@ -260,9 +261,11 @@ export function FullscreenPreview({
 							No elements at current time
 						</div>
 					) : (
-						activeElements.map((elementData, index) =>
-							renderElement(elementData, index)
-						)
+						<AdjustmentLayerStack
+							activeElements={activeElements}
+							currentTime={currentTime}
+							renderElement={renderElement}
+						/>
 					)}
 
 					{activeProject?.backgroundType === "blur" &&

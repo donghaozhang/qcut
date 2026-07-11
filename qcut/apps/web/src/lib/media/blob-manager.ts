@@ -13,9 +13,11 @@ interface BlobEntry {
 	createdAt: number;
 	source?: string;
 	refCount: number; // Track how many consumers are using this URL
+	revokeTimer?: ReturnType<typeof setTimeout>;
 }
 
 const nativeRevokeObjectURL = URL.revokeObjectURL;
+export const BLOB_RELEASE_GRACE_MS = 1000;
 
 class BlobManager {
 	private blobs = new Map<string, BlobEntry>();
@@ -73,6 +75,7 @@ class BlobManager {
 		const existingFromWeakMap = this.fileToUrl.get(file);
 		if (existingFromWeakMap && this.blobs.has(existingFromWeakMap)) {
 			const entry = this.blobs.get(existingFromWeakMap)!;
+			this.cancelScheduledRevoke({ entry });
 			entry.refCount++;
 
 			if (import.meta.env.DEV) {
@@ -93,6 +96,7 @@ class BlobManager {
 		if (existingFromKeyCache) {
 			const entry2 = this.blobs.get(existingFromKeyCache);
 			if (entry2) {
+				this.cancelScheduledRevoke({ entry: entry2 });
 				entry2.refCount++;
 
 				// Also add to WeakMap for faster future lookups with this instance
@@ -197,7 +201,7 @@ class BlobManager {
 			return false;
 		}
 
-		entry.refCount--;
+		entry.refCount = Math.max(0, entry.refCount - 1);
 
 		if (import.meta.env.DEV) {
 			console.log(`[BlobManager] 📉 Released: ${url}`);
@@ -207,11 +211,33 @@ class BlobManager {
 		}
 
 		if (entry.refCount <= 0) {
-			// Actually revoke - no more references
-			this.forceRevokeInternal(url, entry, context);
+			this.scheduleRevoke({ url, entry, context });
 		}
 
 		return true;
+	}
+
+	private cancelScheduledRevoke({ entry }: { entry: BlobEntry }): void {
+		if (entry.revokeTimer === undefined) return;
+		clearTimeout(entry.revokeTimer);
+		entry.revokeTimer = undefined;
+	}
+
+	private scheduleRevoke({
+		url,
+		entry,
+		context,
+	}: {
+		url: string;
+		entry: BlobEntry;
+		context?: string;
+	}): void {
+		if (entry.revokeTimer !== undefined) return;
+		entry.revokeTimer = setTimeout(() => {
+			const currentEntry = this.blobs.get(url);
+			if (currentEntry !== entry || currentEntry.refCount > 0) return;
+			this.forceRevokeInternal(url, currentEntry, context);
+		}, BLOB_RELEASE_GRACE_MS);
 	}
 
 	/**
@@ -222,6 +248,7 @@ class BlobManager {
 		entry: BlobEntry,
 		context?: string
 	): void {
+		this.cancelScheduledRevoke({ entry });
 		nativeRevokeObjectURL(url);
 		this.blobs.delete(url);
 

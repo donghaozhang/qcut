@@ -36,6 +36,7 @@ interface VideoPlayerProps {
 	playbackWindow?: { startTime: number; endTime: number };
 	trackId?: string;
 	trackMuted?: boolean;
+	previewGain?: number;
 }
 
 function getVideoPlaybackRate({
@@ -81,6 +82,7 @@ export function VideoPlayer({
 	playbackWindow,
 	trackId,
 	trackMuted = false,
+	previewGain = 1,
 }: VideoPlayerProps) {
 	const videoRef = useRef<HTMLVideoElement>(null);
 	const blobUrlRef = useRef<string | null>(null);
@@ -109,6 +111,7 @@ export function VideoPlayer({
 		trackId,
 		duration: timelineDuration,
 		trackMuted,
+		previewGain,
 		forceMuted: clipVolume <= 0,
 		fallbackGain: clipVolume,
 		fallbackFadeIn: fadeIn,
@@ -359,6 +362,12 @@ export function VideoPlayer({
 	// Separate cleanup effect for component unmount only
 	useEffect(() => {
 		return () => {
+			const video = videoRef.current;
+			if (video) {
+				video.pause();
+				video.removeAttribute("src");
+				video.load();
+			}
 			// Release reference on actual component unmount (only revokes if refCount reaches 0)
 			if (pendingCleanupRef.current) {
 				console.log(

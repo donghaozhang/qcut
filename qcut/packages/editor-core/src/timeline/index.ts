@@ -56,6 +56,7 @@ export {
 	isMediaElement,
 	isTextElement,
 	isStickerElement,
+	isAdjustmentElement,
 	isCaptionElement,
 	isRemotionElement,
 	isMarkdownElement,

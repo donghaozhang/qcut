@@ -51,10 +51,12 @@ import { RecordingBackground } from "./preview-panel/recording-background";
 import { useScreenRecordingPreview } from "./preview-panel/use-screen-recording-preview";
 import { resolveActiveClipTransitionPreview } from "@/lib/transitions/clip-transition-preview";
 import { useAudioMixMonitor } from "@/lib/audio/use-audio-mix-monitor";
+import { resolveActiveAudioCrossfadePreview } from "@/lib/audio/audio-crossfade-preview";
 import {
 	TimelineStickerKeyboardController,
 	useTimelineStickerDrop,
 } from "./preview-panel/timeline-sticker-interactions";
+import { AdjustmentLayerStack } from "./preview-panel/adjustment-layer-stack";
 
 function getPreviewElementDuration(element: TimelineElement): number {
 	return element.type === "media"
@@ -122,6 +124,14 @@ export function PreviewPanel() {
 			});
 			for (const elementId of transitionPreview.forceActiveElementIds) {
 				activeIds += `transition:${elementId},`;
+			}
+			const audioCrossfadePreview = resolveActiveAudioCrossfadePreview({
+				tracks,
+				currentTime: time,
+				fps: activeProject?.fps ?? 30,
+			});
+			for (const elementId of audioCrossfadePreview.forceActiveElementIds) {
+				activeIds += `audio-crossfade:${elementId},`;
 			}
 			if (activeIds !== lastActiveIdsRef.current) {
 				lastActiveIdsRef.current = activeIds;
@@ -316,6 +326,26 @@ export function PreviewPanel() {
 			}),
 		[activeProject?.fps, tracks, transitionPreviewTime]
 	);
+	const activeAudioCrossfadePreview = useMemo(
+		() =>
+			resolveActiveAudioCrossfadePreview({
+				tracks,
+				currentTime: transitionPreviewTime,
+				fps: activeProject?.fps ?? 30,
+			}),
+		[activeProject?.fps, tracks, transitionPreviewTime]
+	);
+	const forcedActiveElementIds = useMemo(
+		() =>
+			new Set([
+				...activeTransitionPreview.forceActiveElementIds,
+				...activeAudioCrossfadePreview.forceActiveElementIds,
+			]),
+		[
+			activeAudioCrossfadePreview.forceActiveElementIds,
+			activeTransitionPreview.forceActiveElementIds,
+		]
+	);
 	const hasAnyElements = tracks.some((track) => track.elements.length > 0);
 	const getActiveElements = useCallback((): ActiveElement[] => {
 		try {
@@ -323,8 +353,7 @@ export function PreviewPanel() {
 			const plan = buildCompositionPlan({
 				tracks,
 				currentTime: effectiveTime,
-				forceActiveElementIds:
-					activeTransitionPreview.forceActiveElementIds,
+				forceActiveElementIds: forcedActiveElementIds,
 				getElementDuration: ({ element }) => getPreviewElementDuration(element),
 			});
 			const layers = [...plan.visualLayers, ...plan.audioElements];
@@ -340,7 +369,7 @@ export function PreviewPanel() {
 			return [];
 		}
 	}, [
-		activeTransitionPreview.forceActiveElementIds,
+		forcedActiveElementIds,
 		tracks,
 		currentTime,
 		playbackTime,
@@ -542,6 +571,9 @@ export function PreviewPanel() {
 				transitionState={activeTransitionPreview.statesByElementId.get(
 					elementData.element.id
 				)}
+				audioCrossfadeState={activeAudioCrossfadePreview.statesByElementId.get(
+					elementData.element.id
+				)}
 				onTextPointerDown={handleTextPointerDown}
 				onElementSelect={({ elementId }) => setSelectedElementId(elementId)}
 				onElementResize={handleElementResize}
@@ -549,6 +581,7 @@ export function PreviewPanel() {
 		),
 		[
 			activeProject,
+			activeAudioCrossfadePreview.statesByElementId,
 			activeTransitionPreview.statesByElementId,
 			canvasSize,
 			currentMediaElement,
@@ -716,9 +749,11 @@ export function PreviewPanel() {
 												No elements at current time
 											</div>
 										) : (
-											activeElements.map((elementData, index) =>
-												renderElement(elementData, index)
-											)
+											<AdjustmentLayerStack
+												activeElements={activeElements}
+												currentTime={currentTime}
+												renderElement={renderElement}
+											/>
 										)}
 										{cursorOverlay}
 									</div>

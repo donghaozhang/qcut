@@ -25,6 +25,11 @@ export const TRACK_COLORS: Record<
 		background: "bg-purple-500/20",
 		border: "border-white/80",
 	},
+	adjustment: {
+		solid: "bg-cyan-600",
+		background: "bg-cyan-500/20",
+		border: "border-white/80",
+	},
 	captions: {
 		solid: "bg-yellow-500",
 		background: "bg-yellow-500/20",
@@ -68,6 +73,7 @@ export const TRACK_HEIGHTS: Record<TrackType, number> = {
 	text: 25,
 	audio: 50,
 	sticker: 40,
+	adjustment: 32,
 	captions: 30,
 	remotion: 55,
 	markdown: 55,

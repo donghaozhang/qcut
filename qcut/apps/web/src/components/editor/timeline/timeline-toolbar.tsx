@@ -65,6 +65,7 @@ const ADD_TRACK_OPTIONS: Array<{ type: TrackType; label: string }> = [
 	{ type: "text", label: "Text" },
 	{ type: "captions", label: "Captions" },
 	{ type: "sticker", label: "Sticker" },
+	{ type: "adjustment", label: "Adjustment Layer" },
 	{ type: "remotion", label: "Remotion" },
 	{ type: "markdown", label: "Markdown" },
 ];
@@ -321,6 +322,22 @@ export function TimelineToolbar({
 	};
 
 	const currentBookmarked = isBookmarked(currentTime);
+	const addTrackFromMenu = ({ type }: { type: TrackType }) => {
+		const trackId = addTrack(type);
+		if (type !== "adjustment") return;
+		const projectEnd = useTimelineStore.getState().getTotalDuration();
+		addElementToTrack(trackId, {
+			type: "adjustment",
+			name: "Adjustment Layer",
+			startTime: currentTime,
+			duration: Math.max(5, projectEnd - currentTime),
+			trimStart: 0,
+			trimEnd: 0,
+			opacity: 1,
+			effects: [],
+			effectChains: [],
+		});
+	};
 
 	return (
 		<div
@@ -348,7 +365,7 @@ export function TimelineToolbar({
 							{ADD_TRACK_OPTIONS.map((option) => (
 								<DropdownMenuItem
 									key={option.type}
-									onSelect={() => addTrack(option.type)}
+									onSelect={() => addTrackFromMenu({ type: option.type })}
 								>
 									<TrackIcon type={option.type} />
 									{option.label}
