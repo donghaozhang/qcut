@@ -55,6 +55,10 @@ describe("audio lyrics", () => {
 			text: "hello world",
 			style: { karaokeMode: "karaoke" },
 		});
+		expect(captions[0].words).toEqual([
+			expect.objectContaining({ text: "hello", start: 10, end: 10.5 }),
+			expect.objectContaining({ text: "world", start: 10.6, end: 11 }),
+		]);
 	});
 
 	it("omits removed words and splits long lyric lines", () => {

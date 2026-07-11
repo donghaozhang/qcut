@@ -180,7 +180,10 @@ export function FiltersView() {
 	const resultCount = visiblePresets.length + visibleSavedPresets.length;
 
 	return (
-		<div className="flex h-full min-h-0 flex-col bg-panel text-foreground">
+		<div
+			className="flex h-full min-h-0 flex-col bg-panel text-foreground"
+			data-testid="filters-view"
+		>
 			<div className="border-b border-border/50 p-3">
 				<div className="grid grid-cols-2 rounded-md bg-foreground/5 p-0.5">
 					{(["library", "favorites"] as const).map((item) => (

@@ -13,13 +13,7 @@ const outputDir =
 	process.env.QCUT_AUDIO_AUDIT_DIR ??
 	path.join(process.env.TMPDIR ?? "/tmp", "qcut-audio-visual-audit");
 
-async function addAudioToTimeline({
-	page,
-	expectedCount = 1,
-}: {
-	page: Page;
-	expectedCount?: number;
-}) {
+async function addAudioToTimeline({ page }: { page: Page }) {
 	const mediaItem = page
 		.getByTestId("media-item")
 		.filter({ hasText: /sample-audio/i })
@@ -31,7 +25,7 @@ async function addAudioToTimeline({
 		page.locator(
 			'[data-testid="timeline-track"][data-track-type="audio"] [data-testid="timeline-element"]'
 		)
-	).toHaveCount(expectedCount);
+	).toHaveCount(1);
 }
 
 async function addVideoToTimeline({ page }: { page: Page }) {
@@ -71,17 +65,30 @@ test.describe("Professional audio properties", () => {
 		await createTestProject(page, "Audio Selection Routing");
 		await importTestAudio(page);
 		await addAudioToTimeline({ page });
-		await addAudioToTimeline({ page, expectedCount: 2 });
+		await page.evaluate(() => {
+			const store = (window as any).__timelineStore;
+			const track = store
+				.getState()
+				.tracks.find((candidate: any) => candidate.type === "audio");
+			const source = track.elements[0];
+			store
+				.getState()
+				.addElementToTrack(
+					track.id,
+					{ ...source, startTime: source.startTime + source.duration },
+					{ pushHistory: true, selectElement: false }
+				);
+		});
 		const clips = page.locator(
 			'[data-testid="timeline-track"][data-track-type="audio"] [data-testid="timeline-element"]'
 		);
+		await expect(clips).toHaveCount(2);
 
 		await clips.first().click();
 		await expect(page.getByTestId("audio-properties-panel")).toBeVisible();
 		await page.getByTestId("panel-tab-export").click();
-		await expect(page.getByTestId("panel-tab-export")).toHaveAttribute(
-			"data-state",
-			"active"
+		await expect(page.getByTestId("panel-tab-export")).toHaveClass(
+			/border-primary/
 		);
 
 		await page.evaluate(() => {
@@ -95,9 +102,8 @@ test.describe("Professional audio properties", () => {
 					{ trackId: track.id, elementId: track.elements[1].id },
 				]);
 		});
-		await expect(page.getByTestId("panel-tab-properties")).toHaveAttribute(
-			"data-state",
-			"active"
+		await expect(page.getByTestId("panel-tab-properties")).toHaveClass(
+			/border-primary/
 		);
 		await expect(page.getByTestId("audio-properties-panel")).toBeVisible();
 
@@ -117,6 +123,17 @@ test.describe("Professional audio properties", () => {
 			page.getByTestId("audio-multi-selection-properties")
 		).toContainText("2 audio clips");
 
+		await page.evaluate(() => {
+			const store = (window as any).__timelineStore;
+			const track = store
+				.getState()
+				.tracks.find((candidate: any) => candidate.type === "audio");
+			store
+				.getState()
+				.setSelectedElements([
+					{ trackId: track.id, elementId: track.elements[1].id },
+				]);
+		});
 		await clips.first().click({ button: "right" });
 		await expect(page.getByTestId("audio-properties-panel")).toBeVisible();
 	});
@@ -199,6 +216,7 @@ test.describe("Professional audio properties", () => {
 		await panel.getByLabel("Enable Pitch").click();
 		await panel.getByTestId("audio-module-pitch").locator("summary").click();
 		await setAudioNumber({ page, label: "Pitch", value: 3 });
+		await page.mouse.move(4, 4);
 		await panel.screenshot({
 			path: path.join(outputDir, "03-audio-basic-processing.png"),
 			animations: "disabled",
@@ -244,6 +262,62 @@ test.describe("Professional audio properties", () => {
 			path: path.join(outputDir, "07-audio-lyrics-cover.png"),
 			animations: "disabled",
 		});
+		const panelWidth = await panel.evaluate((node) => ({
+			clientWidth: node.clientWidth,
+			scrollWidth: node.scrollWidth,
+		}));
+		expect(panelWidth.scrollWidth).toBeLessThanOrEqual(panelWidth.clientWidth);
+
+		await page.evaluate(() => {
+			const timeline = (window as any).__timelineStore.getState();
+			const captionTrackId = timeline.addTrack("captions");
+			timeline.addElementToTrack(
+				captionTrackId,
+				{
+					type: "captions",
+					name: "Karaoke preview",
+					startTime: 0,
+					duration: 2,
+					trimStart: 0,
+					trimEnd: 0,
+					text: "Hello world",
+					language: "en",
+					source: "transcription",
+					style: {
+						karaokeMode: "karaoke",
+						highlightColor: "#22d3ee",
+						upcomingColor: "#d4d4d8",
+					},
+					words: [
+						{
+							id: "hello",
+							text: "Hello",
+							start: 0,
+							end: 1,
+							type: "word",
+						},
+						{
+							id: "world",
+							text: "world",
+							start: 1,
+							end: 2,
+							type: "word",
+						},
+					],
+				},
+				{ pushHistory: false, selectElement: false }
+			);
+			(window as any).__playbackStore.getState().seek(0.5);
+		});
+		await expect(page.getByTestId("karaoke-renderer")).toContainText("Hello");
+		await expect(page.getByTestId("karaoke-renderer")).toContainText("world");
+		await page
+			.getByTestId("preview-panel")
+			.first()
+			.screenshot({
+				path: path.join(outputDir, "08-karaoke-preview.png"),
+				animations: "disabled",
+			});
 
 		const previewAudio = page.locator('audio[data-audio-preview="web-audio"]');
 		await expect
