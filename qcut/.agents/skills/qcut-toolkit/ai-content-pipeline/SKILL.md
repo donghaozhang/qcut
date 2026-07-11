@@ -124,25 +124,6 @@ aicp generate-image \
 aicp create-video --text "A serene mountain lake at sunset" --model wan_2_6
 ```
 
-### Edit Video with Luma Ray 3.2
-
-Use QCut's native CLI for Luma Agents Ray 3.2 video edits. Provide the
-source clip with `--video-url`; pass one guide frame with `--reference-images`
-when the edit should follow a visual target.
-
-```bash
-LUMA_AGENTS_API_KEY="$LUMA_AGENTS_API_KEY" bun run qcut -- create-video \
-  -m luma_ray_3_2_edit \
-  --video-url "$HOME/Documents/source.mp4" \
-  --reference-images "$HOME/Documents/guide-frame.png" \
-  --resolution 720p \
-  --duration 5s \
-  --edit-strength flex_2 \
-  --output-dir "$HOME/Documents" \
-  --json \
-  -t "Transform the source video to match the guide frame style while preserving camera angle, timing, motion continuity, and relative object positions."
-```
-
 ### Generate Avatar (Lipsync)
 
 ```bash
