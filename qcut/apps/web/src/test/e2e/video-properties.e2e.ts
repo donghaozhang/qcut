@@ -467,7 +467,12 @@ test.describe("Main-track video properties", () => {
 			.click();
 		const previewCanvas = page.getByTestId("color-preview-canvas").first();
 		await expect(previewCanvas).toBeVisible();
-		await previewCanvas.click({ position: { x: 90, y: 90 } });
+		const previewBounds = await previewCanvas.boundingBox();
+		expect(previewBounds).not.toBeNull();
+		await page.mouse.click(
+			(previewBounds?.x ?? 0) + 90,
+			(previewBounds?.y ?? 0) + 90
+		);
 		await expect
 			.poll(async () =>
 				page.evaluate(() => {
