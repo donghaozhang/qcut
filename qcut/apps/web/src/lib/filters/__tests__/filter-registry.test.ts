@@ -42,6 +42,13 @@ describe("filter registry", () => {
 		}
 	});
 
+	it("keeps cinematic and night looks in their intended collections", () => {
+		expect(getFilterPreset({ presetId: "teal-gold" })?.category).toBe(
+			"cinematic"
+		);
+		expect(getFilterPreset({ presetId: "night-blue" })?.category).toBe("night");
+	});
+
 	it("keeps every preset local and searchable in both languages", () => {
 		for (const preset of FILTER_PRESETS) {
 			expect(preset.thumbnail).toMatch(/^\/images\/filter-previews\/.+\.webp$/);

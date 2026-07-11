@@ -5,10 +5,7 @@ import { debugLog } from "@/lib/debug/debug-config";
 import { createObjectURL } from "@/lib/media/blob-manager";
 import { extractVideoAlphaTracking } from "@/lib/segmentation/video-alpha-tracking";
 import type { MediaMaskTrackingSample } from "@/lib/video/media-mask-tracking";
-import type {
-	Sam3VideoBoxPrompt,
-	Sam3VideoPointPrompt,
-} from "@/types/sam3";
+import type { Sam3VideoBoxPrompt, Sam3VideoPointPrompt } from "@/types/sam3";
 
 export interface Sam3VideoMaskResult {
 	file: File;
@@ -30,7 +27,11 @@ export async function generateSam3VideoMask({
 	boxPrompts?: Sam3VideoBoxPrompt[];
 }): Promise<Sam3VideoMaskResult> {
 	const normalizedPrompt = prompt?.trim() ?? "";
-	if (!normalizedPrompt && pointPrompts.length === 0 && boxPrompts.length === 0) {
+	if (
+		!normalizedPrompt &&
+		pointPrompts.length === 0 &&
+		boxPrompts.length === 0
+	) {
 		throw new Error("Add a text, point, or box prompt to track");
 	}
 	const apiKey = await getFalApiKeyAsync();
@@ -41,10 +42,10 @@ export async function generateSam3VideoMask({
 		prompt: normalizedPrompt || undefined,
 		point_prompts: pointPrompts.length > 0 ? pointPrompts : undefined,
 		box_prompts: boxPrompts.length > 0 ? boxPrompts : undefined,
-			apply_mask: true,
-			video_output_type: "VP9 (.webm)",
-			boundingbox_zip: true,
-			detection_threshold: 0.5,
+		apply_mask: true,
+		video_output_type: "VP9 (.webm)",
+		boundingbox_zip: true,
+		detection_threshold: 0.5,
 	});
 	if (!result.video?.url) throw new Error("SAM3 did not return a mask video");
 

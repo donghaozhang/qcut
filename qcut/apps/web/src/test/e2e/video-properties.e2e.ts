@@ -21,6 +21,14 @@ async function setNumber(
 	await input.press("Tab");
 }
 
+async function paintCutoutPoint({
+	overlay,
+}: {
+	overlay: import("@playwright/test").Locator;
+}) {
+	await overlay.click();
+}
+
 test.describe("Main-track video properties", () => {
 	test("edits, undoes, keyframes, and captures P0 video visuals", async ({
 		page,
@@ -436,6 +444,121 @@ test.describe("Main-track video properties", () => {
 		});
 
 		await properties.getByRole("button", { name: "Smart cutout" }).click();
+		const customCutout = properties.getByTestId(
+			"media-custom-cutout-properties"
+		);
+		await customCutout.scrollIntoViewIfNeeded();
+		const customCutoutSwitch = customCutout.getByRole("switch", {
+			name: "Enable Custom cutout",
+		});
+		await expect(customCutoutSwitch).not.toBeChecked();
+		await customCutoutSwitch.click();
+		await customCutout.getByText("Custom cutout", { exact: true }).click();
+		await customCutout.getByLabel("Brush size value").fill("25");
+		await customCutout.getByLabel("Brush size value").press("Tab");
+		await customCutout.getByRole("button", { name: "Edit on canvas" }).click();
+		const customCutoutOverlay = page.getByTestId("custom-cutout-overlay");
+		await expect(customCutoutOverlay).toBeVisible();
+		const customCutoutStrokeCount = () =>
+			page.evaluate(() => {
+				const tracks = (window as any).__timelineStore.getState().tracks;
+				const element = tracks
+					.flatMap((track: any) => track.elements)
+					.find((item: any) => item.type === "media");
+				return element.customCutout?.strokes?.length ?? 0;
+			});
+
+		await paintCutoutPoint({
+			overlay: customCutoutOverlay,
+		});
+		await expect.poll(customCutoutStrokeCount).toBe(1);
+		await customCutout.getByRole("radio", { name: "Background brush" }).click();
+		await paintCutoutPoint({
+			overlay: customCutoutOverlay,
+		});
+		await expect.poll(customCutoutStrokeCount).toBe(2);
+		await page.evaluate(() => {
+			const timeline = (window as any).__timelineStore.getState();
+			const playback = (window as any).__playbackStore.getState();
+			const element = timeline.tracks
+				.flatMap((track: any) => track.elements)
+				.find((item: any) => item.type === "media");
+			playback.seek(element.startTime + 0.75);
+		});
+		await customCutout.getByRole("radio", { name: "Foreground brush" }).click();
+		await paintCutoutPoint({
+			overlay: customCutoutOverlay,
+		});
+		await expect.poll(customCutoutStrokeCount).toBe(3);
+		await customCutout
+			.getByRole("button", { name: "Undo last stroke on this frame" })
+			.click();
+		await expect.poll(customCutoutStrokeCount).toBe(2);
+		await paintCutoutPoint({
+			overlay: customCutoutOverlay,
+		});
+		await expect.poll(customCutoutStrokeCount).toBe(3);
+		await page.evaluate(() => {
+			const timeline = (window as any).__timelineStore.getState();
+			const playback = (window as any).__playbackStore.getState();
+			const element = timeline.tracks
+				.flatMap((track: any) => track.elements)
+				.find((item: any) => item.type === "media");
+			playback.seek(element.startTime + 1.1);
+		});
+		await customCutout.getByRole("radio", { name: "Background brush" }).click();
+		await paintCutoutPoint({
+			overlay: customCutoutOverlay,
+		});
+		await expect.poll(customCutoutStrokeCount).toBe(4);
+		await customCutout
+			.getByRole("radio", { name: "Erase brush strokes" })
+			.click();
+		await paintCutoutPoint({
+			overlay: customCutoutOverlay,
+		});
+		await expect.poll(customCutoutStrokeCount).toBe(3);
+		await customCutout.getByRole("radio", { name: "Foreground brush" }).click();
+
+		const customCutoutState = () =>
+			page.evaluate(() => {
+				const tracks = (window as any).__timelineStore.getState().tracks;
+				const element = tracks
+					.flatMap((track: any) => track.elements)
+					.find((item: any) => item.type === "media");
+				const strokes = element.customCutout?.strokes ?? [];
+				return {
+					enabled: element.customCutout?.enabled,
+					applyStrokes: element.customCutout?.applyStrokes,
+					strokeCount: strokes.length,
+					correctionFrames: [
+						...new Set(strokes.map((stroke: any) => stroke.frame)),
+					],
+					modes: strokes.map((stroke: any) => stroke.mode),
+				};
+			});
+		await expect.poll(customCutoutState).toMatchObject({
+			enabled: true,
+			applyStrokes: true,
+			strokeCount: 3,
+			modes: ["foreground", "background", "foreground"],
+		});
+		expect((await customCutoutState()).correctionFrames).toHaveLength(2);
+		await expect(customCutout.getByText("2 corrections")).toBeVisible();
+		await expect(
+			customCutout.getByRole("button", { name: "Generate cutout" })
+		).toBeEnabled();
+		await customCutout.screenshot({
+			path: path.join(outputDir, "11cd-custom-cutout-controls.png"),
+			animations: "disabled",
+		});
+		await page.screenshot({
+			path: path.join(outputDir, "11ce-custom-cutout-canvas.png"),
+			animations: "disabled",
+		});
+		await customCutout.getByRole("button", { name: "Finish brushing" }).click();
+		await expect(customCutoutOverlay).toHaveCount(0);
+
 		const chromaKey = properties.getByTestId("media-chroma-key-properties");
 		await expect(
 			chromaKey.getByRole("switch", { name: "Enable Chroma key" })

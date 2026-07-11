@@ -115,7 +115,7 @@ export const tabs: { [key in Tab]: { icon: LucideIcon; label: string } } = {
 	},
 	transitions: {
 		icon: ArrowLeftRightIcon,
-		label: "Transitions (WIP)",
+		label: "Transitions",
 	},
 	moyin: {
 		icon: ClapperboardIcon,

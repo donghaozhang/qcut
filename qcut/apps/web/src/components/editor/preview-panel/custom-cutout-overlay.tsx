@@ -57,6 +57,8 @@ export function CustomCutoutOverlay({
 	const [currentStroke, setCurrentStroke] =
 		useState<MediaCustomCutoutStroke | null>(null);
 	const [cursor, setCursor] = useState<MediaCustomCutoutPoint | null>(null);
+	const overlayRef = useRef<SVGSVGElement>(null);
+	const currentStrokeRef = useRef<MediaCustomCutoutStroke | null>(null);
 	const strokesRef = useRef(element.customCutout?.strokes ?? []);
 	const erasingRef = useRef(false);
 	const settings = normalizeMediaCustomCutout(element.customCutout);
@@ -117,17 +119,17 @@ export function CustomCutoutOverlay({
 		persistStrokes({ strokes: next, history: false });
 	};
 	const finishInteraction = ({ pointerId }: { pointerId: number }) => {
-		if (currentStroke) {
+		const completedStroke = currentStrokeRef.current;
+		if (completedStroke) {
 			persistStrokes({
-				strokes: [...strokesRef.current, currentStroke],
+				strokes: [...strokesRef.current, completedStroke],
 				history: true,
 			});
+			currentStrokeRef.current = null;
 			setCurrentStroke(null);
 		}
 		erasingRef.current = false;
-		const overlay = document.querySelector<SVGSVGElement>(
-			`[data-custom-cutout-element="${element.id}"]`
-		);
+		const overlay = overlayRef.current;
 		if (overlay?.hasPointerCapture(pointerId)) {
 			overlay.releasePointerCapture(pointerId);
 		}
@@ -135,6 +137,7 @@ export function CustomCutoutOverlay({
 
 	return (
 		<svg
+			ref={overlayRef}
 			viewBox="0 0 100 100"
 			preserveAspectRatio="none"
 			className="absolute inset-0 z-40 size-full cursor-crosshair touch-none"
@@ -154,13 +157,15 @@ export function CustomCutoutOverlay({
 					eraseAt({ point });
 					return;
 				}
-				setCurrentStroke({
+				const stroke: MediaCustomCutoutStroke = {
 					id: `custom-cutout-${crypto.randomUUID()}`,
 					frame: currentFrame,
 					mode: tool,
 					size: brushSize,
 					points: [point],
-				});
+				};
+				currentStrokeRef.current = stroke;
+				setCurrentStroke(stroke);
 			}}
 			onPointerMove={(event) => {
 				const point = pointerPoint({ event });
@@ -169,18 +174,18 @@ export function CustomCutoutOverlay({
 					eraseAt({ point });
 					return;
 				}
-				setCurrentStroke((stroke) =>
-					stroke
-						? {
-								...stroke,
-								points: appendCustomCutoutPoint({
-									points: stroke.points,
-									point,
-									minimumDistance: Math.max(0.002, brushSize / 6),
-								}),
-							}
-						: null
-				);
+				const stroke = currentStrokeRef.current;
+				if (!stroke) return;
+				const nextStroke = {
+					...stroke,
+					points: appendCustomCutoutPoint({
+						points: stroke.points,
+						point,
+						minimumDistance: Math.max(0.002, brushSize / 6),
+					}),
+				};
+				currentStrokeRef.current = nextStroke;
+				setCurrentStroke(nextStroke);
 			}}
 			onPointerUp={(event) => finishInteraction({ pointerId: event.pointerId })}
 			onPointerCancel={(event) =>

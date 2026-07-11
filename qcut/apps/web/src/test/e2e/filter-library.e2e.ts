@@ -102,13 +102,15 @@ test.describe("Filter library", () => {
 				.poll(async () => (await activeFilter({ page }))?.presetId)
 				.toBe(firstId);
 			if (categoryCase.screenshot) {
-				await filters.screenshot({
+				await page.waitForTimeout(100);
+				await page.screenshot({
 					path: path.join(outputDirectory, categoryCase.screenshot),
 					animations: "disabled",
 				});
 			}
 		}
 		await filters.getByTestId("filter-category-all").click();
+		await filters.getByTestId("filter-card-none").click();
 
 		await filters.getByTestId("filter-card-teal-gold").click();
 		await expect
