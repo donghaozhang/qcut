@@ -58,6 +58,10 @@ export type {
 	MediaPropertyKeyframe,
 	MediaAnimationType,
 	MediaComboAnimationType,
+	ClipTransition,
+	ClipTransitionDirection,
+	ClipTransitionEasing,
+	ClipTransitionType,
 	MediaAdjustments,
 	MediaMask,
 	MediaMaskType,
@@ -136,6 +140,12 @@ export {
 	getEffectiveDuration,
 	getElementEndTime,
 	getElementNameWithSuffix,
+	TRANSITION_SEAM_TOLERANCE_SECONDS,
+	findClosestMediaSeam,
+	getTransitionMaxDuration,
+	reconcileTimelineTransitions,
+	reconcileTrackTransitions,
+	resolveClipTransition,
 	isMediaElement,
 	isTextElement,
 	isStickerElement,
@@ -154,6 +164,8 @@ export type {
 	CompositionDurationContext,
 	CompositionLayer,
 	CompositionPlan,
+	MediaSeam,
+	ResolvedClipTransition,
 } from "./timeline/index.js";
 
 // Commands (history/undo-redo)

@@ -118,6 +118,28 @@ export type MediaAnimationType =
 	| "zoom-in"
 	| "zoom-out";
 
+export type ClipTransitionType =
+	| "dissolve"
+	| "fade-black"
+	| "slide"
+	| "wipe";
+
+export type ClipTransitionDirection = "left" | "right" | "up" | "down";
+
+export type ClipTransitionEasing = "linear" | "easeInOut";
+
+/** A visual transition joining two touching media elements on one track. */
+export interface ClipTransition {
+	id: string;
+	fromElementId: string;
+	toElementId: string;
+	presetId: string;
+	type: ClipTransitionType;
+	duration: number;
+	direction?: ClipTransitionDirection;
+	easing: ClipTransitionEasing;
+}
+
 export type MediaComboAnimationType = "none" | "pulse" | "drift";
 
 export interface MediaAdjustments {
@@ -632,6 +654,7 @@ export interface TimelineTrack {
 	name: string;
 	type: TrackType;
 	elements: TimelineElement[];
+	transitions?: ClipTransition[];
 	/** Zero-based UI order. Lower values appear higher and composite later. */
 	order?: number;
 	muted?: boolean;

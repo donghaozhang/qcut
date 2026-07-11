@@ -30,6 +30,17 @@ export {
 } from "./element-utils.js";
 
 export {
+	TRANSITION_SEAM_TOLERANCE_SECONDS,
+	findClosestMediaSeam,
+	getTransitionMaxDuration,
+	reconcileTimelineTransitions,
+	reconcileTrackTransitions,
+	resolveClipTransition,
+	type MediaSeam,
+	type ResolvedClipTransition,
+} from "./transitions.js";
+
+export {
 	isMediaElement,
 	isTextElement,
 	isStickerElement,
