@@ -47,6 +47,8 @@ function renderRgbSamples({
 
 describe.skipIf(!existsSync(ffmpegPath))(
 	"filter library browser/native parity",
+	// Real ffmpeg renders regularly exceed the 5s default testTimeout on CI runners.
+	{ timeout: 60_000 },
 	() => {
 		const input = Buffer.from([38, 82, 146, 196, 112, 58, 222, 205, 178]);
 		let baseline: Buffer;

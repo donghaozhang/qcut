@@ -114,440 +114,445 @@ function runFFmpeg(
 
 const detectedFFmpeg = getFFmpegPath();
 
-describe.skipIf(!detectedFFmpeg)("Sticker Export — Real FFmpeg E2E", () => {
-	let ffmpegPath: string;
-	let stickerPath1: string;
-	let stickerPath2: string;
-	let stickerPath3: string;
+// Real ffmpeg renders regularly exceed the 5s default testTimeout on CI runners.
+describe.skipIf(!detectedFFmpeg)(
+	"Sticker Export — Real FFmpeg E2E",
+	{ timeout: 60_000 },
+	() => {
+		let ffmpegPath: string;
+		let stickerPath1: string;
+		let stickerPath2: string;
+		let stickerPath3: string;
 
-	beforeAll(() => {
-		ffmpegPath = detectedFFmpeg!;
+		beforeAll(() => {
+			ffmpegPath = detectedFFmpeg!;
 
-		// Ensure test fixtures exist
-		if (!fs.existsSync(TEST_VIDEO)) {
-			throw new Error(`Test video not found: ${TEST_VIDEO}`);
-		}
+			// Ensure test fixtures exist
+			if (!fs.existsSync(TEST_VIDEO)) {
+				throw new Error(`Test video not found: ${TEST_VIDEO}`);
+			}
 
-		// Create temp dir
-		fs.mkdirSync(TMP_DIR, { recursive: true });
+			// Create temp dir
+			fs.mkdirSync(TMP_DIR, { recursive: true });
 
-		// Create test sticker PNGs
-		stickerPath1 = path.join(TMP_DIR, "sticker-red.png");
-		stickerPath2 = path.join(TMP_DIR, "sticker-blue.png");
-		stickerPath3 = path.join(TMP_DIR, "sticker-green.png");
-		createTestSticker(stickerPath1, ffmpegPath, 64, "red");
-		createTestSticker(stickerPath2, ffmpegPath, 48, "blue");
-		createTestSticker(stickerPath3, ffmpegPath, 32, "green");
-	});
-
-	afterAll(() => {
-		// Clean up temp directory
-		if (fs.existsSync(TMP_DIR)) {
-			fs.rmSync(TMP_DIR, { recursive: true, force: true });
-		}
-	});
-
-	// =========================================================================
-	// Single sticker overlay
-	// =========================================================================
-
-	it("should overlay a single sticker onto a video", () => {
-		const outputFile = path.join(TMP_DIR, "output-single-sticker.mp4");
-
-		const stickerSources: StickerSource[] = [
-			{
-				id: "s1",
-				path: stickerPath1,
-				x: 100,
-				y: 50,
-				width: 64,
-				height: 64,
-				startTime: 0,
-				endTime: 5,
-				zIndex: 1,
-			},
-		];
-
-		const args = buildFFmpegArgs({
-			inputDir: TMP_DIR,
-			outputFile,
-			width: 1280,
-			height: 720,
-			fps: 30,
-			quality: "medium",
-			duration: 5,
-			audioFiles: [],
-			useVideoInput: true,
-			videoInputPath: TEST_VIDEO,
-			stickerSources,
-			stickerFilterChain: "placeholder", // triggers composite mode
+			// Create test sticker PNGs
+			stickerPath1 = path.join(TMP_DIR, "sticker-red.png");
+			stickerPath2 = path.join(TMP_DIR, "sticker-blue.png");
+			stickerPath3 = path.join(TMP_DIR, "sticker-green.png");
+			createTestSticker(stickerPath1, ffmpegPath, 64, "red");
+			createTestSticker(stickerPath2, ffmpegPath, 48, "blue");
+			createTestSticker(stickerPath3, ffmpegPath, 32, "green");
 		});
 
-		const result = runFFmpeg(ffmpegPath, args);
-		expect(result.success).toBe(true);
-		expect(fs.existsSync(outputFile)).toBe(true);
-
-		// Verify output is a valid video with expected duration
-		const probe = probeVideo(outputFile, ffmpegPath);
-		expect(probe.hasVideo).toBe(true);
-		expect(probe.width).toBe(1280);
-		expect(probe.height).toBe(720);
-		expect(probe.duration).toBeGreaterThan(0);
-	});
-
-	// =========================================================================
-	// Multiple stickers overlay
-	// =========================================================================
-
-	it("should overlay multiple stickers at different positions and times", () => {
-		const outputFile = path.join(TMP_DIR, "output-multi-sticker.mp4");
-
-		const stickerSources: StickerSource[] = [
-			{
-				id: "s-topleft",
-				path: stickerPath1,
-				x: 20,
-				y: 20,
-				width: 64,
-				height: 64,
-				startTime: 0,
-				endTime: 3,
-				zIndex: 1,
-			},
-			{
-				id: "s-center",
-				path: stickerPath2,
-				x: 616,
-				y: 336,
-				width: 48,
-				height: 48,
-				startTime: 1,
-				endTime: 4,
-				zIndex: 2,
-			},
-			{
-				id: "s-bottomright",
-				path: stickerPath3,
-				x: 1216,
-				y: 688,
-				width: 32,
-				height: 32,
-				startTime: 2,
-				endTime: 5,
-				zIndex: 3,
-			},
-		];
-
-		const args = buildFFmpegArgs({
-			inputDir: TMP_DIR,
-			outputFile,
-			width: 1280,
-			height: 720,
-			fps: 30,
-			quality: "medium",
-			duration: 5,
-			audioFiles: [],
-			useVideoInput: true,
-			videoInputPath: TEST_VIDEO,
-			stickerSources,
-			stickerFilterChain: "placeholder",
+		afterAll(() => {
+			// Clean up temp directory
+			if (fs.existsSync(TMP_DIR)) {
+				fs.rmSync(TMP_DIR, { recursive: true, force: true });
+			}
 		});
 
-		const result = runFFmpeg(ffmpegPath, args);
-		expect(result.success).toBe(true);
-		expect(fs.existsSync(outputFile)).toBe(true);
+		// =========================================================================
+		// Single sticker overlay
+		// =========================================================================
 
-		const probe = probeVideo(outputFile, ffmpegPath);
-		expect(probe.hasVideo).toBe(true);
-		expect(probe.width).toBe(1280);
-		expect(probe.height).toBe(720);
-	});
+		it("should overlay a single sticker onto a video", () => {
+			const outputFile = path.join(TMP_DIR, "output-single-sticker.mp4");
 
-	// =========================================================================
-	// Sticker with rotation
-	// =========================================================================
+			const stickerSources: StickerSource[] = [
+				{
+					id: "s1",
+					path: stickerPath1,
+					x: 100,
+					y: 50,
+					width: 64,
+					height: 64,
+					startTime: 0,
+					endTime: 5,
+					zIndex: 1,
+				},
+			];
 
-	it("should overlay a rotated sticker", () => {
-		const outputFile = path.join(TMP_DIR, "output-rotated-sticker.mp4");
+			const args = buildFFmpegArgs({
+				inputDir: TMP_DIR,
+				outputFile,
+				width: 1280,
+				height: 720,
+				fps: 30,
+				quality: "medium",
+				duration: 5,
+				audioFiles: [],
+				useVideoInput: true,
+				videoInputPath: TEST_VIDEO,
+				stickerSources,
+				stickerFilterChain: "placeholder", // triggers composite mode
+			});
 
-		const stickerSources: StickerSource[] = [
-			{
-				id: "s-rotated",
-				path: stickerPath1,
-				x: 500,
-				y: 300,
-				width: 64,
-				height: 64,
-				startTime: 0,
-				endTime: 5,
-				zIndex: 1,
-				rotation: 45,
-			},
-		];
+			const result = runFFmpeg(ffmpegPath, args);
+			expect(result.success).toBe(true);
+			expect(fs.existsSync(outputFile)).toBe(true);
 
-		const args = buildFFmpegArgs({
-			inputDir: TMP_DIR,
-			outputFile,
-			width: 1280,
-			height: 720,
-			fps: 30,
-			quality: "medium",
-			duration: 5,
-			audioFiles: [],
-			useVideoInput: true,
-			videoInputPath: TEST_VIDEO,
-			stickerSources,
-			stickerFilterChain: "placeholder",
+			// Verify output is a valid video with expected duration
+			const probe = probeVideo(outputFile, ffmpegPath);
+			expect(probe.hasVideo).toBe(true);
+			expect(probe.width).toBe(1280);
+			expect(probe.height).toBe(720);
+			expect(probe.duration).toBeGreaterThan(0);
 		});
 
-		const result = runFFmpeg(ffmpegPath, args);
-		expect(result.success).toBe(true);
-		expect(fs.existsSync(outputFile)).toBe(true);
-	});
+		// =========================================================================
+		// Multiple stickers overlay
+		// =========================================================================
 
-	// =========================================================================
-	// Sticker with opacity
-	// =========================================================================
+		it("should overlay multiple stickers at different positions and times", () => {
+			const outputFile = path.join(TMP_DIR, "output-multi-sticker.mp4");
 
-	it("should overlay a semi-transparent sticker", () => {
-		const outputFile = path.join(TMP_DIR, "output-opacity-sticker.mp4");
+			const stickerSources: StickerSource[] = [
+				{
+					id: "s-topleft",
+					path: stickerPath1,
+					x: 20,
+					y: 20,
+					width: 64,
+					height: 64,
+					startTime: 0,
+					endTime: 3,
+					zIndex: 1,
+				},
+				{
+					id: "s-center",
+					path: stickerPath2,
+					x: 616,
+					y: 336,
+					width: 48,
+					height: 48,
+					startTime: 1,
+					endTime: 4,
+					zIndex: 2,
+				},
+				{
+					id: "s-bottomright",
+					path: stickerPath3,
+					x: 1216,
+					y: 688,
+					width: 32,
+					height: 32,
+					startTime: 2,
+					endTime: 5,
+					zIndex: 3,
+				},
+			];
 
-		const stickerSources: StickerSource[] = [
-			{
-				id: "s-alpha",
-				path: stickerPath2,
-				x: 300,
-				y: 200,
-				width: 48,
-				height: 48,
-				startTime: 0,
-				endTime: 5,
-				zIndex: 1,
-				opacity: 0.5,
-			},
-		];
+			const args = buildFFmpegArgs({
+				inputDir: TMP_DIR,
+				outputFile,
+				width: 1280,
+				height: 720,
+				fps: 30,
+				quality: "medium",
+				duration: 5,
+				audioFiles: [],
+				useVideoInput: true,
+				videoInputPath: TEST_VIDEO,
+				stickerSources,
+				stickerFilterChain: "placeholder",
+			});
 
-		const args = buildFFmpegArgs({
-			inputDir: TMP_DIR,
-			outputFile,
-			width: 1280,
-			height: 720,
-			fps: 30,
-			quality: "medium",
-			duration: 5,
-			audioFiles: [],
-			useVideoInput: true,
-			videoInputPath: TEST_VIDEO,
-			stickerSources,
-			stickerFilterChain: "placeholder",
+			const result = runFFmpeg(ffmpegPath, args);
+			expect(result.success).toBe(true);
+			expect(fs.existsSync(outputFile)).toBe(true);
+
+			const probe = probeVideo(outputFile, ffmpegPath);
+			expect(probe.hasVideo).toBe(true);
+			expect(probe.width).toBe(1280);
+			expect(probe.height).toBe(720);
 		});
 
-		const result = runFFmpeg(ffmpegPath, args);
-		expect(result.success).toBe(true);
-		expect(fs.existsSync(outputFile)).toBe(true);
-	});
+		// =========================================================================
+		// Sticker with rotation
+		// =========================================================================
 
-	// =========================================================================
-	// Sticker with maintainAspectRatio
-	// =========================================================================
+		it("should overlay a rotated sticker", () => {
+			const outputFile = path.join(TMP_DIR, "output-rotated-sticker.mp4");
 
-	it("should overlay a sticker with maintainAspectRatio using pad filter", () => {
-		const outputFile = path.join(TMP_DIR, "output-aspect-sticker.mp4");
+			const stickerSources: StickerSource[] = [
+				{
+					id: "s-rotated",
+					path: stickerPath1,
+					x: 500,
+					y: 300,
+					width: 64,
+					height: 64,
+					startTime: 0,
+					endTime: 5,
+					zIndex: 1,
+					rotation: 45,
+				},
+			];
 
-		const stickerSources: StickerSource[] = [
-			{
-				id: "s-aspect",
-				path: stickerPath1,
-				x: 400,
-				y: 200,
-				width: 128, // non-square target for a square sticker
-				height: 64,
-				startTime: 0,
-				endTime: 5,
-				zIndex: 1,
-				maintainAspectRatio: true,
-			},
-		];
+			const args = buildFFmpegArgs({
+				inputDir: TMP_DIR,
+				outputFile,
+				width: 1280,
+				height: 720,
+				fps: 30,
+				quality: "medium",
+				duration: 5,
+				audioFiles: [],
+				useVideoInput: true,
+				videoInputPath: TEST_VIDEO,
+				stickerSources,
+				stickerFilterChain: "placeholder",
+			});
 
-		const args = buildFFmpegArgs({
-			inputDir: TMP_DIR,
-			outputFile,
-			width: 1280,
-			height: 720,
-			fps: 30,
-			quality: "medium",
-			duration: 5,
-			audioFiles: [],
-			useVideoInput: true,
-			videoInputPath: TEST_VIDEO,
-			stickerSources,
-			stickerFilterChain: "placeholder",
+			const result = runFFmpeg(ffmpegPath, args);
+			expect(result.success).toBe(true);
+			expect(fs.existsSync(outputFile)).toBe(true);
 		});
 
-		// Verify the filter chain contains force_original_aspect_ratio
-		const filterIdx = args.indexOf("-filter_complex");
-		expect(filterIdx).toBeGreaterThan(-1);
-		const filterChain = args[filterIdx + 1];
-		expect(filterChain).toContain("force_original_aspect_ratio=decrease");
-		expect(filterChain).toContain("pad=128:64");
+		// =========================================================================
+		// Sticker with opacity
+		// =========================================================================
 
-		const result = runFFmpeg(ffmpegPath, args);
-		expect(result.success).toBe(true);
-		expect(fs.existsSync(outputFile)).toBe(true);
-	});
+		it("should overlay a semi-transparent sticker", () => {
+			const outputFile = path.join(TMP_DIR, "output-opacity-sticker.mp4");
 
-	// =========================================================================
-	// Sticker with all properties combined
-	// =========================================================================
+			const stickerSources: StickerSource[] = [
+				{
+					id: "s-alpha",
+					path: stickerPath2,
+					x: 300,
+					y: 200,
+					width: 48,
+					height: 48,
+					startTime: 0,
+					endTime: 5,
+					zIndex: 1,
+					opacity: 0.5,
+				},
+			];
 
-	it("should overlay stickers with rotation + opacity + timing combined", () => {
-		const outputFile = path.join(TMP_DIR, "output-combined-sticker.mp4");
+			const args = buildFFmpegArgs({
+				inputDir: TMP_DIR,
+				outputFile,
+				width: 1280,
+				height: 720,
+				fps: 30,
+				quality: "medium",
+				duration: 5,
+				audioFiles: [],
+				useVideoInput: true,
+				videoInputPath: TEST_VIDEO,
+				stickerSources,
+				stickerFilterChain: "placeholder",
+			});
 
-		const stickerSources: StickerSource[] = [
-			{
-				id: "s-full",
-				path: stickerPath1,
-				x: 200,
-				y: 100,
-				width: 64,
-				height: 64,
-				startTime: 1,
-				endTime: 4,
-				zIndex: 1,
-				rotation: 30,
-				opacity: 0.7,
-			},
-			{
-				id: "s-plain",
-				path: stickerPath3,
-				x: 800,
-				y: 500,
-				width: 32,
-				height: 32,
-				startTime: 0,
-				endTime: 5,
-				zIndex: 2,
-			},
-		];
-
-		const args = buildFFmpegArgs({
-			inputDir: TMP_DIR,
-			outputFile,
-			width: 1280,
-			height: 720,
-			fps: 30,
-			quality: "medium",
-			duration: 5,
-			audioFiles: [],
-			useVideoInput: true,
-			videoInputPath: TEST_VIDEO,
-			stickerSources,
-			stickerFilterChain: "placeholder",
+			const result = runFFmpeg(ffmpegPath, args);
+			expect(result.success).toBe(true);
+			expect(fs.existsSync(outputFile)).toBe(true);
 		});
 
-		// Verify filter chain has rotation, opacity, and timed overlay
-		const filterIdx = args.indexOf("-filter_complex");
-		const filterChain = args[filterIdx + 1];
-		expect(filterChain).toContain("rotate=30*PI/180");
-		expect(filterChain).toContain("0.7*alpha");
-		expect(filterChain).toContain("enable='between(t,1,4)'");
-		expect(filterChain).toContain("enable='between(t,0,5)'");
+		// =========================================================================
+		// Sticker with maintainAspectRatio
+		// =========================================================================
 
-		const result = runFFmpeg(ffmpegPath, args);
-		expect(result.success).toBe(true);
-		expect(fs.existsSync(outputFile)).toBe(true);
+		it("should overlay a sticker with maintainAspectRatio using pad filter", () => {
+			const outputFile = path.join(TMP_DIR, "output-aspect-sticker.mp4");
 
-		// Verify the output is playable
-		const probe = probeVideo(outputFile, ffmpegPath);
-		expect(probe.hasVideo).toBe(true);
-		expect(probe.duration).toBeGreaterThanOrEqual(3);
-	});
+			const stickerSources: StickerSource[] = [
+				{
+					id: "s-aspect",
+					path: stickerPath1,
+					x: 400,
+					y: 200,
+					width: 128, // non-square target for a square sticker
+					height: 64,
+					startTime: 0,
+					endTime: 5,
+					zIndex: 1,
+					maintainAspectRatio: true,
+				},
+			];
 
-	// =========================================================================
-	// Image sticker (using sample-image.png as sticker)
-	// =========================================================================
+			const args = buildFFmpegArgs({
+				inputDir: TMP_DIR,
+				outputFile,
+				width: 1280,
+				height: 720,
+				fps: 30,
+				quality: "medium",
+				duration: 5,
+				audioFiles: [],
+				useVideoInput: true,
+				videoInputPath: TEST_VIDEO,
+				stickerSources,
+				stickerFilterChain: "placeholder",
+			});
 
-	it("should overlay the sample-image.png as a scaled-down sticker", () => {
-		const outputFile = path.join(TMP_DIR, "output-image-sticker.mp4");
+			// Verify the filter chain contains force_original_aspect_ratio
+			const filterIdx = args.indexOf("-filter_complex");
+			expect(filterIdx).toBeGreaterThan(-1);
+			const filterChain = args[filterIdx + 1];
+			expect(filterChain).toContain("force_original_aspect_ratio=decrease");
+			expect(filterChain).toContain("pad=128:64");
 
-		const stickerSources: StickerSource[] = [
-			{
-				id: "s-image",
-				path: TEST_IMAGE,
-				x: 50,
-				y: 50,
-				width: 200,
-				height: 112,
-				startTime: 0,
-				endTime: 5,
-				zIndex: 1,
-			},
-		];
-
-		const args = buildFFmpegArgs({
-			inputDir: TMP_DIR,
-			outputFile,
-			width: 1280,
-			height: 720,
-			fps: 30,
-			quality: "medium",
-			duration: 5,
-			audioFiles: [],
-			useVideoInput: true,
-			videoInputPath: TEST_VIDEO,
-			stickerSources,
-			stickerFilterChain: "placeholder",
+			const result = runFFmpeg(ffmpegPath, args);
+			expect(result.success).toBe(true);
+			expect(fs.existsSync(outputFile)).toBe(true);
 		});
 
-		const result = runFFmpeg(ffmpegPath, args);
-		expect(result.success).toBe(true);
-		expect(fs.existsSync(outputFile)).toBe(true);
+		// =========================================================================
+		// Sticker with all properties combined
+		// =========================================================================
 
-		const probe = probeVideo(outputFile, ffmpegPath);
-		expect(probe.hasVideo).toBe(true);
-	});
+		it("should overlay stickers with rotation + opacity + timing combined", () => {
+			const outputFile = path.join(TMP_DIR, "output-combined-sticker.mp4");
 
-	// =========================================================================
-	// Output file size sanity check
-	// =========================================================================
+			const stickerSources: StickerSource[] = [
+				{
+					id: "s-full",
+					path: stickerPath1,
+					x: 200,
+					y: 100,
+					width: 64,
+					height: 64,
+					startTime: 1,
+					endTime: 4,
+					zIndex: 1,
+					rotation: 30,
+					opacity: 0.7,
+				},
+				{
+					id: "s-plain",
+					path: stickerPath3,
+					x: 800,
+					y: 500,
+					width: 32,
+					height: 32,
+					startTime: 0,
+					endTime: 5,
+					zIndex: 2,
+				},
+			];
 
-	it("should produce output larger than input (video + sticker overlay re-encoding)", () => {
-		const outputFile = path.join(TMP_DIR, "output-size-check.mp4");
+			const args = buildFFmpegArgs({
+				inputDir: TMP_DIR,
+				outputFile,
+				width: 1280,
+				height: 720,
+				fps: 30,
+				quality: "medium",
+				duration: 5,
+				audioFiles: [],
+				useVideoInput: true,
+				videoInputPath: TEST_VIDEO,
+				stickerSources,
+				stickerFilterChain: "placeholder",
+			});
 
-		const stickerSources: StickerSource[] = [
-			{
-				id: "s-size",
-				path: stickerPath1,
-				x: 600,
-				y: 350,
-				width: 64,
-				height: 64,
-				startTime: 0,
-				endTime: 5,
-				zIndex: 1,
-			},
-		];
+			// Verify filter chain has rotation, opacity, and timed overlay
+			const filterIdx = args.indexOf("-filter_complex");
+			const filterChain = args[filterIdx + 1];
+			expect(filterChain).toContain("rotate=30*PI/180");
+			expect(filterChain).toContain("0.7*alpha");
+			expect(filterChain).toContain("enable='between(t,1,4)'");
+			expect(filterChain).toContain("enable='between(t,0,5)'");
 
-		const args = buildFFmpegArgs({
-			inputDir: TMP_DIR,
-			outputFile,
-			width: 1280,
-			height: 720,
-			fps: 30,
-			quality: "medium",
-			duration: 5,
-			audioFiles: [],
-			useVideoInput: true,
-			videoInputPath: TEST_VIDEO,
-			stickerSources,
-			stickerFilterChain: "placeholder",
+			const result = runFFmpeg(ffmpegPath, args);
+			expect(result.success).toBe(true);
+			expect(fs.existsSync(outputFile)).toBe(true);
+
+			// Verify the output is playable
+			const probe = probeVideo(outputFile, ffmpegPath);
+			expect(probe.hasVideo).toBe(true);
+			expect(probe.duration).toBeGreaterThanOrEqual(3);
 		});
 
-		const result = runFFmpeg(ffmpegPath, args);
-		expect(result.success).toBe(true);
+		// =========================================================================
+		// Image sticker (using sample-image.png as sticker)
+		// =========================================================================
 
-		const outputSize = fs.statSync(outputFile).size;
-		// Output should be non-trivial (at least 10KB for a 5s video)
-		expect(outputSize).toBeGreaterThan(10_000);
-	});
-});
+		it("should overlay the sample-image.png as a scaled-down sticker", () => {
+			const outputFile = path.join(TMP_DIR, "output-image-sticker.mp4");
+
+			const stickerSources: StickerSource[] = [
+				{
+					id: "s-image",
+					path: TEST_IMAGE,
+					x: 50,
+					y: 50,
+					width: 200,
+					height: 112,
+					startTime: 0,
+					endTime: 5,
+					zIndex: 1,
+				},
+			];
+
+			const args = buildFFmpegArgs({
+				inputDir: TMP_DIR,
+				outputFile,
+				width: 1280,
+				height: 720,
+				fps: 30,
+				quality: "medium",
+				duration: 5,
+				audioFiles: [],
+				useVideoInput: true,
+				videoInputPath: TEST_VIDEO,
+				stickerSources,
+				stickerFilterChain: "placeholder",
+			});
+
+			const result = runFFmpeg(ffmpegPath, args);
+			expect(result.success).toBe(true);
+			expect(fs.existsSync(outputFile)).toBe(true);
+
+			const probe = probeVideo(outputFile, ffmpegPath);
+			expect(probe.hasVideo).toBe(true);
+		});
+
+		// =========================================================================
+		// Output file size sanity check
+		// =========================================================================
+
+		it("should produce output larger than input (video + sticker overlay re-encoding)", () => {
+			const outputFile = path.join(TMP_DIR, "output-size-check.mp4");
+
+			const stickerSources: StickerSource[] = [
+				{
+					id: "s-size",
+					path: stickerPath1,
+					x: 600,
+					y: 350,
+					width: 64,
+					height: 64,
+					startTime: 0,
+					endTime: 5,
+					zIndex: 1,
+				},
+			];
+
+			const args = buildFFmpegArgs({
+				inputDir: TMP_DIR,
+				outputFile,
+				width: 1280,
+				height: 720,
+				fps: 30,
+				quality: "medium",
+				duration: 5,
+				audioFiles: [],
+				useVideoInput: true,
+				videoInputPath: TEST_VIDEO,
+				stickerSources,
+				stickerFilterChain: "placeholder",
+			});
+
+			const result = runFFmpeg(ffmpegPath, args);
+			expect(result.success).toBe(true);
+
+			const outputSize = fs.statSync(outputFile).size;
+			// Output should be non-trivial (at least 10KB for a 5s video)
+			expect(outputSize).toBeGreaterThan(10_000);
+		});
+	}
+);

@@ -30,6 +30,8 @@ function runFFmpeg(args: string[]): ReturnType<typeof spawnSync> {
 
 describe.skipIf(!fs.existsSync(ffmpegPath))(
 	"Advanced text export - real FFmpeg",
+	// Real ffmpeg renders regularly exceed the 5s default testTimeout on CI runners.
+	{ timeout: 60_000 },
 	() => {
 		let sourcePath: string;
 

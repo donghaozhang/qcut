@@ -105,6 +105,8 @@ Dialogue: 0,0:00:00.00,0:00:01.00,Default,,0,0,0,,{\\an7\\pos(0,0)\\p1\\bord0\\s
 
 describe.skipIf(!fs.existsSync(ffmpegPath))(
 	"Visual layer export - real FFmpeg",
+	// Real ffmpeg renders regularly exceed the 5s default testTimeout on CI runners.
+	{ timeout: 60_000 },
 	() => {
 		let videoPath: string;
 		let imagePath: string;

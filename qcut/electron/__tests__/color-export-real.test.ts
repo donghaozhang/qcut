@@ -233,6 +233,8 @@ function fullColorVisual({
 
 describe.skipIf(!fs.existsSync(ffmpegPath))(
 	"Professional color export - real FFmpeg",
+	// Real ffmpeg renders regularly exceed the 5s default testTimeout on CI runners.
+	{ timeout: 60_000 },
 	() => {
 		beforeAll(() => {
 			fs.mkdirSync(tempDir, { recursive: true });

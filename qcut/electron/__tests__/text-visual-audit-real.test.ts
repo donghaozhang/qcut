@@ -54,6 +54,8 @@ function extractFrame({
 
 describe.skipIf(!fs.existsSync(ffmpegPath))(
 	"Text visual audit - real FFmpeg",
+	// Real ffmpeg renders regularly exceed the 5s default testTimeout on CI runners.
+	{ timeout: 60_000 },
 	() => {
 		beforeAll(() => {
 			fs.rmSync(exportOutputDir, { recursive: true, force: true });
