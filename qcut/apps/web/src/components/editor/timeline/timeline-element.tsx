@@ -562,6 +562,7 @@ function TimelineElementComponent({
 		updateMediaElement(track.id, element.id, {
 			color: {
 				...color,
+				filter: { ...DEFAULT_MEDIA_COLOR_SETTINGS.filter },
 				lut: { ...DEFAULT_MEDIA_COLOR_SETTINGS.lut },
 			},
 		});

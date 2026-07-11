@@ -3,6 +3,7 @@ import { generateUUID } from "@/types/timeline";
 import { DEFAULT_MEDIA_COLOR_SETTINGS } from "./color-properties";
 
 export const COLOR_PRESET_STORAGE_KEY = "qcut-color-presets";
+export const COLOR_PRESETS_CHANGED_EVENT = "qcut:color-presets-changed";
 
 export interface SavedColorPreset {
 	id: string;
@@ -37,6 +38,7 @@ export function persistColorPresets({
 	presets: SavedColorPreset[];
 }) {
 	localStorage.setItem(COLOR_PRESET_STORAGE_KEY, JSON.stringify(presets));
+	window.dispatchEvent(new Event(COLOR_PRESETS_CHANGED_EVENT));
 }
 
 export function createColorPreset({

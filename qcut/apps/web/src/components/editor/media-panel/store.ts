@@ -99,7 +99,7 @@ export const tabs: { [key in Tab]: { icon: LucideIcon; label: string } } = {
 	// WIP panels below
 	filters: {
 		icon: BlendIcon,
-		label: "Filters (WIP)",
+		label: "Filters",
 	},
 	segmentation: {
 		icon: ScissorsIcon,

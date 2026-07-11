@@ -11,7 +11,15 @@ export const DEFAULT_COLOR_FILTER_APPLICATION: ColorFilterApplication = {
 	intensity: 100,
 };
 
-function clamp({ value, min, max }: { value: number; min: number; max: number }) {
+function clamp({
+	value,
+	min,
+	max,
+}: {
+	value: number;
+	min: number;
+	max: number;
+}) {
 	return Math.min(max, Math.max(min, Number.isFinite(value) ? value : min));
 }
 

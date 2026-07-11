@@ -42,6 +42,7 @@ export function ColorLutSettings({
 		if (!preset) return;
 		onSettingsChange({
 			...settings,
+			filter: { ...DEFAULT_MEDIA_COLOR_SETTINGS.filter },
 			lut: {
 				...settings.lut,
 				enabled: id !== "none",
@@ -59,6 +60,7 @@ export function ColorLutSettings({
 			});
 			onSettingsChange({
 				...settings,
+				filter: { ...DEFAULT_MEDIA_COLOR_SETTINGS.filter },
 				lut: {
 					...settings.lut,
 					enabled: true,
@@ -81,6 +83,7 @@ export function ColorLutSettings({
 			onEnabledChange={(enabled) =>
 				onSettingsChange({
 					...settings,
+					filter: { ...DEFAULT_MEDIA_COLOR_SETTINGS.filter },
 					lut: { ...settings.lut, enabled },
 				})
 			}
@@ -90,6 +93,7 @@ export function ColorLutSettings({
 						settings,
 						properties: [...LUT_KEYFRAME_PROPERTIES],
 					}),
+					filter: { ...DEFAULT_MEDIA_COLOR_SETTINGS.filter },
 					lut: { ...DEFAULT_MEDIA_COLOR_SETTINGS.lut },
 				})
 			}

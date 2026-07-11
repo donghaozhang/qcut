@@ -336,7 +336,9 @@ export const FILTER_PRESETS: FilterPreset[] = [
 	},
 ];
 
-const presetsById = new Map(FILTER_PRESETS.map((preset) => [preset.id, preset]));
+const presetsById = new Map(
+	FILTER_PRESETS.map((preset) => [preset.id, preset])
+);
 
 export function getFilterPreset({ presetId }: { presetId: string }) {
 	return presetsById.get(presetId);

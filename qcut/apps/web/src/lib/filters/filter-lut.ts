@@ -10,7 +10,15 @@ import type { FilterLutRecipe, FilterPreset } from "./filter-types";
 
 const filterCubeCache = new Map<string, ColorCubeLut>();
 
-function mix({ left, right, amount }: { left: number; right: number; amount: number }) {
+function mix({
+	left,
+	right,
+	amount,
+}: {
+	left: number;
+	right: number;
+	amount: number;
+}) {
 	return left + (right - left) * amount;
 }
 
@@ -135,7 +143,11 @@ export function buildFilterCube({
 	return { size, domainMin: [0, 0, 0], domainMax: [1, 1, 1], values };
 }
 
-export function getFilterCube({ preset }: { preset: FilterPreset }): ColorCubeLut {
+export function getFilterCube({
+	preset,
+}: {
+	preset: FilterPreset;
+}): ColorCubeLut {
 	const cached = filterCubeCache.get(preset.lutAssetId);
 	if (cached) return cached;
 	const cube = buildFilterCube({ preset });

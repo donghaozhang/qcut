@@ -5,9 +5,9 @@ describe("filter registry", () => {
 	it("ships twenty local presets with stable unique identifiers", () => {
 		expect(FILTER_PRESETS).toHaveLength(20);
 		expect(new Set(FILTER_PRESETS.map((preset) => preset.id)).size).toBe(20);
-		expect(new Set(FILTER_PRESETS.map((preset) => preset.lutAssetId)).size).toBe(
-			20
-		);
+		expect(
+			new Set(FILTER_PRESETS.map((preset) => preset.lutAssetId)).size
+		).toBe(20);
 	});
 
 	it("keeps every preset local and searchable in both languages", () => {
