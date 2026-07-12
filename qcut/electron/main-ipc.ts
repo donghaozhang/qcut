@@ -10,7 +10,6 @@ export {
 	type MainIpcDeps,
 	type ReleaseNote,
 	type Logger,
-	type AutoUpdater,
 	FAL_CONTENT_TYPES,
 	FAL_DEFAULTS,
 } from "./main-ipc/index.js";

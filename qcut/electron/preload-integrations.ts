@@ -985,6 +985,11 @@ export function createMoyinAPI(): NonNullable<ElectronAPI["moyin"]> {
 export function createUpdatesAPI(): NonNullable<ElectronAPI["updates"]> {
 	return {
 		checkForUpdates: () => ipcRenderer.invoke("check-for-updates"),
+		downloadUpdate: () => ipcRenderer.invoke("download-update"),
+		getState: () => ipcRenderer.invoke("get-update-state"),
+		getPreferences: () => ipcRenderer.invoke("get-update-preferences"),
+		setPreferences: (preferences) =>
+			ipcRenderer.invoke("set-update-preferences", preferences),
 		installUpdate: () => ipcRenderer.invoke("install-update"),
 		getReleaseNotes: (version?) =>
 			ipcRenderer.invoke("get-release-notes", version),
@@ -1014,6 +1019,14 @@ export function createUpdatesAPI(): NonNullable<ElectronAPI["updates"]> {
 				callback(data);
 			ipcRenderer.on("update-downloaded", handler);
 			return () => ipcRenderer.removeListener("update-downloaded", handler);
+		},
+		onStateChanged: (callback) => {
+			const handler = (
+				_: IpcRendererEvent,
+				state: Parameters<typeof callback>[0]
+			) => callback(state);
+			ipcRenderer.on("update-state-changed", handler);
+			return () => ipcRenderer.removeListener("update-state-changed", handler);
 		},
 	};
 }

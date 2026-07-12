@@ -12,6 +12,8 @@ import {
 	isPlatformCapable,
 	type PlatformAPI,
 	type PlatformClaudeAPI,
+	type PlatformUpdatePreferences,
+	type PlatformUpdateState,
 } from "@qcut/platform-core";
 
 /** Get the electronAPI from window, throwing if unavailable. */
@@ -297,6 +299,11 @@ const moyinAdapter = {
 
 const updatesAdapter = {
 	checkForUpdates: () => api().updates.checkForUpdates(),
+	downloadUpdate: () => api().updates.downloadUpdate(),
+	getState: () => api().updates.getState(),
+	getPreferences: () => api().updates.getPreferences(),
+	setPreferences: (preferences: Partial<PlatformUpdatePreferences>) =>
+		api().updates.setPreferences(preferences),
 	installUpdate: () => api().updates.installUpdate(),
 	getReleaseNotes: (v?: string) => api().updates.getReleaseNotes(v),
 	getChangelog: () => api().updates.getChangelog(),
@@ -312,6 +319,8 @@ const updatesAdapter = {
 	) => api().updates.onDownloadProgress(cb),
 	onUpdateDownloaded: (cb: (data: { version: string }) => void) =>
 		api().updates.onUpdateDownloaded(cb),
+	onStateChanged: (cb: (state: PlatformUpdateState) => void) =>
+		api().updates.onStateChanged(cb),
 };
 
 function createClaudeAdapter(): PlatformClaudeAPI | undefined {

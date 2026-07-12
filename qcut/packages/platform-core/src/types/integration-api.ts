@@ -534,9 +534,51 @@ export interface PlatformRemotionAPI {
 // Updates
 // ---------------------------------------------------------------------------
 
+export type PlatformUpdatePhase =
+	| "idle"
+	| "checking"
+	| "available"
+	| "downloading"
+	| "ready"
+	| "up-to-date"
+	| "error";
+
+export type PlatformAutomaticUpdateDecision =
+	| "automatic"
+	| "disabled"
+	| "too-large";
+
+export interface PlatformUpdatePreferences {
+	automaticUpdates: boolean;
+	maxAutomaticDownloadBytes: number;
+}
+
+export interface PlatformUpdateState {
+	phase: PlatformUpdatePhase;
+	currentVersion: string;
+	version?: string;
+	internalVersion?: string;
+	releaseNotes?: string;
+	releaseDate?: string;
+	downloadSize?: number;
+	percent: number;
+	transferred: number;
+	total: number;
+	automaticDownload: boolean;
+	decision?: PlatformAutomaticUpdateDecision;
+	message?: string;
+	error?: string;
+}
+
 export interface PlatformUpdatesAPI {
-	checkForUpdates(): Promise<unknown>;
+	checkForUpdates(): Promise<PlatformUpdateState>;
+	downloadUpdate(): Promise<PlatformUpdateState>;
 	installUpdate(): Promise<void>;
+	getState(): Promise<PlatformUpdateState>;
+	getPreferences(): Promise<PlatformUpdatePreferences>;
+	setPreferences(
+		preferences: Partial<PlatformUpdatePreferences>
+	): Promise<PlatformUpdatePreferences>;
 	getReleaseNotes(version?: string): Promise<unknown>;
 	getChangelog(): Promise<unknown>;
 	onUpdateAvailable(
@@ -554,6 +596,7 @@ export interface PlatformUpdatesAPI {
 		}) => void
 	): () => void;
 	onUpdateDownloaded(callback: (data: { version: string }) => void): () => void;
+	onStateChanged(callback: (state: PlatformUpdateState) => void): () => void;
 }
 
 // ---------------------------------------------------------------------------
