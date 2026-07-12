@@ -15,6 +15,7 @@ import {
 	navigateToProjects,
 	ensureMediaTabActive,
 	ensurePanelTabActive,
+	stubExportSaveDialog,
 } from "./helpers/electron-helpers";
 
 /**
@@ -223,7 +224,10 @@ test.describe("AI Enhancement & Export Integration", () => {
 	 * Test 4B.5: Export enhanced project with AI effects
 	 * Verifies export functionality works correctly with AI-enhanced content.
 	 */
-	test("4B.5 - Export enhanced project with AI effects", async ({ page }) => {
+	test("4B.5 - Export enhanced project with AI effects", async ({
+		electronApp,
+		page,
+	}, testInfo) => {
 		// Ensure there is timeline content so the export button can be enabled
 		const timelineElements = page.locator('[data-testid="timeline-element"]');
 		if ((await timelineElements.count()) === 0) {
@@ -280,6 +284,10 @@ test.describe("AI Enhancement & Export Integration", () => {
 			'[data-testid="export-start-button"]'
 		);
 		if (await startExportButton.isVisible()) {
+			await stubExportSaveDialog({
+				electronApp,
+				outputPath: testInfo.outputPath("ai-enhanced-export.mp4"),
+			});
 			await startExportButton.click();
 
 			const statusSelector = '[data-testid="export-status"]';
@@ -374,7 +382,10 @@ test.describe("AI Enhancement & Export Integration", () => {
 	 * Test 4B.7: Integration with project export workflow
 	 * Tests the complete end-to-end workflow from AI enhancement to final export.
 	 */
-	test("4B.7 - Integration with project export workflow", async ({ page }) => {
+	test("4B.7 - Integration with project export workflow", async ({
+		electronApp,
+		page,
+	}, testInfo) => {
 		// Create complete project with AI enhancements
 		const timelineElements = page.locator('[data-testid="timeline-element"]');
 
@@ -437,6 +448,10 @@ test.describe("AI Enhancement & Export Integration", () => {
 			'[data-testid="export-start-button"]'
 		);
 		if (await startExportButton.isVisible()) {
+			await stubExportSaveDialog({
+				electronApp,
+				outputPath: testInfo.outputPath("ai-workflow-export.mp4"),
+			});
 			await startExportButton.click();
 
 			const statusSelector = '[data-testid="export-status"]';

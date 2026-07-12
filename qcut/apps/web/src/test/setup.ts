@@ -152,6 +152,10 @@ console.log("🔧 SETUP.TS COMPLETE - Environment ready for tests");
 import "@testing-library/jest-dom/vitest";
 import { afterEach, afterAll, beforeAll, vi } from "vitest";
 
+afterEach(async () => {
+	await vi.dynamicImportSettled();
+});
+
 // Load toast hook mock
 import { setupToastMock } from "./mocks/toast";
 setupToastMock();

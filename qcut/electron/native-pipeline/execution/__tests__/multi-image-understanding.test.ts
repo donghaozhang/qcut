@@ -1,7 +1,9 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import type { ModelDefinition } from "../../infra/registry.js";
 
-const callModelApiMock = vi.fn();
+const { callModelApiMock } = vi.hoisted(() => ({
+	callModelApiMock: vi.fn(),
+}));
 
 vi.mock("../../infra/api-caller.js", () => ({
 	callModelApi: callModelApiMock,

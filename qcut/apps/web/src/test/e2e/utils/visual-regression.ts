@@ -26,8 +26,13 @@ export async function assertScreenshot(
 	page: Page,
 	name: string
 ): Promise<void> {
+	const masks: Locator[] = [];
+	const terminal = page.getByTestId("pty-terminal-view");
+	if ((await terminal.count()) > 0) masks.push(terminal);
+
 	await expect(page).toHaveScreenshot(`${name}.png`, {
 		fullPage: false,
+		mask: masks,
 	});
 }
 

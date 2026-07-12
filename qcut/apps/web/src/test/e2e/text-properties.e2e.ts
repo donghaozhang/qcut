@@ -27,13 +27,16 @@ test.describe("Text properties", () => {
 		await properties.getByRole("button", { name: "Animation" }).click();
 		await properties.getByRole("button", { name: "slide up" }).click();
 		await expect(
-			properties.getByLabel("Duration", { exact: true })
+			properties.getByRole("slider", { name: "Duration" })
 		).toBeVisible();
 
 		await properties.getByRole("button", { name: "Keyframes" }).click();
 		await expect(
-			properties.getByRole("button", { name: /X position \(0 keyframes\)/ })
+			properties.getByRole("button", {
+				name: "Collapse X position keyframes",
+			})
 		).toBeVisible();
+		await expect(properties.getByText("(0 keyframes)")).toBeVisible();
 		await properties
 			.getByRole("button", {
 				name: "Add keyframe at current frame",

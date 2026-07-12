@@ -651,6 +651,7 @@ export function buildFFmpegArgs(options: BuildFFmpegArgsOptions): string[] {
 		inputDir,
 		outputFile,
 		quality,
+		duration,
 		audioFiles = [],
 		useDirectCopy = false,
 		videoSources,
@@ -670,6 +671,7 @@ export function buildFFmpegArgs(options: BuildFFmpegArgsOptions): string[] {
 	// =============================================================================
 	if (useDirectCopy && videoSources && videoSources.length > 0) {
 		const args: string[] = ["-y"];
+		let outputDuration = duration;
 
 		if (videoSources.length === 1) {
 			const video = videoSources[0];
@@ -679,14 +681,12 @@ export function buildFFmpegArgs(options: BuildFFmpegArgsOptions): string[] {
 
 			const effectiveDuration =
 				video.duration - (video.trimStart || 0) - (video.trimEnd || 0);
+			outputDuration = effectiveDuration;
 
 			if (video.trimStart && video.trimStart > 0) {
 				args.push("-ss", String(video.trimStart));
 			}
 			args.push("-i", video.path);
-			if (video.duration) {
-				args.push("-t", String(effectiveDuration));
-			}
 		} else {
 			// Multiple videos: concat demuxer (all sources must already be compatible)
 			const concatFileContent = videoSources
@@ -734,6 +734,9 @@ export function buildFFmpegArgs(options: BuildFFmpegArgsOptions): string[] {
 		}
 
 		args.push("-c:v", "copy");
+		if (outputDuration > 0) {
+			args.push("-t", String(outputDuration));
+		}
 		args.push("-movflags", "+faststart", outputFile);
 		return args;
 	}
