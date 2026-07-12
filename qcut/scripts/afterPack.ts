@@ -3,9 +3,61 @@ import { execFile } from "node:child_process";
 import fs from "node:fs";
 import os from "node:os";
 import type { AfterPackContext } from "electron-builder";
+import { getTargetKeys, loadFFmpegManifest } from "./ffmpeg-manifest.js";
+
+const ELECTRON_BUILDER_ARCH_NAMES: Record<number, string> = {
+	0: "ia32",
+	1: "x64",
+	2: "armv7l",
+	3: "arm64",
+	4: "universal",
+};
+function resolveResourcesDir({
+	context,
+}: {
+	context: AfterPackContext;
+}): string {
+	if (context.electronPlatformName !== "darwin") {
+		return path.join(context.appOutDir, "resources");
+	}
+	const appBundle = fs
+		.readdirSync(context.appOutDir, { withFileTypes: true })
+		.find((entry) => entry.isDirectory() && entry.name.endsWith(".app"));
+	if (!appBundle) {
+		throw new Error(`macOS app bundle not found in ${context.appOutDir}`);
+	}
+	return path.join(context.appOutDir, appBundle.name, "Contents", "Resources");
+}
+
+async function pruneForeignFFmpegTargets({
+	context,
+}: {
+	context: AfterPackContext;
+}): Promise<void> {
+	const manifest = await loadFFmpegManifest();
+	const stagedTargets = getTargetKeys({ manifest });
+	const arch = ELECTRON_BUILDER_ARCH_NAMES[context.arch];
+	if (!arch)
+		throw new Error(`Unsupported electron-builder arch: ${context.arch}`);
+	const targetKey = `${context.electronPlatformName}-${arch}`;
+	if (!stagedTargets.includes(targetKey)) {
+		throw new Error(`No pinned FFmpeg target for packaged app: ${targetKey}`);
+	}
+
+	const ffmpegRoot = path.join(resolveResourcesDir({ context }), "ffmpeg");
+	for (const stagedTarget of stagedTargets) {
+		if (stagedTarget === targetKey) continue;
+		fs.rmSync(path.join(ffmpegRoot, stagedTarget), {
+			recursive: true,
+			force: true,
+		});
+	}
+	process.stdout.write(`Kept packaged FFmpeg target: ${targetKey}\n`);
+}
 
 async function afterPack(context: AfterPackContext): Promise<void> {
 	process.stdout.write("Running afterPack hook to fix icon...\n");
+	await pruneForeignFFmpegTargets({ context });
 
 	// Skip icon fixing when cross-compiling (e.g., building Windows on macOS)
 	if (

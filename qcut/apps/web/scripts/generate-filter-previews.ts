@@ -1,6 +1,7 @@
 import { mkdir, mkdtemp, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join, resolve } from "node:path";
+import { getFFmpegPath } from "../../../electron/ffmpeg/paths";
 import { serializeCubeLut } from "../src/lib/color/color-lut";
 import { buildFilterCube } from "../src/lib/filters/filter-lut";
 import { FILTER_PRESETS } from "../src/lib/filters/filter-registry";
@@ -124,7 +125,7 @@ async function renderWebp({
 	temporaryPng: string;
 }) {
 	await runCommand({
-		command: "ffmpeg",
+		command: getFFmpegPath(),
 		args: [
 			"-hide_banner",
 			"-loglevel",

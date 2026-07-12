@@ -1,7 +1,46 @@
+import json
+from pathlib import Path
+
 import modal
 from pydantic import BaseModel, Field
 
 app = modal.App("opencut-transcription")
+
+FFMPEG_MANIFEST_PATH = Path(__file__).resolve().parents[2] / "scripts" / "ffmpeg-binaries.json"
+FFMPEG_MANIFEST = json.loads(FFMPEG_MANIFEST_PATH.read_text(encoding="utf-8"))
+FFMPEG_LINUX_TARGET = FFMPEG_MANIFEST["targets"]["linux-x64"]
+FFMPEG_LINUX_ARCHIVE = FFMPEG_LINUX_TARGET["artifacts"][0]
+FFMPEG_LINUX_VERSION_TOKEN = FFMPEG_LINUX_TARGET["versionToken"]
+FFMPEG_REQUIRED_BUILD_FLAGS = " ".join(FFMPEG_MANIFEST["requiredBuildFlags"])
+FFMPEG_FORBIDDEN_BUILD_FLAGS = " ".join(FFMPEG_MANIFEST["forbiddenBuildFlags"])
+FFMPEG_LINUX_HARDWARE = " ".join(FFMPEG_LINUX_TARGET["hardwareAccelerators"])
+DEBIAN_BOOKWORM_SLIM = (
+    "debian:bookworm-slim@sha256:"
+    "60eac759739651111db372c07be67863818726f754804b8707c90979bda511df"
+)
+
+transcription_image = (
+    modal.Image.from_registry(DEBIAN_BOOKWORM_SLIM, add_python="3.11")
+    .apt_install(["ca-certificates", "curl", "xz-utils"])
+    .run_commands(
+        "set -eux; "
+        f"curl -fsSL '{FFMPEG_LINUX_ARCHIVE['url']}' -o /tmp/ffmpeg.tar.xz; "
+        f"echo '{FFMPEG_LINUX_ARCHIVE['sha256']}  /tmp/ffmpeg.tar.xz' | sha256sum -c -; "
+        "mkdir -p /tmp/ffmpeg; "
+        "tar -xJf /tmp/ffmpeg.tar.xz -C /tmp/ffmpeg; "
+        f"install -m 0755 '/tmp/ffmpeg/{FFMPEG_LINUX_ARCHIVE['files']['ffmpeg']}' /usr/local/bin/ffmpeg; "
+        f"install -m 0755 '/tmp/ffmpeg/{FFMPEG_LINUX_ARCHIVE['files']['ffprobe']}' /usr/local/bin/ffprobe; "
+        f"ffmpeg -version | grep '^ffmpeg version {FFMPEG_LINUX_VERSION_TOKEN}'; "
+        f"ffprobe -version | grep '^ffprobe version {FFMPEG_LINUX_VERSION_TOKEN}'; "
+        "ffmpeg -hide_banner -buildconf > /tmp/ffmpeg-buildconf.txt; "
+        f"for flag in {FFMPEG_REQUIRED_BUILD_FLAGS}; do grep -F -- \"$flag\" /tmp/ffmpeg-buildconf.txt; done; "
+        f"for flag in {FFMPEG_FORBIDDEN_BUILD_FLAGS}; do ! grep -F -- \"$flag\" /tmp/ffmpeg-buildconf.txt; done; "
+        "ffmpeg -hide_banner -hwaccels > /tmp/ffmpeg-hwaccels.txt; "
+        f"for accelerator in {FFMPEG_LINUX_HARDWARE}; do grep -F -- \"$accelerator\" /tmp/ffmpeg-hwaccels.txt; done; "
+        "rm -rf /tmp/ffmpeg /tmp/ffmpeg.tar.xz"
+    )
+    .pip_install(["openai-whisper", "boto3", "fastapi[standard]", "pydantic", "cryptography"])
+)
 
 class TranscribeRequest(BaseModel):
     """Payload describing the media file to transcribe."""
@@ -11,9 +50,7 @@ class TranscribeRequest(BaseModel):
     iv: str | None = Field(default=None, alias="iv")
 
 @app.function(
-    image=modal.Image.debian_slim()
-        .apt_install(["ffmpeg"])
-        .pip_install(["openai-whisper", "boto3", "fastapi[standard]", "pydantic", "cryptography"]),
+    image=transcription_image,
     gpu="A10G",
     timeout=300, # 5m
     secrets=[modal.Secret.from_name("opencut-r2-secrets")]

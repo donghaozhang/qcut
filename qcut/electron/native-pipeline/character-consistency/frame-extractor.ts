@@ -2,6 +2,7 @@ import { execFile } from "node:child_process";
 import { mkdirSync, readdirSync } from "node:fs";
 import { join } from "node:path";
 import { promisify } from "node:util";
+import { getFFmpegPath, getFFprobePath } from "../../ffmpeg/paths.js";
 import type { Keyframe, VideoMeta } from "./types.js";
 
 const execFileAsync = promisify(execFile);
@@ -60,11 +61,14 @@ function parseProbeJson({ stdout }: { stdout: string }): VideoMeta {
 export async function probeVideoMeta({
 	input,
 	execFileAsyncFn = execFileAsync as ExecFileAsyncFn,
+	resolveFFprobePath = getFFprobePath,
 }: {
 	input: string;
 	execFileAsyncFn?: ExecFileAsyncFn;
+	resolveFFprobePath?: () => Promise<string>;
 }): Promise<VideoMeta> {
-	const { stdout } = await execFileAsyncFn("ffprobe", [
+	const ffprobePath = await resolveFFprobePath();
+	const { stdout } = await execFileAsyncFn(ffprobePath, [
 		"-v",
 		"error",
 		"-select_streams",
@@ -122,6 +126,7 @@ export async function extractKeyframes({
 	videoFps = fps,
 	maxLongEdge = 768,
 	execFileAsyncFn = execFileAsync as ExecFileAsyncFn,
+	resolveFFmpegPath = getFFmpegPath,
 }: {
 	input: string;
 	fps: number;
@@ -130,13 +135,14 @@ export async function extractKeyframes({
 	videoFps?: number;
 	maxLongEdge?: number;
 	execFileAsyncFn?: ExecFileAsyncFn;
+	resolveFFmpegPath?: () => string;
 }): Promise<Keyframe[]> {
 	const framesDir = join(outputDir, "consistency-frames");
 	mkdirSync(framesDir, { recursive: true });
 	const outputPattern = join(framesDir, "frame-%06d.jpg");
 	const videoFilter = buildVideoFilter({ fps, sceneDetect, maxLongEdge });
 
-	await execFileAsyncFn("ffmpeg", [
+	await execFileAsyncFn(resolveFFmpegPath(), [
 		"-y",
 		"-hide_banner",
 		"-loglevel",

@@ -3,19 +3,24 @@
  */
 
 import { spawn } from "node:child_process";
-import { app } from "electron";
+import { createRequire } from "node:module";
 import path from "node:path";
 import fs from "node:fs";
+import { debugLog, debugWarn } from "./constants";
+
+const nodeRequire = createRequire(__filename);
 
 /** Safe check for Electron packaged mode — returns false in utility process. */
 function isPackaged(): boolean {
 	try {
-		return app.isPackaged;
+		const electron = nodeRequire("electron") as
+			| string
+			| { app?: { isPackaged: boolean } };
+		return typeof electron !== "string" && Boolean(electron.app?.isPackaged);
 	} catch {
 		return false;
 	}
 }
-import { debugLog, debugWarn } from "./constants";
 
 // ============================================================================
 // Path Resolution Internals
@@ -156,6 +161,21 @@ function resolvePackagedStagedBinaryOrThrow({
 	);
 }
 
+function resolvePackagedStagedBinary({
+	binaryName,
+}: {
+	binaryName: string;
+}): StagedBinarySearchResult {
+	try {
+		return resolveStagedBinaryFromRoot({
+			rootPath: path.join(process.resourcesPath, "ffmpeg"),
+			binaryName,
+		});
+	} catch {
+		return { resolvedPath: null, searchedPaths: [] };
+	}
+}
+
 /**
  * Returns platform-specific paths where FFmpeg might be installed.
  */
@@ -265,6 +285,14 @@ function findFileRecursive(
 export function getFFmpegPath(): string {
 	const platform = process.platform;
 	const binaryName = getBinaryName({ tool: "ffmpeg", platform });
+	const packagedResult = resolvePackagedStagedBinary({ binaryName });
+	if (packagedResult.resolvedPath) {
+		debugLog(
+			"Using staged FFmpeg binary from packaged resources:",
+			packagedResult.resolvedPath
+		);
+		return packagedResult.resolvedPath;
+	}
 
 	if (isPackaged()) {
 		return resolvePackagedStagedBinaryOrThrow({
@@ -286,7 +314,7 @@ export function getFFmpegPath(): string {
 	}
 
 	try {
-		const staticPath: string = require("ffmpeg-static");
+		const staticPath = nodeRequire("ffmpeg-static") as string;
 		if (fs.existsSync(staticPath)) {
 			debugLog("Found ffmpeg-static:", staticPath);
 			return staticPath;
@@ -317,6 +345,17 @@ export function getFFmpegPath(): string {
 export async function getFFprobePath(): Promise<string> {
 	const platform = process.platform;
 	const binaryName = getBinaryName({ tool: "ffprobe", platform });
+	const packagedResult = resolvePackagedStagedBinary({ binaryName });
+	if (
+		packagedResult.resolvedPath &&
+		(await isBinaryExecutable({ binaryPath: packagedResult.resolvedPath }))
+	) {
+		debugLog(
+			"Using staged FFprobe binary from packaged resources:",
+			packagedResult.resolvedPath
+		);
+		return packagedResult.resolvedPath;
+	}
 
 	if (isPackaged()) {
 		return resolvePackagedStagedBinaryOrThrow({
@@ -348,7 +387,7 @@ export async function getFFprobePath(): Promise<string> {
 	}
 
 	try {
-		const staticPath: string = require("ffprobe-static").path;
+		const staticPath = (nodeRequire("ffprobe-static") as { path: string }).path;
 		if (
 			fs.existsSync(staticPath) &&
 			(await isBinaryExecutable({ binaryPath: staticPath }))

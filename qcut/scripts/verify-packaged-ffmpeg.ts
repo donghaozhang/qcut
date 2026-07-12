@@ -1,234 +1,105 @@
-/**
- * Verifies packaged staged FFmpeg binaries.
- *
- * Contract:
- * - resources/ffmpeg/<platform>-<arch>/ffmpeg(.exe)
- * - resources/ffmpeg/<platform>-<arch>/ffprobe(.exe)
- *
- * The script checks all staged targets and runs `-version` on the host target
- * when a runnable binary is available on the current OS/arch.
- */
-
-import { spawn } from "node:child_process";
 import { existsSync } from "node:fs";
 import { readdir, stat } from "node:fs/promises";
 import { join } from "node:path";
+import {
+	getBinaryName,
+	getTargetKeys,
+	loadFFmpegManifest,
+	type FFmpegManifest,
+	type FFmpegTarget,
+} from "./ffmpeg-manifest.js";
+import { verifyFFmpegBinaries } from "./ffmpeg-verify.js";
 
 interface CandidateDir {
 	fullPath: string;
 	mtimeMs: number;
 }
 
-interface RunBinaryResult {
-	exitCode: number | null;
-	firstLine: string;
-	stderr: string;
-	error: string;
-}
-
-interface StageTarget {
-	platform: string;
-	arch: string;
-	key: string;
-}
-
-const DEFAULT_STAGE_TARGETS = [
-	"darwin-arm64",
-	"darwin-x64",
-	"win32-x64",
-	"linux-x64",
-];
-const VERSION_TIMEOUT_MS = 8000;
-
 function getErrorMessage({ error }: { error: unknown }): string {
-	try {
-		if (error instanceof Error) {
-			return error.message;
-		}
-		return String(error);
-	} catch {
-		return "Unknown error";
-	}
+	return error instanceof Error ? error.message : String(error);
 }
 
-function parseTargets({ rawTargets }: { rawTargets: string }): StageTarget[] {
-	try {
-		const uniqueKeys = new Set(
+function parseTargetKeys({
+	rawTargets,
+	manifest,
+}: {
+	rawTargets: string;
+	manifest: FFmpegManifest;
+}): string[] {
+	const keys = Array.from(
+		new Set(
 			rawTargets
 				.split(",")
 				.map((target) => target.trim())
 				.filter(Boolean)
-		);
-
-		if (uniqueKeys.size === 0) {
-			throw new Error("No staged FFmpeg targets configured");
+		)
+	);
+	if (keys.length === 0) throw new Error("No staged FFmpeg targets configured");
+	for (const key of keys) {
+		if (!manifest.targets[key]) {
+			throw new Error(`FFmpeg target is not pinned in the manifest: ${key}`);
 		}
-
-		return Array.from(uniqueKeys).map((key) => {
-			const [platform, arch] = key.split("-");
-			if (!platform || !arch) {
-				throw new Error(
-					`Invalid staged target "${key}". Expected format "<platform>-<arch>".`
-				);
-			}
-			return { platform, arch, key };
-		});
-	} catch (error: unknown) {
-		throw new Error(
-			`Failed to parse staged targets: ${getErrorMessage({ error })}`
-		);
 	}
-}
-
-function getBinaryName({
-	target,
-	tool,
-}: {
-	target: StageTarget;
-	tool: "ffmpeg" | "ffprobe";
-}): string {
-	try {
-		if (target.platform === "win32") {
-			return `${tool}.exe`;
-		}
-		return tool;
-	} catch (error: unknown) {
-		throw new Error(
-			`Failed to resolve binary name: ${getErrorMessage({ error })}`
-		);
-	}
+	return keys;
 }
 
 async function resolveLatestResourcesDir(): Promise<string> {
-	try {
-		const distDir = join(process.cwd(), "dist-electron");
-		if (!existsSync(distDir)) {
-			throw new Error(`dist-electron not found: ${distDir}`);
-		}
-
-		const entries = await readdir(distDir, { withFileTypes: true });
-		const candidateGroups = await Promise.all(
-			entries.map(async (entry): Promise<string[]> => {
-				if (!entry.isDirectory()) {
-					return [];
-				}
-
-				const entryPath = join(distDir, entry.name);
-				if (entry.name.endsWith("win-unpacked")) {
-					return [join(entryPath, "resources")];
-				}
-				if (entry.name.endsWith("linux-unpacked")) {
-					return [join(entryPath, "resources")];
-				}
-
-				const macBundleCandidates = await readdir(entryPath, {
-					withFileTypes: true,
-				}).catch(() => []);
-
-				return macBundleCandidates
-					.filter((macEntry) => macEntry.isDirectory())
-					.filter((macEntry) => macEntry.name.endsWith(".app"))
-					.map((macEntry) =>
-						join(entryPath, macEntry.name, "Contents", "Resources")
-					);
-			})
-		);
-		const candidateResourcesDirs = candidateGroups.flat();
-
-		const existingCandidates = candidateResourcesDirs.filter((dirPath) =>
-			existsSync(dirPath)
-		);
-		if (existingCandidates.length === 0) {
-			throw new Error(`No packaged resources directory found in: ${distDir}`);
-		}
-
-		const candidates: CandidateDir[] = await Promise.all(
-			existingCandidates.map(async (fullPath): Promise<CandidateDir> => {
-				const fileStat = await stat(fullPath);
-				return { fullPath, mtimeMs: fileStat.mtimeMs };
-			})
-		);
-
-		const newest = candidates.sort((a, b) => b.mtimeMs - a.mtimeMs)[0];
-		return newest.fullPath;
-	} catch (error: unknown) {
-		throw new Error(
-			`Failed to resolve packaged resources directory: ${getErrorMessage({ error })}`
-		);
+	const distDir = join(process.cwd(), "dist-electron");
+	if (!existsSync(distDir)) {
+		throw new Error(`dist-electron not found: ${distDir}`);
 	}
+
+	const entries = await readdir(distDir, { withFileTypes: true });
+	const candidateGroups = await Promise.all(
+		entries.map(async (entry): Promise<string[]> => {
+			if (!entry.isDirectory()) return [];
+			const entryPath = join(distDir, entry.name);
+			if (
+				entry.name.endsWith("win-unpacked") ||
+				entry.name.endsWith("linux-unpacked")
+			) {
+				return [join(entryPath, "resources")];
+			}
+
+			const macBundleCandidates = await readdir(entryPath, {
+				withFileTypes: true,
+			}).catch(() => []);
+			return macBundleCandidates
+				.filter((macEntry) => macEntry.isDirectory())
+				.filter((macEntry) => macEntry.name.endsWith(".app"))
+				.map((macEntry) =>
+					join(entryPath, macEntry.name, "Contents", "Resources")
+				);
+		})
+	);
+	const existingCandidates = candidateGroups
+		.flat()
+		.filter((dirPath) => existsSync(dirPath));
+	if (existingCandidates.length === 0) {
+		throw new Error(`No packaged resources directory found in: ${distDir}`);
+	}
+
+	const candidates: CandidateDir[] = await Promise.all(
+		existingCandidates.map(async (fullPath): Promise<CandidateDir> => {
+			const fileStat = await stat(fullPath);
+			return { fullPath, mtimeMs: fileStat.mtimeMs };
+		})
+	);
+	return candidates.sort((a, b) => b.mtimeMs - a.mtimeMs)[0].fullPath;
 }
 
-function isRunnableOnHost({ target }: { target: StageTarget }): boolean {
-	try {
-		return target.platform === process.platform && target.arch === process.arch;
-	} catch {
-		return false;
-	}
-}
-
-function runBinaryVersion({
-	binaryPath,
-	timeoutMs,
-}: {
-	binaryPath: string;
-	timeoutMs: number;
-}): Promise<RunBinaryResult> {
-	return new Promise((resolve) => {
-		try {
-			const proc = spawn(binaryPath, ["-version"], {
-				windowsHide: true,
-				stdio: ["ignore", "pipe", "pipe"],
-			});
-
-			let stdout = "";
-			let stderr = "";
-
-			const timeoutId = setTimeout(() => {
-				proc.kill();
-				resolve({
-					exitCode: null,
-					firstLine: "",
-					stderr,
-					error: `timed out after ${timeoutMs}ms`,
-				});
-			}, timeoutMs);
-
-			proc.stdout?.on("data", (chunk: Buffer) => {
-				stdout += chunk.toString();
-			});
-			proc.stderr?.on("data", (chunk: Buffer) => {
-				stderr += chunk.toString();
-			});
-
-			proc.on("close", (exitCode: number | null) => {
-				clearTimeout(timeoutId);
-				const firstLine = (stdout.split(/\r?\n/)[0] ?? "").trim();
-				resolve({ exitCode, firstLine, stderr, error: "" });
-			});
-
-			proc.on("error", (error: Error) => {
-				clearTimeout(timeoutId);
-				resolve({
-					exitCode: null,
-					firstLine: "",
-					stderr,
-					error: error.message,
-				});
-			});
-		} catch (error: unknown) {
-			resolve({
-				exitCode: null,
-				firstLine: "",
-				stderr: "",
-				error: getErrorMessage({ error }),
-			});
-		}
-	});
+function isHostTarget({ target }: { target: FFmpegTarget }): boolean {
+	return target.platform === process.platform && target.arch === process.arch;
 }
 
 async function verifyPackagedFFmpeg(): Promise<void> {
 	try {
-		const resourcesDir = await resolveLatestResourcesDir();
+		const [resourcesDir, manifest] = await Promise.all([
+			process.env.QCUT_PACKAGED_RESOURCES_DIR
+				? Promise.resolve(process.env.QCUT_PACKAGED_RESOURCES_DIR)
+				: resolveLatestResourcesDir(),
+			loadFFmpegManifest(),
+		]);
 		const stagedRoot = join(resourcesDir, "ffmpeg");
 		if (!existsSync(stagedRoot)) {
 			throw new Error(
@@ -236,89 +107,53 @@ async function verifyPackagedFFmpeg(): Promise<void> {
 			);
 		}
 
-		const rawTargets =
-			process.env.FFMPEG_STAGE_TARGETS || DEFAULT_STAGE_TARGETS.join(",");
-		const targets = parseTargets({ rawTargets });
-
-		const missingPaths: string[] = [];
-		for (const target of targets) {
-			const ffmpegPath = join(
-				stagedRoot,
-				target.key,
-				getBinaryName({ target, tool: "ffmpeg" })
-			);
-			const ffprobePath = join(
-				stagedRoot,
-				target.key,
-				getBinaryName({ target, tool: "ffprobe" })
-			);
-
-			if (!existsSync(ffmpegPath)) {
-				missingPaths.push(ffmpegPath);
-			}
-			if (!existsSync(ffprobePath)) {
-				missingPaths.push(ffprobePath);
-			}
-		}
-
-		if (missingPaths.length > 0) {
+		const packagedEntries = await readdir(stagedRoot, { withFileTypes: true });
+		const pinnedTargetKeys = new Set(getTargetKeys({ manifest }));
+		const packagedTargetKeys = packagedEntries
+			.filter(
+				(entry) => entry.isDirectory() && pinnedTargetKeys.has(entry.name)
+			)
+			.map((entry) => entry.name);
+		const targetKeys = process.env.FFMPEG_STAGE_TARGETS
+			? parseTargetKeys({
+					rawTargets: process.env.FFMPEG_STAGE_TARGETS,
+					manifest,
+				})
+			: packagedTargetKeys;
+		if (targetKeys.length !== 1) {
 			throw new Error(
-				`Missing staged binaries in packaged app:\n${missingPaths.join("\n")}`
+				`Packaged app must contain exactly one native FFmpeg target; found: ${targetKeys.join(", ") || "none"}`
 			);
 		}
-
-		const runnableTarget = targets.find((target) =>
-			isRunnableOnHost({ target })
-		);
-		if (!runnableTarget) {
+		for (const targetKey of targetKeys) {
+			const target = manifest.targets[targetKey];
+			await verifyFFmpegBinaries({
+				targetKey,
+				target,
+				requiredBuildFlags: manifest.requiredBuildFlags,
+				forbiddenBuildFlags: manifest.forbiddenBuildFlags,
+				ffmpegPath: join(
+					stagedRoot,
+					targetKey,
+					getBinaryName({ target, tool: "ffmpeg" })
+				),
+				ffprobePath: join(
+					stagedRoot,
+					targetKey,
+					getBinaryName({ target, tool: "ffprobe" })
+				),
+				execute: isHostTarget({ target }),
+			});
 			process.stdout.write(
-				`✅ Packaged FFmpeg verification passed (presence only). No runnable host target in: ${targets.map((target) => target.key).join(", ")}\n`
+				`[verify-ffmpeg] ${targetKey}: FFmpeg ${manifest.nativeVersion} verified\n`
 			);
-			return;
 		}
-
-		const ffmpegPath = join(
-			stagedRoot,
-			runnableTarget.key,
-			getBinaryName({ target: runnableTarget, tool: "ffmpeg" })
+		process.stdout.write(
+			`[verify-ffmpeg] packaged FFmpeg verification passed: ${resourcesDir}\n`
 		);
-		const ffprobePath = join(
-			stagedRoot,
-			runnableTarget.key,
-			getBinaryName({ target: runnableTarget, tool: "ffprobe" })
-		);
-
-		const [ffmpegResult, ffprobeResult] = await Promise.all([
-			runBinaryVersion({
-				binaryPath: ffmpegPath,
-				timeoutMs: VERSION_TIMEOUT_MS,
-			}),
-			runBinaryVersion({
-				binaryPath: ffprobePath,
-				timeoutMs: VERSION_TIMEOUT_MS,
-			}),
-		]);
-
-		if (ffmpegResult.error || ffmpegResult.exitCode !== 0) {
-			throw new Error(
-				`ffmpeg failed for ${runnableTarget.key} (exit=${ffmpegResult.exitCode}, error=${ffmpegResult.error}, stderr=${ffmpegResult.stderr.trim()})`
-			);
-		}
-		if (ffprobeResult.error || ffprobeResult.exitCode !== 0) {
-			throw new Error(
-				`ffprobe failed for ${runnableTarget.key} (exit=${ffprobeResult.exitCode}, error=${ffprobeResult.error}, stderr=${ffprobeResult.stderr.trim()})`
-			);
-		}
-
-		process.stdout.write("✅ Packaged FFmpeg verification passed\n");
-		process.stdout.write(`Resources dir: ${resourcesDir}\n`);
-		process.stdout.write(`FFmpeg: ${ffmpegPath}\n`);
-		process.stdout.write(`FFprobe: ${ffprobePath}\n`);
-		process.stdout.write(`FFmpeg version: ${ffmpegResult.firstLine}\n`);
-		process.stdout.write(`FFprobe version: ${ffprobeResult.firstLine}\n`);
 	} catch (error: unknown) {
 		process.stderr.write(
-			`❌ Packaged FFmpeg verification failed: ${getErrorMessage({ error })}\n`
+			`[verify-ffmpeg] verification failed: ${getErrorMessage({ error })}\n`
 		);
 		process.exit(1);
 	}
