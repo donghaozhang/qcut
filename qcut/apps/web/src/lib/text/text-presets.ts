@@ -1,5 +1,9 @@
 import type { TextElement } from "@/types/timeline";
 import { resolveTextStyle } from "./text-style";
+import {
+	notifyUserLibraryChanged,
+	USER_LIBRARY_NAMESPACES,
+} from "@/lib/user-library/user-library-events";
 
 export type TextPresetUpdates = Partial<
 	Pick<
@@ -246,7 +250,28 @@ export const BUILT_IN_TEXT_PRESETS: TextStylePreset[] = [
 	},
 ];
 
-const CUSTOM_PRESETS_KEY = "qcut-text-style-presets-v1";
+export const CUSTOM_TEXT_PRESETS_STORAGE_KEY = "qcut-text-style-presets-v1";
+
+export function parseCustomTextPreset({
+	value,
+}: {
+	value: unknown;
+}): TextStylePreset | null {
+	if (
+		typeof value !== "object" ||
+		value === null ||
+		!("id" in value) ||
+		typeof value.id !== "string" ||
+		!("name" in value) ||
+		typeof value.name !== "string" ||
+		!("updates" in value) ||
+		typeof value.updates !== "object" ||
+		value.updates === null
+	) {
+		return null;
+	}
+	return value as TextStylePreset;
+}
 
 export function captureTextPreset(element: TextElement): TextPresetUpdates {
 	const style = resolveTextStyle(element);
@@ -282,24 +307,30 @@ export function captureTextPreset(element: TextElement): TextPresetUpdates {
 export function loadCustomTextPresets(): TextStylePreset[] {
 	if (typeof window === "undefined") return [];
 	try {
-		const value = window.localStorage.getItem(CUSTOM_PRESETS_KEY);
+		const value = window.localStorage.getItem(CUSTOM_TEXT_PRESETS_STORAGE_KEY);
 		if (!value) return [];
 		const parsed = JSON.parse(value);
 		return Array.isArray(parsed)
-			? parsed.filter(
-					(item): item is TextStylePreset =>
-						typeof item?.id === "string" &&
-						typeof item?.name === "string" &&
-						typeof item?.updates === "object" &&
-						item.updates !== null
-				)
+			? parsed
+					.map((value) => parseCustomTextPreset({ value }))
+					.filter((preset): preset is TextStylePreset => preset !== null)
 			: [];
 	} catch {
 		return [];
 	}
 }
 
-export function storeCustomTextPresets(presets: TextStylePreset[]): void {
+export function storeCustomTextPresets({
+	presets,
+}: {
+	presets: TextStylePreset[];
+}): void {
 	if (typeof window === "undefined") return;
-	window.localStorage.setItem(CUSTOM_PRESETS_KEY, JSON.stringify(presets));
+	window.localStorage.setItem(
+		CUSTOM_TEXT_PRESETS_STORAGE_KEY,
+		JSON.stringify(presets)
+	);
+	notifyUserLibraryChanged({
+		namespace: USER_LIBRARY_NAMESPACES.textPresets,
+	});
 }

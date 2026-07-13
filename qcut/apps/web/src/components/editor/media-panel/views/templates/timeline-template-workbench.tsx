@@ -5,8 +5,16 @@ import {
 	type TimelineTemplateSlotValue,
 	type TimelineTemplateSlotValues,
 } from "@qcut/editor-core/templates";
-import { Check, LayoutTemplate, RefreshCw, TriangleAlert } from "lucide-react";
-import { useEffect, useMemo, useState } from "react";
+import {
+	Check,
+	Download,
+	LayoutTemplate,
+	RefreshCw,
+	Trash2,
+	TriangleAlert,
+	Upload,
+} from "lucide-react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -29,9 +37,17 @@ import {
 	replaceTimelineTemplateSlot,
 } from "@/lib/templates/timeline-template-application";
 import {
+	BUILT_IN_TIMELINE_TEMPLATE_IDS,
 	getTimelineTemplate,
+	getTimelineTemplates,
 	TIMELINE_TEMPLATES,
 } from "@/lib/templates/template-registry";
+import {
+	CUSTOM_TIMELINE_TEMPLATES_CHANGED_EVENT,
+	importCustomTimelineTemplates,
+	removeCustomTimelineTemplate,
+} from "@/lib/templates/custom-template-registry";
+import { saveTimelineTemplateFile } from "@/lib/templates/timeline-template-file";
 import { cn } from "@/lib/utils";
 
 interface TemplateInstanceSummary {
@@ -61,17 +77,19 @@ function defaultSlotValues({
 }
 
 function TemplatePicker({
+	templates,
 	selectedId,
 	onSelect,
 	previewUrl,
 }: {
+	templates: TimelineTemplate[];
 	selectedId: string;
 	onSelect: (templateId: string) => void;
 	previewUrl?: string;
 }) {
 	return (
 		<div className="grid grid-cols-2 gap-2">
-			{TIMELINE_TEMPLATES.map((template) => {
+			{templates.map((template) => {
 				const selected = selectedId === template.id;
 				return (
 					<button
@@ -173,8 +191,12 @@ export function TimelineTemplateWorkbench() {
 	);
 	const tracks = useTimelineStore((state) => state.tracks);
 	const currentTime = usePlaybackStore((state) => state.currentTime);
+	const [templates, setTemplates] = useState(getTimelineTemplates);
 	const [templateId, setTemplateId] = useState(TIMELINE_TEMPLATES[0].id);
-	const template = getTimelineTemplate({ templateId }) ?? TIMELINE_TEMPLATES[0];
+	const template =
+		templates.find((candidate) => candidate.id === templateId) ??
+		getTimelineTemplate({ templateId }) ??
+		TIMELINE_TEMPLATES[0];
 	const [aspectRatio, setAspectRatio] = useState<TemplateAspectRatio>(
 		template.defaultAspectRatio
 	);
@@ -186,6 +208,30 @@ export function TimelineTemplateWorkbench() {
 	);
 	const [activeInstanceId, setActiveInstanceId] = useState<string>();
 	const [isApplying, setIsApplying] = useState(false);
+	const templateFileInput = useRef<HTMLInputElement>(null);
+	const isCustomTemplate = !BUILT_IN_TIMELINE_TEMPLATE_IDS.has(template.id);
+
+	const refreshTemplates = useCallback(() => {
+		const next = getTimelineTemplates();
+		setTemplates(next);
+		setTemplateId((current) =>
+			next.some((candidate) => candidate.id === current)
+				? current
+				: TIMELINE_TEMPLATES[0].id
+		);
+	}, []);
+
+	useEffect(() => {
+		window.addEventListener(
+			CUSTOM_TIMELINE_TEMPLATES_CHANGED_EVENT,
+			refreshTemplates
+		);
+		return () =>
+			window.removeEventListener(
+				CUSTOM_TIMELINE_TEMPLATES_CHANGED_EVENT,
+				refreshTemplates
+			);
+	}, [refreshTemplates]);
 
 	useEffect(() => {
 		setAspectRatio(template.defaultAspectRatio);
@@ -305,13 +351,106 @@ export function TimelineTemplateWorkbench() {
 		}
 	};
 
+	const importTemplateFile = async ({ file }: { file: File }) => {
+		try {
+			const imported = importCustomTimelineTemplates({
+				text: await file.text(),
+				builtInIds: BUILT_IN_TIMELINE_TEMPLATE_IDS,
+			});
+			refreshTemplates();
+			setTemplateId(imported[0]?.id ?? TIMELINE_TEMPLATES[0].id);
+			toast.success(
+				`${imported.length} custom template${imported.length === 1 ? "" : "s"} imported`
+			);
+		} catch (error) {
+			toast.error(error instanceof Error ? error.message : "Import failed");
+		}
+	};
+
+	const exportTemplate = async () => {
+		try {
+			const result = await saveTimelineTemplateFile({ template });
+			if (result.success) toast.success("Template exported");
+		} catch (error) {
+			toast.error(error instanceof Error ? error.message : "Export failed");
+		}
+	};
+
+	const deleteTemplate = () => {
+		if (!isCustomTemplate) return;
+		removeCustomTimelineTemplate({ templateId: template.id });
+		refreshTemplates();
+		toast.success("Custom template deleted");
+	};
+
 	return (
 		<div className="space-y-4" data-testid="timeline-template-workbench">
 			<TemplatePicker
+				templates={templates}
 				selectedId={template.id}
 				onSelect={setTemplateId}
 				previewUrl={previewUrl}
 			/>
+			<div className="flex items-center gap-1.5">
+				<input
+					ref={templateFileInput}
+					type="file"
+					accept="application/json,.json,.qcut-template.json"
+					className="hidden"
+					aria-label="Import timeline template"
+					onChange={(event) => {
+						const file = event.target.files?.[0];
+						if (file) void importTemplateFile({ file });
+						event.target.value = "";
+					}}
+				/>
+				<Button
+					type="button"
+					variant="outline"
+					size="sm"
+					className="h-7 flex-1 text-xs"
+					onClick={() => templateFileInput.current?.click()}
+					onKeyDown={() => undefined}
+					data-testid="import-timeline-template"
+				>
+					<Upload className="size-3.5">
+						<title>Import timeline template</title>
+					</Upload>
+					Import
+				</Button>
+				<Button
+					type="button"
+					variant="outline"
+					size="icon"
+					className="size-7"
+					aria-label="Export timeline template"
+					title="Export timeline template"
+					onClick={() => void exportTemplate()}
+					onKeyDown={() => undefined}
+					data-testid="export-timeline-template"
+				>
+					<Download className="size-3.5">
+						<title>Export timeline template</title>
+					</Download>
+				</Button>
+				{isCustomTemplate ? (
+					<Button
+						type="button"
+						variant="outline"
+						size="icon"
+						className="size-7 text-destructive"
+						aria-label="Delete custom timeline template"
+						title="Delete custom timeline template"
+						onClick={deleteTemplate}
+						onKeyDown={() => undefined}
+						data-testid="delete-timeline-template"
+					>
+						<Trash2 className="size-3.5">
+							<title>Delete custom timeline template</title>
+						</Trash2>
+					</Button>
+				) : null}
+			</div>
 
 			<div className="space-y-2 border-t border-border/60 pt-3">
 				<div className="flex items-center justify-between gap-2">

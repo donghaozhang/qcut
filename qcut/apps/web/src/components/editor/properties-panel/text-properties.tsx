@@ -385,13 +385,13 @@ export function TextProperties({
 		};
 		const next = [...customPresets, nextPreset];
 		setCustomPresets(next);
-		storeCustomTextPresets(next);
+		storeCustomTextPresets({ presets: next });
 	};
 
 	const deletePreset = (presetId: string) => {
 		const next = customPresets.filter((preset) => preset.id !== presetId);
 		setCustomPresets(next);
-		storeCustomTextPresets(next);
+		storeCustomTextPresets({ presets: next });
 	};
 
 	const propertyKeyframes = element.keyframes?.[keyframeProperty] ?? [];
