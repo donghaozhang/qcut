@@ -53,14 +53,14 @@ describe("EffectsView", () => {
 		vi.clearAllMocks();
 	});
 
-	it("renders 15 real image previews without unavailable cards", () => {
+	it("renders 16 real image previews without unavailable cards", () => {
 		const { container } = render(<EffectsView />);
 
-		expect(screen.getAllByTestId(/^effect-card-/)).toHaveLength(15);
+		expect(screen.getAllByTestId(/^effect-card-/)).toHaveLength(16);
 		const previews = container.querySelectorAll<HTMLImageElement>(
 			'[data-testid^="effect-card-"] img'
 		);
-		expect(previews).toHaveLength(15);
+		expect(previews).toHaveLength(16);
 		for (const preview of previews) {
 			expect(preview.getAttribute("src")).toBe(
 				"/images/filter-previews/coastal.webp"
