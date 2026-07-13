@@ -378,6 +378,11 @@ export class CLIExportEngine extends ExportEngine {
 			canvasWidth: this.canvas.width,
 			canvasHeight: this.canvas.height,
 			fps: this.getFrameRate(),
+			platform: window.electronAPI?.platform as
+				| "darwin"
+				| "win32"
+				| "linux"
+				| undefined,
 		});
 		const textFilterChain = buildTextOverlayFilters(
 			this.tracks,

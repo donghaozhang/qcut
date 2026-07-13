@@ -31,6 +31,18 @@ const SAM3_ENDPOINT = "fal-ai/sam-3/image";
 const SAM3_VIDEO_ENDPOINT = "fal-ai/sam-3/video";
 const SAM3_LOG_COMPONENT = "Sam3Client";
 
+class Sam3VideoJobError extends Error {}
+
+function isAbortError({ error }: { error: unknown }): boolean {
+	return error instanceof DOMException && error.name === "AbortError";
+}
+
+function throwIfAborted({ signal }: { signal?: AbortSignal }): void {
+	if (signal?.aborted) {
+		throw new DOMException("SAM-3 video segmentation canceled", "AbortError");
+	}
+}
+
 /**
  * SAM-3 Segmentation Client
  * Singleton pattern for consistent FAL configuration
@@ -319,9 +331,11 @@ class Sam3Client {
 	 */
 	async segmentVideo(
 		input: Sam3VideoInput,
-		onProgress?: Sam3VideoProgressCallback
+		onProgress?: Sam3VideoProgressCallback,
+		signal?: AbortSignal
 	): Promise<Sam3VideoOutput> {
 		await this.ensureApiKey();
+		throwIfAborted({ signal });
 
 		const startTime = Date.now();
 
@@ -350,6 +364,7 @@ class Sam3Client {
 					"X-Fal-Queue": "true",
 				},
 				body: JSON.stringify(input),
+				signal,
 			});
 
 			if (!response.ok) {
@@ -368,10 +383,18 @@ class Sam3Client {
 
 			// Handle queue mode (video always uses queue)
 			if (result.request_id) {
+				onProgress?.({
+					status: "queued",
+					requestId: result.request_id,
+					progress: 5,
+					message: "Video task submitted",
+					elapsedTime: Math.floor((Date.now() - startTime) / 1000),
+				});
 				return await this.pollForVideoResult(
 					result.request_id,
 					startTime,
-					onProgress
+					onProgress,
+					signal
 				);
 			}
 
@@ -387,11 +410,35 @@ class Sam3Client {
 
 			return result as Sam3VideoOutput;
 		} catch (error) {
-			handleAIServiceError(error, "SAM-3 video segmentation", {
-				operation: "segmentVideo",
-			});
+			if (!isAbortError({ error })) {
+				handleAIServiceError(error, "SAM-3 video segmentation", {
+					operation: "segmentVideo",
+				});
+			}
 			throw error;
 		}
+	}
+
+	async resumeVideo({
+		requestId,
+		onProgress,
+		signal,
+	}: {
+		requestId: string;
+		onProgress?: Sam3VideoProgressCallback;
+		signal?: AbortSignal;
+	}): Promise<Sam3VideoOutput> {
+		await this.ensureApiKey();
+		throwIfAborted({ signal });
+		const startTime = Date.now();
+		onProgress?.({
+			status: "queued",
+			requestId,
+			progress: 5,
+			message: "Resuming SAM-3 task...",
+			elapsedTime: 0,
+		});
+		return this.pollForVideoResult(requestId, startTime, onProgress, signal);
 	}
 
 	/**
@@ -400,12 +447,14 @@ class Sam3Client {
 	private async pollForVideoResult(
 		requestId: string,
 		startTime: number,
-		onProgress?: Sam3VideoProgressCallback
+		onProgress?: Sam3VideoProgressCallback,
+		signal?: AbortSignal
 	): Promise<Sam3VideoOutput> {
 		const maxAttempts = 120; // 10 minutes max for video
 		let attempts = 0;
 
 		while (attempts < maxAttempts) {
+			throwIfAborted({ signal });
 			attempts++;
 			const elapsedTime = Math.floor((Date.now() - startTime) / 1000);
 
@@ -414,11 +463,12 @@ class Sam3Client {
 					`${FAL_API_BASE}/queue/requests/${requestId}/status`,
 					{
 						headers: { Authorization: `Key ${this.apiKey}` },
+						signal,
 					}
 				);
 
 				if (!statusResponse.ok) {
-					await this.sleep(5000);
+					await this.sleep(5000, signal);
 					continue;
 				}
 
@@ -427,6 +477,7 @@ class Sam3Client {
 				if (onProgress) {
 					onProgress({
 						status: status.status === "IN_PROGRESS" ? "processing" : "queued",
+						requestId,
 						progress: Math.min(90, 10 + attempts * 1.5),
 						message:
 							status.status === "IN_PROGRESS"
@@ -441,6 +492,7 @@ class Sam3Client {
 						`${FAL_API_BASE}/queue/requests/${requestId}`,
 						{
 							headers: { Authorization: `Key ${this.apiKey}` },
+							signal,
 						}
 					);
 
@@ -450,6 +502,7 @@ class Sam3Client {
 						if (onProgress) {
 							onProgress({
 								status: "completed",
+								requestId,
 								progress: 100,
 								message: "Video segmentation complete",
 								elapsedTime,
@@ -461,17 +514,22 @@ class Sam3Client {
 				}
 
 				if (status.status === "FAILED") {
-					throw new Error(status.error || "Video segmentation failed");
+					throw new Sam3VideoJobError(
+						status.error || "Video segmentation failed"
+					);
 				}
 
-				await this.sleep(5000);
+				await this.sleep(5000, signal);
 			} catch (error) {
+				if (isAbortError({ error }) || error instanceof Sam3VideoJobError) {
+					throw error;
+				}
 				if (attempts >= maxAttempts) {
 					throw new Error(
 						"Video segmentation timeout - maximum polling attempts reached"
 					);
 				}
-				await this.sleep(5000);
+				await this.sleep(5000, signal);
 			}
 		}
 
@@ -507,8 +565,21 @@ class Sam3Client {
 	 * @param ms - Duration to sleep in milliseconds
 	 * @returns Promise that resolves after the specified duration
 	 */
-	private sleep(ms: number): Promise<void> {
-		return new Promise((resolve) => setTimeout(resolve, ms));
+	private sleep(ms: number, signal?: AbortSignal): Promise<void> {
+		throwIfAborted({ signal });
+		return new Promise((resolve, reject) => {
+			const timer = setTimeout(() => {
+				signal?.removeEventListener("abort", handleAbort);
+				resolve();
+			}, ms);
+			const handleAbort = () => {
+				clearTimeout(timer);
+				reject(
+					new DOMException("SAM-3 video segmentation canceled", "AbortError")
+				);
+			};
+			signal?.addEventListener("abort", handleAbort, { once: true });
+		});
 	}
 }
 
@@ -581,9 +652,22 @@ export async function segmentWithBox(
  */
 export async function segmentVideo(
 	input: Sam3VideoInput,
-	onProgress?: Sam3VideoProgressCallback
+	onProgress?: Sam3VideoProgressCallback,
+	signal?: AbortSignal
 ): Promise<Sam3VideoOutput> {
-	return sam3Client.segmentVideo(input, onProgress);
+	return sam3Client.segmentVideo(input, onProgress, signal);
+}
+
+export async function resumeVideo({
+	requestId,
+	onProgress,
+	signal,
+}: {
+	requestId: string;
+	onProgress?: Sam3VideoProgressCallback;
+	signal?: AbortSignal;
+}): Promise<Sam3VideoOutput> {
+	return sam3Client.resumeVideo({ requestId, onProgress, signal });
 }
 
 /**

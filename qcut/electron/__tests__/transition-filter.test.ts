@@ -11,11 +11,13 @@ function transition({
 	direction,
 	duration = 1,
 	easing = "easeInOut",
+	tuning,
 }: {
 	type?: VideoTransition["type"];
 	direction?: VideoTransition["direction"];
 	duration?: number;
 	easing?: VideoTransition["easing"];
+	tuning?: VideoTransition["tuning"];
 } = {}): VideoTransition {
 	return {
 		id: "transition-1",
@@ -27,6 +29,7 @@ function transition({
 		direction,
 		easing,
 		duration,
+		tuning,
 	};
 }
 
@@ -118,8 +121,16 @@ describe("FFmpeg transition filters", () => {
 	it.each([
 		{ type: "dissolve", direction: undefined, expected: "A*(1-(" },
 		{ type: "fade-black", direction: undefined, expected: "eq(PLANE,3)" },
+		{ type: "fade-white", direction: undefined, expected: "+255*" },
 		{ type: "slide", direction: "left", expected: "b0(" },
+		{ type: "push", direction: "up", expected: "a0(" },
 		{ type: "wipe", direction: "right", expected: "gte(X" },
+		{ type: "zoom-blur", direction: undefined, expected: "W/2+(X-W/2)" },
+		{ type: "whip-pan", direction: "left", expected: "0.045*W" },
+		{ type: "flash", direction: undefined, expected: "eq(PLANE,0),255" },
+		{ type: "light-leak", direction: undefined, expected: "eq(PLANE,0),133" },
+		{ type: "rgb-glitch", direction: undefined, expected: "mod(Y,12)" },
+		{ type: "shake", direction: undefined, expected: "sin((" },
 	] satisfies Array<{
 		type: VideoTransition["type"];
 		direction: VideoTransition["direction"] | undefined;
@@ -135,5 +146,33 @@ describe("FFmpeg transition filters", () => {
 		expect(filter.transition).toBe("custom");
 		expect(filter.expression).toContain(expected);
 		expect(filter.expression).toContain("pow((1-P),3)");
+	});
+
+	it("serializes tuning into visibly distinct export expressions", () => {
+		const soft = buildXfadeTransitionFilter({
+			transition: transition({
+				type: "rgb-glitch",
+				tuning: { intensity: 0.3, frequency: 0.5 },
+			}),
+		});
+		const strong = buildXfadeTransitionFilter({
+			transition: transition({
+				type: "rgb-glitch",
+				tuning: { intensity: 1.8, frequency: 3 },
+			}),
+		});
+		expect(soft.expression).not.toBe(strong.expression);
+		expect(soft.expression).toContain("0.012*W");
+		expect(strong.expression).toContain("0.07200000000000001*W");
+	});
+
+	it("converts a tint to YUV plane values for FFmpeg", () => {
+		const filter = buildXfadeTransitionFilter({
+			transition: transition({
+				type: "light-leak",
+				tuning: { tint: "#38bdf8" },
+			}),
+		});
+		expect(filter.expression).toContain("eq(PLANE,0),156");
 	});
 });

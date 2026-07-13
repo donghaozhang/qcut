@@ -14,6 +14,7 @@ import type {
 	AIPipelineResult,
 	AIPipelineStatus,
 } from "@/types/electron";
+import { useCloudTaskStore } from "@/stores/cloud-task-store";
 
 // ============================================================================
 // Mock Setup
@@ -63,6 +64,7 @@ describe("useAIPipeline", () => {
 
 	beforeEach(() => {
 		vi.clearAllMocks();
+		useCloudTaskStore.getState().resetTasks();
 		mockElectronAPI = createMockElectronAPI();
 		(window as unknown as { electronAPI: typeof mockElectronAPI }).electronAPI =
 			mockElectronAPI;
@@ -162,6 +164,28 @@ describe("useAIPipeline", () => {
 			expect(generateResult).toEqual(mockResult);
 			expect(result.current.result).toEqual(mockResult);
 			expect(result.current.isGenerating).toBe(false);
+			expect(useCloudTaskStore.getState().tasks[0]).toMatchObject({
+				status: "completed",
+				progress: 100,
+				output: { outputPath: "/path/to/output.mp4" },
+			});
+		});
+
+		it("lets a parent workflow own persistence without creating child tasks", async () => {
+			const { result } = renderHook(() =>
+				useAIPipeline({ persistTasks: false })
+			);
+			await waitFor(() => expect(result.current.isAvailable).toBe(true));
+
+			await act(async () => {
+				await result.current.generate({
+					command: "generate-speech",
+					args: { text: "parent-owned" },
+				});
+			});
+
+			expect(useCloudTaskStore.getState().tasks).toEqual([]);
+			expect(result.current.taskId).toBeNull();
 		});
 
 		it("should handle generation errors", async () => {
@@ -202,7 +226,7 @@ describe("useAIPipeline", () => {
 			});
 
 			expect(generateResult?.success).toBe(false);
-			expect(generateResult?.error).toContain("not available");
+			expect(generateResult?.error).toContain("不可用");
 		});
 
 		it("should call onComplete callback on success", async () => {
@@ -244,6 +268,39 @@ describe("useAIPipeline", () => {
 					sessionId: expect.stringMatching(/^ai-\d+-[a-z0-9]+$/),
 				})
 			);
+		});
+
+		it("should retry a failed generation with the same persistent task", async () => {
+			mockElectronAPI.aiPipeline.generate
+				.mockResolvedValueOnce({ success: false, error: "temporary failure" })
+				.mockResolvedValueOnce({
+					success: true,
+					outputPath: "/path/to/retry.mp4",
+				});
+			const { result } = renderHook(() => useAIPipeline());
+			await waitFor(() => expect(result.current.isAvailable).toBe(true));
+
+			await act(async () => {
+				await result.current.generate({
+					command: "create-video",
+					args: { prompt: "retry me", duration: 5 },
+				});
+			});
+			const taskId = result.current.taskId;
+			expect(taskId).toBeTruthy();
+			expect(useCloudTaskStore.getState().tasks[0]?.status).toBe("failed");
+
+			await act(async () => {
+				await result.current.retry();
+			});
+
+			expect(result.current.taskId).toBe(taskId);
+			expect(useCloudTaskStore.getState().tasks[0]).toMatchObject({
+				id: taskId,
+				status: "completed",
+				retryCount: 1,
+				output: { outputPath: "/path/to/retry.mp4" },
+			});
 		});
 	});
 

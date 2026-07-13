@@ -1,5 +1,8 @@
 import type { TranscriptionSegment } from "@/types/captions";
-import type { SubtitleStyle } from "@/types/timeline";
+export {
+	CAPTION_STYLE_PRESETS,
+	type CaptionStylePreset,
+} from "./caption-style-presets";
 
 export interface CaptionQualityFlag {
 	id: string;
@@ -18,14 +21,6 @@ export interface CaptionTextTransformOptions {
 	maxCharsPerLine: number;
 	compressToChars: number;
 	removeFillers: boolean;
-}
-
-export interface CaptionStylePreset {
-	id: string;
-	name: string;
-	description: string;
-	platform: string;
-	style: SubtitleStyle;
 }
 
 export type CaptionPostProcessAction =
@@ -59,97 +54,6 @@ const TOKEN_PATTERN =
 	/(\s+|\?{2,}|!{2,}|…+|[A-Za-z][\w'-]*|[\u4e00-\u9fff]{1,4}|[0-9]+|.)/gu;
 const SUSPICIOUS_TOKEN_PATTERN =
 	/([A-Za-z])\1{2,}|(.)\2{3,}|�|\?{2,}|…{2,}|呃{2,}|嗯{2,}/u;
-
-const DEFAULT_STYLE_BASE: SubtitleStyle = {
-	fontFamily: "Arial",
-	fontSize: 48,
-	fontColor: "#ffffff",
-	fontOpacity: 1,
-	bold: true,
-	italic: false,
-	underline: false,
-	outlineColor: "#000000",
-	outlineWidth: 3,
-	shadowColor: "#000000",
-	shadowOffset: { x: 1, y: 1 },
-	backgroundColor: "#000000",
-	bgOpacity: 0,
-	position: { align: "bottom", x: 50, y: 86 },
-	lineSpacing: 1.25,
-	karaokeMode: "none",
-	highlightColor: "#ffde00",
-	upcomingColor: "#ffffff",
-	highlightScale: 1.12,
-};
-
-export const CAPTION_STYLE_PRESETS: CaptionStylePreset[] = [
-	{
-		id: "talking-head-bold",
-		name: "口播大字",
-		description: "高对比粗体，适合竖屏口播",
-		platform: "Douyin / Reels",
-		style: {
-			...DEFAULT_STYLE_BASE,
-			fontSize: 58,
-			fontColor: "#ffffff",
-			outlineWidth: 5,
-			position: { align: "bottom", x: 50, y: 82 },
-		},
-	},
-	{
-		id: "knowledge-highlight",
-		name: "知识高亮",
-		description: "黄色关键词风格，适合教程和讲解",
-		platform: "Bilibili / YouTube",
-		style: {
-			...DEFAULT_STYLE_BASE,
-			fontSize: 46,
-			fontColor: "#f8fafc",
-			highlightColor: "#22d3ee",
-			karaokeMode: "word-highlight",
-		},
-	},
-	{
-		id: "bilingual-clean",
-		name: "双语干净",
-		description: "更小字号和更低位置，留给双行字幕",
-		platform: "YouTube Shorts",
-		style: {
-			...DEFAULT_STYLE_BASE,
-			fontSize: 38,
-			outlineWidth: 3,
-			lineSpacing: 1.15,
-			position: { align: "bottom", x: 50, y: 88 },
-		},
-	},
-	{
-		id: "karaoke-lyrics",
-		name: "歌词卡拉 OK",
-		description: "逐词高亮，适合歌词和节奏字幕",
-		platform: "Music / Lyrics",
-		style: {
-			...DEFAULT_STYLE_BASE,
-			fontSize: 44,
-			fontColor: "#fef3c7",
-			highlightColor: "#fb7185",
-			karaokeMode: "karaoke",
-		},
-	},
-	{
-		id: "variety-pop",
-		name: "综艺弹幕感",
-		description: "大描边和亮色，适合反应类短视频",
-		platform: "Xiaohongshu",
-		style: {
-			...DEFAULT_STYLE_BASE,
-			fontSize: 54,
-			fontColor: "#a7f3d0",
-			outlineColor: "#111827",
-			outlineWidth: 6,
-			shadowOffset: { x: 2, y: 2 },
-		},
-	},
-];
 
 export function getSegmentConfidence({
 	segment,

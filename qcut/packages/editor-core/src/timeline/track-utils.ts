@@ -147,7 +147,7 @@ export function ensureMainTrack(tracks: TimelineTrack[]): TimelineTrack[] {
 		);
 		const mainTrack: TimelineTrack = {
 			id: generateUUID(),
-			name: "Main Track",
+			name: "主轨道",
 			type: "media",
 			elements: [],
 			order: everyTrackHasOrder ? lastOrder + 1 : undefined,
@@ -166,23 +166,23 @@ export function ensureMainTrack(tracks: TimelineTrack[]): TimelineTrack[] {
 export function getTrackName(type: TrackType): string {
 	switch (type) {
 		case "media":
-			return "Media Track";
+			return "视频轨道";
 		case "text":
-			return "Text Track";
+			return "文本轨道";
 		case "markdown":
-			return "Markdown Track";
+			return "Markdown 轨道";
 		case "audio":
-			return "Audio Track";
+			return "音频轨道";
 		case "sticker":
-			return "Sticker Track";
+			return "贴纸轨道";
 		case "adjustment":
-			return "Adjustment Track";
+			return "调整轨道";
 		case "captions":
-			return "Captions Track";
+			return "字幕轨道";
 		case "remotion":
-			return "Remotion Track";
+			return "Remotion 轨道";
 		default:
-			return "Track";
+			return "轨道";
 	}
 }
 

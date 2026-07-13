@@ -23,11 +23,11 @@ export const MEDIA_CHROMA_KEY_KEYFRAME_PROPERTIES: Array<{
 	value: MediaChromaKeyKeyframeProperty;
 	label: string;
 }> = [
-	{ value: "similarity", label: "Strength" },
-	{ value: "shadow", label: "Shadow" },
-	{ value: "blend", label: "Edge feather" },
-	{ value: "cleanup", label: "Edge cleanup" },
-	{ value: "spill", label: "Spill suppression" },
+	{ value: "similarity", label: "强度" },
+	{ value: "shadow", label: "阴影" },
+	{ value: "blend", label: "边缘羽化" },
+	{ value: "cleanup", label: "边缘清理" },
+	{ value: "spill", label: "溢色抑制" },
 ];
 
 function clamp({

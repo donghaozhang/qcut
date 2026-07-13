@@ -36,6 +36,7 @@ export interface ExportSettings {
 	filename: string;
 	width: number;
 	height: number;
+	aspectRatio?: number;
 	frameRate?: ExportFrameRate;
 	outputPath?: string;
 	purpose?: ExportPurpose; // Optional, defaults to FINAL
@@ -64,6 +65,31 @@ export const QUALITY_RESOLUTIONS = {
 	[ExportQuality.MEDIUM]: { width: 1280, height: 720, label: "1280×720" },
 	[ExportQuality.LOW]: { width: 854, height: 480, label: "854×480" },
 } as const;
+
+function evenDimension(value: number): number {
+	return Math.max(2, Math.round(value / 2) * 2);
+}
+
+/** Resolves a quality tier against the project or preset aspect ratio. */
+export function resolveExportResolution({
+	quality,
+	aspectRatio,
+}: {
+	quality: ExportQuality;
+	aspectRatio: number;
+}): { width: number; height: number; label: string } {
+	const base =
+		QUALITY_RESOLUTIONS[quality] ?? QUALITY_RESOLUTIONS[ExportQuality.HIGH];
+	const ratio =
+		Number.isFinite(aspectRatio) && aspectRatio > 0 ? aspectRatio : 16 / 9;
+	const shortEdge = base.height;
+	const width =
+		ratio >= 1 ? evenDimension(shortEdge * ratio) : evenDimension(shortEdge);
+	const height =
+		ratio >= 1 ? evenDimension(shortEdge) : evenDimension(shortEdge / ratio);
+
+	return { width, height, label: `${width}×${height}` };
+}
 
 // File size estimates per minute
 export const QUALITY_SIZE_ESTIMATES = {

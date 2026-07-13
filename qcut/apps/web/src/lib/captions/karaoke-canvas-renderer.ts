@@ -1,5 +1,5 @@
 import type { CaptionElement, SubtitleStyle } from "@/types/timeline";
-import { hexToRgba } from "./subtitle-style";
+import { getCaptionAnimationState, hexToRgba } from "./subtitle-style";
 
 interface KaraokeCanvasLine {
 	words: NonNullable<CaptionElement["words"]>;
@@ -98,9 +98,15 @@ export function renderKaraokeCaptionToCanvas({
 
 	const fontWeight = style.bold ? "bold" : "normal";
 	const fontStyle = style.italic ? "italic" : "normal";
+	const animation = getCaptionAnimationState({
+		style,
+		startTime: element.startTime,
+		currentTime,
+	});
 	ctx.save();
-	ctx.globalAlpha = style.fontOpacity;
+	ctx.globalAlpha = style.fontOpacity * animation.opacity;
 	ctx.font = `${fontStyle} ${fontWeight} ${style.fontSize}px ${style.fontFamily}`;
+	ctx.letterSpacing = `${style.letterSpacing}px`;
 	ctx.textAlign = "left";
 	ctx.textBaseline = "middle";
 	const lines = layoutKaraokeLines({
@@ -110,21 +116,34 @@ export function renderKaraokeCaptionToCanvas({
 	});
 	const lineHeight = style.fontSize * style.lineSpacing;
 	const totalHeight = lines.length * lineHeight;
-	const centerX = canvas.width / 2;
+	const anchorX =
+		style.textAlign === "left"
+			? canvas.width * 0.1
+			: style.textAlign === "right"
+				? canvas.width * 0.9
+				: canvas.width / 2;
 	const centerY =
 		style.position.align === "top"
 			? totalHeight / 2 + style.fontSize
 			: style.position.align === "center"
 				? canvas.height / 2
 				: canvas.height - totalHeight / 2 - style.fontSize;
+	const animatedX = anchorX + animation.offsetX;
+	const animatedY = centerY + animation.offsetY;
 
 	if (style.bgOpacity > 0) {
 		const maxLineWidth = Math.max(...lines.map((line) => line.width));
 		const padding = 16;
 		ctx.fillStyle = hexToRgba(style.backgroundColor, style.bgOpacity);
+		const backgroundX =
+			style.textAlign === "left"
+				? animatedX - padding
+				: style.textAlign === "right"
+					? animatedX - maxLineWidth - padding
+					: animatedX - maxLineWidth / 2 - padding;
 		ctx.fillRect(
-			centerX - maxLineWidth / 2 - padding,
-			centerY - totalHeight / 2 - padding / 2,
+			backgroundX,
+			animatedY - totalHeight / 2 - padding / 2,
 			maxLineWidth + padding * 2,
 			totalHeight + padding
 		);
@@ -134,8 +153,13 @@ export function renderKaraokeCaptionToCanvas({
 	const highlightColor = style.highlightColor ?? "#ffff00";
 	const upcomingColor = style.upcomingColor ?? style.fontColor;
 	for (const [lineIndex, line] of lines.entries()) {
-		const y = centerY - totalHeight / 2 + (lineIndex + 0.5) * lineHeight;
-		let x = centerX - line.width / 2;
+		const y = animatedY - totalHeight / 2 + (lineIndex + 0.5) * lineHeight;
+		let x =
+			style.textAlign === "left"
+				? animatedX
+				: style.textAlign === "right"
+					? animatedX - line.width
+					: animatedX - line.width / 2;
 		for (const word of line.words) {
 			const width = ctx.measureText(word.text).width;
 			drawWordShape({ ctx, text: word.text, x, y, style });

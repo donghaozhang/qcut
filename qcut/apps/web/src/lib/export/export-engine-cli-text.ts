@@ -49,16 +49,31 @@ export interface TimelineAssLayer {
 	elementOrder: number;
 }
 
+export type CaptionExportPlatform = "darwin" | "win32" | "linux";
+
+export function resolveCjkExportFont({
+	platform,
+}: {
+	platform?: CaptionExportPlatform;
+}): string | undefined {
+	if (platform === "darwin") return "Hiragino Sans GB";
+	if (platform === "win32") return "Microsoft YaHei";
+	if (platform === "linux") return "Noto Sans CJK SC";
+	return undefined;
+}
+
 export function buildTimelineAssLayers({
 	tracks,
 	canvasWidth,
 	canvasHeight,
 	fps,
+	platform,
 }: {
 	tracks: TimelineTrack[];
 	canvasWidth: number;
 	canvasHeight: number;
 	fps: number;
+	platform?: CaptionExportPlatform;
 }): {
 	layers: TimelineAssLayer[];
 	renderedTextElementIds: Set<string>;
@@ -66,6 +81,7 @@ export function buildTimelineAssLayers({
 	const layers: TimelineAssLayer[] = [];
 	const renderedTextElementIds = new Set<string>();
 	const orderedTracks = sortTracksByOrder(tracks);
+	const cjkFontFamily = resolveCjkExportFont({ platform });
 
 	for (let trackOrder = 0; trackOrder < orderedTracks.length; trackOrder++) {
 		const track = orderedTracks[trackOrder];
@@ -103,6 +119,7 @@ export function buildTimelineAssLayers({
 					content: generateASS([element], {
 						resolution: { width: canvasWidth, height: canvasHeight },
 						title: `QCut Caption ${element.id}`,
+						cjkFontFamily,
 					}),
 					blendMode: "normal",
 					trackOrder,

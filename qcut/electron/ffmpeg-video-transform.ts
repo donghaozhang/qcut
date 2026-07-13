@@ -13,6 +13,7 @@ import { buildVideoColorFilterGraph } from "./ffmpeg/color-filter-graph";
 import { buildChromaKeyFilterGraph } from "./ffmpeg/chroma-key-filter";
 import { buildCustomCutoutExpression } from "./ffmpeg/custom-cutout-expression";
 import { buildNumericKeyframeExpression } from "./ffmpeg/keyframe-expression";
+import { buildMaskStrokeFilterGraph } from "./ffmpeg/mask-stroke-filter";
 import {
 	buildXfadeTransitionFilter,
 	prepareTransitionSource,
@@ -755,6 +756,13 @@ function buildSegmentFilters({
 			`between(Y,H*(${top}),H*(1-(${bottom})))*(${mask})*(${customCutout})'[${cropped}]`
 	);
 	current = cropped;
+	const maskStrokeGraph = buildMaskStrokeFilterGraph({
+		inputLabel: current,
+		labelPrefix: `video_${segmentIndex}_mask_stroke`,
+		visual,
+	});
+	steps.push(...maskStrokeGraph.filterSteps);
+	current = maskStrokeGraph.outputLabel;
 
 	if (perspectiveChanged(visual) || hasPerspectiveKeyframes(visual)) {
 		const perspective = `video_${segmentIndex}_perspective`;

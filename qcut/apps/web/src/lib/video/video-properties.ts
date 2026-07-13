@@ -130,39 +130,39 @@ export const MEDIA_KEYFRAME_PROPERTIES: Array<{
 	value: MediaKeyframeProperty;
 	label: string;
 }> = [
-	{ value: "x", label: "X position" },
-	{ value: "y", label: "Y position" },
-	{ value: "scaleX", label: "Horizontal scale" },
-	{ value: "scaleY", label: "Vertical scale" },
-	{ value: "rotation", label: "Rotation" },
-	{ value: "opacity", label: "Opacity" },
-	{ value: "cropTop", label: "Crop top" },
-	{ value: "cropRight", label: "Crop right" },
-	{ value: "cropBottom", label: "Crop bottom" },
-	{ value: "cropLeft", label: "Crop left" },
-	{ value: "topLeftX", label: "Top-left X" },
-	{ value: "topLeftY", label: "Top-left Y" },
-	{ value: "topRightX", label: "Top-right X" },
-	{ value: "topRightY", label: "Top-right Y" },
-	{ value: "bottomRightX", label: "Bottom-right X" },
-	{ value: "bottomRightY", label: "Bottom-right Y" },
-	{ value: "bottomLeftX", label: "Bottom-left X" },
-	{ value: "bottomLeftY", label: "Bottom-left Y" },
+	{ value: "x", label: "X 位置" },
+	{ value: "y", label: "Y 位置" },
+	{ value: "scaleX", label: "水平缩放" },
+	{ value: "scaleY", label: "垂直缩放" },
+	{ value: "rotation", label: "旋转" },
+	{ value: "opacity", label: "不透明度" },
+	{ value: "cropTop", label: "顶部裁剪" },
+	{ value: "cropRight", label: "右侧裁剪" },
+	{ value: "cropBottom", label: "底部裁剪" },
+	{ value: "cropLeft", label: "左侧裁剪" },
+	{ value: "topLeftX", label: "左上角 X" },
+	{ value: "topLeftY", label: "左上角 Y" },
+	{ value: "topRightX", label: "右上角 X" },
+	{ value: "topRightY", label: "右上角 Y" },
+	{ value: "bottomRightX", label: "右下角 X" },
+	{ value: "bottomRightY", label: "右下角 Y" },
+	{ value: "bottomLeftX", label: "左下角 X" },
+	{ value: "bottomLeftY", label: "左下角 Y" },
 ];
 
 export const MEDIA_MASK_KEYFRAME_PROPERTIES: Array<{
 	value: MediaMaskKeyframeProperty;
 	label: string;
 }> = [
-	{ value: "centerX", label: "Mask X position" },
-	{ value: "centerY", label: "Mask Y position" },
-	{ value: "width", label: "Mask width" },
-	{ value: "height", label: "Mask height" },
-	{ value: "rotation", label: "Mask rotation" },
-	{ value: "feather", label: "Mask feather" },
-	{ value: "roundness", label: "Mask roundness" },
-	{ value: "expansion", label: "Mask expansion" },
-	{ value: "opacity", label: "Mask opacity" },
+	{ value: "centerX", label: "蒙版 X 位置" },
+	{ value: "centerY", label: "蒙版 Y 位置" },
+	{ value: "width", label: "蒙版宽度" },
+	{ value: "height", label: "蒙版高度" },
+	{ value: "rotation", label: "蒙版旋转" },
+	{ value: "feather", label: "蒙版羽化" },
+	{ value: "roundness", label: "蒙版圆角" },
+	{ value: "expansion", label: "蒙版扩展" },
+	{ value: "opacity", label: "蒙版不透明度" },
 ];
 
 const CROP_KEY_MAP = {

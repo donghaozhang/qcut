@@ -38,7 +38,11 @@ vi.mock("../api-key-handler.js", () => ({
 	getDecryptedApiKeys: mocks.mockGetDecryptedApiKeys,
 }));
 
-import { buildSpawnEnvironment } from "../ai-pipeline-handler/command-builder";
+import {
+	buildSpawnEnvironment,
+	commandRequiresFalKey,
+	commandSupportsOutputDir,
+} from "../ai-pipeline-handler/command-builder";
 import {
 	AICP_ENV_MAP,
 	QCUT_ENV_MAP,
@@ -214,5 +218,12 @@ describe("buildSpawnEnvironment", () => {
 
 		expect(env.UNRELATED_VAR).toBe("unrelated-value");
 		delete process.env.UNRELATED_VAR;
+	});
+});
+
+describe("speech pipeline command support", () => {
+	it("gives generated speech an output directory and FAL credentials", () => {
+		expect(commandSupportsOutputDir({ command: "generate-speech" })).toBe(true);
+		expect(commandRequiresFalKey({ command: "generate-speech" })).toBe(true);
 	});
 });

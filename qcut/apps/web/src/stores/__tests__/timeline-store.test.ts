@@ -137,7 +137,7 @@ describe("TimelineStore", () => {
 		expect(result.current.tracks).toHaveLength(1);
 		expect(result.current.tracks[0].type).toBe("media");
 		expect(result.current.tracks[0].isMain).toBe(true);
-		expect(result.current.tracks[0].name).toBe("Main Track");
+		expect(result.current.tracks[0].name).toBe("主轨道");
 		expect(result.current.tracks[0].elements).toEqual([]);
 	});
 
@@ -151,7 +151,7 @@ describe("TimelineStore", () => {
 		expect(result.current.tracks).toHaveLength(2);
 		const textTrack = result.current.tracks.find((t) => t.type === "text");
 		expect(textTrack).toBeDefined();
-		expect(textTrack?.name).toContain("Text");
+		expect(textTrack?.name).toContain("文本");
 	});
 
 	it("adds audio track", () => {
@@ -164,7 +164,228 @@ describe("TimelineStore", () => {
 		expect(result.current.tracks).toHaveLength(2);
 		const audioTrack = result.current.tracks.find((t) => t.type === "audio");
 		expect(audioTrack).toBeDefined();
-		expect(audioTrack?.name).toContain("Audio");
+		expect(audioTrack?.name).toContain("音频");
+	});
+
+	it("persists a custom track height in one undo step", () => {
+		const { result } = renderHook(() => useTimelineStore());
+		const mainTrack = result.current.tracks[0];
+		if (!mainTrack) throw new Error("Expected main track");
+		useTimelineStore.setState({ history: [], redoStack: [] });
+
+		act(() => {
+			result.current.updateTrackHeight(mainTrack.id, 96);
+		});
+
+		expect(result.current.tracks[0]?.height).toBe(96);
+		expect(result.current.history).toHaveLength(1);
+		act(() => result.current.undo());
+		expect(result.current.tracks[0]?.height).toBeUndefined();
+	});
+
+	it("sets compact heights for every track in one undo step", () => {
+		const { result } = renderHook(() => useTimelineStore());
+		act(() => {
+			result.current.addTrack("audio");
+			result.current.addTrack("captions");
+		});
+		useTimelineStore.setState({ history: [], redoStack: [] });
+
+		act(() => result.current.setTrackHeightMode("compact"));
+
+		expect(result.current.tracks.map((track) => track.height)).toEqual([
+			40, 32, 24,
+		]);
+		expect(result.current.history).toHaveLength(1);
+		act(() => result.current.undo());
+		expect(
+			result.current.tracks.every((track) => track.height === undefined)
+		).toBe(true);
+	});
+
+	it("applies caption track styling in one undo step", () => {
+		const { result } = renderHook(() => useTimelineStore());
+		let captionTrackId = "";
+		act(() => {
+			captionTrackId = result.current.addTrack("captions");
+			for (const [index, text] of ["First", "Second"].entries()) {
+				result.current.addElementToTrack(captionTrackId, {
+					type: "captions",
+					name: text,
+					text,
+					language: "en",
+					source: "manual",
+					startTime: index,
+					duration: 1,
+					trimStart: 0,
+					trimEnd: 0,
+				});
+			}
+		});
+		const firstCaption = result.current.tracks
+			.find((track) => track.id === captionTrackId)
+			?.elements.find((element) => element.type === "captions");
+		if (!firstCaption) throw new Error("Expected caption element");
+		useTimelineStore.setState({ history: [], redoStack: [] });
+
+		act(() => {
+			result.current.applyCaptionStyle({
+				trackId: captionTrackId,
+				elementId: firstCaption.id,
+				style: { fontSize: 64 },
+				scope: "track",
+			});
+		});
+
+		const styledCaptions = result.current.tracks
+			.find((track) => track.id === captionTrackId)
+			?.elements.filter((element) => element.type === "captions");
+		expect(
+			styledCaptions?.every(
+				(element) =>
+					element.type === "captions" && element.style?.fontSize === 64
+			)
+		).toBe(true);
+		expect(result.current.history).toHaveLength(1);
+		act(() => result.current.undo());
+		const restoredCaptions = result.current.tracks
+			.find((track) => track.id === captionTrackId)
+			?.elements.filter((element) => element.type === "captions");
+		expect(
+			restoredCaptions?.every(
+				(element) => element.type === "captions" && element.style === undefined
+			)
+		).toBe(true);
+	});
+
+	it("selects every member when a grouped element is selected", () => {
+		const groupedTracks: TimelineTrack[] = [
+			{
+				id: "video",
+				name: "Video",
+				type: "media",
+				elements: [
+					{
+						id: "video-1",
+						name: "Video",
+						type: "media",
+						mediaId: TEST_MEDIA_ID,
+						groupId: "group-1",
+						startTime: 0,
+						duration: 1,
+						trimStart: 0,
+						trimEnd: 0,
+					},
+				],
+			},
+			{
+				id: "captions",
+				name: "Captions",
+				type: "captions",
+				elements: [
+					{
+						id: "caption-1",
+						name: "Caption",
+						type: "captions",
+						text: "Hello",
+						language: "en",
+						source: "manual",
+						groupId: "group-1",
+						startTime: 0,
+						duration: 1,
+						trimStart: 0,
+						trimEnd: 0,
+					},
+				],
+			},
+		];
+		useTimelineStore.setState({
+			_tracks: groupedTracks,
+			tracks: groupedTracks,
+			selectedElements: [],
+		});
+		const { result } = renderHook(() => useTimelineStore());
+
+		act(() => result.current.selectElement("video", "video-1"));
+
+		expect(result.current.selectedElements).toEqual([
+			{ trackId: "video", elementId: "video-1" },
+			{ trackId: "captions", elementId: "caption-1" },
+		]);
+	});
+
+	it("creates and switches a multicam clip in one undo step per action", () => {
+		const multicamTracks: TimelineTrack[] = [
+			{
+				id: "camera-a",
+				name: "Camera A",
+				type: "media",
+				elements: [
+					{
+						id: "a",
+						name: "Angle A",
+						type: "media",
+						mediaId: "media-a",
+						startTime: 0,
+						duration: 4,
+						trimStart: 0,
+						trimEnd: 0,
+					},
+				],
+			},
+			{
+				id: "camera-b",
+				name: "Camera B",
+				type: "media",
+				elements: [
+					{
+						id: "b",
+						name: "Angle B",
+						type: "media",
+						mediaId: "media-b",
+						startTime: 0,
+						duration: 4,
+						trimStart: 0,
+						trimEnd: 0,
+					},
+				],
+			},
+		];
+		useTimelineStore.setState({
+			_tracks: multicamTracks,
+			tracks: multicamTracks,
+			selectedElements: [
+				{ trackId: "camera-a", elementId: "a" },
+				{ trackId: "camera-b", elementId: "b" },
+			],
+			history: [],
+			redoStack: [],
+		});
+		const { result } = renderHook(() => useTimelineStore());
+		let multicamId = "";
+
+		act(() => {
+			multicamId =
+				result.current.createMediaContainerFromSelection("multicam") ?? "";
+		});
+
+		expect(multicamId).not.toBe("");
+		expect(result.current.history).toHaveLength(1);
+		expect(result.current.selectedElements).toEqual([
+			{ trackId: "camera-a", elementId: multicamId },
+		]);
+		act(() => {
+			result.current.selectMulticamClip("camera-a", multicamId, "b");
+		});
+		expect(result.current.history).toHaveLength(2);
+		const multicam = result.current.tracks
+			.flatMap((track) => track.elements)
+			.find((element) => element.id === multicamId);
+		expect(multicam).toMatchObject({
+			type: "media",
+			mediaId: "media-b",
+			compound: { activeClipId: "b" },
+		});
 	});
 
 	it("removes track by ID", () => {

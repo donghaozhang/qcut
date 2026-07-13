@@ -89,4 +89,14 @@ describe("FFmpegFilterChain", () => {
 		const chain = FFmpegFilterChain.fromEffectParameters(params);
 		expect(chain).toBe("hue=s=0,negate");
 	});
+
+	it("builds a strength-aware sepia color matrix", () => {
+		const chain = FFmpegFilterChain.fromEffectParameters({ sepia: 80 });
+
+		expect(chain).toBe(
+			"colorchannelmixer=rr=0.5144:rg=0.6152:rb=0.1512:" +
+				"gr=0.2792:gg=0.7488:gb=0.1344:" +
+				"br=0.2176:bg=0.4272:bb=0.3048"
+		);
+	});
 });

@@ -22,7 +22,11 @@ import {
 } from "./export-engine-utils";
 import { validateRenderedFrame } from "./export-engine-debug";
 import { stripMarkdownSyntax } from "@/lib/markdown";
-import { resolveSubtitleStyle, hexToRgba } from "@/lib/captions/subtitle-style";
+import {
+	getCaptionAnimationState,
+	hexToRgba,
+	resolveSubtitleStyle,
+} from "@/lib/captions/subtitle-style";
 import { renderKaraokeCaptionToCanvas } from "@/lib/captions/karaoke-canvas-renderer";
 import type { CaptionElement } from "@/types/timeline";
 import {
@@ -721,11 +725,17 @@ export function renderCaptionElement(
 	}
 	const fontWeight = style.bold ? "bold" : "normal";
 	const fontStyle = style.italic ? "italic" : "normal";
+	const animation = getCaptionAnimationState({
+		style,
+		startTime: element.startTime,
+		currentTime,
+	});
 
 	ctx.save();
-	ctx.globalAlpha = style.fontOpacity;
+	ctx.globalAlpha = style.fontOpacity * animation.opacity;
 	ctx.font = `${fontStyle} ${fontWeight} ${style.fontSize}px ${style.fontFamily}`;
-	ctx.textAlign = "center";
+	ctx.letterSpacing = `${style.letterSpacing}px`;
+	ctx.textAlign = style.textAlign;
 	ctx.textBaseline = "middle";
 
 	// Measure text for background
@@ -750,7 +760,14 @@ export function renderCaptionElement(
 			centerY = canvas.height - totalHeight / 2 - style.fontSize;
 			break;
 	}
-	const centerX = canvas.width / 2;
+	const anchorX =
+		style.textAlign === "left"
+			? canvas.width * 0.1
+			: style.textAlign === "right"
+				? canvas.width * 0.9
+				: canvas.width / 2;
+	const animatedX = anchorX + animation.offsetX;
+	const animatedY = centerY + animation.offsetY;
 
 	// Draw background
 	if (style.bgOpacity > 0) {
@@ -759,9 +776,15 @@ export function renderCaptionElement(
 		);
 		const padding = 16;
 		ctx.fillStyle = hexToRgba(style.backgroundColor, style.bgOpacity);
+		const backgroundX =
+			style.textAlign === "left"
+				? animatedX - padding
+				: style.textAlign === "right"
+					? animatedX - maxLineWidth - padding
+					: animatedX - maxLineWidth / 2 - padding;
 		ctx.fillRect(
-			centerX - maxLineWidth / 2 - padding,
-			centerY - totalHeight / 2 - padding / 2,
+			backgroundX,
+			animatedY - totalHeight / 2 - padding / 2,
 			maxLineWidth + padding * 2,
 			totalHeight + padding
 		);
@@ -769,14 +792,14 @@ export function renderCaptionElement(
 
 	// Draw each line
 	for (let i = 0; i < lines.length; i++) {
-		const y = centerY - totalHeight / 2 + (i + 0.5) * lineHeight;
+		const y = animatedY - totalHeight / 2 + (i + 0.5) * lineHeight;
 
 		// Draw outline/stroke
 		if (style.outlineWidth > 0) {
 			ctx.strokeStyle = style.outlineColor;
 			ctx.lineWidth = style.outlineWidth * 2;
 			ctx.lineJoin = "round";
-			ctx.strokeText(lines[i], centerX, y);
+			ctx.strokeText(lines[i], animatedX, y);
 		}
 
 		// Draw shadow
@@ -784,22 +807,28 @@ export function renderCaptionElement(
 			ctx.fillStyle = style.shadowColor;
 			ctx.fillText(
 				lines[i],
-				centerX + style.shadowOffset.x,
+				animatedX + style.shadowOffset.x,
 				y + style.shadowOffset.y
 			);
 		}
 
 		// Draw text
 		ctx.fillStyle = style.fontColor;
-		ctx.fillText(lines[i], centerX, y);
+		ctx.fillText(lines[i], animatedX, y);
 
 		// Draw underline
 		if (style.underline) {
 			const metrics = ctx.measureText(lines[i]);
 			const underlineY = y + style.fontSize * 0.15;
 			ctx.beginPath();
-			ctx.moveTo(centerX - metrics.width / 2, underlineY);
-			ctx.lineTo(centerX + metrics.width / 2, underlineY);
+			const underlineStart =
+				style.textAlign === "left"
+					? animatedX
+					: style.textAlign === "right"
+						? animatedX - metrics.width
+						: animatedX - metrics.width / 2;
+			ctx.moveTo(underlineStart, underlineY);
+			ctx.lineTo(underlineStart + metrics.width, underlineY);
 			ctx.strokeStyle = style.fontColor;
 			ctx.lineWidth = Math.max(1, style.fontSize / 20);
 			ctx.stroke();

@@ -31,6 +31,17 @@ export type TrackType =
 interface BaseTimelineElement {
 	id: string;
 	name: string;
+	/** Shared identifier for elements that select and move as one timeline group. */
+	groupId?: string;
+	/** Stable slot identity for replacing or migrating a template instance. */
+	templateBinding?: {
+		instanceId: string;
+		templateId: string;
+		templateVersion: string;
+		slotId: string;
+		aspectRatio?: "16:9" | "9:16" | "1:1" | "4:5";
+		instanceStartTime?: number;
+	};
 	duration: number;
 	startTime: number;
 	trimStart: number;
@@ -124,11 +135,29 @@ export type MediaAnimationType =
 	| "zoom-in"
 	| "zoom-out";
 
-export type ClipTransitionType = "dissolve" | "fade-black" | "slide" | "wipe";
+export type ClipTransitionType =
+	| "dissolve"
+	| "fade-black"
+	| "fade-white"
+	| "slide"
+	| "wipe"
+	| "push"
+	| "zoom-blur"
+	| "whip-pan"
+	| "flash"
+	| "light-leak"
+	| "rgb-glitch"
+	| "shake";
 
 export type ClipTransitionDirection = "left" | "right" | "up" | "down";
 
 export type ClipTransitionEasing = "linear" | "easeInOut";
+
+export interface ClipTransitionTuning {
+	tint?: string;
+	intensity?: number;
+	frequency?: number;
+}
 
 /** A visual transition joining two touching media elements on one track. */
 export interface ClipTransition {
@@ -140,6 +169,7 @@ export interface ClipTransition {
 	duration: number;
 	direction?: ClipTransitionDirection;
 	easing: ClipTransitionEasing;
+	tuning?: ClipTransitionTuning;
 }
 
 export type MediaComboAnimationType = "none" | "pulse" | "drift";
@@ -598,6 +628,24 @@ export interface MediaAudioSettings {
 	keyframes?: Partial<Record<AudioKeyframeProperty, MediaPropertyKeyframe[]>>;
 }
 
+export interface CompoundMediaClip {
+	/** Stable child identity retained when the container is moved or duplicated. */
+	id: string;
+	/** Child start in container-local timeline seconds. */
+	offset: number;
+	/** Original compositing order, from back to front. */
+	layer: number;
+	sourceTrackId: string;
+	element: MediaElement;
+}
+
+export interface MediaCompound {
+	kind: "compound" | "multicam";
+	clips: CompoundMediaClip[];
+	/** Multicam renders one selected angle; compounds render every active child. */
+	activeClipId?: string;
+}
+
 export interface MediaElement extends BaseTimelineElement {
 	type: "media";
 	mediaId: string;
@@ -642,6 +690,8 @@ export interface MediaElement extends BaseTimelineElement {
 	reverse?: boolean;
 	freezeFrameTime?: number;
 	freezeFrameDuration?: number;
+	/** Nested media preserved behind a single editable timeline container. */
+	compound?: MediaCompound;
 }
 
 export interface TextElement extends BaseTimelineElement {
@@ -723,6 +773,9 @@ export interface AdjustmentElement extends BaseTimelineElement {
 export interface SubtitleStyle {
 	fontFamily: string;
 	fontSize: number;
+	/** Horizontal character spacing in canvas pixels. */
+	letterSpacing: number;
+	textAlign: "left" | "center" | "right";
 	fontColor: string;
 	fontOpacity: number;
 	bold: boolean;
@@ -740,6 +793,9 @@ export interface SubtitleStyle {
 		y: number;
 	};
 	lineSpacing: number;
+	animationType: "none" | "fade" | "slide-up" | "slide-left";
+	animationDuration: number;
+	animationDelay: number;
 	/** Karaoke animation mode (default: "none" — static subtitles) */
 	karaokeMode?:
 		| "none"
@@ -834,6 +890,8 @@ export interface TimelineTrack {
 	name: string;
 	type: TrackType;
 	elements: TimelineElement[];
+	/** User-adjustable timeline lane height in pixels. */
+	height?: number;
 	transitions?: ClipTransition[];
 	/** Zero-based UI order. Lower values appear higher and composite later. */
 	order?: number;

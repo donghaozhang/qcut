@@ -53,6 +53,7 @@ export function createTransitionOps(
 			duration,
 			direction,
 			easing = "easeInOut",
+			tuning,
 		}) => {
 			const track = get()._tracks.find((candidate) => candidate.id === trackId);
 			if (!track || track.type !== "media") return null;
@@ -81,6 +82,7 @@ export function createTransitionOps(
 				duration: Math.min(Math.max(0, duration), maxDuration),
 				direction,
 				easing,
+				tuning,
 			};
 			if (transition.duration <= 0) return null;
 

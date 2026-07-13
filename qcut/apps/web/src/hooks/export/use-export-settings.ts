@@ -4,11 +4,11 @@ import { useTimelineStore } from "@/stores/timeline/timeline-store";
 import {
 	ExportQuality,
 	ExportFormat,
-	QUALITY_RESOLUTIONS,
 	FORMAT_INFO,
 	getSupportedFormats,
 	getEstimatedExportSize,
 	getExportFilename,
+	resolveExportResolution,
 	type ExportFrameRate,
 	type ExportEngineSelection,
 } from "@/types/export";
@@ -16,6 +16,7 @@ import { useElectron } from "@/hooks/useElectron";
 import { platform } from "@qcut/platform-core";
 // Export engine factory and types will be imported dynamically when needed
 import { debugLog, debugWarn } from "@/lib/debug/debug-config";
+import { useEditorStore } from "@/stores/editor/editor-store";
 
 /**
  * Hook for managing export settings state, derived metadata (supported formats, resolution, size estimates),
@@ -25,6 +26,7 @@ export function useExportSettings() {
 	const { isDialogOpen, panelView, settings, updateSettings } =
 		useExportStore();
 	const { getTotalDuration, tracks } = useTimelineStore();
+	const canvasSize = useEditorStore((state) => state.canvasSize);
 	const { isElectron } = useElectron();
 	const isExportUiActive = isDialogOpen || panelView === "export";
 
@@ -45,14 +47,31 @@ export function useExportSettings() {
 	const supportedFormats = isElectron()
 		? [ExportFormat.MP4, ExportFormat.GIF]
 		: getSupportedFormats();
-	const resolution =
-		QUALITY_RESOLUTIONS[quality] || QUALITY_RESOLUTIONS[ExportQuality.HIGH];
+	const aspectRatio =
+		settings.aspectRatio ?? canvasSize.width / Math.max(1, canvasSize.height);
+	const resolution = resolveExportResolution({ quality, aspectRatio });
 	const timelineDuration = getTotalDuration();
 	const estimatedSize = getEstimatedExportSize({
 		quality,
 		durationSeconds: timelineDuration,
 	});
 	const outputPath = settings.outputPath ?? "";
+
+	useEffect(() => {
+		if (
+			settings.width === resolution.width &&
+			settings.height === resolution.height
+		) {
+			return;
+		}
+		updateSettings({ width: resolution.width, height: resolution.height });
+	}, [
+		resolution.height,
+		resolution.width,
+		settings.height,
+		settings.width,
+		updateSettings,
+	]);
 
 	// Engine recommendation effect with multiple dependencies
 	useEffect(() => {
@@ -192,6 +211,7 @@ export function useExportSettings() {
 		engineRecommendation,
 		supportedFormats,
 		resolution,
+		aspectRatio,
 		estimatedSize,
 		timelineDuration,
 		// Handlers

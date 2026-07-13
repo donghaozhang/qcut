@@ -6,8 +6,28 @@ import {
 	timeToFrame,
 	frameToTime,
 	getFrameDuration,
+	getTrackHeight,
+	getTotalTracksHeight,
 	TIMELINE_CONSTANTS,
 } from "../timeline-constants";
+
+describe("adjustable track heights", () => {
+	it("uses custom heights and clamps unsafe values", () => {
+		expect(getTrackHeight("media", 92)).toBe(92);
+		expect(getTrackHeight("media", 8)).toBe(24);
+		expect(getTrackHeight("media", 300)).toBe(140);
+		expect(getTrackHeight("media")).toBe(65);
+	});
+
+	it("includes custom heights in the scrollable timeline size", () => {
+		expect(
+			getTotalTracksHeight([
+				{ type: "media", height: 80 },
+				{ type: "captions", height: 40 },
+			])
+		).toBe(124);
+	});
+});
 
 describe("calculateMinimumTimelineDuration", () => {
 	const DEFAULT = TIMELINE_CONSTANTS.DEFAULT_EMPTY_TIMELINE_DURATION; // 7200s (2 hours)

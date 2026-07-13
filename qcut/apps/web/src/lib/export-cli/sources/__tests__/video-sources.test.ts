@@ -127,4 +127,239 @@ describe("extractVideoSources", () => {
 		});
 		expect(sources[0].visual?.color.lut.cube?.values).toHaveLength(17 ** 3 * 3);
 	});
+
+	it("exports a generated alpha video while retaining geometric masks", async () => {
+		const tracks: TimelineTrack[] = [
+			{
+				id: "main",
+				name: "Main",
+				type: "media",
+				isMain: true,
+				elements: [
+					{
+						id: "video-cutout",
+						type: "media",
+						mediaId: "original",
+						name: "Cutout video",
+						duration: 3,
+						startTime: 0,
+						trimStart: 0,
+						trimEnd: 0,
+						masks: [
+							{
+								id: "person",
+								name: "Person",
+								enabled: true,
+								type: "person",
+								blendMode: "add",
+								centerX: 0.5,
+								centerY: 0.5,
+								width: 1,
+								height: 1,
+								rotation: 0,
+								feather: 0,
+								invert: false,
+								sourceMediaId: "person-alpha",
+								stroke: {
+									style: "glow",
+									color: "#20c7d9",
+									width: 6,
+									opacity: 0.8,
+									glow: 12,
+									offsetX: 0,
+									offsetY: 0,
+								},
+							},
+							{
+								id: "crop-mask",
+								name: "Crop mask",
+								enabled: true,
+								type: "rectangle",
+								blendMode: "intersect",
+								centerX: 0.5,
+								centerY: 0.5,
+								width: 0.5,
+								height: 0.5,
+								rotation: 0,
+								feather: 0,
+								invert: false,
+							},
+						],
+					},
+				],
+			},
+		];
+		const mediaItems: MediaItem[] = [
+			{
+				id: "original",
+				name: "original.mp4",
+				type: "video",
+				file: new File([], "original.mp4"),
+				localPath: "/tmp/original.mp4",
+			},
+			{
+				id: "person-alpha",
+				name: "person-alpha.webm",
+				type: "video",
+				file: new File([], "person-alpha.webm"),
+				localPath: "/tmp/person-alpha.webm",
+			},
+		];
+
+		const sources = await extractVideoSources(
+			tracks,
+			mediaItems,
+			"session",
+			{ saveTemp: async () => "/tmp/generated.webm" },
+			() => undefined
+		);
+
+		expect(sources[0].path).toBe("/tmp/person-alpha.webm");
+		expect(sources[0].visual?.masks).toHaveLength(1);
+		expect(sources[0].visual?.masks?.[0]).toMatchObject({
+			id: "crop-mask",
+			type: "rectangle",
+			blendMode: "intersect",
+		});
+		expect(sources[0].visual?.mask).toMatchObject({
+			type: "none",
+			stroke: { style: "glow", width: 6 },
+		});
+	});
+
+	it("falls back to the original visual when generated mask media is missing", async () => {
+		const logs: string[] = [];
+		const tracks: TimelineTrack[] = [
+			{
+				id: "main",
+				name: "Main",
+				type: "media",
+				isMain: true,
+				elements: [
+					{
+						id: "video-cutout",
+						type: "media",
+						mediaId: "original",
+						name: "Cutout video",
+						duration: 3,
+						startTime: 0,
+						trimStart: 0,
+						trimEnd: 0,
+						masks: [
+							{
+								id: "missing-person",
+								name: "Person",
+								enabled: true,
+								type: "person",
+								blendMode: "add",
+								centerX: 0.5,
+								centerY: 0.5,
+								width: 1,
+								height: 1,
+								rotation: 0,
+								feather: 0,
+								invert: false,
+								sourceMediaId: "missing-alpha",
+							},
+						],
+					},
+				],
+			},
+		];
+		const mediaItems: MediaItem[] = [
+			{
+				id: "original",
+				name: "original.mp4",
+				type: "video",
+				file: new File([], "original.mp4"),
+				localPath: "/tmp/original.mp4",
+			},
+		];
+
+		const sources = await extractVideoSources(
+			tracks,
+			mediaItems,
+			"session",
+			{ saveTemp: async () => "/tmp/original.mp4" },
+			(...values) => logs.push(values.join(" "))
+		);
+
+		expect(sources[0].path).toBe("/tmp/original.mp4");
+		expect(sources[0].visual?.masks).toEqual([]);
+		expect(logs.join("\n")).toContain(
+			"Generated mask media missing-alpha is unavailable"
+		);
+	});
+
+	it("materializes a generated alpha blob for FFmpeg", async () => {
+		const tracks: TimelineTrack[] = [
+			{
+				id: "main",
+				name: "Main",
+				type: "media",
+				isMain: true,
+				elements: [
+					{
+						id: "video-cutout",
+						type: "media",
+						mediaId: "original",
+						name: "Cutout video",
+						duration: 3,
+						startTime: 0,
+						trimStart: 0,
+						trimEnd: 0,
+						masks: [
+							{
+								id: "person",
+								name: "Person",
+								enabled: true,
+								type: "person",
+								blendMode: "add",
+								centerX: 0.5,
+								centerY: 0.5,
+								width: 1,
+								height: 1,
+								rotation: 0,
+								feather: 0,
+								invert: false,
+								sourceMediaId: "person-alpha",
+							},
+						],
+					},
+				],
+			},
+		];
+		const mediaItems: MediaItem[] = [
+			{
+				id: "original",
+				name: "original.mp4",
+				type: "video",
+				file: new File([], "original.mp4"),
+				localPath: "/tmp/original.mp4",
+			},
+			{
+				id: "person-alpha",
+				name: "person-alpha.webm",
+				type: "video",
+				file: new File(["alpha"], "person-alpha.webm"),
+			},
+		];
+		const savedFiles: string[] = [];
+
+		const sources = await extractVideoSources(
+			tracks,
+			mediaItems,
+			"session",
+			{
+				saveTemp: async (_data, filename) => {
+					savedFiles.push(filename);
+					return "/tmp/person-alpha-materialized.webm";
+				},
+			},
+			() => undefined
+		);
+
+		expect(savedFiles).toEqual(["person-alpha.webm"]);
+		expect(sources[0].path).toBe("/tmp/person-alpha-materialized.webm");
+	});
 });

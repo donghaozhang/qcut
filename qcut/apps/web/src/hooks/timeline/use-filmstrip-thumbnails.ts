@@ -5,6 +5,33 @@ import { filmstripCache } from "@/lib/filmstrip/filmstrip-cache";
 const TILE_ASPECT_RATIO = 16 / 9;
 const DEBOUNCE_MS = 150;
 const TILE_PADDING = 8; // matches timeline-element.tsx tileHeight = trackHeight - 8
+export const MAX_FILMSTRIP_TILES = 24;
+
+export function calculateFilmstripLayout({
+	clipWidthPx,
+	trackHeight,
+	enabled,
+}: {
+	clipWidthPx: number;
+	trackHeight: number;
+	enabled: boolean;
+}): { tileCount: number; tileWidth: number; tileHeight: number } {
+	const tileHeight = Math.max(1, trackHeight - TILE_PADDING);
+	const naturalTileWidth = tileHeight * TILE_ASPECT_RATIO;
+	if (!enabled || clipWidthPx <= 0) {
+		return { tileCount: 0, tileWidth: naturalTileWidth, tileHeight };
+	}
+	const requestedTileCount = Math.max(
+		1,
+		Math.ceil(clipWidthPx / naturalTileWidth)
+	);
+	const tileCount = Math.min(requestedTileCount, MAX_FILMSTRIP_TILES);
+	const tileWidth =
+		requestedTileCount > MAX_FILMSTRIP_TILES
+			? clipWidthPx / tileCount
+			: naturalTileWidth;
+	return { tileCount, tileWidth, tileHeight };
+}
 
 export interface UseFilmstripOptions {
 	mediaId: string;
@@ -46,19 +73,16 @@ export function useFilmstripThumbnails({
 	clipWidthPx,
 	enabled,
 }: UseFilmstripOptions): FilmstripResult {
-	const tileHeight = trackHeight - TILE_PADDING;
-	const tileWidth = tileHeight * TILE_ASPECT_RATIO;
+	const layout = useMemo(
+		() => calculateFilmstripLayout({ clipWidthPx, trackHeight, enabled }),
+		[clipWidthPx, enabled, trackHeight]
+	);
+	const { tileCount: visibleTiles, tileHeight, tileWidth } = layout;
 
 	const [frames, setFrames] = useState<FilmstripFrame[]>([]);
 	const [isLoading, setIsLoading] = useState(false);
 	const abortRef = useRef<AbortController | null>(null);
 	const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-
-	// Compute the number of visible tiles
-	const visibleTiles = useMemo(() => {
-		if (!enabled || clipWidthPx <= 0 || tileWidth <= 0) return 0;
-		return Math.max(1, Math.ceil(clipWidthPx / tileWidth));
-	}, [enabled, clipWidthPx, tileWidth]);
 
 	// Compute frame timestamps based on tile count + trim
 	const computeTimestamps = useCallback(

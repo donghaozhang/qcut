@@ -8,7 +8,11 @@
  */
 
 import type { SubtitleStyle } from "../types/timeline.js";
-import { assColorToRgb, assAlignmentToAlign } from "./subtitle-style.js";
+import {
+	assColorToRgb,
+	assAlignmentToAlign,
+	assAlignmentToTextAlign,
+} from "./subtitle-style.js";
 
 /** Parsed ASS style definition */
 export interface ASSStyle {
@@ -222,6 +226,8 @@ export function assStyleToSubtitleStyle(assStyle: ASSStyle): SubtitleStyle {
 	return {
 		fontFamily: assStyle.Fontname,
 		fontSize: assStyle.Fontsize,
+		letterSpacing: assStyle.Spacing,
+		textAlign: assAlignmentToTextAlign(assStyle.Alignment),
 		fontColor: primary.hex,
 		fontOpacity: primary.opacity,
 		bold: assStyle.Bold !== 0,
@@ -242,5 +248,8 @@ export function assStyleToSubtitleStyle(assStyle: ASSStyle): SubtitleStyle {
 			y: assStyle.MarginV,
 		},
 		lineSpacing: 1.4,
+		animationType: "none",
+		animationDuration: 0.6,
+		animationDelay: 0,
 	};
 }

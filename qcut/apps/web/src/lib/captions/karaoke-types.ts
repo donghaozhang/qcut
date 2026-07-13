@@ -17,12 +17,12 @@ export type KaraokeMode =
 
 /** All available karaoke mode values for UI iteration */
 export const KARAOKE_MODES: { value: KaraokeMode; label: string }[] = [
-	{ value: "none", label: "None" },
-	{ value: "word-highlight", label: "Word Highlight" },
-	{ value: "word-by-word", label: "Word by Word" },
-	{ value: "karaoke", label: "Karaoke Fill" },
-	{ value: "bounce", label: "Bounce" },
-	{ value: "typewriter", label: "Typewriter" },
+	{ value: "none", label: "无" },
+	{ value: "word-highlight", label: "单词高亮" },
+	{ value: "word-by-word", label: "逐词显示" },
+	{ value: "karaoke", label: "卡拉 OK 填充" },
+	{ value: "bounce", label: "弹跳" },
+	{ value: "typewriter", label: "打字机" },
 ];
 
 /** Per-word render state computed by karaoke utils */

@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import type { ClipTransition } from "@/types/timeline";
 import {
+	buildClipTransitionCssFilter,
 	CLIP_TRANSITION_PROGRESS_STOPS,
 	easeClipTransitionProgress,
 	getClipTransitionLayerPresentation,
@@ -59,12 +60,17 @@ describe("clip transition presentation", () => {
 			)
 		).toEqual([0, 0, 0, 0.5, 1]);
 		expect(
+			presentations({ type: "fade-white", role: "from" }).map(
+				(item) => item.backgroundColor
+			)
+		).toEqual(["#ffffff", "#ffffff", "#ffffff", "#ffffff", "#ffffff"]);
+		expect(
 			presentations({
 				type: "slide",
 				direction: "left",
 				role: "from",
 			}).map((item) => item.offsetX)
-		).toEqual([0, 25, 50, 75, 100]);
+		).toEqual([0, 0, 0, 0, 0]);
 		expect(
 			presentations({
 				type: "slide",
@@ -72,6 +78,13 @@ describe("clip transition presentation", () => {
 				role: "to",
 			}).map((item) => item.offsetX)
 		).toEqual([-100, -75, -50, -25, 0]);
+		expect(
+			presentations({
+				type: "push",
+				direction: "left",
+				role: "from",
+			}).map((item) => item.offsetX)
+		).toEqual([0, 25, 50, 75, 100]);
 		expect(
 			presentations({
 				type: "wipe",
@@ -134,7 +147,7 @@ describe("clip transition presentation", () => {
 		expect(incoming.contentOpacity).toBe(0);
 	});
 
-	it("moves slide layers in opposite directions", () => {
+	it("slides the incoming layer over a stationary outgoing layer", () => {
 		const slide = transition({ type: "slide", direction: "left" });
 		const outgoing = getClipTransitionLayerPresentation({
 			transition: slide,
@@ -145,6 +158,27 @@ describe("clip transition presentation", () => {
 		});
 		const incoming = getClipTransitionLayerPresentation({
 			transition: slide,
+			role: "to",
+			progress: 0.25,
+			canvasWidth: 100,
+			canvasHeight: 50,
+		});
+
+		expect(outgoing.offsetX).toBe(0);
+		expect(incoming.offsetX).toBe(-75);
+	});
+
+	it("pushes both layers through the cut", () => {
+		const push = transition({ type: "push", direction: "left" });
+		const outgoing = getClipTransitionLayerPresentation({
+			transition: push,
+			role: "from",
+			progress: 0.25,
+			canvasWidth: 100,
+			canvasHeight: 50,
+		});
+		const incoming = getClipTransitionLayerPresentation({
+			transition: push,
 			role: "to",
 			progress: 0.25,
 			canvasWidth: 100,
@@ -168,6 +202,70 @@ describe("clip transition presentation", () => {
 		expect(incoming.clipPath).toBe("inset(0 60% 0 0)");
 	});
 
+	it("describes the second-release motion and stylized transitions", () => {
+		const midpoint = ({
+			type,
+			role = "from",
+			direction,
+		}: {
+			type: ClipTransition["type"];
+			role?: "from" | "to";
+			direction?: ClipTransition["direction"];
+		}) =>
+			getClipTransitionLayerPresentation({
+				transition: transition({ type, direction }),
+				role,
+				progress: 0.5,
+				canvasWidth: 100,
+				canvasHeight: 50,
+			});
+
+		expect(midpoint({ type: "zoom-blur" })).toMatchObject({
+			opacity: 0.5,
+			scale: 1.18,
+			blur: 12,
+		});
+		expect(midpoint({ type: "whip-pan", direction: "left" })).toMatchObject({
+			offsetX: 50,
+			scale: 1.06,
+			blur: 14,
+		});
+		const flash = midpoint({ type: "flash" });
+		expect(flash).toMatchObject({
+			backgroundColor: "#ffffff",
+			brightness: 3.2,
+		});
+		expect(flash.contentOpacity).toBeCloseTo(0.45);
+		expect(midpoint({ type: "light-leak" })).toMatchObject({
+			backgroundColor: "#ff5a1f",
+			brightness: 1.65,
+			saturation: 2.1,
+		});
+		expect(midpoint({ type: "rgb-glitch", role: "to" })).toMatchObject({
+			saturation: 2.8,
+			hueRotate: 42,
+		});
+		expect(midpoint({ type: "shake" }).rotation).toBeCloseTo(-2.5);
+	});
+
+	it("builds a CSS filter only when presentation effects are active", () => {
+		expect(
+			buildClipTransitionCssFilter({
+				presentation: {
+					opacity: 1,
+					contentOpacity: 1,
+					offsetX: 0,
+					offsetY: 0,
+				},
+			})
+		).toBeUndefined();
+		expect(
+			buildClipTransitionCssFilter({
+				presentation: midpointPresentation(),
+			})
+		).toBe("blur(12px) brightness(1) saturate(1) hue-rotate(0deg)");
+	});
+
 	it("clamps and eases progress", () => {
 		expect(
 			easeClipTransitionProgress({ progress: -1, easing: "easeInOut" })
@@ -177,3 +275,13 @@ describe("clip transition presentation", () => {
 		).toBe(1);
 	});
 });
+
+function midpointPresentation() {
+	return getClipTransitionLayerPresentation({
+		transition: transition({ type: "zoom-blur" }),
+		role: "from",
+		progress: 0.5,
+		canvasWidth: 100,
+		canvasHeight: 50,
+	});
+}

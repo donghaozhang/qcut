@@ -27,6 +27,7 @@ export function useExportPresets(
 		updateSettings({
 			quality: preset.quality,
 			format: preset.format,
+			aspectRatio: preset.aspectRatio,
 		});
 
 		// Generate filename based on preset
@@ -46,6 +47,7 @@ export function useExportPresets(
 
 	const clearPreset = () => {
 		setSelectedPreset(null);
+		updateSettings({ aspectRatio: undefined });
 	};
 
 	return {

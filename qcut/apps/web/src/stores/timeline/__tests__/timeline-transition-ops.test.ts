@@ -116,6 +116,36 @@ describe("timeline transition operations", () => {
 		]);
 	});
 
+	it("updates second-release direction and easing without replacing the seam", () => {
+		const transitionId = useTimelineStore.getState().addTransition({
+			trackId: "track-1",
+			fromElementId: "a",
+			toElementId: "b",
+			presetId: "whip-pan-left",
+			type: "whip-pan",
+			direction: "left",
+			easing: "easeInOut",
+			duration: 0.4,
+		});
+
+		useTimelineStore.getState().updateTransition({
+			trackId: "track-1",
+			transitionId: transitionId!,
+			updates: { direction: "right", easing: "linear", duration: 0.7 },
+		});
+
+		expect(useTimelineStore.getState().tracks[0].transitions).toEqual([
+			expect.objectContaining({
+				id: transitionId,
+				presetId: "whip-pan-left",
+				type: "whip-pan",
+				direction: "right",
+				easing: "linear",
+				duration: 0.7,
+			}),
+		]);
+	});
+
 	it("removes a transition when a clip no longer touches the cut", () => {
 		useTimelineStore.getState().addTransition({
 			trackId: "track-1",

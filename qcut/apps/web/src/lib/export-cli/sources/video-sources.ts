@@ -78,9 +78,10 @@ async function createTempFileFromBlob(
 	mediaItem: MediaItem,
 	sessionId: string | null,
 	videoAPI: VideoSaveTempAPI | undefined,
-	logger: LogFn
+	logger: LogFn,
+	canSaveTemp: boolean
 ): Promise<string | undefined> {
-	if (!hasVideoTempCapability() || !videoAPI?.saveTemp) return;
+	if (!canSaveTemp || !videoAPI?.saveTemp) return;
 	if (!mediaItem.file || mediaItem.file.size === 0) return;
 
 	try {
@@ -98,6 +99,65 @@ async function createTempFileFromBlob(
 		logger("[VideoSources] Failed to create temp file:", error);
 		return;
 	}
+}
+
+async function resolveVideoMediaPath({
+	mediaItem,
+	sessionId,
+	videoAPI,
+	logger,
+	canSaveTemp,
+}: {
+	mediaItem: MediaItem;
+	sessionId: string | null;
+	videoAPI: VideoSaveTempAPI | undefined;
+	logger: LogFn;
+	canSaveTemp: boolean;
+}): Promise<string | undefined> {
+	const verifiedPath = await verifyLocalPath(
+		mediaItem.localPath,
+		videoAPI,
+		logger
+	);
+	if (verifiedPath) return verifiedPath;
+	return createTempFileFromBlob(
+		mediaItem,
+		sessionId,
+		videoAPI,
+		logger,
+		canSaveTemp
+	);
+}
+
+function generatedMaskMediaId({
+	visual,
+}: {
+	visual: ReturnType<typeof resolveMediaVisualProperties>;
+}): string | undefined {
+	return visual.masks.find(
+		(mask) => mask.enabled !== false && Boolean(mask.sourceMediaId)
+	)?.sourceMediaId;
+}
+
+function visualWithoutGeneratedMasks({
+	visual,
+	preserveGeneratedStroke,
+}: {
+	visual: ReturnType<typeof resolveMediaVisualProperties>;
+	preserveGeneratedStroke: boolean;
+}): ReturnType<typeof resolveMediaVisualProperties> {
+	const masks = visual.masks.filter((mask) => !mask.sourceMediaId);
+	const generatedMask = visual.masks.find(
+		(mask) => mask.enabled !== false && Boolean(mask.sourceMediaId)
+	);
+	return {
+		...visual,
+		mask:
+			preserveGeneratedStroke && generatedMask
+				? { ...generatedMask, type: "none", sourceMediaId: undefined }
+				: (masks[0] ?? visual.mask),
+		masks,
+	};
 }
 
 /**
@@ -119,6 +179,7 @@ export async function extractVideoSources(
 	fps = 30
 ): Promise<VideoSourceInput[]> {
 	const api = videoAPI ?? (platform().video as unknown as VideoSaveTempAPI);
+	const canSaveTemp = videoAPI !== undefined || hasVideoTempCapability();
 	const videoSources: VideoSourceInput[] = [];
 	const orderedTracks = sortTracksByOrder(tracks);
 
@@ -140,25 +201,37 @@ export async function extractVideoSources(
 			);
 			if (!mediaItem || mediaItem.type !== "video") continue;
 
-			let localPath = mediaItem.localPath;
-
-			// Verify localPath still exists on disk (temp files may be cleaned up)
-			localPath = await verifyLocalPath(localPath, api, logger);
-
-			// Create temp file from blob if no localPath or file was deleted
-			if (!localPath && mediaItem.file && mediaItem.file.size > 0) {
-				localPath = await createTempFileFromBlob(
-					mediaItem,
-					sessionId,
-					api,
-					logger
-				);
-			}
+			const resolvedVisual = resolveMediaVisualProperties(element);
+			const generatedMediaId = generatedMaskMediaId({
+				visual: resolvedVisual,
+			});
+			const generatedMediaItem = generatedMediaId
+				? mediaItems.find(
+						(item) => item.id === generatedMediaId && item.type === "video"
+					)
+				: undefined;
+			const visualMediaItem = generatedMediaItem ?? mediaItem;
+			const localPath = await resolveVideoMediaPath({
+				mediaItem: visualMediaItem,
+				sessionId,
+				videoAPI: api,
+				logger,
+				canSaveTemp,
+			});
 
 			if (!localPath) {
-				logger(`[VideoSources] Video ${mediaItem.id} has no localPath`);
+				logger(`[VideoSources] Video ${visualMediaItem.id} has no localPath`);
 				continue;
 			}
+			if (generatedMediaId && !generatedMediaItem) {
+				logger(
+					`[VideoSources] Generated mask media ${generatedMediaId} is unavailable; exporting the original visual source`
+				);
+			}
+			const exportVisual = visualWithoutGeneratedMasks({
+				visual: resolvedVisual,
+				preserveGeneratedStroke: generatedMediaItem !== undefined,
+			});
 
 			videoSources.push({
 				elementId: element.id,
@@ -176,7 +249,7 @@ export async function extractVideoSources(
 				freezeFrameTime: element.freezeFrameTime,
 				freezeFrameDuration: element.freezeFrameDuration ?? 0,
 				visual: {
-					...resolveMediaVisualProperties(element),
+					...exportVisual,
 					keyframes: element.keyframes,
 					keyframeFps: fps,
 				},
@@ -209,6 +282,7 @@ export async function extractVideoInputPath(
 	logger: LogFn = console.log
 ): Promise<{ path: string; trimStart: number; trimEnd: number } | null> {
 	const api = videoAPI ?? (platform().video as unknown as VideoSaveTempAPI);
+	const canSaveTemp = videoAPI !== undefined || hasVideoTempCapability();
 	logger("[VideoSources] Extracting video input path for Mode 2...");
 
 	let videoElement: TimelineElement | null = null;
@@ -249,7 +323,13 @@ export async function extractVideoInputPath(
 
 	// Create temp file from blob if needed or file was deleted
 	if (!localPath && mediaItem.file && mediaItem.file.size > 0) {
-		localPath = await createTempFileFromBlob(mediaItem, sessionId, api, logger);
+		localPath = await createTempFileFromBlob(
+			mediaItem,
+			sessionId,
+			api,
+			logger,
+			canSaveTemp
+		);
 	}
 
 	if (!localPath) {

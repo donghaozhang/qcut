@@ -8,6 +8,9 @@
 import type { TimelineTrack, TrackType } from "@/types/timeline";
 import { generateUUID } from "@/lib/utils";
 import { createDefaultTrackAudioSettings } from "@/lib/audio/audio-mix-settings";
+import { getTrackName } from "@qcut/editor-core";
+
+export { getTrackName };
 
 /**
  * Helper function to manage element naming with suffixes
@@ -28,34 +31,6 @@ export function getElementNameWithSuffix(
 		.replace(/ \(split \d+\)$/, "");
 
 	return `${baseName} (${suffix})`;
-}
-
-/**
- * Generate a proper track name based on track type
- * @param type - The type of track
- * @returns A descriptive track name
- */
-export function getTrackName(type: TrackType): string {
-	switch (type) {
-		case "media":
-			return "Media Track";
-		case "text":
-			return "Text Track";
-		case "markdown":
-			return "Markdown Track";
-		case "audio":
-			return "Audio Track";
-		case "sticker":
-			return "Sticker Track";
-		case "adjustment":
-			return "Adjustment Track";
-		case "captions":
-			return "Captions Track";
-		case "remotion":
-			return "Remotion Track";
-		default:
-			return "Track";
-	}
 }
 
 /**

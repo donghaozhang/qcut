@@ -74,7 +74,7 @@ export const DEFAULT_MEDIA_COLOR_SETTINGS: MediaColorSettings = {
 	lut: {
 		enabled: false,
 		presetId: "none",
-		name: "None",
+		name: "无",
 		intensity: 100,
 		skinProtection: 0,
 	},
@@ -143,26 +143,26 @@ export const COLOR_BASIC_KEYFRAME_DEFINITIONS: Partial<
 	Record<ColorKeyframeProperty, ColorKeyframeDefinition>
 > = {
 	"basic.exposure": {
-		label: "Exposure",
+		label: "曝光",
 		min: -5,
 		max: 5,
 		step: 0.1,
 		suffix: "EV",
 	},
-	"basic.brightness": { label: "Brightness", min: -100, max: 100, step: 1 },
-	"basic.contrast": { label: "Contrast", min: -100, max: 100, step: 1 },
-	"basic.highlights": { label: "Highlights", min: -100, max: 100, step: 1 },
-	"basic.shadows": { label: "Shadows", min: -100, max: 100, step: 1 },
-	"basic.whites": { label: "Whites", min: -100, max: 100, step: 1 },
-	"basic.blacks": { label: "Blacks", min: -100, max: 100, step: 1 },
-	"basic.temperature": { label: "Temperature", min: -100, max: 100, step: 1 },
-	"basic.tint": { label: "Tint", min: -100, max: 100, step: 1 },
-	"basic.saturation": { label: "Saturation", min: -100, max: 100, step: 1 },
-	"basic.vibrance": { label: "Vibrance", min: -100, max: 100, step: 1 },
-	"basic.sharpness": { label: "Sharpness", min: 0, max: 100, step: 1 },
-	"basic.fade": { label: "Fade", min: 0, max: 100, step: 1 },
-	"basic.vignette": { label: "Vignette", min: 0, max: 100, step: 1 },
-	"basic.grain": { label: "Grain", min: 0, max: 100, step: 1 },
+	"basic.brightness": { label: "亮度", min: -100, max: 100, step: 1 },
+	"basic.contrast": { label: "对比度", min: -100, max: 100, step: 1 },
+	"basic.highlights": { label: "高光", min: -100, max: 100, step: 1 },
+	"basic.shadows": { label: "阴影", min: -100, max: 100, step: 1 },
+	"basic.whites": { label: "白色色阶", min: -100, max: 100, step: 1 },
+	"basic.blacks": { label: "黑色色阶", min: -100, max: 100, step: 1 },
+	"basic.temperature": { label: "色温", min: -100, max: 100, step: 1 },
+	"basic.tint": { label: "色调", min: -100, max: 100, step: 1 },
+	"basic.saturation": { label: "饱和度", min: -100, max: 100, step: 1 },
+	"basic.vibrance": { label: "自然饱和度", min: -100, max: 100, step: 1 },
+	"basic.sharpness": { label: "锐化", min: 0, max: 100, step: 1 },
+	"basic.fade": { label: "褪色", min: 0, max: 100, step: 1 },
+	"basic.vignette": { label: "暗角", min: 0, max: 100, step: 1 },
+	"basic.grain": { label: "颗粒", min: 0, max: 100, step: 1 },
 };
 
 const HSL_KEYFRAME_DEFINITIONS = Object.fromEntries(
@@ -172,10 +172,10 @@ const HSL_KEYFRAME_DEFINITIONS = Object.fromEntries(
 			{
 				label:
 					parameter === "hue"
-						? "Hue"
+						? "色相"
 						: parameter === "saturation"
-							? "Saturation"
-							: "Luminance",
+							? "饱和度"
+							: "明度",
 				min: -100,
 				max: 100,
 				step: 1,
@@ -208,31 +208,31 @@ export const COLOR_KEYFRAME_DEFINITIONS: Partial<
 	...HSL_KEYFRAME_DEFINITIONS,
 	...WHEEL_KEYFRAME_DEFINITIONS,
 	"lut.intensity": {
-		label: "Intensity",
+		label: "强度",
 		min: 0,
 		max: 100,
 		step: 1,
 		suffix: "%",
 	},
 	"lut.skinProtection": {
-		label: "Skin protection",
+		label: "肤色保护",
 		min: 0,
 		max: 100,
 		step: 1,
 		suffix: "%",
 	},
-	"curves.mix": { label: "Curve mix", min: 0, max: 100, step: 1, suffix: "%" },
+	"curves.mix": { label: "曲线混合", min: 0, max: 100, step: 1, suffix: "%" },
 	"secondaryCurves.mix": {
-		label: "Secondary curve mix",
+		label: "辅助曲线混合",
 		min: 0,
 		max: 100,
 		step: 1,
 		suffix: "%",
 	},
-	"wheels.strength": { label: "Strength", min: 0, max: 100, step: 1 },
-	"wheels.balance": { label: "Tonal balance", min: -100, max: 100, step: 1 },
+	"wheels.strength": { label: "强度", min: 0, max: 100, step: 1 },
+	"wheels.balance": { label: "明暗平衡", min: -100, max: 100, step: 1 },
 	"smart.intensity": {
-		label: "Correction mix",
+		label: "校正混合",
 		min: 0,
 		max: 100,
 		step: 1,

@@ -237,6 +237,8 @@ export interface Sam3VideoOutput {
  */
 export type Sam3VideoProgressCallback = (status: {
 	status: "queued" | "processing" | "completed" | "failed";
+	/** Stable FAL queue identity used to resume polling after an interruption. */
+	requestId?: string;
 	progress?: number;
 	message?: string;
 	elapsedTime?: number;

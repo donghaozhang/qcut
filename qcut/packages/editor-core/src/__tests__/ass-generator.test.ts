@@ -22,6 +22,8 @@ function caption({
 			? {
 					fontFamily: "Arial",
 					fontSize: 24,
+					letterSpacing: 2,
+					textAlign: "center",
 					fontColor: "#ffffff",
 					fontOpacity: 1,
 					bold: false,
@@ -35,6 +37,9 @@ function caption({
 					bgOpacity: 0,
 					position: { align: "bottom", x: 0, y: 30 },
 					lineSpacing: 1.2,
+					animationType: "none",
+					animationDuration: 0.6,
+					animationDelay: 0,
 					karaokeMode: "karaoke",
 					highlightColor: "#22d3ee",
 					upcomingColor: "#d4d4d8",
@@ -79,5 +84,41 @@ describe("generateASS", () => {
 
 		expect(ass).toContain("Hello world");
 		expect(ass).not.toContain("\\kf");
+	});
+
+	it("uses the configured CJK export font without changing Latin captions", () => {
+		const chinese = caption();
+		chinese.text = "真实视频字幕";
+		const cjkAss = generateASS([chinese], {
+			resolution: { width: 1080, height: 1920 },
+			cjkFontFamily: "Hiragino Sans GB",
+		});
+		const latinAss = generateASS([caption()], {
+			resolution: { width: 1080, height: 1920 },
+			cjkFontFamily: "Hiragino Sans GB",
+		});
+
+		expect(cjkAss).toContain("Style: Default,Hiragino Sans GB,");
+		expect(latinAss).toContain("Style: Default,Arial,");
+	});
+
+	it("writes text alignment, spacing, and animation tags", () => {
+		const animated = caption({ karaoke: true });
+		if (!animated.style) throw new Error("Expected caption style");
+		animated.style = {
+			...animated.style,
+			textAlign: "right",
+			letterSpacing: 4,
+			animationType: "slide-up",
+			animationDuration: 0.5,
+			animationDelay: 0.25,
+		};
+		const ass = generateASS([animated], {
+			resolution: { width: 1920, height: 1080 },
+		});
+
+		expect(ass).toContain(",4,0,1,2,0,3,");
+		expect(ass).toContain("\\fade(255,0,0,250,750,2000,2000)");
+		expect(ass).toContain("\\move(1896,1136,1896,1056,250,750)");
 	});
 });

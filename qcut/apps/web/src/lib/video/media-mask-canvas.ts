@@ -1,5 +1,6 @@
 import type { MediaMask } from "@/types/timeline";
 import { mediaMaskSvgUrl } from "./media-mask-svg";
+import { buildMediaMaskStrokeCssFilter } from "./media-mask-stroke";
 
 const maskImageCache = new Map<string, Promise<HTMLImageElement>>();
 
@@ -55,6 +56,13 @@ export async function drawMediaSourceWithMasks({
 		pixelWidth,
 		pixelHeight
 	);
+	const strokeFilter = buildMediaMaskStrokeCssFilter({ masks });
+	if (strokeFilter) {
+		context.save();
+		context.filter = strokeFilter;
+		context.drawImage(frameCanvas, x, y, width, height);
+		context.restore();
+	}
 	context.drawImage(frameCanvas, x, y, width, height);
 }
 

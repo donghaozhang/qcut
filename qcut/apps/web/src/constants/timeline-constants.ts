@@ -79,6 +79,17 @@ export const TRACK_HEIGHTS: Record<TrackType, number> = {
 	markdown: 55,
 } as const;
 
+export const COMPACT_TRACK_HEIGHTS: Record<TrackType, number> = {
+	media: 40,
+	text: 24,
+	audio: 32,
+	sticker: 28,
+	adjustment: 24,
+	captions: 24,
+	remotion: 36,
+	markdown: 36,
+} as const;
+
 /**
  * Different track types need different heights based on their content density:
  * - Media tracks (65px) need space for thumbnails and waveform previews
@@ -86,8 +97,14 @@ export const TRACK_HEIGHTS: Record<TrackType, number> = {
  * - Audio tracks (50px) need space for waveform visualization
  * These heights are carefully tuned for readability without wasting screen space.
  */
-export function getTrackHeight(type: TrackType): number {
-	return TRACK_HEIGHTS[type];
+export const TRACK_HEIGHT_LIMITS = { min: 24, max: 140 } as const;
+
+export function getTrackHeight(type: TrackType, customHeight?: number): number {
+	if (!Number.isFinite(customHeight)) return TRACK_HEIGHTS[type];
+	return Math.min(
+		TRACK_HEIGHT_LIMITS.max,
+		Math.max(TRACK_HEIGHT_LIMITS.min, customHeight ?? TRACK_HEIGHTS[type])
+	);
 }
 
 /**
@@ -97,13 +114,16 @@ export function getTrackHeight(type: TrackType): number {
  * Note: trackIndex is exclusive - we calculate height BEFORE that track.
  */
 export function getCumulativeHeightBefore(
-	tracks: Array<{ type: TrackType }>,
+	tracks: Array<{ type: TrackType; height?: number }>,
 	trackIndex: number
 ): number {
 	const GAP = 4; // 4px gap between tracks (equivalent to Tailwind's gap-1)
 	return tracks
 		.slice(0, trackIndex)
-		.reduce((sum, track) => sum + getTrackHeight(track.type) + GAP, 0);
+		.reduce(
+			(sum, track) => sum + getTrackHeight(track.type, track.height) + GAP,
+			0
+		);
 }
 
 /**
@@ -115,11 +135,11 @@ export function getCumulativeHeightBefore(
  * Getting this wrong causes timeline scrolling issues and misaligned drop zones.
  */
 export function getTotalTracksHeight(
-	tracks: Array<{ type: TrackType }>
+	tracks: Array<{ type: TrackType; height?: number }>
 ): number {
 	const GAP = 4; // 4px gap between tracks (equivalent to Tailwind's gap-1)
 	const tracksHeight = tracks.reduce(
-		(sum, track) => sum + getTrackHeight(track.type),
+		(sum, track) => sum + getTrackHeight(track.type, track.height),
 		0
 	);
 	const gapsHeight = Math.max(0, tracks.length - 1) * GAP; // n-1 gaps for n tracks
@@ -131,7 +151,7 @@ export const TEST_MEDIA_ID = "test";
 
 // Other timeline constants
 export const TIMELINE_CONSTANTS = {
-	ELEMENT_MIN_WIDTH: 80,
+	ELEMENT_MIN_WIDTH: 2,
 	PIXELS_PER_SECOND: 50,
 	TRACK_HEIGHT: 60, // Default fallback
 	DEFAULT_TEXT_DURATION: 5,

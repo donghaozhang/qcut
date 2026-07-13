@@ -51,7 +51,7 @@ function ensureMainScene(scenes: Scene[]): Scene[] {
 	if (!hasMain) {
 		const mainScene: Scene = {
 			id: generateUUID(),
-			name: "Main scene",
+			name: "主场景",
 			isMain: true,
 			createdAt: new Date(),
 			updatedAt: new Date(),

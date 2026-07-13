@@ -47,8 +47,16 @@ type ElementDurationResolver = ({
 const TRANSITION_TYPES = new Set<ClipTransitionType>([
 	"dissolve",
 	"fade-black",
+	"fade-white",
 	"slide",
 	"wipe",
+	"push",
+	"zoom-blur",
+	"whip-pan",
+	"flash",
+	"light-leak",
+	"rgb-glitch",
+	"shake",
 ]);
 const TRANSITION_DIRECTIONS = new Set<ClipTransitionDirection>([
 	"left",
@@ -153,11 +161,27 @@ function normalizeTransition({
 	const easing = TRANSITION_EASINGS.has(transition.easing)
 		? transition.easing
 		: "easeInOut";
+	const tuning = transition.tuning
+		? {
+				intensity:
+					transition.tuning.intensity === undefined
+						? undefined
+						: Math.min(2, Math.max(0.1, transition.tuning.intensity)),
+				frequency:
+					transition.tuning.frequency === undefined
+						? undefined
+						: Math.min(4, Math.max(0.1, transition.tuning.frequency)),
+				tint: /^#[\da-f]{6}$/i.test(transition.tuning.tint ?? "")
+					? transition.tuning.tint
+					: undefined,
+			}
+		: undefined;
 
 	return {
 		...transition,
 		direction,
 		easing,
+		tuning,
 	};
 }
 

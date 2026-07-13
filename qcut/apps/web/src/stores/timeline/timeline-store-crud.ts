@@ -19,7 +19,11 @@ import {
 	ErrorSeverity,
 } from "@/lib/debug/error-handler";
 import { clampMarkdownDuration } from "@/lib/markdown";
-import { TIMELINE_CONSTANTS } from "@/constants/timeline-constants";
+import {
+	COMPACT_TRACK_HEIGHTS,
+	getTrackHeight,
+	TIMELINE_CONSTANTS,
+} from "@/constants/timeline-constants";
 import {
 	DEFAULT_MEDIA_MASK,
 	normalizeMediaMask,
@@ -29,6 +33,17 @@ import type { TimelineStore } from "./index";
 import { createTrack } from "./index";
 import type { StoreGet, StoreSet } from "./timeline-store-operations";
 import { normalizeTrackAudioSettings } from "@/lib/audio/audio-mix-settings";
+import { applyCaptionStyleToTracks } from "./caption-style-operations";
+import {
+	groupTimelineElements,
+	moveTimelineElementGroup,
+	ungroupTimelineElements,
+} from "./timeline-group-operations";
+import {
+	breakApartMediaContainer,
+	createMediaContainer,
+	selectMulticamClip,
+} from "./timeline-compound-operations";
 
 export interface CrudDeps {
 	updateTracksAndSave: (tracks: TimelineTrack[]) => void;
@@ -402,20 +417,13 @@ export function createCrudOperations(
 			pushHistory = true
 		) => {
 			if (pushHistory) get().pushHistory();
-			const clampedStartTime = Math.max(0, startTime);
 			updateTracksAndSave(
-				get()._tracks.map((t) =>
-					t.id === trackId
-						? {
-								...t,
-								elements: t.elements.map((el) =>
-									el.id === elementId
-										? { ...el, startTime: clampedStartTime }
-										: el
-								),
-							}
-						: t
-				)
+				moveTimelineElementGroup({
+					tracks: get()._tracks,
+					trackId,
+					elementId,
+					startTime,
+				})
 			);
 		},
 
@@ -442,6 +450,104 @@ export function createCrudOperations(
 						: track
 				)
 			);
+		},
+
+		updateTrackHeight: (trackId, height, pushHistory = true) => {
+			const track = get()._tracks.find((candidate) => candidate.id === trackId);
+			if (!track) return;
+			const nextHeight = getTrackHeight(track.type, height);
+			if (getTrackHeight(track.type, track.height) === nextHeight) return;
+			if (pushHistory) get().pushHistory();
+			updateTracksAndSave(
+				get()._tracks.map((candidate) =>
+					candidate.id === trackId
+						? { ...candidate, height: nextHeight }
+						: candidate
+				)
+			);
+		},
+
+		setTrackHeightMode: (mode) => {
+			get().pushHistory();
+			updateTracksAndSave(
+				get()._tracks.map((track) => ({
+					...track,
+					height:
+						mode === "compact" ? COMPACT_TRACK_HEIGHTS[track.type] : undefined,
+				}))
+			);
+		},
+
+		groupSelectedElements: () => {
+			const selectedElements = get().selectedElements;
+			if (selectedElements.length < 2) return null;
+			const groupId = `group-${generateUUID()}`;
+			const result = groupTimelineElements({
+				tracks: get()._tracks,
+				selectedElements,
+				groupId,
+			});
+			if (result.groupedCount < 2) return null;
+			get().pushHistory();
+			updateTracksAndSave(result.tracks);
+			return groupId;
+		},
+
+		ungroupElements: (groupId) => {
+			const result = ungroupTimelineElements({
+				tracks: get()._tracks,
+				groupId,
+			});
+			if (result.ungroupedCount === 0) return 0;
+			get().pushHistory();
+			updateTracksAndSave(result.tracks);
+			return result.ungroupedCount;
+		},
+
+		createMediaContainerFromSelection: (kind) => {
+			const containerId = `${kind}-${generateUUID()}`;
+			const result = createMediaContainer({
+				tracks: get()._tracks,
+				selectedElements: get().selectedElements,
+				containerId,
+				kind,
+			});
+			if (!result.container || !result.trackId) return null;
+			get().pushHistory();
+			updateTracksAndSave(result.tracks);
+			set({
+				selectedElements: [
+					{ trackId: result.trackId, elementId: result.container.id },
+				],
+				selectedTransition: null,
+			});
+			return result.container.id;
+		},
+
+		breakApartMediaContainer: (trackId, elementId) => {
+			const result = breakApartMediaContainer({
+				tracks: get()._tracks,
+				trackId,
+				elementId,
+			});
+			if (result.restoredCount === 0) return 0;
+			get().pushHistory();
+			updateTracksAndSave(result.tracks);
+			set({ selectedElements: [], selectedTransition: null });
+			return result.restoredCount;
+		},
+
+		selectMulticamClip: (trackId, elementId, clipId) => {
+			const result = selectMulticamClip({
+				tracks: get()._tracks,
+				trackId,
+				elementId,
+				clipId,
+			});
+			if (!result.changed) return false;
+			get().pushHistory();
+			updateTracksAndSave(result.tracks);
+			return true;
 		},
 
 		toggleTrackSolo: (trackId) => {
@@ -548,6 +654,28 @@ export function createCrudOperations(
 						: t
 				)
 			);
+		},
+
+		applyCaptionStyle: ({
+			trackId,
+			elementId,
+			style,
+			scope,
+			pushHistory = true,
+		}) => {
+			const result = applyCaptionStyleToTracks({
+				tracks: get()._tracks,
+				selectedElements: get().selectedElements,
+				trackId,
+				elementId,
+				style,
+				scope,
+			});
+			if (result.updatedCount === 0) return 0;
+
+			if (pushHistory) get().pushHistory();
+			updateTracksAndSave(result.tracks);
+			return result.updatedCount;
 		},
 
 		updateStickerElement: (trackId, elementId, updates, pushHistory = true) => {

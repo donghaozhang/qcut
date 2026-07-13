@@ -147,8 +147,16 @@ describe("FFmpeg video transform filters", () => {
 	it.each([
 		{ type: "dissolve", expectedExpression: "A*(1-(" },
 		{ type: "fade-black", expectedExpression: "eq(PLANE,3)" },
+		{ type: "fade-white", expectedExpression: "+255*" },
 		{ type: "slide", direction: "right", expectedExpression: "b0(" },
+		{ type: "push", direction: "down", expectedExpression: "a0(" },
 		{ type: "wipe", direction: "left", expectedExpression: "lt(X" },
+		{ type: "zoom-blur", expectedExpression: "W/2+(X-W/2)" },
+		{ type: "whip-pan", direction: "left", expectedExpression: "0.045*W" },
+		{ type: "flash", expectedExpression: ")))*0.7" },
+		{ type: "light-leak", expectedExpression: "eq(PLANE,0),133" },
+		{ type: "rgb-glitch", expectedExpression: "mod(Y,12)" },
+		{ type: "shake", expectedExpression: "sin((" },
 	] satisfies Array<{
 		type: VideoTransition["type"];
 		direction?: VideoTransition["direction"];

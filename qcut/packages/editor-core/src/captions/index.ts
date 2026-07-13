@@ -11,7 +11,15 @@ export {
 	assColorToRgb,
 	alignToASSAlignment,
 	assAlignmentToAlign,
+	assAlignmentToTextAlign,
 } from "./subtitle-style.js";
+
+export {
+	CAPTION_ANIMATION_TYPES,
+	resolveCaptionAnimation,
+	getCaptionAnimationState,
+	type CaptionAnimationState,
+} from "./caption-animation.js";
 
 export {
 	generateASS,

@@ -1,7 +1,11 @@
-import { describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it } from "vitest";
 import { createMediaMask } from "@/lib/video/media-mask-stack";
-import type { MediaElement } from "@/types/timeline";
-import { buildGeneratedMaskStack } from "../generated-mask-attachment";
+import { useTimelineStore } from "@/stores/timeline/timeline-store";
+import type { MediaElement, TimelineTrack } from "@/types/timeline";
+import {
+	buildGeneratedMaskStack,
+	detachGeneratedMask,
+} from "../generated-mask-attachment";
 
 function mediaElement(overrides: Partial<MediaElement> = {}): MediaElement {
 	return {
@@ -18,6 +22,15 @@ function mediaElement(overrides: Partial<MediaElement> = {}): MediaElement {
 }
 
 describe("generated mask attachment", () => {
+	afterEach(() => {
+		useTimelineStore.setState({
+			_tracks: [],
+			tracks: [],
+			history: [],
+			redoStack: [],
+		});
+	});
+
 	it("prepends a generated mask without disturbing the existing stack", () => {
 		const existing = createMediaMask({
 			id: "existing",
@@ -118,5 +131,57 @@ describe("generated mask attachment", () => {
 			result.masks[0].keyframes?.centerX?.map((keyframe) => keyframe.frame)
 		).toEqual([0, 40]);
 		expect(result.masks[0].tracking?.status).toBe("ready");
+	});
+
+	it("detaches only matching generated masks and records one undo snapshot", () => {
+		const generatedMask = {
+			...createMediaMask({ id: "generated", type: "person", index: 0 }),
+			sourceMediaId: "person-alpha",
+		};
+		const retainedMask = {
+			...createMediaMask({ id: "retained", type: "ellipse", index: 1 }),
+			sourceMediaId: "other-alpha",
+		};
+		const targetedTrack: TimelineTrack = {
+			id: "track-1",
+			name: "Main Track",
+			type: "media",
+			isMain: true,
+			elements: [
+				mediaElement({
+					id: "clip-1",
+					masks: [generatedMask, retainedMask],
+				}),
+				mediaElement({
+					id: "clip-2",
+					masks: [{ ...generatedMask, id: "other-generated" }],
+				}),
+			],
+		};
+		useTimelineStore.setState({
+			_tracks: [targetedTrack],
+			tracks: [targetedTrack],
+			history: [],
+			redoStack: [],
+		});
+
+		const detached = detachGeneratedMask({
+			sourceMediaId: "person-alpha",
+			targetElementId: "clip-1",
+		});
+
+		const state = useTimelineStore.getState();
+		const firstClip = state._tracks[0].elements[0] as MediaElement;
+		const secondClip = state._tracks[0].elements[1] as MediaElement;
+		expect(detached).toBe(1);
+		expect(firstClip.masks?.map((mask) => mask.id)).toEqual(["retained"]);
+		expect(secondClip.masks?.map((mask) => mask.id)).toEqual([
+			"other-generated",
+		]);
+		expect(state.history).toHaveLength(1);
+		expect(state.history[0][0].elements[0]).toMatchObject({
+			id: "clip-1",
+			masks: [{ id: "generated" }, { id: "retained" }],
+		});
 	});
 });
