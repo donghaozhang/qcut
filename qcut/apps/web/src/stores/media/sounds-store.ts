@@ -12,6 +12,7 @@ import type { SoundEffect, SavedSound } from "@/types/sounds";
 import { toast } from "sonner";
 import { createObjectURL, revokeObjectURL } from "@/lib/media/blob-manager";
 import { createFreesoundAssetEntry } from "@/lib/assets/freesound-asset";
+import { ensureAssetResources } from "@/lib/assets/asset-resource-cache";
 import { useAssetLibraryStore } from "@/stores/asset-library-store";
 
 type AudioAssetKind = "sound-effect" | "music";
@@ -369,12 +370,18 @@ export const useSoundsStore = create<SoundsStore>((set, get) => ({
 					error: undefined,
 				},
 			});
-			const response = await fetch(audioUrl);
-			if (!response.ok)
-				throw new Error(`Failed to download audio: ${response.statusText}`);
-
-			const blob = await response.blob();
-			const contentType = response.headers.get("content-type") || "audio/mpeg";
+			const [resource] = await ensureAssetResources({
+				asset,
+				onProgress: ({ progress }) =>
+					updateRuntimeState({
+						asset,
+						patch: { progress: 0.1 + progress * 0.8 },
+					}),
+				roles: ["preview"],
+			});
+			const blob = resource?.blob;
+			if (!blob) throw new Error("Downloaded audio is unavailable");
+			const contentType = resource.mimeType || blob.type || "audio/mpeg";
 			const ext = contentType.includes("ogg")
 				? "ogg"
 				: contentType.includes("wav")
@@ -416,7 +423,7 @@ export const useSoundsStore = create<SoundsStore>((set, get) => ({
 						downloadStatus: "downloaded",
 						cacheStatus: "cached",
 						progress: 1,
-						cacheKey: mediaId,
+						cacheKey: resource.cacheKey,
 						error: undefined,
 					},
 				});

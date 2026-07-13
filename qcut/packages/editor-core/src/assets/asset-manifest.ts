@@ -549,7 +549,7 @@ export function createInitialAssetRuntimeState({
 }: {
 	asset: AssetManifestEntry;
 }): AssetRuntimeState {
-	const isBundled = asset.delivery === "bundled";
+	const requiresDownload = asset.delivery === "remote";
 	const hasCacheableFile = asset.files.length > 0;
 	return {
 		assetKey: assetManifestVersionKey({
@@ -558,12 +558,12 @@ export function createInitialAssetRuntimeState({
 			version: asset.version,
 		}),
 		favorite: false,
-		downloadStatus: isBundled ? "not-required" : "not-downloaded",
+		downloadStatus: requiresDownload ? "not-downloaded" : "not-required",
 		cacheStatus: hasCacheableFile
-			? isBundled
-				? "cached"
-				: "uncached"
+			? requiresDownload
+				? "uncached"
+				: "cached"
 			: "unavailable",
-		progress: isBundled ? 1 : 0,
+		progress: requiresDownload ? 0 : 1,
 	};
 }

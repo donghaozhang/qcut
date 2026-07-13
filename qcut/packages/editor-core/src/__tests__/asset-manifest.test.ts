@@ -190,8 +190,17 @@ describe("asset manifest", () => {
 		).toEqual(["warm-film@2"]);
 	});
 
-	it("initializes bundled and remote runtime states", () => {
+	it("initializes bundled, generated, and remote runtime states", () => {
 		expect(createInitialAssetRuntimeState({ asset: asset() })).toMatchObject({
+			downloadStatus: "not-required",
+			cacheStatus: "cached",
+			progress: 1,
+		});
+		expect(
+			createInitialAssetRuntimeState({
+				asset: asset({ delivery: "generated" }),
+			})
+		).toMatchObject({
 			downloadStatus: "not-required",
 			cacheStatus: "cached",
 			progress: 1,
