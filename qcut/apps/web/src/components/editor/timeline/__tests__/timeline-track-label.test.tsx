@@ -1,7 +1,8 @@
 import { fireEvent, render, screen } from "@testing-library/react";
-import { describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { TimelineTrack } from "@/types/timeline";
 import { TimelineTrackLabel } from "../timeline-track-label";
+import { useLocaleStore } from "@/stores/locale-store";
 
 function renderAudioTrack({ solo = false }: { solo?: boolean } = {}) {
 	const onToggleSolo = vi.fn();
@@ -29,11 +30,19 @@ function renderAudioTrack({ solo = false }: { solo?: boolean } = {}) {
 }
 
 describe("TimelineTrackLabel", () => {
+	beforeEach(() => {
+		useLocaleStore.getState().setLocale({ locale: "en" });
+	});
+
+	afterEach(() => {
+		useLocaleStore.getState().setLocale({ locale: "zh" });
+	});
+
 	it("exposes the existing audio solo state", () => {
 		renderAudioTrack({ solo: true });
 
 		expect(
-			screen.getByRole("button", { name: "Disable solo Dialogue" })
+			screen.getByRole("button", { name: "Disable solo for Dialogue" })
 		).toHaveAttribute("aria-pressed", "true");
 	});
 

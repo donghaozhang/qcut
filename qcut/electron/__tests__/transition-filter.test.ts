@@ -128,7 +128,7 @@ describe("FFmpeg transition filters", () => {
 		{ type: "zoom-blur", direction: undefined, expected: "W/2+(X-W/2)" },
 		{ type: "whip-pan", direction: "left", expected: "0.045*W" },
 		{ type: "flash", direction: undefined, expected: "eq(PLANE,0),255" },
-		{ type: "light-leak", direction: undefined, expected: "eq(PLANE,0),133" },
+		{ type: "light-leak", direction: undefined, expected: "eq(PLANE,0),90" },
 		{ type: "rgb-glitch", direction: undefined, expected: "mod(Y,12)" },
 		{ type: "shake", direction: undefined, expected: "sin((" },
 	] satisfies Array<{
@@ -166,13 +166,13 @@ describe("FFmpeg transition filters", () => {
 		expect(strong.expression).toContain("0.07200000000000001*W");
 	});
 
-	it("converts a tint to YUV plane values for FFmpeg", () => {
+	it("converts a tint to gbrap plane values for FFmpeg", () => {
 		const filter = buildXfadeTransitionFilter({
 			transition: transition({
 				type: "light-leak",
 				tuning: { tint: "#38bdf8" },
 			}),
 		});
-		expect(filter.expression).toContain("eq(PLANE,0),156");
+		expect(filter.expression).toContain("eq(PLANE,0),189");
 	});
 });

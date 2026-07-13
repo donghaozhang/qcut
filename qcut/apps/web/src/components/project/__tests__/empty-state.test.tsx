@@ -1,6 +1,7 @@
-import { describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { render, screen, fireEvent } from "@testing-library/react";
 import { NoProjects, NoResults } from "../empty-state";
+import { useLocaleStore } from "@/stores/locale-store";
 
 vi.mock("lucide-react", () => ({
 	Plus: () => <svg data-testid="plus-icon" />,
@@ -23,6 +24,14 @@ vi.mock("@/components/ui/button", () => ({
 		</button>
 	),
 }));
+
+beforeEach(() => {
+	useLocaleStore.getState().setLocale({ locale: "en" });
+});
+
+afterEach(() => {
+	useLocaleStore.getState().setLocale({ locale: "zh" });
+});
 
 describe("NoProjects", () => {
 	it("renders branded heading", () => {
@@ -61,7 +70,7 @@ describe("NoResults", () => {
 	it("calls onClearSearch when button is clicked", () => {
 		const onClearSearch = vi.fn();
 		render(<NoResults searchQuery="test" onClearSearch={onClearSearch} />);
-		fireEvent.click(screen.getByText("Clear Search"));
+		fireEvent.click(screen.getByText("Clear search"));
 		expect(onClearSearch).toHaveBeenCalledOnce();
 	});
 });

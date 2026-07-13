@@ -139,10 +139,8 @@ function tintPlaneExpression({ tint }: { tint: string | undefined }): string {
 	const [red, green, blue] = match
 		? match.slice(1).map((part) => Number.parseInt(part, 16))
 		: [255, 90, 31];
-	const y = Math.round(0.299 * red + 0.587 * green + 0.114 * blue);
-	const u = Math.round(-0.169 * red - 0.331 * green + 0.5 * blue + 128);
-	const v = Math.round(0.5 * red - 0.419 * green - 0.081 * blue + 128);
-	return `if(eq(PLANE,0),${y},if(eq(PLANE,1),${u},if(eq(PLANE,2),${v},255)))`;
+	// The xfade pipeline runs in gbrap, so planes 0/1/2 are green/blue/red.
+	return `if(eq(PLANE,0),${green},if(eq(PLANE,1),${blue},if(eq(PLANE,2),${red},255)))`;
 }
 
 function planeSample({

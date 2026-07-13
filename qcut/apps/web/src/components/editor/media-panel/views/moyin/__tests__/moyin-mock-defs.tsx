@@ -87,6 +87,10 @@ export const lucideReact = {
 	Wand2Icon: icon("wand-2"),
 	WandIcon: icon("wand"),
 	WrenchIcon: icon("wrench"),
+	AudioLinesIcon: icon("audio-lines"),
+	CaptionsIcon: icon("captions"),
+	LayoutTemplateIcon: icon("layout-template"),
+	SlidersHorizontalIcon: icon("sliders-horizontal"),
 };
 
 // ── UI Components ──

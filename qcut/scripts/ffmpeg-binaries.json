@@ -62,13 +62,13 @@
 		"win32-x64": {
 			"platform": "win32",
 			"arch": "x64",
-			"versionToken": "n8.1.2-20260627",
+			"versionToken": "n8.1.2-20260628",
 			"hardwareAccelerators": ["d3d11va", "dxva2"],
 			"artifacts": [
 				{
 					"id": "win32-x64-tools",
-					"url": "https://github.com/BtbN/FFmpeg-Builds/releases/download/autobuild-2026-06-27-13-21/ffmpeg-n8.1.2-win64-gpl-8.1.zip",
-					"sha256": "98f2083088af6e3d2e40fb67c82c1347762c9f4fd504f5e6f4b5261a824073c4",
+					"url": "https://github.com/BtbN/FFmpeg-Builds/releases/download/autobuild-2026-06-28-13-24/ffmpeg-n8.1.2-win64-gpl-8.1.zip",
+					"sha256": "dd247ae801e42777eb8d8b0a0c322f78862c265dad5749f9859cc379665e279e",
 					"archiveFormat": "zip",
 					"files": {
 						"ffmpeg": "ffmpeg-n8.1.2-win64-gpl-8.1/bin/ffmpeg.exe",
@@ -80,13 +80,13 @@
 		"linux-x64": {
 			"platform": "linux",
 			"arch": "x64",
-			"versionToken": "n8.1.2-20260627",
+			"versionToken": "n8.1.2-20260628",
 			"hardwareAccelerators": ["vaapi", "vdpau"],
 			"artifacts": [
 				{
 					"id": "linux-x64-tools",
-					"url": "https://github.com/BtbN/FFmpeg-Builds/releases/download/autobuild-2026-06-27-13-21/ffmpeg-n8.1.2-linux64-gpl-8.1.tar.xz",
-					"sha256": "1fa7d66a8bc3cd5f7b340e365d274106f182ea14269851230c83e4f69a57fc65",
+					"url": "https://github.com/BtbN/FFmpeg-Builds/releases/download/autobuild-2026-06-28-13-24/ffmpeg-n8.1.2-linux64-gpl-8.1.tar.xz",
+					"sha256": "1db4ef08de1bc61493a86905a89f6e05d6aa8a4608425d54273127db85dfe798",
 					"archiveFormat": "tar.xz",
 					"files": {
 						"ffmpeg": "ffmpeg-n8.1.2-linux64-gpl-8.1/bin/ffmpeg",

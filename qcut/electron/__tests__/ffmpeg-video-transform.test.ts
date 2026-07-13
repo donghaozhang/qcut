@@ -154,7 +154,7 @@ describe("FFmpeg video transform filters", () => {
 		{ type: "zoom-blur", expectedExpression: "W/2+(X-W/2)" },
 		{ type: "whip-pan", direction: "left", expectedExpression: "0.045*W" },
 		{ type: "flash", expectedExpression: ")))*0.7" },
-		{ type: "light-leak", expectedExpression: "eq(PLANE,0),133" },
+		{ type: "light-leak", expectedExpression: "eq(PLANE,0),90" },
 		{ type: "rgb-glitch", expectedExpression: "mod(Y,12)" },
 		{ type: "shake", expectedExpression: "sin((" },
 	] satisfies Array<{

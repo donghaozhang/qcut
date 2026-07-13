@@ -718,7 +718,9 @@ describe.skipIf(!fs.existsSync(ffmpegPath))(
 				}
 				if (item.type === "flash") {
 					expect(midpoint[0]).toBeGreaterThan(180);
-					expect(midpoint[1]).toBeGreaterThan(180);
+					// Green peaks at 0.7*255 ≈ 178: both source clips have zero green
+					// and the flash overlay is capped at alpha 0.7 by design.
+					expect(midpoint[1]).toBeGreaterThan(160);
 					expect(midpoint[2]).toBeGreaterThan(180);
 					continue;
 				}
