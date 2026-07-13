@@ -37,7 +37,10 @@ const DOWNLOAD_MAX_RETRIES = 3;
 const DOWNLOAD_RETRY_DELAY_MS = 2000;
 const DOWNLOAD_TIMEOUT_MS = 300_000;
 
-function runArchiveCommand({ args }: { args: string[] }): Promise<void> {
+async function runArchiveCommand({ args }: { args: string[] }): Promise<void> {
+	// bun install does not always preserve the executable bit on 7zip-bin's
+	// bundled binaries; electron-builder applies the same workaround.
+	if (process.platform !== "win32") await chmod(path7za, 0o755);
 	return new Promise((resolve, reject) => {
 		const child = spawn(path7za, args, {
 			stdio: ["ignore", "ignore", "pipe"],
