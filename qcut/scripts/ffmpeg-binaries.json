@@ -81,7 +81,7 @@
 			"platform": "linux",
 			"arch": "x64",
 			"versionToken": "n8.1.2-20260628",
-			"hardwareAccelerators": ["vaapi", "vdpau"],
+			"hardwareAccelerators": ["vaapi"],
 			"artifacts": [
 				{
 					"id": "linux-x64-tools",
