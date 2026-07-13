@@ -35,6 +35,7 @@ const STAGING_ROOT = join(process.cwd(), "electron", "resources", "ffmpeg");
 const CACHE_ROOT = join(process.cwd(), "node_modules", ".cache", "qcut-ffmpeg");
 const DOWNLOAD_MAX_RETRIES = 3;
 const DOWNLOAD_RETRY_DELAY_MS = 2000;
+const DOWNLOAD_TIMEOUT_MS = 300_000;
 
 function runArchiveCommand({ args }: { args: string[] }): Promise<void> {
 	return new Promise((resolve, reject) => {
@@ -131,7 +132,9 @@ async function downloadArtifact({
 		const tempPath = `${archivePath}.download`;
 		try {
 			await rm(tempPath, { force: true });
-			const response = await fetch(artifact.url);
+			const response = await fetch(artifact.url, {
+				signal: AbortSignal.timeout(DOWNLOAD_TIMEOUT_MS),
+			});
 			if (!response.ok) {
 				throw new Error(
 					`Download failed (${response.status} ${response.statusText})`

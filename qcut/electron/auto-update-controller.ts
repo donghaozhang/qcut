@@ -160,6 +160,7 @@ export function createAutoUpdateController({
 	let preferences = readUpdatePreferences({ userDataPath });
 	let interval: NodeJS.Timeout | undefined;
 	let started = false;
+	let listenersRegistered = false;
 	let checkPromise: Promise<UpdateState> | undefined;
 	let downloadPromise: Promise<UpdateState> | undefined;
 	let state: UpdateState = {
@@ -352,7 +353,10 @@ export function createAutoUpdateController({
 			updater.autoInstallOnAppQuit = true;
 			updater.allowPrerelease = channel !== "latest";
 			updater.channel = channel;
-			registerListeners();
+			if (!listenersRegistered) {
+				registerListeners();
+				listenersRegistered = true;
+			}
 			logger.log(
 				`[AutoUpdater] Started for ${state.currentVersion}; channel=${channel}; automatic=${preferences.automaticUpdates}`
 			);

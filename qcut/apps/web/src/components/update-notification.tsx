@@ -46,7 +46,7 @@ function formatBytes({ bytes }: { bytes?: number }): string {
 async function resolveHighlights({
 	state,
 }: {
-	state: PlatformUpdateState;
+	state: Pick<PlatformUpdateState, "version" | "releaseNotes">;
 }): Promise<string[]> {
 	if (!state.version) return [];
 	const notes = await fetchReleaseNotes(state.version);
@@ -73,8 +73,23 @@ export function UpdateNotification() {
 
 	const applyState = useCallback((nextState: PlatformUpdateState) => {
 		setState(nextState);
-		void resolveHighlights({ state: nextState }).then(setHighlights);
 	}, []);
+
+	const { version, releaseNotes } = state;
+
+	useEffect(() => {
+		let active = true;
+		void resolveHighlights({ state: { version, releaseNotes } }).then(
+			(resolved) => {
+				if (active) {
+					setHighlights(resolved);
+				}
+			}
+		);
+		return () => {
+			active = false;
+		};
+	}, [version, releaseNotes]);
 
 	const handleInstall = useCallback(() => {
 		if (!hasUpdates) return;

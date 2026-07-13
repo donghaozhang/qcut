@@ -44,7 +44,13 @@ export function registerUpdateHandlers(deps: MainIpcDeps): void {
 		async (_event, preferences: Partial<UpdatePreferences>) => {
 			if (!updateController)
 				return { automaticUpdates: false, maxAutomaticDownloadBytes: 0 };
-			return updateController.setPreferences({ preferences });
+			try {
+				return updateController.setPreferences({ preferences });
+			} catch (error: unknown) {
+				const message = error instanceof Error ? error.message : String(error);
+				logger.error("Error saving update preferences:", message);
+				return updateController.getPreferences();
+			}
 		}
 	);
 
@@ -62,7 +68,13 @@ export function registerUpdateHandlers(deps: MainIpcDeps): void {
 
 	ipcMain.handle("download-update", async () => {
 		if (!app.isPackaged || !updateController) return unavailableState();
-		return updateController.downloadUpdate();
+		try {
+			return await updateController.downloadUpdate();
+		} catch (error: unknown) {
+			const message = error instanceof Error ? error.message : String(error);
+			logger.error("Error downloading update:", message);
+			return { ...unavailableState(), error: message };
+		}
 	});
 
 	ipcMain.handle("install-update", async () => {

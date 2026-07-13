@@ -37,8 +37,9 @@ async function pruneForeignFFmpegTargets({
 	const manifest = await loadFFmpegManifest();
 	const stagedTargets = getTargetKeys({ manifest });
 	const arch = ELECTRON_BUILDER_ARCH_NAMES[context.arch];
-	if (!arch)
+	if (!arch) {
 		throw new Error(`Unsupported electron-builder arch: ${context.arch}`);
+	}
 	const targetKey = `${context.electronPlatformName}-${arch}`;
 	if (!stagedTargets.includes(targetKey)) {
 		throw new Error(`No pinned FFmpeg target for packaged app: ${targetKey}`);
