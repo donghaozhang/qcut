@@ -298,6 +298,18 @@ export {
 	type AssetRuntimeState,
 } from "./assets/index.js";
 
+// Collaboration — portable review packages and deterministic conflict merging
+export {
+	MAX_REVIEW_COMMENT_LENGTH,
+	MAX_REVIEW_COMMENTS,
+	REVIEW_PACKAGE_VERSION,
+	isPortableReviewComment,
+	isReviewPackage,
+	mergeReviewComments,
+	type PortableReviewComment,
+	type ReviewPackage,
+} from "./collaboration/index.js";
+
 // Templates — versioned slot-based timeline template protocol
 export {
 	TEMPLATE_ASPECT_RATIOS,

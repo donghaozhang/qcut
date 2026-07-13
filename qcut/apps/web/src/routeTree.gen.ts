@@ -20,6 +20,7 @@ import { Route as ContributorsRouteImport } from './routes/contributors'
 import { Route as ChangelogRouteImport } from './routes/changelog'
 import { Route as BlogRouteImport } from './routes/blog'
 import { Route as IndexRouteImport } from './routes/index'
+import { Route as ReviewTokenRouteImport } from './routes/review.$token'
 import { Route as EditorProject_idRouteImport } from './routes/editor.$project_id'
 import { Route as BlogSlugRouteImport } from './routes/blog.$slug'
 
@@ -78,6 +79,11 @@ const IndexRoute = IndexRouteImport.update({
   path: '/',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ReviewTokenRoute = ReviewTokenRouteImport.update({
+  id: '/review/$token',
+  path: '/review/$token',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const EditorProject_idRoute = EditorProject_idRouteImport.update({
   id: '/editor/$project_id',
   path: '/editor/$project_id',
@@ -105,6 +111,7 @@ export interface FileRoutesByFullPath {
   '/why-not-capcut': typeof WhyNotCapcutRoute
   '/blog/$slug': typeof BlogSlugRoute
   '/editor/$project_id': typeof EditorProject_idRoute
+  '/review/$token': typeof ReviewTokenRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
@@ -120,6 +127,7 @@ export interface FileRoutesByTo {
   '/why-not-capcut': typeof WhyNotCapcutRoute
   '/blog/$slug': typeof BlogSlugRoute
   '/editor/$project_id': typeof EditorProject_idRoute
+  '/review/$token': typeof ReviewTokenRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
@@ -136,6 +144,7 @@ export interface FileRoutesById {
   '/why-not-capcut': typeof WhyNotCapcutRoute
   '/blog/$slug': typeof BlogSlugRoute
   '/editor/$project_id': typeof EditorProject_idRoute
+  '/review/$token': typeof ReviewTokenRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
@@ -153,6 +162,7 @@ export interface FileRouteTypes {
     | '/why-not-capcut'
     | '/blog/$slug'
     | '/editor/$project_id'
+    | '/review/$token'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
@@ -168,6 +178,7 @@ export interface FileRouteTypes {
     | '/why-not-capcut'
     | '/blog/$slug'
     | '/editor/$project_id'
+    | '/review/$token'
   id:
     | '__root__'
     | '/'
@@ -183,6 +194,7 @@ export interface FileRouteTypes {
     | '/why-not-capcut'
     | '/blog/$slug'
     | '/editor/$project_id'
+    | '/review/$token'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
@@ -198,6 +210,7 @@ export interface RootRouteChildren {
   TermsRoute: typeof TermsRoute
   WhyNotCapcutRoute: typeof WhyNotCapcutRoute
   EditorProject_idRoute: typeof EditorProject_idRoute
+  ReviewTokenRoute: typeof ReviewTokenRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -279,6 +292,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof IndexRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/review/$token': {
+      id: '/review/$token'
+      path: '/review/$token'
+      fullPath: '/review/$token'
+      preLoaderRoute: typeof ReviewTokenRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/editor/$project_id': {
       id: '/editor/$project_id'
       path: '/editor/$project_id'
@@ -319,6 +339,7 @@ const rootRouteChildren: RootRouteChildren = {
   TermsRoute: TermsRoute,
   WhyNotCapcutRoute: WhyNotCapcutRoute,
   EditorProject_idRoute: EditorProject_idRoute,
+  ReviewTokenRoute: ReviewTokenRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
