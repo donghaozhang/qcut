@@ -131,6 +131,7 @@ export function TransitionPreview({
 			<div className="absolute inset-x-2 bottom-1.5 h-0.5 overflow-hidden rounded-full bg-white/25">
 				<div
 					className="h-full rounded-full bg-white/85"
+					data-testid="transition-preview-progress"
 					style={{ width: `${progress * 100}%` }}
 				/>
 			</div>

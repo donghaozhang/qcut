@@ -8,9 +8,9 @@ import {
 	test,
 } from "./helpers/electron-helpers";
 
-const screenshotPath = path.resolve(
+const screenshotDirectory = path.resolve(
 	process.cwd(),
-	"output/playwright/qcut-transition-electron-e2e.png"
+	"output/playwright/transition-workflow"
 );
 
 interface ExposedMediaState {
@@ -204,6 +204,28 @@ test.describe("Clip transition workflow", () => {
 				}))
 			);
 		});
+		const recommendations = page.getByTestId("transition-recommendations");
+		await expect(recommendations).toBeVisible();
+		await expect(recommendations.getByRole("button")).toHaveCount(3);
+		const previewCard = page.getByTestId("transition-card-whip-pan-left");
+		await previewCard.hover();
+		const previewProgress = previewCard.getByTestId(
+			"transition-preview-progress"
+		);
+		await expect
+			.poll(() =>
+				previewProgress.evaluate((element) =>
+					Number.parseFloat((element as HTMLElement).style.width)
+				)
+			)
+			.toBeGreaterThan(0);
+		await mkdir(screenshotDirectory, { recursive: true });
+		await page.screenshot({
+			path: path.join(
+				screenshotDirectory,
+				"01-recommendations-and-previews.png"
+			),
+		});
 		await page.getByTestId("transition-card-whip-pan-left").dblclick();
 		await expect
 			.poll(() =>
@@ -253,8 +275,13 @@ test.describe("Clip transition workflow", () => {
 		await expect.poll(() => previewVideos.count()).toBeGreaterThanOrEqual(2);
 		await page.waitForTimeout(250);
 
-		await mkdir(path.dirname(screenshotPath), { recursive: true });
-		await page.screenshot({ path: screenshotPath, animations: "disabled" });
+		await page.screenshot({
+			path: path.join(
+				screenshotDirectory,
+				"02-applied-transition-properties.png"
+			),
+			animations: "disabled",
+		});
 		await page.getByRole("button", { name: "删除转场" }).click();
 		await expect(marker).toHaveCount(0);
 		await page.waitForTimeout(1100);

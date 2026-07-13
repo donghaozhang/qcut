@@ -1,6 +1,6 @@
 import { useMemo, useState } from "react";
 import type { DragEvent } from "react";
-import { SearchIcon } from "lucide-react";
+import { SearchIcon, SparklesIcon } from "lucide-react";
 import { toast } from "sonner";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
@@ -12,12 +12,19 @@ import { transitionCategories } from "./transition-categories";
 import {
 	filterTransitionPresets,
 	getClipTransitionPresetConfig,
+	transitionPresets,
 	type ClipTransitionPresetConfig,
 	type TransitionCategory,
 	type TransitionPreset,
 } from "./transition-presets";
 import { TransitionCard } from "./transition-card";
 import { getTransitionApplyState } from "./transition-apply-state";
+import { recommendTransitions } from "./transition-recommendations";
+import { useBeatDetectionStore } from "@/stores/beat-detection-store";
+import { getTimelineElementDuration } from "@/lib/timeline";
+import { collectTimelineBeats } from "@/lib/audio/timeline-beats";
+import { buildTransitionContentText } from "./transition-content-analysis";
+import { useTransitionContentAnalysis } from "./use-transition-content-analysis";
 
 function encodeDragPayload({
 	preset,
@@ -44,6 +51,7 @@ export function TransitionsView() {
 	const tracks = useTimelineStore((state) => state.tracks);
 	const addTransition = useTimelineStore((state) => state.addTransition);
 	const mediaItems = useMediaStore((state) => state.mediaItems);
+	const beatCache = useBeatDetectionStore((state) => state.cache);
 	const favorites = useAssetLibraryStore((state) => state.favorites);
 	const toggleFavorite = useAssetLibraryStore((state) => state.toggleFavorite);
 	const favoriteIds = useMemo(
@@ -79,8 +87,62 @@ export function TransitionsView() {
 			to: toMedia?.thumbnailUrl,
 		};
 	}, [applyState, mediaItems]);
+	const visualSignals = useTransitionContentAnalysis({
+		sources: previewSources,
+	});
+	const recommendations = useMemo(() => {
+		if (applyState.status !== "ready") return [];
+		const track = tracks.find(
+			(candidate) => candidate.id === applyState.trackId
+		);
+		const fromElement = track?.elements.find(
+			(candidate) => candidate.id === applyState.fromElementId
+		);
+		const toElement = track?.elements.find(
+			(candidate) => candidate.id === applyState.toElementId
+		);
+		if (
+			!track ||
+			fromElement?.type !== "media" ||
+			toElement?.type !== "media"
+		) {
+			return [];
+		}
+		const absoluteBeatTimes = collectTimelineBeats({ beatCache, tracks }).map(
+			(beat) => beat.timestamp
+		);
+		const fromMedia = mediaItems.find(
+			(item) => item.id === fromElement.mediaId
+		);
+		const toMedia = mediaItems.find((item) => item.id === toElement.mediaId);
+		return recommendTransitions({
+			beatTimes: absoluteBeatTimes,
+			cutTime: toElement.startTime,
+			fromDuration: getTimelineElementDuration({ element: fromElement }),
+			fromName: buildTransitionContentText({
+				fallbackName: fromElement.name,
+				mediaItem: fromMedia,
+			}),
+			maxDuration: applyState.maxDuration,
+			presets: transitionPresets.filter((preset) =>
+				Boolean(getClipTransitionPresetConfig({ preset }))
+			),
+			toDuration: getTimelineElementDuration({ element: toElement }),
+			toName: buildTransitionContentText({
+				fallbackName: toElement.name,
+				mediaItem: toMedia,
+			}),
+			visualSignals,
+		});
+	}, [applyState, beatCache, mediaItems, tracks, visualSignals]);
 
-	const handleApply = ({ preset }: { preset: TransitionPreset }) => {
+	const handleApply = ({
+		duration,
+		preset,
+	}: {
+		duration?: number;
+		preset: TransitionPreset;
+	}) => {
 		if (applyState.status !== "ready") {
 			toast.error(applyState.message);
 			return;
@@ -101,7 +163,10 @@ export function TransitionsView() {
 			type: config.type,
 			direction: config.direction,
 			tuning: config.tuning,
-			duration: Math.min(preset.defaultDuration, applyState.maxDuration),
+			duration: Math.min(
+				duration ?? preset.defaultDuration,
+				applyState.maxDuration
+			),
 			easing: "easeInOut",
 		});
 		if (!transitionId) {
@@ -176,6 +241,62 @@ export function TransitionsView() {
 							{applyState.message}
 						</span>
 					</div>
+					{recommendations.length > 0 ? (
+						<div
+							className="mt-2 border-t border-border/50 pt-2"
+							data-testid="transition-recommendations"
+						>
+							<div className="mb-1.5 flex items-center gap-1 text-[10px] font-medium text-primary">
+								<SparklesIcon className="h-3 w-3">
+									<title>智能转场推荐</title>
+								</SparklesIcon>
+								<span>智能推荐</span>
+							</div>
+							<div className="flex gap-1.5 overflow-x-auto pb-0.5">
+								{recommendations.map((recommendation) => {
+									const preset = transitionPresets.find(
+										(candidate) => candidate.id === recommendation.presetId
+									);
+									if (!preset) return null;
+									const applyRecommendation = () => {
+										setSelectedPresetId(preset.id);
+										handleApply({
+											duration: recommendation.duration,
+											preset,
+										});
+									};
+									return (
+										<button
+											type="button"
+											key={recommendation.presetId}
+											className="min-w-28 shrink-0 border border-primary/30 bg-primary/5 px-2 py-1.5 text-left transition-colors hover:border-primary/60 hover:bg-primary/10 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary"
+											onClick={applyRecommendation}
+											onKeyDown={(event) => {
+												if (event.key !== "Enter" && event.key !== " ") return;
+												event.preventDefault();
+												applyRecommendation();
+											}}
+											aria-label={`应用推荐转场 ${preset.localizedName}`}
+											title={`应用 ${preset.localizedName}: ${recommendation.reason}`}
+											data-recommendation-score={recommendation.score.toFixed(
+												2
+											)}
+											data-recommendation-duration={recommendation.duration.toFixed(
+												3
+											)}
+										>
+											<span className="block truncate text-[10px] font-medium text-foreground">
+												{preset.localizedName}
+											</span>
+											<span className="block truncate text-[9px] text-muted-foreground">
+												{recommendation.reason}
+											</span>
+										</button>
+									);
+								})}
+							</div>
+						</div>
+					) : null}
 				</div>
 				<div className="min-h-0 flex-1 overflow-y-auto p-3">
 					{visiblePresets.length > 0 ? (

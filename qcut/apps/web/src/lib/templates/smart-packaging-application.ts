@@ -10,6 +10,7 @@ import { getTimelineElementDuration } from "@/lib/timeline";
 import { TEXT_TEMPLATES } from "@/lib/text/text-template-registry";
 import { generateUUID } from "@/lib/utils";
 import { useBeatDetectionStore } from "@/stores/beat-detection-store";
+import { collectTimelineBeats } from "@/lib/audio/timeline-beats";
 import { useProjectStore } from "@/stores/project-store";
 import { useTimelineStore } from "@/stores/timeline/timeline-store";
 import { createTrack } from "@/stores/timeline/utils";
@@ -514,21 +515,14 @@ export function collectSmartPackagingSources({
 					endTime: element.startTime + duration,
 				});
 			}
-			if (element.type !== "media") continue;
-			const result = beatCache.get(element.id);
-			if (!result) continue;
-			const sourceStart = element.trimStart;
-			const sourceEnd = sourceStart + duration;
-			for (const beat of result.beats) {
-				if (beat.timestamp < sourceStart || beat.timestamp > sourceEnd)
-					continue;
-				beats.push({
-					timestamp: element.startTime + beat.timestamp - sourceStart,
-					strength: beat.strength,
-					downbeat: beat.isDownbeat,
-				});
-			}
 		}
+	}
+	for (const beat of collectTimelineBeats({ beatCache, fps, tracks })) {
+		beats.push({
+			timestamp: beat.timestamp,
+			strength: beat.strength,
+			downbeat: beat.isDownbeat,
+		});
 	}
 
 	return {
