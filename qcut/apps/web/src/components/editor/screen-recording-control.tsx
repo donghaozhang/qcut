@@ -29,6 +29,7 @@ import {
 } from "@/components/ui/popover";
 import { Switch } from "@/components/ui/switch";
 import { Slider } from "@/components/ui/slider";
+import { useTranslation } from "@/lib/i18n";
 
 const RECORDING_SHORTCUT_KEY = "r";
 
@@ -59,6 +60,7 @@ function isEditableTarget({ target }: { target: EventTarget | null }): boolean {
 }
 
 export function ScreenRecordingControl() {
+	const { t } = useTranslation();
 	const reportError = useErrorReporter("ScreenRecordingControl");
 	const [status, setStatus] = useState<ScreenRecordingStatus | null>(
 		getCachedScreenRecordingStatus()
@@ -131,30 +133,34 @@ export function ScreenRecordingControl() {
 			if (status?.recording) {
 				const stopResult = await stopScreenRecording();
 				if (stopResult.filePath) {
-					toast("Screen recording saved", {
+					toast(t("editor.header.recordingSaved"), {
 						description: stopResult.filePath,
 					});
 				} else {
-					toast("Screen recording stopped");
+					toast(t("editor.header.recordingStopped"));
 				}
 			} else {
 				const startResult = await startScreenRecording();
-				toast("Screen recording started", {
-					description: `Saving to ${startResult.filePath}`,
+				toast(t("editor.header.recordingStarted"), {
+					description: t("editor.header.savingTo", {
+						path: startResult.filePath,
+					}),
 				});
 			}
 			await refreshStatus();
 		} catch (error) {
 			const message =
-				error instanceof Error ? error.message : "Unknown recording error";
-			toast("Screen recording failed", {
+				error instanceof Error
+					? error.message
+					: t("editor.header.unknownRecordingError");
+			toast(t("editor.header.recordingFailed"), {
 				description: message,
 			});
 			reportError(error, "toggle recording", { showToast: false });
 		} finally {
 			setIsBusy(false);
 		}
-	}, [isBusy, refreshStatus, status?.recording, reportError]);
+	}, [isBusy, refreshStatus, status?.recording, reportError, t]);
 
 	const handleButtonKeyDown = useCallback(
 		({ key }: KeyboardEvent<HTMLButtonElement>): void => {
@@ -218,7 +224,9 @@ export function ScreenRecordingControl() {
 	}, [handleGlobalShortcut, reportError]);
 
 	const recordingActive = status?.recording;
-	const buttonLabel = recordingActive ? `REC ${elapsedLabel}` : "Record";
+	const buttonLabel = recordingActive
+		? t("editor.header.recording", { time: elapsedLabel })
+		: t("editor.header.record");
 
 	return (
 		<div className="flex items-center gap-1">
@@ -237,11 +245,15 @@ export function ScreenRecordingControl() {
 				onKeyDown={handleButtonKeyDown}
 				disabled={isBusy}
 				data-testid="screen-recording-toggle-button"
-				aria-label={recordingActive ? "Stop recording" : "Start recording"}
+				aria-label={
+					recordingActive
+						? t("editor.header.stopRecording")
+						: t("editor.header.startRecording")
+				}
 				title={
 					recordingActive
-						? "Stop screen recording (Ctrl/Cmd + Shift + R)"
-						: "Start screen recording (Ctrl/Cmd + Shift + R)"
+						? t("editor.header.stopRecordingHint")
+						: t("editor.header.startRecordingHint")
 				}
 			>
 				{isBusy ? (
@@ -259,6 +271,7 @@ export function ScreenRecordingControl() {
 }
 
 function MicPopover({ disabled }: { disabled: boolean }) {
+	const { t } = useTranslation();
 	const micEnabled = useScreenRecordingEnhancementStore((s) => s.micEnabled);
 	const setMicEnabled = useScreenRecordingEnhancementStore(
 		(s) => s.setMicEnabled
@@ -299,7 +312,11 @@ function MicPopover({ disabled }: { disabled: boolean }) {
 					variant="outline"
 					className={`h-7 w-7 p-0 ${micEnabled ? "border-blue-500/60 text-blue-500" : ""}`}
 					disabled={disabled}
-					aria-label={micEnabled ? "Microphone on" : "Microphone off"}
+					aria-label={
+						micEnabled
+							? t("editor.header.microphoneOn")
+							: t("editor.header.microphoneOff")
+					}
 					data-testid="mic-toggle-button"
 				>
 					<MicIcon className="h-3.5 w-3.5" />
@@ -308,11 +325,13 @@ function MicPopover({ disabled }: { disabled: boolean }) {
 			<PopoverContent className="w-64 p-3 space-y-3" align="end">
 				{/* Mic toggle */}
 				<div className="flex items-center justify-between">
-					<span className="text-xs font-medium">Microphone</span>
+					<span className="text-xs font-medium">
+						{t("editor.header.microphone")}
+					</span>
 					<Switch
 						checked={micEnabled}
 						onCheckedChange={setMicEnabled}
-						aria-label="Toggle microphone"
+						aria-label={t("editor.header.toggleMicrophone")}
 					/>
 				</div>
 
@@ -326,7 +345,7 @@ function MicPopover({ disabled }: { disabled: boolean }) {
 							}`}
 							onClick={() => setMicDeviceId(null)}
 						>
-							System default
+							{t("editor.header.systemDefault")}
 						</button>
 						{devices.map((d) => (
 							<button
@@ -346,7 +365,9 @@ function MicPopover({ disabled }: { disabled: boolean }) {
 				{/* Gain slider */}
 				{micEnabled && (
 					<div className="space-y-1">
-						<span className="text-xs text-muted-foreground">Gain</span>
+						<span className="text-xs text-muted-foreground">
+							{t("editor.header.gain")}
+						</span>
 						<div className="flex items-center gap-2">
 							<Slider
 								min={0}
@@ -365,11 +386,13 @@ function MicPopover({ disabled }: { disabled: boolean }) {
 
 				{/* System audio */}
 				<div className="flex items-center justify-between pt-1 border-t border-border/50">
-					<span className="text-xs font-medium">System audio</span>
+					<span className="text-xs font-medium">
+						{t("editor.header.systemAudio")}
+					</span>
 					<Switch
 						checked={systemAudioEnabled}
 						onCheckedChange={setSystemAudioEnabled}
-						aria-label="Toggle system audio"
+						aria-label={t("editor.header.toggleSystemAudio")}
 					/>
 				</div>
 			</PopoverContent>

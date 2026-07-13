@@ -1,7 +1,7 @@
-import React from "react";
 import { cn } from "@/lib/utils";
 import { X } from "lucide-react";
 import { PanelViewType, PanelView } from "@/types/panel";
+import { useTranslation } from "@/lib/i18n";
 
 interface PanelTabsProps {
 	activeTab: PanelViewType;
@@ -9,6 +9,8 @@ interface PanelTabsProps {
 }
 
 export function PanelTabs({ activeTab, onTabChange }: PanelTabsProps) {
+	const { t } = useTranslation();
+
 	return (
 		<div className="flex border-b border-border">
 			<button
@@ -22,7 +24,7 @@ export function PanelTabs({ activeTab, onTabChange }: PanelTabsProps) {
 						: "border-transparent text-muted-foreground hover:text-foreground"
 				)}
 			>
-				Properties
+				{t("editor.panel.properties")}
 			</button>
 			<div className="flex items-center">
 				<button
@@ -36,7 +38,7 @@ export function PanelTabs({ activeTab, onTabChange }: PanelTabsProps) {
 							: "border-transparent text-muted-foreground hover:text-foreground"
 					)}
 				>
-					Export
+					{t("editor.panel.export")}
 					{activeTab === PanelView.EXPORT && (
 						<X
 							size={14}
@@ -60,7 +62,7 @@ export function PanelTabs({ activeTab, onTabChange }: PanelTabsProps) {
 						: "border-transparent text-muted-foreground hover:text-foreground"
 				)}
 			>
-				API Keys
+				{t("editor.panel.apiKeys")}
 			</button>
 		</div>
 	);

@@ -36,6 +36,8 @@ import { useLicenseStore } from "@/stores/license-store";
 import { useTimelineStore } from "@/stores/timeline/timeline-store";
 import { UserAvatar } from "@/components/user-avatar";
 import type { CanvasSize } from "@/types/editor";
+import { LanguageSelector } from "@/components/language-selector";
+import { useTranslation } from "@/lib/i18n";
 
 export const Route = createLazyFileRoute("/projects")({
 	component: ProjectsPage,
@@ -65,6 +67,7 @@ function ProjectsPage() {
 	const [sortOption, setSortOption] = useState("createdAt-desc");
 	const [viewMode, setViewMode] = useState<"grid" | "list">("grid");
 	const navigate = useNavigate();
+	const { t } = useTranslation();
 
 	const getProjectThumbnail = useCallback(
 		async (projectId: string): Promise<string | null> => {
@@ -92,7 +95,7 @@ function ProjectsPage() {
 	);
 
 	const handleCreateProject = async () => {
-		const projectId = await createNewProject("New Project");
+		const projectId = await createNewProject(t("projects.new"));
 		navigate({ to: "/editor/$project_id", params: { project_id: projectId } });
 	};
 
@@ -158,9 +161,10 @@ function ProjectsPage() {
 					className="flex items-center gap-1 hover:text-muted-foreground transition-colors"
 				>
 					<ChevronLeft className="size-5! shrink-0" />
-					<span className="text-sm font-medium">Back</span>
+					<span className="text-sm font-medium">{t("projects.back")}</span>
 				</Link>
 				<div className="flex items-center gap-3">
+					<LanguageSelector />
 					<ProjectsUserAvatar />
 					<div className="block md:hidden">
 						{isSelectionMode ? (
@@ -171,7 +175,7 @@ function ProjectsPage() {
 									onClick={handleCancelSelection}
 								>
 									<X className="size-4!" />
-									Cancel
+									{t("common.cancel")}
 								</Button>
 								{selectedProjects.size > 0 && (
 									<Button
@@ -180,7 +184,9 @@ function ProjectsPage() {
 										onClick={() => setIsBulkDeleteDialogOpen(true)}
 									>
 										<Trash2 className="size-4!" />
-										Delete ({selectedProjects.size})
+										{t("projects.deleteSelected", {
+											count: selectedProjects.size,
+										})}
 									</Button>
 								)}
 							</div>
@@ -191,7 +197,7 @@ function ProjectsPage() {
 								data-testid="new-project-button-mobile"
 							>
 								<Plus className="size-4!" />
-								<span className="text-sm font-medium">New Project</span>
+								<span className="text-sm font-medium">{t("projects.new")}</span>
 							</Button>
 						)}
 					</div>
@@ -204,16 +210,21 @@ function ProjectsPage() {
 					<div className="flex flex-col gap-2">
 						<div className="flex items-center gap-3">
 							<h1 className="text-2xl md:text-3xl font-bold tracking-tight">
-								Studio
+								{t("projects.title")}
 							</h1>
 							<AiStatusIndicator />
 						</div>
 						<p className="text-sm text-muted-foreground">
-							{savedProjects.length}{" "}
-							{savedProjects.length === 1 ? "project" : "projects"}
+							{t(
+								savedProjects.length === 1
+									? "projects.countOne"
+									: "projects.countMany",
+								{ count: savedProjects.length }
+							)}
 							{isSelectionMode && selectedProjects.size > 0 && (
 								<span className="ml-2 text-primary">
-									&bull; {selectedProjects.size} selected
+									&bull;{" "}
+									{t("projects.selected", { count: selectedProjects.size })}
 								</span>
 							)}
 						</p>
@@ -223,7 +234,7 @@ function ProjectsPage() {
 							<div className="flex items-center gap-2">
 								<Button variant="outline" onClick={handleCancelSelection}>
 									<X className="size-4!" />
-									Cancel
+									{t("common.cancel")}
 								</Button>
 								{selectedProjects.size > 0 && (
 									<Button
@@ -231,7 +242,9 @@ function ProjectsPage() {
 										onClick={() => setIsBulkDeleteDialogOpen(true)}
 									>
 										<Trash2 className="size-4!" />
-										Delete Selected ({selectedProjects.size})
+										{t("projects.deleteSelected", {
+											count: selectedProjects.size,
+										})}
 									</Button>
 								)}
 							</div>
@@ -243,7 +256,7 @@ function ProjectsPage() {
 									disabled={savedProjects.length === 0}
 									className="text-sm"
 								>
-									Select Projects
+									{t("projects.select")}
 								</Button>
 								<Button
 									variant="primary"
@@ -251,7 +264,7 @@ function ProjectsPage() {
 									data-testid="new-project-button"
 								>
 									<Plus className="size-4!" />
-									New Project
+									{t("projects.new")}
 								</Button>
 							</div>
 						)}
@@ -263,7 +276,7 @@ function ProjectsPage() {
 					<div className="flex-1 max-w-72 relative">
 						<Search className="absolute left-2.5 top-1/2 -translate-y-1/2 size-4 text-muted-foreground pointer-events-none" />
 						<Input
-							placeholder="Search projects..."
+							placeholder={t("projects.search")}
 							value={searchQuery}
 							onChange={(e) => setSearchQuery(e.target.value)}
 							className="pl-8 bg-background border-none"
@@ -280,14 +293,14 @@ function ProjectsPage() {
 					>
 						<ToggleGroupItem
 							value="grid"
-							aria-label="Grid view"
+							aria-label={t("projects.grid")}
 							className="px-2 py-1.5"
 						>
 							<LayoutGrid className="size-4" />
 						</ToggleGroupItem>
 						<ToggleGroupItem
 							value="list"
-							aria-label="List view"
+							aria-label={t("projects.list")}
 							className="px-2 py-1.5"
 						>
 							<List className="size-4" />
@@ -295,13 +308,19 @@ function ProjectsPage() {
 					</ToggleGroup>
 					<Select value={sortOption} onValueChange={setSortOption}>
 						<SelectTrigger className="w-[170px] bg-background border-none">
-							<SelectValue placeholder="Sort by" />
+							<SelectValue placeholder={t("projects.sortBy")} />
 						</SelectTrigger>
 						<SelectContent>
-							<SelectItem value="createdAt-desc">Newest First</SelectItem>
-							<SelectItem value="createdAt-asc">Oldest First</SelectItem>
-							<SelectItem value="name-asc">Name A–Z</SelectItem>
-							<SelectItem value="name-desc">Name Z–A</SelectItem>
+							<SelectItem value="createdAt-desc">
+								{t("projects.newest")}
+							</SelectItem>
+							<SelectItem value="createdAt-asc">
+								{t("projects.oldest")}
+							</SelectItem>
+							<SelectItem value="name-asc">{t("projects.nameAsc")}</SelectItem>
+							<SelectItem value="name-desc">
+								{t("projects.nameDesc")}
+							</SelectItem>
 						</SelectContent>
 					</Select>
 				</div>
@@ -322,10 +341,15 @@ function ProjectsPage() {
 					>
 						<Checkbox checked={someSelected ? "indeterminate" : allSelected} />
 						<span className="text-sm font-medium">
-							{allSelected ? "Deselect All" : "Select All"}
+							{allSelected
+								? t("projects.deselectAll")
+								: t("projects.selectAll")}
 						</span>
 						<span className="text-sm text-muted-foreground">
-							({selectedProjects.size} of {sortedProjects.length} selected)
+							{t("projects.selectionSummary", {
+								selected: selectedProjects.size,
+								total: sortedProjects.length,
+							})}
 						</span>
 					</button>
 				)}

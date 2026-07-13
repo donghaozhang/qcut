@@ -1,9 +1,10 @@
-import React, { useEffect, useState } from "react";
+import { Suspense, useEffect, useState } from "react";
 import { createRouter, RouterProvider } from "@tanstack/react-router";
 import { createHashHistory } from "@tanstack/react-router";
 
 // Import the generated route tree
 import { routeTree } from "./routeTree.gen";
+import { LocaleSync } from "./components/locale-sync";
 
 // Create router with hash history for Electron
 const router = createRouter({
@@ -41,15 +42,16 @@ function App() {
 	}
 
 	return (
-		<React.Suspense
+		<Suspense
 			fallback={
 				<div className="flex items-center justify-center min-h-screen">
 					Loading...
 				</div>
 			}
 		>
+			<LocaleSync />
 			<RouterProvider router={router} />
-		</React.Suspense>
+		</Suspense>
 	);
 }
 

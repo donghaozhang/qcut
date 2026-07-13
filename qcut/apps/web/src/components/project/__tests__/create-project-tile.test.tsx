@@ -7,9 +7,9 @@ vi.mock("lucide-react", () => ({
 }));
 
 describe("CreateProjectTile", () => {
-	it("renders Create New Project text", () => {
+	it("renders the localized create project label", () => {
 		render(<CreateProjectTile onClick={() => {}} />);
-		expect(screen.getByText("+ Create New Project")).toBeTruthy();
+		expect(screen.getByText("+ 新建项目")).toBeTruthy();
 	});
 
 	it("calls onClick when clicked", () => {
