@@ -11,6 +11,7 @@ import type { TimelineTrack } from "@/types/timeline";
 import type { MediaItem } from "@/stores/media/media-store-types";
 import type { TProject } from "@/types/project";
 import type { WordItem } from "@/types/word-timeline";
+import { TimelineWordLane } from "./timeline-word-lane";
 
 interface TimelineRulerProps {
 	duration: number;
@@ -37,8 +38,7 @@ interface TimelineRulerProps {
 		onPointerCancel: (e: React.PointerEvent) => void;
 	};
 	dynamicTimelineWidth: number;
-	aiFilteredWords: WordItem[];
-	userRemovedWords: WordItem[];
+	words: WordItem[];
 	silenceGapSegments: WordItem[];
 }
 
@@ -58,13 +58,12 @@ export function TimelineRuler({
 	handleWheel,
 	pinchHandlers,
 	dynamicTimelineWidth,
-	aiFilteredWords,
-	userRemovedWords,
+	words,
 	silenceGapSegments,
 }: TimelineRulerProps) {
 	return (
 		<div
-			className="flex-1 relative overflow-hidden h-10 touch-none"
+			className="relative h-14 flex-1 touch-none overflow-hidden"
 			onWheel={(e) => {
 				// Check if this is horizontal scrolling - if so, don't handle it here
 				if (e.shiftKey || Math.abs(e.deltaX) > Math.abs(e.deltaY)) {
@@ -88,7 +87,7 @@ export function TimelineRuler({
 			>
 				<div
 					ref={rulerRef}
-					className="relative h-10 select-none cursor-default"
+					className="relative h-14 cursor-default select-none"
 					style={{
 						width: `${dynamicTimelineWidth}px`,
 					}}
@@ -112,30 +111,6 @@ export function TimelineRuler({
 
 					{/* Bookmark markers */}
 					<BookmarkMarkers zoomLevel={zoomLevel} />
-
-					{/* AI filtered word markers (orange regions) */}
-					{aiFilteredWords.length > 0 && (
-						<WordMarkers
-							words={aiFilteredWords}
-							zoomLevel={zoomLevel}
-							colorClass="bg-orange-500/60"
-							hoverColorClass="hover:bg-orange-500/80"
-							focusRingClass="focus:ring-orange-400"
-							labelPrefix="AI filtered word"
-						/>
-					)}
-
-					{/* User removed word markers (red regions) */}
-					{userRemovedWords.length > 0 && (
-						<WordMarkers
-							words={userRemovedWords}
-							zoomLevel={zoomLevel}
-							colorClass="bg-red-500/60"
-							hoverColorClass="hover:bg-red-500/80"
-							focusRingClass="focus:ring-red-400"
-							labelPrefix="User removed word"
-						/>
-					)}
 
 					{/* Silence gap regions from AI filtering */}
 					{silenceGapSegments.length > 0 &&
@@ -173,6 +148,14 @@ export function TimelineRuler({
 								/>
 							);
 						})}
+
+					{words.length > 0 ? (
+						<TimelineWordLane
+							scrollContainerRef={rulerScrollRef}
+							words={words}
+							zoomLevel={zoomLevel}
+						/>
+					) : null}
 				</div>
 			</div>
 		</div>
@@ -279,7 +262,7 @@ function BookmarkMarkers({ zoomLevel }: { zoomLevel: number }) {
 					role="button"
 					tabIndex={0}
 					aria-label={`Bookmark at ${bookmarkTime.toFixed(1)}s`}
-					className="absolute top-0 h-10 w-0.5 !bg-primary cursor-pointer focus:ring-2 focus:ring-primary focus:outline-none"
+					className="absolute top-0 h-14 w-0.5 !bg-primary cursor-pointer focus:ring-2 focus:ring-primary focus:outline-none"
 					style={{
 						left: `${bookmarkTime * TIMELINE_CONSTANTS.PIXELS_PER_SECOND * zoomLevel}px`,
 					}}
@@ -300,61 +283,6 @@ function BookmarkMarkers({ zoomLevel }: { zoomLevel: number }) {
 					</div>
 				</div>
 			))}
-		</>
-	);
-}
-
-function WordMarkers({
-	words,
-	zoomLevel,
-	colorClass,
-	hoverColorClass,
-	focusRingClass,
-	labelPrefix,
-}: {
-	words: WordItem[];
-	zoomLevel: number;
-	colorClass: string;
-	hoverColorClass: string;
-	focusRingClass: string;
-	labelPrefix: string;
-}) {
-	return (
-		<>
-			{words.map((word) => {
-				const left =
-					word.start * TIMELINE_CONSTANTS.PIXELS_PER_SECOND * zoomLevel;
-				const width = Math.max(
-					2,
-					(word.end - word.start) *
-						TIMELINE_CONSTANTS.PIXELS_PER_SECOND *
-						zoomLevel
-				);
-				return (
-					<div
-						key={`${labelPrefix}-${word.id}`}
-						role="button"
-						tabIndex={0}
-						className={`absolute bottom-0 h-2 ${colorClass} cursor-pointer ${hoverColorClass} focus:ring-2 ${focusRingClass} focus:outline-none transition-colors`}
-						style={{
-							left: `${left}px`,
-							width: `${width}px`,
-						}}
-						aria-label={`${labelPrefix}: ${word.text}, ${word.start.toFixed(2)} to ${word.end.toFixed(2)} seconds`}
-						onClick={(e) => {
-							e.stopPropagation();
-							usePlaybackStore.getState().seek(word.start);
-						}}
-						onKeyDown={(e) => {
-							if (e.key === "Enter" || e.key === " ") {
-								e.preventDefault();
-								e.stopPropagation();
-								usePlaybackStore.getState().seek(word.start);
-							}
-						}}
-					/>
-				);
-			})}
 		</>
 	);
 }

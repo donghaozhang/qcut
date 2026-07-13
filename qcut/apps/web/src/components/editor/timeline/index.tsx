@@ -56,19 +56,9 @@ export function Timeline() {
 	const seek = usePlaybackStore((s) => s.seek);
 	const setDuration = usePlaybackStore((s) => s.setDuration);
 
-	// Get filtered words from transcription for timeline markers
+	// Get word-level transcription for the ruler lane and filtered silence regions.
 	const wordTimelineData = useWordTimelineStore((s) => s.data);
-	const aiFilteredWords =
-		wordTimelineData?.words.filter(
-			(word) =>
-				word.type === "word" && word.filterState === WORD_FILTER_STATE.AI
-		) || [];
-	const userRemovedWords =
-		wordTimelineData?.words.filter(
-			(word) =>
-				word.type === "word" &&
-				word.filterState === WORD_FILTER_STATE.USER_REMOVE
-		) || [];
+	const timelineWords = wordTimelineData?.words ?? [];
 	const silenceGapSegments =
 		wordTimelineData?.words.filter(
 			(word) =>
@@ -109,8 +99,7 @@ export function Timeline() {
 
 	// Cache status tracking
 	const { getRenderStatus } = useFrameCache({
-		maxCacheSize: 300,
-		cacheResolution: 30,
+		namespace: activeProject?.id ?? "default",
 	});
 
 	// Timeline playhead ruler handlers
@@ -264,8 +253,7 @@ export function Timeline() {
 						handleWheel={handleWheel}
 						pinchHandlers={pinchHandlers}
 						dynamicTimelineWidth={dynamicTimelineWidth}
-						aiFilteredWords={aiFilteredWords}
-						userRemovedWords={userRemovedWords}
+						words={timelineWords}
 						silenceGapSegments={silenceGapSegments}
 					/>
 				</div>

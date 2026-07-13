@@ -272,6 +272,7 @@ export function createCrudOperations(
 			// If removing a sticker element, also clean up the overlay store
 			const track = get()._tracks.find((t) => t.id === trackId);
 			const element = track?.elements.find((el) => el.id === elementId);
+			if (!track || !element) return;
 			if (element?.type === "sticker" && "stickerId" in element) {
 				const stickerId = (element as { stickerId: string }).stickerId;
 				import("@/stores/stickers-overlay-store")
@@ -301,6 +302,7 @@ export function createCrudOperations(
 				get().removeElementFromTrackWithRipple(trackId, elementId, pushHistory);
 			} else {
 				if (pushHistory) get().pushHistory();
+				get().deselectElement(trackId, elementId);
 				updateTracksAndSave(
 					get()
 						._tracks.map((t) =>

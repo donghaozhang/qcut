@@ -248,6 +248,19 @@ export interface TimelineStore {
 		startTime: number,
 		pushHistory?: boolean
 	) => void;
+	slipElement: (input: {
+		trackId: string;
+		elementId: string;
+		timelineDelta: number;
+		pushHistory?: boolean;
+	}) => number;
+	rollEdit: (input: {
+		trackId: string;
+		fromElementId: string;
+		toElementId: string;
+		timelineDelta: number;
+		pushHistory?: boolean;
+	}) => number;
 	addTransition: (input: {
 		trackId: string;
 		fromElementId: string;
@@ -558,6 +571,11 @@ export interface TimelineStore {
 		updates: Partial<
 			Pick<
 				MediaElement,
+				| "mediaId"
+				| "name"
+				| "duration"
+				| "trimStart"
+				| "trimEnd"
 				| "volume"
 				| "x"
 				| "y"

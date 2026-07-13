@@ -44,6 +44,7 @@ import AudioWaveform from "../audio-waveform";
 import { toast } from "sonner";
 import { TimelineElementProps, TrackType } from "@/types/timeline";
 import { useTimelineElementResize } from "@/hooks/timeline/use-timeline-element-resize";
+import { useTimelinePrecisionEdit } from "@/hooks/timeline/use-timeline-precision-edit";
 import { withErrorBoundary } from "@/components/error-boundary";
 import { stripMarkdownSyntax } from "@/lib/markdown";
 import {
@@ -245,6 +246,22 @@ function TimelineElementComponent({
 	const isMediaClip = element.type === "media";
 	const canShowVideoClipActions =
 		element.type === "media" && (!mediaItem || mediaItem.type === "video");
+	const {
+		canRollLeft,
+		canRollRight,
+		canSlip,
+		editMode,
+		handleRollKeyDown,
+		handleRollPointerDown,
+		handleSlipPointerDown,
+		isPrecisionEditing,
+	} = useTimelinePrecisionEdit({
+		element: element.type === "media" ? element : null,
+		mediaSupportsSlip: isVideoClip || isAudio,
+		projectFps,
+		track,
+		zoomLevel,
+	});
 
 	// Compute element dimensions (needed by filmstrip hook, must be before conditional returns)
 	const effectiveDuration = getTimelineElementDuration({
@@ -1454,6 +1471,9 @@ function TimelineElementComponent({
 					<div className="flex-1 min-w-0">
 						<AudioWaveform
 							audioUrl={mediaItem.url || ""}
+							sourcePath={mediaItem.localPath}
+							sourceDuration={mediaItem.duration ?? element.duration}
+							cacheKey={`media:${mediaItem.id}:${mediaItem.file.size}:${mediaItem.file.lastModified}`}
 							height={24}
 							className="w-full"
 							sourceStart={element.trimStart}
@@ -1470,6 +1490,11 @@ function TimelineElementComponent({
 	};
 
 	const handleElementMouseDown = (e: React.MouseEvent) => {
+		if (editMode !== "select") {
+			e.preventDefault();
+			e.stopPropagation();
+			return;
+		}
 		if (onElementMouseDown) {
 			onElementMouseDown(e, element);
 		}
@@ -1489,7 +1514,11 @@ function TimelineElementComponent({
 				<div
 					ref={elementRef}
 					className={`absolute top-0 h-full select-none timeline-element ${
-						isBeingDragged ? "z-50" : "z-10"
+						isBeingDragged ||
+						isPrecisionEditing ||
+						(isSelected && editMode === "roll")
+							? "z-50"
+							: "z-10"
 					}`}
 					style={{
 						left: `${elementLeft}px`,
@@ -1499,18 +1528,30 @@ function TimelineElementComponent({
 					data-track-id={track.id}
 					data-testid="timeline-element"
 					data-duration={effectiveDuration}
+					data-edit-mode={editMode}
 					onMouseMove={resizing ? handleResizeMove : undefined}
 					onMouseUp={resizing ? handleResizeEnd : undefined}
 					onMouseLeave={resizing ? handleResizeEnd : undefined}
 				>
 					<div
-						className={`relative h-full rounded-[0.15rem] cursor-pointer overflow-hidden ${getTrackElementClasses(
+						className={`relative h-full rounded-[0.15rem] overflow-hidden ${getTrackElementClasses(
 							track.type
-						)} ${isSelected ? "border-b-[0.5px] border-t-[0.5px] border-foreground" : ""} ${
-							isBeingDragged ? "z-50" : "z-10"
+						)} ${
+							editMode === "slip"
+								? canSlip
+									? "cursor-ew-resize"
+									: "cursor-not-allowed"
+								: "cursor-pointer"
+						} ${isSelected ? "border-b-[0.5px] border-t-[0.5px] border-foreground" : ""} ${
+							isBeingDragged ||
+							isPrecisionEditing ||
+							(isSelected && editMode === "roll")
+								? "z-50"
+								: "z-10"
 						} ${element.hidden ? "opacity-50" : ""}`}
 						onClick={(e) => onElementClick && onElementClick(e, element)}
 						onMouseDown={handleElementMouseDown}
+						onPointerDown={handleSlipPointerDown}
 					>
 						<div className="absolute inset-0 flex items-center h-full">
 							{renderElementContent()}
@@ -1534,20 +1575,65 @@ function TimelineElementComponent({
 							</div>
 						)}
 
-						{isSelected && (
+						{isSelected && editMode !== "slip" && (
 							<>
-								<div
-									className="absolute left-0 top-0 bottom-0 w-3 cursor-w-resize bg-transparent hover:bg-foreground/20 border-r-2 border-foreground/50 z-50 before:absolute before:inset-y-0 before:-left-4 before:w-8 before:content-[''] touch-action-none"
-									onPointerDown={(e) =>
-										handleResizeStart(e, element.id, "left")
+								<button
+									type="button"
+									className={`absolute bottom-0 left-0 top-0 z-50 w-3 border-r-2 bg-transparent before:absolute before:-left-4 before:inset-y-0 before:w-8 before:content-[''] ${
+										editMode === "roll"
+											? canRollLeft
+												? "cursor-ew-resize border-amber-300 bg-amber-300/15 hover:bg-amber-300/30"
+												: "cursor-not-allowed border-muted-foreground/30 opacity-40"
+											: "cursor-w-resize border-foreground/50 hover:bg-foreground/20"
+									}`}
+									onPointerDown={(event) => {
+										if (editMode === "roll") {
+											handleRollPointerDown({ event, side: "left" });
+											return;
+										}
+										handleResizeStart(event, element.id, "left");
+									}}
+									onKeyDown={(event) =>
+										handleRollKeyDown({ event, side: "left" })
+									}
+									aria-label={
+										editMode === "roll"
+											? "Roll edit left cut"
+											: "Trim clip start"
+									}
+									title={
+										editMode === "roll" ? "Roll edit cut" : "Trim clip start"
 									}
 									data-testid="trim-start-handle"
 								/>
-								<div
-									className="absolute right-0 top-0 bottom-0 w-3 cursor-e-resize bg-transparent hover:bg-foreground/20 border-l-2 border-foreground/50 z-50 before:absolute before:inset-y-0 before:-right-4 before:w-8 before:content-[''] touch-action-none"
-									onPointerDown={(e) =>
-										handleResizeStart(e, element.id, "right")
+								<button
+									type="button"
+									className={`absolute bottom-0 right-0 top-0 z-50 w-3 border-l-2 bg-transparent before:absolute before:-right-4 before:inset-y-0 before:w-8 before:content-[''] ${
+										editMode === "roll"
+											? canRollRight
+												? "cursor-ew-resize border-amber-300 bg-amber-300/15 hover:bg-amber-300/30"
+												: "cursor-not-allowed border-muted-foreground/30 opacity-40"
+											: "cursor-e-resize border-foreground/50 hover:bg-foreground/20"
+									}`}
+									onPointerDown={(event) => {
+										if (editMode === "roll") {
+											handleRollPointerDown({ event, side: "right" });
+											return;
+										}
+										handleResizeStart(event, element.id, "right");
+									}}
+									onKeyDown={(event) =>
+										handleRollKeyDown({ event, side: "right" })
 									}
+									aria-label={
+										editMode === "roll"
+											? "Roll edit right cut"
+											: "Trim clip end"
+									}
+									title={
+										editMode === "roll" ? "Roll edit cut" : "Trim clip end"
+									}
+									data-testid="trim-end-handle"
 								/>
 							</>
 						)}

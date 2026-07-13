@@ -167,6 +167,7 @@ export function createTrackOps(
 			if (!element || !track) return;
 
 			if (pushHistory) get().pushHistory();
+			get().deselectElement(trackId, elementId);
 
 			const elementStartTime = element.startTime;
 			const elementDuration = getTimelineElementDuration({ element });

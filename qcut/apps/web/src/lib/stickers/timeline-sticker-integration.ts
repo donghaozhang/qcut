@@ -163,7 +163,7 @@ export class TimelineStickerIntegration {
 			}
 
 			// Create the track
-			const trackId = store.addTrack("sticker");
+			const trackId = store.insertTrackAt("sticker", 0);
 
 			if (!trackId) {
 				return {

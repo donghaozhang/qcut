@@ -36,6 +36,10 @@ import { TimelineTrackLabel } from "./timeline-track-label";
 import type { TimelineVisibleRange } from "./timeline-viewport";
 
 const VIEWPORT_OVERSCAN_SECONDS = 5;
+const INITIAL_VISIBLE_TIME_RANGE: TimelineVisibleRange = {
+	startTime: 0,
+	endTime: VIEWPORT_OVERSCAN_SECONDS,
+};
 
 interface TimelineTracksAreaProps {
 	tracks: TimelineTrack[];
@@ -106,7 +110,7 @@ export function TimelineTracksArea({
 		string | null
 	>(null);
 	const [visibleTimeRange, setVisibleTimeRange] =
-		useState<TimelineVisibleRange>();
+		useState<TimelineVisibleRange>(INITIAL_VISIBLE_TIME_RANGE);
 	const viewportFrameRef = useRef(0);
 	const hasSpeedRegions = useScreenRecordingEnhancementStore(
 		(s) => s.speedRegions.length > 0

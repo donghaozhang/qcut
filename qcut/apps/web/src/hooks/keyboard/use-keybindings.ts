@@ -13,6 +13,7 @@ export function useKeybindingsListener() {
 
 	useEffect(() => {
 		const handleKeyDown = (ev: KeyboardEvent) => {
+			if (ev.defaultPrevented) return;
 			// Do not check keybinds if the mode is disabled
 			if (!keybindingsEnabled) return;
 			// ignore key events if user is changing keybindings

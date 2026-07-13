@@ -67,6 +67,7 @@ import {
 	localizeSceneName,
 	localizeTrackTypeName,
 } from "@/lib/i18n/timeline-names";
+import { TimelineEditModeControl } from "./timeline-edit-mode-control";
 
 const ADD_TRACK_OPTIONS: TrackType[] = [
 	"media",
@@ -393,6 +394,8 @@ export function TimelineToolbar({
 			<div className="flex items-center gap-1">
 				<CloudTaskCenter />
 				<TooltipProvider delayDuration={500}>
+					<TimelineEditModeControl />
+					<div className="mx-1 h-6 w-px bg-border" />
 					<DropdownMenu>
 						<DropdownMenuTrigger asChild>
 							<Button

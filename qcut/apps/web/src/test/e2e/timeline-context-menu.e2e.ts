@@ -22,6 +22,20 @@ import { mkdir } from "node:fs/promises";
 import { resolve } from "node:path";
 import type { Locator, Page } from "@playwright/test";
 
+interface ContextMenuTimelineState {
+	history: unknown[];
+	rippleEditingEnabled: boolean;
+	selectedElements: Array<{ elementId: string; trackId: string }>;
+	toggleRippleEditing: () => void;
+	tracks: Array<{ elements: unknown[] }>;
+}
+
+interface ContextMenuWindow extends Window {
+	__timelineStore: {
+		getState: () => ContextMenuTimelineState;
+	};
+}
+
 async function addVideoClipToTimeline({ page }: { page: Page }) {
 	await createTestProject(page, "Context Menu Regression");
 	await importTestVideo(page);
@@ -168,6 +182,41 @@ test.describe("Timeline Right-Click Context Menu", () => {
 				trimEnd: 0.75,
 			})
 		);
+	});
+
+	test("ripple delete clears the removed clip selection in one transaction", async ({
+		page,
+	}) => {
+		const clip = await addVideoClipToTimeline({ page });
+		const historyBeforeDelete = await page.evaluate(() => {
+			const timeline = (window as unknown as ContextMenuWindow).__timelineStore;
+			const state = timeline.getState();
+			if (!state.rippleEditingEnabled) state.toggleRippleEditing();
+			return timeline.getState().history.length;
+		});
+		const menu = await openVideoClipMenu({ page, clip });
+		await menuItem({ menu, label: "删除" }).click();
+
+		await expect(page.getByTestId("timeline-element")).toHaveCount(0);
+		await expect
+			.poll(() =>
+				page.evaluate(() => {
+					const state = (
+						window as unknown as ContextMenuWindow
+					).__timelineStore.getState();
+					return {
+						elementCount: state.tracks.flatMap((track) => track.elements)
+							.length,
+						historyCount: state.history.length,
+						selectedCount: state.selectedElements.length,
+					};
+				})
+			)
+			.toEqual({
+				elementCount: 0,
+				historyCount: historyBeforeDelete + 1,
+				selectedCount: 0,
+			});
 	});
 
 	test("copy and paste attributes changes styling without replacing clip timing", async ({

@@ -13,6 +13,7 @@ import { createAddOps } from "./timeline-add-ops";
 import { createElementOps } from "./timeline-element-ops";
 import { createTrackOps } from "./timeline-track-ops";
 import { createTransitionOps } from "./timeline-transition-ops";
+import { createPrecisionEditOps } from "./timeline-precision-edit-ops";
 
 /**
  * Dependencies injected from the store closure.
@@ -49,5 +50,6 @@ export function createTimelineOperations({
 		...createElementOps(get, set, deps),
 		...createAddOps(get, set, deps),
 		...createTransitionOps(get, set, deps),
+		...createPrecisionEditOps(get, set, deps),
 	};
 }
