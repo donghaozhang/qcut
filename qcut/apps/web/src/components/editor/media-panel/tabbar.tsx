@@ -5,9 +5,12 @@ import { tabs, tabGroups, useMediaPanelStore, EditSubgroup } from "./store";
 import { Button } from "@/components/ui/button";
 import { ChevronRight, ChevronLeft } from "lucide-react";
 import { useRef, useEffect } from "react";
+import { useTranslation } from "@/lib/i18n";
+import { EDIT_SUBGROUP_LABEL_KEYS, TAB_LABEL_KEYS } from "./media-panel-i18n";
 
 /** Tab bar displaying the active group's tabs with horizontal scrolling and prev/next navigation. */
 export function TabBar() {
+	const { t } = useTranslation();
 	const {
 		activeTab,
 		setActiveTab,
@@ -63,7 +66,7 @@ export function TabBar() {
 							)}
 							onClick={() => setActiveEditSubgroup(key)}
 						>
-							{subgroups[key].label}
+							{t(EDIT_SUBGROUP_LABEL_KEYS[key])}
 						</button>
 					))}
 				</div>
@@ -76,6 +79,7 @@ export function TabBar() {
 				>
 					{tabKeys.map((tabKey) => {
 						const tab = tabs[tabKey];
+						const label = t(TAB_LABEL_KEYS[tabKey]);
 						return (
 							<button
 								type="button"
@@ -91,11 +95,12 @@ export function TabBar() {
 								onClick={() => setActiveTab(tabKey)}
 								key={tabKey}
 								aria-pressed={activeTab === tabKey}
+								aria-label={label}
 								data-testid={`${tabKey}-panel-tab`}
 							>
 								<tab.icon className="size-[1.1rem]! shrink-0" />
 								<span className="text-[0.65rem] whitespace-nowrap">
-									{tab.label}
+									{label}
 								</span>
 							</button>
 						);

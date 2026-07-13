@@ -155,6 +155,29 @@ describe("WordTimelineStore", () => {
 		).toBe(WORD_FILTER_STATE.NONE);
 	});
 
+	it("restores the complete transcript snapshot after a replacement", () => {
+		loadMockData({ fileName: "before.json" });
+		useWordTimelineStore
+			.getState()
+			.setFilterState("word-0", WORD_FILTER_STATE.USER_KEEP);
+		useWordTimelineStore.getState().selectWord("word-2");
+		const snapshot = useWordTimelineStore.getState().createSnapshot();
+
+		loadMockData({
+			fileName: "after.json",
+			json: createMockJson({ overrides: { text: "replacement transcript" } }),
+		});
+		useWordTimelineStore.getState().restoreSnapshot({ snapshot });
+
+		const restored = useWordTimelineStore.getState();
+		expect(restored.fileName).toBe("before.json");
+		expect(restored.data?.text).toBe("Hello world test");
+		expect(restored.selectedWordId).toBe("word-2");
+		expect(restored.getWordById("word-0")?.filterState).toBe(
+			WORD_FILTER_STATE.USER_KEEP
+		);
+	});
+
 	it("returns only keepable words for export", () => {
 		loadMockData();
 		const store = useWordTimelineStore.getState();

@@ -374,6 +374,21 @@ describe("buildFFmpegArgs", () => {
 			expect(args).toContain("/output.mp4");
 		});
 
+		it("applies duration after all inputs when direct copy includes audio", () => {
+			const args = buildFFmpegArgs(
+				createBaseOptions({
+					useDirectCopy: true,
+					videoSources: [{ path: "/video.mp4", startTime: 0, duration: 1 }],
+					audioFiles: [{ path: "/audio.mp3", startTime: 0 }],
+				})
+			);
+
+			const audioInputIndex = args.indexOf("/audio.mp3");
+			const durationIndex = args.indexOf("-t");
+			expect(durationIndex).toBeGreaterThan(audioInputIndex);
+			expect(args[durationIndex + 1]).toBe("1");
+		});
+
 		it("normalizes Windows paths in concat list content", () => {
 			buildFFmpegArgs(
 				createBaseOptions({

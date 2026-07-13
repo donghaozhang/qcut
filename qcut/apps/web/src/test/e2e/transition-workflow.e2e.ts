@@ -27,6 +27,15 @@ interface ExposedTimelineState {
 		type: string;
 		isMain?: boolean;
 		elements: Array<{ id: string; startTime: number }>;
+		transitions?: Array<{
+			id: string;
+			presetId: string;
+			type: string;
+			direction?: string;
+			duration: number;
+			easing: string;
+		}>;
+		audioCrossfades?: Array<{ duration: number; curve: string }>;
 	}>;
 	addElementToTrack: (
 		trackId: string,
@@ -49,6 +58,9 @@ interface ExposedTimelineState {
 		duration: number;
 		easing: "easeInOut";
 	}) => string | null;
+	setSelectedElements: (
+		elements: Array<{ trackId: string; elementId: string }>
+	) => void;
 }
 
 interface ExposedPlaybackState {
@@ -174,20 +186,77 @@ test.describe("Clip transition workflow", () => {
 				.toBe(true);
 		}
 
-		await page.getByTestId("group-edit").click();
-		await page.getByRole("button", { name: "Manual Edit" }).click();
 		await page.getByTestId("transitions-panel-tab").click();
 		await expect(page.getByTestId("transition-card-dissolve")).toBeVisible();
+		await page.evaluate(() => {
+			const editorWindow = window as unknown as ExposedEditorWindow;
+			const timeline = editorWindow.__timelineStore.getState();
+			const track = timeline.tracks.find(
+				(candidate) => candidate.isMain || candidate.type === "media"
+			);
+			if (!track || track.elements.length < 2) {
+				throw new Error("Missing adjacent transition clips");
+			}
+			timeline.setSelectedElements(
+				track.elements.slice(0, 2).map((element) => ({
+					trackId: track.id,
+					elementId: element.id,
+				}))
+			);
+		});
+		await page.getByTestId("transition-card-whip-pan-left").dblclick();
+		await expect
+			.poll(() =>
+				page.evaluate(() => {
+					const editorWindow = window as unknown as ExposedEditorWindow;
+					return editorWindow.__timelineStore
+						.getState()
+						.tracks.flatMap((track) => track.transitions ?? [])[0];
+				})
+			)
+			.toMatchObject({
+				id: transitionId,
+				presetId: "whip-pan-left",
+				type: "whip-pan",
+				direction: "left",
+			});
 		await marker.click();
-		await expect(page.getByLabel("Transition duration in seconds")).toHaveValue(
-			"1"
-		);
+		await expect(page.getByLabel("转场时长（秒）")).toHaveValue("0.4");
+		await page.getByLabel("转场时长（秒）").fill("0.7");
+		await page.getByLabel("转场时长（秒）").press("Enter");
+		await page.getByLabel("转场方向").click();
+		await page.getByRole("option", { name: "向右" }).click();
+		await page.getByLabel("转场缓动").click();
+		await page.getByRole("option", { name: "线性" }).click();
+		await page.getByLabel("转场音频").click();
+		await page.getByRole("option", { name: "等功率交叉淡化" }).click();
+		await expect
+			.poll(() =>
+				page.evaluate(() => {
+					const editorWindow = window as unknown as ExposedEditorWindow;
+					const track = editorWindow.__timelineStore.getState().tracks[0];
+					return {
+						transition: track.transitions?.[0],
+						audioCrossfade: track.audioCrossfades?.[0],
+					};
+				})
+			)
+			.toMatchObject({
+				transition: {
+					duration: 0.7,
+					direction: "right",
+					easing: "linear",
+				},
+				audioCrossfade: { duration: 0.7, curve: "equal-power" },
+			});
 		await seek({ page, time: 2 });
 		await expect.poll(() => previewVideos.count()).toBeGreaterThanOrEqual(2);
 		await page.waitForTimeout(250);
 
 		await mkdir(path.dirname(screenshotPath), { recursive: true });
 		await page.screenshot({ path: screenshotPath, animations: "disabled" });
+		await page.getByRole("button", { name: "删除转场" }).click();
+		await expect(marker).toHaveCount(0);
 		await page.waitForTimeout(1100);
 		expect(lifecycleErrors).toEqual([]);
 	});

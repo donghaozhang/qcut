@@ -7,9 +7,9 @@ import { processColorImageData } from "@/lib/color/color-pixel-processor";
 import { drawColorScope, type ColorScopeMode } from "@/lib/color/color-scopes";
 
 const SCOPE_MODES: Array<{ value: ColorScopeMode; label: string }> = [
-	{ value: "histogram", label: "Histogram" },
-	{ value: "waveform", label: "Waveform" },
-	{ value: "vectorscope", label: "Vector" },
+	{ value: "histogram", label: "直方图" },
+	{ value: "waveform", label: "波形图" },
+	{ value: "vectorscope", label: "矢量图" },
 	{ value: "parade", label: "RGB" },
 ];
 
@@ -43,9 +43,7 @@ export function ColorScopesPanel({
 				setError(undefined);
 			} catch (caught) {
 				if (!cancelled) {
-					setError(
-						caught instanceof Error ? caught.message : "Scope unavailable"
-					);
+					setError(caught instanceof Error ? caught.message : "示波器不可用");
 				}
 			}
 		};

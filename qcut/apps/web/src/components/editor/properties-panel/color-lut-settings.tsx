@@ -69,11 +69,9 @@ export function ColorLutSettings({
 					cube: parsed.cube,
 				},
 			});
-			toast.success(`Imported ${parsed.name}`);
+			toast.success(`已导入 ${parsed.name}`);
 		} catch (error) {
-			toast.error(
-				error instanceof Error ? error.message : "Unable to import LUT"
-			);
+			toast.error(error instanceof Error ? error.message : "无法导入 LUT");
 		}
 	};
 	return (
@@ -113,7 +111,7 @@ export function ColorLutSettings({
 				>
 					<SelectTrigger
 						className="h-8 min-w-0 flex-1 text-xs"
-						aria-label="LUT preset"
+						aria-label="LUT 预设"
 					>
 						<SelectValue />
 					</SelectTrigger>
@@ -144,8 +142,8 @@ export function ColorLutSettings({
 					variant="outline"
 					size="icon"
 					className="size-8"
-					title="Import .cube LUT"
-					aria-label="Import .cube LUT"
+					title="导入 .cube LUT"
+					aria-label="导入 .cube LUT"
 					onClick={() => fileInput.current?.click()}
 					onKeyDown={(event) => {
 						if (event.key === "Enter" || event.key === " ")

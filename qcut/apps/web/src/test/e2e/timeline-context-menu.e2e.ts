@@ -65,6 +65,23 @@ function menuItem({ menu, label }: { menu: Locator; label: string }) {
 	return menu.getByRole("menuitem").filter({ hasText: label }).first();
 }
 
+async function duplicateAndSelectBoth({ page }: { page: Page }) {
+	await page.keyboard.press("Meta+d");
+	const clips = page.locator('[data-testid="timeline-element"]');
+	await expect(clips).toHaveCount(2);
+	await page.evaluate(() => {
+		const timeline = (window as any).__timelineStore.getState();
+		const track = timeline.tracks[0];
+		timeline.setSelectedElements(
+			track.elements.map((element: { id: string }) => ({
+				trackId: track.id,
+				elementId: element.id,
+			}))
+		);
+	});
+	return clips;
+}
+
 test.describe("Timeline Right-Click Context Menu", () => {
 	test("right-clicking a video opens the complete clip workflow menu", async ({
 		page,
@@ -85,32 +102,32 @@ test.describe("Timeline Right-Click Context Menu", () => {
 		});
 
 		for (const label of [
-			"Copy",
-			"Cut",
-			"Copy Attributes",
-			"Paste Attributes",
-			"Delete",
-			"AI Generate",
-			"Basic Edit",
-			"Smart Shot Split",
-			"Smart Speech Edit",
-			"Recognize Speech / Captions",
-			"Voice Separation",
-			"Separate Audio",
-			"Export Selected Clip",
-			"Disable Clip",
-			"Relink Clip",
-			"Replace Clip",
+			"复制",
+			"剪切",
+			"复制属性",
+			"粘贴属性",
+			"删除",
+			"AI 生成",
+			"基础编辑",
+			"智能镜头分割",
+			"智能口播",
+			"识别语音/字幕",
+			"人声分离",
+			"分离音频",
+			"导出所选片段",
+			"停用片段",
+			"重新链接片段",
+			"替换片段",
 			"LUT",
-			"Open File Location",
-			"Time Range",
-			"Render",
+			"打开文件所在位置",
+			"时间区域",
+			"渲染",
 		]) {
 			const item = menuItem({ menu, label });
 			await item.scrollIntoViewIfNeeded();
 			await expect(item).toBeVisible();
 		}
-		await expect(menuItem({ menu, label: "Paste Attributes" })).toHaveAttribute(
+		await expect(menuItem({ menu, label: "粘贴属性" })).toHaveAttribute(
 			"data-disabled"
 		);
 
@@ -132,7 +149,7 @@ test.describe("Timeline Right-Click Context Menu", () => {
 		});
 
 		const menu = await openVideoClipMenu({ page, clip });
-		await menuItem({ menu, label: "Copy" }).click();
+		await menuItem({ menu, label: "复制" }).click();
 		await page.keyboard.press("Meta+v");
 
 		await expect(page.locator('[data-testid="timeline-element"]')).toHaveCount(
@@ -169,7 +186,7 @@ test.describe("Timeline Right-Click Context Menu", () => {
 		});
 
 		const firstMenu = await openVideoClipMenu({ page, clip: firstClip });
-		await menuItem({ menu: firstMenu, label: "Copy Attributes" }).click();
+		await menuItem({ menu: firstMenu, label: "复制属性" }).click();
 		await page.keyboard.press("Meta+d");
 		await expect(page.locator('[data-testid="timeline-element"]')).toHaveCount(
 			2
@@ -188,7 +205,7 @@ test.describe("Timeline Right-Click Context Menu", () => {
 
 		const secondClip = page.locator('[data-testid="timeline-element"]').nth(1);
 		const menu = await openVideoClipMenu({ page, clip: secondClip });
-		const pasteAttributes = menuItem({ menu, label: "Paste Attributes" });
+		const pasteAttributes = menuItem({ menu, label: "粘贴属性" });
 		await expect(pasteAttributes).not.toHaveAttribute("data-disabled");
 		await pasteAttributes.click();
 
@@ -205,12 +222,97 @@ test.describe("Timeline Right-Click Context Menu", () => {
 		);
 	});
 
+	test("groups and ungroups selected clips from the context menu", async ({
+		page,
+	}) => {
+		await addVideoClipToTimeline({ page });
+		const clips = await duplicateAndSelectBoth({ page });
+		let menu = await openVideoClipMenu({ page, clip: clips.nth(1) });
+		await menuItem({ menu, label: "创建组合" }).click();
+
+		await expect
+			.poll(() =>
+				page.evaluate(() => {
+					const elements = (window as any).__timelineStore.getState().tracks[0]
+						.elements;
+					return elements.map(
+						(element: { groupId?: string }) => element.groupId
+					);
+				})
+			)
+			.toEqual([expect.any(String), expect.any(String)]);
+		const groupIds = await page.evaluate(() =>
+			(window as any).__timelineStore
+				.getState()
+				.tracks[0].elements.map(
+					(element: { groupId?: string }) => element.groupId
+				)
+		);
+		expect(new Set(groupIds).size).toBe(1);
+
+		menu = await openVideoClipMenu({ page, clip: clips.nth(1) });
+		await menuItem({ menu, label: "解除组合" }).click();
+		await expect
+			.poll(() =>
+				page.evaluate(() =>
+					(window as any).__timelineStore
+						.getState()
+						.tracks[0].elements.every(
+							(element: { groupId?: string }) => !element.groupId
+						)
+				)
+			)
+			.toBe(true);
+	});
+
+	test("creates and breaks apart a persistent compound clip", async ({
+		page,
+	}) => {
+		await addVideoClipToTimeline({ page });
+		const clips = await duplicateAndSelectBoth({ page });
+		let menu = await openVideoClipMenu({ page, clip: clips.nth(1) });
+		const createCompound = menuItem({ menu, label: "新建复合片段" });
+		await expect(createCompound).not.toHaveAttribute("data-disabled");
+		await createCompound.click();
+
+		await expect(page.locator('[data-testid="timeline-element"]')).toHaveCount(
+			1
+		);
+		const compound = await page.evaluate(
+			() =>
+				(window as any).__timelineStore.getState().tracks[0].elements[0]
+					.compound
+		);
+		expect(compound).toMatchObject({ kind: "compound" });
+		expect(compound.clips).toHaveLength(2);
+
+		const compoundClip = page
+			.locator('[data-testid="timeline-element"]')
+			.first();
+		menu = await openVideoClipMenu({ page, clip: compoundClip });
+		await menuItem({ menu, label: "拆分复合片段" }).click();
+		await expect(page.locator('[data-testid="timeline-element"]')).toHaveCount(
+			2
+		);
+		await expect
+			.poll(() =>
+				page.evaluate(() =>
+					(window as any).__timelineStore
+						.getState()
+						.tracks[0].elements.every(
+							(element: { compound?: unknown }) => !element.compound
+						)
+				)
+			)
+			.toBe(true);
+	});
+
 	test("separate audio detaches embedded sound onto an audio track", async ({
 		page,
 	}) => {
 		const clip = await addVideoClipToTimeline({ page });
 		const menu = await openVideoClipMenu({ page, clip });
-		await menuItem({ menu, label: "Separate Audio" }).click();
+		await menuItem({ menu, label: "分离音频" }).click();
 
 		await expect
 			.poll(() =>
@@ -257,7 +359,7 @@ test.describe("Timeline Right-Click Context Menu", () => {
 		});
 
 		const menu = await openVideoClipMenu({ page, clip });
-		await menuItem({ menu, label: "Smart Shot Split" }).click();
+		await menuItem({ menu, label: "智能镜头分割" }).click();
 
 		await expect(page.locator('[data-testid="timeline-element"]')).toHaveCount(
 			3
@@ -333,10 +435,10 @@ test.describe("Timeline Right-Click Context Menu", () => {
 		});
 
 		const menu = await openVideoClipMenu({ page, clip });
-		const openFileLocation = menuItem({ menu, label: "Open File Location" });
+		const openFileLocation = menuItem({ menu, label: "打开文件所在位置" });
 		await openFileLocation.scrollIntoViewIfNeeded();
 		await expect(openFileLocation).toBeVisible();
-		await menuItem({ menu, label: "Export Selected Clip" }).click();
+		await menuItem({ menu, label: "导出所选片段" }).click();
 
 		await expect
 			.poll(async () =>

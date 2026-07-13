@@ -22,17 +22,25 @@ import {
 	ArrowUpFromLineIcon,
 	ClapperboardIcon,
 	SearchIcon,
+	AudioLinesIcon,
+	CaptionsIcon,
+	LayoutTemplateIcon,
+	SlidersHorizontalIcon,
 } from "lucide-react";
 import { create } from "zustand";
 
 export type Tab =
 	| "media"
 	| "text"
+	| "audio"
+	| "captions"
 	| "stickers"
 	| "video-edit"
 	| "effects"
 	| "transitions"
 	| "filters"
+	| "adjustments"
+	| "templates"
 	| "text2image"
 	| "nano-edit"
 	| "ai"
@@ -50,7 +58,7 @@ export type Tab =
 export const tabs: { [key in Tab]: { icon: LucideIcon; label: string } } = {
 	media: {
 		icon: VideoIcon,
-		label: "Media",
+		label: "素材",
 	},
 	text2image: {
 		icon: WandIcon,
@@ -70,11 +78,19 @@ export const tabs: { [key in Tab]: { icon: LucideIcon; label: string } } = {
 	},
 	text: {
 		icon: TypeIcon,
-		label: "Text",
+		label: "文本",
+	},
+	audio: {
+		icon: AudioLinesIcon,
+		label: "音频",
+	},
+	captions: {
+		icon: CaptionsIcon,
+		label: "字幕",
 	},
 	stickers: {
 		icon: StickerIcon,
-		label: "Stickers",
+		label: "贴纸",
 	},
 	"video-edit": {
 		icon: Wand2Icon,
@@ -99,7 +115,15 @@ export const tabs: { [key in Tab]: { icon: LucideIcon; label: string } } = {
 	// WIP panels below
 	filters: {
 		icon: BlendIcon,
-		label: "Filters",
+		label: "滤镜",
+	},
+	adjustments: {
+		icon: SlidersHorizontalIcon,
+		label: "调节",
+	},
+	templates: {
+		icon: LayoutTemplateIcon,
+		label: "模板",
 	},
 	segmentation: {
 		icon: ScissorsIcon,
@@ -111,11 +135,11 @@ export const tabs: { [key in Tab]: { icon: LucideIcon; label: string } } = {
 	},
 	effects: {
 		icon: SparklesIcon,
-		label: "Effects (WIP)",
+		label: "特效",
 	},
 	transitions: {
 		icon: ArrowLeftRightIcon,
-		label: "Transitions",
+		label: "转场",
 	},
 	moyin: {
 		icon: ClapperboardIcon,
@@ -156,9 +180,35 @@ const editSubgroups: Record<EditSubgroup, Subgroup> = {
 	},
 	"manual-edit": {
 		label: "Manual Edit",
-		tabs: ["text", "stickers", "effects", "filters", "transitions"],
+		tabs: [
+			"audio",
+			"text",
+			"stickers",
+			"effects",
+			"transitions",
+			"captions",
+			"filters",
+			"adjustments",
+			"templates",
+		],
 	},
 };
+
+export const STANDARD_EDITOR_TABS = [
+	"media",
+	"audio",
+	"text",
+	"stickers",
+	"effects",
+	"transitions",
+	"captions",
+	"filters",
+	"adjustments",
+	"templates",
+] as const satisfies readonly Tab[];
+
+export type StandardEditorTab = (typeof STANDARD_EDITOR_TABS)[number];
+export type SoundsPanelTab = "sound-effects" | "songs" | "ai-voice" | "saved";
 
 export const tabGroups: { [key in TabGroup]: TabGroupDef } = {
 	"ai-create": {
@@ -224,6 +274,9 @@ interface MediaPanelStore {
 	setAiActiveTab: (
 		tab: "text" | "image" | "avatar" | "upscale" | "angles"
 	) => void;
+
+	activeSoundsTab: SoundsPanelTab;
+	setActiveSoundsTab: (tab: SoundsPanelTab) => void;
 }
 
 const defaultLastTabPerGroup: Record<TabGroup, Tab> = {
@@ -272,6 +325,8 @@ export const useMediaPanelStore = create<MediaPanelStore>((set) => ({
 	// AI-specific state defaults
 	aiActiveTab: "text",
 	setAiActiveTab: (tab) => set({ aiActiveTab: tab }),
+	activeSoundsTab: "sound-effects",
+	setActiveSoundsTab: (activeSoundsTab) => set({ activeSoundsTab }),
 }));
 
 // Expose for iPad CLI debugging (qcut://eval, qcut://panel)

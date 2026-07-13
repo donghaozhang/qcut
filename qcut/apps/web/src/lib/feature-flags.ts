@@ -1,8 +1,13 @@
 // Feature flags system for migration
 // Use import.meta.env for Vite (process.env doesn't work in browser)
 
+const electronApiFlag = import.meta.env.VITE_USE_ELECTRON_API;
+
 const baseFlags = {
-	USE_ELECTRON_API: import.meta.env.VITE_USE_ELECTRON_API === "true",
+	USE_ELECTRON_API:
+		electronApiFlag === undefined
+			? import.meta.env.VITE_BUILD_TARGET !== "web"
+			: electronApiFlag === "true",
 	USE_NEXTJS_ROUTING: import.meta.env.VITE_USE_NEXTJS_ROUTING === "true",
 } as const;
 

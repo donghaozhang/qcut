@@ -23,6 +23,7 @@ export type SoundEffect = {
 
 export type SavedSound = {
 	id: number; // freesound id
+	kind?: "sound-effect" | "music";
 	name: string;
 	username: string;
 	previewUrl?: string;

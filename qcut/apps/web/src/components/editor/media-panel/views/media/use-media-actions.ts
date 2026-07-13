@@ -9,6 +9,7 @@ import { usePlaybackStore } from "@/stores/editor/playback-store";
 import { useAdjustmentStore } from "@/stores/ai/adjustment-store";
 import { useText2ImageStore } from "@/stores/ai/text2image-store";
 import { useMediaPanelStore } from "../../store";
+import { useTranslation } from "@/lib/i18n";
 
 interface UseMediaActionsParams {
 	mediaItems: MediaItem[];
@@ -70,6 +71,7 @@ export function useMediaActions({
 	selectedIds,
 	setSelectedIds,
 }: UseMediaActionsParams) {
+	const { t } = useTranslation();
 	const { setOriginalImage } = useAdjustmentStore();
 	const { setActiveTab } = useMediaPanelStore();
 	const setModelType = useText2ImageStore((s) => s.setModelType);
@@ -84,7 +86,7 @@ export function useMediaActions({
 	const processFiles = async (files: FileList | File[]) => {
 		if (!files || files.length === 0) return;
 		if (!activeProjectId) {
-			toast.error("No active project");
+			toast.error(t("media.noActiveProject"));
 			return;
 		}
 
@@ -101,16 +103,16 @@ export function useMediaActions({
 			});
 
 			if (!addMediaItem) {
-				throw new Error("Media store not ready");
+				throw new Error(t("media.storeNotReady"));
 			}
 			await Promise.all(
 				processedItems.map((item) => addMediaItem(activeProjectId, item))
 			);
 
-			toast.success(`Successfully uploaded ${processedItems.length} file(s)`);
+			toast.success(t("media.uploaded", { count: processedItems.length }));
 		} catch (error) {
 			debugError("[Media View] Upload process failed:", error);
-			toast.error("Failed to process files");
+			toast.error(t("media.processFailed"));
 		} finally {
 			setIsProcessing(false);
 			setProgress(0);
@@ -252,7 +254,7 @@ export function useMediaActions({
 	const handleRemove = async (e: React.MouseEvent, id: string) => {
 		e.stopPropagation();
 		if (!activeProjectId) {
-			toast.error("No active project");
+			toast.error(t("media.noActiveProject"));
 			return;
 		}
 		if (removeMediaItem) {

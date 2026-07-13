@@ -186,10 +186,27 @@ export interface VideoTransition {
 	fromElementId: string;
 	toElementId: string;
 	presetId: string;
-	type: "dissolve" | "fade-black" | "slide" | "wipe";
+	type:
+		| "dissolve"
+		| "fade-black"
+		| "fade-white"
+		| "slide"
+		| "wipe"
+		| "push"
+		| "zoom-blur"
+		| "whip-pan"
+		| "flash"
+		| "light-leak"
+		| "rgb-glitch"
+		| "shake";
 	direction?: "left" | "right" | "up" | "down";
 	easing: "linear" | "easeInOut";
 	duration: number;
+	tuning?: {
+		tint?: string;
+		intensity?: number;
+		frequency?: number;
+	};
 }
 
 export interface VideoMask {

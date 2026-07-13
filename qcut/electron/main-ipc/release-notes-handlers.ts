@@ -10,6 +10,7 @@ import {
 	parseReleaseNote,
 	readReleaseNotesFromDir,
 } from "../release-notes-utils.js";
+import { normalizeReleaseNotesVersion } from "../update-version.js";
 import type { MainIpcDeps, ReleaseNote } from "./types.js";
 
 export function registerReleaseNotesHandlers(deps: MainIpcDeps): void {
@@ -27,13 +28,8 @@ export function registerReleaseNotesHandlers(deps: MainIpcDeps): void {
 				// Validate version parameter to prevent path traversal
 				let filename = "latest.md";
 				if (version) {
-					// Validate semver format (basic regex)
-					const semverRegex =
-						/^(\d+)\.(\d+)\.(\d+)(?:-([a-zA-Z0-9.-]+))?(?:\+([a-zA-Z0-9.-]+))?$/;
-					if (!semverRegex.test(version)) {
-						throw new Error("Invalid version format");
-					}
-					filename = `v${version}.md`;
+					const releaseVersion = normalizeReleaseNotesVersion({ version });
+					filename = `v${releaseVersion}.md`;
 				}
 
 				const filePath = join(releasesDir, filename);

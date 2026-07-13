@@ -10,6 +10,7 @@ import { preloadStickerImages } from "@/lib/stickers/sticker-export-helper";
 import { useStickersOverlayStore } from "@/stores/stickers-overlay-store";
 import { useMediaStore } from "@/stores/media/media-store";
 import { useEffectsStore } from "@/stores/ai/effects-store";
+import { expandCompoundMediaTracks } from "@/lib/timeline/compound-media";
 
 // Extracted modules
 import {
@@ -87,7 +88,7 @@ export class ExportEngine {
 	) {
 		this.canvas = canvas;
 		this.settings = settings;
-		this.tracks = tracks;
+		this.tracks = expandCompoundMediaTracks({ tracks });
 		this.mediaItems = mediaItems;
 		this.totalDuration = totalDuration;
 		this.fps = settings.frameRate ?? 30;

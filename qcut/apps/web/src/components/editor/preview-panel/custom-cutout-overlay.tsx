@@ -144,7 +144,7 @@ export function CustomCutoutOverlay({
 			data-testid="custom-cutout-overlay"
 			data-custom-cutout-element={element.id}
 			role="application"
-			aria-label="Custom cutout brush canvas"
+			aria-label="自定义抠像画笔画布"
 			onPointerDown={(event) => {
 				event.preventDefault();
 				event.stopPropagation();

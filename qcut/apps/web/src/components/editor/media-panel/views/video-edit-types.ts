@@ -147,6 +147,7 @@ export interface UseVideoEditProcessingProps {
 	sourceVideo: File | null;
 	activeTab: VideoEditTab;
 	activeProject: TProject | null; // From useProjectStore
+	targetElementId?: string;
 	onSuccess?: (result: VideoEditResult) => void;
 	onError?: (error: string) => void;
 	onProgress?: (progress: number, message: string) => void;

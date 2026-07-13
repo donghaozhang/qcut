@@ -1,173 +1,142 @@
-import React, { useEffect, useRef, useState } from "react";
-import WaveSurfer from "wavesurfer.js";
+import { useEffect, useRef, useState } from "react";
+import {
+	audioWaveformCache,
+	sampleAudioWaveformBars,
+	type AudioWaveformPeaks,
+} from "@/lib/audio/audio-waveform-cache";
+import { cn } from "@/lib/utils";
 
 interface AudioWaveformProps {
 	audioUrl: string;
 	height?: number;
 	className?: string;
+	sourceStart?: number;
+	sourceEnd?: number;
 }
 
-const AudioWaveform: React.FC<AudioWaveformProps> = ({
+function drawWaveform({
+	canvas,
+	waveform,
+	height,
+	width,
+	sourceStart,
+	sourceEnd,
+}: {
+	canvas: HTMLCanvasElement;
+	waveform: AudioWaveformPeaks;
+	height: number;
+	width: number;
+	sourceStart?: number;
+	sourceEnd?: number;
+}) {
+	const pixelRatio = Math.min(window.devicePixelRatio || 1, 2);
+	canvas.width = Math.max(1, Math.round(width * pixelRatio));
+	canvas.height = Math.max(1, Math.round(height * pixelRatio));
+	canvas.style.width = `${width}px`;
+	canvas.style.height = `${height}px`;
+	const context = canvas.getContext("2d");
+	if (!context) return;
+	context.setTransform(pixelRatio, 0, 0, pixelRatio, 0, 0);
+	context.clearRect(0, 0, width, height);
+	const barWidth = 2;
+	const barGap = 1;
+	const barCount = Math.max(1, Math.floor(width / (barWidth + barGap)));
+	const bars = sampleAudioWaveformBars({
+		waveform,
+		startTime: sourceStart,
+		endTime: sourceEnd,
+		barCount,
+	});
+	context.fillStyle = "rgba(255, 255, 255, 0.72)";
+	for (let index = 0; index < bars.length; index++) {
+		const barHeight = Math.max(1, bars[index] * (height - 2));
+		context.fillRect(
+			index * (barWidth + barGap),
+			(height - barHeight) / 2,
+			barWidth,
+			barHeight
+		);
+	}
+}
+
+export default function AudioWaveform({
 	audioUrl,
 	height = 32,
 	className = "",
-}) => {
-	const waveformRef = useRef<HTMLDivElement>(null);
-	const wavesurfer = useRef<WaveSurfer | null>(null);
-	const [isLoading, setIsLoading] = useState(true);
-	const [error, setError] = useState(false);
+	sourceStart,
+	sourceEnd,
+}: AudioWaveformProps) {
+	const containerRef = useRef<HTMLDivElement>(null);
+	const canvasRef = useRef<HTMLCanvasElement>(null);
+	const [waveform, setWaveform] = useState<AudioWaveformPeaks | null>(null);
+	const [error, setError] = useState<string>();
 
 	useEffect(() => {
-		let mounted = true;
-		const ws = wavesurfer.current;
-
-		const initWaveSurfer = async () => {
-			if (!waveformRef.current || !audioUrl) return;
-
-			try {
-				// Clear any existing instance safely
-				if (ws) {
-					// Instead of immediately destroying, just set to null
-					// We'll destroy it outside this function
-					wavesurfer.current = null;
-				}
-
-				// Create a fresh instance
-				const newWaveSurfer = WaveSurfer.create({
-					container: waveformRef.current,
-					waveColor: "rgba(255, 255, 255, 0.6)",
-					progressColor: "rgba(255, 255, 255, 0.9)",
-					cursorColor: "transparent",
-					barWidth: 2,
-					barGap: 1,
-					height,
-					normalize: true,
-					interact: false,
-				});
-
-				// Assign to ref only if component is still mounted
-				if (mounted) {
-					wavesurfer.current = newWaveSurfer;
-				} else {
-					// Component unmounted during initialization, clean up
-					try {
-						newWaveSurfer.destroy();
-					} catch (e) {
-						// Ignore destroy errors
-					}
-					return;
-				}
-
-				// Event listeners
-				newWaveSurfer.on("ready", () => {
-					if (mounted) {
-						setIsLoading(false);
-						setError(false);
-					}
-				});
-
-				newWaveSurfer.on("error", (err) => {
-					// Ignore expected abort errors triggered during cleanup/destroy
-					const message = String(err?.message || err || "");
-					const isAbort =
-						(err && err.name === "AbortError") ||
-						message.toLowerCase().includes("abort");
-					if (isAbort) {
-						return;
-					}
-					if (mounted) {
-						setError(true);
-						setIsLoading(false);
-					}
-				});
-
-				await newWaveSurfer.load(audioUrl);
-			} catch (err) {
-				// Ignore expected AbortError during rapid unmount/re-init cycles
-				const message = String((err as Error)?.message || err || "");
-				const isAbort =
-					(err && (err as Error & { name?: string }).name === "AbortError") ||
-					message.toLowerCase().includes("abort");
-				if (!isAbort && mounted) {
-					setError(true);
-					setIsLoading(false);
-				}
-			}
-		};
-
-		// First safely destroy previous instance if it exists
-		if (ws) {
-			// Use this pattern to safely destroy the previous instance
-			const wsToDestroy = ws;
-			// Detach from ref immediately
-			wavesurfer.current = null;
-
-			// Wait a tick to destroy so any pending operations can complete
-			requestAnimationFrame(() => {
-				try {
-					wsToDestroy.destroy();
-				} catch (e) {
-					// Ignore errors during destroy
-				}
-				// Only initialize new instance after destroying the old one
-				if (mounted) {
-					initWaveSurfer();
-				}
-			});
-		} else {
-			// No previous instance to clean up, initialize directly
-			initWaveSurfer();
+		let active = true;
+		setWaveform(null);
+		setError(undefined);
+		if (!audioUrl) {
+			setError("Audio unavailable");
+			return () => {
+				active = false;
+			};
 		}
-
+		void audioWaveformCache
+			.get({ audioUrl })
+			.then((result) => {
+				if (active) setWaveform(result);
+			})
+			.catch(() => {
+				if (active) setError("Audio unavailable");
+			});
 		return () => {
-			// Mark component as unmounted
-			mounted = false;
-
-			// Store reference to current wavesurfer instance
-			const wsToDestroy = wavesurfer.current;
-
-			// Immediately clear the ref to prevent accessing it after unmount
-			wavesurfer.current = null;
-
-			// If we have an instance to clean up, do it safely
-			if (wsToDestroy) {
-				// Delay destruction to avoid race conditions
-				requestAnimationFrame(() => {
-					try {
-						wsToDestroy.destroy();
-					} catch (e) {
-						// Ignore destroy errors - they're expected
-					}
-				});
-			}
+			active = false;
 		};
-	}, [audioUrl, height]);
+	}, [audioUrl]);
 
-	if (error) {
-		return (
-			<div
-				className={`flex items-center justify-center ${className}`}
-				style={{ height }}
-			>
-				<span className="text-xs text-foreground/60">Audio unavailable</span>
-			</div>
-		);
-	}
+	useEffect(() => {
+		const container = containerRef.current;
+		const canvas = canvasRef.current;
+		if (!container || !canvas || !waveform) return;
+		const render = () => {
+			const width = Math.max(1, container.getBoundingClientRect().width);
+			drawWaveform({
+				canvas,
+				waveform,
+				height,
+				width,
+				sourceStart,
+				sourceEnd,
+			});
+		};
+		render();
+		const observer = new ResizeObserver(render);
+		observer.observe(container);
+		return () => observer.disconnect();
+	}, [height, sourceEnd, sourceStart, waveform]);
 
 	return (
-		<div className={`relative ${className}`}>
-			{isLoading && (
+		<div
+			ref={containerRef}
+			className={cn("relative overflow-hidden", className)}
+			style={{ height }}
+			data-testid="audio-waveform"
+		>
+			<canvas
+				ref={canvasRef}
+				className={cn(
+					"block transition-opacity duration-150",
+					waveform ? "opacity-100" : "opacity-0"
+				)}
+				aria-label="Audio waveform"
+			/>
+			{waveform ? null : (
 				<div className="absolute inset-0 flex items-center justify-center">
-					<span className="text-xs text-foreground/60">Loading...</span>
+					<span className="truncate px-1 text-[10px] text-foreground/60">
+						{error ?? "Loading waveform..."}
+					</span>
 				</div>
 			)}
-			<div
-				ref={waveformRef}
-				className={`w-full transition-opacity duration-200 ${isLoading ? "opacity-0" : "opacity-100"}`}
-				style={{ height }}
-			/>
 		</div>
 	);
-};
-
-export default AudioWaveform;
+}

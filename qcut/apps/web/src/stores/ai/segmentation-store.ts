@@ -150,7 +150,7 @@ export interface SegmentationActions {
 	// Results
 	setCompositeImage: (url: string) => void;
 	setMasks: (masks: Sam3ImageOutput[]) => void;
-	setSegmentedVideo: (url: string) => void;
+	setSegmentedVideo: (url: string | null) => void;
 
 	// Processing state
 	setProcessingState: (state: {

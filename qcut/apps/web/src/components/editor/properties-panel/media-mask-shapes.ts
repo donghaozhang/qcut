@@ -27,16 +27,16 @@ export const MASK_SHAPES: Array<{
 	label: string;
 	icon: LucideIcon;
 }> = [
-	{ type: "rectangle", label: "Rectangle", icon: RectangleHorizontal },
-	{ type: "ellipse", label: "Ellipse", icon: Circle },
-	{ type: "linear", label: "Linear", icon: PanelTop },
-	{ type: "mirror", label: "Mirror", icon: Columns2 },
-	{ type: "pen", label: "Pen", icon: PenTool },
-	{ type: "text", label: "Text", icon: Type },
-	{ type: "star", label: "Star", icon: Star },
-	{ type: "heart", label: "Heart", icon: Heart },
-	{ type: "person", label: "Person", icon: UserRound },
-	{ type: "object", label: "Object", icon: ScanSearch },
+	{ type: "rectangle", label: "矩形", icon: RectangleHorizontal },
+	{ type: "ellipse", label: "圆形", icon: Circle },
+	{ type: "linear", label: "线性", icon: PanelTop },
+	{ type: "mirror", label: "镜面", icon: Columns2 },
+	{ type: "pen", label: "钢笔", icon: PenTool },
+	{ type: "text", label: "文字", icon: Type },
+	{ type: "star", label: "星形", icon: Star },
+	{ type: "heart", label: "爱心", icon: Heart },
+	{ type: "person", label: "人物", icon: UserRound },
+	{ type: "object", label: "物体", icon: ScanSearch },
 ];
 
 export const MASK_PROPERTY_FALLBACKS: Record<
@@ -104,7 +104,56 @@ export function createMaskForShape({
 		};
 	}
 	if (type === "text") {
-		return { ...mask, text: "Text", fontFamily: "sans-serif" };
+		return { ...mask, text: "文本", fontFamily: "sans-serif" };
 	}
 	return mask;
+}
+
+export function changeMediaMaskShape({
+	mask,
+	type,
+	index,
+}: {
+	mask: MediaMask;
+	type: AddableMaskType;
+	index: number;
+}): MediaMask {
+	const {
+		points: previousPoints,
+		text: previousText,
+		fontFamily: previousFontFamily,
+		...shared
+	} = mask;
+	if (type === "pen") {
+		const defaults = createMaskForShape({ type, index });
+		return {
+			...shared,
+			type,
+			text: undefined,
+			fontFamily: undefined,
+			points:
+				mask.type === "pen" && previousPoints?.length
+					? previousPoints
+					: defaults.points,
+		};
+	}
+	if (type === "text") {
+		return {
+			...shared,
+			type,
+			points: undefined,
+			text: mask.type === "text" ? (previousText ?? "文本") : "文本",
+			fontFamily:
+				mask.type === "text"
+					? (previousFontFamily ?? "sans-serif")
+					: "sans-serif",
+		};
+	}
+	return {
+		...shared,
+		type,
+		points: undefined,
+		text: undefined,
+		fontFamily: undefined,
+	};
 }

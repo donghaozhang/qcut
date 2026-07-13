@@ -89,11 +89,11 @@ export interface KeyframeEditorProps {
 // ============================================================================
 
 const EASING_OPTIONS: { value: EasingType; label: string }[] = [
-	{ value: "linear", label: "Linear" },
-	{ value: "easeIn", label: "Ease In" },
-	{ value: "easeOut", label: "Ease Out" },
-	{ value: "easeInOut", label: "Ease In Out" },
-	{ value: "spring", label: "Spring" },
+	{ value: "linear", label: "线性" },
+	{ value: "easeIn", label: "缓入" },
+	{ value: "easeOut", label: "缓出" },
+	{ value: "easeInOut", label: "缓入缓出" },
+	{ value: "spring", label: "弹簧" },
 ];
 
 // ============================================================================
@@ -143,15 +143,15 @@ function KeyframeDiamond({
 							}
 						}}
 						disabled={disabled}
-						aria-label={`Keyframe at frame ${keyframe.frame}. Press Delete to remove.`}
+						aria-label={`第 ${keyframe.frame} 帧关键帧，按 Delete 删除`}
 					/>
 				</TooltipTrigger>
 				<TooltipContent side="top" className="text-xs">
-					<div>Frame {keyframe.frame}</div>
+					<div>帧 {keyframe.frame}</div>
 					<div className="text-muted-foreground">
-						Value: {String(keyframe.value)}
+						数值：{String(keyframe.value)}
 					</div>
-					<div className="text-muted-foreground">Easing: {keyframe.easing}</div>
+					<div className="text-muted-foreground">缓动：{keyframe.easing}</div>
 				</TooltipContent>
 			</Tooltip>
 		</TooltipProvider>
@@ -227,7 +227,7 @@ function KeyframeEditPanel({
 		<div className="space-y-3 p-1">
 			<div className="grid grid-cols-2 gap-2">
 				<div>
-					<Label className="text-[10px] text-muted-foreground">Frame</Label>
+					<Label className="text-[10px] text-muted-foreground">帧</Label>
 					<Input
 						type="number"
 						value={localFrame}
@@ -239,7 +239,7 @@ function KeyframeEditPanel({
 					/>
 				</div>
 				<div>
-					<Label className="text-[10px] text-muted-foreground">Value</Label>
+					<Label className="text-[10px] text-muted-foreground">数值</Label>
 					{propType === "color" ? (
 						<div className="flex gap-1">
 							<input
@@ -270,7 +270,7 @@ function KeyframeEditPanel({
 			</div>
 
 			<div>
-				<Label className="text-[10px] text-muted-foreground">Easing</Label>
+				<Label className="text-[10px] text-muted-foreground">缓动</Label>
 				<Select
 					value={localEasing}
 					onValueChange={handleEasingChange}
@@ -298,7 +298,7 @@ function KeyframeEditPanel({
 				disabled={disabled}
 			>
 				<Trash2 className="w-3 h-3 mr-1" />
-				Delete Keyframe
+				删除关键帧
 			</Button>
 		</div>
 	);
@@ -431,7 +431,7 @@ export function KeyframeEditor({
 					setIsExpanded(!isExpanded);
 				}}
 				aria-expanded={isExpanded}
-				aria-label={`${isExpanded ? "Collapse" : "Expand"} ${propLabel} keyframes`}
+				aria-label={`${isExpanded ? "收起" : "展开"}${propLabel}关键帧`}
 			>
 				<div className="flex items-center gap-2">
 					<ChevronDown
@@ -443,7 +443,7 @@ export function KeyframeEditor({
 					<Diamond className="w-3 h-3 text-violet-400" />
 					<span className="text-xs font-medium">{propLabel}</span>
 					<span className="text-[10px] text-muted-foreground">
-						({keyframes.length} keyframe{keyframes.length !== 1 ? "s" : ""})
+						（{keyframes.length} 个关键帧）
 					</span>
 				</div>
 				<div className="flex items-center gap-2">
@@ -465,7 +465,7 @@ export function KeyframeEditor({
 									variant="outline"
 									size="icon"
 									className="h-5 w-5"
-									aria-label="Add keyframe at current frame"
+									aria-label="在当前帧添加关键帧"
 									onClick={(e) => {
 										e.stopPropagation();
 										handleAddKeyframe();
@@ -475,7 +475,7 @@ export function KeyframeEditor({
 									<Plus className="w-3 h-3" />
 								</Button>
 							</TooltipTrigger>
-							<TooltipContent>Add keyframe at current frame</TooltipContent>
+							<TooltipContent>在当前帧添加关键帧</TooltipContent>
 						</Tooltip>
 					</TooltipProvider>
 				</div>
@@ -505,7 +505,7 @@ export function KeyframeEditor({
 						}}
 						role="button"
 						tabIndex={disabled ? -1 : 0}
-						aria-label={`Keyframe track for ${propLabel}. Press Enter or Space to add keyframe at current frame.`}
+						aria-label={`${propLabel}关键帧轨道，按 Enter 或空格在当前帧添加关键帧`}
 					>
 						{/* Playhead */}
 						<div
@@ -592,7 +592,7 @@ export function KeyframeEditor({
 					{/* Empty state */}
 					{keyframes.length === 0 && (
 						<div className="text-center text-[10px] text-muted-foreground py-2">
-							Click the track or + button to add keyframes
+							点击轨道或 + 按钮添加关键帧
 						</div>
 					)}
 				</div>

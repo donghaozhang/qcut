@@ -1,0 +1,81 @@
+import { Plus } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import type { MediaMask, MediaMaskTrackingDirection } from "@/types/timeline";
+import { PropertyGroup } from "./property-item";
+import { MediaMaskTrackingControls } from "./media-mask-tracking-controls";
+
+function correctionCount({ mask }: { mask: MediaMask }): number {
+	const frames = new Set<number>();
+	for (const property of [
+		"centerX",
+		"centerY",
+		"width",
+		"height",
+		"rotation",
+	] as const) {
+		for (const keyframe of mask.keyframes?.[property] ?? []) {
+			frames.add(keyframe.frame);
+		}
+	}
+	return frames.size;
+}
+
+export function MediaTrackingProperties({
+	masks,
+	onTrack,
+	onOpenMasks,
+}: {
+	masks: MediaMask[];
+	onTrack: ({
+		mask,
+		direction,
+	}: {
+		mask: MediaMask;
+		direction: MediaMaskTrackingDirection;
+	}) => void;
+	onOpenMasks: () => void;
+}) {
+	return (
+		<PropertyGroup title="蒙版跟踪" defaultExpanded>
+			{masks.length === 0 ? (
+				<div className="space-y-3 py-2 text-xs text-muted-foreground">
+					<p>先创建人物、物体或几何蒙版，再选择跟踪方向。</p>
+					<Button
+						type="button"
+						variant="outline"
+						size="sm"
+						className="w-full"
+						onClick={onOpenMasks}
+						onKeyDown={(event) => {
+							if (event.key === "Enter" || event.key === " ") {
+								event.currentTarget.click();
+							}
+						}}
+					>
+						<Plus className="size-3.5" />
+						创建蒙版
+					</Button>
+				</div>
+			) : (
+				<div className="divide-y divide-border/70">
+					{masks.map((mask, index) => (
+						<div key={mask.id ?? `${mask.type}-${index}`} className="py-3">
+							<div className="mb-2 flex items-center justify-between gap-2">
+								<span className="truncate text-xs font-medium">
+									{mask.name || `蒙版 ${index + 1}`}
+								</span>
+								<span className="shrink-0 text-[10px] text-muted-foreground">
+									{correctionCount({ mask })} 个修正帧
+								</span>
+							</div>
+							<MediaMaskTrackingControls
+								mask={mask}
+								onTrack={(direction) => onTrack({ mask, direction })}
+							/>
+						</div>
+					))}
+				</div>
+			)}
+		</PropertyGroup>
+	);
+}

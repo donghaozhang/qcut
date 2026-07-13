@@ -21,6 +21,7 @@ interface KaraokeRendererProps {
 	currentTime: number;
 	/** Resolved subtitle style */
 	style: SubtitleStyle;
+	canvasScale?: number;
 }
 
 /** Renders word-by-word karaoke captions with animation state. */
@@ -28,6 +29,7 @@ export function KaraokeRenderer({
 	words,
 	currentTime,
 	style,
+	canvasScale = 1,
 }: KaraokeRendererProps) {
 	const mode: KaraokeMode = style.karaokeMode ?? "none";
 	const highlightColor = style.highlightColor ?? "#ffff00";
@@ -47,7 +49,7 @@ export function KaraokeRenderer({
 
 	if (segments.length === 0) return null;
 
-	const baseCSS = subtitleStyleToCSS(style);
+	const baseCSS = subtitleStyleToCSS({ style, canvasScale });
 
 	return (
 		<div
@@ -56,7 +58,7 @@ export function KaraokeRenderer({
 				...baseCSS,
 				display: "inline-flex",
 				flexWrap: "wrap",
-				gap: "4px",
+				gap: `${4 * canvasScale}px`,
 			}}
 		>
 			{segments.map((seg, i) => {
@@ -66,7 +68,7 @@ export function KaraokeRenderer({
 						key={seg.wordId || i}
 						style={{
 							display: "inline-block",
-							transform: `scale(${seg.scale}) translateY(${seg.offsetY}px)`,
+							transform: `scale(${seg.scale}) translateY(${seg.offsetY * canvasScale}px)`,
 							opacity: seg.opacity,
 							transition: "transform 0.1s ease-out, opacity 0.1s ease-out",
 							...(isGradient

@@ -79,9 +79,7 @@ export function MaskNumberControl({
 					{label}
 				</PropertyItemLabel>
 				<MaskIconButton
-					label={
-						keyframed ? `Remove ${label} keyframe` : `Add ${label} keyframe`
-					}
+					label={keyframed ? `移除${label}关键帧` : `添加${label}关键帧`}
 					onClick={onToggleKeyframe}
 					active={keyframed}
 				>
@@ -92,7 +90,7 @@ export function MaskNumberControl({
 				<div className="flex items-center gap-1">
 					<Input
 						type="number"
-						aria-label={`${label} value`}
+						aria-label={`${label}数值`}
 						value={Number(value.toFixed(step < 1 ? 2 : 0))}
 						min={min}
 						max={max}

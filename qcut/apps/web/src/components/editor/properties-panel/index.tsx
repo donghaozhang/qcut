@@ -34,8 +34,10 @@ import {
 } from "@/stores/screen-recording-store";
 import { TransitionProperties } from "./transition-properties";
 import { AdjustmentProperties } from "./adjustment-properties";
+import { useTranslation } from "@/lib/i18n";
 
 export function PropertiesPanel() {
+	const { t } = useTranslation();
 	const { selectedElements, selectedTransition, tracks } = useTimelineStore();
 	const {
 		mediaItems,
@@ -113,10 +115,16 @@ export function PropertiesPanel() {
 
 	const emptyView = (
 		<div className="space-y-4 p-5">
-			<PropertyGroup title="Project Information" defaultExpanded={true}>
+			<PropertyGroup
+				title={t("editor.panel.projectInfo")}
+				defaultExpanded={true}
+			>
 				<ProjectInfoView />
 			</PropertyGroup>
-			<PropertyGroup title="Background" defaultExpanded={false}>
+			<PropertyGroup
+				title={t("editor.panel.background")}
+				defaultExpanded={false}
+			>
 				<BackgroundView />
 			</PropertyGroup>
 		</div>
@@ -128,7 +136,9 @@ export function PropertiesPanel() {
 			<ScrollArea className="h-full bg-panel rounded-sm">
 				<div className="p-4">
 					<div className="text-center">
-						<div className="text-red-500 mb-2">Failed to load media items</div>
+						<div className="text-red-500 mb-2">
+							{t("editor.panel.mediaLoadFailed")}
+						</div>
 						<div className="text-sm text-muted-foreground">
 							{mediaItemsError.message}
 						</div>
@@ -145,7 +155,7 @@ export function PropertiesPanel() {
 					<div className="flex items-center justify-center">
 						<div className="flex items-center space-x-2">
 							<div className="animate-spin rounded-full h-4 w-4 border-b-2 border-primary" />
-							<span>Loading properties...</span>
+							<span>{t("editor.panel.loading")}</span>
 						</div>
 					</div>
 				</div>
@@ -203,17 +213,18 @@ export function PropertiesPanel() {
 	};
 
 	return (
-		<div className="h-full flex flex-col">
+		<div className="flex h-full min-w-0 flex-col overflow-hidden">
 			<PanelTabs activeTab={panelView} onTabChange={setPanelView} />
-			<div className="flex-1 overflow-auto">
+			<div className="min-w-0 flex-1 overflow-auto">
 				{panelView === PanelView.EXPORT ? (
 					<ExportPanelContent />
 				) : panelView === PanelView.SETTINGS ? (
 					<SettingsView />
 				) : (
-					<ScrollArea className="h-full bg-panel rounded-sm">
+					<ScrollArea className="h-full min-w-0 rounded-sm bg-panel">
 						{resolvedTransition ? (
 							<TransitionProperties
+								key={resolvedTransition.transition.id}
 								track={resolvedTransition.track}
 								transition={resolvedTransition.transition}
 							/>
@@ -222,7 +233,7 @@ export function PropertiesPanel() {
 								className={
 									isSingleAudioSelection || isAudioBatchSelection
 										? ""
-										: "space-y-4 p-5"
+										: "min-w-0 space-y-4 overflow-x-hidden p-5"
 								}
 							>
 								{isAudioBatchSelection ? (
@@ -255,7 +266,7 @@ export function PropertiesPanel() {
 									})()
 								) : (
 									<div className="py-8 text-center text-xs text-muted-foreground">
-										{resolvedSelections.length} mixed elements selected
+										已选择 {resolvedSelections.length} 个不同类型的片段
 									</div>
 								)}
 								{showScreenRecordingPanel ? <ScreenRecordingPanel /> : null}

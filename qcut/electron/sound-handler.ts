@@ -3,6 +3,10 @@ import https from "https";
 import path from "path";
 import fs from "fs";
 import { pathToFileURL } from "node:url";
+import {
+	buildFreesoundSearchFilters,
+	type FreesoundSearchType,
+} from "./sounds/freesound-search";
 
 // Try to load electron-log, fallback to no-op if not available
 interface Logger {
@@ -36,7 +40,7 @@ interface DefaultKeys {
 
 interface SearchParams {
 	q?: string;
-	type?: string;
+	type?: FreesoundSearchType;
 	page?: number;
 	page_size?: number;
 	sort?: string;
@@ -278,16 +282,6 @@ export function setupSoundIPC(): void {
 					commercial_only = true,
 				} = searchParams;
 
-				// Handle songs limitation (same as Next.js API)
-				if (type === "songs") {
-					return {
-						success: false,
-						error: "Songs are not available yet",
-						message:
-							"Song search functionality is coming soon. Try searching for sound effects instead.",
-					};
-				}
-
 				log.info("[Sound Handler] Getting API key...");
 				const FREESOUND_API_KEY: string | null = await getFreesoundApiKey();
 				log.info(
@@ -323,23 +317,12 @@ export function setupSoundIPC(): void {
 						"id,name,description,url,previews,download,duration,filesize,type,channels,bitrate,bitdepth,samplerate,username,tags,license,created,num_downloads,avg_rating,num_ratings",
 				});
 
-				// Always apply sound effect filters (same as Next.js API)
-				if (type === "effects" || !type) {
-					params.append("filter", "duration:[* TO 30.0]");
-					params.append("filter", `avg_rating:[${min_rating} TO *]`);
-
-					// Filter by license if commercial_only is true (enhanced from Next.js)
-					if (commercial_only) {
-						params.append(
-							"filter",
-							'license:("Attribution" OR "Creative Commons 0")'
-						);
-					}
-
-					params.append(
-						"filter",
-						"tag:sound-effect OR tag:sfx OR tag:foley OR tag:ambient OR tag:nature OR tag:mechanical OR tag:electronic OR tag:impact OR tag:whoosh OR tag:explosion"
-					);
+				for (const filter of buildFreesoundSearchFilters({
+					type,
+					minRating: min_rating,
+					commercialOnly: commercial_only,
+				})) {
+					params.append("filter", filter);
 				}
 
 				const finalUrl: string = `${baseUrl}?${params.toString()}`;

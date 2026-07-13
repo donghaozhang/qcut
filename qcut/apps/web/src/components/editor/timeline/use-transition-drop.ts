@@ -6,6 +6,7 @@ import { useTimelineStore } from "@/stores/timeline/timeline-store";
 import {
 	findClosestMediaSeam,
 	type ClipTransitionDirection,
+	type ClipTransitionTuning,
 	type ClipTransitionType,
 	type TimelineTrack,
 } from "@/types/timeline";
@@ -17,15 +18,53 @@ interface TransitionDragPayload {
 	id: string;
 	type: ClipTransitionType;
 	direction?: ClipTransitionDirection;
+	tuning?: ClipTransitionTuning;
 	defaultDuration: number;
+}
+
+function parseTuning({
+	value,
+}: {
+	value: unknown;
+}): ClipTransitionTuning | undefined {
+	if (value === undefined) return;
+	if (!value || typeof value !== "object" || Array.isArray(value)) return;
+	const candidate = value as Record<string, unknown>;
+	const intensity =
+		typeof candidate.intensity === "number" &&
+		Number.isFinite(candidate.intensity)
+			? Math.min(2, Math.max(0.1, candidate.intensity))
+			: undefined;
+	const frequency =
+		typeof candidate.frequency === "number" &&
+		Number.isFinite(candidate.frequency)
+			? Math.min(4, Math.max(0.1, candidate.frequency))
+			: undefined;
+	const tint =
+		typeof candidate.tint === "string" && /^#[\da-f]{6}$/i.test(candidate.tint)
+			? candidate.tint
+			: undefined;
+	return intensity === undefined &&
+		frequency === undefined &&
+		tint === undefined
+		? undefined
+		: { intensity, frequency, tint };
 }
 
 function isTransitionType(value: unknown): value is ClipTransitionType {
 	return (
 		value === "dissolve" ||
 		value === "fade-black" ||
+		value === "fade-white" ||
 		value === "slide" ||
-		value === "wipe"
+		value === "wipe" ||
+		value === "push" ||
+		value === "zoom-blur" ||
+		value === "whip-pan" ||
+		value === "flash" ||
+		value === "light-leak" ||
+		value === "rgb-glitch" ||
+		value === "shake"
 	);
 }
 
@@ -60,6 +99,7 @@ function parseTransitionPayload({
 			id: candidate.id,
 			type: candidate.type,
 			direction: candidate.direction,
+			tuning: parseTuning({ value: candidate.tuning }),
 			defaultDuration: candidate.defaultDuration,
 		};
 	} catch {
@@ -123,6 +163,7 @@ export function useTransitionDrop({
 			presetId: payload.id,
 			type: payload.type,
 			direction: payload.direction,
+			tuning: payload.tuning,
 			duration: payload.defaultDuration,
 			easing: "easeInOut",
 		});

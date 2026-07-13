@@ -14,7 +14,7 @@ import {
 import type { ColorSettingsEditorBindings } from "./color-properties-types";
 
 const COLOR_SPACES: Array<{ value: ColorSpace; label: string }> = [
-	{ value: "auto", label: "Auto" },
+	{ value: "auto", label: "自动" },
 	{ value: "srgb", label: "sRGB" },
 	{ value: "rec709", label: "Rec.709" },
 	{ value: "display-p3", label: "Display P3" },
@@ -66,7 +66,7 @@ export function ColorManagementSettingsPanel({
 		onSettingsChange({ ...settings, management });
 	return (
 		<ColorModuleSection
-			title="Color management"
+			title="色彩管理"
 			enabled={settings.management.enabled}
 			onEnabledChange={(enabled) => update({ ...settings.management, enabled })}
 			onReset={() =>
@@ -78,7 +78,7 @@ export function ColorManagementSettingsPanel({
 			testId="color-module-management"
 		>
 			<SelectRow
-				label="Input"
+				label="输入色彩空间"
 				value={settings.management.inputSpace}
 				options={COLOR_SPACES}
 				onChange={(inputSpace) =>
@@ -89,7 +89,7 @@ export function ColorManagementSettingsPanel({
 				}
 			/>
 			<SelectRow
-				label="Working"
+				label="工作色彩空间"
 				value={settings.management.workingSpace}
 				options={[
 					{ value: "rec709-linear", label: "Rec.709 Linear" },
@@ -103,7 +103,7 @@ export function ColorManagementSettingsPanel({
 				}
 			/>
 			<SelectRow
-				label="Output"
+				label="输出色彩空间"
 				value={settings.management.outputSpace}
 				options={COLOR_SPACES.filter(
 					(space) => !["auto", "logc3", "slog3", "vlog"].includes(space.value)
@@ -116,10 +116,10 @@ export function ColorManagementSettingsPanel({
 				}
 			/>
 			<SelectRow
-				label="Tone mapping"
+				label="色调映射"
 				value={settings.management.toneMapping}
 				options={[
-					{ value: "none", label: "None" },
+					{ value: "none", label: "无" },
 					{ value: "aces", label: "ACES" },
 					{ value: "hable", label: "Hable" },
 					{ value: "reinhard", label: "Reinhard" },
@@ -132,7 +132,7 @@ export function ColorManagementSettingsPanel({
 				}
 			/>
 			<ColorNumberControl
-				label="Peak luminance"
+				label="峰值亮度"
 				value={settings.management.peakNits}
 				min={100}
 				max={4000}

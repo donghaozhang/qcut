@@ -45,7 +45,12 @@ import {
 } from "@/stores/editor/audio-preview-store";
 import { useColorPickerStore } from "@/stores/editor/color-picker-store";
 import type { ClipTransitionPreviewState } from "@/lib/transitions/clip-transition-preview";
-import { getClipTransitionLayerPresentation } from "@/lib/transitions/clip-transition-presentation";
+import {
+	buildClipTransitionCssFilter,
+	buildClipTransitionCssTransform,
+	getClipTransitionLayerPresentation,
+} from "@/lib/transitions/clip-transition-presentation";
+import { buildMediaMaskStrokeCssFilter } from "@/lib/video/media-mask-stroke";
 import { CaptionsDisplay } from "@/components/captions/captions-display";
 import { WORD_FILTER_STATE } from "@/types/word-timeline";
 import { TimelineStickerLayer } from "./timeline-sticker-layer";
@@ -407,6 +412,7 @@ export function PreviewElementRenderer({
 		}
 
 		if (element.type === "captions") {
+			const canvasScale = previewDimensions.width / canvasSize.width;
 			const segment = {
 				id: 0,
 				seek: element.startTime * 1000,
@@ -440,6 +446,7 @@ export function PreviewElementRenderer({
 						isVisible
 						subtitleStyle={element.style}
 						words={words}
+						canvasScale={canvasScale}
 					/>
 				</div>
 			);
@@ -476,6 +483,9 @@ export function PreviewElementRenderer({
 						offsetX: 0,
 						offsetY: 0,
 					};
+			const transitionFilter = buildClipTransitionCssFilter({
+				presentation: transitionPresentation,
+			});
 			if (!mediaItem || element.mediaId === TEST_MEDIA_ID) {
 				return (
 					<div
@@ -486,7 +496,11 @@ export function PreviewElementRenderer({
 							opacity: transitionPresentation.opacity,
 							clipPath: transitionPresentation.clipPath,
 							backgroundColor: transitionPresentation.backgroundColor,
-							transform: `translate3d(${transitionPresentation.offsetX}px, ${transitionPresentation.offsetY}px, 0)`,
+							filter: transitionFilter,
+							transform: buildClipTransitionCssTransform({
+								presentation: transitionPresentation,
+							}),
+							transformOrigin: "center",
 						}}
 					>
 						<div className="text-center">
@@ -622,6 +636,9 @@ export function PreviewElementRenderer({
 						)
 					)
 				);
+				const maskStrokeFilter = buildMediaMaskStrokeCssFilter({
+					masks: visual.masks,
+				});
 				const sourceVideoId = generatedMaskSource
 					? `${mediaItem.id}-mask-${generatedMask?.sourceMediaId}`
 					: mediaItem.id;
@@ -651,8 +668,12 @@ export function PreviewElementRenderer({
 							top: `${50 + ((displayY + mediaAnimation.offsetY + transitionPresentation.offsetY) / canvasSize.height) * 100}%`,
 							width: "100%",
 							height: "100%",
-							transform: `translate(-50%, -50%) rotate(${visual.rotation}deg) scale(${visual.scaleX * mediaAnimation.scale * (visual.flipHorizontal ? -1 : 1)}, ${visual.scaleY * mediaAnimation.scale * (visual.flipVertical ? -1 : 1)})`,
+							transform: `translate(-50%, -50%) rotate(${visual.rotation + (transitionPresentation.rotation ?? 0)}deg) scale(${visual.scaleX * mediaAnimation.scale * (transitionPresentation.scale ?? 1) * (visual.flipHorizontal ? -1 : 1)}, ${visual.scaleY * mediaAnimation.scale * (transitionPresentation.scale ?? 1) * (visual.flipVertical ? -1 : 1)})`,
 							transformOrigin: "center",
+							filter:
+								[transitionFilter, maskStrokeFilter]
+									.filter(Boolean)
+									.join(" ") || undefined,
 							opacity:
 								visual.opacity *
 								mediaAnimation.opacity *
@@ -795,6 +816,9 @@ export function PreviewElementRenderer({
 						)
 					)
 				);
+				const maskStrokeFilter = buildMediaMaskStrokeCssFilter({
+					masks: visual.masks,
+				});
 				const selectedMask =
 					isEditingMask && selectedMaskElementId === element.id
 						? visual.masks.find((mask) => mask.id === selectedMaskId)
@@ -852,7 +876,12 @@ export function PreviewElementRenderer({
 								top: `${50 + ((displayY + transitionPresentation.offsetY) / canvasSize.height) * 100}%`,
 								width: `${currentWidth * scaleRatio}px`,
 								height: `${currentHeight * scaleRatio}px`,
-								transform: `translate(-50%, -50%) rotate(${element.rotation ?? 0}deg)`,
+								transform: `translate(-50%, -50%) rotate(${(element.rotation ?? 0) + (transitionPresentation.rotation ?? 0)}deg) scale(${transitionPresentation.scale ?? 1})`,
+								transformOrigin: "center",
+								filter:
+									[transitionFilter, maskStrokeFilter]
+										.filter(Boolean)
+										.join(" ") || undefined,
 								zIndex: index + 1,
 								opacity: transitionPresentation.opacity,
 								clipPath: transitionPresentation.clipPath,
@@ -908,7 +937,14 @@ export function PreviewElementRenderer({
 							opacity: transitionPresentation.opacity,
 							clipPath: transitionPresentation.clipPath,
 							backgroundColor: transitionPresentation.backgroundColor,
-							transform: `translate3d(${transitionPresentation.offsetX}px, ${transitionPresentation.offsetY}px, 0)`,
+							filter:
+								[transitionFilter, maskStrokeFilter]
+									.filter(Boolean)
+									.join(" ") || undefined,
+							transform: buildClipTransitionCssTransform({
+								presentation: transitionPresentation,
+							}),
+							transformOrigin: "center",
 						}}
 					>
 						<div

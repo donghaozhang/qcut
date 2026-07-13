@@ -100,4 +100,27 @@ describe("buildTimelineAssLayers", () => {
 
 		expect(result.layers).toHaveLength(0);
 	});
+
+	it("selects a platform CJK font for Chinese ASS captions", () => {
+		const chinese = createCaptionElement();
+		chinese.text = "真实视频字幕";
+		const result = buildTimelineAssLayers({
+			tracks: [
+				{
+					id: "caption-track",
+					name: "Captions",
+					type: "captions",
+					elements: [chinese],
+				},
+			],
+			canvasWidth: 1080,
+			canvasHeight: 1920,
+			fps: 30,
+			platform: "darwin",
+		});
+
+		expect(result.layers[0].content).toContain(
+			"Style: Default,Hiragino Sans GB,"
+		);
+	});
 });

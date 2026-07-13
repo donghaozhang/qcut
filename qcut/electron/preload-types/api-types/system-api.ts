@@ -1,12 +1,16 @@
 /** Auto-update and release notes operations. */
+import type { UpdateState } from "../../auto-update-controller.js";
+import type { UpdatePreferences } from "../../update-preferences.js";
+
 export interface UpdatesAPI {
 	updates?: {
-		checkForUpdates: () => Promise<{
-			available: boolean;
-			version?: string;
-			message?: string;
-			error?: string;
-		}>;
+		checkForUpdates: () => Promise<UpdateState>;
+		downloadUpdate: () => Promise<UpdateState>;
+		getState: () => Promise<UpdateState>;
+		getPreferences: () => Promise<UpdatePreferences>;
+		setPreferences: (
+			preferences: Partial<UpdatePreferences>
+		) => Promise<UpdatePreferences>;
 		installUpdate: () => Promise<{
 			success: boolean;
 			message?: string;
@@ -43,6 +47,7 @@ export interface UpdatesAPI {
 		onUpdateDownloaded: (
 			callback: (data: { version: string }) => void
 		) => () => void;
+		onStateChanged: (callback: (state: UpdateState) => void) => () => void;
 	};
 }
 

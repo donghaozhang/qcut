@@ -64,8 +64,8 @@ export function AudioLevelMeter({ trackId }: { trackId: string }) {
 			className="space-y-2 border-b border-border/70 py-3"
 			data-testid="audio-level-meter"
 		>
-			<MeterRow label="Track" reading={track} />
-			<MeterRow label="Master" reading={master} />
+			<MeterRow label="轨道" reading={track} />
+			<MeterRow label="主输出" reading={master} />
 		</section>
 	);
 }

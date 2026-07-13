@@ -6,6 +6,7 @@ export interface EffectParameters {
 	hue?: number; // 0 to 360
 	grayscale?: number; // 0 to 100
 	invert?: number; // 0 to 100
+	sepia?: number; // 0 to 100
 }
 
 const clamp = (value: number, min: number, max: number): number => {
@@ -63,6 +64,26 @@ export class FFmpegFilterChain {
 		return this;
 	}
 
+	addSepia(value: number): this {
+		const strength = clamp(value / 100, 0, 1);
+		const rr = 1 - 0.607 * strength;
+		const rg = 0.769 * strength;
+		const rb = 0.189 * strength;
+		const gr = 0.349 * strength;
+		const gg = 1 - 0.314 * strength;
+		const gb = 0.168 * strength;
+		const br = 0.272 * strength;
+		const bg = 0.534 * strength;
+		const bb = 1 - 0.869 * strength;
+		this.filters.push(
+			"colorchannelmixer=" +
+				`rr=${rr.toFixed(4)}:rg=${rg.toFixed(4)}:rb=${rb.toFixed(4)}:` +
+				`gr=${gr.toFixed(4)}:gg=${gg.toFixed(4)}:gb=${gb.toFixed(4)}:` +
+				`br=${br.toFixed(4)}:bg=${bg.toFixed(4)}:bb=${bb.toFixed(4)}`
+		);
+		return this;
+	}
+
 	build(): string {
 		return this.filters.join(",");
 	}
@@ -77,6 +98,7 @@ export class FFmpegFilterChain {
 		if (params.hue !== undefined) chain.addHue(params.hue);
 		if (params.grayscale !== undefined) chain.addGrayscale(params.grayscale);
 		if (params.invert !== undefined) chain.addInvert(params.invert);
+		if (params.sepia !== undefined) chain.addSepia(params.sepia);
 
 		return chain.build();
 	}

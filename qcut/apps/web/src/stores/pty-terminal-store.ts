@@ -957,6 +957,11 @@ function _tabMatchesSession(
 		const sourceSession = sessions.get(sourceTabId);
 		if (sourceSession?.sessionId === backendSessionId) return true;
 	}
+	if (callbackTabId.startsWith("task-")) {
+		const sourceTabId = callbackTabId.slice("task-".length);
+		const sourceSession = sessions.get(sourceTabId);
+		if (sourceSession?.sessionId === backendSessionId) return true;
+	}
 
 	return false;
 }

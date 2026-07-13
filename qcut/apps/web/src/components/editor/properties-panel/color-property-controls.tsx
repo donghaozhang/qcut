@@ -84,9 +84,9 @@ export function ColorCurveKeyframeControls({
 			className="flex items-center justify-end"
 			data-testid={`curve-keyframes-${property}`}
 		>
-			<span className="mr-1 text-[10px] text-muted-foreground">Shape</span>
+			<span className="mr-1 text-[10px] text-muted-foreground">形状</span>
 			<ColorIconButton
-				label="Previous curve shape keyframe"
+				label="上一个曲线形状关键帧"
 				onClick={() => {
 					if (previousFrame !== undefined) bindings.onSeekFrame(previousFrame);
 				}}
@@ -95,11 +95,7 @@ export function ColorCurveKeyframeControls({
 				<ChevronLeft className="size-3" />
 			</ColorIconButton>
 			<ColorIconButton
-				label={
-					keyframedHere
-						? "Remove curve shape keyframe"
-						: "Add curve shape keyframe"
-				}
+				label={keyframedHere ? "删除曲线形状关键帧" : "添加曲线形状关键帧"}
 				onClick={() => bindings.onToggleCurveKeyframe(property)}
 				active={keyframedHere}
 			>
@@ -108,7 +104,7 @@ export function ColorCurveKeyframeControls({
 				/>
 			</ColorIconButton>
 			<ColorIconButton
-				label="Next curve shape keyframe"
+				label="下一个曲线形状关键帧"
 				onClick={() => {
 					if (nextFrame !== undefined) bindings.onSeekFrame(nextFrame);
 				}}
@@ -145,7 +141,7 @@ export function ColorModuleSection({
 		>
 			<summary className="flex cursor-pointer list-none items-center gap-2 [&::-webkit-details-marker]:hidden">
 				<Switch
-					aria-label={`Enable ${title}`}
+					aria-label={`启用${title}`}
 					checked={enabled}
 					onClick={(event) => event.stopPropagation()}
 					onKeyDown={(event) => event.stopPropagation()}
@@ -160,7 +156,7 @@ export function ColorModuleSection({
 					{title}
 				</span>
 				<ColorIconButton
-					label={`Reset ${title}`}
+					label={`重置${title}`}
 					onClick={onReset}
 					stopPropagation
 				>
@@ -245,7 +241,7 @@ export function ColorNumberControl({
 				{supportsKeyframes ? (
 					<div className="flex items-center">
 						<ColorIconButton
-							label={`Previous ${label} keyframe`}
+							label={`上一个${label}关键帧`}
 							onClick={onPreviousKeyframe ?? (() => {})}
 							disabled={!hasPreviousKeyframe}
 						>
@@ -253,9 +249,7 @@ export function ColorNumberControl({
 						</ColorIconButton>
 						<ColorIconButton
 							label={
-								keyframedHere
-									? `Remove ${label} keyframe`
-									: `Add ${label} keyframe`
+								keyframedHere ? `删除${label}关键帧` : `添加${label}关键帧`
 							}
 							onClick={onToggleKeyframe ?? (() => {})}
 							active={keyframedHere}
@@ -268,7 +262,7 @@ export function ColorNumberControl({
 							/>
 						</ColorIconButton>
 						<ColorIconButton
-							label={`Next ${label} keyframe`}
+							label={`下一个${label}关键帧`}
 							onClick={onNextKeyframe ?? (() => {})}
 							disabled={!hasNextKeyframe}
 						>
@@ -278,7 +272,7 @@ export function ColorNumberControl({
 				) : null}
 				<Input
 					type="number"
-					aria-label={`${label} value`}
+					aria-label={`${label}数值`}
 					value={Number(value.toFixed(step < 1 ? 2 : 0))}
 					min={min}
 					max={max}

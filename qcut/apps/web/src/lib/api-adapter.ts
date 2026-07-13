@@ -119,7 +119,7 @@ async function legacyTranscribe(
  * @param query - Free-text search query for sounds
  * @param options - Optional settings and search filters
  * @param options.retryCount - Number of retry attempts for the legacy HTTP path (default: 3)
- * @param options.fallbackToOld - Whether to fall back to the legacy HTTP implementation on IPC failure (default: true)
+ * @param options.fallbackToOld - Whether to fall back to the legacy HTTP implementation on IPC failure (default: false on desktop, true on web)
  * @param options.type - Filter by sound type: `"effects"` or `"songs"`
  * @param options.page - Result page number for pagination
  * @param options.page_size - Number of results per page
@@ -141,12 +141,14 @@ export async function searchSounds(
 		commercial_only?: boolean;
 	} = {}
 ) {
-	const { retryCount = 3, fallbackToOld = true, ...searchParams } = options;
+	const { retryCount = 3, fallbackToOld, ...searchParams } = options;
+	const currentPlatform = platform();
+	const shouldFallbackToOld = fallbackToOld ?? !currentPlatform.isElectron;
 
 	if (isFeatureEnabled("USE_ELECTRON_API")) {
 		try {
 			// New Electron IPC implementation
-			const result = await platform().sounds.search({
+			const result = await currentPlatform.sounds.search({
 				q: query,
 				...searchParams,
 			});
@@ -154,7 +156,7 @@ export async function searchSounds(
 			if (result?.success) {
 				return result;
 			}
-			if (!fallbackToOld) {
+			if (!shouldFallbackToOld) {
 				return result;
 			}
 			throw new Error(result?.error || "IPC failed, attempting fallback");
@@ -168,10 +170,13 @@ export async function searchSounds(
 					query,
 				},
 			});
-			if (fallbackToOld) {
+			if (shouldFallbackToOld) {
 				return legacySoundSearch(query, searchParams, retryCount);
 			}
-			throw error;
+			return {
+				success: false,
+				error: error instanceof Error ? error.message : "Sound search failed",
+			};
 		}
 	}
 

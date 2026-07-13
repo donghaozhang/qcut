@@ -11,7 +11,7 @@ import { ChevronDown, FolderOpen } from "lucide-react";
 import {
 	ExportQuality,
 	ExportFormat,
-	QUALITY_RESOLUTIONS,
+	resolveExportResolution,
 	FORMAT_INFO,
 	EXPORT_PRESETS,
 	EXPORT_FRAME_RATES,
@@ -98,6 +98,7 @@ export interface FilenameCardProps {
 
 export interface QualityCardProps {
 	quality: ExportQuality;
+	aspectRatio: number;
 	estimatedSize: string;
 	onQualityChange: (quality: ExportQuality) => void;
 	isExporting: boolean;
@@ -313,17 +314,18 @@ export function FilenameCard({
 
 export function QualityCard({
 	quality,
+	aspectRatio,
 	estimatedSize,
 	onQualityChange,
 	isExporting,
 }: QualityCardProps) {
 	const [open, setOpen] = useState(false);
-	const currentResolution = QUALITY_RESOLUTIONS[quality];
+	const currentResolution = resolveExportResolution({ quality, aspectRatio });
 
 	return (
 		<SettingRow
 			label="Quality"
-			value={currentResolution?.label || quality}
+			value={currentResolution.label}
 			open={open}
 			onToggle={() => setOpen(!open)}
 			disabled={isExporting}
@@ -338,8 +340,10 @@ export function QualityCard({
 				disabled={isExporting}
 			>
 				{Object.values(ExportQuality).map((q) => {
-					const resolution = QUALITY_RESOLUTIONS[q];
-					if (!resolution) return null;
+					const resolution = resolveExportResolution({
+						quality: q,
+						aspectRatio,
+					});
 					return (
 						<div key={q} className="flex items-center space-x-2 py-1">
 							<RadioGroupItem value={q} id={q} />

@@ -8,7 +8,7 @@
  * @module electron/main-ipc
  */
 
-export type { MainIpcDeps, ReleaseNote, Logger, AutoUpdater } from "./types.js";
+export type { MainIpcDeps, ReleaseNote, Logger } from "./types.js";
 export { FAL_CONTENT_TYPES, FAL_DEFAULTS } from "./types.js";
 
 import type { MainIpcDeps } from "./types.js";

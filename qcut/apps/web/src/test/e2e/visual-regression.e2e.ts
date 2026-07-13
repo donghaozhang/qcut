@@ -85,6 +85,10 @@ test.describe("Visual Regression — Editor", () => {
 		const exportButton = page.getByTestId("export-button").first();
 		await expect(exportButton).toBeVisible({ timeout: 5000 });
 		await exportButton.click();
+		const filenameRow = page.getByText("File Name", { exact: true });
+		await filenameRow.click();
+		await page.getByTestId("export-filename-input").fill("visual-export");
+		await filenameRow.click();
 		await page.waitForTimeout(500);
 		await assertScreenshot(page, "editor-export-dialog");
 	});

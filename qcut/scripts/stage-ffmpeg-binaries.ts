@@ -1,379 +1,383 @@
+import { createHash } from "node:crypto";
 import { spawn } from "node:child_process";
-import { existsSync } from "node:fs";
-import { chmod, mkdir, readFile, stat, writeFile } from "node:fs/promises";
-import { join } from "node:path";
+import { createReadStream } from "node:fs";
+import {
+	chmod,
+	copyFile,
+	mkdir,
+	mkdtemp,
+	readFile,
+	rename,
+	rm,
+	writeFile,
+} from "node:fs/promises";
+import { basename, dirname, join } from "node:path";
+import { path7za } from "7zip-bin";
+import extractZip from "extract-zip";
+import {
+	getBinaryName,
+	getTargetKeys,
+	loadFFmpegManifest,
+	manifestFingerprint,
+	type FFmpegArtifact,
+	type FFmpegManifest,
+	type FFmpegTarget,
+	type FFmpegTool,
+} from "./ffmpeg-manifest.js";
+import { verifyFFmpegBinaries } from "./ffmpeg-verify.js";
 
-interface StageTarget {
-	platform: string;
-	arch: string;
-	key: string;
+interface StageReceipt {
+	fingerprint: string;
+	binaryHashes: Record<FFmpegTool, string>;
 }
 
-interface StagedBinary {
-	tool: "ffmpeg" | "ffprobe";
-	path: string;
-	downloaded: boolean;
-}
-
-interface VersionCheckResult {
-	exitCode: number | null;
-	stdout: string;
-	stderr: string;
-	error: string;
-}
-
-const DEFAULT_STAGE_TARGETS = [
-	"darwin-arm64",
-	"darwin-x64",
-	"win32-x64",
-	"linux-x64",
-];
-const DEFAULT_BASE_URL =
-	"https://github.com/descriptinc/ffmpeg-ffprobe-static/releases/download/";
-const FALLBACK_RELEASE_TAG = "b6.1.2-rc.1";
-const MIN_BINARY_SIZE_BYTES = 1_000_000;
-const VERSION_CHECK_TIMEOUT_MS = 8000;
+const STAGING_ROOT = join(process.cwd(), "electron", "resources", "ffmpeg");
+const CACHE_ROOT = join(process.cwd(), "node_modules", ".cache", "qcut-ffmpeg");
 const DOWNLOAD_MAX_RETRIES = 3;
 const DOWNLOAD_RETRY_DELAY_MS = 2000;
-const STAGING_ROOT = join(process.cwd(), "electron", "resources", "ffmpeg");
+const DOWNLOAD_TIMEOUT_MS = 300_000;
 
-function getErrorMessage({ error }: { error: unknown }): string {
-	try {
-		if (error instanceof Error) {
-			return error.message;
-		}
-		return String(error);
-	} catch {
-		return "Unknown error";
-	}
+async function runArchiveCommand({ args }: { args: string[] }): Promise<void> {
+	// bun install does not always preserve the executable bit on 7zip-bin's
+	// bundled binaries; electron-builder applies the same workaround.
+	if (process.platform !== "win32") await chmod(path7za, 0o755);
+	return new Promise((resolve, reject) => {
+		const child = spawn(path7za, args, {
+			stdio: ["ignore", "ignore", "pipe"],
+			windowsHide: true,
+		});
+		let stderr = "";
+		child.stderr.on("data", (chunk: Buffer) => {
+			stderr += chunk.toString();
+		});
+		child.on("error", reject);
+		child.on("close", (exitCode) => {
+			if (exitCode === 0) {
+				resolve();
+				return;
+			}
+			reject(
+				new Error(
+					`7-Zip extraction failed (exit=${exitCode}): ${stderr.trim()}`
+				)
+			);
+		});
+	});
 }
 
-function parseTargets({ rawTargets }: { rawTargets: string }): StageTarget[] {
-	try {
-		const uniqueKeys = new Set(
+function getErrorMessage({ error }: { error: unknown }): string {
+	return error instanceof Error ? error.message : String(error);
+}
+
+function sha256File({ filePath }: { filePath: string }): Promise<string> {
+	return new Promise((resolve, reject) => {
+		const hash = createHash("sha256");
+		const stream = createReadStream(filePath);
+		stream.on("error", reject);
+		stream.on("data", (chunk) => hash.update(chunk));
+		stream.on("end", () => resolve(hash.digest("hex")));
+	});
+}
+
+function isHostTarget({ target }: { target: FFmpegTarget }): boolean {
+	return target.platform === process.platform && target.arch === process.arch;
+}
+
+function parseTargetKeys({
+	rawTargets,
+	manifest,
+}: {
+	rawTargets: string;
+	manifest: FFmpegManifest;
+}): string[] {
+	const keys = Array.from(
+		new Set(
 			rawTargets
 				.split(",")
 				.map((target) => target.trim())
 				.filter(Boolean)
-		);
-
-		if (uniqueKeys.size === 0) {
-			throw new Error("No FFmpeg staging targets were provided");
-		}
-
-		return Array.from(uniqueKeys).map((key) => {
-			const [platform, arch] = key.split("-");
-			if (!platform || !arch) {
-				throw new Error(
-					`Invalid FFmpeg target "${key}". Expected format "<platform>-<arch>".`
-				);
-			}
-			return { platform, arch, key };
-		});
-	} catch (error: unknown) {
-		throw new Error(
-			`Failed to parse FFmpeg staging targets: ${getErrorMessage({ error })}`
-		);
+		)
+	);
+	if (keys.length === 0) {
+		throw new Error("No FFmpeg staging targets were provided");
 	}
-}
-
-async function resolveReleaseTag(): Promise<string> {
-	try {
-		const packagePath = join(
-			process.cwd(),
-			"node_modules",
-			"ffmpeg-ffprobe-static",
-			"package.json"
-		);
-
-		if (!existsSync(packagePath)) {
-			return FALLBACK_RELEASE_TAG;
+	for (const key of keys) {
+		if (!manifest.targets[key]) {
+			throw new Error(`FFmpeg target is not pinned in the manifest: ${key}`);
 		}
-
-		const packageJsonRaw = await readFile(packagePath, "utf8");
-		const packageJson = JSON.parse(packageJsonRaw) as {
-			"ffmpeg-static"?: { "binary-release-tag"?: string };
-		};
-
-		const releaseTag = packageJson["ffmpeg-static"]?.["binary-release-tag"];
-		if (!releaseTag) {
-			return FALLBACK_RELEASE_TAG;
-		}
-
-		return releaseTag;
-	} catch (error: unknown) {
-		console.warn(
-			`[stage-ffmpeg] Failed to resolve release tag from package metadata: ${getErrorMessage({ error })}`
-		);
-		return FALLBACK_RELEASE_TAG;
 	}
+	return keys;
 }
 
-function getBinaryName({
-	platform,
-	tool,
-}: {
-	platform: string;
-	tool: "ffmpeg" | "ffprobe";
-}): string {
-	try {
-		if (platform === "win32") {
-			return `${tool}.exe`;
-		}
-		return tool;
-	} catch (error: unknown) {
-		throw new Error(
-			`Failed to resolve binary filename: ${getErrorMessage({ error })}`
-		);
-	}
-}
-
-function isHostTarget({ target }: { target: StageTarget }): boolean {
-	try {
-		return target.platform === process.platform && target.arch === process.arch;
-	} catch {
-		return false;
-	}
-}
-
-async function runVersionCheck({
-	binaryPath,
-}: {
-	binaryPath: string;
-}): Promise<VersionCheckResult> {
-	return new Promise((resolve) => {
-		try {
-			const proc = spawn(binaryPath, ["-version"], {
-				windowsHide: true,
-				stdio: ["ignore", "pipe", "pipe"],
-			});
-
-			let stdout = "";
-			let stderr = "";
-
-			const timeout = setTimeout(() => {
-				proc.kill();
-				resolve({
-					exitCode: null,
-					stdout,
-					stderr,
-					error: `timed out after ${VERSION_CHECK_TIMEOUT_MS}ms`,
-				});
-			}, VERSION_CHECK_TIMEOUT_MS);
-
-			proc.stdout?.on("data", (chunk: Buffer) => {
-				stdout += chunk.toString();
-			});
-			proc.stderr?.on("data", (chunk: Buffer) => {
-				stderr += chunk.toString();
-			});
-
-			proc.on("close", (exitCode: number | null) => {
-				clearTimeout(timeout);
-				resolve({ exitCode, stdout, stderr, error: "" });
-			});
-			proc.on("error", (error: Error) => {
-				clearTimeout(timeout);
-				resolve({ exitCode: null, stdout, stderr, error: error.message });
-			});
-		} catch (error: unknown) {
-			resolve({
-				exitCode: null,
-				stdout: "",
-				stderr: "",
-				error: getErrorMessage({ error }),
-			});
-		}
-	});
-}
-
-async function ensureBinary({
-	target,
-	tool,
-	baseReleaseUrl,
+async function downloadArtifact({
+	artifact,
 	forceDownload,
 }: {
-	target: StageTarget;
-	tool: "ffmpeg" | "ffprobe";
-	baseReleaseUrl: string;
+	artifact: FFmpegArtifact;
 	forceDownload: boolean;
-}): Promise<StagedBinary> {
-	try {
-		const binaryName = getBinaryName({ platform: target.platform, tool });
-		const destinationPath = join(STAGING_ROOT, target.key, binaryName);
+}): Promise<string> {
+	const archivePath = join(
+		CACHE_ROOT,
+		"archives",
+		`${artifact.sha256}-${basename(new URL(artifact.url).pathname)}`
+	);
+	await mkdir(dirname(archivePath), { recursive: true });
 
-		if (!forceDownload && existsSync(destinationPath)) {
-			const fileStat = await stat(destinationPath);
-			if (fileStat.size >= MIN_BINARY_SIZE_BYTES) {
-				return {
-					tool,
-					path: destinationPath,
-					downloaded: false,
-				};
-			}
-		}
-
-		const downloadUrl = `${baseReleaseUrl}/${tool}-${target.platform}-${target.arch}`;
-		let lastError: Error | null = null;
-		let body: Buffer | null = null;
-		for (let attempt = 1; attempt <= DOWNLOAD_MAX_RETRIES; attempt++) {
-			try {
-				const response = await fetch(downloadUrl);
-				if (!response.ok) {
-					throw new Error(
-						`Download failed (${response.status} ${response.statusText}): ${downloadUrl}`
-					);
-				}
-				body = Buffer.from(await response.arrayBuffer());
-				lastError = null;
-				break;
-			} catch (err: unknown) {
-				lastError = err instanceof Error ? err : new Error(String(err));
-				if (attempt < DOWNLOAD_MAX_RETRIES) {
-					console.warn(
-						`[stage-ffmpeg] ${tool} ${target.key} attempt ${attempt}/${DOWNLOAD_MAX_RETRIES} failed: ${lastError.message}. Retrying in ${DOWNLOAD_RETRY_DELAY_MS}ms...`
-					);
-					await new Promise((r) => setTimeout(r, DOWNLOAD_RETRY_DELAY_MS));
-				}
-			}
-		}
-		if (!body || lastError) {
-			throw (
-				lastError ??
-				new Error(
-					`Failed to download ${tool} after ${DOWNLOAD_MAX_RETRIES} attempts`
-				)
-			);
-		}
-		if (body.length < MIN_BINARY_SIZE_BYTES) {
-			throw new Error(
-				`Downloaded ${tool} binary is unexpectedly small (${body.length} bytes)`
-			);
-		}
-
-		await writeFile(destinationPath, body);
-		if (target.platform !== "win32") {
-			await chmod(destinationPath, 0o755);
-		}
-
-		return {
-			tool,
-			path: destinationPath,
-			downloaded: true,
-		};
-	} catch (error: unknown) {
-		throw new Error(
-			`Failed to stage ${tool} for ${target.key}: ${getErrorMessage({ error })}`
+	if (!forceDownload) {
+		const existingHash = await sha256File({ filePath: archivePath }).catch(
+			() => ""
 		);
+		if (existingHash === artifact.sha256) return archivePath;
+	}
+
+	let lastError: Error | null = null;
+	for (let attempt = 1; attempt <= DOWNLOAD_MAX_RETRIES; attempt++) {
+		const tempPath = `${archivePath}.download`;
+		try {
+			await rm(tempPath, { force: true });
+			const response = await fetch(artifact.url, {
+				signal: AbortSignal.timeout(DOWNLOAD_TIMEOUT_MS),
+			});
+			if (!response.ok) {
+				throw new Error(
+					`Download failed (${response.status} ${response.statusText})`
+				);
+			}
+			await writeFile(tempPath, Buffer.from(await response.arrayBuffer()));
+			const actualHash = await sha256File({ filePath: tempPath });
+			if (actualHash !== artifact.sha256) {
+				throw new Error(
+					`SHA256 mismatch: expected ${artifact.sha256}, received ${actualHash}`
+				);
+			}
+			await rename(tempPath, archivePath);
+			return archivePath;
+		} catch (error: unknown) {
+			await rm(tempPath, { force: true });
+			lastError = error instanceof Error ? error : new Error(String(error));
+			if (attempt < DOWNLOAD_MAX_RETRIES) {
+				process.stderr.write(
+					`[stage-ffmpeg] ${artifact.id} attempt ${attempt}/${DOWNLOAD_MAX_RETRIES} failed: ${lastError.message}; retrying\n`
+				);
+				await new Promise((resolve) =>
+					setTimeout(resolve, DOWNLOAD_RETRY_DELAY_MS)
+				);
+			}
+		}
+	}
+	throw lastError ?? new Error(`Failed to download ${artifact.id}`);
+}
+
+async function readReceipt({
+	targetKey,
+}: {
+	targetKey: string;
+}): Promise<StageReceipt | null> {
+	try {
+		const receiptPath = join(CACHE_ROOT, "receipts", `${targetKey}.json`);
+		return JSON.parse(await readFile(receiptPath, "utf8")) as StageReceipt;
+	} catch {
+		return null;
+	}
+}
+
+async function writeReceipt({
+	targetKey,
+	receipt,
+}: {
+	targetKey: string;
+	receipt: StageReceipt;
+}): Promise<void> {
+	const receiptPath = join(CACHE_ROOT, "receipts", `${targetKey}.json`);
+	await mkdir(dirname(receiptPath), { recursive: true });
+	await writeFile(receiptPath, `${JSON.stringify(receipt, null, 2)}\n`, "utf8");
+}
+
+async function resolveBinaryPaths({
+	targetKey,
+	target,
+}: {
+	targetKey: string;
+	target: FFmpegTarget;
+}): Promise<Record<FFmpegTool, string>> {
+	const targetRoot = join(STAGING_ROOT, targetKey);
+	return {
+		ffmpeg: join(targetRoot, getBinaryName({ target, tool: "ffmpeg" })),
+		ffprobe: join(targetRoot, getBinaryName({ target, tool: "ffprobe" })),
+	};
+}
+
+async function isCurrentStage({
+	targetKey,
+	target,
+	fingerprint,
+}: {
+	targetKey: string;
+	target: FFmpegTarget;
+	fingerprint: string;
+}): Promise<boolean> {
+	const receipt = await readReceipt({ targetKey });
+	if (!receipt || receipt.fingerprint !== fingerprint) return false;
+	const binaryPaths = await resolveBinaryPaths({ targetKey, target });
+	for (const tool of ["ffmpeg", "ffprobe"] as const) {
+		const currentHash = await sha256File({ filePath: binaryPaths[tool] }).catch(
+			() => ""
+		);
+		if (currentHash !== receipt.binaryHashes[tool]) return false;
+	}
+	return true;
+}
+
+async function extractArtifact({
+	artifact,
+	archivePath,
+	target,
+	tempTargetRoot,
+}: {
+	artifact: FFmpegArtifact;
+	archivePath: string;
+	target: FFmpegTarget;
+	tempTargetRoot: string;
+}): Promise<void> {
+	const extractRoot = await mkdtemp(join(CACHE_ROOT, "extract-"));
+	try {
+		if (artifact.archiveFormat === "zip") {
+			await extractZip(archivePath, { dir: extractRoot });
+		} else {
+			const compressedRoot = join(extractRoot, "compressed");
+			await mkdir(compressedRoot, { recursive: true });
+			await runArchiveCommand({
+				args: ["x", archivePath, `-o${compressedRoot}`, "-y"],
+			});
+			await runArchiveCommand({
+				args: [
+					"x",
+					join(compressedRoot, basename(archivePath, ".xz")),
+					`-o${extractRoot}`,
+					"-y",
+				],
+			});
+		}
+		for (const [tool, relativePath] of Object.entries(artifact.files) as Array<
+			[FFmpegTool, string]
+		>) {
+			const destination = join(tempTargetRoot, getBinaryName({ target, tool }));
+			await copyFile(join(extractRoot, relativePath), destination);
+			if (target.platform !== "win32") await chmod(destination, 0o755);
+		}
+	} finally {
+		await rm(extractRoot, { recursive: true, force: true });
 	}
 }
 
 async function stageTarget({
-	target,
-	baseReleaseUrl,
+	targetKey,
+	manifest,
 	forceDownload,
 }: {
-	target: StageTarget;
-	baseReleaseUrl: string;
+	targetKey: string;
+	manifest: FFmpegManifest;
 	forceDownload: boolean;
 }): Promise<void> {
+	const target = manifest.targets[targetKey];
+	const fingerprint = manifestFingerprint({
+		target,
+		requiredBuildFlags: manifest.requiredBuildFlags,
+		forbiddenBuildFlags: manifest.forbiddenBuildFlags,
+	});
+	if (
+		!forceDownload &&
+		(await isCurrentStage({ targetKey, target, fingerprint }))
+	) {
+		const binaryPaths = await resolveBinaryPaths({ targetKey, target });
+		await verifyFFmpegBinaries({
+			targetKey,
+			target,
+			requiredBuildFlags: manifest.requiredBuildFlags,
+			forbiddenBuildFlags: manifest.forbiddenBuildFlags,
+			ffmpegPath: binaryPaths.ffmpeg,
+			ffprobePath: binaryPaths.ffprobe,
+			execute: isHostTarget({ target }),
+		});
+		process.stdout.write(`[stage-ffmpeg] ${targetKey}: verified cache hit\n`);
+		return;
+	}
+
+	const tempTargetRoot = await mkdtemp(join(CACHE_ROOT, `${targetKey}-`));
 	try {
-		await mkdir(join(STAGING_ROOT, target.key), { recursive: true });
-
-		const [ffmpeg, ffprobe] = await Promise.all([
-			ensureBinary({
+		for (const artifact of target.artifacts) {
+			const archivePath = await downloadArtifact({ artifact, forceDownload });
+			await extractArtifact({
+				artifact,
+				archivePath,
 				target,
-				tool: "ffmpeg",
-				baseReleaseUrl,
-				forceDownload,
-			}),
-			ensureBinary({
-				target,
-				tool: "ffprobe",
-				baseReleaseUrl,
-				forceDownload,
-			}),
-		]);
+				tempTargetRoot,
+			});
+		}
 
-		const downloadMode = forceDownload ? "forced-download" : "cached-or-fetch";
-		console.log(
-			`[stage-ffmpeg] ${target.key} (${downloadMode}): ffmpeg=${ffmpeg.downloaded ? "downloaded" : "cached"}, ffprobe=${ffprobe.downloaded ? "downloaded" : "cached"}`
+		const tempFFmpegPath = join(
+			tempTargetRoot,
+			getBinaryName({ target, tool: "ffmpeg" })
 		);
+		const tempFFprobePath = join(
+			tempTargetRoot,
+			getBinaryName({ target, tool: "ffprobe" })
+		);
+		await verifyFFmpegBinaries({
+			targetKey,
+			target,
+			requiredBuildFlags: manifest.requiredBuildFlags,
+			forbiddenBuildFlags: manifest.forbiddenBuildFlags,
+			ffmpegPath: tempFFmpegPath,
+			ffprobePath: tempFFprobePath,
+			execute: isHostTarget({ target }),
+		});
 
-		if (!isHostTarget({ target })) {
-			return;
-		}
+		const destinationRoot = join(STAGING_ROOT, targetKey);
+		await rm(destinationRoot, { recursive: true, force: true });
+		await mkdir(dirname(destinationRoot), { recursive: true });
+		await rename(tempTargetRoot, destinationRoot);
 
-		const [ffmpegVersionResult, ffprobeVersionResult] = await Promise.all([
-			runVersionCheck({ binaryPath: ffmpeg.path }),
-			runVersionCheck({ binaryPath: ffprobe.path }),
-		]);
-
-		const ffmpegFailed =
-			ffmpegVersionResult.error || ffmpegVersionResult.exitCode !== 0;
-		const ffprobeFailed =
-			ffprobeVersionResult.error || ffprobeVersionResult.exitCode !== 0;
-
-		if (ffmpegFailed || ffprobeFailed) {
-			// In CI, some runners (e.g. Blacksmith Windows) block execution of
-			// downloaded binaries. Warn instead of failing — binaries are from a
-			// trusted source and the size check already passed.
-			const isCI = process.env.CI === "true" || !!process.env.CI;
-			const detail = ffmpegFailed
-				? `ffmpeg exit=${ffmpegVersionResult.exitCode} error=${ffmpegVersionResult.error} stderr=${ffmpegVersionResult.stderr.trim()}`
-				: `ffprobe exit=${ffprobeVersionResult.exitCode} error=${ffprobeVersionResult.error} stderr=${ffprobeVersionResult.stderr.trim()}`;
-			if (isCI) {
-				console.warn(
-					`[stage-ffmpeg] Host validation failed for ${target.key} (${detail}) — skipping in CI`
-				);
-				return;
-			}
-			throw new Error(`Host validation failed for ${target.key}: ${detail}`);
-		}
-
-		const ffmpegFirstLine = ffmpegVersionResult.stdout.split(/\r?\n/)[0] ?? "";
-		const ffprobeFirstLine =
-			ffprobeVersionResult.stdout.split(/\r?\n/)[0] ?? "";
-		console.log(`[stage-ffmpeg] ${target.key} ffmpeg: ${ffmpegFirstLine}`);
-		console.log(`[stage-ffmpeg] ${target.key} ffprobe: ${ffprobeFirstLine}`);
+		const binaryPaths = await resolveBinaryPaths({ targetKey, target });
+		const binaryHashes: Record<FFmpegTool, string> = {
+			ffmpeg: await sha256File({ filePath: binaryPaths.ffmpeg }),
+			ffprobe: await sha256File({ filePath: binaryPaths.ffprobe }),
+		};
+		await writeReceipt({
+			targetKey,
+			receipt: { fingerprint, binaryHashes },
+		});
+		process.stdout.write(
+			`[stage-ffmpeg] ${targetKey}: staged and verified FFmpeg ${manifest.nativeVersion}\n`
+		);
 	} catch (error: unknown) {
-		throw new Error(
-			`Failed to stage target ${target.key}: ${getErrorMessage({ error })}`
-		);
+		await rm(tempTargetRoot, { recursive: true, force: true });
+		throw error;
 	}
 }
 
 async function stageFFmpegBinaries(): Promise<void> {
 	try {
-		const defaultTargets = DEFAULT_STAGE_TARGETS.join(",");
-		const rawTargets = process.env.FFMPEG_STAGE_TARGETS || defaultTargets;
-		const targets = parseTargets({ rawTargets });
-		const releaseTag =
-			process.env.FFMPEG_BINARY_RELEASE || (await resolveReleaseTag());
-		const baseUrlRoot =
-			process.env.FFMPEG_FFPROBE_STATIC_BASE_URL || DEFAULT_BASE_URL;
-		const baseReleaseUrl = new URL(releaseTag, baseUrlRoot).toString();
+		const manifest = await loadFFmpegManifest();
+		const defaultTargets = getTargetKeys({ manifest }).join(",");
+		const targetKeys = parseTargetKeys({
+			rawTargets: process.env.FFMPEG_STAGE_TARGETS || defaultTargets,
+			manifest,
+		});
 		const forceDownload = process.env.FFMPEG_STAGE_FORCE === "1";
-
-		await mkdir(STAGING_ROOT, { recursive: true });
-
-		console.log(`[stage-ffmpeg] Staging root: ${STAGING_ROOT}`);
-		console.log(
-			`[stage-ffmpeg] Targets: ${targets.map((t) => t.key).join(", ")}`
+		await mkdir(CACHE_ROOT, { recursive: true });
+		process.stdout.write(
+			`[stage-ffmpeg] FFmpeg ${manifest.nativeVersion}; targets=${targetKeys.join(", ")}\n`
 		);
-		console.log(`[stage-ffmpeg] Release: ${releaseTag}`);
-		console.log(`[stage-ffmpeg] Base URL: ${baseReleaseUrl}`);
-
 		await Promise.all(
-			targets.map((target) =>
-				stageTarget({ target, baseReleaseUrl, forceDownload })
+			targetKeys.map((targetKey) =>
+				stageTarget({ targetKey, manifest, forceDownload })
 			)
 		);
-
-		console.log("[stage-ffmpeg] FFmpeg/FFprobe staging completed");
+		process.stdout.write("[stage-ffmpeg] staging completed\n");
 	} catch (error: unknown) {
-		console.error(
-			`[stage-ffmpeg] FFmpeg staging failed: ${getErrorMessage({ error })}`
+		process.stderr.write(
+			`[stage-ffmpeg] staging failed: ${getErrorMessage({ error })}\n`
 		);
 		process.exit(1);
 	}

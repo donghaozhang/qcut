@@ -55,13 +55,13 @@ export async function ensurePanelTabActive(
 	}
 }
 
-/** Navigate to the text panel (Edit > Manual Edit > Text). */
+/** Navigate to the text panel. */
 export async function ensureTextTabActive(page: Page) {
 	await ensurePanelTabActive(page, "edit", "text", "Manual Edit");
 	await page.waitForSelector('[data-testid="text-panel"]', { timeout: 5000 });
 }
 
-/** Navigate to the stickers panel (Edit > Manual Edit > Stickers). */
+/** Navigate to the stickers panel. */
 export async function ensureStickersTabActive(page: Page) {
 	await ensurePanelTabActive(page, "edit", "stickers", "Manual Edit");
 	await page.waitForSelector('[data-testid="stickers-panel"]', {
@@ -154,21 +154,7 @@ export async function addStickerToCanvas(
 			});
 		}
 
-		const editGroup = page.locator('[data-testid="group-edit"]');
-		await editGroup
-			.waitFor({ state: "attached", timeout: 10_000 })
-			.catch(() => {
-				console.warn("Edit group tab not attached");
-				return null;
-			});
-
-		if ((await editGroup.count()) === 0) {
-			console.warn("Edit group tab not found");
-			return false;
-		}
-
-		await editGroup.click({ force: true });
-		await page.waitForTimeout(300);
+		await ensurePanelTabActive(page, "edit", "stickers", "Manual Edit");
 
 		const stickerTab = page.locator('[data-testid="stickers-panel-tab"]');
 		await stickerTab.waitFor({ state: "attached", timeout: 5000 }).catch(() => {

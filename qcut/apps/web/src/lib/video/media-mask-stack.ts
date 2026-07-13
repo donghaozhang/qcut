@@ -21,7 +21,7 @@ export function createMediaMask({
 		{
 			...DEFAULT_MEDIA_MASK,
 			id,
-			name: name ?? `Mask ${index + 1}`,
+			name: name ?? `蒙版 ${index + 1}`,
 			type,
 			blendMode: "add",
 		},
@@ -100,7 +100,7 @@ export function duplicateMediaMask({
 		{
 			...source,
 			id: newId,
-			name: `${source.name ?? `Mask ${index + 1}`} copy`,
+			name: `${source.name ?? `蒙版 ${index + 1}`} 副本`,
 			points: source.points?.map((point) => ({
 				...point,
 				handleIn: point.handleIn ? { ...point.handleIn } : undefined,

@@ -27,6 +27,12 @@ import {
 } from "./property-item";
 
 const DIRECTIONS: ClipTransitionDirection[] = ["left", "right", "up", "down"];
+const DIRECTION_LABELS: Record<ClipTransitionDirection, string> = {
+	left: "向左",
+	right: "向右",
+	up: "向上",
+	down: "向下",
+};
 
 function clampDuration({
 	duration,
@@ -62,7 +68,10 @@ export function TransitionProperties({
 	});
 	const preset = getTransitionPresetById({ presetId: transition.presetId });
 	const supportsDirection =
-		transition.type === "slide" || transition.type === "wipe";
+		transition.type === "slide" ||
+		transition.type === "wipe" ||
+		transition.type === "push" ||
+		transition.type === "whip-pan";
 	const hasAudioCrossfade = track.audioCrossfades?.some(
 		(crossfade) =>
 			crossfade.fromElementId === transition.fromElementId &&
@@ -71,7 +80,7 @@ export function TransitionProperties({
 
 	useEffect(() => {
 		setDuration(transition.duration);
-	}, [transition.duration, transition.id]);
+	}, [transition.duration]);
 
 	const commitDuration = ({ value }: { value: number }) => {
 		const nextDuration = clampDuration({ duration: value, maxDuration });
@@ -88,10 +97,10 @@ export function TransitionProperties({
 
 	return (
 		<div className="space-y-4 p-5">
-			<PropertyGroup title="Transition" defaultExpanded={true}>
+			<PropertyGroup title="转场" defaultExpanded={true}>
 				<div className="space-y-4">
 					<PropertyItem>
-						<PropertyItemLabel>Preset</PropertyItemLabel>
+						<PropertyItemLabel>预设</PropertyItemLabel>
 						<span className="text-xs text-muted-foreground">
 							{preset?.name ?? transition.presetId}
 						</span>
@@ -99,7 +108,7 @@ export function TransitionProperties({
 
 					<PropertyItem direction="column">
 						<div className="flex w-full items-center justify-between">
-							<PropertyItemLabel>Duration</PropertyItemLabel>
+							<PropertyItemLabel>时长</PropertyItemLabel>
 							<Input
 								type="number"
 								min={0.05}
@@ -116,7 +125,7 @@ export function TransitionProperties({
 									}
 								}}
 								className="h-7 w-20 text-right text-xs"
-								aria-label="Transition duration in seconds"
+								aria-label="转场时长（秒）"
 							/>
 						</div>
 						<Slider
@@ -126,13 +135,13 @@ export function TransitionProperties({
 							value={[duration]}
 							onValueChange={([value]) => setDuration(value)}
 							onValueCommit={([value]) => commitDuration({ value })}
-							aria-label="Transition duration"
+							aria-label="转场时长"
 						/>
 					</PropertyItem>
 
 					{supportsDirection ? (
 						<PropertyItem>
-							<PropertyItemLabel>Direction</PropertyItemLabel>
+							<PropertyItemLabel>方向</PropertyItemLabel>
 							<Select
 								value={transition.direction ?? "left"}
 								onValueChange={(value: ClipTransitionDirection) =>
@@ -143,13 +152,16 @@ export function TransitionProperties({
 									})
 								}
 							>
-								<SelectTrigger className="h-8 w-28 text-xs">
+								<SelectTrigger
+									className="h-8 w-32 text-xs"
+									aria-label="转场方向"
+								>
 									<SelectValue />
 								</SelectTrigger>
 								<SelectContent>
 									{DIRECTIONS.map((direction) => (
 										<SelectItem key={direction} value={direction}>
-											{direction}
+											{DIRECTION_LABELS[direction]}
 										</SelectItem>
 									))}
 								</SelectContent>
@@ -158,7 +170,7 @@ export function TransitionProperties({
 					) : null}
 
 					<PropertyItem>
-						<PropertyItemLabel>Easing</PropertyItemLabel>
+						<PropertyItemLabel>缓动</PropertyItemLabel>
 						<Select
 							value={transition.easing}
 							onValueChange={(value: ClipTransitionEasing) =>
@@ -169,18 +181,18 @@ export function TransitionProperties({
 								})
 							}
 						>
-							<SelectTrigger className="h-8 w-28 text-xs">
+							<SelectTrigger className="h-8 w-32 text-xs" aria-label="转场缓动">
 								<SelectValue />
 							</SelectTrigger>
 							<SelectContent>
-								<SelectItem value="linear">linear</SelectItem>
-								<SelectItem value="easeInOut">ease in/out</SelectItem>
+								<SelectItem value="linear">线性</SelectItem>
+								<SelectItem value="easeInOut">缓入缓出</SelectItem>
 							</SelectContent>
 						</Select>
 					</PropertyItem>
 
 					<PropertyItem>
-						<PropertyItemLabel>Audio</PropertyItemLabel>
+						<PropertyItemLabel>音频</PropertyItemLabel>
 						<Select
 							value={hasAudioCrossfade ? "equal-power" : "cut"}
 							onValueChange={(value: "cut" | "equal-power") =>
@@ -193,12 +205,12 @@ export function TransitionProperties({
 								})
 							}
 						>
-							<SelectTrigger className="h-8 w-28 text-xs">
+							<SelectTrigger className="h-8 w-32 text-xs" aria-label="转场音频">
 								<SelectValue />
 							</SelectTrigger>
 							<SelectContent>
-								<SelectItem value="cut">hard cut</SelectItem>
-								<SelectItem value="equal-power">equal power</SelectItem>
+								<SelectItem value="cut">直接切换</SelectItem>
+								<SelectItem value="equal-power">等功率交叉淡化</SelectItem>
 							</SelectContent>
 						</Select>
 					</PropertyItem>
@@ -210,13 +222,14 @@ export function TransitionProperties({
 						className="w-full gap-2"
 						onClick={handleRemove}
 						onKeyDown={(event) => {
-							if (event.key === "Enter" || event.key === " ") {
+							if (event.key === "Delete") {
+								event.preventDefault();
 								handleRemove();
 							}
 						}}
 					>
 						<Trash2Icon className="h-4 w-4" />
-						Remove Transition
+						删除转场
 					</Button>
 				</div>
 			</PropertyGroup>

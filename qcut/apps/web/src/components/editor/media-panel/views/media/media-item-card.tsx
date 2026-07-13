@@ -1,5 +1,5 @@
 import { platform } from "@qcut/platform-core";
-import React from "react";
+import { memo, type MouseEvent } from "react";
 import type { MediaItem } from "@/stores/media/media-store-types";
 import type { MediaFolder } from "@/stores/media/media-store-types";
 import {
@@ -29,6 +29,7 @@ import { usePlaybackStore } from "@/stores/editor/playback-store";
 import { useStickersOverlayStore } from "@/stores/stickers-overlay-store";
 import { cn } from "@/lib/utils";
 import { MediaPreview } from "./media-preview";
+import { useTranslation } from "@/lib/i18n";
 
 interface MediaItemCardProps {
 	item: MediaItem;
@@ -37,13 +38,15 @@ interface MediaItemCardProps {
 	folders: MediaFolder[];
 	addToFolder: ((mediaId: string, folderId: string) => void) | undefined;
 	removeFromFolder: ((mediaId: string, folderId: string) => void) | undefined;
-	onToggleSelect: (id: string, e?: React.MouseEvent) => void;
-	onEdit: (e: React.MouseEvent, item: MediaItem) => void;
-	onRemove: (e: React.MouseEvent, id: string) => void;
+	onToggleSelect: (id: string, e?: MouseEvent) => void;
+	onEdit: (e: MouseEvent, item: MediaItem) => void;
+	onRemove: (e: MouseEvent, id: string) => void;
+	viewMode: "grid" | "list";
+	usageCount: number;
 }
 
 /** Individual media item with drag support, selection ring, and context menu. */
-export const MediaItemCard = React.memo(function MediaItemCard({
+export const MediaItemCard = memo(function MediaItemCard({
 	item,
 	isSelected,
 	filteredMediaItems,
@@ -53,7 +56,11 @@ export const MediaItemCard = React.memo(function MediaItemCard({
 	onToggleSelect,
 	onEdit,
 	onRemove,
+	viewMode,
+	usageCount,
 }: MediaItemCardProps) {
+	const { t } = useTranslation();
+
 	return (
 		<ContextMenu>
 			<ContextMenuTrigger>
@@ -62,11 +69,17 @@ export const MediaItemCard = React.memo(function MediaItemCard({
 						onToggleSelect(item.id, e);
 					}}
 					className={cn(
-						"rounded-sm transition-shadow",
+						"relative rounded-sm transition-shadow",
+						viewMode === "list" && "w-full border-b border-border/60 py-1",
 						isSelected &&
 							"ring-2 ring-primary ring-offset-1 ring-offset-background"
 					)}
 				>
+					{usageCount > 0 ? (
+						<span className="pointer-events-none absolute left-1 top-1 z-20 rounded-sm bg-cyan-600 px-1 py-0.5 text-[9px] font-medium text-white">
+							{t("media.used", { count: usageCount })}
+						</span>
+					) : null}
 					<DraggableMediaItem
 						name={item.name}
 						preview={<MediaPreview item={item} />}
@@ -80,6 +93,7 @@ export const MediaItemCard = React.memo(function MediaItemCard({
 							useTimelineStore.getState().addMediaAtTime(item, currentTime)
 						}
 						rounded={false}
+						layout={viewMode}
 						data-testid="media-item"
 					/>
 				</div>

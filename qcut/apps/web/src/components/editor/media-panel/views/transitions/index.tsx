@@ -7,6 +7,7 @@ import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { useTimelineStore } from "@/stores/timeline/timeline-store";
 import { useMediaStore } from "@/stores/media/media-store";
+import { useAssetLibraryStore } from "@/stores/asset-library-store";
 import { transitionCategories } from "./transition-categories";
 import {
 	filterTransitionPresets,
@@ -30,6 +31,7 @@ function encodeDragPayload({
 		id: preset.id,
 		type: config.type,
 		direction: config.direction,
+		tuning: config.tuning,
 		defaultDuration: preset.defaultDuration,
 	});
 }
@@ -42,10 +44,21 @@ export function TransitionsView() {
 	const tracks = useTimelineStore((state) => state.tracks);
 	const addTransition = useTimelineStore((state) => state.addTransition);
 	const mediaItems = useMediaStore((state) => state.mediaItems);
+	const favorites = useAssetLibraryStore((state) => state.favorites);
+	const toggleFavorite = useAssetLibraryStore((state) => state.toggleFavorite);
+	const favoriteIds = useMemo(
+		() =>
+			new Set(
+				Object.keys(favorites)
+					.filter((identity) => identity.startsWith("transition:"))
+					.map((identity) => identity.slice("transition:".length))
+			),
+		[favorites]
+	);
 
 	const visiblePresets = useMemo(
-		() => filterTransitionPresets({ category, query }),
-		[category, query]
+		() => filterTransitionPresets({ category, query, favoriteIds }),
+		[category, favoriteIds, query]
 	);
 	const selectedPreset =
 		visiblePresets.find((preset) => preset.id === selectedPresetId) ??
@@ -87,6 +100,7 @@ export function TransitionsView() {
 			presetId: preset.id,
 			type: config.type,
 			direction: config.direction,
+			tuning: config.tuning,
 			duration: Math.min(preset.defaultDuration, applyState.maxDuration),
 			easing: "easeInOut",
 		});
@@ -151,13 +165,13 @@ export function TransitionsView() {
 						<Input
 							value={query}
 							onChange={(event) => setQuery(event.target.value)}
-							placeholder="Search transitions"
+							placeholder="搜索转场"
 							className="h-8 pl-8 text-xs"
-							aria-label="Search transitions"
+							aria-label="搜索转场"
 						/>
 					</div>
 					<div className="mt-2 flex items-center justify-between gap-2 text-[11px] text-muted-foreground">
-						<span>{visiblePresets.length} presets</span>
+						<span>{visiblePresets.length} 个转场</span>
 						<span className={cn(canApply && "text-primary")}>
 							{applyState.message}
 						</span>
@@ -173,18 +187,25 @@ export function TransitionsView() {
 									selected={selectedPreset?.id === preset.id}
 									canApply={canApply}
 									available={Boolean(getClipTransitionPresetConfig({ preset }))}
+									favorite={favoriteIds.has(preset.id)}
 									previewSources={previewSources}
 									onSelect={({ preset: nextPreset }) =>
 										setSelectedPresetId(nextPreset.id)
 									}
 									onApply={handleApply}
+									onToggleFavorite={({ preset: favoritePreset }) =>
+										toggleFavorite({
+											kind: "transition",
+											id: favoritePreset.id,
+										})
+									}
 									onDragStart={handleDragStart}
 								/>
 							))}
 						</div>
 					) : (
 						<div className="flex h-full items-center justify-center rounded-md border border-dashed border-border/70 text-center text-xs text-muted-foreground">
-							No transitions match this search.
+							没有符合条件的转场
 						</div>
 					)}
 				</div>
@@ -199,7 +220,7 @@ export function TransitionsView() {
 							selectedPreset && handleApply({ preset: selectedPreset })
 						}
 					>
-						Apply Selected Transition
+						应用所选转场
 					</Button>
 				</div>
 			</section>

@@ -46,6 +46,7 @@ import type {
 	AdjustmentElement,
 	DragData,
 	TimelineTrackAudioSettings,
+	SubtitleStyle,
 } from "@/types/timeline";
 import type { MediaItem } from "../media/media-store";
 import type { EffectChain, EffectInstance } from "@/types/effects";
@@ -62,6 +63,8 @@ export interface SelectedTransition {
 	trackId: string;
 	transitionId: string;
 }
+
+export type CaptionStyleScope = "element" | "selection" | "track" | "project";
 
 /**
  * Drag operation state for timeline elements
@@ -254,6 +257,7 @@ export interface TimelineStore {
 		duration: number;
 		direction?: ClipTransition["direction"];
 		easing?: ClipTransition["easing"];
+		tuning?: ClipTransition["tuning"];
 	}) => string | null;
 	updateTransition: (input: {
 		trackId: string;
@@ -261,7 +265,7 @@ export interface TimelineStore {
 		updates: Partial<
 			Pick<
 				ClipTransition,
-				"presetId" | "type" | "duration" | "direction" | "easing"
+				"presetId" | "type" | "duration" | "direction" | "easing" | "tuning"
 			>
 		>;
 	}) => void;
@@ -281,6 +285,23 @@ export interface TimelineStore {
 		updates: Partial<TimelineTrackAudioSettings>,
 		pushHistory?: boolean
 	) => void;
+	updateTrackHeight: (
+		trackId: string,
+		height: number,
+		pushHistory?: boolean
+	) => void;
+	setTrackHeightMode: (mode: "compact" | "default") => void;
+	groupSelectedElements: () => string | null;
+	ungroupElements: (groupId: string) => number;
+	createMediaContainerFromSelection: (
+		kind: "compound" | "multicam"
+	) => string | null;
+	breakApartMediaContainer: (trackId: string, elementId: string) => number;
+	selectMulticamClip: (
+		trackId: string,
+		elementId: string,
+		clipId: string
+	) => boolean;
 	/** Toggle track solo while preserving the existing mute state. */
 	toggleTrackSolo: (trackId: string) => void;
 	/** Toggle whether a visual track participates in preview and export */
@@ -441,6 +462,19 @@ export interface TimelineStore {
 		updates: Partial<Pick<CaptionElement, "text" | "language" | "style">>,
 		pushHistory?: boolean
 	) => void;
+	applyCaptionStyle: ({
+		trackId,
+		elementId,
+		style,
+		scope,
+		pushHistory,
+	}: {
+		trackId: string;
+		elementId: string;
+		style: Partial<SubtitleStyle>;
+		scope: CaptionStyleScope;
+		pushHistory?: boolean;
+	}) => number;
 	updateStickerElement: (
 		trackId: string,
 		elementId: string,

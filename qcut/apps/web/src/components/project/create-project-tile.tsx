@@ -1,6 +1,9 @@
 import { Plus } from "lucide-react";
+import { useTranslation } from "@/lib/i18n";
 
 export function CreateProjectTile({ onClick }: { onClick: () => void }) {
+	const { t } = useTranslation();
+
 	return (
 		<button
 			type="button"
@@ -12,7 +15,7 @@ export function CreateProjectTile({ onClick }: { onClick: () => void }) {
 				<Plus className="h-5 w-5 text-amber-400 transition-colors" />
 			</div>
 			<span className="text-sm text-muted-foreground group-hover/create:text-foreground font-medium transition-colors">
-				+ Create New Project
+				+ {t("projects.new")}
 			</span>
 		</button>
 	);

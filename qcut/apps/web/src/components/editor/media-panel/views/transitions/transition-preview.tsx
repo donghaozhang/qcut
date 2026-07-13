@@ -1,5 +1,7 @@
 import { useEffect, useState } from "react";
 import {
+	buildClipTransitionCssFilter,
+	buildClipTransitionCssTransform,
 	getClipTransitionLayerPresentation,
 	type ClipTransitionRole,
 } from "@/lib/transitions/clip-transition-presentation";
@@ -32,6 +34,7 @@ function previewTransition({
 		presetId: preset.id,
 		type: config?.type ?? "dissolve",
 		direction: config?.direction,
+		tuning: config?.tuning,
 		duration: preset.defaultDuration,
 		easing: "easeInOut",
 	};
@@ -63,7 +66,9 @@ function PreviewLayer({
 				opacity: presentation.opacity,
 				backgroundColor: presentation.backgroundColor,
 				clipPath: presentation.clipPath,
-				transform: `translate3d(${presentation.offsetX}px, ${presentation.offsetY}px, 0)`,
+				filter: buildClipTransitionCssFilter({ presentation }),
+				transform: buildClipTransitionCssTransform({ presentation }),
+				transformOrigin: "center",
 			}}
 		>
 			<img

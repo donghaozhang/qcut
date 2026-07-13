@@ -41,43 +41,43 @@ interface SecondaryCurveDefinition {
 const CURVE_DEFINITIONS: SecondaryCurveDefinition[] = [
 	{
 		name: "hueVsSaturation",
-		label: "Hue vs Saturation",
+		label: "色相对饱和度",
 		input: "hue",
 		background: "hue-saturation",
 	},
 	{
 		name: "hueVsHue",
-		label: "Hue vs Hue",
+		label: "色相对色相",
 		input: "hue",
 		background: "hue-hue",
 	},
 	{
 		name: "hueVsLuminance",
-		label: "Hue vs Luminance",
+		label: "色相对明度",
 		input: "hue",
 		background: "hue-luminance",
 	},
 	{
 		name: "luminanceVsSaturation",
-		label: "Luminance vs Saturation",
+		label: "明度对饱和度",
 		input: "luminance",
 		background: "luminance-saturation",
 	},
 	{
 		name: "saturationVsSaturation",
-		label: "Saturation vs Saturation",
+		label: "饱和度对饱和度",
 		input: "saturation",
 		background: "saturation-saturation",
 	},
 ];
 
 const HUE_ANCHORS = [
-	{ label: "Red", value: 0, color: "#ef4444" },
-	{ label: "Yellow", value: 60 / 360, color: "#facc15" },
-	{ label: "Green", value: 120 / 360, color: "#22c55e" },
-	{ label: "Cyan", value: 180 / 360, color: "#22d3ee" },
-	{ label: "Blue", value: 240 / 360, color: "#3b82f6" },
-	{ label: "Purple", value: 285 / 360, color: "#8b5cf6" },
+	{ label: "红", value: 0, color: "#ef4444" },
+	{ label: "黄", value: 60 / 360, color: "#facc15" },
+	{ label: "绿", value: 120 / 360, color: "#22c55e" },
+	{ label: "青", value: 180 / 360, color: "#22d3ee" },
+	{ label: "蓝", value: 240 / 360, color: "#3b82f6" },
+	{ label: "紫", value: 285 / 360, color: "#8b5cf6" },
 ];
 
 const ANCHOR_GUARD_DISTANCE = 18 / 360;
@@ -210,7 +210,7 @@ export function ColorSecondaryCurvesSettings({
 	}: {
 		definition: SecondaryCurveDefinition;
 	}) => {
-		toast.message("Click a color in the preview");
+		toast.message("请在预览画面中点击取色");
 		const color = await requestPreviewColor();
 		if (!color) return;
 		addAnchor({
@@ -220,7 +220,7 @@ export function ColorSecondaryCurvesSettings({
 	};
 	return (
 		<ColorModuleSection
-			title="Secondary curves"
+			title="辅助曲线"
 			enabled={settings.secondaryCurves.enabled}
 			onEnabledChange={(enabled) =>
 				onSettingsChange({

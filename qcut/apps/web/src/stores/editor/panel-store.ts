@@ -216,17 +216,17 @@ const PRESET_CONFIGS: Record<PanelPreset, PanelSizes> = {
 };
 
 const PRESET_LABELS: Record<PanelPreset, string> = {
-	default: "Default",
-	media: "Media",
-	inspector: "Inspector",
-	"vertical-preview": "Vertical Preview",
+	default: "默认",
+	media: "素材优先",
+	inspector: "属性优先",
+	"vertical-preview": "竖屏预览",
 };
 
 const PRESET_DESCRIPTIONS: Record<PanelPreset, string> = {
-	default: "Media, preview, and inspector on top row, timeline on bottom",
-	media: "Full height media on left, preview and inspector on top row",
-	inspector: "Full height inspector on right, media and preview on top row",
-	"vertical-preview": "Full height preview on right for vertical videos",
+	default: "上方显示素材、预览和属性，下方显示时间线",
+	media: "左侧素材区占满高度，右侧显示预览和属性",
+	inspector: "右侧属性区占满高度，左侧显示素材和预览",
+	"vertical-preview": "右侧预览区占满高度，适合竖屏视频",
 };
 
 // Export for use in other components

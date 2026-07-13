@@ -126,6 +126,23 @@ function semanticProgressExpression({
 	);
 }
 
+function transitionTuning({ transition }: { transition: VideoTransition }) {
+	return {
+		intensity: Math.min(2, Math.max(0.1, transition.tuning?.intensity ?? 1)),
+		frequency: Math.min(4, Math.max(0.1, transition.tuning?.frequency ?? 1)),
+		tint: transition.tuning?.tint,
+	};
+}
+
+function tintPlaneExpression({ tint }: { tint: string | undefined }): string {
+	const match = /^#([\da-f]{2})([\da-f]{2})([\da-f]{2})$/i.exec(tint ?? "");
+	const [red, green, blue] = match
+		? match.slice(1).map((part) => Number.parseInt(part, 16))
+		: [255, 90, 31];
+	// The xfade pipeline runs in gbrap, so planes 0/1/2 are green/blue/red.
+	return `if(eq(PLANE,0),${green},if(eq(PLANE,1),${blue},if(eq(PLANE,2),${red},255)))`;
+}
+
 function planeSample({
 	input,
 	x,
@@ -164,6 +181,179 @@ function planeSample({
 	);
 }
 
+type PlaneSampler = (input: {
+	input: "a" | "b";
+	x: string;
+	y: string;
+}) => string;
+
+function clampSampleCoordinate({
+	value,
+	limit,
+}: {
+	value: string;
+	limit: "W" | "H";
+}): string {
+	return "min(max(" + value + ",0)," + limit + "-1)";
+}
+
+function clampedPlaneSample({
+	input,
+	x,
+	y,
+}: {
+	input: "a" | "b";
+	x: string;
+	y: string;
+}): string {
+	return planeSample({
+		input,
+		x: clampSampleCoordinate({ value: x, limit: "W" }),
+		y: clampSampleCoordinate({ value: y, limit: "H" }),
+	});
+}
+
+function transitionPeakExpression({ progress }: { progress: string }): string {
+	return "(4*(" + progress + ")*(1-(" + progress + ")))";
+}
+
+function blendSamples({
+	progress,
+	outgoing,
+	incoming,
+}: {
+	progress: string;
+	outgoing: string;
+	incoming: string;
+}): string {
+	return (
+		"(" +
+		outgoing +
+		")*(1-(" +
+		progress +
+		"))+(" +
+		incoming +
+		")*(" +
+		progress +
+		")"
+	);
+}
+
+function motionBlurPlaneSample({
+	input,
+	x,
+	y,
+	direction,
+	radius,
+}: {
+	input: "a" | "b";
+	x: string;
+	y: string;
+	direction: VideoTransition["direction"];
+	radius: string;
+}): string {
+	const horizontal = direction !== "up" && direction !== "down";
+	const coordinates = [-1, 0, 1].map((offset) => ({
+		x: horizontal ? "(" + x + ")+" + offset + "*(" + radius + ")" : x,
+		y: horizontal ? y : "(" + y + ")+" + offset + "*(" + radius + ")",
+	}));
+	const samples = coordinates.map(({ x: sampleX, y: sampleY }) =>
+		clampedPlaneSample({ input, x: sampleX, y: sampleY })
+	);
+	return "(" + samples.join("+") + ")/3";
+}
+
+function pushExpression({
+	direction,
+	progress,
+	sampler = planeSample,
+}: {
+	direction: VideoTransition["direction"];
+	progress: string;
+	sampler?: PlaneSampler;
+}): string {
+	const inverse = "(1-(" + progress + "))";
+	if (direction === "right") {
+		const split = inverse + "*W";
+		return (
+			"if(gte(X," +
+			split +
+			")," +
+			sampler({
+				input: "b",
+				x: "X-" + split,
+				y: "Y",
+			}) +
+			"," +
+			sampler({
+				input: "a",
+				x: "X+(" + progress + ")*W",
+				y: "Y",
+			}) +
+			")"
+		);
+	}
+	if (direction === "up") {
+		const split = "(" + progress + ")*H";
+		return (
+			"if(lt(Y," +
+			split +
+			")," +
+			sampler({
+				input: "b",
+				x: "X",
+				y: "Y+" + inverse + "*H",
+			}) +
+			"," +
+			sampler({
+				input: "a",
+				x: "X",
+				y: "Y-(" + progress + ")*H",
+			}) +
+			")"
+		);
+	}
+	if (direction === "down") {
+		const split = inverse + "*H";
+		return (
+			"if(gte(Y," +
+			split +
+			")," +
+			sampler({
+				input: "b",
+				x: "X",
+				y: "Y-" + split,
+			}) +
+			"," +
+			sampler({
+				input: "a",
+				x: "X",
+				y: "Y+(" + progress + ")*H",
+			}) +
+			")"
+		);
+	}
+
+	const split = "(" + progress + ")*W";
+	return (
+		"if(lt(X," +
+		split +
+		")," +
+		sampler({
+			input: "b",
+			x: "X+" + inverse + "*W",
+			y: "Y",
+		}) +
+		"," +
+		sampler({
+			input: "a",
+			x: "X-(" + progress + ")*W",
+			y: "Y",
+		}) +
+		")"
+	);
+}
+
 function slideExpression({
 	direction,
 	progress,
@@ -178,18 +368,8 @@ function slideExpression({
 			"if(gte(X," +
 			split +
 			")," +
-			planeSample({
-				input: "b",
-				x: "X-" + split,
-				y: "Y",
-			}) +
-			"," +
-			planeSample({
-				input: "a",
-				x: "X+(" + progress + ")*W",
-				y: "Y",
-			}) +
-			")"
+			planeSample({ input: "b", x: "X-" + split, y: "Y" }) +
+			",A)"
 		);
 	}
 	if (direction === "up") {
@@ -198,18 +378,8 @@ function slideExpression({
 			"if(lt(Y," +
 			split +
 			")," +
-			planeSample({
-				input: "b",
-				x: "X",
-				y: "Y+" + inverse + "*H",
-			}) +
-			"," +
-			planeSample({
-				input: "a",
-				x: "X",
-				y: "Y-(" + progress + ")*H",
-			}) +
-			")"
+			planeSample({ input: "b", x: "X", y: "Y+" + inverse + "*H" }) +
+			",A)"
 		);
 	}
 	if (direction === "down") {
@@ -218,18 +388,8 @@ function slideExpression({
 			"if(gte(Y," +
 			split +
 			")," +
-			planeSample({
-				input: "b",
-				x: "X",
-				y: "Y-" + split,
-			}) +
-			"," +
-			planeSample({
-				input: "a",
-				x: "X",
-				y: "Y+(" + progress + ")*H",
-			}) +
-			")"
+			planeSample({ input: "b", x: "X", y: "Y-" + split }) +
+			",A)"
 		);
 	}
 
@@ -238,18 +398,30 @@ function slideExpression({
 		"if(lt(X," +
 		split +
 		")," +
-		planeSample({
-			input: "b",
-			x: "X+" + inverse + "*W",
-			y: "Y",
-		}) +
+		planeSample({ input: "b", x: "X+" + inverse + "*W", y: "Y" }) +
+		",A)"
+	);
+}
+
+function fadeColorExpression({
+	progress,
+	colorValue,
+}: {
+	progress: string;
+	colorValue: 0 | 255;
+}): string {
+	const outgoing =
+		"A*(1-2*(" + progress + "))+" + colorValue + "*(2*(" + progress + "))";
+	const incoming =
+		colorValue + "*(2-2*(" + progress + "))+B*(2*(" + progress + ")-1)";
+	return (
+		"if(eq(PLANE,3),255,if(lt(" +
+		progress +
+		",0.5)," +
+		outgoing +
 		"," +
-		planeSample({
-			input: "a",
-			x: "X-(" + progress + ")*W",
-			y: "Y",
-		}) +
-		")"
+		incoming +
+		"))"
 	);
 }
 
@@ -273,46 +445,266 @@ function wipeExpression({
 	return "if(lt(X,(" + progress + ")*W),B,A)";
 }
 
+function zoomPlaneSample({
+	input,
+	peak,
+	intensity,
+}: {
+	input: "a" | "b";
+	peak: string;
+	intensity: number;
+}): string {
+	const samples: string[] = [];
+	for (const strength of [0, 0.1, 0.2]) {
+		const zoom = "(1+" + strength * intensity + "*(" + peak + "))";
+		samples.push(
+			clampedPlaneSample({
+				input,
+				x: "W/2+(X-W/2)/" + zoom,
+				y: "H/2+(Y-H/2)/" + zoom,
+			})
+		);
+	}
+	return "(" + samples.join("+") + ")/" + samples.length;
+}
+
+function zoomBlurExpression({
+	progress,
+	intensity,
+}: {
+	progress: string;
+	intensity: number;
+}): string {
+	const peak = transitionPeakExpression({ progress });
+	return blendSamples({
+		progress,
+		outgoing: zoomPlaneSample({ input: "a", peak, intensity }),
+		incoming: zoomPlaneSample({ input: "b", peak, intensity }),
+	});
+}
+
+function whipPanExpression({
+	direction,
+	progress,
+	intensity,
+}: {
+	direction: VideoTransition["direction"];
+	progress: string;
+	intensity: number;
+}): string {
+	const peak = transitionPeakExpression({ progress });
+	const axisSize = direction === "up" || direction === "down" ? "H" : "W";
+	const radius = 0.045 * intensity + "*" + axisSize + "*(" + peak + ")";
+	return pushExpression({
+		direction,
+		progress,
+		sampler: ({ input, x, y }) =>
+			motionBlurPlaneSample({
+				input,
+				x,
+				y,
+				direction,
+				radius,
+			}),
+	});
+}
+
+function flashExpression({
+	progress,
+	intensity,
+	tint,
+}: {
+	progress: string;
+	intensity: number;
+	tint: string | undefined;
+}): string {
+	const peak = transitionPeakExpression({ progress });
+	const blend = blendSamples({ progress, outgoing: "A", incoming: "B" });
+	const color = tintPlaneExpression({ tint: tint ?? "#ffffff" });
+	const alpha = Math.min(0.95, 0.7 * intensity);
+	return `(${blend})*(1-${alpha}*(${peak}))+(${color})*${alpha}*(${peak})`;
+}
+
+function lightLeakExpression({
+	progress,
+	intensity,
+	tint,
+}: {
+	progress: string;
+	intensity: number;
+	tint: string | undefined;
+}): string {
+	const peak = transitionPeakExpression({ progress });
+	const blend = blendSamples({ progress, outgoing: "A", incoming: "B" });
+	const color = tintPlaneExpression({ tint });
+	const alpha = Math.min(0.9, 0.52 * intensity);
+	return (
+		"(" +
+		blend +
+		")*(1-" +
+		alpha +
+		"*(" +
+		peak +
+		"))+(" +
+		color +
+		")*" +
+		alpha +
+		"*(" +
+		peak +
+		")"
+	);
+}
+
+function rgbGlitchExpression({
+	progress,
+	intensity,
+	frequency,
+}: {
+	progress: string;
+	intensity: number;
+	frequency: number;
+}): string {
+	const peak = transitionPeakExpression({ progress });
+	const channelDirection = "if(eq(PLANE,2),1,if(eq(PLANE,1),-1,0))";
+	const bandSize = Math.max(2, Math.round(12 / frequency));
+	const stripeDirection = `if(lt(mod(Y,${bandSize}),${Math.max(1, Math.round(bandSize / 2))}),1,-1)`;
+	const shift =
+		0.04 * intensity +
+		"*W*(" +
+		peak +
+		")*(" +
+		channelDirection +
+		")*(" +
+		stripeDirection +
+		")";
+	const sampleX = "X+(" + shift + ")";
+	return blendSamples({
+		progress,
+		outgoing: clampedPlaneSample({ input: "a", x: sampleX, y: "Y" }),
+		incoming: clampedPlaneSample({ input: "b", x: sampleX, y: "Y" }),
+	});
+}
+
+function shakeExpression({
+	progress,
+	intensity,
+	frequency,
+}: {
+	progress: string;
+	intensity: number;
+	frequency: number;
+}): string {
+	const peak = transitionPeakExpression({ progress });
+	const sampleX =
+		"X+sin((" +
+		progress +
+		")*" +
+		50 * frequency +
+		")*(" +
+		peak +
+		")*" +
+		0.025 * intensity +
+		"*W";
+	const sampleY =
+		"Y+cos((" +
+		progress +
+		")*" +
+		43 * frequency +
+		")*(" +
+		peak +
+		")*" +
+		0.025 * intensity +
+		"*H";
+	return blendSamples({
+		progress,
+		outgoing: clampedPlaneSample({ input: "a", x: sampleX, y: sampleY }),
+		incoming: clampedPlaneSample({ input: "b", x: sampleX, y: sampleY }),
+	});
+}
+
 export function buildXfadeTransitionFilter({
 	transition,
 }: {
 	transition: VideoTransition;
 }): XfadeTransitionFilter {
 	const progress = semanticProgressExpression({ transition });
-	if (transition.type === "dissolve") {
-		return {
-			transition: "custom",
-			expression: "A*(1-(" + progress + "))+B*(" + progress + ")",
-		};
-	}
-	if (transition.type === "fade-black") {
-		const colorExpression =
-			"if(lt(" +
-			progress +
-			",0.5),A*(1-2*(" +
-			progress +
-			")),B*(2*(" +
-			progress +
-			")-1))";
-		return {
-			transition: "custom",
-			expression: "if(eq(PLANE,3),255," + colorExpression + ")",
-		};
-	}
-	if (transition.type === "slide") {
-		return {
-			transition: "custom",
-			expression: slideExpression({
+	const type = transition.type;
+	const tuning = transitionTuning({ transition });
+	let expression: string;
+	switch (type) {
+		case "dissolve":
+			expression = "A*(1-(" + progress + "))+B*(" + progress + ")";
+			break;
+		case "fade-black":
+		case "fade-white":
+			expression = fadeColorExpression({
+				progress,
+				colorValue: type === "fade-white" ? 255 : 0,
+			});
+			break;
+		case "slide":
+			expression = slideExpression({
 				direction: transition.direction,
 				progress,
-			}),
-		};
+			});
+			break;
+		case "push":
+			expression = pushExpression({
+				direction: transition.direction,
+				progress,
+			});
+			break;
+		case "wipe":
+			expression = wipeExpression({
+				direction: transition.direction,
+				progress,
+			});
+			break;
+		case "zoom-blur":
+			expression = zoomBlurExpression({
+				progress,
+				intensity: tuning.intensity,
+			});
+			break;
+		case "whip-pan":
+			expression = whipPanExpression({
+				direction: transition.direction,
+				progress,
+				intensity: tuning.intensity,
+			});
+			break;
+		case "flash":
+			expression = flashExpression({
+				progress,
+				intensity: tuning.intensity,
+				tint: tuning.tint,
+			});
+			break;
+		case "light-leak":
+			expression = lightLeakExpression({
+				progress,
+				intensity: tuning.intensity,
+				tint: tuning.tint,
+			});
+			break;
+		case "rgb-glitch":
+			expression = rgbGlitchExpression({
+				progress,
+				intensity: tuning.intensity,
+				frequency: tuning.frequency,
+			});
+			break;
+		case "shake":
+			expression = shakeExpression({
+				progress,
+				intensity: tuning.intensity,
+				frequency: tuning.frequency,
+			});
+			break;
+		default: {
+			const unsupportedType: never = type;
+			throw new Error(`Unsupported transition type: ${unsupportedType}`);
+		}
 	}
-	return {
-		transition: "custom",
-		expression: wipeExpression({
-			direction: transition.direction,
-			progress,
-		}),
-	};
+	return { transition: "custom", expression };
 }

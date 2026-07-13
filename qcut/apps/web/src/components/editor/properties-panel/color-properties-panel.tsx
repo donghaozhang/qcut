@@ -281,9 +281,7 @@ export function ColorPropertiesPanel({
 				applied += 1;
 			}
 		}
-		toast.success(
-			`Applied color grade to ${applied} clip${applied === 1 ? "" : "s"}`
-		);
+		toast.success(`已将调色应用到 ${applied} 个片段`);
 	};
 	const saveColorPreset = (name?: string) => {
 		const preset = createColorPreset({ settings, name });
@@ -292,9 +290,9 @@ export function ColorPropertiesPanel({
 			persistColorPresets({ presets: next });
 			setPresets(next);
 			setSelectedPresetId(preset.id);
-			toast.success("Saved color preset");
+			toast.success("调色预设已保存");
 		} catch {
-			toast.error("Unable to save color preset");
+			toast.error("无法保存调色预设");
 		}
 	};
 	const applySelectedPreset = () => {
@@ -315,7 +313,7 @@ export function ColorPropertiesPanel({
 				),
 			},
 		});
-		toast.success(`Applied ${preset.name}`);
+		toast.success(`已应用 ${preset.name}`);
 	};
 	const deleteSelectedPreset = () => {
 		if (!selectedPresetId) return;
@@ -324,9 +322,9 @@ export function ColorPropertiesPanel({
 			persistColorPresets({ presets: next });
 			setPresets(next);
 			setSelectedPresetId(undefined);
-			toast.success("Deleted color preset");
+			toast.success("调色预设已删除");
 		} catch {
-			toast.error("Unable to delete color preset");
+			toast.error("无法删除调色预设");
 		}
 	};
 	const bindings: ColorSettingsEditorBindings = {
@@ -349,7 +347,7 @@ export function ColorPropertiesPanel({
 		const mask = {
 			...structuredClone(DEFAULT_MEDIA_MASK),
 			id,
-			name: `Grade mask ${masks.length + 1}`,
+			name: `调色蒙版 ${masks.length + 1}`,
 			type: "ellipse" as const,
 			width: 0.65,
 			height: 0.65,
@@ -379,9 +377,9 @@ export function ColorPropertiesPanel({
 	return (
 		<div data-testid="color-properties-panel">
 			<div className="mb-3 flex items-center justify-between gap-3 border-b border-border/70 pb-3">
-				<span className="text-xs font-medium">Color pipeline</span>
+				<span className="text-xs font-medium">调色管线</span>
 				<Switch
-					aria-label="Enable color pipeline"
+					aria-label="启用调色管线"
 					checked={settings.enabled}
 					onCheckedChange={(enabled) =>
 						persistSettings({ next: { ...settings, enabled } })
@@ -405,12 +403,12 @@ export function ColorPropertiesPanel({
 			>
 				<Tabs defaultValue="basic">
 					<TabsList className="grid h-auto w-full grid-cols-6 gap-1">
-						<TabsTrigger value="basic">Basic</TabsTrigger>
+						<TabsTrigger value="basic">基础</TabsTrigger>
 						<TabsTrigger value="hsl">HSL</TabsTrigger>
-						<TabsTrigger value="curves">Curves</TabsTrigger>
-						<TabsTrigger value="wheels">Wheels</TabsTrigger>
-						<TabsTrigger value="mask">Mask</TabsTrigger>
-						<TabsTrigger value="scopes">Scopes</TabsTrigger>
+						<TabsTrigger value="curves">曲线</TabsTrigger>
+						<TabsTrigger value="wheels">色轮</TabsTrigger>
+						<TabsTrigger value="mask">蒙版</TabsTrigger>
+						<TabsTrigger value="scopes">示波器</TabsTrigger>
 					</TabsList>
 					<TabsContent value="basic" className="mt-2">
 						<ColorSmartSettingsPanel

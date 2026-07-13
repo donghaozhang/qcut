@@ -12,6 +12,8 @@ import type { SubtitleStyle } from "../types/timeline.js";
 export const DEFAULT_SUBTITLE_STYLE: SubtitleStyle = {
 	fontFamily: "Arial",
 	fontSize: 48,
+	letterSpacing: 0,
+	textAlign: "center",
 	fontColor: "#ffffff",
 	fontOpacity: 1,
 	bold: false,
@@ -29,6 +31,9 @@ export const DEFAULT_SUBTITLE_STYLE: SubtitleStyle = {
 		y: 90,
 	},
 	lineSpacing: 1.4,
+	animationType: "none",
+	animationDuration: 0.6,
+	animationDelay: 0,
 };
 
 /** Resolve a caption's style, falling back to defaults for missing fields */
@@ -96,18 +101,23 @@ export function assColorToRgb(assColor: string): {
 
 /** Map SubtitleStyle alignment to ASS alignment number (numpad layout) */
 export function alignToASSAlignment(
-	align: SubtitleStyle["position"]["align"]
+	align: SubtitleStyle["position"]["align"],
+	textAlign: SubtitleStyle["textAlign"] = "center"
 ): number {
-	switch (align) {
-		case "bottom":
-			return 2;
-		case "center":
-			return 5;
-		case "top":
-			return 8;
-		default:
-			return 2;
-	}
+	const horizontalOffset =
+		textAlign === "left" ? 1 : textAlign === "right" ? 3 : 2;
+	if (align === "top") return 6 + horizontalOffset;
+	if (align === "center") return 3 + horizontalOffset;
+	return horizontalOffset;
+}
+
+export function assAlignmentToTextAlign(
+	alignment: number
+): SubtitleStyle["textAlign"] {
+	const column = ((Math.max(1, alignment) - 1) % 3) + 1;
+	if (column === 1) return "left";
+	if (column === 3) return "right";
+	return "center";
 }
 
 /** Map ASS alignment number back to SubtitleStyle alignment */

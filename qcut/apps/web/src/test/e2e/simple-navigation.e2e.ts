@@ -41,7 +41,7 @@ test.describe("Simple Navigation Test", () => {
 		const headerButton = page.getByTestId("new-project-button").first();
 
 		await expect(headerButton).toBeAttached();
-		await expect(headerButton).toContainText("New Project");
+		await expect(headerButton).toContainText("新建项目");
 
 		// Check if there are projects to determine which button to test
 		const hasProjects = await page

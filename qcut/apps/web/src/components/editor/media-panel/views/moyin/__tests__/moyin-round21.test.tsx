@@ -38,6 +38,10 @@ vi.mock("lucide-react", () => {
 		MessageSquareIcon: icon("message-square"),
 		SearchIcon: icon("search"),
 		WrenchIcon: icon("wrench"),
+		AudioLinesIcon: icon("audio-lines"),
+		CaptionsIcon: icon("captions"),
+		LayoutTemplateIcon: icon("layout-template"),
+		SlidersHorizontalIcon: icon("sliders-horizontal"),
 	};
 });
 

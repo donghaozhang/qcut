@@ -3,15 +3,20 @@
  */
 
 import type { ReleaseNote } from "./release-notes";
+import type {
+	PlatformUpdatePreferences,
+	PlatformUpdateState,
+} from "@qcut/platform-core";
 
 export interface ElectronUpdateOps {
 	updates?: {
-		checkForUpdates: () => Promise<{
-			available: boolean;
-			version?: string;
-			message?: string;
-			error?: string;
-		}>;
+		checkForUpdates: () => Promise<PlatformUpdateState>;
+		downloadUpdate: () => Promise<PlatformUpdateState>;
+		getState: () => Promise<PlatformUpdateState>;
+		getPreferences: () => Promise<PlatformUpdatePreferences>;
+		setPreferences: (
+			preferences: Partial<PlatformUpdatePreferences>
+		) => Promise<PlatformUpdatePreferences>;
 		installUpdate: () => Promise<{
 			success: boolean;
 			message?: string;
@@ -35,6 +40,9 @@ export interface ElectronUpdateOps {
 		) => () => void;
 		onUpdateDownloaded: (
 			callback: (data: { version: string }) => void
+		) => () => void;
+		onStateChanged: (
+			callback: (state: PlatformUpdateState) => void
 		) => () => void;
 	};
 }

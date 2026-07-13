@@ -18,7 +18,7 @@ describe("Store Initialization", () => {
 		// Timeline store creates a default main track on initialization
 		expect(state.tracks).toHaveLength(1);
 		expect(state.tracks[0].isMain).toBe(true);
-		expect(state.tracks[0].name).toBe("Main Track");
+		expect(state.tracks[0].name).toBe("主轨道");
 		expect(state.history).toEqual([]);
 		expect(state.redoStack).toEqual([]);
 	});

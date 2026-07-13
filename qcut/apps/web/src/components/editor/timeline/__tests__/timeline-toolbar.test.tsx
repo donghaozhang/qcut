@@ -59,6 +59,12 @@ interface MockTimelineState {
 	splitAndKeepLeft: (trackId: string, elementId: string, time: number) => void;
 	splitAndKeepRight: (trackId: string, elementId: string, time: number) => void;
 	separateAudio: (trackId: string, elementId: string) => void;
+	updateMediaElement: (
+		trackId: string,
+		elementId: string,
+		updates: Record<string, unknown>
+	) => void;
+	setTrackHeightMode: (mode: "compact" | "default") => void;
 	snappingEnabled: boolean;
 	toggleSnapping: () => void;
 	rippleEditingEnabled: boolean;
@@ -77,6 +83,7 @@ interface MockPlaybackState {
 interface MockProjectState {
 	toggleBookmark: (time: number) => Promise<void>;
 	isBookmarked: (time: number) => boolean;
+	activeProject: { fps: number };
 }
 
 describe("TimelineToolbar", () => {
@@ -114,6 +121,8 @@ describe("TimelineToolbar", () => {
 		splitAndKeepLeft: vi.fn(),
 		splitAndKeepRight: vi.fn(),
 		separateAudio: vi.fn(),
+		updateMediaElement: vi.fn(),
+		setTrackHeightMode: vi.fn(),
 		snappingEnabled: true,
 		toggleSnapping: vi.fn(),
 		rippleEditingEnabled: false,
@@ -132,6 +141,7 @@ describe("TimelineToolbar", () => {
 	const projectState: MockProjectState = {
 		toggleBookmark: vi.fn(async () => {}),
 		isBookmarked: vi.fn(() => false),
+		activeProject: { fps: 30 },
 	};
 
 	beforeEach(() => {
@@ -177,5 +187,26 @@ describe("TimelineToolbar", () => {
 		render(<TimelineToolbar zoomLevel={1} setZoomLevel={setZoomLevel} />);
 		fireEvent.click(screen.getByTestId("add-markdown-button"));
 		expect(timelineState.addMarkdownAtTime).toHaveBeenCalled();
+	});
+
+	it("adds a freeze frame at the playhead source time", () => {
+		render(<TimelineToolbar zoomLevel={1} setZoomLevel={setZoomLevel} />);
+		fireEvent.click(screen.getByTestId("freeze-frame-button"));
+
+		expect(timelineState.updateMediaElement).toHaveBeenCalledWith(
+			"track-1",
+			"element-1",
+			{
+				freezeFrameTime: 5,
+				freezeFrameDuration: 1,
+			}
+		);
+	});
+
+	it("switches the timeline into compact track mode", () => {
+		render(<TimelineToolbar zoomLevel={1} setZoomLevel={setZoomLevel} />);
+		fireEvent.click(screen.getByTestId("compact-tracks-button"));
+
+		expect(timelineState.setTrackHeightMode).toHaveBeenCalledWith("compact");
 	});
 });

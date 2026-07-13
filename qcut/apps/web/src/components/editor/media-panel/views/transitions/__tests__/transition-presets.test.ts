@@ -4,74 +4,85 @@ import {
 	filterTransitionPresets,
 	getClipTransitionPresetConfig,
 	getTransitionPresetById,
+	transitionPresets,
 } from "../transition-presets";
 
 function requirePreset({ presetId }: { presetId: string }): TransitionPreset {
 	const preset = getTransitionPresetById({ presetId });
-	if (!preset) {
-		throw new Error(`Expected preset "${presetId}" to exist.`);
-	}
+	if (!preset) throw new Error(`Expected preset "${presetId}" to exist.`);
 	return preset;
 }
 
 describe("transition presets", () => {
-	it("filters by category", () => {
-		const result = filterTransitionPresets({ category: "slide", query: "" });
-
-		expect(result.map((preset) => preset.id)).toEqual([
-			"slide-left",
-			"slide-right",
-		]);
-	});
-
-	it("treats basic as immediately usable presets", () => {
-		const result = filterTransitionPresets({ category: "basic", query: "" });
-
-		expect(result.map((preset) => preset.id)).toEqual(
-			expect.arrayContaining(["dissolve", "fade-to-black"])
+	it("ships at least 50 real presets across the requested families", () => {
+		expect(transitionPresets.length).toBeGreaterThanOrEqual(50);
+		expect(new Set(transitionPresets.map((preset) => preset.id)).size).toBe(
+			transitionPresets.length
 		);
+		for (const category of [
+			"natural",
+			"split",
+			"blur",
+			"camera",
+			"light",
+			"glitch",
+			"mg",
+		] as const) {
+			expect(
+				filterTransitionPresets({ category, query: "" }).length
+			).toBeGreaterThan(0);
+		}
 	});
 
-	it("filters popular and latest virtual categories by preset flags", () => {
-		const popular = filterTransitionPresets({ category: "popular", query: "" });
-		const latest = filterTransitionPresets({ category: "latest", query: "" });
+	it("filters category, favorites, popular, and latest views", () => {
+		const split = filterTransitionPresets({ category: "split", query: "" });
+		expect(split).toHaveLength(12);
+		expect(split.map((preset) => preset.id)).toContain("slide-left");
+		expect(split.map((preset) => preset.id)).toContain("wipe-right");
 
-		expect(popular.map((preset) => preset.id)).toEqual([
-			"dissolve",
-			"fade-to-black",
-			"zoom-blur",
-		]);
-		expect(latest.map((preset) => preset.id)).toEqual([
-			"glitch-shift",
-			"light-sweep",
-		]);
-	});
-
-	it("returns every preset for the all category with an empty query", () => {
-		const result = filterTransitionPresets({ category: "all", query: "  " });
-
-		expect(result).toHaveLength(9);
-	});
-
-	it("searches names, descriptions, types, categories, and tags", () => {
-		const result = filterTransitionPresets({
-			category: "all",
-			query: "rgb",
+		const favorites = filterTransitionPresets({
+			category: "favorites",
+			query: "",
+			favoriteIds: new Set(["dissolve", "film-burn"]),
 		});
+		expect(favorites.map((preset) => preset.id)).toEqual([
+			"dissolve",
+			"film-burn",
+		]);
+		expect(
+			filterTransitionPresets({ category: "popular", query: "" }).every(
+				(preset) => preset.popular
+			)
+		).toBe(true);
+		expect(
+			filterTransitionPresets({ category: "latest", query: "" }).every(
+				(preset) => preset.latest
+			)
+		).toBe(true);
+	});
 
-		expect(result).toHaveLength(1);
-		expect(result[0].id).toBe("glitch-shift");
+	it("searches English and Chinese names, descriptions, and tags", () => {
+		expect(
+			filterTransitionPresets({ category: "all", query: "bright" }).map(
+				(preset) => preset.id
+			)
+		).toContain("fade-to-white");
+		expect(
+			filterTransitionPresets({ category: "all", query: "胶片" }).map(
+				(preset) => preset.id
+			)
+		).toContain("film-burn");
 	});
 });
 
 describe("getTransitionPresetById", () => {
-	it("returns the preset matching the id", () => {
-		const preset = getTransitionPresetById({ presetId: "dissolve" });
-
-		expect(preset).toMatchObject({
+	it("returns localized, versioned preset metadata", () => {
+		expect(getTransitionPresetById({ presetId: "dissolve" })).toMatchObject({
 			id: "dissolve",
 			name: "Dissolve",
-			category: "fade",
+			localizedName: "叠化",
+			category: "natural",
+			version: 1,
 		});
 	});
 
@@ -83,69 +94,40 @@ describe("getTransitionPresetById", () => {
 });
 
 describe("getClipTransitionPresetConfig", () => {
-	it("maps dissolve to the dissolve clip transition", () => {
+	it.each([
+		["dissolve", { type: "dissolve" }],
+		["fade-to-black", { type: "fade-black" }],
+		["slide-left", { type: "slide", direction: "left" }],
+		["wipe-up", { type: "wipe", direction: "up" }],
+		["push-down", { type: "push", direction: "down" }],
+		["zoom-blur", { type: "zoom-blur", tuning: { intensity: 0.85 } }],
+		["whip-pan-left", { type: "whip-pan", direction: "left" }],
+		["flash", { type: "flash", tuning: { intensity: 1, tint: "#ffffff" } }],
+		[
+			"rgb-glitch",
+			{ type: "rgb-glitch", tuning: { intensity: 1, frequency: 1 } },
+		],
+		["camera-shake", { type: "shake", tuning: { intensity: 1, frequency: 1 } }],
+	] as const)("maps %s to a real timeline configuration", (presetId, expected) => {
 		expect(
-			getClipTransitionPresetConfig({
-				preset: requirePreset({ presetId: "dissolve" }),
-			})
-		).toEqual({ type: "dissolve" });
+			getClipTransitionPresetConfig({ preset: requirePreset({ presetId }) })
+		).toEqual(expected);
 	});
 
-	it("maps fade-to-black to the fade-black clip transition", () => {
+	it("exposes no visible preset without a timeline mapping", () => {
 		expect(
-			getClipTransitionPresetConfig({
-				preset: requirePreset({ presetId: "fade-to-black" }),
-			})
-		).toEqual({ type: "fade-black" });
+			transitionPresets.every((preset) =>
+				Boolean(getClipTransitionPresetConfig({ preset }))
+			)
+		).toBe(true);
 	});
 
-	it("maps slide presets to slide with their direction", () => {
-		expect(
-			getClipTransitionPresetConfig({
-				preset: requirePreset({ presetId: "slide-left" }),
-			})
-		).toEqual({ type: "slide", direction: "left" });
-		expect(
-			getClipTransitionPresetConfig({
-				preset: requirePreset({ presetId: "slide-right" }),
-			})
-		).toEqual({ type: "slide", direction: "right" });
-	});
-
-	it("maps wipe presets to wipe with their direction", () => {
-		expect(
-			getClipTransitionPresetConfig({
-				preset: requirePreset({ presetId: "wipe-left" }),
-			})
-		).toEqual({ type: "wipe", direction: "left" });
-		expect(
-			getClipTransitionPresetConfig({
-				preset: requirePreset({ presetId: "wipe-right" }),
-			})
-		).toEqual({ type: "wipe", direction: "right" });
-	});
-
-	it("returns null for presets that are not downloaded", () => {
-		const zoomBlur = requirePreset({ presetId: "zoom-blur" });
-
-		expect(zoomBlur.downloaded).toBeFalsy();
-		expect(getClipTransitionPresetConfig({ preset: zoomBlur })).toBe(null);
-	});
-
-	it("returns null for downloaded presets without a clip transition mapping", () => {
-		const unmappedPreset: TransitionPreset = {
-			id: "custom-unmapped",
-			name: "Custom Unmapped",
-			category: "zoom",
-			type: "zoom",
-			defaultDuration: 0.5,
-			tags: ["custom"],
-			description: "A downloaded preset without a clip transition mapping.",
-			downloaded: true,
+	it("keeps an unavailable asset out of the apply path", () => {
+		const unavailable: TransitionPreset = {
+			...requirePreset({ presetId: "dissolve" }),
+			id: "unavailable",
+			downloaded: false,
 		};
-
-		expect(getClipTransitionPresetConfig({ preset: unmappedPreset })).toBe(
-			null
-		);
+		expect(getClipTransitionPresetConfig({ preset: unavailable })).toBeNull();
 	});
 });

@@ -45,6 +45,13 @@ interface WordTimelineState {
 	filterHistory: FilterHistoryChange[][];
 }
 
+export interface WordTimelineSnapshot {
+	data: WordTimelineData | null;
+	fileName: string | null;
+	selectedWordId: string | null;
+	filterHistory: FilterHistoryChange[][];
+}
+
 interface WordTimelineActions {
 	loadFromJson: (file: File) => Promise<void>;
 	loadFromData: (data: RawWordTimelineJson, fileName?: string) => void;
@@ -75,6 +82,8 @@ interface WordTimelineActions {
 	resetAllFilters: () => Promise<void>;
 	undoLastFilterChange: () => void;
 	replaceLyricsText: (text: string) => boolean;
+	createSnapshot: () => WordTimelineSnapshot;
+	restoreSnapshot: ({ snapshot }: { snapshot: WordTimelineSnapshot }) => void;
 	clearData: () => void;
 	getVisibleWords: () => WordItem[];
 	getWordById: (wordId: string) => WordItem | undefined;
@@ -638,6 +647,21 @@ export const useWordTimelineStore = create<WordTimelineStore>((set, get) => ({
 		} catch {
 			return false;
 		}
+	},
+
+	createSnapshot: () => {
+		const { data, fileName, selectedWordId, filterHistory } = get();
+		return { data, fileName, selectedWordId, filterHistory };
+	},
+
+	restoreSnapshot: ({ snapshot }) => {
+		set({
+			...snapshot,
+			isLoading: false,
+			isAnalyzing: false,
+			error: null,
+			analysisError: null,
+		});
 	},
 
 	clearData: () => {

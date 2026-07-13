@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useState, useMemo } from "react";
+import { useCallback, useEffect, useRef, useState, useMemo } from "react";
 import { ScrollArea } from "../../ui/scroll-area";
 import { Bookmark } from "lucide-react";
 import {
@@ -33,6 +33,9 @@ import type { SnapPoint } from "@/hooks/timeline/use-timeline-snapping";
 import { getTimelineElementEndTime } from "@/lib/timeline";
 import { cn } from "@/lib/utils";
 import { TimelineTrackLabel } from "./timeline-track-label";
+import type { TimelineVisibleRange } from "./timeline-viewport";
+
+const VIEWPORT_OVERSCAN_SECONDS = 5;
 
 interface TimelineTracksAreaProps {
 	tracks: TimelineTrack[];
@@ -41,8 +44,11 @@ interface TimelineTracksAreaProps {
 	dynamicTimelineWidth: number;
 	clearSelectedElements: () => void;
 	toggleTrackMute: (trackId: string) => void;
+	toggleTrackSolo: (trackId: string) => void;
 	toggleTrackHidden: (trackId: string) => void;
 	toggleTrackLocked: (trackId: string) => void;
+	beginTrackResize: () => void;
+	resizeTrack: (trackId: string, height: number) => void;
 	moveTrack: (trackId: string, toIndex: number) => void;
 	seek: (time: number) => void;
 	handleSnapPointChange: (snapPoint: SnapPoint | null) => void;
@@ -76,8 +82,11 @@ export function TimelineTracksArea({
 	dynamicTimelineWidth,
 	clearSelectedElements,
 	toggleTrackMute,
+	toggleTrackSolo,
 	toggleTrackHidden,
 	toggleTrackLocked,
+	beginTrackResize,
+	resizeTrack,
 	moveTrack,
 	seek,
 	handleSnapPointChange,
@@ -96,6 +105,9 @@ export function TimelineTracksArea({
 	const [selectedSpeedRegionId, setSelectedSpeedRegionId] = useState<
 		string | null
 	>(null);
+	const [visibleTimeRange, setVisibleTimeRange] =
+		useState<TimelineVisibleRange>();
+	const viewportFrameRef = useRef(0);
 	const hasSpeedRegions = useScreenRecordingEnhancementStore(
 		(s) => s.speedRegions.length > 0
 	);
@@ -106,6 +118,41 @@ export function TimelineTracksArea({
 		},
 		[moveTrack]
 	);
+
+	useEffect(() => {
+		const viewport = tracksScrollRef.current;
+		if (!viewport) return;
+		const updateVisibleRange = () => {
+			cancelAnimationFrame(viewportFrameRef.current);
+			viewportFrameRef.current = requestAnimationFrame(() => {
+				const pixelsPerSecond =
+					TIMELINE_CONSTANTS.PIXELS_PER_SECOND * zoomLevel;
+				const startTime = Math.max(
+					0,
+					viewport.scrollLeft / pixelsPerSecond - VIEWPORT_OVERSCAN_SECONDS
+				);
+				const endTime =
+					(viewport.scrollLeft + viewport.clientWidth) / pixelsPerSecond +
+					VIEWPORT_OVERSCAN_SECONDS;
+				setVisibleTimeRange((current) =>
+					current &&
+					Math.abs(current.startTime - startTime) < 0.2 &&
+					Math.abs(current.endTime - endTime) < 0.2
+						? current
+						: { startTime, endTime }
+				);
+			});
+		};
+		updateVisibleRange();
+		viewport.addEventListener("scroll", updateVisibleRange, { passive: true });
+		const resizeObserver = new ResizeObserver(updateVisibleRange);
+		resizeObserver.observe(viewport);
+		return () => {
+			cancelAnimationFrame(viewportFrameRef.current);
+			viewport.removeEventListener("scroll", updateVisibleRange);
+			resizeObserver.disconnect();
+		};
+	}, [tracksScrollRef, zoomLevel]);
 
 	// Compute timeline duration from tracks for speed region positioning
 	const timelineDurationMs = useMemo(
@@ -164,6 +211,11 @@ export function TimelineTracksArea({
 																	toggleTrackLocked(track.id)
 																}
 																onToggleMuted={() => toggleTrackMute(track.id)}
+																onToggleSolo={() => toggleTrackSolo(track.id)}
+																onResizeStart={beginTrackResize}
+																onResizeHeight={(height) =>
+																	resizeTrack(track.id, height)
+																}
 															/>
 														</div>
 													)}
@@ -254,7 +306,7 @@ export function TimelineTracksArea({
 												)}
 												style={{
 													top: `${getCumulativeHeightBefore(tracks, index)}px`,
-													height: `${getTrackHeight(track.type)}px`,
+													height: `${getTrackHeight(track.type, track.height)}px`,
 												}}
 												onClick={(e) => {
 													if (
@@ -269,6 +321,7 @@ export function TimelineTracksArea({
 												<TimelineTrackContent
 													track={track}
 													zoomLevel={zoomLevel}
+													visibleTimeRange={visibleTimeRange}
 													onSnapPointChange={handleSnapPointChange}
 												/>
 											</div>
@@ -337,6 +390,7 @@ export function TimelineTracksArea({
 											pixelsPerSecond={
 												TIMELINE_CONSTANTS.PIXELS_PER_SECOND * zoomLevel
 											}
+											visibleTimeRange={visibleTimeRange}
 										/>
 									</div>
 								)}

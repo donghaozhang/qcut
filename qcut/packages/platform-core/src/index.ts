@@ -59,6 +59,10 @@ export type {
 	PlatformRemotionFolderAPI,
 	PlatformMoyinAPI,
 	PlatformUpdatesAPI,
+	PlatformUpdatePhase,
+	PlatformAutomaticUpdateDecision,
+	PlatformUpdatePreferences,
+	PlatformUpdateState,
 	PlatformFillerAnalysisAPI,
 	PlatformPiAgentAPI,
 } from "./types/integration-api.js";

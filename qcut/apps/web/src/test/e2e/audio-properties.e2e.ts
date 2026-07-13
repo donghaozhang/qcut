@@ -53,7 +53,7 @@ async function setAudioNumber({
 	label: string;
 	value: number;
 }) {
-	const input = page.getByLabel(`${label} value`);
+	const input = page.getByLabel(`${label}数值`);
 	await input.fill(String(value));
 	await input.press("Tab");
 }
@@ -172,8 +172,8 @@ test.describe("Professional audio properties", () => {
 			)
 			.toBe(false);
 
-		await setAudioNumber({ page, label: "Volume", value: 6 });
-		await panel.getByLabel("Add Volume keyframe").click();
+		await setAudioNumber({ page, label: "音量", value: 6 });
+		await panel.getByLabel("添加音量关键帧").click();
 		await page.evaluate(() => {
 			const timeline = (window as any).__timelineStore.getState();
 			const element = timeline.tracks
@@ -181,9 +181,9 @@ test.describe("Professional audio properties", () => {
 				.find((candidate: any) => candidate.type === "media");
 			(window as any).__playbackStore.getState().seek(element.startTime + 1);
 		});
-		await setAudioNumber({ page, label: "Volume", value: -6 });
-		await expect(panel.getByLabel("Previous Volume keyframe")).toBeEnabled();
-		await panel.getByLabel("Previous Volume keyframe").click();
+		await setAudioNumber({ page, label: "音量", value: -6 });
+		await expect(panel.getByLabel("上一个音量关键帧")).toBeEnabled();
+		await panel.getByLabel("上一个音量关键帧").click();
 
 		const keyframeState = await page.evaluate(() => {
 			const element = (window as any).__timelineStore
@@ -211,11 +211,11 @@ test.describe("Professional audio properties", () => {
 		});
 
 		const denoiseModule = panel.getByTestId("audio-module-denoise");
-		await panel.getByLabel("Enable Noise reduction").click();
+		await panel.getByLabel("启用降噪").click();
 		await denoiseModule.locator("summary").click();
-		await denoiseModule.getByLabel("AI speech denoise").click();
+		await denoiseModule.getByLabel("AI 人声降噪").click();
 		await expect(
-			denoiseModule.getByRole("button", { name: "Process" })
+			denoiseModule.getByRole("button", { name: "开始处理" })
 		).toBeVisible();
 		await panel.screenshot({
 			path: path.join(outputDir, "02-audio-ai-denoise.png"),
@@ -223,15 +223,15 @@ test.describe("Professional audio properties", () => {
 		});
 
 		await expect(panel.getByTestId("audio-module-separation")).toBeVisible();
-		await panel.getByLabel("Enable Voice enhancement").click();
+		await panel.getByLabel("启用人声增强").click();
 		await panel
 			.getByTestId("audio-module-voice-enhance")
 			.locator("summary")
 			.click();
-		await setAudioNumber({ page, label: "Clarity", value: 35 });
-		await panel.getByLabel("Enable Pitch").click();
+		await setAudioNumber({ page, label: "清晰度", value: 35 });
+		await panel.getByLabel("启用音调").click();
 		await panel.getByTestId("audio-module-pitch").locator("summary").click();
-		await setAudioNumber({ page, label: "Pitch", value: 3 });
+		await setAudioNumber({ page, label: "音调", value: 3 });
 		await page.mouse.move(4, 4);
 		await page.evaluate(() => {
 			if (document.activeElement instanceof HTMLElement) {
@@ -244,7 +244,7 @@ test.describe("Professional audio properties", () => {
 			animations: "disabled",
 		});
 
-		await panel.getByRole("tab", { name: "Voice" }).click();
+		await panel.getByRole("tab", { name: "人声" }).click();
 		await expect(
 			panel.getByTestId("audio-voice-preset-controls")
 		).toBeVisible();
@@ -256,28 +256,28 @@ test.describe("Professional audio properties", () => {
 			animations: "disabled",
 		});
 
-		await panel.getByRole("tab", { name: "Effects" }).click();
+		await panel.getByRole("tab", { name: "音效" }).click();
 		await expect(panel.getByTestId("audio-preset-controls")).toBeVisible();
-		await panel.getByLabel("Enable Equalizer").click();
-		await setAudioNumber({ page, label: "Low EQ", value: 4 });
-		await panel.getByLabel("Enable Compressor").click();
-		await panel.getByLabel("Enable Limiter").click();
+		await panel.getByLabel("启用均衡器").click();
+		await setAudioNumber({ page, label: "低频", value: 4 });
+		await panel.getByLabel("启用压缩器").click();
+		await panel.getByLabel("启用限制器").click();
 		await panel.screenshot({
 			path: path.join(outputDir, "05-audio-effects.png"),
 			animations: "disabled",
 		});
 
-		await panel.getByRole("tab", { name: "Speed" }).click();
+		await panel.getByRole("tab", { name: "变速" }).click();
 		await expect(panel.getByTestId("audio-speed-preserve-pitch")).toContainText(
-			"On"
+			"已开启"
 		);
-		await setAudioNumber({ page, label: "Multiplier", value: 2 });
+		await setAudioNumber({ page, label: "倍速", value: 2 });
 		await panel.screenshot({
 			path: path.join(outputDir, "06-audio-speed.png"),
 			animations: "disabled",
 		});
 
-		await panel.getByRole("tab", { name: "Lyrics" }).click();
+		await panel.getByRole("tab", { name: "歌词" }).click();
 		await expect(panel.getByTestId("audio-lyrics-settings")).toBeVisible();
 		await expect(panel.getByTestId("audio-cover-settings")).toBeVisible();
 		await panel.screenshot({
@@ -441,10 +441,10 @@ test.describe("Professional audio properties", () => {
 		await clip.click();
 		await page.getByTestId("panel-tab-properties").click();
 		const panel = page.getByTestId("audio-properties-panel");
-		await panel.getByLabel("Enable Pitch").click();
+		await panel.getByLabel("启用音调").click();
 		await panel.getByTestId("audio-module-pitch").locator("summary").click();
-		await setAudioNumber({ page, label: "Pitch", value: 7 });
-		await expect(panel.getByLabel("Preserve formants")).toBeChecked();
+		await setAudioNumber({ page, label: "音调", value: 7 });
+		await expect(panel.getByLabel("保留共振峰")).toBeChecked();
 		await electronApp.evaluate(async ({ dialog }) => {
 			dialog.showSaveDialog = async () => ({
 				canceled: false,

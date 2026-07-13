@@ -5,15 +5,17 @@
  * served statically by the web server and loaded by the FFmpeg worker at runtime.
  */
 
-import { copyFile, mkdir } from "node:fs/promises";
+import { copyFile, mkdir, readFile } from "node:fs/promises";
 import { existsSync } from "node:fs";
 import { join, dirname } from "node:path";
 import { createRequire } from "node:module";
 import { fileURLToPath } from "node:url";
+import { loadFFmpegManifest } from "./ffmpeg-manifest.js";
 
 async function setupFFmpeg() {
 	try {
 		console.log("🔧 Setting up FFmpeg WebAssembly files...");
+		const manifest = await loadFFmpegManifest();
 
 		// Dynamically resolve @ffmpeg/core package path to handle different package managers
 		let ffmpegCorePath: string;
@@ -56,6 +58,14 @@ async function setupFFmpeg() {
 				);
 			}
 		}
+		const corePackage = JSON.parse(
+			await readFile(join(ffmpegCorePath, "..", "..", "package.json"), "utf8")
+		) as { version: string };
+		if (corePackage.version !== manifest.wasm.packageVersion) {
+			throw new Error(
+				`FFmpeg.wasm package mismatch: expected ${manifest.wasm.packageVersion}, received ${corePackage.version}`
+			);
+		}
 		const publicFFmpegPath = "apps/web/public/ffmpeg";
 		const electronFFmpegPath = "electron/resources/ffmpeg";
 
@@ -83,10 +93,8 @@ async function setupFFmpeg() {
 					await copyFile(sourcePath, destPath);
 					console.log(`✅ Copied: ${file} → ${targetPath}`);
 				} catch (error) {
-					if (
-						(error as any).code === "ENOENT" &&
-						(error as any).path === sourcePath
-					) {
+					const fileError = error as NodeJS.ErrnoException;
+					if (fileError.code === "ENOENT" && fileError.path === sourcePath) {
 						console.error(`❌ Source file not found: ${sourcePath}`);
 						process.exit(1);
 					}

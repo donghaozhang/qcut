@@ -3,6 +3,23 @@
  */
 
 import { Page } from "@playwright/test";
+import type { ElectronApplication } from "playwright";
+
+/** Make Electron's native save dialog deterministic for export tests. */
+export async function stubExportSaveDialog({
+	electronApp,
+	outputPath,
+}: {
+	electronApp: ElectronApplication;
+	outputPath: string;
+}): Promise<void> {
+	await electronApp.evaluate(async ({ dialog }, selectedPath) => {
+		dialog.showSaveDialog = async () => ({
+			canceled: false,
+			filePath: selectedPath,
+		});
+	}, outputPath);
+}
 
 /**
  * Query the macOS Screen Recording permission status via the Electron

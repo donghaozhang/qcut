@@ -18,6 +18,8 @@ import {
 import type {
 	MediaElement,
 	MediaKeyframeProperty,
+	MediaMask,
+	MediaMaskTrackingDirection,
 	MediaPerspective,
 	MediaPropertyKeyframe,
 } from "@/types/timeline";
@@ -30,6 +32,8 @@ import { useSegmentationStore } from "@/stores/ai/segmentation-store";
 import { useMediaPanelStore } from "@/components/editor/media-panel/store";
 import { createObjectURL } from "@/lib/media/blob-manager";
 import { requestSelectedVideoUpscale } from "@/lib/ai-video/selected-upscale-source";
+import { useTranslation } from "@/lib/i18n";
+import type { TranslationKey } from "@/lib/i18n/translations";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Slider } from "@/components/ui/slider";
@@ -84,6 +88,7 @@ import {
 	ColorPropertiesPanel,
 	defaultColorUpdates,
 } from "./color-properties-panel";
+import { MediaTrackingProperties } from "./media-tracking-properties";
 
 type MediaUpdates = Parameters<
 	ReturnType<typeof useTimelineStore.getState>["updateMediaElement"]
@@ -116,6 +121,7 @@ function NumberControl({
 	onInteractionStart,
 	onInteractionEnd,
 }: NumberControlProps) {
+	const { t } = useTranslation();
 	return (
 		<PropertyItem direction="column">
 			<div className="flex items-center justify-between gap-3">
@@ -123,9 +129,12 @@ function NumberControl({
 				<div className="flex items-center gap-1">
 					{onToggleKeyframe ? (
 						<MaskIconButton
-							label={
-								keyframed ? `Remove ${label} keyframe` : `Add ${label} keyframe`
-							}
+							label={t(
+								keyframed
+									? "mediaProperties.removeKeyframe"
+									: "mediaProperties.addKeyframe",
+								{ label }
+							)}
 							onClick={onToggleKeyframe}
 							active={keyframed}
 						>
@@ -138,7 +147,7 @@ function NumberControl({
 					) : null}
 					<Input
 						type="number"
-						aria-label={`${label} value`}
+						aria-label={t("mediaProperties.value", { label })}
 						value={Number(value.toFixed(step < 1 ? 2 : 0))}
 						min={min}
 						max={max}
@@ -213,13 +222,62 @@ function IconButton({
 const PERSPECTIVE_FIELDS: Array<{
 	x: keyof MediaPerspective;
 	y: keyof MediaPerspective;
-	label: string;
+	labelKey: TranslationKey;
 }> = [
-	{ x: "topLeftX", y: "topLeftY", label: "Top left" },
-	{ x: "topRightX", y: "topRightY", label: "Top right" },
-	{ x: "bottomLeftX", y: "bottomLeftY", label: "Bottom left" },
-	{ x: "bottomRightX", y: "bottomRightY", label: "Bottom right" },
+	{
+		x: "topLeftX",
+		y: "topLeftY",
+		labelKey: "mediaProperties.corner.topLeft",
+	},
+	{
+		x: "topRightX",
+		y: "topRightY",
+		labelKey: "mediaProperties.corner.topRight",
+	},
+	{
+		x: "bottomLeftX",
+		y: "bottomLeftY",
+		labelKey: "mediaProperties.corner.bottomLeft",
+	},
+	{
+		x: "bottomRightX",
+		y: "bottomRightY",
+		labelKey: "mediaProperties.corner.bottomRight",
+	},
 ];
+
+const BLEND_MODE_OPTIONS = [
+	["normal", "mediaProperties.blend.normal"],
+	["multiply", "mediaProperties.blend.multiply"],
+	["screen", "mediaProperties.blend.screen"],
+	["overlay", "mediaProperties.blend.overlay"],
+	["darken", "mediaProperties.blend.darken"],
+	["lighten", "mediaProperties.blend.lighten"],
+] as const satisfies ReadonlyArray<readonly [string, TranslationKey]>;
+
+const FIT_MODE_OPTIONS = [
+	["cover", "mediaProperties.fit.cover"],
+	["contain", "mediaProperties.fit.contain"],
+	["fill", "mediaProperties.fit.fill"],
+] as const satisfies ReadonlyArray<readonly [string, TranslationKey]>;
+
+const CROP_SIDE_LABELS = {
+	top: "mediaProperties.crop.top",
+	right: "mediaProperties.crop.right",
+	bottom: "mediaProperties.crop.bottom",
+	left: "mediaProperties.crop.left",
+} as const satisfies Record<string, TranslationKey>;
+
+const CLIP_ANIMATION_OPTIONS = [
+	["none", "mediaProperties.animation.none"],
+	["fade", "mediaProperties.animation.fade"],
+	["slide-left", "mediaProperties.animation.slideLeft"],
+	["slide-right", "mediaProperties.animation.slideRight"],
+	["slide-up", "mediaProperties.animation.slideUp"],
+	["slide-down", "mediaProperties.animation.slideDown"],
+	["zoom-in", "mediaProperties.animation.zoomIn"],
+	["zoom-out", "mediaProperties.animation.zoomOut"],
+] as const satisfies ReadonlyArray<readonly [string, TranslationKey]>;
 
 const CROP_KEYFRAME_PROPERTY = {
 	top: "cropTop",
@@ -235,6 +293,7 @@ type MediaPropertiesTab =
 	| "audio"
 	| "speed"
 	| "animation"
+	| "tracking"
 	| "adjustments"
 	| "ai";
 
@@ -248,6 +307,7 @@ function requestedPropertiesTab({ tab }: { tab: string }): MediaPropertiesTab {
 			"audio",
 			"speed",
 			"animation",
+			"tracking",
 			"adjustments",
 			"ai",
 		].includes(tab as MediaPropertiesTab)
@@ -264,6 +324,7 @@ export function MediaProperties({
 	element: MediaElement;
 	trackId: string;
 }) {
+	const { t } = useTranslation();
 	const updateMediaElement = useTimelineStore(
 		(state) => state.updateMediaElement
 	);
@@ -594,11 +655,34 @@ export function MediaProperties({
 		);
 	const deleteKeyframe = (id: string) =>
 		setPropertyKeyframes(propertyKeyframes.filter((item) => item.id !== id));
+	const startMaskTracking = ({
+		mask,
+		direction,
+	}: {
+		mask: MediaMask;
+		direction: MediaMaskTrackingDirection;
+	}) => {
+		if (!mask.id) return;
+		setMaskTrackingRequest({
+			elementId: element.id,
+			maskId: mask.id,
+			direction,
+			anchorFrame: currentFrame,
+		});
+		openSegmentation({
+			backend: mask.type === "person" ? "local-person" : "sam3",
+			prompt: mask.type === "person" ? "" : (mask.name ?? "object"),
+		});
+	};
 	const isVisualTab = VISUAL_PROPERTY_TABS.includes(
 		activePropertiesTab as VisualPropertyTab
 	);
 	return (
-		<div ref={panelRef} className="space-y-4" data-testid="media-properties">
+		<div
+			ref={panelRef}
+			className="w-full min-w-0 space-y-4 overflow-x-hidden"
+			data-testid="media-properties"
+		>
 			<div className="sticky top-0 z-20 space-y-2 bg-background pb-2">
 				<div className="flex items-center justify-between gap-3">
 					<div className="min-w-0">
@@ -608,7 +692,8 @@ export function MediaProperties({
 						</p>
 					</div>
 					<Button type="button" variant="outline" size="sm" onClick={resetAll}>
-						<RotateCcw className="mr-2 size-3.5" /> Reset all
+						<RotateCcw className="mr-2 size-3.5" />
+						{t("mediaProperties.resetAll")}
 					</Button>
 				</div>
 
@@ -621,29 +706,42 @@ export function MediaProperties({
 					}
 				>
 					<TabsList
-						className="grid h-8 w-full grid-cols-6 gap-0.5 rounded-sm p-0.5"
+						className="grid h-8 w-full grid-cols-7 gap-0.5 rounded-sm p-0.5"
 						data-testid="media-properties-primary-tabs"
 					>
-						<TabsTrigger value="visual" className="min-w-0 px-1 text-[11px]">
-							Visual
+						<TabsTrigger value="visual" className="min-w-0 px-1 text-[10px]">
+							{t("mediaProperties.tab.visual")}
 						</TabsTrigger>
-						<TabsTrigger value="audio" className="min-w-0 px-1 text-[11px]">
-							Audio
+						<TabsTrigger value="audio" className="min-w-0 px-1 text-[10px]">
+							{t("mediaProperties.tab.audio")}
 						</TabsTrigger>
-						<TabsTrigger value="speed" className="min-w-0 px-1 text-[11px]">
-							Speed
+						<TabsTrigger value="speed" className="min-w-0 px-1 text-[10px]">
+							{t("mediaProperties.tab.speed")}
 						</TabsTrigger>
-						<TabsTrigger value="animation" className="min-w-0 px-1 text-[11px]">
-							Animation
+						<TabsTrigger
+							value="animation"
+							className="min-w-0 px-1 text-[10px]"
+							aria-label={t("mediaProperties.tab.animation")}
+							title={t("mediaProperties.tab.animation")}
+						>
+							{t("mediaProperties.tab.animationShort")}
+						</TabsTrigger>
+						<TabsTrigger value="tracking" className="min-w-0 px-1 text-[10px]">
+							{t("mediaProperties.tab.tracking")}
 						</TabsTrigger>
 						<TabsTrigger
 							value="adjustments"
-							className="min-w-0 px-1 text-[11px]"
+							className="min-w-0 px-1 text-[10px]"
 						>
-							Adjust
+							{t("mediaProperties.tab.adjustments")}
 						</TabsTrigger>
-						<TabsTrigger value="ai" className="min-w-0 px-1 text-[11px]">
-							AI
+						<TabsTrigger
+							value="ai"
+							className="min-w-0 px-1 text-[10px]"
+							aria-label={t("mediaProperties.tab.ai")}
+							title={t("mediaProperties.tab.ai")}
+						>
+							{t("mediaProperties.tab.aiShort")}
 						</TabsTrigger>
 					</TabsList>
 				</Tabs>
@@ -660,16 +758,16 @@ export function MediaProperties({
 							data-testid="media-properties-visual-tabs"
 						>
 							<TabsTrigger value="basic" className="px-1 text-xs">
-								Basic
+								{t("mediaProperties.tab.basic")}
 							</TabsTrigger>
 							<TabsTrigger value="cutout" className="px-1 text-xs">
-								Cutout
+								{t("mediaProperties.tab.cutout")}
 							</TabsTrigger>
 							<TabsTrigger value="mask" className="px-1 text-xs">
-								Mask
+								{t("mediaProperties.tab.mask")}
 							</TabsTrigger>
 							<TabsTrigger value="portrait" className="px-1 text-xs">
-								Portrait
+								{t("mediaProperties.tab.portrait")}
 							</TabsTrigger>
 						</TabsList>
 					</Tabs>
@@ -678,10 +776,15 @@ export function MediaProperties({
 
 			<Tabs value={activePropertiesTab}>
 				<TabsContent value="basic" className="mt-4 space-y-4">
-					<PropertyGroup title="Position and size" defaultExpanded>
+					<PropertyGroup
+						title={t("mediaProperties.positionAndSize")}
+						defaultExpanded
+					>
 						<div className="space-y-4">
 							<div className="flex items-center justify-between">
-								<PropertyItemLabel>Lock proportions</PropertyItemLabel>
+								<PropertyItemLabel>
+									{t("mediaProperties.maintainAspectRatio")}
+								</PropertyItemLabel>
 								<div className="flex items-center gap-2">
 									{visual.maintainAspectRatio ? (
 										<Link2 className="size-3.5 text-primary" />
@@ -700,7 +803,11 @@ export function MediaProperties({
 								</div>
 							</div>
 							<NumberControl
-								label={visual.maintainAspectRatio ? "Scale" : "Scale X"}
+								label={t(
+									visual.maintainAspectRatio
+										? "mediaProperties.scale"
+										: "mediaProperties.horizontalScale"
+								)}
 								value={currentPropertyValue({ property: "scaleX" }) * 100}
 								min={1}
 								max={400}
@@ -735,7 +842,7 @@ export function MediaProperties({
 							/>
 							{visual.maintainAspectRatio ? null : (
 								<NumberControl
-									label="Scale Y"
+									label={t("mediaProperties.verticalScale")}
 									value={currentPropertyValue({ property: "scaleY" }) * 100}
 									min={1}
 									max={400}
@@ -756,7 +863,7 @@ export function MediaProperties({
 								/>
 							)}
 							<NumberControl
-								label="X position"
+								label={t("mediaProperties.positionX")}
 								value={currentPropertyValue({ property: "x" })}
 								min={-canvasSize.width}
 								max={canvasSize.width}
@@ -773,7 +880,7 @@ export function MediaProperties({
 								onInteractionEnd={endInteraction}
 							/>
 							<NumberControl
-								label="Y position"
+								label={t("mediaProperties.positionY")}
 								value={currentPropertyValue({ property: "y" })}
 								min={-canvasSize.height}
 								max={canvasSize.height}
@@ -790,7 +897,7 @@ export function MediaProperties({
 								onInteractionEnd={endInteraction}
 							/>
 							<NumberControl
-								label="Rotation"
+								label={t("mediaProperties.rotation")}
 								value={currentPropertyValue({ property: "rotation" })}
 								min={-180}
 								max={180}
@@ -815,34 +922,40 @@ export function MediaProperties({
 
 							<div className="flex items-center justify-between gap-2">
 								<div className="flex gap-1">
-									<IconButton label="Align left" onClick={() => alignX("left")}>
+									<IconButton
+										label={t("mediaProperties.alignLeft")}
+										onClick={() => alignX("left")}
+									>
 										<AlignHorizontalJustifyStart className="size-4" />
 									</IconButton>
 									<IconButton
-										label="Center horizontally"
+										label={t("mediaProperties.alignCenter")}
 										onClick={() => alignX("center")}
 									>
 										<AlignHorizontalJustifyCenter className="size-4" />
 									</IconButton>
 									<IconButton
-										label="Align right"
+										label={t("mediaProperties.alignRight")}
 										onClick={() => alignX("right")}
 									>
 										<AlignHorizontalJustifyEnd className="size-4" />
 									</IconButton>
 								</div>
 								<div className="flex gap-1">
-									<IconButton label="Align top" onClick={() => alignY("top")}>
+									<IconButton
+										label={t("mediaProperties.alignTop")}
+										onClick={() => alignY("top")}
+									>
 										<AlignVerticalJustifyStart className="size-4" />
 									</IconButton>
 									<IconButton
-										label="Center vertically"
+										label={t("mediaProperties.alignMiddle")}
 										onClick={() => alignY("center")}
 									>
 										<AlignVerticalJustifyCenter className="size-4" />
 									</IconButton>
 									<IconButton
-										label="Align bottom"
+										label={t("mediaProperties.alignBottom")}
 										onClick={() => alignY("bottom")}
 									>
 										<AlignVerticalJustifyEnd className="size-4" />
@@ -851,7 +964,7 @@ export function MediaProperties({
 							</div>
 							<div className="flex items-center gap-2">
 								<IconButton
-									label="Flip horizontally"
+									label={t("mediaProperties.flipHorizontal")}
 									active={visual.flipHorizontal}
 									onClick={() =>
 										update({ flipHorizontal: !visual.flipHorizontal })
@@ -860,7 +973,7 @@ export function MediaProperties({
 									<FlipHorizontal2 className="size-4" />
 								</IconButton>
 								<IconButton
-									label="Flip vertically"
+									label={t("mediaProperties.flipVertical")}
 									active={visual.flipVertical}
 									onClick={() => update({ flipVertical: !visual.flipVertical })}
 								>
@@ -873,16 +986,17 @@ export function MediaProperties({
 									className="ml-auto"
 									onClick={resetTransform}
 								>
-									<RotateCcw className="mr-2 size-3.5" /> Reset transform
+									<RotateCcw className="mr-2 size-3.5" />
+									{t("mediaProperties.resetTransform")}
 								</Button>
 							</div>
 						</div>
 					</PropertyGroup>
 
-					<PropertyGroup title="Compositing" defaultExpanded>
+					<PropertyGroup title={t("mediaProperties.blend")} defaultExpanded>
 						<div className="space-y-4">
 							<NumberControl
-								label="Opacity"
+								label={t("mediaProperties.opacity")}
 								value={currentPropertyValue({ property: "opacity" }) * 100}
 								min={0}
 								max={100}
@@ -906,7 +1020,9 @@ export function MediaProperties({
 								onInteractionEnd={endInteraction}
 							/>
 							<PropertyItem>
-								<PropertyItemLabel>Blend mode</PropertyItemLabel>
+								<PropertyItemLabel>
+									{t("mediaProperties.blendMode")}
+								</PropertyItemLabel>
 								<PropertyItemValue>
 									<Select
 										value={visual.blendMode}
@@ -918,21 +1034,14 @@ export function MediaProperties({
 									>
 										<SelectTrigger
 											className="h-8 text-xs"
-											aria-label="Blend mode"
+											aria-label={t("mediaProperties.blendMode")}
 										>
 											<SelectValue />
 										</SelectTrigger>
 										<SelectContent>
-											{[
-												"normal",
-												"multiply",
-												"screen",
-												"overlay",
-												"darken",
-												"lighten",
-											].map((mode) => (
+											{BLEND_MODE_OPTIONS.map(([mode, labelKey]) => (
 												<SelectItem key={mode} value={mode}>
-													{mode}
+													{t(labelKey)}
 												</SelectItem>
 											))}
 										</SelectContent>
@@ -942,10 +1051,13 @@ export function MediaProperties({
 						</div>
 					</PropertyGroup>
 
-					<PropertyGroup title="Crop and fit" defaultExpanded={false}>
+					<PropertyGroup
+						title={t("mediaProperties.cropAndFit")}
+						defaultExpanded={false}
+					>
 						<div className="space-y-4">
 							<div className="grid grid-cols-3 gap-1">
-								{(["cover", "contain", "fill"] as const).map((mode) => (
+								{FIT_MODE_OPTIONS.map(([mode, labelKey]) => (
 									<Button
 										key={mode}
 										type="button"
@@ -953,7 +1065,7 @@ export function MediaProperties({
 										size="sm"
 										onClick={() => update({ fitMode: mode })}
 									>
-										{mode[0].toUpperCase() + mode.slice(1)}
+										{t(labelKey)}
 									</Button>
 								))}
 							</div>
@@ -962,7 +1074,7 @@ export function MediaProperties({
 								return (
 									<NumberControl
 										key={side}
-										label={`Crop ${side}`}
+										label={t(CROP_SIDE_LABELS[side])}
 										value={currentPropertyValue({ property }) * 100}
 										min={0}
 										max={95}
@@ -1000,17 +1112,21 @@ export function MediaProperties({
 									})
 								}
 							>
-								<RotateCcw className="mr-2 size-3.5" /> Reset crop
+								<RotateCcw className="mr-2 size-3.5" />
+								{t("mediaProperties.resetCrop")}
 							</Button>
 						</div>
 					</PropertyGroup>
 
-					<PropertyGroup title="Perspective" defaultExpanded={false}>
+					<PropertyGroup
+						title={t("mediaProperties.perspective")}
+						defaultExpanded={false}
+					>
 						<div className="space-y-3">
 							{PERSPECTIVE_FIELDS.map((field) => (
-								<div key={field.label} className="space-y-1">
+								<div key={field.labelKey} className="space-y-1">
 									<p className="text-[11px] text-muted-foreground">
-										{field.label}
+										{t(field.labelKey)}
 									</p>
 									<div className="grid grid-cols-2 gap-2">
 										{([field.x, field.y] as const).map((key, index) => {
@@ -1024,8 +1140,12 @@ export function MediaProperties({
 													<MaskIconButton
 														label={
 															isKeyframedHere({ property })
-																? `Remove ${field.label} ${axis} keyframe`
-																: `Add ${field.label} ${axis} keyframe`
+																? t("mediaProperties.removeKeyframe", {
+																		label: `${t(field.labelKey)} ${axis}`,
+																	})
+																: t("mediaProperties.addKeyframe", {
+																		label: `${t(field.labelKey)} ${axis}`,
+																	})
 														}
 														active={isKeyframedHere({ property })}
 														onClick={() =>
@@ -1048,7 +1168,9 @@ export function MediaProperties({
 													</MaskIconButton>
 													<Input
 														type="number"
-														aria-label={`${field.label} ${axis} value`}
+														aria-label={t("mediaProperties.value", {
+															label: `${t(field.labelKey)} ${axis}`,
+														})}
 														value={Math.round(
 															currentPropertyValue({ property }) * 100
 														)}
@@ -1094,14 +1216,18 @@ export function MediaProperties({
 									})
 								}
 							>
-								<RotateCcw className="mr-2 size-3.5" /> Reset perspective
+								<RotateCcw className="mr-2 size-3.5" />
+								{t("mediaProperties.resetPerspective")}
 							</Button>
 						</div>
 					</PropertyGroup>
 
-					<PropertyGroup title="Video stabilization" defaultExpanded={false}>
+					<PropertyGroup
+						title={t("mediaProperties.stabilization")}
+						defaultExpanded={false}
+					>
 						<NumberControl
-							label="Local deshake"
+							label={t("mediaProperties.localStabilization")}
 							value={visual.enhancements.stabilization}
 							min={0}
 							max={100}
@@ -1115,17 +1241,20 @@ export function MediaProperties({
 						/>
 					</PropertyGroup>
 
-					<PropertyGroup title="Video enhancement" defaultExpanded={false}>
+					<PropertyGroup
+						title={t("mediaProperties.qualityEnhancement")}
+						defaultExpanded={false}
+					>
 						<div className="space-y-4">
 							{(
 								[
-									["denoise", "Video denoise"],
-									["clarity", "Clarity"],
+									["denoise", "mediaProperties.denoise"],
+									["clarity", "mediaProperties.clarity"],
 								] as const
-							).map(([property, label]) => (
+							).map(([property, labelKey]) => (
 								<NumberControl
 									key={property}
-									label={label}
+									label={t(labelKey)}
 									value={visual.enhancements[property]}
 									min={0}
 									max={100}
@@ -1142,7 +1271,9 @@ export function MediaProperties({
 								/>
 							))}
 							<PropertyItem>
-								<PropertyItemLabel>Local supersampling</PropertyItemLabel>
+								<PropertyItemLabel>
+									{t("mediaProperties.localUpscale")}
+								</PropertyItemLabel>
 								<PropertyItemValue>
 									<Select
 										value={String(visual.enhancements.upscale)}
@@ -1159,7 +1290,9 @@ export function MediaProperties({
 											<SelectValue />
 										</SelectTrigger>
 										<SelectContent>
-											<SelectItem value="1">Off</SelectItem>
+											<SelectItem value="1">
+												{t("mediaProperties.off")}
+											</SelectItem>
 											<SelectItem value="2">2x</SelectItem>
 											<SelectItem value="4">4x</SelectItem>
 										</SelectContent>
@@ -1171,17 +1304,32 @@ export function MediaProperties({
 				</TabsContent>
 
 				<TabsContent value="animation" className="mt-4 space-y-4">
-					<PropertyGroup title="Clip animation" defaultExpanded>
+					<PropertyGroup
+						title={t("mediaProperties.clipAnimation")}
+						defaultExpanded
+					>
 						<div className="space-y-4">
 							{(
 								[
-									["In", "animationInType", "animationInDuration"],
-									["Out", "animationOutType", "animationOutDuration"],
+									[
+										"mediaProperties.animation.in",
+										"animationInType",
+										"animationInDuration",
+									],
+									[
+										"mediaProperties.animation.out",
+										"animationOutType",
+										"animationOutDuration",
+									],
 								] as const
-							).map(([label, typeKey, durationKey]) => (
-								<div key={label} className="space-y-3">
+							).map(([labelKey, typeKey, durationKey]) => (
+								<div key={labelKey} className="space-y-3">
 									<PropertyItem>
-										<PropertyItemLabel>{label} animation</PropertyItemLabel>
+										<PropertyItemLabel>
+											{t("mediaProperties.animation.label", {
+												name: t(labelKey),
+											})}
+										</PropertyItemLabel>
 										<PropertyItemValue>
 											<Select
 												value={visual[typeKey]}
@@ -1193,27 +1341,22 @@ export function MediaProperties({
 													<SelectValue />
 												</SelectTrigger>
 												<SelectContent>
-													{[
-														["none", "None"],
-														["fade", "Fade"],
-														["slide-left", "Slide left"],
-														["slide-right", "Slide right"],
-														["slide-up", "Slide up"],
-														["slide-down", "Slide down"],
-														["zoom-in", "Zoom in"],
-														["zoom-out", "Zoom out"],
-													].map(([value, optionLabel]) => (
-														<SelectItem key={value} value={value}>
-															{optionLabel}
-														</SelectItem>
-													))}
+													{CLIP_ANIMATION_OPTIONS.map(
+														([value, optionLabelKey]) => (
+															<SelectItem key={value} value={value}>
+																{t(optionLabelKey)}
+															</SelectItem>
+														)
+													)}
 												</SelectContent>
 											</Select>
 										</PropertyItemValue>
 									</PropertyItem>
 									{visual[typeKey] === "none" ? null : (
 										<NumberControl
-											label={`${label} duration`}
+											label={t("mediaProperties.animation.duration", {
+												name: t(labelKey),
+											})}
 											value={visual[durationKey]}
 											min={0.1}
 											max={5}
@@ -1231,10 +1374,15 @@ export function MediaProperties({
 						</div>
 					</PropertyGroup>
 
-					<PropertyGroup title="Combination" defaultExpanded>
+					<PropertyGroup
+						title={t("mediaProperties.comboAnimation")}
+						defaultExpanded
+					>
 						<div className="space-y-4">
 							<PropertyItem>
-								<PropertyItemLabel>Motion</PropertyItemLabel>
+								<PropertyItemLabel>
+									{t("mediaProperties.motion")}
+								</PropertyItemLabel>
 								<PropertyItemValue>
 									<Select
 										value={visual.comboAnimationType}
@@ -1249,16 +1397,22 @@ export function MediaProperties({
 											<SelectValue />
 										</SelectTrigger>
 										<SelectContent>
-											<SelectItem value="none">None</SelectItem>
-											<SelectItem value="pulse">Pulse</SelectItem>
-											<SelectItem value="drift">Drift</SelectItem>
+											<SelectItem value="none">
+												{t("mediaProperties.animation.none")}
+											</SelectItem>
+											<SelectItem value="pulse">
+												{t("mediaProperties.motion.pulse")}
+											</SelectItem>
+											<SelectItem value="drift">
+												{t("mediaProperties.motion.drift")}
+											</SelectItem>
 										</SelectContent>
 									</Select>
 								</PropertyItemValue>
 							</PropertyItem>
 							{visual.comboAnimationType === "none" ? null : (
 								<NumberControl
-									label="Intensity"
+									label={t("mediaProperties.intensity")}
 									value={visual.comboAnimationIntensity * 100}
 									min={0}
 									max={100}
@@ -1286,6 +1440,14 @@ export function MediaProperties({
 					<MediaSpeedProperties element={element} trackId={trackId} />
 				</TabsContent>
 
+				<TabsContent value="tracking" className="mt-4">
+					<MediaTrackingProperties
+						masks={visual.masks}
+						onTrack={startMaskTracking}
+						onOpenMasks={() => setActivePropertiesTab("mask")}
+					/>
+				</TabsContent>
+
 				<TabsContent value="mask" className="mt-4">
 					<MediaMaskProperties
 						elementId={element.id}
@@ -1294,19 +1456,7 @@ export function MediaProperties({
 						onChange={(masks, history = true) => update({ masks }, history)}
 						onInteractionStart={beginInteraction}
 						onInteractionEnd={endInteraction}
-						onTrack={({ mask, direction }) => {
-							if (!mask.id) return;
-							setMaskTrackingRequest({
-								elementId: element.id,
-								maskId: mask.id,
-								direction,
-								anchorFrame: currentFrame,
-							});
-							openSegmentation({
-								backend: mask.type === "person" ? "local-person" : "sam3",
-								prompt: mask.type === "person" ? "" : (mask.name ?? "object"),
-							});
-						}}
+						onTrack={startMaskTracking}
 					/>
 				</TabsContent>
 
@@ -1317,10 +1467,13 @@ export function MediaProperties({
 				</TabsContent>
 
 				<TabsContent value="portrait" className="mt-4">
-					<PropertyGroup title="Portrait enhancement" defaultExpanded>
+					<PropertyGroup
+						title={t("mediaProperties.tab.portrait")}
+						defaultExpanded
+					>
 						<div className="space-y-4">
 							<NumberControl
-								label="Relight"
+								label={t("mediaProperties.relight")}
 								value={visual.enhancements.relight}
 								min={-100}
 								max={100}
@@ -1333,7 +1486,7 @@ export function MediaProperties({
 								onInteractionEnd={endInteraction}
 							/>
 							<NumberControl
-								label="Portrait smoothing"
+								label={t("mediaProperties.beauty")}
 								value={visual.enhancements.beauty}
 								min={0}
 								max={100}
@@ -1350,11 +1503,14 @@ export function MediaProperties({
 				</TabsContent>
 
 				<TabsContent value="ai" className="mt-4">
-					<PropertyGroup title="AI processing" defaultExpanded>
+					<PropertyGroup
+						title={t("mediaProperties.aiProcessing")}
+						defaultExpanded
+					>
 						<div className="grid grid-cols-2 gap-2">
 							<Button type="button" variant="outline" onClick={openAIUpscale}>
 								<Sparkles className="size-4" />
-								AI upscale
+								{t("mediaProperties.aiUpscale")}
 							</Button>
 							<Button
 								type="button"
@@ -1362,7 +1518,7 @@ export function MediaProperties({
 								onClick={() => setActiveMediaTab("ai")}
 							>
 								<Bot className="size-4" />
-								AI video tools
+								{t("mediaProperties.aiVideoTools")}
 							</Button>
 						</div>
 					</PropertyGroup>
@@ -1370,10 +1526,15 @@ export function MediaProperties({
 			</Tabs>
 
 			{activePropertiesTab === "basic" ? (
-				<PropertyGroup title="Keyframes" defaultExpanded={false}>
+				<PropertyGroup
+					title={t("mediaProperties.keyframes")}
+					defaultExpanded={false}
+				>
 					<div className="space-y-4">
 						<PropertyItem>
-							<PropertyItemLabel>Property</PropertyItemLabel>
+							<PropertyItemLabel>
+								{t("mediaProperties.property")}
+							</PropertyItemLabel>
 							<PropertyItemValue>
 								<Select
 									value={keyframeProperty}
@@ -1383,7 +1544,7 @@ export function MediaProperties({
 								>
 									<SelectTrigger
 										className="h-8 text-xs"
-										aria-label="Keyframe property"
+										aria-label={t("mediaProperties.keyframeProperty")}
 									>
 										<SelectValue />
 									</SelectTrigger>

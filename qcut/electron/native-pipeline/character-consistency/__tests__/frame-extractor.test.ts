@@ -17,7 +17,7 @@ function makeExecFileMock({
 	onFfmpeg?: ({ outputPattern }: { outputPattern: string }) => void;
 }) {
 	return vi.fn(async (command: string, args: string[]) => {
-		if (command === "ffmpeg" && Array.isArray(args)) {
+		if (path.basename(command) === "ffmpeg" && Array.isArray(args)) {
 			onFfmpeg?.({ outputPattern: args.at(-1) as string });
 		}
 		return { stdout, stderr: "" };
@@ -36,13 +36,14 @@ describe("frame-extractor", () => {
 		const meta = await probeVideoMeta({
 			input: "video.mp4",
 			execFileAsyncFn: execFileMock,
+			resolveFFprobePath: async () => "/bundled/ffprobe",
 		});
 
 		expect(meta.fps).toBeCloseTo(29.97, 2);
 		expect(meta.durationSeconds).toBe(10.01);
 		expect(meta.totalFrames).toBe(300);
 		expect(execFileMock).toHaveBeenCalledWith(
-			"ffprobe",
+			"/bundled/ffprobe",
 			expect.arrayContaining(["-of", "json", "video.mp4"])
 		);
 	});
@@ -66,6 +67,7 @@ describe("frame-extractor", () => {
 			outputDir,
 			videoFps: 30,
 			execFileAsyncFn: execFileMock,
+			resolveFFmpegPath: () => "/bundled/ffmpeg",
 		});
 
 		expect(keyframes).toEqual([
@@ -83,7 +85,7 @@ describe("frame-extractor", () => {
 			},
 		]);
 		expect(execFileMock).toHaveBeenCalledWith(
-			"ffmpeg",
+			"/bundled/ffmpeg",
 			expect.arrayContaining(["-vf", expect.stringContaining("fps=1")])
 		);
 	});

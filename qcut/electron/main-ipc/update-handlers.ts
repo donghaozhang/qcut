@@ -3,59 +3,91 @@
  * @module electron/main-ipc/update-handlers
  */
 
-import { ipcMain, app } from "electron";
+import { app, ipcMain } from "electron";
+import type { UpdateState } from "../auto-update-controller.js";
+import type { UpdatePreferences } from "../update-preferences.js";
+import { toReleaseVersion } from "../update-version.js";
 import type { MainIpcDeps } from "./types.js";
 
+function unavailableState(): UpdateState {
+	return {
+		phase: "error",
+		currentVersion: toReleaseVersion({ packageVersion: app.getVersion() }),
+		percent: 0,
+		transferred: 0,
+		total: 0,
+		automaticDownload: false,
+		message: app.isPackaged
+			? "Auto-updater not available"
+			: "Updates only available in production builds",
+	};
+}
+
 export function registerUpdateHandlers(deps: MainIpcDeps): void {
-	const { logger, autoUpdater } = deps;
+	const { logger, updateController } = deps;
 
-	ipcMain.handle("check-for-updates", async (): Promise<any> => {
-		if (!app.isPackaged) {
-			return {
-				available: false,
-				message: "Updates only available in production builds",
-			};
-		}
+	ipcMain.handle("get-update-state", async () => {
+		return updateController?.getState() ?? unavailableState();
+	});
 
-		if (!autoUpdater) {
-			return { available: false, message: "Auto-updater not available" };
+	ipcMain.handle("get-update-preferences", async () => {
+		return (
+			updateController?.getPreferences() ?? {
+				automaticUpdates: false,
+				maxAutomaticDownloadBytes: 0,
+			}
+		);
+	});
+
+	ipcMain.handle(
+		"set-update-preferences",
+		async (_event, preferences: Partial<UpdatePreferences>) => {
+			if (!updateController)
+				return { automaticUpdates: false, maxAutomaticDownloadBytes: 0 };
+			try {
+				return updateController.setPreferences({ preferences });
+			} catch (error: unknown) {
+				const message = error instanceof Error ? error.message : String(error);
+				logger.error("Error saving update preferences:", message);
+				return updateController.getPreferences();
+			}
 		}
+	);
+
+	ipcMain.handle("check-for-updates", async () => {
+		if (!app.isPackaged || !updateController) return unavailableState();
 
 		try {
-			const result = await autoUpdater.checkForUpdatesAndNotify();
-			return {
-				available: true,
-				version: (result as any)?.updateInfo?.version || "unknown",
-				message: "Checking for updates...",
-			};
-		} catch (error: any) {
-			logger.error("Error checking for updates:", error);
-			return {
-				available: false,
-				error: error.message,
-				message: "Failed to check for updates",
-			};
+			return await updateController.checkForUpdates();
+		} catch (error: unknown) {
+			const message = error instanceof Error ? error.message : String(error);
+			logger.error("Error checking for updates:", message);
+			return { ...unavailableState(), error: message };
 		}
 	});
 
-	ipcMain.handle("install-update", async (): Promise<any> => {
-		if (!app.isPackaged) {
-			return {
-				success: false,
-				message: "Updates only available in production builds",
-			};
+	ipcMain.handle("download-update", async () => {
+		if (!app.isPackaged || !updateController) return unavailableState();
+		try {
+			return await updateController.downloadUpdate();
+		} catch (error: unknown) {
+			const message = error instanceof Error ? error.message : String(error);
+			logger.error("Error downloading update:", message);
+			return { ...unavailableState(), error: message };
 		}
+	});
 
-		if (!autoUpdater) {
-			return { success: false, message: "Auto-updater not available" };
+	ipcMain.handle("install-update", async () => {
+		if (!app.isPackaged || !updateController) {
+			return { success: false, message: unavailableState().message };
 		}
 
 		try {
-			autoUpdater.quitAndInstall();
-			return { success: true, message: "Installing update..." };
-		} catch (error: any) {
-			logger.error("Error installing update:", error);
-			return { success: false, error: error.message };
+			return updateController.installUpdate();
+		} catch (error: unknown) {
+			const message = error instanceof Error ? error.message : String(error);
+			logger.error("Error installing update:", message);
+			return { success: false, error: message };
 		}
 	});
 }

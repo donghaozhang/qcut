@@ -17,6 +17,7 @@ import {
 	MonitorPlay,
 	AppWindow,
 	Bot,
+	ScanLine,
 } from "lucide-react";
 import { useState } from "react";
 import { usePlaybackStore } from "@/stores/editor/playback-store";
@@ -31,6 +32,7 @@ import { BackgroundSettings } from "../background-settings";
 import type { TProject } from "@/types/project";
 import type { ActiveElement } from "./preview-panel/types";
 import { AdjustmentLayerStack } from "./preview-panel/adjustment-layer-stack";
+import { useTranslation } from "@/lib/i18n";
 
 // Component 1: FullscreenToolbar (no dependencies)
 export function FullscreenToolbar({
@@ -48,6 +50,7 @@ export function FullscreenToolbar({
 	toggle: () => void;
 	getTotalDuration: () => number;
 }) {
+	const { t } = useTranslation();
 	const { isPlaying, seek } = usePlaybackStore();
 	const { activeProject } = useProjectStore();
 	const [isDragging, setIsDragging] = useState(false);
@@ -138,16 +141,18 @@ export function FullscreenToolbar({
 
 			<div className="flex items-center gap-1">
 				<Button
+					type="button"
 					variant="text"
 					size="icon"
 					onClick={skipBackward}
 					disabled={!hasAnyElements}
 					className="h-auto p-0 text-white hover:text-white/80"
-					title="Skip backward 1s"
+					title={t("editor.preview.backOneSecond")}
 				>
 					<SkipBack className="h-3 w-3" />
 				</Button>
 				<Button
+					type="button"
 					variant="text"
 					size="icon"
 					onClick={handleToggleClick}
@@ -157,6 +162,9 @@ export function FullscreenToolbar({
 						isPlaying ? "preview-pause-button" : "preview-play-button"
 					}
 					data-playing={isPlaying}
+					aria-label={
+						isPlaying ? t("editor.preview.pause") : t("editor.preview.play")
+					}
 				>
 					{isPlaying ? (
 						<Pause className="h-3 w-3" />
@@ -165,12 +173,13 @@ export function FullscreenToolbar({
 					)}
 				</Button>
 				<Button
+					type="button"
 					variant="text"
 					size="icon"
 					onClick={skipForward}
 					disabled={!hasAnyElements}
 					className="h-auto p-0 text-white hover:text-white/80"
-					title="Skip forward 1s"
+					title={t("editor.preview.forwardOneSecond")}
 				>
 					<SkipForward className="h-3 w-3" />
 				</Button>
@@ -300,6 +309,10 @@ export function PreviewToolbar({
 	setCurrentTime,
 	toggle,
 	getTotalDuration,
+	previewScale,
+	onPreviewScaleChange,
+	showSafeAreas,
+	onToggleSafeAreas,
 }: {
 	hasAnyElements: boolean;
 	onToggleExpanded: () => void;
@@ -308,7 +321,12 @@ export function PreviewToolbar({
 	setCurrentTime: (time: number) => void;
 	toggle: () => void;
 	getTotalDuration: () => number;
+	previewScale: "fit" | 75 | 100 | 125 | 150;
+	onPreviewScaleChange: (scale: "fit" | 75 | 100 | 125 | 150) => void;
+	showSafeAreas: boolean;
+	onToggleSafeAreas: () => void;
 }) {
+	const { t } = useTranslation();
 	const { isPlaying, seek } = usePlaybackStore();
 	const { setCanvasSize, setCanvasSizeToOriginal } = useEditorStore();
 	const { activeProject } = useProjectStore();
@@ -399,16 +417,18 @@ export function PreviewToolbar({
 			</div>
 			<div className="flex items-center gap-1">
 				<Button
+					type="button"
 					variant="text"
 					size="icon"
 					onClick={skipBackward}
 					disabled={!hasAnyElements}
 					className="h-auto p-0 text-white hover:text-white/80"
-					title="Skip backward 1s"
+					title={t("editor.preview.backOneSecond")}
 				>
 					<SkipBack className="h-3 w-3" />
 				</Button>
 				<Button
+					type="button"
 					variant="text"
 					size="icon"
 					onClick={handleToggleClick}
@@ -418,6 +438,9 @@ export function PreviewToolbar({
 						isPlaying ? "preview-pause-button" : "preview-play-button"
 					}
 					data-playing={isPlaying}
+					aria-label={
+						isPlaying ? t("editor.preview.pause") : t("editor.preview.play")
+					}
 				>
 					{isPlaying ? (
 						<Pause className="h-3 w-3" />
@@ -426,12 +449,13 @@ export function PreviewToolbar({
 					)}
 				</Button>
 				<Button
+					type="button"
 					variant="text"
 					size="icon"
 					onClick={skipForward}
 					disabled={!hasAnyElements}
 					className="h-auto p-0 text-white hover:text-white/80"
-					title="Skip forward 1s"
+					title={t("editor.preview.forwardOneSecond")}
 				>
 					<SkipForward className="h-3 w-3" />
 				</Button>
@@ -441,11 +465,63 @@ export function PreviewToolbar({
 				<DropdownMenu>
 					<DropdownMenuTrigger asChild>
 						<Button
+							type="button"
+							variant="text"
+							size="sm"
+							className="h-5 min-w-10 px-1 text-[10px] text-muted-foreground"
+							aria-label={t("editor.preview.scale")}
+							title={t("editor.preview.scale")}
+						>
+							{previewScale === "fit"
+								? t("editor.preview.fit")
+								: `${previewScale}%`}
+						</Button>
+					</DropdownMenuTrigger>
+					<DropdownMenuContent align="end">
+						{(["fit", 75, 100, 125, 150] as const).map((scale) => (
+							<DropdownMenuItem
+								key={scale}
+								onClick={() => onPreviewScaleChange(scale)}
+								className={cn(
+									"text-xs",
+									previewScale === scale && "font-semibold"
+								)}
+							>
+								{scale === "fit" ? t("editor.preview.fitPanel") : `${scale}%`}
+							</DropdownMenuItem>
+						))}
+					</DropdownMenuContent>
+				</DropdownMenu>
+				<Button
+					type="button"
+					variant={showSafeAreas ? "default" : "text"}
+					size="icon"
+					className="size-5! text-muted-foreground"
+					onClick={onToggleSafeAreas}
+					onKeyDown={(event) => {
+						if (event.key !== "Enter" && event.key !== " ") return;
+						event.preventDefault();
+						onToggleSafeAreas();
+					}}
+					aria-label={
+						showSafeAreas
+							? t("editor.preview.hideSafeAreas")
+							: t("editor.preview.showSafeAreas")
+					}
+					aria-pressed={showSafeAreas}
+					title={t("editor.preview.safeAreas")}
+				>
+					<ScanLine className="size-4" />
+				</Button>
+				<DropdownMenu>
+					<DropdownMenuTrigger asChild>
+						<Button
+							type="button"
 							size="sm"
 							className="bg-panel-accent! text-foreground/85 text-[0.70rem] h-4 rounded-none border border-muted-foreground px-0.5 py-0 font-light"
 							disabled={!hasAnyElements}
 						>
-							{getDisplayName()}
+							{isOriginal ? t("editor.preview.original") : getDisplayName()}
 						</Button>
 					</DropdownMenuTrigger>
 					<DropdownMenuContent align="end">
@@ -453,7 +529,7 @@ export function PreviewToolbar({
 							onClick={handleOriginalSelect}
 							className={cn("text-xs", isOriginal && "font-semibold")}
 						>
-							Original
+							{t("editor.preview.original")}
 						</DropdownMenuItem>
 						<DropdownMenuSeparator />
 						{canvasPresets.map((preset) => (
@@ -471,11 +547,12 @@ export function PreviewToolbar({
 					</DropdownMenuContent>
 				</DropdownMenu>
 				<Button
+					type="button"
 					variant="text"
 					size="icon"
 					className="size-4! text-muted-foreground"
 					onClick={onToggleExpanded}
-					title="Enter fullscreen"
+					title={t("editor.preview.fullscreen")}
 				>
 					<Expand className="size-4!" />
 				</Button>
@@ -492,6 +569,8 @@ export function PreviewModeToggle({
 	value: string;
 	onValueChange: (mode: string) => void;
 }) {
+	const { t } = useTranslation();
+
 	return (
 		<ToggleGroup
 			type="single"
@@ -502,27 +581,27 @@ export function PreviewModeToggle({
 		>
 			<ToggleGroupItem
 				value="video"
-				aria-label="Video preview"
+				aria-label={t("editor.preview.videoLabel")}
 				className="px-2 py-1 text-xs gap-1"
 			>
 				<MonitorPlay className="size-3" />
-				<span className="hidden sm:inline">Video</span>
+				<span className="hidden sm:inline">{t("editor.preview.video")}</span>
 			</ToggleGroupItem>
 			<ToggleGroupItem
 				value="mcp"
-				aria-label="MCP app"
+				aria-label={t("editor.preview.mcpLabel")}
 				className="px-2 py-1 text-xs gap-1"
 			>
 				<AppWindow className="size-3" />
-				<span className="hidden sm:inline">MCP</span>
+				<span className="hidden sm:inline">{t("editor.preview.mcp")}</span>
 			</ToggleGroupItem>
 			<ToggleGroupItem
 				value="agent"
-				aria-label="Agent terminal"
+				aria-label={t("editor.preview.agentLabel")}
 				className="px-2 py-1 text-xs gap-1"
 			>
 				<Bot className="size-3" />
-				<span className="hidden sm:inline">Agent</span>
+				<span className="hidden sm:inline">{t("editor.preview.agent")}</span>
 			</ToggleGroupItem>
 		</ToggleGroup>
 	);

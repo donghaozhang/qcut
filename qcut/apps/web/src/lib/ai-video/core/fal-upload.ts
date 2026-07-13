@@ -34,6 +34,12 @@ interface ElectronUploadResult {
 	error?: string;
 }
 
+function throwIfUploadAborted({ signal }: { signal?: AbortSignal }): void {
+	if (signal?.aborted) {
+		throw new DOMException("FAL upload canceled", "AbortError");
+	}
+}
+
 /**
  * Check if Electron IPC upload is available for a given file type.
  *
@@ -72,8 +78,10 @@ export function isElectronUploadAvailable(
 async function uploadViaElectronIPC(
 	file: File,
 	fileType: FalUploadFileType,
-	apiKey: string
+	apiKey: string,
+	signal?: AbortSignal
 ): Promise<string> {
+	throwIfUploadAborted({ signal });
 	const falApi = platform().fal;
 
 	console.log(
@@ -83,6 +91,7 @@ async function uploadViaElectronIPC(
 
 	// Convert File to Uint8Array for IPC transfer
 	const arrayBuffer = await file.arrayBuffer();
+	throwIfUploadAborted({ signal });
 	const uint8Array = new Uint8Array(arrayBuffer);
 
 	let result: ElectronUploadResult;
@@ -107,6 +116,7 @@ async function uploadViaElectronIPC(
 	} else {
 		throw new Error("No compatible IPC uploader found");
 	}
+	throwIfUploadAborted({ signal });
 
 	if (!result.success || !result.url) {
 		throw new Error(result.error || `FAL ${fileType} upload failed via IPC`);
@@ -128,7 +138,8 @@ async function uploadViaElectronIPC(
 async function uploadViaFetch(
 	file: File,
 	fileType: FalUploadFileType,
-	apiKey: string
+	apiKey: string,
+	signal?: AbortSignal
 ): Promise<string> {
 	console.log(
 		`[FAL Upload] 🌐 Using direct fetch for ${fileType} upload (browser mode)`
@@ -143,6 +154,7 @@ async function uploadViaFetch(
 			Authorization: `Key ${apiKey}`,
 		},
 		body: formData,
+		signal,
 	});
 
 	const data = (await response.json().catch(() => null)) as {
@@ -190,7 +202,8 @@ async function uploadViaFetch(
 export async function uploadFileToFal(
 	file: File,
 	fileType: FalUploadFileType,
-	apiKey: string
+	apiKey: string,
+	signal?: AbortSignal
 ): Promise<string> {
 	if (!apiKey) {
 		throw new Error(
@@ -199,13 +212,14 @@ export async function uploadFileToFal(
 	}
 
 	try {
+		throwIfUploadAborted({ signal });
 		// Try Electron IPC first (bypasses CORS)
 		if (isElectronUploadAvailable(fileType)) {
-			return await uploadViaElectronIPC(file, fileType, apiKey);
+			return await uploadViaElectronIPC(file, fileType, apiKey, signal);
 		}
 
 		// Fallback to direct fetch
-		return await uploadViaFetch(file, fileType, apiKey);
+		return await uploadViaFetch(file, fileType, apiKey, signal);
 	} catch (error) {
 		const normalizedError =
 			error instanceof Error ? error : new Error(String(error));
@@ -240,9 +254,10 @@ export async function uploadFileToFal(
  */
 export async function uploadImageToFal(
 	file: File,
-	apiKey: string
+	apiKey: string,
+	signal?: AbortSignal
 ): Promise<string> {
-	return uploadFileToFal(file, "image", apiKey);
+	return uploadFileToFal(file, "image", apiKey, signal);
 }
 
 /**
@@ -254,9 +269,10 @@ export async function uploadImageToFal(
  */
 export async function uploadAudioToFal(
 	file: File,
-	apiKey: string
+	apiKey: string,
+	signal?: AbortSignal
 ): Promise<string> {
-	return uploadFileToFal(file, "audio", apiKey);
+	return uploadFileToFal(file, "audio", apiKey, signal);
 }
 
 /**
@@ -268,7 +284,8 @@ export async function uploadAudioToFal(
  */
 export async function uploadVideoToFal(
 	file: File,
-	apiKey: string
+	apiKey: string,
+	signal?: AbortSignal
 ): Promise<string> {
-	return uploadFileToFal(file, "video", apiKey);
+	return uploadFileToFal(file, "video", apiKey, signal);
 }

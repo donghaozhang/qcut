@@ -101,6 +101,24 @@ export const useTimelineStore = create<TimelineStore>((set, get) => {
 								selectedTransition: null,
 							};
 				}
+				const selectedElement = state._tracks
+					.find((track) => track.id === trackId)
+					?.elements.find((element) => element.id === elementId);
+				if (selectedElement?.groupId) {
+					return {
+						selectedElements: state._tracks.flatMap((track) =>
+							track.elements
+								.filter(
+									(element) => element.groupId === selectedElement.groupId
+								)
+								.map((element) => ({
+									trackId: track.id,
+									elementId: element.id,
+								}))
+						),
+						selectedTransition: null,
+					};
+				}
 				return {
 					selectedElements: [{ trackId, elementId }],
 					selectedTransition: null,

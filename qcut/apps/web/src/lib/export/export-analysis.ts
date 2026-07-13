@@ -14,7 +14,7 @@ import { hasMediaAudioEdits } from "@/lib/audio/audio-properties";
 export interface ExportAnalysis {
 	/** Requires frame-by-frame rendering (slow path) */
 	needsImageProcessing: boolean;
-	/** Requires frame rendering (images/overlapping videos need canvas compositing) */
+	/** Requires layered media compositing instead of concat/direct-copy export */
 	needsFrameRendering: boolean;
 	/** Requires FFmpeg filter encoding (text/stickers can use filters instead of frames) */
 	needsFilterEncoding: boolean;
@@ -36,7 +36,7 @@ export interface ExportAnalysis {
 	hasOverlappingVideos: boolean;
 	/** Can use FFmpeg direct copy/concat (fast path) */
 	canUseDirectCopy: boolean;
-	/** Which export pipeline to use (Mode 3/image-pipeline removed - now throws error) */
+	/** Which export pipeline to use */
 	optimizationStrategy:
 		| "direct-copy"
 		| "direct-video-with-filters"
@@ -444,8 +444,7 @@ export function analyzeTimelineForExport(
 		!hasTransitions &&
 		allVideosHaveLocalPath;
 
-	// Validate timeline before proceeding - throws if unsupported
-	// This replaces Mode 3 fallback - now we error instead of slow export
+	// Validate media access before selecting an export strategy.
 	validateTimelineForExport({
 		hasImageElements,
 		hasOverlappingVideos,
@@ -461,17 +460,16 @@ export function analyzeTimelineForExport(
 		| "image-video-composite";
 
 	// Mode decision tree (priority order):
-	// 1. Check if images present - requires image-video-composite strategy
+	// 1. Check if layered compositing is required
 	// 2. Can we use direct copy? (Mode 1 - fastest)
 	// 3. Single video with filters? (Mode 2 - fast)
 	// 4. Multiple videos that need normalization? (Mode 1.5 - medium-fast)
-	// Note: Mode 3 (frame rendering) removed - unsupported cases now throw errors
+	// Layered media uses the canonical FFmpeg visual graph instead of PNG frames.
 
-	if (hasImageElements) {
-		// Images require FFmpeg overlay filters (similar to stickers)
+	if (needsFrameRendering) {
 		optimizationStrategy = "image-video-composite";
 		console.log(
-			"🖼️ [MODE DETECTION] Image elements detected - using image-video-composite strategy"
+			"🧩 [MODE DETECTION] Layered media detected - using composite strategy"
 		);
 	} else if (canUseDirectCopy) {
 		console.log(
@@ -557,8 +555,10 @@ export function analyzeTimelineForExport(
 	// Generate reason for strategy choice
 	let reason = "";
 	if (optimizationStrategy === "image-video-composite") {
-		reason =
-			"Timeline contains image elements - using FFmpeg overlay filters for compositing";
+		const compositeReasons: string[] = [];
+		if (hasImageElements) compositeReasons.push("images");
+		if (hasOverlappingVideos) compositeReasons.push("overlapping videos");
+		reason = `Timeline contains ${compositeReasons.join(" and ")} - using FFmpeg layered compositing`;
 	} else if (optimizationStrategy === "direct-copy") {
 		if (videoElementCount === 1) {
 			reason =
@@ -658,7 +658,7 @@ export function analyzeTimelineForExport(
 	// Log optimization strategy with clear mode indicators
 	if (optimizationStrategy === "image-video-composite") {
 		console.log(
-			"🖼️ [EXPORT ANALYSIS] IMAGE-VIDEO-COMPOSITE: Using FFmpeg overlay filters for image compositing! 🖼️"
+			"🧩 [EXPORT ANALYSIS] MEDIA COMPOSITE: Using the FFmpeg layered visual graph"
 		);
 	} else if (optimizationStrategy === "direct-copy") {
 		console.log(
@@ -727,9 +727,8 @@ function checkForOverlappingRanges(
  * Validates timeline configuration for export.
  * Throws ExportUnsupportedError if the timeline contains unsupported elements.
  *
- * Unsupported cases (Mode 3 removed):
- * - Image elements (require canvas compositing)
- * - Overlapping videos (require canvas compositing)
+ * Layered images and overlapping videos are handled by the FFmpeg visual graph.
+ * Unsupported cases:
  * - Blob URLs without local paths (FFmpeg cannot access)
  * - No video elements (nothing to export)
  *
@@ -759,14 +758,6 @@ export function validateTimelineForExport(params: {
 
 	// Image elements are now supported via CLI export engine (FFmpeg overlay)
 	// No validation check needed - handled by image-video-composite strategy
-
-	// Check for overlapping videos (unsupported - would require Mode 3)
-	if (hasOverlappingVideos) {
-		console.error(
-			"❌ [EXPORT VALIDATION] Overlapping videos are not supported in export"
-		);
-		throw new ExportUnsupportedError("overlapping-videos");
-	}
 
 	// Check for blob URLs without local paths
 	if (!allVideosHaveLocalPath) {

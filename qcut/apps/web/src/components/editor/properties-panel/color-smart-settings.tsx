@@ -44,8 +44,7 @@ export function ColorSmartSettingsPanel({
 			},
 		});
 	const finishWithError = (error: unknown) => {
-		const message =
-			error instanceof Error ? error.message : "Color analysis failed";
+		const message = error instanceof Error ? error.message : "色彩分析失败";
 		onSettingsChange({
 			...settings,
 			smart: { ...settings.smart, status: "error", error: message },
@@ -53,7 +52,7 @@ export function ColorSmartSettingsPanel({
 		toast.error(message);
 	};
 	const currentStatistics = async () => {
-		if (!mediaItem) throw new Error("Media source is unavailable");
+		if (!mediaItem) throw new Error("媒体源不可用");
 		return analyzeColorFrame({
 			imageData: await captureMediaColorFrame({ mediaItem, sourceTime }),
 		});
@@ -104,7 +103,7 @@ export function ColorSmartSettingsPanel({
 	};
 	return (
 		<ColorModuleSection
-			title="Smart correction"
+			title="智能校正"
 			enabled={settings.smart.enabled}
 			onEnabledChange={(enabled) =>
 				onSettingsChange({
@@ -140,7 +139,7 @@ export function ColorSmartSettingsPanel({
 					) : (
 						<WandSparkles className="size-3.5" />
 					)}
-					Auto
+					自动校色
 				</Button>
 				<input
 					ref={referenceInput}
@@ -165,7 +164,7 @@ export function ColorSmartSettingsPanel({
 					}}
 				>
 					<ImagePlus className="size-3.5" />
-					Match
+					参考图匹配
 				</Button>
 			</div>
 			{settings.smart.referenceName ? (
@@ -174,7 +173,7 @@ export function ColorSmartSettingsPanel({
 				</p>
 			) : null}
 			<ColorToggleRow
-				label="Auto white balance"
+				label="自动白平衡"
 				checked={settings.smart.autoWhiteBalance}
 				onCheckedChange={(autoWhiteBalance) =>
 					onSettingsChange({
@@ -184,7 +183,7 @@ export function ColorSmartSettingsPanel({
 				}
 			/>
 			<ColorToggleRow
-				label="Auto tone"
+				label="自动影调"
 				checked={settings.smart.autoTone}
 				onCheckedChange={(autoTone) =>
 					onSettingsChange({

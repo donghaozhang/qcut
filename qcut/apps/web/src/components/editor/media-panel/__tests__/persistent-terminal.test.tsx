@@ -37,7 +37,7 @@ vi.mock("../views/ai", () => ({
 	AiView: () => <div data-testid="ai-view" />,
 }));
 
-vi.mock("../views/stickers", () => ({
+vi.mock("../views/stickers/stickers-view", () => ({
 	StickersView: () => <div data-testid="stickers-view" />,
 }));
 

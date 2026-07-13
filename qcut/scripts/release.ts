@@ -24,6 +24,7 @@ import path from "path";
 import crypto from "crypto";
 import { execSync } from "child_process";
 import { fileURLToPath } from "url";
+import { toPackageVersion } from "../electron/update-version.ts";
 
 type ReleaseType = "stable" | "alpha" | "beta" | "rc" | "promote";
 const RELEASE_TYPES: ReleaseType[] = [
@@ -39,6 +40,7 @@ const PRERELEASE_CHANNELS: PrereleaseChannel[] = ["alpha", "beta", "rc"];
 
 interface PackageJson {
 	version: string;
+	qcutReleaseVersion?: string;
 	[key: string]: any;
 }
 
@@ -317,8 +319,10 @@ function bumpVersion(releaseType: ReleaseType): string {
 		fs.readFileSync(packagePath, "utf8")
 	);
 
-	const currentVersion: string = packageJson.version;
-	const parsed = parseVersion(currentVersion);
+	const currentVersion = packageJson.version;
+	const currentReleaseVersion =
+		packageJson.qcutReleaseVersion ?? currentVersion;
+	const parsed = parseVersion(currentReleaseVersion);
 	const today = getTodayComponents();
 	const dateStr = formatDateVersion(today.year, today.month, today.day);
 
@@ -361,12 +365,14 @@ function bumpVersion(releaseType: ReleaseType): string {
 		}
 	}
 
-	packageJson.version = newVersion;
+	packageJson.version = toPackageVersion({ releaseVersion: newVersion });
+	packageJson.qcutReleaseVersion = newVersion;
 	fs.writeFileSync(packagePath, JSON.stringify(packageJson, null, "\t") + "\n");
 
 	process.stdout.write(
-		`✅ Version bumped: ${currentVersion} -> ${newVersion}\n`
+		`✅ Release version bumped: ${currentReleaseVersion} -> ${newVersion}\n`
 	);
+	process.stdout.write(`✅ Package SemVer: ${packageJson.version}\n`);
 	return newVersion;
 }
 

@@ -4,6 +4,7 @@ import {
 	expect,
 	importTestAudio,
 	importTestVideo,
+	stubExportSaveDialog,
 	test,
 } from "./helpers/electron-helpers";
 
@@ -261,6 +262,7 @@ async function validateCapturedExportHasAudioAndVideo({
 					) => Promise<string>;
 				};
 				ffmpeg?: {
+					readOutputFile?: (path: string) => Promise<Uint8Array | null>;
 					extractAudio?: (options: {
 						format?: string;
 						videoPath: string;
@@ -278,15 +280,23 @@ async function validateCapturedExportHasAudioAndVideo({
 			};
 
 			const globalWindow = window as WindowWithCapture;
-			const exportBlob = globalWindow.__qcutCapturedExportBlob;
+			const electronAPI = globalWindow.electronAPI;
+			let exportBlob = globalWindow.__qcutCapturedExportBlob;
+			const cliOutputPath = globalWindow.__qcutLastExportOutputPath;
+			if (!exportBlob && cliOutputPath && electronAPI?.ffmpeg?.readOutputFile) {
+				const outputBytes =
+					await electronAPI.ffmpeg.readOutputFile(cliOutputPath);
+				if (outputBytes) {
+					exportBlob = new Blob([outputBytes], { type: "video/mp4" });
+				}
+			}
 			if (!exportBlob) {
 				return {
-					error: "Export blob was not captured",
+					error: "Export output could not be read",
 					ok: false,
 				} satisfies StreamValidationFailure;
 			}
 
-			const electronAPI = globalWindow.electronAPI;
 			if (!electronAPI?.video?.saveTemp || !electronAPI?.ffmpeg?.extractAudio) {
 				return {
 					error:
@@ -324,8 +334,9 @@ async function validateCapturedExportHasAudioAndVideo({
 
 test.describe("Audio + Video Simultaneous Export", () => {
 	test("exports both streams when timeline has separate video and audio tracks", async ({
+		electronApp,
 		page,
-	}) => {
+	}, testInfo) => {
 		test.setTimeout(TEST_TIMEOUT_MS);
 
 		try {
@@ -353,6 +364,22 @@ test.describe("Audio + Video Simultaneous Export", () => {
 				itemNamePattern: /sample-audio/i,
 				page,
 				trackType: "audio",
+			});
+
+			await page.evaluate(() => {
+				const state = (window as any).__timelineStore.getState();
+				for (const track of state.tracks) {
+					for (const element of track.elements) {
+						if (element.type === "media") {
+							state.updateMediaElement(
+								track.id,
+								element.id,
+								{ duration: 1, startTime: 0 },
+								true
+							);
+						}
+					}
+				}
 			});
 
 			const timelineSummary = await page.evaluate(() => {
@@ -387,6 +414,10 @@ test.describe("Audio + Video Simultaneous Export", () => {
 
 			await installExportBlobCapture({ page });
 			await selectCliEngineAndEnableAudio({ page });
+			await stubExportSaveDialog({
+				electronApp,
+				outputPath: testInfo.outputPath("audio-video-export.mp4"),
+			});
 			await startExportAndWaitForCompletion({ consoleMessages, page });
 
 			await expect

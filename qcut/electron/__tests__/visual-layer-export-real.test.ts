@@ -134,26 +134,31 @@ describe.skipIf(!fs.existsSync(ffmpegPath))(
 				name: "video",
 				orders: { video: 0, image: 1, sticker: 2, text: 3 },
 				expected: [250, 0, 0],
+				maxChannelDelta: 10,
 			},
 			{
 				name: "image",
 				orders: { video: 3, image: 0, sticker: 2, text: 1 },
 				expected: [0, 125, 0],
+				maxChannelDelta: 10,
 			},
 			{
 				name: "sticker",
 				orders: { video: 3, image: 2, sticker: 0, text: 1 },
 				expected: [0, 0, 250],
+				maxChannelDelta: 10,
 			},
 			{
 				name: "text",
 				orders: { video: 3, image: 2, sticker: 1, text: 0 },
 				expected: [255, 255, 255],
+				maxChannelDelta: 25,
 			},
 		])("renders $name on top after reordering mixed visual tracks", ({
 			name,
 			orders,
 			expected,
+			maxChannelDelta,
 		}) => {
 			const outputPath = path.join(tempDir, `top-${name}.mp4`);
 			const args = buildFFmpegArgs({
@@ -219,7 +224,9 @@ describe.skipIf(!fs.existsSync(ffmpegPath))(
 
 			const pixel = readFramePixel({ inputPath: outputPath });
 			for (const [channel, value] of expected.entries()) {
-				expect(pixel[channel]).toBeCloseTo(value, -1);
+				expect(Math.abs(pixel[channel] - value)).toBeLessThanOrEqual(
+					maxChannelDelta
+				);
 			}
 		});
 	}

@@ -40,9 +40,9 @@ export function ColorPresetControls({
 				>
 					<SelectTrigger
 						className="h-8 min-w-0 flex-1"
-						aria-label="Saved color preset"
+						aria-label="已保存的调色预设"
 					>
-						<SelectValue placeholder="Saved presets" />
+						<SelectValue placeholder="已保存预设" />
 					</SelectTrigger>
 					<SelectContent>
 						{presets.map((preset) => (
@@ -57,8 +57,8 @@ export function ColorPresetControls({
 					variant="outline"
 					size="icon"
 					className="size-8"
-					aria-label="Apply color preset"
-					title="Apply color preset"
+					aria-label="应用调色预设"
+					title="应用调色预设"
 					disabled={!selectedPresetId}
 					onClick={onApplyPreset}
 					onKeyDown={(event) => {
@@ -74,8 +74,8 @@ export function ColorPresetControls({
 					variant="text"
 					size="icon"
 					className="size-8"
-					aria-label="Delete color preset"
-					title="Delete color preset"
+					aria-label="删除调色预设"
+					title="删除调色预设"
 					disabled={!selectedPresetId}
 					onClick={onDeletePreset}
 					onKeyDown={(event) => {
@@ -91,8 +91,8 @@ export function ColorPresetControls({
 				<Input
 					value={name}
 					onChange={(event) => setName(event.target.value)}
-					placeholder="Preset name"
-					aria-label="Color preset name"
+					placeholder="预设名称"
+					aria-label="调色预设名称"
 					className="h-8 min-w-0 flex-1 text-xs"
 				/>
 				<Button
@@ -100,8 +100,8 @@ export function ColorPresetControls({
 					variant="outline"
 					size="icon"
 					className="size-8"
-					aria-label="Save color preset"
-					title="Save color preset"
+					aria-label="保存调色预设"
+					title="保存调色预设"
 					onClick={() => {
 						onSavePreset(name);
 						setName("");
@@ -119,10 +119,8 @@ export function ColorPresetControls({
 					variant={bypassed ? "secondary" : "outline"}
 					size="sm"
 					className="h-8 gap-1 px-2 text-[10px]"
-					aria-label={
-						bypassed ? "Show graded preview" : "Show original preview"
-					}
-					title={bypassed ? "Show graded preview" : "Show original preview"}
+					aria-label={bypassed ? "显示调色预览" : "显示原始画面"}
+					title={bypassed ? "显示调色预览" : "显示原始画面"}
 					onClick={() => onBypassedChange(!bypassed)}
 					onKeyDown={(event) => {
 						if (event.key === "Enter" || event.key === " ") {
@@ -135,7 +133,7 @@ export function ColorPresetControls({
 					) : (
 						<EyeOff className="size-3.5" />
 					)}
-					{bypassed ? "Graded" : "Original"}
+					{bypassed ? "调色后" : "原始"}
 				</Button>
 			</div>
 		</div>

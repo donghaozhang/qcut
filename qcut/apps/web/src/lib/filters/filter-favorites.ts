@@ -1,6 +1,7 @@
 import { FILTER_PRESETS } from "./filter-registry";
+import { LEGACY_FILTER_FAVORITES_STORAGE_KEY } from "@/stores/asset-library-store";
 
-export const FILTER_FAVORITES_STORAGE_KEY = "qcut-filter-favorites";
+export const FILTER_FAVORITES_STORAGE_KEY = LEGACY_FILTER_FAVORITES_STORAGE_KEY;
 
 const validPresetIds = new Set(FILTER_PRESETS.map((preset) => preset.id));
 

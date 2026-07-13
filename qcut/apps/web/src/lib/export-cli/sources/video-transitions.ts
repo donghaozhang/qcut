@@ -50,6 +50,7 @@ export function extractVideoTransitions({
 				direction: transition.direction,
 				easing: transition.easing,
 				duration: resolved.transition.duration,
+				tuning: transition.tuning,
 			});
 		}
 	}

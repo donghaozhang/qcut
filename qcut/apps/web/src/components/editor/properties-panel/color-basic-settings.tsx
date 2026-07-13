@@ -22,7 +22,7 @@ export function ColorBasicSettings({
 	const { settings, onSettingsChange } = bindings;
 	return (
 		<ColorModuleSection
-			title="Basic adjustments"
+			title="基础调节"
 			enabled={settings.basic.enabled}
 			onEnabledChange={(enabled) =>
 				onSettingsChange({

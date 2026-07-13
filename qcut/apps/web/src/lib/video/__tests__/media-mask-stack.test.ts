@@ -34,7 +34,7 @@ describe("media mask stack", () => {
 
 		masks = duplicateMediaMask({ masks, maskId: "two", newId: "copy" });
 		expect(masks.map((mask) => mask.id)).toEqual(["two", "copy", "one"]);
-		expect(masks[1].name).toContain("copy");
+		expect(masks[1].name).toContain("副本");
 
 		masks = removeMediaMask(masks, "two");
 		expect(masks.map((mask) => mask.id)).toEqual(["copy", "one"]);

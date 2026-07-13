@@ -60,6 +60,20 @@ describe("Sounds API Migration", () => {
 	});
 
 	describe("Feature Flag Testing", () => {
+		it("uses the Electron API by default in an Electron build", async () => {
+			const mockResult = { success: true, count: 1, results: [] };
+			mockElectronAPI.sounds.search.mockResolvedValue(mockResult);
+
+			const result = await searchSounds("cinematic", { type: "songs" });
+
+			expect(mockElectronAPI.sounds.search).toHaveBeenCalledWith({
+				q: "cinematic",
+				type: "songs",
+			});
+			expect(result).toEqual(mockResult);
+			expect(mockFetch).not.toHaveBeenCalled();
+		});
+
 		it("should use Electron API when USE_ELECTRON_API is true", async () => {
 			setRuntimeFlags({ USE_ELECTRON_API: true });
 

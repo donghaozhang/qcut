@@ -33,6 +33,8 @@ import type { KeyboardEvent } from "react";
 import { CreditBalance } from "./license/credit-balance";
 import { KeyboardShortcutsHelp } from "./keyboard-shortcuts-help";
 import { ScreenshotControl } from "./editor/screenshot-control";
+import { LanguageSelector } from "./language-selector";
+import { useTranslation } from "@/lib/i18n";
 
 /** Editor header bar with project name, export, screenshot, and recording controls. */
 export function EditorHeader() {
@@ -42,6 +44,7 @@ export function EditorHeader() {
 	const [isRenameDialogOpen, setIsRenameDialogOpen] = useState(false);
 	const navigate = useNavigate();
 	const { setPanelView } = useExportStore();
+	const { t } = useTranslation();
 
 	const handleExport = () => {
 		setPanelView(PanelView.EXPORT);
@@ -91,7 +94,7 @@ export function EditorHeader() {
 					<Link to="/projects">
 						<DropdownMenuItem className="flex items-center gap-1.5">
 							<ArrowLeft className="h-4 w-4" />
-							Projects
+							{t("editor.header.projects")}
 						</DropdownMenuItem>
 					</Link>
 					<DropdownMenuItem
@@ -99,7 +102,7 @@ export function EditorHeader() {
 						onClick={() => setIsRenameDialogOpen(true)}
 					>
 						<SquarePen className="h-4 w-4" />
-						Rename project
+						{t("editor.header.renameProject")}
 					</DropdownMenuItem>
 					<DropdownMenuItem
 						variant="destructive"
@@ -107,7 +110,7 @@ export function EditorHeader() {
 						onClick={() => setIsDeleteDialogOpen(true)}
 					>
 						<Trash className="h-4 w-4" />
-						Delete Project
+						{t("editor.header.deleteProject")}
 					</DropdownMenuItem>
 					<DropdownMenuSeparator />
 					<DropdownMenuItem asChild>
@@ -157,6 +160,7 @@ export function EditorHeader() {
 		<nav className="flex items-center gap-2">
 			<AutoSaveIndicator className="whitespace-nowrap" />
 			<CreditBalance />
+			<LanguageSelector />
 			<PanelPresetSelector />
 			<ScreenRecordingControl />
 			<Button
@@ -168,7 +172,7 @@ export function EditorHeader() {
 				data-testid="export-button"
 			>
 				<Download className="h-4 w-4" />
-				<span className="text-sm">Export</span>
+				<span className="text-sm">{t("editor.header.export")}</span>
 			</Button>
 		</nav>
 	);

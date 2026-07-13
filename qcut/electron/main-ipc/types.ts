@@ -4,6 +4,7 @@
  */
 
 import type { BrowserWindow } from "electron";
+import type { AutoUpdateController } from "../auto-update-controller.js";
 
 export interface ReleaseNote {
 	version: string;
@@ -19,16 +20,11 @@ export interface Logger {
 	info(message?: any, ...optionalParams: any[]): void;
 }
 
-export interface AutoUpdater {
-	checkForUpdatesAndNotify(): Promise<any>;
-	quitAndInstall(): void;
-}
-
 /** Dependencies injected from main.ts */
 export interface MainIpcDeps {
 	getMainWindow: () => BrowserWindow | null;
 	logger: Logger;
-	autoUpdater: AutoUpdater | null;
+	updateController: AutoUpdateController | null;
 	getReleasesDir: () => string;
 	readChangelogFallback: () => ReleaseNote[];
 }

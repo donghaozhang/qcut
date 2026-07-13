@@ -2,6 +2,7 @@ import { existsSync, mkdirSync, statSync, writeFileSync } from "node:fs";
 import { basename, join } from "node:path";
 import { execFile } from "node:child_process";
 import { promisify } from "node:util";
+import { getFFmpegPath, getFFprobePath } from "../../ffmpeg/paths.js";
 import type { PipelineExecutor, PipelineStep } from "../execution/executor.js";
 import type { StepOutput } from "../execution/step-executors.js";
 import type { ReviewArtifactResult } from "./review-artifacts.js";
@@ -245,7 +246,8 @@ async function probeDurationSeconds({
 }: {
 	input: string;
 }): Promise<number> {
-	const { stdout } = await execFileAsync("ffprobe", [
+	const ffprobePath = await getFFprobePath();
+	const { stdout } = await execFileAsync(ffprobePath, [
 		"-v",
 		"error",
 		"-show_entries",
@@ -283,6 +285,7 @@ async function splitVideo({
 	partCount: number;
 	durationSeconds: number;
 }): Promise<ReviewSplitPart[]> {
+	const ffmpegPath = getFFmpegPath();
 	const splitDir = join(outputDir, "review-split-parts");
 	mkdirSync(splitDir, { recursive: true });
 	const partDuration = durationSeconds / partCount;
@@ -309,7 +312,7 @@ async function splitVideo({
 
 	await Promise.all(
 		parts.map((part) =>
-			execFileAsync("ffmpeg", [
+			execFileAsync(ffmpegPath, [
 				"-y",
 				"-hide_banner",
 				"-loglevel",

@@ -306,7 +306,7 @@ describe("Export Analysis", () => {
 			expect(result.hasImageElements).toBe(true);
 		});
 
-		it("should throw error for overlapping videos", () => {
+		it("should composite overlapping videos with the layered media strategy", () => {
 			const tracks: TimelineTrack[] = [
 				{
 					id: "track-1",
@@ -324,12 +324,13 @@ describe("Export Analysis", () => {
 				createMediaItem("video-2", "video"),
 			];
 
-			expect(() => analyzeTimelineForExport(tracks, mediaItems)).toThrow(
-				ExportUnsupportedError
-			);
-			expect(() => analyzeTimelineForExport(tracks, mediaItems)).toThrow(
-				/Overlapping videos are not currently supported/
-			);
+			const result = analyzeTimelineForExport(tracks, mediaItems);
+
+			expect(result.optimizationStrategy).toBe("image-video-composite");
+			expect(result.hasOverlappingVideos).toBe(true);
+			expect(result.needsFrameRendering).toBe(true);
+			expect(result.canUseDirectCopy).toBe(false);
+			expect(result.reason).toContain("overlapping videos");
 		});
 
 		it("should throw error for empty timeline (no video elements)", () => {

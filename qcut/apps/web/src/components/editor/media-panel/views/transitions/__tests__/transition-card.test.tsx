@@ -18,12 +18,20 @@ function requirePreset({ presetId }: { presetId: string }) {
 }
 
 const dissolve = requirePreset({ presetId: "dissolve" });
-const glitchShift = requirePreset({ presetId: "glitch-shift" });
+const futureAsset = {
+	...dissolve,
+	id: "future-asset",
+	name: "Future Asset",
+	localizedName: "未来素材",
+	premium: true,
+	downloaded: false,
+};
 
 const handlers = {
 	onSelect: vi.fn(),
 	onApply: vi.fn(),
 	onDragStart: vi.fn(),
+	onToggleFavorite: vi.fn(),
 };
 
 function renderCard({
@@ -38,8 +46,10 @@ function renderCard({
 			selected={selected}
 			canApply={canApply}
 			available={available}
+			favorite={false}
 			onSelect={handlers.onSelect}
 			onApply={handlers.onApply}
+			onToggleFavorite={handlers.onToggleFavorite}
 			onDragStart={handlers.onDragStart}
 		/>
 	);
@@ -100,24 +110,32 @@ describe("TransitionCard", () => {
 	it("shows the Ready badge and duration for available presets", () => {
 		renderCard();
 
-		expect(screen.getByText("Ready")).toBeInTheDocument();
+		expect(screen.getByText("可用")).toBeInTheDocument();
 		expect(screen.getByText("0.50s")).toBeInTheDocument();
 		expect(screen.queryByText("Pro")).not.toBeInTheDocument();
-		expect(screen.queryByText("Asset")).not.toBeInTheDocument();
+		expect(screen.queryByText("素材")).not.toBeInTheDocument();
 	});
 
 	it("shows Pro and Asset badges for premium presets without assets", () => {
-		renderCard({ preset: glitchShift, available: false });
+		renderCard({ preset: futureAsset, available: false });
 
 		expect(screen.getByText("Pro")).toBeInTheDocument();
-		expect(screen.getByText("Asset")).toBeInTheDocument();
-		expect(screen.queryByText("Ready")).not.toBeInTheDocument();
+		expect(screen.getByText("素材")).toBeInTheDocument();
+		expect(screen.queryByText("可用")).not.toBeInTheDocument();
+	});
+
+	it("applies a ready preset on double-click", () => {
+		renderCard();
+
+		fireEvent.doubleClick(screen.getByTestId("transition-card-dissolve"));
+
+		expect(handlers.onApply).toHaveBeenCalledWith({ preset: dissolve });
 	});
 
 	it("applies the preset without selecting it when the apply button is clicked", () => {
 		renderCard();
 
-		fireEvent.click(screen.getByRole("button", { name: "Apply Dissolve" }));
+		fireEvent.click(screen.getByRole("button", { name: "应用叠化" }));
 
 		expect(handlers.onApply).toHaveBeenCalledWith({ preset: dissolve });
 		expect(handlers.onSelect).not.toHaveBeenCalled();
@@ -126,7 +144,7 @@ describe("TransitionCard", () => {
 	it("keeps keyboard events on the apply button from selecting the card", () => {
 		renderCard();
 
-		fireEvent.keyDown(screen.getByRole("button", { name: "Apply Dissolve" }), {
+		fireEvent.keyDown(screen.getByRole("button", { name: "应用叠化" }), {
 			key: "Enter",
 		});
 
@@ -136,17 +154,13 @@ describe("TransitionCard", () => {
 	it("disables the apply button when the transition cannot be applied", () => {
 		renderCard({ canApply: false });
 
-		expect(
-			screen.getByRole("button", { name: "Apply Dissolve" })
-		).toBeDisabled();
+		expect(screen.getByRole("button", { name: "应用叠化" })).toBeDisabled();
 	});
 
 	it("disables the apply button when the preset asset is unavailable", () => {
-		renderCard({ preset: glitchShift, available: false });
+		renderCard({ preset: futureAsset, available: false });
 
-		expect(
-			screen.getByRole("button", { name: "Apply Glitch Shift" })
-		).toBeDisabled();
+		expect(screen.getByRole("button", { name: "应用未来素材" })).toBeDisabled();
 	});
 
 	it("forwards drag start only for available presets", () => {
@@ -160,8 +174,8 @@ describe("TransitionCard", () => {
 		});
 
 		handlers.onDragStart.mockClear();
-		renderCard({ preset: glitchShift, available: false });
-		fireEvent.dragStart(screen.getByTestId("transition-card-glitch-shift"), {
+		renderCard({ preset: futureAsset, available: false });
+		fireEvent.dragStart(screen.getByTestId("transition-card-future-asset"), {
 			dataTransfer: { effectAllowed: "", setData: vi.fn() },
 		});
 		expect(handlers.onDragStart).not.toHaveBeenCalled();
@@ -174,8 +188,8 @@ describe("TransitionCard", () => {
 			"true"
 		);
 
-		renderCard({ preset: glitchShift, available: false });
-		expect(screen.getByTestId("transition-card-glitch-shift")).toHaveAttribute(
+		renderCard({ preset: futureAsset, available: false });
+		expect(screen.getByTestId("transition-card-future-asset")).toHaveAttribute(
 			"draggable",
 			"false"
 		);

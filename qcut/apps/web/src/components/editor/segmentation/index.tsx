@@ -1,6 +1,7 @@
 "use client";
 import { useSegmentationStore } from "@/stores/ai/segmentation-store";
 import { useAsyncMediaStoreActions } from "@/hooks/media/use-async-media-store";
+import { usePersistentAiTask } from "@/hooks/use-persistent-ai-task";
 import { useParams } from "@tanstack/react-router";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -19,9 +20,12 @@ import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { toast } from "sonner";
 import {
 	attachGeneratedMask,
+	detachGeneratedMask,
 	failGeneratedMaskTracking,
 } from "@/lib/segmentation/generated-mask-attachment";
 import { generateSam3VideoMask } from "@/lib/segmentation/sam3-video-mask";
+import { useMediaStore } from "@/stores/media/media-store";
+import { useMediaPanelStore } from "@/components/editor/media-panel/store";
 
 // Export individual components
 export { ObjectList } from "./ObjectList";
@@ -37,6 +41,15 @@ import { PromptToolbar } from "./PromptToolbar";
 import { SegmentationCanvas } from "./SegmentationCanvas";
 import { ImageUploader } from "./ImageUploader";
 import { LocalPersonCutoutPanel } from "./LocalPersonCutoutPanel";
+
+type SegmentationTaskResult =
+	| {
+			mode: "video";
+			sourceMediaId: string;
+			attached: boolean;
+			objectCount: number;
+	  }
+	| { mode: "image"; objectCount: number };
 
 /**
  * SegmentationPanel
@@ -77,6 +90,11 @@ export function SegmentationPanel() {
 		error: mediaStoreError,
 		addMediaItem,
 	} = useAsyncMediaStoreActions();
+	const {
+		runTask: runSegmentationTask,
+		isRunning: segmentationTaskRunning,
+		error: segmentationTaskError,
+	} = usePersistentAiTask();
 
 	const handleImageSelect = (file: File) => {
 		const url = createObjectURL(file, "segmentation-image-select");
@@ -89,153 +107,217 @@ export function SegmentationPanel() {
 
 	const handleSegment = async () => {
 		if (!currentTextPrompt.trim()) {
-			alert("Please enter a text prompt describing what to segment.");
+			toast.error("请输入要分割的对象描述。");
 			return;
 		}
 
 		if (mode === "image" && (!sourceImageFile || !sourceImageUrl)) {
-			alert("Please upload an image first.");
+			toast.error("请先上传图片。");
 			return;
 		}
 		if (mode === "video" && (!sourceVideoFile || !sourceVideoUrl)) {
-			alert("Please upload a video first.");
+			toast.error("请先上传视频。");
 			return;
 		}
-
-		try {
-			const startTime = Date.now();
-
-			setProcessingState({
-				isProcessing: true,
-				progress: 0,
-				statusMessage:
-					mode === "video" ? "Uploading video..." : "Uploading image...",
-				elapsedTime: 0,
-			});
-
-			if (mode === "video") {
-				if (!addMediaItem) throw new Error("Media library is not ready");
-				const prompt = currentTextPrompt.trim();
-				const result = await generateSam3VideoMask({
-					sourceFile: sourceVideoFile!,
-					prompt,
-				});
-				const sourceMediaId = await addMediaItem(projectId, {
-					name: `Tracked: ${prompt}`,
-					type: "video",
-					file: result.file,
-					url: result.url,
-					originalUrl: result.originalUrl,
-					metadata: {
-						source: "sam3-video-mask",
-						hasAlpha: result.hasAlpha,
-						codec: "vp9",
-						prompt,
-					},
-				});
-				const attached = attachGeneratedMask({
-					sourceMediaId,
-					type: "object",
-					source: "sam3",
-					name: `SAM3: ${prompt}`,
-					trackingSamples: result.trackingSamples,
-				});
-				setSegmentedVideo(result.url);
-				toast.success(
-					attached
-						? "SAM3 mask attached to selected clip"
-						: "SAM3 mask video added to Media"
-				);
+		const prompt = currentTextPrompt.trim();
+		const segmentationState = useSegmentationStore.getState();
+		const snapshot = {
+			objects: structuredClone(segmentationState.objects),
+			masks: structuredClone(segmentationState.masks),
+			compositeImageUrl: segmentationState.compositeImageUrl,
+			segmentedVideoUrl: segmentationState.segmentedVideoUrl,
+		};
+		await runSegmentationTask<SegmentationTaskResult>({
+			kind: "sam3",
+			label: `${mode === "video" ? "视频跟踪" : "图片分割"}：${prompt}`,
+			payload: { mode, prompt, projectId },
+			startMessage: mode === "video" ? "正在上传视频" : "正在上传图片",
+			completeMessage: (result) =>
+				result.mode === "video"
+					? result.attached
+						? "视频蒙版已应用到所选片段"
+						: "视频蒙版已添加到素材库"
+					: `图片分割完成，找到 ${result.objectCount} 个对象`,
+			open: () => useMediaPanelStore.getState().setActiveTab("segmentation"),
+			onCancel: () =>
 				setProcessingState({
 					isProcessing: false,
-					progress: 100,
-					statusMessage: "Video mask tracking complete",
+					progress: 0,
+					statusMessage: "分割任务已取消",
+					elapsedTime: 0,
+				}),
+			onError: (error) => {
+				failGeneratedMaskTracking({ message: error.message });
+				setProcessingState({
+					isProcessing: false,
+					progress: 0,
+					statusMessage: "分割失败",
+					elapsedTime: 0,
+				});
+				toast.error("分割失败", { description: error.message });
+			},
+			execute: async ({ signal, updateProgress }) => {
+				const startTime = Date.now();
+
+				setProcessingState({
+					isProcessing: true,
+					progress: 0,
+					statusMessage:
+						mode === "video" ? "正在上传视频..." : "正在上传图片...",
+					elapsedTime: 0,
+				});
+
+				if (mode === "video") {
+					if (!addMediaItem) throw new Error("素材库尚未就绪");
+					const result = await generateSam3VideoMask({
+						sourceFile: sourceVideoFile as File,
+						prompt,
+						signal,
+						onProgress: (progress) => {
+							if (signal.aborted) return;
+							updateProgress({
+								progress: progress.progress,
+								message: progress.message,
+							});
+							setProcessingState({
+								isProcessing: true,
+								progress: progress.progress,
+								statusMessage: progress.message,
+								elapsedTime: progress.elapsedTime,
+							});
+						},
+					});
+					if (signal.aborted) throw new DOMException("已取消", "AbortError");
+					const sourceMediaId = await addMediaItem(projectId, {
+						name: `跟踪结果：${prompt}`,
+						type: "video",
+						file: result.file,
+						url: result.url,
+						originalUrl: result.originalUrl,
+						metadata: {
+							source: "sam3-video-mask",
+							hasAlpha: result.hasAlpha,
+							codec: "vp9",
+							prompt,
+						},
+					});
+					if (signal.aborted) {
+						await useMediaStore
+							.getState()
+							.removeMediaItem(projectId, sourceMediaId);
+						throw new DOMException("已取消", "AbortError");
+					}
+					const attached = attachGeneratedMask({
+						sourceMediaId,
+						type: "object",
+						source: "sam3",
+						name: `SAM3: ${prompt}`,
+						trackingSamples: result.trackingSamples,
+					});
+					setSegmentedVideo(result.url);
+					setProcessingState({
+						isProcessing: false,
+						progress: 100,
+						statusMessage: "视频蒙版跟踪完成",
+						elapsedTime: (Date.now() - startTime) / 1000,
+					});
+					return {
+						mode: "video" as const,
+						sourceMediaId,
+						attached,
+						objectCount: 1,
+					};
+				}
+
+				debugLog("Uploading image to FAL for segmentation...");
+				const { uploadImageToFAL } = await import(
+					"@/lib/ai-clients/image-edit-client"
+				);
+				const uploadedImageUrl = await uploadImageToFAL(
+					sourceImageFile as File
+				);
+				if (signal.aborted) throw new DOMException("已取消", "AbortError");
+
+				setProcessingState({
+					isProcessing: true,
+					progress: 25,
+					statusMessage: "正在检测对象...",
 					elapsedTime: (Date.now() - startTime) / 1000,
 				});
-				return;
-			}
+				updateProgress({ progress: 25, message: "正在检测对象" });
 
-			debugLog("Uploading image to FAL for segmentation...");
-			const { uploadImageToFAL } = await import(
-				"@/lib/ai-clients/image-edit-client"
-			);
-			const uploadedImageUrl = await uploadImageToFAL(sourceImageFile!);
-
-			setProcessingState({
-				isProcessing: true,
-				progress: 25,
-				statusMessage: "Detecting objects...",
-				elapsedTime: (Date.now() - startTime) / 1000,
-			});
-
-			// Call SAM-3 API
-			const result = await segmentWithText(
-				uploadedImageUrl,
-				currentTextPrompt.trim(),
-				{
+				const result = await segmentWithText(uploadedImageUrl, prompt, {
 					return_multiple_masks: true,
 					max_masks: 10,
 					include_scores: true,
 					include_boxes: true,
 					apply_mask: true,
-				}
-			);
-
-			// Process results
-			if (result.image?.url) {
-				setCompositeImage(result.image.url);
-			}
-
-			const newMasks = result.masks ?? [];
-			if (newMasks.length > 0) {
-				setMasks(newMasks);
-
-				// Create objects for each mask
-				newMasks.forEach((mask, index) => {
-					addObject({
-						name: `${currentTextPrompt} ${index + 1}`,
-						maskUrl: mask.url,
-						score: result.scores?.[index]?.[0],
-						boundingBox: result.boxes?.[index]?.[0],
-						pointPrompts: [],
-						boxPrompts: [],
-						textPrompt: currentTextPrompt,
-						visible: true,
-					});
 				});
-			}
+				if (signal.aborted) throw new DOMException("已取消", "AbortError");
 
-			const totalTime = (Date.now() - startTime) / 1000;
+				if (result.image?.url) {
+					setCompositeImage(result.image.url);
+				}
 
-			setProcessingState({
-				isProcessing: false,
-				progress: 100,
-				statusMessage: `Found ${result.masks?.length || 0} objects`,
-				elapsedTime: totalTime,
-			});
+				const newMasks = result.masks ?? [];
+				if (newMasks.length > 0) {
+					setMasks(newMasks);
 
-			clearCurrentPrompts();
-		} catch (error) {
-			console.error("Segmentation failed:", error);
-			const errorMessage =
-				error instanceof Error ? error.message : "Unknown error occurred";
-			failGeneratedMaskTracking({ message: errorMessage });
+					for (const [index, mask] of newMasks.entries()) {
+						addObject({
+							name: `${prompt} ${index + 1}`,
+							maskUrl: mask.url,
+							score: result.scores?.[index]?.[0],
+							boundingBox: result.boxes?.[index]?.[0],
+							pointPrompts: [],
+							boxPrompts: [],
+							textPrompt: prompt,
+							visible: true,
+						});
+					}
+				}
 
-			setProcessingState({
-				isProcessing: false,
-				progress: 0,
-				statusMessage: "Segmentation failed",
-				elapsedTime: 0,
-			});
+				const totalTime = (Date.now() - startTime) / 1000;
 
-			alert(`Segmentation failed: ${errorMessage}`);
-		}
+				setProcessingState({
+					isProcessing: false,
+					progress: 100,
+					statusMessage: `找到 ${result.masks?.length || 0} 个对象`,
+					elapsedTime: totalTime,
+				});
+
+				clearCurrentPrompts();
+				return {
+					mode: "image" as const,
+					objectCount: result.masks?.length ?? 0,
+				};
+			},
+			onUndo: async (result) => {
+				useSegmentationStore.setState(snapshot);
+				if (result.mode === "video") {
+					detachGeneratedMask({ sourceMediaId: result.sourceMediaId });
+					await useMediaStore
+						.getState()
+						.removeMediaItem(projectId, result.sourceMediaId);
+				}
+				toast.success("已撤销分割结果");
+			},
+			output: (result) => ({
+				mode: result.mode,
+				objectCount: result.objectCount,
+				...(result.mode === "video" && {
+					sourceMediaId: result.sourceMediaId,
+					attached: result.attached,
+				}),
+			}),
+		});
 	};
 
 	const canSegment =
 		(mode === "image" ? sourceImageUrl : sourceVideoUrl) &&
 		currentTextPrompt.trim() &&
-		!isProcessing;
+		!isProcessing &&
+		!segmentationTaskRunning;
 	const isLocalPersonVideo =
 		mode === "video" && videoBackend === "local-person";
 
@@ -245,7 +327,7 @@ export function SegmentationPanel() {
 			<div className="h-full flex flex-col gap-4 p-4">
 				<div className="flex items-center justify-center flex-1">
 					<div className="text-center">
-						<div className="text-red-500 mb-2">Failed to load media store</div>
+						<div className="text-red-500 mb-2">素材库加载失败</div>
 						<div className="text-sm text-muted-foreground">
 							{mediaStoreError.message}
 						</div>
@@ -261,7 +343,7 @@ export function SegmentationPanel() {
 				<div className="flex items-center justify-center flex-1">
 					<div className="flex items-center space-x-2">
 						<Loader2 className="h-4 w-4 animate-spin" />
-						<span>Loading segmentation panel...</span>
+						<span>正在加载分割面板...</span>
 					</div>
 				</div>
 			</div>
@@ -275,11 +357,11 @@ export function SegmentationPanel() {
 				<TabsList className="grid w-full grid-cols-2">
 					<TabsTrigger value="image" className="flex items-center gap-2">
 						<ImagePlus className="w-4 h-4" />
-						Image
+						图片
 					</TabsTrigger>
 					<TabsTrigger value="video" className="flex items-center gap-2">
 						<Video className="w-4 h-4" />
-						Video
+						视频
 					</TabsTrigger>
 				</TabsList>
 			</Tabs>
@@ -297,11 +379,11 @@ export function SegmentationPanel() {
 							className="flex items-center gap-2"
 						>
 							<UserRound className="size-4" />
-							Local person
+							本地人物
 						</TabsTrigger>
 						<TabsTrigger value="sam3" className="flex items-center gap-2">
 							<ScanSearch className="size-4" />
-							Cloud object
+							云端物体
 						</TabsTrigger>
 					</TabsList>
 				</Tabs>
@@ -311,23 +393,34 @@ export function SegmentationPanel() {
 			{!isLocalPersonVideo && (
 				<div className="flex-shrink-0">
 					<Button
+						type="button"
 						onClick={handleSegment}
+						onKeyDown={(event) => {
+							if (event.key === "Enter" || event.key === " ") {
+								event.currentTarget.click();
+							}
+						}}
 						disabled={!canSegment}
 						className="w-full"
 						size="lg"
 					>
-						{isProcessing ? (
+						{isProcessing || segmentationTaskRunning ? (
 							<>
 								<Loader2 className="w-4 h-4 mr-2 animate-spin" />
-								Segmenting...
+								正在分割...
 							</>
 						) : (
 							<>
 								<Wand2 className="w-4 h-4 mr-2" />
-								Segment Objects
+								分割对象
 							</>
 						)}
 					</Button>
+					{segmentationTaskError ? (
+						<p className="mt-2 text-xs text-destructive">
+							{segmentationTaskError}
+						</p>
+					) : null}
 				</div>
 			)}
 

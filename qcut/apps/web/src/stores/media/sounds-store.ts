@@ -11,6 +11,10 @@ import { create } from "zustand";
 import type { SoundEffect, SavedSound } from "@/types/sounds";
 import { toast } from "sonner";
 import { createObjectURL, revokeObjectURL } from "@/lib/media/blob-manager";
+import { createFreesoundAssetEntry } from "@/lib/assets/freesound-asset";
+import { useAssetLibraryStore } from "@/stores/asset-library-store";
+
+type AudioAssetKind = "sound-effect" | "music";
 
 // Illegal filename characters for file system safety
 const ILLEGAL_FILENAME_CHARS = /[<>:"/\\|?*\u0000-\u001f]/g;
@@ -52,7 +56,10 @@ interface SoundsStore {
 	savedSoundsError: string | null;
 
 	// Timeline integration
-	addSoundToTimeline: (sound: SoundEffect) => Promise<boolean>;
+	addSoundToTimeline: (
+		sound: SoundEffect,
+		kind?: AudioAssetKind
+	) => Promise<boolean>;
 
 	setTopSoundEffects: (sounds: SoundEffect[]) => void;
 	setLoading: (loading: boolean) => void;
@@ -78,10 +85,16 @@ interface SoundsStore {
 
 	// Saved sounds actions
 	loadSavedSounds: () => Promise<void>;
-	saveSoundEffect: (soundEffect: SoundEffect) => Promise<void>;
-	removeSavedSound: (soundId: number) => Promise<void>;
-	isSoundSaved: (soundId: number) => boolean;
-	toggleSavedSound: (soundEffect: SoundEffect) => Promise<void>;
+	saveSoundEffect: (
+		soundEffect: SoundEffect,
+		kind?: AudioAssetKind
+	) => Promise<void>;
+	removeSavedSound: (soundId: number, kind?: AudioAssetKind) => Promise<void>;
+	isSoundSaved: (soundId: number, kind?: AudioAssetKind) => boolean;
+	toggleSavedSound: (
+		soundEffect: SoundEffect,
+		kind?: AudioAssetKind
+	) => Promise<void>;
 	clearSavedSounds: () => Promise<void>;
 }
 
@@ -180,6 +193,13 @@ export const useSoundsStore = create<SoundsStore>((set, get) => ({
 				isSavedSoundsLoaded: true,
 				isLoadingSavedSounds: false,
 			});
+			for (const sound of savedSounds) {
+				useAssetLibraryStore.getState().setFavorite({
+					kind: sound.kind ?? "sound-effect",
+					id: String(sound.id),
+					favorite: true,
+				});
+			}
 		} catch (error) {
 			const errorMessage =
 				error instanceof Error ? error.message : "Failed to load saved sounds";
@@ -190,10 +210,14 @@ export const useSoundsStore = create<SoundsStore>((set, get) => ({
 		}
 	},
 
-	saveSoundEffect: async (soundEffect: SoundEffect) => {
+	saveSoundEffect: async (
+		soundEffect: SoundEffect,
+		kind: AudioAssetKind = "sound-effect"
+	) => {
 		try {
 			const savedSound: SavedSound = {
 				id: soundEffect.id,
+				kind,
 				name: soundEffect.name,
 				username: soundEffect.username,
 				previewUrl: soundEffect.previewUrl,
@@ -206,7 +230,13 @@ export const useSoundsStore = create<SoundsStore>((set, get) => ({
 
 			const currentSounds = get().savedSounds;
 			// Deduplicate by id
-			if (currentSounds.some((s) => s.id === savedSound.id)) {
+			if (
+				currentSounds.some(
+					(sound) =>
+						sound.id === savedSound.id &&
+						(sound.kind ?? "sound-effect") === kind
+				)
+			) {
 				return;
 			}
 			const updatedSounds = [...currentSounds, savedSound];
@@ -214,6 +244,11 @@ export const useSoundsStore = create<SoundsStore>((set, get) => ({
 				localStorage.setItem(SAVED_SOUNDS_KEY, JSON.stringify(updatedSounds));
 			}
 			set({ savedSounds: updatedSounds });
+			useAssetLibraryStore.getState().setFavorite({
+				kind,
+				id: String(soundEffect.id),
+				favorite: true,
+			});
 		} catch (error) {
 			const errorMessage =
 				error instanceof Error ? error.message : "Failed to save sound";
@@ -222,16 +257,25 @@ export const useSoundsStore = create<SoundsStore>((set, get) => ({
 		}
 	},
 
-	removeSavedSound: async (soundId: number) => {
+	removeSavedSound: async (
+		soundId: number,
+		kind: AudioAssetKind = "sound-effect"
+	) => {
 		try {
 			const currentSounds = get().savedSounds;
 			const updatedSounds = currentSounds.filter(
-				(sound) => sound.id !== soundId
+				(sound) =>
+					sound.id !== soundId || (sound.kind ?? "sound-effect") !== kind
 			);
 			if (isBrowser) {
 				localStorage.setItem(SAVED_SOUNDS_KEY, JSON.stringify(updatedSounds));
 			}
 			set({ savedSounds: updatedSounds });
+			useAssetLibraryStore.getState().setFavorite({
+				kind,
+				id: String(soundId),
+				favorite: false,
+			});
 		} catch (error) {
 			const errorMessage =
 				error instanceof Error ? error.message : "Failed to remove sound";
@@ -240,23 +284,35 @@ export const useSoundsStore = create<SoundsStore>((set, get) => ({
 		}
 	},
 
-	isSoundSaved: (soundId: number) => {
+	isSoundSaved: (soundId: number, kind: AudioAssetKind = "sound-effect") => {
 		const { savedSounds } = get();
-		return savedSounds.some((sound) => sound.id === soundId);
+		return savedSounds.some(
+			(sound) => sound.id === soundId && (sound.kind ?? "sound-effect") === kind
+		);
 	},
 
-	toggleSavedSound: async (soundEffect: SoundEffect) => {
+	toggleSavedSound: async (
+		soundEffect: SoundEffect,
+		kind: AudioAssetKind = "sound-effect"
+	) => {
 		const { isSoundSaved, saveSoundEffect, removeSavedSound } = get();
 
-		if (isSoundSaved(soundEffect.id)) {
-			await removeSavedSound(soundEffect.id);
+		if (isSoundSaved(soundEffect.id, kind)) {
+			await removeSavedSound(soundEffect.id, kind);
 		} else {
-			await saveSoundEffect(soundEffect);
+			await saveSoundEffect(soundEffect, kind);
 		}
 	},
 
 	clearSavedSounds: async () => {
 		try {
+			for (const sound of get().savedSounds) {
+				useAssetLibraryStore.getState().setFavorite({
+					kind: sound.kind ?? "sound-effect",
+					id: String(sound.id),
+					favorite: false,
+				});
+			}
 			if (isBrowser) {
 				localStorage.removeItem(SAVED_SOUNDS_KEY);
 			}
@@ -272,7 +328,7 @@ export const useSoundsStore = create<SoundsStore>((set, get) => ({
 		}
 	},
 
-	addSoundToTimeline: async (sound) => {
+	addSoundToTimeline: async (sound, kind: AudioAssetKind = "sound-effect") => {
 		// Dynamic imports to avoid circular dependencies and improve code splitting
 		const [
 			{ useProjectStore },
@@ -299,8 +355,20 @@ export const useSoundsStore = create<SoundsStore>((set, get) => ({
 		}
 
 		let objectUrl: string | null = null;
+		const asset = createFreesoundAssetEntry({ sound, kind });
+		const updateRuntimeState =
+			useAssetLibraryStore.getState().updateRuntimeState;
 
 		try {
+			updateRuntimeState({
+				asset,
+				patch: {
+					downloadStatus: "downloading",
+					cacheStatus: "caching",
+					progress: 0.1,
+					error: undefined,
+				},
+			});
 			const response = await fetch(audioUrl);
 			if (!response.ok)
 				throw new Error(`Failed to download audio: ${response.statusText}`);
@@ -342,10 +410,30 @@ export const useSoundsStore = create<SoundsStore>((set, get) => ({
 				.addMediaAtTime(mediaItem, usePlaybackStore.getState().currentTime);
 
 			if (success) {
+				updateRuntimeState({
+					asset,
+					patch: {
+						downloadStatus: "downloaded",
+						cacheStatus: "cached",
+						progress: 1,
+						cacheKey: mediaId,
+						error: undefined,
+					},
+				});
 				return true;
 			}
 			throw new Error("Failed to add to timeline - check for overlaps");
 		} catch (error) {
+			updateRuntimeState({
+				asset,
+				patch: {
+					downloadStatus: "failed",
+					cacheStatus: "failed",
+					progress: 0,
+					error:
+						error instanceof Error ? error.message : "Audio download failed",
+				},
+			});
 			// Best-effort cleanup: revoke object URL if it was created
 			if (objectUrl) {
 				try {

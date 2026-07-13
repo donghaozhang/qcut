@@ -136,13 +136,13 @@ describe("ensureMainTrack", () => {
 
 describe("getTrackName / createTrack", () => {
 	it("generates correct names for all types", () => {
-		expect(getTrackName("media")).toBe("Media Track");
-		expect(getTrackName("text")).toBe("Text Track");
-		expect(getTrackName("audio")).toBe("Audio Track");
-		expect(getTrackName("sticker")).toBe("Sticker Track");
-		expect(getTrackName("captions")).toBe("Captions Track");
-		expect(getTrackName("remotion")).toBe("Remotion Track");
-		expect(getTrackName("markdown")).toBe("Markdown Track");
+		expect(getTrackName("media")).toBe("视频轨道");
+		expect(getTrackName("text")).toBe("文本轨道");
+		expect(getTrackName("audio")).toBe("音频轨道");
+		expect(getTrackName("sticker")).toBe("贴纸轨道");
+		expect(getTrackName("captions")).toBe("字幕轨道");
+		expect(getTrackName("remotion")).toBe("Remotion 轨道");
+		expect(getTrackName("markdown")).toBe("Markdown 轨道");
 	});
 
 	it("createTrack produces a valid track", () => {

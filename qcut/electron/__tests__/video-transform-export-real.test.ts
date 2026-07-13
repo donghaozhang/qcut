@@ -4,6 +4,8 @@ import fs from "fs";
 import path from "path";
 import { buildFFmpegArgs } from "../ffmpeg-args-builder";
 import type { VideoTransition, VideoVisual } from "../ffmpeg/types";
+import { EFFECT_PRESETS } from "../../apps/web/src/lib/effects/effect-presets";
+import { FFmpegFilterChain } from "../../apps/web/src/lib/ffmpeg/ffmpeg-filter-chain";
 
 const ffmpegPath = path.resolve(
 	__dirname,
@@ -573,7 +575,7 @@ describe.skipIf(!fs.existsSync(ffmpegPath))(
 			expect(afterCut[2]).toBeGreaterThan(80);
 		});
 
-		it("matches eased first-release transition directions at fixed frames", () => {
+		it("matches supported transition presentations at fixed frames", () => {
 			const redPath = path.join(tempDir, "parity-red.mp4");
 			const bluePath = path.join(tempDir, "parity-blue.mp4");
 			const red = createColorSequence({
@@ -594,6 +596,7 @@ describe.skipIf(!fs.existsSync(ffmpegPath))(
 			}> = [
 				{ name: "dissolve", type: "dissolve" },
 				{ name: "fade-black", type: "fade-black" },
+				{ name: "fade-white", type: "fade-white" },
 				{
 					name: "slide-left",
 					type: "slide",
@@ -604,6 +607,8 @@ describe.skipIf(!fs.existsSync(ffmpegPath))(
 					type: "slide",
 					direction: "right",
 				},
+				{ name: "slide-up", type: "slide", direction: "up" },
+				{ name: "slide-down", type: "slide", direction: "down" },
 				{
 					name: "wipe-left",
 					type: "wipe",
@@ -614,6 +619,18 @@ describe.skipIf(!fs.existsSync(ffmpegPath))(
 					type: "wipe",
 					direction: "right",
 				},
+				{ name: "wipe-up", type: "wipe", direction: "up" },
+				{ name: "wipe-down", type: "wipe", direction: "down" },
+				{ name: "push-left", type: "push", direction: "left" },
+				{ name: "push-right", type: "push", direction: "right" },
+				{ name: "push-up", type: "push", direction: "up" },
+				{ name: "push-down", type: "push", direction: "down" },
+				{ name: "zoom-blur", type: "zoom-blur" },
+				{ name: "whip-pan", type: "whip-pan", direction: "left" },
+				{ name: "flash", type: "flash" },
+				{ name: "light-leak", type: "light-leak" },
+				{ name: "rgb-glitch", type: "rgb-glitch" },
+				{ name: "shake", type: "shake" },
 			];
 
 			for (const item of cases) {
@@ -693,24 +710,90 @@ describe.skipIf(!fs.existsSync(ffmpegPath))(
 					expect(midpoint[2]).toBeLessThan(30);
 					continue;
 				}
+				if (item.type === "fade-white") {
+					expect(midpoint[0]).toBeGreaterThan(220);
+					expect(midpoint[1]).toBeGreaterThan(220);
+					expect(midpoint[2]).toBeGreaterThan(220);
+					continue;
+				}
+				if (item.type === "flash") {
+					expect(midpoint[0]).toBeGreaterThan(180);
+					// Green peaks at 0.7*255 ≈ 178: both source clips have zero green
+					// and the flash overlay is capped at alpha 0.7 by design.
+					expect(midpoint[1]).toBeGreaterThan(160);
+					expect(midpoint[2]).toBeGreaterThan(180);
+					continue;
+				}
+				if (item.type === "light-leak") {
+					expect(midpoint[0]).toBeGreaterThan(180);
+					expect(midpoint[1]).toBeGreaterThan(40);
+					expect(midpoint[1]).toBeLessThan(170);
+					expect(midpoint[2]).toBeLessThan(160);
+					continue;
+				}
+				if (
+					item.type === "zoom-blur" ||
+					item.type === "rgb-glitch" ||
+					item.type === "shake"
+				) {
+					expect(midpoint[0]).toBeGreaterThan(50);
+					expect(midpoint[2]).toBeGreaterThan(50);
+					continue;
+				}
 
-				const entersFromLeft = item.direction === "left";
+				const isVertical = item.direction === "up" || item.direction === "down";
+				const entersFromStart =
+					item.direction === "left" || item.direction === "up";
 				const enteredPixel = readFramePixelAt({
 					inputPath: outputPath,
 					time: 1.75,
-					x: entersFromLeft ? 4 : 154,
-					y: 44,
+					x: isVertical ? 80 : entersFromStart ? 4 : 154,
+					y: isVertical ? (entersFromStart ? 4 : 84) : 44,
 				});
 				const waitingPixel = readFramePixelAt({
 					inputPath: outputPath,
 					time: 1.75,
-					x: entersFromLeft ? 20 : 138,
-					y: 44,
+					x: isVertical ? 80 : entersFromStart ? 20 : 138,
+					y: isVertical ? (entersFromStart ? 20 : 68) : 44,
 				});
 				expect(enteredPixel[0]).toBeLessThan(80);
 				expect(enteredPixel[2]).toBeGreaterThan(180);
 				expect(waitingPixel[0]).toBeGreaterThan(180);
 				expect(waitingPixel[2]).toBeLessThan(80);
+			}
+		});
+
+		it("exports every registered production effect", () => {
+			for (const preset of EFFECT_PRESETS) {
+				const effectFilter = FFmpegFilterChain.fromEffectParameters(
+					preset.parameters
+				);
+				const outputPath = path.join(tempDir, `effect-${preset.id}.mp4`);
+				const result = runFFmpeg(
+					buildFFmpegArgs({
+						inputDir: tempDir,
+						outputFile: outputPath,
+						width: 160,
+						height: 90,
+						fps: 30,
+						quality: "low",
+						duration: 1,
+						videoSources: [
+							{
+								path: sourcePath,
+								startTime: 0,
+								duration: 1,
+								effectFilter,
+							},
+						],
+					})
+				);
+
+				expect(
+					result.status,
+					`${preset.id}: ${result.stderr?.toString()}`
+				).toBe(0);
+				expect(fs.statSync(outputPath).size).toBeGreaterThan(1_000);
 			}
 		});
 
@@ -1442,6 +1525,88 @@ describe.skipIf(!fs.existsSync(ffmpegPath))(
 			const result = runFFmpeg(args);
 			expect(result.status, result.stderr?.toString()).toBe(0);
 			expect(fs.statSync(outputPath).size).toBeGreaterThan(1_000);
+		});
+
+		it("renders a visible alpha-derived mask stroke", () => {
+			const redPath = path.join(tempDir, "mask-stroke-red.mp4");
+			const source = runFFmpeg([
+				"-y",
+				"-f",
+				"lavfi",
+				"-i",
+				"color=c=red:s=160x90:d=1:r=30",
+				"-c:v",
+				"libx264",
+				"-pix_fmt",
+				"yuv420p",
+				redPath,
+			]);
+			expect(source.status, source.stderr?.toString()).toBe(0);
+			const outputPath = path.join(tempDir, "mask-stroke.mp4");
+			const args = buildFFmpegArgs({
+				inputDir: tempDir,
+				outputFile: outputPath,
+				width: 160,
+				height: 90,
+				fps: 30,
+				quality: "low",
+				duration: 0.5,
+				backgroundColor: "#000000",
+				videoSources: [
+					{
+						path: redPath,
+						startTime: 0,
+						duration: 0.5,
+						visual: defaultVisual({
+							mask: {
+								type: "ellipse",
+								centerX: 0.5,
+								centerY: 0.5,
+								width: 0.5,
+								height: 0.5,
+								rotation: 0,
+								feather: 0,
+								invert: false,
+								stroke: {
+									style: "solid",
+									color: "#20c7d9",
+									width: 6,
+									opacity: 1,
+									glow: 0,
+									offsetX: 0,
+									offsetY: 0,
+								},
+							},
+						}),
+					},
+				],
+			});
+			const result = runFFmpeg(args);
+			expect(result.status, result.stderr?.toString()).toBe(0);
+
+			const center = readFramePixelAt({
+				inputPath: outputPath,
+				time: 0.25,
+				x: 80,
+				y: 45,
+			});
+			const outline = readFramePixelAt({
+				inputPath: outputPath,
+				time: 0.25,
+				x: 36,
+				y: 45,
+			});
+			const outside = readFramePixelAt({
+				inputPath: outputPath,
+				time: 0.25,
+				x: 15,
+				y: 45,
+			});
+			expect(center[0]).toBeGreaterThan(180);
+			expect(center[1]).toBeLessThan(80);
+			expect(outline[1]).toBeGreaterThan(120);
+			expect(outline[2]).toBeGreaterThan(130);
+			expect(outside.every((channel) => channel < 30)).toBe(true);
 		});
 
 		it("renders cumulative custom cutout correction frames", () => {

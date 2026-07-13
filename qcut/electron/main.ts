@@ -25,6 +25,11 @@ import { parseChangelog } from "./release-notes-utils.js";
 import { registerMainIpcHandlers } from "./main-ipc.js";
 import { registerAppProtocol } from "./app-protocol-handler.js";
 import {
+	createAutoUpdateController,
+	type AutoUpdateController,
+	type AutoUpdaterLike,
+} from "./auto-update-controller.js";
+import {
 	startUtilityProcess,
 	stopUtilityProcess,
 	setupUtilityPtyIPC,
@@ -46,22 +51,11 @@ interface Logger {
 	info(message?: any, ...optionalParams: any[]): void;
 }
 
-interface AutoUpdater {
-	checkForUpdatesAndNotify(): Promise<any>;
-	on(event: string, listener: (...args: any[]) => void): void;
-	quitAndInstall(): void;
-	allowPrerelease: boolean;
-	channel: string;
-}
-
 interface MimeTypeMap {
 	[key: string]: string;
 }
 
 type HandlerFunction = () => void;
-interface AutoUpdaterReleaseNoteEntry {
-	note?: unknown;
-}
 
 // Initialize electron-log early
 let log: any = null;
@@ -76,23 +70,7 @@ const logger: Logger = log || console;
 import { installEpipeGuard } from "./safe-console.js";
 installEpipeGuard();
 
-// Auto-updater - wrapped in try-catch for packaged builds
-let autoUpdater: AutoUpdater | null = null;
-try {
-	autoUpdater = require("electron-updater").autoUpdater;
-} catch (error: any) {
-	if (log) {
-		log.warn(
-			"⚠️ [AutoUpdater] electron-updater not available: %s",
-			error.message
-		);
-	} else {
-		logger.warn(
-			"⚠️ [AutoUpdater] electron-updater not available:",
-			error.message
-		);
-	}
-}
+let updateController: AutoUpdateController | null = null;
 
 // Import handlers (compiled TypeScript - relative to dist/electron output)
 const {
@@ -235,54 +213,6 @@ protocol.registerSchemesAsPrivileged([
 ]);
 
 /**
- * Detect the update channel based on the app version
- * - Versions with -alpha (e.g., 1.0.0-alpha.1) use the alpha channel
- * - Versions with -beta (e.g., 1.0.0-beta.1) use the beta channel
- * - Versions with -rc (e.g., 1.0.0-rc.1) use the rc channel
- * - Stable versions (e.g., 1.0.0) use the latest channel
- */
-function detectChannelFromVersion(version: string): string {
-	if (version.includes("-alpha")) return "alpha";
-	if (version.includes("-beta")) return "beta";
-	if (version.includes("-rc")) return "rc";
-	return "latest";
-}
-
-/** Normalise electron-updater release notes (string | array) into a plain string. */
-function normalizeAutoUpdaterReleaseNotes(releaseNotes: unknown): string {
-	try {
-		if (typeof releaseNotes === "string") {
-			return releaseNotes.trim();
-		}
-
-		if (!Array.isArray(releaseNotes)) {
-			return "";
-		}
-
-		const notes: string[] = [];
-		for (const entry of releaseNotes as AutoUpdaterReleaseNoteEntry[]) {
-			if (!entry || typeof entry !== "object") {
-				continue;
-			}
-
-			const note = entry.note;
-			if (typeof note !== "string") {
-				continue;
-			}
-
-			const trimmed = note.trim();
-			if (trimmed.length > 0) {
-				notes.push(trimmed);
-			}
-		}
-
-		return notes.join("\n\n");
-	} catch {
-		return "";
-	}
-}
-
-/**
  * Resolve the path to docs/releases/ directory.
  * Works in both development and packaged (ASAR) builds.
  */
@@ -315,101 +245,37 @@ function readChangelogFallback(): ReleaseNote[] {
 	}
 }
 
-/** Configure and start the electron-updater auto-updater lifecycle. */
+/** Configure the packaged updater after Electron can resolve userData. */
 function setupAutoUpdater(): void {
-	if (!autoUpdater) {
-		logger.log("⚠️ [AutoUpdater] Auto-updater not available - skipping setup");
-		return;
+	try {
+		const updaterModule = require("electron-updater") as {
+			autoUpdater: AutoUpdaterLike;
+		};
+		if (process.env.QCUT_UPDATE_CONFIG_PATH) {
+			const updateConfigPath = path.resolve(
+				process.env.QCUT_UPDATE_CONFIG_PATH
+			);
+			updaterModule.autoUpdater.updateConfigPath = updateConfigPath;
+			logger.log(
+				`[AutoUpdater] Using update config override: ${updateConfigPath}`
+			);
+		}
+		updateController = createAutoUpdateController({
+			updater: updaterModule.autoUpdater,
+			currentVersion: app.getVersion(),
+			userDataPath: app.getPath("userData"),
+			logger,
+			sendToRenderer: ({ channel, data }) => {
+				if (mainWindow && !mainWindow.isDestroyed()) {
+					mainWindow.webContents.send(channel, data);
+				}
+			},
+		});
+		updateController.start();
+	} catch (error: unknown) {
+		const message = error instanceof Error ? error.message : String(error);
+		logger.warn("[AutoUpdater] electron-updater is unavailable:", message);
 	}
-
-	logger.log("🔄 [AutoUpdater] Setting up auto-updater...");
-
-	// Detect channel from app version and configure accordingly
-	const appVersion = app.getVersion();
-	const channel = detectChannelFromVersion(appVersion);
-
-	logger.log(
-		`🔄 [AutoUpdater] App version: ${appVersion}, Channel: ${channel}`
-	);
-
-	// Configure channel-specific behavior
-	if (channel !== "latest") {
-		// Prerelease users should receive prerelease updates
-		autoUpdater.allowPrerelease = true;
-		autoUpdater.channel = channel;
-		logger.log(
-			`🔄 [AutoUpdater] Configured for ${channel} channel with allowPrerelease=true`
-		);
-	} else {
-		// Stable users should NOT receive prereleases by default
-		autoUpdater.allowPrerelease = false;
-		logger.log("🔄 [AutoUpdater] Configured for stable channel (latest.yml)");
-	}
-
-	// Check for updates
-	autoUpdater.checkForUpdatesAndNotify();
-
-	// Auto-updater event handlers
-	autoUpdater.on("checking-for-update", () => {
-		logger.log("🔄 [AutoUpdater] Checking for updates...");
-	});
-
-	autoUpdater.on("update-available", (info: any) => {
-		logger.log("📦 [AutoUpdater] Update available:", info.version);
-		const normalizedReleaseNotes = normalizeAutoUpdaterReleaseNotes(
-			info.releaseNotes
-		);
-
-		// Send to renderer process
-		if (mainWindow && !mainWindow.isDestroyed()) {
-			mainWindow.webContents.send("update-available", {
-				version: info.version,
-				releaseNotes: normalizedReleaseNotes,
-				releaseDate: info.releaseDate,
-			});
-		}
-	});
-
-	autoUpdater.on("update-not-available", () => {
-		logger.log("✅ [AutoUpdater] App is up to date");
-	});
-
-	autoUpdater.on("error", (err: Error) => {
-		logger.error("❌ [AutoUpdater] Error:", err);
-	});
-
-	autoUpdater.on("download-progress", (progressObj: any) => {
-		const percent = Math.round(progressObj.percent);
-		logger.log(`📥 [AutoUpdater] Download progress: ${percent}%`);
-
-		// Send progress to renderer
-		if (mainWindow && !mainWindow.isDestroyed()) {
-			mainWindow.webContents.send("download-progress", {
-				percent,
-				transferred: progressObj.transferred,
-				total: progressObj.total,
-			});
-		}
-	});
-
-	autoUpdater.on("update-downloaded", (info: any) => {
-		logger.log("✅ [AutoUpdater] Update downloaded, will install on quit");
-
-		// Send to renderer process
-		if (mainWindow && !mainWindow.isDestroyed()) {
-			mainWindow.webContents.send("update-downloaded", {
-				version: info.version,
-			});
-		}
-	});
-
-	// Check for updates every hour in production
-	setInterval(
-		() => {
-			autoUpdater.checkForUpdatesAndNotify();
-		},
-		60 * 60 * 1000
-	); // 1 hour
 }
 
 /** Create a local HTTP server to serve FFmpeg WASM and other static assets. */
@@ -890,7 +756,7 @@ if (!isCliKeyCommand && !isHeadlessRecorder) {
 		registerMainIpcHandlers({
 			getMainWindow: () => mainWindow,
 			logger,
-			autoUpdater,
+			updateController,
 			getReleasesDir,
 			readChangelogFallback,
 		});
@@ -933,4 +799,4 @@ app.on("activate", () => {
 });
 
 // Export types for other modules
-export type { Logger, AutoUpdater, MimeTypeMap, HandlerFunction };
+export type { Logger, MimeTypeMap, HandlerFunction };

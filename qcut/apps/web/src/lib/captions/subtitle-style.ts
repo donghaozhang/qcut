@@ -14,12 +14,22 @@ export {
 	assColorToRgb,
 	alignToASSAlignment,
 	assAlignmentToAlign,
+	assAlignmentToTextAlign,
+	CAPTION_ANIMATION_TYPES,
+	resolveCaptionAnimation,
+	getCaptionAnimationState,
 } from "@qcut/editor-core";
 
 import { hexToRgba } from "@qcut/editor-core";
 
 /** Convert SubtitleStyle to CSS properties for DOM-based rendering */
-export function subtitleStyleToCSS(style: SubtitleStyle): React.CSSProperties {
+export function subtitleStyleToCSS({
+	style,
+	canvasScale = 1,
+}: {
+	style: SubtitleStyle;
+	canvasScale?: number;
+}): React.CSSProperties {
 	const fontWeight = style.bold ? "bold" : "normal";
 	const fontStyle = style.italic ? "italic" : "normal";
 	const textDecoration = style.underline ? "underline" : "none";
@@ -32,25 +42,26 @@ export function subtitleStyleToCSS(style: SubtitleStyle): React.CSSProperties {
 
 	return {
 		fontFamily: `${style.fontFamily}, sans-serif`,
-		fontSize: `${style.fontSize}px`,
+		fontSize: `${style.fontSize * canvasScale}px`,
+		letterSpacing: `${style.letterSpacing * canvasScale}px`,
 		color: style.fontColor,
 		opacity: style.fontOpacity,
 		fontWeight,
 		fontStyle,
 		textDecoration,
-		textShadow: `${style.shadowOffset.x}px ${style.shadowOffset.y}px 2px ${style.shadowColor}`,
+		textShadow: `${style.shadowOffset.x * canvasScale}px ${style.shadowOffset.y * canvasScale}px ${2 * canvasScale}px ${style.shadowColor}`,
 		WebkitTextStroke:
 			style.outlineWidth > 0
-				? `${style.outlineWidth}px ${style.outlineColor}`
+				? `${style.outlineWidth * canvasScale}px ${style.outlineColor}`
 				: undefined,
 		backgroundColor:
 			style.bgOpacity > 0
 				? hexToRgba(style.backgroundColor, style.bgOpacity)
 				: "transparent",
 		lineHeight: `${style.lineSpacing}`,
-		textAlign: "center" as const,
-		padding: "8px 16px",
-		borderRadius: "4px",
+		textAlign: style.textAlign,
+		padding: `${8 * canvasScale}px ${16 * canvasScale}px`,
+		borderRadius: `${4 * canvasScale}px`,
 		maxWidth: "80%",
 		alignSelf: alignMap[style.position.align],
 	};

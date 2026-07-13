@@ -24,6 +24,7 @@ import type {
 	StoreSet,
 } from "./timeline-store-operations";
 import { getTimelineSplitTrimValues } from "./timeline-split-utils";
+import { getTrackName } from "@qcut/editor-core";
 
 export function createElementOps(
 	get: StoreGet,
@@ -40,6 +41,13 @@ export function createElementOps(
 		) => {
 			const { _tracks, rippleEditingEnabled } = get();
 			const clampedNewStartTime = Math.max(0, newStartTime);
+			const groupedElement = _tracks
+				.find((track) => track.id === trackId)
+				?.elements.find((element) => element.id === elementId);
+			if (groupedElement?.groupId) {
+				get().updateElementStartTime(trackId, elementId, clampedNewStartTime);
+				return;
+			}
 
 			if (!rippleEditingEnabled) {
 				// If ripple editing is disabled, use regular update
@@ -350,7 +358,7 @@ export function createElementOps(
 			} else {
 				const newAudioTrack: TimelineTrack = {
 					id: generateUUID(),
-					name: "Audio Track",
+					name: getTrackName("audio"),
 					type: "audio",
 					elements: [detachedAudioElement],
 					muted: false,

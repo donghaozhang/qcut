@@ -16,6 +16,7 @@ import * as fs from "fs";
 import * as path from "path";
 import { execFile } from "child_process";
 import { promisify } from "util";
+import { getFFmpegPath } from "../../../ffmpeg/paths.js";
 import {
 	BaseAdapter,
 	type AdapterConfig,
@@ -603,7 +604,7 @@ export class VideoGeneratorAdapter extends BaseAdapter<
 		fs.writeFileSync(concatFile, concatContent);
 
 		try {
-			await execFileAsync("ffmpeg", [
+			await execFileAsync(getFFmpegPath(), [
 				"-y",
 				"-f",
 				"concat",

@@ -183,6 +183,45 @@ export function attachGeneratedMask({
 	return true;
 }
 
+export function detachGeneratedMask({
+	sourceMediaId,
+	targetElementId,
+}: {
+	sourceMediaId: string;
+	targetElementId?: string;
+}): number {
+	const timeline = useTimelineStore.getState();
+	let detached = 0;
+	let historyCaptured = false;
+	for (const track of timeline._tracks) {
+		for (const candidate of track.elements) {
+			if (
+				candidate.type !== "media" ||
+				(targetElementId && candidate.id !== targetElementId)
+			) {
+				continue;
+			}
+			const masks = resolveMediaMasks(candidate);
+			const nextMasks = masks.filter(
+				(mask) => mask.sourceMediaId !== sourceMediaId
+			);
+			if (nextMasks.length === masks.length) continue;
+			if (!historyCaptured) {
+				timeline.pushHistory();
+				historyCaptured = true;
+			}
+			timeline.updateMediaElement(
+				track.id,
+				candidate.id,
+				{ masks: nextMasks },
+				false
+			);
+			detached += masks.length - nextMasks.length;
+		}
+	}
+	return detached;
+}
+
 export function failGeneratedMaskTracking({ message }: { message: string }) {
 	const segmentationState = useSegmentationStore.getState();
 	const request = segmentationState.trackingRequest;

@@ -48,7 +48,7 @@ export function ColorCurvesSettings({
 		bindings.onCurvePointsChange(shapeProperty, points);
 	return (
 		<ColorModuleSection
-			title="RGB curves"
+			title="RGB 曲线"
 			enabled={settings.curves.enabled}
 			onEnabledChange={(enabled) =>
 				onSettingsChange({

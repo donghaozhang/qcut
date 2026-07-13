@@ -1,7 +1,10 @@
 import type { MouseEventHandler } from "react";
 import {
 	AudioLines,
+	Camera,
 	Captions,
+	Check,
+	Clapperboard,
 	CircleOff,
 	ClipboardCopy,
 	Copy,
@@ -11,10 +14,12 @@ import {
 	FileAudio,
 	FolderOpen,
 	Gauge,
+	Link2,
 	Link2Off,
 	Music,
 	Palette,
 	RefreshCw,
+	Save,
 	Scissors,
 	Sparkles,
 	SplitSquareHorizontal,
@@ -30,6 +35,8 @@ import {
 	ContextMenuSubContent,
 	ContextMenuSubTrigger,
 } from "@/components/ui/context-menu";
+import type { ClipAttributePreset } from "@/lib/timeline/clip-attribute-presets";
+import { useTranslation } from "@/lib/i18n";
 
 interface VideoClipMenuActions {
 	copy: MouseEventHandler<HTMLDivElement>;
@@ -59,12 +66,30 @@ interface VideoClipMenuActions {
 	openFileLocation: MouseEventHandler<HTMLDivElement>;
 	resetRange: MouseEventHandler<HTMLDivElement>;
 	openSpeed: MouseEventHandler<HTMLDivElement>;
+	savePreset: MouseEventHandler<HTMLDivElement>;
+	applyPreset: (presetId: string) => void;
+	openEffects: MouseEventHandler<HTMLDivElement>;
+	toggleGroup: MouseEventHandler<HTMLDivElement>;
+	alignAudioVideo: MouseEventHandler<HTMLDivElement>;
+	createCompound: MouseEventHandler<HTMLDivElement>;
+	createMulticam: MouseEventHandler<HTMLDivElement>;
+	breakApart: MouseEventHandler<HTMLDivElement>;
+	linkMedia: MouseEventHandler<HTMLDivElement>;
+	selectMulticamClip: (clipId: string) => void;
+}
+
+interface MulticamClipOption {
+	id: string;
+	name: string;
+	active: boolean;
 }
 
 function LimitedBadge() {
+	const { t } = useTranslation();
+
 	return (
 		<span className="rounded-sm bg-cyan-500/15 px-1 py-0.5 text-[9px] font-medium text-cyan-600 dark:text-cyan-300">
-			BETA
+			{t("timeline.menu.test")}
 		</span>
 	);
 }
@@ -73,13 +98,31 @@ export function VideoClipContextMenu({
 	isDisabled,
 	canPasteAttributes,
 	hasLocalFile,
+	presets,
+	canGroup,
+	isGrouped,
+	canCreateContainer,
+	canAlignAudioVideo,
+	canLinkMedia,
+	compoundKind,
+	multicamClips,
 	actions,
 }: {
 	isDisabled: boolean;
 	canPasteAttributes: boolean;
 	hasLocalFile: boolean;
+	presets: ClipAttributePreset[];
+	canGroup: boolean;
+	isGrouped: boolean;
+	canCreateContainer: boolean;
+	canAlignAudioVideo: boolean;
+	canLinkMedia: boolean;
+	compoundKind?: "compound" | "multicam";
+	multicamClips: MulticamClipOption[];
 	actions: VideoClipMenuActions;
 }) {
+	const { t } = useTranslation();
+
 	return (
 		<ContextMenuContent
 			className="z-200 w-[270px] max-h-[calc(100vh-24px)] overflow-y-auto [&_[role=menuitem]]:py-1"
@@ -87,17 +130,17 @@ export function VideoClipContextMenu({
 		>
 			<ContextMenuItem onClick={actions.copy}>
 				<Copy />
-				Copy
+				{t("timeline.menu.copy")}
 				<ContextMenuShortcut>⌘ C</ContextMenuShortcut>
 			</ContextMenuItem>
 			<ContextMenuItem onClick={actions.cut}>
 				<Scissors />
-				Cut
+				{t("timeline.menu.cut")}
 				<ContextMenuShortcut>⌘ X</ContextMenuShortcut>
 			</ContextMenuItem>
 			<ContextMenuItem onClick={actions.copyAttributes}>
 				<ClipboardCopy />
-				Copy Attributes
+				{t("timeline.menu.copyAttributes")}
 				<ContextMenuShortcut>⌘ ⇧ C</ContextMenuShortcut>
 			</ContextMenuItem>
 			<ContextMenuItem
@@ -105,12 +148,42 @@ export function VideoClipContextMenu({
 				onClick={actions.pasteAttributes}
 			>
 				<ClipboardCopy />
-				Paste Attributes
+				{t("timeline.menu.pasteAttributes")}
 				<ContextMenuShortcut>⌘ ⇧ V</ContextMenuShortcut>
 			</ContextMenuItem>
+			<ContextMenuSub>
+				<ContextMenuSubTrigger>
+					<Save />
+					{t("timeline.menu.myPresets")}
+				</ContextMenuSubTrigger>
+				<ContextMenuSubContent className="w-56">
+					<ContextMenuItem onClick={actions.savePreset}>
+						<Save />
+						{t("timeline.menu.saveAttributes")}
+					</ContextMenuItem>
+					<ContextMenuSeparator />
+					{presets.length > 0 ? (
+						presets.map((preset) => (
+							<ContextMenuItem
+								key={preset.id}
+								onClick={(event) => {
+									event.stopPropagation();
+									actions.applyPreset(preset.id);
+								}}
+							>
+								{preset.name}
+							</ContextMenuItem>
+						))
+					) : (
+						<ContextMenuItem disabled>
+							{t("timeline.menu.noPresets")}
+						</ContextMenuItem>
+					)}
+				</ContextMenuSubContent>
+			</ContextMenuSub>
 			<ContextMenuItem variant="destructive" onClick={actions.remove}>
 				<Trash2 />
-				Delete
+				{t("common.delete")}
 				<ContextMenuShortcut>⌫</ContextMenuShortcut>
 			</ContextMenuItem>
 
@@ -118,25 +191,25 @@ export function VideoClipContextMenu({
 			<ContextMenuSub>
 				<ContextMenuSubTrigger>
 					<WandSparkles />
-					AI Generate
+					{t("timeline.menu.aiGenerate")}
 				</ContextMenuSubTrigger>
 				<ContextMenuSubContent className="w-56">
 					<ContextMenuItem onClick={actions.openAiTextVideo}>
 						<Sparkles />
-						Text to Video
+						{t("timeline.menu.textToVideo")}
 					</ContextMenuItem>
 					<ContextMenuItem onClick={actions.openAiImageVideo}>
 						<Sparkles />
-						Image to Video
+						{t("timeline.menu.imageToVideo")}
 					</ContextMenuItem>
 					<ContextMenuItem onClick={actions.openAiAudio}>
 						<Music />
-						AI Sound Effect
+						{t("timeline.menu.aiAudio")}
 					</ContextMenuItem>
 					<ContextMenuSeparator />
 					<ContextMenuItem onClick={actions.review}>
 						<Sparkles />
-						AI Review Selected Clip
+						{t("timeline.menu.aiReview")}
 					</ContextMenuItem>
 				</ContextMenuSubContent>
 			</ContextMenuSub>
@@ -144,111 +217,149 @@ export function VideoClipContextMenu({
 			<ContextMenuSub>
 				<ContextMenuSubTrigger>
 					<Scissors />
-					Basic Edit
+					{t("timeline.menu.basicEdit")}
 				</ContextMenuSubTrigger>
 				<ContextMenuSubContent className="w-56">
 					<ContextMenuItem onClick={actions.split}>
 						<Scissors />
-						Split at Playhead
+						{t("timeline.menu.splitAtPlayhead")}
 						<ContextMenuShortcut>S</ContextMenuShortcut>
 					</ContextMenuItem>
 					<ContextMenuItem onClick={actions.keepLeft}>
 						<SplitSquareHorizontal />
-						Split and Keep Left
+						{t("timeline.menu.keepLeft")}
 					</ContextMenuItem>
 					<ContextMenuItem onClick={actions.keepRight}>
 						<SplitSquareHorizontal />
-						Split and Keep Right
+						{t("timeline.menu.keepRight")}
 					</ContextMenuItem>
 					<ContextMenuItem onClick={actions.duplicate}>
 						<Copy />
-						Duplicate
+						{t("timeline.menu.duplicate")}
 					</ContextMenuItem>
 				</ContextMenuSubContent>
 			</ContextMenuSub>
 
 			<ContextMenuItem onClick={actions.smartShotSplit}>
 				<SplitSquareHorizontal />
-				Smart Shot Split
-			</ContextMenuItem>
-			<ContextMenuItem disabled>
-				<Sparkles />
-				Smart Album
-				<LimitedBadge />
+				{t("timeline.menu.smartShotSplit")}
 			</ContextMenuItem>
 			<ContextMenuItem onClick={actions.openSmartSpeech}>
 				<AudioLines />
-				Smart Speech Edit
+				{t("timeline.menu.smartSpeech")}
 			</ContextMenuItem>
 			<ContextMenuItem onClick={actions.recognizeSpeech}>
 				<Captions />
-				Recognize Speech / Captions
+				{t("timeline.menu.recognize")}
 			</ContextMenuItem>
 			<ContextMenuItem onClick={actions.openAiAudio}>
 				<Sparkles />
-				Generate AI Sound Effect
+				{t("timeline.menu.generateAiAudio")}
 				<LimitedBadge />
 			</ContextMenuItem>
 			<ContextMenuSub>
 				<ContextMenuSubTrigger>
 					<AudioLines />
-					Voice Separation
+					{t("timeline.menu.voiceSeparation")}
 				</ContextMenuSubTrigger>
 				<ContextMenuSubContent className="w-56">
 					<ContextMenuItem onClick={actions.openVoiceSeparation}>
 						<AudioLines />
-						Separate Voice and Music
+						{t("timeline.menu.separateVocalsMusic")}
 					</ContextMenuItem>
 					<ContextMenuItem onClick={actions.separateAudio}>
 						<FileAudio />
-						Extract Audio Track
+						{t("timeline.menu.extractTrack")}
 					</ContextMenuItem>
 				</ContextMenuSubContent>
 			</ContextMenuSub>
 			<ContextMenuItem onClick={actions.separateAudio}>
 				<FileAudio />
-				Separate Audio
+				{t("timeline.menu.separateAudio")}
 			</ContextMenuItem>
-			<ContextMenuItem disabled>
+			<ContextMenuItem
+				disabled={!canAlignAudioVideo}
+				onClick={actions.alignAudioVideo}
+			>
 				<Link2Off />
-				Audio / Video Alignment
+				{t("timeline.menu.alignAv")}
 			</ContextMenuItem>
 
 			<ContextMenuSeparator />
-			<ContextMenuItem disabled>
-				<Copy />
-				New Compound Clip
-			</ContextMenuItem>
-			<ContextMenuItem disabled>
-				<Copy />
-				New Multicam Clip
-			</ContextMenuItem>
-			<ContextMenuItem disabled>
-				<ClipboardCopy />
-				Save as My Preset
-			</ContextMenuItem>
-			<ContextMenuItem disabled>
-				<Link2Off />
-				Create Group
+			{compoundKind ? (
+				<ContextMenuItem onClick={actions.breakApart}>
+					<Copy />
+					{t(
+						compoundKind === "multicam"
+							? "timeline.menu.breakMulticam"
+							: "timeline.menu.breakCompound"
+					)}
+				</ContextMenuItem>
+			) : (
+				<>
+					<ContextMenuItem
+						disabled={!canCreateContainer}
+						onClick={actions.createCompound}
+					>
+						<Clapperboard />
+						{t("timeline.menu.createCompound")}
+					</ContextMenuItem>
+					<ContextMenuItem
+						disabled={!canCreateContainer}
+						onClick={actions.createMulticam}
+					>
+						<Camera />
+						{t("timeline.menu.createMulticam")}
+					</ContextMenuItem>
+				</>
+			)}
+			{compoundKind === "multicam" && multicamClips.length > 0 ? (
+				<ContextMenuSub>
+					<ContextMenuSubTrigger>
+						<Camera />
+						{t("timeline.menu.switchCamera")}
+					</ContextMenuSubTrigger>
+					<ContextMenuSubContent className="w-56">
+						{multicamClips.map((clip) => (
+							<ContextMenuItem
+								key={clip.id}
+								onClick={(event) => {
+									event.stopPropagation();
+									actions.selectMulticamClip(clip.id);
+								}}
+							>
+								{clip.active ? <Check /> : <span className="size-4" />}
+								{clip.name}
+							</ContextMenuItem>
+						))}
+					</ContextMenuSubContent>
+				</ContextMenuSub>
+			) : null}
+			<ContextMenuItem
+				disabled={!canGroup && !isGrouped}
+				onClick={actions.toggleGroup}
+			>
+				{isGrouped ? <Link2Off /> : <Link2 />}
+				{isGrouped ? t("timeline.menu.ungroup") : t("timeline.menu.group")}
 			</ContextMenuItem>
 
 			<ContextMenuSeparator />
 			<ContextMenuItem onClick={actions.exportClip}>
 				<Download />
-				Export Selected Clip
+				{t("timeline.menu.exportSelected")}
 			</ContextMenuItem>
 			<ContextMenuItem onClick={actions.toggleDisabled}>
 				{isDisabled ? <Eye /> : <EyeOff />}
-				{isDisabled ? "Enable Clip" : "Disable Clip"}
+				{isDisabled ? t("timeline.menu.enable") : t("timeline.menu.disable")}
 				<ContextMenuShortcut>V</ContextMenuShortcut>
 			</ContextMenuItem>
 			<ContextMenuItem onClick={actions.relink}>
 				<RefreshCw />
-				Relink Clip
+				{t("timeline.menu.relink")}
 			</ContextMenuItem>
 			<ContextMenuItem onClick={actions.replace}>
 				<RefreshCw />
-				Replace Clip
+				{t("timeline.menu.replace")}
 			</ContextMenuItem>
 			<ContextMenuSub>
 				<ContextMenuSubTrigger>
@@ -258,62 +369,62 @@ export function VideoClipContextMenu({
 				<ContextMenuSubContent className="w-48">
 					<ContextMenuItem onClick={actions.openLut}>
 						<Palette />
-						Open LUT Controls
+						{t("timeline.menu.openLut")}
 					</ContextMenuItem>
 					<ContextMenuItem onClick={actions.disableLut}>
 						<CircleOff />
-						Disable LUT
+						{t("timeline.menu.disableLut")}
 					</ContextMenuItem>
 				</ContextMenuSubContent>
 			</ContextMenuSub>
-			<ContextMenuItem disabled>
+			<ContextMenuItem disabled={!canLinkMedia} onClick={actions.linkMedia}>
 				<Link2Off />
-				Link Media
+				{t("timeline.menu.linkMedia")}
 			</ContextMenuItem>
 			<ContextMenuItem
 				disabled={!hasLocalFile}
 				onClick={actions.openFileLocation}
 			>
 				<FolderOpen />
-				Open File Location
+				{t("timeline.menu.openLocation")}
 			</ContextMenuItem>
 
 			<ContextMenuSeparator />
-			<ContextMenuItem disabled>
+			<ContextMenuItem onClick={actions.openEffects}>
 				<Sparkles />
-				Edit Effects
+				{t("timeline.menu.editEffects")}
 			</ContextMenuItem>
 			<ContextMenuItem onClick={actions.openSpeed}>
 				<Gauge />
-				Speed Controls
+				{t("timeline.menu.speed")}
 			</ContextMenuItem>
 			<ContextMenuSub>
 				<ContextMenuSubTrigger>
 					<Scissors />
-					Time Range
+					{t("timeline.menu.timeRange")}
 				</ContextMenuSubTrigger>
 				<ContextMenuSubContent className="w-56">
 					<ContextMenuItem onClick={actions.keepLeft}>
-						Set Out at Playhead
+						{t("timeline.menu.setOut")}
 					</ContextMenuItem>
 					<ContextMenuItem onClick={actions.keepRight}>
-						Set In at Playhead
+						{t("timeline.menu.setIn")}
 					</ContextMenuItem>
 					<ContextMenuItem onClick={actions.resetRange}>
 						<RefreshCw />
-						Reset Source Range
+						{t("timeline.menu.resetRange")}
 					</ContextMenuItem>
 				</ContextMenuSubContent>
 			</ContextMenuSub>
 			<ContextMenuSub>
 				<ContextMenuSubTrigger>
 					<Download />
-					Render
+					{t("timeline.menu.render")}
 				</ContextMenuSubTrigger>
 				<ContextMenuSubContent className="w-52">
 					<ContextMenuItem onClick={actions.exportClip}>
 						<Download />
-						Render Selected Clip
+						{t("timeline.menu.renderSelected")}
 					</ContextMenuItem>
 				</ContextMenuSubContent>
 			</ContextMenuSub>

@@ -60,6 +60,7 @@ export default defineConfig(({ mode }) => {
 				"@remotion/player",
 				"@remotion/renderer",
 				"@fal-ai/client",
+				"@ffmpeg/ffmpeg",
 			],
 		},
 		plugins: [

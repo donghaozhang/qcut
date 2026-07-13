@@ -11,8 +11,13 @@
 
 import { useState, useCallback, useEffect, useRef } from "react";
 import { useAsyncMediaStoreActions } from "@/hooks/media/use-async-media-store";
+import { useMediaPanelStore } from "@/components/editor/media-panel/store";
 import { debugLog, debugError } from "@/lib/debug/debug-config";
+import { registerCloudTaskRuntimeActions } from "@/lib/cloud-tasks/task-runtime-actions";
 import { videoEditClient } from "@/lib/ai-clients/video-edit-client";
+import { useCloudTaskStore } from "@/stores/cloud-task-store";
+import { useMediaStore } from "@/stores/media/media-store";
+import { useTimelineStore } from "@/stores/timeline/timeline-store";
 import type {
 	VideoEditTab,
 	VideoEditResult,
@@ -52,6 +57,7 @@ export function useVideoEditProcessing(props: UseVideoEditProcessingProps) {
 		onSuccess,
 		onError,
 		onProgress,
+		targetElementId,
 	} = props;
 
 	// Core state
@@ -76,6 +82,18 @@ export function useVideoEditProcessing(props: UseVideoEditProcessingProps) {
 	// Polling management
 	const pollingInterval = useRef<NodeJS.Timeout | null>(null);
 	const processingStartTime = useRef<number | null>(null);
+	const activeTaskIdRef = useRef<string | null>(null);
+	const canceledTaskIdsRef = useRef(new Set<string>());
+	const retryOperationRef = useRef<
+		| (({
+				params,
+				taskId,
+		  }: {
+				params: VideoEditParams;
+				taskId: string;
+		  }) => Promise<void>)
+		| null
+	>(null);
 
 	// Elapsed time tracking
 	useEffect(() => {
@@ -109,7 +127,14 @@ export function useVideoEditProcessing(props: UseVideoEditProcessingProps) {
 		if (onProgress) {
 			onProgress(state.progress, state.statusMessage);
 		}
-	}, [state.progress, state.statusMessage, onProgress]);
+		if (activeTaskIdRef.current && state.isProcessing) {
+			useCloudTaskStore.getState().updateProgress({
+				id: activeTaskIdRef.current,
+				progress: state.progress,
+				message: state.statusMessage,
+			});
+		}
+	}, [state.isProcessing, state.progress, state.statusMessage, onProgress]);
 
 	/**
 	 * Add result to media store
@@ -117,10 +142,21 @@ export function useVideoEditProcessing(props: UseVideoEditProcessingProps) {
 	 * Edge case: activeProject might be null
 	 */
 	const addToMediaStore = useCallback(
-		async (result: VideoEditResult) => {
-			if (!activeProject || !addMediaItem || !result.videoUrl) {
+		async (
+			result: VideoEditResult
+		): Promise<{
+			mediaId?: string;
+			timelineElementId?: string;
+			timelineTrackId?: string;
+		}> => {
+			const prefersAudio =
+				activeTab === "audio-gen" || activeTab === "audio-sync";
+			const outputUrl = prefersAudio
+				? (result.audioUrl ?? result.videoUrl)
+				: result.videoUrl;
+			if (!activeProject || !addMediaItem || !outputUrl) {
 				debugLog("Cannot add to media store: missing requirements");
-				return;
+				return {};
 			}
 
 			try {
@@ -132,33 +168,76 @@ export function useVideoEditProcessing(props: UseVideoEditProcessingProps) {
 				}));
 
 				// Download video from FAL AI URL
-				const response = await fetch(result.videoUrl);
+				const response = await fetch(outputUrl);
 				if (!response.ok) {
 					throw new Error("Failed to download processed video");
 				}
 
 				const blob = await response.blob();
-				const filename = `video-edit-${result.modelId}-${Date.now()}.mp4`;
-				const file = new File([blob], filename, { type: "video/mp4" });
+				const importsAudio = prefersAudio && Boolean(result.audioUrl);
+				const extension = importsAudio ? "mp3" : "mp4";
+				const mimeType = importsAudio ? "audio/mpeg" : "video/mp4";
+				const filename = `video-edit-${result.modelId}-${Date.now()}.${extension}`;
+				const file = new File([blob], filename, { type: mimeType });
 
 				// Add to media store
 				const mediaItem = {
-					name: `Edited: ${sourceVideo?.name || "video"}`,
-					type: "video" as const,
+					name: importsAudio
+						? `AI 音效：${sourceVideo?.name || "video"}`
+						: `处理结果：${sourceVideo?.name || "video"}`,
+					type: importsAudio ? ("audio" as const) : ("video" as const),
 					file,
-					url: result.videoUrl,
+					url: outputUrl,
 					duration: result.duration || 10,
-					width: result.width || 1920,
-					height: result.height || 1080,
+					...(importsAudio
+						? {}
+						: {
+								width: result.width || 1920,
+								height: result.height || 1080,
+							}),
+					metadata: {
+						source: "ai-video-edit",
+						model: result.modelId,
+						targetElementId,
+					},
 				};
 
 				const newItemId = await addMediaItem(activeProject.id, mediaItem);
-				debugLog(`Added processed video to media store: ${newItemId}`);
+				debugLog(`Added processed media to media store: ${newItemId}`);
+				if (!importsAudio || !targetElementId) return { mediaId: newItemId };
+				const generatedMedia = useMediaStore
+					.getState()
+					.mediaItems.find((item) => item.id === newItemId);
+				if (!generatedMedia) return { mediaId: newItemId };
+				const timeline = useTimelineStore.getState();
+				const target = timeline._tracks
+					.flatMap((track) => track.elements)
+					.find((element) => element.id === targetElementId);
+				const timelineTrackId = timeline.findOrCreateTrack("audio");
+				const timelineElementId = timeline.addElementToTrack(
+					timelineTrackId,
+					{
+						type: "media",
+						mediaId: generatedMedia.id,
+						name: generatedMedia.name,
+						duration: generatedMedia.duration || result.duration || 10,
+						startTime: target?.startTime ?? 0,
+						trimStart: 0,
+						trimEnd: 0,
+					},
+					{ pushHistory: true, selectElement: true }
+				);
+				return {
+					mediaId: newItemId,
+					timelineElementId: timelineElementId ?? undefined,
+					timelineTrackId,
+				};
 			} catch (error) {
 				debugError("Failed to add to media store:", error);
+				return {};
 			}
 		},
-		[activeProject, addMediaItem, sourceVideo]
+		[activeProject, activeTab, addMediaItem, sourceVideo, targetElementId]
 	);
 
 	/**
@@ -169,12 +248,6 @@ export function useVideoEditProcessing(props: UseVideoEditProcessingProps) {
 			if (!sourceVideo) {
 				throw new Error(VIDEO_EDIT_ERROR_MESSAGES.NO_VIDEO);
 			}
-
-			console.log("=== PROCESSING KLING DEBUG ===");
-			console.log("Source video:", sourceVideo);
-			console.log("Video file size:", sourceVideo.size);
-			console.log("Video file type:", sourceVideo.type);
-			console.log("Input params:", params);
 
 			debugLog("Processing Kling Video to Audio:", params);
 
@@ -187,9 +260,7 @@ export function useVideoEditProcessing(props: UseVideoEditProcessingProps) {
 			}));
 
 			// Upload video to FAL storage (required for API)
-			console.log("Uploading video to FAL storage...");
 			const videoUrl = await videoEditClient.uploadVideo(sourceVideo);
-			console.log("Video uploaded. URL:", videoUrl);
 
 			setState((prev) => ({
 				...prev,
@@ -199,17 +270,11 @@ export function useVideoEditProcessing(props: UseVideoEditProcessingProps) {
 			}));
 
 			// Call actual FAL AI API
-			console.log("Calling videoEditClient.generateKlingAudio with params:", {
-				video_url: videoUrl,
-				...params,
-			});
-
 			const result = await videoEditClient.generateKlingAudio({
 				video_url: videoUrl,
 				...params,
 			});
 
-			console.log("=== END PROCESSING KLING DEBUG ===");
 			return result;
 		},
 		[sourceVideo]
@@ -313,8 +378,70 @@ export function useVideoEditProcessing(props: UseVideoEditProcessingProps) {
 	 * WHY: Unified entry point for all processing
 	 * Handles model-specific logic and error handling
 	 */
-	const handleProcess = useCallback(
-		async (params: VideoEditParams) => {
+	const runProcess = useCallback(
+		async ({
+			params,
+			existingTaskId,
+		}: {
+			params: VideoEditParams;
+			existingTaskId?: string;
+		}): Promise<void> => {
+			const cloudTasks = useCloudTaskStore.getState();
+			const taskId =
+				existingTaskId ??
+				cloudTasks.createTask({
+					kind:
+						activeTab === "audio-gen" || activeTab === "audio-sync"
+							? "audio-generation"
+							: "generation",
+					label:
+						activeTab === "audio-gen"
+							? "AI 音效生成"
+							: activeTab === "audio-sync"
+								? "AI 音画同步"
+								: "AI 视频增强",
+					payload: {
+						activeTab,
+						sourceName: sourceVideo?.name,
+						targetElementId,
+						params,
+					},
+					estimatedCostUsd: activeTab === "audio-gen" ? 0.035 : undefined,
+				});
+			canceledTaskIdsRef.current.delete(taskId);
+			activeTaskIdRef.current = taskId;
+			cloudTasks.startTask({
+				id: taskId,
+				message: VIDEO_EDIT_STATUS_MESSAGES.UPLOADING,
+			});
+			const open = () =>
+				useMediaPanelStore.getState().setActiveTab("video-edit");
+			const retry = () => {
+				if (
+					useCloudTaskStore.getState().tasks.find((task) => task.id === taskId)
+						?.status !== "queued"
+				) {
+					useCloudTaskStore.getState().retryTask({ id: taskId });
+				}
+				return retryOperationRef.current?.({ params, taskId });
+			};
+			registerCloudTaskRuntimeActions({
+				taskId,
+				actions: {
+					cancel: () => {
+						canceledTaskIdsRef.current.add(taskId);
+						useCloudTaskStore.getState().cancelTask({ id: taskId });
+						setState((current) => ({
+							...current,
+							isProcessing: false,
+							statusMessage: "任务已取消",
+							currentStage: "failed",
+						}));
+					},
+					retry,
+					open,
+				},
+			});
 			try {
 				// Reset state
 				setState({
@@ -348,11 +475,12 @@ export function useVideoEditProcessing(props: UseVideoEditProcessingProps) {
 						);
 						break;
 					default:
-						throw new Error("Invalid tab selected");
+						throw new Error("无效的处理类型");
 				}
+				if (canceledTaskIdsRef.current.has(taskId)) return;
 
-				// Add to media store
-				await addToMediaStore(result);
+				const inserted = await addToMediaStore(result);
+				if (canceledTaskIdsRef.current.has(taskId)) return;
 
 				// Update state
 				setState((prev) => ({
@@ -363,14 +491,66 @@ export function useVideoEditProcessing(props: UseVideoEditProcessingProps) {
 					currentStage: "complete",
 					result,
 				}));
+				useCloudTaskStore.getState().completeTask({
+					id: taskId,
+					message:
+						inserted.timelineElementId !== undefined
+							? "AI 音效已添加到时间线"
+							: "AI 处理完成",
+					actualCostUsd: result.cost,
+					output: {
+						mediaId: inserted.mediaId,
+						timelineElementId: inserted.timelineElementId,
+						timelineTrackId: inserted.timelineTrackId,
+						videoUrl: result.videoUrl,
+						audioUrl: result.audioUrl,
+					},
+				});
+				registerCloudTaskRuntimeActions({
+					taskId,
+					actions: {
+						open,
+						retry,
+						undo:
+							inserted.mediaId && activeProject
+								? async () => {
+										if (
+											inserted.timelineTrackId &&
+											inserted.timelineElementId
+										) {
+											useTimelineStore
+												.getState()
+												.removeElementFromTrack(
+													inserted.timelineTrackId,
+													inserted.timelineElementId,
+													true
+												);
+										}
+										await useMediaStore
+											.getState()
+											.removeMediaItem(activeProject.id, inserted.mediaId!);
+										useCloudTaskStore.getState().completeTask({
+											id: taskId,
+											message: "AI 音效结果已撤销",
+											output: { mediaId: inserted.mediaId, undone: true },
+										});
+										registerCloudTaskRuntimeActions({
+											taskId,
+											actions: { open, retry },
+										});
+									}
+								: undefined,
+					},
+				});
 
 				// Notify parent
 				if (onSuccess) {
 					onSuccess(result);
 				}
 			} catch (error) {
+				if (canceledTaskIdsRef.current.has(taskId)) return;
 				const errorMessage =
-					error instanceof Error ? error.message : "Processing failed";
+					error instanceof Error ? error.message : "处理失败";
 
 				setState((prev) => ({
 					...prev,
@@ -380,9 +560,17 @@ export function useVideoEditProcessing(props: UseVideoEditProcessingProps) {
 					currentStage: "failed",
 					error: errorMessage,
 				}));
+				useCloudTaskStore.getState().failTask({
+					id: taskId,
+					error: errorMessage,
+				});
 
 				if (onError) {
 					onError(errorMessage);
+				}
+			} finally {
+				if (activeTaskIdRef.current === taskId) {
+					activeTaskIdRef.current = null;
 				}
 			}
 		},
@@ -394,7 +582,15 @@ export function useVideoEditProcessing(props: UseVideoEditProcessingProps) {
 			addToMediaStore,
 			onSuccess,
 			onError,
+			sourceVideo?.name,
+			targetElementId,
 		]
+	);
+	retryOperationRef.current = ({ params, taskId }) =>
+		runProcess({ params, existingTaskId: taskId });
+	const handleProcess = useCallback(
+		(params: VideoEditParams) => runProcess({ params }),
+		[runProcess]
 	);
 
 	/**
