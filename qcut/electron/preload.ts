@@ -6,8 +6,24 @@
  *
  * @module preload
  */
-import { contextBridge, ipcRenderer, webUtils } from "electron";
+import {
+	contextBridge,
+	ipcRenderer,
+	webUtils,
+	type IpcRendererEvent,
+} from "electron";
 import type { AudioSettings } from "./ffmpeg/audio-settings";
+import type {
+	AudioWaveformOptions,
+	AudioWaveformResult,
+	VideoCompositionFramePreviewOptions,
+	VideoCompositionFramePreviewResult,
+	VideoFramePreviewOptions,
+	VideoFramePreviewResult,
+	VideoPreviewProxyOptions,
+	VideoPreviewProxyProgress,
+	VideoPreviewProxyResult,
+} from "./ffmpeg/types";
 import type {
 	ElectronAPI,
 	FileDialogFilter,
@@ -289,6 +305,10 @@ const electronAPI: ElectronAPI & Record<string, unknown> = {
 			audioPath: string;
 			fileSize: number;
 		}> => ipcRenderer.invoke("extract-audio", options),
+		extractAudioWaveform: (
+			options: AudioWaveformOptions
+		): Promise<AudioWaveformResult> =>
+			ipcRenderer.invoke("ffmpeg-extract-audio-waveform", options),
 		exportAudioCLI: (options: {
 			outputPath: string;
 			duration: number;
@@ -334,6 +354,39 @@ const electronAPI: ElectronAPI & Record<string, unknown> = {
 			outputFrameName: string;
 			filterChain: string;
 		}): Promise<void> => ipcRenderer.invoke("processFrame", options),
+		renderVideoFramePreview: (
+			options: VideoFramePreviewOptions
+		): Promise<VideoFramePreviewResult> =>
+			ipcRenderer.invoke("ffmpeg-render-video-frame-preview", options),
+		renderVideoCompositionFramePreview: (
+			options: VideoCompositionFramePreviewOptions
+		): Promise<VideoCompositionFramePreviewResult> =>
+			ipcRenderer.invoke(
+				"ffmpeg-render-video-composition-frame-preview",
+				options
+			),
+		cancelVideoFramePreview: (requestId: string): Promise<boolean> =>
+			ipcRenderer.invoke("ffmpeg-cancel-video-frame-preview", requestId),
+		renderVideoPreviewProxy: (
+			options: VideoPreviewProxyOptions
+		): Promise<VideoPreviewProxyResult> =>
+			ipcRenderer.invoke("ffmpeg-render-video-preview-proxy", options),
+		cancelVideoPreviewProxy: (requestId: string): Promise<boolean> =>
+			ipcRenderer.invoke("ffmpeg-cancel-video-preview-proxy", requestId),
+		onVideoPreviewProxyProgress: (
+			callback: (progress: VideoPreviewProxyProgress) => void
+		): (() => void) => {
+			const listener = (
+				_event: IpcRendererEvent,
+				progress: VideoPreviewProxyProgress
+			) => callback(progress);
+			ipcRenderer.on("ffmpeg-video-preview-proxy-progress", listener);
+			return () =>
+				ipcRenderer.removeListener(
+					"ffmpeg-video-preview-proxy-progress",
+					listener
+				);
+		},
 		validateFilterChain: (filterChain: string): Promise<boolean> =>
 			ipcRenderer.invoke("validate-filter-chain", filterChain),
 		getFFmpegResourcePath: (filename: string): Promise<string> =>

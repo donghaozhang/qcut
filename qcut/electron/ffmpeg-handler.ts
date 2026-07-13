@@ -21,6 +21,9 @@ import {
 import { setupBasicHandlers } from "./ffmpeg-basic-handlers.js";
 import { setupUtilityHandlers } from "./ffmpeg-utility-handlers.js";
 import { setupExportHandler } from "./ffmpeg-export-handler.js";
+import { setupVideoFramePreviewHandlers } from "./video-frame-preview-handler.js";
+import { setupVideoPreviewProxyHandlers } from "./video-preview-proxy-handler.js";
+import { setupAudioWaveformHandlers } from "./audio-waveform-handler.js";
 
 // Re-export types for external use (using export from)
 export type {
@@ -76,6 +79,9 @@ export function setupFFmpegIPC(): void {
 	setupBasicHandlers(tempManager, getFFmpegHealth);
 	setupUtilityHandlers(tempManager);
 	setupExportHandler(tempManager);
+	setupVideoFramePreviewHandlers();
+	setupVideoPreviewProxyHandlers();
+	setupAudioWaveformHandlers();
 }
 
 // Re-export getFFmpegPath and getFFprobePath for backward compatibility (used by main.ts)

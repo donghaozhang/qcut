@@ -103,4 +103,32 @@ describe("VideoPlayer", () => {
 
 		expect(video.currentTime).toBe(0);
 	});
+
+	it("maps a trimmed proxy back to proxy-relative media time", () => {
+		const element = media({
+			overrides: { duration: 10, trimStart: 2, playbackRate: 1 },
+		});
+		const { container } = render(
+			<VideoPlayer
+				videoSource={{
+					type: "remote",
+					src: "app://video-preview-proxy/proxy.mp4",
+				}}
+				clipStartTime={element.startTime}
+				trimStart={element.trimStart}
+				trimEnd={element.trimEnd}
+				clipDuration={element.duration}
+				clipPlaybackRate={element.playbackRate}
+				timingElement={element}
+				sourceTimeOffset={2}
+			/>
+		);
+		const video = container.querySelector("video");
+		expect(video).not.toBeNull();
+		if (!video) return;
+
+		fireEvent.loadedMetadata(video);
+
+		expect(video.currentTime).toBeCloseTo(0.5, 4);
+	});
 });

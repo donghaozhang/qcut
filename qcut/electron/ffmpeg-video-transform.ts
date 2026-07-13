@@ -22,6 +22,11 @@ import {
 	composePreparedVisualLayers,
 	type PreparedVisualLayer,
 } from "./ffmpeg/visual-layer-compositor";
+import { buildVideoFitFilter } from "./ffmpeg/video-fit-filter";
+import {
+	buildVideoEnhancementFilter,
+	DEFAULT_VIDEO_ENHANCEMENTS,
+} from "./ffmpeg/video-enhancement-filter";
 
 const DEFAULT_ADJUSTMENTS: NonNullable<VideoVisual["adjustments"]> = {
 	brightness: 0,
@@ -70,15 +75,6 @@ const DEFAULT_CUSTOM_CUTOUT: NonNullable<VideoVisual["customCutout"]> = {
 	status: "idle",
 };
 
-const DEFAULT_ENHANCEMENTS: NonNullable<VideoVisual["enhancements"]> = {
-	stabilization: 0,
-	denoise: 0,
-	clarity: 0,
-	upscale: 1,
-	relight: 0,
-	beauty: 0,
-};
-
 const DEFAULT_VISUAL: VideoVisual = {
 	x: 0,
 	y: 0,
@@ -113,7 +109,7 @@ const DEFAULT_VISUAL: VideoVisual = {
 	masks: [],
 	customCutout: DEFAULT_CUSTOM_CUTOUT,
 	chromaKey: DEFAULT_CHROMA_KEY,
-	enhancements: DEFAULT_ENHANCEMENTS,
+	enhancements: DEFAULT_VIDEO_ENHANCEMENTS,
 	keyframeFps: 30,
 };
 
@@ -192,24 +188,12 @@ function resolveVisual(source: VideoSource): VideoVisual {
 		},
 		chromaKey: { ...DEFAULT_CHROMA_KEY, ...source.visual?.chromaKey },
 		enhancements: {
-			...DEFAULT_ENHANCEMENTS,
+			...DEFAULT_VIDEO_ENHANCEMENTS,
 			...source.visual?.enhancements,
 		},
 		keyframes: source.visual?.keyframes,
 		keyframeFps: source.visual?.keyframeFps ?? 30,
 	};
-}
-
-function buildFitFilter(
-	fitMode: VideoVisual["fitMode"],
-	width: number,
-	height: number
-): string {
-	if (fitMode === "contain") {
-		return `scale=${width}:${height}:force_original_aspect_ratio=decrease,pad=${width}:${height}:(ow-iw)/2:(oh-ih)/2:color=black@0`;
-	}
-	if (fitMode === "fill") return `scale=${width}:${height}`;
-	return `scale=${width}:${height}:force_original_aspect_ratio=increase,crop=${width}:${height}`;
 }
 
 function clamp(value: number, min: number, max: number): number {
@@ -316,43 +300,6 @@ function buildSpeedSetptsExpression(samples: SpeedSample[]): string {
 
 export function buildAdjustmentFilter(visual: VideoVisual): string {
 	return buildVideoColorFilter({ visual });
-}
-
-function buildEnhancementFilter(
-	visual: VideoVisual,
-	width: number,
-	height: number
-): string {
-	const values = { ...DEFAULT_ENHANCEMENTS, ...visual.enhancements };
-	const filters: string[] = [];
-	if (values.stabilization > 0) {
-		const radius =
-			Math.ceil((clamp(values.stabilization, 0, 100) / 100) * 4) * 16;
-		filters.push(`deshake=rx=${radius}:ry=${radius}:edge=mirror`);
-	}
-	if (values.denoise > 0 || values.beauty > 0) {
-		const strength = clamp(values.denoise + values.beauty * 0.35, 0, 100);
-		filters.push(
-			`hqdn3d=${1 + strength * 0.04}:${1 + strength * 0.03}:${2 + strength * 0.06}:${2 + strength * 0.045}`
-		);
-	}
-	if (values.clarity > 0) {
-		filters.push(`unsharp=5:5:${clamp(values.clarity / 50, 0, 2)}`);
-	}
-	if (values.upscale > 1) {
-		filters.push(
-			`scale=iw*${values.upscale}:ih*${values.upscale}:flags=lanczos`,
-			`scale=${width}:${height}:flags=lanczos`
-		);
-	}
-	if (values.relight !== 0 || values.beauty > 0) {
-		const relight = clamp(values.relight, -100, 100);
-		const beauty = clamp(values.beauty, 0, 100);
-		filters.push(
-			`eq=brightness=${relight / 500 + beauty / 2000}:gamma=${clamp(1 + relight / 250, 0.5, 2)}:saturation=${1 + beauty / 1000}`
-		);
-	}
-	return filters.join(",");
 }
 
 function buildMaskKeyframeExpression({
@@ -665,10 +612,14 @@ function buildSegmentFilters({
 
 	const fitted = `video_${segmentIndex}_fitted`;
 	steps.push(
-		`[${current}]${buildFitFilter(visual.fitMode, width, height)},setsar=1,format=rgba[${fitted}]`
+		`[${current}]${buildVideoFitFilter({ fitMode: visual.fitMode, width, height })},setsar=1,format=rgba[${fitted}]`
 	);
 	current = fitted;
-	const enhancementFilter = buildEnhancementFilter(visual, width, height);
+	const enhancementFilter = buildVideoEnhancementFilter({
+		enhancements: visual.enhancements,
+		width,
+		height,
+	});
 	if (enhancementFilter) {
 		const enhanced = `video_${segmentIndex}_enhanced`;
 		steps.push(`[${current}]${enhancementFilter}[${enhanced}]`);

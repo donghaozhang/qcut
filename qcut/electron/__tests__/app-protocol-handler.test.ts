@@ -12,7 +12,12 @@ import * as path from "node:path";
 import { fileURLToPath } from "node:url";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
-type ProtocolHandler = (request: { url: string }) => Promise<Response>;
+type ProtocolHandler = (request: {
+	url: string;
+	method?: string;
+	headers?: Headers;
+	signal?: AbortSignal;
+}) => Promise<Response>;
 
 const mocks = vi.hoisted(() => {
 	let captured: ProtocolHandler | null = null;
@@ -33,6 +38,7 @@ vi.mock("electron", () => ({
 	app: {
 		isPackaged: false,
 		getAppPath: () => "/fake/app",
+		getPath: () => "/fake/user-data",
 	},
 	net: {
 		fetch: async (url: string) => {
@@ -47,9 +53,15 @@ vi.mock("electron", () => ({
 	},
 }));
 
-vi.mock("node:fs", () => ({
-	existsSync: (p: string) => mocks.existingFiles.has(p),
-}));
+vi.mock("node:fs", () => {
+	const existsSync = (filePath: string) => mocks.existingFiles.has(filePath);
+	const statSync = () => ({ size: 1_024 });
+	return {
+		existsSync,
+		statSync,
+		default: { existsSync, statSync },
+	};
+});
 
 import { registerAppProtocol } from "../app-protocol-handler.js";
 
@@ -138,6 +150,33 @@ describe("registerAppProtocol", () => {
 
 		const res = await handler({ url: "app://./missing.js" });
 		expect(res.status).toBe(404);
+	});
+
+	it("serves only content-addressed video preview proxies", async () => {
+		registerAppProtocol({ logger: quietLogger });
+		const handler = getHandler();
+		const cacheKey = "a".repeat(64);
+		const proxyPath = path.join(
+			"/fake/user-data",
+			"video-preview-proxies",
+			`${cacheKey}.mp4`
+		);
+		mocks.existingFiles.add(proxyPath);
+
+		const response = await handler({
+			url: `app://video-preview-proxy/${cacheKey}.mp4`,
+			method: "HEAD",
+			headers: new Headers(),
+			signal: new AbortController().signal,
+		});
+		const rejected = await handler({
+			url: "app://video-preview-proxy/not-a-cache-key.mp4",
+		});
+
+		expect(response.status).toBe(200);
+		expect(response.headers.get("content-length")).toBe("1024");
+		expect(response.headers.get("accept-ranges")).toBe("bytes");
+		expect(rejected.status).toBe(404);
 	});
 });
 

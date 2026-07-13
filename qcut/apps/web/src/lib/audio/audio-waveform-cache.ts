@@ -86,24 +86,26 @@ export class AudioWaveformCache {
 
 	get({
 		audioUrl,
+		cacheKey = audioUrl,
 		loader = decodeAudioWaveform,
 	}: {
 		audioUrl: string;
+		cacheKey?: string;
 		loader?: AudioWaveformLoader;
 	}): Promise<AudioWaveformPeaks> {
-		const cached = this.entries.get(audioUrl);
+		const cached = this.entries.get(cacheKey);
 		if (cached) {
 			cached.accessedAt = Date.now();
 			return cached.promise;
 		}
 
 		const promise = loader({ audioUrl }).catch((error: unknown) => {
-			if (this.entries.get(audioUrl)?.promise === promise) {
-				this.entries.delete(audioUrl);
+			if (this.entries.get(cacheKey)?.promise === promise) {
+				this.entries.delete(cacheKey);
 			}
 			throw error;
 		});
-		this.entries.set(audioUrl, { promise, accessedAt: Date.now() });
+		this.entries.set(cacheKey, { promise, accessedAt: Date.now() });
 		this.evictIfNeeded();
 		return promise;
 	}

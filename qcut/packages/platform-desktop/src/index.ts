@@ -11,7 +11,9 @@ import {
 	PlatformCapability,
 	isPlatformCapable,
 	type PlatformAPI,
+	type PlatformAudioWaveformOptions,
 	type PlatformClaudeAPI,
+	type PlatformVideoCompositionFramePreviewOptions,
 	type PlatformUpdatePreferences,
 	type PlatformUpdateState,
 } from "@qcut/platform-core";
@@ -121,10 +123,23 @@ const ffmpegAdapter = {
 	cleanupExportSession: (id: any) => api().ffmpeg.cleanupExportSession(id),
 	openFramesFolder: (id: any) => api().ffmpeg.openFramesFolder(id),
 	extractAudio: (o: any) => api().ffmpeg.extractAudio(o),
+	extractAudioWaveform: (options: PlatformAudioWaveformOptions) =>
+		api().ffmpeg.extractAudioWaveform(options),
 	exportAudioCLI: (o: any) => api().ffmpeg.exportAudioCLI(o),
 	convertVideoToGif: (o: any) => api().ffmpeg.convertVideoToGif(o),
 	saveStickerForExport: (d: any) => api().ffmpeg.saveStickerForExport(d),
 	processFrame: (o: any) => api().ffmpeg.processFrame(o),
+	renderVideoFramePreview: (o: any) => api().ffmpeg.renderVideoFramePreview(o),
+	renderVideoCompositionFramePreview: (
+		options: PlatformVideoCompositionFramePreviewOptions
+	) => api().ffmpeg.renderVideoCompositionFramePreview(options),
+	cancelVideoFramePreview: (id: any) =>
+		api().ffmpeg.cancelVideoFramePreview(id),
+	renderVideoPreviewProxy: (o: any) => api().ffmpeg.renderVideoPreviewProxy(o),
+	cancelVideoPreviewProxy: (id: any) =>
+		api().ffmpeg.cancelVideoPreviewProxy(id),
+	onVideoPreviewProxyProgress: (cb: any) =>
+		api().ffmpeg.onVideoPreviewProxyProgress(cb),
 	validateFilterChain: (f: any) => api().ffmpeg.validateFilterChain(f),
 	getFFmpegResourcePath: (f: any) => api().ffmpeg.getFFmpegResourcePath(f),
 	checkFFmpegResource: (f: any) => api().ffmpeg.checkFFmpegResource(f),

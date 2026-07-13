@@ -3,7 +3,18 @@
  */
 
 import type { StickerSource } from "../../../../../electron/ffmpeg-handler";
-import type { FFmpegHealthResult } from "../../../../../electron/ffmpeg/types";
+import type {
+	AudioWaveformOptions,
+	AudioWaveformResult,
+	FFmpegHealthResult,
+	VideoCompositionFramePreviewOptions,
+	VideoCompositionFramePreviewResult,
+	VideoFramePreviewOptions,
+	VideoFramePreviewResult,
+	VideoPreviewProxyOptions,
+	VideoPreviewProxyProgress,
+	VideoPreviewProxyResult,
+} from "../../../../../electron/ffmpeg/types";
 import type {
 	AudioCrossfadeInput,
 	VideoSourceInput,
@@ -71,10 +82,27 @@ export interface ElectronFFmpegOps {
 			outputFrameName: string;
 			filterChain: string;
 		}) => Promise<void>;
+		renderVideoFramePreview: (
+			options: VideoFramePreviewOptions
+		) => Promise<VideoFramePreviewResult>;
+		renderVideoCompositionFramePreview: (
+			options: VideoCompositionFramePreviewOptions
+		) => Promise<VideoCompositionFramePreviewResult>;
+		cancelVideoFramePreview: (requestId: string) => Promise<boolean>;
+		renderVideoPreviewProxy: (
+			options: VideoPreviewProxyOptions
+		) => Promise<VideoPreviewProxyResult>;
+		cancelVideoPreviewProxy: (requestId: string) => Promise<boolean>;
+		onVideoPreviewProxyProgress: (
+			callback: (progress: VideoPreviewProxyProgress) => void
+		) => () => void;
 		extractAudio: (options: { videoPath: string; format?: string }) => Promise<{
 			audioPath: string;
 			fileSize: number;
 		}>;
+		extractAudioWaveform: (
+			options: AudioWaveformOptions
+		) => Promise<AudioWaveformResult>;
 		exportAudioCLI: (options: {
 			outputPath: string;
 			duration: number;

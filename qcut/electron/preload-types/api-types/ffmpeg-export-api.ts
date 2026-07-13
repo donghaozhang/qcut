@@ -4,6 +4,17 @@ import type {
 	ExportOptions,
 } from "../supporting-types";
 import type { AudioSettings } from "../../ffmpeg/audio-settings";
+import type {
+	AudioWaveformOptions,
+	AudioWaveformResult,
+	VideoCompositionFramePreviewOptions,
+	VideoCompositionFramePreviewResult,
+	VideoFramePreviewOptions,
+	VideoFramePreviewResult,
+	VideoPreviewProxyOptions,
+	VideoPreviewProxyProgress,
+	VideoPreviewProxyResult,
+} from "../../ffmpeg/types";
 
 /** FFmpeg export and frame processing operations. */
 export interface FFmpegExportAPI {
@@ -24,10 +35,27 @@ export interface FFmpegExportAPI {
 			outputFrameName: string;
 			filterChain: string;
 		}) => Promise<void>;
+		renderVideoFramePreview: (
+			options: VideoFramePreviewOptions
+		) => Promise<VideoFramePreviewResult>;
+		renderVideoCompositionFramePreview: (
+			options: VideoCompositionFramePreviewOptions
+		) => Promise<VideoCompositionFramePreviewResult>;
+		cancelVideoFramePreview: (requestId: string) => Promise<boolean>;
+		renderVideoPreviewProxy: (
+			options: VideoPreviewProxyOptions
+		) => Promise<VideoPreviewProxyResult>;
+		cancelVideoPreviewProxy: (requestId: string) => Promise<boolean>;
+		onVideoPreviewProxyProgress: (
+			callback: (progress: VideoPreviewProxyProgress) => void
+		) => () => void;
 		extractAudio: (options: { videoPath: string; format?: string }) => Promise<{
 			audioPath: string;
 			fileSize: number;
 		}>;
+		extractAudioWaveform: (
+			options: AudioWaveformOptions
+		) => Promise<AudioWaveformResult>;
 		exportAudioCLI: (options: {
 			outputPath: string;
 			duration: number;

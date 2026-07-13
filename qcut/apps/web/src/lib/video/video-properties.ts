@@ -97,6 +97,21 @@ export const DEFAULT_MEDIA_ENHANCEMENTS: MediaEnhancements = {
 	beauty: 0,
 };
 
+export function hasMediaEnhancements({
+	enhancements,
+}: {
+	enhancements: MediaEnhancements;
+}): boolean {
+	return (
+		enhancements.stabilization > 0 ||
+		enhancements.denoise > 0 ||
+		enhancements.clarity > 0 ||
+		enhancements.upscale > 1 ||
+		enhancements.relight !== 0 ||
+		enhancements.beauty > 0
+	);
+}
+
 export interface ResolvedMediaVisualProperties {
 	x: number;
 	y: number;
@@ -515,6 +530,7 @@ export function hasMediaVisualEdits(element: MediaElement): boolean {
 		visual.animationInType !== "none" ||
 		visual.animationOutType !== "none" ||
 		visual.comboAnimationType !== "none" ||
+		Object.values(visual.adjustments).some((value) => value !== 0) ||
 		hasMediaColorEdits({ settings: visual.color }) ||
 		visual.masks.length > 0 ||
 		(visual.customCutout.enabled && visual.customCutout.strokes.length > 0) ||
