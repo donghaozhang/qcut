@@ -1,9 +1,11 @@
 import { describe, expect, it } from "vitest";
+import { getClipTransitionLayerPresentation } from "@/lib/transitions/clip-transition-presentation";
 import type { TransitionPreset } from "../transition-presets";
 import {
 	filterTransitionPresets,
 	getClipTransitionPresetConfig,
 	getTransitionPresetById,
+	TRANSITION_CONTENT_CATEGORIES,
 	transitionPresets,
 } from "../transition-presets";
 
@@ -14,23 +16,15 @@ function requirePreset({ presetId }: { presetId: string }): TransitionPreset {
 }
 
 describe("transition presets", () => {
-	it("ships at least 50 real presets across the requested families", () => {
-		expect(transitionPresets.length).toBeGreaterThanOrEqual(50);
+	it("ships at least two real presets in every content category", () => {
+		expect(transitionPresets.length).toBeGreaterThanOrEqual(67);
 		expect(new Set(transitionPresets.map((preset) => preset.id)).size).toBe(
 			transitionPresets.length
 		);
-		for (const category of [
-			"natural",
-			"split",
-			"blur",
-			"camera",
-			"light",
-			"glitch",
-			"mg",
-		] as const) {
+		for (const category of TRANSITION_CONTENT_CATEGORIES) {
 			expect(
 				filterTransitionPresets({ category, query: "" }).length
-			).toBeGreaterThan(0);
+			).toBeGreaterThanOrEqual(2);
 		}
 	});
 
@@ -81,7 +75,7 @@ describe("getTransitionPresetById", () => {
 			id: "dissolve",
 			name: "Dissolve",
 			localizedName: "叠化",
-			category: "natural",
+			category: "dissolve",
 			version: 1,
 		});
 	});
@@ -96,7 +90,16 @@ describe("getTransitionPresetById", () => {
 describe("getClipTransitionPresetConfig", () => {
 	it.each([
 		["dissolve", { type: "dissolve" }],
+		["soft-dissolve", { type: "dissolve" }],
 		["fade-to-black", { type: "fade-black" }],
+		["page-turn-left", { type: "wipe", direction: "left" }],
+		[
+			"shutter-flash",
+			{ type: "flash", tuning: { intensity: 1.35, tint: "#ffffff" } },
+		],
+		["liquid-warp", { type: "zoom-blur", tuning: { intensity: 1.25 } }],
+		["comic-pop", { type: "zoom-blur", tuning: { intensity: 0.7 } }],
+		["heart-pulse", { type: "zoom-blur", tuning: { intensity: 0.45 } }],
 		["slide-left", { type: "slide", direction: "left" }],
 		["wipe-up", { type: "wipe", direction: "up" }],
 		["push-down", { type: "push", direction: "down" }],
@@ -120,6 +123,36 @@ describe("getClipTransitionPresetConfig", () => {
 				Boolean(getClipTransitionPresetConfig({ preset }))
 			)
 		).toBe(true);
+	});
+
+	it("previews every visible preset through the production presentation", () => {
+		for (const preset of transitionPresets) {
+			const config = getClipTransitionPresetConfig({ preset });
+			if (!config)
+				throw new Error(`${preset.id} is missing its preview mapping`);
+			for (const role of ["from", "to"] as const) {
+				const presentation = getClipTransitionLayerPresentation({
+					transition: {
+						id: `preview-${preset.id}`,
+						fromElementId: "from",
+						toElementId: "to",
+						presetId: preset.id,
+						type: config.type,
+						direction: config.direction,
+						tuning: config.tuning,
+						duration: preset.defaultDuration,
+						easing: "easeInOut",
+					},
+					role,
+					progress: 0.5,
+					canvasWidth: 1_920,
+					canvasHeight: 1_080,
+				});
+				expect(Number.isFinite(presentation.opacity)).toBe(true);
+				expect(Number.isFinite(presentation.offsetX)).toBe(true);
+				expect(Number.isFinite(presentation.offsetY)).toBe(true);
+			}
+		}
 	});
 
 	it("keeps an unavailable asset out of the apply path", () => {

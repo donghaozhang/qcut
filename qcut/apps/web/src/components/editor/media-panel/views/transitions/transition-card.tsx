@@ -109,9 +109,46 @@ export function TransitionCard({
 						</Badge>
 					)}
 				</div>
+				<div className="absolute bottom-1 right-1 flex gap-0.5 opacity-0 transition-opacity group-focus-within:opacity-100 group-focus:opacity-100 group-hover:opacity-100">
+					<Button
+						type="button"
+						variant="text"
+						size="icon"
+						className="h-6 w-6 bg-background/80 backdrop-blur-sm"
+						title={favorite ? "取消收藏" : "收藏"}
+						aria-label={favorite ? "取消收藏" : "收藏"}
+						onClick={(event) => {
+							event.stopPropagation();
+							onToggleFavorite({ preset });
+						}}
+						onKeyDown={(event) => event.stopPropagation()}
+					>
+						<HeartIcon
+							className={
+								favorite ? "size-3.5 fill-rose-500 text-rose-500" : "size-3.5"
+							}
+						/>
+					</Button>
+					<Button
+						type="button"
+						variant="text"
+						size="icon"
+						className="h-6 w-6 bg-background/80 backdrop-blur-sm"
+						disabled={!canApply || !available}
+						title={`应用${preset.localizedName}`}
+						aria-label={`应用${preset.localizedName}`}
+						onClick={(event) => {
+							event.stopPropagation();
+							onApply({ preset });
+						}}
+						onKeyDown={(event) => event.stopPropagation()}
+					>
+						<MousePointerClickIcon className="h-3.5 w-3.5" />
+					</Button>
+				</div>
 			</div>
-			<div className="flex min-h-0 flex-1 items-center gap-1.5 p-1.5">
-				<div className="min-w-0 flex-1">
+			<div className="min-h-0 flex-1 p-1.5">
+				<div className="min-w-0">
 					<div className="truncate text-[11px] font-medium text-foreground">
 						{preset.localizedName}
 					</div>
@@ -119,41 +156,6 @@ export function TransitionCard({
 						{preset.defaultDuration.toFixed(2)}s
 					</div>
 				</div>
-				<Button
-					type="button"
-					variant="text"
-					size="icon"
-					className="h-6 w-6 shrink-0 opacity-0 transition-opacity group-hover:opacity-100 group-focus:opacity-100"
-					title={favorite ? "取消收藏" : "收藏"}
-					aria-label={favorite ? "取消收藏" : "收藏"}
-					onClick={(event) => {
-						event.stopPropagation();
-						onToggleFavorite({ preset });
-					}}
-					onKeyDown={(event) => event.stopPropagation()}
-				>
-					<HeartIcon
-						className={
-							favorite ? "size-3.5 fill-rose-500 text-rose-500" : "size-3.5"
-						}
-					/>
-				</Button>
-				<Button
-					type="button"
-					variant="text"
-					size="icon"
-					className="h-6 w-6 shrink-0 opacity-0 transition-opacity group-hover:opacity-100 group-focus:opacity-100"
-					disabled={!canApply || !available}
-					title={`应用${preset.localizedName}`}
-					aria-label={`应用${preset.localizedName}`}
-					onClick={(event) => {
-						event.stopPropagation();
-						onApply({ preset });
-					}}
-					onKeyDown={(event) => event.stopPropagation()}
-				>
-					<MousePointerClickIcon className="h-3.5 w-3.5" />
-				</Button>
 			</div>
 		</div>
 	);

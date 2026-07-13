@@ -152,6 +152,22 @@ describe("TransitionsView", () => {
 		).not.toBeInTheDocument();
 	});
 
+	it("exposes the expanded reference categories with working cards", () => {
+		render(<TransitionsView />);
+
+		for (const [category, presetId] of [
+			["叠化", "soft-dissolve"],
+			["幻灯片", "page-turn-left"],
+			["拍摄", "shutter-flash"],
+			["扭曲", "liquid-warp"],
+			["综艺", "comic-pop"],
+			["互动 emoji", "heart-pulse"],
+		] as const) {
+			fireEvent.click(screen.getByRole("button", { name: category }));
+			expect(screen.getByTestId(`transition-card-${presetId}`)).toBeVisible();
+		}
+	});
+
 	it("shows the empty state when no presets match the search", () => {
 		render(<TransitionsView />);
 

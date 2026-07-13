@@ -1,5 +1,9 @@
 import { describe, expect, it } from "vitest";
 import {
+	getClipTransitionPresetConfig,
+	transitionPresets,
+} from "../../apps/web/src/components/editor/media-panel/views/transitions/transition-presets";
+import {
 	buildXfadeTransitionFilter,
 	canUseTransitionSourceHandles,
 	prepareTransitionSource,
@@ -48,6 +52,31 @@ function source(overrides: Partial<VideoSource> = {}): VideoSource {
 }
 
 describe("FFmpeg transition filters", () => {
+	it("exports every visible transition preset through the production filter", () => {
+		for (const preset of transitionPresets) {
+			const config = getClipTransitionPresetConfig({ preset });
+			expect(
+				config,
+				`${preset.id} is missing its timeline mapping`
+			).not.toBeNull();
+			if (!config) continue;
+
+			const filter = buildXfadeTransitionFilter({
+				transition: {
+					...transition({
+						type: config.type,
+						direction: config.direction,
+						duration: preset.defaultDuration,
+						tuning: config.tuning,
+					}),
+					presetId: preset.id,
+				},
+			});
+			expect(filter.transition).toBe("custom");
+			expect(filter.expression.length).toBeGreaterThan(0);
+		}
+	});
+
 	it("uses real source handles at constant speed", () => {
 		const prepared = prepareTransitionSource({
 			source: source({ playbackRate: 2 }),

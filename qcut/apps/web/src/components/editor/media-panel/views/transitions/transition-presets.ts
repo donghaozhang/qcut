@@ -1,86 +1,21 @@
-import type {
-	ClipTransitionDirection,
-	ClipTransitionTuning,
-	ClipTransitionType,
-} from "@/types/timeline";
+import type { ClipTransitionType } from "@/types/timeline";
+import { ADDITIONAL_TRANSITION_PRESETS } from "./transition-additional-presets";
+import {
+	defineTransitionPreset as definePreset,
+	type ClipTransitionPresetConfig,
+	type TransitionCategory,
+	type TransitionPreset,
+	type TransitionType,
+} from "./transition-preset-types";
 
-export type TransitionCategory =
-	| "all"
-	| "favorites"
-	| "natural"
-	| "split"
-	| "blur"
-	| "camera"
-	| "light"
-	| "glitch"
-	| "mg"
-	| "popular"
-	| "latest";
-
-export type TransitionType =
-	| "dissolve"
-	| "fade"
-	| "slide"
-	| "wipe"
-	| "push"
-	| "zoom"
-	| "whip"
-	| "flash"
-	| "light"
-	| "glitch"
-	| "shake";
-
-export interface TransitionPreset {
-	id: string;
-	name: string;
-	localizedName: string;
-	category: Exclude<
-		TransitionCategory,
-		"all" | "favorites" | "popular" | "latest"
-	>;
-	type: TransitionType;
-	defaultDuration: number;
-	tags: string[];
-	description: string;
-	version: number;
-	direction?: ClipTransitionDirection;
-	clipType: ClipTransitionType;
-	tuning?: ClipTransitionTuning;
-	premium?: boolean;
-	downloaded?: boolean;
-	popular?: boolean;
-	latest?: boolean;
-}
-
-export interface ClipTransitionPresetConfig {
-	type: ClipTransitionType;
-	direction?: ClipTransitionDirection;
-	tuning?: ClipTransitionTuning;
-}
-
-type PresetInput = Omit<
-	TransitionPreset,
-	"version" | "downloaded" | "tags" | "description"
-> & {
-	tags?: string[];
-	description?: string;
-};
-
-function definePreset({
-	tags = [],
-	description,
-	...preset
-}: PresetInput): TransitionPreset {
-	return {
-		...preset,
-		version: 1,
-		downloaded: true,
-		tags: [preset.category, preset.type, preset.localizedName, ...tags],
-		description:
-			description ??
-			`${preset.localizedName}，浏览器预览与 FFmpeg 导出使用同一参数。`,
-	};
-}
+export {
+	TRANSITION_CONTENT_CATEGORIES,
+	type ClipTransitionPresetConfig,
+	type TransitionCategory,
+	type TransitionContentCategory,
+	type TransitionPreset,
+	type TransitionType,
+} from "./transition-preset-types";
 
 const DIRECTIONS = ["left", "right", "up", "down"] as const;
 const DIRECTION_NAMES = {
@@ -121,18 +56,32 @@ function directionalPresets({
 	);
 }
 
-const naturalPresets: TransitionPreset[] = [
+const dissolvePresets: TransitionPreset[] = [
 	definePreset({
 		id: "dissolve",
 		name: "Dissolve",
 		localizedName: "叠化",
-		category: "natural",
+		category: "dissolve",
 		type: "dissolve",
 		clipType: "dissolve",
 		defaultDuration: 0.5,
 		tags: ["crossfade", "soft", "classic"],
 		popular: true,
 	}),
+	definePreset({
+		id: "soft-dissolve",
+		name: "Soft Dissolve",
+		localizedName: "柔和叠化",
+		category: "dissolve",
+		type: "dissolve",
+		clipType: "dissolve",
+		defaultDuration: 0.85,
+		tags: ["crossfade", "gentle", "slow"],
+		latest: true,
+	}),
+];
+
+const naturalPresets: TransitionPreset[] = [
 	definePreset({
 		id: "fade-to-black",
 		name: "Fade Through Black",
@@ -327,6 +276,7 @@ const mgPresets: TransitionPreset[] = [
 );
 
 export const transitionPresets: TransitionPreset[] = [
+	...dissolvePresets,
 	...naturalPresets,
 	...splitPresets,
 	...blurPresets,
@@ -334,6 +284,7 @@ export const transitionPresets: TransitionPreset[] = [
 	...lightPresets,
 	...glitchPresets,
 	...mgPresets,
+	...ADDITIONAL_TRANSITION_PRESETS,
 ];
 
 export function filterTransitionPresets({

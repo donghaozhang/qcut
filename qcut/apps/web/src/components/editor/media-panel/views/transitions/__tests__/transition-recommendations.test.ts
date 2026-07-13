@@ -61,7 +61,7 @@ describe("transition recommendations", () => {
 		expect(
 			transitionPresets.find((preset) => preset.id === dialogue[0].presetId)
 				?.category
-		).toBe("natural");
+		).toMatch(/dissolve|natural/);
 	});
 
 	it("prefers soft transitions for long shots and clamps duration", () => {
@@ -79,7 +79,7 @@ describe("transition recommendations", () => {
 		expect(
 			transitionPresets.find((preset) => preset.id === result[0].presetId)
 				?.category
-		).toMatch(/natural|blur/);
+		).toMatch(/dissolve|natural|blur/);
 		expect(result.every((item) => item.duration <= 0.2)).toBe(true);
 	});
 
@@ -123,5 +123,33 @@ describe("transition recommendations", () => {
 				?.category
 		).toBe("light");
 		expect(result[0].reason).toBe("匹配真实明暗变化");
+	});
+
+	it("keeps dissolve continuity scoring after moving it into its own category", () => {
+		const dissolve = transitionPresets.find(
+			(preset) => preset.id === "dissolve"
+		);
+		if (!dissolve) throw new Error("Missing dissolve preset");
+
+		const [result] = recommendTransitions({
+			beatTimes: [],
+			cutTime: 4,
+			fromDuration: 3,
+			fromName: "clip-a.mov",
+			maxDuration: 1,
+			presets: [dissolve],
+			toDuration: 3,
+			toName: "clip-b.mov",
+			visualSignals: {
+				brightnessDelta: 0.8,
+				colorDistance: 0,
+				contrastDelta: 0,
+				meanEdgeEnergy: 0,
+				meanSaturation: 0,
+				visualSimilarity: 0,
+			},
+		});
+
+		expect(result).toMatchObject({ presetId: "dissolve", score: 3 });
 	});
 });

@@ -198,8 +198,11 @@ export function TransitionsView() {
 	};
 
 	return (
-		<div className="flex h-full min-h-0 bg-panel text-foreground">
-			<aside className="w-[104px] shrink-0 border-r border-border/50 p-2">
+		<div
+			className="flex h-full min-h-0 bg-panel text-foreground"
+			data-testid="transitions-view"
+		>
+			<aside className="w-[120px] shrink-0 overflow-y-auto border-r border-border/50 p-2">
 				<div className="space-y-1">
 					{transitionCategories.map((item) => {
 						const Icon = item.icon;
@@ -215,9 +218,12 @@ export function TransitionsView() {
 								)}
 								aria-pressed={category === item.id}
 								onClick={() => setCategory(item.id)}
+								onKeyDown={(event) => {
+									if (event.key === "Escape") event.currentTarget.blur();
+								}}
 							>
 								<Icon className="h-3.5 w-3.5 shrink-0" />
-								<span className="truncate">{item.label}</span>
+								<span className="whitespace-nowrap">{item.label}</span>
 							</button>
 						);
 					})}
@@ -300,7 +306,7 @@ export function TransitionsView() {
 				</div>
 				<div className="min-h-0 flex-1 overflow-y-auto p-3">
 					{visiblePresets.length > 0 ? (
-						<div className="grid grid-cols-2 gap-2 lg:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5">
+						<div className="grid grid-cols-[repeat(auto-fill,minmax(112px,1fr))] gap-2">
 							{visiblePresets.map((preset) => (
 								<TransitionCard
 									key={preset.id}

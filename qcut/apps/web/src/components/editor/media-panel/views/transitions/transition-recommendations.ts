@@ -21,6 +21,42 @@ const LIGHT_PATTERN = /sun|light|bright|flash|night|灯|光|太阳|夜景|闪光
 const DIALOGUE_PATTERN =
 	/interview|talk|speech|portrait|person|dialogue|采访|口播|人物|对话|演讲/i;
 
+function isContinuityPreset({ preset }: { preset: TransitionPreset }) {
+	return preset.category === "dissolve" || preset.category === "natural";
+}
+
+function isGentlePreset({ preset }: { preset: TransitionPreset }) {
+	return isContinuityPreset({ preset }) || preset.category === "blur";
+}
+
+function scoreLightOrContinuity({
+	continuityScore,
+	lightScore,
+	preset,
+}: {
+	continuityScore: number;
+	lightScore: number;
+	preset: TransitionPreset;
+}) {
+	if (preset.category === "light") return lightScore;
+	if (isContinuityPreset({ preset })) return continuityScore;
+	return 0;
+}
+
+function scoreContinuityOrBlur({
+	blurScore,
+	continuityScore,
+	preset,
+}: {
+	blurScore: number;
+	continuityScore: number;
+	preset: TransitionPreset;
+}) {
+	if (isContinuityPreset({ preset })) return continuityScore;
+	if (preset.category === "blur") return blurScore;
+	return 0;
+}
+
 function closestBeatDistance({
 	beatTimes,
 	cutTime,
@@ -52,7 +88,7 @@ function scorePreset({
 		{
 			reason: "通用自然衔接",
 			score:
-				preset.id === "dissolve" ? 2 : preset.category === "natural" ? 1 : 0,
+				preset.id === "dissolve" ? 2 : isContinuityPreset({ preset }) ? 1 : 0,
 		},
 	];
 	if (beatDistance <= 0.12) {
@@ -78,8 +114,7 @@ function scorePreset({
 	if (pace >= 5) {
 		signals.push({
 			reason: "适合舒缓镜头",
-			score:
-				preset.category === "natural" || preset.category === "blur" ? 5 : 0,
+			score: isGentlePreset({ preset }) ? 5 : 0,
 		});
 	}
 	if (MOTION_PATTERN.test(combinedName)) {
@@ -99,39 +134,47 @@ function scorePreset({
 	if (LIGHT_PATTERN.test(combinedName)) {
 		signals.push({
 			reason: "匹配明暗变化",
-			score:
-				preset.category === "light" ? 7 : preset.category === "natural" ? 2 : 0,
+			score: scoreLightOrContinuity({
+				continuityScore: 2,
+				lightScore: 7,
+				preset,
+			}),
 		});
 	}
 	if (DIALOGUE_PATTERN.test(combinedName)) {
 		signals.push({
 			reason: "保持人物叙事连续",
-			score:
-				preset.category === "natural" ? 7 : preset.category === "blur" ? 2 : 0,
+			score: scoreContinuityOrBlur({
+				blurScore: 2,
+				continuityScore: 7,
+				preset,
+			}),
 		});
 	}
 	if (visualSignals && visualSignals.brightnessDelta >= 0.28) {
 		signals.push({
 			reason: "匹配真实明暗变化",
-			score:
-				preset.category === "light"
-					? 10
-					: preset.category === "natural"
-						? 1
-						: 0,
+			score: scoreLightOrContinuity({
+				continuityScore: 1,
+				lightScore: 10,
+				preset,
+			}),
 		});
 	}
 	if (visualSignals && visualSignals.colorDistance >= 0.35) {
 		signals.push({
 			reason: "缓和镜头色差",
-			score:
-				preset.category === "natural" ? 6 : preset.category === "blur" ? 4 : 0,
+			score: scoreContinuityOrBlur({
+				blurScore: 4,
+				continuityScore: 6,
+				preset,
+			}),
 		});
 	}
 	if (visualSignals && visualSignals.visualSimilarity >= 0.88) {
 		signals.push({
 			reason: "保持相近镜头连续",
-			score: preset.category === "natural" ? 5 : 0,
+			score: isContinuityPreset({ preset }) ? 5 : 0,
 		});
 	}
 	if (visualSignals && visualSignals.meanSaturation >= 0.55) {
