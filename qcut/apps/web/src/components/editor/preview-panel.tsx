@@ -7,6 +7,7 @@ import {
 	type RemotionElement,
 	type TimelineElement,
 } from "@/types/timeline";
+import { expandCompoundMediaTracks } from "@/lib/timeline/compound-media";
 import { getMediaTimelineDuration } from "@/lib/video/video-timing";
 import { useAsyncMediaItems } from "@/hooks/media/use-async-media-store";
 import { usePlaybackStore } from "@/stores/editor/playback-store";
@@ -144,6 +145,10 @@ export function PreviewPanel() {
 			window.removeEventListener("playback-update", handlePlaybackUpdate);
 	}, [activeProject?.fps, isPlaying, currentTime, tracks]);
 	const [isExpanded, setIsExpanded] = useState(false);
+	const [previewScale, setPreviewScale] = useState<
+		"fit" | 75 | 100 | 125 | 150
+	>("fit");
+	const [showSafeAreas, setShowSafeAreas] = useState(false);
 	const externalHtml = useMcpAppStore((state) => state.activeHtml);
 	const externalToolName = useMcpAppStore((state) => state.toolName);
 	const localMcpActive = useMcpAppStore((state) => state.localMcpActive);
@@ -347,11 +352,15 @@ export function PreviewPanel() {
 		]
 	);
 	const hasAnyElements = tracks.some((track) => track.elements.length > 0);
+	const renderTracks = useMemo(
+		() => expandCompoundMediaTracks({ tracks }),
+		[tracks]
+	);
 	const getActiveElements = useCallback((): ActiveElement[] => {
 		try {
 			const effectiveTime = isPlaying ? playbackTime : currentTime;
 			const plan = buildCompositionPlan({
-				tracks,
+				tracks: renderTracks,
 				currentTime: effectiveTime,
 				forceActiveElementIds: forcedActiveElementIds,
 				getElementDuration: ({ element }) => getPreviewElementDuration(element),
@@ -370,7 +379,7 @@ export function PreviewPanel() {
 		}
 	}, [
 		forcedActiveElementIds,
-		tracks,
+		renderTracks,
 		currentTime,
 		playbackTime,
 		isPlaying,
@@ -702,16 +711,20 @@ export function PreviewPanel() {
 				</div>
 				<div
 					ref={containerRef}
-					className="flex-1 flex flex-col items-center justify-center p-3 min-h-0 min-w-0"
+					className="flex-1 flex flex-col items-center justify-center overflow-hidden p-3 min-h-0 min-w-0"
 				>
 					<div className="flex-1" />
 					{hasAnyElements ? (
 						<div
 							ref={previewRef}
 							className="relative overflow-hidden border"
+							data-testid="preview-canvas"
 							style={{
 								width: previewDimensions.width || canvasSize.width,
 								height: previewDimensions.height || canvasSize.height,
+								transform: `scale(${previewScale === "fit" ? 1 : previewScale / 100})`,
+								transformOrigin: "center",
+								transition: "transform 120ms ease-out",
 								backgroundColor:
 									activeProject?.backgroundType === "blur"
 										? "transparent"
@@ -778,6 +791,16 @@ export function PreviewPanel() {
 									</div>
 								)}
 
+							{showSafeAreas ? (
+								<div
+									className="pointer-events-none absolute inset-0 z-40"
+									data-testid="preview-safe-areas"
+								>
+									<div className="absolute inset-[5%] border border-white/45" />
+									<div className="absolute inset-[10%] border border-dashed border-white/65" />
+								</div>
+							) : null}
+
 							{/* Interactive element overlays for elements with effects */}
 							{EFFECTS_ENABLED &&
 								activeElements
@@ -819,6 +842,10 @@ export function PreviewPanel() {
 						setCurrentTime={setCurrentTime}
 						toggle={toggle}
 						getTotalDuration={getTotalDuration}
+						previewScale={previewScale}
+						onPreviewScaleChange={setPreviewScale}
+						showSafeAreas={showSafeAreas}
+						onToggleSafeAreas={() => setShowSafeAreas((visible) => !visible)}
 					/>
 				</div>
 			</div>

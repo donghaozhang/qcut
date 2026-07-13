@@ -16,7 +16,7 @@ async function setNumber(
 	label: string,
 	value: number
 ) {
-	const input = page.getByLabel(`${label} value`);
+	const input = page.getByLabel(`${label}数值`);
 	await input.fill(String(value));
 	await input.press("Tab");
 }
@@ -89,20 +89,21 @@ test.describe("Main-track video properties", () => {
 		const primaryTabs = properties.getByTestId("media-properties-primary-tabs");
 		const visualTabs = properties.getByTestId("media-properties-visual-tabs");
 		const propertyTabs = properties.getByRole("tab");
-		await expect(propertyTabs).toHaveCount(10);
+		await expect(propertyTabs).toHaveCount(11);
 		for (const tabName of [
-			"Visual",
-			"Audio",
-			"Speed",
-			"Animation",
-			"Adjust",
-			"AI",
+			"画面",
+			"音频",
+			"变速",
+			"动画",
+			"跟踪",
+			"调节",
+			"AI 效果",
 		]) {
 			await expect(
 				primaryTabs.getByRole("tab", { name: tabName, exact: true })
 			).toBeVisible();
 		}
-		for (const tabName of ["Basic", "Cutout", "Mask", "Portrait"]) {
+		for (const tabName of ["基础", "抠像", "蒙版", "美颜美体"]) {
 			await expect(
 				visualTabs.getByRole("tab", { name: tabName, exact: true })
 			).toBeVisible();
@@ -132,12 +133,12 @@ test.describe("Main-track video properties", () => {
 				expect(overlaps).toBe(false);
 			}
 		}
-		await setNumber(page, "Scale", 75);
-		await setNumber(page, "X position", 60);
-		await setNumber(page, "Y position", -20);
-		await setNumber(page, "Rotation", 12);
-		await setNumber(page, "Opacity", 80);
-		await properties.getByLabel("Flip horizontally").click();
+		await setNumber(page, "缩放", 75);
+		await setNumber(page, "位置 X", 60);
+		await setNumber(page, "位置 Y", -20);
+		await setNumber(page, "旋转", 12);
+		await setNumber(page, "不透明度", 80);
+		await properties.getByLabel("水平翻转").click();
 
 		let flip = await page.evaluate(() => {
 			const track = (window as any).__timelineStore.getState().tracks[0];
@@ -152,58 +153,54 @@ test.describe("Main-track video properties", () => {
 			return track.elements[0].flipHorizontal;
 		});
 		expect(Boolean(flip)).toBe(false);
-		await properties.getByLabel("Flip horizontally").click();
+		await properties.getByLabel("水平翻转").click();
 
-		await properties.getByLabel("Blend mode").click();
-		await page.getByRole("option", { name: "screen" }).click();
+		await properties.getByLabel("混合模式").click();
+		await page.getByRole("option", { name: "滤色" }).click();
 		await properties.getByText("sample-video.mp4").scrollIntoViewIfNeeded();
 		await properties.screenshot({
 			path: path.join(outputDir, "01-basic-transform-properties.png"),
 			animations: "disabled",
 		});
-		await properties.getByText("Blend mode").scrollIntoViewIfNeeded();
+		await properties.getByText("混合模式").scrollIntoViewIfNeeded();
 		await properties.screenshot({
 			path: path.join(outputDir, "01b-basic-compositing-properties.png"),
 			animations: "disabled",
 		});
 
 		await properties
-			.getByRole("button", { name: "Crop and fit", exact: true })
+			.getByRole("button", { name: "裁剪与适应", exact: true })
 			.click();
-		await setNumber(page, "Crop top", 8);
-		await setNumber(page, "Crop right", 6);
-		await setNumber(page, "Crop bottom", 8);
-		await setNumber(page, "Crop left", 6);
+		await setNumber(page, "顶部裁剪", 8);
+		await setNumber(page, "右侧裁剪", 6);
+		await setNumber(page, "底部裁剪", 8);
+		await setNumber(page, "左侧裁剪", 6);
 		await properties.screenshot({
 			path: path.join(outputDir, "02-crop-properties.png"),
 			animations: "disabled",
 		});
 		await properties
-			.getByRole("button", { name: "Crop and fit", exact: true })
+			.getByRole("button", { name: "裁剪与适应", exact: true })
 			.click();
 
-		await properties
-			.getByRole("button", { name: "Perspective", exact: true })
-			.click();
-		await setNumber(page, "Top left X", 8);
-		await setNumber(page, "Top left Y", 10);
-		await setNumber(page, "Top right X", 94);
-		await setNumber(page, "Bottom right Y", 92);
+		await properties.getByRole("button", { name: "透视", exact: true }).click();
+		await setNumber(page, "左上角X", 8);
+		await setNumber(page, "左上角Y", 10);
+		await setNumber(page, "右上角X", 94);
+		await setNumber(page, "右下角Y", 92);
 		await properties.screenshot({
 			path: path.join(outputDir, "03-perspective-properties.png"),
 			animations: "disabled",
 		});
-		await properties
-			.getByRole("button", { name: "Perspective", exact: true })
-			.click();
+		await properties.getByRole("button", { name: "透视", exact: true }).click();
 
-		await properties.getByLabel("Add X position keyframe").click();
-		await expect(
-			properties.getByLabel("Remove X position keyframe")
-		).toBeVisible();
-		await setNumber(page, "X position", 64);
-		await properties.getByRole("button", { name: "Keyframes" }).click();
-		await expect(properties.getByText("(1 keyframe)")).toBeVisible();
+		await properties.getByLabel("添加位置 X关键帧").click();
+		await expect(properties.getByLabel("移除位置 X关键帧")).toBeVisible();
+		await setNumber(page, "位置 X", 64);
+		await properties
+			.getByRole("button", { name: "关键帧", exact: true })
+			.click();
+		await expect(properties.getByText("（1 个关键帧）")).toBeVisible();
 		await properties.screenshot({
 			path: path.join(outputDir, "04-keyframes-properties.png"),
 			animations: "disabled",
@@ -348,10 +345,11 @@ test.describe("Main-track video properties", () => {
 		});
 
 		for (const [tab, filename] of [
-			["Animation", "07-animation-properties.png"],
-			["Adjust", "08-adjustments-properties.png"],
-			["Audio", "09-audio-properties.png"],
-			["Speed", "10-speed-properties.png"],
+			["动画", "07-animation-properties.png"],
+			["跟踪", "07a-tracking-properties.png"],
+			["调节", "08-adjustments-properties.png"],
+			["音频", "09-audio-properties.png"],
+			["变速", "10-speed-properties.png"],
 		] as const) {
 			await primaryTabs.getByRole("tab", { name: tab, exact: true }).click();
 			await properties.screenshot({
@@ -359,46 +357,46 @@ test.describe("Main-track video properties", () => {
 				animations: "disabled",
 			});
 		}
-		await primaryTabs.getByRole("tab", { name: "Visual", exact: true }).click();
-		await visualTabs.getByRole("tab", { name: "Mask", exact: true }).click();
+		await primaryTabs.getByRole("tab", { name: "画面", exact: true }).click();
+		await visualTabs.getByRole("tab", { name: "蒙版", exact: true }).click();
 		await properties.screenshot({
 			path: path.join(outputDir, "11-mask-properties.png"),
 			animations: "disabled",
 		});
 		const maskEditor = properties.getByTestId("media-mask-properties");
 		await expect(
-			maskEditor.getByRole("button", { name: "Select Portrait" })
+			maskEditor.getByRole("button", { name: "选择Portrait" })
 		).toBeVisible();
 		await expect(
-			maskEditor.getByRole("button", { name: "Select Cutout" })
+			maskEditor.getByRole("button", { name: "选择Cutout" })
 		).toBeVisible();
 		await expect(
-			maskEditor.getByRole("button", { name: "Select Edge limit" })
+			maskEditor.getByRole("button", { name: "选择Edge limit" })
 		).toBeVisible();
-		await maskEditor.getByRole("button", { name: "Select Portrait" }).click();
+		await maskEditor.getByRole("button", { name: "选择Portrait" }).click();
 		const maskOverlay = page.getByTestId("media-mask-canvas-overlay");
 		await expect(maskOverlay).toBeVisible();
 		await maskOverlay
-			.getByRole("button", { name: "Move Portrait" })
+			.getByRole("button", { name: "移动Portrait" })
 			.press("ArrowRight");
 
-		await maskEditor.getByRole("button", { name: "Add", exact: true }).click();
-		await page.getByRole("menuitem", { name: "Pen", exact: true }).click();
-		const maskNameInputs = maskEditor.getByLabel("Mask name");
+		await maskEditor.getByRole("button", { name: "新建蒙版" }).click();
+		await maskEditor.getByRole("button", { name: "选择钢笔蒙版" }).click();
+		const maskNameInputs = maskEditor.getByLabel("蒙版名称");
 		await maskNameInputs.last().fill("Bezier Accent");
 		await maskNameInputs.last().press("Tab");
-		await maskEditor.getByLabel("Expansion value").fill("8");
-		await maskEditor.getByLabel("Expansion value").press("Tab");
-		await maskEditor.getByLabel("Density value").fill("80");
-		await maskEditor.getByLabel("Density value").press("Tab");
-		await maskEditor.getByLabel("Mask blend mode").click();
-		await page.getByRole("option", { name: "Subtract", exact: true }).click();
+		await maskEditor.getByLabel("扩展数值").fill("8");
+		await maskEditor.getByLabel("扩展数值").press("Tab");
+		await maskEditor.getByLabel("不透明度数值").fill("80");
+		await maskEditor.getByLabel("不透明度数值").press("Tab");
+		await maskEditor.getByLabel("蒙版混合方式").click();
+		await page.getByRole("option", { name: "相减", exact: true }).click();
 		await expect(
-			maskOverlay.getByRole("button", { name: /Edit Bezier Accent point 1/ })
+			maskOverlay.getByRole("button", { name: /编辑Bezier Accent节点 1/ })
 		).toBeVisible();
 		await expect(
 			maskOverlay.getByRole("button", {
-				name: /Edit Bezier Accent handleIn/,
+				name: /编辑Bezier Accent入切线/,
 			})
 		).toHaveCount(4);
 		await maskEditor.screenshot({
@@ -412,15 +410,15 @@ test.describe("Main-track video properties", () => {
 		const propertiesViewport = properties.locator(
 			"xpath=ancestor::*[@data-radix-scroll-area-viewport][1]"
 		);
-		await visualTabs.getByRole("tab", { name: "Cutout", exact: true }).click();
+		await visualTabs.getByRole("tab", { name: "抠像", exact: true }).click();
 		await expect(
-			properties.getByRole("button", { name: "Smart cutout" })
+			properties.getByRole("button", { name: "智能抠像" })
 		).toBeVisible();
 		await expect(
-			properties.getByRole("button", { name: "Render and attach mask" })
+			properties.getByRole("button", { name: "生成并应用人物蒙版" })
 		).toBeVisible();
 		await expect(
-			properties.getByText("Chroma key", { exact: true })
+			properties.getByText("色度抠像", { exact: true })
 		).toBeVisible();
 		await propertiesViewport.screenshot({
 			path: path.join(outputDir, "11b-cutout-local-person.png"),
@@ -428,11 +426,11 @@ test.describe("Main-track video properties", () => {
 		});
 
 		await properties
-			.getByRole("tab", { name: "Cloud object", exact: true })
+			.getByRole("tab", { name: "云端物体", exact: true })
 			.click();
-		await properties.getByLabel("Object description").fill("person");
+		await properties.getByLabel("物体描述").fill("person");
 		await expect(
-			properties.getByRole("button", { name: "Generate and attach mask" })
+			properties.getByRole("button", { name: "生成并应用蒙版" })
 		).toBeEnabled();
 		await propertiesViewport.screenshot({
 			path: path.join(outputDir, "11c-cutout-cloud-object.png"),
@@ -443,7 +441,7 @@ test.describe("Main-track video properties", () => {
 			animations: "disabled",
 		});
 
-		await properties.getByRole("button", { name: "Smart cutout" }).click();
+		await properties.getByRole("button", { name: "智能抠像" }).click();
 		await page.evaluate(() => {
 			const store = (window as any).__timelineStore.getState();
 			const track = store.tracks.find((item: any) => item.type === "media");
@@ -465,14 +463,14 @@ test.describe("Main-track video properties", () => {
 		);
 		await customCutout.scrollIntoViewIfNeeded();
 		const customCutoutSwitch = customCutout.getByRole("switch", {
-			name: "Enable Custom cutout",
+			name: "启用自定义抠像",
 		});
 		await expect(customCutoutSwitch).not.toBeChecked();
 		await customCutoutSwitch.click();
-		await customCutout.getByText("Custom cutout", { exact: true }).click();
-		await customCutout.getByLabel("Brush size value").fill("25");
-		await customCutout.getByLabel("Brush size value").press("Tab");
-		await customCutout.getByRole("button", { name: "Edit on canvas" }).click();
+		await customCutout.getByText("自定义抠像", { exact: true }).click();
+		await customCutout.getByLabel("画笔大小数值").fill("25");
+		await customCutout.getByLabel("画笔大小数值").press("Tab");
+		await customCutout.getByRole("button", { name: "在画布上编辑" }).click();
 		const customCutoutOverlay = page.getByTestId("custom-cutout-overlay");
 		await expect(customCutoutOverlay).toBeVisible();
 		const customCutoutStrokeCount = () =>
@@ -488,7 +486,7 @@ test.describe("Main-track video properties", () => {
 			overlay: customCutoutOverlay,
 		});
 		await expect.poll(customCutoutStrokeCount).toBe(1);
-		await customCutout.getByRole("radio", { name: "Background brush" }).click();
+		await customCutout.getByRole("radio", { name: "移除区域画笔" }).click();
 		await paintCutoutPoint({
 			overlay: customCutoutOverlay,
 		});
@@ -501,13 +499,13 @@ test.describe("Main-track video properties", () => {
 				.find((item: any) => item.type === "media");
 			playback.seek(element.startTime + 0.75);
 		});
-		await customCutout.getByRole("radio", { name: "Foreground brush" }).click();
+		await customCutout.getByRole("radio", { name: "保留区域画笔" }).click();
 		await paintCutoutPoint({
 			overlay: customCutoutOverlay,
 		});
 		await expect.poll(customCutoutStrokeCount).toBe(3);
 		await customCutout
-			.getByRole("button", { name: "Undo last stroke on this frame" })
+			.getByRole("button", { name: "撤销当前帧的上一笔" })
 			.click();
 		await expect.poll(customCutoutStrokeCount).toBe(2);
 		await paintCutoutPoint({
@@ -522,19 +520,17 @@ test.describe("Main-track video properties", () => {
 				.find((item: any) => item.type === "media");
 			playback.seek(element.startTime + 1.1);
 		});
-		await customCutout.getByRole("radio", { name: "Background brush" }).click();
+		await customCutout.getByRole("radio", { name: "移除区域画笔" }).click();
 		await paintCutoutPoint({
 			overlay: customCutoutOverlay,
 		});
 		await expect.poll(customCutoutStrokeCount).toBe(4);
-		await customCutout
-			.getByRole("radio", { name: "Erase brush strokes" })
-			.click();
+		await customCutout.getByRole("radio", { name: "擦除笔画" }).click();
 		await paintCutoutPoint({
 			overlay: customCutoutOverlay,
 		});
 		await expect.poll(customCutoutStrokeCount).toBe(3);
-		await customCutout.getByRole("radio", { name: "Foreground brush" }).click();
+		await customCutout.getByRole("radio", { name: "保留区域画笔" }).click();
 
 		const customCutoutState = () =>
 			page.evaluate(() => {
@@ -560,9 +556,9 @@ test.describe("Main-track video properties", () => {
 			modes: ["foreground", "background", "foreground"],
 		});
 		expect((await customCutoutState()).correctionFrames).toHaveLength(2);
-		await expect(customCutout.getByText("2 corrections")).toBeVisible();
+		await expect(customCutout.getByText("2 个修正帧")).toBeVisible();
 		await expect(
-			customCutout.getByRole("button", { name: "Generate cutout" })
+			customCutout.getByRole("button", { name: "生成抠像" })
 		).toBeEnabled();
 		await customCutout.screenshot({
 			path: path.join(outputDir, "11cd-custom-cutout-controls.png"),
@@ -578,7 +574,7 @@ test.describe("Main-track video properties", () => {
 			.first()
 			.evaluate((node) => (node as HTMLElement).style.maskImage);
 		expect(decodeURIComponent(customMaskStyle)).toContain("custom-cutout-mask");
-		await customCutout.getByRole("button", { name: "Finish brushing" }).click();
+		await customCutout.getByRole("button", { name: "完成绘制" }).click();
 		await expect(customCutoutOverlay).toHaveCount(0);
 		await page.getByTestId("preview-panel").screenshot({
 			path: path.join(outputDir, "11cf-custom-cutout-result.png"),
@@ -603,33 +599,29 @@ test.describe("Main-track video properties", () => {
 
 		const chromaKey = properties.getByTestId("media-chroma-key-properties");
 		await expect(
-			chromaKey.getByRole("switch", { name: "Enable Chroma key" })
+			chromaKey.getByRole("switch", { name: "启用色度抠像" })
 		).toBeChecked();
 		for (const label of [
-			"Strength value",
-			"Shadow value",
-			"Edge feather value",
-			"Edge cleanup value",
-			"Spill suppression value",
+			"强度数值",
+			"阴影数值",
+			"边缘羽化数值",
+			"边缘清理数值",
+			"溢色抑制数值",
 		]) {
 			await expect(chromaKey.getByLabel(label)).toBeVisible();
 		}
-		await chromaKey.getByLabel("Shadow value").fill("25");
-		await chromaKey.getByLabel("Shadow value").press("Tab");
-		await chromaKey.getByLabel("Edge cleanup value").fill("40");
-		await chromaKey.getByLabel("Edge cleanup value").press("Tab");
-		await chromaKey.getByLabel("Spill suppression value").fill("35");
-		await chromaKey.getByLabel("Spill suppression value").press("Tab");
-		await chromaKey
-			.getByRole("button", { name: "Add Strength keyframe" })
-			.click();
+		await chromaKey.getByLabel("阴影数值").fill("25");
+		await chromaKey.getByLabel("阴影数值").press("Tab");
+		await chromaKey.getByLabel("边缘清理数值").fill("40");
+		await chromaKey.getByLabel("边缘清理数值").press("Tab");
+		await chromaKey.getByLabel("溢色抑制数值").fill("35");
+		await chromaKey.getByLabel("溢色抑制数值").press("Tab");
+		await chromaKey.getByRole("button", { name: "添加强度关键帧" }).click();
 		await chromaKey.screenshot({
 			path: path.join(outputDir, "11cd-chroma-key-refinement.png"),
 			animations: "disabled",
 		});
-		await chromaKey
-			.getByRole("button", { name: "Pick color from preview" })
-			.click();
+		await chromaKey.getByRole("button", { name: "从预览画面取色" }).click();
 		const previewCanvas = page.getByTestId("color-preview-canvas").first();
 		await expect(previewCanvas).toBeVisible();
 		const previewBounds = await previewCanvas.boundingBox();
@@ -648,40 +640,42 @@ test.describe("Main-track video properties", () => {
 		await expect.poll(selectedChromaColor).not.toBe("#00ff00");
 		expect(await selectedChromaColor()).toMatch(/^#[0-9a-f]{6}$/i);
 
-		await visualTabs.getByRole("tab", { name: "Basic", exact: true }).click();
+		await visualTabs.getByRole("tab", { name: "基础", exact: true }).click();
 		await properties
-			.getByRole("button", { name: "Video stabilization", exact: true })
+			.getByRole("button", { name: "视频防抖", exact: true })
 			.click();
 		await properties
-			.getByRole("button", { name: "Video enhancement", exact: true })
+			.getByRole("button", { name: "画质增强", exact: true })
 			.click();
-		await properties.getByText("Local supersampling").scrollIntoViewIfNeeded();
+		await properties.getByText("本地超采样").scrollIntoViewIfNeeded();
 		await propertiesViewport.screenshot({
 			path: path.join(outputDir, "11d-basic-enhancements.png"),
 			animations: "disabled",
 		});
 
 		await visualTabs
-			.getByRole("tab", { name: "Portrait", exact: true })
+			.getByRole("tab", { name: "美颜美体", exact: true })
 			.click();
-		await expect(properties.getByText("Portrait smoothing")).toBeVisible();
+		await expect(properties.getByText("人像磨皮")).toBeVisible();
 		await propertiesViewport.screenshot({
 			path: path.join(outputDir, "11e-portrait-enhancement.png"),
 			animations: "disabled",
 		});
 
-		await primaryTabs.getByRole("tab", { name: "AI", exact: true }).click();
+		await primaryTabs
+			.getByRole("tab", { name: "AI 效果", exact: true })
+			.click();
 		await expect(
-			properties.getByRole("button", { name: "AI upscale" })
+			properties.getByRole("button", { name: "AI 超分辨率" })
 		).toBeVisible();
 		await expect(
-			properties.getByRole("button", { name: "AI video tools" })
+			properties.getByRole("button", { name: "AI 视频工具" })
 		).toBeVisible();
 		await propertiesViewport.screenshot({
 			path: path.join(outputDir, "11f-ai-processing.png"),
 			animations: "disabled",
 		});
-		await properties.getByRole("button", { name: "AI upscale" }).click();
+		await properties.getByRole("button", { name: "AI 超分辨率" }).click();
 		await expect(
 			page
 				.getByTestId("media-panel")

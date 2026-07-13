@@ -8,7 +8,8 @@ import {
 	TooltipTrigger,
 } from "@/components/ui/tooltip";
 import {
-	ReactNode,
+	type KeyboardEvent,
+	type ReactNode,
 	useState,
 	useRef,
 	useEffect,
@@ -29,7 +30,7 @@ const isIOS =
 export interface DraggableMediaItemProps {
 	name: string;
 	preview: ReactNode;
-	dragData: Record<string, any>;
+	dragData: Record<string, unknown>;
 	onDragStart?: (e: React.DragEvent) => void;
 	onAddToTimeline?: (currentTime: number) => void;
 	aspectRatio?: number;
@@ -39,7 +40,9 @@ export interface DraggableMediaItemProps {
 	rounded?: boolean;
 	variant?: "default" | "card";
 	isDraggable?: boolean;
+	layout?: "grid" | "list";
 	stopPropagation?: boolean;
+	onActivate?: () => void;
 	"data-testid"?: string;
 }
 
@@ -56,7 +59,9 @@ export function DraggableMediaItem({
 	rounded = true,
 	variant = "default",
 	isDraggable = true,
+	layout = "grid",
 	stopPropagation = true,
+	onActivate,
 	"data-testid": dataTestId,
 }: DraggableMediaItemProps) {
 	const [isDragging, setIsDragging] = useState(false);
@@ -88,7 +93,10 @@ export function DraggableMediaItem({
 
 	const handleDragStart = (e: React.DragEvent) => {
 		// Simple check for problematic blob URLs
-		if (dragData.url?.startsWith("blob:file:///")) {
+		if (
+			typeof dragData.url === "string" &&
+			dragData.url.startsWith("blob:file:///")
+		) {
 			console.error("❌ Dragging problematic blob URL:", dragData.url);
 		}
 
@@ -257,21 +265,41 @@ export function DraggableMediaItem({
 		<>
 			<div
 				ref={dragRef}
-				className="relative group w-28 h-28"
+				className={cn(
+					"relative group",
+					layout === "list" ? "h-14 w-full" : "h-28 w-28"
+				)}
 				data-testid={dataTestId}
 			>
 				<div
 					className={cn(
-						"flex flex-col gap-1 p-0 h-auto w-full relative cursor-default",
+						"relative flex w-full cursor-default gap-1 p-0",
+						layout === "list"
+							? "h-14 flex-row items-center"
+							: "h-auto flex-col",
 						variant === "card" && "bg-card border rounded-md p-2",
 						className
 					)}
-					onClick={(e) => stopPropagation && e.stopPropagation()}
+					role={onActivate ? "button" : undefined}
+					tabIndex={onActivate ? 0 : undefined}
+					aria-label={onActivate ? `Add ${name}` : undefined}
+					onClick={(event) => {
+						if (stopPropagation) event.stopPropagation();
+						onActivate?.();
+					}}
+					onKeyDown={(event: KeyboardEvent<HTMLDivElement>) => {
+						if (!onActivate || (event.key !== "Enter" && event.key !== " ")) {
+							return;
+						}
+						event.preventDefault();
+						onActivate();
+					}}
 				>
 					<AspectRatio
 						ratio={aspectRatio}
 						className={cn(
-							"bg-accent relative overflow-hidden",
+							"relative overflow-hidden bg-accent",
+							layout === "list" && "h-14 w-24 shrink-0",
 							rounded && "rounded-md",
 							"[&::-webkit-drag-ghost]:opacity-0" // Webkit-specific ghost hiding
 						)}
@@ -281,7 +309,7 @@ export function DraggableMediaItem({
 						onPointerDown={isDraggable ? handlePointerDown : undefined}
 					>
 						{preview}
-						{!isDragging && (
+						{!isDragging && !onActivate && (
 							<PlusButton
 								className="opacity-0 group-hover:opacity-100"
 								onClick={handleAddToTimeline}
@@ -290,13 +318,14 @@ export function DraggableMediaItem({
 					</AspectRatio>
 					{showLabel && (
 						<span
-							className="text-[0.7rem] text-muted-foreground truncate w-full text-left"
+							className={cn(
+								"w-full truncate text-left text-[0.7rem] text-muted-foreground",
+								layout === "list" && "px-2 text-xs text-foreground"
+							)}
 							aria-label={name}
 							title={name}
 						>
-							{name.length > 8
-								? `${name.slice(0, 16)}...${name.slice(-3)}`
-								: name}
+							{name}
 						</span>
 					)}
 				</div>
@@ -348,6 +377,7 @@ function PlusButton({
 }) {
 	const button = (
 		<Button
+			type="button"
 			size="icon"
 			className={cn("absolute bottom-2 right-2 size-4", className)}
 			onClick={(e) => {
@@ -357,27 +387,16 @@ function PlusButton({
 			}}
 			title={tooltipText}
 		>
-			<Plus className="size-3!" />
+			<Plus className="size-3!">
+				<title>Add to timeline</title>
+			</Plus>
 		</Button>
 	);
 
 	if (tooltipText) {
 		return (
 			<Tooltip>
-				<TooltipTrigger asChild>
-					<Button
-						size="icon"
-						className={cn("absolute bottom-2 right-2 size-4", className)}
-						onClick={(e) => {
-							e.preventDefault();
-							e.stopPropagation();
-							onClick?.();
-						}}
-						title={tooltipText}
-					>
-						<Plus className="size-3!" />
-					</Button>
-				</TooltipTrigger>
+				<TooltipTrigger asChild>{button}</TooltipTrigger>
 				<TooltipContent>
 					<p>{tooltipText}</p>
 				</TooltipContent>

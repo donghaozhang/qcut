@@ -398,8 +398,8 @@ export function MediaMaskOverlay({
 					className="absolute left-1/2 top-1/2 size-4 -translate-x-1/2 -translate-y-1/2 cursor-move rounded-full border-2 border-white bg-cyan-500 shadow"
 					onPointerDown={(event) => beginInteraction({ event, mode: "move" })}
 					onKeyDown={moveWithKeyboard}
-					aria-label={`Move ${mask.name ?? "mask"}`}
-					title="Move mask"
+					aria-label={`移动${mask.name ?? "蒙版"}`}
+					title="移动蒙版"
 				/>
 				{isLinear ? null : (
 					<button
@@ -409,8 +409,8 @@ export function MediaMaskOverlay({
 							beginInteraction({ event, mode: "resize" })
 						}
 						onKeyDown={resizeWithKeyboard}
-						aria-label={`Resize ${mask.name ?? "mask"}`}
-						title="Resize mask"
+						aria-label={`缩放${mask.name ?? "蒙版"}`}
+						title="缩放蒙版"
 					/>
 				)}
 
@@ -443,8 +443,10 @@ export function MediaMaskOverlay({
 														mode,
 													})
 												}
-												aria-label={`Edit ${mask.name ?? "mask"} ${handleName}`}
-												title="Edit Bezier tangent"
+												aria-label={`编辑${mask.name ?? "蒙版"}${
+													handleName === "handleIn" ? "入切线" : "出切线"
+												}`}
+												title="编辑贝塞尔切线"
 											/>
 										);
 									})}
@@ -465,8 +467,8 @@ export function MediaMaskOverlay({
 												mode: "anchor",
 											})
 										}
-										aria-label={`Edit ${mask.name ?? "mask"} point ${index + 1}`}
-										title="Edit Bezier anchor"
+										aria-label={`编辑${mask.name ?? "蒙版"}节点 ${index + 1}`}
+										title="编辑贝塞尔节点"
 									/>
 								</div>
 							);
@@ -479,8 +481,8 @@ export function MediaMaskOverlay({
 					className="absolute bottom-[calc(100%+20px)] left-1/2 size-4 -translate-x-1/2 cursor-grab rounded-full border-2 border-white bg-cyan-500 shadow"
 					onPointerDown={(event) => beginInteraction({ event, mode: "rotate" })}
 					onKeyDown={rotateWithKeyboard}
-					aria-label={`Rotate ${mask.name ?? "mask"}`}
-					title="Rotate mask"
+					aria-label={`旋转${mask.name ?? "蒙版"}`}
+					title="旋转蒙版"
 				/>
 			</div>
 		</div>

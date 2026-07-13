@@ -22,7 +22,6 @@ import { toast } from "sonner";
 import { Textarea } from "@/components/ui/textarea";
 import { FontPicker } from "@/components/ui/font-picker";
 import type { FontFamily } from "@/constants/font-constants";
-import type { AIPipelineResult } from "@/types/electron";
 import type {
 	TextElement,
 	TextKeyframeProperty,
@@ -32,7 +31,6 @@ import { useTimelineStore } from "@/stores/timeline/timeline-store";
 import { useEditorStore } from "@/stores/editor/editor-store";
 import { usePlaybackStore } from "@/stores/editor/playback-store";
 import { useProjectStore } from "@/stores/project-store";
-import { useMediaStore } from "@/stores/media/media-store";
 import { useScreenRecordingEnhancementStore } from "@/stores/screen-recording-store";
 import { Slider } from "@/components/ui/slider";
 import { Input } from "@/components/ui/input";
@@ -73,9 +71,8 @@ import {
 	PropertyGroup,
 } from "./property-item";
 import { KeyframeEditor } from "./keyframe-editor";
-import { useAIPipeline } from "@/hooks/use-ai-pipeline";
-import { syncProjectMediaIfNeeded } from "@/lib/claude-bridge/claude-timeline-bridge-helpers";
 import { buildCursorTextTrackingKeyframes } from "@/lib/text/cursor-text-tracking";
+import { useSpeechAvatarGeneration } from "@/hooks/use-speech-avatar-generation";
 
 type TextUpdates = Parameters<
 	ReturnType<typeof useTimelineStore.getState>["updateTextElement"]
@@ -304,8 +301,6 @@ export function TextProperties({
 	const canvasSize = useEditorStore((state) => state.canvasSize);
 	const currentTime = usePlaybackStore((state) => state.currentTime);
 	const fps = useProjectStore((state) => state.activeProject?.fps ?? 30);
-	const projectId = useProjectStore((state) => state.activeProject?.id);
-	const mediaItems = useMediaStore((state) => state.mediaItems);
 	const cursorTelemetry = useScreenRecordingEnhancementStore(
 		(state) => state.cursorTelemetry
 	);
@@ -315,22 +310,29 @@ export function TextProperties({
 	const [keyframeProperty, setKeyframeProperty] =
 		useState<TextKeyframeProperty>("x");
 	const [isRewriting, setIsRewriting] = useState(false);
-	const [speechModel, setSpeechModel] = useState("chatterbox_tts");
-	const [avatarImageId, setAvatarImageId] = useState("");
-	const [generationKind, setGenerationKind] = useState<
-		"speech" | "avatar" | null
-	>(null);
 	const {
-		generate: generateAI,
+		avatarImageId,
+		avatarImages,
+		canGenerateAvatar,
+		canGenerateSpeech,
+		createAvatar,
+		createSpeech,
+		generationKind,
 		isAvailable: isSpeechAvailable,
 		isGenerating: isGeneratingAI,
 		progress: speechProgress,
-	} = useAIPipeline();
-	const avatarImages = mediaItems.filter(
-		(item) =>
-			item.type === "image" &&
-			Boolean(item.localPath || item.originalUrl || item.url)
-	);
+		setAvatarImageId,
+		setSpeechModel,
+		speechModel,
+	} = useSpeechAvatarGeneration({
+		captionElementId: element.id,
+		text: element.content,
+		startTime: element.startTime,
+		duration: Math.max(
+			0.1,
+			element.duration - element.trimStart - element.trimEnd
+		),
+	});
 	const trackingTargets = tracks
 		.flatMap((track) => track.elements)
 		.filter((candidate) => candidate.type === "media");
@@ -468,87 +470,6 @@ export function TextProperties({
 			);
 		} finally {
 			setIsRewriting(false);
-		}
-	};
-
-	const addGeneratedMedia = async (
-		result: AIPipelineResult,
-		messages: { timeline: string; library: string }
-	) => {
-		if (!projectId) return;
-		await syncProjectMediaIfNeeded({ projectId });
-		const mediaItem = useMediaStore
-			.getState()
-			.mediaItems.find(
-				(item) =>
-					item.id === result.mediaId ||
-					item.localPath === result.importedPath ||
-					item.localPath === result.outputPath
-			);
-		if (mediaItem) {
-			useTimelineStore.getState().addMediaAtTime(mediaItem, element.startTime);
-			toast.success(messages.timeline);
-		} else {
-			toast.success(messages.library);
-		}
-	};
-
-	const createSpeech = async () => {
-		if (!projectId || !element.content.trim() || isGeneratingAI) return;
-		setGenerationKind("speech");
-		try {
-			const result = await generateAI({
-				command: "generate-speech",
-				args: {
-					model: speechModel,
-					text: element.content,
-				},
-				projectId,
-				autoImport: true,
-			});
-
-			if (!result.success) {
-				toast.error(result.error || "Speech generation failed");
-				return;
-			}
-			await addGeneratedMedia(result, {
-				timeline: "Speech added to the timeline",
-				library: "Speech generated and added to the media library",
-			});
-		} finally {
-			setGenerationKind(null);
-		}
-	};
-
-	const createAvatar = async () => {
-		if (!projectId || !avatarImageId || isGeneratingAI) return;
-		const image = avatarImages.find((item) => item.id === avatarImageId);
-		const imageUrl = image?.localPath || image?.originalUrl || image?.url;
-		if (!imageUrl) return;
-
-		setGenerationKind("avatar");
-		try {
-			const result = await generateAI({
-				command: "generate-avatar",
-				args: {
-					model: "fabric_1_0_text",
-					text: element.content,
-					"image-url": imageUrl,
-					resolution: "720p",
-				},
-				projectId,
-				autoImport: true,
-			});
-			if (!result.success) {
-				toast.error(result.error || "Digital human generation failed");
-				return;
-			}
-			await addGeneratedMedia(result, {
-				timeline: "Digital human added to the timeline",
-				library: "Digital human added to the media library",
-			});
-		} finally {
-			setGenerationKind(null);
 		}
 	};
 
@@ -733,12 +654,7 @@ export function TextProperties({
 					<Button
 						type="button"
 						className="w-full"
-						disabled={
-							!isSpeechAvailable ||
-							isGeneratingAI ||
-							!element.content.trim() ||
-							!projectId
-						}
+						disabled={!canGenerateSpeech}
 						title={
 							isSpeechAvailable
 								? "Generate speech"
@@ -780,13 +696,7 @@ export function TextProperties({
 					<Button
 						type="button"
 						className="w-full"
-						disabled={
-							!isSpeechAvailable ||
-							isGeneratingAI ||
-							!avatarImageId ||
-							!element.content.trim() ||
-							!projectId
-						}
+						disabled={!canGenerateAvatar}
 						title={
 							avatarImages.length > 0
 								? "Generate a talking portrait"

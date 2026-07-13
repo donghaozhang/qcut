@@ -157,7 +157,7 @@ export function MediaChromaKeyProperties({
 		});
 	};
 	const pickColor = async () => {
-		toast.message("Click a color in the preview");
+		toast.message("请在预览画面中点击要抠除的颜色");
 		const color = await requestPreviewColor();
 		if (!color) return;
 		persist({
@@ -170,7 +170,7 @@ export function MediaChromaKeyProperties({
 
 	return (
 		<ColorModuleSection
-			title="Chroma key"
+			title="色度抠像"
 			enabled={settings.enabled}
 			onEnabledChange={(enabled) => persist({ next: { ...settings, enabled } })}
 			onReset={() => persist({ next: { ...DEFAULT_MEDIA_CHROMA_KEY } })}
@@ -178,10 +178,10 @@ export function MediaChromaKeyProperties({
 			testId="media-chroma-key-properties"
 		>
 			<div className="flex items-center gap-2">
-				<span className="min-w-0 flex-1 text-xs">Key color</span>
+				<span className="min-w-0 flex-1 text-xs">取色</span>
 				<Input
 					type="color"
-					aria-label="Chroma key color"
+					aria-label="色度抠像颜色"
 					value={settings.color}
 					onChange={(event) =>
 						persist({
@@ -190,7 +190,7 @@ export function MediaChromaKeyProperties({
 					}
 					className="h-7 w-12 cursor-pointer rounded-sm p-0.5"
 				/>
-				<ColorIconButton label="Pick color from preview" onClick={pickColor}>
+				<ColorIconButton label="从预览画面取色" onClick={pickColor}>
 					<Pipette className="size-3.5" />
 				</ColorIconButton>
 			</div>

@@ -41,7 +41,7 @@ export function ColorHslSettings({
 	const { settings, onSettingsChange } = bindings;
 	return (
 		<ColorModuleSection
-			title="HSL secondary"
+			title="HSL 二级调色"
 			enabled={settings.hsl.enabled}
 			onEnabledChange={(enabled) =>
 				onSettingsChange({

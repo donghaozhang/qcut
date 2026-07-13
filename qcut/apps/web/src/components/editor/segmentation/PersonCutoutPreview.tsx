@@ -4,9 +4,11 @@ import { Pause, Play } from "lucide-react";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Slider } from "@/components/ui/slider";
+import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
 import { drawPersonCutoutFrame } from "@/lib/segmentation/person-cutout-canvas";
 import { PersonCutoutClient } from "@/lib/segmentation/person-cutout-client";
 import type { PersonCutoutMaskOptions } from "@/lib/segmentation/person-cutout-mask";
+import { cn } from "@/lib/utils";
 
 interface PersonCutoutPreviewProps {
 	sourceUrl: string;
@@ -47,6 +49,7 @@ export function PersonCutoutPreview({
 	const [currentTime, setCurrentTime] = useState(0);
 	const [duration, setDuration] = useState(0);
 	const [error, setError] = useState<string | null>(null);
+	const [previewMode, setPreviewMode] = useState<"source" | "cutout">("cutout");
 
 	const processCurrentFrame = useCallback(async () => {
 		const video = videoRef.current;
@@ -162,17 +165,56 @@ export function PersonCutoutPreview({
 
 	return (
 		<div className="space-y-2" data-testid="person-cutout-preview">
+			<div className="flex items-center justify-between gap-2">
+				<span className="text-xs font-medium text-muted-foreground">
+					Preview
+				</span>
+				<ToggleGroup
+					type="single"
+					value={previewMode}
+					onValueChange={(value) => {
+						if (value === "source" || value === "cutout") setPreviewMode(value);
+					}}
+					variant="outline"
+					size="sm"
+					className="gap-0"
+				>
+					<ToggleGroupItem
+						value="source"
+						className="h-7 rounded-r-none px-2 text-[11px]"
+						aria-label="Show original video"
+					>
+						Original
+					</ToggleGroupItem>
+					<ToggleGroupItem
+						value="cutout"
+						className="h-7 rounded-l-none px-2 text-[11px]"
+						aria-label="Show cutout result"
+					>
+						Cutout
+					</ToggleGroupItem>
+				</ToggleGroup>
+			</div>
 			<div
 				className="relative flex h-32 items-center justify-center overflow-hidden rounded-sm border"
 				style={checkerBackground}
 			>
-				<canvas ref={canvasRef} className="max-h-full max-w-full" />
+				<canvas
+					ref={canvasRef}
+					className={cn(
+						"max-h-full max-w-full",
+						previewMode === "source" && "invisible"
+					)}
+				/>
 				<video
 					ref={videoRef}
 					src={sourceUrl}
 					muted
 					playsInline
-					className="pointer-events-none absolute size-px opacity-0"
+					className={cn(
+						"pointer-events-none absolute object-contain",
+						previewMode === "source" ? "inset-0 size-full" : "size-px opacity-0"
+					)}
 					onLoadedMetadata={(event) => {
 						const video = event.currentTarget;
 						setDuration(video.duration);

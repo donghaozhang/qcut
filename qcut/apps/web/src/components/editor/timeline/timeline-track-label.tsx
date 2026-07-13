@@ -1,3 +1,4 @@
+import { useRef } from "react";
 import type { DraggableProvidedDragHandleProps } from "@hello-pangea/dnd";
 import {
 	Eye,
@@ -12,6 +13,8 @@ import { cn } from "@/lib/utils";
 import type { TimelineTrack } from "@/types/timeline";
 import { getTrackHeight } from "@/constants/timeline-constants";
 import { TrackIcon } from "./track-icon";
+import { useTranslation } from "@/lib/i18n";
+import { localizeTrackName } from "@/lib/i18n/timeline-names";
 
 interface TimelineTrackLabelProps {
 	track: TimelineTrack;
@@ -20,6 +23,9 @@ interface TimelineTrackLabelProps {
 	onToggleHidden: () => void;
 	onToggleLocked: () => void;
 	onToggleMuted: () => void;
+	onToggleSolo: () => void;
+	onResizeStart: () => void;
+	onResizeHeight: (height: number) => void;
 }
 
 function handleKeyboardActivation({
@@ -42,28 +48,41 @@ export function TimelineTrackLabel({
 	onToggleHidden,
 	onToggleLocked,
 	onToggleMuted,
+	onToggleSolo,
+	onResizeStart,
+	onResizeHeight,
 }: TimelineTrackLabelProps) {
+	const { locale, t } = useTranslation();
+	const displayName = localizeTrackName({ track, locale });
 	const hasAudioControls = track.type === "media" || track.type === "audio";
+	const trackHeight = getTrackHeight(track.type, track.height);
+	const resizeState = useRef<{
+		pointerId: number;
+		startY: number;
+		startHeight: number;
+	} | null>(null);
 	const controlClassName =
 		"grid size-6 shrink-0 place-items-center text-muted-foreground hover:text-foreground disabled:cursor-not-allowed disabled:opacity-40";
 
 	return (
 		<div
 			className={cn(
-				"flex items-center gap-1 border-b border-muted/30 bg-foreground/5 px-1.5",
+				"relative flex items-center gap-1 border-b border-muted/30 bg-foreground/5 px-1.5",
 				track.hidden && "opacity-55",
 				isDragging && "bg-accent shadow-md"
 			)}
-			style={{ height: `${getTrackHeight(track.type)}px` }}
+			style={{ height: `${trackHeight}px` }}
 			data-testid="timeline-track-label"
 			data-track-id={track.id}
 		>
 			<button
 				type="button"
 				className={cn(controlClassName, !track.locked && "cursor-grab")}
-				aria-label={`Reorder ${track.name}`}
+				aria-label={t("timeline.reorder", { name: displayName })}
 				title={
-					track.locked ? "Unlock track to reorder" : "Drag to reorder track"
+					track.locked
+						? t("timeline.unlockToReorder")
+						: t("timeline.dragToReorder")
 				}
 				disabled={track.locked}
 				{...dragHandleProps}
@@ -73,8 +92,8 @@ export function TimelineTrackLabel({
 
 			<div className="flex min-w-0 flex-1 items-center gap-1.5">
 				<TrackIcon type={track.type} />
-				<span className="truncate text-xs" title={track.name}>
-					{track.name}
+				<span className="truncate text-xs" title={displayName}>
+					{displayName}
 				</span>
 			</div>
 
@@ -88,8 +107,12 @@ export function TimelineTrackLabel({
 				onKeyDown={(event) =>
 					handleKeyboardActivation({ event, action: onToggleHidden })
 				}
-				aria-label={track.hidden ? `Show ${track.name}` : `Hide ${track.name}`}
-				title={track.hidden ? "Show track" : "Hide track"}
+				aria-label={
+					track.hidden
+						? t("timeline.show", { name: displayName })
+						: t("timeline.hide", { name: displayName })
+				}
+				title={track.hidden ? t("timeline.showTrack") : t("timeline.hideTrack")}
 			>
 				{track.hidden ? (
 					<EyeOff className="size-3.5" />
@@ -99,27 +122,60 @@ export function TimelineTrackLabel({
 			</button>
 
 			{hasAudioControls ? (
-				<button
-					type="button"
-					className={controlClassName}
-					onClick={(event) => {
-						event.stopPropagation();
-						onToggleMuted();
-					}}
-					onKeyDown={(event) =>
-						handleKeyboardActivation({ event, action: onToggleMuted })
-					}
-					aria-label={
-						track.muted ? `Unmute ${track.name}` : `Mute ${track.name}`
-					}
-					title={track.muted ? "Unmute track" : "Mute track"}
-				>
-					{track.muted ? (
-						<VolumeX className="size-3.5" />
-					) : (
-						<Volume2 className="size-3.5" />
-					)}
-				</button>
+				<>
+					<button
+						type="button"
+						className={controlClassName}
+						onClick={(event) => {
+							event.stopPropagation();
+							onToggleMuted();
+						}}
+						onKeyDown={(event) =>
+							handleKeyboardActivation({ event, action: onToggleMuted })
+						}
+						aria-label={
+							track.muted
+								? t("timeline.unmute", { name: displayName })
+								: t("timeline.mute", { name: displayName })
+						}
+						title={
+							track.muted ? t("timeline.unmuteTrack") : t("timeline.muteTrack")
+						}
+					>
+						{track.muted ? (
+							<VolumeX className="size-3.5" />
+						) : (
+							<Volume2 className="size-3.5" />
+						)}
+					</button>
+					<button
+						type="button"
+						className={cn(
+							controlClassName,
+							track.audio?.solo && "bg-primary/15 font-semibold text-primary"
+						)}
+						onClick={(event) => {
+							event.stopPropagation();
+							onToggleSolo();
+						}}
+						onKeyDown={(event) =>
+							handleKeyboardActivation({ event, action: onToggleSolo })
+						}
+						aria-label={
+							track.audio?.solo
+								? t("timeline.disableSolo", { name: displayName })
+								: t("timeline.solo", { name: displayName })
+						}
+						aria-pressed={track.audio?.solo === true}
+						title={
+							track.audio?.solo
+								? t("timeline.disableSoloTrack")
+								: t("timeline.soloTrack")
+						}
+					>
+						<span className="text-[10px] leading-none">S</span>
+					</button>
+				</>
 			) : null}
 
 			<button
@@ -133,9 +189,13 @@ export function TimelineTrackLabel({
 					handleKeyboardActivation({ event, action: onToggleLocked })
 				}
 				aria-label={
-					track.locked ? `Unlock ${track.name}` : `Lock ${track.name}`
+					track.locked
+						? t("timeline.unlock", { name: displayName })
+						: t("timeline.lock", { name: displayName })
 				}
-				title={track.locked ? "Unlock track" : "Lock track"}
+				title={
+					track.locked ? t("timeline.unlockTrack") : t("timeline.lockTrack")
+				}
 			>
 				{track.locked ? (
 					<Lock className="size-3.5" />
@@ -143,6 +203,48 @@ export function TimelineTrackLabel({
 					<Unlock className="size-3.5" />
 				)}
 			</button>
+
+			<div
+				role="separator"
+				tabIndex={0}
+				aria-label={t("timeline.resize", { name: displayName })}
+				aria-orientation="horizontal"
+				aria-valuemin={24}
+				aria-valuemax={140}
+				aria-valuenow={trackHeight}
+				className="absolute inset-x-0 bottom-0 z-10 h-1 cursor-row-resize bg-transparent hover:bg-primary/60 focus:bg-primary/60 focus:outline-none"
+				onPointerDown={(event) => {
+					event.preventDefault();
+					event.stopPropagation();
+					event.currentTarget.setPointerCapture(event.pointerId);
+					resizeState.current = {
+						pointerId: event.pointerId,
+						startY: event.clientY,
+						startHeight: trackHeight,
+					};
+					onResizeStart();
+				}}
+				onPointerMove={(event) => {
+					const resize = resizeState.current;
+					if (!resize || resize.pointerId !== event.pointerId) return;
+					onResizeHeight(resize.startHeight + event.clientY - resize.startY);
+				}}
+				onPointerUp={(event) => {
+					if (resizeState.current?.pointerId !== event.pointerId) return;
+					event.currentTarget.releasePointerCapture(event.pointerId);
+					resizeState.current = null;
+				}}
+				onPointerCancel={() => {
+					resizeState.current = null;
+				}}
+				onKeyDown={(event) => {
+					if (event.key !== "ArrowUp" && event.key !== "ArrowDown") return;
+					event.preventDefault();
+					event.stopPropagation();
+					onResizeStart();
+					onResizeHeight(trackHeight + (event.key === "ArrowUp" ? -8 : 8));
+				}}
+			/>
 		</div>
 	);
 }

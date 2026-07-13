@@ -37,8 +37,11 @@ export function Timeline() {
 	const showEffectsTrack = useTimelineStore((s) => s.showEffectsTrack);
 	const setSelectedElements = useTimelineStore((s) => s.setSelectedElements);
 	const toggleTrackMute = useTimelineStore((s) => s.toggleTrackMute);
+	const toggleTrackSolo = useTimelineStore((s) => s.toggleTrackSolo);
 	const toggleTrackHidden = useTimelineStore((s) => s.toggleTrackHidden);
 	const toggleTrackLocked = useTimelineStore((s) => s.toggleTrackLocked);
+	const updateTrackHeight = useTimelineStore((s) => s.updateTrackHeight);
+	const pushHistory = useTimelineStore((s) => s.pushHistory);
 	const moveTrack = useTimelineStore((s) => s.moveTrack);
 	const dragState = useTimelineStore((s) => s.dragState);
 	const {
@@ -49,7 +52,6 @@ export function Timeline() {
 	const mediaItems = mediaStore?.mediaItems || [];
 	const addMediaItem = mediaStore?.addMediaItem;
 	const activeProject = useProjectStore((s) => s.activeProject);
-	const currentTime = usePlaybackStore((s) => s.currentTime);
 	const duration = usePlaybackStore((s) => s.duration);
 	const seek = usePlaybackStore((s) => s.seek);
 	const setDuration = usePlaybackStore((s) => s.setDuration);
@@ -94,7 +96,6 @@ export function Timeline() {
 	// Dynamic timeline width calculation
 	const { dynamicTimelineWidth } = useTimelineDimensions({
 		duration,
-		currentTime,
 		zoomLevel,
 		containerRef: timelineRef,
 	});
@@ -114,7 +115,6 @@ export function Timeline() {
 
 	// Timeline playhead ruler handlers
 	const { handleRulerPointerDown } = useTimelinePlayheadRuler({
-		currentTime,
 		duration,
 		zoomLevel,
 		seek,
@@ -216,7 +216,6 @@ export function Timeline() {
 				ref={timelineRef}
 			>
 				<TimelinePlayhead
-					currentTime={currentTime}
 					duration={duration}
 					zoomLevel={zoomLevel}
 					tracks={tracks}
@@ -279,8 +278,13 @@ export function Timeline() {
 					dynamicTimelineWidth={dynamicTimelineWidth}
 					clearSelectedElements={clearSelectedElements}
 					toggleTrackMute={toggleTrackMute}
+					toggleTrackSolo={toggleTrackSolo}
 					toggleTrackHidden={toggleTrackHidden}
 					toggleTrackLocked={toggleTrackLocked}
+					beginTrackResize={pushHistory}
+					resizeTrack={(trackId, height) =>
+						updateTrackHeight(trackId, height, false)
+					}
 					moveTrack={moveTrack}
 					seek={seek}
 					handleSnapPointChange={handleSnapPointChange}

@@ -71,7 +71,7 @@ test.describe("Local person cutout", () => {
 			const panel = page.getByTestId("media-panel");
 			await panel.getByRole("tab", { name: "Video", exact: true }).click();
 			await expect(
-				panel.getByRole("tab", { name: "Local person", exact: true })
+				panel.getByRole("tab", { name: "本地人物", exact: true })
 			).toHaveAttribute("data-state", "active");
 			await panel
 				.locator('input[type="file"][accept="video/*"]')

@@ -29,9 +29,9 @@ type WheelChannel = "r" | "g" | "b";
 
 const WHEEL_NAMES = ["shadows", "midtones", "highlights", "offset"] as const;
 const WHEEL_CHANNELS = [
-	{ key: "r", color: "bg-red-500", label: "Red" },
-	{ key: "g", color: "bg-green-500", label: "Green" },
-	{ key: "b", color: "bg-blue-500", label: "Blue" },
+	{ key: "r", color: "bg-red-500", label: "红" },
+	{ key: "g", color: "bg-green-500", label: "绿" },
+	{ key: "b", color: "bg-blue-500", label: "蓝" },
 ] as const;
 
 function clampWheelValue({ value }: { value: number }) {
@@ -190,16 +190,16 @@ export function ColorWheelSettingsPanel({
 	const wheelLabels =
 		settings.wheels.mode === "lift-gamma-gain"
 			? {
-					shadows: "Lift",
-					midtones: "Gamma",
-					highlights: "Gain",
-					offset: "Offset",
+					shadows: "提升",
+					midtones: "伽马",
+					highlights: "增益",
+					offset: "偏移",
 				}
 			: {
-					shadows: "Shadows",
-					midtones: "Midtones",
-					highlights: "Highlights",
-					offset: "Offset",
+					shadows: "阴影",
+					midtones: "中间调",
+					highlights: "高光",
+					offset: "全局",
 				};
 	const updateWheel = (wheel: WheelName, value: ColorWheelSettings) =>
 		onSettingsChange({
@@ -210,7 +210,7 @@ export function ColorWheelSettingsPanel({
 		updateWheel(wheel, { ...DEFAULT_MEDIA_COLOR_SETTINGS.wheels[wheel] });
 	return (
 		<ColorModuleSection
-			title="Color wheels"
+			title="色轮"
 			enabled={settings.wheels.enabled}
 			onEnabledChange={(enabled) =>
 				onSettingsChange({
@@ -245,12 +245,12 @@ export function ColorWheelSettingsPanel({
 						});
 					}}
 				>
-					<SelectTrigger aria-label="Color wheel mode" className="h-8 text-xs">
+					<SelectTrigger aria-label="色轮模式" className="h-8 text-xs">
 						<SelectValue />
 					</SelectTrigger>
 					<SelectContent>
-						<SelectItem value="tonal">Primary wheels</SelectItem>
-						<SelectItem value="lift-gamma-gain">Lift / Gamma / Gain</SelectItem>
+						<SelectItem value="tonal">主色轮</SelectItem>
+						<SelectItem value="lift-gamma-gain">提升 / 伽马 / 增益</SelectItem>
 					</SelectContent>
 				</Select>
 				<ColorKeyframedControl property="wheels.strength" bindings={bindings} />

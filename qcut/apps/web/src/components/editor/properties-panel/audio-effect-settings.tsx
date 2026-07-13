@@ -40,7 +40,7 @@ export function AudioEffectSettings({
 		<div data-testid="audio-effect-settings">
 			<AudioPresetControls bindings={bindings} />
 			<AudioModuleSection
-				title="Equalizer"
+				title="均衡器"
 				enabled={settings.equalizer.enabled}
 				onEnabledChange={(enabled) =>
 					onSettingsChange({
@@ -66,7 +66,7 @@ export function AudioEffectSettings({
 			</AudioModuleSection>
 
 			<AudioModuleSection
-				title="Compressor"
+				title="压缩器"
 				enabled={settings.compressor.enabled}
 				onEnabledChange={(enabled) =>
 					onSettingsChange({
@@ -91,7 +91,7 @@ export function AudioEffectSettings({
 				/>
 				<AudioKeyframedControl property="compressorRatio" {...keyframedProps} />
 				<AudioNumberControl
-					label="Attack"
+					label="启动时间"
 					value={settings.compressor.attackMs}
 					min={0}
 					max={200}
@@ -106,7 +106,7 @@ export function AudioEffectSettings({
 					{...numberProps}
 				/>
 				<AudioNumberControl
-					label="Release"
+					label="释放时间"
 					value={settings.compressor.releaseMs}
 					min={10}
 					max={1000}
@@ -121,7 +121,7 @@ export function AudioEffectSettings({
 					{...numberProps}
 				/>
 				<AudioNumberControl
-					label="Makeup gain"
+					label="补偿增益"
 					value={settings.compressor.makeupGainDb}
 					min={0}
 					max={24}
@@ -138,7 +138,7 @@ export function AudioEffectSettings({
 			</AudioModuleSection>
 
 			<AudioModuleSection
-				title="Limiter"
+				title="限制器"
 				enabled={settings.limiter.enabled}
 				onEnabledChange={(enabled) =>
 					onSettingsChange({
@@ -155,7 +155,7 @@ export function AudioEffectSettings({
 				testId="audio-module-limiter"
 			>
 				<AudioNumberControl
-					label="Ceiling"
+					label="峰值上限"
 					value={settings.limiter.ceilingDb}
 					min={-12}
 					max={0}
@@ -170,7 +170,7 @@ export function AudioEffectSettings({
 					{...numberProps}
 				/>
 				<AudioNumberControl
-					label="Release"
+					label="释放时间"
 					value={settings.limiter.releaseMs}
 					min={10}
 					max={1000}
@@ -187,7 +187,7 @@ export function AudioEffectSettings({
 			</AudioModuleSection>
 
 			<AudioModuleSection
-				title="Reverb"
+				title="混响"
 				enabled={settings.reverb.enabled}
 				onEnabledChange={(enabled) =>
 					onSettingsChange({
@@ -208,7 +208,7 @@ export function AudioEffectSettings({
 			>
 				<AudioKeyframedControl property="reverbMix" {...keyframedProps} />
 				<AudioNumberControl
-					label="Room size"
+					label="房间大小"
 					value={settings.reverb.roomSize}
 					min={0}
 					max={100}
@@ -222,7 +222,7 @@ export function AudioEffectSettings({
 					{...numberProps}
 				/>
 				<AudioNumberControl
-					label="Damping"
+					label="阻尼"
 					value={settings.reverb.damping}
 					min={0}
 					max={100}
@@ -238,7 +238,7 @@ export function AudioEffectSettings({
 			</AudioModuleSection>
 
 			<AudioModuleSection
-				title="Echo"
+				title="回声"
 				enabled={settings.echo.enabled}
 				onEnabledChange={(enabled) =>
 					onSettingsChange({ ...settings, echo: { ...settings.echo, enabled } })
@@ -256,7 +256,7 @@ export function AudioEffectSettings({
 			>
 				<AudioKeyframedControl property="echoMix" {...keyframedProps} />
 				<AudioNumberControl
-					label="Delay"
+					label="延迟"
 					value={settings.echo.delayMs}
 					min={20}
 					max={1000}
@@ -271,7 +271,7 @@ export function AudioEffectSettings({
 					{...numberProps}
 				/>
 				<AudioNumberControl
-					label="Feedback"
+					label="反馈"
 					value={settings.echo.feedback}
 					min={0}
 					max={85}
@@ -287,7 +287,7 @@ export function AudioEffectSettings({
 			</AudioModuleSection>
 
 			<AudioModuleSection
-				title="Telephone"
+				title="电话音"
 				enabled={settings.telephone.enabled}
 				onEnabledChange={(enabled) =>
 					onSettingsChange({
@@ -304,7 +304,7 @@ export function AudioEffectSettings({
 				testId="audio-module-telephone"
 			>
 				<AudioNumberControl
-					label="Mix"
+					label="混合"
 					value={settings.telephone.mix}
 					min={0}
 					max={100}

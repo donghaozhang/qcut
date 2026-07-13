@@ -27,6 +27,7 @@ import {
 	calculateGifDimensions,
 	isValidGifFrameRate,
 	getExportFilename,
+	resolveExportResolution,
 } from "@/types/export";
 import { useExportSettings } from "@/hooks/export/use-export-settings";
 import { useExportProgress } from "@/hooks/export/use-export-progress";
@@ -147,16 +148,10 @@ export function ExportDialog() {
 					bitrate: 128,
 				});
 
-				const qualityResolutions: Record<
-					string,
-					{ width: number; height: number }
-				> = {
-					"1080p": { width: 1920, height: 1080 },
-					"720p": { width: 1280, height: 720 },
-					"480p": { width: 854, height: 480 },
-				};
-				const resolution =
-					qualityResolutions[settings.quality] || qualityResolutions["720p"];
+				const resolution = resolveExportResolution({
+					quality: settings.quality as ExportQuality,
+					aspectRatio: exportSettings.aspectRatio,
+				});
 
 				return exportProgress.handleExport(
 					canvas,
@@ -182,7 +177,12 @@ export function ExportDialog() {
 		return () => {
 			delete (window as any).__exportActions;
 		};
-	}, [exportProgress.handleExport, exportSettings.timelineDuration, hasAudio]);
+	}, [
+		exportProgress.handleExport,
+		exportSettings.aspectRatio,
+		exportSettings.timelineDuration,
+		hasAudio,
+	]);
 
 	const handleClose = () => {
 		if (!exportProgress.progress.isExporting) {
@@ -481,6 +481,7 @@ export function ExportDialog() {
 
 				<QualityCard
 					quality={exportSettings.quality}
+					aspectRatio={exportSettings.aspectRatio}
 					estimatedSize={exportSettings.estimatedSize}
 					onQualityChange={exportSettings.handleQualityChange}
 					isExporting={isExporting}

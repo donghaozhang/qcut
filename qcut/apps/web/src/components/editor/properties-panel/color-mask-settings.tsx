@@ -28,7 +28,7 @@ export function ColorMaskSettings({
 		});
 	return (
 		<ColorModuleSection
-			title="Grade mask"
+			title="调色蒙版"
 			enabled={settings.mask.enabled}
 			onEnabledChange={(enabled) =>
 				onSettingsChange({
@@ -75,7 +75,7 @@ export function ColorMaskSettings({
 				Ellipse mask
 			</Button>
 			<ColorToggleRow
-				label="Invert"
+				label="反转"
 				checked={settings.mask.invert}
 				onCheckedChange={(invert) =>
 					onSettingsChange({

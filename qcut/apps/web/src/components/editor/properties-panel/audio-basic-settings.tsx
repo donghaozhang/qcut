@@ -24,11 +24,11 @@ function denoiseStatusText({
 }: {
 	denoise: AudioDenoiseSettings;
 }): string {
-	if (denoise.status === "ready") return "Enhanced source ready";
+	if (denoise.status === "ready") return "增强音频已生成";
 	if (denoise.status === "error") {
-		return denoise.error || "Enhancement failed";
+		return denoise.error || "增强失败";
 	}
-	return "DeepFilterNet speech cleanup";
+	return "DeepFilterNet 人声清理";
 }
 
 export function AudioBasicSettings({
@@ -67,7 +67,7 @@ export function AudioBasicSettings({
 		<div data-testid="audio-basic-settings">
 			<AudioLevelMeter trackId={trackId} />
 			<AudioModuleSection
-				title="Basic"
+				title="基础"
 				enabled={settings.enabled}
 				onEnabledChange={(enabled) =>
 					onSettingsChange({ ...settings, enabled })
@@ -101,7 +101,7 @@ export function AudioBasicSettings({
 			</AudioModuleSection>
 
 			<AudioModuleSection
-				title="Normalize loudness"
+				title="响度标准化"
 				enabled={settings.loudness.enabled}
 				onEnabledChange={(enabled) =>
 					onSettingsChange({
@@ -118,7 +118,7 @@ export function AudioBasicSettings({
 				testId="audio-module-loudness"
 			>
 				<AudioNumberControl
-					label="Target loudness"
+					label="目标响度"
 					value={settings.loudness.targetLufs}
 					min={-24}
 					max={-8}
@@ -134,7 +134,7 @@ export function AudioBasicSettings({
 					onInteractionEnd={onInteractionEnd}
 				/>
 				<AudioNumberControl
-					label="True peak"
+					label="真实峰值"
 					value={settings.loudness.truePeakDb}
 					min={-6}
 					max={0}
@@ -150,7 +150,7 @@ export function AudioBasicSettings({
 					onInteractionEnd={onInteractionEnd}
 				/>
 				<AudioNumberControl
-					label="Loudness range"
+					label="响度范围"
 					value={settings.loudness.loudnessRange}
 					min={1}
 					max={30}
@@ -169,7 +169,7 @@ export function AudioBasicSettings({
 					<div className="text-[10px] tabular-nums text-muted-foreground">
 						{settings.loudness.measuredLufs !== undefined
 							? `${settings.loudness.measuredLufs.toFixed(1)} LUFS / ${(settings.loudness.measuredTruePeakDb ?? -120).toFixed(1)} dBTP`
-							: "Not analyzed"}
+							: "尚未分析"}
 					</div>
 					<Button
 						type="button"
@@ -184,18 +184,18 @@ export function AudioBasicSettings({
 						) : (
 							<Activity className="size-3" />
 						)}
-						Analyze
+						分析
 					</Button>
 				</div>
 				{settings.loudness.analysisStatus === "error" ? (
 					<p className="text-[10px] text-destructive">
-						{settings.loudness.analysisError ?? "Analysis failed"}
+						{settings.loudness.analysisError ?? "分析失败"}
 					</p>
 				) : null}
 			</AudioModuleSection>
 
 			<AudioModuleSection
-				title="Noise reduction"
+				title="降噪"
 				enabled={settings.denoise.enabled}
 				onEnabledChange={(enabled) =>
 					onSettingsChange({
@@ -226,11 +226,11 @@ export function AudioBasicSettings({
 					}}
 					className="grid w-full grid-cols-2"
 				>
-					<ToggleGroupItem value="realtime" aria-label="Realtime denoise">
-						Realtime
+					<ToggleGroupItem value="realtime" aria-label="实时降噪">
+						实时
 					</ToggleGroupItem>
-					<ToggleGroupItem value="ai" aria-label="AI speech denoise">
-						AI Enhance
+					<ToggleGroupItem value="ai" aria-label="AI 人声降噪">
+						AI 增强
 					</ToggleGroupItem>
 				</ToggleGroup>
 				{(settings.denoise.mode ?? "realtime") === "realtime" ? (
@@ -240,7 +240,7 @@ export function AudioBasicSettings({
 							{...keyframedProps}
 						/>
 						<AudioNumberControl
-							label="Noise floor"
+							label="噪声底限"
 							value={settings.denoise.noiseFloorDb}
 							min={-80}
 							max={-20}
@@ -269,9 +269,7 @@ export function AudioBasicSettings({
 							onClick={() =>
 								void onRunAiDenoise().catch((error) =>
 									toast.error(
-										error instanceof Error
-											? error.message
-											: "Enhancement failed"
+										error instanceof Error ? error.message : "增强失败"
 									)
 								)
 							}
@@ -282,7 +280,7 @@ export function AudioBasicSettings({
 							) : (
 								<Activity className="size-3" />
 							)}
-							{settings.denoise.status === "ready" ? "Reprocess" : "Process"}
+							{settings.denoise.status === "ready" ? "重新处理" : "开始处理"}
 						</Button>
 					</div>
 				)}
@@ -293,7 +291,7 @@ export function AudioBasicSettings({
 			<AudioPitchSettings bindings={bindings} />
 
 			<AudioModuleSection
-				title="Stereo balance"
+				title="声像平衡"
 				enabled={settings.panEnabled}
 				onEnabledChange={(panEnabled) =>
 					onSettingsChange({ ...settings, panEnabled })

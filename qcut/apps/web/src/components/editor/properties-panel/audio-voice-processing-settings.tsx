@@ -32,7 +32,7 @@ export function AudioVoiceEnhancementSettings({
 	const { settings, onSettingsChange } = bindings;
 	return (
 		<AudioModuleSection
-			title="Voice enhancement"
+			title="人声增强"
 			enabled={settings.voiceEnhance.enabled}
 			onEnabledChange={(enabled) =>
 				onSettingsChange({
@@ -75,7 +75,7 @@ export function AudioPitchSettings({
 	const { settings, onSettingsChange } = bindings;
 	return (
 		<AudioModuleSection
-			title="Pitch"
+			title="音调"
 			enabled={settings.pitch.enabled}
 			onEnabledChange={(enabled) =>
 				onSettingsChange({
@@ -99,7 +99,7 @@ export function AudioPitchSettings({
 				{...keyframedProps({ bindings })}
 			/>
 			<AudioToggleRow
-				label="Preserve formants"
+				label="保留共振峰"
 				checked={settings.pitch.preserveFormants}
 				onCheckedChange={(preserveFormants) =>
 					onSettingsChange({

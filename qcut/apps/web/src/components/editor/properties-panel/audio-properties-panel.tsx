@@ -288,7 +288,7 @@ export function AudioPropertiesPanel({
 	return (
 		<div data-testid="audio-properties-panel">
 			<div className="flex h-9 items-center gap-1 border-b border-border px-3">
-				<span className="text-xs font-medium">Sound</span>
+				<span className="text-xs font-medium">声音</span>
 				<span className="mx-1 text-xs text-muted-foreground">·</span>
 				<span className="min-w-0 flex-1 truncate text-xs text-muted-foreground">
 					{element.name}
@@ -298,8 +298,8 @@ export function AudioPropertiesPanel({
 					variant="text"
 					size="icon"
 					className="size-7 shrink-0"
-					aria-label={isPlaying ? "Pause sound preview" : "Preview sound"}
-					title={isPlaying ? "Pause sound preview" : "Preview sound"}
+					aria-label={isPlaying ? "暂停声音预览" : "预览声音"}
+					title={isPlaying ? "暂停声音预览" : "预览声音"}
 					data-testid="audio-preview-playback"
 					onClick={toggleAudition}
 					onKeyDown={(event) => {
@@ -319,17 +319,9 @@ export function AudioPropertiesPanel({
 					variant={previewBypassed ? "secondary" : "text"}
 					size="icon"
 					className="size-7 shrink-0"
-					aria-label={
-						previewBypassed
-							? "Preview processed sound"
-							: "Preview original sound"
-					}
+					aria-label={previewBypassed ? "试听处理后的声音" : "试听原始声音"}
 					aria-pressed={previewBypassed}
-					title={
-						previewBypassed
-							? "Preview processed sound"
-							: "Preview original sound"
-					}
+					title={previewBypassed ? "试听处理后的声音" : "试听原始声音"}
 					data-testid="audio-preview-bypass"
 					onClick={() =>
 						setElementBypassed({
@@ -354,8 +346,8 @@ export function AudioPropertiesPanel({
 					variant="text"
 					size="icon"
 					className="size-7 shrink-0"
-					aria-label="Reset all sound processing"
-					title="Reset all sound processing"
+					aria-label="重置全部声音处理"
+					title="重置全部声音处理"
 					data-testid="audio-reset-all"
 					onClick={resetAllProcessing}
 					onKeyDown={(event) => {
@@ -380,31 +372,31 @@ export function AudioPropertiesPanel({
 						value="basic"
 						className="h-9 min-w-0 rounded-none border-b-2 border-transparent px-1 text-[10px] data-[state=active]:border-primary data-[state=active]:bg-transparent"
 					>
-						Basic
+						基础
 					</TabsTrigger>
 					<TabsTrigger
 						value="voice"
 						className="h-9 min-w-0 rounded-none border-b-2 border-transparent px-1 text-[10px] data-[state=active]:border-primary data-[state=active]:bg-transparent"
 					>
-						Voice
+						人声
 					</TabsTrigger>
 					<TabsTrigger
 						value="effects"
 						className="h-9 min-w-0 rounded-none border-b-2 border-transparent px-1 text-[10px] data-[state=active]:border-primary data-[state=active]:bg-transparent"
 					>
-						Effects
+						音效
 					</TabsTrigger>
 					<TabsTrigger
 						value="speed"
 						className="h-9 min-w-0 rounded-none border-b-2 border-transparent px-1 text-[10px] data-[state=active]:border-primary data-[state=active]:bg-transparent"
 					>
-						Speed
+						变速
 					</TabsTrigger>
 					<TabsTrigger
 						value="lyrics"
 						className="h-9 min-w-0 rounded-none border-b-2 border-transparent px-1 text-[10px] data-[state=active]:border-primary data-[state=active]:bg-transparent"
 					>
-						Lyrics
+						歌词
 					</TabsTrigger>
 				</TabsList>
 				<TabsContent value="basic" className="m-0 px-3">

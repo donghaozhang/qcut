@@ -6,19 +6,7 @@ import type {
 	MediaMaskTrackingDirection,
 } from "@/types/timeline";
 import { Button } from "@/components/ui/button";
-import {
-	DropdownMenu,
-	DropdownMenuContent,
-	DropdownMenuItem,
-	DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu";
 import { Input } from "@/components/ui/input";
-import {
-	Tooltip,
-	TooltipContent,
-	TooltipProvider,
-	TooltipTrigger,
-} from "@/components/ui/tooltip";
 import { Switch } from "@/components/ui/switch";
 import { generateUUID } from "@/lib/utils";
 import {
@@ -32,12 +20,14 @@ import { useMaskEditorStore } from "@/stores/editor/mask-editor-store";
 import { MaskNumberControl } from "./media-mask-controls";
 import { MediaMaskLayerList } from "./media-mask-layer-list";
 import { MediaMaskTrackingControls } from "./media-mask-tracking-controls";
+import { MediaMaskStrokeProperties } from "./media-mask-stroke-properties";
 import {
+	changeMediaMaskShape,
 	createMaskForShape,
 	MASK_PROPERTY_FALLBACKS,
-	MASK_SHAPES,
 	type AddableMaskType,
 } from "./media-mask-shapes";
+import { MediaMaskShapeGrid } from "./media-mask-shape-grid";
 import { PropertyItemLabel } from "./property-item";
 
 export function MediaMaskProperties({
@@ -229,38 +219,41 @@ export function MediaMaskProperties({
 		<div className="space-y-4" data-testid="media-mask-properties">
 			<div className="space-y-2" data-testid="media-mask-stack">
 				<div className="flex items-center justify-between gap-2">
-					<PropertyItemLabel>Mask stack</PropertyItemLabel>
-					<DropdownMenu>
-						<DropdownMenuTrigger asChild>
-							<Button type="button" variant="outline" size="sm" className="h-7">
-								<Plus className="size-3.5" /> Add
-							</Button>
-						</DropdownMenuTrigger>
-						<DropdownMenuContent align="end" className="w-44">
-							{MASK_SHAPES.map((shape) => {
-								const Icon = shape.icon;
-								return (
-									<DropdownMenuItem
-										key={shape.type}
-										onSelect={() => addMask(shape.type)}
-									>
-										<Icon className="mr-2 size-4" /> {shape.label}
-									</DropdownMenuItem>
-								);
-							})}
-						</DropdownMenuContent>
-					</DropdownMenu>
+					<PropertyItemLabel>蒙版形状</PropertyItemLabel>
+					<Button
+						type="button"
+						variant="outline"
+						size="sm"
+						className="h-7"
+						onClick={() => addMask("rectangle")}
+						onKeyDown={(event) => {
+							if (event.key !== "Enter" && event.key !== " ") return;
+							event.preventDefault();
+							addMask("rectangle");
+						}}
+						aria-label="新建蒙版"
+						title="新建蒙版"
+					>
+						<Plus className="size-3.5" /> 新建
+					</Button>
 				</div>
 
-				{masks.length === 0 ? (
-					<button
-						type="button"
-						className="flex h-16 w-full items-center justify-center gap-2 rounded-md border border-dashed border-border text-xs text-muted-foreground hover:bg-accent/40 hover:text-foreground"
-						onClick={() => addMask("rectangle")}
-					>
-						<Plus className="size-4" /> Add a mask
-					</button>
-				) : (
+				<MediaMaskShapeGrid
+					selectedType={selectedMask?.type}
+					onSelect={(type) =>
+						selectedMask
+							? patchSelected(
+									changeMediaMaskShape({
+										mask: selectedMask,
+										type,
+										index: masks.indexOf(selectedMask),
+									})
+								)
+							: addMask(type)
+					}
+				/>
+
+				{masks.length > 0 ? (
 					<MediaMaskLayerList
 						masks={masks}
 						selectedMaskId={selectedMaskId}
@@ -270,52 +263,20 @@ export function MediaMaskProperties({
 							setEditing(true);
 						}}
 					/>
-				)}
+				) : null}
 			</div>
 
 			{selectedMask ? (
 				<>
-					<div className="border-t border-border pt-4">
-						<PropertyItemLabel>Shape</PropertyItemLabel>
-						<div className="mt-2 grid grid-cols-5 gap-1.5">
-							{MASK_SHAPES.map((shape) => {
-								const Icon = shape.icon;
-								return (
-									<TooltipProvider key={shape.type}>
-										<Tooltip>
-											<TooltipTrigger asChild>
-												<Button
-													type="button"
-													variant={
-														selectedMask.type === shape.type
-															? "primary"
-															: "outline"
-													}
-													size="icon"
-													className="aspect-square h-auto w-full"
-													onClick={() => patchSelected({ type: shape.type })}
-													aria-label={shape.label}
-												>
-													<Icon className="size-4" />
-												</Button>
-											</TooltipTrigger>
-											<TooltipContent>{shape.label}</TooltipContent>
-										</Tooltip>
-									</TooltipProvider>
-								);
-							})}
-						</div>
-					</div>
-
 					{selectedMask.type === "text" ? (
-						<div className="space-y-1.5">
-							<PropertyItemLabel>Mask text</PropertyItemLabel>
+						<div className="space-y-1.5 border-t border-border pt-4">
+							<PropertyItemLabel>蒙版文字</PropertyItemLabel>
 							<Input
 								value={selectedMask.text ?? "Text"}
 								onChange={(event) =>
 									patchSelected({ text: event.target.value }, false)
 								}
-								aria-label="Mask text"
+								aria-label="蒙版文字"
 								className="h-8 text-xs"
 							/>
 						</div>
@@ -329,7 +290,7 @@ export function MediaMaskProperties({
 							className="w-full"
 							onClick={() => setEditing(true)}
 						>
-							<PenTool className="size-3.5" /> Edit points on canvas
+							<PenTool className="size-3.5" /> 在画布上编辑节点
 						</Button>
 					) : null}
 
@@ -338,10 +299,17 @@ export function MediaMaskProperties({
 						onTrack={onTrack ? startTracking : undefined}
 					/>
 
+					<MediaMaskStrokeProperties
+						stroke={selectedMask.stroke}
+						onChange={(stroke, history) => patchSelected({ stroke }, history)}
+						onInteractionStart={onInteractionStart}
+						onInteractionEnd={onInteractionEnd}
+					/>
+
 					<div className="space-y-4 border-t border-border pt-4">
 						{numberControl(
 							"centerX",
-							"X position",
+							"X 位置",
 							selectedMask.centerX * 100,
 							-100,
 							200,
@@ -351,7 +319,7 @@ export function MediaMaskProperties({
 						)}
 						{numberControl(
 							"centerY",
-							"Y position",
+							"Y 位置",
 							selectedMask.centerY * 100,
 							-100,
 							200,
@@ -361,7 +329,7 @@ export function MediaMaskProperties({
 						)}
 
 						<div className="flex items-center justify-between gap-2">
-							<PropertyItemLabel>Lock proportions</PropertyItemLabel>
+							<PropertyItemLabel>锁定比例</PropertyItemLabel>
 							<div className="flex items-center gap-2">
 								{selectedMask.maintainAspectRatio ? (
 									<Link2 className="size-3.5 text-primary" />
@@ -381,7 +349,7 @@ export function MediaMaskProperties({
 							? null
 							: numberControl(
 									"width",
-									"Width",
+									"宽度",
 									selectedMask.width * 100,
 									0.1,
 									300,
@@ -393,7 +361,7 @@ export function MediaMaskProperties({
 							? null
 							: numberControl(
 									"height",
-									"Height",
+									"高度",
 									selectedMask.height * 100,
 									0.1,
 									300,
@@ -403,7 +371,7 @@ export function MediaMaskProperties({
 								)}
 						{numberControl(
 							"rotation",
-							"Rotation",
+							"旋转",
 							selectedMask.rotation,
 							-180,
 							180,
@@ -413,7 +381,7 @@ export function MediaMaskProperties({
 						)}
 						{numberControl(
 							"feather",
-							"Feather",
+							"羽化",
 							selectedMask.feather * 100,
 							0,
 							100,
@@ -424,7 +392,7 @@ export function MediaMaskProperties({
 						{selectedMask.type === "rectangle" || selectedMask.type === "text"
 							? numberControl(
 									"roundness",
-									"Roundness",
+									"圆角",
 									(selectedMask.roundness ?? 0) * 100,
 									0,
 									100,
@@ -435,7 +403,7 @@ export function MediaMaskProperties({
 							: null}
 						{numberControl(
 							"expansion",
-							"Expansion",
+							"扩展",
 							(selectedMask.expansion ?? 0) * 100,
 							-100,
 							100,
@@ -445,7 +413,7 @@ export function MediaMaskProperties({
 						)}
 						{numberControl(
 							"opacity",
-							"Density",
+							"不透明度",
 							(selectedMask.opacity ?? 1) * 100,
 							0,
 							100,
@@ -455,7 +423,7 @@ export function MediaMaskProperties({
 						)}
 
 						<div className="flex items-center justify-between gap-2">
-							<PropertyItemLabel>Invert</PropertyItemLabel>
+							<PropertyItemLabel>反转</PropertyItemLabel>
 							<Switch
 								checked={selectedMask.invert}
 								onCheckedChange={(invert) => patchSelected({ invert })}

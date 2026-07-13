@@ -12,18 +12,18 @@ import { PropertyItemLabel } from "./property-item";
 
 function trackingStatus(mask: MediaMask) {
 	if (mask.tracking?.status === "processing") {
-		return { label: "Tracking...", Icon: Loader2, className: "animate-spin" };
+		return { label: "跟踪中...", Icon: Loader2, className: "animate-spin" };
 	}
 	if (mask.tracking?.status === "ready") {
 		return {
-			label: "Tracked",
+			label: "跟踪完成",
 			Icon: CircleCheck,
 			className: "text-emerald-500",
 		};
 	}
 	if (mask.tracking?.status === "error") {
 		return {
-			label: mask.tracking.error ?? "Tracking failed",
+			label: mask.tracking.error ?? "跟踪失败",
 			Icon: CircleAlert,
 		};
 	}
@@ -51,7 +51,7 @@ export function MediaMaskTrackingControls({
 			data-testid="mask-tracking-controls"
 		>
 			<div className="flex items-center justify-between gap-2">
-				<PropertyItemLabel>Tracking</PropertyItemLabel>
+				<PropertyItemLabel>跟踪</PropertyItemLabel>
 				{status ? (
 					<div className="flex min-w-0 items-center gap-1 text-[10px] text-muted-foreground">
 						<status.Icon className={`size-3 ${status.className ?? ""}`} />
@@ -61,7 +61,7 @@ export function MediaMaskTrackingControls({
 			</div>
 			<div className="grid grid-cols-3 gap-1.5">
 				<MaskIconButton
-					label="Track backward"
+					label="向前跟踪"
 					disabled={!onTrack || processing}
 					active={mask.tracking?.direction === "backward"}
 					onClick={() => onTrack?.("backward")}
@@ -69,7 +69,7 @@ export function MediaMaskTrackingControls({
 					<StepBack className="size-4" />
 				</MaskIconButton>
 				<MaskIconButton
-					label="Track both directions"
+					label="双向跟踪"
 					disabled={!onTrack || processing}
 					active={mask.tracking?.direction === "both"}
 					onClick={() => onTrack?.("both")}
@@ -77,7 +77,7 @@ export function MediaMaskTrackingControls({
 					<ArrowLeftRight className="size-4" />
 				</MaskIconButton>
 				<MaskIconButton
-					label="Track forward"
+					label="向后跟踪"
 					disabled={!onTrack || processing}
 					active={mask.tracking?.direction === "forward"}
 					onClick={() => onTrack?.("forward")}
@@ -87,7 +87,7 @@ export function MediaMaskTrackingControls({
 			</div>
 			{keyframeCount > 0 ? (
 				<div className="text-[10px] text-muted-foreground">
-					{keyframeCount} tracked frames
+					已跟踪 {keyframeCount} 帧
 				</div>
 			) : null}
 		</div>

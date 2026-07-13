@@ -1,5 +1,5 @@
 import { mapMediaSourceTime } from "@/lib/video/video-timing";
-import type { MediaElement } from "@/types/timeline";
+import type { MediaElement, TimelineTrack } from "@/types/timeline";
 
 export interface TimelineSceneBoundary {
 	timestamp: number;
@@ -77,4 +77,30 @@ export function applyTimelineSceneSplits({
 		rightElementId = createdElementId;
 	}
 	return createdElementIds;
+}
+
+export function rollbackTimelineSceneSplits({
+	tracks,
+	trackId,
+	sourceElement,
+	createdElementIds,
+}: {
+	tracks: TimelineTrack[];
+	trackId: string;
+	sourceElement: MediaElement;
+	createdElementIds: string[];
+}): TimelineTrack[] {
+	const splitElementIds = new Set([sourceElement.id, ...createdElementIds]);
+	return tracks.map((track) => {
+		if (track.id !== trackId) return track;
+		const retained = track.elements.filter(
+			(element) => !splitElementIds.has(element.id)
+		);
+		return {
+			...track,
+			elements: [...retained, structuredClone(sourceElement)].sort(
+				(left, right) => left.startTime - right.startTime
+			),
+		};
+	});
 }

@@ -1,108 +1,83 @@
-import { useRef, useState, useEffect } from "react";
-import { useTimelineStore } from "@/stores/timeline/timeline-store";
+import { useMemo, useState } from "react";
+import { getTimelineElementDuration } from "@/lib/timeline";
 import { useEffectsStore } from "@/stores/ai/effects-store";
-import { toast } from "sonner";
-import type {
-	TimelineTrack,
-	TimelineElement as TimelineElementType,
-} from "@/types/timeline";
+import type { TimelineTrack } from "@/types/timeline";
+import {
+	getVisibleTimelineElements,
+	type TimelineVisibleRange,
+} from "./timeline-viewport";
 
 interface EffectsTimelineProps {
 	tracks: TimelineTrack[];
 	pixelsPerSecond: number;
+	visibleTimeRange?: TimelineVisibleRange;
 }
 
-// Standard track height from timeline constants
 const TRACK_HEIGHT = 64;
+const EFFECT_COLORS: Record<string, string> = {
+	brightness: "#fbbf24",
+	contrast: "#f97316",
+	saturation: "#ec4899",
+	hue: "#22d3ee",
+	blur: "#3b82f6",
+	sepia: "#a78bfa",
+	grayscale: "#6b7280",
+	invert: "#e11d48",
+};
 
 export function EffectsTimeline({
 	tracks,
 	pixelsPerSecond,
+	visibleTimeRange,
 }: EffectsTimelineProps) {
-	const { getElementEffects } = useEffectsStore();
-	const [hoveredEffect, setHoveredEffect] = useState<{
-		id: string;
-		name: string;
-	} | null>(null);
-
-	// Render effect visualization bars for each element
-	const renderEffectBars = (element: TimelineElementType) => {
-		const effects = getElementEffects(element.id);
-
-		if (!effects || effects.length === 0) return null;
-
-		return effects.map((effect, index) => {
-			if (!effect.enabled) return null;
-
-			const barHeight = 4;
-			const barOffset = index * (barHeight + 1);
-
-			return (
-				<div
-					key={effect.id}
-					className="absolute transition-opacity hover:opacity-100"
-					style={{
-						left: `${element.startTime * pixelsPerSecond}px`,
-						width: `${element.duration * pixelsPerSecond}px`,
-						bottom: `${barOffset}px`,
-						height: `${barHeight}px`,
-						backgroundColor: getEffectColor(effect.effectType),
-						opacity: hoveredEffect?.id === effect.id ? 1 : 0.7,
-					}}
-					onMouseEnter={() =>
-						setHoveredEffect({ id: effect.id, name: effect.name })
-					}
-					onMouseLeave={() => setHoveredEffect(null)}
-					title={`${effect.name} Effect`}
-				/>
-			);
-		});
-	};
-
-	// Get color for different effect types
-	const getEffectColor = (effectType: string): string => {
-		const colorMap: Record<string, string> = {
-			brightness: "#fbbf24", // amber-400
-			contrast: "#f97316", // orange-500
-			saturation: "#ec4899", // pink-500
-			blur: "#3b82f6", // blue-500
-			sepia: "#a78bfa", // violet-400
-			grayscale: "#6b7280", // gray-500
-			vintage: "#f59e0b", // amber-500
-			dramatic: "#dc2626", // red-600
-			warm: "#ef4444", // red-500
-			cool: "#06b6d4", // cyan-500
-			cinematic: "#8b5cf6", // violet-500
-			vignette: "#1f2937", // gray-800
-			grain: "#d97706", // amber-600
-			sharpen: "#10b981", // emerald-500
-			emboss: "#84cc16", // lime-500
-			edge: "#14b8a6", // teal-500
-			pixelate: "#a855f7", // purple-500
-			invert: "#e11d48", // rose-600
-		};
-
-		return colorMap[effectType] || "#9333ea"; // purple-600 as default
-	};
+	const activeEffects = useEffectsStore((state) => state.activeEffects);
+	const [hoveredEffectName, setHoveredEffectName] = useState<string>();
+	const visibleElements = useMemo(
+		() =>
+			tracks.flatMap((track) =>
+				getVisibleTimelineElements({
+					elements: track.elements,
+					visibleRange: visibleTimeRange,
+				})
+			),
+		[tracks, visibleTimeRange]
+	);
 
 	return (
 		<div
 			className="relative hover:bg-accent/5"
 			style={{ height: `${TRACK_HEIGHT}px` }}
 		>
-			{/* Effect visualization bars for all elements from all tracks */}
-			{tracks
-				.flatMap((track) => track.elements)
-				.map((element) => (
-					<div key={element.id}>{renderEffectBars(element)}</div>
-				))}
-
-			{/* Hover tooltip */}
-			{hoveredEffect && (
-				<div className="absolute top-0 right-2 text-xs text-muted-foreground">
-					{hoveredEffect.name}
-				</div>
+			{visibleElements.flatMap((element) =>
+				(activeEffects.get(element.id) ?? []).flatMap((effect, index) => {
+					if (!effect.enabled) return [];
+					const barHeight = 4;
+					return [
+						<div
+							key={effect.id}
+							className="absolute transition-opacity hover:opacity-100"
+							style={{
+								left: `${element.startTime * pixelsPerSecond}px`,
+								width: `${getTimelineElementDuration({ element }) * pixelsPerSecond}px`,
+								bottom: `${index * (barHeight + 1)}px`,
+								height: `${barHeight}px`,
+								backgroundColor: EFFECT_COLORS[effect.effectType] ?? "#9333ea",
+								opacity: hoveredEffectName === effect.name ? 1 : 0.72,
+							}}
+							onMouseEnter={() => setHoveredEffectName(effect.name)}
+							onMouseLeave={() => setHoveredEffectName(undefined)}
+							title={`${effect.name} effect`}
+							data-testid="timeline-effect-bar"
+						/>,
+					];
+				})
 			)}
+
+			{hoveredEffectName ? (
+				<div className="absolute right-2 top-0 text-xs text-muted-foreground">
+					{hoveredEffectName}
+				</div>
+			) : null}
 		</div>
 	);
 }

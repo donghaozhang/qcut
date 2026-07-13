@@ -1,11 +1,8 @@
-import { Textarea } from "@/components/ui/textarea";
-import { FontPicker } from "@/components/ui/font-picker";
-import type { FontFamily } from "@/constants/font-constants";
-import type { CaptionElement, SubtitleStyle } from "@/types/timeline";
-import { useTimelineStore } from "@/stores/timeline/timeline-store";
-import { Slider } from "@/components/ui/slider";
-import { Input } from "@/components/ui/input";
+import { useCallback, useMemo, useRef, useState } from "react";
+import { AudioLines, Loader2, Sparkles } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 import {
 	Select,
 	SelectContent,
@@ -13,19 +10,254 @@ import {
 	SelectTrigger,
 	SelectValue,
 } from "@/components/ui/select";
-import { useState, useEffect, useCallback } from "react";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Textarea } from "@/components/ui/textarea";
+import { CloudTaskStatus } from "@/components/editor/cloud-task-status";
+import { CaptionPresetGrid } from "@/components/captions/caption-preset-grid";
 import {
+	CaptionStyleControls,
+	CaptionStyleSlider,
+} from "@/components/captions/caption-style-controls";
+import { useSpeechAvatarGeneration } from "@/hooks/use-speech-avatar-generation";
+import {
+	CAPTION_ANIMATION_TYPES,
 	resolveSubtitleStyle,
-	DEFAULT_SUBTITLE_STYLE,
 } from "@/lib/captions/subtitle-style";
-import {
-	PropertyItem,
-	PropertyItemLabel,
-	PropertyItemValue,
-	PropertyGroup,
-} from "./property-item";
 import { KARAOKE_MODES, type KaraokeMode } from "@/lib/captions/karaoke-types";
-import { useWordTimelineStore } from "@/stores/timeline/word-timeline-store";
+import { useTimelineStore } from "@/stores/timeline/timeline-store";
+import type { CaptionStyleScope } from "@/stores/timeline/types";
+import type { CaptionElement, SubtitleStyle } from "@/types/timeline";
+import { useTranslation, type TranslationKey } from "@/lib/i18n";
+
+const CAPTION_ANIMATION_LABEL_KEYS: Record<
+	(typeof CAPTION_ANIMATION_TYPES)[number],
+	TranslationKey
+> = {
+	none: "caption.animation.none",
+	fade: "caption.animation.fade",
+	"slide-up": "caption.animation.slideUp",
+	"slide-left": "caption.animation.slideLeft",
+};
+
+const KARAOKE_MODE_LABEL_KEYS: Record<KaraokeMode, TranslationKey> = {
+	none: "caption.karaoke.none",
+	"word-highlight": "caption.karaoke.wordHighlight",
+	"word-by-word": "caption.karaoke.wordByWord",
+	karaoke: "caption.karaoke.fill",
+	bounce: "caption.karaoke.bounce",
+	typewriter: "caption.karaoke.typewriter",
+};
+
+function activateOnKeyboard({
+	event,
+	action,
+}: {
+	event: React.KeyboardEvent<HTMLButtonElement>;
+	action: () => void;
+}) {
+	if (event.key !== "Enter" && event.key !== " ") return;
+	event.preventDefault();
+	action();
+}
+
+function ColorControl({
+	label,
+	value,
+	onChange,
+}: {
+	label: string;
+	value: string;
+	onChange: (value: string) => void;
+}) {
+	return (
+		<div className="flex items-center justify-between gap-3">
+			<Label className="text-xs">{label}</Label>
+			<Input
+				type="color"
+				aria-label={label}
+				value={value}
+				onChange={(event) => onChange(event.target.value)}
+				className="h-8 w-16 cursor-pointer p-1"
+			/>
+		</div>
+	);
+}
+
+function CaptionAppearanceControls({
+	style,
+	onChange,
+	onInteractionStart,
+	onInteractionEnd,
+}: {
+	style: SubtitleStyle;
+	onChange: (updates: Partial<SubtitleStyle>) => void;
+	onInteractionStart: () => void;
+	onInteractionEnd: () => void;
+}) {
+	const { t } = useTranslation();
+
+	return (
+		<div className="space-y-4 border-t border-border pt-4">
+			<CaptionStyleSlider
+				label={t("caption.textOpacity")}
+				value={style.fontOpacity * 100}
+				min={0}
+				max={100}
+				step={1}
+				onChange={(fontOpacity) => onChange({ fontOpacity: fontOpacity / 100 })}
+				onInteractionStart={onInteractionStart}
+				onInteractionEnd={onInteractionEnd}
+			/>
+			<ColorControl
+				label={t("caption.outlineColor")}
+				value={style.outlineColor}
+				onChange={(outlineColor) => onChange({ outlineColor })}
+			/>
+			<CaptionStyleSlider
+				label={t("caption.outlineWidth")}
+				value={style.outlineWidth}
+				min={0}
+				max={10}
+				step={0.5}
+				onChange={(outlineWidth) => onChange({ outlineWidth })}
+				onInteractionStart={onInteractionStart}
+				onInteractionEnd={onInteractionEnd}
+			/>
+			<ColorControl
+				label={t("caption.shadowColor")}
+				value={style.shadowColor}
+				onChange={(shadowColor) => onChange({ shadowColor })}
+			/>
+			<ColorControl
+				label={t("caption.backgroundColor")}
+				value={style.backgroundColor}
+				onChange={(backgroundColor) => onChange({ backgroundColor })}
+			/>
+			<CaptionStyleSlider
+				label={t("caption.backgroundOpacity")}
+				value={style.bgOpacity * 100}
+				min={0}
+				max={100}
+				step={1}
+				onChange={(bgOpacity) => onChange({ bgOpacity: bgOpacity / 100 })}
+				onInteractionStart={onInteractionStart}
+				onInteractionEnd={onInteractionEnd}
+			/>
+		</div>
+	);
+}
+
+function CaptionAnimationControls({
+	style,
+	onChange,
+	onInteractionStart,
+	onInteractionEnd,
+}: {
+	style: SubtitleStyle;
+	onChange: (updates: Partial<SubtitleStyle>) => void;
+	onInteractionStart: () => void;
+	onInteractionEnd: () => void;
+}) {
+	const { t } = useTranslation();
+
+	return (
+		<div className="space-y-4">
+			<div className="grid grid-cols-2 gap-2">
+				{CAPTION_ANIMATION_TYPES.map((animationType) => {
+					const active = style.animationType === animationType;
+					const action = () => onChange({ animationType });
+					return (
+						<Button
+							key={animationType}
+							type="button"
+							variant={active ? "default" : "outline"}
+							className="h-9 capitalize"
+							onClick={action}
+							onKeyDown={(event) => activateOnKeyboard({ event, action })}
+							aria-pressed={active}
+						>
+							{t(CAPTION_ANIMATION_LABEL_KEYS[animationType])}
+						</Button>
+					);
+				})}
+			</div>
+			{style.animationType !== "none" ? (
+				<>
+					<CaptionStyleSlider
+						label={t("caption.animationDuration")}
+						value={style.animationDuration}
+						min={0.1}
+						max={3}
+						step={0.05}
+						onChange={(animationDuration) => onChange({ animationDuration })}
+						onInteractionStart={onInteractionStart}
+						onInteractionEnd={onInteractionEnd}
+					/>
+					<CaptionStyleSlider
+						label={t("caption.animationDelay")}
+						value={style.animationDelay}
+						min={0}
+						max={3}
+						step={0.05}
+						onChange={(animationDelay) => onChange({ animationDelay })}
+						onInteractionStart={onInteractionStart}
+						onInteractionEnd={onInteractionEnd}
+					/>
+				</>
+			) : null}
+		</div>
+	);
+}
+
+function KaraokeControls({
+	style,
+	onChange,
+}: {
+	style: SubtitleStyle;
+	onChange: (updates: Partial<SubtitleStyle>) => void;
+}) {
+	const { t } = useTranslation();
+	const karaokeMode = style.karaokeMode ?? "none";
+	return (
+		<div className="space-y-3 border-t border-border pt-4">
+			<Label className="text-xs">{t("caption.karaoke")}</Label>
+			<Select
+				value={karaokeMode}
+				onValueChange={(value) =>
+					onChange({ karaokeMode: value as KaraokeMode })
+				}
+			>
+				<SelectTrigger
+					className="h-8 text-xs"
+					aria-label={t("caption.karaokeMode")}
+				>
+					<SelectValue />
+				</SelectTrigger>
+				<SelectContent>
+					{KARAOKE_MODES.map((mode) => (
+						<SelectItem key={mode.value} value={mode.value}>
+							{t(KARAOKE_MODE_LABEL_KEYS[mode.value])}
+						</SelectItem>
+					))}
+				</SelectContent>
+			</Select>
+			{karaokeMode !== "none" ? (
+				<div className="grid grid-cols-2 gap-3">
+					<ColorControl
+						label={t("caption.highlight")}
+						value={style.highlightColor ?? "#ffff00"}
+						onChange={(highlightColor) => onChange({ highlightColor })}
+					/>
+					<ColorControl
+						label={t("caption.upcoming")}
+						value={style.upcomingColor ?? style.fontColor}
+						onChange={(upcomingColor) => onChange({ upcomingColor })}
+					/>
+				</div>
+			) : null}
+		</div>
+	);
+}
 
 export function CaptionProperties({
 	element,
@@ -34,463 +266,302 @@ export function CaptionProperties({
 	element: CaptionElement;
 	trackId: string;
 }) {
-	const { updateCaptionElement } = useTimelineStore();
+	const { t } = useTranslation();
+	const tracks = useTimelineStore((state) => state.tracks);
+	const selectedElements = useTimelineStore((state) => state.selectedElements);
+	const updateCaptionElement = useTimelineStore(
+		(state) => state.updateCaptionElement
+	);
+	const applyCaptionStyle = useTimelineStore(
+		(state) => state.applyCaptionStyle
+	);
+	const pushHistory = useTimelineStore((state) => state.pushHistory);
+	const [scope, setScope] = useState<CaptionStyleScope>("element");
+	const [selectedPresetId, setSelectedPresetId] = useState<string>();
+	const interactionActive = useRef(false);
 	const style = resolveSubtitleStyle(element.style);
+	const scopeCounts = useMemo(() => {
+		const captionTracks = tracks.filter((track) => track.type === "captions");
+		const project = captionTracks.reduce(
+			(total, track) =>
+				total +
+				track.elements.filter((candidate) => candidate.type === "captions")
+					.length,
+			0
+		);
+		const track =
+			captionTracks
+				.find((candidate) => candidate.id === trackId)
+				?.elements.filter((candidate) => candidate.type === "captions")
+				.length ?? 0;
+		const selection = selectedElements.filter(
+			({ trackId: selectedTrackId, elementId }) =>
+				tracks
+					.find((candidate) => candidate.id === selectedTrackId)
+					?.elements.some(
+						(candidate) =>
+							candidate.id === elementId && candidate.type === "captions"
+					)
+		).length;
+		return { project, selection, track };
+	}, [selectedElements, trackId, tracks]);
+	const generation = useSpeechAvatarGeneration({
+		captionElementId: element.id,
+		text: element.text,
+		startTime: element.startTime,
+		duration: Math.max(
+			0.1,
+			element.duration - element.trimStart - element.trimEnd
+		),
+	});
 
-	const [fontSizeInput, setFontSizeInput] = useState(style.fontSize.toString());
-	const [outlineWidthInput, setOutlineWidthInput] = useState(
-		style.outlineWidth.toString()
-	);
-	const [bgOpacityInput, setBgOpacityInput] = useState(
-		Math.round(style.bgOpacity * 100).toString()
-	);
-	const [fontOpacityInput, setFontOpacityInput] = useState(
-		Math.round(style.fontOpacity * 100).toString()
-	);
-
-	useEffect(() => {
-		const resolved = resolveSubtitleStyle(element.style);
-		setFontSizeInput(resolved.fontSize.toString());
-		setOutlineWidthInput(resolved.outlineWidth.toString());
-		setBgOpacityInput(Math.round(resolved.bgOpacity * 100).toString());
-		setFontOpacityInput(Math.round(resolved.fontOpacity * 100).toString());
-	}, [element.style]);
-
+	const beginInteraction = useCallback(() => {
+		if (interactionActive.current) return;
+		interactionActive.current = true;
+		pushHistory();
+	}, [pushHistory]);
+	const endInteraction = useCallback(() => {
+		interactionActive.current = false;
+	}, []);
 	const updateStyle = useCallback(
 		(updates: Partial<SubtitleStyle>) => {
-			updateCaptionElement(trackId, element.id, {
-				style: { ...style, ...updates },
+			applyCaptionStyle({
+				trackId,
+				elementId: element.id,
+				style: updates,
+				scope,
+				pushHistory: !interactionActive.current,
 			});
 		},
-		[updateCaptionElement, trackId, element.id, style]
+		[applyCaptionStyle, element.id, scope, trackId]
 	);
 
-	const clamp = (val: string, min: number, max: number, fallback: number) => {
-		const parsed = parseInt(val, 10);
-		if (isNaN(parsed)) return fallback;
-		return Math.max(min, Math.min(max, parsed));
-	};
-
 	return (
-		<div className="space-y-6 p-5">
+		<div className="space-y-4 p-4" data-testid="caption-properties">
 			<Textarea
-				placeholder="Subtitle text"
-				defaultValue={element.text}
-				className="min-h-18 resize-none bg-background/50"
-				onChange={(e) =>
+				placeholder={t("caption.textPlaceholder")}
+				value={element.text}
+				className="min-h-20 resize-none bg-background/50"
+				onChange={(event) =>
 					updateCaptionElement(trackId, element.id, {
-						text: e.target.value,
+						text: event.target.value,
 					})
 				}
 			/>
 
-			<PropertyGroup title="Text" defaultExpanded={true}>
-				<PropertyItem direction="row">
-					<PropertyItemLabel>Font</PropertyItemLabel>
-					<PropertyItemValue>
-						<FontPicker
-							aria-label="Font family"
-							defaultValue={style.fontFamily}
-							onValueChange={(value: FontFamily) =>
-								updateStyle({ fontFamily: value })
-							}
-						/>
-					</PropertyItemValue>
-				</PropertyItem>
+			<div className="space-y-1.5">
+				<Label className="text-xs">{t("caption.scopeLabel")}</Label>
+				<Select
+					value={scope}
+					onValueChange={(value) => setScope(value as CaptionStyleScope)}
+				>
+					<SelectTrigger
+						className="h-8 text-xs"
+						aria-label={t("caption.scopeAria")}
+					>
+						<SelectValue />
+					</SelectTrigger>
+					<SelectContent>
+						<SelectItem value="element">
+							{t("caption.scope.element")}
+						</SelectItem>
+						<SelectItem value="selection">
+							{t("caption.scope.selection", { count: scopeCounts.selection })}
+						</SelectItem>
+						<SelectItem value="track">
+							{t("caption.scope.track", { count: scopeCounts.track })}
+						</SelectItem>
+						<SelectItem value="project">
+							{t("caption.scope.project", { count: scopeCounts.project })}
+						</SelectItem>
+					</SelectContent>
+				</Select>
+			</div>
 
-				<PropertyItem direction="row">
-					<PropertyItemLabel>Style</PropertyItemLabel>
-					<PropertyItemValue>
-						<div className="flex items-center gap-2">
-							<Button
-								type="button"
-								aria-pressed={style.bold}
-								variant={style.bold ? "default" : "outline"}
-								size="sm"
-								onClick={() => updateStyle({ bold: !style.bold })}
-								className="h-8 px-3 font-bold"
+			<Tabs defaultValue="basic">
+				<TabsList className="grid h-9 w-full grid-cols-5">
+					<TabsTrigger value="basic" className="px-1 text-[10px]">
+						{t("caption.tab.basic")}
+					</TabsTrigger>
+					<TabsTrigger value="presets" className="px-1 text-[10px]">
+						{t("caption.tab.presets")}
+					</TabsTrigger>
+					<TabsTrigger value="motion" className="px-1 text-[10px]">
+						{t("caption.tab.motion")}
+					</TabsTrigger>
+					<TabsTrigger value="voice" className="px-1 text-[10px]">
+						{t("caption.tab.voice")}
+					</TabsTrigger>
+					<TabsTrigger value="avatar" className="px-1 text-[10px]">
+						{t("caption.tab.avatar")}
+					</TabsTrigger>
+				</TabsList>
+
+				<TabsContent value="basic" className="mt-4 space-y-4">
+					<CaptionStyleControls
+						style={style}
+						onChange={updateStyle}
+						onInteractionStart={beginInteraction}
+						onInteractionEnd={endInteraction}
+					/>
+					<CaptionAppearanceControls
+						style={style}
+						onChange={updateStyle}
+						onInteractionStart={beginInteraction}
+						onInteractionEnd={endInteraction}
+					/>
+					<KaraokeControls style={style} onChange={updateStyle} />
+				</TabsContent>
+
+				<TabsContent value="presets" className="mt-4">
+					<CaptionPresetGrid
+						selectedId={selectedPresetId}
+						onSelect={(preset) => {
+							setSelectedPresetId(preset.id);
+							updateStyle(preset.style);
+						}}
+					/>
+				</TabsContent>
+
+				<TabsContent value="motion" className="mt-4">
+					<CaptionAnimationControls
+						style={style}
+						onChange={updateStyle}
+						onInteractionStart={beginInteraction}
+						onInteractionEnd={endInteraction}
+					/>
+				</TabsContent>
+
+				<TabsContent value="voice" className="mt-4 space-y-4">
+					<div className="space-y-1.5">
+						<Label className="text-xs">{t("caption.voiceModel")}</Label>
+						<Select
+							value={generation.speechModel}
+							onValueChange={generation.setSpeechModel}
+						>
+							<SelectTrigger
+								className="h-8 text-xs"
+								aria-label={t("caption.voiceModel")}
 							>
-								B
-							</Button>
-							<Button
-								type="button"
-								aria-pressed={style.italic}
-								variant={style.italic ? "default" : "outline"}
-								size="sm"
-								onClick={() => updateStyle({ italic: !style.italic })}
-								className="h-8 px-3 italic"
-							>
-								I
-							</Button>
-							<Button
-								type="button"
-								aria-pressed={style.underline}
-								variant={style.underline ? "default" : "outline"}
-								size="sm"
-								onClick={() => updateStyle({ underline: !style.underline })}
-								className="h-8 px-3 underline"
-							>
-								U
-							</Button>
-						</div>
-					</PropertyItemValue>
-				</PropertyItem>
-
-				<PropertyItem direction="column">
-					<PropertyItemLabel>Font Size</PropertyItemLabel>
-					<PropertyItemValue>
-						<div className="flex items-center gap-2">
-							<Slider
-								aria-label="Font size"
-								value={[style.fontSize]}
-								min={8}
-								max={200}
-								step={1}
-								onValueChange={([value]) => {
-									updateStyle({ fontSize: value });
-									setFontSizeInput(value.toString());
-								}}
-								className="w-full"
-							/>
-							<Input
-								type="number"
-								aria-label="Font size (number)"
-								value={fontSizeInput}
-								min={8}
-								max={200}
-								onChange={(e) => {
-									setFontSizeInput(e.target.value);
-									if (e.target.value.trim()) {
-										const v = clamp(e.target.value, 8, 200, style.fontSize);
-										updateStyle({ fontSize: v });
-									}
-								}}
-								onBlur={() => {
-									const v = clamp(fontSizeInput, 8, 200, style.fontSize);
-									setFontSizeInput(v.toString());
-									updateStyle({ fontSize: v });
-								}}
-								className="w-12 !text-xs h-7 rounded-sm text-center [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
-							/>
-						</div>
-					</PropertyItemValue>
-				</PropertyItem>
-
-				<PropertyItem direction="row">
-					<PropertyItemLabel>Color</PropertyItemLabel>
-					<PropertyItemValue>
-						<Input
-							type="color"
-							aria-label="Font color"
-							value={style.fontColor}
-							onChange={(e) => updateStyle({ fontColor: e.target.value })}
-							className="w-full cursor-pointer rounded-full"
-						/>
-					</PropertyItemValue>
-				</PropertyItem>
-
-				<PropertyItem direction="column">
-					<PropertyItemLabel>Opacity</PropertyItemLabel>
-					<PropertyItemValue>
-						<div className="flex items-center gap-2">
-							<Slider
-								aria-label="Font opacity"
-								value={[style.fontOpacity * 100]}
-								min={0}
-								max={100}
-								step={1}
-								onValueChange={([value]) => {
-									updateStyle({ fontOpacity: value / 100 });
-									setFontOpacityInput(value.toString());
-								}}
-								className="w-full"
-							/>
-							<Input
-								type="number"
-								aria-label="Font opacity percent"
-								value={fontOpacityInput}
-								min={0}
-								max={100}
-								onChange={(e) => {
-									setFontOpacityInput(e.target.value);
-									if (e.target.value.trim()) {
-										const v = clamp(
-											e.target.value,
-											0,
-											100,
-											Math.round(style.fontOpacity * 100)
-										);
-										updateStyle({ fontOpacity: v / 100 });
-									}
-								}}
-								onBlur={() => {
-									const v = clamp(
-										fontOpacityInput,
-										0,
-										100,
-										Math.round(style.fontOpacity * 100)
-									);
-									setFontOpacityInput(v.toString());
-									updateStyle({ fontOpacity: v / 100 });
-								}}
-								className="w-12 !text-xs h-7 rounded-sm text-center [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
-							/>
-						</div>
-					</PropertyItemValue>
-				</PropertyItem>
-			</PropertyGroup>
-
-			<PropertyGroup title="Outline / Shadow" defaultExpanded={false}>
-				<PropertyItem direction="row">
-					<PropertyItemLabel>Outline Color</PropertyItemLabel>
-					<PropertyItemValue>
-						<Input
-							type="color"
-							aria-label="Outline color"
-							value={style.outlineColor}
-							onChange={(e) => updateStyle({ outlineColor: e.target.value })}
-							className="w-full cursor-pointer rounded-full"
-						/>
-					</PropertyItemValue>
-				</PropertyItem>
-
-				<PropertyItem direction="column">
-					<PropertyItemLabel>Outline Width</PropertyItemLabel>
-					<PropertyItemValue>
-						<div className="flex items-center gap-2">
-							<Slider
-								aria-label="Outline width"
-								value={[style.outlineWidth]}
-								min={0}
-								max={10}
-								step={0.5}
-								onValueChange={([value]) => {
-									updateStyle({ outlineWidth: value });
-									setOutlineWidthInput(value.toString());
-								}}
-								className="w-full"
-							/>
-							<Input
-								type="number"
-								aria-label="Outline width (number)"
-								value={outlineWidthInput}
-								min={0}
-								max={10}
-								onChange={(e) => {
-									setOutlineWidthInput(e.target.value);
-									if (e.target.value.trim()) {
-										const parsed = parseFloat(e.target.value);
-										if (!isNaN(parsed)) {
-											updateStyle({
-												outlineWidth: Math.max(0, Math.min(10, parsed)),
-											});
-										}
-									}
-								}}
-								onBlur={() => {
-									const parsed = parseFloat(outlineWidthInput);
-									const v = isNaN(parsed)
-										? style.outlineWidth
-										: Math.max(0, Math.min(10, parsed));
-									setOutlineWidthInput(v.toString());
-									updateStyle({ outlineWidth: v });
-								}}
-								className="w-12 !text-xs h-7 rounded-sm text-center [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
-							/>
-						</div>
-					</PropertyItemValue>
-				</PropertyItem>
-
-				<PropertyItem direction="row">
-					<PropertyItemLabel>Shadow Color</PropertyItemLabel>
-					<PropertyItemValue>
-						<Input
-							type="color"
-							aria-label="Shadow color"
-							value={style.shadowColor}
-							onChange={(e) => updateStyle({ shadowColor: e.target.value })}
-							className="w-full cursor-pointer rounded-full"
-						/>
-					</PropertyItemValue>
-				</PropertyItem>
-			</PropertyGroup>
-
-			<PropertyGroup title="Background" defaultExpanded={false}>
-				<PropertyItem direction="row">
-					<PropertyItemLabel>Color</PropertyItemLabel>
-					<PropertyItemValue>
-						<Input
-							type="color"
-							aria-label="Background color"
-							value={style.backgroundColor}
-							onChange={(e) => updateStyle({ backgroundColor: e.target.value })}
-							className="w-full cursor-pointer rounded-full"
-						/>
-					</PropertyItemValue>
-				</PropertyItem>
-
-				<PropertyItem direction="column">
-					<PropertyItemLabel>Opacity</PropertyItemLabel>
-					<PropertyItemValue>
-						<div className="flex items-center gap-2">
-							<Slider
-								aria-label="Background opacity"
-								value={[style.bgOpacity * 100]}
-								min={0}
-								max={100}
-								step={1}
-								onValueChange={([value]) => {
-									updateStyle({ bgOpacity: value / 100 });
-									setBgOpacityInput(value.toString());
-								}}
-								className="w-full"
-							/>
-							<Input
-								type="number"
-								aria-label="Background opacity percent"
-								value={bgOpacityInput}
-								min={0}
-								max={100}
-								onChange={(e) => {
-									setBgOpacityInput(e.target.value);
-									if (e.target.value.trim()) {
-										const v = clamp(
-											e.target.value,
-											0,
-											100,
-											Math.round(style.bgOpacity * 100)
-										);
-										updateStyle({ bgOpacity: v / 100 });
-									}
-								}}
-								onBlur={() => {
-									const v = clamp(
-										bgOpacityInput,
-										0,
-										100,
-										Math.round(style.bgOpacity * 100)
-									);
-									setBgOpacityInput(v.toString());
-									updateStyle({ bgOpacity: v / 100 });
-								}}
-								className="w-12 !text-xs h-7 rounded-sm text-center [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
-							/>
-						</div>
-					</PropertyItemValue>
-				</PropertyItem>
-			</PropertyGroup>
-
-			<PropertyGroup title="Position" defaultExpanded={false}>
-				<PropertyItem direction="row">
-					<PropertyItemLabel>Alignment</PropertyItemLabel>
-					<PropertyItemValue>
-						<div className="flex items-center gap-2">
-							{(["top", "center", "bottom"] as const).map((align) => (
-								<Button
-									key={align}
-									type="button"
-									aria-pressed={style.position.align === align}
-									variant={
-										style.position.align === align ? "default" : "outline"
-									}
-									size="sm"
-									onClick={() =>
-										updateStyle({
-											position: { ...style.position, align },
-										})
-									}
-									className="h-8 px-3 capitalize text-xs"
-								>
-									{align}
-								</Button>
-							))}
-						</div>
-					</PropertyItemValue>
-				</PropertyItem>
-			</PropertyGroup>
-
-			<KaraokeSection style={style} updateStyle={updateStyle} />
-		</div>
-	);
-}
-
-/** Karaoke mode selector + highlight color pickers (shown when word data available) */
-function KaraokeSection({
-	style,
-	updateStyle,
-}: {
-	style: SubtitleStyle;
-	updateStyle: (updates: Partial<SubtitleStyle>) => void;
-}) {
-	const hasWords = useWordTimelineStore(
-		(s) => s.getNonDeletedWords().length > 0
-	);
-
-	if (!hasWords) return null;
-
-	const karaokeMode = style.karaokeMode ?? "none";
-	const isActive = karaokeMode !== "none";
-
-	return (
-		<PropertyGroup title="Karaoke" defaultExpanded={false}>
-			<PropertyItem direction="row">
-				<PropertyItemLabel>Mode</PropertyItemLabel>
-				<PropertyItemValue>
-					<Select
-						value={karaokeMode}
-						onValueChange={(value: string) =>
-							updateStyle({ karaokeMode: value as KaraokeMode })
+								<SelectValue />
+							</SelectTrigger>
+							<SelectContent>
+								<SelectItem value="chatterbox_tts">Chatterbox</SelectItem>
+								<SelectItem value="chatterbox_tts_turbo">
+									Chatterbox Turbo
+								</SelectItem>
+								<SelectItem value="elevenlabs_v3">ElevenLabs v3</SelectItem>
+								<SelectItem value="qwen3_tts">Qwen3 TTS</SelectItem>
+							</SelectContent>
+						</Select>
+					</div>
+					<Button
+						type="button"
+						className="w-full"
+						disabled={!generation.canGenerateSpeech}
+						onClick={generation.createSpeech}
+						onKeyDown={(event) =>
+							activateOnKeyboard({
+								event,
+								action: generation.createSpeech,
+							})
 						}
 					>
-						<SelectTrigger className="h-8 text-xs" aria-label="Karaoke mode">
-							<SelectValue />
-						</SelectTrigger>
-						<SelectContent>
-							{KARAOKE_MODES.map((m) => (
-								<SelectItem key={m.value} value={m.value}>
-									{m.label}
-								</SelectItem>
-							))}
-						</SelectContent>
-					</Select>
-				</PropertyItemValue>
-			</PropertyItem>
+						{generation.isGenerating &&
+						generation.generationKind === "speech" ? (
+							<Loader2 className="size-4 animate-spin" />
+						) : (
+							<AudioLines className="size-4" />
+						)}
+						{generation.isGenerating && generation.generationKind === "speech"
+							? (generation.progress?.message ?? t("caption.generatingSpeech"))
+							: t("caption.generateSpeech")}
+					</Button>
+				</TabsContent>
 
-			{isActive && (
-				<>
-					<PropertyItem direction="row">
-						<PropertyItemLabel>Highlight</PropertyItemLabel>
-						<PropertyItemValue>
-							<Input
-								type="color"
-								aria-label="Karaoke highlight color"
-								value={style.highlightColor ?? "#ffff00"}
-								onChange={(e) =>
-									updateStyle({ highlightColor: e.target.value })
-								}
-								className="w-full cursor-pointer rounded-full"
-							/>
-						</PropertyItemValue>
-					</PropertyItem>
-
-					{karaokeMode === "karaoke" && (
-						<PropertyItem direction="row">
-							<PropertyItemLabel>Upcoming</PropertyItemLabel>
-							<PropertyItemValue>
-								<Input
-									type="color"
-									aria-label="Upcoming word color"
-									value={style.upcomingColor ?? "#808080"}
-									onChange={(e) =>
-										updateStyle({ upcomingColor: e.target.value })
-									}
-									className="w-full cursor-pointer rounded-full"
-								/>
-							</PropertyItemValue>
-						</PropertyItem>
-					)}
-				</>
-			)}
-		</PropertyGroup>
+				<TabsContent value="avatar" className="mt-4 space-y-4">
+					<div className="space-y-1.5">
+						<Label className="text-xs">{t("caption.portrait")}</Label>
+						<Select
+							value={generation.avatarImageId}
+							onValueChange={generation.setAvatarImageId}
+						>
+							<SelectTrigger
+								className="h-8 text-xs"
+								aria-label={t("caption.portrait")}
+							>
+								<SelectValue placeholder={t("caption.chooseImage")} />
+							</SelectTrigger>
+							<SelectContent>
+								{generation.avatarImages.map((image) => (
+									<SelectItem key={image.id} value={image.id}>
+										{image.name}
+									</SelectItem>
+								))}
+							</SelectContent>
+						</Select>
+					</div>
+					<Button
+						type="button"
+						className="w-full"
+						disabled={!generation.canGenerateAlignedPair}
+						onClick={() => void generation.createAlignedPair()}
+						onKeyDown={(event) =>
+							activateOnKeyboard({
+								event,
+								action: () => void generation.createAlignedPair(),
+							})
+						}
+						data-testid="generate-aligned-avatar"
+					>
+						{generation.isGenerating && generation.generationKind === "pair" ? (
+							<Loader2 className="size-4 animate-spin">
+								<title>{t("caption.generatingPair")}</title>
+							</Loader2>
+						) : (
+							<Sparkles className="size-4">
+								<title>{t("caption.generatePair")}</title>
+							</Sparkles>
+						)}
+						{generation.isGenerating && generation.generationKind === "pair"
+							? (generation.progress?.message ?? t("caption.generatingPair"))
+							: t("caption.generatePair")}
+					</Button>
+					<CloudTaskStatus
+						taskId={generation.alignedTaskId}
+						onCancel={generation.cancelAlignedPair}
+						onRetry={generation.retryAlignedPair}
+					/>
+					<div className="border-t border-border pt-3">
+						<p className="mb-2 text-[10px] text-muted-foreground">
+							{t("caption.videoOnly")}
+						</p>
+						<Button
+							type="button"
+							className="w-full"
+							disabled={!generation.canGenerateAvatar}
+							onClick={generation.createAvatar}
+							onKeyDown={(event) =>
+								activateOnKeyboard({
+									event,
+									action: generation.createAvatar,
+								})
+							}
+						>
+							{generation.isGenerating &&
+							generation.generationKind === "avatar" ? (
+								<Loader2 className="size-4 animate-spin" />
+							) : (
+								<Sparkles className="size-4" />
+							)}
+							{generation.isGenerating && generation.generationKind === "avatar"
+								? (generation.progress?.message ??
+									t("caption.generatingAvatar"))
+								: t("caption.generateAvatar")}
+						</Button>
+					</div>
+				</TabsContent>
+			</Tabs>
+		</div>
 	);
 }

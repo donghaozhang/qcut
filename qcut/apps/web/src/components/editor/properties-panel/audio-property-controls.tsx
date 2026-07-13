@@ -98,7 +98,7 @@ export function AudioModuleSection({
 		>
 			<summary className="flex cursor-pointer list-none items-center gap-2 [&::-webkit-details-marker]:hidden">
 				<Switch
-					aria-label={`Enable ${title}`}
+					aria-label={`启用${title}`}
 					checked={enabled}
 					onClick={(event) => event.stopPropagation()}
 					onKeyDown={(event) => event.stopPropagation()}
@@ -113,7 +113,7 @@ export function AudioModuleSection({
 					{title}
 				</span>
 				<AudioIconButton
-					label={`Reset ${title}`}
+					label={`重置${title}`}
 					onClick={onReset}
 					stopPropagation
 				>
@@ -214,9 +214,9 @@ export function AudioNumberControl({
 			<div className="flex shrink-0 items-center gap-0.5">
 				<Input
 					type="number"
-					aria-label={`${label} value`}
+					aria-label={`${label}数值`}
 					value={mixed ? "" : Number(value.toFixed(step < 1 ? 2 : 0))}
-					placeholder={mixed ? "Mixed" : undefined}
+					placeholder={mixed ? "多值" : undefined}
 					min={min}
 					max={max}
 					step={step}
@@ -234,7 +234,7 @@ export function AudioNumberControl({
 				{supportsKeyframes ? (
 					<div className="flex items-center">
 						<AudioIconButton
-							label={`Previous ${label} keyframe`}
+							label={`上一个${label}关键帧`}
 							onClick={onPreviousKeyframe ?? (() => {})}
 							disabled={!hasPreviousKeyframe}
 						>
@@ -242,9 +242,7 @@ export function AudioNumberControl({
 						</AudioIconButton>
 						<AudioIconButton
 							label={
-								keyframedHere
-									? `Remove ${label} keyframe`
-									: `Add ${label} keyframe`
+								keyframedHere ? `删除${label}关键帧` : `添加${label}关键帧`
 							}
 							onClick={onToggleKeyframe ?? (() => {})}
 							active={keyframedHere}
@@ -257,7 +255,7 @@ export function AudioNumberControl({
 							/>
 						</AudioIconButton>
 						<AudioIconButton
-							label={`Next ${label} keyframe`}
+							label={`下一个${label}关键帧`}
 							onClick={onNextKeyframe ?? (() => {})}
 							disabled={!hasNextKeyframe}
 						>

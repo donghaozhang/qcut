@@ -55,13 +55,13 @@ export function MediaMaskLayerList({
 								type="button"
 								className="flex size-7 shrink-0 items-center justify-center rounded-sm hover:bg-accent"
 								onClick={() => onSelect(maskId)}
-								aria-label={`Select ${mask.name ?? `Mask ${index + 1}`}`}
+								aria-label={`选择${mask.name ?? `蒙版 ${index + 1}`}`}
 							>
 								<Icon className="size-4" />
 							</button>
 							<Input
-								aria-label="Mask name"
-								value={mask.name ?? `Mask ${index + 1}`}
+								aria-label="蒙版名称"
+								value={mask.name ?? `蒙版 ${index + 1}`}
 								onFocus={() => onSelect(maskId)}
 								onChange={(event) =>
 									onChange(
@@ -76,7 +76,7 @@ export function MediaMaskLayerList({
 								className="h-7 min-w-0 flex-1 border-0 bg-transparent px-1 text-xs shadow-none"
 							/>
 							<MaskIconButton
-								label={mask.enabled === false ? "Show mask" : "Hide mask"}
+								label={mask.enabled === false ? "显示蒙版" : "隐藏蒙版"}
 								onClick={() =>
 									onChange(
 										updateMediaMaskInStack({
@@ -94,7 +94,7 @@ export function MediaMaskLayerList({
 								)}
 							</MaskIconButton>
 							<MaskIconButton
-								label="Delete mask"
+								label="删除蒙版"
 								onClick={() => {
 									const next = removeMediaMask(masks, maskId);
 									onChange(next);
@@ -125,18 +125,18 @@ export function MediaMaskLayerList({
 								>
 									<SelectTrigger
 										className="h-7 min-w-0 flex-1 text-[11px]"
-										aria-label="Mask blend mode"
+										aria-label="蒙版混合方式"
 									>
 										<SelectValue />
 									</SelectTrigger>
 									<SelectContent>
-										<SelectItem value="add">Add</SelectItem>
-										<SelectItem value="subtract">Subtract</SelectItem>
-										<SelectItem value="intersect">Intersect</SelectItem>
+										<SelectItem value="add">相加</SelectItem>
+										<SelectItem value="subtract">相减</SelectItem>
+										<SelectItem value="intersect">交集</SelectItem>
 									</SelectContent>
 								</Select>
 								<MaskIconButton
-									label="Move mask up"
+									label="上移蒙版"
 									disabled={index === 0}
 									onClick={() =>
 										onChange(
@@ -147,7 +147,7 @@ export function MediaMaskLayerList({
 									<ChevronUp className="size-3.5" />
 								</MaskIconButton>
 								<MaskIconButton
-									label="Move mask down"
+									label="下移蒙版"
 									disabled={index === masks.length - 1}
 									onClick={() =>
 										onChange(
@@ -158,7 +158,7 @@ export function MediaMaskLayerList({
 									<ChevronDown className="size-3.5" />
 								</MaskIconButton>
 								<MaskIconButton
-									label="Duplicate mask"
+									label="复制蒙版"
 									onClick={() => {
 										const newId = `mask-${generateUUID()}`;
 										onChange(duplicateMediaMask({ masks, maskId, newId }));

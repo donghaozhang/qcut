@@ -20,6 +20,7 @@ import {
 	Sparkles,
 	FileText,
 	Plus,
+	Rows3,
 } from "lucide-react";
 import { Button } from "../../ui/button";
 import {
@@ -42,12 +43,14 @@ import { useSceneStore } from "@/stores/timeline/scene-store";
 import { ScenesView } from "../scenes-view";
 import { EFFECTS_ENABLED } from "@/config/features";
 import {
+	COMPACT_TRACK_HEIGHTS,
 	TIMELINE_CONSTANTS,
 	TEST_MEDIA_ID,
 } from "@/constants/timeline-constants";
 import { toast } from "sonner";
 import { debugLog, debugError } from "@/lib/debug/debug-config";
 import { getTimelineElementEndTime } from "@/lib/timeline";
+import { mapMediaTimelineTime } from "@/lib/video/video-timing";
 import {
 	DropdownMenu,
 	DropdownMenuContent,
@@ -57,17 +60,23 @@ import {
 	DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import type { TrackType } from "@/types/timeline";
+import { CloudTaskCenter } from "@/components/editor/cloud-task-center";
 import { TrackIcon } from "./track-icon";
+import { useTranslation } from "@/lib/i18n";
+import {
+	localizeSceneName,
+	localizeTrackTypeName,
+} from "@/lib/i18n/timeline-names";
 
-const ADD_TRACK_OPTIONS: Array<{ type: TrackType; label: string }> = [
-	{ type: "media", label: "Media" },
-	{ type: "audio", label: "Audio" },
-	{ type: "text", label: "Text" },
-	{ type: "captions", label: "Captions" },
-	{ type: "sticker", label: "Sticker" },
-	{ type: "adjustment", label: "Adjustment Layer" },
-	{ type: "remotion", label: "Remotion" },
-	{ type: "markdown", label: "Markdown" },
+const ADD_TRACK_OPTIONS: TrackType[] = [
+	"media",
+	"audio",
+	"text",
+	"captions",
+	"sticker",
+	"adjustment",
+	"remotion",
+	"markdown",
 ];
 
 export interface TimelineToolbarProps {
@@ -79,6 +88,7 @@ export function TimelineToolbar({
 	zoomLevel,
 	setZoomLevel,
 }: TimelineToolbarProps) {
+	const { locale, t } = useTranslation();
 	const tracks = useTimelineStore((s) => s.tracks);
 	const addTrack = useTimelineStore((s) => s.addTrack);
 	const addElementToTrack = useTimelineStore((s) => s.addElementToTrack);
@@ -97,6 +107,8 @@ export function TimelineToolbar({
 	const splitAndKeepLeft = useTimelineStore((s) => s.splitAndKeepLeft);
 	const splitAndKeepRight = useTimelineStore((s) => s.splitAndKeepRight);
 	const separateAudio = useTimelineStore((s) => s.separateAudio);
+	const updateMediaElement = useTimelineStore((s) => s.updateMediaElement);
+	const setTrackHeightMode = useTimelineStore((s) => s.setTrackHeightMode);
 	const snappingEnabled = useTimelineStore((s) => s.snappingEnabled);
 	const toggleSnapping = useTimelineStore((s) => s.toggleSnapping);
 	const rippleEditingEnabled = useTimelineStore((s) => s.rippleEditingEnabled);
@@ -109,7 +121,15 @@ export function TimelineToolbar({
 	const toggle = usePlaybackStore((s) => s.toggle);
 	const toggleBookmark = useProjectStore((s) => s.toggleBookmark);
 	const isBookmarked = useProjectStore((s) => s.isBookmarked);
+	const projectFps = useProjectStore((s) => s.activeProject?.fps ?? 30);
 	const { scenes, currentScene } = useSceneStore();
+	const currentSceneName = localizeSceneName({
+		name: currentScene?.name,
+		locale,
+	});
+	const compactTracks =
+		tracks.length > 0 &&
+		tracks.every((track) => track.height === COMPACT_TRACK_HEIGHTS[track.type]);
 
 	// DOM-direct timecode update during playback (avoids React re-renders)
 	const timecodeRef = useRef<HTMLDivElement>(null);
@@ -176,7 +196,33 @@ export function TimelineToolbar({
 	};
 
 	const handleFreezeSelected = () => {
-		toast.info("Freeze frame functionality coming soon!");
+		if (selectedElements.length !== 1) {
+			toast.error("Select exactly one video clip to add a freeze frame");
+			return;
+		}
+		const { trackId, elementId } = selectedElements[0];
+		const track = tracks.find((candidate) => candidate.id === trackId);
+		const element = track?.elements.find(
+			(candidate) => candidate.id === elementId
+		);
+		if (!track || track.type !== "media" || element?.type !== "media") {
+			toast.error("Select a video clip to add a freeze frame");
+			return;
+		}
+		const elementEnd = getTimelineElementEndTime({ element });
+		if (currentTime < element.startTime || currentTime > elementEnd) {
+			toast.error("Move the playhead inside the selected clip");
+			return;
+		}
+		const playbackTiming = mapMediaTimelineTime({
+			element,
+			localTimelineTime: currentTime - element.startTime,
+			fps: projectFps,
+		});
+		updateMediaElement(trackId, elementId, {
+			freezeFrameTime: playbackTiming.sourceTime,
+			freezeFrameDuration: 1,
+		});
 	};
 
 	const handleSplitAndKeepLeft = () => {
@@ -345,6 +391,7 @@ export function TimelineToolbar({
 			data-testid="timeline-toolbar"
 		>
 			<div className="flex items-center gap-1">
+				<CloudTaskCenter />
 				<TooltipProvider delayDuration={500}>
 					<DropdownMenu>
 						<DropdownMenuTrigger asChild>
@@ -362,13 +409,13 @@ export function TimelineToolbar({
 						<DropdownMenuContent align="start">
 							<DropdownMenuLabel>Add track</DropdownMenuLabel>
 							<DropdownMenuSeparator />
-							{ADD_TRACK_OPTIONS.map((option) => (
+							{ADD_TRACK_OPTIONS.map((trackType) => (
 								<DropdownMenuItem
-									key={option.type}
-									onSelect={() => addTrackFromMenu({ type: option.type })}
+									key={trackType}
+									onSelect={() => addTrackFromMenu({ type: trackType })}
 								>
-									<TrackIcon type={option.type} />
-									{option.label}
+									<TrackIcon type={trackType} />
+									{localizeTrackTypeName({ type: trackType, locale })}
 								</DropdownMenuItem>
 							))}
 						</DropdownMenuContent>
@@ -477,6 +524,37 @@ export function TimelineToolbar({
 					<Tooltip>
 						<TooltipTrigger asChild>
 							<Button
+								type="button"
+								variant={compactTracks ? "default" : "text"}
+								size="icon"
+								onClick={() =>
+									setTrackHeightMode(compactTracks ? "default" : "compact")
+								}
+								onKeyDown={(event) => {
+									if (event.key !== "Enter" && event.key !== " ") return;
+									event.preventDefault();
+									setTrackHeightMode(compactTracks ? "default" : "compact");
+								}}
+								aria-label={
+									compactTracks
+										? "Restore default track heights"
+										: "Compact tracks"
+								}
+								aria-pressed={compactTracks}
+								title="Compact tracks"
+								data-testid="compact-tracks-button"
+							>
+								<Rows3 className="h-4 w-4" />
+							</Button>
+						</TooltipTrigger>
+						<TooltipContent>
+							{compactTracks ? "Restore track heights" : "Compact tracks"}
+						</TooltipContent>
+					</Tooltip>
+
+					<Tooltip>
+						<TooltipTrigger asChild>
+							<Button
 								variant="text"
 								size="icon"
 								onClick={handleSplitSelected}
@@ -538,7 +616,20 @@ export function TimelineToolbar({
 
 					<Tooltip>
 						<TooltipTrigger asChild>
-							<Button variant="text" size="icon" onClick={handleFreezeSelected}>
+							<Button
+								type="button"
+								variant="text"
+								size="icon"
+								onClick={handleFreezeSelected}
+								onKeyDown={(event) => {
+									if (event.key !== "Enter" && event.key !== " ") return;
+									event.preventDefault();
+									handleFreezeSelected();
+								}}
+								aria-label="Add freeze frame at playhead"
+								title="Freeze frame"
+								data-testid="freeze-frame-button"
+							>
 								<Snowflake className="h-4 w-4" />
 							</Button>
 						</TooltipTrigger>
@@ -576,13 +667,11 @@ export function TimelineToolbar({
 					<Tooltip>
 						<TooltipTrigger asChild>
 							<SplitButton>
-								<SplitButtonLeft disabled>
-									{currentScene?.name || "Main scene"}
-								</SplitButtonLeft>
+								<SplitButtonLeft disabled>{currentSceneName}</SplitButtonLeft>
 								<SplitButtonSeparator />
 								<SplitButtonRight
 									type="button"
-									aria-label="Open scenes menu"
+									aria-label={t("timeline.scene.open")}
 									onClick={handleSceneManagement}
 								>
 									<LayersIcon className="h-4 w-4" aria-hidden="true" />
@@ -590,8 +679,7 @@ export function TimelineToolbar({
 							</SplitButton>
 						</TooltipTrigger>
 						<TooltipContent>
-							Scene: {currentScene?.name || "Main scene"} • Click layers to
-							manage scenes
+							{t("timeline.scene.tooltip", { name: currentSceneName })}
 						</TooltipContent>
 					</Tooltip>
 				</TooltipProvider>

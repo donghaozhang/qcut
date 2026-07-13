@@ -2,6 +2,7 @@ import { describe, expect, it, vi } from "vitest";
 import type { MediaElement } from "@/types/timeline";
 import {
 	applyTimelineSceneSplits,
+	rollbackTimelineSceneSplits,
 	sceneTimelineSplitTimes,
 } from "../timeline-smart-split";
 
@@ -77,5 +78,41 @@ describe("timeline smart split", () => {
 			false
 		);
 		expect(result).toEqual(["right-1", "right-2"]);
+	});
+
+	it("rolls back only the task-created segments and preserves later edits", () => {
+		const source = element();
+		const tracks = [
+			{
+				id: "track",
+				name: "Main",
+				type: "media" as const,
+				isMain: true,
+				elements: [
+					{ ...source, duration: 4 },
+					{ ...source, id: "right-1", startTime: 14, duration: 4 },
+					{ ...source, id: "right-2", startTime: 18, duration: 4 },
+					{
+						...source,
+						id: "later-user-edit",
+						startTime: 24,
+						name: "Later edit",
+					},
+				],
+			},
+		];
+
+		const result = rollbackTimelineSceneSplits({
+			tracks,
+			trackId: "track",
+			sourceElement: source,
+			createdElementIds: ["right-1", "right-2"],
+		});
+
+		expect(result[0].elements.map((item) => item.id)).toEqual([
+			"clip",
+			"later-user-edit",
+		]);
+		expect(result[0].elements[0]).toEqual(source);
 	});
 });

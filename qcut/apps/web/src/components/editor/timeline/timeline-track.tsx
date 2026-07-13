@@ -38,15 +38,21 @@ import {
 } from "@/lib/timeline";
 import { TimelineTransitionMarker } from "./timeline-transition-marker";
 import { isTransitionDrag, useTransitionDrop } from "./use-transition-drop";
+import {
+	getVisibleTimelineElements,
+	type TimelineVisibleRange,
+} from "./timeline-viewport";
 
 function TimelineTrackContentComponent({
 	track,
 	zoomLevel,
 	onSnapPointChange,
+	visibleTimeRange,
 }: {
 	track: TimelineTrack;
 	zoomLevel: number;
 	onSnapPointChange?: (snapPoint: SnapPoint | null) => void;
+	visibleTimeRange?: TimelineVisibleRange;
 }) {
 	const {
 		mediaItems,
@@ -74,8 +80,6 @@ function TimelineTrackContentComponent({
 	const snappingEnabled = useTimelineStore((s) => s.snappingEnabled);
 	const rippleEditingEnabled = useTimelineStore((s) => s.rippleEditingEnabled);
 	const splitElement = useTimelineStore((s) => s.splitElement);
-
-	const currentTime = usePlaybackStore((s) => s.currentTime);
 
 	// Initialize snapping hook
 	const { snapElementPosition, snapElementEdge } = useTimelineSnapping({
@@ -163,6 +167,7 @@ function TimelineTrackContentComponent({
 			let finalTime = adjustedTime;
 			let snapPoint = null;
 			if (snappingEnabled) {
+				const currentTime = usePlaybackStore.getState().currentTime;
 				// Find the element being dragged to get its duration
 				let elementDuration = 5; // fallback duration
 				if (dragState.elementId && dragState.trackId) {
@@ -401,7 +406,6 @@ function TimelineTrackContentComponent({
 		rippleEditingEnabled,
 		snappingEnabled,
 		snapElementEdge,
-		currentTime,
 	]);
 
 	const dropZoneRef = useRef<HTMLDivElement>(null);
@@ -434,6 +438,41 @@ function TimelineTrackContentComponent({
 	const trackGaps = useMemo(
 		() => (track.type === "media" ? detectTimelineGaps([track]) : []),
 		[track]
+	);
+	const preservedElementIds = useMemo(() => {
+		const ids = new Set(
+			selectedElements
+				.filter((selection) => selection.trackId === track.id)
+				.map((selection) => selection.elementId)
+		);
+		if (dragState.trackId === track.id && dragState.elementId) {
+			ids.add(dragState.elementId);
+		}
+		return ids;
+	}, [dragState.elementId, dragState.trackId, selectedElements, track.id]);
+	const visibleElements = useMemo(
+		() =>
+			getVisibleTimelineElements({
+				elements: track.elements,
+				visibleRange: visibleTimeRange,
+				preserveElementIds: preservedElementIds,
+			}),
+		[preservedElementIds, track.elements, visibleTimeRange]
+	);
+	const visibleElementIds = useMemo(
+		() => new Set(visibleElements.map((element) => element.id)),
+		[visibleElements]
+	);
+	const visibleGaps = useMemo(
+		() =>
+			visibleTimeRange
+				? trackGaps.filter(
+						(gap) =>
+							gap.startTime <= visibleTimeRange.endTime &&
+							gap.endTime >= visibleTimeRange.startTime
+					)
+				: trackGaps,
+		[trackGaps, visibleTimeRange]
 	);
 
 	// Handle media loading states
@@ -621,12 +660,12 @@ function TimelineTrackContentComponent({
 				data-track-type={track.type}
 			>
 				{/* Gap indicators for media tracks */}
-				{trackGaps.map((gap) => (
+				{visibleGaps.map((gap) => (
 					<GapIndicator
 						key={`gap-${gap.startTime}-${gap.endTime}`}
 						gap={gap}
 						zoomLevel={zoomLevel}
-						trackHeight={getTrackHeight(track.type)}
+						trackHeight={getTrackHeight(track.type, track.height)}
 					/>
 				))}
 
@@ -648,13 +687,13 @@ function TimelineTrackContentComponent({
 					</div>
 				) : (
 					<>
-						{track.elements.map((element) => {
+						{visibleElements.map((element) => {
 							const isSelected = selectedElements.some(
 								(c) => c.trackId === track.id && c.elementId === element.id
 							);
 
 							const handleElementSplit = () => {
-								const splitTime = currentTime;
+								const splitTime = usePlaybackStore.getState().currentTime;
 								const effectiveStart = element.startTime;
 								const effectiveEnd = getTimelineElementEndTime({ element });
 
@@ -699,14 +738,20 @@ function TimelineTrackContentComponent({
 								/>
 							);
 						})}
-						{(track.transitions ?? []).map((transition) => (
-							<TimelineTransitionMarker
-								key={transition.id}
-								track={track}
-								transition={transition}
-								zoomLevel={zoomLevel}
-							/>
-						))}
+						{(track.transitions ?? [])
+							.filter(
+								(transition) =>
+									visibleElementIds.has(transition.fromElementId) ||
+									visibleElementIds.has(transition.toElementId)
+							)
+							.map((transition) => (
+								<TimelineTransitionMarker
+									key={transition.id}
+									track={track}
+									transition={transition}
+									zoomLevel={zoomLevel}
+								/>
+							))}
 					</>
 				)}
 			</div>

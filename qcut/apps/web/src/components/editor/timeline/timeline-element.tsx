@@ -26,11 +26,15 @@ import {
 	Download,
 	Palette,
 	SlidersHorizontal,
+	Link2,
+	Camera,
+	Clapperboard,
 } from "lucide-react";
 import { useAsyncMediaItems } from "@/hooks/media/use-async-media-store";
 import { getFileType, useMediaStore } from "@/stores/media/media-store";
 import { useMediaPanelStore } from "@/components/editor/media-panel/store";
 import { usePtyTerminalStore } from "@/stores/pty-terminal-store";
+import { useCloudTaskStore } from "@/stores/cloud-task-store";
 import { useTimelineStore } from "@/stores/timeline/timeline-store";
 import { usePlaybackStore } from "@/stores/editor/playback-store";
 import { useProjectStore } from "@/stores/project-store";
@@ -98,9 +102,20 @@ import {
 import { useTimelineClipboardStore } from "@/stores/timeline/timeline-clipboard-store";
 import {
 	applyTimelineSceneSplits,
+	rollbackTimelineSceneSplits,
 	sceneTimelineSplitTimes,
 } from "./timeline-smart-split";
 import { VideoClipContextMenu } from "./video-clip-context-menu";
+import { TimelineElementTaskBadge } from "./timeline-element-task-badge";
+import {
+	loadClipAttributePresets,
+	saveClipAttributePreset,
+} from "@/lib/timeline/clip-attribute-presets";
+import { alignMediaElementsByAudio } from "@/lib/audio/audio-alignment";
+import { registerCloudTaskRuntimeActions } from "@/lib/cloud-tasks/task-runtime-actions";
+import { useVideoEditRequestStore } from "@/stores/video-edit-request-store";
+import { useTranslation } from "@/lib/i18n";
+import { localizeTimelineElementName } from "@/lib/i18n/timeline-names";
 
 function shellQuote({ value }: { value: string }): string {
 	return `'${value.replace(/'/g, "'\\''")}'`;
@@ -141,6 +156,11 @@ function TimelineElementComponent({
 	onElementMouseDown,
 	onElementClick,
 }: TimelineElementProps) {
+	const { locale, t } = useTranslation();
+	const displayName = localizeTimelineElementName({
+		name: element.name,
+		locale,
+	});
 	const {
 		mediaItems,
 		loading: mediaItemsLoading,
@@ -150,6 +170,9 @@ function TimelineElementComponent({
 	const updateElementTrim = useTimelineStore((s) => s.updateElementTrim);
 	const updateElementDuration = useTimelineStore(
 		(s) => s.updateElementDuration
+	);
+	const updateElementStartTime = useTimelineStore(
+		(s) => s.updateElementStartTime
 	);
 	const removeElementFromTrack = useTimelineStore(
 		(s) => s.removeElementFromTrack
@@ -169,7 +192,18 @@ function TimelineElementComponent({
 	const rippleEditingEnabled = useTimelineStore((s) => s.rippleEditingEnabled);
 	const toggleElementHidden = useTimelineStore((s) => s.toggleElementHidden);
 	const selectElement = useTimelineStore((s) => s.selectElement);
-	const currentTime = usePlaybackStore((s) => s.currentTime);
+	const selectedElements = useTimelineStore((s) => s.selectedElements);
+	const groupSelectedElements = useTimelineStore(
+		(s) => s.groupSelectedElements
+	);
+	const ungroupElements = useTimelineStore((s) => s.ungroupElements);
+	const createMediaContainerFromSelection = useTimelineStore(
+		(s) => s.createMediaContainerFromSelection
+	);
+	const breakApartMediaContainer = useTimelineStore(
+		(s) => s.breakApartMediaContainer
+	);
+	const selectMulticamClip = useTimelineStore((s) => s.selectMulticamClip);
 	const activeProject = useProjectStore((s) => s.activeProject);
 	const projectFps = activeProject?.fps ?? 30;
 	const updateMediaItem = useMediaStore((s) => s.updateMediaItem);
@@ -178,6 +212,9 @@ function TimelineElementComponent({
 	);
 
 	const [elementMenuOpen, setElementMenuOpen] = useState(false);
+	const [clipAttributePresets, setClipAttributePresets] = useState(
+		loadClipAttributePresets
+	);
 
 	// Resize & trim helpers – must be declared before any conditional returns
 	const {
@@ -242,11 +279,12 @@ function TimelineElementComponent({
 		trimStart: element.trimStart,
 		trimEnd: element.trimEnd,
 		zoomLevel,
-		trackHeight: getTrackHeight(track.type),
+		trackHeight: getTrackHeight(track.type, track.height),
 		clipWidthPx: elementWidth,
 		enabled:
 			mediaItem?.type === "video" &&
 			mediaItem?.thumbnailStatus === "ready" &&
+			elementWidth >= 12 &&
 			isVisible,
 	});
 
@@ -290,6 +328,7 @@ function TimelineElementComponent({
 
 	const handleElementSplitContext = (e: React.MouseEvent) => {
 		e.stopPropagation();
+		const currentTime = usePlaybackStore.getState().currentTime;
 		const effectiveStart = element.startTime;
 		const effectiveEnd = getTimelineElementEndTime({ element });
 
@@ -305,6 +344,7 @@ function TimelineElementComponent({
 
 	const handleSplitAndKeepLeftContext = (e: React.MouseEvent) => {
 		e.stopPropagation();
+		const currentTime = usePlaybackStore.getState().currentTime;
 		const effectiveStart = element.startTime;
 		const effectiveEnd = getTimelineElementEndTime({ element });
 		if (currentTime <= effectiveStart || currentTime >= effectiveEnd) {
@@ -316,6 +356,7 @@ function TimelineElementComponent({
 
 	const handleSplitAndKeepRightContext = (e: React.MouseEvent) => {
 		e.stopPropagation();
+		const currentTime = usePlaybackStore.getState().currentTime;
 		const effectiveStart = element.startTime;
 		const effectiveEnd = getTimelineElementEndTime({ element });
 		if (currentTime <= effectiveStart || currentTime >= effectiveEnd) {
@@ -402,6 +443,27 @@ function TimelineElementComponent({
 		toast.success("Clip attributes pasted");
 	};
 
+	const handleSaveClipPreset = (e: React.MouseEvent) => {
+		e.stopPropagation();
+		if (element.type !== "media") return;
+		const { preset, presets } = saveClipAttributePreset({ element });
+		setClipAttributePresets(presets);
+		toast.success(`Saved ${preset.name}`);
+	};
+
+	const handleApplyClipPreset = (presetId: string) => {
+		if (element.type !== "media") return;
+		const preset = clipAttributePresets.find(
+			(candidate) => candidate.id === presetId
+		);
+		if (!preset) {
+			toast.error("Clip preset is no longer available");
+			return;
+		}
+		updateMediaElement(track.id, element.id, preset.attributes);
+		toast.success(`Applied ${preset.name}`);
+	};
+
 	const handleToggleElementHidden = (e: React.MouseEvent) => {
 		e.stopPropagation();
 		toggleElementHidden(track.id, element.id);
@@ -468,26 +530,47 @@ function TimelineElementComponent({
 		}
 	};
 
-	const handleOpenSpeechTools = (e: React.MouseEvent) => {
-		e.stopPropagation();
-		useMediaPanelStore.getState().setActiveTab("word-timeline");
-		toast.info("Opened Smart Speech tools");
-	};
-
-	const handleRecognizeSpeech = (e: React.MouseEvent) => {
-		e.stopPropagation();
+	const startTranscriptionTask = () => {
 		if (!mediaItem?.localPath) {
-			toast.error("Speech recognition needs a local media file");
+			toast.error("语音识别需要本地媒体文件");
 			return;
 		}
+		const taskId = useCloudTaskStore.getState().createTask({
+			kind: "transcription",
+			label: `识别字幕：${element.name}`,
+			payload: {
+				elementId: element.id,
+				trackId: track.id,
+				mediaId: mediaItem.id,
+			},
+			message: "准备识别语音",
+		});
+		useCloudTaskStore.getState().startTask({
+			id: taskId,
+			message: "正在读取媒体",
+		});
 		useMediaPanelStore.getState().setActiveTab("word-timeline");
 		setTimeout(() => {
 			window.dispatchEvent(
 				new CustomEvent("qcut:transcribe-media", {
-					detail: { filePath: mediaItem.localPath, elementId: element.id },
+					detail: {
+						filePath: mediaItem.localPath,
+						elementId: element.id,
+						taskId,
+					},
 				})
 			);
 		}, 0);
+	};
+
+	const handleOpenSpeechTools = (e: React.MouseEvent) => {
+		e.stopPropagation();
+		startTranscriptionTask();
+	};
+
+	const handleRecognizeSpeech = (e: React.MouseEvent) => {
+		e.stopPropagation();
+		startTranscriptionTask();
 	};
 
 	const handleOpenAiPanel = ({
@@ -505,7 +588,165 @@ function TimelineElementComponent({
 
 	const handleOpenAiAudio = (e: React.MouseEvent) => {
 		e.stopPropagation();
-		useMediaPanelStore.getState().setActiveTab("sounds");
+		if (!mediaItem || mediaItem.type !== "video") {
+			toast.error(t("timeline.toast.aiAudioRequiresVideo"));
+			return;
+		}
+		useVideoEditRequestStore.getState().requestAudioGeneration({
+			id: `audio-generation-${element.id}-${Date.now()}`,
+			sourceVideo: mediaItem.file,
+			previewUrl: mediaItem.url,
+			targetElementId: element.id,
+			sourceStart: sourceRangeForElement({ element }).start,
+			sourceEnd: sourceRangeForElement({ element }).end,
+			soundEffectPrompt: "根据画面内容生成同步的环境音和动作音效",
+			autoStart: true,
+		});
+		useMediaPanelStore.getState().setActiveTab("video-edit");
+	};
+
+	const handleOpenEffectsPanel = (e: React.MouseEvent) => {
+		e.stopPropagation();
+		selectElement(track.id, element.id, false);
+		useMediaPanelStore.getState().setActiveTab("effects");
+	};
+
+	const handleToggleGroup = (e: React.MouseEvent) => {
+		e.stopPropagation();
+		if (element.groupId) {
+			const count = ungroupElements(element.groupId);
+			if (count > 0) {
+				toast.success(t("timeline.toast.ungrouped", { count }));
+			}
+			return;
+		}
+		const groupId = groupSelectedElements();
+		if (!groupId) {
+			toast.error(t("timeline.toast.selectTwoForGroup"));
+			return;
+		}
+		toast.success(t("timeline.toast.groupCreated"));
+	};
+
+	const handleLinkMedia = (e: React.MouseEvent) => {
+		e.stopPropagation();
+		const groupId = groupSelectedElements();
+		if (!groupId) {
+			toast.error(t("timeline.toast.selectTwoToLink"));
+			return;
+		}
+		toast.success(t("timeline.toast.mediaLinked"));
+	};
+
+	const handleCreateMediaContainer = ({
+		e,
+		kind,
+	}: {
+		e: React.MouseEvent;
+		kind: "compound" | "multicam";
+	}) => {
+		e.stopPropagation();
+		const containerId = createMediaContainerFromSelection(kind);
+		if (!containerId) {
+			toast.error(t("timeline.toast.selectTwoOrdinary"));
+			return;
+		}
+		toast.success(
+			kind === "multicam"
+				? t("timeline.toast.multicamCreated")
+				: t("timeline.toast.compoundCreated")
+		);
+	};
+
+	const handleBreakApartMediaContainer = (e: React.MouseEvent) => {
+		e.stopPropagation();
+		const count = breakApartMediaContainer(track.id, element.id);
+		if (count === 0) {
+			toast.error(t("timeline.toast.notContainer"));
+			return;
+		}
+		toast.success(t("timeline.toast.sourcesRestored", { count }));
+	};
+
+	const handleSelectMulticamClip = (clipId: string) => {
+		if (!selectMulticamClip(track.id, element.id, clipId)) return;
+		toast.success(t("timeline.toast.cameraSwitched"));
+	};
+
+	const handleAudioVideoAlignment = async (e: React.MouseEvent) => {
+		e.stopPropagation();
+		const state = useTimelineStore.getState();
+		const selectedMedia = state.selectedElements.flatMap((selection) => {
+			const selectedTrack = state.tracks.find(
+				(candidate) => candidate.id === selection.trackId
+			);
+			const selectedElement = selectedTrack?.elements.find(
+				(candidate) => candidate.id === selection.elementId
+			);
+			return selectedElement?.type === "media"
+				? [
+						{
+							trackId: selection.trackId,
+							element: selectedElement,
+						},
+					]
+				: [];
+		});
+		if (selectedMedia.length !== 2) {
+			toast.error(t("timeline.toast.selectTwoToAlign"));
+			return;
+		}
+		const reference =
+			selectedMedia.find(
+				({ element: selected }) => selected.id === element.id
+			) ?? selectedMedia[0];
+		const target = selectedMedia.find(
+			({ element: selected }) => selected.id !== reference.element.id
+		);
+		if (!target || reference.element.compound || target.element.compound) {
+			toast.error(t("timeline.toast.alignOrdinary"));
+			return;
+		}
+		const referenceFile = mediaItems.find(
+			(item) => item.id === reference.element.mediaId
+		)?.file;
+		const targetFile = mediaItems.find(
+			(item) => item.id === target.element.mediaId
+		)?.file;
+		if (!referenceFile || !targetFile) {
+			toast.error(t("timeline.toast.localMediaRequired"));
+			return;
+		}
+
+		const toastId = toast.loading(t("timeline.toast.analyzingAudio"));
+		try {
+			const alignment = await alignMediaElementsByAudio({
+				referenceElement: reference.element,
+				targetElement: target.element,
+				referenceFile,
+				targetFile,
+			});
+			updateElementStartTime(
+				target.trackId,
+				target.element.id,
+				alignment.targetStartTime
+			);
+			toast.success(
+				t("timeline.toast.audioAligned", {
+					confidence: Math.round(alignment.confidence * 100),
+				}),
+				{ id: toastId }
+			);
+		} catch (error) {
+			toast.error(
+				error instanceof Error
+					? error.message
+					: t("timeline.toast.alignmentFailed"),
+				{
+					id: toastId,
+				}
+			);
+		}
 	};
 
 	const handleOpenLutPanel = (e: React.MouseEvent) => {
@@ -644,19 +885,67 @@ function TimelineElementComponent({
 		input.click();
 	};
 
-	const handleSmartShotSplit = async (e: React.MouseEvent) => {
-		e.stopPropagation();
+	const runSmartShotSplit = async ({
+		existingTaskId,
+	}: {
+		existingTaskId?: string;
+	} = {}) => {
 		if (element.type !== "media" || !activeProject || !mediaItem) return;
 		const analyzeScenes = platform().claude?.analyze.scenes;
 		if (!analyzeScenes) {
-			toast.error("Smart shot split is only available in the desktop app");
+			toast.error("智能镜头分割仅支持桌面版");
 			return;
 		}
-		const toastId = toast.loading("Detecting shot boundaries...");
+		const sourceElement = structuredClone(element);
+		const taskId =
+			existingTaskId ??
+			useCloudTaskStore.getState().createTask({
+				kind: "scene-detection",
+				label: `镜头分割：${element.name}`,
+				payload: {
+					elementId: element.id,
+					trackId: track.id,
+					mediaId: mediaItem.id,
+				},
+				message: "等待检测镜头",
+			});
+		let canceled = false;
+		const openSource = () =>
+			useTimelineStore.getState().selectElement(track.id, element.id);
+		const retry = () => void runSmartShotSplit({ existingTaskId: taskId });
+		registerCloudTaskRuntimeActions({
+			taskId,
+			actions: {
+				cancel: () => {
+					canceled = true;
+				},
+				retry,
+				open: openSource,
+			},
+		});
+		useCloudTaskStore.getState().startTask({
+			id: taskId,
+			message: "正在检测镜头边界",
+		});
+		useCloudTaskStore.getState().updateProgress({ id: taskId, progress: 10 });
+		const toastId = toast.loading("正在检测镜头边界...");
 		try {
 			const result = await analyzeScenes(activeProject.id, {
 				mediaId: mediaItem.id,
 				threshold: 0.3,
+			});
+			if (
+				canceled ||
+				useCloudTaskStore.getState().tasks.find((task) => task.id === taskId)
+					?.status === "canceled"
+			) {
+				toast.dismiss(toastId);
+				return;
+			}
+			useCloudTaskStore.getState().updateProgress({
+				id: taskId,
+				progress: 70,
+				message: "正在写入时间线",
 			});
 			const splitTimes = sceneTimelineSplitTimes({
 				element,
@@ -671,20 +960,65 @@ function TimelineElementComponent({
 				splitElement,
 			});
 			if (createdIds.length === 0) {
-				toast.info("No shot boundaries found inside this clip", {
+				useCloudTaskStore.getState().completeTask({
+					id: taskId,
+					message: "片段内未发现镜头边界",
+					output: { createdElementIds: [] },
+				});
+				toast.info("片段内未发现镜头边界", {
 					id: toastId,
 				});
 				return;
 			}
-			toast.success(`Split into ${createdIds.length + 1} shots`, {
+			useCloudTaskStore.getState().completeTask({
+				id: taskId,
+				message: `已分成 ${createdIds.length + 1} 个镜头`,
+				output: { createdElementIds: createdIds },
+			});
+			toast.success(`已分成 ${createdIds.length + 1} 个镜头`, {
 				id: toastId,
 			});
+			registerCloudTaskRuntimeActions({
+				taskId,
+				actions: {
+					open: openSource,
+					undo: () => {
+						const timeline = useTimelineStore.getState();
+						timeline.pushHistory();
+						timeline.restoreTracks(
+							rollbackTimelineSceneSplits({
+								tracks: timeline._tracks,
+								trackId: track.id,
+								sourceElement,
+								createdElementIds: createdIds,
+							})
+						);
+						void useTimelineStore.getState().saveImmediate();
+						useCloudTaskStore.getState().completeTask({
+							id: taskId,
+							message: "镜头分割结果已撤销",
+							output: { createdElementIds: [], undone: true },
+						});
+						registerCloudTaskRuntimeActions({
+							taskId,
+							actions: { open: openSource, retry },
+						});
+						toast.success("已撤销镜头分割");
+					},
+				},
+			});
 		} catch (error) {
-			toast.error(
-				error instanceof Error ? error.message : "Smart shot split failed",
-				{ id: toastId }
-			);
+			if (canceled) return;
+			const message =
+				error instanceof Error ? error.message : "智能镜头分割失败";
+			useCloudTaskStore.getState().failTask({ id: taskId, error: message });
+			toast.error(message, { id: toastId });
 		}
+	};
+
+	const handleSmartShotSplit = (e: React.MouseEvent) => {
+		e.stopPropagation();
+		void runSmartShotSplit();
 	};
 
 	const handleExportSelectedClip = async (e: React.MouseEvent) => {
@@ -774,22 +1108,40 @@ function TimelineElementComponent({
 		}
 	};
 
-	const handleReviewSelectedClip = async (e: React.MouseEvent) => {
-		e.stopPropagation();
+	const startReviewTask = async ({
+		requestedTaskId,
+	}: {
+		requestedTaskId?: string;
+	}) => {
 		if (!isVideoClip) {
-			toast.error("AI review is only available for video clips");
+			toast.error("AI 审片只支持视频片段");
 			return;
 		}
 		if (!mediaItem?.localPath) {
-			toast.error("AI review needs a local video file");
+			toast.error("AI 审片需要本地视频文件");
 			return;
 		}
 
 		const range = sourceRangeForElement({ element });
 		if (range.duration <= 0) {
-			toast.error("Selected clip has no reviewable duration");
+			toast.error("所选片段没有可审查的时长");
 			return;
 		}
+		const cloudTasks = useCloudTaskStore.getState();
+		const taskId =
+			requestedTaskId ??
+			cloudTasks.createTask({
+				kind: "review",
+				label: `AI 审片：${element.name}`,
+				payload: {
+					elementId: element.id,
+					trackId: track.id,
+					mediaId: mediaItem.id,
+					startTime: range.start,
+					endTime: range.end,
+				},
+				message: "准备启动在线审片",
+			});
 
 		const command = [
 			"qcut analyze video",
@@ -805,6 +1157,43 @@ function TimelineElementComponent({
 		try {
 			const terminal = usePtyTerminalStore.getState();
 			const tabId = terminal.createSession("shell");
+			if (!tabId) throw new Error("无法创建审片终端会话");
+			cloudTasks.startTask({
+				id: taskId,
+				sessionId: tabId,
+				message: "正在运行在线审片",
+			});
+			const callbackId = `task-${tabId}`;
+			terminal.registerExitCallback(callbackId, (exitCode) => {
+				terminal.unregisterExitCallback(callbackId);
+				const status = useCloudTaskStore
+					.getState()
+					.tasks.find((task) => task.id === taskId)?.status;
+				if (status === "canceled") return;
+				if (exitCode === 0) {
+					useCloudTaskStore.getState().completeTask({
+						id: taskId,
+						message: "审片完成，结果已保存在终端输出",
+						output: { terminalTabId: tabId },
+					});
+					return;
+				}
+				useCloudTaskStore.getState().failTask({
+					id: taskId,
+					error: `审片命令退出，状态码 ${exitCode}`,
+				});
+			});
+			registerCloudTaskRuntimeActions({
+				taskId,
+				actions: {
+					cancel: () => terminal.closeSession(tabId),
+					retry: () => startReviewTask({ requestedTaskId: taskId }),
+					open: () => {
+						usePtyTerminalStore.getState().switchSession(tabId);
+						useMediaPanelStore.getState().setActiveTab("pty");
+					},
+				},
+			});
 			usePtyTerminalStore.getState().switchSession(tabId);
 			usePtyTerminalStore.getState().setCliProvider("shell");
 			useMediaPanelStore.getState().setActiveTab("pty");
@@ -812,14 +1201,41 @@ function TimelineElementComponent({
 				manual: true,
 				command,
 			});
-			toast.success("Started AI review in Terminal");
+			useCloudTaskStore.getState().updateProgress({
+				id: taskId,
+				progress: 15,
+				message: "审片已启动，可在任务中心查看",
+			});
+			toast.success("AI 审片已启动");
 		} catch (error) {
 			console.error("Failed to start AI review:", error);
-			toast.error("Failed to start AI review");
+			const message =
+				error instanceof Error ? error.message : "启动 AI 审片失败";
+			useCloudTaskStore.getState().failTask({ id: taskId, error: message });
+			toast.error(message);
 		}
 	};
 
+	const handleReviewSelectedClip = async (e: React.MouseEvent) => {
+		e.stopPropagation();
+		await startReviewTask({});
+	};
+
 	const renderElementContent = () => {
+		if (element.type === "media" && element.compound) {
+			const isMulticam = element.compound.kind === "multicam";
+			return (
+				<div className="flex h-full w-full items-center gap-2 bg-zinc-800 px-2 text-zinc-100 dark:bg-zinc-200 dark:text-zinc-900">
+					{isMulticam ? (
+						<Camera className="size-3.5 shrink-0 text-cyan-400 dark:text-cyan-700" />
+					) : (
+						<Clapperboard className="size-3.5 shrink-0 text-amber-400 dark:text-amber-700" />
+					)}
+					<span className="truncate text-xs font-medium">{displayName}</span>
+				</div>
+			);
+		}
+
 		if (element.type === "text") {
 			return (
 				<div className="w-full h-full flex items-center justify-start pl-2">
@@ -840,7 +1256,7 @@ function TimelineElementComponent({
 						<>
 							<img
 								src={thumbnailUrl}
-								alt={element.name}
+								alt={displayName}
 								className="h-[calc(100%-8px)] w-auto object-contain rounded pointer-events-none select-none bg-white/10 p-0.5"
 								onError={(e) => {
 									// Hide image on error and show text fallback
@@ -848,12 +1264,12 @@ function TimelineElementComponent({
 								}}
 							/>
 							<span className="text-xs text-foreground/80 truncate flex-1">
-								{element.name}
+								{displayName}
 							</span>
 						</>
 					) : (
 						<span className="text-xs text-foreground/80 truncate">
-							{element.name}
+							{displayName}
 						</span>
 					)}
 				</div>
@@ -875,7 +1291,7 @@ function TimelineElementComponent({
 				<div className="flex h-full w-full items-center gap-1.5 px-2">
 					<SlidersHorizontal className="size-3.5 shrink-0" />
 					<span className="truncate text-xs text-foreground/80">
-						{element.name}
+						{displayName}
 					</span>
 				</div>
 			);
@@ -900,7 +1316,7 @@ function TimelineElementComponent({
 		if (!mediaItem) {
 			return (
 				<span className="text-xs text-foreground/80 truncate">
-					{element.name}
+					{displayName}
 				</span>
 			);
 		}
@@ -909,7 +1325,7 @@ function TimelineElementComponent({
 
 		if (mediaItem.type === "image") {
 			// Calculate tile size based on 16:9 aspect ratio
-			const trackHeight = getTrackHeight(track.type);
+			const trackHeight = getTrackHeight(track.type, track.height);
 			const tileHeight = trackHeight - 8; // Account for padding
 			const tileWidth = tileHeight * TILE_ASPECT_RATIO;
 
@@ -967,7 +1383,7 @@ function TimelineElementComponent({
 				return (
 					<div className="w-full h-full flex items-center justify-center bg-[var(--color-timeline-video-clip)]">
 						<span className="text-xs text-foreground/60 truncate px-2">
-							{element.name} (loading...)
+							{displayName} (loading...)
 						</span>
 					</div>
 				);
@@ -1025,7 +1441,7 @@ function TimelineElementComponent({
 			return (
 				<div className="w-full h-full flex items-center justify-center bg-[var(--color-timeline-video-clip)]">
 					<span className="text-xs text-foreground/80 truncate px-2">
-						{element.name}
+						{displayName}
 					</span>
 				</div>
 			);
@@ -1040,6 +1456,8 @@ function TimelineElementComponent({
 							audioUrl={mediaItem.url || ""}
 							height={24}
 							className="w-full"
+							sourceStart={element.trimStart}
+							sourceEnd={element.duration - element.trimEnd}
 						/>
 					</div>
 				</div>
@@ -1047,9 +1465,7 @@ function TimelineElementComponent({
 		}
 
 		return (
-			<span className="text-xs text-foreground/80 truncate">
-				{element.name}
-			</span>
+			<span className="text-xs text-foreground/80 truncate">{displayName}</span>
 		);
 	};
 
@@ -1099,6 +1515,14 @@ function TimelineElementComponent({
 						<div className="absolute inset-0 flex items-center h-full">
 							{renderElementContent()}
 						</div>
+						{element.groupId ? (
+							<div
+								className="pointer-events-none absolute left-1 top-1 z-30 grid size-4 place-items-center rounded-sm bg-black/65 text-white"
+								title="Grouped clip"
+							>
+								<Link2 className="size-2.5" />
+							</div>
+						) : null}
 
 						{element.hidden && (
 							<div className="absolute inset-0 bg-background/50 flex items-center justify-center pointer-events-none">
@@ -1138,6 +1562,10 @@ function TimelineElementComponent({
 								}}
 							/>
 						)}
+						<TimelineElementTaskBadge
+							element={element}
+							showLabel={elementWidth >= 120}
+						/>
 					</div>
 				</div>
 			</ContextMenuTrigger>
@@ -1146,6 +1574,24 @@ function TimelineElementComponent({
 					isDisabled={element.hidden === true}
 					canPasteAttributes={canPasteAttributes}
 					hasLocalFile={Boolean(mediaItem?.localPath)}
+					presets={clipAttributePresets}
+					canGroup={selectedElements.length >= 2}
+					isGrouped={Boolean(element.groupId)}
+					canCreateContainer={selectedElements.length >= 2 && !element.compound}
+					canAlignAudioVideo={
+						selectedElements.length === 2 && !element.compound
+					}
+					canLinkMedia={selectedElements.length >= 2 && !element.groupId}
+					compoundKind={element.compound?.kind}
+					multicamClips={
+						element.compound?.kind === "multicam"
+							? element.compound.clips.map((clip) => ({
+									id: clip.id,
+									name: clip.element.name,
+									active: clip.id === element.compound?.activeClipId,
+								}))
+							: []
+					}
 					actions={{
 						copy: handleCopyClip,
 						cut: handleCutClip,
@@ -1179,6 +1625,18 @@ function TimelineElementComponent({
 						openFileLocation: handleOpenFileLocation,
 						resetRange: handleResetSourceRange,
 						openSpeed: (e) => openMediaPropertiesSection({ e, tab: "speed" }),
+						savePreset: handleSaveClipPreset,
+						applyPreset: handleApplyClipPreset,
+						openEffects: handleOpenEffectsPanel,
+						toggleGroup: handleToggleGroup,
+						alignAudioVideo: handleAudioVideoAlignment,
+						createCompound: (e) =>
+							handleCreateMediaContainer({ e, kind: "compound" }),
+						createMulticam: (e) =>
+							handleCreateMediaContainer({ e, kind: "multicam" }),
+						breakApart: handleBreakApartMediaContainer,
+						linkMedia: handleLinkMedia,
+						selectMulticamClip: handleSelectMulticamClip,
 					}}
 				/>
 			) : (

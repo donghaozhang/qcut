@@ -4,9 +4,9 @@ import { useRef, useState, useEffect } from "react";
 import { TimelineTrack } from "@/types/timeline";
 import { TIMELINE_CONSTANTS } from "@/constants/timeline-constants";
 import { useTimelinePlayhead } from "@/hooks/timeline/use-timeline-playhead";
+import { usePlaybackStore } from "@/stores/editor/playback-store";
 
 interface TimelinePlayheadProps {
-	currentTime: number;
 	duration: number;
 	zoomLevel: number;
 	tracks: TimelineTrack[];
@@ -21,7 +21,6 @@ interface TimelinePlayheadProps {
 }
 
 export function TimelinePlayhead({
-	currentTime,
 	duration,
 	zoomLevel,
 	tracks,
@@ -34,6 +33,7 @@ export function TimelinePlayhead({
 	playheadRef: externalPlayheadRef,
 	isSnappingToPlayhead = false,
 }: TimelinePlayheadProps) {
+	const currentTime = usePlaybackStore((state) => state.currentTime);
 	const internalPlayheadRef = useRef<HTMLDivElement>(null);
 	const playheadRef = externalPlayheadRef || internalPlayheadRef;
 	const [scrollLeft, setScrollLeft] = useState(0);
@@ -147,7 +147,6 @@ export function TimelinePlayhead({
 
 // Also export a hook for getting ruler handlers
 export function useTimelinePlayheadRuler({
-	currentTime,
 	duration,
 	zoomLevel,
 	seek,
@@ -157,7 +156,7 @@ export function useTimelinePlayheadRuler({
 	playheadRef,
 }: Omit<TimelinePlayheadProps, "tracks" | "trackLabelsRef" | "timelineRef">) {
 	const { handleRulerPointerDown, isDraggingRuler } = useTimelinePlayhead({
-		currentTime,
+		currentTime: usePlaybackStore.getState().currentTime,
 		duration,
 		zoomLevel,
 		seek,
