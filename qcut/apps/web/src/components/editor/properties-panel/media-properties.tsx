@@ -6,13 +6,11 @@ import {
 	AlignVerticalJustifyCenter,
 	AlignVerticalJustifyEnd,
 	AlignVerticalJustifyStart,
-	Bot,
 	Diamond,
 	FlipHorizontal2,
 	FlipVertical2,
 	Link2,
 	RotateCcw,
-	Sparkles,
 	Unlink2,
 } from "lucide-react";
 import type {
@@ -89,6 +87,7 @@ import {
 	defaultColorUpdates,
 } from "./color-properties-panel";
 import { MediaTrackingProperties } from "./media-tracking-properties";
+import { MediaAIProperties } from "./media-ai-properties";
 
 type MediaUpdates = Parameters<
 	ReturnType<typeof useTimelineStore.getState>["updateMediaElement"]
@@ -1503,25 +1502,12 @@ export function MediaProperties({
 				</TabsContent>
 
 				<TabsContent value="ai" className="mt-4">
-					<PropertyGroup
-						title={t("mediaProperties.aiProcessing")}
-						defaultExpanded
-					>
-						<div className="grid grid-cols-2 gap-2">
-							<Button type="button" variant="outline" onClick={openAIUpscale}>
-								<Sparkles className="size-4" />
-								{t("mediaProperties.aiUpscale")}
-							</Button>
-							<Button
-								type="button"
-								variant="outline"
-								onClick={() => setActiveMediaTab("ai")}
-							>
-								<Bot className="size-4" />
-								{t("mediaProperties.aiVideoTools")}
-							</Button>
-						</div>
-					</PropertyGroup>
+					<MediaAIProperties
+						element={element}
+						trackId={trackId}
+						onOpenUpscale={openAIUpscale}
+						onOpenVideoTools={() => setActiveMediaTab("ai")}
+					/>
 				</TabsContent>
 			</Tabs>
 

@@ -392,7 +392,11 @@ export function CaptionProperties({
 					<TabsTrigger value="voice" className="px-1 text-[10px]">
 						{t("caption.tab.voice")}
 					</TabsTrigger>
-					<TabsTrigger value="avatar" className="px-1 text-[10px]">
+					<TabsTrigger
+						value="avatar"
+						className="px-1 text-[10px]"
+						data-testid="caption-avatar-tab"
+					>
 						{t("caption.tab.avatar")}
 					</TabsTrigger>
 				</TabsList>
@@ -489,6 +493,7 @@ export function CaptionProperties({
 							<SelectTrigger
 								className="h-8 text-xs"
 								aria-label={t("caption.portrait")}
+								data-testid="caption-avatar-portrait"
 							>
 								<SelectValue placeholder={t("caption.chooseImage")} />
 							</SelectTrigger>

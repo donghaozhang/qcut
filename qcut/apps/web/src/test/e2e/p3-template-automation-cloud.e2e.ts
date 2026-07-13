@@ -407,8 +407,8 @@ test.describe("P3 templates, automation, and cloud recovery", () => {
 		}, captions);
 		const captionProperties = page.getByTestId("caption-properties");
 		await expect(captionProperties).toBeVisible();
-		await captionProperties.getByRole("tab", { name: "Avatar" }).click();
-		await captionProperties.getByRole("combobox", { name: "Portrait" }).click();
+		await captionProperties.getByTestId("caption-avatar-tab").click();
+		await captionProperties.getByTestId("caption-avatar-portrait").click();
 		await page.getByRole("option", { name: sourceMedia.imageName }).click();
 		await captionProperties.getByTestId("generate-aligned-avatar").click();
 		const cloudStatus = captionProperties.getByTestId("cloud-task-status");
