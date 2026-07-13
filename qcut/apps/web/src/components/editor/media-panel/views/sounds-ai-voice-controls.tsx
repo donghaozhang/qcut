@@ -90,15 +90,21 @@ export function ChatterboxControls({
 	return (
 		<>
 			<div className="flex flex-col gap-1.5">
-				<Label className="text-xs">Emotive tags</Label>
+				<Label className="text-xs">情绪标签</Label>
 				<div className="flex flex-wrap gap-1">
 					{CHATTERBOX_CONFIG.TTS.EMOTIVE_TAGS.map((tag) => (
 						<Button
 							key={tag}
+							type="button"
 							variant="outline"
 							size="sm"
 							className="text-xs h-6 px-2"
 							onClick={() => insertTag(tag)}
+							onKeyDown={(event) => {
+								if (event.key === "Enter" || event.key === " ") {
+									event.currentTarget.click();
+								}
+							}}
 						>
 							{tag}
 						</Button>
@@ -106,7 +112,7 @@ export function ChatterboxControls({
 				</div>
 			</div>
 			<div className="flex flex-col gap-1.5">
-				<Label className="text-xs">Voice reference URL (optional)</Label>
+				<Label className="text-xs">参考音色 URL（可选）</Label>
 				<input
 					type="text"
 					placeholder="https://example.com/voice.mp3"
@@ -117,7 +123,7 @@ export function ChatterboxControls({
 			</div>
 			<div className="flex flex-col gap-3">
 				<SliderControl
-					label="Exaggeration"
+					label="表现力"
 					value={exaggeration}
 					onChange={setExaggeration}
 					min={0}
@@ -125,7 +131,7 @@ export function ChatterboxControls({
 					step={0.05}
 				/>
 				<SliderControl
-					label="Temperature"
+					label="随机度"
 					value={temperature}
 					onChange={setTemperature}
 					min={0.05}
@@ -167,7 +173,7 @@ export function ElevenLabsControls({
 	return (
 		<>
 			<div className="flex flex-col gap-1.5">
-				<Label className="text-xs">Voice</Label>
+				<Label className="text-xs">音色</Label>
 				<Select value={voice} onValueChange={setVoice}>
 					<SelectTrigger className="h-8 bg-panel-accent">
 						<SelectValue />
@@ -182,7 +188,7 @@ export function ElevenLabsControls({
 				</Select>
 			</div>
 			<SliderControl
-				label="Stability"
+				label="稳定度"
 				value={stability}
 				onChange={setStability}
 				min={0}
@@ -190,9 +196,7 @@ export function ElevenLabsControls({
 				step={0.05}
 			/>
 			<div className="flex flex-col gap-1.5">
-				<Label className="text-xs">
-					Language code (optional, e.g. "en", "es")
-				</Label>
+				<Label className="text-xs">语言代码（可选，例如“zh”“en”）</Label>
 				<input
 					type="text"
 					placeholder="en"
@@ -236,12 +240,12 @@ export function Qwen3Controls({
 			{clonedEmbeddingUrl ? (
 				<div className="p-2 rounded-md bg-accent">
 					<p className="text-xs text-muted-foreground">
-						Using cloned voice. To change, go to the Voice Clone tab.
+						正在使用克隆音色。如需更改，请切换到“音色克隆”。
 					</p>
 				</div>
 			) : (
 				<div className="flex flex-col gap-1.5">
-					<Label className="text-xs">Voice</Label>
+					<Label className="text-xs">音色</Label>
 					<Select value={voice} onValueChange={setVoice}>
 						<SelectTrigger className="h-8 bg-panel-accent">
 							<SelectValue />
@@ -258,7 +262,7 @@ export function Qwen3Controls({
 			)}
 
 			<div className="flex flex-col gap-1.5">
-				<Label className="text-xs">Language</Label>
+				<Label className="text-xs">语言</Label>
 				<Select value={language} onValueChange={setLanguage}>
 					<SelectTrigger className="h-8 bg-panel-accent">
 						<SelectValue />
@@ -274,10 +278,10 @@ export function Qwen3Controls({
 			</div>
 
 			<div className="flex flex-col gap-1.5">
-				<Label className="text-xs">Style prompt (optional)</Label>
+				<Label className="text-xs">风格提示词（可选）</Label>
 				<input
 					type="text"
-					placeholder="Read this in a cheerful tone"
+					placeholder="例如：用轻快、自然的语气朗读"
 					value={stylePrompt}
 					onChange={(e) => setStylePrompt(e.target.value)}
 					className="h-8 rounded-md border bg-panel-accent px-3 text-sm"
@@ -285,7 +289,7 @@ export function Qwen3Controls({
 			</div>
 
 			<SliderControl
-				label="Temperature"
+				label="随机度"
 				value={temperature}
 				onChange={setTemperature}
 				min={0}
@@ -334,8 +338,7 @@ export function VoiceCloneControls({
 	return (
 		<>
 			<p className="text-xs text-muted-foreground">
-				Upload a voice sample to clone. The cloned voice can be used with Qwen3
-				TTS in the Text to Speech tab.
+				上传一段参考音频来克隆音色。克隆结果可用于 Qwen3 TTS 文本转语音。
 			</p>
 
 			{/* Hidden file input */}
@@ -364,10 +367,16 @@ export function VoiceCloneControls({
 						</p>
 					</div>
 					<Button
+						type="button"
 						variant="text"
 						size="icon"
 						className="shrink-0"
 						onClick={onClearFile}
+						onKeyDown={(event) => {
+							if (event.key === "Enter" || event.key === " ") {
+								event.currentTarget.click();
+							}
+						}}
 					>
 						<XIcon className="w-4 h-4" />
 					</Button>
@@ -381,6 +390,14 @@ export function VoiceCloneControls({
 							: "border-muted-foreground/25 hover:border-muted-foreground/50"
 					)}
 					onClick={() => fileInputRef.current?.click()}
+					onKeyDown={(event) => {
+						if (event.key === "Enter" || event.key === " ") {
+							event.preventDefault();
+							fileInputRef.current?.click();
+						}
+					}}
+					role="button"
+					tabIndex={0}
 					{...dragProps}
 				>
 					<div className="text-center space-y-2">
@@ -388,9 +405,9 @@ export function VoiceCloneControls({
 							<UploadIcon className="size-5 text-muted-foreground" />
 						</div>
 						<div>
-							<p className="text-sm font-medium">Drop audio file here</p>
+							<p className="text-sm font-medium">拖放音频到这里</p>
 							<p className="text-xs text-muted-foreground">
-								or click to browse — MP3, WAV, AAC up to 10 MB
+								或点击选择文件，支持 MP3、WAV、AAC，最大 10 MB
 							</p>
 						</div>
 					</div>
@@ -399,12 +416,10 @@ export function VoiceCloneControls({
 
 			{/* Reference text */}
 			<div className="flex flex-col gap-1.5">
-				<Label className="text-xs">
-					Reference text (optional — what was said in the audio)
-				</Label>
+				<Label className="text-xs">参考文本（可选，即音频中说了什么）</Label>
 				<input
 					type="text"
-					placeholder="What was said in the audio"
+					placeholder="输入参考音频中的文字"
 					value={cloneRefText}
 					onChange={(e) => setCloneRefText(e.target.value)}
 					className="h-8 rounded-md border bg-panel-accent px-3 text-sm"
@@ -414,7 +429,7 @@ export function VoiceCloneControls({
 			{clonedEmbeddingUrl && (
 				<div className="p-2 rounded-md bg-accent">
 					<p className="text-xs text-muted-foreground">
-						Current cloned voice embedding: ready to use
+						克隆音色已就绪，可以直接使用
 					</p>
 				</div>
 			)}

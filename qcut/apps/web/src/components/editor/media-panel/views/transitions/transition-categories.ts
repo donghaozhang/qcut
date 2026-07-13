@@ -1,14 +1,15 @@
 import {
-	ArrowLeftRightIcon,
-	BadgePlusIcon,
+	ApertureIcon,
 	FlameIcon,
-	LightbulbIcon,
+	FocusIcon,
+	HeartIcon,
+	MoveIcon,
 	ScanLineIcon,
 	SparklesIcon,
 	StarIcon,
-	WavesIcon,
+	SunIcon,
+	WandSparklesIcon,
 	ZapIcon,
-	ZoomInIcon,
 	type LucideIcon,
 } from "lucide-react";
 import type { TransitionCategory } from "./transition-presets";
@@ -20,14 +21,15 @@ export interface TransitionCategoryItem {
 }
 
 export const transitionCategories: TransitionCategoryItem[] = [
-	{ id: "all", label: "All", icon: SparklesIcon },
-	{ id: "basic", label: "Basic", icon: ArrowLeftRightIcon },
-	{ id: "fade", label: "Fade", icon: WavesIcon },
-	{ id: "slide", label: "Slide", icon: BadgePlusIcon },
-	{ id: "wipe", label: "Wipe", icon: ScanLineIcon },
-	{ id: "zoom", label: "Zoom", icon: ZoomInIcon },
-	{ id: "glitch", label: "Glitch", icon: ZapIcon },
-	{ id: "light", label: "Light", icon: LightbulbIcon },
-	{ id: "popular", label: "Popular", icon: FlameIcon },
-	{ id: "latest", label: "Latest", icon: StarIcon },
+	{ id: "all", label: "全部", icon: SparklesIcon },
+	{ id: "favorites", label: "收藏", icon: HeartIcon },
+	{ id: "popular", label: "热门", icon: FlameIcon },
+	{ id: "latest", label: "最新", icon: StarIcon },
+	{ id: "natural", label: "自然", icon: FocusIcon },
+	{ id: "split", label: "分割", icon: ScanLineIcon },
+	{ id: "blur", label: "模糊", icon: ApertureIcon },
+	{ id: "camera", label: "运镜", icon: MoveIcon },
+	{ id: "light", label: "光效", icon: SunIcon },
+	{ id: "glitch", label: "故障", icon: ZapIcon },
+	{ id: "mg", label: "MG 动画", icon: WandSparklesIcon },
 ];

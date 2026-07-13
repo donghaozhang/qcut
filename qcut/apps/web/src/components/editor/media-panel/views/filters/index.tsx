@@ -1,5 +1,6 @@
 import { Search, Star } from "lucide-react";
 import { useEffect, useMemo, useRef, useState } from "react";
+import { assetManifestIdentity } from "@qcut/editor-core";
 import { toast } from "sonner";
 import { Input } from "@/components/ui/input";
 import { Slider } from "@/components/ui/slider";
@@ -13,10 +14,6 @@ import {
 	normalizeMediaColorSettings,
 } from "@/lib/color/color-properties";
 import {
-	loadFilterFavorites,
-	persistFilterFavorites,
-} from "@/lib/filters/filter-favorites";
-import {
 	FILTER_NONE_ID,
 	FILTER_PRESETS,
 	getFilterPreset,
@@ -24,6 +21,7 @@ import {
 import type { FilterPreset } from "@/lib/filters/filter-types";
 import { DEFAULT_COLOR_FILTER_APPLICATION } from "@/lib/filters/filter-resolver";
 import { cn } from "@/lib/utils";
+import { useAssetLibraryStore } from "@/stores/asset-library-store";
 import { useTimelineStore } from "@/stores/timeline/timeline-store";
 import {
 	FILTER_CATEGORIES,
@@ -67,9 +65,15 @@ export function FiltersView() {
 	const [mode, setMode] = useState<LibraryMode>("library");
 	const [category, setCategory] = useState<FilterCategoryId>("all");
 	const [query, setQuery] = useState("");
-	const [favorites, setFavorites] = useState(loadFilterFavorites);
 	const [savedPresets, setSavedPresets] = useState(loadColorPresets);
 	const [selectedSavedPresetId, setSelectedSavedPresetId] = useState<string>();
+	const favorites = useAssetLibraryStore((state) => state.favorites);
+	const toggleAssetFavorite = useAssetLibraryStore(
+		(state) => state.toggleFavorite
+	);
+	const importLegacyFavorites = useAssetLibraryStore(
+		(state) => state.importLegacyFavorites
+	);
 	const intensityInteractionActive = useRef(false);
 	const selectedElements = useTimelineStore((state) => state.selectedElements);
 	const tracks = useTimelineStore((state) => state.tracks);
@@ -83,8 +87,23 @@ export function FiltersView() {
 	const activeFilter = activeColor.filter;
 	const activePreset = getFilterPreset({ presetId: activeFilter.presetId });
 	const hasSelection = selectedTargets.length > 0;
-	const favoriteIds = useMemo(() => new Set(favorites), [favorites]);
+	const favoriteIds = useMemo(
+		() =>
+			new Set(
+				FILTER_PRESETS.filter(
+					(preset) =>
+						favorites[
+							assetManifestIdentity({ kind: "filter", id: preset.id })
+						] === true
+				).map((preset) => preset.id)
+			),
+		[favorites]
+	);
 	const activeCategory = FILTER_CATEGORIES.find((item) => item.id === category);
+
+	useEffect(() => {
+		importLegacyFavorites();
+	}, [importLegacyFavorites]);
 
 	useEffect(() => {
 		const refresh = () => setSavedPresets(loadColorPresets());
@@ -167,11 +186,7 @@ export function FiltersView() {
 	};
 
 	const toggleFavorite = ({ presetId }: { presetId: string }) => {
-		const next = favoriteIds.has(presetId)
-			? favorites.filter((id) => id !== presetId)
-			: [...favorites, presetId];
-		setFavorites(next);
-		persistFilterFavorites({ presetIds: next });
+		toggleAssetFavorite({ kind: "filter", id: presetId });
 	};
 
 	const showNoneCard =

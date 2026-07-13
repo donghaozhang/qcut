@@ -4,6 +4,7 @@ import type { TranscriptionSegment } from "@/types/captions";
 import type { SubtitleStyle } from "@/types/timeline";
 import type { WordItem } from "@/types/word-timeline";
 import {
+	getCaptionAnimationState,
 	resolveSubtitleStyle,
 	subtitleStyleToCSS,
 } from "@/lib/captions/subtitle-style";
@@ -18,6 +19,7 @@ interface CaptionsDisplayProps {
 	subtitleStyle?: Partial<SubtitleStyle>;
 	/** Word-level timing data for karaoke rendering */
 	words?: WordItem[];
+	canvasScale?: number;
 }
 
 /** Renders active caption text with optional karaoke word highlighting. */
@@ -29,9 +31,10 @@ export function CaptionsDisplay({
 	style,
 	subtitleStyle,
 	words,
+	canvasScale = 1,
 }: CaptionsDisplayProps) {
 	const resolved = resolveSubtitleStyle(subtitleStyle);
-	const captionCSS = subtitleStyleToCSS(resolved);
+	const captionCSS = subtitleStyleToCSS({ style: resolved, canvasScale });
 	const karaokeMode = resolved.karaokeMode ?? "none";
 
 	// Find the active caption segment based on current time
@@ -68,6 +71,16 @@ export function CaptionsDisplay({
 	};
 
 	const useKaraoke = karaokeMode !== "none" && segmentWords.length > 0;
+	const animation = getCaptionAnimationState({
+		style: resolved,
+		startTime: activeSegment.start,
+		currentTime,
+	});
+	const horizontalAlignMap: Record<SubtitleStyle["textAlign"], string> = {
+		left: "flex-start",
+		center: "center",
+		right: "flex-end",
+	};
 
 	return (
 		<div
@@ -78,29 +91,41 @@ export function CaptionsDisplay({
 			style={{
 				...style,
 				display: "flex",
-				justifyContent: "center",
+				justifyContent: horizontalAlignMap[resolved.textAlign],
 				alignItems: alignMap[resolved.position.align],
-				padding: "20px",
+				padding: `${20 * canvasScale}px`,
 			}}
 		>
-			{useKaraoke ? (
-				<KaraokeRenderer
-					words={segmentWords}
-					currentTime={currentTime}
-					style={resolved}
-				/>
-			) : (
-				<div
-					style={{
-						...captionCSS,
-						wordWrap: "break-word",
-						overflowWrap: "break-word",
-						hyphens: "auto",
-					}}
-				>
-					{activeSegment.text}
-				</div>
-			)}
+			<div
+				data-testid="caption-layout"
+				style={{
+					display: "flex",
+					justifyContent: horizontalAlignMap[resolved.textAlign],
+					width: "100%",
+					opacity: animation.opacity,
+					transform: `translate(${animation.offsetX * canvasScale}px, ${animation.offsetY * canvasScale}px)`,
+				}}
+			>
+				{useKaraoke ? (
+					<KaraokeRenderer
+						words={segmentWords}
+						currentTime={currentTime}
+						style={resolved}
+						canvasScale={canvasScale}
+					/>
+				) : (
+					<div
+						style={{
+							...captionCSS,
+							wordWrap: "break-word",
+							overflowWrap: "break-word",
+							hyphens: "auto",
+						}}
+					>
+						{activeSegment.text}
+					</div>
+				)}
+			</div>
 		</div>
 	);
 }

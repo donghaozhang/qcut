@@ -1,5 +1,6 @@
 import { describe, it, expect, beforeEach } from "vitest";
 import {
+	STANDARD_EDITOR_TABS,
 	Tab,
 	TabGroup,
 	tabs,
@@ -14,6 +15,7 @@ describe("media-panel store", () => {
 		useMediaPanelStore.setState({
 			activeGroup: "media",
 			activeTab: "media",
+			activeEditSubgroup: "ai-edit",
 			lastTabPerGroup: {
 				media: "media",
 				"ai-create": "ai",
@@ -25,6 +27,21 @@ describe("media-panel store", () => {
 	});
 
 	describe("tabGroups coverage", () => {
+		it("keeps the standard editor tools in the intended order", () => {
+			expect(STANDARD_EDITOR_TABS).toEqual([
+				"media",
+				"audio",
+				"text",
+				"stickers",
+				"effects",
+				"transitions",
+				"captions",
+				"filters",
+				"adjustments",
+				"templates",
+			]);
+		});
+
 		it("every tab appears in exactly one group", () => {
 			const allTabs = Object.keys(tabs) as Tab[];
 			const groupedTabs: Tab[] = [];
@@ -78,6 +95,8 @@ describe("media-panel store", () => {
 			expect(getGroupForTab("text")).toBe("edit");
 			expect(getGroupForTab("stickers")).toBe("edit");
 			expect(getGroupForTab("filters")).toBe("edit");
+			expect(getGroupForTab("adjustments")).toBe("edit");
+			expect(getGroupForTab("templates")).toBe("edit");
 			expect(getGroupForTab("effects")).toBe("edit");
 			expect(getGroupForTab("transitions")).toBe("edit");
 

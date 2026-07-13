@@ -1,9 +1,10 @@
-import { fireEvent, render, screen } from "@testing-library/react";
+import { fireEvent, render, screen, within } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { toast } from "sonner";
 import { useTimelineStore } from "@/stores/timeline/timeline-store";
 import { clearAutoSaveTimer } from "@/stores/timeline/timeline-store-autosave";
 import { useMediaStore } from "@/stores/media/media-store";
+import { useAssetLibraryStore } from "@/stores/asset-library-store";
 import type { MediaItem } from "@/stores/media/media-store-types";
 import type { MediaElement, TimelineTrack } from "@/types/timeline";
 import { TransitionsView } from "../index";
@@ -105,6 +106,7 @@ describe("TransitionsView", () => {
 			selectedTransition: null,
 		});
 		useMediaStore.setState({ mediaItems: [] });
+		useAssetLibraryStore.getState().resetLibrary();
 	});
 
 	afterEach(() => {
@@ -124,12 +126,12 @@ describe("TransitionsView", () => {
 	it("filters cards by search query", () => {
 		render(<TransitionsView />);
 
-		fireEvent.change(screen.getByLabelText("Search transitions"), {
-			target: { value: "rgb" },
+		fireEvent.change(screen.getByLabelText("搜索转场"), {
+			target: { value: "bright" },
 		});
 
 		expect(
-			screen.getByTestId("transition-card-glitch-shift")
+			screen.getByTestId("transition-card-fade-to-white")
 		).toBeInTheDocument();
 		expect(
 			screen.queryByTestId("transition-card-dissolve")
@@ -139,14 +141,12 @@ describe("TransitionsView", () => {
 	it("switches categories", () => {
 		render(<TransitionsView />);
 
-		fireEvent.click(screen.getByRole("button", { name: "Slide" }));
+		fireEvent.click(screen.getByRole("button", { name: "模糊" }));
 
 		expect(
-			screen.getByTestId("transition-card-slide-left")
+			screen.getByTestId("transition-card-soft-zoom-blur")
 		).toBeInTheDocument();
-		expect(
-			screen.getByTestId("transition-card-slide-right")
-		).toBeInTheDocument();
+		expect(screen.getByTestId("transition-card-zoom-blur")).toBeInTheDocument();
 		expect(
 			screen.queryByTestId("transition-card-wipe-left")
 		).not.toBeInTheDocument();
@@ -155,24 +155,22 @@ describe("TransitionsView", () => {
 	it("shows the empty state when no presets match the search", () => {
 		render(<TransitionsView />);
 
-		fireEvent.change(screen.getByLabelText("Search transitions"), {
+		fireEvent.change(screen.getByLabelText("搜索转场"), {
 			target: { value: "zzzz-no-match" },
 		});
 
-		expect(
-			screen.getByText("No transitions match this search.")
-		).toBeInTheDocument();
-		expect(screen.getByText("0 presets")).toBeInTheDocument();
+		expect(screen.getByText("没有符合条件的转场")).toBeInTheDocument();
+		expect(screen.getByText("0 个转场")).toBeInTheDocument();
 	});
 
 	it("falls back selection to the first visible preset when filtered out", () => {
 		render(<TransitionsView />);
 
-		fireEvent.change(screen.getByLabelText("Search transitions"), {
-			target: { value: "rgb" },
+		fireEvent.change(screen.getByLabelText("搜索转场"), {
+			target: { value: "bright" },
 		});
 
-		expect(screen.getByTestId("transition-card-glitch-shift")).toHaveAttribute(
+		expect(screen.getByTestId("transition-card-fade-to-white")).toHaveAttribute(
 			"aria-pressed",
 			"true"
 		);
@@ -193,12 +191,28 @@ describe("TransitionsView", () => {
 		);
 	});
 
+	it("persists transition favorites in the shared asset library", () => {
+		render(<TransitionsView />);
+		const dissolve = screen.getByTestId("transition-card-dissolve");
+		fireEvent.click(within(dissolve).getByRole("button", { name: "收藏" }));
+		fireEvent.click(screen.getByText("收藏").closest("button")!);
+
+		expect(screen.getByTestId("transition-card-dissolve")).toBeInTheDocument();
+		expect(
+			screen.queryByTestId("transition-card-fade-to-black")
+		).not.toBeInTheDocument();
+		expect(
+			useAssetLibraryStore.getState().isFavorite({
+				kind: "transition",
+				id: "dissolve",
+			})
+		).toBe(true);
+	});
+
 	it("disables the apply button without a valid selection", () => {
 		render(<TransitionsView />);
 
-		expect(
-			screen.getByRole("button", { name: "Apply Selected Transition" })
-		).toBeDisabled();
+		expect(screen.getByRole("button", { name: "应用所选转场" })).toBeDisabled();
 		expect(
 			screen.getByText(
 				"Select two adjacent media clips to prepare a transition."
@@ -214,9 +228,7 @@ describe("TransitionsView", () => {
 			screen.getByText("Ready between Clip A and Clip B.")
 		).toBeInTheDocument();
 
-		fireEvent.click(
-			screen.getByRole("button", { name: "Apply Selected Transition" })
-		);
+		fireEvent.click(screen.getByRole("button", { name: "应用所选转场" }));
 
 		const track = useTimelineStore
 			.getState()
@@ -238,9 +250,7 @@ describe("TransitionsView", () => {
 		selectAdjacentClips();
 		render(<TransitionsView />);
 
-		fireEvent.click(
-			screen.getByRole("button", { name: "Apply Fade to Black" })
-		);
+		fireEvent.click(screen.getByRole("button", { name: "应用黑场过渡" }));
 
 		const track = useTimelineStore
 			.getState()
@@ -251,7 +261,25 @@ describe("TransitionsView", () => {
 				type: "fade-black",
 			}),
 		]);
-		expect(toast.success).toHaveBeenCalledWith("Fade to Black applied.");
+		expect(toast.success).toHaveBeenCalledWith("Fade Through Black applied.");
+	});
+
+	it("double-clicks a ready card to replace the transition at the seam", () => {
+		selectAdjacentClips();
+		render(<TransitionsView />);
+
+		fireEvent.doubleClick(screen.getByTestId("transition-card-push-left"));
+
+		const track = useTimelineStore
+			.getState()
+			.tracks.find((item) => item.id === "track-1");
+		expect(track?.transitions).toEqual([
+			expect.objectContaining({
+				presetId: "push-left",
+				type: "push",
+				direction: "left",
+			}),
+		]);
 	});
 
 	it("shows an error toast when the store rejects the transition", () => {
@@ -262,9 +290,7 @@ describe("TransitionsView", () => {
 
 		try {
 			render(<TransitionsView />);
-			fireEvent.click(
-				screen.getByRole("button", { name: "Apply Selected Transition" })
-			);
+			fireEvent.click(screen.getByRole("button", { name: "应用所选转场" }));
 
 			expect(addTransition).toHaveBeenCalledWith({
 				trackId: "track-1",
@@ -273,6 +299,7 @@ describe("TransitionsView", () => {
 				presetId: "dissolve",
 				type: "dissolve",
 				direction: undefined,
+				tuning: undefined,
 				duration: 0.5,
 				easing: "easeInOut",
 			});

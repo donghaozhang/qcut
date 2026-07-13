@@ -24,10 +24,13 @@ import { usePlaybackStore } from "@/stores/editor/playback-store";
 import { useMediaStore } from "@/stores/media/media-store";
 import { useTimelineStore } from "@/stores/timeline/timeline-store";
 import { useProjectStore } from "@/stores/project-store";
+import { useMediaPanelStore } from "@/components/editor/media-panel/store";
 import { useElevenLabsTranscription } from "@/hooks/media/use-elevenlabs-transcription";
 import { X, Loader2, AlertCircle, SearchIcon } from "lucide-react";
 import { WORD_FILTER_STATE, type WordItem } from "@/types/word-timeline";
 import { toast } from "sonner";
+import { useCloudTaskStore } from "@/stores/cloud-task-store";
+import { registerCloudTaskRuntimeActions } from "@/lib/cloud-tasks/task-runtime-actions";
 import { WordSearch } from "./word-timeline/word-search";
 import {
 	formatTime,
@@ -36,6 +39,32 @@ import {
 } from "./word-timeline/helpers";
 import { WordChip } from "./word-timeline/word-chip";
 import { DropZone } from "./word-timeline/drop-zone";
+
+interface TranscriptionRequestDetail {
+	filePath: string;
+	taskId?: string;
+}
+
+function createTranscriptFileName({ filePath }: { filePath: string }): string {
+	const sourceName =
+		filePath
+			.split(/[/\\]/)
+			.pop()
+			?.replace(/\.[^.]+$/, "") || "transcription";
+	const timestamp = new Date().toISOString().replace(/[-:]/g, "").slice(0, 15);
+	return `${sourceName}_${timestamp}_transcript.json`;
+}
+
+function dispatchTranscriptionRequest({
+	filePath,
+	taskId,
+}: TranscriptionRequestDetail) {
+	window.dispatchEvent(
+		new CustomEvent<TranscriptionRequestDetail>("qcut:transcribe-media", {
+			detail: { filePath, taskId },
+		})
+	);
+}
 
 /**
  * Render the word timeline UI for editing transcriptions and managing filler-word filters.
@@ -214,8 +243,34 @@ export function WordTimelineView() {
 	);
 
 	const handleMediaSelect = useCallback(
-		async (filePath: string) => {
-			console.log("[WordTimeline] handleMediaSelect called, path:", filePath);
+		async ({ filePath, taskId }: { filePath: string; taskId?: string }) => {
+			const controller = new AbortController();
+			const snapshot = useWordTimelineStore.getState().createSnapshot();
+			const openWordTimeline = () =>
+				useMediaPanelStore.getState().setActiveTab("word-timeline");
+			const restorePreviousTranscript = () =>
+				useWordTimelineStore.getState().restoreSnapshot({ snapshot });
+
+			if (taskId) {
+				useCloudTaskStore.getState().startTask({
+					id: taskId,
+					message: "正在准备媒体",
+				});
+				registerCloudTaskRuntimeActions({
+					taskId,
+					actions: {
+						cancel: () => controller.abort(),
+						retry: () => dispatchTranscriptionRequest({ filePath, taskId }),
+						open: openWordTimeline,
+						undo: restorePreviousTranscript,
+					},
+				});
+				useCloudTaskStore.getState().updateProgress({
+					id: taskId,
+					progress: 15,
+					message: "正在准备媒体",
+				});
+			}
 
 			const mediaItems = useMediaStore.getState().mediaItems;
 			const addMediaItem = useMediaStore.getState().addMediaItem;
@@ -250,7 +305,6 @@ export function WordTimelineView() {
 
 			// If not in media store, import it first
 			if (!mediaItem && projectId) {
-				console.log("[WordTimeline] Media not in store, importing...");
 				try {
 					const { processMediaFiles } = await import(
 						"@/lib/media/media-processing"
@@ -282,6 +336,7 @@ export function WordTimelineView() {
 					}
 
 					const processedItems = await processMediaFiles([file]);
+					if (controller.signal.aborted) return;
 					if (processedItems.length > 0) {
 						const newId = await addMediaItem(projectId, {
 							...processedItems[0],
@@ -296,13 +351,7 @@ export function WordTimelineView() {
 						mediaItem =
 							useMediaStore.getState().mediaItems.find((m) => m.id === newId) ??
 							undefined;
-						if (mediaItem) {
-							console.log(
-								"[WordTimeline] Imported to media store:",
-								mediaItem.name
-							);
-							toast.success(`Imported "${mediaItem.name}" to media library`);
-						}
+						if (mediaItem) toast.success(`已将“${mediaItem.name}”导入素材库`);
 					}
 				} catch (err) {
 					console.error("[WordTimeline] Media import failed:", err);
@@ -320,22 +369,78 @@ export function WordTimelineView() {
 				);
 				if (!alreadyOnTimeline) {
 					timelineState.addMediaToNewTrack(mediaItem);
-					toast.success(`Added "${mediaItem.name}" to timeline`);
+					toast.success(`已将“${mediaItem.name}”添加到时间线`);
 				}
+			}
+			if (controller.signal.aborted) return;
+			if (taskId) {
+				useCloudTaskStore.getState().updateProgress({
+					id: taskId,
+					progress: 45,
+					message: "正在识别语音",
+				});
 			}
 
 			// Start transcription
 			try {
-				const result = await transcribeMedia(filePath);
+				const result = await transcribeMedia({
+					filePath,
+					signal: controller.signal,
+				});
+				if (controller.signal.aborted) {
+					restorePreviousTranscript();
+					return;
+				}
 				if (result) {
+					if (taskId) {
+						useCloudTaskStore.getState().updateProgress({
+							id: taskId,
+							progress: 85,
+							message: "正在生成可编辑字稿",
+						});
+					}
+					await useWordTimelineStore
+						.getState()
+						.loadFromTranscription(
+							result,
+							createTranscriptFileName({ filePath })
+						);
+					if (controller.signal.aborted) {
+						restorePreviousTranscript();
+						return;
+					}
 					const wordCount = result.words.filter(
 						(w) => w.type === "word"
 					).length;
-					toast.success(`Transcription complete: ${wordCount} words`);
+					toast.success(`语音识别完成，共 ${wordCount} 个词`);
+					if (taskId) {
+						useCloudTaskStore.getState().completeTask({
+							id: taskId,
+							message: `识别完成，共 ${wordCount} 个词`,
+							output: { wordCount },
+						});
+					}
+					return;
+				}
+				if (taskId) {
+					useCloudTaskStore.getState().failTask({
+						id: taskId,
+						error: "语音识别没有返回结果",
+					});
 				}
 			} catch (err) {
 				console.error("[WordTimeline] Transcription error:", err);
-				toast.error("Transcription failed");
+				if (controller.signal.aborted) {
+					restorePreviousTranscript();
+					return;
+				}
+				toast.error("语音识别失败");
+				if (taskId) {
+					useCloudTaskStore.getState().failTask({
+						id: taskId,
+						error: err instanceof Error ? err.message : "语音识别失败",
+					});
+				}
 			}
 		},
 		[transcribeMedia]
@@ -343,11 +448,12 @@ export function WordTimelineView() {
 
 	useEffect(() => {
 		const handleTranscribeRequest = (event: Event) => {
-			const detail = (event as CustomEvent).detail as
-				| { filePath?: string }
-				| undefined;
+			const detail = (event as CustomEvent<TranscriptionRequestDetail>).detail;
 			if (!detail?.filePath) return;
-			void handleMediaSelect(detail.filePath);
+			void handleMediaSelect({
+				filePath: detail.filePath,
+				taskId: detail.taskId,
+			});
 		};
 		window.addEventListener("qcut:transcribe-media", handleTranscribeRequest);
 		return () =>
@@ -546,7 +652,7 @@ export function WordTimelineView() {
 				</div>
 				<DropZone
 					onJsonSelect={handleJsonSelect}
-					onMediaSelect={handleMediaSelect}
+					onMediaSelect={(filePath) => handleMediaSelect({ filePath })}
 					isLoading={isLoading}
 					isTranscribing={isTranscribing}
 					transcriptionProgress={transcriptionProgress}

@@ -19,6 +19,21 @@ const segment: TranscriptionSegment = {
 };
 
 describe("CaptionsDisplay", () => {
+	it("uses the available canvas width for plain caption wrapping", () => {
+		render(
+			<CaptionsDisplay
+				segments={[segment]}
+				currentTime={0.5}
+				canvasScale={0.5}
+			/>
+		);
+
+		const layout = screen.getByTestId("caption-layout");
+		expect(layout.style.display).toBe("flex");
+		expect(layout.style.width).toBe("100%");
+		expect(screen.getByText("Hello world").style.fontSize).toBe("24px");
+	});
+
 	it("renders timed words through the karaoke renderer", () => {
 		render(
 			<CaptionsDisplay

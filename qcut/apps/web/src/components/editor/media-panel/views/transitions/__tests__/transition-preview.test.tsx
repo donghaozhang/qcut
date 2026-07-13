@@ -154,17 +154,25 @@ describe("TransitionPreview", () => {
 		);
 
 		const { from, to } = getLayers({ container });
-		expect(from.style.transform).toBe("translate3d(0px, 0px, 0)");
-		expect(to.style.transform).toBe("translate3d(-240px, 0px, 0)");
+		expect(from.style.transform).toBe(
+			"translate3d(0px, 0px, 0) rotate(0deg) scale(1)"
+		);
+		expect(to.style.transform).toBe(
+			"translate3d(-240px, 0px, 0) rotate(0deg) scale(1)"
+		);
 	});
 
-	it("falls back to a dissolve preview for presets without a clip config", () => {
+	it("renders zoom blur through the shared presentation", () => {
 		const { container } = render(
-			<TransitionPreview preset={zoomBlur} isPlaying={false} />
+			<TransitionPreview preset={zoomBlur} isPlaying={true} />
 		);
 
+		runFrame({ timestamp: 1000 });
+		runFrame({ timestamp: 1275 });
+
 		const { from, to } = getLayers({ container });
-		expect(from.style.opacity).toBe("1");
-		expect(to.style.opacity).toBe("0");
+		expect(from.style.filter).toContain("blur(10.2px)");
+		expect(from.style.transform).toContain("scale(1.153)");
+		expect(to.style.opacity).toBe("0.5");
 	});
 });

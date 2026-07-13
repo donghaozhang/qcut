@@ -7,7 +7,7 @@
  * - Supports ASMR mode for enhanced audio
  */
 
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Loader2, Volume2, Music, Sparkles } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
@@ -25,8 +25,17 @@ import {
 } from "./video-edit-constants";
 import type { KlingVideoToAudioParams } from "./video-edit-types";
 import { openInNewTab } from "@/lib/utils";
+import { getFFmpegUtils } from "@/lib/ffmpeg/ffmpeg-utils-loader";
+import { createObjectURL } from "@/lib/media/blob-manager";
+import { useVideoEditRequestStore } from "@/stores/video-edit-request-store";
 
 export function AudioGenTab() {
+	const audioGenerationRequest = useVideoEditRequestStore(
+		(state) => state.audioGenerationRequest
+	);
+	const clearAudioGenerationRequest = useVideoEditRequestStore(
+		(state) => state.clearAudioGenerationRequest
+	);
 	// State
 	const [sourceVideo, setSourceVideo] = useState<File | null>(null);
 	const [videoPreview, setVideoPreview] = useState<string | null>(null);
@@ -34,6 +43,9 @@ export function AudioGenTab() {
 	const [backgroundMusicPrompt, setBackgroundMusicPrompt] = useState("");
 	const [asmrMode, setAsmrMode] = useState(false);
 	const [error, setError] = useState<string | null>(null);
+	const [targetElementId, setTargetElementId] = useState<string>();
+	const [pendingAutoRequestId, setPendingAutoRequestId] = useState<string>();
+	const processedRequestIdsRef = useRef(new Set<string>());
 
 	// Store hooks
 	const { activeProject } = useProjectStore();
@@ -52,6 +64,7 @@ export function AudioGenTab() {
 		sourceVideo,
 		activeTab: "audio-gen",
 		activeProject,
+		targetElementId,
 		onSuccess: (result) => {
 			console.log("Audio generation complete:", result);
 			// Could show success toast here
@@ -60,6 +73,94 @@ export function AudioGenTab() {
 			setError(error);
 		},
 	});
+
+	useEffect(() => {
+		if (!audioGenerationRequest) return;
+		let disposed = false;
+		const prepareRequest = async () => {
+			try {
+				const sourceStart = audioGenerationRequest.sourceStart ?? 0;
+				const sourceEnd =
+					audioGenerationRequest.sourceEnd ?? sourceStart + 20;
+				const selectedDuration = sourceEnd - sourceStart;
+				if (selectedDuration < 3 || selectedDuration > 20) {
+					throw new Error("AI 音效支持 3 至 20 秒的所选片段");
+				}
+				let preparedFile = audioGenerationRequest.sourceVideo;
+				let preparedPreview = audioGenerationRequest.previewUrl ?? null;
+				if (sourceStart > 0.01 || selectedDuration > 0) {
+					const { trimVideo } = await getFFmpegUtils();
+					const trimmed = await trimVideo(
+						audioGenerationRequest.sourceVideo,
+						sourceStart,
+						sourceEnd
+					);
+					preparedFile = new File(
+						[trimmed],
+						`audio-source-${audioGenerationRequest.sourceVideo.name}`,
+						{ type: "video/mp4" }
+					);
+					preparedPreview = createObjectURL(trimmed, "ai-audio-trim-preview");
+				}
+				if (disposed) return;
+				reset();
+				setSourceVideo(preparedFile);
+				setVideoPreview(preparedPreview);
+				setTargetElementId(audioGenerationRequest.targetElementId);
+				setSoundEffectPrompt(
+					audioGenerationRequest.soundEffectPrompt ?? ""
+				);
+				setBackgroundMusicPrompt(
+					audioGenerationRequest.backgroundMusicPrompt ?? ""
+				);
+				setError(null);
+				if (audioGenerationRequest.autoStart) {
+					setPendingAutoRequestId(audioGenerationRequest.id);
+				}
+			} catch (requestError) {
+				if (disposed) return;
+				setError(
+					requestError instanceof Error
+						? requestError.message
+						: "所选片段准备失败"
+				);
+				clearAudioGenerationRequest({ id: audioGenerationRequest.id });
+			}
+		};
+		void prepareRequest();
+		return () => {
+			disposed = true;
+		};
+	}, [audioGenerationRequest, clearAudioGenerationRequest, reset]);
+
+	useEffect(() => {
+		if (
+			!pendingAutoRequestId ||
+			!sourceVideo ||
+			!canProcess ||
+			processedRequestIdsRef.current.has(pendingAutoRequestId)
+		) {
+			return;
+		}
+		processedRequestIdsRef.current.add(pendingAutoRequestId);
+		const requestId = pendingAutoRequestId;
+		setPendingAutoRequestId(undefined);
+		clearAudioGenerationRequest({ id: requestId });
+		void handleProcess({
+			sound_effect_prompt: soundEffectPrompt.trim() || undefined,
+			background_music_prompt: backgroundMusicPrompt.trim() || undefined,
+			asmr_mode: asmrMode,
+		});
+	}, [
+		asmrMode,
+		backgroundMusicPrompt,
+		canProcess,
+		clearAudioGenerationRequest,
+		handleProcess,
+		pendingAutoRequestId,
+		soundEffectPrompt,
+		sourceVideo,
+	]);
 
 	/**
 	 * Handle video file change
@@ -80,6 +181,8 @@ export function AudioGenTab() {
 
 		setSourceVideo(file);
 		setVideoPreview(preview ?? null); // Coerce undefined to null for type safety
+		setTargetElementId(undefined);
+		setPendingAutoRequestId(undefined);
 		setError(null);
 		reset(); // Reset processing state
 	};
@@ -114,12 +217,12 @@ export function AudioGenTab() {
 							Kling Video to Audio
 						</p>
 						<p className="text-xs text-muted-foreground mt-0.5">
-							Generate audio from video content
+							根据视频画面生成音频
 						</p>
 					</div>
 					<div className="text-right">
 						<p className="text-xs font-semibold">$0.035</p>
-						<p className="text-xs text-muted-foreground">per video</p>
+						<p className="text-xs text-muted-foreground">每段视频</p>
 					</div>
 				</div>
 			</Card>
@@ -127,8 +230,8 @@ export function AudioGenTab() {
 			{/* Video Upload */}
 			<FileUpload
 				id="kling-video-input"
-				label="Source Video"
-				helperText="3-20 seconds"
+			label="源视频"
+			helperText="3 至 20 秒"
 				fileType="video"
 				acceptedTypes={VIDEO_EDIT_UPLOAD_CONSTANTS.ALLOWED_VIDEO_TYPES}
 				maxSizeBytes={VIDEO_EDIT_UPLOAD_CONSTANTS.MAX_VIDEO_SIZE_BYTES}
@@ -144,10 +247,10 @@ export function AudioGenTab() {
 			<div className="space-y-2">
 				<Label className="flex items-center text-xs">
 					<Volume2 className="size-3 mr-1" />
-					Sound Effects (Optional)
+					音效提示（可选）
 				</Label>
 				<Textarea
-					placeholder="e.g., footsteps on gravel, birds chirping, wind rustling (max 200 chars)"
+					placeholder="例如：碎石脚步、鸟鸣、风吹树叶（最多 200 字）"
 					value={soundEffectPrompt}
 					onChange={(e) => setSoundEffectPrompt(e.target.value)}
 					className="min-h-[60px] text-xs"
@@ -160,10 +263,10 @@ export function AudioGenTab() {
 			<div className="space-y-2">
 				<Label className="flex items-center text-xs">
 					<Music className="size-3 mr-1" />
-					Background Music (Optional)
+					背景音乐提示（可选）
 				</Label>
 				<Textarea
-					placeholder="e.g., upbeat jazz piano, cinematic orchestral, lo-fi hip hop (max 200 chars)"
+					placeholder="例如：欢快爵士钢琴、电影感管弦乐、Lo-fi（最多 200 字）"
 					value={backgroundMusicPrompt}
 					onChange={(e) => setBackgroundMusicPrompt(e.target.value)}
 					className="min-h-[60px] text-xs"
@@ -178,10 +281,10 @@ export function AudioGenTab() {
 					<div className="space-y-0.5">
 						<Label className="flex items-center text-xs">
 							<Sparkles className="size-3 mr-1" />
-							ASMR Mode
+						ASMR 模式
 						</Label>
 						<p className="text-xs text-muted-foreground">
-							Enhance detailed sound effects for immersive content
+						增强细节音效，提升沉浸感
 						</p>
 					</div>
 					<Switch
@@ -215,7 +318,7 @@ export function AudioGenTab() {
 				<Card className="p-3 bg-primary/5">
 					<div className="space-y-2">
 						<p className="text-xs font-medium text-primary">
-							✓ Audio generation complete!
+							音频生成完成
 						</p>
 						{result.audioUrl && (
 							<audio controls className="w-full h-8" src={result.audioUrl} />
@@ -229,7 +332,7 @@ export function AudioGenTab() {
 									onClick={() => openInNewTab(result.videoUrl!)}
 									className="text-xs"
 								>
-									Download Video
+								打开视频
 								</Button>
 							)}
 							{result.audioUrl && (
@@ -240,7 +343,7 @@ export function AudioGenTab() {
 									onClick={() => openInNewTab(result.audioUrl!)}
 									className="text-xs"
 								>
-									Download Audio
+								打开音频
 								</Button>
 							)}
 						</div>
@@ -258,21 +361,21 @@ export function AudioGenTab() {
 				{isProcessing ? (
 					<>
 						<Loader2 className="size-4 mr-2 animate-spin" />
-						Processing... {progress}%
+						处理中... {progress}%
 					</>
 				) : (
 					<>
 						<Volume2 className="size-4 mr-2" />
-						Generate Audio
+						生成音频
 					</>
 				)}
 			</Button>
 
 			{/* Info */}
 			<div className="text-xs text-muted-foreground space-y-1">
-				<p>• Videos must be 3-20 seconds long</p>
-				<p>• Prompts are optional (max 200 characters each)</p>
-				<p>• Generates sound effects and background music</p>
+			<p>视频时长需为 3 至 20 秒</p>
+			<p>提示词可选，每项最多 200 字</p>
+			<p>可同时生成音效和背景音乐</p>
 			</div>
 		</div>
 	);

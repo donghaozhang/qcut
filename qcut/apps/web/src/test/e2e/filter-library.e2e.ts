@@ -43,8 +43,6 @@ async function addVideo({ page }: { page: Page }) {
 }
 
 async function openFilters({ page }: { page: Page }) {
-	await page.getByTestId("group-edit").click();
-	await page.getByRole("button", { name: "Manual Edit" }).click();
 	await page.getByTestId("filters-panel-tab").click();
 	await expect(page.getByTestId("filters-view")).toBeVisible();
 }

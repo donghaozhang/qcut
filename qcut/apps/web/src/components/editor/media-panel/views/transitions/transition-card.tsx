@@ -1,4 +1,9 @@
-import { CrownIcon, DownloadIcon, MousePointerClickIcon } from "lucide-react";
+import {
+	CrownIcon,
+	DownloadIcon,
+	HeartIcon,
+	MousePointerClickIcon,
+} from "lucide-react";
 import type { DragEvent, KeyboardEvent } from "react";
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
@@ -15,9 +20,11 @@ interface TransitionCardProps {
 	selected: boolean;
 	canApply: boolean;
 	available: boolean;
+	favorite: boolean;
 	previewSources?: TransitionPreviewSources;
 	onSelect: ({ preset }: { preset: TransitionPreset }) => void;
 	onApply: ({ preset }: { preset: TransitionPreset }) => void;
+	onToggleFavorite: ({ preset }: { preset: TransitionPreset }) => void;
 	onDragStart: ({
 		event,
 		preset,
@@ -32,9 +39,11 @@ export function TransitionCard({
 	selected,
 	canApply,
 	available,
+	favorite,
 	previewSources,
 	onSelect,
 	onApply,
+	onToggleFavorite,
 	onDragStart,
 }: TransitionCardProps) {
 	const [isPreviewing, setIsPreviewing] = useState(false);
@@ -62,7 +71,12 @@ export function TransitionCard({
 			aria-pressed={selected}
 			role="button"
 			tabIndex={0}
+			title={`${preset.localizedName}: ${preset.description}`}
 			onClick={() => onSelect({ preset })}
+			onDoubleClick={(event) => {
+				event.stopPropagation();
+				if (available && canApply) onApply({ preset });
+			}}
 			onKeyDown={(event) => handleKeyDown({ event })}
 			onDragStart={(event) => available && onDragStart({ event, preset })}
 			onMouseEnter={() => setIsPreviewing(true)}
@@ -86,12 +100,12 @@ export function TransitionCard({
 					)}
 					{available ? (
 						<Badge className="border-cyan-400/30 bg-cyan-950/80 px-1 py-0 text-[9px] text-cyan-100">
-							Ready
+							可用
 						</Badge>
 					) : (
 						<Badge className="gap-0.5 border-white/20 bg-black/60 px-1 py-0 text-[9px] text-white">
 							<DownloadIcon className="h-2.5 w-2.5" />
-							Asset
+							素材
 						</Badge>
 					)}
 				</div>
@@ -99,7 +113,7 @@ export function TransitionCard({
 			<div className="flex min-h-0 flex-1 items-center gap-1.5 p-1.5">
 				<div className="min-w-0 flex-1">
 					<div className="truncate text-[11px] font-medium text-foreground">
-						{preset.name}
+						{preset.localizedName}
 					</div>
 					<div className="truncate text-[9px] text-muted-foreground">
 						{preset.defaultDuration.toFixed(2)}s
@@ -110,9 +124,28 @@ export function TransitionCard({
 					variant="text"
 					size="icon"
 					className="h-6 w-6 shrink-0 opacity-0 transition-opacity group-hover:opacity-100 group-focus:opacity-100"
+					title={favorite ? "取消收藏" : "收藏"}
+					aria-label={favorite ? "取消收藏" : "收藏"}
+					onClick={(event) => {
+						event.stopPropagation();
+						onToggleFavorite({ preset });
+					}}
+					onKeyDown={(event) => event.stopPropagation()}
+				>
+					<HeartIcon
+						className={
+							favorite ? "size-3.5 fill-rose-500 text-rose-500" : "size-3.5"
+						}
+					/>
+				</Button>
+				<Button
+					type="button"
+					variant="text"
+					size="icon"
+					className="h-6 w-6 shrink-0 opacity-0 transition-opacity group-hover:opacity-100 group-focus:opacity-100"
 					disabled={!canApply || !available}
-					title={`Apply ${preset.name}`}
-					aria-label={`Apply ${preset.name}`}
+					title={`应用${preset.localizedName}`}
+					aria-label={`应用${preset.localizedName}`}
 					onClick={(event) => {
 						event.stopPropagation();
 						onApply({ preset });

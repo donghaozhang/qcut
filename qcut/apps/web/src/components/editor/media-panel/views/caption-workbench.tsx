@@ -40,6 +40,7 @@ import {
 } from "@/components/ui/select";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Textarea } from "@/components/ui/textarea";
+import { CaptionPresetGrid } from "@/components/captions/caption-preset-grid";
 import type {
 	TranscriptionResult,
 	TranscriptionSegment,
@@ -885,27 +886,10 @@ export function CaptionWorkbench({
 				</TabsContent>
 
 				<TabsContent value="style">
-					<div className="grid gap-3 xl:grid-cols-2">
-						{CAPTION_STYLE_PRESETS.map((preset) => (
-							<button
-								key={preset.id}
-								type="button"
-								onClick={() => setSelectedStyleId(preset.id)}
-								className={cn(
-									"rounded-md border p-3 text-left transition-colors hover:bg-muted",
-									preset.id === selectedStyleId && "border-primary bg-primary/5"
-								)}
-							>
-								<div className="flex items-center justify-between gap-2">
-									<span className="font-medium text-sm">{preset.name}</span>
-									<Badge variant="outline">{preset.platform}</Badge>
-								</div>
-								<p className="mt-1 text-xs text-muted-foreground">
-									{preset.description}
-								</p>
-							</button>
-						))}
-					</div>
+					<CaptionPresetGrid
+						selectedId={selectedStyleId}
+						onSelect={(preset) => setSelectedStyleId(preset.id)}
+					/>
 					<Button
 						type="button"
 						className="mt-3 w-full"

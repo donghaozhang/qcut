@@ -1,54 +1,80 @@
 "use client";
 
-import { useEffect, useState } from "react";
-import { AlertCircle, Clock, Grid3X3, Hash } from "lucide-react";
+import { useEffect, useRef, useState, type ChangeEvent } from "react";
+import { AlertCircle, Clock, Heart, Shapes, Sparkles } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Badge } from "@/components/ui/badge";
 import { useDebounce } from "@/hooks/use-debounce";
 import { useStickersStore } from "@/stores/stickers-store";
 import { POPULAR_COLLECTIONS } from "@/lib/stickers/iconify-api";
 import { StickersSearch } from "./components/stickers-search";
 import { StickersSearchResults } from "./components/stickers-search-results";
 import { StickersRecent } from "./components/stickers-recent";
+import { StickersFavorites } from "./components/stickers-favorites";
 import { StickersCollection } from "./components/stickers-collection";
 import { useStickerSelect } from "./hooks/use-sticker-select";
 import { toast } from "sonner";
 
+const STICKER_CATEGORY_COLLECTIONS = {
+	motion: ["line-md", "svg-spinners"],
+	essentials: ["tabler", "material-symbols", "heroicons"],
+	brands: ["simple-icons"],
+} as const;
+
+function StickerCollectionGroup({
+	collectionPrefixes,
+	onSelect,
+}: {
+	collectionPrefixes: readonly string[];
+	onSelect: (iconId: string, name: string) => void;
+}) {
+	return (
+		<div className="space-y-5 p-3">
+			{collectionPrefixes.map((collectionPrefix) => {
+				const collection = POPULAR_COLLECTIONS.find(
+					(candidate) => candidate.prefix === collectionPrefix
+				);
+				if (!collection) return null;
+				return (
+					<section key={collection.prefix}>
+						<div className="mb-2 flex items-center justify-between gap-2 px-1">
+							<h3 className="truncate text-xs font-semibold">
+								{collection.name}
+							</h3>
+							<span className="shrink-0 text-[10px] text-muted-foreground">
+								{collection.license?.spdx ?? "License unknown"}
+							</span>
+						</div>
+						<StickersCollection
+							collectionPrefix={collection.prefix}
+							onSelect={onSelect}
+						/>
+					</section>
+				);
+			})}
+		</div>
+	);
+}
+
 export function StickersView() {
 	const [searchQuery, setSearchQuery] = useState("");
-	const [selectedCollection, setSelectedCollection] = useState<string>("all");
+	const [selectedCategory, setSelectedCategory] = useState<string>("motion");
 	const [isSearching, setIsSearching] = useState(false);
+	const fileInputRef = useRef<HTMLInputElement>(null);
 
-	const {
-		collections,
-		searchResults,
-		recentStickers,
-		isLoading,
-		error,
-		fetchCollections,
-		searchIcons,
-	} = useStickersStore();
+	const { searchResults, recentStickers, error, searchIcons, clearError } =
+		useStickersStore();
 
-	const { handleStickerSelect, cleanupObjectUrls } = useStickerSelect();
+	const { handleStickerSelect, handleStickerUpload, cleanupObjectUrls } =
+		useStickerSelect();
 
-	// Cleanup object URLs on unmount and navigation
 	useEffect(() => {
 		return cleanupObjectUrls;
 	}, [cleanupObjectUrls]);
 
-	// Load collections on mount
-	useEffect(() => {
-		if (collections.length === 0) {
-			fetchCollections();
-		}
-	}, [collections.length, fetchCollections]);
-
-	// Debounced search query
 	const debouncedSearchQuery = useDebounce(searchQuery, 300);
 
-	// Search functionality with debounced query
 	useEffect(() => {
 		if (!debouncedSearchQuery.trim()) {
 			return;
@@ -71,34 +97,53 @@ export function StickersView() {
 		return () => abortController.abort();
 	}, [debouncedSearchQuery, searchIcons]);
 
-	if (error) {
-		return (
-			<div className="flex flex-col items-center justify-center py-12 text-center">
-				<AlertCircle className="mb-4 h-12 w-12 text-destructive">
-					<title>Error loading stickers</title>
-				</AlertCircle>
-				<p className="text-lg font-medium">Failed to load stickers</p>
-				<p className="text-muted-foreground">{error}</p>
-				<Button
-					onClick={() => fetchCollections()}
-					className="mt-4"
-					variant="outline"
-				>
-					Try Again
-				</Button>
-			</div>
+	const handleFileChange = async ({
+		currentTarget,
+	}: ChangeEvent<HTMLInputElement>) => {
+		const files = [...(currentTarget.files ?? [])];
+		currentTarget.value = "";
+		await files.reduce(
+			(previous, file) =>
+				previous.then(async () => {
+					await handleStickerUpload({ file });
+				}),
+			Promise.resolve()
 		);
-	}
+	};
 
 	return (
-		<div className="flex h-full flex-col">
-			{/* Search Bar */}
+		<div className="flex h-full flex-col" data-testid="stickers-panel">
 			<StickersSearch
 				searchQuery={searchQuery}
 				onSearchChange={setSearchQuery}
+				onUploadClick={() => fileInputRef.current?.click()}
 			/>
+			<input
+				ref={fileInputRef}
+				type="file"
+				accept="image/png,image/jpeg,image/svg+xml,image/gif,image/webp"
+				multiple
+				className="hidden"
+				onChange={handleFileChange}
+			/>
+			{error && (
+				<div className="mx-3 mt-2 flex items-center gap-2 rounded border border-destructive/40 bg-destructive/10 px-2 py-1.5 text-xs text-destructive">
+					<AlertCircle className="size-3.5 shrink-0">
+						<title>Sticker library error</title>
+					</AlertCircle>
+					<span className="min-w-0 flex-1 truncate">{error}</span>
+					<Button
+						type="button"
+						variant="text"
+						size="sm"
+						className="h-6 px-2"
+						onClick={clearError}
+					>
+						Dismiss
+					</Button>
+				</div>
+			)}
 
-			{/* Content */}
 			<div className="flex-1 overflow-hidden">
 				{searchQuery ? (
 					<ScrollArea className="h-full">
@@ -111,39 +156,75 @@ export function StickersView() {
 					</ScrollArea>
 				) : (
 					<Tabs
-						value={selectedCollection}
-						onValueChange={setSelectedCollection}
+						value={selectedCategory}
+						onValueChange={setSelectedCategory}
 						className="h-full"
 					>
-						<TabsList className="grid w-full grid-cols-4">
-							<TabsTrigger value="recent" className="flex items-center gap-2">
-								<Clock className="h-4 w-4">
-									<title>Recent</title>
-								</Clock>
-								Recent
-							</TabsTrigger>
-							<TabsTrigger value="all" className="flex items-center gap-2">
-								<Grid3X3 className="h-4 w-4">
-									<title>All</title>
-								</Grid3X3>
-								All
+						<TabsList className="grid w-full grid-cols-5 rounded-none border-b border-border/50 bg-transparent px-2">
+							<TabsTrigger value="motion" className="min-w-0 gap-1 text-[11px]">
+								<Sparkles className="size-3.5 shrink-0">
+									<title>Animated stickers</title>
+								</Sparkles>
+								<span className="truncate">Motion</span>
 							</TabsTrigger>
 							<TabsTrigger
-								value="simple-icons"
-								className="flex items-center gap-2"
+								value="essentials"
+								className="min-w-0 gap-1 text-[11px]"
 							>
-								<Hash className="h-4 w-4">
-									<title>Brands</title>
-								</Hash>
-								Brands
+								<Shapes className="size-3.5 shrink-0">
+									<title>Essential stickers</title>
+								</Shapes>
+								<span className="truncate">Essentials</span>
 							</TabsTrigger>
-							<TabsTrigger value="tabler" className="flex items-center gap-2">
-								<Hash className="h-4 w-4">
-									<title>Tabler</title>
-								</Hash>
-								Tabler
+							<TabsTrigger value="brands" className="min-w-0 gap-1 text-[11px]">
+								<Shapes className="size-3.5 shrink-0">
+									<title>Brand stickers</title>
+								</Shapes>
+								<span className="truncate">Brands</span>
+							</TabsTrigger>
+							<TabsTrigger value="recent" className="min-w-0 gap-1 text-[11px]">
+								<Clock className="size-3.5 shrink-0">
+									<title>Recent</title>
+								</Clock>
+								<span className="truncate">Recent</span>
+							</TabsTrigger>
+							<TabsTrigger
+								value="favorites"
+								className="min-w-0 gap-1 text-[11px]"
+							>
+								<Heart className="size-3.5 shrink-0">
+									<title>Favorite stickers</title>
+								</Heart>
+								<span className="truncate">Favorites</span>
 							</TabsTrigger>
 						</TabsList>
+
+						<TabsContent value="motion" className="mt-0 h-full">
+							<ScrollArea className="h-full">
+								<StickerCollectionGroup
+									collectionPrefixes={STICKER_CATEGORY_COLLECTIONS.motion}
+									onSelect={handleStickerSelect}
+								/>
+							</ScrollArea>
+						</TabsContent>
+
+						<TabsContent value="essentials" className="mt-0 h-full">
+							<ScrollArea className="h-full">
+								<StickerCollectionGroup
+									collectionPrefixes={STICKER_CATEGORY_COLLECTIONS.essentials}
+									onSelect={handleStickerSelect}
+								/>
+							</ScrollArea>
+						</TabsContent>
+
+						<TabsContent value="brands" className="mt-0 h-full">
+							<ScrollArea className="h-full">
+								<StickerCollectionGroup
+									collectionPrefixes={STICKER_CATEGORY_COLLECTIONS.brands}
+									onSelect={handleStickerSelect}
+								/>
+							</ScrollArea>
+						</TabsContent>
 
 						<TabsContent value="recent" className="mt-0 h-full">
 							<ScrollArea className="h-full">
@@ -154,49 +235,15 @@ export function StickersView() {
 							</ScrollArea>
 						</TabsContent>
 
-						<TabsContent value="all" className="mt-0 h-full">
+						<TabsContent value="favorites" className="mt-0 h-full">
 							<ScrollArea className="h-full">
-								<div className="p-4 space-y-6">
-									{POPULAR_COLLECTIONS.map((collection) => (
-										<div key={collection.prefix}>
-											<div className="mb-3 flex items-center gap-2">
-												<h3 className="text-lg font-semibold">
-													{collection.name}
-												</h3>
-												<Badge variant="secondary">{collection.prefix}</Badge>
-											</div>
-											<StickersCollection
-												collectionPrefix={collection.prefix}
-												onSelect={handleStickerSelect}
-											/>
-										</div>
-									))}
-								</div>
-							</ScrollArea>
-						</TabsContent>
-
-						<TabsContent value="simple-icons" className="mt-0 h-full">
-							<ScrollArea className="h-full">
-								<StickersCollection
-									collectionPrefix="simple-icons"
-									onSelect={handleStickerSelect}
-								/>
-							</ScrollArea>
-						</TabsContent>
-
-						<TabsContent value="tabler" className="mt-0 h-full">
-							<ScrollArea className="h-full">
-								<StickersCollection
-									collectionPrefix="tabler"
-									onSelect={handleStickerSelect}
-								/>
+								<StickersFavorites onSelect={handleStickerSelect} />
 							</ScrollArea>
 						</TabsContent>
 					</Tabs>
 				)}
 			</div>
 
-			{/* Footer */}
 			<div className="border-t p-2 text-center text-xs text-muted-foreground">
 				Icons provided by{" "}
 				<a
