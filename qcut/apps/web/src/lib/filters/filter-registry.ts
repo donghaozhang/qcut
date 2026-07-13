@@ -1,4 +1,5 @@
 import type { FilterCategory, FilterPreset } from "./filter-types";
+import { COLLECTION_FILTER_PRESETS } from "./filter-collection-presets";
 import { EXTENDED_FILTER_PRESETS } from "./filter-extended-presets";
 
 export const FILTER_NONE_ID = "none";
@@ -340,6 +341,7 @@ const CORE_FILTER_PRESETS: FilterPreset[] = [
 export const FILTER_PRESETS: FilterPreset[] = [
 	...CORE_FILTER_PRESETS,
 	...EXTENDED_FILTER_PRESETS,
+	...COLLECTION_FILTER_PRESETS,
 ];
 
 const presetsById = new Map(

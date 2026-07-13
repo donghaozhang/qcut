@@ -1,18 +1,21 @@
-export type FilterCategory =
-	| "basic"
-	| "summer"
-	| "landscape"
-	| "food"
-	| "camera"
-	| "night"
-	| "cinematic"
-	| "outdoor"
-	| "stylized"
-	| "film"
-	| "monochrome"
-	| "portrait"
-	| "hd"
-	| "indoor";
+export const FILTER_CONTENT_CATEGORIES = [
+	"basic",
+	"summer",
+	"landscape",
+	"food",
+	"camera",
+	"night",
+	"cinematic",
+	"outdoor",
+	"stylized",
+	"film",
+	"monochrome",
+	"portrait",
+	"hd",
+	"indoor",
+] as const;
+
+export type FilterCategory = (typeof FILTER_CONTENT_CATEGORIES)[number];
 
 export interface FilterLutRecipe {
 	exposure?: number;

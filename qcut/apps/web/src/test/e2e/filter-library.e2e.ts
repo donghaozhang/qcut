@@ -13,21 +13,21 @@ const outputDirectory =
 	path.join(process.env.TMPDIR ?? "/tmp", "qcut-filter-library-audit");
 
 const categoryCases = [
-	{ id: "summer", count: 3 },
-	{ id: "portrait", count: 3 },
-	{ id: "landscape", count: 3 },
-	{ id: "food", count: 3 },
-	{ id: "camera", count: 3, screenshot: "00-camera.png" },
-	{ id: "latest", count: 9 },
-	{ id: "night", count: 3, screenshot: "00-night.png" },
-	{ id: "cinematic", count: 3 },
-	{ id: "outdoor", count: 2 },
-	{ id: "stylized", count: 2, screenshot: "00-stylized.png" },
-	{ id: "monochrome", count: 2 },
-	{ id: "hd", count: 2, screenshot: "00-hd.png" },
-	{ id: "film", count: 2 },
-	{ id: "basic", count: 3 },
-	{ id: "indoor", count: 2 },
+	{ id: "summer", count: 4 },
+	{ id: "portrait", count: 4 },
+	{ id: "landscape", count: 4 },
+	{ id: "food", count: 4 },
+	{ id: "camera", count: 4, screenshot: "00-camera.png" },
+	{ id: "latest", count: 19 },
+	{ id: "night", count: 4, screenshot: "00-night.png" },
+	{ id: "cinematic", count: 4 },
+	{ id: "outdoor", count: 4 },
+	{ id: "stylized", count: 4, screenshot: "00-stylized.png" },
+	{ id: "monochrome", count: 4 },
+	{ id: "hd", count: 4, screenshot: "00-hd.png" },
+	{ id: "film", count: 4 },
+	{ id: "basic", count: 4 },
+	{ id: "indoor", count: 4 },
 ] as const;
 
 async function addVideo({ page }: { page: Page }) {
@@ -71,8 +71,21 @@ test.describe("Filter library", () => {
 
 		const filters = page.getByTestId("filters-view");
 		await expect(filters.locator('[data-testid^="filter-card-"]')).toHaveCount(
-			37
+			57
 		);
+		await expect
+			.poll(() =>
+				filters
+					.locator('[data-testid^="filter-card-"] img')
+					.evaluateAll((images) =>
+						images.every(
+							(image) =>
+								(image as HTMLImageElement).complete &&
+								(image as HTMLImageElement).naturalWidth === 288
+						)
+					)
+			)
+			.toBe(true);
 		await filters.screenshot({
 			path: path.join(outputDirectory, "00-library.png"),
 			animations: "disabled",
@@ -201,8 +214,12 @@ test.describe("Filter library", () => {
 		await filters.getByLabel("Search filters").fill("黑白");
 		await expect(filters.getByTestId("filter-card-neutral-mono")).toBeVisible();
 		await expect(filters.getByTestId("filter-card-hard-mono")).toBeVisible();
+		await expect(filters.getByTestId("filter-card-silver-mist")).toBeVisible();
+		await expect(
+			filters.getByTestId("filter-card-documentary-mono")
+		).toBeVisible();
 		await expect(filters.locator('[data-testid^="filter-card-"]')).toHaveCount(
-			2
+			4
 		);
 		await filters.screenshot({
 			path: path.join(outputDirectory, "03-bilingual-search.png"),

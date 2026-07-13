@@ -1,44 +1,39 @@
-import { existsSync } from "node:fs";
+import { createHash } from "node:crypto";
+import { existsSync, readFileSync, statSync } from "node:fs";
 import { resolve } from "node:path";
 import { describe, expect, it } from "vitest";
+import { DEFAULT_MEDIA_COLOR_SETTINGS } from "@/lib/color/color-properties";
 import {
 	FILTER_PRESETS,
 	getFilterPreset,
 	getFilterPresetsByCategory,
 } from "../filter-registry";
-import type { FilterCategory } from "../filter-types";
+import { resolveColorFilterSettings } from "../filter-resolver";
+import { FILTER_CONTENT_CATEGORIES } from "../filter-types";
 
-const categories: FilterCategory[] = [
-	"basic",
-	"summer",
-	"landscape",
-	"food",
-	"camera",
-	"night",
-	"cinematic",
-	"outdoor",
-	"stylized",
-	"film",
-	"monochrome",
-	"portrait",
-	"hd",
-	"indoor",
-];
+function resolveThumbnailPath({ thumbnail }: { thumbnail: string }) {
+	return resolve(__dirname, "../../../../public", thumbnail.slice(1));
+}
 
 describe("filter registry", () => {
 	it("ships a populated local library with stable unique identifiers", () => {
-		expect(FILTER_PRESETS).toHaveLength(36);
-		expect(new Set(FILTER_PRESETS.map((preset) => preset.id)).size).toBe(36);
+		expect(FILTER_PRESETS.length).toBeGreaterThanOrEqual(56);
+		expect(new Set(FILTER_PRESETS.map((preset) => preset.id)).size).toBe(
+			FILTER_PRESETS.length
+		);
 		expect(
 			new Set(FILTER_PRESETS.map((preset) => preset.lutAssetId)).size
-		).toBe(36);
+		).toBe(FILTER_PRESETS.length);
+		expect(new Set(FILTER_PRESETS.map((preset) => preset.thumbnail)).size).toBe(
+			FILTER_PRESETS.length
+		);
 	});
 
-	it("provides at least two working presets in every filter category", () => {
-		for (const category of categories) {
+	it("provides at least four working presets in every filter category", () => {
+		for (const category of FILTER_CONTENT_CATEGORIES) {
 			expect(
 				getFilterPresetsByCategory({ category }).length
-			).toBeGreaterThanOrEqual(2);
+			).toBeGreaterThanOrEqual(4);
 		}
 	});
 
@@ -52,16 +47,45 @@ describe("filter registry", () => {
 	it("keeps every preset local and searchable in both languages", () => {
 		for (const preset of FILTER_PRESETS) {
 			expect(preset.thumbnail).toMatch(/^\/images\/filter-previews\/.+\.webp$/);
-			expect(
-				existsSync(
-					resolve(__dirname, "../../../../public", preset.thumbnail.slice(1))
-				)
-			).toBe(true);
+			const thumbnailPath = resolveThumbnailPath({
+				thumbnail: preset.thumbnail,
+			});
+			expect(existsSync(thumbnailPath)).toBe(true);
+			expect(statSync(thumbnailPath).size).toBeGreaterThan(100);
 			expect(preset.tags.length).toBeGreaterThanOrEqual(4);
 			expect(preset.localizedName.length).toBeGreaterThan(0);
 			expect(preset.defaultIntensity).toBeGreaterThanOrEqual(0);
 			expect(preset.defaultIntensity).toBeLessThanOrEqual(100);
 			expect(getFilterPreset({ presetId: preset.id })).toBe(preset);
+		}
+	});
+
+	it("uses a distinct rendered preview for every preset", () => {
+		const previewHashes = FILTER_PRESETS.map((preset) =>
+			createHash("sha256")
+				.update(
+					readFileSync(resolveThumbnailPath({ thumbnail: preset.thumbnail }))
+				)
+				.digest("hex")
+		);
+
+		expect(new Set(previewHashes).size).toBe(FILTER_PRESETS.length);
+	});
+
+	it("resolves every visible preset through the production LUT path", () => {
+		for (const preset of FILTER_PRESETS) {
+			const resolved = resolveColorFilterSettings({
+				settings: {
+					...structuredClone(DEFAULT_MEDIA_COLOR_SETTINGS),
+					filter: {
+						presetId: preset.id,
+						presetVersion: preset.version,
+						intensity: preset.defaultIntensity,
+					},
+				},
+			});
+			expect(resolved.lut.presetId).toBe(`filter:${preset.id}`);
+			expect(resolved.lut.cube?.values.length).toBe(17 ** 3 * 3);
 		}
 	});
 });
