@@ -235,7 +235,9 @@ test.describe("Timeline Right-Click Context Menu", () => {
 				page.evaluate(() => {
 					const elements = (window as any).__timelineStore.getState().tracks[0]
 						.elements;
-					return elements.map((element: { groupId?: string }) => element.groupId);
+					return elements.map(
+						(element: { groupId?: string }) => element.groupId
+					);
 				})
 			)
 			.toEqual([expect.any(String), expect.any(String)]);
@@ -263,7 +265,9 @@ test.describe("Timeline Right-Click Context Menu", () => {
 			.toBe(true);
 	});
 
-	test("creates and breaks apart a persistent compound clip", async ({ page }) => {
+	test("creates and breaks apart a persistent compound clip", async ({
+		page,
+	}) => {
 		await addVideoClipToTimeline({ page });
 		const clips = await duplicateAndSelectBoth({ page });
 		let menu = await openVideoClipMenu({ page, clip: clips.nth(1) });
@@ -271,17 +275,25 @@ test.describe("Timeline Right-Click Context Menu", () => {
 		await expect(createCompound).not.toHaveAttribute("data-disabled");
 		await createCompound.click();
 
-		await expect(page.locator('[data-testid="timeline-element"]')).toHaveCount(1);
-		const compound = await page.evaluate(() =>
-			(window as any).__timelineStore.getState().tracks[0].elements[0].compound
+		await expect(page.locator('[data-testid="timeline-element"]')).toHaveCount(
+			1
+		);
+		const compound = await page.evaluate(
+			() =>
+				(window as any).__timelineStore.getState().tracks[0].elements[0]
+					.compound
 		);
 		expect(compound).toMatchObject({ kind: "compound" });
 		expect(compound.clips).toHaveLength(2);
 
-		const compoundClip = page.locator('[data-testid="timeline-element"]').first();
+		const compoundClip = page
+			.locator('[data-testid="timeline-element"]')
+			.first();
 		menu = await openVideoClipMenu({ page, clip: compoundClip });
 		await menuItem({ menu, label: "拆分复合片段" }).click();
-		await expect(page.locator('[data-testid="timeline-element"]')).toHaveCount(2);
+		await expect(page.locator('[data-testid="timeline-element"]')).toHaveCount(
+			2
+		);
 		await expect
 			.poll(() =>
 				page.evaluate(() =>

@@ -670,9 +670,10 @@ export function PreviewElementRenderer({
 							height: "100%",
 							transform: `translate(-50%, -50%) rotate(${visual.rotation + (transitionPresentation.rotation ?? 0)}deg) scale(${visual.scaleX * mediaAnimation.scale * (transitionPresentation.scale ?? 1) * (visual.flipHorizontal ? -1 : 1)}, ${visual.scaleY * mediaAnimation.scale * (transitionPresentation.scale ?? 1) * (visual.flipVertical ? -1 : 1)})`,
 							transformOrigin: "center",
-							filter: [transitionFilter, maskStrokeFilter]
-								.filter(Boolean)
-								.join(" ") || undefined,
+							filter:
+								[transitionFilter, maskStrokeFilter]
+									.filter(Boolean)
+									.join(" ") || undefined,
 							opacity:
 								visual.opacity *
 								mediaAnimation.opacity *
@@ -877,9 +878,10 @@ export function PreviewElementRenderer({
 								height: `${currentHeight * scaleRatio}px`,
 								transform: `translate(-50%, -50%) rotate(${(element.rotation ?? 0) + (transitionPresentation.rotation ?? 0)}deg) scale(${transitionPresentation.scale ?? 1})`,
 								transformOrigin: "center",
-								filter: [transitionFilter, maskStrokeFilter]
-									.filter(Boolean)
-									.join(" ") || undefined,
+								filter:
+									[transitionFilter, maskStrokeFilter]
+										.filter(Boolean)
+										.join(" ") || undefined,
 								zIndex: index + 1,
 								opacity: transitionPresentation.opacity,
 								clipPath: transitionPresentation.clipPath,
@@ -935,9 +937,10 @@ export function PreviewElementRenderer({
 							opacity: transitionPresentation.opacity,
 							clipPath: transitionPresentation.clipPath,
 							backgroundColor: transitionPresentation.backgroundColor,
-							filter: [transitionFilter, maskStrokeFilter]
-								.filter(Boolean)
-								.join(" ") || undefined,
+							filter:
+								[transitionFilter, maskStrokeFilter]
+									.filter(Boolean)
+									.join(" ") || undefined,
 							transform: buildClipTransitionCssTransform({
 								presentation: transitionPresentation,
 							}),

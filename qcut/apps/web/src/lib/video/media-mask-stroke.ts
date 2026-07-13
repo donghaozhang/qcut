@@ -10,11 +10,25 @@ const DEFAULT_STROKE: MediaMaskStroke = {
 	offsetY: 0,
 };
 
-function clamp({ value, min, max }: { value: number; min: number; max: number }) {
+function clamp({
+	value,
+	min,
+	max,
+}: {
+	value: number;
+	min: number;
+	max: number;
+}) {
 	return Math.min(max, Math.max(min, Number.isFinite(value) ? value : min));
 }
 
-function colorWithOpacity({ color, opacity }: { color: string; opacity: number }) {
+function colorWithOpacity({
+	color,
+	opacity,
+}: {
+	color: string;
+	opacity: number;
+}) {
 	const match = /^#([0-9a-f]{6})$/i.exec(color.trim());
 	if (!match) return `rgba(255, 255, 255, ${opacity})`;
 	const value = Number.parseInt(match[1], 16);

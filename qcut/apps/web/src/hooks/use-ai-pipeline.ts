@@ -320,17 +320,17 @@ export function useAIPipeline(
 			const currentTaskId = persistCurrentTask
 				? (existingTaskId ??
 					cloudTasks.createTask({
-					kind: cloudTaskKind({ command: generateOptions.command }),
-					label: cloudTaskLabel({ command: generateOptions.command }),
-					payload: {
-						command: generateOptions.command,
-						args: generateOptions.args,
-						projectId: generateOptions.projectId,
-						autoImport: generateOptions.autoImport,
-					},
-					estimatedCostUsd: estimatePipelineTaskCostUsd({
-						options: generateOptions,
-					}),
+						kind: cloudTaskKind({ command: generateOptions.command }),
+						label: cloudTaskLabel({ command: generateOptions.command }),
+						payload: {
+							command: generateOptions.command,
+							args: generateOptions.args,
+							projectId: generateOptions.projectId,
+							autoImport: generateOptions.autoImport,
+						},
+						estimatedCostUsd: estimatePipelineTaskCostUsd({
+							options: generateOptions,
+						}),
 					}))
 				: undefined;
 			taskIdRef.current = currentTaskId ?? null;
@@ -381,7 +381,10 @@ export function useAIPipeline(
 				if (current?.status !== "queued") {
 					useCloudTaskStore.getState().retryTask({ id: currentTaskId });
 				}
-				return runGeneration({ generateOptions, existingTaskId: currentTaskId });
+				return runGeneration({
+					generateOptions,
+					existingTaskId: currentTaskId,
+				});
 			};
 			if (currentTaskId) {
 				registerCloudTaskRuntimeActions({
@@ -413,8 +416,9 @@ export function useAIPipeline(
 				if (generateResult.success) {
 					const taskStatus = currentTaskId
 						? useCloudTaskStore
-						.getState()
-						.tasks.find((candidate) => candidate.id === currentTaskId)?.status
+								.getState()
+								.tasks.find((candidate) => candidate.id === currentTaskId)
+								?.status
 						: undefined;
 					if (currentTaskId && taskStatus !== "canceled") {
 						useCloudTaskStore.getState().completeTask({
@@ -433,44 +437,47 @@ export function useAIPipeline(
 						generateResult.importedPath ?? generateResult.outputPath;
 					const canUndoImport = Boolean(
 						generateOptions.autoImport &&
-						generateOptions.projectId &&
-						generateResult.mediaId
+							generateOptions.projectId &&
+							generateResult.mediaId
 					);
-					if (currentTaskId) registerCloudTaskRuntimeActions({
-						taskId: currentTaskId,
-						actions: {
-							retry: retryCurrent,
-							open: outputPath
-								? () => platform().shell?.showItemInFolder(outputPath)
-								: undefined,
-							undo: canUndoImport
-								? async () => {
-									await useMediaStore.getState().removeMediaItem(
-										generateOptions.projectId!,
-										generateResult.mediaId!
-									);
-									useCloudTaskStore.getState().completeTask({
-										id: currentTaskId,
-										message: "已撤销本次素材导入",
-										output: {
-											outputPath: generateResult.outputPath,
-											undone: true,
-										},
-									});
-									registerCloudTaskRuntimeActions({
-										taskId: currentTaskId,
-										actions: {
-											retry: retryCurrent,
-											open: outputPath
-												? () =>
-													platform().shell?.showItemInFolder(outputPath)
-												: undefined,
-										},
-									});
-								}
-								: undefined,
-						},
-					});
+					if (currentTaskId)
+						registerCloudTaskRuntimeActions({
+							taskId: currentTaskId,
+							actions: {
+								retry: retryCurrent,
+								open: outputPath
+									? () => platform().shell?.showItemInFolder(outputPath)
+									: undefined,
+								undo: canUndoImport
+									? async () => {
+											await useMediaStore
+												.getState()
+												.removeMediaItem(
+													generateOptions.projectId!,
+													generateResult.mediaId!
+												);
+											useCloudTaskStore.getState().completeTask({
+												id: currentTaskId,
+												message: "已撤销本次素材导入",
+												output: {
+													outputPath: generateResult.outputPath,
+													undone: true,
+												},
+											});
+											registerCloudTaskRuntimeActions({
+												taskId: currentTaskId,
+												actions: {
+													retry: retryCurrent,
+													open: outputPath
+														? () =>
+																platform().shell?.showItemInFolder(outputPath)
+														: undefined,
+												},
+											});
+										}
+									: undefined,
+							},
+						});
 					onComplete?.(generateResult);
 				} else if (generateResult.error) {
 					if (currentTaskId) {

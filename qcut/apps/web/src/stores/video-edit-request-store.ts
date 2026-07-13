@@ -18,13 +18,15 @@ interface VideoEditRequestStore {
 	clearAudioGenerationRequest: ({ id }: { id: string }) => void;
 }
 
-export const useVideoEditRequestStore = create<VideoEditRequestStore>((set) => ({
-	requestAudioGeneration: (audioGenerationRequest) =>
-		set({ audioGenerationRequest }),
-	clearAudioGenerationRequest: ({ id }) =>
-		set((state) =>
-			state.audioGenerationRequest?.id === id
-				? { audioGenerationRequest: undefined }
-				: state
-		),
-}));
+export const useVideoEditRequestStore = create<VideoEditRequestStore>(
+	(set) => ({
+		requestAudioGeneration: (audioGenerationRequest) =>
+			set({ audioGenerationRequest }),
+		clearAudioGenerationRequest: ({ id }) =>
+			set((state) =>
+				state.audioGenerationRequest?.id === id
+					? { audioGenerationRequest: undefined }
+					: state
+			),
+	})
+);

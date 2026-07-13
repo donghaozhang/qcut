@@ -88,10 +88,10 @@ export function useVideoEditProcessing(props: UseVideoEditProcessingProps) {
 		| (({
 				params,
 				taskId,
-			}: {
+		  }: {
 				params: VideoEditParams;
 				taskId: string;
-			}) => Promise<void>)
+		  }) => Promise<void>)
 		| null
 	>(null);
 
@@ -142,12 +142,15 @@ export function useVideoEditProcessing(props: UseVideoEditProcessingProps) {
 	 * Edge case: activeProject might be null
 	 */
 	const addToMediaStore = useCallback(
-		async (result: VideoEditResult): Promise<{
+		async (
+			result: VideoEditResult
+		): Promise<{
 			mediaId?: string;
 			timelineElementId?: string;
 			timelineTrackId?: string;
 		}> => {
-			const prefersAudio = activeTab === "audio-gen" || activeTab === "audio-sync";
+			const prefersAudio =
+				activeTab === "audio-gen" || activeTab === "audio-sync";
 			const outputUrl = prefersAudio
 				? (result.audioUrl ?? result.videoUrl)
 				: result.videoUrl;
@@ -511,31 +514,31 @@ export function useVideoEditProcessing(props: UseVideoEditProcessingProps) {
 						undo:
 							inserted.mediaId && activeProject
 								? async () => {
-									if (
-										inserted.timelineTrackId &&
-										inserted.timelineElementId
-									) {
-										useTimelineStore
+										if (
+											inserted.timelineTrackId &&
+											inserted.timelineElementId
+										) {
+											useTimelineStore
+												.getState()
+												.removeElementFromTrack(
+													inserted.timelineTrackId,
+													inserted.timelineElementId,
+													true
+												);
+										}
+										await useMediaStore
 											.getState()
-											.removeElementFromTrack(
-												inserted.timelineTrackId,
-												inserted.timelineElementId,
-												true
-											);
+											.removeMediaItem(activeProject.id, inserted.mediaId!);
+										useCloudTaskStore.getState().completeTask({
+											id: taskId,
+											message: "AI 音效结果已撤销",
+											output: { mediaId: inserted.mediaId, undone: true },
+										});
+										registerCloudTaskRuntimeActions({
+											taskId,
+											actions: { open, retry },
+										});
 									}
-									await useMediaStore
-										.getState()
-										.removeMediaItem(activeProject.id, inserted.mediaId!);
-									useCloudTaskStore.getState().completeTask({
-										id: taskId,
-										message: "AI 音效结果已撤销",
-										output: { mediaId: inserted.mediaId, undone: true },
-									});
-									registerCloudTaskRuntimeActions({
-										taskId,
-										actions: { open, retry },
-									});
-								}
 								: undefined,
 					},
 				});

@@ -142,9 +142,7 @@ export function useSpeechAvatarGeneration({
 			duration,
 		});
 		toast.success(
-			kind === "speech"
-				? "语音已与字幕对齐"
-				: "数字人已与字幕对齐"
+			kind === "speech" ? "语音已与字幕对齐" : "数字人已与字幕对齐"
 		);
 		return mediaItem;
 	};
@@ -317,18 +315,14 @@ export function useSpeechAvatarGeneration({
 				autoImport: true,
 			});
 			if (!avatarResult.success) {
-				throw new Error(
-					avatarResult.error || "数字人生成失败"
-				);
+				throw new Error(avatarResult.error || "数字人生成失败");
 			}
 			const avatarMedia = await resolveGeneratedMedia({
 				result: avatarResult,
 				projectId,
 			});
 			if (!avatarMedia || avatarMedia.type === "audio") {
-				throw new Error(
-					"生成数字人无法作为视频导入"
-				);
+				throw new Error("生成数字人无法作为视频导入");
 			}
 
 			const inserted = await insertAlignedGeneratedMediaToEditor({

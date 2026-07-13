@@ -50,12 +50,10 @@ describe("useVideoEditProcessing", () => {
 	beforeEach(() => {
 		vi.clearAllMocks();
 		useCloudTaskStore.getState().resetTasks();
-		vi.spyOn(globalThis, "fetch").mockResolvedValue(
-			{
-				ok: true,
-				blob: async () => new Blob(["audio"], { type: "audio/mpeg" }),
-			} as Response
-		);
+		vi.spyOn(globalThis, "fetch").mockResolvedValue({
+			ok: true,
+			blob: async () => new Blob(["audio"], { type: "audio/mpeg" }),
+		} as Response);
 	});
 
 	it("persists AI audio generation and imports an audio asset", async () => {

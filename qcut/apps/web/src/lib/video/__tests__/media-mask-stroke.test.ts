@@ -39,7 +39,9 @@ function mask({
 
 describe("media mask stroke preview", () => {
 	it("ignores disabled and zero-width strokes", () => {
-		expect(activeMediaMaskStroke({ masks: [mask({ style: "none" })] })).toBeNull();
+		expect(
+			activeMediaMaskStroke({ masks: [mask({ style: "none" })] })
+		).toBeNull();
 		expect(
 			buildMediaMaskStrokeCssFilter({
 				masks: [mask({ style: "solid", width: 0 })],
@@ -47,14 +49,18 @@ describe("media mask stroke preview", () => {
 		).toBe("");
 	});
 
-	it.each(["solid", "glow", "offset", "triple", "sketch", "dashed"] as const)(
-		"builds a visible %s filter",
-		(style) => {
-			const filter = buildMediaMaskStrokeCssFilter({ masks: [mask({ style })] });
-			expect(filter).toContain("drop-shadow(");
-			expect(filter).toContain("rgba(32, 199, 217, 0.75)");
-		}
-	);
+	it.each([
+		"solid",
+		"glow",
+		"offset",
+		"triple",
+		"sketch",
+		"dashed",
+	] as const)("builds a visible %s filter", (style) => {
+		const filter = buildMediaMaskStrokeCssFilter({ masks: [mask({ style })] });
+		expect(filter).toContain("drop-shadow(");
+		expect(filter).toContain("rgba(32, 199, 217, 0.75)");
+	});
 
 	it("clamps persisted values before rendering", () => {
 		const configured = mask({ style: "glow", width: 100 });

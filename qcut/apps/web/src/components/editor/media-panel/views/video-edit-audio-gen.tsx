@@ -80,8 +80,7 @@ export function AudioGenTab() {
 		const prepareRequest = async () => {
 			try {
 				const sourceStart = audioGenerationRequest.sourceStart ?? 0;
-				const sourceEnd =
-					audioGenerationRequest.sourceEnd ?? sourceStart + 20;
+				const sourceEnd = audioGenerationRequest.sourceEnd ?? sourceStart + 20;
 				const selectedDuration = sourceEnd - sourceStart;
 				if (selectedDuration < 3 || selectedDuration > 20) {
 					throw new Error("AI 音效支持 3 至 20 秒的所选片段");
@@ -107,9 +106,7 @@ export function AudioGenTab() {
 				setSourceVideo(preparedFile);
 				setVideoPreview(preparedPreview);
 				setTargetElementId(audioGenerationRequest.targetElementId);
-				setSoundEffectPrompt(
-					audioGenerationRequest.soundEffectPrompt ?? ""
-				);
+				setSoundEffectPrompt(audioGenerationRequest.soundEffectPrompt ?? "");
 				setBackgroundMusicPrompt(
 					audioGenerationRequest.backgroundMusicPrompt ?? ""
 				);
@@ -230,8 +227,8 @@ export function AudioGenTab() {
 			{/* Video Upload */}
 			<FileUpload
 				id="kling-video-input"
-			label="源视频"
-			helperText="3 至 20 秒"
+				label="源视频"
+				helperText="3 至 20 秒"
 				fileType="video"
 				acceptedTypes={VIDEO_EDIT_UPLOAD_CONSTANTS.ALLOWED_VIDEO_TYPES}
 				maxSizeBytes={VIDEO_EDIT_UPLOAD_CONSTANTS.MAX_VIDEO_SIZE_BYTES}
@@ -281,10 +278,10 @@ export function AudioGenTab() {
 					<div className="space-y-0.5">
 						<Label className="flex items-center text-xs">
 							<Sparkles className="size-3 mr-1" />
-						ASMR 模式
+							ASMR 模式
 						</Label>
 						<p className="text-xs text-muted-foreground">
-						增强细节音效，提升沉浸感
+							增强细节音效，提升沉浸感
 						</p>
 					</div>
 					<Switch
@@ -317,9 +314,7 @@ export function AudioGenTab() {
 			{result && !isProcessing && (
 				<Card className="p-3 bg-primary/5">
 					<div className="space-y-2">
-						<p className="text-xs font-medium text-primary">
-							音频生成完成
-						</p>
+						<p className="text-xs font-medium text-primary">音频生成完成</p>
 						{result.audioUrl && (
 							<audio controls className="w-full h-8" src={result.audioUrl} />
 						)}
@@ -332,7 +327,7 @@ export function AudioGenTab() {
 									onClick={() => openInNewTab(result.videoUrl!)}
 									className="text-xs"
 								>
-								打开视频
+									打开视频
 								</Button>
 							)}
 							{result.audioUrl && (
@@ -343,7 +338,7 @@ export function AudioGenTab() {
 									onClick={() => openInNewTab(result.audioUrl!)}
 									className="text-xs"
 								>
-								打开音频
+									打开音频
 								</Button>
 							)}
 						</div>
@@ -373,9 +368,9 @@ export function AudioGenTab() {
 
 			{/* Info */}
 			<div className="text-xs text-muted-foreground space-y-1">
-			<p>视频时长需为 3 至 20 秒</p>
-			<p>提示词可选，每项最多 200 字</p>
-			<p>可同时生成音效和背景音乐</p>
+				<p>视频时长需为 3 至 20 秒</p>
+				<p>提示词可选，每项最多 200 字</p>
+				<p>可同时生成音效和背景音乐</p>
 			</div>
 		</div>
 	);

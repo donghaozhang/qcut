@@ -61,22 +61,26 @@ describe("mask stroke FFmpeg graph", () => {
 		expect(graph).toEqual({ filterSteps: [], outputLabel: "input" });
 	});
 
-	it.each(["solid", "glow", "offset", "triple", "sketch", "dashed"] as const)(
-		"builds an alpha-derived %s graph",
-		(style) => {
-			const graph = buildMaskStrokeFilterGraph({
-				inputLabel: "input",
-				labelPrefix: "stroke",
-				visual: visual({ style }),
-			});
-			const command = graph.filterSteps.join(";");
-			expect(command).toContain("alphaextract");
-			expect(command).toContain("dilation=coordinates=255");
-			expect(command).toContain("r='32':g='199':b='217'");
-			expect(command).toContain("overlay=0:0:format=auto");
-			expect(graph.outputLabel).toBe("stroke_output");
-		}
-	);
+	it.each([
+		"solid",
+		"glow",
+		"offset",
+		"triple",
+		"sketch",
+		"dashed",
+	] as const)("builds an alpha-derived %s graph", (style) => {
+		const graph = buildMaskStrokeFilterGraph({
+			inputLabel: "input",
+			labelPrefix: "stroke",
+			visual: visual({ style }),
+		});
+		const command = graph.filterSteps.join(";");
+		expect(command).toContain("alphaextract");
+		expect(command).toContain("dilation=coordinates=255");
+		expect(command).toContain("r='32':g='199':b='217'");
+		expect(command).toContain("overlay=0:0:format=auto");
+		expect(graph.outputLabel).toBe("stroke_output");
+	});
 
 	it("adds blur only for glow and patterning for dashed", () => {
 		const glow = buildMaskStrokeFilterGraph({

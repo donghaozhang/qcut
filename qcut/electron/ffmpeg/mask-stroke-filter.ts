@@ -7,11 +7,23 @@ export interface MaskStrokeFilterGraph {
 	outputLabel: string;
 }
 
-function clamp({ value, min, max }: { value: number; min: number; max: number }) {
+function clamp({
+	value,
+	min,
+	max,
+}: {
+	value: number;
+	min: number;
+	max: number;
+}) {
 	return Math.min(max, Math.max(min, Number.isFinite(value) ? value : min));
 }
 
-function activeStroke({ visual }: { visual: VideoVisual }): VideoMaskStroke | null {
+function activeStroke({
+	visual,
+}: {
+	visual: VideoVisual;
+}): VideoMaskStroke | null {
 	const masks = [visual.mask, ...(visual.masks ?? [])].filter(
 		(mask): mask is VideoMask => mask !== undefined
 	);
@@ -45,7 +57,10 @@ function parseHexColor({ color }: { color: string }) {
 
 function dilationFilters({ stroke }: { stroke: VideoMaskStroke }): string[] {
 	const multiplier = stroke.style === "triple" ? 1.75 : 1;
-	const iterations = Math.max(1, Math.min(32, Math.round(stroke.width * multiplier)));
+	const iterations = Math.max(
+		1,
+		Math.min(32, Math.round(stroke.width * multiplier))
+	);
 	return Array.from({ length: iterations }, () => "dilation=coordinates=255");
 }
 
