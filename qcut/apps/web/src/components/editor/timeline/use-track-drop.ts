@@ -45,6 +45,7 @@ export function useTrackDrop({
 		(s) => s.updateElementStartTimeWithRipple
 	);
 	const addElementToTrack = useTimelineStore((s) => s.addElementToTrack);
+	const addTextGroupAtTime = useTimelineStore((s) => s.addTextGroupAtTime);
 	const insertTrackAt = useTimelineStore((s) => s.insertTrackAt);
 	const snappingEnabled = useTimelineStore((s) => s.snappingEnabled);
 	const rippleEditingEnabled = useTimelineStore((s) => s.rippleEditingEnabled);
@@ -449,6 +450,24 @@ export function useTrackDrop({
 				const dragData: DragData = JSON.parse(mediaItemData);
 
 				if (dragData.type === "text") {
+					if (dragData.textTemplatePack?.elements) {
+						const packDuration = Math.max(
+							...dragData.textTemplatePack.elements.map(
+								(element) =>
+									element.duration ?? TIMELINE_CONSTANTS.DEFAULT_TEXT_DURATION
+							),
+							TIMELINE_CONSTANTS.DEFAULT_TEXT_DURATION
+						);
+						const textPackSnappedTime = getDropSnappedTime(
+							newStartTime,
+							packDuration
+						);
+						addTextGroupAtTime({
+							elements: dragData.textTemplatePack.elements,
+							currentTime: textPackSnappedTime,
+						});
+						return;
+					}
 					let targetTrackId = track.id;
 					let targetTrack = track;
 

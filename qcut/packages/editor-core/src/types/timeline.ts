@@ -949,6 +949,12 @@ export interface TextItemDragData {
 	content: string;
 	/** Full style payload for template drags; older drag data can omit it. */
 	textTemplate?: Partial<TextElement>;
+	/** Multi-element template payload for grouped text template drags. */
+	textTemplatePack?: {
+		id: string;
+		name: string;
+		elements: CreateTextElement[];
+	};
 }
 
 export interface StickerItemDragData {

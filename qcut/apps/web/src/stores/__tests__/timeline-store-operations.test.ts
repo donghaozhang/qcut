@@ -261,6 +261,79 @@ describe("Timeline Store Operations", () => {
 		expect(result.current.history).toHaveLength(0);
 	});
 
+	it("adds dragged text template packs as grouped text tracks", () => {
+		const { result } = renderHook(() => useTimelineStore());
+		const elements: CreateTextElement[] = [
+			{
+				type: "text",
+				name: "Pack Title",
+				content: "标题",
+				duration: 5,
+				startTime: 0,
+				trimStart: 0,
+				trimEnd: 0,
+				fontSize: 52,
+				fontFamily: "Arial",
+				color: "#ffffff",
+				backgroundColor: "transparent",
+				textAlign: "center",
+				fontWeight: "bold",
+				fontStyle: "normal",
+				textDecoration: "none",
+				x: 100,
+				y: 100,
+				rotation: 0,
+				opacity: 1,
+			},
+			{
+				type: "text",
+				name: "Pack Subtitle",
+				content: "副标题",
+				duration: 5,
+				startTime: 0,
+				trimStart: 0,
+				trimEnd: 0,
+				fontSize: 32,
+				fontFamily: "Arial",
+				color: "#ffffff",
+				backgroundColor: "transparent",
+				textAlign: "center",
+				fontWeight: "normal",
+				fontStyle: "normal",
+				textDecoration: "none",
+				x: 100,
+				y: 180,
+				rotation: 0,
+				opacity: 1,
+			},
+		];
+
+		let added = false;
+		act(() => {
+			added = result.current.addTextToNewTrack({
+				id: "headline-pack",
+				type: "text",
+				name: "Headline pack",
+				content: "标题",
+				textTemplatePack: {
+					id: "pack-headline",
+					name: "Headline pack",
+					elements,
+				},
+			});
+		});
+
+		expect(added).toBe(true);
+		const textTracks = result.current.tracks.filter(
+			(track) => track.type === "text"
+		);
+		expect(textTracks).toHaveLength(2);
+		expect(result.current.selectedElements).toHaveLength(2);
+		expect(
+			new Set(textTracks.map((track) => track.elements[0].groupId)).size
+		).toBe(1);
+	});
+
 	// -------------------------------------------------------------------------
 	// Split operations
 	// -------------------------------------------------------------------------

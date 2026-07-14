@@ -54,7 +54,11 @@ import {
 	type TextTemplateGroup,
 	type TextTemplateGroupId,
 } from "@/lib/text/text-template-registry";
-import type { MarkdownElement, TextElement } from "@/types/timeline";
+import type {
+	MarkdownElement,
+	TextElement,
+	TextItemDragData,
+} from "@/types/timeline";
 import { TextTemplateThumbnail } from "./text-template-thumbnail";
 
 type TextLibraryStatusFilter =
@@ -151,6 +155,29 @@ function buildTemplateSearchText({
 		.toLocaleLowerCase();
 }
 
+export function buildTextTemplateDragData({
+	definition,
+}: {
+	definition: TextTemplateDefinition;
+}): TextItemDragData {
+	const template = buildTextTemplate({ definition });
+	const templatePack = buildTextTemplatePack({ definition });
+	return {
+		id: template.id,
+		type: template.type,
+		name: template.name,
+		content: template.content,
+		textTemplate: template,
+		textTemplatePack: templatePack
+			? {
+					id: templatePack.id,
+					name: templatePack.name,
+					elements: templatePack.elements,
+				}
+			: undefined,
+	};
+}
+
 function TextTemplate({
 	definition,
 	downloadStatus,
@@ -174,28 +201,25 @@ function TextTemplate({
 		() => buildTextTemplate({ definition }),
 		[definition]
 	);
+	const dragData = useMemo(
+		() => buildTextTemplateDragData({ definition }),
+		[definition]
+	);
 	const addToTimeline = (currentTime?: number) => {
 		const time = currentTime ?? usePlaybackStore.getState().currentTime;
-		const templatePack = buildTextTemplatePack({
+		const timedTemplatePack = buildTextTemplatePack({
 			definition,
 			currentTime: time,
 		});
-		const added = templatePack
+		const added = timedTemplatePack
 			? useTimelineStore.getState().addTextGroupAtTime({
-					elements: templatePack.elements,
+					elements: timedTemplatePack.elements,
 					currentTime: time,
 				})
 			: useTimelineStore.getState().addTextAtTime(template, time);
 		if (added) {
 			onUseTemplate({ templateId: definition.id });
 		}
-	};
-	const dragData = {
-		id: template.id,
-		type: template.type,
-		name: template.name,
-		content: template.content,
-		textTemplate: template,
 	};
 	const handleDragStart = (event: DragEvent<HTMLDivElement>) => {
 		event.dataTransfer.setData(

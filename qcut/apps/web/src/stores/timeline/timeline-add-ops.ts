@@ -250,6 +250,17 @@ export function createAddOps(
 			if (
 				"type" in item &&
 				item.type === "text" &&
+				"textTemplatePack" in item &&
+				item.textTemplatePack?.elements
+			) {
+				return get().addTextGroupAtTime({
+					elements: item.textTemplatePack.elements,
+					currentTime: 0,
+				});
+			}
+			if (
+				"type" in item &&
+				item.type === "text" &&
 				"textTemplate" in item &&
 				item.textTemplate
 			) {
