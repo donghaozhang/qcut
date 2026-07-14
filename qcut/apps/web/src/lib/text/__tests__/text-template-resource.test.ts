@@ -52,14 +52,18 @@ function textDefinition(): TextTemplateDefinition {
 	};
 }
 
+function remoteBody({ url }: { url: string }): string {
+	if (url.endsWith(".webp")) return "t".repeat(184);
+	if (url.endsWith(".qctext")) return "p".repeat(1024);
+	return "s".repeat(1024);
+}
+
 describe("downloadTextTemplateResource", () => {
-	it("downloads remote thumbnail and source files through the asset cache", async () => {
+	it("downloads remote thumbnail, source, and package files through the asset cache", async () => {
 		const storage = new MemoryAssetCache();
 		const progress: number[] = [];
 		const fetchImpl = vi.fn<typeof fetch>(async (input) => {
-			const body = String(input).endsWith(".webp")
-				? "t".repeat(184)
-				: "s".repeat(1024);
+			const body = remoteBody({ url: String(input) });
 			return Promise.resolve(
 				new Response(body, {
 					headers: { "content-type": "text/plain" },
@@ -77,15 +81,18 @@ describe("downloadTextTemplateResource", () => {
 
 		expect(result).toEqual({
 			cacheKey: "text-template:asset-remote-resource-test@1",
+			packageUrl:
+				"https://assets.qcut.app/text-assets/package-remote-resource-test/plain@1/template.qctext",
 			sourceUrl:
 				"https://assets.qcut.app/text-assets/package-remote-resource-test/plain@1/template.json",
 			thumbnailUrl:
 				"https://assets.qcut.app/text-assets/package-remote-resource-test/plain@1/thumbnail.webp",
 		});
-		expect(fetchImpl).toHaveBeenCalledTimes(2);
-		expect([...storage.resources.keys()]).toEqual([
-			"text-template:asset-remote-resource-test@1:thumbnail:0",
+		expect(fetchImpl).toHaveBeenCalledTimes(3);
+		expect([...storage.resources.keys()].sort()).toEqual([
+			"text-template:asset-remote-resource-test@1:package:2",
 			"text-template:asset-remote-resource-test@1:source:1",
+			"text-template:asset-remote-resource-test@1:thumbnail:0",
 		]);
 		expect(progress.at(-1)).toBe(1);
 	});

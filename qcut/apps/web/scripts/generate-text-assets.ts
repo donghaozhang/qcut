@@ -24,6 +24,7 @@ type TextAssetManifestEntry = {
 	cacheKey: string;
 	thumbnail: TextAssetFile;
 	source: TextAssetFile;
+	qcutPackage: TextAssetFile;
 };
 
 const PUBLIC_DIR = join(import.meta.dir, "../public");
@@ -256,6 +257,29 @@ function sourcePayload({ definition }: { definition: TextTemplateDefinition }) {
 	};
 }
 
+function qcutPackagePayload({
+	definition,
+	source,
+}: {
+	definition: TextTemplateDefinition;
+	source: ReturnType<typeof sourcePayload>;
+}) {
+	const resource = getTextTemplateResource({ definition });
+	return {
+		schemaVersion: 1,
+		kind: "qcut-text-template-package",
+		assetId: resource.assetId,
+		packageId: resource.packageId,
+		version: resource.version,
+		cacheKey: resource.cacheKey,
+		files: {
+			thumbnail: "thumbnail.webp",
+			source: "template.json",
+		},
+		source,
+	};
+}
+
 async function writeAsset({
 	definition,
 	page,
@@ -272,19 +296,29 @@ async function writeAsset({
 		cacheKey: resource.cacheKey,
 		filename: "template.json",
 	});
+	const packageUrl = publicUrl({
+		cacheKey: resource.cacheKey,
+		filename: "template.qctext",
+	});
 	const thumbnailBytes = await svgToWebp({
 		page,
 		svg: thumbnailSvg({ definition }),
 	});
+	const source = sourcePayload({ definition });
 	const sourceBytes = Buffer.from(
-		`${JSON.stringify(sourcePayload({ definition }), null, "\t")}\n`,
+		`${JSON.stringify(source, null, "\t")}\n`,
 		"utf8"
 	);
-	for (const url of [thumbnailUrl, sourceUrl]) {
+	const packageBytes = Buffer.from(
+		`${JSON.stringify(qcutPackagePayload({ definition, source }), null, "\t")}\n`,
+		"utf8"
+	);
+	for (const url of [thumbnailUrl, sourceUrl, packageUrl]) {
 		await mkdir(dirname(filePathForPublicUrl({ url })), { recursive: true });
 	}
 	await writeFile(filePathForPublicUrl({ url: thumbnailUrl }), thumbnailBytes);
 	await writeFile(filePathForPublicUrl({ url: sourceUrl }), sourceBytes);
+	await writeFile(filePathForPublicUrl({ url: packageUrl }), packageBytes);
 	return {
 		assetId: resource.assetId,
 		packageId: resource.packageId,
@@ -301,6 +335,12 @@ async function writeAsset({
 			mimeType: "application/json",
 			byteSize: sourceBytes.byteLength,
 			checksumSha256: hashBytes({ bytes: sourceBytes }),
+		},
+		qcutPackage: {
+			url: packageUrl,
+			mimeType: "application/vnd.qcut.text-template+json",
+			byteSize: packageBytes.byteLength,
+			checksumSha256: hashBytes({ bytes: packageBytes }),
 		},
 	};
 }

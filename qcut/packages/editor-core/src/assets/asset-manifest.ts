@@ -20,6 +20,7 @@ export const ASSET_FILE_ROLES = [
 	"lut",
 	"font",
 	"waveform",
+	"package",
 ] as const;
 
 export type AssetFileRole = (typeof ASSET_FILE_ROLES)[number];

@@ -105,7 +105,7 @@ describe("QCut asset manifest", () => {
 					?.entitlement === "svip"
 		);
 		const bundledAsset = textAssets.find(
-			(asset) => asset.delivery === "bundled" && asset.files.length === 2
+			(asset) => asset.delivery === "bundled" && asset.files.length === 3
 		);
 
 		expect(textAssets).toHaveLength(TEXT_TEMPLATES.length);
@@ -115,12 +115,16 @@ describe("QCut asset manifest", () => {
 		expect(redAsset?.files.map((file) => file.role)).toEqual([
 			"thumbnail",
 			"source",
+			"package",
 		]);
 		expect(redAsset?.files[0]?.url).toMatch(
 			/^https:\/\/assets\.qcut\.app\/text-assets\/.+\/thumbnail\.webp$/
 		);
 		expect(redAsset?.files[1]?.url).toMatch(
 			/^https:\/\/assets\.qcut\.app\/text-assets\/.+\/template\.json$/
+		);
+		expect(redAsset?.files[2]?.url).toMatch(
+			/^https:\/\/assets\.qcut\.app\/text-assets\/.+\/template\.qctext$/
 		);
 		expect(redAsset?.metadata).toMatchObject({
 			packageId: "text-fancy-red",
@@ -134,6 +138,11 @@ describe("QCut asset manifest", () => {
 		expect(bundledAsset?.files[1]).toMatchObject({
 			role: "source",
 			url: expect.stringMatching(/^\/text-assets\/.+\/template\.json$/),
+			checksumSha256: expect.stringMatching(/^[a-f0-9]{64}$/),
+		});
+		expect(bundledAsset?.files[2]).toMatchObject({
+			role: "package",
+			url: expect.stringMatching(/^\/text-assets\/.+\/template\.qctext$/),
 			checksumSha256: expect.stringMatching(/^[a-f0-9]{64}$/),
 		});
 		expect(premiumAsset?.delivery).toBe("remote");

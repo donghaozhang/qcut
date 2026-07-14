@@ -147,6 +147,29 @@ describe("asset manifest", () => {
 		);
 	});
 
+	it("accepts packaged source files for composite assets", () => {
+		expect(
+			validateAssetManifestPack({
+				manifest: manifest({
+					assets: [
+						{
+							...asset({
+								id: "headline-pack",
+								kind: "text-template",
+								name: "Headline Pack",
+							}),
+							files: [
+								{ role: "thumbnail", url: "/text/headline.webp" },
+								{ role: "source", url: "/text/headline.json" },
+								{ role: "package", url: "/text/headline.qctext" },
+							],
+						},
+					],
+				}),
+			})
+		).toEqual({ valid: true, issues: [] });
+	});
+
 	it("rejects the same asset version across separate packs", () => {
 		expect(() =>
 			buildAssetCatalog({

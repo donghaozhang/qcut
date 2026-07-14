@@ -15,6 +15,12 @@
 			"mimeType": "application/json",
 			"byteSize": 2060,
 			"checksumSha256": "e219a862b9baffbfb16ecb7d6534975562f24f5ca983ef6555e2660ef277747a"
+		},
+		"qcutPackage": {
+			"url": "/text-assets/text-new-text-basic/plain@1/template.qctext",
+			"mimeType": "application/vnd.qcut.text-template+json",
+			"byteSize": 2458,
+			"checksumSha256": "6b10171a5dd116a257265fc125cca939463730bac17a105261f0fa98a5e1d9ac"
 		}
 	},
 	"text-new-text-basic-label": {
@@ -33,6 +39,12 @@
 			"mimeType": "application/json",
 			"byteSize": 2181,
 			"checksumSha256": "baa10a710cb2a41861462364a44f660122aa223c57d7029fce07ffbe40928a93"
+		},
+		"qcutPackage": {
+			"url": "/text-assets/text-new-text-basic/label@1/template.qctext",
+			"mimeType": "application/vnd.qcut.text-template+json",
+			"byteSize": 2583,
+			"checksumSha256": "f759c11c151af4a44192ce1bbc6ca3c4401bc158517ce7e8ea5aae8671b2973d"
 		}
 	},
 	"text-new-text-basic-sticker": {
@@ -51,6 +63,12 @@
 			"mimeType": "application/json",
 			"byteSize": 2240,
 			"checksumSha256": "e6461ad283ee32346677173ab35a48fdf4ec1050b4ad5e21a6acdbac9a25ffbe"
+		},
+		"qcutPackage": {
+			"url": "/text-assets/text-new-text-basic/sticker@1/template.qctext",
+			"mimeType": "application/vnd.qcut.text-template+json",
+			"byteSize": 2647,
+			"checksumSha256": "6811c507b58f631b19ae1e36fc72f3a6c96c1eba82b3bf2e5f2b7f93c91e47db"
 		}
 	},
 	"text-new-text-basic-bubble": {
@@ -69,6 +87,12 @@
 			"mimeType": "application/json",
 			"byteSize": 2206,
 			"checksumSha256": "d6943cac68496498e04817b49018e7f8ada820416d71c6116fdb1172bf577bcf"
+		},
+		"qcutPackage": {
+			"url": "/text-assets/text-new-text-basic/bubble@1/template.qctext",
+			"mimeType": "application/vnd.qcut.text-template+json",
+			"byteSize": 2610,
+			"checksumSha256": "732c302b519eaefec9496cc7ab76aaba9729a68f4d66c448062ea8b907a7d586"
 		}
 	},
 	"text-new-text-basic-soft-card": {
@@ -87,6 +111,12 @@
 			"mimeType": "application/json",
 			"byteSize": 2223,
 			"checksumSha256": "b4b4fa977dcd811098da4c502e0ef4076ce012b55f049cf5006f5000a6de6111"
+		},
+		"qcutPackage": {
+			"url": "/text-assets/text-new-text-basic/soft-card@1/template.qctext",
+			"mimeType": "application/vnd.qcut.text-template+json",
+			"byteSize": 2634,
+			"checksumSha256": "9155c27e76ad4d2fcccc379789d987582a6ea2e2deac90bc4d238f6554714154"
 		}
 	},
 	"text-new-text-title-plain": {
@@ -105,6 +135,12 @@
 			"mimeType": "application/json",
 			"byteSize": 2041,
 			"checksumSha256": "df88a9d12b613f0dc62bc615553650af4e5771e98e2b966e2897afa41ca5f7ed"
+		},
+		"qcutPackage": {
+			"url": "/text-assets/text-new-text-title/plain@1/template.qctext",
+			"mimeType": "application/vnd.qcut.text-template+json",
+			"byteSize": 2439,
+			"checksumSha256": "8fa7250ebd595ce099366c5472bde69d95a9cf20543899e4e7204d15652109d5"
 		}
 	},
 	"text-new-text-title-label": {
@@ -123,6 +159,12 @@
 			"mimeType": "application/json",
 			"byteSize": 2126,
 			"checksumSha256": "55de1baec3441ffe62c9389b3bb3f50d49ee6a884bd45b809abf84bcff0c621b"
+		},
+		"qcutPackage": {
+			"url": "/text-assets/text-new-text-title/label@1/template.qctext",
+			"mimeType": "application/vnd.qcut.text-template+json",
+			"byteSize": 2527,
+			"checksumSha256": "05de86abe8c951b410bff8b17ff60b0ce491e66a989e8e5fa3f010924f20907f"
 		}
 	},
 	"text-new-text-title-sticker": {
@@ -141,6 +183,12 @@
 			"mimeType": "application/json",
 			"byteSize": 2183,
 			"checksumSha256": "da7a996ad1da99f6cacbc01f280e0c846d40ebd88d32cf18fe3a8b59089b1fce"
+		},
+		"qcutPackage": {
+			"url": "/text-assets/text-new-text-title/sticker@1/template.qctext",
+			"mimeType": "application/vnd.qcut.text-template+json",
+			"byteSize": 2589,
+			"checksumSha256": "0c19e1ab51da4edeb68d5c9b28bccdfeb0aa061c0a1a6860f8fc43b3c37ff933"
 		}
 	},
 	"text-new-text-title-bubble": {
@@ -159,6 +207,12 @@
 			"mimeType": "application/json",
 			"byteSize": 2151,
 			"checksumSha256": "60eada213e6b831ca1fa7b8f32c90783da7df474b7f308d29b6f5e7301a0f942"
+		},
+		"qcutPackage": {
+			"url": "/text-assets/text-new-text-title/bubble@1/template.qctext",
+			"mimeType": "application/vnd.qcut.text-template+json",
+			"byteSize": 2554,
+			"checksumSha256": "8ed2e96f602549c5fb50262e4d509ec072100e4da09319f2cd980f31df703fd8"
 		}
 	},
 	"text-new-text-title-soft-card": {
@@ -177,6 +231,12 @@
 			"mimeType": "application/json",
 			"byteSize": 2168,
 			"checksumSha256": "c97d65cc4a3e50f1c8f1b2919b9d678d3fe0ea86c0090eea53b0087479a24823"
+		},
+		"qcutPackage": {
+			"url": "/text-assets/text-new-text-title/soft-card@1/template.qctext",
+			"mimeType": "application/vnd.qcut.text-template+json",
+			"byteSize": 2578,
+			"checksumSha256": "c555cdded9d85dcbddb6265dd0822d3f8dfc4b8c2197cca8cdd7f84ad8976913"
 		}
 	},
 	"text-new-text-caption-plain": {
@@ -195,6 +255,12 @@
 			"mimeType": "application/json",
 			"byteSize": 2092,
 			"checksumSha256": "2a07d8837c24c42d143cd0aa25cd776ab98395560b423e3b7df8afe042b1d054"
+		},
+		"qcutPackage": {
+			"url": "/text-assets/text-new-text-caption/plain@1/template.qctext",
+			"mimeType": "application/vnd.qcut.text-template+json",
+			"byteSize": 2497,
+			"checksumSha256": "b30e38009ccc721cb81d9a1e89f8ca3b732c66d1c3211a82a6d53a08b029c0f0"
 		}
 	},
 	"text-new-text-caption-label": {
@@ -213,6 +279,12 @@
 			"mimeType": "application/json",
 			"byteSize": 2177,
 			"checksumSha256": "e5e030dbc7b5636ef5fafe52b9bb5910678e23b310ed6750964818a7e96e82f4"
+		},
+		"qcutPackage": {
+			"url": "/text-assets/text-new-text-caption/label@1/template.qctext",
+			"mimeType": "application/vnd.qcut.text-template+json",
+			"byteSize": 2585,
+			"checksumSha256": "fc2cc4ed24734708fb08db4da9d0dc966397e71452e6d1a223ee4f0768f3d87e"
 		}
 	},
 	"text-new-text-caption-sticker": {
@@ -231,6 +303,12 @@
 			"mimeType": "application/json",
 			"byteSize": 2236,
 			"checksumSha256": "2c872c47c7682b3e30272f61a9b59121194178f9bb2d793431b0386463cd04eb"
+		},
+		"qcutPackage": {
+			"url": "/text-assets/text-new-text-caption/sticker@1/template.qctext",
+			"mimeType": "application/vnd.qcut.text-template+json",
+			"byteSize": 2649,
+			"checksumSha256": "6156687da591ebde75796c61e2707cb7d6fad1a9a69e10489975e830624bec8e"
 		}
 	},
 	"text-new-text-caption-bubble": {
@@ -249,6 +327,12 @@
 			"mimeType": "application/json",
 			"byteSize": 2202,
 			"checksumSha256": "eadeb09978a38baa273d116653a38398245ef687ea513057506c73e94e0509fc"
+		},
+		"qcutPackage": {
+			"url": "/text-assets/text-new-text-caption/bubble@1/template.qctext",
+			"mimeType": "application/vnd.qcut.text-template+json",
+			"byteSize": 2612,
+			"checksumSha256": "aa400d7606b9511723ec5619aeaccbf1c544a01baacb57eb0d696b28e6d4e2ec"
 		}
 	},
 	"text-new-text-caption-soft-card": {
@@ -267,6 +351,12 @@
 			"mimeType": "application/json",
 			"byteSize": 2219,
 			"checksumSha256": "d9427fc47968e7908ba081c537152a79a2ca5252eb8cd8dac111bc3a5b2da7cf"
+		},
+		"qcutPackage": {
+			"url": "/text-assets/text-new-text-caption/soft-card@1/template.qctext",
+			"mimeType": "application/vnd.qcut.text-template+json",
+			"byteSize": 2636,
+			"checksumSha256": "528568c20ca15af2411d529ff6b7c198441fe6334d2805b3fe6bcc44e45bec44"
 		}
 	},
 	"text-new-text-lower-third-plain": {
@@ -285,6 +375,12 @@
 			"mimeType": "application/json",
 			"byteSize": 2132,
 			"checksumSha256": "56a5b53961378f96605e6f5bbd2da8100a1f5eeff8a50e7d5331533e87a8aaf1"
+		},
+		"qcutPackage": {
+			"url": "/text-assets/text-new-text-lower-third/plain@1/template.qctext",
+			"mimeType": "application/vnd.qcut.text-template+json",
+			"byteSize": 2549,
+			"checksumSha256": "3f72d89cfccb3397617051cd04596df37d7e606f5bc142b64ccce79128ce2621"
 		}
 	},
 	"text-new-text-lower-third-label": {
@@ -303,6 +399,12 @@
 			"mimeType": "application/json",
 			"byteSize": 2217,
 			"checksumSha256": "be1f882e5920597b02bfe4b8dd1a9b418ea1abaaf1d52146d22ff6f269c91d2f"
+		},
+		"qcutPackage": {
+			"url": "/text-assets/text-new-text-lower-third/label@1/template.qctext",
+			"mimeType": "application/vnd.qcut.text-template+json",
+			"byteSize": 2637,
+			"checksumSha256": "9ded007e325106aea9608836f58f0607c15478078f229f7b9a7a6dc4b05569d4"
 		}
 	},
 	"text-new-text-lower-third-sticker": {
@@ -321,6 +423,12 @@
 			"mimeType": "application/json",
 			"byteSize": 2274,
 			"checksumSha256": "2931c86358bcf42d43964702b8bdff0f77039b4e15d200308f0144e34fd6f124"
+		},
+		"qcutPackage": {
+			"url": "/text-assets/text-new-text-lower-third/sticker@1/template.qctext",
+			"mimeType": "application/vnd.qcut.text-template+json",
+			"byteSize": 2699,
+			"checksumSha256": "53710f09c175e7fa220ff3a087d5aefb787c8bb4b7b1e1e1108c7d16b0b1261d"
 		}
 	},
 	"text-new-text-lower-third-bubble": {
@@ -339,6 +447,12 @@
 			"mimeType": "application/json",
 			"byteSize": 2242,
 			"checksumSha256": "a554d672572b7921d181e0601017d3fefba02430bcc4814f5262b64d6ddd5e0a"
+		},
+		"qcutPackage": {
+			"url": "/text-assets/text-new-text-lower-third/bubble@1/template.qctext",
+			"mimeType": "application/vnd.qcut.text-template+json",
+			"byteSize": 2664,
+			"checksumSha256": "f8272dbee24ae18ff296822243d384a0d3ed1022c83d71db3bee14c0321e6efd"
 		}
 	},
 	"text-new-text-lower-third-soft-card": {
@@ -357,6 +471,12 @@
 			"mimeType": "application/json",
 			"byteSize": 2259,
 			"checksumSha256": "e2aa7c8e8dc3baa4d53e583c2dec87d2ca087ea79af9912d9e225d0966f5922e"
+		},
+		"qcutPackage": {
+			"url": "/text-assets/text-new-text-lower-third/soft-card@1/template.qctext",
+			"mimeType": "application/vnd.qcut.text-template+json",
+			"byteSize": 2688,
+			"checksumSha256": "1261572b895ff1fed9ae40ef75441f9630eb42df29f803035ce81bf093b2dc8b"
 		}
 	},
 	"text-new-text-quote-plain": {
@@ -375,6 +495,12 @@
 			"mimeType": "application/json",
 			"byteSize": 2054,
 			"checksumSha256": "9c0a16af759e1b2afbd9e34afd2fafa6f36d583f48295b96b9350fe6dba0bc55"
+		},
+		"qcutPackage": {
+			"url": "/text-assets/text-new-text-quote/plain@1/template.qctext",
+			"mimeType": "application/vnd.qcut.text-template+json",
+			"byteSize": 2453,
+			"checksumSha256": "0f51870766cc4850e5e7a89434f4554a070d87c1c5f55125991a3d41e34b270e"
 		}
 	},
 	"text-new-text-quote-label": {
@@ -393,6 +519,12 @@
 			"mimeType": "application/json",
 			"byteSize": 2139,
 			"checksumSha256": "cbfdbf1724323ee90e6ba2e31b85699d99ba6db3a363a676b514c547409e65fb"
+		},
+		"qcutPackage": {
+			"url": "/text-assets/text-new-text-quote/label@1/template.qctext",
+			"mimeType": "application/vnd.qcut.text-template+json",
+			"byteSize": 2541,
+			"checksumSha256": "4cb3c2b2cc689c2d80de9e99c9e6d05ed230889b3df34703e215da191ca22fe8"
 		}
 	},
 	"text-new-text-quote-sticker": {
@@ -411,6 +543,12 @@
 			"mimeType": "application/json",
 			"byteSize": 2198,
 			"checksumSha256": "babc4d05067a55eb20898112a8ade10cc3f62737a3ae35885128e865065ea80f"
+		},
+		"qcutPackage": {
+			"url": "/text-assets/text-new-text-quote/sticker@1/template.qctext",
+			"mimeType": "application/vnd.qcut.text-template+json",
+			"byteSize": 2605,
+			"checksumSha256": "3849151761efa7399b0d00a98480621caff68f5204ce1e9080f7519e560a77df"
 		}
 	},
 	"text-new-text-quote-bubble": {
@@ -429,6 +567,12 @@
 			"mimeType": "application/json",
 			"byteSize": 2164,
 			"checksumSha256": "13f0b9f15f43776154f36c0d45145bfcf9a8ae2af96e0085daa5156c4e18ce39"
+		},
+		"qcutPackage": {
+			"url": "/text-assets/text-new-text-quote/bubble@1/template.qctext",
+			"mimeType": "application/vnd.qcut.text-template+json",
+			"byteSize": 2568,
+			"checksumSha256": "28d09c2b7ab623c3a87750f881490deb08dff212f67296dfabd1d72a8e183ee2"
 		}
 	},
 	"text-new-text-quote-soft-card": {
@@ -447,6 +591,12 @@
 			"mimeType": "application/json",
 			"byteSize": 2181,
 			"checksumSha256": "b1f2d1e467594daa7a12cf82b63eec3f1ac5b8c8460acd2502c3b71224c5f05d"
+		},
+		"qcutPackage": {
+			"url": "/text-assets/text-new-text-quote/soft-card@1/template.qctext",
+			"mimeType": "application/vnd.qcut.text-template+json",
+			"byteSize": 2592,
+			"checksumSha256": "1b3af2b59679a617b561c30bfb0e40487a332291fd6bfde8178f88feebfaa25f"
 		}
 	},
 	"text-mine-favorites-plain": {
@@ -465,6 +615,12 @@
 			"mimeType": "application/json",
 			"byteSize": 2053,
 			"checksumSha256": "b74b7abae8d5f5fd6ba1f1fc4b90fa8567b2e2ada370c7383bf9943274908799"
+		},
+		"qcutPackage": {
+			"url": "/text-assets/text-mine-favorites/plain@1/template.qctext",
+			"mimeType": "application/vnd.qcut.text-template+json",
+			"byteSize": 2451,
+			"checksumSha256": "423b54bc4352946637c2892d0e18ee4d7ebbaffc769cd89fdc2e92f056bedfbc"
 		}
 	},
 	"text-mine-favorites-label": {
@@ -483,6 +639,12 @@
 			"mimeType": "application/json",
 			"byteSize": 2138,
 			"checksumSha256": "c7dbcf4cb7e35803307aa54c26250452a285fc1f7f07da6f3b38ac0a2ed30389"
+		},
+		"qcutPackage": {
+			"url": "/text-assets/text-mine-favorites/label@1/template.qctext",
+			"mimeType": "application/vnd.qcut.text-template+json",
+			"byteSize": 2539,
+			"checksumSha256": "ab23926705bb9ab51c31bddc057ab8d7a589c5c699241e8272c976869864b36c"
 		}
 	},
 	"text-mine-favorites-sticker": {
@@ -501,6 +663,12 @@
 			"mimeType": "application/json",
 			"byteSize": 2197,
 			"checksumSha256": "3099ad5a6fefc5562c768657c7e3658109f150c3d692f7ba383683ddc4877111"
+		},
+		"qcutPackage": {
+			"url": "/text-assets/text-mine-favorites/sticker@1/template.qctext",
+			"mimeType": "application/vnd.qcut.text-template+json",
+			"byteSize": 2603,
+			"checksumSha256": "5e4a6b3b1cc7aa535e0604d36d5e4f7d367bfa1e1a5e7eedabf2878d1933f4b1"
 		}
 	},
 	"text-mine-favorites-bubble": {
@@ -519,6 +687,12 @@
 			"mimeType": "application/json",
 			"byteSize": 2163,
 			"checksumSha256": "969c1e4bce01e6c080b2ce43396f3a88b9b2a4d9bad303df1c067ed40829b7e9"
+		},
+		"qcutPackage": {
+			"url": "/text-assets/text-mine-favorites/bubble@1/template.qctext",
+			"mimeType": "application/vnd.qcut.text-template+json",
+			"byteSize": 2566,
+			"checksumSha256": "fbca76ab57cd3d8a7eb497ec37b4bb0f2c0f9d746b5f2d9aba30512556a78fc1"
 		}
 	},
 	"text-mine-favorites-soft-card": {
@@ -537,6 +711,12 @@
 			"mimeType": "application/json",
 			"byteSize": 2180,
 			"checksumSha256": "76b29a2f9eea85bb1856dcfe26fbb9f88b1af661764c5cf294c6479346a8a1bd"
+		},
+		"qcutPackage": {
+			"url": "/text-assets/text-mine-favorites/soft-card@1/template.qctext",
+			"mimeType": "application/vnd.qcut.text-template+json",
+			"byteSize": 2590,
+			"checksumSha256": "b81d70974968f45f887a172977f6828bb8631dc0431fcaf33f3f2edad1972bf4"
 		}
 	},
 	"text-mine-recent-plain": {
@@ -555,6 +735,12 @@
 			"mimeType": "application/json",
 			"byteSize": 2060,
 			"checksumSha256": "e18c7c56d0f4017ef2256ad5459b14ed3cd419d0f806168f0c2d64d0aa83c04e"
+		},
+		"qcutPackage": {
+			"url": "/text-assets/text-mine-recent/plain@1/template.qctext",
+			"mimeType": "application/vnd.qcut.text-template+json",
+			"byteSize": 2450,
+			"checksumSha256": "145dd819cd2442192939e06f1fcfe4c4194a996816101404e6cb58a5a8410fc9"
 		}
 	},
 	"text-mine-recent-label": {
@@ -573,6 +759,12 @@
 			"mimeType": "application/json",
 			"byteSize": 2145,
 			"checksumSha256": "b0090970f85f8a2f2e096f8368475908fdbf3fc6e2eeef052322f7f31595da82"
+		},
+		"qcutPackage": {
+			"url": "/text-assets/text-mine-recent/label@1/template.qctext",
+			"mimeType": "application/vnd.qcut.text-template+json",
+			"byteSize": 2538,
+			"checksumSha256": "03837bfad6f082955f65973633c72e7f83fadd32594ee2a680278d2ea3eab9ca"
 		}
 	},
 	"text-mine-recent-sticker": {
@@ -591,6 +783,12 @@
 			"mimeType": "application/json",
 			"byteSize": 2202,
 			"checksumSha256": "2b6b8b9dbb714131c31a8ce189799bdabd9d0ee07f4757d997a8be435fd64e75"
+		},
+		"qcutPackage": {
+			"url": "/text-assets/text-mine-recent/sticker@1/template.qctext",
+			"mimeType": "application/vnd.qcut.text-template+json",
+			"byteSize": 2600,
+			"checksumSha256": "dc6c5a9e673419041ccef7e3759fe259e44d5491d27cd6bf94ecda9d024dfed2"
 		}
 	},
 	"text-mine-recent-bubble": {
@@ -609,6 +807,12 @@
 			"mimeType": "application/json",
 			"byteSize": 2170,
 			"checksumSha256": "e9cabb875e192c235606cb045d6d344d9786d4484fc57b43dcbde39360286039"
+		},
+		"qcutPackage": {
+			"url": "/text-assets/text-mine-recent/bubble@1/template.qctext",
+			"mimeType": "application/vnd.qcut.text-template+json",
+			"byteSize": 2565,
+			"checksumSha256": "44019284e9f9de9b0548ee1fb7152a67da694fce1beaed040bb5867d19a6660d"
 		}
 	},
 	"text-mine-recent-soft-card": {
@@ -627,6 +831,12 @@
 			"mimeType": "application/json",
 			"byteSize": 2187,
 			"checksumSha256": "f4493d17f5fbbe0aa40973ce0fe1f629ad2cbebc1f7a0386a621ae4da04433ad"
+		},
+		"qcutPackage": {
+			"url": "/text-assets/text-mine-recent/soft-card@1/template.qctext",
+			"mimeType": "application/vnd.qcut.text-template+json",
+			"byteSize": 2589,
+			"checksumSha256": "309b602e89d7a2f6c66d2f7016d555b1366d2c80cd56893292c3a52b35f2feaa"
 		}
 	},
 	"text-mine-brand-kit-plain": {
@@ -645,6 +855,12 @@
 			"mimeType": "application/json",
 			"byteSize": 2078,
 			"checksumSha256": "1cb9b2a5e0ae14907b1722cf51304d41bde07c63db33bf35635726d1f38cb1ac"
+		},
+		"qcutPackage": {
+			"url": "/text-assets/text-mine-brand-kit/plain@1/template.qctext",
+			"mimeType": "application/vnd.qcut.text-template+json",
+			"byteSize": 2477,
+			"checksumSha256": "0052146616d8d269318b7f2962160f0116871da89d04608a07bffebd5f1fc597"
 		}
 	},
 	"text-mine-brand-kit-label": {
@@ -663,6 +879,12 @@
 			"mimeType": "application/json",
 			"byteSize": 2163,
 			"checksumSha256": "6b768c3bd560e9ad8ea38e4c297bc893c91315b5d0c4a4864209b1385aebeeac"
+		},
+		"qcutPackage": {
+			"url": "/text-assets/text-mine-brand-kit/label@1/template.qctext",
+			"mimeType": "application/vnd.qcut.text-template+json",
+			"byteSize": 2565,
+			"checksumSha256": "c67cae1187697b58b3a67220c63ad27ebda3e592133cefc1ed0dc138362feb74"
 		}
 	},
 	"text-mine-brand-kit-sticker": {
@@ -681,6 +903,12 @@
 			"mimeType": "application/json",
 			"byteSize": 2222,
 			"checksumSha256": "b4541762f63f0dd9bd495a267ae1f7f445548bf29f14b4b3fbdc5f80e1c17a08"
+		},
+		"qcutPackage": {
+			"url": "/text-assets/text-mine-brand-kit/sticker@1/template.qctext",
+			"mimeType": "application/vnd.qcut.text-template+json",
+			"byteSize": 2629,
+			"checksumSha256": "9060f84bcec14ee93a95688577cd6e71a8acb9946d0f1d9c2e53cbb6f2a4a8b1"
 		}
 	},
 	"text-mine-brand-kit-bubble": {
@@ -699,6 +927,12 @@
 			"mimeType": "application/json",
 			"byteSize": 2188,
 			"checksumSha256": "3c2d68d8e7e1bfcce41078a72c46f09caa0f8c557f3809c9b687d6e6c76a2710"
+		},
+		"qcutPackage": {
+			"url": "/text-assets/text-mine-brand-kit/bubble@1/template.qctext",
+			"mimeType": "application/vnd.qcut.text-template+json",
+			"byteSize": 2592,
+			"checksumSha256": "0b3d122478afb8de96f0105c9f6095bf991fbf0f1c8a4708382a2334545fbd21"
 		}
 	},
 	"text-mine-brand-kit-soft-card": {
@@ -717,6 +951,12 @@
 			"mimeType": "application/json",
 			"byteSize": 2205,
 			"checksumSha256": "988b32a4d4deca64e2ff22fd9ee549ff99e46d0e14c9a55dc51339cfbdefb71e"
+		},
+		"qcutPackage": {
+			"url": "/text-assets/text-mine-brand-kit/soft-card@1/template.qctext",
+			"mimeType": "application/vnd.qcut.text-template+json",
+			"byteSize": 2616,
+			"checksumSha256": "45dbbe62d74e4c9e1f071b99738bed4e7c21eab0d5f13f1fec63d58f1e8b23fd"
 		}
 	},
 	"text-mine-downloaded-plain": {
@@ -735,6 +975,12 @@
 			"mimeType": "application/json",
 			"byteSize": 2081,
 			"checksumSha256": "ef2f6ef0fe47abde9b22dd1bd1037ff1b965a22f9a7e84b31d0bec3abc6387f1"
+		},
+		"qcutPackage": {
+			"url": "/text-assets/text-mine-downloaded/plain@1/template.qctext",
+			"mimeType": "application/vnd.qcut.text-template+json",
+			"byteSize": 2482,
+			"checksumSha256": "c774b87f170257f6c69463b58a00e0a4be4a94b06bf492df13f3c9f8c127d852"
 		}
 	},
 	"text-mine-downloaded-label": {
@@ -753,6 +999,12 @@
 			"mimeType": "application/json",
 			"byteSize": 2166,
 			"checksumSha256": "604afe3cfe68f430488e8d8cda362cc8b38a8696c3f054eabcdc80a385c79250"
+		},
+		"qcutPackage": {
+			"url": "/text-assets/text-mine-downloaded/label@1/template.qctext",
+			"mimeType": "application/vnd.qcut.text-template+json",
+			"byteSize": 2570,
+			"checksumSha256": "9e9db930a5b01295158bec61d1cce559ba788341d012529fd8942e2ca8965a3f"
 		}
 	},
 	"text-mine-downloaded-sticker": {
@@ -771,6 +1023,12 @@
 			"mimeType": "application/json",
 			"byteSize": 2223,
 			"checksumSha256": "9a2f070076945f1c3df9369dfc19d48c515a73c9004074a01a227a781bfdff3d"
+		},
+		"qcutPackage": {
+			"url": "/text-assets/text-mine-downloaded/sticker@1/template.qctext",
+			"mimeType": "application/vnd.qcut.text-template+json",
+			"byteSize": 2632,
+			"checksumSha256": "45ae661b2b4607f00194501c72c3b1bb4da9317e90c421439a2a3ae6c0f02058"
 		}
 	},
 	"text-mine-downloaded-bubble": {
@@ -789,6 +1047,12 @@
 			"mimeType": "application/json",
 			"byteSize": 2191,
 			"checksumSha256": "acf0f1e76583a43414a0de97c5ac06269a8e1e88d89e02d9d1d13b5dfafbbc95"
+		},
+		"qcutPackage": {
+			"url": "/text-assets/text-mine-downloaded/bubble@1/template.qctext",
+			"mimeType": "application/vnd.qcut.text-template+json",
+			"byteSize": 2597,
+			"checksumSha256": "de3280c4f7f642b0c3d38e6ff6b93c3695bff4583d46a36de4e1a12d8fe16fd3"
 		}
 	},
 	"text-mine-downloaded-soft-card": {
@@ -807,6 +1071,12 @@
 			"mimeType": "application/json",
 			"byteSize": 2208,
 			"checksumSha256": "6bb42b591919ea981ff7561949ded05e4a37b06a484789dd45400cb0e2e15c8f"
+		},
+		"qcutPackage": {
+			"url": "/text-assets/text-mine-downloaded/soft-card@1/template.qctext",
+			"mimeType": "application/vnd.qcut.text-template+json",
+			"byteSize": 2621,
+			"checksumSha256": "0c166cf6507691beee87f1d485bb450fe3c2f91e504ce96b0a18983a2670e279"
 		}
 	},
 	"text-mine-drafts-plain": {
@@ -825,6 +1095,12 @@
 			"mimeType": "application/json",
 			"byteSize": 2023,
 			"checksumSha256": "f2a2be33aac02f913eb2a2d38d2467099e93f0cd648216fe6f081d4dfac50888"
+		},
+		"qcutPackage": {
+			"url": "/text-assets/text-mine-drafts/plain@1/template.qctext",
+			"mimeType": "application/vnd.qcut.text-template+json",
+			"byteSize": 2412,
+			"checksumSha256": "c7bb616038a2b01a3a02edaa8b117b1ecdf1a8c39331a5d8e7c673eef928fcd5"
 		}
 	},
 	"text-mine-drafts-label": {
@@ -843,6 +1119,12 @@
 			"mimeType": "application/json",
 			"byteSize": 2108,
 			"checksumSha256": "7c409c42e8bd74c0e24cb61bdc564d061e4e6c6f5c3366936f38b460f809ac3e"
+		},
+		"qcutPackage": {
+			"url": "/text-assets/text-mine-drafts/label@1/template.qctext",
+			"mimeType": "application/vnd.qcut.text-template+json",
+			"byteSize": 2500,
+			"checksumSha256": "f83772fcb911dea4425ac4ff623f65e72719eb6a9e73a9aa1ab8b09bd0fbd7fa"
 		}
 	},
 	"text-mine-drafts-sticker": {
@@ -861,6 +1143,12 @@
 			"mimeType": "application/json",
 			"byteSize": 2167,
 			"checksumSha256": "0bf1e48c8207ff7d52efe7cb3199905dda5f627eb05b1ff52449a1c154f95143"
+		},
+		"qcutPackage": {
+			"url": "/text-assets/text-mine-drafts/sticker@1/template.qctext",
+			"mimeType": "application/vnd.qcut.text-template+json",
+			"byteSize": 2564,
+			"checksumSha256": "ee76eb8d00bcbbdadf051f30349d1b2539e354b28f441c2a76d5b6c194007913"
 		}
 	},
 	"text-mine-drafts-bubble": {
@@ -879,6 +1167,12 @@
 			"mimeType": "application/json",
 			"byteSize": 2133,
 			"checksumSha256": "cf2073b397175e6546b074026878f074b7ceb9b553ffc1989650583be2d6da0f"
+		},
+		"qcutPackage": {
+			"url": "/text-assets/text-mine-drafts/bubble@1/template.qctext",
+			"mimeType": "application/vnd.qcut.text-template+json",
+			"byteSize": 2527,
+			"checksumSha256": "9c573eeaf0662c41424d7b8713e8bd91fc92f401ba594cc50b8cd3006b3af1f2"
 		}
 	},
 	"text-mine-drafts-soft-card": {
@@ -897,6 +1191,12 @@
 			"mimeType": "application/json",
 			"byteSize": 2150,
 			"checksumSha256": "468c8a01bce41bdef4d68699fccd71b6fc2999ec58e1b9dee6ca230e1baff47c"
+		},
+		"qcutPackage": {
+			"url": "/text-assets/text-mine-drafts/soft-card@1/template.qctext",
+			"mimeType": "application/vnd.qcut.text-template+json",
+			"byteSize": 2551,
+			"checksumSha256": "6a882f9c10cbd018ae22e3ee464d92c0d3524643ac6690f386737b8a52e275dd"
 		}
 	},
 	"text-smart-packaging-cover-pack-plain": {
@@ -915,6 +1215,12 @@
 			"mimeType": "application/json",
 			"byteSize": 2313,
 			"checksumSha256": "3fdadc44854d3f5a1370a2922c638e6cec28e6b8e326a52a10aff1bf7f8ec1ee"
+		},
+		"qcutPackage": {
+			"url": "/text-assets/text-smart-packaging-cover-pack/plain@1/template.qctext",
+			"mimeType": "application/vnd.qcut.text-template+json",
+			"byteSize": 2756,
+			"checksumSha256": "71e592435b7e519f48066223511d94247c83a0373310d68f9eba2e4f764b1b40"
 		}
 	},
 	"text-smart-packaging-cover-pack-label": {
@@ -933,6 +1239,12 @@
 			"mimeType": "application/json",
 			"byteSize": 2386,
 			"checksumSha256": "3a56ac1346cd92998b75741ee465af4dee19c3747008fd2a1b9c0d1d6af4d7b5"
+		},
+		"qcutPackage": {
+			"url": "/text-assets/text-smart-packaging-cover-pack/label@1/template.qctext",
+			"mimeType": "application/vnd.qcut.text-template+json",
+			"byteSize": 2832,
+			"checksumSha256": "3164c66526645bb5107a2c5771e55e7efd8914e2b23dadae1c14f93e0bb92eb1"
 		}
 	},
 	"text-smart-packaging-cover-pack-sticker": {
@@ -951,6 +1263,12 @@
 			"mimeType": "application/json",
 			"byteSize": 2445,
 			"checksumSha256": "87eb6477a56acc6a694709ccc562898557dc010a9cb57bba275f3e3fce0f721f"
+		},
+		"qcutPackage": {
+			"url": "/text-assets/text-smart-packaging-cover-pack/sticker@1/template.qctext",
+			"mimeType": "application/vnd.qcut.text-template+json",
+			"byteSize": 2896,
+			"checksumSha256": "68e17ae325cbba86cff9644d4d72b92eabab63d606baea4425b8d553a82cfdfe"
 		}
 	},
 	"text-smart-packaging-cover-pack-bubble": {
@@ -969,6 +1287,12 @@
 			"mimeType": "application/json",
 			"byteSize": 2423,
 			"checksumSha256": "6d91ac15f9d6d8d39c1758ec05c2646af0fea024d9ce06bc0849463c9fb41200"
+		},
+		"qcutPackage": {
+			"url": "/text-assets/text-smart-packaging-cover-pack/bubble@1/template.qctext",
+			"mimeType": "application/vnd.qcut.text-template+json",
+			"byteSize": 2871,
+			"checksumSha256": "77c7da56c83b942e4643ad6767198685c6cbd700566c28d49ecc71d9033f8572"
 		}
 	},
 	"text-smart-packaging-cover-pack-soft-card": {
@@ -987,6 +1311,12 @@
 			"mimeType": "application/json",
 			"byteSize": 2440,
 			"checksumSha256": "b277d3e37b3dfdd6f8f667a9b75bc7ed761d6e56a93bbd1d74041d4b15763c66"
+		},
+		"qcutPackage": {
+			"url": "/text-assets/text-smart-packaging-cover-pack/soft-card@1/template.qctext",
+			"mimeType": "application/vnd.qcut.text-template+json",
+			"byteSize": 2895,
+			"checksumSha256": "328053ef5a5b1e43933a231477e35c0abbc5d8e745913f6f0b7b532fa3fc3fe0"
 		}
 	},
 	"text-smart-packaging-intro-outro-plain": {
@@ -1005,6 +1335,12 @@
 			"mimeType": "application/json",
 			"byteSize": 2303,
 			"checksumSha256": "2c4eeec0b59a86d0ed7c6acaa3a2e693c3d47d5af22cd81a25b6a88dcff25301"
+		},
+		"qcutPackage": {
+			"url": "/text-assets/text-smart-packaging-intro-outro/plain@1/template.qctext",
+			"mimeType": "application/vnd.qcut.text-template+json",
+			"byteSize": 2748,
+			"checksumSha256": "0caa67a1cf0d91f2fae1bb55e189d6278f9f6653f98812d0be12b7ef2658d009"
 		}
 	},
 	"text-smart-packaging-intro-outro-label": {
@@ -1023,6 +1359,12 @@
 			"mimeType": "application/json",
 			"byteSize": 2388,
 			"checksumSha256": "6154ea262841464ae479ce3b97bb175dbb9284b2d3f52130af08faed9276a4b0"
+		},
+		"qcutPackage": {
+			"url": "/text-assets/text-smart-packaging-intro-outro/label@1/template.qctext",
+			"mimeType": "application/vnd.qcut.text-template+json",
+			"byteSize": 2836,
+			"checksumSha256": "0f2ce5f43c27c87633cb5caedf01de20b94e5091b8533d6cab3caf65ad84a2c1"
 		}
 	},
 	"text-smart-packaging-intro-outro-sticker": {
@@ -1041,6 +1383,12 @@
 			"mimeType": "application/json",
 			"byteSize": 2445,
 			"checksumSha256": "bd11e9a6e1e340f0307a49e461df7583f5f478faf8ee4fd7600229fe9280eae6"
+		},
+		"qcutPackage": {
+			"url": "/text-assets/text-smart-packaging-intro-outro/sticker@1/template.qctext",
+			"mimeType": "application/vnd.qcut.text-template+json",
+			"byteSize": 2898,
+			"checksumSha256": "b5eb01a817659008d3247337fc4c02b4ac767dda455268d77fa4e87b89148e19"
 		}
 	},
 	"text-smart-packaging-intro-outro-bubble": {
@@ -1059,6 +1407,12 @@
 			"mimeType": "application/json",
 			"byteSize": 2407,
 			"checksumSha256": "c1c6c308a25e028a66771ec3610e1a8b628ffcf731d977680305395a891591b5"
+		},
+		"qcutPackage": {
+			"url": "/text-assets/text-smart-packaging-intro-outro/bubble@1/template.qctext",
+			"mimeType": "application/vnd.qcut.text-template+json",
+			"byteSize": 2857,
+			"checksumSha256": "2dc5ea6780dd2727637a8bee8ba745b1a46c995196bd86479c9266a8a510c802"
 		}
 	},
 	"text-smart-packaging-intro-outro-soft-card": {
@@ -1077,6 +1431,12 @@
 			"mimeType": "application/json",
 			"byteSize": 2430,
 			"checksumSha256": "26fee7d9a1c7a675844939a7bac865d9fa38caf30f441dd9c0430fce0bbe9058"
+		},
+		"qcutPackage": {
+			"url": "/text-assets/text-smart-packaging-intro-outro/soft-card@1/template.qctext",
+			"mimeType": "application/vnd.qcut.text-template+json",
+			"byteSize": 2887,
+			"checksumSha256": "1ef2180960082052b2989edb2db1daea4e27fcd1c76d2abfe99fd05822dfbde7"
 		}
 	},
 	"text-smart-packaging-talking-head-plain": {
@@ -1095,6 +1455,12 @@
 			"mimeType": "application/json",
 			"byteSize": 2321,
 			"checksumSha256": "389234649fb16d203ad23d9bc361db5b09609bee8015c27ef99ef7642203576d"
+		},
+		"qcutPackage": {
+			"url": "/text-assets/text-smart-packaging-talking-head/plain@1/template.qctext",
+			"mimeType": "application/vnd.qcut.text-template+json",
+			"byteSize": 2769,
+			"checksumSha256": "ed171e977fdfc408175d5e406039db39652875fdc38ec15f7e83ce89b4fee920"
 		}
 	},
 	"text-smart-packaging-talking-head-label": {
@@ -1113,6 +1479,12 @@
 			"mimeType": "application/json",
 			"byteSize": 2412,
 			"checksumSha256": "e09cb6eba37ed02f8db1d9e947e6905b5718b7748f33070c2e5d1d5c6268a5d0"
+		},
+		"qcutPackage": {
+			"url": "/text-assets/text-smart-packaging-talking-head/label@1/template.qctext",
+			"mimeType": "application/vnd.qcut.text-template+json",
+			"byteSize": 2863,
+			"checksumSha256": "59ceb4dda789df9d22dee5594bf2dc524cf4a5dd9e0df07372794dd3fd5aad2b"
 		}
 	},
 	"text-smart-packaging-talking-head-sticker": {
@@ -1131,6 +1503,12 @@
 			"mimeType": "application/json",
 			"byteSize": 2471,
 			"checksumSha256": "c423ed7f4ad56ffd13b47815d6caa93945d924e63b49f82f9039ea454760a159"
+		},
+		"qcutPackage": {
+			"url": "/text-assets/text-smart-packaging-talking-head/sticker@1/template.qctext",
+			"mimeType": "application/vnd.qcut.text-template+json",
+			"byteSize": 2927,
+			"checksumSha256": "43142ca0833ae2946ec0a7703203a19559fdba9ac7f9732ddef3b1d18b8859d2"
 		}
 	},
 	"text-smart-packaging-talking-head-bubble": {
@@ -1149,6 +1527,12 @@
 			"mimeType": "application/json",
 			"byteSize": 2437,
 			"checksumSha256": "2737418c90253f639f502dd88f9431b960f9f3a8dfcfd5b1e6155882b14265c1"
+		},
+		"qcutPackage": {
+			"url": "/text-assets/text-smart-packaging-talking-head/bubble@1/template.qctext",
+			"mimeType": "application/vnd.qcut.text-template+json",
+			"byteSize": 2890,
+			"checksumSha256": "fb8cf83b783b7bfba15d33f130576e9628eccdff19bfe033286b58bb8c41255d"
 		}
 	},
 	"text-smart-packaging-talking-head-soft-card": {
@@ -1167,6 +1551,12 @@
 			"mimeType": "application/json",
 			"byteSize": 2448,
 			"checksumSha256": "324c29fc100be68b8750618b005a8f1326e870ef625beba920701502b2f3674e"
+		},
+		"qcutPackage": {
+			"url": "/text-assets/text-smart-packaging-talking-head/soft-card@1/template.qctext",
+			"mimeType": "application/vnd.qcut.text-template+json",
+			"byteSize": 2908,
+			"checksumSha256": "eb4901df78cf8ff945a8805e39919873d8b4bb9af0522649c42caeff3c81d816"
 		}
 	},
 	"text-smart-packaging-commerce-badge-plain": {
@@ -1185,6 +1575,12 @@
 			"mimeType": "application/json",
 			"byteSize": 2369,
 			"checksumSha256": "ef4b07b104f790aa68bc4d539c3571d149cb919c664f6e741495ccfaa3ec8cde"
+		},
+		"qcutPackage": {
+			"url": "/text-assets/text-smart-packaging-commerce-badge/plain@1/template.qctext",
+			"mimeType": "application/vnd.qcut.text-template+json",
+			"byteSize": 2825,
+			"checksumSha256": "5d6bd577788b6e4e4414ce9aac1ffecd9fc7b66d99851aaf5a3530c146034d8a"
 		}
 	},
 	"text-smart-packaging-commerce-badge-label": {
@@ -1203,6 +1599,12 @@
 			"mimeType": "application/json",
 			"byteSize": 2448,
 			"checksumSha256": "d103beebc74b7d186ff95acf784483adf9d6625f48463828f2d5616694df93b1"
+		},
+		"qcutPackage": {
+			"url": "/text-assets/text-smart-packaging-commerce-badge/label@1/template.qctext",
+			"mimeType": "application/vnd.qcut.text-template+json",
+			"byteSize": 2907,
+			"checksumSha256": "088e66c99582e518f290ae7e168448fad7939bdddb002abadd81a0de5ab759ee"
 		}
 	},
 	"text-smart-packaging-commerce-badge-sticker": {
@@ -1221,6 +1623,12 @@
 			"mimeType": "application/json",
 			"byteSize": 2505,
 			"checksumSha256": "aac02b13273f02dc4c0d6500180221234b16e158318337ba2e075e524a7cfb13"
+		},
+		"qcutPackage": {
+			"url": "/text-assets/text-smart-packaging-commerce-badge/sticker@1/template.qctext",
+			"mimeType": "application/vnd.qcut.text-template+json",
+			"byteSize": 2969,
+			"checksumSha256": "7800002c9501d8ac8cff372ed4a4c996bc50930bc0d99d01a96c6aa9b5fd843c"
 		}
 	},
 	"text-smart-packaging-commerce-badge-bubble": {
@@ -1239,6 +1647,12 @@
 			"mimeType": "application/json",
 			"byteSize": 2479,
 			"checksumSha256": "6965ce865e890de78568b3b4985a056bba1234a052b5c552c46293f98f98b072"
+		},
+		"qcutPackage": {
+			"url": "/text-assets/text-smart-packaging-commerce-badge/bubble@1/template.qctext",
+			"mimeType": "application/vnd.qcut.text-template+json",
+			"byteSize": 2940,
+			"checksumSha256": "b03a88e61847eb08885179f7379364e00c792b4b0306fd2251a7119c7a5c9607"
 		}
 	},
 	"text-smart-packaging-commerce-badge-soft-card": {
@@ -1257,6 +1671,12 @@
 			"mimeType": "application/json",
 			"byteSize": 2496,
 			"checksumSha256": "0c9755c36ba6231bca0f051b3f9170fe69926a8c580fdc787eb2ce9caaa91744"
+		},
+		"qcutPackage": {
+			"url": "/text-assets/text-smart-packaging-commerce-badge/soft-card@1/template.qctext",
+			"mimeType": "application/vnd.qcut.text-template+json",
+			"byteSize": 2964,
+			"checksumSha256": "ab5e3511538f0b0ae4ccc296681472ac044e94eea854ea043db564f89d92da6e"
 		}
 	},
 	"text-smart-packaging-info-strip-plain": {
@@ -1275,6 +1695,12 @@
 			"mimeType": "application/json",
 			"byteSize": 2262,
 			"checksumSha256": "85d9600dacce85d52761b85c89d533c27234bd062005811ac7de5c43570af3c7"
+		},
+		"qcutPackage": {
+			"url": "/text-assets/text-smart-packaging-info-strip/plain@1/template.qctext",
+			"mimeType": "application/vnd.qcut.text-template+json",
+			"byteSize": 2704,
+			"checksumSha256": "5466b6ca281f7cf379a7e57c65d0957d5067c446e97e9c2d830700682c392232"
 		}
 	},
 	"text-smart-packaging-info-strip-label": {
@@ -1293,6 +1719,12 @@
 			"mimeType": "application/json",
 			"byteSize": 2353,
 			"checksumSha256": "547c65fa6fc0f96c0b9ba1504a080273582db68fa3a02eabbb969cbe6c95b40a"
+		},
+		"qcutPackage": {
+			"url": "/text-assets/text-smart-packaging-info-strip/label@1/template.qctext",
+			"mimeType": "application/vnd.qcut.text-template+json",
+			"byteSize": 2798,
+			"checksumSha256": "caf3ef188e4085cc3c2641e69016e98ce0da8f163716c6f46e8b04c46d8ef69f"
 		}
 	},
 	"text-smart-packaging-info-strip-sticker": {
@@ -1311,6 +1743,12 @@
 			"mimeType": "application/json",
 			"byteSize": 2412,
 			"checksumSha256": "cc4d4efec2f37161969bb800b284a922a4a4d0dd408a6f4b3ddfd0c850e17626"
+		},
+		"qcutPackage": {
+			"url": "/text-assets/text-smart-packaging-info-strip/sticker@1/template.qctext",
+			"mimeType": "application/vnd.qcut.text-template+json",
+			"byteSize": 2862,
+			"checksumSha256": "8a95521f081e2ac39a18d459f2c57b15167ec3a13f5cdef443102ebf43cfb2d8"
 		}
 	},
 	"text-smart-packaging-info-strip-bubble": {
@@ -1329,6 +1767,12 @@
 			"mimeType": "application/json",
 			"byteSize": 2372,
 			"checksumSha256": "a9b9a4afa76884d29f6547c3cb08f9dfefd63b2b97feac9ca6f85b25c8bffe63"
+		},
+		"qcutPackage": {
+			"url": "/text-assets/text-smart-packaging-info-strip/bubble@1/template.qctext",
+			"mimeType": "application/vnd.qcut.text-template+json",
+			"byteSize": 2819,
+			"checksumSha256": "4fbc80407be8e70ab5974754eefb64e2b454fe5d3509410b5c2ada1e9a47678b"
 		}
 	},
 	"text-smart-packaging-info-strip-soft-card": {
@@ -1347,6 +1791,12 @@
 			"mimeType": "application/json",
 			"byteSize": 2389,
 			"checksumSha256": "ebd90985cae2413848de892f2fdae2fa3d60fc2f3dd0b4019104651a205d4ec5"
+		},
+		"qcutPackage": {
+			"url": "/text-assets/text-smart-packaging-info-strip/soft-card@1/template.qctext",
+			"mimeType": "application/vnd.qcut.text-template+json",
+			"byteSize": 2843,
+			"checksumSha256": "fa2f8b81f344374a90b187f44afec8e545d94102cfd747348940c6455e9c1e20"
 		}
 	},
 	"text-fancy-popular-sticker": {
@@ -1365,6 +1815,12 @@
 			"mimeType": "application/json",
 			"byteSize": 2197,
 			"checksumSha256": "0034ab47ff14a1765124a4e8d684a190edc4893e72c20b4f7493d69863467c21"
+		},
+		"qcutPackage": {
+			"url": "/text-assets/text-fancy-popular/sticker@1/template.qctext",
+			"mimeType": "application/vnd.qcut.text-template+json",
+			"byteSize": 2601,
+			"checksumSha256": "c76335f2813dea9a613ab67cac5e65d4562f8560dff476ae87492a007d48f21c"
 		}
 	},
 	"text-fancy-popular-bubble": {
@@ -1383,6 +1839,12 @@
 			"mimeType": "application/json",
 			"byteSize": 2163,
 			"checksumSha256": "9f6afbf6b49894c65d7ac2bf90da8f8294f1955fcf4af1745753f7345c15095d"
+		},
+		"qcutPackage": {
+			"url": "/text-assets/text-fancy-popular/bubble@1/template.qctext",
+			"mimeType": "application/vnd.qcut.text-template+json",
+			"byteSize": 2564,
+			"checksumSha256": "8ae8fd73922b2e47f41f6529b4da35e967128a31eeaca544cd28a3bcbee7d77e"
 		}
 	},
 	"text-fancy-latest-sticker": {
@@ -1401,6 +1863,12 @@
 			"mimeType": "application/json",
 			"byteSize": 2187,
 			"checksumSha256": "fc3d5d9bfa2472b19cd64368aa4c072b258d0935867dd5094bd8be69a290521c"
+		},
+		"qcutPackage": {
+			"url": "/text-assets/text-fancy-latest/sticker@1/template.qctext",
+			"mimeType": "application/vnd.qcut.text-template+json",
+			"byteSize": 2588,
+			"checksumSha256": "f521f447680694ebb0c1662aea25c6dfe9b9c5e18adb9ebf13a80d3b4db17633"
 		}
 	},
 	"text-fancy-latest-bubble": {
@@ -1419,6 +1887,12 @@
 			"mimeType": "application/json",
 			"byteSize": 2153,
 			"checksumSha256": "d7dcd8e2645c9e89801f71926740c3060b874cd62f5334fe4628794832dca8ed"
+		},
+		"qcutPackage": {
+			"url": "/text-assets/text-fancy-latest/bubble@1/template.qctext",
+			"mimeType": "application/vnd.qcut.text-template+json",
+			"byteSize": 2551,
+			"checksumSha256": "5e6ed6a2ad61ada91a6f1d920284c43273602f5abbb65a3ac07b2554c1913a53"
 		}
 	},
 	"text-fancy-summer-bubble": {
@@ -1437,6 +1911,12 @@
 			"mimeType": "application/json",
 			"byteSize": 2140,
 			"checksumSha256": "7997361643b0a6bd46716288217c3e47b1e758b78fea61204bb558cf07d78fa3"
+		},
+		"qcutPackage": {
+			"url": "/text-assets/text-fancy-summer/bubble@1/template.qctext",
+			"mimeType": "application/vnd.qcut.text-template+json",
+			"byteSize": 2537,
+			"checksumSha256": "6e0ac7fad26624c4f590de80635a55762b231a629a5dcd2220fe6578971d1455"
 		}
 	},
 	"text-fancy-summer-sticker": {
@@ -1455,6 +1935,12 @@
 			"mimeType": "application/json",
 			"byteSize": 2174,
 			"checksumSha256": "4769ebd17746b5f8f3dc7ec010c8b0079bfa434fa53f94ba92b0795d6665c0c1"
+		},
+		"qcutPackage": {
+			"url": "/text-assets/text-fancy-summer/sticker@1/template.qctext",
+			"mimeType": "application/vnd.qcut.text-template+json",
+			"byteSize": 2574,
+			"checksumSha256": "28c480e5b6d588a61a4e692cf164f4ce3c6807cdc73cd25205ac5de64d390181"
 		}
 	},
 	"text-fancy-summer-soft-card": {
@@ -1473,6 +1959,12 @@
 			"mimeType": "application/json",
 			"byteSize": 2157,
 			"checksumSha256": "68df66ccf0223bd0038b133614e96915637b12f8de55d4d411cc84e91382afd1"
+		},
+		"qcutPackage": {
+			"url": "/text-assets/text-fancy-summer/soft-card@1/template.qctext",
+			"mimeType": "application/vnd.qcut.text-template+json",
+			"byteSize": 2561,
+			"checksumSha256": "74efa556ab3e56ea75c5a9e4a0c080a36255a2aa42dc3d839efda4c6914937c1"
 		}
 	},
 	"text-fancy-summer-label": {
@@ -1491,6 +1983,12 @@
 			"mimeType": "application/json",
 			"byteSize": 2115,
 			"checksumSha256": "24c5f2d4907e2dd52d78387a08bb0e28c6424502158d9e2e71f76cb655d4551e"
+		},
+		"qcutPackage": {
+			"url": "/text-assets/text-fancy-summer/label@1/template.qctext",
+			"mimeType": "application/vnd.qcut.text-template+json",
+			"byteSize": 2510,
+			"checksumSha256": "8b171aba0a403d00bb57fd968fb754a3248a403f90ad97c3b6cc7890adb03515"
 		}
 	},
 	"text-fancy-summer-plain": {
@@ -1509,6 +2007,12 @@
 			"mimeType": "application/json",
 			"byteSize": 2030,
 			"checksumSha256": "e84e37b791d6129800abb3e493cfc24ae8cef978ed6fe01787aa54a662164856"
+		},
+		"qcutPackage": {
+			"url": "/text-assets/text-fancy-summer/plain@1/template.qctext",
+			"mimeType": "application/vnd.qcut.text-template+json",
+			"byteSize": 2422,
+			"checksumSha256": "b45c1c360695065461b17650584f5dbf919e2da3ed1b3a63bd3f27a9a107f3f7"
 		}
 	},
 	"text-fancy-variety-sticker": {
@@ -1527,6 +2031,12 @@
 			"mimeType": "application/json",
 			"byteSize": 2207,
 			"checksumSha256": "85509d476f1ba921fffcc70ac28921de8312ecd4427cfc2a1d1f279843889ad4"
+		},
+		"qcutPackage": {
+			"url": "/text-assets/text-fancy-variety/sticker@1/template.qctext",
+			"mimeType": "application/vnd.qcut.text-template+json",
+			"byteSize": 2611,
+			"checksumSha256": "f38e6b283a8d99985aaba26b1d3e55ed045ae45ccb554c79c3a8bc7f3c9ec108"
 		}
 	},
 	"text-fancy-variety-bubble": {
@@ -1545,6 +2055,12 @@
 			"mimeType": "application/json",
 			"byteSize": 2175,
 			"checksumSha256": "78393a3c71bf9a973f1fd5c53b80016627102af2cc893a40496f74841c4a0b94"
+		},
+		"qcutPackage": {
+			"url": "/text-assets/text-fancy-variety/bubble@1/template.qctext",
+			"mimeType": "application/vnd.qcut.text-template+json",
+			"byteSize": 2576,
+			"checksumSha256": "57ef791dfd648be9e7014f6ae7085820698266988806e6165359ae7c91d15073"
 		}
 	},
 	"text-fancy-guofeng-sticker": {
@@ -1563,6 +2079,12 @@
 			"mimeType": "application/json",
 			"byteSize": 2184,
 			"checksumSha256": "884b3e29df879488146a893aef2eeb0252e66d32ebcceec06fcca86c1cda79e6"
+		},
+		"qcutPackage": {
+			"url": "/text-assets/text-fancy-guofeng/sticker@1/template.qctext",
+			"mimeType": "application/vnd.qcut.text-template+json",
+			"byteSize": 2587,
+			"checksumSha256": "9f2b50343a2b6d5cfd7a6fbf95ecc123b77c08013cdbb5f370a20102a05b6851"
 		}
 	},
 	"text-fancy-guofeng-label": {
@@ -1581,6 +2103,12 @@
 			"mimeType": "application/json",
 			"byteSize": 2125,
 			"checksumSha256": "00e58ed3f72c7e95d1e41dff7efb5b275d3b351a2a29e798dffa50c98b352437"
+		},
+		"qcutPackage": {
+			"url": "/text-assets/text-fancy-guofeng/label@1/template.qctext",
+			"mimeType": "application/vnd.qcut.text-template+json",
+			"byteSize": 2523,
+			"checksumSha256": "0d9ce02199f4b593b5f4634670aca02e30162f9132dffd77c5011346f6f5edcf"
 		}
 	},
 	"text-fancy-guofeng-plain": {
@@ -1599,6 +2127,12 @@
 			"mimeType": "application/json",
 			"byteSize": 2040,
 			"checksumSha256": "31c3c4ea1a6a7f92b6a160a8add4724bc8c479ab4e7fc52a91d5d3082604611c"
+		},
+		"qcutPackage": {
+			"url": "/text-assets/text-fancy-guofeng/plain@1/template.qctext",
+			"mimeType": "application/vnd.qcut.text-template+json",
+			"byteSize": 2435,
+			"checksumSha256": "dd809bd801cc999e9a0f6150fc126e2ea735287f2f1576e8d949c0d0c03322ad"
 		}
 	},
 	"text-fancy-guofeng-soft-card": {
@@ -1617,6 +2151,12 @@
 			"mimeType": "application/json",
 			"byteSize": 2167,
 			"checksumSha256": "7eceb8474b71a23abcba09aaf4ded259b5e53f064bb11ddfa00c100406080c9f"
+		},
+		"qcutPackage": {
+			"url": "/text-assets/text-fancy-guofeng/soft-card@1/template.qctext",
+			"mimeType": "application/vnd.qcut.text-template+json",
+			"byteSize": 2574,
+			"checksumSha256": "370ac936ee6f1c030d1b593a676dc886f7ded6f7d934ec5f0137572dbe413f84"
 		}
 	},
 	"text-fancy-guofeng-bubble": {
@@ -1635,6 +2175,12 @@
 			"mimeType": "application/json",
 			"byteSize": 2150,
 			"checksumSha256": "a44621ec022dfc7e3ebfae254ecfd46f573ead5fa265d2ac5aed0586fe1261c8"
+		},
+		"qcutPackage": {
+			"url": "/text-assets/text-fancy-guofeng/bubble@1/template.qctext",
+			"mimeType": "application/vnd.qcut.text-template+json",
+			"byteSize": 2550,
+			"checksumSha256": "a484d92c45c28a6c453dfa56d06b2f8eccdda36c4498881bb104f6e91d1a0a10"
 		}
 	},
 	"text-fancy-glow-bubble": {
@@ -1653,6 +2199,12 @@
 			"mimeType": "application/json",
 			"byteSize": 2133,
 			"checksumSha256": "7b471c58b5d8dca00654cac00213361fc589940eccae7af1838028e47630f657"
+		},
+		"qcutPackage": {
+			"url": "/text-assets/text-fancy-glow/bubble@1/template.qctext",
+			"mimeType": "application/vnd.qcut.text-template+json",
+			"byteSize": 2525,
+			"checksumSha256": "d374bf7405b172814ce3464f4d964210a361f97f7cf045ebfa191a4ad274999f"
 		}
 	},
 	"text-fancy-glow-sticker": {
@@ -1671,6 +2223,12 @@
 			"mimeType": "application/json",
 			"byteSize": 2167,
 			"checksumSha256": "1cac221359f072772b7c147cd56e45f41d8c1fbe9dd679e26b4c02a7e1d51b95"
+		},
+		"qcutPackage": {
+			"url": "/text-assets/text-fancy-glow/sticker@1/template.qctext",
+			"mimeType": "application/vnd.qcut.text-template+json",
+			"byteSize": 2562,
+			"checksumSha256": "f58ee153b9ea4a7a91e04694fb4feafd13777541644ff8601fc4eb235ad4cba7"
 		}
 	},
 	"text-fancy-gradient-bubble": {
@@ -1689,6 +2247,12 @@
 			"mimeType": "application/json",
 			"byteSize": 2173,
 			"checksumSha256": "324970e8ee862f80b6b27144ba6609ba2731b2d09624e08942995866872ad7cb"
+		},
+		"qcutPackage": {
+			"url": "/text-assets/text-fancy-gradient/bubble@1/template.qctext",
+			"mimeType": "application/vnd.qcut.text-template+json",
+			"byteSize": 2577,
+			"checksumSha256": "c309c6f9bff6e6f8a294e61653a110af60df0b5ee7e46d71d611da5a58cc3412"
 		}
 	},
 	"text-fancy-gradient-sticker": {
@@ -1707,6 +2271,12 @@
 			"mimeType": "application/json",
 			"byteSize": 2205,
 			"checksumSha256": "76af39f80be85fe3ce6e3b5e614de1e26106c5472c7671d3e2fbcb8e77763b3f"
+		},
+		"qcutPackage": {
+			"url": "/text-assets/text-fancy-gradient/sticker@1/template.qctext",
+			"mimeType": "application/vnd.qcut.text-template+json",
+			"byteSize": 2612,
+			"checksumSha256": "6195fee13caf30bf798397d460aa4450cf619f9b3ffb72fc2bf5aaacf82ce767"
 		}
 	},
 	"text-fancy-gradient-soft-card": {
@@ -1725,6 +2295,12 @@
 			"mimeType": "application/json",
 			"byteSize": 2190,
 			"checksumSha256": "6216ded62a69b593d52e69af6901d3724b0b6d94880e7c1a19b1c73cf7959bc8"
+		},
+		"qcutPackage": {
+			"url": "/text-assets/text-fancy-gradient/soft-card@1/template.qctext",
+			"mimeType": "application/vnd.qcut.text-template+json",
+			"byteSize": 2601,
+			"checksumSha256": "29a194353f9746cb4f7dba6b684b7fc6d6ee67bd698552b3fdf62d60840707d2"
 		}
 	},
 	"text-fancy-texture-sticker": {
@@ -1743,6 +2319,12 @@
 			"mimeType": "application/json",
 			"byteSize": 2197,
 			"checksumSha256": "08bff9a8cdeca5b939e449cebed0393e56f39090a37df0c5e82d9e4ab3f1fe2c"
+		},
+		"qcutPackage": {
+			"url": "/text-assets/text-fancy-texture/sticker@1/template.qctext",
+			"mimeType": "application/vnd.qcut.text-template+json",
+			"byteSize": 2601,
+			"checksumSha256": "cf9a740d4098da5159b5daf9bfa8d3a603d02613a004cd6281efb0575f12f949"
 		}
 	},
 	"text-fancy-texture-label": {
@@ -1761,6 +2343,12 @@
 			"mimeType": "application/json",
 			"byteSize": 2138,
 			"checksumSha256": "54b0fa2747f666dcd5821b0886c5d875b2041430f1dceb4bef85b2d0c8515209"
+		},
+		"qcutPackage": {
+			"url": "/text-assets/text-fancy-texture/label@1/template.qctext",
+			"mimeType": "application/vnd.qcut.text-template+json",
+			"byteSize": 2537,
+			"checksumSha256": "60c75e9aefdda39f726a476a7f8b8f82230a27bb8e622ccabd284393c71ea121"
 		}
 	},
 	"text-fancy-texture-soft-card": {
@@ -1779,6 +2367,12 @@
 			"mimeType": "application/json",
 			"byteSize": 2180,
 			"checksumSha256": "cb7a7846be8233c74ef084ef4b2880c413b5be4148824840530fdb5bacf37000"
+		},
+		"qcutPackage": {
+			"url": "/text-assets/text-fancy-texture/soft-card@1/template.qctext",
+			"mimeType": "application/vnd.qcut.text-template+json",
+			"byteSize": 2588,
+			"checksumSha256": "bc4cb8959aa0d9d4328167fc3702fa8b5109b8577a5c57a9d72c7c8a267ae1a6"
 		}
 	},
 	"text-fancy-texture-plain": {
@@ -1797,6 +2391,12 @@
 			"mimeType": "application/json",
 			"byteSize": 2053,
 			"checksumSha256": "b5942cb780695fdb5df373286a58d20c12e2708c9c44487862e08a918131450d"
+		},
+		"qcutPackage": {
+			"url": "/text-assets/text-fancy-texture/plain@1/template.qctext",
+			"mimeType": "application/vnd.qcut.text-template+json",
+			"byteSize": 2449,
+			"checksumSha256": "ee91766ec72379ee60bc6dbb57c4f040d4c7bb58c7c8c32fff6967393cccc1d6"
 		}
 	},
 	"text-fancy-red-sticker": {
@@ -1815,6 +2415,12 @@
 			"mimeType": "application/json",
 			"byteSize": 2155,
 			"checksumSha256": "93d246418b3f10d72203e7c6d0be0953e2b2c398fa310e77c85db70266a489b6"
+		},
+		"qcutPackage": {
+			"url": "/text-assets/text-fancy-red/sticker@1/template.qctext",
+			"mimeType": "application/vnd.qcut.text-template+json",
+			"byteSize": 2547,
+			"checksumSha256": "acebd9844416085699d4b26349bbc4ef8fcc49e199f21f63b79396cd12d19413"
 		}
 	},
 	"text-fancy-red-bubble": {
@@ -1833,6 +2439,12 @@
 			"mimeType": "application/json",
 			"byteSize": 2123,
 			"checksumSha256": "1e6083503722ff86a155fa3c13c0bd51e27de01910c7552812cc90deadf92bc9"
+		},
+		"qcutPackage": {
+			"url": "/text-assets/text-fancy-red/bubble@1/template.qctext",
+			"mimeType": "application/vnd.qcut.text-template+json",
+			"byteSize": 2512,
+			"checksumSha256": "b62ab005259c67e1f2ec7520548e1ac8ab2d0b46e3e6b7e465156c7d8858ddcf"
 		}
 	},
 	"text-fancy-red-label": {
@@ -1851,6 +2463,12 @@
 			"mimeType": "application/json",
 			"byteSize": 2098,
 			"checksumSha256": "eafd81b77772bda993a1d65f72cc80b4ba762a9d4a2a3164113dd3153d0981fa"
+		},
+		"qcutPackage": {
+			"url": "/text-assets/text-fancy-red/label@1/template.qctext",
+			"mimeType": "application/vnd.qcut.text-template+json",
+			"byteSize": 2485,
+			"checksumSha256": "e84e1e79301e2dca9720a824a805700dc97a3c1f8560667b0bd521a6214408f8"
 		}
 	},
 	"text-fancy-red-plain": {
@@ -1869,6 +2487,12 @@
 			"mimeType": "application/json",
 			"byteSize": 2013,
 			"checksumSha256": "6f7e098478d4ca4c8d3ec5b51b78d0ea101cd2cbd8e0904124dfdd3c3c92b5e1"
+		},
+		"qcutPackage": {
+			"url": "/text-assets/text-fancy-red/plain@1/template.qctext",
+			"mimeType": "application/vnd.qcut.text-template+json",
+			"byteSize": 2397,
+			"checksumSha256": "a46936ebe69d59e7042cfb2bad8a14d3f0f8966806ab4ae14ae17495f96860f4"
 		}
 	},
 	"text-fancy-yellow-sticker": {
@@ -1887,6 +2511,12 @@
 			"mimeType": "application/json",
 			"byteSize": 2185,
 			"checksumSha256": "4787c7e5ef512773bcea712db40403147e03fb31e5a26c5605a22ec3ec347401"
+		},
+		"qcutPackage": {
+			"url": "/text-assets/text-fancy-yellow/sticker@1/template.qctext",
+			"mimeType": "application/vnd.qcut.text-template+json",
+			"byteSize": 2586,
+			"checksumSha256": "2192718db7739b77b69cb3fb5fb4e384133abda429f1a1966a3ca46d94c8cc34"
 		}
 	},
 	"text-fancy-yellow-bubble": {
@@ -1905,6 +2535,12 @@
 			"mimeType": "application/json",
 			"byteSize": 2153,
 			"checksumSha256": "33660c33aba60405669c2d5fc5875ae4115a4cbd8f678d77ff14f22b087b3f30"
+		},
+		"qcutPackage": {
+			"url": "/text-assets/text-fancy-yellow/bubble@1/template.qctext",
+			"mimeType": "application/vnd.qcut.text-template+json",
+			"byteSize": 2551,
+			"checksumSha256": "19ff1e67d107c8f4df5aeca8c3e5ad3306d0ad2cad12574b25c56bb3e0889f11"
 		}
 	},
 	"text-fancy-yellow-label": {
@@ -1923,6 +2559,12 @@
 			"mimeType": "application/json",
 			"byteSize": 2128,
 			"checksumSha256": "f5fdc2a22b471d7ea6c7249afcc68967a70245b6a6052e5244ecf20ad12ad5a9"
+		},
+		"qcutPackage": {
+			"url": "/text-assets/text-fancy-yellow/label@1/template.qctext",
+			"mimeType": "application/vnd.qcut.text-template+json",
+			"byteSize": 2524,
+			"checksumSha256": "0385c5d6b195c7b36a8eb9e684a3031b87d57f71f48a8a228db112dab6032526"
 		}
 	},
 	"text-fancy-yellow-soft-card": {
@@ -1941,6 +2583,12 @@
 			"mimeType": "application/json",
 			"byteSize": 2170,
 			"checksumSha256": "575e699ba207ca58398a4d006aa8b2bd748a69040732f7da943e0860e5a77f39"
+		},
+		"qcutPackage": {
+			"url": "/text-assets/text-fancy-yellow/soft-card@1/template.qctext",
+			"mimeType": "application/vnd.qcut.text-template+json",
+			"byteSize": 2575,
+			"checksumSha256": "85802c9e435830bc5f4cddfa94305de9f1c6f7d455a1db5f3363d48edc0dfd96"
 		}
 	},
 	"text-fancy-yellow-plain": {
@@ -1959,6 +2607,12 @@
 			"mimeType": "application/json",
 			"byteSize": 2043,
 			"checksumSha256": "94e73b2916c2a51cc2dc07603ffefdacec036fa1679e2d0b9efbfef3bf24062a"
+		},
+		"qcutPackage": {
+			"url": "/text-assets/text-fancy-yellow/plain@1/template.qctext",
+			"mimeType": "application/vnd.qcut.text-template+json",
+			"byteSize": 2436,
+			"checksumSha256": "ff5cdc8f3e7dfbd95479992682e0262c5bab4bf46c5b06b4195b0658d92e3bf3"
 		}
 	},
 	"text-fancy-black-white-sticker": {
@@ -1977,6 +2631,12 @@
 			"mimeType": "application/json",
 			"byteSize": 2237,
 			"checksumSha256": "26daa383263966f32d2e2d63a1d944da1512216953b63a143038835b9afe6a2b"
+		},
+		"qcutPackage": {
+			"url": "/text-assets/text-fancy-black-white/sticker@1/template.qctext",
+			"mimeType": "application/vnd.qcut.text-template+json",
+			"byteSize": 2653,
+			"checksumSha256": "1345f0467d4898cbc10d52b88328f519d5672790d4b274442f6cec6f55e4cf48"
 		}
 	},
 	"text-fancy-black-white-label": {
@@ -1995,6 +2655,12 @@
 			"mimeType": "application/json",
 			"byteSize": 2178,
 			"checksumSha256": "0ef33744643837d54b1e3e09bdf7945df17c55695c1ba96aa7d9fc33f2107a22"
+		},
+		"qcutPackage": {
+			"url": "/text-assets/text-fancy-black-white/label@1/template.qctext",
+			"mimeType": "application/vnd.qcut.text-template+json",
+			"byteSize": 2589,
+			"checksumSha256": "138e70f03f8bfeda135f1bb51d81a48abb536d1dcd8d7076c832409162be2f33"
 		}
 	},
 	"text-fancy-black-white-plain": {
@@ -2013,6 +2679,12 @@
 			"mimeType": "application/json",
 			"byteSize": 2093,
 			"checksumSha256": "a227a552c2839b12e1dc92611afd9e520951c666a4eb523b3c9528065cd02da7"
+		},
+		"qcutPackage": {
+			"url": "/text-assets/text-fancy-black-white/plain@1/template.qctext",
+			"mimeType": "application/vnd.qcut.text-template+json",
+			"byteSize": 2501,
+			"checksumSha256": "9ca7fa452630bae50ae08960f199143bc02609fda04255b756eff6f5d9def87f"
 		}
 	},
 	"text-fancy-black-white-soft-card": {
@@ -2031,6 +2703,12 @@
 			"mimeType": "application/json",
 			"byteSize": 2220,
 			"checksumSha256": "eeca262bbb37d288ff883127fe9dcb5493f03ae35a4a596ef51b5fece09864d3"
+		},
+		"qcutPackage": {
+			"url": "/text-assets/text-fancy-black-white/soft-card@1/template.qctext",
+			"mimeType": "application/vnd.qcut.text-template+json",
+			"byteSize": 2640,
+			"checksumSha256": "cf8dd88e06a9b6cd3cdc0ef91f35a5d385617e9acde64bc7bc47e37197bf4ab0"
 		}
 	},
 	"text-fancy-black-white-bubble": {
@@ -2049,6 +2727,12 @@
 			"mimeType": "application/json",
 			"byteSize": 2203,
 			"checksumSha256": "82c29cef4a45f5a73c0bccdd574898b1fcdd84acc5fa01b2b1e0ee0d1a428fcd"
+		},
+		"qcutPackage": {
+			"url": "/text-assets/text-fancy-black-white/bubble@1/template.qctext",
+			"mimeType": "application/vnd.qcut.text-template+json",
+			"byteSize": 2616,
+			"checksumSha256": "46855e47b77a8da19250ef10bccc3ecd416e89df3102349e3ba3c59e7ff610f3"
 		}
 	},
 	"text-fancy-blue-sticker": {
@@ -2067,6 +2751,12 @@
 			"mimeType": "application/json",
 			"byteSize": 2165,
 			"checksumSha256": "89bb7ac704a027ae7a825bb5a7f3aebea4998d46b315def3ce7356834aab2483"
+		},
+		"qcutPackage": {
+			"url": "/text-assets/text-fancy-blue/sticker@1/template.qctext",
+			"mimeType": "application/vnd.qcut.text-template+json",
+			"byteSize": 2560,
+			"checksumSha256": "3a534a1b6ed6833448cb2dcf585e5598fdeaf34686d608f007585f5e40d81ef9"
 		}
 	},
 	"text-fancy-blue-bubble": {
@@ -2085,6 +2775,12 @@
 			"mimeType": "application/json",
 			"byteSize": 2133,
 			"checksumSha256": "d55223c76c332d0beda1ead5df635ee34b17400b7a596078843ab6b95adb9a60"
+		},
+		"qcutPackage": {
+			"url": "/text-assets/text-fancy-blue/bubble@1/template.qctext",
+			"mimeType": "application/vnd.qcut.text-template+json",
+			"byteSize": 2525,
+			"checksumSha256": "746ad01e1a869fc00663abb799a25936a5ee6c54c77c778bfc3a91c9117d289d"
 		}
 	},
 	"text-fancy-blue-soft-card": {
@@ -2103,6 +2799,12 @@
 			"mimeType": "application/json",
 			"byteSize": 2150,
 			"checksumSha256": "1cada556f0b6642bb2c16467bd1281a6dab1bfe26566dce40ce71691f5d2a064"
+		},
+		"qcutPackage": {
+			"url": "/text-assets/text-fancy-blue/soft-card@1/template.qctext",
+			"mimeType": "application/vnd.qcut.text-template+json",
+			"byteSize": 2549,
+			"checksumSha256": "60c50fb5de4c13d904e4569f0af3fab606252fde3a9359d94643fa650546380e"
 		}
 	},
 	"text-fancy-blue-label": {
@@ -2121,6 +2823,12 @@
 			"mimeType": "application/json",
 			"byteSize": 2108,
 			"checksumSha256": "b849d42bf982ee26cc49ca23728d25599c9c90f2086ee2480d1f2f9950c90921"
+		},
+		"qcutPackage": {
+			"url": "/text-assets/text-fancy-blue/label@1/template.qctext",
+			"mimeType": "application/vnd.qcut.text-template+json",
+			"byteSize": 2498,
+			"checksumSha256": "c465ccb18f8dcfd332807fae31e9ec6f7d276964b68269b01b091041210a45de"
 		}
 	},
 	"text-fancy-blue-plain": {
@@ -2139,6 +2847,12 @@
 			"mimeType": "application/json",
 			"byteSize": 2023,
 			"checksumSha256": "a5dfa66ac02a442a1d7be484f5674107b941c5592bfa84d25cce1005e149a306"
+		},
+		"qcutPackage": {
+			"url": "/text-assets/text-fancy-blue/plain@1/template.qctext",
+			"mimeType": "application/vnd.qcut.text-template+json",
+			"byteSize": 2410,
+			"checksumSha256": "7fd924d9120ba95f51577e4d61504563330ba0ad08ded16452e7d03b921e6a32"
 		}
 	},
 	"text-fancy-pink-bubble": {
@@ -2157,6 +2871,12 @@
 			"mimeType": "application/json",
 			"byteSize": 2133,
 			"checksumSha256": "d0302fe96edc8a3d1baed59da6207350c17e384353bf18d4fec5a29eb5107ca9"
+		},
+		"qcutPackage": {
+			"url": "/text-assets/text-fancy-pink/bubble@1/template.qctext",
+			"mimeType": "application/vnd.qcut.text-template+json",
+			"byteSize": 2525,
+			"checksumSha256": "c6f62f700e87f4856943f9d591a3d2cd2427fdbfb3c6e090ba97d7373ad614ef"
 		}
 	},
 	"text-fancy-pink-sticker": {
@@ -2175,6 +2895,12 @@
 			"mimeType": "application/json",
 			"byteSize": 2165,
 			"checksumSha256": "63179fecd92f7ba8a13c606ad397f5f65d14ebb45e3785a3f8d71c8d12e3b32a"
+		},
+		"qcutPackage": {
+			"url": "/text-assets/text-fancy-pink/sticker@1/template.qctext",
+			"mimeType": "application/vnd.qcut.text-template+json",
+			"byteSize": 2560,
+			"checksumSha256": "9dbadee80e1ae64aa7e7033acc617ecf0f7eb621f077b5fc10b275ba036017ff"
 		}
 	},
 	"text-fancy-pink-soft-card": {
@@ -2193,6 +2919,12 @@
 			"mimeType": "application/json",
 			"byteSize": 2150,
 			"checksumSha256": "4146a488db2497c81af8de11fd243d57dc71b88833c8f150f6be6502de4f487e"
+		},
+		"qcutPackage": {
+			"url": "/text-assets/text-fancy-pink/soft-card@1/template.qctext",
+			"mimeType": "application/vnd.qcut.text-template+json",
+			"byteSize": 2549,
+			"checksumSha256": "a2b51de42141c084b9b48f8ad65c0631c178081b30676cec4a4ce9055bc4103c"
 		}
 	},
 	"text-fancy-pink-label": {
@@ -2211,6 +2943,12 @@
 			"mimeType": "application/json",
 			"byteSize": 2108,
 			"checksumSha256": "e0008c8e7d9ccec9bf814d6afdae8f1e7b104adeffdbdcac689bc6f37df49744"
+		},
+		"qcutPackage": {
+			"url": "/text-assets/text-fancy-pink/label@1/template.qctext",
+			"mimeType": "application/vnd.qcut.text-template+json",
+			"byteSize": 2498,
+			"checksumSha256": "15d67d592abf36653b021aaab2550b18373222103e2fdacc9bf1fcb8bbfee144"
 		}
 	},
 	"text-fancy-pink-plain": {
@@ -2229,6 +2967,12 @@
 			"mimeType": "application/json",
 			"byteSize": 2023,
 			"checksumSha256": "a7ae9e0c07c73746478d544a368db6c814f2055fc149f9b04fed2598f165f593"
+		},
+		"qcutPackage": {
+			"url": "/text-assets/text-fancy-pink/plain@1/template.qctext",
+			"mimeType": "application/vnd.qcut.text-template+json",
+			"byteSize": 2410,
+			"checksumSha256": "d1dabb4c7d54b40196db6ab00e3aa7f6875a2205987be3df91f737530d8bfd4d"
 		}
 	},
 	"text-fancy-green-sticker": {
@@ -2247,6 +2991,12 @@
 			"mimeType": "application/json",
 			"byteSize": 2177,
 			"checksumSha256": "fb5bc3876c5d82aa290aba234df9b0c589f590c138078b2ea4397a4b16d7e544"
+		},
+		"qcutPackage": {
+			"url": "/text-assets/text-fancy-green/sticker@1/template.qctext",
+			"mimeType": "application/vnd.qcut.text-template+json",
+			"byteSize": 2575,
+			"checksumSha256": "37d163876cc68a256badce9317dd9165cfe89af3a16413b799e3c89ba834f320"
 		}
 	},
 	"text-fancy-green-bubble": {
@@ -2265,6 +3015,12 @@
 			"mimeType": "application/json",
 			"byteSize": 2143,
 			"checksumSha256": "9714dbcad2b803ba0f8716edc4a78742f3595b859d137922945f743c751781dc"
+		},
+		"qcutPackage": {
+			"url": "/text-assets/text-fancy-green/bubble@1/template.qctext",
+			"mimeType": "application/vnd.qcut.text-template+json",
+			"byteSize": 2538,
+			"checksumSha256": "3495e90860df823ee390311392964ecec53e75554cd704d81c0039ddae42fc2d"
 		}
 	},
 	"text-fancy-green-soft-card": {
@@ -2283,6 +3039,12 @@
 			"mimeType": "application/json",
 			"byteSize": 2160,
 			"checksumSha256": "cbf07b4635906e9d3cfdbe2e12bfe3e5602507f6dc5935e66635066c19ace68b"
+		},
+		"qcutPackage": {
+			"url": "/text-assets/text-fancy-green/soft-card@1/template.qctext",
+			"mimeType": "application/vnd.qcut.text-template+json",
+			"byteSize": 2562,
+			"checksumSha256": "5a11454321d4219f5319250afcf383e389e94ab4ae9cbdcf520f69594e541a35"
 		}
 	},
 	"text-fancy-green-label": {
@@ -2301,6 +3063,12 @@
 			"mimeType": "application/json",
 			"byteSize": 2118,
 			"checksumSha256": "cfa844f0c189b2e4f014895d4ebd9d8aa09db40f114bca131d5b1f933107bf1c"
+		},
+		"qcutPackage": {
+			"url": "/text-assets/text-fancy-green/label@1/template.qctext",
+			"mimeType": "application/vnd.qcut.text-template+json",
+			"byteSize": 2511,
+			"checksumSha256": "1a9892f33352cd09115a2cb55911ee190750b0a239e7ce940e0c2d05349a02dc"
 		}
 	},
 	"text-fancy-green-plain": {
@@ -2319,6 +3087,12 @@
 			"mimeType": "application/json",
 			"byteSize": 2033,
 			"checksumSha256": "9f7bfc6d42b97e5550bb92a71d0fa453e605895af6798c0b0fbe3981cc04668b"
+		},
+		"qcutPackage": {
+			"url": "/text-assets/text-fancy-green/plain@1/template.qctext",
+			"mimeType": "application/vnd.qcut.text-template+json",
+			"byteSize": 2423,
+			"checksumSha256": "0993c5562953166a352de7da56d0f7aa32b3ae327e80e821aa9b7b29b8311846"
 		}
 	},
 	"text-fancy-purple-bubble": {
@@ -2337,6 +3111,12 @@
 			"mimeType": "application/json",
 			"byteSize": 2153,
 			"checksumSha256": "cc7448b0d7fca4421a23c3820a6c358b31b610bddf956918a9ff54c8a768a7b7"
+		},
+		"qcutPackage": {
+			"url": "/text-assets/text-fancy-purple/bubble@1/template.qctext",
+			"mimeType": "application/vnd.qcut.text-template+json",
+			"byteSize": 2551,
+			"checksumSha256": "0ab54a2e5e083fecdbc597cd3877d7300ba589e9e057d55efc518f64e809b9f0"
 		}
 	},
 	"text-fancy-purple-sticker": {
@@ -2355,6 +3135,12 @@
 			"mimeType": "application/json",
 			"byteSize": 2185,
 			"checksumSha256": "2cd019017d0f21ca8be8d8d004d967802ad47f7ff241937118fb3868d3c9106c"
+		},
+		"qcutPackage": {
+			"url": "/text-assets/text-fancy-purple/sticker@1/template.qctext",
+			"mimeType": "application/vnd.qcut.text-template+json",
+			"byteSize": 2586,
+			"checksumSha256": "bf137f5709edac83f7c563267aef506e8b582d8378ab9f2554b22090b7c9818c"
 		}
 	},
 	"text-fancy-purple-soft-card": {
@@ -2373,6 +3159,12 @@
 			"mimeType": "application/json",
 			"byteSize": 2170,
 			"checksumSha256": "9394ba91a2c0d99c51fef05857b1f8bcc3482268230720d04eca024153fef074"
+		},
+		"qcutPackage": {
+			"url": "/text-assets/text-fancy-purple/soft-card@1/template.qctext",
+			"mimeType": "application/vnd.qcut.text-template+json",
+			"byteSize": 2575,
+			"checksumSha256": "dbcc0bd54e3e9263a65b9e8a575aeeaf07c5e0c980333b3fb8d0cffa18b38482"
 		}
 	},
 	"text-fancy-purple-label": {
@@ -2391,6 +3183,12 @@
 			"mimeType": "application/json",
 			"byteSize": 2128,
 			"checksumSha256": "d22315797c5d68c398a4ba9edcbde75feb258f15dd5a53af7a06fe6090022bc7"
+		},
+		"qcutPackage": {
+			"url": "/text-assets/text-fancy-purple/label@1/template.qctext",
+			"mimeType": "application/vnd.qcut.text-template+json",
+			"byteSize": 2524,
+			"checksumSha256": "fbea54855a2f2dc3b1faa5151de2381e2d4b75df656e06b4634fe3b27cba50a4"
 		}
 	},
 	"text-fancy-purple-plain": {
@@ -2409,6 +3207,12 @@
 			"mimeType": "application/json",
 			"byteSize": 2043,
 			"checksumSha256": "3d4ae6cc5a6665cf87f38b0150eadaad0d35cbbfd0a31430e572dd01bc09eadb"
+		},
+		"qcutPackage": {
+			"url": "/text-assets/text-fancy-purple/plain@1/template.qctext",
+			"mimeType": "application/vnd.qcut.text-template+json",
+			"byteSize": 2436,
+			"checksumSha256": "7cb9a5cba8ffa735117e274900e1c47c4835c5d0b4c717800a8b2edd0b393b2b"
 		}
 	},
 	"text-templates-headline-template-plain": {
@@ -2427,6 +3231,12 @@
 			"mimeType": "application/json",
 			"byteSize": 2343,
 			"checksumSha256": "1d67c4493c393b02261382132c4d99de0907f14115dcc34dcc215f0617914d24"
+		},
+		"qcutPackage": {
+			"url": "/text-assets/text-templates-headline-template/plain@1/template.qctext",
+			"mimeType": "application/vnd.qcut.text-template+json",
+			"byteSize": 2788,
+			"checksumSha256": "db0bb5dbc322de4792349372557d5d71ec0382ea201df5025e473fe78b9619da"
 		}
 	},
 	"text-templates-headline-template-label": {
@@ -2445,6 +3255,12 @@
 			"mimeType": "application/json",
 			"byteSize": 2422,
 			"checksumSha256": "be0bb1203083773ab9fdc003432ee22bcffa848cf0f2bbea006f3886da195a0f"
+		},
+		"qcutPackage": {
+			"url": "/text-assets/text-templates-headline-template/label@1/template.qctext",
+			"mimeType": "application/vnd.qcut.text-template+json",
+			"byteSize": 2870,
+			"checksumSha256": "d42f3df8fab092478127947f052e54df5d8eeea4a91f0ea70fae621a8c054d32"
 		}
 	},
 	"text-templates-headline-template-sticker": {
@@ -2463,6 +3279,12 @@
 			"mimeType": "application/json",
 			"byteSize": 2481,
 			"checksumSha256": "774eb3f9c4d7dc7f40b393d188a5365931f04342d3892b557f2f3cb0670a0125"
+		},
+		"qcutPackage": {
+			"url": "/text-assets/text-templates-headline-template/sticker@1/template.qctext",
+			"mimeType": "application/vnd.qcut.text-template+json",
+			"byteSize": 2934,
+			"checksumSha256": "48bb87347d9b4168aa92564dded820b0bda32057c08d04e2c05de149482ac45c"
 		}
 	},
 	"text-templates-headline-template-bubble": {
@@ -2481,6 +3303,12 @@
 			"mimeType": "application/json",
 			"byteSize": 2447,
 			"checksumSha256": "4198203dcc34aff88707715195d282b565383754b4e81b7dddaada59ba40c013"
+		},
+		"qcutPackage": {
+			"url": "/text-assets/text-templates-headline-template/bubble@1/template.qctext",
+			"mimeType": "application/vnd.qcut.text-template+json",
+			"byteSize": 2897,
+			"checksumSha256": "0438186f3007ca2d7923c2b3166fd609138335d2b461d167ea71c64f78809c16"
 		}
 	},
 	"text-templates-headline-template-soft-card": {
@@ -2499,6 +3327,12 @@
 			"mimeType": "application/json",
 			"byteSize": 2470,
 			"checksumSha256": "84ff9ed2462009980769a8a534fcee2a66707d30c17ae7721c76558b83a3332c"
+		},
+		"qcutPackage": {
+			"url": "/text-assets/text-templates-headline-template/soft-card@1/template.qctext",
+			"mimeType": "application/vnd.qcut.text-template+json",
+			"byteSize": 2927,
+			"checksumSha256": "d9c5fd6361bcb11f6959a8261ecf0b69f371bb458d81d78b93ffb9ae13f4e6e0"
 		}
 	},
 	"text-templates-quote-template-plain": {
@@ -2517,6 +3351,12 @@
 			"mimeType": "application/json",
 			"byteSize": 2304,
 			"checksumSha256": "d442d16342c038908d9ac5784b96eb9c833b9bcce8d299b167aadc97f840fadf"
+		},
+		"qcutPackage": {
+			"url": "/text-assets/text-templates-quote-template/plain@1/template.qctext",
+			"mimeType": "application/vnd.qcut.text-template+json",
+			"byteSize": 2740,
+			"checksumSha256": "17a7e3753875646a2255b614b5f0fba1a00991cff357ee5a4db5dc422ed57d8d"
 		}
 	},
 	"text-templates-quote-template-label": {
@@ -2535,6 +3375,12 @@
 			"mimeType": "application/json",
 			"byteSize": 2389,
 			"checksumSha256": "e18d6a009056fe6a1be0ead737b842ce374e4e5e5b8d469b383016867b777847"
+		},
+		"qcutPackage": {
+			"url": "/text-assets/text-templates-quote-template/label@1/template.qctext",
+			"mimeType": "application/vnd.qcut.text-template+json",
+			"byteSize": 2828,
+			"checksumSha256": "43242ece1758cebfc8e47bdd1961c95a5427fb021aa7b36b9982d2e53f04411a"
 		}
 	},
 	"text-templates-quote-template-sticker": {
@@ -2553,6 +3399,12 @@
 			"mimeType": "application/json",
 			"byteSize": 2446,
 			"checksumSha256": "eac805c1bf711d5644cadfd7663da44a2800fbaa7beca464f4936a45de1dd26c"
+		},
+		"qcutPackage": {
+			"url": "/text-assets/text-templates-quote-template/sticker@1/template.qctext",
+			"mimeType": "application/vnd.qcut.text-template+json",
+			"byteSize": 2890,
+			"checksumSha256": "22539f8264a3990c06c5a1b9310665e68f5fbb65bc649a0ef8148cdb7085e7c9"
 		}
 	},
 	"text-templates-quote-template-bubble": {
@@ -2571,6 +3423,12 @@
 			"mimeType": "application/json",
 			"byteSize": 2420,
 			"checksumSha256": "2883b1b5b7316b83bc6d3c2d6569541e60d7de252593b7ca3137dd8363289714"
+		},
+		"qcutPackage": {
+			"url": "/text-assets/text-templates-quote-template/bubble@1/template.qctext",
+			"mimeType": "application/vnd.qcut.text-template+json",
+			"byteSize": 2861,
+			"checksumSha256": "fc7978652f34978c33e21cbb29a07d5e9f51f8083c38ade20dff8b3f3f38e8dc"
 		}
 	},
 	"text-templates-quote-template-soft-card": {
@@ -2589,6 +3447,12 @@
 			"mimeType": "application/json",
 			"byteSize": 2431,
 			"checksumSha256": "1e3a75ff4bb40277b7e018d105828339b974f56f02b5da5751251e485bd24f13"
+		},
+		"qcutPackage": {
+			"url": "/text-assets/text-templates-quote-template/soft-card@1/template.qctext",
+			"mimeType": "application/vnd.qcut.text-template+json",
+			"byteSize": 2879,
+			"checksumSha256": "66b02a818a5caaeeaa8527658c56c4a712780f4aca900d3f011db6d48da81cf8"
 		}
 	},
 	"text-templates-list-template-plain": {
@@ -2607,6 +3471,12 @@
 			"mimeType": "application/json",
 			"byteSize": 2274,
 			"checksumSha256": "7e297f16a97ee924cc481529df62a44c5e02f6e2152f23e8a2b28dbf31a31c20"
+		},
+		"qcutPackage": {
+			"url": "/text-assets/text-templates-list-template/plain@1/template.qctext",
+			"mimeType": "application/vnd.qcut.text-template+json",
+			"byteSize": 2706,
+			"checksumSha256": "4dba40ad157161b57038e89264bda028fe2ab1f5b6eaa3bdd273cdccc05edf4a"
 		}
 	},
 	"text-templates-list-template-label": {
@@ -2625,6 +3495,12 @@
 			"mimeType": "application/json",
 			"byteSize": 2353,
 			"checksumSha256": "7e08578a3fd3b62e390774e78f783539b40257d4bbb736f2a6ceb57c0db0d03a"
+		},
+		"qcutPackage": {
+			"url": "/text-assets/text-templates-list-template/label@1/template.qctext",
+			"mimeType": "application/vnd.qcut.text-template+json",
+			"byteSize": 2788,
+			"checksumSha256": "676b1292678929ccb72b00d1a25a3e89d97cc80fb0eac5f71ec3ae5525680ef1"
 		}
 	},
 	"text-templates-list-template-sticker": {
@@ -2643,6 +3519,12 @@
 			"mimeType": "application/json",
 			"byteSize": 2412,
 			"checksumSha256": "aeecec583b252862e6fdf6b6fb8de8a1514628177330f00e5150cd8fda5d18cd"
+		},
+		"qcutPackage": {
+			"url": "/text-assets/text-templates-list-template/sticker@1/template.qctext",
+			"mimeType": "application/vnd.qcut.text-template+json",
+			"byteSize": 2852,
+			"checksumSha256": "ec7281b08702fbb63465435da995e84cae8c31dc25538cf6c397039e6d735f7e"
 		}
 	},
 	"text-templates-list-template-bubble": {
@@ -2661,6 +3543,12 @@
 			"mimeType": "application/json",
 			"byteSize": 2384,
 			"checksumSha256": "a235e0210d907dcb3ab8149a960766b78fc768331c91857918b26a2e9e33a929"
+		},
+		"qcutPackage": {
+			"url": "/text-assets/text-templates-list-template/bubble@1/template.qctext",
+			"mimeType": "application/vnd.qcut.text-template+json",
+			"byteSize": 2821,
+			"checksumSha256": "dc951f6b1aae9b3ac4cc24b84c7abe8b4c78a3172ba4c7288ec3db7dc95e2ee3"
 		}
 	},
 	"text-templates-list-template-soft-card": {
@@ -2679,6 +3567,12 @@
 			"mimeType": "application/json",
 			"byteSize": 2401,
 			"checksumSha256": "5bf760020c87190c8beafeb2c95686df36bf7fe4d2a5715ebae488ddb82464a7"
+		},
+		"qcutPackage": {
+			"url": "/text-assets/text-templates-list-template/soft-card@1/template.qctext",
+			"mimeType": "application/vnd.qcut.text-template+json",
+			"byteSize": 2845,
+			"checksumSha256": "769456a7606a7e96c21b813865372f3223d33592f71a88a3c976c0d7dea05f62"
 		}
 	},
 	"text-templates-split-template-plain": {
@@ -2697,6 +3591,12 @@
 			"mimeType": "application/json",
 			"byteSize": 2279,
 			"checksumSha256": "ccfdc1a4e21fcca67798b13e9efccb857ffa8a9a49f06c90d30973cea1458882"
+		},
+		"qcutPackage": {
+			"url": "/text-assets/text-templates-split-template/plain@1/template.qctext",
+			"mimeType": "application/vnd.qcut.text-template+json",
+			"byteSize": 2715,
+			"checksumSha256": "ab99fea8a8ac7b602cdcf4a1b759e1efc75a9d36e68468b984cac02cb61f2cd5"
 		}
 	},
 	"text-templates-split-template-label": {
@@ -2715,6 +3615,12 @@
 			"mimeType": "application/json",
 			"byteSize": 2366,
 			"checksumSha256": "b3b643cef43a6f68250399368d89a418ebd23f77dcf72a0d4b2c6c3dbf56558a"
+		},
+		"qcutPackage": {
+			"url": "/text-assets/text-templates-split-template/label@1/template.qctext",
+			"mimeType": "application/vnd.qcut.text-template+json",
+			"byteSize": 2805,
+			"checksumSha256": "24a715fe974c413db0181c4c2a9544744f51925ad34a33b6896c99d97a64aed0"
 		}
 	},
 	"text-templates-split-template-sticker": {
@@ -2733,6 +3639,12 @@
 			"mimeType": "application/json",
 			"byteSize": 2423,
 			"checksumSha256": "6b311953a6e52b9895782d88815e95d9ddb362f944d0d549bed903a2b34dea6d"
+		},
+		"qcutPackage": {
+			"url": "/text-assets/text-templates-split-template/sticker@1/template.qctext",
+			"mimeType": "application/vnd.qcut.text-template+json",
+			"byteSize": 2867,
+			"checksumSha256": "c2a7736784e17717d9883d0bd77d01e5e44d98ddecfac50d18dc21b28bfa07de"
 		}
 	},
 	"text-templates-split-template-bubble": {
@@ -2751,6 +3663,12 @@
 			"mimeType": "application/json",
 			"byteSize": 2391,
 			"checksumSha256": "94f4d4927cf90251e6e7bc601ba8e22e8836c7f11b8ffa8107ef3418f6d8ef32"
+		},
+		"qcutPackage": {
+			"url": "/text-assets/text-templates-split-template/bubble@1/template.qctext",
+			"mimeType": "application/vnd.qcut.text-template+json",
+			"byteSize": 2832,
+			"checksumSha256": "48c0d72a1e51d40d13d10853ea28537315aeb6d639e3c6e96549d0348c7a9131"
 		}
 	},
 	"text-templates-split-template-soft-card": {
@@ -2769,6 +3687,12 @@
 			"mimeType": "application/json",
 			"byteSize": 2406,
 			"checksumSha256": "1d273422e714b9219670688fb86f320c82c0b139c3fc7732355485669324b1bd"
+		},
+		"qcutPackage": {
+			"url": "/text-assets/text-templates-split-template/soft-card@1/template.qctext",
+			"mimeType": "application/vnd.qcut.text-template+json",
+			"byteSize": 2854,
+			"checksumSha256": "a40ca4e06703bd630eefb121f4ea706c80d45260a9f735b4c073d53b83740a8e"
 		}
 	},
 	"text-templates-timeline-template-plain": {
@@ -2787,6 +3711,12 @@
 			"mimeType": "application/json",
 			"byteSize": 2322,
 			"checksumSha256": "56a6e21e03d188c7a8cdb85ea6680b28ef49ef3dea4d6be0a08090f81fe55cf7"
+		},
+		"qcutPackage": {
+			"url": "/text-assets/text-templates-timeline-template/plain@1/template.qctext",
+			"mimeType": "application/vnd.qcut.text-template+json",
+			"byteSize": 2767,
+			"checksumSha256": "8a134b40e158273573510695fa344034f823282d4acd11983c6079ab683ddd30"
 		}
 	},
 	"text-templates-timeline-template-label": {
@@ -2805,6 +3735,12 @@
 			"mimeType": "application/json",
 			"byteSize": 2401,
 			"checksumSha256": "ac12d85a58ab61ad3c0b837d97cd316df3a6faf35e1bd00b4c20963e304ff380"
+		},
+		"qcutPackage": {
+			"url": "/text-assets/text-templates-timeline-template/label@1/template.qctext",
+			"mimeType": "application/vnd.qcut.text-template+json",
+			"byteSize": 2849,
+			"checksumSha256": "ca68fc0f6e51680194ff1a9985775caa74076c45163f6bb463bc854d65e4fbbf"
 		}
 	},
 	"text-templates-timeline-template-sticker": {
@@ -2823,6 +3759,12 @@
 			"mimeType": "application/json",
 			"byteSize": 2460,
 			"checksumSha256": "cdb9e4f33b6bbaa39fe35e77cddaf1bf8f5471cfe10ca4b9dd0454db561e187a"
+		},
+		"qcutPackage": {
+			"url": "/text-assets/text-templates-timeline-template/sticker@1/template.qctext",
+			"mimeType": "application/vnd.qcut.text-template+json",
+			"byteSize": 2913,
+			"checksumSha256": "9f4d514f9975d50e2560590ed0012d0a6c2ce76ad820b6ac92fd140ca8184401"
 		}
 	},
 	"text-templates-timeline-template-bubble": {
@@ -2841,6 +3783,12 @@
 			"mimeType": "application/json",
 			"byteSize": 2426,
 			"checksumSha256": "129f77026c3258dd739e6d90483dd70f3274a0c97f330de5cd4990f1f779b0c8"
+		},
+		"qcutPackage": {
+			"url": "/text-assets/text-templates-timeline-template/bubble@1/template.qctext",
+			"mimeType": "application/vnd.qcut.text-template+json",
+			"byteSize": 2876,
+			"checksumSha256": "6d7321787c48d778ac454adcfaa99a2ccf3aab053134587ff633116834fc9003"
 		}
 	},
 	"text-templates-timeline-template-soft-card": {
@@ -2859,6 +3807,12 @@
 			"mimeType": "application/json",
 			"byteSize": 2449,
 			"checksumSha256": "efe2e54e8c2edb34f2dd3c3e6b6223aa9ca804ea80f94dc7f99431583209094c"
+		},
+		"qcutPackage": {
+			"url": "/text-assets/text-templates-timeline-template/soft-card@1/template.qctext",
+			"mimeType": "application/vnd.qcut.text-template+json",
+			"byteSize": 2906,
+			"checksumSha256": "7637745a456cffbe2f22003a11f861412f837e4fa1ef0cca22a6feaf8293e966"
 		}
 	},
 	"text-smart-text-summary-plain": {
@@ -2877,6 +3831,12 @@
 			"mimeType": "application/json",
 			"byteSize": 2213,
 			"checksumSha256": "aba012896ecc99e4da71f1f74e5ee6f251f87bf6385052b42521efa1f8853f4b"
+		},
+		"qcutPackage": {
+			"url": "/text-assets/text-smart-text-summary/plain@1/template.qctext",
+			"mimeType": "application/vnd.qcut.text-template+json",
+			"byteSize": 2630,
+			"checksumSha256": "c05e67588bbf116d0ce21bc8664b1b930482a694f6d752ab57d5d018a6552eb5"
 		}
 	},
 	"text-smart-text-summary-label": {
@@ -2895,6 +3855,12 @@
 			"mimeType": "application/json",
 			"byteSize": 2304,
 			"checksumSha256": "fb3d68e0355c7f835b43ae0631401c042e67c5bbb54b9ab5b6ffe351f64d0923"
+		},
+		"qcutPackage": {
+			"url": "/text-assets/text-smart-text-summary/label@1/template.qctext",
+			"mimeType": "application/vnd.qcut.text-template+json",
+			"byteSize": 2724,
+			"checksumSha256": "3d140e04e2fa8bec4fad6ec5d3c0ea370f7b2d5ce82e3c55951f80ff0a6ae310"
 		}
 	},
 	"text-smart-text-summary-sticker": {
@@ -2913,6 +3879,12 @@
 			"mimeType": "application/json",
 			"byteSize": 2363,
 			"checksumSha256": "905749d0ed384d648be4843f5bb5496d098965b1a698bf7d372169e21e8d2d71"
+		},
+		"qcutPackage": {
+			"url": "/text-assets/text-smart-text-summary/sticker@1/template.qctext",
+			"mimeType": "application/vnd.qcut.text-template+json",
+			"byteSize": 2788,
+			"checksumSha256": "e16d25aecbf11034486bb08062316a7204d7764d3fa63490735c560765f70090"
 		}
 	},
 	"text-smart-text-summary-bubble": {
@@ -2931,6 +3903,12 @@
 			"mimeType": "application/json",
 			"byteSize": 2329,
 			"checksumSha256": "5f30a8d4847949cbbc5f8123070c099a1f6993878654011e549f634305977d32"
+		},
+		"qcutPackage": {
+			"url": "/text-assets/text-smart-text-summary/bubble@1/template.qctext",
+			"mimeType": "application/vnd.qcut.text-template+json",
+			"byteSize": 2751,
+			"checksumSha256": "e0948d5324a4ac673ddbe3bf75c55df8df065169b39ac1478d773238feae6d95"
 		}
 	},
 	"text-smart-text-summary-soft-card": {
@@ -2949,6 +3927,12 @@
 			"mimeType": "application/json",
 			"byteSize": 2340,
 			"checksumSha256": "e5fb4bc2c9aa99a14b2ea4f77ccd241e10f953930cfe3725b8d431830d05f1da"
+		},
+		"qcutPackage": {
+			"url": "/text-assets/text-smart-text-summary/soft-card@1/template.qctext",
+			"mimeType": "application/vnd.qcut.text-template+json",
+			"byteSize": 2769,
+			"checksumSha256": "0d8cec5362423e000ad84b4ad065b42529afc5d1d0253cfa5136720d9964df0c"
 		}
 	},
 	"text-smart-text-key-point-plain": {
@@ -2967,6 +3951,12 @@
 			"mimeType": "application/json",
 			"byteSize": 2254,
 			"checksumSha256": "810082dc074850b388e07ddd457aa701feaf0f94e16b805258580844a2d7ce61"
+		},
+		"qcutPackage": {
+			"url": "/text-assets/text-smart-text-key-point/plain@1/template.qctext",
+			"mimeType": "application/vnd.qcut.text-template+json",
+			"byteSize": 2678,
+			"checksumSha256": "d092e5505d29d4a1b29a5beff702097c2e10ac4a5bb397d53ff7248b68b97e32"
 		}
 	},
 	"text-smart-text-key-point-label": {
@@ -2985,6 +3975,12 @@
 			"mimeType": "application/json",
 			"byteSize": 2339,
 			"checksumSha256": "55621cc54cee86342cf876ca70efc993c58712aa38a1f8ca5f1cff55459ea4eb"
+		},
+		"qcutPackage": {
+			"url": "/text-assets/text-smart-text-key-point/label@1/template.qctext",
+			"mimeType": "application/vnd.qcut.text-template+json",
+			"byteSize": 2766,
+			"checksumSha256": "03fadd0a595313c5006fd65f23a976e4a5b9c1df7a2f604e90e29212c5661d01"
 		}
 	},
 	"text-smart-text-key-point-sticker": {
@@ -3003,6 +3999,12 @@
 			"mimeType": "application/json",
 			"byteSize": 2396,
 			"checksumSha256": "6c9536dd340b014ee01492d4ffe24baf28ec8c713889d3aec6018019109245f7"
+		},
+		"qcutPackage": {
+			"url": "/text-assets/text-smart-text-key-point/sticker@1/template.qctext",
+			"mimeType": "application/vnd.qcut.text-template+json",
+			"byteSize": 2828,
+			"checksumSha256": "dd45620819b23c94a7e32ad060a609e2e23961e69daef1c104f425f838105470"
 		}
 	},
 	"text-smart-text-key-point-bubble": {
@@ -3021,6 +4023,12 @@
 			"mimeType": "application/json",
 			"byteSize": 2364,
 			"checksumSha256": "e26fb5806075ea62b927be88d1d9bd136c8a09e5628f9c8bba24678d356b0ae5"
+		},
+		"qcutPackage": {
+			"url": "/text-assets/text-smart-text-key-point/bubble@1/template.qctext",
+			"mimeType": "application/vnd.qcut.text-template+json",
+			"byteSize": 2793,
+			"checksumSha256": "82879d83dac86a27a5ced998caca4c6a8afcb6b4409f845034239a4344497a9a"
 		}
 	},
 	"text-smart-text-key-point-soft-card": {
@@ -3039,6 +4047,12 @@
 			"mimeType": "application/json",
 			"byteSize": 2381,
 			"checksumSha256": "3aa34871ff259654b6519903803ad6d897992a1eda6c81ef5101c6833edc15e2"
+		},
+		"qcutPackage": {
+			"url": "/text-assets/text-smart-text-key-point/soft-card@1/template.qctext",
+			"mimeType": "application/vnd.qcut.text-template+json",
+			"byteSize": 2817,
+			"checksumSha256": "e72c6d449f5fb93bf3012a6ea673eb7936b097a8815fe030cdc249e65bcb0705"
 		}
 	},
 	"text-smart-text-chapter-plain": {
@@ -3057,6 +4071,12 @@
 			"mimeType": "application/json",
 			"byteSize": 2189,
 			"checksumSha256": "050c53b3169f5f45cb5811eec839066279bf9966efefd18ebd45e06d77c977aa"
+		},
+		"qcutPackage": {
+			"url": "/text-assets/text-smart-text-chapter/plain@1/template.qctext",
+			"mimeType": "application/vnd.qcut.text-template+json",
+			"byteSize": 2606,
+			"checksumSha256": "c06a7cd7e8dc7e50ff45f3d6fe9ce632b4ad58089de122214865615ece5c5f8f"
 		}
 	},
 	"text-smart-text-chapter-label": {
@@ -3075,6 +4095,12 @@
 			"mimeType": "application/json",
 			"byteSize": 2280,
 			"checksumSha256": "88cfe09d0a2a07c266a683b16fa98dbc507e4d0026aa99214e891b77ddf81ac4"
+		},
+		"qcutPackage": {
+			"url": "/text-assets/text-smart-text-chapter/label@1/template.qctext",
+			"mimeType": "application/vnd.qcut.text-template+json",
+			"byteSize": 2700,
+			"checksumSha256": "076b6a551cba7d74e2d79ec9d4500149805aaa15daddbcc7a41701198fcb6fcb"
 		}
 	},
 	"text-smart-text-chapter-sticker": {
@@ -3093,6 +4119,12 @@
 			"mimeType": "application/json",
 			"byteSize": 2339,
 			"checksumSha256": "1025975c14aa4f151b096a867ef7a06baf57b8cfc6ddfe110ccbe9ae70130e72"
+		},
+		"qcutPackage": {
+			"url": "/text-assets/text-smart-text-chapter/sticker@1/template.qctext",
+			"mimeType": "application/vnd.qcut.text-template+json",
+			"byteSize": 2764,
+			"checksumSha256": "14925f71c3f36de174eaa0da3af709c25b2c95252422888f74225fb481fc069f"
 		}
 	},
 	"text-smart-text-chapter-bubble": {
@@ -3111,6 +4143,12 @@
 			"mimeType": "application/json",
 			"byteSize": 2299,
 			"checksumSha256": "191f4d206648cdb86eaf9ecf5ad5d661ab8a62131d1591272a899eebe29ad633"
+		},
+		"qcutPackage": {
+			"url": "/text-assets/text-smart-text-chapter/bubble@1/template.qctext",
+			"mimeType": "application/vnd.qcut.text-template+json",
+			"byteSize": 2721,
+			"checksumSha256": "3b09d45c1bb3fef05e365c420aadcdc26896eb6e4ec5be243e7d2a211d526abe"
 		}
 	},
 	"text-smart-text-chapter-soft-card": {
@@ -3129,6 +4167,12 @@
 			"mimeType": "application/json",
 			"byteSize": 2316,
 			"checksumSha256": "2337d912029cce19570a9c51256255b6e4d72557bce241b8078dea8102b33f06"
+		},
+		"qcutPackage": {
+			"url": "/text-assets/text-smart-text-chapter/soft-card@1/template.qctext",
+			"mimeType": "application/vnd.qcut.text-template+json",
+			"byteSize": 2745,
+			"checksumSha256": "d1425eaa92c6593a87d01efecb64709bbabc02b157b256f1ca0c7f50dc3237c0"
 		}
 	},
 	"text-smart-text-subtitle-title-plain": {
@@ -3147,6 +4191,12 @@
 			"mimeType": "application/json",
 			"byteSize": 2328,
 			"checksumSha256": "4835749ce51b0db86836edec54f1634cc72d1cb862516b76234fe2015bed9882"
+		},
+		"qcutPackage": {
+			"url": "/text-assets/text-smart-text-subtitle-title/plain@1/template.qctext",
+			"mimeType": "application/vnd.qcut.text-template+json",
+			"byteSize": 2767,
+			"checksumSha256": "4f74215c642207ef3d78030adef2a2fce5970f6fa01784bf05c0c3dfeb979087"
 		}
 	},
 	"text-smart-text-subtitle-title-label": {
@@ -3165,6 +4215,12 @@
 			"mimeType": "application/json",
 			"byteSize": 2425,
 			"checksumSha256": "8102dbe1b68e3df9d09811d964213890179c2ddd5cb4115c42e3d6d5e6355c0a"
+		},
+		"qcutPackage": {
+			"url": "/text-assets/text-smart-text-subtitle-title/label@1/template.qctext",
+			"mimeType": "application/vnd.qcut.text-template+json",
+			"byteSize": 2867,
+			"checksumSha256": "caffb16b0d17219e06c19501df58f80432b47913e0a8970509919e656f46f101"
 		}
 	},
 	"text-smart-text-subtitle-title-sticker": {
@@ -3183,6 +4239,12 @@
 			"mimeType": "application/json",
 			"byteSize": 2482,
 			"checksumSha256": "d8de08cb9e837cc72812d7d84894f0cfb97130e54741dcc0c4a9edf30f9272ed"
+		},
+		"qcutPackage": {
+			"url": "/text-assets/text-smart-text-subtitle-title/sticker@1/template.qctext",
+			"mimeType": "application/vnd.qcut.text-template+json",
+			"byteSize": 2929,
+			"checksumSha256": "ce6b37a7ea8ae7e7390ed236a843f609b845ad9f15f8eea6f65f12b6b651136e"
 		}
 	},
 	"text-smart-text-subtitle-title-bubble": {
@@ -3201,6 +4263,12 @@
 			"mimeType": "application/json",
 			"byteSize": 2438,
 			"checksumSha256": "3aeeae5cf0e8d920328b9b1a2db2803ba1059b6692d98bcb56693dc14e2dd814"
+		},
+		"qcutPackage": {
+			"url": "/text-assets/text-smart-text-subtitle-title/bubble@1/template.qctext",
+			"mimeType": "application/vnd.qcut.text-template+json",
+			"byteSize": 2882,
+			"checksumSha256": "93105f5d2a8e5f2aed5b8d207b0433081fead8e351cb3460e7d3abd261282ae9"
 		}
 	},
 	"text-smart-text-subtitle-title-soft-card": {
@@ -3219,6 +4287,12 @@
 			"mimeType": "application/json",
 			"byteSize": 2455,
 			"checksumSha256": "2fa6817535cb40b828980475448d9b2560744f972c03da3d4406db079230a0a0"
+		},
+		"qcutPackage": {
+			"url": "/text-assets/text-smart-text-subtitle-title/soft-card@1/template.qctext",
+			"mimeType": "application/vnd.qcut.text-template+json",
+			"byteSize": 2906,
+			"checksumSha256": "1b85b960eaee1fc909fad4ddd161133541890d832c2e80e4f9bfb1cd8de21895"
 		}
 	},
 	"text-smart-text-rewrite-plain": {
@@ -3237,6 +4311,12 @@
 			"mimeType": "application/json",
 			"byteSize": 2194,
 			"checksumSha256": "dd6db784aceb1e3261d6aebfd9cd1dd8b7ce9ecd1c3c16b43bbb5c7e9afd33cb"
+		},
+		"qcutPackage": {
+			"url": "/text-assets/text-smart-text-rewrite/plain@1/template.qctext",
+			"mimeType": "application/vnd.qcut.text-template+json",
+			"byteSize": 2611,
+			"checksumSha256": "50bd98deeb1960b308b03a86d653e8cfa4534c9c15f8fbc45335470d177143ce"
 		}
 	},
 	"text-smart-text-rewrite-label": {
@@ -3255,6 +4335,12 @@
 			"mimeType": "application/json",
 			"byteSize": 2285,
 			"checksumSha256": "32fd29316910b909f4e8662b879873cdc44f4ec13a44a1dd0acc2dadf24519d8"
+		},
+		"qcutPackage": {
+			"url": "/text-assets/text-smart-text-rewrite/label@1/template.qctext",
+			"mimeType": "application/vnd.qcut.text-template+json",
+			"byteSize": 2705,
+			"checksumSha256": "b2dc8fbf34450cdae37d9fab0e020d4a94a73af09f91d6168c282046008bc8c9"
 		}
 	},
 	"text-smart-text-rewrite-sticker": {
@@ -3273,6 +4359,12 @@
 			"mimeType": "application/json",
 			"byteSize": 2344,
 			"checksumSha256": "e99fc758aed3ea8b7989bc688d7f49928ede4e04ea280f063eca213984a94169"
+		},
+		"qcutPackage": {
+			"url": "/text-assets/text-smart-text-rewrite/sticker@1/template.qctext",
+			"mimeType": "application/vnd.qcut.text-template+json",
+			"byteSize": 2769,
+			"checksumSha256": "2d11d1b56f001073f92ccf2d1c8dabf11830dd131c06df30306485fd7d4e32de"
 		}
 	},
 	"text-smart-text-rewrite-bubble": {
@@ -3291,6 +4383,12 @@
 			"mimeType": "application/json",
 			"byteSize": 2310,
 			"checksumSha256": "a5d2197ab6053bf9d54673f4318aad1a94fc1277097bbacee568745726c06b40"
+		},
+		"qcutPackage": {
+			"url": "/text-assets/text-smart-text-rewrite/bubble@1/template.qctext",
+			"mimeType": "application/vnd.qcut.text-template+json",
+			"byteSize": 2732,
+			"checksumSha256": "4e68a9e81877ec75efa705c592196f4c1d1839a205f676662fe54bcc57770443"
 		}
 	},
 	"text-smart-text-rewrite-soft-card": {
@@ -3309,6 +4407,12 @@
 			"mimeType": "application/json",
 			"byteSize": 2321,
 			"checksumSha256": "d49a7c43f3c2ef7e2c51ccbab5638a310255daae1e10f1dc3050d4afde25852f"
+		},
+		"qcutPackage": {
+			"url": "/text-assets/text-smart-text-rewrite/soft-card@1/template.qctext",
+			"mimeType": "application/vnd.qcut.text-template+json",
+			"byteSize": 2750,
+			"checksumSha256": "efd7a0ce42c8963ff412638328f2b998690c2c4635c1c175eea329a1b9e36113"
 		}
 	},
 	"text-legacy-heading-text": {
@@ -3327,6 +4431,12 @@
 			"mimeType": "application/json",
 			"byteSize": 1812,
 			"checksumSha256": "8edd08c5743b6df6a978e2309993c86f57c0348c38b0d263e6ce46f95e4943aa"
+		},
+		"qcutPackage": {
+			"url": "/text-assets/legacy/heading-text@1/template.qctext",
+			"mimeType": "application/vnd.qcut.text-template+json",
+			"byteSize": 2192,
+			"checksumSha256": "de398392e6c0abfa29822fb0b23ac00038c76b6595d3269442d633a9bb544e50"
 		}
 	},
 	"text-legacy-subtitle-text": {
@@ -3345,6 +4455,12 @@
 			"mimeType": "application/json",
 			"byteSize": 1783,
 			"checksumSha256": "421231a8f9bb5354dc79e505453a57e117ea1fc08174ba56dc854ad469f3fedd"
+		},
+		"qcutPackage": {
+			"url": "/text-assets/legacy/subtitle-text@1/template.qctext",
+			"mimeType": "application/vnd.qcut.text-template+json",
+			"byteSize": 2165,
+			"checksumSha256": "953003893583674151d6ce54ac2875c17b33fb5a20a238dc9712e9bcfb9237f8"
 		}
 	},
 	"text-legacy-editorial-title": {
@@ -3363,6 +4479,12 @@
 			"mimeType": "application/json",
 			"byteSize": 1848,
 			"checksumSha256": "87628cd0699da0d3da79125405a235dbe621bc96883973ce335d00991e740087"
+		},
+		"qcutPackage": {
+			"url": "/text-assets/legacy/editorial-title@1/template.qctext",
+			"mimeType": "application/vnd.qcut.text-template+json",
+			"byteSize": 2233,
+			"checksumSha256": "3cbdee5d10a5484bc074c2a4e4ad85991c78adb45f564f586bcd62dfa31e5617"
 		}
 	},
 	"text-legacy-social-hook": {
@@ -3381,6 +4503,12 @@
 			"mimeType": "application/json",
 			"byteSize": 1951,
 			"checksumSha256": "833f574f0d9a7c0e7d79a642599736cc5c529ba47e23bf04599ef08ec7b103d6"
+		},
+		"qcutPackage": {
+			"url": "/text-assets/legacy/social-hook@1/template.qctext",
+			"mimeType": "application/vnd.qcut.text-template+json",
+			"byteSize": 2347,
+			"checksumSha256": "fb57ecc1b84b3de74e647c2f8433b466b8a533f64b4970eb8248549b0590dc0b"
 		}
 	},
 	"text-legacy-social-question": {
@@ -3399,6 +4527,12 @@
 			"mimeType": "application/json",
 			"byteSize": 1943,
 			"checksumSha256": "23663dbc9f30d0852c32c0d7cd7ea65ea83e3b942ed642a3400271082f7d05e7"
+		},
+		"qcutPackage": {
+			"url": "/text-assets/legacy/social-question@1/template.qctext",
+			"mimeType": "application/vnd.qcut.text-template+json",
+			"byteSize": 2345,
+			"checksumSha256": "20e43f6147a00d438e595bbe63c543ae4d66d651c48ee24262b0f289039a33e8"
 		}
 	},
 	"text-legacy-social-tip": {
@@ -3417,6 +4551,12 @@
 			"mimeType": "application/json",
 			"byteSize": 1859,
 			"checksumSha256": "21230c845185592cc21f91f04b1e42ea475057375d62a1bb8d079ab33db7877d"
+		},
+		"qcutPackage": {
+			"url": "/text-assets/legacy/social-tip@1/template.qctext",
+			"mimeType": "application/vnd.qcut.text-template+json",
+			"byteSize": 2250,
+			"checksumSha256": "d339e81ca8b5eddda2d0287d637f88b3dfa59f8fd49b386ae72cf714851a52ed"
 		}
 	},
 	"text-legacy-social-breaking": {
@@ -3435,6 +4575,12 @@
 			"mimeType": "application/json",
 			"byteSize": 1933,
 			"checksumSha256": "b83e85b50f8fb3cb1d1c8c45b346729d997775cb81f5dce4e671a611aad2ffe5"
+		},
+		"qcutPackage": {
+			"url": "/text-assets/legacy/social-breaking@1/template.qctext",
+			"mimeType": "application/vnd.qcut.text-template+json",
+			"byteSize": 2333,
+			"checksumSha256": "597a8f88902806613ef9d14f3333285e859eb50cd1da51e7b298f97cbd6d2a8e"
 		}
 	},
 	"text-legacy-rounded-label": {
@@ -3453,6 +4599,12 @@
 			"mimeType": "application/json",
 			"byteSize": 1845,
 			"checksumSha256": "3a8758ab3a3c6a646526944264eb0e6b7ccd36c0f774e9aaaf6583994d4878bd"
+		},
+		"qcutPackage": {
+			"url": "/text-assets/legacy/rounded-label@1/template.qctext",
+			"mimeType": "application/vnd.qcut.text-template+json",
+			"byteSize": 2232,
+			"checksumSha256": "c9c2e8fdb821346e99ba6eb43b01b3bb7329d761d670e39f7ed3d5205399c81a"
 		}
 	},
 	"text-legacy-dark-bubble": {
@@ -3471,6 +4623,12 @@
 			"mimeType": "application/json",
 			"byteSize": 1825,
 			"checksumSha256": "b2c8eeb95bc844d132bbd1d604f6890611988e33347be9c234c1b44d11fa9f27"
+		},
+		"qcutPackage": {
+			"url": "/text-assets/legacy/dark-bubble@1/template.qctext",
+			"mimeType": "application/vnd.qcut.text-template+json",
+			"byteSize": 2208,
+			"checksumSha256": "877f15aa2b36d961e5b971ac046471e52c4aed23d61a78e9f4665f18c882abd6"
 		}
 	},
 	"text-legacy-yellow-callout": {
@@ -3489,6 +4647,12 @@
 			"mimeType": "application/json",
 			"byteSize": 1850,
 			"checksumSha256": "4c39cc938e2619b3ac094aa738fcac7afda74ca6a3eb2602786f8523cfa1fa44"
+		},
+		"qcutPackage": {
+			"url": "/text-assets/legacy/yellow-callout@1/template.qctext",
+			"mimeType": "application/vnd.qcut.text-template+json",
+			"byteSize": 2234,
+			"checksumSha256": "d6f864d6eb17c1b8fa14fd00778d45b9e9546de3e57cbebe9aecf4d100d17a0e"
 		}
 	},
 	"text-legacy-blue-outline-label": {
@@ -3507,6 +4671,12 @@
 			"mimeType": "application/json",
 			"byteSize": 1901,
 			"checksumSha256": "454b4f5d30d611aa30f9ffbb6170137de79e9d041129b0d5234a225cc9e01c2f"
+		},
+		"qcutPackage": {
+			"url": "/text-assets/legacy/blue-outline-label@1/template.qctext",
+			"mimeType": "application/vnd.qcut.text-template+json",
+			"byteSize": 2299,
+			"checksumSha256": "2f8585d035c4fb1c38c84609de80adfd8bef8584ec8eb88a95fb2249cd20a394"
 		}
 	},
 	"text-legacy-cyan-neon": {
@@ -3525,6 +4695,12 @@
 			"mimeType": "application/json",
 			"byteSize": 1789,
 			"checksumSha256": "87a26e50b25f8ccc507f930a852bcb363f8dea333714b0d48d34af3fb1c9075d"
+		},
+		"qcutPackage": {
+			"url": "/text-assets/legacy/cyan-neon@1/template.qctext",
+			"mimeType": "application/vnd.qcut.text-template+json",
+			"byteSize": 2160,
+			"checksumSha256": "2883141a96b69692479527c7e62590ff2bd822a8458a181f64fcec8764397eb0"
 		}
 	},
 	"text-legacy-pink-neon-title": {
@@ -3543,6 +4719,12 @@
 			"mimeType": "application/json",
 			"byteSize": 1821,
 			"checksumSha256": "1451d1ac9790fdcb1bb72347dec0385b164f8178147f36c09ed90766c78a6629"
+		},
+		"qcutPackage": {
+			"url": "/text-assets/legacy/pink-neon-title@1/template.qctext",
+			"mimeType": "application/vnd.qcut.text-template+json",
+			"byteSize": 2203,
+			"checksumSha256": "f1bf772212e608518e67e787838441adea0cfc7b157520ded5e5c2b927f4b803"
 		}
 	},
 	"text-legacy-curved-pop": {
@@ -3561,6 +4743,12 @@
 			"mimeType": "application/json",
 			"byteSize": 1816,
 			"checksumSha256": "25911b800bd3aadf89d95b9a19b1e38af7dd4a525be1db0c3cfd0a5e2f262621"
+		},
+		"qcutPackage": {
+			"url": "/text-assets/legacy/curved-pop@1/template.qctext",
+			"mimeType": "application/vnd.qcut.text-template+json",
+			"byteSize": 2192,
+			"checksumSha256": "42a8f0768b98281e64fa0f465776ccb720c59193f7c6eac9f94592767951b5c1"
 		}
 	},
 	"text-legacy-clean-quote": {
@@ -3579,6 +4767,12 @@
 			"mimeType": "application/json",
 			"byteSize": 1830,
 			"checksumSha256": "802009705933a42a86a49c3192b7b4c79b113e9b49522a07fd7a5ad12b908bed"
+		},
+		"qcutPackage": {
+			"url": "/text-assets/legacy/clean-quote@1/template.qctext",
+			"mimeType": "application/vnd.qcut.text-template+json",
+			"byteSize": 2207,
+			"checksumSha256": "0b9d981df4b53acb422aa06689b027eed1953d38f498e69d9f2e31c0116751dc"
 		}
 	}
 }

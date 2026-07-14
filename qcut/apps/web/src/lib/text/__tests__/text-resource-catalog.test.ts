@@ -85,9 +85,12 @@ describe("text resource catalog", () => {
 				"https://assets.qcut.app/text-assets/pack-a/poster@1/thumbnail.webp",
 			sourceUrl:
 				"https://assets.qcut.app/text-assets/pack-a/poster@1/template.json",
+			packageUrl:
+				"https://assets.qcut.app/text-assets/pack-a/poster@1/template.qctext",
 			byteSize: 128 * 1024,
 			thumbnailByteSize: Math.round(128 * 1024 * 0.18),
 			sourceByteSize: 128 * 1024,
+			packageByteSize: 128 * 1024,
 			bundled: false,
 		});
 		expect(DEFAULT_TEXT_ASSET_REMOTE_BASE_URL).toBe("https://assets.qcut.app");
@@ -101,6 +104,8 @@ describe("text resource catalog", () => {
 				"https://cdn.example.test/assets/text-assets/pack-a/poster@1/thumbnail.webp",
 			sourceUrl:
 				"https://cdn.example.test/assets/text-assets/pack-a/poster@1/template.json",
+			packageUrl:
+				"https://cdn.example.test/assets/text-assets/pack-a/poster@1/template.qctext",
 		});
 	});
 
@@ -119,9 +124,13 @@ describe("text resource catalog", () => {
 				/^\/text-assets\/.+\/thumbnail\.webp$/
 			),
 			sourceUrl: expect.stringMatching(/^\/text-assets\/.+\/template\.json$/),
+			packageUrl: expect.stringMatching(
+				/^\/text-assets\/.+\/template\.qctext$/
+			),
 			bundled: true,
 			thumbnailChecksumSha256: expect.stringMatching(/^[a-f0-9]{64}$/),
 			sourceChecksumSha256: expect.stringMatching(/^[a-f0-9]{64}$/),
+			packageChecksumSha256: expect.stringMatching(/^[a-f0-9]{64}$/),
 		});
 	});
 
@@ -141,6 +150,9 @@ describe("text resource catalog", () => {
 			),
 			sourceUrl: expect.stringMatching(
 				/^https:\/\/assets\.qcut\.app\/text-assets\/.+\/template\.json$/
+			),
+			packageUrl: expect.stringMatching(
+				/^https:\/\/assets\.qcut\.app\/text-assets\/.+\/template\.qctext$/
 			),
 			bundled: false,
 		});

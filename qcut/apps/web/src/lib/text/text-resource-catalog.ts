@@ -19,6 +19,7 @@ type TextTemplateGeneratedAsset = {
 	cacheKey: string;
 	thumbnail: TextTemplateGeneratedAssetFile;
 	source: TextTemplateGeneratedAssetFile;
+	qcutPackage?: TextTemplateGeneratedAssetFile;
 };
 
 const textAssetManifest = generatedTextAssetManifest as Readonly<
@@ -44,8 +45,11 @@ export interface TextTemplateResourceFiles {
 	byteSize: number;
 	thumbnailByteSize: number;
 	sourceByteSize: number;
+	packageByteSize: number;
 	thumbnailChecksumSha256?: string;
 	sourceChecksumSha256?: string;
+	packageChecksumSha256?: string;
+	packageUrl: string;
 	bundled: boolean;
 }
 
@@ -109,11 +113,21 @@ export function getTextTemplateResourceFiles({
 		return {
 			thumbnailUrl: bundledAsset.thumbnail.url,
 			sourceUrl: bundledAsset.source.url,
+			packageUrl:
+				bundledAsset.qcutPackage?.url ??
+				remoteTextAssetFileUrl({
+					cacheKey: resource.cacheKey,
+					fileName: "template.qctext",
+					remoteBaseUrl: DEFAULT_TEXT_ASSET_REMOTE_BASE_URL,
+				}),
 			byteSize: bundledAsset.source.byteSize,
 			thumbnailByteSize: bundledAsset.thumbnail.byteSize,
 			sourceByteSize: bundledAsset.source.byteSize,
+			packageByteSize:
+				bundledAsset.qcutPackage?.byteSize ?? bundledAsset.source.byteSize,
 			thumbnailChecksumSha256: bundledAsset.thumbnail.checksumSha256,
 			sourceChecksumSha256: bundledAsset.source.checksumSha256,
+			packageChecksumSha256: bundledAsset.qcutPackage?.checksumSha256,
 			bundled: true,
 		};
 	}
@@ -127,24 +141,35 @@ export function getTextTemplateResourceFiles({
 		fileName: "template.json",
 		remoteBaseUrl,
 	});
+	const packageUrl = remoteTextAssetFileUrl({
+		cacheKey: resource.cacheKey,
+		fileName: "template.qctext",
+		remoteBaseUrl,
+	});
 	if (bundledAsset) {
 		return {
 			thumbnailUrl,
 			sourceUrl,
+			packageUrl,
 			byteSize: bundledAsset.source.byteSize,
 			thumbnailByteSize: bundledAsset.thumbnail.byteSize,
 			sourceByteSize: bundledAsset.source.byteSize,
+			packageByteSize:
+				bundledAsset.qcutPackage?.byteSize ?? bundledAsset.source.byteSize,
 			thumbnailChecksumSha256: bundledAsset.thumbnail.checksumSha256,
 			sourceChecksumSha256: bundledAsset.source.checksumSha256,
+			packageChecksumSha256: bundledAsset.qcutPackage?.checksumSha256,
 			bundled: false,
 		};
 	}
 	return {
 		thumbnailUrl,
 		sourceUrl,
+		packageUrl,
 		byteSize: resource.sizeKb * 1024,
 		thumbnailByteSize: Math.round(resource.sizeKb * 1024 * 0.18),
 		sourceByteSize: resource.sizeKb * 1024,
+		packageByteSize: resource.sizeKb * 1024,
 		bundled: false,
 	};
 }

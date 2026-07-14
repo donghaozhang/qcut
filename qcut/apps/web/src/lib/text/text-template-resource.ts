@@ -6,6 +6,7 @@ import type { TextTemplateDefinition } from "./text-template-registry";
 
 export interface DownloadedTextTemplateResource {
 	cacheKey: string;
+	packageUrl?: string;
 	sourceUrl?: string;
 	thumbnailUrl?: string;
 }
@@ -45,6 +46,7 @@ export async function downloadTextTemplateResource({
 	});
 	return {
 		cacheKey,
+		packageUrl: resources.find((resource) => resource.role === "package")?.url,
 		sourceUrl: resources.find((resource) => resource.role === "source")?.url,
 		thumbnailUrl: resources.find((resource) => resource.role === "thumbnail")
 			?.url,

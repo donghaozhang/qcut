@@ -146,6 +146,13 @@ export function createTextTemplateAssetEntry({
 				byteSize: files.sourceByteSize,
 				checksumSha256: files.sourceChecksumSha256,
 			},
+			{
+				role: "package",
+				url: files.packageUrl,
+				mimeType: "application/vnd.qcut.text-template+json",
+				byteSize: files.packageByteSize,
+				checksumSha256: files.packageChecksumSha256,
+			},
 		],
 		license: QCUT_BUILT_IN_LICENSE,
 		metadata: {
