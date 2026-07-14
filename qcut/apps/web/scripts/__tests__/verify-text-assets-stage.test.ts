@@ -68,6 +68,61 @@ function createUploadPlanReport({
 	};
 }
 
+function createTextPackageContent({
+	sourceItem,
+	sourceSha256 = sourceItem.sha256,
+	thumbnailItem,
+	thumbnailSha256 = thumbnailItem.sha256,
+}: {
+	sourceItem: TextAssetUploadPlanItem;
+	sourceSha256?: string;
+	thumbnailItem: TextAssetUploadPlanItem;
+	thumbnailSha256?: string;
+}): string {
+	return JSON.stringify({
+		schemaVersion: 1,
+		kind: "qcut-text-template-package",
+		assetId: "text-demo",
+		packageId: "text-demo",
+		version: 1,
+		cacheKey: "text-assets/demo/plain@1",
+		files: {
+			source: "template.json",
+			thumbnail: "thumbnail.webp",
+		},
+		resources: [
+			{
+				byteSize: thumbnailItem.size,
+				checksumSha256: thumbnailSha256,
+				mimeType: thumbnailItem.contentType,
+				path: "thumbnail.webp",
+				role: "thumbnail",
+				url: "/text-assets/demo/plain@1/thumbnail.webp",
+			},
+			{
+				byteSize: sourceItem.size,
+				checksumSha256: sourceSha256,
+				mimeType: sourceItem.contentType,
+				path: "template.json",
+				role: "source",
+				url: "/text-assets/demo/plain@1/template.json",
+			},
+		],
+		source: {
+			schemaVersion: 1,
+			assetId: "text-demo",
+			packageId: "text-demo",
+			version: 1,
+			template: {
+				content: "花字",
+				id: "text-demo-template",
+				name: "Demo",
+				type: "text",
+			},
+		},
+	});
+}
+
 describe("text asset stage verifier", () => {
 	it("is exposed through the package scripts", () => {
 		const packageJson = JSON.parse(readFileSync(PACKAGE_JSON_PATH, "utf8")) as {
@@ -263,6 +318,60 @@ describe("text asset stage verifier", () => {
 				code: "stage-contract-mismatch",
 				detail: expect.stringContaining("contentType expected image/webp"),
 				key: badThumbnailItem.key,
+			}),
+		]);
+	});
+
+	it("reports qctext package companion resources that drift from staged files", async () => {
+		const stageDir = join(tmpdir(), `qcut-stage-package-${randomUUID()}`);
+		const thumbnailContent = "thumbnail-webp";
+		const sourceContent = '{"assetId":"text-demo"}';
+		const thumbnailItem = createUploadPlanItem({
+			content: thumbnailContent,
+			contentType: "image/webp",
+			key: "prod/text-assets/demo/plain@1/thumbnail.webp",
+			role: "thumbnail",
+		});
+		const sourceItem = createUploadPlanItem({
+			content: sourceContent,
+			key: "prod/text-assets/demo/plain@1/template.json",
+		});
+		const packageContent = createTextPackageContent({
+			sourceItem,
+			sourceSha256: "f".repeat(64),
+			thumbnailItem,
+		});
+		const packageItem = createUploadPlanItem({
+			content: packageContent,
+			contentType: "application/vnd.qcut.text-template+json",
+			key: "prod/text-assets/demo/plain@1/template.qctext",
+			role: "package",
+		});
+		const manifest = createUploadPlanReport({
+			items: [thumbnailItem, sourceItem, packageItem],
+		});
+		await Promise.all(
+			[
+				{ content: thumbnailContent, item: thumbnailItem },
+				{ content: sourceContent, item: sourceItem },
+				{ content: packageContent, item: packageItem },
+			].map(async ({ content, item }) => {
+				const path = join(stageDir, item.key);
+				await mkdir(dirname(path), { recursive: true });
+				await writeFile(path, content);
+			})
+		);
+
+		await expect(
+			verifyTextAssetStage({
+				manifest,
+				stageDir,
+			})
+		).resolves.toEqual([
+			expect.objectContaining({
+				code: "package-resource-mismatch",
+				detail: expect.stringContaining("checksumSha256 expected"),
+				key: packageItem.key,
 			}),
 		]);
 	});

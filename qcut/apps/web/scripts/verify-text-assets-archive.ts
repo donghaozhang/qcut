@@ -3,6 +3,7 @@ import { execFile } from "node:child_process";
 import { dirname, isAbsolute, join, sep } from "node:path";
 import { fileURLToPath } from "node:url";
 import { promisify } from "node:util";
+import { verifyTextAssetPackageResourceManifest } from "./text-asset-package-resource-contract";
 import { verifyTextAssetUploadPlanItemContract } from "./text-asset-upload-plan-contract";
 import type { TextAssetUploadPlanReport } from "./upload-text-assets-cdn";
 
@@ -20,6 +21,7 @@ export type TextAssetArchiveVerifyIssue = {
 		| "archive-byte-size-mismatch"
 		| "archive-checksum-mismatch"
 		| "archive-entry-read-failed"
+		| "archive-package-resource-mismatch"
 		| "invalid-archive-entry";
 	detail: string;
 	key: string;
@@ -219,6 +221,20 @@ export async function verifyTextAssetArchiveContents({
 					detail: `Expected ${item.sha256}, received ${checksum}`,
 					key: item.key,
 				});
+			}
+			if (item.role === "package") {
+				issues.push(
+					...verifyTextAssetPackageResourceManifest({
+						items: manifest.items,
+						packageBytes: bytes,
+						packageItem: item,
+						prefix: manifest.prefix,
+					}).map((issue) => ({
+						code: "archive-package-resource-mismatch" as const,
+						detail: issue.detail,
+						key: issue.key,
+					}))
+				);
 			}
 			return issues;
 		})

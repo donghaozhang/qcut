@@ -6,6 +6,7 @@ import type {
 	TextAssetUploadPlanItem,
 	TextAssetUploadPlanReport,
 } from "./upload-text-assets-cdn";
+import { verifyTextAssetPackageResourceManifest } from "./text-asset-package-resource-contract";
 import { verifyTextAssetUploadPlanItemContract } from "./text-asset-upload-plan-contract";
 import {
 	verifyTextMarketplaceMetadataCoverage,
@@ -30,6 +31,7 @@ export type TextAssetStageVerifyIssue = {
 		| "checksum-mismatch"
 		| "invalid-stage-key"
 		| "marketplace-source-mismatch"
+		| "package-resource-mismatch"
 		| "stage-contract-mismatch"
 		| "upload-plan-mismatch";
 	detail: string;
@@ -116,6 +118,7 @@ export async function verifyTextAssetStage({
 		manifest.items.map((item) =>
 			verifyTextAssetStageItem({
 				item,
+				manifest,
 				resolvedStageDir,
 			})
 		)
@@ -160,9 +163,11 @@ export function verifyTextAssetStageUploadPlanSync({
 
 async function verifyTextAssetStageItem({
 	item,
+	manifest,
 	resolvedStageDir,
 }: {
 	item: TextAssetUploadPlanItem;
+	manifest: TextAssetUploadPlanReport;
 	resolvedStageDir: string;
 }): Promise<TextAssetStageVerifyIssue[]> {
 	const targetPath = resolve(resolvedStageDir, item.key);
@@ -213,6 +218,20 @@ async function verifyTextAssetStageItem({
 			detail: `Expected ${item.sha256}, received ${checksum}`,
 			key: item.key,
 		});
+	}
+	if (item.role === "package") {
+		issues.push(
+			...verifyTextAssetPackageResourceManifest({
+				items: manifest.items,
+				packageBytes: bytes,
+				packageItem: item,
+				prefix: manifest.prefix,
+			}).map((issue) => ({
+				code: "package-resource-mismatch" as const,
+				detail: issue.detail,
+				key: issue.key,
+			}))
+		);
 	}
 	return issues;
 }
