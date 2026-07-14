@@ -6,7 +6,7 @@ import {
 
 describe("sticker pack catalog", () => {
 	it("publishes complete free and animated premium packs", () => {
-		expect(STICKER_STORE_PACKS).toHaveLength(4);
+		expect(STICKER_STORE_PACKS).toHaveLength(5);
 		expect(
 			STICKER_STORE_PACKS.map((pack) => ({
 				id: pack.id,
@@ -18,6 +18,12 @@ describe("sticker pack catalog", () => {
 			{
 				id: "qcut-original-characters",
 				items: 90,
+				animated: false,
+				accessTier: "free",
+			},
+			{
+				id: "qcut-themed-creator",
+				items: 440,
 				animated: false,
 				accessTier: "free",
 			},

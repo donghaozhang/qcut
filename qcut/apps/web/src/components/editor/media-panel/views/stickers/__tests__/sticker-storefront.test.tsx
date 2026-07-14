@@ -28,7 +28,7 @@ describe("StickerStorefront", () => {
 		const onSelect = vi.fn();
 		render(<StickerStorefront onDownload={vi.fn()} onSelect={onSelect} />);
 
-		expect(screen.getAllByTestId(/^sticker-pack-(?!grid-)/)).toHaveLength(4);
+		expect(screen.getAllByTestId(/^sticker-pack-(?!grid-)/)).toHaveLength(5);
 		const motionPack = screen.getByTestId("sticker-pack-material-line-motion");
 		expect(within(motionPack).getAllByTestId("sticker-item")).toHaveLength(12);
 		expect(within(motionPack).getByText("线性动态贴纸")).toBeInTheDocument();
