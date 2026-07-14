@@ -232,9 +232,59 @@ describe("text marketplace metadata", () => {
 		});
 	});
 
+	it("falls back to bundled marketplace config when remote and cache are unavailable", async () => {
+		const storage = new MapStorage();
+		const requestedUrls: string[] = [];
+		const fetchImpl = async (input: RequestInfo | URL, init?: RequestInit) => {
+			requestedUrls.push(String(input));
+			if (String(input) === "/text-assets/marketplace.json") {
+				expect(init).toMatchObject({ cache: "force-cache" });
+				return new Response(
+					JSON.stringify({
+						assets: [
+							{
+								heatScore: 91,
+								remoteTags: ["campaign:bundled"],
+								templateId: "bundled-template",
+							},
+						],
+						schemaVersion: 1,
+					}),
+					{ status: 200 }
+				);
+			}
+			return new Response("missing", { status: 503 });
+		};
+
+		await expect(
+			loadTextTemplateMarketplaceRemoteConfig({
+				fetchImpl,
+				storage,
+				url: "https://cdn.example.test/marketplace.json",
+			})
+		).resolves.toMatchObject({
+			error: "Text marketplace config request failed (503)",
+			overrides: {
+				"bundled-template": {
+					heatScore: 91,
+					remoteTags: ["campaign:bundled"],
+				},
+			},
+			source: "bundled",
+		});
+		expect(requestedUrls).toEqual([
+			"https://cdn.example.test/marketplace.json",
+			"/text-assets/marketplace.json",
+		]);
+		expect(
+			storage.getItem(TEXT_MARKETPLACE_REMOTE_CONFIG_STORAGE_KEY)
+		).toContain("bundled-template");
+	});
+
 	it("returns an empty marketplace config when remote and cache are unavailable", async () => {
 		await expect(
 			loadTextTemplateMarketplaceRemoteConfig({
+				bundledUrl: null,
 				fetchImpl: async () => new Response("missing", { status: 404 }),
 				storage: new MapStorage(),
 			})

@@ -34,6 +34,7 @@ export type TextTemplateMarketplaceRemoteConfig = {
 
 export type TextTemplateMarketplaceRemoteConfigSource =
 	| "remote"
+	| "bundled"
 	| "cache"
 	| "empty";
 
@@ -52,6 +53,8 @@ type MarketplaceFacet = {
 
 export const DEFAULT_TEXT_MARKETPLACE_REMOTE_CONFIG_URL =
 	"https://assets.qcut.app/text-assets/marketplace.json";
+export const DEFAULT_BUNDLED_TEXT_MARKETPLACE_REMOTE_CONFIG_URL =
+	"/text-assets/marketplace.json";
 export const TEXT_MARKETPLACE_REMOTE_CONFIG_STORAGE_KEY =
 	"qcut-text-marketplace-config-v1";
 
@@ -361,10 +364,12 @@ export function parseTextTemplateMarketplaceRemoteConfig({
 }
 
 export async function loadTextTemplateMarketplaceRemoteConfig({
+	bundledUrl = DEFAULT_BUNDLED_TEXT_MARKETPLACE_REMOTE_CONFIG_URL,
 	fetchImpl = fetch,
 	storage = browserStorage(),
 	url = DEFAULT_TEXT_MARKETPLACE_REMOTE_CONFIG_URL,
 }: {
+	bundledUrl?: string | null;
 	fetchImpl?: typeof fetch;
 	storage?: StorageLike;
 	url?: string;
@@ -386,6 +391,12 @@ export async function loadTextTemplateMarketplaceRemoteConfig({
 	} catch (error) {
 		const cached = loadCachedMarketplaceOverrides({ storage });
 		if (cached) return { ...cached, error: errorMessage({ error }) };
+		const bundled = await loadBundledMarketplaceOverrides({
+			fetchImpl,
+			storage,
+			url: bundledUrl,
+		});
+		if (bundled) return { ...bundled, error: errorMessage({ error }) };
 		return { error: errorMessage({ error }), overrides: {}, source: "empty" };
 	}
 }
@@ -602,6 +613,33 @@ function loadCachedMarketplaceOverrides({
 				value: JSON.parse(text),
 			}),
 			source: "cache",
+		};
+	} catch {
+		return undefined;
+	}
+}
+
+async function loadBundledMarketplaceOverrides({
+	fetchImpl,
+	storage,
+	url,
+}: {
+	fetchImpl: typeof fetch;
+	storage?: StorageLike;
+	url?: string | null;
+}): Promise<TextTemplateMarketplaceRemoteConfigLoadResult | undefined> {
+	if (!url) return undefined;
+	try {
+		const response = await fetchImpl(url, { cache: "force-cache" });
+		if (!response.ok) return undefined;
+		const value = await response.json();
+		storage?.setItem(
+			TEXT_MARKETPLACE_REMOTE_CONFIG_STORAGE_KEY,
+			JSON.stringify(value)
+		);
+		return {
+			overrides: parseTextTemplateMarketplaceRemoteConfig({ value }),
+			source: "bundled",
 		};
 	} catch {
 		return undefined;
