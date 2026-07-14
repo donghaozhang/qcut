@@ -1,3 +1,6 @@
+import { readFileSync } from "node:fs";
+import { dirname, join } from "node:path";
+import { fileURLToPath } from "node:url";
 import { describe, expect, it } from "vitest";
 import {
 	buildTextAssetUploadPlan,
@@ -8,6 +11,11 @@ import {
 	type TextAssetUploadPlanItem,
 } from "../upload-text-assets-cdn";
 import type { TextAssetPublishManifest } from "../verify-text-asset-cdn-manifest";
+
+const PACKAGE_JSON_PATH = join(
+	dirname(fileURLToPath(import.meta.url)),
+	"../../package.json"
+);
 
 function createPublishManifest(): TextAssetPublishManifest {
 	return {
@@ -89,6 +97,26 @@ function createPublishManifest(): TextAssetPublishManifest {
 }
 
 describe("text asset CDN upload script", () => {
+	it("keeps designer-ready upload and release scripts aligned with the verification gate", () => {
+		const packageJson = JSON.parse(readFileSync(PACKAGE_JSON_PATH, "utf8")) as {
+			scripts: Record<string, string>;
+		};
+		const readyCategories =
+			"popular,latest,summer,variety,guofeng,glow,gradient,texture,red,yellow,black-white,blue,pink,green,purple,headline-template,quote-template,list-template,split-template,timeline-template";
+		for (const scriptName of [
+			"assets:text:verify-designer-ready",
+			"assets:text:upload-designer-ready",
+			"assets:text:release-designer-ready",
+		]) {
+			expect(packageJson.scripts[scriptName]).toContain(
+				"--min-designer-assets-per-category 5"
+			);
+			expect(packageJson.scripts[scriptName]).toContain(
+				`--require-designer-categories ${readyCategories}`
+			);
+		}
+	});
+
 	it("parses upload options from env and CLI overrides", () => {
 		expect(
 			parseTextAssetUploadArgs({
