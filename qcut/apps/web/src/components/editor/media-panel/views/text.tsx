@@ -196,16 +196,17 @@ function TextTemplate({
 				>
 					<TextTemplateThumbnail definition={definition} template={template} />
 					{definition.premium && (
-						<div className="absolute left-1.5 top-1.5 flex h-4 w-4 items-center justify-center rounded-full bg-cyan-300 text-slate-950 shadow-sm">
-							<Gem aria-hidden="true" className="h-3 w-3">
+						<div className="absolute left-1 top-1 flex h-3.5 w-3.5 items-center justify-center rounded-full bg-cyan-300 text-slate-950 shadow-sm">
+							<Gem aria-hidden="true" className="h-2.5 w-2.5">
 								<title>会员素材</title>
 							</Gem>
 						</div>
 					)}
 					<button
 						type="button"
+						aria-label={isFavorite ? "取消收藏" : "收藏"}
 						className={cn(
-							"absolute right-1.5 top-1.5 flex h-5 w-5 items-center justify-center rounded-full bg-black/50 text-white transition-colors hover:bg-black/75",
+							"absolute right-1 top-1 flex h-4 w-4 items-center justify-center rounded-full bg-black/50 text-white opacity-0 transition-colors hover:bg-black/75 group-focus-within:opacity-100 group-hover:opacity-100",
 							isFavorite && "bg-rose-500 text-white hover:bg-rose-600"
 						)}
 						onClick={(event) => {
@@ -225,8 +226,9 @@ function TextTemplate({
 					</button>
 					<button
 						type="button"
+						aria-label={isDownloaded ? "已下载" : "下载"}
 						className={cn(
-							"absolute bottom-1.5 right-1.5 flex h-5 w-5 items-center justify-center rounded-full bg-black/60 text-white transition-colors hover:bg-black/80",
+							"absolute bottom-1 right-1 flex h-4 w-4 items-center justify-center rounded-full bg-black/55 text-white transition-colors hover:bg-black/80",
 							isDownloaded && "bg-white/85 text-slate-900 hover:bg-white"
 						)}
 						onClick={(event) => {
@@ -242,10 +244,7 @@ function TextTemplate({
 						</Download>
 					</button>
 				</div>
-				<span
-					className="mt-1 block truncate text-[0.68rem] text-muted-foreground"
-					title={template.name}
-				>
+				<span className="sr-only" title={template.name}>
 					{template.name}
 				</span>
 			</div>
