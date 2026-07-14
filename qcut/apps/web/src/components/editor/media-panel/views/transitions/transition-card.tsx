@@ -8,8 +8,8 @@ import {
 	MousePointerClickIcon,
 	RefreshCwIcon,
 } from "lucide-react";
-import type { DragEvent, KeyboardEvent } from "react";
-import { useState } from "react";
+import type { DragEvent, KeyboardEvent, PointerEvent } from "react";
+import { useRef, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
@@ -54,7 +54,24 @@ export function TransitionCard({
 	onDragStart,
 }: TransitionCardProps) {
 	const [isPreviewing, setIsPreviewing] = useState(false);
+	const selectedOnPointerDown = useRef(false);
 	const available = resourceState.available;
+	const handlePointerDown = ({
+		event,
+	}: {
+		event: PointerEvent<HTMLDivElement>;
+	}) => {
+		if (event.button !== 0) return;
+		selectedOnPointerDown.current = true;
+		onSelect({ preset });
+	};
+	const handleClick = () => {
+		if (selectedOnPointerDown.current) {
+			selectedOnPointerDown.current = false;
+			return;
+		}
+		onSelect({ preset });
+	};
 	const handleKeyDown = ({
 		event,
 	}: {
@@ -136,7 +153,8 @@ export function TransitionCard({
 			role="button"
 			tabIndex={0}
 			title={`${preset.localizedName}: ${preset.description}`}
-			onClick={() => onSelect({ preset })}
+			onClick={handleClick}
+			onPointerDown={(event) => handlePointerDown({ event })}
 			onDoubleClick={(event) => {
 				event.stopPropagation();
 				if (available && canApply) onApply({ preset });
@@ -174,6 +192,7 @@ export function TransitionCard({
 							event.stopPropagation();
 							onDownload({ preset });
 						}}
+						onPointerDown={(event) => event.stopPropagation()}
 						onKeyDown={(event) => event.stopPropagation()}
 					>
 						{resourceAction.icon}
@@ -197,6 +216,7 @@ export function TransitionCard({
 							event.stopPropagation();
 							onToggleFavorite({ preset });
 						}}
+						onPointerDown={(event) => event.stopPropagation()}
 						onKeyDown={(event) => event.stopPropagation()}
 					>
 						<HeartIcon
@@ -217,6 +237,7 @@ export function TransitionCard({
 							event.stopPropagation();
 							onApply({ preset });
 						}}
+						onPointerDown={(event) => event.stopPropagation()}
 						onKeyDown={(event) => event.stopPropagation()}
 					>
 						<MousePointerClickIcon className="h-3.5 w-3.5" />

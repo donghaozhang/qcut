@@ -83,6 +83,30 @@ describe("TransitionCard", () => {
 		expect(handlers.onSelect).toHaveBeenCalledWith({ preset: dissolve });
 	});
 
+	it("selects on primary pointer down before native dragging starts", () => {
+		renderCard();
+		const card = screen.getByTestId("transition-card-dissolve");
+
+		fireEvent.pointerDown(card, { button: 0 });
+		fireEvent.pointerDown(card, { button: 2 });
+
+		expect(handlers.onSelect).toHaveBeenCalledTimes(1);
+		expect(handlers.onSelect).toHaveBeenCalledWith({ preset: dissolve });
+
+		fireEvent.click(card);
+		expect(handlers.onSelect).toHaveBeenCalledTimes(1);
+	});
+
+	it("does not select the card from nested action pointer down", () => {
+		renderCard();
+
+		fireEvent.pointerDown(screen.getByRole("button", { name: "应用叠化" }), {
+			button: 0,
+		});
+
+		expect(handlers.onSelect).not.toHaveBeenCalled();
+	});
+
 	it("selects the preset with Enter and Space but not other keys", () => {
 		renderCard();
 		const card = screen.getByTestId("transition-card-dissolve");
@@ -174,8 +198,10 @@ describe("TransitionCard", () => {
 
 	it("applies the preset without selecting it when the apply button is clicked", () => {
 		renderCard();
+		const applyButton = screen.getByRole("button", { name: "应用叠化" });
 
-		fireEvent.click(screen.getByRole("button", { name: "应用叠化" }));
+		fireEvent.pointerDown(applyButton, { button: 0 });
+		fireEvent.click(applyButton);
 
 		expect(handlers.onApply).toHaveBeenCalledWith({ preset: dissolve });
 		expect(handlers.onSelect).not.toHaveBeenCalled();
