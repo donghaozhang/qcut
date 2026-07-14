@@ -22,6 +22,7 @@ import {
 	parseCommaSeparatedList,
 	readGeneratedManifest,
 	summarizeDesignerCategoryCoverage,
+	summarizeTextAssetReleaseReadiness,
 	summarizeTextAssetProvenance,
 	summarizeVerifyIssues,
 	TEXT_DESIGNER_READY_CATEGORY_IDS,
@@ -75,9 +76,12 @@ export type TextAssetReleaseSummary = {
 	manifestPath: string;
 	minDesignerAssets: number;
 	minDesignerAssetsPerCategory: number;
+	missingResourceFileMetadata: number;
 	provenance: TextAssetProvenanceSummary;
 	remoteIssueSummary: ReturnType<typeof summarizeVerifyIssues>["issueSummary"];
 	remoteIssues: readonly VerifyIssue[];
+	resourceFilesReady: boolean;
+	resourceReadyAssets: number;
 	requiredDesignerCategories: readonly string[];
 	stageDir?: string;
 	stagedFiles: number;
@@ -85,18 +89,25 @@ export type TextAssetReleaseSummary = {
 	totalAssets: number;
 	totalBytes: number;
 	totalFiles: number;
+	totalRequiredResourceFiles: number;
 	upload: TextAssetUploadSummary;
 	uploadPlanPath?: string;
+	virtualResourceUrls: number;
 };
 
 export type TextAssetReleaseReadiness = {
 	designerImported: number;
 	designerReady: boolean;
 	generated: number;
+	missingResourceFileMetadata: number;
 	missingDesignerAssets: number;
+	resourceFilesReady: boolean;
+	resourceReadyAssets: number;
 	requiredDesignerCategories: readonly string[];
 	status: "designer-ready" | "generated-fallback";
 	totalAssets: number;
+	totalRequiredResourceFiles: number;
+	virtualResourceUrls: number;
 };
 
 export type TextAssetStageArchiveSummary = {
@@ -349,6 +360,7 @@ export async function releaseTextAssetsToCdn({
 	});
 	const releaseReadiness = buildTextAssetReleaseReadiness({
 		designerGapReport,
+		generatedManifest,
 		provenance,
 		requiredDesignerCategories: options.requiredDesignerCategories,
 	});
@@ -383,6 +395,7 @@ export async function releaseTextAssetsToCdn({
 			manifest,
 			options,
 			provenance,
+			releaseReadiness,
 		});
 	}
 	const items = buildTextAssetUploadPlan({
@@ -441,6 +454,7 @@ export async function releaseTextAssetsToCdn({
 		manifestPath: options.publishManifestPath,
 		options,
 		provenance,
+		releaseReadiness,
 		remoteIssues,
 		stageArchiveBytes: archive?.byteSize,
 		stageDesignerGapChecklistPath: staging?.designerGapChecklistPath,
@@ -618,6 +632,11 @@ bun run assets:text:check-remote-metadata
 | bytes | ${items.reduce((total, item) => total + item.size, 0)} |
 | designerReady | ${releaseReadiness?.designerReady ? "yes" : "no"} |
 | releaseStatus | ${releaseReadiness?.status ?? "(unknown)"} |
+| resourceFilesReady | ${releaseReadiness?.resourceFilesReady ? "yes" : "no"} |
+| resourceReadyAssets | ${releaseReadiness?.resourceReadyAssets ?? "(unknown)"} |
+| totalRequiredResourceFiles | ${releaseReadiness?.totalRequiredResourceFiles ?? "(unknown)"} |
+| missingResourceFileMetadata | ${releaseReadiness?.missingResourceFileMetadata ?? "(unknown)"} |
+| virtualResourceUrls | ${releaseReadiness?.virtualResourceUrls ?? "(unknown)"} |
 | designerImported | ${provenance?.designerImported ?? "(unknown)"} |
 | generated | ${provenance?.generated ?? "(unknown)"} |
 | designerReadyMissing | ${designerGapReport?.totalMissing ?? "(unknown)"} |
@@ -689,6 +708,7 @@ function buildReleaseSummary({
 	manifestPath,
 	options,
 	provenance,
+	releaseReadiness,
 	remoteIssues,
 	stageManifestPath,
 	stagedFiles,
@@ -700,6 +720,7 @@ function buildReleaseSummary({
 	manifestPath: string;
 	options: TextAssetReleaseOptions;
 	provenance: TextAssetProvenanceSummary;
+	releaseReadiness: TextAssetReleaseReadiness;
 	remoteIssues: readonly VerifyIssue[];
 	stageArchiveBytes?: number;
 	stageArchivePath?: string;
@@ -728,10 +749,13 @@ function buildReleaseSummary({
 		manifestPath,
 		minDesignerAssets: options.minDesignerAssets,
 		minDesignerAssetsPerCategory: options.minDesignerAssetsPerCategory,
+		missingResourceFileMetadata: releaseReadiness.missingResourceFileMetadata,
 		provenance,
 		remoteIssueSummary: summarizeVerifyIssues({ issues: remoteIssues })
 			.issueSummary,
 		remoteIssues,
+		resourceFilesReady: releaseReadiness.resourceFilesReady,
+		resourceReadyAssets: releaseReadiness.resourceReadyAssets,
 		requiredDesignerCategories: options.requiredDesignerCategories,
 		stageDir: options.stageDir,
 		stageManifestPath,
@@ -739,29 +763,43 @@ function buildReleaseSummary({
 		totalAssets: manifest.totalAssets,
 		totalBytes: manifest.totalBytes,
 		totalFiles: manifest.totalFiles,
+		totalRequiredResourceFiles: releaseReadiness.totalRequiredResourceFiles,
 		upload,
 		uploadPlanPath: options.uploadPlanPath,
+		virtualResourceUrls: releaseReadiness.virtualResourceUrls,
 	};
 }
 
 function buildTextAssetReleaseReadiness({
 	designerGapReport,
+	generatedManifest,
 	provenance,
 	requiredDesignerCategories,
 }: {
 	designerGapReport: TextAssetDesignerGapReport;
+	generatedManifest: Parameters<
+		typeof summarizeTextAssetReleaseReadiness
+	>[0]["generatedManifest"];
 	provenance: TextAssetProvenanceSummary;
 	requiredDesignerCategories: readonly string[];
 }): TextAssetReleaseReadiness {
 	const designerReady = designerGapReport.totalMissing === 0;
+	const resourceReadiness = summarizeTextAssetReleaseReadiness({
+		generatedManifest,
+	});
 	return {
 		designerImported: provenance.designerImported,
 		designerReady,
 		generated: provenance.generated,
+		missingResourceFileMetadata: resourceReadiness.missingResourceFileMetadata,
 		missingDesignerAssets: designerGapReport.totalMissing,
+		resourceFilesReady: resourceReadiness.resourceFilesReady,
+		resourceReadyAssets: resourceReadiness.resourceReadyAssets,
 		requiredDesignerCategories,
 		status: designerReady ? "designer-ready" : "generated-fallback",
 		totalAssets: provenance.total,
+		totalRequiredResourceFiles: resourceReadiness.totalRequiredResourceFiles,
+		virtualResourceUrls: resourceReadiness.virtualResourceUrls,
 	};
 }
 

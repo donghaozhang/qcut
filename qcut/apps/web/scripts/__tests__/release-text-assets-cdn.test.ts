@@ -400,12 +400,17 @@ describe("text asset CDN release script", () => {
 			designerReady: false,
 			designerReadyMissing: 100,
 			dryRun: true,
+			missingResourceFileMetadata: 0,
+			resourceFilesReady: true,
+			resourceReadyAssets: 1,
 			stageDir,
 			stageManifestPath: join(stageDir, "_qcut-text-assets-release.json"),
 			stagedFiles: 4,
+			totalRequiredResourceFiles: 3,
 			upload: {
 				uploadedFiles: 0,
 			},
+			virtualResourceUrls: 0,
 		});
 		expect(archiveCalls).toEqual([
 			{ archivePath, stagedFileCount: 4, stageDir },
@@ -440,10 +445,15 @@ describe("text asset CDN release script", () => {
 				designerImported: 0,
 				designerReady: false,
 				generated: 0,
+				missingResourceFileMetadata: 0,
 				missingDesignerAssets: 100,
+				resourceFilesReady: true,
+				resourceReadyAssets: 1,
 				requiredDesignerCategories: [],
 				status: "generated-fallback",
 				totalAssets: 1,
+				totalRequiredResourceFiles: 3,
+				virtualResourceUrls: 0,
 			},
 			schemaVersion: 1,
 			totalFiles: 4,
@@ -469,6 +479,15 @@ describe("text asset CDN release script", () => {
 		await expect(
 			readFile(join(stageDir, "_qcut-text-assets-release-readme.md"), "utf8")
 		).resolves.toContain("releaseStatus | generated-fallback");
+		await expect(
+			readFile(join(stageDir, "_qcut-text-assets-release-readme.md"), "utf8")
+		).resolves.toContain("resourceFilesReady | yes");
+		await expect(
+			readFile(join(stageDir, "_qcut-text-assets-release-readme.md"), "utf8")
+		).resolves.toContain("totalRequiredResourceFiles | 3");
+		await expect(
+			readFile(join(stageDir, "_qcut-text-assets-release-readme.md"), "utf8")
+		).resolves.toContain("virtualResourceUrls | 0");
 		await expect(
 			readFile(join(stageDir, "_qcut-text-assets-release-readme.md"), "utf8")
 		).resolves.toContain("designerReadyMissing | 100");
