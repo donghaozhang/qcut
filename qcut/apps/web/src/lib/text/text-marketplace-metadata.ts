@@ -7,6 +7,31 @@ export type TextTemplateMarketplaceMetadata = {
 	searchAliases: readonly string[];
 };
 
+export type TextTemplateMarketplaceMetadataOverride = {
+	editorialRank?: number;
+	heatScore?: number;
+	remoteTags?: readonly string[];
+	searchAliases?: readonly string[];
+};
+
+export type TextTemplateMarketplaceMetadataOverrides = Readonly<
+	Record<string, TextTemplateMarketplaceMetadataOverride | undefined>
+>;
+
+export type TextTemplateMarketplaceRemoteConfigAsset = {
+	assetId?: string;
+	templateId?: string;
+	editorialRank?: number;
+	heatScore?: number;
+	remoteTags?: readonly string[];
+	searchAliases?: readonly string[];
+};
+
+export type TextTemplateMarketplaceRemoteConfig = {
+	assets: readonly TextTemplateMarketplaceRemoteConfigAsset[];
+	schemaVersion: 1;
+};
+
 type MarketplaceFacet = {
 	aliases: readonly string[];
 	heat: number;
@@ -190,8 +215,10 @@ const VARIANT_FACETS: Readonly<Record<string, MarketplaceFacet>> = {
 
 export function getTextTemplateMarketplaceMetadata({
 	definition,
+	overrides,
 }: {
 	definition: TextTemplateDefinition;
+	overrides?: TextTemplateMarketplaceMetadataOverrides;
 }): TextTemplateMarketplaceMetadata {
 	const categoryFacet = CATEGORY_FACETS[definition.category];
 	const variantFacet = VARIANT_FACETS[definition.variantId];
@@ -206,9 +233,14 @@ export function getTextTemplateMarketplaceMetadata({
 		categoryFacet?.rank ?? 120,
 		variantFacet?.rank ?? 120
 	);
+	const override = getMarketplaceMetadataOverride({ definition, overrides });
 	return {
-		editorialRank,
-		heatScore,
+		editorialRank: normalizedRank({
+			value: override?.editorialRank ?? editorialRank,
+		}),
+		heatScore: clampHeatScore({
+			value: override?.heatScore ?? heatScore,
+		}),
 		remoteTags: uniqueValues({
 			values: [
 				`category:${definition.category}`,
@@ -216,12 +248,14 @@ export function getTextTemplateMarketplaceMetadata({
 				`variant:${definition.variantId}`,
 				...(categoryFacet?.tags ?? []),
 				...(variantFacet?.tags ?? []),
+				...(override?.remoteTags ?? []),
 			],
 		}),
 		searchAliases: uniqueValues({
 			values: [
 				...(categoryFacet?.aliases ?? []),
 				...(variantFacet?.aliases ?? []),
+				...(override?.searchAliases ?? []),
 			],
 		}),
 	};
@@ -229,14 +263,20 @@ export function getTextTemplateMarketplaceMetadata({
 
 export function compareTextTemplatesByMarketplaceOrder({
 	left,
+	overrides,
 	right,
 }: {
 	left: TextTemplateDefinition;
+	overrides?: TextTemplateMarketplaceMetadataOverrides;
 	right: TextTemplateDefinition;
 }): number {
-	const leftMetadata = getTextTemplateMarketplaceMetadata({ definition: left });
+	const leftMetadata = getTextTemplateMarketplaceMetadata({
+		definition: left,
+		overrides,
+	});
 	const rightMetadata = getTextTemplateMarketplaceMetadata({
 		definition: right,
+		overrides,
 	});
 	if (leftMetadata.editorialRank !== rightMetadata.editorialRank) {
 		return leftMetadata.editorialRank - rightMetadata.editorialRank;
@@ -245,6 +285,211 @@ export function compareTextTemplatesByMarketplaceOrder({
 		return rightMetadata.heatScore - leftMetadata.heatScore;
 	}
 	return left.name.localeCompare(right.name);
+}
+
+export function parseTextTemplateMarketplaceRemoteConfig({
+	value,
+}: {
+	value: unknown;
+}): TextTemplateMarketplaceMetadataOverrides {
+	const config = assertRemoteConfig({ value });
+	const overrides: Record<string, TextTemplateMarketplaceMetadataOverride> = {};
+	for (const asset of config.assets) {
+		const override = remoteAssetOverride({ asset });
+		for (const key of [asset.templateId, asset.assetId]) {
+			if (!key) continue;
+			const mergedOverride = mergeMetadataOverride({
+				base: overrides[key],
+				override,
+			});
+			if (mergedOverride) overrides[key] = mergedOverride;
+		}
+	}
+	return overrides;
+}
+
+function getMarketplaceMetadataOverride({
+	definition,
+	overrides,
+}: {
+	definition: TextTemplateDefinition;
+	overrides?: TextTemplateMarketplaceMetadataOverrides;
+}): TextTemplateMarketplaceMetadataOverride | undefined {
+	if (!overrides) return undefined;
+	return mergeMetadataOverride({
+		base: overrides[definition.resource?.assetId ?? ""],
+		override: overrides[definition.id],
+	});
+}
+
+function mergeMetadataOverride({
+	base,
+	override,
+}: {
+	base?: TextTemplateMarketplaceMetadataOverride;
+	override?: TextTemplateMarketplaceMetadataOverride;
+}): TextTemplateMarketplaceMetadataOverride | undefined {
+	if (!base) return override;
+	if (!override) return base;
+	return {
+		editorialRank: override.editorialRank ?? base.editorialRank,
+		heatScore: override.heatScore ?? base.heatScore,
+		remoteTags: uniqueValues({
+			values: [...(base.remoteTags ?? []), ...(override.remoteTags ?? [])],
+		}),
+		searchAliases: uniqueValues({
+			values: [
+				...(base.searchAliases ?? []),
+				...(override.searchAliases ?? []),
+			],
+		}),
+	};
+}
+
+function remoteAssetOverride({
+	asset,
+}: {
+	asset: TextTemplateMarketplaceRemoteConfigAsset;
+}): TextTemplateMarketplaceMetadataOverride {
+	return {
+		editorialRank:
+			asset.editorialRank === undefined
+				? undefined
+				: normalizedRank({ value: asset.editorialRank }),
+		heatScore:
+			asset.heatScore === undefined
+				? undefined
+				: clampHeatScore({ value: asset.heatScore }),
+		remoteTags: asset.remoteTags,
+		searchAliases: asset.searchAliases,
+	};
+}
+
+function assertRemoteConfig({
+	value,
+}: {
+	value: unknown;
+}): TextTemplateMarketplaceRemoteConfig {
+	const record = asRecord({ value });
+	if (!record || record.schemaVersion !== 1) {
+		throw new Error("Text marketplace config must use schemaVersion 1");
+	}
+	if (!Array.isArray(record.assets)) {
+		throw new Error("Text marketplace config requires an assets array");
+	}
+	return {
+		assets: record.assets.map((asset, index) =>
+			assertRemoteConfigAsset({ asset, index })
+		),
+		schemaVersion: 1,
+	};
+}
+
+function assertRemoteConfigAsset({
+	asset,
+	index,
+}: {
+	asset: unknown;
+	index: number;
+}): TextTemplateMarketplaceRemoteConfigAsset {
+	const record = asRecord({ value: asset });
+	if (!record) {
+		throw new Error(`Text marketplace config asset ${index} must be an object`);
+	}
+	const templateId = optionalString({ field: "templateId", index, record });
+	const assetId = optionalString({ field: "assetId", index, record });
+	if (!templateId && !assetId) {
+		throw new Error(
+			`Text marketplace config asset ${index} requires templateId or assetId`
+		);
+	}
+	return {
+		assetId,
+		templateId,
+		editorialRank: optionalFiniteNumber({
+			field: "editorialRank",
+			index,
+			record,
+		}),
+		heatScore: optionalFiniteNumber({ field: "heatScore", index, record }),
+		remoteTags: optionalStringList({ field: "remoteTags", index, record }),
+		searchAliases: optionalStringList({
+			field: "searchAliases",
+			index,
+			record,
+		}),
+	};
+}
+
+function optionalString({
+	field,
+	index,
+	record,
+}: {
+	field: string;
+	index: number;
+	record: Record<string, unknown>;
+}): string | undefined {
+	const value = record[field];
+	if (value === undefined) return undefined;
+	if (typeof value !== "string" || value.length === 0) {
+		throw new Error(
+			`Text marketplace config asset ${index} has invalid ${field}`
+		);
+	}
+	return value;
+}
+
+function optionalFiniteNumber({
+	field,
+	index,
+	record,
+}: {
+	field: string;
+	index: number;
+	record: Record<string, unknown>;
+}): number | undefined {
+	const value = record[field];
+	if (value === undefined) return undefined;
+	if (typeof value !== "number" || !Number.isFinite(value)) {
+		throw new Error(
+			`Text marketplace config asset ${index} has invalid ${field}`
+		);
+	}
+	return value;
+}
+
+function optionalStringList({
+	field,
+	index,
+	record,
+}: {
+	field: string;
+	index: number;
+	record: Record<string, unknown>;
+}): string[] | undefined {
+	const value = record[field];
+	if (value === undefined) return undefined;
+	if (!Array.isArray(value) || value.some((item) => typeof item !== "string")) {
+		throw new Error(
+			`Text marketplace config asset ${index} has invalid ${field}`
+		);
+	}
+	return value.filter(Boolean);
+}
+
+function asRecord({
+	value,
+}: {
+	value: unknown;
+}): Record<string, unknown> | undefined {
+	return typeof value === "object" && value !== null && !Array.isArray(value)
+		? (value as Record<string, unknown>)
+		: undefined;
+}
+
+function normalizedRank({ value }: { value: number }): number {
+	return Math.max(0, Math.round(value));
 }
 
 function clampHeatScore({ value }: { value: number }): number {

@@ -3,7 +3,10 @@ import {
 	isTextTemplateFavorite,
 	type TextLibraryState,
 } from "./text-library-state";
-import { getTextTemplateMarketplaceMetadata } from "./text-marketplace-metadata";
+import {
+	getTextTemplateMarketplaceMetadata,
+	type TextTemplateMarketplaceMetadataOverrides,
+} from "./text-marketplace-metadata";
 import type { TextTemplateDefinition } from "./text-template-registry";
 
 type WeightedSearchTerm = {
@@ -139,10 +142,12 @@ const QUERY_SYNONYMS: Readonly<Record<string, readonly string[]>> = {
 
 export function rankTextTemplateSearchResults({
 	definitions,
+	marketplaceOverrides,
 	query,
 	state,
 }: {
 	definitions: readonly TextTemplateDefinition[];
+	marketplaceOverrides?: TextTemplateMarketplaceMetadataOverrides;
 	query: string;
 	state: TextLibraryState;
 }): TextTemplateDefinition[] {
@@ -153,7 +158,12 @@ export function rankTextTemplateSearchResults({
 		.map((definition, index) => ({
 			definition,
 			index,
-			score: scoreTextTemplateDefinition({ definition, state, terms }),
+			score: scoreTextTemplateDefinition({
+				definition,
+				marketplaceOverrides,
+				state,
+				terms,
+			}),
 		}))
 		.filter((result) => result.score > 0)
 		.sort((left, right) => {
@@ -235,26 +245,32 @@ function addWeightedTerm({
 
 function scoreTextTemplateDefinition({
 	definition,
+	marketplaceOverrides,
 	state,
 	terms,
 }: {
 	definition: TextTemplateDefinition;
+	marketplaceOverrides?: TextTemplateMarketplaceMetadataOverrides;
 	state: TextLibraryState;
 	terms: readonly WeightedSearchTerm[];
 }): number {
 	let score = 0;
 	for (const term of terms) {
-		score += scoreWeightedTerm({ definition, term });
+		score += scoreWeightedTerm({ definition, marketplaceOverrides, term });
 	}
 	if (score <= 0) return 0;
-	return score + getStateAwareBoost({ definition, state });
+	return (
+		score + getStateAwareBoost({ definition, marketplaceOverrides, state })
+	);
 }
 
 function scoreWeightedTerm({
 	definition,
+	marketplaceOverrides,
 	term,
 }: {
 	definition: TextTemplateDefinition;
+	marketplaceOverrides?: TextTemplateMarketplaceMetadataOverrides;
 	term: WeightedSearchTerm;
 }): number {
 	const normalizedFields = {
@@ -265,7 +281,10 @@ function scoreWeightedTerm({
 		name: definition.name.toLocaleLowerCase(),
 		variantId: definition.variantId.toLocaleLowerCase(),
 	};
-	const metadata = getTextTemplateMarketplaceMetadata({ definition });
+	const metadata = getTextTemplateMarketplaceMetadata({
+		definition,
+		overrides: marketplaceOverrides,
+	});
 	const keywordScore = definition.keywords.reduce(
 		(total, keyword) =>
 			total +
@@ -436,9 +455,11 @@ function boundedLevenshteinDistance({
 
 function getStateAwareBoost({
 	definition,
+	marketplaceOverrides,
 	state,
 }: {
 	definition: TextTemplateDefinition;
+	marketplaceOverrides?: TextTemplateMarketplaceMetadataOverrides;
 	state: TextLibraryState;
 }): number {
 	const recentIndex = state.recentIds.indexOf(definition.id);
@@ -447,7 +468,10 @@ function getStateAwareBoost({
 		getTextTemplateDownloadStatus({ definition, state }) === "cached" ? 14 : 0;
 	const favoriteBoost = isTextTemplateFavorite({ definition, state }) ? 16 : 0;
 	const premiumBoost = definition.premium ? 3 : 0;
-	const metadata = getTextTemplateMarketplaceMetadata({ definition });
+	const metadata = getTextTemplateMarketplaceMetadata({
+		definition,
+		overrides: marketplaceOverrides,
+	});
 	const heatBoost = metadata.heatScore * 0.34;
 	const editorialBoost = Math.max(0, 16 - metadata.editorialRank * 0.12);
 

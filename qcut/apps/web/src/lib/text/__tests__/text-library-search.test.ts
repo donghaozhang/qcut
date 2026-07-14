@@ -210,4 +210,49 @@ describe("text library search", () => {
 			}).map((definition) => definition.id)
 		).toEqual(["hero-red", "plain-red"]);
 	});
+
+	it("uses marketplace overrides for remote tags and heat ranking", () => {
+		const definitions = [
+			createDefinition({
+				category: "basic",
+				content: "花字",
+				id: "standard-campaign",
+				variantId: "plain",
+			}),
+			createDefinition({
+				category: "basic",
+				content: "花字",
+				id: "remote-campaign",
+				variantId: "shadow",
+			}),
+		];
+
+		expect(
+			rankTextTemplateSearchResults({
+				definitions,
+				marketplaceOverrides: {
+					"remote-campaign": {
+						heatScore: 100,
+						remoteTags: ["campaign:launch", "scene:retail"],
+						searchAliases: ["开业活动"],
+					},
+				},
+				query: "launch",
+				state: EMPTY_TEXT_LIBRARY_STATE,
+			}).map((definition) => definition.id)
+		).toEqual(["remote-campaign"]);
+		expect(
+			rankTextTemplateSearchResults({
+				definitions,
+				marketplaceOverrides: {
+					"remote-campaign": {
+						editorialRank: 1,
+						heatScore: 100,
+					},
+				},
+				query: "花字",
+				state: EMPTY_TEXT_LIBRARY_STATE,
+			}).map((definition) => definition.id)
+		).toEqual(["remote-campaign", "standard-campaign"]);
+	});
 });
