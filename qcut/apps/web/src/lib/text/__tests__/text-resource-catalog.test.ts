@@ -49,6 +49,13 @@ function createDefinition({
 	};
 }
 
+function isConcreteTextAssetUrl({ url }: { url: string }): boolean {
+	return (
+		url.startsWith("/text-assets/") ||
+		url.startsWith(`${DEFAULT_TEXT_ASSET_REMOTE_BASE_URL}/text-assets/`)
+	);
+}
+
 describe("text resource catalog", () => {
 	it("resolves explicit and legacy template resources", () => {
 		expect(
@@ -178,6 +185,42 @@ describe("text resource catalog", () => {
 			),
 			bundled: true,
 		});
+	});
+
+	it("resolves every registered template to concrete publishable files", () => {
+		const missingConcreteUrls: string[] = [];
+		const missingBundledChecksums: string[] = [];
+
+		for (const definition of TEXT_TEMPLATE_DEFINITIONS) {
+			const files = getTextTemplateResourceFiles({ definition });
+			const fileUrls = [
+				files.thumbnailUrl,
+				files.sourceUrl,
+				files.packageUrl,
+			];
+
+			for (const url of fileUrls) {
+				if (url.startsWith("qcut-text-asset://")) {
+					missingConcreteUrls.push(`${definition.id}:${url}`);
+					continue;
+				}
+				if (!isConcreteTextAssetUrl({ url })) {
+					missingConcreteUrls.push(`${definition.id}:${url}`);
+				}
+			}
+
+			if (!files.bundled) continue;
+			if (
+				!files.thumbnailChecksumSha256 ||
+				!files.sourceChecksumSha256 ||
+				!files.packageChecksumSha256
+			) {
+				missingBundledChecksums.push(definition.id);
+			}
+		}
+
+		expect(missingConcreteUrls).toEqual([]);
+		expect(missingBundledChecksums).toEqual([]);
 	});
 
 	it("groups resources into package summaries", () => {
