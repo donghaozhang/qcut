@@ -1,5 +1,8 @@
 import { assetManifestVersionKey } from "@qcut/editor-core";
 import { createHash } from "node:crypto";
+import { readFile } from "node:fs/promises";
+import { dirname, join } from "node:path";
+import { fileURLToPath } from "node:url";
 import type { CachedAssetResource } from "@/lib/assets/asset-resource-cache";
 import type { AssetResourceCacheStorage } from "@/lib/assets/asset-resource-cache";
 import { describe, expect, it, vi } from "vitest";
@@ -18,6 +21,11 @@ import {
 	getTextTemplateDefinitionsByCategory,
 	type TextTemplateDefinition,
 } from "../text-template-registry";
+
+const REPO_ROOT = join(
+	dirname(fileURLToPath(import.meta.url)),
+	"../../../../../.."
+);
 
 class MemoryAssetCache implements AssetResourceCacheStorage {
 	readonly resources = new Map<string, CachedAssetResource>();
@@ -71,6 +79,27 @@ function remoteBody({ url }: { url: string }): string {
 
 function checksum({ value }: { value: string }): string {
 	return createHash("sha256").update(Buffer.from(value)).digest("hex");
+}
+
+async function localTextAssetResponse({
+	url,
+}: {
+	url: string;
+}): Promise<Response> {
+	const filePath = join(REPO_ROOT, "apps/web/public", url.replace(/^\/+/, ""));
+	const bytes = await readFile(filePath);
+	const mimeType = url.endsWith(".webp")
+		? "image/webp"
+		: url.endsWith(".qctext")
+			? "application/vnd.qcut.text-template+json"
+			: "application/json";
+	return new Response(new Uint8Array(bytes), {
+		headers: {
+			"content-length": String(bytes.byteLength),
+			"content-type": mimeType,
+		},
+		status: 200,
+	});
 }
 
 function packageText({
@@ -325,32 +354,36 @@ describe("downloadTextTemplateResource", () => {
 		]);
 	});
 
-	it("returns bundled template cache keys without fetching", async () => {
+	it("materializes bundled template files into the asset cache", async () => {
 		const definition = TEXT_TEMPLATE_DEFINITIONS.find(
 			(candidate) => candidate.category === "red" && !candidate.downloaded
 		);
 		if (!definition)
 			throw new Error("Expected a generated text template fixture");
-		const fetchImpl = vi.fn<typeof fetch>();
+		const storage = new MemoryAssetCache();
+		const fetchImpl = vi.fn<typeof fetch>(async (input) =>
+			localTextAssetResponse({ url: String(input) })
+		);
+		const cacheKey = assetManifestVersionKey({
+			id: definition.resource?.assetId ?? `text-legacy-${definition.id}`,
+			kind: "text-template",
+			version: definition.resource?.version ?? 1,
+		});
 
 		await expect(
 			downloadTextTemplateResource({
 				definition,
 				fetchImpl,
-				storage: new MemoryAssetCache(),
+				storage,
 			})
 		).resolves.toMatchObject({
-			cacheHitCount: 3,
+			cacheHitCount: 0,
 			cachedFileCount: 3,
-			cacheKey: assetManifestVersionKey({
-				id: definition.resource?.assetId ?? `text-legacy-${definition.id}`,
-				kind: "text-template",
-				version: definition.resource?.version ?? 1,
-			}),
+			cacheKey,
 			files: [
 				expect.objectContaining({
 					checksumSha256: expect.stringMatching(/^[a-f\d]{64}$/),
-					fromCache: true,
+					fromCache: false,
 					role: "thumbnail",
 					sourceUrl: expect.stringMatching(
 						/^\/text-assets\/.+\/thumbnail\.webp$/
@@ -358,7 +391,7 @@ describe("downloadTextTemplateResource", () => {
 				}),
 				expect.objectContaining({
 					checksumSha256: expect.stringMatching(/^[a-f\d]{64}$/),
-					fromCache: true,
+					fromCache: false,
 					role: "source",
 					sourceUrl: expect.stringMatching(
 						/^\/text-assets\/.+\/template\.json$/
@@ -366,12 +399,34 @@ describe("downloadTextTemplateResource", () => {
 				}),
 				expect.objectContaining({
 					checksumSha256: expect.stringMatching(/^[a-f\d]{64}$/),
-					fromCache: true,
+					fromCache: false,
 					role: "package",
 					sourceUrl: expect.stringMatching(
 						/^\/text-assets\/.+\/template\.qctext$/
 					),
 				}),
+			],
+		});
+		expect(fetchImpl).toHaveBeenCalledTimes(3);
+		expect([...storage.resources.keys()].sort()).toEqual([
+			`${cacheKey}:package:2`,
+			`${cacheKey}:source:1`,
+			`${cacheKey}:thumbnail:0`,
+		]);
+
+		fetchImpl.mockClear();
+		await expect(
+			downloadTextTemplateResource({
+				definition,
+				fetchImpl,
+				storage,
+			})
+		).resolves.toMatchObject({
+			cacheHitCount: 3,
+			files: [
+				expect.objectContaining({ fromCache: true, role: "thumbnail" }),
+				expect.objectContaining({ fromCache: true, role: "source" }),
+				expect.objectContaining({ fromCache: true, role: "package" }),
 			],
 		});
 		expect(fetchImpl).not.toHaveBeenCalled();
@@ -575,13 +630,8 @@ describe("downloadTextTemplateResource", () => {
 		);
 		if (!definition)
 			throw new Error("Expected a bundled text template fixture");
-		const fetchImpl = vi.fn<typeof fetch>(async () =>
-			Promise.resolve(
-				new Response(
-					packageText({ content: "Bundled package content", definition }),
-					{ status: 200 }
-				)
-			)
+		const fetchImpl = vi.fn<typeof fetch>(async (input) =>
+			localTextAssetResponse({ url: String(input) })
 		);
 
 		await expect(
@@ -592,11 +642,12 @@ describe("downloadTextTemplateResource", () => {
 			})
 		).resolves.toMatchObject({
 			template: {
-				content: "Bundled package content",
+				content: definition.content,
 			},
 		});
 		expect(fetchImpl).toHaveBeenCalledWith(
-			expect.stringMatching(/^\/text-assets\/.+\/template\.qctext$/)
+			expect.stringMatching(/^\/text-assets\/.+\/template\.qctext$/),
+			expect.any(Object)
 		);
 	});
 
@@ -682,20 +733,21 @@ describe("downloadTextTemplateResource", () => {
 	});
 
 	it("resolves timeline templates from package payloads when enabled", async () => {
-		const definition = TEXT_TEMPLATE_DEFINITIONS.find(
-			(candidate) => candidate.downloaded
-		);
-		if (!definition)
-			throw new Error("Expected a bundled text template fixture");
+		const definition = textDefinition();
 		const fallbackTemplate = buildTextTemplate({ definition });
-		const fetchImpl = vi.fn<typeof fetch>(async () =>
-			Promise.resolve(
-				new Response(
-					packageText({ content: "Timeline package content", definition }),
-					{ status: 200 }
-				)
-			)
-		);
+		const packageBody = padJsonTextToByteLength({
+			targetBytes: 1024,
+			text: packageText({ content: "Timeline package content", definition }),
+		});
+		const fetchImpl = vi.fn<typeof fetch>(async () => {
+			return new Response(packageBody, {
+				headers: {
+					"content-length": String(packageBody.length),
+					"content-type": "application/vnd.qcut.text-template+json",
+				},
+				status: 200,
+			});
+		});
 
 		await expect(
 			resolveTextTemplateForTimeline({
@@ -712,29 +764,42 @@ describe("downloadTextTemplateResource", () => {
 	});
 
 	it("resolves timeline template packs from package payloads when enabled", async () => {
-		const definition = TEXT_TEMPLATE_DEFINITIONS.find(
-			(candidate) => candidate.downloaded
-		);
-		if (!definition)
-			throw new Error("Expected a bundled text template fixture");
+		const baseDefinition = textDefinition();
+		const definition = {
+			...baseDefinition,
+			category: "headline-template",
+			id: "remote-headline-resource-test",
+			resource: {
+				...baseDefinition.resource!,
+				assetId: "asset-remote-headline-resource-test",
+				cacheKey: "text-assets/package-remote-headline-resource-test/plain@1",
+				packageId: "package-remote-headline-resource-test",
+				sizeKb: 2,
+			},
+		} satisfies TextTemplateDefinition;
 		const fallbackTemplate = buildTextTemplate({ definition });
 		const fallbackPack = buildTextTemplatePack({
 			baseTemplate: fallbackTemplate,
 			currentTime: 2,
 			definition,
 		});
-		const fetchImpl = vi.fn<typeof fetch>(async () =>
-			Promise.resolve(
-				new Response(
-					packageText({
-						content: "Package headline",
-						definition,
-						includeTemplatePack: true,
-					}),
-					{ status: 200 }
-				)
-			)
-		);
+		const packageBody = padJsonTextToByteLength({
+			targetBytes: 2048,
+			text: packageText({
+				content: "Package headline",
+				definition,
+				includeTemplatePack: true,
+			}),
+		});
+		const fetchImpl = vi.fn<typeof fetch>(async () => {
+			return new Response(packageBody, {
+				headers: {
+					"content-length": String(packageBody.length),
+					"content-type": "application/vnd.qcut.text-template+json",
+				},
+				status: 200,
+			});
+		});
 
 		await expect(
 			resolveTextTemplatePackForTimeline({
@@ -748,21 +813,27 @@ describe("downloadTextTemplateResource", () => {
 		).resolves.toMatchObject({
 			copySlots: [
 				{
-					defaultContent: "Package headline",
+					defaultContent: "本期重点",
 					elementIndex: 0,
+					id: "kicker",
+					label: "眉标题",
+				},
+				{
+					defaultContent: "花字",
+					elementIndex: 1,
 					id: "headline",
 					label: "主标题",
 				},
 				{
-					defaultContent: "Subtitle",
-					elementIndex: 1,
+					defaultContent: "三句话讲清楚",
+					elementIndex: 2,
 					id: "subhead",
 					label: "副标题",
 				},
 			],
 			elements: [
 				{
-					content: "Package headline",
+					content: "本期重点",
 					duration: fallbackTemplate.duration,
 					startTime: 2,
 					trimEnd: 0,
@@ -770,14 +841,19 @@ describe("downloadTextTemplateResource", () => {
 					type: "text",
 				},
 				{
-					content: "Subtitle",
-					fontSize: 28,
+					content: "花字",
+					startTime: 2,
+					type: "text",
+				},
+				{
+					content: "三句话讲清楚",
 					startTime: 2,
 					type: "text",
 				},
 			],
-			id: `pack-${definition.id}`,
+			id: "pack-remote-headline-resource-test",
 		});
+		expect(fetchImpl).toHaveBeenCalled();
 	});
 
 	it("keeps fallback template packs when package pack resolution is disabled", async () => {

@@ -65,6 +65,26 @@ function remoteAsset({
 	};
 }
 
+function bundledAsset({
+	checksumSha256,
+}: {
+	checksumSha256?: string;
+} = {}): AssetManifestEntry {
+	return {
+		...remoteAsset({ byteSize: 5, checksumSha256 }),
+		delivery: "bundled",
+		files: [
+			{
+				byteSize: 5,
+				checksumSha256,
+				mimeType: "text/plain",
+				role: "source",
+				url: "/assets/whip.txt",
+			},
+		],
+	};
+}
+
 function successfulFetch({ body = "hello" }: { body?: string } = {}) {
 	return vi.fn<typeof fetch>(async () =>
 		Promise.resolve(
@@ -98,6 +118,37 @@ describe("asset resource cache", () => {
 
 		expect(first[0]).toMatchObject({ fromCache: false, byteSize: 5 });
 		expect(second[0]).toMatchObject({ fromCache: true, byteSize: 5 });
+		expect(await second[0].blob?.text()).toBe("hello");
+		expect(fetchImpl).toHaveBeenCalledTimes(1);
+	});
+
+	it("materializes bundled resources into the cache when requested", async () => {
+		const fetchImpl = successfulFetch();
+		const asset = bundledAsset({
+			checksumSha256:
+				"2cf24dba5fb0a30e26e83b2ac5b9e29e1b161e5c1fa7425e73043362938b9824",
+		});
+		const first = await ensureAssetResources({
+			asset,
+			cacheBundledResources: true,
+			fetchImpl,
+			storage,
+		});
+		const second = await ensureAssetResources({
+			asset,
+			cacheBundledResources: true,
+			fetchImpl,
+			storage,
+		});
+
+		expect(first[0]).toMatchObject({
+			fromCache: false,
+			sourceUrl: "/assets/whip.txt",
+		});
+		expect(second[0]).toMatchObject({
+			fromCache: true,
+			sourceUrl: "/assets/whip.txt",
+		});
 		expect(await second[0].blob?.text()).toBe("hello");
 		expect(fetchImpl).toHaveBeenCalledTimes(1);
 	});

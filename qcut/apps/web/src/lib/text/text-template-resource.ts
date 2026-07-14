@@ -412,19 +412,14 @@ export async function downloadTextTemplateResource({
 		throw new Error(`Expected text-template asset, received ${asset.kind}`);
 	}
 	if (asset.delivery !== "remote") {
-		return downloadedResourceSummary({
-			cacheKey,
-			resources: asset.files.map((file, fileIndex) => ({
-				byteSize: file.byteSize,
-				cacheKey: `${cacheKey}:${file.role}:${fileIndex}`,
-				checksumSha256: file.checksumSha256,
-				fromCache: true,
-				mimeType: file.mimeType,
-				role: file.role,
-				sourceUrl: file.url,
-				url: file.url,
-			})),
+		const resources = await ensureAssetResources({
+			asset,
+			cacheBundledResources: asset.delivery === "bundled",
+			fetchImpl,
+			onProgress,
+			storage,
 		});
+		return downloadedResourceSummary({ cacheKey, resources });
 	}
 	if (asset.files.length === 0) {
 		throw new Error(`Text template ${asset.id} has no downloadable files`);
@@ -454,9 +449,17 @@ export async function loadTextTemplatePackageSource({
 		throw new Error(`Text template ${asset.id} has no package file`);
 	}
 	if (asset.delivery !== "remote") {
-		return parseTextTemplatePackage({
-			text: await fetchText({ fetchImpl, url: packageFile.url }),
+		const [resource] = await ensureAssetResources({
+			asset,
+			cacheBundledResources: asset.delivery === "bundled",
+			fetchImpl,
+			roles: ["package"],
+			storage,
 		});
+		const text = resource?.blob
+			? await resource.blob.text()
+			: await fetchText({ fetchImpl, url: packageFile.url });
+		return parseTextTemplatePackage({ text });
 	}
 	const [resource] = await ensureAssetResources({
 		asset,

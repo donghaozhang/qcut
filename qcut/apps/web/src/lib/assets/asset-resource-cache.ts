@@ -347,7 +347,7 @@ function cachedResourceMatches({
 	);
 }
 
-async function ensureRemoteResource({
+async function ensureFetchedResource({
 	asset,
 	fetchImpl,
 	file,
@@ -453,49 +453,27 @@ async function ensureRemoteResource({
 	};
 }
 
-export async function ensureAssetResources({
+async function ensureFetchedResources({
 	asset,
-	fetchImpl = fetch,
-	maxFileBytes = DEFAULT_MAX_FILE_BYTES,
-	now = Date.now,
+	fetchImpl,
+	maxFileBytes,
+	now,
 	onProgress,
-	retryCount = 2,
-	roles,
+	retryCount,
+	selectedFiles,
 	signal,
-	storage = getDefaultStorage(),
+	storage,
 }: {
 	asset: AssetManifestEntry;
-	fetchImpl?: typeof fetch;
-	maxFileBytes?: number;
-	now?: () => number;
+	fetchImpl: typeof fetch;
+	maxFileBytes: number;
+	now: () => number;
 	onProgress?: ({ progress }: { progress: number }) => void;
-	retryCount?: number;
-	roles?: readonly AssetFileRole[];
+	retryCount: number;
+	selectedFiles: Array<{ file: AssetManifestFile; fileIndex: number }>;
 	signal?: AbortSignal;
-	storage?: AssetResourceCacheStorage;
+	storage: AssetResourceCacheStorage;
 }): Promise<ResolvedAssetResource[]> {
-	const roleSet = roles ? new Set(roles) : undefined;
-	const selectedFiles = asset.files
-		.map((file, fileIndex) => ({ file, fileIndex }))
-		.filter(({ file }) => !roleSet || roleSet.has(file.role));
-	if (asset.delivery !== "remote") {
-		return selectedFiles.map(({ file, fileIndex }) => ({
-			byteSize: file.byteSize,
-			cacheKey: resourceCacheKey({ asset, file, fileIndex }),
-			checksumSha256: file.checksumSha256,
-			fromCache: true,
-			mimeType: file.mimeType,
-			role: file.role,
-			sourceUrl: file.url,
-			url: file.url,
-		}));
-	}
-	if (selectedFiles.length === 0) {
-		throw new Error(
-			`Remote asset has no matching files: ${asset.kind}:${asset.id}`
-		);
-	}
-
 	const progressByFile = new Map<number, number>();
 	const updateProgress = ({
 		fileIndex,
@@ -520,7 +498,7 @@ export async function ensureAssetResources({
 
 	const resources = await Promise.all(
 		selectedFiles.map(async ({ file, fileIndex }) => {
-			const resource = await ensureRemoteResource({
+			const resource = await ensureFetchedResource({
 				asset,
 				fetchImpl,
 				file,
@@ -539,6 +517,80 @@ export async function ensureAssetResources({
 	);
 	onProgress?.({ progress: 1 });
 	return resources;
+}
+
+export async function ensureAssetResources({
+	asset,
+	cacheBundledResources = false,
+	fetchImpl = fetch,
+	maxFileBytes = DEFAULT_MAX_FILE_BYTES,
+	now = Date.now,
+	onProgress,
+	retryCount = 2,
+	roles,
+	signal,
+	storage = getDefaultStorage(),
+}: {
+	asset: AssetManifestEntry;
+	cacheBundledResources?: boolean;
+	fetchImpl?: typeof fetch;
+	maxFileBytes?: number;
+	now?: () => number;
+	onProgress?: ({ progress }: { progress: number }) => void;
+	retryCount?: number;
+	roles?: readonly AssetFileRole[];
+	signal?: AbortSignal;
+	storage?: AssetResourceCacheStorage;
+}): Promise<ResolvedAssetResource[]> {
+	const roleSet = roles ? new Set(roles) : undefined;
+	const selectedFiles = asset.files
+		.map((file, fileIndex) => ({ file, fileIndex }))
+		.filter(({ file }) => !roleSet || roleSet.has(file.role));
+	if (asset.delivery !== "remote") {
+		if (
+			asset.delivery === "bundled" &&
+			cacheBundledResources &&
+			selectedFiles.length > 0
+		) {
+			return ensureFetchedResources({
+				asset,
+				fetchImpl,
+				maxFileBytes,
+				now,
+				onProgress,
+				retryCount,
+				selectedFiles,
+				signal,
+				storage,
+			});
+		}
+		return selectedFiles.map(({ file, fileIndex }) => ({
+			byteSize: file.byteSize,
+			cacheKey: resourceCacheKey({ asset, file, fileIndex }),
+			checksumSha256: file.checksumSha256,
+			fromCache: true,
+			mimeType: file.mimeType,
+			role: file.role,
+			sourceUrl: file.url,
+			url: file.url,
+		}));
+	}
+	if (selectedFiles.length === 0) {
+		throw new Error(
+			`Remote asset has no matching files: ${asset.kind}:${asset.id}`
+		);
+	}
+	return ensureFetchedResources({
+		asset,
+		fetchImpl,
+		maxFileBytes,
+		now,
+		onProgress,
+		retryCount,
+		selectedFiles,
+		signal,
+		storage,
+	});
 }
 
 export async function removeAssetResourceVersion({
