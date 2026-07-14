@@ -156,6 +156,7 @@ export async function buildTextDesignerAssetImportPlan({
 						publicDir,
 						resolvedPackDir,
 						roleSource,
+						targetEntry,
 					})
 				)
 			);
@@ -238,11 +239,13 @@ async function buildPlanItem({
 	publicDir,
 	resolvedPackDir,
 	roleSource,
+	targetEntry,
 }: {
 	assetId: string;
 	publicDir: string;
 	resolvedPackDir: string;
 	roleSource: DesignerAssetRoleSource;
+	targetEntry: TextAssetGeneratedEntry;
 }): Promise<TextDesignerAssetImportPlanItem> {
 	if (!roleSource.targetFile) {
 		throw new Error(`Asset ${assetId} is missing ${roleSource.role} metadata`);
@@ -252,6 +255,13 @@ async function buildPlanItem({
 		sourcePath: roleSource.sourcePath,
 	});
 	const bytes = await readFile(sourcePath);
+	validateDesignerAssetFile({
+		assetId,
+		bytes,
+		role: roleSource.role,
+		sourcePath,
+		targetEntry,
+	});
 	return {
 		assetId,
 		byteSize: bytes.byteLength,
@@ -262,6 +272,128 @@ async function buildPlanItem({
 		targetPath: join(publicDir, roleSource.targetFile.url.replace(/^\/+/, "")),
 		targetUrl: roleSource.targetFile.url,
 	};
+}
+
+function validateDesignerAssetFile({
+	assetId,
+	bytes,
+	role,
+	sourcePath,
+	targetEntry,
+}: {
+	assetId: string;
+	bytes: Buffer;
+	role: TextDesignerAssetImportRole;
+	sourcePath: string;
+	targetEntry: TextAssetGeneratedEntry;
+}): void {
+	if (role === "thumbnail") {
+		if (bytes.byteLength === 0) {
+			throw new Error(`Designer thumbnail is empty: ${assetId}`);
+		}
+		if (!sourcePath.toLocaleLowerCase().endsWith(".webp")) {
+			throw new Error(`Designer thumbnail must be a .webp file: ${assetId}`);
+		}
+		return;
+	}
+	const payload = parseDesignerJsonAsset({ assetId, bytes, role });
+	assertDesignerAssetIdentity({
+		assetId,
+		payload,
+		role,
+		targetEntry,
+	});
+	if (role === "source") {
+		return;
+	}
+	if (payload.kind !== "qcut-text-template-package") {
+		throw new Error(
+			`Designer package must use qcut-text-template-package: ${assetId}`
+		);
+	}
+	if (payload.cacheKey !== targetEntry.cacheKey) {
+		throw new Error(
+			`Designer package cacheKey mismatch for ${assetId}: expected ${targetEntry.cacheKey}`
+		);
+	}
+	const source = isRecord(payload.source) ? payload.source : null;
+	if (!source) {
+		throw new Error(`Designer package source is missing: ${assetId}`);
+	}
+	assertDesignerAssetIdentity({
+		assetId,
+		payload: source,
+		role: "source",
+		targetEntry,
+	});
+}
+
+function parseDesignerJsonAsset({
+	assetId,
+	bytes,
+	role,
+}: {
+	assetId: string;
+	bytes: Buffer;
+	role: TextDesignerAssetImportRole;
+}): Record<string, unknown> {
+	try {
+		const parsed = JSON.parse(bytes.toString("utf8")) as unknown;
+		if (!isRecord(parsed)) {
+			throw new Error("root must be an object");
+		}
+		return parsed;
+	} catch (error) {
+		const detail = error instanceof Error ? error.message : String(error);
+		throw new Error(`Invalid designer ${role} JSON for ${assetId}: ${detail}`);
+	}
+}
+
+function assertDesignerAssetIdentity({
+	assetId,
+	payload,
+	role,
+	targetEntry,
+}: {
+	assetId: string;
+	payload: Record<string, unknown>;
+	role: "source" | "package";
+	targetEntry: TextAssetGeneratedEntry;
+}): void {
+	const mismatches = [
+		identityMismatch({
+			actual: payload.assetId,
+			expected: targetEntry.assetId,
+			field: "assetId",
+		}),
+		identityMismatch({
+			actual: payload.packageId,
+			expected: targetEntry.packageId,
+			field: "packageId",
+		}),
+		identityMismatch({
+			actual: payload.version,
+			expected: targetEntry.version,
+			field: "version",
+		}),
+	].filter((mismatch): mismatch is string => Boolean(mismatch));
+	if (mismatches.length > 0) {
+		throw new Error(
+			`Designer ${role} identity mismatch for ${assetId}: ${mismatches.join(", ")}`
+		);
+	}
+}
+
+function identityMismatch({
+	actual,
+	expected,
+	field,
+}: {
+	actual: unknown;
+	expected: number | string;
+	field: string;
+}): string | null {
+	return actual === expected ? null : `${field} expected ${expected}`;
 }
 
 function applyPlanToManifest({

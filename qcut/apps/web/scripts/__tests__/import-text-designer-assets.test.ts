@@ -43,6 +43,58 @@ function createGeneratedEntry(): TextAssetGeneratedEntry {
 	};
 }
 
+function designerSourceText({
+	assetId = "text-demo",
+}: {
+	assetId?: string;
+} = {}): string {
+	return `${JSON.stringify(
+		{
+			assetId,
+			definition: { id: "designer-demo", name: "Designer demo" },
+			packageId: "text-demo",
+			schemaVersion: 1,
+			template: {
+				content: "设计师花字",
+				id: "designer-demo",
+				name: "Designer demo",
+				type: "text",
+			},
+			version: 1,
+		},
+		null,
+		"\t"
+	)}\n`;
+}
+
+function designerPackageText({
+	assetId = "text-demo",
+}: {
+	assetId?: string;
+} = {}): string {
+	const source = JSON.parse(designerSourceText({ assetId })) as Record<
+		string,
+		unknown
+	>;
+	return `${JSON.stringify(
+		{
+			assetId,
+			cacheKey: "text-assets/demo/plain@1",
+			files: {
+				source: "template.json",
+				thumbnail: "thumbnail.webp",
+			},
+			kind: "qcut-text-template-package",
+			packageId: "text-demo",
+			schemaVersion: 1,
+			source,
+			version: 1,
+		},
+		null,
+		"\t"
+	)}\n`;
+}
+
 async function createDesignerFixture(): Promise<{
 	generatedManifest: Record<string, TextAssetGeneratedEntry>;
 	generatedManifestPath: string;
@@ -67,10 +119,12 @@ async function createDesignerFixture(): Promise<{
 		schemaVersion: 1,
 	};
 	await mkdir(packDir, { recursive: true });
+	const sourceText = designerSourceText();
+	const packageText = designerPackageText();
 	await Promise.all([
 		writeFile(join(packDir, "thumbnail.webp"), "new-thumb"),
-		writeFile(join(packDir, "template.json"), "new-source"),
-		writeFile(join(packDir, "template.qctext"), "new-package"),
+		writeFile(join(packDir, "template.json"), sourceText),
+		writeFile(join(packDir, "template.qctext"), packageText),
 		writeFile(
 			join(packDir, "manifest.json"),
 			`${JSON.stringify(packManifest, null, "\t")}\n`
@@ -150,6 +204,24 @@ describe("text designer asset import script", () => {
 			source: "designer-imported",
 			pipeline: "designer-pack-v1",
 		});
+	});
+
+	it("rejects designer package payloads that target another asset", async () => {
+		const { generatedManifest, packDir, packManifest, publicDir } =
+			await createDesignerFixture();
+		await writeFile(
+			join(packDir, "template.qctext"),
+			designerPackageText({ assetId: "other-text-demo" })
+		);
+
+		await expect(
+			buildTextDesignerAssetImportPlan({
+				generatedManifest,
+				packDir,
+				packManifest,
+				publicDir,
+			})
+		).rejects.toThrow("identity mismatch");
 	});
 
 	it("blocks designer files that escape the pack directory", async () => {
@@ -245,7 +317,7 @@ describe("text designer asset import script", () => {
 			await readFile(generatedManifestPath, "utf8")
 		) as Record<string, TextAssetGeneratedEntry>;
 		expect(writtenManifest["text-demo"]?.source.byteSize).toBe(
-			"new-source".length
+			Buffer.byteLength(designerSourceText())
 		);
 		expect(writtenManifest["text-demo"]?.provenance).toEqual({
 			source: "designer-imported",
