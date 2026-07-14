@@ -586,6 +586,17 @@ export interface TextTemplateGroup {
 	categories: readonly TextTemplateCategory[];
 }
 
+export type TextTemplateResourceEntitlement = "free" | "svip";
+
+export interface TextTemplateResource {
+	assetId: string;
+	packageId: string;
+	version: number;
+	entitlement: TextTemplateResourceEntitlement;
+	cacheKey: string;
+	sizeKb: number;
+}
+
 export interface TextTemplateDefinition {
 	id: string;
 	name: string;
@@ -597,6 +608,7 @@ export interface TextTemplateDefinition {
 	keywords: readonly string[];
 	premium: boolean;
 	downloaded: boolean;
+	resource?: TextTemplateResource;
 	catalogVisible?: boolean;
 	overrides?: Partial<TextElement>;
 }
@@ -1832,6 +1844,28 @@ const BASE_TEXT_TEMPLATE: TextElement = {
 	trimEnd: 0,
 };
 
+function buildTextTemplateResource({
+	category,
+	groupId,
+	variant,
+}: {
+	category: TextTemplateCategorySeed;
+	groupId: TextTemplateGroupId;
+	variant: TextTemplateVariant;
+}): TextTemplateResource {
+	const packageId = `text-${groupId}-${category.id}`;
+	const assetId = `${packageId}-${variant.id}`;
+	const entitlement = variant.premium ? "svip" : "free";
+	return {
+		assetId,
+		packageId,
+		version: 1,
+		entitlement,
+		cacheKey: `text-assets/${packageId}/${variant.id}@1`,
+		sizeKb: variant.premium ? 384 : 192,
+	};
+}
+
 function buildGeneratedDefinition({
 	category,
 	groupId,
@@ -1868,6 +1902,7 @@ function buildGeneratedDefinition({
 		],
 		premium: variant.premium ?? false,
 		downloaded: variant.downloaded ?? false,
+		resource: buildTextTemplateResource({ category, groupId, variant }),
 		catalogVisible: true,
 		overrides: variant.buildOverrides({ category, index }),
 	};

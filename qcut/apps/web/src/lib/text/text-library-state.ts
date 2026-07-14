@@ -1,21 +1,41 @@
 import type {
 	TextTemplateCategoryId,
 	TextTemplateDefinition,
+	TextTemplateResource,
 } from "./text-template-registry";
 
 export const TEXT_LIBRARY_STATE_STORAGE_KEY = "qcut-text-library-state-v1";
 const MAX_RECENT_TEXT_TEMPLATES = 30;
 
+export type TextTemplateDownloadStatus = "remote" | "cached" | "failed";
+export type TextTemplateResourceAccess = "allowed" | "svip-required";
+
+export interface TextTemplateDownloadRecord {
+	templateId: string;
+	assetId: string;
+	packageId: string;
+	cacheKey: string;
+	version: number;
+	status: Exclude<TextTemplateDownloadStatus, "remote">;
+	attemptCount: number;
+	updatedAt: number;
+	errorCode?: string;
+}
+
 export interface TextLibraryState {
 	favoriteIds: readonly string[];
 	downloadedIds: readonly string[];
 	recentIds: readonly string[];
+	downloadRecords: readonly TextTemplateDownloadRecord[];
+	hasSvipAccess: boolean;
 }
 
 export const EMPTY_TEXT_LIBRARY_STATE: TextLibraryState = {
 	favoriteIds: [],
 	downloadedIds: [],
 	recentIds: [],
+	downloadRecords: [],
+	hasSvipAccess: false,
 };
 
 export function parseTextLibraryState({
@@ -31,6 +51,8 @@ export function parseTextLibraryState({
 		favoriteIds: parseStringList({ value: record.favoriteIds }),
 		downloadedIds: parseStringList({ value: record.downloadedIds }),
 		recentIds: parseStringList({ value: record.recentIds }),
+		downloadRecords: parseDownloadRecords({ value: record.downloadRecords }),
+		hasSvipAccess: record.hasSvipAccess === true,
 	};
 }
 
@@ -74,14 +96,87 @@ export function toggleFavoriteTextTemplate({
 }
 
 export function markTextTemplateDownloaded({
+	definition,
+	now = Date.now(),
 	state,
 	templateId,
 }: {
+	definition?: TextTemplateDefinition;
+	now?: number;
 	state: TextLibraryState;
-	templateId: string;
+	templateId?: string;
 }): TextLibraryState {
-	if (state.downloadedIds.includes(templateId)) return state;
-	return { ...state, downloadedIds: [...state.downloadedIds, templateId] };
+	const resolvedTemplateId = definition?.id ?? templateId;
+	if (!resolvedTemplateId) return state;
+	const currentDownloadedIds = state.downloadedIds ?? [];
+	const currentDownloadRecords = state.downloadRecords ?? [];
+	const downloadedIds = currentDownloadedIds.includes(resolvedTemplateId)
+		? state.downloadedIds
+		: [...currentDownloadedIds, resolvedTemplateId];
+	const downloadRecords = definition?.resource
+		? upsertDownloadRecord({
+				record: buildDownloadRecord({
+					definition,
+					now,
+					status: "cached",
+				}),
+				records: currentDownloadRecords,
+			})
+		: currentDownloadRecords;
+	if (
+		downloadedIds === state.downloadedIds &&
+		downloadRecords === state.downloadRecords
+	) {
+		return state;
+	}
+	return { ...state, downloadedIds, downloadRecords };
+}
+
+export function markTextTemplateDownloadFailed({
+	definition,
+	errorCode,
+	now = Date.now(),
+	state,
+}: {
+	definition: TextTemplateDefinition;
+	errorCode: string;
+	now?: number;
+	state: TextLibraryState;
+}): TextLibraryState {
+	if (!definition.resource) return state;
+	return {
+		...state,
+		downloadRecords: upsertDownloadRecord({
+			record: buildDownloadRecord({
+				definition,
+				errorCode,
+				now,
+				status: "failed",
+			}),
+			records: state.downloadRecords ?? [],
+		}),
+	};
+}
+
+export function retryTextTemplateDownload({
+	definition,
+	now = Date.now(),
+	state,
+}: {
+	definition: TextTemplateDefinition;
+	now?: number;
+	state: TextLibraryState;
+}): TextLibraryState {
+	const access = getTextTemplateResourceAccess({ definition, state });
+	if (access !== "allowed") {
+		return markTextTemplateDownloadFailed({
+			definition,
+			errorCode: "SVIP_REQUIRED",
+			now,
+			state,
+		});
+	}
+	return markTextTemplateDownloaded({ definition, now, state });
 }
 
 export function markTextTemplateUsed({
@@ -107,7 +202,11 @@ export function isTextTemplateDownloaded({
 	definition: TextTemplateDefinition;
 	state: TextLibraryState;
 }): boolean {
-	return definition.downloaded || state.downloadedIds.includes(definition.id);
+	return (
+		getTextTemplateDownloadStatus({ definition, state }) === "cached" ||
+		definition.downloaded ||
+		state.downloadedIds.includes(definition.id)
+	);
 }
 
 export function isTextTemplateFavorite({
@@ -118,6 +217,36 @@ export function isTextTemplateFavorite({
 	state: TextLibraryState;
 }): boolean {
 	return state.favoriteIds.includes(definition.id);
+}
+
+export function getTextTemplateDownloadStatus({
+	definition,
+	state,
+}: {
+	definition: TextTemplateDefinition;
+	state: TextLibraryState;
+}): TextTemplateDownloadStatus {
+	if (
+		definition.downloaded ||
+		(state.downloadedIds ?? []).includes(definition.id)
+	) {
+		return "cached";
+	}
+	const record = (state.downloadRecords ?? []).find(
+		(candidate) => candidate.templateId === definition.id
+	);
+	return record?.status ?? "remote";
+}
+
+export function getTextTemplateResourceAccess({
+	definition,
+	state,
+}: {
+	definition: TextTemplateDefinition;
+	state: TextLibraryState;
+}): TextTemplateResourceAccess {
+	if (definition.resource?.entitlement !== "svip") return "allowed";
+	return state.hasSvipAccess === true ? "allowed" : "svip-required";
 }
 
 export function getTextDefinitionsForLibraryCategory({
@@ -153,6 +282,135 @@ export function getTextDefinitionsForLibraryCategory({
 		return [];
 	}
 	return definitions.filter((definition) => definition.category === category);
+}
+
+function buildDownloadRecord({
+	definition,
+	errorCode,
+	now,
+	status,
+}: {
+	definition: TextTemplateDefinition;
+	errorCode?: string;
+	now: number;
+	status: TextTemplateDownloadRecord["status"];
+}): TextTemplateDownloadRecord {
+	const resource = getDefinitionResource({ definition });
+	return {
+		templateId: definition.id,
+		assetId: resource.assetId,
+		packageId: resource.packageId,
+		cacheKey: resource.cacheKey,
+		version: resource.version,
+		status,
+		attemptCount: getNextAttemptCount({
+			definition,
+			status,
+		}),
+		updatedAt: now,
+		errorCode,
+	};
+}
+
+function getDefinitionResource({
+	definition,
+}: {
+	definition: TextTemplateDefinition;
+}): TextTemplateResource {
+	if (definition.resource) return definition.resource;
+	return {
+		assetId: `text-legacy-${definition.id}`,
+		packageId: `text-${definition.groupId}-${definition.category}`,
+		version: 1,
+		entitlement: definition.premium ? "svip" : "free",
+		cacheKey: `text-assets/legacy/${definition.id}@1`,
+		sizeKb: definition.premium ? 384 : 192,
+	};
+}
+
+function getNextAttemptCount({
+	definition,
+	status,
+}: {
+	definition: TextTemplateDefinition;
+	status: TextTemplateDownloadRecord["status"];
+}): number {
+	if (status === "cached" && definition.downloaded) return 1;
+	return 1;
+}
+
+function upsertDownloadRecord({
+	record,
+	records,
+}: {
+	record: TextTemplateDownloadRecord;
+	records: readonly TextTemplateDownloadRecord[];
+}): TextTemplateDownloadRecord[] {
+	const result: TextTemplateDownloadRecord[] = [];
+	let inserted = false;
+	for (const current of records) {
+		if (current.templateId !== record.templateId) {
+			result.push(current);
+			continue;
+		}
+		result.push({
+			...record,
+			attemptCount: current.attemptCount + 1,
+		});
+		inserted = true;
+	}
+	if (!inserted) result.push(record);
+	return result;
+}
+
+function parseDownloadRecords({
+	value,
+}: {
+	value: unknown;
+}): TextTemplateDownloadRecord[] {
+	if (!Array.isArray(value)) return [];
+	const result: TextTemplateDownloadRecord[] = [];
+	const seen = new Set<string>();
+	for (const item of value) {
+		const record = parseDownloadRecord({ value: item });
+		if (!record || seen.has(record.templateId)) continue;
+		seen.add(record.templateId);
+		result.push(record);
+	}
+	return result;
+}
+
+function parseDownloadRecord({
+	value,
+}: {
+	value: unknown;
+}): TextTemplateDownloadRecord | null {
+	if (typeof value !== "object" || value === null) return null;
+	const record = value as Record<string, unknown>;
+	if (
+		typeof record.templateId !== "string" ||
+		typeof record.assetId !== "string" ||
+		typeof record.packageId !== "string" ||
+		typeof record.cacheKey !== "string" ||
+		typeof record.version !== "number" ||
+		typeof record.attemptCount !== "number" ||
+		typeof record.updatedAt !== "number"
+	) {
+		return null;
+	}
+	if (record.status !== "cached" && record.status !== "failed") return null;
+	return {
+		templateId: record.templateId,
+		assetId: record.assetId,
+		packageId: record.packageId,
+		cacheKey: record.cacheKey,
+		version: record.version,
+		status: record.status,
+		attemptCount: record.attemptCount,
+		updatedAt: record.updatedAt,
+		errorCode:
+			typeof record.errorCode === "string" ? record.errorCode : undefined,
+	};
 }
 
 function parseStringList({ value }: { value: unknown }): string[] {

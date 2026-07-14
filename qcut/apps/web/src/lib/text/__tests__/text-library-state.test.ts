@@ -56,6 +56,8 @@ describe("text library state", () => {
 			favoriteIds: ["first"],
 			downloadedIds: ["second"],
 			recentIds: ["third", "first"],
+			downloadRecords: [],
+			hasSvipAccess: false,
 		});
 	});
 
@@ -87,6 +89,7 @@ describe("text library state", () => {
 
 	it("resolves virtual categories from user state", () => {
 		const state = {
+			...EMPTY_TEXT_LIBRARY_STATE,
 			favoriteIds: ["second", "missing"],
 			downloadedIds: ["third"],
 			recentIds: ["third", "first"],

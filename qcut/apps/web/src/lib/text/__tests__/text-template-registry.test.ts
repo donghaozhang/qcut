@@ -115,6 +115,13 @@ describe("text template registry", () => {
 			expect(definition.variantId.length).toBeGreaterThan(0);
 			expect(definition.keywords.length).toBeGreaterThanOrEqual(5);
 		}
+		for (const definition of TEXT_TEMPLATE_LIBRARY_DEFINITIONS) {
+			expect(definition.resource?.assetId).toContain(definition.variantId);
+			expect(definition.resource?.cacheKey).toContain("@1");
+			expect(definition.resource?.entitlement).toBe(
+				definition.premium ? "svip" : "free"
+			);
+		}
 	});
 
 	it("uses scenario-specific content for packaging, template, and smart text categories", () => {
