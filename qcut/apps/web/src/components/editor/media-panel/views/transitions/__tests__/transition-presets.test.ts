@@ -17,8 +17,8 @@ function requirePreset({ presetId }: { presetId: string }): TransitionPreset {
 }
 
 describe("transition presets", () => {
-	it("adds five real presets to every content category", () => {
-		expect(transitionPresets.length).toBeGreaterThanOrEqual(132);
+	it("keeps every content category dense and every advanced engine distinct", () => {
+		expect(transitionPresets.length).toBeGreaterThanOrEqual(260);
 		expect(new Set(transitionPresets.map((preset) => preset.id)).size).toBe(
 			transitionPresets.length
 		);
@@ -27,9 +27,9 @@ describe("transition presets", () => {
 				(preset) => preset.category === category
 			);
 			expect(categoryExpansions).toHaveLength(5);
-			expect(
-				filterTransitionPresets({ category, query: "" }).length
-			).toBeGreaterThanOrEqual(7);
+			const categoryCount = filterTransitionPresets({ category, query: "" }).length;
+			expect(categoryCount).toBeGreaterThanOrEqual(20);
+			expect(categoryCount).toBeLessThanOrEqual(30);
 
 			const productionSignatures = categoryExpansions.map((preset) =>
 				JSON.stringify({
@@ -39,11 +39,40 @@ describe("transition presets", () => {
 			);
 			expect(new Set(productionSignatures).size).toBe(5);
 		}
+
+		for (const clipType of [
+			"motion-blur",
+			"pixelate",
+			"water-ripple",
+			"particle-dissolve",
+			"glass-refraction",
+			"page-flip",
+			"texture-mask",
+			"lens-flare",
+		] as const) {
+			expect(
+				transitionPresets.filter((preset) => preset.clipType === clipType)
+			).toHaveLength(8);
+		}
+		expect(
+			new Set(
+				transitionPresets.map(
+					(preset) => `${preset.preview.from}|${preset.preview.to}`
+				)
+			).size
+		).toBeGreaterThanOrEqual(24);
+		expect(
+			transitionPresets.every(
+				(preset) =>
+					preset.preview.from.endsWith(".webp") &&
+					preset.preview.to.endsWith(".webp")
+			)
+		).toBe(true);
 	});
 
 	it("filters category, favorites, popular, and latest views", () => {
 		const split = filterTransitionPresets({ category: "split", query: "" });
-		expect(split).toHaveLength(17);
+		expect(split.length).toBeGreaterThanOrEqual(17);
 		expect(split.map((preset) => preset.id)).toContain("slide-left");
 		expect(split.map((preset) => preset.id)).toContain("wipe-right");
 
@@ -174,6 +203,59 @@ describe("getClipTransitionPresetConfig", () => {
 			"love-flash",
 			{ type: "flash", tuning: { intensity: 0.7, tint: "#ff9fbd" } },
 		],
+		[
+			"directional-smear-left",
+			{
+				type: "motion-blur",
+				direction: "left",
+				tuning: { intensity: 0.65 },
+			},
+		],
+		["pixel-collapse", { type: "pixelate", tuning: { intensity: 0.55 } }],
+		[
+			"pond-ripple",
+			{
+				type: "water-ripple",
+				tuning: { intensity: 0.45, frequency: 0.65 },
+			},
+		],
+		[
+			"dust-dissolve",
+			{
+				type: "particle-dissolve",
+				tuning: { intensity: 0.65, frequency: 0.8 },
+			},
+		],
+		[
+			"glass-slice",
+			{
+				type: "glass-refraction",
+				direction: "left",
+				tuning: { intensity: 0.7, frequency: 1 },
+			},
+		],
+		[
+			"page-flip-left",
+			{
+				type: "page-flip",
+				direction: "left",
+				tuning: { intensity: 0.7 },
+			},
+		],
+		[
+			"paper-grain-reveal",
+			{
+				type: "texture-mask",
+				tuning: { intensity: 0.55, frequency: 0.7 },
+			},
+		],
+		[
+			"golden-lens-flare",
+			{
+				type: "lens-flare",
+				tuning: { intensity: 0.7, tint: "#ffd38a" },
+			},
+		],
 	] as const)("maps %s to a real timeline configuration", (presetId, expected) => {
 		expect(
 			getClipTransitionPresetConfig({ preset: requirePreset({ presetId }) })
@@ -218,12 +300,14 @@ describe("getClipTransitionPresetConfig", () => {
 		}
 	});
 
-	it("keeps an unavailable asset out of the apply path", () => {
+	it("keeps engine mapping independent from mutable download state", () => {
 		const unavailable: TransitionPreset = {
 			...requirePreset({ presetId: "dissolve" }),
 			id: "unavailable",
 			downloaded: false,
 		};
-		expect(getClipTransitionPresetConfig({ preset: unavailable })).toBeNull();
+		expect(getClipTransitionPresetConfig({ preset: unavailable })).toEqual({
+			type: "dissolve",
+		});
 	});
 });

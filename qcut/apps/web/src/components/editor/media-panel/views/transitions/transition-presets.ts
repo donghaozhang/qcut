@@ -1,6 +1,8 @@
 import type { ClipTransitionType } from "@/types/timeline";
 import { ADDITIONAL_TRANSITION_PRESETS } from "./transition-additional-presets";
 import { TRANSITION_CATEGORY_EXPANSIONS } from "./transition-category-expansions";
+import { buildTransitionCatalogDensity } from "./transition-catalog-density";
+import { TRANSITION_ENGINE_PRESETS } from "./transition-engine-presets";
 import {
 	defineTransitionPreset as definePreset,
 	type ClipTransitionPresetConfig,
@@ -276,7 +278,7 @@ const mgPresets: TransitionPreset[] = [
 	})
 );
 
-export const transitionPresets: TransitionPreset[] = [
+const BASE_TRANSITION_PRESETS: TransitionPreset[] = [
 	...dissolvePresets,
 	...naturalPresets,
 	...splitPresets,
@@ -287,6 +289,12 @@ export const transitionPresets: TransitionPreset[] = [
 	...mgPresets,
 	...ADDITIONAL_TRANSITION_PRESETS,
 	...TRANSITION_CATEGORY_EXPANSIONS,
+	...TRANSITION_ENGINE_PRESETS,
+];
+
+export const transitionPresets: TransitionPreset[] = [
+	...BASE_TRANSITION_PRESETS,
+	...buildTransitionCatalogDensity({ presets: BASE_TRANSITION_PRESETS }),
 ];
 
 export function filterTransitionPresets({
@@ -330,7 +338,6 @@ export function getClipTransitionPresetConfig({
 }: {
 	preset: TransitionPreset;
 }): ClipTransitionPresetConfig | null {
-	if (!preset.downloaded) return null;
 	return {
 		type: preset.clipType,
 		...(preset.direction ? { direction: preset.direction } : {}),

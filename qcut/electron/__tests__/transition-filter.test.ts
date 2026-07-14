@@ -160,6 +160,22 @@ describe("FFmpeg transition filters", () => {
 		{ type: "light-leak", direction: undefined, expected: "eq(PLANE,0),90" },
 		{ type: "rgb-glitch", direction: undefined, expected: "mod(Y,12)" },
 		{ type: "shake", direction: undefined, expected: "sin((" },
+		{ type: "motion-blur", direction: "left", expected: ")/5" },
+		{ type: "pixelate", direction: undefined, expected: "floor(X/" },
+		{ type: "water-ripple", direction: undefined, expected: "sqrt(pow(" },
+		{
+			type: "particle-dissolve",
+			direction: undefined,
+			expected: "abs(sin(floor(X/",
+		},
+		{
+			type: "glass-refraction",
+			direction: "right",
+			expected: "mod(floor(Y/",
+		},
+		{ type: "page-flip", direction: "up", expected: "abs(Y-" },
+		{ type: "texture-mask", direction: undefined, expected: "sin(X/W*" },
+		{ type: "lens-flare", direction: undefined, expected: "0.035*H" },
 	] satisfies Array<{
 		type: VideoTransition["type"];
 		direction: VideoTransition["direction"] | undefined;

@@ -3,6 +3,10 @@ import type {
 	ClipTransitionTuning,
 	ClipTransitionType,
 } from "@/types/timeline";
+import {
+	getTransitionPreviewAsset,
+	type TransitionPreviewAsset,
+} from "./transition-preview-assets";
 
 export const TRANSITION_CONTENT_CATEGORIES = [
 	"dissolve",
@@ -41,7 +45,15 @@ export type TransitionType =
 	| "flash"
 	| "light"
 	| "glitch"
-	| "shake";
+	| "shake"
+	| "motion-blur"
+	| "pixel"
+	| "ripple"
+	| "particle"
+	| "glass"
+	| "page"
+	| "texture"
+	| "flare";
 
 export interface TransitionPreset {
 	id: string;
@@ -53,6 +65,8 @@ export interface TransitionPreset {
 	tags: string[];
 	description: string;
 	version: number;
+	delivery: "bundled" | "remote";
+	preview: TransitionPreviewAsset;
 	direction?: ClipTransitionDirection;
 	clipType: ClipTransitionType;
 	tuning?: ClipTransitionTuning;
@@ -70,20 +84,26 @@ export interface ClipTransitionPresetConfig {
 
 type PresetInput = Omit<
 	TransitionPreset,
-	"version" | "downloaded" | "tags" | "description"
+	"version" | "downloaded" | "tags" | "description" | "delivery" | "preview"
 > & {
 	tags?: string[];
 	description?: string;
+	delivery?: TransitionPreset["delivery"];
+	preview?: TransitionPreviewAsset;
 };
 
 export function defineTransitionPreset({
 	tags = [],
 	description,
+	delivery = "bundled",
+	preview,
 	...preset
 }: PresetInput): TransitionPreset {
 	return {
 		...preset,
 		version: 1,
+		delivery,
+		preview: preview ?? getTransitionPreviewAsset({ presetId: preset.id }),
 		downloaded: true,
 		tags: [preset.category, preset.type, preset.localizedName, ...tags],
 		description:

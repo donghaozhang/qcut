@@ -18,7 +18,10 @@ import {
 	TEXT_TEMPLATE_DEFINITIONS,
 	TEXT_TEMPLATES,
 } from "@/lib/text/text-template-registry";
-import { transitionPresets } from "@/components/editor/media-panel/views/transitions/transition-presets";
+import {
+	transitionPresets,
+	type TransitionPreset,
+} from "@/components/editor/media-panel/views/transitions/transition-presets";
 export { createFreesoundAssetEntry } from "./freesound-asset";
 
 export const QCUT_ASSET_MANIFEST_ID = "qcut-creator-library";
@@ -130,8 +133,12 @@ function captionStyleAssets(): AssetManifestEntry[] {
 	}));
 }
 
-function transitionAssets(): AssetManifestEntry[] {
-	return transitionPresets.map((preset) => ({
+export function createTransitionAssetEntry({
+	preset,
+}: {
+	preset: TransitionPreset;
+}): AssetManifestEntry {
+	return {
 		schemaVersion: ASSET_MANIFEST_SCHEMA_VERSION,
 		id: preset.id,
 		kind: "transition",
@@ -140,8 +147,11 @@ function transitionAssets(): AssetManifestEntry[] {
 		localizedNames: { "zh-CN": preset.localizedName },
 		category: preset.category,
 		tags: uniqueTags({ tags: preset.tags }),
-		delivery: "generated",
-		files: [],
+		delivery: preset.delivery,
+		files: [
+			{ role: "thumbnail", url: preset.preview.from, mimeType: "image/webp" },
+			{ role: "preview", url: preset.preview.to, mimeType: "image/webp" },
+		],
 		license: QCUT_BUILT_IN_LICENSE,
 		metadata: {
 			clipType: preset.clipType,
@@ -149,7 +159,21 @@ function transitionAssets(): AssetManifestEntry[] {
 			tuning: preset.tuning,
 			defaultDuration: preset.defaultDuration,
 		},
-	}));
+	};
+}
+
+export function resolveTransitionAssetEntry({
+	preset,
+}: {
+	preset: TransitionPreset;
+}): AssetManifestEntry {
+	return createTransitionAssetEntry({ preset });
+}
+
+function transitionAssets(): AssetManifestEntry[] {
+	return transitionPresets.map((preset) =>
+		createTransitionAssetEntry({ preset })
+	);
 }
 
 export function createIconifyStickerAssetEntry({

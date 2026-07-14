@@ -19,11 +19,6 @@ export interface TransitionPreviewSources {
 	to?: string;
 }
 
-const FALLBACK_SOURCES: Required<TransitionPreviewSources> = {
-	from: "/images/filter-previews/coastal.webp",
-	to: "/images/filter-previews/golden-hour.webp",
-};
-
 function previewTransition({
 	preset,
 }: {
@@ -99,8 +94,8 @@ export function TransitionPreview({
 }) {
 	const [progress, setProgress] = useState(0);
 	const transition = previewTransition({ preset });
-	const fromSource = sources?.from || FALLBACK_SOURCES.from;
-	const toSource = sources?.to || FALLBACK_SOURCES.to;
+	const fromSource = sources?.from || preset.preview.from;
+	const toSource = sources?.to || preset.preview.to;
 
 	useEffect(() => {
 		if (!isPlaying) {

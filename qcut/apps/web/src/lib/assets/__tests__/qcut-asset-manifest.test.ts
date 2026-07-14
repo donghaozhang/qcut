@@ -14,6 +14,7 @@ import {
 	QCUT_ASSET_CATALOG,
 	QCUT_ASSET_MANIFEST,
 	createFreesoundAssetEntry,
+	createTransitionAssetEntry,
 } from "../qcut-asset-manifest";
 
 function sound({ license }: { license: string }): SoundEffect {
@@ -71,10 +72,42 @@ describe("QCut asset manifest", () => {
 		expect(transitions).toHaveLength(transitionPresets.length);
 		expect(transitions.length).toBeGreaterThanOrEqual(50);
 		expect(transitions[0]).toMatchObject({
-			delivery: "generated",
+			delivery: "bundled",
 			license: { commercialUse: "allowed" },
 			version: 1,
 		});
+		expect(transitions[0].files.map((file) => file.role)).toEqual([
+			"thumbnail",
+			"preview",
+		]);
+	});
+
+	it("maps transition presets to downloadable preview assets", () => {
+		const transition = createTransitionAssetEntry({
+			preset: transitionPresets[0],
+		});
+
+		expect(transition).toMatchObject({
+			id: transitionPresets[0].id,
+			kind: "transition",
+			delivery: transitionPresets[0].delivery,
+			metadata: {
+				clipType: transitionPresets[0].clipType,
+				defaultDuration: transitionPresets[0].defaultDuration,
+			},
+		});
+		expect(transition.files).toEqual([
+			{
+				role: "thumbnail",
+				url: transitionPresets[0].preview.from,
+				mimeType: "image/webp",
+			},
+			{
+				role: "preview",
+				url: transitionPresets[0].preview.to,
+				mimeType: "image/webp",
+			},
+		]);
 	});
 
 	it("publishes real animated sticker sources with license and preview files", () => {

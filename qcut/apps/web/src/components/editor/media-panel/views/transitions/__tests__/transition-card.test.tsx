@@ -1,5 +1,6 @@
 import { fireEvent, render, screen } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
+import type { TransitionResourceState } from "@/lib/transitions/transition-resource";
 import { TransitionCard } from "../transition-card";
 import { getTransitionPresetById } from "../transition-presets";
 
@@ -30,6 +31,7 @@ const futureAsset = {
 const handlers = {
 	onSelect: vi.fn(),
 	onApply: vi.fn(),
+	onDownload: vi.fn(),
 	onDragStart: vi.fn(),
 	onToggleFavorite: vi.fn(),
 };
@@ -39,16 +41,29 @@ function renderCard({
 	selected = false,
 	canApply = true,
 	available = true,
+	resourceState: resourceStateOverride,
+}: {
+	preset?: typeof dissolve;
+	selected?: boolean;
+	canApply?: boolean;
+	available?: boolean;
+	resourceState?: TransitionResourceState;
 } = {}) {
+	const resourceState: TransitionResourceState =
+		resourceStateOverride ??
+		(available
+			? { available: true, progress: 1, status: "ready" }
+			: { available: false, progress: 0, status: "download" });
 	return render(
 		<TransitionCard
 			preset={preset}
 			selected={selected}
 			canApply={canApply}
-			available={available}
+			resourceState={resourceState}
 			favorite={false}
 			onSelect={handlers.onSelect}
 			onApply={handlers.onApply}
+			onDownload={handlers.onDownload}
 			onToggleFavorite={handlers.onToggleFavorite}
 			onDragStart={handlers.onDragStart}
 		/>
@@ -107,21 +122,46 @@ describe("TransitionCard", () => {
 		expect(preview).toHaveAttribute("data-playing", "false");
 	});
 
-	it("shows the Ready badge and duration for available presets", () => {
+	it("shows duration without a download action for available presets", () => {
 		renderCard();
 
-		expect(screen.getByText("可用")).toBeInTheDocument();
 		expect(screen.getByText("0.50s")).toBeInTheDocument();
 		expect(screen.queryByText("Pro")).not.toBeInTheDocument();
-		expect(screen.queryByText("素材")).not.toBeInTheDocument();
+		expect(
+			screen.queryByRole("button", { name: "下载转场素材: 叠化" })
+		).not.toBeInTheDocument();
 	});
 
-	it("shows Pro and Asset badges for premium presets without assets", () => {
+	it("shows Pro and download action for premium presets without assets", () => {
 		renderCard({ preset: futureAsset, available: false });
 
 		expect(screen.getByText("Pro")).toBeInTheDocument();
-		expect(screen.getByText("素材")).toBeInTheDocument();
-		expect(screen.queryByText("可用")).not.toBeInTheDocument();
+		fireEvent.click(
+			screen.getByRole("button", { name: "下载转场素材: 未来素材" })
+		);
+		expect(handlers.onDownload).toHaveBeenCalledWith({ preset: futureAsset });
+	});
+
+	it.each([
+		["downloading", "正在下载 42%: 未来素材", true],
+		["update", "更新转场素材: 未来素材", false],
+		["offline", "离线，无法下载: 未来素材", true],
+		["failed", "下载失败，点击重试: 未来素材", false],
+	] as const)("renders the %s resource state", (status, label, disabled) => {
+		renderCard({
+			preset: futureAsset,
+			resourceState: {
+				available: status === "update",
+				progress: status === "downloading" ? 0.42 : 0,
+				status,
+			},
+		});
+		const action = screen.getByRole("button", { name: label });
+		if (disabled) {
+			expect(action).toBeDisabled();
+			return;
+		}
+		expect(action).toBeEnabled();
 	});
 
 	it("applies a ready preset on double-click", () => {
