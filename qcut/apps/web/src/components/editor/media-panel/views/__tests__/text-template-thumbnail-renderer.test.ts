@@ -208,7 +208,7 @@ describe("text template thumbnail renderer", () => {
 
 		expect(model?.elements.map((element) => element.content)).toEqual([
 			"本期重点",
-			"主标题",
+			definition.content,
 			"三句话讲清楚",
 		]);
 
