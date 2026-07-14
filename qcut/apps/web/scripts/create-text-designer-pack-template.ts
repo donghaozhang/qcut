@@ -30,6 +30,7 @@ export type TextDesignerPackTemplateProvenanceFilter =
 export type TextDesignerPackTemplateAssetContract = {
 	assetId: string;
 	cacheKey: string;
+	category?: string;
 	files: {
 		qcutPackage: TextDesignerPackTemplateFileContract;
 		source: TextDesignerPackTemplateFileContract;
@@ -321,6 +322,7 @@ function buildAssetContract({
 	return {
 		assetId: entry.assetId,
 		cacheKey: entry.cacheKey,
+		category: inferTextAssetCategory({ entry }),
 		files: {
 			qcutPackage: {
 				currentByteSize: entry.qcutPackage.byteSize,
@@ -354,10 +356,11 @@ function renderReadme({
 }: {
 	template: TextDesignerPackTemplate;
 }): string {
+	const categoryRows = renderCategoryRows({ template });
 	const assetRows = template.contracts
 		.map(
 			(contract) =>
-				`| ${contract.assetId} | ${contract.packageId} | ${contract.version} | ${contract.cacheKey} |`
+				`| ${contract.assetId} | ${contract.category ?? "unknown"} | ${contract.packageId} | ${contract.version} | ${contract.cacheKey} |`
 		)
 		.join("\n");
 	return `# QCut Text Designer Pack
@@ -368,14 +371,39 @@ Replace the files referenced by \`manifest.json\`, then run:
 bun run assets:text:import-designer -- --pack-dir <this-folder> --dry-run
 bun run assets:text:import-designer -- --pack-dir <this-folder>
 bun run assets:text:verify-cdn
+bun run assets:text:verify-designer-ready
 \`\`\`
 
-Each asset folder contains \`asset-contract.json\` with the required target identity. Keep \`assetId\`, \`packageId\`, \`version\`, and \`cacheKey\` unchanged inside \`template.json\` and \`template.qctext\`.
+Each asset folder contains \`asset-contract.json\` with the required target identity. Keep \`assetId\`, \`packageId\`, \`version\`, and \`cacheKey\` unchanged inside \`template.json\` and \`template.qctext\`. The import step rejects unchanged files by default, so every listed asset must be replaced with a real designer payload.
 
-| assetId | packageId | version | cacheKey |
-| --- | --- | --- | --- |
+## Category Quotas
+
+| category | assets |
+| --- | ---: |
+${categoryRows}
+
+## Asset Contracts
+
+| assetId | category | packageId | version | cacheKey |
+| --- | --- | --- | --- | --- |
 ${assetRows}
 `;
+}
+
+function renderCategoryRows({
+	template,
+}: {
+	template: TextDesignerPackTemplate;
+}): string {
+	const countsByCategory = new Map<string, number>();
+	for (const contract of template.contracts) {
+		const category = contract.category ?? "unknown";
+		countsByCategory.set(category, (countsByCategory.get(category) ?? 0) + 1);
+	}
+	return [...countsByCategory.entries()]
+		.sort(([left], [right]) => left.localeCompare(right))
+		.map(([category, count]) => `| ${category} | ${count} |`)
+		.join("\n");
 }
 
 function uniqueAssetIds({

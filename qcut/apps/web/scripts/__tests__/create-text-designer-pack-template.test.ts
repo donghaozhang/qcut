@@ -175,6 +175,7 @@ describe("text designer pack template script", () => {
 		expect(template.contracts[0]).toMatchObject({
 			assetId: "text-demo",
 			cacheKey: "text-assets/text-demo/plain@1",
+			category: undefined,
 			files: {
 				qcutPackage: {
 					currentChecksumSha256: "package-sha",
@@ -205,20 +206,26 @@ describe("text designer pack template script", () => {
 		const outDir = join(tmpdir(), `qcut-designer-template-${randomUUID()}`);
 		await mkdir(outDir, { recursive: true });
 		const template = buildTextDesignerPackTemplate({
-			assetIds: ["text-demo"],
-			generatedManifest: { "text-demo": createGeneratedEntry() },
+			assetIds: ["text-red-demo"],
+			generatedManifest: {
+				"text-red-demo": createGeneratedEntry({
+					assetId: "text-red-demo",
+					packageId: "text-fancy-red",
+				}),
+			},
 		});
 
 		await writeTextDesignerPackTemplate({ outDir, template });
 
 		await expect(
 			readFile(join(outDir, "manifest.json"), "utf8")
-		).resolves.toContain("assets/text-demo/template.qctext");
+		).resolves.toContain("assets/text-red-demo/template.qctext");
 		await expect(
-			readFile(join(outDir, "assets/text-demo/asset-contract.json"), "utf8")
-		).resolves.toContain("package-sha");
-		await expect(
-			readFile(join(outDir, "README.md"), "utf8")
-		).resolves.toContain("assets:text:import-designer");
+			readFile(join(outDir, "assets/text-red-demo/asset-contract.json"), "utf8")
+		).resolves.toContain('"category": "red"');
+		const readme = await readFile(join(outDir, "README.md"), "utf8");
+		expect(readme).toContain("assets:text:import-designer");
+		expect(readme).toContain("assets:text:verify-designer-ready");
+		expect(readme).toContain("| red | 1 |");
 	});
 });
