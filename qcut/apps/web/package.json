@@ -24,6 +24,8 @@
 		"assets:text:create-designer-pack": "bun scripts/create-text-designer-pack-template.ts",
 		"assets:text:create-designer-ready-pack": "bun scripts/create-text-designer-pack-template.ts --designer-ready",
 		"assets:text:create-designer-ready-pack-archive": "bun scripts/create-text-designer-pack-template.ts --designer-ready --archive-path dist/text-designer-pack-template.tar.gz",
+		"assets:text:verify-designer-pack-template": "bun scripts/verify-text-designer-pack-template.ts --pack-dir dist/text-designer-pack-template --expected-assets 100",
+		"assets:text:proof-designer-handoff": "bun run assets:text:create-designer-ready-pack-archive && bun run assets:text:verify-designer-pack-template",
 		"assets:text:import-designer": "bun scripts/import-text-designer-assets.ts",
 		"assets:text:import-designer-ready": "bun scripts/import-text-designer-assets.ts --designer-ready",
 		"assets:text:upload-cdn": "bun scripts/upload-text-assets-cdn.ts",
