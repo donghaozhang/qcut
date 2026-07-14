@@ -368,7 +368,7 @@ describe("text asset CDN release script", () => {
 				return {
 					archivePath,
 					byteSize: 1234,
-					fileCount: stagedFileCount + 3,
+					fileCount: stagedFileCount + 4,
 					format: "tar.gz",
 					sha256: "archive-sha",
 				};
@@ -388,7 +388,11 @@ describe("text asset CDN release script", () => {
 			archiveBytes: 1234,
 			archivePath,
 			archiveSha256: "archive-sha",
-			archivedFiles: 7,
+			archivedFiles: 8,
+			designerGapChecklistPath: join(
+				stageDir,
+				"_qcut-text-designer-gap-checklist.csv"
+			),
 			designerGapReportPath: join(
 				stageDir,
 				"_qcut-text-designer-gap-report.json"
@@ -490,8 +494,16 @@ describe("text asset CDN release script", () => {
 				TEXT_DESIGNER_READY_MIN_ASSETS_PER_CATEGORY,
 		});
 		await expect(
+			readFile(join(stageDir, "_qcut-text-designer-gap-checklist.csv"), "utf8")
+		).resolves.toContain(
+			'"category","currentDesignerAssets","requiredDesignerAssets","missingDesignerAssets","assetId"'
+		);
+		await expect(
 			readFile(join(stageDir, "_qcut-text-assets-release-readme.md"), "utf8")
 		).resolves.toContain("_qcut-text-designer-gap-report.json");
+		await expect(
+			readFile(join(stageDir, "_qcut-text-assets-release-readme.md"), "utf8")
+		).resolves.toContain("_qcut-text-designer-gap-checklist.csv");
 		await expect(
 			readFile(join(stageDir, "_qcut-text-assets-release-readme.md"), "utf8")
 		).resolves.toContain("assets:text:proof-remote-release");

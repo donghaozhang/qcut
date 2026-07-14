@@ -102,7 +102,7 @@ describe("text asset archive verifier", () => {
 			calls.push(args);
 			if (args[0] === "-tzf") {
 				return Buffer.from(
-					"./_qcut-text-assets-release.json\n./_qcut-text-assets-release-readme.md\n./_qcut-text-designer-gap-report.json\n./prod/text-assets/demo/plain@1/template.json\n"
+					"./_qcut-text-assets-release.json\n./_qcut-text-assets-release-readme.md\n./_qcut-text-designer-gap-checklist.csv\n./_qcut-text-designer-gap-report.json\n./prod/text-assets/demo/plain@1/template.json\n"
 				);
 			}
 			if (args[0] === "-xOf") {
@@ -119,6 +119,7 @@ describe("text asset archive verifier", () => {
 		).resolves.toEqual([
 			"./_qcut-text-assets-release.json",
 			"./_qcut-text-assets-release-readme.md",
+			"./_qcut-text-designer-gap-checklist.csv",
 			"./_qcut-text-designer-gap-report.json",
 			"./prod/text-assets/demo/plain@1/template.json",
 		]);
@@ -142,12 +143,13 @@ describe("text asset archive verifier", () => {
 					"./prod/",
 					"./_qcut-text-assets-release.json",
 					"./_qcut-text-assets-release-readme.md",
+					"./_qcut-text-designer-gap-checklist.csv",
 					"./_qcut-text-designer-gap-report.json",
 					"./prod/text-assets/demo/plain@1/template.json",
 					"../escape.json",
 				],
 			})
-		).toBe(5);
+		).toBe(6);
 	});
 
 	it("detects missing, unexpected, duplicate, and escaping archive entries", () => {
@@ -159,6 +161,7 @@ describe("text asset archive verifier", () => {
 			entries: [
 				"./_qcut-text-assets-release.json",
 				"./_qcut-text-assets-release-readme.md",
+				"./_qcut-text-designer-gap-checklist.csv",
 				"./_qcut-text-designer-gap-report.json",
 				"./prod/text-assets/demo/plain@1/template.json",
 				"./prod/text-assets/demo/plain@1/template.json",
@@ -189,6 +192,7 @@ describe("text asset archive verifier", () => {
 				entries: [
 					"./_qcut-text-assets-release.json",
 					"./_qcut-text-assets-release-readme.md",
+					"./_qcut-text-designer-gap-checklist.csv",
 					"./_qcut-text-designer-gap-report.json",
 				],
 				manifest,
@@ -254,6 +258,7 @@ describe("text asset archive verifier", () => {
 				entries: [
 					"./_qcut-text-assets-release.json",
 					"./_qcut-text-assets-release-readme.md",
+					"./_qcut-text-designer-gap-checklist.csv",
 					"./_qcut-text-designer-gap-report.json",
 					`./${badThumbnailItem.key}`,
 				],

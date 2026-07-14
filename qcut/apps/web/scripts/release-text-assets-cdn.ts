@@ -30,6 +30,7 @@ import {
 	verifyDesignerAssetCoverage,
 	verifyLocalFiles,
 	verifyRemoteFiles,
+	writeDesignerAssetGapChecklist,
 	writeDesignerAssetGapReport,
 	writePublishManifest,
 	type TextAssetDesignerGapReport,
@@ -64,6 +65,7 @@ export type TextAssetReleaseSummary = {
 	archiveSha256?: string;
 	archivedFiles: number;
 	baseUrl: string;
+	designerGapChecklistPath?: string;
 	designerGapReportPath?: string;
 	designerReady: boolean;
 	designerReadyMissing: number;
@@ -121,7 +123,10 @@ const DEFAULT_METADATA_CACHE_CONTROL =
 	"public, max-age=300, stale-while-revalidate=86400";
 const STAGE_MANIFEST_FILE = "_qcut-text-assets-release.json";
 const STAGE_README_FILE = "_qcut-text-assets-release-readme.md";
+const STAGE_DESIGNER_GAP_CHECKLIST_FILE =
+	"_qcut-text-designer-gap-checklist.csv";
 const STAGE_DESIGNER_GAP_REPORT_FILE = "_qcut-text-designer-gap-report.json";
+const STAGE_RELEASE_METADATA_FILE_COUNT = 4;
 const execFileAsync = promisify(execFile);
 
 export function parseTextAssetReleaseArgs({
@@ -438,6 +443,7 @@ export async function releaseTextAssetsToCdn({
 		provenance,
 		remoteIssues,
 		stageArchiveBytes: archive?.byteSize,
+		stageDesignerGapChecklistPath: staging?.designerGapChecklistPath,
 		stageDesignerGapReportPath: staging?.designerGapReportPath,
 		stageArchivePath: archive?.archivePath,
 		stageArchiveSha256: archive?.sha256,
@@ -465,6 +471,7 @@ export async function stageTextAssetUploadPlan({
 	requiredDesignerCategories?: readonly string[];
 	stageDir: string;
 }): Promise<{
+	designerGapChecklistPath?: string;
 	designerGapReportPath?: string;
 	fileCount: number;
 	manifestPath: string;
@@ -488,6 +495,10 @@ export async function stageTextAssetUploadPlan({
 	const designerGapReportPath = join(
 		resolvedStageDir,
 		STAGE_DESIGNER_GAP_REPORT_FILE
+	);
+	const designerGapChecklistPath = join(
+		resolvedStageDir,
+		STAGE_DESIGNER_GAP_CHECKLIST_FILE
 	);
 	const releaseManifest = {
 		...buildTextAssetUploadPlanReport({
@@ -519,8 +530,15 @@ export async function stageTextAssetUploadPlan({
 			report: designerGapReport,
 			writePath: designerGapReportPath,
 		});
+		await writeDesignerAssetGapChecklist({
+			report: designerGapReport,
+			writePath: designerGapChecklistPath,
+		});
 	}
 	return {
+		designerGapChecklistPath: designerGapReport
+			? designerGapChecklistPath
+			: undefined,
 		designerGapReportPath: designerGapReport
 			? designerGapReportPath
 			: undefined,
@@ -560,6 +578,7 @@ Do not upload these release handoff files as public CDN assets:
 
 - \`${STAGE_MANIFEST_FILE}\`
 - \`${STAGE_README_FILE}\`
+- \`${STAGE_DESIGNER_GAP_CHECKLIST_FILE}\`
 - \`${STAGE_DESIGNER_GAP_REPORT_FILE}\`
 
 Before publishing, verify the folder and archive:
@@ -579,7 +598,7 @@ bun run assets:text:import-designer-ready -- --pack-dir <designer-pack>
 bun run assets:text:release-designer-ready-stage
 \`\`\`
 
-The staged folder includes \`${STAGE_DESIGNER_GAP_REPORT_FILE}\`, which lists the exact designer asset slots needed to reach the screenshot-level library.
+The staged folder includes \`${STAGE_DESIGNER_GAP_REPORT_FILE}\` for machine-readable coverage and \`${STAGE_DESIGNER_GAP_CHECKLIST_FILE}\` for the design handoff checklist. Together they list the exact designer asset slots needed to reach the screenshot-level library.
 
 After publishing, verify the remote CDN. The first command checks reachability and sizes quickly; the second downloads each object and verifies SHA-256 checksums; the third verifies uploaded object identity metadata when your CDN exposes S3/R2 \`x-amz-meta-*\` headers:
 
@@ -651,7 +670,7 @@ export async function createTextAssetStageArchive({
 	return {
 		archivePath: resolvedArchivePath,
 		byteSize: archiveBytes.byteLength,
-		fileCount: stagedFileCount + 3,
+		fileCount: stagedFileCount + STAGE_RELEASE_METADATA_FILE_COUNT,
 		format: "tar.gz",
 		sha256: hashBytes({ bytes: archiveBytes }),
 	};
@@ -662,6 +681,7 @@ function buildReleaseSummary({
 	stageArchivePath,
 	stageArchiveSha256,
 	stageArchivedFiles,
+	stageDesignerGapChecklistPath,
 	stageDesignerGapReportPath,
 	designerReadyMissing,
 	localIssues,
@@ -685,6 +705,7 @@ function buildReleaseSummary({
 	stageArchivePath?: string;
 	stageArchiveSha256?: string;
 	stageArchivedFiles?: number;
+	stageDesignerGapChecklistPath?: string;
 	stageDesignerGapReportPath?: string;
 	stageManifestPath?: string;
 	stagedFiles?: number;
@@ -696,6 +717,7 @@ function buildReleaseSummary({
 		archiveSha256: stageArchiveSha256,
 		archivedFiles: stageArchivedFiles ?? 0,
 		baseUrl: options.baseUrl,
+		designerGapChecklistPath: stageDesignerGapChecklistPath,
 		designerGapReportPath: stageDesignerGapReportPath,
 		designerReady: designerReadyMissing === 0,
 		designerReadyMissing,
