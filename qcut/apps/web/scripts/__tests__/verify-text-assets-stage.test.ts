@@ -17,6 +17,10 @@ import {
 	verifyTextAssetStageUploadPlanSync,
 	type TextAssetStageVerifyIssue,
 } from "../verify-text-assets-stage";
+import {
+	buildDesignerAssetGapReport,
+	renderDesignerAssetGapChecklistCsv,
+} from "../verify-text-asset-cdn-manifest";
 import { createTextPackageFixtureContent } from "./text-asset-test-fixtures";
 
 const PACKAGE_JSON_PATH = join(
@@ -156,6 +160,59 @@ describe("text asset stage verifier", () => {
 		expect(
 			verifyTextAssetStageUploadPlanSync({ manifest, uploadPlan })[0]?.detail
 		).toEqual(expect.stringContaining(`${expectedItem.key}.sha256 mismatch`));
+	});
+
+	it("verifies staged designer gap report and checklist handoff files", async () => {
+		const stageDir = join(tmpdir(), `qcut-stage-gap-${randomUUID()}`);
+		const report = buildDesignerAssetGapReport({
+			coverage: {
+				categories: [{ category: "red", current: 0, missing: 1, required: 1 }],
+				ok: false,
+				requiredCategories: 1,
+				totalMissing: 1,
+			},
+			generatedAt: "2026-07-15T00:00:00.000Z",
+			minDesignerAssetsPerCategory: 1,
+			requiredDesignerCategories: ["red"],
+		});
+		const manifest = {
+			...createUploadPlanReport({ items: [] }),
+			releaseReadiness: {
+				designerReady: false,
+			},
+		} as TextAssetUploadPlanReport;
+		await mkdir(stageDir, { recursive: true });
+		await writeFile(
+			join(stageDir, "_qcut-text-designer-gap-report.json"),
+			`${JSON.stringify(report, null, "\t")}\n`
+		);
+		await writeFile(
+			join(stageDir, "_qcut-text-designer-gap-checklist.csv"),
+			renderDesignerAssetGapChecklistCsv({ report })
+		);
+
+		await expect(
+			verifyTextAssetStage({
+				manifest,
+				stageDir,
+			})
+		).resolves.toEqual([]);
+
+		await writeFile(
+			join(stageDir, "_qcut-text-designer-gap-checklist.csv"),
+			"changed"
+		);
+		await expect(
+			verifyTextAssetStage({
+				manifest,
+				stageDir,
+			})
+		).resolves.toEqual([
+			expect.objectContaining({
+				code: "designer-gap-handoff-mismatch",
+				key: "_qcut-text-designer-gap-checklist.csv",
+			}),
+		]);
 	});
 
 	it("reports missing, mutated, and escaping stage entries", async () => {

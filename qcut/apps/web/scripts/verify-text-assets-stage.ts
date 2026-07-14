@@ -9,8 +9,10 @@ import type {
 import { verifyTextAssetPackageResourceManifest } from "./text-asset-package-resource-contract";
 import { verifyTextAssetUploadPlanItemContract } from "./text-asset-upload-plan-contract";
 import {
+	renderDesignerAssetGapChecklistCsv,
 	verifyTextMarketplaceMetadataCoverage,
 	verifyTextMarketplaceSourceSync,
+	type TextAssetDesignerGapReport,
 	type TextAssetGeneratedEntry,
 	type TextAssetGeneratedFile,
 	type TextAssetProvenance,
@@ -30,6 +32,7 @@ export type TextAssetStageVerifyIssue = {
 		| "byte-size-mismatch"
 		| "checksum-mismatch"
 		| "invalid-stage-key"
+		| "designer-gap-handoff-mismatch"
 		| "marketplace-source-mismatch"
 		| "package-resource-mismatch"
 		| "stage-contract-mismatch"
@@ -54,6 +57,9 @@ export type TextAssetStageVerifySummary = {
 const SCRIPT_DIR = dirname(fileURLToPath(import.meta.url));
 const DEFAULT_STAGE_DIR = join(SCRIPT_DIR, "../dist/text-assets-cdn-stage");
 const STAGE_MANIFEST_FILE = "_qcut-text-assets-release.json";
+const STAGE_DESIGNER_GAP_CHECKLIST_FILE =
+	"_qcut-text-designer-gap-checklist.csv";
+const STAGE_DESIGNER_GAP_REPORT_FILE = "_qcut-text-designer-gap-report.json";
 
 export function parseTextAssetStageVerifyArgs({
 	argv,
@@ -127,10 +133,21 @@ export async function verifyTextAssetStage({
 		manifest,
 		resolvedStageDir,
 	});
+	const designerGapHandoffIssues = await verifyTextAssetStageDesignerGapHandoff(
+		{
+			manifest,
+			resolvedStageDir,
+		}
+	);
 	const uploadPlanIssues = uploadPlan
 		? verifyTextAssetStageUploadPlanSync({ manifest, uploadPlan })
 		: [];
-	return [...issueGroups.flat(), ...marketplaceIssues, ...uploadPlanIssues];
+	return [
+		...issueGroups.flat(),
+		...marketplaceIssues,
+		...designerGapHandoffIssues,
+		...uploadPlanIssues,
+	];
 }
 
 export function verifyTextAssetStageUploadPlanSync({
@@ -348,6 +365,61 @@ async function verifyTextAssetStageMarketplace({
 	);
 }
 
+async function verifyTextAssetStageDesignerGapHandoff({
+	manifest,
+	resolvedStageDir,
+}: {
+	manifest: TextAssetUploadPlanReport;
+	resolvedStageDir: string;
+}): Promise<TextAssetStageVerifyIssue[]> {
+	if (!hasReleaseReadiness({ manifest })) return [];
+	const reportPath = resolve(resolvedStageDir, STAGE_DESIGNER_GAP_REPORT_FILE);
+	const checklistPath = resolve(
+		resolvedStageDir,
+		STAGE_DESIGNER_GAP_CHECKLIST_FILE
+	);
+	const [reportBytes, checklistBytes] = await Promise.all([
+		readFile(reportPath).catch(() => null),
+		readFile(checklistPath).catch(() => null),
+	]);
+	const issues: TextAssetStageVerifyIssue[] = [];
+	if (!reportBytes) {
+		issues.push({
+			code: "missing-file",
+			detail: "Missing staged designer gap report",
+			key: STAGE_DESIGNER_GAP_REPORT_FILE,
+		});
+	}
+	if (!checklistBytes) {
+		issues.push({
+			code: "missing-file",
+			detail: "Missing staged designer gap checklist",
+			key: STAGE_DESIGNER_GAP_CHECKLIST_FILE,
+		});
+	}
+	if (!reportBytes || !checklistBytes) return issues;
+	const report = parseDesignerGapReport({ bytes: reportBytes });
+	if (!report) {
+		return [
+			{
+				code: "designer-gap-handoff-mismatch",
+				detail: "Designer gap report must be valid JSON with categories",
+				key: STAGE_DESIGNER_GAP_REPORT_FILE,
+			},
+		];
+	}
+	const expectedChecklist = renderDesignerAssetGapChecklistCsv({ report });
+	const actualChecklist = checklistBytes.toString("utf8");
+	if (actualChecklist !== expectedChecklist) {
+		issues.push({
+			code: "designer-gap-handoff-mismatch",
+			detail: "Designer gap checklist does not match staged gap report",
+			key: STAGE_DESIGNER_GAP_CHECKLIST_FILE,
+		});
+	}
+	return issues;
+}
+
 async function buildTextAssetStageGeneratedManifest({
 	manifest,
 	resolvedStageDir,
@@ -369,6 +441,24 @@ async function buildTextAssetStageGeneratedManifest({
 			.filter((entry): entry is TextAssetGeneratedEntry => Boolean(entry))
 			.map((entry) => [entry.assetId, entry])
 	);
+}
+
+function hasReleaseReadiness({
+	manifest,
+}: {
+	manifest: TextAssetUploadPlanReport;
+}): boolean {
+	return "releaseReadiness" in manifest;
+}
+
+function parseDesignerGapReport({
+	bytes,
+}: {
+	bytes: Buffer;
+}): TextAssetDesignerGapReport | undefined {
+	const parsed = parseJsonRecord({ bytes });
+	if (!parsed || !Array.isArray(parsed.categories)) return undefined;
+	return parsed as unknown as TextAssetDesignerGapReport;
 }
 
 async function readTextAssetStageSourceEntry({
