@@ -1033,7 +1033,7 @@ describe("text asset CDN manifest verifier", () => {
 		);
 	});
 
-	it("reports marketplace sections that reference missing template ids", async () => {
+	it("reports marketplace sections that reference missing template or asset ids", async () => {
 		const publicDir = join(
 			tmpdir(),
 			`qcut-text-marketplace-section-${randomUUID()}`
@@ -1053,6 +1053,7 @@ describe("text asset CDN manifest verifier", () => {
 				schemaVersion: 1,
 				sections: [
 					{
+						assetIds: ["text-demo", "missing-asset"],
 						id: "recommended",
 						templateIds: ["text-demo-template", "missing-template"],
 						title: "推荐",
@@ -1075,6 +1076,9 @@ describe("text asset CDN manifest verifier", () => {
 				url: "/text-assets/marketplace.json",
 			}),
 		]);
+		expect(marketplace.issues[0]?.detail).toEqual(
+			expect.stringContaining("missing-asset")
+		);
 	});
 
 	it("verifies local file byte sizes and checksums", async () => {

@@ -19,9 +19,10 @@ export type TextTemplateMarketplaceMetadataOverrides = Readonly<
 >;
 
 export type TextTemplateMarketplaceSection = {
+	assetIds?: readonly string[];
 	id: string;
 	title: string;
-	templateIds: readonly string[];
+	templateIds?: readonly string[];
 };
 
 export type TextTemplateMarketplaceRemoteConfigAsset = {
@@ -374,9 +375,30 @@ export function getTextTemplateDefinitionsForMarketplaceSection({
 	const definitionsById = new Map(
 		definitions.map((definition) => [definition.id, definition])
 	);
-	return uniqueValues({ values: section.templateIds }).flatMap((templateId) => {
-		const definition = definitionsById.get(templateId);
-		return definition ? [definition] : [];
+	const definitionsByAssetId = new Map(
+		definitions.flatMap((definition) =>
+			definition.resource?.assetId
+				? [[definition.resource.assetId, definition] as const]
+				: []
+		)
+	);
+	const sectionDefinitions = [
+		...uniqueValues({ values: section.assetIds ?? [] }).flatMap((assetId) => {
+			const definition = definitionsByAssetId.get(assetId);
+			return definition ? [definition] : [];
+		}),
+		...uniqueValues({ values: section.templateIds ?? [] }).flatMap(
+			(templateId) => {
+				const definition = definitionsById.get(templateId);
+				return definition ? [definition] : [];
+			}
+		),
+	];
+	const usedDefinitionIds = new Set<string>();
+	return sectionDefinitions.filter((definition) => {
+		if (usedDefinitionIds.has(definition.id)) return false;
+		usedDefinitionIds.add(definition.id);
+		return true;
 	});
 }
 
@@ -593,13 +615,22 @@ function assertRemoteConfigSection({
 		record,
 		scope: "section",
 	});
-	const templateIds = requiredStringList({
+	const assetIds = optionalSectionStringList({
+		field: "assetIds",
+		index,
+		record,
+	});
+	const templateIds = optionalSectionStringList({
 		field: "templateIds",
 		index,
 		record,
-		scope: "section",
 	});
-	return { id, templateIds, title };
+	if (!assetIds && !templateIds) {
+		throw new Error(
+			`Text marketplace config section ${index} requires templateIds or assetIds`
+		);
+	}
+	return { assetIds, id, templateIds, title };
 }
 
 function requiredString({
@@ -622,25 +653,24 @@ function requiredString({
 	return value;
 }
 
-function requiredStringList({
+function optionalSectionStringList({
 	field,
 	index,
 	record,
-	scope,
 }: {
 	field: string;
 	index: number;
 	record: Record<string, unknown>;
-	scope: "asset" | "section";
-}): string[] {
+}): string[] | undefined {
 	const value = record[field];
+	if (value === undefined) return undefined;
 	if (
 		!Array.isArray(value) ||
 		value.length === 0 ||
 		value.some((item) => typeof item !== "string" || item.length === 0)
 	) {
 		throw new Error(
-			`Text marketplace config ${scope} ${index} has invalid ${field}`
+			`Text marketplace config section ${index} has invalid ${field}`
 		);
 	}
 	return uniqueValues({ values: value });

@@ -169,7 +169,7 @@ describe("text marketplace metadata", () => {
 		const redBurst = definitions.find(
 			(definition) => definition.variantId === "red-burst"
 		);
-		if (!plain || !redBurst) {
+		if (!plain?.resource || !redBurst) {
 			throw new Error("Expected red marketplace fixtures");
 		}
 
@@ -178,8 +178,9 @@ describe("text marketplace metadata", () => {
 				definitions,
 				sections: [
 					{
+						assetIds: [plain.resource.assetId, "missing-asset"],
 						id: "recommended",
-						templateIds: [plain.id, "missing-template", redBurst.id, plain.id],
+						templateIds: ["missing-template", redBurst.id, plain.id],
 						title: "推荐",
 					},
 				],
@@ -200,6 +201,7 @@ describe("text marketplace metadata", () => {
 					schemaVersion: 1,
 					sections: [
 						{
+							assetIds: ["asset-a", "asset-b", "asset-a"],
 							id: "recommended",
 							templateIds: ["template-a", "template-b", "template-a"],
 							title: "推荐",
@@ -213,6 +215,7 @@ describe("text marketplace metadata", () => {
 			},
 			sections: [
 				{
+					assetIds: ["asset-a", "asset-b"],
 					id: "recommended",
 					templateIds: ["template-a", "template-b"],
 					title: "推荐",
@@ -234,8 +237,9 @@ describe("text marketplace metadata", () => {
 				templateId?: string;
 			}>;
 			sections: Array<{
+				assetIds?: string[];
 				id: string;
-				templateIds: string[];
+				templateIds?: string[];
 				title: string;
 			}>;
 		};
@@ -245,6 +249,7 @@ describe("text marketplace metadata", () => {
 		const templateIds = new Set(
 			TEXT_TEMPLATE_DEFINITIONS.map((definition) => definition.id)
 		);
+		const assetIds = new Set(payload.assets.map((asset) => asset.assetId));
 		const definitionsById = new Map(
 			TEXT_TEMPLATE_DEFINITIONS.map((definition) => [definition.id, definition])
 		);
@@ -275,9 +280,16 @@ describe("text marketplace metadata", () => {
 			"premium-look",
 		]);
 		for (const section of parsed.sections) {
-			expect(section.templateIds.length).toBeGreaterThan(0);
-			for (const templateId of section.templateIds) {
+			const sectionTemplateIds = section.templateIds ?? [];
+			const sectionAssetIds = section.assetIds ?? [];
+			expect(
+				sectionTemplateIds.length + sectionAssetIds.length
+			).toBeGreaterThan(0);
+			for (const templateId of sectionTemplateIds) {
 				expect(templateIds.has(templateId)).toBe(true);
+			}
+			for (const assetId of sectionAssetIds) {
+				expect(assetIds.has(assetId)).toBe(true);
 			}
 		}
 		expect(
@@ -315,7 +327,22 @@ describe("text marketplace metadata", () => {
 					sections: [{ id: "recommended", title: "推荐" }],
 				},
 			})
-		).toThrow("invalid templateIds");
+		).toThrow("requires templateIds or assetIds");
+		expect(() =>
+			parseTextTemplateMarketplaceRemoteConfigPayload({
+				value: {
+					assets: [],
+					schemaVersion: 1,
+					sections: [
+						{
+							assetIds: [""],
+							id: "recommended",
+							title: "推荐",
+						},
+					],
+				},
+			})
+		).toThrow("invalid assetIds");
 	});
 
 	it("loads remote marketplace config and caches the raw payload", async () => {

@@ -1253,6 +1253,7 @@ export function verifyTextMarketplaceMetadataCoverage({
 	}
 	issues.push(
 		...verifyTextMarketplaceSectionCoverage({
+			coveredAssetIds,
 			coveredTemplateIds,
 			payload: parsed.payload,
 			url,
@@ -1262,10 +1263,12 @@ export function verifyTextMarketplaceMetadataCoverage({
 }
 
 function verifyTextMarketplaceSectionCoverage({
+	coveredAssetIds,
 	coveredTemplateIds,
 	payload,
 	url,
 }: {
+	coveredAssetIds: ReadonlySet<string>;
 	coveredTemplateIds: ReadonlySet<string>;
 	payload: Record<string, unknown>;
 	url: string;
@@ -1284,32 +1287,79 @@ function verifyTextMarketplaceSectionCoverage({
 	const issues: VerifyIssue[] = [];
 	for (const [index, section] of payload.sections.entries()) {
 		const record = isRecord({ value: section }) ? section : null;
+		const assetIds = record?.assetIds;
 		const templateIds = record?.templateIds;
-		if (
-			!Array.isArray(templateIds) ||
-			templateIds.length === 0 ||
-			templateIds.some((templateId) => typeof templateId !== "string")
-		) {
+		const validAssetIds =
+			assetIds === undefined
+				? undefined
+				: sectionStringList({ value: assetIds });
+		const validTemplateIds =
+			templateIds === undefined
+				? undefined
+				: sectionStringList({ value: templateIds });
+		if (assetIds !== undefined && !validAssetIds) {
 			issues.push({
 				assetId: "text-marketplace-config",
 				code: "marketplace-metadata-coverage",
-				detail: `marketplace section ${index} must include templateIds`,
+				detail: `marketplace section ${index} has invalid assetIds`,
 				url,
 			});
 			continue;
 		}
-		const missingTemplateIds = templateIds.filter(
+		if (templateIds !== undefined && !validTemplateIds) {
+			issues.push({
+				assetId: "text-marketplace-config",
+				code: "marketplace-metadata-coverage",
+				detail: `marketplace section ${index} has invalid templateIds`,
+				url,
+			});
+			continue;
+		}
+		if (!validAssetIds && !validTemplateIds) {
+			issues.push({
+				assetId: "text-marketplace-config",
+				code: "marketplace-metadata-coverage",
+				detail: `marketplace section ${index} must include templateIds or assetIds`,
+				url,
+			});
+			continue;
+		}
+		const missingAssetIds = (validAssetIds ?? []).filter(
+			(assetId) => !coveredAssetIds.has(assetId)
+		);
+		const missingTemplateIds = (validTemplateIds ?? []).filter(
 			(templateId) => !coveredTemplateIds.has(templateId)
 		);
-		if (missingTemplateIds.length === 0) continue;
+		if (missingAssetIds.length === 0 && missingTemplateIds.length === 0) {
+			continue;
+		}
+		const missingReferences = [
+			...missingAssetIds.map((assetId) => `assetId ${assetId}`),
+			...missingTemplateIds.map((templateId) => `templateId ${templateId}`),
+		];
 		issues.push({
 			assetId: "text-marketplace-config",
 			code: "marketplace-metadata-coverage",
-			detail: `marketplace section ${index} references missing templates: ${missingTemplateIds.slice(0, 10).join(", ")}`,
+			detail: `marketplace section ${index} references missing entries: ${missingReferences.slice(0, 10).join(", ")}`,
 			url,
 		});
 	}
 	return issues;
+}
+
+function sectionStringList({
+	value,
+}: {
+	value: unknown;
+}): string[] | undefined {
+	if (
+		!Array.isArray(value) ||
+		value.length === 0 ||
+		value.some((item) => typeof item !== "string" || item.length === 0)
+	) {
+		return undefined;
+	}
+	return value;
 }
 
 export async function verifyLocalFiles({
