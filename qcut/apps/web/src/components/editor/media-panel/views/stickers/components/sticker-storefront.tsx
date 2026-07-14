@@ -1,8 +1,17 @@
 "use client";
 
-import { Check, Gem, Plus, Store } from "lucide-react";
+import {
+	Check,
+	CloudDownload,
+	Gem,
+	Loader2,
+	RefreshCw,
+	Store,
+	Trash2,
+} from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
+import { Progress } from "@/components/ui/progress";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import {
 	STICKER_STORE_PACKS,
@@ -10,7 +19,11 @@ import {
 	type StickerStorePack,
 } from "@/lib/stickers/sticker-pack-catalog";
 import { useLicenseStore } from "@/stores/license-store";
-import { useStickerPackStore } from "@/stores/sticker-pack-store";
+import {
+	useStickerPackStore,
+	type StickerPackOperation,
+} from "@/stores/sticker-pack-store";
+import { useStickerPackManager } from "../hooks/use-sticker-pack-manager";
 import { StickerGrid } from "./sticker-grid";
 import { StickerItem } from "./sticker-item";
 
@@ -23,14 +36,48 @@ function packPreviewItems({ pack }: { pack: StickerStorePack }) {
 	return pack.items.slice(0, pack.animated ? 12 : 6);
 }
 
+function formatByteSize({ bytes }: { bytes: number }): string {
+	if (bytes <= 0) return "";
+	if (bytes < 1024 * 1024) return `${Math.ceil(bytes / 1024)} KB`;
+	return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
+}
+
+function StickerPackActionIcon({
+	builtIn,
+	busy,
+	hasAccess,
+	installed,
+	operationStatus,
+	updateAvailable,
+}: {
+	builtIn: boolean;
+	busy: boolean;
+	hasAccess: boolean;
+	installed: boolean;
+	operationStatus?: StickerPackOperation["status"];
+	updateAvailable: boolean;
+}) {
+	if (busy) {
+		return <Loader2 className="size-3 animate-spin" aria-hidden="true" />;
+	}
+	if (builtIn) return <Check className="size-3" aria-hidden="true" />;
+	if (!hasAccess) return <Gem className="size-3" aria-hidden="true" />;
+	if (updateAvailable || operationStatus === "failed") {
+		return <RefreshCw className="size-3" aria-hidden="true" />;
+	}
+	if (installed) return <Trash2 className="size-3" aria-hidden="true" />;
+	return <CloudDownload className="size-3" aria-hidden="true" />;
+}
+
 export function StickerStorefront({
 	onDownload,
 	onSelect,
 }: StickerStorefrontProps) {
-	const installedPackIds = useStickerPackStore(
-		(state) => state.installedPackIds
+	const installedPacks = useStickerPackStore((state) => state.installedPacks);
+	const operationsByPackId = useStickerPackStore(
+		(state) => state.operationsByPackId
 	);
-	const installPack = useStickerPackStore((state) => state.installPack);
+	const { installPack, removePack } = useStickerPackManager();
 	const license = useLicenseStore((state) => state.license);
 	const openPricingPage = useLicenseStore((state) => state.openPricingPage);
 	const planLabel =
@@ -64,8 +111,30 @@ export function StickerStorefront({
 						plan: license?.plan,
 						status: license?.status,
 					});
-					const installed = installedPackIds[pack.id] === true;
+					const installedRecord = installedPacks[pack.id];
+					const installed = installedRecord !== undefined;
+					const updateAvailable =
+						installed && installedRecord.version < pack.version;
+					const operation = operationsByPackId[pack.id];
+					const busy =
+						operation?.status === "installing" ||
+						operation?.status === "removing";
+					const progressPercent = Math.round((operation?.progress ?? 0) * 100);
 					const locked = !hasAccess || !installed;
+					let actionLabel = "下载";
+					if (pack.builtIn) actionLabel = "内置";
+					if (!hasAccess) actionLabel = "升级";
+					if (installed && !updateAvailable && !pack.builtIn) {
+						actionLabel = "移除";
+					}
+					if (updateAvailable) actionLabel = "更新";
+					if (operation?.status === "installing") {
+						actionLabel = `下载 ${progressPercent}%`;
+					}
+					if (operation?.status === "removing") {
+						actionLabel = `移除 ${progressPercent}%`;
+					}
+					if (operation?.status === "failed") actionLabel = "重试";
 					const handleLockedSelect = () => {
 						if (!hasAccess) {
 							toast.info(`${pack.localizedName} 需要 QCut Pro`);
@@ -99,6 +168,12 @@ export function StickerStorefront({
 										<p className="mt-0.5 line-clamp-2 text-[9px] leading-3 text-muted-foreground">
 											{pack.description}
 										</p>
+										<p className="mt-1 text-[9px] tabular-nums text-muted-foreground">
+											{pack.items.length} 个 · v{pack.version}
+											{installedRecord?.cachedBytes
+												? ` · ${formatByteSize({ bytes: installedRecord.cachedBytes })}`
+												: ""}
+										</p>
 									</div>
 								</div>
 								<Button
@@ -106,14 +181,32 @@ export function StickerStorefront({
 									variant={installed ? "outline" : "secondary"}
 									size="sm"
 									className="h-7 shrink-0 gap-1 px-2 text-[10px]"
-									disabled={installed}
+									disabled={pack.builtIn || busy}
 									onClick={() => {
 										if (!hasAccess) {
 											openPricingPage();
 											return;
 										}
-										installPack({ packId: pack.id });
-										toast.success(`已添加 ${pack.localizedName}`);
+										if (installed && !updateAvailable) {
+											void removePack({ pack }).then((removed) => {
+												if (removed)
+													toast.success(`已移除 ${pack.localizedName}`);
+												if (!removed)
+													toast.error(`移除 ${pack.localizedName} 失败`);
+											});
+											return;
+										}
+										void installPack({ pack }).then((installedSuccessfully) => {
+											if (installedSuccessfully) {
+												toast.success(
+													updateAvailable
+														? `已更新 ${pack.localizedName}`
+														: `已下载 ${pack.localizedName}`
+												);
+												return;
+											}
+											toast.error(`下载 ${pack.localizedName} 失败`);
+										});
 									}}
 									onKeyDown={(event) => {
 										if (event.key === " ") {
@@ -122,16 +215,30 @@ export function StickerStorefront({
 										}
 									}}
 								>
-									{installed ? (
-										<Check className="size-3" aria-hidden="true" />
-									) : hasAccess ? (
-										<Plus className="size-3" aria-hidden="true" />
-									) : (
-										<Gem className="size-3" aria-hidden="true" />
-									)}
-									{installed ? "已添加" : hasAccess ? "添加" : "升级"}
+									<StickerPackActionIcon
+										builtIn={pack.builtIn}
+										busy={busy}
+										hasAccess={hasAccess}
+										installed={installed}
+										operationStatus={operation?.status}
+										updateAvailable={updateAvailable}
+									/>
+									{actionLabel}
 								</Button>
 							</div>
+							{busy && operation && (
+								<div className="mb-2.5 space-y-1">
+									<Progress value={progressPercent} className="h-1" />
+									<p className="text-right text-[9px] tabular-nums text-muted-foreground">
+										{operation.completedItems}/{operation.totalItems}
+									</p>
+								</div>
+							)}
+							{operation?.status === "failed" && operation.error && (
+								<p className="mb-2.5 line-clamp-2 text-[9px] text-destructive">
+									{operation.error}
+								</p>
+							)}
 
 							<StickerGrid testId={`sticker-pack-grid-${pack.id}`}>
 								{packPreviewItems({ pack }).map((sticker) => (
