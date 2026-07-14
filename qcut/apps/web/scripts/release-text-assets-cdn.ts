@@ -572,6 +572,7 @@ bun run assets:text:verify-archive
 Before treating this as the screenshot-level production text library, verify the designer-ready gate. If it fails, generate the gap report, import the missing designer pack assets, and rebuild this release:
 
 \`\`\`bash
+bun run assets:text:proof-designer-ready-release
 bun run assets:text:verify-designer-ready
 bun run assets:text:designer-gap-report
 bun run assets:text:import-designer-ready -- --pack-dir <designer-pack>

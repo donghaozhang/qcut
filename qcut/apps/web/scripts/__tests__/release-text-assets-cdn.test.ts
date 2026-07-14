@@ -449,6 +449,9 @@ describe("text asset CDN release script", () => {
 		).resolves.toContain("assets:text:verify-archive");
 		await expect(
 			readFile(join(stageDir, "_qcut-text-assets-release-readme.md"), "utf8")
+		).resolves.toContain("assets:text:proof-designer-ready-release");
+		await expect(
+			readFile(join(stageDir, "_qcut-text-assets-release-readme.md"), "utf8")
 		).resolves.toContain("assets:text:verify-designer-ready");
 		await expect(
 			readFile(join(stageDir, "_qcut-text-assets-release-readme.md"), "utf8")

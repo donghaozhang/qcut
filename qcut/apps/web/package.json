@@ -37,6 +37,7 @@
 		"assets:text:verify-stage": "bun scripts/verify-text-assets-stage.ts --upload-plan dist/text-assets-upload-plan.json",
 		"assets:text:verify-archive": "bun scripts/verify-text-assets-archive.ts",
 		"assets:text:proof-release": "bun run assets:text:verify-cdn && bun run assets:text:release-stage && bun run assets:text:verify-stage && bun run assets:text:verify-archive",
+		"assets:text:proof-designer-ready-release": "bun run assets:text:verify-designer-ready && bun run assets:text:release-designer-ready-stage && bun run assets:text:verify-stage && bun run assets:text:verify-archive",
 		"preview": "vite preview",
 		"lint": "biome check src/",
 		"lint:fix": "biome check src/ --write",
