@@ -334,6 +334,79 @@ describe("Timeline Store Operations", () => {
 		).toBe(1);
 	});
 
+	it("updates grouped text contents in one history step", () => {
+		const { result } = renderHook(() => useTimelineStore());
+		const elements: CreateTextElement[] = [
+			{
+				type: "text",
+				name: "Template Title",
+				content: "旧标题",
+				duration: 5,
+				startTime: 0,
+				trimStart: 0,
+				trimEnd: 0,
+				fontSize: 52,
+				fontFamily: "Arial",
+				color: "#ffffff",
+				backgroundColor: "transparent",
+				textAlign: "center",
+				fontWeight: "bold",
+				fontStyle: "normal",
+				textDecoration: "none",
+				x: 100,
+				y: 100,
+				rotation: 0,
+				opacity: 1,
+			},
+			{
+				type: "text",
+				name: "Template Subhead",
+				content: "旧副标题",
+				duration: 5,
+				startTime: 0,
+				trimStart: 0,
+				trimEnd: 0,
+				fontSize: 32,
+				fontFamily: "Arial",
+				color: "#ffffff",
+				backgroundColor: "transparent",
+				textAlign: "center",
+				fontWeight: "normal",
+				fontStyle: "normal",
+				textDecoration: "none",
+				x: 100,
+				y: 180,
+				rotation: 0,
+				opacity: 1,
+			},
+		];
+
+		act(() => {
+			result.current.addTextGroupAtTime({
+				elements,
+				currentTime: 3,
+				groupId: "template-group-2",
+			});
+		});
+
+		let updatedCount = 0;
+		act(() => {
+			updatedCount = result.current.updateTextGroupContents({
+				groupId: "template-group-2",
+				contents: ["新标题", "新副标题"],
+			});
+		});
+
+		expect(updatedCount).toBe(2);
+		expect(result.current.history).toHaveLength(2);
+		expect(
+			result.current.tracks
+				.filter((track) => track.type === "text")
+				.map((track) => track.elements[0])
+				.map((element) => ("content" in element ? element.content : ""))
+		).toEqual(["新标题", "新副标题"]);
+	});
+
 	// -------------------------------------------------------------------------
 	// Split operations
 	// -------------------------------------------------------------------------

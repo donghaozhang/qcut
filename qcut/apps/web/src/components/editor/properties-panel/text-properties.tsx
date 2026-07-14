@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import {
 	AudioLines,
 	AlignCenter,
@@ -77,6 +77,11 @@ import { useSpeechAvatarGeneration } from "@/hooks/use-speech-avatar-generation"
 type TextUpdates = Parameters<
 	ReturnType<typeof useTimelineStore.getState>["updateTextElement"]
 >[2];
+
+export interface TextGroupSelection {
+	trackId: string;
+	element: TextElement;
+}
 
 interface NumberControlProps {
 	label: string;
@@ -283,6 +288,93 @@ function PresetButton({
 					<Trash2 className="size-3" />
 				</Button>
 			) : null}
+		</div>
+	);
+}
+
+function buildGroupContentDraft({
+	selections,
+}: {
+	selections: readonly TextGroupSelection[];
+}): string {
+	return selections.map(({ element }) => element.content).join("\n");
+}
+
+export function TextGroupProperties({
+	selections,
+}: {
+	selections: readonly TextGroupSelection[];
+}) {
+	const updateTextGroupContents = useTimelineStore(
+		(state) => state.updateTextGroupContents
+	);
+	const orderedSelections = useMemo(
+		() => selections.filter(({ element }) => element.type === "text"),
+		[selections]
+	);
+	const groupId = orderedSelections[0]?.element.groupId;
+	const currentDraft = useMemo(
+		() => buildGroupContentDraft({ selections: orderedSelections }),
+		[orderedSelections]
+	);
+	const [draft, setDraft] = useState(currentDraft);
+
+	useEffect(() => {
+		setDraft(currentDraft);
+	}, [currentDraft]);
+
+	const applyGroupContents = () => {
+		if (!groupId) return;
+		const updatedCount = updateTextGroupContents({
+			groupId,
+			contents: draft.split(/\r?\n/),
+		});
+		if (updatedCount > 0) {
+			toast.success(`Updated ${updatedCount} text layers`);
+		}
+	};
+
+	return (
+		<div className="space-y-5" data-testid="text-group-properties">
+			<PropertyGroup title="Template text" defaultExpanded>
+				<div className="space-y-3">
+					<Textarea
+						aria-label="Template group text content"
+						value={draft}
+						placeholder="每行替换一个文字层"
+						className="min-h-32 resize-y bg-background/50"
+						onChange={(event) => setDraft(event.target.value)}
+					/>
+					<div className="grid gap-1 rounded-sm border border-border/70 bg-background/40 p-2 text-[10px] text-muted-foreground">
+						{orderedSelections.map(({ element }, index) => (
+							<div key={element.id} className="flex min-w-0 gap-2">
+								<span className="shrink-0 tabular-nums">
+									{String(index + 1).padStart(2, "0")}
+								</span>
+								<span className="truncate">{element.name}</span>
+							</div>
+						))}
+					</div>
+					<div className="flex gap-2">
+						<Button
+							type="button"
+							className="flex-1"
+							disabled={!groupId || draft === currentDraft}
+							onClick={applyGroupContents}
+						>
+							Apply text
+						</Button>
+						<Button
+							type="button"
+							variant="outline"
+							disabled={draft === currentDraft}
+							onClick={() => setDraft(currentDraft)}
+						>
+							Reset
+						</Button>
+					</div>
+				</div>
+			</PropertyGroup>
 		</div>
 	);
 }

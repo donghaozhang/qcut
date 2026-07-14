@@ -625,6 +625,31 @@ export function createCrudOperations(
 			);
 		},
 
+		updateTextGroupContents: ({ groupId, contents, pushHistory = true }) => {
+			const normalizedContents = contents.map((content) => content.trim());
+			let slotIndex = 0;
+			let updatedCount = 0;
+			const nextTracks = get()._tracks.map((track) => ({
+				...track,
+				elements: track.elements.map((element) => {
+					if (element.type !== "text" || element.groupId !== groupId) {
+						return element;
+					}
+					const nextContent = normalizedContents[slotIndex];
+					slotIndex += 1;
+					if (!nextContent || nextContent === element.content) {
+						return element;
+					}
+					updatedCount += 1;
+					return { ...element, content: nextContent };
+				}),
+			}));
+			if (updatedCount === 0) return 0;
+			if (pushHistory) get().pushHistory();
+			updateTracksAndSave(nextTracks);
+			return updatedCount;
+		},
+
 		updateCaptionElement: (trackId, elementId, updates, pushHistory = true) => {
 			if (pushHistory) {
 				get().pushHistory();

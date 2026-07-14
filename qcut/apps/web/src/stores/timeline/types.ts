@@ -478,6 +478,15 @@ export interface TimelineStore {
 		>,
 		pushHistory?: boolean
 	) => void;
+	updateTextGroupContents: ({
+		contents,
+		groupId,
+		pushHistory,
+	}: {
+		contents: readonly string[];
+		groupId: string;
+		pushHistory?: boolean;
+	}) => number;
 	updateCaptionElement: (
 		trackId: string,
 		elementId: string,
