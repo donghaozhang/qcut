@@ -1,6 +1,8 @@
+import { execFile } from "node:child_process";
 import { copyFile, mkdir, writeFile } from "node:fs/promises";
 import { dirname, join, relative, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
+import { promisify } from "node:util";
 import { S3Client } from "@aws-sdk/client-s3";
 import {
 	buildTextAssetUploadPlan,
@@ -28,6 +30,7 @@ import {
 } from "./verify-text-asset-cdn-manifest";
 
 export type TextAssetReleaseOptions = {
+	archivePath?: string;
 	baseUrl: string;
 	bucket: string;
 	cacheControl: string;
@@ -48,6 +51,8 @@ export type TextAssetReleaseOptions = {
 };
 
 export type TextAssetReleaseSummary = {
+	archivePath?: string;
+	archivedFiles: number;
 	baseUrl: string;
 	dryRun: boolean;
 	localIssueSummary: ReturnType<typeof summarizeVerifyIssues>["issueSummary"];
@@ -69,6 +74,12 @@ export type TextAssetReleaseSummary = {
 	uploadPlanPath?: string;
 };
 
+export type TextAssetStageArchiveSummary = {
+	archivePath: string;
+	fileCount: number;
+	format: "tar.gz";
+};
+
 const SCRIPT_DIR = dirname(fileURLToPath(import.meta.url));
 const DEFAULT_BASE_URL = "https://assets.qcut.app";
 const DEFAULT_CACHE_CONTROL = "public, max-age=31536000, immutable";
@@ -83,6 +94,7 @@ const DEFAULT_PUBLISH_MANIFEST_PATH = join(
 );
 const DEFAULT_METADATA_CACHE_CONTROL =
 	"public, max-age=300, stale-while-revalidate=86400";
+const execFileAsync = promisify(execFile);
 
 export function parseTextAssetReleaseArgs({
 	argv,
@@ -128,6 +140,11 @@ export function parseTextAssetReleaseArgs({
 	};
 	for (let index = 0; index < argv.length; index += 1) {
 		const arg = argv[index];
+		if (arg === "--archive-path") {
+			options.archivePath = requireValue({ argv, index, name: arg });
+			index += 1;
+			continue;
+		}
 		if (arg === "--base-url") {
 			options.baseUrl = requireValue({ argv, index, name: arg });
 			index += 1;
@@ -238,14 +255,27 @@ export function parseTextAssetReleaseArgs({
 			"Missing bucket. Set QCUT_TEXT_ASSET_BUCKET or --bucket, or use --dry-run with --stage-dir for a local release artifact."
 		);
 	}
+	if (options.archivePath && !options.stageDir) {
+		throw new Error("--archive-path requires --stage-dir");
+	}
 	return options;
 }
 
 export async function releaseTextAssetsToCdn({
+	archiveStage = createTextAssetStageArchive,
 	options,
 	uploadFile,
 	verifyRemote = verifyRemoteFiles,
 }: {
+	archiveStage?: ({
+		archivePath,
+		stagedFileCount,
+		stageDir,
+	}: {
+		archivePath: string;
+		stagedFileCount: number;
+		stageDir: string;
+	}) => Promise<TextAssetStageArchiveSummary>;
 	options: TextAssetReleaseOptions;
 	uploadFile: Parameters<typeof uploadTextAssetPlan>[0]["uploadFile"];
 	verifyRemote?: typeof verifyRemoteFiles;
@@ -323,6 +353,14 @@ export async function releaseTextAssetsToCdn({
 				stageDir: options.stageDir,
 			})
 		: undefined;
+	const archive =
+		options.archivePath && options.stageDir
+			? await archiveStage({
+					archivePath: options.archivePath,
+					stagedFileCount: staging?.fileCount ?? 0,
+					stageDir: options.stageDir,
+				})
+			: undefined;
 	const upload = await uploadTextAssetPlan({
 		concurrency: options.uploadConcurrency,
 		dryRun: options.dryRun,
@@ -343,6 +381,8 @@ export async function releaseTextAssetsToCdn({
 		options,
 		provenance,
 		remoteIssues,
+		stageArchivePath: archive?.archivePath,
+		stageArchivedFiles: archive?.fileCount,
 		stageManifestPath: staging?.manifestPath,
 		stagedFiles: staging?.fileCount,
 		upload,
@@ -389,7 +429,51 @@ export async function stageTextAssetUploadPlan({
 	return { fileCount: items.length, manifestPath };
 }
 
+export async function createTextAssetStageArchive({
+	archivePath,
+	runCommand = runArchiveCommand,
+	stagedFileCount,
+	stageDir,
+}: {
+	archivePath: string;
+	runCommand?: ({
+		args,
+		command,
+	}: {
+		args: string[];
+		command: string;
+	}) => Promise<void>;
+	stagedFileCount: number;
+	stageDir: string;
+}): Promise<TextAssetStageArchiveSummary> {
+	const resolvedArchivePath = resolve(archivePath);
+	const resolvedStageDir = resolve(stageDir);
+	const archiveRelativeToStage = relative(
+		resolvedStageDir,
+		resolvedArchivePath
+	);
+	if (
+		archiveRelativeToStage === "" ||
+		(!archiveRelativeToStage.startsWith("..") &&
+			!archiveRelativeToStage.startsWith("/"))
+	) {
+		throw new Error("--archive-path must be outside --stage-dir");
+	}
+	await mkdir(dirname(resolvedArchivePath), { recursive: true });
+	await runCommand({
+		args: ["-czf", resolvedArchivePath, "-C", resolvedStageDir, "."],
+		command: "tar",
+	});
+	return {
+		archivePath: resolvedArchivePath,
+		fileCount: stagedFileCount + 1,
+		format: "tar.gz",
+	};
+}
+
 function buildReleaseSummary({
+	stageArchivePath,
+	stageArchivedFiles,
 	localIssues,
 	manifest,
 	manifestPath,
@@ -406,11 +490,15 @@ function buildReleaseSummary({
 	options: TextAssetReleaseOptions;
 	provenance: TextAssetProvenanceSummary;
 	remoteIssues: readonly VerifyIssue[];
+	stageArchivePath?: string;
+	stageArchivedFiles?: number;
 	stageManifestPath?: string;
 	stagedFiles?: number;
 	upload: TextAssetUploadSummary;
 }): TextAssetReleaseSummary {
 	return {
+		archivePath: stageArchivePath,
+		archivedFiles: stageArchivedFiles ?? 0,
 		baseUrl: options.baseUrl,
 		dryRun: options.dryRun,
 		localIssueSummary: summarizeVerifyIssues({ issues: localIssues })
@@ -433,6 +521,16 @@ function buildReleaseSummary({
 		upload,
 		uploadPlanPath: options.uploadPlanPath,
 	};
+}
+
+async function runArchiveCommand({
+	args,
+	command,
+}: {
+	args: string[];
+	command: string;
+}): Promise<void> {
+	await execFileAsync(command, args, { maxBuffer: 1024 * 1024 });
 }
 
 function emptyUploadSummary({

@@ -136,6 +136,8 @@ describe("text asset CDN release script", () => {
 				argv: [
 					"--base-url",
 					"https://cdn.example.com",
+					"--archive-path",
+					"/tmp/text-assets-stage.tar.gz",
 					"--bucket",
 					"cli-bucket",
 					"--dry-run",
@@ -167,6 +169,7 @@ describe("text asset CDN release script", () => {
 				env: { QCUT_TEXT_ASSET_BUCKET: "env-bucket" },
 			})
 		).toMatchObject({
+			archivePath: "/tmp/text-assets-stage.tar.gz",
 			baseUrl: "https://cdn.example.com",
 			bucket: "cli-bucket",
 			dryRun: true,
@@ -184,6 +187,20 @@ describe("text asset CDN release script", () => {
 			uploadConcurrency: 3,
 			uploadPlanPath: "/tmp/upload-plan.json",
 		});
+	});
+
+	it("requires a stage directory when writing a release archive", () => {
+		expect(() =>
+			parseTextAssetReleaseArgs({
+				argv: [
+					"--bucket",
+					"qcut-assets",
+					"--archive-path",
+					"/tmp/text-assets-stage.tar.gz",
+				],
+				env: {},
+			})
+		).toThrow("--archive-path requires --stage-dir");
 	});
 
 	it("allows dry-run local staging without a bucket", () => {
@@ -279,11 +296,29 @@ describe("text asset CDN release script", () => {
 
 	it("stages dry-run release files into a deployable object-key directory", async () => {
 		const { options } = await createReleaseFixture();
+		const archivePath = join(
+			tmpdir(),
+			`qcut-text-stage-${randomUUID()}.tar.gz`
+		);
+		const archiveCalls: Array<{
+			archivePath: string;
+			stagedFileCount: number;
+			stageDir: string;
+		}> = [];
 		const stageDir = join(tmpdir(), `qcut-text-stage-${randomUUID()}`);
 
 		const summary = await releaseTextAssetsToCdn({
+			archiveStage: async ({ archivePath, stagedFileCount, stageDir }) => {
+				archiveCalls.push({ archivePath, stagedFileCount, stageDir });
+				return {
+					archivePath,
+					fileCount: stagedFileCount + 1,
+					format: "tar.gz",
+				};
+			},
 			options: {
 				...options,
+				archivePath,
 				bucket: "",
 				stageDir,
 			},
@@ -293,6 +328,8 @@ describe("text asset CDN release script", () => {
 		});
 
 		expect(summary).toMatchObject({
+			archivePath,
+			archivedFiles: 5,
 			dryRun: true,
 			stageDir,
 			stageManifestPath: join(stageDir, "_qcut-text-assets-release.json"),
@@ -301,6 +338,9 @@ describe("text asset CDN release script", () => {
 				uploadedFiles: 0,
 			},
 		});
+		expect(archiveCalls).toEqual([
+			{ archivePath, stagedFileCount: 4, stageDir },
+		]);
 		await expect(
 			readFile(
 				join(stageDir, "prod/text-assets/demo/plain@1/thumbnail.webp"),

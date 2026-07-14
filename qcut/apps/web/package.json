@@ -23,6 +23,7 @@
 		"assets:text:upload-cdn": "bun scripts/upload-text-assets-cdn.ts",
 		"assets:text:upload-designer-ready": "bun scripts/upload-text-assets-cdn.ts --min-designer-assets-per-category 5 --require-designer-categories popular,latest,summer,variety,guofeng,glow,gradient,texture,red,yellow,black-white,blue,pink,green,purple,headline-template,quote-template,list-template,split-template,timeline-template",
 		"assets:text:release-cdn": "bun scripts/release-text-assets-cdn.ts",
+		"assets:text:release-stage": "bun scripts/release-text-assets-cdn.ts --dry-run --stage-dir dist/text-assets-cdn-stage --archive-path dist/text-assets-cdn-stage.tar.gz --publish-manifest dist/text-assets-publish-manifest.json --write-upload-plan dist/text-assets-upload-plan.json",
 		"assets:text:release-designer-ready": "bun scripts/release-text-assets-cdn.ts --min-designer-assets-per-category 5 --require-designer-categories popular,latest,summer,variety,guofeng,glow,gradient,texture,red,yellow,black-white,blue,pink,green,purple,headline-template,quote-template,list-template,split-template,timeline-template",
 		"assets:text:verify-stage": "bun scripts/verify-text-assets-stage.ts",
 		"preview": "vite preview",
