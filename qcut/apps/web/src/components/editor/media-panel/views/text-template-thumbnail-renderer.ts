@@ -677,7 +677,7 @@ function drawText({
 	recipe: TextTemplateThumbnailRecipe;
 	template: TextElement;
 }) {
-	const content = template.content || definition.content;
+	const content = getThumbnailPreviewContent({ definition, template });
 	const fontSize = Math.min(
 		108,
 		Math.max(70, width / Math.max(2.1, content.length * 0.7))
@@ -727,6 +727,34 @@ function drawText({
 	drawTextHighlight({ content, context, fontSize, height, recipe, width });
 
 	context.restore();
+}
+
+export function getThumbnailPreviewContent({
+	definition,
+	template,
+}: {
+	definition: TextTemplateDefinition;
+	template: TextElement;
+}): string {
+	if (definition.groupId === "fancy") return "花字";
+	if (definition.category === "basic") return "文字";
+	if (definition.category === "caption") return "说明";
+	if (definition.category === "headline-template") return "标题";
+	if (definition.category === "quote-template") return "金句";
+	if (definition.category === "list-template") return "清单";
+	if (definition.category === "split-template") return "对比";
+	if (definition.category === "timeline-template") return "阶段";
+	if (definition.category === "summary") return "摘要";
+	if (definition.category === "key-point") return "重点";
+	if (definition.category === "chapter") return "章节";
+	if (definition.category === "subtitle-title") return "标题";
+	if (definition.category === "rewrite") return "改写";
+
+	const content = template.content || definition.content;
+	const characters = Array.from(content.trim());
+	if (characters.length <= 4) return content;
+	if (/^[\w\s-]+$/.test(content)) return "文字";
+	return characters.slice(0, 4).join("");
 }
 
 function drawTextHighlight({

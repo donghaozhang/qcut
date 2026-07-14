@@ -1,9 +1,36 @@
 import { describe, expect, it } from "vitest";
 import {
+	getThumbnailPreviewContent,
 	getTextTemplateThumbnailRecipe,
 	type TextThumbnailBackgroundKind,
 } from "../text-template-thumbnail-renderer";
 import { getTextTemplateDefinitionsByCategory } from "@/lib/text/text-template-registry";
+import type { TextElement } from "@/types/timeline";
+
+function createTextElement({ content }: { content: string }): TextElement {
+	return {
+		id: "text-1",
+		type: "text",
+		name: "Text",
+		content,
+		fontSize: 64,
+		fontFamily: "Arial",
+		color: "#ffffff",
+		backgroundColor: "transparent",
+		textAlign: "center",
+		fontWeight: "normal",
+		fontStyle: "normal",
+		textDecoration: "none",
+		x: 0,
+		y: 0,
+		rotation: 0,
+		opacity: 1,
+		duration: 5,
+		startTime: 0,
+		trimStart: 0,
+		trimEnd: 0,
+	};
+}
 
 function getBackgroundKindsForCategory({
 	category,
@@ -77,5 +104,30 @@ describe("text template thumbnail renderer", () => {
 				expect(recipe.materialDetail.length).toBeGreaterThan(0);
 			}
 		}
+	});
+
+	it("uses compact localized labels for thumbnail preview text", () => {
+		const fancyDefinition = getTextTemplateDefinitionsByCategory({
+			category: "popular",
+		})[0];
+		const headlineDefinition = getTextTemplateDefinitionsByCategory({
+			category: "headline-template",
+		})[0];
+		const basicDefinition = getTextTemplateDefinitionsByCategory({
+			category: "basic",
+		})[0];
+		const template = createTextElement({
+			content: "Long English preview content",
+		});
+
+		expect(
+			getThumbnailPreviewContent({ definition: fancyDefinition, template })
+		).toBe("花字");
+		expect(
+			getThumbnailPreviewContent({ definition: headlineDefinition, template })
+		).toBe("标题");
+		expect(
+			getThumbnailPreviewContent({ definition: basicDefinition, template })
+		).toBe("文字");
 	});
 });
