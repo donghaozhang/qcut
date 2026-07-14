@@ -10,6 +10,7 @@
 		"build:electron": "tsc && vite build",
 		"build:web": "VITE_BUILD_TARGET=web tsc && VITE_BUILD_TARGET=web vite build",
 		"assets:text": "bun scripts/generate-text-assets.ts",
+		"assets:text:verify-cdn": "bun scripts/verify-text-asset-cdn-manifest.ts",
 		"preview": "vite preview",
 		"lint": "biome check src/",
 		"lint:fix": "biome check src/ --write",
