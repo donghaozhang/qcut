@@ -11,6 +11,7 @@ import type { AssetRuntimeState } from "@qcut/editor-core";
 
 type RemoteTextRuntimeRole = "thumbnail" | "source" | "package";
 import {
+	applyTextTemplatePackBatchCopyText,
 	applyTextTemplatePackCopyPaste,
 	applyTextTemplatePackCopyValues,
 	buildTextTemplateDragData,
@@ -272,6 +273,29 @@ describe("text view layout", () => {
 			handled: false,
 			values: ["本期重点", "旧标题", "旧副标题"],
 		});
+	});
+
+	it("applies explicit batch copy text across template pack slots", () => {
+		expect(
+			applyTextTemplatePackBatchCopyText({
+				currentValues: ["本期重点", "旧标题", "旧副标题"],
+				text: "开场提醒\n新标题\n新副标题\n多余行",
+			})
+		).toEqual(["开场提醒", "新标题", "新副标题"]);
+
+		expect(
+			applyTextTemplatePackBatchCopyText({
+				currentValues: ["本期重点", "旧标题", "旧副标题"],
+				text: "开场提醒\n\n新副标题",
+			})
+		).toEqual(["开场提醒", "", "新副标题"]);
+
+		expect(
+			applyTextTemplatePackBatchCopyText({
+				currentValues: ["本期重点", "旧标题", "旧副标题"],
+				text: "新标题",
+			})
+		).toEqual(["新标题", "旧标题", "旧副标题"]);
 	});
 
 	it("labels single and grouped text templates distinctly", () => {

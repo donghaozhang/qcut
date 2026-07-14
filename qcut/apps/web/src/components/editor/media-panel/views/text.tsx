@@ -1,4 +1,5 @@
 import { DraggableMediaItem } from "@/components/ui/draggable-item";
+import { Textarea } from "@/components/ui/textarea";
 import {
 	Dialog,
 	DialogContent,
@@ -312,6 +313,22 @@ export function applyTextTemplatePackCopyPaste({
 	return { handled: true, values };
 }
 
+export function applyTextTemplatePackBatchCopyText({
+	currentValues,
+	text,
+}: {
+	currentValues: readonly string[];
+	text: string;
+}): string[] {
+	const lines = text.split(/\r?\n/).map((line) => line.trim());
+	const values = [...currentValues];
+	for (const [lineIndex, line] of lines.entries()) {
+		if (lineIndex >= values.length) break;
+		values[lineIndex] = line;
+	}
+	return values;
+}
+
 function TextTemplate({
 	definition,
 	downloadStatus,
@@ -457,6 +474,11 @@ function TextTemplate({
 		if (!result.handled) return false;
 		setCopyValues(result.values);
 		return true;
+	};
+	const handleBatchCopyTextChange = ({ text }: { text: string }) => {
+		setCopyValues((currentValues) =>
+			applyTextTemplatePackBatchCopyText({ currentValues, text })
+		);
 	};
 	const handleInsertWithCopy = () => {
 		setCopyDialogOpen(false);
@@ -620,6 +642,7 @@ function TextTemplate({
 					copyValues={copyValues}
 					open={copyDialogOpen}
 					templateName={template.name}
+					onBatchCopyTextChange={handleBatchCopyTextChange}
 					onCopyValueChange={handleCopyValueChange}
 					onCopyValuePaste={handleCopyValuePaste}
 					onInsert={handleInsertWithCopy}
@@ -633,6 +656,7 @@ function TextTemplate({
 function TextTemplateCopyDialog({
 	copySlots,
 	copyValues,
+	onBatchCopyTextChange,
 	onCopyValueChange,
 	onCopyValuePaste,
 	onInsert,
@@ -642,6 +666,7 @@ function TextTemplateCopyDialog({
 }: {
 	copySlots: readonly TextTemplatePackCopySlot[];
 	copyValues: readonly string[];
+	onBatchCopyTextChange: (props: { text: string }) => void;
 	onCopyValueChange: (props: { index: number; value: string }) => void;
 	onCopyValuePaste: (props: { index: number; text: string }) => boolean;
 	onInsert: () => void;
@@ -656,31 +681,45 @@ function TextTemplateCopyDialog({
 					<DialogTitle className="text-base">替换模板文案</DialogTitle>
 					<DialogDescription>{templateName}</DialogDescription>
 				</DialogHeader>
-				<div className="space-y-2">
-					{copySlots.map((slot, index) => (
-						<label key={slot.id} className="block space-y-1">
-							<span className="text-[0.72rem] text-muted-foreground">
-								{slot.label}
-							</span>
-							<input
-								type="text"
-								value={copyValues[index] ?? slot.defaultContent}
-								className="h-8 w-full rounded-md border border-border bg-background px-2 text-xs text-foreground outline-none transition-colors focus:border-cyan-400"
-								onChange={(event) =>
-									onCopyValueChange({
-										index,
-										value: event.target.value,
-									})
-								}
-								onPaste={(event) => {
-									const text = event.clipboardData.getData("text");
-									const handled = onCopyValuePaste({ index, text });
-									if (!handled) return;
-									event.preventDefault();
-								}}
-							/>
-						</label>
-					))}
+				<div className="space-y-3">
+					<label className="block space-y-1">
+						<span className="text-[0.72rem] text-muted-foreground">
+							批量替换
+						</span>
+						<Textarea
+							value={copyValues.join("\n")}
+							className="min-h-20 resize-none rounded-md border-border bg-background px-2 py-2 text-xs text-foreground outline-none transition-colors focus:border-cyan-400"
+							onChange={(event) =>
+								onBatchCopyTextChange({ text: event.target.value })
+							}
+						/>
+					</label>
+					<div className="space-y-2">
+						{copySlots.map((slot, index) => (
+							<label key={slot.id} className="block space-y-1">
+								<span className="text-[0.72rem] text-muted-foreground">
+									{slot.label}
+								</span>
+								<input
+									type="text"
+									value={copyValues[index] ?? slot.defaultContent}
+									className="h-8 w-full rounded-md border border-border bg-background px-2 text-xs text-foreground outline-none transition-colors focus:border-cyan-400"
+									onChange={(event) =>
+										onCopyValueChange({
+											index,
+											value: event.target.value,
+										})
+									}
+									onPaste={(event) => {
+										const text = event.clipboardData.getData("text");
+										const handled = onCopyValuePaste({ index, text });
+										if (!handled) return;
+										event.preventDefault();
+									}}
+								/>
+							</label>
+						))}
+					</div>
 				</div>
 				<DialogFooter>
 					<button
