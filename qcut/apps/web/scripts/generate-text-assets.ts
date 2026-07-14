@@ -2,6 +2,7 @@ import { createHash } from "node:crypto";
 import { mkdir, writeFile } from "node:fs/promises";
 import { dirname, join } from "node:path";
 import { chromium, type Page } from "playwright";
+import { getTextTemplateThumbnailLayoutKind } from "../src/components/editor/media-panel/views/text-template-thumbnail-renderer";
 import { getTextTemplateResource } from "../src/lib/text/text-resource-catalog";
 import {
 	buildTextTemplate,
@@ -95,7 +96,63 @@ function paletteForDefinition({
 	);
 }
 
+function packBodySvg({
+	definition,
+}: {
+	definition: TextTemplateDefinition;
+}): string {
+	if (definition.category === "quote-template") {
+		return `<text x="76" y="116" font-size="86" font-weight="900" fill="var(--accent)" filter="url(#shadow)">“</text>
+<text x="126" y="156" font-size="50" font-weight="900" fill="var(--light)" stroke="rgba(0,0,0,.68)" stroke-width="4" stroke-linejoin="round">金句</text>
+<text x="132" y="214" font-size="24" font-weight="800" fill="var(--mid)">— 观点摘录</text>`;
+	}
+	if (definition.category === "list-template") {
+		return `<text x="64" y="98" font-size="46" font-weight="900" fill="var(--light)" stroke="#111" stroke-width="8" stroke-linejoin="round">清单</text>
+<circle cx="72" cy="154" r="15" fill="var(--accent)"/><text x="72" y="160" text-anchor="middle" font-size="15" font-weight="900" fill="#020617">01</text><rect x="104" y="140" width="136" height="20" rx="8" fill="rgba(255,255,255,.25)"/>
+<circle cx="72" cy="204" r="15" fill="var(--accent)"/><text x="72" y="210" text-anchor="middle" font-size="15" font-weight="900" fill="#020617">02</text><rect x="104" y="190" width="112" height="20" rx="8" fill="rgba(255,255,255,.2)"/>`;
+	}
+	if (definition.category === "split-template") {
+		return `<rect x="48" y="88" width="92" height="132" rx="18" fill="rgba(0,0,0,.36)"/><rect x="180" y="88" width="92" height="132" rx="18" fill="rgba(255,255,255,.22)"/>
+<text x="94" y="160" text-anchor="middle" font-size="30" font-weight="900" fill="var(--light)" stroke="rgba(0,0,0,.66)" stroke-width="3">之前</text>
+<text x="226" y="160" text-anchor="middle" font-size="30" font-weight="900" fill="var(--light)" stroke="rgba(0,0,0,.66)" stroke-width="3">之后</text>
+<text x="160" y="166" text-anchor="middle" font-size="40" font-weight="900" fill="var(--accent)" stroke="rgba(0,0,0,.68)" stroke-width="4">VS</text>`;
+	}
+	if (definition.category === "timeline-template") {
+		return `<path d="M66 154 H254" stroke="rgba(255,255,255,.72)" stroke-width="6" stroke-linecap="round"/>
+<circle cx="66" cy="154" r="18" fill="var(--mid)"/><circle cx="160" cy="154" r="25" fill="var(--accent)"/><circle cx="254" cy="154" r="18" fill="var(--mid)"/>
+<text x="66" y="212" text-anchor="middle" font-size="20" font-weight="900" fill="var(--light)">1</text>
+<text x="160" y="161" text-anchor="middle" font-size="20" font-weight="900" fill="#020617">阶段</text>
+<text x="254" y="212" text-anchor="middle" font-size="20" font-weight="900" fill="var(--light)">结果</text>`;
+	}
+	return `<rect x="60" y="64" width="114" height="38" rx="14" fill="var(--accent)" filter="url(#shadow)"/>
+<text x="117" y="89" text-anchor="middle" font-size="21" font-weight="900" fill="#020617">本期重点</text>
+<text x="60" y="168" font-size="58" font-weight="900" fill="var(--light)" stroke="rgba(0,0,0,.68)" stroke-width="5" stroke-linejoin="round">标题</text>
+<text x="64" y="220" font-size="28" font-weight="900" fill="var(--light)" stroke="rgba(0,0,0,.6)" stroke-width="2.5" stroke-linejoin="round">三句话讲清楚</text>`;
+}
+
+function packThumbnailSvg({
+	definition,
+}: {
+	definition: TextTemplateDefinition;
+}) {
+	const [dark, mid, accent, light] = paletteForDefinition({ definition });
+	return `<svg xmlns="http://www.w3.org/2000/svg" width="${THUMBNAIL_WIDTH}" height="${THUMBNAIL_HEIGHT}" viewBox="0 0 ${THUMBNAIL_WIDTH} ${THUMBNAIL_HEIGHT}" style="--mid:${mid};--accent:${accent};--light:${light}">
+<defs>
+<linearGradient id="bg" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="${dark}"/><stop offset="0.58" stop-color="${mid}"/><stop offset="1" stop-color="${accent}"/></linearGradient>
+<linearGradient id="card" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="rgba(255,255,255,.82)"/><stop offset="1" stop-color="rgba(255,255,255,.16)"/></linearGradient>
+<filter id="shadow" x="-30%" y="-30%" width="160%" height="160%"><feDropShadow dx="0" dy="10" stdDeviation="7" flood-color="#000" flood-opacity="0.45"/></filter>
+</defs>
+<rect width="320" height="304" rx="22" fill="url(#bg)"/>
+<path d="M30 78 C82 42 126 92 181 55 C229 24 263 63 294 32" fill="none" stroke="${light}" stroke-opacity=".22" stroke-width="18" stroke-linecap="round"/>
+<rect x="32" y="42" width="256" height="220" rx="20" fill="url(#card)" stroke="rgba(255,255,255,.24)" stroke-width="2" filter="url(#shadow)"/>
+${packBodySvg({ definition })}
+</svg>`;
+}
+
 function thumbnailSvg({ definition }: { definition: TextTemplateDefinition }) {
+	if (getTextTemplateThumbnailLayoutKind({ definition }) === "pack") {
+		return packThumbnailSvg({ definition });
+	}
 	const [dark, mid, accent, light] = paletteForDefinition({ definition });
 	const label = escapeXml({ value: previewText({ definition }) });
 	const rotate = definition.variantId.includes("italic") ? -4 : 0;

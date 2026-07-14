@@ -2419,8 +2419,8 @@
 		"thumbnail": {
 			"url": "/text-assets/text-templates-headline-template/plain@1/thumbnail.webp",
 			"mimeType": "image/webp",
-			"byteSize": 17622,
-			"checksumSha256": "7d58297cc73c137fe4963d426420dafb3d9138857b6a74a3ab269cba7fd75c44"
+			"byteSize": 12352,
+			"checksumSha256": "f59e293b0159fb8b0db1cb2f42aadc2ce3340f821e2ea66dad9b7dc87eea341a"
 		},
 		"source": {
 			"url": "/text-assets/text-templates-headline-template/plain@1/template.json",
@@ -2437,8 +2437,8 @@
 		"thumbnail": {
 			"url": "/text-assets/text-templates-headline-template/label@1/thumbnail.webp",
 			"mimeType": "image/webp",
-			"byteSize": 18860,
-			"checksumSha256": "979688cb79ff8b4aec0f754237b6001734172f9ab457fdd961da147890d4ec4c"
+			"byteSize": 12352,
+			"checksumSha256": "f59e293b0159fb8b0db1cb2f42aadc2ce3340f821e2ea66dad9b7dc87eea341a"
 		},
 		"source": {
 			"url": "/text-assets/text-templates-headline-template/label@1/template.json",
@@ -2455,8 +2455,8 @@
 		"thumbnail": {
 			"url": "/text-assets/text-templates-headline-template/sticker@1/thumbnail.webp",
 			"mimeType": "image/webp",
-			"byteSize": 18860,
-			"checksumSha256": "979688cb79ff8b4aec0f754237b6001734172f9ab457fdd961da147890d4ec4c"
+			"byteSize": 12352,
+			"checksumSha256": "f59e293b0159fb8b0db1cb2f42aadc2ce3340f821e2ea66dad9b7dc87eea341a"
 		},
 		"source": {
 			"url": "/text-assets/text-templates-headline-template/sticker@1/template.json",
@@ -2473,8 +2473,8 @@
 		"thumbnail": {
 			"url": "/text-assets/text-templates-headline-template/bubble@1/thumbnail.webp",
 			"mimeType": "image/webp",
-			"byteSize": 19656,
-			"checksumSha256": "2eabceb00981404ec4c1c4eafab5e127a421b558590f31855f47bf7a4f45117b"
+			"byteSize": 12352,
+			"checksumSha256": "f59e293b0159fb8b0db1cb2f42aadc2ce3340f821e2ea66dad9b7dc87eea341a"
 		},
 		"source": {
 			"url": "/text-assets/text-templates-headline-template/bubble@1/template.json",
@@ -2491,8 +2491,8 @@
 		"thumbnail": {
 			"url": "/text-assets/text-templates-headline-template/soft-card@1/thumbnail.webp",
 			"mimeType": "image/webp",
-			"byteSize": 17622,
-			"checksumSha256": "7d58297cc73c137fe4963d426420dafb3d9138857b6a74a3ab269cba7fd75c44"
+			"byteSize": 12352,
+			"checksumSha256": "f59e293b0159fb8b0db1cb2f42aadc2ce3340f821e2ea66dad9b7dc87eea341a"
 		},
 		"source": {
 			"url": "/text-assets/text-templates-headline-template/soft-card@1/template.json",
@@ -2509,8 +2509,8 @@
 		"thumbnail": {
 			"url": "/text-assets/text-templates-quote-template/plain@1/thumbnail.webp",
 			"mimeType": "image/webp",
-			"byteSize": 16494,
-			"checksumSha256": "5222bebe6a3049602772c903f1518f41e68db185b6652ee04871b19c8afdae96"
+			"byteSize": 9086,
+			"checksumSha256": "ab609e7c2fa8e307f940f7cf7eba2f6a192363266b85016cc8922038ba371fdc"
 		},
 		"source": {
 			"url": "/text-assets/text-templates-quote-template/plain@1/template.json",
@@ -2527,8 +2527,8 @@
 		"thumbnail": {
 			"url": "/text-assets/text-templates-quote-template/label@1/thumbnail.webp",
 			"mimeType": "image/webp",
-			"byteSize": 16654,
-			"checksumSha256": "c7bacd0c91dd77f7d1a9110ecece2f8c14acdfcbd99a93d7aa8a18bc43ab7cb2"
+			"byteSize": 9086,
+			"checksumSha256": "ab609e7c2fa8e307f940f7cf7eba2f6a192363266b85016cc8922038ba371fdc"
 		},
 		"source": {
 			"url": "/text-assets/text-templates-quote-template/label@1/template.json",
@@ -2545,8 +2545,8 @@
 		"thumbnail": {
 			"url": "/text-assets/text-templates-quote-template/sticker@1/thumbnail.webp",
 			"mimeType": "image/webp",
-			"byteSize": 16654,
-			"checksumSha256": "c7bacd0c91dd77f7d1a9110ecece2f8c14acdfcbd99a93d7aa8a18bc43ab7cb2"
+			"byteSize": 9086,
+			"checksumSha256": "ab609e7c2fa8e307f940f7cf7eba2f6a192363266b85016cc8922038ba371fdc"
 		},
 		"source": {
 			"url": "/text-assets/text-templates-quote-template/sticker@1/template.json",
@@ -2563,8 +2563,8 @@
 		"thumbnail": {
 			"url": "/text-assets/text-templates-quote-template/bubble@1/thumbnail.webp",
 			"mimeType": "image/webp",
-			"byteSize": 16064,
-			"checksumSha256": "4b872bda3629fa2756410972638bd03591d27482697ad9a742591f24c4fc69d9"
+			"byteSize": 9086,
+			"checksumSha256": "ab609e7c2fa8e307f940f7cf7eba2f6a192363266b85016cc8922038ba371fdc"
 		},
 		"source": {
 			"url": "/text-assets/text-templates-quote-template/bubble@1/template.json",
@@ -2581,8 +2581,8 @@
 		"thumbnail": {
 			"url": "/text-assets/text-templates-quote-template/soft-card@1/thumbnail.webp",
 			"mimeType": "image/webp",
-			"byteSize": 16494,
-			"checksumSha256": "5222bebe6a3049602772c903f1518f41e68db185b6652ee04871b19c8afdae96"
+			"byteSize": 9086,
+			"checksumSha256": "ab609e7c2fa8e307f940f7cf7eba2f6a192363266b85016cc8922038ba371fdc"
 		},
 		"source": {
 			"url": "/text-assets/text-templates-quote-template/soft-card@1/template.json",
@@ -2599,8 +2599,8 @@
 		"thumbnail": {
 			"url": "/text-assets/text-templates-list-template/plain@1/thumbnail.webp",
 			"mimeType": "image/webp",
-			"byteSize": 17882,
-			"checksumSha256": "1bdb970e1052e08c5ac044c25b51920723db9ca1d69cfa36c140741a3db65e57"
+			"byteSize": 7214,
+			"checksumSha256": "03ade7734a1190422089c0139de34b1d5a9cecd51e2fb05c599a4dc638f63fa5"
 		},
 		"source": {
 			"url": "/text-assets/text-templates-list-template/plain@1/template.json",
@@ -2617,8 +2617,8 @@
 		"thumbnail": {
 			"url": "/text-assets/text-templates-list-template/label@1/thumbnail.webp",
 			"mimeType": "image/webp",
-			"byteSize": 14494,
-			"checksumSha256": "1003299e9517a2684fa5f59b94fd9e70f6c6dc25b5cde99a13bc97ef34f169fb"
+			"byteSize": 7214,
+			"checksumSha256": "03ade7734a1190422089c0139de34b1d5a9cecd51e2fb05c599a4dc638f63fa5"
 		},
 		"source": {
 			"url": "/text-assets/text-templates-list-template/label@1/template.json",
@@ -2635,8 +2635,8 @@
 		"thumbnail": {
 			"url": "/text-assets/text-templates-list-template/sticker@1/thumbnail.webp",
 			"mimeType": "image/webp",
-			"byteSize": 14494,
-			"checksumSha256": "1003299e9517a2684fa5f59b94fd9e70f6c6dc25b5cde99a13bc97ef34f169fb"
+			"byteSize": 7214,
+			"checksumSha256": "03ade7734a1190422089c0139de34b1d5a9cecd51e2fb05c599a4dc638f63fa5"
 		},
 		"source": {
 			"url": "/text-assets/text-templates-list-template/sticker@1/template.json",
@@ -2653,8 +2653,8 @@
 		"thumbnail": {
 			"url": "/text-assets/text-templates-list-template/bubble@1/thumbnail.webp",
 			"mimeType": "image/webp",
-			"byteSize": 19072,
-			"checksumSha256": "94bb2b129903cc4b29189f4fa05ecbdd51cd19645fd88939fa21a281af5834c2"
+			"byteSize": 7214,
+			"checksumSha256": "03ade7734a1190422089c0139de34b1d5a9cecd51e2fb05c599a4dc638f63fa5"
 		},
 		"source": {
 			"url": "/text-assets/text-templates-list-template/bubble@1/template.json",
@@ -2671,8 +2671,8 @@
 		"thumbnail": {
 			"url": "/text-assets/text-templates-list-template/soft-card@1/thumbnail.webp",
 			"mimeType": "image/webp",
-			"byteSize": 17882,
-			"checksumSha256": "1bdb970e1052e08c5ac044c25b51920723db9ca1d69cfa36c140741a3db65e57"
+			"byteSize": 7214,
+			"checksumSha256": "03ade7734a1190422089c0139de34b1d5a9cecd51e2fb05c599a4dc638f63fa5"
 		},
 		"source": {
 			"url": "/text-assets/text-templates-list-template/soft-card@1/template.json",
@@ -2689,8 +2689,8 @@
 		"thumbnail": {
 			"url": "/text-assets/text-templates-split-template/plain@1/thumbnail.webp",
 			"mimeType": "image/webp",
-			"byteSize": 16204,
-			"checksumSha256": "fc9870a41d0bf13f93eb9a83e7fc319b3dac0bf7ca54889c9f4be8e6ad3414ad"
+			"byteSize": 8294,
+			"checksumSha256": "a5ed69eda84e126d4fe3b3bb47adaa56befc2ec1e57a61994089ed4a74e57e94"
 		},
 		"source": {
 			"url": "/text-assets/text-templates-split-template/plain@1/template.json",
@@ -2707,8 +2707,8 @@
 		"thumbnail": {
 			"url": "/text-assets/text-templates-split-template/label@1/thumbnail.webp",
 			"mimeType": "image/webp",
-			"byteSize": 18046,
-			"checksumSha256": "c47ccde3b1430a465b68b55946f8135012911cf124baaa371bd7ce0d40fabf86"
+			"byteSize": 8294,
+			"checksumSha256": "a5ed69eda84e126d4fe3b3bb47adaa56befc2ec1e57a61994089ed4a74e57e94"
 		},
 		"source": {
 			"url": "/text-assets/text-templates-split-template/label@1/template.json",
@@ -2725,8 +2725,8 @@
 		"thumbnail": {
 			"url": "/text-assets/text-templates-split-template/sticker@1/thumbnail.webp",
 			"mimeType": "image/webp",
-			"byteSize": 18046,
-			"checksumSha256": "c47ccde3b1430a465b68b55946f8135012911cf124baaa371bd7ce0d40fabf86"
+			"byteSize": 8294,
+			"checksumSha256": "a5ed69eda84e126d4fe3b3bb47adaa56befc2ec1e57a61994089ed4a74e57e94"
 		},
 		"source": {
 			"url": "/text-assets/text-templates-split-template/sticker@1/template.json",
@@ -2743,8 +2743,8 @@
 		"thumbnail": {
 			"url": "/text-assets/text-templates-split-template/bubble@1/thumbnail.webp",
 			"mimeType": "image/webp",
-			"byteSize": 18142,
-			"checksumSha256": "701ece33970d59f2d322292b9ba20d9a49d8c3c91ef38552d5df6a5dbaac9388"
+			"byteSize": 8294,
+			"checksumSha256": "a5ed69eda84e126d4fe3b3bb47adaa56befc2ec1e57a61994089ed4a74e57e94"
 		},
 		"source": {
 			"url": "/text-assets/text-templates-split-template/bubble@1/template.json",
@@ -2761,8 +2761,8 @@
 		"thumbnail": {
 			"url": "/text-assets/text-templates-split-template/soft-card@1/thumbnail.webp",
 			"mimeType": "image/webp",
-			"byteSize": 16204,
-			"checksumSha256": "fc9870a41d0bf13f93eb9a83e7fc319b3dac0bf7ca54889c9f4be8e6ad3414ad"
+			"byteSize": 8294,
+			"checksumSha256": "a5ed69eda84e126d4fe3b3bb47adaa56befc2ec1e57a61994089ed4a74e57e94"
 		},
 		"source": {
 			"url": "/text-assets/text-templates-split-template/soft-card@1/template.json",
@@ -2779,8 +2779,8 @@
 		"thumbnail": {
 			"url": "/text-assets/text-templates-timeline-template/plain@1/thumbnail.webp",
 			"mimeType": "image/webp",
-			"byteSize": 15050,
-			"checksumSha256": "4eaba288ac6a483e99fd6240e7d5c43952ce393664a9c8152fcdc4f39cbff298"
+			"byteSize": 7748,
+			"checksumSha256": "2b3f408cf72efedd0e4a78473f6c6132ab23696f15cbbb506622f19d10c79509"
 		},
 		"source": {
 			"url": "/text-assets/text-templates-timeline-template/plain@1/template.json",
@@ -2797,8 +2797,8 @@
 		"thumbnail": {
 			"url": "/text-assets/text-templates-timeline-template/label@1/thumbnail.webp",
 			"mimeType": "image/webp",
-			"byteSize": 13006,
-			"checksumSha256": "43268393200409f880367a21e55edc6c43d39b4d791f36c038faf29a208ebc8b"
+			"byteSize": 7748,
+			"checksumSha256": "2b3f408cf72efedd0e4a78473f6c6132ab23696f15cbbb506622f19d10c79509"
 		},
 		"source": {
 			"url": "/text-assets/text-templates-timeline-template/label@1/template.json",
@@ -2815,8 +2815,8 @@
 		"thumbnail": {
 			"url": "/text-assets/text-templates-timeline-template/sticker@1/thumbnail.webp",
 			"mimeType": "image/webp",
-			"byteSize": 13006,
-			"checksumSha256": "43268393200409f880367a21e55edc6c43d39b4d791f36c038faf29a208ebc8b"
+			"byteSize": 7748,
+			"checksumSha256": "2b3f408cf72efedd0e4a78473f6c6132ab23696f15cbbb506622f19d10c79509"
 		},
 		"source": {
 			"url": "/text-assets/text-templates-timeline-template/sticker@1/template.json",
@@ -2833,8 +2833,8 @@
 		"thumbnail": {
 			"url": "/text-assets/text-templates-timeline-template/bubble@1/thumbnail.webp",
 			"mimeType": "image/webp",
-			"byteSize": 15200,
-			"checksumSha256": "1c688aeae213bc03702849d3bd1e462bea14734d4676680d490a133855e8582f"
+			"byteSize": 7748,
+			"checksumSha256": "2b3f408cf72efedd0e4a78473f6c6132ab23696f15cbbb506622f19d10c79509"
 		},
 		"source": {
 			"url": "/text-assets/text-templates-timeline-template/bubble@1/template.json",
@@ -2851,8 +2851,8 @@
 		"thumbnail": {
 			"url": "/text-assets/text-templates-timeline-template/soft-card@1/thumbnail.webp",
 			"mimeType": "image/webp",
-			"byteSize": 15050,
-			"checksumSha256": "4eaba288ac6a483e99fd6240e7d5c43952ce393664a9c8152fcdc4f39cbff298"
+			"byteSize": 7748,
+			"checksumSha256": "2b3f408cf72efedd0e4a78473f6c6132ab23696f15cbbb506622f19d10c79509"
 		},
 		"source": {
 			"url": "/text-assets/text-templates-timeline-template/soft-card@1/template.json",
