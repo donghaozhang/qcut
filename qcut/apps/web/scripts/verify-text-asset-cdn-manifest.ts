@@ -60,16 +60,26 @@ export type VerifyIssue = {
 		| "byte-size-mismatch"
 		| "checksum-mismatch"
 		| "missing-package"
+		| "designer-import-threshold"
 		| "remote-unavailable"
 		| "remote-size-mismatch";
 	detail: string;
 	url?: string;
 };
 
+export type TextAssetProvenanceSummary = {
+	designerImported: number;
+	generated: number;
+	missingProvenance: number;
+	pipelines: Record<string, number>;
+	total: number;
+};
+
 export type TextAssetCdnCliOptions = {
 	baseUrl: string;
 	checkRemote: boolean;
 	manifestPath: string;
+	minDesignerAssets: number;
 	publicDir: string;
 	remoteConcurrency: number;
 	writePath?: string;
@@ -92,6 +102,7 @@ export function parseTextAssetCdnArgs({
 		baseUrl: process.env.QCUT_TEXT_ASSET_CDN_URL ?? DEFAULT_BASE_URL,
 		checkRemote: false,
 		manifestPath: DEFAULT_MANIFEST_PATH,
+		minDesignerAssets: 0,
 		publicDir: DEFAULT_PUBLIC_DIR,
 		remoteConcurrency: 16,
 	};
@@ -108,6 +119,14 @@ export function parseTextAssetCdnArgs({
 		}
 		if (arg === "--manifest") {
 			options.manifestPath = requireValue({ argv, index, name: arg });
+			index += 1;
+			continue;
+		}
+		if (arg === "--min-designer-assets") {
+			options.minDesignerAssets = parseNonNegativeInteger({
+				name: arg,
+				value: requireValue({ argv, index, name: arg }),
+			});
 			index += 1;
 			continue;
 		}
@@ -132,6 +151,20 @@ export function parseTextAssetCdnArgs({
 		throw new Error(`Unknown argument: ${arg}`);
 	}
 	return options;
+}
+
+function parseNonNegativeInteger({
+	name,
+	value,
+}: {
+	name: string;
+	value: string;
+}): number {
+	const parsed = Number.parseInt(value, 10);
+	if (!Number.isFinite(parsed) || parsed < 0) {
+		throw new Error(`${name} requires a non-negative integer`);
+	}
+	return parsed;
 }
 
 function parsePositiveInteger({
@@ -189,6 +222,55 @@ export async function readGeneratedManifest({
 		string,
 		TextAssetGeneratedEntry
 	>;
+}
+
+export function summarizeTextAssetProvenance({
+	generatedManifest,
+}: {
+	generatedManifest: Record<string, TextAssetGeneratedEntry>;
+}): TextAssetProvenanceSummary {
+	const summary: TextAssetProvenanceSummary = {
+		designerImported: 0,
+		generated: 0,
+		missingProvenance: 0,
+		pipelines: {},
+		total: 0,
+	};
+	for (const entry of Object.values(generatedManifest)) {
+		summary.total += 1;
+		const provenance = entry.provenance;
+		if (!provenance) {
+			summary.missingProvenance += 1;
+			summary.pipelines.missing = (summary.pipelines.missing ?? 0) + 1;
+			continue;
+		}
+		if (provenance.source === "designer-imported") {
+			summary.designerImported += 1;
+		}
+		if (provenance.source === "generated") {
+			summary.generated += 1;
+		}
+		const pipeline = provenance.pipeline || "unknown";
+		summary.pipelines[pipeline] = (summary.pipelines[pipeline] ?? 0) + 1;
+	}
+	return summary;
+}
+
+export function verifyDesignerAssetCoverage({
+	minDesignerAssets,
+	provenance,
+}: {
+	minDesignerAssets: number;
+	provenance: TextAssetProvenanceSummary;
+}): VerifyIssue[] {
+	if (provenance.designerImported >= minDesignerAssets) return [];
+	return [
+		{
+			assetId: "text-designer-assets",
+			code: "designer-import-threshold",
+			detail: `Expected at least ${minDesignerAssets} designer-imported text assets, received ${provenance.designerImported}`,
+		},
+	];
 }
 
 export function filesForEntry({
@@ -476,6 +558,11 @@ async function main(): Promise<void> {
 		baseUrl: options.baseUrl,
 		publicDir: options.publicDir,
 	});
+	const provenance = summarizeTextAssetProvenance({ generatedManifest });
+	const designerCoverageIssues = verifyDesignerAssetCoverage({
+		minDesignerAssets: options.minDesignerAssets,
+		provenance,
+	});
 	const { issues: manifestIssues, manifest } = buildTextAssetPublishManifest({
 		baseUrl: options.baseUrl,
 		generatedAt: new Date().toISOString(),
@@ -492,6 +579,7 @@ async function main(): Promise<void> {
 		: [];
 	const issues = [
 		...marketplace.issues,
+		...designerCoverageIssues,
 		...manifestIssues,
 		...localIssues,
 		...remoteIssues,
@@ -505,7 +593,9 @@ async function main(): Promise<void> {
 				baseUrl: manifest.baseUrl,
 				checkRemote: options.checkRemote,
 				issues,
+				minDesignerAssets: options.minDesignerAssets,
 				ok: issues.length === 0,
+				provenance,
 				totalAssets: manifest.totalAssets,
 				totalBytes: manifest.totalBytes,
 				totalFiles: manifest.totalFiles,

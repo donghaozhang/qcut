@@ -7,6 +7,8 @@ import {
 	buildTextAssetPublishManifest,
 	buildTextMarketplacePublishEntry,
 	parseTextAssetCdnArgs,
+	summarizeTextAssetProvenance,
+	verifyDesignerAssetCoverage,
 	verifyLocalFiles,
 	verifyRemoteFiles,
 	type TextAssetGeneratedEntry,
@@ -53,6 +55,8 @@ describe("text asset CDN manifest verifier", () => {
 					"--check-remote",
 					"--manifest",
 					"/tmp/generated.json",
+					"--min-designer-assets",
+					"12",
 					"--public-dir",
 					"/tmp/public",
 					"--remote-concurrency",
@@ -65,10 +69,75 @@ describe("text asset CDN manifest verifier", () => {
 			baseUrl: "https://cdn.example.com/assets/",
 			checkRemote: true,
 			manifestPath: "/tmp/generated.json",
+			minDesignerAssets: 12,
 			publicDir: "/tmp/public",
 			remoteConcurrency: 4,
 			writePath: "/tmp/publish.json",
 		});
+	});
+
+	it("summarizes generated versus designer-imported provenance", () => {
+		const designerEntry: TextAssetGeneratedEntry = {
+			...createGeneratedEntry(),
+			assetId: "text-designer",
+			provenance: {
+				pipeline: "designer-pack-v1",
+				source: "designer-imported",
+			},
+		};
+		const generatedEntry: TextAssetGeneratedEntry = {
+			...createGeneratedEntry(),
+			assetId: "text-generated",
+			provenance: {
+				pipeline: "qcut-canvas-thumbnail-v1",
+				source: "generated",
+			},
+		};
+		const missingEntry: TextAssetGeneratedEntry = {
+			...createGeneratedEntry(),
+			assetId: "text-missing-provenance",
+		};
+
+		expect(
+			summarizeTextAssetProvenance({
+				generatedManifest: {
+					"text-designer": designerEntry,
+					"text-generated": generatedEntry,
+					"text-missing-provenance": missingEntry,
+				},
+			})
+		).toEqual({
+			designerImported: 1,
+			generated: 1,
+			missingProvenance: 1,
+			pipelines: {
+				"designer-pack-v1": 1,
+				"qcut-canvas-thumbnail-v1": 1,
+				missing: 1,
+			},
+			total: 3,
+		});
+	});
+
+	it("reports designer asset coverage shortfalls when a release threshold is set", () => {
+		expect(
+			verifyDesignerAssetCoverage({
+				minDesignerAssets: 2,
+				provenance: {
+					designerImported: 1,
+					generated: 4,
+					missingProvenance: 0,
+					pipelines: { "designer-pack-v1": 1 },
+					total: 5,
+				},
+			})
+		).toEqual([
+			{
+				assetId: "text-designer-assets",
+				code: "designer-import-threshold",
+				detail: "Expected at least 2 designer-imported text assets, received 1",
+			},
+		]);
 	});
 
 	it("builds publish manifests with CDN URLs and local paths", () => {
