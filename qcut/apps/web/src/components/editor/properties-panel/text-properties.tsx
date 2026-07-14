@@ -293,11 +293,61 @@ function PresetButton({
 }
 
 function buildGroupContentDraft({
+	contents,
+}: {
+	contents: readonly string[];
+}): string {
+	return contents.join("\n");
+}
+
+type TextGroupContentSlot = {
+	content: string;
+	elementId: string;
+	index: number;
+	name: string;
+};
+
+export function buildTextGroupContentSlots({
 	selections,
 }: {
 	selections: readonly TextGroupSelection[];
-}): string {
-	return selections.map(({ element }) => element.content).join("\n");
+}): TextGroupContentSlot[] {
+	return selections.map(({ element }, index) => ({
+		content: element.content,
+		elementId: element.id,
+		index,
+		name: element.name,
+	}));
+}
+
+export function parseTextGroupDraftContents({
+	draft,
+	slotCount,
+}: {
+	draft: string;
+	slotCount: number;
+}): string[] {
+	const lines = draft.split(/\r?\n/);
+	return Array.from({ length: slotCount }, (_, index) => lines[index] ?? "");
+}
+
+export function updateTextGroupSlotContents({
+	contents,
+	startIndex,
+	value,
+}: {
+	contents: readonly string[];
+	startIndex: number;
+	value: string;
+}): string[] {
+	const next = [...contents];
+	const pastedLines = value.split(/\r?\n/);
+	for (let offset = 0; offset < pastedLines.length; offset += 1) {
+		const targetIndex = startIndex + offset;
+		if (targetIndex >= next.length) break;
+		next[targetIndex] = pastedLines[offset] ?? "";
+	}
+	return next;
 }
 
 export function TextGroupProperties({
@@ -313,45 +363,119 @@ export function TextGroupProperties({
 		[selections]
 	);
 	const groupId = orderedSelections[0]?.element.groupId;
-	const currentDraft = useMemo(
-		() => buildGroupContentDraft({ selections: orderedSelections }),
+	const slots = useMemo(
+		() => buildTextGroupContentSlots({ selections: orderedSelections }),
 		[orderedSelections]
 	);
-	const [draft, setDraft] = useState(currentDraft);
+	const currentContents = useMemo(
+		() => slots.map((slot) => slot.content),
+		[slots]
+	);
+	const [slotContents, setSlotContents] = useState(currentContents);
+	const draft = useMemo(
+		() => buildGroupContentDraft({ contents: slotContents }),
+		[slotContents]
+	);
+	const changedCount = slotContents.filter(
+		(content, index) => content !== currentContents[index]
+	).length;
 
 	useEffect(() => {
-		setDraft(currentDraft);
-	}, [currentDraft]);
+		setSlotContents(currentContents);
+	}, [currentContents]);
 
 	const applyGroupContents = () => {
 		if (!groupId) return;
 		const updatedCount = updateTextGroupContents({
 			groupId,
-			contents: draft.split(/\r?\n/),
+			contents: slotContents,
 		});
 		if (updatedCount > 0) {
 			toast.success(`Updated ${updatedCount} text layers`);
 		}
+	};
+	const handleDraftChange = ({ value }: { value: string }) => {
+		setSlotContents(
+			parseTextGroupDraftContents({
+				draft: value,
+				slotCount: slots.length,
+			})
+		);
+	};
+	const handleSlotChange = ({
+		index,
+		value,
+	}: {
+		index: number;
+		value: string;
+	}) => {
+		setSlotContents((current) =>
+			updateTextGroupSlotContents({
+				contents: current,
+				startIndex: index,
+				value,
+			})
+		);
+	};
+	const resetGroupContents = () => {
+		setSlotContents(currentContents);
 	};
 
 	return (
 		<div className="space-y-5" data-testid="text-group-properties">
 			<PropertyGroup title="Template text" defaultExpanded>
 				<div className="space-y-3">
+					<div className="grid gap-2">
+						{slots.map((slot) => (
+							<div key={slot.elementId} className="grid gap-1">
+								<label
+									className="flex items-center justify-between gap-2 text-[10px] text-muted-foreground"
+									htmlFor={`text-group-slot-${slot.elementId}`}
+								>
+									<span className="truncate">
+										{String(slot.index + 1).padStart(2, "0")} {slot.name}
+									</span>
+									{slotContents[slot.index] !== slot.content ? (
+										<span className="shrink-0 text-cyan-300">changed</span>
+									) : null}
+								</label>
+								<Input
+									id={`text-group-slot-${slot.elementId}`}
+									aria-label={`Text layer ${slot.index + 1} content`}
+									value={slotContents[slot.index] ?? ""}
+									className="h-8 bg-background/50 text-xs"
+									onChange={(event) =>
+										handleSlotChange({
+											index: slot.index,
+											value: event.target.value,
+										})
+									}
+									onPaste={(event) => {
+										const value = event.clipboardData.getData("text");
+										if (!/\r?\n/.test(value)) return;
+										event.preventDefault();
+										handleSlotChange({ index: slot.index, value });
+									}}
+								/>
+							</div>
+						))}
+					</div>
 					<Textarea
 						aria-label="Template group text content"
 						value={draft}
 						placeholder="每行替换一个文字层"
 						className="min-h-32 resize-y bg-background/50"
-						onChange={(event) => setDraft(event.target.value)}
+						onChange={(event) =>
+							handleDraftChange({ value: event.target.value })
+						}
 					/>
 					<div className="grid gap-1 rounded-sm border border-border/70 bg-background/40 p-2 text-[10px] text-muted-foreground">
-						{orderedSelections.map(({ element }, index) => (
-							<div key={element.id} className="flex min-w-0 gap-2">
+						{slots.map((slot) => (
+							<div key={slot.elementId} className="flex min-w-0 gap-2">
 								<span className="shrink-0 tabular-nums">
-									{String(index + 1).padStart(2, "0")}
+									{String(slot.index + 1).padStart(2, "0")}
 								</span>
-								<span className="truncate">{element.name}</span>
+								<span className="truncate">{slot.name}</span>
 							</div>
 						))}
 					</div>
@@ -359,16 +483,16 @@ export function TextGroupProperties({
 						<Button
 							type="button"
 							className="flex-1"
-							disabled={!groupId || draft === currentDraft}
+							disabled={!groupId || changedCount === 0}
 							onClick={applyGroupContents}
 						>
-							Apply text
+							Apply {changedCount > 0 ? changedCount : ""} text
 						</Button>
 						<Button
 							type="button"
 							variant="outline"
-							disabled={draft === currentDraft}
-							onClick={() => setDraft(currentDraft)}
+							disabled={changedCount === 0}
+							onClick={resetGroupContents}
 						>
 							Reset
 						</Button>
