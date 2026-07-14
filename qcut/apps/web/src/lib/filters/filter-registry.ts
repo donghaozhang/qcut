@@ -1,4 +1,5 @@
 import type { FilterCategory, FilterPreset } from "./filter-types";
+import { CATEGORY_EXPANSION_FILTER_PRESETS } from "./filter-category-expansion-presets";
 import { COLLECTION_FILTER_PRESETS } from "./filter-collection-presets";
 import { EXTENDED_FILTER_PRESETS } from "./filter-extended-presets";
 
@@ -341,6 +342,7 @@ const CORE_FILTER_PRESETS: FilterPreset[] = [
 export const FILTER_PRESETS: FilterPreset[] = [
 	...CORE_FILTER_PRESETS,
 	...EXTENDED_FILTER_PRESETS,
+	...CATEGORY_EXPANSION_FILTER_PRESETS,
 	...COLLECTION_FILTER_PRESETS,
 ];
 

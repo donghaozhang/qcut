@@ -17,7 +17,7 @@ function resolveThumbnailPath({ thumbnail }: { thumbnail: string }) {
 
 describe("filter registry", () => {
 	it("ships a populated local library with stable unique identifiers", () => {
-		expect(FILTER_PRESETS.length).toBeGreaterThanOrEqual(56);
+		expect(FILTER_PRESETS.length).toBeGreaterThanOrEqual(126);
 		expect(new Set(FILTER_PRESETS.map((preset) => preset.id)).size).toBe(
 			FILTER_PRESETS.length
 		);
@@ -29,11 +29,11 @@ describe("filter registry", () => {
 		);
 	});
 
-	it("provides at least four working presets in every filter category", () => {
+	it("provides at least nine working presets in every filter category", () => {
 		for (const category of FILTER_CONTENT_CATEGORIES) {
 			expect(
 				getFilterPresetsByCategory({ category }).length
-			).toBeGreaterThanOrEqual(4);
+			).toBeGreaterThanOrEqual(9);
 		}
 	});
 
