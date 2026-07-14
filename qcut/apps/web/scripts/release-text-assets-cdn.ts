@@ -399,14 +399,14 @@ export async function releaseTextAssetsToCdn({
 	}
 	const staging = options.stageDir
 		? await stageTextAssetUploadPlan({
-			designerGapReport,
-			items,
-			prefix: options.prefix,
-			provenance,
-			releaseReadiness,
-			requiredDesignerCategories: options.requiredDesignerCategories,
-			stageDir: options.stageDir,
-		})
+				designerGapReport,
+				items,
+				prefix: options.prefix,
+				provenance,
+				releaseReadiness,
+				requiredDesignerCategories: options.requiredDesignerCategories,
+				stageDir: options.stageDir,
+			})
 		: undefined;
 	const archive =
 		options.archivePath && options.stageDir
