@@ -9,6 +9,24 @@
 		"thumbnail": "thumbnail.webp",
 		"source": "template.json"
 	},
+	"resources": [
+		{
+			"byteSize": 22048,
+			"checksumSha256": "510734256723b87125e58c9af5d284aee6accd81a85784f99f176ee1bd44c7fd",
+			"mimeType": "image/webp",
+			"path": "thumbnail.webp",
+			"role": "thumbnail",
+			"url": "/text-assets/text-fancy-pink/comic@1/thumbnail.webp"
+		},
+		{
+			"byteSize": 2511,
+			"checksumSha256": "3ee4f89adec8477737dcf82c63f06d53c332890e7eb8a5cf78fc1100dc072239",
+			"mimeType": "application/json",
+			"path": "template.json",
+			"role": "source",
+			"url": "/text-assets/text-fancy-pink/comic@1/template.json"
+		}
+	],
 	"source": {
 		"schemaVersion": 1,
 		"assetId": "text-fancy-pink-comic",

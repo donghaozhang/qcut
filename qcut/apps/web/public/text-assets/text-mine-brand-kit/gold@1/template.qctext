@@ -9,6 +9,24 @@
 		"thumbnail": "thumbnail.webp",
 		"source": "template.json"
 	},
+	"resources": [
+		{
+			"byteSize": 13110,
+			"checksumSha256": "2ddd5883bd9b78a4d572c3ed58c01b90b0768c9cc37d1974ca4028e23c2a334a",
+			"mimeType": "image/webp",
+			"path": "thumbnail.webp",
+			"role": "thumbnail",
+			"url": "/text-assets/text-mine-brand-kit/gold@1/thumbnail.webp"
+		},
+		{
+			"byteSize": 2390,
+			"checksumSha256": "124991942b89fa440ad8cba87a75fccc2a57c5b0aa1d1a411d067367bce5fcba",
+			"mimeType": "application/json",
+			"path": "template.json",
+			"role": "source",
+			"url": "/text-assets/text-mine-brand-kit/gold@1/template.json"
+		}
+	],
 	"source": {
 		"schemaVersion": 1,
 		"assetId": "text-mine-brand-kit-gold",

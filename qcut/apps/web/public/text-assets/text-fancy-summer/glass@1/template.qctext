@@ -9,6 +9,24 @@
 		"thumbnail": "thumbnail.webp",
 		"source": "template.json"
 	},
+	"resources": [
+		{
+			"byteSize": 16302,
+			"checksumSha256": "89f0634a8ec1f245b9b1964a48be0e02629575a0747e0f87165df9ec369f151b",
+			"mimeType": "image/webp",
+			"path": "thumbnail.webp",
+			"role": "thumbnail",
+			"url": "/text-assets/text-fancy-summer/glass@1/thumbnail.webp"
+		},
+		{
+			"byteSize": 2368,
+			"checksumSha256": "d06b4dc0f4b378f840b49e1bf267a1e68c58716e05218ec67892197ab77528b7",
+			"mimeType": "application/json",
+			"path": "template.json",
+			"role": "source",
+			"url": "/text-assets/text-fancy-summer/glass@1/template.json"
+		}
+	],
 	"source": {
 		"schemaVersion": 1,
 		"assetId": "text-fancy-summer-glass",

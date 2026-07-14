@@ -9,6 +9,24 @@
 		"thumbnail": "thumbnail.webp",
 		"source": "template.json"
 	},
+	"resources": [
+		{
+			"byteSize": 15720,
+			"checksumSha256": "aef2b6c8a7f853d6a738ca84c547f1cc859decedd816be6b394548a90f948447",
+			"mimeType": "image/webp",
+			"path": "thumbnail.webp",
+			"role": "thumbnail",
+			"url": "/text-assets/legacy/yellow-callout@1/thumbnail.webp"
+		},
+		{
+			"byteSize": 2037,
+			"checksumSha256": "1e1a22c7f44816a25d6602657dd9c1a94bee49b98cbe573b856573c79bdf0efd",
+			"mimeType": "application/json",
+			"path": "template.json",
+			"role": "source",
+			"url": "/text-assets/legacy/yellow-callout@1/template.json"
+		}
+	],
 	"source": {
 		"schemaVersion": 1,
 		"assetId": "text-legacy-yellow-callout",

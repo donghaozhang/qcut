@@ -9,6 +9,24 @@
 		"thumbnail": "thumbnail.webp",
 		"source": "template.json"
 	},
+	"resources": [
+		{
+			"byteSize": 19252,
+			"checksumSha256": "b9bfa462d376c6469d22af76035bc6920f37b25931d401e02064d657a0b11415",
+			"mimeType": "image/webp",
+			"path": "thumbnail.webp",
+			"role": "thumbnail",
+			"url": "/text-assets/text-smart-packaging-commerce-badge/sticker@1/thumbnail.webp"
+		},
+		{
+			"byteSize": 2770,
+			"checksumSha256": "66ff75f61a4c1f7d41b70ffa1a58226715f24c3435c555c08596654e420fc84c",
+			"mimeType": "application/json",
+			"path": "template.json",
+			"role": "source",
+			"url": "/text-assets/text-smart-packaging-commerce-badge/sticker@1/template.json"
+		}
+	],
 	"source": {
 		"schemaVersion": 1,
 		"assetId": "text-smart-packaging-commerce-badge-sticker",

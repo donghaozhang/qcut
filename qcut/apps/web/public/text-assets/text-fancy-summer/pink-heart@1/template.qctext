@@ -9,6 +9,24 @@
 		"thumbnail": "thumbnail.webp",
 		"source": "template.json"
 	},
+	"resources": [
+		{
+			"byteSize": 14214,
+			"checksumSha256": "08d48af721ffe93a17a8ada0acb43ead70d8aa3c0e87bf4d1ecc3aefad6458cd",
+			"mimeType": "image/webp",
+			"path": "thumbnail.webp",
+			"role": "thumbnail",
+			"url": "/text-assets/text-fancy-summer/pink-heart@1/thumbnail.webp"
+		},
+		{
+			"byteSize": 2503,
+			"checksumSha256": "697e82d9aadc5c34bb5a07aaf1da1bba4904cc07645b30eb1c2e61c16615d85e",
+			"mimeType": "application/json",
+			"path": "template.json",
+			"role": "source",
+			"url": "/text-assets/text-fancy-summer/pink-heart@1/template.json"
+		}
+	],
 	"source": {
 		"schemaVersion": 1,
 		"assetId": "text-fancy-summer-pink-heart",

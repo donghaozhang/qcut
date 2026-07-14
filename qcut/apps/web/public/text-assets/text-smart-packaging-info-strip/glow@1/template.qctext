@@ -9,6 +9,24 @@
 		"thumbnail": "thumbnail.webp",
 		"source": "template.json"
 	},
+	"resources": [
+		{
+			"byteSize": 16518,
+			"checksumSha256": "948314bb7753ec01ddf6743c40e4dfddabe24862bcb0d698489491ed6bd716b5",
+			"mimeType": "image/webp",
+			"path": "thumbnail.webp",
+			"role": "thumbnail",
+			"url": "/text-assets/text-smart-packaging-info-strip/glow@1/thumbnail.webp"
+		},
+		{
+			"byteSize": 2508,
+			"checksumSha256": "b1fb58d4693f60515a7c66679b7c0fb26ebf8f69d41ded72faf2cb76c030db91",
+			"mimeType": "application/json",
+			"path": "template.json",
+			"role": "source",
+			"url": "/text-assets/text-smart-packaging-info-strip/glow@1/template.json"
+		}
+	],
 	"source": {
 		"schemaVersion": 1,
 		"assetId": "text-smart-packaging-info-strip-glow",

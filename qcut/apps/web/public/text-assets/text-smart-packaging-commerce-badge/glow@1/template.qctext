@@ -9,6 +9,24 @@
 		"thumbnail": "thumbnail.webp",
 		"source": "template.json"
 	},
+	"resources": [
+		{
+			"byteSize": 20018,
+			"checksumSha256": "cc1ddd6b4684a753876322082a8b9124ccf2251dd4de48e0eee0c62a701147bf",
+			"mimeType": "image/webp",
+			"path": "thumbnail.webp",
+			"role": "thumbnail",
+			"url": "/text-assets/text-smart-packaging-commerce-badge/glow@1/thumbnail.webp"
+		},
+		{
+			"byteSize": 2619,
+			"checksumSha256": "e57b7955408394e10f59f26faeec237e72c78c918cadbce6b1286063574ceb47",
+			"mimeType": "application/json",
+			"path": "template.json",
+			"role": "source",
+			"url": "/text-assets/text-smart-packaging-commerce-badge/glow@1/template.json"
+		}
+	],
 	"source": {
 		"schemaVersion": 1,
 		"assetId": "text-smart-packaging-commerce-badge-glow",

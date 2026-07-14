@@ -9,6 +9,24 @@
 		"thumbnail": "thumbnail.webp",
 		"source": "template.json"
 	},
+	"resources": [
+		{
+			"byteSize": 18972,
+			"checksumSha256": "e42fc0c5aff9be06e1a9b34a777290d756047b4e03cbedd4c5765bbf83887991",
+			"mimeType": "image/webp",
+			"path": "thumbnail.webp",
+			"role": "thumbnail",
+			"url": "/text-assets/text-smart-packaging-cover-pack/glass@1/thumbnail.webp"
+		},
+		{
+			"byteSize": 2549,
+			"checksumSha256": "639487bdcde3d7bf39387f4ff16998d1f1924511c7ef6cc7ca2439ddcd42c5e4",
+			"mimeType": "application/json",
+			"path": "template.json",
+			"role": "source",
+			"url": "/text-assets/text-smart-packaging-cover-pack/glass@1/template.json"
+		}
+	],
 	"source": {
 		"schemaVersion": 1,
 		"assetId": "text-smart-packaging-cover-pack-glass",

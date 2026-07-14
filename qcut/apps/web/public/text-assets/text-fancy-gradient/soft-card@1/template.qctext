@@ -9,6 +9,24 @@
 		"thumbnail": "thumbnail.webp",
 		"source": "template.json"
 	},
+	"resources": [
+		{
+			"byteSize": 14884,
+			"checksumSha256": "9ccdc17b40eca9adf716339241cc3bff21c09645e941d4267b66d5fa3e406bdd",
+			"mimeType": "image/webp",
+			"path": "thumbnail.webp",
+			"role": "thumbnail",
+			"url": "/text-assets/text-fancy-gradient/soft-card@1/thumbnail.webp"
+		},
+		{
+			"byteSize": 2460,
+			"checksumSha256": "c6fee542fe73ca58734fb171b7300cc2e430e240ac069d47af448766179feaa3",
+			"mimeType": "application/json",
+			"path": "template.json",
+			"role": "source",
+			"url": "/text-assets/text-fancy-gradient/soft-card@1/template.json"
+		}
+	],
 	"source": {
 		"schemaVersion": 1,
 		"assetId": "text-fancy-gradient-soft-card",

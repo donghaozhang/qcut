@@ -9,6 +9,24 @@
 		"thumbnail": "thumbnail.webp",
 		"source": "template.json"
 	},
+	"resources": [
+		{
+			"byteSize": 14560,
+			"checksumSha256": "41f316f52991a9b28d88442b6e66100612cc656b8e6302cb4326832bebf44d95",
+			"mimeType": "image/webp",
+			"path": "thumbnail.webp",
+			"role": "thumbnail",
+			"url": "/text-assets/legacy/social-breaking@1/thumbnail.webp"
+		},
+		{
+			"byteSize": 2133,
+			"checksumSha256": "0faba78c4a2e95f422ef9b49f3bfb5a241c6c74eb923fcfe62ddabbbbbdc67e7",
+			"mimeType": "application/json",
+			"path": "template.json",
+			"role": "source",
+			"url": "/text-assets/legacy/social-breaking@1/template.json"
+		}
+	],
 	"source": {
 		"schemaVersion": 1,
 		"assetId": "text-legacy-social-breaking",

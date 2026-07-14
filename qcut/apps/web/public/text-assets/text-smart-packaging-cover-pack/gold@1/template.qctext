@@ -9,6 +9,24 @@
 		"thumbnail": "thumbnail.webp",
 		"source": "template.json"
 	},
+	"resources": [
+		{
+			"byteSize": 15902,
+			"checksumSha256": "7efd7a4156c34f5f6adde138f80db70d9877387a065ab818e82d8f1ce7a02b01",
+			"mimeType": "image/webp",
+			"path": "thumbnail.webp",
+			"role": "thumbnail",
+			"url": "/text-assets/text-smart-packaging-cover-pack/gold@1/thumbnail.webp"
+		},
+		{
+			"byteSize": 2625,
+			"checksumSha256": "8bd5dd822e975b874e6694bb3be1c0c249f6f759124705d94c1e7b707c55d0e8",
+			"mimeType": "application/json",
+			"path": "template.json",
+			"role": "source",
+			"url": "/text-assets/text-smart-packaging-cover-pack/gold@1/template.json"
+		}
+	],
 	"source": {
 		"schemaVersion": 1,
 		"assetId": "text-smart-packaging-cover-pack-gold",

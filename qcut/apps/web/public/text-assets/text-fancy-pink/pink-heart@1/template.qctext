@@ -9,6 +9,24 @@
 		"thumbnail": "thumbnail.webp",
 		"source": "template.json"
 	},
+	"resources": [
+		{
+			"byteSize": 14274,
+			"checksumSha256": "4c0e9aca4009a771231cd6d4fb6701ac20de86c6b030b65d935bd99fd3143ea6",
+			"mimeType": "image/webp",
+			"path": "thumbnail.webp",
+			"role": "thumbnail",
+			"url": "/text-assets/text-fancy-pink/pink-heart@1/thumbnail.webp"
+		},
+		{
+			"byteSize": 2438,
+			"checksumSha256": "8c9bf71dec180b739496a5ef886ffe77b4b9f7d21a42f4708a71f75ea08722fb",
+			"mimeType": "application/json",
+			"path": "template.json",
+			"role": "source",
+			"url": "/text-assets/text-fancy-pink/pink-heart@1/template.json"
+		}
+	],
 	"source": {
 		"schemaVersion": 1,
 		"assetId": "text-fancy-pink-pink-heart",

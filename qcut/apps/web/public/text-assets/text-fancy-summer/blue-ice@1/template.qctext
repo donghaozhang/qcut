@@ -9,6 +9,24 @@
 		"thumbnail": "thumbnail.webp",
 		"source": "template.json"
 	},
+	"resources": [
+		{
+			"byteSize": 15748,
+			"checksumSha256": "fcba8c4731e28e79fe0a8cb3ddbbfcf01feaac629d9d6c433ece19ab596fe3f3",
+			"mimeType": "image/webp",
+			"path": "thumbnail.webp",
+			"role": "thumbnail",
+			"url": "/text-assets/text-fancy-summer/blue-ice@1/thumbnail.webp"
+		},
+		{
+			"byteSize": 2433,
+			"checksumSha256": "18ce99429c2b6f358380a6870c83f2a7761029318b12cdffb6caad4b3af539d9",
+			"mimeType": "application/json",
+			"path": "template.json",
+			"role": "source",
+			"url": "/text-assets/text-fancy-summer/blue-ice@1/template.json"
+		}
+	],
 	"source": {
 		"schemaVersion": 1,
 		"assetId": "text-fancy-summer-blue-ice",

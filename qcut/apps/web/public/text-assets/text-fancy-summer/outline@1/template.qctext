@@ -9,6 +9,24 @@
 		"thumbnail": "thumbnail.webp",
 		"source": "template.json"
 	},
+	"resources": [
+		{
+			"byteSize": 16232,
+			"checksumSha256": "51b92bb8487a62f4aa7f93058ce775f4373390fca45c6a6c769a5570e5924a2f",
+			"mimeType": "image/webp",
+			"path": "thumbnail.webp",
+			"role": "thumbnail",
+			"url": "/text-assets/text-fancy-summer/outline@1/thumbnail.webp"
+		},
+		{
+			"byteSize": 2320,
+			"checksumSha256": "8ac8468c42fb22104d34a87e9eaf6c62f49dca04e4e0bbc019de521e6547eb25",
+			"mimeType": "application/json",
+			"path": "template.json",
+			"role": "source",
+			"url": "/text-assets/text-fancy-summer/outline@1/template.json"
+		}
+	],
 	"source": {
 		"schemaVersion": 1,
 		"assetId": "text-fancy-summer-outline",

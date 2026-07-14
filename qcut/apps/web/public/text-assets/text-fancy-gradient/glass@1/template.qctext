@@ -9,6 +9,24 @@
 		"thumbnail": "thumbnail.webp",
 		"source": "template.json"
 	},
+	"resources": [
+		{
+			"byteSize": 16378,
+			"checksumSha256": "38e491280929be45d66e993dc28963c1d229437611d0455cd752bb77bbba1604",
+			"mimeType": "image/webp",
+			"path": "thumbnail.webp",
+			"role": "thumbnail",
+			"url": "/text-assets/text-fancy-gradient/glass@1/thumbnail.webp"
+		},
+		{
+			"byteSize": 2382,
+			"checksumSha256": "079dcfd7e2d26c57a583cf3c98895d397250f6faab427a786fb2d31d067cd9cc",
+			"mimeType": "application/json",
+			"path": "template.json",
+			"role": "source",
+			"url": "/text-assets/text-fancy-gradient/glass@1/template.json"
+		}
+	],
 	"source": {
 		"schemaVersion": 1,
 		"assetId": "text-fancy-gradient-glass",

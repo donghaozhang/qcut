@@ -9,6 +9,24 @@
 		"thumbnail": "thumbnail.webp",
 		"source": "template.json"
 	},
+	"resources": [
+		{
+			"byteSize": 12732,
+			"checksumSha256": "822aea2d150e1e69dd0ee0acc2230583287ab8fbbba64a58682a0fd9864ed3cb",
+			"mimeType": "image/webp",
+			"path": "thumbnail.webp",
+			"role": "thumbnail",
+			"url": "/text-assets/legacy/social-question@1/thumbnail.webp"
+		},
+		{
+			"byteSize": 2145,
+			"checksumSha256": "6a49dbb094c88de353f982da5f4c1289b499d99f722849d85393fa034efac762",
+			"mimeType": "application/json",
+			"path": "template.json",
+			"role": "source",
+			"url": "/text-assets/legacy/social-question@1/template.json"
+		}
+	],
 	"source": {
 		"schemaVersion": 1,
 		"assetId": "text-legacy-social-question",

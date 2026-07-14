@@ -9,6 +9,24 @@
 		"thumbnail": "thumbnail.webp",
 		"source": "template.json"
 	},
+	"resources": [
+		{
+			"byteSize": 16256,
+			"checksumSha256": "18eecae13d237fbd1f2c02df5ff7b1793a0937694eb324167f7bcb11d5ca9a14",
+			"mimeType": "image/webp",
+			"path": "thumbnail.webp",
+			"role": "thumbnail",
+			"url": "/text-assets/text-fancy-pink/gradient-shine@1/thumbnail.webp"
+		},
+		{
+			"byteSize": 2548,
+			"checksumSha256": "4ce7ff67a570dff2178adc202be7e04753527dde00b360c7e8171787856b5650",
+			"mimeType": "application/json",
+			"path": "template.json",
+			"role": "source",
+			"url": "/text-assets/text-fancy-pink/gradient-shine@1/template.json"
+		}
+	],
 	"source": {
 		"schemaVersion": 1,
 		"assetId": "text-fancy-pink-gradient-shine",

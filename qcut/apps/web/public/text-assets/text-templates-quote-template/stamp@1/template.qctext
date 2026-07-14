@@ -9,6 +9,24 @@
 		"thumbnail": "thumbnail.webp",
 		"source": "template.json"
 	},
+	"resources": [
+		{
+			"byteSize": 13044,
+			"checksumSha256": "ba875c326058d3ab5e80f2cc5220f26cc2168173fb294be0feba7d667843af09",
+			"mimeType": "image/webp",
+			"path": "thumbnail.webp",
+			"role": "thumbnail",
+			"url": "/text-assets/text-templates-quote-template/stamp@1/thumbnail.webp"
+		},
+		{
+			"byteSize": 6215,
+			"checksumSha256": "7c44c93f56abd39e2c1dcc204ff303ea65324019b436f9aad562a2b90ba7ab93",
+			"mimeType": "application/json",
+			"path": "template.json",
+			"role": "source",
+			"url": "/text-assets/text-templates-quote-template/stamp@1/template.json"
+		}
+	],
 	"source": {
 		"schemaVersion": 1,
 		"assetId": "text-templates-quote-template-stamp",

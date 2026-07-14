@@ -9,6 +9,24 @@
 		"thumbnail": "thumbnail.webp",
 		"source": "template.json"
 	},
+	"resources": [
+		{
+			"byteSize": 13914,
+			"checksumSha256": "8be269f08d7d4670d88db836562f77dd05b71de4fa60cfc00bcfeb3c3f7ebdac",
+			"mimeType": "image/webp",
+			"path": "thumbnail.webp",
+			"role": "thumbnail",
+			"url": "/text-assets/text-fancy-gradient/pink-heart@1/thumbnail.webp"
+		},
+		{
+			"byteSize": 2517,
+			"checksumSha256": "de77ac95db223c40428954e2db98d1050aefeaadc0d3ad0e7de2fbda72873e61",
+			"mimeType": "application/json",
+			"path": "template.json",
+			"role": "source",
+			"url": "/text-assets/text-fancy-gradient/pink-heart@1/template.json"
+		}
+	],
 	"source": {
 		"schemaVersion": 1,
 		"assetId": "text-fancy-gradient-pink-heart",

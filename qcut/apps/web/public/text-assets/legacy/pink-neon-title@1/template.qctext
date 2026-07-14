@@ -9,6 +9,24 @@
 		"thumbnail": "thumbnail.webp",
 		"source": "template.json"
 	},
+	"resources": [
+		{
+			"byteSize": 15498,
+			"checksumSha256": "3d088fb3272e64b3e533003b23096978a7919f2eddd9f02456f0d415a7a0780d",
+			"mimeType": "image/webp",
+			"path": "thumbnail.webp",
+			"role": "thumbnail",
+			"url": "/text-assets/legacy/pink-neon-title@1/thumbnail.webp"
+		},
+		{
+			"byteSize": 2092,
+			"checksumSha256": "7897e310af62f63d9fe11c0a15f7231e4b24c2905c81a2104357efbbb8899199",
+			"mimeType": "application/json",
+			"path": "template.json",
+			"role": "source",
+			"url": "/text-assets/legacy/pink-neon-title@1/template.json"
+		}
+	],
 	"source": {
 		"schemaVersion": 1,
 		"assetId": "text-legacy-pink-neon-title",

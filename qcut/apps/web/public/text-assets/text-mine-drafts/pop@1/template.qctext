@@ -9,6 +9,24 @@
 		"thumbnail": "thumbnail.webp",
 		"source": "template.json"
 	},
+	"resources": [
+		{
+			"byteSize": 15194,
+			"checksumSha256": "06096e2991603b58162fc562c4cb60a0165ef957f69b7f99dc4f3f219e8e1718",
+			"mimeType": "image/webp",
+			"path": "thumbnail.webp",
+			"role": "thumbnail",
+			"url": "/text-assets/text-mine-drafts/pop@1/thumbnail.webp"
+		},
+		{
+			"byteSize": 2245,
+			"checksumSha256": "017483b62e55721d45ff0aecaa2095d5ac41c7ed80d14afad4ac311e25e32863",
+			"mimeType": "application/json",
+			"path": "template.json",
+			"role": "source",
+			"url": "/text-assets/text-mine-drafts/pop@1/template.json"
+		}
+	],
 	"source": {
 		"schemaVersion": 1,
 		"assetId": "text-mine-drafts-pop",

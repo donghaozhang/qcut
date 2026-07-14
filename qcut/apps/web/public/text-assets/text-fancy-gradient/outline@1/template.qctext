@@ -9,6 +9,24 @@
 		"thumbnail": "thumbnail.webp",
 		"source": "template.json"
 	},
+	"resources": [
+		{
+			"byteSize": 14462,
+			"checksumSha256": "751755c561ecec069d8c1a763ed8d1dcbd1fa360a0312092cf14f96524d6aa6a",
+			"mimeType": "image/webp",
+			"path": "thumbnail.webp",
+			"role": "thumbnail",
+			"url": "/text-assets/text-fancy-gradient/outline@1/thumbnail.webp"
+		},
+		{
+			"byteSize": 2334,
+			"checksumSha256": "4b11e7925c2ea7116552603bf6db6323f2aab7135f742e0fa95ae30100187127",
+			"mimeType": "application/json",
+			"path": "template.json",
+			"role": "source",
+			"url": "/text-assets/text-fancy-gradient/outline@1/template.json"
+		}
+	],
 	"source": {
 		"schemaVersion": 1,
 		"assetId": "text-fancy-gradient-outline",

@@ -9,6 +9,24 @@
 		"thumbnail": "thumbnail.webp",
 		"source": "template.json"
 	},
+	"resources": [
+		{
+			"byteSize": 15418,
+			"checksumSha256": "eec1271690cad7798ca1826c8a0ca14bb04a9250462c93d0eb74a4dbc6005b25",
+			"mimeType": "image/webp",
+			"path": "thumbnail.webp",
+			"role": "thumbnail",
+			"url": "/text-assets/text-smart-packaging-commerce-badge/glitch@1/thumbnail.webp"
+		},
+		{
+			"byteSize": 2765,
+			"checksumSha256": "95843278b9e5bae2ae8c3110d0596abddb04c084a61bdbac1dc6ab04641ab347",
+			"mimeType": "application/json",
+			"path": "template.json",
+			"role": "source",
+			"url": "/text-assets/text-smart-packaging-commerce-badge/glitch@1/template.json"
+		}
+	],
 	"source": {
 		"schemaVersion": 1,
 		"assetId": "text-smart-packaging-commerce-badge-glitch",

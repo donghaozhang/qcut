@@ -44,9 +44,19 @@ export interface TextTemplatePackageSource {
 	assetId: string;
 	cacheKey: string;
 	packageId: string;
+	resources?: TextTemplatePackageResourceFile[];
 	template: Partial<TextElement>;
 	templatePack?: TextTemplatePackagePackSource;
 	version: number;
+}
+
+export interface TextTemplatePackageResourceFile {
+	byteSize: number;
+	checksumSha256: string;
+	mimeType: string;
+	path: string;
+	role: Extract<AssetFileRole, "source" | "thumbnail">;
+	url: string;
 }
 
 export interface TextTemplatePackagePackSource {
@@ -248,6 +258,46 @@ function parseTextTemplatePackCopySlots({
 	});
 }
 
+function parseTextTemplatePackageResourceRole({
+	value,
+}: {
+	value: unknown;
+}): TextTemplatePackageResourceFile["role"] | undefined {
+	return value === "source" || value === "thumbnail" ? value : undefined;
+}
+
+function parseTextTemplatePackageResources({
+	value,
+}: {
+	value: unknown;
+}): TextTemplatePackageResourceFile[] | undefined {
+	if (value === undefined) return undefined;
+	if (!Array.isArray(value)) {
+		throw new Error("Invalid QCut text template package resources");
+	}
+	return value.map((resource, index) => {
+		const record = asRecord({ value: resource });
+		const role = record
+			? parseTextTemplatePackageResourceRole({ value: record.role })
+			: undefined;
+		const path = record ? stringValue({ record, key: "path" }) : undefined;
+		const url = record ? stringValue({ record, key: "url" }) : undefined;
+		const mimeType = record
+			? stringValue({ record, key: "mimeType" })
+			: undefined;
+		const byteSize = record
+			? numberValue({ record, key: "byteSize" })
+			: undefined;
+		const checksumSha256 = record
+			? stringValue({ record, key: "checksumSha256" })
+			: undefined;
+		if (!role || !path || !url || !mimeType || !byteSize || !checksumSha256) {
+			throw new Error(`Invalid QCut text template package resource ${index}`);
+		}
+		return { byteSize, checksumSha256, mimeType, path, role, url };
+	});
+}
+
 function downloadedResourceFiles({
 	resources,
 }: {
@@ -299,6 +349,9 @@ export function parseTextTemplatePackage({
 	const templatePack = parseTextTemplatePackSource({
 		value: source?.templatePack,
 	});
+	const resources = parseTextTemplatePackageResources({
+		value: root.resources,
+	});
 	const assetId = stringValue({ record: root, key: "assetId" });
 	const packageId = stringValue({ record: root, key: "packageId" });
 	const cacheKey = stringValue({ record: root, key: "cacheKey" });
@@ -306,7 +359,15 @@ export function parseTextTemplatePackage({
 	if (!assetId || !packageId || !cacheKey || !version || !template) {
 		throw new Error("Incomplete QCut text template package");
 	}
-	return { assetId, cacheKey, packageId, template, templatePack, version };
+	return {
+		assetId,
+		cacheKey,
+		packageId,
+		resources,
+		template,
+		templatePack,
+		version,
+	};
 }
 
 async function fetchText({

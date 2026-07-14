@@ -9,6 +9,24 @@
 		"thumbnail": "thumbnail.webp",
 		"source": "template.json"
 	},
+	"resources": [
+		{
+			"byteSize": 15732,
+			"checksumSha256": "39ec1a6d3eb8d3a6ee2d3b5cd5e1522f79dec882085361ca6a62084ab1f3ca45",
+			"mimeType": "image/webp",
+			"path": "thumbnail.webp",
+			"role": "thumbnail",
+			"url": "/text-assets/text-mine-brand-kit/sticker@1/thumbnail.webp"
+		},
+		{
+			"byteSize": 2471,
+			"checksumSha256": "1274ee82e86e9e2b4f23ef3f8100a0cf5dc1f7e7518275de3e12221830074cf9",
+			"mimeType": "application/json",
+			"path": "template.json",
+			"role": "source",
+			"url": "/text-assets/text-mine-brand-kit/sticker@1/template.json"
+		}
+	],
 	"source": {
 		"schemaVersion": 1,
 		"assetId": "text-mine-brand-kit-sticker",

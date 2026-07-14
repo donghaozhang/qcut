@@ -9,6 +9,24 @@
 		"thumbnail": "thumbnail.webp",
 		"source": "template.json"
 	},
+	"resources": [
+		{
+			"byteSize": 12854,
+			"checksumSha256": "47276fa4394f80355e8c853bdc93933a3a27fbfed4a8c75a1bd63ce905c28e66",
+			"mimeType": "image/webp",
+			"path": "thumbnail.webp",
+			"role": "thumbnail",
+			"url": "/text-assets/text-fancy-summer/candy@1/thumbnail.webp"
+		},
+		{
+			"byteSize": 2435,
+			"checksumSha256": "23e7d8c3e209efa5fe819bd2a9d6e5de0f641534164c9eb88ed44c8a2e54197e",
+			"mimeType": "application/json",
+			"path": "template.json",
+			"role": "source",
+			"url": "/text-assets/text-fancy-summer/candy@1/template.json"
+		}
+	],
 	"source": {
 		"schemaVersion": 1,
 		"assetId": "text-fancy-summer-candy",

@@ -9,6 +9,24 @@
 		"thumbnail": "thumbnail.webp",
 		"source": "template.json"
 	},
+	"resources": [
+		{
+			"byteSize": 15732,
+			"checksumSha256": "330a16c50e8841334874500c5623e95fb0235c0eddfbcf547fe1fe8a9128d679",
+			"mimeType": "image/webp",
+			"path": "thumbnail.webp",
+			"role": "thumbnail",
+			"url": "/text-assets/legacy/social-tip@1/thumbnail.webp"
+		},
+		{
+			"byteSize": 2056,
+			"checksumSha256": "e209ed171cdaa2edb4bbbf8d7117fd3e9d67b7ba56ff2d7ae20b878d9455bfbd",
+			"mimeType": "application/json",
+			"path": "template.json",
+			"role": "source",
+			"url": "/text-assets/legacy/social-tip@1/template.json"
+		}
+	],
 	"source": {
 		"schemaVersion": 1,
 		"assetId": "text-legacy-social-tip",

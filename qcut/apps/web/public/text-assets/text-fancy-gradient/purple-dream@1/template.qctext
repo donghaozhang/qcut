@@ -9,6 +9,24 @@
 		"thumbnail": "thumbnail.webp",
 		"source": "template.json"
 	},
+	"resources": [
+		{
+			"byteSize": 14710,
+			"checksumSha256": "0bde81348237622151899fcf0918d55212f12a1cfefcba1438dca83b6af5996e",
+			"mimeType": "image/webp",
+			"path": "thumbnail.webp",
+			"role": "thumbnail",
+			"url": "/text-assets/text-fancy-gradient/purple-dream@1/thumbnail.webp"
+		},
+		{
+			"byteSize": 2489,
+			"checksumSha256": "085cfad3d03c291cd550c9806baf495dec5992dbe66667e34406d3a871c95a09",
+			"mimeType": "application/json",
+			"path": "template.json",
+			"role": "source",
+			"url": "/text-assets/text-fancy-gradient/purple-dream@1/template.json"
+		}
+	],
 	"source": {
 		"schemaVersion": 1,
 		"assetId": "text-fancy-gradient-purple-dream",

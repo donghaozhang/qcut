@@ -9,6 +9,24 @@
 		"thumbnail": "thumbnail.webp",
 		"source": "template.json"
 	},
+	"resources": [
+		{
+			"byteSize": 15736,
+			"checksumSha256": "9da1b3b8ccfc50c78d1a6dfacfc08b6638bf5c19399313724d03d940980f21e9",
+			"mimeType": "image/webp",
+			"path": "thumbnail.webp",
+			"role": "thumbnail",
+			"url": "/text-assets/legacy/social-hook@1/thumbnail.webp"
+		},
+		{
+			"byteSize": 2149,
+			"checksumSha256": "1572ac2fc0595f6a56eda680483fc64652d1e762668de21838f2d3a8760635bc",
+			"mimeType": "application/json",
+			"path": "template.json",
+			"role": "source",
+			"url": "/text-assets/legacy/social-hook@1/template.json"
+		}
+	],
 	"source": {
 		"schemaVersion": 1,
 		"assetId": "text-legacy-social-hook",

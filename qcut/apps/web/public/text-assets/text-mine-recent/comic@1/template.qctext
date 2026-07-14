@@ -9,6 +9,24 @@
 		"thumbnail": "thumbnail.webp",
 		"source": "template.json"
 	},
+	"resources": [
+		{
+			"byteSize": 22074,
+			"checksumSha256": "7b9166d87bf463315ba7d123a83f0a2a7d44824164442f916951bc87a198fcf6",
+			"mimeType": "image/webp",
+			"path": "thumbnail.webp",
+			"role": "thumbnail",
+			"url": "/text-assets/text-mine-recent/comic@1/thumbnail.webp"
+		},
+		{
+			"byteSize": 2463,
+			"checksumSha256": "4e2e1fb00f37bef1bf51bd3d3c3e48956ec1c9bb07ac719ad046e20ec2c82d8c",
+			"mimeType": "application/json",
+			"path": "template.json",
+			"role": "source",
+			"url": "/text-assets/text-mine-recent/comic@1/template.json"
+		}
+	],
 	"source": {
 		"schemaVersion": 1,
 		"assetId": "text-mine-recent-comic",

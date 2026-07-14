@@ -9,6 +9,24 @@
 		"thumbnail": "thumbnail.webp",
 		"source": "template.json"
 	},
+	"resources": [
+		{
+			"byteSize": 14316,
+			"checksumSha256": "82e50baae5a134ab3b04ff010050fca49411b5a3acd6c23e540eb7b53081608b",
+			"mimeType": "image/webp",
+			"path": "thumbnail.webp",
+			"role": "thumbnail",
+			"url": "/text-assets/text-mine-brand-kit/stamp@1/thumbnail.webp"
+		},
+		{
+			"byteSize": 2272,
+			"checksumSha256": "6b9ba798d0d4624fa6a522592a19551b8ec908971a672bf3a2cd7ff841529c93",
+			"mimeType": "application/json",
+			"path": "template.json",
+			"role": "source",
+			"url": "/text-assets/text-mine-brand-kit/stamp@1/template.json"
+		}
+	],
 	"source": {
 		"schemaVersion": 1,
 		"assetId": "text-mine-brand-kit-stamp",

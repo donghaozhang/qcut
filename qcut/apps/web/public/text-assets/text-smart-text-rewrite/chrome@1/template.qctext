@@ -9,6 +9,24 @@
 		"thumbnail": "thumbnail.webp",
 		"source": "template.json"
 	},
+	"resources": [
+		{
+			"byteSize": 10100,
+			"checksumSha256": "ccac30aacf215982333cf9c2dbc0054141bc7aef1aff262f55cf05dc8e4a4c4f",
+			"mimeType": "image/webp",
+			"path": "thumbnail.webp",
+			"role": "thumbnail",
+			"url": "/text-assets/text-smart-text-rewrite/chrome@1/thumbnail.webp"
+		},
+		{
+			"byteSize": 2536,
+			"checksumSha256": "37d4f848dd4db1a34c06c16f706b1020ead584ccd631f95c223e5892b7928761",
+			"mimeType": "application/json",
+			"path": "template.json",
+			"role": "source",
+			"url": "/text-assets/text-smart-text-rewrite/chrome@1/template.json"
+		}
+	],
 	"source": {
 		"schemaVersion": 1,
 		"assetId": "text-smart-text-rewrite-chrome",

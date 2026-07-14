@@ -9,6 +9,24 @@
 		"thumbnail": "thumbnail.webp",
 		"source": "template.json"
 	},
+	"resources": [
+		{
+			"byteSize": 16224,
+			"checksumSha256": "6d6278072ceeabd78a18a5b4a2d336d8b11b56530c98a932746c3d52757e2296",
+			"mimeType": "image/webp",
+			"path": "thumbnail.webp",
+			"role": "thumbnail",
+			"url": "/text-assets/text-fancy-summer/gradient-shine@1/thumbnail.webp"
+		},
+		{
+			"byteSize": 2589,
+			"checksumSha256": "31f6d079330037484963f42d374da310ffc7f132198d8ebbb664d5698fac2ebc",
+			"mimeType": "application/json",
+			"path": "template.json",
+			"role": "source",
+			"url": "/text-assets/text-fancy-summer/gradient-shine@1/template.json"
+		}
+	],
 	"source": {
 		"schemaVersion": 1,
 		"assetId": "text-fancy-summer-gradient-shine",

@@ -9,6 +9,24 @@
 		"thumbnail": "thumbnail.webp",
 		"source": "template.json"
 	},
+	"resources": [
+		{
+			"byteSize": 14102,
+			"checksumSha256": "cff4ecade0f6c09ee73fb5c91bfac20b87c7ac6fdcaaaa924affddc64d6821f5",
+			"mimeType": "image/webp",
+			"path": "thumbnail.webp",
+			"role": "thumbnail",
+			"url": "/text-assets/text-smart-packaging-talking-head/candy@1/thumbnail.webp"
+		},
+		{
+			"byteSize": 2632,
+			"checksumSha256": "825c6f7a50b32f83b1921c52bfc401889f7477289b30a86cf00fcc9af8ca1baf",
+			"mimeType": "application/json",
+			"path": "template.json",
+			"role": "source",
+			"url": "/text-assets/text-smart-packaging-talking-head/candy@1/template.json"
+		}
+	],
 	"source": {
 		"schemaVersion": 1,
 		"assetId": "text-smart-packaging-talking-head-candy",

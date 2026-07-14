@@ -9,6 +9,24 @@
 		"thumbnail": "thumbnail.webp",
 		"source": "template.json"
 	},
+	"resources": [
+		{
+			"byteSize": 15572,
+			"checksumSha256": "12ee71d5579b68c5f5b222f5a95fa11f97f7287bdf4e42706f9177f84edd4558",
+			"mimeType": "image/webp",
+			"path": "thumbnail.webp",
+			"role": "thumbnail",
+			"url": "/text-assets/text-fancy-blue/glass@1/thumbnail.webp"
+		},
+		{
+			"byteSize": 2354,
+			"checksumSha256": "8fc4458f6f463afd9cf9b1ed5470d5e3c184a32d06b5d726986b2e85949aa2ba",
+			"mimeType": "application/json",
+			"path": "template.json",
+			"role": "source",
+			"url": "/text-assets/text-fancy-blue/glass@1/template.json"
+		}
+	],
 	"source": {
 		"schemaVersion": 1,
 		"assetId": "text-fancy-blue-glass",

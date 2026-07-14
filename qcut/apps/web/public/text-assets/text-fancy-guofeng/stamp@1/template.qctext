@@ -9,6 +9,24 @@
 		"thumbnail": "thumbnail.webp",
 		"source": "template.json"
 	},
+	"resources": [
+		{
+			"byteSize": 16150,
+			"checksumSha256": "42e287e18fa5a8c2fdcb95992c1f61e7d40c285b54e80b1f42f3efb21d88b94b",
+			"mimeType": "image/webp",
+			"path": "thumbnail.webp",
+			"role": "thumbnail",
+			"url": "/text-assets/text-fancy-guofeng/stamp@1/thumbnail.webp"
+		},
+		{
+			"byteSize": 2318,
+			"checksumSha256": "b1479aa50d9b44ca2e5240cffca9c795d8e1e37dab427e1ac8ed08db5d59b6e4",
+			"mimeType": "application/json",
+			"path": "template.json",
+			"role": "source",
+			"url": "/text-assets/text-fancy-guofeng/stamp@1/template.json"
+		}
+	],
 	"source": {
 		"schemaVersion": 1,
 		"assetId": "text-fancy-guofeng-stamp",

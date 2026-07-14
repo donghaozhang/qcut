@@ -9,6 +9,24 @@
 		"thumbnail": "thumbnail.webp",
 		"source": "template.json"
 	},
+	"resources": [
+		{
+			"byteSize": 16032,
+			"checksumSha256": "da85649bb6c24043a4a38a564144ac9f4445437dbf77374fe54a9ce3d8dda1d6",
+			"mimeType": "image/webp",
+			"path": "thumbnail.webp",
+			"role": "thumbnail",
+			"url": "/text-assets/text-smart-text-key-point/sticker@1/thumbnail.webp"
+		},
+		{
+			"byteSize": 2651,
+			"checksumSha256": "988e6011d72b197ad1469ccd7a1a876399bd8633656256f97d8f47eab052edd7",
+			"mimeType": "application/json",
+			"path": "template.json",
+			"role": "source",
+			"url": "/text-assets/text-smart-text-key-point/sticker@1/template.json"
+		}
+	],
 	"source": {
 		"schemaVersion": 1,
 		"assetId": "text-smart-text-key-point-sticker",

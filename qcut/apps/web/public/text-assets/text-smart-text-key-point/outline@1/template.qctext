@@ -9,6 +9,24 @@
 		"thumbnail": "thumbnail.webp",
 		"source": "template.json"
 	},
+	"resources": [
+		{
+			"byteSize": 15008,
+			"checksumSha256": "8dbd4db4678ce85ac6baad85ba1d2dbf156541e2af0bdcd918f67f7322a7716b",
+			"mimeType": "image/webp",
+			"path": "thumbnail.webp",
+			"role": "thumbnail",
+			"url": "/text-assets/text-smart-text-key-point/outline@1/thumbnail.webp"
+		},
+		{
+			"byteSize": 2436,
+			"checksumSha256": "da53abf0a80e2e22a751a91e4b242847406867a18062e8c48ceae2be5406babd",
+			"mimeType": "application/json",
+			"path": "template.json",
+			"role": "source",
+			"url": "/text-assets/text-smart-text-key-point/outline@1/template.json"
+		}
+	],
 	"source": {
 		"schemaVersion": 1,
 		"assetId": "text-smart-text-key-point-outline",

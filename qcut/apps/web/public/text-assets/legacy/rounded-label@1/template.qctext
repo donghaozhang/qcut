@@ -9,6 +9,24 @@
 		"thumbnail": "thumbnail.webp",
 		"source": "template.json"
 	},
+	"resources": [
+		{
+			"byteSize": 15794,
+			"checksumSha256": "4aaaed961bf58dea3c0926f6b480acb5c6e91ef50f0959c0e47ff2a02dba3b6b",
+			"mimeType": "image/webp",
+			"path": "thumbnail.webp",
+			"role": "thumbnail",
+			"url": "/text-assets/legacy/rounded-label@1/thumbnail.webp"
+		},
+		{
+			"byteSize": 2037,
+			"checksumSha256": "c09655e07a3af4d6495d6e4297999f608117b805ec2d2ae9a220c829c8ff8b15",
+			"mimeType": "application/json",
+			"path": "template.json",
+			"role": "source",
+			"url": "/text-assets/legacy/rounded-label@1/template.json"
+		}
+	],
 	"source": {
 		"schemaVersion": 1,
 		"assetId": "text-legacy-rounded-label",

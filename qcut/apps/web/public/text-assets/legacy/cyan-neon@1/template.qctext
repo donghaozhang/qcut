@@ -9,6 +9,24 @@
 		"thumbnail": "thumbnail.webp",
 		"source": "template.json"
 	},
+	"resources": [
+		{
+			"byteSize": 15378,
+			"checksumSha256": "99f7e92ffa99f6681a7e7ed1cb51969886744da3a814158fa6de714d614de4c6",
+			"mimeType": "image/webp",
+			"path": "thumbnail.webp",
+			"role": "thumbnail",
+			"url": "/text-assets/legacy/cyan-neon@1/thumbnail.webp"
+		},
+		{
+			"byteSize": 2054,
+			"checksumSha256": "bbd4059f1a53a5c56fe7da52fb0cc02e001d488115c6ea7e181eec330fee27c3",
+			"mimeType": "application/json",
+			"path": "template.json",
+			"role": "source",
+			"url": "/text-assets/legacy/cyan-neon@1/template.json"
+		}
+	],
 	"source": {
 		"schemaVersion": 1,
 		"assetId": "text-legacy-cyan-neon",

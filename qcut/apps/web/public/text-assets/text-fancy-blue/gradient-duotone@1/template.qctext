@@ -9,6 +9,24 @@
 		"thumbnail": "thumbnail.webp",
 		"source": "template.json"
 	},
+	"resources": [
+		{
+			"byteSize": 14040,
+			"checksumSha256": "456ffa76f769f3718f9244881dfc7c66369c043f219e8dfc1770013e68f3e4e6",
+			"mimeType": "image/webp",
+			"path": "thumbnail.webp",
+			"role": "thumbnail",
+			"url": "/text-assets/text-fancy-blue/gradient-duotone@1/thumbnail.webp"
+		},
+		{
+			"byteSize": 2488,
+			"checksumSha256": "e11a665159f684ffc24e2971c6db262f7c99e47ad5b7f96c48b6c3533918e53d",
+			"mimeType": "application/json",
+			"path": "template.json",
+			"role": "source",
+			"url": "/text-assets/text-fancy-blue/gradient-duotone@1/template.json"
+		}
+	],
 	"source": {
 		"schemaVersion": 1,
 		"assetId": "text-fancy-blue-gradient-duotone",

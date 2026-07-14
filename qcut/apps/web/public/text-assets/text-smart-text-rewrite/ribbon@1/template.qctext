@@ -9,6 +9,24 @@
 		"thumbnail": "thumbnail.webp",
 		"source": "template.json"
 	},
+	"resources": [
+		{
+			"byteSize": 15832,
+			"checksumSha256": "12d4816a57edc939b10af2a7964fb930ef4bdada5901ddde680203c7dbb24953",
+			"mimeType": "image/webp",
+			"path": "thumbnail.webp",
+			"role": "thumbnail",
+			"url": "/text-assets/text-smart-text-rewrite/ribbon@1/thumbnail.webp"
+		},
+		{
+			"byteSize": 2376,
+			"checksumSha256": "f173e96d83ff9d34144c300290dbd0a2672cae378cc184c739a130702d5fcf3b",
+			"mimeType": "application/json",
+			"path": "template.json",
+			"role": "source",
+			"url": "/text-assets/text-smart-text-rewrite/ribbon@1/template.json"
+		}
+	],
 	"source": {
 		"schemaVersion": 1,
 		"assetId": "text-smart-text-rewrite-ribbon",

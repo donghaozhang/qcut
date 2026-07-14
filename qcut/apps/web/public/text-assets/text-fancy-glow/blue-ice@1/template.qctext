@@ -9,6 +9,24 @@
 		"thumbnail": "thumbnail.webp",
 		"source": "template.json"
 	},
+	"resources": [
+		{
+			"byteSize": 16226,
+			"checksumSha256": "de26b49763264d8f32df863ce17df4af5af8175f997f737f631a080d8e7ff4b6",
+			"mimeType": "image/webp",
+			"path": "thumbnail.webp",
+			"role": "thumbnail",
+			"url": "/text-assets/text-fancy-glow/blue-ice@1/thumbnail.webp"
+		},
+		{
+			"byteSize": 2382,
+			"checksumSha256": "372e457697bdd0ee7452badd8a95f951bf882d1bb84a7c62317121c3f8c7c21d",
+			"mimeType": "application/json",
+			"path": "template.json",
+			"role": "source",
+			"url": "/text-assets/text-fancy-glow/blue-ice@1/template.json"
+		}
+	],
 	"source": {
 		"schemaVersion": 1,
 		"assetId": "text-fancy-glow-blue-ice",

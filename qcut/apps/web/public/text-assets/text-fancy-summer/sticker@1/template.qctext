@@ -9,6 +9,24 @@
 		"thumbnail": "thumbnail.webp",
 		"source": "template.json"
 	},
+	"resources": [
+		{
+			"byteSize": 17416,
+			"checksumSha256": "c17ea27ab20d651b32408c6bcd292dd4b2a7bf3296a1b9382888f6a4b8936d4d",
+			"mimeType": "image/webp",
+			"path": "thumbnail.webp",
+			"role": "thumbnail",
+			"url": "/text-assets/text-fancy-summer/sticker@1/thumbnail.webp"
+		},
+		{
+			"byteSize": 2537,
+			"checksumSha256": "01460a5eaa61a833fdd866141e70227016cca368422426f558bb3fc44a0d6687",
+			"mimeType": "application/json",
+			"path": "template.json",
+			"role": "source",
+			"url": "/text-assets/text-fancy-summer/sticker@1/template.json"
+		}
+	],
 	"source": {
 		"schemaVersion": 1,
 		"assetId": "text-fancy-summer-sticker",

@@ -9,6 +9,24 @@
 		"thumbnail": "thumbnail.webp",
 		"source": "template.json"
 	},
+	"resources": [
+		{
+			"byteSize": 15418,
+			"checksumSha256": "f2b1c242bbbec6be07b0678f80a617b31529b7addcc2ed556d192488f94af55f",
+			"mimeType": "image/webp",
+			"path": "thumbnail.webp",
+			"role": "thumbnail",
+			"url": "/text-assets/text-fancy-pink/purple-dream@1/thumbnail.webp"
+		},
+		{
+			"byteSize": 2434,
+			"checksumSha256": "d379f06e0e95cbabe7c67df1c1c0b6a3dd5b025543f39b1c29d4561006a1321d",
+			"mimeType": "application/json",
+			"path": "template.json",
+			"role": "source",
+			"url": "/text-assets/text-fancy-pink/purple-dream@1/template.json"
+		}
+	],
 	"source": {
 		"schemaVersion": 1,
 		"assetId": "text-fancy-pink-purple-dream",

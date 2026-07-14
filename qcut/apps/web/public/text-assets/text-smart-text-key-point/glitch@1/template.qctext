@@ -9,6 +9,24 @@
 		"thumbnail": "thumbnail.webp",
 		"source": "template.json"
 	},
+	"resources": [
+		{
+			"byteSize": 13230,
+			"checksumSha256": "0630f8ec621111e171e849e19a3deae10df521adbce3c53359dbca4155c93a1d",
+			"mimeType": "image/webp",
+			"path": "thumbnail.webp",
+			"role": "thumbnail",
+			"url": "/text-assets/text-smart-text-key-point/glitch@1/thumbnail.webp"
+		},
+		{
+			"byteSize": 2632,
+			"checksumSha256": "fc069fd65d28707446e70e4ef89f9624f3d60a16a80966e4e4a7e4e140b06fa0",
+			"mimeType": "application/json",
+			"path": "template.json",
+			"role": "source",
+			"url": "/text-assets/text-smart-text-key-point/glitch@1/template.json"
+		}
+	],
 	"source": {
 		"schemaVersion": 1,
 		"assetId": "text-smart-text-key-point-glitch",

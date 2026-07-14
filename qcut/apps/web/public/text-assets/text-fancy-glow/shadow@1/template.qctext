@@ -9,6 +9,24 @@
 		"thumbnail": "thumbnail.webp",
 		"source": "template.json"
 	},
+	"resources": [
+		{
+			"byteSize": 15362,
+			"checksumSha256": "5394d1bd7955d3858a53e36564af20773d97f2c410e4490e5823bbe6998e4a32",
+			"mimeType": "image/webp",
+			"path": "thumbnail.webp",
+			"role": "thumbnail",
+			"url": "/text-assets/text-fancy-glow/shadow@1/thumbnail.webp"
+		},
+		{
+			"byteSize": 2273,
+			"checksumSha256": "695b399f865b663fa655ca09d05ccfcd4623efad3b4cee129060becb180ce511",
+			"mimeType": "application/json",
+			"path": "template.json",
+			"role": "source",
+			"url": "/text-assets/text-fancy-glow/shadow@1/template.json"
+		}
+	],
 	"source": {
 		"schemaVersion": 1,
 		"assetId": "text-fancy-glow-shadow",

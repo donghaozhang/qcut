@@ -9,6 +9,24 @@
 		"thumbnail": "thumbnail.webp",
 		"source": "template.json"
 	},
+	"resources": [
+		{
+			"byteSize": 16520,
+			"checksumSha256": "6f1f536973ce98d4990aa3f27195a1445a717d9f47d767985a4ee834a65a73b3",
+			"mimeType": "image/webp",
+			"path": "thumbnail.webp",
+			"role": "thumbnail",
+			"url": "/text-assets/text-fancy-summer/bubble@1/thumbnail.webp"
+		},
+		{
+			"byteSize": 2426,
+			"checksumSha256": "279116c51578b7aa9a365361e3ebab4954df596ac2b1db209528d2445cde36be",
+			"mimeType": "application/json",
+			"path": "template.json",
+			"role": "source",
+			"url": "/text-assets/text-fancy-summer/bubble@1/template.json"
+		}
+	],
 	"source": {
 		"schemaVersion": 1,
 		"assetId": "text-fancy-summer-bubble",

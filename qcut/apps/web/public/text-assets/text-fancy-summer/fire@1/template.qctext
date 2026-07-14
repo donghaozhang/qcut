@@ -9,6 +9,24 @@
 		"thumbnail": "thumbnail.webp",
 		"source": "template.json"
 	},
+	"resources": [
+		{
+			"byteSize": 17280,
+			"checksumSha256": "c7cb8d115ab44b53b33dd2bb4d8d2050170ac94eb33bf8fa39ea8ec76025f970",
+			"mimeType": "image/webp",
+			"path": "thumbnail.webp",
+			"role": "thumbnail",
+			"url": "/text-assets/text-fancy-summer/fire@1/thumbnail.webp"
+		},
+		{
+			"byteSize": 2470,
+			"checksumSha256": "fa89c913a1bc973e813cad9baa912df88fbbf7fedc88abab0412a7f57b6e4509",
+			"mimeType": "application/json",
+			"path": "template.json",
+			"role": "source",
+			"url": "/text-assets/text-fancy-summer/fire@1/template.json"
+		}
+	],
 	"source": {
 		"schemaVersion": 1,
 		"assetId": "text-fancy-summer-fire",

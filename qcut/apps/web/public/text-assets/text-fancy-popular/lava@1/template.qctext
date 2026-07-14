@@ -9,6 +9,24 @@
 		"thumbnail": "thumbnail.webp",
 		"source": "template.json"
 	},
+	"resources": [
+		{
+			"byteSize": 17538,
+			"checksumSha256": "df12514664a99d39ef9af38cb78ad27c0712951517d571dd91a42b29212eaf46",
+			"mimeType": "image/webp",
+			"path": "thumbnail.webp",
+			"role": "thumbnail",
+			"url": "/text-assets/text-fancy-popular/lava@1/thumbnail.webp"
+		},
+		{
+			"byteSize": 2508,
+			"checksumSha256": "6974db1f2785637a5acc318b31ca69b744ef31e301f4d1ae229245ffdd2fa59c",
+			"mimeType": "application/json",
+			"path": "template.json",
+			"role": "source",
+			"url": "/text-assets/text-fancy-popular/lava@1/template.json"
+		}
+	],
 	"source": {
 		"schemaVersion": 1,
 		"assetId": "text-fancy-popular-lava",

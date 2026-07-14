@@ -9,6 +9,24 @@
 		"thumbnail": "thumbnail.webp",
 		"source": "template.json"
 	},
+	"resources": [
+		{
+			"byteSize": 14408,
+			"checksumSha256": "73cf468644382d6af15bad5e002864305559a61b111c1ef75d42665c64d2324f",
+			"mimeType": "image/webp",
+			"path": "thumbnail.webp",
+			"role": "thumbnail",
+			"url": "/text-assets/text-smart-text-subtitle-title/glitch@1/thumbnail.webp"
+		},
+		{
+			"byteSize": 2725,
+			"checksumSha256": "13b00ab7a5bc358ab7aa02c61f8aad8fc09b229042218cd673454b01be6b0333",
+			"mimeType": "application/json",
+			"path": "template.json",
+			"role": "source",
+			"url": "/text-assets/text-smart-text-subtitle-title/glitch@1/template.json"
+		}
+	],
 	"source": {
 		"schemaVersion": 1,
 		"assetId": "text-smart-text-subtitle-title-glitch",

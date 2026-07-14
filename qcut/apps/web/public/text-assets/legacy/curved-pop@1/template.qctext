@@ -9,6 +9,24 @@
 		"thumbnail": "thumbnail.webp",
 		"source": "template.json"
 	},
+	"resources": [
+		{
+			"byteSize": 15938,
+			"checksumSha256": "7e5e3e12017d088dd8c55c0eb37a0705d925138416220061986efedb1f217411",
+			"mimeType": "image/webp",
+			"path": "thumbnail.webp",
+			"role": "thumbnail",
+			"url": "/text-assets/legacy/curved-pop@1/thumbnail.webp"
+		},
+		{
+			"byteSize": 2127,
+			"checksumSha256": "efbdf31ba7ce6cc8ec8147db35e6cd754d40bf16c477cf4bb8a6b67f7debf8fe",
+			"mimeType": "application/json",
+			"path": "template.json",
+			"role": "source",
+			"url": "/text-assets/legacy/curved-pop@1/template.json"
+		}
+	],
 	"source": {
 		"schemaVersion": 1,
 		"assetId": "text-legacy-curved-pop",

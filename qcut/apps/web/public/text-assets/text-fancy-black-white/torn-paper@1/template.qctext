@@ -9,6 +9,24 @@
 		"thumbnail": "thumbnail.webp",
 		"source": "template.json"
 	},
+	"resources": [
+		{
+			"byteSize": 12552,
+			"checksumSha256": "17605040508f7b0fec79c9a2be457c95cb97631b598ab1ea994e9febd92872b6",
+			"mimeType": "image/webp",
+			"path": "thumbnail.webp",
+			"role": "thumbnail",
+			"url": "/text-assets/text-fancy-black-white/torn-paper@1/thumbnail.webp"
+		},
+		{
+			"byteSize": 2630,
+			"checksumSha256": "6aa63b193cc3d84348372d772658375aa410249385237e2776679af905f64a12",
+			"mimeType": "application/json",
+			"path": "template.json",
+			"role": "source",
+			"url": "/text-assets/text-fancy-black-white/torn-paper@1/template.json"
+		}
+	],
 	"source": {
 		"schemaVersion": 1,
 		"assetId": "text-fancy-black-white-torn-paper",

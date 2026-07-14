@@ -9,6 +9,24 @@
 		"thumbnail": "thumbnail.webp",
 		"source": "template.json"
 	},
+	"resources": [
+		{
+			"byteSize": 17540,
+			"checksumSha256": "773ef71456f745bce57c0df60e06446750d3be171e1e0e2f0e854cc74f9ad5fb",
+			"mimeType": "image/webp",
+			"path": "thumbnail.webp",
+			"role": "thumbnail",
+			"url": "/text-assets/text-smart-packaging-talking-head/gold@1/thumbnail.webp"
+		},
+		{
+			"byteSize": 2653,
+			"checksumSha256": "e836bc5b9ed2a43e880c33fe753118d51a969adcf15be2ded815ea060e3facbb",
+			"mimeType": "application/json",
+			"path": "template.json",
+			"role": "source",
+			"url": "/text-assets/text-smart-packaging-talking-head/gold@1/template.json"
+		}
+	],
 	"source": {
 		"schemaVersion": 1,
 		"assetId": "text-smart-packaging-talking-head-gold",

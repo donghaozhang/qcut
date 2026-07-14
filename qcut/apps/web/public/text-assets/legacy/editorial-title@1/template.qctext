@@ -9,6 +9,24 @@
 		"thumbnail": "thumbnail.webp",
 		"source": "template.json"
 	},
+	"resources": [
+		{
+			"byteSize": 15878,
+			"checksumSha256": "8c144e37cd0c7cdfb69cf5f058cd7e19e4002bea3d6bc7502a1064e1648a8b2f",
+			"mimeType": "image/webp",
+			"path": "thumbnail.webp",
+			"role": "thumbnail",
+			"url": "/text-assets/legacy/editorial-title@1/thumbnail.webp"
+		},
+		{
+			"byteSize": 2030,
+			"checksumSha256": "d778bcf4f8f2efda2fcb480a9dc9a50af0845f715c74236198e9fb3188d3b856",
+			"mimeType": "application/json",
+			"path": "template.json",
+			"role": "source",
+			"url": "/text-assets/legacy/editorial-title@1/template.json"
+		}
+	],
 	"source": {
 		"schemaVersion": 1,
 		"assetId": "text-legacy-editorial-title",

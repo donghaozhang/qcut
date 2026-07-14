@@ -9,6 +9,24 @@
 		"thumbnail": "thumbnail.webp",
 		"source": "template.json"
 	},
+	"resources": [
+		{
+			"byteSize": 17356,
+			"checksumSha256": "bf6d8ce96d550429ed998d1b65a32b409905ee72c6958eab0e42c2f034f2b2f9",
+			"mimeType": "image/webp",
+			"path": "thumbnail.webp",
+			"role": "thumbnail",
+			"url": "/text-assets/text-fancy-variety/sticker@1/thumbnail.webp"
+		},
+		{
+			"byteSize": 2546,
+			"checksumSha256": "4c5b30c4ae88e1f0cd2c24b621f4e2cd0e694ab2a674e2d7be3e377d5612f2e7",
+			"mimeType": "application/json",
+			"path": "template.json",
+			"role": "source",
+			"url": "/text-assets/text-fancy-variety/sticker@1/template.json"
+		}
+	],
 	"source": {
 		"schemaVersion": 1,
 		"assetId": "text-fancy-variety-sticker",

@@ -106,14 +106,36 @@ async function localTextAssetResponse({
 function packageText({
 	content = "Package content",
 	definition,
+	includeResources = false,
 	includeTemplatePack = false,
 }: {
 	content?: string;
 	definition: TextTemplateDefinition;
+	includeResources?: boolean;
 	includeTemplatePack?: boolean;
 }): string {
 	const resource = definition.resource;
 	if (!resource) throw new Error("Expected text definition resource");
+	const resources = includeResources
+		? [
+				{
+					byteSize: 184,
+					checksumSha256: checksum({ value: "t".repeat(184) }),
+					mimeType: "image/webp",
+					path: "thumbnail.webp",
+					role: "thumbnail",
+					url: `${resource.cacheKey}/thumbnail.webp`,
+				},
+				{
+					byteSize: 1024,
+					checksumSha256: checksum({ value: "s".repeat(1024) }),
+					mimeType: "application/json",
+					path: "template.json",
+					role: "source",
+					url: `${resource.cacheKey}/template.json`,
+				},
+			]
+		: undefined;
 	const templatePack = includeTemplatePack
 		? {
 				id: `pack-${definition.id}`,
@@ -176,6 +198,7 @@ function packageText({
 			thumbnail: "thumbnail.webp",
 			source: "template.json",
 		},
+		resources,
 		source: {
 			schemaVersion: 1,
 			assetId: resource.assetId,
@@ -583,6 +606,39 @@ describe("downloadTextTemplateResource", () => {
 				type: "text",
 			},
 			version: 1,
+		});
+	});
+
+	it("parses qctext package companion resource manifests", () => {
+		const definition = textDefinition();
+
+		expect(
+			parseTextTemplatePackage({
+				text: packageText({
+					content: "Cached package",
+					definition,
+					includeResources: true,
+				}),
+			})
+		).toMatchObject({
+			resources: [
+				{
+					byteSize: 184,
+					checksumSha256: checksum({ value: "t".repeat(184) }),
+					mimeType: "image/webp",
+					path: "thumbnail.webp",
+					role: "thumbnail",
+					url: "text-assets/package-remote-resource-test/plain@1/thumbnail.webp",
+				},
+				{
+					byteSize: 1024,
+					checksumSha256: checksum({ value: "s".repeat(1024) }),
+					mimeType: "application/json",
+					path: "template.json",
+					role: "source",
+					url: "text-assets/package-remote-resource-test/plain@1/template.json",
+				},
+			],
 		});
 	});
 

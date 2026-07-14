@@ -9,6 +9,24 @@
 		"thumbnail": "thumbnail.webp",
 		"source": "template.json"
 	},
+	"resources": [
+		{
+			"byteSize": 16058,
+			"checksumSha256": "5df2499e73fa4aedeafd3d45405fb31f851d23c82536802aa3969ef2b4489f3e",
+			"mimeType": "image/webp",
+			"path": "thumbnail.webp",
+			"role": "thumbnail",
+			"url": "/text-assets/text-fancy-guofeng/glass@1/thumbnail.webp"
+		},
+		{
+			"byteSize": 2361,
+			"checksumSha256": "90c041231fc4e61513a2acb0a7b7b6b664c90eca29bd4dfae64084b61956908c",
+			"mimeType": "application/json",
+			"path": "template.json",
+			"role": "source",
+			"url": "/text-assets/text-fancy-guofeng/glass@1/template.json"
+		}
+	],
 	"source": {
 		"schemaVersion": 1,
 		"assetId": "text-fancy-guofeng-glass",

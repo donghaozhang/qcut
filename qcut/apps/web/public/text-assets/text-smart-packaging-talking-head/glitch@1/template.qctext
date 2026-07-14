@@ -9,6 +9,24 @@
 		"thumbnail": "thumbnail.webp",
 		"source": "template.json"
 	},
+	"resources": [
+		{
+			"byteSize": 16652,
+			"checksumSha256": "c67d60eacc65ffe127fb17c4cf09fc15b720e9870062855665b3d69a2ce85ecc",
+			"mimeType": "image/webp",
+			"path": "thumbnail.webp",
+			"role": "thumbnail",
+			"url": "/text-assets/text-smart-packaging-talking-head/glitch@1/thumbnail.webp"
+		},
+		{
+			"byteSize": 2721,
+			"checksumSha256": "b547fd439163fd32a7000393ed912c91cb14a253e3f70fb36452e3f3fa786fcb",
+			"mimeType": "application/json",
+			"path": "template.json",
+			"role": "source",
+			"url": "/text-assets/text-smart-packaging-talking-head/glitch@1/template.json"
+		}
+	],
 	"source": {
 		"schemaVersion": 1,
 		"assetId": "text-smart-packaging-talking-head-glitch",

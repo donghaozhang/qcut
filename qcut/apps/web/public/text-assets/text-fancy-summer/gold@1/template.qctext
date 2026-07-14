@@ -9,6 +9,24 @@
 		"thumbnail": "thumbnail.webp",
 		"source": "template.json"
 	},
+	"resources": [
+		{
+			"byteSize": 15764,
+			"checksumSha256": "45af4213c65b3ff363d01541f1fbcee9811967f26cbee3682795aebcfedba8dd",
+			"mimeType": "image/webp",
+			"path": "thumbnail.webp",
+			"role": "thumbnail",
+			"url": "/text-assets/text-fancy-summer/gold@1/thumbnail.webp"
+		},
+		{
+			"byteSize": 2456,
+			"checksumSha256": "de76ebc506ea10a40632ac7d1f8950da3adc16ce5ed71344a2b05a1cd566d83d",
+			"mimeType": "application/json",
+			"path": "template.json",
+			"role": "source",
+			"url": "/text-assets/text-fancy-summer/gold@1/template.json"
+		}
+	],
 	"source": {
 		"schemaVersion": 1,
 		"assetId": "text-fancy-summer-gold",

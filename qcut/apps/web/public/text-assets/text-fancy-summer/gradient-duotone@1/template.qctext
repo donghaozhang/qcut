@@ -9,6 +9,24 @@
 		"thumbnail": "thumbnail.webp",
 		"source": "template.json"
 	},
+	"resources": [
+		{
+			"byteSize": 14328,
+			"checksumSha256": "3f40657472e2d588d2b9808b84c15050ef8e024ff47e68b75801509e886a5f9f",
+			"mimeType": "image/webp",
+			"path": "thumbnail.webp",
+			"role": "thumbnail",
+			"url": "/text-assets/text-fancy-summer/gradient-duotone@1/thumbnail.webp"
+		},
+		{
+			"byteSize": 2502,
+			"checksumSha256": "52205182ef1ae3527e6864ec4ec7ea6a5b3c875417cc706772645829474b6848",
+			"mimeType": "application/json",
+			"path": "template.json",
+			"role": "source",
+			"url": "/text-assets/text-fancy-summer/gradient-duotone@1/template.json"
+		}
+	],
 	"source": {
 		"schemaVersion": 1,
 		"assetId": "text-fancy-summer-gradient-duotone",

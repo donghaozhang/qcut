@@ -9,6 +9,24 @@
 		"thumbnail": "thumbnail.webp",
 		"source": "template.json"
 	},
+	"resources": [
+		{
+			"byteSize": 16460,
+			"checksumSha256": "5d81f3a26c148874fcf5476c09f2b0d2fe39ee7163a968e8db7d6b5113eae66a",
+			"mimeType": "image/webp",
+			"path": "thumbnail.webp",
+			"role": "thumbnail",
+			"url": "/text-assets/text-mine-favorites/gold@1/thumbnail.webp"
+		},
+		{
+			"byteSize": 2365,
+			"checksumSha256": "58417d3dd7da792ef71cda0dc63a7825f27a3c1f59d28864ce550d4bcad2c469",
+			"mimeType": "application/json",
+			"path": "template.json",
+			"role": "source",
+			"url": "/text-assets/text-mine-favorites/gold@1/template.json"
+		}
+	],
 	"source": {
 		"schemaVersion": 1,
 		"assetId": "text-mine-favorites-gold",

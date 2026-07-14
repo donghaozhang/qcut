@@ -9,6 +9,24 @@
 		"thumbnail": "thumbnail.webp",
 		"source": "template.json"
 	},
+	"resources": [
+		{
+			"byteSize": 21902,
+			"checksumSha256": "b660c58f3ffe3945dfcc776db52540d0af567f844d4addc36492b0837c039733",
+			"mimeType": "image/webp",
+			"path": "thumbnail.webp",
+			"role": "thumbnail",
+			"url": "/text-assets/text-fancy-summer/comic@1/thumbnail.webp"
+		},
+		{
+			"byteSize": 2552,
+			"checksumSha256": "8248a6dbeccf3bb2537e84ffbba885825ed321d8b0a0de4ec566bbbd112af596",
+			"mimeType": "application/json",
+			"path": "template.json",
+			"role": "source",
+			"url": "/text-assets/text-fancy-summer/comic@1/template.json"
+		}
+	],
 	"source": {
 		"schemaVersion": 1,
 		"assetId": "text-fancy-summer-comic",

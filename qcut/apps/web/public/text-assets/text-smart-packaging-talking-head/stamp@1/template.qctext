@@ -9,6 +9,24 @@
 		"thumbnail": "thumbnail.webp",
 		"source": "template.json"
 	},
+	"resources": [
+		{
+			"byteSize": 18952,
+			"checksumSha256": "1d51cfbedfd0be7d34b48f4ad3039bc1bdb716d76f339a8ee04b1e439e9bcbac",
+			"mimeType": "image/webp",
+			"path": "thumbnail.webp",
+			"role": "thumbnail",
+			"url": "/text-assets/text-smart-packaging-talking-head/stamp@1/thumbnail.webp"
+		},
+		{
+			"byteSize": 2535,
+			"checksumSha256": "28f14d41ab76a84565844cc9cac8999bcaded2eee2911f30ff514637563950b6",
+			"mimeType": "application/json",
+			"path": "template.json",
+			"role": "source",
+			"url": "/text-assets/text-smart-packaging-talking-head/stamp@1/template.json"
+		}
+	],
 	"source": {
 		"schemaVersion": 1,
 		"assetId": "text-smart-packaging-talking-head-stamp",

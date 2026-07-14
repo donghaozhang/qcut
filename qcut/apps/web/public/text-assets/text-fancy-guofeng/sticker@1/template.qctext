@@ -9,6 +9,24 @@
 		"thumbnail": "thumbnail.webp",
 		"source": "template.json"
 	},
+	"resources": [
+		{
+			"byteSize": 17522,
+			"checksumSha256": "56b7981108aa39975b4a47a11b9f366d5ecef4b648030e5a91935a6d67eac674",
+			"mimeType": "image/webp",
+			"path": "thumbnail.webp",
+			"role": "thumbnail",
+			"url": "/text-assets/text-fancy-guofeng/sticker@1/thumbnail.webp"
+		},
+		{
+			"byteSize": 2530,
+			"checksumSha256": "f058750400e8df3134d4129104b8fc36722eda8d0c43df954b2ace4b8dc71833",
+			"mimeType": "application/json",
+			"path": "template.json",
+			"role": "source",
+			"url": "/text-assets/text-fancy-guofeng/sticker@1/template.json"
+		}
+	],
 	"source": {
 		"schemaVersion": 1,
 		"assetId": "text-fancy-guofeng-sticker",

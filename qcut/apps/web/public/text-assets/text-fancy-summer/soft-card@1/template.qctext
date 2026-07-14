@@ -9,6 +9,24 @@
 		"thumbnail": "thumbnail.webp",
 		"source": "template.json"
 	},
+	"resources": [
+		{
+			"byteSize": 16500,
+			"checksumSha256": "03cdfac06864de6a8934a1b3804f33857f66137739862b36b5f699321cb63a1a",
+			"mimeType": "image/webp",
+			"path": "thumbnail.webp",
+			"role": "thumbnail",
+			"url": "/text-assets/text-fancy-summer/soft-card@1/thumbnail.webp"
+		},
+		{
+			"byteSize": 2446,
+			"checksumSha256": "8587b63d8c8313dabf517124b741304346824552b5852ad94985df8214100990",
+			"mimeType": "application/json",
+			"path": "template.json",
+			"role": "source",
+			"url": "/text-assets/text-fancy-summer/soft-card@1/template.json"
+		}
+	],
 	"source": {
 		"schemaVersion": 1,
 		"assetId": "text-fancy-summer-soft-card",

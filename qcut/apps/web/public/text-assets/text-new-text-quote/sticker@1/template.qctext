@@ -9,6 +9,24 @@
 		"thumbnail": "thumbnail.webp",
 		"source": "template.json"
 	},
+	"resources": [
+		{
+			"byteSize": 16424,
+			"checksumSha256": "c86c668dd471c646222a2dd2c433e7c04126e035c76391b3076a74eecc6fd94c",
+			"mimeType": "image/webp",
+			"path": "thumbnail.webp",
+			"role": "thumbnail",
+			"url": "/text-assets/text-new-text-quote/sticker@1/thumbnail.webp"
+		},
+		{
+			"byteSize": 2447,
+			"checksumSha256": "54ff2ed78fe99d0a36e5214ac900f51b42057e24fdbb1a1c49c6ebf6efd0ca76",
+			"mimeType": "application/json",
+			"path": "template.json",
+			"role": "source",
+			"url": "/text-assets/text-new-text-quote/sticker@1/template.json"
+		}
+	],
 	"source": {
 		"schemaVersion": 1,
 		"assetId": "text-new-text-quote-sticker",

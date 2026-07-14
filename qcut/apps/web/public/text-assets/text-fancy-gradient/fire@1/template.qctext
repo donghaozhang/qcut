@@ -9,6 +9,24 @@
 		"thumbnail": "thumbnail.webp",
 		"source": "template.json"
 	},
+	"resources": [
+		{
+			"byteSize": 16700,
+			"checksumSha256": "bf5564ebfad4b93abcf89c0f22b20631307a416d50cef01beff15d8e91006a24",
+			"mimeType": "image/webp",
+			"path": "thumbnail.webp",
+			"role": "thumbnail",
+			"url": "/text-assets/text-fancy-gradient/fire@1/thumbnail.webp"
+		},
+		{
+			"byteSize": 2484,
+			"checksumSha256": "14e4200a26847b7e039e9497212f0cee66ac43abdab2b697912b2ec3d0d323ad",
+			"mimeType": "application/json",
+			"path": "template.json",
+			"role": "source",
+			"url": "/text-assets/text-fancy-gradient/fire@1/template.json"
+		}
+	],
 	"source": {
 		"schemaVersion": 1,
 		"assetId": "text-fancy-gradient-fire",

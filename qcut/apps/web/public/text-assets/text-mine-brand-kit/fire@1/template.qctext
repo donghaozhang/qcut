@@ -9,6 +9,24 @@
 		"thumbnail": "thumbnail.webp",
 		"source": "template.json"
 	},
+	"resources": [
+		{
+			"byteSize": 15656,
+			"checksumSha256": "cdc89760d6a79c2dc865feb8302dce30f9ff854012e786f16c9334852a6a01ee",
+			"mimeType": "image/webp",
+			"path": "thumbnail.webp",
+			"role": "thumbnail",
+			"url": "/text-assets/text-mine-brand-kit/fire@1/thumbnail.webp"
+		},
+		{
+			"byteSize": 2405,
+			"checksumSha256": "54915e5f816edf0e893539e290cfcc31fdcce3d5479a6673d70da07dcb5a001e",
+			"mimeType": "application/json",
+			"path": "template.json",
+			"role": "source",
+			"url": "/text-assets/text-mine-brand-kit/fire@1/template.json"
+		}
+	],
 	"source": {
 		"schemaVersion": 1,
 		"assetId": "text-mine-brand-kit-fire",

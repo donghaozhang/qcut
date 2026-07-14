@@ -9,6 +9,24 @@
 		"thumbnail": "thumbnail.webp",
 		"source": "template.json"
 	},
+	"resources": [
+		{
+			"byteSize": 18180,
+			"checksumSha256": "dd84ea2050fae3bdf22d6606c58ebc290c77e993d4948c3a8f74adb4e6986f09",
+			"mimeType": "image/webp",
+			"path": "thumbnail.webp",
+			"role": "thumbnail",
+			"url": "/text-assets/text-smart-packaging-info-strip/gold@1/thumbnail.webp"
+		},
+		{
+			"byteSize": 2592,
+			"checksumSha256": "c1726bfbf60724468bcac037a6e0718117495a1fc653456b1d4111eea4031d7c",
+			"mimeType": "application/json",
+			"path": "template.json",
+			"role": "source",
+			"url": "/text-assets/text-smart-packaging-info-strip/gold@1/template.json"
+		}
+	],
 	"source": {
 		"schemaVersion": 1,
 		"assetId": "text-smart-packaging-info-strip-gold",

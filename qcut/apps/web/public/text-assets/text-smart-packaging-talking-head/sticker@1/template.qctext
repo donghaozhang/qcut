@@ -9,6 +9,24 @@
 		"thumbnail": "thumbnail.webp",
 		"source": "template.json"
 	},
+	"resources": [
+		{
+			"byteSize": 19174,
+			"checksumSha256": "0febc7f25c2fa422021c584b75525bdafd46f67a6c4ce5c82ba05ff4a7ee2049",
+			"mimeType": "image/webp",
+			"path": "thumbnail.webp",
+			"role": "thumbnail",
+			"url": "/text-assets/text-smart-packaging-talking-head/sticker@1/thumbnail.webp"
+		},
+		{
+			"byteSize": 2734,
+			"checksumSha256": "6ffa84aaba6f8c8c3600509bcb453a3a6fec494436c14760962cd38cc77a25e3",
+			"mimeType": "application/json",
+			"path": "template.json",
+			"role": "source",
+			"url": "/text-assets/text-smart-packaging-talking-head/sticker@1/template.json"
+		}
+	],
 	"source": {
 		"schemaVersion": 1,
 		"assetId": "text-smart-packaging-talking-head-sticker",

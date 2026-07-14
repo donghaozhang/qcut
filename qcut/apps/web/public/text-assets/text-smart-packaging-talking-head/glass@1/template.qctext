@@ -9,6 +9,24 @@
 		"thumbnail": "thumbnail.webp",
 		"source": "template.json"
 	},
+	"resources": [
+		{
+			"byteSize": 18356,
+			"checksumSha256": "51a972593c7d9d906594933a4ed54887b4eab8e7f4fcc4eed630e4e7057849c1",
+			"mimeType": "image/webp",
+			"path": "thumbnail.webp",
+			"role": "thumbnail",
+			"url": "/text-assets/text-smart-packaging-talking-head/glass@1/thumbnail.webp"
+		},
+		{
+			"byteSize": 2559,
+			"checksumSha256": "300f76e3a9c9c80a281624ad492957aba0919875658a18e3a09b26fc70067d4d",
+			"mimeType": "application/json",
+			"path": "template.json",
+			"role": "source",
+			"url": "/text-assets/text-smart-packaging-talking-head/glass@1/template.json"
+		}
+	],
 	"source": {
 		"schemaVersion": 1,
 		"assetId": "text-smart-packaging-talking-head-glass",

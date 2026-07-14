@@ -9,6 +9,24 @@
 		"thumbnail": "thumbnail.webp",
 		"source": "template.json"
 	},
+	"resources": [
+		{
+			"byteSize": 18338,
+			"checksumSha256": "f2ed93fa8bb13a826fe124656cc6d9ffe2747e5eefd1edce57e758b5cbe4397a",
+			"mimeType": "image/webp",
+			"path": "thumbnail.webp",
+			"role": "thumbnail",
+			"url": "/text-assets/text-smart-packaging-talking-head/soft-card@1/thumbnail.webp"
+		},
+		{
+			"byteSize": 2637,
+			"checksumSha256": "e8ff7e09ca383e0d09bd9637d665266954e36094b584a93771aa3fc1729dcf5e",
+			"mimeType": "application/json",
+			"path": "template.json",
+			"role": "source",
+			"url": "/text-assets/text-smart-packaging-talking-head/soft-card@1/template.json"
+		}
+	],
 	"source": {
 		"schemaVersion": 1,
 		"assetId": "text-smart-packaging-talking-head-soft-card",

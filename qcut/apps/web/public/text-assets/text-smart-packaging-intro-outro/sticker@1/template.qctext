@@ -9,6 +9,24 @@
 		"thumbnail": "thumbnail.webp",
 		"source": "template.json"
 	},
+	"resources": [
+		{
+			"byteSize": 21216,
+			"checksumSha256": "d805dadc7b0fada26140f58dd6bc208c4d76eb9d06fe93670441df1db41d0b24",
+			"mimeType": "image/webp",
+			"path": "thumbnail.webp",
+			"role": "thumbnail",
+			"url": "/text-assets/text-smart-packaging-intro-outro/sticker@1/thumbnail.webp"
+		},
+		{
+			"byteSize": 2707,
+			"checksumSha256": "07958db3d67bfaae0ef1885725add62533050e9419ef68743412b717858c05bb",
+			"mimeType": "application/json",
+			"path": "template.json",
+			"role": "source",
+			"url": "/text-assets/text-smart-packaging-intro-outro/sticker@1/template.json"
+		}
+	],
 	"source": {
 		"schemaVersion": 1,
 		"assetId": "text-smart-packaging-intro-outro-sticker",

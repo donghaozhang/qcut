@@ -9,6 +9,24 @@
 		"thumbnail": "thumbnail.webp",
 		"source": "template.json"
 	},
+	"resources": [
+		{
+			"byteSize": 18590,
+			"checksumSha256": "c81262fe1c89a8e7c1e2917c69a65a13892568ca5db1f4014bf74fc9d951b657",
+			"mimeType": "image/webp",
+			"path": "thumbnail.webp",
+			"role": "thumbnail",
+			"url": "/text-assets/text-fancy-red/red-burst@1/thumbnail.webp"
+		},
+		{
+			"byteSize": 2623,
+			"checksumSha256": "5f05ed351af619263f682b895ff2df92b1f52f580f39a4cf9bc8b538a0a2af99",
+			"mimeType": "application/json",
+			"path": "template.json",
+			"role": "source",
+			"url": "/text-assets/text-fancy-red/red-burst@1/template.json"
+		}
+	],
 	"source": {
 		"schemaVersion": 1,
 		"assetId": "text-fancy-red-red-burst",

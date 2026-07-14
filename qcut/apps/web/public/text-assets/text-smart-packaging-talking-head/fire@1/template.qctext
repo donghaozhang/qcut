@@ -9,6 +9,24 @@
 		"thumbnail": "thumbnail.webp",
 		"source": "template.json"
 	},
+	"resources": [
+		{
+			"byteSize": 20690,
+			"checksumSha256": "b0ebf341572d06d7d69cb14230307036cdc6ff7cceedb0acfe5ec35c634bb9fe",
+			"mimeType": "image/webp",
+			"path": "thumbnail.webp",
+			"role": "thumbnail",
+			"url": "/text-assets/text-smart-packaging-talking-head/fire@1/thumbnail.webp"
+		},
+		{
+			"byteSize": 2668,
+			"checksumSha256": "4809b3914dc537381bf39cc7b9ea88779c218eeb1382e5af3e077602f4a99ea9",
+			"mimeType": "application/json",
+			"path": "template.json",
+			"role": "source",
+			"url": "/text-assets/text-smart-packaging-talking-head/fire@1/template.json"
+		}
+	],
 	"source": {
 		"schemaVersion": 1,
 		"assetId": "text-smart-packaging-talking-head-fire",

@@ -44,6 +44,11 @@ type TextAssetManifestEntry = {
 	qcutPackage: TextAssetFile;
 };
 
+type TextAssetPackageResourceFile = TextAssetFile & {
+	path: string;
+	role: "source" | "thumbnail";
+};
+
 const SCRIPT_DIR = dirname(fileURLToPath(import.meta.url));
 const PUBLIC_DIR = join(SCRIPT_DIR, "../public");
 const MANIFEST_PATH = join(
@@ -776,11 +781,13 @@ export function buildTextAssetSourcePayload({
 	};
 }
 
-function qcutPackagePayload({
+export function buildTextAssetPackagePayload({
 	definition,
+	resources = [],
 	source,
 }: {
 	definition: TextTemplateDefinition;
+	resources?: readonly TextAssetPackageResourceFile[];
 	source: ReturnType<typeof buildTextAssetSourcePayload>;
 }) {
 	const resource = getTextTemplateResource({ definition });
@@ -795,6 +802,7 @@ function qcutPackagePayload({
 			thumbnail: "thumbnail.webp",
 			source: "template.json",
 		},
+		resources,
 		source,
 	};
 }
@@ -914,7 +922,32 @@ async function writeAsset({
 		"utf8"
 	);
 	const packageBytes = Buffer.from(
-		`${JSON.stringify(qcutPackagePayload({ definition, source }), null, "\t")}\n`,
+		`${JSON.stringify(
+			buildTextAssetPackagePayload({
+				definition,
+				resources: [
+					{
+						byteSize: thumbnailBytes.byteLength,
+						checksumSha256: hashBytes({ bytes: thumbnailBytes }),
+						mimeType: "image/webp",
+						path: "thumbnail.webp",
+						role: "thumbnail",
+						url: thumbnailUrl,
+					},
+					{
+						byteSize: sourceBytes.byteLength,
+						checksumSha256: hashBytes({ bytes: sourceBytes }),
+						mimeType: "application/json",
+						path: "template.json",
+						role: "source",
+						url: sourceUrl,
+					},
+				],
+				source,
+			}),
+			null,
+			"\t"
+		)}\n`,
 		"utf8"
 	);
 	for (const url of [thumbnailUrl, sourceUrl, packageUrl]) {

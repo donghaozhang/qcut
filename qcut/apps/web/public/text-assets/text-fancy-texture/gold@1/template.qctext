@@ -9,6 +9,24 @@
 		"thumbnail": "thumbnail.webp",
 		"source": "template.json"
 	},
+	"resources": [
+		{
+			"byteSize": 15784,
+			"checksumSha256": "90785ea1108661d2eb1bbaab7c8c0c9e937fa7b504031d1d142d399c4072b3a8",
+			"mimeType": "image/webp",
+			"path": "thumbnail.webp",
+			"role": "thumbnail",
+			"url": "/text-assets/text-fancy-texture/gold@1/thumbnail.webp"
+		},
+		{
+			"byteSize": 2465,
+			"checksumSha256": "fbb1be0cd716d48b83aa6d7593e6d1170a30706d4a28cf34f2e9a3af16963ac0",
+			"mimeType": "application/json",
+			"path": "template.json",
+			"role": "source",
+			"url": "/text-assets/text-fancy-texture/gold@1/template.json"
+		}
+	],
 	"source": {
 		"schemaVersion": 1,
 		"assetId": "text-fancy-texture-gold",

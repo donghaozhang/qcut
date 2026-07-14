@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
 	GENERATED_TEXT_ASSET_PROVENANCE,
+	buildTextAssetPackagePayload,
 	buildTextAssetSourcePayload,
 	buildTextAssetThumbnailSvg,
 	buildTextMarketplaceConfigPayload,
@@ -88,6 +89,58 @@ describe("text asset generator payloads", () => {
 
 		expect(source.templatePack).toBeUndefined();
 		expect(source.template).toMatchObject({ type: "text" });
+	});
+
+	it("embeds companion file checksums in qctext packages", () => {
+		const definition = firstDefinition({ category: "red" });
+		const source = buildTextAssetSourcePayload({ definition });
+		const payload = buildTextAssetPackagePayload({
+			definition,
+			resources: [
+				{
+					byteSize: 4096,
+					checksumSha256: "a".repeat(64),
+					mimeType: "image/webp",
+					path: "thumbnail.webp",
+					role: "thumbnail",
+					url: "/text-assets/text-fancy-red/plain@1/thumbnail.webp",
+				},
+				{
+					byteSize: 8192,
+					checksumSha256: "b".repeat(64),
+					mimeType: "application/json",
+					path: "template.json",
+					role: "source",
+					url: "/text-assets/text-fancy-red/plain@1/template.json",
+				},
+			],
+			source,
+		});
+
+		expect(payload).toMatchObject({
+			assetId: source.assetId,
+			files: {
+				source: "template.json",
+				thumbnail: "thumbnail.webp",
+			},
+			kind: "qcut-text-template-package",
+			resources: [
+				{
+					byteSize: 4096,
+					checksumSha256: "a".repeat(64),
+					mimeType: "image/webp",
+					path: "thumbnail.webp",
+					role: "thumbnail",
+				},
+				{
+					byteSize: 8192,
+					checksumSha256: "b".repeat(64),
+					mimeType: "application/json",
+					path: "template.json",
+					role: "source",
+				},
+			],
+		});
 	});
 
 	it("adds stable design signatures so generated thumbnails do not collapse into duplicates", () => {

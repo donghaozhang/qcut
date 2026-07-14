@@ -9,6 +9,24 @@
 		"thumbnail": "thumbnail.webp",
 		"source": "template.json"
 	},
+	"resources": [
+		{
+			"byteSize": 15544,
+			"checksumSha256": "9b373fe34c0346da1943f355a961cd66591168bc8d4ccb0803e05cbfe2d43f87",
+			"mimeType": "image/webp",
+			"path": "thumbnail.webp",
+			"role": "thumbnail",
+			"url": "/text-assets/text-fancy-red/bubble@1/thumbnail.webp"
+		},
+		{
+			"byteSize": 2415,
+			"checksumSha256": "fd7ffa97a514ddf686e6959f068561c00707016f0a6b6cc7c3f24bc0e32ee256",
+			"mimeType": "application/json",
+			"path": "template.json",
+			"role": "source",
+			"url": "/text-assets/text-fancy-red/bubble@1/template.json"
+		}
+	],
 	"source": {
 		"schemaVersion": 1,
 		"assetId": "text-fancy-red-bubble",

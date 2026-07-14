@@ -9,6 +9,24 @@
 		"thumbnail": "thumbnail.webp",
 		"source": "template.json"
 	},
+	"resources": [
+		{
+			"byteSize": 16230,
+			"checksumSha256": "fc5da5afb9af66acc8800625350156ee8d75b52e259d39bcde54d3c57675d24a",
+			"mimeType": "image/webp",
+			"path": "thumbnail.webp",
+			"role": "thumbnail",
+			"url": "/text-assets/text-fancy-summer/cutout@1/thumbnail.webp"
+		},
+		{
+			"byteSize": 2311,
+			"checksumSha256": "9c4de107fb7d8335c35d58687f77419cb8d1674b94cb88a740755c5e9ae850c2",
+			"mimeType": "application/json",
+			"path": "template.json",
+			"role": "source",
+			"url": "/text-assets/text-fancy-summer/cutout@1/template.json"
+		}
+	],
 	"source": {
 		"schemaVersion": 1,
 		"assetId": "text-fancy-summer-cutout",

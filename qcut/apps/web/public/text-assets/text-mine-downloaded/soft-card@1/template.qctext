@@ -9,6 +9,24 @@
 		"thumbnail": "thumbnail.webp",
 		"source": "template.json"
 	},
+	"resources": [
+		{
+			"byteSize": 16564,
+			"checksumSha256": "910ade871c0844fa38e024de9fa9f53e0660bb52f38e68ac18baf9f16beacbd0",
+			"mimeType": "image/webp",
+			"path": "thumbnail.webp",
+			"role": "thumbnail",
+			"url": "/text-assets/text-mine-downloaded/soft-card@1/thumbnail.webp"
+		},
+		{
+			"byteSize": 2384,
+			"checksumSha256": "4aa3c1923eb74d86366fd9da119e5c79d4e9ad4ea141d5132ee65bdb3b36476e",
+			"mimeType": "application/json",
+			"path": "template.json",
+			"role": "source",
+			"url": "/text-assets/text-mine-downloaded/soft-card@1/template.json"
+		}
+	],
 	"source": {
 		"schemaVersion": 1,
 		"assetId": "text-mine-downloaded-soft-card",

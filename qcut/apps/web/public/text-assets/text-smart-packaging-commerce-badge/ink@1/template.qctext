@@ -9,6 +9,24 @@
 		"thumbnail": "thumbnail.webp",
 		"source": "template.json"
 	},
+	"resources": [
+		{
+			"byteSize": 15862,
+			"checksumSha256": "30a25bec212904f24c6c9690f6424acc35f437ef0fc4428378b059b86a9b4815",
+			"mimeType": "image/webp",
+			"path": "thumbnail.webp",
+			"role": "thumbnail",
+			"url": "/text-assets/text-smart-packaging-commerce-badge/ink@1/thumbnail.webp"
+		},
+		{
+			"byteSize": 2588,
+			"checksumSha256": "9c91558cc48210a0c586c2c8213c13d0ffcd2dec5aaf124d64e6574807e0a095",
+			"mimeType": "application/json",
+			"path": "template.json",
+			"role": "source",
+			"url": "/text-assets/text-smart-packaging-commerce-badge/ink@1/template.json"
+		}
+	],
 	"source": {
 		"schemaVersion": 1,
 		"assetId": "text-smart-packaging-commerce-badge-ink",

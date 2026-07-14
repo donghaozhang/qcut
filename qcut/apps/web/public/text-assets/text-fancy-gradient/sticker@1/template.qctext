@@ -9,6 +9,24 @@
 		"thumbnail": "thumbnail.webp",
 		"source": "template.json"
 	},
+	"resources": [
+		{
+			"byteSize": 16998,
+			"checksumSha256": "19b0377f2fab0be8623b78b9568d6ed1951a4d9efde0faec70ad290b35a9e6dc",
+			"mimeType": "image/webp",
+			"path": "thumbnail.webp",
+			"role": "thumbnail",
+			"url": "/text-assets/text-fancy-gradient/sticker@1/thumbnail.webp"
+		},
+		{
+			"byteSize": 2549,
+			"checksumSha256": "d55b428da700b29154f01702ed1e4dd6ef03dc935e1454a69a67ffa59443af90",
+			"mimeType": "application/json",
+			"path": "template.json",
+			"role": "source",
+			"url": "/text-assets/text-fancy-gradient/sticker@1/template.json"
+		}
+	],
 	"source": {
 		"schemaVersion": 1,
 		"assetId": "text-fancy-gradient-sticker",

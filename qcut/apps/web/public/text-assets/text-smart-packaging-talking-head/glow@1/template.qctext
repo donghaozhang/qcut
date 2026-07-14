@@ -9,6 +9,24 @@
 		"thumbnail": "thumbnail.webp",
 		"source": "template.json"
 	},
+	"resources": [
+		{
+			"byteSize": 18602,
+			"checksumSha256": "e3ad5dfebfd0bdcfd6805212879046dff09c9fac192280688888300e40f73cd2",
+			"mimeType": "image/webp",
+			"path": "thumbnail.webp",
+			"role": "thumbnail",
+			"url": "/text-assets/text-smart-packaging-talking-head/glow@1/thumbnail.webp"
+		},
+		{
+			"byteSize": 2569,
+			"checksumSha256": "daa6018ceafb90d67ab451fb1a43d77ea05e2ff73de72727e293f94abe35646f",
+			"mimeType": "application/json",
+			"path": "template.json",
+			"role": "source",
+			"url": "/text-assets/text-smart-packaging-talking-head/glow@1/template.json"
+		}
+	],
 	"source": {
 		"schemaVersion": 1,
 		"assetId": "text-smart-packaging-talking-head-glow",

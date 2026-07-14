@@ -9,6 +9,24 @@
 		"thumbnail": "thumbnail.webp",
 		"source": "template.json"
 	},
+	"resources": [
+		{
+			"byteSize": 21262,
+			"checksumSha256": "4b0cbe9c1b03c8a9287a5f170c5b55aee70492f19ddc3fbbd09bbc8eca53f52e",
+			"mimeType": "image/webp",
+			"path": "thumbnail.webp",
+			"role": "thumbnail",
+			"url": "/text-assets/text-smart-packaging-commerce-badge/soft-card@1/thumbnail.webp"
+		},
+		{
+			"byteSize": 2687,
+			"checksumSha256": "2a06395b7e9075b8da34b44e0534a103e3de240d776d10c70453c1e43741ff53",
+			"mimeType": "application/json",
+			"path": "template.json",
+			"role": "source",
+			"url": "/text-assets/text-smart-packaging-commerce-badge/soft-card@1/template.json"
+		}
+	],
 	"source": {
 		"schemaVersion": 1,
 		"assetId": "text-smart-packaging-commerce-badge-soft-card",

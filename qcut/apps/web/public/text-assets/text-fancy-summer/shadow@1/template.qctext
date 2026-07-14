@@ -9,6 +9,24 @@
 		"thumbnail": "thumbnail.webp",
 		"source": "template.json"
 	},
+	"resources": [
+		{
+			"byteSize": 15972,
+			"checksumSha256": "ec6d8ab22f095dc08b406f1f046387fefd57baa236600499b575c935ead8d361",
+			"mimeType": "image/webp",
+			"path": "thumbnail.webp",
+			"role": "thumbnail",
+			"url": "/text-assets/text-fancy-summer/shadow@1/thumbnail.webp"
+		},
+		{
+			"byteSize": 2311,
+			"checksumSha256": "b171861d37c9ea0ad459ae2f7891c720380f0bd7c3a1bfd4217e2e270a5589f4",
+			"mimeType": "application/json",
+			"path": "template.json",
+			"role": "source",
+			"url": "/text-assets/text-fancy-summer/shadow@1/template.json"
+		}
+	],
 	"source": {
 		"schemaVersion": 1,
 		"assetId": "text-fancy-summer-shadow",

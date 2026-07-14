@@ -9,6 +9,24 @@
 		"thumbnail": "thumbnail.webp",
 		"source": "template.json"
 	},
+	"resources": [
+		{
+			"byteSize": 16378,
+			"checksumSha256": "71d7895f49e6b6accf732a33ff1dad71cbbfda0ecc024590d1dd21024508576d",
+			"mimeType": "image/webp",
+			"path": "thumbnail.webp",
+			"role": "thumbnail",
+			"url": "/text-assets/text-mine-downloaded/glow@1/thumbnail.webp"
+		},
+		{
+			"byteSize": 2316,
+			"checksumSha256": "d3850d863b465afc6e3e2d6959b2569be65b2cdd6340de310e9063f78d9da48b",
+			"mimeType": "application/json",
+			"path": "template.json",
+			"role": "source",
+			"url": "/text-assets/text-mine-downloaded/glow@1/template.json"
+		}
+	],
 	"source": {
 		"schemaVersion": 1,
 		"assetId": "text-mine-downloaded-glow",

@@ -9,6 +9,24 @@
 		"thumbnail": "thumbnail.webp",
 		"source": "template.json"
 	},
+	"resources": [
+		{
+			"byteSize": 11398,
+			"checksumSha256": "3fb84414e0ebbadf272f423c1805280bee121e282fbe6da210e829201c396aab",
+			"mimeType": "image/webp",
+			"path": "thumbnail.webp",
+			"role": "thumbnail",
+			"url": "/text-assets/text-fancy-pink/texture-grain@1/thumbnail.webp"
+		},
+		{
+			"byteSize": 2463,
+			"checksumSha256": "ca133013a8871bae0492aa8b978273e49153cae3a7e1a668ff706e702e63f9c6",
+			"mimeType": "application/json",
+			"path": "template.json",
+			"role": "source",
+			"url": "/text-assets/text-fancy-pink/texture-grain@1/template.json"
+		}
+	],
 	"source": {
 		"schemaVersion": 1,
 		"assetId": "text-fancy-pink-texture-grain",

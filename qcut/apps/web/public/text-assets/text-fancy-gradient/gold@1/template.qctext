@@ -9,6 +9,24 @@
 		"thumbnail": "thumbnail.webp",
 		"source": "template.json"
 	},
+	"resources": [
+		{
+			"byteSize": 15852,
+			"checksumSha256": "b7beea81fc6c87293d304e4fd5a011cd0c97c56b5ddba82b888267e6a861167c",
+			"mimeType": "image/webp",
+			"path": "thumbnail.webp",
+			"role": "thumbnail",
+			"url": "/text-assets/text-fancy-gradient/gold@1/thumbnail.webp"
+		},
+		{
+			"byteSize": 2470,
+			"checksumSha256": "90068eec9626c4cca8816f7a93aab26439dd9b33de28d5b467e9fd0f73e6cd4a",
+			"mimeType": "application/json",
+			"path": "template.json",
+			"role": "source",
+			"url": "/text-assets/text-fancy-gradient/gold@1/template.json"
+		}
+	],
 	"source": {
 		"schemaVersion": 1,
 		"assetId": "text-fancy-gradient-gold",
