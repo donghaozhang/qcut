@@ -11,9 +11,12 @@ import {
 	buildTextAssetPublishManifest,
 	buildTextMarketplacePublishEntry,
 	readGeneratedManifest,
+	summarizeTextAssetProvenance,
+	verifyDesignerAssetCoverage,
 	verifyLocalFiles,
 	verifyRemoteFiles,
 	writePublishManifest,
+	type TextAssetProvenanceSummary,
 	type VerifyIssue,
 } from "./verify-text-asset-cdn-manifest";
 
@@ -24,6 +27,7 @@ export type TextAssetReleaseOptions = {
 	dryRun: boolean;
 	generatedManifestPath: string;
 	metadataCacheControl: string;
+	minDesignerAssets: number;
 	prefix: string;
 	publishManifestPath: string;
 	publicDir: string;
@@ -37,6 +41,8 @@ export type TextAssetReleaseSummary = {
 	dryRun: boolean;
 	localIssues: readonly VerifyIssue[];
 	manifestPath: string;
+	minDesignerAssets: number;
+	provenance: TextAssetProvenanceSummary;
 	remoteIssues: readonly VerifyIssue[];
 	totalAssets: number;
 	totalBytes: number;
@@ -76,6 +82,10 @@ export function parseTextAssetReleaseArgs({
 		metadataCacheControl:
 			env.QCUT_TEXT_ASSET_METADATA_CACHE_CONTROL ??
 			DEFAULT_METADATA_CACHE_CONTROL,
+		minDesignerAssets: parseNonNegativeInteger({
+			name: "QCUT_TEXT_ASSET_MIN_DESIGNER_ASSETS",
+			value: env.QCUT_TEXT_ASSET_MIN_DESIGNER_ASSETS ?? "0",
+		}),
 		prefix: env.QCUT_TEXT_ASSET_CDN_PREFIX ?? "",
 		publishManifestPath:
 			env.QCUT_TEXT_ASSET_PUBLISH_MANIFEST ?? DEFAULT_PUBLISH_MANIFEST_PATH,
@@ -112,6 +122,14 @@ export function parseTextAssetReleaseArgs({
 				argv,
 				index,
 				name: arg,
+			});
+			index += 1;
+			continue;
+		}
+		if (arg === "--min-designer-assets") {
+			options.minDesignerAssets = parseNonNegativeInteger({
+				name: arg,
+				value: requireValue({ argv, index, name: arg }),
 			});
 			index += 1;
 			continue;
@@ -183,6 +201,11 @@ export async function releaseTextAssetsToCdn({
 		baseUrl: options.baseUrl,
 		publicDir: options.publicDir,
 	});
+	const provenance = summarizeTextAssetProvenance({ generatedManifest });
+	const designerCoverageIssues = verifyDesignerAssetCoverage({
+		minDesignerAssets: options.minDesignerAssets,
+		provenance,
+	});
 	const { issues: manifestIssues, manifest } = buildTextAssetPublishManifest({
 		baseUrl: options.baseUrl,
 		generatedAt: new Date().toISOString(),
@@ -196,6 +219,7 @@ export async function releaseTextAssetsToCdn({
 	});
 	const localIssues = [
 		...marketplace.issues,
+		...designerCoverageIssues,
 		...manifestIssues,
 		...(await verifyLocalFiles({ manifest })),
 	];
@@ -210,6 +234,7 @@ export async function releaseTextAssetsToCdn({
 			}),
 			manifest,
 			options,
+			provenance,
 		});
 	}
 	const items = buildTextAssetUploadPlan({
@@ -237,6 +262,7 @@ export async function releaseTextAssetsToCdn({
 		manifest,
 		manifestPath: options.publishManifestPath,
 		options,
+		provenance,
 		remoteIssues,
 		upload,
 	});
@@ -247,6 +273,7 @@ function buildReleaseSummary({
 	manifest,
 	manifestPath,
 	options,
+	provenance,
 	remoteIssues,
 	upload,
 }: {
@@ -254,6 +281,7 @@ function buildReleaseSummary({
 	manifest: { totalAssets: number; totalBytes: number; totalFiles: number };
 	manifestPath: string;
 	options: TextAssetReleaseOptions;
+	provenance: TextAssetProvenanceSummary;
 	remoteIssues: readonly VerifyIssue[];
 	upload: TextAssetUploadSummary;
 }): TextAssetReleaseSummary {
@@ -262,6 +290,8 @@ function buildReleaseSummary({
 		dryRun: options.dryRun,
 		localIssues,
 		manifestPath,
+		minDesignerAssets: options.minDesignerAssets,
+		provenance,
 		remoteIssues,
 		totalAssets: manifest.totalAssets,
 		totalBytes: manifest.totalBytes,
@@ -284,6 +314,20 @@ function emptyUploadSummary({
 		totalFiles: 0,
 		uploadedFiles: 0,
 	};
+}
+
+function parseNonNegativeInteger({
+	name,
+	value,
+}: {
+	name: string;
+	value: string;
+}): number {
+	const parsed = Number.parseInt(value, 10);
+	if (!Number.isFinite(parsed) || parsed < 0) {
+		throw new Error(`${name} requires a non-negative integer`);
+	}
+	return parsed;
 }
 
 function parsePositiveInteger({

@@ -83,6 +83,7 @@ async function createReleaseFixture(): Promise<{
 			dryRun: true,
 			generatedManifestPath,
 			metadataCacheControl: "public, max-age=300",
+			minDesignerAssets: 0,
 			prefix: "prod",
 			publicDir,
 			publishManifestPath,
@@ -107,6 +108,8 @@ describe("text asset CDN release script", () => {
 					"--dry-run",
 					"--metadata-cache-control",
 					"public, max-age=30",
+					"--min-designer-assets",
+					"7",
 					"--generated-manifest",
 					"/tmp/generated.json",
 					"--prefix",
@@ -128,6 +131,7 @@ describe("text asset CDN release script", () => {
 			dryRun: true,
 			generatedManifestPath: "/tmp/generated.json",
 			metadataCacheControl: "public, max-age=30",
+			minDesignerAssets: 7,
 			prefix: "prod",
 			publicDir: "/tmp/public",
 			publishManifestPath: "/tmp/publish.json",
@@ -152,6 +156,14 @@ describe("text asset CDN release script", () => {
 			dryRun: true,
 			localIssues: [],
 			manifestPath: publishManifestPath,
+			minDesignerAssets: 0,
+			provenance: {
+				designerImported: 0,
+				generated: 0,
+				missingProvenance: 1,
+				pipelines: { missing: 1 },
+				total: 1,
+			},
 			remoteIssues: [],
 			totalAssets: 2,
 			totalBytes: expect.any(Number),
@@ -181,6 +193,35 @@ describe("text asset CDN release script", () => {
 		});
 
 		expect(summary.localIssues).toHaveLength(4);
+		expect(summary.upload.uploadedFiles).toBe(0);
+		expect(uploadedKeys).toEqual([]);
+	});
+
+	it("blocks release uploads when designer asset coverage is below threshold", async () => {
+		const { options } = await createReleaseFixture();
+		const uploadedKeys: string[] = [];
+
+		const summary = await releaseTextAssetsToCdn({
+			options: {
+				...options,
+				minDesignerAssets: 1,
+			},
+			uploadFile: async ({ item }) => {
+				uploadedKeys.push(item.key);
+			},
+		});
+
+		expect(summary.localIssues).toEqual([
+			{
+				assetId: "text-designer-assets",
+				code: "designer-import-threshold",
+				detail: "Expected at least 1 designer-imported text assets, received 0",
+			},
+		]);
+		expect(summary.provenance).toMatchObject({
+			designerImported: 0,
+			total: 1,
+		});
 		expect(summary.upload.uploadedFiles).toBe(0);
 		expect(uploadedKeys).toEqual([]);
 	});
