@@ -29,11 +29,13 @@ function checksum({ value }: { value: string }): string {
 
 function createUploadPlanItem({
 	content,
+	contentType = "application/json",
 	key,
 	localPath = "/tmp/source/template.json",
 	role = "source",
 }: {
 	content: string;
+	contentType?: string;
 	key: string;
 	localPath?: string;
 	role?: TextAssetUploadPlanItem["role"];
@@ -41,7 +43,7 @@ function createUploadPlanItem({
 	return {
 		bucket: "qcut-assets",
 		cacheControl: "public, max-age=31536000, immutable",
-		contentType: "application/json",
+		contentType,
 		key,
 		localPath,
 		role,
@@ -228,11 +230,41 @@ describe("text asset stage verifier", () => {
 			})
 		).toMatchObject({
 			issueSummary: {
-				count: 4,
-				truncated: 2,
+				count: 5,
+				truncated: 3,
 			},
 			issues: expect.arrayContaining([expect.any(Object), expect.any(Object)]),
 		});
+	});
+
+	it("reports staged files that violate role contracts", async () => {
+		const stageDir = join(tmpdir(), `qcut-stage-contract-${randomUUID()}`);
+		const content = "webp";
+		const badThumbnailItem = createUploadPlanItem({
+			content,
+			contentType: "application/json",
+			key: "prod/text-assets/demo/plain@1/template.json",
+			role: "thumbnail",
+		});
+		const manifest = createUploadPlanReport({
+			items: [badThumbnailItem],
+		});
+		const stagedPath = join(stageDir, badThumbnailItem.key);
+		await mkdir(dirname(stagedPath), { recursive: true });
+		await writeFile(stagedPath, content);
+
+		await expect(
+			verifyTextAssetStage({
+				manifest,
+				stageDir,
+			})
+		).resolves.toEqual([
+			expect.objectContaining({
+				code: "stage-contract-mismatch",
+				detail: expect.stringContaining("contentType expected image/webp"),
+				key: badThumbnailItem.key,
+			}),
+		]);
 	});
 
 	it("reports staged marketplace metadata that is stale versus source files", async () => {

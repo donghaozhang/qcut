@@ -1,6 +1,14 @@
 import { createHash } from "node:crypto";
 import { readFile } from "node:fs/promises";
-import { dirname, isAbsolute, join, relative, resolve, sep } from "node:path";
+import {
+	basename,
+	dirname,
+	isAbsolute,
+	join,
+	relative,
+	resolve,
+	sep,
+} from "node:path";
 import { fileURLToPath } from "node:url";
 import type {
 	TextAssetUploadPlanItem,
@@ -29,6 +37,7 @@ export type TextAssetStageVerifyIssue = {
 		| "checksum-mismatch"
 		| "invalid-stage-key"
 		| "marketplace-source-mismatch"
+		| "stage-contract-mismatch"
 		| "upload-plan-mismatch";
 	detail: string;
 	key: string;
@@ -174,12 +183,16 @@ async function verifyTextAssetStageItem({
 			},
 		];
 	}
+	const issues: TextAssetStageVerifyIssue[] = verifyTextAssetStageItemContract({
+		item,
+	});
 	let bytes: Buffer;
 	try {
 		bytes = await readFile(targetPath);
 	} catch (error) {
 		const detail = error instanceof Error ? error.message : String(error);
 		return [
+			...issues,
 			{
 				code: "missing-file",
 				detail: `Missing staged file: ${detail}`,
@@ -187,7 +200,6 @@ async function verifyTextAssetStageItem({
 			},
 		];
 	}
-	const issues: TextAssetStageVerifyIssue[] = [];
 	if (bytes.byteLength !== item.size) {
 		issues.push({
 			code: "byte-size-mismatch",
@@ -204,6 +216,66 @@ async function verifyTextAssetStageItem({
 		});
 	}
 	return issues;
+}
+
+function verifyTextAssetStageItemContract({
+	item,
+}: {
+	item: TextAssetUploadPlanItem;
+}): TextAssetStageVerifyIssue[] {
+	const expected = expectedStageItemContract({ role: item.role });
+	const mismatches = [
+		item.contentType === expected.contentType
+			? null
+			: `contentType expected ${expected.contentType}`,
+		expected.basename && basename(item.key) !== expected.basename
+			? `file name expected ${expected.basename}`
+			: null,
+		expected.extension && !item.key.endsWith(expected.extension)
+			? `extension expected ${expected.extension}`
+			: null,
+	].filter((mismatch): mismatch is string => Boolean(mismatch));
+	if (mismatches.length === 0) return [];
+	return [
+		{
+			code: "stage-contract-mismatch",
+			detail: `${item.role} stage item contract mismatch: ${mismatches.join(", ")}`,
+			key: item.key,
+		},
+	];
+}
+
+function expectedStageItemContract({
+	role,
+}: {
+	role: TextAssetUploadPlanItem["role"];
+}): {
+	basename?: string;
+	contentType: string;
+	extension?: string;
+} {
+	if (role === "thumbnail") {
+		return {
+			basename: "thumbnail.webp",
+			contentType: "image/webp",
+		};
+	}
+	if (role === "package") {
+		return {
+			basename: "template.qctext",
+			contentType: "application/vnd.qcut.text-template+json",
+		};
+	}
+	if (role === "metadata") {
+		return {
+			contentType: "application/json",
+			extension: ".json",
+		};
+	}
+	return {
+		basename: "template.json",
+		contentType: "application/json",
+	};
 }
 
 function compareScalarFields<TRecord, TField extends keyof TRecord & string>({
