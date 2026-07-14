@@ -61,6 +61,8 @@ const DEFAULT_VERSION = 1;
 
 function createSourcePayload({
 	assetId = DEFAULT_ASSET_ID,
+	definition = { id: "text-demo-template" },
+	marketplace,
 	packageId = DEFAULT_PACKAGE_ID,
 	template = {
 		content: "花字",
@@ -71,12 +73,16 @@ function createSourcePayload({
 	version = DEFAULT_VERSION,
 }: {
 	assetId?: string;
+	definition?: Record<string, unknown>;
+	marketplace?: Record<string, unknown>;
 	packageId?: string;
 	template?: Record<string, unknown>;
 	version?: number;
 } = {}): Record<string, unknown> {
 	return {
 		assetId,
+		definition,
+		marketplace,
 		packageId,
 		schemaVersion: 1,
 		template,
@@ -760,6 +766,127 @@ describe("text asset CDN manifest verifier", () => {
 		expect(marketplace.entry).toMatchObject({
 			assetId: "text-marketplace-config",
 		});
+	});
+
+	it("accepts marketplace metadata synced from source payloads", async () => {
+		const publicDir = join(
+			tmpdir(),
+			`qcut-text-marketplace-source-${randomUUID()}`
+		);
+		const marketplacePath = join(publicDir, "text-assets/marketplace.json");
+		const sourceText = JSON.stringify(
+			createSourcePayload({
+				marketplace: {
+					editorialRank: 3,
+					heatScore: 98,
+					remoteTags: ["market:hero", "scene:commerce"],
+					searchAliases: ["直播爆款"],
+				},
+			})
+		);
+		const entry = {
+			...createGeneratedEntry({ sourceText }),
+			provenance: {
+				pipeline: "designer-pack-v1",
+				source: "designer-imported" as const,
+			},
+		};
+		await writeGeneratedEntryFiles({ entry, publicDir, sourceText });
+		await mkdir(dirname(marketplacePath), { recursive: true });
+		await writeFile(
+			marketplacePath,
+			JSON.stringify({
+				assets: [
+					{
+						assetId: "text-demo",
+						editorialRank: 3,
+						heatScore: 98,
+						remoteTags: [
+							"source:designer-imported",
+							"market:hero",
+							"scene:commerce",
+						],
+						searchAliases: ["直播爆款"],
+						templateId: "text-demo-template",
+					},
+				],
+				schemaVersion: 1,
+			})
+		);
+
+		const marketplace = await buildTextMarketplacePublishEntry({
+			baseUrl: "https://cdn.example.com/assets/",
+			generatedManifest: { "text-demo": entry },
+			publicDir,
+		});
+
+		expect(marketplace.issues).toEqual([]);
+	});
+
+	it("reports marketplace metadata that is stale versus source payloads", async () => {
+		const publicDir = join(
+			tmpdir(),
+			`qcut-text-marketplace-stale-${randomUUID()}`
+		);
+		const marketplacePath = join(publicDir, "text-assets/marketplace.json");
+		const sourceText = JSON.stringify(
+			createSourcePayload({
+				marketplace: {
+					editorialRank: 3,
+					heatScore: 98,
+					remoteTags: ["market:hero"],
+					searchAliases: ["直播爆款"],
+				},
+			})
+		);
+		const entry = {
+			...createGeneratedEntry({ sourceText }),
+			provenance: {
+				pipeline: "designer-pack-v1",
+				source: "designer-imported" as const,
+			},
+		};
+		await writeGeneratedEntryFiles({ entry, publicDir, sourceText });
+		await mkdir(dirname(marketplacePath), { recursive: true });
+		await writeFile(
+			marketplacePath,
+			JSON.stringify({
+				assets: [
+					{
+						assetId: "text-demo",
+						editorialRank: 8,
+						heatScore: 60,
+						remoteTags: [],
+						searchAliases: [],
+						templateId: "old-template",
+					},
+				],
+				schemaVersion: 1,
+			})
+		);
+
+		const marketplace = await buildTextMarketplacePublishEntry({
+			baseUrl: "https://cdn.example.com/assets/",
+			generatedManifest: { "text-demo": entry },
+			publicDir,
+		});
+
+		expect(marketplace.issues).toEqual([
+			expect.objectContaining({
+				assetId: "text-demo",
+				code: "marketplace-metadata-coverage",
+				detail: expect.stringContaining(
+					"templateId expected text-demo-template"
+				),
+				url: "/text-assets/marketplace.json",
+			}),
+		]);
+		expect(marketplace.issues[0]?.detail).toEqual(
+			expect.stringContaining("remoteTags missing source:designer-imported")
+		);
+		expect(marketplace.issues[0]?.detail).toEqual(
+			expect.stringContaining("searchAliases missing 直播爆款")
+		);
 	});
 
 	it("reports marketplace sections that reference missing template ids", async () => {

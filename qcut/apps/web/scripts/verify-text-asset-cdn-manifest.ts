@@ -845,11 +845,19 @@ export async function buildTextMarketplacePublishEntry({
 	}
 	const bytes = await readFile(localMarketplacePath);
 	const issues = generatedManifest
-		? verifyTextMarketplaceMetadataCoverage({
-				bytes,
-				generatedManifest,
-				url,
-			})
+		? [
+				...verifyTextMarketplaceMetadataCoverage({
+					bytes,
+					generatedManifest,
+					url,
+				}),
+				...(await verifyTextMarketplaceSourceSync({
+					bytes,
+					generatedManifest,
+					publicDir,
+					url,
+				})),
+			]
 		: [];
 	return {
 		entry: {
@@ -871,6 +879,198 @@ export async function buildTextMarketplacePublishEntry({
 		},
 		issues,
 	};
+}
+
+async function verifyTextMarketplaceSourceSync({
+	bytes,
+	generatedManifest,
+	publicDir,
+	url,
+}: {
+	bytes: Buffer;
+	generatedManifest: Record<string, TextAssetGeneratedEntry>;
+	publicDir: string;
+	url: string;
+}): Promise<VerifyIssue[]> {
+	const parsed = parseJsonObjectPayload({
+		assetId: "text-marketplace-config",
+		bytes,
+		role: "metadata",
+		url,
+	});
+	if (parsed.issue) return [];
+	const marketplaceAssets = parsed.payload.assets;
+	if (!Array.isArray(marketplaceAssets)) return [];
+	const marketplaceByAssetId = new Map<string, Record<string, unknown>>();
+	for (const asset of marketplaceAssets) {
+		const record = isRecord({ value: asset }) ? asset : null;
+		if (typeof record?.assetId !== "string") continue;
+		marketplaceByAssetId.set(record.assetId, record);
+	}
+	const issueGroups = await Promise.all(
+		Object.values(generatedManifest).map(async (entry) =>
+			verifyTextMarketplaceSourceAssetSync({
+				entry,
+				marketplace: marketplaceByAssetId.get(entry.assetId),
+				publicDir,
+				url,
+			})
+		)
+	);
+	return issueGroups.flat();
+}
+
+async function verifyTextMarketplaceSourceAssetSync({
+	entry,
+	marketplace,
+	publicDir,
+	url,
+}: {
+	entry: TextAssetGeneratedEntry;
+	marketplace?: Record<string, unknown>;
+	publicDir: string;
+	url: string;
+}): Promise<VerifyIssue[]> {
+	if (!marketplace) return [];
+	const sourcePath = localPath({ publicDir, url: entry.source.url });
+	if (!existsSync(sourcePath)) return [];
+	const sourceBytes = await readFile(sourcePath);
+	const parsed = parseJsonObjectPayload({
+		assetId: entry.assetId,
+		bytes: sourceBytes,
+		role: "source",
+		url: entry.source.url,
+	});
+	if (parsed.issue) return [];
+	const definition = isRecord({ value: parsed.payload.definition })
+		? parsed.payload.definition
+		: undefined;
+	const template = isRecord({ value: parsed.payload.template })
+		? parsed.payload.template
+		: undefined;
+	const sourceTemplateId =
+		stringField({ field: "id", record: definition }) ??
+		stringField({ field: "id", record: template }) ??
+		stringField({ field: "templateId", record: parsed.payload });
+	const sourceMarketplace = isRecord({ value: parsed.payload.marketplace })
+		? parsed.payload.marketplace
+		: undefined;
+	const details = [
+		...marketplaceSourceIdentityMismatches({
+			marketplace,
+			sourceTemplateId,
+		}),
+		...marketplaceSourceMetadataMismatches({
+			entry,
+			marketplace,
+			sourceMarketplace,
+		}),
+	];
+	if (details.length === 0) return [];
+	return [
+		{
+			assetId: entry.assetId,
+			code: "marketplace-metadata-coverage",
+			detail: `Marketplace metadata is not synced with source: ${details.join(", ")}`,
+			url,
+		},
+	];
+}
+
+function marketplaceSourceIdentityMismatches({
+	marketplace,
+	sourceTemplateId,
+}: {
+	marketplace: Record<string, unknown>;
+	sourceTemplateId?: string;
+}): string[] {
+	if (!sourceTemplateId) return [];
+	return marketplace.templateId === sourceTemplateId
+		? []
+		: [`templateId expected ${sourceTemplateId}`];
+}
+
+function marketplaceSourceMetadataMismatches({
+	entry,
+	marketplace,
+	sourceMarketplace,
+}: {
+	entry: TextAssetGeneratedEntry;
+	marketplace: Record<string, unknown>;
+	sourceMarketplace?: Record<string, unknown>;
+}): string[] {
+	const mismatches: string[] = [];
+	for (const field of ["editorialRank", "heatScore"] as const) {
+		const sourceValue = sourceMarketplace?.[field];
+		if (sourceValue === undefined) continue;
+		if (marketplace[field] !== sourceValue) {
+			mismatches.push(`${field} expected ${sourceValue}`);
+		}
+	}
+	const marketplaceTags = stringSetField({
+		field: "remoteTags",
+		record: marketplace,
+	});
+	if (
+		entry.provenance?.source === "designer-imported" &&
+		!marketplaceTags.has("source:designer-imported")
+	) {
+		mismatches.push("remoteTags missing source:designer-imported");
+	}
+	for (const tag of stringListField({
+		field: "remoteTags",
+		record: sourceMarketplace,
+	})) {
+		if (!marketplaceTags.has(tag)) mismatches.push(`remoteTags missing ${tag}`);
+	}
+	const marketplaceAliases = stringSetField({
+		field: "searchAliases",
+		record: marketplace,
+	});
+	for (const alias of stringListField({
+		field: "searchAliases",
+		record: sourceMarketplace,
+	})) {
+		if (!marketplaceAliases.has(alias)) {
+			mismatches.push(`searchAliases missing ${alias}`);
+		}
+	}
+	return mismatches;
+}
+
+function stringField({
+	field,
+	record,
+}: {
+	field: string;
+	record?: Record<string, unknown>;
+}): string | undefined {
+	const value = record?.[field];
+	return typeof value === "string" && value.length > 0 ? value : undefined;
+}
+
+function stringListField({
+	field,
+	record,
+}: {
+	field: string;
+	record?: Record<string, unknown>;
+}): string[] {
+	const value = record?.[field];
+	if (!Array.isArray(value)) return [];
+	return value.filter(
+		(item): item is string => typeof item === "string" && item.length > 0
+	);
+}
+
+function stringSetField({
+	field,
+	record,
+}: {
+	field: string;
+	record?: Record<string, unknown>;
+}): ReadonlySet<string> {
+	return new Set(stringListField({ field, record }));
 }
 
 export function verifyTextMarketplaceMetadataCoverage({
