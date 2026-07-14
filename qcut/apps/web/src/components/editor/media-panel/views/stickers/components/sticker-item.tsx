@@ -9,8 +9,11 @@ import {
 	AlertCircle,
 	Check,
 	CloudDownload,
+	Gem,
 	Heart,
 	Loader2,
+	LockKeyhole,
+	Play,
 } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 import {
@@ -34,7 +37,11 @@ export function StickerItem({
 	icon,
 	name,
 	collection,
+	accessTier = "free",
+	animated = false,
+	isLocked = false,
 	onDownload,
+	onLockedSelect,
 	onSelect,
 	isSelected,
 	layout = "compact",
@@ -135,12 +142,31 @@ export function StickerItem({
 		};
 	}, [asset, catalogItem, collection, icon, iconId, isCached, layout]);
 
-	const handleSelect = () => onSelect(iconId, displayName);
-	const handleDownload = () => onDownload?.(iconId, displayName);
+	const handleSelect = () => {
+		if (isLocked) {
+			onLockedSelect?.();
+			return;
+		}
+		onSelect(iconId, displayName);
+	};
+	const handleDownload = () => {
+		if (isLocked) {
+			onLockedSelect?.();
+			return;
+		}
+		onDownload?.(iconId, displayName);
+	};
 	const handleFavorite = () => {
 		toggleFavorite({ kind: "sticker", id: asset.id });
 	};
 	const statusIcon = (() => {
+		if (isLocked) {
+			return (
+				<LockKeyhole className="size-3 text-amber-300">
+					<title>Premium sticker locked</title>
+				</LockKeyhole>
+			);
+		}
 		if (isBusy) {
 			return (
 				<Loader2 className="size-3 animate-spin">
@@ -196,7 +222,7 @@ export function StickerItem({
 						}}
 						disabled={hasError || !imageUrl}
 						aria-pressed={Boolean(isSelected)}
-						aria-label={`${displayName} (${collection})`}
+						aria-label={`${displayName} (${collection})${isLocked ? " Premium" : ""}`}
 						data-testid="sticker-item"
 						data-sticker-id={iconId}
 					>
@@ -231,18 +257,51 @@ export function StickerItem({
 				</TooltipTrigger>
 				<TooltipContent side="bottom">
 					<p className="text-sm font-medium">{displayName}</p>
-					<p className="text-xs text-muted-foreground">{asset.license.name}</p>
+					<p className="text-xs text-muted-foreground">
+						{accessTier === "pro" ? "QCut Pro · " : ""}
+						{asset.license.name}
+					</p>
 				</TooltipContent>
 			</Tooltip>
+			{accessTier === "pro" && (
+				<span
+					className="pointer-events-none absolute left-0.5 top-0.5 z-10 flex size-5 items-center justify-center rounded-sm bg-background/85 text-cyan-300"
+					title="QCut Pro sticker"
+				>
+					<Gem className="size-3">
+						<title>QCut Pro sticker</title>
+					</Gem>
+				</span>
+			)}
+			{animated && (
+				<span
+					className="pointer-events-none absolute bottom-0.5 left-0.5 z-10 flex size-5 items-center justify-center rounded-sm bg-background/85 text-emerald-300"
+					title="Animated sticker"
+				>
+					<Play className="size-3 fill-current">
+						<title>Animated sticker</title>
+					</Play>
+				</span>
+			)}
 			{layout === "catalog" && (
 				<button
 					type="button"
 					className="absolute bottom-0.5 right-0.5 z-10 flex size-5 items-center justify-center rounded-sm bg-background/85 text-muted-foreground transition-colors hover:text-foreground disabled:cursor-default"
 					aria-label={
-						isCached ? `${displayName} cached` : `Download ${displayName}`
+						isLocked
+							? `Unlock ${displayName}`
+							: isCached
+								? `${displayName} cached`
+								: `Download ${displayName}`
 					}
-					title={isCached ? "Available offline" : "Download sticker"}
-					disabled={isCached || isBusy || !onDownload}
+					title={
+						isLocked
+							? "Unlock with QCut Pro"
+							: isCached
+								? "Available offline"
+								: "Download sticker"
+					}
+					disabled={isBusy || (!isLocked && (isCached || !onDownload))}
 					onClick={handleDownload}
 					onKeyDown={(event) => {
 						if (event.key === " ") {
@@ -254,30 +313,32 @@ export function StickerItem({
 					{statusIcon}
 				</button>
 			)}
-			<button
-				type="button"
-				className={cn(
-					"absolute right-0.5 top-0.5 z-10 flex size-5 items-center justify-center rounded-sm bg-background/85 text-muted-foreground opacity-0 transition-opacity hover:text-foreground focus-visible:opacity-100 group-hover:opacity-100",
-					favorite && "text-amber-300 opacity-100"
-				)}
-				aria-label={
-					favorite
-						? `Remove ${displayName} from favorites`
-						: `Favorite ${displayName}`
-				}
-				title={favorite ? "Remove from favorites" : "Add to favorites"}
-				onClick={handleFavorite}
-				onKeyDown={(event) => {
-					if (event.key === " ") {
-						event.preventDefault();
-						handleFavorite();
+			{!isLocked && (
+				<button
+					type="button"
+					className={cn(
+						"absolute right-0.5 top-0.5 z-10 flex size-5 items-center justify-center rounded-sm bg-background/85 text-muted-foreground opacity-0 transition-opacity hover:text-foreground focus-visible:opacity-100 group-hover:opacity-100",
+						favorite && "text-amber-300 opacity-100"
+					)}
+					aria-label={
+						favorite
+							? `Remove ${displayName} from favorites`
+							: `Favorite ${displayName}`
 					}
-				}}
-			>
-				<Heart className={cn("size-3", favorite && "fill-current")}>
-					<title>{favorite ? "Favorited" : "Favorite sticker"}</title>
-				</Heart>
-			</button>
+					title={favorite ? "Remove from favorites" : "Add to favorites"}
+					onClick={handleFavorite}
+					onKeyDown={(event) => {
+						if (event.key === " ") {
+							event.preventDefault();
+							handleFavorite();
+						}
+					}}
+				>
+					<Heart className={cn("size-3", favorite && "fill-current")}>
+						<title>{favorite ? "Favorited" : "Favorite sticker"}</title>
+					</Heart>
+				</button>
+			)}
 		</div>
 	);
 }

@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useRef, useState, type ChangeEvent } from "react";
-import { AlertCircle, Clock, Heart, Library } from "lucide-react";
+import { AlertCircle, Clock, Heart, Library, Store } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { useDebounce } from "@/hooks/use-debounce";
@@ -18,12 +18,14 @@ import { StickersFavorites } from "./components/stickers-favorites";
 import { StickersRecent } from "./components/stickers-recent";
 import { StickersSearch } from "./components/stickers-search";
 import { StickersSearchResults } from "./components/stickers-search-results";
+import { StickerStorefront } from "./components/sticker-storefront";
 import { useStickerSelect } from "./hooks/use-sticker-select";
 
-type StickerLibraryMode = "library" | "recent" | "favorites";
+type StickerLibraryMode = "library" | "store" | "recent" | "favorites";
 
 const LIBRARY_MODES = [
 	{ id: "library", label: "贴纸库", icon: Library },
+	{ id: "store", label: "商店", icon: Store },
 	{ id: "recent", label: "最近", icon: Clock },
 	{ id: "favorites", label: "收藏", icon: Heart },
 ] as const satisfies ReadonlyArray<{
@@ -134,7 +136,7 @@ export function StickersView() {
 				onChange={handleFileChange}
 			/>
 
-			<div className="grid grid-cols-3 border-b border-border/50 bg-foreground/[0.02] p-1">
+			<div className="grid grid-cols-4 border-b border-border/50 bg-foreground/[0.02] p-1">
 				{LIBRARY_MODES.map((item) => {
 					const Icon = item.icon;
 					return (
@@ -199,6 +201,11 @@ export function StickersView() {
 							onSelect={handleStickerSelect}
 						/>
 					</div>
+				) : mode === "store" ? (
+					<StickerStorefront
+						onDownload={handleStickerDownload}
+						onSelect={handleStickerSelect}
+					/>
 				) : mode === "recent" ? (
 					<div className="h-full overflow-y-auto">
 						<StickersRecent

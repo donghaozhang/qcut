@@ -5,12 +5,14 @@ import {
 	STICKER_CATEGORY_MINIMUM_SIZE,
 } from "@/lib/stickers/sticker-catalog";
 import { useAssetLibraryStore } from "@/stores/asset-library-store";
+import { useStickerPackStore } from "@/stores/sticker-pack-store";
 import { useStickersStore } from "@/stores/stickers-store";
 import { StickersView } from "../stickers-view";
 
 describe("StickersView", () => {
 	beforeEach(() => {
 		useAssetLibraryStore.getState().resetLibrary();
+		useStickerPackStore.getState().resetPacks();
 		useStickersStore.setState({
 			searchResults: [],
 			recentStickers: [],
@@ -74,8 +76,11 @@ describe("StickersView", () => {
 		).toBeInTheDocument();
 	});
 
-	it("switches between the library, recent stickers, and favorites", () => {
+	it("switches between the library, store, recent stickers, and favorites", () => {
 		render(<StickersView />);
+
+		fireEvent.click(screen.getByRole("button", { name: "商店" }));
+		expect(screen.getByTestId("sticker-storefront")).toBeInTheDocument();
 
 		fireEvent.click(screen.getByRole("button", { name: "最近" }));
 		expect(screen.getByText("No recent stickers yet")).toBeInTheDocument();

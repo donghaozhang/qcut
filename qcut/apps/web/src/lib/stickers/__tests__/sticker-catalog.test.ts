@@ -6,6 +6,11 @@ import {
 	getStickerCategoryItems,
 	searchStickerCatalog,
 } from "../sticker-catalog";
+import {
+	DEFAULT_INSTALLED_STICKER_PACK_IDS,
+	STICKER_STORE_PACKS,
+	canAccessStickerPack,
+} from "../sticker-pack-catalog";
 
 describe("sticker catalog", () => {
 	it("keeps every category populated with unique stickers", () => {
@@ -63,6 +68,50 @@ describe("sticker catalog", () => {
 			searchStickerCatalog({ query: "浪漫" }).every(
 				(item) => item.category === "romance"
 			)
+		).toBe(true);
+	});
+
+	it("keeps store packs populated, unique, and access gated", () => {
+		const packIds = new Set(STICKER_STORE_PACKS.map((pack) => pack.id));
+		expect(packIds.size).toBe(STICKER_STORE_PACKS.length);
+
+		for (const pack of STICKER_STORE_PACKS) {
+			expect(pack.items.length, pack.id).toBeGreaterThan(0);
+			expect(new Set(pack.items.map((item) => item.id)).size).toBe(
+				pack.items.length
+			);
+		}
+
+		expect(
+			DEFAULT_INSTALLED_STICKER_PACK_IDS.every((packId) => packIds.has(packId))
+		).toBe(true);
+		expect(
+			canAccessStickerPack({
+				accessTier: "free",
+				plan: undefined,
+				status: undefined,
+			})
+		).toBe(true);
+		expect(
+			canAccessStickerPack({
+				accessTier: "pro",
+				plan: "free",
+				status: "active",
+			})
+		).toBe(false);
+		expect(
+			canAccessStickerPack({
+				accessTier: "pro",
+				plan: "pro",
+				status: "past_due",
+			})
+		).toBe(false);
+		expect(
+			canAccessStickerPack({
+				accessTier: "pro",
+				plan: "team",
+				status: "active",
+			})
 		).toBe(true);
 	});
 });
