@@ -3,6 +3,7 @@ import {
 	Dialog,
 	DialogContent,
 	DialogDescription,
+	DialogFooter,
 	DialogHeader,
 	DialogTitle,
 } from "@/components/ui/dialog";
@@ -69,7 +70,12 @@ import {
 	isSmartTextCategory,
 	type SmartTextSuggestion,
 } from "@/lib/text/smart-text-generation";
-import { buildTextTemplatePack } from "@/lib/text/text-template-packs";
+import {
+	applyTextTemplatePackCopy,
+	buildTextTemplatePack,
+	type TextTemplatePack,
+	type TextTemplatePackCopySlot,
+} from "@/lib/text/text-template-packs";
 import {
 	DEFAULT_TEXT_TEMPLATE_CATEGORY_ID,
 	TEXT_TEMPLATE_CATEGORIES,
@@ -206,6 +212,27 @@ export function buildTextTemplateDragData({
 	};
 }
 
+export function getTextTemplatePackCopyDefaults({
+	copySlots,
+}: {
+	copySlots: readonly TextTemplatePackCopySlot[];
+}): string[] {
+	return copySlots.map((slot) => slot.defaultContent);
+}
+
+export function applyTextTemplatePackCopyValues({
+	copyValues,
+	pack,
+}: {
+	copyValues: readonly string[];
+	pack: TextTemplatePack;
+}): TextTemplatePack {
+	return applyTextTemplatePackCopy({
+		contents: copyValues,
+		pack,
+	}) as TextTemplatePack;
+}
+
 function TextTemplate({
 	definition,
 	downloadStatus,
@@ -233,6 +260,16 @@ function TextTemplate({
 		() => buildTextTemplateDragData({ definition }),
 		[definition]
 	);
+	const editableTemplatePack = useMemo(
+		() => buildTextTemplatePack({ definition }),
+		[definition]
+	);
+	const [copyDialogOpen, setCopyDialogOpen] = useState(false);
+	const [copyValues, setCopyValues] = useState<string[]>(() =>
+		getTextTemplatePackCopyDefaults({
+			copySlots: editableTemplatePack?.copySlots ?? [],
+		})
+	);
 	const resolveTemplate = async () => {
 		return resolveTextTemplateForTimeline({
 			definition,
@@ -240,7 +277,13 @@ function TextTemplate({
 			fallbackTemplate: template,
 		});
 	};
-	const addToTimeline = async (currentTime?: number) => {
+	const addToTimeline = async ({
+		currentTime,
+		customCopyValues,
+	}: {
+		currentTime?: number;
+		customCopyValues?: readonly string[];
+	} = {}) => {
 		const time = currentTime ?? usePlaybackStore.getState().currentTime;
 		const resolvedTemplate = await resolveTemplate();
 		const fallbackTemplatePack = buildTextTemplatePack({
@@ -255,9 +298,16 @@ function TextTemplate({
 			fallbackPack: fallbackTemplatePack,
 			fallbackTemplate: resolvedTemplate,
 		});
-		const added = timedTemplatePack
+		const copiedTemplatePack =
+			timedTemplatePack && customCopyValues
+				? applyTextTemplatePackCopy({
+						contents: customCopyValues,
+						pack: timedTemplatePack,
+					})
+				: timedTemplatePack;
+		const added = copiedTemplatePack
 			? useTimelineStore.getState().addTextGroupAtTime({
-					elements: timedTemplatePack.elements,
+					elements: copiedTemplatePack.elements,
 					currentTime: time,
 				})
 			: useTimelineStore.getState().addTextAtTime(resolvedTemplate, time);
@@ -274,6 +324,32 @@ function TextTemplate({
 	};
 	const handleActivate = () => {
 		void addToTimeline();
+	};
+	const handleOpenCopyDialog = () => {
+		if (!editableTemplatePack) return;
+		setCopyValues(
+			getTextTemplatePackCopyDefaults({
+				copySlots: editableTemplatePack.copySlots,
+			})
+		);
+		setCopyDialogOpen(true);
+	};
+	const handleCopyValueChange = ({
+		index,
+		value,
+	}: {
+		index: number;
+		value: string;
+	}) => {
+		setCopyValues((current) =>
+			current.map((copyValue, copyIndex) =>
+				copyIndex === index ? value : copyValue
+			)
+		);
+	};
+	const handleInsertWithCopy = () => {
+		setCopyDialogOpen(false);
+		void addToTimeline({ customCopyValues: copyValues });
 	};
 	const downloadLabel = getTextTemplateDownloadLabel({
 		downloadStatus,
@@ -310,6 +386,25 @@ function TextTemplate({
 						template={template}
 						thumbnailUrl={getTextTemplateCatalogThumbnailUrl({ definition })}
 					/>
+					{editableTemplatePack &&
+						editableTemplatePack.copySlots.length > 0 && (
+							<button
+								type="button"
+								aria-label="替换模板文案"
+								className="absolute bottom-1 left-1 flex h-4 w-4 items-center justify-center rounded-full bg-black/55 text-white opacity-0 transition-colors hover:bg-black/80 group-focus-within:opacity-100 group-hover:opacity-100"
+								onClick={(event) => {
+									event.stopPropagation();
+									handleOpenCopyDialog();
+								}}
+								onKeyDown={(event) => {
+									event.stopPropagation();
+								}}
+							>
+								<FileText aria-hidden="true" className="h-3.5 w-3.5">
+									<title>替换模板文案</title>
+								</FileText>
+							</button>
+						)}
 					{definition.premium && (
 						<div className="absolute left-1 top-1 flex h-3.5 w-3.5 items-center justify-center rounded-full bg-cyan-300 text-slate-950 shadow-sm">
 							<Gem aria-hidden="true" className="h-2.5 w-2.5">
@@ -368,7 +463,81 @@ function TextTemplate({
 					{template.name}
 				</span>
 			</div>
+			{editableTemplatePack && (
+				<TextTemplateCopyDialog
+					copySlots={editableTemplatePack.copySlots}
+					copyValues={copyValues}
+					open={copyDialogOpen}
+					templateName={template.name}
+					onCopyValueChange={handleCopyValueChange}
+					onInsert={handleInsertWithCopy}
+					onOpenChange={setCopyDialogOpen}
+				/>
+			)}
 		</div>
+	);
+}
+
+function TextTemplateCopyDialog({
+	copySlots,
+	copyValues,
+	onCopyValueChange,
+	onInsert,
+	onOpenChange,
+	open,
+	templateName,
+}: {
+	copySlots: readonly TextTemplatePackCopySlot[];
+	copyValues: readonly string[];
+	onCopyValueChange: (props: { index: number; value: string }) => void;
+	onInsert: () => void;
+	onOpenChange: (open: boolean) => void;
+	open: boolean;
+	templateName: string;
+}) {
+	return (
+		<Dialog open={open} onOpenChange={onOpenChange}>
+			<DialogContent className="max-w-sm border-border/70 bg-background">
+				<DialogHeader>
+					<DialogTitle className="text-base">替换模板文案</DialogTitle>
+					<DialogDescription>{templateName}</DialogDescription>
+				</DialogHeader>
+				<div className="space-y-2">
+					{copySlots.map((slot, index) => (
+						<label key={slot.id} className="block space-y-1">
+							<span className="text-[0.72rem] text-muted-foreground">
+								{slot.label}
+							</span>
+							<input
+								type="text"
+								value={copyValues[index] ?? slot.defaultContent}
+								className="h-8 w-full rounded-md border border-border bg-background px-2 text-xs text-foreground outline-none transition-colors focus:border-cyan-400"
+								onChange={(event) =>
+									onCopyValueChange({
+										index,
+										value: event.target.value,
+									})
+								}
+							/>
+						</label>
+					))}
+				</div>
+				<DialogFooter>
+					<button
+						type="button"
+						className="h-8 rounded-md bg-cyan-400 px-3 text-xs font-medium text-slate-950 transition-colors hover:bg-cyan-300"
+						onClick={onInsert}
+						onKeyDown={(event) => {
+							if (!isActivationKey({ event })) return;
+							event.preventDefault();
+							onInsert();
+						}}
+					>
+						插入模板
+					</button>
+				</DialogFooter>
+			</DialogContent>
+		</Dialog>
 	);
 }
 

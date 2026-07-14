@@ -5,12 +5,16 @@ import {
 } from "@/lib/text/text-template-registry";
 import type { CreateTextElement, TextElement } from "@/types/timeline";
 
-export interface TextTemplatePack {
+export interface TextTemplatePackPayload {
 	id: string;
 	name: string;
-	category: TextTemplateDefinition["category"];
+	category: string;
 	copySlots: TextTemplatePackCopySlot[];
 	elements: CreateTextElement[];
+}
+
+export interface TextTemplatePack extends TextTemplatePackPayload {
+	category: TextTemplateDefinition["category"];
 }
 
 export interface TextTemplatePackCopySlot {
@@ -84,8 +88,8 @@ export function applyTextTemplatePackCopy({
 	pack,
 }: {
 	contents: readonly string[];
-	pack: TextTemplatePack;
-}): TextTemplatePack {
+	pack: TextTemplatePackPayload;
+}): TextTemplatePackPayload {
 	const replacements = new Map<number, string>();
 	for (const [slotIndex, slot] of pack.copySlots.entries()) {
 		const nextContent = contents[slotIndex]?.trim();

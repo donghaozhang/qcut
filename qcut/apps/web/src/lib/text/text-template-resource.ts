@@ -14,6 +14,7 @@ import {
 import {
 	buildTextTemplatePackCopySlots,
 	type TextTemplatePackCopySlot,
+	type TextTemplatePackPayload,
 } from "./text-template-packs";
 
 export interface DownloadedTextTemplateResource {
@@ -53,13 +54,7 @@ export interface TextTemplatePackagePackSource {
 	name: string;
 }
 
-export interface ResolvedTextTemplatePack {
-	category: string;
-	copySlots: TextTemplatePackCopySlot[];
-	elements: CreateTextElement[];
-	id: string;
-	name: string;
-}
+export type ResolvedTextTemplatePack = TextTemplatePackPayload;
 
 function asRecord({
 	value,

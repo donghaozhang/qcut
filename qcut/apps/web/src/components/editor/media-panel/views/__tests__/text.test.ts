@@ -1,11 +1,14 @@
 import { describe, expect, it } from "vitest";
 import { getTextTemplateDefinitionsByCategory } from "@/lib/text/text-template-registry";
 import {
+	applyTextTemplatePackCopyValues,
 	buildTextTemplateDragData,
+	getTextTemplatePackCopyDefaults,
 	getExpandedTextTemplateGridColumnCount,
 	getTextTemplateGridColumnCount,
 	sortTextDefinitionsForBrowsing,
 } from "../text";
+import { buildTextTemplatePack } from "@/lib/text/text-template-packs";
 
 describe("text view layout", () => {
 	it("keeps the asset grid at four or five columns for typical panel widths", () => {
@@ -71,5 +74,23 @@ describe("text view layout", () => {
 		expect(buildTextTemplateDragData({ definition }).textTemplatePack).toBe(
 			undefined
 		);
+	});
+
+	it("builds editable copy defaults for multi-element template packs", () => {
+		const definition = getTextTemplateDefinitionsByCategory({
+			category: "headline-template",
+		})[0];
+		const pack = buildTextTemplatePack({ definition });
+		if (!pack) throw new Error("Expected headline template pack");
+
+		expect(
+			getTextTemplatePackCopyDefaults({ copySlots: pack.copySlots })
+		).toEqual(["本期重点", definition.content, "三句话讲清楚"]);
+		expect(
+			applyTextTemplatePackCopyValues({
+				copyValues: ["开场提醒", "新标题", "新副标题"],
+				pack,
+			}).elements.map((element) => element.content)
+		).toEqual(["开场提醒", "新标题", "新副标题"]);
 	});
 });
