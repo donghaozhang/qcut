@@ -720,6 +720,50 @@ describe("text asset CDN manifest verifier", () => {
 		});
 	});
 
+	it("reports marketplace sections that reference missing template ids", async () => {
+		const publicDir = join(
+			tmpdir(),
+			`qcut-text-marketplace-section-${randomUUID()}`
+		);
+		const marketplacePath = join(publicDir, "text-assets/marketplace.json");
+		await mkdir(dirname(marketplacePath), { recursive: true });
+		await writeFile(
+			marketplacePath,
+			JSON.stringify({
+				assets: [
+					{
+						assetId: "text-demo",
+						packageId: "text-demo",
+						templateId: "text-demo-template",
+					},
+				],
+				schemaVersion: 1,
+				sections: [
+					{
+						id: "recommended",
+						templateIds: ["text-demo-template", "missing-template"],
+						title: "推荐",
+					},
+				],
+			})
+		);
+
+		const marketplace = await buildTextMarketplacePublishEntry({
+			baseUrl: "https://cdn.example.com/assets/",
+			generatedManifest: { "text-demo": createGeneratedEntry() },
+			publicDir,
+		});
+
+		expect(marketplace.issues).toEqual([
+			expect.objectContaining({
+				assetId: "text-marketplace-config",
+				code: "marketplace-metadata-coverage",
+				detail: expect.stringContaining("missing-template"),
+				url: "/text-assets/marketplace.json",
+			}),
+		]);
+	});
+
 	it("verifies local file byte sizes and checksums", async () => {
 		const publicDir = join(tmpdir(), `qcut-text-assets-${randomUUID()}`);
 		const entry = createGeneratedEntry();
