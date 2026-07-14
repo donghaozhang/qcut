@@ -70,6 +70,12 @@ export type VerifyIssue = {
 	url?: string;
 };
 
+export type VerifyIssueSummary = {
+	byCode: Partial<Record<VerifyIssue["code"], number>>;
+	count: number;
+	truncated: number;
+};
+
 export type TextAssetProvenanceSummary = {
 	designerImported: number;
 	generated: number;
@@ -81,6 +87,8 @@ export type TextAssetProvenanceSummary = {
 export type TextAssetCdnCliOptions = {
 	baseUrl: string;
 	checkRemote: boolean;
+	fullIssues: boolean;
+	issueLimit: number;
 	manifestPath: string;
 	minDesignerAssets: number;
 	publicDir: string;
@@ -104,6 +112,8 @@ export function parseTextAssetCdnArgs({
 	const options: TextAssetCdnCliOptions = {
 		baseUrl: process.env.QCUT_TEXT_ASSET_CDN_URL ?? DEFAULT_BASE_URL,
 		checkRemote: false,
+		fullIssues: false,
+		issueLimit: 25,
 		manifestPath: DEFAULT_MANIFEST_PATH,
 		minDesignerAssets: 0,
 		publicDir: DEFAULT_PUBLIC_DIR,
@@ -115,8 +125,20 @@ export function parseTextAssetCdnArgs({
 			options.checkRemote = true;
 			continue;
 		}
+		if (arg === "--full-issues") {
+			options.fullIssues = true;
+			continue;
+		}
 		if (arg === "--base-url") {
 			options.baseUrl = requireValue({ argv, index, name: arg });
+			index += 1;
+			continue;
+		}
+		if (arg === "--issue-limit") {
+			options.issueLimit = parseNonNegativeInteger({
+				name: arg,
+				value: requireValue({ argv, index, name: arg }),
+			});
 			index += 1;
 			continue;
 		}
@@ -274,6 +296,34 @@ export function verifyDesignerAssetCoverage({
 			detail: `Expected at least ${minDesignerAssets} designer-imported text assets, received ${provenance.designerImported}`,
 		},
 	];
+}
+
+export function summarizeVerifyIssues({
+	issues,
+	limit = 25,
+}: {
+	issues: readonly VerifyIssue[];
+	limit?: number;
+}): {
+	issueSummary: VerifyIssueSummary;
+	issues: VerifyIssue[];
+} {
+	const byCode = issues.reduce<Partial<Record<VerifyIssue["code"], number>>>(
+		(summary, issue) => {
+			summary[issue.code] = (summary[issue.code] ?? 0) + 1;
+			return summary;
+		},
+		{}
+	);
+	const sampleLimit = Math.max(0, Math.floor(limit));
+	return {
+		issueSummary: {
+			byCode,
+			count: issues.length,
+			truncated: Math.max(0, issues.length - sampleLimit),
+		},
+		issues: issues.slice(0, sampleLimit),
+	};
 }
 
 export function filesForEntry({
@@ -863,12 +913,21 @@ async function main(): Promise<void> {
 	if (options.writePath) {
 		await writePublishManifest({ manifest, writePath: options.writePath });
 	}
+	const issueOutput = options.fullIssues
+		? {
+				issueSummary: summarizeVerifyIssues({
+					issues,
+					limit: issues.length,
+				}).issueSummary,
+				issues,
+			}
+		: summarizeVerifyIssues({ issues, limit: options.issueLimit });
 	console.log(
 		JSON.stringify(
 			{
 				baseUrl: manifest.baseUrl,
 				checkRemote: options.checkRemote,
-				issues,
+				...issueOutput,
 				minDesignerAssets: options.minDesignerAssets,
 				ok: issues.length === 0,
 				provenance,

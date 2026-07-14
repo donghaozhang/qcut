@@ -8,6 +8,7 @@ import {
 	buildTextMarketplacePublishEntry,
 	parseTextAssetCdnArgs,
 	summarizeTextAssetProvenance,
+	summarizeVerifyIssues,
 	verifyDesignerAssetCoverage,
 	verifyLocalFiles,
 	verifyRemoteFiles,
@@ -145,8 +146,11 @@ describe("text asset CDN manifest verifier", () => {
 					"--base-url",
 					"https://cdn.example.com/assets/",
 					"--check-remote",
+					"--full-issues",
 					"--manifest",
 					"/tmp/generated.json",
+					"--issue-limit",
+					"2",
 					"--min-designer-assets",
 					"12",
 					"--public-dir",
@@ -160,12 +164,47 @@ describe("text asset CDN manifest verifier", () => {
 		).toMatchObject({
 			baseUrl: "https://cdn.example.com/assets/",
 			checkRemote: true,
+			fullIssues: true,
+			issueLimit: 2,
 			manifestPath: "/tmp/generated.json",
 			minDesignerAssets: 12,
 			publicDir: "/tmp/public",
 			remoteConcurrency: 4,
 			writePath: "/tmp/publish.json",
 		});
+	});
+
+	it("summarizes verifier issues for readable CLI output", () => {
+		const { issueSummary, issues } = summarizeVerifyIssues({
+			issues: [
+				{
+					assetId: "text-demo",
+					code: "remote-unavailable",
+					detail: "first",
+				},
+				{
+					assetId: "text-demo",
+					code: "remote-unavailable",
+					detail: "second",
+				},
+				{
+					assetId: "text-demo",
+					code: "checksum-mismatch",
+					detail: "third",
+				},
+			],
+			limit: 2,
+		});
+
+		expect(issueSummary).toEqual({
+			byCode: {
+				"checksum-mismatch": 1,
+				"remote-unavailable": 2,
+			},
+			count: 3,
+			truncated: 1,
+		});
+		expect(issues.map((issue) => issue.detail)).toEqual(["first", "second"]);
 	});
 
 	it("summarizes generated versus designer-imported provenance", () => {
