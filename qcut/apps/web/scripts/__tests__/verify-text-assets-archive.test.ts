@@ -7,6 +7,7 @@ import type {
 	TextAssetUploadPlanReport,
 } from "../upload-text-assets-cdn";
 import {
+	countTextAssetArchiveFiles,
 	listTextAssetArchiveEntries,
 	parseTextAssetArchiveVerifyArgs,
 	readTextAssetArchiveManifest,
@@ -114,6 +115,20 @@ describe("text asset archive verifier", () => {
 			["-tzf", "/tmp/text-assets.tar.gz"],
 			["-xOf", "/tmp/text-assets.tar.gz", "./_qcut-text-assets-release.json"],
 		]);
+	});
+
+	it("counts actual archive files while ignoring directory entries", () => {
+		expect(
+			countTextAssetArchiveFiles({
+				entries: [
+					"./",
+					"./prod/",
+					"./_qcut-text-assets-release.json",
+					"./prod/text-assets/demo/plain@1/template.json",
+					"../escape.json",
+				],
+			})
+		).toBe(3);
 	});
 
 	it("detects missing, unexpected, duplicate, and escaping archive entries", () => {
