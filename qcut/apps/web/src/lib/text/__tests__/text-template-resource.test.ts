@@ -205,10 +205,11 @@ function padJsonTextToByteLength({
 	targetBytes: number;
 	text: string;
 }): string {
-	if (text.length > targetBytes) {
+	const byteLength = Buffer.byteLength(text);
+	if (byteLength > targetBytes) {
 		throw new Error(`Fixture text exceeds ${targetBytes} bytes`);
 	}
-	return `${text}${" ".repeat(targetBytes - text.length)}`;
+	return `${text}${" ".repeat(targetBytes - byteLength)}`;
 }
 
 describe("downloadTextTemplateResource", () => {
@@ -813,27 +814,21 @@ describe("downloadTextTemplateResource", () => {
 		).resolves.toMatchObject({
 			copySlots: [
 				{
-					defaultContent: "本期重点",
+					defaultContent: "Package headline",
 					elementIndex: 0,
-					id: "kicker",
-					label: "眉标题",
-				},
-				{
-					defaultContent: "花字",
-					elementIndex: 1,
 					id: "headline",
 					label: "主标题",
 				},
 				{
-					defaultContent: "三句话讲清楚",
-					elementIndex: 2,
+					defaultContent: "Subtitle",
+					elementIndex: 1,
 					id: "subhead",
 					label: "副标题",
 				},
 			],
 			elements: [
 				{
-					content: "本期重点",
+					content: "Package headline",
 					duration: fallbackTemplate.duration,
 					startTime: 2,
 					trimEnd: 0,
@@ -841,12 +836,8 @@ describe("downloadTextTemplateResource", () => {
 					type: "text",
 				},
 				{
-					content: "花字",
-					startTime: 2,
-					type: "text",
-				},
-				{
-					content: "三句话讲清楚",
+					content: "Subtitle",
+					fontSize: 28,
 					startTime: 2,
 					type: "text",
 				},
