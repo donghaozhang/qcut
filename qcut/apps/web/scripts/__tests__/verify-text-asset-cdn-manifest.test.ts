@@ -443,22 +443,34 @@ describe("text asset CDN manifest verifier", () => {
 							assetId: "text-fancy-red-designer-04",
 							cacheKey: "text-assets/text-fancy-red/designer-04@1",
 							packageId: "text-fancy-red",
+							requiredFilePaths: [
+								"text-assets/text-fancy-red/designer-04@1/thumbnail.webp",
+								"text-assets/text-fancy-red/designer-04@1/template.json",
+								"text-assets/text-fancy-red/designer-04@1/template.qctext",
+							],
 							requiredFiles: [
 								"thumbnail.webp",
 								"template.json",
 								"template.qctext",
 							],
+							targetDirectory: "text-assets/text-fancy-red/designer-04@1",
 							variantId: "designer-04",
 						},
 						{
 							assetId: "text-fancy-red-designer-05",
 							cacheKey: "text-assets/text-fancy-red/designer-05@1",
 							packageId: "text-fancy-red",
+							requiredFilePaths: [
+								"text-assets/text-fancy-red/designer-05@1/thumbnail.webp",
+								"text-assets/text-fancy-red/designer-05@1/template.json",
+								"text-assets/text-fancy-red/designer-05@1/template.qctext",
+							],
 							requiredFiles: [
 								"thumbnail.webp",
 								"template.json",
 								"template.qctext",
 							],
+							targetDirectory: "text-assets/text-fancy-red/designer-05@1",
 							variantId: "designer-05",
 						},
 					],
@@ -474,11 +486,18 @@ describe("text asset CDN manifest verifier", () => {
 							cacheKey:
 								"text-assets/text-templates-headline-template/designer-01@1",
 							packageId: "text-templates-headline-template",
+							requiredFilePaths: [
+								"text-assets/text-templates-headline-template/designer-01@1/thumbnail.webp",
+								"text-assets/text-templates-headline-template/designer-01@1/template.json",
+								"text-assets/text-templates-headline-template/designer-01@1/template.qctext",
+							],
 							requiredFiles: [
 								"thumbnail.webp",
 								"template.json",
 								"template.qctext",
 							],
+							targetDirectory:
+								"text-assets/text-templates-headline-template/designer-01@1",
 							variantId: "designer-01",
 						},
 					],

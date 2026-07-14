@@ -110,11 +110,17 @@ export type TextAssetDesignerImportSlot = {
 	assetId: string;
 	cacheKey: string;
 	packageId: string;
+	requiredFilePaths: readonly [
+		`${string}/thumbnail.webp`,
+		`${string}/template.json`,
+		`${string}/template.qctext`,
+	];
 	requiredFiles: readonly [
 		"thumbnail.webp",
 		"template.json",
 		"template.qctext",
 	];
+	targetDirectory: string;
 	variantId: string;
 };
 
@@ -572,11 +578,18 @@ function buildDesignerAssetImportSlots({
 	return Array.from({ length: category.missing }, (_, index) => {
 		const importNumber = category.current + index + 1;
 		const variantId = `designer-${String(importNumber).padStart(2, "0")}`;
+		const targetDirectory = `text-assets/${packageId}/${variantId}@1`;
 		return {
 			assetId: `${packageId}-${variantId}`,
-			cacheKey: `text-assets/${packageId}/${variantId}@1`,
+			cacheKey: targetDirectory,
 			packageId,
+			requiredFilePaths: [
+				`${targetDirectory}/thumbnail.webp`,
+				`${targetDirectory}/template.json`,
+				`${targetDirectory}/template.qctext`,
+			],
 			requiredFiles: ["thumbnail.webp", "template.json", "template.qctext"],
+			targetDirectory,
 			variantId,
 		};
 	});
