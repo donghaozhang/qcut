@@ -45,10 +45,12 @@ const CHINESE_PINYIN: Readonly<Record<string, string>> = {
 	黑: "hei",
 	白: "bai",
 	蓝: "lan",
+	兰: "lan",
 	粉: "fen",
 	绿: "lv",
 	紫: "zi",
 	色: "se",
+	瑟: "se",
 	标: "biao",
 	题: "ti",
 	模: "mo",
@@ -115,6 +117,11 @@ const CHINESE_PINYIN: Readonly<Record<string, string>> = {
 	画: "hua",
 	爆: "bao",
 	款: "kuan",
+	炎: "yan",
+	疯: "feng",
+	朝: "chao",
+	建: "jian",
+	义: "yi",
 };
 
 const QUERY_SYNONYMS: Readonly<Record<string, readonly string[]>> = {
@@ -138,6 +145,24 @@ const QUERY_SYNONYMS: Readonly<Record<string, readonly string[]>> = {
 	甜: ["粉色", "糖果", "甜心", "气泡"],
 	赛博: ["故障", "霓虹", "发光"],
 	金: ["金色", "鎏金", "黄色", "高级"],
+};
+
+const QUERY_CORRECTIONS: Readonly<Record<string, readonly string[]>> = {
+	兰: ["蓝"],
+	兰色: ["蓝色"],
+	文理: ["纹理"],
+	质感文理: ["质感纹理"],
+	火炎: ["火焰"],
+	故章: ["故障"],
+	国疯: ["国风"],
+	国朝: ["国潮"],
+	建变: ["渐变"],
+	综义: ["综艺"],
+	粉瑟: ["粉色"],
+	红瑟: ["红色"],
+	黄瑟: ["黄色"],
+	蓝瑟: ["蓝色"],
+	紫瑟: ["紫色"],
 };
 
 export function rankTextTemplateSearchResults({
@@ -187,6 +212,7 @@ export function buildWeightedSearchTerms({
 	for (const term of [normalizedQuery, ...baseTerms]) {
 		addWeightedTerm({ term, weight: 1, weightedTerms });
 		addQueryAliases({ term, weight: 0.95, weightedTerms });
+		addQueryCorrections({ term, weight: 0.7, weightedTerms });
 		for (const synonym of QUERY_SYNONYMS[term] ?? []) {
 			addWeightedTerm({
 				term: synonym.toLocaleLowerCase(),
@@ -205,6 +231,37 @@ export function buildWeightedSearchTerms({
 		term,
 		weight,
 	}));
+}
+
+function addQueryCorrections({
+	term,
+	weight,
+	weightedTerms,
+}: {
+	term: string;
+	weight: number;
+	weightedTerms: Map<string, number>;
+}) {
+	for (const correction of QUERY_CORRECTIONS[term] ?? []) {
+		const normalizedCorrection = correction.toLocaleLowerCase();
+		addWeightedTerm({
+			term: normalizedCorrection,
+			weight,
+			weightedTerms,
+		});
+		addQueryAliases({
+			term: normalizedCorrection,
+			weight: weight * 0.88,
+			weightedTerms,
+		});
+		for (const synonym of QUERY_SYNONYMS[normalizedCorrection] ?? []) {
+			addWeightedTerm({
+				term: synonym.toLocaleLowerCase(),
+				weight: weight * 0.72,
+				weightedTerms,
+			});
+		}
+	}
 }
 
 function addQueryAliases({
@@ -384,6 +441,7 @@ function chineseToPinyinAliases({
 			acronymParts.push(pinyin[0]);
 			continue;
 		}
+		if (isChineseCharacter({ value: character })) return;
 		const normalized = normalizeSearchValue({ value: character });
 		if (normalized && /^[a-z0-9]+$/.test(normalized)) {
 			fullParts.push(normalized);
@@ -396,6 +454,10 @@ function chineseToPinyinAliases({
 		full: fullParts.join(""),
 		acronym: acronymParts.join(""),
 	};
+}
+
+function isChineseCharacter({ value }: { value: string }): boolean {
+	return /\p{Script=Han}/u.test(value);
 }
 
 function compactLatinTerm({ value }: { value: string }): string {

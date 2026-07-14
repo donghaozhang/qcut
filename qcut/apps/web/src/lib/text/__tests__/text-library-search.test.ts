@@ -70,6 +70,27 @@ describe("text library search", () => {
 		);
 	});
 
+	it("adds common Chinese typo correction aliases", () => {
+		const terms = buildWeightedSearchTerms({ query: "兰色" });
+		expect(terms).toEqual(
+			expect.arrayContaining([
+				{ term: "兰色", weight: 1 },
+				{ term: "蓝色", weight: 0.7 },
+				{ term: "lanse", weight: 0.95 },
+				{ term: "ls", weight: 0.874 },
+			])
+		);
+		expect(terms).not.toEqual(
+			expect.arrayContaining([
+				expect.objectContaining({ term: "se" }),
+				expect.objectContaining({ term: "s" }),
+			])
+		);
+		expect(buildWeightedSearchTerms({ query: "文理" })).toEqual(
+			expect.arrayContaining([{ term: "纹理", weight: 0.7 }])
+		);
+	});
+
 	it("ranks matching text templates with state-aware boosts", () => {
 		const definitions = [
 			createDefinition({
@@ -176,6 +197,40 @@ describe("text library search", () => {
 				state: EMPTY_TEXT_LIBRARY_STATE,
 			}).map((definition) => definition.id)
 		).toEqual(["glow-style"]);
+	});
+
+	it("matches common Chinese typo queries against corrected marketplace terms", () => {
+		const definitions = [
+			createDefinition({
+				category: "blue",
+				content: "蓝色花字",
+				id: "blue-style",
+				keywords: ["蓝色", "科技"],
+				variantId: "blue-ice",
+			}),
+			createDefinition({
+				category: "texture",
+				content: "纹理质感",
+				id: "texture-style",
+				keywords: ["纹理", "质感"],
+				variantId: "sticker",
+			}),
+		];
+
+		expect(
+			rankTextTemplateSearchResults({
+				definitions,
+				query: "兰色",
+				state: EMPTY_TEXT_LIBRARY_STATE,
+			}).map((definition) => definition.id)
+		).toEqual(["blue-style"]);
+		expect(
+			rankTextTemplateSearchResults({
+				definitions,
+				query: "文理",
+				state: EMPTY_TEXT_LIBRARY_STATE,
+			}).map((definition) => definition.id)
+		).toEqual(["texture-style"]);
 	});
 
 	it("matches marketplace remote tags and uses heat metadata for ranking", () => {
