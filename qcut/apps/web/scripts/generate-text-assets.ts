@@ -6,11 +6,13 @@ import { chromium, type Page } from "playwright";
 import {
 	getThumbnailPreviewContent,
 	getTextTemplatePackPreviewBounds,
+	getTextTemplatePackPreviewDecorationVisualRect,
 	getTextTemplatePackPreviewElementVisualRect,
 	getTextTemplatePackPreviewModel,
 	getTextTemplateThumbnailLayoutKind,
 	getTextTemplateThumbnailRecipe,
 	type TextTemplatePackPreviewBounds,
+	type TextTemplatePackPreviewDecoration,
 	type TextTemplatePackPreviewElement,
 } from "../src/components/editor/media-panel/views/text-template-thumbnail-renderer";
 import {
@@ -485,12 +487,16 @@ function packBodySvg({
 
 function mapPackPreviewSvgRect({
 	bounds,
-	element,
+	rect,
 }: {
 	bounds: TextTemplatePackPreviewBounds;
-	element: TextTemplatePackPreviewElement;
+	rect: {
+		height: number;
+		width: number;
+		x: number;
+		y: number;
+	};
 }) {
-	const visualRect = getTextTemplatePackPreviewElementVisualRect({ element });
 	const sourceWidth = Math.max(1, bounds.maxX - bounds.minX);
 	const sourceHeight = Math.max(1, bounds.maxY - bounds.minY);
 	const target = {
@@ -508,12 +514,38 @@ function mapPackPreviewSvgRect({
 	const offsetX = target.x + (target.width - scaledWidth) / 2;
 	const offsetY = target.y + (target.height - scaledHeight) / 2;
 	return {
-		height: visualRect.height * scale,
+		height: rect.height * scale,
 		scale,
-		width: visualRect.width * scale,
-		x: offsetX + (visualRect.x - bounds.minX) * scale,
-		y: offsetY + (visualRect.y - bounds.minY) * scale,
+		width: rect.width * scale,
+		x: offsetX + (rect.x - bounds.minX) * scale,
+		y: offsetY + (rect.y - bounds.minY) * scale,
 	};
+}
+
+function mapPackPreviewElementSvgRect({
+	bounds,
+	element,
+}: {
+	bounds: TextTemplatePackPreviewBounds;
+	element: TextTemplatePackPreviewElement;
+}) {
+	return mapPackPreviewSvgRect({
+		bounds,
+		rect: getTextTemplatePackPreviewElementVisualRect({ element }),
+	});
+}
+
+function mapPackPreviewDecorationSvgRect({
+	bounds,
+	decoration,
+}: {
+	bounds: TextTemplatePackPreviewBounds;
+	decoration: TextTemplatePackPreviewDecoration;
+}) {
+	return mapPackPreviewSvgRect({
+		bounds,
+		rect: getTextTemplatePackPreviewDecorationVisualRect({ decoration }),
+	});
 }
 
 function packPreviewTextAnchor({
@@ -605,6 +637,54 @@ ${accentStroke}
 </g>`;
 }
 
+function packPreviewDecorationSvg({
+	decoration,
+	index,
+	rect,
+}: {
+	decoration: TextTemplatePackPreviewDecoration;
+	index: number;
+	rect: {
+		height: number;
+		scale: number;
+		width: number;
+		x: number;
+		y: number;
+	};
+}): string {
+	const opacity = Math.max(0.05, Math.min(1, decoration.opacity));
+	const id = escapeXml({ value: decoration.id });
+	if (decoration.kind === "line") {
+		const strokeWidth = Math.max(2, Math.min(rect.width, rect.height));
+		const line =
+			decoration.y1 === decoration.y2
+				? {
+						x1: rect.x,
+						x2: rect.x + rect.width,
+						y1: rect.y + rect.height / 2,
+						y2: rect.y + rect.height / 2,
+					}
+				: decoration.x1 === decoration.x2
+					? {
+							x1: rect.x + rect.width / 2,
+							x2: rect.x + rect.width / 2,
+							y1: rect.y,
+							y2: rect.y + rect.height,
+						}
+					: {
+							x1: rect.x,
+							x2: rect.x + rect.width,
+							y1: rect.y,
+							y2: rect.y + rect.height,
+						};
+		return `<line data-preview-decoration="${id}" data-preview-decoration-index="${index}" x1="${line.x1}" y1="${line.y1}" x2="${line.x2}" y2="${line.y2}" stroke="${decoration.color}" stroke-width="${strokeWidth}" stroke-linecap="round" opacity="${opacity}"/>`;
+	}
+	if (decoration.kind === "circle") {
+		return `<circle data-preview-decoration="${id}" data-preview-decoration-index="${index}" cx="${rect.x + rect.width / 2}" cy="${rect.y + rect.height / 2}" r="${Math.min(rect.width, rect.height) / 2}" fill="${decoration.color}" opacity="${opacity}" filter="url(#shadow)"/>`;
+	}
+	return `<rect data-preview-decoration="${id}" data-preview-decoration-index="${index}" x="${rect.x}" y="${rect.y}" width="${rect.width}" height="${rect.height}" rx="${Math.max(4, Math.min(rect.width, rect.height, decoration.radius * rect.scale))}" fill="${decoration.color}" opacity="${opacity}" filter="url(#shadow)"/>`;
+}
+
 function packPreviewSceneSvg({
 	definition,
 }: {
@@ -613,12 +693,21 @@ function packPreviewSceneSvg({
 	const template = buildTextTemplate({ definition });
 	const model = getTextTemplatePackPreviewModel({ definition, template });
 	if (!model || model.elements.length === 0) return null;
-	const bounds = getTextTemplatePackPreviewBounds({ elements: model.elements });
-	return `<g data-qcut-pack-preview="true" data-pack-kind="${model.kind}" data-layer-count="${model.layerCount}">
+	const bounds = getTextTemplatePackPreviewBounds({
+		decorations: model.decorations,
+		elements: model.elements,
+	});
+	return `<g data-qcut-pack-preview="true" data-pack-kind="${model.kind}" data-layer-count="${model.layerCount}" data-decoration-count="${model.decorations.length}">
 <rect x="32" y="42" width="256" height="220" rx="20" fill="url(#card)" stroke="rgba(255,255,255,.24)" stroke-width="2" filter="url(#shadow)"/>
+${model.decorations
+	.map((decoration, index) => {
+		const rect = mapPackPreviewDecorationSvgRect({ bounds, decoration });
+		return packPreviewDecorationSvg({ decoration, index, rect });
+	})
+	.join("\n")}
 ${model.elements
 	.map((element, index) => {
-		const rect = mapPackPreviewSvgRect({ bounds, element });
+		const rect = mapPackPreviewElementSvgRect({ bounds, element });
 		return packPreviewElementSvg({ element, index, rect });
 	})
 	.join("\n")}

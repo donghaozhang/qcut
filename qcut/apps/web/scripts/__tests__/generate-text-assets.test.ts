@@ -75,10 +75,50 @@ describe("text asset generator payloads", () => {
 
 			expect(svg).toContain('data-qcut-pack-preview="true"');
 			expect(svg).toContain('data-layer-count="3"');
+			expect(svg).toContain("data-decoration-count=");
+			expect(svg).toContain("data-preview-decoration=");
 			for (const label of expectation.labels) {
 				expect(svg).toContain(label);
 			}
 			expect(svg).not.toContain('<rect x="104" y="140"');
+		}
+	});
+
+	it("renders static pack thumbnail structural decorations by template type", () => {
+		const expectations = [
+			{
+				category: "headline-template",
+				decorations: ["headline-panel", "headline-rule"],
+			},
+			{
+				category: "list-template",
+				decorations: ["list-rail", "list-node-1", "list-node-2"],
+			},
+			{
+				category: "split-template",
+				decorations: ["split-divider"],
+			},
+			{
+				category: "timeline-template",
+				decorations: [
+					"timeline-rail",
+					"timeline-node-1",
+					"timeline-node-2",
+					"timeline-node-3",
+				],
+			},
+		] as const;
+
+		for (const expectation of expectations) {
+			const definition = firstDefinition({ category: expectation.category });
+			const svg = buildTextAssetThumbnailSvg({ definition });
+
+			expect(svg).toContain(
+				`data-decoration-count="${expectation.decorations.length}"`
+			);
+			for (const decoration of expectation.decorations) {
+				expect(svg).toContain(`data-preview-decoration="${decoration}"`);
+			}
 		}
 	});
 

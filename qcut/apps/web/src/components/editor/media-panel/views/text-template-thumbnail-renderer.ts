@@ -1559,7 +1559,7 @@ export function getTextTemplatePackPreviewElementVisualRect({
 	};
 }
 
-function getTextTemplatePackPreviewDecorationVisualRect({
+export function getTextTemplatePackPreviewDecorationVisualRect({
 	decoration,
 }: {
 	decoration: TextTemplatePackPreviewDecoration;
