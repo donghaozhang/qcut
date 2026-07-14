@@ -15,6 +15,7 @@ import { promisify } from "node:util";
 import type {
 	TextAssetGeneratedEntry,
 	TextAssetGeneratedFile,
+	TextAssetReleaseReadinessSummary,
 } from "./verify-text-asset-cdn-manifest";
 import {
 	EXPECTED_TEXT_THUMBNAIL_HEIGHT,
@@ -27,6 +28,7 @@ import {
 	parseNonNegativeInteger,
 	parsePositiveInteger,
 	readGeneratedManifest,
+	summarizeTextAssetReleaseReadiness,
 	summarizeTextAssetProvenance,
 	verifyDesignerAssetCoverage,
 	verifyDesignerCategoryCoverage,
@@ -109,6 +111,7 @@ export type TextDesignerAssetImportSummary = {
 export type TextDesignerAssetImportPlanReport = {
 	generatedAt: string;
 	items: TextDesignerAssetImportPlanItem[];
+	releaseReadiness: TextAssetReleaseReadinessSummary;
 	schemaVersion: 1;
 	summary: TextDesignerAssetImportSummary;
 };
@@ -924,6 +927,9 @@ export async function writeTextDesignerAssetImportPlanReport({
 	const report: TextDesignerAssetImportPlanReport = {
 		generatedAt: new Date().toISOString(),
 		items: plan.items,
+		releaseReadiness: summarizeTextAssetReleaseReadiness({
+			generatedManifest: plan.updatedManifest,
+		}),
 		schemaVersion: 1,
 		summary,
 	};

@@ -1325,6 +1325,11 @@ describe("text designer asset import script", () => {
 		) as typeof report;
 
 		expect(report).toMatchObject({
+			releaseReadiness: {
+				designerImported: 1,
+				designerReady: false,
+				releaseStatus: "generated-fallback",
+			},
 			schemaVersion: 1,
 			summary: {
 				copiedFiles: 0,
