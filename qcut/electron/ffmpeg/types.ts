@@ -454,6 +454,8 @@ export interface ImageSource {
 export interface StickerSource {
 	/** Unique identifier for the sticker */
 	id: string;
+	/** Whether the source contains multiple animation frames */
+	animated?: boolean;
 	trackId?: string;
 	trackOrder?: number;
 	elementOrder?: number;

@@ -30,6 +30,7 @@ import {
 	composePreparedVisualLayers,
 	type PreparedVisualLayer,
 } from "./ffmpeg/visual-layer-compositor";
+import { appendStickerInputArgs } from "./ffmpeg-sticker-input";
 
 /**
  * Object options for FFmpeg arg generation.
@@ -381,15 +382,7 @@ function buildCompositeEncodeArgs(
 		}
 
 		validStickers.push(stickerSource);
-		// Limit loop duration to sticker's endTime to prevent infinite input streams
-		args.push(
-			"-loop",
-			"1",
-			"-t",
-			String(stickerSource.endTime),
-			"-i",
-			stickerSource.path
-		);
+		appendStickerInputArgs({ args, sticker: stickerSource });
 	}
 	if (validStickers.length > 0) {
 		console.log(

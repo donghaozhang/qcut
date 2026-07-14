@@ -19,6 +19,7 @@ import type {
 } from "./ffmpeg/types";
 
 import { debugLog, parseProgress, probeVideoFile } from "./ffmpeg/utils";
+import { appendStickerInputArgs } from "./ffmpeg-sticker-input";
 
 import { buildFilterCutComplex } from "./ffmpeg-filter-cut.js";
 import type { IpcMainInvokeEvent } from "electron";
@@ -117,9 +118,8 @@ function buildStickerOverlayPass(
 
 	const args: string[] = ["-y", "-i", inputVideoPath];
 
-	// Add sticker inputs
 	for (const sticker of validStickers) {
-		args.push("-loop", "1", "-i", sticker.path);
+		appendStickerInputArgs({ args, sticker });
 	}
 
 	// Build filter_complex
