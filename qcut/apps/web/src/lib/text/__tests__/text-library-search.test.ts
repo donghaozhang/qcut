@@ -891,4 +891,57 @@ describe("text library search", () => {
 			new Set(["live-red-style", "live-blue-style", "red-only-style"])
 		);
 	});
+
+	it("splits mixed Chinese and latin marketplace queries without separators", () => {
+		const definitions = [
+			createDefinition({
+				category: "blue",
+				content: "直播价格",
+				id: "live-blue-style",
+				keywords: ["直播", "价格", "促销"],
+				variantId: "blue-ice",
+			}),
+			createDefinition({
+				category: "red",
+				content: "直播价格",
+				id: "live-red-style",
+				keywords: ["直播", "价格", "促销", "红色"],
+				variantId: "red-burst",
+			}),
+			createDefinition({
+				category: "red",
+				content: "红色花字",
+				id: "red-only-style",
+				keywords: ["红色"],
+				variantId: "red-burst",
+			}),
+		];
+
+		expect(buildWeightedSearchTerms({ query: "zhibo红色" })).toEqual(
+			expect.arrayContaining([
+				{ term: "zhibo", weight: 0.95 },
+				{ term: "红色", weight: 0.82 },
+				{ term: "hongse", weight: 0.7789999999999999 },
+			])
+		);
+		const pinyinChineseResults = rankTextTemplateSearchResults({
+			definitions,
+			query: "zhibo红色",
+			state: EMPTY_TEXT_LIBRARY_STATE,
+		}).map((definition) => definition.id);
+		const chineseEnglishResults = rankTextTemplateSearchResults({
+			definitions,
+			query: "直播red",
+			state: EMPTY_TEXT_LIBRARY_STATE,
+		}).map((definition) => definition.id);
+
+		expect(pinyinChineseResults[0]).toBe("live-red-style");
+		expect(new Set(pinyinChineseResults)).toEqual(
+			new Set(["live-red-style", "live-blue-style", "red-only-style"])
+		);
+		expect(chineseEnglishResults[0]).toBe("live-red-style");
+		expect(new Set(chineseEnglishResults)).toEqual(
+			new Set(["live-red-style", "live-blue-style", "red-only-style"])
+		);
+	});
 });

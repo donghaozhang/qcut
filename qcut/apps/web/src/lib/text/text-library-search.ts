@@ -263,17 +263,25 @@ const QUERY_SYNONYMS: Readonly<Record<string, readonly string[]>> = {
 	paper: ["撕纸", "纸张", "贴纸"],
 	pop: ["综艺", "弹幕", "漫画", "爆款"],
 	price: ["价格", "促销", "优惠", "秒杀"],
+	purple: ["紫色", "梦幻", "高级"],
 	review: ["测评", "对比", "种草", "推荐"],
+	red: ["红色", "促销", "热血"],
 	sticker: ["贴纸", "白边", "可爱"],
 	subtitle: ["字幕", "文字", "文本", "标题", "花字"],
 	subtitles: ["字幕", "文字", "文本", "标题", "花字"],
 	text: ["文字", "文本", "花字", "标题"],
 	thumbnail: ["封面", "标题", "爆款", "醒目"],
 	wenzi: ["文字", "文本", "花字", "标题"],
+	white: ["白色", "黑白", "干净"],
 	xhs: ["小红书", "种草", "探店", "测评", "封面"],
 	xiaohongshu: ["小红书", "种草", "探店", "测评", "封面"],
+	yellow: ["黄色", "醒目", "高亮"],
 	zimu: ["字幕", "文字", "文本", "标题", "花字"],
 	b站: ["教程", "知识", "清单"],
+	black: ["黑色", "黑白", "高对比"],
+	blue: ["蓝色", "科技", "教程"],
+	green: ["绿色", "清新", "自然"],
+	pink: ["粉色", "可爱", "甜心"],
 	冰: ["冰蓝", "玻璃", "蓝色"],
 	可爱: ["贴纸", "糖果", "甜心", "气泡"],
 	国潮: ["国风", "水墨", "印章", "鎏金"],
@@ -440,23 +448,9 @@ export function buildWeightedSearchTerms({
 	const weightedTerms = new Map<string, number>();
 
 	for (const term of [normalizedQuery, ...baseTerms]) {
-		addWeightedTerm({ term, weight: 1, weightedTerms });
-		addQueryAliases({ term, weight: 0.95, weightedTerms });
-		addQueryCorrections({ term, weight: 0.7, weightedTerms });
-		for (const segment of splitCompactPinyinQuery({ term })) {
-			addWeightedTerm({ term: segment, weight: 0.82, weightedTerms });
-		}
-		for (const synonym of QUERY_SYNONYMS[term] ?? []) {
-			addWeightedTerm({
-				term: synonym.toLocaleLowerCase(),
-				weight: 0.72,
-				weightedTerms,
-			});
-			addQueryAliases({
-				term: synonym.toLocaleLowerCase(),
-				weight: 0.64,
-				weightedTerms,
-			});
+		addSearchTermExpansions({ term, weight: 1, weightedTerms });
+		for (const segment of getSegmentedQueryTerms({ term })) {
+			addSearchTermExpansions({ term: segment, weight: 0.82, weightedTerms });
 		}
 	}
 
@@ -475,7 +469,7 @@ function buildSearchIntentGroups({
 	const segmentTerms =
 		terms.length > 1
 			? terms
-			: splitCompactPinyinQuery({ term: query.toLocaleLowerCase().trim() });
+			: getSegmentedQueryTerms({ term: query.toLocaleLowerCase().trim() });
 	if (segmentTerms.length <= 1) return [];
 	return segmentTerms.map((term) => ({
 		terms: buildWeightedSearchTerms({ query: term }),
@@ -488,6 +482,45 @@ function tokenizeSearchQuery({ query }: { query: string }): string[] {
 		.toLocaleLowerCase()
 		.split(/[\s,，、/|+_-]+/)
 		.filter(Boolean);
+}
+
+function addSearchTermExpansions({
+	term,
+	weight,
+	weightedTerms,
+}: {
+	term: string;
+	weight: number;
+	weightedTerms: Map<string, number>;
+}) {
+	addWeightedTerm({ term, weight, weightedTerms });
+	addQueryAliases({ term, weight: weight * 0.95, weightedTerms });
+	addQueryCorrections({ term, weight: weight * 0.7, weightedTerms });
+	for (const synonym of QUERY_SYNONYMS[term] ?? []) {
+		addWeightedTerm({
+			term: synonym.toLocaleLowerCase(),
+			weight: weight * 0.72,
+			weightedTerms,
+		});
+		addQueryAliases({
+			term: synonym.toLocaleLowerCase(),
+			weight: weight * 0.64,
+			weightedTerms,
+		});
+	}
+	for (const reverseAlias of getReversePinyinQueryAliases({ term })) {
+		const normalizedAlias = reverseAlias.toLocaleLowerCase();
+		addWeightedTerm({
+			term: normalizedAlias,
+			weight: weight * 0.76,
+			weightedTerms,
+		});
+		addQueryAliases({
+			term: normalizedAlias,
+			weight: weight * 0.68,
+			weightedTerms,
+		});
+	}
 }
 
 function addQueryCorrections({
@@ -574,6 +607,13 @@ function buildCompactPinyinSegmentTerms(): readonly string[] {
 		.sort((left, right) => right.length - left.length);
 }
 
+function getSegmentedQueryTerms({ term }: { term: string }): string[] {
+	return [
+		...splitCompactPinyinQuery({ term }),
+		...splitMixedScriptQuery({ term }),
+	];
+}
+
 function splitCompactPinyinQuery({ term }: { term: string }): string[] {
 	const normalizedTerm = compactLatinTerm({ value: term });
 	if (
@@ -604,6 +644,84 @@ function segmentCompactPinyinTerm({ term }: { term: string }): string[] {
 		return undefined;
 	};
 	return segmentFrom({ index: 0 }) ?? [];
+}
+
+function splitMixedScriptQuery({ term }: { term: string }): string[] {
+	const runs: string[] = [];
+	let currentRun = "";
+	let currentScript: "han" | "latin" | undefined;
+
+	for (const character of Array.from(term.toLocaleLowerCase().trim())) {
+		const script = getSearchCharacterScript({ character });
+		if (!script) {
+			if (currentRun) runs.push(currentRun);
+			currentRun = "";
+			currentScript = undefined;
+			continue;
+		}
+		if (currentScript && currentScript !== script) {
+			runs.push(currentRun);
+			currentRun = character;
+			currentScript = script;
+			continue;
+		}
+		currentRun += character;
+		currentScript = script;
+	}
+	if (currentRun) runs.push(currentRun);
+
+	const segments = runs.filter(isUsefulMixedScriptSegment);
+	return segments.length > 1 ? segments : [];
+}
+
+function getReversePinyinQueryAliases({ term }: { term: string }): string[] {
+	const normalizedTerm = compactLatinTerm({ value: term });
+	if (normalizedTerm.length < 2) return [];
+	const aliases = new Set<string>();
+	for (const phrase of COMPACT_PINYIN_SEGMENT_PHRASES) {
+		if (pinyinAliasMatchesTerm({ term: normalizedTerm, value: phrase })) {
+			aliases.add(phrase);
+		}
+	}
+	for (const [phrase, alias] of Object.entries(CHINESE_PHRASE_PINYIN_ALIASES)) {
+		if (normalizedTerm === alias.full || normalizedTerm === alias.acronym) {
+			aliases.add(phrase);
+		}
+	}
+	return [...aliases];
+}
+
+function pinyinAliasMatchesTerm({
+	term,
+	value,
+}: {
+	term: string;
+	value: string;
+}): boolean {
+	return getPinyinAliases({ value }).some(
+		(alias) => term === alias.full || term === alias.acronym
+	);
+}
+
+function getSearchCharacterScript({
+	character,
+}: {
+	character: string;
+}): "han" | "latin" | undefined {
+	if (isChineseCharacter({ value: character })) return "han";
+	return /^[a-z0-9]$/.test(character) ? "latin" : undefined;
+}
+
+function isUsefulMixedScriptSegment(segment: string): boolean {
+	if (/^[a-z0-9]+$/.test(segment)) return segment.length >= 2;
+	if (
+		!Array.from(segment).every((character) =>
+			isChineseCharacter({ value: character })
+		)
+	) {
+		return false;
+	}
+	return segment.length >= 2 || Boolean(QUERY_SYNONYMS[segment]);
 }
 
 function scoreTextTemplateDefinition({
