@@ -28,6 +28,7 @@ export type TextMarketplaceAnalyticsEvent = {
 
 export type TextMarketplaceAnalyticsPayload = {
 	events: readonly TextMarketplaceAnalyticsEvent[];
+	generatedAt?: string;
 	schemaVersion: 1;
 };
 
@@ -40,6 +41,7 @@ type TextMarketplaceAnalyticsScore = {
 const DEFAULT_ANALYTICS_PATH = "dist/text-marketplace-analytics.json";
 const DEFAULT_MARKETPLACE_PATH = "public/text-assets/marketplace.json";
 const TRENDING_SECTION_LIMIT = 30;
+const HOUR_MS = 60 * 60 * 1000;
 
 export function buildTextMarketplaceConfigWithAnalytics({
 	analytics,
@@ -127,8 +129,42 @@ export function parseTextMarketplaceAnalyticsPayload({
 		events: value.events.map((event, index) =>
 			parseTextMarketplaceAnalyticsEvent({ event, index })
 		),
+		generatedAt: optionalIsoDateString({ field: "generatedAt", value }),
 		schemaVersion: 1,
 	};
+}
+
+export function assertTextMarketplaceAnalyticsFreshness({
+	analytics,
+	maxAgeHours,
+	now = Date.now,
+}: {
+	analytics: TextMarketplaceAnalyticsPayload;
+	maxAgeHours?: number;
+	now?: () => number;
+}): void {
+	if (maxAgeHours === undefined) return;
+	if (!Number.isFinite(maxAgeHours) || maxAgeHours < 0) {
+		throw new Error("--max-age-hours must be a non-negative number");
+	}
+	if (!analytics.generatedAt) {
+		throw new Error(
+			"Text marketplace analytics requires generatedAt when --max-age-hours is set"
+		);
+	}
+	const generatedAtMs = Date.parse(analytics.generatedAt);
+	const ageMs = now() - generatedAtMs;
+	if (ageMs < -5 * 60 * 1000) {
+		throw new Error(
+			`Text marketplace analytics generatedAt is in the future: ${analytics.generatedAt}`
+		);
+	}
+	const maxAgeMs = maxAgeHours * HOUR_MS;
+	if (ageMs > maxAgeMs) {
+		throw new Error(
+			`Text marketplace analytics is stale: generatedAt ${analytics.generatedAt} exceeds ${maxAgeHours} hours`
+		);
+	}
 }
 
 function analyticsMarketplaceSections({
@@ -347,6 +383,25 @@ function optionalString({
 	return value;
 }
 
+function optionalIsoDateString({
+	field,
+	value,
+}: {
+	field: string;
+	value: Record<string, unknown>;
+}): string | undefined {
+	const fieldValue = value[field];
+	if (fieldValue === undefined) return undefined;
+	if (
+		typeof fieldValue !== "string" ||
+		fieldValue.length === 0 ||
+		Number.isNaN(Date.parse(fieldValue))
+	) {
+		throw new Error(`Text marketplace analytics has invalid ${field}`);
+	}
+	return fieldValue;
+}
+
 function optionalStringList({
 	field,
 	index,
@@ -393,6 +448,22 @@ function cliArgValue({
 	return args[index + 1];
 }
 
+function optionalPositiveNumberArg({
+	args,
+	name,
+}: {
+	args: readonly string[];
+	name: string;
+}): number | undefined {
+	const value = cliArgValue({ args, name });
+	if (value === undefined) return undefined;
+	const parsed = Number(value);
+	if (!Number.isFinite(parsed) || parsed < 0) {
+		throw new Error(`${name} must be a non-negative number`);
+	}
+	return parsed;
+}
+
 async function main() {
 	const args = process.argv.slice(2);
 	const scriptDir = dirname(fileURLToPath(import.meta.url));
@@ -407,6 +478,13 @@ async function main() {
 	);
 	const analytics = parseTextMarketplaceAnalyticsPayload({
 		value: JSON.parse(await readFile(analyticsPath, "utf8")),
+	});
+	assertTextMarketplaceAnalyticsFreshness({
+		analytics,
+		maxAgeHours: optionalPositiveNumberArg({
+			args,
+			name: "--max-age-hours",
+		}),
 	});
 	const config = buildTextMarketplaceConfigWithAnalytics({
 		analytics,

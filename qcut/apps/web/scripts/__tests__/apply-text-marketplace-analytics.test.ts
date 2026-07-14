@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import {
+	assertTextMarketplaceAnalyticsFreshness,
 	buildTextMarketplaceConfigWithAnalytics,
 	parseTextMarketplaceAnalyticsPayload,
 } from "../apply-text-marketplace-analytics";
@@ -111,5 +112,46 @@ describe("text marketplace analytics applier", () => {
 				},
 			})
 		).toThrow(/invalid uses/);
+		expect(() =>
+			parseTextMarketplaceAnalyticsPayload({
+				value: {
+					events: [{ templateId: "red-red-burst", uses: 1 }],
+					generatedAt: "not-a-date",
+					schemaVersion: 1,
+				},
+			})
+		).toThrow(/invalid generatedAt/);
+	});
+
+	it("enforces analytics freshness when publishing real heat data", () => {
+		const fresh = parseTextMarketplaceAnalyticsPayload({
+			value: {
+				events: [{ templateId: "red-red-burst", uses: 1 }],
+				generatedAt: "2026-07-14T08:00:00.000Z",
+				schemaVersion: 1,
+			},
+		});
+
+		expect(() =>
+			assertTextMarketplaceAnalyticsFreshness({
+				analytics: fresh,
+				maxAgeHours: 24,
+				now: () => Date.parse("2026-07-14T20:00:00.000Z"),
+			})
+		).not.toThrow();
+		expect(() =>
+			assertTextMarketplaceAnalyticsFreshness({
+				analytics: fresh,
+				maxAgeHours: 6,
+				now: () => Date.parse("2026-07-14T20:00:00.000Z"),
+			})
+		).toThrow(/stale/);
+		expect(() =>
+			assertTextMarketplaceAnalyticsFreshness({
+				analytics: { events: [], schemaVersion: 1 },
+				maxAgeHours: 24,
+				now: () => Date.parse("2026-07-14T20:00:00.000Z"),
+			})
+		).toThrow(/requires generatedAt/);
 	});
 });
