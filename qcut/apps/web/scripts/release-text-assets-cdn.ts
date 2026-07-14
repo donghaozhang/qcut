@@ -292,6 +292,7 @@ export async function releaseTextAssetsToCdn({
 	});
 	const marketplace = await buildTextMarketplacePublishEntry({
 		baseUrl: options.baseUrl,
+		generatedManifest,
 		publicDir: options.publicDir,
 	});
 	const provenance = summarizeTextAssetProvenance({ generatedManifest });

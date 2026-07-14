@@ -71,6 +71,7 @@ export type VerifyIssue = {
 		| "missing-package"
 		| "designer-category-coverage"
 		| "designer-import-threshold"
+		| "marketplace-metadata-coverage"
 		| "virtual-resource-url"
 		| "remote-unavailable"
 		| "remote-checksum-mismatch"
@@ -780,9 +781,11 @@ export function buildTextAssetPublishManifest({
 
 export async function buildTextMarketplacePublishEntry({
 	baseUrl,
+	generatedManifest,
 	publicDir,
 }: {
 	baseUrl: string;
+	generatedManifest?: Record<string, TextAssetGeneratedEntry>;
 	publicDir: string;
 }): Promise<{ entry?: TextAssetPublishEntry; issues: VerifyIssue[] }> {
 	const url = "/text-assets/marketplace.json";
@@ -800,6 +803,13 @@ export async function buildTextMarketplacePublishEntry({
 		};
 	}
 	const bytes = await readFile(localMarketplacePath);
+	const issues = generatedManifest
+		? verifyTextMarketplaceMetadataCoverage({
+				bytes,
+				generatedManifest,
+				url,
+			})
+		: [];
 	return {
 		entry: {
 			assetId: "text-marketplace-config",
@@ -818,8 +828,66 @@ export async function buildTextMarketplacePublishEntry({
 			packageId: "text-marketplace-config",
 			version: 1,
 		},
-		issues: [],
+		issues,
 	};
+}
+
+export function verifyTextMarketplaceMetadataCoverage({
+	bytes,
+	generatedManifest,
+	url,
+}: {
+	bytes: Buffer;
+	generatedManifest: Record<string, TextAssetGeneratedEntry>;
+	url: string;
+}): VerifyIssue[] {
+	const parsed = parseJsonObjectPayload({
+		assetId: "text-marketplace-config",
+		bytes,
+		role: "metadata",
+		url,
+	});
+	if (parsed.issue) return [parsed.issue];
+	if (parsed.payload.schemaVersion !== 1) {
+		return [
+			{
+				assetId: "text-marketplace-config",
+				code: "marketplace-metadata-coverage",
+				detail: "marketplace schemaVersion must be 1",
+				url,
+			},
+		];
+	}
+	const marketplaceAssets = parsed.payload.assets;
+	if (!Array.isArray(marketplaceAssets)) {
+		return [
+			{
+				assetId: "text-marketplace-config",
+				code: "marketplace-metadata-coverage",
+				detail: "marketplace assets must be an array",
+				url,
+			},
+		];
+	}
+	const coveredAssetIds = new Set(
+		marketplaceAssets.flatMap((asset): string[] => {
+			const record = isRecord({ value: asset }) ? asset : null;
+			return typeof record?.assetId === "string" ? [record.assetId] : [];
+		})
+	);
+	const missingAssetIds = Object.values(generatedManifest)
+		.map((entry) => entry.assetId)
+		.filter((assetId) => !coveredAssetIds.has(assetId))
+		.sort((left, right) => left.localeCompare(right));
+	if (missingAssetIds.length === 0) return [];
+	return [
+		{
+			assetId: "text-marketplace-config",
+			code: "marketplace-metadata-coverage",
+			detail: `Missing marketplace metadata for ${missingAssetIds.length} text assets: ${missingAssetIds.slice(0, 10).join(", ")}`,
+			url,
+		},
+	];
 }
 
 export async function verifyLocalFiles({
@@ -1551,6 +1619,7 @@ async function main(): Promise<void> {
 	});
 	const marketplace = await buildTextMarketplacePublishEntry({
 		baseUrl: options.baseUrl,
+		generatedManifest,
 		publicDir: options.publicDir,
 	});
 	const provenance = summarizeTextAssetProvenance({ generatedManifest });

@@ -665,6 +665,61 @@ describe("text asset CDN manifest verifier", () => {
 		});
 	});
 
+	it("reports missing marketplace metadata coverage", async () => {
+		const publicDir = join(
+			tmpdir(),
+			`qcut-text-marketplace-coverage-${randomUUID()}`
+		);
+		const marketplacePath = join(publicDir, "text-assets/marketplace.json");
+		await mkdir(dirname(marketplacePath), { recursive: true });
+		await writeFile(
+			marketplacePath,
+			JSON.stringify({ assets: [], schemaVersion: 1 })
+		);
+
+		const marketplace = await buildTextMarketplacePublishEntry({
+			baseUrl: "https://cdn.example.com/assets/",
+			generatedManifest: { "text-demo": createGeneratedEntry() },
+			publicDir,
+		});
+
+		expect(marketplace.issues).toEqual([
+			expect.objectContaining({
+				assetId: "text-marketplace-config",
+				code: "marketplace-metadata-coverage",
+				detail: expect.stringContaining("text-demo"),
+				url: "/text-assets/marketplace.json",
+			}),
+		]);
+	});
+
+	it("accepts marketplace metadata that covers generated assets", async () => {
+		const publicDir = join(
+			tmpdir(),
+			`qcut-text-marketplace-covered-${randomUUID()}`
+		);
+		const marketplacePath = join(publicDir, "text-assets/marketplace.json");
+		await mkdir(dirname(marketplacePath), { recursive: true });
+		await writeFile(
+			marketplacePath,
+			JSON.stringify({
+				assets: [{ assetId: "text-demo", packageId: "text-demo" }],
+				schemaVersion: 1,
+			})
+		);
+
+		const marketplace = await buildTextMarketplacePublishEntry({
+			baseUrl: "https://cdn.example.com/assets/",
+			generatedManifest: { "text-demo": createGeneratedEntry() },
+			publicDir,
+		});
+
+		expect(marketplace.issues).toEqual([]);
+		expect(marketplace.entry).toMatchObject({
+			assetId: "text-marketplace-config",
+		});
+	});
+
 	it("verifies local file byte sizes and checksums", async () => {
 		const publicDir = join(tmpdir(), `qcut-text-assets-${randomUUID()}`);
 		const entry = createGeneratedEntry();
