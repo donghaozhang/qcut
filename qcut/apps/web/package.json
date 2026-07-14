@@ -12,7 +12,7 @@
 		"assets:text": "bun scripts/generate-text-assets.ts",
 		"assets:text:verify-cdn": "bun scripts/verify-text-asset-cdn-manifest.ts",
 		"assets:text:verify-designer-ready": "bun scripts/verify-text-asset-cdn-manifest.ts --designer-ready",
-		"assets:text:designer-gap-report": "bun scripts/verify-text-asset-cdn-manifest.ts --allow-designer-gaps --designer-ready --write-designer-gap-report dist/text-designer-gap-report.json",
+		"assets:text:designer-gap-report": "bun scripts/verify-text-asset-cdn-manifest.ts --allow-designer-gaps --designer-ready --write-designer-gap-report dist/text-designer-gap-report.json --write-designer-gap-checklist dist/text-designer-gap-checklist.csv",
 		"assets:text:contact-sheet": "bun scripts/create-text-asset-contact-sheet.ts",
 		"assets:text:apply-analytics": "bun scripts/apply-text-marketplace-analytics.ts",
 		"assets:text:apply-analytics-fresh": "bun scripts/apply-text-marketplace-analytics.ts --max-age-hours 48",

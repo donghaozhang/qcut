@@ -11,6 +11,7 @@ import {
 	buildTextMarketplacePublishEntry,
 	inferTextAssetCategory,
 	parseTextAssetCdnArgs,
+	renderDesignerAssetGapChecklistCsv,
 	summarizeDesignerCategoryCoverage,
 	summarizeTextAssetReleaseReadiness,
 	summarizeTextAssetProvenance,
@@ -222,6 +223,8 @@ describe("text asset CDN manifest verifier", () => {
 					"/tmp/publish.json",
 					"--write-designer-gap-report",
 					"/tmp/designer-gap.json",
+					"--write-designer-gap-checklist",
+					"/tmp/designer-gap.csv",
 				],
 			})
 		).toMatchObject({
@@ -238,6 +241,7 @@ describe("text asset CDN manifest verifier", () => {
 			publicDir: "/tmp/public",
 			remoteConcurrency: 4,
 			requiredDesignerCategories: ["red", "texture", "headline-template"],
+			writeDesignerGapChecklistPath: "/tmp/designer-gap.csv",
 			writeDesignerGapReportPath: "/tmp/designer-gap.json",
 			writePath: "/tmp/publish.json",
 		});
@@ -638,6 +642,28 @@ describe("text asset CDN manifest verifier", () => {
 			schemaVersion: 1,
 			totalMissing: 3,
 		});
+	});
+
+	it("renders designer gap reports as a handoff checklist csv", () => {
+		const report = buildDesignerAssetGapReport({
+			coverage: {
+				categories: [{ category: "red", current: 3, missing: 1, required: 4 }],
+				ok: false,
+				requiredCategories: 1,
+				totalMissing: 1,
+			},
+			generatedAt: "2026-07-15T00:00:00.000Z",
+			minDesignerAssetsPerCategory: 4,
+			requiredDesignerCategories: ["red"],
+		});
+
+		expect(renderDesignerAssetGapChecklistCsv({ report })).toBe(
+			[
+				'"category","currentDesignerAssets","requiredDesignerAssets","missingDesignerAssets","assetId","packageId","variantId","targetDirectory","thumbnailPath","sourcePath","qcutPackagePath","requiredFiles"',
+				'"red","3","4","1","text-fancy-red-designer-04","text-fancy-red","designer-04","text-assets/text-fancy-red/designer-04@1","text-assets/text-fancy-red/designer-04@1/thumbnail.webp","text-assets/text-fancy-red/designer-04@1/template.json","text-assets/text-fancy-red/designer-04@1/template.qctext","thumbnail.webp;template.json;template.qctext"',
+				"",
+			].join("\n")
+		);
 	});
 
 	it("targets existing generated assets for designer replacement slots", () => {

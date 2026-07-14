@@ -155,6 +155,9 @@ describe("text asset CDN upload script", () => {
 		expect(packageJson.scripts["assets:text:proof-remote-release"]).toBe(
 			"bun run assets:text:check-remote && bun run assets:text:check-remote-checksum && bun run assets:text:check-remote-metadata"
 		);
+		expect(packageJson.scripts["assets:text:designer-gap-report"]).toContain(
+			"--write-designer-gap-checklist dist/text-designer-gap-checklist.csv"
+		);
 	});
 
 	it("parses upload options from env and CLI overrides", () => {

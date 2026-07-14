@@ -172,6 +172,7 @@ export type TextAssetCdnCliOptions = {
 	publicDir: string;
 	remoteConcurrency: number;
 	requiredDesignerCategories: string[];
+	writeDesignerGapChecklistPath?: string;
 	writeDesignerGapReportPath?: string;
 	writePath?: string;
 };
@@ -368,6 +369,15 @@ export function parseTextAssetCdnArgs({
 		}
 		if (arg === "--write-designer-gap-report") {
 			options.writeDesignerGapReportPath = requireValue({
+				argv,
+				index,
+				name: arg,
+			});
+			index += 1;
+			continue;
+		}
+		if (arg === "--write-designer-gap-checklist") {
+			options.writeDesignerGapChecklistPath = requireValue({
 				argv,
 				index,
 				name: arg,
@@ -2153,6 +2163,66 @@ export async function writeDesignerAssetGapReport({
 	await writeFile(writePath, `${JSON.stringify(report, null, "\t")}\n`, "utf8");
 }
 
+export function renderDesignerAssetGapChecklistCsv({
+	report,
+}: {
+	report: TextAssetDesignerGapReport;
+}): string {
+	const header = [
+		"category",
+		"currentDesignerAssets",
+		"requiredDesignerAssets",
+		"missingDesignerAssets",
+		"assetId",
+		"packageId",
+		"variantId",
+		"targetDirectory",
+		"thumbnailPath",
+		"sourcePath",
+		"qcutPackagePath",
+		"requiredFiles",
+	];
+	const rows = report.categories.flatMap((category) =>
+		category.suggestedImports.map((slot) => [
+			category.category,
+			String(category.current),
+			String(category.required),
+			String(category.missing),
+			slot.assetId,
+			slot.packageId,
+			slot.variantId,
+			slot.targetDirectory,
+			slot.requiredFilePaths[0],
+			slot.requiredFilePaths[1],
+			slot.requiredFilePaths[2],
+			slot.requiredFiles.join(";"),
+		])
+	);
+	return [header, ...rows]
+		.map((row) => row.map((value) => escapeCsvValue({ value })).join(","))
+		.join("\n")
+		.concat("\n");
+}
+
+export async function writeDesignerAssetGapChecklist({
+	report,
+	writePath,
+}: {
+	report: TextAssetDesignerGapReport;
+	writePath: string;
+}): Promise<void> {
+	await mkdir(dirname(writePath), { recursive: true });
+	await writeFile(
+		writePath,
+		renderDesignerAssetGapChecklistCsv({ report }),
+		"utf8"
+	);
+}
+
+function escapeCsvValue({ value }: { value: string }): string {
+	return `"${value.replaceAll('"', '""')}"`;
+}
+
 async function main(): Promise<void> {
 	const options = parseTextAssetCdnArgs({ argv: process.argv.slice(2) });
 	const generatedAt = new Date().toISOString();
@@ -2209,16 +2279,26 @@ async function main(): Promise<void> {
 	if (options.writePath) {
 		await writePublishManifest({ manifest, writePath: options.writePath });
 	}
-	if (options.writeDesignerGapReportPath) {
+	const designerGapReport =
+		options.writeDesignerGapReportPath || options.writeDesignerGapChecklistPath
+			? buildDesignerAssetGapReport({
+					coverage: designerCategoryCoverage,
+					generatedAt,
+					generatedManifest,
+					minDesignerAssetsPerCategory: options.minDesignerAssetsPerCategory,
+					requiredDesignerCategories: options.requiredDesignerCategories,
+				})
+			: undefined;
+	if (options.writeDesignerGapReportPath && designerGapReport) {
 		await writeDesignerAssetGapReport({
-			report: buildDesignerAssetGapReport({
-				coverage: designerCategoryCoverage,
-				generatedAt,
-				generatedManifest,
-				minDesignerAssetsPerCategory: options.minDesignerAssetsPerCategory,
-				requiredDesignerCategories: options.requiredDesignerCategories,
-			}),
+			report: designerGapReport,
 			writePath: options.writeDesignerGapReportPath,
+		});
+	}
+	if (options.writeDesignerGapChecklistPath && designerGapReport) {
+		await writeDesignerAssetGapChecklist({
+			report: designerGapReport,
+			writePath: options.writeDesignerGapChecklistPath,
 		});
 	}
 	const issueOutput = options.fullIssues
@@ -2249,6 +2329,7 @@ async function main(): Promise<void> {
 				totalAssets: manifest.totalAssets,
 				totalBytes: manifest.totalBytes,
 				totalFiles: manifest.totalFiles,
+				writeDesignerGapChecklistPath: options.writeDesignerGapChecklistPath,
 				writeDesignerGapReportPath: options.writeDesignerGapReportPath,
 				writePath: options.writePath,
 			},
