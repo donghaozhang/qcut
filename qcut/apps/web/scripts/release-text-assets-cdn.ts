@@ -320,6 +320,7 @@ export async function releaseTextAssetsToCdn({
 			requiredDesignerCategories: [...TEXT_DESIGNER_READY_CATEGORY_IDS],
 		}),
 		generatedAt,
+		generatedManifest,
 		minDesignerAssetsPerCategory: TEXT_DESIGNER_READY_MIN_ASSETS_PER_CATEGORY,
 		requiredDesignerCategories: [...TEXT_DESIGNER_READY_CATEGORY_IDS],
 	});

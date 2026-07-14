@@ -566,6 +566,76 @@ describe("text asset CDN manifest verifier", () => {
 		});
 	});
 
+	it("targets existing generated assets for designer replacement slots", () => {
+		const generatedManifest = {
+			"text-fancy-red-outline": createGeneratedEntry({
+				assetId: "text-fancy-red-outline",
+				cacheKey: "text-assets/text-fancy-red/outline@1",
+				packageId: "text-fancy-red",
+			}),
+			"text-fancy-red-plain": createGeneratedEntry({
+				assetId: "text-fancy-red-plain",
+				cacheKey: "text-assets/text-fancy-red/plain@1",
+				packageId: "text-fancy-red",
+			}),
+			"text-fancy-red-imported": {
+				...createGeneratedEntry({
+					assetId: "text-fancy-red-imported",
+					cacheKey: "text-assets/text-fancy-red/imported@1",
+					packageId: "text-fancy-red",
+				}),
+				provenance: {
+					pipeline: "designer-pack-v1",
+					source: "designer-imported" as const,
+				},
+			},
+		};
+
+		expect(
+			buildDesignerAssetGapReport({
+				coverage: {
+					categories: [
+						{ category: "red", current: 1, missing: 2, required: 3 },
+					],
+					ok: false,
+					requiredCategories: 1,
+					totalMissing: 2,
+				},
+				generatedAt: "2026-07-15T00:00:00.000Z",
+				generatedManifest,
+				minDesignerAssetsPerCategory: 3,
+				requiredDesignerCategories: ["red"],
+			}).categories[0]?.suggestedImports
+		).toEqual([
+			{
+				assetId: "text-fancy-red-outline",
+				cacheKey: "text-assets/text-fancy-red/outline@1",
+				packageId: "text-fancy-red",
+				requiredFilePaths: [
+					"text-assets/text-fancy-red/outline@1/thumbnail.webp",
+					"text-assets/text-fancy-red/outline@1/template.json",
+					"text-assets/text-fancy-red/outline@1/template.qctext",
+				],
+				requiredFiles: ["thumbnail.webp", "template.json", "template.qctext"],
+				targetDirectory: "text-assets/text-fancy-red/outline@1",
+				variantId: "outline",
+			},
+			{
+				assetId: "text-fancy-red-plain",
+				cacheKey: "text-assets/text-fancy-red/plain@1",
+				packageId: "text-fancy-red",
+				requiredFilePaths: [
+					"text-assets/text-fancy-red/plain@1/thumbnail.webp",
+					"text-assets/text-fancy-red/plain@1/template.json",
+					"text-assets/text-fancy-red/plain@1/template.qctext",
+				],
+				requiredFiles: ["thumbnail.webp", "template.json", "template.qctext"],
+				targetDirectory: "text-assets/text-fancy-red/plain@1",
+				variantId: "plain",
+			},
+		]);
+	});
+
 	it("builds publish manifests with CDN URLs and local paths", () => {
 		const entry: TextAssetGeneratedEntry = {
 			...createGeneratedEntry(),

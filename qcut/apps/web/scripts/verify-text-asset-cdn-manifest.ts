@@ -598,18 +598,23 @@ export function summarizeDesignerCategoryCoverage({
 export function buildDesignerAssetGapReport({
 	coverage,
 	generatedAt,
+	generatedManifest,
 	minDesignerAssetsPerCategory,
 	requiredDesignerCategories,
 }: {
 	coverage: TextAssetDesignerCategoryCoverageSummary;
 	generatedAt: string;
+	generatedManifest?: Record<string, TextAssetGeneratedEntry>;
 	minDesignerAssetsPerCategory: number;
 	requiredDesignerCategories: readonly string[];
 }): TextAssetDesignerGapReport {
 	return {
 		categories: coverage.categories.map((category) => ({
 			...category,
-			suggestedImports: buildDesignerAssetImportSlots({ category }),
+			suggestedImports: buildDesignerAssetImportSlots({
+				category,
+				generatedManifest,
+			}),
 		})),
 		generatedAt,
 		minDesignerAssetsPerCategory,
@@ -621,14 +626,26 @@ export function buildDesignerAssetGapReport({
 
 function buildDesignerAssetImportSlots({
 	category,
+	generatedManifest,
 }: {
 	category: TextAssetDesignerCategoryCoverageItem;
+	generatedManifest?: Record<string, TextAssetGeneratedEntry>;
 }): TextAssetDesignerImportSlot[] {
+	const replaceableSlots = generatedManifest
+		? buildExistingDesignerReplacementSlots({
+				category,
+				generatedManifest,
+			})
+		: [];
+	if (replaceableSlots.length >= category.missing) {
+		return replaceableSlots.slice(0, category.missing);
+	}
 	const packageId = packageIdForDesignerCategory({
 		category: category.category,
 	});
-	return Array.from({ length: category.missing }, (_, index) => {
-		const importNumber = category.current + index + 1;
+	const remaining = category.missing - replaceableSlots.length;
+	const syntheticSlots = Array.from({ length: remaining }, (_, index) => {
+		const importNumber = category.current + replaceableSlots.length + index + 1;
 		const variantId = `designer-${String(importNumber).padStart(2, "0")}`;
 		const targetDirectory = `text-assets/${packageId}/${variantId}@1`;
 		return {
@@ -645,6 +662,51 @@ function buildDesignerAssetImportSlots({
 			variantId,
 		};
 	});
+	return [...replaceableSlots, ...syntheticSlots];
+}
+
+function buildExistingDesignerReplacementSlots({
+	category,
+	generatedManifest,
+}: {
+	category: TextAssetDesignerCategoryCoverageItem;
+	generatedManifest: Record<string, TextAssetGeneratedEntry>;
+}): TextAssetDesignerImportSlot[] {
+	return Object.values(generatedManifest)
+		.filter((entry) => {
+			if (entry.provenance?.source === "designer-imported") return false;
+			return inferTextAssetCategory({ entry }) === category.category;
+		})
+		.sort((first, second) => first.assetId.localeCompare(second.assetId))
+		.map((entry) => buildDesignerReplacementSlot({ entry }));
+}
+
+function buildDesignerReplacementSlot({
+	entry,
+}: {
+	entry: TextAssetGeneratedEntry;
+}): TextAssetDesignerImportSlot {
+	const targetDirectory = entry.cacheKey.replace(/^\/+/, "");
+	return {
+		assetId: entry.assetId,
+		cacheKey: entry.cacheKey,
+		packageId: entry.packageId,
+		requiredFilePaths: [
+			`${targetDirectory}/thumbnail.webp`,
+			`${targetDirectory}/template.json`,
+			`${targetDirectory}/template.qctext`,
+		],
+		requiredFiles: ["thumbnail.webp", "template.json", "template.qctext"],
+		targetDirectory,
+		variantId: extractTextAssetVariantId({ cacheKey: entry.cacheKey }),
+	};
+}
+
+function extractTextAssetVariantId({ cacheKey }: { cacheKey: string }): string {
+	const targetDirectory = cacheKey.replace(/^\/+/, "");
+	const variantWithVersion = targetDirectory.split("/").at(-1);
+	if (!variantWithVersion) return "unknown";
+	return variantWithVersion.replace(/@\d+$/, "");
 }
 
 function packageIdForDesignerCategory({
@@ -1974,6 +2036,7 @@ async function main(): Promise<void> {
 			report: buildDesignerAssetGapReport({
 				coverage: designerCategoryCoverage,
 				generatedAt,
+				generatedManifest,
 				minDesignerAssetsPerCategory: options.minDesignerAssetsPerCategory,
 				requiredDesignerCategories: options.requiredDesignerCategories,
 			}),
