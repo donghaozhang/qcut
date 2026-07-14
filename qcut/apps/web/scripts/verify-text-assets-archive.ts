@@ -1,3 +1,4 @@
+import { createHash } from "node:crypto";
 import { execFile } from "node:child_process";
 import { dirname, isAbsolute, join, sep } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -16,6 +17,9 @@ export type TextAssetArchiveVerifyIssue = {
 		| "unexpected-archive-entry"
 		| "duplicate-archive-entry"
 		| "archive-contract-mismatch"
+		| "archive-byte-size-mismatch"
+		| "archive-checksum-mismatch"
+		| "archive-entry-read-failed"
 		| "invalid-archive-entry";
 	detail: string;
 	key: string;
@@ -35,7 +39,7 @@ export type TextAssetArchiveVerifySummary = {
 	totalFiles: number;
 };
 
-type TarCommand = ({ args }: { args: string[] }) => Promise<string>;
+type TarCommand = ({ args }: { args: string[] }) => Promise<Buffer>;
 
 const SCRIPT_DIR = dirname(fileURLToPath(import.meta.url));
 const DEFAULT_ARCHIVE_PATH = join(
@@ -86,12 +90,12 @@ export async function readTextAssetArchiveManifest({
 	archivePath: string;
 	runTar?: TarCommand;
 }): Promise<TextAssetUploadPlanReport> {
-	const text = await readArchiveTextEntry({
+	const bytes = await readArchiveEntryBytes({
 		archivePath,
 		entry: STAGE_MANIFEST_FILE,
 		runTar,
 	});
-	return JSON.parse(text) as TextAssetUploadPlanReport;
+	return JSON.parse(bytes.toString("utf8")) as TextAssetUploadPlanReport;
 }
 
 export async function listTextAssetArchiveEntries({
@@ -104,7 +108,7 @@ export async function listTextAssetArchiveEntries({
 	const output = await runTar({
 		args: ["-tzf", archivePath],
 	});
-	return output.split(/\r?\n/).filter(Boolean);
+	return output.toString("utf8").split(/\r?\n/).filter(Boolean);
 }
 
 export function verifyTextAssetArchive({
@@ -173,6 +177,55 @@ export function verifyTextAssetArchive({
 	return issues;
 }
 
+export async function verifyTextAssetArchiveContents({
+	archivePath,
+	manifest,
+	runTar = runTarCommand,
+}: {
+	archivePath: string;
+	manifest: TextAssetUploadPlanReport;
+	runTar?: TarCommand;
+}): Promise<TextAssetArchiveVerifyIssue[]> {
+	const issueGroups = await Promise.all(
+		manifest.items.map(async (item): Promise<TextAssetArchiveVerifyIssue[]> => {
+			let bytes: Buffer;
+			try {
+				bytes = await readArchiveEntryBytes({
+					archivePath,
+					entry: item.key,
+					runTar,
+				});
+			} catch (error) {
+				return [
+					{
+						code: "archive-entry-read-failed",
+						detail: `Could not read archive entry: ${archiveReadErrorDetail({ error })}`,
+						key: item.key,
+					},
+				];
+			}
+			const issues: TextAssetArchiveVerifyIssue[] = [];
+			if (bytes.byteLength !== item.size) {
+				issues.push({
+					code: "archive-byte-size-mismatch",
+					detail: `Expected ${item.size}, received ${bytes.byteLength}`,
+					key: item.key,
+				});
+			}
+			const checksum = hashBytes({ bytes });
+			if (checksum !== item.sha256) {
+				issues.push({
+					code: "archive-checksum-mismatch",
+					detail: `Expected ${item.sha256}, received ${checksum}`,
+					key: item.key,
+				});
+			}
+			return issues;
+		})
+	);
+	return issueGroups.flat();
+}
+
 export function summarizeTextAssetArchiveIssues({
 	issues,
 	limit = 25,
@@ -239,7 +292,7 @@ function normalizeArchiveEntry({
 	return { key, type: "file" };
 }
 
-async function readArchiveTextEntry({
+async function readArchiveEntryBytes({
 	archivePath,
 	entry,
 	runTar,
@@ -247,7 +300,7 @@ async function readArchiveTextEntry({
 	archivePath: string;
 	entry: string;
 	runTar: TarCommand;
-}): Promise<string> {
+}): Promise<Buffer> {
 	const candidates = [`./${entry}`, entry];
 	let lastError: unknown;
 	for (const candidate of candidates) {
@@ -262,11 +315,20 @@ async function readArchiveTextEntry({
 	throw lastError instanceof Error ? lastError : new Error(String(lastError));
 }
 
-async function runTarCommand({ args }: { args: string[] }): Promise<string> {
+async function runTarCommand({ args }: { args: string[] }): Promise<Buffer> {
 	const { stdout } = await execFileAsync("tar", args, {
+		encoding: "buffer",
 		maxBuffer: 64 * 1024 * 1024,
 	});
-	return stdout;
+	return Buffer.isBuffer(stdout) ? stdout : Buffer.from(stdout);
+}
+
+function hashBytes({ bytes }: { bytes: Buffer }): string {
+	return createHash("sha256").update(bytes).digest("hex");
+}
+
+function archiveReadErrorDetail({ error }: { error: unknown }): string {
+	return error instanceof Error ? error.message : String(error);
 }
 
 function requireValue({
@@ -307,7 +369,13 @@ async function main(): Promise<void> {
 	const entries = await listTextAssetArchiveEntries({
 		archivePath: options.archivePath,
 	});
-	const issues = verifyTextAssetArchive({ entries, manifest });
+	const issues = [
+		...verifyTextAssetArchive({ entries, manifest }),
+		...(await verifyTextAssetArchiveContents({
+			archivePath: options.archivePath,
+			manifest,
+		})),
+	];
 	const issueOutput = summarizeTextAssetArchiveIssues({
 		issues,
 		limit: options.issueLimit,

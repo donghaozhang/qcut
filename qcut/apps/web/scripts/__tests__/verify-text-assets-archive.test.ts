@@ -1,3 +1,4 @@
+import { createHash } from "node:crypto";
 import { readFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -13,6 +14,7 @@ import {
 	readTextAssetArchiveManifest,
 	summarizeTextAssetArchiveIssues,
 	verifyTextAssetArchive,
+	verifyTextAssetArchiveContents,
 	type TextAssetArchiveVerifyIssue,
 } from "../verify-text-assets-archive";
 
@@ -22,10 +24,12 @@ const PACKAGE_JSON_PATH = join(
 );
 
 function createUploadPlanItem({
+	content = "asset-content",
 	contentType = "application/json",
 	key,
 	role = "source",
 }: {
+	content?: string;
 	contentType?: string;
 	key: string;
 	role?: TextAssetUploadPlanItem["role"];
@@ -37,9 +41,13 @@ function createUploadPlanItem({
 		key,
 		localPath: `/tmp/${key}`,
 		role,
-		sha256: "sha",
-		size: 12,
+		sha256: checksum({ value: content }),
+		size: Buffer.byteLength(content),
 	};
+}
+
+function checksum({ value }: { value: string }): string {
+	return createHash("sha256").update(Buffer.from(value)).digest("hex");
 }
 
 function createUploadPlanReport({
@@ -92,10 +100,12 @@ describe("text asset archive verifier", () => {
 		const runTar = async ({ args }: { args: string[] }) => {
 			calls.push(args);
 			if (args[0] === "-tzf") {
-				return "./_qcut-text-assets-release.json\n./_qcut-text-assets-release-readme.md\n./_qcut-text-designer-gap-report.json\n./prod/text-assets/demo/plain@1/template.json\n";
+				return Buffer.from(
+					"./_qcut-text-assets-release.json\n./_qcut-text-assets-release-readme.md\n./_qcut-text-designer-gap-report.json\n./prod/text-assets/demo/plain@1/template.json\n"
+				);
 			}
 			if (args[0] === "-xOf") {
-				return JSON.stringify(manifest);
+				return Buffer.from(JSON.stringify(manifest));
 			}
 			throw new Error("unexpected tar call");
 		};
@@ -200,6 +210,34 @@ describe("text asset archive verifier", () => {
 			},
 			issues: expect.arrayContaining([expect.any(Object), expect.any(Object)]),
 		});
+	});
+
+	it("verifies archived asset bytes against the release manifest", async () => {
+		const item = createUploadPlanItem({
+			content: "expected content",
+			key: "prod/text-assets/demo/plain@1/template.json",
+		});
+		const manifest = createUploadPlanReport({ items: [item] });
+
+		await expect(
+			verifyTextAssetArchiveContents({
+				archivePath: "/tmp/text-assets.tar.gz",
+				manifest,
+				runTar: async ({ args }) => {
+					if (args[0] !== "-xOf") throw new Error("unexpected tar call");
+					return Buffer.from("changed content");
+				},
+			})
+		).resolves.toEqual([
+			expect.objectContaining({
+				code: "archive-byte-size-mismatch",
+				key: item.key,
+			}),
+			expect.objectContaining({
+				code: "archive-checksum-mismatch",
+				key: item.key,
+			}),
+		]);
 	});
 
 	it("reports release manifest entries that violate role contracts", () => {
