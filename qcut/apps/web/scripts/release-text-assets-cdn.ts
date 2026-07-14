@@ -94,6 +94,8 @@ const DEFAULT_PUBLISH_MANIFEST_PATH = join(
 );
 const DEFAULT_METADATA_CACHE_CONTROL =
 	"public, max-age=300, stale-while-revalidate=86400";
+const STAGE_MANIFEST_FILE = "_qcut-text-assets-release.json";
+const STAGE_README_FILE = "_qcut-text-assets-release-readme.md";
 const execFileAsync = promisify(execFile);
 
 export function parseTextAssetReleaseArgs({
@@ -412,7 +414,8 @@ export async function stageTextAssetUploadPlan({
 			await copyFile(item.localPath, targetPath);
 		})
 	);
-	const manifestPath = join(resolvedStageDir, "_qcut-text-assets-release.json");
+	const manifestPath = join(resolvedStageDir, STAGE_MANIFEST_FILE);
+	const readmePath = join(resolvedStageDir, STAGE_README_FILE);
 	await writeFile(
 		manifestPath,
 		`${JSON.stringify(
@@ -426,7 +429,68 @@ export async function stageTextAssetUploadPlan({
 		)}\n`,
 		"utf8"
 	);
+	await writeFile(
+		readmePath,
+		renderTextAssetReleaseReadme({
+			items,
+			prefix,
+		}),
+		"utf8"
+	);
 	return { fileCount: items.length, manifestPath };
+}
+
+function renderTextAssetReleaseReadme({
+	items,
+	prefix,
+}: {
+	items: readonly TextAssetUploadPlanItem[];
+	prefix: string;
+}): string {
+	const roleCounts = items.reduce<Record<string, number>>((counts, item) => {
+		counts[item.role] = (counts[item.role] ?? 0) + 1;
+		return counts;
+	}, {});
+	const roleRows = Object.entries(roleCounts)
+		.sort(([left], [right]) => left.localeCompare(right))
+		.map(([role, count]) => `| ${role} | ${count} |`)
+		.join("\n");
+	return `# QCut Text Asset CDN Release
+
+This folder mirrors the CDN object keys for the text asset release. Upload every non-metadata file under this folder to the configured bucket using the listed key paths.
+
+Do not upload these release metadata files as public assets:
+
+- \`${STAGE_MANIFEST_FILE}\`
+- \`${STAGE_README_FILE}\`
+
+Before publishing, verify the folder and archive:
+
+\`\`\`bash
+bun run assets:text:verify-stage
+bun run assets:text:verify-archive
+\`\`\`
+
+After publishing, verify the remote CDN:
+
+\`\`\`bash
+bun run assets:text:check-remote
+\`\`\`
+
+## Release Summary
+
+| field | value |
+| --- | --- |
+| prefix | ${prefix || "(none)"} |
+| files | ${items.length} |
+| bytes | ${items.reduce((total, item) => total + item.size, 0)} |
+
+## Files By Role
+
+| role | files |
+| --- | ---: |
+${roleRows}
+`;
 }
 
 export async function createTextAssetStageArchive({
@@ -466,7 +530,7 @@ export async function createTextAssetStageArchive({
 	});
 	return {
 		archivePath: resolvedArchivePath,
-		fileCount: stagedFileCount + 1,
+		fileCount: stagedFileCount + 2,
 		format: "tar.gz",
 	};
 }

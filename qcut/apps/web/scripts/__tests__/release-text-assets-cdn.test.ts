@@ -312,7 +312,7 @@ describe("text asset CDN release script", () => {
 				archiveCalls.push({ archivePath, stagedFileCount, stageDir });
 				return {
 					archivePath,
-					fileCount: stagedFileCount + 1,
+					fileCount: stagedFileCount + 2,
 					format: "tar.gz",
 				};
 			},
@@ -329,7 +329,7 @@ describe("text asset CDN release script", () => {
 
 		expect(summary).toMatchObject({
 			archivePath,
-			archivedFiles: 5,
+			archivedFiles: 6,
 			dryRun: true,
 			stageDir,
 			stageManifestPath: join(stageDir, "_qcut-text-assets-release.json"),
@@ -371,6 +371,12 @@ describe("text asset CDN release script", () => {
 			schemaVersion: 1,
 			totalFiles: 4,
 		});
+		await expect(
+			readFile(join(stageDir, "_qcut-text-assets-release-readme.md"), "utf8")
+		).resolves.toContain("assets:text:verify-archive");
+		await expect(
+			readFile(join(stageDir, "_qcut-text-assets-release-readme.md"), "utf8")
+		).resolves.toContain("Do not upload these release metadata files");
 	});
 
 	it("returns local issues without uploading", async () => {

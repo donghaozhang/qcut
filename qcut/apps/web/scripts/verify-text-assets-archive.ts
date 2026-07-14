@@ -41,6 +41,10 @@ const DEFAULT_ARCHIVE_PATH = join(
 	"../dist/text-assets-cdn-stage.tar.gz"
 );
 const STAGE_MANIFEST_FILE = "_qcut-text-assets-release.json";
+const RELEASE_METADATA_FILES = [
+	STAGE_MANIFEST_FILE,
+	"_qcut-text-assets-release-readme.md",
+] as const;
 const execFileAsync = promisify(execFile);
 
 export function parseTextAssetArchiveVerifyArgs({
@@ -108,7 +112,7 @@ export function verifyTextAssetArchive({
 	manifest: TextAssetUploadPlanReport;
 }): TextAssetArchiveVerifyIssue[] {
 	const expectedEntries = new Set([
-		STAGE_MANIFEST_FILE,
+		...RELEASE_METADATA_FILES,
 		...manifest.items.map((item) => item.key),
 	]);
 	const entryCounts = new Map<string, number>();

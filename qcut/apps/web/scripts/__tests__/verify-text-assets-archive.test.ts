@@ -88,7 +88,7 @@ describe("text asset archive verifier", () => {
 		const runTar = async ({ args }: { args: string[] }) => {
 			calls.push(args);
 			if (args[0] === "-tzf") {
-				return "./_qcut-text-assets-release.json\n./prod/text-assets/demo/plain@1/template.json\n";
+				return "./_qcut-text-assets-release.json\n./_qcut-text-assets-release-readme.md\n./prod/text-assets/demo/plain@1/template.json\n";
 			}
 			if (args[0] === "-xOf") {
 				return JSON.stringify(manifest);
@@ -103,6 +103,7 @@ describe("text asset archive verifier", () => {
 			})
 		).resolves.toEqual([
 			"./_qcut-text-assets-release.json",
+			"./_qcut-text-assets-release-readme.md",
 			"./prod/text-assets/demo/plain@1/template.json",
 		]);
 		await expect(
@@ -124,11 +125,12 @@ describe("text asset archive verifier", () => {
 					"./",
 					"./prod/",
 					"./_qcut-text-assets-release.json",
+					"./_qcut-text-assets-release-readme.md",
 					"./prod/text-assets/demo/plain@1/template.json",
 					"../escape.json",
 				],
 			})
-		).toBe(3);
+		).toBe(4);
 	});
 
 	it("detects missing, unexpected, duplicate, and escaping archive entries", () => {
@@ -139,6 +141,7 @@ describe("text asset archive verifier", () => {
 		const issues = verifyTextAssetArchive({
 			entries: [
 				"./_qcut-text-assets-release.json",
+				"./_qcut-text-assets-release-readme.md",
 				"./prod/text-assets/demo/plain@1/template.json",
 				"./prod/text-assets/demo/plain@1/template.json",
 				"./prod/text-assets/demo/plain@1/extra.json",
@@ -165,7 +168,10 @@ describe("text asset archive verifier", () => {
 		);
 		expect(
 			verifyTextAssetArchive({
-				entries: ["./_qcut-text-assets-release.json"],
+				entries: [
+					"./_qcut-text-assets-release.json",
+					"./_qcut-text-assets-release-readme.md",
+				],
 				manifest,
 			})
 		).toEqual([
