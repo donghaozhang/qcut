@@ -112,6 +112,17 @@ describe("asset library store", () => {
 				cachedBytes: 4096,
 				cachedFileCount: 2,
 				cacheHitCount: 1,
+				cachedFiles: [
+					{
+						byteSize: 2048,
+						cacheKey: "sticker:line-md:heart-filled@2:source:0",
+						checksumSha256: "a".repeat(64),
+						fromCache: false,
+						mimeType: "image/svg+xml",
+						role: "source",
+						url: "https://example.test/heart.svg",
+					},
+				],
 			},
 		});
 		const assetKey = assetManifestVersionKey({
@@ -129,6 +140,17 @@ describe("asset library store", () => {
 			cachedBytes: 4096,
 			cachedFileCount: 2,
 			cacheHitCount: 1,
+			cachedFiles: [
+				{
+					byteSize: 2048,
+					cacheKey: "sticker:line-md:heart-filled@2:source:0",
+					checksumSha256: "a".repeat(64),
+					fromCache: false,
+					mimeType: "image/svg+xml",
+					role: "source",
+					url: "https://example.test/heart.svg",
+				},
+			],
 		});
 	});
 
@@ -145,6 +167,23 @@ describe("asset library store", () => {
 							cachedBytes: -1,
 							cachedFileCount: 3,
 							cacheHitCount: 2,
+							cachedFiles: [
+								{
+									byteSize: -20,
+									cacheKey: "sticker:heart@1:source:0",
+									checksumSha256: "b".repeat(64),
+									fromCache: true,
+									mimeType: "image/svg+xml",
+									role: "source",
+									url: "https://example.test/heart.svg",
+								},
+								{
+									cacheKey: "bad",
+									fromCache: true,
+									role: "bad",
+									url: "https://example.test/bad.svg",
+								},
+							],
 						},
 						broken: { downloadStatus: "wat" },
 					},
@@ -162,6 +201,17 @@ describe("asset library store", () => {
 					cachedBytes: 0,
 					cachedFileCount: 3,
 					cacheHitCount: 2,
+					cachedFiles: [
+						{
+							byteSize: 0,
+							cacheKey: "sticker:heart@1:source:0",
+							checksumSha256: "b".repeat(64),
+							fromCache: true,
+							mimeType: "image/svg+xml",
+							role: "source",
+							url: "https://example.test/heart.svg",
+						},
+					],
 				},
 			},
 		});

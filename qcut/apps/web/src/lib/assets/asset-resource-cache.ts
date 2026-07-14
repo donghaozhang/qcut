@@ -30,9 +30,11 @@ export interface CachedAssetResource {
 export interface ResolvedAssetResource {
 	byteSize?: number;
 	cacheKey: string;
+	checksumSha256?: string;
 	fromCache: boolean;
 	mimeType?: string;
 	role: AssetFileRole;
+	sourceUrl: string;
 	url: string;
 	blob?: Blob;
 }
@@ -384,9 +386,11 @@ async function ensureRemoteResource({
 			blob: cached.blob,
 			byteSize: cached.byteSize,
 			cacheKey,
+			checksumSha256: cached.checksumSha256,
 			fromCache: true,
 			mimeType: cached.mimeType,
 			role: file.role,
+			sourceUrl: cached.sourceUrl,
 			url: file.url,
 		};
 	}
@@ -440,9 +444,11 @@ async function ensureRemoteResource({
 		blob,
 		byteSize: bytes.byteLength,
 		cacheKey,
+		checksumSha256,
 		fromCache: false,
 		mimeType,
 		role: file.role,
+		sourceUrl: file.url,
 		url: file.url,
 	};
 }
@@ -474,10 +480,13 @@ export async function ensureAssetResources({
 		.filter(({ file }) => !roleSet || roleSet.has(file.role));
 	if (asset.delivery !== "remote") {
 		return selectedFiles.map(({ file, fileIndex }) => ({
+			byteSize: file.byteSize,
 			cacheKey: resourceCacheKey({ asset, file, fileIndex }),
+			checksumSha256: file.checksumSha256,
 			fromCache: true,
 			mimeType: file.mimeType,
 			role: file.role,
+			sourceUrl: file.url,
 			url: file.url,
 		}));
 	}

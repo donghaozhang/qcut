@@ -1295,6 +1295,21 @@ export function TextView() {
 			return;
 		}
 		if (asset.delivery !== "remote") {
+			const resource = await downloadTextTemplateResource({ definition });
+			updateRuntimeState({
+				asset,
+				patch: {
+					cacheHitCount: resource.cacheHitCount,
+					cachedBytes: resource.cachedBytes,
+					cachedFileCount: resource.cachedFileCount,
+					cachedFiles: resource.files,
+					cacheKey: resource.cacheKey,
+					cacheStatus: "cached",
+					downloadStatus: "downloaded",
+					error: "",
+					progress: 1,
+				},
+			});
 			setLibraryState((current) =>
 				markTextTemplateDownloaded({ definition, state: current })
 			);
@@ -1356,6 +1371,7 @@ export function TextView() {
 					cacheHitCount: resource.cacheHitCount,
 					cachedBytes: resource.cachedBytes,
 					cachedFileCount: resource.cachedFileCount,
+					cachedFiles: resource.files,
 					cacheKey: resource.cacheKey,
 					cacheStatus: "cached",
 					downloadStatus: "downloaded",

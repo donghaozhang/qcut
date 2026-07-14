@@ -1,4 +1,5 @@
 import {
+	ASSET_FILE_ROLES,
 	assetManifestIdentity,
 	assetManifestVersionKey,
 	createInitialAssetRuntimeState,
@@ -6,6 +7,7 @@ import {
 	type AssetDownloadStatus,
 	type AssetKind,
 	type AssetManifestEntry,
+	type AssetRuntimeFileState,
 	type AssetRuntimeState,
 } from "@qcut/editor-core";
 import { create } from "zustand";
@@ -31,6 +33,7 @@ const CACHE_STATUSES = new Set<AssetCacheStatus>([
 	"stale",
 	"failed",
 ]);
+const ASSET_FILE_ROLE_SET = new Set<string>(ASSET_FILE_ROLES);
 
 type FavoriteIdentities = Record<string, true>;
 type RuntimeStates = Record<string, AssetRuntimeState>;
@@ -43,6 +46,7 @@ export interface AssetRuntimePatch {
 	cachedBytes?: number;
 	cachedFileCount?: number;
 	cacheHitCount?: number;
+	cachedFiles?: readonly AssetRuntimeFileState[];
 	error?: string;
 }
 
@@ -187,8 +191,53 @@ function normalizeRuntimeState({
 			value: record.cachedFileCount,
 		}),
 		cacheHitCount: normalizedNonNegativeNumber({ value: record.cacheHitCount }),
+		cachedFiles: normalizeRuntimeFileStates({ value: record.cachedFiles }),
 		error: typeof record.error === "string" ? record.error : undefined,
 	};
+}
+
+function normalizeRuntimeFileState({
+	value,
+}: {
+	value: unknown;
+}): AssetRuntimeFileState | undefined {
+	const record = asRecord({ value });
+	if (!record) return undefined;
+	if (
+		typeof record.role !== "string" ||
+		!ASSET_FILE_ROLE_SET.has(record.role) ||
+		typeof record.url !== "string" ||
+		!record.url ||
+		typeof record.cacheKey !== "string" ||
+		!record.cacheKey ||
+		typeof record.fromCache !== "boolean"
+	) {
+		return undefined;
+	}
+	return {
+		role: record.role as AssetRuntimeFileState["role"],
+		url: record.url,
+		cacheKey: record.cacheKey,
+		fromCache: record.fromCache,
+		byteSize: normalizedNonNegativeNumber({ value: record.byteSize }),
+		mimeType: typeof record.mimeType === "string" ? record.mimeType : undefined,
+		checksumSha256:
+			typeof record.checksumSha256 === "string"
+				? record.checksumSha256
+				: undefined,
+	};
+}
+
+function normalizeRuntimeFileStates({
+	value,
+}: {
+	value: unknown;
+}): AssetRuntimeFileState[] | undefined {
+	if (!Array.isArray(value)) return undefined;
+	const files = value
+		.map((file) => normalizeRuntimeFileState({ value: file }))
+		.filter((file): file is AssetRuntimeFileState => file !== undefined);
+	return files.length > 0 ? files : undefined;
 }
 
 function normalizedNonNegativeNumber({

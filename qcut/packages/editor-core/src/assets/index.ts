@@ -25,5 +25,6 @@ export {
 	type AssetManifestValidationCode,
 	type AssetManifestValidationIssue,
 	type AssetManifestValidationResult,
+	type AssetRuntimeFileState,
 	type AssetRuntimeState,
 } from "./asset-manifest.js";

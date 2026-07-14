@@ -31,9 +31,11 @@ export interface DownloadedTextTemplateResource {
 export interface DownloadedTextTemplateResourceFile {
 	byteSize?: number;
 	cacheKey: string;
+	checksumSha256?: string;
 	fromCache: boolean;
 	mimeType?: string;
 	role: AssetFileRole;
+	sourceUrl: string;
 	url: string;
 }
 
@@ -253,9 +255,11 @@ function downloadedResourceFiles({
 	return resources.map((resource) => ({
 		byteSize: resource.byteSize,
 		cacheKey: resource.cacheKey,
+		checksumSha256: resource.checksumSha256,
 		fromCache: resource.fromCache,
 		mimeType: resource.mimeType,
 		role: resource.role,
+		sourceUrl: resource.sourceUrl,
 		url: resource.url,
 	}));
 }
@@ -346,9 +350,11 @@ export async function downloadTextTemplateResource({
 			resources: asset.files.map((file, fileIndex) => ({
 				byteSize: file.byteSize,
 				cacheKey: `${cacheKey}:${file.role}:${fileIndex}`,
+				checksumSha256: file.checksumSha256,
 				fromCache: true,
 				mimeType: file.mimeType,
 				role: file.role,
+				sourceUrl: file.url,
 				url: file.url,
 			})),
 		});

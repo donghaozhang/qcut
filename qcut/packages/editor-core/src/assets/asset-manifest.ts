@@ -92,7 +92,18 @@ export interface AssetRuntimeState {
 	cachedBytes?: number;
 	cachedFileCount?: number;
 	cacheHitCount?: number;
+	cachedFiles?: readonly AssetRuntimeFileState[];
 	error?: string;
+}
+
+export interface AssetRuntimeFileState {
+	role: AssetFileRole;
+	url: string;
+	cacheKey: string;
+	fromCache: boolean;
+	byteSize?: number;
+	mimeType?: string;
+	checksumSha256?: string;
 }
 
 export type AssetManifestValidationCode =

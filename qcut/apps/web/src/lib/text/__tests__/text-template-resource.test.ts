@@ -198,22 +198,31 @@ describe("downloadTextTemplateResource", () => {
 				expect.objectContaining({
 					byteSize: 184,
 					cacheKey: "text-template:asset-remote-resource-test@1:thumbnail:0",
+					checksumSha256: checksum({ value: "t".repeat(184) }),
 					fromCache: false,
 					role: "thumbnail",
+					sourceUrl:
+						"https://assets.qcut.app/text-assets/package-remote-resource-test/plain@1/thumbnail.webp",
 					url: "https://assets.qcut.app/text-assets/package-remote-resource-test/plain@1/thumbnail.webp",
 				}),
 				expect.objectContaining({
 					byteSize: 1024,
 					cacheKey: "text-template:asset-remote-resource-test@1:source:1",
+					checksumSha256: checksum({ value: "s".repeat(1024) }),
 					fromCache: false,
 					role: "source",
+					sourceUrl:
+						"https://assets.qcut.app/text-assets/package-remote-resource-test/plain@1/template.json",
 					url: "https://assets.qcut.app/text-assets/package-remote-resource-test/plain@1/template.json",
 				}),
 				expect.objectContaining({
 					byteSize: 1024,
 					cacheKey: "text-template:asset-remote-resource-test@1:package:2",
+					checksumSha256: checksum({ value: "p".repeat(1024) }),
 					fromCache: false,
 					role: "package",
+					sourceUrl:
+						"https://assets.qcut.app/text-assets/package-remote-resource-test/plain@1/template.qctext",
 					url: "https://assets.qcut.app/text-assets/package-remote-resource-test/plain@1/template.qctext",
 				}),
 			],
@@ -256,9 +265,30 @@ describe("downloadTextTemplateResource", () => {
 				version: definition.resource?.version ?? 1,
 			}),
 			files: [
-				expect.objectContaining({ fromCache: true, role: "thumbnail" }),
-				expect.objectContaining({ fromCache: true, role: "source" }),
-				expect.objectContaining({ fromCache: true, role: "package" }),
+				expect.objectContaining({
+					checksumSha256: expect.stringMatching(/^[a-f\d]{64}$/),
+					fromCache: true,
+					role: "thumbnail",
+					sourceUrl: expect.stringMatching(
+						/^\/text-assets\/.+\/thumbnail\.webp$/
+					),
+				}),
+				expect.objectContaining({
+					checksumSha256: expect.stringMatching(/^[a-f\d]{64}$/),
+					fromCache: true,
+					role: "source",
+					sourceUrl: expect.stringMatching(
+						/^\/text-assets\/.+\/template\.json$/
+					),
+				}),
+				expect.objectContaining({
+					checksumSha256: expect.stringMatching(/^[a-f\d]{64}$/),
+					fromCache: true,
+					role: "package",
+					sourceUrl: expect.stringMatching(
+						/^\/text-assets\/.+\/template\.qctext$/
+					),
+				}),
 			],
 		});
 		expect(fetchImpl).not.toHaveBeenCalled();
