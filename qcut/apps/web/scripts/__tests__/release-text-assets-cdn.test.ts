@@ -157,6 +157,8 @@ describe("text asset CDN release script", () => {
 					"/tmp/public",
 					"--remote-concurrency",
 					"4",
+					"--stage-dir",
+					"/tmp/stage",
 					"--upload-concurrency",
 					"3",
 					"--write-upload-plan",
@@ -178,8 +180,29 @@ describe("text asset CDN release script", () => {
 			remoteConcurrency: 4,
 			requiredDesignerCategories: ["red", "texture"],
 			skipRemoteCheck: true,
+			stageDir: "/tmp/stage",
 			uploadConcurrency: 3,
 			uploadPlanPath: "/tmp/upload-plan.json",
+		});
+	});
+
+	it("allows dry-run local staging without a bucket", () => {
+		expect(
+			parseTextAssetReleaseArgs({
+				argv: [
+					"--dry-run",
+					"--stage-dir",
+					"/tmp/text-assets-stage",
+					"--publish-manifest",
+					"/tmp/publish.json",
+				],
+				env: {},
+			})
+		).toMatchObject({
+			bucket: "",
+			dryRun: true,
+			publishManifestPath: "/tmp/publish.json",
+			stageDir: "/tmp/text-assets-stage",
 		});
 	});
 
@@ -220,6 +243,7 @@ describe("text asset CDN release script", () => {
 			},
 			remoteIssues: [],
 			requiredDesignerCategories: [],
+			stagedFiles: 0,
 			totalAssets: 2,
 			totalBytes: expect.any(Number),
 			totalFiles: 4,
@@ -251,6 +275,40 @@ describe("text asset CDN release script", () => {
 			schemaVersion: 1,
 			totalFiles: 4,
 		});
+	});
+
+	it("stages dry-run release files into a deployable object-key directory", async () => {
+		const { options } = await createReleaseFixture();
+		const stageDir = join(tmpdir(), `qcut-text-stage-${randomUUID()}`);
+
+		const summary = await releaseTextAssetsToCdn({
+			options: {
+				...options,
+				bucket: "",
+				stageDir,
+			},
+			uploadFile: async () => {
+				throw new Error("dry-run staging should not upload");
+			},
+		});
+
+		expect(summary).toMatchObject({
+			dryRun: true,
+			stageDir,
+			stagedFiles: 4,
+			upload: {
+				uploadedFiles: 0,
+			},
+		});
+		await expect(
+			readFile(
+				join(stageDir, "prod/text-assets/demo/plain@1/thumbnail.webp"),
+				"utf8"
+			)
+		).resolves.toBe(THUMBNAIL_TEXT);
+		await expect(
+			readFile(join(stageDir, "prod/text-assets/marketplace.json"), "utf8")
+		).resolves.toContain("schemaVersion");
 	});
 
 	it("returns local issues without uploading", async () => {

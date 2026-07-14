@@ -1,4 +1,5 @@
-import { dirname, join } from "node:path";
+import { copyFile, mkdir } from "node:fs/promises";
+import { dirname, join, relative, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { S3Client } from "@aws-sdk/client-s3";
 import {
@@ -7,6 +8,7 @@ import {
 	createS3UploadFile,
 	uploadTextAssetPlan,
 	writeTextAssetUploadPlanReport,
+	type TextAssetUploadPlanItem,
 	type TextAssetUploadSummary,
 } from "./upload-text-assets-cdn";
 import {
@@ -40,6 +42,7 @@ export type TextAssetReleaseOptions = {
 	remoteConcurrency: number;
 	requiredDesignerCategories: string[];
 	skipRemoteCheck: boolean;
+	stageDir?: string;
 	uploadConcurrency: number;
 	uploadPlanPath?: string;
 };
@@ -56,6 +59,8 @@ export type TextAssetReleaseSummary = {
 	remoteIssueSummary: ReturnType<typeof summarizeVerifyIssues>["issueSummary"];
 	remoteIssues: readonly VerifyIssue[];
 	requiredDesignerCategories: readonly string[];
+	stageDir?: string;
+	stagedFiles: number;
 	totalAssets: number;
 	totalBytes: number;
 	totalFiles: number;
@@ -207,6 +212,11 @@ export function parseTextAssetReleaseArgs({
 			options.skipRemoteCheck = true;
 			continue;
 		}
+		if (arg === "--stage-dir") {
+			options.stageDir = requireValue({ argv, index, name: arg });
+			index += 1;
+			continue;
+		}
 		if (arg === "--upload-concurrency") {
 			options.uploadConcurrency = parsePositiveInteger({
 				name: arg,
@@ -222,8 +232,10 @@ export function parseTextAssetReleaseArgs({
 		}
 		throw new Error(`Unknown argument: ${arg}`);
 	}
-	if (!options.bucket) {
-		throw new Error("Missing bucket. Set QCUT_TEXT_ASSET_BUCKET or --bucket.");
+	if (!options.bucket && !(options.dryRun && options.stageDir)) {
+		throw new Error(
+			"Missing bucket. Set QCUT_TEXT_ASSET_BUCKET or --bucket, or use --dry-run with --stage-dir for a local release artifact."
+		);
 	}
 	return options;
 }
@@ -303,6 +315,12 @@ export async function releaseTextAssetsToCdn({
 			writePath: options.uploadPlanPath,
 		});
 	}
+	const stagedFiles = options.stageDir
+		? await stageTextAssetUploadPlan({
+				items,
+				stageDir: options.stageDir,
+			})
+		: 0;
 	const upload = await uploadTextAssetPlan({
 		concurrency: options.uploadConcurrency,
 		dryRun: options.dryRun,
@@ -323,8 +341,33 @@ export async function releaseTextAssetsToCdn({
 		options,
 		provenance,
 		remoteIssues,
+		stagedFiles,
 		upload,
 	});
+}
+
+export async function stageTextAssetUploadPlan({
+	items,
+	stageDir,
+}: {
+	items: readonly TextAssetUploadPlanItem[];
+	stageDir: string;
+}): Promise<number> {
+	const resolvedStageDir = resolve(stageDir);
+	await Promise.all(
+		items.map(async (item) => {
+			const targetPath = resolve(resolvedStageDir, item.key);
+			const relativeTarget = relative(resolvedStageDir, targetPath);
+			if (relativeTarget.startsWith("..") || relativeTarget === "") {
+				throw new Error(
+					`Text asset stage target escapes stage directory: ${item.key}`
+				);
+			}
+			await mkdir(dirname(targetPath), { recursive: true });
+			await copyFile(item.localPath, targetPath);
+		})
+	);
+	return items.length;
 }
 
 function buildReleaseSummary({
@@ -334,6 +377,7 @@ function buildReleaseSummary({
 	options,
 	provenance,
 	remoteIssues,
+	stagedFiles,
 	upload,
 }: {
 	localIssues: readonly VerifyIssue[];
@@ -342,6 +386,7 @@ function buildReleaseSummary({
 	options: TextAssetReleaseOptions;
 	provenance: TextAssetProvenanceSummary;
 	remoteIssues: readonly VerifyIssue[];
+	stagedFiles?: number;
 	upload: TextAssetUploadSummary;
 }): TextAssetReleaseSummary {
 	return {
@@ -358,6 +403,8 @@ function buildReleaseSummary({
 			.issueSummary,
 		remoteIssues,
 		requiredDesignerCategories: options.requiredDesignerCategories,
+		stageDir: options.stageDir,
+		stagedFiles: stagedFiles ?? 0,
 		totalAssets: manifest.totalAssets,
 		totalBytes: manifest.totalBytes,
 		totalFiles: manifest.totalFiles,
