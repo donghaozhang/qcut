@@ -265,9 +265,7 @@ describe("TransitionsView", () => {
 		await waitFor(() => expect(card).toHaveAttribute("draggable", "true"));
 		expect(mockFetch).toHaveBeenCalledTimes(2);
 		expect(
-			Object.values(
-				useAssetLibraryStore.getState().runtimeByAssetKey
-			).some(
+			Object.values(useAssetLibraryStore.getState().runtimeByAssetKey).some(
 				(runtime) =>
 					runtime.assetKey === "transition:speed-trail@1" &&
 					runtime.downloadStatus === "downloaded" &&

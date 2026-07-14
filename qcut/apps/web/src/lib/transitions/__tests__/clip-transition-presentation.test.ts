@@ -304,7 +304,9 @@ describe("clip transition presentation", () => {
 			canvasWidth: 320,
 			canvasHeight: 180,
 		});
-		expect(buildClipTransitionContentStyle({ presentation: pixel })).toMatchObject({
+		expect(
+			buildClipTransitionContentStyle({ presentation: pixel })
+		).toMatchObject({
 			imageRendering: "pixelated",
 			transformOrigin: "top left",
 		});
@@ -327,7 +329,9 @@ describe("clip transition presentation", () => {
 			canvasWidth: 320,
 			canvasHeight: 180,
 		});
-		expect(buildClipTransitionMaskStyle({ presentation: texture })).toMatchObject({
+		expect(
+			buildClipTransitionMaskStyle({ presentation: texture })
+		).toMatchObject({
 			maskRepeat: "repeat",
 			maskImage: expect.stringContaining("conic-gradient"),
 		});
@@ -339,7 +343,9 @@ describe("clip transition presentation", () => {
 			canvasWidth: 320,
 			canvasHeight: 180,
 		});
-		expect(buildClipTransitionOverlayStyle({ presentation: flare })).toMatchObject({
+		expect(
+			buildClipTransitionOverlayStyle({ presentation: flare })
+		).toMatchObject({
 			position: "absolute",
 			mixBlendMode: "screen",
 		});

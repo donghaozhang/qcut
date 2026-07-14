@@ -27,7 +27,10 @@ describe("transition presets", () => {
 				(preset) => preset.category === category
 			);
 			expect(categoryExpansions).toHaveLength(5);
-			const categoryCount = filterTransitionPresets({ category, query: "" }).length;
+			const categoryCount = filterTransitionPresets({
+				category,
+				query: "",
+			}).length;
 			expect(categoryCount).toBeGreaterThanOrEqual(20);
 			expect(categoryCount).toBeLessThanOrEqual(30);
 

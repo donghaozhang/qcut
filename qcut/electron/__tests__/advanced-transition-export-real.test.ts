@@ -56,7 +56,7 @@ describe.skipIf(!ffmpegPath)(
 				transition: transition({ type }),
 			});
 			const filterGraph =
-				`[0:v][1:v]xfade=transition=custom:duration=0.4:offset=0.2:` +
+				"[0:v][1:v]xfade=transition=custom:duration=0.4:offset=0.2:" +
 				`expr='${expression}',format=yuv420p[out]`;
 			const result = spawnSync(
 				ffmpegPath,

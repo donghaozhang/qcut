@@ -1,0 +1,152 @@
+import type { TransitionPreset } from "../transition-preset-types";
+import { enginePresetFamily } from "./build-engine-preset-family";
+
+const texturePresets = enginePresetFamily({
+	clipType: "texture-mask",
+	type: "texture",
+	variants: [
+		{
+			id: "paper-grain-reveal",
+			name: "Paper Grain Reveal",
+			localizedName: "纸张颗粒显现",
+			category: "dissolve",
+			intensity: 0.55,
+			frequency: 0.7,
+		},
+		{
+			id: "ink-texture",
+			name: "Ink Texture",
+			localizedName: "墨迹纹理",
+			category: "natural",
+			intensity: 0.8,
+			frequency: 1.1,
+		},
+		{
+			id: "brush-reveal",
+			name: "Brush Reveal",
+			localizedName: "笔刷显现",
+			category: "slideshow",
+			direction: "right",
+			intensity: 1,
+			frequency: 1.5,
+		},
+		{
+			id: "canvas-wipe",
+			name: "Canvas Wipe",
+			localizedName: "画布擦除",
+			category: "split",
+			direction: "left",
+			intensity: 1.2,
+			frequency: 1.8,
+		},
+		{
+			id: "film-grain-mask",
+			name: "Film Grain Mask",
+			localizedName: "胶片颗粒蒙版",
+			category: "shooting",
+			intensity: 1.35,
+			frequency: 2.1,
+		},
+		{
+			id: "halftone-texture",
+			name: "Halftone Texture",
+			localizedName: "半调纹理",
+			category: "variety",
+			intensity: 1.55,
+			frequency: 2.6,
+		},
+		{
+			id: "scribble-reveal",
+			name: "Scribble Reveal",
+			localizedName: "涂鸦显现",
+			category: "emoji",
+			intensity: 1.75,
+			frequency: 3,
+		},
+		{
+			id: "geometric-texture",
+			name: "Geometric Texture",
+			localizedName: "几何纹理",
+			category: "mg",
+			intensity: 2,
+			frequency: 3.5,
+		},
+	],
+});
+
+const lensFlarePresets = enginePresetFamily({
+	clipType: "lens-flare",
+	type: "flare",
+	variants: [
+		{
+			id: "golden-lens-flare",
+			name: "Golden Lens Flare",
+			localizedName: "金色镜头光晕",
+			category: "light",
+			intensity: 0.7,
+			tint: "#ffd38a",
+		},
+		{
+			id: "blue-anamorphic-flare",
+			name: "Blue Anamorphic Flare",
+			localizedName: "蓝色宽银幕耀斑",
+			category: "light",
+			intensity: 0.9,
+			tint: "#78c8ff",
+		},
+		{
+			id: "sunset-flare",
+			name: "Sunset Flare",
+			localizedName: "落日光晕",
+			category: "natural",
+			intensity: 0.6,
+			tint: "#ffad6b",
+		},
+		{
+			id: "camera-flare-sweep",
+			name: "Camera Flare Sweep",
+			localizedName: "镜头扫光",
+			category: "shooting",
+			direction: "right",
+			intensity: 1.15,
+			tint: "#fff4d6",
+		},
+		{
+			id: "prism-camera-flare",
+			name: "Prism Camera Flare",
+			localizedName: "棱镜镜光",
+			category: "camera",
+			intensity: 1.35,
+			tint: "#d7b8ff",
+		},
+		{
+			id: "neon-flare",
+			name: "Neon Flare",
+			localizedName: "霓虹耀斑",
+			category: "glitch",
+			intensity: 1.5,
+			tint: "#57f4ff",
+		},
+		{
+			id: "stage-beam",
+			name: "Stage Beam",
+			localizedName: "舞台光束",
+			category: "variety",
+			intensity: 1.7,
+			tint: "#ff7dd8",
+		},
+		{
+			id: "starburst-flare",
+			name: "Starburst Flare",
+			localizedName: "星芒耀斑",
+			category: "emoji",
+			intensity: 2,
+			tint: "#fff1a6",
+		},
+	],
+});
+
+export const TEXTURE_AND_FLARE_PRESETS: TransitionPreset[] = [
+	...texturePresets,
+	...lensFlarePresets,
+];
