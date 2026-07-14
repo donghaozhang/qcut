@@ -2,6 +2,7 @@ import { DraggableMediaItem } from "@/components/ui/draggable-item";
 import { TIMELINE_CONSTANTS } from "@/constants/timeline-constants";
 import { cn } from "@/lib/utils";
 import { usePlaybackStore } from "@/stores/editor/playback-store";
+import { useSearchStore } from "@/stores/search-store";
 import { useTimelineStore } from "@/stores/timeline/timeline-store";
 import {
 	ChevronDown,
@@ -34,6 +35,12 @@ import {
 	type TextLibraryState,
 } from "@/lib/text/text-library-state";
 import { rankTextTemplateSearchResults } from "@/lib/text/text-library-search";
+import {
+	generateSmartTextSuggestions,
+	getSmartTextCategoryId,
+	isSmartTextCategory,
+	type SmartTextSuggestion,
+} from "@/lib/text/smart-text-generation";
 import {
 	DEFAULT_TEXT_TEMPLATE_CATEGORY_ID,
 	TEXT_TEMPLATE_CATEGORIES,
@@ -542,7 +549,37 @@ function getTextLibraryEmptyMessage({
 	return "没有找到匹配的文字样式";
 }
 
+function applySmartTextSuggestions({
+	categoryId,
+	definitions,
+	suggestions,
+}: {
+	categoryId: TextTemplateCategoryId;
+	definitions: readonly TextTemplateDefinition[];
+	suggestions: readonly SmartTextSuggestion[];
+}): TextTemplateDefinition[] {
+	if (!isSmartTextCategory({ categoryId }) || suggestions.length === 0) {
+		return [...definitions];
+	}
+	return definitions.map((definition, index) => {
+		const suggestion = suggestions[index % suggestions.length];
+		return {
+			...definition,
+			content: suggestion.content,
+			keywords: [
+				...definition.keywords,
+				suggestion.source,
+				suggestion.sourceText,
+				"project text",
+				"项目文本",
+			],
+		};
+	});
+}
+
 export function TextView() {
+	const tracks = useTimelineStore((state) => state.tracks);
+	const transcriptions = useSearchStore((state) => state.transcriptions);
 	const [activeCategoryId, setActiveCategoryId] =
 		useState<TextTemplateCategoryId>(DEFAULT_TEXT_TEMPLATE_CATEGORY_ID);
 	const [expandedGroupIds, setExpandedGroupIds] = useState<
@@ -575,6 +612,27 @@ export function TextView() {
 			}),
 		[activeCategory.id, libraryState]
 	);
+	const smartTextCategoryId = getSmartTextCategoryId({
+		categoryId: activeCategory.id,
+	});
+	const smartTextSuggestions = useMemo(() => {
+		if (!smartTextCategoryId) return [];
+		return generateSmartTextSuggestions({
+			categoryId: smartTextCategoryId,
+			tracks,
+			transcriptions,
+			maxSuggestions: activeDefinitions.length,
+		});
+	}, [activeDefinitions.length, smartTextCategoryId, tracks, transcriptions]);
+	const projectAwareDefinitions = useMemo(
+		() =>
+			applySmartTextSuggestions({
+				categoryId: activeCategory.id,
+				definitions: activeDefinitions,
+				suggestions: smartTextSuggestions,
+			}),
+		[activeCategory.id, activeDefinitions, smartTextSuggestions]
+	);
 	const visibleDefinitions = useMemo(() => {
 		const searchBase = normalizedSearchQuery
 			? rankTextTemplateSearchResults({
@@ -582,7 +640,7 @@ export function TextView() {
 					query: normalizedSearchQuery,
 					state: libraryState,
 				})
-			: activeDefinitions;
+			: projectAwareDefinitions;
 		return searchBase.filter(
 			(definition) =>
 				matchesStatusFilter({
@@ -592,9 +650,9 @@ export function TextView() {
 				}) && matchesStyleFilter({ definition, filter: styleFilter })
 		);
 	}, [
-		activeDefinitions,
 		libraryState,
 		normalizedSearchQuery,
+		projectAwareDefinitions,
 		statusFilter,
 		styleFilter,
 	]);
@@ -609,6 +667,13 @@ export function TextView() {
 		categoryId: activeCategory.id,
 		hasActiveFilters,
 	});
+	const smartTextStatus =
+		isSmartTextCategory({ categoryId: activeCategory.id }) &&
+		!normalizedSearchQuery
+			? smartTextSuggestions.length > 0
+				? `已生成 ${smartTextSuggestions.length} 条`
+				: "添加字幕后生成"
+			: `${visibleDefinitions.length} 个样式`;
 	const addMarkdown = (currentTime?: number) => {
 		const time = currentTime ?? usePlaybackStore.getState().currentTime;
 		useTimelineStore.getState().addMarkdownAtTime(markdownData, time);
@@ -679,7 +744,7 @@ export function TextView() {
 							{activeHeading}
 						</h2>
 						<span className="text-[0.68rem] text-muted-foreground">
-							{visibleDefinitions.length} 个样式
+							{smartTextStatus}
 						</span>
 					</div>
 					<FilterBar
