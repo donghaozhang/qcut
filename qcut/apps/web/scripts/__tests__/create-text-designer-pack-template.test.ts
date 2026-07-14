@@ -5,6 +5,7 @@ import { randomUUID } from "node:crypto";
 import { describe, expect, it } from "vitest";
 import {
 	buildTextDesignerPackTemplate,
+	createTextDesignerPackTemplateArchive,
 	parseTextDesignerPackTemplateArgs,
 	selectTextDesignerPackAssetIds,
 	writeTextDesignerPackTemplate,
@@ -58,6 +59,8 @@ describe("text designer pack template script", () => {
 					"--include-current-files",
 					"--asset-id",
 					"text-demo",
+					"--archive-path",
+					"/tmp/designer-template.tar.gz",
 					"--asset-id",
 					"text-demo",
 					"--package-id",
@@ -79,6 +82,7 @@ describe("text designer pack template script", () => {
 			})
 		).toMatchObject({
 			assetIds: ["text-demo"],
+			archivePath: "/tmp/designer-template.tar.gz",
 			categoryIds: ["red"],
 			generatedManifestPath: "/tmp/generated.json",
 			includeContactSheet: true,
@@ -384,5 +388,43 @@ describe("text designer pack template script", () => {
 		await expect(
 			readFile(join(outDir, "assets/text-red-demo/template.qctext"), "utf8")
 		).resolves.toContain("qcut-text-template-package");
+	});
+
+	it("archives a designer pack template for handoff", async () => {
+		const rootDir = join(tmpdir(), `qcut-designer-template-${randomUUID()}`);
+		const outDir = join(rootDir, "pack");
+		const archivePath = join(rootDir, "text-designer-pack-template.tar.gz");
+		const template = buildTextDesignerPackTemplate({
+			assetIds: ["text-red-demo"],
+			generatedManifest: {
+				"text-red-demo": createGeneratedEntry({
+					assetId: "text-red-demo",
+					packageId: "text-fancy-red",
+				}),
+			},
+		});
+		await writeTextDesignerPackTemplate({ outDir, template });
+
+		await expect(
+			createTextDesignerPackTemplateArchive({ archivePath, outDir })
+		).resolves.toMatchObject({
+			archivePath,
+			fileCount: 4,
+			format: "tar.gz",
+		});
+		await expect(readFile(archivePath)).resolves.toBeInstanceOf(Buffer);
+	});
+
+	it("rejects designer pack archives inside the template folder", async () => {
+		const rootDir = join(tmpdir(), `qcut-designer-template-${randomUUID()}`);
+		const outDir = join(rootDir, "pack");
+		await mkdir(outDir, { recursive: true });
+
+		await expect(
+			createTextDesignerPackTemplateArchive({
+				archivePath: join(outDir, "pack.tar.gz"),
+				outDir,
+			})
+		).rejects.toThrow("--archive-path must be outside --out-dir");
 	});
 });

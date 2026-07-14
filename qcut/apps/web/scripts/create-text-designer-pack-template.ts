@@ -1,6 +1,8 @@
-import { copyFile, mkdir, writeFile } from "node:fs/promises";
-import { dirname, join } from "node:path";
+import { execFile } from "node:child_process";
+import { copyFile, mkdir, readdir, writeFile } from "node:fs/promises";
+import { dirname, join, relative, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
+import { promisify } from "node:util";
 import type {
 	TextDesignerAssetPackEntry,
 	TextDesignerAssetPackManifest,
@@ -16,6 +18,7 @@ import {
 } from "./verify-text-asset-cdn-manifest";
 
 export type TextDesignerPackTemplateOptions = {
+	archivePath?: string;
 	assetIds: string[];
 	categoryIds: string[];
 	generatedManifestPath: string;
@@ -29,6 +32,12 @@ export type TextDesignerPackTemplateOptions = {
 	provenance?: TextDesignerPackTemplateProvenanceFilter;
 	publicDir: string;
 	useDesignerGapReport: boolean;
+};
+
+export type TextDesignerPackTemplateArchiveSummary = {
+	archivePath: string;
+	fileCount: number;
+	format: "tar.gz";
 };
 
 export type TextDesignerPackTemplateProvenanceFilter =
@@ -82,6 +91,7 @@ const DEFAULT_GENERATED_MANIFEST_PATH = join(
 );
 const DEFAULT_OUT_DIR = join(SCRIPT_DIR, "../dist/text-designer-pack-template");
 const DEFAULT_PUBLIC_DIR = join(SCRIPT_DIR, "../public");
+const execFileAsync = promisify(execFile);
 
 export function parseTextDesignerPackTemplateArgs({
 	argv,
@@ -129,6 +139,11 @@ export function parseTextDesignerPackTemplateArgs({
 		}
 		if (arg === "--asset-id") {
 			options.assetIds.push(requireValue({ argv, index, name: arg }));
+			index += 1;
+			continue;
+		}
+		if (arg === "--archive-path") {
+			options.archivePath = requireValue({ argv, index, name: arg });
 			index += 1;
 			continue;
 		}
@@ -388,6 +403,53 @@ export async function writeTextDesignerPackTemplate({
 			template,
 		});
 	}
+}
+
+export async function createTextDesignerPackTemplateArchive({
+	archivePath,
+	command = "tar",
+	outDir,
+}: {
+	archivePath: string;
+	command?: string;
+	outDir: string;
+}): Promise<TextDesignerPackTemplateArchiveSummary> {
+	const resolvedOutDir = resolve(outDir);
+	const resolvedArchivePath = resolve(archivePath);
+	const archiveRelativeToOutDir = relative(resolvedOutDir, resolvedArchivePath);
+	if (
+		archiveRelativeToOutDir === "" ||
+		(!archiveRelativeToOutDir.startsWith("..") &&
+			!archiveRelativeToOutDir.startsWith("/"))
+	) {
+		throw new Error("--archive-path must be outside --out-dir");
+	}
+	await mkdir(dirname(resolvedArchivePath), { recursive: true });
+	const fileCount = await countFiles({ dir: resolvedOutDir });
+	await execFileAsync(
+		command,
+		["-czf", resolvedArchivePath, "-C", outDir, "."],
+		{
+			maxBuffer: 1024 * 1024,
+		}
+	);
+	return {
+		archivePath: resolvedArchivePath,
+		fileCount,
+		format: "tar.gz",
+	};
+}
+
+async function countFiles({ dir }: { dir: string }): Promise<number> {
+	const entries = await readdir(dir, { withFileTypes: true });
+	const counts = await Promise.all(
+		entries.map(async (entry) => {
+			const path = join(dir, entry.name);
+			if (entry.isDirectory()) return countFiles({ dir: path });
+			return entry.isFile() ? 1 : 0;
+		})
+	);
+	return counts.reduce((total, count) => total + count, 0);
 }
 
 async function copyCurrentGeneratedFiles({
@@ -773,9 +835,17 @@ async function main(): Promise<void> {
 		publicDir: options.publicDir,
 		template,
 	});
+	const archive = options.archivePath
+		? await createTextDesignerPackTemplateArchive({
+				archivePath: options.archivePath,
+				outDir: options.outDir,
+			})
+		: undefined;
 	console.log(
 		JSON.stringify(
 			{
+				archivePath: archive?.archivePath,
+				archivedFiles: archive?.fileCount ?? 0,
 				assets: template.contracts.length,
 				includeContactSheet: options.includeContactSheet,
 				includeCurrentFiles: options.includeCurrentFiles,
