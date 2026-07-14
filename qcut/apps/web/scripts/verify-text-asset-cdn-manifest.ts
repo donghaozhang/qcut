@@ -2,15 +2,16 @@ import { createHash } from "node:crypto";
 import { existsSync } from "node:fs";
 import { mkdir, readFile, writeFile } from "node:fs/promises";
 import { dirname, join } from "node:path";
+import { fileURLToPath } from "node:url";
 
-type TextAssetGeneratedFile = {
+export type TextAssetGeneratedFile = {
 	url: string;
 	mimeType: string;
 	byteSize: number;
 	checksumSha256: string;
 };
 
-type TextAssetGeneratedEntry = {
+export type TextAssetGeneratedEntry = {
 	assetId: string;
 	packageId: string;
 	version: number;
@@ -20,15 +21,15 @@ type TextAssetGeneratedEntry = {
 	qcutPackage?: TextAssetGeneratedFile;
 };
 
-type PublishFileRole = "thumbnail" | "source" | "package";
+export type PublishFileRole = "thumbnail" | "source" | "package";
 
-type TextAssetPublishFile = TextAssetGeneratedFile & {
+export type TextAssetPublishFile = TextAssetGeneratedFile & {
 	cdnUrl: string;
 	localPath: string;
 	role: PublishFileRole;
 };
 
-type TextAssetPublishEntry = {
+export type TextAssetPublishEntry = {
 	assetId: string;
 	cacheKey: string;
 	files: TextAssetPublishFile[];
@@ -36,7 +37,7 @@ type TextAssetPublishEntry = {
 	version: number;
 };
 
-type TextAssetPublishManifest = {
+export type TextAssetPublishManifest = {
 	baseUrl: string;
 	generatedAt: string;
 	schemaVersion: 1;
@@ -46,7 +47,7 @@ type TextAssetPublishManifest = {
 	assets: TextAssetPublishEntry[];
 };
 
-type VerifyIssue = {
+export type VerifyIssue = {
 	assetId: string;
 	code:
 		| "missing-file"
@@ -59,27 +60,34 @@ type VerifyIssue = {
 	url?: string;
 };
 
-type CliOptions = {
+export type TextAssetCdnCliOptions = {
 	baseUrl: string;
 	checkRemote: boolean;
 	manifestPath: string;
 	publicDir: string;
+	remoteConcurrency: number;
 	writePath?: string;
 };
 
 const DEFAULT_BASE_URL = "https://assets.qcut.app";
+const SCRIPT_DIR = dirname(fileURLToPath(import.meta.url));
 const DEFAULT_MANIFEST_PATH = join(
-	import.meta.dir,
+	SCRIPT_DIR,
 	"../src/lib/text/text-asset-generated-manifest.json"
 );
-const DEFAULT_PUBLIC_DIR = join(import.meta.dir, "../public");
+const DEFAULT_PUBLIC_DIR = join(SCRIPT_DIR, "../public");
 
-function parseArgs({ argv }: { argv: string[] }): CliOptions {
-	const options: CliOptions = {
+export function parseTextAssetCdnArgs({
+	argv,
+}: {
+	argv: string[];
+}): TextAssetCdnCliOptions {
+	const options: TextAssetCdnCliOptions = {
 		baseUrl: process.env.QCUT_TEXT_ASSET_CDN_URL ?? DEFAULT_BASE_URL,
 		checkRemote: false,
 		manifestPath: DEFAULT_MANIFEST_PATH,
 		publicDir: DEFAULT_PUBLIC_DIR,
+		remoteConcurrency: 16,
 	};
 	for (let index = 0; index < argv.length; index += 1) {
 		const arg = argv[index];
@@ -102,6 +110,14 @@ function parseArgs({ argv }: { argv: string[] }): CliOptions {
 			index += 1;
 			continue;
 		}
+		if (arg === "--remote-concurrency") {
+			options.remoteConcurrency = parsePositiveInteger({
+				name: arg,
+				value: requireValue({ argv, index, name: arg }),
+			});
+			index += 1;
+			continue;
+		}
 		if (arg === "--write") {
 			options.writePath = requireValue({ argv, index, name: arg });
 			index += 1;
@@ -110,6 +126,20 @@ function parseArgs({ argv }: { argv: string[] }): CliOptions {
 		throw new Error(`Unknown argument: ${arg}`);
 	}
 	return options;
+}
+
+function parsePositiveInteger({
+	name,
+	value,
+}: {
+	name: string;
+	value: string;
+}): number {
+	const parsed = Number.parseInt(value, 10);
+	if (!Number.isFinite(parsed) || parsed < 1) {
+		throw new Error(`${name} requires a positive integer`);
+	}
+	return parsed;
 }
 
 function requireValue({
@@ -144,7 +174,7 @@ function hashBytes({ bytes }: { bytes: Buffer }): string {
 	return createHash("sha256").update(bytes).digest("hex");
 }
 
-async function readGeneratedManifest({
+export async function readGeneratedManifest({
 	manifestPath,
 }: {
 	manifestPath: string;
@@ -155,7 +185,7 @@ async function readGeneratedManifest({
 	>;
 }
 
-function filesForEntry({
+export function filesForEntry({
 	entry,
 }: {
 	entry: TextAssetGeneratedEntry;
@@ -167,7 +197,7 @@ function filesForEntry({
 	];
 }
 
-function buildPublishManifest({
+export function buildTextAssetPublishManifest({
 	baseUrl,
 	generatedAt,
 	generatedManifest,
@@ -232,7 +262,7 @@ function buildPublishManifest({
 	};
 }
 
-async function verifyLocalFiles({
+export async function verifyLocalFiles({
 	manifest,
 }: {
 	manifest: TextAssetPublishManifest;
@@ -276,48 +306,83 @@ async function verifyLocalFiles({
 	return issueGroups.flat();
 }
 
-async function verifyRemoteFiles({
+export async function verifyRemoteFiles({
+	concurrency = 16,
 	fetchImpl = fetch,
 	manifest,
 }: {
+	concurrency?: number;
 	fetchImpl?: typeof fetch;
 	manifest: TextAssetPublishManifest;
 }): Promise<VerifyIssue[]> {
-	const issueGroups = await Promise.all(
-		manifest.assets.flatMap((asset) =>
-			asset.files.map(async (file): Promise<VerifyIssue[]> => {
-				const issues: VerifyIssue[] = [];
-				const response = await fetchImpl(file.cdnUrl, { method: "HEAD" });
-				if (!response.ok) {
-					return [
-						{
-							assetId: asset.assetId,
-							code: "remote-unavailable",
-							detail: `HEAD ${file.cdnUrl} returned ${response.status}`,
-							url: file.url,
-						},
-					];
-				}
-				const contentLength = response.headers.get("content-length");
-				if (
-					contentLength &&
-					Number.parseInt(contentLength, 10) !== file.byteSize
-				) {
-					issues.push({
-						assetId: asset.assetId,
-						code: "remote-size-mismatch",
-						detail: `Expected ${file.byteSize}, received ${contentLength}`,
-						url: file.url,
-					});
-				}
-				return issues;
-			})
-		)
+	const files = manifest.assets.flatMap((asset) =>
+		asset.files.map((file) => ({ asset, file }))
 	);
+	const issueGroups = await mapWithConcurrency({
+		concurrency,
+		items: files,
+		mapper: async ({ asset, file }): Promise<VerifyIssue[]> => {
+			const issues: VerifyIssue[] = [];
+			const response = await fetchImpl(file.cdnUrl, { method: "HEAD" });
+			if (!response.ok) {
+				return [
+					{
+						assetId: asset.assetId,
+						code: "remote-unavailable",
+						detail: `HEAD ${file.cdnUrl} returned ${response.status}`,
+						url: file.url,
+					},
+				];
+			}
+			const contentLength = response.headers.get("content-length");
+			if (
+				contentLength &&
+				Number.parseInt(contentLength, 10) !== file.byteSize
+			) {
+				issues.push({
+					assetId: asset.assetId,
+					code: "remote-size-mismatch",
+					detail: `Expected ${file.byteSize}, received ${contentLength}`,
+					url: file.url,
+				});
+			}
+			return issues;
+		},
+	});
 	return issueGroups.flat();
 }
 
-async function writePublishManifest({
+async function mapWithConcurrency<TItem, TResult>({
+	concurrency,
+	items,
+	mapper,
+}: {
+	concurrency: number;
+	items: readonly TItem[];
+	mapper: (item: TItem) => Promise<TResult>;
+}): Promise<TResult[]> {
+	if (!Number.isFinite(concurrency) || concurrency < 1) {
+		throw new Error("concurrency must be a positive integer");
+	}
+	if (items.length === 0) return [];
+	const results: TResult[] = [];
+	let nextIndex = 0;
+	const workerCount = Math.min(concurrency, items.length);
+	const runNext = (): Promise<void> => {
+		const index = nextIndex;
+		nextIndex += 1;
+		const item = items[index];
+		if (item === undefined) return Promise.resolve();
+		return mapper(item).then((result) => {
+			results[index] = result;
+			return runNext();
+		});
+	};
+	await Promise.all(Array.from({ length: workerCount }, runNext));
+	return results;
+}
+
+export async function writePublishManifest({
 	manifest,
 	writePath,
 }: {
@@ -333,11 +398,11 @@ async function writePublishManifest({
 }
 
 async function main(): Promise<void> {
-	const options = parseArgs({ argv: process.argv.slice(2) });
+	const options = parseTextAssetCdnArgs({ argv: process.argv.slice(2) });
 	const generatedManifest = await readGeneratedManifest({
 		manifestPath: options.manifestPath,
 	});
-	const { issues: manifestIssues, manifest } = buildPublishManifest({
+	const { issues: manifestIssues, manifest } = buildTextAssetPublishManifest({
 		baseUrl: options.baseUrl,
 		generatedAt: new Date().toISOString(),
 		generatedManifest,
@@ -345,7 +410,10 @@ async function main(): Promise<void> {
 	});
 	const localIssues = await verifyLocalFiles({ manifest });
 	const remoteIssues = options.checkRemote
-		? await verifyRemoteFiles({ manifest })
+		? await verifyRemoteFiles({
+				concurrency: options.remoteConcurrency,
+				manifest,
+			})
 		: [];
 	const issues = [...manifestIssues, ...localIssues, ...remoteIssues];
 	if (options.writePath) {
@@ -370,4 +438,6 @@ async function main(): Promise<void> {
 	if (issues.length > 0) process.exit(1);
 }
 
-await main();
+if (import.meta.main) {
+	await main();
+}
