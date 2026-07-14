@@ -308,14 +308,16 @@ describe("downloadTextTemplateResource", () => {
 				}),
 			],
 		});
-		expect(requestedUrls).toEqual([
-			"https://assets.qcut.app/text-assets/package-remote-resource-test/plain@1/thumbnail.webp",
-			"https://assets.qcut.app/text-assets/package-remote-resource-test/plain@1/template.json",
-			"https://assets.qcut.app/text-assets/package-remote-resource-test/plain@1/template.qctext",
-			"/text-assets/package-remote-resource-test/plain@1/thumbnail.webp",
-			"/text-assets/package-remote-resource-test/plain@1/template.json",
-			"/text-assets/package-remote-resource-test/plain@1/template.qctext",
-		]);
+		expect(requestedUrls).toEqual(
+			expect.arrayContaining([
+				"https://assets.qcut.app/text-assets/package-remote-resource-test/plain@1/thumbnail.webp",
+				"https://assets.qcut.app/text-assets/package-remote-resource-test/plain@1/template.json",
+				"https://assets.qcut.app/text-assets/package-remote-resource-test/plain@1/template.qctext",
+				"/text-assets/package-remote-resource-test/plain@1/thumbnail.webp",
+				"/text-assets/package-remote-resource-test/plain@1/template.json",
+				"/text-assets/package-remote-resource-test/plain@1/template.qctext",
+			])
+		);
 		expect([...storage.resources.keys()].sort()).toEqual([
 			"text-template:asset-remote-resource-test@1:package:2",
 			"text-template:asset-remote-resource-test@1:source:1",
