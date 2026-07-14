@@ -20,13 +20,17 @@ import {
 } from "react";
 import {
 	getTextDefinitionsForLibraryCategory,
+	getTextTemplateDownloadStatus,
+	getTextTemplateResourceAccess,
 	isTextTemplateDownloaded,
 	isTextTemplateFavorite,
 	loadTextLibraryState,
-	markTextTemplateDownloaded,
 	markTextTemplateUsed,
+	retryTextTemplateDownload,
 	storeTextLibraryState,
 	toggleFavoriteTextTemplate,
+	type TextTemplateDownloadStatus,
+	type TextTemplateResourceAccess,
 	type TextLibraryState,
 } from "@/lib/text/text-library-state";
 import {
@@ -132,16 +136,20 @@ function buildTemplateSearchText({
 
 function TextTemplate({
 	definition,
+	downloadStatus,
 	isDownloaded,
 	isFavorite,
+	resourceAccess,
 	onDownload,
 	onToggleFavorite,
 	onUseTemplate,
 }: {
 	definition: TextTemplateDefinition;
+	downloadStatus: TextTemplateDownloadStatus;
 	isDownloaded: boolean;
 	isFavorite: boolean;
-	onDownload: (props: { templateId: string }) => void;
+	resourceAccess: TextTemplateResourceAccess;
+	onDownload: (props: { definition: TextTemplateDefinition }) => void;
 	onToggleFavorite: (props: { templateId: string }) => void;
 	onUseTemplate: (props: { templateId: string }) => void;
 }) {
@@ -169,6 +177,11 @@ function TextTemplate({
 		event.dataTransfer.effectAllowed = "copy";
 	};
 	const handleActivate = () => addToTimeline();
+	const downloadLabel = getTextTemplateDownloadLabel({
+		downloadStatus,
+		isDownloaded,
+		resourceAccess,
+	});
 
 	return (
 		<div
@@ -226,21 +239,23 @@ function TextTemplate({
 					</button>
 					<button
 						type="button"
-						aria-label={isDownloaded ? "已下载" : "下载"}
+						aria-label={downloadLabel}
 						className={cn(
 							"absolute bottom-1 right-1 flex h-4 w-4 items-center justify-center rounded-full bg-black/55 text-white transition-colors hover:bg-black/80",
-							isDownloaded && "bg-white/85 text-slate-900 hover:bg-white"
+							isDownloaded && "bg-white/85 text-slate-900 hover:bg-white",
+							downloadStatus === "failed" &&
+								"bg-rose-500 text-white hover:bg-rose-600"
 						)}
 						onClick={(event) => {
 							event.stopPropagation();
-							onDownload({ templateId: definition.id });
+							onDownload({ definition });
 						}}
 						onKeyDown={(event) => {
 							event.stopPropagation();
 						}}
 					>
 						<Download aria-hidden="true" className="h-3.5 w-3.5">
-							<title>{isDownloaded ? "已下载" : "下载"}</title>
+							<title>{downloadLabel}</title>
 						</Download>
 					</button>
 				</div>
@@ -261,7 +276,7 @@ function TemplateGrid({
 }: {
 	definitions: readonly TextTemplateDefinition[];
 	libraryState: TextLibraryState;
-	onDownload: (props: { templateId: string }) => void;
+	onDownload: (props: { definition: TextTemplateDefinition }) => void;
 	onToggleFavorite: (props: { templateId: string }) => void;
 	onUseTemplate: (props: { templateId: string }) => void;
 }) {
@@ -271,11 +286,19 @@ function TemplateGrid({
 				<TextTemplate
 					key={definition.id}
 					definition={definition}
+					downloadStatus={getTextTemplateDownloadStatus({
+						definition,
+						state: libraryState,
+					})}
 					isDownloaded={isTextTemplateDownloaded({
 						definition,
 						state: libraryState,
 					})}
 					isFavorite={isTextTemplateFavorite({
+						definition,
+						state: libraryState,
+					})}
+					resourceAccess={getTextTemplateResourceAccess({
 						definition,
 						state: libraryState,
 					})}
@@ -286,6 +309,23 @@ function TemplateGrid({
 			))}
 		</div>
 	);
+}
+
+function getTextTemplateDownloadLabel({
+	downloadStatus,
+	isDownloaded,
+	resourceAccess,
+}: {
+	downloadStatus: TextTemplateDownloadStatus;
+	isDownloaded: boolean;
+	resourceAccess: TextTemplateResourceAccess;
+}): string {
+	if (isDownloaded) return "已下载";
+	if (downloadStatus === "failed" && resourceAccess === "svip-required") {
+		return "需要SVIP";
+	}
+	if (downloadStatus === "failed") return "重试下载";
+	return "下载";
 }
 
 function MarkdownTemplate({
@@ -588,9 +628,13 @@ export function TextView() {
 			return next;
 		});
 	};
-	const handleDownload = ({ templateId }: { templateId: string }) => {
+	const handleDownload = ({
+		definition,
+	}: {
+		definition: TextTemplateDefinition;
+	}) => {
 		setLibraryState((current) =>
-			markTextTemplateDownloaded({ state: current, templateId })
+			retryTextTemplateDownload({ definition, state: current })
 		);
 	};
 	const handleToggleFavorite = ({ templateId }: { templateId: string }) => {

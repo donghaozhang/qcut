@@ -2,9 +2,13 @@ import { describe, expect, it } from "vitest";
 import {
 	EMPTY_TEXT_LIBRARY_STATE,
 	getTextDefinitionsForLibraryCategory,
+	getTextTemplateDownloadStatus,
+	getTextTemplateResourceAccess,
+	markTextTemplateDownloadFailed,
 	markTextTemplateDownloaded,
 	markTextTemplateUsed,
 	parseTextLibraryState,
+	retryTextTemplateDownload,
 	toggleFavoriteTextTemplate,
 } from "../text-library-state";
 import type { TextTemplateDefinition } from "../text-template-registry";
@@ -13,16 +17,19 @@ const templateDefinitions = [
 	createDefinition({ id: "first", category: "basic", downloaded: true }),
 	createDefinition({ id: "second", category: "basic" }),
 	createDefinition({ id: "third", category: "favorites" }),
+	createDefinition({ id: "svip", category: "basic", premium: true }),
 ] as const;
 
 function createDefinition({
 	id,
 	category,
 	downloaded = false,
+	premium = false,
 }: {
 	id: string;
 	category: TextTemplateDefinition["category"];
 	downloaded?: boolean;
+	premium?: boolean;
 }): TextTemplateDefinition {
 	return {
 		id,
@@ -33,8 +40,16 @@ function createDefinition({
 		content: id,
 		stylePresetId: "clean-white",
 		keywords: [id, category, "text", "template", "test"],
-		premium: false,
+		premium,
 		downloaded,
+		resource: {
+			assetId: `text-new-text-${category}-${id}`,
+			packageId: `text-new-text-${category}`,
+			version: 1,
+			entitlement: premium ? "svip" : "free",
+			cacheKey: `text-assets/text-new-text-${category}/${id}@1`,
+			sizeKb: premium ? 384 : 192,
+		},
 		catalogVisible: true,
 	};
 }
@@ -50,14 +65,39 @@ describe("text library state", () => {
 					favoriteIds: ["first", "first", "", 3],
 					downloadedIds: ["second"],
 					recentIds: ["third", "first"],
+					downloadRecords: [
+						{
+							templateId: "second",
+							assetId: "asset-second",
+							packageId: "package-basic",
+							cacheKey: "text-assets/package-basic/second@1",
+							version: 1,
+							status: "cached",
+							attemptCount: 1,
+							updatedAt: 100,
+						},
+						{ templateId: "bad", status: "cached" },
+					],
+					hasSvipAccess: true,
 				},
 			})
 		).toEqual({
 			favoriteIds: ["first"],
 			downloadedIds: ["second"],
 			recentIds: ["third", "first"],
-			downloadRecords: [],
-			hasSvipAccess: false,
+			downloadRecords: [
+				{
+					templateId: "second",
+					assetId: "asset-second",
+					packageId: "package-basic",
+					cacheKey: "text-assets/package-basic/second@1",
+					version: 1,
+					status: "cached",
+					attemptCount: 1,
+					updatedAt: 100,
+				},
+			],
+			hasSvipAccess: true,
 		});
 	});
 
@@ -73,18 +113,85 @@ describe("text library state", () => {
 		).toEqual([]);
 
 		const downloaded = markTextTemplateDownloaded({
+			definition: templateDefinitions[1],
+			now: 100,
 			state: EMPTY_TEXT_LIBRARY_STATE,
+		});
+		expect(downloaded.downloadRecords[0]).toMatchObject({
 			templateId: "second",
+			assetId: "text-new-text-basic-second",
+			cacheKey: "text-assets/text-new-text-basic/second@1",
+			status: "cached",
+			attemptCount: 1,
+			updatedAt: 100,
 		});
 		expect(
-			markTextTemplateDownloaded({ state: downloaded, templateId: "second" })
-		).toBe(downloaded);
+			markTextTemplateDownloaded({
+				definition: templateDefinitions[1],
+				now: 200,
+				state: downloaded,
+			}).downloadRecords[0]?.attemptCount
+		).toBe(2);
 
 		const recent = markTextTemplateUsed({
 			state: { ...EMPTY_TEXT_LIBRARY_STATE, recentIds: ["first", "second"] },
 			templateId: "second",
 		});
 		expect(recent.recentIds).toEqual(["second", "first"]);
+	});
+
+	it("tracks retryable download failures and SVIP access", () => {
+		const svipDefinition = templateDefinitions[3];
+		expect(
+			getTextTemplateResourceAccess({
+				definition: svipDefinition,
+				state: EMPTY_TEXT_LIBRARY_STATE,
+			})
+		).toBe("svip-required");
+
+		const failed = retryTextTemplateDownload({
+			definition: svipDefinition,
+			now: 100,
+			state: EMPTY_TEXT_LIBRARY_STATE,
+		});
+		expect(
+			getTextTemplateDownloadStatus({
+				definition: svipDefinition,
+				state: failed,
+			})
+		).toBe("failed");
+		expect(failed.downloadRecords[0]).toMatchObject({
+			templateId: "svip",
+			status: "failed",
+			errorCode: "SVIP_REQUIRED",
+		});
+
+		const retried = retryTextTemplateDownload({
+			definition: svipDefinition,
+			now: 200,
+			state: { ...failed, hasSvipAccess: true },
+		});
+		expect(
+			getTextTemplateResourceAccess({
+				definition: svipDefinition,
+				state: retried,
+			})
+		).toBe("allowed");
+		expect(
+			getTextTemplateDownloadStatus({
+				definition: svipDefinition,
+				state: retried,
+			})
+		).toBe("cached");
+		expect(retried.downloadRecords[0]?.attemptCount).toBe(2);
+
+		const networkFailed = markTextTemplateDownloadFailed({
+			definition: templateDefinitions[1],
+			errorCode: "NETWORK_ERROR",
+			now: 300,
+			state: EMPTY_TEXT_LIBRARY_STATE,
+		});
+		expect(networkFailed.downloadRecords[0]?.errorCode).toBe("NETWORK_ERROR");
 	});
 
 	it("resolves virtual categories from user state", () => {
