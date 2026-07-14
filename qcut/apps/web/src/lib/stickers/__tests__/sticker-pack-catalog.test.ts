@@ -17,7 +17,7 @@ describe("sticker pack catalog", () => {
 		).toEqual([
 			{
 				id: "qcut-original-characters",
-				items: 30,
+				items: 90,
 				animated: false,
 				accessTier: "free",
 			},

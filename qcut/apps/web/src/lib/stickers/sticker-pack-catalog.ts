@@ -70,7 +70,7 @@ function motionPack({
 }
 
 const ORIGINAL_ITEMS = CURATED_STICKERS.filter(
-	(sticker) => sticker.source.kind === "bundled"
+	(sticker) => sticker.collection === "qcut-original"
 ).map((sticker) => ({
 	id: sticker.id,
 	animated: sticker.animated,
@@ -99,7 +99,7 @@ export const STICKER_STORE_PACKS: readonly StickerStorePack[] = [
 		id: "qcut-original-characters",
 		accessTier: "free",
 		animated: false,
-		description: "30 个本地内置角色贴纸，断网也能使用",
+		description: "90 个本地内置角色贴纸，断网也能使用",
 		emoji: "✨",
 		items: ORIGINAL_ITEMS,
 		localizedName: "QCut 原创角色",

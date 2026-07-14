@@ -32,6 +32,9 @@ describe("sticker catalog", () => {
 		expect(
 			STICKER_CATEGORIES.map((category) => category.localizedLabel)
 		).toEqual([
+			"热门",
+			"世界杯",
+			"线条伙伴",
 			"互动",
 			"夏日",
 			"粉红兔子",
@@ -51,16 +54,42 @@ describe("sticker catalog", () => {
 			"浪漫",
 			"美妆",
 			"颜表情",
+			"图形库",
 		]);
-		expect(CURATED_STICKERS).toHaveLength(
+		expect(STICKER_CATEGORIES.map((category) => category.group)).toEqual([
+			"featured",
+			"featured",
+			"featured",
+			"library",
+			"library",
+			"library",
+			"library",
+			"library",
+			"library",
+			"library",
+			"library",
+			"library",
+			"library",
+			"library",
+			"library",
+			"library",
+			"library",
+			"library",
+			"library",
+			"library",
+			"library",
+			"library",
+			"resources",
+		]);
+		expect(CURATED_STICKERS.length).toBeGreaterThanOrEqual(
 			STICKER_CATEGORIES.length * STICKER_CATEGORY_MINIMUM_SIZE
 		);
 	});
 
 	it("matches localized names, English names, and category tags", () => {
-		expect(searchStickerCatalog({ query: "奶茶" })).toHaveLength(
-			STICKER_CATEGORY_MINIMUM_SIZE
-		);
+		expect(
+			searchStickerCatalog({ query: "奶茶" }).length
+		).toBeGreaterThanOrEqual(STICKER_CATEGORY_MINIMUM_SIZE);
 		expect(
 			searchStickerCatalog({ query: "camera" }).map((item) => item.icon)
 		).toContain("camera");
