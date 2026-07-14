@@ -280,7 +280,7 @@ function TextTemplate({
 						)}
 						<span
 							className={cn(
-								"relative z-10 select-none text-center text-[1.22rem] leading-none",
+								"relative z-10 max-w-full select-none break-words text-center text-[0.78rem] leading-tight",
 								definition.variantId === "pixel" && "font-mono",
 								definition.variantId === "stamp" &&
 									"border-2 border-current px-2 py-1"
@@ -374,7 +374,7 @@ function TemplateGrid({
 	onUseTemplate: (props: { templateId: string }) => void;
 }) {
 	return (
-		<div className="grid grid-cols-[repeat(auto-fill,minmax(5.25rem,1fr))] gap-3 py-3">
+		<div className="grid grid-cols-5 gap-2 py-2">
 			{definitions.map((definition) => (
 				<TextTemplate
 					key={definition.id}
@@ -452,7 +452,7 @@ function TextLibraryNav({
 	return (
 		<nav
 			aria-label="文字分类"
-			className="w-24 shrink-0 space-y-1 overflow-y-auto pr-2"
+			className="w-[5.5rem] shrink-0 space-y-0.5 overflow-y-auto pr-2"
 		>
 			{TEXT_TEMPLATE_GROUPS.map((group) => {
 				const isExpanded = expandedGroupIds.has(group.id);
@@ -466,8 +466,8 @@ function TextLibraryNav({
 							type="button"
 							aria-expanded={isExpanded}
 							className={cn(
-								"flex h-8 w-full items-center justify-between rounded-md px-2 text-left text-xs font-medium text-muted-foreground transition-colors",
-								hasActiveCategory && "bg-accent text-cyan-300",
+								"flex h-7 w-full items-center justify-between rounded-md px-2 text-left text-[0.72rem] font-medium text-muted-foreground transition-colors",
+								hasActiveCategory && "bg-accent text-cyan-300 shadow-inner",
 								!hasActiveCategory && "hover:bg-accent/70 hover:text-foreground"
 							)}
 							onClick={() => onSelectGroup({ group })}
@@ -487,7 +487,7 @@ function TextLibraryNav({
 							/>
 						</button>
 						{isExpanded && (
-							<div className="space-y-1 pl-2">
+							<div className="space-y-0.5 pl-2">
 								{group.categories.map((category) => {
 									const isActive = category.id === activeCategoryId;
 
@@ -496,9 +496,9 @@ function TextLibraryNav({
 											key={category.id}
 											type="button"
 											className={cn(
-												"h-7 w-full truncate rounded-md px-2 text-left text-xs transition-colors",
+												"h-6 w-full truncate rounded-md px-2 text-left text-[0.7rem] transition-colors",
 												isActive
-													? "bg-accent text-cyan-300"
+													? "bg-accent text-cyan-300 shadow-inner"
 													: "text-muted-foreground hover:bg-accent/70 hover:text-foreground"
 											)}
 											onClick={() =>
@@ -713,14 +713,14 @@ export function TextView() {
 	};
 
 	return (
-		<div className="flex h-full min-h-0 p-3" data-testid="text-panel">
+		<div className="flex h-full min-h-0 p-2" data-testid="text-panel">
 			<TextLibraryNav
 				activeCategoryId={activeCategoryId}
 				expandedGroupIds={expandedGroupIds}
 				onSelectCategory={handleSelectCategory}
 				onSelectGroup={handleSelectGroup}
 			/>
-			<section className="min-w-0 flex-1 overflow-y-auto border-l border-border/70 pl-4">
+			<section className="min-w-0 flex-1 overflow-y-auto border-l border-border/70 pl-3">
 				<div className="sticky top-0 z-10 space-y-2 bg-background/95 pb-2">
 					<label className="relative block">
 						<Search
