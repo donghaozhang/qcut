@@ -8,6 +8,7 @@ import {
 	applyTextTemplatePackCopyPaste,
 	applyTextTemplatePackCopyValues,
 	buildTextTemplateDragData,
+	getTextTemplateBatchCacheTargets,
 	getTextTemplateAccessibilityLabel,
 	getTextTemplatePackCopyDefaults,
 	getTextTemplateRuntimeDownloadStatus,
@@ -286,5 +287,44 @@ describe("text view layout", () => {
 				state: EMPTY_TEXT_LIBRARY_STATE,
 			})
 		).toBe("remote");
+	});
+
+	it("selects only cacheable visible templates for batch caching", () => {
+		const localDefinition = getTextTemplateDefinitionsByCategory({
+			category: "red",
+		}).find((candidate) => !candidate.premium);
+		const premiumDefinition = getTextTemplateDefinitionsByCategory({
+			category: "red",
+		}).find((candidate) => candidate.premium);
+		const remoteDefinition = createRemoteOnlyDefinition();
+		if (!localDefinition || !premiumDefinition) {
+			throw new Error("Expected text cache fixtures");
+		}
+
+		expect(
+			getTextTemplateBatchCacheTargets({
+				definitions: [localDefinition, premiumDefinition, remoteDefinition],
+				libraryState: EMPTY_TEXT_LIBRARY_STATE,
+				online: false,
+				runtimeByAssetKey: {},
+			}).map((definition) => definition.id)
+		).toEqual([localDefinition.id]);
+
+		expect(
+			getTextTemplateBatchCacheTargets({
+				definitions: [remoteDefinition],
+				libraryState: EMPTY_TEXT_LIBRARY_STATE,
+				online: true,
+				runtimeByAssetKey: {
+					"text-template:text-remote-only@1": {
+						assetKey: "text-template:text-remote-only@1",
+						cacheStatus: "caching",
+						downloadStatus: "downloading",
+						favorite: false,
+						progress: 0.4,
+					},
+				},
+			})
+		).toEqual([]);
 	});
 });

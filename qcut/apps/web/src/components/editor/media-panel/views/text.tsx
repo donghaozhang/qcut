@@ -779,6 +779,62 @@ export function getTextTemplateRuntimeDownloadStatus({
 			});
 }
 
+export function getTextTemplateBatchCacheTargets({
+	definitions,
+	libraryState,
+	online,
+	runtimeByAssetKey,
+}: {
+	definitions: readonly TextTemplateDefinition[];
+	libraryState: TextLibraryState;
+	online: boolean;
+	runtimeByAssetKey: Readonly<Record<string, AssetRuntimeState>>;
+}): TextTemplateDefinition[] {
+	return definitions.filter((definition) => {
+		if (
+			getTextTemplateResourceAccess({ definition, state: libraryState }) !==
+			"allowed"
+		) {
+			return false;
+		}
+		const asset = resolveTextTemplateAssetEntry({ definition });
+		if (asset.delivery === "remote" && !online) return false;
+		const downloadStatus = getTextTemplateRuntimeDownloadStatus({
+			definition,
+			runtimeByAssetKey,
+			state: libraryState,
+		});
+		return downloadStatus !== "downloading" && downloadStatus !== "failed";
+	});
+}
+
+async function mapTextTemplateCacheTargets<TItem, TResult>({
+	concurrency,
+	items,
+	mapper,
+}: {
+	concurrency: number;
+	items: readonly TItem[];
+	mapper: (props: { item: TItem }) => Promise<TResult>;
+}): Promise<TResult[]> {
+	if (items.length === 0) return [];
+	const results: TResult[] = [];
+	let nextIndex = 0;
+	const workerCount = Math.min(Math.max(1, concurrency), items.length);
+	const runNext = (): Promise<void> => {
+		const index = nextIndex;
+		nextIndex += 1;
+		const item = items[index];
+		if (item === undefined) return Promise.resolve();
+		return mapper({ item }).then((result) => {
+			results[index] = result;
+			return runNext();
+		});
+	};
+	await Promise.all(Array.from({ length: workerCount }, runNext));
+	return results;
+}
+
 export function getTextTemplateGridColumnCount({
 	width,
 }: {
@@ -1102,6 +1158,7 @@ function ExpandedTextLibraryDialog({
 	emptyMessage,
 	expandedGroupIds,
 	libraryState,
+	onCacheVisibleTemplates,
 	onDownload,
 	onOpenChange,
 	onSearchQueryChange,
@@ -1126,6 +1183,7 @@ function ExpandedTextLibraryDialog({
 	emptyMessage: string;
 	expandedGroupIds: ReadonlySet<TextTemplateGroupId>;
 	libraryState: TextLibraryState;
+	onCacheVisibleTemplates: () => void;
 	onDownload: (props: { definition: TextTemplateDefinition }) => void;
 	onOpenChange: (open: boolean) => void;
 	onSearchQueryChange: (props: { query: string }) => void;
@@ -1150,9 +1208,26 @@ function ExpandedTextLibraryDialog({
 				<DialogHeader className="px-4 pt-4">
 					<div className="flex items-center justify-between gap-4 pr-8">
 						<DialogTitle className="text-base">{activeHeading}</DialogTitle>
-						<span className="text-xs text-muted-foreground">
-							{smartTextStatus}
-						</span>
+						<div className="flex items-center gap-2">
+							<span className="text-xs text-muted-foreground">
+								{smartTextStatus}
+							</span>
+							<button
+								type="button"
+								aria-label="缓存当前文字素材"
+								className="flex h-7 w-7 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-accent hover:text-foreground"
+								onClick={onCacheVisibleTemplates}
+								onKeyDown={(event) => {
+									if (!isActivationKey({ event })) return;
+									event.preventDefault();
+									onCacheVisibleTemplates();
+								}}
+							>
+								<Download aria-hidden="true" className="h-3.5 w-3.5">
+									<title>缓存当前文字素材</title>
+								</Download>
+							</button>
+						</div>
 					</div>
 					<DialogDescription className="sr-only">
 						展开文字素材库
@@ -1577,6 +1652,93 @@ export function TextView() {
 			markTextTemplateUsed({ state: current, templateId })
 		);
 	};
+	const handleCacheVisibleTemplates = async () => {
+		const targets = getTextTemplateBatchCacheTargets({
+			definitions: visibleDefinitions,
+			libraryState,
+			online,
+			runtimeByAssetKey,
+		});
+		if (targets.length === 0) {
+			toast.info("当前结果没有需要缓存的文字素材。");
+			return;
+		}
+		const results = await mapTextTemplateCacheTargets({
+			concurrency: 4,
+			items: targets,
+			mapper: async ({ item: definition }) => {
+				const asset = resolveTextTemplateAssetEntry({ definition });
+				updateRuntimeState({
+					asset,
+					patch: {
+						cacheStatus: "caching",
+						downloadStatus: "downloading",
+						error: "",
+						progress: 0,
+					},
+				});
+				try {
+					const resource = await downloadTextTemplateResource({
+						definition,
+						onProgress: ({ progress }) =>
+							updateRuntimeState({
+								asset,
+								patch: {
+									cacheStatus: "caching",
+									downloadStatus: "downloading",
+									progress,
+								},
+							}),
+					});
+					updateRuntimeState({
+						asset,
+						patch: {
+							cacheHitCount: resource.cacheHitCount,
+							cachedBytes: resource.cachedBytes,
+							cachedFileCount: resource.cachedFileCount,
+							cachedFiles: resource.files,
+							cacheKey: resource.cacheKey,
+							cacheStatus: "cached",
+							downloadStatus: "downloaded",
+							error: "",
+							progress: 1,
+						},
+					});
+					setLibraryState((current) =>
+						markTextTemplateDownloaded({ definition, state: current })
+					);
+					return { ok: true };
+				} catch (error) {
+					const message =
+						error instanceof Error ? error.message : String(error);
+					updateRuntimeState({
+						asset,
+						patch: {
+							cacheStatus: "failed",
+							downloadStatus: "failed",
+							error: message,
+							progress: 0,
+						},
+					});
+					setLibraryState((current) =>
+						markTextTemplateDownloadFailed({
+							definition,
+							errorCode: "DOWNLOAD_FAILED",
+							state: current,
+						})
+					);
+					return { ok: false };
+				}
+			},
+		});
+		const cachedCount = results.filter((result) => result.ok).length;
+		const failedCount = results.length - cachedCount;
+		if (failedCount > 0) {
+			toast.error(`已缓存 ${cachedCount} 个，${failedCount} 个失败。`);
+			return;
+		}
+		toast.success(`已缓存 ${cachedCount} 个文字素材。`);
+	};
 
 	return (
 		<div className="flex h-full min-h-0 p-2" data-testid="text-panel">
@@ -1600,6 +1762,21 @@ export function TextView() {
 							<span className="text-[0.68rem] text-muted-foreground">
 								{smartTextStatus}
 							</span>
+							<button
+								type="button"
+								aria-label="缓存当前文字素材"
+								className="flex h-6 w-6 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-accent hover:text-foreground"
+								onClick={() => void handleCacheVisibleTemplates()}
+								onKeyDown={(event) => {
+									if (!isActivationKey({ event })) return;
+									event.preventDefault();
+									void handleCacheVisibleTemplates();
+								}}
+							>
+								<Download aria-hidden="true" className="h-3.5 w-3.5">
+									<title>缓存当前文字素材</title>
+								</Download>
+							</button>
 							<button
 								type="button"
 								aria-label="展开文字素材库"
@@ -1654,6 +1831,7 @@ export function TextView() {
 				emptyMessage={emptyMessage}
 				expandedGroupIds={expandedGroupIds}
 				libraryState={libraryState}
+				onCacheVisibleTemplates={() => void handleCacheVisibleTemplates()}
 				onDownload={handleDownload}
 				onOpenChange={setExpandedLibraryOpen}
 				onSearchQueryChange={handleSearchQueryChange}
