@@ -68,6 +68,12 @@ describe("text library search", () => {
 				{ term: "hs", weight: 0.874 },
 			])
 		);
+		expect(buildWeightedSearchTerms({ query: "开业促销" })).toEqual(
+			expect.arrayContaining([
+				{ term: "kaiyecuxiao", weight: 0.95 },
+				{ term: "kycx", weight: 0.874 },
+			])
+		);
 	});
 
 	it("adds common Chinese typo correction aliases", () => {
@@ -309,5 +315,61 @@ describe("text library search", () => {
 				state: EMPTY_TEXT_LIBRARY_STATE,
 			}).map((definition) => definition.id)
 		).toEqual(["remote-campaign", "standard-campaign"]);
+	});
+
+	it("matches marketplace campaign aliases through pinyin queries", () => {
+		const definitions = [
+			createDefinition({
+				category: "basic",
+				content: "花字",
+				id: "standard-campaign",
+				variantId: "plain",
+			}),
+			createDefinition({
+				category: "basic",
+				content: "花字",
+				id: "remote-campaign",
+				variantId: "shadow",
+			}),
+		];
+
+		expect(
+			rankTextTemplateSearchResults({
+				definitions,
+				marketplaceOverrides: {
+					"remote-campaign": {
+						remoteTags: ["campaign:launch"],
+						searchAliases: ["开业活动"],
+					},
+				},
+				query: "kaiye",
+				state: EMPTY_TEXT_LIBRARY_STATE,
+			}).map((definition) => definition.id)
+		).toEqual(["remote-campaign"]);
+	});
+
+	it("matches built-in operation aliases through pinyin queries", () => {
+		const definitions = [
+			createDefinition({
+				category: "blue",
+				content: "蓝色花字",
+				id: "blue-style",
+				variantId: "blue-ice",
+			}),
+			createDefinition({
+				category: "red",
+				content: "红色花字",
+				id: "red-style",
+				variantId: "red-burst",
+			}),
+		];
+
+		expect(
+			rankTextTemplateSearchResults({
+				definitions,
+				query: "cuxiao",
+				state: EMPTY_TEXT_LIBRARY_STATE,
+			}).map((definition) => definition.id)
+		).toEqual(["red-style"]);
 	});
 });
