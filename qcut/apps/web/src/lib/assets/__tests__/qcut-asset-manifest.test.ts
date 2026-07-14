@@ -104,6 +104,9 @@ describe("QCut asset manifest", () => {
 				(asset.metadata as { entitlement?: string } | undefined)
 					?.entitlement === "svip"
 		);
+		const bundledAsset = textAssets.find(
+			(asset) => asset.delivery === "bundled" && asset.files.length === 2
+		);
 
 		expect(textAssets).toHaveLength(TEXT_TEMPLATES.length);
 		expect(
@@ -117,6 +120,16 @@ describe("QCut asset manifest", () => {
 		expect(redAsset?.metadata).toMatchObject({
 			packageId: "text-fancy-red",
 			entitlement: expect.stringMatching(/^(free|svip)$/),
+		});
+		expect(bundledAsset?.files[0]).toMatchObject({
+			role: "thumbnail",
+			url: expect.stringMatching(/^\/text-assets\/.+\/thumbnail\.webp$/),
+			checksumSha256: expect.stringMatching(/^[a-f0-9]{64}$/),
+		});
+		expect(bundledAsset?.files[1]).toMatchObject({
+			role: "source",
+			url: expect.stringMatching(/^\/text-assets\/.+\/template\.json$/),
+			checksumSha256: expect.stringMatching(/^[a-f0-9]{64}$/),
 		});
 		expect(premiumAsset?.delivery).toBe("remote");
 		expect(premiumAsset?.tags).toContain("svip");

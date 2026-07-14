@@ -3,6 +3,27 @@ import type {
 	TextTemplateResource,
 	TextTemplateResourceEntitlement,
 } from "./text-template-registry";
+import generatedTextAssetManifest from "./text-asset-generated-manifest.json";
+
+type TextTemplateGeneratedAssetFile = {
+	url: string;
+	mimeType: string;
+	byteSize: number;
+	checksumSha256: string;
+};
+
+type TextTemplateGeneratedAsset = {
+	assetId: string;
+	packageId: string;
+	version: number;
+	cacheKey: string;
+	thumbnail: TextTemplateGeneratedAssetFile;
+	source: TextTemplateGeneratedAssetFile;
+};
+
+const textAssetManifest = generatedTextAssetManifest as Readonly<
+	Record<string, TextTemplateGeneratedAsset | undefined>
+>;
 
 export interface TextTemplateResourcePackage {
 	packageId: string;
@@ -19,6 +40,11 @@ export interface TextTemplateResourceFiles {
 	thumbnailUrl: string;
 	sourceUrl: string;
 	byteSize: number;
+	thumbnailByteSize: number;
+	sourceByteSize: number;
+	thumbnailChecksumSha256?: string;
+	sourceChecksumSha256?: string;
+	bundled: boolean;
 }
 
 export function getTextTemplateResource({
@@ -43,10 +69,31 @@ export function getTextTemplateResourceFiles({
 	definition: TextTemplateDefinition;
 }): TextTemplateResourceFiles {
 	const resource = getTextTemplateResource({ definition });
+	const bundledAsset = textAssetManifest[resource.assetId];
+	if (
+		bundledAsset &&
+		bundledAsset.packageId === resource.packageId &&
+		bundledAsset.cacheKey === resource.cacheKey &&
+		bundledAsset.version === resource.version
+	) {
+		return {
+			thumbnailUrl: bundledAsset.thumbnail.url,
+			sourceUrl: bundledAsset.source.url,
+			byteSize: bundledAsset.source.byteSize,
+			thumbnailByteSize: bundledAsset.thumbnail.byteSize,
+			sourceByteSize: bundledAsset.source.byteSize,
+			thumbnailChecksumSha256: bundledAsset.thumbnail.checksumSha256,
+			sourceChecksumSha256: bundledAsset.source.checksumSha256,
+			bundled: true,
+		};
+	}
 	return {
 		thumbnailUrl: `qcut-text-asset://${resource.cacheKey}/thumbnail.webp`,
 		sourceUrl: `qcut-text-asset://${resource.cacheKey}/template.json`,
 		byteSize: resource.sizeKb * 1024,
+		thumbnailByteSize: Math.round(resource.sizeKb * 1024 * 0.18),
+		sourceByteSize: resource.sizeKb * 1024,
+		bundled: false,
 	};
 }
 

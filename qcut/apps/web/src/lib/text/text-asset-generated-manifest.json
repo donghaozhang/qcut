@@ -1,0 +1,3584 @@
+{
+	"text-new-text-basic-plain": {
+		"assetId": "text-new-text-basic-plain",
+		"packageId": "text-new-text-basic",
+		"version": 1,
+		"cacheKey": "text-assets/text-new-text-basic/plain@1",
+		"thumbnail": {
+			"url": "/text-assets/text-new-text-basic/plain@1/thumbnail.webp",
+			"mimeType": "image/webp",
+			"byteSize": 13946,
+			"checksumSha256": "70616591cd47fd80d6d9f3bbdfa10cc61ddcbc2ada31f22cb1748d48db44f2b5"
+		},
+		"source": {
+			"url": "/text-assets/text-new-text-basic/plain@1/template.json",
+			"mimeType": "application/json",
+			"byteSize": 2060,
+			"checksumSha256": "e219a862b9baffbfb16ecb7d6534975562f24f5ca983ef6555e2660ef277747a"
+		}
+	},
+	"text-new-text-basic-label": {
+		"assetId": "text-new-text-basic-label",
+		"packageId": "text-new-text-basic",
+		"version": 1,
+		"cacheKey": "text-assets/text-new-text-basic/label@1",
+		"thumbnail": {
+			"url": "/text-assets/text-new-text-basic/label@1/thumbnail.webp",
+			"mimeType": "image/webp",
+			"byteSize": 13946,
+			"checksumSha256": "70616591cd47fd80d6d9f3bbdfa10cc61ddcbc2ada31f22cb1748d48db44f2b5"
+		},
+		"source": {
+			"url": "/text-assets/text-new-text-basic/label@1/template.json",
+			"mimeType": "application/json",
+			"byteSize": 2181,
+			"checksumSha256": "baa10a710cb2a41861462364a44f660122aa223c57d7029fce07ffbe40928a93"
+		}
+	},
+	"text-new-text-basic-sticker": {
+		"assetId": "text-new-text-basic-sticker",
+		"packageId": "text-new-text-basic",
+		"version": 1,
+		"cacheKey": "text-assets/text-new-text-basic/sticker@1",
+		"thumbnail": {
+			"url": "/text-assets/text-new-text-basic/sticker@1/thumbnail.webp",
+			"mimeType": "image/webp",
+			"byteSize": 13946,
+			"checksumSha256": "70616591cd47fd80d6d9f3bbdfa10cc61ddcbc2ada31f22cb1748d48db44f2b5"
+		},
+		"source": {
+			"url": "/text-assets/text-new-text-basic/sticker@1/template.json",
+			"mimeType": "application/json",
+			"byteSize": 2240,
+			"checksumSha256": "e6461ad283ee32346677173ab35a48fdf4ec1050b4ad5e21a6acdbac9a25ffbe"
+		}
+	},
+	"text-new-text-basic-bubble": {
+		"assetId": "text-new-text-basic-bubble",
+		"packageId": "text-new-text-basic",
+		"version": 1,
+		"cacheKey": "text-assets/text-new-text-basic/bubble@1",
+		"thumbnail": {
+			"url": "/text-assets/text-new-text-basic/bubble@1/thumbnail.webp",
+			"mimeType": "image/webp",
+			"byteSize": 13946,
+			"checksumSha256": "70616591cd47fd80d6d9f3bbdfa10cc61ddcbc2ada31f22cb1748d48db44f2b5"
+		},
+		"source": {
+			"url": "/text-assets/text-new-text-basic/bubble@1/template.json",
+			"mimeType": "application/json",
+			"byteSize": 2206,
+			"checksumSha256": "d6943cac68496498e04817b49018e7f8ada820416d71c6116fdb1172bf577bcf"
+		}
+	},
+	"text-new-text-basic-soft-card": {
+		"assetId": "text-new-text-basic-soft-card",
+		"packageId": "text-new-text-basic",
+		"version": 1,
+		"cacheKey": "text-assets/text-new-text-basic/soft-card@1",
+		"thumbnail": {
+			"url": "/text-assets/text-new-text-basic/soft-card@1/thumbnail.webp",
+			"mimeType": "image/webp",
+			"byteSize": 13946,
+			"checksumSha256": "70616591cd47fd80d6d9f3bbdfa10cc61ddcbc2ada31f22cb1748d48db44f2b5"
+		},
+		"source": {
+			"url": "/text-assets/text-new-text-basic/soft-card@1/template.json",
+			"mimeType": "application/json",
+			"byteSize": 2223,
+			"checksumSha256": "b4b4fa977dcd811098da4c502e0ef4076ce012b55f049cf5006f5000a6de6111"
+		}
+	},
+	"text-new-text-title-plain": {
+		"assetId": "text-new-text-title-plain",
+		"packageId": "text-new-text-title",
+		"version": 1,
+		"cacheKey": "text-assets/text-new-text-title/plain@1",
+		"thumbnail": {
+			"url": "/text-assets/text-new-text-title/plain@1/thumbnail.webp",
+			"mimeType": "image/webp",
+			"byteSize": 15598,
+			"checksumSha256": "b9a2640439a8dc090f250eddc23a68361fea8c6479767976a8de43e6462bf24a"
+		},
+		"source": {
+			"url": "/text-assets/text-new-text-title/plain@1/template.json",
+			"mimeType": "application/json",
+			"byteSize": 2041,
+			"checksumSha256": "df88a9d12b613f0dc62bc615553650af4e5771e98e2b966e2897afa41ca5f7ed"
+		}
+	},
+	"text-new-text-title-label": {
+		"assetId": "text-new-text-title-label",
+		"packageId": "text-new-text-title",
+		"version": 1,
+		"cacheKey": "text-assets/text-new-text-title/label@1",
+		"thumbnail": {
+			"url": "/text-assets/text-new-text-title/label@1/thumbnail.webp",
+			"mimeType": "image/webp",
+			"byteSize": 15598,
+			"checksumSha256": "b9a2640439a8dc090f250eddc23a68361fea8c6479767976a8de43e6462bf24a"
+		},
+		"source": {
+			"url": "/text-assets/text-new-text-title/label@1/template.json",
+			"mimeType": "application/json",
+			"byteSize": 2126,
+			"checksumSha256": "55de1baec3441ffe62c9389b3bb3f50d49ee6a884bd45b809abf84bcff0c621b"
+		}
+	},
+	"text-new-text-title-sticker": {
+		"assetId": "text-new-text-title-sticker",
+		"packageId": "text-new-text-title",
+		"version": 1,
+		"cacheKey": "text-assets/text-new-text-title/sticker@1",
+		"thumbnail": {
+			"url": "/text-assets/text-new-text-title/sticker@1/thumbnail.webp",
+			"mimeType": "image/webp",
+			"byteSize": 15598,
+			"checksumSha256": "b9a2640439a8dc090f250eddc23a68361fea8c6479767976a8de43e6462bf24a"
+		},
+		"source": {
+			"url": "/text-assets/text-new-text-title/sticker@1/template.json",
+			"mimeType": "application/json",
+			"byteSize": 2183,
+			"checksumSha256": "da7a996ad1da99f6cacbc01f280e0c846d40ebd88d32cf18fe3a8b59089b1fce"
+		}
+	},
+	"text-new-text-title-bubble": {
+		"assetId": "text-new-text-title-bubble",
+		"packageId": "text-new-text-title",
+		"version": 1,
+		"cacheKey": "text-assets/text-new-text-title/bubble@1",
+		"thumbnail": {
+			"url": "/text-assets/text-new-text-title/bubble@1/thumbnail.webp",
+			"mimeType": "image/webp",
+			"byteSize": 15598,
+			"checksumSha256": "b9a2640439a8dc090f250eddc23a68361fea8c6479767976a8de43e6462bf24a"
+		},
+		"source": {
+			"url": "/text-assets/text-new-text-title/bubble@1/template.json",
+			"mimeType": "application/json",
+			"byteSize": 2151,
+			"checksumSha256": "60eada213e6b831ca1fa7b8f32c90783da7df474b7f308d29b6f5e7301a0f942"
+		}
+	},
+	"text-new-text-title-soft-card": {
+		"assetId": "text-new-text-title-soft-card",
+		"packageId": "text-new-text-title",
+		"version": 1,
+		"cacheKey": "text-assets/text-new-text-title/soft-card@1",
+		"thumbnail": {
+			"url": "/text-assets/text-new-text-title/soft-card@1/thumbnail.webp",
+			"mimeType": "image/webp",
+			"byteSize": 15598,
+			"checksumSha256": "b9a2640439a8dc090f250eddc23a68361fea8c6479767976a8de43e6462bf24a"
+		},
+		"source": {
+			"url": "/text-assets/text-new-text-title/soft-card@1/template.json",
+			"mimeType": "application/json",
+			"byteSize": 2168,
+			"checksumSha256": "c97d65cc4a3e50f1c8f1b2919b9d678d3fe0ea86c0090eea53b0087479a24823"
+		}
+	},
+	"text-new-text-caption-plain": {
+		"assetId": "text-new-text-caption-plain",
+		"packageId": "text-new-text-caption",
+		"version": 1,
+		"cacheKey": "text-assets/text-new-text-caption/plain@1",
+		"thumbnail": {
+			"url": "/text-assets/text-new-text-caption/plain@1/thumbnail.webp",
+			"mimeType": "image/webp",
+			"byteSize": 18078,
+			"checksumSha256": "f0bbbdcafa5f12210a845dc3f1c0e96b3a196fd8d826234bee834ef3b74691a4"
+		},
+		"source": {
+			"url": "/text-assets/text-new-text-caption/plain@1/template.json",
+			"mimeType": "application/json",
+			"byteSize": 2092,
+			"checksumSha256": "2a07d8837c24c42d143cd0aa25cd776ab98395560b423e3b7df8afe042b1d054"
+		}
+	},
+	"text-new-text-caption-label": {
+		"assetId": "text-new-text-caption-label",
+		"packageId": "text-new-text-caption",
+		"version": 1,
+		"cacheKey": "text-assets/text-new-text-caption/label@1",
+		"thumbnail": {
+			"url": "/text-assets/text-new-text-caption/label@1/thumbnail.webp",
+			"mimeType": "image/webp",
+			"byteSize": 18078,
+			"checksumSha256": "f0bbbdcafa5f12210a845dc3f1c0e96b3a196fd8d826234bee834ef3b74691a4"
+		},
+		"source": {
+			"url": "/text-assets/text-new-text-caption/label@1/template.json",
+			"mimeType": "application/json",
+			"byteSize": 2177,
+			"checksumSha256": "e5e030dbc7b5636ef5fafe52b9bb5910678e23b310ed6750964818a7e96e82f4"
+		}
+	},
+	"text-new-text-caption-sticker": {
+		"assetId": "text-new-text-caption-sticker",
+		"packageId": "text-new-text-caption",
+		"version": 1,
+		"cacheKey": "text-assets/text-new-text-caption/sticker@1",
+		"thumbnail": {
+			"url": "/text-assets/text-new-text-caption/sticker@1/thumbnail.webp",
+			"mimeType": "image/webp",
+			"byteSize": 18078,
+			"checksumSha256": "f0bbbdcafa5f12210a845dc3f1c0e96b3a196fd8d826234bee834ef3b74691a4"
+		},
+		"source": {
+			"url": "/text-assets/text-new-text-caption/sticker@1/template.json",
+			"mimeType": "application/json",
+			"byteSize": 2236,
+			"checksumSha256": "2c872c47c7682b3e30272f61a9b59121194178f9bb2d793431b0386463cd04eb"
+		}
+	},
+	"text-new-text-caption-bubble": {
+		"assetId": "text-new-text-caption-bubble",
+		"packageId": "text-new-text-caption",
+		"version": 1,
+		"cacheKey": "text-assets/text-new-text-caption/bubble@1",
+		"thumbnail": {
+			"url": "/text-assets/text-new-text-caption/bubble@1/thumbnail.webp",
+			"mimeType": "image/webp",
+			"byteSize": 18078,
+			"checksumSha256": "f0bbbdcafa5f12210a845dc3f1c0e96b3a196fd8d826234bee834ef3b74691a4"
+		},
+		"source": {
+			"url": "/text-assets/text-new-text-caption/bubble@1/template.json",
+			"mimeType": "application/json",
+			"byteSize": 2202,
+			"checksumSha256": "eadeb09978a38baa273d116653a38398245ef687ea513057506c73e94e0509fc"
+		}
+	},
+	"text-new-text-caption-soft-card": {
+		"assetId": "text-new-text-caption-soft-card",
+		"packageId": "text-new-text-caption",
+		"version": 1,
+		"cacheKey": "text-assets/text-new-text-caption/soft-card@1",
+		"thumbnail": {
+			"url": "/text-assets/text-new-text-caption/soft-card@1/thumbnail.webp",
+			"mimeType": "image/webp",
+			"byteSize": 18078,
+			"checksumSha256": "f0bbbdcafa5f12210a845dc3f1c0e96b3a196fd8d826234bee834ef3b74691a4"
+		},
+		"source": {
+			"url": "/text-assets/text-new-text-caption/soft-card@1/template.json",
+			"mimeType": "application/json",
+			"byteSize": 2219,
+			"checksumSha256": "d9427fc47968e7908ba081c537152a79a2ca5252eb8cd8dac111bc3a5b2da7cf"
+		}
+	},
+	"text-new-text-lower-third-plain": {
+		"assetId": "text-new-text-lower-third-plain",
+		"packageId": "text-new-text-lower-third",
+		"version": 1,
+		"cacheKey": "text-assets/text-new-text-lower-third/plain@1",
+		"thumbnail": {
+			"url": "/text-assets/text-new-text-lower-third/plain@1/thumbnail.webp",
+			"mimeType": "image/webp",
+			"byteSize": 19738,
+			"checksumSha256": "7d6340f34ee9ce7cfc65e3c4934a33e94608fd4e3d6ce6cdee84538d0d49af67"
+		},
+		"source": {
+			"url": "/text-assets/text-new-text-lower-third/plain@1/template.json",
+			"mimeType": "application/json",
+			"byteSize": 2132,
+			"checksumSha256": "56a5b53961378f96605e6f5bbd2da8100a1f5eeff8a50e7d5331533e87a8aaf1"
+		}
+	},
+	"text-new-text-lower-third-label": {
+		"assetId": "text-new-text-lower-third-label",
+		"packageId": "text-new-text-lower-third",
+		"version": 1,
+		"cacheKey": "text-assets/text-new-text-lower-third/label@1",
+		"thumbnail": {
+			"url": "/text-assets/text-new-text-lower-third/label@1/thumbnail.webp",
+			"mimeType": "image/webp",
+			"byteSize": 19738,
+			"checksumSha256": "7d6340f34ee9ce7cfc65e3c4934a33e94608fd4e3d6ce6cdee84538d0d49af67"
+		},
+		"source": {
+			"url": "/text-assets/text-new-text-lower-third/label@1/template.json",
+			"mimeType": "application/json",
+			"byteSize": 2217,
+			"checksumSha256": "be1f882e5920597b02bfe4b8dd1a9b418ea1abaaf1d52146d22ff6f269c91d2f"
+		}
+	},
+	"text-new-text-lower-third-sticker": {
+		"assetId": "text-new-text-lower-third-sticker",
+		"packageId": "text-new-text-lower-third",
+		"version": 1,
+		"cacheKey": "text-assets/text-new-text-lower-third/sticker@1",
+		"thumbnail": {
+			"url": "/text-assets/text-new-text-lower-third/sticker@1/thumbnail.webp",
+			"mimeType": "image/webp",
+			"byteSize": 19738,
+			"checksumSha256": "7d6340f34ee9ce7cfc65e3c4934a33e94608fd4e3d6ce6cdee84538d0d49af67"
+		},
+		"source": {
+			"url": "/text-assets/text-new-text-lower-third/sticker@1/template.json",
+			"mimeType": "application/json",
+			"byteSize": 2274,
+			"checksumSha256": "2931c86358bcf42d43964702b8bdff0f77039b4e15d200308f0144e34fd6f124"
+		}
+	},
+	"text-new-text-lower-third-bubble": {
+		"assetId": "text-new-text-lower-third-bubble",
+		"packageId": "text-new-text-lower-third",
+		"version": 1,
+		"cacheKey": "text-assets/text-new-text-lower-third/bubble@1",
+		"thumbnail": {
+			"url": "/text-assets/text-new-text-lower-third/bubble@1/thumbnail.webp",
+			"mimeType": "image/webp",
+			"byteSize": 19738,
+			"checksumSha256": "7d6340f34ee9ce7cfc65e3c4934a33e94608fd4e3d6ce6cdee84538d0d49af67"
+		},
+		"source": {
+			"url": "/text-assets/text-new-text-lower-third/bubble@1/template.json",
+			"mimeType": "application/json",
+			"byteSize": 2242,
+			"checksumSha256": "a554d672572b7921d181e0601017d3fefba02430bcc4814f5262b64d6ddd5e0a"
+		}
+	},
+	"text-new-text-lower-third-soft-card": {
+		"assetId": "text-new-text-lower-third-soft-card",
+		"packageId": "text-new-text-lower-third",
+		"version": 1,
+		"cacheKey": "text-assets/text-new-text-lower-third/soft-card@1",
+		"thumbnail": {
+			"url": "/text-assets/text-new-text-lower-third/soft-card@1/thumbnail.webp",
+			"mimeType": "image/webp",
+			"byteSize": 19738,
+			"checksumSha256": "7d6340f34ee9ce7cfc65e3c4934a33e94608fd4e3d6ce6cdee84538d0d49af67"
+		},
+		"source": {
+			"url": "/text-assets/text-new-text-lower-third/soft-card@1/template.json",
+			"mimeType": "application/json",
+			"byteSize": 2259,
+			"checksumSha256": "e2aa7c8e8dc3baa4d53e583c2dec87d2ca087ea79af9912d9e225d0966f5922e"
+		}
+	},
+	"text-new-text-quote-plain": {
+		"assetId": "text-new-text-quote-plain",
+		"packageId": "text-new-text-quote",
+		"version": 1,
+		"cacheKey": "text-assets/text-new-text-quote/plain@1",
+		"thumbnail": {
+			"url": "/text-assets/text-new-text-quote/plain@1/thumbnail.webp",
+			"mimeType": "image/webp",
+			"byteSize": 13878,
+			"checksumSha256": "e2177e971f505c5b1a687cb50686f7abb501dbfdd166b599f438bc7deb28e577"
+		},
+		"source": {
+			"url": "/text-assets/text-new-text-quote/plain@1/template.json",
+			"mimeType": "application/json",
+			"byteSize": 2054,
+			"checksumSha256": "9c0a16af759e1b2afbd9e34afd2fafa6f36d583f48295b96b9350fe6dba0bc55"
+		}
+	},
+	"text-new-text-quote-label": {
+		"assetId": "text-new-text-quote-label",
+		"packageId": "text-new-text-quote",
+		"version": 1,
+		"cacheKey": "text-assets/text-new-text-quote/label@1",
+		"thumbnail": {
+			"url": "/text-assets/text-new-text-quote/label@1/thumbnail.webp",
+			"mimeType": "image/webp",
+			"byteSize": 13878,
+			"checksumSha256": "e2177e971f505c5b1a687cb50686f7abb501dbfdd166b599f438bc7deb28e577"
+		},
+		"source": {
+			"url": "/text-assets/text-new-text-quote/label@1/template.json",
+			"mimeType": "application/json",
+			"byteSize": 2139,
+			"checksumSha256": "cbfdbf1724323ee90e6ba2e31b85699d99ba6db3a363a676b514c547409e65fb"
+		}
+	},
+	"text-new-text-quote-sticker": {
+		"assetId": "text-new-text-quote-sticker",
+		"packageId": "text-new-text-quote",
+		"version": 1,
+		"cacheKey": "text-assets/text-new-text-quote/sticker@1",
+		"thumbnail": {
+			"url": "/text-assets/text-new-text-quote/sticker@1/thumbnail.webp",
+			"mimeType": "image/webp",
+			"byteSize": 13878,
+			"checksumSha256": "e2177e971f505c5b1a687cb50686f7abb501dbfdd166b599f438bc7deb28e577"
+		},
+		"source": {
+			"url": "/text-assets/text-new-text-quote/sticker@1/template.json",
+			"mimeType": "application/json",
+			"byteSize": 2198,
+			"checksumSha256": "babc4d05067a55eb20898112a8ade10cc3f62737a3ae35885128e865065ea80f"
+		}
+	},
+	"text-new-text-quote-bubble": {
+		"assetId": "text-new-text-quote-bubble",
+		"packageId": "text-new-text-quote",
+		"version": 1,
+		"cacheKey": "text-assets/text-new-text-quote/bubble@1",
+		"thumbnail": {
+			"url": "/text-assets/text-new-text-quote/bubble@1/thumbnail.webp",
+			"mimeType": "image/webp",
+			"byteSize": 13878,
+			"checksumSha256": "e2177e971f505c5b1a687cb50686f7abb501dbfdd166b599f438bc7deb28e577"
+		},
+		"source": {
+			"url": "/text-assets/text-new-text-quote/bubble@1/template.json",
+			"mimeType": "application/json",
+			"byteSize": 2164,
+			"checksumSha256": "13f0b9f15f43776154f36c0d45145bfcf9a8ae2af96e0085daa5156c4e18ce39"
+		}
+	},
+	"text-new-text-quote-soft-card": {
+		"assetId": "text-new-text-quote-soft-card",
+		"packageId": "text-new-text-quote",
+		"version": 1,
+		"cacheKey": "text-assets/text-new-text-quote/soft-card@1",
+		"thumbnail": {
+			"url": "/text-assets/text-new-text-quote/soft-card@1/thumbnail.webp",
+			"mimeType": "image/webp",
+			"byteSize": 13878,
+			"checksumSha256": "e2177e971f505c5b1a687cb50686f7abb501dbfdd166b599f438bc7deb28e577"
+		},
+		"source": {
+			"url": "/text-assets/text-new-text-quote/soft-card@1/template.json",
+			"mimeType": "application/json",
+			"byteSize": 2181,
+			"checksumSha256": "b1f2d1e467594daa7a12cf82b63eec3f1ac5b8c8460acd2502c3b71224c5f05d"
+		}
+	},
+	"text-mine-favorites-plain": {
+		"assetId": "text-mine-favorites-plain",
+		"packageId": "text-mine-favorites",
+		"version": 1,
+		"cacheKey": "text-assets/text-mine-favorites/plain@1",
+		"thumbnail": {
+			"url": "/text-assets/text-mine-favorites/plain@1/thumbnail.webp",
+			"mimeType": "image/webp",
+			"byteSize": 15944,
+			"checksumSha256": "f82281d77b260ba7efd31e0fcb2862afebc918eb0addea17d6be6233757ae4a3"
+		},
+		"source": {
+			"url": "/text-assets/text-mine-favorites/plain@1/template.json",
+			"mimeType": "application/json",
+			"byteSize": 2053,
+			"checksumSha256": "b74b7abae8d5f5fd6ba1f1fc4b90fa8567b2e2ada370c7383bf9943274908799"
+		}
+	},
+	"text-mine-favorites-label": {
+		"assetId": "text-mine-favorites-label",
+		"packageId": "text-mine-favorites",
+		"version": 1,
+		"cacheKey": "text-assets/text-mine-favorites/label@1",
+		"thumbnail": {
+			"url": "/text-assets/text-mine-favorites/label@1/thumbnail.webp",
+			"mimeType": "image/webp",
+			"byteSize": 15944,
+			"checksumSha256": "f82281d77b260ba7efd31e0fcb2862afebc918eb0addea17d6be6233757ae4a3"
+		},
+		"source": {
+			"url": "/text-assets/text-mine-favorites/label@1/template.json",
+			"mimeType": "application/json",
+			"byteSize": 2138,
+			"checksumSha256": "c7dbcf4cb7e35803307aa54c26250452a285fc1f7f07da6f3b38ac0a2ed30389"
+		}
+	},
+	"text-mine-favorites-sticker": {
+		"assetId": "text-mine-favorites-sticker",
+		"packageId": "text-mine-favorites",
+		"version": 1,
+		"cacheKey": "text-assets/text-mine-favorites/sticker@1",
+		"thumbnail": {
+			"url": "/text-assets/text-mine-favorites/sticker@1/thumbnail.webp",
+			"mimeType": "image/webp",
+			"byteSize": 15944,
+			"checksumSha256": "f82281d77b260ba7efd31e0fcb2862afebc918eb0addea17d6be6233757ae4a3"
+		},
+		"source": {
+			"url": "/text-assets/text-mine-favorites/sticker@1/template.json",
+			"mimeType": "application/json",
+			"byteSize": 2197,
+			"checksumSha256": "3099ad5a6fefc5562c768657c7e3658109f150c3d692f7ba383683ddc4877111"
+		}
+	},
+	"text-mine-favorites-bubble": {
+		"assetId": "text-mine-favorites-bubble",
+		"packageId": "text-mine-favorites",
+		"version": 1,
+		"cacheKey": "text-assets/text-mine-favorites/bubble@1",
+		"thumbnail": {
+			"url": "/text-assets/text-mine-favorites/bubble@1/thumbnail.webp",
+			"mimeType": "image/webp",
+			"byteSize": 15944,
+			"checksumSha256": "f82281d77b260ba7efd31e0fcb2862afebc918eb0addea17d6be6233757ae4a3"
+		},
+		"source": {
+			"url": "/text-assets/text-mine-favorites/bubble@1/template.json",
+			"mimeType": "application/json",
+			"byteSize": 2163,
+			"checksumSha256": "969c1e4bce01e6c080b2ce43396f3a88b9b2a4d9bad303df1c067ed40829b7e9"
+		}
+	},
+	"text-mine-favorites-soft-card": {
+		"assetId": "text-mine-favorites-soft-card",
+		"packageId": "text-mine-favorites",
+		"version": 1,
+		"cacheKey": "text-assets/text-mine-favorites/soft-card@1",
+		"thumbnail": {
+			"url": "/text-assets/text-mine-favorites/soft-card@1/thumbnail.webp",
+			"mimeType": "image/webp",
+			"byteSize": 15944,
+			"checksumSha256": "f82281d77b260ba7efd31e0fcb2862afebc918eb0addea17d6be6233757ae4a3"
+		},
+		"source": {
+			"url": "/text-assets/text-mine-favorites/soft-card@1/template.json",
+			"mimeType": "application/json",
+			"byteSize": 2180,
+			"checksumSha256": "76b29a2f9eea85bb1856dcfe26fbb9f88b1af661764c5cf294c6479346a8a1bd"
+		}
+	},
+	"text-mine-recent-plain": {
+		"assetId": "text-mine-recent-plain",
+		"packageId": "text-mine-recent",
+		"version": 1,
+		"cacheKey": "text-assets/text-mine-recent/plain@1",
+		"thumbnail": {
+			"url": "/text-assets/text-mine-recent/plain@1/thumbnail.webp",
+			"mimeType": "image/webp",
+			"byteSize": 14460,
+			"checksumSha256": "315f8eb250c09f243bd5bb2a43d00e03a615dc73fdaf508e989593d6bf6af280"
+		},
+		"source": {
+			"url": "/text-assets/text-mine-recent/plain@1/template.json",
+			"mimeType": "application/json",
+			"byteSize": 2060,
+			"checksumSha256": "e18c7c56d0f4017ef2256ad5459b14ed3cd419d0f806168f0c2d64d0aa83c04e"
+		}
+	},
+	"text-mine-recent-label": {
+		"assetId": "text-mine-recent-label",
+		"packageId": "text-mine-recent",
+		"version": 1,
+		"cacheKey": "text-assets/text-mine-recent/label@1",
+		"thumbnail": {
+			"url": "/text-assets/text-mine-recent/label@1/thumbnail.webp",
+			"mimeType": "image/webp",
+			"byteSize": 14460,
+			"checksumSha256": "315f8eb250c09f243bd5bb2a43d00e03a615dc73fdaf508e989593d6bf6af280"
+		},
+		"source": {
+			"url": "/text-assets/text-mine-recent/label@1/template.json",
+			"mimeType": "application/json",
+			"byteSize": 2145,
+			"checksumSha256": "b0090970f85f8a2f2e096f8368475908fdbf3fc6e2eeef052322f7f31595da82"
+		}
+	},
+	"text-mine-recent-sticker": {
+		"assetId": "text-mine-recent-sticker",
+		"packageId": "text-mine-recent",
+		"version": 1,
+		"cacheKey": "text-assets/text-mine-recent/sticker@1",
+		"thumbnail": {
+			"url": "/text-assets/text-mine-recent/sticker@1/thumbnail.webp",
+			"mimeType": "image/webp",
+			"byteSize": 14460,
+			"checksumSha256": "315f8eb250c09f243bd5bb2a43d00e03a615dc73fdaf508e989593d6bf6af280"
+		},
+		"source": {
+			"url": "/text-assets/text-mine-recent/sticker@1/template.json",
+			"mimeType": "application/json",
+			"byteSize": 2202,
+			"checksumSha256": "2b6b8b9dbb714131c31a8ce189799bdabd9d0ee07f4757d997a8be435fd64e75"
+		}
+	},
+	"text-mine-recent-bubble": {
+		"assetId": "text-mine-recent-bubble",
+		"packageId": "text-mine-recent",
+		"version": 1,
+		"cacheKey": "text-assets/text-mine-recent/bubble@1",
+		"thumbnail": {
+			"url": "/text-assets/text-mine-recent/bubble@1/thumbnail.webp",
+			"mimeType": "image/webp",
+			"byteSize": 14460,
+			"checksumSha256": "315f8eb250c09f243bd5bb2a43d00e03a615dc73fdaf508e989593d6bf6af280"
+		},
+		"source": {
+			"url": "/text-assets/text-mine-recent/bubble@1/template.json",
+			"mimeType": "application/json",
+			"byteSize": 2170,
+			"checksumSha256": "e9cabb875e192c235606cb045d6d344d9786d4484fc57b43dcbde39360286039"
+		}
+	},
+	"text-mine-recent-soft-card": {
+		"assetId": "text-mine-recent-soft-card",
+		"packageId": "text-mine-recent",
+		"version": 1,
+		"cacheKey": "text-assets/text-mine-recent/soft-card@1",
+		"thumbnail": {
+			"url": "/text-assets/text-mine-recent/soft-card@1/thumbnail.webp",
+			"mimeType": "image/webp",
+			"byteSize": 14460,
+			"checksumSha256": "315f8eb250c09f243bd5bb2a43d00e03a615dc73fdaf508e989593d6bf6af280"
+		},
+		"source": {
+			"url": "/text-assets/text-mine-recent/soft-card@1/template.json",
+			"mimeType": "application/json",
+			"byteSize": 2187,
+			"checksumSha256": "f4493d17f5fbbe0aa40973ce0fe1f629ad2cbebc1f7a0386a621ae4da04433ad"
+		}
+	},
+	"text-mine-brand-kit-plain": {
+		"assetId": "text-mine-brand-kit-plain",
+		"packageId": "text-mine-brand-kit",
+		"version": 1,
+		"cacheKey": "text-assets/text-mine-brand-kit/plain@1",
+		"thumbnail": {
+			"url": "/text-assets/text-mine-brand-kit/plain@1/thumbnail.webp",
+			"mimeType": "image/webp",
+			"byteSize": 12618,
+			"checksumSha256": "79c7ade40637b4785b3cf366f9c92946cfea05f47e684c40ccc7802607de7208"
+		},
+		"source": {
+			"url": "/text-assets/text-mine-brand-kit/plain@1/template.json",
+			"mimeType": "application/json",
+			"byteSize": 2078,
+			"checksumSha256": "1cb9b2a5e0ae14907b1722cf51304d41bde07c63db33bf35635726d1f38cb1ac"
+		}
+	},
+	"text-mine-brand-kit-label": {
+		"assetId": "text-mine-brand-kit-label",
+		"packageId": "text-mine-brand-kit",
+		"version": 1,
+		"cacheKey": "text-assets/text-mine-brand-kit/label@1",
+		"thumbnail": {
+			"url": "/text-assets/text-mine-brand-kit/label@1/thumbnail.webp",
+			"mimeType": "image/webp",
+			"byteSize": 12618,
+			"checksumSha256": "79c7ade40637b4785b3cf366f9c92946cfea05f47e684c40ccc7802607de7208"
+		},
+		"source": {
+			"url": "/text-assets/text-mine-brand-kit/label@1/template.json",
+			"mimeType": "application/json",
+			"byteSize": 2163,
+			"checksumSha256": "6b768c3bd560e9ad8ea38e4c297bc893c91315b5d0c4a4864209b1385aebeeac"
+		}
+	},
+	"text-mine-brand-kit-sticker": {
+		"assetId": "text-mine-brand-kit-sticker",
+		"packageId": "text-mine-brand-kit",
+		"version": 1,
+		"cacheKey": "text-assets/text-mine-brand-kit/sticker@1",
+		"thumbnail": {
+			"url": "/text-assets/text-mine-brand-kit/sticker@1/thumbnail.webp",
+			"mimeType": "image/webp",
+			"byteSize": 12618,
+			"checksumSha256": "79c7ade40637b4785b3cf366f9c92946cfea05f47e684c40ccc7802607de7208"
+		},
+		"source": {
+			"url": "/text-assets/text-mine-brand-kit/sticker@1/template.json",
+			"mimeType": "application/json",
+			"byteSize": 2222,
+			"checksumSha256": "b4541762f63f0dd9bd495a267ae1f7f445548bf29f14b4b3fbdc5f80e1c17a08"
+		}
+	},
+	"text-mine-brand-kit-bubble": {
+		"assetId": "text-mine-brand-kit-bubble",
+		"packageId": "text-mine-brand-kit",
+		"version": 1,
+		"cacheKey": "text-assets/text-mine-brand-kit/bubble@1",
+		"thumbnail": {
+			"url": "/text-assets/text-mine-brand-kit/bubble@1/thumbnail.webp",
+			"mimeType": "image/webp",
+			"byteSize": 12618,
+			"checksumSha256": "79c7ade40637b4785b3cf366f9c92946cfea05f47e684c40ccc7802607de7208"
+		},
+		"source": {
+			"url": "/text-assets/text-mine-brand-kit/bubble@1/template.json",
+			"mimeType": "application/json",
+			"byteSize": 2188,
+			"checksumSha256": "3c2d68d8e7e1bfcce41078a72c46f09caa0f8c557f3809c9b687d6e6c76a2710"
+		}
+	},
+	"text-mine-brand-kit-soft-card": {
+		"assetId": "text-mine-brand-kit-soft-card",
+		"packageId": "text-mine-brand-kit",
+		"version": 1,
+		"cacheKey": "text-assets/text-mine-brand-kit/soft-card@1",
+		"thumbnail": {
+			"url": "/text-assets/text-mine-brand-kit/soft-card@1/thumbnail.webp",
+			"mimeType": "image/webp",
+			"byteSize": 12618,
+			"checksumSha256": "79c7ade40637b4785b3cf366f9c92946cfea05f47e684c40ccc7802607de7208"
+		},
+		"source": {
+			"url": "/text-assets/text-mine-brand-kit/soft-card@1/template.json",
+			"mimeType": "application/json",
+			"byteSize": 2205,
+			"checksumSha256": "988b32a4d4deca64e2ff22fd9ee549ff99e46d0e14c9a55dc51339cfbdefb71e"
+		}
+	},
+	"text-mine-downloaded-plain": {
+		"assetId": "text-mine-downloaded-plain",
+		"packageId": "text-mine-downloaded",
+		"version": 1,
+		"cacheKey": "text-assets/text-mine-downloaded/plain@1",
+		"thumbnail": {
+			"url": "/text-assets/text-mine-downloaded/plain@1/thumbnail.webp",
+			"mimeType": "image/webp",
+			"byteSize": 14618,
+			"checksumSha256": "3210de6ad0be97ff2f6c830f7ca34af69c89444374de27b67b05c2e2fe76a7c1"
+		},
+		"source": {
+			"url": "/text-assets/text-mine-downloaded/plain@1/template.json",
+			"mimeType": "application/json",
+			"byteSize": 2081,
+			"checksumSha256": "ef2f6ef0fe47abde9b22dd1bd1037ff1b965a22f9a7e84b31d0bec3abc6387f1"
+		}
+	},
+	"text-mine-downloaded-label": {
+		"assetId": "text-mine-downloaded-label",
+		"packageId": "text-mine-downloaded",
+		"version": 1,
+		"cacheKey": "text-assets/text-mine-downloaded/label@1",
+		"thumbnail": {
+			"url": "/text-assets/text-mine-downloaded/label@1/thumbnail.webp",
+			"mimeType": "image/webp",
+			"byteSize": 14618,
+			"checksumSha256": "3210de6ad0be97ff2f6c830f7ca34af69c89444374de27b67b05c2e2fe76a7c1"
+		},
+		"source": {
+			"url": "/text-assets/text-mine-downloaded/label@1/template.json",
+			"mimeType": "application/json",
+			"byteSize": 2166,
+			"checksumSha256": "604afe3cfe68f430488e8d8cda362cc8b38a8696c3f054eabcdc80a385c79250"
+		}
+	},
+	"text-mine-downloaded-sticker": {
+		"assetId": "text-mine-downloaded-sticker",
+		"packageId": "text-mine-downloaded",
+		"version": 1,
+		"cacheKey": "text-assets/text-mine-downloaded/sticker@1",
+		"thumbnail": {
+			"url": "/text-assets/text-mine-downloaded/sticker@1/thumbnail.webp",
+			"mimeType": "image/webp",
+			"byteSize": 14618,
+			"checksumSha256": "3210de6ad0be97ff2f6c830f7ca34af69c89444374de27b67b05c2e2fe76a7c1"
+		},
+		"source": {
+			"url": "/text-assets/text-mine-downloaded/sticker@1/template.json",
+			"mimeType": "application/json",
+			"byteSize": 2223,
+			"checksumSha256": "9a2f070076945f1c3df9369dfc19d48c515a73c9004074a01a227a781bfdff3d"
+		}
+	},
+	"text-mine-downloaded-bubble": {
+		"assetId": "text-mine-downloaded-bubble",
+		"packageId": "text-mine-downloaded",
+		"version": 1,
+		"cacheKey": "text-assets/text-mine-downloaded/bubble@1",
+		"thumbnail": {
+			"url": "/text-assets/text-mine-downloaded/bubble@1/thumbnail.webp",
+			"mimeType": "image/webp",
+			"byteSize": 14618,
+			"checksumSha256": "3210de6ad0be97ff2f6c830f7ca34af69c89444374de27b67b05c2e2fe76a7c1"
+		},
+		"source": {
+			"url": "/text-assets/text-mine-downloaded/bubble@1/template.json",
+			"mimeType": "application/json",
+			"byteSize": 2191,
+			"checksumSha256": "acf0f1e76583a43414a0de97c5ac06269a8e1e88d89e02d9d1d13b5dfafbbc95"
+		}
+	},
+	"text-mine-downloaded-soft-card": {
+		"assetId": "text-mine-downloaded-soft-card",
+		"packageId": "text-mine-downloaded",
+		"version": 1,
+		"cacheKey": "text-assets/text-mine-downloaded/soft-card@1",
+		"thumbnail": {
+			"url": "/text-assets/text-mine-downloaded/soft-card@1/thumbnail.webp",
+			"mimeType": "image/webp",
+			"byteSize": 14618,
+			"checksumSha256": "3210de6ad0be97ff2f6c830f7ca34af69c89444374de27b67b05c2e2fe76a7c1"
+		},
+		"source": {
+			"url": "/text-assets/text-mine-downloaded/soft-card@1/template.json",
+			"mimeType": "application/json",
+			"byteSize": 2208,
+			"checksumSha256": "6bb42b591919ea981ff7561949ded05e4a37b06a484789dd45400cb0e2e15c8f"
+		}
+	},
+	"text-mine-drafts-plain": {
+		"assetId": "text-mine-drafts-plain",
+		"packageId": "text-mine-drafts",
+		"version": 1,
+		"cacheKey": "text-assets/text-mine-drafts/plain@1",
+		"thumbnail": {
+			"url": "/text-assets/text-mine-drafts/plain@1/thumbnail.webp",
+			"mimeType": "image/webp",
+			"byteSize": 13680,
+			"checksumSha256": "21e68675ea056f97e22259ecc4eac0da4dffa327011159630c5e42fe871bdf6a"
+		},
+		"source": {
+			"url": "/text-assets/text-mine-drafts/plain@1/template.json",
+			"mimeType": "application/json",
+			"byteSize": 2023,
+			"checksumSha256": "f2a2be33aac02f913eb2a2d38d2467099e93f0cd648216fe6f081d4dfac50888"
+		}
+	},
+	"text-mine-drafts-label": {
+		"assetId": "text-mine-drafts-label",
+		"packageId": "text-mine-drafts",
+		"version": 1,
+		"cacheKey": "text-assets/text-mine-drafts/label@1",
+		"thumbnail": {
+			"url": "/text-assets/text-mine-drafts/label@1/thumbnail.webp",
+			"mimeType": "image/webp",
+			"byteSize": 13680,
+			"checksumSha256": "21e68675ea056f97e22259ecc4eac0da4dffa327011159630c5e42fe871bdf6a"
+		},
+		"source": {
+			"url": "/text-assets/text-mine-drafts/label@1/template.json",
+			"mimeType": "application/json",
+			"byteSize": 2108,
+			"checksumSha256": "7c409c42e8bd74c0e24cb61bdc564d061e4e6c6f5c3366936f38b460f809ac3e"
+		}
+	},
+	"text-mine-drafts-sticker": {
+		"assetId": "text-mine-drafts-sticker",
+		"packageId": "text-mine-drafts",
+		"version": 1,
+		"cacheKey": "text-assets/text-mine-drafts/sticker@1",
+		"thumbnail": {
+			"url": "/text-assets/text-mine-drafts/sticker@1/thumbnail.webp",
+			"mimeType": "image/webp",
+			"byteSize": 13680,
+			"checksumSha256": "21e68675ea056f97e22259ecc4eac0da4dffa327011159630c5e42fe871bdf6a"
+		},
+		"source": {
+			"url": "/text-assets/text-mine-drafts/sticker@1/template.json",
+			"mimeType": "application/json",
+			"byteSize": 2167,
+			"checksumSha256": "0bf1e48c8207ff7d52efe7cb3199905dda5f627eb05b1ff52449a1c154f95143"
+		}
+	},
+	"text-mine-drafts-bubble": {
+		"assetId": "text-mine-drafts-bubble",
+		"packageId": "text-mine-drafts",
+		"version": 1,
+		"cacheKey": "text-assets/text-mine-drafts/bubble@1",
+		"thumbnail": {
+			"url": "/text-assets/text-mine-drafts/bubble@1/thumbnail.webp",
+			"mimeType": "image/webp",
+			"byteSize": 13680,
+			"checksumSha256": "21e68675ea056f97e22259ecc4eac0da4dffa327011159630c5e42fe871bdf6a"
+		},
+		"source": {
+			"url": "/text-assets/text-mine-drafts/bubble@1/template.json",
+			"mimeType": "application/json",
+			"byteSize": 2133,
+			"checksumSha256": "cf2073b397175e6546b074026878f074b7ceb9b553ffc1989650583be2d6da0f"
+		}
+	},
+	"text-mine-drafts-soft-card": {
+		"assetId": "text-mine-drafts-soft-card",
+		"packageId": "text-mine-drafts",
+		"version": 1,
+		"cacheKey": "text-assets/text-mine-drafts/soft-card@1",
+		"thumbnail": {
+			"url": "/text-assets/text-mine-drafts/soft-card@1/thumbnail.webp",
+			"mimeType": "image/webp",
+			"byteSize": 13680,
+			"checksumSha256": "21e68675ea056f97e22259ecc4eac0da4dffa327011159630c5e42fe871bdf6a"
+		},
+		"source": {
+			"url": "/text-assets/text-mine-drafts/soft-card@1/template.json",
+			"mimeType": "application/json",
+			"byteSize": 2150,
+			"checksumSha256": "468c8a01bce41bdef4d68699fccd71b6fc2999ec58e1b9dee6ca230e1baff47c"
+		}
+	},
+	"text-smart-packaging-cover-pack-plain": {
+		"assetId": "text-smart-packaging-cover-pack-plain",
+		"packageId": "text-smart-packaging-cover-pack",
+		"version": 1,
+		"cacheKey": "text-assets/text-smart-packaging-cover-pack/plain@1",
+		"thumbnail": {
+			"url": "/text-assets/text-smart-packaging-cover-pack/plain@1/thumbnail.webp",
+			"mimeType": "image/webp",
+			"byteSize": 18440,
+			"checksumSha256": "21ae01da58570ca2007ba03c019b0f187b24ea1430bcfeca3e13914eea22a9b6"
+		},
+		"source": {
+			"url": "/text-assets/text-smart-packaging-cover-pack/plain@1/template.json",
+			"mimeType": "application/json",
+			"byteSize": 2313,
+			"checksumSha256": "3fdadc44854d3f5a1370a2922c638e6cec28e6b8e326a52a10aff1bf7f8ec1ee"
+		}
+	},
+	"text-smart-packaging-cover-pack-label": {
+		"assetId": "text-smart-packaging-cover-pack-label",
+		"packageId": "text-smart-packaging-cover-pack",
+		"version": 1,
+		"cacheKey": "text-assets/text-smart-packaging-cover-pack/label@1",
+		"thumbnail": {
+			"url": "/text-assets/text-smart-packaging-cover-pack/label@1/thumbnail.webp",
+			"mimeType": "image/webp",
+			"byteSize": 15458,
+			"checksumSha256": "f5250fe222cb846d3404d845fd34fcf996a7893f8630c000e58d444ec902b1cd"
+		},
+		"source": {
+			"url": "/text-assets/text-smart-packaging-cover-pack/label@1/template.json",
+			"mimeType": "application/json",
+			"byteSize": 2386,
+			"checksumSha256": "3a56ac1346cd92998b75741ee465af4dee19c3747008fd2a1b9c0d1d6af4d7b5"
+		}
+	},
+	"text-smart-packaging-cover-pack-sticker": {
+		"assetId": "text-smart-packaging-cover-pack-sticker",
+		"packageId": "text-smart-packaging-cover-pack",
+		"version": 1,
+		"cacheKey": "text-assets/text-smart-packaging-cover-pack/sticker@1",
+		"thumbnail": {
+			"url": "/text-assets/text-smart-packaging-cover-pack/sticker@1/thumbnail.webp",
+			"mimeType": "image/webp",
+			"byteSize": 15458,
+			"checksumSha256": "f5250fe222cb846d3404d845fd34fcf996a7893f8630c000e58d444ec902b1cd"
+		},
+		"source": {
+			"url": "/text-assets/text-smart-packaging-cover-pack/sticker@1/template.json",
+			"mimeType": "application/json",
+			"byteSize": 2445,
+			"checksumSha256": "87eb6477a56acc6a694709ccc562898557dc010a9cb57bba275f3e3fce0f721f"
+		}
+	},
+	"text-smart-packaging-cover-pack-bubble": {
+		"assetId": "text-smart-packaging-cover-pack-bubble",
+		"packageId": "text-smart-packaging-cover-pack",
+		"version": 1,
+		"cacheKey": "text-assets/text-smart-packaging-cover-pack/bubble@1",
+		"thumbnail": {
+			"url": "/text-assets/text-smart-packaging-cover-pack/bubble@1/thumbnail.webp",
+			"mimeType": "image/webp",
+			"byteSize": 17324,
+			"checksumSha256": "50dfb52151dd30cc8b94fbe2f93501a5ab8f272a13c875fcfd22cee69daad54f"
+		},
+		"source": {
+			"url": "/text-assets/text-smart-packaging-cover-pack/bubble@1/template.json",
+			"mimeType": "application/json",
+			"byteSize": 2423,
+			"checksumSha256": "6d91ac15f9d6d8d39c1758ec05c2646af0fea024d9ce06bc0849463c9fb41200"
+		}
+	},
+	"text-smart-packaging-cover-pack-soft-card": {
+		"assetId": "text-smart-packaging-cover-pack-soft-card",
+		"packageId": "text-smart-packaging-cover-pack",
+		"version": 1,
+		"cacheKey": "text-assets/text-smart-packaging-cover-pack/soft-card@1",
+		"thumbnail": {
+			"url": "/text-assets/text-smart-packaging-cover-pack/soft-card@1/thumbnail.webp",
+			"mimeType": "image/webp",
+			"byteSize": 18440,
+			"checksumSha256": "21ae01da58570ca2007ba03c019b0f187b24ea1430bcfeca3e13914eea22a9b6"
+		},
+		"source": {
+			"url": "/text-assets/text-smart-packaging-cover-pack/soft-card@1/template.json",
+			"mimeType": "application/json",
+			"byteSize": 2440,
+			"checksumSha256": "b277d3e37b3dfdd6f8f667a9b75bc7ed761d6e56a93bbd1d74041d4b15763c66"
+		}
+	},
+	"text-smart-packaging-intro-outro-plain": {
+		"assetId": "text-smart-packaging-intro-outro-plain",
+		"packageId": "text-smart-packaging-intro-outro",
+		"version": 1,
+		"cacheKey": "text-assets/text-smart-packaging-intro-outro/plain@1",
+		"thumbnail": {
+			"url": "/text-assets/text-smart-packaging-intro-outro/plain@1/thumbnail.webp",
+			"mimeType": "image/webp",
+			"byteSize": 17500,
+			"checksumSha256": "1791a4720a77d040c78a394f5b2c96fad9d5a726a6d2a5886e4b72936056ab97"
+		},
+		"source": {
+			"url": "/text-assets/text-smart-packaging-intro-outro/plain@1/template.json",
+			"mimeType": "application/json",
+			"byteSize": 2303,
+			"checksumSha256": "2c4eeec0b59a86d0ed7c6acaa3a2e693c3d47d5af22cd81a25b6a88dcff25301"
+		}
+	},
+	"text-smart-packaging-intro-outro-label": {
+		"assetId": "text-smart-packaging-intro-outro-label",
+		"packageId": "text-smart-packaging-intro-outro",
+		"version": 1,
+		"cacheKey": "text-assets/text-smart-packaging-intro-outro/label@1",
+		"thumbnail": {
+			"url": "/text-assets/text-smart-packaging-intro-outro/label@1/thumbnail.webp",
+			"mimeType": "image/webp",
+			"byteSize": 19018,
+			"checksumSha256": "135daa996e9d0fd85c56b4e572fbc1558287c72e78df4028047a0cfe92657b90"
+		},
+		"source": {
+			"url": "/text-assets/text-smart-packaging-intro-outro/label@1/template.json",
+			"mimeType": "application/json",
+			"byteSize": 2388,
+			"checksumSha256": "6154ea262841464ae479ce3b97bb175dbb9284b2d3f52130af08faed9276a4b0"
+		}
+	},
+	"text-smart-packaging-intro-outro-sticker": {
+		"assetId": "text-smart-packaging-intro-outro-sticker",
+		"packageId": "text-smart-packaging-intro-outro",
+		"version": 1,
+		"cacheKey": "text-assets/text-smart-packaging-intro-outro/sticker@1",
+		"thumbnail": {
+			"url": "/text-assets/text-smart-packaging-intro-outro/sticker@1/thumbnail.webp",
+			"mimeType": "image/webp",
+			"byteSize": 19018,
+			"checksumSha256": "135daa996e9d0fd85c56b4e572fbc1558287c72e78df4028047a0cfe92657b90"
+		},
+		"source": {
+			"url": "/text-assets/text-smart-packaging-intro-outro/sticker@1/template.json",
+			"mimeType": "application/json",
+			"byteSize": 2445,
+			"checksumSha256": "bd11e9a6e1e340f0307a49e461df7583f5f478faf8ee4fd7600229fe9280eae6"
+		}
+	},
+	"text-smart-packaging-intro-outro-bubble": {
+		"assetId": "text-smart-packaging-intro-outro-bubble",
+		"packageId": "text-smart-packaging-intro-outro",
+		"version": 1,
+		"cacheKey": "text-assets/text-smart-packaging-intro-outro/bubble@1",
+		"thumbnail": {
+			"url": "/text-assets/text-smart-packaging-intro-outro/bubble@1/thumbnail.webp",
+			"mimeType": "image/webp",
+			"byteSize": 14710,
+			"checksumSha256": "af4c577c8d46d5a9752d87f6d789daa808b92d8f9f3480b1c192deab3064bf2b"
+		},
+		"source": {
+			"url": "/text-assets/text-smart-packaging-intro-outro/bubble@1/template.json",
+			"mimeType": "application/json",
+			"byteSize": 2407,
+			"checksumSha256": "c1c6c308a25e028a66771ec3610e1a8b628ffcf731d977680305395a891591b5"
+		}
+	},
+	"text-smart-packaging-intro-outro-soft-card": {
+		"assetId": "text-smart-packaging-intro-outro-soft-card",
+		"packageId": "text-smart-packaging-intro-outro",
+		"version": 1,
+		"cacheKey": "text-assets/text-smart-packaging-intro-outro/soft-card@1",
+		"thumbnail": {
+			"url": "/text-assets/text-smart-packaging-intro-outro/soft-card@1/thumbnail.webp",
+			"mimeType": "image/webp",
+			"byteSize": 17500,
+			"checksumSha256": "1791a4720a77d040c78a394f5b2c96fad9d5a726a6d2a5886e4b72936056ab97"
+		},
+		"source": {
+			"url": "/text-assets/text-smart-packaging-intro-outro/soft-card@1/template.json",
+			"mimeType": "application/json",
+			"byteSize": 2430,
+			"checksumSha256": "26fee7d9a1c7a675844939a7bac865d9fa38caf30f441dd9c0430fce0bbe9058"
+		}
+	},
+	"text-smart-packaging-talking-head-plain": {
+		"assetId": "text-smart-packaging-talking-head-plain",
+		"packageId": "text-smart-packaging-talking-head",
+		"version": 1,
+		"cacheKey": "text-assets/text-smart-packaging-talking-head/plain@1",
+		"thumbnail": {
+			"url": "/text-assets/text-smart-packaging-talking-head/plain@1/thumbnail.webp",
+			"mimeType": "image/webp",
+			"byteSize": 17296,
+			"checksumSha256": "e855894cf30e93bc103fd15e7877628765096397a58c31addfcf548ecc2710af"
+		},
+		"source": {
+			"url": "/text-assets/text-smart-packaging-talking-head/plain@1/template.json",
+			"mimeType": "application/json",
+			"byteSize": 2321,
+			"checksumSha256": "389234649fb16d203ad23d9bc361db5b09609bee8015c27ef99ef7642203576d"
+		}
+	},
+	"text-smart-packaging-talking-head-label": {
+		"assetId": "text-smart-packaging-talking-head-label",
+		"packageId": "text-smart-packaging-talking-head",
+		"version": 1,
+		"cacheKey": "text-assets/text-smart-packaging-talking-head/label@1",
+		"thumbnail": {
+			"url": "/text-assets/text-smart-packaging-talking-head/label@1/thumbnail.webp",
+			"mimeType": "image/webp",
+			"byteSize": 16948,
+			"checksumSha256": "fd24b2453833953b4e55bbf3a1815e371c0fea298bdf5287cffe695433ff53b6"
+		},
+		"source": {
+			"url": "/text-assets/text-smart-packaging-talking-head/label@1/template.json",
+			"mimeType": "application/json",
+			"byteSize": 2412,
+			"checksumSha256": "e09cb6eba37ed02f8db1d9e947e6905b5718b7748f33070c2e5d1d5c6268a5d0"
+		}
+	},
+	"text-smart-packaging-talking-head-sticker": {
+		"assetId": "text-smart-packaging-talking-head-sticker",
+		"packageId": "text-smart-packaging-talking-head",
+		"version": 1,
+		"cacheKey": "text-assets/text-smart-packaging-talking-head/sticker@1",
+		"thumbnail": {
+			"url": "/text-assets/text-smart-packaging-talking-head/sticker@1/thumbnail.webp",
+			"mimeType": "image/webp",
+			"byteSize": 16948,
+			"checksumSha256": "fd24b2453833953b4e55bbf3a1815e371c0fea298bdf5287cffe695433ff53b6"
+		},
+		"source": {
+			"url": "/text-assets/text-smart-packaging-talking-head/sticker@1/template.json",
+			"mimeType": "application/json",
+			"byteSize": 2471,
+			"checksumSha256": "c423ed7f4ad56ffd13b47815d6caa93945d924e63b49f82f9039ea454760a159"
+		}
+	},
+	"text-smart-packaging-talking-head-bubble": {
+		"assetId": "text-smart-packaging-talking-head-bubble",
+		"packageId": "text-smart-packaging-talking-head",
+		"version": 1,
+		"cacheKey": "text-assets/text-smart-packaging-talking-head/bubble@1",
+		"thumbnail": {
+			"url": "/text-assets/text-smart-packaging-talking-head/bubble@1/thumbnail.webp",
+			"mimeType": "image/webp",
+			"byteSize": 18602,
+			"checksumSha256": "b8fb447ecc0ec4d0c47f74b021723bbdfcb4d893daddc9412d34a565200886f5"
+		},
+		"source": {
+			"url": "/text-assets/text-smart-packaging-talking-head/bubble@1/template.json",
+			"mimeType": "application/json",
+			"byteSize": 2437,
+			"checksumSha256": "2737418c90253f639f502dd88f9431b960f9f3a8dfcfd5b1e6155882b14265c1"
+		}
+	},
+	"text-smart-packaging-talking-head-soft-card": {
+		"assetId": "text-smart-packaging-talking-head-soft-card",
+		"packageId": "text-smart-packaging-talking-head",
+		"version": 1,
+		"cacheKey": "text-assets/text-smart-packaging-talking-head/soft-card@1",
+		"thumbnail": {
+			"url": "/text-assets/text-smart-packaging-talking-head/soft-card@1/thumbnail.webp",
+			"mimeType": "image/webp",
+			"byteSize": 17296,
+			"checksumSha256": "e855894cf30e93bc103fd15e7877628765096397a58c31addfcf548ecc2710af"
+		},
+		"source": {
+			"url": "/text-assets/text-smart-packaging-talking-head/soft-card@1/template.json",
+			"mimeType": "application/json",
+			"byteSize": 2448,
+			"checksumSha256": "324c29fc100be68b8750618b005a8f1326e870ef625beba920701502b2f3674e"
+		}
+	},
+	"text-smart-packaging-commerce-badge-plain": {
+		"assetId": "text-smart-packaging-commerce-badge-plain",
+		"packageId": "text-smart-packaging-commerce-badge",
+		"version": 1,
+		"cacheKey": "text-assets/text-smart-packaging-commerce-badge/plain@1",
+		"thumbnail": {
+			"url": "/text-assets/text-smart-packaging-commerce-badge/plain@1/thumbnail.webp",
+			"mimeType": "image/webp",
+			"byteSize": 19670,
+			"checksumSha256": "a4e4c6bc78e9f303b50b21611c80f30e1ee5453cff4f55e97a1eee948e0fd67f"
+		},
+		"source": {
+			"url": "/text-assets/text-smart-packaging-commerce-badge/plain@1/template.json",
+			"mimeType": "application/json",
+			"byteSize": 2369,
+			"checksumSha256": "ef4b07b104f790aa68bc4d539c3571d149cb919c664f6e741495ccfaa3ec8cde"
+		}
+	},
+	"text-smart-packaging-commerce-badge-label": {
+		"assetId": "text-smart-packaging-commerce-badge-label",
+		"packageId": "text-smart-packaging-commerce-badge",
+		"version": 1,
+		"cacheKey": "text-assets/text-smart-packaging-commerce-badge/label@1",
+		"thumbnail": {
+			"url": "/text-assets/text-smart-packaging-commerce-badge/label@1/thumbnail.webp",
+			"mimeType": "image/webp",
+			"byteSize": 17042,
+			"checksumSha256": "df66a44b4b07c5e4e94c8d2d6d76f988cd63c25a9d04c22f31c2716f2e511c6c"
+		},
+		"source": {
+			"url": "/text-assets/text-smart-packaging-commerce-badge/label@1/template.json",
+			"mimeType": "application/json",
+			"byteSize": 2448,
+			"checksumSha256": "d103beebc74b7d186ff95acf784483adf9d6625f48463828f2d5616694df93b1"
+		}
+	},
+	"text-smart-packaging-commerce-badge-sticker": {
+		"assetId": "text-smart-packaging-commerce-badge-sticker",
+		"packageId": "text-smart-packaging-commerce-badge",
+		"version": 1,
+		"cacheKey": "text-assets/text-smart-packaging-commerce-badge/sticker@1",
+		"thumbnail": {
+			"url": "/text-assets/text-smart-packaging-commerce-badge/sticker@1/thumbnail.webp",
+			"mimeType": "image/webp",
+			"byteSize": 17042,
+			"checksumSha256": "df66a44b4b07c5e4e94c8d2d6d76f988cd63c25a9d04c22f31c2716f2e511c6c"
+		},
+		"source": {
+			"url": "/text-assets/text-smart-packaging-commerce-badge/sticker@1/template.json",
+			"mimeType": "application/json",
+			"byteSize": 2505,
+			"checksumSha256": "aac02b13273f02dc4c0d6500180221234b16e158318337ba2e075e524a7cfb13"
+		}
+	},
+	"text-smart-packaging-commerce-badge-bubble": {
+		"assetId": "text-smart-packaging-commerce-badge-bubble",
+		"packageId": "text-smart-packaging-commerce-badge",
+		"version": 1,
+		"cacheKey": "text-assets/text-smart-packaging-commerce-badge/bubble@1",
+		"thumbnail": {
+			"url": "/text-assets/text-smart-packaging-commerce-badge/bubble@1/thumbnail.webp",
+			"mimeType": "image/webp",
+			"byteSize": 17888,
+			"checksumSha256": "6f516e876e377b705fb9d7c936fef5872a8f34b5f24a4ef38cc031d6f2898fa4"
+		},
+		"source": {
+			"url": "/text-assets/text-smart-packaging-commerce-badge/bubble@1/template.json",
+			"mimeType": "application/json",
+			"byteSize": 2479,
+			"checksumSha256": "6965ce865e890de78568b3b4985a056bba1234a052b5c552c46293f98f98b072"
+		}
+	},
+	"text-smart-packaging-commerce-badge-soft-card": {
+		"assetId": "text-smart-packaging-commerce-badge-soft-card",
+		"packageId": "text-smart-packaging-commerce-badge",
+		"version": 1,
+		"cacheKey": "text-assets/text-smart-packaging-commerce-badge/soft-card@1",
+		"thumbnail": {
+			"url": "/text-assets/text-smart-packaging-commerce-badge/soft-card@1/thumbnail.webp",
+			"mimeType": "image/webp",
+			"byteSize": 19670,
+			"checksumSha256": "a4e4c6bc78e9f303b50b21611c80f30e1ee5453cff4f55e97a1eee948e0fd67f"
+		},
+		"source": {
+			"url": "/text-assets/text-smart-packaging-commerce-badge/soft-card@1/template.json",
+			"mimeType": "application/json",
+			"byteSize": 2496,
+			"checksumSha256": "0c9755c36ba6231bca0f051b3f9170fe69926a8c580fdc787eb2ce9caaa91744"
+		}
+	},
+	"text-smart-packaging-info-strip-plain": {
+		"assetId": "text-smart-packaging-info-strip-plain",
+		"packageId": "text-smart-packaging-info-strip",
+		"version": 1,
+		"cacheKey": "text-assets/text-smart-packaging-info-strip/plain@1",
+		"thumbnail": {
+			"url": "/text-assets/text-smart-packaging-info-strip/plain@1/thumbnail.webp",
+			"mimeType": "image/webp",
+			"byteSize": 14532,
+			"checksumSha256": "9c4500a78e8ec5e639ced852db3e682888658d0fdc034bc35f2f822f464758ef"
+		},
+		"source": {
+			"url": "/text-assets/text-smart-packaging-info-strip/plain@1/template.json",
+			"mimeType": "application/json",
+			"byteSize": 2262,
+			"checksumSha256": "85d9600dacce85d52761b85c89d533c27234bd062005811ac7de5c43570af3c7"
+		}
+	},
+	"text-smart-packaging-info-strip-label": {
+		"assetId": "text-smart-packaging-info-strip-label",
+		"packageId": "text-smart-packaging-info-strip",
+		"version": 1,
+		"cacheKey": "text-assets/text-smart-packaging-info-strip/label@1",
+		"thumbnail": {
+			"url": "/text-assets/text-smart-packaging-info-strip/label@1/thumbnail.webp",
+			"mimeType": "image/webp",
+			"byteSize": 17398,
+			"checksumSha256": "62594fd99ebb2e7ef0d137d0e8853a18f05cae12b84f7513ee125b6b481e1e17"
+		},
+		"source": {
+			"url": "/text-assets/text-smart-packaging-info-strip/label@1/template.json",
+			"mimeType": "application/json",
+			"byteSize": 2353,
+			"checksumSha256": "547c65fa6fc0f96c0b9ba1504a080273582db68fa3a02eabbb969cbe6c95b40a"
+		}
+	},
+	"text-smart-packaging-info-strip-sticker": {
+		"assetId": "text-smart-packaging-info-strip-sticker",
+		"packageId": "text-smart-packaging-info-strip",
+		"version": 1,
+		"cacheKey": "text-assets/text-smart-packaging-info-strip/sticker@1",
+		"thumbnail": {
+			"url": "/text-assets/text-smart-packaging-info-strip/sticker@1/thumbnail.webp",
+			"mimeType": "image/webp",
+			"byteSize": 17398,
+			"checksumSha256": "62594fd99ebb2e7ef0d137d0e8853a18f05cae12b84f7513ee125b6b481e1e17"
+		},
+		"source": {
+			"url": "/text-assets/text-smart-packaging-info-strip/sticker@1/template.json",
+			"mimeType": "application/json",
+			"byteSize": 2412,
+			"checksumSha256": "cc4d4efec2f37161969bb800b284a922a4a4d0dd408a6f4b3ddfd0c850e17626"
+		}
+	},
+	"text-smart-packaging-info-strip-bubble": {
+		"assetId": "text-smart-packaging-info-strip-bubble",
+		"packageId": "text-smart-packaging-info-strip",
+		"version": 1,
+		"cacheKey": "text-assets/text-smart-packaging-info-strip/bubble@1",
+		"thumbnail": {
+			"url": "/text-assets/text-smart-packaging-info-strip/bubble@1/thumbnail.webp",
+			"mimeType": "image/webp",
+			"byteSize": 12636,
+			"checksumSha256": "41362a324c120561b0367b0771b0593ed321529e628ece42191e26bc6387cdb4"
+		},
+		"source": {
+			"url": "/text-assets/text-smart-packaging-info-strip/bubble@1/template.json",
+			"mimeType": "application/json",
+			"byteSize": 2372,
+			"checksumSha256": "a9b9a4afa76884d29f6547c3cb08f9dfefd63b2b97feac9ca6f85b25c8bffe63"
+		}
+	},
+	"text-smart-packaging-info-strip-soft-card": {
+		"assetId": "text-smart-packaging-info-strip-soft-card",
+		"packageId": "text-smart-packaging-info-strip",
+		"version": 1,
+		"cacheKey": "text-assets/text-smart-packaging-info-strip/soft-card@1",
+		"thumbnail": {
+			"url": "/text-assets/text-smart-packaging-info-strip/soft-card@1/thumbnail.webp",
+			"mimeType": "image/webp",
+			"byteSize": 14532,
+			"checksumSha256": "9c4500a78e8ec5e639ced852db3e682888658d0fdc034bc35f2f822f464758ef"
+		},
+		"source": {
+			"url": "/text-assets/text-smart-packaging-info-strip/soft-card@1/template.json",
+			"mimeType": "application/json",
+			"byteSize": 2389,
+			"checksumSha256": "ebd90985cae2413848de892f2fdae2fa3d60fc2f3dd0b4019104651a205d4ec5"
+		}
+	},
+	"text-fancy-popular-sticker": {
+		"assetId": "text-fancy-popular-sticker",
+		"packageId": "text-fancy-popular",
+		"version": 1,
+		"cacheKey": "text-assets/text-fancy-popular/sticker@1",
+		"thumbnail": {
+			"url": "/text-assets/text-fancy-popular/sticker@1/thumbnail.webp",
+			"mimeType": "image/webp",
+			"byteSize": 14474,
+			"checksumSha256": "ff379581a10b6668656d78fe16294dbc5771a4a2bbd51aabbff83879b15f99f6"
+		},
+		"source": {
+			"url": "/text-assets/text-fancy-popular/sticker@1/template.json",
+			"mimeType": "application/json",
+			"byteSize": 2197,
+			"checksumSha256": "0034ab47ff14a1765124a4e8d684a190edc4893e72c20b4f7493d69863467c21"
+		}
+	},
+	"text-fancy-popular-bubble": {
+		"assetId": "text-fancy-popular-bubble",
+		"packageId": "text-fancy-popular",
+		"version": 1,
+		"cacheKey": "text-assets/text-fancy-popular/bubble@1",
+		"thumbnail": {
+			"url": "/text-assets/text-fancy-popular/bubble@1/thumbnail.webp",
+			"mimeType": "image/webp",
+			"byteSize": 14474,
+			"checksumSha256": "ff379581a10b6668656d78fe16294dbc5771a4a2bbd51aabbff83879b15f99f6"
+		},
+		"source": {
+			"url": "/text-assets/text-fancy-popular/bubble@1/template.json",
+			"mimeType": "application/json",
+			"byteSize": 2163,
+			"checksumSha256": "9f6afbf6b49894c65d7ac2bf90da8f8294f1955fcf4af1745753f7345c15095d"
+		}
+	},
+	"text-fancy-latest-sticker": {
+		"assetId": "text-fancy-latest-sticker",
+		"packageId": "text-fancy-latest",
+		"version": 1,
+		"cacheKey": "text-assets/text-fancy-latest/sticker@1",
+		"thumbnail": {
+			"url": "/text-assets/text-fancy-latest/sticker@1/thumbnail.webp",
+			"mimeType": "image/webp",
+			"byteSize": 14474,
+			"checksumSha256": "ff379581a10b6668656d78fe16294dbc5771a4a2bbd51aabbff83879b15f99f6"
+		},
+		"source": {
+			"url": "/text-assets/text-fancy-latest/sticker@1/template.json",
+			"mimeType": "application/json",
+			"byteSize": 2187,
+			"checksumSha256": "fc3d5d9bfa2472b19cd64368aa4c072b258d0935867dd5094bd8be69a290521c"
+		}
+	},
+	"text-fancy-latest-bubble": {
+		"assetId": "text-fancy-latest-bubble",
+		"packageId": "text-fancy-latest",
+		"version": 1,
+		"cacheKey": "text-assets/text-fancy-latest/bubble@1",
+		"thumbnail": {
+			"url": "/text-assets/text-fancy-latest/bubble@1/thumbnail.webp",
+			"mimeType": "image/webp",
+			"byteSize": 14474,
+			"checksumSha256": "ff379581a10b6668656d78fe16294dbc5771a4a2bbd51aabbff83879b15f99f6"
+		},
+		"source": {
+			"url": "/text-assets/text-fancy-latest/bubble@1/template.json",
+			"mimeType": "application/json",
+			"byteSize": 2153,
+			"checksumSha256": "d7dcd8e2645c9e89801f71926740c3060b874cd62f5334fe4628794832dca8ed"
+		}
+	},
+	"text-fancy-summer-bubble": {
+		"assetId": "text-fancy-summer-bubble",
+		"packageId": "text-fancy-summer",
+		"version": 1,
+		"cacheKey": "text-assets/text-fancy-summer/bubble@1",
+		"thumbnail": {
+			"url": "/text-assets/text-fancy-summer/bubble@1/thumbnail.webp",
+			"mimeType": "image/webp",
+			"byteSize": 14474,
+			"checksumSha256": "ff379581a10b6668656d78fe16294dbc5771a4a2bbd51aabbff83879b15f99f6"
+		},
+		"source": {
+			"url": "/text-assets/text-fancy-summer/bubble@1/template.json",
+			"mimeType": "application/json",
+			"byteSize": 2140,
+			"checksumSha256": "7997361643b0a6bd46716288217c3e47b1e758b78fea61204bb558cf07d78fa3"
+		}
+	},
+	"text-fancy-summer-sticker": {
+		"assetId": "text-fancy-summer-sticker",
+		"packageId": "text-fancy-summer",
+		"version": 1,
+		"cacheKey": "text-assets/text-fancy-summer/sticker@1",
+		"thumbnail": {
+			"url": "/text-assets/text-fancy-summer/sticker@1/thumbnail.webp",
+			"mimeType": "image/webp",
+			"byteSize": 14474,
+			"checksumSha256": "ff379581a10b6668656d78fe16294dbc5771a4a2bbd51aabbff83879b15f99f6"
+		},
+		"source": {
+			"url": "/text-assets/text-fancy-summer/sticker@1/template.json",
+			"mimeType": "application/json",
+			"byteSize": 2174,
+			"checksumSha256": "4769ebd17746b5f8f3dc7ec010c8b0079bfa434fa53f94ba92b0795d6665c0c1"
+		}
+	},
+	"text-fancy-summer-soft-card": {
+		"assetId": "text-fancy-summer-soft-card",
+		"packageId": "text-fancy-summer",
+		"version": 1,
+		"cacheKey": "text-assets/text-fancy-summer/soft-card@1",
+		"thumbnail": {
+			"url": "/text-assets/text-fancy-summer/soft-card@1/thumbnail.webp",
+			"mimeType": "image/webp",
+			"byteSize": 14474,
+			"checksumSha256": "ff379581a10b6668656d78fe16294dbc5771a4a2bbd51aabbff83879b15f99f6"
+		},
+		"source": {
+			"url": "/text-assets/text-fancy-summer/soft-card@1/template.json",
+			"mimeType": "application/json",
+			"byteSize": 2157,
+			"checksumSha256": "68df66ccf0223bd0038b133614e96915637b12f8de55d4d411cc84e91382afd1"
+		}
+	},
+	"text-fancy-summer-label": {
+		"assetId": "text-fancy-summer-label",
+		"packageId": "text-fancy-summer",
+		"version": 1,
+		"cacheKey": "text-assets/text-fancy-summer/label@1",
+		"thumbnail": {
+			"url": "/text-assets/text-fancy-summer/label@1/thumbnail.webp",
+			"mimeType": "image/webp",
+			"byteSize": 14474,
+			"checksumSha256": "ff379581a10b6668656d78fe16294dbc5771a4a2bbd51aabbff83879b15f99f6"
+		},
+		"source": {
+			"url": "/text-assets/text-fancy-summer/label@1/template.json",
+			"mimeType": "application/json",
+			"byteSize": 2115,
+			"checksumSha256": "24c5f2d4907e2dd52d78387a08bb0e28c6424502158d9e2e71f76cb655d4551e"
+		}
+	},
+	"text-fancy-summer-plain": {
+		"assetId": "text-fancy-summer-plain",
+		"packageId": "text-fancy-summer",
+		"version": 1,
+		"cacheKey": "text-assets/text-fancy-summer/plain@1",
+		"thumbnail": {
+			"url": "/text-assets/text-fancy-summer/plain@1/thumbnail.webp",
+			"mimeType": "image/webp",
+			"byteSize": 14474,
+			"checksumSha256": "ff379581a10b6668656d78fe16294dbc5771a4a2bbd51aabbff83879b15f99f6"
+		},
+		"source": {
+			"url": "/text-assets/text-fancy-summer/plain@1/template.json",
+			"mimeType": "application/json",
+			"byteSize": 2030,
+			"checksumSha256": "e84e37b791d6129800abb3e493cfc24ae8cef978ed6fe01787aa54a662164856"
+		}
+	},
+	"text-fancy-variety-sticker": {
+		"assetId": "text-fancy-variety-sticker",
+		"packageId": "text-fancy-variety",
+		"version": 1,
+		"cacheKey": "text-assets/text-fancy-variety/sticker@1",
+		"thumbnail": {
+			"url": "/text-assets/text-fancy-variety/sticker@1/thumbnail.webp",
+			"mimeType": "image/webp",
+			"byteSize": 14474,
+			"checksumSha256": "ff379581a10b6668656d78fe16294dbc5771a4a2bbd51aabbff83879b15f99f6"
+		},
+		"source": {
+			"url": "/text-assets/text-fancy-variety/sticker@1/template.json",
+			"mimeType": "application/json",
+			"byteSize": 2207,
+			"checksumSha256": "85509d476f1ba921fffcc70ac28921de8312ecd4427cfc2a1d1f279843889ad4"
+		}
+	},
+	"text-fancy-variety-bubble": {
+		"assetId": "text-fancy-variety-bubble",
+		"packageId": "text-fancy-variety",
+		"version": 1,
+		"cacheKey": "text-assets/text-fancy-variety/bubble@1",
+		"thumbnail": {
+			"url": "/text-assets/text-fancy-variety/bubble@1/thumbnail.webp",
+			"mimeType": "image/webp",
+			"byteSize": 14474,
+			"checksumSha256": "ff379581a10b6668656d78fe16294dbc5771a4a2bbd51aabbff83879b15f99f6"
+		},
+		"source": {
+			"url": "/text-assets/text-fancy-variety/bubble@1/template.json",
+			"mimeType": "application/json",
+			"byteSize": 2175,
+			"checksumSha256": "78393a3c71bf9a973f1fd5c53b80016627102af2cc893a40496f74841c4a0b94"
+		}
+	},
+	"text-fancy-guofeng-sticker": {
+		"assetId": "text-fancy-guofeng-sticker",
+		"packageId": "text-fancy-guofeng",
+		"version": 1,
+		"cacheKey": "text-assets/text-fancy-guofeng/sticker@1",
+		"thumbnail": {
+			"url": "/text-assets/text-fancy-guofeng/sticker@1/thumbnail.webp",
+			"mimeType": "image/webp",
+			"byteSize": 14474,
+			"checksumSha256": "ff379581a10b6668656d78fe16294dbc5771a4a2bbd51aabbff83879b15f99f6"
+		},
+		"source": {
+			"url": "/text-assets/text-fancy-guofeng/sticker@1/template.json",
+			"mimeType": "application/json",
+			"byteSize": 2184,
+			"checksumSha256": "884b3e29df879488146a893aef2eeb0252e66d32ebcceec06fcca86c1cda79e6"
+		}
+	},
+	"text-fancy-guofeng-label": {
+		"assetId": "text-fancy-guofeng-label",
+		"packageId": "text-fancy-guofeng",
+		"version": 1,
+		"cacheKey": "text-assets/text-fancy-guofeng/label@1",
+		"thumbnail": {
+			"url": "/text-assets/text-fancy-guofeng/label@1/thumbnail.webp",
+			"mimeType": "image/webp",
+			"byteSize": 14474,
+			"checksumSha256": "ff379581a10b6668656d78fe16294dbc5771a4a2bbd51aabbff83879b15f99f6"
+		},
+		"source": {
+			"url": "/text-assets/text-fancy-guofeng/label@1/template.json",
+			"mimeType": "application/json",
+			"byteSize": 2125,
+			"checksumSha256": "00e58ed3f72c7e95d1e41dff7efb5b275d3b351a2a29e798dffa50c98b352437"
+		}
+	},
+	"text-fancy-guofeng-plain": {
+		"assetId": "text-fancy-guofeng-plain",
+		"packageId": "text-fancy-guofeng",
+		"version": 1,
+		"cacheKey": "text-assets/text-fancy-guofeng/plain@1",
+		"thumbnail": {
+			"url": "/text-assets/text-fancy-guofeng/plain@1/thumbnail.webp",
+			"mimeType": "image/webp",
+			"byteSize": 14474,
+			"checksumSha256": "ff379581a10b6668656d78fe16294dbc5771a4a2bbd51aabbff83879b15f99f6"
+		},
+		"source": {
+			"url": "/text-assets/text-fancy-guofeng/plain@1/template.json",
+			"mimeType": "application/json",
+			"byteSize": 2040,
+			"checksumSha256": "31c3c4ea1a6a7f92b6a160a8add4724bc8c479ab4e7fc52a91d5d3082604611c"
+		}
+	},
+	"text-fancy-guofeng-soft-card": {
+		"assetId": "text-fancy-guofeng-soft-card",
+		"packageId": "text-fancy-guofeng",
+		"version": 1,
+		"cacheKey": "text-assets/text-fancy-guofeng/soft-card@1",
+		"thumbnail": {
+			"url": "/text-assets/text-fancy-guofeng/soft-card@1/thumbnail.webp",
+			"mimeType": "image/webp",
+			"byteSize": 14474,
+			"checksumSha256": "ff379581a10b6668656d78fe16294dbc5771a4a2bbd51aabbff83879b15f99f6"
+		},
+		"source": {
+			"url": "/text-assets/text-fancy-guofeng/soft-card@1/template.json",
+			"mimeType": "application/json",
+			"byteSize": 2167,
+			"checksumSha256": "7eceb8474b71a23abcba09aaf4ded259b5e53f064bb11ddfa00c100406080c9f"
+		}
+	},
+	"text-fancy-guofeng-bubble": {
+		"assetId": "text-fancy-guofeng-bubble",
+		"packageId": "text-fancy-guofeng",
+		"version": 1,
+		"cacheKey": "text-assets/text-fancy-guofeng/bubble@1",
+		"thumbnail": {
+			"url": "/text-assets/text-fancy-guofeng/bubble@1/thumbnail.webp",
+			"mimeType": "image/webp",
+			"byteSize": 14474,
+			"checksumSha256": "ff379581a10b6668656d78fe16294dbc5771a4a2bbd51aabbff83879b15f99f6"
+		},
+		"source": {
+			"url": "/text-assets/text-fancy-guofeng/bubble@1/template.json",
+			"mimeType": "application/json",
+			"byteSize": 2150,
+			"checksumSha256": "a44621ec022dfc7e3ebfae254ecfd46f573ead5fa265d2ac5aed0586fe1261c8"
+		}
+	},
+	"text-fancy-glow-bubble": {
+		"assetId": "text-fancy-glow-bubble",
+		"packageId": "text-fancy-glow",
+		"version": 1,
+		"cacheKey": "text-assets/text-fancy-glow/bubble@1",
+		"thumbnail": {
+			"url": "/text-assets/text-fancy-glow/bubble@1/thumbnail.webp",
+			"mimeType": "image/webp",
+			"byteSize": 14358,
+			"checksumSha256": "a7e1bc5ccc6a8e43ceb905518200cc69d7e9bfc5cab4e85a14b707d790525f35"
+		},
+		"source": {
+			"url": "/text-assets/text-fancy-glow/bubble@1/template.json",
+			"mimeType": "application/json",
+			"byteSize": 2133,
+			"checksumSha256": "7b471c58b5d8dca00654cac00213361fc589940eccae7af1838028e47630f657"
+		}
+	},
+	"text-fancy-glow-sticker": {
+		"assetId": "text-fancy-glow-sticker",
+		"packageId": "text-fancy-glow",
+		"version": 1,
+		"cacheKey": "text-assets/text-fancy-glow/sticker@1",
+		"thumbnail": {
+			"url": "/text-assets/text-fancy-glow/sticker@1/thumbnail.webp",
+			"mimeType": "image/webp",
+			"byteSize": 14358,
+			"checksumSha256": "a7e1bc5ccc6a8e43ceb905518200cc69d7e9bfc5cab4e85a14b707d790525f35"
+		},
+		"source": {
+			"url": "/text-assets/text-fancy-glow/sticker@1/template.json",
+			"mimeType": "application/json",
+			"byteSize": 2167,
+			"checksumSha256": "1cac221359f072772b7c147cd56e45f41d8c1fbe9dd679e26b4c02a7e1d51b95"
+		}
+	},
+	"text-fancy-gradient-bubble": {
+		"assetId": "text-fancy-gradient-bubble",
+		"packageId": "text-fancy-gradient",
+		"version": 1,
+		"cacheKey": "text-assets/text-fancy-gradient/bubble@1",
+		"thumbnail": {
+			"url": "/text-assets/text-fancy-gradient/bubble@1/thumbnail.webp",
+			"mimeType": "image/webp",
+			"byteSize": 13966,
+			"checksumSha256": "7386b7070292e31423a471222ed4d8c9a5e4a11ef79f48c82fdfa9fb6ed97036"
+		},
+		"source": {
+			"url": "/text-assets/text-fancy-gradient/bubble@1/template.json",
+			"mimeType": "application/json",
+			"byteSize": 2173,
+			"checksumSha256": "324970e8ee862f80b6b27144ba6609ba2731b2d09624e08942995866872ad7cb"
+		}
+	},
+	"text-fancy-gradient-sticker": {
+		"assetId": "text-fancy-gradient-sticker",
+		"packageId": "text-fancy-gradient",
+		"version": 1,
+		"cacheKey": "text-assets/text-fancy-gradient/sticker@1",
+		"thumbnail": {
+			"url": "/text-assets/text-fancy-gradient/sticker@1/thumbnail.webp",
+			"mimeType": "image/webp",
+			"byteSize": 13966,
+			"checksumSha256": "7386b7070292e31423a471222ed4d8c9a5e4a11ef79f48c82fdfa9fb6ed97036"
+		},
+		"source": {
+			"url": "/text-assets/text-fancy-gradient/sticker@1/template.json",
+			"mimeType": "application/json",
+			"byteSize": 2205,
+			"checksumSha256": "76af39f80be85fe3ce6e3b5e614de1e26106c5472c7671d3e2fbcb8e77763b3f"
+		}
+	},
+	"text-fancy-gradient-soft-card": {
+		"assetId": "text-fancy-gradient-soft-card",
+		"packageId": "text-fancy-gradient",
+		"version": 1,
+		"cacheKey": "text-assets/text-fancy-gradient/soft-card@1",
+		"thumbnail": {
+			"url": "/text-assets/text-fancy-gradient/soft-card@1/thumbnail.webp",
+			"mimeType": "image/webp",
+			"byteSize": 13966,
+			"checksumSha256": "7386b7070292e31423a471222ed4d8c9a5e4a11ef79f48c82fdfa9fb6ed97036"
+		},
+		"source": {
+			"url": "/text-assets/text-fancy-gradient/soft-card@1/template.json",
+			"mimeType": "application/json",
+			"byteSize": 2190,
+			"checksumSha256": "6216ded62a69b593d52e69af6901d3724b0b6d94880e7c1a19b1c73cf7959bc8"
+		}
+	},
+	"text-fancy-texture-sticker": {
+		"assetId": "text-fancy-texture-sticker",
+		"packageId": "text-fancy-texture",
+		"version": 1,
+		"cacheKey": "text-assets/text-fancy-texture/sticker@1",
+		"thumbnail": {
+			"url": "/text-assets/text-fancy-texture/sticker@1/thumbnail.webp",
+			"mimeType": "image/webp",
+			"byteSize": 12042,
+			"checksumSha256": "0e483b5aaa725974c0f0306339ccad89093b6b321e1b431a3cf647b59dfe3f39"
+		},
+		"source": {
+			"url": "/text-assets/text-fancy-texture/sticker@1/template.json",
+			"mimeType": "application/json",
+			"byteSize": 2197,
+			"checksumSha256": "08bff9a8cdeca5b939e449cebed0393e56f39090a37df0c5e82d9e4ab3f1fe2c"
+		}
+	},
+	"text-fancy-texture-label": {
+		"assetId": "text-fancy-texture-label",
+		"packageId": "text-fancy-texture",
+		"version": 1,
+		"cacheKey": "text-assets/text-fancy-texture/label@1",
+		"thumbnail": {
+			"url": "/text-assets/text-fancy-texture/label@1/thumbnail.webp",
+			"mimeType": "image/webp",
+			"byteSize": 12042,
+			"checksumSha256": "0e483b5aaa725974c0f0306339ccad89093b6b321e1b431a3cf647b59dfe3f39"
+		},
+		"source": {
+			"url": "/text-assets/text-fancy-texture/label@1/template.json",
+			"mimeType": "application/json",
+			"byteSize": 2138,
+			"checksumSha256": "54b0fa2747f666dcd5821b0886c5d875b2041430f1dceb4bef85b2d0c8515209"
+		}
+	},
+	"text-fancy-texture-soft-card": {
+		"assetId": "text-fancy-texture-soft-card",
+		"packageId": "text-fancy-texture",
+		"version": 1,
+		"cacheKey": "text-assets/text-fancy-texture/soft-card@1",
+		"thumbnail": {
+			"url": "/text-assets/text-fancy-texture/soft-card@1/thumbnail.webp",
+			"mimeType": "image/webp",
+			"byteSize": 12042,
+			"checksumSha256": "0e483b5aaa725974c0f0306339ccad89093b6b321e1b431a3cf647b59dfe3f39"
+		},
+		"source": {
+			"url": "/text-assets/text-fancy-texture/soft-card@1/template.json",
+			"mimeType": "application/json",
+			"byteSize": 2180,
+			"checksumSha256": "cb7a7846be8233c74ef084ef4b2880c413b5be4148824840530fdb5bacf37000"
+		}
+	},
+	"text-fancy-texture-plain": {
+		"assetId": "text-fancy-texture-plain",
+		"packageId": "text-fancy-texture",
+		"version": 1,
+		"cacheKey": "text-assets/text-fancy-texture/plain@1",
+		"thumbnail": {
+			"url": "/text-assets/text-fancy-texture/plain@1/thumbnail.webp",
+			"mimeType": "image/webp",
+			"byteSize": 12042,
+			"checksumSha256": "0e483b5aaa725974c0f0306339ccad89093b6b321e1b431a3cf647b59dfe3f39"
+		},
+		"source": {
+			"url": "/text-assets/text-fancy-texture/plain@1/template.json",
+			"mimeType": "application/json",
+			"byteSize": 2053,
+			"checksumSha256": "b5942cb780695fdb5df373286a58d20c12e2708c9c44487862e08a918131450d"
+		}
+	},
+	"text-fancy-red-sticker": {
+		"assetId": "text-fancy-red-sticker",
+		"packageId": "text-fancy-red",
+		"version": 1,
+		"cacheKey": "text-assets/text-fancy-red/sticker@1",
+		"thumbnail": {
+			"url": "/text-assets/text-fancy-red/sticker@1/thumbnail.webp",
+			"mimeType": "image/webp",
+			"byteSize": 14254,
+			"checksumSha256": "b3bdefbc54391b426d66609de8656c1c61fc99837f0536f312fdb2bb02189427"
+		},
+		"source": {
+			"url": "/text-assets/text-fancy-red/sticker@1/template.json",
+			"mimeType": "application/json",
+			"byteSize": 2155,
+			"checksumSha256": "93d246418b3f10d72203e7c6d0be0953e2b2c398fa310e77c85db70266a489b6"
+		}
+	},
+	"text-fancy-red-bubble": {
+		"assetId": "text-fancy-red-bubble",
+		"packageId": "text-fancy-red",
+		"version": 1,
+		"cacheKey": "text-assets/text-fancy-red/bubble@1",
+		"thumbnail": {
+			"url": "/text-assets/text-fancy-red/bubble@1/thumbnail.webp",
+			"mimeType": "image/webp",
+			"byteSize": 14254,
+			"checksumSha256": "b3bdefbc54391b426d66609de8656c1c61fc99837f0536f312fdb2bb02189427"
+		},
+		"source": {
+			"url": "/text-assets/text-fancy-red/bubble@1/template.json",
+			"mimeType": "application/json",
+			"byteSize": 2123,
+			"checksumSha256": "1e6083503722ff86a155fa3c13c0bd51e27de01910c7552812cc90deadf92bc9"
+		}
+	},
+	"text-fancy-red-label": {
+		"assetId": "text-fancy-red-label",
+		"packageId": "text-fancy-red",
+		"version": 1,
+		"cacheKey": "text-assets/text-fancy-red/label@1",
+		"thumbnail": {
+			"url": "/text-assets/text-fancy-red/label@1/thumbnail.webp",
+			"mimeType": "image/webp",
+			"byteSize": 14254,
+			"checksumSha256": "b3bdefbc54391b426d66609de8656c1c61fc99837f0536f312fdb2bb02189427"
+		},
+		"source": {
+			"url": "/text-assets/text-fancy-red/label@1/template.json",
+			"mimeType": "application/json",
+			"byteSize": 2098,
+			"checksumSha256": "eafd81b77772bda993a1d65f72cc80b4ba762a9d4a2a3164113dd3153d0981fa"
+		}
+	},
+	"text-fancy-red-plain": {
+		"assetId": "text-fancy-red-plain",
+		"packageId": "text-fancy-red",
+		"version": 1,
+		"cacheKey": "text-assets/text-fancy-red/plain@1",
+		"thumbnail": {
+			"url": "/text-assets/text-fancy-red/plain@1/thumbnail.webp",
+			"mimeType": "image/webp",
+			"byteSize": 14254,
+			"checksumSha256": "b3bdefbc54391b426d66609de8656c1c61fc99837f0536f312fdb2bb02189427"
+		},
+		"source": {
+			"url": "/text-assets/text-fancy-red/plain@1/template.json",
+			"mimeType": "application/json",
+			"byteSize": 2013,
+			"checksumSha256": "6f7e098478d4ca4c8d3ec5b51b78d0ea101cd2cbd8e0904124dfdd3c3c92b5e1"
+		}
+	},
+	"text-fancy-yellow-sticker": {
+		"assetId": "text-fancy-yellow-sticker",
+		"packageId": "text-fancy-yellow",
+		"version": 1,
+		"cacheKey": "text-assets/text-fancy-yellow/sticker@1",
+		"thumbnail": {
+			"url": "/text-assets/text-fancy-yellow/sticker@1/thumbnail.webp",
+			"mimeType": "image/webp",
+			"byteSize": 14110,
+			"checksumSha256": "b3b9834741a026d29dc3523c4f1fa5a7eab263c5d9eb343cc9d23f5aacce7da1"
+		},
+		"source": {
+			"url": "/text-assets/text-fancy-yellow/sticker@1/template.json",
+			"mimeType": "application/json",
+			"byteSize": 2185,
+			"checksumSha256": "4787c7e5ef512773bcea712db40403147e03fb31e5a26c5605a22ec3ec347401"
+		}
+	},
+	"text-fancy-yellow-bubble": {
+		"assetId": "text-fancy-yellow-bubble",
+		"packageId": "text-fancy-yellow",
+		"version": 1,
+		"cacheKey": "text-assets/text-fancy-yellow/bubble@1",
+		"thumbnail": {
+			"url": "/text-assets/text-fancy-yellow/bubble@1/thumbnail.webp",
+			"mimeType": "image/webp",
+			"byteSize": 14110,
+			"checksumSha256": "b3b9834741a026d29dc3523c4f1fa5a7eab263c5d9eb343cc9d23f5aacce7da1"
+		},
+		"source": {
+			"url": "/text-assets/text-fancy-yellow/bubble@1/template.json",
+			"mimeType": "application/json",
+			"byteSize": 2153,
+			"checksumSha256": "33660c33aba60405669c2d5fc5875ae4115a4cbd8f678d77ff14f22b087b3f30"
+		}
+	},
+	"text-fancy-yellow-label": {
+		"assetId": "text-fancy-yellow-label",
+		"packageId": "text-fancy-yellow",
+		"version": 1,
+		"cacheKey": "text-assets/text-fancy-yellow/label@1",
+		"thumbnail": {
+			"url": "/text-assets/text-fancy-yellow/label@1/thumbnail.webp",
+			"mimeType": "image/webp",
+			"byteSize": 14110,
+			"checksumSha256": "b3b9834741a026d29dc3523c4f1fa5a7eab263c5d9eb343cc9d23f5aacce7da1"
+		},
+		"source": {
+			"url": "/text-assets/text-fancy-yellow/label@1/template.json",
+			"mimeType": "application/json",
+			"byteSize": 2128,
+			"checksumSha256": "f5fdc2a22b471d7ea6c7249afcc68967a70245b6a6052e5244ecf20ad12ad5a9"
+		}
+	},
+	"text-fancy-yellow-soft-card": {
+		"assetId": "text-fancy-yellow-soft-card",
+		"packageId": "text-fancy-yellow",
+		"version": 1,
+		"cacheKey": "text-assets/text-fancy-yellow/soft-card@1",
+		"thumbnail": {
+			"url": "/text-assets/text-fancy-yellow/soft-card@1/thumbnail.webp",
+			"mimeType": "image/webp",
+			"byteSize": 14110,
+			"checksumSha256": "b3b9834741a026d29dc3523c4f1fa5a7eab263c5d9eb343cc9d23f5aacce7da1"
+		},
+		"source": {
+			"url": "/text-assets/text-fancy-yellow/soft-card@1/template.json",
+			"mimeType": "application/json",
+			"byteSize": 2170,
+			"checksumSha256": "575e699ba207ca58398a4d006aa8b2bd748a69040732f7da943e0860e5a77f39"
+		}
+	},
+	"text-fancy-yellow-plain": {
+		"assetId": "text-fancy-yellow-plain",
+		"packageId": "text-fancy-yellow",
+		"version": 1,
+		"cacheKey": "text-assets/text-fancy-yellow/plain@1",
+		"thumbnail": {
+			"url": "/text-assets/text-fancy-yellow/plain@1/thumbnail.webp",
+			"mimeType": "image/webp",
+			"byteSize": 14110,
+			"checksumSha256": "b3b9834741a026d29dc3523c4f1fa5a7eab263c5d9eb343cc9d23f5aacce7da1"
+		},
+		"source": {
+			"url": "/text-assets/text-fancy-yellow/plain@1/template.json",
+			"mimeType": "application/json",
+			"byteSize": 2043,
+			"checksumSha256": "94e73b2916c2a51cc2dc07603ffefdacec036fa1679e2d0b9efbfef3bf24062a"
+		}
+	},
+	"text-fancy-black-white-sticker": {
+		"assetId": "text-fancy-black-white-sticker",
+		"packageId": "text-fancy-black-white",
+		"version": 1,
+		"cacheKey": "text-assets/text-fancy-black-white/sticker@1",
+		"thumbnail": {
+			"url": "/text-assets/text-fancy-black-white/sticker@1/thumbnail.webp",
+			"mimeType": "image/webp",
+			"byteSize": 10312,
+			"checksumSha256": "00d37383bdac8315c36d5be8a237d143d25de58906db2832eaa5d56cd653e4c1"
+		},
+		"source": {
+			"url": "/text-assets/text-fancy-black-white/sticker@1/template.json",
+			"mimeType": "application/json",
+			"byteSize": 2237,
+			"checksumSha256": "26daa383263966f32d2e2d63a1d944da1512216953b63a143038835b9afe6a2b"
+		}
+	},
+	"text-fancy-black-white-label": {
+		"assetId": "text-fancy-black-white-label",
+		"packageId": "text-fancy-black-white",
+		"version": 1,
+		"cacheKey": "text-assets/text-fancy-black-white/label@1",
+		"thumbnail": {
+			"url": "/text-assets/text-fancy-black-white/label@1/thumbnail.webp",
+			"mimeType": "image/webp",
+			"byteSize": 10312,
+			"checksumSha256": "00d37383bdac8315c36d5be8a237d143d25de58906db2832eaa5d56cd653e4c1"
+		},
+		"source": {
+			"url": "/text-assets/text-fancy-black-white/label@1/template.json",
+			"mimeType": "application/json",
+			"byteSize": 2178,
+			"checksumSha256": "0ef33744643837d54b1e3e09bdf7945df17c55695c1ba96aa7d9fc33f2107a22"
+		}
+	},
+	"text-fancy-black-white-plain": {
+		"assetId": "text-fancy-black-white-plain",
+		"packageId": "text-fancy-black-white",
+		"version": 1,
+		"cacheKey": "text-assets/text-fancy-black-white/plain@1",
+		"thumbnail": {
+			"url": "/text-assets/text-fancy-black-white/plain@1/thumbnail.webp",
+			"mimeType": "image/webp",
+			"byteSize": 10312,
+			"checksumSha256": "00d37383bdac8315c36d5be8a237d143d25de58906db2832eaa5d56cd653e4c1"
+		},
+		"source": {
+			"url": "/text-assets/text-fancy-black-white/plain@1/template.json",
+			"mimeType": "application/json",
+			"byteSize": 2093,
+			"checksumSha256": "a227a552c2839b12e1dc92611afd9e520951c666a4eb523b3c9528065cd02da7"
+		}
+	},
+	"text-fancy-black-white-soft-card": {
+		"assetId": "text-fancy-black-white-soft-card",
+		"packageId": "text-fancy-black-white",
+		"version": 1,
+		"cacheKey": "text-assets/text-fancy-black-white/soft-card@1",
+		"thumbnail": {
+			"url": "/text-assets/text-fancy-black-white/soft-card@1/thumbnail.webp",
+			"mimeType": "image/webp",
+			"byteSize": 10312,
+			"checksumSha256": "00d37383bdac8315c36d5be8a237d143d25de58906db2832eaa5d56cd653e4c1"
+		},
+		"source": {
+			"url": "/text-assets/text-fancy-black-white/soft-card@1/template.json",
+			"mimeType": "application/json",
+			"byteSize": 2220,
+			"checksumSha256": "eeca262bbb37d288ff883127fe9dcb5493f03ae35a4a596ef51b5fece09864d3"
+		}
+	},
+	"text-fancy-black-white-bubble": {
+		"assetId": "text-fancy-black-white-bubble",
+		"packageId": "text-fancy-black-white",
+		"version": 1,
+		"cacheKey": "text-assets/text-fancy-black-white/bubble@1",
+		"thumbnail": {
+			"url": "/text-assets/text-fancy-black-white/bubble@1/thumbnail.webp",
+			"mimeType": "image/webp",
+			"byteSize": 10312,
+			"checksumSha256": "00d37383bdac8315c36d5be8a237d143d25de58906db2832eaa5d56cd653e4c1"
+		},
+		"source": {
+			"url": "/text-assets/text-fancy-black-white/bubble@1/template.json",
+			"mimeType": "application/json",
+			"byteSize": 2203,
+			"checksumSha256": "82c29cef4a45f5a73c0bccdd574898b1fcdd84acc5fa01b2b1e0ee0d1a428fcd"
+		}
+	},
+	"text-fancy-blue-sticker": {
+		"assetId": "text-fancy-blue-sticker",
+		"packageId": "text-fancy-blue",
+		"version": 1,
+		"cacheKey": "text-assets/text-fancy-blue/sticker@1",
+		"thumbnail": {
+			"url": "/text-assets/text-fancy-blue/sticker@1/thumbnail.webp",
+			"mimeType": "image/webp",
+			"byteSize": 14220,
+			"checksumSha256": "293eacc34f3a158a6bb79c2fa2545c8e39f0879c1497c80a2fe99625d3c4214b"
+		},
+		"source": {
+			"url": "/text-assets/text-fancy-blue/sticker@1/template.json",
+			"mimeType": "application/json",
+			"byteSize": 2165,
+			"checksumSha256": "89bb7ac704a027ae7a825bb5a7f3aebea4998d46b315def3ce7356834aab2483"
+		}
+	},
+	"text-fancy-blue-bubble": {
+		"assetId": "text-fancy-blue-bubble",
+		"packageId": "text-fancy-blue",
+		"version": 1,
+		"cacheKey": "text-assets/text-fancy-blue/bubble@1",
+		"thumbnail": {
+			"url": "/text-assets/text-fancy-blue/bubble@1/thumbnail.webp",
+			"mimeType": "image/webp",
+			"byteSize": 14220,
+			"checksumSha256": "293eacc34f3a158a6bb79c2fa2545c8e39f0879c1497c80a2fe99625d3c4214b"
+		},
+		"source": {
+			"url": "/text-assets/text-fancy-blue/bubble@1/template.json",
+			"mimeType": "application/json",
+			"byteSize": 2133,
+			"checksumSha256": "d55223c76c332d0beda1ead5df635ee34b17400b7a596078843ab6b95adb9a60"
+		}
+	},
+	"text-fancy-blue-soft-card": {
+		"assetId": "text-fancy-blue-soft-card",
+		"packageId": "text-fancy-blue",
+		"version": 1,
+		"cacheKey": "text-assets/text-fancy-blue/soft-card@1",
+		"thumbnail": {
+			"url": "/text-assets/text-fancy-blue/soft-card@1/thumbnail.webp",
+			"mimeType": "image/webp",
+			"byteSize": 14220,
+			"checksumSha256": "293eacc34f3a158a6bb79c2fa2545c8e39f0879c1497c80a2fe99625d3c4214b"
+		},
+		"source": {
+			"url": "/text-assets/text-fancy-blue/soft-card@1/template.json",
+			"mimeType": "application/json",
+			"byteSize": 2150,
+			"checksumSha256": "1cada556f0b6642bb2c16467bd1281a6dab1bfe26566dce40ce71691f5d2a064"
+		}
+	},
+	"text-fancy-blue-label": {
+		"assetId": "text-fancy-blue-label",
+		"packageId": "text-fancy-blue",
+		"version": 1,
+		"cacheKey": "text-assets/text-fancy-blue/label@1",
+		"thumbnail": {
+			"url": "/text-assets/text-fancy-blue/label@1/thumbnail.webp",
+			"mimeType": "image/webp",
+			"byteSize": 14220,
+			"checksumSha256": "293eacc34f3a158a6bb79c2fa2545c8e39f0879c1497c80a2fe99625d3c4214b"
+		},
+		"source": {
+			"url": "/text-assets/text-fancy-blue/label@1/template.json",
+			"mimeType": "application/json",
+			"byteSize": 2108,
+			"checksumSha256": "b849d42bf982ee26cc49ca23728d25599c9c90f2086ee2480d1f2f9950c90921"
+		}
+	},
+	"text-fancy-blue-plain": {
+		"assetId": "text-fancy-blue-plain",
+		"packageId": "text-fancy-blue",
+		"version": 1,
+		"cacheKey": "text-assets/text-fancy-blue/plain@1",
+		"thumbnail": {
+			"url": "/text-assets/text-fancy-blue/plain@1/thumbnail.webp",
+			"mimeType": "image/webp",
+			"byteSize": 14220,
+			"checksumSha256": "293eacc34f3a158a6bb79c2fa2545c8e39f0879c1497c80a2fe99625d3c4214b"
+		},
+		"source": {
+			"url": "/text-assets/text-fancy-blue/plain@1/template.json",
+			"mimeType": "application/json",
+			"byteSize": 2023,
+			"checksumSha256": "a5dfa66ac02a442a1d7be484f5674107b941c5592bfa84d25cce1005e149a306"
+		}
+	},
+	"text-fancy-pink-bubble": {
+		"assetId": "text-fancy-pink-bubble",
+		"packageId": "text-fancy-pink",
+		"version": 1,
+		"cacheKey": "text-assets/text-fancy-pink/bubble@1",
+		"thumbnail": {
+			"url": "/text-assets/text-fancy-pink/bubble@1/thumbnail.webp",
+			"mimeType": "image/webp",
+			"byteSize": 12982,
+			"checksumSha256": "3c759f80947e90a9142bf6daed7605f3741c240c87c5143866ecc69def462353"
+		},
+		"source": {
+			"url": "/text-assets/text-fancy-pink/bubble@1/template.json",
+			"mimeType": "application/json",
+			"byteSize": 2133,
+			"checksumSha256": "d0302fe96edc8a3d1baed59da6207350c17e384353bf18d4fec5a29eb5107ca9"
+		}
+	},
+	"text-fancy-pink-sticker": {
+		"assetId": "text-fancy-pink-sticker",
+		"packageId": "text-fancy-pink",
+		"version": 1,
+		"cacheKey": "text-assets/text-fancy-pink/sticker@1",
+		"thumbnail": {
+			"url": "/text-assets/text-fancy-pink/sticker@1/thumbnail.webp",
+			"mimeType": "image/webp",
+			"byteSize": 12982,
+			"checksumSha256": "3c759f80947e90a9142bf6daed7605f3741c240c87c5143866ecc69def462353"
+		},
+		"source": {
+			"url": "/text-assets/text-fancy-pink/sticker@1/template.json",
+			"mimeType": "application/json",
+			"byteSize": 2165,
+			"checksumSha256": "63179fecd92f7ba8a13c606ad397f5f65d14ebb45e3785a3f8d71c8d12e3b32a"
+		}
+	},
+	"text-fancy-pink-soft-card": {
+		"assetId": "text-fancy-pink-soft-card",
+		"packageId": "text-fancy-pink",
+		"version": 1,
+		"cacheKey": "text-assets/text-fancy-pink/soft-card@1",
+		"thumbnail": {
+			"url": "/text-assets/text-fancy-pink/soft-card@1/thumbnail.webp",
+			"mimeType": "image/webp",
+			"byteSize": 12982,
+			"checksumSha256": "3c759f80947e90a9142bf6daed7605f3741c240c87c5143866ecc69def462353"
+		},
+		"source": {
+			"url": "/text-assets/text-fancy-pink/soft-card@1/template.json",
+			"mimeType": "application/json",
+			"byteSize": 2150,
+			"checksumSha256": "4146a488db2497c81af8de11fd243d57dc71b88833c8f150f6be6502de4f487e"
+		}
+	},
+	"text-fancy-pink-label": {
+		"assetId": "text-fancy-pink-label",
+		"packageId": "text-fancy-pink",
+		"version": 1,
+		"cacheKey": "text-assets/text-fancy-pink/label@1",
+		"thumbnail": {
+			"url": "/text-assets/text-fancy-pink/label@1/thumbnail.webp",
+			"mimeType": "image/webp",
+			"byteSize": 12982,
+			"checksumSha256": "3c759f80947e90a9142bf6daed7605f3741c240c87c5143866ecc69def462353"
+		},
+		"source": {
+			"url": "/text-assets/text-fancy-pink/label@1/template.json",
+			"mimeType": "application/json",
+			"byteSize": 2108,
+			"checksumSha256": "e0008c8e7d9ccec9bf814d6afdae8f1e7b104adeffdbdcac689bc6f37df49744"
+		}
+	},
+	"text-fancy-pink-plain": {
+		"assetId": "text-fancy-pink-plain",
+		"packageId": "text-fancy-pink",
+		"version": 1,
+		"cacheKey": "text-assets/text-fancy-pink/plain@1",
+		"thumbnail": {
+			"url": "/text-assets/text-fancy-pink/plain@1/thumbnail.webp",
+			"mimeType": "image/webp",
+			"byteSize": 12982,
+			"checksumSha256": "3c759f80947e90a9142bf6daed7605f3741c240c87c5143866ecc69def462353"
+		},
+		"source": {
+			"url": "/text-assets/text-fancy-pink/plain@1/template.json",
+			"mimeType": "application/json",
+			"byteSize": 2023,
+			"checksumSha256": "a7ae9e0c07c73746478d544a368db6c814f2055fc149f9b04fed2598f165f593"
+		}
+	},
+	"text-fancy-green-sticker": {
+		"assetId": "text-fancy-green-sticker",
+		"packageId": "text-fancy-green",
+		"version": 1,
+		"cacheKey": "text-assets/text-fancy-green/sticker@1",
+		"thumbnail": {
+			"url": "/text-assets/text-fancy-green/sticker@1/thumbnail.webp",
+			"mimeType": "image/webp",
+			"byteSize": 13478,
+			"checksumSha256": "4aaf8b8fab7fb22ff851320c025d6caacba1c3cd3dfb2408b4776182b3e3fa13"
+		},
+		"source": {
+			"url": "/text-assets/text-fancy-green/sticker@1/template.json",
+			"mimeType": "application/json",
+			"byteSize": 2177,
+			"checksumSha256": "fb5bc3876c5d82aa290aba234df9b0c589f590c138078b2ea4397a4b16d7e544"
+		}
+	},
+	"text-fancy-green-bubble": {
+		"assetId": "text-fancy-green-bubble",
+		"packageId": "text-fancy-green",
+		"version": 1,
+		"cacheKey": "text-assets/text-fancy-green/bubble@1",
+		"thumbnail": {
+			"url": "/text-assets/text-fancy-green/bubble@1/thumbnail.webp",
+			"mimeType": "image/webp",
+			"byteSize": 13478,
+			"checksumSha256": "4aaf8b8fab7fb22ff851320c025d6caacba1c3cd3dfb2408b4776182b3e3fa13"
+		},
+		"source": {
+			"url": "/text-assets/text-fancy-green/bubble@1/template.json",
+			"mimeType": "application/json",
+			"byteSize": 2143,
+			"checksumSha256": "9714dbcad2b803ba0f8716edc4a78742f3595b859d137922945f743c751781dc"
+		}
+	},
+	"text-fancy-green-soft-card": {
+		"assetId": "text-fancy-green-soft-card",
+		"packageId": "text-fancy-green",
+		"version": 1,
+		"cacheKey": "text-assets/text-fancy-green/soft-card@1",
+		"thumbnail": {
+			"url": "/text-assets/text-fancy-green/soft-card@1/thumbnail.webp",
+			"mimeType": "image/webp",
+			"byteSize": 13478,
+			"checksumSha256": "4aaf8b8fab7fb22ff851320c025d6caacba1c3cd3dfb2408b4776182b3e3fa13"
+		},
+		"source": {
+			"url": "/text-assets/text-fancy-green/soft-card@1/template.json",
+			"mimeType": "application/json",
+			"byteSize": 2160,
+			"checksumSha256": "cbf07b4635906e9d3cfdbe2e12bfe3e5602507f6dc5935e66635066c19ace68b"
+		}
+	},
+	"text-fancy-green-label": {
+		"assetId": "text-fancy-green-label",
+		"packageId": "text-fancy-green",
+		"version": 1,
+		"cacheKey": "text-assets/text-fancy-green/label@1",
+		"thumbnail": {
+			"url": "/text-assets/text-fancy-green/label@1/thumbnail.webp",
+			"mimeType": "image/webp",
+			"byteSize": 13478,
+			"checksumSha256": "4aaf8b8fab7fb22ff851320c025d6caacba1c3cd3dfb2408b4776182b3e3fa13"
+		},
+		"source": {
+			"url": "/text-assets/text-fancy-green/label@1/template.json",
+			"mimeType": "application/json",
+			"byteSize": 2118,
+			"checksumSha256": "cfa844f0c189b2e4f014895d4ebd9d8aa09db40f114bca131d5b1f933107bf1c"
+		}
+	},
+	"text-fancy-green-plain": {
+		"assetId": "text-fancy-green-plain",
+		"packageId": "text-fancy-green",
+		"version": 1,
+		"cacheKey": "text-assets/text-fancy-green/plain@1",
+		"thumbnail": {
+			"url": "/text-assets/text-fancy-green/plain@1/thumbnail.webp",
+			"mimeType": "image/webp",
+			"byteSize": 13478,
+			"checksumSha256": "4aaf8b8fab7fb22ff851320c025d6caacba1c3cd3dfb2408b4776182b3e3fa13"
+		},
+		"source": {
+			"url": "/text-assets/text-fancy-green/plain@1/template.json",
+			"mimeType": "application/json",
+			"byteSize": 2033,
+			"checksumSha256": "9f7bfc6d42b97e5550bb92a71d0fa453e605895af6798c0b0fbe3981cc04668b"
+		}
+	},
+	"text-fancy-purple-bubble": {
+		"assetId": "text-fancy-purple-bubble",
+		"packageId": "text-fancy-purple",
+		"version": 1,
+		"cacheKey": "text-assets/text-fancy-purple/bubble@1",
+		"thumbnail": {
+			"url": "/text-assets/text-fancy-purple/bubble@1/thumbnail.webp",
+			"mimeType": "image/webp",
+			"byteSize": 13240,
+			"checksumSha256": "61cb9fbcad33cd90c867e88ed80fa526fbc5bc994ab281efcb03a582955a00f4"
+		},
+		"source": {
+			"url": "/text-assets/text-fancy-purple/bubble@1/template.json",
+			"mimeType": "application/json",
+			"byteSize": 2153,
+			"checksumSha256": "cc7448b0d7fca4421a23c3820a6c358b31b610bddf956918a9ff54c8a768a7b7"
+		}
+	},
+	"text-fancy-purple-sticker": {
+		"assetId": "text-fancy-purple-sticker",
+		"packageId": "text-fancy-purple",
+		"version": 1,
+		"cacheKey": "text-assets/text-fancy-purple/sticker@1",
+		"thumbnail": {
+			"url": "/text-assets/text-fancy-purple/sticker@1/thumbnail.webp",
+			"mimeType": "image/webp",
+			"byteSize": 13240,
+			"checksumSha256": "61cb9fbcad33cd90c867e88ed80fa526fbc5bc994ab281efcb03a582955a00f4"
+		},
+		"source": {
+			"url": "/text-assets/text-fancy-purple/sticker@1/template.json",
+			"mimeType": "application/json",
+			"byteSize": 2185,
+			"checksumSha256": "2cd019017d0f21ca8be8d8d004d967802ad47f7ff241937118fb3868d3c9106c"
+		}
+	},
+	"text-fancy-purple-soft-card": {
+		"assetId": "text-fancy-purple-soft-card",
+		"packageId": "text-fancy-purple",
+		"version": 1,
+		"cacheKey": "text-assets/text-fancy-purple/soft-card@1",
+		"thumbnail": {
+			"url": "/text-assets/text-fancy-purple/soft-card@1/thumbnail.webp",
+			"mimeType": "image/webp",
+			"byteSize": 13240,
+			"checksumSha256": "61cb9fbcad33cd90c867e88ed80fa526fbc5bc994ab281efcb03a582955a00f4"
+		},
+		"source": {
+			"url": "/text-assets/text-fancy-purple/soft-card@1/template.json",
+			"mimeType": "application/json",
+			"byteSize": 2170,
+			"checksumSha256": "9394ba91a2c0d99c51fef05857b1f8bcc3482268230720d04eca024153fef074"
+		}
+	},
+	"text-fancy-purple-label": {
+		"assetId": "text-fancy-purple-label",
+		"packageId": "text-fancy-purple",
+		"version": 1,
+		"cacheKey": "text-assets/text-fancy-purple/label@1",
+		"thumbnail": {
+			"url": "/text-assets/text-fancy-purple/label@1/thumbnail.webp",
+			"mimeType": "image/webp",
+			"byteSize": 13240,
+			"checksumSha256": "61cb9fbcad33cd90c867e88ed80fa526fbc5bc994ab281efcb03a582955a00f4"
+		},
+		"source": {
+			"url": "/text-assets/text-fancy-purple/label@1/template.json",
+			"mimeType": "application/json",
+			"byteSize": 2128,
+			"checksumSha256": "d22315797c5d68c398a4ba9edcbde75feb258f15dd5a53af7a06fe6090022bc7"
+		}
+	},
+	"text-fancy-purple-plain": {
+		"assetId": "text-fancy-purple-plain",
+		"packageId": "text-fancy-purple",
+		"version": 1,
+		"cacheKey": "text-assets/text-fancy-purple/plain@1",
+		"thumbnail": {
+			"url": "/text-assets/text-fancy-purple/plain@1/thumbnail.webp",
+			"mimeType": "image/webp",
+			"byteSize": 13240,
+			"checksumSha256": "61cb9fbcad33cd90c867e88ed80fa526fbc5bc994ab281efcb03a582955a00f4"
+		},
+		"source": {
+			"url": "/text-assets/text-fancy-purple/plain@1/template.json",
+			"mimeType": "application/json",
+			"byteSize": 2043,
+			"checksumSha256": "3d4ae6cc5a6665cf87f38b0150eadaad0d35cbbfd0a31430e572dd01bc09eadb"
+		}
+	},
+	"text-templates-headline-template-plain": {
+		"assetId": "text-templates-headline-template-plain",
+		"packageId": "text-templates-headline-template",
+		"version": 1,
+		"cacheKey": "text-assets/text-templates-headline-template/plain@1",
+		"thumbnail": {
+			"url": "/text-assets/text-templates-headline-template/plain@1/thumbnail.webp",
+			"mimeType": "image/webp",
+			"byteSize": 17622,
+			"checksumSha256": "7d58297cc73c137fe4963d426420dafb3d9138857b6a74a3ab269cba7fd75c44"
+		},
+		"source": {
+			"url": "/text-assets/text-templates-headline-template/plain@1/template.json",
+			"mimeType": "application/json",
+			"byteSize": 2343,
+			"checksumSha256": "1d67c4493c393b02261382132c4d99de0907f14115dcc34dcc215f0617914d24"
+		}
+	},
+	"text-templates-headline-template-label": {
+		"assetId": "text-templates-headline-template-label",
+		"packageId": "text-templates-headline-template",
+		"version": 1,
+		"cacheKey": "text-assets/text-templates-headline-template/label@1",
+		"thumbnail": {
+			"url": "/text-assets/text-templates-headline-template/label@1/thumbnail.webp",
+			"mimeType": "image/webp",
+			"byteSize": 18860,
+			"checksumSha256": "979688cb79ff8b4aec0f754237b6001734172f9ab457fdd961da147890d4ec4c"
+		},
+		"source": {
+			"url": "/text-assets/text-templates-headline-template/label@1/template.json",
+			"mimeType": "application/json",
+			"byteSize": 2422,
+			"checksumSha256": "be0bb1203083773ab9fdc003432ee22bcffa848cf0f2bbea006f3886da195a0f"
+		}
+	},
+	"text-templates-headline-template-sticker": {
+		"assetId": "text-templates-headline-template-sticker",
+		"packageId": "text-templates-headline-template",
+		"version": 1,
+		"cacheKey": "text-assets/text-templates-headline-template/sticker@1",
+		"thumbnail": {
+			"url": "/text-assets/text-templates-headline-template/sticker@1/thumbnail.webp",
+			"mimeType": "image/webp",
+			"byteSize": 18860,
+			"checksumSha256": "979688cb79ff8b4aec0f754237b6001734172f9ab457fdd961da147890d4ec4c"
+		},
+		"source": {
+			"url": "/text-assets/text-templates-headline-template/sticker@1/template.json",
+			"mimeType": "application/json",
+			"byteSize": 2481,
+			"checksumSha256": "774eb3f9c4d7dc7f40b393d188a5365931f04342d3892b557f2f3cb0670a0125"
+		}
+	},
+	"text-templates-headline-template-bubble": {
+		"assetId": "text-templates-headline-template-bubble",
+		"packageId": "text-templates-headline-template",
+		"version": 1,
+		"cacheKey": "text-assets/text-templates-headline-template/bubble@1",
+		"thumbnail": {
+			"url": "/text-assets/text-templates-headline-template/bubble@1/thumbnail.webp",
+			"mimeType": "image/webp",
+			"byteSize": 19656,
+			"checksumSha256": "2eabceb00981404ec4c1c4eafab5e127a421b558590f31855f47bf7a4f45117b"
+		},
+		"source": {
+			"url": "/text-assets/text-templates-headline-template/bubble@1/template.json",
+			"mimeType": "application/json",
+			"byteSize": 2447,
+			"checksumSha256": "4198203dcc34aff88707715195d282b565383754b4e81b7dddaada59ba40c013"
+		}
+	},
+	"text-templates-headline-template-soft-card": {
+		"assetId": "text-templates-headline-template-soft-card",
+		"packageId": "text-templates-headline-template",
+		"version": 1,
+		"cacheKey": "text-assets/text-templates-headline-template/soft-card@1",
+		"thumbnail": {
+			"url": "/text-assets/text-templates-headline-template/soft-card@1/thumbnail.webp",
+			"mimeType": "image/webp",
+			"byteSize": 17622,
+			"checksumSha256": "7d58297cc73c137fe4963d426420dafb3d9138857b6a74a3ab269cba7fd75c44"
+		},
+		"source": {
+			"url": "/text-assets/text-templates-headline-template/soft-card@1/template.json",
+			"mimeType": "application/json",
+			"byteSize": 2470,
+			"checksumSha256": "84ff9ed2462009980769a8a534fcee2a66707d30c17ae7721c76558b83a3332c"
+		}
+	},
+	"text-templates-quote-template-plain": {
+		"assetId": "text-templates-quote-template-plain",
+		"packageId": "text-templates-quote-template",
+		"version": 1,
+		"cacheKey": "text-assets/text-templates-quote-template/plain@1",
+		"thumbnail": {
+			"url": "/text-assets/text-templates-quote-template/plain@1/thumbnail.webp",
+			"mimeType": "image/webp",
+			"byteSize": 16494,
+			"checksumSha256": "5222bebe6a3049602772c903f1518f41e68db185b6652ee04871b19c8afdae96"
+		},
+		"source": {
+			"url": "/text-assets/text-templates-quote-template/plain@1/template.json",
+			"mimeType": "application/json",
+			"byteSize": 2304,
+			"checksumSha256": "d442d16342c038908d9ac5784b96eb9c833b9bcce8d299b167aadc97f840fadf"
+		}
+	},
+	"text-templates-quote-template-label": {
+		"assetId": "text-templates-quote-template-label",
+		"packageId": "text-templates-quote-template",
+		"version": 1,
+		"cacheKey": "text-assets/text-templates-quote-template/label@1",
+		"thumbnail": {
+			"url": "/text-assets/text-templates-quote-template/label@1/thumbnail.webp",
+			"mimeType": "image/webp",
+			"byteSize": 16654,
+			"checksumSha256": "c7bacd0c91dd77f7d1a9110ecece2f8c14acdfcbd99a93d7aa8a18bc43ab7cb2"
+		},
+		"source": {
+			"url": "/text-assets/text-templates-quote-template/label@1/template.json",
+			"mimeType": "application/json",
+			"byteSize": 2389,
+			"checksumSha256": "e18d6a009056fe6a1be0ead737b842ce374e4e5e5b8d469b383016867b777847"
+		}
+	},
+	"text-templates-quote-template-sticker": {
+		"assetId": "text-templates-quote-template-sticker",
+		"packageId": "text-templates-quote-template",
+		"version": 1,
+		"cacheKey": "text-assets/text-templates-quote-template/sticker@1",
+		"thumbnail": {
+			"url": "/text-assets/text-templates-quote-template/sticker@1/thumbnail.webp",
+			"mimeType": "image/webp",
+			"byteSize": 16654,
+			"checksumSha256": "c7bacd0c91dd77f7d1a9110ecece2f8c14acdfcbd99a93d7aa8a18bc43ab7cb2"
+		},
+		"source": {
+			"url": "/text-assets/text-templates-quote-template/sticker@1/template.json",
+			"mimeType": "application/json",
+			"byteSize": 2446,
+			"checksumSha256": "eac805c1bf711d5644cadfd7663da44a2800fbaa7beca464f4936a45de1dd26c"
+		}
+	},
+	"text-templates-quote-template-bubble": {
+		"assetId": "text-templates-quote-template-bubble",
+		"packageId": "text-templates-quote-template",
+		"version": 1,
+		"cacheKey": "text-assets/text-templates-quote-template/bubble@1",
+		"thumbnail": {
+			"url": "/text-assets/text-templates-quote-template/bubble@1/thumbnail.webp",
+			"mimeType": "image/webp",
+			"byteSize": 16064,
+			"checksumSha256": "4b872bda3629fa2756410972638bd03591d27482697ad9a742591f24c4fc69d9"
+		},
+		"source": {
+			"url": "/text-assets/text-templates-quote-template/bubble@1/template.json",
+			"mimeType": "application/json",
+			"byteSize": 2420,
+			"checksumSha256": "2883b1b5b7316b83bc6d3c2d6569541e60d7de252593b7ca3137dd8363289714"
+		}
+	},
+	"text-templates-quote-template-soft-card": {
+		"assetId": "text-templates-quote-template-soft-card",
+		"packageId": "text-templates-quote-template",
+		"version": 1,
+		"cacheKey": "text-assets/text-templates-quote-template/soft-card@1",
+		"thumbnail": {
+			"url": "/text-assets/text-templates-quote-template/soft-card@1/thumbnail.webp",
+			"mimeType": "image/webp",
+			"byteSize": 16494,
+			"checksumSha256": "5222bebe6a3049602772c903f1518f41e68db185b6652ee04871b19c8afdae96"
+		},
+		"source": {
+			"url": "/text-assets/text-templates-quote-template/soft-card@1/template.json",
+			"mimeType": "application/json",
+			"byteSize": 2431,
+			"checksumSha256": "1e3a75ff4bb40277b7e018d105828339b974f56f02b5da5751251e485bd24f13"
+		}
+	},
+	"text-templates-list-template-plain": {
+		"assetId": "text-templates-list-template-plain",
+		"packageId": "text-templates-list-template",
+		"version": 1,
+		"cacheKey": "text-assets/text-templates-list-template/plain@1",
+		"thumbnail": {
+			"url": "/text-assets/text-templates-list-template/plain@1/thumbnail.webp",
+			"mimeType": "image/webp",
+			"byteSize": 17882,
+			"checksumSha256": "1bdb970e1052e08c5ac044c25b51920723db9ca1d69cfa36c140741a3db65e57"
+		},
+		"source": {
+			"url": "/text-assets/text-templates-list-template/plain@1/template.json",
+			"mimeType": "application/json",
+			"byteSize": 2274,
+			"checksumSha256": "7e297f16a97ee924cc481529df62a44c5e02f6e2152f23e8a2b28dbf31a31c20"
+		}
+	},
+	"text-templates-list-template-label": {
+		"assetId": "text-templates-list-template-label",
+		"packageId": "text-templates-list-template",
+		"version": 1,
+		"cacheKey": "text-assets/text-templates-list-template/label@1",
+		"thumbnail": {
+			"url": "/text-assets/text-templates-list-template/label@1/thumbnail.webp",
+			"mimeType": "image/webp",
+			"byteSize": 14494,
+			"checksumSha256": "1003299e9517a2684fa5f59b94fd9e70f6c6dc25b5cde99a13bc97ef34f169fb"
+		},
+		"source": {
+			"url": "/text-assets/text-templates-list-template/label@1/template.json",
+			"mimeType": "application/json",
+			"byteSize": 2353,
+			"checksumSha256": "7e08578a3fd3b62e390774e78f783539b40257d4bbb736f2a6ceb57c0db0d03a"
+		}
+	},
+	"text-templates-list-template-sticker": {
+		"assetId": "text-templates-list-template-sticker",
+		"packageId": "text-templates-list-template",
+		"version": 1,
+		"cacheKey": "text-assets/text-templates-list-template/sticker@1",
+		"thumbnail": {
+			"url": "/text-assets/text-templates-list-template/sticker@1/thumbnail.webp",
+			"mimeType": "image/webp",
+			"byteSize": 14494,
+			"checksumSha256": "1003299e9517a2684fa5f59b94fd9e70f6c6dc25b5cde99a13bc97ef34f169fb"
+		},
+		"source": {
+			"url": "/text-assets/text-templates-list-template/sticker@1/template.json",
+			"mimeType": "application/json",
+			"byteSize": 2412,
+			"checksumSha256": "aeecec583b252862e6fdf6b6fb8de8a1514628177330f00e5150cd8fda5d18cd"
+		}
+	},
+	"text-templates-list-template-bubble": {
+		"assetId": "text-templates-list-template-bubble",
+		"packageId": "text-templates-list-template",
+		"version": 1,
+		"cacheKey": "text-assets/text-templates-list-template/bubble@1",
+		"thumbnail": {
+			"url": "/text-assets/text-templates-list-template/bubble@1/thumbnail.webp",
+			"mimeType": "image/webp",
+			"byteSize": 19072,
+			"checksumSha256": "94bb2b129903cc4b29189f4fa05ecbdd51cd19645fd88939fa21a281af5834c2"
+		},
+		"source": {
+			"url": "/text-assets/text-templates-list-template/bubble@1/template.json",
+			"mimeType": "application/json",
+			"byteSize": 2384,
+			"checksumSha256": "a235e0210d907dcb3ab8149a960766b78fc768331c91857918b26a2e9e33a929"
+		}
+	},
+	"text-templates-list-template-soft-card": {
+		"assetId": "text-templates-list-template-soft-card",
+		"packageId": "text-templates-list-template",
+		"version": 1,
+		"cacheKey": "text-assets/text-templates-list-template/soft-card@1",
+		"thumbnail": {
+			"url": "/text-assets/text-templates-list-template/soft-card@1/thumbnail.webp",
+			"mimeType": "image/webp",
+			"byteSize": 17882,
+			"checksumSha256": "1bdb970e1052e08c5ac044c25b51920723db9ca1d69cfa36c140741a3db65e57"
+		},
+		"source": {
+			"url": "/text-assets/text-templates-list-template/soft-card@1/template.json",
+			"mimeType": "application/json",
+			"byteSize": 2401,
+			"checksumSha256": "5bf760020c87190c8beafeb2c95686df36bf7fe4d2a5715ebae488ddb82464a7"
+		}
+	},
+	"text-templates-split-template-plain": {
+		"assetId": "text-templates-split-template-plain",
+		"packageId": "text-templates-split-template",
+		"version": 1,
+		"cacheKey": "text-assets/text-templates-split-template/plain@1",
+		"thumbnail": {
+			"url": "/text-assets/text-templates-split-template/plain@1/thumbnail.webp",
+			"mimeType": "image/webp",
+			"byteSize": 16204,
+			"checksumSha256": "fc9870a41d0bf13f93eb9a83e7fc319b3dac0bf7ca54889c9f4be8e6ad3414ad"
+		},
+		"source": {
+			"url": "/text-assets/text-templates-split-template/plain@1/template.json",
+			"mimeType": "application/json",
+			"byteSize": 2279,
+			"checksumSha256": "ccfdc1a4e21fcca67798b13e9efccb857ffa8a9a49f06c90d30973cea1458882"
+		}
+	},
+	"text-templates-split-template-label": {
+		"assetId": "text-templates-split-template-label",
+		"packageId": "text-templates-split-template",
+		"version": 1,
+		"cacheKey": "text-assets/text-templates-split-template/label@1",
+		"thumbnail": {
+			"url": "/text-assets/text-templates-split-template/label@1/thumbnail.webp",
+			"mimeType": "image/webp",
+			"byteSize": 18046,
+			"checksumSha256": "c47ccde3b1430a465b68b55946f8135012911cf124baaa371bd7ce0d40fabf86"
+		},
+		"source": {
+			"url": "/text-assets/text-templates-split-template/label@1/template.json",
+			"mimeType": "application/json",
+			"byteSize": 2366,
+			"checksumSha256": "b3b643cef43a6f68250399368d89a418ebd23f77dcf72a0d4b2c6c3dbf56558a"
+		}
+	},
+	"text-templates-split-template-sticker": {
+		"assetId": "text-templates-split-template-sticker",
+		"packageId": "text-templates-split-template",
+		"version": 1,
+		"cacheKey": "text-assets/text-templates-split-template/sticker@1",
+		"thumbnail": {
+			"url": "/text-assets/text-templates-split-template/sticker@1/thumbnail.webp",
+			"mimeType": "image/webp",
+			"byteSize": 18046,
+			"checksumSha256": "c47ccde3b1430a465b68b55946f8135012911cf124baaa371bd7ce0d40fabf86"
+		},
+		"source": {
+			"url": "/text-assets/text-templates-split-template/sticker@1/template.json",
+			"mimeType": "application/json",
+			"byteSize": 2423,
+			"checksumSha256": "6b311953a6e52b9895782d88815e95d9ddb362f944d0d549bed903a2b34dea6d"
+		}
+	},
+	"text-templates-split-template-bubble": {
+		"assetId": "text-templates-split-template-bubble",
+		"packageId": "text-templates-split-template",
+		"version": 1,
+		"cacheKey": "text-assets/text-templates-split-template/bubble@1",
+		"thumbnail": {
+			"url": "/text-assets/text-templates-split-template/bubble@1/thumbnail.webp",
+			"mimeType": "image/webp",
+			"byteSize": 18142,
+			"checksumSha256": "701ece33970d59f2d322292b9ba20d9a49d8c3c91ef38552d5df6a5dbaac9388"
+		},
+		"source": {
+			"url": "/text-assets/text-templates-split-template/bubble@1/template.json",
+			"mimeType": "application/json",
+			"byteSize": 2391,
+			"checksumSha256": "94f4d4927cf90251e6e7bc601ba8e22e8836c7f11b8ffa8107ef3418f6d8ef32"
+		}
+	},
+	"text-templates-split-template-soft-card": {
+		"assetId": "text-templates-split-template-soft-card",
+		"packageId": "text-templates-split-template",
+		"version": 1,
+		"cacheKey": "text-assets/text-templates-split-template/soft-card@1",
+		"thumbnail": {
+			"url": "/text-assets/text-templates-split-template/soft-card@1/thumbnail.webp",
+			"mimeType": "image/webp",
+			"byteSize": 16204,
+			"checksumSha256": "fc9870a41d0bf13f93eb9a83e7fc319b3dac0bf7ca54889c9f4be8e6ad3414ad"
+		},
+		"source": {
+			"url": "/text-assets/text-templates-split-template/soft-card@1/template.json",
+			"mimeType": "application/json",
+			"byteSize": 2406,
+			"checksumSha256": "1d273422e714b9219670688fb86f320c82c0b139c3fc7732355485669324b1bd"
+		}
+	},
+	"text-templates-timeline-template-plain": {
+		"assetId": "text-templates-timeline-template-plain",
+		"packageId": "text-templates-timeline-template",
+		"version": 1,
+		"cacheKey": "text-assets/text-templates-timeline-template/plain@1",
+		"thumbnail": {
+			"url": "/text-assets/text-templates-timeline-template/plain@1/thumbnail.webp",
+			"mimeType": "image/webp",
+			"byteSize": 15050,
+			"checksumSha256": "4eaba288ac6a483e99fd6240e7d5c43952ce393664a9c8152fcdc4f39cbff298"
+		},
+		"source": {
+			"url": "/text-assets/text-templates-timeline-template/plain@1/template.json",
+			"mimeType": "application/json",
+			"byteSize": 2322,
+			"checksumSha256": "56a6e21e03d188c7a8cdb85ea6680b28ef49ef3dea4d6be0a08090f81fe55cf7"
+		}
+	},
+	"text-templates-timeline-template-label": {
+		"assetId": "text-templates-timeline-template-label",
+		"packageId": "text-templates-timeline-template",
+		"version": 1,
+		"cacheKey": "text-assets/text-templates-timeline-template/label@1",
+		"thumbnail": {
+			"url": "/text-assets/text-templates-timeline-template/label@1/thumbnail.webp",
+			"mimeType": "image/webp",
+			"byteSize": 13006,
+			"checksumSha256": "43268393200409f880367a21e55edc6c43d39b4d791f36c038faf29a208ebc8b"
+		},
+		"source": {
+			"url": "/text-assets/text-templates-timeline-template/label@1/template.json",
+			"mimeType": "application/json",
+			"byteSize": 2401,
+			"checksumSha256": "ac12d85a58ab61ad3c0b837d97cd316df3a6faf35e1bd00b4c20963e304ff380"
+		}
+	},
+	"text-templates-timeline-template-sticker": {
+		"assetId": "text-templates-timeline-template-sticker",
+		"packageId": "text-templates-timeline-template",
+		"version": 1,
+		"cacheKey": "text-assets/text-templates-timeline-template/sticker@1",
+		"thumbnail": {
+			"url": "/text-assets/text-templates-timeline-template/sticker@1/thumbnail.webp",
+			"mimeType": "image/webp",
+			"byteSize": 13006,
+			"checksumSha256": "43268393200409f880367a21e55edc6c43d39b4d791f36c038faf29a208ebc8b"
+		},
+		"source": {
+			"url": "/text-assets/text-templates-timeline-template/sticker@1/template.json",
+			"mimeType": "application/json",
+			"byteSize": 2460,
+			"checksumSha256": "cdb9e4f33b6bbaa39fe35e77cddaf1bf8f5471cfe10ca4b9dd0454db561e187a"
+		}
+	},
+	"text-templates-timeline-template-bubble": {
+		"assetId": "text-templates-timeline-template-bubble",
+		"packageId": "text-templates-timeline-template",
+		"version": 1,
+		"cacheKey": "text-assets/text-templates-timeline-template/bubble@1",
+		"thumbnail": {
+			"url": "/text-assets/text-templates-timeline-template/bubble@1/thumbnail.webp",
+			"mimeType": "image/webp",
+			"byteSize": 15200,
+			"checksumSha256": "1c688aeae213bc03702849d3bd1e462bea14734d4676680d490a133855e8582f"
+		},
+		"source": {
+			"url": "/text-assets/text-templates-timeline-template/bubble@1/template.json",
+			"mimeType": "application/json",
+			"byteSize": 2426,
+			"checksumSha256": "129f77026c3258dd739e6d90483dd70f3274a0c97f330de5cd4990f1f779b0c8"
+		}
+	},
+	"text-templates-timeline-template-soft-card": {
+		"assetId": "text-templates-timeline-template-soft-card",
+		"packageId": "text-templates-timeline-template",
+		"version": 1,
+		"cacheKey": "text-assets/text-templates-timeline-template/soft-card@1",
+		"thumbnail": {
+			"url": "/text-assets/text-templates-timeline-template/soft-card@1/thumbnail.webp",
+			"mimeType": "image/webp",
+			"byteSize": 15050,
+			"checksumSha256": "4eaba288ac6a483e99fd6240e7d5c43952ce393664a9c8152fcdc4f39cbff298"
+		},
+		"source": {
+			"url": "/text-assets/text-templates-timeline-template/soft-card@1/template.json",
+			"mimeType": "application/json",
+			"byteSize": 2449,
+			"checksumSha256": "efe2e54e8c2edb34f2dd3c3e6b6223aa9ca804ea80f94dc7f99431583209094c"
+		}
+	},
+	"text-smart-text-summary-plain": {
+		"assetId": "text-smart-text-summary-plain",
+		"packageId": "text-smart-text-summary",
+		"version": 1,
+		"cacheKey": "text-assets/text-smart-text-summary/plain@1",
+		"thumbnail": {
+			"url": "/text-assets/text-smart-text-summary/plain@1/thumbnail.webp",
+			"mimeType": "image/webp",
+			"byteSize": 13584,
+			"checksumSha256": "313fea900775efb1081b1766b309551d937696a16fa41a1105ec71080b0cd0a1"
+		},
+		"source": {
+			"url": "/text-assets/text-smart-text-summary/plain@1/template.json",
+			"mimeType": "application/json",
+			"byteSize": 2213,
+			"checksumSha256": "aba012896ecc99e4da71f1f74e5ee6f251f87bf6385052b42521efa1f8853f4b"
+		}
+	},
+	"text-smart-text-summary-label": {
+		"assetId": "text-smart-text-summary-label",
+		"packageId": "text-smart-text-summary",
+		"version": 1,
+		"cacheKey": "text-assets/text-smart-text-summary/label@1",
+		"thumbnail": {
+			"url": "/text-assets/text-smart-text-summary/label@1/thumbnail.webp",
+			"mimeType": "image/webp",
+			"byteSize": 20286,
+			"checksumSha256": "c6b88bfd27ed8d97a745cb0a68913e6c1ecf04f00bcf93077c6e612b4c330cd0"
+		},
+		"source": {
+			"url": "/text-assets/text-smart-text-summary/label@1/template.json",
+			"mimeType": "application/json",
+			"byteSize": 2304,
+			"checksumSha256": "fb3d68e0355c7f835b43ae0631401c042e67c5bbb54b9ab5b6ffe351f64d0923"
+		}
+	},
+	"text-smart-text-summary-sticker": {
+		"assetId": "text-smart-text-summary-sticker",
+		"packageId": "text-smart-text-summary",
+		"version": 1,
+		"cacheKey": "text-assets/text-smart-text-summary/sticker@1",
+		"thumbnail": {
+			"url": "/text-assets/text-smart-text-summary/sticker@1/thumbnail.webp",
+			"mimeType": "image/webp",
+			"byteSize": 20286,
+			"checksumSha256": "c6b88bfd27ed8d97a745cb0a68913e6c1ecf04f00bcf93077c6e612b4c330cd0"
+		},
+		"source": {
+			"url": "/text-assets/text-smart-text-summary/sticker@1/template.json",
+			"mimeType": "application/json",
+			"byteSize": 2363,
+			"checksumSha256": "905749d0ed384d648be4843f5bb5496d098965b1a698bf7d372169e21e8d2d71"
+		}
+	},
+	"text-smart-text-summary-bubble": {
+		"assetId": "text-smart-text-summary-bubble",
+		"packageId": "text-smart-text-summary",
+		"version": 1,
+		"cacheKey": "text-assets/text-smart-text-summary/bubble@1",
+		"thumbnail": {
+			"url": "/text-assets/text-smart-text-summary/bubble@1/thumbnail.webp",
+			"mimeType": "image/webp",
+			"byteSize": 16038,
+			"checksumSha256": "8f901c3dcff54b844102124910a267a04f2243a45cf24dc0f064ec5f5c5ac36d"
+		},
+		"source": {
+			"url": "/text-assets/text-smart-text-summary/bubble@1/template.json",
+			"mimeType": "application/json",
+			"byteSize": 2329,
+			"checksumSha256": "5f30a8d4847949cbbc5f8123070c099a1f6993878654011e549f634305977d32"
+		}
+	},
+	"text-smart-text-summary-soft-card": {
+		"assetId": "text-smart-text-summary-soft-card",
+		"packageId": "text-smart-text-summary",
+		"version": 1,
+		"cacheKey": "text-assets/text-smart-text-summary/soft-card@1",
+		"thumbnail": {
+			"url": "/text-assets/text-smart-text-summary/soft-card@1/thumbnail.webp",
+			"mimeType": "image/webp",
+			"byteSize": 13584,
+			"checksumSha256": "313fea900775efb1081b1766b309551d937696a16fa41a1105ec71080b0cd0a1"
+		},
+		"source": {
+			"url": "/text-assets/text-smart-text-summary/soft-card@1/template.json",
+			"mimeType": "application/json",
+			"byteSize": 2340,
+			"checksumSha256": "e5fb4bc2c9aa99a14b2ea4f77ccd241e10f953930cfe3725b8d431830d05f1da"
+		}
+	},
+	"text-smart-text-key-point-plain": {
+		"assetId": "text-smart-text-key-point-plain",
+		"packageId": "text-smart-text-key-point",
+		"version": 1,
+		"cacheKey": "text-assets/text-smart-text-key-point/plain@1",
+		"thumbnail": {
+			"url": "/text-assets/text-smart-text-key-point/plain@1/thumbnail.webp",
+			"mimeType": "image/webp",
+			"byteSize": 20878,
+			"checksumSha256": "e48e2a8c47b1204706318696a517fa4f9ce260f7c17fde94a61d83bb5a85a549"
+		},
+		"source": {
+			"url": "/text-assets/text-smart-text-key-point/plain@1/template.json",
+			"mimeType": "application/json",
+			"byteSize": 2254,
+			"checksumSha256": "810082dc074850b388e07ddd457aa701feaf0f94e16b805258580844a2d7ce61"
+		}
+	},
+	"text-smart-text-key-point-label": {
+		"assetId": "text-smart-text-key-point-label",
+		"packageId": "text-smart-text-key-point",
+		"version": 1,
+		"cacheKey": "text-assets/text-smart-text-key-point/label@1",
+		"thumbnail": {
+			"url": "/text-assets/text-smart-text-key-point/label@1/thumbnail.webp",
+			"mimeType": "image/webp",
+			"byteSize": 17192,
+			"checksumSha256": "d239959c3202a1028deb4a134907c422f19b42729bb4a5b29b77cfdfb6df17d2"
+		},
+		"source": {
+			"url": "/text-assets/text-smart-text-key-point/label@1/template.json",
+			"mimeType": "application/json",
+			"byteSize": 2339,
+			"checksumSha256": "55621cc54cee86342cf876ca70efc993c58712aa38a1f8ca5f1cff55459ea4eb"
+		}
+	},
+	"text-smart-text-key-point-sticker": {
+		"assetId": "text-smart-text-key-point-sticker",
+		"packageId": "text-smart-text-key-point",
+		"version": 1,
+		"cacheKey": "text-assets/text-smart-text-key-point/sticker@1",
+		"thumbnail": {
+			"url": "/text-assets/text-smart-text-key-point/sticker@1/thumbnail.webp",
+			"mimeType": "image/webp",
+			"byteSize": 17192,
+			"checksumSha256": "d239959c3202a1028deb4a134907c422f19b42729bb4a5b29b77cfdfb6df17d2"
+		},
+		"source": {
+			"url": "/text-assets/text-smart-text-key-point/sticker@1/template.json",
+			"mimeType": "application/json",
+			"byteSize": 2396,
+			"checksumSha256": "6c9536dd340b014ee01492d4ffe24baf28ec8c713889d3aec6018019109245f7"
+		}
+	},
+	"text-smart-text-key-point-bubble": {
+		"assetId": "text-smart-text-key-point-bubble",
+		"packageId": "text-smart-text-key-point",
+		"version": 1,
+		"cacheKey": "text-assets/text-smart-text-key-point/bubble@1",
+		"thumbnail": {
+			"url": "/text-assets/text-smart-text-key-point/bubble@1/thumbnail.webp",
+			"mimeType": "image/webp",
+			"byteSize": 16874,
+			"checksumSha256": "34be7076e83862de2dc1361ea3d271b6118b7860835f8fe40c2cb3c07b887c71"
+		},
+		"source": {
+			"url": "/text-assets/text-smart-text-key-point/bubble@1/template.json",
+			"mimeType": "application/json",
+			"byteSize": 2364,
+			"checksumSha256": "e26fb5806075ea62b927be88d1d9bd136c8a09e5628f9c8bba24678d356b0ae5"
+		}
+	},
+	"text-smart-text-key-point-soft-card": {
+		"assetId": "text-smart-text-key-point-soft-card",
+		"packageId": "text-smart-text-key-point",
+		"version": 1,
+		"cacheKey": "text-assets/text-smart-text-key-point/soft-card@1",
+		"thumbnail": {
+			"url": "/text-assets/text-smart-text-key-point/soft-card@1/thumbnail.webp",
+			"mimeType": "image/webp",
+			"byteSize": 20878,
+			"checksumSha256": "e48e2a8c47b1204706318696a517fa4f9ce260f7c17fde94a61d83bb5a85a549"
+		},
+		"source": {
+			"url": "/text-assets/text-smart-text-key-point/soft-card@1/template.json",
+			"mimeType": "application/json",
+			"byteSize": 2381,
+			"checksumSha256": "3aa34871ff259654b6519903803ad6d897992a1eda6c81ef5101c6833edc15e2"
+		}
+	},
+	"text-smart-text-chapter-plain": {
+		"assetId": "text-smart-text-chapter-plain",
+		"packageId": "text-smart-text-chapter",
+		"version": 1,
+		"cacheKey": "text-assets/text-smart-text-chapter/plain@1",
+		"thumbnail": {
+			"url": "/text-assets/text-smart-text-chapter/plain@1/thumbnail.webp",
+			"mimeType": "image/webp",
+			"byteSize": 16092,
+			"checksumSha256": "805cf698b952d4073c96bbf9ed5abb3296cafb74a5c0a9a9efc6f195024ba8f5"
+		},
+		"source": {
+			"url": "/text-assets/text-smart-text-chapter/plain@1/template.json",
+			"mimeType": "application/json",
+			"byteSize": 2189,
+			"checksumSha256": "050c53b3169f5f45cb5811eec839066279bf9966efefd18ebd45e06d77c977aa"
+		}
+	},
+	"text-smart-text-chapter-label": {
+		"assetId": "text-smart-text-chapter-label",
+		"packageId": "text-smart-text-chapter",
+		"version": 1,
+		"cacheKey": "text-assets/text-smart-text-chapter/label@1",
+		"thumbnail": {
+			"url": "/text-assets/text-smart-text-chapter/label@1/thumbnail.webp",
+			"mimeType": "image/webp",
+			"byteSize": 11430,
+			"checksumSha256": "2249f4c940286936373661963e8bcd73f3ed6a686ce2e53758811f74c93bf8b9"
+		},
+		"source": {
+			"url": "/text-assets/text-smart-text-chapter/label@1/template.json",
+			"mimeType": "application/json",
+			"byteSize": 2280,
+			"checksumSha256": "88cfe09d0a2a07c266a683b16fa98dbc507e4d0026aa99214e891b77ddf81ac4"
+		}
+	},
+	"text-smart-text-chapter-sticker": {
+		"assetId": "text-smart-text-chapter-sticker",
+		"packageId": "text-smart-text-chapter",
+		"version": 1,
+		"cacheKey": "text-assets/text-smart-text-chapter/sticker@1",
+		"thumbnail": {
+			"url": "/text-assets/text-smart-text-chapter/sticker@1/thumbnail.webp",
+			"mimeType": "image/webp",
+			"byteSize": 11430,
+			"checksumSha256": "2249f4c940286936373661963e8bcd73f3ed6a686ce2e53758811f74c93bf8b9"
+		},
+		"source": {
+			"url": "/text-assets/text-smart-text-chapter/sticker@1/template.json",
+			"mimeType": "application/json",
+			"byteSize": 2339,
+			"checksumSha256": "1025975c14aa4f151b096a867ef7a06baf57b8cfc6ddfe110ccbe9ae70130e72"
+		}
+	},
+	"text-smart-text-chapter-bubble": {
+		"assetId": "text-smart-text-chapter-bubble",
+		"packageId": "text-smart-text-chapter",
+		"version": 1,
+		"cacheKey": "text-assets/text-smart-text-chapter/bubble@1",
+		"thumbnail": {
+			"url": "/text-assets/text-smart-text-chapter/bubble@1/thumbnail.webp",
+			"mimeType": "image/webp",
+			"byteSize": 17100,
+			"checksumSha256": "912a14c47bdc5c471fad8d0fb36d27622fb0a814f640359bea93c542782425c3"
+		},
+		"source": {
+			"url": "/text-assets/text-smart-text-chapter/bubble@1/template.json",
+			"mimeType": "application/json",
+			"byteSize": 2299,
+			"checksumSha256": "191f4d206648cdb86eaf9ecf5ad5d661ab8a62131d1591272a899eebe29ad633"
+		}
+	},
+	"text-smart-text-chapter-soft-card": {
+		"assetId": "text-smart-text-chapter-soft-card",
+		"packageId": "text-smart-text-chapter",
+		"version": 1,
+		"cacheKey": "text-assets/text-smart-text-chapter/soft-card@1",
+		"thumbnail": {
+			"url": "/text-assets/text-smart-text-chapter/soft-card@1/thumbnail.webp",
+			"mimeType": "image/webp",
+			"byteSize": 16092,
+			"checksumSha256": "805cf698b952d4073c96bbf9ed5abb3296cafb74a5c0a9a9efc6f195024ba8f5"
+		},
+		"source": {
+			"url": "/text-assets/text-smart-text-chapter/soft-card@1/template.json",
+			"mimeType": "application/json",
+			"byteSize": 2316,
+			"checksumSha256": "2337d912029cce19570a9c51256255b6e4d72557bce241b8078dea8102b33f06"
+		}
+	},
+	"text-smart-text-subtitle-title-plain": {
+		"assetId": "text-smart-text-subtitle-title-plain",
+		"packageId": "text-smart-text-subtitle-title",
+		"version": 1,
+		"cacheKey": "text-assets/text-smart-text-subtitle-title/plain@1",
+		"thumbnail": {
+			"url": "/text-assets/text-smart-text-subtitle-title/plain@1/thumbnail.webp",
+			"mimeType": "image/webp",
+			"byteSize": 19844,
+			"checksumSha256": "542804d3b22e4dcf472001af70c3df0cecc2ca8790c2aab7d43de78ee4dd35e3"
+		},
+		"source": {
+			"url": "/text-assets/text-smart-text-subtitle-title/plain@1/template.json",
+			"mimeType": "application/json",
+			"byteSize": 2328,
+			"checksumSha256": "4835749ce51b0db86836edec54f1634cc72d1cb862516b76234fe2015bed9882"
+		}
+	},
+	"text-smart-text-subtitle-title-label": {
+		"assetId": "text-smart-text-subtitle-title-label",
+		"packageId": "text-smart-text-subtitle-title",
+		"version": 1,
+		"cacheKey": "text-assets/text-smart-text-subtitle-title/label@1",
+		"thumbnail": {
+			"url": "/text-assets/text-smart-text-subtitle-title/label@1/thumbnail.webp",
+			"mimeType": "image/webp",
+			"byteSize": 17146,
+			"checksumSha256": "824065ab35487eb6b8d86f8ef0ba5576069c219e8fa78f88917e380d4ea15c66"
+		},
+		"source": {
+			"url": "/text-assets/text-smart-text-subtitle-title/label@1/template.json",
+			"mimeType": "application/json",
+			"byteSize": 2425,
+			"checksumSha256": "8102dbe1b68e3df9d09811d964213890179c2ddd5cb4115c42e3d6d5e6355c0a"
+		}
+	},
+	"text-smart-text-subtitle-title-sticker": {
+		"assetId": "text-smart-text-subtitle-title-sticker",
+		"packageId": "text-smart-text-subtitle-title",
+		"version": 1,
+		"cacheKey": "text-assets/text-smart-text-subtitle-title/sticker@1",
+		"thumbnail": {
+			"url": "/text-assets/text-smart-text-subtitle-title/sticker@1/thumbnail.webp",
+			"mimeType": "image/webp",
+			"byteSize": 17146,
+			"checksumSha256": "824065ab35487eb6b8d86f8ef0ba5576069c219e8fa78f88917e380d4ea15c66"
+		},
+		"source": {
+			"url": "/text-assets/text-smart-text-subtitle-title/sticker@1/template.json",
+			"mimeType": "application/json",
+			"byteSize": 2482,
+			"checksumSha256": "d8de08cb9e837cc72812d7d84894f0cfb97130e54741dcc0c4a9edf30f9272ed"
+		}
+	},
+	"text-smart-text-subtitle-title-bubble": {
+		"assetId": "text-smart-text-subtitle-title-bubble",
+		"packageId": "text-smart-text-subtitle-title",
+		"version": 1,
+		"cacheKey": "text-assets/text-smart-text-subtitle-title/bubble@1",
+		"thumbnail": {
+			"url": "/text-assets/text-smart-text-subtitle-title/bubble@1/thumbnail.webp",
+			"mimeType": "image/webp",
+			"byteSize": 18166,
+			"checksumSha256": "95781d222e9425f4491f9a8179e726631be9e21fbdac24711df88c687cd5bae0"
+		},
+		"source": {
+			"url": "/text-assets/text-smart-text-subtitle-title/bubble@1/template.json",
+			"mimeType": "application/json",
+			"byteSize": 2438,
+			"checksumSha256": "3aeeae5cf0e8d920328b9b1a2db2803ba1059b6692d98bcb56693dc14e2dd814"
+		}
+	},
+	"text-smart-text-subtitle-title-soft-card": {
+		"assetId": "text-smart-text-subtitle-title-soft-card",
+		"packageId": "text-smart-text-subtitle-title",
+		"version": 1,
+		"cacheKey": "text-assets/text-smart-text-subtitle-title/soft-card@1",
+		"thumbnail": {
+			"url": "/text-assets/text-smart-text-subtitle-title/soft-card@1/thumbnail.webp",
+			"mimeType": "image/webp",
+			"byteSize": 19844,
+			"checksumSha256": "542804d3b22e4dcf472001af70c3df0cecc2ca8790c2aab7d43de78ee4dd35e3"
+		},
+		"source": {
+			"url": "/text-assets/text-smart-text-subtitle-title/soft-card@1/template.json",
+			"mimeType": "application/json",
+			"byteSize": 2455,
+			"checksumSha256": "2fa6817535cb40b828980475448d9b2560744f972c03da3d4406db079230a0a0"
+		}
+	},
+	"text-smart-text-rewrite-plain": {
+		"assetId": "text-smart-text-rewrite-plain",
+		"packageId": "text-smart-text-rewrite",
+		"version": 1,
+		"cacheKey": "text-assets/text-smart-text-rewrite/plain@1",
+		"thumbnail": {
+			"url": "/text-assets/text-smart-text-rewrite/plain@1/thumbnail.webp",
+			"mimeType": "image/webp",
+			"byteSize": 14640,
+			"checksumSha256": "b919def20eca1416d5f625530157f9293a9f4ad61898ad6594ccf8c538fef786"
+		},
+		"source": {
+			"url": "/text-assets/text-smart-text-rewrite/plain@1/template.json",
+			"mimeType": "application/json",
+			"byteSize": 2194,
+			"checksumSha256": "dd6db784aceb1e3261d6aebfd9cd1dd8b7ce9ecd1c3c16b43bbb5c7e9afd33cb"
+		}
+	},
+	"text-smart-text-rewrite-label": {
+		"assetId": "text-smart-text-rewrite-label",
+		"packageId": "text-smart-text-rewrite",
+		"version": 1,
+		"cacheKey": "text-assets/text-smart-text-rewrite/label@1",
+		"thumbnail": {
+			"url": "/text-assets/text-smart-text-rewrite/label@1/thumbnail.webp",
+			"mimeType": "image/webp",
+			"byteSize": 14844,
+			"checksumSha256": "15d0e010a1ab256d883b953f904f2be3a9b46c1ad77d6ddb0f28add92e1a16dc"
+		},
+		"source": {
+			"url": "/text-assets/text-smart-text-rewrite/label@1/template.json",
+			"mimeType": "application/json",
+			"byteSize": 2285,
+			"checksumSha256": "32fd29316910b909f4e8662b879873cdc44f4ec13a44a1dd0acc2dadf24519d8"
+		}
+	},
+	"text-smart-text-rewrite-sticker": {
+		"assetId": "text-smart-text-rewrite-sticker",
+		"packageId": "text-smart-text-rewrite",
+		"version": 1,
+		"cacheKey": "text-assets/text-smart-text-rewrite/sticker@1",
+		"thumbnail": {
+			"url": "/text-assets/text-smart-text-rewrite/sticker@1/thumbnail.webp",
+			"mimeType": "image/webp",
+			"byteSize": 14844,
+			"checksumSha256": "15d0e010a1ab256d883b953f904f2be3a9b46c1ad77d6ddb0f28add92e1a16dc"
+		},
+		"source": {
+			"url": "/text-assets/text-smart-text-rewrite/sticker@1/template.json",
+			"mimeType": "application/json",
+			"byteSize": 2344,
+			"checksumSha256": "e99fc758aed3ea8b7989bc688d7f49928ede4e04ea280f063eca213984a94169"
+		}
+	},
+	"text-smart-text-rewrite-bubble": {
+		"assetId": "text-smart-text-rewrite-bubble",
+		"packageId": "text-smart-text-rewrite",
+		"version": 1,
+		"cacheKey": "text-assets/text-smart-text-rewrite/bubble@1",
+		"thumbnail": {
+			"url": "/text-assets/text-smart-text-rewrite/bubble@1/thumbnail.webp",
+			"mimeType": "image/webp",
+			"byteSize": 16586,
+			"checksumSha256": "730391b24e768b1221800068ef1782373f1222efaadde20de03366612ca72322"
+		},
+		"source": {
+			"url": "/text-assets/text-smart-text-rewrite/bubble@1/template.json",
+			"mimeType": "application/json",
+			"byteSize": 2310,
+			"checksumSha256": "a5d2197ab6053bf9d54673f4318aad1a94fc1277097bbacee568745726c06b40"
+		}
+	},
+	"text-smart-text-rewrite-soft-card": {
+		"assetId": "text-smart-text-rewrite-soft-card",
+		"packageId": "text-smart-text-rewrite",
+		"version": 1,
+		"cacheKey": "text-assets/text-smart-text-rewrite/soft-card@1",
+		"thumbnail": {
+			"url": "/text-assets/text-smart-text-rewrite/soft-card@1/thumbnail.webp",
+			"mimeType": "image/webp",
+			"byteSize": 14640,
+			"checksumSha256": "b919def20eca1416d5f625530157f9293a9f4ad61898ad6594ccf8c538fef786"
+		},
+		"source": {
+			"url": "/text-assets/text-smart-text-rewrite/soft-card@1/template.json",
+			"mimeType": "application/json",
+			"byteSize": 2321,
+			"checksumSha256": "d49a7c43f3c2ef7e2c51ccbab5638a310255daae1e10f1dc3050d4afde25852f"
+		}
+	},
+	"text-legacy-heading-text": {
+		"assetId": "text-legacy-heading-text",
+		"packageId": "text-new-text-title",
+		"version": 1,
+		"cacheKey": "text-assets/legacy/heading-text@1",
+		"thumbnail": {
+			"url": "/text-assets/legacy/heading-text@1/thumbnail.webp",
+			"mimeType": "image/webp",
+			"byteSize": 12944,
+			"checksumSha256": "aeb8d1fab763d097822ad23f731d922fc65649c18c56d05ebc21959a99180741"
+		},
+		"source": {
+			"url": "/text-assets/legacy/heading-text@1/template.json",
+			"mimeType": "application/json",
+			"byteSize": 1812,
+			"checksumSha256": "8edd08c5743b6df6a978e2309993c86f57c0348c38b0d263e6ce46f95e4943aa"
+		}
+	},
+	"text-legacy-subtitle-text": {
+		"assetId": "text-legacy-subtitle-text",
+		"packageId": "text-new-text-caption",
+		"version": 1,
+		"cacheKey": "text-assets/legacy/subtitle-text@1",
+		"thumbnail": {
+			"url": "/text-assets/legacy/subtitle-text@1/thumbnail.webp",
+			"mimeType": "image/webp",
+			"byteSize": 13702,
+			"checksumSha256": "373c81761fb1be9c976ef6f53d56469f2e71c4eb59ee69db69e2eb7d4a2d6805"
+		},
+		"source": {
+			"url": "/text-assets/legacy/subtitle-text@1/template.json",
+			"mimeType": "application/json",
+			"byteSize": 1783,
+			"checksumSha256": "421231a8f9bb5354dc79e505453a57e117ea1fc08174ba56dc854ad469f3fedd"
+		}
+	},
+	"text-legacy-editorial-title": {
+		"assetId": "text-legacy-editorial-title",
+		"packageId": "text-new-text-title",
+		"version": 1,
+		"cacheKey": "text-assets/legacy/editorial-title@1",
+		"thumbnail": {
+			"url": "/text-assets/legacy/editorial-title@1/thumbnail.webp",
+			"mimeType": "image/webp",
+			"byteSize": 10896,
+			"checksumSha256": "6be0e89f9ab76570c5448dcd507ea0439dd746e2dcb9fd11ea0b4850de5df5d8"
+		},
+		"source": {
+			"url": "/text-assets/legacy/editorial-title@1/template.json",
+			"mimeType": "application/json",
+			"byteSize": 1848,
+			"checksumSha256": "87628cd0699da0d3da79125405a235dbe621bc96883973ce335d00991e740087"
+		}
+	},
+	"text-legacy-social-hook": {
+		"assetId": "text-legacy-social-hook",
+		"packageId": "text-smart-packaging-talking-head",
+		"version": 1,
+		"cacheKey": "text-assets/legacy/social-hook@1",
+		"thumbnail": {
+			"url": "/text-assets/legacy/social-hook@1/thumbnail.webp",
+			"mimeType": "image/webp",
+			"byteSize": 14876,
+			"checksumSha256": "95e30cd6322b278ab903dbdcba7b1796db06aeb9337163d29cc67dbe0f1b90e6"
+		},
+		"source": {
+			"url": "/text-assets/legacy/social-hook@1/template.json",
+			"mimeType": "application/json",
+			"byteSize": 1951,
+			"checksumSha256": "833f574f0d9a7c0e7d79a642599736cc5c529ba47e23bf04599ef08ec7b103d6"
+		}
+	},
+	"text-legacy-social-question": {
+		"assetId": "text-legacy-social-question",
+		"packageId": "text-smart-packaging-talking-head",
+		"version": 1,
+		"cacheKey": "text-assets/legacy/social-question@1",
+		"thumbnail": {
+			"url": "/text-assets/legacy/social-question@1/thumbnail.webp",
+			"mimeType": "image/webp",
+			"byteSize": 10244,
+			"checksumSha256": "88d8178afd8a113a5925ceac47e8b997122064f87cc1330dddbc214e4fc09ecc"
+		},
+		"source": {
+			"url": "/text-assets/legacy/social-question@1/template.json",
+			"mimeType": "application/json",
+			"byteSize": 1943,
+			"checksumSha256": "23663dbc9f30d0852c32c0d7cd7ea65ea83e3b942ed642a3400271082f7d05e7"
+		}
+	},
+	"text-legacy-social-tip": {
+		"assetId": "text-legacy-social-tip",
+		"packageId": "text-smart-packaging-talking-head",
+		"version": 1,
+		"cacheKey": "text-assets/legacy/social-tip@1",
+		"thumbnail": {
+			"url": "/text-assets/legacy/social-tip@1/thumbnail.webp",
+			"mimeType": "image/webp",
+			"byteSize": 13322,
+			"checksumSha256": "47b14f01bb794a30fda17ae5fe26d93b5858384d1bc7432f8edc35c6d2a7c9db"
+		},
+		"source": {
+			"url": "/text-assets/legacy/social-tip@1/template.json",
+			"mimeType": "application/json",
+			"byteSize": 1859,
+			"checksumSha256": "21230c845185592cc21f91f04b1e42ea475057375d62a1bb8d079ab33db7877d"
+		}
+	},
+	"text-legacy-social-breaking": {
+		"assetId": "text-legacy-social-breaking",
+		"packageId": "text-smart-packaging-cover-pack",
+		"version": 1,
+		"cacheKey": "text-assets/legacy/social-breaking@1",
+		"thumbnail": {
+			"url": "/text-assets/legacy/social-breaking@1/thumbnail.webp",
+			"mimeType": "image/webp",
+			"byteSize": 13774,
+			"checksumSha256": "905c598f9172782e656302cbe8209360a70b79da197760f0dc5052cad252c18c"
+		},
+		"source": {
+			"url": "/text-assets/legacy/social-breaking@1/template.json",
+			"mimeType": "application/json",
+			"byteSize": 1933,
+			"checksumSha256": "b83e85b50f8fb3cb1d1c8c45b346729d997775cb81f5dce4e671a611aad2ffe5"
+		}
+	},
+	"text-legacy-rounded-label": {
+		"assetId": "text-legacy-rounded-label",
+		"packageId": "text-new-text-lower-third",
+		"version": 1,
+		"cacheKey": "text-assets/legacy/rounded-label@1",
+		"thumbnail": {
+			"url": "/text-assets/legacy/rounded-label@1/thumbnail.webp",
+			"mimeType": "image/webp",
+			"byteSize": 12702,
+			"checksumSha256": "93f9940dee18b08ce95a9b5116bb580912c6f2e9cc18bb1bb17ba2a738866fea"
+		},
+		"source": {
+			"url": "/text-assets/legacy/rounded-label@1/template.json",
+			"mimeType": "application/json",
+			"byteSize": 1845,
+			"checksumSha256": "3a8758ab3a3c6a646526944264eb0e6b7ccd36c0f774e9aaaf6583994d4878bd"
+		}
+	},
+	"text-legacy-dark-bubble": {
+		"assetId": "text-legacy-dark-bubble",
+		"packageId": "text-new-text-lower-third",
+		"version": 1,
+		"cacheKey": "text-assets/legacy/dark-bubble@1",
+		"thumbnail": {
+			"url": "/text-assets/legacy/dark-bubble@1/thumbnail.webp",
+			"mimeType": "image/webp",
+			"byteSize": 12326,
+			"checksumSha256": "3756e06591e08ca06ba3c116c642e34f6b9b6b683515167cc40f9dcf403dec4e"
+		},
+		"source": {
+			"url": "/text-assets/legacy/dark-bubble@1/template.json",
+			"mimeType": "application/json",
+			"byteSize": 1825,
+			"checksumSha256": "b2c8eeb95bc844d132bbd1d604f6890611988e33347be9c234c1b44d11fa9f27"
+		}
+	},
+	"text-legacy-yellow-callout": {
+		"assetId": "text-legacy-yellow-callout",
+		"packageId": "text-new-text-quote",
+		"version": 1,
+		"cacheKey": "text-assets/legacy/yellow-callout@1",
+		"thumbnail": {
+			"url": "/text-assets/legacy/yellow-callout@1/thumbnail.webp",
+			"mimeType": "image/webp",
+			"byteSize": 12382,
+			"checksumSha256": "0727a05a0270b660134a40f3ce6ee64209f494acd2b480babdae30b54d61da21"
+		},
+		"source": {
+			"url": "/text-assets/legacy/yellow-callout@1/template.json",
+			"mimeType": "application/json",
+			"byteSize": 1850,
+			"checksumSha256": "4c39cc938e2619b3ac094aa738fcac7afda74ca6a3eb2602786f8523cfa1fa44"
+		}
+	},
+	"text-legacy-blue-outline-label": {
+		"assetId": "text-legacy-blue-outline-label",
+		"packageId": "text-new-text-lower-third",
+		"version": 1,
+		"cacheKey": "text-assets/legacy/blue-outline-label@1",
+		"thumbnail": {
+			"url": "/text-assets/legacy/blue-outline-label@1/thumbnail.webp",
+			"mimeType": "image/webp",
+			"byteSize": 14332,
+			"checksumSha256": "e917573a463752e66c22f33c045a4a603a98b9ca012b79d637bb8ebcd250cc8b"
+		},
+		"source": {
+			"url": "/text-assets/legacy/blue-outline-label@1/template.json",
+			"mimeType": "application/json",
+			"byteSize": 1901,
+			"checksumSha256": "454b4f5d30d611aa30f9ffbb6170137de79e9d041129b0d5234a225cc9e01c2f"
+		}
+	},
+	"text-legacy-cyan-neon": {
+		"assetId": "text-legacy-cyan-neon",
+		"packageId": "text-fancy-glow",
+		"version": 1,
+		"cacheKey": "text-assets/legacy/cyan-neon@1",
+		"thumbnail": {
+			"url": "/text-assets/legacy/cyan-neon@1/thumbnail.webp",
+			"mimeType": "image/webp",
+			"byteSize": 14358,
+			"checksumSha256": "a7e1bc5ccc6a8e43ceb905518200cc69d7e9bfc5cab4e85a14b707d790525f35"
+		},
+		"source": {
+			"url": "/text-assets/legacy/cyan-neon@1/template.json",
+			"mimeType": "application/json",
+			"byteSize": 1789,
+			"checksumSha256": "87a26e50b25f8ccc507f930a852bcb363f8dea333714b0d48d34af3fb1c9075d"
+		}
+	},
+	"text-legacy-pink-neon-title": {
+		"assetId": "text-legacy-pink-neon-title",
+		"packageId": "text-fancy-glow",
+		"version": 1,
+		"cacheKey": "text-assets/legacy/pink-neon-title@1",
+		"thumbnail": {
+			"url": "/text-assets/legacy/pink-neon-title@1/thumbnail.webp",
+			"mimeType": "image/webp",
+			"byteSize": 14358,
+			"checksumSha256": "a7e1bc5ccc6a8e43ceb905518200cc69d7e9bfc5cab4e85a14b707d790525f35"
+		},
+		"source": {
+			"url": "/text-assets/legacy/pink-neon-title@1/template.json",
+			"mimeType": "application/json",
+			"byteSize": 1821,
+			"checksumSha256": "1451d1ac9790fdcb1bb72347dec0385b164f8178147f36c09ed90766c78a6629"
+		}
+	},
+	"text-legacy-curved-pop": {
+		"assetId": "text-legacy-curved-pop",
+		"packageId": "text-fancy-popular",
+		"version": 1,
+		"cacheKey": "text-assets/legacy/curved-pop@1",
+		"thumbnail": {
+			"url": "/text-assets/legacy/curved-pop@1/thumbnail.webp",
+			"mimeType": "image/webp",
+			"byteSize": 14474,
+			"checksumSha256": "ff379581a10b6668656d78fe16294dbc5771a4a2bbd51aabbff83879b15f99f6"
+		},
+		"source": {
+			"url": "/text-assets/legacy/curved-pop@1/template.json",
+			"mimeType": "application/json",
+			"byteSize": 1816,
+			"checksumSha256": "25911b800bd3aadf89d95b9a19b1e38af7dd4a525be1db0c3cfd0a5e2f262621"
+		}
+	},
+	"text-legacy-clean-quote": {
+		"assetId": "text-legacy-clean-quote",
+		"packageId": "text-new-text-quote",
+		"version": 1,
+		"cacheKey": "text-assets/legacy/clean-quote@1",
+		"thumbnail": {
+			"url": "/text-assets/legacy/clean-quote@1/thumbnail.webp",
+			"mimeType": "image/webp",
+			"byteSize": 12578,
+			"checksumSha256": "c8d9550c39b6d45a6759014dbc526c688b50a4ef9e2187d8ef2ce403707e9871"
+		},
+		"source": {
+			"url": "/text-assets/legacy/clean-quote@1/template.json",
+			"mimeType": "application/json",
+			"byteSize": 1830,
+			"checksumSha256": "802009705933a42a86a49c3192b7b4c79b113e9b49522a07fd7a5ad12b908bed"
+		}
+	}
+}

@@ -4,7 +4,10 @@ import {
 	getTextTemplateResource,
 	getTextTemplateResourceFiles,
 } from "../text-resource-catalog";
-import type { TextTemplateDefinition } from "../text-template-registry";
+import {
+	TEXT_TEMPLATE_DEFINITIONS,
+	type TextTemplateDefinition,
+} from "../text-template-registry";
 
 function createDefinition({
 	category = "basic",
@@ -81,6 +84,30 @@ describe("text resource catalog", () => {
 				"qcut-text-asset://text-assets/pack-a/poster@1/thumbnail.webp",
 			sourceUrl: "qcut-text-asset://text-assets/pack-a/poster@1/template.json",
 			byteSize: 128 * 1024,
+			thumbnailByteSize: Math.round(128 * 1024 * 0.18),
+			sourceByteSize: 128 * 1024,
+			bundled: false,
+		});
+	});
+
+	it("resolves generated bundled file metadata for downloaded templates", () => {
+		const downloadedDefinition = TEXT_TEMPLATE_DEFINITIONS.find(
+			(definition) => definition.downloaded
+		);
+
+		expect(downloadedDefinition).toBeDefined();
+		expect(
+			getTextTemplateResourceFiles({
+				definition: downloadedDefinition as TextTemplateDefinition,
+			})
+		).toMatchObject({
+			thumbnailUrl: expect.stringMatching(
+				/^\/text-assets\/.+\/thumbnail\.webp$/
+			),
+			sourceUrl: expect.stringMatching(/^\/text-assets\/.+\/template\.json$/),
+			bundled: true,
+			thumbnailChecksumSha256: expect.stringMatching(/^[a-f0-9]{64}$/),
+			sourceChecksumSha256: expect.stringMatching(/^[a-f0-9]{64}$/),
 		});
 	});
 
