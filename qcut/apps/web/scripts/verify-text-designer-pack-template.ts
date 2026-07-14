@@ -1,10 +1,11 @@
-import { access, readFile } from "node:fs/promises";
+import { access, readFile, rm } from "node:fs/promises";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import type {
 	TextDesignerAssetPackEntry,
 	TextDesignerAssetPackManifest,
 } from "./import-text-designer-assets";
+import { extractTextDesignerAssetPackArchive } from "./import-text-designer-assets";
 import type {
 	TextDesignerPackTemplateAssetContract,
 	TextDesignerPackTemplateSummary,
@@ -13,7 +14,8 @@ import type {
 export type TextDesignerPackTemplateVerifyOptions = {
 	expectedAssets?: number;
 	issueLimit: number;
-	packDir: string;
+	packArchivePath?: string;
+	packDir?: string;
 };
 
 export type TextDesignerPackTemplateVerifyIssue = {
@@ -30,6 +32,7 @@ export type TextDesignerPackTemplateVerifyIssue = {
 
 export type TextDesignerPackTemplateVerifySummary = {
 	assetCount: number;
+	archiveFiles?: number;
 	issueSummary: {
 		byCode: Partial<
 			Record<TextDesignerPackTemplateVerifyIssue["code"], number>
@@ -79,10 +82,19 @@ export function parseTextDesignerPackTemplateVerifyArgs({
 		issueLimit: 25,
 		packDir: DEFAULT_PACK_DIR,
 	};
+	let hasExplicitPackArchive = false;
+	let hasExplicitPackDir = false;
 	for (let index = 0; index < argv.length; index += 1) {
 		const arg = argv[index];
 		if (arg === "--pack-dir") {
+			hasExplicitPackDir = true;
 			options.packDir = requireValue({ argv, index, name: arg });
+			index += 1;
+			continue;
+		}
+		if (arg === "--pack-archive") {
+			hasExplicitPackArchive = true;
+			options.packArchivePath = requireValue({ argv, index, name: arg });
 			index += 1;
 			continue;
 		}
@@ -104,7 +116,60 @@ export function parseTextDesignerPackTemplateVerifyArgs({
 		}
 		throw new Error(`Unknown argument: ${arg}`);
 	}
+	if (hasExplicitPackArchive && hasExplicitPackDir) {
+		throw new Error("Pass only one of --pack-dir or --pack-archive.");
+	}
+	if (hasExplicitPackArchive) options.packDir = undefined;
 	return options;
+}
+
+export async function verifyTextDesignerPackTemplateInput({
+	expectedAssets,
+	packArchivePath,
+	packDir,
+}: {
+	expectedAssets?: number;
+	packArchivePath?: string;
+	packDir?: string;
+}): Promise<{
+	archiveFiles?: number;
+	assetCount: number;
+	issues: TextDesignerPackTemplateVerifyIssue[];
+	packDir: string;
+}> {
+	if (!packArchivePath) {
+		const resolvedPackDir = packDir ?? DEFAULT_PACK_DIR;
+		return {
+			assetCount:
+				(await readManifestAssetCount({ packDir: resolvedPackDir })) ??
+				expectedAssets ??
+				0,
+			issues: await verifyTextDesignerPackTemplate({
+				expectedAssets,
+				packDir: resolvedPackDir,
+			}),
+			packDir: resolvedPackDir,
+		};
+	}
+	const extracted = await extractTextDesignerAssetPackArchive({
+		archivePath: packArchivePath,
+	});
+	try {
+		return {
+			archiveFiles: extracted.fileCount,
+			assetCount:
+				(await readManifestAssetCount({ packDir: extracted.packDir })) ??
+				expectedAssets ??
+				0,
+			issues: await verifyTextDesignerPackTemplate({
+				expectedAssets,
+				packDir: extracted.packDir,
+			}),
+			packDir: extracted.packDir,
+		};
+	} finally {
+		await rm(extracted.packDir, { force: true, recursive: true });
+	}
 }
 
 export async function verifyTextDesignerPackTemplate({
@@ -538,26 +603,24 @@ async function main() {
 	const options = parseTextDesignerPackTemplateVerifyArgs({
 		argv: process.argv.slice(2),
 	});
-	const issues = await verifyTextDesignerPackTemplate({
+	const result = await verifyTextDesignerPackTemplateInput({
 		expectedAssets: options.expectedAssets,
+		packArchivePath: options.packArchivePath,
 		packDir: options.packDir,
 	});
-	const manifestAssetCount =
-		(await readManifestAssetCount({ packDir: options.packDir })) ??
-		options.expectedAssets ??
-		0;
 	const issueSummary = summarizeIssues({
 		issueLimit: options.issueLimit,
-		issues,
+		issues: result.issues,
 	});
 	const summary: TextDesignerPackTemplateVerifySummary = {
-		assetCount: manifestAssetCount,
+		assetCount: result.assetCount,
+		archiveFiles: result.archiveFiles,
 		issueSummary,
-		issues: issues.slice(0, options.issueLimit),
-		ok: issues.length === 0,
-		packDir: options.packDir,
+		issues: result.issues.slice(0, options.issueLimit),
+		ok: result.issues.length === 0,
+		packDir: result.packDir,
 		requiredReplacementFiles:
-			manifestAssetCount * REQUIRED_REPLACEMENT_FILES.length,
+			result.assetCount * REQUIRED_REPLACEMENT_FILES.length,
 	};
 	console.log(JSON.stringify(summary, null, "\t"));
 	if (!summary.ok) process.exitCode = 1;

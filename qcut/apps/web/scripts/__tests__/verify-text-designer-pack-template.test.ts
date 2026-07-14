@@ -6,11 +6,13 @@ import { fileURLToPath } from "node:url";
 import { describe, expect, it } from "vitest";
 import {
 	buildTextDesignerPackTemplate,
+	createTextDesignerPackTemplateArchive,
 	writeTextDesignerPackTemplate,
 } from "../create-text-designer-pack-template";
 import {
 	parseTextDesignerPackTemplateVerifyArgs,
 	verifyTextDesignerPackTemplate,
+	verifyTextDesignerPackTemplateInput,
 } from "../verify-text-designer-pack-template";
 import type { TextAssetGeneratedEntry } from "../verify-text-asset-cdn-manifest";
 
@@ -104,6 +106,41 @@ describe("text designer pack template verifier", () => {
 			issueLimit: 3,
 			packDir: "/tmp/designer-pack",
 		});
+		expect(
+			parseTextDesignerPackTemplateVerifyArgs({
+				argv: [
+					"--pack-archive",
+					"/tmp/designer-pack.tar.gz",
+					"--expected-assets",
+					"100",
+				],
+			})
+		).toEqual({
+			expectedAssets: 100,
+			issueLimit: 25,
+			packArchivePath: "/tmp/designer-pack.tar.gz",
+			packDir: undefined,
+		});
+		expect(() =>
+			parseTextDesignerPackTemplateVerifyArgs({
+				argv: [
+					"--pack-dir",
+					"/tmp/designer-pack",
+					"--pack-archive",
+					"/tmp/designer-pack.tar.gz",
+				],
+			})
+		).toThrow("Pass only one of --pack-dir or --pack-archive.");
+		expect(() =>
+			parseTextDesignerPackTemplateVerifyArgs({
+				argv: [
+					"--pack-archive",
+					"/tmp/designer-pack.tar.gz",
+					"--pack-dir",
+					"/tmp/designer-pack",
+				],
+			})
+		).toThrow("Pass only one of --pack-dir or --pack-archive.");
 	});
 
 	it("keeps package scripts wired to the designer handoff verifier", async () => {
@@ -116,7 +153,7 @@ describe("text designer pack template verifier", () => {
 		expect(
 			packageJson.scripts["assets:text:verify-designer-pack-template"]
 		).toBe(
-			"bun scripts/verify-text-designer-pack-template.ts --pack-dir dist/text-designer-pack-template --expected-assets 100"
+			"bun scripts/verify-text-designer-pack-template.ts --pack-archive dist/text-designer-pack-template.tar.gz --expected-assets 100"
 		);
 		expect(packageJson.scripts["assets:text:proof-designer-handoff"]).toBe(
 			"bun run assets:text:create-designer-ready-pack-archive && bun run assets:text:verify-designer-pack-template"
@@ -132,6 +169,26 @@ describe("text designer pack template verifier", () => {
 				packDir,
 			})
 		).resolves.toEqual([]);
+	});
+
+	it("accepts a generated designer pack template archive", async () => {
+		const packDir = await writePackTemplate();
+		const archivePath = join(
+			dirname(packDir),
+			"text-designer-pack-template.tar.gz"
+		);
+		await createTextDesignerPackTemplateArchive({ archivePath, outDir: packDir });
+
+		const result = await verifyTextDesignerPackTemplateInput({
+			expectedAssets: 1,
+			packArchivePath: archivePath,
+		});
+
+		expect(result).toMatchObject({
+			assetCount: 1,
+			issues: [],
+		});
+		expect(result.archiveFiles).toBeGreaterThan(0);
 	});
 
 	it("reports checklist rows that drift from the manifest", async () => {
