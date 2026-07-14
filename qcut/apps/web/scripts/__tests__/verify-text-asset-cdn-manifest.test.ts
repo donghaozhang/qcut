@@ -19,11 +19,39 @@ import {
 	type TextAssetGeneratedEntry,
 } from "../verify-text-asset-cdn-manifest";
 
-function checksum({ value }: { value: string }): string {
-	return createHash("sha256").update(Buffer.from(value)).digest("hex");
+type TestFileContent = Buffer | string;
+
+function checksum({ value }: { value: TestFileContent }): string {
+	return createHash("sha256").update(toBuffer({ value })).digest("hex");
 }
 
-const THUMBNAIL_TEXT = "RIFF0000WEBP";
+function byteLength({ value }: { value: TestFileContent }): number {
+	return toBuffer({ value }).byteLength;
+}
+
+function toBuffer({ value }: { value: TestFileContent }): Buffer {
+	return Buffer.isBuffer(value) ? value : Buffer.from(value);
+}
+
+function createVp8xWebpBytes({
+	height,
+	width,
+}: {
+	height: number;
+	width: number;
+}): Buffer {
+	const bytes = Buffer.alloc(30);
+	bytes.write("RIFF", 0, "ascii");
+	bytes.writeUInt32LE(bytes.byteLength - 8, 4);
+	bytes.write("WEBP", 8, "ascii");
+	bytes.write("VP8X", 12, "ascii");
+	bytes.writeUInt32LE(10, 16);
+	bytes.writeUIntLE(width - 1, 24, 3);
+	bytes.writeUIntLE(height - 1, 27, 3);
+	return bytes;
+}
+
+const THUMBNAIL_TEXT = createVp8xWebpBytes({ height: 304, width: 320 });
 const DEFAULT_ASSET_ID = "text-demo";
 const DEFAULT_CACHE_KEY = "text-assets/demo/plain@1";
 const DEFAULT_PACKAGE_ID = "text-demo";
@@ -94,7 +122,7 @@ function createGeneratedEntry({
 }: {
 	packageText?: string;
 	sourceText?: string;
-	thumbnailText?: string;
+	thumbnailText?: TestFileContent;
 } = {}): TextAssetGeneratedEntry {
 	return {
 		assetId: DEFAULT_ASSET_ID,
@@ -102,7 +130,7 @@ function createGeneratedEntry({
 		packageId: DEFAULT_PACKAGE_ID,
 		version: DEFAULT_VERSION,
 		thumbnail: {
-			byteSize: thumbnailText.length,
+			byteSize: byteLength({ value: thumbnailText }),
 			checksumSha256: checksum({ value: thumbnailText }),
 			mimeType: "image/webp",
 			url: "/text-assets/demo/plain@1/thumbnail.webp",
@@ -133,7 +161,7 @@ async function writeGeneratedEntryFiles({
 	packageText?: string;
 	publicDir: string;
 	sourceText?: string;
-	thumbnailText?: string;
+	thumbnailText?: TestFileContent;
 }): Promise<void> {
 	await Promise.all(
 		[
@@ -530,7 +558,7 @@ describe("text asset CDN manifest verifier", () => {
 		expect(manifest.totalAssets).toBe(1);
 		expect(manifest.totalFiles).toBe(3);
 		expect(manifest.totalBytes).toBe(
-			Buffer.byteLength(THUMBNAIL_TEXT) +
+			byteLength({ value: THUMBNAIL_TEXT }) +
 				Buffer.byteLength(SOURCE_TEXT) +
 				Buffer.byteLength(PACKAGE_TEXT)
 		);
@@ -861,6 +889,30 @@ describe("text asset CDN manifest verifier", () => {
 			expect.objectContaining({
 				code: "invalid-file-payload",
 				url: "/text-assets/demo/plain@1/template.qctext",
+			}),
+		]);
+	});
+
+	it("reports thumbnail WebP dimension mismatches", async () => {
+		const publicDir = join(
+			tmpdir(),
+			`qcut-text-thumbnail-size-${randomUUID()}`
+		);
+		const thumbnailText = createVp8xWebpBytes({ height: 200, width: 200 });
+		const entry = createGeneratedEntry({ thumbnailText });
+		await writeGeneratedEntryFiles({ entry, publicDir, thumbnailText });
+		const { manifest } = buildTextAssetPublishManifest({
+			baseUrl: "https://cdn.example.com",
+			generatedAt: "2026-07-15T00:00:00.000Z",
+			generatedManifest: { "text-demo": entry },
+			publicDir,
+		});
+
+		await expect(verifyLocalFiles({ manifest })).resolves.toEqual([
+			expect.objectContaining({
+				code: "invalid-file-payload",
+				detail: "Thumbnail dimensions expected 320x304, received 200x200",
+				url: "/text-assets/demo/plain@1/thumbnail.webp",
 			}),
 		]);
 	});

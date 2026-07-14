@@ -161,6 +161,8 @@ const DEFAULT_MANIFEST_PATH = join(
 	"../src/lib/text/text-asset-generated-manifest.json"
 );
 const DEFAULT_PUBLIC_DIR = join(SCRIPT_DIR, "../public");
+const EXPECTED_TEXT_THUMBNAIL_HEIGHT = 304;
+const EXPECTED_TEXT_THUMBNAIL_WIDTH = 320;
 
 export function parseTextAssetCdnArgs({
 	argv,
@@ -832,14 +834,7 @@ function verifyLocalFilePayload({
 	file: TextAssetPublishFile;
 }): VerifyIssue | null {
 	if (file.role === "thumbnail") {
-		return isWebpBytes({ bytes })
-			? null
-			: {
-					assetId: asset.assetId,
-					code: "invalid-file-payload",
-					detail: "Thumbnail file is not a valid WebP payload",
-					url: file.url,
-				};
+		return verifyThumbnailPayload({ asset, bytes, file });
 	}
 	if (file.role === "metadata") {
 		const parsed = parseJsonObjectPayload({
@@ -934,6 +929,46 @@ function verifyLocalFilePayload({
 		);
 	}
 	return null;
+}
+
+function verifyThumbnailPayload({
+	asset,
+	bytes,
+	file,
+}: {
+	asset: TextAssetPublishEntry;
+	bytes: Buffer;
+	file: TextAssetPublishFile;
+}): VerifyIssue | null {
+	if (!isWebpBytes({ bytes })) {
+		return {
+			assetId: asset.assetId,
+			code: "invalid-file-payload",
+			detail: "Thumbnail file is not a valid WebP payload",
+			url: file.url,
+		};
+	}
+	const dimensions = getWebpDimensions({ bytes });
+	if (!dimensions) {
+		return {
+			assetId: asset.assetId,
+			code: "invalid-file-payload",
+			detail: "Thumbnail WebP dimensions could not be read",
+			url: file.url,
+		};
+	}
+	if (
+		dimensions.width === EXPECTED_TEXT_THUMBNAIL_WIDTH &&
+		dimensions.height === EXPECTED_TEXT_THUMBNAIL_HEIGHT
+	) {
+		return null;
+	}
+	return {
+		assetId: asset.assetId,
+		code: "invalid-file-payload",
+		detail: `Thumbnail dimensions expected ${EXPECTED_TEXT_THUMBNAIL_WIDTH}x${EXPECTED_TEXT_THUMBNAIL_HEIGHT}, received ${dimensions.width}x${dimensions.height}`,
+		url: file.url,
+	};
 }
 
 function parseJsonObjectPayload({
@@ -1222,6 +1257,99 @@ function isWebpBytes({ bytes }: { bytes: Buffer }): boolean {
 		bytes.toString("ascii", 0, 4) === "RIFF" &&
 		bytes.toString("ascii", 8, 12) === "WEBP"
 	);
+}
+
+function getWebpDimensions({
+	bytes,
+}: {
+	bytes: Buffer;
+}): { height: number; width: number } | null {
+	if (!isWebpBytes({ bytes })) return null;
+	let offset = 12;
+	while (offset + 8 <= bytes.byteLength) {
+		const chunkType = bytes.toString("ascii", offset, offset + 4);
+		const chunkSize = bytes.readUInt32LE(offset + 4);
+		const dataOffset = offset + 8;
+		if (dataOffset + chunkSize > bytes.byteLength) return null;
+		if (chunkType === "VP8X") {
+			return getVp8xDimensions({ bytes, dataOffset, chunkSize });
+		}
+		if (chunkType === "VP8L") {
+			return getVp8lDimensions({ bytes, dataOffset, chunkSize });
+		}
+		if (chunkType === "VP8 ") {
+			return getVp8Dimensions({ bytes, dataOffset, chunkSize });
+		}
+		offset = dataOffset + chunkSize + (chunkSize % 2);
+	}
+	return null;
+}
+
+function getVp8xDimensions({
+	bytes,
+	chunkSize,
+	dataOffset,
+}: {
+	bytes: Buffer;
+	chunkSize: number;
+	dataOffset: number;
+}): { height: number; width: number } | null {
+	if (chunkSize < 10) return null;
+	return {
+		height: readUInt24LE({ bytes, offset: dataOffset + 7 }) + 1,
+		width: readUInt24LE({ bytes, offset: dataOffset + 4 }) + 1,
+	};
+}
+
+function getVp8lDimensions({
+	bytes,
+	chunkSize,
+	dataOffset,
+}: {
+	bytes: Buffer;
+	chunkSize: number;
+	dataOffset: number;
+}): { height: number; width: number } | null {
+	if (chunkSize < 5 || bytes[dataOffset] !== 0x2f) return null;
+	const bits = bytes.readUInt32LE(dataOffset + 1);
+	return {
+		height: ((bits >> 14) & 0x3fff) + 1,
+		width: (bits & 0x3fff) + 1,
+	};
+}
+
+function getVp8Dimensions({
+	bytes,
+	chunkSize,
+	dataOffset,
+}: {
+	bytes: Buffer;
+	chunkSize: number;
+	dataOffset: number;
+}): { height: number; width: number } | null {
+	if (chunkSize < 10) return null;
+	const startCodeOffset = dataOffset + 3;
+	if (
+		bytes[startCodeOffset] !== 0x9d ||
+		bytes[startCodeOffset + 1] !== 0x01 ||
+		bytes[startCodeOffset + 2] !== 0x2a
+	) {
+		return null;
+	}
+	return {
+		height: bytes.readUInt16LE(startCodeOffset + 5) & 0x3fff,
+		width: bytes.readUInt16LE(startCodeOffset + 3) & 0x3fff,
+	};
+}
+
+function readUInt24LE({
+	bytes,
+	offset,
+}: {
+	bytes: Buffer;
+	offset: number;
+}): number {
+	return bytes[offset] | (bytes[offset + 1] << 8) | (bytes[offset + 2] << 16);
 }
 
 export async function verifyRemoteFiles({
