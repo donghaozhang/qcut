@@ -120,4 +120,14 @@ describe("sticker pack resources", () => {
 		).rejects.toThrow("404");
 		expect(failures).toEqual([expect.stringContaining("404")]);
 	});
+
+	it("rejects empty packs before starting an installation", async () => {
+		await expect(
+			installStickerPackResources({
+				concurrency: Number.NaN,
+				pack: { ...remotePack(), items: [] },
+				storage: new MemoryAssetCache(),
+			})
+		).rejects.toThrow("cannot be empty");
+	});
 });

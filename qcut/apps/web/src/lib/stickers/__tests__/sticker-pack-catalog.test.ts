@@ -78,4 +78,46 @@ describe("sticker pack catalog", () => {
 			})
 		).toBe(true);
 	});
+
+	it("declares install delivery and version metadata for every pack", () => {
+		expect(
+			STICKER_STORE_PACKS.map(({ builtIn, delivery, id, version }) => ({
+				builtIn,
+				delivery,
+				id,
+				version,
+			}))
+		).toEqual([
+			{
+				builtIn: true,
+				delivery: "bundled",
+				id: "qcut-original-characters",
+				version: 1,
+			},
+			{
+				builtIn: true,
+				delivery: "bundled",
+				id: "qcut-themed-creator",
+				version: 1,
+			},
+			{
+				builtIn: false,
+				delivery: "remote",
+				id: "fluent-creator-essentials",
+				version: 1,
+			},
+			{
+				builtIn: false,
+				delivery: "bundled",
+				id: "qcut-motion-emphasis",
+				version: 1,
+			},
+			{
+				builtIn: false,
+				delivery: "bundled",
+				id: "qcut-motion-creator",
+				version: 1,
+			},
+		]);
+	});
 });
