@@ -302,6 +302,10 @@ function TextTemplate({
 		currentTime?: number;
 		customCopyValues?: readonly string[];
 	} = {}) => {
+		if (resourceAccess === "svip-required") {
+			toast.error("这个文字样式需要 SVIP。");
+			return;
+		}
 		const time = currentTime ?? usePlaybackStore.getState().currentTime;
 		const resolvedTemplate = await resolveTemplate();
 		const fallbackTemplatePack = buildTextTemplatePack({
@@ -654,7 +658,12 @@ export function getTextTemplateRuntimeDownloadStatus({
 		id: asset.id,
 		version: asset.version,
 	});
-	if (asset.delivery !== "remote") return "cached";
+	if (asset.delivery !== "remote") {
+		return getTextTemplateResourceAccess({ definition, state }) ===
+			"svip-required"
+			? "failed"
+			: "cached";
+	}
 	const runtime = runtimeByAssetKey[assetKey];
 	if (
 		runtime?.downloadStatus === "downloading" ||

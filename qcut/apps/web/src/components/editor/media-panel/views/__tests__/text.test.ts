@@ -142,7 +142,7 @@ describe("text view layout", () => {
 	it("treats bundled generated text resources as cached in the grid", () => {
 		const definition = getTextTemplateDefinitionsByCategory({
 			category: "red",
-		}).find((candidate) => !candidate.downloaded);
+		}).find((candidate) => !candidate.downloaded && !candidate.premium);
 		if (!definition)
 			throw new Error("Expected a bundled generated text fixture");
 
@@ -151,6 +151,31 @@ describe("text view layout", () => {
 				definition,
 				runtimeByAssetKey: {},
 				state: EMPTY_TEXT_LIBRARY_STATE,
+			})
+		).toBe("cached");
+	});
+
+	it("keeps bundled SVIP text resources locked until access is available", () => {
+		const definition = getTextTemplateDefinitionsByCategory({
+			category: "red",
+		}).find((candidate) => candidate.premium);
+		if (!definition) throw new Error("Expected a premium text fixture");
+
+		expect(
+			getTextTemplateRuntimeDownloadStatus({
+				definition,
+				runtimeByAssetKey: {},
+				state: EMPTY_TEXT_LIBRARY_STATE,
+			})
+		).toBe("failed");
+		expect(
+			getTextTemplateRuntimeDownloadStatus({
+				definition,
+				runtimeByAssetKey: {},
+				state: {
+					...EMPTY_TEXT_LIBRARY_STATE,
+					hasSvipAccess: true,
+				},
 			})
 		).toBe("cached");
 	});
