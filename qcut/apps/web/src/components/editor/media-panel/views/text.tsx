@@ -62,6 +62,8 @@ import {
 import { rankTextTemplateSearchResults } from "@/lib/text/text-library-search";
 import {
 	compareTextTemplatesByMarketplaceOrder,
+	getTextTemplateMarketplaceMetadata,
+	isTextTemplateMarketplaceRecommended,
 	loadTextTemplateMarketplaceRemoteConfig,
 	type TextTemplateMarketplaceMetadataOverrides,
 } from "@/lib/text/text-marketplace-metadata";
@@ -114,6 +116,15 @@ type TextLibraryStyleFilter =
 	| "blue"
 	| "red";
 
+type TextLibraryMarketFilter =
+	| "all"
+	| "recommended"
+	| "commerce"
+	| "cover"
+	| "variety"
+	| "premium-look"
+	| "night";
+
 const TEXT_LIBRARY_STATUS_FILTERS: readonly {
 	id: TextLibraryStatusFilter;
 	label: string;
@@ -138,6 +149,19 @@ const TEXT_LIBRARY_STYLE_FILTERS: readonly {
 	{ id: "glow", label: "发光" },
 	{ id: "blue", label: "蓝色" },
 	{ id: "red", label: "红色" },
+];
+
+const TEXT_LIBRARY_MARKET_FILTERS: readonly {
+	id: TextLibraryMarketFilter;
+	label: string;
+}[] = [
+	{ id: "all", label: "全部运营" },
+	{ id: "recommended", label: "推荐" },
+	{ id: "commerce", label: "带货" },
+	{ id: "cover", label: "封面" },
+	{ id: "variety", label: "综艺" },
+	{ id: "premium-look", label: "质感" },
+	{ id: "night", label: "夜景" },
 ];
 
 const TEXT_TEMPLATE_GRID_COLUMNS = {
@@ -989,6 +1013,53 @@ function matchesStyleFilter({
 	);
 }
 
+export function matchesMarketplaceFilter({
+	definition,
+	filter,
+	marketplaceOverrides,
+}: {
+	definition: TextTemplateDefinition;
+	filter: TextLibraryMarketFilter;
+	marketplaceOverrides?: TextTemplateMarketplaceMetadataOverrides;
+}): boolean {
+	if (filter === "all") return true;
+	if (filter === "recommended") {
+		return isTextTemplateMarketplaceRecommended({
+			definition,
+			overrides: marketplaceOverrides,
+		});
+	}
+	const metadata = getTextTemplateMarketplaceMetadata({
+		definition,
+		overrides: marketplaceOverrides,
+	});
+	const tags = new Set(metadata.remoteTags);
+	const aliases = new Set(metadata.searchAliases);
+	if (filter === "commerce") {
+		return (
+			tags.has("scene:commerce") ||
+			aliases.has("带货") ||
+			aliases.has("价格") ||
+			aliases.has("促销")
+		);
+	}
+	if (filter === "cover") {
+		return tags.has("market:hero") || aliases.has("封面");
+	}
+	if (filter === "variety") {
+		return tags.has("scene:variety") || tags.has("effect:pop");
+	}
+	if (filter === "premium-look") {
+		return (
+			tags.has("market:premium-look") ||
+			tags.has("tone:premium") ||
+			tags.has("material:chrome") ||
+			tags.has("material:gold")
+		);
+	}
+	return tags.has("scene:night") || tags.has("effect:glow");
+}
+
 function FilterBar<TFilter extends string>({
 	filters,
 	activeFilter,
@@ -1034,6 +1105,7 @@ function ExpandedTextLibraryDialog({
 	onDownload,
 	onOpenChange,
 	onSearchQueryChange,
+	onSelectMarketFilter,
 	onSelectCategory,
 	onSelectGroup,
 	onSelectStatusFilter,
@@ -1044,6 +1116,7 @@ function ExpandedTextLibraryDialog({
 	runtimeByAssetKey,
 	searchQuery,
 	smartTextStatus,
+	marketFilter,
 	statusFilter,
 	styleFilter,
 }: {
@@ -1056,6 +1129,7 @@ function ExpandedTextLibraryDialog({
 	onDownload: (props: { definition: TextTemplateDefinition }) => void;
 	onOpenChange: (open: boolean) => void;
 	onSearchQueryChange: (props: { query: string }) => void;
+	onSelectMarketFilter: (filter: TextLibraryMarketFilter) => void;
 	onSelectCategory: (props: { categoryId: TextTemplateCategoryId }) => void;
 	onSelectGroup: (props: { group: TextTemplateGroup }) => void;
 	onSelectStatusFilter: (filter: TextLibraryStatusFilter) => void;
@@ -1066,6 +1140,7 @@ function ExpandedTextLibraryDialog({
 	runtimeByAssetKey: Readonly<Record<string, AssetRuntimeState>>;
 	searchQuery: string;
 	smartTextStatus: string;
+	marketFilter: TextLibraryMarketFilter;
 	statusFilter: TextLibraryStatusFilter;
 	styleFilter: TextLibraryStyleFilter;
 }) {
@@ -1106,6 +1181,11 @@ function ExpandedTextLibraryDialog({
 								activeFilter={styleFilter}
 								filters={TEXT_LIBRARY_STYLE_FILTERS}
 								onSelectFilter={onSelectStyleFilter}
+							/>
+							<FilterBar
+								activeFilter={marketFilter}
+								filters={TEXT_LIBRARY_MARKET_FILTERS}
+								onSelectFilter={onSelectMarketFilter}
 							/>
 						</div>
 						{definitions.length > 0 ? (
@@ -1217,6 +1297,8 @@ export function TextView() {
 	const [statusFilter, setStatusFilter] =
 		useState<TextLibraryStatusFilter>("all");
 	const [styleFilter, setStyleFilter] = useState<TextLibraryStyleFilter>("all");
+	const [marketFilter, setMarketFilter] =
+		useState<TextLibraryMarketFilter>("all");
 	const [expandedLibraryOpen, setExpandedLibraryOpen] = useState(false);
 	const [libraryState, setLibraryState] = useState<TextLibraryState>(() =>
 		loadTextLibraryState()
@@ -1294,11 +1376,18 @@ export function TextView() {
 					definition,
 					filter: statusFilter,
 					state: libraryState,
-				}) && matchesStyleFilter({ definition, filter: styleFilter })
+				}) &&
+				matchesStyleFilter({ definition, filter: styleFilter }) &&
+				matchesMarketplaceFilter({
+					definition,
+					filter: marketFilter,
+					marketplaceOverrides,
+				})
 		);
 	}, [
 		activeCategory.id,
 		libraryState,
+		marketFilter,
 		marketplaceOverrides,
 		normalizedSearchQuery,
 		projectAwareDefinitions,
@@ -1310,6 +1399,7 @@ export function TextView() {
 		: activeCategory.label;
 	const hasActiveFilters =
 		Boolean(normalizedSearchQuery) ||
+		marketFilter !== "all" ||
 		statusFilter !== "all" ||
 		styleFilter !== "all";
 	const emptyMessage = getTextLibraryEmptyMessage({
@@ -1532,6 +1622,11 @@ export function TextView() {
 						filters={TEXT_LIBRARY_STYLE_FILTERS}
 						onSelectFilter={setStyleFilter}
 					/>
+					<FilterBar
+						activeFilter={marketFilter}
+						filters={TEXT_LIBRARY_MARKET_FILTERS}
+						onSelectFilter={setMarketFilter}
+					/>
 				</div>
 				{visibleDefinitions.length > 0 ? (
 					<TemplateGrid
@@ -1562,6 +1657,7 @@ export function TextView() {
 				onDownload={handleDownload}
 				onOpenChange={setExpandedLibraryOpen}
 				onSearchQueryChange={handleSearchQueryChange}
+				onSelectMarketFilter={setMarketFilter}
 				onSelectCategory={handleSelectCategory}
 				onSelectGroup={handleSelectGroup}
 				onSelectStatusFilter={setStatusFilter}
@@ -1572,6 +1668,7 @@ export function TextView() {
 				runtimeByAssetKey={runtimeByAssetKey}
 				searchQuery={searchQuery}
 				smartTextStatus={smartTextStatus}
+				marketFilter={marketFilter}
 				statusFilter={statusFilter}
 				styleFilter={styleFilter}
 			/>

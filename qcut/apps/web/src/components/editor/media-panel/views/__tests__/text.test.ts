@@ -13,6 +13,7 @@ import {
 	getTextTemplateRuntimeDownloadStatus,
 	getExpandedTextTemplateGridColumnCount,
 	getTextTemplateGridColumnCount,
+	matchesMarketplaceFilter,
 	sortTextDefinitionsForBrowsing,
 } from "../text";
 import { buildTextTemplatePack } from "@/lib/text/text-template-packs";
@@ -83,6 +84,58 @@ describe("text view layout", () => {
 				},
 			})[0]?.id
 		).toBe(plain.id);
+	});
+
+	it("matches marketplace operation filters from tags and remote overrides", () => {
+		const redBurst = getTextTemplateDefinitionsByCategory({
+			category: "red",
+		}).find((definition) => definition.variantId === "red-burst");
+		const texture = getTextTemplateDefinitionsByCategory({
+			category: "texture",
+		}).find((definition) => definition.variantId === "texture-grain");
+		const plain = getTextTemplateDefinitionsByCategory({
+			category: "basic",
+		})[0];
+		if (!redBurst || !texture || !plain) {
+			throw new Error("Expected text marketplace fixtures");
+		}
+
+		expect(
+			matchesMarketplaceFilter({
+				definition: redBurst,
+				filter: "commerce",
+			})
+		).toBe(true);
+		expect(
+			matchesMarketplaceFilter({
+				definition: redBurst,
+				filter: "cover",
+			})
+		).toBe(true);
+		expect(
+			matchesMarketplaceFilter({
+				definition: texture,
+				filter: "premium-look",
+			})
+		).toBe(true);
+		expect(
+			matchesMarketplaceFilter({
+				definition: plain,
+				filter: "commerce",
+				marketplaceOverrides: {
+					[plain.id]: {
+						remoteTags: ["scene:commerce"],
+						searchAliases: ["带货"],
+					},
+				},
+			})
+		).toBe(true);
+		expect(
+			matchesMarketplaceFilter({
+				definition: plain,
+				filter: "commerce",
+			})
+		).toBe(false);
 	});
 
 	it("includes grouped template payloads for multi-element text drags", () => {
