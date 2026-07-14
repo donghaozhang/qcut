@@ -91,6 +91,7 @@ function createGeneratedEntry({
 
 function designerSourceText({
 	assetId = "text-demo",
+	marketplace,
 	packageId = "text-demo",
 	template = {
 		content: "设计师花字",
@@ -101,6 +102,7 @@ function designerSourceText({
 	templatePack,
 }: {
 	assetId?: string;
+	marketplace?: Record<string, unknown>;
 	template?: Record<string, unknown>;
 	templatePack?: Record<string, unknown>;
 } = {}): string {
@@ -108,6 +110,7 @@ function designerSourceText({
 		{
 			assetId,
 			definition: { id: "designer-demo", name: "Designer demo" },
+			marketplace,
 			packageId,
 			schemaVersion: 1,
 			template,
@@ -230,13 +233,38 @@ describe("text designer asset import script", () => {
 			allowUnchanged: true,
 			dryRun: true,
 			generatedManifestPath: "/tmp/generated.json",
+			marketplaceConfigPath: expect.stringContaining(
+				"text-assets/marketplace.json"
+			),
 			minDesignerAssets: 10,
 			minDesignerAssetsPerCategory: 5,
 			packDir: "/tmp/designer-pack",
 			packManifestPath: "/tmp/designer-pack/manifest.json",
 			publicDir: "/tmp/public",
 			requiredDesignerCategories: ["red", "texture"],
+			syncMarketplace: true,
 			writePlanPath: "/tmp/import-plan.json",
+		});
+		expect(
+			parseTextDesignerAssetImportArgs({
+				argv: [
+					"--pack-dir",
+					"/tmp/designer-pack",
+					"--marketplace-config",
+					"/tmp/marketplace.json",
+				],
+			})
+		).toMatchObject({
+			marketplaceConfigPath: "/tmp/marketplace.json",
+			syncMarketplace: true,
+		});
+		expect(
+			parseTextDesignerAssetImportArgs({
+				argv: ["--pack-dir", "/tmp/designer-pack", "--skip-marketplace-sync"],
+			})
+		).toMatchObject({
+			marketplaceConfigPath: undefined,
+			syncMarketplace: false,
 		});
 	});
 
@@ -597,6 +625,10 @@ describe("text designer asset import script", () => {
 			packManifest,
 			publicDir,
 		} = await createDesignerFixture();
+		const marketplaceConfigPath = join(
+			dirname(generatedManifestPath),
+			"marketplace.json"
+		);
 		const plan = await buildTextDesignerAssetImportPlan({
 			generatedManifest,
 			packDir,
@@ -608,14 +640,19 @@ describe("text designer asset import script", () => {
 			applyTextDesignerAssetImportPlan({
 				dryRun: true,
 				generatedManifestPath,
+				marketplaceConfigPath,
 				plan,
+				publicDir,
 			})
 		).resolves.toMatchObject({ copiedFiles: 0, dryRun: true, totalFiles: 3 });
+		await expect(readFile(marketplaceConfigPath, "utf8")).rejects.toThrow();
 		await expect(
 			applyTextDesignerAssetImportPlan({
 				dryRun: false,
 				generatedManifestPath,
+				marketplaceConfigPath,
 				plan,
+				publicDir,
 			})
 		).resolves.toMatchObject({ copiedFiles: 3, dryRun: false, totalFiles: 3 });
 
@@ -632,6 +669,17 @@ describe("text designer asset import script", () => {
 			source: "designer-imported",
 			pipeline: "designer-pack-v1",
 		});
+		const marketplaceConfig = JSON.parse(
+			await readFile(marketplaceConfigPath, "utf8")
+		) as { assets: Array<{ remoteTags?: string[]; templateId?: string }> };
+		expect(marketplaceConfig.assets).toEqual(
+			expect.arrayContaining([
+				expect.objectContaining({
+					remoteTags: expect.arrayContaining(["source:designer-imported"]),
+					templateId: "designer-demo",
+				}),
+			])
+		);
 	});
 
 	it("writes reviewable dry-run import plan reports", async () => {

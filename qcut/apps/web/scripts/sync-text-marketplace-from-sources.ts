@@ -1,4 +1,4 @@
-import { readFile, writeFile } from "node:fs/promises";
+import { mkdir, readFile, writeFile } from "node:fs/promises";
 import { dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import type {
@@ -104,6 +104,7 @@ export async function writeTextMarketplaceConfigFromSources({
 		generatedManifest,
 		publicDir,
 	});
+	await mkdir(dirname(outPath), { recursive: true });
 	await writeFile(outPath, `${JSON.stringify(config, null, "\t")}\n`, "utf8");
 	return config;
 }

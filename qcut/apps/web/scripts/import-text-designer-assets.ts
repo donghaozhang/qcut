@@ -21,6 +21,7 @@ import {
 	verifyDesignerAssetCoverage,
 	verifyDesignerCategoryCoverage,
 } from "./verify-text-asset-cdn-manifest";
+import { writeTextMarketplaceConfigFromSources } from "./sync-text-marketplace-from-sources";
 
 export type TextDesignerAssetPackEntry = {
 	assetId: string;
@@ -38,12 +39,14 @@ export type TextDesignerAssetImportOptions = {
 	allowUnchanged: boolean;
 	dryRun: boolean;
 	generatedManifestPath: string;
+	marketplaceConfigPath?: string;
 	minDesignerAssets: number;
 	minDesignerAssetsPerCategory: number;
 	packDir: string;
 	packManifestPath: string;
 	publicDir: string;
 	requiredDesignerCategories: string[];
+	syncMarketplace: boolean;
 	writePlanPath?: string;
 };
 
@@ -100,6 +103,10 @@ const DEFAULT_GENERATED_MANIFEST_PATH = join(
 	"../src/lib/text/text-asset-generated-manifest.json"
 );
 const DEFAULT_PUBLIC_DIR = join(SCRIPT_DIR, "../public");
+const DEFAULT_MARKETPLACE_CONFIG_PATH = join(
+	DEFAULT_PUBLIC_DIR,
+	"text-assets/marketplace.json"
+);
 const DESIGNER_MANIFEST_FILE = "manifest.json";
 
 export function parseTextDesignerAssetImportArgs({
@@ -113,10 +120,12 @@ export function parseTextDesignerAssetImportArgs({
 		generatedManifestPath: DEFAULT_GENERATED_MANIFEST_PATH,
 		minDesignerAssets: 0,
 		minDesignerAssetsPerCategory: 1,
+		marketplaceConfigPath: DEFAULT_MARKETPLACE_CONFIG_PATH,
 		packDir: "",
 		packManifestPath: "",
 		publicDir: DEFAULT_PUBLIC_DIR,
 		requiredDesignerCategories: [],
+		syncMarketplace: true,
 	};
 	for (let index = 0; index < argv.length; index += 1) {
 		const arg = argv[index];
@@ -126,6 +135,11 @@ export function parseTextDesignerAssetImportArgs({
 		}
 		if (arg === "--dry-run") {
 			options.dryRun = true;
+			continue;
+		}
+		if (arg === "--skip-marketplace-sync") {
+			options.syncMarketplace = false;
+			options.marketplaceConfigPath = undefined;
 			continue;
 		}
 		if (arg === "--designer-ready") {
@@ -165,6 +179,11 @@ export function parseTextDesignerAssetImportArgs({
 		}
 		if (arg === "--public-dir") {
 			options.publicDir = requireValue({ argv, index, name: arg });
+			index += 1;
+			continue;
+		}
+		if (arg === "--marketplace-config") {
+			options.marketplaceConfigPath = requireValue({ argv, index, name: arg });
 			index += 1;
 			continue;
 		}
@@ -337,11 +356,15 @@ function currentGeneratedFileForRole({
 export async function applyTextDesignerAssetImportPlan({
 	dryRun,
 	generatedManifestPath,
+	marketplaceConfigPath,
 	plan,
+	publicDir,
 }: {
 	dryRun: boolean;
 	generatedManifestPath: string;
+	marketplaceConfigPath?: string;
 	plan: TextDesignerAssetImportPlan;
+	publicDir?: string;
 }): Promise<TextDesignerAssetImportSummary> {
 	if (!dryRun) {
 		await Promise.all(
@@ -355,6 +378,13 @@ export async function applyTextDesignerAssetImportPlan({
 			`${JSON.stringify(plan.updatedManifest, null, "\t")}\n`,
 			"utf8"
 		);
+		if (marketplaceConfigPath && publicDir) {
+			await writeTextMarketplaceConfigFromSources({
+				generatedManifestPath,
+				outPath: marketplaceConfigPath,
+				publicDir,
+			});
+		}
 	}
 	const totalBytes = plan.items.reduce(
 		(total, item) => total + item.byteSize,
@@ -949,7 +979,11 @@ async function main(): Promise<void> {
 	const summary = await applyTextDesignerAssetImportPlan({
 		dryRun: options.dryRun,
 		generatedManifestPath: options.generatedManifestPath,
+		marketplaceConfigPath: options.syncMarketplace
+			? options.marketplaceConfigPath
+			: undefined,
 		plan,
+		publicDir: options.publicDir,
 	});
 	if (options.writePlanPath) {
 		await writeTextDesignerAssetImportPlanReport({

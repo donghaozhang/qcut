@@ -444,7 +444,6 @@ Replace the files referenced by \`manifest.json\`, then run:
 \`\`\`bash
 bun run assets:text:import-designer -- --pack-dir <this-folder> --dry-run --write-plan dist/text-designer-import-plan.json
 bun run assets:text:import-designer -- --pack-dir <this-folder>
-bun run assets:text:sync-marketplace
 bun run assets:text:import-designer-ready -- --pack-dir <this-folder> --dry-run
 bun run assets:text:verify-cdn
 bun run assets:text:verify-designer-ready
@@ -467,7 +466,7 @@ When \`CONTACT_SHEET.html\` is present, open it to review the selected categorie
 | \`template.json\` | Must keep the target \`assetId\`, \`packageId\`, and text template identity. |
 | \`template.qctext\` | Must use \`kind: "qcut-text-template-package"\`, keep the same \`cacheKey\`, and reference \`template.json\` plus \`thumbnail.webp\`. |
 
-The dry-run import writes \`dist/text-designer-import-plan.json\`; review that plan before applying. After import, \`assets:text:release-stage\` builds the CDN handoff folder and archive, while \`assets:text:verify-archive\` verifies the tarball itself.
+The dry-run import writes \`dist/text-designer-import-plan.json\`; review that plan before applying. The import step syncs \`text-assets/marketplace.json\` from the imported source files by default; pass \`--skip-marketplace-sync\` only when intentionally updating it separately. After import, \`assets:text:release-stage\` builds the CDN handoff folder and archive, while \`assets:text:verify-archive\` verifies the tarball itself.
 
 ## Category Quotas
 
