@@ -13,18 +13,13 @@ vi.mock("electron", () => ({
 
 import { getVideoPreviewProxyPath } from "../ffmpeg/video-preview-proxy-cache";
 import { renderVideoPreviewProxy } from "../ffmpeg/video-preview-proxy";
+import { getFFmpegPath, getFFprobePath } from "../ffmpeg/paths";
 import type { VideoPreviewProxyOptions } from "../ffmpeg/types";
 
-const ffmpegPath = path.resolve(
-	__dirname,
-	"../resources/ffmpeg/darwin-arm64/ffmpeg"
-);
-const ffprobePath = path.resolve(
-	__dirname,
-	"../resources/ffmpeg/darwin-arm64/ffprobe"
-);
 const tempDir = path.resolve(__dirname, "../../.tmp/video-preview-proxy-real");
 const sourcePath = path.join(tempDir, "source.mp4");
+let ffmpegPath = "";
+let ffprobePath = "";
 
 function run({ binary, args }: { binary: string; args: string[] }) {
 	const result = spawnSync(binary, args, {
@@ -62,10 +57,12 @@ function proxyOptions({
 	};
 }
 
-beforeAll(() => {
+beforeAll(async () => {
 	fs.rmSync(tempDir, { recursive: true, force: true });
 	fs.mkdirSync(tempDir, { recursive: true });
 	electronMock.userDataPath = tempDir;
+	ffmpegPath = getFFmpegPath();
+	ffprobePath = await getFFprobePath();
 	run({
 		binary: ffmpegPath,
 		args: [
