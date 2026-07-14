@@ -14,6 +14,7 @@
 		"assets:text:publish-manifest": "bun scripts/verify-text-asset-cdn-manifest.ts --write dist/text-assets-publish-manifest.json",
 		"assets:text:check-remote": "bun scripts/verify-text-asset-cdn-manifest.ts --check-remote",
 		"assets:text:upload-cdn": "bun scripts/upload-text-assets-cdn.ts",
+		"assets:text:release-cdn": "bun scripts/release-text-assets-cdn.ts",
 		"preview": "vite preview",
 		"lint": "biome check src/",
 		"lint:fix": "biome check src/ --write",
