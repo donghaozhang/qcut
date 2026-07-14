@@ -9,6 +9,7 @@ import { describe, expect, it, vi } from "vitest";
 import {
 	downloadTextTemplateResource,
 	loadTextTemplatePackageSource,
+	loadTextTemplateThumbnailBlob,
 	parseTextTemplatePackage,
 	resolveTextTemplatePackForTimeline,
 	resolveTextTemplateForTimeline,
@@ -689,6 +690,40 @@ describe("downloadTextTemplateResource", () => {
 				content: "IndexedDB package",
 			},
 		});
+		expect(fetchImpl).not.toHaveBeenCalled();
+	});
+
+	it("loads remote thumbnail blobs from the asset cache without another request", async () => {
+		const definition = textDefinition();
+		const storage = new MemoryAssetCache();
+		storage.resources.set(
+			"text-template:asset-remote-resource-test@1:thumbnail:0",
+			{
+				assetIdentity: "text-template:asset-remote-resource-test",
+				assetKey: "text-template:asset-remote-resource-test@1",
+				blob: new Blob(["cached thumbnail"]),
+				byteSize: 184,
+				cacheKey: "text-template:asset-remote-resource-test@1:thumbnail:0",
+				cachedAt: 1,
+				checksumSha256: "0".repeat(64),
+				fileIndex: 0,
+				lastAccessedAt: 1,
+				mimeType: "image/webp",
+				role: "thumbnail",
+				sourceUrl:
+					"https://assets.qcut.app/text-assets/package-remote-resource-test/plain@1/thumbnail.webp",
+				version: 1,
+			}
+		);
+		const fetchImpl = vi.fn<typeof fetch>();
+
+		await expect(
+			loadTextTemplateThumbnailBlob({
+				definition,
+				fetchImpl,
+				storage,
+			}).then((blob) => blob?.text())
+		).resolves.toBe("cached thumbnail");
 		expect(fetchImpl).not.toHaveBeenCalled();
 	});
 

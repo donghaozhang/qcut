@@ -473,6 +473,26 @@ export async function loadTextTemplatePackageSource({
 	return parseTextTemplatePackage({ text });
 }
 
+export async function loadTextTemplateThumbnailBlob({
+	definition,
+	fetchImpl = fetch,
+	storage,
+}: {
+	definition: TextTemplateDefinition;
+	fetchImpl?: typeof fetch;
+	storage?: AssetResourceCacheStorage;
+}): Promise<Blob | null> {
+	const asset = resolveTextTemplateAssetEntry({ definition });
+	const [resource] = await ensureAssetResources({
+		asset,
+		cacheBundledResources: asset.delivery === "bundled",
+		fetchImpl: textAssetFetchWithBundledFallback({ fetchImpl }),
+		roles: ["thumbnail"],
+		storage,
+	});
+	return resource?.blob ?? null;
+}
+
 export async function resolveTextTemplateForTimeline({
 	definition,
 	enabled = true,

@@ -13,6 +13,7 @@ import { resolveTextTemplateAssetEntry } from "@/lib/assets/qcut-asset-manifest"
 import { getTextTemplateCatalogThumbnailUrl } from "@/lib/text/text-resource-catalog";
 import {
 	downloadTextTemplateResource,
+	loadTextTemplateThumbnailBlob,
 	resolveTextTemplatePackForTimeline,
 	resolveTextTemplateForTimeline,
 } from "@/lib/text/text-template-resource";
@@ -333,6 +334,10 @@ function TextTemplate({
 		() => buildTextTemplate({ definition }),
 		[definition]
 	);
+	const asset = useMemo(
+		() => resolveTextTemplateAssetEntry({ definition }),
+		[definition]
+	);
 	const dragData = useMemo(
 		() => buildTextTemplateDragData({ definition }),
 		[definition]
@@ -347,6 +352,9 @@ function TextTemplate({
 			copySlots: editableTemplatePack?.copySlots ?? [],
 		})
 	);
+	const [cachedThumbnailUrl, setCachedThumbnailUrl] = useState<
+		string | undefined
+	>();
 	const isTemplatePack = Boolean(editableTemplatePack);
 	const templateAccessibilityLabel = getTextTemplateAccessibilityLabel({
 		isPack: isTemplatePack,
@@ -462,6 +470,33 @@ function TextTemplate({
 		slotCount: editableTemplatePack?.copySlots.length ?? 0,
 	});
 
+	useEffect(() => {
+		if (
+			downloadStatus !== "cached" ||
+			asset.delivery !== "remote" ||
+			typeof URL === "undefined" ||
+			typeof URL.createObjectURL !== "function"
+		) {
+			setCachedThumbnailUrl(undefined);
+			return;
+		}
+		let cancelled = false;
+		let objectUrl: string | undefined;
+		loadTextTemplateThumbnailBlob({ definition })
+			.then((blob) => {
+				if (!blob || cancelled) return;
+				objectUrl = URL.createObjectURL(blob);
+				setCachedThumbnailUrl(objectUrl);
+			})
+			.catch(() => {
+				if (!cancelled) setCachedThumbnailUrl(undefined);
+			});
+		return () => {
+			cancelled = true;
+			if (objectUrl) URL.revokeObjectURL(objectUrl);
+		};
+	}, [asset.delivery, definition, downloadStatus]);
+
 	return (
 		<div
 			className="group relative w-full"
@@ -489,7 +524,10 @@ function TextTemplate({
 					<TextTemplateThumbnail
 						definition={definition}
 						template={template}
-						thumbnailUrl={getTextTemplateCatalogThumbnailUrl({ definition })}
+						thumbnailUrl={
+							cachedThumbnailUrl ??
+							getTextTemplateCatalogThumbnailUrl({ definition })
+						}
 					/>
 					{editableTemplatePack && (
 						<div className="absolute left-1 top-5 flex h-4 w-4 items-center justify-center rounded-full bg-black/55 text-cyan-200 shadow-sm ring-1 ring-white/10">
