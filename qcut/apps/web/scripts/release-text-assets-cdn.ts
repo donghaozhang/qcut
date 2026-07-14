@@ -61,6 +61,8 @@ export type TextAssetReleaseSummary = {
 	archivePath?: string;
 	archivedFiles: number;
 	baseUrl: string;
+	designerGapReportPath?: string;
+	designerReadyMissing: number;
 	dryRun: boolean;
 	localIssueSummary: ReturnType<typeof summarizeVerifyIssues>["issueSummary"];
 	localIssues: readonly VerifyIssue[];
@@ -344,6 +346,7 @@ export async function releaseTextAssetsToCdn({
 	];
 	if (localIssues.length > 0) {
 		return buildReleaseSummary({
+			designerReadyMissing: designerGapReport.totalMissing,
 			localIssues,
 			manifestPath: options.publishManifestPath,
 			remoteIssues: [],
@@ -405,12 +408,14 @@ export async function releaseTextAssetsToCdn({
 					manifest,
 				});
 	return buildReleaseSummary({
+		designerReadyMissing: designerGapReport.totalMissing,
 		localIssues,
 		manifest,
 		manifestPath: options.publishManifestPath,
 		options,
 		provenance,
 		remoteIssues,
+		stageDesignerGapReportPath: staging?.designerGapReportPath,
 		stageArchivePath: archive?.archivePath,
 		stageArchivedFiles: archive?.fileCount,
 		stageManifestPath: staging?.manifestPath,
@@ -433,7 +438,11 @@ export async function stageTextAssetUploadPlan({
 	provenance?: TextAssetProvenanceSummary;
 	requiredDesignerCategories?: readonly string[];
 	stageDir: string;
-}): Promise<{ fileCount: number; manifestPath: string }> {
+}): Promise<{
+	designerGapReportPath?: string;
+	fileCount: number;
+	manifestPath: string;
+}> {
 	const resolvedStageDir = resolve(stageDir);
 	await Promise.all(
 		items.map(async (item) => {
@@ -484,7 +493,13 @@ export async function stageTextAssetUploadPlan({
 			writePath: designerGapReportPath,
 		});
 	}
-	return { fileCount: items.length, manifestPath };
+	return {
+		designerGapReportPath: designerGapReport
+			? designerGapReportPath
+			: undefined,
+		fileCount: items.length,
+		manifestPath,
+	};
 }
 
 function renderTextAssetReleaseReadme({
@@ -609,6 +624,8 @@ export async function createTextAssetStageArchive({
 function buildReleaseSummary({
 	stageArchivePath,
 	stageArchivedFiles,
+	stageDesignerGapReportPath,
+	designerReadyMissing,
 	localIssues,
 	manifest,
 	manifestPath,
@@ -619,6 +636,7 @@ function buildReleaseSummary({
 	stagedFiles,
 	upload,
 }: {
+	designerReadyMissing: number;
 	localIssues: readonly VerifyIssue[];
 	manifest: { totalAssets: number; totalBytes: number; totalFiles: number };
 	manifestPath: string;
@@ -627,6 +645,7 @@ function buildReleaseSummary({
 	remoteIssues: readonly VerifyIssue[];
 	stageArchivePath?: string;
 	stageArchivedFiles?: number;
+	stageDesignerGapReportPath?: string;
 	stageManifestPath?: string;
 	stagedFiles?: number;
 	upload: TextAssetUploadSummary;
@@ -635,6 +654,8 @@ function buildReleaseSummary({
 		archivePath: stageArchivePath,
 		archivedFiles: stageArchivedFiles ?? 0,
 		baseUrl: options.baseUrl,
+		designerGapReportPath: stageDesignerGapReportPath,
+		designerReadyMissing,
 		dryRun: options.dryRun,
 		localIssueSummary: summarizeVerifyIssues({ issues: localIssues })
 			.issueSummary,

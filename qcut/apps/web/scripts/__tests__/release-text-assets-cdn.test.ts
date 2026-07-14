@@ -384,6 +384,11 @@ describe("text asset CDN release script", () => {
 		expect(summary).toMatchObject({
 			archivePath,
 			archivedFiles: 7,
+			designerGapReportPath: join(
+				stageDir,
+				"_qcut-text-designer-gap-report.json"
+			),
+			designerReadyMissing: 100,
 			dryRun: true,
 			stageDir,
 			stageManifestPath: join(stageDir, "_qcut-text-assets-release.json"),
