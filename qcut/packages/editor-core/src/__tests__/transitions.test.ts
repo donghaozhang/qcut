@@ -7,6 +7,8 @@ import {
 	resolveClipTransition,
 	CLIP_TRANSITION_MAX_DURATION_SECONDS,
 	CLIP_TRANSITION_MIN_DURATION_SECONDS,
+	CLIP_TRANSITION_TYPES,
+	isClipTransitionType,
 } from "../timeline/transitions.js";
 import type {
 	AudioCrossfade,
@@ -95,6 +97,15 @@ function audioCrossfade({
 }
 
 describe("clip transitions", () => {
+	it("recognizes every persisted transition engine", () => {
+		expect(CLIP_TRANSITION_TYPES).toHaveLength(20);
+		for (const type of CLIP_TRANSITION_TYPES) {
+			expect(isClipTransitionType({ value: type })).toBe(true);
+		}
+		expect(isClipTransitionType({ value: "not-a-transition" })).toBe(false);
+		expect(isClipTransitionType({ value: null })).toBe(false);
+	});
+
 	it("resolves a transition window centered on a touching cut", () => {
 		const track = mediaTrack({
 			elements: [

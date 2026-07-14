@@ -68,10 +68,11 @@ function parseTransitionPayload({
 		const parsed: unknown = JSON.parse(data);
 		if (!parsed || typeof parsed !== "object") return null;
 		const candidate = parsed as Record<string, unknown>;
+		const typeCandidate = { value: candidate.type };
 		if (
 			candidate.kind !== "qcut-transition-preset" ||
 			typeof candidate.id !== "string" ||
-			!isClipTransitionType(candidate.type) ||
+			!isClipTransitionType(typeCandidate) ||
 			typeof candidate.defaultDuration !== "number" ||
 			!Number.isFinite(candidate.defaultDuration) ||
 			(candidate.direction !== undefined && !isDirection(candidate.direction))
@@ -82,7 +83,7 @@ function parseTransitionPayload({
 		return {
 			kind: "qcut-transition-preset",
 			id: candidate.id,
-			type: candidate.type,
+			type: typeCandidate.value,
 			direction: candidate.direction,
 			tuning: parseTuning({ value: candidate.tuning }),
 			defaultDuration: candidate.defaultDuration,

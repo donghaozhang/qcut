@@ -90,12 +90,12 @@ export const CLIP_TRANSITION_TYPES = [
 
 const TRANSITION_TYPES = new Set<ClipTransitionType>(CLIP_TRANSITION_TYPES);
 
-export function isClipTransitionType(
-	value: unknown
-): value is ClipTransitionType {
+export function isClipTransitionType(input: {
+	value: unknown;
+}): input is { value: ClipTransitionType } {
 	return (
-		typeof value === "string" &&
-		TRANSITION_TYPES.has(value as ClipTransitionType)
+		typeof input.value === "string" &&
+		TRANSITION_TYPES.has(input.value as ClipTransitionType)
 	);
 }
 const TRANSITION_DIRECTIONS = new Set<ClipTransitionDirection>([
