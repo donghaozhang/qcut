@@ -545,6 +545,111 @@ Runtime: 6 minutes 36 seconds.
 
 Modification decision: the complete real-media UI regression is green. No production fix or additional rerun is required.
 
+### Run 06g - Pull-request repository lint
+
+Date: 2026-07-14
+Result: FAIL (pre-existing branch formatting drift)
+Commands: GitHub Actions CI run `29300206467`; local reproduction with `bunx biome check --skip-parse-errors --max-diagnostics=50 .`
+
+Observed:
+
+- Linux and macOS CI failed at the shared `Lint` step before type checking or tests; the failure was platform-independent.
+- The complete local reproduction found ten formatter errors in earlier branch files: five enhancement/frame-cache web files, three Electron preview-proxy files, and two generated database migration metadata files.
+- None of the three new portrait transition audit files produced a diagnostic.
+
+Modification decision: apply Biome formatting only to the ten reported files, review the resulting changes as mechanical formatting, then rerun the exact repository lint command. No filter, transition, or export behavior change is required.
+
+### Run 06h - Unfiltered local repository lint retry
+
+Date: 2026-07-14
+Result: INCONCLUSIVE (local workspace contamination)
+Command: `bunx biome check --skip-parse-errors --max-diagnostics=50 .`
+
+Observed:
+
+- The ten files reported by the clean GitHub Actions checkout had already been formatted.
+- The local command still failed because it traversed ignored and generated directories that are absent from CI, including `dist/`, `output/`, generated website files, and local agent artifacts.
+- Those diagnostics do not describe the pull-request checkout and are unrelated to the portrait filter and transition audit.
+
+Modification decision: do not alter unrelated local artifacts. Reproduce the clean checkout's file set by running Biome against Git-tracked files only, then use that result to decide whether the pull request needs another formatting change.
+
+### Run 06i - Explicit Git-tracked-file lint attempt
+
+Date: 2026-07-14
+Result: INCONCLUSIVE (not equivalent to repository lint)
+Command: `git ls-files -z | xargs -0 -n 500 bunx biome check --skip-parse-errors --max-diagnostics=100`
+
+Observed:
+
+- Passing every tracked path explicitly caused Biome to inspect files that the root repository scan normally excludes.
+- The explicit set included missing local symlink targets and archived website and agent files, producing diagnostics that were absent from the clean pull-request run.
+- The wrapper also used zsh's read-only `status` name while capturing the exit code, so it could not report a trustworthy aggregate result.
+
+Modification decision: do not modify files found only by the non-equivalent invocation. Create a detached clean worktree, apply the current patch, and run the exact `lint:clean` script from that worktree.
+
+### Run 06j - Clean-worktree lint harness startup
+
+Date: 2026-07-14
+Result: NOT RUN (incorrect working directory)
+Command: `bun run lint:clean` from the detached Git worktree root
+
+Observed: the command exited with `Script not found "lint:clean"` because the Git repository root contains the application in its `qcut/` subdirectory. Biome did not start and no source file was checked.
+
+Modification decision: recreate the clean worktree with the same patch and execute the repository script from its `qcut/` application directory.
+
+### Run 06k - Clean-worktree repository lint
+
+Date: 2026-07-14
+Result: PASS
+Command: `bun run lint:clean` from a detached clean worktree with the current patch applied
+
+Observed:
+
+- The exact CI script checked 3,756 files and exited successfully with no errors.
+- Nine existing warnings and five informational parse-skip notices remained; neither category fails the repository lint command.
+- The ten formatter errors reported by GitHub Actions were absent.
+
+Modification decision: the scoped Biome formatting fully resolves the pull-request lint failure. Keep the existing non-blocking warnings out of this audit's production-change scope and verify the formatted modules with TypeScript and focused tests.
+
+### Run 06l - Formatting and migration metadata integrity
+
+Date: 2026-07-14
+Result: PASS
+Commands: `git diff --check`; canonical `jq -S` comparisons against `HEAD`; `jq empty`
+
+Observed:
+
+- The complete patch contained no whitespace errors.
+- Both formatted migration metadata files parsed as valid JSON.
+- Canonically sorted JSON from the working files exactly matched the corresponding `HEAD` content, proving that Biome changed presentation only.
+- `git diff --ignore-all-space` was not used as the deciding signal because formatter line wrapping still appears to that command as a structural line diff.
+
+Modification decision: keep the formatter output; neither migration metadata file contains a data change.
+
+### Run 06m - Formatted module TypeScript verification
+
+Date: 2026-07-14
+Result: PASS
+Commands: `cd apps/web && bunx tsc --noEmit --pretty false`; `bunx tsc --noEmit --pretty false -p electron/tsconfig.json`
+
+Observed: both the Web and Electron TypeScript projects compiled without diagnostics after formatting.
+
+Modification decision: no type or production-code correction is required.
+
+### Run 06n - Formatted module focused regression
+
+Date: 2026-07-14
+Result: PASS (12/12 tests across 3 files)
+Command: `bunx vitest run apps/web/src/hooks/preview/__tests__/use-video-enhancement-proxy.test.tsx apps/web/src/lib/preview/__tests__/shared-frame-cache.test.ts electron/__tests__/video-preview-proxy-real.test.ts`
+
+Observed:
+
+- All six video enhancement proxy hook tests passed.
+- All five shared frame cache tests passed.
+- The real FFmpeg video preview proxy test encoded and validated its playable cached proxy successfully.
+
+Modification decision: the formatting-only patch preserves the tested preview behavior and is ready to commit.
+
 ## Planned Application Runs
 
 | Run | Scope | Status |
