@@ -1,3 +1,6 @@
+import { readFileSync } from "node:fs";
+import { dirname, join } from "node:path";
+import { fileURLToPath } from "node:url";
 import { describe, expect, it } from "vitest";
 import {
 	compareTextTemplatesByMarketplaceOrder,
@@ -8,7 +11,20 @@ import {
 	parseTextTemplateMarketplaceRemoteConfigPayload,
 	TEXT_MARKETPLACE_REMOTE_CONFIG_STORAGE_KEY,
 } from "../text-marketplace-metadata";
-import { getTextTemplateDefinitionsByCategory } from "../text-template-registry";
+import {
+	TEXT_TEMPLATE_DEFINITIONS,
+	getTextTemplateDefinitionsByCategory,
+} from "../text-template-registry";
+
+const WEB_PUBLIC_DIR = join(
+	dirname(fileURLToPath(import.meta.url)),
+	"../../../..",
+	"public"
+);
+const BUNDLED_MARKETPLACE_CONFIG_PATH = join(
+	WEB_PUBLIC_DIR,
+	"text-assets/marketplace.json"
+);
 
 describe("text marketplace metadata", () => {
 	it("adds heat, editorial rank, remote tags, and aliases for market sorting", () => {
@@ -203,6 +219,70 @@ describe("text marketplace metadata", () => {
 				},
 			],
 		});
+	});
+
+	it("ships bundled marketplace heat, tags, aliases, and sections for every text asset", () => {
+		const payload = JSON.parse(
+			readFileSync(BUNDLED_MARKETPLACE_CONFIG_PATH, "utf8")
+		) as {
+			assets: Array<{
+				assetId?: string;
+				editorialRank?: number;
+				heatScore?: number;
+				remoteTags?: string[];
+				searchAliases?: string[];
+				templateId?: string;
+			}>;
+			sections: Array<{
+				id: string;
+				templateIds: string[];
+				title: string;
+			}>;
+		};
+		const parsed = parseTextTemplateMarketplaceRemoteConfigPayload({
+			value: payload,
+		});
+		const templateIds = new Set(
+			TEXT_TEMPLATE_DEFINITIONS.map((definition) => definition.id)
+		);
+		const definitionsById = new Map(
+			TEXT_TEMPLATE_DEFINITIONS.map((definition) => [definition.id, definition])
+		);
+		const bundledTemplateIds = new Set(
+			payload.assets.map((asset) => asset.templateId)
+		);
+
+		expect(payload.assets).toHaveLength(TEXT_TEMPLATE_DEFINITIONS.length);
+		for (const definition of TEXT_TEMPLATE_DEFINITIONS) {
+			expect(bundledTemplateIds.has(definition.id)).toBe(true);
+		}
+		for (const asset of payload.assets) {
+			const definition = definitionsById.get(asset.templateId ?? "");
+			expect(asset.assetId).toMatch(/^text-/);
+			expect(asset.templateId).toEqual(expect.any(String));
+			expect(definition).toBeDefined();
+			expect(asset.editorialRank).toEqual(expect.any(Number));
+			expect(asset.heatScore).toEqual(expect.any(Number));
+			expect(asset.remoteTags).toEqual(
+				expect.arrayContaining([`category:${definition?.category}`])
+			);
+			expect(asset.remoteTags?.length ?? 0).toBeGreaterThanOrEqual(3);
+		}
+		expect(parsed.sections.map((section) => section.id)).toEqual([
+			"recommended",
+			"commerce",
+			"cover",
+			"premium-look",
+		]);
+		for (const section of parsed.sections) {
+			expect(section.templateIds.length).toBeGreaterThan(0);
+			for (const templateId of section.templateIds) {
+				expect(templateIds.has(templateId)).toBe(true);
+			}
+		}
+		expect(
+			payload.assets.some((asset) => (asset.searchAliases?.length ?? 0) > 0)
+		).toBe(true);
 	});
 
 	it("rejects malformed remote marketplace configs", () => {
