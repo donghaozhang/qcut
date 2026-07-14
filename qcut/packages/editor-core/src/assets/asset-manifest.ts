@@ -89,6 +89,9 @@ export interface AssetRuntimeState {
 	cacheStatus: AssetCacheStatus;
 	progress: number;
 	cacheKey?: string;
+	cachedBytes?: number;
+	cachedFileCount?: number;
+	cacheHitCount?: number;
 	error?: string;
 }
 
