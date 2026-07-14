@@ -41,6 +41,7 @@ import {
 	isSmartTextCategory,
 	type SmartTextSuggestion,
 } from "@/lib/text/smart-text-generation";
+import { buildTextTemplatePack } from "@/lib/text/text-template-packs";
 import {
 	DEFAULT_TEXT_TEMPLATE_CATEGORY_ID,
 	TEXT_TEMPLATE_CATEGORIES,
@@ -167,8 +168,19 @@ function TextTemplate({
 	);
 	const addToTimeline = (currentTime?: number) => {
 		const time = currentTime ?? usePlaybackStore.getState().currentTime;
-		useTimelineStore.getState().addTextAtTime(template, time);
-		onUseTemplate({ templateId: definition.id });
+		const templatePack = buildTextTemplatePack({
+			definition,
+			currentTime: time,
+		});
+		const added = templatePack
+			? useTimelineStore.getState().addTextGroupAtTime({
+					elements: templatePack.elements,
+					currentTime: time,
+				})
+			: useTimelineStore.getState().addTextAtTime(template, time);
+		if (added) {
+			onUseTemplate({ templateId: definition.id });
+		}
 	};
 	const dragData = {
 		id: template.id,
