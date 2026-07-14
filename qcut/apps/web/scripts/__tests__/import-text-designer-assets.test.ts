@@ -47,8 +47,17 @@ function createGeneratedEntry(): TextAssetGeneratedEntry {
 
 function designerSourceText({
 	assetId = "text-demo",
+	template = {
+		content: "设计师花字",
+		id: "designer-demo",
+		name: "Designer demo",
+		type: "text",
+	},
+	templatePack,
 }: {
 	assetId?: string;
+	template?: Record<string, unknown>;
+	templatePack?: Record<string, unknown>;
 } = {}): string {
 	return `${JSON.stringify(
 		{
@@ -56,12 +65,8 @@ function designerSourceText({
 			definition: { id: "designer-demo", name: "Designer demo" },
 			packageId: "text-demo",
 			schemaVersion: 1,
-			template: {
-				content: "设计师花字",
-				id: "designer-demo",
-				name: "Designer demo",
-				type: "text",
-			},
+			template,
+			templatePack,
 			version: 1,
 		},
 		null,
@@ -75,17 +80,16 @@ function designerPackageText({
 		source: "template.json",
 		thumbnail: "thumbnail.webp",
 	},
+	source = designerSourceText({ assetId }),
 }: {
 	assetId?: string;
 	files?: {
 		source: string;
 		thumbnail: string;
 	};
+	source?: string;
 } = {}): string {
-	const source = JSON.parse(designerSourceText({ assetId })) as Record<
-		string,
-		unknown
-	>;
+	const sourcePayload = JSON.parse(source) as Record<string, unknown>;
 	return `${JSON.stringify(
 		{
 			assetId,
@@ -94,7 +98,7 @@ function designerPackageText({
 			kind: "qcut-text-template-package",
 			packageId: "text-demo",
 			schemaVersion: 1,
-			source,
+			source: sourcePayload,
 			version: 1,
 		},
 		null,
@@ -254,6 +258,68 @@ describe("text designer asset import script", () => {
 				publicDir,
 			})
 		).rejects.toThrow("file reference mismatch");
+	});
+
+	it("rejects designer source files without valid text template payloads", async () => {
+		const { generatedManifest, packDir, packManifest, publicDir } =
+			await createDesignerFixture();
+		await writeFile(
+			join(packDir, "template.json"),
+			designerSourceText({ template: { type: "image" } })
+		);
+
+		await expect(
+			buildTextDesignerAssetImportPlan({
+				generatedManifest,
+				packDir,
+				packManifest,
+				publicDir,
+			})
+		).rejects.toThrow("source template must be a text element");
+	});
+
+	it("rejects designer package source files with invalid template pack copy slots", async () => {
+		const { generatedManifest, packDir, packManifest, publicDir } =
+			await createDesignerFixture();
+		await writeFile(
+			join(packDir, "template.qctext"),
+			designerPackageText({
+				source: designerSourceText({
+					templatePack: {
+						category: "headline-template",
+						copySlots: [
+							{
+								defaultContent: "标题",
+								elementIndex: 3,
+								id: "headline",
+								label: "主标题",
+							},
+						],
+						elements: [
+							{
+								content: "标题",
+								id: "pack-title",
+								name: "Pack title",
+								type: "text",
+							},
+						],
+						id: "pack-designer-demo",
+						name: "Designer pack",
+					},
+				}),
+			})
+		);
+
+		await expect(
+			buildTextDesignerAssetImportPlan({
+				generatedManifest,
+				packDir,
+				packManifest,
+				publicDir,
+			})
+		).rejects.toThrow(
+			"package source templatePack copy slot 0 elementIndex is out of range"
+		);
 	});
 
 	it("rejects designer thumbnails without WebP payloads", async () => {
