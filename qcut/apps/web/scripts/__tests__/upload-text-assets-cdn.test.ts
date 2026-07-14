@@ -4,6 +4,7 @@ import {
 	parseTextAssetUploadArgs,
 	uploadTextAssetPlan,
 	verifyUploadDesignerAssetCoverage,
+	verifyUploadDesignerCategoryCoverage,
 	type TextAssetUploadPlanItem,
 } from "../upload-text-assets-cdn";
 import type { TextAssetPublishManifest } from "../verify-text-asset-cdn-manifest";
@@ -13,7 +14,7 @@ function createPublishManifest(): TextAssetPublishManifest {
 		assets: [
 			{
 				assetId: "text-demo",
-				cacheKey: "text-assets/demo/plain@1",
+				cacheKey: "text-assets/text-fancy-red/plain@1",
 				files: [
 					{
 						byteSize: 3,
@@ -46,7 +47,7 @@ function createPublishManifest(): TextAssetPublishManifest {
 						url: "/text-assets/demo/plain@1/template.qctext",
 					},
 				],
-				packageId: "text-demo",
+				packageId: "text-fancy-red",
 				provenance: {
 					pipeline: "designer-pack-v1",
 					source: "designer-imported",
@@ -105,8 +106,12 @@ describe("text asset CDN upload script", () => {
 					"/tmp/manifest.json",
 					"--min-designer-assets",
 					"1",
+					"--min-designer-assets-per-category",
+					"5",
 					"--prefix",
 					"assets",
+					"--require-designer-categories",
+					"red, texture",
 				],
 				env: {
 					QCUT_TEXT_ASSET_BUCKET: "env-bucket",
@@ -121,7 +126,9 @@ describe("text asset CDN upload script", () => {
 			manifestPath: "/tmp/manifest.json",
 			metadataCacheControl: "public, max-age=30",
 			minDesignerAssets: 1,
+			minDesignerAssetsPerCategory: 5,
 			prefix: "assets",
+			requiredDesignerCategories: ["red", "texture"],
 		});
 	});
 
@@ -155,6 +162,23 @@ describe("text asset CDN upload script", () => {
 				code: "designer-import-threshold",
 				detail:
 					"Publish manifest is missing text asset provenance; regenerate it before enforcing designer asset coverage",
+			},
+		]);
+	});
+
+	it("verifies designer category coverage from publish manifest entries", () => {
+		expect(
+			verifyUploadDesignerCategoryCoverage({
+				manifest: createPublishManifest(),
+				minDesignerAssetsPerCategory: 2,
+				requiredDesignerCategories: ["red", "texture"],
+			})
+		).toEqual([
+			{
+				assetId: "text-designer-assets",
+				code: "designer-category-coverage",
+				detail:
+					"Expected at least 2 designer-imported text assets for each category, missing: red (1), texture (0)",
 			},
 		]);
 	});

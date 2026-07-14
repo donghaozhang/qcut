@@ -27,6 +27,12 @@ export type TextAssetProvenance = {
 	pipeline: string;
 };
 
+export type TextAssetCategoryEntry = {
+	cacheKey: string;
+	packageId: string;
+	provenance?: TextAssetProvenance;
+};
+
 export type PublishFileRole = "thumbnail" | "source" | "package" | "metadata";
 
 export type TextAssetPublishFile = TextAssetGeneratedFile & {
@@ -355,7 +361,7 @@ const TEXT_ASSET_PACKAGE_PREFIXES = [
 export function inferTextAssetCategory({
 	entry,
 }: {
-	entry: TextAssetGeneratedEntry;
+	entry: TextAssetCategoryEntry;
 }): string | undefined {
 	const packageIdCategory = inferTextAssetCategoryFromPackageId({
 		packageId: entry.packageId,
@@ -387,7 +393,7 @@ export function verifyDesignerCategoryCoverage({
 	minDesignerAssetsPerCategory = 1,
 	requiredDesignerCategories,
 }: {
-	generatedManifest: Record<string, TextAssetGeneratedEntry>;
+	generatedManifest: Record<string, TextAssetCategoryEntry>;
 	minDesignerAssetsPerCategory?: number;
 	requiredDesignerCategories: readonly string[];
 }): VerifyIssue[] {

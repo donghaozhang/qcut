@@ -19,7 +19,12 @@ const SOURCE_TEXT = JSON.stringify({
 	assetId: "text-demo",
 	packageId: "text-demo",
 	schemaVersion: 1,
-	template: {},
+	template: {
+		content: "花字",
+		id: "text-demo-template",
+		name: "Demo template",
+		type: "text",
+	},
 	version: 1,
 });
 const PACKAGE_TEXT = JSON.stringify({
@@ -43,19 +48,19 @@ function createGeneratedEntry(): TextAssetGeneratedEntry {
 		packageId: "text-demo",
 		version: 1,
 		thumbnail: {
-			byteSize: THUMBNAIL_TEXT.length,
+			byteSize: Buffer.byteLength(THUMBNAIL_TEXT),
 			checksumSha256: checksum({ value: THUMBNAIL_TEXT }),
 			mimeType: "image/webp",
 			url: "/text-assets/demo/plain@1/thumbnail.webp",
 		},
 		source: {
-			byteSize: SOURCE_TEXT.length,
+			byteSize: Buffer.byteLength(SOURCE_TEXT),
 			checksumSha256: checksum({ value: SOURCE_TEXT }),
 			mimeType: "application/json",
 			url: "/text-assets/demo/plain@1/template.json",
 		},
 		qcutPackage: {
-			byteSize: PACKAGE_TEXT.length,
+			byteSize: Buffer.byteLength(PACKAGE_TEXT),
 			checksumSha256: checksum({ value: PACKAGE_TEXT }),
 			mimeType: "application/vnd.qcut.text-template+json",
 			url: "/text-assets/demo/plain@1/template.qctext",

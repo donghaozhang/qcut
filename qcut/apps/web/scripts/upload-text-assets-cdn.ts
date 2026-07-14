@@ -4,7 +4,9 @@ import { fileURLToPath } from "node:url";
 import { PutObjectCommand, S3Client } from "@aws-sdk/client-s3";
 import {
 	mapWithConcurrency,
+	parseCommaSeparatedList,
 	verifyDesignerAssetCoverage,
+	verifyDesignerCategoryCoverage,
 	verifyLocalFiles,
 	type TextAssetPublishFile,
 	type TextAssetPublishManifest,
@@ -19,7 +21,9 @@ export type TextAssetUploadOptions = {
 	manifestPath: string;
 	metadataCacheControl: string;
 	minDesignerAssets: number;
+	minDesignerAssetsPerCategory: number;
 	prefix: string;
+	requiredDesignerCategories: string[];
 };
 
 export type TextAssetUploadPlanItem = {
@@ -75,7 +79,14 @@ export function parseTextAssetUploadArgs({
 			name: "QCUT_TEXT_ASSET_MIN_DESIGNER_ASSETS",
 			value: env.QCUT_TEXT_ASSET_MIN_DESIGNER_ASSETS ?? "0",
 		}),
+		minDesignerAssetsPerCategory: parsePositiveInteger({
+			name: "QCUT_TEXT_ASSET_MIN_DESIGNER_ASSETS_PER_CATEGORY",
+			value: env.QCUT_TEXT_ASSET_MIN_DESIGNER_ASSETS_PER_CATEGORY ?? "1",
+		}),
 		prefix: env.QCUT_TEXT_ASSET_CDN_PREFIX ?? "",
+		requiredDesignerCategories: parseCommaSeparatedList({
+			value: env.QCUT_TEXT_ASSET_REQUIRED_DESIGNER_CATEGORIES,
+		}),
 	};
 	for (let index = 0; index < argv.length; index += 1) {
 		const arg = argv[index];
@@ -123,8 +134,24 @@ export function parseTextAssetUploadArgs({
 			index += 1;
 			continue;
 		}
+		if (arg === "--min-designer-assets-per-category") {
+			options.minDesignerAssetsPerCategory = parsePositiveInteger({
+				name: arg,
+				value: requireValue({ argv, index, name: arg }),
+			});
+			index += 1;
+			continue;
+		}
 		if (arg === "--prefix") {
 			options.prefix = requireValue({ argv, index, name: arg });
+			index += 1;
+			continue;
+		}
+		if (arg === "--require-designer-categories") {
+			options.requiredDesignerCategories = parseCommaSeparatedList({
+				name: arg,
+				value: requireValue({ argv, index, name: arg }),
+			});
 			index += 1;
 			continue;
 		}
@@ -168,6 +195,24 @@ export function verifyUploadDesignerAssetCoverage({
 				"Publish manifest is missing text asset provenance; regenerate it before enforcing designer asset coverage",
 		},
 	];
+}
+
+export function verifyUploadDesignerCategoryCoverage({
+	manifest,
+	minDesignerAssetsPerCategory,
+	requiredDesignerCategories,
+}: {
+	manifest: TextAssetPublishManifest;
+	minDesignerAssetsPerCategory: number;
+	requiredDesignerCategories: readonly string[];
+}): VerifyIssue[] {
+	return verifyDesignerCategoryCoverage({
+		generatedManifest: Object.fromEntries(
+			manifest.assets.map((asset) => [asset.assetId, asset])
+		),
+		minDesignerAssetsPerCategory,
+		requiredDesignerCategories,
+	});
 }
 
 export function buildTextAssetUploadPlan({
@@ -312,7 +357,16 @@ async function main(): Promise<void> {
 		manifest,
 		minDesignerAssets: options.minDesignerAssets,
 	});
-	const allIssues = [...designerCoverageIssues, ...issues];
+	const designerCategoryIssues = verifyUploadDesignerCategoryCoverage({
+		manifest,
+		minDesignerAssetsPerCategory: options.minDesignerAssetsPerCategory,
+		requiredDesignerCategories: options.requiredDesignerCategories,
+	});
+	const allIssues = [
+		...designerCoverageIssues,
+		...designerCategoryIssues,
+		...issues,
+	];
 	if (allIssues.length > 0) {
 		console.log(JSON.stringify({ issues: allIssues, ok: false }, null, "\t"));
 		process.exit(1);
@@ -340,7 +394,9 @@ async function main(): Promise<void> {
 			{
 				ok: true,
 				minDesignerAssets: options.minDesignerAssets,
+				minDesignerAssetsPerCategory: options.minDesignerAssetsPerCategory,
 				provenance: manifest.provenance,
+				requiredDesignerCategories: options.requiredDesignerCategories,
 				...summary,
 			},
 			null,
