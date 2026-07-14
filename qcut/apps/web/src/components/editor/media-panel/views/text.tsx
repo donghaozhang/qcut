@@ -1,12 +1,28 @@
 import { DraggableMediaItem } from "@/components/ui/draggable-item";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { TIMELINE_CONSTANTS } from "@/constants/timeline-constants";
+import { colorWithOpacity } from "@/lib/text/text-style";
+import { cn } from "@/lib/utils";
 import { usePlaybackStore } from "@/stores/editor/playback-store";
 import { useTimelineStore } from "@/stores/timeline/timeline-store";
-import { colorWithOpacity } from "@/lib/text/text-style";
+import { ChevronDown, Download, FileText, Gem, Search } from "lucide-react";
 import {
+	type CSSProperties,
+	type DragEvent,
+	type KeyboardEvent,
+	useMemo,
+	useState,
+} from "react";
+import {
+	DEFAULT_TEXT_TEMPLATE_CATEGORY_ID,
 	TEXT_TEMPLATE_CATEGORIES,
-	getTextTemplatesByCategory,
+	TEXT_TEMPLATE_LIBRARY_DEFINITIONS,
+	TEXT_TEMPLATE_GROUPS,
+	buildTextTemplate,
+	getTextTemplateDefinitionsByCategory,
+	type TextTemplateCategoryId,
+	type TextTemplateDefinition,
+	type TextTemplateGroup,
+	type TextTemplateGroupId,
 } from "@/lib/text/text-template-registry";
 import type { MarkdownElement, TextElement } from "@/types/timeline";
 
@@ -35,67 +51,258 @@ const markdownData: MarkdownElement = {
 	opacity: 1,
 };
 
-function TextTemplate({ template }: { template: TextElement }) {
+function buildTemplateSearchText({
+	definition,
+}: {
+	definition: TextTemplateDefinition;
+}): string {
+	return [
+		definition.id,
+		definition.name,
+		definition.content,
+		definition.category,
+		definition.groupId,
+		definition.variantId,
+		...definition.keywords,
+	]
+		.join(" ")
+		.toLocaleLowerCase();
+}
+
+function getPreviewFrameStyle({
+	definition,
+	template,
+}: {
+	definition: TextTemplateDefinition;
+	template: TextElement;
+}): CSSProperties {
+	const backgroundColor =
+		(template.backgroundOpacity ?? 0) > 0
+			? colorWithOpacity(
+					template.backgroundColor,
+					template.backgroundOpacity ?? 0
+				)
+			: "#3a3a3a";
+	const variantBackgrounds: Record<string, string> = {
+		fire: "radial-gradient(circle at 50% 82%, #facc15 0 10%, #fb923c 18%, #b91c1c 45%, #3a3a3a 46%)",
+		glitch:
+			"linear-gradient(90deg, rgba(34,211,238,.3), transparent 18%, rgba(244,114,182,.28) 44%, transparent 70%), #343438",
+		pixel:
+			"linear-gradient(45deg, rgba(255,255,255,.08) 25%, transparent 25%), linear-gradient(-45deg, rgba(255,255,255,.08) 25%, transparent 25%), #353535",
+		ink: "radial-gradient(circle at 30% 25%, rgba(255,255,255,.2), transparent 30%), #3b3935",
+		gold: "linear-gradient(135deg, #3a2b11, #8a5a12 44%, #facc15 45%, #3a2b11 68%)",
+		chrome:
+			"linear-gradient(135deg, #20242a, #6b7280 42%, #f8fafc 46%, #111827 72%)",
+		comic:
+			"radial-gradient(circle at 18% 22%, rgba(255,255,255,.45) 0 2px, transparent 3px), linear-gradient(135deg, #ef4444, #f59e0b)",
+		glass:
+			"linear-gradient(135deg, rgba(255,255,255,.22), rgba(34,211,238,.22)), #28333a",
+		candy:
+			"repeating-linear-gradient(135deg, rgba(255,255,255,.18) 0 8px, transparent 8px 16px), #4b3946",
+		warning:
+			"repeating-linear-gradient(-45deg, rgba(0,0,0,.28) 0 8px, transparent 8px 16px), #4a421d",
+	};
+
+	return {
+		background: variantBackgrounds[definition.variantId] ?? backgroundColor,
+	};
+}
+
+function getPreviewTextShadow({
+	definition,
+	template,
+}: {
+	definition: TextTemplateDefinition;
+	template: TextElement;
+}): string | undefined {
+	const shadows: string[] = [];
+	if ((template.shadowOpacity ?? 0) > 0) {
+		shadows.push(
+			`${template.shadowOffsetX ?? 0}px ${template.shadowOffsetY ?? 0}px ${template.shadowBlur ?? 0}px ${colorWithOpacity(template.shadowColor ?? "#000000", template.shadowOpacity ?? 0)}`
+		);
+	}
+	if ((template.glowOpacity ?? 0) > 0) {
+		shadows.push(
+			`0 0 ${template.glowBlur ?? 12}px ${colorWithOpacity(template.glowColor ?? "#ffffff", template.glowOpacity ?? 0)}`
+		);
+	}
+	if (definition.variantId === "glitch") {
+		shadows.push("-4px 0 0 #22d3ee", "4px 0 0 #fb7185");
+	}
+	if (definition.variantId === "fire") {
+		shadows.push("0 -10px 14px rgba(251,146,60,.8)");
+	}
+	return shadows.length > 0 ? shadows.join(", ") : undefined;
+}
+
+function TextTemplate({ definition }: { definition: TextTemplateDefinition }) {
+	const template = useMemo(
+		() => buildTextTemplate({ definition }),
+		[definition]
+	);
 	const previewStrokeWidth = Math.min(
-		1,
+		1.8,
 		Math.max(0, template.strokeWidth ?? 0) * 0.25
 	);
 	const addToTimeline = (currentTime?: number) => {
 		const time = currentTime ?? usePlaybackStore.getState().currentTime;
 		useTimelineStore.getState().addTextAtTime(template, time);
 	};
+	const dragData = {
+		id: template.id,
+		type: template.type,
+		name: template.name,
+		content: template.content,
+		textTemplate: template,
+	};
+	const handleDragStart = (event: DragEvent<HTMLDivElement>) => {
+		event.dataTransfer.setData(
+			"application/x-media-item",
+			JSON.stringify(dragData)
+		);
+		event.dataTransfer.effectAllowed = "copy";
+	};
+	const handleActivate = () => addToTimeline();
 
 	return (
-		<div className="w-full">
-			<DraggableMediaItem
-				data-testid={
-					template.id === "default-text" ? "text-overlay-button" : undefined
-				}
-				name={template.name}
-				preview={
+		<div
+			className="group relative w-full"
+			data-testid={
+				template.id === "default-text" ? "text-overlay-button" : undefined
+			}
+		>
+			<div
+				role="button"
+				tabIndex={0}
+				aria-label={`Add ${template.name}`}
+				className="relative cursor-default"
+				onClick={handleActivate}
+				onKeyDown={(event: KeyboardEvent<HTMLDivElement>) => {
+					if (event.key !== "Enter" && event.key !== " ") return;
+					event.preventDefault();
+					handleActivate();
+				}}
+			>
+				<div
+					draggable
+					className="relative aspect-[1.05] overflow-hidden rounded-md bg-muted shadow-sm transition-transform group-hover:scale-[1.02]"
+					onDragStart={handleDragStart}
+				>
 					<div
-						className="flex h-full w-full items-center justify-center overflow-hidden rounded-sm bg-muted p-3"
-						style={{
-							backgroundColor:
-								(template.backgroundOpacity ?? 0) > 0
-									? colorWithOpacity(
-											template.backgroundColor,
-											template.backgroundOpacity ?? 0
-										)
-									: undefined,
-						}}
+						className="absolute inset-0 flex items-center justify-center overflow-hidden p-3"
+						style={getPreviewFrameStyle({ definition, template })}
 					>
+						{definition.variantId === "fire" && (
+							<div className="-translate-x-1/2 pointer-events-none absolute bottom-2 left-1/2 h-9 w-16 rounded-full bg-orange-400/55 blur-md" />
+						)}
+						{definition.variantId === "sticker" && (
+							<div className="pointer-events-none absolute inset-4 rounded-[1.2rem] bg-white shadow-[0_0_0_5px_rgba(255,255,255,.65)]" />
+						)}
+						{definition.variantId === "cutout" && (
+							<div className="pointer-events-none absolute inset-5 translate-x-1 translate-y-1 rounded-md bg-black/35" />
+						)}
 						<span
-							className="select-none text-center text-sm"
+							className={cn(
+								"relative z-10 select-none text-center text-[1.22rem] leading-none",
+								definition.variantId === "pixel" && "font-mono",
+								definition.variantId === "stamp" &&
+									"border-2 border-current px-2 py-1"
+							)}
 							style={{
 								color: template.color,
 								fontFamily: template.fontFamily,
 								fontWeight: template.fontWeight,
 								fontStyle: template.fontStyle,
+								letterSpacing: template.letterSpacing,
+								transform: `rotate(${template.rotation ?? 0}deg)`,
 								WebkitTextStroke:
 									previewStrokeWidth > 0
 										? `${previewStrokeWidth}px ${template.strokeColor}`
 										: undefined,
-								textShadow:
-									(template.glowOpacity ?? 0) > 0
-										? `0 0 10px ${template.glowColor}`
-										: undefined,
+								textShadow: getPreviewTextShadow({ definition, template }),
 							}}
 						>
 							{template.content}
 						</span>
 					</div>
+					{definition.premium && (
+						<div className="absolute left-1.5 top-1.5 flex h-4 w-4 items-center justify-center rounded-full bg-cyan-300 text-slate-950 shadow-sm">
+							<Gem aria-hidden="true" className="h-3 w-3">
+								<title>会员素材</title>
+							</Gem>
+						</div>
+					)}
+					<button
+						type="button"
+						className={cn(
+							"absolute bottom-1.5 right-1.5 flex h-5 w-5 items-center justify-center rounded-full bg-black/60 text-white transition-colors hover:bg-black/80",
+							definition.downloaded &&
+								"bg-white/85 text-slate-900 hover:bg-white"
+						)}
+						onClick={(event) => {
+							event.stopPropagation();
+						}}
+						onKeyDown={(event) => {
+							event.stopPropagation();
+						}}
+					>
+						<Download aria-hidden="true" className="h-3.5 w-3.5">
+							<title>{definition.downloaded ? "已下载" : "下载"}</title>
+						</Download>
+					</button>
+				</div>
+				<span
+					className="mt-1 block truncate text-[0.68rem] text-muted-foreground"
+					title={template.name}
+				>
+					{template.name}
+				</span>
+			</div>
+		</div>
+	);
+}
+
+function TemplateGrid({
+	definitions,
+}: {
+	definitions: readonly TextTemplateDefinition[];
+}) {
+	return (
+		<div className="grid grid-cols-[repeat(auto-fill,minmax(5.25rem,1fr))] gap-3 py-3">
+			{definitions.map((definition) => (
+				<TextTemplate key={definition.id} definition={definition} />
+			))}
+		</div>
+	);
+}
+
+function MarkdownTemplate({
+	onAdd,
+}: {
+	onAdd: (currentTime?: number) => void;
+}) {
+	return (
+		<div className="w-full">
+			<DraggableMediaItem
+				data-testid="markdown-overlay-button"
+				name="Markdown"
+				preview={
+					<div className="flex h-full w-full items-center justify-center rounded-sm bg-muted p-2">
+						<div className="flex flex-col items-center gap-1 text-muted-foreground">
+							<FileText aria-hidden="true" className="h-5 w-5" />
+							<span className="select-none text-center text-xs">Markdown</span>
+						</div>
+					</div>
 				}
 				dragData={{
-					id: template.id,
-					type: template.type,
-					name: template.name,
-					content: template.content,
-					textTemplate: template,
+					id: markdownData.id,
+					type: markdownData.type,
+					name: markdownData.name,
+					markdownContent: markdownData.markdownContent,
 				}}
 				aspectRatio={1.4}
-				onAddToTimeline={addToTimeline}
-				onActivate={() => addToTimeline()}
+				onAddToTimeline={onAdd}
+				onActivate={() => onAdd()}
 				showLabel
 				stopPropagation={false}
 			/>
@@ -103,66 +310,194 @@ function TextTemplate({ template }: { template: TextElement }) {
 	);
 }
 
-function TemplateGrid({ templates }: { templates: TextElement[] }) {
+function isActivationKey({
+	event,
+}: {
+	event: KeyboardEvent<HTMLButtonElement>;
+}): boolean {
+	return event.key === "Enter" || event.key === " ";
+}
+
+function TextLibraryNav({
+	activeCategoryId,
+	expandedGroupIds,
+	onSelectCategory,
+	onSelectGroup,
+}: {
+	activeCategoryId: TextTemplateCategoryId;
+	expandedGroupIds: ReadonlySet<TextTemplateGroupId>;
+	onSelectCategory: (props: { categoryId: TextTemplateCategoryId }) => void;
+	onSelectGroup: (props: { group: TextTemplateGroup }) => void;
+}) {
 	return (
-		<div className="grid grid-cols-2 gap-3 py-3">
-			{templates.map((template) => (
-				<TextTemplate key={template.id} template={template} />
-			))}
-		</div>
+		<nav
+			aria-label="文字分类"
+			className="w-24 shrink-0 space-y-1 overflow-y-auto pr-2"
+		>
+			{TEXT_TEMPLATE_GROUPS.map((group) => {
+				const isExpanded = expandedGroupIds.has(group.id);
+				const hasActiveCategory = group.categories.some(
+					(category) => category.id === activeCategoryId
+				);
+
+				return (
+					<div key={group.id} className="space-y-1">
+						<button
+							type="button"
+							aria-expanded={isExpanded}
+							className={cn(
+								"flex h-8 w-full items-center justify-between rounded-md px-2 text-left text-xs font-medium text-muted-foreground transition-colors",
+								hasActiveCategory && "bg-accent text-cyan-300",
+								!hasActiveCategory && "hover:bg-accent/70 hover:text-foreground"
+							)}
+							onClick={() => onSelectGroup({ group })}
+							onKeyDown={(event) => {
+								if (!isActivationKey({ event })) return;
+								event.preventDefault();
+								onSelectGroup({ group });
+							}}
+						>
+							<span className="truncate">{group.label}</span>
+							<ChevronDown
+								aria-hidden="true"
+								className={cn(
+									"h-3 w-3 shrink-0 transition-transform",
+									isExpanded ? "rotate-0" : "-rotate-90"
+								)}
+							/>
+						</button>
+						{isExpanded && (
+							<div className="space-y-1 pl-2">
+								{group.categories.map((category) => {
+									const isActive = category.id === activeCategoryId;
+
+									return (
+										<button
+											key={category.id}
+											type="button"
+											className={cn(
+												"h-7 w-full truncate rounded-md px-2 text-left text-xs transition-colors",
+												isActive
+													? "bg-accent text-cyan-300"
+													: "text-muted-foreground hover:bg-accent/70 hover:text-foreground"
+											)}
+											onClick={() =>
+												onSelectCategory({ categoryId: category.id })
+											}
+											onKeyDown={(event) => {
+												if (!isActivationKey({ event })) return;
+												event.preventDefault();
+												onSelectCategory({ categoryId: category.id });
+											}}
+										>
+											{category.label}
+										</button>
+									);
+								})}
+							</div>
+						)}
+					</div>
+				);
+			})}
+		</nav>
 	);
 }
 
 export function TextView() {
+	const [activeCategoryId, setActiveCategoryId] =
+		useState<TextTemplateCategoryId>(DEFAULT_TEXT_TEMPLATE_CATEGORY_ID);
+	const [expandedGroupIds, setExpandedGroupIds] = useState<
+		ReadonlySet<TextTemplateGroupId>
+	>(() => new Set(["new-text", "fancy"]));
+	const [searchQuery, setSearchQuery] = useState("");
+	const normalizedSearchQuery = searchQuery.trim().toLocaleLowerCase();
+	const activeCategory = useMemo(
+		() =>
+			TEXT_TEMPLATE_CATEGORIES.find(
+				(category) => category.id === activeCategoryId
+			) ?? TEXT_TEMPLATE_CATEGORIES[0],
+		[activeCategoryId]
+	);
+	const activeDefinitions = useMemo(
+		() => getTextTemplateDefinitionsByCategory({ category: activeCategory.id }),
+		[activeCategory.id]
+	);
+	const visibleDefinitions = useMemo(() => {
+		if (!normalizedSearchQuery) return activeDefinitions;
+		return TEXT_TEMPLATE_LIBRARY_DEFINITIONS.filter((definition) =>
+			buildTemplateSearchText({ definition }).includes(normalizedSearchQuery)
+		);
+	}, [activeDefinitions, normalizedSearchQuery]);
+	const activeHeading = normalizedSearchQuery
+		? `搜索结果 ${visibleDefinitions.length}`
+		: activeCategory.label;
 	const addMarkdown = (currentTime?: number) => {
 		const time = currentTime ?? usePlaybackStore.getState().currentTime;
 		useTimelineStore.getState().addMarkdownAtTime(markdownData, time);
 	};
+	const handleSelectCategory = ({
+		categoryId,
+	}: {
+		categoryId: TextTemplateCategoryId;
+	}) => {
+		setActiveCategoryId(categoryId);
+	};
+	const handleSelectGroup = ({ group }: { group: TextTemplateGroup }) => {
+		const firstCategory = group.categories[0];
+		if (firstCategory) setActiveCategoryId(firstCategory.id);
+		setExpandedGroupIds((current) => {
+			const next = new Set(current);
+			next.add(group.id);
+			return next;
+		});
+	};
 
 	return (
-		<div className="p-4" data-testid="text-panel">
-			<Tabs defaultValue={TEXT_TEMPLATE_CATEGORIES[0].id}>
-				<TabsList className="grid w-full grid-cols-4">
-					{TEXT_TEMPLATE_CATEGORIES.map((category) => (
-						<TabsTrigger key={category.id} value={category.id}>
-							{category.label}
-						</TabsTrigger>
-					))}
-				</TabsList>
-				{TEXT_TEMPLATE_CATEGORIES.map((category) => (
-					<TabsContent key={category.id} value={category.id}>
-						<TemplateGrid
-							templates={getTextTemplatesByCategory({ category: category.id })}
+		<div className="flex h-full min-h-0 p-3" data-testid="text-panel">
+			<TextLibraryNav
+				activeCategoryId={activeCategoryId}
+				expandedGroupIds={expandedGroupIds}
+				onSelectCategory={handleSelectCategory}
+				onSelectGroup={handleSelectGroup}
+			/>
+			<section className="min-w-0 flex-1 overflow-y-auto border-l border-border/70 pl-4">
+				<div className="sticky top-0 z-10 space-y-2 bg-background/95 pb-2">
+					<label className="relative block">
+						<Search
+							aria-hidden="true"
+							className="-translate-y-1/2 pointer-events-none absolute left-3 top-1/2 h-4 w-4 text-muted-foreground"
+						>
+							<title>搜索</title>
+						</Search>
+						<input
+							type="search"
+							value={searchQuery}
+							placeholder="搜索花字颜色/样式"
+							className="h-8 w-full rounded-md border border-border bg-background pl-9 pr-3 text-xs text-foreground outline-none transition-colors placeholder:text-muted-foreground focus:border-cyan-400"
+							onChange={(event) => setSearchQuery(event.target.value)}
 						/>
-						{category.id === "basic" && (
-							<div className="w-full">
-								<DraggableMediaItem
-									data-testid="markdown-overlay-button"
-									name="Markdown"
-									preview={
-										<div className="flex h-full w-full items-center justify-center rounded-sm bg-muted p-2">
-											<span className="select-none text-center text-xs">
-												Markdown
-											</span>
-										</div>
-									}
-									dragData={{
-										id: markdownData.id,
-										type: markdownData.type,
-										name: markdownData.name,
-										markdownContent: markdownData.markdownContent,
-									}}
-									aspectRatio={1.4}
-									onAddToTimeline={addMarkdown}
-									onActivate={() => addMarkdown()}
-									showLabel
-									stopPropagation={false}
-								/>
-							</div>
-						)}
-					</TabsContent>
-				))}
-			</Tabs>
+					</label>
+					<div className="flex h-6 items-center justify-between">
+						<h2 className="text-sm font-medium text-foreground">
+							{activeHeading}
+						</h2>
+						<span className="text-[0.68rem] text-muted-foreground">
+							{visibleDefinitions.length} 个样式
+						</span>
+					</div>
+				</div>
+				{visibleDefinitions.length > 0 ? (
+					<TemplateGrid definitions={visibleDefinitions} />
+				) : (
+					<div className="py-12 text-center text-xs text-muted-foreground">
+						没有找到匹配的文字样式
+					</div>
+				)}
+				{!normalizedSearchQuery &&
+					activeCategory.id === DEFAULT_TEXT_TEMPLATE_CATEGORY_ID && (
+						<MarkdownTemplate onAdd={addMarkdown} />
+					)}
+			</section>
 		</div>
 	);
 }
