@@ -41,10 +41,7 @@ interface ActiveProxyJob {
 	process: ChildProcess;
 	promise: Promise<ProxyArtifact>;
 	requestIds: Set<string>;
-	progressListeners: Map<
-		string,
-		(progress: VideoPreviewProxyProgress) => void
-	>;
+	progressListeners: Map<string, (progress: VideoPreviewProxyProgress) => void>;
 }
 
 interface VideoPreviewProxyCommand {
@@ -65,7 +62,8 @@ function assertProxyOptions({
 }: {
 	options: VideoPreviewProxyOptions;
 }): void {
-	if (!options.requestId.trim()) throw new Error("Proxy request ID is required");
+	if (!options.requestId.trim())
+		throw new Error("Proxy request ID is required");
 	if (!fs.existsSync(options.sourcePath)) {
 		throw new Error(`Proxy source not found: ${options.sourcePath}`);
 	}

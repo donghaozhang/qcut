@@ -38,7 +38,11 @@ function run({ binary, args }: { binary: string; args: string[] }) {
 	return result.stdout;
 }
 
-function proxyOptions({ requestId }: { requestId: string }): VideoPreviewProxyOptions {
+function proxyOptions({
+	requestId,
+}: {
+	requestId: string;
+}): VideoPreviewProxyOptions {
 	return {
 		requestId,
 		sourcePath,

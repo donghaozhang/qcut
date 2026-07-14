@@ -100,13 +100,20 @@ export class SharedFrameCache {
 		this.evictToBudget({ currentTime: 0, now: Date.now() });
 	}
 
-	read({ key, timelineHash, now = Date.now() }: ReadFrameOptions): ImageData | null {
+	read({
+		key,
+		timelineHash,
+		now = Date.now(),
+	}: ReadFrameOptions): ImageData | null {
 		const entry = this.entries.get(key);
 		if (!entry) {
 			this.counters.misses++;
 			return null;
 		}
-		if (now - entry.timestamp > this.ttlMs || entry.timelineHash !== timelineHash) {
+		if (
+			now - entry.timestamp > this.ttlMs ||
+			entry.timelineHash !== timelineHash
+		) {
 			this.remove({ key, countEviction: entry.timelineHash === timelineHash });
 			this.counters.misses++;
 			return null;
@@ -121,7 +128,10 @@ export class SharedFrameCache {
 	has({ key, timelineHash, now = Date.now() }: ReadFrameOptions): boolean {
 		const entry = this.entries.get(key);
 		if (!entry) return false;
-		if (now - entry.timestamp > this.ttlMs || entry.timelineHash !== timelineHash) {
+		if (
+			now - entry.timestamp > this.ttlMs ||
+			entry.timelineHash !== timelineHash
+		) {
 			this.remove({ key, countEviction: entry.timelineHash === timelineHash });
 			return false;
 		}
@@ -168,7 +178,11 @@ export class SharedFrameCache {
 		}
 	}
 
-	snapshot({ maxBytes = this.maxBytes }: { maxBytes?: number } = {}): SharedFrameCacheSnapshotEntry[] {
+	snapshot({
+		maxBytes = this.maxBytes,
+	}: {
+		maxBytes?: number;
+	} = {}): SharedFrameCacheSnapshotEntry[] {
 		this.prune();
 		let snapshotBytes = 0;
 		const snapshot: SharedFrameCacheSnapshotEntry[] = [];

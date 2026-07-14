@@ -129,8 +129,7 @@ export function useFrameCache({
 						canvasSize: activeProject?.canvasSize,
 						fps: activeProject?.fps,
 					},
-					sceneId:
-						sceneId ?? activeProject?.currentSceneId ?? "default",
+					sceneId: sceneId ?? activeProject?.currentSceneId ?? "default",
 					time: Math.floor(time * cacheResolution) / cacheResolution,
 				}),
 			});

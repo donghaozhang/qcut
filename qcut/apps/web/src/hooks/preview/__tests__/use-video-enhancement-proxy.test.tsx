@@ -85,9 +85,7 @@ describe("useVideoEnhancementProxy", () => {
 	});
 
 	it("bounds dimensions and exposes the playable proxy URL", async () => {
-		const { result } = renderHook(() =>
-			useVideoEnhancementProxy(hookProps())
-		);
+		const { result } = renderHook(() => useVideoEnhancementProxy(hookProps()));
 
 		await waitFor(() => expect(result.current.status).toBe("ready"));
 		expect(renderVideoPreviewProxy).toHaveBeenCalledWith(
@@ -99,9 +97,7 @@ describe("useVideoEnhancementProxy", () => {
 				enhancements,
 			})
 		);
-		expect(result.current.url).toBe(
-			"app://video-preview-proxy/result.mp4"
-		);
+		expect(result.current.url).toBe("app://video-preview-proxy/result.mp4");
 		expect(result.current.sourceTimeOffset).toBe(1.5);
 	});
 
@@ -113,8 +109,7 @@ describe("useVideoEnhancementProxy", () => {
 			})
 		);
 		const { result, rerender } = renderHook(
-			({ sourceStart }) =>
-				useVideoEnhancementProxy(hookProps({ sourceStart })),
+			({ sourceStart }) => useVideoEnhancementProxy(hookProps({ sourceStart })),
 			{ initialProps: { sourceStart: 1.5 } }
 		);
 		await waitFor(() => expect(renderVideoPreviewProxy).toHaveBeenCalled());
@@ -138,9 +133,7 @@ describe("useVideoEnhancementProxy", () => {
 
 	it("supports retry after a failed proxy job", async () => {
 		renderVideoPreviewProxy.mockRejectedValueOnce(new Error("encode failed"));
-		const { result } = renderHook(() =>
-			useVideoEnhancementProxy(hookProps())
-		);
+		const { result } = renderHook(() => useVideoEnhancementProxy(hookProps()));
 		await waitFor(() => expect(result.current.status).toBe("error"));
 
 		act(() => result.current.retry());

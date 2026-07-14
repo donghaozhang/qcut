@@ -150,6 +150,8 @@ describe("SharedFrameCache", () => {
 			currentTime: 1,
 			now: 100,
 		});
-		expect(cache.read({ key: 1, timelineHash: "current", now: 111 })).toBeNull();
+		expect(
+			cache.read({ key: 1, timelineHash: "current", now: 111 })
+		).toBeNull();
 	});
 });

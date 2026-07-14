@@ -4,11 +4,7 @@ import { hasMediaEnhancements } from "@/lib/video/video-properties";
 import { getMediaSourcePlaybackTime } from "@/lib/video/video-timing";
 import type { MediaElement, MediaEnhancements } from "@/types/timeline";
 
-type VideoEnhancementProxyStatus =
-	| "idle"
-	| "generating"
-	| "ready"
-	| "error";
+type VideoEnhancementProxyStatus = "idle" | "generating" | "ready" | "error";
 
 interface VideoEnhancementProxyState {
 	url?: string;
@@ -77,7 +73,10 @@ export function videoEnhancementProxyDimensions({
 	const scale = Math.min(1, maxDimension / Math.max(safeWidth, safeHeight));
 	const even = ({ value }: { value: number }) =>
 		Math.max(2, Math.round((value * scale) / 2) * 2);
-	return { width: even({ value: safeWidth }), height: even({ value: safeHeight }) };
+	return {
+		width: even({ value: safeWidth }),
+		height: even({ value: safeHeight }),
+	};
 }
 
 export function useVideoEnhancementProxy({
@@ -102,13 +101,13 @@ export function useVideoEnhancementProxy({
 	enhancements: MediaEnhancements;
 }): VideoEnhancementProxyState {
 	const [retrySequence, setRetrySequence] = useState(0);
-	const [state, setState] = useState<
-		Omit<VideoEnhancementProxyState, "retry">
-	>({
-		status: "idle",
-		progress: 0,
-		sourceTimeOffset: 0,
-	});
+	const [state, setState] = useState<Omit<VideoEnhancementProxyState, "retry">>(
+		{
+			status: "idle",
+			progress: 0,
+			sourceTimeOffset: 0,
+		}
+	);
 	const retry = useCallback(() => setRetrySequence((value) => value + 1), []);
 	const enhancementSnapshot = useMemo<MediaEnhancements>(
 		() => ({

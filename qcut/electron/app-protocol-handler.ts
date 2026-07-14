@@ -96,7 +96,10 @@ export function registerAppProtocol(
 				if (!proxyPath || !fs.existsSync(proxyPath)) {
 					return new Response("Not Found", { status: 404 });
 				}
-				return createVideoPreviewProxyResponse({ request, filePath: proxyPath });
+				return createVideoPreviewProxyResponse({
+					request,
+					filePath: proxyPath,
+				});
 			}
 
 			// Handle FFmpeg resources specifically
