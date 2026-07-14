@@ -30,17 +30,24 @@ const DEFAULT_VERSION = 1;
 function createSourcePayload({
 	assetId = DEFAULT_ASSET_ID,
 	packageId = DEFAULT_PACKAGE_ID,
+	template = {
+		content: "花字",
+		id: "text-demo-template",
+		name: "Demo template",
+		type: "text",
+	},
 	version = DEFAULT_VERSION,
 }: {
 	assetId?: string;
 	packageId?: string;
+	template?: Record<string, unknown>;
 	version?: number;
 } = {}): Record<string, unknown> {
 	return {
 		assetId,
 		packageId,
 		schemaVersion: 1,
-		template: {},
+		template,
 		version,
 	};
 }
@@ -99,13 +106,13 @@ function createGeneratedEntry({
 			url: "/text-assets/demo/plain@1/thumbnail.webp",
 		},
 		source: {
-			byteSize: sourceText.length,
+			byteSize: Buffer.byteLength(sourceText),
 			checksumSha256: checksum({ value: sourceText }),
 			mimeType: "application/json",
 			url: "/text-assets/demo/plain@1/template.json",
 		},
 		qcutPackage: {
-			byteSize: packageText.length,
+			byteSize: Buffer.byteLength(packageText),
 			checksumSha256: checksum({ value: packageText }),
 			mimeType: "application/vnd.qcut.text-template+json",
 			url: "/text-assets/demo/plain@1/template.qctext",
@@ -385,7 +392,9 @@ describe("text asset CDN manifest verifier", () => {
 		expect(manifest.totalAssets).toBe(1);
 		expect(manifest.totalFiles).toBe(3);
 		expect(manifest.totalBytes).toBe(
-			THUMBNAIL_TEXT.length + SOURCE_TEXT.length + PACKAGE_TEXT.length
+			Buffer.byteLength(THUMBNAIL_TEXT) +
+				Buffer.byteLength(SOURCE_TEXT) +
+				Buffer.byteLength(PACKAGE_TEXT)
 		);
 		expect(manifest.provenance).toMatchObject({
 			designerImported: 1,
@@ -470,6 +479,33 @@ describe("text asset CDN manifest verifier", () => {
 		]);
 	});
 
+	it("reports local source template payload mismatches", async () => {
+		const publicDir = join(
+			tmpdir(),
+			`qcut-text-source-template-${randomUUID()}`
+		);
+		const sourceText = JSON.stringify(
+			createSourcePayload({ template: { type: "image" } })
+		);
+		const entry = createGeneratedEntry({ sourceText });
+		await writeGeneratedEntryFiles({ entry, publicDir, sourceText });
+
+		const { manifest } = buildTextAssetPublishManifest({
+			baseUrl: "https://cdn.example.com",
+			generatedAt: "2026-07-15T00:00:00.000Z",
+			generatedManifest: { "text-demo": entry },
+			publicDir,
+		});
+
+		await expect(verifyLocalFiles({ manifest })).resolves.toEqual([
+			expect.objectContaining({
+				code: "invalid-file-payload",
+				detail: "source template must be a text element",
+				url: "/text-assets/demo/plain@1/template.json",
+			}),
+		]);
+	});
+
 	it("reports local package file reference mismatches", async () => {
 		const publicDir = join(tmpdir(), `qcut-text-package-files-${randomUUID()}`);
 		const packageText = JSON.stringify(
@@ -523,6 +559,60 @@ describe("text asset CDN manifest verifier", () => {
 			expect.objectContaining({
 				code: "invalid-file-payload",
 				detail: expect.stringContaining("package source identity mismatch"),
+				url: "/text-assets/demo/plain@1/template.qctext",
+			}),
+		]);
+	});
+
+	it("reports local package source template pack copy slot mismatches", async () => {
+		const publicDir = join(tmpdir(), `qcut-text-pack-slot-${randomUUID()}`);
+		const packagePayload = createPackagePayload({
+			source: {
+				...createSourcePayload(),
+				templatePack: {
+					category: "headline-template",
+					copySlots: [
+						{
+							defaultContent: "花字",
+							elementIndex: 2,
+							id: "headline",
+							label: "主标题",
+						},
+					],
+					elements: [
+						{
+							content: "花字",
+							id: "pack-title",
+							name: "Pack title",
+							type: "text",
+						},
+					],
+					id: "pack-demo",
+					name: "Pack demo",
+				},
+			},
+		});
+		const entry = createGeneratedEntry({
+			packageText: JSON.stringify(packagePayload),
+		});
+		await writeGeneratedEntryFiles({
+			entry,
+			packageText: JSON.stringify(packagePayload),
+			publicDir,
+		});
+
+		const { manifest } = buildTextAssetPublishManifest({
+			baseUrl: "https://cdn.example.com",
+			generatedAt: "2026-07-15T00:00:00.000Z",
+			generatedManifest: { "text-demo": entry },
+			publicDir,
+		});
+
+		await expect(verifyLocalFiles({ manifest })).resolves.toEqual([
+			expect.objectContaining({
+				code: "invalid-file-payload",
+				detail:
+					"package source templatePack copy slot 0 elementIndex is out of range",
 				url: "/text-assets/demo/plain@1/template.qctext",
 			}),
 		]);

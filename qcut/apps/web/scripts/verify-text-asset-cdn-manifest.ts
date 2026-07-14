@@ -662,12 +662,20 @@ function verifyLocalFilePayload({
 			url: file.url,
 		});
 		if (parsed.issue) return parsed.issue;
-		return verifyTextAssetIdentity({
-			asset,
-			payload: parsed.payload,
-			role: "source",
-			url: file.url,
-		});
+		return (
+			verifyTextAssetIdentity({
+				asset,
+				payload: parsed.payload,
+				role: "source",
+				url: file.url,
+			}) ??
+			verifyTextAssetTemplatePayload({
+				asset,
+				payload: parsed.payload,
+				role: "source",
+				url: file.url,
+			})
+		);
 	}
 	if (file.role === "package") {
 		const parsed = parseJsonObjectPayload({
@@ -714,12 +722,20 @@ function verifyLocalFilePayload({
 				url: file.url,
 			};
 		}
-		return verifyTextAssetIdentity({
-			asset,
-			payload: source,
-			role: "package source",
-			url: file.url,
-		});
+		return (
+			verifyTextAssetIdentity({
+				asset,
+				payload: source,
+				role: "package source",
+				url: file.url,
+			}) ??
+			verifyTextAssetTemplatePayload({
+				asset,
+				payload: source,
+				role: "package source",
+				url: file.url,
+			})
+		);
 	}
 	return null;
 }
@@ -802,6 +818,127 @@ function verifyTextAssetIdentity({
 		detail: `${role} identity mismatch: ${mismatches.join(", ")}`,
 		url,
 	};
+}
+
+function verifyTextAssetTemplatePayload({
+	asset,
+	payload,
+	role,
+	url,
+}: {
+	asset: TextAssetPublishEntry;
+	payload: Record<string, unknown>;
+	role: string;
+	url: string;
+}): VerifyIssue | null {
+	const templateIssue = textTemplatePayloadIssue({
+		label: `${role} template`,
+		value: payload.template,
+	});
+	if (templateIssue) {
+		return {
+			assetId: asset.assetId,
+			code: "invalid-file-payload",
+			detail: templateIssue,
+			url,
+		};
+	}
+	const templatePackIssue = textTemplatePackPayloadIssue({
+		label: `${role} templatePack`,
+		value: payload.templatePack,
+	});
+	if (!templatePackIssue) return null;
+	return {
+		assetId: asset.assetId,
+		code: "invalid-file-payload",
+		detail: templatePackIssue,
+		url,
+	};
+}
+
+function textTemplatePayloadIssue({
+	label,
+	value,
+}: {
+	label: string;
+	value: unknown;
+}): string | null {
+	const template = isRecord({ value }) ? value : null;
+	if (!template || template.type !== "text") {
+		return `${label} must be a text element`;
+	}
+	const missingFields = ["id", "name", "content"].filter((field) => {
+		const fieldValue = template[field];
+		return typeof fieldValue !== "string" || fieldValue.length === 0;
+	});
+	return missingFields.length === 0
+		? null
+		: `${label} missing text fields: ${missingFields.join(", ")}`;
+}
+
+function textTemplatePackPayloadIssue({
+	label,
+	value,
+}: {
+	label: string;
+	value: unknown;
+}): string | null {
+	if (value === undefined) return null;
+	const pack = isRecord({ value }) ? value : null;
+	if (!pack) return `${label} must be a JSON object`;
+	const missingFields = ["id", "name", "category"].filter((field) => {
+		const fieldValue = pack[field];
+		return typeof fieldValue !== "string" || fieldValue.length === 0;
+	});
+	if (missingFields.length > 0) {
+		return `${label} missing fields: ${missingFields.join(", ")}`;
+	}
+	if (!Array.isArray(pack.elements)) {
+		return `${label} elements must be an array`;
+	}
+	for (const [index, element] of pack.elements.entries()) {
+		const elementIssue = textTemplatePayloadIssue({
+			label: `${label} element ${index}`,
+			value: element,
+		});
+		if (elementIssue) return elementIssue;
+	}
+	return textTemplatePackCopySlotsIssue({
+		elementCount: pack.elements.length,
+		label,
+		value: pack.copySlots,
+	});
+}
+
+function textTemplatePackCopySlotsIssue({
+	elementCount,
+	label,
+	value,
+}: {
+	elementCount: number;
+	label: string;
+	value: unknown;
+}): string | null {
+	if (value === undefined) return null;
+	if (!Array.isArray(value)) return `${label} copySlots must be an array`;
+	for (const [index, slot] of value.entries()) {
+		const record = isRecord({ value: slot }) ? slot : null;
+		if (!record) return `${label} copy slot ${index} must be a JSON object`;
+		const missingFields = ["id", "label", "defaultContent"].filter(
+			(field) => typeof record[field] !== "string"
+		);
+		if (missingFields.length > 0) {
+			return `${label} copy slot ${index} missing fields: ${missingFields.join(", ")}`;
+		}
+		const elementIndex = record.elementIndex;
+		if (!Number.isInteger(elementIndex)) {
+			return `${label} copy slot ${index} elementIndex must be an integer`;
+		}
+		if (elementIndex < 0 || elementIndex >= elementCount) {
+			return `${label} copy slot ${index} elementIndex is out of range`;
+		}
+	}
+	return null;
 }
 
 function verifyTextAssetPackageCacheKey({
