@@ -37,6 +37,7 @@ import {
 	summarizeTextAssetProvenance,
 	verifyDesignerAssetCoverage,
 	verifyDesignerCategoryCoverage,
+	writeDesignerAssetGapChecklist,
 } from "./verify-text-asset-cdn-manifest";
 import { verifyTextAssetPackageResourceManifest } from "./text-asset-package-resource-contract";
 import { writeTextMarketplaceConfigFromSources } from "./sync-text-marketplace-from-sources";
@@ -67,6 +68,7 @@ export type TextDesignerAssetImportOptions = {
 	publicDir: string;
 	requiredDesignerCategories: string[];
 	syncMarketplace: boolean;
+	writeGapChecklistPath?: string;
 	writePlanPath?: string;
 };
 
@@ -258,6 +260,15 @@ export function parseTextDesignerAssetImportArgs({
 		}
 		if (arg === "--write-plan") {
 			options.writePlanPath = requireValue({ argv, index, name: arg });
+			index += 1;
+			continue;
+		}
+		if (arg === "--write-gap-checklist") {
+			options.writeGapChecklistPath = requireValue({
+				argv,
+				index,
+				name: arg,
+			});
 			index += 1;
 			continue;
 		}
@@ -930,8 +941,21 @@ export async function writeTextDesignerAssetImportPlanReport({
 	plan: TextDesignerAssetImportPlan;
 	summary: TextDesignerAssetImportSummary;
 }): Promise<TextDesignerAssetImportPlanReport> {
+	const report = buildTextDesignerAssetImportPlanReport({ plan, summary });
+	await mkdir(dirname(path), { recursive: true });
+	await writeFile(path, `${JSON.stringify(report, null, "\t")}\n`, "utf8");
+	return report;
+}
+
+export function buildTextDesignerAssetImportPlanReport({
+	plan,
+	summary,
+}: {
+	plan: TextDesignerAssetImportPlan;
+	summary: TextDesignerAssetImportSummary;
+}): TextDesignerAssetImportPlanReport {
 	const generatedAt = new Date().toISOString();
-	const report: TextDesignerAssetImportPlanReport = {
+	return {
 		designerGapReport: buildDesignerAssetGapReport({
 			coverage: summarizeDesignerCategoryCoverage({
 				generatedManifest: plan.updatedManifest,
@@ -952,9 +976,6 @@ export async function writeTextDesignerAssetImportPlanReport({
 		schemaVersion: 1,
 		summary,
 	};
-	await mkdir(dirname(path), { recursive: true });
-	await writeFile(path, `${JSON.stringify(report, null, "\t")}\n`, "utf8");
-	return report;
 }
 
 function designerAssetRoleSources({
@@ -1676,11 +1697,24 @@ async function main(): Promise<void> {
 			plan,
 			publicDir: options.publicDir,
 		});
+		const report =
+			options.writePlanPath || options.writeGapChecklistPath
+				? buildTextDesignerAssetImportPlanReport({ plan, summary })
+				: undefined;
 		if (options.writePlanPath) {
-			await writeTextDesignerAssetImportPlanReport({
-				path: options.writePlanPath,
-				plan,
-				summary,
+			if (!report) throw new Error("Missing designer import report");
+			await mkdir(dirname(options.writePlanPath), { recursive: true });
+			await writeFile(
+				options.writePlanPath,
+				`${JSON.stringify(report, null, "\t")}\n`,
+				"utf8"
+			);
+		}
+		if (options.writeGapChecklistPath) {
+			if (!report) throw new Error("Missing designer import report");
+			await writeDesignerAssetGapChecklist({
+				report: report.designerGapReport,
+				writePath: options.writeGapChecklistPath,
 			});
 		}
 		console.log(

@@ -7,6 +7,7 @@ import { promisify } from "node:util";
 import { describe, expect, it } from "vitest";
 import {
 	applyTextDesignerAssetImportPlan,
+	buildTextDesignerAssetImportPlanReport,
 	buildTextDesignerAssetImportPlan,
 	extractTextDesignerAssetPackArchive,
 	parseTextDesignerAssetImportArgs,
@@ -24,6 +25,10 @@ import {
 
 type TestFileContent = Buffer | string;
 const execFileAsync = promisify(execFile);
+const IMPORT_SCRIPT_PATH = join(
+	process.cwd(),
+	"apps/web/scripts/import-text-designer-assets.ts"
+);
 
 function checksum({ value }: { value: TestFileContent }): string {
 	return createHash("sha256").update(toBuffer({ value })).digest("hex");
@@ -381,6 +386,8 @@ describe("text designer asset import script", () => {
 					"red, texture",
 					"--write-plan",
 					"/tmp/import-plan.json",
+					"--write-gap-checklist",
+					"/tmp/import-gap.csv",
 				],
 			})
 		).toMatchObject({
@@ -397,6 +404,7 @@ describe("text designer asset import script", () => {
 			publicDir: "/tmp/public",
 			requiredDesignerCategories: ["red", "texture"],
 			syncMarketplace: true,
+			writeGapChecklistPath: "/tmp/import-gap.csv",
 			writePlanPath: "/tmp/import-plan.json",
 		});
 		expect(
@@ -1314,6 +1322,10 @@ describe("text designer asset import script", () => {
 			plan,
 		});
 		const planPath = join(dirname(packDir), "designer-import-plan.json");
+		const builtReport = buildTextDesignerAssetImportPlanReport({
+			plan,
+			summary,
+		});
 
 		const report = await writeTextDesignerAssetImportPlanReport({
 			path: planPath,
@@ -1347,6 +1359,20 @@ describe("text designer asset import script", () => {
 				totalFiles: 3,
 			},
 		});
+		expect(builtReport).toMatchObject({
+			items: report.items,
+			releaseReadiness: report.releaseReadiness,
+			schemaVersion: report.schemaVersion,
+			summary: report.summary,
+		});
+		expect(builtReport.designerGapReport).toMatchObject({
+			minDesignerAssetsPerCategory:
+				report.designerGapReport.minDesignerAssetsPerCategory,
+			requiredDesignerCategories:
+				report.designerGapReport.requiredDesignerCategories,
+			schemaVersion: report.designerGapReport.schemaVersion,
+			totalMissing: report.designerGapReport.totalMissing,
+		});
 		expect(writtenReport.items.map((item) => item.role)).toEqual([
 			"thumbnail",
 			"source",
@@ -1357,5 +1383,35 @@ describe("text designer asset import script", () => {
 			checksumSha256: checksum({ value: DESIGNER_THUMBNAIL_TEXT }),
 			targetUrl: "/text-assets/demo/plain@1/thumbnail.webp",
 		});
+	});
+
+	it("writes designer gap checklists from the import cli", async () => {
+		const { generatedManifestPath, packDir, publicDir } =
+			await createDesignerFixture();
+		const checklistPath = join(dirname(packDir), "designer-gap.csv");
+
+		await execFileAsync(
+			"bun",
+			[
+				IMPORT_SCRIPT_PATH,
+				"--dry-run",
+				"--generated-manifest",
+				generatedManifestPath,
+				"--pack-dir",
+				packDir,
+				"--public-dir",
+				publicDir,
+				"--skip-marketplace-sync",
+				"--write-gap-checklist",
+				checklistPath,
+			],
+			{ maxBuffer: 1024 * 1024 }
+		);
+
+		const checklist = await readFile(checklistPath, "utf8");
+		expect(checklist).toContain(
+			'"category","currentDesignerAssets","requiredDesignerAssets","missingDesignerAssets"'
+		);
+		expect(checklist).toContain('"headline-template","0","5","5"');
 	});
 });
