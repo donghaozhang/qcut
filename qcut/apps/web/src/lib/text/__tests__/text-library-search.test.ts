@@ -48,12 +48,26 @@ function createDefinition({
 
 describe("text library search", () => {
 	it("expands bilingual query synonyms with stable weights", () => {
-		expect(buildWeightedSearchTerms({ query: "Neon" })).toEqual([
-			{ term: "neon", weight: 1 },
-			{ term: "发光", weight: 0.72 },
-			{ term: "霓虹", weight: 0.72 },
-			{ term: "流光", weight: 0.72 },
-		]);
+		expect(buildWeightedSearchTerms({ query: "Neon" })).toEqual(
+			expect.arrayContaining([
+				{ term: "neon", weight: 1 },
+				{ term: "发光", weight: 0.72 },
+				{ term: "faguang", weight: 0.64 },
+				{ term: "fg", weight: 0.5888 },
+				{ term: "霓虹", weight: 0.72 },
+				{ term: "流光", weight: 0.72 },
+			])
+		);
+	});
+
+	it("adds pinyin full and acronym aliases for Chinese queries", () => {
+		expect(buildWeightedSearchTerms({ query: "红色" })).toEqual(
+			expect.arrayContaining([
+				{ term: "红色", weight: 1 },
+				{ term: "hongse", weight: 0.95 },
+				{ term: "hs", weight: 0.874 },
+			])
+		);
 	});
 
 	it("ranks matching text templates with state-aware boosts", () => {
@@ -108,5 +122,59 @@ describe("text library search", () => {
 				state: EMPTY_TEXT_LIBRARY_STATE,
 			})
 		).toEqual(definitions);
+	});
+
+	it("matches Chinese template metadata through pinyin and acronym queries", () => {
+		const definitions = [
+			createDefinition({
+				category: "red",
+				content: "红色花字",
+				id: "red-style",
+				keywords: ["红色", "花字"],
+				variantId: "red-burst",
+			}),
+			createDefinition({
+				category: "blue",
+				content: "蓝色花字",
+				id: "blue-style",
+				keywords: ["蓝色", "花字"],
+				variantId: "blue-ice",
+			}),
+		];
+
+		expect(
+			rankTextTemplateSearchResults({
+				definitions,
+				query: "hongse",
+				state: EMPTY_TEXT_LIBRARY_STATE,
+			}).map((definition) => definition.id)
+		).toEqual(["red-style"]);
+		expect(
+			rankTextTemplateSearchResults({
+				definitions,
+				query: "hs",
+				state: EMPTY_TEXT_LIBRARY_STATE,
+			}).map((definition) => definition.id)
+		).toEqual(["red-style"]);
+	});
+
+	it("tolerates small latin typos for pinyin searches", () => {
+		const definitions = [
+			createDefinition({
+				category: "glow",
+				content: "发光花字",
+				id: "glow-style",
+				keywords: ["发光", "霓虹"],
+				variantId: "glow",
+			}),
+		];
+
+		expect(
+			rankTextTemplateSearchResults({
+				definitions,
+				query: "faguagn",
+				state: EMPTY_TEXT_LIBRARY_STATE,
+			}).map((definition) => definition.id)
+		).toEqual(["glow-style"]);
 	});
 });

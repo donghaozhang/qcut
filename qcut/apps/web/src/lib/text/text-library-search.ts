@@ -10,6 +10,109 @@ type WeightedSearchTerm = {
 	weight: number;
 };
 
+type SearchFieldVariant = {
+	value: string;
+	weight: number;
+};
+
+const CHINESE_PINYIN: Readonly<Record<string, string>> = {
+	字: "zi",
+	花: "hua",
+	库: "ku",
+	热: "re",
+	门: "men",
+	最: "zui",
+	新: "xin",
+	夏: "xia",
+	日: "ri",
+	综: "zong",
+	艺: "yi",
+	感: "gan",
+	国: "guo",
+	风: "feng",
+	发: "fa",
+	光: "guang",
+	渐: "jian",
+	变: "bian",
+	纹: "wen",
+	理: "li",
+	红: "hong",
+	黄: "huang",
+	黑: "hei",
+	白: "bai",
+	蓝: "lan",
+	粉: "fen",
+	绿: "lv",
+	紫: "zi",
+	色: "se",
+	标: "biao",
+	题: "ti",
+	模: "mo",
+	板: "ban",
+	引: "yin",
+	用: "yong",
+	列: "lie",
+	表: "biao",
+	清: "qing",
+	单: "dan",
+	分: "fen",
+	屏: "ping",
+	对: "dui",
+	比: "bi",
+	时: "shi",
+	间: "jian",
+	线: "xian",
+	阶: "jie",
+	段: "duan",
+	智: "zhi",
+	能: "neng",
+	文: "wen",
+	本: "ben",
+	自: "zi",
+	动: "dong",
+	摘: "zhai",
+	要: "yao",
+	重: "zhong",
+	点: "dian",
+	提: "ti",
+	取: "qu",
+	章: "zhang",
+	节: "jie",
+	幕: "mu",
+	转: "zhuan",
+	改: "gai",
+	写: "xie",
+	基: "ji",
+	础: "chu",
+	说: "shuo",
+	明: "ming",
+	角: "jiao",
+	贴: "tie",
+	纸: "zhi",
+	火: "huo",
+	焰: "yan",
+	熔: "rong",
+	岩: "yan",
+	故: "gu",
+	障: "zhang",
+	赛: "sai",
+	博: "bo",
+	霓: "ni",
+	虹: "hong",
+	鎏: "liu",
+	金: "jin",
+	糖: "tang",
+	果: "guo",
+	气: "qi",
+	泡: "pao",
+	可: "ke",
+	爱: "ai",
+	漫: "man",
+	画: "hua",
+	爆: "bao",
+	款: "kuan",
+};
+
 const QUERY_SYNONYMS: Readonly<Record<string, readonly string[]>> = {
 	ai: ["智能", "自动", "摘要", "重点"],
 	bling: ["发光", "流光", "鎏金", "梦幻"],
@@ -95,10 +198,16 @@ export function buildWeightedSearchTerms({
 
 	for (const term of [normalizedQuery, ...baseTerms]) {
 		addWeightedTerm({ term, weight: 1, weightedTerms });
+		addQueryAliases({ term, weight: 0.95, weightedTerms });
 		for (const synonym of QUERY_SYNONYMS[term] ?? []) {
 			addWeightedTerm({
 				term: synonym.toLocaleLowerCase(),
 				weight: 0.72,
+				weightedTerms,
+			});
+			addQueryAliases({
+				term: synonym.toLocaleLowerCase(),
+				weight: 0.64,
 				weightedTerms,
 			});
 		}
@@ -108,6 +217,29 @@ export function buildWeightedSearchTerms({
 		term,
 		weight,
 	}));
+}
+
+function addQueryAliases({
+	term,
+	weight,
+	weightedTerms,
+}: {
+	term: string;
+	weight: number;
+	weightedTerms: Map<string, number>;
+}) {
+	const compactTerm = compactLatinTerm({ value: term });
+	if (compactTerm && compactTerm !== term) {
+		addWeightedTerm({ term: compactTerm, weight, weightedTerms });
+	}
+	const pinyin = chineseToPinyinAliases({ value: term });
+	if (!pinyin) return;
+	addWeightedTerm({ term: pinyin.full, weight, weightedTerms });
+	addWeightedTerm({
+		term: pinyin.acronym,
+		weight: weight * 0.92,
+		weightedTerms,
+	});
 }
 
 function addWeightedTerm({
@@ -178,10 +310,138 @@ function scoreWeightedTerm({
 }
 
 function scoreField({ field, term }: { field: string; term: string }): number {
+	const normalizedTerm = normalizeSearchValue({ value: term });
+	if (!normalizedTerm) return 0;
+	let bestScore = 0;
+	for (const variant of getSearchFieldVariants({ field })) {
+		const value = normalizeSearchValue({ value: variant.value });
+		if (!value) continue;
+		const score = scoreSearchVariant({ field: value, term: normalizedTerm });
+		bestScore = Math.max(bestScore, score * variant.weight);
+	}
+	return bestScore;
+}
+
+function scoreSearchVariant({
+	field,
+	term,
+}: {
+	field: string;
+	term: string;
+}): number {
 	if (field === term) return 24;
 	if (field.startsWith(term)) return 16;
 	if (field.includes(term)) return 10;
+	if (shouldUseFuzzyMatch({ field, term })) {
+		const distance = boundedLevenshteinDistance({ left: field, right: term });
+		if (distance === 1) return 8;
+		if (distance === 2 && term.length >= 6) return 5;
+	}
 	return 0;
+}
+
+function getSearchFieldVariants({
+	field,
+}: {
+	field: string;
+}): SearchFieldVariant[] {
+	const variants: SearchFieldVariant[] = [{ value: field, weight: 1 }];
+	const compact = compactLatinTerm({ value: field });
+	if (compact && compact !== field) {
+		variants.push({ value: compact, weight: 0.94 });
+	}
+	const pinyin = chineseToPinyinAliases({ value: field });
+	if (pinyin) {
+		variants.push({ value: pinyin.full, weight: 0.86 });
+		variants.push({ value: pinyin.acronym, weight: 0.78 });
+	}
+	return variants;
+}
+
+function chineseToPinyinAliases({
+	value,
+}: {
+	value: string;
+}): { full: string; acronym: string } | undefined {
+	const fullParts: string[] = [];
+	const acronymParts: string[] = [];
+	let matchedChinese = false;
+
+	for (const character of Array.from(value)) {
+		const pinyin = CHINESE_PINYIN[character];
+		if (pinyin) {
+			matchedChinese = true;
+			fullParts.push(pinyin);
+			acronymParts.push(pinyin[0]);
+			continue;
+		}
+		const normalized = normalizeSearchValue({ value: character });
+		if (normalized && /^[a-z0-9]+$/.test(normalized)) {
+			fullParts.push(normalized);
+			acronymParts.push(normalized[0]);
+		}
+	}
+
+	if (!matchedChinese) return;
+	return {
+		full: fullParts.join(""),
+		acronym: acronymParts.join(""),
+	};
+}
+
+function compactLatinTerm({ value }: { value: string }): string {
+	return normalizeSearchValue({ value }).replace(/[^a-z0-9]/g, "");
+}
+
+function normalizeSearchValue({ value }: { value: string }): string {
+	return value
+		.toLocaleLowerCase()
+		.normalize("NFKD")
+		.replace(/\p{Diacritic}/gu, "")
+		.trim();
+}
+
+function shouldUseFuzzyMatch({
+	field,
+	term,
+}: {
+	field: string;
+	term: string;
+}): boolean {
+	if (term.length < 4 || field.length < 4) return false;
+	if (!/^[a-z0-9]+$/.test(term) || !/^[a-z0-9]+$/.test(field)) return false;
+	return Math.abs(field.length - term.length) <= 2;
+}
+
+function boundedLevenshteinDistance({
+	left,
+	right,
+}: {
+	left: string;
+	right: string;
+}): number {
+	const previous = Array.from(
+		{ length: right.length + 1 },
+		(_, index) => index
+	);
+	for (let leftIndex = 1; leftIndex <= left.length; leftIndex += 1) {
+		const current = [leftIndex];
+		let rowMinimum = current[0];
+		for (let rightIndex = 1; rightIndex <= right.length; rightIndex += 1) {
+			const substitutionCost =
+				left[leftIndex - 1] === right[rightIndex - 1] ? 0 : 1;
+			const value = Math.min(
+				current[rightIndex - 1] + 1,
+				previous[rightIndex] + 1,
+				previous[rightIndex - 1] + substitutionCost
+			);
+			current[rightIndex] = value;
+			rowMinimum = Math.min(rowMinimum, value);
+		}
+		if (rowMinimum > 2) return rowMinimum;
+		previous.splice(0, previous.length, ...current);
+	}
+	return previous[right.length];
 }
 
 function getStateAwareBoost({
