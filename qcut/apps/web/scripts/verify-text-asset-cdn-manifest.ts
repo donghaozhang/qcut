@@ -72,6 +72,7 @@ export type VerifyIssue = {
 		| "designer-category-coverage"
 		| "designer-import-threshold"
 		| "marketplace-metadata-coverage"
+		| "thumbnail-diversity"
 		| "virtual-resource-url"
 		| "remote-unavailable"
 		| "remote-checksum-mismatch"
@@ -753,6 +754,7 @@ export function buildTextAssetPublishManifest({
 			version: entry.version,
 		});
 	}
+	issues.push(...verifyTextThumbnailDiversity({ generatedManifest }));
 	assets.push(...supplementalAssets);
 	const totalBytes = assets.reduce(
 		(total, asset) =>
@@ -777,6 +779,45 @@ export function buildTextAssetPublishManifest({
 			totalFiles,
 		},
 	};
+}
+
+export function verifyTextThumbnailDiversity({
+	generatedManifest,
+}: {
+	generatedManifest: Record<string, TextAssetGeneratedEntry>;
+}): VerifyIssue[] {
+	const byCategory = new Map<
+		string,
+		Map<string, { assetIds: string[]; url?: string }>
+	>();
+	for (const entry of Object.values(generatedManifest)) {
+		const category = inferTextAssetCategory({ entry });
+		const categoryHashes = byCategory.get(category) ?? new Map();
+		const hash = entry.thumbnail.checksumSha256;
+		const existing = categoryHashes.get(hash);
+		if (existing) {
+			existing.assetIds.push(entry.assetId);
+		} else {
+			categoryHashes.set(hash, {
+				assetIds: [entry.assetId],
+				url: entry.thumbnail.url,
+			});
+		}
+		byCategory.set(category, categoryHashes);
+	}
+	const issues: VerifyIssue[] = [];
+	for (const [category, hashes] of byCategory.entries()) {
+		for (const duplicate of hashes.values()) {
+			if (duplicate.assetIds.length < 2) continue;
+			issues.push({
+				assetId: "text-thumbnail-diversity",
+				code: "thumbnail-diversity",
+				detail: `Duplicate thumbnail checksum in ${category}: ${duplicate.assetIds.join(", ")}`,
+				url: duplicate.url,
+			});
+		}
+	}
+	return issues;
 }
 
 export async function buildTextMarketplacePublishEntry({

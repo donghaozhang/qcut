@@ -118,36 +118,42 @@ const SOURCE_TEXT = JSON.stringify(createSourcePayload());
 const PACKAGE_TEXT = JSON.stringify(createPackagePayload());
 
 function createGeneratedEntry({
+	assetId = DEFAULT_ASSET_ID,
+	cacheKey = DEFAULT_CACHE_KEY,
+	packageId = DEFAULT_PACKAGE_ID,
 	packageText = PACKAGE_TEXT,
 	sourceText = SOURCE_TEXT,
 	thumbnailText = THUMBNAIL_TEXT,
 }: {
+	assetId?: string;
+	cacheKey?: string;
+	packageId?: string;
 	packageText?: string;
 	sourceText?: string;
 	thumbnailText?: TestFileContent;
 } = {}): TextAssetGeneratedEntry {
 	return {
-		assetId: DEFAULT_ASSET_ID,
-		cacheKey: DEFAULT_CACHE_KEY,
-		packageId: DEFAULT_PACKAGE_ID,
+		assetId,
+		cacheKey,
+		packageId,
 		version: DEFAULT_VERSION,
 		thumbnail: {
 			byteSize: byteLength({ value: thumbnailText }),
 			checksumSha256: checksum({ value: thumbnailText }),
 			mimeType: "image/webp",
-			url: "/text-assets/demo/plain@1/thumbnail.webp",
+			url: `/${cacheKey}/thumbnail.webp`,
 		},
 		source: {
 			byteSize: Buffer.byteLength(sourceText),
 			checksumSha256: checksum({ value: sourceText }),
 			mimeType: "application/json",
-			url: "/text-assets/demo/plain@1/template.json",
+			url: `/${cacheKey}/template.json`,
 		},
 		qcutPackage: {
 			byteSize: Buffer.byteLength(packageText),
 			checksumSha256: checksum({ value: packageText }),
 			mimeType: "application/vnd.qcut.text-template+json",
-			url: "/text-assets/demo/plain@1/template.qctext",
+			url: `/${cacheKey}/template.qctext`,
 		},
 	};
 }
@@ -587,6 +593,42 @@ describe("text asset CDN manifest verifier", () => {
 			"https://cdn.example.com/assets/text-assets/demo/plain@1/template.json",
 			"https://cdn.example.com/assets/text-assets/demo/plain@1/template.qctext",
 		]);
+	});
+
+	it("reports duplicate thumbnail checksums within a text asset category", () => {
+		const duplicateThumbnail = createVp8xWebpBytes({ height: 304, width: 320 });
+		const first = createGeneratedEntry({
+			assetId: "text-fancy-red-plain",
+			cacheKey: "text-assets/text-fancy-red/plain@1",
+			packageId: "text-fancy-red",
+			thumbnailText: duplicateThumbnail,
+		});
+		const second = createGeneratedEntry({
+			assetId: "text-fancy-red-outline",
+			cacheKey: "text-assets/text-fancy-red/outline@1",
+			packageId: "text-fancy-red",
+			thumbnailText: duplicateThumbnail,
+		});
+
+		const { issues } = buildTextAssetPublishManifest({
+			baseUrl: "https://cdn.example.com/assets/",
+			generatedAt: "2026-07-15T00:00:00.000Z",
+			generatedManifest: {
+				[first.assetId]: first,
+				[second.assetId]: second,
+			},
+			publicDir: "/tmp/public",
+		});
+
+		expect(issues).toEqual([
+			expect.objectContaining({
+				assetId: "text-thumbnail-diversity",
+				code: "thumbnail-diversity",
+				detail: expect.stringContaining("text-fancy-red-plain"),
+				url: "/text-assets/text-fancy-red/plain@1/thumbnail.webp",
+			}),
+		]);
+		expect(issues[0]?.detail).toContain("text-fancy-red-outline");
 	});
 
 	it("rejects virtual text asset URLs in publish manifests", () => {
