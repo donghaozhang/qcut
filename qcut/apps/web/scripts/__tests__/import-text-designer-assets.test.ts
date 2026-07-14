@@ -1325,6 +1325,15 @@ describe("text designer asset import script", () => {
 		) as typeof report;
 
 		expect(report).toMatchObject({
+			designerGapReport: {
+				minDesignerAssetsPerCategory: 5,
+				requiredDesignerCategories: expect.arrayContaining([
+					"popular",
+					"headline-template",
+				]),
+				schemaVersion: 1,
+				totalMissing: 100,
+			},
 			releaseReadiness: {
 				designerImported: 1,
 				designerReady: false,

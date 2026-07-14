@@ -13,6 +13,7 @@ import { basename, dirname, join, relative, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { promisify } from "node:util";
 import type {
+	TextAssetDesignerGapReport,
 	TextAssetGeneratedEntry,
 	TextAssetGeneratedFile,
 	TextAssetReleaseReadinessSummary,
@@ -20,7 +21,10 @@ import type {
 import {
 	EXPECTED_TEXT_THUMBNAIL_HEIGHT,
 	EXPECTED_TEXT_THUMBNAIL_WIDTH,
+	TEXT_DESIGNER_READY_CATEGORY_IDS,
+	TEXT_DESIGNER_READY_MIN_ASSETS_PER_CATEGORY,
 	applyTextDesignerReadyPreset,
+	buildDesignerAssetGapReport,
 	getWebpDimensions,
 	inferTextAssetCategory,
 	isWebpBytes,
@@ -28,6 +32,7 @@ import {
 	parseNonNegativeInteger,
 	parsePositiveInteger,
 	readGeneratedManifest,
+	summarizeDesignerCategoryCoverage,
 	summarizeTextAssetReleaseReadiness,
 	summarizeTextAssetProvenance,
 	verifyDesignerAssetCoverage,
@@ -109,6 +114,7 @@ export type TextDesignerAssetImportSummary = {
 };
 
 export type TextDesignerAssetImportPlanReport = {
+	designerGapReport: TextAssetDesignerGapReport;
 	generatedAt: string;
 	items: TextDesignerAssetImportPlanItem[];
 	releaseReadiness: TextAssetReleaseReadinessSummary;
@@ -924,8 +930,21 @@ export async function writeTextDesignerAssetImportPlanReport({
 	plan: TextDesignerAssetImportPlan;
 	summary: TextDesignerAssetImportSummary;
 }): Promise<TextDesignerAssetImportPlanReport> {
+	const generatedAt = new Date().toISOString();
 	const report: TextDesignerAssetImportPlanReport = {
-		generatedAt: new Date().toISOString(),
+		designerGapReport: buildDesignerAssetGapReport({
+			coverage: summarizeDesignerCategoryCoverage({
+				generatedManifest: plan.updatedManifest,
+				minDesignerAssetsPerCategory:
+					TEXT_DESIGNER_READY_MIN_ASSETS_PER_CATEGORY,
+				requiredDesignerCategories: [...TEXT_DESIGNER_READY_CATEGORY_IDS],
+			}),
+			generatedAt,
+			generatedManifest: plan.updatedManifest,
+			minDesignerAssetsPerCategory: TEXT_DESIGNER_READY_MIN_ASSETS_PER_CATEGORY,
+			requiredDesignerCategories: [...TEXT_DESIGNER_READY_CATEGORY_IDS],
+		}),
+		generatedAt,
 		items: plan.items,
 		releaseReadiness: summarizeTextAssetReleaseReadiness({
 			generatedManifest: plan.updatedManifest,
