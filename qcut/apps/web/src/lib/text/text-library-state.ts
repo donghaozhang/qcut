@@ -1,8 +1,8 @@
 import type {
 	TextTemplateCategoryId,
 	TextTemplateDefinition,
-	TextTemplateResource,
 } from "./text-template-registry";
+import { getTextTemplateResource } from "./text-resource-catalog";
 
 export const TEXT_LIBRARY_STATE_STORAGE_KEY = "qcut-text-library-state-v1";
 const MAX_RECENT_TEXT_TEMPLATES = 30;
@@ -113,7 +113,7 @@ export function markTextTemplateDownloaded({
 	const downloadedIds = currentDownloadedIds.includes(resolvedTemplateId)
 		? state.downloadedIds
 		: [...currentDownloadedIds, resolvedTemplateId];
-	const downloadRecords = definition?.resource
+	const downloadRecords = definition
 		? upsertDownloadRecord({
 				record: buildDownloadRecord({
 					definition,
@@ -143,7 +143,6 @@ export function markTextTemplateDownloadFailed({
 	now?: number;
 	state: TextLibraryState;
 }): TextLibraryState {
-	if (!definition.resource) return state;
 	return {
 		...state,
 		downloadRecords: upsertDownloadRecord({
@@ -226,16 +225,17 @@ export function getTextTemplateDownloadStatus({
 	definition: TextTemplateDefinition;
 	state: TextLibraryState;
 }): TextTemplateDownloadStatus {
-	if (
-		definition.downloaded ||
-		(state.downloadedIds ?? []).includes(definition.id)
-	) {
-		return "cached";
-	}
+	if (definition.downloaded) return "cached";
 	const record = (state.downloadRecords ?? []).find(
 		(candidate) => candidate.templateId === definition.id
 	);
-	return record?.status ?? "remote";
+	if (record) {
+		return isCurrentDownloadRecord({ definition, record })
+			? record.status
+			: "remote";
+	}
+	if ((state.downloadedIds ?? []).includes(definition.id)) return "cached";
+	return "remote";
 }
 
 export function getTextTemplateResourceAccess({
@@ -245,7 +245,8 @@ export function getTextTemplateResourceAccess({
 	definition: TextTemplateDefinition;
 	state: TextLibraryState;
 }): TextTemplateResourceAccess {
-	if (definition.resource?.entitlement !== "svip") return "allowed";
+	const resource = getTextTemplateResource({ definition });
+	if (resource.entitlement !== "svip") return "allowed";
 	return state.hasSvipAccess === true ? "allowed" : "svip-required";
 }
 
@@ -295,7 +296,7 @@ function buildDownloadRecord({
 	now: number;
 	status: TextTemplateDownloadRecord["status"];
 }): TextTemplateDownloadRecord {
-	const resource = getDefinitionResource({ definition });
+	const resource = getTextTemplateResource({ definition });
 	return {
 		templateId: definition.id,
 		assetId: resource.assetId,
@@ -309,22 +310,6 @@ function buildDownloadRecord({
 		}),
 		updatedAt: now,
 		errorCode,
-	};
-}
-
-function getDefinitionResource({
-	definition,
-}: {
-	definition: TextTemplateDefinition;
-}): TextTemplateResource {
-	if (definition.resource) return definition.resource;
-	return {
-		assetId: `text-legacy-${definition.id}`,
-		packageId: `text-${definition.groupId}-${definition.category}`,
-		version: 1,
-		entitlement: definition.premium ? "svip" : "free",
-		cacheKey: `text-assets/legacy/${definition.id}@1`,
-		sizeKb: definition.premium ? 384 : 192,
 	};
 }
 
@@ -361,6 +346,22 @@ function upsertDownloadRecord({
 	}
 	if (!inserted) result.push(record);
 	return result;
+}
+
+function isCurrentDownloadRecord({
+	definition,
+	record,
+}: {
+	definition: TextTemplateDefinition;
+	record: TextTemplateDownloadRecord;
+}): boolean {
+	const resource = getTextTemplateResource({ definition });
+	return (
+		record.assetId === resource.assetId &&
+		record.packageId === resource.packageId &&
+		record.cacheKey === resource.cacheKey &&
+		record.version === resource.version
+	);
 }
 
 function parseDownloadRecords({

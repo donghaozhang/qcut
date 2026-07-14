@@ -18,6 +18,12 @@ const templateDefinitions = [
 	createDefinition({ id: "second", category: "basic" }),
 	createDefinition({ id: "third", category: "favorites" }),
 	createDefinition({ id: "svip", category: "basic", premium: true }),
+	createDefinition({
+		id: "legacy-svip",
+		category: "basic",
+		premium: true,
+		withResource: false,
+	}),
 ] as const;
 
 function createDefinition({
@@ -25,11 +31,13 @@ function createDefinition({
 	category,
 	downloaded = false,
 	premium = false,
+	withResource = true,
 }: {
 	id: string;
 	category: TextTemplateDefinition["category"];
 	downloaded?: boolean;
 	premium?: boolean;
+	withResource?: boolean;
 }): TextTemplateDefinition {
 	return {
 		id,
@@ -42,14 +50,16 @@ function createDefinition({
 		keywords: [id, category, "text", "template", "test"],
 		premium,
 		downloaded,
-		resource: {
-			assetId: `text-new-text-${category}-${id}`,
-			packageId: `text-new-text-${category}`,
-			version: 1,
-			entitlement: premium ? "svip" : "free",
-			cacheKey: `text-assets/text-new-text-${category}/${id}@1`,
-			sizeKb: premium ? 384 : 192,
-		},
+		resource: withResource
+			? {
+					assetId: `text-new-text-${category}-${id}`,
+					packageId: `text-new-text-${category}`,
+					version: 1,
+					entitlement: premium ? "svip" : "free",
+					cacheKey: `text-assets/text-new-text-${category}/${id}@1`,
+					sizeKb: premium ? 384 : 192,
+				}
+			: undefined,
 		catalogVisible: true,
 	};
 }
@@ -192,6 +202,56 @@ describe("text library state", () => {
 			state: EMPTY_TEXT_LIBRARY_STATE,
 		});
 		expect(networkFailed.downloadRecords[0]?.errorCode).toBe("NETWORK_ERROR");
+
+		const legacySvipDefinition = templateDefinitions[4];
+		expect(
+			getTextTemplateResourceAccess({
+				definition: legacySvipDefinition,
+				state: EMPTY_TEXT_LIBRARY_STATE,
+			})
+		).toBe("svip-required");
+		const legacyFailed = retryTextTemplateDownload({
+			definition: legacySvipDefinition,
+			now: 400,
+			state: EMPTY_TEXT_LIBRARY_STATE,
+		});
+		expect(legacyFailed.downloadRecords[0]).toMatchObject({
+			templateId: "legacy-svip",
+			assetId: "text-legacy-legacy-svip",
+			status: "failed",
+			errorCode: "SVIP_REQUIRED",
+		});
+	});
+
+	it("treats stale download records as remote assets after resource upgrades", () => {
+		const currentResource = templateDefinitions[1].resource;
+		if (!currentResource) throw new Error("Expected resource metadata");
+		const downloaded = markTextTemplateDownloaded({
+			definition: templateDefinitions[1],
+			now: 100,
+			state: EMPTY_TEXT_LIBRARY_STATE,
+		});
+		const upgradedDefinition: TextTemplateDefinition = {
+			...templateDefinitions[1],
+			resource: {
+				...currentResource,
+				version: 2,
+				cacheKey: "text-assets/text-new-text-basic/second@2",
+			},
+		};
+
+		expect(
+			getTextTemplateDownloadStatus({
+				definition: templateDefinitions[1],
+				state: downloaded,
+			})
+		).toBe("cached");
+		expect(
+			getTextTemplateDownloadStatus({
+				definition: upgradedDefinition,
+				state: downloaded,
+			})
+		).toBe("remote");
 	});
 
 	it("resolves virtual categories from user state", () => {
