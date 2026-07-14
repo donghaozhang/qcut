@@ -7,6 +7,7 @@ import type {
 	TextAssetGeneratedFile,
 } from "./verify-text-asset-cdn-manifest";
 import {
+	applyTextDesignerReadyPreset,
 	inferTextAssetCategory,
 	parseCommaSeparatedList,
 	parseNonNegativeInteger,
@@ -121,6 +122,10 @@ export function parseTextDesignerAssetImportArgs({
 		}
 		if (arg === "--dry-run") {
 			options.dryRun = true;
+			continue;
+		}
+		if (arg === "--designer-ready") {
+			Object.assign(options, applyTextDesignerReadyPreset({ options }));
 			continue;
 		}
 		if (arg === "--generated-manifest") {

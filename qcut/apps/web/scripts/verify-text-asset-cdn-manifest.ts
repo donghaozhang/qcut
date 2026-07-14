@@ -165,6 +165,42 @@ const DEFAULT_MANIFEST_PATH = join(
 const DEFAULT_PUBLIC_DIR = join(SCRIPT_DIR, "../public");
 const EXPECTED_TEXT_THUMBNAIL_HEIGHT = 304;
 const EXPECTED_TEXT_THUMBNAIL_WIDTH = 320;
+export const TEXT_DESIGNER_READY_MIN_ASSETS_PER_CATEGORY = 5;
+export const TEXT_DESIGNER_READY_CATEGORY_IDS = [
+	"popular",
+	"latest",
+	"summer",
+	"variety",
+	"guofeng",
+	"glow",
+	"gradient",
+	"texture",
+	"red",
+	"yellow",
+	"black-white",
+	"blue",
+	"pink",
+	"green",
+	"purple",
+	"headline-template",
+	"quote-template",
+	"list-template",
+	"split-template",
+	"timeline-template",
+] as const;
+
+export function applyTextDesignerReadyPreset<
+	TOptions extends {
+		minDesignerAssetsPerCategory: number;
+		requiredDesignerCategories: string[];
+	},
+>({ options }: { options: TOptions }): TOptions {
+	return {
+		...options,
+		minDesignerAssetsPerCategory: TEXT_DESIGNER_READY_MIN_ASSETS_PER_CATEGORY,
+		requiredDesignerCategories: [...TEXT_DESIGNER_READY_CATEGORY_IDS],
+	};
+}
 
 export function parseTextAssetCdnArgs({
 	argv,
@@ -204,6 +240,10 @@ export function parseTextAssetCdnArgs({
 		if (arg === "--check-remote-checksum") {
 			options.checkRemote = true;
 			options.checkRemoteChecksum = true;
+			continue;
+		}
+		if (arg === "--designer-ready") {
+			Object.assign(options, applyTextDesignerReadyPreset({ options }));
 			continue;
 		}
 		if (arg === "--full-issues") {

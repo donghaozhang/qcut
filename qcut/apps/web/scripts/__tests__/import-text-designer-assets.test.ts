@@ -11,7 +11,11 @@ import {
 	writeTextDesignerAssetImportPlanReport,
 	type TextDesignerAssetPackManifest,
 } from "../import-text-designer-assets";
-import type { TextAssetGeneratedEntry } from "../verify-text-asset-cdn-manifest";
+import {
+	TEXT_DESIGNER_READY_CATEGORY_IDS,
+	TEXT_DESIGNER_READY_MIN_ASSETS_PER_CATEGORY,
+	type TextAssetGeneratedEntry,
+} from "../verify-text-asset-cdn-manifest";
 
 function checksum({ value }: { value: string }): string {
 	return createHash("sha256").update(Buffer.from(value)).digest("hex");
@@ -202,6 +206,17 @@ describe("text designer asset import script", () => {
 			publicDir: "/tmp/public",
 			requiredDesignerCategories: ["red", "texture"],
 			writePlanPath: "/tmp/import-plan.json",
+		});
+	});
+
+	it("expands designer-ready import coverage from the shared preset", () => {
+		expect(
+			parseTextDesignerAssetImportArgs({
+				argv: ["--pack-dir", "/tmp/designer-pack", "--designer-ready"],
+			})
+		).toMatchObject({
+			minDesignerAssetsPerCategory: TEXT_DESIGNER_READY_MIN_ASSETS_PER_CATEGORY,
+			requiredDesignerCategories: [...TEXT_DESIGNER_READY_CATEGORY_IDS],
 		});
 	});
 

@@ -3,6 +3,7 @@ import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { PutObjectCommand, S3Client } from "@aws-sdk/client-s3";
 import {
+	applyTextDesignerReadyPreset,
 	mapWithConcurrency,
 	parseCommaSeparatedList,
 	verifyDesignerAssetCoverage,
@@ -130,6 +131,10 @@ export function parseTextAssetUploadArgs({
 		}
 		if (arg === "--dry-run") {
 			options.dryRun = true;
+			continue;
+		}
+		if (arg === "--designer-ready") {
+			Object.assign(options, applyTextDesignerReadyPreset({ options }));
 			continue;
 		}
 		if (arg === "--manifest") {

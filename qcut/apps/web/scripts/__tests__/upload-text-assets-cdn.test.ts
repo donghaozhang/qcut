@@ -15,7 +15,11 @@ import {
 	writeTextAssetUploadPlanReport,
 	type TextAssetUploadPlanItem,
 } from "../upload-text-assets-cdn";
-import type { TextAssetPublishManifest } from "../verify-text-asset-cdn-manifest";
+import {
+	TEXT_DESIGNER_READY_CATEGORY_IDS,
+	TEXT_DESIGNER_READY_MIN_ASSETS_PER_CATEGORY,
+	type TextAssetPublishManifest,
+} from "../verify-text-asset-cdn-manifest";
 
 const PACKAGE_JSON_PATH = join(
 	dirname(fileURLToPath(import.meta.url)),
@@ -106,19 +110,16 @@ describe("text asset CDN upload script", () => {
 		const packageJson = JSON.parse(readFileSync(PACKAGE_JSON_PATH, "utf8")) as {
 			scripts: Record<string, string>;
 		};
-		const readyCategories =
-			"popular,latest,summer,variety,guofeng,glow,gradient,texture,red,yellow,black-white,blue,pink,green,purple,headline-template,quote-template,list-template,split-template,timeline-template";
 		for (const scriptName of [
+			"assets:text:create-designer-ready-pack",
 			"assets:text:import-designer-ready",
 			"assets:text:verify-designer-ready",
 			"assets:text:upload-designer-ready",
 			"assets:text:release-designer-ready",
 		]) {
-			expect(packageJson.scripts[scriptName]).toContain(
-				"--min-designer-assets-per-category 5"
-			);
-			expect(packageJson.scripts[scriptName]).toContain(
-				`--require-designer-categories ${readyCategories}`
+			expect(packageJson.scripts[scriptName]).toContain("--designer-ready");
+			expect(packageJson.scripts[scriptName]).not.toContain(
+				"--require-designer-categories"
 			);
 		}
 	});
@@ -166,6 +167,18 @@ describe("text asset CDN upload script", () => {
 			prefix: "assets",
 			requiredDesignerCategories: ["red", "texture"],
 			writePlanPath: "/tmp/upload-plan.json",
+		});
+	});
+
+	it("expands designer-ready upload coverage from the shared preset", () => {
+		expect(
+			parseTextAssetUploadArgs({
+				argv: ["--bucket", "qcut-assets", "--designer-ready"],
+				env: {},
+			})
+		).toMatchObject({
+			minDesignerAssetsPerCategory: TEXT_DESIGNER_READY_MIN_ASSETS_PER_CATEGORY,
+			requiredDesignerCategories: [...TEXT_DESIGNER_READY_CATEGORY_IDS],
 		});
 	});
 

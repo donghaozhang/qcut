@@ -8,7 +8,11 @@ import {
 	releaseTextAssetsToCdn,
 	type TextAssetReleaseOptions,
 } from "../release-text-assets-cdn";
-import type { TextAssetGeneratedEntry } from "../verify-text-asset-cdn-manifest";
+import {
+	TEXT_DESIGNER_READY_CATEGORY_IDS,
+	TEXT_DESIGNER_READY_MIN_ASSETS_PER_CATEGORY,
+	type TextAssetGeneratedEntry,
+} from "../verify-text-asset-cdn-manifest";
 
 type TestFileContent = Buffer | string;
 
@@ -214,6 +218,18 @@ describe("text asset CDN release script", () => {
 			stageDir: "/tmp/stage",
 			uploadConcurrency: 3,
 			uploadPlanPath: "/tmp/upload-plan.json",
+		});
+	});
+
+	it("expands designer-ready release coverage from the shared preset", () => {
+		expect(
+			parseTextAssetReleaseArgs({
+				argv: ["--bucket", "qcut-assets", "--designer-ready"],
+				env: {},
+			})
+		).toMatchObject({
+			minDesignerAssetsPerCategory: TEXT_DESIGNER_READY_MIN_ASSETS_PER_CATEGORY,
+			requiredDesignerCategories: [...TEXT_DESIGNER_READY_CATEGORY_IDS],
 		});
 	});
 

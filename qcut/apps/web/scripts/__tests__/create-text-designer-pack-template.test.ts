@@ -9,7 +9,11 @@ import {
 	selectTextDesignerPackAssetIds,
 	writeTextDesignerPackTemplate,
 } from "../create-text-designer-pack-template";
-import type { TextAssetGeneratedEntry } from "../verify-text-asset-cdn-manifest";
+import {
+	TEXT_DESIGNER_READY_CATEGORY_IDS,
+	TEXT_DESIGNER_READY_MIN_ASSETS_PER_CATEGORY,
+	type TextAssetGeneratedEntry,
+} from "../verify-text-asset-cdn-manifest";
 
 function createGeneratedEntry({
 	assetId = "text-demo",
@@ -84,6 +88,18 @@ describe("text designer pack template script", () => {
 			perCategoryLimit: 5,
 			provenance: "generated",
 			publicDir: "/tmp/public",
+		});
+	});
+
+	it("expands the designer-ready pack template preset", () => {
+		expect(
+			parseTextDesignerPackTemplateArgs({
+				argv: ["--designer-ready"],
+			})
+		).toMatchObject({
+			categoryIds: [...TEXT_DESIGNER_READY_CATEGORY_IDS],
+			includeCurrentFiles: true,
+			perCategoryLimit: TEXT_DESIGNER_READY_MIN_ASSETS_PER_CATEGORY,
 		});
 	});
 

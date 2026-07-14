@@ -7,6 +7,8 @@ import type {
 } from "./import-text-designer-assets";
 import type { TextAssetGeneratedEntry } from "./verify-text-asset-cdn-manifest";
 import {
+	TEXT_DESIGNER_READY_CATEGORY_IDS,
+	TEXT_DESIGNER_READY_MIN_ASSETS_PER_CATEGORY,
 	inferTextAssetCategory,
 	readGeneratedManifest,
 } from "./verify-text-asset-cdn-manifest";
@@ -92,6 +94,12 @@ export function parseTextDesignerPackTemplateArgs({
 		}
 		if (arg === "--include-current-files") {
 			options.includeCurrentFiles = true;
+			continue;
+		}
+		if (arg === "--designer-ready") {
+			options.categoryIds = [...TEXT_DESIGNER_READY_CATEGORY_IDS];
+			options.includeCurrentFiles = true;
+			options.perCategoryLimit = TEXT_DESIGNER_READY_MIN_ASSETS_PER_CATEGORY;
 			continue;
 		}
 		if (arg === "--asset-id") {

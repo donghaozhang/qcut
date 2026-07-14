@@ -4,6 +4,8 @@ import { dirname, join } from "node:path";
 import { tmpdir } from "node:os";
 import { describe, expect, it } from "vitest";
 import {
+	TEXT_DESIGNER_READY_CATEGORY_IDS,
+	TEXT_DESIGNER_READY_MIN_ASSETS_PER_CATEGORY,
 	buildDesignerAssetGapReport,
 	buildTextAssetPublishManifest,
 	buildTextMarketplacePublishEntry,
@@ -223,6 +225,17 @@ describe("text asset CDN manifest verifier", () => {
 			requiredDesignerCategories: ["red", "texture", "headline-template"],
 			writeDesignerGapReportPath: "/tmp/designer-gap.json",
 			writePath: "/tmp/publish.json",
+		});
+	});
+
+	it("expands the designer-ready verification preset", () => {
+		expect(
+			parseTextAssetCdnArgs({
+				argv: ["--designer-ready"],
+			})
+		).toMatchObject({
+			minDesignerAssetsPerCategory: TEXT_DESIGNER_READY_MIN_ASSETS_PER_CATEGORY,
+			requiredDesignerCategories: [...TEXT_DESIGNER_READY_CATEGORY_IDS],
 		});
 	});
 

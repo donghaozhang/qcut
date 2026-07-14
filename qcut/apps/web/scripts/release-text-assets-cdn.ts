@@ -14,6 +14,7 @@ import {
 	type TextAssetUploadSummary,
 } from "./upload-text-assets-cdn";
 import {
+	applyTextDesignerReadyPreset,
 	buildTextAssetPublishManifest,
 	buildTextMarketplacePublishEntry,
 	parseCommaSeparatedList,
@@ -193,6 +194,10 @@ export function parseTextAssetReleaseArgs({
 				value: requireValue({ argv, index, name: arg }),
 			});
 			index += 1;
+			continue;
+		}
+		if (arg === "--designer-ready") {
+			Object.assign(options, applyTextDesignerReadyPreset({ options }));
 			continue;
 		}
 		if (arg === "--dry-run") {
