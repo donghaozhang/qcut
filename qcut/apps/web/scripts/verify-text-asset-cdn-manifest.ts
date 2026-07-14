@@ -376,7 +376,19 @@ export async function verifyRemoteFiles({
 		items: files,
 		mapper: async ({ asset, file }): Promise<VerifyIssue[]> => {
 			const issues: VerifyIssue[] = [];
-			const response = await fetchImpl(file.cdnUrl, { method: "HEAD" });
+			let response: Response;
+			try {
+				response = await fetchImpl(file.cdnUrl, { method: "HEAD" });
+			} catch (error) {
+				return [
+					{
+						assetId: asset.assetId,
+						code: "remote-unavailable",
+						detail: `HEAD ${file.cdnUrl} failed: ${remoteFetchErrorDetail({ error })}`,
+						url: file.url,
+					},
+				];
+			}
 			if (!response.ok) {
 				return [
 					{
@@ -403,6 +415,11 @@ export async function verifyRemoteFiles({
 		},
 	});
 	return issueGroups.flat();
+}
+
+function remoteFetchErrorDetail({ error }: { error: unknown }): string {
+	if (error instanceof Error && error.message) return error.message;
+	return String(error);
 }
 
 export async function mapWithConcurrency<TItem, TResult>({

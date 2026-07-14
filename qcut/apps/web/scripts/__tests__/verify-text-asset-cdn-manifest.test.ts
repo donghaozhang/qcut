@@ -166,6 +166,27 @@ describe("text asset CDN manifest verifier", () => {
 		});
 	});
 
+	it("reports remote fetch failures without aborting verification", async () => {
+		const { manifest } = buildTextAssetPublishManifest({
+			baseUrl: "https://cdn.example.com",
+			generatedAt: "2026-07-15T00:00:00.000Z",
+			generatedManifest: { "text-demo": createGeneratedEntry() },
+			publicDir: "/tmp/public",
+		});
+		const fetchImpl: typeof fetch = async () => {
+			throw new Error("connection refused");
+		};
+
+		const issues = await verifyRemoteFiles({ fetchImpl, manifest });
+
+		expect(issues).toHaveLength(3);
+		expect(issues[0]).toMatchObject({
+			assetId: "text-demo",
+			code: "remote-unavailable",
+			detail: expect.stringContaining("connection refused"),
+		});
+	});
+
 	it("limits remote verification concurrency", async () => {
 		const { manifest } = buildTextAssetPublishManifest({
 			baseUrl: "https://cdn.example.com",
