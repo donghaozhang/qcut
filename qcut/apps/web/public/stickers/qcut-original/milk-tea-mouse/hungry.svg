@@ -1,0 +1,38 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" role="img" aria-label="Milk Tea Mouse Hungry">
+	<defs>
+		<filter id="shadow" x="-30%" y="-30%" width="160%" height="170%">
+			<feDropShadow dx="0" dy="13" stdDeviation="10" flood-color="#312331" flood-opacity="0.22"/>
+		</filter>
+	</defs>
+	<g filter="url(#shadow)">
+
+
+		<g>
+			<circle cx="158" cy="168" r="69" fill="#c99a74" stroke="white" stroke-width="32"/>
+			<circle cx="354" cy="168" r="69" fill="#c99a74" stroke="white" stroke-width="32"/>
+			<circle cx="158" cy="168" r="69" fill="#c99a74" stroke="#57392d" stroke-width="12"/>
+			<circle cx="354" cy="168" r="69" fill="#c99a74" stroke="#57392d" stroke-width="12"/>
+			<circle cx="158" cy="168" r="39" fill="#f3d2b7"/>
+			<circle cx="354" cy="168" r="39" fill="#f3d2b7"/>
+		</g>
+		<ellipse cx="256" cy="367" rx="128" ry="105" fill="#c99a74" stroke="white" stroke-width="32"/>
+		<path d="M 128 230 C 128 142 188 112 256 112 C 324 112 384 142 384 230 C 384 329 330 371 256 371 C 182 371 128 329 128 230 Z" fill="#c99a74" stroke="white" stroke-width="32" stroke-linejoin="round"/>
+		<ellipse cx="256" cy="367" rx="128" ry="105" fill="#c99a74" stroke="#57392d" stroke-width="12"/>
+		<path d="M 128 230 C 128 142 188 112 256 112 C 324 112 384 142 384 230 C 384 329 330 371 256 371 C 182 371 128 329 128 230 Z" fill="#c99a74" stroke="#57392d" stroke-width="12" stroke-linejoin="round"/>
+		<ellipse cx="171" cy="373" rx="47" ry="36" fill="#c99a74" stroke="#57392d" stroke-width="10" transform="rotate(20 171 373)"/>
+		<ellipse cx="341" cy="373" rx="47" ry="36" fill="#c99a74" stroke="#57392d" stroke-width="10" transform="rotate(-20 341 373)"/>
+		<ellipse cx="214" cy="452" rx="52" ry="28" fill="#f3d2b7" stroke="#57392d" stroke-width="10"/>
+		<ellipse cx="298" cy="452" rx="52" ry="28" fill="#f3d2b7" stroke="#57392d" stroke-width="10"/>
+		<ellipse cx="256" cy="289" rx="42" ry="31" fill="#f3d2b7"/>
+			<path d="M 246 280 Q 256 270 266 280 Q 256 294 246 280 Z" fill="#57392d"/>
+			<path d="M 174 281 L 108 266 M 174 300 L 104 303 M 338 281 L 404 266 M 338 300 L 408 303" stroke="#57392d" stroke-width="6" stroke-linecap="round"/>
+		<circle cx="214" cy="253" r="11" fill="#57392d"/><circle cx="298" cy="253" r="11" fill="#57392d"/>
+			<ellipse cx="256" cy="308" rx="28" ry="19" fill="#57392d"/>
+		<path d="M 181 378 Q 256 452 331 378 Z" fill="#fff1d2" stroke="#57392d" stroke-width="10"/>
+			<path d="M 165 365 H 347" stroke="#b77846" stroke-width="14" stroke-linecap="round"/>
+		<g transform="rotate(-4 256 82)">
+		<rect x="170" y="28" width="172" height="78" rx="34" fill="white" stroke="#57392d" stroke-width="9"/>
+		<text x="256" y="80" text-anchor="middle" fill="#b77846" font-family="PingFang SC, Noto Sans CJK SC, Arial, sans-serif" font-size="40" font-weight="800">开饭啦</text>
+	</g>
+	</g>
+</svg>

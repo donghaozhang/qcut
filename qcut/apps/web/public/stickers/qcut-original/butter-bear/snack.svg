@@ -30,5 +30,6 @@
 		<rect x="211" y="301" width="90" height="91" rx="25" fill="#fff1b8" stroke="#674a23" stroke-width="10"/>
 		<path d="M 225 320 Q 256 295 287 320" fill="none" stroke="#f2a93b" stroke-width="10"/>
 		<path d="M 239 350 Q 256 369 273 350" fill="none" stroke="#674a23" stroke-width="8" stroke-linecap="round"/>
+
 	</g>
 </svg>

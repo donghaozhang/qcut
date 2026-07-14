@@ -30,5 +30,6 @@
 			<circle cx="216" cy="259" r="10" fill="#63384a"/><circle cx="296" cy="259" r="10" fill="#63384a"/>
 			<path d="M 231 316 Q 256 294 281 316" fill="none" stroke="#63384a" stroke-width="10" stroke-linecap="round"/>
 
+
 	</g>
 </svg>

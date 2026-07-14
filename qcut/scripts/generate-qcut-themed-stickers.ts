@@ -9,7 +9,7 @@ import {
 
 const OUTPUT_ROOT = join(
 	import.meta.dir,
-	"../apps/web/public/stickers/qcut-themed"
+	"../apps/web/public/stickers/qcut-original/themed"
 );
 
 function escapeXml({ value }: { value: string }): string {
@@ -19,6 +19,10 @@ function escapeXml({ value }: { value: string }): string {
 		.replaceAll(">", "&gt;")
 		.replaceAll('"', "&quot;")
 		.replaceAll("'", "&apos;");
+}
+
+function normalizeSvg({ value }: { value: string }): string {
+	return `${value.replace(/[ \t]+$/gm, "").trim()}\n`;
 }
 
 function textLayout({ value }: { value: string }): {
@@ -171,7 +175,9 @@ await Promise.all(
 
 const files = THEMED_STICKER_PACKS.flatMap((pack) =>
 	pack.items.map((definition, variant) => ({
-		content: renderSticker({ definition, pack, variant }),
+		content: normalizeSvg({
+			value: renderSticker({ definition, pack, variant }),
+		}),
 		path: join(OUTPUT_ROOT, pack.id, `${definition.id}.svg`),
 	}))
 );

@@ -1,0 +1,36 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" role="img" aria-label="Butter Bear Coffee break">
+	<defs>
+		<filter id="shadow" x="-30%" y="-30%" width="160%" height="170%">
+			<feDropShadow dx="0" dy="13" stdDeviation="10" flood-color="#312331" flood-opacity="0.22"/>
+		</filter>
+	</defs>
+	<g filter="url(#shadow)">
+
+
+		<g>
+			<circle cx="174" cy="168" r="54" fill="#f4cf68" stroke="white" stroke-width="32"/>
+			<circle cx="338" cy="168" r="54" fill="#f4cf68" stroke="white" stroke-width="32"/>
+			<circle cx="174" cy="168" r="54" fill="#f4cf68" stroke="#674a23" stroke-width="12"/>
+			<circle cx="338" cy="168" r="54" fill="#f4cf68" stroke="#674a23" stroke-width="12"/>
+			<circle cx="174" cy="168" r="30" fill="#ffe8a3"/>
+			<circle cx="338" cy="168" r="30" fill="#ffe8a3"/>
+		</g>
+		<ellipse cx="256" cy="367" rx="128" ry="105" fill="#f4cf68" stroke="white" stroke-width="32"/>
+		<path d="M 128 230 C 128 142 188 112 256 112 C 324 112 384 142 384 230 C 384 329 330 371 256 371 C 182 371 128 329 128 230 Z" fill="#f4cf68" stroke="white" stroke-width="32" stroke-linejoin="round"/>
+		<ellipse cx="256" cy="367" rx="128" ry="105" fill="#f4cf68" stroke="#674a23" stroke-width="12"/>
+		<path d="M 128 230 C 128 142 188 112 256 112 C 324 112 384 142 384 230 C 384 329 330 371 256 371 C 182 371 128 329 128 230 Z" fill="#f4cf68" stroke="#674a23" stroke-width="12" stroke-linejoin="round"/>
+		<ellipse cx="171" cy="373" rx="47" ry="36" fill="#f4cf68" stroke="#674a23" stroke-width="10" transform="rotate(20 171 373)"/>
+		<ellipse cx="341" cy="373" rx="47" ry="36" fill="#f4cf68" stroke="#674a23" stroke-width="10" transform="rotate(-20 341 373)"/>
+		<ellipse cx="214" cy="452" rx="52" ry="28" fill="#ffe8a3" stroke="#674a23" stroke-width="10"/>
+		<ellipse cx="298" cy="452" rx="52" ry="28" fill="#ffe8a3" stroke="#674a23" stroke-width="10"/>
+		<ellipse cx="256" cy="289" rx="49" ry="38" fill="#ffe8a3"/>
+			<ellipse cx="256" cy="280" rx="14" ry="11" fill="#674a23"/>
+		<path d="M 193 250 Q 214 271 235 250 M 277 250 Q 298 271 319 250" fill="none" stroke="#674a23" stroke-width="11" stroke-linecap="round"/>
+		<path d="M 226 300 Q 256 333 286 300" fill="none" stroke="#674a23" stroke-width="11" stroke-linecap="round"/>
+		<path d="M 196 337 H 313 L 302 425 Q 256 446 207 425 Z" fill="#fff7e8" stroke="white" stroke-width="22"/>
+			<path d="M 196 337 H 313 L 302 425 Q 256 446 207 425 Z" fill="#fff7e8" stroke="#674a23" stroke-width="10"/>
+			<path d="M 313 354 Q 365 347 361 385 Q 356 417 307 404" fill="none" stroke="#674a23" stroke-width="11"/>
+			<path d="M 228 313 Q 213 285 232 266 M 267 313 Q 252 285 271 266" fill="none" stroke="#f2a93b" stroke-width="9" stroke-linecap="round"/>
+
+	</g>
+</svg>

@@ -1,0 +1,17 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" role="img" aria-label="Graphics Please wait Progress">
+	<defs>
+		<filter id="shadow" x="-30%" y="-30%" width="160%" height="170%">
+			<feDropShadow dx="0" dy="12" stdDeviation="10" flood-color="#1f2330" flood-opacity="0.2"/>
+		</filter>
+	</defs>
+	<g filter="url(#shadow)">
+		<rect x="44" y="178" width="424" height="156" rx="39" fill="#263238" stroke="white" stroke-width="28"/><rect x="74" y="285" width="364" height="22" rx="11" fill="white" opacity="0.35"/><rect x="74" y="285" width="302" height="22" rx="11" fill="#80ed99"/><text x="256" y="235" text-anchor="middle" dominant-baseline="middle" fill="white" stroke="white" stroke-width="16" paint-order="stroke" stroke-linejoin="round" font-family="PingFang SC, Noto Sans CJK SC, Arial, sans-serif" font-size="74" font-weight="900">稍等</text>
+		<path d="M 386 54 L 401 91 L 442 94 L 410 120 L 419 161 L 386 139 L 351 161 L 361 120 L 329 94 L 370 91 Z" fill="#80ed99" stroke="white" stroke-width="11" stroke-linejoin="round"/>
+		<g fill="#57cc99" stroke="white" stroke-width="7" stroke-linejoin="round">
+		<path d="M 78 96 L 88 126 L 119 136 L 88 146 L 78 177 L 68 146 L 37 136 L 68 126 Z"/>
+		<path d="M 423 333 L 432 357 L 457 366 L 432 375 L 423 400 L 414 375 L 389 366 L 414 357 Z"/>
+		<circle cx="416" cy="104" r="13"/>
+		<circle cx="101" cy="386" r="10"/>
+	</g>
+	</g>
+</svg>

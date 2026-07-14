@@ -32,5 +32,6 @@
 			<rect x="317" y="284" width="86" height="130" rx="20" fill="#364253" stroke="#674a23" stroke-width="10" transform="rotate(9 360 349)"/>
 			<circle cx="369" cy="309" r="13" fill="#f2a93b"/>
 			<ellipse cx="318" cy="381" rx="39" ry="29" fill="#f4cf68" stroke="#674a23" stroke-width="10" transform="rotate(-24 318 381)"/>
+
 	</g>
 </svg>

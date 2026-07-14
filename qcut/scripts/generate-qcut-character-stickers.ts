@@ -20,6 +20,10 @@ function escapeXml({ value }: { value: string }): string {
 		.replaceAll("'", "&apos;");
 }
 
+function normalizeSvg({ value }: { value: string }): string {
+	return `${value.replace(/[ \t]+$/gm, "").trim()}\n`;
+}
+
 function ears({ pack }: { pack: CharacterStickerPack }): string {
 	const { body, inner, outline } = pack.palette;
 	if (pack.species === "rabbit") {
@@ -311,7 +315,7 @@ await Promise.all(directories);
 
 const files = CHARACTER_STICKER_PACKS.flatMap((pack) =>
 	pack.poses.map((pose) => ({
-		content: renderSticker({ pack, pose }),
+		content: normalizeSvg({ value: renderSticker({ pack, pose }) }),
 		path: join(OUTPUT_ROOT, pack.id, `${pose.id}.svg`),
 	}))
 );

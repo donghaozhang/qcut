@@ -29,5 +29,6 @@
 		<path d="M 226 300 Q 256 333 286 300" fill="none" stroke="#63384a" stroke-width="11" stroke-linecap="round"/>
 		<path d="M 244 359 L 286 273 Q 313 289 304 317 L 273 383 Z" fill="#f58b37" stroke="#63384a" stroke-width="9"/>
 			<path d="M 284 284 Q 275 247 298 227 Q 302 258 318 275 Q 305 279 284 284 Z" fill="#55b86b" stroke="#63384a" stroke-width="8"/>
+
 	</g>
 </svg>

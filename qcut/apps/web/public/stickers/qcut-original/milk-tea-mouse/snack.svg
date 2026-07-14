@@ -32,5 +32,6 @@
 			<path d="M 229 319 H 291" stroke="#b77846" stroke-width="15"/>
 			<circle cx="239" cy="376" r="9" fill="#5b3a2d"/><circle cx="266" cy="386" r="9" fill="#5b3a2d"/><circle cx="282" cy="363" r="9" fill="#5b3a2d"/>
 			<path d="M 270 302 L 301 235" stroke="#80c9b5" stroke-width="10" stroke-linecap="round"/>
+
 	</g>
 </svg>
