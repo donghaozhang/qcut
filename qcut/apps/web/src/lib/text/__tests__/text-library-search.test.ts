@@ -74,6 +74,12 @@ describe("text library search", () => {
 				{ term: "kycx", weight: 0.874 },
 			])
 		);
+		expect(buildWeightedSearchTerms({ query: "直播封面" })).toEqual(
+			expect.arrayContaining([
+				{ term: "zhibofengmian", weight: 0.95 },
+				{ term: "zbfm", weight: 0.874 },
+			])
+		);
 	});
 
 	it("adds common Chinese typo correction aliases", () => {
@@ -94,6 +100,12 @@ describe("text library search", () => {
 		);
 		expect(buildWeightedSearchTerms({ query: "文理" })).toEqual(
 			expect.arrayContaining([{ term: "纹理", weight: 0.7 }])
+		);
+		expect(buildWeightedSearchTerms({ query: "封免" })).toEqual(
+			expect.arrayContaining([
+				{ term: "封面", weight: 0.7 },
+				{ term: "fengmian", weight: 0.616 },
+			])
 		);
 	});
 
@@ -371,5 +383,98 @@ describe("text library search", () => {
 				state: EMPTY_TEXT_LIBRARY_STATE,
 			}).map((definition) => definition.id)
 		).toEqual(["red-style"]);
+	});
+
+	it("matches expanded creator commerce aliases through pinyin and typo queries", () => {
+		const definitions = [
+			createDefinition({
+				category: "red",
+				content: "直播价格",
+				id: "live-sale-style",
+				keywords: ["直播", "价格", "优惠"],
+				variantId: "red-burst",
+			}),
+			createDefinition({
+				category: "basic",
+				content: "封面标题",
+				id: "cover-title-style",
+				keywords: ["封面", "爆款", "标题"],
+				variantId: "plain",
+			}),
+			createDefinition({
+				category: "basic",
+				content: "探店美食",
+				id: "store-review-style",
+				keywords: ["探店", "种草", "美食"],
+				variantId: "shadow",
+			}),
+		];
+
+		expect(
+			rankTextTemplateSearchResults({
+				definitions,
+				query: "zhibo",
+				state: EMPTY_TEXT_LIBRARY_STATE,
+			}).map((definition) => definition.id)
+		).toEqual(["live-sale-style"]);
+		expect(
+			rankTextTemplateSearchResults({
+				definitions,
+				query: "fengmian",
+				state: EMPTY_TEXT_LIBRARY_STATE,
+			}).map((definition) => definition.id)
+		).toEqual(["cover-title-style"]);
+		expect(
+			rankTextTemplateSearchResults({
+				definitions,
+				query: "tandian",
+				state: EMPTY_TEXT_LIBRARY_STATE,
+			}).map((definition) => definition.id)
+		).toEqual(["store-review-style"]);
+		expect(
+			rankTextTemplateSearchResults({
+				definitions,
+				query: "价各",
+				state: EMPTY_TEXT_LIBRARY_STATE,
+			}).map((definition) => definition.id)
+		).toEqual(["live-sale-style"]);
+	});
+
+	it("matches default marketplace scene aliases without template keywords", () => {
+		const definitions = [
+			createDefinition({
+				category: "green",
+				content: "清新花字",
+				id: "green-marketplace-style",
+				variantId: "plain",
+			}),
+			createDefinition({
+				category: "popular",
+				content: "热门花字",
+				id: "cover-marketplace-style",
+				variantId: "comic",
+			}),
+			createDefinition({
+				category: "blue",
+				content: "科技花字",
+				id: "tech-marketplace-style",
+				variantId: "blue-ice",
+			}),
+		];
+
+		expect(
+			rankTextTemplateSearchResults({
+				definitions,
+				query: "tandian",
+				state: EMPTY_TEXT_LIBRARY_STATE,
+			}).map((definition) => definition.id)
+		).toEqual(["green-marketplace-style"]);
+		expect(
+			rankTextTemplateSearchResults({
+				definitions,
+				query: "fengmian",
+				state: EMPTY_TEXT_LIBRARY_STATE,
+			}).map((definition) => definition.id)
+		).toEqual(["cover-marketplace-style"]);
 	});
 });

@@ -63,7 +63,7 @@ const CATEGORY_FACETS: Readonly<Record<string, MarketplaceFacet>> = {
 		tags: ["color:black-white", "tone:classic"],
 	},
 	blue: {
-		aliases: ["蓝色", "冰蓝", "科技", "blue"],
+		aliases: ["蓝色", "冰蓝", "科技", "知识", "教程", "blue"],
 		heat: 82,
 		rank: 30,
 		tags: ["color:blue", "scene:tech"],
@@ -81,7 +81,7 @@ const CATEGORY_FACETS: Readonly<Record<string, MarketplaceFacet>> = {
 		tags: ["effect:gradient", "tone:dreamy"],
 	},
 	green: {
-		aliases: ["绿色", "清新", "自然", "green"],
+		aliases: ["绿色", "清新", "自然", "旅行", "探店", "green"],
 		heat: 72,
 		rank: 54,
 		tags: ["color:green", "tone:fresh"],
@@ -93,7 +93,7 @@ const CATEGORY_FACETS: Readonly<Record<string, MarketplaceFacet>> = {
 		tags: ["style:guofeng", "scene:culture"],
 	},
 	latest: {
-		aliases: ["最新", "上新", "new"],
+		aliases: ["最新", "上新", "新品", "发布", "new"],
 		heat: 88,
 		rank: 16,
 		tags: ["collection:latest", "market:new"],
@@ -105,7 +105,7 @@ const CATEGORY_FACETS: Readonly<Record<string, MarketplaceFacet>> = {
 		tags: ["color:pink", "tone:cute"],
 	},
 	popular: {
-		aliases: ["热门", "爆款", "推荐", "popular"],
+		aliases: ["热门", "爆款", "推荐", "封面", "种草", "popular"],
 		heat: 96,
 		rank: 4,
 		tags: ["collection:popular", "market:recommended"],
@@ -117,13 +117,13 @@ const CATEGORY_FACETS: Readonly<Record<string, MarketplaceFacet>> = {
 		tags: ["color:purple", "tone:dreamy"],
 	},
 	red: {
-		aliases: ["红色", "爆红", "促销", "red"],
+		aliases: ["红色", "爆红", "促销", "价格", "直播", "秒杀", "red"],
 		heat: 94,
 		rank: 8,
 		tags: ["color:red", "scene:commerce"],
 	},
 	summer: {
-		aliases: ["夏日", "清爽", "活动", "summer"],
+		aliases: ["夏日", "清爽", "活动", "节日", "旅行", "summer"],
 		heat: 80,
 		rank: 34,
 		tags: ["season:summer", "tone:fresh"],
@@ -141,7 +141,7 @@ const CATEGORY_FACETS: Readonly<Record<string, MarketplaceFacet>> = {
 		tags: ["scene:variety", "effect:pop"],
 	},
 	yellow: {
-		aliases: ["黄色", "醒目", "高亮", "yellow"],
+		aliases: ["黄色", "醒目", "高亮", "封面", "价格", "yellow"],
 		heat: 84,
 		rank: 26,
 		tags: ["color:yellow", "tone:bright"],
@@ -162,7 +162,7 @@ const VARIANT_FACETS: Readonly<Record<string, MarketplaceFacet>> = {
 		tags: ["material:chrome", "tone:premium"],
 	},
 	comic: {
-		aliases: ["漫画", "爆炸", "综艺"],
+		aliases: ["漫画", "爆炸", "综艺", "封面", "搞笑"],
 		heat: 88,
 		rank: 19,
 		tags: ["style:comic", "effect:burst"],
@@ -204,7 +204,7 @@ const VARIANT_FACETS: Readonly<Record<string, MarketplaceFacet>> = {
 		tags: ["effect:lava", "tone:hot"],
 	},
 	"red-burst": {
-		aliases: ["爆红", "爆款", "放射"],
+		aliases: ["爆红", "爆款", "放射", "促销", "秒杀"],
 		heat: 98,
 		rank: 2,
 		tags: ["effect:burst", "market:hero"],
