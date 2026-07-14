@@ -1,7 +1,8 @@
 # Portrait Filter and Transition Audit
 
-Status: In progress
+Status: Complete
 Started: 2026-07-14
+Completed: 2026-07-14
 Branch: `codex/editor-production-workflows`
 Baseline commit: `34810a443`
 
@@ -220,17 +221,354 @@ Evidence:
 
 Modification decision: no production filter adjustment is required from the portrait matrix. Continue with an independent native 16:9 run before closing filter coverage.
 
+### Run 02d - Complete landscape filter matrix
+
+Date: 2026-07-14
+Result: PASS
+Command: `bunx playwright test apps/web/src/test/e2e/portrait-filter-audit.e2e.ts --project=electron --reporter=line --grep 'landscape footage'`
+
+Assertions passed:
+
+- All 14 filter categories and all 56 production presets were selected through the real filter cards in a native 16:9 project.
+- Every card updated the selected timeline element to its expected preset ID.
+- The first preset created a non-empty color canvas, and every later preset produced a distinct sampled pixel hash.
+- Every sampled result retained opaque pixels and a non-zero luminance range.
+- The 1280x720 university portrait stayed decoded and ready throughout the matrix.
+- The office portrait with `clarity-boost` and 59.94 fps chroma portrait with `teal-gold` passed the same canvas checks.
+
+Runtime: 2 minutes.
+
+Evidence:
+
+- Manifest: `output/playwright/portrait-filter-transition-audit/run-02-filters-landscape/manifest.json`
+- Category screenshots: `output/playwright/portrait-filter-transition-audit/run-02-filters-landscape/01-*.png` through `14-*.png`
+- Stress screenshots: `output/playwright/portrait-filter-transition-audit/run-02-filters-landscape/stress-*.png`
+
+Modification decision: automated rendering checks found no broken landscape preset. Complete visual inspection before closing filter coverage.
+
+### Run 03b - Landscape filter visual inspection
+
+Date: 2026-07-14
+Result: PASS
+Method: reviewed all 14 category screenshots as a contact sheet, then inspected portrait, night, stylized, monochrome, HD, office, and chroma evidence at full size.
+
+Observed:
+
+- All 14 category results kept the 16:9 frame aligned and fully visible with no stale source, blank canvas, or aspect-ratio jump.
+- `Peach Skin` retained facial highlight and eye detail on the outdoor university portrait.
+- `Amber Night` and `Retro Pop` produced intentional warm styling without clipping the face into a flat color region.
+- `Documentary Mono` retained distinct skin, shirt, foliage, and building tones.
+- `Clean Detail` and the office `Clarity Boost` stress case showed no obvious halo at hair, plant, jacket, or chair edges.
+- `Teal Gold` shifted the saturated chroma backdrop predictably while preserving dark skin, white-shirt detail, and the moving subject boundary.
+
+Evidence:
+
+- Contact sheet: `output/playwright/portrait-filter-transition-audit/run-02-filters-landscape/contact-sheet.png`
+- Full-size images: `output/playwright/portrait-filter-transition-audit/run-02-filters-landscape/*.png`
+
+Modification decision: no production filter adjustment is required. The filter audit closes with 112 successful real UI applications: 56 portrait and 56 landscape.
+
+### Run 04a - Start portrait-to-landscape transition matrix
+
+Date: 2026-07-14
+Result: FAIL (visibility assertion at `photo-stack-up`; classification pending)
+Command: `bunx playwright test apps/web/src/test/e2e/portrait-transition-audit.e2e.ts --project=electron --reporter=line --grep portrait-to-landscape`
+
+Observed:
+
+- QCut imported the real 720x1280 colorful portrait and 1280x720 university portrait, created a four-second adjacent seam, and decoded both sources in the production preview.
+- Transition card application and store mapping passed through the earlier presets in the matrix.
+- At `photo-stack-up`, both real video frames remained ready, non-empty, and at their expected intrinsic dimensions.
+- The run stopped because the generic midpoint assertion found no opacity, filter, clip-path, background, or relative-transform difference between the two presentation layers.
+- This result does not yet establish a product defect: a staged preset can legitimately pass through a neutral pose at its exact midpoint, while the current audit samples only that one progress value.
+
+Evidence:
+
+- Failure screenshot: `docs/completed/test-results-raw/portrait-transition-audit.-db0a2--portrait-to-landscape-seam-electron/test-failed-1.png`
+
+Modification decision: inspect the production `photo-stack-up` progress curve and sample multiple interior transition points. Change production only if the preset has no visible presentation across its active interval; otherwise correct the audit and rerun the complete matrix.
+
+### Run 04b - Complete portrait-to-landscape transition matrix
+
+Date: 2026-07-14
+Result: PASS
+Command: `bunx playwright test apps/web/src/test/e2e/portrait-transition-audit.e2e.ts --project=electron --reporter=line --grep portrait-to-landscape`
+
+Assertions passed:
+
+- All 13 transition categories and all 67 registered production presets were applied through the real transition cards at a 720x1280 portrait-to-1280x720 landscape seam.
+- Every card created or replaced the seam transition with the expected preset ID, clip transition type, direction, tuning, default duration, and easing.
+- At every transition midpoint, both source videos were decoded, retained their exact intrinsic dimensions, and produced non-empty frame samples with measurable luminance range.
+- Every preset produced a visible production presentation signal through opacity, content opacity, filter, clip path, background, transform, or layer position.
+- Hover previews advanced for one high-risk representative in every category, and the same 13 presets were captured in the live editor.
+
+Runtime: 1 minute 30 seconds.
+
+Evidence:
+
+- Manifest: `output/playwright/portrait-filter-transition-audit/run-04-transitions-portrait-to-landscape/manifest.json`
+- Category screenshots: `output/playwright/portrait-filter-transition-audit/run-04-transitions-portrait-to-landscape/01-*.png` through `13-*.png`
+
+Modification decision: Run 04a was an audit defect. QCut applies transition translation through the layer's `left` and `top` positions; adding those positions to the evidence model made `photo-stack-up` and the complete registry pass. No production transition change is justified by this direction.
+
+### Run 04c - Complete landscape-to-portrait transition matrix
+
+Date: 2026-07-14
+Result: PASS
+Command: `bunx playwright test apps/web/src/test/e2e/portrait-transition-audit.e2e.ts --project=electron --reporter=line --grep landscape-to-portrait`
+
+Assertions passed:
+
+- All 13 transition categories and all 67 registered production presets were applied through the real transition cards at a 1280x720 landscape-to-720x1280 portrait seam.
+- Every applied transition matched its registered state mapping, including direction, tuning, default duration, and easing.
+- The office and neon portrait videos remained decoded, non-empty, and at their exact source dimensions throughout the full matrix.
+- Every preset produced a visible midpoint presentation signal, including position-based push and slide transitions.
+- Hover animation and full editor screenshots completed for one representative in each category.
+
+Runtime: 1 minute 30 seconds.
+
+Evidence:
+
+- Manifest: `output/playwright/portrait-filter-transition-audit/run-04-transitions-landscape-to-portrait/manifest.json`
+- Category screenshots: `output/playwright/portrait-filter-transition-audit/run-04-transitions-landscape-to-portrait/01-*.png` through `13-*.png`
+
+Modification decision: no production transition change is required from the reverse-orientation matrix. Automated transition coverage closes with 134 successful real UI applications: 67 in each direction.
+
+### Run 05a - Transition visual inspection across both orientation changes
+
+Date: 2026-07-14
+Result: PASS
+Method: reviewed both 13-category contact sheets, then inspected page-turn, film-burn, and heavy-glitch evidence at full 1800x1040 resolution.
+
+Observed:
+
+- Dissolve and variety representatives blended both people without a stale frame, empty layer, or abrupt aspect-ratio jump.
+- Page turn and push preserved a clean dividing edge between portrait and landscape sources; no uncovered canvas appeared outside the intended wipe area.
+- Deep zoom blur covered the full project frame with a continuous blurred image rather than exposing transparent edges.
+- Impact shake and elastic whip kept both subjects inside the expected transition motion and returned a coherent midpoint composition.
+- Chromatic twist and heavy glitch produced intentional channel separation while retaining recognizable faces and source detail.
+- Film burn produced the expected strong warm overlay without losing both underlying subjects.
+- `fade-to-white` and `shutter-flash` intentionally reached white and light-gray peak frames. Their source videos remained decoded and non-empty in the automated frame samples, so these are designed flash states rather than blank-render failures.
+- The same behavior held on native 9:16 and native 16:9 canvases.
+
+Evidence:
+
+- Portrait-to-landscape contact sheet: `output/playwright/portrait-filter-transition-audit/run-04-transitions-portrait-to-landscape/contact-sheet.png`
+- Landscape-to-portrait contact sheet: `output/playwright/portrait-filter-transition-audit/run-04-transitions-landscape-to-portrait/contact-sheet.png`
+- Full-size representatives: `03-slideshow-page-turn-left.png`, `09-light-film-burn.png`, and `10-glitch-heavy-glitch.png` in the corresponding Run 04 evidence directories.
+
+Modification decision: the reviewed preview presentations need no production tuning. Continue to the native FFmpeg mapping and representative real export checks before closing Run 05.
+
+### Run 05b - Complete production transition-to-FFmpeg mapping
+
+Date: 2026-07-14
+Result: PASS (21/21 tests)
+Command: `bunx vitest run electron/__tests__/transition-filter.test.ts`
+
+Assertions passed:
+
+- Every one of the 67 visible transition presets resolved to a production timeline configuration and a non-empty custom FFmpeg expression.
+- All 12 export presentation types produced their expected expression families, including every slide, push, and wipe direction.
+- Duration handling, source-handle preparation, missing-handle padding, easing, RGB plane mapping, tint conversion, intensity, and frequency tuning passed.
+
+Modification decision: the registry-to-export mapping is complete. Continue with real FFmpeg execution because a syntactically generated expression alone does not prove that native encoding succeeds.
+
+### Run 05c - Execute every export presentation family with native FFmpeg
+
+Date: 2026-07-14
+Result: PASS (1 targeted test; 21 encoded transition cases)
+Command: `bunx vitest run electron/__tests__/video-transform-export-real.test.ts -t 'matches supported transition presentations at fixed frames'`
+
+Assertions passed:
+
+- QCut's bundled FFmpeg encoded dissolve, fade-black, fade-white, zoom-blur, whip-pan, flash, light-leak, RGB glitch, and shake transitions.
+- Native encoding also passed all four directions for slide, push, and wipe.
+- Pixel probes before and at the cut matched the intended behavior for blending, black/white peaks, tinted light, channel effects, and directional entry regions.
+
+Runtime: 6.5 seconds for the 21 native encodes.
+
+Modification decision: all export presentation families execute correctly on deterministic sources. Run representative encodes on the downloaded portrait footage in both orientation directions to close the real-media evidence gap.
+
+### Run 05d - Start real portrait-to-landscape native exports
+
+Date: 2026-07-14
+Result: FAIL (audit timeout)
+Command: `bunx vitest run electron/__tests__/portrait-transition-export-audit.test.ts -t portrait-to-landscape`
+
+Observed:
+
+- The real portrait and landscape source paths were found, so the opt-in audit executed rather than skipping.
+- QCut's production FFmpeg builder started the baseline plus all six representative transition encodes.
+- The synchronous work took 11.7 seconds, after which Vitest applied its default five-second test timeout.
+- No FFmpeg status, probe, decode, frame-range, or hash assertion reported a production failure before the framework timeout.
+
+Modification decision: give this explicitly long-running native export audit a 120-second per-case timeout and rerun from a clean evidence directory. No production change is justified by this run.
+
+### Run 05e - Export representative real portrait-to-landscape transitions
+
+Date: 2026-07-14
+Result: PASS (baseline plus 6 real transition encodes)
+Command: `bunx vitest run electron/__tests__/portrait-transition-export-audit.test.ts -t portrait-to-landscape`
+
+Assertions passed:
+
+- QCut's production FFmpeg builder encoded `page-turn-left`, `push-down`, `deep-zoom-blur`, `impact-shake`, `film-burn`, and `heavy-glitch` from the downloaded colorful portrait into the downloaded landscape university portrait.
+- Every output was H.264/yuv420p at 360x640, approximately three seconds long, larger than 5 KB, and fully decodable with the bundled FFmpeg.
+- Every transition midpoint retained a luminance range greater than five and differed from the same real-media project's no-transition midpoint hash.
+- All six midpoint hashes were unique, ruling out a shared stale or fallback frame.
+- A full-resolution midpoint PNG was extracted successfully from every encoded file.
+
+Runtime: 11.3 seconds.
+
+Evidence:
+
+- Manifest: `output/playwright/portrait-filter-transition-audit/run-05-real-exports/portrait-to-landscape/manifest.json`
+- Videos and midpoint frames: `output/playwright/portrait-filter-transition-audit/run-05-real-exports/portrait-to-landscape/`
+
+Modification decision: the representative production export path needs no change in the native 9:16 project. Repeat the same six presets in a native 16:9 reverse-orientation project.
+
+### Run 05f - Export representative real landscape-to-portrait transitions
+
+Date: 2026-07-14
+Result: PASS (baseline plus 6 real transition encodes)
+Command: `bunx vitest run electron/__tests__/portrait-transition-export-audit.test.ts -t landscape-to-portrait`
+
+Assertions passed:
+
+- The same six high-risk presets encoded from the downloaded office landscape portrait into the downloaded neon portrait.
+- Every output was H.264/yuv420p at 640x360, approximately three seconds long, larger than 5 KB, and fully decodable.
+- Every midpoint retained visible luminance detail, differed from the no-transition real-media baseline, and produced a unique hash across the six presets.
+- Midpoint PNG extraction succeeded for every encoded transition.
+
+Runtime: 11.5 seconds.
+
+Evidence:
+
+- Manifest: `output/playwright/portrait-filter-transition-audit/run-05-real-exports/landscape-to-portrait/manifest.json`
+- Videos and midpoint frames: `output/playwright/portrait-filter-transition-audit/run-05-real-exports/landscape-to-portrait/`
+
+Modification decision: no production export change is required. The real-media export audit closes with 12 successful representative transition files across both project orientations, in addition to the complete 67-preset mapping and 21-case native presentation matrix.
+
+### Run 05g - Inspect native real-media transition outputs
+
+Date: 2026-07-14
+Result: PASS
+Method: reviewed both six-frame export contact sheets and verified the numeric evidence in both manifests.
+
+Observed:
+
+- Deep zoom blur filled both 9:16 and 16:9 frames with continuous image content and no transparent border.
+- Film burn retained visible people beneath the intended orange overlay in both directions.
+- Heavy glitch showed distinct scan-line and RGB separation while preserving recognizable source geometry.
+- Impact shake produced layered motion rather than a duplicated static frame.
+- Page turn retained a clean vertical source boundary; push down retained a clean horizontal boundary.
+- All 12 exported midpoints matched the semantics seen in the production preview.
+- The smallest export was 79,846 bytes, every duration was exactly 3.0 seconds, and the minimum midpoint luminance range was 32.
+
+Evidence:
+
+- `output/playwright/portrait-filter-transition-audit/run-05-real-exports/portrait-to-landscape/contact-sheet.png`
+- `output/playwright/portrait-filter-transition-audit/run-05-real-exports/landscape-to-portrait/contact-sheet.png`
+
+Modification decision: no filter or transition production parameter needs modification from this audit. Keep the fixture-driven E2E and real-export audits as regression coverage.
+
+### Run 06a - Audit code formatting and static rules
+
+Date: 2026-07-14
+Result: PASS
+Command: `bunx biome check apps/web/src/test/e2e/portrait-transition-audit.e2e.ts apps/web/src/test/e2e/helpers/portrait-transition-audit-helpers.ts electron/__tests__/portrait-transition-export-audit.test.ts`
+
+Observed: all three new transition audit files passed Biome without changes.
+
+Modification decision: no formatting or lint correction is required.
+
+### Run 06b - Web TypeScript verification
+
+Date: 2026-07-14
+Result: PASS
+Command: `cd apps/web && bunx tsc --noEmit --pretty false`
+
+Observed: the web application and both new Playwright transition audit modules type-checked without diagnostics.
+
+Modification decision: no web type correction is required.
+
+### Run 06c - Repository type-check script audit
+
+Date: 2026-07-14
+Result: NO-OP (not counted as verification)
+Command: `bun run check-types`
+
+Observed: Turbo discovered ten workspace packages but executed zero tasks because the current package graph exposes no `check-types` task implementations.
+
+Modification decision: do not report this command as a passing type check. Use the direct web TypeScript result above and compile the Electron audit through its actual Vitest transform plus the repository's available TypeScript configuration.
+
+### Run 06d - Electron TypeScript verification
+
+Date: 2026-07-14
+Result: PASS
+Command: `bunx tsc --noEmit --pretty false -p electron/tsconfig.json`
+
+Observed: the Electron codebase and real portrait transition export audit type-checked without diagnostics.
+
+Modification decision: no Electron type correction is required.
+
+### Run 06e - Combined transition mapping and real-export regression
+
+Date: 2026-07-14
+Result: PASS (23/23 tests)
+Command: `bunx vitest run electron/__tests__/transition-filter.test.ts electron/__tests__/portrait-transition-export-audit.test.ts`
+
+Observed:
+
+- The 21 transition filter and mapping tests passed together with both real portrait export cases.
+- Both evidence directories were rebuilt from clean state; the run re-encoded the two baselines and all 12 representative outputs.
+- No result depended on artifacts left by the earlier individual runs.
+
+Runtime: 23 seconds.
+
+Modification decision: the transition export regression set is stable when executed together.
+
+### Run 06f - Complete real-media Electron UI regression
+
+Date: 2026-07-14
+Result: PASS (5/5 tests)
+Command: `bunx playwright test apps/web/src/test/e2e/portrait-media-import-audit.e2e.ts apps/web/src/test/e2e/portrait-filter-audit.e2e.ts apps/web/src/test/e2e/portrait-transition-audit.e2e.ts --project=electron --reporter=line --workers=1`
+
+Assertions passed together:
+
+- Imported, identified, thumbnailed, and previewed all six licensed portrait fixtures.
+- Applied all 56 filters on a native 9:16 project and all 56 filters on a native 16:9 project, including the four lighting, detail, skin, and high-frame-rate stress cases.
+- Applied all 67 transitions at a portrait-to-landscape seam and all 67 transitions at a landscape-to-portrait seam.
+- Rebuilt all filter and transition manifests and category screenshots from clean test projects.
+
+Runtime: 6 minutes 36 seconds.
+
+Modification decision: the complete real-media UI regression is green. No production fix or additional rerun is required.
+
 ## Planned Application Runs
 
 | Run | Scope | Status |
 | --- | --- | --- |
 | 01 | Import all six fixtures and verify aspect ratio, duration, thumbnail, and playback | PASS after correcting two audit assumptions |
-| 02 | Exercise every filter family on portrait and landscape people | Portrait PASS; landscape pending |
-| 03 | Inspect high-risk filter presets across all lighting and skin-tone cases | Portrait PASS; landscape pending |
-| 04 | Exercise every transition family at portrait-to-landscape and landscape-to-portrait seams | Pending |
-| 05 | Inspect high-motion and edge-sensitive transitions, then export representative seams | Pending |
-| 06+ | Fix and rerun any failed scope | Pending |
+| 02 | Exercise every filter family on portrait and landscape people | PASS: 112 real UI applications across both orientations |
+| 03 | Inspect high-risk filter presets across all lighting and skin-tone cases | PASS across all six fixtures |
+| 04 | Exercise every transition family at portrait-to-landscape and landscape-to-portrait seams | PASS: 134 real UI applications across both directions |
+| 05 | Inspect high-motion and edge-sensitive transitions, then export representative seams | PASS: 67-preset mapping, 21 native presentation cases, and 12 real portrait exports |
+| 06+ | Fix and rerun any failed scope | PASS: audit defects corrected; 23/23 Vitest and 5/5 full Electron E2E regression |
 
 ## Final Decision
 
-Pending completion of the application runs.
+QCut's current production filter and transition implementations need no parameter or rendering change from this audit.
+
+Completed evidence:
+
+- Six licensed, approximately ten-second human portrait fixtures: three 9:16 and three 16:9, including dark, bright, occluded, saturated, and 59.94 fps sources.
+- 112 successful real filter applications: every one of 56 presets on both native project orientations.
+- 134 successful real transition applications: every one of 67 presets in both portrait-to-landscape and landscape-to-portrait directions.
+- Complete 67-preset export mapping, 21 native FFmpeg presentation cases, and 12 representative real-media transition exports across both canvas orientations.
+- Full visual inspection of source sheets, filter categories, transition categories, and native export midpoint frames.
+- Final verification: Biome passed, web and Electron TypeScript passed directly, 23/23 transition/export Vitest tests passed, and 5/5 complete real-media Electron E2E tests passed.
+
+The failed runs exposed six audit assumptions rather than production defects: thumbnail status representation, `trimEnd` semantics, Playwright closure serialization, unfiltered video rendering, transition position sampling, and native-test timeout budgeting. Each was documented at the time, corrected in the audit code, and followed by a complete passing rerun.
+
+The downloaded media and generated screenshots/videos remain ignored local evidence. The committed fixture metadata, E2E coverage, native export audit, and this run log make the same audit reproducible by setting `QCUT_PORTRAIT_AUDIT_DIR` to a prepared fixture directory.
