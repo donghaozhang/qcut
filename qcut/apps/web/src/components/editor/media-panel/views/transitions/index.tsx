@@ -465,13 +465,13 @@ export function TransitionsView() {
 										key={preset.id}
 										preset={preset}
 										selected={selectedPreset?.id === preset.id}
-									canApply={canApply}
-									resourceState={resource.state}
-									favorite={favoriteIds.has(preset.id)}
-									previewSources={previewSources}
-									onSelect={({ preset: nextPreset }) =>
-										setSelectedPresetId(nextPreset.id)
-									}
+										canApply={canApply}
+										resourceState={resource.state}
+										favorite={favoriteIds.has(preset.id)}
+										previewSources={previewSources}
+										onSelect={({ preset: nextPreset }) =>
+											setSelectedPresetId(nextPreset.id)
+										}
 										onApply={handleApply}
 										onToggleFavorite={({ preset: favoritePreset }) =>
 											toggleFavorite({
