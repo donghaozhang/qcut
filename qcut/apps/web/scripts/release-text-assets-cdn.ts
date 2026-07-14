@@ -358,6 +358,8 @@ export async function releaseTextAssetsToCdn({
 		? await stageTextAssetUploadPlan({
 				items,
 				prefix: options.prefix,
+				provenance,
+				requiredDesignerCategories: options.requiredDesignerCategories,
 				stageDir: options.stageDir,
 			})
 		: undefined;
@@ -400,10 +402,14 @@ export async function releaseTextAssetsToCdn({
 export async function stageTextAssetUploadPlan({
 	items,
 	prefix,
+	provenance,
+	requiredDesignerCategories = [],
 	stageDir,
 }: {
 	items: readonly TextAssetUploadPlanItem[];
 	prefix: string;
+	provenance?: TextAssetProvenanceSummary;
+	requiredDesignerCategories?: readonly string[];
 	stageDir: string;
 }): Promise<{ fileCount: number; manifestPath: string }> {
 	const resolvedStageDir = resolve(stageDir);
@@ -440,6 +446,8 @@ export async function stageTextAssetUploadPlan({
 		renderTextAssetReleaseReadme({
 			items,
 			prefix,
+			provenance,
+			requiredDesignerCategories,
 		}),
 		"utf8"
 	);
@@ -449,9 +457,13 @@ export async function stageTextAssetUploadPlan({
 function renderTextAssetReleaseReadme({
 	items,
 	prefix,
+	provenance,
+	requiredDesignerCategories,
 }: {
 	items: readonly TextAssetUploadPlanItem[];
 	prefix: string;
+	provenance?: TextAssetProvenanceSummary;
+	requiredDesignerCategories: readonly string[];
 }): string {
 	const roleCounts = items.reduce<Record<string, number>>((counts, item) => {
 		counts[item.role] = (counts[item.role] ?? 0) + 1;
@@ -477,6 +489,15 @@ bun run assets:text:verify-stage
 bun run assets:text:verify-archive
 \`\`\`
 
+Before treating this as the screenshot-level production text library, verify the designer-ready gate. If it fails, generate the gap report, import the missing designer pack assets, and rebuild this release:
+
+\`\`\`bash
+bun run assets:text:verify-designer-ready
+bun run assets:text:designer-gap-report
+bun run assets:text:import-designer-ready -- --pack-dir <designer-pack>
+bun run assets:text:release-designer-ready -- --dry-run --stage-dir dist/text-assets-cdn-stage --archive-path dist/text-assets-cdn-stage.tar.gz --publish-manifest dist/text-assets-publish-manifest.json --write-upload-plan dist/text-assets-upload-plan.json
+\`\`\`
+
 After publishing, verify the remote CDN. The first command checks reachability and sizes quickly; the second downloads each object and verifies SHA-256 checksums:
 
 \`\`\`bash
@@ -491,6 +512,9 @@ bun run assets:text:check-remote-checksum
 | prefix | ${prefix || "(none)"} |
 | files | ${items.length} |
 | bytes | ${items.reduce((total, item) => total + item.size, 0)} |
+| designerImported | ${provenance?.designerImported ?? "(unknown)"} |
+| generated | ${provenance?.generated ?? "(unknown)"} |
+| requiredDesignerCategories | ${requiredDesignerCategories.length || "(not enforced in this release)"} |
 
 ## Files By Role
 

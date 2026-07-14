@@ -429,6 +429,15 @@ describe("text asset CDN release script", () => {
 		).resolves.toContain("assets:text:verify-archive");
 		await expect(
 			readFile(join(stageDir, "_qcut-text-assets-release-readme.md"), "utf8")
+		).resolves.toContain("assets:text:verify-designer-ready");
+		await expect(
+			readFile(join(stageDir, "_qcut-text-assets-release-readme.md"), "utf8")
+		).resolves.toContain("assets:text:designer-gap-report");
+		await expect(
+			readFile(join(stageDir, "_qcut-text-assets-release-readme.md"), "utf8")
+		).resolves.toContain("designerImported | 0");
+		await expect(
+			readFile(join(stageDir, "_qcut-text-assets-release-readme.md"), "utf8")
 		).resolves.toContain("assets:text:check-remote-checksum");
 		await expect(
 			readFile(join(stageDir, "_qcut-text-assets-release-readme.md"), "utf8")
