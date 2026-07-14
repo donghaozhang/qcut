@@ -24,6 +24,10 @@ import {
 	TEXT_TEMPLATES,
 } from "@/lib/text/text-template-registry";
 import {
+	getTextTemplateResource,
+	getTextTemplateResourceFiles,
+} from "@/lib/text/text-resource-catalog";
+import {
 	transitionPresets,
 	type TransitionPreset,
 } from "@/components/editor/media-panel/views/transitions/transition-presets";
@@ -100,24 +104,55 @@ function textTemplateAssets(): AssetManifestEntry[] {
 	const templatesById = new Map(
 		TEXT_TEMPLATES.map((template) => [template.id, template])
 	);
-	return TEXT_TEMPLATE_DEFINITIONS.map((definition) => ({
-		schemaVersion: ASSET_MANIFEST_SCHEMA_VERSION,
-		id: definition.id,
-		kind: "text-template",
-		version: 1,
-		name: definition.name,
-		category: definition.category,
-		tags: uniqueTags({
-			tags: [definition.category, definition.stylePresetId, "text"],
-		}),
-		delivery: "generated",
-		files: [],
-		license: QCUT_BUILT_IN_LICENSE,
-		metadata: {
-			stylePresetId: definition.stylePresetId,
-			template: templatesById.get(definition.id),
-		},
-	}));
+	return TEXT_TEMPLATE_DEFINITIONS.map((definition) => {
+		const resource = getTextTemplateResource({ definition });
+		const files = getTextTemplateResourceFiles({ definition });
+		return {
+			schemaVersion: ASSET_MANIFEST_SCHEMA_VERSION,
+			id: resource.assetId,
+			kind: "text-template",
+			version: resource.version,
+			name: definition.name,
+			category: definition.category,
+			tags: uniqueTags({
+				tags: [
+					definition.category,
+					definition.stylePresetId,
+					definition.groupId,
+					resource.packageId,
+					resource.entitlement,
+					"text",
+					...definition.keywords,
+				],
+			}),
+			delivery: definition.downloaded ? "bundled" : "remote",
+			files: [
+				{
+					role: "thumbnail",
+					url: files.thumbnailUrl,
+					mimeType: "image/webp",
+					byteSize: Math.round(files.byteSize * 0.18),
+				},
+				{
+					role: "source",
+					url: files.sourceUrl,
+					mimeType: "application/json",
+					byteSize: files.byteSize,
+				},
+			],
+			license: QCUT_BUILT_IN_LICENSE,
+			metadata: {
+				templateId: definition.id,
+				stylePresetId: definition.stylePresetId,
+				packageId: resource.packageId,
+				cacheKey: resource.cacheKey,
+				entitlement: resource.entitlement,
+				sizeKb: resource.sizeKb,
+				premium: definition.premium,
+				template: templatesById.get(definition.id),
+			},
+		};
+	});
 }
 
 function captionStyleAssets(): AssetManifestEntry[] {

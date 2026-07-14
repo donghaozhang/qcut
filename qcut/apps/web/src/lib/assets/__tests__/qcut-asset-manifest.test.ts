@@ -8,7 +8,10 @@ import { FILTER_PRESETS } from "@/lib/filters/filter-registry";
 import { POPULAR_COLLECTIONS } from "@/lib/stickers/iconify-api";
 import { CURATED_STICKERS } from "@/lib/stickers/sticker-catalog";
 import { MOTION_STICKERS } from "@/lib/stickers/sticker-motion-packs";
-import { TEXT_TEMPLATES } from "@/lib/text/text-template-registry";
+import {
+	TEXT_TEMPLATE_DEFINITIONS,
+	TEXT_TEMPLATES,
+} from "@/lib/text/text-template-registry";
 import { transitionPresets } from "@/components/editor/media-panel/views/transitions/transition-presets";
 import type { SoundEffect } from "@/types/sounds";
 import {
@@ -82,6 +85,41 @@ describe("QCut asset manifest", () => {
 			"thumbnail",
 			"preview",
 		]);
+	});
+
+	it("publishes text templates as versioned downloadable resource assets", () => {
+		const textAssets = queryAssetCatalog({
+			catalog: QCUT_ASSET_CATALOG,
+			query: { kinds: ["text-template"] },
+		});
+		const definitionsByAssetId = new Map(
+			TEXT_TEMPLATE_DEFINITIONS.map((definition) => [
+				definition.resource?.assetId ?? `text-legacy-${definition.id}`,
+				definition,
+			])
+		);
+		const redAsset = textAssets.find((asset) => asset.category === "red");
+		const premiumAsset = textAssets.find(
+			(asset) =>
+				(asset.metadata as { entitlement?: string } | undefined)
+					?.entitlement === "svip"
+		);
+
+		expect(textAssets).toHaveLength(TEXT_TEMPLATES.length);
+		expect(
+			textAssets.every((asset) => definitionsByAssetId.has(asset.id))
+		).toBe(true);
+		expect(redAsset?.files.map((file) => file.role)).toEqual([
+			"thumbnail",
+			"source",
+		]);
+		expect(redAsset?.files[0]?.url).toContain("qcut-text-asset://");
+		expect(redAsset?.metadata).toMatchObject({
+			packageId: "text-fancy-red",
+			entitlement: expect.stringMatching(/^(free|svip)$/),
+		});
+		expect(premiumAsset?.delivery).toBe("remote");
+		expect(premiumAsset?.tags).toContain("svip");
 	});
 
 	it("maps transition presets to downloadable preview assets", () => {
