@@ -17,6 +17,7 @@ import {
 	buildTextTemplateDragData,
 	getTextTemplateBatchCacheTargets,
 	getTextTemplateAccessibilityLabel,
+	getTextTemplateCardThumbnailPreview,
 	getTextTemplatePackCopyDefaults,
 	getTextTemplatePackCopyActionLabel,
 	getTextTemplatePackCopyBadgeLabel,
@@ -298,6 +299,27 @@ describe("text view layout", () => {
 				text: "新标题",
 			})
 		).toEqual(["新标题", "旧标题", "旧副标题"]);
+	});
+
+	it("uses live pack previews for multi-element template cards", () => {
+		const packDefinition = getTextTemplateDefinitionsByCategory({
+			category: "headline-template",
+		})[0];
+		const pack = buildTextTemplatePack({ definition: packDefinition });
+		const packPreview = getTextTemplateCardThumbnailPreview({
+			templatePack: pack,
+			thumbnailUrl:
+				"/text-assets/text-templates-headline-template/editorial-title@1/thumbnail.webp",
+		});
+		const plainPreview = getTextTemplateCardThumbnailPreview({
+			templatePack: null,
+			thumbnailUrl: "/text-assets/text-fancy-red/fire@1/thumbnail.webp",
+		});
+
+		expect(packPreview).toEqual({ pack });
+		expect(plainPreview).toEqual({
+			thumbnailUrl: "/text-assets/text-fancy-red/fire@1/thumbnail.webp",
+		});
 	});
 
 	it("labels single and grouped text templates distinctly", () => {

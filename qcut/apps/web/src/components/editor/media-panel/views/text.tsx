@@ -347,6 +347,17 @@ export function applyTextTemplatePackBatchCopyText({
 	return values;
 }
 
+export function getTextTemplateCardThumbnailPreview({
+	templatePack,
+	thumbnailUrl,
+}: {
+	templatePack?: TextTemplatePack | null;
+	thumbnailUrl?: string;
+}): { pack?: TextTemplatePack; thumbnailUrl?: string } {
+	if (templatePack) return { pack: templatePack };
+	return { thumbnailUrl };
+}
+
 function TextTemplate({
 	definition,
 	downloadStatus,
@@ -529,6 +540,11 @@ function TextTemplate({
 				: null,
 		[copyValues, editableTemplatePack]
 	);
+	const cardThumbnailPreview = getTextTemplateCardThumbnailPreview({
+		templatePack: editableTemplatePack,
+		thumbnailUrl:
+			cachedThumbnailUrl ?? getTextTemplateCatalogThumbnailUrl({ definition }),
+	});
 
 	useEffect(() => {
 		if (
@@ -583,11 +599,9 @@ function TextTemplate({
 				>
 					<TextTemplateThumbnail
 						definition={definition}
+						pack={cardThumbnailPreview.pack}
 						template={template}
-						thumbnailUrl={
-							cachedThumbnailUrl ??
-							getTextTemplateCatalogThumbnailUrl({ definition })
-						}
+						thumbnailUrl={cardThumbnailPreview.thumbnailUrl}
 					/>
 					{editableTemplatePack && (
 						<div
