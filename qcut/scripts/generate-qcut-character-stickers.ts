@@ -11,6 +11,15 @@ const OUTPUT_ROOT = join(
 	"../apps/web/public/stickers/qcut-original"
 );
 
+function escapeXml({ value }: { value: string }): string {
+	return value
+		.replaceAll("&", "&amp;")
+		.replaceAll("<", "&lt;")
+		.replaceAll(">", "&gt;")
+		.replaceAll('"', "&quot;")
+		.replaceAll("'", "&apos;");
+}
+
 function ears({ pack }: { pack: CharacterStickerPack }): string {
 	const { body, inner, outline } = pack.palette;
 	if (pack.species === "rabbit") {
@@ -77,6 +86,28 @@ function expression({
 			<circle cx="299" cy="253" r="11" fill="${outline}"/>
 			<path d="M 233 302 Q 256 326 279 302" fill="none" stroke="${outline}" stroke-width="10" stroke-linecap="round"/>`;
 	}
+	if (pose.id === "confused") {
+		return `<circle cx="214" cy="253" r="11" fill="${outline}"/><circle cx="298" cy="253" r="11" fill="${outline}"/>
+			<path d="M 235 313 Q 256 301 277 313" fill="none" stroke="${outline}" stroke-width="9" stroke-linecap="round"/>`;
+	}
+	if (pose.id === "shy") {
+		return `<path d="M 194 254 Q 214 238 234 254 M 278 254 Q 298 238 318 254" fill="none" stroke="${outline}" stroke-width="11" stroke-linecap="round"/>
+			<ellipse cx="182" cy="291" rx="31" ry="15" fill="${accent}" opacity="0.55"/><ellipse cx="330" cy="291" rx="31" ry="15" fill="${accent}" opacity="0.55"/>
+			<path d="M 238 306 Q 256 320 274 306" fill="none" stroke="${outline}" stroke-width="9" stroke-linecap="round"/>`;
+	}
+	if (pose.id === "hungry") {
+		return `<circle cx="214" cy="253" r="11" fill="${outline}"/><circle cx="298" cy="253" r="11" fill="${outline}"/>
+			<ellipse cx="256" cy="308" rx="28" ry="19" fill="${outline}"/>`;
+	}
+	if (pose.id === "cool") {
+		return `<path d="M 174 234 H 246 L 237 277 Q 210 294 183 270 Z M 266 234 H 338 L 329 270 Q 302 294 275 277 Z" fill="#293241" stroke="${outline}" stroke-width="8" stroke-linejoin="round"/>
+			<path d="M 246 244 H 266" stroke="${outline}" stroke-width="9"/>
+			<path d="M 232 309 Q 256 331 280 309" fill="none" stroke="${outline}" stroke-width="10" stroke-linecap="round"/>`;
+	}
+	if (pose.id === "no") {
+		return `<path d="M 193 242 L 235 270 M 235 242 L 193 270 M 277 242 L 319 270 M 319 242 L 277 270" stroke="${outline}" stroke-width="10" stroke-linecap="round"/>
+			<path d="M 231 320 Q 256 297 281 320" fill="none" stroke="${outline}" stroke-width="10" stroke-linecap="round"/>`;
+	}
 	return `<path d="M 193 250 Q 214 271 235 250 M 277 250 Q 298 271 319 250" fill="none" stroke="${outline}" stroke-width="11" stroke-linecap="round"/>
 		<path d="M 226 300 Q 256 333 286 300" fill="none" stroke="${outline}" stroke-width="11" stroke-linecap="round"/>`;
 }
@@ -124,6 +155,22 @@ function backProps({
 		return `<path d="M 103 192 C 67 170 48 198 65 222 C 36 227 43 266 79 267 C 81 296 123 302 137 270" fill="white" stroke="${outline}" stroke-width="9"/>
 			<path d="M 409 191 C 445 169 464 197 447 221 C 476 226 469 265 433 266 C 431 295 389 301 375 269" fill="white" stroke="${outline}" stroke-width="9"/>`;
 	}
+	if (pose.id === "good-luck") {
+		return `<path d="M 87 176 L 104 214 L 145 218 L 114 245 L 123 286 L 87 265 L 51 286 L 60 245 L 29 218 L 70 214 Z M 425 119 L 437 147 L 468 150 L 445 171 L 451 201 L 425 186 L 398 201 L 405 171 L 381 150 L 413 147 Z" fill="${accent}" stroke="white" stroke-width="10"/>`;
+	}
+	if (pose.id === "dance" || pose.id === "music") {
+		return `<path d="M 77 183 Q 48 137 90 113 Q 133 91 144 140 Q 149 178 116 193 Q 91 203 77 183 Z" fill="${accent}" stroke="white" stroke-width="12"/>
+			<path d="M 399 105 V 192 Q 373 173 351 192 Q 337 205 347 222 Q 360 241 383 230 Q 408 219 408 188 V 137 L 459 124 V 178 Q 435 162 416 179" fill="none" stroke="${outline}" stroke-width="13" stroke-linecap="round" stroke-linejoin="round"/>`;
+	}
+	if (pose.id === "rainy") {
+		return `<path d="M 112 190 Q 256 37 400 190 Z" fill="#65c7f7" stroke="white" stroke-width="20"/>
+			<path d="M 112 190 Q 256 37 400 190 Z" fill="#65c7f7" stroke="${outline}" stroke-width="10"/>
+			<path d="M 256 91 V 390 Q 256 425 226 425" fill="none" stroke="${outline}" stroke-width="12" stroke-linecap="round"/>`;
+	}
+	if (pose.id === "sunny") {
+		return `<circle cx="408" cy="119" r="49" fill="#ffd166" stroke="white" stroke-width="14"/>
+			<path d="M 408 42 V 17 M 408 221 V 196 M 331 119 H 306 M 510 119 H 485 M 352 64 L 333 45 M 464 64 L 483 45 M 352 174 L 333 193 M 464 174 L 483 193" stroke="#ffd166" stroke-width="12" stroke-linecap="round"/>`;
+	}
 	return "";
 }
 
@@ -166,7 +213,61 @@ function frontProps({
 		return `<path d="M 166 351 L 91 285 L 111 270 L 185 331 M 346 350 L 421 284 L 401 269 L 327 330" stroke="${outline}" stroke-width="10" stroke-linecap="round"/>
 			<path d="M 73 226 L 151 245 L 114 295 Z M 439 225 L 361 244 L 398 294 Z" fill="${accent}" stroke="${outline}" stroke-width="9"/>`;
 	}
+	if (pose.id === "thumbs-up" || pose.id === "okay") {
+		return `<path d="M 323 394 Q 341 359 351 319 Q 357 295 378 303 Q 397 310 386 343 L 421 343 Q 443 343 438 364 L 427 407 Q 422 430 398 430 H 335 Z" fill="${body}" stroke="white" stroke-width="24" stroke-linejoin="round"/>
+			<path d="M 323 394 Q 341 359 351 319 Q 357 295 378 303 Q 397 310 386 343 L 421 343 Q 443 343 438 364 L 427 407 Q 422 430 398 430 H 335 Z" fill="${body}" stroke="${outline}" stroke-width="10" stroke-linejoin="round"/>`;
+	}
+	if (pose.id === "working" || pose.id === "busy") {
+		return `<rect x="165" y="334" width="182" height="112" rx="15" fill="#dce9f5" stroke="white" stroke-width="22"/>
+			<rect x="165" y="334" width="182" height="112" rx="15" fill="#dce9f5" stroke="${outline}" stroke-width="10"/>
+			<circle cx="256" cy="385" r="19" fill="${accent}"/><path d="M 142 454 H 370" stroke="${outline}" stroke-width="12" stroke-linecap="round"/>`;
+	}
+	if (pose.id === "coffee") {
+		return `<path d="M 196 337 H 313 L 302 425 Q 256 446 207 425 Z" fill="#fff7e8" stroke="white" stroke-width="22"/>
+			<path d="M 196 337 H 313 L 302 425 Q 256 446 207 425 Z" fill="#fff7e8" stroke="${outline}" stroke-width="10"/>
+			<path d="M 313 354 Q 365 347 361 385 Q 356 417 307 404" fill="none" stroke="${outline}" stroke-width="11"/>
+			<path d="M 228 313 Q 213 285 232 266 M 267 313 Q 252 285 271 266" fill="none" stroke="${accent}" stroke-width="9" stroke-linecap="round"/>`;
+	}
+	if (pose.id === "gift" || pose.id === "birthday") {
+		return `<rect x="181" y="341" width="151" height="105" rx="12" fill="${accent}" stroke="white" stroke-width="22"/>
+			<rect x="181" y="341" width="151" height="105" rx="12" fill="${accent}" stroke="${outline}" stroke-width="9"/>
+			<path d="M 256 341 V 446 M 175 371 H 338" stroke="#fff4ca" stroke-width="18"/>
+			<path d="M 256 341 Q 207 310 206 278 Q 249 271 256 321 Q 263 271 306 278 Q 305 310 256 341 Z" fill="#fff4ca" stroke="${outline}" stroke-width="8"/>`;
+	}
+	if (pose.id === "wait") {
+		return `<circle cx="361" cy="369" r="63" fill="white" stroke="${outline}" stroke-width="10"/>
+			<path d="M 361 369 V 329 M 361 369 L 392 388" stroke="${accent}" stroke-width="11" stroke-linecap="round"/>`;
+	}
+	if (pose.id === "hungry") {
+		return `<path d="M 181 378 Q 256 452 331 378 Z" fill="#fff1d2" stroke="${outline}" stroke-width="10"/>
+			<path d="M 165 365 H 347" stroke="${accent}" stroke-width="14" stroke-linecap="round"/>`;
+	}
+	if (pose.id === "rest") {
+		return `<rect x="151" y="361" width="212" height="91" rx="42" fill="#bde0fe" stroke="white" stroke-width="22" transform="rotate(-5 257 406)"/>
+			<rect x="151" y="361" width="212" height="91" rx="42" fill="#bde0fe" stroke="${outline}" stroke-width="9" transform="rotate(-5 257 406)"/>`;
+	}
 	return "";
+}
+
+function messageBadge({
+	pack,
+	pose,
+}: {
+	pack: CharacterStickerPack;
+	pose: CharacterStickerPose;
+}): string {
+	if (!pose.message) return "";
+	const fontSize =
+		pose.message.length >= 5 ? 30 : pose.message.length >= 4 ? 34 : 40;
+	const width = Math.min(
+		300,
+		Math.max(150, pose.message.length * fontSize + 52)
+	);
+	const x = 256 - width / 2;
+	return `<g transform="rotate(-4 256 82)">
+		<rect x="${x}" y="28" width="${width}" height="78" rx="34" fill="white" stroke="${pack.palette.outline}" stroke-width="9"/>
+		<text x="256" y="80" text-anchor="middle" fill="${pack.palette.accent}" font-family="PingFang SC, Noto Sans CJK SC, Arial, sans-serif" font-size="${fontSize}" font-weight="800">${escapeXml({ value: pose.message })}</text>
+	</g>`;
 }
 
 function renderSticker({
@@ -197,6 +298,7 @@ function renderSticker({
 		${speciesDetails({ pack })}
 		${expression({ pack, pose })}
 		${frontProps({ pack, pose })}
+		${messageBadge({ pack, pose })}
 	</g>
 </svg>
 `;
