@@ -151,11 +151,30 @@ export type TextAssetReleaseReadinessSummary = {
 	designerReady: boolean;
 	designerReadyMissing: number;
 	generated: number;
+	missingResourceFileMetadata: number;
 	minDesignerAssetsPerCategory: number;
 	releaseStatus: TextAssetReleaseReadinessStatus;
+	resourceFilesReady: boolean;
+	resourceReadyAssets: number;
 	requiredDesignerCategories: string[];
 	requiredDesignerCategoriesCount: number;
+	totalRequiredResourceFiles: number;
 	totalRequiredDesignerAssets: number;
+	virtualResourceUrls: number;
+};
+
+type TextAssetReadinessEntry = TextAssetCategoryEntry & {
+	thumbnail?: TextAssetGeneratedFile;
+	source?: TextAssetGeneratedFile;
+	qcutPackage?: TextAssetGeneratedFile;
+};
+
+type TextAssetResourceFileReadiness = {
+	missingResourceFileMetadata: number;
+	resourceFilesReady: boolean;
+	resourceReadyAssets: number;
+	totalRequiredResourceFiles: number;
+	virtualResourceUrls: number;
 };
 
 export type TextAssetCdnCliOptions = {
@@ -228,7 +247,7 @@ export function summarizeTextAssetReleaseReadiness({
 	minDesignerAssetsPerCategory = TEXT_DESIGNER_READY_MIN_ASSETS_PER_CATEGORY,
 	requiredDesignerCategories = TEXT_DESIGNER_READY_CATEGORY_IDS,
 }: {
-	generatedManifest: Record<string, TextAssetCategoryEntry>;
+	generatedManifest: Record<string, TextAssetReadinessEntry>;
 	minDesignerAssetsPerCategory?: number;
 	requiredDesignerCategories?: readonly string[];
 }): TextAssetReleaseReadinessSummary {
@@ -238,18 +257,60 @@ export function summarizeTextAssetReleaseReadiness({
 		minDesignerAssetsPerCategory,
 		requiredDesignerCategories,
 	});
+	const resourceReadiness = summarizeTextAssetResourceFileReadiness({
+		generatedManifest,
+	});
 	const designerReady = coverage.ok;
 	return {
 		designerImported: provenance.designerImported,
 		designerReady,
 		designerReadyMissing: coverage.totalMissing,
 		generated: provenance.generated,
+		missingResourceFileMetadata: resourceReadiness.missingResourceFileMetadata,
 		minDesignerAssetsPerCategory,
 		releaseStatus: designerReady ? "designer-ready" : "generated-fallback",
+		resourceFilesReady: resourceReadiness.resourceFilesReady,
+		resourceReadyAssets: resourceReadiness.resourceReadyAssets,
 		requiredDesignerCategories: [...requiredDesignerCategories],
 		requiredDesignerCategoriesCount: requiredDesignerCategories.length,
+		totalRequiredResourceFiles: resourceReadiness.totalRequiredResourceFiles,
 		totalRequiredDesignerAssets:
 			requiredDesignerCategories.length * minDesignerAssetsPerCategory,
+		virtualResourceUrls: resourceReadiness.virtualResourceUrls,
+	};
+}
+
+function summarizeTextAssetResourceFileReadiness({
+	generatedManifest,
+}: {
+	generatedManifest: Record<string, TextAssetReadinessEntry>;
+}): TextAssetResourceFileReadiness {
+	let missingResourceFileMetadata = 0;
+	let resourceReadyAssets = 0;
+	let virtualResourceUrls = 0;
+	for (const entry of Object.values(generatedManifest)) {
+		let entryReady = true;
+		for (const { file } of filesForEntry({ entry })) {
+			if (!file) {
+				missingResourceFileMetadata += 1;
+				entryReady = false;
+				continue;
+			}
+			if (isVirtualTextAssetUrl({ url: file.url })) {
+				virtualResourceUrls += 1;
+				entryReady = false;
+			}
+		}
+		if (entryReady) resourceReadyAssets += 1;
+	}
+	const totalRequiredResourceFiles = Object.keys(generatedManifest).length * 3;
+	return {
+		missingResourceFileMetadata,
+		resourceFilesReady:
+			missingResourceFileMetadata === 0 && virtualResourceUrls === 0,
+		resourceReadyAssets,
+		totalRequiredResourceFiles,
+		virtualResourceUrls,
 	};
 }
 
@@ -821,7 +882,7 @@ export function summarizeVerifyIssues({
 export function filesForEntry({
 	entry,
 }: {
-	entry: TextAssetGeneratedEntry;
+	entry: TextAssetReadinessEntry;
 }): Array<{ file?: TextAssetGeneratedFile; role: PublishFileRole }> {
 	return [
 		{ file: entry.thumbnail, role: "thumbnail" },

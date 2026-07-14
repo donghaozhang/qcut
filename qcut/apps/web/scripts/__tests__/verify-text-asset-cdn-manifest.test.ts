@@ -367,11 +367,16 @@ describe("text asset CDN manifest verifier", () => {
 			designerReady: false,
 			designerReadyMissing: 9,
 			generated: 1,
+			missingResourceFileMetadata: 0,
 			minDesignerAssetsPerCategory: 5,
 			releaseStatus: "generated-fallback",
+			resourceFilesReady: true,
+			resourceReadyAssets: 2,
 			requiredDesignerCategories: ["red", "texture"],
 			requiredDesignerCategoriesCount: 2,
+			totalRequiredResourceFiles: 6,
 			totalRequiredDesignerAssets: 10,
+			virtualResourceUrls: 0,
 		});
 	});
 
@@ -400,8 +405,63 @@ describe("text asset CDN manifest verifier", () => {
 			designerImported: 5,
 			designerReady: true,
 			designerReadyMissing: 0,
+			missingResourceFileMetadata: 0,
 			releaseStatus: "designer-ready",
+			resourceFilesReady: true,
+			resourceReadyAssets: 5,
+			totalRequiredResourceFiles: 15,
 			totalRequiredDesignerAssets: 5,
+			virtualResourceUrls: 0,
+		});
+	});
+
+	it("keeps resource file readiness separate from designer coverage", () => {
+		const completeDesignerEntries = Object.fromEntries(
+			Array.from({ length: 4 }, (_, index) => {
+				const entry: TextAssetGeneratedEntry = {
+					...createGeneratedEntry(),
+					assetId: `text-red-designer-${index + 1}`,
+					packageId: "text-fancy-red",
+					provenance: {
+						pipeline: "designer-pack-v1",
+						source: "designer-imported",
+					},
+				};
+				return [entry.assetId, entry];
+			})
+		);
+		const virtualDesignerEntry: TextAssetGeneratedEntry = {
+			...createGeneratedEntry(),
+			assetId: "text-red-designer-virtual",
+			packageId: "text-fancy-red",
+			provenance: {
+				pipeline: "designer-pack-v1",
+				source: "designer-imported",
+			},
+			thumbnail: {
+				...createGeneratedEntry().thumbnail,
+				url: "qcut-text-asset://text-red-designer-virtual/thumbnail.webp",
+			},
+			qcutPackage: undefined,
+		};
+
+		expect(
+			summarizeTextAssetReleaseReadiness({
+				generatedManifest: {
+					...completeDesignerEntries,
+					[virtualDesignerEntry.assetId]: virtualDesignerEntry,
+				},
+				requiredDesignerCategories: ["red"],
+			})
+		).toMatchObject({
+			designerImported: 5,
+			designerReady: true,
+			designerReadyMissing: 0,
+			missingResourceFileMetadata: 1,
+			resourceFilesReady: false,
+			resourceReadyAssets: 4,
+			totalRequiredResourceFiles: 15,
+			virtualResourceUrls: 1,
 		});
 	});
 
