@@ -418,16 +418,29 @@ function renderReadme({
 Replace the files referenced by \`manifest.json\`, then run:
 
 \`\`\`bash
-bun run assets:text:import-designer -- --pack-dir <this-folder> --dry-run
+bun run assets:text:import-designer -- --pack-dir <this-folder> --dry-run --write-plan dist/text-designer-import-plan.json
 bun run assets:text:import-designer -- --pack-dir <this-folder>
 bun run assets:text:import-designer-ready -- --pack-dir <this-folder> --dry-run
 bun run assets:text:verify-cdn
 bun run assets:text:verify-designer-ready
+bun run assets:text:release-stage
+bun run assets:text:verify-stage
+bun run assets:text:verify-archive
 \`\`\`
 
 Each asset folder contains \`asset-contract.json\` with the required target identity. Keep \`assetId\`, \`packageId\`, \`version\`, and \`cacheKey\` unchanged inside \`template.json\` and \`template.qctext\`. The import step rejects unchanged files by default, so every listed asset must be replaced with a real designer payload.
 
 Use \`--include-current-files\` when creating the pack to include the current generated files at the exact replacement paths. They are references only; designers still need to replace or edit them before import.
+
+## Required Files
+
+| file | requirement |
+| --- | --- |
+| \`thumbnail.webp\` | Must be a non-empty WebP payload. |
+| \`template.json\` | Must keep the target \`assetId\`, \`packageId\`, and text template identity. |
+| \`template.qctext\` | Must use \`kind: "qcut-text-template-package"\`, keep the same \`cacheKey\`, and reference \`template.json\` plus \`thumbnail.webp\`. |
+
+The dry-run import writes \`dist/text-designer-import-plan.json\`; review that plan before applying. After import, \`assets:text:release-stage\` builds the CDN handoff folder and archive, while \`assets:text:verify-archive\` verifies the tarball itself.
 
 ## Category Quotas
 

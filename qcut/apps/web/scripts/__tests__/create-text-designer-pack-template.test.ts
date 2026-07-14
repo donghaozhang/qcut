@@ -232,6 +232,11 @@ describe("text designer pack template script", () => {
 		expect(readme).toContain("assets:text:import-designer");
 		expect(readme).toContain("assets:text:import-designer-ready");
 		expect(readme).toContain("assets:text:verify-designer-ready");
+		expect(readme).toContain("assets:text:release-stage");
+		expect(readme).toContain("assets:text:verify-archive");
+		expect(readme).toContain("dist/text-designer-import-plan.json");
+		expect(readme).toContain("Must be a non-empty WebP payload");
+		expect(readme).toContain('kind: "qcut-text-template-package"');
 		expect(readme).toContain("--include-current-files");
 		expect(readme).toContain("| red | 1 |");
 	});
