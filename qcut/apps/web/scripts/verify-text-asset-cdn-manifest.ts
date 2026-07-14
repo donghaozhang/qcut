@@ -881,7 +881,7 @@ export async function buildTextMarketplacePublishEntry({
 	};
 }
 
-async function verifyTextMarketplaceSourceSync({
+export async function verifyTextMarketplaceSourceSync({
 	bytes,
 	generatedManifest,
 	publicDir,

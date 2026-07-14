@@ -30,10 +30,12 @@ function createUploadPlanItem({
 	content,
 	key,
 	localPath = "/tmp/source/template.json",
+	role = "source",
 }: {
 	content: string;
 	key: string;
 	localPath?: string;
+	role?: TextAssetUploadPlanItem["role"];
 }): TextAssetUploadPlanItem {
 	return {
 		bucket: "qcut-assets",
@@ -41,7 +43,7 @@ function createUploadPlanItem({
 		contentType: "application/json",
 		key,
 		localPath,
-		role: "source",
+		role,
 		sha256: checksum({ value: content }),
 		size: Buffer.byteLength(content),
 	};
@@ -196,5 +198,103 @@ describe("text asset stage verifier", () => {
 			},
 			issues: expect.arrayContaining([expect.any(Object), expect.any(Object)]),
 		});
+	});
+
+	it("reports staged marketplace metadata that is stale versus source files", async () => {
+		const stageDir = join(tmpdir(), `qcut-stage-marketplace-${randomUUID()}`);
+		const sourceContent = JSON.stringify({
+			assetId: "text-demo",
+			packageId: "text-fancy-red",
+			provenance: {
+				pipeline: "designer-pack-v1",
+				source: "designer-imported",
+			},
+			schemaVersion: 1,
+			version: 1,
+			marketplace: {
+				editorialRank: 3,
+				heatScore: 91,
+				remoteTags: ["market:hero"],
+				searchAliases: ["封面"],
+			},
+			definition: {
+				id: "demo-template",
+				resource: {
+					cacheKey: "text-assets/text-fancy-red/plain@1",
+				},
+			},
+			template: {
+				content: "花字",
+				id: "demo-template",
+				name: "Demo",
+				type: "text",
+			},
+		});
+		const marketplaceContent = JSON.stringify({
+			assets: [
+				{
+					assetId: "text-demo",
+					editorialRank: 1,
+					heatScore: 10,
+					remoteTags: [],
+					searchAliases: [],
+					templateId: "stale-template",
+				},
+			],
+			schemaVersion: 1,
+		});
+		const sourceItem: TextAssetUploadPlanItem = {
+			...createUploadPlanItem({
+				content: sourceContent,
+				key: "prod/text-assets/text-fancy-red/plain@1/template.json",
+			}),
+			assetId: "text-demo",
+			cacheKey: "text-assets/text-fancy-red/plain@1",
+			packageId: "text-fancy-red",
+			provenance: {
+				pipeline: "designer-pack-v1",
+				source: "designer-imported",
+			},
+			version: 1,
+		};
+		const marketplaceItem = createUploadPlanItem({
+			content: marketplaceContent,
+			key: "prod/text-assets/marketplace.json",
+			role: "metadata",
+		});
+		const manifest = createUploadPlanReport({
+			items: [sourceItem, marketplaceItem],
+		});
+		await Promise.all(
+			[
+				{ content: sourceContent, item: sourceItem },
+				{ content: marketplaceContent, item: marketplaceItem },
+			].map(async ({ content, item }) => {
+				const path = join(stageDir, item.key);
+				await mkdir(dirname(path), { recursive: true });
+				await writeFile(path, content);
+			})
+		);
+
+		const issues = await verifyTextAssetStage({
+			manifest,
+			stageDir,
+		});
+
+		expect(issues).toEqual([
+			expect.objectContaining({
+				code: "marketplace-source-mismatch",
+				key: marketplaceItem.key,
+			}),
+		]);
+		expect(issues[0]?.detail).toEqual(
+			expect.stringContaining("templateId expected demo-template")
+		);
+		expect(issues[0]?.detail).toEqual(
+			expect.stringContaining("remoteTags missing source:designer-imported")
+		);
+		expect(issues[0]?.detail).toEqual(
+			expect.stringContaining("searchAliases missing 封面")
+		);
 	});
 });

@@ -244,13 +244,21 @@ describe("text asset CDN upload script", () => {
 
 		expect(items).toEqual([
 			expect.objectContaining({
+				assetId: "text-demo",
 				bucket: "qcut-assets",
 				cacheControl: "public, max-age=31536000, immutable",
+				cacheKey: "text-assets/text-fancy-red/plain@1",
 				contentType: "application/json",
 				key: "prod/text-assets/demo/plain@1/template.json",
+				packageId: "text-fancy-red",
+				provenance: {
+					pipeline: "designer-pack-v1",
+					source: "designer-imported",
+				},
 				role: "source",
 				sha256: "source-sha",
 				size: 3,
+				version: 1,
 			}),
 			expect.objectContaining({
 				bucket: "qcut-assets",
@@ -269,12 +277,16 @@ describe("text asset CDN upload script", () => {
 				size: 7,
 			}),
 			expect.objectContaining({
+				assetId: "text-marketplace-config",
 				cacheControl: "public, max-age=300",
+				cacheKey: "text-assets",
 				contentType: "application/json",
 				key: "prod/text-assets/marketplace.json",
+				packageId: "text-marketplace-config",
 				role: "metadata",
 				sha256: "marketplace-sha",
 				size: 4,
+				version: 1,
 			}),
 		]);
 	});
@@ -307,14 +319,24 @@ describe("text asset CDN upload script", () => {
 				generatedAt: "2026-07-15T00:00:00.000Z",
 				items: expect.arrayContaining([
 					expect.objectContaining({
+						assetId: "text-demo",
+						cacheKey: "text-assets/text-fancy-red/plain@1",
 						cacheControl: "public, max-age=31536000, immutable",
 						contentType: "image/webp",
 						key: "prod/text-assets/demo/plain@1/thumbnail.webp",
+						packageId: "text-fancy-red",
+						provenance: {
+							pipeline: "designer-pack-v1",
+							source: "designer-imported",
+						},
 						sha256: "thumb-sha",
+						version: 1,
 					}),
 					expect.objectContaining({
+						assetId: "text-marketplace-config",
 						cacheControl: "public, max-age=300",
 						key: "prod/text-assets/marketplace.json",
+						packageId: "text-marketplace-config",
 						role: "metadata",
 					}),
 				]),

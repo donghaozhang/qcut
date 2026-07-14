@@ -29,14 +29,19 @@ export type TextAssetUploadOptions = {
 };
 
 export type TextAssetUploadPlanItem = {
+	assetId?: string;
 	bucket: string;
 	cacheControl: string;
+	cacheKey?: string;
 	contentType: string;
 	key: string;
 	localPath: string;
+	packageId?: string;
+	provenance?: TextAssetPublishManifest["assets"][number]["provenance"];
 	role: TextAssetPublishFile["role"];
 	sha256: string;
 	size: number;
+	version?: number;
 };
 
 export type TextAssetUploadSummary = {
@@ -251,15 +256,20 @@ export function buildTextAssetUploadPlan({
 }): TextAssetUploadPlanItem[] {
 	return manifest.assets.flatMap((asset) =>
 		asset.files.map((file) => ({
+			assetId: asset.assetId,
 			bucket,
 			cacheControl:
 				file.role === "metadata" ? metadataCacheControl : cacheControl,
+			cacheKey: asset.cacheKey,
 			contentType: file.mimeType,
 			key: objectKeyForAssetFile({ file, prefix }),
 			localPath: file.localPath,
+			packageId: asset.packageId,
+			provenance: asset.provenance,
 			role: file.role,
 			sha256: file.checksumSha256,
 			size: file.byteSize,
+			version: asset.version,
 		}))
 	);
 }
