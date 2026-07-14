@@ -13,13 +13,15 @@ import type { TextAssetGeneratedEntry } from "../verify-text-asset-cdn-manifest"
 
 function createGeneratedEntry({
 	assetId = "text-demo",
+	packageId = assetId,
 }: {
 	assetId?: string;
+	packageId?: string;
 } = {}): TextAssetGeneratedEntry {
 	return {
 		assetId,
 		cacheKey: `text-assets/${assetId}/plain@1`,
-		packageId: assetId,
+		packageId,
 		version: 1,
 		thumbnail: {
 			byteSize: 5,
@@ -54,6 +56,10 @@ describe("text designer pack template script", () => {
 					"text-demo",
 					"--package-id",
 					"text-basic",
+					"--category",
+					"red",
+					"--per-category-limit",
+					"5",
 					"--only-generated",
 					"--limit",
 					"25",
@@ -65,11 +71,13 @@ describe("text designer pack template script", () => {
 			})
 		).toMatchObject({
 			assetIds: ["text-demo"],
+			categoryIds: ["red"],
 			generatedManifestPath: "/tmp/generated.json",
 			includeAll: true,
 			limit: 25,
 			outDir: "/tmp/designer-template",
 			packageIds: ["text-basic"],
+			perCategoryLimit: 5,
 			provenance: "generated",
 		});
 	});
@@ -79,7 +87,7 @@ describe("text designer pack template script", () => {
 			parseTextDesignerPackTemplateArgs({
 				argv: ["--only-generated"],
 			})
-		).toThrow("Pass --asset-id, --package-id, or --all");
+		).toThrow("Pass --asset-id, --package-id, --category, or --all");
 	});
 
 	it("selects asset ids by package, provenance, and limit", () => {
@@ -99,13 +107,52 @@ describe("text designer pack template script", () => {
 		expect(
 			selectTextDesignerPackAssetIds({
 				assetIds: [],
+				categoryIds: [],
 				generatedManifest,
 				includeAll: false,
 				limit: 1,
 				packageIds: ["text-alpha"],
+				perCategoryLimit: 5,
 				provenance: "generated",
 			})
 		).toEqual(["text-alpha"]);
+	});
+
+	it("selects asset ids by category with a per-category limit", () => {
+		const generatedManifest = {
+			"text-red-1": createGeneratedEntry({
+				assetId: "text-red-1",
+				packageId: "text-fancy-red",
+			}),
+			"text-red-2": createGeneratedEntry({
+				assetId: "text-red-2",
+				packageId: "text-fancy-red",
+			}),
+			"text-red-3": createGeneratedEntry({
+				assetId: "text-red-3",
+				packageId: "text-fancy-red",
+			}),
+			"text-texture-1": createGeneratedEntry({
+				assetId: "text-texture-1",
+				packageId: "text-fancy-texture",
+			}),
+			"text-blue-1": createGeneratedEntry({
+				assetId: "text-blue-1",
+				packageId: "text-fancy-blue",
+			}),
+		};
+
+		expect(
+			selectTextDesignerPackAssetIds({
+				assetIds: [],
+				categoryIds: ["red", "texture"],
+				generatedManifest,
+				includeAll: false,
+				packageIds: [],
+				perCategoryLimit: 2,
+				provenance: "generated",
+			})
+		).toEqual(["text-red-1", "text-red-2", "text-texture-1"]);
 	});
 
 	it("builds designer pack manifests and file contracts", () => {

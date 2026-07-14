@@ -6,15 +6,20 @@ import type {
 	TextDesignerAssetPackManifest,
 } from "./import-text-designer-assets";
 import type { TextAssetGeneratedEntry } from "./verify-text-asset-cdn-manifest";
-import { readGeneratedManifest } from "./verify-text-asset-cdn-manifest";
+import {
+	inferTextAssetCategory,
+	readGeneratedManifest,
+} from "./verify-text-asset-cdn-manifest";
 
 export type TextDesignerPackTemplateOptions = {
 	assetIds: string[];
+	categoryIds: string[];
 	generatedManifestPath: string;
 	includeAll: boolean;
 	limit?: number;
 	outDir: string;
 	packageIds: string[];
+	perCategoryLimit: number;
 	provenance?: TextDesignerPackTemplateProvenanceFilter;
 };
 
@@ -66,10 +71,12 @@ export function parseTextDesignerPackTemplateArgs({
 }): TextDesignerPackTemplateOptions {
 	const options: TextDesignerPackTemplateOptions = {
 		assetIds: [],
+		categoryIds: [],
 		generatedManifestPath: DEFAULT_GENERATED_MANIFEST_PATH,
 		includeAll: false,
 		outDir: DEFAULT_OUT_DIR,
 		packageIds: [],
+		perCategoryLimit: 5,
 	};
 	for (let index = 0; index < argv.length; index += 1) {
 		const arg = argv[index];
@@ -87,6 +94,11 @@ export function parseTextDesignerPackTemplateArgs({
 			index += 1;
 			continue;
 		}
+		if (arg === "--category") {
+			options.categoryIds.push(requireValue({ argv, index, name: arg }));
+			index += 1;
+			continue;
+		}
 		if (arg === "--generated-manifest") {
 			options.generatedManifestPath = requireValue({ argv, index, name: arg });
 			index += 1;
@@ -94,6 +106,14 @@ export function parseTextDesignerPackTemplateArgs({
 		}
 		if (arg === "--limit") {
 			options.limit = parsePositiveInteger({
+				name: arg,
+				value: requireValue({ argv, index, name: arg }),
+			});
+			index += 1;
+			continue;
+		}
+		if (arg === "--per-category-limit") {
+			options.perCategoryLimit = parsePositiveInteger({
 				name: arg,
 				value: requireValue({ argv, index, name: arg }),
 			});
@@ -117,35 +137,49 @@ export function parseTextDesignerPackTemplateArgs({
 	}
 	if (
 		options.assetIds.length === 0 &&
+		options.categoryIds.length === 0 &&
 		options.packageIds.length === 0 &&
 		!options.includeAll
 	) {
-		throw new Error("Pass --asset-id, --package-id, or --all.");
+		throw new Error("Pass --asset-id, --package-id, --category, or --all.");
 	}
 	return {
 		...options,
 		assetIds: uniqueAssetIds({ assetIds: options.assetIds }),
+		categoryIds: uniqueAssetIds({ assetIds: options.categoryIds }),
 		packageIds: uniqueAssetIds({ assetIds: options.packageIds }),
 	};
 }
 
 export function selectTextDesignerPackAssetIds({
 	assetIds,
+	categoryIds,
 	generatedManifest,
 	includeAll,
 	limit,
 	packageIds,
+	perCategoryLimit,
 	provenance,
 }: {
 	assetIds: readonly string[];
+	categoryIds?: readonly string[];
 	generatedManifest: Record<string, TextAssetGeneratedEntry>;
 	includeAll: boolean;
 	limit?: number;
 	packageIds: readonly string[];
+	perCategoryLimit?: number;
 	provenance?: TextDesignerPackTemplateProvenanceFilter;
 }): string[] {
 	const selectedIds = new Set<string>();
 	for (const assetId of assetIds) {
+		selectedIds.add(assetId);
+	}
+	for (const assetId of selectTextDesignerPackCategoryAssetIds({
+		categoryIds: categoryIds ?? [],
+		generatedManifest,
+		perCategoryLimit: perCategoryLimit ?? Number.POSITIVE_INFINITY,
+		provenance,
+	})) {
 		selectedIds.add(assetId);
 	}
 	const selectedPackageIds = new Set(packageIds);
@@ -159,6 +193,33 @@ export function selectTextDesignerPackAssetIds({
 	}
 	const selected = [...selectedIds];
 	return limit === undefined ? selected : selected.slice(0, limit);
+}
+
+function selectTextDesignerPackCategoryAssetIds({
+	categoryIds,
+	generatedManifest,
+	perCategoryLimit,
+	provenance,
+}: {
+	categoryIds: readonly string[];
+	generatedManifest: Record<string, TextAssetGeneratedEntry>;
+	perCategoryLimit: number;
+	provenance?: TextDesignerPackTemplateProvenanceFilter;
+}): string[] {
+	if (categoryIds.length === 0) return [];
+	const selectedIds: string[] = [];
+	const selectedCountByCategory = new Map<string, number>();
+	const selectedCategories = new Set(categoryIds);
+	for (const entry of Object.values(generatedManifest)) {
+		if (!matchesProvenance({ entry, provenance })) continue;
+		const category = inferTextAssetCategory({ entry });
+		if (!category || !selectedCategories.has(category)) continue;
+		const selectedCount = selectedCountByCategory.get(category) ?? 0;
+		if (selectedCount >= perCategoryLimit) continue;
+		selectedCountByCategory.set(category, selectedCount + 1);
+		selectedIds.push(entry.assetId);
+	}
+	return selectedIds;
 }
 
 export function buildTextDesignerPackTemplate({
@@ -383,10 +444,12 @@ async function main(): Promise<void> {
 	});
 	const assetIds = selectTextDesignerPackAssetIds({
 		assetIds: options.assetIds,
+		categoryIds: options.categoryIds,
 		generatedManifest,
 		includeAll: options.includeAll,
 		limit: options.limit,
 		packageIds: options.packageIds,
+		perCategoryLimit: options.perCategoryLimit,
 		provenance: options.provenance,
 	});
 	if (assetIds.length === 0) {
