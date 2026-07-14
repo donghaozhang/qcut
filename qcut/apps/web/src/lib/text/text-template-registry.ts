@@ -14,6 +14,8 @@ type TextTemplateCategorySeed = {
 	id: string;
 	label: string;
 	content: string;
+	contentSamples?: readonly string[];
+	keywords?: readonly string[];
 	palette: TextTemplatePalette;
 };
 
@@ -158,6 +160,8 @@ const TEXT_TEMPLATE_GROUP_SEEDS = [
 				id: "cover-pack",
 				label: "封面包装",
 				content: "封面",
+				contentSamples: ["爆款封面", "今日推荐", "必看", "高能预警"],
+				keywords: ["cover", "thumbnail", "封面", "包装", "标题"],
 				palette: {
 					primary: "#fef2f2",
 					secondary: "#dc2626",
@@ -170,6 +174,8 @@ const TEXT_TEMPLATE_GROUP_SEEDS = [
 				id: "intro-outro",
 				label: "片头片尾",
 				content: "开场",
+				contentSamples: ["开场", "本期看点", "下期见", "感谢观看"],
+				keywords: ["intro", "outro", "片头", "片尾", "开场"],
 				palette: {
 					primary: "#eef2ff",
 					secondary: "#4f46e5",
@@ -182,6 +188,8 @@ const TEXT_TEMPLATE_GROUP_SEEDS = [
 				id: "talking-head",
 				label: "口播卡片",
 				content: "重点",
+				contentSamples: ["重点来了", "记住这点", "别划走", "三秒讲清"],
+				keywords: ["talking head", "口播", "重点", "讲解"],
 				palette: {
 					primary: "#fff7ed",
 					secondary: "#ea580c",
@@ -194,6 +202,8 @@ const TEXT_TEMPLATE_GROUP_SEEDS = [
 				id: "commerce-badge",
 				label: "带货标牌",
 				content: "福利",
+				contentSamples: ["限时福利", "到手价", "今日上新", "同款链接"],
+				keywords: ["commerce", "带货", "价格", "促销", "电商"],
 				palette: {
 					primary: "#fefce8",
 					secondary: "#ca8a04",
@@ -206,6 +216,8 @@ const TEXT_TEMPLATE_GROUP_SEEDS = [
 				id: "info-strip",
 				label: "信息条",
 				content: "信息条",
+				contentSamples: ["地点", "时间", "步骤 01", "资料来源"],
+				keywords: ["info", "strip", "信息条", "说明", "资料"],
 				palette: {
 					primary: "#eff6ff",
 					secondary: "#2563eb",
@@ -410,6 +422,8 @@ const TEXT_TEMPLATE_GROUP_SEEDS = [
 				id: "headline-template",
 				label: "标题模板",
 				content: "标题",
+				contentSamples: ["三段式标题", "核心观点", "爆点标题", "结论先说"],
+				keywords: ["headline", "标题模板", "结构", "开头"],
 				palette: {
 					primary: "#f8fafc",
 					secondary: "#0f172a",
@@ -422,6 +436,8 @@ const TEXT_TEMPLATE_GROUP_SEEDS = [
 				id: "quote-template",
 				label: "引用模板",
 				content: "引用",
+				contentSamples: ["金句摘录", "用户原话", "一句话总结", "观点引用"],
+				keywords: ["quote", "引用模板", "金句", "摘录"],
 				palette: {
 					primary: "#fff7ed",
 					secondary: "#c2410c",
@@ -434,6 +450,8 @@ const TEXT_TEMPLATE_GROUP_SEEDS = [
 				id: "list-template",
 				label: "列表模板",
 				content: "清单",
+				contentSamples: ["第一步", "三点总结", "检查清单", "方法列表"],
+				keywords: ["list", "列表模板", "步骤", "清单"],
 				palette: {
 					primary: "#f0fdf4",
 					secondary: "#15803d",
@@ -446,6 +464,8 @@ const TEXT_TEMPLATE_GROUP_SEEDS = [
 				id: "split-template",
 				label: "分屏模板",
 				content: "对比",
+				contentSamples: ["改版前", "改版后", "方案 A", "方案 B"],
+				keywords: ["split", "对比", "分屏", "前后"],
 				palette: {
 					primary: "#eff6ff",
 					secondary: "#1d4ed8",
@@ -458,6 +478,8 @@ const TEXT_TEMPLATE_GROUP_SEEDS = [
 				id: "timeline-template",
 				label: "时间线模板",
 				content: "阶段",
+				contentSamples: ["阶段一", "今天", "明天", "结果"],
+				keywords: ["timeline", "时间线", "阶段", "流程"],
 				palette: {
 					primary: "#faf5ff",
 					secondary: "#9333ea",
@@ -476,6 +498,8 @@ const TEXT_TEMPLATE_GROUP_SEEDS = [
 				id: "summary",
 				label: "自动摘要",
 				content: "摘要",
+				contentSamples: ["AI 摘要", "30 秒看完", "核心结论", "内容提要"],
+				keywords: ["summary", "ai", "摘要", "总结"],
 				palette: {
 					primary: "#ecfeff",
 					secondary: "#0e7490",
@@ -488,6 +512,8 @@ const TEXT_TEMPLATE_GROUP_SEEDS = [
 				id: "key-point",
 				label: "重点提取",
 				content: "重点",
+				contentSamples: ["重点 1", "关键数据", "注意事项", "高频问题"],
+				keywords: ["key point", "ai", "重点", "提取"],
 				palette: {
 					primary: "#fef9c3",
 					secondary: "#ca8a04",
@@ -500,6 +526,8 @@ const TEXT_TEMPLATE_GROUP_SEEDS = [
 				id: "chapter",
 				label: "章节标题",
 				content: "章节",
+				contentSamples: ["第 1 章", "背景", "方法", "结论"],
+				keywords: ["chapter", "ai", "章节", "分段"],
 				palette: {
 					primary: "#dbeafe",
 					secondary: "#2563eb",
@@ -512,6 +540,8 @@ const TEXT_TEMPLATE_GROUP_SEEDS = [
 				id: "subtitle-title",
 				label: "字幕转标题",
 				content: "字幕标题",
+				contentSamples: ["字幕标题", "这一段讲什么", "自动小标题", "段落标题"],
+				keywords: ["subtitle", "ai", "字幕", "标题"],
 				palette: {
 					primary: "#fdf2f8",
 					secondary: "#db2777",
@@ -524,6 +554,8 @@ const TEXT_TEMPLATE_GROUP_SEEDS = [
 				id: "rewrite",
 				label: "AI改写",
 				content: "改写",
+				contentSamples: ["更口语", "更有冲击", "更短一点", "更专业"],
+				keywords: ["rewrite", "ai", "改写", "润色"],
 				palette: {
 					primary: "#f5f3ff",
 					secondary: "#7c3aed",
@@ -1175,7 +1207,10 @@ function buildGeneratedDefinition({
 	index: number;
 }): TextTemplateDefinition {
 	const isDefaultText = category.id === "basic" && variant.id === "plain";
-	const content = variant.getContent?.(category) ?? category.content;
+	const content =
+		variant.getContent?.(category) ??
+		category.contentSamples?.[index % category.contentSamples.length] ??
+		category.content;
 	return {
 		id: isDefaultText ? "default-text" : `${category.id}-${variant.id}`,
 		name: isDefaultText ? "Default text" : `${category.label}${variant.label}`,
@@ -1188,6 +1223,8 @@ function buildGeneratedDefinition({
 			category.id,
 			category.label,
 			category.content,
+			...(category.contentSamples ?? []),
+			...(category.keywords ?? []),
 			variant.id,
 			variant.label,
 			...variant.keywords,

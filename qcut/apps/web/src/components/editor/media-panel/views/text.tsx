@@ -4,27 +4,89 @@ import { colorWithOpacity } from "@/lib/text/text-style";
 import { cn } from "@/lib/utils";
 import { usePlaybackStore } from "@/stores/editor/playback-store";
 import { useTimelineStore } from "@/stores/timeline/timeline-store";
-import { ChevronDown, Download, FileText, Gem, Search } from "lucide-react";
+import {
+	ChevronDown,
+	Download,
+	FileText,
+	Gem,
+	Heart,
+	Search,
+} from "lucide-react";
 import {
 	type CSSProperties,
 	type DragEvent,
 	type KeyboardEvent,
+	useEffect,
 	useMemo,
 	useState,
 } from "react";
+import {
+	getTextDefinitionsForLibraryCategory,
+	isTextTemplateDownloaded,
+	isTextTemplateFavorite,
+	loadTextLibraryState,
+	markTextTemplateDownloaded,
+	markTextTemplateUsed,
+	storeTextLibraryState,
+	toggleFavoriteTextTemplate,
+	type TextLibraryState,
+} from "@/lib/text/text-library-state";
 import {
 	DEFAULT_TEXT_TEMPLATE_CATEGORY_ID,
 	TEXT_TEMPLATE_CATEGORIES,
 	TEXT_TEMPLATE_LIBRARY_DEFINITIONS,
 	TEXT_TEMPLATE_GROUPS,
 	buildTextTemplate,
-	getTextTemplateDefinitionsByCategory,
 	type TextTemplateCategoryId,
 	type TextTemplateDefinition,
 	type TextTemplateGroup,
 	type TextTemplateGroupId,
 } from "@/lib/text/text-template-registry";
 import type { MarkdownElement, TextElement } from "@/types/timeline";
+
+type TextLibraryStatusFilter =
+	| "all"
+	| "free"
+	| "premium"
+	| "downloaded"
+	| "favorites";
+
+type TextLibraryStyleFilter =
+	| "all"
+	| "fire"
+	| "glitch"
+	| "sticker"
+	| "pixel"
+	| "guofeng"
+	| "glow"
+	| "blue"
+	| "red";
+
+const TEXT_LIBRARY_STATUS_FILTERS: readonly {
+	id: TextLibraryStatusFilter;
+	label: string;
+}[] = [
+	{ id: "all", label: "全部" },
+	{ id: "free", label: "免费" },
+	{ id: "premium", label: "SVIP" },
+	{ id: "downloaded", label: "已下载" },
+	{ id: "favorites", label: "收藏" },
+];
+
+const TEXT_LIBRARY_STYLE_FILTERS: readonly {
+	id: TextLibraryStyleFilter;
+	label: string;
+}[] = [
+	{ id: "all", label: "全部风格" },
+	{ id: "fire", label: "火焰" },
+	{ id: "glitch", label: "故障" },
+	{ id: "sticker", label: "贴纸" },
+	{ id: "pixel", label: "像素" },
+	{ id: "guofeng", label: "国风" },
+	{ id: "glow", label: "发光" },
+	{ id: "blue", label: "蓝色" },
+	{ id: "red", label: "红色" },
+];
 
 const markdownData: MarkdownElement = {
 	id: "default-markdown",
@@ -135,7 +197,21 @@ function getPreviewTextShadow({
 	return shadows.length > 0 ? shadows.join(", ") : undefined;
 }
 
-function TextTemplate({ definition }: { definition: TextTemplateDefinition }) {
+function TextTemplate({
+	definition,
+	isDownloaded,
+	isFavorite,
+	onDownload,
+	onToggleFavorite,
+	onUseTemplate,
+}: {
+	definition: TextTemplateDefinition;
+	isDownloaded: boolean;
+	isFavorite: boolean;
+	onDownload: (props: { templateId: string }) => void;
+	onToggleFavorite: (props: { templateId: string }) => void;
+	onUseTemplate: (props: { templateId: string }) => void;
+}) {
 	const template = useMemo(
 		() => buildTextTemplate({ definition }),
 		[definition]
@@ -147,6 +223,7 @@ function TextTemplate({ definition }: { definition: TextTemplateDefinition }) {
 	const addToTimeline = (currentTime?: number) => {
 		const time = currentTime ?? usePlaybackStore.getState().currentTime;
 		useTimelineStore.getState().addTextAtTime(template, time);
+		onUseTemplate({ templateId: definition.id });
 	};
 	const dragData = {
 		id: template.id,
@@ -235,19 +312,40 @@ function TextTemplate({ definition }: { definition: TextTemplateDefinition }) {
 					<button
 						type="button"
 						className={cn(
-							"absolute bottom-1.5 right-1.5 flex h-5 w-5 items-center justify-center rounded-full bg-black/60 text-white transition-colors hover:bg-black/80",
-							definition.downloaded &&
-								"bg-white/85 text-slate-900 hover:bg-white"
+							"absolute right-1.5 top-1.5 flex h-5 w-5 items-center justify-center rounded-full bg-black/50 text-white transition-colors hover:bg-black/75",
+							isFavorite && "bg-rose-500 text-white hover:bg-rose-600"
 						)}
 						onClick={(event) => {
 							event.stopPropagation();
+							onToggleFavorite({ templateId: definition.id });
+						}}
+						onKeyDown={(event) => {
+							event.stopPropagation();
+						}}
+					>
+						<Heart
+							aria-hidden="true"
+							className={cn("h-3.5 w-3.5", isFavorite && "fill-current")}
+						>
+							<title>{isFavorite ? "取消收藏" : "收藏"}</title>
+						</Heart>
+					</button>
+					<button
+						type="button"
+						className={cn(
+							"absolute bottom-1.5 right-1.5 flex h-5 w-5 items-center justify-center rounded-full bg-black/60 text-white transition-colors hover:bg-black/80",
+							isDownloaded && "bg-white/85 text-slate-900 hover:bg-white"
+						)}
+						onClick={(event) => {
+							event.stopPropagation();
+							onDownload({ templateId: definition.id });
 						}}
 						onKeyDown={(event) => {
 							event.stopPropagation();
 						}}
 					>
 						<Download aria-hidden="true" className="h-3.5 w-3.5">
-							<title>{definition.downloaded ? "已下载" : "下载"}</title>
+							<title>{isDownloaded ? "已下载" : "下载"}</title>
 						</Download>
 					</button>
 				</div>
@@ -264,13 +362,35 @@ function TextTemplate({ definition }: { definition: TextTemplateDefinition }) {
 
 function TemplateGrid({
 	definitions,
+	libraryState,
+	onDownload,
+	onToggleFavorite,
+	onUseTemplate,
 }: {
 	definitions: readonly TextTemplateDefinition[];
+	libraryState: TextLibraryState;
+	onDownload: (props: { templateId: string }) => void;
+	onToggleFavorite: (props: { templateId: string }) => void;
+	onUseTemplate: (props: { templateId: string }) => void;
 }) {
 	return (
 		<div className="grid grid-cols-[repeat(auto-fill,minmax(5.25rem,1fr))] gap-3 py-3">
 			{definitions.map((definition) => (
-				<TextTemplate key={definition.id} definition={definition} />
+				<TextTemplate
+					key={definition.id}
+					definition={definition}
+					isDownloaded={isTextTemplateDownloaded({
+						definition,
+						state: libraryState,
+					})}
+					isFavorite={isTextTemplateFavorite({
+						definition,
+						state: libraryState,
+					})}
+					onDownload={onDownload}
+					onToggleFavorite={onToggleFavorite}
+					onUseTemplate={onUseTemplate}
+				/>
 			))}
 		</div>
 	);
@@ -403,6 +523,92 @@ function TextLibraryNav({
 	);
 }
 
+function matchesStatusFilter({
+	definition,
+	filter,
+	state,
+}: {
+	definition: TextTemplateDefinition;
+	filter: TextLibraryStatusFilter;
+	state: TextLibraryState;
+}): boolean {
+	if (filter === "free") return !definition.premium;
+	if (filter === "premium") return definition.premium;
+	if (filter === "downloaded") {
+		return isTextTemplateDownloaded({ definition, state });
+	}
+	if (filter === "favorites") {
+		return isTextTemplateFavorite({ definition, state });
+	}
+	return true;
+}
+
+function matchesStyleFilter({
+	definition,
+	filter,
+}: {
+	definition: TextTemplateDefinition;
+	filter: TextLibraryStyleFilter;
+}): boolean {
+	if (filter === "all") return true;
+	const searchable = buildTemplateSearchText({ definition });
+	return (
+		definition.variantId === filter ||
+		definition.category === filter ||
+		searchable.includes(filter)
+	);
+}
+
+function FilterBar<TFilter extends string>({
+	filters,
+	activeFilter,
+	onSelectFilter,
+}: {
+	filters: readonly { id: TFilter; label: string }[];
+	activeFilter: TFilter;
+	onSelectFilter: (filter: TFilter) => void;
+}) {
+	return (
+		<div className="flex gap-1 overflow-x-auto pb-1">
+			{filters.map((filter) => (
+				<button
+					key={filter.id}
+					type="button"
+					className={cn(
+						"h-6 shrink-0 rounded-md px-2 text-[0.68rem] transition-colors",
+						filter.id === activeFilter
+							? "bg-cyan-400 text-slate-950"
+							: "bg-muted text-muted-foreground hover:bg-accent hover:text-foreground"
+					)}
+					onClick={() => onSelectFilter(filter.id)}
+					onKeyDown={(event) => {
+						if (!isActivationKey({ event })) return;
+						event.preventDefault();
+						onSelectFilter(filter.id);
+					}}
+				>
+					{filter.label}
+				</button>
+			))}
+		</div>
+	);
+}
+
+function getTextLibraryEmptyMessage({
+	categoryId,
+	hasActiveFilters,
+}: {
+	categoryId: TextTemplateCategoryId;
+	hasActiveFilters: boolean;
+}): string {
+	if (hasActiveFilters) return "没有找到匹配的文字样式";
+	if (categoryId === "favorites") return "还没有收藏文字样式";
+	if (categoryId === "recent") return "还没有最近使用的文字样式";
+	if (categoryId === "brand-kit") return "还没有品牌字资产";
+	if (categoryId === "drafts") return "还没有保存的文字草稿";
+	return "没有找到匹配的文字样式";
+}
+
 export function TextView() {
 	const [activeCategoryId, setActiveCategoryId] =
 		useState<TextTemplateCategoryId>(DEFAULT_TEXT_TEMPLATE_CATEGORY_ID);
@@ -410,7 +616,16 @@ export function TextView() {
 		ReadonlySet<TextTemplateGroupId>
 	>(() => new Set(["new-text", "fancy"]));
 	const [searchQuery, setSearchQuery] = useState("");
+	const [statusFilter, setStatusFilter] =
+		useState<TextLibraryStatusFilter>("all");
+	const [styleFilter, setStyleFilter] = useState<TextLibraryStyleFilter>("all");
+	const [libraryState, setLibraryState] = useState<TextLibraryState>(() =>
+		loadTextLibraryState()
+	);
 	const normalizedSearchQuery = searchQuery.trim().toLocaleLowerCase();
+	useEffect(() => {
+		storeTextLibraryState({ state: libraryState });
+	}, [libraryState]);
 	const activeCategory = useMemo(
 		() =>
 			TEXT_TEMPLATE_CATEGORIES.find(
@@ -419,18 +634,48 @@ export function TextView() {
 		[activeCategoryId]
 	);
 	const activeDefinitions = useMemo(
-		() => getTextTemplateDefinitionsByCategory({ category: activeCategory.id }),
-		[activeCategory.id]
+		() =>
+			getTextDefinitionsForLibraryCategory({
+				category: activeCategory.id,
+				definitions: TEXT_TEMPLATE_LIBRARY_DEFINITIONS,
+				state: libraryState,
+			}),
+		[activeCategory.id, libraryState]
 	);
 	const visibleDefinitions = useMemo(() => {
-		if (!normalizedSearchQuery) return activeDefinitions;
-		return TEXT_TEMPLATE_LIBRARY_DEFINITIONS.filter((definition) =>
-			buildTemplateSearchText({ definition }).includes(normalizedSearchQuery)
+		const searchBase = normalizedSearchQuery
+			? TEXT_TEMPLATE_LIBRARY_DEFINITIONS.filter((definition) =>
+					buildTemplateSearchText({ definition }).includes(
+						normalizedSearchQuery
+					)
+				)
+			: activeDefinitions;
+		return searchBase.filter(
+			(definition) =>
+				matchesStatusFilter({
+					definition,
+					filter: statusFilter,
+					state: libraryState,
+				}) && matchesStyleFilter({ definition, filter: styleFilter })
 		);
-	}, [activeDefinitions, normalizedSearchQuery]);
+	}, [
+		activeDefinitions,
+		libraryState,
+		normalizedSearchQuery,
+		statusFilter,
+		styleFilter,
+	]);
 	const activeHeading = normalizedSearchQuery
 		? `搜索结果 ${visibleDefinitions.length}`
 		: activeCategory.label;
+	const hasActiveFilters =
+		Boolean(normalizedSearchQuery) ||
+		statusFilter !== "all" ||
+		styleFilter !== "all";
+	const emptyMessage = getTextLibraryEmptyMessage({
+		categoryId: activeCategory.id,
+		hasActiveFilters,
+	});
 	const addMarkdown = (currentTime?: number) => {
 		const time = currentTime ?? usePlaybackStore.getState().currentTime;
 		useTimelineStore.getState().addMarkdownAtTime(markdownData, time);
@@ -450,6 +695,21 @@ export function TextView() {
 			next.add(group.id);
 			return next;
 		});
+	};
+	const handleDownload = ({ templateId }: { templateId: string }) => {
+		setLibraryState((current) =>
+			markTextTemplateDownloaded({ state: current, templateId })
+		);
+	};
+	const handleToggleFavorite = ({ templateId }: { templateId: string }) => {
+		setLibraryState((current) =>
+			toggleFavoriteTextTemplate({ state: current, templateId })
+		);
+	};
+	const handleUseTemplate = ({ templateId }: { templateId: string }) => {
+		setLibraryState((current) =>
+			markTextTemplateUsed({ state: current, templateId })
+		);
 	};
 
 	return (
@@ -485,12 +745,28 @@ export function TextView() {
 							{visibleDefinitions.length} 个样式
 						</span>
 					</div>
+					<FilterBar
+						activeFilter={statusFilter}
+						filters={TEXT_LIBRARY_STATUS_FILTERS}
+						onSelectFilter={setStatusFilter}
+					/>
+					<FilterBar
+						activeFilter={styleFilter}
+						filters={TEXT_LIBRARY_STYLE_FILTERS}
+						onSelectFilter={setStyleFilter}
+					/>
 				</div>
 				{visibleDefinitions.length > 0 ? (
-					<TemplateGrid definitions={visibleDefinitions} />
+					<TemplateGrid
+						definitions={visibleDefinitions}
+						libraryState={libraryState}
+						onDownload={handleDownload}
+						onToggleFavorite={handleToggleFavorite}
+						onUseTemplate={handleUseTemplate}
+					/>
 				) : (
 					<div className="py-12 text-center text-xs text-muted-foreground">
-						没有找到匹配的文字样式
+						{emptyMessage}
 					</div>
 				)}
 				{!normalizedSearchQuery &&

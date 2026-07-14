@@ -76,6 +76,35 @@ describe("text template registry", () => {
 		}
 	});
 
+	it("uses scenario-specific content for packaging, template, and smart text categories", () => {
+		const scenarioCategoryIds = [
+			"cover-pack",
+			"headline-template",
+			"summary",
+			"key-point",
+			"subtitle-title",
+		] as const;
+
+		for (const category of scenarioCategoryIds) {
+			const definitions = getTextTemplateDefinitionsByCategory({ category });
+			const contents = new Set(
+				definitions.map((definition) => definition.content)
+			);
+			expect(contents.size).toBeGreaterThan(1);
+		}
+
+		expect(
+			getTextTemplateDefinitionsByCategory({ category: "summary" }).some(
+				(definition) => definition.keywords.includes("ai")
+			)
+		).toBe(true);
+		expect(
+			getTextTemplateDefinitionsByCategory({
+				category: "headline-template",
+			}).some((definition) => definition.keywords.includes("标题模板"))
+		).toBe(true);
+	});
+
 	it("applies category overrides on top of shared style presets", () => {
 		const definition = TEXT_TEMPLATE_DEFINITIONS.find(
 			(candidate) => candidate.id === "glow-glow"
