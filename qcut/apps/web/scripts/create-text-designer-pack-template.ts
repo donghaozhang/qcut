@@ -376,6 +376,7 @@ export async function writeTextDesignerPackTemplate({
 	const manifestPath = join(outDir, "manifest.json");
 	const summaryPath = join(outDir, "pack-summary.json");
 	const readmePath = join(outDir, "README.md");
+	const checklistPath = join(outDir, "replacement-checklist.csv");
 	const contractWrites = template.contracts.map((contract) => ({
 		contract,
 		path: join(outDir, "assets", contract.assetId, "asset-contract.json"),
@@ -398,6 +399,11 @@ export async function writeTextDesignerPackTemplate({
 			"utf8"
 		),
 		writeFile(readmePath, renderReadme({ template }), "utf8"),
+		writeFile(
+			checklistPath,
+			renderReplacementChecklistCsv({ template }),
+			"utf8"
+		),
 		...contractWrites.map(({ contract, path }) =>
 			writeFile(path, `${JSON.stringify(contract, null, "\t")}\n`, "utf8")
 		),
@@ -633,6 +639,8 @@ bun run assets:text:verify-archive
 
 Each asset folder contains \`asset-contract.json\` with the required target identity and per-file \`replacementRequired\` plus \`rejectsCurrentChecksumSha256\` fields. \`pack-summary.json\` records the expected imported asset count and replacement file count for handoff review. Keep \`assetId\`, \`packageId\`, \`version\`, and \`cacheKey\` unchanged inside \`template.json\` and \`template.qctext\`. The import step rejects unchanged files by default, so every listed asset must be replaced with a real designer payload.
 
+Use \`replacement-checklist.csv\` as the production handoff tracker. It lists each replacement target folder, category, cache key, and the three required file paths so design, generation, and import review can reconcile the same 100-slot checklist.
+
 Use \`--include-current-files\` when creating the pack to include the current generated files at the exact replacement paths. They are references only; designers still need to replace or edit them before import.
 
 Designer-ready pack templates use the same actionable replacement slots as \`assets:text:designer-gap-report\`, so the exported folders match the assets that currently block \`assets:text:verify-designer-ready\`.
@@ -663,6 +671,48 @@ ${categoryRows}
 | --- | --- | --- | --- | --- |
 ${assetRows}
 `;
+}
+
+function renderReplacementChecklistCsv({
+	template,
+}: {
+	template: TextDesignerPackTemplate;
+}): string {
+	const header = [
+		"assetId",
+		"category",
+		"packageId",
+		"version",
+		"cacheKey",
+		"targetDirectory",
+		"thumbnailPath",
+		"sourcePath",
+		"qcutPackagePath",
+		"requiredFiles",
+	];
+	const rows = template.contracts.map((contract) => {
+		const targetDirectory = dirname(contract.files.thumbnail.designerPath);
+		return [
+			contract.assetId,
+			contract.category ?? "unknown",
+			contract.packageId,
+			String(contract.version),
+			contract.cacheKey,
+			targetDirectory,
+			contract.files.thumbnail.designerPath,
+			contract.files.source.designerPath,
+			contract.files.qcutPackage.designerPath,
+			"thumbnail.webp;template.json;template.qctext",
+		];
+	});
+	return [header, ...rows]
+		.map((row) => row.map((value) => escapeCsvValue({ value })).join(","))
+		.join("\n")
+		.concat("\n");
+}
+
+function escapeCsvValue({ value }: { value: string }): string {
+	return `"${value.replaceAll('"', '""')}"`;
 }
 
 function renderContactSheetHtml({

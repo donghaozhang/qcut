@@ -354,9 +354,20 @@ describe("text designer pack template script", () => {
 		expect(readme).toContain("replacementRequired");
 		expect(readme).toContain("rejectsCurrentChecksumSha256");
 		expect(readme).toContain("pack-summary.json");
+		expect(readme).toContain("replacement-checklist.csv");
 		expect(readme).toContain("--pack-archive <designer-pack.tar.gz>");
 		expect(readme).toContain("--include-current-files");
 		expect(readme).toContain("| red | 1 |");
+		const checklist = await readFile(
+			join(outDir, "replacement-checklist.csv"),
+			"utf8"
+		);
+		expect(checklist).toContain(
+			'"assetId","category","packageId","version","cacheKey","targetDirectory","thumbnailPath","sourcePath","qcutPackagePath","requiredFiles"'
+		);
+		expect(checklist).toContain(
+			'"text-red-demo","red","text-fancy-red","1","text-assets/text-red-demo/plain@1","assets/text-red-demo","assets/text-red-demo/thumbnail.webp","assets/text-red-demo/template.json","assets/text-red-demo/template.qctext","thumbnail.webp;template.json;template.qctext"'
+		);
 		const contactSheet = await readFile(
 			join(outDir, "CONTACT_SHEET.html"),
 			"utf8"
@@ -434,7 +445,7 @@ describe("text designer pack template script", () => {
 			createTextDesignerPackTemplateArchive({ archivePath, outDir })
 		).resolves.toMatchObject({
 			archivePath,
-			fileCount: 4,
+			fileCount: 5,
 			format: "tar.gz",
 		});
 		await expect(readFile(archivePath)).resolves.toBeInstanceOf(Buffer);
