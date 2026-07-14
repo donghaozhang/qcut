@@ -10,6 +10,7 @@ import {
 } from "../text-template-resource";
 import {
 	TEXT_TEMPLATE_DEFINITIONS,
+	buildTextTemplate,
 	type TextTemplateDefinition,
 } from "../text-template-registry";
 
@@ -41,7 +42,7 @@ function textDefinition(): TextTemplateDefinition {
 		groupId: "fancy",
 		variantId: "plain",
 		content: "花字",
-		stylePresetId: "bold-red",
+		stylePresetId: "clean-white",
 		keywords: ["remote", "resource", "test"],
 		premium: false,
 		downloaded: false,
@@ -289,7 +290,11 @@ describe("downloadTextTemplateResource", () => {
 	});
 
 	it("keeps registry templates when package resolution is disabled", async () => {
-		const definition = textDefinition();
+		const definition = TEXT_TEMPLATE_DEFINITIONS.find(
+			(candidate) => candidate.downloaded
+		);
+		if (!definition)
+			throw new Error("Expected a bundled text template fixture");
 		const fallbackTemplate = buildTextTemplate({ definition });
 		const fetchImpl = vi.fn<typeof fetch>();
 

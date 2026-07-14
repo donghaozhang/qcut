@@ -272,7 +272,12 @@ export async function resolveTextTemplateForTimeline({
 			fetchImpl,
 			storage,
 		});
-		return { ...fallbackTemplate, ...packageSource.template };
+		return {
+			...fallbackTemplate,
+			...packageSource.template,
+			id: fallbackTemplate.id,
+			type: fallbackTemplate.type,
+		};
 	} catch {
 		return fallbackTemplate;
 	}
