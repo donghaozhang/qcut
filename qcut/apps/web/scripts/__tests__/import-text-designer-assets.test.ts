@@ -695,8 +695,8 @@ describe("text designer asset import script", () => {
 		const { generatedManifest, packDir, packManifest, publicDir } =
 			await createDesignerFixture();
 		await writeDesignerAssetContract({
-			packageChecksum: generatedManifest["text-demo"]!.qcutPackage!
-				.checksumSha256,
+			packageChecksum:
+				generatedManifest["text-demo"]!.qcutPackage!.checksumSha256,
 			packDir,
 			sourceChecksum: generatedManifest["text-demo"]!.source.checksumSha256,
 			thumbnailChecksum:

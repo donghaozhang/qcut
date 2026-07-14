@@ -135,10 +135,7 @@ type DesignerAssetContract = {
 	assetId: string;
 	cacheKey?: string;
 	files: Partial<
-		Record<
-			"qcutPackage" | "source" | "thumbnail",
-			DesignerAssetFileContract
-		>
+		Record<"qcutPackage" | "source" | "thumbnail", DesignerAssetFileContract>
 	>;
 	packageId?: string;
 	version?: number;
