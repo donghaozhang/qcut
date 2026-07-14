@@ -639,7 +639,7 @@ function TemplateGrid({
 	);
 }
 
-function getTextTemplateRuntimeDownloadStatus({
+export function getTextTemplateRuntimeDownloadStatus({
 	definition,
 	runtimeByAssetKey,
 	state,
@@ -654,6 +654,7 @@ function getTextTemplateRuntimeDownloadStatus({
 		id: asset.id,
 		version: asset.version,
 	});
+	if (asset.delivery !== "remote") return "cached";
 	const runtime = runtimeByAssetKey[assetKey];
 	if (
 		runtime?.downloadStatus === "downloading" ||

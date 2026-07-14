@@ -1,15 +1,44 @@
 import { describe, expect, it } from "vitest";
-import { getTextTemplateDefinitionsByCategory } from "@/lib/text/text-template-registry";
+import { EMPTY_TEXT_LIBRARY_STATE } from "@/lib/text/text-library-state";
+import {
+	getTextTemplateDefinitionsByCategory,
+	type TextTemplateDefinition,
+} from "@/lib/text/text-template-registry";
 import {
 	applyTextTemplatePackCopyValues,
 	buildTextTemplateDragData,
 	getTextTemplateAccessibilityLabel,
 	getTextTemplatePackCopyDefaults,
+	getTextTemplateRuntimeDownloadStatus,
 	getExpandedTextTemplateGridColumnCount,
 	getTextTemplateGridColumnCount,
 	sortTextDefinitionsForBrowsing,
 } from "../text";
 import { buildTextTemplatePack } from "@/lib/text/text-template-packs";
+
+function createRemoteOnlyDefinition(): TextTemplateDefinition {
+	return {
+		id: "remote-only-text",
+		name: "Remote only text",
+		category: "red",
+		groupId: "fancy",
+		variantId: "plain",
+		content: "花字",
+		stylePresetId: "clean-white",
+		keywords: ["remote"],
+		premium: false,
+		downloaded: false,
+		resource: {
+			assetId: "text-remote-only",
+			packageId: "text-remote-only",
+			version: 1,
+			entitlement: "free",
+			cacheKey: "text-assets/text-remote-only/plain@1",
+			sizeKb: 128,
+		},
+		catalogVisible: true,
+	};
+}
 
 describe("text view layout", () => {
 	it("keeps the asset grid at four or five columns for typical panel widths", () => {
@@ -108,5 +137,31 @@ describe("text view layout", () => {
 				templateName: "标题组合",
 			})
 		).toBe("添加组合文字模板 标题组合");
+	});
+
+	it("treats bundled generated text resources as cached in the grid", () => {
+		const definition = getTextTemplateDefinitionsByCategory({
+			category: "red",
+		}).find((candidate) => !candidate.downloaded);
+		if (!definition)
+			throw new Error("Expected a bundled generated text fixture");
+
+		expect(
+			getTextTemplateRuntimeDownloadStatus({
+				definition,
+				runtimeByAssetKey: {},
+				state: EMPTY_TEXT_LIBRARY_STATE,
+			})
+		).toBe("cached");
+	});
+
+	it("keeps unknown remote-only text resources downloadable", () => {
+		expect(
+			getTextTemplateRuntimeDownloadStatus({
+				definition: createRemoteOnlyDefinition(),
+				runtimeByAssetKey: {},
+				state: EMPTY_TEXT_LIBRARY_STATE,
+			})
+		).toBe("remote");
 	});
 });
