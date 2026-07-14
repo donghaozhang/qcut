@@ -248,6 +248,15 @@ describe("text designer pack template script", () => {
 			],
 			schemaVersion: 1,
 		});
+		expect(template.summary).toEqual({
+			assets: 1,
+			categoryCounts: {
+				unknown: 1,
+			},
+			expectedDesignerImportedAssets: 1,
+			requiredReplacementFiles: 3,
+			schemaVersion: 1,
+		});
 		expect(template.contracts[0]).toMatchObject({
 			assetId: "text-demo",
 			cacheKey: "text-assets/text-demo/plain@1",
@@ -303,6 +312,9 @@ describe("text designer pack template script", () => {
 		await expect(
 			readFile(join(outDir, "assets/text-red-demo/asset-contract.json"), "utf8")
 		).resolves.toContain('"category": "red"');
+		await expect(
+			readFile(join(outDir, "pack-summary.json"), "utf8")
+		).resolves.toContain('"expectedDesignerImportedAssets": 1');
 		const readme = await readFile(join(outDir, "README.md"), "utf8");
 		expect(readme).toContain("assets:text:import-designer");
 		expect(readme).toContain("assets:text:import-designer-ready");
@@ -313,6 +325,7 @@ describe("text designer pack template script", () => {
 		expect(readme).toContain("CONTACT_SHEET.html");
 		expect(readme).toContain("Must be a non-empty WebP payload");
 		expect(readme).toContain('kind: "qcut-text-template-package"');
+		expect(readme).toContain("pack-summary.json");
 		expect(readme).toContain("--include-current-files");
 		expect(readme).toContain("| red | 1 |");
 		const contactSheet = await readFile(

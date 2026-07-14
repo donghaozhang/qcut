@@ -59,6 +59,15 @@ export type TextDesignerPackTemplateFileContract = {
 export type TextDesignerPackTemplate = {
 	contracts: TextDesignerPackTemplateAssetContract[];
 	manifest: TextDesignerAssetPackManifest;
+	summary: TextDesignerPackTemplateSummary;
+};
+
+export type TextDesignerPackTemplateSummary = {
+	assets: number;
+	categoryCounts: Record<string, number>;
+	expectedDesignerImportedAssets: number;
+	requiredReplacementFiles: number;
+	schemaVersion: 1;
 };
 
 type ResolvedDesignerPackAsset = {
@@ -310,14 +319,16 @@ export function buildTextDesignerPackTemplate({
 		assetIds: uniqueAssetIds({ assetIds }),
 		generatedManifest,
 	});
+	const contracts = resolvedAssets.map(({ entry, packEntry }) =>
+		buildAssetContract({ entry, packEntry })
+	);
 	return {
-		contracts: resolvedAssets.map(({ entry, packEntry }) =>
-			buildAssetContract({ entry, packEntry })
-		),
+		contracts,
 		manifest: {
 			assets: resolvedAssets.map(({ packEntry }) => packEntry),
 			schemaVersion: 1,
 		},
+		summary: buildPackTemplateSummary({ contracts }),
 	};
 }
 
@@ -335,6 +346,7 @@ export async function writeTextDesignerPackTemplate({
 	template: TextDesignerPackTemplate;
 }): Promise<void> {
 	const manifestPath = join(outDir, "manifest.json");
+	const summaryPath = join(outDir, "pack-summary.json");
 	const readmePath = join(outDir, "README.md");
 	const contractWrites = template.contracts.map((contract) => ({
 		contract,
@@ -350,6 +362,11 @@ export async function writeTextDesignerPackTemplate({
 		writeFile(
 			manifestPath,
 			`${JSON.stringify(template.manifest, null, "\t")}\n`,
+			"utf8"
+		),
+		writeFile(
+			summaryPath,
+			`${JSON.stringify(template.summary, null, "\t")}\n`,
 			"utf8"
 		),
 		writeFile(readmePath, renderReadme({ template }), "utf8"),
@@ -472,6 +489,25 @@ function buildAssetContract({
 	};
 }
 
+function buildPackTemplateSummary({
+	contracts,
+}: {
+	contracts: readonly TextDesignerPackTemplateAssetContract[];
+}): TextDesignerPackTemplateSummary {
+	const categoryCounts: Record<string, number> = {};
+	for (const contract of contracts) {
+		const category = contract.category ?? "unknown";
+		categoryCounts[category] = (categoryCounts[category] ?? 0) + 1;
+	}
+	return {
+		assets: contracts.length,
+		categoryCounts,
+		expectedDesignerImportedAssets: contracts.length,
+		requiredReplacementFiles: contracts.length * 3,
+		schemaVersion: 1,
+	};
+}
+
 function renderReadme({
 	template,
 }: {
@@ -499,7 +535,7 @@ bun run assets:text:verify-stage
 bun run assets:text:verify-archive
 \`\`\`
 
-Each asset folder contains \`asset-contract.json\` with the required target identity. Keep \`assetId\`, \`packageId\`, \`version\`, and \`cacheKey\` unchanged inside \`template.json\` and \`template.qctext\`. The import step rejects unchanged files by default, so every listed asset must be replaced with a real designer payload.
+Each asset folder contains \`asset-contract.json\` with the required target identity. \`pack-summary.json\` records the expected imported asset count and replacement file count for handoff review. Keep \`assetId\`, \`packageId\`, \`version\`, and \`cacheKey\` unchanged inside \`template.json\` and \`template.qctext\`. The import step rejects unchanged files by default, so every listed asset must be replaced with a real designer payload.
 
 Use \`--include-current-files\` when creating the pack to include the current generated files at the exact replacement paths. They are references only; designers still need to replace or edit them before import.
 
