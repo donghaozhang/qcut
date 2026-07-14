@@ -139,6 +139,16 @@ describe("text asset CDN upload script", () => {
 		).toContain("--write-upload-plan dist/text-assets-upload-plan.json");
 	});
 
+	it("exposes a one-command proof for generated fallback release artifacts", () => {
+		const packageJson = JSON.parse(readFileSync(PACKAGE_JSON_PATH, "utf8")) as {
+			scripts: Record<string, string>;
+		};
+
+		expect(packageJson.scripts["assets:text:proof-release"]).toBe(
+			"bun run assets:text:verify-cdn && bun run assets:text:release-stage && bun run assets:text:verify-stage && bun run assets:text:verify-archive"
+		);
+	});
+
 	it("parses upload options from env and CLI overrides", () => {
 		expect(
 			parseTextAssetUploadArgs({
