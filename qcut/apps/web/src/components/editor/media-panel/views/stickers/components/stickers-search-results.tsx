@@ -3,12 +3,14 @@
 import { Loader2, Search } from "lucide-react";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { findStickerCatalogItem } from "@/lib/stickers/sticker-catalog";
+import { StickerGrid } from "./sticker-grid";
 import { StickerItem } from "./sticker-item";
 
 interface StickersSearchResultsProps {
 	searchResults: string[];
 	searchQuery: string;
 	isSearching: boolean;
+	onDownload: (iconId: string, name: string) => void | Promise<void>;
 	onSelect: (iconId: string, name: string) => void;
 }
 
@@ -16,6 +18,7 @@ export function StickersSearchResults({
 	searchResults,
 	searchQuery,
 	isSearching,
+	onDownload,
 	onSelect,
 }: StickersSearchResultsProps) {
 	if (isSearching && searchResults.length === 0) {
@@ -44,7 +47,7 @@ export function StickersSearchResults({
 
 	return (
 		<TooltipProvider>
-			<div className="grid grid-cols-[repeat(auto-fill,minmax(82px,1fr))] gap-2.5 p-3">
+			<StickerGrid className="p-2">
 				{searchResults.map((result) => {
 					const [collection, iconName] = result.split(":");
 					if (!collection || !iconName) {
@@ -61,11 +64,12 @@ export function StickersSearchResults({
 							name={catalogItem?.localizedName ?? iconName}
 							collection={collection}
 							layout="catalog"
+							onDownload={onDownload}
 							onSelect={onSelect}
 						/>
 					);
 				})}
-			</div>
+			</StickerGrid>
 		</TooltipProvider>
 	);
 }

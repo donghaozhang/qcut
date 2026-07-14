@@ -1,0 +1,35 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" role="img" aria-label="Milk Tea Mouse Hello">
+	<defs>
+		<filter id="shadow" x="-30%" y="-30%" width="160%" height="170%">
+			<feDropShadow dx="0" dy="13" stdDeviation="10" flood-color="#312331" flood-opacity="0.22"/>
+		</filter>
+	</defs>
+	<g filter="url(#shadow)">
+		<ellipse cx="389" cy="280" rx="39" ry="83" fill="#c99a74" stroke="white" stroke-width="28" transform="rotate(25 389 280)"/>
+			<ellipse cx="389" cy="280" rx="39" ry="83" fill="#c99a74" stroke="#57392d" stroke-width="12" transform="rotate(25 389 280)"/>
+			<path d="M 420 147 Q 448 164 455 194 M 397 136 Q 415 155 418 181" fill="none" stroke="#b77846" stroke-width="12" stroke-linecap="round"/>
+
+		<g>
+			<circle cx="158" cy="168" r="69" fill="#c99a74" stroke="white" stroke-width="32"/>
+			<circle cx="354" cy="168" r="69" fill="#c99a74" stroke="white" stroke-width="32"/>
+			<circle cx="158" cy="168" r="69" fill="#c99a74" stroke="#57392d" stroke-width="12"/>
+			<circle cx="354" cy="168" r="69" fill="#c99a74" stroke="#57392d" stroke-width="12"/>
+			<circle cx="158" cy="168" r="39" fill="#f3d2b7"/>
+			<circle cx="354" cy="168" r="39" fill="#f3d2b7"/>
+		</g>
+		<ellipse cx="256" cy="367" rx="128" ry="105" fill="#c99a74" stroke="white" stroke-width="32"/>
+		<path d="M 128 230 C 128 142 188 112 256 112 C 324 112 384 142 384 230 C 384 329 330 371 256 371 C 182 371 128 329 128 230 Z" fill="#c99a74" stroke="white" stroke-width="32" stroke-linejoin="round"/>
+		<ellipse cx="256" cy="367" rx="128" ry="105" fill="#c99a74" stroke="#57392d" stroke-width="12"/>
+		<path d="M 128 230 C 128 142 188 112 256 112 C 324 112 384 142 384 230 C 384 329 330 371 256 371 C 182 371 128 329 128 230 Z" fill="#c99a74" stroke="#57392d" stroke-width="12" stroke-linejoin="round"/>
+		<ellipse cx="171" cy="373" rx="47" ry="36" fill="#c99a74" stroke="#57392d" stroke-width="10" transform="rotate(20 171 373)"/>
+		<ellipse cx="341" cy="373" rx="47" ry="36" fill="#c99a74" stroke="#57392d" stroke-width="10" transform="rotate(-20 341 373)"/>
+		<ellipse cx="214" cy="452" rx="52" ry="28" fill="#f3d2b7" stroke="#57392d" stroke-width="10"/>
+		<ellipse cx="298" cy="452" rx="52" ry="28" fill="#f3d2b7" stroke="#57392d" stroke-width="10"/>
+		<ellipse cx="256" cy="289" rx="42" ry="31" fill="#f3d2b7"/>
+			<path d="M 246 280 Q 256 270 266 280 Q 256 294 246 280 Z" fill="#57392d"/>
+			<path d="M 174 281 L 108 266 M 174 300 L 104 303 M 338 281 L 404 266 M 338 300 L 408 303" stroke="#57392d" stroke-width="6" stroke-linecap="round"/>
+		<path d="M 193 250 Q 214 271 235 250 M 277 250 Q 298 271 319 250" fill="none" stroke="#57392d" stroke-width="11" stroke-linecap="round"/>
+		<path d="M 226 300 Q 256 333 286 300" fill="none" stroke="#57392d" stroke-width="11" stroke-linecap="round"/>
+
+	</g>
+</svg>

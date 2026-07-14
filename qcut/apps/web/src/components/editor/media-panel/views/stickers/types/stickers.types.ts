@@ -6,6 +6,7 @@ export type StickerItemProps = {
 	name: string;
 	collection: string;
 	onSelect: (iconId: string, name: string) => void;
+	onDownload?: (iconId: string, name: string) => void | Promise<void>;
 	isSelected?: boolean;
 	layout?: "compact" | "catalog";
 };

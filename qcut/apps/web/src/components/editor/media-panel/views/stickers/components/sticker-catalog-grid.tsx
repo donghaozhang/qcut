@@ -3,20 +3,20 @@
 import { TooltipProvider } from "@/components/ui/tooltip";
 import type { StickerCatalogItem } from "@/lib/stickers/sticker-catalog";
 import { StickerItem } from "./sticker-item";
+import { StickerGrid } from "./sticker-grid";
 
 export function StickerCatalogGrid({
 	items,
+	onDownload,
 	onSelect,
 }: {
 	items: StickerCatalogItem[];
+	onDownload: (iconId: string, name: string) => void | Promise<void>;
 	onSelect: (iconId: string, name: string) => void;
 }) {
 	return (
 		<TooltipProvider>
-			<div
-				className="grid grid-cols-[repeat(auto-fill,minmax(82px,1fr))] gap-2.5"
-				data-testid="sticker-category-grid"
-			>
+			<StickerGrid testId="sticker-category-grid">
 				{items.map((sticker) => (
 					<StickerItem
 						key={sticker.id}
@@ -24,10 +24,11 @@ export function StickerCatalogGrid({
 						name={sticker.localizedName}
 						collection={sticker.collection}
 						layout="catalog"
+						onDownload={onDownload}
 						onSelect={onSelect}
 					/>
 				))}
-			</div>
+			</StickerGrid>
 		</TooltipProvider>
 	);
 }

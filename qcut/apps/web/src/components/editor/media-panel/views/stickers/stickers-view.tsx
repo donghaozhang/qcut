@@ -48,8 +48,15 @@ export function StickersView() {
 		clearError,
 		clearSearchResults,
 	} = useStickersStore();
-	const { handleStickerSelect, handleStickerUpload, cleanupObjectUrls } =
-		useStickerSelect();
+	const {
+		handleStickerDownload: downloadSticker,
+		handleStickerSelect,
+		handleStickerUpload,
+		cleanupObjectUrls,
+	} = useStickerSelect();
+	const handleStickerDownload = async (iconId: string, name: string) => {
+		await downloadSticker(iconId, name);
+	};
 	const debouncedSearchQuery = useDebounce(searchQuery, 300);
 	const activeCategory = STICKER_CATEGORIES.find(
 		(category) => category.id === selectedCategory
@@ -188,6 +195,7 @@ export function StickersView() {
 							searchResults={combinedSearchResults}
 							searchQuery={searchQuery}
 							isSearching={isSearching}
+							onDownload={handleStickerDownload}
 							onSelect={handleStickerSelect}
 						/>
 					</div>
@@ -195,16 +203,20 @@ export function StickersView() {
 					<div className="h-full overflow-y-auto">
 						<StickersRecent
 							recentStickers={recentStickers}
+							onDownload={handleStickerDownload}
 							onSelect={handleStickerSelect}
 						/>
 					</div>
 				) : mode === "favorites" ? (
 					<div className="h-full overflow-y-auto">
-						<StickersFavorites onSelect={handleStickerSelect} />
+						<StickersFavorites
+							onDownload={handleStickerDownload}
+							onSelect={handleStickerSelect}
+						/>
 					</div>
 				) : (
 					<div className="flex h-full min-h-0">
-						<aside className="w-[118px] shrink-0 overflow-y-auto border-r border-border/50 p-2">
+						<aside className="w-[102px] shrink-0 overflow-y-auto border-r border-border/50 p-1.5">
 							<div className="mb-2 flex h-7 items-center gap-2 px-2 text-[11px] font-semibold text-foreground">
 								<Library className="size-3.5">
 									<title>Sticker library categories</title>
@@ -213,13 +225,12 @@ export function StickersView() {
 							</div>
 							<div className="space-y-0.5">
 								{STICKER_CATEGORIES.map((category) => {
-									const Icon = category.icon;
 									return (
 										<button
 											key={category.id}
 											type="button"
 											className={cn(
-												"flex h-8 w-full items-center gap-2 rounded px-2 text-left text-[11px] transition-colors",
+												"flex h-8 w-full items-center gap-1.5 rounded px-1.5 text-left text-[11px] transition-colors",
 												selectedCategory === category.id
 													? "bg-primary/15 text-primary"
 													: "text-muted-foreground hover:bg-foreground/5 hover:text-foreground"
@@ -234,7 +245,12 @@ export function StickersView() {
 												}
 											}}
 										>
-											<Icon className="size-3.5 shrink-0" />
+											<span
+												className="w-4 shrink-0 text-center text-sm"
+												aria-hidden="true"
+											>
+												{category.emoji}
+											</span>
 											<span className="truncate">
 												{category.localizedLabel}
 											</span>
@@ -253,9 +269,10 @@ export function StickersView() {
 									{categoryItems.length} 个贴纸
 								</span>
 							</div>
-							<div className="min-h-0 flex-1 overflow-y-auto p-3">
+							<div className="min-h-0 flex-1 overflow-y-auto p-2">
 								<StickerCatalogGrid
 									items={categoryItems}
+									onDownload={handleStickerDownload}
 									onSelect={handleStickerSelect}
 								/>
 							</div>
@@ -265,7 +282,7 @@ export function StickersView() {
 			</div>
 
 			<div className="border-t border-border/50 px-3 py-1.5 text-center text-[10px] text-muted-foreground">
-				Open-source artwork by Fluent Emoji via Iconify
+				QCut Originals + Fluent Emoji via Iconify
 			</div>
 		</div>
 	);

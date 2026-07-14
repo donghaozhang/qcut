@@ -215,6 +215,82 @@ export function createIconifyStickerAssetEntry({
 	};
 }
 
+export function createBundledStickerAssetEntry({
+	catalogItem,
+}: {
+	catalogItem: StickerCatalogItem;
+}): AssetManifestEntry {
+	if (catalogItem.source.kind !== "bundled") {
+		throw new Error(`Sticker is not bundled: ${catalogItem.id}`);
+	}
+	return {
+		schemaVersion: ASSET_MANIFEST_SCHEMA_VERSION,
+		id: catalogItem.id,
+		kind: "sticker",
+		version: 1,
+		name: catalogItem.name,
+		localizedNames: { "zh-CN": catalogItem.localizedName },
+		category: catalogItem.category,
+		tags: uniqueTags({
+			tags: [...catalogItem.tags, catalogItem.localizedName, "qcut-original"],
+		}),
+		delivery: "bundled",
+		files: [
+			{
+				role: "thumbnail",
+				url: catalogItem.source.url,
+				mimeType: catalogItem.source.mimeType,
+			},
+			{
+				role: "source",
+				url: catalogItem.source.url,
+				mimeType: catalogItem.source.mimeType,
+			},
+		],
+		license: QCUT_BUILT_IN_LICENSE,
+		metadata: {
+			collection: catalogItem.collection,
+			icon: catalogItem.icon,
+			animated: catalogItem.animated,
+			packId: catalogItem.packId,
+		},
+	};
+}
+
+function stickerCollection({ collectionPrefix }: { collectionPrefix: string }) {
+	return (
+		POPULAR_COLLECTIONS.find(
+			(candidate) => candidate.prefix === collectionPrefix
+		) ?? {
+			prefix: collectionPrefix,
+			name: collectionPrefix,
+			total: 0,
+			category: "Community",
+		}
+	);
+}
+
+export function resolveStickerAssetEntry({
+	collectionPrefix,
+	icon,
+}: {
+	collectionPrefix: string;
+	icon: string;
+}): AssetManifestEntry {
+	const catalogItem = findStickerCatalogItem({
+		collection: collectionPrefix,
+		icon,
+	});
+	if (catalogItem?.source.kind === "bundled") {
+		return createBundledStickerAssetEntry({ catalogItem });
+	}
+	return createIconifyStickerAssetEntry({
+		catalogItem,
+		collection: stickerCollection({ collectionPrefix }),
+		icon,
+	});
+}
+
 export function resolveIconifyStickerAssetEntry({
 	collectionPrefix,
 	icon,
@@ -222,19 +298,7 @@ export function resolveIconifyStickerAssetEntry({
 	collectionPrefix: string;
 	icon: string;
 }): AssetManifestEntry {
-	const collection = POPULAR_COLLECTIONS.find(
-		(candidate) => candidate.prefix === collectionPrefix
-	) ?? {
-		prefix: collectionPrefix,
-		name: collectionPrefix,
-		total: 0,
-		category: "Community",
-	};
-	const catalogItem = findStickerCatalogItem({
-		collection: collectionPrefix,
-		icon,
-	});
-	return createIconifyStickerAssetEntry({ catalogItem, collection, icon });
+	return resolveStickerAssetEntry({ collectionPrefix, icon });
 }
 
 function stickerAssets(): AssetManifestEntry[] {
@@ -246,15 +310,16 @@ function stickerAssets(): AssetManifestEntry[] {
 		}
 	}
 	for (const catalogItem of CURATED_STICKERS) {
-		const collection = POPULAR_COLLECTIONS.find(
-			(candidate) => candidate.prefix === catalogItem.collection
-		);
-		if (!collection) continue;
-		const asset = createIconifyStickerAssetEntry({
-			catalogItem,
-			collection,
-			icon: catalogItem.icon,
-		});
+		const asset =
+			catalogItem.source.kind === "bundled"
+				? createBundledStickerAssetEntry({ catalogItem })
+				: createIconifyStickerAssetEntry({
+						catalogItem,
+						collection: stickerCollection({
+							collectionPrefix: catalogItem.collection,
+						}),
+						icon: catalogItem.icon,
+					});
 		assetsById.set(asset.id, asset);
 	}
 	return [...assetsById.values()];

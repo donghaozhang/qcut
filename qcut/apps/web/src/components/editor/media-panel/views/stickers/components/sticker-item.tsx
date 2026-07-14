@@ -5,7 +5,6 @@ import {
 	assetManifestVersionKey,
 	createInitialAssetRuntimeState,
 } from "@qcut/editor-core";
-import { useEffect, useMemo, useState } from "react";
 import {
 	AlertCircle,
 	Check,
@@ -13,18 +12,20 @@ import {
 	Heart,
 	Loader2,
 } from "lucide-react";
+import { useEffect, useMemo, useState } from "react";
 import {
 	Tooltip,
 	TooltipContent,
 	TooltipTrigger,
 } from "@/components/ui/tooltip";
+import { resolveStickerAssetEntry } from "@/lib/assets/qcut-asset-manifest";
+import { debugLog } from "@/lib/debug/debug-config";
 import {
 	buildIconSvgUrl,
 	iconCollectionUsesPalette,
 } from "@/lib/stickers/iconify-api";
-import { resolveIconifyStickerAssetEntry } from "@/lib/assets/qcut-asset-manifest";
+import { findStickerCatalogItem } from "@/lib/stickers/sticker-catalog";
 import { cn } from "@/lib/utils";
-import { debugLog } from "@/lib/debug/debug-config";
 import { useAssetLibraryStore } from "@/stores/asset-library-store";
 import type { StickerItemProps } from "../types/stickers.types";
 
@@ -32,16 +33,20 @@ export function StickerItem({
 	icon,
 	name,
 	collection,
+	onDownload,
 	onSelect,
 	isSelected,
 	layout = "compact",
 }: StickerItemProps) {
 	const [isLoading, setIsLoading] = useState(true);
 	const [hasError, setHasError] = useState(false);
-	const [imageUrl, setImageUrl] = useState<string>("");
+	const [imageUrl, setImageUrl] = useState("");
+	const catalogItem = useMemo(
+		() => findStickerCatalogItem({ collection, icon }),
+		[collection, icon]
+	);
 	const asset = useMemo(
-		() =>
-			resolveIconifyStickerAssetEntry({ collectionPrefix: collection, icon }),
+		() => resolveStickerAssetEntry({ collectionPrefix: collection, icon }),
 		[collection, icon]
 	);
 	const favoriteIdentity = assetManifestIdentity({
@@ -61,49 +66,42 @@ export function StickerItem({
 	);
 	const toggleFavorite = useAssetLibraryStore((state) => state.toggleFavorite);
 	const runtime = persistedRuntime ?? createInitialAssetRuntimeState({ asset });
+	const displayName = name || icon;
+	const iconId = `${collection}:${icon}`;
+	const isBusy =
+		runtime.downloadStatus === "downloading" ||
+		runtime.cacheStatus === "caching";
+	const isCached = runtime.cacheStatus === "cached";
 
 	useEffect(() => {
-		// Reset state for new icon
 		setIsLoading(true);
 		setHasError(false);
-
 		try {
-			const svgUrl = buildIconSvgUrl(collection, icon, {
-				color: iconCollectionUsesPalette({ prefix: collection })
-					? undefined
-					: "#FFFFFF",
-				width: layout === "catalog" ? 72 : 32,
-				height: layout === "catalog" ? 72 : 32,
-			});
-			setImageUrl(svgUrl);
-		} catch (error) {
-			debugLog(
-				`[StickerItem] Failed to build SVG URL for ${collection}:${icon}:`,
-				error
+			setImageUrl(
+				catalogItem?.source.kind === "bundled"
+					? catalogItem.source.url
+					: buildIconSvgUrl(collection, icon, {
+							color: iconCollectionUsesPalette({ prefix: collection })
+								? undefined
+								: "#FFFFFF",
+							width: layout === "catalog" ? 64 : 32,
+							height: layout === "catalog" ? 64 : 32,
+						})
 			);
+		} catch (error) {
+			debugLog(`[StickerItem] Failed to build image URL for ${iconId}:`, error);
 			setHasError(true);
 			setIsLoading(false);
 		}
-	}, [collection, icon, layout]);
+	}, [catalogItem, collection, icon, iconId, layout]);
 
-	const handleClick = () => {
-		const iconId = `${collection}:${icon}`;
-		debugLog(`[StickerItem] Sticker clicked: ${iconId}`, {
-			name: name || icon,
-			imageUrl,
-			hasError,
-			isLoading,
-		});
-		onSelect(iconId, name || icon);
-	};
+	const handleSelect = () => onSelect(iconId, displayName);
+	const handleDownload = () => onDownload?.(iconId, displayName);
 	const handleFavorite = () => {
 		toggleFavorite({ kind: "sticker", id: asset.id });
 	};
 	const statusIcon = (() => {
-		if (
-			runtime.downloadStatus === "downloading" ||
-			runtime.cacheStatus === "caching"
-		) {
+		if (isBusy) {
 			return (
 				<Loader2 className="size-3 animate-spin">
 					<title>Downloading sticker</title>
@@ -120,7 +118,7 @@ export function StickerItem({
 				</AlertCircle>
 			);
 		}
-		if (runtime.cacheStatus === "cached") {
+		if (isCached) {
 			return (
 				<Check className="size-3 text-emerald-300">
 					<title>Sticker cached</title>
@@ -137,8 +135,8 @@ export function StickerItem({
 	return (
 		<div
 			className={cn(
-				"group relative",
-				layout === "catalog" ? "aspect-square min-h-20 w-full" : "size-14"
+				"group relative min-w-0",
+				layout === "catalog" ? "aspect-square w-full" : "size-14"
 			)}
 		>
 			<Tooltip>
@@ -146,35 +144,39 @@ export function StickerItem({
 					<button
 						type="button"
 						className={cn(
-							"relative flex size-full flex-col items-center justify-center overflow-hidden rounded-md border border-border/80 bg-foreground/[0.04] transition-colors hover:border-primary hover:bg-foreground/[0.08] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary",
+							"relative flex size-full items-center justify-center overflow-hidden rounded-md border border-border/80 bg-foreground/[0.04] transition-colors hover:border-primary hover:bg-foreground/[0.08] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary",
 							isSelected && "border-primary bg-slate-700/70"
 						)}
-						onClick={handleClick}
+						onClick={handleSelect}
 						onKeyDown={(event) => {
 							if (event.key === " ") {
 								event.preventDefault();
-								handleClick();
+								handleSelect();
 							}
 						}}
 						disabled={hasError || !imageUrl}
 						aria-pressed={Boolean(isSelected)}
-						aria-label={(name || icon) + " (" + collection + ")"}
+						aria-label={`${displayName} (${collection})`}
 						data-testid="sticker-item"
-						data-sticker-id={`${collection}:${icon}`}
+						data-sticker-id={iconId}
 					>
 						{isLoading && (
-							<Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+							<Loader2 className="size-5 animate-spin text-muted-foreground">
+								<title>Loading sticker</title>
+							</Loader2>
 						)}
 						{hasError && !isLoading && (
-							<AlertCircle className="h-6 w-6 text-destructive" />
+							<AlertCircle className="size-5 text-destructive">
+								<title>Sticker preview unavailable</title>
+							</AlertCircle>
 						)}
 						{imageUrl && (
 							<img
 								src={imageUrl}
-								alt={name || icon}
+								alt={displayName}
 								className={cn(
 									"object-contain",
-									layout === "catalog" ? "size-14" : "size-8",
+									layout === "catalog" ? "size-12" : "size-8",
 									(isLoading || hasError) && "hidden"
 								)}
 								onLoad={() => setIsLoading(false)}
@@ -185,18 +187,33 @@ export function StickerItem({
 								draggable={false}
 							/>
 						)}
-						<span className="absolute bottom-1 right-1 rounded-sm bg-background/80 p-0.5">
-							{statusIcon}
-						</span>
 					</button>
 				</TooltipTrigger>
 				<TooltipContent side="bottom">
-					<p className="text-sm font-medium">
-						{name || icon} ({collection})
-					</p>
+					<p className="text-sm font-medium">{displayName}</p>
 					<p className="text-xs text-muted-foreground">{asset.license.name}</p>
 				</TooltipContent>
 			</Tooltip>
+			{layout === "catalog" && (
+				<button
+					type="button"
+					className="absolute bottom-0.5 right-0.5 z-10 flex size-5 items-center justify-center rounded-sm bg-background/85 text-muted-foreground transition-colors hover:text-foreground disabled:cursor-default"
+					aria-label={
+						isCached ? `${displayName} cached` : `Download ${displayName}`
+					}
+					title={isCached ? "Available offline" : "Download sticker"}
+					disabled={isCached || isBusy || !onDownload}
+					onClick={handleDownload}
+					onKeyDown={(event) => {
+						if (event.key === " ") {
+							event.preventDefault();
+							handleDownload();
+						}
+					}}
+				>
+					{statusIcon}
+				</button>
+			)}
 			<button
 				type="button"
 				className={cn(
@@ -205,8 +222,8 @@ export function StickerItem({
 				)}
 				aria-label={
 					favorite
-						? `Remove ${name || icon} from favorites`
-						: `Favorite ${name || icon}`
+						? `Remove ${displayName} from favorites`
+						: `Favorite ${displayName}`
 				}
 				title={favorite ? "Remove from favorites" : "Add to favorites"}
 				onClick={handleFavorite}

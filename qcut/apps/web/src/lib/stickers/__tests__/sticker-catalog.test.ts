@@ -47,11 +47,15 @@ describe("sticker catalog", () => {
 			"美妆",
 			"颜表情",
 		]);
-		expect(CURATED_STICKERS).toHaveLength(STICKER_CATEGORIES.length * 5);
+		expect(CURATED_STICKERS).toHaveLength(
+			STICKER_CATEGORIES.length * STICKER_CATEGORY_MINIMUM_SIZE
+		);
 	});
 
 	it("matches localized names, English names, and category tags", () => {
-		expect(searchStickerCatalog({ query: "奶茶" })).toHaveLength(5);
+		expect(searchStickerCatalog({ query: "奶茶" })).toHaveLength(
+			STICKER_CATEGORY_MINIMUM_SIZE
+		);
 		expect(
 			searchStickerCatalog({ query: "camera" }).map((item) => item.icon)
 		).toContain("camera");

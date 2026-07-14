@@ -1,6 +1,9 @@
 import { fireEvent, render, screen, within } from "@testing-library/react";
 import { beforeEach, describe, expect, it } from "vitest";
-import { STICKER_CATEGORIES } from "@/lib/stickers/sticker-catalog";
+import {
+	STICKER_CATEGORIES,
+	STICKER_CATEGORY_MINIMUM_SIZE,
+} from "@/lib/stickers/sticker-catalog";
 import { useAssetLibraryStore } from "@/stores/asset-library-store";
 import { useStickersStore } from "@/stores/stickers-store";
 import { StickersView } from "../stickers-view";
@@ -23,12 +26,14 @@ describe("StickersView", () => {
 			"aria-pressed",
 			"true"
 		);
-		expect(screen.getByText("5 个贴纸")).toBeInTheDocument();
+		expect(
+			screen.getByText(`${STICKER_CATEGORY_MINIMUM_SIZE} 个贴纸`)
+		).toBeInTheDocument();
 		expect(
 			within(screen.getByTestId("sticker-category-grid")).getAllByTestId(
 				"sticker-item"
 			)
-		).toHaveLength(5);
+		).toHaveLength(STICKER_CATEGORY_MINIMUM_SIZE);
 		expect(screen.getByRole("img", { name: "点赞" })).toBeInTheDocument();
 	});
 
@@ -40,7 +45,9 @@ describe("StickersView", () => {
 			const items = within(
 				screen.getByTestId("sticker-category-grid")
 			).getAllByTestId("sticker-item");
-			expect(items.length, category.id).toBeGreaterThanOrEqual(5);
+			expect(items.length, category.id).toBeGreaterThanOrEqual(
+				STICKER_CATEGORY_MINIMUM_SIZE
+			);
 			expect(
 				screen.getByTestId(`sticker-category-${category.id}`)
 			).toHaveAttribute("aria-pressed", "true");
@@ -58,9 +65,13 @@ describe("StickersView", () => {
 		);
 
 		const results = screen.getAllByTestId("sticker-item");
-		expect(results).toHaveLength(5);
-		expect(screen.getByRole("img", { name: "奶茶" })).toBeInTheDocument();
-		expect(screen.getByRole("img", { name: "鼠鼠脸" })).toBeInTheDocument();
+		expect(results).toHaveLength(STICKER_CATEGORY_MINIMUM_SIZE);
+		expect(
+			screen.getByRole("img", { name: "奶茶鼠·开心" })
+		).toBeInTheDocument();
+		expect(
+			screen.getByRole("img", { name: "奶茶鼠·自拍" })
+		).toBeInTheDocument();
 	});
 
 	it("switches between the library, recent stickers, and favorites", () => {
