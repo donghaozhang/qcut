@@ -276,6 +276,8 @@ export const useStickerPackStore = create<StickerPackStore>()(
 			version: 2,
 			storage: createJSONStorage(() => localStorage),
 			partialize: ({ installedPacks }) => ({ installedPacks }),
+			migrate: (persistedState) =>
+				normalizeStickerPackPersistedState({ value: persistedState }),
 			merge: (persistedState, currentState) => ({
 				...currentState,
 				...normalizeStickerPackPersistedState({ value: persistedState }),

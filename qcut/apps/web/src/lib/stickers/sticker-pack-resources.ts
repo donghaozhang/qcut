@@ -45,6 +45,9 @@ function operationAssets({
 	const assets = pack.items.map((item) =>
 		resolveStickerPackItemAsset({ item })
 	);
+	if (assets.length === 0) {
+		throw new Error(`Sticker pack cannot be empty: ${pack.id}`);
+	}
 	const uniqueAssets = new Map(
 		assets.map((asset) => [`${asset.kind}:${asset.id}@${asset.version}`, asset])
 	);
@@ -61,10 +64,10 @@ function workerCount({
 	concurrency: number;
 	totalItems: number;
 }): number {
-	return Math.min(
-		totalItems,
-		Math.max(1, Math.min(8, Math.floor(concurrency)))
-	);
+	const normalizedConcurrency = Number.isFinite(concurrency)
+		? Math.floor(concurrency)
+		: 1;
+	return Math.min(totalItems, Math.max(1, Math.min(8, normalizedConcurrency)));
 }
 
 function throwIfAborted({ signal }: { signal?: AbortSignal }): void {

@@ -134,7 +134,7 @@ export function StickerStorefront({
 					if (operation?.status === "removing") {
 						actionLabel = `移除 ${progressPercent}%`;
 					}
-					if (operation?.status === "failed") actionLabel = "重试";
+					if (hasAccess && operation?.status === "failed") actionLabel = "重试";
 					const handleLockedSelect = () => {
 						if (!hasAccess) {
 							toast.info(`${pack.localizedName} 需要 QCut Pro`);
