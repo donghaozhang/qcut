@@ -62,8 +62,8 @@ export type TextDesignerAssetImportPlan = {
 export type TextDesignerAssetImportSummary = {
 	copiedFiles: number;
 	designerImportedAssets: number;
+	designerImportedCategories: number;
 	dryRun: boolean;
-	requiredDesignerCategories: number;
 	totalAssets: number;
 	totalBytes: number;
 	totalFiles: number;
@@ -351,8 +351,8 @@ export async function applyTextDesignerAssetImportPlan({
 	return {
 		copiedFiles: dryRun ? 0 : plan.items.length,
 		designerImportedAssets: provenance.designerImported,
+		designerImportedCategories: designerCategories.size,
 		dryRun,
-		requiredDesignerCategories: designerCategories.size,
 		totalAssets: importedAssetIds.size,
 		totalBytes,
 		totalFiles: plan.items.length,
