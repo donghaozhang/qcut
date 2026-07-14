@@ -247,5 +247,9 @@ describe("text designer asset import script", () => {
 		expect(writtenManifest["text-demo"]?.source.byteSize).toBe(
 			"new-source".length
 		);
+		expect(writtenManifest["text-demo"]?.provenance).toEqual({
+			source: "designer-imported",
+			pipeline: "designer-pack-v1",
+		});
 	});
 });

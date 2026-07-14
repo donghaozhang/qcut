@@ -29,6 +29,7 @@ type TextAssetManifestEntry = {
 	packageId: string;
 	version: number;
 	cacheKey: string;
+	provenance: typeof GENERATED_TEXT_ASSET_PROVENANCE;
 	thumbnail: TextAssetFile;
 	source: TextAssetFile;
 	qcutPackage: TextAssetFile;

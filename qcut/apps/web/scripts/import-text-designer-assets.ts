@@ -272,9 +272,11 @@ function applyPlanToManifest({
 	items: readonly TextDesignerAssetImportPlanItem[];
 }): Record<string, TextAssetGeneratedEntry> {
 	const updatedManifest = structuredClone(generatedManifest);
+	const importedAssetIds = new Set<string>();
 	for (const item of items) {
 		const entry = updatedManifest[item.assetId];
 		if (!entry) throw new Error(`Unknown text asset id: ${item.assetId}`);
+		importedAssetIds.add(item.assetId);
 		const updatedFile: TextAssetGeneratedFile = {
 			byteSize: item.byteSize,
 			checksumSha256: item.checksumSha256,
@@ -287,13 +289,13 @@ function applyPlanToManifest({
 		}
 		if (item.role === "source") {
 			entry.source = updatedFile;
-			entry.provenance = {
-				source: "designer-imported",
-				pipeline: "designer-pack-v1",
-			};
 			continue;
 		}
 		entry.qcutPackage = updatedFile;
+	}
+	for (const assetId of importedAssetIds) {
+		const entry = updatedManifest[assetId];
+		if (!entry) throw new Error(`Unknown text asset id: ${assetId}`);
 		entry.provenance = {
 			source: "designer-imported",
 			pipeline: "designer-pack-v1",
