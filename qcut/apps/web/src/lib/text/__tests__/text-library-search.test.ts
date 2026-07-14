@@ -232,6 +232,47 @@ describe("text library search", () => {
 		).toEqual(["glow-style"]);
 	});
 
+	it("tolerates small latin typos inside longer pinyin metadata", () => {
+		const definitions = [
+			createDefinition({
+				category: "basic",
+				content: "红色花字",
+				id: "red-style",
+				keywords: ["红色", "花字"],
+				variantId: "red-burst",
+			}),
+			createDefinition({
+				category: "blue",
+				content: "直播价格",
+				id: "live-sale-style",
+				keywords: ["直播", "价格", "优惠"],
+				variantId: "blue-ice",
+			}),
+		];
+
+		expect(
+			rankTextTemplateSearchResults({
+				definitions,
+				query: "hongze",
+				state: EMPTY_TEXT_LIBRARY_STATE,
+			}).map((definition) => definition.id)
+		).toEqual(["red-style"]);
+		expect(
+			rankTextTemplateSearchResults({
+				definitions,
+				query: "zhibl",
+				state: EMPTY_TEXT_LIBRARY_STATE,
+			}).map((definition) => definition.id)
+		).toEqual(["live-sale-style"]);
+		expect(
+			rankTextTemplateSearchResults({
+				definitions,
+				query: "zb",
+				state: EMPTY_TEXT_LIBRARY_STATE,
+			}).map((definition) => definition.id)
+		).toEqual(["live-sale-style"]);
+	});
+
 	it("matches common Chinese typo queries against corrected marketplace terms", () => {
 		const definitions = [
 			createDefinition({

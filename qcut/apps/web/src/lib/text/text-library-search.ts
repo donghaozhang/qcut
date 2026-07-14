@@ -522,6 +522,11 @@ function scoreSearchVariant({
 		if (distance === 1) return 8;
 		if (distance === 2 && term.length >= 6) return 5;
 	}
+	if (shouldUseFuzzySubstringMatch({ field, term })) {
+		const distance = boundedSubstringLevenshteinDistance({ field, term });
+		if (distance === 1) return 7;
+		if (distance === 2 && term.length >= 6) return 4;
+	}
 	return 0;
 }
 
@@ -623,6 +628,47 @@ function shouldUseFuzzyMatch({
 	if (term.length < 4 || field.length < 4) return false;
 	if (!/^[a-z0-9]+$/.test(term) || !/^[a-z0-9]+$/.test(field)) return false;
 	return Math.abs(field.length - term.length) <= 2;
+}
+
+function shouldUseFuzzySubstringMatch({
+	field,
+	term,
+}: {
+	field: string;
+	term: string;
+}): boolean {
+	if (term.length < 5 || field.length <= term.length) return false;
+	if (!/^[a-z0-9]+$/.test(term) || !/^[a-z0-9]+$/.test(field)) return false;
+	return field.length <= 48;
+}
+
+function boundedSubstringLevenshteinDistance({
+	field,
+	term,
+}: {
+	field: string;
+	term: string;
+}): number {
+	let bestDistance = 3;
+	const minimumLength = Math.max(1, term.length - 2);
+	const maximumLength = Math.min(field.length, term.length + 2);
+	for (let start = 0; start < field.length; start += 1) {
+		for (
+			let length = minimumLength;
+			length <= maximumLength && start + length <= field.length;
+			length += 1
+		) {
+			if (field[start] !== term[0]) continue;
+			if (term.length >= 2 && field[start + 1] !== term[1]) continue;
+			const distance = boundedLevenshteinDistance({
+				left: field.slice(start, start + length),
+				right: term,
+			});
+			bestDistance = Math.min(bestDistance, distance);
+			if (bestDistance <= 1) return bestDistance;
+		}
+	}
+	return bestDistance;
 }
 
 function boundedLevenshteinDistance({
