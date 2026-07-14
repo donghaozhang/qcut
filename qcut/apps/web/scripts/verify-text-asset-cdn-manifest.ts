@@ -142,6 +142,22 @@ export type TextAssetDesignerGapReport = {
 	totalMissing: number;
 };
 
+export type TextAssetReleaseReadinessStatus =
+	| "designer-ready"
+	| "generated-fallback";
+
+export type TextAssetReleaseReadinessSummary = {
+	designerImported: number;
+	designerReady: boolean;
+	designerReadyMissing: number;
+	generated: number;
+	minDesignerAssetsPerCategory: number;
+	releaseStatus: TextAssetReleaseReadinessStatus;
+	requiredDesignerCategories: string[];
+	requiredDesignerCategoriesCount: number;
+	totalRequiredDesignerAssets: number;
+};
+
 export type TextAssetCdnCliOptions = {
 	allowDesignerGaps: boolean;
 	baseUrl: string;
@@ -203,6 +219,36 @@ export function applyTextDesignerReadyPreset<
 		...options,
 		minDesignerAssetsPerCategory: TEXT_DESIGNER_READY_MIN_ASSETS_PER_CATEGORY,
 		requiredDesignerCategories: [...TEXT_DESIGNER_READY_CATEGORY_IDS],
+	};
+}
+
+export function summarizeTextAssetReleaseReadiness({
+	generatedManifest,
+	minDesignerAssetsPerCategory = TEXT_DESIGNER_READY_MIN_ASSETS_PER_CATEGORY,
+	requiredDesignerCategories = TEXT_DESIGNER_READY_CATEGORY_IDS,
+}: {
+	generatedManifest: Record<string, TextAssetCategoryEntry>;
+	minDesignerAssetsPerCategory?: number;
+	requiredDesignerCategories?: readonly string[];
+}): TextAssetReleaseReadinessSummary {
+	const provenance = summarizeTextAssetProvenance({ generatedManifest });
+	const coverage = summarizeDesignerCategoryCoverage({
+		generatedManifest,
+		minDesignerAssetsPerCategory,
+		requiredDesignerCategories,
+	});
+	const designerReady = coverage.ok;
+	return {
+		designerImported: provenance.designerImported,
+		designerReady,
+		designerReadyMissing: coverage.totalMissing,
+		generated: provenance.generated,
+		minDesignerAssetsPerCategory,
+		releaseStatus: designerReady ? "designer-ready" : "generated-fallback",
+		requiredDesignerCategories: [...requiredDesignerCategories],
+		requiredDesignerCategoriesCount: requiredDesignerCategories.length,
+		totalRequiredDesignerAssets:
+			requiredDesignerCategories.length * minDesignerAssetsPerCategory,
 	};
 }
 
@@ -2067,6 +2113,9 @@ async function main(): Promise<void> {
 		publicDir: options.publicDir,
 	});
 	const provenance = summarizeTextAssetProvenance({ generatedManifest });
+	const releaseReadiness = summarizeTextAssetReleaseReadiness({
+		generatedManifest,
+	});
 	const designerCoverageIssues = verifyDesignerAssetCoverage({
 		minDesignerAssets: options.minDesignerAssets,
 		provenance,
@@ -2143,6 +2192,7 @@ async function main(): Promise<void> {
 				minDesignerAssetsPerCategory: options.minDesignerAssetsPerCategory,
 				ok: issues.length === 0,
 				provenance,
+				releaseReadiness,
 				requiredDesignerCategories: options.requiredDesignerCategories,
 				totalAssets: manifest.totalAssets,
 				totalBytes: manifest.totalBytes,

@@ -12,6 +12,7 @@ import {
 	inferTextAssetCategory,
 	parseTextAssetCdnArgs,
 	summarizeDesignerCategoryCoverage,
+	summarizeTextAssetReleaseReadiness,
 	summarizeTextAssetProvenance,
 	summarizeVerifyIssues,
 	verifyDesignerAssetCoverage,
@@ -326,6 +327,77 @@ describe("text asset CDN manifest verifier", () => {
 				missing: 1,
 			},
 			total: 3,
+		});
+	});
+
+	it("summarizes designer readiness independently from structural verification", () => {
+		const generatedEntry: TextAssetGeneratedEntry = {
+			...createGeneratedEntry(),
+			assetId: "text-red-generated",
+			packageId: "text-fancy-red",
+			provenance: {
+				pipeline: "qcut-canvas-thumbnail-v1",
+				source: "generated",
+			},
+		};
+		const designerEntry: TextAssetGeneratedEntry = {
+			...createGeneratedEntry(),
+			assetId: "text-red-designer",
+			packageId: "text-fancy-red",
+			provenance: {
+				pipeline: "designer-pack-v1",
+				source: "designer-imported",
+			},
+		};
+
+		expect(
+			summarizeTextAssetReleaseReadiness({
+				generatedManifest: {
+					"text-red-designer": designerEntry,
+					"text-red-generated": generatedEntry,
+				},
+				requiredDesignerCategories: ["red", "texture"],
+			})
+		).toEqual({
+			designerImported: 1,
+			designerReady: false,
+			designerReadyMissing: 9,
+			generated: 1,
+			minDesignerAssetsPerCategory: 5,
+			releaseStatus: "generated-fallback",
+			requiredDesignerCategories: ["red", "texture"],
+			requiredDesignerCategoriesCount: 2,
+			totalRequiredDesignerAssets: 10,
+		});
+	});
+
+	it("marks text assets designer-ready once required categories are filled", () => {
+		const designerEntries = Object.fromEntries(
+			Array.from({ length: 5 }, (_, index) => {
+				const entry: TextAssetGeneratedEntry = {
+					...createGeneratedEntry(),
+					assetId: `text-red-designer-${index + 1}`,
+					packageId: "text-fancy-red",
+					provenance: {
+						pipeline: "designer-pack-v1",
+						source: "designer-imported",
+					},
+				};
+				return [entry.assetId, entry];
+			})
+		);
+
+		expect(
+			summarizeTextAssetReleaseReadiness({
+				generatedManifest: designerEntries,
+				requiredDesignerCategories: ["red"],
+			})
+		).toMatchObject({
+			designerImported: 5,
+			designerReady: true,
+			designerReadyMissing: 0,
+			releaseStatus: "designer-ready",
+			totalRequiredDesignerAssets: 5,
 		});
 	});
 
