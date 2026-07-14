@@ -4,6 +4,7 @@ import { dirname, join } from "node:path";
 import { tmpdir } from "node:os";
 import { describe, expect, it } from "vitest";
 import {
+	buildDesignerAssetGapReport,
 	buildTextAssetPublishManifest,
 	buildTextMarketplacePublishEntry,
 	inferTextAssetCategory,
@@ -171,11 +172,15 @@ describe("text asset CDN manifest verifier", () => {
 					"/tmp/public",
 					"--remote-concurrency",
 					"4",
+					"--allow-designer-gaps",
 					"--write",
 					"/tmp/publish.json",
+					"--write-designer-gap-report",
+					"/tmp/designer-gap.json",
 				],
 			})
 		).toMatchObject({
+			allowDesignerGaps: true,
 			baseUrl: "https://cdn.example.com/assets/",
 			checkRemote: true,
 			fullIssues: true,
@@ -186,6 +191,7 @@ describe("text asset CDN manifest verifier", () => {
 			publicDir: "/tmp/public",
 			remoteConcurrency: 4,
 			requiredDesignerCategories: ["red", "texture", "headline-template"],
+			writeDesignerGapReportPath: "/tmp/designer-gap.json",
 			writePath: "/tmp/publish.json",
 		});
 	});
@@ -401,6 +407,88 @@ describe("text asset CDN manifest verifier", () => {
 			ok: false,
 			requiredCategories: 2,
 			totalMissing: 9,
+		});
+	});
+
+	it("builds designer import slots for missing category coverage", () => {
+		expect(
+			buildDesignerAssetGapReport({
+				coverage: {
+					categories: [
+						{ category: "red", current: 3, missing: 2, required: 5 },
+						{
+							category: "headline-template",
+							current: 0,
+							missing: 1,
+							required: 1,
+						},
+					],
+					ok: false,
+					requiredCategories: 2,
+					totalMissing: 3,
+				},
+				generatedAt: "2026-07-15T00:00:00.000Z",
+				minDesignerAssetsPerCategory: 5,
+				requiredDesignerCategories: ["red", "headline-template"],
+			})
+		).toEqual({
+			categories: [
+				{
+					category: "red",
+					current: 3,
+					missing: 2,
+					required: 5,
+					suggestedImports: [
+						{
+							assetId: "text-fancy-red-designer-04",
+							cacheKey: "text-assets/text-fancy-red/designer-04@1",
+							packageId: "text-fancy-red",
+							requiredFiles: [
+								"thumbnail.webp",
+								"template.json",
+								"template.qctext",
+							],
+							variantId: "designer-04",
+						},
+						{
+							assetId: "text-fancy-red-designer-05",
+							cacheKey: "text-assets/text-fancy-red/designer-05@1",
+							packageId: "text-fancy-red",
+							requiredFiles: [
+								"thumbnail.webp",
+								"template.json",
+								"template.qctext",
+							],
+							variantId: "designer-05",
+						},
+					],
+				},
+				{
+					category: "headline-template",
+					current: 0,
+					missing: 1,
+					required: 1,
+					suggestedImports: [
+						{
+							assetId: "text-templates-headline-template-designer-01",
+							cacheKey:
+								"text-assets/text-templates-headline-template/designer-01@1",
+							packageId: "text-templates-headline-template",
+							requiredFiles: [
+								"thumbnail.webp",
+								"template.json",
+								"template.qctext",
+							],
+							variantId: "designer-01",
+						},
+					],
+				},
+			],
+			generatedAt: "2026-07-15T00:00:00.000Z",
+			minDesignerAssetsPerCategory: 5,
+			requiredDesignerCategories: ["red", "headline-template"],
+			schemaVersion: 1,
+			totalMissing: 3,
 		});
 	});
 

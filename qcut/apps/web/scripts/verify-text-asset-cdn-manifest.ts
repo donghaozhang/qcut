@@ -105,7 +105,34 @@ export type TextAssetDesignerCategoryCoverageSummary = {
 	totalMissing: number;
 };
 
+export type TextAssetDesignerImportSlot = {
+	assetId: string;
+	cacheKey: string;
+	packageId: string;
+	requiredFiles: readonly [
+		"thumbnail.webp",
+		"template.json",
+		"template.qctext",
+	];
+	variantId: string;
+};
+
+export type TextAssetDesignerGapReportCategory =
+	TextAssetDesignerCategoryCoverageItem & {
+		suggestedImports: TextAssetDesignerImportSlot[];
+	};
+
+export type TextAssetDesignerGapReport = {
+	categories: TextAssetDesignerGapReportCategory[];
+	generatedAt: string;
+	minDesignerAssetsPerCategory: number;
+	requiredDesignerCategories: string[];
+	schemaVersion: 1;
+	totalMissing: number;
+};
+
 export type TextAssetCdnCliOptions = {
+	allowDesignerGaps: boolean;
 	baseUrl: string;
 	checkRemote: boolean;
 	fullIssues: boolean;
@@ -116,6 +143,7 @@ export type TextAssetCdnCliOptions = {
 	publicDir: string;
 	remoteConcurrency: number;
 	requiredDesignerCategories: string[];
+	writeDesignerGapReportPath?: string;
 	writePath?: string;
 };
 
@@ -133,6 +161,7 @@ export function parseTextAssetCdnArgs({
 	argv: string[];
 }): TextAssetCdnCliOptions {
 	const options: TextAssetCdnCliOptions = {
+		allowDesignerGaps: false,
 		baseUrl: process.env.QCUT_TEXT_ASSET_CDN_URL ?? DEFAULT_BASE_URL,
 		checkRemote: false,
 		fullIssues: false,
@@ -152,6 +181,10 @@ export function parseTextAssetCdnArgs({
 	};
 	for (let index = 0; index < argv.length; index += 1) {
 		const arg = argv[index];
+		if (arg === "--allow-designer-gaps") {
+			options.allowDesignerGaps = true;
+			continue;
+		}
 		if (arg === "--check-remote") {
 			options.checkRemote = true;
 			continue;
@@ -217,6 +250,15 @@ export function parseTextAssetCdnArgs({
 		}
 		if (arg === "--write") {
 			options.writePath = requireValue({ argv, index, name: arg });
+			index += 1;
+			continue;
+		}
+		if (arg === "--write-designer-gap-report") {
+			options.writeDesignerGapReportPath = requireValue({
+				argv,
+				index,
+				name: arg,
+			});
 			index += 1;
 			continue;
 		}
@@ -470,6 +512,68 @@ export function summarizeDesignerCategoryCoverage({
 		requiredCategories: requiredDesignerCategories.length,
 		totalMissing,
 	};
+}
+
+export function buildDesignerAssetGapReport({
+	coverage,
+	generatedAt,
+	minDesignerAssetsPerCategory,
+	requiredDesignerCategories,
+}: {
+	coverage: TextAssetDesignerCategoryCoverageSummary;
+	generatedAt: string;
+	minDesignerAssetsPerCategory: number;
+	requiredDesignerCategories: readonly string[];
+}): TextAssetDesignerGapReport {
+	return {
+		categories: coverage.categories.map((category) => ({
+			...category,
+			suggestedImports: buildDesignerAssetImportSlots({ category }),
+		})),
+		generatedAt,
+		minDesignerAssetsPerCategory,
+		requiredDesignerCategories: [...requiredDesignerCategories],
+		schemaVersion: 1,
+		totalMissing: coverage.totalMissing,
+	};
+}
+
+function buildDesignerAssetImportSlots({
+	category,
+}: {
+	category: TextAssetDesignerCategoryCoverageItem;
+}): TextAssetDesignerImportSlot[] {
+	const packageId = packageIdForDesignerCategory({
+		category: category.category,
+	});
+	return Array.from({ length: category.missing }, (_, index) => {
+		const importNumber = category.current + index + 1;
+		const variantId = `designer-${String(importNumber).padStart(2, "0")}`;
+		return {
+			assetId: `${packageId}-${variantId}`,
+			cacheKey: `text-assets/${packageId}/${variantId}@1`,
+			packageId,
+			requiredFiles: ["thumbnail.webp", "template.json", "template.qctext"],
+			variantId,
+		};
+	});
+}
+
+function packageIdForDesignerCategory({
+	category,
+}: {
+	category: string;
+}): string {
+	if (
+		category === "headline-template" ||
+		category === "quote-template" ||
+		category === "list-template" ||
+		category === "split-template" ||
+		category === "timeline-template"
+	) {
+		return `text-templates-${category}`;
+	}
+	return `text-fancy-${category}`;
 }
 
 export function summarizeVerifyIssues({
@@ -1186,8 +1290,20 @@ export async function writePublishManifest({
 	);
 }
 
+export async function writeDesignerAssetGapReport({
+	report,
+	writePath,
+}: {
+	report: TextAssetDesignerGapReport;
+	writePath: string;
+}): Promise<void> {
+	await mkdir(dirname(writePath), { recursive: true });
+	await writeFile(writePath, `${JSON.stringify(report, null, "\t")}\n`, "utf8");
+}
+
 async function main(): Promise<void> {
 	const options = parseTextAssetCdnArgs({ argv: process.argv.slice(2) });
+	const generatedAt = new Date().toISOString();
 	const generatedManifest = await readGeneratedManifest({
 		manifestPath: options.manifestPath,
 	});
@@ -1212,7 +1328,7 @@ async function main(): Promise<void> {
 	});
 	const { issues: manifestIssues, manifest } = buildTextAssetPublishManifest({
 		baseUrl: options.baseUrl,
-		generatedAt: new Date().toISOString(),
+		generatedAt,
 		generatedManifest,
 		publicDir: options.publicDir,
 		supplementalAssets: marketplace.entry ? [marketplace.entry] : [],
@@ -1226,14 +1342,25 @@ async function main(): Promise<void> {
 		: [];
 	const issues = [
 		...marketplace.issues,
-		...designerCoverageIssues,
-		...designerCategoryIssues,
+		...(options.allowDesignerGaps ? [] : designerCoverageIssues),
+		...(options.allowDesignerGaps ? [] : designerCategoryIssues),
 		...manifestIssues,
 		...localIssues,
 		...remoteIssues,
 	];
 	if (options.writePath) {
 		await writePublishManifest({ manifest, writePath: options.writePath });
+	}
+	if (options.writeDesignerGapReportPath) {
+		await writeDesignerAssetGapReport({
+			report: buildDesignerAssetGapReport({
+				coverage: designerCategoryCoverage,
+				generatedAt,
+				minDesignerAssetsPerCategory: options.minDesignerAssetsPerCategory,
+				requiredDesignerCategories: options.requiredDesignerCategories,
+			}),
+			writePath: options.writeDesignerGapReportPath,
+		});
 	}
 	const issueOutput = options.fullIssues
 		? {
@@ -1247,6 +1374,7 @@ async function main(): Promise<void> {
 	console.log(
 		JSON.stringify(
 			{
+				allowDesignerGaps: options.allowDesignerGaps,
 				baseUrl: manifest.baseUrl,
 				checkRemote: options.checkRemote,
 				designerCategoryCoverage,
@@ -1259,6 +1387,7 @@ async function main(): Promise<void> {
 				totalAssets: manifest.totalAssets,
 				totalBytes: manifest.totalBytes,
 				totalFiles: manifest.totalFiles,
+				writeDesignerGapReportPath: options.writeDesignerGapReportPath,
 				writePath: options.writePath,
 			},
 			null,
