@@ -23,6 +23,7 @@ export type TextAssetReleaseOptions = {
 	cacheControl: string;
 	dryRun: boolean;
 	generatedManifestPath: string;
+	metadataCacheControl: string;
 	prefix: string;
 	publishManifestPath: string;
 	publicDir: string;
@@ -55,6 +56,8 @@ const DEFAULT_PUBLISH_MANIFEST_PATH = join(
 	SCRIPT_DIR,
 	"../dist/text-assets-publish-manifest.json"
 );
+const DEFAULT_METADATA_CACHE_CONTROL =
+	"public, max-age=300, stale-while-revalidate=86400";
 
 export function parseTextAssetReleaseArgs({
 	argv,
@@ -70,6 +73,9 @@ export function parseTextAssetReleaseArgs({
 		dryRun: false,
 		generatedManifestPath:
 			env.QCUT_TEXT_ASSET_GENERATED_MANIFEST ?? DEFAULT_GENERATED_MANIFEST_PATH,
+		metadataCacheControl:
+			env.QCUT_TEXT_ASSET_METADATA_CACHE_CONTROL ??
+			DEFAULT_METADATA_CACHE_CONTROL,
 		prefix: env.QCUT_TEXT_ASSET_CDN_PREFIX ?? "",
 		publishManifestPath:
 			env.QCUT_TEXT_ASSET_PUBLISH_MANIFEST ?? DEFAULT_PUBLISH_MANIFEST_PATH,
@@ -98,6 +104,15 @@ export function parseTextAssetReleaseArgs({
 		}
 		if (arg === "--cache-control") {
 			options.cacheControl = requireValue({ argv, index, name: arg });
+			index += 1;
+			continue;
+		}
+		if (arg === "--metadata-cache-control") {
+			options.metadataCacheControl = requireValue({
+				argv,
+				index,
+				name: arg,
+			});
 			index += 1;
 			continue;
 		}
@@ -201,6 +216,7 @@ export async function releaseTextAssetsToCdn({
 		bucket: options.bucket,
 		cacheControl: options.cacheControl,
 		manifest,
+		metadataCacheControl: options.metadataCacheControl,
 		prefix: options.prefix,
 	});
 	const upload = await uploadTextAssetPlan({

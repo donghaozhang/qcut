@@ -15,6 +15,7 @@ export type TextAssetUploadOptions = {
 	concurrency: number;
 	dryRun: boolean;
 	manifestPath: string;
+	metadataCacheControl: string;
 	prefix: string;
 };
 
@@ -45,6 +46,8 @@ const DEFAULT_MANIFEST_PATH = join(
 	"../dist/text-assets-publish-manifest.json"
 );
 const DEFAULT_CACHE_CONTROL = "public, max-age=31536000, immutable";
+const DEFAULT_METADATA_CACHE_CONTROL =
+	"public, max-age=300, stale-while-revalidate=86400";
 
 export function parseTextAssetUploadArgs({
 	argv,
@@ -62,6 +65,9 @@ export function parseTextAssetUploadArgs({
 		}),
 		dryRun: false,
 		manifestPath: env.QCUT_TEXT_ASSET_PUBLISH_MANIFEST ?? DEFAULT_MANIFEST_PATH,
+		metadataCacheControl:
+			env.QCUT_TEXT_ASSET_METADATA_CACHE_CONTROL ??
+			DEFAULT_METADATA_CACHE_CONTROL,
 		prefix: env.QCUT_TEXT_ASSET_CDN_PREFIX ?? "",
 	};
 	for (let index = 0; index < argv.length; index += 1) {
@@ -73,6 +79,15 @@ export function parseTextAssetUploadArgs({
 		}
 		if (arg === "--cache-control") {
 			options.cacheControl = requireValue({ argv, index, name: arg });
+			index += 1;
+			continue;
+		}
+		if (arg === "--metadata-cache-control") {
+			options.metadataCacheControl = requireValue({
+				argv,
+				index,
+				name: arg,
+			});
 			index += 1;
 			continue;
 		}
@@ -120,17 +135,20 @@ export function buildTextAssetUploadPlan({
 	bucket,
 	cacheControl,
 	manifest,
+	metadataCacheControl,
 	prefix,
 }: {
 	bucket: string;
 	cacheControl: string;
 	manifest: TextAssetPublishManifest;
+	metadataCacheControl: string;
 	prefix: string;
 }): TextAssetUploadPlanItem[] {
 	return manifest.assets.flatMap((asset) =>
 		asset.files.map((file) => ({
 			bucket,
-			cacheControl,
+			cacheControl:
+				file.role === "metadata" ? metadataCacheControl : cacheControl,
 			contentType: file.mimeType,
 			key: objectKeyForAssetFile({ file, prefix }),
 			localPath: file.localPath,
@@ -245,6 +263,7 @@ async function main(): Promise<void> {
 		bucket: options.bucket,
 		cacheControl: options.cacheControl,
 		manifest,
+		metadataCacheControl: options.metadataCacheControl,
 		prefix: options.prefix,
 	});
 	const client = new S3Client({

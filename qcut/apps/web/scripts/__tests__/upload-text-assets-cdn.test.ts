@@ -15,6 +15,16 @@ function createPublishManifest(): TextAssetPublishManifest {
 				cacheKey: "text-assets/demo/plain@1",
 				files: [
 					{
+						byteSize: 3,
+						cdnUrl:
+							"https://cdn.example.com/text-assets/demo/plain@1/template.json",
+						checksumSha256: "source-sha",
+						localPath: "/tmp/public/text-assets/demo/plain@1/template.json",
+						mimeType: "application/json",
+						role: "source",
+						url: "/text-assets/demo/plain@1/template.json",
+					},
+					{
 						byteSize: 5,
 						cdnUrl:
 							"https://cdn.example.com/text-assets/demo/plain@1/thumbnail.webp",
@@ -38,13 +48,30 @@ function createPublishManifest(): TextAssetPublishManifest {
 				packageId: "text-demo",
 				version: 1,
 			},
+			{
+				assetId: "text-marketplace-config",
+				cacheKey: "text-assets",
+				files: [
+					{
+						byteSize: 4,
+						cdnUrl: "https://cdn.example.com/text-assets/marketplace.json",
+						checksumSha256: "marketplace-sha",
+						localPath: "/tmp/public/text-assets/marketplace.json",
+						mimeType: "application/json",
+						role: "metadata",
+						url: "/text-assets/marketplace.json",
+					},
+				],
+				packageId: "text-marketplace-config",
+				version: 1,
+			},
 		],
 		baseUrl: "https://cdn.example.com",
 		generatedAt: "2026-07-15T00:00:00.000Z",
 		schemaVersion: 1,
-		totalAssets: 1,
-		totalBytes: 12,
-		totalFiles: 2,
+		totalAssets: 2,
+		totalBytes: 19,
+		totalFiles: 4,
 	};
 }
 
@@ -57,6 +84,8 @@ describe("text asset CDN upload script", () => {
 					"cli-bucket",
 					"--cache-control",
 					"public, max-age=60",
+					"--metadata-cache-control",
+					"public, max-age=30",
 					"--concurrency",
 					"3",
 					"--dry-run",
@@ -76,21 +105,33 @@ describe("text asset CDN upload script", () => {
 			concurrency: 3,
 			dryRun: true,
 			manifestPath: "/tmp/manifest.json",
+			metadataCacheControl: "public, max-age=30",
 			prefix: "assets",
 		});
 	});
 
-	it("builds upload keys with optional CDN prefixes", () => {
+	it("builds upload keys and cache headers with optional CDN prefixes", () => {
 		const items = buildTextAssetUploadPlan({
 			bucket: "qcut-assets",
 			cacheControl: "public, max-age=31536000, immutable",
 			manifest: createPublishManifest(),
+			metadataCacheControl: "public, max-age=300",
 			prefix: "/prod/",
 		});
 
 		expect(items).toEqual([
 			expect.objectContaining({
 				bucket: "qcut-assets",
+				cacheControl: "public, max-age=31536000, immutable",
+				contentType: "application/json",
+				key: "prod/text-assets/demo/plain@1/template.json",
+				role: "source",
+				sha256: "source-sha",
+				size: 3,
+			}),
+			expect.objectContaining({
+				bucket: "qcut-assets",
+				cacheControl: "public, max-age=31536000, immutable",
 				contentType: "image/webp",
 				key: "prod/text-assets/demo/plain@1/thumbnail.webp",
 				role: "thumbnail",
@@ -104,6 +145,14 @@ describe("text asset CDN upload script", () => {
 				sha256: "package-sha",
 				size: 7,
 			}),
+			expect.objectContaining({
+				cacheControl: "public, max-age=300",
+				contentType: "application/json",
+				key: "prod/text-assets/marketplace.json",
+				role: "metadata",
+				sha256: "marketplace-sha",
+				size: 4,
+			}),
 		]);
 	});
 
@@ -112,6 +161,7 @@ describe("text asset CDN upload script", () => {
 			bucket: "qcut-assets",
 			cacheControl: "public, max-age=31536000, immutable",
 			manifest: createPublishManifest(),
+			metadataCacheControl: "public, max-age=300",
 			prefix: "",
 		});
 		const uploaded: TextAssetUploadPlanItem[] = [];
@@ -128,8 +178,8 @@ describe("text asset CDN upload script", () => {
 		).resolves.toMatchObject({
 			bucket: "qcut-assets",
 			dryRun: true,
-			totalBytes: 12,
-			totalFiles: 2,
+			totalBytes: 19,
+			totalFiles: 4,
 			uploadedFiles: 0,
 		});
 		expect(uploaded).toEqual([]);
@@ -140,6 +190,7 @@ describe("text asset CDN upload script", () => {
 			bucket: "qcut-assets",
 			cacheControl: "public, max-age=31536000, immutable",
 			manifest: createPublishManifest(),
+			metadataCacheControl: "public, max-age=300",
 			prefix: "",
 		});
 		const uploadedKeys: string[] = [];
@@ -153,10 +204,12 @@ describe("text asset CDN upload script", () => {
 			},
 		});
 
-		expect(summary.uploadedFiles).toBe(2);
+		expect(summary.uploadedFiles).toBe(4);
 		expect(uploadedKeys).toEqual([
+			"text-assets/demo/plain@1/template.json",
 			"text-assets/demo/plain@1/thumbnail.webp",
 			"text-assets/demo/plain@1/template.qctext",
+			"text-assets/marketplace.json",
 		]);
 	});
 });
