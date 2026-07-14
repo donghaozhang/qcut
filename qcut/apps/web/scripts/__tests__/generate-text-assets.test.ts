@@ -72,6 +72,8 @@ describe("text asset generator payloads", () => {
 			const definition = firstDefinition({ category: expectation.category });
 			const svg = buildTextAssetThumbnailSvg({ definition });
 
+			expect(svg).toContain('data-qcut-pack-preview="true"');
+			expect(svg).toContain('data-layer-count="3"');
 			for (const label of expectation.labels) {
 				expect(svg).toContain(label);
 			}

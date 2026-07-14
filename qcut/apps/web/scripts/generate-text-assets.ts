@@ -5,8 +5,13 @@ import { fileURLToPath } from "node:url";
 import { chromium, type Page } from "playwright";
 import {
 	getThumbnailPreviewContent,
+	getTextTemplatePackPreviewBounds,
+	getTextTemplatePackPreviewElementVisualRect,
+	getTextTemplatePackPreviewModel,
 	getTextTemplateThumbnailLayoutKind,
 	getTextTemplateThumbnailRecipe,
+	type TextTemplatePackPreviewBounds,
+	type TextTemplatePackPreviewElement,
 } from "../src/components/editor/media-panel/views/text-template-thumbnail-renderer";
 import {
 	compareTextTemplatesByMarketplaceOrder,
@@ -473,12 +478,155 @@ function packBodySvg({
 <text x="64" y="220" font-size="24" font-weight="900" fill="var(--light)" stroke="rgba(0,0,0,.6)" stroke-width="2.5" stroke-linejoin="round">${subhead}</text>`;
 }
 
+function mapPackPreviewSvgRect({
+	bounds,
+	element,
+}: {
+	bounds: TextTemplatePackPreviewBounds;
+	element: TextTemplatePackPreviewElement;
+}) {
+	const visualRect = getTextTemplatePackPreviewElementVisualRect({ element });
+	const sourceWidth = Math.max(1, bounds.maxX - bounds.minX);
+	const sourceHeight = Math.max(1, bounds.maxY - bounds.minY);
+	const target = {
+		height: THUMBNAIL_HEIGHT * 0.68,
+		width: THUMBNAIL_WIDTH * 0.76,
+		x: THUMBNAIL_WIDTH * 0.12,
+		y: THUMBNAIL_HEIGHT * 0.16,
+	};
+	const scale = Math.min(
+		target.width / sourceWidth,
+		target.height / sourceHeight
+	);
+	const scaledWidth = sourceWidth * scale;
+	const scaledHeight = sourceHeight * scale;
+	const offsetX = target.x + (target.width - scaledWidth) / 2;
+	const offsetY = target.y + (target.height - scaledHeight) / 2;
+	return {
+		height: visualRect.height * scale,
+		scale,
+		width: visualRect.width * scale,
+		x: offsetX + (visualRect.x - bounds.minX) * scale,
+		y: offsetY + (visualRect.y - bounds.minY) * scale,
+	};
+}
+
+function packPreviewTextAnchor({
+	align,
+}: {
+	align: CanvasTextAlign;
+}): "end" | "middle" | "start" {
+	if (align === "left" || align === "start") return "start";
+	if (align === "right" || align === "end") return "end";
+	return "middle";
+}
+
+function packPreviewTextX({
+	align,
+	width,
+	x,
+}: {
+	align: CanvasTextAlign;
+	width: number;
+	x: number;
+}): number {
+	if (align === "left" || align === "start") return x;
+	if (align === "right" || align === "end") return x + width;
+	return x + width / 2;
+}
+
+function truncateSvgPreviewText({
+	maxCharacters,
+	text,
+}: {
+	maxCharacters: number;
+	text: string;
+}): string {
+	const characters = Array.from(text.trim());
+	if (characters.length <= maxCharacters) return text.trim();
+	return characters.slice(0, maxCharacters).join("");
+}
+
+function packPreviewElementSvg({
+	element,
+	index,
+	rect,
+}: {
+	element: TextTemplatePackPreviewElement;
+	index: number;
+	rect: {
+		height: number;
+		scale: number;
+		width: number;
+		x: number;
+		y: number;
+	};
+}): string {
+	const fontSize = Math.max(13, Math.min(58, element.fontSize * rect.scale));
+	const text = escapeXml({
+		value: truncateSvgPreviewText({
+			maxCharacters: Math.max(
+				2,
+				Math.floor(rect.width / Math.max(1, fontSize * 0.54))
+			),
+			text: element.content,
+		}),
+	});
+	const textX = packPreviewTextX({
+		align: element.textAlign,
+		width: rect.width,
+		x: rect.x,
+	});
+	const textY = rect.y + rect.height / 2;
+	const anchor = packPreviewTextAnchor({ align: element.textAlign });
+	const centerX = rect.x + rect.width / 2;
+	const centerY = rect.y + rect.height / 2;
+	const backgroundPadding = element.backgroundPadding * rect.scale;
+	const background =
+		element.backgroundColor &&
+		element.backgroundColor !== "transparent" &&
+		element.backgroundOpacity > 0
+			? `<rect x="${rect.x - backgroundPadding * 0.45}" y="${rect.y - backgroundPadding * 0.22}" width="${rect.width + backgroundPadding * 0.9}" height="${rect.height + backgroundPadding * 0.45}" rx="${Math.max(4, element.backgroundRadius * rect.scale)}" fill="${element.backgroundColor}" opacity="${Math.min(1, element.backgroundOpacity)}"/>`
+			: "";
+	const accentStroke =
+		element.strokeWidth > 0
+			? `<text x="${textX}" y="${textY}" text-anchor="${anchor}" dominant-baseline="middle" font-family="Arial, 'PingFang SC', sans-serif" font-size="${fontSize}" font-weight="900" stroke="${element.strokeColor ?? "#ffffff"}" stroke-width="${Math.max(1, Math.min(8, element.strokeWidth * 0.75))}" stroke-linejoin="round" fill="none">${text}</text>`
+			: "";
+	return `<g data-preview-element="${escapeXml({ value: element.id })}" data-preview-layer="${index}" opacity="${Math.max(0.18, Math.min(1, element.opacity))}" transform="rotate(${element.rotation} ${centerX} ${centerY})">
+${background}
+<text x="${textX}" y="${textY}" text-anchor="${anchor}" dominant-baseline="middle" font-family="Arial, 'PingFang SC', sans-serif" font-size="${fontSize}" font-weight="900" stroke="rgba(0,0,0,.62)" stroke-width="${Math.max(2.5, fontSize * 0.12)}" stroke-linejoin="round">${text}</text>
+${accentStroke}
+<text x="${textX}" y="${textY}" text-anchor="${anchor}" dominant-baseline="middle" font-family="Arial, 'PingFang SC', sans-serif" font-size="${fontSize}" font-weight="900" fill="${element.color || "var(--light)"}">${text}</text>
+</g>`;
+}
+
+function packPreviewSceneSvg({
+	definition,
+}: {
+	definition: TextTemplateDefinition;
+}): string | null {
+	const template = buildTextTemplate({ definition });
+	const model = getTextTemplatePackPreviewModel({ definition, template });
+	if (!model || model.elements.length === 0) return null;
+	const bounds = getTextTemplatePackPreviewBounds({ elements: model.elements });
+	return `<g data-qcut-pack-preview="true" data-pack-kind="${model.kind}" data-layer-count="${model.layerCount}">
+<rect x="32" y="42" width="256" height="220" rx="20" fill="url(#card)" stroke="rgba(255,255,255,.24)" stroke-width="2" filter="url(#shadow)"/>
+${model.elements
+	.map((element, index) => {
+		const rect = mapPackPreviewSvgRect({ bounds, element });
+		return packPreviewElementSvg({ element, index, rect });
+	})
+	.join("\n")}
+</g>`;
+}
+
 function packThumbnailSvg({
 	definition,
 }: {
 	definition: TextTemplateDefinition;
 }) {
 	const [dark, mid, light, accent] = recipeColors({ definition });
+	const packPreview = packPreviewSceneSvg({ definition });
 	return `<svg xmlns="http://www.w3.org/2000/svg" width="${THUMBNAIL_WIDTH}" height="${THUMBNAIL_HEIGHT}" viewBox="0 0 ${THUMBNAIL_WIDTH} ${THUMBNAIL_HEIGHT}" style="--mid:${mid};--accent:${accent};--light:${light}">
 <defs>
 <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="${dark}"/><stop offset="0.58" stop-color="${mid}"/><stop offset="1" stop-color="${accent}"/></linearGradient>
@@ -488,8 +636,11 @@ function packThumbnailSvg({
 ${backgroundSvg({ definition })}
 ${designSignatureSvg({ definition })}
 ${ornamentSvg({ definition })}
-<rect x="32" y="42" width="256" height="220" rx="20" fill="url(#card)" stroke="rgba(255,255,255,.24)" stroke-width="2" filter="url(#shadow)"/>
-${packBodySvg({ definition })}
+${
+	packPreview ??
+	`<rect x="32" y="42" width="256" height="220" rx="20" fill="url(#card)" stroke="rgba(255,255,255,.24)" stroke-width="2" filter="url(#shadow)"/>
+${packBodySvg({ definition })}`
+}
 </svg>`;
 }
 

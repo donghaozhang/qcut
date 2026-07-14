@@ -1342,32 +1342,80 @@ function drawTimelinePackPreview({
 	}
 }
 
-type PackPreviewBounds = {
+export type TextTemplatePackPreviewBounds = {
 	maxX: number;
 	maxY: number;
 	minX: number;
 	minY: number;
 };
 
-function getPackPreviewBounds({
+export type TextTemplatePackPreviewElementVisualRect = {
+	height: number;
+	width: number;
+	x: number;
+	y: number;
+};
+
+function estimatePackPreviewTextWidth({
+	element,
+}: {
+	element: TextTemplatePackPreviewElement;
+}): number {
+	const contentWidth = Array.from(element.content.trim()).reduce(
+		(width, character) =>
+			width +
+			element.fontSize * (/^[\x20-\x7e]$/.test(character) ? 0.56 : 0.94),
+		0
+	);
+	const paddedWidth = contentWidth + element.backgroundPadding * 2;
+	return Math.min(element.width, Math.max(element.fontSize * 1.4, paddedWidth));
+}
+
+export function getTextTemplatePackPreviewElementVisualRect({
+	element,
+}: {
+	element: TextTemplatePackPreviewElement;
+}): TextTemplatePackPreviewElementVisualRect {
+	const width = estimatePackPreviewTextWidth({ element });
+	const x =
+		element.textAlign === "right" || element.textAlign === "end"
+			? element.x + element.width - width
+			: element.textAlign === "center"
+				? element.x + (element.width - width) / 2
+				: element.x;
+	return {
+		height: element.height,
+		width,
+		x,
+		y: element.y,
+	};
+}
+
+export function getTextTemplatePackPreviewBounds({
 	elements,
 }: {
 	elements: readonly TextTemplatePackPreviewElement[];
-}): PackPreviewBounds {
+}): TextTemplatePackPreviewBounds {
 	const first = elements[0];
 	if (!first) return { maxX: 1, maxY: 1, minX: 0, minY: 0 };
+	const firstRect = getTextTemplatePackPreviewElementVisualRect({
+		element: first,
+	});
 	return elements.reduce(
-		(bounds, element) => ({
-			maxX: Math.max(bounds.maxX, element.x + element.width),
-			maxY: Math.max(bounds.maxY, element.y + element.height),
-			minX: Math.min(bounds.minX, element.x),
-			minY: Math.min(bounds.minY, element.y),
-		}),
+		(bounds, element) => {
+			const rect = getTextTemplatePackPreviewElementVisualRect({ element });
+			return {
+				maxX: Math.max(bounds.maxX, rect.x + rect.width),
+				maxY: Math.max(bounds.maxY, rect.y + rect.height),
+				minX: Math.min(bounds.minX, rect.x),
+				minY: Math.min(bounds.minY, rect.y),
+			};
+		},
 		{
-			maxX: first.x + first.width,
-			maxY: first.y + first.height,
-			minX: first.x,
-			minY: first.y,
+			maxX: firstRect.x + firstRect.width,
+			maxY: firstRect.y + firstRect.height,
+			minX: firstRect.x,
+			minY: firstRect.y,
 		}
 	);
 }
@@ -1378,9 +1426,10 @@ function mapPackPreviewElementRect({
 	height,
 	width,
 }: CanvasSize & {
-	bounds: PackPreviewBounds;
+	bounds: TextTemplatePackPreviewBounds;
 	element: TextTemplatePackPreviewElement;
 }) {
+	const visualRect = getTextTemplatePackPreviewElementVisualRect({ element });
 	const sourceWidth = Math.max(1, bounds.maxX - bounds.minX);
 	const sourceHeight = Math.max(1, bounds.maxY - bounds.minY);
 	const target = {
@@ -1398,11 +1447,11 @@ function mapPackPreviewElementRect({
 	const offsetX = target.x + (target.width - scaledWidth) / 2;
 	const offsetY = target.y + (target.height - scaledHeight) / 2;
 	return {
-		height: element.height * scale,
+		height: visualRect.height * scale,
 		scale,
-		width: element.width * scale,
-		x: offsetX + (element.x - bounds.minX) * scale,
-		y: offsetY + (element.y - bounds.minY) * scale,
+		width: visualRect.width * scale,
+		x: offsetX + (visualRect.x - bounds.minX) * scale,
+		y: offsetY + (visualRect.y - bounds.minY) * scale,
 	};
 }
 
@@ -1509,7 +1558,9 @@ function drawPackPreviewScene({
 	model: TextTemplatePackPreviewModel;
 	recipe: TextTemplateThumbnailRecipe;
 }) {
-	const bounds = getPackPreviewBounds({ elements: model.elements });
+	const bounds = getTextTemplatePackPreviewBounds({
+		elements: model.elements,
+	});
 	for (const element of model.elements) {
 		const rect = mapPackPreviewElementRect({
 			bounds,
