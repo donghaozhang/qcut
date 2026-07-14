@@ -16,7 +16,7 @@ import {
 	LockKeyhole,
 	Play,
 } from "lucide-react";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import {
 	Tooltip,
 	TooltipContent,
@@ -61,6 +61,7 @@ export function StickerItem({
 	const [isLoading, setIsLoading] = useState(true);
 	const [hasError, setHasError] = useState(false);
 	const [imageUrl, setImageUrl] = useState("");
+	const resolvedImageUrl = useRef("");
 	const asset = useMemo(
 		() => resolveStickerAssetEntry({ collectionPrefix: collection, icon }),
 		[collection, icon]
@@ -92,8 +93,13 @@ export function StickerItem({
 	useEffect(() => {
 		let disposed = false;
 		let cachedObjectUrl: string | undefined;
-		setIsLoading(true);
-		setHasError(false);
+		const showPreview = ({ url }: { url: string }) => {
+			if (disposed || resolvedImageUrl.current === url) return;
+			resolvedImageUrl.current = url;
+			setImageUrl(url);
+			setIsLoading(true);
+			setHasError(false);
+		};
 		const resolvePreview = async () => {
 			try {
 				if (asset.delivery === "bundled") {
@@ -101,7 +107,7 @@ export function StickerItem({
 					if (!bundledPreview) {
 						throw new Error(`Bundled sticker has no preview file: ${asset.id}`);
 					}
-					setImageUrl(bundledPreview);
+					showPreview({ url: bundledPreview });
 					return;
 				}
 				if (isCached && asset.delivery === "remote") {
@@ -123,19 +129,19 @@ export function StickerItem({
 						cachedObjectUrl = cachedPreview.revoke
 							? cachedPreview.url
 							: undefined;
-						setImageUrl(cachedPreview.url);
+						showPreview({ url: cachedPreview.url });
 						return;
 					}
 				}
-				setImageUrl(
-					buildIconSvgUrl(collection, icon, {
+				showPreview({
+					url: buildIconSvgUrl(collection, icon, {
 						color: iconCollectionUsesPalette({ prefix: collection })
 							? undefined
 							: "#FFFFFF",
 						width: layout === "catalog" ? 64 : 32,
 						height: layout === "catalog" ? 64 : 32,
-					})
-				);
+					}),
+				});
 			} catch (error) {
 				debugLog(
 					`[StickerItem] Failed to resolve preview for ${iconId}:`,

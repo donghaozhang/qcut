@@ -146,7 +146,8 @@ describe("StickerItem", () => {
 	});
 
 	it("previews bundled motion stickers from the asset manifest", async () => {
-		render(
+		const onSelect = vi.fn();
+		const { rerender } = render(
 			<TooltipProvider>
 				<StickerItem
 					icon="attention-pulse"
@@ -154,7 +155,7 @@ describe("StickerItem", () => {
 					collection="qcut-motion-emphasis"
 					animated
 					layout="catalog"
-					onSelect={vi.fn()}
+					onSelect={onSelect}
 				/>
 			</TooltipProvider>
 		);
@@ -170,5 +171,23 @@ describe("StickerItem", () => {
 		);
 		expect(preview.getAttribute("src")).not.toContain("api.iconify.design");
 		expect(createCachedStickerPreviewUrl).not.toHaveBeenCalled();
+		fireEvent.load(preview);
+		expect(screen.queryByTitle("Loading sticker")).not.toBeInTheDocument();
+
+		rerender(
+			<TooltipProvider>
+				<StickerItem
+					icon="attention-pulse"
+					name="Attention pulse"
+					collection="qcut-motion-emphasis"
+					animated
+					layout="compact"
+					onSelect={onSelect}
+				/>
+			</TooltipProvider>
+		);
+
+		expect(screen.queryByTitle("Loading sticker")).not.toBeInTheDocument();
+		expect(screen.getByRole("img", { name: "Attention pulse" })).toBeVisible();
 	});
 });
