@@ -990,6 +990,52 @@ describe("text designer asset import script", () => {
 		});
 	});
 
+	it("rejects partially unchanged generated files by default", async () => {
+		const { generatedManifest, packDir, packManifest, publicDir } =
+			await createDesignerFixture();
+		const sourceText = designerSourceText();
+		const packageText = designerPackageText();
+		const partiallyUnchangedManifest = {
+			"text-demo": {
+				...generatedManifest["text-demo"],
+				source: {
+					...generatedManifest["text-demo"]!.source,
+					byteSize: sourceText.length,
+					checksumSha256: checksum({ value: sourceText }),
+				},
+				qcutPackage: {
+					...generatedManifest["text-demo"]!.qcutPackage!,
+					byteSize: packageText.length,
+					checksumSha256: checksum({ value: packageText }),
+				},
+			},
+		};
+
+		await expect(
+			buildTextDesignerAssetImportPlan({
+				generatedManifest: partiallyUnchangedManifest,
+				packDir,
+				packManifest,
+				publicDir,
+			})
+		).rejects.toThrow(
+			"files are unchanged from current generated asset for text-demo: source, package"
+		);
+		await expect(
+			buildTextDesignerAssetImportPlan({
+				allowUnchanged: true,
+				generatedManifest: partiallyUnchangedManifest,
+				packDir,
+				packManifest,
+				publicDir,
+			})
+		).resolves.toMatchObject({
+			items: expect.arrayContaining([
+				expect.objectContaining({ assetId: "text-demo", role: "thumbnail" }),
+			]),
+		});
+	});
+
 	it("blocks designer files that escape the pack directory", async () => {
 		const { generatedManifest, packDir, publicDir } =
 			await createDesignerFixture();

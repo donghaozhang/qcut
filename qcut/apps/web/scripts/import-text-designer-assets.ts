@@ -664,16 +664,18 @@ function assertDesignerAssetChanged({
 	targetEntry: TextAssetGeneratedEntry;
 }): void {
 	if (allowUnchanged) return;
-	const hasChangedFile = items.some((item) => {
+	const unchangedRoles = items.flatMap((item) => {
 		const currentFile = currentGeneratedFileForRole({
 			role: item.role,
 			targetEntry,
 		});
-		return currentFile?.checksumSha256 !== item.checksumSha256;
+		return currentFile?.checksumSha256 === item.checksumSha256
+			? [item.role]
+			: [];
 	});
-	if (hasChangedFile) return;
+	if (unchangedRoles.length === 0) return;
 	throw new Error(
-		`Designer asset files are unchanged from current generated asset: ${assetId}`
+		`Designer asset files are unchanged from current generated asset for ${assetId}: ${unchangedRoles.join(", ")}`
 	);
 }
 
