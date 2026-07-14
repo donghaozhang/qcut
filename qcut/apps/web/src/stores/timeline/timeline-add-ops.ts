@@ -1,10 +1,17 @@
 import { TIMELINE_CONSTANTS } from "@/constants/timeline-constants";
 import { clampMarkdownDuration } from "@/lib/markdown";
-import type { DragData, MarkdownElement, TextElement } from "@/types/timeline";
+import { generateUUID } from "@/lib/utils";
+import type {
+	CreateTextElement,
+	DragData,
+	MarkdownElement,
+	TextElement,
+} from "@/types/timeline";
 import { toast } from "sonner";
 import type { MediaItem } from "../media/media-store";
 import { INITIAL_DRAG_STATE } from "./types";
 import type { DragState, TimelineStore } from "./types";
+import { createTrack } from "./utils";
 import type {
 	OperationDeps,
 	StoreGet,
@@ -142,6 +149,45 @@ export function createAddOps(
 				keyframes: item.keyframes,
 				blendMode: item.blendMode ?? "normal",
 			});
+			return true;
+		},
+
+		addTextGroupAtTime: ({
+			elements,
+			currentTime = 0,
+			groupId = generateUUID(),
+		}: {
+			elements: CreateTextElement[];
+			currentTime?: number;
+			groupId?: string;
+		}): boolean => {
+			const validElements = elements.filter((element) =>
+				element.content.trim()
+			);
+			if (validElements.length === 0) return false;
+
+			const newTracks = validElements.map((element) => {
+				const track = createTrack("text");
+				const textElement: TextElement = {
+					...element,
+					id: generateUUID(),
+					startTime: currentTime,
+					trimStart: 0,
+					trimEnd: 0,
+					groupId,
+				};
+				return { ...track, elements: [textElement] };
+			});
+
+			get().pushHistory();
+			updateTracks([...newTracks, ...get()._tracks]);
+			get().setSelectedElements(
+				newTracks.map((track) => ({
+					trackId: track.id,
+					elementId: track.elements[0].id,
+				}))
+			);
+			autoSaveTimeline();
 			return true;
 		},
 

@@ -10,6 +10,7 @@ export type {
 	TrackType,
 	TimelineElement,
 	CreateTimelineElement,
+	CreateTextElement,
 	TimelineTrack,
 	TextElement,
 	MarkdownElement,
@@ -36,6 +37,7 @@ import type {
 	TimelineElement,
 	TrackType,
 	CreateTimelineElement,
+	CreateTextElement,
 	TextElement,
 	MarkdownElement,
 	MediaElement,
@@ -214,6 +216,11 @@ export interface TimelineStore {
 		element: CreateTimelineElement,
 		options?: { pushHistory?: boolean; selectElement?: boolean }
 	) => string | null;
+	addTextGroupAtTime: (input: {
+		elements: CreateTextElement[];
+		currentTime?: number;
+		groupId?: string;
+	}) => boolean;
 	/** Remove an element from a track, optionally pushing to history */
 	removeElementFromTrack: (
 		trackId: string,
