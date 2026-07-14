@@ -295,6 +295,7 @@ describe("text asset CDN release script", () => {
 		expect(summary).toMatchObject({
 			dryRun: true,
 			stageDir,
+			stageManifestPath: join(stageDir, "_qcut-text-assets-release.json"),
 			stagedFiles: 4,
 			upload: {
 				uploadedFiles: 0,
@@ -309,6 +310,27 @@ describe("text asset CDN release script", () => {
 		await expect(
 			readFile(join(stageDir, "prod/text-assets/marketplace.json"), "utf8")
 		).resolves.toContain("schemaVersion");
+		await expect(
+			readFile(join(stageDir, "_qcut-text-assets-release.json"), "utf8").then(
+				JSON.parse
+			)
+		).resolves.toMatchObject({
+			items: [
+				expect.objectContaining({
+					key: "prod/text-assets/demo/plain@1/thumbnail.webp",
+					role: "thumbnail",
+				}),
+				expect.any(Object),
+				expect.any(Object),
+				expect.objectContaining({
+					key: "prod/text-assets/marketplace.json",
+					role: "metadata",
+				}),
+			],
+			prefix: "prod",
+			schemaVersion: 1,
+			totalFiles: 4,
+		});
 	});
 
 	it("returns local issues without uploading", async () => {

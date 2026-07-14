@@ -1,4 +1,4 @@
-import { copyFile, mkdir } from "node:fs/promises";
+import { copyFile, mkdir, writeFile } from "node:fs/promises";
 import { dirname, join, relative, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { S3Client } from "@aws-sdk/client-s3";
@@ -61,6 +61,7 @@ export type TextAssetReleaseSummary = {
 	requiredDesignerCategories: readonly string[];
 	stageDir?: string;
 	stagedFiles: number;
+	stageManifestPath?: string;
 	totalAssets: number;
 	totalBytes: number;
 	totalFiles: number;
@@ -315,12 +316,13 @@ export async function releaseTextAssetsToCdn({
 			writePath: options.uploadPlanPath,
 		});
 	}
-	const stagedFiles = options.stageDir
+	const staging = options.stageDir
 		? await stageTextAssetUploadPlan({
 				items,
+				prefix: options.prefix,
 				stageDir: options.stageDir,
 			})
-		: 0;
+		: undefined;
 	const upload = await uploadTextAssetPlan({
 		concurrency: options.uploadConcurrency,
 		dryRun: options.dryRun,
@@ -341,18 +343,21 @@ export async function releaseTextAssetsToCdn({
 		options,
 		provenance,
 		remoteIssues,
-		stagedFiles,
+		stageManifestPath: staging?.manifestPath,
+		stagedFiles: staging?.fileCount,
 		upload,
 	});
 }
 
 export async function stageTextAssetUploadPlan({
 	items,
+	prefix,
 	stageDir,
 }: {
 	items: readonly TextAssetUploadPlanItem[];
+	prefix: string;
 	stageDir: string;
-}): Promise<number> {
+}): Promise<{ fileCount: number; manifestPath: string }> {
 	const resolvedStageDir = resolve(stageDir);
 	await Promise.all(
 		items.map(async (item) => {
@@ -367,7 +372,21 @@ export async function stageTextAssetUploadPlan({
 			await copyFile(item.localPath, targetPath);
 		})
 	);
-	return items.length;
+	const manifestPath = join(resolvedStageDir, "_qcut-text-assets-release.json");
+	await writeFile(
+		manifestPath,
+		`${JSON.stringify(
+			buildTextAssetUploadPlanReport({
+				generatedAt: new Date().toISOString(),
+				items,
+				prefix,
+			}),
+			null,
+			"\t"
+		)}\n`,
+		"utf8"
+	);
+	return { fileCount: items.length, manifestPath };
 }
 
 function buildReleaseSummary({
@@ -377,6 +396,7 @@ function buildReleaseSummary({
 	options,
 	provenance,
 	remoteIssues,
+	stageManifestPath,
 	stagedFiles,
 	upload,
 }: {
@@ -386,6 +406,7 @@ function buildReleaseSummary({
 	options: TextAssetReleaseOptions;
 	provenance: TextAssetProvenanceSummary;
 	remoteIssues: readonly VerifyIssue[];
+	stageManifestPath?: string;
 	stagedFiles?: number;
 	upload: TextAssetUploadSummary;
 }): TextAssetReleaseSummary {
@@ -404,6 +425,7 @@ function buildReleaseSummary({
 		remoteIssues,
 		requiredDesignerCategories: options.requiredDesignerCategories,
 		stageDir: options.stageDir,
+		stageManifestPath,
 		stagedFiles: stagedFiles ?? 0,
 		totalAssets: manifest.totalAssets,
 		totalBytes: manifest.totalBytes,
