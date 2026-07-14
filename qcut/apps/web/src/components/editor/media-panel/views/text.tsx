@@ -248,6 +248,35 @@ export function applyTextTemplatePackCopyValues({
 	}) as TextTemplatePack;
 }
 
+export function applyTextTemplatePackCopyPaste({
+	currentValues,
+	pastedText,
+	startIndex,
+}: {
+	currentValues: readonly string[];
+	pastedText: string;
+	startIndex: number;
+}): { handled: boolean; values: string[] } {
+	const pastedLines = pastedText
+		.split(/\r?\n/)
+		.map((line) => line.trim())
+		.filter(Boolean);
+	if (
+		pastedLines.length < 2 ||
+		startIndex < 0 ||
+		startIndex >= currentValues.length
+	) {
+		return { handled: false, values: [...currentValues] };
+	}
+	const values = [...currentValues];
+	for (const [lineIndex, line] of pastedLines.entries()) {
+		const valueIndex = startIndex + lineIndex;
+		if (valueIndex >= values.length) break;
+		values[valueIndex] = line;
+	}
+	return { handled: true, values };
+}
+
 function TextTemplate({
 	definition,
 	downloadStatus,
@@ -370,6 +399,22 @@ function TextTemplate({
 				copyIndex === index ? value : copyValue
 			)
 		);
+	};
+	const handleCopyValuePaste = ({
+		index,
+		text,
+	}: {
+		index: number;
+		text: string;
+	}): boolean => {
+		const result = applyTextTemplatePackCopyPaste({
+			currentValues: copyValues,
+			pastedText: text,
+			startIndex: index,
+		});
+		if (!result.handled) return false;
+		setCopyValues(result.values);
+		return true;
 	};
 	const handleInsertWithCopy = () => {
 		setCopyDialogOpen(false);
@@ -501,6 +546,7 @@ function TextTemplate({
 					open={copyDialogOpen}
 					templateName={template.name}
 					onCopyValueChange={handleCopyValueChange}
+					onCopyValuePaste={handleCopyValuePaste}
 					onInsert={handleInsertWithCopy}
 					onOpenChange={setCopyDialogOpen}
 				/>
@@ -513,6 +559,7 @@ function TextTemplateCopyDialog({
 	copySlots,
 	copyValues,
 	onCopyValueChange,
+	onCopyValuePaste,
 	onInsert,
 	onOpenChange,
 	open,
@@ -521,6 +568,7 @@ function TextTemplateCopyDialog({
 	copySlots: readonly TextTemplatePackCopySlot[];
 	copyValues: readonly string[];
 	onCopyValueChange: (props: { index: number; value: string }) => void;
+	onCopyValuePaste: (props: { index: number; text: string }) => boolean;
 	onInsert: () => void;
 	onOpenChange: (open: boolean) => void;
 	open: boolean;
@@ -549,6 +597,12 @@ function TextTemplateCopyDialog({
 										value: event.target.value,
 									})
 								}
+								onPaste={(event) => {
+									const text = event.clipboardData.getData("text");
+									const handled = onCopyValuePaste({ index, text });
+									if (!handled) return;
+									event.preventDefault();
+								}}
 							/>
 						</label>
 					))}

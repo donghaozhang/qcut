@@ -5,6 +5,7 @@ import {
 	type TextTemplateDefinition,
 } from "@/lib/text/text-template-registry";
 import {
+	applyTextTemplatePackCopyPaste,
 	applyTextTemplatePackCopyValues,
 	buildTextTemplateDragData,
 	getTextTemplateAccessibilityLabel,
@@ -126,6 +127,43 @@ describe("text view layout", () => {
 				pack,
 			}).elements.map((element) => element.content)
 		).toEqual(["开场提醒", "新标题", "新副标题"]);
+	});
+
+	it("distributes multi-line pasted copy across template pack slots", () => {
+		expect(
+			applyTextTemplatePackCopyPaste({
+				currentValues: ["本期重点", "旧标题", "旧副标题"],
+				pastedText: "开场提醒\n新标题\n新副标题",
+				startIndex: 0,
+			})
+		).toEqual({
+			handled: true,
+			values: ["开场提醒", "新标题", "新副标题"],
+		});
+
+		expect(
+			applyTextTemplatePackCopyPaste({
+				currentValues: ["本期重点", "旧标题", "旧副标题"],
+				pastedText: "新标题\n新副标题\n多余行",
+				startIndex: 1,
+			})
+		).toEqual({
+			handled: true,
+			values: ["本期重点", "新标题", "新副标题"],
+		});
+	});
+
+	it("leaves single-line pasted copy to the native input behavior", () => {
+		expect(
+			applyTextTemplatePackCopyPaste({
+				currentValues: ["本期重点", "旧标题", "旧副标题"],
+				pastedText: "只有一行",
+				startIndex: 0,
+			})
+		).toEqual({
+			handled: false,
+			values: ["本期重点", "旧标题", "旧副标题"],
+		});
 	});
 
 	it("labels single and grouped text templates distinctly", () => {
