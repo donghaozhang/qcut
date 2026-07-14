@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
 	getThumbnailPreviewContent,
+	getTextTemplatePackPreviewBounds,
 	getTextTemplatePackPreviewModel,
 	getTextTemplateThumbnailLayoutKind,
 	getTextTemplateThumbnailRecipe,
@@ -177,6 +178,12 @@ describe("text template thumbnail renderer", () => {
 			expect(model).toMatchObject({
 				kind: expectedKind,
 				layerCount: expect.any(Number),
+				decorations: expect.arrayContaining([
+					expect.objectContaining({
+						id: expect.any(String),
+						kind: expect.any(String),
+					}),
+				]),
 				elements: expect.arrayContaining([
 					expect.objectContaining({
 						content: expect.any(String),
@@ -200,7 +207,74 @@ describe("text template thumbnail renderer", () => {
 			expect(model?.layerCount).toBeGreaterThan(1);
 			expect(model?.elements.length).toBe(model?.layerCount);
 			expect(model?.slots.length).toBeGreaterThan(0);
+			expect(model?.decorations.length).toBeGreaterThan(0);
 		}
+	});
+
+	it("adds structural decorations for template pack thumbnails", () => {
+		const template = createTextElement({ content: "主标题" });
+		const headlineModel = getTextTemplatePackPreviewModel({
+			definition: getTextTemplateDefinitionsByCategory({
+				category: "headline-template",
+			})[0],
+			template,
+		});
+		const listModel = getTextTemplatePackPreviewModel({
+			definition: getTextTemplateDefinitionsByCategory({
+				category: "list-template",
+			})[0],
+			template,
+		});
+		const splitModel = getTextTemplatePackPreviewModel({
+			definition: getTextTemplateDefinitionsByCategory({
+				category: "split-template",
+			})[0],
+			template,
+		});
+		const timelineModel = getTextTemplatePackPreviewModel({
+			definition: getTextTemplateDefinitionsByCategory({
+				category: "timeline-template",
+			})[0],
+			template,
+		});
+
+		expect(
+			headlineModel?.decorations.map((decoration) => decoration.id)
+		).toEqual(["headline-panel", "headline-rule"]);
+		expect(listModel?.decorations.map((decoration) => decoration.kind)).toEqual(
+			["line", "circle", "circle"]
+		);
+		expect(splitModel?.decorations).toEqual([
+			expect.objectContaining({ id: "split-divider", kind: "line" }),
+		]);
+		expect(
+			timelineModel?.decorations.map((decoration) => decoration.id)
+		).toEqual([
+			"timeline-rail",
+			"timeline-node-1",
+			"timeline-node-2",
+			"timeline-node-3",
+		]);
+	});
+
+	it("includes pack decorations in thumbnail preview bounds", () => {
+		const definition = getTextTemplateDefinitionsByCategory({
+			category: "list-template",
+		})[0];
+		const template = createTextElement({ content: "主标题" });
+		const model = getTextTemplatePackPreviewModel({ definition, template });
+		if (!model) throw new Error("Expected list template pack model");
+
+		const textOnlyBounds = getTextTemplatePackPreviewBounds({
+			elements: model.elements,
+		});
+		const decoratedBounds = getTextTemplatePackPreviewBounds({
+			decorations: model.decorations,
+			elements: model.elements,
+		});
+
+		expect(decoratedBounds.minX).toBeLessThan(textOnlyBounds.minX);
+		expect(decoratedBounds.maxY).toBeGreaterThanOrEqual(textOnlyBounds.maxY);
 	});
 
 	it("keeps real pack element geometry in thumbnail preview models", () => {

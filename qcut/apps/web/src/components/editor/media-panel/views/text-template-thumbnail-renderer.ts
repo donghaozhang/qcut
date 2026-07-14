@@ -90,9 +90,43 @@ export type TextTemplatePackPreviewElement = {
 	y: number;
 };
 
+export type TextTemplatePackPreviewDecoration =
+	| {
+			id: string;
+			kind: "circle";
+			color: string;
+			opacity: number;
+			radius: number;
+			x: number;
+			y: number;
+	  }
+	| {
+			id: string;
+			kind: "line";
+			color: string;
+			opacity: number;
+			strokeWidth: number;
+			x1: number;
+			x2: number;
+			y1: number;
+			y2: number;
+	  }
+	| {
+			id: string;
+			kind: "pill";
+			color: string;
+			height: number;
+			opacity: number;
+			radius: number;
+			width: number;
+			x: number;
+			y: number;
+	  };
+
 export type TextTemplatePackPreviewModel = {
 	kind: TextTemplatePackPreviewKind;
 	layerCount: number;
+	decorations: readonly TextTemplatePackPreviewDecoration[];
 	elements: readonly TextTemplatePackPreviewElement[];
 	slots: readonly TextTemplatePackPreviewSlot[];
 };
@@ -300,6 +334,7 @@ export function getTextTemplatePackPreviewModel({
 	return {
 		kind: getTextTemplatePackPreviewKind({ definition }),
 		layerCount: resolvedPack.elements.length,
+		decorations: getTextTemplatePackPreviewDecorations({ definition }),
 		elements: resolvedPack.elements.map((element, index) =>
 			toPackPreviewElement({ element, index })
 		),
@@ -350,6 +385,130 @@ function getTextTemplatePackPreviewKind({
 	if (definition.category === "split-template") return "split";
 	if (definition.category === "timeline-template") return "timeline";
 	return "headline";
+}
+
+function getTextTemplatePackPreviewDecorations({
+	definition,
+}: {
+	definition: TextTemplateDefinition;
+}): TextTemplatePackPreviewDecoration[] {
+	if (definition.category === "list-template") {
+		return [
+			{
+				id: "list-rail",
+				kind: "line",
+				color: "rgba(255,255,255,.58)",
+				opacity: 0.72,
+				strokeWidth: 8,
+				x1: 86,
+				x2: 86,
+				y1: 232,
+				y2: 356,
+			},
+			{
+				id: "list-node-1",
+				kind: "circle",
+				color: definition.overrides?.glowColor ?? "#38bdf8",
+				opacity: 0.95,
+				radius: 22,
+				x: 86,
+				y: 255,
+			},
+			{
+				id: "list-node-2",
+				kind: "circle",
+				color: definition.overrides?.glowColor ?? "#38bdf8",
+				opacity: 0.82,
+				radius: 20,
+				x: 86,
+				y: 337,
+			},
+		];
+	}
+	if (definition.category === "split-template") {
+		return [
+			{
+				id: "split-divider",
+				kind: "line",
+				color: definition.overrides?.glowColor ?? "#38bdf8",
+				opacity: 0.8,
+				strokeWidth: 10,
+				x1: 480,
+				x2: 480,
+				y1: 96,
+				y2: 292,
+			},
+		];
+	}
+	if (definition.category === "timeline-template") {
+		return [
+			{
+				id: "timeline-rail",
+				kind: "line",
+				color: "rgba(255,255,255,.72)",
+				opacity: 0.84,
+				strokeWidth: 12,
+				x1: 142,
+				x2: 798,
+				y1: 166,
+				y2: 166,
+			},
+			...[
+				{ id: "timeline-node-1", x: 142, radius: 25, opacity: 0.78 },
+				{ id: "timeline-node-2", x: 500, radius: 32, opacity: 0.95 },
+				{ id: "timeline-node-3", x: 798, radius: 25, opacity: 0.78 },
+			].map(
+				(node): TextTemplatePackPreviewDecoration => ({
+					id: node.id,
+					kind: "circle",
+					color: definition.overrides?.glowColor ?? "#38bdf8",
+					opacity: node.opacity,
+					radius: node.radius,
+					x: node.x,
+					y: 166,
+				})
+			),
+		];
+	}
+	if (definition.category === "quote-template") {
+		return [
+			{
+				id: "quote-panel",
+				kind: "pill",
+				color: "rgba(255,255,255,.14)",
+				height: 230,
+				opacity: 0.86,
+				radius: 34,
+				width: 800,
+				x: 136,
+				y: 78,
+			},
+		];
+	}
+	return [
+		{
+			id: "headline-panel",
+			kind: "pill",
+			color: "rgba(255,255,255,.13)",
+			height: 318,
+			opacity: 0.84,
+			radius: 34,
+			width: 842,
+			x: 88,
+			y: 68,
+		},
+		{
+			id: "headline-rule",
+			kind: "line",
+			color: definition.overrides?.glowColor ?? "#38bdf8",
+			opacity: 0.78,
+			strokeWidth: 9,
+			x1: 116,
+			x2: 462,
+			y1: 298,
+			y2: 298,
+		},
+	];
 }
 
 function fillRoundedRect({
@@ -1362,6 +1521,9 @@ export type TextTemplatePackPreviewElementVisualRect = {
 	y: number;
 };
 
+type TextTemplatePackPreviewVisualRect =
+	TextTemplatePackPreviewElementVisualRect;
+
 function estimatePackPreviewTextWidth({
 	element,
 }: {
@@ -1397,19 +1559,55 @@ export function getTextTemplatePackPreviewElementVisualRect({
 	};
 }
 
+function getTextTemplatePackPreviewDecorationVisualRect({
+	decoration,
+}: {
+	decoration: TextTemplatePackPreviewDecoration;
+}): TextTemplatePackPreviewVisualRect {
+	if (decoration.kind === "circle") {
+		return {
+			height: decoration.radius * 2,
+			width: decoration.radius * 2,
+			x: decoration.x - decoration.radius,
+			y: decoration.y - decoration.radius,
+		};
+	}
+	if (decoration.kind === "line") {
+		const padding = decoration.strokeWidth / 2;
+		return {
+			height: Math.abs(decoration.y2 - decoration.y1) + padding * 2,
+			width: Math.abs(decoration.x2 - decoration.x1) + padding * 2,
+			x: Math.min(decoration.x1, decoration.x2) - padding,
+			y: Math.min(decoration.y1, decoration.y2) - padding,
+		};
+	}
+	return {
+		height: decoration.height,
+		width: decoration.width,
+		x: decoration.x,
+		y: decoration.y,
+	};
+}
+
 export function getTextTemplatePackPreviewBounds({
+	decorations = [],
 	elements,
 }: {
+	decorations?: readonly TextTemplatePackPreviewDecoration[];
 	elements: readonly TextTemplatePackPreviewElement[];
 }): TextTemplatePackPreviewBounds {
-	const first = elements[0];
-	if (!first) return { maxX: 1, maxY: 1, minX: 0, minY: 0 };
-	const firstRect = getTextTemplatePackPreviewElementVisualRect({
-		element: first,
-	});
-	return elements.reduce(
-		(bounds, element) => {
-			const rect = getTextTemplatePackPreviewElementVisualRect({ element });
+	const rects: TextTemplatePackPreviewVisualRect[] = [
+		...decorations.map((decoration) =>
+			getTextTemplatePackPreviewDecorationVisualRect({ decoration })
+		),
+		...elements.map((element) =>
+			getTextTemplatePackPreviewElementVisualRect({ element })
+		),
+	];
+	const firstRect = rects[0];
+	if (!firstRect) return { maxX: 1, maxY: 1, minX: 0, minY: 0 };
+	return rects.reduce(
+		(bounds, rect) => {
 			return {
 				maxX: Math.max(bounds.maxX, rect.x + rect.width),
 				maxY: Math.max(bounds.maxY, rect.y + rect.height),
@@ -1426,16 +1624,15 @@ export function getTextTemplatePackPreviewBounds({
 	);
 }
 
-function mapPackPreviewElementRect({
+function mapPackPreviewVisualRect({
 	bounds,
-	element,
 	height,
+	rect,
 	width,
 }: CanvasSize & {
 	bounds: TextTemplatePackPreviewBounds;
-	element: TextTemplatePackPreviewElement;
+	rect: TextTemplatePackPreviewVisualRect;
 }) {
-	const visualRect = getTextTemplatePackPreviewElementVisualRect({ element });
 	const sourceWidth = Math.max(1, bounds.maxX - bounds.minX);
 	const sourceHeight = Math.max(1, bounds.maxY - bounds.minY);
 	const target = {
@@ -1453,12 +1650,46 @@ function mapPackPreviewElementRect({
 	const offsetX = target.x + (target.width - scaledWidth) / 2;
 	const offsetY = target.y + (target.height - scaledHeight) / 2;
 	return {
-		height: visualRect.height * scale,
+		height: rect.height * scale,
 		scale,
-		width: visualRect.width * scale,
-		x: offsetX + (visualRect.x - bounds.minX) * scale,
-		y: offsetY + (visualRect.y - bounds.minY) * scale,
+		width: rect.width * scale,
+		x: offsetX + (rect.x - bounds.minX) * scale,
+		y: offsetY + (rect.y - bounds.minY) * scale,
 	};
+}
+
+function mapPackPreviewElementRect({
+	bounds,
+	element,
+	height,
+	width,
+}: CanvasSize & {
+	bounds: TextTemplatePackPreviewBounds;
+	element: TextTemplatePackPreviewElement;
+}) {
+	return mapPackPreviewVisualRect({
+		bounds,
+		height,
+		rect: getTextTemplatePackPreviewElementVisualRect({ element }),
+		width,
+	});
+}
+
+function mapPackPreviewDecorationRect({
+	bounds,
+	decoration,
+	height,
+	width,
+}: CanvasSize & {
+	bounds: TextTemplatePackPreviewBounds;
+	decoration: TextTemplatePackPreviewDecoration;
+}) {
+	return mapPackPreviewVisualRect({
+		bounds,
+		height,
+		rect: getTextTemplatePackPreviewDecorationVisualRect({ decoration }),
+		width,
+	});
 }
 
 function getPackPreviewTextX({
@@ -1553,6 +1784,70 @@ function drawPackPreviewElement({
 	context.restore();
 }
 
+function drawPackPreviewDecoration({
+	context,
+	decoration,
+	height,
+	width,
+	x,
+	y,
+}: CanvasSize & {
+	context: CanvasRenderingContext2D;
+	decoration: TextTemplatePackPreviewDecoration;
+	x: number;
+	y: number;
+}) {
+	context.save();
+	context.globalAlpha = Math.max(0.05, Math.min(1, decoration.opacity));
+	if (decoration.kind === "line") {
+		context.strokeStyle = decoration.color;
+		context.lineWidth = Math.max(2, Math.min(width, height));
+		context.lineCap = "round";
+		context.beginPath();
+		if (decoration.y1 === decoration.y2) {
+			context.moveTo(x, y + height / 2);
+			context.lineTo(x + width, y + height / 2);
+		} else if (decoration.x1 === decoration.x2) {
+			context.moveTo(x + width / 2, y);
+			context.lineTo(x + width / 2, y + height);
+		} else {
+			context.moveTo(x, y);
+			context.lineTo(x + width, y + height);
+		}
+		context.stroke();
+		context.restore();
+		return;
+	}
+	if (decoration.kind === "circle") {
+		context.fillStyle = decoration.color;
+		context.shadowColor = "rgba(0,0,0,.32)";
+		context.shadowBlur = 8;
+		context.beginPath();
+		context.arc(
+			x + width / 2,
+			y + height / 2,
+			Math.min(width, height) / 2,
+			0,
+			Math.PI * 2
+		);
+		context.fill();
+		context.restore();
+		return;
+	}
+	context.fillStyle = decoration.color;
+	context.shadowColor = "rgba(0,0,0,.32)";
+	context.shadowBlur = 8;
+	fillRoundedRect({
+		context,
+		height,
+		radius: Math.max(4, Math.min(width, height, decoration.radius)),
+		width,
+		x,
+		y,
+	});
+	context.restore();
+}
+
 function drawPackPreviewScene({
 	context,
 	height,
@@ -1565,8 +1860,25 @@ function drawPackPreviewScene({
 	recipe: TextTemplateThumbnailRecipe;
 }) {
 	const bounds = getTextTemplatePackPreviewBounds({
+		decorations: model.decorations,
 		elements: model.elements,
 	});
+	for (const decoration of model.decorations) {
+		const rect = mapPackPreviewDecorationRect({
+			bounds,
+			decoration,
+			height,
+			width,
+		});
+		drawPackPreviewDecoration({
+			context,
+			decoration,
+			height: rect.height,
+			width: rect.width,
+			x: rect.x,
+			y: rect.y,
+		});
+	}
 	for (const element of model.elements) {
 		const rect = mapPackPreviewElementRect({
 			bounds,
