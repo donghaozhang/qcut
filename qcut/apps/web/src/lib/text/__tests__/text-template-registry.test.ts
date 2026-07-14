@@ -5,7 +5,9 @@ import {
 	TEXT_TEMPLATE_CATEGORIES,
 	TEXT_TEMPLATE_DEFINITIONS,
 	TEXT_TEMPLATE_GROUPS,
+	TEXT_TEMPLATE_LIBRARY_DEFINITIONS,
 	TEXT_TEMPLATES,
+	getTextTemplateDefinitionsByCategory,
 	getTextTemplatesByCategory,
 } from "../text-template-registry";
 
@@ -40,6 +42,23 @@ describe("text template registry", () => {
 					getTextTemplatesByCategory({ category: category.id }).length
 				).toBeGreaterThanOrEqual(MIN_TEXT_TEMPLATES_PER_CATEGORY);
 			}
+		}
+	});
+
+	it("keeps the visible marketplace catalog at the requested density", () => {
+		expect(
+			TEXT_TEMPLATE_LIBRARY_DEFINITIONS.every(
+				(definition) => definition.catalogVisible
+			)
+		).toBe(true);
+		for (const category of TEXT_TEMPLATE_CATEGORIES) {
+			const visibleCount = getTextTemplateDefinitionsByCategory({
+				category: category.id,
+			}).length;
+			expect(visibleCount).toBeGreaterThanOrEqual(
+				MIN_TEXT_TEMPLATES_PER_CATEGORY
+			);
+			expect(visibleCount).toBeLessThanOrEqual(30);
 		}
 	});
 
