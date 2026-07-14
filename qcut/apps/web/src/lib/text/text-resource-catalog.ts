@@ -113,7 +113,7 @@ export function getTextTemplateResourceFiles({
 }): TextTemplateResourceFiles {
 	const resource = getTextTemplateResource({ definition });
 	const bundledAsset = matchingGeneratedAsset({ resource });
-	if (definition.downloaded && bundledAsset) {
+	if (bundledAsset) {
 		return {
 			thumbnailUrl: bundledAsset.thumbnail.url,
 			sourceUrl: bundledAsset.source.url,
@@ -150,22 +150,6 @@ export function getTextTemplateResourceFiles({
 		fileName: "template.qctext",
 		remoteBaseUrl,
 	});
-	if (bundledAsset) {
-		return {
-			thumbnailUrl,
-			sourceUrl,
-			packageUrl,
-			byteSize: bundledAsset.source.byteSize,
-			thumbnailByteSize: bundledAsset.thumbnail.byteSize,
-			sourceByteSize: bundledAsset.source.byteSize,
-			packageByteSize:
-				bundledAsset.qcutPackage?.byteSize ?? bundledAsset.source.byteSize,
-			thumbnailChecksumSha256: bundledAsset.thumbnail.checksumSha256,
-			sourceChecksumSha256: bundledAsset.source.checksumSha256,
-			packageChecksumSha256: bundledAsset.qcutPackage?.checksumSha256,
-			bundled: false,
-		};
-	}
 	return {
 		thumbnailUrl,
 		sourceUrl,

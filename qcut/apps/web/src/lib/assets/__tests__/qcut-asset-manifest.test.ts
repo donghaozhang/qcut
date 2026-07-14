@@ -117,14 +117,15 @@ describe("QCut asset manifest", () => {
 			"source",
 			"package",
 		]);
+		expect(redAsset?.delivery).toBe("bundled");
 		expect(redAsset?.files[0]?.url).toMatch(
-			/^https:\/\/assets\.qcut\.app\/text-assets\/.+\/thumbnail\.webp$/
+			/^\/text-assets\/.+\/thumbnail\.webp$/
 		);
 		expect(redAsset?.files[1]?.url).toMatch(
-			/^https:\/\/assets\.qcut\.app\/text-assets\/.+\/template\.json$/
+			/^\/text-assets\/.+\/template\.json$/
 		);
 		expect(redAsset?.files[2]?.url).toMatch(
-			/^https:\/\/assets\.qcut\.app\/text-assets\/.+\/template\.qctext$/
+			/^\/text-assets\/.+\/template\.qctext$/
 		);
 		expect(redAsset?.metadata).toMatchObject({
 			packageId: "text-fancy-red",
@@ -145,7 +146,7 @@ describe("QCut asset manifest", () => {
 			url: expect.stringMatching(/^\/text-assets\/.+\/template\.qctext$/),
 			checksumSha256: expect.stringMatching(/^[a-f0-9]{64}$/),
 		});
-		expect(premiumAsset?.delivery).toBe("remote");
+		expect(premiumAsset?.delivery).toBe("bundled");
 		expect(premiumAsset?.tags).toContain("svip");
 	});
 

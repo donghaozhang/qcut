@@ -235,10 +235,10 @@ describe("downloadTextTemplateResource", () => {
 
 	it("returns bundled template cache keys without fetching", async () => {
 		const definition = TEXT_TEMPLATE_DEFINITIONS.find(
-			(candidate) => candidate.downloaded
+			(candidate) => candidate.category === "red" && !candidate.downloaded
 		);
 		if (!definition)
-			throw new Error("Expected a bundled text template fixture");
+			throw new Error("Expected a generated text template fixture");
 		const fetchImpl = vi.fn<typeof fetch>();
 
 		await expect(

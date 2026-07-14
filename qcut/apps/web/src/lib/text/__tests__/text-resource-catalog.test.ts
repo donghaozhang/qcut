@@ -135,27 +135,25 @@ describe("text resource catalog", () => {
 		});
 	});
 
-	it("keeps not-downloaded templates remote instead of using an internal URL", () => {
-		const remoteDefinition = TEXT_TEMPLATE_DEFINITIONS.find(
+	it("uses bundled generated files for not-downloaded templates when available", () => {
+		const bundledDefinition = TEXT_TEMPLATE_DEFINITIONS.find(
 			(definition) => definition.category === "red" && !definition.downloaded
 		);
 
-		expect(remoteDefinition).toBeDefined();
+		expect(bundledDefinition).toBeDefined();
 		expect(
 			getTextTemplateResourceFiles({
-				definition: remoteDefinition as TextTemplateDefinition,
+				definition: bundledDefinition as TextTemplateDefinition,
 			})
 		).toMatchObject({
 			thumbnailUrl: expect.stringMatching(
-				/^https:\/\/assets\.qcut\.app\/text-assets\/.+\/thumbnail\.webp$/
+				/^\/text-assets\/.+\/thumbnail\.webp$/
 			),
-			sourceUrl: expect.stringMatching(
-				/^https:\/\/assets\.qcut\.app\/text-assets\/.+\/template\.json$/
-			),
+			sourceUrl: expect.stringMatching(/^\/text-assets\/.+\/template\.json$/),
 			packageUrl: expect.stringMatching(
-				/^https:\/\/assets\.qcut\.app\/text-assets\/.+\/template\.qctext$/
+				/^\/text-assets\/.+\/template\.qctext$/
 			),
-			bundled: false,
+			bundled: true,
 		});
 	});
 
@@ -176,9 +174,9 @@ describe("text resource catalog", () => {
 			})
 		).toMatchObject({
 			thumbnailUrl: expect.stringMatching(
-				/^https:\/\/assets\.qcut\.app\/text-assets\/.+\/thumbnail\.webp$/
+				/^\/text-assets\/.+\/thumbnail\.webp$/
 			),
-			bundled: false,
+			bundled: true,
 		});
 	});
 
