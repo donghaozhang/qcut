@@ -174,6 +174,20 @@ export function getTextTemplateResourceFiles({
 	};
 }
 
+export function getTextTemplateCatalogThumbnailUrl({
+	definition,
+	remoteBaseUrl = DEFAULT_TEXT_ASSET_REMOTE_BASE_URL,
+}: {
+	definition: TextTemplateDefinition;
+	remoteBaseUrl?: string;
+}): string {
+	const resource = getTextTemplateResource({ definition });
+	const bundledAsset = matchingGeneratedAsset({ resource });
+	if (bundledAsset) return bundledAsset.thumbnail.url;
+	return getTextTemplateResourceFiles({ definition, remoteBaseUrl })
+		.thumbnailUrl;
+}
+
 export function buildTextTemplateResourcePackages({
 	definitions,
 }: {

@@ -9,6 +9,7 @@ import {
 import { TIMELINE_CONSTANTS } from "@/constants/timeline-constants";
 import { useOnlineStatus } from "@/hooks/use-online-status";
 import { resolveTextTemplateAssetEntry } from "@/lib/assets/qcut-asset-manifest";
+import { getTextTemplateCatalogThumbnailUrl } from "@/lib/text/text-resource-catalog";
 import {
 	downloadTextTemplateResource,
 	resolveTextTemplateForTimeline,
@@ -291,7 +292,11 @@ function TextTemplate({
 					className="relative aspect-[1.05] overflow-hidden rounded-md bg-zinc-800 shadow-[0_1px_0_rgba(255,255,255,.08),0_10px_22px_rgba(0,0,0,.22)] ring-1 ring-white/5 transition-transform group-hover:scale-[1.02]"
 					onDragStart={handleDragStart}
 				>
-					<TextTemplateThumbnail definition={definition} template={template} />
+					<TextTemplateThumbnail
+						definition={definition}
+						template={template}
+						thumbnailUrl={getTextTemplateCatalogThumbnailUrl({ definition })}
+					/>
 					{definition.premium && (
 						<div className="absolute left-1 top-1 flex h-3.5 w-3.5 items-center justify-center rounded-full bg-cyan-300 text-slate-950 shadow-sm">
 							<Gem aria-hidden="true" className="h-2.5 w-2.5">

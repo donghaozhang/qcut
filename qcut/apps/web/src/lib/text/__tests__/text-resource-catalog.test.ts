@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import {
 	DEFAULT_TEXT_ASSET_REMOTE_BASE_URL,
 	buildTextTemplateResourcePackages,
+	getTextTemplateCatalogThumbnailUrl,
 	getTextTemplateResource,
 	getTextTemplateResourceFiles,
 } from "../text-resource-catalog";
@@ -153,6 +154,29 @@ describe("text resource catalog", () => {
 			),
 			packageUrl: expect.stringMatching(
 				/^https:\/\/assets\.qcut\.app\/text-assets\/.+\/template\.qctext$/
+			),
+			bundled: false,
+		});
+	});
+
+	it("uses generated thumbnails for catalog cards before a template is downloaded", () => {
+		const remoteDefinition = TEXT_TEMPLATE_DEFINITIONS.find(
+			(definition) => definition.category === "red" && !definition.downloaded
+		);
+
+		expect(remoteDefinition).toBeDefined();
+		expect(
+			getTextTemplateCatalogThumbnailUrl({
+				definition: remoteDefinition as TextTemplateDefinition,
+			})
+		).toMatch(/^\/text-assets\/.+\/thumbnail\.webp$/);
+		expect(
+			getTextTemplateResourceFiles({
+				definition: remoteDefinition as TextTemplateDefinition,
+			})
+		).toMatchObject({
+			thumbnailUrl: expect.stringMatching(
+				/^https:\/\/assets\.qcut\.app\/text-assets\/.+\/thumbnail\.webp$/
 			),
 			bundled: false,
 		});
