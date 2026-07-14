@@ -907,7 +907,9 @@ export function verifyTextThumbnailDiversity({
 		Map<string, { assetIds: string[]; url?: string }>
 	>();
 	for (const entry of Object.values(generatedManifest)) {
+		if (!entry.thumbnail || !entry.source || !entry.qcutPackage) continue;
 		const category = inferTextAssetCategory({ entry });
+		if (!category) continue;
 		const categoryHashes = byCategory.get(category) ?? new Map();
 		const hash = entry.thumbnail.checksumSha256;
 		const existing = categoryHashes.get(hash);

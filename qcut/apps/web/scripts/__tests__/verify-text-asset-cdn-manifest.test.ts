@@ -745,6 +745,61 @@ describe("text asset CDN manifest verifier", () => {
 		]);
 	});
 
+	it("reports every missing text asset companion file without crashing", () => {
+		const missingThumbnail = {
+			...createGeneratedEntry({
+				assetId: "text-missing-thumbnail",
+				cacheKey: "text-assets/demo/missing-thumbnail@1",
+			}),
+			thumbnail: undefined as unknown as TextAssetGeneratedEntry["thumbnail"],
+		};
+		const missingSource = {
+			...createGeneratedEntry({
+				assetId: "text-missing-source",
+				cacheKey: "text-assets/demo/missing-source@1",
+			}),
+			source: undefined as unknown as TextAssetGeneratedEntry["source"],
+		};
+		const missingPackage = {
+			...createGeneratedEntry({
+				assetId: "text-missing-package",
+				cacheKey: "text-assets/demo/missing-package@1",
+			}),
+			qcutPackage: undefined,
+		};
+
+		const { issues, manifest } = buildTextAssetPublishManifest({
+			baseUrl: "https://cdn.example.com/assets/",
+			generatedAt: "2026-07-15T00:00:00.000Z",
+			generatedManifest: {
+				[missingPackage.assetId]: missingPackage,
+				[missingSource.assetId]: missingSource,
+				[missingThumbnail.assetId]: missingThumbnail,
+			},
+			publicDir: "/tmp/public",
+		});
+
+		expect(issues).toEqual([
+			expect.objectContaining({
+				assetId: "text-missing-package",
+				code: "missing-package",
+				detail: "Missing required companion package file metadata",
+			}),
+			expect.objectContaining({
+				assetId: "text-missing-source",
+				code: "missing-package",
+				detail: "Missing required companion source file metadata",
+			}),
+			expect.objectContaining({
+				assetId: "text-missing-thumbnail",
+				code: "missing-package",
+				detail: "Missing required companion thumbnail file metadata",
+			}),
+		]);
+		expect(manifest.totalAssets).toBe(3);
+		expect(manifest.totalFiles).toBe(6);
+	});
+
 	it("reports duplicate thumbnail checksums within a text asset category", () => {
 		const duplicateThumbnail = createVp8xWebpBytes({ height: 304, width: 320 });
 		const first = createGeneratedEntry({
