@@ -174,23 +174,30 @@ function analyticsMarketplaceSections({
 	baseSections: readonly TextTemplateMarketplaceSection[];
 	scores: readonly TextMarketplaceAnalyticsScore[];
 }): TextTemplateMarketplaceSection[] {
-	const trendingTemplateIds = scores
-		.slice(0, TRENDING_SECTION_LIMIT)
-		.map((item) => item.definition.id);
+	const trendingScores = scores.slice(0, TRENDING_SECTION_LIMIT);
+	const trendingAssetIds = trendingScores.map(
+		(item) => getTextTemplateResource({ definition: item.definition }).assetId
+	);
+	const trendingTemplateIds = trendingScores.map((item) => item.definition.id);
 	const sectionsById = new Map(
 		baseSections.map((section) => [section.id, section])
 	);
 	const recommended = sectionsById.get("recommended");
+	const mergedRecommendedAssetIds = uniqueValues({
+		values: [...trendingAssetIds, ...(recommended?.assetIds ?? [])],
+	}).slice(0, TRENDING_SECTION_LIMIT);
 	const mergedRecommendedTemplateIds = uniqueValues({
 		values: [...trendingTemplateIds, ...(recommended?.templateIds ?? [])],
 	}).slice(0, TRENDING_SECTION_LIMIT);
 	return [
 		{
+			assetIds: mergedRecommendedAssetIds,
 			id: "recommended",
 			templateIds: mergedRecommendedTemplateIds,
 			title: recommended?.title ?? "推荐",
 		},
 		{
+			assetIds: trendingAssetIds,
 			id: "trending",
 			templateIds: trendingTemplateIds,
 			title: "实时热门",
@@ -492,10 +499,10 @@ async function main() {
 	});
 	await writeFile(outPath, `${JSON.stringify(config, null, "\t")}\n`, "utf8");
 	const matchedTemplateCount =
-		config.sections.find((section) => section.id === "trending")?.templateIds
-			.length ?? 0;
+		config.sections.find((section) => section.id === "trending")?.assetIds
+			?.length ?? 0;
 	console.log(
-		`Wrote text marketplace config with ${analytics.events.length} analytics rows (${matchedTemplateCount} matched templates) to ${outPath}`
+		`Wrote text marketplace config with ${analytics.events.length} analytics rows (${matchedTemplateCount} matched assets) to ${outPath}`
 	);
 }
 

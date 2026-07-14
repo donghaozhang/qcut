@@ -23,6 +23,10 @@ describe("text marketplace analytics applier", () => {
 	it("promotes analytics-backed templates into recommended and trending sections", () => {
 		const popular = requiredDefinition({ category: "red" });
 		const secondary = requiredDefinition({ category: "blue" });
+		const popularResource = getTextTemplateResource({ definition: popular });
+		const secondaryResource = getTextTemplateResource({
+			definition: secondary,
+		});
 		const payload = buildTextMarketplaceConfigWithAnalytics({
 			analytics: {
 				events: [
@@ -47,7 +51,12 @@ describe("text marketplace analytics applier", () => {
 			"recommended",
 			"trending",
 		]);
-		expect(payload.sections[0]?.templateIds[0]).toBe(popular.id);
+		expect(payload.sections[0]?.assetIds?.[0]).toBe(popularResource.assetId);
+		expect(payload.sections[0]?.templateIds?.[0]).toBe(popular.id);
+		expect(payload.sections[1]?.assetIds).toEqual([
+			popularResource.assetId,
+			secondaryResource.assetId,
+		]);
 		expect(payload.sections[1]?.templateIds).toEqual([
 			popular.id,
 			secondary.id,
@@ -90,6 +99,7 @@ describe("text marketplace analytics applier", () => {
 			(candidate) => candidate.templateId === definition.id
 		);
 
+		expect(payload.sections[1]?.assetIds).toEqual([resource.assetId]);
 		expect(payload.sections[1]?.templateIds).toEqual([definition.id]);
 		expect(asset).toMatchObject({
 			heatScore: 100,
