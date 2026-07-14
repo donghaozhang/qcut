@@ -109,6 +109,21 @@ describe("text library search", () => {
 		);
 	});
 
+	it("adds marketplace phrase pinyin aliases beyond the base character map", () => {
+		expect(buildWeightedSearchTerms({ query: "带货" })).toEqual(
+			expect.arrayContaining([
+				{ term: "daihuo", weight: 0.95 },
+				{ term: "dh", weight: 0.874 },
+			])
+		);
+		expect(buildWeightedSearchTerms({ query: "信息条" })).toEqual(
+			expect.arrayContaining([
+				{ term: "xinxitiao", weight: 0.95 },
+				{ term: "xxt", weight: 0.874 },
+			])
+		);
+	});
+
 	it("ranks matching text templates with state-aware boosts", () => {
 		const definitions = [
 			createDefinition({
@@ -360,6 +375,53 @@ describe("text library search", () => {
 		).toEqual(["remote-campaign"]);
 	});
 
+	it("matches remote marketplace phrase aliases through pinyin and acronyms", () => {
+		const definitions = [
+			createDefinition({
+				category: "basic",
+				content: "花字",
+				id: "standard-campaign",
+				variantId: "plain",
+			}),
+			createDefinition({
+				category: "basic",
+				content: "花字",
+				id: "remote-campaign",
+				variantId: "shadow",
+			}),
+		];
+		const marketplaceOverrides = {
+			"remote-campaign": {
+				searchAliases: ["带货标牌", "信息条", "同款链接"],
+			},
+		};
+
+		expect(
+			rankTextTemplateSearchResults({
+				definitions,
+				marketplaceOverrides,
+				query: "daihuo",
+				state: EMPTY_TEXT_LIBRARY_STATE,
+			}).map((definition) => definition.id)
+		).toEqual(["remote-campaign"]);
+		expect(
+			rankTextTemplateSearchResults({
+				definitions,
+				marketplaceOverrides,
+				query: "xxt",
+				state: EMPTY_TEXT_LIBRARY_STATE,
+			}).map((definition) => definition.id)
+		).toEqual(["remote-campaign"]);
+		expect(
+			rankTextTemplateSearchResults({
+				definitions,
+				marketplaceOverrides,
+				query: "tklj",
+				state: EMPTY_TEXT_LIBRARY_STATE,
+			}).map((definition) => definition.id)
+		).toEqual(["remote-campaign"]);
+	});
+
 	it("matches built-in operation aliases through pinyin queries", () => {
 		const definitions = [
 			createDefinition({
@@ -476,5 +538,39 @@ describe("text library search", () => {
 				state: EMPTY_TEXT_LIBRARY_STATE,
 			}).map((definition) => definition.id)
 		).toEqual(["cover-marketplace-style"]);
+	});
+
+	it("matches creator phrase pinyin aliases that are not covered character by character", () => {
+		const definitions = [
+			createDefinition({
+				category: "popular",
+				content: "高能预警",
+				id: "warning-title-style",
+				keywords: ["高能预警"],
+				variantId: "comic",
+			}),
+			createDefinition({
+				category: "red",
+				content: "同款链接",
+				id: "shopping-link-style",
+				keywords: ["同款链接"],
+				variantId: "red-burst",
+			}),
+		];
+
+		expect(
+			rankTextTemplateSearchResults({
+				definitions,
+				query: "gnyj",
+				state: EMPTY_TEXT_LIBRARY_STATE,
+			}).map((definition) => definition.id)
+		).toEqual(["warning-title-style"]);
+		expect(
+			rankTextTemplateSearchResults({
+				definitions,
+				query: "tongkuanlianjie",
+				state: EMPTY_TEXT_LIBRARY_STATE,
+			}).map((definition) => definition.id)
+		).toEqual(["shopping-link-style"]);
 	});
 });

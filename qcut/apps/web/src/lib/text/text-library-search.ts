@@ -19,6 +19,11 @@ type SearchFieldVariant = {
 	weight: number;
 };
 
+type PinyinAlias = {
+	full: string;
+	acronym: string;
+};
+
 const CHINESE_PINYIN: Readonly<Record<string, string>> = {
 	字: "zi",
 	花: "hua",
@@ -189,6 +194,30 @@ const CHINESE_PINYIN: Readonly<Record<string, string>> = {
 	饮: "yin",
 	电: "dian",
 	商: "shang",
+};
+
+const CHINESE_PHRASE_PINYIN_ALIASES: Readonly<Record<string, PinyinAlias>> = {
+	必看: { full: "bikan", acronym: "bk" },
+	带货: { full: "daihuo", acronym: "dh" },
+	到手价: { full: "daoshoujia", acronym: "dsj" },
+	地点: { full: "didian", acronym: "dd" },
+	福利: { full: "fuli", acronym: "fl" },
+	高能预警: { full: "gaonengyujing", acronym: "gnyj" },
+	感谢观看: { full: "ganxieguankan", acronym: "gxgk" },
+	关注: { full: "guanzhu", acronym: "gz" },
+	活动: { full: "huodong", acronym: "hd" },
+	今日推荐: { full: "jinrituijian", acronym: "jrtj" },
+	开场: { full: "kaichang", acronym: "kc" },
+	片头: { full: "piantou", acronym: "pt" },
+	片尾: { full: "pianwei", acronym: "pw" },
+	人物介绍: { full: "renwujieshao", acronym: "rwjs" },
+	三秒讲清: { full: "sanmiaojiangqing", acronym: "smjq" },
+	上新: { full: "shangxin", acronym: "sx" },
+	同款链接: { full: "tongkuanlianjie", acronym: "tklj" },
+	下期见: { full: "xiaqijian", acronym: "xqj" },
+	信息条: { full: "xinxitiao", acronym: "xxt" },
+	醒目: { full: "xingmu", acronym: "xm" },
+	资料来源: { full: "ziliaolaiyuan", acronym: "zlly" },
 };
 
 const QUERY_SYNONYMS: Readonly<Record<string, readonly string[]>> = {
@@ -367,14 +396,14 @@ function addQueryAliases({
 	if (compactTerm && compactTerm !== term) {
 		addWeightedTerm({ term: compactTerm, weight, weightedTerms });
 	}
-	const pinyin = chineseToPinyinAliases({ value: term });
-	if (!pinyin) return;
-	addWeightedTerm({ term: pinyin.full, weight, weightedTerms });
-	addWeightedTerm({
-		term: pinyin.acronym,
-		weight: weight * 0.92,
-		weightedTerms,
-	});
+	for (const pinyin of getPinyinAliases({ value: term })) {
+		addWeightedTerm({ term: pinyin.full, weight, weightedTerms });
+		addWeightedTerm({
+			term: pinyin.acronym,
+			weight: weight * 0.92,
+			weightedTerms,
+		});
+	}
 }
 
 function addWeightedTerm({
@@ -506,19 +535,41 @@ function getSearchFieldVariants({
 	if (compact && compact !== field) {
 		variants.push({ value: compact, weight: 0.94 });
 	}
-	const pinyin = chineseToPinyinAliases({ value: field });
-	if (pinyin) {
+	for (const pinyin of getPinyinAliases({ value: field })) {
 		variants.push({ value: pinyin.full, weight: 0.86 });
 		variants.push({ value: pinyin.acronym, weight: 0.78 });
 	}
 	return variants;
 }
 
+function getPinyinAliases({ value }: { value: string }): PinyinAlias[] {
+	const aliases = new Map<string, PinyinAlias>();
+	const directAlias = chineseToPinyinAliases({ value });
+	if (directAlias) addPinyinAlias({ alias: directAlias, aliases });
+	const normalizedValue = value.toLocaleLowerCase();
+	for (const [phrase, alias] of Object.entries(CHINESE_PHRASE_PINYIN_ALIASES)) {
+		if (normalizedValue.includes(phrase)) {
+			addPinyinAlias({ alias, aliases });
+		}
+	}
+	return [...aliases.values()];
+}
+
+function addPinyinAlias({
+	alias,
+	aliases,
+}: {
+	alias: PinyinAlias;
+	aliases: Map<string, PinyinAlias>;
+}) {
+	aliases.set(`${alias.full}:${alias.acronym}`, alias);
+}
+
 function chineseToPinyinAliases({
 	value,
 }: {
 	value: string;
-}): { full: string; acronym: string } | undefined {
+}): PinyinAlias | undefined {
 	const fullParts: string[] = [];
 	const acronymParts: string[] = [];
 	let matchedChinese = false;
