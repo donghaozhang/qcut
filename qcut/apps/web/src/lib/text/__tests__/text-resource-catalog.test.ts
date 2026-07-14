@@ -139,6 +139,10 @@ describe("text resource catalog", () => {
 			thumbnailChecksumSha256: expect.stringMatching(/^[a-f0-9]{64}$/),
 			sourceChecksumSha256: expect.stringMatching(/^[a-f0-9]{64}$/),
 			packageChecksumSha256: expect.stringMatching(/^[a-f0-9]{64}$/),
+			provenance: {
+				pipeline: expect.any(String),
+				source: "generated",
+			},
 		});
 	});
 

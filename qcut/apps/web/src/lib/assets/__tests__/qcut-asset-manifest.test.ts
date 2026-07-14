@@ -135,6 +135,12 @@ describe("QCut asset manifest", () => {
 			true
 		);
 		for (const asset of textAssets) {
+			expect(asset.metadata).toMatchObject({
+				provenance: {
+					pipeline: expect.any(String),
+					source: expect.stringMatching(/^(generated|designer-imported)$/),
+				},
+			});
 			expect(asset.files.map((file) => file.role)).toEqual([
 				"thumbnail",
 				"source",
@@ -170,6 +176,9 @@ describe("QCut asset manifest", () => {
 		expect(redAsset?.metadata).toMatchObject({
 			packageId: "text-fancy-red",
 			entitlement: expect.stringMatching(/^(free|svip)$/),
+			provenance: {
+				source: "generated",
+			},
 		});
 		expect(bundledAsset?.files[0]).toMatchObject({
 			role: "thumbnail",

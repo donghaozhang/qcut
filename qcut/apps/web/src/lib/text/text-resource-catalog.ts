@@ -17,10 +17,7 @@ type TextTemplateGeneratedAsset = {
 	packageId: string;
 	version: number;
 	cacheKey: string;
-	provenance?: {
-		source: "generated" | "designer-imported";
-		pipeline: string;
-	};
+	provenance?: TextTemplateResourceProvenance;
 	thumbnail: TextTemplateGeneratedAssetFile;
 	source: TextTemplateGeneratedAssetFile;
 	qcutPackage?: TextTemplateGeneratedAssetFile;
@@ -55,6 +52,12 @@ export interface TextTemplateResourceFiles {
 	packageChecksumSha256?: string;
 	packageUrl: string;
 	bundled: boolean;
+	provenance?: TextTemplateResourceProvenance;
+}
+
+export interface TextTemplateResourceProvenance {
+	source: "generated" | "designer-imported";
+	pipeline: string;
 }
 
 function matchingGeneratedAsset({
@@ -133,6 +136,7 @@ export function getTextTemplateResourceFiles({
 			sourceChecksumSha256: bundledAsset.source.checksumSha256,
 			packageChecksumSha256: bundledAsset.qcutPackage?.checksumSha256,
 			bundled: true,
+			provenance: bundledAsset.provenance,
 		};
 	}
 	const thumbnailUrl = remoteTextAssetFileUrl({

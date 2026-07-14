@@ -163,6 +163,7 @@ export function createTextTemplateAssetEntry({
 			entitlement: resource.entitlement,
 			sizeKb: resource.sizeKb,
 			premium: definition.premium,
+			provenance: files.provenance,
 			template: TEXT_TEMPLATES_BY_ID.get(definition.id),
 		},
 	};
