@@ -265,7 +265,9 @@ describe("TransitionsView", () => {
 		await waitFor(() => expect(card).toHaveAttribute("draggable", "true"));
 		expect(mockFetch).toHaveBeenCalledTimes(2);
 		expect(
-			Object.values(useAssetLibraryStore.getState().runtimeByAssetKey).some(
+			Object.values(
+				useAssetLibraryStore.getState().runtimeByAssetKey
+			).some(
 				(runtime) =>
 					runtime.assetKey === "transition:speed-trail@1" &&
 					runtime.downloadStatus === "downloaded" &&
@@ -408,7 +410,6 @@ describe("TransitionsView", () => {
 		const sources = Array.from(card.querySelectorAll("img")).map((img) =>
 			img.getAttribute("src")
 		);
-
 		expect(sources).toEqual(["blob:thumb-a", "blob:thumb-b"]);
 	});
 

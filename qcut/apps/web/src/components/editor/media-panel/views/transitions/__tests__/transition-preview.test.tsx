@@ -14,6 +14,8 @@ function requirePreset({ presetId }: { presetId: string }) {
 const dissolve = requirePreset({ presetId: "dissolve" });
 const slideLeft = requirePreset({ presetId: "slide-left" });
 const zoomBlur = requirePreset({ presetId: "zoom-blur" });
+const pixelCollapse = requirePreset({ presetId: "pixel-collapse" });
+const pageFlipLeft = requirePreset({ presetId: "page-flip-left" });
 
 let nextRafId: number;
 let rafCallbacks: Map<number, FrameRequestCallback>;
@@ -79,10 +81,7 @@ describe("TransitionPreview", () => {
 		const sources = Array.from(container.querySelectorAll("img")).map((img) =>
 			img.getAttribute("src")
 		);
-		expect(sources).toEqual([
-			"/images/filter-previews/coastal.webp",
-			"/images/filter-previews/golden-hour.webp",
-		]);
+		expect(sources).toEqual([dissolve.preview.from, dissolve.preview.to]);
 		expect(rafCallbacks.size).toBe(0);
 	});
 
@@ -154,12 +153,9 @@ describe("TransitionPreview", () => {
 		);
 
 		const { from, to } = getLayers({ container });
-		expect(from.style.transform).toBe(
-			"translate3d(0px, 0px, 0) rotate(0deg) scale(1)"
-		);
-		expect(to.style.transform).toBe(
-			"translate3d(-240px, 0px, 0) rotate(0deg) scale(1)"
-		);
+		expect(from.style.transform).toContain("translate3d(0px, 0px, 0)");
+		expect(to.style.transform).toContain("translate3d(-240px, 0px, 0)");
+		expect(to.style.transform).toContain("rotateY(0deg)");
 	});
 
 	it("renders zoom blur through the shared presentation", () => {
@@ -174,5 +170,25 @@ describe("TransitionPreview", () => {
 		expect(from.style.filter).toContain("blur(10.2px)");
 		expect(from.style.transform).toContain("scale(1.153)");
 		expect(to.style.opacity).toBe("0.5");
+	});
+
+	it("renders pixel scaling and 3D page transforms through shared helpers", () => {
+		const pixelRender = render(
+			<TransitionPreview preset={pixelCollapse} isPlaying={true} />
+		);
+		runFrame({ timestamp: 1000 });
+		runFrame({ timestamp: 1250 });
+		const pixelImage = pixelRender.container.querySelector("img");
+		expect(pixelImage?.style.imageRendering).toBe("pixelated");
+		pixelRender.unmount();
+
+		const pageRender = render(
+			<TransitionPreview preset={pageFlipLeft} isPlaying={true} />
+		);
+		runFrame({ timestamp: 2000 });
+		runFrame({ timestamp: 2250 });
+		const { to } = getLayers({ container: pageRender.container });
+		expect(to.style.transform).toContain("perspective(900px)");
+		expect(to.style.transform).toContain("rotateY(");
 	});
 });
