@@ -69,8 +69,10 @@ function motionBody({
 		}).join("");
 	}
 	if (item.motion === "wave") {
-		return Array.from({ length: 4 }, (_, index) =>
-			`<path d="M ${48 + index * 27} ${76 - index * 5} Q ${96 + index * 20} 128 ${48 + index * 27} ${180 + index * 5}" fill="none" stroke="${primary}" stroke-width="15" stroke-linecap="round" opacity="${1 - index * 0.18}" transform="translate(${pulse * 7} 0)"/>`
+		return Array.from(
+			{ length: 4 },
+			(_, index) =>
+				`<path d="M ${48 + index * 27} ${76 - index * 5} Q ${96 + index * 20} 128 ${48 + index * 27} ${180 + index * 5}" fill="none" stroke="${primary}" stroke-width="15" stroke-linecap="round" opacity="${1 - index * 0.18}" transform="translate(${pulse * 7} 0)"/>`
 		).join("");
 	}
 	if (item.motion === "orbit") {
