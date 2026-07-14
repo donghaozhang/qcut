@@ -14,6 +14,7 @@ import {
 	readTextAssetStageManifest,
 	summarizeTextAssetStageIssues,
 	verifyTextAssetStage,
+	verifyTextAssetStageUploadPlanSync,
 	type TextAssetStageVerifyIssue,
 } from "../verify-text-assets-stage";
 
@@ -72,7 +73,7 @@ describe("text asset stage verifier", () => {
 		};
 
 		expect(packageJson.scripts["assets:text:verify-stage"]).toBe(
-			"bun scripts/verify-text-assets-stage.ts"
+			"bun scripts/verify-text-assets-stage.ts --upload-plan dist/text-assets-upload-plan.json"
 		);
 	});
 
@@ -84,6 +85,8 @@ describe("text asset stage verifier", () => {
 					"/tmp/stage",
 					"--manifest",
 					"/tmp/stage-manifest.json",
+					"--upload-plan",
+					"/tmp/upload-plan.json",
 					"--issue-limit",
 					"3",
 				],
@@ -92,6 +95,7 @@ describe("text asset stage verifier", () => {
 			issueLimit: 3,
 			manifestPath: "/tmp/stage-manifest.json",
 			stageDir: "/tmp/stage",
+			uploadPlanPath: "/tmp/upload-plan.json",
 		});
 	});
 
@@ -116,8 +120,39 @@ describe("text asset stage verifier", () => {
 			verifyTextAssetStage({
 				manifest,
 				stageDir,
+				uploadPlan: manifest,
 			})
 		).resolves.toEqual([]);
+	});
+
+	it("reports upload plans that drift away from the staged release manifest", () => {
+		const content = '{"assetId":"text-demo"}';
+		const expectedItem = createUploadPlanItem({
+			content,
+			key: "prod/text-assets/demo/plain@1/template.json",
+		});
+		const uploadItem = {
+			...expectedItem,
+			sha256: "different-sha",
+		};
+		const manifest = createUploadPlanReport({ items: [expectedItem] });
+		const uploadPlan = {
+			...createUploadPlanReport({ items: [uploadItem] }),
+			totalBytes: manifest.totalBytes + 1,
+		};
+
+		expect(
+			verifyTextAssetStageUploadPlanSync({ manifest, uploadPlan })
+		).toEqual([
+			{
+				code: "upload-plan-mismatch",
+				detail: expect.stringContaining("totalBytes expected 23, received 24"),
+				key: "_qcut-text-assets-release.json",
+			},
+		]);
+		expect(
+			verifyTextAssetStageUploadPlanSync({ manifest, uploadPlan })[0]?.detail
+		).toEqual(expect.stringContaining(`${expectedItem.key}.sha256 mismatch`));
 	});
 
 	it("reports missing, mutated, and escaping stage entries", async () => {

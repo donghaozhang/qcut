@@ -19,6 +19,7 @@ export type TextAssetStageVerifyOptions = {
 	issueLimit: number;
 	manifestPath?: string;
 	stageDir: string;
+	uploadPlanPath?: string;
 };
 
 export type TextAssetStageVerifyIssue = {
@@ -27,7 +28,8 @@ export type TextAssetStageVerifyIssue = {
 		| "byte-size-mismatch"
 		| "checksum-mismatch"
 		| "invalid-stage-key"
-		| "marketplace-source-mismatch";
+		| "marketplace-source-mismatch"
+		| "upload-plan-mismatch";
 	detail: string;
 	key: string;
 };
@@ -70,6 +72,11 @@ export function parseTextAssetStageVerifyArgs({
 			index += 1;
 			continue;
 		}
+		if (arg === "--upload-plan") {
+			options.uploadPlanPath = requireValue({ argv, index, name: arg });
+			index += 1;
+			continue;
+		}
 		if (arg === "--issue-limit") {
 			options.issueLimit = parseNonNegativeInteger({
 				name: arg,
@@ -96,9 +103,11 @@ export async function readTextAssetStageManifest({
 export async function verifyTextAssetStage({
 	manifest,
 	stageDir,
+	uploadPlan,
 }: {
 	manifest: TextAssetUploadPlanReport;
 	stageDir: string;
+	uploadPlan?: TextAssetUploadPlanReport;
 }): Promise<TextAssetStageVerifyIssue[]> {
 	const resolvedStageDir = resolve(stageDir);
 	const issueGroups = await Promise.all(
@@ -113,7 +122,38 @@ export async function verifyTextAssetStage({
 		manifest,
 		resolvedStageDir,
 	});
-	return [...issueGroups.flat(), ...marketplaceIssues];
+	const uploadPlanIssues = uploadPlan
+		? verifyTextAssetStageUploadPlanSync({ manifest, uploadPlan })
+		: [];
+	return [...issueGroups.flat(), ...marketplaceIssues, ...uploadPlanIssues];
+}
+
+export function verifyTextAssetStageUploadPlanSync({
+	manifest,
+	uploadPlan,
+}: {
+	manifest: TextAssetUploadPlanReport;
+	uploadPlan: TextAssetUploadPlanReport;
+}): TextAssetStageVerifyIssue[] {
+	const mismatches = [
+		...compareScalarFields({
+			actual: uploadPlan,
+			expected: manifest,
+			fields: ["bucket", "prefix", "totalBytes", "totalFiles"],
+		}),
+		...compareUploadPlanItems({
+			actualItems: uploadPlan.items,
+			expectedItems: manifest.items,
+		}),
+	];
+	if (mismatches.length === 0) return [];
+	return [
+		{
+			code: "upload-plan-mismatch",
+			detail: `Upload plan differs from staged release manifest: ${mismatches.join("; ")}`,
+			key: STAGE_MANIFEST_FILE,
+		},
+	];
 }
 
 async function verifyTextAssetStageItem({
@@ -165,6 +205,79 @@ async function verifyTextAssetStageItem({
 	}
 	return issues;
 }
+
+function compareScalarFields<TRecord, TField extends keyof TRecord & string>({
+	actual,
+	expected,
+	fields,
+}: {
+	actual: TRecord;
+	expected: TRecord;
+	fields: readonly TField[];
+}): string[] {
+	const mismatches: string[] = [];
+	for (const field of fields) {
+		if (actual[field] === expected[field]) continue;
+		mismatches.push(
+			`${field} expected ${String(expected[field])}, received ${String(actual[field])}`
+		);
+	}
+	return mismatches;
+}
+
+function compareUploadPlanItems({
+	actualItems,
+	expectedItems,
+}: {
+	actualItems: readonly TextAssetUploadPlanItem[];
+	expectedItems: readonly TextAssetUploadPlanItem[];
+}): string[] {
+	const mismatches: string[] = [];
+	const actualByKey = new Map(actualItems.map((item) => [item.key, item]));
+	const expectedByKey = new Map(expectedItems.map((item) => [item.key, item]));
+	for (const expectedItem of expectedItems) {
+		const actualItem = actualByKey.get(expectedItem.key);
+		if (!actualItem) {
+			mismatches.push(`missing upload item ${expectedItem.key}`);
+			continue;
+		}
+		for (const field of TEXT_UPLOAD_PLAN_ITEM_SYNC_FIELDS) {
+			if (actualItem[field] === expectedItem[field]) continue;
+			mismatches.push(`${expectedItem.key}.${field} mismatch`);
+		}
+		if (
+			JSON.stringify(actualItem.provenance ?? null) !==
+			JSON.stringify(expectedItem.provenance ?? null)
+		) {
+			mismatches.push(`${expectedItem.key}.provenance mismatch`);
+		}
+	}
+	for (const actualItem of actualItems) {
+		if (expectedByKey.has(actualItem.key)) continue;
+		mismatches.push(`unexpected upload item ${actualItem.key}`);
+	}
+	if (actualItems.length !== expectedItems.length) {
+		mismatches.push(
+			`items length expected ${expectedItems.length}, received ${actualItems.length}`
+		);
+	}
+	return mismatches;
+}
+
+const TEXT_UPLOAD_PLAN_ITEM_SYNC_FIELDS = [
+	"assetId",
+	"bucket",
+	"cacheControl",
+	"cacheKey",
+	"contentType",
+	"key",
+	"localPath",
+	"packageId",
+	"role",
+	"sha256",
+	"size",
+	"version",
+] as const satisfies readonly (keyof TextAssetUploadPlanItem)[];
 
 async function verifyTextAssetStageMarketplace({
 	manifest,
@@ -476,9 +589,13 @@ async function main(): Promise<void> {
 	const manifestPath =
 		options.manifestPath ?? join(options.stageDir, STAGE_MANIFEST_FILE);
 	const manifest = await readTextAssetStageManifest({ manifestPath });
+	const uploadPlan = options.uploadPlanPath
+		? await readTextAssetStageManifest({ manifestPath: options.uploadPlanPath })
+		: undefined;
 	const issues = await verifyTextAssetStage({
 		manifest,
 		stageDir: options.stageDir,
+		uploadPlan,
 	});
 	const issueOutput = summarizeTextAssetStageIssues({
 		issues,
