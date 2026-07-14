@@ -17657,14 +17657,14 @@
 		"source": {
 			"url": "/text-assets/text-templates-headline-template/plain@1/template.json",
 			"mimeType": "application/json",
-			"byteSize": 5980,
-			"checksumSha256": "2d30f8eb6c3aff4ad5a537ba553d90763b526aac82833a91d626a3ce6f244a84"
+			"byteSize": 6364,
+			"checksumSha256": "bd68b2206205a9328da390c62b831546b7e9a9bd9beefe88b0f6a324281dbcc6"
 		},
 		"qcutPackage": {
 			"url": "/text-assets/text-templates-headline-template/plain@1/template.qctext",
 			"mimeType": "application/vnd.qcut.text-template+json",
-			"byteSize": 6580,
-			"checksumSha256": "53b23ce876ef6344acc95a9d59cf3b9eed4c986df2fb2f1c9cc4c22f706a96d3"
+			"byteSize": 6984,
+			"checksumSha256": "05b08ce27f35b160e99c70c82673fe58cd99e40105f92d408576e7d70fa77306"
 		}
 	},
 	"text-templates-headline-template-outline": {
@@ -17685,14 +17685,14 @@
 		"source": {
 			"url": "/text-assets/text-templates-headline-template/outline@1/template.json",
 			"mimeType": "application/json",
-			"byteSize": 5981,
-			"checksumSha256": "ee1998b7dd591632448dda45e1ca33361dfc6de5d22260cab19cf50dccd63c6f"
+			"byteSize": 6362,
+			"checksumSha256": "bfd77896479ae8fa30154cde390aa618cadd2a0fac75579b1cbe107e0fc9cb8b"
 		},
 		"qcutPackage": {
 			"url": "/text-assets/text-templates-headline-template/outline@1/template.qctext",
 			"mimeType": "application/vnd.qcut.text-template+json",
-			"byteSize": 6584,
-			"checksumSha256": "a4b700c691d4a658809564d717d4221fa4e4eb2864d475c9a831b3389577e645"
+			"byteSize": 6985,
+			"checksumSha256": "47ec2cd36b50cc6a74da355f2b4d2c724d425f6d813af616a9ee5723dbbeafcc"
 		}
 	},
 	"text-templates-headline-template-label": {
@@ -17713,14 +17713,14 @@
 		"source": {
 			"url": "/text-assets/text-templates-headline-template/label@1/template.json",
 			"mimeType": "application/json",
-			"byteSize": 6050,
-			"checksumSha256": "1502938b067cc25c8ed115d39a44ad140e46329bcd0d852457c38a5e14d750bd"
+			"byteSize": 6431,
+			"checksumSha256": "53dff778e74f67ce5c93c05c78042ffec4fe293b505bec3ec1ac80a50b5defa6"
 		},
 		"qcutPackage": {
 			"url": "/text-assets/text-templates-headline-template/label@1/template.qctext",
 			"mimeType": "application/vnd.qcut.text-template+json",
-			"byteSize": 6653,
-			"checksumSha256": "1c40507a3663a13525da36190f04954082bb8b99eb04555254dbce5d24fd143d"
+			"byteSize": 7054,
+			"checksumSha256": "12752336ba935465b83e5337d1b827fd2808252015287e524d249413962bc0e9"
 		}
 	},
 	"text-templates-headline-template-pop": {
@@ -17741,14 +17741,14 @@
 		"source": {
 			"url": "/text-assets/text-templates-headline-template/pop@1/template.json",
 			"mimeType": "application/json",
-			"byteSize": 6032,
-			"checksumSha256": "73e73eee3c9192788fd9490e4e53455aae486ba2b0cf399740032db41addf60d"
+			"byteSize": 6413,
+			"checksumSha256": "e13fa3421af6a1c790b86a8fabc9a604ae23f3ad960c6eddd17e23117ad22393"
 		},
 		"qcutPackage": {
 			"url": "/text-assets/text-templates-headline-template/pop@1/template.qctext",
 			"mimeType": "application/vnd.qcut.text-template+json",
-			"byteSize": 6631,
-			"checksumSha256": "a5995a6311a504ef8b485f837b20ee5cd34ab8d3a989eb659ae58ec68365279c"
+			"byteSize": 7032,
+			"checksumSha256": "85e72ad5f65f74cb4093e394b4b2229a3f56c6381a32adf50fc0a2a1d7f505cd"
 		}
 	},
 	"text-templates-headline-template-glow": {
@@ -17769,14 +17769,14 @@
 		"source": {
 			"url": "/text-assets/text-templates-headline-template/glow@1/template.json",
 			"mimeType": "application/json",
-			"byteSize": 6036,
-			"checksumSha256": "ae495a38626bc62509af2f6f2a4d6720f4812bbb5ff5aad44c9363bb7551b002"
+			"byteSize": 6420,
+			"checksumSha256": "d288293f2aa225291d474fd6f970c3b13eae05c5e52afabef759628307f64427"
 		},
 		"qcutPackage": {
 			"url": "/text-assets/text-templates-headline-template/glow@1/template.qctext",
 			"mimeType": "application/vnd.qcut.text-template+json",
-			"byteSize": 6640,
-			"checksumSha256": "5ade7de6367fcdfed642b976406c6f9c92d32e53439686b6e84db602ef02419f"
+			"byteSize": 7044,
+			"checksumSha256": "ca1cf25b155ea533b7365bbee1f09e641ac74ff79c6d289ccdc4532dfbc0bb7b"
 		}
 	},
 	"text-templates-headline-template-fire": {
@@ -17797,14 +17797,14 @@
 		"source": {
 			"url": "/text-assets/text-templates-headline-template/fire@1/template.json",
 			"mimeType": "application/json",
-			"byteSize": 6127,
-			"checksumSha256": "d0a8e9aaf435c16f30f1714291d74a94430bbc79ea76155c070c16cf969f257f"
+			"byteSize": 6508,
+			"checksumSha256": "66c8a32dc497e99779796a0867fa72e0db1dc0d62f39ac07eb7a01bb2dc5ff14"
 		},
 		"qcutPackage": {
 			"url": "/text-assets/text-templates-headline-template/fire@1/template.qctext",
 			"mimeType": "application/vnd.qcut.text-template+json",
-			"byteSize": 6735,
-			"checksumSha256": "fb716d590f15c323d865d1831966b56789498518463c72f8c3b79d66a434560a"
+			"byteSize": 7136,
+			"checksumSha256": "ff1530f79efacbe01c2c3d57e29b56973d98135562fc8357afd9d91303b52809"
 		}
 	},
 	"text-templates-headline-template-sticker": {
@@ -17825,14 +17825,14 @@
 		"source": {
 			"url": "/text-assets/text-templates-headline-template/sticker@1/template.json",
 			"mimeType": "application/json",
-			"byteSize": 6204,
-			"checksumSha256": "dd5f476d78f3840cc0973a841f575f15273776b91689a901b37ac3ad88ec544e"
+			"byteSize": 6585,
+			"checksumSha256": "c9ca8a2124f04bbfc3309d10960b19f04ecf28e5302b62568cb23d01b111d319"
 		},
 		"qcutPackage": {
 			"url": "/text-assets/text-templates-headline-template/sticker@1/template.qctext",
 			"mimeType": "application/vnd.qcut.text-template+json",
-			"byteSize": 6818,
-			"checksumSha256": "eac7a77fe7a550d74dcf6143d1e5d336043ae6e8b0a57cf7d9d86e8d50bf78a5"
+			"byteSize": 7219,
+			"checksumSha256": "32379e11c18f41182fcf205d83abea081dc1dcadfabeb6f51dedcb86770d88e3"
 		}
 	},
 	"text-templates-headline-template-glitch": {
@@ -17853,14 +17853,14 @@
 		"source": {
 			"url": "/text-assets/text-templates-headline-template/glitch@1/template.json",
 			"mimeType": "application/json",
-			"byteSize": 6193,
-			"checksumSha256": "05bbc9ea52aab5777fe1d23097bbad57d5b8c39908821aa8a03343081e618b5d"
+			"byteSize": 6574,
+			"checksumSha256": "52c2d867e8c3c6ab415790807cfc6b92a264689f9f050fe08baf43cc16fc9b95"
 		},
 		"qcutPackage": {
 			"url": "/text-assets/text-templates-headline-template/glitch@1/template.qctext",
 			"mimeType": "application/vnd.qcut.text-template+json",
-			"byteSize": 6806,
-			"checksumSha256": "109275517c5caee1cdff3399d95343d24106ebed1e285ae1c6c6e9b2b56f720a"
+			"byteSize": 7207,
+			"checksumSha256": "60963ba78e2d40f183f55a3dc9d6ba23e49f0791e24112930582237c9db70329"
 		}
 	},
 	"text-templates-headline-template-pixel": {
@@ -17881,14 +17881,14 @@
 		"source": {
 			"url": "/text-assets/text-templates-headline-template/pixel@1/template.json",
 			"mimeType": "application/json",
-			"byteSize": 6033,
-			"checksumSha256": "7d550c89f0cb080d9aac51f2a6d25db7edc5320bd3b87fd85e7ee1f8b5acab6f"
+			"byteSize": 6417,
+			"checksumSha256": "15172fad5832bb9db277966dddba44fc4c75834e76e5ced14f96f5dc13f2851e"
 		},
 		"qcutPackage": {
 			"url": "/text-assets/text-templates-headline-template/pixel@1/template.qctext",
 			"mimeType": "application/vnd.qcut.text-template+json",
-			"byteSize": 6635,
-			"checksumSha256": "083fbb6c8cc7d8ed7c8f27046be40694cb4c48f56335d9bc96190faf4dd56c1e"
+			"byteSize": 7039,
+			"checksumSha256": "4446bdcf99e1a4a8f4ca5b394e98fd02a81aa4509092a157e41bb0cdad7fa708"
 		}
 	},
 	"text-templates-headline-template-ink": {
@@ -17909,14 +17909,14 @@
 		"source": {
 			"url": "/text-assets/text-templates-headline-template/ink@1/template.json",
 			"mimeType": "application/json",
-			"byteSize": 5995,
-			"checksumSha256": "397f7f2c600ccd6a9a7691dc78f33fb65039217e6cd52f57311ab1bfc0daa31c"
+			"byteSize": 6376,
+			"checksumSha256": "b572df9d82971a6d05f43dfb198b376a366bb0b37f7e5e9d6de291f247f93d54"
 		},
 		"qcutPackage": {
 			"url": "/text-assets/text-templates-headline-template/ink@1/template.qctext",
 			"mimeType": "application/vnd.qcut.text-template+json",
-			"byteSize": 6593,
-			"checksumSha256": "f418eca52b51f409884b7dfc9a1bd7bcf1a07a58adaadac8bb7d140ec8a6acd5"
+			"byteSize": 6994,
+			"checksumSha256": "10b95cdd769e81f1306135cf87348615d363a636c76baa9d10f4d9033023d8c2"
 		}
 	},
 	"text-templates-headline-template-gold": {
@@ -17937,14 +17937,14 @@
 		"source": {
 			"url": "/text-assets/text-templates-headline-template/gold@1/template.json",
 			"mimeType": "application/json",
-			"byteSize": 6106,
-			"checksumSha256": "350c3804d92f0068e14e7717fec915c899d3a80b3b74a3987096386e64ed1ac9"
+			"byteSize": 6487,
+			"checksumSha256": "08a52f561b7a27ab8edbd9699e5dcb4bb1c4f94e7a6a01824ee61a45149bb4e2"
 		},
 		"qcutPackage": {
 			"url": "/text-assets/text-templates-headline-template/gold@1/template.qctext",
 			"mimeType": "application/vnd.qcut.text-template+json",
-			"byteSize": 6713,
-			"checksumSha256": "36738a4294280de3e2a06881613382cc1a1b5ad324cd8bf95493fd78cd63fba0"
+			"byteSize": 7114,
+			"checksumSha256": "d50517521a7ebae8a85ea952ce8d73520617ae8495132058d6c8c6c085dac120"
 		}
 	},
 	"text-templates-headline-template-chrome": {
@@ -17965,14 +17965,14 @@
 		"source": {
 			"url": "/text-assets/text-templates-headline-template/chrome@1/template.json",
 			"mimeType": "application/json",
-			"byteSize": 6157,
-			"checksumSha256": "496b78d12339439d360e53404af6d8c915565a288b781a66b2b9055fa3564344"
+			"byteSize": 6538,
+			"checksumSha256": "54ca0aec162be64966604d3b1de4010377bbef763b87cd0edd030cf36b16b410"
 		},
 		"qcutPackage": {
 			"url": "/text-assets/text-templates-headline-template/chrome@1/template.qctext",
 			"mimeType": "application/vnd.qcut.text-template+json",
-			"byteSize": 6768,
-			"checksumSha256": "b7b886bd950b93004b86795e94f20a33ece24f5dd84920c55b4f05f82c80ea8d"
+			"byteSize": 7169,
+			"checksumSha256": "1af88bbd5ff0c202deed11b41300eb900e61ca7989cd057276e0107287bc269b"
 		}
 	},
 	"text-templates-headline-template-comic": {
@@ -17993,14 +17993,14 @@
 		"source": {
 			"url": "/text-assets/text-templates-headline-template/comic@1/template.json",
 			"mimeType": "application/json",
-			"byteSize": 6192,
-			"checksumSha256": "29e101762be1bb2292f1b20fdb83d00a82e673fc654826792600008403f61ab0"
+			"byteSize": 6576,
+			"checksumSha256": "c265a3578344e9eea8868aaadbcc4ad1842713e88f90a7d8f5478fe1ffc659cc"
 		},
 		"qcutPackage": {
 			"url": "/text-assets/text-templates-headline-template/comic@1/template.qctext",
 			"mimeType": "application/vnd.qcut.text-template+json",
-			"byteSize": 6803,
-			"checksumSha256": "566856cddb2b71535a7a1effb4547075d62c81f86e0f68fcc3343b0fd017741b"
+			"byteSize": 7207,
+			"checksumSha256": "f2e771441203f06cc784cd24e9cd4b1d0b6c0d3e07b0ea2d72f05c71ea6396a1"
 		}
 	},
 	"text-templates-headline-template-bubble": {
@@ -18021,14 +18021,14 @@
 		"source": {
 			"url": "/text-assets/text-templates-headline-template/bubble@1/template.json",
 			"mimeType": "application/json",
-			"byteSize": 6089,
-			"checksumSha256": "1434d6d10dd02eb708b857bf6ae2c38fcf3f5b46cbe9ec4c5e8dfcf0beb27d7a"
+			"byteSize": 6470,
+			"checksumSha256": "61eeda2bee9428adc4fb7805965146bfc50ae3a219d2c5ee71343129385332c6"
 		},
 		"qcutPackage": {
 			"url": "/text-assets/text-templates-headline-template/bubble@1/template.qctext",
 			"mimeType": "application/vnd.qcut.text-template+json",
-			"byteSize": 6694,
-			"checksumSha256": "7f74ea40c2a89ae6a13c3257d83ade94eb2120c2704cf4da402f84bbe898d262"
+			"byteSize": 7095,
+			"checksumSha256": "cff181aedf8181df5792391b8b75457924d4a223da3272c6c0d6a82bea42fa89"
 		}
 	},
 	"text-templates-headline-template-stamp": {
@@ -18049,14 +18049,14 @@
 		"source": {
 			"url": "/text-assets/text-templates-headline-template/stamp@1/template.json",
 			"mimeType": "application/json",
-			"byteSize": 5993,
-			"checksumSha256": "124470a053c6ceb96234d899e5c02a60715888a57a4b42286ed67c80dc8fea3f"
+			"byteSize": 6374,
+			"checksumSha256": "91bd7b0c3a669193a36782b6aede068b78b68e24e9b9286d269114c626d98d9f"
 		},
 		"qcutPackage": {
 			"url": "/text-assets/text-templates-headline-template/stamp@1/template.qctext",
 			"mimeType": "application/vnd.qcut.text-template+json",
-			"byteSize": 6593,
-			"checksumSha256": "af74496572f5183572d5815f4e67943a6e28cfc80811e4b825c4d737e2b2221c"
+			"byteSize": 6994,
+			"checksumSha256": "54a718a424985c1a6518213030dc81e082f90628b39b780350b5d686e3974eb5"
 		}
 	},
 	"text-templates-headline-template-cutout": {
@@ -18077,14 +18077,14 @@
 		"source": {
 			"url": "/text-assets/text-templates-headline-template/cutout@1/template.json",
 			"mimeType": "application/json",
-			"byteSize": 5968,
-			"checksumSha256": "e39621e2d28150aab5792ffdcc3a9ea1d939af4136e89ace943571856c4f5f85"
+			"byteSize": 6349,
+			"checksumSha256": "5d30fb03364f760e9ba8933e7135c390728abe6a39eb04ef3d5efb54e626eac4"
 		},
 		"qcutPackage": {
 			"url": "/text-assets/text-templates-headline-template/cutout@1/template.qctext",
 			"mimeType": "application/vnd.qcut.text-template+json",
-			"byteSize": 6569,
-			"checksumSha256": "316a859312e9fc03a157f80dae650a3359a0c84ba4e69f5c1209496769a469c7"
+			"byteSize": 6970,
+			"checksumSha256": "f9e0bf0c12f8c1f196675f89f0e7124e3c1fb597bd1b6941dc660c45bcb79104"
 		}
 	},
 	"text-templates-headline-template-glass": {
@@ -18105,14 +18105,14 @@
 		"source": {
 			"url": "/text-assets/text-templates-headline-template/glass@1/template.json",
 			"mimeType": "application/json",
-			"byteSize": 6033,
-			"checksumSha256": "53e8f758746731d3d60cf9a54a587572e656703ba6c7b21f7035f195db337f23"
+			"byteSize": 6417,
+			"checksumSha256": "67c2da9771410331891924593a85394a0349a001186097add7f42010eba258da"
 		},
 		"qcutPackage": {
 			"url": "/text-assets/text-templates-headline-template/glass@1/template.qctext",
 			"mimeType": "application/vnd.qcut.text-template+json",
-			"byteSize": 6634,
-			"checksumSha256": "408b3c6f7a2e40f1c3a4d52e3ac99ee1d7cb3636a818b33c3ed6268fa5139cd8"
+			"byteSize": 7038,
+			"checksumSha256": "20fd61af406a9bc0910d08ebfd520deac9fc41c431e9646024bae29a1400b37f"
 		}
 	},
 	"text-templates-headline-template-shadow": {
@@ -18133,14 +18133,14 @@
 		"source": {
 			"url": "/text-assets/text-templates-headline-template/shadow@1/template.json",
 			"mimeType": "application/json",
-			"byteSize": 5968,
-			"checksumSha256": "582dd2de531d2d1c90bf0e841e340d208ca75d3541019193b0ea8a961b749b8e"
+			"byteSize": 6349,
+			"checksumSha256": "681e929c6c8a80ec710fae4d89475a020bb0fa2b54601aeb1b6ed5df75c00287"
 		},
 		"qcutPackage": {
 			"url": "/text-assets/text-templates-headline-template/shadow@1/template.qctext",
 			"mimeType": "application/vnd.qcut.text-template+json",
-			"byteSize": 6569,
-			"checksumSha256": "06e8239846fc42300c6b103e2f49d461577a7ce2359778f2f74e892d811454db"
+			"byteSize": 6970,
+			"checksumSha256": "fff30355fede0a6a25ed598fd5d9b7d738fad55d5b7fd8015762e059cab860bf"
 		}
 	},
 	"text-templates-headline-template-candy": {
@@ -18161,14 +18161,14 @@
 		"source": {
 			"url": "/text-assets/text-templates-headline-template/candy@1/template.json",
 			"mimeType": "application/json",
-			"byteSize": 6086,
-			"checksumSha256": "fd4f2bc30bd1cc2c3042a82d7ee8f6b04b84cce1780248b130f15c79fc138362"
+			"byteSize": 6467,
+			"checksumSha256": "44ebd92542f45ef62d44fa282708245e3d90ec7a336614a4dd18b6a74d681b1a"
 		},
 		"qcutPackage": {
 			"url": "/text-assets/text-templates-headline-template/candy@1/template.qctext",
 			"mimeType": "application/vnd.qcut.text-template+json",
-			"byteSize": 6693,
-			"checksumSha256": "37355f34aac4a7d9885063fd7ba617f01a7a524a3ee0f625f9ea8a39b8170a97"
+			"byteSize": 7094,
+			"checksumSha256": "0c0956abeccdc76a40e2f319b769916b0185a2d3fa3004dc4884c068fce2b098"
 		}
 	},
 	"text-templates-headline-template-warning": {
@@ -18189,14 +18189,14 @@
 		"source": {
 			"url": "/text-assets/text-templates-headline-template/warning@1/template.json",
 			"mimeType": "application/json",
-			"byteSize": 6114,
-			"checksumSha256": "acbfbcd5b76d3a8acfefb9b0e5ae0c22e6022c9355a6e0172461bade62ce8d1f"
+			"byteSize": 6495,
+			"checksumSha256": "2074816df8869b85443857420a9c483a57e3a8da156b1829d22778a2e980ba8b"
 		},
 		"qcutPackage": {
 			"url": "/text-assets/text-templates-headline-template/warning@1/template.qctext",
 			"mimeType": "application/vnd.qcut.text-template+json",
-			"byteSize": 6722,
-			"checksumSha256": "b8dff94e621b2824b3d971b4be1f90dc3ed567e51f95ba9e35c7115f7b528ab3"
+			"byteSize": 7123,
+			"checksumSha256": "2c0299e5e7c83c3dcbce78b008b8eeb59e069d471a3857417588ae050f6e3096"
 		}
 	},
 	"text-templates-headline-template-soft-card": {
@@ -18217,14 +18217,14 @@
 		"source": {
 			"url": "/text-assets/text-templates-headline-template/soft-card@1/template.json",
 			"mimeType": "application/json",
-			"byteSize": 6124,
-			"checksumSha256": "da6e4c7aed2fa28e1f46debbac7051c45de2ca6c9fe8accde078384846b5e40a"
+			"byteSize": 6508,
+			"checksumSha256": "7f9986dd23ad5308144e2e525b8e53e560337d3aed5c3a62fe2a4c7966191717"
 		},
 		"qcutPackage": {
 			"url": "/text-assets/text-templates-headline-template/soft-card@1/template.qctext",
 			"mimeType": "application/vnd.qcut.text-template+json",
-			"byteSize": 6736,
-			"checksumSha256": "3882af8af05447fc0dea45ca85d073ff2e5f5b65f15f7ace7a7e2720ba986c6f"
+			"byteSize": 7140,
+			"checksumSha256": "cdcd5522e2e7f8ee6536dcc53492834666f14dd6703e8f5ad4d0fcdd5cd224ba"
 		}
 	},
 	"text-templates-headline-template-ribbon": {
@@ -18245,14 +18245,14 @@
 		"source": {
 			"url": "/text-assets/text-templates-headline-template/ribbon@1/template.json",
 			"mimeType": "application/json",
-			"byteSize": 5971,
-			"checksumSha256": "d6e7ef4c76a163b8d0a11fa94083eeaff9afd8cff926e31f487d5618d9a065aa"
+			"byteSize": 6352,
+			"checksumSha256": "689ca9f6a88e9586a1ba032a43786b64084df5be07cfe565202fbeecc8abf431"
 		},
 		"qcutPackage": {
 			"url": "/text-assets/text-templates-headline-template/ribbon@1/template.qctext",
 			"mimeType": "application/vnd.qcut.text-template+json",
-			"byteSize": 6572,
-			"checksumSha256": "90280c0e28bf3445f7e771dc910abd1d6e36fca0ddc5c4ed09770fb6f1f657b6"
+			"byteSize": 6973,
+			"checksumSha256": "2ea0b73274987d5e5d40e0ed7dddc1b46042655d3627603cdba00ae6c6bf17a1"
 		}
 	},
 	"text-templates-quote-template-plain": {
@@ -18273,14 +18273,14 @@
 		"source": {
 			"url": "/text-assets/text-templates-quote-template/plain@1/template.json",
 			"mimeType": "application/json",
-			"byteSize": 5932,
-			"checksumSha256": "602fb0aab3745368f71a2e32054f02e96378c42786022b670d1e43de55367779"
+			"byteSize": 6195,
+			"checksumSha256": "e1256fe1a701060fe171deff00bd963d96dedcb02df370ef85b8aa9bbe4fb941"
 		},
 		"qcutPackage": {
 			"url": "/text-assets/text-templates-quote-template/plain@1/template.qctext",
 			"mimeType": "application/vnd.qcut.text-template+json",
-			"byteSize": 6523,
-			"checksumSha256": "76fe3d9c4aaff29c6d8cc2d726c21c1b39a66b9b6c448b9627037d1945d1f372"
+			"byteSize": 6800,
+			"checksumSha256": "42f2211903d7110a235ed0500afa77a22c86c32883566bfa771f87fa401e6aa7"
 		}
 	},
 	"text-templates-quote-template-outline": {
@@ -18301,14 +18301,14 @@
 		"source": {
 			"url": "/text-assets/text-templates-quote-template/outline@1/template.json",
 			"mimeType": "application/json",
-			"byteSize": 5951,
-			"checksumSha256": "0988e4d73cedb0dc86b1004188921368bfb06e0b03c8e5306b00fa891dbd17ff"
+			"byteSize": 6217,
+			"checksumSha256": "2b85db9fc210b85d4385a9f8a984a28742ed1596e55bf3893ed37c237ca10ad9"
 		},
 		"qcutPackage": {
 			"url": "/text-assets/text-templates-quote-template/outline@1/template.qctext",
 			"mimeType": "application/vnd.qcut.text-template+json",
-			"byteSize": 6545,
-			"checksumSha256": "0f2c318bc41f5552743241318ff9e177063a93c59a51d558e25d60c7286f6c9e"
+			"byteSize": 6825,
+			"checksumSha256": "9e8b9b7a610d9087eceff433a4cea69d539d5da0486623ebf70f0f28d9a6c5d8"
 		}
 	},
 	"text-templates-quote-template-label": {
@@ -18329,14 +18329,14 @@
 		"source": {
 			"url": "/text-assets/text-templates-quote-template/label@1/template.json",
 			"mimeType": "application/json",
-			"byteSize": 6008,
-			"checksumSha256": "e1338bd026d57e60d14575843352700511f1a170339da89faeee1119c8246cdc"
+			"byteSize": 6271,
+			"checksumSha256": "e005b27ccaef7ba595501b7681beceb95fc7c016e7c829ec0bef129bf437a39e"
 		},
 		"qcutPackage": {
 			"url": "/text-assets/text-templates-quote-template/label@1/template.qctext",
 			"mimeType": "application/vnd.qcut.text-template+json",
-			"byteSize": 6602,
-			"checksumSha256": "31d3380748f2d17d291a9ccf78b51bcac05df72b6d2575bc292cc14aec62d58b"
+			"byteSize": 6879,
+			"checksumSha256": "e0db858dd5af1120ee389e031987a438d34842855e09cd5d355c89ca894a82dd"
 		}
 	},
 	"text-templates-quote-template-pop": {
@@ -18357,14 +18357,14 @@
 		"source": {
 			"url": "/text-assets/text-templates-quote-template/pop@1/template.json",
 			"mimeType": "application/json",
-			"byteSize": 6003,
-			"checksumSha256": "cc4b5b7907fbbfcbadcd8fc5cdb7197db8f09ceddffef443e7d1cde3585664c4"
+			"byteSize": 6266,
+			"checksumSha256": "0e13f6698b88094759a3c45eb0237b665b70597376840e509f003a5522985dd4"
 		},
 		"qcutPackage": {
 			"url": "/text-assets/text-templates-quote-template/pop@1/template.qctext",
 			"mimeType": "application/vnd.qcut.text-template+json",
-			"byteSize": 6593,
-			"checksumSha256": "b2c0b1e140e8af0d6deb91648d70a410d9378bb1ac11f13ba7aad98313015774"
+			"byteSize": 6870,
+			"checksumSha256": "95f8511a02cda11441fad12fc04fe8f55cd4668d441c87290578b5f90b75439c"
 		}
 	},
 	"text-templates-quote-template-glow": {
@@ -18385,14 +18385,14 @@
 		"source": {
 			"url": "/text-assets/text-templates-quote-template/glow@1/template.json",
 			"mimeType": "application/json",
-			"byteSize": 5988,
-			"checksumSha256": "fccabfca44d6f28c42b06b1dda5c510e2997c530d94d0fe571ec4b27582d7fc4"
+			"byteSize": 6251,
+			"checksumSha256": "e65fc5038b04809bb6e7b8b2ba623b242708a96ac3d0784845d76477a3970cf0"
 		},
 		"qcutPackage": {
 			"url": "/text-assets/text-templates-quote-template/glow@1/template.qctext",
 			"mimeType": "application/vnd.qcut.text-template+json",
-			"byteSize": 6583,
-			"checksumSha256": "872d103dcb004f70a7a07de72312354c3b238ed361f06d64f6ce1fd47afdc0af"
+			"byteSize": 6860,
+			"checksumSha256": "276adaf9a647645443d07c4c5df7d5fba9523bb50c9966c0cb1704664ab20a45"
 		}
 	},
 	"text-templates-quote-template-fire": {
@@ -18413,14 +18413,14 @@
 		"source": {
 			"url": "/text-assets/text-templates-quote-template/fire@1/template.json",
 			"mimeType": "application/json",
-			"byteSize": 6093,
-			"checksumSha256": "68ad56f2ba8977a49f07cb6f051bd7b9a3942ccf46c16d5d682616039349813f"
+			"byteSize": 6359,
+			"checksumSha256": "a3740c196c271dbc668d1a066204eac48f723180a95552eb707c0654b14c2ba1"
 		},
 		"qcutPackage": {
 			"url": "/text-assets/text-templates-quote-template/fire@1/template.qctext",
 			"mimeType": "application/vnd.qcut.text-template+json",
-			"byteSize": 6692,
-			"checksumSha256": "26776a4e1c7bd4faf54e6c9a6625f38b99519fb481065c244745207160941cb6"
+			"byteSize": 6972,
+			"checksumSha256": "e60969164aeb6a0619ef4f2aef425fa0cdba49ee5ddad8627fa1fe5463bd057d"
 		}
 	},
 	"text-templates-quote-template-sticker": {
@@ -18441,14 +18441,14 @@
 		"source": {
 			"url": "/text-assets/text-templates-quote-template/sticker@1/template.json",
 			"mimeType": "application/json",
-			"byteSize": 6160,
-			"checksumSha256": "0cb4007e9b9e2544ba20044b6492a2c20962aa51ae749512ca57afd62b3dab45"
+			"byteSize": 6423,
+			"checksumSha256": "de17dfff53de5c9265a35f8d918695f9a1867d539611ee34adea22c99dda4361"
 		},
 		"qcutPackage": {
 			"url": "/text-assets/text-templates-quote-template/sticker@1/template.qctext",
 			"mimeType": "application/vnd.qcut.text-template+json",
-			"byteSize": 6765,
-			"checksumSha256": "3d64963247de6e2bfc9703358bad4c56402f034428fabd45905002352ecbf0b7"
+			"byteSize": 7042,
+			"checksumSha256": "ccb2557259767e67483bf0739300c16cfbf9b577bfec18468cf74dbaa8ef4da2"
 		}
 	},
 	"text-templates-quote-template-glitch": {
@@ -18469,14 +18469,14 @@
 		"source": {
 			"url": "/text-assets/text-templates-quote-template/glitch@1/template.json",
 			"mimeType": "application/json",
-			"byteSize": 6154,
-			"checksumSha256": "91104d196681aae03f31564a6cb9aa2913efcc35855dae60a4202b4ebbc7ac3c"
+			"byteSize": 6417,
+			"checksumSha256": "c4f1880199c9d523b7ed4dd805c87b7e920cfdc3d7c799ce933c06c2a3c49052"
 		},
 		"qcutPackage": {
 			"url": "/text-assets/text-templates-quote-template/glitch@1/template.qctext",
 			"mimeType": "application/vnd.qcut.text-template+json",
-			"byteSize": 6758,
-			"checksumSha256": "45df832ed6481d8916eb69d91de886841dfda50584aebb39e44748c07c68ab2c"
+			"byteSize": 7035,
+			"checksumSha256": "81ffab6700f15bdddfd4da2ee873459f0f5ac286ac78e210b69f1718c7f1532a"
 		}
 	},
 	"text-templates-quote-template-pixel": {
@@ -18497,14 +18497,14 @@
 		"source": {
 			"url": "/text-assets/text-templates-quote-template/pixel@1/template.json",
 			"mimeType": "application/json",
-			"byteSize": 5985,
-			"checksumSha256": "c07c9a76e737e19a5cf60087a45387109f529150030039f686971343ae7f5d53"
+			"byteSize": 6248,
+			"checksumSha256": "05c010ffd093e4bc8463683ab70eb18a3f309a3cf44625c3a3104a74ac76189c"
 		},
 		"qcutPackage": {
 			"url": "/text-assets/text-templates-quote-template/pixel@1/template.qctext",
 			"mimeType": "application/vnd.qcut.text-template+json",
-			"byteSize": 6578,
-			"checksumSha256": "cbe62ed67d4f60c93847d6c40d63c4a5a5fe47f8a7711716386910746b0e6a64"
+			"byteSize": 6855,
+			"checksumSha256": "7e8289b38b91999327744d8aa6dba560dc6739c33888175d9c81b5eb608be3f8"
 		}
 	},
 	"text-templates-quote-template-ink": {
@@ -18525,14 +18525,14 @@
 		"source": {
 			"url": "/text-assets/text-templates-quote-template/ink@1/template.json",
 			"mimeType": "application/json",
-			"byteSize": 5965,
-			"checksumSha256": "3afc82413a96a811332d274ad035c7ce3c24c5a8bd39d6197246231fa533ccec"
+			"byteSize": 6231,
+			"checksumSha256": "66b63c0e4c8898671572eb15402b0e4cefce679c5ed347d0968e45bf378c45fc"
 		},
 		"qcutPackage": {
 			"url": "/text-assets/text-templates-quote-template/ink@1/template.qctext",
 			"mimeType": "application/vnd.qcut.text-template+json",
-			"byteSize": 6554,
-			"checksumSha256": "e46ff051f913dc83e87241e8701ed31f19c33b594487592cd5050042c751f9fb"
+			"byteSize": 6834,
+			"checksumSha256": "42f216a8dc7f5704dc10d4fe00335adef4254f3c2a6d4de3c639d2173c0c8d48"
 		}
 	},
 	"text-templates-quote-template-gold": {
@@ -18553,14 +18553,14 @@
 		"source": {
 			"url": "/text-assets/text-templates-quote-template/gold@1/template.json",
 			"mimeType": "application/json",
-			"byteSize": 6063,
-			"checksumSha256": "1d0f4074c550b63ce461442fd293d5f33f6850190b6848c0e47cc39885d794db"
+			"byteSize": 6326,
+			"checksumSha256": "e6ede26164e8fda6fe95b6a73e6c19305f80070cc3e95eb13cc044561ed5d36d"
 		},
 		"qcutPackage": {
 			"url": "/text-assets/text-templates-quote-template/gold@1/template.qctext",
 			"mimeType": "application/vnd.qcut.text-template+json",
-			"byteSize": 6661,
-			"checksumSha256": "c17badbab0236d5e72d11d8a48fce5630afc6b936186c1e7ee961b6695264fbd"
+			"byteSize": 6938,
+			"checksumSha256": "742207a311458dbbfacd0201193b05aa8c42109eed3cfbfbf1cf4a7b45cfd346"
 		}
 	},
 	"text-templates-quote-template-chrome": {
@@ -18581,14 +18581,14 @@
 		"source": {
 			"url": "/text-assets/text-templates-quote-template/chrome@1/template.json",
 			"mimeType": "application/json",
-			"byteSize": 6118,
-			"checksumSha256": "9c733ab187edd6ea991453ad32e49eb80cfe5d63555bded19d41c7fa9d862a8c"
+			"byteSize": 6381,
+			"checksumSha256": "4c188d9bd9158e01f1e6f84e178d04716bfac615d82d8fcfc8d3d77b196ed485"
 		},
 		"qcutPackage": {
 			"url": "/text-assets/text-templates-quote-template/chrome@1/template.qctext",
 			"mimeType": "application/vnd.qcut.text-template+json",
-			"byteSize": 6720,
-			"checksumSha256": "cabf5393e3338a8eca74729742a6401c3ff7417391041b36eda88596e4082c80"
+			"byteSize": 6997,
+			"checksumSha256": "44dfcba374a49f96762199942035d689121541a2e53b6cffecd81b3c01dfbdf1"
 		}
 	},
 	"text-templates-quote-template-comic": {
@@ -18609,14 +18609,14 @@
 		"source": {
 			"url": "/text-assets/text-templates-quote-template/comic@1/template.json",
 			"mimeType": "application/json",
-			"byteSize": 6138,
-			"checksumSha256": "eb4ee7c6fca71c354451cd820198e05d1ca89971e2ae2fe758af095917fbb97e"
+			"byteSize": 6401,
+			"checksumSha256": "a0be483187bef85cc2ea60b031e3eb76ac27ac2c4a5504c286b792e2fdbda2dc"
 		},
 		"qcutPackage": {
 			"url": "/text-assets/text-templates-quote-template/comic@1/template.qctext",
 			"mimeType": "application/vnd.qcut.text-template+json",
-			"byteSize": 6740,
-			"checksumSha256": "1c0d669e2d213e4151c88fa04a7baa64c1c903e3e03af871479b14830f8aec2b"
+			"byteSize": 7017,
+			"checksumSha256": "5b8facda63a117570ed7ed3a2c9fb5d70328e18dc5f22a0e03b911ac49614dd8"
 		}
 	},
 	"text-templates-quote-template-bubble": {
@@ -18637,14 +18637,14 @@
 		"source": {
 			"url": "/text-assets/text-templates-quote-template/bubble@1/template.json",
 			"mimeType": "application/json",
-			"byteSize": 6056,
-			"checksumSha256": "f4e5db96e3c3bcbe44fbd7b9755e5d541b3c8cb9a8492e9c73463ee0803b97e2"
+			"byteSize": 6322,
+			"checksumSha256": "f6606f5c942bd979a544158aec94208fa586985888b192a183cde17b6c4c66c8"
 		},
 		"qcutPackage": {
 			"url": "/text-assets/text-templates-quote-template/bubble@1/template.qctext",
 			"mimeType": "application/vnd.qcut.text-template+json",
-			"byteSize": 6652,
-			"checksumSha256": "8e838a60f556e921ca2a235637eaca61fe6249a18849a2181895863c9c82986e"
+			"byteSize": 6932,
+			"checksumSha256": "b98ed104d83097d5209269c6176b0db2f1a52af820ba660cf867bff246d4cfe6"
 		}
 	},
 	"text-templates-quote-template-stamp": {
@@ -18665,14 +18665,14 @@
 		"source": {
 			"url": "/text-assets/text-templates-quote-template/stamp@1/template.json",
 			"mimeType": "application/json",
-			"byteSize": 5952,
-			"checksumSha256": "19da598eb6f67356388bb1388139e9e9433bfbf7b6827ea0a75f104f64bd591e"
+			"byteSize": 6215,
+			"checksumSha256": "7c44c93f56abd39e2c1dcc204ff303ea65324019b436f9aad562a2b90ba7ab93"
 		},
 		"qcutPackage": {
 			"url": "/text-assets/text-templates-quote-template/stamp@1/template.qctext",
 			"mimeType": "application/vnd.qcut.text-template+json",
-			"byteSize": 6543,
-			"checksumSha256": "90cb682e5a987943e44627c70f4cc7bed47ad9c0baf92b87da32fe9cca01edbb"
+			"byteSize": 6820,
+			"checksumSha256": "6a0e18b45ef1c2dcdb21b809de77b33754ceb2c7f36e41a7e2fd041b10d5475f"
 		}
 	},
 	"text-templates-quote-template-cutout": {
@@ -18693,14 +18693,14 @@
 		"source": {
 			"url": "/text-assets/text-templates-quote-template/cutout@1/template.json",
 			"mimeType": "application/json",
-			"byteSize": 5929,
-			"checksumSha256": "562a63782d922bd1c4d9f229f7c47d6b917aea3db2684486277d3dba6caa6bf9"
+			"byteSize": 6192,
+			"checksumSha256": "51817113458baa401d39480455a4c7b09e8b6e650fef47635250834b5cc2b523"
 		},
 		"qcutPackage": {
 			"url": "/text-assets/text-templates-quote-template/cutout@1/template.qctext",
 			"mimeType": "application/vnd.qcut.text-template+json",
-			"byteSize": 6521,
-			"checksumSha256": "ea1b2f55d3622582147c68530ba35b70fa3aa1bab30903e5163c2336ce6c98f8"
+			"byteSize": 6798,
+			"checksumSha256": "f8cc1951144d62caf1528a187d76fd9d7ae8c52daf5fba8be9b402690bb34a00"
 		}
 	},
 	"text-templates-quote-template-glass": {
@@ -18721,14 +18721,14 @@
 		"source": {
 			"url": "/text-assets/text-templates-quote-template/glass@1/template.json",
 			"mimeType": "application/json",
-			"byteSize": 5985,
-			"checksumSha256": "84b52816b7fbfdb929ff0ba98fab29461d7ca175373015dce5d29bbbef41e1ca"
+			"byteSize": 6248,
+			"checksumSha256": "e8947aa40afbf1c56bb433c2aa459f9d936acc523bc94c8dba8ba47b31021cf7"
 		},
 		"qcutPackage": {
 			"url": "/text-assets/text-templates-quote-template/glass@1/template.qctext",
 			"mimeType": "application/vnd.qcut.text-template+json",
-			"byteSize": 6577,
-			"checksumSha256": "81d6552399d1973af55751d95af71d9d27c9ba7f5f674569ded9845fc349908b"
+			"byteSize": 6854,
+			"checksumSha256": "00a64c3b59ad6d239c50005887b82ed51c105bb29c8de099523902237356492d"
 		}
 	},
 	"text-templates-quote-template-shadow": {
@@ -18749,14 +18749,14 @@
 		"source": {
 			"url": "/text-assets/text-templates-quote-template/shadow@1/template.json",
 			"mimeType": "application/json",
-			"byteSize": 5938,
-			"checksumSha256": "1c6058736fcba0372c67c5cae1d330c5bb3b3cb4bfdd29e0ffc3c2d26016f9fb"
+			"byteSize": 6204,
+			"checksumSha256": "fc221c1b279ce675856ffff760d4497fa13636a1014195166328009d374cec3b"
 		},
 		"qcutPackage": {
 			"url": "/text-assets/text-templates-quote-template/shadow@1/template.qctext",
 			"mimeType": "application/vnd.qcut.text-template+json",
-			"byteSize": 6530,
-			"checksumSha256": "2eb45a2c87b2cce1ce85c5cbc01b235bf8b62e2ee9f4eca7105ce9873f9f72a5"
+			"byteSize": 6810,
+			"checksumSha256": "218d62bbecb1d3fbb3d7540e3ea211e44890e1e4c3ed54735f36e8eea3daca4e"
 		}
 	},
 	"text-templates-quote-template-candy": {
@@ -18777,14 +18777,14 @@
 		"source": {
 			"url": "/text-assets/text-templates-quote-template/candy@1/template.json",
 			"mimeType": "application/json",
-			"byteSize": 6046,
-			"checksumSha256": "2d8378cc820213b415daddfefe2c19a5365b0f551b4780a213124ed88d02351a"
+			"byteSize": 6309,
+			"checksumSha256": "f89a305a3ca0245f44639715169ae2e6aec8ce3b4f16896e8c01ab7cfb4e3138"
 		},
 		"qcutPackage": {
 			"url": "/text-assets/text-templates-quote-template/candy@1/template.qctext",
 			"mimeType": "application/vnd.qcut.text-template+json",
-			"byteSize": 6644,
-			"checksumSha256": "dd57e28c204cec2a891bbce7aa9e3129c99fad4e793324842a52c992968d1b59"
+			"byteSize": 6921,
+			"checksumSha256": "be5dc6e6bcfc328dc733f0ac99164f46d0042f42221c4eacda71c51d818d3857"
 		}
 	},
 	"text-templates-quote-template-warning": {
@@ -18805,14 +18805,14 @@
 		"source": {
 			"url": "/text-assets/text-templates-quote-template/warning@1/template.json",
 			"mimeType": "application/json",
-			"byteSize": 6071,
-			"checksumSha256": "4e49b1f29ef94f1cad8204a5a5e71d7fbe904ea1f3821da94911d426adb9cb3e"
+			"byteSize": 6334,
+			"checksumSha256": "b99dc3d3077806c44e1cca4187e7da9274cba98f65435bfce86caaee039e46b9"
 		},
 		"qcutPackage": {
 			"url": "/text-assets/text-templates-quote-template/warning@1/template.qctext",
 			"mimeType": "application/vnd.qcut.text-template+json",
-			"byteSize": 6670,
-			"checksumSha256": "5143289e82cc0c0fbd2b024d49fcc1f3b8d4cb16a71b180a30ea913bacad772d"
+			"byteSize": 6947,
+			"checksumSha256": "b03f67750f7d417afd9f414cfb935c71a934036710a621db36afde30179c8a5e"
 		}
 	},
 	"text-templates-quote-template-soft-card": {
@@ -18833,14 +18833,14 @@
 		"source": {
 			"url": "/text-assets/text-templates-quote-template/soft-card@1/template.json",
 			"mimeType": "application/json",
-			"byteSize": 6073,
-			"checksumSha256": "ab06ae8ef743dd25ca4f5489d359ad37e05f6c8d3551d7b3d7cfeea0562aba64"
+			"byteSize": 6336,
+			"checksumSha256": "a44db3f8be66ac3b4a3a874d383afc2c43c77ae63b4f74b981a125f049af3f62"
 		},
 		"qcutPackage": {
 			"url": "/text-assets/text-templates-quote-template/soft-card@1/template.qctext",
 			"mimeType": "application/vnd.qcut.text-template+json",
-			"byteSize": 6676,
-			"checksumSha256": "5ee2657e9c6c8765ed14df72013f9a99e02a89f2db383c48885f7cbf5b3ce306"
+			"byteSize": 6953,
+			"checksumSha256": "45eb1e282ca172819647c499386d4c19291a7a4a67e67aca7ee83131a15c79e6"
 		}
 	},
 	"text-templates-quote-template-ribbon": {
@@ -18861,14 +18861,14 @@
 		"source": {
 			"url": "/text-assets/text-templates-quote-template/ribbon@1/template.json",
 			"mimeType": "application/json",
-			"byteSize": 5937,
-			"checksumSha256": "6446d9936875f3153ba0c02dcbdba918c8221b5d13cf1f4903c57c1cee9fb485"
+			"byteSize": 6203,
+			"checksumSha256": "cc5e48d982135845d8d843121c79956597314154c8cceab3e6fa0e8c7c112400"
 		},
 		"qcutPackage": {
 			"url": "/text-assets/text-templates-quote-template/ribbon@1/template.qctext",
 			"mimeType": "application/vnd.qcut.text-template+json",
-			"byteSize": 6529,
-			"checksumSha256": "f346d7810fa28c8fc8e689e4654c1da80015ab2bcd57f71c37ec4954b005838a"
+			"byteSize": 6809,
+			"checksumSha256": "7f5788e54cad3b2879effbc34a41a07ebb71b5c5ecdddd496a23d8f517615c26"
 		}
 	},
 	"text-templates-list-template-plain": {
@@ -18889,14 +18889,14 @@
 		"source": {
 			"url": "/text-assets/text-templates-list-template/plain@1/template.json",
 			"mimeType": "application/json",
-			"byteSize": 5882,
-			"checksumSha256": "ad7fb4b344673c953bc049e9dedfb007e89d4d066b7a68d052840125fb2f9061"
+			"byteSize": 6254,
+			"checksumSha256": "431b07e901be8832ebfc40e7ed6587e963d8482736c8c42691024df92dc37a20"
 		},
 		"qcutPackage": {
 			"url": "/text-assets/text-templates-list-template/plain@1/template.qctext",
 			"mimeType": "application/vnd.qcut.text-template+json",
-			"byteSize": 6469,
-			"checksumSha256": "ed8dba0ffd4815a493ec5ebc89de532f6dd881701e86ae674a153ea00d4aca3f"
+			"byteSize": 6861,
+			"checksumSha256": "dd56520f836dfd55fef5773519e1162cfcc43174d7874bb805b3bcb24d03a4b3"
 		}
 	},
 	"text-templates-list-template-outline": {
@@ -18917,14 +18917,14 @@
 		"source": {
 			"url": "/text-assets/text-templates-list-template/outline@1/template.json",
 			"mimeType": "application/json",
-			"byteSize": 5892,
-			"checksumSha256": "4424d5b24727f31aec8446b5380a22166fc849d5018e65a39642a9a8570e0901"
+			"byteSize": 6264,
+			"checksumSha256": "07819ff0533c3976bd1d95fff68080cdfd810f1d7cbe99d79d943bfe1280efb8"
 		},
 		"qcutPackage": {
 			"url": "/text-assets/text-templates-list-template/outline@1/template.qctext",
 			"mimeType": "application/vnd.qcut.text-template+json",
-			"byteSize": 6482,
-			"checksumSha256": "0a900b9a5e5b0f5107b59a8c2fdea8c3dbe908d992b00389e3a9eed2be0207c0"
+			"byteSize": 6874,
+			"checksumSha256": "a5a459921961580ee4d9a2b477ae095cd3bec4575697e88f4740ff59b263be01"
 		}
 	},
 	"text-templates-list-template-label": {
@@ -18945,14 +18945,14 @@
 		"source": {
 			"url": "/text-assets/text-templates-list-template/label@1/template.json",
 			"mimeType": "application/json",
-			"byteSize": 5949,
-			"checksumSha256": "cf3a45923e8dbb037710a3ea0f25609e07b10b85b0487d1debbf21f43ad7e96b"
+			"byteSize": 6318,
+			"checksumSha256": "2f3c6b910046668185cebfa5b62aa5a927cbcf4fd3e6f4a1a16a912f9d039a6d"
 		},
 		"qcutPackage": {
 			"url": "/text-assets/text-templates-list-template/label@1/template.qctext",
 			"mimeType": "application/vnd.qcut.text-template+json",
-			"byteSize": 6539,
-			"checksumSha256": "ee3aa86453b547f82467c71dc72b07c855e3a644ab38078bd9e4b1bb3fa5ea68"
+			"byteSize": 6928,
+			"checksumSha256": "7a78d42d06f98e686280b0c170b4ac232bdedcb1ed9d305915ac5d06679ca6d5"
 		}
 	},
 	"text-templates-list-template-pop": {
@@ -18973,14 +18973,14 @@
 		"source": {
 			"url": "/text-assets/text-templates-list-template/pop@1/template.json",
 			"mimeType": "application/json",
-			"byteSize": 5943,
-			"checksumSha256": "ca57db94df92c62c2f6eec76d55aa24dfed51ab1d44b52097c48a090e5efc09c"
+			"byteSize": 6315,
+			"checksumSha256": "1c1271cab95f47fbd3ebf1222ad1acf43f33748262c75f414fde23877cf2e139"
 		},
 		"qcutPackage": {
 			"url": "/text-assets/text-templates-list-template/pop@1/template.qctext",
 			"mimeType": "application/vnd.qcut.text-template+json",
-			"byteSize": 6529,
-			"checksumSha256": "a468ae940a4634f4942d9a5230a91b1b29c8024cae38f362c3b5360442626eed"
+			"byteSize": 6921,
+			"checksumSha256": "3f31c77b9c5fe9b8bde875f079b9737d4532095cbdd512e85789f598e50492e7"
 		}
 	},
 	"text-templates-list-template-glow": {
@@ -19001,14 +19001,14 @@
 		"source": {
 			"url": "/text-assets/text-templates-list-template/glow@1/template.json",
 			"mimeType": "application/json",
-			"byteSize": 5938,
-			"checksumSha256": "06edcd224d1cfab4f60d8d42d1481bcaf9b745e65a30a3358b3dcbcbf69c83ea"
+			"byteSize": 6310,
+			"checksumSha256": "ae67d97c5991ab5028c07c72959c5dd479084671bee85d379e5c00434fd718d4"
 		},
 		"qcutPackage": {
 			"url": "/text-assets/text-templates-list-template/glow@1/template.qctext",
 			"mimeType": "application/vnd.qcut.text-template+json",
-			"byteSize": 6529,
-			"checksumSha256": "49533dc0c4617b680547385b373c66d216f9bec900d96e92eb2192db0c35b9ab"
+			"byteSize": 6921,
+			"checksumSha256": "3f27d48cfc06e23261ab25e0cb5af751f9162b1990e7a97da7b6f664427012d4"
 		}
 	},
 	"text-templates-list-template-fire": {
@@ -19029,14 +19029,14 @@
 		"source": {
 			"url": "/text-assets/text-templates-list-template/fire@1/template.json",
 			"mimeType": "application/json",
-			"byteSize": 6034,
-			"checksumSha256": "f33d6cf29c2e41ffc31cf7331cc6e0d440e7af813b4c45fc6d2f33b0a25d16a6"
+			"byteSize": 6406,
+			"checksumSha256": "f1a7896c8800aa21d21458f465af5d9cdbc9e49c8e1e18b86f6a2a32617bb7e1"
 		},
 		"qcutPackage": {
 			"url": "/text-assets/text-templates-list-template/fire@1/template.qctext",
 			"mimeType": "application/vnd.qcut.text-template+json",
-			"byteSize": 6629,
-			"checksumSha256": "4c79f5960db31f992b22b9a35f3dff9b963be3ee503cdb12f20ecaf4ae2b9430"
+			"byteSize": 7021,
+			"checksumSha256": "75256e5424464de5b6beb9da16355e73d733eb2938174db357d554eeaa8dc1f6"
 		}
 	},
 	"text-templates-list-template-sticker": {
@@ -19057,14 +19057,14 @@
 		"source": {
 			"url": "/text-assets/text-templates-list-template/sticker@1/template.json",
 			"mimeType": "application/json",
-			"byteSize": 6106,
-			"checksumSha256": "c5edc2e2891d9a0982cf85f9a0dcac15329b2b93e3aae262833e3ec76d4841b7"
+			"byteSize": 6475,
+			"checksumSha256": "d8ce0223738dd3a9c8e63da89cdd007963cf6454d45f940c2ea3379e595b11f8"
 		},
 		"qcutPackage": {
 			"url": "/text-assets/text-templates-list-template/sticker@1/template.qctext",
 			"mimeType": "application/vnd.qcut.text-template+json",
-			"byteSize": 6707,
-			"checksumSha256": "fd7c104ecda3b350c4617015c0ceb364ae1fa8afd6e3cbf7deaac0bc466a73cd"
+			"byteSize": 7096,
+			"checksumSha256": "0bbc9c1fb8ff3ca1263ca74981c913a97f105d8f047eb212737524e5af591aef"
 		}
 	},
 	"text-templates-list-template-glitch": {
@@ -19085,14 +19085,14 @@
 		"source": {
 			"url": "/text-assets/text-templates-list-template/glitch@1/template.json",
 			"mimeType": "application/json",
-			"byteSize": 6104,
-			"checksumSha256": "70fe649c27c1f9c4525e76f4d0d8e3159e37d8788f2523972e9de83960efd862"
+			"byteSize": 6476,
+			"checksumSha256": "03378ef5fbdd2fe3d459f491e67439dcb6dfb4946512147bef6d1890f111ae17"
 		},
 		"qcutPackage": {
 			"url": "/text-assets/text-templates-list-template/glitch@1/template.qctext",
 			"mimeType": "application/vnd.qcut.text-template+json",
-			"byteSize": 6704,
-			"checksumSha256": "369c3bff8e410a522d06f64fd5c58a2916b8cdfada21d7d93e8db33bb74ac102"
+			"byteSize": 7096,
+			"checksumSha256": "d80c00a799118c980e0ae622eb7ab535523092e32d1a2e655566706e9d509ebc"
 		}
 	},
 	"text-templates-list-template-pixel": {
@@ -19113,14 +19113,14 @@
 		"source": {
 			"url": "/text-assets/text-templates-list-template/pixel@1/template.json",
 			"mimeType": "application/json",
-			"byteSize": 5935,
-			"checksumSha256": "2a198d96d27958843fff955e90b2306d4babaf6f48a4db5ac8d727294465468b"
+			"byteSize": 6307,
+			"checksumSha256": "46f1aac663af6f652ea10c0808da1eac0935480fe137be232685d37ac825b14e"
 		},
 		"qcutPackage": {
 			"url": "/text-assets/text-templates-list-template/pixel@1/template.qctext",
 			"mimeType": "application/vnd.qcut.text-template+json",
-			"byteSize": 6524,
-			"checksumSha256": "cecc7c2cf2b15b900cd0307966745f512f780b1beed4d2a10c6b96c4dc8ba138"
+			"byteSize": 6916,
+			"checksumSha256": "804d3f1fb22f2a850b86ce3b0570d3d3875779cfdb4c702049bbd50ead01a267"
 		}
 	},
 	"text-templates-list-template-ink": {
@@ -19141,14 +19141,14 @@
 		"source": {
 			"url": "/text-assets/text-templates-list-template/ink@1/template.json",
 			"mimeType": "application/json",
-			"byteSize": 5906,
-			"checksumSha256": "6c2bafc0dcf4c71d5dc0fb12dcdc3196693cd1eba5be87022302e15936d7d7db"
+			"byteSize": 6278,
+			"checksumSha256": "879a3631313f90bbb2512ebc2d796cb953ec93da2081e97997968c514f10eb1a"
 		},
 		"qcutPackage": {
 			"url": "/text-assets/text-templates-list-template/ink@1/template.qctext",
 			"mimeType": "application/vnd.qcut.text-template+json",
-			"byteSize": 6491,
-			"checksumSha256": "9d4f6728294813a94206047755cde25ad27183763a765f40085b289ee325f182"
+			"byteSize": 6883,
+			"checksumSha256": "93cdc7a96d50f946d3f4823c44815da46257b3a18973ecd0edbfc51d2f892eec"
 		}
 	},
 	"text-templates-list-template-gold": {
@@ -19169,14 +19169,14 @@
 		"source": {
 			"url": "/text-assets/text-templates-list-template/gold@1/template.json",
 			"mimeType": "application/json",
-			"byteSize": 6004,
-			"checksumSha256": "49db19953c6dfd5851115883f5c449c8e32e9cd93d3b62c4a7b183ce98dd9643"
+			"byteSize": 6373,
+			"checksumSha256": "6bbb0b5973d7edfd3fc3991b71c123122680e1f5e4d946cb5b1c85e6cec1171d"
 		},
 		"qcutPackage": {
 			"url": "/text-assets/text-templates-list-template/gold@1/template.qctext",
 			"mimeType": "application/vnd.qcut.text-template+json",
-			"byteSize": 6598,
-			"checksumSha256": "29f33d8b5d9f25c60c15d6218a2cf5727f042aa044391fdb7d60a2b7663a113b"
+			"byteSize": 6987,
+			"checksumSha256": "2a48e7fcab912a73122fa3ac46b2113e747447722a4fd2efdd21c273cea2807f"
 		}
 	},
 	"text-templates-list-template-chrome": {
@@ -19197,14 +19197,14 @@
 		"source": {
 			"url": "/text-assets/text-templates-list-template/chrome@1/template.json",
 			"mimeType": "application/json",
-			"byteSize": 6068,
-			"checksumSha256": "71b4ea89b8a0e252507d29f1e77c8fc3a28644fdaf866e08a4342f24ac9e0316"
+			"byteSize": 6440,
+			"checksumSha256": "ea79ec520918fcd300028c5f3565d23fcc2ecbad88b966072cc32a5c7210788a"
 		},
 		"qcutPackage": {
 			"url": "/text-assets/text-templates-list-template/chrome@1/template.qctext",
 			"mimeType": "application/vnd.qcut.text-template+json",
-			"byteSize": 6666,
-			"checksumSha256": "f1c5e996d00739eea5a8ee57d27c8f5717ef574fb93b98193de8cbb58a08ec78"
+			"byteSize": 7058,
+			"checksumSha256": "fbb1e9102674ead9af5b45b14f51dccda5f3bc34783a4aeed22b76fd9a8d6b62"
 		}
 	},
 	"text-templates-list-template-comic": {
@@ -19225,14 +19225,14 @@
 		"source": {
 			"url": "/text-assets/text-templates-list-template/comic@1/template.json",
 			"mimeType": "application/json",
-			"byteSize": 6093,
-			"checksumSha256": "a8d20222506582a023b49b5ed62f9efbb25e6551e787c91c7698861ccc0036cb"
+			"byteSize": 6465,
+			"checksumSha256": "22bc5682b38dd6b47385b57fa91d98785fbc4c4809fb47b3cfc629cf0f1a7be5"
 		},
 		"qcutPackage": {
 			"url": "/text-assets/text-templates-list-template/comic@1/template.qctext",
 			"mimeType": "application/vnd.qcut.text-template+json",
-			"byteSize": 6691,
-			"checksumSha256": "4e35ecf8f0d40065415a0bb317f5265c5aad18ac9e779bc4865799090c05b94d"
+			"byteSize": 7083,
+			"checksumSha256": "7a4365c699f0817ebf46389334ee1a317b0fde82b5304c0e804b39642802bc32"
 		}
 	},
 	"text-templates-list-template-bubble": {
@@ -19253,14 +19253,14 @@
 		"source": {
 			"url": "/text-assets/text-templates-list-template/bubble@1/template.json",
 			"mimeType": "application/json",
-			"byteSize": 5997,
-			"checksumSha256": "4d542ede6af99b9ab2bfe39835dad5c32c619d4fd693dfa5eee52a40587f223b"
+			"byteSize": 6369,
+			"checksumSha256": "de579c21e5528f28d68425be9ce301c119f8ca06be02092d98f4cee2bc935206"
 		},
 		"qcutPackage": {
 			"url": "/text-assets/text-templates-list-template/bubble@1/template.qctext",
 			"mimeType": "application/vnd.qcut.text-template+json",
-			"byteSize": 6589,
-			"checksumSha256": "9cdff8f03a8ab6863eead12557b8c578a2a1379b0eba088624cccdac0c4db50e"
+			"byteSize": 6981,
+			"checksumSha256": "b3bea77211d1ddd08d0ed0341bae34417f9c3f421252932db471713e89fc36dd"
 		}
 	},
 	"text-templates-list-template-stamp": {
@@ -19281,14 +19281,14 @@
 		"source": {
 			"url": "/text-assets/text-templates-list-template/stamp@1/template.json",
 			"mimeType": "application/json",
-			"byteSize": 5893,
-			"checksumSha256": "e7f1cfe4b2778b9b09920e69c429aa6a53d0f98254101b2d58e55ce363453f62"
+			"byteSize": 6262,
+			"checksumSha256": "677620af70f394afa52317449f73fc3f16a042fda5d0dde231fe77af0d4860e9"
 		},
 		"qcutPackage": {
 			"url": "/text-assets/text-templates-list-template/stamp@1/template.qctext",
 			"mimeType": "application/vnd.qcut.text-template+json",
-			"byteSize": 6480,
-			"checksumSha256": "14a4a5f43ed7f9955cbd88f9dad0109a701d914b8fc4c40e2346f96e357feeb3"
+			"byteSize": 6869,
+			"checksumSha256": "8e077d48f167f89337fb84101f2df975f16989d9768f028adcf75f4bed49d80c"
 		}
 	},
 	"text-templates-list-template-cutout": {
@@ -19309,14 +19309,14 @@
 		"source": {
 			"url": "/text-assets/text-templates-list-template/cutout@1/template.json",
 			"mimeType": "application/json",
-			"byteSize": 5879,
-			"checksumSha256": "3201b0d7321cebfa09c2184f8b3ecbc3553b9f194bde7ca826ae6e40203e0f28"
+			"byteSize": 6251,
+			"checksumSha256": "b4bc8c9f25df186f3c4b62f2dde9c79dbe1cbe64676d635276cb5017b65393cf"
 		},
 		"qcutPackage": {
 			"url": "/text-assets/text-templates-list-template/cutout@1/template.qctext",
 			"mimeType": "application/vnd.qcut.text-template+json",
-			"byteSize": 6467,
-			"checksumSha256": "899cdea8431ed769d520fa2de42b09e517428b5ac4fe7f820e262d546cc7511a"
+			"byteSize": 6859,
+			"checksumSha256": "13a76e8405194daf6a415d1fa6aef556c4a27f53928fabadb5e6f93421d8745b"
 		}
 	},
 	"text-templates-list-template-glass": {
@@ -19337,14 +19337,14 @@
 		"source": {
 			"url": "/text-assets/text-templates-list-template/glass@1/template.json",
 			"mimeType": "application/json",
-			"byteSize": 5935,
-			"checksumSha256": "b5fd982fcb4cf2699e8214ca81313acb2d548226cd77e46b5fde2bfdc046d7a8"
+			"byteSize": 6307,
+			"checksumSha256": "5be82f5126d50909bb511e9fb1794d2aa70da721a4cebc9bc7912347afed351a"
 		},
 		"qcutPackage": {
 			"url": "/text-assets/text-templates-list-template/glass@1/template.qctext",
 			"mimeType": "application/vnd.qcut.text-template+json",
-			"byteSize": 6523,
-			"checksumSha256": "46ddcc064d9313bb09eb8ed9145eb209310ace995f0fca1105e690c656e9891f"
+			"byteSize": 6915,
+			"checksumSha256": "e28631e3a439ef65d5bb58eb9bfd6b83ca045f9702d13e30d7546748f9d9d043"
 		}
 	},
 	"text-templates-list-template-shadow": {
@@ -19365,14 +19365,14 @@
 		"source": {
 			"url": "/text-assets/text-templates-list-template/shadow@1/template.json",
 			"mimeType": "application/json",
-			"byteSize": 5879,
-			"checksumSha256": "bedbd2b301ee9a82f5958f1f807e501fa1bdaf981aec256d0f8a4dd7466c7abf"
+			"byteSize": 6251,
+			"checksumSha256": "5ef3fac4304ff872acc77712ad5d16a5e8bb7ca448f0ab4517524a178296c958"
 		},
 		"qcutPackage": {
 			"url": "/text-assets/text-templates-list-template/shadow@1/template.qctext",
 			"mimeType": "application/vnd.qcut.text-template+json",
-			"byteSize": 6467,
-			"checksumSha256": "eac628d8c5924114411a28f3e95e6174e3e514fdbb7a34ca24a13d8ff5b76037"
+			"byteSize": 6859,
+			"checksumSha256": "4a162af44e50b3f8ccd0a8270e3186a6bec45a8feb41ccad6a47b405bfe4ae13"
 		}
 	},
 	"text-templates-list-template-candy": {
@@ -19393,14 +19393,14 @@
 		"source": {
 			"url": "/text-assets/text-templates-list-template/candy@1/template.json",
 			"mimeType": "application/json",
-			"byteSize": 5987,
-			"checksumSha256": "9b802265d5801a5250c042d1a26b2469aca4a8301df4101d85bf1026ac5faffc"
+			"byteSize": 6356,
+			"checksumSha256": "53332069c2f83e27609000585f419cc94d330cd10fca09e9fee5e6fcb1185695"
 		},
 		"qcutPackage": {
 			"url": "/text-assets/text-templates-list-template/candy@1/template.qctext",
 			"mimeType": "application/vnd.qcut.text-template+json",
-			"byteSize": 6581,
-			"checksumSha256": "8d8f6b956c5a2c1ab945db8fbd7031f4467fbacd59e857d6a7599635ddd5fe4c"
+			"byteSize": 6970,
+			"checksumSha256": "ca88b6a2fe467887346c5edff96b81a9581c77b11b134cba830597a06c71dd5f"
 		}
 	},
 	"text-templates-list-template-warning": {
@@ -19421,14 +19421,14 @@
 		"source": {
 			"url": "/text-assets/text-templates-list-template/warning@1/template.json",
 			"mimeType": "application/json",
-			"byteSize": 6021,
-			"checksumSha256": "2df6e607a5ccfe875228fb610c058372569aad8afd2bcbf92af311492980d0a9"
+			"byteSize": 6393,
+			"checksumSha256": "d0674f09d584a1ece8ccc0e08e2472c8ab5c89a27b6c9ec311fc118589bcfdcf"
 		},
 		"qcutPackage": {
 			"url": "/text-assets/text-templates-list-template/warning@1/template.qctext",
 			"mimeType": "application/vnd.qcut.text-template+json",
-			"byteSize": 6616,
-			"checksumSha256": "5a0950d6c3c749b12ea647bd2caee18a9b4075c702709c38c040379aec5116a3"
+			"byteSize": 7008,
+			"checksumSha256": "1780dcf544c81a5cc607273b27ba90aab3b65630513e92bf3bd0441ee342b8b3"
 		}
 	},
 	"text-templates-list-template-soft-card": {
@@ -19449,14 +19449,14 @@
 		"source": {
 			"url": "/text-assets/text-templates-list-template/soft-card@1/template.json",
 			"mimeType": "application/json",
-			"byteSize": 6023,
-			"checksumSha256": "680c815f57a8e2e6053e704937153474dde78e339dcc9c78bc1d2f600fdfa9bd"
+			"byteSize": 6395,
+			"checksumSha256": "270c56dce98f4197f24b190ebfaf339ec3ea8e74cae4153e1693c1e3cd9f73d7"
 		},
 		"qcutPackage": {
 			"url": "/text-assets/text-templates-list-template/soft-card@1/template.qctext",
 			"mimeType": "application/vnd.qcut.text-template+json",
-			"byteSize": 6622,
-			"checksumSha256": "5d32af2fac1632419ed140e874d215c029a10624344d4e20420326f39b584037"
+			"byteSize": 7014,
+			"checksumSha256": "bb40345c7a30b0f6fb7b6dbcd9fc15c73c0a8505080aad41d44e1739e525b85c"
 		}
 	},
 	"text-templates-list-template-ribbon": {
@@ -19477,14 +19477,14 @@
 		"source": {
 			"url": "/text-assets/text-templates-list-template/ribbon@1/template.json",
 			"mimeType": "application/json",
-			"byteSize": 5878,
-			"checksumSha256": "33d75ef75602c37d7625dd9dd50e7fb4371a3200eba5b300865f14a54f797dae"
+			"byteSize": 6250,
+			"checksumSha256": "ebd5a357b2ce6b0fabd5c2a26606c4ae418b3483b9c179222f2c5f4b59f633a4"
 		},
 		"qcutPackage": {
 			"url": "/text-assets/text-templates-list-template/ribbon@1/template.qctext",
 			"mimeType": "application/vnd.qcut.text-template+json",
-			"byteSize": 6466,
-			"checksumSha256": "9f33006a016cd77a512dfe959dbce578d020d8341cdbf9d106d565e8d0e035d4"
+			"byteSize": 6858,
+			"checksumSha256": "820274d5bd9077f5c5a6831f0aa5d652914a459bf966db4a19a93ae527e9fa01"
 		}
 	},
 	"text-templates-split-template-plain": {
@@ -19505,14 +19505,14 @@
 		"source": {
 			"url": "/text-assets/text-templates-split-template/plain@1/template.json",
 			"mimeType": "application/json",
-			"byteSize": 5888,
-			"checksumSha256": "19881f1709b67d6c502a815b95ddaa3eaf2219b1a7cb31300d621f7e8c780078"
+			"byteSize": 6134,
+			"checksumSha256": "0f06c42d2918aa3b6d1d593abf2b9b5436e059f133ebf44c95c929da22fbf18b"
 		},
 		"qcutPackage": {
 			"url": "/text-assets/text-templates-split-template/plain@1/template.qctext",
 			"mimeType": "application/vnd.qcut.text-template+json",
-			"byteSize": 6479,
-			"checksumSha256": "657de603d26aa747de7396ea95bc196e06d11394f6a576f8dbe1b3557f8ac358"
+			"byteSize": 6739,
+			"checksumSha256": "34fddb055408492a85f1d76f242beb1562b1b8fba2aad006a0724982885788b6"
 		}
 	},
 	"text-templates-split-template-outline": {
@@ -19533,14 +19533,14 @@
 		"source": {
 			"url": "/text-assets/text-templates-split-template/outline@1/template.json",
 			"mimeType": "application/json",
-			"byteSize": 5900,
-			"checksumSha256": "fa2f21be9951802ed437cbcb2dc3b88b55914acd996115e1f8615bc5bc1a7583"
+			"byteSize": 6146,
+			"checksumSha256": "9c89cfa2202ce02758d7205e0cd480c9eb2d0d7c4e776c8aa1a538ec4dbe5999"
 		},
 		"qcutPackage": {
 			"url": "/text-assets/text-templates-split-template/outline@1/template.qctext",
 			"mimeType": "application/vnd.qcut.text-template+json",
-			"byteSize": 6494,
-			"checksumSha256": "5d61a3dacc966ad31b9c1236ad2d1762d3655735e5e616876c3588e1ab8e22ce"
+			"byteSize": 6754,
+			"checksumSha256": "ad1becb4646e73c44f2965235684a17d00a81fa25c7503091f7e7778ce8d93e8"
 		}
 	},
 	"text-templates-split-template-label": {
@@ -19561,14 +19561,14 @@
 		"source": {
 			"url": "/text-assets/text-templates-split-template/label@1/template.json",
 			"mimeType": "application/json",
-			"byteSize": 5966,
-			"checksumSha256": "cccdfb48541336f8eb6b7db160718612734c1e1d9021e8d24f36bc38360e812b"
+			"byteSize": 6212,
+			"checksumSha256": "7d2409eaa61891374196d09a44a9a2b5cd7e04da1a8b46151b991fda59d8a92f"
 		},
 		"qcutPackage": {
 			"url": "/text-assets/text-templates-split-template/label@1/template.qctext",
 			"mimeType": "application/vnd.qcut.text-template+json",
-			"byteSize": 6560,
-			"checksumSha256": "d9ca4f9e92fb00212c6f9ce1c97c0a713ff06f6a0d00f6dfe030e54ff6815202"
+			"byteSize": 6820,
+			"checksumSha256": "dbe2e445186bfd0bcc43e10c10aa70f33e4ce8f52131cc87f7bf3414402bc25d"
 		}
 	},
 	"text-templates-split-template-pop": {
@@ -19589,14 +19589,14 @@
 		"source": {
 			"url": "/text-assets/text-templates-split-template/pop@1/template.json",
 			"mimeType": "application/json",
-			"byteSize": 5958,
-			"checksumSha256": "ed46d6618b82cbbaa8e1d79f2602cce1054230efca943549f92b86d2a3c30fbf"
+			"byteSize": 6204,
+			"checksumSha256": "f548f9d2f3828bb945e0a7595cc50c5bfb8c8973593a87a0667a8965313e0f97"
 		},
 		"qcutPackage": {
 			"url": "/text-assets/text-templates-split-template/pop@1/template.qctext",
 			"mimeType": "application/vnd.qcut.text-template+json",
-			"byteSize": 6548,
-			"checksumSha256": "707021ed3232dbc91bd626532bbd36032a419504686ebaba5b92f91f064c797c"
+			"byteSize": 6808,
+			"checksumSha256": "b7b7ac20acb9d472e9b276c496b81684c80f91aa740bfdc9de98942ff221da29"
 		}
 	},
 	"text-templates-split-template-glow": {
@@ -19617,14 +19617,14 @@
 		"source": {
 			"url": "/text-assets/text-templates-split-template/glow@1/template.json",
 			"mimeType": "application/json",
-			"byteSize": 5944,
-			"checksumSha256": "3d58f91a26b444b404123be71f309ac28b7f592c0c21d177f8f816b9d7862b3b"
+			"byteSize": 6190,
+			"checksumSha256": "587b86f22f9c1881a0bfd58f8187698e7d11b838fbfe11b457b38e1d70161686"
 		},
 		"qcutPackage": {
 			"url": "/text-assets/text-templates-split-template/glow@1/template.qctext",
 			"mimeType": "application/vnd.qcut.text-template+json",
-			"byteSize": 6539,
-			"checksumSha256": "b799a9dde98070795fb39f57b7c9bc8c904321bc06b1b4d937f2ab4c63a9d89b"
+			"byteSize": 6799,
+			"checksumSha256": "f82d559674414e057555d283da72dad711714a8c0fb6f511974716a1f42c9dff"
 		}
 	},
 	"text-templates-split-template-fire": {
@@ -19645,14 +19645,14 @@
 		"source": {
 			"url": "/text-assets/text-templates-split-template/fire@1/template.json",
 			"mimeType": "application/json",
-			"byteSize": 6042,
-			"checksumSha256": "ec298aa3661c1ca674a234d1c8dfc8a146ffdc50c953ec5ed129c4fc620453fe"
+			"byteSize": 6288,
+			"checksumSha256": "0f67c5c15e18f60369c49d82d89369725a9563c22da50038e8c65520ab553503"
 		},
 		"qcutPackage": {
 			"url": "/text-assets/text-templates-split-template/fire@1/template.qctext",
 			"mimeType": "application/vnd.qcut.text-template+json",
-			"byteSize": 6641,
-			"checksumSha256": "7469af7bd5f77e0066ae31dfcf0dbbc03639ca4d4414c389d3c8bff304b60340"
+			"byteSize": 6901,
+			"checksumSha256": "96d84d9bc70f55893079862b75845398c43871b48a9fab370fd9f8c6c275d371"
 		}
 	},
 	"text-templates-split-template-sticker": {
@@ -19673,14 +19673,14 @@
 		"source": {
 			"url": "/text-assets/text-templates-split-template/sticker@1/template.json",
 			"mimeType": "application/json",
-			"byteSize": 6118,
-			"checksumSha256": "62fb66b576baf120553bf9df5ea4107a4cc43a1bf71b421252fc3acc74a32e71"
+			"byteSize": 6364,
+			"checksumSha256": "106e270f170f89f8f7ff7109994b5e956b1e93a1bf49a5cfc27e1267cd5ae08b"
 		},
 		"qcutPackage": {
 			"url": "/text-assets/text-templates-split-template/sticker@1/template.qctext",
 			"mimeType": "application/vnd.qcut.text-template+json",
-			"byteSize": 6723,
-			"checksumSha256": "1e9f5e08c2c7d1459f192a7573a1b987411f936a953ad595955b01fa12f9e3ce"
+			"byteSize": 6983,
+			"checksumSha256": "a057ff9bb984dcd184bba1bdd616469751eae731ad66ea00e570f015e42ce15c"
 		}
 	},
 	"text-templates-split-template-glitch": {
@@ -19701,14 +19701,14 @@
 		"source": {
 			"url": "/text-assets/text-templates-split-template/glitch@1/template.json",
 			"mimeType": "application/json",
-			"byteSize": 6110,
-			"checksumSha256": "22cd0a9b622fb362aad876d1f5c6de7c6f95e2589a8cca4cae2d79c9a8f18e58"
+			"byteSize": 6356,
+			"checksumSha256": "2c66d8159a1fcd836074b8651e1f8481e6c85f6d1a545bd3597c62f514040a8e"
 		},
 		"qcutPackage": {
 			"url": "/text-assets/text-templates-split-template/glitch@1/template.qctext",
 			"mimeType": "application/vnd.qcut.text-template+json",
-			"byteSize": 6714,
-			"checksumSha256": "caf645dc3bbcefcba79802ec804f621e0a8a11c7e4823f5ff9fb41b7a1940515"
+			"byteSize": 6974,
+			"checksumSha256": "ef418e6e76ae7409ce2f5fcac0c8fc21e5b4db6b3d21282cd544bbce2256d513"
 		}
 	},
 	"text-templates-split-template-pixel": {
@@ -19729,14 +19729,14 @@
 		"source": {
 			"url": "/text-assets/text-templates-split-template/pixel@1/template.json",
 			"mimeType": "application/json",
-			"byteSize": 5941,
-			"checksumSha256": "da969c459a61f139fd7de9c06242ca6770aa436bb8b68699a81fc68246eda6de"
+			"byteSize": 6187,
+			"checksumSha256": "7be0ed11d39367703fb956e471977179e067b7bd761d7c8af8057147aeceb5bc"
 		},
 		"qcutPackage": {
 			"url": "/text-assets/text-templates-split-template/pixel@1/template.qctext",
 			"mimeType": "application/vnd.qcut.text-template+json",
-			"byteSize": 6534,
-			"checksumSha256": "83fc5a828f15651cf41725dee170b9e771295500a31a263cd51a3eb1562651d3"
+			"byteSize": 6794,
+			"checksumSha256": "37025991fc50d19338595a8e1c31429b2914891ac0cf28f5f94681d55ed8b7bd"
 		}
 	},
 	"text-templates-split-template-ink": {
@@ -19757,14 +19757,14 @@
 		"source": {
 			"url": "/text-assets/text-templates-split-template/ink@1/template.json",
 			"mimeType": "application/json",
-			"byteSize": 5914,
-			"checksumSha256": "34ee35703385dc47556a665cf843ee1d91806d6c6a7c706b8fa3b2918f17e780"
+			"byteSize": 6160,
+			"checksumSha256": "996db119d6cbad3b2a2bd9c4bbdaf3796003fdd86a51f74290c7ffcf734019bf"
 		},
 		"qcutPackage": {
 			"url": "/text-assets/text-templates-split-template/ink@1/template.qctext",
 			"mimeType": "application/vnd.qcut.text-template+json",
-			"byteSize": 6503,
-			"checksumSha256": "39ac9684a28406767b72f1c614820e5792b674803faa90ca0eac9077980bfcce"
+			"byteSize": 6763,
+			"checksumSha256": "b8457def7214a550b84446e55f3adc1f81895c53432ce0bf06befcf9316d2d29"
 		}
 	},
 	"text-templates-split-template-gold": {
@@ -19785,14 +19785,14 @@
 		"source": {
 			"url": "/text-assets/text-templates-split-template/gold@1/template.json",
 			"mimeType": "application/json",
-			"byteSize": 6021,
-			"checksumSha256": "e25bc63e3d47e2f9f560375e1ac5fbc97f86f8cbafa96b9a9b6d789d26f9cd30"
+			"byteSize": 6267,
+			"checksumSha256": "d4f23ee3fe103320ba7d250fae39ef6b8005303e4a2ff0866ecc85f4842d18a7"
 		},
 		"qcutPackage": {
 			"url": "/text-assets/text-templates-split-template/gold@1/template.qctext",
 			"mimeType": "application/vnd.qcut.text-template+json",
-			"byteSize": 6619,
-			"checksumSha256": "120473d2f773eeda51d37247868ed9850c10a0237d56689bf09a327fb7201c0e"
+			"byteSize": 6879,
+			"checksumSha256": "a355ba04a14bd3f090da84a53cc3bbbd46b891878a14d1d725e0c6adcb2d6cb8"
 		}
 	},
 	"text-templates-split-template-chrome": {
@@ -19813,14 +19813,14 @@
 		"source": {
 			"url": "/text-assets/text-templates-split-template/chrome@1/template.json",
 			"mimeType": "application/json",
-			"byteSize": 6074,
-			"checksumSha256": "432343afee00768879d970166d4bc8f0b177336271bdfe22e24e0bee9d429eae"
+			"byteSize": 6320,
+			"checksumSha256": "c00803c2fafe16a97d730f3428558f323c60a0180243571b2e4a0d5f88a373e1"
 		},
 		"qcutPackage": {
 			"url": "/text-assets/text-templates-split-template/chrome@1/template.qctext",
 			"mimeType": "application/vnd.qcut.text-template+json",
-			"byteSize": 6676,
-			"checksumSha256": "b1a186a98473371634469499395a7ecb2fbeb837eb242ff8e4ce9b3d2a4283c0"
+			"byteSize": 6936,
+			"checksumSha256": "52299e9a95ee145ead3b21468a6b2d83089276d1ca37917209aed2e26a99dc96"
 		}
 	},
 	"text-templates-split-template-comic": {
@@ -19841,14 +19841,14 @@
 		"source": {
 			"url": "/text-assets/text-templates-split-template/comic@1/template.json",
 			"mimeType": "application/json",
-			"byteSize": 6094,
-			"checksumSha256": "e892cb81d18e8c9b726030c6777073f56af1efa58082491ed9c64e2ae225c27e"
+			"byteSize": 6340,
+			"checksumSha256": "cfa8d6cf9d1554cc1e6d889634b457ca25b097e0fd94ff7f25b855bdfa693758"
 		},
 		"qcutPackage": {
 			"url": "/text-assets/text-templates-split-template/comic@1/template.qctext",
 			"mimeType": "application/vnd.qcut.text-template+json",
-			"byteSize": 6696,
-			"checksumSha256": "5e35d3cf87aa855a99f58fb0f234da14f55efdb42468ae152519ac7a648bc6a3"
+			"byteSize": 6956,
+			"checksumSha256": "0ceda8844de4a7ed4d4062b75f21a34067c4d618654e2e288055db0e4c2fe833"
 		}
 	},
 	"text-templates-split-template-bubble": {
@@ -19869,14 +19869,14 @@
 		"source": {
 			"url": "/text-assets/text-templates-split-template/bubble@1/template.json",
 			"mimeType": "application/json",
-			"byteSize": 6005,
-			"checksumSha256": "3b2488a8e0f2d65582ba2fddb4ca909905819ca2e6cb923f892c1a62c2aae71c"
+			"byteSize": 6251,
+			"checksumSha256": "1d5f5fb29b3aae00b13219d1bd9d4aee22eb0cbe2e587ff4025cc540c48a867a"
 		},
 		"qcutPackage": {
 			"url": "/text-assets/text-templates-split-template/bubble@1/template.qctext",
 			"mimeType": "application/vnd.qcut.text-template+json",
-			"byteSize": 6601,
-			"checksumSha256": "63577cd282fc5f5c75ab6650329c55191aad8f7e5f8e4089857324188c60eed9"
+			"byteSize": 6861,
+			"checksumSha256": "b57acfcada8f75e11f1e31a1ca407272dae9878c973d8c10c4dc5140adb18b58"
 		}
 	},
 	"text-templates-split-template-stamp": {
@@ -19897,14 +19897,14 @@
 		"source": {
 			"url": "/text-assets/text-templates-split-template/stamp@1/template.json",
 			"mimeType": "application/json",
-			"byteSize": 5909,
-			"checksumSha256": "e8a530c722ae529a4781805fdbd142c751bc2d44411d9549b8e818b7824c62bc"
+			"byteSize": 6155,
+			"checksumSha256": "15eb742c2c98bcf275464cfa8d4d0e2fe974f29c4b0a3d954dee174a12a54c0a"
 		},
 		"qcutPackage": {
 			"url": "/text-assets/text-templates-split-template/stamp@1/template.qctext",
 			"mimeType": "application/vnd.qcut.text-template+json",
-			"byteSize": 6500,
-			"checksumSha256": "72693d7420bb41cb5d05e553b380043bf9a06db7e59254d4274cbfb28f9cd03e"
+			"byteSize": 6760,
+			"checksumSha256": "6d40517ebad8ebdc72b8000f814c2f4f6814af9d4e6e70c201e3a83ffe47b988"
 		}
 	},
 	"text-templates-split-template-cutout": {
@@ -19925,14 +19925,14 @@
 		"source": {
 			"url": "/text-assets/text-templates-split-template/cutout@1/template.json",
 			"mimeType": "application/json",
-			"byteSize": 5885,
-			"checksumSha256": "9cdedb083e817573a7a0ae5a29fb66a6dfe7f36485aec366e0ce8931c0a66999"
+			"byteSize": 6131,
+			"checksumSha256": "98c7f3bc3c942f92a7afdc9d6136bdadb394f0481cb1d95587922ffa00d8ee5f"
 		},
 		"qcutPackage": {
 			"url": "/text-assets/text-templates-split-template/cutout@1/template.qctext",
 			"mimeType": "application/vnd.qcut.text-template+json",
-			"byteSize": 6477,
-			"checksumSha256": "7750395c64e0629180f471429693100b648c36c3987aa6b7b1a7fd71a409cb34"
+			"byteSize": 6737,
+			"checksumSha256": "386859775daf9cbdfa8938e2b9bf773909cb7d406fbd995ec489cfdaa56a7e10"
 		}
 	},
 	"text-templates-split-template-glass": {
@@ -19953,14 +19953,14 @@
 		"source": {
 			"url": "/text-assets/text-templates-split-template/glass@1/template.json",
 			"mimeType": "application/json",
-			"byteSize": 5941,
-			"checksumSha256": "dac7b9c7193f80d7a189db39ed9a309f314f59b969aad45c879cf13b76e3c46b"
+			"byteSize": 6187,
+			"checksumSha256": "304dcb104b05cb25d6a727d0f2f9f65cbc227f6ea8cc818cacaf08e6f2ba4eb3"
 		},
 		"qcutPackage": {
 			"url": "/text-assets/text-templates-split-template/glass@1/template.qctext",
 			"mimeType": "application/vnd.qcut.text-template+json",
-			"byteSize": 6533,
-			"checksumSha256": "a4399011a4abe44cc92aa4fae4adb49528bb99ce11b88aba7eefd469c05e03b6"
+			"byteSize": 6793,
+			"checksumSha256": "be44eb563a7e93491e672431020d1004ab2eadfc22ffc34b4fde0bc63445e4ff"
 		}
 	},
 	"text-templates-split-template-shadow": {
@@ -19981,14 +19981,14 @@
 		"source": {
 			"url": "/text-assets/text-templates-split-template/shadow@1/template.json",
 			"mimeType": "application/json",
-			"byteSize": 5887,
-			"checksumSha256": "3e3a93a1a2ae354b3ecb11ac6e8cb4f7bb3a87fa60708dda6317d17e45ca4f7a"
+			"byteSize": 6133,
+			"checksumSha256": "c67b81db9e847aee3fac24d37b38450d6a730dc59739d8fb1d4d52a537965ba0"
 		},
 		"qcutPackage": {
 			"url": "/text-assets/text-templates-split-template/shadow@1/template.qctext",
 			"mimeType": "application/vnd.qcut.text-template+json",
-			"byteSize": 6479,
-			"checksumSha256": "d45f88c0f64f59fbfa06c9645b35f8af21e3b31dc7836c720f586a98bd6ea182"
+			"byteSize": 6739,
+			"checksumSha256": "c230b5597dfc54bc65842e279cb927a247e300b96403a854c35b33c60baeea2c"
 		}
 	},
 	"text-templates-split-template-candy": {
@@ -20009,14 +20009,14 @@
 		"source": {
 			"url": "/text-assets/text-templates-split-template/candy@1/template.json",
 			"mimeType": "application/json",
-			"byteSize": 6004,
-			"checksumSha256": "5091773a299df35007429dae985c298a3a2bece921f9819bca2c0ca87971e8fc"
+			"byteSize": 6250,
+			"checksumSha256": "7e0454644ba19b6d6d4cc3a01c79f97daf58aef27d508a85fb021bb85ab1f1ff"
 		},
 		"qcutPackage": {
 			"url": "/text-assets/text-templates-split-template/candy@1/template.qctext",
 			"mimeType": "application/vnd.qcut.text-template+json",
-			"byteSize": 6602,
-			"checksumSha256": "254bf48f2a9f33ebd9bc5b2c0d7b5e7d1525add0bf0895a9b6f9d727924dfcb9"
+			"byteSize": 6862,
+			"checksumSha256": "55e3ec6877de3f7b4a5b1646435cf0f77c1b163f71bc49572db68b1886c79a82"
 		}
 	},
 	"text-templates-split-template-warning": {
@@ -20037,14 +20037,14 @@
 		"source": {
 			"url": "/text-assets/text-templates-split-template/warning@1/template.json",
 			"mimeType": "application/json",
-			"byteSize": 6026,
-			"checksumSha256": "6ca5e37874814588e5340cc141a25eda466129c4056897baff96c989e00286d0"
+			"byteSize": 6272,
+			"checksumSha256": "d214966f8075f6beab0b5f126b39b131fdb41036fce23b34caf4886e384e0347"
 		},
 		"qcutPackage": {
 			"url": "/text-assets/text-templates-split-template/warning@1/template.qctext",
 			"mimeType": "application/vnd.qcut.text-template+json",
-			"byteSize": 6625,
-			"checksumSha256": "95dc0754420e1f6eaa5fcff1df58346046e77279a524ab945b6790f0df93cb64"
+			"byteSize": 6885,
+			"checksumSha256": "25c88b2ada074d358d59e68e157211fe6ce31df4836b047b65f8a6d3585631fd"
 		}
 	},
 	"text-templates-split-template-soft-card": {
@@ -20065,14 +20065,14 @@
 		"source": {
 			"url": "/text-assets/text-templates-split-template/soft-card@1/template.json",
 			"mimeType": "application/json",
-			"byteSize": 6029,
-			"checksumSha256": "6ebb704a81eacf7b47d25f9611b11ed6a9d10652a858ac06042e50301872d6e4"
+			"byteSize": 6275,
+			"checksumSha256": "fdc9314f967a4ff017dd8c725ec5758905e9fd7c2c39bd6fbfcc4691025c7f4c"
 		},
 		"qcutPackage": {
 			"url": "/text-assets/text-templates-split-template/soft-card@1/template.qctext",
 			"mimeType": "application/vnd.qcut.text-template+json",
-			"byteSize": 6632,
-			"checksumSha256": "62a9a1a0ca8b31bc48c7529d516c400454c49dc9f37ed533a1352e1d6b427db4"
+			"byteSize": 6892,
+			"checksumSha256": "0c6984ab03a39087507cbadde3e0536aa1c9b3fbee1b04667181e3cec7adce62"
 		}
 	},
 	"text-templates-split-template-ribbon": {
@@ -20093,14 +20093,14 @@
 		"source": {
 			"url": "/text-assets/text-templates-split-template/ribbon@1/template.json",
 			"mimeType": "application/json",
-			"byteSize": 5886,
-			"checksumSha256": "dcd397b4efa76c19104a36b8f777de2ac6a60a51b318c83df1df6732efd6bf46"
+			"byteSize": 6132,
+			"checksumSha256": "d3680c4d2e6cd58d1bd45f4270ca4a040e121c5a15d2adb988bb899ffbc3dac7"
 		},
 		"qcutPackage": {
 			"url": "/text-assets/text-templates-split-template/ribbon@1/template.qctext",
 			"mimeType": "application/vnd.qcut.text-template+json",
-			"byteSize": 6478,
-			"checksumSha256": "5efdd4d0ca8d67b33db2169b7e3e79f982f126a94342dcfa29a3bbc6d3de4a2a"
+			"byteSize": 6738,
+			"checksumSha256": "13f2e44eb4e43a9dab679f929f60a957dba0610f77e183048058f3e0f1e36f1b"
 		}
 	},
 	"text-templates-timeline-template-plain": {
@@ -20121,14 +20121,14 @@
 		"source": {
 			"url": "/text-assets/text-templates-timeline-template/plain@1/template.json",
 			"mimeType": "application/json",
-			"byteSize": 5952,
-			"checksumSha256": "fd15785e1e160a4bc8d6594bd2570fa3580f82e5fecbde935189bbc63206c23a"
+			"byteSize": 6311,
+			"checksumSha256": "5b862644ccc6bf20604f093dab50da831f0999d74e83b9c6bd5a7ebc4b79d70f"
 		},
 		"qcutPackage": {
 			"url": "/text-assets/text-templates-timeline-template/plain@1/template.qctext",
 			"mimeType": "application/vnd.qcut.text-template+json",
-			"byteSize": 6552,
-			"checksumSha256": "0a924e7d3cdde6408bb1e4053489f63c8833796b1a31ba8822252cf058c64174"
+			"byteSize": 6931,
+			"checksumSha256": "cb73a806e06c87ac67f28da9ad718dd94f5b5be71db8d87180db2212fe69364d"
 		}
 	},
 	"text-templates-timeline-template-outline": {
@@ -20149,14 +20149,14 @@
 		"source": {
 			"url": "/text-assets/text-templates-timeline-template/outline@1/template.json",
 			"mimeType": "application/json",
-			"byteSize": 5953,
-			"checksumSha256": "9f70264d378e84b07eacd98c3db5b9d5f3e07a3b23d48d6f4f49806108604b10"
+			"byteSize": 6309,
+			"checksumSha256": "d11024a763bdfa65c581bbb2e45c9d78349ea69493f610cfdf5a752f3998e734"
 		},
 		"qcutPackage": {
 			"url": "/text-assets/text-templates-timeline-template/outline@1/template.qctext",
 			"mimeType": "application/vnd.qcut.text-template+json",
-			"byteSize": 6556,
-			"checksumSha256": "54e6f313652edaa235448eb2c99629f393e6cd2be65797ea9ba52882314d59c6"
+			"byteSize": 6932,
+			"checksumSha256": "64eaf02acdde7a1babd19d1b6b68c75c51ca9f559b6cb97e352ea60c763770c7"
 		}
 	},
 	"text-templates-timeline-template-label": {
@@ -20177,14 +20177,14 @@
 		"source": {
 			"url": "/text-assets/text-templates-timeline-template/label@1/template.json",
 			"mimeType": "application/json",
-			"byteSize": 6019,
-			"checksumSha256": "c5fe990b81979edb96c461548c9d93d5d8adf4fd2d815b77b02e5f3807b91828"
+			"byteSize": 6375,
+			"checksumSha256": "018c60b0416ea1f0f6413f373fa1c963adc0a726fb74751737b1348b31791450"
 		},
 		"qcutPackage": {
 			"url": "/text-assets/text-templates-timeline-template/label@1/template.qctext",
 			"mimeType": "application/vnd.qcut.text-template+json",
-			"byteSize": 6622,
-			"checksumSha256": "1e4cfd352f402c4e058cc535f8932a6021d9262efeb836cc006530c017f2f61b"
+			"byteSize": 6998,
+			"checksumSha256": "25eb932a67926a0695f288d56569e0821b66dc2ada31f4a8d91951a166f6e2a0"
 		}
 	},
 	"text-templates-timeline-template-pop": {
@@ -20205,14 +20205,14 @@
 		"source": {
 			"url": "/text-assets/text-templates-timeline-template/pop@1/template.json",
 			"mimeType": "application/json",
-			"byteSize": 6004,
-			"checksumSha256": "9adee00e384ad120b6e3f9eaf31e87970af522b2fce268fd6a14cc76b2684617"
+			"byteSize": 6360,
+			"checksumSha256": "3ed12419e94384d6302017369d6aab29762be333a796dda3097ba2c223cbe7ea"
 		},
 		"qcutPackage": {
 			"url": "/text-assets/text-templates-timeline-template/pop@1/template.qctext",
 			"mimeType": "application/vnd.qcut.text-template+json",
-			"byteSize": 6603,
-			"checksumSha256": "10f015141603429b4740ef3b1a93ff518db6e3cf4ec924c332923afe247971c1"
+			"byteSize": 6979,
+			"checksumSha256": "73eed94df74e8962f73521fecf48e97ae64d4b0bd4d55c93a0a74dda2f192be5"
 		}
 	},
 	"text-templates-timeline-template-glow": {
@@ -20233,14 +20233,14 @@
 		"source": {
 			"url": "/text-assets/text-templates-timeline-template/glow@1/template.json",
 			"mimeType": "application/json",
-			"byteSize": 6008,
-			"checksumSha256": "c5f6c215e67281cd32cba1fdf56daeef6940b9ac7b42e894692fb24067a8e9eb"
+			"byteSize": 6367,
+			"checksumSha256": "bd962b487df2131312ba1f6976c220f2b79ead474f19678107f0b5a2dabb1137"
 		},
 		"qcutPackage": {
 			"url": "/text-assets/text-templates-timeline-template/glow@1/template.qctext",
 			"mimeType": "application/vnd.qcut.text-template+json",
-			"byteSize": 6612,
-			"checksumSha256": "64dc5d4ab5d04fda7ef1bfe20224f6d5118bcf64b5dfaf2398c2603aad8fc19d"
+			"byteSize": 6991,
+			"checksumSha256": "0d3f42b6913cb7394be6d5a79ec6efd9067b047955b1b7601118fea9b2a73642"
 		}
 	},
 	"text-templates-timeline-template-fire": {
@@ -20261,14 +20261,14 @@
 		"source": {
 			"url": "/text-assets/text-templates-timeline-template/fire@1/template.json",
 			"mimeType": "application/json",
-			"byteSize": 6095,
-			"checksumSha256": "e76e881f627d9c2b64129bc49bf9b59b8956b6dff533f49b0e341b05573b3c10"
+			"byteSize": 6451,
+			"checksumSha256": "ee72b700c5c3328bb9931cb560393c0b3e9c40c8a83c58e81938e2cd7226ad01"
 		},
 		"qcutPackage": {
 			"url": "/text-assets/text-templates-timeline-template/fire@1/template.qctext",
 			"mimeType": "application/vnd.qcut.text-template+json",
-			"byteSize": 6703,
-			"checksumSha256": "bde1b89d665657aa43d13fa87505b278c630f879262169b6d15dfd843d644eb9"
+			"byteSize": 7079,
+			"checksumSha256": "c752d05e6cf52bb8fe312aae5c0a7b7348fea99231b4ba0b29f6abe4cf487b96"
 		}
 	},
 	"text-templates-timeline-template-sticker": {
@@ -20289,14 +20289,14 @@
 		"source": {
 			"url": "/text-assets/text-templates-timeline-template/sticker@1/template.json",
 			"mimeType": "application/json",
-			"byteSize": 6176,
-			"checksumSha256": "2288dea3ac92b9930600d986ed287e125be0bc1a29de534dd1290fefcb5ba36b"
+			"byteSize": 6532,
+			"checksumSha256": "623eeff823b8fe1eaf25ab96b3d2574f6ceaa3bae5262d5c939d40a7c1f9fc3a"
 		},
 		"qcutPackage": {
 			"url": "/text-assets/text-templates-timeline-template/sticker@1/template.qctext",
 			"mimeType": "application/vnd.qcut.text-template+json",
-			"byteSize": 6790,
-			"checksumSha256": "2caadf4dde76983307b989b5c5a6a5131febf987b04cdd369330833e172482c6"
+			"byteSize": 7166,
+			"checksumSha256": "09cb2eff7ff5e42d7f1d815a450fcb2b3bdff43ba0f64bef6c48748e69e2acbc"
 		}
 	},
 	"text-templates-timeline-template-glitch": {
@@ -20317,14 +20317,14 @@
 		"source": {
 			"url": "/text-assets/text-templates-timeline-template/glitch@1/template.json",
 			"mimeType": "application/json",
-			"byteSize": 6165,
-			"checksumSha256": "24a771104327512cf95fb6359222b7501f717100e9dc1c4cad508f1bf311b43c"
+			"byteSize": 6521,
+			"checksumSha256": "315a38506bb88a766a502b80707ccea8045f50894b9e2ac5b68bbb496070e8fe"
 		},
 		"qcutPackage": {
 			"url": "/text-assets/text-templates-timeline-template/glitch@1/template.qctext",
 			"mimeType": "application/vnd.qcut.text-template+json",
-			"byteSize": 6778,
-			"checksumSha256": "b2276396b332bfc7a2371c41ea8dcc20fe769005ebb08f5c64fe378552a62035"
+			"byteSize": 7154,
+			"checksumSha256": "8a5311d04eca253c594954bde9a7ed76e4c03ce1f10d98b1c0a64649d0209a91"
 		}
 	},
 	"text-templates-timeline-template-pixel": {
@@ -20345,14 +20345,14 @@
 		"source": {
 			"url": "/text-assets/text-templates-timeline-template/pixel@1/template.json",
 			"mimeType": "application/json",
-			"byteSize": 6005,
-			"checksumSha256": "87a69863743e60bf011f1c1be2c0d94bc38e59e67680b8b3ff6d86d51582d162"
+			"byteSize": 6364,
+			"checksumSha256": "3dc9227c72c049534096c620120fcf0a0c383253aca9ae8921714a9b75dab36f"
 		},
 		"qcutPackage": {
 			"url": "/text-assets/text-templates-timeline-template/pixel@1/template.qctext",
 			"mimeType": "application/vnd.qcut.text-template+json",
-			"byteSize": 6607,
-			"checksumSha256": "6df5ae4685883bf146ffeac0debd936653b1b60504f64db8e561459a8528e4e8"
+			"byteSize": 6986,
+			"checksumSha256": "bdfd4aa6841ac19ac657f86fabd5c8c1d85aa44f04f3a5351ff8a8152df34e22"
 		}
 	},
 	"text-templates-timeline-template-ink": {
@@ -20373,14 +20373,14 @@
 		"source": {
 			"url": "/text-assets/text-templates-timeline-template/ink@1/template.json",
 			"mimeType": "application/json",
-			"byteSize": 5967,
-			"checksumSha256": "cff13eca6b7b48ea17971cf3abd511230399c8eafffa416c681099997f9aa3af"
+			"byteSize": 6323,
+			"checksumSha256": "2c615566a5f290c679fce981c329293cf1ef192f06e38374f7a6e634a3ab0e1d"
 		},
 		"qcutPackage": {
 			"url": "/text-assets/text-templates-timeline-template/ink@1/template.qctext",
 			"mimeType": "application/vnd.qcut.text-template+json",
-			"byteSize": 6565,
-			"checksumSha256": "1f01b6c5ef78ff13a99c2d3aa9eca9a3d393eb87b3e1949240fdda33f2d88fed"
+			"byteSize": 6941,
+			"checksumSha256": "fb207fb5f1b2b68a383d6b726131a064555022320a6ac910fb9cc1ef243a86c1"
 		}
 	},
 	"text-templates-timeline-template-gold": {
@@ -20401,14 +20401,14 @@
 		"source": {
 			"url": "/text-assets/text-templates-timeline-template/gold@1/template.json",
 			"mimeType": "application/json",
-			"byteSize": 6074,
-			"checksumSha256": "dacf2c6e95cc9e7abf29eafa11f35fad735fec57898b958aab81249d44a2d86e"
+			"byteSize": 6430,
+			"checksumSha256": "3a7c4476c22a51db815415b20968515af99ea7acdd92de91ed1c64e1aae5054a"
 		},
 		"qcutPackage": {
 			"url": "/text-assets/text-templates-timeline-template/gold@1/template.qctext",
 			"mimeType": "application/vnd.qcut.text-template+json",
-			"byteSize": 6681,
-			"checksumSha256": "a3a22ddffd51fc10adf9596de9bd013d90291202a6d54c9854a1e98ef33d9422"
+			"byteSize": 7057,
+			"checksumSha256": "ab2365e009fdcd36e861155123a19eaf6136f3b40e43739f900cdd296a97de30"
 		}
 	},
 	"text-templates-timeline-template-chrome": {
@@ -20429,14 +20429,14 @@
 		"source": {
 			"url": "/text-assets/text-templates-timeline-template/chrome@1/template.json",
 			"mimeType": "application/json",
-			"byteSize": 6129,
-			"checksumSha256": "611a38c869ba68b5f3d1d389fe4a7eea6c6917cae42e0e8f289a30b4e0164470"
+			"byteSize": 6485,
+			"checksumSha256": "bad06dfe6a5d96fbd94031927fbc6185d7077c51ad427356c6cfb9e3b09a90a8"
 		},
 		"qcutPackage": {
 			"url": "/text-assets/text-templates-timeline-template/chrome@1/template.qctext",
 			"mimeType": "application/vnd.qcut.text-template+json",
-			"byteSize": 6740,
-			"checksumSha256": "f2d669046bcb89edccbf60a26ff596a77477fc4eb463a3bb9a5f22e933b4cd06"
+			"byteSize": 7116,
+			"checksumSha256": "6024a9e046ced8b3778b0ee20029f1a77b84850974451b18a693dc9f432666dc"
 		}
 	},
 	"text-templates-timeline-template-comic": {
@@ -20457,14 +20457,14 @@
 		"source": {
 			"url": "/text-assets/text-templates-timeline-template/comic@1/template.json",
 			"mimeType": "application/json",
-			"byteSize": 6163,
-			"checksumSha256": "24f006551ff3c11563dff658712c37e535e317c68440dcab21082f4a9b168f3a"
+			"byteSize": 6522,
+			"checksumSha256": "12fd31dfefb1d3a652622eb476f7ffec0bfc0f862c6693f1802f45af6e2b20d6"
 		},
 		"qcutPackage": {
 			"url": "/text-assets/text-templates-timeline-template/comic@1/template.qctext",
 			"mimeType": "application/vnd.qcut.text-template+json",
-			"byteSize": 6774,
-			"checksumSha256": "bd1840825e0a5b9d9292bf68a2f102b3e231dde2e95fa536f3c86ac310f058ec"
+			"byteSize": 7153,
+			"checksumSha256": "cacf4dcc766ebb4cbd9fe8a5b63997eab39f15194cdf548cfd39e01ba9dc87dc"
 		}
 	},
 	"text-templates-timeline-template-bubble": {
@@ -20485,14 +20485,14 @@
 		"source": {
 			"url": "/text-assets/text-templates-timeline-template/bubble@1/template.json",
 			"mimeType": "application/json",
-			"byteSize": 6058,
-			"checksumSha256": "17e2b3536ced8f34ed65d6a4a3131dfdfd555d3838213ee879d11511ea186f56"
+			"byteSize": 6414,
+			"checksumSha256": "5038e316d01d7303c30c77182df059ee4bfc38ed2e41ce49c4db9fd2e22c2e18"
 		},
 		"qcutPackage": {
 			"url": "/text-assets/text-templates-timeline-template/bubble@1/template.qctext",
 			"mimeType": "application/vnd.qcut.text-template+json",
-			"byteSize": 6663,
-			"checksumSha256": "d5fe248994fc7989ea94168b42da009406b03804dee068b3223a70e5518e0d46"
+			"byteSize": 7039,
+			"checksumSha256": "435f423e437664dcd8588f24d9fa6bc126ac8d40f2204df3ef3610ed89363a62"
 		}
 	},
 	"text-templates-timeline-template-stamp": {
@@ -20513,14 +20513,14 @@
 		"source": {
 			"url": "/text-assets/text-templates-timeline-template/stamp@1/template.json",
 			"mimeType": "application/json",
-			"byteSize": 5963,
-			"checksumSha256": "4909b8a26cb6c75c37aa7474e66db10710ae7db1944cb6053dcad9a4bf0d4576"
+			"byteSize": 6319,
+			"checksumSha256": "b14d5221262e3eeeff6c2fea727832ec4f1d8b35e1dceaacc75b5d83c0c290ee"
 		},
 		"qcutPackage": {
 			"url": "/text-assets/text-templates-timeline-template/stamp@1/template.qctext",
 			"mimeType": "application/vnd.qcut.text-template+json",
-			"byteSize": 6563,
-			"checksumSha256": "7bda336427fad61fab8e5717341230de284d11bed3b974f41e676807dfe29211"
+			"byteSize": 6939,
+			"checksumSha256": "2a9843bd0c03e21e549f29f9d7d1355f697d0593968a743ae8c6a4daecc76075"
 		}
 	},
 	"text-templates-timeline-template-cutout": {
@@ -20541,14 +20541,14 @@
 		"source": {
 			"url": "/text-assets/text-templates-timeline-template/cutout@1/template.json",
 			"mimeType": "application/json",
-			"byteSize": 5940,
-			"checksumSha256": "86439ef9d7fe070a5fd031465b586d32a70abac1ff8b436f152b1224420d2baf"
+			"byteSize": 6296,
+			"checksumSha256": "bbad9aad54ef3c35a11983e3df34c35cee7460130d8c7cdbdd2f6d159faecd83"
 		},
 		"qcutPackage": {
 			"url": "/text-assets/text-templates-timeline-template/cutout@1/template.qctext",
 			"mimeType": "application/vnd.qcut.text-template+json",
-			"byteSize": 6541,
-			"checksumSha256": "daf06952592679ba3fd59f46b29fea42e4d5355e3e5a5c607b501d3b7dc8886e"
+			"byteSize": 6917,
+			"checksumSha256": "89d91cf989f58dff9f1b5fafd055a3f14b576602a9cdae1d07b347508607eacb"
 		}
 	},
 	"text-templates-timeline-template-glass": {
@@ -20569,14 +20569,14 @@
 		"source": {
 			"url": "/text-assets/text-templates-timeline-template/glass@1/template.json",
 			"mimeType": "application/json",
-			"byteSize": 6005,
-			"checksumSha256": "3bfcb34ae6764e89af820d7957b5fd30baad8745f06815547640e7d4f2cdc9fe"
+			"byteSize": 6364,
+			"checksumSha256": "aad926bd4298106e3e67067dcf49de8e5a921a7659c0917abd0ed1f99012a208"
 		},
 		"qcutPackage": {
 			"url": "/text-assets/text-templates-timeline-template/glass@1/template.qctext",
 			"mimeType": "application/vnd.qcut.text-template+json",
-			"byteSize": 6606,
-			"checksumSha256": "8c96d17574d8431bb186482138605dfdda15b38b3c10295369549db6d06843b9"
+			"byteSize": 6985,
+			"checksumSha256": "5383f54ad620dfb7cb7d371310a2e7eb6d2a821fe1f3b295dfd25164ee46bce7"
 		}
 	},
 	"text-templates-timeline-template-shadow": {
@@ -20597,14 +20597,14 @@
 		"source": {
 			"url": "/text-assets/text-templates-timeline-template/shadow@1/template.json",
 			"mimeType": "application/json",
-			"byteSize": 5940,
-			"checksumSha256": "7f18352313fac7ef80b66798a5234e6dbe8105b0be16330f311f58d8a75f1be3"
+			"byteSize": 6296,
+			"checksumSha256": "757552d8bc8f147b35c5097445da5b48460c0db4e8880bca8b3dd60518a56f08"
 		},
 		"qcutPackage": {
 			"url": "/text-assets/text-templates-timeline-template/shadow@1/template.qctext",
 			"mimeType": "application/vnd.qcut.text-template+json",
-			"byteSize": 6541,
-			"checksumSha256": "9fca740213afcd81d41953c4dd4192fc462e39d2efb63ffd523780e8655d41b1"
+			"byteSize": 6917,
+			"checksumSha256": "fd714babac77ae7bd71061d6dc09f37f220fdb4a49a2ff96c49394d1e96cb8b9"
 		}
 	},
 	"text-templates-timeline-template-candy": {
@@ -20625,14 +20625,14 @@
 		"source": {
 			"url": "/text-assets/text-templates-timeline-template/candy@1/template.json",
 			"mimeType": "application/json",
-			"byteSize": 6057,
-			"checksumSha256": "7ce8357aaa254caf8d7f33cab57c7845b37af963914a84a72e1bff85fb13ec61"
+			"byteSize": 6413,
+			"checksumSha256": "d73e5e103642b86878be623c34783540bebd063e52b633134969c474bd020ba7"
 		},
 		"qcutPackage": {
 			"url": "/text-assets/text-templates-timeline-template/candy@1/template.qctext",
 			"mimeType": "application/vnd.qcut.text-template+json",
-			"byteSize": 6664,
-			"checksumSha256": "2340e1d3208731b04e670e0d11593d64d5f50bbd00f9af25f2b645c1ec4792d7"
+			"byteSize": 7040,
+			"checksumSha256": "d54d691c2e4dc1db56ea2438d6912ae9cb7a96c5ed29b97b2cf514a7b4172790"
 		}
 	},
 	"text-templates-timeline-template-warning": {
@@ -20653,14 +20653,14 @@
 		"source": {
 			"url": "/text-assets/text-templates-timeline-template/warning@1/template.json",
 			"mimeType": "application/json",
-			"byteSize": 6082,
-			"checksumSha256": "71335f6c03f66ef897f690b26fc2212ec629f94fdbab8de048cfc35af32b48e1"
+			"byteSize": 6438,
+			"checksumSha256": "d5d393aaee28e6dbe125e3ed28f07c6c144f4eae5d7e534ed6d368b229566203"
 		},
 		"qcutPackage": {
 			"url": "/text-assets/text-templates-timeline-template/warning@1/template.qctext",
 			"mimeType": "application/vnd.qcut.text-template+json",
-			"byteSize": 6690,
-			"checksumSha256": "cdc17c14b5bc53b4edffc8e006c34ebbe39cf51c5980cc9cfc07d674624d5782"
+			"byteSize": 7066,
+			"checksumSha256": "6b98394eebdc16d07d854945f4278057fcc739173f4106ad97a24f1b01ef4cc9"
 		}
 	},
 	"text-templates-timeline-template-soft-card": {
@@ -20681,14 +20681,14 @@
 		"source": {
 			"url": "/text-assets/text-templates-timeline-template/soft-card@1/template.json",
 			"mimeType": "application/json",
-			"byteSize": 6093,
-			"checksumSha256": "338cd6bdcafd3f4c8d8d65d07bf357c06385f9a6ec2f87f2cea98e4111bff105"
+			"byteSize": 6452,
+			"checksumSha256": "48e6e55cb1ee3f97f24650b4c06584a248c68f78610647c45090457f6cbe6207"
 		},
 		"qcutPackage": {
 			"url": "/text-assets/text-templates-timeline-template/soft-card@1/template.qctext",
 			"mimeType": "application/vnd.qcut.text-template+json",
-			"byteSize": 6705,
-			"checksumSha256": "4dfbbdaf91a2e158de1beae7774a3d796c0119abfeff5aa1c8cdded3935a833c"
+			"byteSize": 7084,
+			"checksumSha256": "85bf5eccf4fd97f02e8103428d00f531257c913af3a12d70755c972baa660fbd"
 		}
 	},
 	"text-templates-timeline-template-ribbon": {
@@ -20709,14 +20709,14 @@
 		"source": {
 			"url": "/text-assets/text-templates-timeline-template/ribbon@1/template.json",
 			"mimeType": "application/json",
-			"byteSize": 5939,
-			"checksumSha256": "c70c82ce7bb37fd17ccbdbb421b9bafc8b732c11d2929c48e0c1eedd5380f1a5"
+			"byteSize": 6295,
+			"checksumSha256": "56be8a49c9eb71b3705dbf553d5e08cd711acd4b230118474b655ae08582c96f"
 		},
 		"qcutPackage": {
 			"url": "/text-assets/text-templates-timeline-template/ribbon@1/template.qctext",
 			"mimeType": "application/vnd.qcut.text-template+json",
-			"byteSize": 6540,
-			"checksumSha256": "0b139f993c7841fb02f42eadee1be68a8e33df9bc179486da0ed35421c4156ee"
+			"byteSize": 6916,
+			"checksumSha256": "7c69c324f63a02c7ef59a9f7157117902854f34c0fb08f88a6fce770b5efe6b8"
 		}
 	},
 	"text-smart-text-summary-plain": {

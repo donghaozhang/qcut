@@ -29,6 +29,11 @@ describe("text asset generator payloads", () => {
 
 		expect(source.templatePack).toMatchObject({
 			category: "headline-template",
+			copySlots: [
+				expect.objectContaining({ elementIndex: 0, id: "kicker" }),
+				expect.objectContaining({ elementIndex: 1, id: "headline" }),
+				expect.objectContaining({ elementIndex: 2, id: "subhead" }),
+			],
 			elements: [
 				expect.objectContaining({ content: "本期重点", type: "text" }),
 				expect.objectContaining({ content: definition.content, type: "text" }),

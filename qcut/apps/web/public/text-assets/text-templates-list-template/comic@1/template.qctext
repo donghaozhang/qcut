@@ -138,6 +138,26 @@
 			"id": "pack-list-template-comic",
 			"name": "列表模板漫画 pack",
 			"category": "list-template",
+			"copySlots": [
+				{
+					"defaultContent": "检查清单",
+					"elementIndex": 0,
+					"id": "title",
+					"label": "标题"
+				},
+				{
+					"defaultContent": "01 关键动作",
+					"elementIndex": 1,
+					"id": "item-1",
+					"label": "条目 1"
+				},
+				{
+					"defaultContent": "02 避坑提醒",
+					"elementIndex": 2,
+					"id": "item-2",
+					"label": "条目 2"
+				}
+			],
 			"elements": [
 				{
 					"id": "list-template-comic",

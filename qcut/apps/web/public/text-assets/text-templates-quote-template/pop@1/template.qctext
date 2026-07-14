@@ -131,6 +131,20 @@
 			"id": "pack-quote-template-pop",
 			"name": "引用模板弹幕 pack",
 			"category": "quote-template",
+			"copySlots": [
+				{
+					"defaultContent": "金句摘录",
+					"elementIndex": 1,
+					"id": "quote",
+					"label": "引用正文"
+				},
+				{
+					"defaultContent": "— 观点摘录",
+					"elementIndex": 2,
+					"id": "attribution",
+					"label": "出处"
+				}
+			],
 			"elements": [
 				{
 					"id": "quote-template-pop",

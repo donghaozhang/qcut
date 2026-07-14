@@ -120,6 +120,26 @@
 		"id": "pack-timeline-template-pop",
 		"name": "时间线模板弹幕 pack",
 		"category": "timeline-template",
+		"copySlots": [
+			{
+				"defaultContent": "阶段 1",
+				"elementIndex": 0,
+				"id": "stage-1",
+				"label": "阶段 1"
+			},
+			{
+				"defaultContent": "结果",
+				"elementIndex": 1,
+				"id": "stage-2",
+				"label": "阶段 2"
+			},
+			{
+				"defaultContent": "结果",
+				"elementIndex": 2,
+				"id": "stage-3",
+				"label": "阶段 3"
+			}
+		],
 		"elements": [
 			{
 				"id": "timeline-template-pop",

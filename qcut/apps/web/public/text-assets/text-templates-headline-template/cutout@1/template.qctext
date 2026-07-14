@@ -127,6 +127,26 @@
 			"id": "pack-headline-template-cutout",
 			"name": "标题模板剪纸 pack",
 			"category": "headline-template",
+			"copySlots": [
+				{
+					"defaultContent": "本期重点",
+					"elementIndex": 0,
+					"id": "kicker",
+					"label": "眉标题"
+				},
+				{
+					"defaultContent": "结论先说",
+					"elementIndex": 1,
+					"id": "headline",
+					"label": "主标题"
+				},
+				{
+					"defaultContent": "三句话讲清楚",
+					"elementIndex": 2,
+					"id": "subhead",
+					"label": "副标题"
+				}
+			],
 			"elements": [
 				{
 					"id": "headline-template-cutout",

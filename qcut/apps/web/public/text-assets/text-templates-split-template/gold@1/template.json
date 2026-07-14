@@ -126,6 +126,20 @@
 		"id": "pack-split-template-gold",
 		"name": "分屏模板鎏金 pack",
 		"category": "split-template",
+		"copySlots": [
+			{
+				"defaultContent": "之前",
+				"elementIndex": 0,
+				"id": "left",
+				"label": "左侧文案"
+			},
+			{
+				"defaultContent": "之后",
+				"elementIndex": 1,
+				"id": "right",
+				"label": "右侧文案"
+			}
+		],
 		"elements": [
 			{
 				"id": "split-template-gold",

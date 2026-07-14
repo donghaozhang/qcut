@@ -128,6 +128,26 @@
 			"id": "pack-headline-template-plain",
 			"name": "标题模板基础 pack",
 			"category": "headline-template",
+			"copySlots": [
+				{
+					"defaultContent": "本期重点",
+					"elementIndex": 0,
+					"id": "kicker",
+					"label": "眉标题"
+				},
+				{
+					"defaultContent": "三段式标题",
+					"elementIndex": 1,
+					"id": "headline",
+					"label": "主标题"
+				},
+				{
+					"defaultContent": "三句话讲清楚",
+					"elementIndex": 2,
+					"id": "subhead",
+					"label": "副标题"
+				}
+			],
 			"elements": [
 				{
 					"id": "headline-template-plain",

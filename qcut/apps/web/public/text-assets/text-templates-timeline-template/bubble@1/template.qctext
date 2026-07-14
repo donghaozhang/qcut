@@ -131,6 +131,26 @@
 			"id": "pack-timeline-template-bubble",
 			"name": "时间线模板气泡 pack",
 			"category": "timeline-template",
+			"copySlots": [
+				{
+					"defaultContent": "阶段 1",
+					"elementIndex": 0,
+					"id": "stage-1",
+					"label": "阶段 1"
+				},
+				{
+					"defaultContent": "今天",
+					"elementIndex": 1,
+					"id": "stage-2",
+					"label": "阶段 2"
+				},
+				{
+					"defaultContent": "结果",
+					"elementIndex": 2,
+					"id": "stage-3",
+					"label": "阶段 3"
+				}
+			],
 			"elements": [
 				{
 					"id": "timeline-template-bubble",

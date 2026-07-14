@@ -128,6 +128,20 @@
 			"id": "pack-quote-template-plain",
 			"name": "引用模板基础 pack",
 			"category": "quote-template",
+			"copySlots": [
+				{
+					"defaultContent": "用户原话",
+					"elementIndex": 1,
+					"id": "quote",
+					"label": "引用正文"
+				},
+				{
+					"defaultContent": "— 观点摘录",
+					"elementIndex": 2,
+					"id": "attribution",
+					"label": "出处"
+				}
+			],
 			"elements": [
 				{
 					"id": "quote-template-plain",
