@@ -5,6 +5,7 @@ import { tmpdir } from "node:os";
 import { describe, expect, it } from "vitest";
 import {
 	buildTextAssetPublishManifest,
+	buildTextMarketplacePublishEntry,
 	parseTextAssetCdnArgs,
 	verifyLocalFiles,
 	verifyRemoteFiles,
@@ -87,6 +88,35 @@ describe("text asset CDN manifest verifier", () => {
 			"https://cdn.example.com/assets/text-assets/demo/plain@1/template.json",
 			"https://cdn.example.com/assets/text-assets/demo/plain@1/template.qctext",
 		]);
+	});
+
+	it("builds marketplace config publish entries", async () => {
+		const publicDir = join(tmpdir(), `qcut-text-marketplace-${randomUUID()}`);
+		const marketplacePath = join(publicDir, "text-assets/marketplace.json");
+		await mkdir(dirname(marketplacePath), { recursive: true });
+		await writeFile(
+			marketplacePath,
+			JSON.stringify({ assets: [], schemaVersion: 1 })
+		);
+
+		const marketplace = await buildTextMarketplacePublishEntry({
+			baseUrl: "https://cdn.example.com/assets/",
+			publicDir,
+		});
+
+		expect(marketplace.issues).toEqual([]);
+		expect(marketplace.entry).toMatchObject({
+			assetId: "text-marketplace-config",
+			files: [
+				expect.objectContaining({
+					cdnUrl: "https://cdn.example.com/assets/text-assets/marketplace.json",
+					localPath: marketplacePath,
+					mimeType: "application/json",
+					role: "metadata",
+					url: "/text-assets/marketplace.json",
+				}),
+			],
+		});
 	});
 
 	it("verifies local file byte sizes and checksums", async () => {

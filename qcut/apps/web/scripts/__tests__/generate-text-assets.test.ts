@@ -1,6 +1,12 @@
 import { describe, expect, it } from "vitest";
-import { buildTextAssetSourcePayload } from "../generate-text-assets";
-import { getTextTemplateDefinitionsByCategory } from "../../src/lib/text/text-template-registry";
+import {
+	buildTextAssetSourcePayload,
+	buildTextMarketplaceConfigPayload,
+} from "../generate-text-assets";
+import {
+	TEXT_TEMPLATE_LIBRARY_DEFINITIONS,
+	getTextTemplateDefinitionsByCategory,
+} from "../../src/lib/text/text-template-registry";
 
 function firstDefinition({
 	category,
@@ -38,5 +44,38 @@ describe("text asset generator payloads", () => {
 
 		expect(source.templatePack).toBeUndefined();
 		expect(source.template).toMatchObject({ type: "text" });
+	});
+
+	it("builds a remote marketplace config payload from generated definitions", () => {
+		const definition = firstDefinition({ category: "red" });
+		const payload = buildTextMarketplaceConfigPayload({
+			definitions: [definition],
+		});
+
+		expect(payload).toMatchObject({
+			assets: [
+				{
+					assetId: definition.resource?.assetId,
+					editorialRank: expect.any(Number),
+					heatScore: expect.any(Number),
+					remoteTags: expect.arrayContaining([
+						`category:${definition.category}`,
+					]),
+					searchAliases: expect.any(Array),
+					templateId: definition.id,
+				},
+			],
+			schemaVersion: 1,
+		});
+	});
+
+	it("builds marketplace config entries for the full text library", () => {
+		const payload = buildTextMarketplaceConfigPayload({
+			definitions: TEXT_TEMPLATE_LIBRARY_DEFINITIONS,
+		});
+
+		expect(payload.assets).toHaveLength(
+			TEXT_TEMPLATE_LIBRARY_DEFINITIONS.length
+		);
 	});
 });

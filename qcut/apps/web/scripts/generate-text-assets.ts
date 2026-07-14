@@ -445,6 +445,28 @@ function qcutPackagePayload({
 	};
 }
 
+export function buildTextMarketplaceConfigPayload({
+	definitions,
+}: {
+	definitions: readonly TextTemplateDefinition[];
+}) {
+	return {
+		schemaVersion: 1,
+		assets: definitions.map((definition) => {
+			const resource = getTextTemplateResource({ definition });
+			const marketplace = getTextTemplateMarketplaceMetadata({ definition });
+			return {
+				templateId: definition.id,
+				assetId: resource.assetId,
+				editorialRank: marketplace.editorialRank,
+				heatScore: marketplace.heatScore,
+				remoteTags: marketplace.remoteTags,
+				searchAliases: marketplace.searchAliases,
+			};
+		}),
+	};
+}
+
 async function writeAsset({
 	definition,
 	page,
@@ -510,6 +532,25 @@ async function writeAsset({
 	};
 }
 
+async function writeMarketplaceConfig({
+	definitions,
+}: {
+	definitions: readonly TextTemplateDefinition[];
+}): Promise<void> {
+	const marketplaceUrl = "/text-assets/marketplace.json";
+	const marketplaceBytes = Buffer.from(
+		`${JSON.stringify(buildTextMarketplaceConfigPayload({ definitions }), null, "\t")}\n`,
+		"utf8"
+	);
+	await mkdir(dirname(filePathForPublicUrl({ url: marketplaceUrl })), {
+		recursive: true,
+	});
+	await writeFile(
+		filePathForPublicUrl({ url: marketplaceUrl }),
+		marketplaceBytes
+	);
+}
+
 async function main() {
 	const definitions = TEXT_TEMPLATE_LIBRARY_DEFINITIONS;
 	await rm(join(PUBLIC_DIR, "text-assets"), { force: true, recursive: true });
@@ -532,6 +573,7 @@ async function main() {
 		`${JSON.stringify(manifestEntries, null, "\t")}\n`,
 		"utf8"
 	);
+	await writeMarketplaceConfig({ definitions });
 	console.log(
 		`Generated ${definitions.length} text assets at ${join(PUBLIC_DIR, "text-assets")}`
 	);

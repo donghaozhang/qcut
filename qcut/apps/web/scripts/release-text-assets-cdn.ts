@@ -9,6 +9,7 @@ import {
 } from "./upload-text-assets-cdn";
 import {
 	buildTextAssetPublishManifest,
+	buildTextMarketplacePublishEntry,
 	readGeneratedManifest,
 	verifyLocalFiles,
 	verifyRemoteFiles,
@@ -163,17 +164,23 @@ export async function releaseTextAssetsToCdn({
 	const generatedManifest = await readGeneratedManifest({
 		manifestPath: options.generatedManifestPath,
 	});
+	const marketplace = await buildTextMarketplacePublishEntry({
+		baseUrl: options.baseUrl,
+		publicDir: options.publicDir,
+	});
 	const { issues: manifestIssues, manifest } = buildTextAssetPublishManifest({
 		baseUrl: options.baseUrl,
 		generatedAt: new Date().toISOString(),
 		generatedManifest,
 		publicDir: options.publicDir,
+		supplementalAssets: marketplace.entry ? [marketplace.entry] : [],
 	});
 	await writePublishManifest({
 		manifest,
 		writePath: options.publishManifestPath,
 	});
 	const localIssues = [
+		...marketplace.issues,
 		...manifestIssues,
 		...(await verifyLocalFiles({ manifest })),
 	];

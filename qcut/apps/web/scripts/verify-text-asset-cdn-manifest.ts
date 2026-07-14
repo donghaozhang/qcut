@@ -21,7 +21,7 @@ export type TextAssetGeneratedEntry = {
 	qcutPackage?: TextAssetGeneratedFile;
 };
 
-export type PublishFileRole = "thumbnail" | "source" | "package";
+export type PublishFileRole = "thumbnail" | "source" | "package" | "metadata";
 
 export type TextAssetPublishFile = TextAssetGeneratedFile & {
 	cdnUrl: string;
@@ -202,11 +202,13 @@ export function buildTextAssetPublishManifest({
 	generatedAt,
 	generatedManifest,
 	publicDir,
+	supplementalAssets = [],
 }: {
 	baseUrl: string;
 	generatedAt: string;
 	generatedManifest: Record<string, TextAssetGeneratedEntry>;
 	publicDir: string;
+	supplementalAssets?: readonly TextAssetPublishEntry[];
 }): { issues: VerifyIssue[]; manifest: TextAssetPublishManifest } {
 	const issues: VerifyIssue[] = [];
 	const assets: TextAssetPublishEntry[] = [];
@@ -238,6 +240,7 @@ export function buildTextAssetPublishManifest({
 			version: entry.version,
 		});
 	}
+	assets.push(...supplementalAssets);
 	const totalBytes = assets.reduce(
 		(total, asset) =>
 			total +
@@ -259,6 +262,50 @@ export function buildTextAssetPublishManifest({
 			totalBytes,
 			totalFiles,
 		},
+	};
+}
+
+export async function buildTextMarketplacePublishEntry({
+	baseUrl,
+	publicDir,
+}: {
+	baseUrl: string;
+	publicDir: string;
+}): Promise<{ entry?: TextAssetPublishEntry; issues: VerifyIssue[] }> {
+	const url = "/text-assets/marketplace.json";
+	const localMarketplacePath = localPath({ publicDir, url });
+	if (!existsSync(localMarketplacePath)) {
+		return {
+			issues: [
+				{
+					assetId: "text-marketplace-config",
+					code: "missing-file",
+					detail: `Missing local file: ${localMarketplacePath}`,
+					url,
+				},
+			],
+		};
+	}
+	const bytes = await readFile(localMarketplacePath);
+	return {
+		entry: {
+			assetId: "text-marketplace-config",
+			cacheKey: "text-assets",
+			files: [
+				{
+					byteSize: bytes.byteLength,
+					cdnUrl: cdnUrl({ baseUrl, url }),
+					checksumSha256: hashBytes({ bytes }),
+					localPath: localMarketplacePath,
+					mimeType: "application/json",
+					role: "metadata",
+					url,
+				},
+			],
+			packageId: "text-marketplace-config",
+			version: 1,
+		},
+		issues: [],
 	};
 }
 
@@ -402,11 +449,16 @@ async function main(): Promise<void> {
 	const generatedManifest = await readGeneratedManifest({
 		manifestPath: options.manifestPath,
 	});
+	const marketplace = await buildTextMarketplacePublishEntry({
+		baseUrl: options.baseUrl,
+		publicDir: options.publicDir,
+	});
 	const { issues: manifestIssues, manifest } = buildTextAssetPublishManifest({
 		baseUrl: options.baseUrl,
 		generatedAt: new Date().toISOString(),
 		generatedManifest,
 		publicDir: options.publicDir,
+		supplementalAssets: marketplace.entry ? [marketplace.entry] : [],
 	});
 	const localIssues = await verifyLocalFiles({ manifest });
 	const remoteIssues = options.checkRemote
@@ -415,7 +467,12 @@ async function main(): Promise<void> {
 				manifest,
 			})
 		: [];
-	const issues = [...manifestIssues, ...localIssues, ...remoteIssues];
+	const issues = [
+		...marketplace.issues,
+		...manifestIssues,
+		...localIssues,
+		...remoteIssues,
+	];
 	if (options.writePath) {
 		await writePublishManifest({ manifest, writePath: options.writePath });
 	}

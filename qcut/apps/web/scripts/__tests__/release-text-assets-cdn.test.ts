@@ -63,6 +63,12 @@ async function createReleaseFixture(): Promise<{
 			await writeFile(path, content);
 		})
 	);
+	const marketplacePath = join(publicDir, "text-assets/marketplace.json");
+	await mkdir(dirname(marketplacePath), { recursive: true });
+	await writeFile(
+		marketplacePath,
+		JSON.stringify({ assets: [], schemaVersion: 1 })
+	);
 	await mkdir(dirname(generatedManifestPath), { recursive: true });
 	await writeFile(
 		generatedManifestPath,
@@ -143,9 +149,9 @@ describe("text asset CDN release script", () => {
 			localIssues: [],
 			manifestPath: publishManifestPath,
 			remoteIssues: [],
-			totalAssets: 1,
-			totalBytes: 18,
-			totalFiles: 3,
+			totalAssets: 2,
+			totalBytes: expect.any(Number),
+			totalFiles: 4,
 			upload: {
 				bucket: "qcut-assets",
 				dryRun: true,
@@ -170,7 +176,7 @@ describe("text asset CDN release script", () => {
 			},
 		});
 
-		expect(summary.localIssues).toHaveLength(3);
+		expect(summary.localIssues).toHaveLength(4);
 		expect(summary.upload.uploadedFiles).toBe(0);
 		expect(uploadedKeys).toEqual([]);
 	});
