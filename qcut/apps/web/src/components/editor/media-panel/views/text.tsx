@@ -12,6 +12,7 @@ import { resolveTextTemplateAssetEntry } from "@/lib/assets/qcut-asset-manifest"
 import { getTextTemplateCatalogThumbnailUrl } from "@/lib/text/text-resource-catalog";
 import {
 	downloadTextTemplateResource,
+	resolveTextTemplatePackForTimeline,
 	resolveTextTemplateForTimeline,
 } from "@/lib/text/text-template-resource";
 import { cn } from "@/lib/utils";
@@ -242,10 +243,17 @@ function TextTemplate({
 	const addToTimeline = async (currentTime?: number) => {
 		const time = currentTime ?? usePlaybackStore.getState().currentTime;
 		const resolvedTemplate = await resolveTemplate();
-		const timedTemplatePack = buildTextTemplatePack({
+		const fallbackTemplatePack = buildTextTemplatePack({
 			baseTemplate: resolvedTemplate,
 			definition,
 			currentTime: time,
+		});
+		const timedTemplatePack = await resolveTextTemplatePackForTimeline({
+			currentTime: time,
+			definition,
+			enabled: isDownloaded,
+			fallbackPack: fallbackTemplatePack,
+			fallbackTemplate: resolvedTemplate,
 		});
 		const added = timedTemplatePack
 			? useTimelineStore.getState().addTextGroupAtTime({

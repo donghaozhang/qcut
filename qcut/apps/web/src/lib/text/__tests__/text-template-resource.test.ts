@@ -7,8 +7,10 @@ import {
 	downloadTextTemplateResource,
 	loadTextTemplatePackageSource,
 	parseTextTemplatePackage,
+	resolveTextTemplatePackForTimeline,
 	resolveTextTemplateForTimeline,
 } from "../text-template-resource";
+import { buildTextTemplatePack } from "../text-template-packs";
 import {
 	TEXT_TEMPLATE_DEFINITIONS,
 	buildTextTemplate,
@@ -456,6 +458,87 @@ describe("downloadTextTemplateResource", () => {
 			id: fallbackTemplate.id,
 			type: "text",
 		});
+	});
+
+	it("resolves timeline template packs from package payloads when enabled", async () => {
+		const definition = TEXT_TEMPLATE_DEFINITIONS.find(
+			(candidate) => candidate.downloaded
+		);
+		if (!definition)
+			throw new Error("Expected a bundled text template fixture");
+		const fallbackTemplate = buildTextTemplate({ definition });
+		const fallbackPack = buildTextTemplatePack({
+			baseTemplate: fallbackTemplate,
+			currentTime: 2,
+			definition,
+		});
+		const fetchImpl = vi.fn<typeof fetch>(async () =>
+			Promise.resolve(
+				new Response(
+					packageText({
+						content: "Package headline",
+						definition,
+						includeTemplatePack: true,
+					}),
+					{ status: 200 }
+				)
+			)
+		);
+
+		await expect(
+			resolveTextTemplatePackForTimeline({
+				currentTime: 2,
+				definition,
+				fallbackPack,
+				fallbackTemplate,
+				fetchImpl,
+				storage: new MemoryAssetCache(),
+			})
+		).resolves.toMatchObject({
+			elements: [
+				{
+					content: "Package headline",
+					duration: fallbackTemplate.duration,
+					startTime: 2,
+					trimEnd: 0,
+					trimStart: 0,
+					type: "text",
+				},
+				{
+					content: "Subtitle",
+					fontSize: 28,
+					startTime: 2,
+					type: "text",
+				},
+			],
+			id: `pack-${definition.id}`,
+		});
+	});
+
+	it("keeps fallback template packs when package pack resolution is disabled", async () => {
+		const definition = TEXT_TEMPLATE_DEFINITIONS.find(
+			(candidate) => candidate.downloaded
+		);
+		if (!definition)
+			throw new Error("Expected a bundled text template fixture");
+		const fallbackTemplate = buildTextTemplate({ definition });
+		const fallbackPack = buildTextTemplatePack({
+			baseTemplate: fallbackTemplate,
+			currentTime: 2,
+			definition,
+		});
+		const fetchImpl = vi.fn<typeof fetch>();
+
+		await expect(
+			resolveTextTemplatePackForTimeline({
+				definition,
+				enabled: false,
+				fallbackPack,
+				fetchImpl,
+				storage: new MemoryAssetCache(),
+			})
+		).resolves.toBe(fallbackPack);
+		expect(fetchImpl).not.toHaveBeenCalled();
 	});
 
 	it("keeps registry templates when package resolution is disabled", async () => {

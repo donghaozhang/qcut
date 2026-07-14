@@ -1,12 +1,16 @@
 import { assetManifestVersionKey, type AssetFileRole } from "@qcut/editor-core";
+import { TIMELINE_CONSTANTS } from "@/constants/timeline-constants";
 import type {
 	AssetResourceCacheStorage,
 	ResolvedAssetResource,
 } from "@/lib/assets/asset-resource-cache";
 import { ensureAssetResources } from "@/lib/assets/asset-resource-cache";
 import { resolveTextTemplateAssetEntry } from "@/lib/assets/qcut-asset-manifest";
-import type { TextTemplateDefinition } from "./text-template-registry";
-import type { TextElement } from "@/types/timeline";
+import type { CreateTextElement, TextElement } from "@/types/timeline";
+import {
+	buildTextTemplate,
+	type TextTemplateDefinition,
+} from "./text-template-registry";
 
 export interface DownloadedTextTemplateResource {
 	cacheKey: string;
@@ -40,6 +44,13 @@ export interface TextTemplatePackageSource {
 export interface TextTemplatePackagePackSource {
 	category: string;
 	elements: Partial<TextElement>[];
+	id: string;
+	name: string;
+}
+
+export interface ResolvedTextTemplatePack {
+	category: string;
+	elements: CreateTextElement[];
 	id: string;
 	name: string;
 }
@@ -376,5 +387,122 @@ export async function resolveTextTemplateForTimeline({
 		};
 	} catch {
 		return fallbackTemplate;
+	}
+}
+
+function completeTextTemplatePackElement({
+	baseTemplate,
+	currentTime,
+	element,
+	fallbackElement,
+}: {
+	baseTemplate: TextElement;
+	currentTime: number;
+	element: Partial<TextElement>;
+	fallbackElement?: CreateTextElement;
+}): CreateTextElement {
+	return {
+		...baseTemplate,
+		...fallbackElement,
+		...element,
+		type: "text",
+		startTime: currentTime,
+		duration:
+			element.duration ??
+			fallbackElement?.duration ??
+			baseTemplate.duration ??
+			TIMELINE_CONSTANTS.DEFAULT_TEXT_DURATION,
+		trimStart: 0,
+		trimEnd: 0,
+	};
+}
+
+function resolvePackageBaseTemplate({
+	definition,
+	fallbackTemplate,
+	packageTemplate,
+}: {
+	definition: TextTemplateDefinition;
+	fallbackTemplate?: TextElement;
+	packageTemplate: Partial<TextElement>;
+}): TextElement {
+	const registryTemplate =
+		fallbackTemplate ?? buildTextTemplate({ definition });
+	return {
+		...registryTemplate,
+		...packageTemplate,
+		id: registryTemplate.id,
+		type: "text",
+	};
+}
+
+function buildResolvedTextTemplatePack({
+	currentTime,
+	definition,
+	fallbackPack,
+	fallbackTemplate,
+	packageSource,
+}: {
+	currentTime: number;
+	definition: TextTemplateDefinition;
+	fallbackPack: ResolvedTextTemplatePack | null;
+	fallbackTemplate?: TextElement;
+	packageSource: TextTemplatePackageSource;
+}): ResolvedTextTemplatePack | null {
+	if (!packageSource.templatePack) return fallbackPack;
+	const baseTemplate = resolvePackageBaseTemplate({
+		definition,
+		fallbackTemplate,
+		packageTemplate: packageSource.template,
+	});
+	const elements = packageSource.templatePack.elements.map((element, index) =>
+		completeTextTemplatePackElement({
+			baseTemplate,
+			currentTime,
+			element,
+			fallbackElement: fallbackPack?.elements[index],
+		})
+	);
+	return {
+		category: packageSource.templatePack.category,
+		elements,
+		id: packageSource.templatePack.id,
+		name: packageSource.templatePack.name,
+	};
+}
+
+export async function resolveTextTemplatePackForTimeline({
+	currentTime = 0,
+	definition,
+	enabled = true,
+	fallbackPack,
+	fallbackTemplate,
+	fetchImpl = fetch,
+	storage,
+}: {
+	currentTime?: number;
+	definition: TextTemplateDefinition;
+	enabled?: boolean;
+	fallbackPack: ResolvedTextTemplatePack | null;
+	fallbackTemplate?: TextElement;
+	fetchImpl?: typeof fetch;
+	storage?: AssetResourceCacheStorage;
+}): Promise<ResolvedTextTemplatePack | null> {
+	if (!enabled) return fallbackPack;
+	try {
+		const packageSource = await loadTextTemplatePackageSource({
+			definition,
+			fetchImpl,
+			storage,
+		});
+		return buildResolvedTextTemplatePack({
+			currentTime,
+			definition,
+			fallbackPack,
+			fallbackTemplate,
+			packageSource,
+		});
+	} catch {
+		return fallbackPack;
 	}
 }
