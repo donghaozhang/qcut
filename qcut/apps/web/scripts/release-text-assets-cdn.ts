@@ -463,9 +463,9 @@ function renderTextAssetReleaseReadme({
 		.join("\n");
 	return `# QCut Text Asset CDN Release
 
-This folder mirrors the CDN object keys for the text asset release. Upload every non-metadata file under this folder to the configured bucket using the listed key paths.
+This folder mirrors the CDN object keys for the text asset release. Upload every planned public asset under this folder to the configured bucket using the listed key paths, including \`text-assets/marketplace.json\`.
 
-Do not upload these release metadata files as public assets:
+Do not upload these release handoff files as public CDN assets:
 
 - \`${STAGE_MANIFEST_FILE}\`
 - \`${STAGE_README_FILE}\`

@@ -432,7 +432,10 @@ describe("text asset CDN release script", () => {
 		).resolves.toContain("assets:text:check-remote-checksum");
 		await expect(
 			readFile(join(stageDir, "_qcut-text-assets-release-readme.md"), "utf8")
-		).resolves.toContain("Do not upload these release metadata files");
+		).resolves.toContain("including `text-assets/marketplace.json`");
+		await expect(
+			readFile(join(stageDir, "_qcut-text-assets-release-readme.md"), "utf8")
+		).resolves.toContain("Do not upload these release handoff files");
 	});
 
 	it("returns local issues without uploading", async () => {
