@@ -9,6 +9,7 @@ import {
 	parseTextTemplatePackage,
 	resolveTextTemplatePackForTimeline,
 	resolveTextTemplateForTimeline,
+	textAssetFetchWithBundledFallback,
 } from "../text-template-resource";
 import { buildTextTemplatePack } from "../text-template-packs";
 import {
@@ -168,6 +169,19 @@ function packageText({
 	});
 }
 
+function padJsonTextToByteLength({
+	targetBytes,
+	text,
+}: {
+	targetBytes: number;
+	text: string;
+}): string {
+	if (text.length > targetBytes) {
+		throw new Error(`Fixture text exceeds ${targetBytes} bytes`);
+	}
+	return `${text}${" ".repeat(targetBytes - text.length)}`;
+}
+
 describe("downloadTextTemplateResource", () => {
 	it("downloads remote thumbnail, source, and package files through the asset cache", async () => {
 		const storage = new MemoryAssetCache();
@@ -240,6 +254,73 @@ describe("downloadTextTemplateResource", () => {
 			"text-template:asset-remote-resource-test@1:thumbnail:0",
 		]);
 		expect(progress.at(-1)).toBe(1);
+	});
+
+	it("falls back to bundled text asset files when remote asset requests fail", async () => {
+		const storage = new MemoryAssetCache();
+		const requestedUrls: string[] = [];
+		const fetchImpl = vi.fn<typeof fetch>(async (input) => {
+			const url = String(input);
+			requestedUrls.push(url);
+			if (url.startsWith("/text-assets/")) {
+				const body = remoteBody({ url });
+				return Promise.resolve(
+					new Response(body, {
+						headers: { "content-type": "text/plain" },
+						status: 200,
+					})
+				);
+			}
+			return Promise.resolve(new Response("missing", { status: 503 }));
+		});
+
+		await expect(
+			downloadTextTemplateResource({
+				definition: textDefinition(),
+				fetchImpl,
+				storage,
+			})
+		).resolves.toMatchObject({
+			cacheHitCount: 0,
+			cachedBytes: 2232,
+			cachedFileCount: 3,
+			files: [
+				expect.objectContaining({
+					fromCache: false,
+					role: "thumbnail",
+					sourceUrl:
+						"https://assets.qcut.app/text-assets/package-remote-resource-test/plain@1/thumbnail.webp",
+					url: "https://assets.qcut.app/text-assets/package-remote-resource-test/plain@1/thumbnail.webp",
+				}),
+				expect.objectContaining({
+					fromCache: false,
+					role: "source",
+					sourceUrl:
+						"https://assets.qcut.app/text-assets/package-remote-resource-test/plain@1/template.json",
+					url: "https://assets.qcut.app/text-assets/package-remote-resource-test/plain@1/template.json",
+				}),
+				expect.objectContaining({
+					fromCache: false,
+					role: "package",
+					sourceUrl:
+						"https://assets.qcut.app/text-assets/package-remote-resource-test/plain@1/template.qctext",
+					url: "https://assets.qcut.app/text-assets/package-remote-resource-test/plain@1/template.qctext",
+				}),
+			],
+		});
+		expect(requestedUrls).toEqual([
+			"https://assets.qcut.app/text-assets/package-remote-resource-test/plain@1/thumbnail.webp",
+			"https://assets.qcut.app/text-assets/package-remote-resource-test/plain@1/template.json",
+			"https://assets.qcut.app/text-assets/package-remote-resource-test/plain@1/template.qctext",
+			"/text-assets/package-remote-resource-test/plain@1/thumbnail.webp",
+			"/text-assets/package-remote-resource-test/plain@1/template.json",
+			"/text-assets/package-remote-resource-test/plain@1/template.qctext",
+		]);
+		expect([...storage.resources.keys()].sort()).toEqual([
+			"text-template:asset-remote-resource-test@1:package:2",
+			"text-template:asset-remote-resource-test@1:source:1",
+			"text-template:asset-remote-resource-test@1:thumbnail:0",
+		]);
 	});
 
 	it("returns bundled template cache keys without fetching", async () => {
@@ -356,6 +437,75 @@ describe("downloadTextTemplateResource", () => {
 			],
 		});
 		expect(fetchImpl).not.toHaveBeenCalled();
+	});
+
+	it("falls back to bundled text asset files when the CDN is unavailable", async () => {
+		const requestedUrls: string[] = [];
+		const fetchImpl = vi.fn<typeof fetch>(async (input) => {
+			const url = String(input);
+			requestedUrls.push(url);
+			if (url.startsWith("https://assets.qcut.app/")) {
+				return new Response("cdn unavailable", { status: 503 });
+			}
+			return new Response(remoteBody({ url }), {
+				headers: { "content-type": "text/plain" },
+				status: 200,
+			});
+		});
+
+		await expect(
+			downloadTextTemplateResource({
+				definition: textDefinition(),
+				fetchImpl,
+				storage: new MemoryAssetCache(),
+			})
+		).resolves.toMatchObject({
+			cacheHitCount: 0,
+			cachedBytes: 2232,
+			cachedFileCount: 3,
+			files: [
+				expect.objectContaining({
+					fromCache: false,
+					role: "thumbnail",
+					sourceUrl:
+						"https://assets.qcut.app/text-assets/package-remote-resource-test/plain@1/thumbnail.webp",
+				}),
+				expect.objectContaining({
+					fromCache: false,
+					role: "source",
+					sourceUrl:
+						"https://assets.qcut.app/text-assets/package-remote-resource-test/plain@1/template.json",
+				}),
+				expect.objectContaining({
+					fromCache: false,
+					role: "package",
+					sourceUrl:
+						"https://assets.qcut.app/text-assets/package-remote-resource-test/plain@1/template.qctext",
+				}),
+			],
+		});
+		expect(requestedUrls).toEqual(
+			expect.arrayContaining([
+				"https://assets.qcut.app/text-assets/package-remote-resource-test/plain@1/thumbnail.webp",
+				"/text-assets/package-remote-resource-test/plain@1/thumbnail.webp",
+				"https://assets.qcut.app/text-assets/package-remote-resource-test/plain@1/template.json",
+				"/text-assets/package-remote-resource-test/plain@1/template.json",
+				"https://assets.qcut.app/text-assets/package-remote-resource-test/plain@1/template.qctext",
+				"/text-assets/package-remote-resource-test/plain@1/template.qctext",
+			])
+		);
+	});
+
+	it("leaves non-QCut remote asset requests on the original response path", async () => {
+		const wrappedFetch = textAssetFetchWithBundledFallback({
+			fetchImpl: vi.fn<typeof fetch>(
+				async () => new Response("missing", { status: 404 })
+			),
+		});
+
+		await expect(
+			wrappedFetch("https://cdn.example.com/text-assets/demo/template.qctext")
+		).resolves.toMatchObject({ ok: false, status: 404 });
 	});
 
 	it("parses qctext package template payloads", () => {
@@ -486,6 +636,47 @@ describe("downloadTextTemplateResource", () => {
 			},
 		});
 		expect(fetchImpl).not.toHaveBeenCalled();
+	});
+
+	it("loads remote package files from bundled fallback when the CDN is unavailable", async () => {
+		const definition = textDefinition();
+		const packageBody = padJsonTextToByteLength({
+			targetBytes: 1024,
+			text: packageText({ content: "Bundled fallback package", definition }),
+		});
+		const fetchImpl = vi.fn<typeof fetch>(async (input) => {
+			const url = String(input);
+			if (url.startsWith("https://assets.qcut.app/")) {
+				return new Response("cdn unavailable", { status: 503 });
+			}
+			return new Response(packageBody, {
+				headers: {
+					"content-length": String(packageBody.length),
+					"content-type": "application/vnd.qcut.text-template+json",
+				},
+				status: 200,
+			});
+		});
+
+		await expect(
+			loadTextTemplatePackageSource({
+				definition,
+				fetchImpl,
+				storage: new MemoryAssetCache(),
+			})
+		).resolves.toMatchObject({
+			template: {
+				content: "Bundled fallback package",
+			},
+		});
+		expect(fetchImpl).toHaveBeenCalledWith(
+			"https://assets.qcut.app/text-assets/package-remote-resource-test/plain@1/template.qctext",
+			expect.any(Object)
+		);
+		expect(fetchImpl).toHaveBeenCalledWith(
+			"/text-assets/package-remote-resource-test/plain@1/template.qctext",
+			expect.any(Object)
+		);
 	});
 
 	it("resolves timeline templates from package payloads when enabled", async () => {

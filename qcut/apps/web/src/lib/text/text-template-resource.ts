@@ -7,6 +7,7 @@ import type {
 import { ensureAssetResources } from "@/lib/assets/asset-resource-cache";
 import { resolveTextTemplateAssetEntry } from "@/lib/assets/qcut-asset-manifest";
 import type { CreateTextElement, TextElement } from "@/types/timeline";
+import { DEFAULT_TEXT_ASSET_REMOTE_BASE_URL } from "./text-resource-catalog";
 import {
 	buildTextTemplate,
 	type TextTemplateDefinition,
@@ -324,6 +325,72 @@ async function fetchText({
 	return response.text();
 }
 
+function bundledTextAssetUrlFromRemoteInput({
+	input,
+}: {
+	input: RequestInfo | URL;
+}): string | undefined {
+	const urlText =
+		typeof input === "string"
+			? input
+			: input instanceof URL
+				? input.toString()
+				: input.url;
+	try {
+		const url = new URL(urlText);
+		const remoteBase = new URL(DEFAULT_TEXT_ASSET_REMOTE_BASE_URL);
+		if (url.origin !== remoteBase.origin) return undefined;
+		if (!url.pathname.startsWith("/text-assets/")) return undefined;
+		return `${url.pathname}${url.search}`;
+	} catch {
+		return undefined;
+	}
+}
+
+async function fetchBundledTextAssetFallback({
+	fetchImpl,
+	init,
+	input,
+}: {
+	fetchImpl: typeof fetch;
+	init?: RequestInit;
+	input: RequestInfo | URL;
+}): Promise<Response | undefined> {
+	const bundledUrl = bundledTextAssetUrlFromRemoteInput({ input });
+	if (!bundledUrl) return undefined;
+	try {
+		const response = await fetchImpl(bundledUrl, init);
+		return response.ok ? response : undefined;
+	} catch {
+		return undefined;
+	}
+}
+
+export function textAssetFetchWithBundledFallback({
+	fetchImpl,
+}: {
+	fetchImpl: typeof fetch;
+}): typeof fetch {
+	return async (input, init) => {
+		try {
+			const response = await fetchImpl(input, init);
+			if (response.ok) return response;
+			return (
+				(await fetchBundledTextAssetFallback({ fetchImpl, init, input })) ??
+				response
+			);
+		} catch (error) {
+			const fallback = await fetchBundledTextAssetFallback({
+				fetchImpl,
+				init,
+				input,
+			});
+			if (fallback) return fallback;
+			throw error;
+		}
+	};
+}
+
 export async function downloadTextTemplateResource({
 	definition,
 	fetchImpl = fetch,
@@ -365,7 +432,7 @@ export async function downloadTextTemplateResource({
 
 	const resources = await ensureAssetResources({
 		asset,
-		fetchImpl,
+		fetchImpl: textAssetFetchWithBundledFallback({ fetchImpl }),
 		onProgress,
 		storage,
 	});
@@ -393,7 +460,7 @@ export async function loadTextTemplatePackageSource({
 	}
 	const [resource] = await ensureAssetResources({
 		asset,
-		fetchImpl,
+		fetchImpl: textAssetFetchWithBundledFallback({ fetchImpl }),
 		roles: ["package"],
 		storage,
 	});
