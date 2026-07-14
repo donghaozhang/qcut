@@ -1099,7 +1099,7 @@ export function TextView() {
 			},
 		});
 		try {
-			const { cacheKey } = await downloadTextTemplateResource({
+			const resource = await downloadTextTemplateResource({
 				definition,
 				onProgress: ({ progress }) =>
 					updateRuntimeState({
@@ -1114,7 +1114,10 @@ export function TextView() {
 			updateRuntimeState({
 				asset,
 				patch: {
-					cacheKey,
+					cacheHitCount: resource.cacheHitCount,
+					cachedBytes: resource.cachedBytes,
+					cachedFileCount: resource.cachedFileCount,
+					cacheKey: resource.cacheKey,
 					cacheStatus: "cached",
 					downloadStatus: "downloaded",
 					error: "",

@@ -1,4 +1,5 @@
 import { assetManifestVersionKey } from "@qcut/editor-core";
+import { createHash } from "node:crypto";
 import type { CachedAssetResource } from "@/lib/assets/asset-resource-cache";
 import type { AssetResourceCacheStorage } from "@/lib/assets/asset-resource-cache";
 import { describe, expect, it, vi } from "vitest";
@@ -62,6 +63,10 @@ function remoteBody({ url }: { url: string }): string {
 	if (url.endsWith(".webp")) return "t".repeat(184);
 	if (url.endsWith(".qctext")) return "p".repeat(1024);
 	return "s".repeat(1024);
+}
+
+function checksum({ value }: { value: string }): string {
+	return createHash("sha256").update(Buffer.from(value)).digest("hex");
 }
 
 function packageText({
@@ -129,6 +134,32 @@ describe("downloadTextTemplateResource", () => {
 
 		expect(result).toEqual({
 			cacheKey: "text-template:asset-remote-resource-test@1",
+			cacheHitCount: 0,
+			cachedBytes: 2232,
+			cachedFileCount: 3,
+			files: [
+				expect.objectContaining({
+					byteSize: 184,
+					cacheKey: "text-template:asset-remote-resource-test@1:thumbnail:0",
+					fromCache: false,
+					role: "thumbnail",
+					url: "https://assets.qcut.app/text-assets/package-remote-resource-test/plain@1/thumbnail.webp",
+				}),
+				expect.objectContaining({
+					byteSize: 1024,
+					cacheKey: "text-template:asset-remote-resource-test@1:source:1",
+					fromCache: false,
+					role: "source",
+					url: "https://assets.qcut.app/text-assets/package-remote-resource-test/plain@1/template.json",
+				}),
+				expect.objectContaining({
+					byteSize: 1024,
+					cacheKey: "text-template:asset-remote-resource-test@1:package:2",
+					fromCache: false,
+					role: "package",
+					url: "https://assets.qcut.app/text-assets/package-remote-resource-test/plain@1/template.qctext",
+				}),
+			],
 			packageUrl:
 				"https://assets.qcut.app/text-assets/package-remote-resource-test/plain@1/template.qctext",
 			sourceUrl:
@@ -159,12 +190,83 @@ describe("downloadTextTemplateResource", () => {
 				fetchImpl,
 				storage: new MemoryAssetCache(),
 			})
-		).resolves.toEqual({
+		).resolves.toMatchObject({
+			cacheHitCount: 3,
+			cachedFileCount: 3,
 			cacheKey: assetManifestVersionKey({
 				id: definition.resource?.assetId ?? `text-legacy-${definition.id}`,
 				kind: "text-template",
 				version: definition.resource?.version ?? 1,
 			}),
+			files: [
+				expect.objectContaining({ fromCache: true, role: "thumbnail" }),
+				expect.objectContaining({ fromCache: true, role: "source" }),
+				expect.objectContaining({ fromCache: true, role: "package" }),
+			],
+		});
+		expect(fetchImpl).not.toHaveBeenCalled();
+	});
+
+	it("reports cache hits when remote files are already cached", async () => {
+		const definition = textDefinition();
+		const storage = new MemoryAssetCache();
+		const resources = [
+			{
+				cacheKey: "text-template:asset-remote-resource-test@1:thumbnail:0",
+				role: "thumbnail" as const,
+				sourceUrl:
+					"https://assets.qcut.app/text-assets/package-remote-resource-test/plain@1/thumbnail.webp",
+				value: "t".repeat(184),
+			},
+			{
+				cacheKey: "text-template:asset-remote-resource-test@1:source:1",
+				role: "source" as const,
+				sourceUrl:
+					"https://assets.qcut.app/text-assets/package-remote-resource-test/plain@1/template.json",
+				value: "s".repeat(1024),
+			},
+			{
+				cacheKey: "text-template:asset-remote-resource-test@1:package:2",
+				role: "package" as const,
+				sourceUrl:
+					"https://assets.qcut.app/text-assets/package-remote-resource-test/plain@1/template.qctext",
+				value: "p".repeat(1024),
+			},
+		];
+		for (const [fileIndex, resource] of resources.entries()) {
+			storage.resources.set(resource.cacheKey, {
+				assetIdentity: "text-template:asset-remote-resource-test",
+				assetKey: "text-template:asset-remote-resource-test@1",
+				blob: new Blob([resource.value]),
+				byteSize: resource.value.length,
+				cacheKey: resource.cacheKey,
+				cachedAt: 1,
+				checksumSha256: checksum({ value: resource.value }),
+				fileIndex,
+				lastAccessedAt: 1,
+				mimeType: "text/plain",
+				role: resource.role,
+				sourceUrl: resource.sourceUrl,
+				version: 1,
+			});
+		}
+		const fetchImpl = vi.fn<typeof fetch>();
+
+		await expect(
+			downloadTextTemplateResource({
+				definition,
+				fetchImpl,
+				storage,
+			})
+		).resolves.toMatchObject({
+			cacheHitCount: 3,
+			cachedBytes: 2232,
+			cachedFileCount: 3,
+			files: [
+				expect.objectContaining({ fromCache: true, role: "thumbnail" }),
+				expect.objectContaining({ fromCache: true, role: "source" }),
+				expect.objectContaining({ fromCache: true, role: "package" }),
+			],
 		});
 		expect(fetchImpl).not.toHaveBeenCalled();
 	});

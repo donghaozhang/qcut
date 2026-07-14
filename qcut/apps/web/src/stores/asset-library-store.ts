@@ -40,6 +40,9 @@ export interface AssetRuntimePatch {
 	cacheStatus?: AssetCacheStatus;
 	progress?: number;
 	cacheKey?: string;
+	cachedBytes?: number;
+	cachedFileCount?: number;
+	cacheHitCount?: number;
 	error?: string;
 }
 
@@ -179,8 +182,22 @@ function normalizeRuntimeState({
 		cacheStatus: record.cacheStatus as AssetCacheStatus,
 		progress: Math.max(0, Math.min(1, record.progress)),
 		cacheKey: typeof record.cacheKey === "string" ? record.cacheKey : undefined,
+		cachedBytes: normalizedNonNegativeNumber({ value: record.cachedBytes }),
+		cachedFileCount: normalizedNonNegativeNumber({
+			value: record.cachedFileCount,
+		}),
+		cacheHitCount: normalizedNonNegativeNumber({ value: record.cacheHitCount }),
 		error: typeof record.error === "string" ? record.error : undefined,
 	};
+}
+
+function normalizedNonNegativeNumber({
+	value,
+}: {
+	value: unknown;
+}): number | undefined {
+	if (typeof value !== "number" || !Number.isFinite(value)) return undefined;
+	return Math.max(0, value);
 }
 
 function normalizeRuntimeStates({ value }: { value: unknown }): RuntimeStates {

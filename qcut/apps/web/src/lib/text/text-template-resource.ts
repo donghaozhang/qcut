@@ -1,5 +1,8 @@
-import { assetManifestVersionKey } from "@qcut/editor-core";
-import type { AssetResourceCacheStorage } from "@/lib/assets/asset-resource-cache";
+import { assetManifestVersionKey, type AssetFileRole } from "@qcut/editor-core";
+import type {
+	AssetResourceCacheStorage,
+	ResolvedAssetResource,
+} from "@/lib/assets/asset-resource-cache";
 import { ensureAssetResources } from "@/lib/assets/asset-resource-cache";
 import { resolveTextTemplateAssetEntry } from "@/lib/assets/qcut-asset-manifest";
 import type { TextTemplateDefinition } from "./text-template-registry";
@@ -7,9 +10,22 @@ import type { TextElement } from "@/types/timeline";
 
 export interface DownloadedTextTemplateResource {
 	cacheKey: string;
+	cacheHitCount: number;
+	cachedBytes: number;
+	cachedFileCount: number;
+	files: DownloadedTextTemplateResourceFile[];
 	packageUrl?: string;
 	sourceUrl?: string;
 	thumbnailUrl?: string;
+}
+
+export interface DownloadedTextTemplateResourceFile {
+	byteSize?: number;
+	cacheKey: string;
+	fromCache: boolean;
+	mimeType?: string;
+	role: AssetFileRole;
+	url: string;
 }
 
 export interface TextTemplatePackageSource {
@@ -142,6 +158,41 @@ function parseTextTemplate({
 	};
 }
 
+function downloadedResourceFiles({
+	resources,
+}: {
+	resources: readonly ResolvedAssetResource[];
+}): DownloadedTextTemplateResourceFile[] {
+	return resources.map((resource) => ({
+		byteSize: resource.byteSize,
+		cacheKey: resource.cacheKey,
+		fromCache: resource.fromCache,
+		mimeType: resource.mimeType,
+		role: resource.role,
+		url: resource.url,
+	}));
+}
+
+function downloadedResourceSummary({
+	cacheKey,
+	resources,
+}: {
+	cacheKey: string;
+	resources: readonly ResolvedAssetResource[];
+}): DownloadedTextTemplateResource {
+	const files = downloadedResourceFiles({ resources });
+	return {
+		cacheKey,
+		cacheHitCount: files.filter((file) => file.fromCache).length,
+		cachedBytes: files.reduce((total, file) => total + (file.byteSize ?? 0), 0),
+		cachedFileCount: files.length,
+		files,
+		packageUrl: files.find((file) => file.role === "package")?.url,
+		sourceUrl: files.find((file) => file.role === "source")?.url,
+		thumbnailUrl: files.find((file) => file.role === "thumbnail")?.url,
+	};
+}
+
 export function parseTextTemplatePackage({
 	text,
 }: {
@@ -200,7 +251,17 @@ export async function downloadTextTemplateResource({
 		throw new Error(`Expected text-template asset, received ${asset.kind}`);
 	}
 	if (asset.delivery !== "remote") {
-		return { cacheKey };
+		return downloadedResourceSummary({
+			cacheKey,
+			resources: asset.files.map((file, fileIndex) => ({
+				byteSize: file.byteSize,
+				cacheKey: `${cacheKey}:${file.role}:${fileIndex}`,
+				fromCache: true,
+				mimeType: file.mimeType,
+				role: file.role,
+				url: file.url,
+			})),
+		});
 	}
 	if (asset.files.length === 0) {
 		throw new Error(`Text template ${asset.id} has no downloadable files`);
@@ -212,13 +273,7 @@ export async function downloadTextTemplateResource({
 		onProgress,
 		storage,
 	});
-	return {
-		cacheKey,
-		packageUrl: resources.find((resource) => resource.role === "package")?.url,
-		sourceUrl: resources.find((resource) => resource.role === "source")?.url,
-		thumbnailUrl: resources.find((resource) => resource.role === "thumbnail")
-			?.url,
-	};
+	return downloadedResourceSummary({ cacheKey, resources });
 }
 
 export async function loadTextTemplatePackageSource({

@@ -109,6 +109,9 @@ describe("asset library store", () => {
 				cacheStatus: "cached",
 				progress: 4,
 				cacheKey: "stickers/heart-v2.svg",
+				cachedBytes: 4096,
+				cachedFileCount: 2,
+				cacheHitCount: 1,
 			},
 		});
 		const assetKey = assetManifestVersionKey({
@@ -123,6 +126,9 @@ describe("asset library store", () => {
 			cacheStatus: "cached",
 			progress: 1,
 			cacheKey: "stickers/heart-v2.svg",
+			cachedBytes: 4096,
+			cachedFileCount: 2,
+			cacheHitCount: 1,
 		});
 	});
 
@@ -136,6 +142,9 @@ describe("asset library store", () => {
 							downloadStatus: "downloaded",
 							cacheStatus: "cached",
 							progress: 3,
+							cachedBytes: -1,
+							cachedFileCount: 3,
+							cacheHitCount: 2,
 						},
 						broken: { downloadStatus: "wat" },
 					},
@@ -150,6 +159,9 @@ describe("asset library store", () => {
 					downloadStatus: "downloaded",
 					cacheStatus: "cached",
 					progress: 1,
+					cachedBytes: 0,
+					cachedFileCount: 3,
+					cacheHitCount: 2,
 				},
 			},
 		});
