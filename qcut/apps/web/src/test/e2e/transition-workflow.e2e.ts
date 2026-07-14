@@ -355,6 +355,7 @@ test.describe("Clip transition workflow", () => {
 			),
 		});
 		await previewCard.click();
+		await expect(previewCard).toHaveAttribute("aria-pressed", "true");
 		await page.getByRole("button", { name: "应用所选转场" }).click();
 		await expect
 			.poll(() =>
