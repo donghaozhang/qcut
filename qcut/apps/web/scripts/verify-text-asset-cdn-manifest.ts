@@ -844,7 +844,7 @@ export function buildTextAssetPublishManifest({
 				issues.push({
 					assetId: entry.assetId,
 					code: "missing-package",
-					detail: `Missing ${role} file metadata`,
+					detail: `Missing required companion ${role} file metadata`,
 				});
 				continue;
 			}
