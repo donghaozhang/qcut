@@ -72,6 +72,19 @@ const PACKAGE_TEXT = JSON.stringify({
 	source: JSON.parse(SOURCE_TEXT) as Record<string, unknown>,
 	version: 1,
 });
+const MARKETPLACE_TEXT = JSON.stringify({
+	assets: [
+		{
+			assetId: "text-demo",
+			editorialRank: 1,
+			heatScore: 50,
+			remoteTags: ["category:demo"],
+			searchAliases: ["demo"],
+			templateId: "text-demo-template",
+		},
+	],
+	schemaVersion: 1,
+});
 
 function createGeneratedEntry(): TextAssetGeneratedEntry {
 	return {
@@ -126,10 +139,7 @@ async function createReleaseFixture(): Promise<{
 	);
 	const marketplacePath = join(publicDir, "text-assets/marketplace.json");
 	await mkdir(dirname(marketplacePath), { recursive: true });
-	await writeFile(
-		marketplacePath,
-		JSON.stringify({ assets: [], schemaVersion: 1 })
-	);
+	await writeFile(marketplacePath, MARKETPLACE_TEXT);
 	await mkdir(dirname(generatedManifestPath), { recursive: true });
 	await writeFile(
 		generatedManifestPath,
