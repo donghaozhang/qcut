@@ -122,19 +122,23 @@ function packageText({
 }): string {
 	const resource = definition.resource;
 	if (!resource) throw new Error("Expected text definition resource");
+	const sourceByteSize = resource.sizeKb * 1024;
+	const thumbnailByteSize = Math.round(sourceByteSize * 0.18);
 	const resources = includeResources
 		? (resourcesOverride ?? [
 				{
-					byteSize: 184,
-					checksumSha256: checksum({ value: "t".repeat(184) }),
+					byteSize: thumbnailByteSize,
+					checksumSha256: checksum({
+						value: "t".repeat(thumbnailByteSize),
+					}),
 					mimeType: "image/webp",
 					path: "thumbnail.webp",
 					role: "thumbnail",
 					url: `${resource.cacheKey}/thumbnail.webp`,
 				},
 				{
-					byteSize: 1024,
-					checksumSha256: checksum({ value: "s".repeat(1024) }),
+					byteSize: sourceByteSize,
+					checksumSha256: checksum({ value: "s".repeat(sourceByteSize) }),
 					mimeType: "application/json",
 					path: "template.json",
 					role: "source",
@@ -819,6 +823,53 @@ describe("downloadTextTemplateResource", () => {
 			},
 		});
 		expect(fetchImpl).not.toHaveBeenCalled();
+	});
+
+	it("rejects package resource manifests that drift from asset files at runtime", async () => {
+		const definition = textDefinition({ sizeKb: 2 });
+		const packageBody = padJsonTextToByteLength({
+			targetBytes: 2048,
+			text: packageText({
+				definition,
+				resourcesOverride: [
+					{
+						byteSize: 369,
+						checksumSha256: checksum({ value: "t".repeat(369) }),
+						mimeType: "image/webp",
+						path: "thumbnail.webp",
+						role: "thumbnail",
+						url: "text-assets/package-remote-resource-test/plain@1/thumbnail.webp",
+					},
+					{
+						byteSize: 2000,
+						checksumSha256: checksum({ value: "s".repeat(2048) }),
+						mimeType: "application/json",
+						path: "template.json",
+						role: "source",
+						url: "text-assets/package-remote-resource-test/plain@1/template.json",
+					},
+				],
+			}),
+		});
+		const fetchImpl = vi.fn<typeof fetch>(async () => {
+			return new Response(packageBody, {
+				headers: {
+					"content-length": String(packageBody.length),
+					"content-type": "application/vnd.qcut.text-template+json",
+				},
+				status: 200,
+			});
+		});
+
+		await expect(
+			loadTextTemplatePackageSource({
+				definition,
+				fetchImpl,
+				storage: new MemoryAssetCache(),
+			})
+		).rejects.toThrow(
+			"Text template package resource mismatch for asset-remote-resource-test: source.byteSize"
+		);
 	});
 
 	it("loads remote thumbnail blobs from the asset cache without another request", async () => {

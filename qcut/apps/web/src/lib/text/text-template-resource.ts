@@ -1,4 +1,8 @@
-import { assetManifestVersionKey, type AssetFileRole } from "@qcut/editor-core";
+import {
+	assetManifestVersionKey,
+	type AssetFileRole,
+	type AssetManifestFile,
+} from "@qcut/editor-core";
 import { TIMELINE_CONSTANTS } from "@/constants/timeline-constants";
 import type {
 	AssetResourceCacheStorage,
@@ -322,6 +326,120 @@ function assertTextTemplatePackageResourceRoles({
 	);
 }
 
+function canonicalTextPackageResourceUrl({ url }: { url: string }): string {
+	try {
+		const parsed = new URL(url);
+		const remoteBase = new URL(DEFAULT_TEXT_ASSET_REMOTE_BASE_URL);
+		if (parsed.origin === remoteBase.origin) {
+			return `${parsed.pathname}${parsed.search}`;
+		}
+		return url;
+	} catch {
+		return url.startsWith("/") ? url : `/${url}`;
+	}
+}
+
+function assertTextTemplatePackageResourcesMatchFiles({
+	assetId,
+	files,
+	packageSource,
+}: {
+	assetId: string;
+	files: readonly AssetManifestFile[];
+	packageSource: TextTemplatePackageSource;
+}): void {
+	for (const role of ["thumbnail", "source"] as const) {
+		const resource = packageSource.resources.find((item) => item.role === role);
+		const file = files.find((item) => item.role === role);
+		if (!resource || !file) {
+			throw new Error(
+				`Text template package resource mismatch for ${assetId}: missing ${role}`
+			);
+		}
+		const mismatches = [
+			stringMismatch({
+				actual: canonicalTextPackageResourceUrl({ url: resource.url }),
+				expected: canonicalTextPackageResourceUrl({ url: file.url }),
+				field: `${role}.url`,
+			}),
+			stringMismatch({
+				actual: resource.mimeType,
+				expected: file.mimeType,
+				field: `${role}.mimeType`,
+				ignoreMissingExpected: true,
+			}),
+			numberMismatch({
+				actual: resource.byteSize,
+				expected: file.byteSize,
+				field: `${role}.byteSize`,
+				ignoreMissingExpected: true,
+			}),
+			stringMismatch({
+				actual: resource.checksumSha256,
+				expected: file.checksumSha256,
+				field: `${role}.checksumSha256`,
+				ignoreMissingExpected: true,
+			}),
+		].filter((mismatch): mismatch is string => Boolean(mismatch));
+		if (mismatches.length === 0) continue;
+		throw new Error(
+			`Text template package resource mismatch for ${assetId}: ${mismatches.join(", ")}`
+		);
+	}
+}
+
+function parseAndValidateTextTemplatePackageSource({
+	assetId,
+	files,
+	text,
+}: {
+	assetId: string;
+	files: readonly AssetManifestFile[];
+	text: string;
+}): TextTemplatePackageSource {
+	const packageSource = parseTextTemplatePackage({ text });
+	assertTextTemplatePackageResourcesMatchFiles({
+		assetId,
+		files,
+		packageSource,
+	});
+	return packageSource;
+}
+
+function stringMismatch({
+	actual,
+	expected,
+	field,
+	ignoreMissingExpected = false,
+}: {
+	actual?: string;
+	expected?: string;
+	field: string;
+	ignoreMissingExpected?: boolean;
+}): string | null {
+	if (expected === undefined && ignoreMissingExpected) return null;
+	return actual === expected
+		? null
+		: `${field} expected ${expected ?? "(missing)"}, received ${actual ?? "(missing)"}`;
+}
+
+function numberMismatch({
+	actual,
+	expected,
+	field,
+	ignoreMissingExpected = false,
+}: {
+	actual?: number;
+	expected?: number;
+	field: string;
+	ignoreMissingExpected?: boolean;
+}): string | null {
+	if (expected === undefined && ignoreMissingExpected) return null;
+	return actual === expected
+		? null
+		: `${field} expected ${expected ?? "(missing)"}, received ${actual ?? "(missing)"}`;
+}
+
 function downloadedResourceFiles({
 	resources,
 }: {
@@ -544,7 +662,11 @@ export async function loadTextTemplatePackageSource({
 		const text = resource?.blob
 			? await resource.blob.text()
 			: await fetchText({ fetchImpl, url: packageFile.url });
-		return parseTextTemplatePackage({ text });
+		return parseAndValidateTextTemplatePackageSource({
+			assetId: asset.id,
+			files: asset.files,
+			text,
+		});
 	}
 	const [resource] = await ensureAssetResources({
 		asset,
@@ -555,7 +677,11 @@ export async function loadTextTemplatePackageSource({
 	const text = resource?.blob
 		? await resource.blob.text()
 		: await fetchText({ fetchImpl, url: packageFile.url });
-	return parseTextTemplatePackage({ text });
+	return parseAndValidateTextTemplatePackageSource({
+		assetId: asset.id,
+		files: asset.files,
+		text,
+	});
 }
 
 export async function loadTextTemplateThumbnailBlob({
