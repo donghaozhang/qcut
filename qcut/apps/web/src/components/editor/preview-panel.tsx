@@ -434,7 +434,10 @@ export function PreviewPanel() {
 			return [{ trackId, element: active.element }];
 		});
 	}, [activeElements, selectedElements]);
-	const stickerDropHandlers = useTimelineStickerDrop({ currentTime });
+	const stickerDropHandlers = useTimelineStickerDrop({
+		canvasSize,
+		currentTime,
+	});
 	const {
 		blurBackgroundElements,
 		videoSourcesById,
