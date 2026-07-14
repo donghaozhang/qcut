@@ -25,6 +25,7 @@ import {
 	iconCollectionUsesPalette,
 } from "@/lib/stickers/iconify-api";
 import { findStickerCatalogItem } from "@/lib/stickers/sticker-catalog";
+import { createCachedStickerPreviewUrl } from "@/lib/stickers/sticker-resource";
 import { cn } from "@/lib/utils";
 import { useAssetLibraryStore } from "@/stores/asset-library-store";
 import type { StickerItemProps } from "../types/stickers.types";
@@ -74,26 +75,65 @@ export function StickerItem({
 	const isCached = runtime.cacheStatus === "cached";
 
 	useEffect(() => {
+		let disposed = false;
+		let cachedObjectUrl: string | undefined;
 		setIsLoading(true);
 		setHasError(false);
-		try {
-			setImageUrl(
-				catalogItem?.source.kind === "bundled"
-					? catalogItem.source.url
-					: buildIconSvgUrl(collection, icon, {
-							color: iconCollectionUsesPalette({ prefix: collection })
-								? undefined
-								: "#FFFFFF",
-							width: layout === "catalog" ? 64 : 32,
-							height: layout === "catalog" ? 64 : 32,
-						})
-			);
-		} catch (error) {
-			debugLog(`[StickerItem] Failed to build image URL for ${iconId}:`, error);
-			setHasError(true);
-			setIsLoading(false);
-		}
-	}, [catalogItem, collection, icon, iconId, layout]);
+		const resolvePreview = async () => {
+			try {
+				if (catalogItem?.source.kind === "bundled") {
+					setImageUrl(catalogItem.source.url);
+					return;
+				}
+				if (isCached && asset.delivery === "remote") {
+					const cachedPreview = await createCachedStickerPreviewUrl({
+						collection,
+						icon,
+					}).catch((error: unknown) => {
+						debugLog(
+							`[StickerItem] Cached preview unavailable for ${iconId}:`,
+							error
+						);
+						return undefined;
+					});
+					if (cachedPreview) {
+						if (disposed) {
+							if (cachedPreview.revoke) URL.revokeObjectURL(cachedPreview.url);
+							return;
+						}
+						cachedObjectUrl = cachedPreview.revoke
+							? cachedPreview.url
+							: undefined;
+						setImageUrl(cachedPreview.url);
+						return;
+					}
+				}
+				setImageUrl(
+					buildIconSvgUrl(collection, icon, {
+						color: iconCollectionUsesPalette({ prefix: collection })
+							? undefined
+							: "#FFFFFF",
+						width: layout === "catalog" ? 64 : 32,
+						height: layout === "catalog" ? 64 : 32,
+					})
+				);
+			} catch (error) {
+				debugLog(
+					`[StickerItem] Failed to resolve preview for ${iconId}:`,
+					error
+				);
+				if (!disposed) {
+					setHasError(true);
+					setIsLoading(false);
+				}
+			}
+		};
+		resolvePreview();
+		return () => {
+			disposed = true;
+			if (cachedObjectUrl) URL.revokeObjectURL(cachedObjectUrl);
+		};
+	}, [asset, catalogItem, collection, icon, iconId, isCached, layout]);
 
 	const handleSelect = () => onSelect(iconId, displayName);
 	const handleDownload = () => onDownload?.(iconId, displayName);

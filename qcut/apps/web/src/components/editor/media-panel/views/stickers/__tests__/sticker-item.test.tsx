@@ -8,12 +8,19 @@ import {
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { resolveIconifyStickerAssetEntry } from "@/lib/assets/qcut-asset-manifest";
+import { createCachedStickerPreviewUrl } from "@/lib/stickers/sticker-resource";
 import { useAssetLibraryStore } from "@/stores/asset-library-store";
 import { StickerItem } from "../components/sticker-item";
+
+vi.mock("@/lib/stickers/sticker-resource", () => ({
+	createCachedStickerPreviewUrl: vi.fn(async () => undefined),
+}));
 
 describe("StickerItem", () => {
 	beforeEach(() => {
 		useAssetLibraryStore.getState().resetLibrary();
+		vi.mocked(createCachedStickerPreviewUrl).mockReset();
+		vi.mocked(createCachedStickerPreviewUrl).mockResolvedValue(undefined);
 	});
 
 	it("selects, favorites, and displays versioned cache state", async () => {
@@ -84,5 +91,57 @@ describe("StickerItem", () => {
 		expect(
 			screen.getByRole("button", { name: "Pulsating star cached" })
 		).toBeDisabled();
+	});
+
+	it("previews cached remote sticker blobs and releases object URLs", async () => {
+		vi.mocked(createCachedStickerPreviewUrl).mockResolvedValue({
+			revoke: true,
+			url: "blob:cached-sticker-preview",
+		});
+		const revokeObjectUrl = vi
+			.spyOn(URL, "revokeObjectURL")
+			.mockImplementation(() => {});
+		const asset = resolveIconifyStickerAssetEntry({
+			collectionPrefix: "line-md",
+			icon: "loading-twotone-loop",
+		});
+		act(() => {
+			useAssetLibraryStore.getState().updateRuntimeState({
+				asset,
+				patch: {
+					downloadStatus: "downloaded",
+					cacheStatus: "cached",
+					progress: 1,
+				},
+			});
+		});
+
+		const { unmount } = render(
+			<TooltipProvider>
+				<StickerItem
+					icon="loading-twotone-loop"
+					name="Loading"
+					collection="line-md"
+					layout="catalog"
+					onSelect={vi.fn()}
+				/>
+			</TooltipProvider>
+		);
+
+		await waitFor(() =>
+			expect(screen.getByRole("img", { name: "Loading" })).toHaveAttribute(
+				"src",
+				"blob:cached-sticker-preview"
+			)
+		);
+		expect(createCachedStickerPreviewUrl).toHaveBeenCalledWith({
+			collection: "line-md",
+			icon: "loading-twotone-loop",
+		});
+
+		unmount();
+
+		expect(revokeObjectUrl).toHaveBeenCalledWith("blob:cached-sticker-preview");
+		revokeObjectUrl.mockRestore();
 	});
 });

@@ -1,6 +1,7 @@
 import type { AssetManifestEntry } from "@qcut/editor-core";
 import {
 	ensureAssetResources,
+	type AssetResourceCacheStorage,
 	type ResolvedAssetResource,
 } from "@/lib/assets/asset-resource-cache";
 import { resolveStickerAssetEntry } from "@/lib/assets/qcut-asset-manifest";
@@ -11,6 +12,11 @@ export interface DownloadedStickerResource {
 	cacheKey: string;
 	file: File;
 	resource: ResolvedAssetResource;
+}
+
+export interface StickerPreviewResource {
+	revoke: boolean;
+	url: string;
 }
 
 function stickerExtension({ mimeType }: { mimeType: string }): string {
@@ -119,4 +125,28 @@ export async function createStickerMediaUrl({
 		};
 	}
 	return { revoke: true, url: URL.createObjectURL(blob) };
+}
+
+export async function createCachedStickerPreviewUrl({
+	collection,
+	icon,
+	storage,
+}: {
+	collection: string;
+	icon: string;
+	storage?: AssetResourceCacheStorage;
+}): Promise<StickerPreviewResource | undefined> {
+	const asset = resolveStickerAssetEntry({
+		collectionPrefix: collection,
+		icon,
+	});
+	if (asset.delivery !== "remote") return;
+	const resources = await ensureAssetResources({
+		asset,
+		roles: ["source"],
+		storage,
+	});
+	const resource = resources[0];
+	if (!resource?.blob) return;
+	return { revoke: true, url: URL.createObjectURL(resource.blob) };
 }
