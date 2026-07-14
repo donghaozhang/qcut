@@ -3,7 +3,10 @@ import {
 	buildTextTemplatePack,
 	isTextTemplatePackDefinition,
 } from "../text-template-packs";
-import { getTextTemplateDefinitionsByCategory } from "../text-template-registry";
+import {
+	buildTextTemplate,
+	getTextTemplateDefinitionsByCategory,
+} from "../text-template-registry";
 
 function getFirstDefinition({
 	category,
@@ -53,6 +56,34 @@ describe("text template packs", () => {
 			)
 		).toBe(true);
 		expect(pack?.elements[1].content).toBe(definition.content);
+	});
+
+	it("uses provided base templates when expanding pack slots", () => {
+		const definition = getFirstDefinition({ category: "headline-template" });
+		const baseTemplate = {
+			...buildTextTemplate({ definition }),
+			color: "#123456",
+			duration: 9,
+			fontSize: 70,
+		};
+		const pack = buildTextTemplatePack({
+			baseTemplate,
+			definition,
+			currentTime: 3,
+		});
+
+		expect(pack?.elements[1]).toMatchObject({
+			color: "#123456",
+			content: definition.content,
+			duration: 9,
+			fontSize: 70,
+			startTime: 3,
+		});
+		expect(pack?.elements[0]).toMatchObject({
+			color: "#020617",
+			duration: 9,
+			fontSize: 28,
+		});
 	});
 
 	it("builds category-specific layouts instead of cloning one text element", () => {

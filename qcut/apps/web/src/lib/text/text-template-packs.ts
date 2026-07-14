@@ -29,24 +29,30 @@ export function isTextTemplatePackDefinition({
 }
 
 export function buildTextTemplatePack({
+	baseTemplate,
 	definition,
 	currentTime = 0,
 }: {
+	baseTemplate?: TextElement;
 	definition: TextTemplateDefinition;
 	currentTime?: number;
 }): TextTemplatePack | null {
 	if (!isTextTemplatePackDefinition({ definition })) return null;
 
-	const baseTemplate = buildTextTemplate({ definition });
-	const elements = getPackSlots({ definition, baseTemplate }).map(
+	const resolvedBaseTemplate =
+		baseTemplate ?? buildTextTemplate({ definition });
+	const elements = getPackSlots({
+		definition,
+		baseTemplate: resolvedBaseTemplate,
+	}).map(
 		(slot): CreateTextElement => ({
-			...baseTemplate,
+			...resolvedBaseTemplate,
 			...slot,
 			type: "text",
 			startTime: currentTime,
 			duration:
 				slot.duration ??
-				baseTemplate.duration ??
+				resolvedBaseTemplate.duration ??
 				TIMELINE_CONSTANTS.DEFAULT_TEXT_DURATION,
 			trimStart: 0,
 			trimEnd: 0,

@@ -3,12 +3,180 @@ import type { AssetResourceCacheStorage } from "@/lib/assets/asset-resource-cach
 import { ensureAssetResources } from "@/lib/assets/asset-resource-cache";
 import { resolveTextTemplateAssetEntry } from "@/lib/assets/qcut-asset-manifest";
 import type { TextTemplateDefinition } from "./text-template-registry";
+import type { TextElement } from "@/types/timeline";
 
 export interface DownloadedTextTemplateResource {
 	cacheKey: string;
 	packageUrl?: string;
 	sourceUrl?: string;
 	thumbnailUrl?: string;
+}
+
+export interface TextTemplatePackageSource {
+	assetId: string;
+	cacheKey: string;
+	packageId: string;
+	template: Partial<TextElement>;
+	version: number;
+}
+
+function asRecord({
+	value,
+}: {
+	value: unknown;
+}): Record<string, unknown> | null {
+	return typeof value === "object" && value !== null && !Array.isArray(value)
+		? (value as Record<string, unknown>)
+		: null;
+}
+
+function stringValue({
+	record,
+	key,
+}: {
+	key: string;
+	record: Record<string, unknown>;
+}) {
+	const value = record[key];
+	return typeof value === "string" ? value : undefined;
+}
+
+function numberValue({
+	record,
+	key,
+}: {
+	key: string;
+	record: Record<string, unknown>;
+}) {
+	const value = record[key];
+	return typeof value === "number" && Number.isFinite(value)
+		? value
+		: undefined;
+}
+
+function parseTextAlign({
+	value,
+}: {
+	value: unknown;
+}): TextElement["textAlign"] | undefined {
+	return value === "left" || value === "center" || value === "right"
+		? value
+		: undefined;
+}
+
+function parseFontWeight({
+	value,
+}: {
+	value: unknown;
+}): TextElement["fontWeight"] | undefined {
+	return value === "normal" || value === "bold" ? value : undefined;
+}
+
+function parseFontStyle({
+	value,
+}: {
+	value: unknown;
+}): TextElement["fontStyle"] | undefined {
+	return value === "normal" || value === "italic" ? value : undefined;
+}
+
+function parseTextDecoration({
+	value,
+}: {
+	value: unknown;
+}): TextElement["textDecoration"] | undefined {
+	return value === "none" || value === "underline" || value === "line-through"
+		? value
+		: undefined;
+}
+
+function parseTextTemplate({
+	value,
+}: {
+	value: unknown;
+}): Partial<TextElement> | null {
+	const record = asRecord({ value });
+	if (!record || record.type !== "text") return null;
+	const id = stringValue({ record, key: "id" });
+	const name = stringValue({ record, key: "name" });
+	const content = stringValue({ record, key: "content" });
+	if (!id || !name || !content) return null;
+	return {
+		id,
+		type: "text",
+		name,
+		content,
+		fontSize: numberValue({ record, key: "fontSize" }),
+		fontFamily: stringValue({ record, key: "fontFamily" }),
+		color: stringValue({ record, key: "color" }),
+		backgroundColor: stringValue({ record, key: "backgroundColor" }),
+		textAlign: parseTextAlign({ value: record.textAlign }),
+		fontWeight: parseFontWeight({ value: record.fontWeight }),
+		fontStyle: parseFontStyle({ value: record.fontStyle }),
+		textDecoration: parseTextDecoration({ value: record.textDecoration }),
+		x: numberValue({ record, key: "x" }),
+		y: numberValue({ record, key: "y" }),
+		rotation: numberValue({ record, key: "rotation" }),
+		opacity: numberValue({ record, key: "opacity" }),
+		width: numberValue({ record, key: "width" }),
+		height: numberValue({ record, key: "height" }),
+		letterSpacing: numberValue({ record, key: "letterSpacing" }),
+		lineHeight: numberValue({ record, key: "lineHeight" }),
+		strokeColor: stringValue({ record, key: "strokeColor" }),
+		strokeWidth: numberValue({ record, key: "strokeWidth" }),
+		strokeOpacity: numberValue({ record, key: "strokeOpacity" }),
+		backgroundOpacity: numberValue({ record, key: "backgroundOpacity" }),
+		backgroundRadius: numberValue({ record, key: "backgroundRadius" }),
+		backgroundPadding: numberValue({ record, key: "backgroundPadding" }),
+		shadowColor: stringValue({ record, key: "shadowColor" }),
+		shadowOpacity: numberValue({ record, key: "shadowOpacity" }),
+		shadowOffsetX: numberValue({ record, key: "shadowOffsetX" }),
+		shadowOffsetY: numberValue({ record, key: "shadowOffsetY" }),
+		shadowBlur: numberValue({ record, key: "shadowBlur" }),
+		glowColor: stringValue({ record, key: "glowColor" }),
+		glowOpacity: numberValue({ record, key: "glowOpacity" }),
+		glowBlur: numberValue({ record, key: "glowBlur" }),
+		curve: numberValue({ record, key: "curve" }),
+		animationDuration: numberValue({ record, key: "animationDuration" }),
+		animationDelay: numberValue({ record, key: "animationDelay" }),
+	};
+}
+
+export function parseTextTemplatePackage({
+	text,
+}: {
+	text: string;
+}): TextTemplatePackageSource {
+	const root = asRecord({ value: JSON.parse(text) });
+	if (!root || root.kind !== "qcut-text-template-package") {
+		throw new Error("Invalid QCut text template package");
+	}
+	const source = asRecord({ value: root.source });
+	const template = parseTextTemplate({ value: source?.template });
+	const assetId = stringValue({ record: root, key: "assetId" });
+	const packageId = stringValue({ record: root, key: "packageId" });
+	const cacheKey = stringValue({ record: root, key: "cacheKey" });
+	const version = numberValue({ record: root, key: "version" });
+	if (!assetId || !packageId || !cacheKey || !version || !template) {
+		throw new Error("Incomplete QCut text template package");
+	}
+	return { assetId, cacheKey, packageId, template, version };
+}
+
+async function fetchText({
+	fetchImpl,
+	url,
+}: {
+	fetchImpl: typeof fetch;
+	url: string;
+}) {
+	const response = await fetchImpl(url);
+	if (!response.ok) {
+		throw new Error(
+			`Text template package request failed (${response.status})`
+		);
+	}
+	return response.text();
 }
 
 export async function downloadTextTemplateResource({
@@ -51,4 +219,61 @@ export async function downloadTextTemplateResource({
 		thumbnailUrl: resources.find((resource) => resource.role === "thumbnail")
 			?.url,
 	};
+}
+
+export async function loadTextTemplatePackageSource({
+	definition,
+	fetchImpl = fetch,
+	storage,
+}: {
+	definition: TextTemplateDefinition;
+	fetchImpl?: typeof fetch;
+	storage?: AssetResourceCacheStorage;
+}): Promise<TextTemplatePackageSource> {
+	const asset = resolveTextTemplateAssetEntry({ definition });
+	const packageFile = asset.files.find((file) => file.role === "package");
+	if (!packageFile) {
+		throw new Error(`Text template ${asset.id} has no package file`);
+	}
+	if (asset.delivery !== "remote") {
+		return parseTextTemplatePackage({
+			text: await fetchText({ fetchImpl, url: packageFile.url }),
+		});
+	}
+	const [resource] = await ensureAssetResources({
+		asset,
+		fetchImpl,
+		roles: ["package"],
+		storage,
+	});
+	const text = resource?.blob
+		? await resource.blob.text()
+		: await fetchText({ fetchImpl, url: packageFile.url });
+	return parseTextTemplatePackage({ text });
+}
+
+export async function resolveTextTemplateForTimeline({
+	definition,
+	enabled = true,
+	fallbackTemplate,
+	fetchImpl = fetch,
+	storage,
+}: {
+	definition: TextTemplateDefinition;
+	enabled?: boolean;
+	fallbackTemplate: TextElement;
+	fetchImpl?: typeof fetch;
+	storage?: AssetResourceCacheStorage;
+}): Promise<TextElement> {
+	if (!enabled) return fallbackTemplate;
+	try {
+		const packageSource = await loadTextTemplatePackageSource({
+			definition,
+			fetchImpl,
+			storage,
+		});
+		return { ...fallbackTemplate, ...packageSource.template };
+	} catch {
+		return fallbackTemplate;
+	}
 }

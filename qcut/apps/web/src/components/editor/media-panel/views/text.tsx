@@ -2,7 +2,10 @@ import { DraggableMediaItem } from "@/components/ui/draggable-item";
 import { TIMELINE_CONSTANTS } from "@/constants/timeline-constants";
 import { useOnlineStatus } from "@/hooks/use-online-status";
 import { resolveTextTemplateAssetEntry } from "@/lib/assets/qcut-asset-manifest";
-import { downloadTextTemplateResource } from "@/lib/text/text-template-resource";
+import {
+	downloadTextTemplateResource,
+	resolveTextTemplateForTimeline,
+} from "@/lib/text/text-template-resource";
 import { cn } from "@/lib/utils";
 import { useAssetLibraryStore } from "@/stores/asset-library-store";
 import { usePlaybackStore } from "@/stores/editor/playback-store";
@@ -215,9 +218,18 @@ function TextTemplate({
 		() => buildTextTemplateDragData({ definition }),
 		[definition]
 	);
-	const addToTimeline = (currentTime?: number) => {
+	const resolveTemplate = async () => {
+		return resolveTextTemplateForTimeline({
+			definition,
+			enabled: isDownloaded,
+			fallbackTemplate: template,
+		});
+	};
+	const addToTimeline = async (currentTime?: number) => {
 		const time = currentTime ?? usePlaybackStore.getState().currentTime;
+		const resolvedTemplate = await resolveTemplate();
 		const timedTemplatePack = buildTextTemplatePack({
+			baseTemplate: resolvedTemplate,
 			definition,
 			currentTime: time,
 		});
@@ -226,7 +238,7 @@ function TextTemplate({
 					elements: timedTemplatePack.elements,
 					currentTime: time,
 				})
-			: useTimelineStore.getState().addTextAtTime(template, time);
+			: useTimelineStore.getState().addTextAtTime(resolvedTemplate, time);
 		if (added) {
 			onUseTemplate({ templateId: definition.id });
 		}
@@ -238,7 +250,9 @@ function TextTemplate({
 		);
 		event.dataTransfer.effectAllowed = "copy";
 	};
-	const handleActivate = () => addToTimeline();
+	const handleActivate = () => {
+		void addToTimeline();
+	};
 	const downloadLabel = getTextTemplateDownloadLabel({
 		downloadStatus,
 		isDownloaded,
