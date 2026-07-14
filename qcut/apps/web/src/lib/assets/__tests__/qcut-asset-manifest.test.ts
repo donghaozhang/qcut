@@ -116,7 +116,12 @@ describe("QCut asset manifest", () => {
 			"thumbnail",
 			"source",
 		]);
-		expect(redAsset?.files[0]?.url).toContain("qcut-text-asset://");
+		expect(redAsset?.files[0]?.url).toMatch(
+			/^https:\/\/assets\.qcut\.app\/text-assets\/.+\/thumbnail\.webp$/
+		);
+		expect(redAsset?.files[1]?.url).toMatch(
+			/^https:\/\/assets\.qcut\.app\/text-assets\/.+\/template\.json$/
+		);
 		expect(redAsset?.metadata).toMatchObject({
 			packageId: "text-fancy-red",
 			entitlement: expect.stringMatching(/^(free|svip)$/),

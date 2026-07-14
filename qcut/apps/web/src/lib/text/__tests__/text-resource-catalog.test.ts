@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import {
+	DEFAULT_TEXT_ASSET_REMOTE_BASE_URL,
 	buildTextTemplateResourcePackages,
 	getTextTemplateResource,
 	getTextTemplateResourceFiles,
@@ -81,12 +82,25 @@ describe("text resource catalog", () => {
 			})
 		).toEqual({
 			thumbnailUrl:
-				"qcut-text-asset://text-assets/pack-a/poster@1/thumbnail.webp",
-			sourceUrl: "qcut-text-asset://text-assets/pack-a/poster@1/template.json",
+				"https://assets.qcut.app/text-assets/pack-a/poster@1/thumbnail.webp",
+			sourceUrl:
+				"https://assets.qcut.app/text-assets/pack-a/poster@1/template.json",
 			byteSize: 128 * 1024,
 			thumbnailByteSize: Math.round(128 * 1024 * 0.18),
 			sourceByteSize: 128 * 1024,
 			bundled: false,
+		});
+		expect(DEFAULT_TEXT_ASSET_REMOTE_BASE_URL).toBe("https://assets.qcut.app");
+		expect(
+			getTextTemplateResourceFiles({
+				definition: createDefinition({ id: "poster", packageId: "pack-a" }),
+				remoteBaseUrl: "https://cdn.example.test/assets/",
+			})
+		).toMatchObject({
+			thumbnailUrl:
+				"https://cdn.example.test/assets/text-assets/pack-a/poster@1/thumbnail.webp",
+			sourceUrl:
+				"https://cdn.example.test/assets/text-assets/pack-a/poster@1/template.json",
 		});
 	});
 
@@ -108,6 +122,27 @@ describe("text resource catalog", () => {
 			bundled: true,
 			thumbnailChecksumSha256: expect.stringMatching(/^[a-f0-9]{64}$/),
 			sourceChecksumSha256: expect.stringMatching(/^[a-f0-9]{64}$/),
+		});
+	});
+
+	it("keeps not-downloaded templates remote instead of using an internal URL", () => {
+		const remoteDefinition = TEXT_TEMPLATE_DEFINITIONS.find(
+			(definition) => definition.category === "red" && !definition.downloaded
+		);
+
+		expect(remoteDefinition).toBeDefined();
+		expect(
+			getTextTemplateResourceFiles({
+				definition: remoteDefinition as TextTemplateDefinition,
+			})
+		).toMatchObject({
+			thumbnailUrl: expect.stringMatching(
+				/^https:\/\/assets\.qcut\.app\/text-assets\/.+\/thumbnail\.webp$/
+			),
+			sourceUrl: expect.stringMatching(
+				/^https:\/\/assets\.qcut\.app\/text-assets\/.+\/template\.json$/
+			),
+			bundled: false,
 		});
 	});
 

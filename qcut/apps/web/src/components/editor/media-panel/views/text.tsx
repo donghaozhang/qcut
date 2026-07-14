@@ -1,9 +1,17 @@
 import { DraggableMediaItem } from "@/components/ui/draggable-item";
 import { TIMELINE_CONSTANTS } from "@/constants/timeline-constants";
+import { useOnlineStatus } from "@/hooks/use-online-status";
+import { resolveTextTemplateAssetEntry } from "@/lib/assets/qcut-asset-manifest";
+import { downloadTextTemplateResource } from "@/lib/text/text-template-resource";
 import { cn } from "@/lib/utils";
+import { useAssetLibraryStore } from "@/stores/asset-library-store";
 import { usePlaybackStore } from "@/stores/editor/playback-store";
 import { useSearchStore } from "@/stores/search-store";
 import { useTimelineStore } from "@/stores/timeline/timeline-store";
+import {
+	assetManifestVersionKey,
+	type AssetRuntimeState,
+} from "@qcut/editor-core";
 import {
 	ChevronDown,
 	Download,
@@ -27,8 +35,9 @@ import {
 	isTextTemplateDownloaded,
 	isTextTemplateFavorite,
 	loadTextLibraryState,
+	markTextTemplateDownloaded,
+	markTextTemplateDownloadFailed,
 	markTextTemplateUsed,
-	retryTextTemplateDownload,
 	storeTextLibraryState,
 	toggleFavoriteTextTemplate,
 	type TextTemplateDownloadStatus,
@@ -59,6 +68,7 @@ import type {
 	TextElement,
 	TextItemDragData,
 } from "@/types/timeline";
+import { toast } from "sonner";
 import { TextTemplateThumbnail } from "./text-template-thumbnail";
 
 type TextLibraryStatusFilter =
@@ -292,9 +302,12 @@ function TextTemplate({
 					<button
 						type="button"
 						aria-label={downloadLabel}
+						disabled={downloadStatus === "downloading"}
 						className={cn(
 							"absolute bottom-1 right-1 flex h-4 w-4 items-center justify-center rounded-full bg-black/55 text-white transition-colors hover:bg-black/80",
 							isDownloaded && "bg-white/85 text-slate-900 hover:bg-white",
+							downloadStatus === "downloading" &&
+								"cursor-wait bg-cyan-400 text-slate-950 hover:bg-cyan-400",
 							downloadStatus === "failed" &&
 								"bg-rose-500 text-white hover:bg-rose-600"
 						)}
@@ -325,12 +338,14 @@ function TemplateGrid({
 	onDownload,
 	onToggleFavorite,
 	onUseTemplate,
+	runtimeByAssetKey,
 }: {
 	definitions: readonly TextTemplateDefinition[];
 	libraryState: TextLibraryState;
 	onDownload: (props: { definition: TextTemplateDefinition }) => void;
 	onToggleFavorite: (props: { templateId: string }) => void;
 	onUseTemplate: (props: { templateId: string }) => void;
+	runtimeByAssetKey: Readonly<Record<string, AssetRuntimeState>>;
 }) {
 	const gridRef = useRef<HTMLDivElement | null>(null);
 	const [gridWidth, setGridWidth] = useState(0);
@@ -357,33 +372,80 @@ function TemplateGrid({
 				gridTemplateColumns: `repeat(${columnCount}, minmax(0, 1fr))`,
 			}}
 		>
-			{definitions.map((definition) => (
-				<TextTemplate
-					key={definition.id}
-					definition={definition}
-					downloadStatus={getTextTemplateDownloadStatus({
-						definition,
-						state: libraryState,
-					})}
-					isDownloaded={isTextTemplateDownloaded({
-						definition,
-						state: libraryState,
-					})}
-					isFavorite={isTextTemplateFavorite({
-						definition,
-						state: libraryState,
-					})}
-					resourceAccess={getTextTemplateResourceAccess({
-						definition,
-						state: libraryState,
-					})}
-					onDownload={onDownload}
-					onToggleFavorite={onToggleFavorite}
-					onUseTemplate={onUseTemplate}
-				/>
-			))}
+			{definitions.map((definition) => {
+				const downloadStatus = getTextTemplateRuntimeDownloadStatus({
+					definition,
+					runtimeByAssetKey,
+					state: libraryState,
+				});
+				return (
+					<TextTemplate
+						key={definition.id}
+						definition={definition}
+						downloadStatus={downloadStatus}
+						isDownloaded={downloadStatus === "cached"}
+						isFavorite={isTextTemplateFavorite({
+							definition,
+							state: libraryState,
+						})}
+						resourceAccess={getTextTemplateResourceAccess({
+							definition,
+							state: libraryState,
+						})}
+						onDownload={onDownload}
+						onToggleFavorite={onToggleFavorite}
+						onUseTemplate={onUseTemplate}
+					/>
+				);
+			})}
 		</div>
 	);
+}
+
+function getTextTemplateRuntimeDownloadStatus({
+	definition,
+	runtimeByAssetKey,
+	state,
+}: {
+	definition: TextTemplateDefinition;
+	runtimeByAssetKey: Readonly<Record<string, AssetRuntimeState>>;
+	state: TextLibraryState;
+}): TextTemplateDownloadStatus {
+	const asset = resolveTextTemplateAssetEntry({ definition });
+	const assetKey = assetManifestVersionKey({
+		kind: asset.kind,
+		id: asset.id,
+		version: asset.version,
+	});
+	const runtime = runtimeByAssetKey[assetKey];
+	if (
+		runtime?.downloadStatus === "downloading" ||
+		runtime?.downloadStatus === "queued" ||
+		runtime?.cacheStatus === "caching"
+	) {
+		return "downloading";
+	}
+	if (
+		runtime?.downloadStatus === "downloaded" &&
+		runtime.cacheStatus === "cached"
+	) {
+		return "cached";
+	}
+	if (
+		runtime?.downloadStatus === "failed" ||
+		runtime?.cacheStatus === "failed"
+	) {
+		return "failed";
+	}
+	return isTextTemplateDownloaded({
+		definition,
+		state,
+	})
+		? "cached"
+		: getTextTemplateDownloadStatus({
+				definition,
+				state,
+			});
 }
 
 export function getTextTemplateGridColumnCount({
@@ -410,6 +472,7 @@ function getTextTemplateDownloadLabel({
 	if (downloadStatus === "failed" && resourceAccess === "svip-required") {
 		return "需要SVIP";
 	}
+	if (downloadStatus === "downloading") return "下载中";
 	if (downloadStatus === "failed") return "重试下载";
 	return "下载";
 }
@@ -658,6 +721,13 @@ function applySmartTextSuggestions({
 export function TextView() {
 	const tracks = useTimelineStore((state) => state.tracks);
 	const transcriptions = useSearchStore((state) => state.transcriptions);
+	const runtimeByAssetKey = useAssetLibraryStore(
+		(state) => state.runtimeByAssetKey
+	);
+	const updateRuntimeState = useAssetLibraryStore(
+		(state) => state.updateRuntimeState
+	);
+	const online = useOnlineStatus();
 	const [activeCategoryId, setActiveCategoryId] =
 		useState<TextTemplateCategoryId>(DEFAULT_TEXT_TEMPLATE_CATEGORY_ID);
 	const [expandedGroupIds, setExpandedGroupIds] = useState<
@@ -772,14 +842,117 @@ export function TextView() {
 			return next;
 		});
 	};
-	const handleDownload = ({
+	const handleDownload = async ({
 		definition,
 	}: {
 		definition: TextTemplateDefinition;
 	}) => {
-		setLibraryState((current) =>
-			retryTextTemplateDownload({ definition, state: current })
-		);
+		const access = getTextTemplateResourceAccess({
+			definition,
+			state: libraryState,
+		});
+		const asset = resolveTextTemplateAssetEntry({ definition });
+		if (access !== "allowed") {
+			setLibraryState((current) =>
+				markTextTemplateDownloadFailed({
+					definition,
+					errorCode: "SVIP_REQUIRED",
+					state: current,
+				})
+			);
+			toast.error("这个文字样式需要 SVIP。");
+			return;
+		}
+		if (asset.delivery !== "remote") {
+			setLibraryState((current) =>
+				markTextTemplateDownloaded({ definition, state: current })
+			);
+			toast.success(`${definition.name} 已可使用。`);
+			return;
+		}
+		if (!online) {
+			updateRuntimeState({
+				asset,
+				patch: {
+					cacheStatus: "failed",
+					downloadStatus: "failed",
+					error: "OFFLINE",
+					progress: 0,
+				},
+			});
+			setLibraryState((current) =>
+				markTextTemplateDownloadFailed({
+					definition,
+					errorCode: "OFFLINE",
+					state: current,
+				})
+			);
+			toast.error("当前离线，无法下载文字资源。");
+			return;
+		}
+		const runtime = useAssetLibraryStore.getState().getRuntimeState({ asset });
+		if (
+			runtime.downloadStatus === "downloading" ||
+			runtime.cacheStatus === "caching"
+		) {
+			return;
+		}
+		updateRuntimeState({
+			asset,
+			patch: {
+				cacheStatus: "caching",
+				downloadStatus: "downloading",
+				error: "",
+				progress: 0,
+			},
+		});
+		try {
+			const { cacheKey } = await downloadTextTemplateResource({
+				definition,
+				onProgress: ({ progress }) =>
+					updateRuntimeState({
+						asset,
+						patch: {
+							cacheStatus: "caching",
+							downloadStatus: "downloading",
+							progress,
+						},
+					}),
+			});
+			updateRuntimeState({
+				asset,
+				patch: {
+					cacheKey,
+					cacheStatus: "cached",
+					downloadStatus: "downloaded",
+					error: "",
+					progress: 1,
+				},
+			});
+			setLibraryState((current) =>
+				markTextTemplateDownloaded({ definition, state: current })
+			);
+			toast.success(`${definition.name} 已下载。`);
+		} catch (error) {
+			const message = error instanceof Error ? error.message : String(error);
+			updateRuntimeState({
+				asset,
+				patch: {
+					cacheStatus: "failed",
+					downloadStatus: "failed",
+					error: message,
+					progress: 0,
+				},
+			});
+			setLibraryState((current) =>
+				markTextTemplateDownloadFailed({
+					definition,
+					errorCode: "DOWNLOAD_FAILED",
+					state: current,
+				})
+			);
+			toast.error(`文字资源下载失败：${message}`);
+		}
 	};
 	const handleToggleFavorite = ({ templateId }: { templateId: string }) => {
 		setLibraryState((current) =>
@@ -843,6 +1016,7 @@ export function TextView() {
 						onDownload={handleDownload}
 						onToggleFavorite={handleToggleFavorite}
 						onUseTemplate={handleUseTemplate}
+						runtimeByAssetKey={runtimeByAssetKey}
 					/>
 				) : (
 					<div className="py-12 text-center text-xs text-muted-foreground">

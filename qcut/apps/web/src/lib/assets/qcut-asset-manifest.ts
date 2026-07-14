@@ -22,6 +22,7 @@ import {
 import {
 	TEXT_TEMPLATE_DEFINITIONS,
 	TEXT_TEMPLATES,
+	type TextTemplateDefinition,
 } from "@/lib/text/text-template-registry";
 import {
 	getTextTemplateResource,
@@ -40,6 +41,10 @@ const QCUT_BUILT_IN_LICENSE: AssetLicense = {
 	commercialUse: "allowed",
 	attributionRequired: false,
 };
+
+const TEXT_TEMPLATES_BY_ID = new Map(
+	TEXT_TEMPLATES.map((template) => [template.id, template])
+);
 
 function uniqueTags({ tags }: { tags: readonly string[] }): string[] {
 	const normalized = new Set<string>();
@@ -100,61 +105,74 @@ function filterAssets(): AssetManifestEntry[] {
 	}));
 }
 
-function textTemplateAssets(): AssetManifestEntry[] {
-	const templatesById = new Map(
-		TEXT_TEMPLATES.map((template) => [template.id, template])
-	);
-	return TEXT_TEMPLATE_DEFINITIONS.map((definition) => {
-		const resource = getTextTemplateResource({ definition });
-		const files = getTextTemplateResourceFiles({ definition });
-		return {
-			schemaVersion: ASSET_MANIFEST_SCHEMA_VERSION,
-			id: resource.assetId,
-			kind: "text-template",
-			version: resource.version,
-			name: definition.name,
-			category: definition.category,
-			tags: uniqueTags({
-				tags: [
-					definition.category,
-					definition.stylePresetId,
-					definition.groupId,
-					resource.packageId,
-					resource.entitlement,
-					"text",
-					...definition.keywords,
-				],
-			}),
-			delivery: definition.downloaded ? "bundled" : "remote",
-			files: [
-				{
-					role: "thumbnail",
-					url: files.thumbnailUrl,
-					mimeType: "image/webp",
-					byteSize: files.thumbnailByteSize,
-					checksumSha256: files.thumbnailChecksumSha256,
-				},
-				{
-					role: "source",
-					url: files.sourceUrl,
-					mimeType: "application/json",
-					byteSize: files.sourceByteSize,
-					checksumSha256: files.sourceChecksumSha256,
-				},
+export function createTextTemplateAssetEntry({
+	definition,
+}: {
+	definition: TextTemplateDefinition;
+}): AssetManifestEntry {
+	const resource = getTextTemplateResource({ definition });
+	const files = getTextTemplateResourceFiles({ definition });
+	return {
+		schemaVersion: ASSET_MANIFEST_SCHEMA_VERSION,
+		id: resource.assetId,
+		kind: "text-template",
+		version: resource.version,
+		name: definition.name,
+		category: definition.category,
+		tags: uniqueTags({
+			tags: [
+				definition.category,
+				definition.stylePresetId,
+				definition.groupId,
+				resource.packageId,
+				resource.entitlement,
+				"text",
+				...definition.keywords,
 			],
-			license: QCUT_BUILT_IN_LICENSE,
-			metadata: {
-				templateId: definition.id,
-				stylePresetId: definition.stylePresetId,
-				packageId: resource.packageId,
-				cacheKey: resource.cacheKey,
-				entitlement: resource.entitlement,
-				sizeKb: resource.sizeKb,
-				premium: definition.premium,
-				template: templatesById.get(definition.id),
+		}),
+		delivery: files.bundled ? "bundled" : "remote",
+		files: [
+			{
+				role: "thumbnail",
+				url: files.thumbnailUrl,
+				mimeType: "image/webp",
+				byteSize: files.thumbnailByteSize,
+				checksumSha256: files.thumbnailChecksumSha256,
 			},
-		};
-	});
+			{
+				role: "source",
+				url: files.sourceUrl,
+				mimeType: "application/json",
+				byteSize: files.sourceByteSize,
+				checksumSha256: files.sourceChecksumSha256,
+			},
+		],
+		license: QCUT_BUILT_IN_LICENSE,
+		metadata: {
+			templateId: definition.id,
+			stylePresetId: definition.stylePresetId,
+			packageId: resource.packageId,
+			cacheKey: resource.cacheKey,
+			entitlement: resource.entitlement,
+			sizeKb: resource.sizeKb,
+			premium: definition.premium,
+			template: TEXT_TEMPLATES_BY_ID.get(definition.id),
+		},
+	};
+}
+
+export function resolveTextTemplateAssetEntry({
+	definition,
+}: {
+	definition: TextTemplateDefinition;
+}): AssetManifestEntry {
+	return createTextTemplateAssetEntry({ definition });
+}
+
+function textTemplateAssets(): AssetManifestEntry[] {
+	return TEXT_TEMPLATE_DEFINITIONS.map((definition) =>
+		createTextTemplateAssetEntry({ definition })
+	);
 }
 
 function captionStyleAssets(): AssetManifestEntry[] {

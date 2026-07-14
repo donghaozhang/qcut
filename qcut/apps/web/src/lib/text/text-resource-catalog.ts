@@ -25,6 +25,8 @@ const textAssetManifest = generatedTextAssetManifest as Readonly<
 	Record<string, TextTemplateGeneratedAsset | undefined>
 >;
 
+export const DEFAULT_TEXT_ASSET_REMOTE_BASE_URL = "https://assets.qcut.app";
+
 export interface TextTemplateResourcePackage {
 	packageId: string;
 	version: number;
@@ -47,6 +49,37 @@ export interface TextTemplateResourceFiles {
 	bundled: boolean;
 }
 
+function matchingGeneratedAsset({
+	resource,
+}: {
+	resource: TextTemplateResource;
+}): TextTemplateGeneratedAsset | undefined {
+	const bundledAsset = textAssetManifest[resource.assetId];
+	if (
+		bundledAsset &&
+		bundledAsset.packageId === resource.packageId &&
+		bundledAsset.cacheKey === resource.cacheKey &&
+		bundledAsset.version === resource.version
+	) {
+		return bundledAsset;
+	}
+	return undefined;
+}
+
+function remoteTextAssetFileUrl({
+	cacheKey,
+	fileName,
+	remoteBaseUrl,
+}: {
+	cacheKey: string;
+	fileName: string;
+	remoteBaseUrl: string;
+}): string {
+	const baseUrl = remoteBaseUrl.replace(/\/+$/, "");
+	const remotePath = `${cacheKey}/${fileName}`.replace(/^\/+/, "");
+	return `${baseUrl}/${remotePath}`;
+}
+
 export function getTextTemplateResource({
 	definition,
 }: {
@@ -65,17 +98,14 @@ export function getTextTemplateResource({
 
 export function getTextTemplateResourceFiles({
 	definition,
+	remoteBaseUrl = DEFAULT_TEXT_ASSET_REMOTE_BASE_URL,
 }: {
 	definition: TextTemplateDefinition;
+	remoteBaseUrl?: string;
 }): TextTemplateResourceFiles {
 	const resource = getTextTemplateResource({ definition });
-	const bundledAsset = textAssetManifest[resource.assetId];
-	if (
-		bundledAsset &&
-		bundledAsset.packageId === resource.packageId &&
-		bundledAsset.cacheKey === resource.cacheKey &&
-		bundledAsset.version === resource.version
-	) {
+	const bundledAsset = matchingGeneratedAsset({ resource });
+	if (definition.downloaded && bundledAsset) {
 		return {
 			thumbnailUrl: bundledAsset.thumbnail.url,
 			sourceUrl: bundledAsset.source.url,
@@ -87,9 +117,31 @@ export function getTextTemplateResourceFiles({
 			bundled: true,
 		};
 	}
+	const thumbnailUrl = remoteTextAssetFileUrl({
+		cacheKey: resource.cacheKey,
+		fileName: "thumbnail.webp",
+		remoteBaseUrl,
+	});
+	const sourceUrl = remoteTextAssetFileUrl({
+		cacheKey: resource.cacheKey,
+		fileName: "template.json",
+		remoteBaseUrl,
+	});
+	if (bundledAsset) {
+		return {
+			thumbnailUrl,
+			sourceUrl,
+			byteSize: bundledAsset.source.byteSize,
+			thumbnailByteSize: bundledAsset.thumbnail.byteSize,
+			sourceByteSize: bundledAsset.source.byteSize,
+			thumbnailChecksumSha256: bundledAsset.thumbnail.checksumSha256,
+			sourceChecksumSha256: bundledAsset.source.checksumSha256,
+			bundled: false,
+		};
+	}
 	return {
-		thumbnailUrl: `qcut-text-asset://${resource.cacheKey}/thumbnail.webp`,
-		sourceUrl: `qcut-text-asset://${resource.cacheKey}/template.json`,
+		thumbnailUrl,
+		sourceUrl,
 		byteSize: resource.sizeKb * 1024,
 		thumbnailByteSize: Math.round(resource.sizeKb * 1024 * 0.18),
 		sourceByteSize: resource.sizeKb * 1024,

@@ -7,7 +7,12 @@ import { getTextTemplateResource } from "./text-resource-catalog";
 export const TEXT_LIBRARY_STATE_STORAGE_KEY = "qcut-text-library-state-v1";
 const MAX_RECENT_TEXT_TEMPLATES = 30;
 
-export type TextTemplateDownloadStatus = "remote" | "cached" | "failed";
+export type TextTemplateDownloadStatus =
+	| "remote"
+	| "downloading"
+	| "cached"
+	| "failed";
+type TextTemplateDownloadRecordStatus = "cached" | "failed";
 export type TextTemplateResourceAccess = "allowed" | "svip-required";
 
 export interface TextTemplateDownloadRecord {
@@ -16,7 +21,7 @@ export interface TextTemplateDownloadRecord {
 	packageId: string;
 	cacheKey: string;
 	version: number;
-	status: Exclude<TextTemplateDownloadStatus, "remote">;
+	status: TextTemplateDownloadRecordStatus;
 	attemptCount: number;
 	updatedAt: number;
 	errorCode?: string;
@@ -294,7 +299,7 @@ function buildDownloadRecord({
 	definition: TextTemplateDefinition;
 	errorCode?: string;
 	now: number;
-	status: TextTemplateDownloadRecord["status"];
+	status: TextTemplateDownloadRecordStatus;
 }): TextTemplateDownloadRecord {
 	const resource = getTextTemplateResource({ definition });
 	return {
@@ -318,7 +323,7 @@ function getNextAttemptCount({
 	status,
 }: {
 	definition: TextTemplateDefinition;
-	status: TextTemplateDownloadRecord["status"];
+	status: TextTemplateDownloadRecordStatus;
 }): number {
 	if (status === "cached" && definition.downloaded) return 1;
 	return 1;
