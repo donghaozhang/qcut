@@ -65,7 +65,7 @@ export function clampClipTransitionDuration({
 	);
 }
 
-const TRANSITION_TYPES = new Set<ClipTransitionType>([
+export const CLIP_TRANSITION_TYPES = [
 	"dissolve",
 	"fade-black",
 	"fade-white",
@@ -78,7 +78,26 @@ const TRANSITION_TYPES = new Set<ClipTransitionType>([
 	"light-leak",
 	"rgb-glitch",
 	"shake",
-]);
+	"motion-blur",
+	"pixelate",
+	"water-ripple",
+	"particle-dissolve",
+	"glass-refraction",
+	"page-flip",
+	"texture-mask",
+	"lens-flare",
+] as const satisfies readonly ClipTransitionType[];
+
+const TRANSITION_TYPES = new Set<ClipTransitionType>(CLIP_TRANSITION_TYPES);
+
+export function isClipTransitionType(
+	value: unknown
+): value is ClipTransitionType {
+	return (
+		typeof value === "string" &&
+		TRANSITION_TYPES.has(value as ClipTransitionType)
+	);
+}
 const TRANSITION_DIRECTIONS = new Set<ClipTransitionDirection>([
 	"left",
 	"right",

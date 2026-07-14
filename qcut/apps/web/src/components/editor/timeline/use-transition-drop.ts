@@ -6,6 +6,7 @@ import { useTimelineStore } from "@/stores/timeline/timeline-store";
 import { isVideoTransitionPair } from "@/lib/transitions/video-transition-eligibility";
 import {
 	findClosestMediaSeam,
+	isClipTransitionType,
 	type ClipTransitionDirection,
 	type ClipTransitionTuning,
 	type ClipTransitionType,
@@ -52,23 +53,6 @@ function parseTuning({
 		: { intensity, frequency, tint };
 }
 
-function isTransitionType(value: unknown): value is ClipTransitionType {
-	return (
-		value === "dissolve" ||
-		value === "fade-black" ||
-		value === "fade-white" ||
-		value === "slide" ||
-		value === "wipe" ||
-		value === "push" ||
-		value === "zoom-blur" ||
-		value === "whip-pan" ||
-		value === "flash" ||
-		value === "light-leak" ||
-		value === "rgb-glitch" ||
-		value === "shake"
-	);
-}
-
 function isDirection(value: unknown): value is ClipTransitionDirection {
 	return (
 		value === "left" || value === "right" || value === "up" || value === "down"
@@ -87,7 +71,7 @@ function parseTransitionPayload({
 		if (
 			candidate.kind !== "qcut-transition-preset" ||
 			typeof candidate.id !== "string" ||
-			!isTransitionType(candidate.type) ||
+			!isClipTransitionType(candidate.type) ||
 			typeof candidate.defaultDuration !== "number" ||
 			!Number.isFinite(candidate.defaultDuration) ||
 			(candidate.direction !== undefined && !isDirection(candidate.direction))

@@ -701,6 +701,15 @@ export function buildXfadeTransitionFilter({
 				frequency: tuning.frequency,
 			});
 			break;
+		case "motion-blur":
+		case "pixelate":
+		case "water-ripple":
+		case "particle-dissolve":
+		case "glass-refraction":
+		case "page-flip":
+		case "texture-mask":
+		case "lens-flare":
+			throw new Error(`Unsupported transition type: ${type}`);
 		default: {
 			const unsupportedType: never = type;
 			throw new Error(`Unsupported transition type: ${unsupportedType}`);

@@ -147,7 +147,15 @@ export type ClipTransitionType =
 	| "flash"
 	| "light-leak"
 	| "rgb-glitch"
-	| "shake";
+	| "shake"
+	| "motion-blur"
+	| "pixelate"
+	| "water-ripple"
+	| "particle-dissolve"
+	| "glass-refraction"
+	| "page-flip"
+	| "texture-mask"
+	| "lens-flare";
 
 export type ClipTransitionDirection = "left" | "right" | "up" | "down";
 

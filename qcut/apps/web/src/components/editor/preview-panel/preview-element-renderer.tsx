@@ -50,8 +50,12 @@ import {
 import { useColorPickerStore } from "@/stores/editor/color-picker-store";
 import type { ClipTransitionPreviewState } from "@/lib/transitions/clip-transition-preview";
 import {
+	buildClipTransitionAnchoredTransform,
+	buildClipTransitionContentStyle,
 	buildClipTransitionCssFilter,
 	buildClipTransitionCssTransform,
+	buildClipTransitionMaskStyle,
+	buildClipTransitionOverlayStyle,
 	getClipTransitionLayerPresentation,
 } from "@/lib/transitions/clip-transition-presentation";
 import { buildMediaMaskStrokeCssFilter } from "@/lib/video/media-mask-stroke";
@@ -585,6 +589,12 @@ export function PreviewElementRenderer({
 			const transitionFilter = buildClipTransitionCssFilter({
 				presentation: transitionPresentation,
 			});
+			const transitionMaskStyle = buildClipTransitionMaskStyle({
+				presentation: transitionPresentation,
+			});
+			const transitionOverlayStyle = buildClipTransitionOverlayStyle({
+				presentation: transitionPresentation,
+			});
 			if (!mediaItem || element.mediaId === TEST_MEDIA_ID) {
 				return (
 					<div
@@ -599,13 +609,18 @@ export function PreviewElementRenderer({
 							transform: buildClipTransitionCssTransform({
 								presentation: transitionPresentation,
 							}),
-							transformOrigin: "center",
+							transformOrigin:
+								transitionPresentation.transformOrigin ?? "center",
+							...transitionMaskStyle,
 						}}
 					>
 						<div className="text-center">
 							<div className="text-2xl mb-2">🎬</div>
 							<p className="text-xs text-foreground">{element.name}</p>
 						</div>
+						{transitionOverlayStyle ? (
+							<div aria-hidden="true" style={transitionOverlayStyle} />
+						) : null}
 					</div>
 				);
 			}
@@ -780,8 +795,20 @@ export function PreviewElementRenderer({
 							top: `${50 + ((displayY + mediaAnimation.offsetY + transitionPresentation.offsetY) / canvasSize.height) * 100}%`,
 							width: "100%",
 							height: "100%",
-							transform: `translate(-50%, -50%) rotate(${visual.rotation + (transitionPresentation.rotation ?? 0)}deg) scale(${visual.scaleX * mediaAnimation.scale * (transitionPresentation.scale ?? 1) * (visual.flipHorizontal ? -1 : 1)}, ${visual.scaleY * mediaAnimation.scale * (transitionPresentation.scale ?? 1) * (visual.flipVertical ? -1 : 1)})`,
-							transformOrigin: "center",
+							transform: buildClipTransitionAnchoredTransform({
+								presentation: transitionPresentation,
+								rotation: visual.rotation,
+								scaleX:
+									visual.scaleX *
+									mediaAnimation.scale *
+									(visual.flipHorizontal ? -1 : 1),
+								scaleY:
+									visual.scaleY *
+									mediaAnimation.scale *
+									(visual.flipVertical ? -1 : 1),
+							}),
+							transformOrigin:
+								transitionPresentation.transformOrigin ?? "center",
 							filter:
 								[transitionFilter, maskStrokeFilter]
 									.filter(Boolean)
@@ -794,6 +821,7 @@ export function PreviewElementRenderer({
 							zIndex: index + 1,
 							clipPath: transitionPresentation.clipPath,
 							backgroundColor: transitionPresentation.backgroundColor,
+							...transitionMaskStyle,
 						}}
 					>
 						<div
@@ -806,10 +834,16 @@ export function PreviewElementRenderer({
 								enhancementProxy.progress * 100
 							)}
 							style={{
-								opacity: transitionPresentation.contentOpacity,
+								...buildClipTransitionContentStyle({
+									presentation: transitionPresentation,
+									baseTransform: perspectiveTransform,
+								}),
 								clipPath: `inset(${visual.crop.top * 100}% ${visual.crop.right * 100}% ${visual.crop.bottom * 100}% ${visual.crop.left * 100}%)`,
-								transform: perspectiveTransform,
-								transformOrigin: "0 0",
+								transformOrigin:
+									transitionPresentation.pixelScale &&
+									transitionPresentation.pixelScale > 1
+										? "top left"
+										: "0 0",
 								...maskStyle,
 							}}
 						>
@@ -958,6 +992,9 @@ export function PreviewElementRenderer({
 							) : null}
 							{derivedAudioPlayers}
 						</div>
+						{transitionOverlayStyle ? (
+							<div aria-hidden="true" style={transitionOverlayStyle} />
+						) : null}
 						<CustomCutoutOverlay
 							element={element}
 							trackId={elementData.track.id}
@@ -1075,8 +1112,12 @@ export function PreviewElementRenderer({
 								top: `${50 + ((displayY + transitionPresentation.offsetY) / canvasSize.height) * 100}%`,
 								width: `${currentWidth * scaleRatio}px`,
 								height: `${currentHeight * scaleRatio}px`,
-								transform: `translate(-50%, -50%) rotate(${(element.rotation ?? 0) + (transitionPresentation.rotation ?? 0)}deg) scale(${transitionPresentation.scale ?? 1})`,
-								transformOrigin: "center",
+								transform: buildClipTransitionAnchoredTransform({
+									presentation: transitionPresentation,
+									rotation: element.rotation ?? 0,
+								}),
+								transformOrigin:
+									transitionPresentation.transformOrigin ?? "center",
 								filter:
 									[transitionFilter, maskStrokeFilter]
 										.filter(Boolean)
@@ -1085,11 +1126,14 @@ export function PreviewElementRenderer({
 								opacity: transitionPresentation.opacity,
 								clipPath: transitionPresentation.clipPath,
 								backgroundColor: transitionPresentation.backgroundColor,
+								...transitionMaskStyle,
 							}}
 						>
 							<div
 								className="size-full"
-								style={{ opacity: transitionPresentation.contentOpacity }}
+								style={buildClipTransitionContentStyle({
+									presentation: transitionPresentation,
+								})}
 							>
 								<img
 									src={mediaItem.url}
@@ -1114,6 +1158,9 @@ export function PreviewElementRenderer({
 									/>
 								) : null}
 							</div>
+							{transitionOverlayStyle ? (
+								<div aria-hidden="true" style={transitionOverlayStyle} />
+							) : null}
 							{selectedMask ? (
 								<MediaMaskOverlay
 									element={element}
@@ -1143,12 +1190,16 @@ export function PreviewElementRenderer({
 							transform: buildClipTransitionCssTransform({
 								presentation: transitionPresentation,
 							}),
-							transformOrigin: "center",
+							transformOrigin:
+								transitionPresentation.transformOrigin ?? "center",
+							...transitionMaskStyle,
 						}}
 					>
 						<div
 							className="size-full"
-							style={{ opacity: transitionPresentation.contentOpacity }}
+							style={buildClipTransitionContentStyle({
+								presentation: transitionPresentation,
+							})}
 						>
 							<img
 								src={mediaItem.url}
@@ -1173,6 +1224,9 @@ export function PreviewElementRenderer({
 								/>
 							) : null}
 						</div>
+						{transitionOverlayStyle ? (
+							<div aria-hidden="true" style={transitionOverlayStyle} />
+						) : null}
 						{selectedMask ? (
 							<MediaMaskOverlay
 								element={element}

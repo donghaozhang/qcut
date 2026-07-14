@@ -210,7 +210,15 @@ export interface VideoTransition {
 		| "flash"
 		| "light-leak"
 		| "rgb-glitch"
-		| "shake";
+		| "shake"
+		| "motion-blur"
+		| "pixelate"
+		| "water-ripple"
+		| "particle-dissolve"
+		| "glass-refraction"
+		| "page-flip"
+		| "texture-mask"
+		| "lens-flare";
 	direction?: "left" | "right" | "up" | "down";
 	easing: "linear" | "easeInOut";
 	duration: number;

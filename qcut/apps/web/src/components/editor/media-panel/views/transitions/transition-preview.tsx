@@ -1,7 +1,10 @@
 import { useEffect, useState } from "react";
 import {
+	buildClipTransitionContentStyle,
 	buildClipTransitionCssFilter,
 	buildClipTransitionCssTransform,
+	buildClipTransitionMaskStyle,
+	buildClipTransitionOverlayStyle,
 	getClipTransitionLayerPresentation,
 	type ClipTransitionRole,
 } from "@/lib/transitions/clip-transition-presentation";
@@ -58,6 +61,7 @@ function PreviewLayer({
 		canvasWidth: 240,
 		canvasHeight: 135,
 	});
+	const overlayStyle = buildClipTransitionOverlayStyle({ presentation });
 
 	return (
 		<div
@@ -68,16 +72,18 @@ function PreviewLayer({
 				clipPath: presentation.clipPath,
 				filter: buildClipTransitionCssFilter({ presentation }),
 				transform: buildClipTransitionCssTransform({ presentation }),
-				transformOrigin: "center",
+				transformOrigin: presentation.transformOrigin ?? "center",
+				...buildClipTransitionMaskStyle({ presentation }),
 			}}
 		>
 			<img
 				src={source}
 				alt=""
 				className="h-full w-full object-cover"
-				style={{ opacity: presentation.contentOpacity }}
+				style={buildClipTransitionContentStyle({ presentation })}
 				draggable={false}
 			/>
+			{overlayStyle ? <div aria-hidden="true" style={overlayStyle} /> : null}
 		</div>
 	);
 }
