@@ -167,6 +167,26 @@ export interface ClipTransitionTuning {
 	frequency?: number;
 }
 
+export type ClipTransitionTuningProperty = keyof ClipTransitionTuning;
+
+export type ClipTransitionKeyframeEasing =
+	| "linear"
+	| "easeIn"
+	| "easeOut"
+	| "easeInOut";
+
+export interface ClipTransitionTuningKeyframe {
+	id: string;
+	/** Normalized position inside the transition window. */
+	position: number;
+	value: number | string;
+	easing: ClipTransitionKeyframeEasing;
+}
+
+export type ClipTransitionTuningKeyframes = Partial<
+	Record<ClipTransitionTuningProperty, ClipTransitionTuningKeyframe[]>
+>;
+
 /** A visual transition joining two touching media elements on one track. */
 export interface ClipTransition {
 	id: string;
@@ -178,6 +198,7 @@ export interface ClipTransition {
 	direction?: ClipTransitionDirection;
 	easing: ClipTransitionEasing;
 	tuning?: ClipTransitionTuning;
+	tuningKeyframes?: ClipTransitionTuningKeyframes;
 }
 
 export type MediaComboAnimationType = "none" | "pulse" | "drift";
