@@ -1,0 +1,607 @@
+import type { TextTemplateDefinition } from "@/lib/text/text-template-registry";
+import type { TextElement } from "@/types/timeline";
+
+export type TextThumbnailBackgroundKind =
+	| "solid"
+	| "burst"
+	| "candy"
+	| "chrome"
+	| "comic"
+	| "fire"
+	| "glass"
+	| "glitch"
+	| "gold"
+	| "gradient"
+	| "ice"
+	| "ink"
+	| "lava"
+	| "pixel"
+	| "paper"
+	| "soft"
+	| "texture"
+	| "warning";
+
+export type TextThumbnailTextFillKind =
+	| "solid"
+	| "chrome"
+	| "gold"
+	| "hot"
+	| "ice"
+	| "neon"
+	| "pastel"
+	| "texture";
+
+export type TextThumbnailOrnamentKind =
+	| "none"
+	| "burst-rays"
+	| "confetti"
+	| "fire"
+	| "glitch"
+	| "sparkles"
+	| "sticker"
+	| "torn-paper"
+	| "grain";
+
+export type TextTemplateThumbnailRecipe = {
+	backgroundKind: TextThumbnailBackgroundKind;
+	textFillKind: TextThumbnailTextFillKind;
+	ornamentKind: TextThumbnailOrnamentKind;
+	accentColors: readonly string[];
+};
+
+type CanvasSize = {
+	width: number;
+	height: number;
+};
+
+const STYLE_RECIPES: Readonly<Record<string, TextTemplateThumbnailRecipe>> = {
+	"blue-ice": {
+		backgroundKind: "ice",
+		textFillKind: "ice",
+		ornamentKind: "sparkles",
+		accentColors: ["#0f172a", "#0369a1", "#7dd3fc", "#ffffff"],
+	},
+	candy: {
+		backgroundKind: "candy",
+		textFillKind: "pastel",
+		ornamentKind: "confetti",
+		accentColors: ["#831843", "#f9a8d4", "#ffffff", "#f0abfc"],
+	},
+	chrome: {
+		backgroundKind: "chrome",
+		textFillKind: "chrome",
+		ornamentKind: "grain",
+		accentColors: ["#171717", "#737373", "#fafafa", "#262626"],
+	},
+	comic: {
+		backgroundKind: "comic",
+		textFillKind: "solid",
+		ornamentKind: "burst-rays",
+		accentColors: ["#facc15", "#ef4444", "#f97316", "#111827"],
+	},
+	fire: {
+		backgroundKind: "fire",
+		textFillKind: "hot",
+		ornamentKind: "fire",
+		accentColors: ["#450a0a", "#b91c1c", "#fb923c", "#facc15"],
+	},
+	glass: {
+		backgroundKind: "glass",
+		textFillKind: "ice",
+		ornamentKind: "sparkles",
+		accentColors: ["#172554", "#0891b2", "#ffffff", "#67e8f9"],
+	},
+	glitch: {
+		backgroundKind: "glitch",
+		textFillKind: "neon",
+		ornamentKind: "glitch",
+		accentColors: ["#111827", "#22d3ee", "#fb7185", "#ffffff"],
+	},
+	glow: {
+		backgroundKind: "gradient",
+		textFillKind: "neon",
+		ornamentKind: "sparkles",
+		accentColors: ["#083344", "#06b6d4", "#f0abfc", "#ecfeff"],
+	},
+	gold: {
+		backgroundKind: "gold",
+		textFillKind: "gold",
+		ornamentKind: "sparkles",
+		accentColors: ["#2b1d08", "#8a5a12", "#facc15", "#fff7ed"],
+	},
+	"gradient-duotone": {
+		backgroundKind: "gradient",
+		textFillKind: "pastel",
+		ornamentKind: "sparkles",
+		accentColors: ["#7c3aed", "#ec4899", "#f97316", "#ffffff"],
+	},
+	"gradient-shine": {
+		backgroundKind: "gradient",
+		textFillKind: "ice",
+		ornamentKind: "sparkles",
+		accentColors: ["#0891b2", "#9333ea", "#fb7185", "#ecfeff"],
+	},
+	"green-fresh": {
+		backgroundKind: "soft",
+		textFillKind: "solid",
+		ornamentKind: "confetti",
+		accentColors: ["#14532d", "#16a34a", "#bef264", "#f0fdf4"],
+	},
+	ink: {
+		backgroundKind: "ink",
+		textFillKind: "texture",
+		ornamentKind: "grain",
+		accentColors: ["#292524", "#57534e", "#e7e5e4", "#ffffff"],
+	},
+	lava: {
+		backgroundKind: "lava",
+		textFillKind: "hot",
+		ornamentKind: "fire",
+		accentColors: ["#1c1917", "#450a0a", "#ef4444", "#facc15"],
+	},
+	pixel: {
+		backgroundKind: "pixel",
+		textFillKind: "solid",
+		ornamentKind: "grain",
+		accentColors: ["#27272a", "#52525b", "#facc15", "#111827"],
+	},
+	"pink-heart": {
+		backgroundKind: "candy",
+		textFillKind: "pastel",
+		ornamentKind: "sticker",
+		accentColors: ["#be185d", "#f9a8d4", "#ffffff", "#831843"],
+	},
+	"purple-dream": {
+		backgroundKind: "gradient",
+		textFillKind: "pastel",
+		ornamentKind: "sparkles",
+		accentColors: ["#2e1065", "#7c3aed", "#f0abfc", "#ffffff"],
+	},
+	"red-burst": {
+		backgroundKind: "burst",
+		textFillKind: "hot",
+		ornamentKind: "burst-rays",
+		accentColors: ["#7f1d1d", "#ef4444", "#facc15", "#111827"],
+	},
+	"texture-grain": {
+		backgroundKind: "texture",
+		textFillKind: "texture",
+		ornamentKind: "grain",
+		accentColors: ["#292524", "#57534e", "#a8a29e", "#fafaf9"],
+	},
+	"torn-paper": {
+		backgroundKind: "paper",
+		textFillKind: "solid",
+		ornamentKind: "torn-paper",
+		accentColors: ["#3f3f46", "#f5f5f4", "#a8a29e", "#111827"],
+	},
+	warning: {
+		backgroundKind: "warning",
+		textFillKind: "solid",
+		ornamentKind: "burst-rays",
+		accentColors: ["#4a421d", "#facc15", "#111827", "#fef9c3"],
+	},
+};
+
+export function getTextTemplateThumbnailRecipe({
+	definition,
+}: {
+	definition: TextTemplateDefinition;
+}): TextTemplateThumbnailRecipe {
+	return (
+		STYLE_RECIPES[definition.variantId] ?? {
+			backgroundKind: "solid",
+			textFillKind: "solid",
+			ornamentKind: definition.variantId === "sticker" ? "sticker" : "none",
+			accentColors: ["#3a3a3a", "#ffffff", "#111827", "#60a5fa"],
+		}
+	);
+}
+
+function fillRoundedRect({
+	context,
+	height,
+	radius,
+	width,
+	x,
+	y,
+}: {
+	context: CanvasRenderingContext2D;
+	height: number;
+	radius: number;
+	width: number;
+	x: number;
+	y: number;
+}) {
+	context.beginPath();
+	context.moveTo(x + radius, y);
+	context.lineTo(x + width - radius, y);
+	context.quadraticCurveTo(x + width, y, x + width, y + radius);
+	context.lineTo(x + width, y + height - radius);
+	context.quadraticCurveTo(
+		x + width,
+		y + height,
+		x + width - radius,
+		y + height
+	);
+	context.lineTo(x + radius, y + height);
+	context.quadraticCurveTo(x, y + height, x, y + height - radius);
+	context.lineTo(x, y + radius);
+	context.quadraticCurveTo(x, y, x + radius, y);
+	context.closePath();
+	context.fill();
+}
+
+function createLinearGradient({
+	colors,
+	context,
+	fromX,
+	fromY,
+	toX,
+	toY,
+}: {
+	colors: readonly string[];
+	context: CanvasRenderingContext2D;
+	fromX: number;
+	fromY: number;
+	toX: number;
+	toY: number;
+}): CanvasGradient {
+	const gradient = context.createLinearGradient(fromX, fromY, toX, toY);
+	const lastIndex = Math.max(1, colors.length - 1);
+	for (const [index, color] of colors.entries()) {
+		gradient.addColorStop(index / lastIndex, color);
+	}
+	return gradient;
+}
+
+function createRadialGradient({
+	colors,
+	context,
+	height,
+	width,
+}: {
+	colors: readonly string[];
+	context: CanvasRenderingContext2D;
+	height: number;
+	width: number;
+}): CanvasGradient {
+	const gradient = context.createRadialGradient(
+		width * 0.52,
+		height * 0.62,
+		width * 0.05,
+		width * 0.5,
+		height * 0.5,
+		width * 0.65
+	);
+	const lastIndex = Math.max(1, colors.length - 1);
+	for (const [index, color] of colors.entries()) {
+		gradient.addColorStop(index / lastIndex, color);
+	}
+	return gradient;
+}
+
+function drawBackground({
+	context,
+	height,
+	recipe,
+	width,
+}: CanvasSize & {
+	context: CanvasRenderingContext2D;
+	recipe: TextTemplateThumbnailRecipe;
+}) {
+	const [dark, mid, light, accent] = recipe.accentColors;
+	context.clearRect(0, 0, width, height);
+
+	if (recipe.backgroundKind === "burst" || recipe.backgroundKind === "comic") {
+		for (let index = 0; index < 28; index += 1) {
+			context.beginPath();
+			context.moveTo(width / 2, height / 2);
+			context.arc(
+				width / 2,
+				height / 2,
+				width,
+				(index * Math.PI * 2) / 28,
+				((index + 0.62) * Math.PI * 2) / 28
+			);
+			context.closePath();
+			context.fillStyle = index % 2 === 0 ? dark : mid;
+			context.fill();
+		}
+		context.fillStyle = recipe.backgroundKind === "comic" ? light : accent;
+		context.globalAlpha = 0.28;
+		fillRoundedRect({
+			context,
+			height: height * 0.54,
+			radius: 18,
+			width: width * 0.72,
+			x: width * 0.14,
+			y: height * 0.23,
+		});
+		context.globalAlpha = 1;
+		return;
+	}
+
+	if (recipe.backgroundKind === "fire" || recipe.backgroundKind === "lava") {
+		context.fillStyle = createRadialGradient({
+			colors: [accent, light, mid, dark],
+			context,
+			height,
+			width,
+		});
+		context.fillRect(0, 0, width, height);
+		return;
+	}
+
+	if (recipe.backgroundKind === "warning") {
+		context.fillStyle = dark;
+		context.fillRect(0, 0, width, height);
+		context.fillStyle = mid;
+		for (let x = -width; x < width * 2; x += 22) {
+			context.beginPath();
+			context.moveTo(x, 0);
+			context.lineTo(x + 13, 0);
+			context.lineTo(x + width, height);
+			context.lineTo(x + width - 13, height);
+			context.closePath();
+			context.fill();
+		}
+		return;
+	}
+
+	context.fillStyle = createLinearGradient({
+		colors: recipe.accentColors,
+		context,
+		fromX: 0,
+		fromY: 0,
+		toX: width,
+		toY: height,
+	});
+	context.fillRect(0, 0, width, height);
+
+	if (
+		recipe.backgroundKind === "texture" ||
+		recipe.backgroundKind === "ink" ||
+		recipe.backgroundKind === "chrome"
+	) {
+		drawGrain({ context, height, opacity: 0.24, width });
+	}
+
+	if (recipe.backgroundKind === "pixel") {
+		context.fillStyle = "rgba(255,255,255,.08)";
+		for (let x = 0; x < width; x += 12) {
+			for (let y = 0; y < height; y += 12) {
+				if ((x + y) % 24 === 0) context.fillRect(x, y, 6, 6);
+			}
+		}
+	}
+
+	if (recipe.backgroundKind === "paper") {
+		context.fillStyle = "rgba(255,255,255,.82)";
+		context.beginPath();
+		context.moveTo(width * 0.08, height * 0.24);
+		context.lineTo(width * 0.9, height * 0.16);
+		context.lineTo(width * 0.84, height * 0.78);
+		context.lineTo(width * 0.16, height * 0.86);
+		context.closePath();
+		context.fill();
+	}
+
+	if (recipe.backgroundKind === "glass" || recipe.backgroundKind === "ice") {
+		context.fillStyle = "rgba(255,255,255,.28)";
+		context.beginPath();
+		context.ellipse(width * 0.25, height * 0.18, 26, 16, -0.4, 0, Math.PI * 2);
+		context.fill();
+	}
+}
+
+function drawGrain({
+	context,
+	height,
+	opacity,
+	width,
+}: CanvasSize & {
+	context: CanvasRenderingContext2D;
+	opacity: number;
+}) {
+	context.save();
+	context.globalAlpha = opacity;
+	for (let index = 0; index < 92; index += 1) {
+		const x = (index * 37) % width;
+		const y = (index * 53) % height;
+		context.fillStyle = index % 3 === 0 ? "#ffffff" : "#000000";
+		context.fillRect(x, y, 1 + (index % 2), 1 + (index % 2));
+	}
+	context.restore();
+}
+
+function drawOrnaments({
+	context,
+	height,
+	recipe,
+	width,
+}: CanvasSize & {
+	context: CanvasRenderingContext2D;
+	recipe: TextTemplateThumbnailRecipe;
+}) {
+	const [, mid, light, accent] = recipe.accentColors;
+	if (recipe.ornamentKind === "fire") {
+		for (let index = 0; index < 7; index += 1) {
+			const x = width * (0.18 + index * 0.1);
+			const flameHeight = height * (0.25 + (index % 3) * 0.08);
+			context.fillStyle = index % 2 === 0 ? accent : mid;
+			context.beginPath();
+			context.moveTo(x, height * 0.83);
+			context.quadraticCurveTo(
+				x - 11,
+				height * 0.68,
+				x + 3,
+				height * 0.83 - flameHeight
+			);
+			context.quadraticCurveTo(x + 15, height * 0.68, x + 10, height * 0.83);
+			context.closePath();
+			context.fill();
+		}
+		return;
+	}
+
+	if (recipe.ornamentKind === "glitch") {
+		context.fillStyle = light;
+		context.fillRect(width * 0.08, height * 0.24, width * 0.44, 2);
+		context.fillStyle = mid;
+		context.fillRect(width * 0.34, height * 0.7, width * 0.5, 2);
+		context.fillStyle = accent;
+		context.fillRect(width * 0.14, height * 0.52, width * 0.24, 7);
+		return;
+	}
+
+	if (recipe.ornamentKind === "sticker") {
+		context.save();
+		context.shadowColor = "rgba(0,0,0,.35)";
+		context.shadowBlur = 6;
+		context.fillStyle = "rgba(255,255,255,.9)";
+		fillRoundedRect({
+			context,
+			height: height * 0.62,
+			radius: 18,
+			width: width * 0.78,
+			x: width * 0.11,
+			y: height * 0.2,
+		});
+		context.restore();
+		return;
+	}
+
+	if (
+		recipe.ornamentKind === "sparkles" ||
+		recipe.ornamentKind === "confetti"
+	) {
+		for (let index = 0; index < 10; index += 1) {
+			const x = (index * 31) % width;
+			const y = (index * 19) % height;
+			context.fillStyle = index % 2 === 0 ? light : accent;
+			context.globalAlpha = 0.74;
+			context.fillRect(x, y, 3, 3);
+		}
+		context.globalAlpha = 1;
+		return;
+	}
+
+	if (recipe.ornamentKind === "grain") {
+		drawGrain({ context, height, opacity: 0.32, width });
+	}
+}
+
+function getTextFill({
+	context,
+	height,
+	recipe,
+	width,
+}: CanvasSize & {
+	context: CanvasRenderingContext2D;
+	recipe: TextTemplateThumbnailRecipe;
+}): CanvasGradient | string {
+	if (recipe.textFillKind === "solid")
+		return recipe.accentColors[3] ?? "#ffffff";
+	const colorsByKind: Record<
+		Exclude<TextThumbnailTextFillKind, "solid">,
+		string[]
+	> = {
+		chrome: ["#ffffff", "#a3a3a3", "#f8fafc", "#404040"],
+		gold: ["#fff7ed", "#facc15", "#92400e"],
+		hot: ["#fff7ed", "#facc15", "#ef4444"],
+		ice: ["#ffffff", "#7dd3fc", "#2563eb"],
+		neon: ["#ecfeff", "#67e8f9", "#f9a8d4"],
+		pastel: ["#ffffff", "#f0abfc", "#fb7185"],
+		texture: ["#fafaf9", "#a8a29e", "#57534e"],
+	};
+	return createLinearGradient({
+		colors: colorsByKind[recipe.textFillKind],
+		context,
+		fromX: 0,
+		fromY: height * 0.18,
+		toX: width,
+		toY: height * 0.82,
+	});
+}
+
+function drawText({
+	context,
+	definition,
+	height,
+	recipe,
+	template,
+	width,
+}: CanvasSize & {
+	context: CanvasRenderingContext2D;
+	definition: TextTemplateDefinition;
+	recipe: TextTemplateThumbnailRecipe;
+	template: TextElement;
+}) {
+	const content = template.content || definition.content;
+	const fontSize = Math.min(
+		28,
+		Math.max(18, width / Math.max(3.5, content.length))
+	);
+	const fontFamily = definition.variantId === "pixel" ? "monospace" : "Arial";
+	const strokeWidth = Math.max(
+		1.8,
+		Math.min(4.8, (template.strokeWidth ?? 1) * 0.72)
+	);
+
+	context.save();
+	context.translate(width / 2, height / 2 + 2);
+	context.rotate(((template.rotation ?? 0) * Math.PI) / 180);
+	context.textAlign = "center";
+	context.textBaseline = "middle";
+	context.font = `900 ${fontSize}px ${fontFamily}`;
+	context.lineJoin = "round";
+	context.miterLimit = 2;
+	context.shadowColor = template.shadowColor ?? "rgba(0,0,0,.7)";
+	context.shadowBlur = Math.min(12, template.shadowBlur ?? 8);
+	context.shadowOffsetX = Math.min(7, template.shadowOffsetX ?? 4);
+	context.shadowOffsetY = Math.min(8, template.shadowOffsetY ?? 4);
+
+	if (recipe.ornamentKind === "glitch") {
+		context.fillStyle = "#22d3ee";
+		context.fillText(content, -3, 0);
+		context.fillStyle = "#fb7185";
+		context.fillText(content, 3, 0);
+	}
+
+	context.strokeStyle =
+		definition.variantId === "red-burst"
+			? "#111827"
+			: (template.strokeColor ?? "#000000");
+	context.lineWidth = strokeWidth + 2;
+	context.strokeText(content, 0, 0);
+	context.strokeStyle =
+		definition.variantId === "sticker" ? "#ffffff" : recipe.accentColors[1];
+	context.lineWidth = Math.max(1, strokeWidth);
+	context.strokeText(content, 0, 0);
+	context.fillStyle = getTextFill({ context, height, recipe, width });
+	context.fillText(content, 0, 0);
+
+	context.restore();
+}
+
+export function renderTextTemplateThumbnail({
+	canvas,
+	definition,
+	template,
+}: {
+	canvas: HTMLCanvasElement;
+	definition: TextTemplateDefinition;
+	template: TextElement;
+}) {
+	const context = canvas.getContext("2d");
+	if (!context) return;
+
+	const width = canvas.width;
+	const height = canvas.height;
+	const recipe = getTextTemplateThumbnailRecipe({ definition });
+
+	drawBackground({ context, height, recipe, width });
+	drawOrnaments({ context, height, recipe, width });
+	drawText({ context, definition, height, recipe, template, width });
+}
