@@ -33,6 +33,7 @@ import {
 	type TextTemplateResourceAccess,
 	type TextLibraryState,
 } from "@/lib/text/text-library-state";
+import { rankTextTemplateSearchResults } from "@/lib/text/text-library-search";
 import {
 	DEFAULT_TEXT_TEMPLATE_CATEGORY_ID,
 	TEXT_TEMPLATE_CATEGORIES,
@@ -576,11 +577,11 @@ export function TextView() {
 	);
 	const visibleDefinitions = useMemo(() => {
 		const searchBase = normalizedSearchQuery
-			? TEXT_TEMPLATE_LIBRARY_DEFINITIONS.filter((definition) =>
-					buildTemplateSearchText({ definition }).includes(
-						normalizedSearchQuery
-					)
-				)
+			? rankTextTemplateSearchResults({
+					definitions: TEXT_TEMPLATE_LIBRARY_DEFINITIONS,
+					query: normalizedSearchQuery,
+					state: libraryState,
+				})
 			: activeDefinitions;
 		return searchBase.filter(
 			(definition) =>
