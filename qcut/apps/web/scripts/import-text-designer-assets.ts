@@ -31,7 +31,9 @@ import {
 	verifyDesignerAssetCoverage,
 	verifyDesignerCategoryCoverage,
 } from "./verify-text-asset-cdn-manifest";
+import { verifyTextAssetPackageResourceManifest } from "./text-asset-package-resource-contract";
 import { writeTextMarketplaceConfigFromSources } from "./sync-text-marketplace-from-sources";
+import type { TextAssetUploadPlanItem } from "./upload-text-assets-cdn";
 
 export type TextDesignerAssetPackEntry = {
 	assetId: string;
@@ -402,6 +404,7 @@ export async function buildTextDesignerAssetImportPlan({
 	);
 	const items = itemGroups.flat();
 	assertDesignerPackItemsAreDistinct({ items });
+	await assertDesignerPackageResourcesMatchPlan({ items });
 	const updatedManifest = applyPlanToManifest({
 		generatedManifest,
 		items,
@@ -426,6 +429,53 @@ export async function buildTextDesignerAssetImportPlan({
 	return {
 		items,
 		updatedManifest,
+	};
+}
+
+async function assertDesignerPackageResourcesMatchPlan({
+	items,
+}: {
+	items: readonly TextDesignerAssetImportPlanItem[];
+}): Promise<void> {
+	const uploadItems = items.map((item) =>
+		designerImportItemToUploadPlanItem({ item })
+	);
+	const packageItems = items.filter((item) => item.role === "package");
+	const issueGroups = await Promise.all(
+		packageItems.map(async (packageItem) => {
+			const packageBytes = await readFile(packageItem.sourcePath);
+			return verifyTextAssetPackageResourceManifest({
+				items: uploadItems,
+				packageBytes,
+				packageItem: designerImportItemToUploadPlanItem({ item: packageItem }),
+				prefix: "",
+			});
+		})
+	);
+	const issues = issueGroups.flat();
+	if (issues.length === 0) return;
+	throw new Error(
+		`Designer package resource manifest mismatch: ${issues
+			.map((issue) => `${issue.key}: ${issue.detail}`)
+			.join("; ")}`
+	);
+}
+
+function designerImportItemToUploadPlanItem({
+	item,
+}: {
+	item: TextDesignerAssetImportPlanItem;
+}): TextAssetUploadPlanItem {
+	return {
+		assetId: item.assetId,
+		bucket: "",
+		cacheControl: "",
+		contentType: item.mimeType,
+		key: item.targetUrl.replace(/^\/+/, ""),
+		localPath: item.sourcePath,
+		role: item.role,
+		sha256: item.checksumSha256,
+		size: item.byteSize,
 	};
 }
 

@@ -148,6 +148,7 @@ function designerPackageText({
 	},
 	packageId = "text-demo",
 	source = designerSourceText({ assetId }),
+	thumbnailBytes = DESIGNER_THUMBNAIL_TEXT,
 }: {
 	assetId?: string;
 	cacheKey?: string;
@@ -157,6 +158,7 @@ function designerPackageText({
 	};
 	packageId?: string;
 	source?: string;
+	thumbnailBytes?: Buffer;
 } = {}): string {
 	const sourcePayload = JSON.parse(source) as Record<string, unknown>;
 	return `${JSON.stringify(
@@ -166,6 +168,24 @@ function designerPackageText({
 			files,
 			kind: "qcut-text-template-package",
 			packageId,
+			resources: [
+				{
+					byteSize: byteLength({ value: thumbnailBytes }),
+					checksumSha256: checksum({ value: thumbnailBytes }),
+					mimeType: "image/webp",
+					path: "thumbnail.webp",
+					role: "thumbnail",
+					url: `/${cacheKey}/thumbnail.webp`,
+				},
+				{
+					byteSize: byteLength({ value: source }),
+					checksumSha256: checksum({ value: source }),
+					mimeType: "application/json",
+					path: "template.json",
+					role: "source",
+					url: `/${cacheKey}/template.json`,
+				},
+			],
 			schemaVersion: 1,
 			source: sourcePayload,
 			version: 1,
@@ -281,6 +301,7 @@ async function writeDesignerAssetPackFiles({
 				cacheKey,
 				packageId,
 				source: sourceText,
+				thumbnailBytes,
 			})
 		),
 	]);
@@ -771,6 +792,28 @@ describe("text designer asset import script", () => {
 				publicDir,
 			})
 		).rejects.toThrow("file reference mismatch");
+	});
+
+	it("rejects designer package resource manifests that drift from supplied files", async () => {
+		const { generatedManifest, packDir, packManifest, publicDir } =
+			await createDesignerFixture();
+		const sourceText = designerSourceText();
+		await writeFile(
+			join(packDir, "template.qctext"),
+			designerPackageText({ source: sourceText }).replace(
+				checksum({ value: sourceText }),
+				"f".repeat(64)
+			)
+		);
+
+		await expect(
+			buildTextDesignerAssetImportPlan({
+				generatedManifest,
+				packDir,
+				packManifest,
+				publicDir,
+			})
+		).rejects.toThrow("Designer package resource manifest mismatch");
 	});
 
 	it("rejects designer source files without valid text template payloads", async () => {
