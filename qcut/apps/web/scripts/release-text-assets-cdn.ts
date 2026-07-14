@@ -471,10 +471,11 @@ bun run assets:text:verify-stage
 bun run assets:text:verify-archive
 \`\`\`
 
-After publishing, verify the remote CDN:
+After publishing, verify the remote CDN. The first command checks reachability and sizes quickly; the second downloads each object and verifies SHA-256 checksums:
 
 \`\`\`bash
 bun run assets:text:check-remote
+bun run assets:text:check-remote-checksum
 \`\`\`
 
 ## Release Summary

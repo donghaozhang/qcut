@@ -10,11 +10,39 @@ import {
 } from "../release-text-assets-cdn";
 import type { TextAssetGeneratedEntry } from "../verify-text-asset-cdn-manifest";
 
-function checksum({ value }: { value: string }): string {
-	return createHash("sha256").update(Buffer.from(value)).digest("hex");
+type TestFileContent = Buffer | string;
+
+function checksum({ value }: { value: TestFileContent }): string {
+	return createHash("sha256").update(toBuffer({ value })).digest("hex");
 }
 
-const THUMBNAIL_TEXT = "RIFF0000WEBP";
+function byteLength({ value }: { value: TestFileContent }): number {
+	return toBuffer({ value }).byteLength;
+}
+
+function toBuffer({ value }: { value: TestFileContent }): Buffer {
+	return Buffer.isBuffer(value) ? value : Buffer.from(value);
+}
+
+function createVp8xWebpBytes({
+	height,
+	width,
+}: {
+	height: number;
+	width: number;
+}): Buffer {
+	const bytes = Buffer.alloc(30);
+	bytes.write("RIFF", 0, "ascii");
+	bytes.writeUInt32LE(bytes.byteLength - 8, 4);
+	bytes.write("WEBP", 8, "ascii");
+	bytes.write("VP8X", 12, "ascii");
+	bytes.writeUInt32LE(10, 16);
+	bytes.writeUIntLE(width - 1, 24, 3);
+	bytes.writeUIntLE(height - 1, 27, 3);
+	return bytes;
+}
+
+const THUMBNAIL_TEXT = createVp8xWebpBytes({ height: 304, width: 320 });
 const SOURCE_TEXT = JSON.stringify({
 	assetId: "text-demo",
 	packageId: "text-demo",
@@ -48,7 +76,7 @@ function createGeneratedEntry(): TextAssetGeneratedEntry {
 		packageId: "text-demo",
 		version: 1,
 		thumbnail: {
-			byteSize: Buffer.byteLength(THUMBNAIL_TEXT),
+			byteSize: byteLength({ value: THUMBNAIL_TEXT }),
 			checksumSha256: checksum({ value: THUMBNAIL_TEXT }),
 			mimeType: "image/webp",
 			url: "/text-assets/demo/plain@1/thumbnail.webp",
@@ -343,10 +371,9 @@ describe("text asset CDN release script", () => {
 		]);
 		await expect(
 			readFile(
-				join(stageDir, "prod/text-assets/demo/plain@1/thumbnail.webp"),
-				"utf8"
-			)
-		).resolves.toBe(THUMBNAIL_TEXT);
+				join(stageDir, "prod/text-assets/demo/plain@1/thumbnail.webp")
+			).then((value) => toBuffer({ value }))
+		).resolves.toEqual(THUMBNAIL_TEXT);
 		await expect(
 			readFile(join(stageDir, "prod/text-assets/marketplace.json"), "utf8")
 		).resolves.toContain("schemaVersion");
@@ -374,6 +401,9 @@ describe("text asset CDN release script", () => {
 		await expect(
 			readFile(join(stageDir, "_qcut-text-assets-release-readme.md"), "utf8")
 		).resolves.toContain("assets:text:verify-archive");
+		await expect(
+			readFile(join(stageDir, "_qcut-text-assets-release-readme.md"), "utf8")
+		).resolves.toContain("assets:text:check-remote-checksum");
 		await expect(
 			readFile(join(stageDir, "_qcut-text-assets-release-readme.md"), "utf8")
 		).resolves.toContain("Do not upload these release metadata files");
