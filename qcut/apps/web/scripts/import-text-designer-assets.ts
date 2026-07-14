@@ -6,7 +6,16 @@ import type {
 	TextAssetGeneratedEntry,
 	TextAssetGeneratedFile,
 } from "./verify-text-asset-cdn-manifest";
-import { readGeneratedManifest } from "./verify-text-asset-cdn-manifest";
+import {
+	inferTextAssetCategory,
+	parseCommaSeparatedList,
+	parseNonNegativeInteger,
+	parsePositiveInteger,
+	readGeneratedManifest,
+	summarizeTextAssetProvenance,
+	verifyDesignerAssetCoverage,
+	verifyDesignerCategoryCoverage,
+} from "./verify-text-asset-cdn-manifest";
 
 export type TextDesignerAssetPackEntry = {
 	assetId: string;
@@ -24,9 +33,12 @@ export type TextDesignerAssetImportOptions = {
 	allowUnchanged: boolean;
 	dryRun: boolean;
 	generatedManifestPath: string;
+	minDesignerAssets: number;
+	minDesignerAssetsPerCategory: number;
 	packDir: string;
 	packManifestPath: string;
 	publicDir: string;
+	requiredDesignerCategories: string[];
 };
 
 export type TextDesignerAssetImportRole = "thumbnail" | "source" | "package";
@@ -49,7 +61,9 @@ export type TextDesignerAssetImportPlan = {
 
 export type TextDesignerAssetImportSummary = {
 	copiedFiles: number;
+	designerImportedAssets: number;
 	dryRun: boolean;
+	requiredDesignerCategories: number;
 	totalAssets: number;
 	totalBytes: number;
 	totalFiles: number;
@@ -84,9 +98,12 @@ export function parseTextDesignerAssetImportArgs({
 		allowUnchanged: false,
 		dryRun: false,
 		generatedManifestPath: DEFAULT_GENERATED_MANIFEST_PATH,
+		minDesignerAssets: 0,
+		minDesignerAssetsPerCategory: 1,
 		packDir: "",
 		packManifestPath: "",
 		publicDir: DEFAULT_PUBLIC_DIR,
+		requiredDesignerCategories: [],
 	};
 	for (let index = 0; index < argv.length; index += 1) {
 		const arg = argv[index];
@@ -103,6 +120,22 @@ export function parseTextDesignerAssetImportArgs({
 			index += 1;
 			continue;
 		}
+		if (arg === "--min-designer-assets") {
+			options.minDesignerAssets = parseNonNegativeInteger({
+				name: arg,
+				value: requireValue({ argv, index, name: arg }),
+			});
+			index += 1;
+			continue;
+		}
+		if (arg === "--min-designer-assets-per-category") {
+			options.minDesignerAssetsPerCategory = parsePositiveInteger({
+				name: arg,
+				value: requireValue({ argv, index, name: arg }),
+			});
+			index += 1;
+			continue;
+		}
 		if (arg === "--pack-dir") {
 			options.packDir = requireValue({ argv, index, name: arg });
 			index += 1;
@@ -115,6 +148,14 @@ export function parseTextDesignerAssetImportArgs({
 		}
 		if (arg === "--public-dir") {
 			options.publicDir = requireValue({ argv, index, name: arg });
+			index += 1;
+			continue;
+		}
+		if (arg === "--require-designer-categories") {
+			options.requiredDesignerCategories = parseCommaSeparatedList({
+				name: arg,
+				value: requireValue({ argv, index, name: arg }),
+			});
 			index += 1;
 			continue;
 		}
@@ -141,15 +182,21 @@ export async function readDesignerAssetPackManifest({
 export async function buildTextDesignerAssetImportPlan({
 	allowUnchanged = false,
 	generatedManifest,
+	minDesignerAssets = 0,
+	minDesignerAssetsPerCategory = 1,
 	packDir,
 	packManifest,
 	publicDir,
+	requiredDesignerCategories = [],
 }: {
 	allowUnchanged?: boolean;
 	generatedManifest: Record<string, TextAssetGeneratedEntry>;
+	minDesignerAssets?: number;
+	minDesignerAssetsPerCategory?: number;
 	packDir: string;
 	packManifest: TextDesignerAssetPackManifest;
 	publicDir: string;
+	requiredDesignerCategories?: readonly string[];
 }): Promise<TextDesignerAssetImportPlan> {
 	assertUniqueAssetIds({ packManifest });
 	const resolvedPackDir = resolve(packDir);
@@ -184,13 +231,48 @@ export async function buildTextDesignerAssetImportPlan({
 		})
 	);
 	const items = itemGroups.flat();
+	const updatedManifest = applyPlanToManifest({
+		generatedManifest,
+		items,
+	});
+	assertDesignerReadyCoverage({
+		generatedManifest: updatedManifest,
+		minDesignerAssets,
+		minDesignerAssetsPerCategory,
+		requiredDesignerCategories,
+	});
 	return {
 		items,
-		updatedManifest: applyPlanToManifest({
-			generatedManifest,
-			items,
-		}),
+		updatedManifest,
 	};
+}
+
+function assertDesignerReadyCoverage({
+	generatedManifest,
+	minDesignerAssets,
+	minDesignerAssetsPerCategory,
+	requiredDesignerCategories,
+}: {
+	generatedManifest: Record<string, TextAssetGeneratedEntry>;
+	minDesignerAssets: number;
+	minDesignerAssetsPerCategory: number;
+	requiredDesignerCategories: readonly string[];
+}): void {
+	const provenance = summarizeTextAssetProvenance({ generatedManifest });
+	const issues = [
+		...verifyDesignerAssetCoverage({ minDesignerAssets, provenance }),
+		...verifyDesignerCategoryCoverage({
+			generatedManifest,
+			minDesignerAssetsPerCategory,
+			requiredDesignerCategories,
+		}),
+	];
+	if (issues.length === 0) return;
+	throw new Error(
+		`Designer asset pack does not satisfy ready coverage: ${issues
+			.map((issue) => issue.detail)
+			.join("; ")}`
+	);
 }
 
 function assertDesignerAssetChanged({
@@ -257,9 +339,20 @@ export async function applyTextDesignerAssetImportPlan({
 		0
 	);
 	const importedAssetIds = new Set(plan.items.map((item) => item.assetId));
+	const provenance = summarizeTextAssetProvenance({
+		generatedManifest: plan.updatedManifest,
+	});
+	const designerCategories = new Set<string>();
+	for (const entry of Object.values(plan.updatedManifest)) {
+		if (entry.provenance?.source !== "designer-imported") continue;
+		const category = inferTextAssetCategory({ entry });
+		if (category) designerCategories.add(category);
+	}
 	return {
 		copiedFiles: dryRun ? 0 : plan.items.length,
+		designerImportedAssets: provenance.designerImported,
 		dryRun,
+		requiredDesignerCategories: designerCategories.size,
 		totalAssets: importedAssetIds.size,
 		totalBytes,
 		totalFiles: plan.items.length,
@@ -798,9 +891,12 @@ async function main(): Promise<void> {
 	const plan = await buildTextDesignerAssetImportPlan({
 		allowUnchanged: options.allowUnchanged,
 		generatedManifest,
+		minDesignerAssets: options.minDesignerAssets,
+		minDesignerAssetsPerCategory: options.minDesignerAssetsPerCategory,
 		packDir: options.packDir,
 		packManifest,
 		publicDir: options.publicDir,
+		requiredDesignerCategories: options.requiredDesignerCategories,
 	});
 	const summary = await applyTextDesignerAssetImportPlan({
 		dryRun: options.dryRun,

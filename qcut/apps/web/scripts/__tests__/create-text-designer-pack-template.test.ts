@@ -225,6 +225,7 @@ describe("text designer pack template script", () => {
 		).resolves.toContain('"category": "red"');
 		const readme = await readFile(join(outDir, "README.md"), "utf8");
 		expect(readme).toContain("assets:text:import-designer");
+		expect(readme).toContain("assets:text:import-designer-ready");
 		expect(readme).toContain("assets:text:verify-designer-ready");
 		expect(readme).toContain("| red | 1 |");
 	});

@@ -18,35 +18,44 @@ function checksum({ value }: { value: string }): string {
 
 const DESIGNER_THUMBNAIL_TEXT = "RIFF0000WEBP";
 
-function createGeneratedEntry(): TextAssetGeneratedEntry {
+function createGeneratedEntry({
+	assetId = "text-demo",
+	cacheKey = "text-assets/demo/plain@1",
+	packageId = "text-demo",
+}: {
+	assetId?: string;
+	cacheKey?: string;
+	packageId?: string;
+} = {}): TextAssetGeneratedEntry {
 	return {
-		assetId: "text-demo",
-		cacheKey: "text-assets/demo/plain@1",
-		packageId: "text-demo",
+		assetId,
+		cacheKey,
+		packageId,
 		version: 1,
 		thumbnail: {
 			byteSize: 3,
 			checksumSha256: checksum({ value: "old" }),
 			mimeType: "image/webp",
-			url: "/text-assets/demo/plain@1/thumbnail.webp",
+			url: `/${cacheKey}/thumbnail.webp`,
 		},
 		source: {
 			byteSize: 3,
 			checksumSha256: checksum({ value: "old" }),
 			mimeType: "application/json",
-			url: "/text-assets/demo/plain@1/template.json",
+			url: `/${cacheKey}/template.json`,
 		},
 		qcutPackage: {
 			byteSize: 3,
 			checksumSha256: checksum({ value: "old" }),
 			mimeType: "application/vnd.qcut.text-template+json",
-			url: "/text-assets/demo/plain@1/template.qctext",
+			url: `/${cacheKey}/template.qctext`,
 		},
 	};
 }
 
 function designerSourceText({
 	assetId = "text-demo",
+	packageId = "text-demo",
 	template = {
 		content: "设计师花字",
 		id: "designer-demo",
@@ -63,7 +72,7 @@ function designerSourceText({
 		{
 			assetId,
 			definition: { id: "designer-demo", name: "Designer demo" },
-			packageId: "text-demo",
+			packageId,
 			schemaVersion: 1,
 			template,
 			templatePack,
@@ -76,27 +85,31 @@ function designerSourceText({
 
 function designerPackageText({
 	assetId = "text-demo",
+	cacheKey = "text-assets/demo/plain@1",
 	files = {
 		source: "template.json",
 		thumbnail: "thumbnail.webp",
 	},
+	packageId = "text-demo",
 	source = designerSourceText({ assetId }),
 }: {
 	assetId?: string;
+	cacheKey?: string;
 	files?: {
 		source: string;
 		thumbnail: string;
 	};
+	packageId?: string;
 	source?: string;
 } = {}): string {
 	const sourcePayload = JSON.parse(source) as Record<string, unknown>;
 	return `${JSON.stringify(
 		{
 			assetId,
-			cacheKey: "text-assets/demo/plain@1",
+			cacheKey,
 			files,
 			kind: "qcut-text-template-package",
-			packageId: "text-demo",
+			packageId,
 			schemaVersion: 1,
 			source: sourcePayload,
 			version: 1,
@@ -163,19 +176,28 @@ describe("text designer asset import script", () => {
 					"--dry-run",
 					"--generated-manifest",
 					"/tmp/generated.json",
+					"--min-designer-assets",
+					"10",
+					"--min-designer-assets-per-category",
+					"5",
 					"--pack-dir",
 					"/tmp/designer-pack",
 					"--public-dir",
 					"/tmp/public",
+					"--require-designer-categories",
+					"red, texture",
 				],
 			})
 		).toMatchObject({
 			allowUnchanged: true,
 			dryRun: true,
 			generatedManifestPath: "/tmp/generated.json",
+			minDesignerAssets: 10,
+			minDesignerAssetsPerCategory: 5,
 			packDir: "/tmp/designer-pack",
 			packManifestPath: "/tmp/designer-pack/manifest.json",
 			publicDir: "/tmp/public",
+			requiredDesignerCategories: ["red", "texture"],
 		});
 	});
 
@@ -216,6 +238,64 @@ describe("text designer asset import script", () => {
 		expect(plan.updatedManifest["text-demo"]?.provenance).toEqual({
 			source: "designer-imported",
 			pipeline: "designer-pack-v1",
+		});
+	});
+
+	it("rejects designer packs that do not satisfy ready category coverage", async () => {
+		const { generatedManifest, packDir, packManifest, publicDir } =
+			await createDesignerFixture();
+
+		await expect(
+			buildTextDesignerAssetImportPlan({
+				generatedManifest,
+				minDesignerAssetsPerCategory: 1,
+				packDir,
+				packManifest,
+				publicDir,
+				requiredDesignerCategories: ["red"],
+			})
+		).rejects.toThrow("red (0)");
+	});
+
+	it("accepts designer packs that satisfy ready category coverage", async () => {
+		const { packDir, packManifest, publicDir } = await createDesignerFixture();
+		const generatedManifest = {
+			"text-demo": createGeneratedEntry({
+				cacheKey: "text-assets/text-fancy-red/plain@1",
+				packageId: "text-fancy-red",
+			}),
+		};
+		const sourceText = designerSourceText({ packageId: "text-fancy-red" });
+		await Promise.all([
+			writeFile(join(packDir, "template.json"), sourceText),
+			writeFile(
+				join(packDir, "template.qctext"),
+				designerPackageText({
+					cacheKey: "text-assets/text-fancy-red/plain@1",
+					packageId: "text-fancy-red",
+					source: sourceText,
+				})
+			),
+		]);
+
+		await expect(
+			buildTextDesignerAssetImportPlan({
+				generatedManifest,
+				minDesignerAssets: 1,
+				minDesignerAssetsPerCategory: 1,
+				packDir,
+				packManifest,
+				publicDir,
+				requiredDesignerCategories: ["red"],
+			})
+		).resolves.toMatchObject({
+			updatedManifest: {
+				"text-demo": {
+					provenance: {
+						source: "designer-imported",
+					},
+				},
+			},
 		});
 	});
 

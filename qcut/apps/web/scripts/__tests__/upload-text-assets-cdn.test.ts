@@ -104,6 +104,7 @@ describe("text asset CDN upload script", () => {
 		const readyCategories =
 			"popular,latest,summer,variety,guofeng,glow,gradient,texture,red,yellow,black-white,blue,pink,green,purple,headline-template,quote-template,list-template,split-template,timeline-template";
 		for (const scriptName of [
+			"assets:text:import-designer-ready",
 			"assets:text:verify-designer-ready",
 			"assets:text:upload-designer-ready",
 			"assets:text:release-designer-ready",

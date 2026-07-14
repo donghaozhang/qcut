@@ -243,7 +243,7 @@ export function parseCommaSeparatedList({
 	return [...new Set(values)];
 }
 
-function parseNonNegativeInteger({
+export function parseNonNegativeInteger({
 	name,
 	value,
 }: {
@@ -257,7 +257,7 @@ function parseNonNegativeInteger({
 	return parsed;
 }
 
-function parsePositiveInteger({
+export function parsePositiveInteger({
 	name,
 	value,
 }: {
