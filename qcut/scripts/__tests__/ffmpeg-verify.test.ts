@@ -8,7 +8,7 @@ import { verifyFFmpegBinaries } from "../ffmpeg-verify";
 const TARGET: FFmpegTarget = {
 	platform: "linux",
 	arch: "x64",
-	versionToken: "n8.1.2-test",
+	versionMarker: "n8.1.2-test",
 	hardwareAccelerators: ["vaapi"],
 	artifacts: [],
 };

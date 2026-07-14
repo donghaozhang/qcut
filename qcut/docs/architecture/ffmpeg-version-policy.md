@@ -7,11 +7,16 @@ target. `scripts/ffmpeg-binaries.json` is the only source of binary URLs,
 archive SHA256 digests, required build flags, and platform hardware acceleration
 checks.
 
-Changing a URL, digest, version token, codec capability, or hardware capability
+Changing a URL, digest, version marker, codec capability, or hardware capability
 invalidates the staged-binary receipt. Release builds must execute the host
 binary and verify its version, build configuration, and hardware accelerators.
 Non-host targets receive the same static version and build-flag checks before
 packaging.
+
+Windows and Linux artifacts use BtbN's retained month-end auto-builds. Ordinary
+daily auto-builds expire after the upstream retention window and must not be
+pinned in the manifest; the manifest regression tests enforce month-end release
+tags alongside immutable URLs and SHA256 digests.
 
 ## WebAssembly
 

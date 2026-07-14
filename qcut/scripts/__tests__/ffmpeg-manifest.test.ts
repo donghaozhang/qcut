@@ -5,6 +5,16 @@ import {
 	manifestFingerprint,
 } from "../ffmpeg-manifest";
 
+function isMonthEndBtbNRelease({ url }: { url: string }): boolean {
+	const match = url.match(/\/autobuild-(\d{4})-(\d{2})-(\d{2})-\d{2}-\d{2}\//);
+	if (!match) return false;
+	const [, rawYear, rawMonth, rawDay] = match;
+	const year = Number(rawYear);
+	const month = Number(rawMonth);
+	const day = Number(rawDay);
+	return day === new Date(Date.UTC(year, month, 0)).getUTCDate();
+}
+
 describe("FFmpeg binary manifest", () => {
 	it("pins FFmpeg 8.1.2 for every desktop target", async () => {
 		const manifest = await loadFFmpegManifest();
@@ -17,7 +27,7 @@ describe("FFmpeg binary manifest", () => {
 		]);
 
 		for (const target of Object.values(manifest.targets)) {
-			expect(target.versionToken).toContain("8.1.2");
+			expect(target.versionMarker).toContain("8.1.2");
 			expect(target.hardwareAccelerators.length).toBeGreaterThan(0);
 			const providedTools = target.artifacts.flatMap((artifact) =>
 				Object.keys(artifact.files)
@@ -43,6 +53,16 @@ describe("FFmpeg binary manifest", () => {
 			"--enable-libzimg",
 		]);
 		expect(manifest.forbiddenBuildFlags).toEqual(["--enable-nonfree"]);
+	});
+
+	it("pins BtbN targets to retained monthly releases", async () => {
+		const manifest = await loadFFmpegManifest();
+		for (const targetKey of ["linux-x64", "win32-x64"] as const) {
+			for (const artifact of manifest.targets[targetKey].artifacts) {
+				expect(artifact.url).toContain("github.com/BtbN/FFmpeg-Builds");
+				expect(isMonthEndBtbNRelease({ url: artifact.url })).toBe(true);
+			}
+		}
 	});
 
 	it("invalidates staged binaries when source metadata changes", async () => {
