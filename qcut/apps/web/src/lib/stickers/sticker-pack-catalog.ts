@@ -79,6 +79,16 @@ const ORIGINAL_ITEMS = CURATED_STICKERS.filter(
 	name: sticker.localizedName,
 }));
 
+const THEMED_ITEMS = CURATED_STICKERS.filter(
+	(sticker) => sticker.collection === "qcut-themed"
+).map((sticker) => ({
+	id: sticker.id,
+	animated: sticker.animated,
+	collection: sticker.collection,
+	icon: sticker.icon,
+	name: sticker.localizedName,
+}));
+
 const FLUENT_ITEMS = CURATED_STICKERS.filter(
 	(sticker) => sticker.source.kind === "iconify"
 ).map((sticker) => ({
@@ -91,6 +101,7 @@ const FLUENT_ITEMS = CURATED_STICKERS.filter(
 
 export const DEFAULT_INSTALLED_STICKER_PACK_IDS = [
 	"qcut-original-characters",
+	"qcut-themed-creator",
 	"fluent-creator-essentials",
 ] as const;
 
@@ -104,6 +115,16 @@ export const STICKER_STORE_PACKS: readonly StickerStorePack[] = [
 		items: ORIGINAL_ITEMS,
 		localizedName: "QCut 原创角色",
 		name: "QCut Original Characters",
+	},
+	{
+		id: "qcut-themed-creator",
+		accessTier: "free",
+		animated: false,
+		description: `${THEMED_ITEMS.length} 个花字、横幅、箭头与专题贴纸`,
+		emoji: "🪄",
+		items: THEMED_ITEMS,
+		localizedName: "QCut 创作主题包",
+		name: "QCut Themed Creator Pack",
 	},
 	{
 		id: "fluent-creator-essentials",

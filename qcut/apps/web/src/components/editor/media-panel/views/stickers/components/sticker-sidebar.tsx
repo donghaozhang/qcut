@@ -1,11 +1,16 @@
-import { Clock, Heart, Library } from "lucide-react";
+import { Clock, Heart, Library, Sparkles } from "lucide-react";
 import {
 	STICKER_CATEGORIES,
 	type StickerCategoryId,
 } from "@/lib/stickers/sticker-catalog";
 import { cn } from "@/lib/utils";
 
-export type StickerPanelMode = "favorites" | "library" | "recent" | "store";
+export type StickerPanelMode =
+	| "ai"
+	| "favorites"
+	| "library"
+	| "recent"
+	| "store";
 
 interface StickerSidebarProps {
 	mode: StickerPanelMode;
@@ -16,6 +21,7 @@ interface StickerSidebarProps {
 
 const MODE_ITEMS = [
 	{ id: "library", label: "贴纸库", icon: Library },
+	{ id: "ai", label: "AI生成", icon: Sparkles },
 	{ id: "favorites", label: "收藏", icon: Heart },
 	{ id: "recent", label: "最近", icon: Clock },
 ] as const;

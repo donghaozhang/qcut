@@ -12,6 +12,7 @@ import {
 	type StickerCategoryId,
 } from "@/lib/stickers/sticker-catalog";
 import { useStickersStore } from "@/stores/stickers-store";
+import { AIStickerGenerator } from "./components/ai-sticker-generator";
 import { StickerCatalogGrid } from "./components/sticker-catalog-grid";
 import {
 	StickerSidebar,
@@ -27,7 +28,7 @@ import { useStickerSelect } from "./hooks/use-sticker-select";
 export function StickersView() {
 	const [searchQuery, setSearchQuery] = useState("");
 	const [selectedCategory, setSelectedCategory] =
-		useState<StickerCategoryId>("interaction");
+		useState<StickerCategoryId>("popular");
 	const [mode, setMode] = useState<StickerPanelMode>("library");
 	const [isSearching, setIsSearching] = useState(false);
 	const fileInputRef = useRef<HTMLInputElement>(null);
@@ -107,6 +108,17 @@ export function StickersView() {
 		await Promise.all(files.map((file) => handleStickerUpload({ file })));
 	};
 
+	const selectMode = ({ mode: nextMode }: { mode: StickerPanelMode }) => {
+		setMode(nextMode);
+		setSearchQuery("");
+	};
+
+	const selectCategory = ({ category }: { category: StickerCategoryId }) => {
+		setSelectedCategory(category);
+		setMode("library");
+		setSearchQuery("");
+	};
+
 	return (
 		<div
 			className="flex h-full min-h-0 flex-col bg-panel text-foreground"
@@ -116,10 +128,9 @@ export function StickersView() {
 				isStoreActive={mode === "store"}
 				searchQuery={searchQuery}
 				onSearchChange={setSearchQuery}
-				onStoreClick={() => {
-					setMode("store");
-					setSearchQuery("");
-				}}
+				onStoreClick={() =>
+					selectMode({ mode: mode === "store" ? "library" : "store" })
+				}
 				onUploadClick={() => fileInputRef.current?.click()}
 			/>
 			<input
@@ -133,9 +144,7 @@ export function StickersView() {
 
 			{error && (
 				<div className="mx-3 mt-2 flex items-center gap-2 rounded border border-destructive/40 bg-destructive/10 px-2 py-1.5 text-xs text-destructive">
-					<AlertCircle className="size-3.5 shrink-0">
-						<title>Sticker library error</title>
-					</AlertCircle>
+					<AlertCircle className="size-3.5 shrink-0" aria-hidden="true" />
 					<span className="min-w-0 flex-1 truncate">{error}</span>
 					<Button
 						type="button"
@@ -149,84 +158,72 @@ export function StickersView() {
 							}
 						}}
 					>
-						Dismiss
+						关闭
 					</Button>
 				</div>
 			)}
 
-			<div className="min-h-0 flex-1 overflow-hidden">
-				{searchQuery ? (
-					<div className="h-full overflow-y-auto">
-						<StickersSearchResults
-							searchResults={combinedSearchResults}
-							searchQuery={searchQuery}
-							isSearching={isSearching}
+			<div className="flex min-h-0 flex-1 overflow-hidden">
+				<StickerSidebar
+					mode={mode}
+					selectedCategory={selectedCategory}
+					onSelectCategory={selectCategory}
+					onSelectMode={selectMode}
+				/>
+
+				<section className="min-w-0 flex-1 overflow-hidden">
+					{searchQuery ? (
+						<div className="h-full overflow-y-auto">
+							<StickersSearchResults
+								searchResults={combinedSearchResults}
+								searchQuery={searchQuery}
+								isSearching={isSearching}
+								onDownload={handleStickerDownload}
+								onSelect={handleStickerSelect}
+							/>
+						</div>
+					) : mode === "store" ? (
+						<StickerStorefront
 							onDownload={handleStickerDownload}
 							onSelect={handleStickerSelect}
 						/>
-					</div>
-				) : (
-					<div className="flex h-full min-h-0">
-						<StickerSidebar
-							mode={mode}
-							selectedCategory={selectedCategory}
-							onSelectCategory={({ category }) => {
-								setSelectedCategory(category);
-								setMode("library");
-							}}
-							onSelectMode={({ mode: nextMode }) => {
-								setMode(nextMode);
-								setSearchQuery("");
-							}}
-						/>
-
-						{mode === "store" ? (
-							<div className="min-w-0 flex-1 overflow-y-auto">
-								<StickerStorefront
+					) : mode === "recent" ? (
+						<div className="h-full overflow-y-auto">
+							<StickersRecent
+								recentStickers={recentStickers}
+								onDownload={handleStickerDownload}
+								onSelect={handleStickerSelect}
+							/>
+						</div>
+					) : mode === "favorites" ? (
+						<div className="h-full overflow-y-auto">
+							<StickersFavorites
+								onDownload={handleStickerDownload}
+								onSelect={handleStickerSelect}
+							/>
+						</div>
+					) : mode === "ai" ? (
+						<AIStickerGenerator onAddGeneratedSticker={handleStickerUpload} />
+					) : (
+						<div className="flex h-full min-h-0 flex-col">
+							<div className="flex h-10 shrink-0 items-center justify-between border-b border-border/40 px-3 text-[11px]">
+								<span className="font-medium">
+									{activeCategory?.localizedLabel ?? "贴纸"}
+								</span>
+								<span className="tabular-nums text-muted-foreground">
+									{categoryItems.length} 个贴纸
+								</span>
+							</div>
+							<div className="min-h-0 flex-1 overflow-y-auto p-2">
+								<StickerCatalogGrid
+									items={categoryItems}
 									onDownload={handleStickerDownload}
 									onSelect={handleStickerSelect}
 								/>
 							</div>
-						) : mode === "recent" ? (
-							<div className="min-w-0 flex-1 overflow-y-auto">
-								<StickersRecent
-									recentStickers={recentStickers}
-									onDownload={handleStickerDownload}
-									onSelect={handleStickerSelect}
-								/>
-							</div>
-						) : mode === "favorites" ? (
-							<div className="min-w-0 flex-1 overflow-y-auto">
-								<StickersFavorites
-									onDownload={handleStickerDownload}
-									onSelect={handleStickerSelect}
-								/>
-							</div>
-						) : (
-							<section className="flex min-w-0 flex-1 flex-col">
-								<div className="flex h-10 shrink-0 items-center justify-between border-b border-border/40 px-3 text-[11px]">
-									<span className="font-medium">
-										{activeCategory?.localizedLabel ?? "贴纸"}
-									</span>
-									<span className="tabular-nums text-muted-foreground">
-										{categoryItems.length} 个贴纸
-									</span>
-								</div>
-								<div className="min-h-0 flex-1 overflow-y-auto p-2">
-									<StickerCatalogGrid
-										items={categoryItems}
-										onDownload={handleStickerDownload}
-										onSelect={handleStickerSelect}
-									/>
-								</div>
-							</section>
-						)}
-					</div>
-				)}
-			</div>
-
-			<div className="border-t border-border/50 px-3 py-1.5 text-center text-[10px] text-muted-foreground">
-				QCut Originals + Fluent Emoji via Iconify
+						</div>
+					)}
+				</section>
 			</div>
 		</div>
 	);

@@ -21,10 +21,10 @@ describe("StickersView", () => {
 		});
 	});
 
-	it("opens the creator catalog on the interaction category", () => {
+	it("opens the creator catalog on the popular category", () => {
 		render(<StickersView />);
 
-		expect(screen.getByTestId("sticker-category-interaction")).toHaveAttribute(
+		expect(screen.getByTestId("sticker-category-popular")).toHaveAttribute(
 			"aria-pressed",
 			"true"
 		);
@@ -36,7 +36,9 @@ describe("StickersView", () => {
 				"sticker-item"
 			)
 		).toHaveLength(STICKER_CATEGORY_MINIMUM_SIZE);
-		expect(screen.getByRole("img", { name: "点赞" })).toBeInTheDocument();
+		expect(
+			screen.getAllByRole("img", { name: "热门·爆款推荐" }).length
+		).toBeGreaterThan(0);
 	});
 
 	it("renders at least five stickers in every creator category", () => {
@@ -76,7 +78,7 @@ describe("StickersView", () => {
 		).toBeInTheDocument();
 	});
 
-	it("switches between the library, store, recent stickers, and favorites", () => {
+	it("switches between the library, store, AI, recent, and favorites", () => {
 		render(<StickersView />);
 
 		fireEvent.click(screen.getByRole("button", { name: "商店" }));
@@ -88,7 +90,10 @@ describe("StickersView", () => {
 		fireEvent.click(screen.getByRole("button", { name: "收藏" }));
 		expect(screen.getByText("No favorite stickers")).toBeInTheDocument();
 
-		fireEvent.click(screen.getByRole("button", { name: "贴纸库" }));
+		fireEvent.click(screen.getByRole("button", { name: "AI生成" }));
+		expect(screen.getByTestId("ai-sticker-generator")).toBeInTheDocument();
+
+		fireEvent.click(screen.getByTestId("sticker-category-interaction"));
 		expect(screen.getByTestId("sticker-category-grid")).toBeInTheDocument();
 	});
 });
