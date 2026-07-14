@@ -60,7 +60,8 @@ describe("sticker resources", () => {
 			.spyOn(URL, "createObjectURL")
 			.mockReturnValue("blob:cached-sticker");
 		const storage = new MemoryAssetCache();
-		const sourceUrl = "https://api.iconify.design/line-md:loading-twotone-loop.svg";
+		const sourceUrl =
+			"https://api.iconify.design/line-md:loading-twotone-loop.svg";
 		const blob = new Blob(["<svg />"], { type: "image/svg+xml" });
 		storage.resources.set("sticker:line-md:loading-twotone-loop@1:source:1", {
 			assetIdentity: "sticker:line-md:loading-twotone-loop",
