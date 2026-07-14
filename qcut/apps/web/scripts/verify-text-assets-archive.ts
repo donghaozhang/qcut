@@ -2,6 +2,7 @@ import { execFile } from "node:child_process";
 import { dirname, isAbsolute, join, sep } from "node:path";
 import { fileURLToPath } from "node:url";
 import { promisify } from "node:util";
+import { verifyTextAssetUploadPlanItemContract } from "./text-asset-upload-plan-contract";
 import type { TextAssetUploadPlanReport } from "./upload-text-assets-cdn";
 
 export type TextAssetArchiveVerifyOptions = {
@@ -14,6 +15,7 @@ export type TextAssetArchiveVerifyIssue = {
 		| "missing-archive-entry"
 		| "unexpected-archive-entry"
 		| "duplicate-archive-entry"
+		| "archive-contract-mismatch"
 		| "invalid-archive-entry";
 	detail: string;
 	key: string;
@@ -117,7 +119,16 @@ export function verifyTextAssetArchive({
 		...manifest.items.map((item) => item.key),
 	]);
 	const entryCounts = new Map<string, number>();
-	const issues: TextAssetArchiveVerifyIssue[] = [];
+	const issues: TextAssetArchiveVerifyIssue[] = manifest.items.flatMap((item) =>
+		verifyTextAssetUploadPlanItemContract({ item }).map((issue) => ({
+			code: "archive-contract-mismatch",
+			detail: issue.detail.replace(
+				"upload item contract mismatch",
+				"archive manifest contract mismatch"
+			),
+			key: issue.key,
+		}))
+	);
 
 	for (const rawEntry of entries) {
 		const normalized = normalizeArchiveEntry({ entry: rawEntry });

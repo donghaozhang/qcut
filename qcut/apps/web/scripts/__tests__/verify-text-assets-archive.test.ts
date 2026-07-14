@@ -22,17 +22,21 @@ const PACKAGE_JSON_PATH = join(
 );
 
 function createUploadPlanItem({
+	contentType = "application/json",
 	key,
+	role = "source",
 }: {
+	contentType?: string;
 	key: string;
+	role?: TextAssetUploadPlanItem["role"];
 }): TextAssetUploadPlanItem {
 	return {
 		bucket: "qcut-assets",
 		cacheControl: "public, max-age=31536000, immutable",
-		contentType: "application/json",
+		contentType,
 		key,
 		localPath: `/tmp/${key}`,
-		role: "source",
+		role,
 		sha256: "sha",
 		size: 12,
 	};
@@ -196,5 +200,32 @@ describe("text asset archive verifier", () => {
 			},
 			issues: expect.arrayContaining([expect.any(Object), expect.any(Object)]),
 		});
+	});
+
+	it("reports release manifest entries that violate role contracts", () => {
+		const badThumbnailItem = createUploadPlanItem({
+			contentType: "application/json",
+			key: "prod/text-assets/demo/plain@1/template.json",
+			role: "thumbnail",
+		});
+		const manifest = createUploadPlanReport({ items: [badThumbnailItem] });
+
+		expect(
+			verifyTextAssetArchive({
+				entries: [
+					"./_qcut-text-assets-release.json",
+					"./_qcut-text-assets-release-readme.md",
+					"./_qcut-text-designer-gap-report.json",
+					`./${badThumbnailItem.key}`,
+				],
+				manifest,
+			})
+		).toEqual([
+			expect.objectContaining({
+				code: "archive-contract-mismatch",
+				detail: expect.stringContaining("contentType expected image/webp"),
+				key: badThumbnailItem.key,
+			}),
+		]);
 	});
 });
