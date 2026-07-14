@@ -184,7 +184,7 @@ export function summarizeTextAssetArchiveIssues({
 	};
 }
 
-function countTextAssetArchiveFiles({
+export function countTextAssetArchiveFiles({
 	entries,
 }: {
 	entries: readonly string[];
