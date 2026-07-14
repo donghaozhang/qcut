@@ -2,6 +2,7 @@ import type {
 	ClipTransition,
 	ClipTransitionEasing,
 } from "../types/timeline.js";
+import { resolveClipTransitionTuning } from "./transition-tuning.js";
 
 export const CLIP_TRANSITION_PROGRESS_STOPS = [0, 0.25, 0.5, 0.75, 1] as const;
 
@@ -79,14 +80,6 @@ function wipeClipPath({
 
 function transitionPeak({ progress }: { progress: number }): number {
 	return 4 * progress * (1 - progress);
-}
-
-function transitionTuning({ transition }: { transition: ClipTransition }) {
-	return {
-		intensity: Math.min(2, Math.max(0.1, transition.tuning?.intensity ?? 1)),
-		frequency: Math.min(4, Math.max(0.1, transition.tuning?.frequency ?? 1)),
-		tint: transition.tuning?.tint,
-	};
 }
 
 function enteringOffset({
@@ -238,7 +231,7 @@ export function getClipTransitionLayerPresentation({
 		progress,
 		easing: transition.easing,
 	});
-	const tuning = transitionTuning({ transition });
+	const tuning = resolveClipTransitionTuning({ transition, progress });
 	const base: ClipTransitionLayerPresentation = {
 		opacity: 1,
 		contentOpacity: 1,
