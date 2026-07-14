@@ -332,13 +332,25 @@ async function fetchResourceWithRetry({
 	}
 }
 
-function cachedResourceMatches({
+async function cachedResourceMatches({
 	cached,
 	file,
 }: {
 	cached: CachedAssetResource;
 	file: AssetManifestFile;
-}): boolean {
+}): Promise<boolean> {
+	if (cached.blob.size !== cached.byteSize) return false;
+	if (file.byteSize !== undefined && cached.blob.size !== file.byteSize) {
+		return false;
+	}
+	if (file.checksumSha256 !== undefined) {
+		const checksumSha256 = await sha256({
+			bytes: new Uint8Array(await cached.blob.arrayBuffer()),
+		});
+		if (checksumSha256 !== file.checksumSha256.toLocaleLowerCase()) {
+			return false;
+		}
+	}
 	return (
 		cached.sourceUrl === file.url &&
 		(file.byteSize === undefined || cached.byteSize === file.byteSize) &&
@@ -378,7 +390,7 @@ async function ensureFetchedResource({
 }): Promise<ResolvedAssetResource> {
 	const cacheKey = resourceCacheKey({ asset, file, fileIndex });
 	const cached = await storage.get({ cacheKey });
-	if (cached && cachedResourceMatches({ cached, file })) {
+	if (cached && (await cachedResourceMatches({ cached, file }))) {
 		await storage.put({
 			resource: { ...cached, lastAccessedAt: now() },
 		});

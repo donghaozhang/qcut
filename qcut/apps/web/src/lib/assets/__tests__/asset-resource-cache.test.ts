@@ -122,6 +122,42 @@ describe("asset resource cache", () => {
 		expect(fetchImpl).toHaveBeenCalledTimes(1);
 	});
 
+	it("refetches cached resources when the stored blob checksum is stale", async () => {
+		const fetchImpl = successfulFetch();
+		const asset = remoteAsset({
+			byteSize: 5,
+			checksumSha256:
+				"2cf24dba5fb0a30e26e83b2ac5b9e29e1b161e5c1fa7425e73043362938b9824",
+		});
+		storage.resources.set("transition:whip-pack@1:source:0", {
+			assetIdentity: "transition:whip-pack",
+			assetKey: "transition:whip-pack@1",
+			blob: new Blob(["HELLO"]),
+			byteSize: 5,
+			cacheKey: "transition:whip-pack@1:source:0",
+			cachedAt: 1,
+			checksumSha256:
+				"2cf24dba5fb0a30e26e83b2ac5b9e29e1b161e5c1fa7425e73043362938b9824",
+			fileIndex: 0,
+			lastAccessedAt: 1,
+			mimeType: "text/plain",
+			role: "source",
+			sourceUrl: "https://assets.test/whip.txt",
+			version: 1,
+		});
+
+		const result = await ensureAssetResources({ asset, fetchImpl, storage });
+
+		expect(result[0]).toMatchObject({ fromCache: false, byteSize: 5 });
+		expect(await result[0].blob?.text()).toBe("hello");
+		expect(
+			await storage.resources
+				.get("transition:whip-pack@1:source:0")
+				?.blob.text()
+		).toBe("hello");
+		expect(fetchImpl).toHaveBeenCalledTimes(1);
+	});
+
 	it("materializes bundled resources into the cache when requested", async () => {
 		const fetchImpl = successfulFetch();
 		const asset = bundledAsset({

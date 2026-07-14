@@ -656,18 +656,20 @@ describe("downloadTextTemplateResource", () => {
 	it("loads remote package files from the asset cache without another request", async () => {
 		const definition = textDefinition();
 		const storage = new MemoryAssetCache();
+		const packageBody = padJsonTextToByteLength({
+			targetBytes: 1024,
+			text: packageText({ content: "IndexedDB package", definition }),
+		});
 		storage.resources.set(
 			"text-template:asset-remote-resource-test@1:package:2",
 			{
 				assetIdentity: "text-template:asset-remote-resource-test",
 				assetKey: "text-template:asset-remote-resource-test@1",
-				blob: new Blob([
-					packageText({ content: "IndexedDB package", definition }),
-				]),
+				blob: new Blob([packageBody]),
 				byteSize: 1024,
 				cacheKey: "text-template:asset-remote-resource-test@1:package:2",
 				cachedAt: 1,
-				checksumSha256: "0".repeat(64),
+				checksumSha256: checksum({ value: packageBody }),
 				fileIndex: 2,
 				lastAccessedAt: 1,
 				mimeType: "application/vnd.qcut.text-template+json",
@@ -696,16 +698,17 @@ describe("downloadTextTemplateResource", () => {
 	it("loads remote thumbnail blobs from the asset cache without another request", async () => {
 		const definition = textDefinition();
 		const storage = new MemoryAssetCache();
+		const thumbnailBody = "cached thumbnail".padEnd(184);
 		storage.resources.set(
 			"text-template:asset-remote-resource-test@1:thumbnail:0",
 			{
 				assetIdentity: "text-template:asset-remote-resource-test",
 				assetKey: "text-template:asset-remote-resource-test@1",
-				blob: new Blob(["cached thumbnail"]),
+				blob: new Blob([thumbnailBody]),
 				byteSize: 184,
 				cacheKey: "text-template:asset-remote-resource-test@1:thumbnail:0",
 				cachedAt: 1,
-				checksumSha256: "0".repeat(64),
+				checksumSha256: checksum({ value: thumbnailBody }),
 				fileIndex: 0,
 				lastAccessedAt: 1,
 				mimeType: "image/webp",
@@ -723,7 +726,7 @@ describe("downloadTextTemplateResource", () => {
 				fetchImpl,
 				storage,
 			}).then((blob) => blob?.text())
-		).resolves.toBe("cached thumbnail");
+		).resolves.toBe(thumbnailBody);
 		expect(fetchImpl).not.toHaveBeenCalled();
 	});
 
