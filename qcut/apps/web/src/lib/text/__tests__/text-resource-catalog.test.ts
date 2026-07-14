@@ -193,11 +193,7 @@ describe("text resource catalog", () => {
 
 		for (const definition of TEXT_TEMPLATE_DEFINITIONS) {
 			const files = getTextTemplateResourceFiles({ definition });
-			const fileUrls = [
-				files.thumbnailUrl,
-				files.sourceUrl,
-				files.packageUrl,
-			];
+			const fileUrls = [files.thumbnailUrl, files.sourceUrl, files.packageUrl];
 
 			for (const url of fileUrls) {
 				if (url.startsWith("qcut-text-asset://")) {
