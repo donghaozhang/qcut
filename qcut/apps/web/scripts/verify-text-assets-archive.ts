@@ -184,6 +184,19 @@ export function summarizeTextAssetArchiveIssues({
 	};
 }
 
+function countTextAssetArchiveFiles({
+	entries,
+}: {
+	entries: readonly string[];
+}): number {
+	let count = 0;
+	for (const entry of entries) {
+		const normalized = normalizeArchiveEntry({ entry });
+		if (normalized.type !== "directory") count += 1;
+	}
+	return count;
+}
+
 function normalizeArchiveEntry({
 	entry,
 }: {
@@ -285,7 +298,7 @@ async function main(): Promise<void> {
 	});
 	const summary: TextAssetArchiveVerifySummary = {
 		...issueOutput,
-		archiveFiles: manifest.totalFiles + 1,
+		archiveFiles: countTextAssetArchiveFiles({ entries }),
 		archivePath: options.archivePath,
 		ok: issues.length === 0,
 		totalBytes: manifest.totalBytes,
