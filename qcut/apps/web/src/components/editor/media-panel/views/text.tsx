@@ -68,6 +68,7 @@ import {
 	isTextTemplateMarketplaceRecommended,
 	loadTextTemplateMarketplaceRemoteConfig,
 	type TextTemplateMarketplaceMetadataOverrides,
+	type TextTemplateMarketplaceSection,
 } from "@/lib/text/text-marketplace-metadata";
 import {
 	generateSmartTextSuggestions,
@@ -1453,6 +1454,9 @@ export function TextView() {
 	);
 	const [marketplaceOverrides, setMarketplaceOverrides] =
 		useState<TextTemplateMarketplaceMetadataOverrides>({});
+	const [marketplaceSections, setMarketplaceSections] = useState<
+		readonly TextTemplateMarketplaceSection[]
+	>([]);
 	const normalizedSearchQuery = searchQuery.trim().toLocaleLowerCase();
 	useEffect(() => {
 		storeTextLibraryState({ state: libraryState });
@@ -1462,6 +1466,7 @@ export function TextView() {
 		loadTextTemplateMarketplaceRemoteConfig().then((result) => {
 			if (cancelled || result.source === "empty") return;
 			setMarketplaceOverrides(result.overrides);
+			setMarketplaceSections(result.sections);
 		});
 		return () => {
 			cancelled = true;
@@ -1480,9 +1485,10 @@ export function TextView() {
 				category: activeCategory.id,
 				definitions: TEXT_TEMPLATE_LIBRARY_DEFINITIONS,
 				marketplaceOverrides,
+				marketplaceSections,
 				state: libraryState,
 			}),
-		[activeCategory.id, libraryState, marketplaceOverrides]
+		[activeCategory.id, libraryState, marketplaceOverrides, marketplaceSections]
 	);
 	const smartTextCategoryId = getSmartTextCategoryId({
 		categoryId: activeCategory.id,

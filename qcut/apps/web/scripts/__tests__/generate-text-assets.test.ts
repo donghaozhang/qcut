@@ -116,6 +116,15 @@ describe("text asset generator payloads", () => {
 			],
 			schemaVersion: 1,
 		});
+		expect(payload.sections).toEqual(
+			expect.arrayContaining([
+				expect.objectContaining({
+					id: "recommended",
+					templateIds: expect.arrayContaining([definition.id]),
+					title: "推荐",
+				}),
+			])
+		);
 	});
 
 	it("builds marketplace config entries for every text asset definition", () => {
@@ -127,5 +136,33 @@ describe("text asset generator payloads", () => {
 		expect(payload.assets.map((asset) => asset.assetId)).toEqual(
 			expect.arrayContaining(["text-legacy-heading-text"])
 		);
+	});
+
+	it("builds marketplace recommendation sections from known text assets", () => {
+		const payload = buildTextMarketplaceConfigPayload({
+			definitions: TEXT_TEMPLATE_DEFINITIONS,
+		});
+		const assetTemplateIds = new Set(
+			payload.assets.map((asset) => asset.templateId)
+		);
+
+		expect(payload.sections.map((section) => section.id)).toEqual([
+			"recommended",
+			"commerce",
+			"cover",
+			"premium-look",
+		]);
+		for (const section of payload.sections) {
+			expect(section.templateIds.length).toBeGreaterThan(0);
+			expect(section.templateIds.length).toBeLessThanOrEqual(30);
+			expect(new Set(section.templateIds).size).toBe(
+				section.templateIds.length
+			);
+			expect(
+				section.templateIds.every((templateId) =>
+					assetTemplateIds.has(templateId)
+				)
+			).toBe(true);
+		}
 	});
 });

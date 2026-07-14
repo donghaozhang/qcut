@@ -317,5 +317,19 @@ describe("text library state", () => {
 				state: EMPTY_TEXT_LIBRARY_STATE,
 			}).map((definition) => definition.id)
 		).toEqual(["second"]);
+		expect(
+			getTextDefinitionsForLibraryCategory({
+				category: "recommended",
+				definitions: templateDefinitions,
+				marketplaceSections: [
+					{
+						id: "recommended",
+						templateIds: ["second", "missing", "first", "second"],
+						title: "推荐",
+					},
+				],
+				state: EMPTY_TEXT_LIBRARY_STATE,
+			}).map((definition) => definition.id)
+		).toEqual(["second", "first"]);
 	});
 });

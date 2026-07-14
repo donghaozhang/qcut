@@ -18,6 +18,12 @@ export type TextTemplateMarketplaceMetadataOverrides = Readonly<
 	Record<string, TextTemplateMarketplaceMetadataOverride | undefined>
 >;
 
+export type TextTemplateMarketplaceSection = {
+	id: string;
+	title: string;
+	templateIds: readonly string[];
+};
+
 export type TextTemplateMarketplaceRemoteConfigAsset = {
 	assetId?: string;
 	templateId?: string;
@@ -30,6 +36,7 @@ export type TextTemplateMarketplaceRemoteConfigAsset = {
 export type TextTemplateMarketplaceRemoteConfig = {
 	assets: readonly TextTemplateMarketplaceRemoteConfigAsset[];
 	schemaVersion: 1;
+	sections: readonly TextTemplateMarketplaceSection[];
 };
 
 export type TextTemplateMarketplaceRemoteConfigSource =
@@ -40,6 +47,7 @@ export type TextTemplateMarketplaceRemoteConfigSource =
 
 export type TextTemplateMarketplaceRemoteConfigLoadResult = {
 	overrides: TextTemplateMarketplaceMetadataOverrides;
+	sections: readonly TextTemplateMarketplaceSection[];
 	source: TextTemplateMarketplaceRemoteConfigSource;
 	error?: string;
 };
@@ -328,11 +336,21 @@ export function getRecommendedTextTemplateDefinitions({
 	definitions,
 	limit = 80,
 	overrides,
+	sections = [],
 }: {
 	definitions: readonly TextTemplateDefinition[];
 	limit?: number;
 	overrides?: TextTemplateMarketplaceMetadataOverrides;
+	sections?: readonly TextTemplateMarketplaceSection[];
 }): TextTemplateDefinition[] {
+	const sectionDefinitions = getTextTemplateDefinitionsForMarketplaceSection({
+		definitions,
+		sectionId: "recommended",
+		sections,
+	});
+	if (sectionDefinitions.length > 0) {
+		return sectionDefinitions.slice(0, Math.max(0, limit));
+	}
 	const sortedDefinitions = [...definitions].sort((left, right) =>
 		compareTextTemplatesByMarketplaceOrder({ left, overrides, right })
 	);
@@ -342,11 +360,42 @@ export function getRecommendedTextTemplateDefinitions({
 	return recommended.slice(0, Math.max(0, limit));
 }
 
+export function getTextTemplateDefinitionsForMarketplaceSection({
+	definitions,
+	sectionId,
+	sections,
+}: {
+	definitions: readonly TextTemplateDefinition[];
+	sectionId: string;
+	sections?: readonly TextTemplateMarketplaceSection[];
+}): TextTemplateDefinition[] {
+	const section = sections?.find((candidate) => candidate.id === sectionId);
+	if (!section) return [];
+	const definitionsById = new Map(
+		definitions.map((definition) => [definition.id, definition])
+	);
+	return uniqueValues({ values: section.templateIds }).flatMap((templateId) => {
+		const definition = definitionsById.get(templateId);
+		return definition ? [definition] : [];
+	});
+}
+
 export function parseTextTemplateMarketplaceRemoteConfig({
 	value,
 }: {
 	value: unknown;
 }): TextTemplateMarketplaceMetadataOverrides {
+	return parseTextTemplateMarketplaceRemoteConfigPayload({ value }).overrides;
+}
+
+export function parseTextTemplateMarketplaceRemoteConfigPayload({
+	value,
+}: {
+	value: unknown;
+}): {
+	overrides: TextTemplateMarketplaceMetadataOverrides;
+	sections: readonly TextTemplateMarketplaceSection[];
+} {
 	const config = assertRemoteConfig({ value });
 	const overrides: Record<string, TextTemplateMarketplaceMetadataOverride> = {};
 	for (const asset of config.assets) {
@@ -360,7 +409,7 @@ export function parseTextTemplateMarketplaceRemoteConfig({
 			if (mergedOverride) overrides[key] = mergedOverride;
 		}
 	}
-	return overrides;
+	return { overrides, sections: config.sections };
 }
 
 export async function loadTextTemplateMarketplaceRemoteConfig({
@@ -382,12 +431,12 @@ export async function loadTextTemplateMarketplaceRemoteConfig({
 			);
 		}
 		const value = await response.json();
-		const overrides = parseTextTemplateMarketplaceRemoteConfig({ value });
+		const parsed = parseTextTemplateMarketplaceRemoteConfigPayload({ value });
 		storage?.setItem(
 			TEXT_MARKETPLACE_REMOTE_CONFIG_STORAGE_KEY,
 			JSON.stringify(value)
 		);
-		return { overrides, source: "remote" };
+		return { ...parsed, source: "remote" };
 	} catch (error) {
 		const cached = loadCachedMarketplaceOverrides({ storage });
 		if (cached) return { ...cached, error: errorMessage({ error }) };
@@ -397,7 +446,12 @@ export async function loadTextTemplateMarketplaceRemoteConfig({
 			url: bundledUrl,
 		});
 		if (bundled) return { ...bundled, error: errorMessage({ error }) };
-		return { error: errorMessage({ error }), overrides: {}, source: "empty" };
+		return {
+			error: errorMessage({ error }),
+			overrides: {},
+			sections: [],
+			source: "empty",
+		};
 	}
 }
 
@@ -475,6 +529,11 @@ function assertRemoteConfig({
 			assertRemoteConfigAsset({ asset, index })
 		),
 		schemaVersion: 1,
+		sections: Array.isArray(record.sections)
+			? record.sections.map((section, index) =>
+					assertRemoteConfigSection({ index, section })
+				)
+			: [],
 	};
 }
 
@@ -512,6 +571,79 @@ function assertRemoteConfigAsset({
 			record,
 		}),
 	};
+}
+
+function assertRemoteConfigSection({
+	index,
+	section,
+}: {
+	index: number;
+	section: unknown;
+}): TextTemplateMarketplaceSection {
+	const record = asRecord({ value: section });
+	if (!record) {
+		throw new Error(
+			`Text marketplace config section ${index} must be an object`
+		);
+	}
+	const id = requiredString({ field: "id", index, record, scope: "section" });
+	const title = requiredString({
+		field: "title",
+		index,
+		record,
+		scope: "section",
+	});
+	const templateIds = requiredStringList({
+		field: "templateIds",
+		index,
+		record,
+		scope: "section",
+	});
+	return { id, templateIds, title };
+}
+
+function requiredString({
+	field,
+	index,
+	record,
+	scope,
+}: {
+	field: string;
+	index: number;
+	record: Record<string, unknown>;
+	scope: "asset" | "section";
+}): string {
+	const value = record[field];
+	if (typeof value !== "string" || value.length === 0) {
+		throw new Error(
+			`Text marketplace config ${scope} ${index} has invalid ${field}`
+		);
+	}
+	return value;
+}
+
+function requiredStringList({
+	field,
+	index,
+	record,
+	scope,
+}: {
+	field: string;
+	index: number;
+	record: Record<string, unknown>;
+	scope: "asset" | "section";
+}): string[] {
+	const value = record[field];
+	if (
+		!Array.isArray(value) ||
+		value.length === 0 ||
+		value.some((item) => typeof item !== "string" || item.length === 0)
+	) {
+		throw new Error(
+			`Text marketplace config ${scope} ${index} has invalid ${field}`
+		);
+	}
+	return uniqueValues({ values: value });
 }
 
 function optionalString({
@@ -608,10 +740,11 @@ function loadCachedMarketplaceOverrides({
 	const text = storage.getItem(TEXT_MARKETPLACE_REMOTE_CONFIG_STORAGE_KEY);
 	if (!text) return undefined;
 	try {
+		const parsed = parseTextTemplateMarketplaceRemoteConfigPayload({
+			value: JSON.parse(text),
+		});
 		return {
-			overrides: parseTextTemplateMarketplaceRemoteConfig({
-				value: JSON.parse(text),
-			}),
+			...parsed,
 			source: "cache",
 		};
 	} catch {
@@ -637,8 +770,9 @@ async function loadBundledMarketplaceOverrides({
 			TEXT_MARKETPLACE_REMOTE_CONFIG_STORAGE_KEY,
 			JSON.stringify(value)
 		);
+		const parsed = parseTextTemplateMarketplaceRemoteConfigPayload({ value });
 		return {
-			overrides: parseTextTemplateMarketplaceRemoteConfig({ value }),
+			...parsed,
 			source: "bundled",
 		};
 	} catch {

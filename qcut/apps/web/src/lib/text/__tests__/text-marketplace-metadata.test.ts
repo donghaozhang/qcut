@@ -5,6 +5,7 @@ import {
 	getTextTemplateMarketplaceMetadata,
 	loadTextTemplateMarketplaceRemoteConfig,
 	parseTextTemplateMarketplaceRemoteConfig,
+	parseTextTemplateMarketplaceRemoteConfigPayload,
 	TEXT_MARKETPLACE_REMOTE_CONFIG_STORAGE_KEY,
 } from "../text-marketplace-metadata";
 import { getTextTemplateDefinitionsByCategory } from "../text-template-registry";
@@ -142,6 +143,68 @@ describe("text marketplace metadata", () => {
 		).toEqual([basicPlain.id]);
 	});
 
+	it("uses marketplace sections as the operator-defined recommendation order", () => {
+		const definitions = getTextTemplateDefinitionsByCategory({
+			category: "red",
+		});
+		const plain = definitions.find(
+			(definition) => definition.variantId === "plain"
+		);
+		const redBurst = definitions.find(
+			(definition) => definition.variantId === "red-burst"
+		);
+		if (!plain || !redBurst) {
+			throw new Error("Expected red marketplace fixtures");
+		}
+
+		expect(
+			getRecommendedTextTemplateDefinitions({
+				definitions,
+				sections: [
+					{
+						id: "recommended",
+						templateIds: [plain.id, "missing-template", redBurst.id, plain.id],
+						title: "推荐",
+					},
+				],
+			}).map((definition) => definition.id)
+		).toEqual([plain.id, redBurst.id]);
+	});
+
+	it("parses remote marketplace sections beside asset overrides", () => {
+		expect(
+			parseTextTemplateMarketplaceRemoteConfigPayload({
+				value: {
+					assets: [
+						{
+							heatScore: 88,
+							templateId: "template-a",
+						},
+					],
+					schemaVersion: 1,
+					sections: [
+						{
+							id: "recommended",
+							templateIds: ["template-a", "template-b", "template-a"],
+							title: "推荐",
+						},
+					],
+				},
+			})
+		).toEqual({
+			overrides: {
+				"template-a": { heatScore: 88 },
+			},
+			sections: [
+				{
+					id: "recommended",
+					templateIds: ["template-a", "template-b"],
+					title: "推荐",
+				},
+			],
+		});
+	});
+
 	it("rejects malformed remote marketplace configs", () => {
 		expect(() =>
 			parseTextTemplateMarketplaceRemoteConfig({
@@ -164,6 +227,15 @@ describe("text marketplace metadata", () => {
 				},
 			})
 		).toThrow("invalid heatScore");
+		expect(() =>
+			parseTextTemplateMarketplaceRemoteConfigPayload({
+				value: {
+					assets: [],
+					schemaVersion: 1,
+					sections: [{ id: "recommended", title: "推荐" }],
+				},
+			})
+		).toThrow("invalid templateIds");
 	});
 
 	it("loads remote marketplace config and caches the raw payload", async () => {
@@ -181,6 +253,13 @@ describe("text marketplace metadata", () => {
 						},
 					],
 					schemaVersion: 1,
+					sections: [
+						{
+							id: "recommended",
+							templateIds: ["template-remote"],
+							title: "推荐",
+						},
+					],
 				}),
 				{ status: 200 }
 			);
@@ -199,6 +278,13 @@ describe("text marketplace metadata", () => {
 					remoteTags: ["campaign:remote"],
 				},
 			},
+			sections: [
+				{
+					id: "recommended",
+					templateIds: ["template-remote"],
+					title: "推荐",
+				},
+			],
 			source: "remote",
 		});
 		expect(
@@ -291,6 +377,7 @@ describe("text marketplace metadata", () => {
 		).resolves.toEqual({
 			error: "Text marketplace config request failed (404)",
 			overrides: {},
+			sections: [],
 			source: "empty",
 		});
 	});

@@ -8,7 +8,11 @@ import {
 	getTextTemplateThumbnailLayoutKind,
 	getTextTemplateThumbnailRecipe,
 } from "../src/components/editor/media-panel/views/text-template-thumbnail-renderer";
-import { getTextTemplateMarketplaceMetadata } from "../src/lib/text/text-marketplace-metadata";
+import {
+	compareTextTemplatesByMarketplaceOrder,
+	getTextTemplateMarketplaceMetadata,
+	isTextTemplateMarketplaceRecommended,
+} from "../src/lib/text/text-marketplace-metadata";
 import { getTextTemplateResource } from "../src/lib/text/text-resource-catalog";
 import { buildTextTemplatePack } from "../src/lib/text/text-template-packs";
 import {
@@ -585,21 +589,84 @@ export function buildTextMarketplaceConfigPayload({
 }: {
 	definitions: readonly TextTemplateDefinition[];
 }) {
+	const assets = definitions.map((definition) => {
+		const resource = getTextTemplateResource({ definition });
+		const marketplace = getTextTemplateMarketplaceMetadata({ definition });
+		return {
+			templateId: definition.id,
+			assetId: resource.assetId,
+			editorialRank: marketplace.editorialRank,
+			heatScore: marketplace.heatScore,
+			remoteTags: marketplace.remoteTags,
+			searchAliases: marketplace.searchAliases,
+		};
+	});
 	return {
 		schemaVersion: 1,
-		assets: definitions.map((definition) => {
-			const resource = getTextTemplateResource({ definition });
-			const marketplace = getTextTemplateMarketplaceMetadata({ definition });
-			return {
-				templateId: definition.id,
-				assetId: resource.assetId,
-				editorialRank: marketplace.editorialRank,
-				heatScore: marketplace.heatScore,
-				remoteTags: marketplace.remoteTags,
-				searchAliases: marketplace.searchAliases,
-			};
-		}),
+		assets,
+		sections: buildTextMarketplaceSections({ definitions }),
 	};
+}
+
+const TEXT_MARKETPLACE_SECTION_LIMIT = 30;
+const TEXT_MARKETPLACE_SECTION_SPECS = [
+	{ id: "recommended", title: "推荐" },
+	{ id: "commerce", title: "带货促销" },
+	{ id: "cover", title: "封面标题" },
+	{ id: "premium-look", title: "高级质感" },
+] as const;
+
+function buildTextMarketplaceSections({
+	definitions,
+}: {
+	definitions: readonly TextTemplateDefinition[];
+}) {
+	const rankedDefinitions = [...definitions].sort((left, right) =>
+		compareTextTemplatesByMarketplaceOrder({ left, right })
+	);
+	return TEXT_MARKETPLACE_SECTION_SPECS.map((section) => ({
+		id: section.id,
+		title: section.title,
+		templateIds: rankedDefinitions
+			.filter((definition) =>
+				matchesMarketplaceSection({ definition, sectionId: section.id })
+			)
+			.slice(0, TEXT_MARKETPLACE_SECTION_LIMIT)
+			.map((definition) => definition.id),
+	})).filter((section) => section.templateIds.length > 0);
+}
+
+function matchesMarketplaceSection({
+	definition,
+	sectionId,
+}: {
+	definition: TextTemplateDefinition;
+	sectionId: (typeof TEXT_MARKETPLACE_SECTION_SPECS)[number]["id"];
+}): boolean {
+	if (sectionId === "recommended") {
+		return isTextTemplateMarketplaceRecommended({ definition });
+	}
+	const metadata = getTextTemplateMarketplaceMetadata({ definition });
+	const tags = new Set(metadata.remoteTags);
+	const aliases = new Set(metadata.searchAliases);
+	if (sectionId === "commerce") {
+		return (
+			tags.has("scene:commerce") ||
+			aliases.has("直播") ||
+			aliases.has("秒杀") ||
+			aliases.has("促销") ||
+			aliases.has("价格")
+		);
+	}
+	if (sectionId === "cover") {
+		return tags.has("market:hero") || aliases.has("封面");
+	}
+	return (
+		tags.has("market:premium-look") ||
+		tags.has("tone:premium") ||
+		tags.has("material:chrome") ||
+		tags.has("material:gold")
+	);
 }
 
 async function writeAsset({

@@ -6,6 +6,7 @@ import { getTextTemplateResource } from "./text-resource-catalog";
 import {
 	getRecommendedTextTemplateDefinitions,
 	type TextTemplateMarketplaceMetadataOverrides,
+	type TextTemplateMarketplaceSection,
 } from "./text-marketplace-metadata";
 
 export const TEXT_LIBRARY_STATE_STORAGE_KEY = "qcut-text-library-state-v1";
@@ -263,11 +264,13 @@ export function getTextDefinitionsForLibraryCategory({
 	category,
 	definitions,
 	marketplaceOverrides,
+	marketplaceSections,
 	state,
 }: {
 	category: TextTemplateCategoryId;
 	definitions: readonly TextTemplateDefinition[];
 	marketplaceOverrides?: TextTemplateMarketplaceMetadataOverrides;
+	marketplaceSections?: readonly TextTemplateMarketplaceSection[];
 	state: TextLibraryState;
 }): TextTemplateDefinition[] {
 	const definitionsById = new Map(
@@ -294,6 +297,7 @@ export function getTextDefinitionsForLibraryCategory({
 		return getRecommendedTextTemplateDefinitions({
 			definitions,
 			overrides: marketplaceOverrides,
+			sections: marketplaceSections,
 		});
 	}
 	if (category === "brand-kit" || category === "drafts") {
