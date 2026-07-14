@@ -1,4 +1,4 @@
-import { and, eq, gte, lte } from "drizzle-orm";
+import { and, eq, gte, lte } from "@qcut/db";
 import { db } from "../db/drizzle";
 import { licenses, usageRecords } from "@qcut/db/schema";
 

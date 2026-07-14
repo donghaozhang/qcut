@@ -13,6 +13,18 @@ function buildHeaders({ cookie }: { cookie?: string }): Headers {
 	}
 }
 
+function expectCapturedRequestBody({
+	body,
+}: {
+	body: Record<string, unknown> | null;
+}): Record<string, unknown> {
+	expect(body).not.toBeNull();
+	if (!body) {
+		throw new Error("Expected auth handler request body to be captured");
+	}
+	return body;
+}
+
 describe("auth routes", () => {
 	it("starts google oauth and forwards callback bridge URLs", async () => {
 		let capturedRequestBody: Record<string, unknown> | null = null;
@@ -56,12 +68,15 @@ describe("auth routes", () => {
 			"https://accounts.google.com/o/oauth2/v2/auth"
 		);
 		expect(capturedRequestCookie).toBe("state-cookie=abc");
-		expect(capturedRequestBody?.provider).toBe("google");
-		expect(typeof capturedRequestBody?.callbackURL).toBe("string");
-		expect(String(capturedRequestBody?.callbackURL)).toContain(
+		const requestBody = expectCapturedRequestBody({
+			body: capturedRequestBody,
+		});
+		expect(requestBody.provider).toBe("google");
+		expect(typeof requestBody.callbackURL).toBe("string");
+		expect(String(requestBody.callbackURL)).toContain(
 			"/api/auth/oauth/token-bridge"
 		);
-		expect(String(capturedRequestBody?.callbackURL)).toContain(
+		expect(String(requestBody.callbackURL)).toContain(
 			"redirect_url=https%3A%2F%2Fquriosity.com.au%2Faccount%2Fdashboard.html"
 		);
 	});
@@ -95,7 +110,10 @@ describe("auth routes", () => {
 			{ method: "GET" }
 		);
 
-		expect(String(capturedRequestBody?.callbackURL)).toContain(
+		const requestBody = expectCapturedRequestBody({
+			body: capturedRequestBody,
+		});
+		expect(String(requestBody.callbackURL)).toContain(
 			"redirect_url=https%3A%2F%2Fquriosity.com.au%2Faccount%2Fdashboard.html"
 		);
 	});

@@ -235,7 +235,7 @@ export async function downloadAgentSessionArtifact(c: Context) {
 		"Content-Length": String(fileBytes.byteLength),
 	};
 
-	return c.body(fileBytes, 200, headers);
+	return c.body(bytesToArrayBuffer({ bytes: fileBytes }), 200, headers);
 }
 
 export async function downloadAgentSessionFilesystemPath(c: Context) {
@@ -278,7 +278,7 @@ export async function downloadAgentSessionFilesystemPath(c: Context) {
 		"Content-Length": String(fileBytes.byteLength),
 	};
 
-	return c.body(fileBytes, 200, headers);
+	return c.body(bytesToArrayBuffer({ bytes: fileBytes }), 200, headers);
 }
 
 async function downloadAgentSessionFilesystemDirectory({
@@ -316,7 +316,7 @@ async function downloadAgentSessionFilesystemDirectory({
 			"Content-Type": "application/gzip",
 			"Content-Length": String(fileBytes.byteLength),
 		};
-		return c.body(fileBytes, 200, headers);
+		return c.body(bytesToArrayBuffer({ bytes: fileBytes }), 200, headers);
 	} finally {
 		await sandbox.process
 			.executeCommand(
@@ -364,7 +364,13 @@ export async function downloadAgentSessionFile(c: Context) {
 		"Content-Length": String(fileBytes.byteLength),
 	};
 
-	return c.body(fileBytes, 200, headers);
+	return c.body(bytesToArrayBuffer({ bytes: fileBytes }), 200, headers);
+}
+
+function bytesToArrayBuffer({ bytes }: { bytes: Uint8Array }): ArrayBuffer {
+	const body = new Uint8Array(bytes.byteLength);
+	body.set(bytes);
+	return body.buffer;
 }
 
 export function parseTerminalArtifactList({

@@ -1,4 +1,4 @@
-import { and, eq } from "drizzle-orm";
+import { and, eq } from "@qcut/db";
 import { reviewShares } from "@qcut/db/schema";
 import type { ReviewPackage } from "@qcut/editor-core/collaboration";
 import { db } from "../db/drizzle";

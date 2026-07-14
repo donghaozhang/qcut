@@ -1,4 +1,4 @@
-import { eq } from "drizzle-orm";
+import { eq } from "@qcut/db";
 import { db } from "../db/drizzle";
 import { users } from "@qcut/db/schema";
 import { isCanaryModeEnabled, isEmailAllowedForCanary } from "./payment-config";
@@ -32,7 +32,7 @@ export async function ensureCanaryUserAllowed({
 }: {
 	userId: string;
 }): Promise<
-	{ allowed: true } | { allowed: false; status: number; error: string }
+	{ allowed: true } | { allowed: false; status: 403 | 500; error: string }
 > {
 	try {
 		if (!isCanaryModeEnabled()) {

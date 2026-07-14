@@ -9,7 +9,7 @@ import {
 import { getCreditBalanceByUserId } from "../services/credit-service";
 import { db } from "../db/drizzle";
 import { users } from "@qcut/db/schema";
-import { eq } from "drizzle-orm";
+import { eq } from "@qcut/db";
 
 const licenseRoutes = new Hono();
 

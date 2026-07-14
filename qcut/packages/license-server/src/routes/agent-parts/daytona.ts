@@ -1,5 +1,5 @@
 import { Daytona, Image } from "@daytona/sdk";
-import { eq } from "drizzle-orm";
+import { eq } from "@qcut/db";
 
 import { agentEvents, agentSecrets, agentSessions } from "@qcut/db/schema";
 
