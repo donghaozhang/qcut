@@ -8,6 +8,7 @@ import {
 	buildTextMarketplacePublishEntry,
 	inferTextAssetCategory,
 	parseTextAssetCdnArgs,
+	summarizeDesignerCategoryCoverage,
 	summarizeTextAssetProvenance,
 	summarizeVerifyIssues,
 	verifyDesignerAssetCoverage,
@@ -371,6 +372,36 @@ describe("text asset CDN manifest verifier", () => {
 					"Expected at least 5 designer-imported text assets for each category, missing: red (1)",
 			},
 		]);
+	});
+
+	it("summarizes designer category coverage as an actionable gap report", () => {
+		const redDesignerEntry: TextAssetGeneratedEntry = {
+			...createGeneratedEntry(),
+			assetId: "text-red-designer",
+			packageId: "text-fancy-red",
+			provenance: {
+				pipeline: "designer-pack-v1",
+				source: "designer-imported",
+			},
+		};
+
+		expect(
+			summarizeDesignerCategoryCoverage({
+				generatedManifest: {
+					"text-red-designer": redDesignerEntry,
+				},
+				minDesignerAssetsPerCategory: 5,
+				requiredDesignerCategories: ["red", "texture"],
+			})
+		).toEqual({
+			categories: [
+				{ category: "red", current: 1, missing: 4, required: 5 },
+				{ category: "texture", current: 0, missing: 5, required: 5 },
+			],
+			ok: false,
+			requiredCategories: 2,
+			totalMissing: 9,
+		});
 	});
 
 	it("builds publish manifests with CDN URLs and local paths", () => {

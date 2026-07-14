@@ -91,6 +91,20 @@ export type TextAssetProvenanceSummary = {
 	total: number;
 };
 
+export type TextAssetDesignerCategoryCoverageItem = {
+	category: string;
+	current: number;
+	missing: number;
+	required: number;
+};
+
+export type TextAssetDesignerCategoryCoverageSummary = {
+	categories: TextAssetDesignerCategoryCoverageItem[];
+	ok: boolean;
+	requiredCategories: number;
+	totalMissing: number;
+};
+
 export type TextAssetCdnCliOptions = {
 	baseUrl: string;
 	checkRemote: boolean;
@@ -398,6 +412,35 @@ export function verifyDesignerCategoryCoverage({
 	requiredDesignerCategories: readonly string[];
 }): VerifyIssue[] {
 	if (requiredDesignerCategories.length === 0) return [];
+	const coverage = summarizeDesignerCategoryCoverage({
+		generatedManifest,
+		minDesignerAssetsPerCategory,
+		requiredDesignerCategories,
+	});
+	const missingCategories = coverage.categories.filter(
+		(category) => category.missing > 0
+	);
+	if (missingCategories.length === 0) return [];
+	return [
+		{
+			assetId: "text-designer-assets",
+			code: "designer-category-coverage",
+			detail: `Expected at least ${minDesignerAssetsPerCategory} designer-imported text assets for each category, missing: ${missingCategories
+				.map((category) => `${category.category} (${category.current})`)
+				.join(", ")}`,
+		},
+	];
+}
+
+export function summarizeDesignerCategoryCoverage({
+	generatedManifest,
+	minDesignerAssetsPerCategory = 1,
+	requiredDesignerCategories,
+}: {
+	generatedManifest: Record<string, TextAssetCategoryEntry>;
+	minDesignerAssetsPerCategory?: number;
+	requiredDesignerCategories: readonly string[];
+}): TextAssetDesignerCategoryCoverageSummary {
 	const designerCountsByCategory = new Map<string, number>();
 	for (const entry of Object.values(generatedManifest)) {
 		if (entry.provenance?.source !== "designer-imported") continue;
@@ -408,24 +451,25 @@ export function verifyDesignerCategoryCoverage({
 			(designerCountsByCategory.get(category) ?? 0) + 1
 		);
 	}
-	const missingCategories = requiredDesignerCategories.filter(
-		(category) =>
-			(designerCountsByCategory.get(category) ?? 0) <
-			minDesignerAssetsPerCategory
+	const categories = requiredDesignerCategories.map((category) => {
+		const current = designerCountsByCategory.get(category) ?? 0;
+		return {
+			category,
+			current,
+			missing: Math.max(0, minDesignerAssetsPerCategory - current),
+			required: minDesignerAssetsPerCategory,
+		};
+	});
+	const totalMissing = categories.reduce(
+		(total, category) => total + category.missing,
+		0
 	);
-	if (missingCategories.length === 0) return [];
-	return [
-		{
-			assetId: "text-designer-assets",
-			code: "designer-category-coverage",
-			detail: `Expected at least ${minDesignerAssetsPerCategory} designer-imported text assets for each category, missing: ${missingCategories
-				.map(
-					(category) =>
-						`${category} (${designerCountsByCategory.get(category) ?? 0})`
-				)
-				.join(", ")}`,
-		},
-	];
+	return {
+		categories,
+		ok: totalMissing === 0,
+		requiredCategories: requiredDesignerCategories.length,
+		totalMissing,
+	};
 }
 
 export function summarizeVerifyIssues({
@@ -1161,6 +1205,11 @@ async function main(): Promise<void> {
 		minDesignerAssetsPerCategory: options.minDesignerAssetsPerCategory,
 		requiredDesignerCategories: options.requiredDesignerCategories,
 	});
+	const designerCategoryCoverage = summarizeDesignerCategoryCoverage({
+		generatedManifest,
+		minDesignerAssetsPerCategory: options.minDesignerAssetsPerCategory,
+		requiredDesignerCategories: options.requiredDesignerCategories,
+	});
 	const { issues: manifestIssues, manifest } = buildTextAssetPublishManifest({
 		baseUrl: options.baseUrl,
 		generatedAt: new Date().toISOString(),
@@ -1200,6 +1249,7 @@ async function main(): Promise<void> {
 			{
 				baseUrl: manifest.baseUrl,
 				checkRemote: options.checkRemote,
+				designerCategoryCoverage,
 				...issueOutput,
 				minDesignerAssets: options.minDesignerAssets,
 				minDesignerAssetsPerCategory: options.minDesignerAssetsPerCategory,
