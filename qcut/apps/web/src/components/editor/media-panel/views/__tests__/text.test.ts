@@ -19,6 +19,8 @@ import {
 	getTextTemplateAccessibilityLabel,
 	getTextTemplatePackCopyDefaults,
 	getTextTemplatePackCopyActionLabel,
+	getTextTemplatePackCopyBadgeLabel,
+	getTextTemplatePackLayerBadgeLabel,
 	getTextTemplateRuntimeDownloadStatus,
 	getExpandedTextTemplateGridColumnCount,
 	getTextTemplateGridColumnCount,
@@ -323,6 +325,21 @@ describe("text view layout", () => {
 		);
 		expect(getTextTemplatePackCopyActionLabel({ slotCount: 0 })).toBe(
 			"替换模板文案"
+		);
+	});
+
+	it("labels grouped text template badges with layer and copy counts", () => {
+		expect(getTextTemplatePackLayerBadgeLabel({ elementCount: 3 })).toBe(
+			"3 层组合"
+		);
+		expect(getTextTemplatePackLayerBadgeLabel({ elementCount: 0 })).toBe(
+			"组合模板"
+		);
+		expect(getTextTemplatePackCopyBadgeLabel({ slotCount: 3 })).toBe(
+			"3 个可替换文案"
+		);
+		expect(getTextTemplatePackCopyBadgeLabel({ slotCount: 0 })).toBe(
+			"可替换文案"
 		);
 	});
 

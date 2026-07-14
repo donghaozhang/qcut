@@ -273,6 +273,22 @@ export function getTextTemplatePackCopyActionLabel({
 	return slotCount > 0 ? `替换 ${slotCount} 个模板文案` : "替换模板文案";
 }
 
+export function getTextTemplatePackLayerBadgeLabel({
+	elementCount,
+}: {
+	elementCount: number;
+}): string {
+	return elementCount > 0 ? `${elementCount} 层组合` : "组合模板";
+}
+
+export function getTextTemplatePackCopyBadgeLabel({
+	slotCount,
+}: {
+	slotCount: number;
+}): string {
+	return slotCount > 0 ? `${slotCount} 个可替换文案` : "可替换文案";
+}
+
 export function applyTextTemplatePackCopyValues({
 	copyValues,
 	pack,
@@ -495,6 +511,14 @@ function TextTemplate({
 	const copyActionLabel = getTextTemplatePackCopyActionLabel({
 		slotCount: editableTemplatePack?.copySlots.length ?? 0,
 	});
+	const templatePackElementCount = editableTemplatePack?.elements.length ?? 0;
+	const templatePackCopySlotCount = editableTemplatePack?.copySlots.length ?? 0;
+	const templatePackLayerBadgeLabel = getTextTemplatePackLayerBadgeLabel({
+		elementCount: templatePackElementCount,
+	});
+	const templatePackCopyBadgeLabel = getTextTemplatePackCopyBadgeLabel({
+		slotCount: templatePackCopySlotCount,
+	});
 	const copyPreviewPack = useMemo(
 		() =>
 			editableTemplatePack
@@ -566,10 +590,16 @@ function TextTemplate({
 						}
 					/>
 					{editableTemplatePack && (
-						<div className="absolute left-1 top-5 flex h-4 w-4 items-center justify-center rounded-full bg-black/55 text-cyan-200 shadow-sm ring-1 ring-white/10">
+						<div
+							className="absolute left-1 top-5 flex h-4 min-w-4 items-center justify-center gap-0.5 rounded-full bg-black/60 px-1 text-cyan-200 shadow-sm ring-1 ring-white/10"
+							title={templatePackLayerBadgeLabel}
+						>
 							<Layers3 aria-hidden="true" className="h-3 w-3">
-								<title>{`组合模板，${editableTemplatePack.elements.length}层`}</title>
+								<title>{templatePackLayerBadgeLabel}</title>
 							</Layers3>
+							<span className="text-[0.58rem] font-medium leading-none">
+								{templatePackElementCount}
+							</span>
 						</div>
 					)}
 					{editableTemplatePack &&
@@ -577,7 +607,8 @@ function TextTemplate({
 							<button
 								type="button"
 								aria-label={copyActionLabel}
-								className="absolute bottom-1 left-1 flex h-4 w-4 items-center justify-center rounded-full bg-black/60 text-white shadow-sm ring-1 ring-white/10 transition-colors hover:bg-black/80"
+								title={templatePackCopyBadgeLabel}
+								className="absolute bottom-1 left-1 flex h-4 min-w-4 items-center justify-center gap-0.5 rounded-full bg-black/60 px-1 text-white shadow-sm ring-1 ring-white/10 transition-colors hover:bg-black/80"
 								onClick={(event) => {
 									event.stopPropagation();
 									handleOpenCopyDialog();
@@ -589,6 +620,9 @@ function TextTemplate({
 								<FileText aria-hidden="true" className="h-3.5 w-3.5">
 									<title>{copyActionLabel}</title>
 								</FileText>
+								<span className="text-[0.58rem] font-medium leading-none">
+									{templatePackCopySlotCount}
+								</span>
 							</button>
 						)}
 					{definition.premium && (
@@ -1943,6 +1977,11 @@ export function TextView() {
 								aria-label="展开文字素材库"
 								className="flex h-6 w-6 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-accent hover:text-foreground"
 								onClick={() => setExpandedLibraryOpen(true)}
+								onKeyDown={(event) => {
+									if (!isActivationKey({ event })) return;
+									event.preventDefault();
+									setExpandedLibraryOpen(true);
+								}}
 							>
 								<Maximize2 aria-hidden="true" className="h-3.5 w-3.5">
 									<title>展开文字素材库</title>
