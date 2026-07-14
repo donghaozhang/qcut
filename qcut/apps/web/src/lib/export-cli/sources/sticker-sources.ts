@@ -266,6 +266,7 @@ export async function extractStickerSources(
 
 				stickerSources.push({
 					id: sticker.id,
+					animated: mediaItem.metadata?.animatedSticker === true,
 					trackId: timing?.trackId,
 					trackOrder: timing?.trackOrder,
 					elementOrder: timing?.elementOrder,

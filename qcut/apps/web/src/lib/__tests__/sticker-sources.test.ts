@@ -144,6 +144,22 @@ describe("extractStickerSources", () => {
 			expect(fetchSpy).not.toHaveBeenCalled();
 		});
 
+		it("should preserve animated sticker metadata for FFmpeg", async () => {
+			const result = await extractStickerSources(
+				[createMediaItem({ metadata: { animatedSticker: true } })],
+				"session-1",
+				1920,
+				1080,
+				10,
+				createStoreGetter([createStickerData()]),
+				createMockAPI(),
+				silentLogger
+			);
+
+			expect(result).toHaveLength(1);
+			expect(result[0].animated).toBe(true);
+		});
+
 		it("should download blob URL via fetch when no localPath", async () => {
 			const mockBlob = {
 				arrayBuffer: vi.fn().mockResolvedValue(new ArrayBuffer(8)),

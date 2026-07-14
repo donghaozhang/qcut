@@ -254,6 +254,7 @@ export interface ImageSourceInput {
  */
 export interface StickerSourceForFilter {
 	id: string;
+	animated?: boolean;
 	trackId?: string;
 	trackOrder?: number;
 	elementOrder?: number;

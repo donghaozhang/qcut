@@ -6,6 +6,10 @@ import {
 	createStickerMediaUrl,
 	downloadStickerResource,
 } from "@/lib/stickers/sticker-resource";
+import {
+	isAnimatedStickerAsset,
+	isAnimatedStickerFile,
+} from "@/lib/stickers/sticker-animation";
 import { useAssetLibraryStore } from "@/stores/asset-library-store";
 import { useMediaStore } from "@/stores/media/media-store";
 import { useProjectStore } from "@/stores/project-store";
@@ -172,6 +176,9 @@ export function useStickerSelect() {
 			let createdObjectUrl: string | null = null;
 			try {
 				const downloaded = await prepareSticker({ iconId, name });
+				const animatedSticker =
+					isAnimatedStickerAsset({ asset: downloaded.asset }) &&
+					(await isAnimatedStickerFile({ file: downloaded.file }));
 				const mediaUrl = await createStickerMediaUrl({ blob: downloaded.blob });
 				createdObjectUrl = mediaUrl.revoke ? mediaUrl.url : null;
 				if (mediaUrl.revoke) objectUrlsRef.current.add(mediaUrl.url);
@@ -185,6 +192,12 @@ export function useStickerSelect() {
 					width: dimensions.width,
 					height: dimensions.height,
 					duration: 0,
+					metadata: {
+						source: "sticker-library",
+						stickerAssetId: downloaded.asset.id,
+						stickerAssetVersion: downloaded.asset.version,
+						animatedSticker,
+					},
 				});
 				await placeStickerOnTimeline({ mediaItemId });
 				addRecentSticker(iconId, name);
@@ -223,7 +236,10 @@ export function useStickerSelect() {
 			const imageUrl = URL.createObjectURL(file);
 			objectUrlsRef.current.add(imageUrl);
 			try {
-				const dimensions = await readImageDimensions({ url: imageUrl });
+				const [dimensions, animatedSticker] = await Promise.all([
+					readImageDimensions({ url: imageUrl }),
+					isAnimatedStickerFile({ file }),
+				]);
 				const mediaItemId = await addMediaItem(activeProject.id, {
 					name: file.name,
 					type: "image",
@@ -233,6 +249,10 @@ export function useStickerSelect() {
 					width: dimensions.width,
 					height: dimensions.height,
 					duration: 0,
+					metadata: {
+						source: "sticker-upload",
+						animatedSticker,
+					},
 				});
 				await placeStickerOnTimeline({ mediaItemId });
 				toast.success(`Added ${file.name} to timeline`);
