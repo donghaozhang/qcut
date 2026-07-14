@@ -650,6 +650,96 @@ Observed:
 
 Modification decision: the formatting-only patch preserves the tested preview behavior and is ready to commit.
 
+### Run 06o - Pull-request CI after formatting repair
+
+Date: 2026-07-14
+Result: FAIL (expired upstream FFmpeg artifacts)
+Command: GitHub Actions CI run `29302209318`, Linux job `86988116175`, Windows job `86988116179`
+
+Observed:
+
+- Linux passed dependency installation, repository lint, and the configured type-check step.
+- Build failed when `stage-ffmpeg-binaries` requested the pinned `autobuild-2026-06-28-13-24` Linux archive and received `404 Not Found` on all three attempts.
+- Windows independently passed lint and type checking, then failed its build on the matching expired Windows archive with the same three 404 responses.
+- The branch history showed that the same manifest had already moved from the deleted June 27 daily build to the June 28 daily build, leaving the retention defect unresolved.
+- BtbN documents that only the latest 14 daily builds and each month's final build are retained. Its GitHub release API lists the June 30 monthly build with FFmpeg 8.1.2 Linux and Windows artifacts, immutable sizes, and SHA256 digests.
+
+Modification decision: repin Linux and Windows to the retained June 30 monthly build, update archive paths and digests, and add a manifest regression test that rejects non-month-end BtbN release tags.
+
+### Run 06p - Retained FFmpeg artifact regression and real staging
+
+Date: 2026-07-14
+Result: PASS
+Commands: `bunx vitest run scripts/__tests__/ffmpeg-manifest.test.ts scripts/__tests__/ffmpeg-verify.test.ts`; `FFMPEG_STAGE_TARGETS=linux-x64,win32-x64 FFMPEG_STAGE_FORCE=1 bun run stage-ffmpeg-binaries`
+
+Assertions passed:
+
+- All six manifest and verifier tests passed, including the new month-end retention check for every BtbN artifact.
+- The stager downloaded the 124,756,048-byte Linux archive and 166,372,072-byte Windows archive from the June 30 release rather than using an old receipt.
+- Both archives matched their GitHub-published SHA256 digests, extracted through the production staging path, and exposed FFmpeg and FFprobe at the pinned internal paths.
+- Static verification accepted FFmpeg 8.1.2, the required codec and filter flags, the forbidden nonfree policy, and each target's hardware-accelerator contract.
+
+Modification decision: the new artifacts and manifest contract are valid. Run the complete CI build command with both repaired targets before committing.
+
+### Run 06q - Complete build with repaired Linux and Windows targets
+
+Date: 2026-07-14
+Result: PASS
+Command: `FFMPEG_STAGE_TARGETS=linux-x64,win32-x64 bun run build`
+
+Assertions passed:
+
+- The production prebuild copied FFmpeg.wasm resources, revalidated both native target receipts, and synchronized bundled skills.
+- The Web TypeScript and Vite build transformed 5,821 modules and emitted the production assets successfully.
+- Electron TypeScript compiled and the preload bundle completed successfully.
+- Existing route discovery, module chunking, and bundle-size warnings remained non-blocking; the build introduced no additional tracked output.
+
+Modification decision: the same build lifecycle that failed in Linux and Windows CI now completes with both repaired target manifests. Commit and push the retention-safe artifact fix.
+
+### Run 06r - Pull-request secret scan of the FFmpeg repair
+
+Date: 2026-07-14
+Result: FAIL (verified false positive)
+Command: GitGuardian check run `86989637318` on commit `fd25d6e20`
+
+Observed:
+
+- GitGuardian reported two `Generic High Entropy Secret` occurrences at the Linux and Windows `versionToken` fields.
+- The reported value was the public FFmpeg build marker `n8.1.2-21-gce3c09c101`, present in both upstream archive names and binary version output; it is not a credential and grants no access.
+- GitGuardian's detector documentation explains the match: high-entropy values assigned to names containing `token` are treated as generic secret candidates.
+
+Modification decision: rename the newly introduced manifest field to the semantically accurate `versionMarker` across all consumers and tests. Autosquash the rename into the unpublished FFmpeg fix commit so the false-positive assignment is absent from the pull-request history, then rerun staging, build, and CI.
+
+### Run 06s - Version marker schema regression
+
+Date: 2026-07-14
+Result: PASS
+Commands: focused Biome and Python syntax checks; `bunx vitest run scripts/__tests__/ffmpeg-manifest.test.ts scripts/__tests__/ffmpeg-verify.test.ts`; `FFMPEG_STAGE_TARGETS=linux-x64,win32-x64 bun run stage-ffmpeg-binaries`; `FFMPEG_STAGE_TARGETS=linux-x64,win32-x64 bun run build`
+
+Assertions passed:
+
+- All TypeScript and JSON files in the schema rename passed Biome, the transcription module compiled with Python, and no old `versionToken` or `VERSION_TOKEN` consumer remained.
+- All six manifest and binary verifier tests passed with the complete public build marker preserved.
+- Linux and Windows archives restaged and passed the production FFmpeg 8.1.2 verification contract.
+- The complete Web and Electron build lifecycle passed after the schema rename.
+
+Modification decision: autosquash the verified schema rename into the FFmpeg repair and rerun the pull-request checks from the rewritten head.
+
+### Run 06t - Cross-platform Electron real-proxy regression
+
+Date: 2026-07-14
+Result: FAIL (test binary path defect)
+Command: GitHub Actions CI run `29302714691`, Linux job `86989640346`
+
+Observed:
+
+- Linux passed lint, type checking, the repaired FFmpeg staging build, and the complete coverage test step.
+- Electron unit tests then failed because `video-preview-proxy-real.test.ts` unconditionally launched `electron/resources/ffmpeg/darwin-arm64/ffmpeg` on the Linux runner.
+- The production preview-proxy implementation already resolves the staged binary for `process.platform` and `process.arch`; only this real test's fixture generation and probing bypassed that resolver.
+- The same CI run proved the platform split: macOS passed its complete job, while the Linux failure occurred before the Windows Electron step completed.
+
+Modification decision: use the production `getFFmpegPath` and `getFFprobePath` resolvers in the real proxy test, resolve them during asynchronous setup, and rerun the test against staged host binaries.
+
 ## Planned Application Runs
 
 | Run | Scope | Status |
