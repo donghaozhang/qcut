@@ -71,6 +71,7 @@ export type VerifyIssue = {
 		| "missing-package"
 		| "designer-category-coverage"
 		| "designer-import-threshold"
+		| "virtual-resource-url"
 		| "remote-unavailable"
 		| "remote-size-mismatch";
 	detail: string;
@@ -339,6 +340,28 @@ function localPath({
 	url: string;
 }): string {
 	return join(publicDir, url.replace(/^\/+/, ""));
+}
+
+function isVirtualTextAssetUrl({ url }: { url: string }): boolean {
+	return url.startsWith("qcut-text-asset://");
+}
+
+function verifyPublishFileUrl({
+	assetId,
+	role,
+	url,
+}: {
+	assetId: string;
+	role: PublishFileRole;
+	url: string;
+}): VerifyIssue | null {
+	if (!isVirtualTextAssetUrl({ url })) return null;
+	return {
+		assetId,
+		code: "virtual-resource-url",
+		detail: `${role} file must reference a concrete CDN/cache path, received virtual text asset URL`,
+		url,
+	};
 }
 
 function hashBytes({ bytes }: { bytes: Buffer }): string {
@@ -644,6 +667,12 @@ export function buildTextAssetPublishManifest({
 				});
 				continue;
 			}
+			const urlIssue = verifyPublishFileUrl({
+				assetId: entry.assetId,
+				role,
+				url: file.url,
+			});
+			if (urlIssue) issues.push(urlIssue);
 			files.push({
 				...file,
 				cdnUrl: cdnUrl({ baseUrl, url: file.url }),

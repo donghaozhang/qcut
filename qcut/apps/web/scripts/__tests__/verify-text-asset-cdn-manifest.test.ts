@@ -527,6 +527,53 @@ describe("text asset CDN manifest verifier", () => {
 		]);
 	});
 
+	it("rejects virtual text asset URLs in publish manifests", () => {
+		const entry = createGeneratedEntry();
+		const virtualEntry: TextAssetGeneratedEntry = {
+			...entry,
+			thumbnail: {
+				...entry.thumbnail,
+				url: "qcut-text-asset://text-demo/thumbnail.webp",
+			},
+			source: {
+				...entry.source,
+				url: "qcut-text-asset://text-demo/template.json",
+			},
+			qcutPackage: {
+				...entry.qcutPackage,
+				url: "qcut-text-asset://text-demo/template.qctext",
+			},
+		};
+
+		const { issues } = buildTextAssetPublishManifest({
+			baseUrl: "https://cdn.example.com/assets/",
+			generatedAt: "2026-07-15T00:00:00.000Z",
+			generatedManifest: { "text-demo": virtualEntry },
+			publicDir: "/tmp/public",
+		});
+
+		expect(issues).toEqual([
+			expect.objectContaining({
+				assetId: "text-demo",
+				code: "virtual-resource-url",
+				detail: expect.stringContaining("thumbnail file"),
+				url: "qcut-text-asset://text-demo/thumbnail.webp",
+			}),
+			expect.objectContaining({
+				assetId: "text-demo",
+				code: "virtual-resource-url",
+				detail: expect.stringContaining("source file"),
+				url: "qcut-text-asset://text-demo/template.json",
+			}),
+			expect.objectContaining({
+				assetId: "text-demo",
+				code: "virtual-resource-url",
+				detail: expect.stringContaining("package file"),
+				url: "qcut-text-asset://text-demo/template.qctext",
+			}),
+		]);
+	});
+
 	it("builds marketplace config publish entries", async () => {
 		const publicDir = join(tmpdir(), `qcut-text-marketplace-${randomUUID()}`);
 		const marketplacePath = join(publicDir, "text-assets/marketplace.json");
