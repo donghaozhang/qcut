@@ -8,6 +8,7 @@ import {
 	buildTextDesignerAssetImportPlan,
 	parseTextDesignerAssetImportArgs,
 	readDesignerAssetPackManifest,
+	writeTextDesignerAssetImportPlanReport,
 	type TextDesignerAssetPackManifest,
 } from "../import-text-designer-assets";
 import type { TextAssetGeneratedEntry } from "../verify-text-asset-cdn-manifest";
@@ -186,6 +187,8 @@ describe("text designer asset import script", () => {
 					"/tmp/public",
 					"--require-designer-categories",
 					"red, texture",
+					"--write-plan",
+					"/tmp/import-plan.json",
 				],
 			})
 		).toMatchObject({
@@ -198,6 +201,7 @@ describe("text designer asset import script", () => {
 			packManifestPath: "/tmp/designer-pack/manifest.json",
 			publicDir: "/tmp/public",
 			requiredDesignerCategories: ["red", "texture"],
+			writePlanPath: "/tmp/import-plan.json",
 		});
 	});
 
@@ -564,6 +568,57 @@ describe("text designer asset import script", () => {
 		expect(writtenManifest["text-demo"]?.provenance).toEqual({
 			source: "designer-imported",
 			pipeline: "designer-pack-v1",
+		});
+	});
+
+	it("writes reviewable dry-run import plan reports", async () => {
+		const {
+			generatedManifest,
+			generatedManifestPath,
+			packDir,
+			packManifest,
+			publicDir,
+		} = await createDesignerFixture();
+		const plan = await buildTextDesignerAssetImportPlan({
+			generatedManifest,
+			packDir,
+			packManifest,
+			publicDir,
+		});
+		const summary = await applyTextDesignerAssetImportPlan({
+			dryRun: true,
+			generatedManifestPath,
+			plan,
+		});
+		const planPath = join(dirname(packDir), "designer-import-plan.json");
+
+		const report = await writeTextDesignerAssetImportPlanReport({
+			path: planPath,
+			plan,
+			summary,
+		});
+		const writtenReport = JSON.parse(
+			await readFile(planPath, "utf8")
+		) as typeof report;
+
+		expect(report).toMatchObject({
+			schemaVersion: 1,
+			summary: {
+				copiedFiles: 0,
+				designerImportedAssets: 1,
+				dryRun: true,
+				totalFiles: 3,
+			},
+		});
+		expect(writtenReport.items.map((item) => item.role)).toEqual([
+			"thumbnail",
+			"source",
+			"package",
+		]);
+		expect(writtenReport.items[0]).toMatchObject({
+			assetId: "text-demo",
+			checksumSha256: checksum({ value: DESIGNER_THUMBNAIL_TEXT }),
+			targetUrl: "/text-assets/demo/plain@1/thumbnail.webp",
 		});
 	});
 });

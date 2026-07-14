@@ -39,6 +39,7 @@ export type TextDesignerAssetImportOptions = {
 	packManifestPath: string;
 	publicDir: string;
 	requiredDesignerCategories: string[];
+	writePlanPath?: string;
 };
 
 export type TextDesignerAssetImportRole = "thumbnail" | "source" | "package";
@@ -67,6 +68,13 @@ export type TextDesignerAssetImportSummary = {
 	totalAssets: number;
 	totalBytes: number;
 	totalFiles: number;
+};
+
+export type TextDesignerAssetImportPlanReport = {
+	generatedAt: string;
+	items: TextDesignerAssetImportPlanItem[];
+	schemaVersion: 1;
+	summary: TextDesignerAssetImportSummary;
 };
 
 type DesignerAssetRoleSource = {
@@ -156,6 +164,11 @@ export function parseTextDesignerAssetImportArgs({
 				name: arg,
 				value: requireValue({ argv, index, name: arg }),
 			});
+			index += 1;
+			continue;
+		}
+		if (arg === "--write-plan") {
+			options.writePlanPath = requireValue({ argv, index, name: arg });
 			index += 1;
 			continue;
 		}
@@ -357,6 +370,26 @@ export async function applyTextDesignerAssetImportPlan({
 		totalBytes,
 		totalFiles: plan.items.length,
 	};
+}
+
+export async function writeTextDesignerAssetImportPlanReport({
+	path,
+	plan,
+	summary,
+}: {
+	path: string;
+	plan: TextDesignerAssetImportPlan;
+	summary: TextDesignerAssetImportSummary;
+}): Promise<TextDesignerAssetImportPlanReport> {
+	const report: TextDesignerAssetImportPlanReport = {
+		generatedAt: new Date().toISOString(),
+		items: plan.items,
+		schemaVersion: 1,
+		summary,
+	};
+	await mkdir(dirname(path), { recursive: true });
+	await writeFile(path, `${JSON.stringify(report, null, "\t")}\n`, "utf8");
+	return report;
 }
 
 function designerAssetRoleSources({
@@ -903,6 +936,13 @@ async function main(): Promise<void> {
 		generatedManifestPath: options.generatedManifestPath,
 		plan,
 	});
+	if (options.writePlanPath) {
+		await writeTextDesignerAssetImportPlanReport({
+			path: options.writePlanPath,
+			plan,
+			summary,
+		});
+	}
 	console.log(JSON.stringify({ ok: true, ...summary }, null, "\t"));
 }
 
