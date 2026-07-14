@@ -12,6 +12,7 @@ import {
 	buildTextMarketplacePublishEntry,
 	readGeneratedManifest,
 	summarizeTextAssetProvenance,
+	summarizeVerifyIssues,
 	verifyDesignerAssetCoverage,
 	verifyLocalFiles,
 	verifyRemoteFiles,
@@ -39,10 +40,12 @@ export type TextAssetReleaseOptions = {
 export type TextAssetReleaseSummary = {
 	baseUrl: string;
 	dryRun: boolean;
+	localIssueSummary: ReturnType<typeof summarizeVerifyIssues>["issueSummary"];
 	localIssues: readonly VerifyIssue[];
 	manifestPath: string;
 	minDesignerAssets: number;
 	provenance: TextAssetProvenanceSummary;
+	remoteIssueSummary: ReturnType<typeof summarizeVerifyIssues>["issueSummary"];
 	remoteIssues: readonly VerifyIssue[];
 	totalAssets: number;
 	totalBytes: number;
@@ -190,9 +193,11 @@ export function parseTextAssetReleaseArgs({
 export async function releaseTextAssetsToCdn({
 	options,
 	uploadFile,
+	verifyRemote = verifyRemoteFiles,
 }: {
 	options: TextAssetReleaseOptions;
 	uploadFile: Parameters<typeof uploadTextAssetPlan>[0]["uploadFile"];
+	verifyRemote?: typeof verifyRemoteFiles;
 }): Promise<TextAssetReleaseSummary> {
 	const generatedManifest = await readGeneratedManifest({
 		manifestPath: options.generatedManifestPath,
@@ -253,7 +258,7 @@ export async function releaseTextAssetsToCdn({
 	const remoteIssues =
 		options.dryRun || options.skipRemoteCheck
 			? []
-			: await verifyRemoteFiles({
+			: await verifyRemote({
 					concurrency: options.remoteConcurrency,
 					manifest,
 				});
@@ -288,10 +293,14 @@ function buildReleaseSummary({
 	return {
 		baseUrl: options.baseUrl,
 		dryRun: options.dryRun,
+		localIssueSummary: summarizeVerifyIssues({ issues: localIssues })
+			.issueSummary,
 		localIssues,
 		manifestPath,
 		minDesignerAssets: options.minDesignerAssets,
 		provenance,
+		remoteIssueSummary: summarizeVerifyIssues({ issues: remoteIssues })
+			.issueSummary,
 		remoteIssues,
 		totalAssets: manifest.totalAssets,
 		totalBytes: manifest.totalBytes,
@@ -371,7 +380,22 @@ async function main(): Promise<void> {
 	});
 	const ok =
 		summary.localIssues.length === 0 && summary.remoteIssues.length === 0;
-	console.log(JSON.stringify({ ok, ...summary }, null, "\t"));
+	const localIssues = summarizeVerifyIssues({ issues: summary.localIssues });
+	const remoteIssues = summarizeVerifyIssues({ issues: summary.remoteIssues });
+	console.log(
+		JSON.stringify(
+			{
+				ok,
+				...summary,
+				localIssueSummary: localIssues.issueSummary,
+				localIssues: localIssues.issues,
+				remoteIssueSummary: remoteIssues.issueSummary,
+				remoteIssues: remoteIssues.issues,
+			},
+			null,
+			"\t"
+		)
+	);
 	if (!ok) process.exit(1);
 }
 

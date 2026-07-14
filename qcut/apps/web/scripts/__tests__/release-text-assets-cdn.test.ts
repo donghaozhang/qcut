@@ -176,6 +176,11 @@ describe("text asset CDN release script", () => {
 
 		expect(summary).toMatchObject({
 			dryRun: true,
+			localIssueSummary: {
+				byCode: {},
+				count: 0,
+				truncated: 0,
+			},
 			localIssues: [],
 			manifestPath: publishManifestPath,
 			minDesignerAssets: 0,
@@ -185,6 +190,11 @@ describe("text asset CDN release script", () => {
 				missingProvenance: 1,
 				pipelines: { missing: 1 },
 				total: 1,
+			},
+			remoteIssueSummary: {
+				byCode: {},
+				count: 0,
+				truncated: 0,
 			},
 			remoteIssues: [],
 			totalAssets: 2,
@@ -215,8 +225,50 @@ describe("text asset CDN release script", () => {
 		});
 
 		expect(summary.localIssues).toHaveLength(4);
+		expect(summary.localIssueSummary.count).toBe(4);
+		expect(summary.localIssueSummary.byCode["missing-file"]).toBe(4);
 		expect(summary.upload.uploadedFiles).toBe(0);
 		expect(uploadedKeys).toEqual([]);
+	});
+
+	it("summarizes remote issues after release uploads", async () => {
+		const { options } = await createReleaseFixture();
+		const uploadedKeys: string[] = [];
+
+		const summary = await releaseTextAssetsToCdn({
+			options: {
+				...options,
+				dryRun: false,
+				skipRemoteCheck: false,
+			},
+			uploadFile: async ({ item }) => {
+				uploadedKeys.push(item.key);
+			},
+			verifyRemote: async () => [
+				{
+					assetId: "text-demo",
+					code: "remote-unavailable",
+					detail: "HEAD failed",
+				},
+			],
+		});
+
+		expect(summary.remoteIssues).toEqual([
+			{
+				assetId: "text-demo",
+				code: "remote-unavailable",
+				detail: "HEAD failed",
+			},
+		]);
+		expect(summary.remoteIssueSummary).toEqual({
+			byCode: {
+				"remote-unavailable": 1,
+			},
+			count: 1,
+			truncated: 0,
+		});
+		expect(summary.upload.uploadedFiles).toBe(4);
+		expect(uploadedKeys).toHaveLength(4);
 	});
 
 	it("blocks release uploads when designer asset coverage is below threshold", async () => {
@@ -246,5 +298,44 @@ describe("text asset CDN release script", () => {
 		});
 		expect(summary.upload.uploadedFiles).toBe(0);
 		expect(uploadedKeys).toEqual([]);
+	});
+
+	it("runs remote verification after non-dry release uploads", async () => {
+		const { options } = await createReleaseFixture();
+		const uploadedKeys: string[] = [];
+
+		const summary = await releaseTextAssetsToCdn({
+			options: {
+				...options,
+				dryRun: false,
+				skipRemoteCheck: false,
+			},
+			uploadFile: async ({ item }) => {
+				uploadedKeys.push(item.key);
+			},
+			verifyRemote: async ({ concurrency }) => [
+				{
+					assetId: "text-demo",
+					code: "remote-unavailable",
+					detail: `checked with concurrency ${concurrency}`,
+					url: "/text-assets/demo/plain@1/thumbnail.webp",
+				},
+			],
+		});
+
+		expect(uploadedKeys).toHaveLength(4);
+		expect(summary.remoteIssueSummary).toEqual({
+			byCode: { "remote-unavailable": 1 },
+			count: 1,
+			truncated: 0,
+		});
+		expect(summary.remoteIssues).toEqual([
+			{
+				assetId: "text-demo",
+				code: "remote-unavailable",
+				detail: "checked with concurrency 2",
+				url: "/text-assets/demo/plain@1/thumbnail.webp",
+			},
+		]);
 	});
 });
