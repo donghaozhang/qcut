@@ -285,8 +285,11 @@ export function renderTextAssetContactSheetHtml({
 		.empty { border: 1px dashed #404040; border-radius: 8px; padding: 18px; color: #8a8a8a; font-size: 12px; }
 		.slots { display: grid; gap: 6px; margin-top: 10px; border: 1px dashed #453636; border-radius: 8px; padding: 10px; background: #241f1f; }
 		.slots-title { color: #fca5a5; font-size: 11px; font-weight: 700; }
-		.slot-list { display: flex; flex-wrap: wrap; gap: 6px; }
-		.slot { border-radius: 5px; background: #332727; padding: 4px 6px; color: #e6c7c7; font: 10px ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; }
+		.slot-list { display: grid; gap: 8px; }
+		.slot { display: grid; gap: 4px; border-radius: 6px; background: #332727; padding: 7px; color: #e6c7c7; font: 10px ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; }
+		.slot strong { color: #f3d7d7; font-size: 11px; }
+		.slot-paths { display: flex; flex-wrap: wrap; gap: 5px; }
+		.slot-path { border-radius: 4px; background: #422f2f; padding: 3px 5px; color: #f0caca; }
 		@media (max-width: 860px) { .grid { grid-template-columns: repeat(4, minmax(0, 1fr)); } }
 		@media (max-width: 560px) { main { padding: 14px; } .grid { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
 	</style>
@@ -354,15 +357,25 @@ function renderSuggestedImports({
 }): string {
 	if (category.suggestedImports.length === 0) return "";
 	const slots = category.suggestedImports
-		.map(
-			(slot) =>
-				`<span class="slot">${escapeHtml({ value: slot.assetId })}</span>`
-		)
+		.map((slot) => renderSuggestedImportSlot({ slot }))
 		.join("");
 	return `			<div class="slots">
 				<div class="slots-title">Missing designer replacements: ${category.missingDesignerAssets}</div>
 				<div class="slot-list">${slots}</div>
 			</div>`;
+}
+
+function renderSuggestedImportSlot({
+	slot,
+}: {
+	slot: TextAssetDesignerImportSlot;
+}): string {
+	const paths = slot.requiredFilePaths
+		.map(
+			(path) => `<span class="slot-path">${escapeHtml({ value: path })}</span>`
+		)
+		.join("");
+	return `<span class="slot"><strong>${escapeHtml({ value: slot.assetId })}</strong><span>${escapeHtml({ value: slot.targetDirectory })}</span><span class="slot-paths">${paths}</span></span>`;
 }
 
 function renderItemCard({ item }: { item: TextAssetContactSheetItem }): string {

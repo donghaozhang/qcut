@@ -191,5 +191,17 @@ describe("text asset contact sheet script", () => {
 		expect(renderTextAssetContactSheetHtml({ model })).toContain(
 			"text-fancy-red-designer-01"
 		);
+		expect(renderTextAssetContactSheetHtml({ model })).toContain(
+			"text-assets/text-fancy-red/designer-01@1"
+		);
+		expect(renderTextAssetContactSheetHtml({ model })).toContain(
+			"text-assets/text-fancy-red/designer-01@1/thumbnail.webp"
+		);
+		expect(renderTextAssetContactSheetHtml({ model })).toContain(
+			"text-assets/text-fancy-red/designer-01@1/template.json"
+		);
+		expect(renderTextAssetContactSheetHtml({ model })).toContain(
+			"text-assets/text-fancy-red/designer-01@1/template.qctext"
+		);
 	});
 });
