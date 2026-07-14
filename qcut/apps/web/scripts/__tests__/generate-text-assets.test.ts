@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import {
 	GENERATED_TEXT_ASSET_PROVENANCE,
 	buildTextAssetSourcePayload,
+	buildTextAssetThumbnailSvg,
 	buildTextMarketplaceConfigPayload,
 } from "../generate-text-assets";
 import {
@@ -41,6 +42,41 @@ describe("text asset generator payloads", () => {
 			],
 			id: `pack-${definition.id}`,
 		});
+	});
+
+	it("renders static pack thumbnails from actual template pack copy", () => {
+		const expectations = [
+			{
+				category: "headline-template",
+				labels: ["本期重点", "三句话讲清楚"],
+			},
+			{
+				category: "quote-template",
+				labels: ["观点摘录"],
+			},
+			{
+				category: "list-template",
+				labels: ["关键动作", "避坑提醒"],
+			},
+			{
+				category: "split-template",
+				labels: ["之前", "之后", "VS"],
+			},
+			{
+				category: "timeline-template",
+				labels: ["阶段", "结果"],
+			},
+		] as const;
+
+		for (const expectation of expectations) {
+			const definition = firstDefinition({ category: expectation.category });
+			const svg = buildTextAssetThumbnailSvg({ definition });
+
+			for (const label of expectation.labels) {
+				expect(svg).toContain(label);
+			}
+			expect(svg).not.toContain('<rect x="104" y="140"');
+		}
 	});
 
 	it("keeps single-style text assets as single-template payloads", () => {

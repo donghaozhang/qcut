@@ -248,38 +248,163 @@ function textFillUrl({
 	return accent;
 }
 
+function packContent({
+	definition,
+	fallback,
+	index,
+}: {
+	definition: TextTemplateDefinition;
+	fallback: string;
+	index: number;
+}): string {
+	const baseTemplate = buildTextTemplate({ definition });
+	const pack = buildTextTemplatePack({ baseTemplate, definition });
+	return pack?.elements[index]?.content ?? fallback;
+}
+
+function compactSvgText({
+	definition,
+	fallback,
+	index,
+	maxCharacters = 8,
+}: {
+	definition: TextTemplateDefinition;
+	fallback: string;
+	index: number;
+	maxCharacters?: number;
+}): string {
+	const content = packContent({ definition, fallback, index }).trim();
+	const characters = Array.from(content || fallback);
+	return escapeXml({
+		value:
+			characters.length > maxCharacters
+				? `${characters.slice(0, maxCharacters).join("")}…`
+				: characters.join(""),
+	});
+}
+
 function packBodySvg({
 	definition,
 }: {
 	definition: TextTemplateDefinition;
 }): string {
 	if (definition.category === "quote-template") {
-		return `<text x="76" y="116" font-size="86" font-weight="900" fill="var(--accent)" filter="url(#shadow)">“</text>
-<text x="126" y="156" font-size="50" font-weight="900" fill="var(--light)" stroke="rgba(0,0,0,.68)" stroke-width="4" stroke-linejoin="round">金句</text>
-<text x="132" y="214" font-size="24" font-weight="800" fill="var(--mid)">— 观点摘录</text>`;
+		const mark = compactSvgText({
+			definition,
+			fallback: "“",
+			index: 0,
+			maxCharacters: 1,
+		});
+		const quote = compactSvgText({
+			definition,
+			fallback: "金句",
+			index: 1,
+			maxCharacters: 5,
+		});
+		const attribution = compactSvgText({
+			definition,
+			fallback: "— 观点摘录",
+			index: 2,
+			maxCharacters: 7,
+		});
+		return `<text x="76" y="116" font-size="86" font-weight="900" fill="var(--accent)" filter="url(#shadow)">${mark}</text>
+<text x="126" y="156" font-size="46" font-weight="900" fill="var(--light)" stroke="rgba(0,0,0,.68)" stroke-width="4" stroke-linejoin="round">${quote}</text>
+<text x="132" y="214" font-size="23" font-weight="800" fill="var(--mid)">${attribution}</text>`;
 	}
 	if (definition.category === "list-template") {
-		return `<text x="64" y="98" font-size="46" font-weight="900" fill="var(--light)" stroke="#111" stroke-width="8" stroke-linejoin="round">清单</text>
-<circle cx="72" cy="154" r="15" fill="var(--accent)"/><text x="72" y="160" text-anchor="middle" font-size="15" font-weight="900" fill="#020617">01</text><rect x="104" y="140" width="136" height="20" rx="8" fill="rgba(255,255,255,.25)"/>
-<circle cx="72" cy="204" r="15" fill="var(--accent)"/><text x="72" y="210" text-anchor="middle" font-size="15" font-weight="900" fill="#020617">02</text><rect x="104" y="190" width="112" height="20" rx="8" fill="rgba(255,255,255,.2)"/>`;
+		const title = compactSvgText({
+			definition,
+			fallback: "清单",
+			index: 0,
+			maxCharacters: 5,
+		});
+		const itemOne = compactSvgText({
+			definition,
+			fallback: "关键动作",
+			index: 1,
+			maxCharacters: 7,
+		});
+		const itemTwo = compactSvgText({
+			definition,
+			fallback: "避坑提醒",
+			index: 2,
+			maxCharacters: 7,
+		});
+		return `<text x="64" y="98" font-size="42" font-weight="900" fill="var(--light)" stroke="#111" stroke-width="8" stroke-linejoin="round">${title}</text>
+<circle cx="72" cy="154" r="15" fill="var(--accent)"/><text x="72" y="160" text-anchor="middle" font-size="15" font-weight="900" fill="#020617">01</text><text x="104" y="162" font-size="22" font-weight="850" fill="var(--light)" stroke="rgba(0,0,0,.48)" stroke-width="2" stroke-linejoin="round">${itemOne}</text>
+<circle cx="72" cy="204" r="15" fill="var(--accent)"/><text x="72" y="210" text-anchor="middle" font-size="15" font-weight="900" fill="#020617">02</text><text x="104" y="212" font-size="22" font-weight="850" fill="var(--light)" stroke="rgba(0,0,0,.42)" stroke-width="2" stroke-linejoin="round">${itemTwo}</text>`;
 	}
 	if (definition.category === "split-template") {
+		const left = compactSvgText({
+			definition,
+			fallback: "之前",
+			index: 0,
+			maxCharacters: 3,
+		});
+		const right = compactSvgText({
+			definition,
+			fallback: "之后",
+			index: 1,
+			maxCharacters: 3,
+		});
+		const middle = compactSvgText({
+			definition,
+			fallback: "VS",
+			index: 2,
+			maxCharacters: 2,
+		});
 		return `<rect x="48" y="88" width="92" height="132" rx="18" fill="rgba(0,0,0,.36)"/><rect x="180" y="88" width="92" height="132" rx="18" fill="rgba(255,255,255,.22)"/>
-<text x="94" y="160" text-anchor="middle" font-size="30" font-weight="900" fill="var(--light)" stroke="rgba(0,0,0,.66)" stroke-width="3">之前</text>
-<text x="226" y="160" text-anchor="middle" font-size="30" font-weight="900" fill="var(--light)" stroke="rgba(0,0,0,.66)" stroke-width="3">之后</text>
-<text x="160" y="166" text-anchor="middle" font-size="40" font-weight="900" fill="var(--accent)" stroke="rgba(0,0,0,.68)" stroke-width="4">VS</text>`;
+<text x="94" y="160" text-anchor="middle" font-size="30" font-weight="900" fill="var(--light)" stroke="rgba(0,0,0,.66)" stroke-width="3">${left}</text>
+<text x="226" y="160" text-anchor="middle" font-size="30" font-weight="900" fill="var(--light)" stroke="rgba(0,0,0,.66)" stroke-width="3">${right}</text>
+<text x="160" y="166" text-anchor="middle" font-size="40" font-weight="900" fill="var(--accent)" stroke="rgba(0,0,0,.68)" stroke-width="4">${middle}</text>`;
 	}
 	if (definition.category === "timeline-template") {
+		const stageOne = compactSvgText({
+			definition,
+			fallback: "1",
+			index: 0,
+			maxCharacters: 3,
+		});
+		const stageTwo = compactSvgText({
+			definition,
+			fallback: "阶段",
+			index: 1,
+			maxCharacters: 3,
+		});
+		const stageThree = compactSvgText({
+			definition,
+			fallback: "结果",
+			index: 2,
+			maxCharacters: 3,
+		});
 		return `<path d="M66 154 H254" stroke="rgba(255,255,255,.72)" stroke-width="6" stroke-linecap="round"/>
 <circle cx="66" cy="154" r="18" fill="var(--mid)"/><circle cx="160" cy="154" r="25" fill="var(--accent)"/><circle cx="254" cy="154" r="18" fill="var(--mid)"/>
-<text x="66" y="212" text-anchor="middle" font-size="20" font-weight="900" fill="var(--light)">1</text>
-<text x="160" y="161" text-anchor="middle" font-size="20" font-weight="900" fill="#020617">阶段</text>
-<text x="254" y="212" text-anchor="middle" font-size="20" font-weight="900" fill="var(--light)">结果</text>`;
+<text x="66" y="212" text-anchor="middle" font-size="18" font-weight="900" fill="var(--light)">${stageOne}</text>
+<text x="160" y="161" text-anchor="middle" font-size="18" font-weight="900" fill="#020617">${stageTwo}</text>
+<text x="254" y="212" text-anchor="middle" font-size="18" font-weight="900" fill="var(--light)">${stageThree}</text>`;
 	}
+	const kicker = compactSvgText({
+		definition,
+		fallback: "本期重点",
+		index: 0,
+		maxCharacters: 5,
+	});
+	const headline = compactSvgText({
+		definition,
+		fallback: "标题",
+		index: 1,
+		maxCharacters: 5,
+	});
+	const subhead = compactSvgText({
+		definition,
+		fallback: "三句话讲清楚",
+		index: 2,
+		maxCharacters: 7,
+	});
 	return `<rect x="60" y="64" width="114" height="38" rx="14" fill="var(--accent)" filter="url(#shadow)"/>
-<text x="117" y="89" text-anchor="middle" font-size="21" font-weight="900" fill="#020617">本期重点</text>
-<text x="60" y="168" font-size="58" font-weight="900" fill="var(--light)" stroke="rgba(0,0,0,.68)" stroke-width="5" stroke-linejoin="round">标题</text>
-<text x="64" y="220" font-size="28" font-weight="900" fill="var(--light)" stroke="rgba(0,0,0,.6)" stroke-width="2.5" stroke-linejoin="round">三句话讲清楚</text>`;
+<text x="117" y="89" text-anchor="middle" font-size="21" font-weight="900" fill="#020617">${kicker}</text>
+<text x="60" y="168" font-size="42" font-weight="900" fill="var(--light)" stroke="rgba(0,0,0,.68)" stroke-width="5" stroke-linejoin="round">${headline}</text>
+<text x="64" y="220" font-size="24" font-weight="900" fill="var(--light)" stroke="rgba(0,0,0,.6)" stroke-width="2.5" stroke-linejoin="round">${subhead}</text>`;
 }
 
 function packThumbnailSvg({
@@ -301,7 +426,11 @@ ${packBodySvg({ definition })}
 </svg>`;
 }
 
-function thumbnailSvg({ definition }: { definition: TextTemplateDefinition }) {
+export function buildTextAssetThumbnailSvg({
+	definition,
+}: {
+	definition: TextTemplateDefinition;
+}) {
 	if (getTextTemplateThumbnailLayoutKind({ definition }) === "pack") {
 		return packThumbnailSvg({ definition });
 	}
@@ -495,7 +624,7 @@ async function writeAsset({
 	});
 	const thumbnailBytes = await svgToWebp({
 		page,
-		svg: thumbnailSvg({ definition }),
+		svg: buildTextAssetThumbnailSvg({ definition }),
 	});
 	const source = buildTextAssetSourcePayload({ definition });
 	const sourceBytes = Buffer.from(
