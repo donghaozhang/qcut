@@ -3,6 +3,28 @@
 	"assetId": "text-fancy-green-texture-grain",
 	"packageId": "text-fancy-green",
 	"version": 1,
+	"marketplace": {
+		"editorialRank": 13,
+		"heatScore": 100,
+		"remoteTags": [
+			"category:green",
+			"group:fancy",
+			"variant:texture-grain",
+			"color:green",
+			"tone:fresh",
+			"material:grain",
+			"effect:texture"
+		],
+		"searchAliases": [
+			"绿色",
+			"清新",
+			"自然",
+			"green",
+			"颗粒",
+			"纹理",
+			"质感"
+		]
+	},
 	"definition": {
 		"id": "green-texture-grain",
 		"name": "绿色颗粒",

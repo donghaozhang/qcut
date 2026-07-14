@@ -3,6 +3,23 @@
 	"assetId": "text-fancy-texture-glass",
 	"packageId": "text-fancy-texture",
 	"version": 1,
+	"marketplace": {
+		"editorialRank": 13,
+		"heatScore": 95,
+		"remoteTags": [
+			"category:texture",
+			"group:fancy",
+			"variant:glass",
+			"effect:texture",
+			"market:premium-look"
+		],
+		"searchAliases": [
+			"纹理",
+			"材质",
+			"质感",
+			"texture"
+		]
+	},
 	"definition": {
 		"id": "texture-glass",
 		"name": "纹理玻璃",

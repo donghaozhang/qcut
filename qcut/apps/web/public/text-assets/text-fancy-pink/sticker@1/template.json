@@ -3,6 +3,26 @@
 	"assetId": "text-fancy-pink-sticker",
 	"packageId": "text-fancy-pink",
 	"version": 1,
+	"marketplace": {
+		"editorialRank": 24,
+		"heatScore": 100,
+		"remoteTags": [
+			"category:pink",
+			"group:fancy",
+			"variant:sticker",
+			"color:pink",
+			"tone:cute",
+			"style:sticker"
+		],
+		"searchAliases": [
+			"粉色",
+			"甜心",
+			"可爱",
+			"pink",
+			"贴纸",
+			"白边"
+		]
+	},
 	"definition": {
 		"id": "pink-sticker",
 		"name": "粉色贴纸",

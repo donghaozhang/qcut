@@ -3,6 +3,16 @@
 	"assetId": "text-templates-quote-template-soft-card",
 	"packageId": "text-templates-quote-template",
 	"version": 1,
+	"marketplace": {
+		"editorialRank": 120,
+		"heatScore": 77,
+		"remoteTags": [
+			"category:quote-template",
+			"group:templates",
+			"variant:soft-card"
+		],
+		"searchAliases": []
+	},
 	"definition": {
 		"id": "quote-template-soft-card",
 		"name": "引用模板柔卡",

@@ -3,6 +3,16 @@
 	"assetId": "text-templates-list-template-pixel",
 	"packageId": "text-templates-list-template",
 	"version": 1,
+	"marketplace": {
+		"editorialRank": 120,
+		"heatScore": 77,
+		"remoteTags": [
+			"category:list-template",
+			"group:templates",
+			"variant:pixel"
+		],
+		"searchAliases": []
+	},
 	"definition": {
 		"id": "list-template-pixel",
 		"name": "列表模板像素",

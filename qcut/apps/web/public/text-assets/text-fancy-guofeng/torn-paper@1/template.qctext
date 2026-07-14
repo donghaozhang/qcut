@@ -14,6 +14,28 @@
 		"assetId": "text-fancy-guofeng-torn-paper",
 		"packageId": "text-fancy-guofeng",
 		"version": 1,
+		"marketplace": {
+			"editorialRank": 20,
+			"heatScore": 100,
+			"remoteTags": [
+				"category:guofeng",
+				"group:fancy",
+				"variant:torn-paper",
+				"style:guofeng",
+				"scene:culture",
+				"material:paper",
+				"style:collage"
+			],
+			"searchAliases": [
+				"国风",
+				"国潮",
+				"水墨",
+				"chinoiserie",
+				"撕纸",
+				"纸张",
+				"拼贴"
+			]
+		},
 		"definition": {
 			"id": "guofeng-torn-paper",
 			"name": "国风撕纸",

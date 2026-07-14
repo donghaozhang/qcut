@@ -3,6 +3,22 @@
 	"assetId": "text-smart-text-subtitle-title-chrome",
 	"packageId": "text-smart-text-subtitle-title",
 	"version": 1,
+	"marketplace": {
+		"editorialRank": 32,
+		"heatScore": 97,
+		"remoteTags": [
+			"category:subtitle-title",
+			"group:smart-text",
+			"variant:chrome",
+			"material:chrome",
+			"tone:premium"
+		],
+		"searchAliases": [
+			"金属",
+			"银色",
+			"质感"
+		]
+	},
 	"definition": {
 		"id": "subtitle-title-chrome",
 		"name": "字幕转标题金属",

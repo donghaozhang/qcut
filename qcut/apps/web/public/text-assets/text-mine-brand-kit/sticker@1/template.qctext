@@ -14,6 +14,22 @@
 		"assetId": "text-mine-brand-kit-sticker",
 		"packageId": "text-mine-brand-kit",
 		"version": 1,
+		"marketplace": {
+			"editorialRank": 24,
+			"heatScore": 94,
+			"remoteTags": [
+				"category:brand-kit",
+				"group:mine",
+				"variant:sticker",
+				"style:sticker",
+				"tone:cute"
+			],
+			"searchAliases": [
+				"贴纸",
+				"白边",
+				"可爱"
+			]
+		},
 		"definition": {
 			"id": "brand-kit-sticker",
 			"name": "品牌字贴纸",

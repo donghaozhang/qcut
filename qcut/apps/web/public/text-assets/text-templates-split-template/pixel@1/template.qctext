@@ -14,6 +14,16 @@
 		"assetId": "text-templates-split-template-pixel",
 		"packageId": "text-templates-split-template",
 		"version": 1,
+		"marketplace": {
+			"editorialRank": 120,
+			"heatScore": 77,
+			"remoteTags": [
+				"category:split-template",
+				"group:templates",
+				"variant:pixel"
+			],
+			"searchAliases": []
+		},
 		"definition": {
 			"id": "split-template-pixel",
 			"name": "分屏模板像素",

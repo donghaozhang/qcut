@@ -14,6 +14,22 @@
 		"assetId": "text-mine-brand-kit-glow",
 		"packageId": "text-mine-brand-kit",
 		"version": 1,
+		"marketplace": {
+			"editorialRank": 15,
+			"heatScore": 100,
+			"remoteTags": [
+				"category:brand-kit",
+				"group:mine",
+				"variant:glow",
+				"effect:glow",
+				"scene:night"
+			],
+			"searchAliases": [
+				"发光",
+				"霓虹",
+				"夜景"
+			]
+		},
 		"definition": {
 			"id": "brand-kit-glow",
 			"name": "品牌字发光",

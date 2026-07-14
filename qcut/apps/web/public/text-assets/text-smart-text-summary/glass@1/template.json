@@ -3,6 +3,16 @@
 	"assetId": "text-smart-text-summary-glass",
 	"packageId": "text-smart-text-summary",
 	"version": 1,
+	"marketplace": {
+		"editorialRank": 120,
+		"heatScore": 81,
+		"remoteTags": [
+			"category:summary",
+			"group:smart-text",
+			"variant:glass"
+		],
+		"searchAliases": []
+	},
 	"definition": {
 		"id": "summary-glass",
 		"name": "自动摘要玻璃",

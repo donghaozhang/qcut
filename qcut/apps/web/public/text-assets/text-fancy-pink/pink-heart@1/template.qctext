@@ -14,6 +14,23 @@
 		"assetId": "text-fancy-pink-pink-heart",
 		"packageId": "text-fancy-pink",
 		"version": 1,
+		"marketplace": {
+			"editorialRank": 46,
+			"heatScore": 86,
+			"remoteTags": [
+				"category:pink",
+				"group:fancy",
+				"variant:pink-heart",
+				"color:pink",
+				"tone:cute"
+			],
+			"searchAliases": [
+				"粉色",
+				"甜心",
+				"可爱",
+				"pink"
+			]
+		},
 		"definition": {
 			"id": "pink-pink-heart",
 			"name": "粉色甜心",

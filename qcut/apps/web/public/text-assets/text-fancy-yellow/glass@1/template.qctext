@@ -14,6 +14,23 @@
 		"assetId": "text-fancy-yellow-glass",
 		"packageId": "text-fancy-yellow",
 		"version": 1,
+		"marketplace": {
+			"editorialRank": 26,
+			"heatScore": 93,
+			"remoteTags": [
+				"category:yellow",
+				"group:fancy",
+				"variant:glass",
+				"color:yellow",
+				"tone:bright"
+			],
+			"searchAliases": [
+				"黄色",
+				"醒目",
+				"高亮",
+				"yellow"
+			]
+		},
 		"definition": {
 			"id": "yellow-glass",
 			"name": "黄色玻璃",

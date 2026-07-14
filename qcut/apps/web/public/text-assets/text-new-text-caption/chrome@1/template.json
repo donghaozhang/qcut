@@ -3,6 +3,22 @@
 	"assetId": "text-new-text-caption-chrome",
 	"packageId": "text-new-text-caption",
 	"version": 1,
+	"marketplace": {
+		"editorialRank": 32,
+		"heatScore": 97,
+		"remoteTags": [
+			"category:caption",
+			"group:new-text",
+			"variant:chrome",
+			"material:chrome",
+			"tone:premium"
+		],
+		"searchAliases": [
+			"金属",
+			"银色",
+			"质感"
+		]
+	},
 	"definition": {
 		"id": "caption-chrome",
 		"name": "说明金属",

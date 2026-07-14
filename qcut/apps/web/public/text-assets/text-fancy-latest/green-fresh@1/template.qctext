@@ -14,6 +14,22 @@
 		"assetId": "text-fancy-latest-green-fresh",
 		"packageId": "text-fancy-latest",
 		"version": 1,
+		"marketplace": {
+			"editorialRank": 16,
+			"heatScore": 90,
+			"remoteTags": [
+				"category:latest",
+				"group:fancy",
+				"variant:green-fresh",
+				"collection:latest",
+				"market:new"
+			],
+			"searchAliases": [
+				"最新",
+				"上新",
+				"new"
+			]
+		},
 		"definition": {
 			"id": "latest-green-fresh",
 			"name": "最新清新",

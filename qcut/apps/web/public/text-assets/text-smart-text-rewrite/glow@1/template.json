@@ -3,6 +3,22 @@
 	"assetId": "text-smart-text-rewrite-glow",
 	"packageId": "text-smart-text-rewrite",
 	"version": 1,
+	"marketplace": {
+		"editorialRank": 15,
+		"heatScore": 100,
+		"remoteTags": [
+			"category:rewrite",
+			"group:smart-text",
+			"variant:glow",
+			"effect:glow",
+			"scene:night"
+		],
+		"searchAliases": [
+			"发光",
+			"霓虹",
+			"夜景"
+		]
+	},
 	"definition": {
 		"id": "rewrite-glow",
 		"name": "AI改写发光",

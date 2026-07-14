@@ -14,6 +14,16 @@
 		"assetId": "text-mine-brand-kit-bubble",
 		"packageId": "text-mine-brand-kit",
 		"version": 1,
+		"marketplace": {
+			"editorialRank": 120,
+			"heatScore": 77,
+			"remoteTags": [
+				"category:brand-kit",
+				"group:mine",
+				"variant:bubble"
+			],
+			"searchAliases": []
+		},
 		"definition": {
 			"id": "brand-kit-bubble",
 			"name": "品牌字气泡",

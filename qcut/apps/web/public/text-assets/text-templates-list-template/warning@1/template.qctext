@@ -14,6 +14,16 @@
 		"assetId": "text-templates-list-template-warning",
 		"packageId": "text-templates-list-template",
 		"version": 1,
+		"marketplace": {
+			"editorialRank": 120,
+			"heatScore": 77,
+			"remoteTags": [
+				"category:list-template",
+				"group:templates",
+				"variant:warning"
+			],
+			"searchAliases": []
+		},
 		"definition": {
 			"id": "list-template-warning",
 			"name": "列表模板警示",

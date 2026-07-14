@@ -14,6 +14,22 @@
 		"assetId": "text-smart-packaging-intro-outro-comic",
 		"packageId": "text-smart-packaging-intro-outro",
 		"version": 1,
+		"marketplace": {
+			"editorialRank": 19,
+			"heatScore": 99,
+			"remoteTags": [
+				"category:intro-outro",
+				"group:smart-packaging",
+				"variant:comic",
+				"style:comic",
+				"effect:burst"
+			],
+			"searchAliases": [
+				"漫画",
+				"爆炸",
+				"综艺"
+			]
+		},
 		"definition": {
 			"id": "intro-outro-comic",
 			"name": "片头片尾漫画",

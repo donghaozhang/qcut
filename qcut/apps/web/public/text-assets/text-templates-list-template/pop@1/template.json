@@ -3,6 +3,16 @@
 	"assetId": "text-templates-list-template-pop",
 	"packageId": "text-templates-list-template",
 	"version": 1,
+	"marketplace": {
+		"editorialRank": 120,
+		"heatScore": 81,
+		"remoteTags": [
+			"category:list-template",
+			"group:templates",
+			"variant:pop"
+		],
+		"searchAliases": []
+	},
 	"definition": {
 		"id": "list-template-pop",
 		"name": "列表模板弹幕",

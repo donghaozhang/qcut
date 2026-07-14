@@ -14,6 +14,16 @@
 		"assetId": "text-mine-recent-pixel",
 		"packageId": "text-mine-recent",
 		"version": 1,
+		"marketplace": {
+			"editorialRank": 120,
+			"heatScore": 77,
+			"remoteTags": [
+				"category:recent",
+				"group:mine",
+				"variant:pixel"
+			],
+			"searchAliases": []
+		},
 		"definition": {
 			"id": "recent-pixel",
 			"name": "最近使用像素",

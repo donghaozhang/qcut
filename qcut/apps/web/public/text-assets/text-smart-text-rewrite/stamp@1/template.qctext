@@ -14,6 +14,16 @@
 		"assetId": "text-smart-text-rewrite-stamp",
 		"packageId": "text-smart-text-rewrite",
 		"version": 1,
+		"marketplace": {
+			"editorialRank": 120,
+			"heatScore": 77,
+			"remoteTags": [
+				"category:rewrite",
+				"group:smart-text",
+				"variant:stamp"
+			],
+			"searchAliases": []
+		},
 		"definition": {
 			"id": "rewrite-stamp",
 			"name": "AI改写印章",

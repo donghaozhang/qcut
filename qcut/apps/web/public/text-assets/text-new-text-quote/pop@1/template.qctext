@@ -14,6 +14,16 @@
 		"assetId": "text-new-text-quote-pop",
 		"packageId": "text-new-text-quote",
 		"version": 1,
+		"marketplace": {
+			"editorialRank": 120,
+			"heatScore": 81,
+			"remoteTags": [
+				"category:quote",
+				"group:new-text",
+				"variant:pop"
+			],
+			"searchAliases": []
+		},
 		"definition": {
 			"id": "quote-pop",
 			"name": "引用弹幕",

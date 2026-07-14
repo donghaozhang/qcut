@@ -3,6 +3,16 @@
 	"assetId": "text-smart-text-key-point-shadow",
 	"packageId": "text-smart-text-key-point",
 	"version": 1,
+	"marketplace": {
+		"editorialRank": 120,
+		"heatScore": 77,
+		"remoteTags": [
+			"category:key-point",
+			"group:smart-text",
+			"variant:shadow"
+		],
+		"searchAliases": []
+	},
 	"definition": {
 		"id": "key-point-shadow",
 		"name": "重点提取重影",

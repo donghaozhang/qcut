@@ -14,6 +14,16 @@
 		"assetId": "text-mine-recent-warning",
 		"packageId": "text-mine-recent",
 		"version": 1,
+		"marketplace": {
+			"editorialRank": 120,
+			"heatScore": 77,
+			"remoteTags": [
+				"category:recent",
+				"group:mine",
+				"variant:warning"
+			],
+			"searchAliases": []
+		},
 		"definition": {
 			"id": "recent-warning",
 			"name": "最近使用警示",

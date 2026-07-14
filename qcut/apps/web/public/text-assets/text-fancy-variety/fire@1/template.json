@@ -3,6 +3,28 @@
 	"assetId": "text-fancy-variety-fire",
 	"packageId": "text-fancy-variety",
 	"version": 1,
+	"marketplace": {
+		"editorialRank": 9,
+		"heatScore": 100,
+		"remoteTags": [
+			"category:variety",
+			"group:fancy",
+			"variant:fire",
+			"scene:variety",
+			"effect:pop",
+			"effect:fire",
+			"tone:hot"
+		],
+		"searchAliases": [
+			"综艺",
+			"弹幕",
+			"爆笑",
+			"variety",
+			"火焰",
+			"热血",
+			"燃"
+		]
+	},
 	"definition": {
 		"id": "variety-fire",
 		"name": "综艺感火焰",

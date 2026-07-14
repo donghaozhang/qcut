@@ -14,6 +14,16 @@
 		"assetId": "text-templates-split-template-stamp",
 		"packageId": "text-templates-split-template",
 		"version": 1,
+		"marketplace": {
+			"editorialRank": 120,
+			"heatScore": 77,
+			"remoteTags": [
+				"category:split-template",
+				"group:templates",
+				"variant:stamp"
+			],
+			"searchAliases": []
+		},
 		"definition": {
 			"id": "split-template-stamp",
 			"name": "分屏模板印章",

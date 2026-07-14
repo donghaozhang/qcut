@@ -3,6 +3,22 @@
 	"assetId": "text-templates-list-template-comic",
 	"packageId": "text-templates-list-template",
 	"version": 1,
+	"marketplace": {
+		"editorialRank": 19,
+		"heatScore": 99,
+		"remoteTags": [
+			"category:list-template",
+			"group:templates",
+			"variant:comic",
+			"style:comic",
+			"effect:burst"
+		],
+		"searchAliases": [
+			"漫画",
+			"爆炸",
+			"综艺"
+		]
+	},
 	"definition": {
 		"id": "list-template-comic",
 		"name": "列表模板漫画",

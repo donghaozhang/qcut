@@ -14,6 +14,16 @@
 		"assetId": "text-mine-drafts-pixel",
 		"packageId": "text-mine-drafts",
 		"version": 1,
+		"marketplace": {
+			"editorialRank": 120,
+			"heatScore": 77,
+			"remoteTags": [
+				"category:drafts",
+				"group:mine",
+				"variant:pixel"
+			],
+			"searchAliases": []
+		},
 		"definition": {
 			"id": "drafts-pixel",
 			"name": "草稿像素",

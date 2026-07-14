@@ -3,6 +3,16 @@
 	"assetId": "text-smart-packaging-cover-pack-ribbon",
 	"packageId": "text-smart-packaging-cover-pack",
 	"version": 1,
+	"marketplace": {
+		"editorialRank": 120,
+		"heatScore": 81,
+		"remoteTags": [
+			"category:cover-pack",
+			"group:smart-packaging",
+			"variant:ribbon"
+		],
+		"searchAliases": []
+	},
 	"definition": {
 		"id": "cover-pack-ribbon",
 		"name": "封面包装飘带",

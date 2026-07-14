@@ -14,6 +14,22 @@
 		"assetId": "text-mine-drafts-comic",
 		"packageId": "text-mine-drafts",
 		"version": 1,
+		"marketplace": {
+			"editorialRank": 19,
+			"heatScore": 99,
+			"remoteTags": [
+				"category:drafts",
+				"group:mine",
+				"variant:comic",
+				"style:comic",
+				"effect:burst"
+			],
+			"searchAliases": [
+				"漫画",
+				"爆炸",
+				"综艺"
+			]
+		},
 		"definition": {
 			"id": "drafts-comic",
 			"name": "草稿漫画",

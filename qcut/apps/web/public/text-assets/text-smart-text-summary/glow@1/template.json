@@ -3,6 +3,22 @@
 	"assetId": "text-smart-text-summary-glow",
 	"packageId": "text-smart-text-summary",
 	"version": 1,
+	"marketplace": {
+		"editorialRank": 15,
+		"heatScore": 100,
+		"remoteTags": [
+			"category:summary",
+			"group:smart-text",
+			"variant:glow",
+			"effect:glow",
+			"scene:night"
+		],
+		"searchAliases": [
+			"发光",
+			"霓虹",
+			"夜景"
+		]
+	},
 	"definition": {
 		"id": "summary-glow",
 		"name": "自动摘要发光",

@@ -3,6 +3,23 @@
 	"assetId": "text-fancy-gradient-gradient-duotone",
 	"packageId": "text-fancy-gradient",
 	"version": 1,
+	"marketplace": {
+		"editorialRank": 12,
+		"heatScore": 96,
+		"remoteTags": [
+			"category:gradient",
+			"group:fancy",
+			"variant:gradient-duotone",
+			"effect:gradient",
+			"tone:dreamy"
+		],
+		"searchAliases": [
+			"渐变",
+			"流光",
+			"梦幻",
+			"gradient"
+		]
+	},
 	"definition": {
 		"id": "gradient-gradient-duotone",
 		"name": "渐变双色",

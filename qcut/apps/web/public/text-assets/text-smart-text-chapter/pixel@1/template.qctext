@@ -14,6 +14,16 @@
 		"assetId": "text-smart-text-chapter-pixel",
 		"packageId": "text-smart-text-chapter",
 		"version": 1,
+		"marketplace": {
+			"editorialRank": 120,
+			"heatScore": 77,
+			"remoteTags": [
+				"category:chapter",
+				"group:smart-text",
+				"variant:pixel"
+			],
+			"searchAliases": []
+		},
 		"definition": {
 			"id": "chapter-pixel",
 			"name": "章节标题像素",

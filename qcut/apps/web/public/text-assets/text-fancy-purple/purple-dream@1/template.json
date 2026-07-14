@@ -3,6 +3,23 @@
 	"assetId": "text-fancy-purple-purple-dream",
 	"packageId": "text-fancy-purple",
 	"version": 1,
+	"marketplace": {
+		"editorialRank": 50,
+		"heatScore": 90,
+		"remoteTags": [
+			"category:purple",
+			"group:fancy",
+			"variant:purple-dream",
+			"color:purple",
+			"tone:dreamy"
+		],
+		"searchAliases": [
+			"紫色",
+			"梦幻",
+			"高级",
+			"purple"
+		]
+	},
 	"definition": {
 		"id": "purple-purple-dream",
 		"name": "紫色梦紫",

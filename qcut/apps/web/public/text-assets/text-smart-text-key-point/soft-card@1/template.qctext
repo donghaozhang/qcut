@@ -14,6 +14,16 @@
 		"assetId": "text-smart-text-key-point-soft-card",
 		"packageId": "text-smart-text-key-point",
 		"version": 1,
+		"marketplace": {
+			"editorialRank": 120,
+			"heatScore": 77,
+			"remoteTags": [
+				"category:key-point",
+				"group:smart-text",
+				"variant:soft-card"
+			],
+			"searchAliases": []
+		},
 		"definition": {
 			"id": "key-point-soft-card",
 			"name": "重点提取柔卡",

@@ -14,6 +14,22 @@
 		"assetId": "text-templates-headline-template-chrome",
 		"packageId": "text-templates-headline-template",
 		"version": 1,
+		"marketplace": {
+			"editorialRank": 32,
+			"heatScore": 97,
+			"remoteTags": [
+				"category:headline-template",
+				"group:templates",
+				"variant:chrome",
+				"material:chrome",
+				"tone:premium"
+			],
+			"searchAliases": [
+				"金属",
+				"银色",
+				"质感"
+			]
+		},
 		"definition": {
 			"id": "headline-template-chrome",
 			"name": "标题模板金属",

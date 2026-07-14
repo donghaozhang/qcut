@@ -14,6 +14,22 @@
 		"assetId": "text-new-text-basic-sticker",
 		"packageId": "text-new-text-basic",
 		"version": 1,
+		"marketplace": {
+			"editorialRank": 24,
+			"heatScore": 94,
+			"remoteTags": [
+				"category:basic",
+				"group:new-text",
+				"variant:sticker",
+				"style:sticker",
+				"tone:cute"
+			],
+			"searchAliases": [
+				"贴纸",
+				"白边",
+				"可爱"
+			]
+		},
 		"definition": {
 			"id": "basic-sticker",
 			"name": "基础文本贴纸",

@@ -14,6 +14,28 @@
 		"assetId": "text-fancy-guofeng-chrome",
 		"packageId": "text-fancy-guofeng",
 		"version": 1,
+		"marketplace": {
+			"editorialRank": 20,
+			"heatScore": 100,
+			"remoteTags": [
+				"category:guofeng",
+				"group:fancy",
+				"variant:chrome",
+				"style:guofeng",
+				"scene:culture",
+				"material:chrome",
+				"tone:premium"
+			],
+			"searchAliases": [
+				"国风",
+				"国潮",
+				"水墨",
+				"chinoiserie",
+				"金属",
+				"银色",
+				"质感"
+			]
+		},
 		"definition": {
 			"id": "guofeng-chrome",
 			"name": "国风金属",

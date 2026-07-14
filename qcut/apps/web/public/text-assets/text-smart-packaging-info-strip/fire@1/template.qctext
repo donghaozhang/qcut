@@ -14,6 +14,22 @@
 		"assetId": "text-smart-packaging-info-strip-fire",
 		"packageId": "text-smart-packaging-info-strip",
 		"version": 1,
+		"marketplace": {
+			"editorialRank": 9,
+			"heatScore": 100,
+			"remoteTags": [
+				"category:info-strip",
+				"group:smart-packaging",
+				"variant:fire",
+				"effect:fire",
+				"tone:hot"
+			],
+			"searchAliases": [
+				"火焰",
+				"热血",
+				"燃"
+			]
+		},
 		"definition": {
 			"id": "info-strip-fire",
 			"name": "信息条火焰",

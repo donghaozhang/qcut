@@ -14,6 +14,16 @@
 		"assetId": "text-smart-text-rewrite-soft-card",
 		"packageId": "text-smart-text-rewrite",
 		"version": 1,
+		"marketplace": {
+			"editorialRank": 120,
+			"heatScore": 77,
+			"remoteTags": [
+				"category:rewrite",
+				"group:smart-text",
+				"variant:soft-card"
+			],
+			"searchAliases": []
+		},
 		"definition": {
 			"id": "rewrite-soft-card",
 			"name": "AI改写柔卡",

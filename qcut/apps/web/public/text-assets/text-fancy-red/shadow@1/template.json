@@ -3,6 +3,23 @@
 	"assetId": "text-fancy-red-shadow",
 	"packageId": "text-fancy-red",
 	"version": 1,
+	"marketplace": {
+		"editorialRank": 8,
+		"heatScore": 92,
+		"remoteTags": [
+			"category:red",
+			"group:fancy",
+			"variant:shadow",
+			"color:red",
+			"scene:commerce"
+		],
+		"searchAliases": [
+			"红色",
+			"爆红",
+			"促销",
+			"red"
+		]
+	},
 	"definition": {
 		"id": "red-shadow",
 		"name": "红色重影",

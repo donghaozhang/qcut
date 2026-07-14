@@ -14,6 +14,16 @@
 		"assetId": "text-smart-packaging-cover-pack-label",
 		"packageId": "text-smart-packaging-cover-pack",
 		"version": 1,
+		"marketplace": {
+			"editorialRank": 120,
+			"heatScore": 77,
+			"remoteTags": [
+				"category:cover-pack",
+				"group:smart-packaging",
+				"variant:label"
+			],
+			"searchAliases": []
+		},
 		"definition": {
 			"id": "cover-pack-label",
 			"name": "封面包装标签",

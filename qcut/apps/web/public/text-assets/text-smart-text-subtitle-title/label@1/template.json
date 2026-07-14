@@ -3,6 +3,16 @@
 	"assetId": "text-smart-text-subtitle-title-label",
 	"packageId": "text-smart-text-subtitle-title",
 	"version": 1,
+	"marketplace": {
+		"editorialRank": 120,
+		"heatScore": 77,
+		"remoteTags": [
+			"category:subtitle-title",
+			"group:smart-text",
+			"variant:label"
+		],
+		"searchAliases": []
+	},
 	"definition": {
 		"id": "subtitle-title-label",
 		"name": "字幕转标题标签",

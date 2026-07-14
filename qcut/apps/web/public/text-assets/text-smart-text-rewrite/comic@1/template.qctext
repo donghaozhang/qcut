@@ -14,6 +14,22 @@
 		"assetId": "text-smart-text-rewrite-comic",
 		"packageId": "text-smart-text-rewrite",
 		"version": 1,
+		"marketplace": {
+			"editorialRank": 19,
+			"heatScore": 99,
+			"remoteTags": [
+				"category:rewrite",
+				"group:smart-text",
+				"variant:comic",
+				"style:comic",
+				"effect:burst"
+			],
+			"searchAliases": [
+				"漫画",
+				"爆炸",
+				"综艺"
+			]
+		},
 		"definition": {
 			"id": "rewrite-comic",
 			"name": "AI改写漫画",

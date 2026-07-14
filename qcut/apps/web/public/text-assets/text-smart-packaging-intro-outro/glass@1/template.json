@@ -3,6 +3,16 @@
 	"assetId": "text-smart-packaging-intro-outro-glass",
 	"packageId": "text-smart-packaging-intro-outro",
 	"version": 1,
+	"marketplace": {
+		"editorialRank": 120,
+		"heatScore": 81,
+		"remoteTags": [
+			"category:intro-outro",
+			"group:smart-packaging",
+			"variant:glass"
+		],
+		"searchAliases": []
+	},
 	"definition": {
 		"id": "intro-outro-glass",
 		"name": "片头片尾玻璃",

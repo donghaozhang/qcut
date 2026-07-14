@@ -14,6 +14,28 @@
 		"assetId": "text-fancy-green-glow",
 		"packageId": "text-fancy-green",
 		"version": 1,
+		"marketplace": {
+			"editorialRank": 15,
+			"heatScore": 100,
+			"remoteTags": [
+				"category:green",
+				"group:fancy",
+				"variant:glow",
+				"color:green",
+				"tone:fresh",
+				"effect:glow",
+				"scene:night"
+			],
+			"searchAliases": [
+				"绿色",
+				"清新",
+				"自然",
+				"green",
+				"发光",
+				"霓虹",
+				"夜景"
+			]
+		},
 		"definition": {
 			"id": "green-glow",
 			"name": "绿色发光",

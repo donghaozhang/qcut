@@ -3,6 +3,16 @@
 	"assetId": "text-mine-favorites-plain",
 	"packageId": "text-mine-favorites",
 	"version": 1,
+	"marketplace": {
+		"editorialRank": 120,
+		"heatScore": 77,
+		"remoteTags": [
+			"category:favorites",
+			"group:mine",
+			"variant:plain"
+		],
+		"searchAliases": []
+	},
 	"definition": {
 		"id": "favorites-plain",
 		"name": "收藏基础",

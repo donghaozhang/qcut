@@ -3,6 +3,16 @@
 	"assetId": "text-templates-timeline-template-plain",
 	"packageId": "text-templates-timeline-template",
 	"version": 1,
+	"marketplace": {
+		"editorialRank": 120,
+		"heatScore": 77,
+		"remoteTags": [
+			"category:timeline-template",
+			"group:templates",
+			"variant:plain"
+		],
+		"searchAliases": []
+	},
 	"definition": {
 		"id": "timeline-template-plain",
 		"name": "时间线模板基础",

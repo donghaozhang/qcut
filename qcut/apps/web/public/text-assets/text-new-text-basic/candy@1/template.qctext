@@ -14,6 +14,22 @@
 		"assetId": "text-new-text-basic-candy",
 		"packageId": "text-new-text-basic",
 		"version": 1,
+		"marketplace": {
+			"editorialRank": 58,
+			"heatScore": 93,
+			"remoteTags": [
+				"category:basic",
+				"group:new-text",
+				"variant:candy",
+				"style:candy",
+				"tone:cute"
+			],
+			"searchAliases": [
+				"糖果",
+				"甜",
+				"可爱"
+			]
+		},
 		"definition": {
 			"id": "basic-candy",
 			"name": "基础文本糖果",

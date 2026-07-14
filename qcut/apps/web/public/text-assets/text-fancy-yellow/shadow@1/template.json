@@ -3,6 +3,23 @@
 	"assetId": "text-fancy-yellow-shadow",
 	"packageId": "text-fancy-yellow",
 	"version": 1,
+	"marketplace": {
+		"editorialRank": 26,
+		"heatScore": 89,
+		"remoteTags": [
+			"category:yellow",
+			"group:fancy",
+			"variant:shadow",
+			"color:yellow",
+			"tone:bright"
+		],
+		"searchAliases": [
+			"黄色",
+			"醒目",
+			"高亮",
+			"yellow"
+		]
+	},
 	"definition": {
 		"id": "yellow-shadow",
 		"name": "黄色重影",

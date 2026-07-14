@@ -3,6 +3,16 @@
 	"assetId": "text-mine-drafts-warning",
 	"packageId": "text-mine-drafts",
 	"version": 1,
+	"marketplace": {
+		"editorialRank": 120,
+		"heatScore": 77,
+		"remoteTags": [
+			"category:drafts",
+			"group:mine",
+			"variant:warning"
+		],
+		"searchAliases": []
+	},
 	"definition": {
 		"id": "drafts-warning",
 		"name": "草稿警示",

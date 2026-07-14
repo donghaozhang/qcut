@@ -3,6 +3,28 @@
 	"assetId": "text-fancy-red-fire",
 	"packageId": "text-fancy-red",
 	"version": 1,
+	"marketplace": {
+		"editorialRank": 8,
+		"heatScore": 100,
+		"remoteTags": [
+			"category:red",
+			"group:fancy",
+			"variant:fire",
+			"color:red",
+			"scene:commerce",
+			"effect:fire",
+			"tone:hot"
+		],
+		"searchAliases": [
+			"红色",
+			"爆红",
+			"促销",
+			"red",
+			"火焰",
+			"热血",
+			"燃"
+		]
+	},
 	"definition": {
 		"id": "red-fire",
 		"name": "红色火焰",

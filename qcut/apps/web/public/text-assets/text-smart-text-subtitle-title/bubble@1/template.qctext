@@ -14,6 +14,16 @@
 		"assetId": "text-smart-text-subtitle-title-bubble",
 		"packageId": "text-smart-text-subtitle-title",
 		"version": 1,
+		"marketplace": {
+			"editorialRank": 120,
+			"heatScore": 77,
+			"remoteTags": [
+				"category:subtitle-title",
+				"group:smart-text",
+				"variant:bubble"
+			],
+			"searchAliases": []
+		},
 		"definition": {
 			"id": "subtitle-title-bubble",
 			"name": "字幕转标题气泡",

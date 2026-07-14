@@ -3,6 +3,28 @@
 	"assetId": "text-fancy-blue-gradient-shine",
 	"packageId": "text-fancy-blue",
 	"version": 1,
+	"marketplace": {
+		"editorialRank": 11,
+		"heatScore": 100,
+		"remoteTags": [
+			"category:blue",
+			"group:fancy",
+			"variant:gradient-shine",
+			"color:blue",
+			"scene:tech",
+			"effect:shine",
+			"effect:gradient"
+		],
+		"searchAliases": [
+			"蓝色",
+			"冰蓝",
+			"科技",
+			"blue",
+			"流光",
+			"渐变",
+			"高光"
+		]
+	},
 	"definition": {
 		"id": "blue-gradient-shine",
 		"name": "蓝色流光",

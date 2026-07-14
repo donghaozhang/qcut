@@ -3,6 +3,28 @@
 	"assetId": "text-fancy-popular-lava",
 	"packageId": "text-fancy-popular",
 	"version": 1,
+	"marketplace": {
+		"editorialRank": 4,
+		"heatScore": 100,
+		"remoteTags": [
+			"category:popular",
+			"group:fancy",
+			"variant:lava",
+			"collection:popular",
+			"market:recommended",
+			"effect:lava",
+			"tone:hot"
+		],
+		"searchAliases": [
+			"热门",
+			"爆款",
+			"推荐",
+			"popular",
+			"熔岩",
+			"热血",
+			"火"
+		]
+	},
 	"definition": {
 		"id": "popular-lava",
 		"name": "热门熔岩",

@@ -3,6 +3,28 @@
 	"assetId": "text-fancy-green-torn-paper",
 	"packageId": "text-fancy-green",
 	"version": 1,
+	"marketplace": {
+		"editorialRank": 28,
+		"heatScore": 100,
+		"remoteTags": [
+			"category:green",
+			"group:fancy",
+			"variant:torn-paper",
+			"color:green",
+			"tone:fresh",
+			"material:paper",
+			"style:collage"
+		],
+		"searchAliases": [
+			"绿色",
+			"清新",
+			"自然",
+			"green",
+			"撕纸",
+			"纸张",
+			"拼贴"
+		]
+	},
 	"definition": {
 		"id": "green-torn-paper",
 		"name": "绿色撕纸",

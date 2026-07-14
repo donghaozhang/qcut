@@ -3,6 +3,23 @@
 	"assetId": "text-fancy-popular-bubble",
 	"packageId": "text-fancy-popular",
 	"version": 1,
+	"marketplace": {
+		"editorialRank": 4,
+		"heatScore": 93,
+		"remoteTags": [
+			"category:popular",
+			"group:fancy",
+			"variant:bubble",
+			"collection:popular",
+			"market:recommended"
+		],
+		"searchAliases": [
+			"热门",
+			"爆款",
+			"推荐",
+			"popular"
+		]
+	},
 	"definition": {
 		"id": "popular-bubble",
 		"name": "热门气泡",

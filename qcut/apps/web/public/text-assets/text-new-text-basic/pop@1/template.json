@@ -3,6 +3,16 @@
 	"assetId": "text-new-text-basic-pop",
 	"packageId": "text-new-text-basic",
 	"version": 1,
+	"marketplace": {
+		"editorialRank": 120,
+		"heatScore": 81,
+		"remoteTags": [
+			"category:basic",
+			"group:new-text",
+			"variant:pop"
+		],
+		"searchAliases": []
+	},
 	"definition": {
 		"id": "basic-pop",
 		"name": "基础文本弹幕",

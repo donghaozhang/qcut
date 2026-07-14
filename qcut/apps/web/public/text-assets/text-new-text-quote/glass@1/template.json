@@ -3,6 +3,16 @@
 	"assetId": "text-new-text-quote-glass",
 	"packageId": "text-new-text-quote",
 	"version": 1,
+	"marketplace": {
+		"editorialRank": 120,
+		"heatScore": 81,
+		"remoteTags": [
+			"category:quote",
+			"group:new-text",
+			"variant:glass"
+		],
+		"searchAliases": []
+	},
 	"definition": {
 		"id": "quote-glass",
 		"name": "引用玻璃",

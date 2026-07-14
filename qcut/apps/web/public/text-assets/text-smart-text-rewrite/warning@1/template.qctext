@@ -14,6 +14,16 @@
 		"assetId": "text-smart-text-rewrite-warning",
 		"packageId": "text-smart-text-rewrite",
 		"version": 1,
+		"marketplace": {
+			"editorialRank": 120,
+			"heatScore": 77,
+			"remoteTags": [
+				"category:rewrite",
+				"group:smart-text",
+				"variant:warning"
+			],
+			"searchAliases": []
+		},
 		"definition": {
 			"id": "rewrite-warning",
 			"name": "AI改写警示",

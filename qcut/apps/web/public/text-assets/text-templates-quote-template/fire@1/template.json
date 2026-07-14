@@ -3,6 +3,22 @@
 	"assetId": "text-templates-quote-template-fire",
 	"packageId": "text-templates-quote-template",
 	"version": 1,
+	"marketplace": {
+		"editorialRank": 9,
+		"heatScore": 100,
+		"remoteTags": [
+			"category:quote-template",
+			"group:templates",
+			"variant:fire",
+			"effect:fire",
+			"tone:hot"
+		],
+		"searchAliases": [
+			"火焰",
+			"热血",
+			"燃"
+		]
+	},
 	"definition": {
 		"id": "quote-template-fire",
 		"name": "引用模板火焰",

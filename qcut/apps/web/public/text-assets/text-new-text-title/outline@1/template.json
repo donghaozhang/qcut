@@ -3,6 +3,16 @@
 	"assetId": "text-new-text-title-outline",
 	"packageId": "text-new-text-title",
 	"version": 1,
+	"marketplace": {
+		"editorialRank": 120,
+		"heatScore": 81,
+		"remoteTags": [
+			"category:title",
+			"group:new-text",
+			"variant:outline"
+		],
+		"searchAliases": []
+	},
 	"definition": {
 		"id": "title-outline",
 		"name": "标题描边",

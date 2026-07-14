@@ -3,6 +3,16 @@
 	"assetId": "text-smart-text-chapter-glass",
 	"packageId": "text-smart-text-chapter",
 	"version": 1,
+	"marketplace": {
+		"editorialRank": 120,
+		"heatScore": 81,
+		"remoteTags": [
+			"category:chapter",
+			"group:smart-text",
+			"variant:glass"
+		],
+		"searchAliases": []
+	},
 	"definition": {
 		"id": "chapter-glass",
 		"name": "章节标题玻璃",

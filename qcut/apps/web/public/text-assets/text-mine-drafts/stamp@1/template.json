@@ -3,6 +3,16 @@
 	"assetId": "text-mine-drafts-stamp",
 	"packageId": "text-mine-drafts",
 	"version": 1,
+	"marketplace": {
+		"editorialRank": 120,
+		"heatScore": 77,
+		"remoteTags": [
+			"category:drafts",
+			"group:mine",
+			"variant:stamp"
+		],
+		"searchAliases": []
+	},
 	"definition": {
 		"id": "drafts-stamp",
 		"name": "草稿印章",

@@ -14,6 +14,22 @@
 		"assetId": "text-mine-drafts-glitch",
 		"packageId": "text-mine-drafts",
 		"version": 1,
+		"marketplace": {
+			"editorialRank": 21,
+			"heatScore": 99,
+			"remoteTags": [
+				"category:drafts",
+				"group:mine",
+				"variant:glitch",
+				"effect:glitch",
+				"scene:cyber"
+			],
+			"searchAliases": [
+				"故障",
+				"赛博",
+				"抖动"
+			]
+		},
 		"definition": {
 			"id": "drafts-glitch",
 			"name": "草稿故障",

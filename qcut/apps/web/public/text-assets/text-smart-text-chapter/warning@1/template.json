@@ -3,6 +3,16 @@
 	"assetId": "text-smart-text-chapter-warning",
 	"packageId": "text-smart-text-chapter",
 	"version": 1,
+	"marketplace": {
+		"editorialRank": 120,
+		"heatScore": 77,
+		"remoteTags": [
+			"category:chapter",
+			"group:smart-text",
+			"variant:warning"
+		],
+		"searchAliases": []
+	},
 	"definition": {
 		"id": "chapter-warning",
 		"name": "章节标题警示",

@@ -3,6 +3,16 @@
 	"assetId": "text-new-text-basic-plain",
 	"packageId": "text-new-text-basic",
 	"version": 1,
+	"marketplace": {
+		"editorialRank": 120,
+		"heatScore": 77,
+		"remoteTags": [
+			"category:basic",
+			"group:new-text",
+			"variant:plain"
+		],
+		"searchAliases": []
+	},
 	"definition": {
 		"id": "default-text",
 		"name": "Default text",

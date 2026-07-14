@@ -3,6 +3,28 @@
 	"assetId": "text-fancy-red-gradient-shine",
 	"packageId": "text-fancy-red",
 	"version": 1,
+	"marketplace": {
+		"editorialRank": 8,
+		"heatScore": 100,
+		"remoteTags": [
+			"category:red",
+			"group:fancy",
+			"variant:gradient-shine",
+			"color:red",
+			"scene:commerce",
+			"effect:shine",
+			"effect:gradient"
+		],
+		"searchAliases": [
+			"红色",
+			"爆红",
+			"促销",
+			"red",
+			"流光",
+			"渐变",
+			"高光"
+		]
+	},
 	"definition": {
 		"id": "red-gradient-shine",
 		"name": "红色流光",

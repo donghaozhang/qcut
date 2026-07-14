@@ -3,6 +3,22 @@
 	"assetId": "text-smart-packaging-cover-pack-comic",
 	"packageId": "text-smart-packaging-cover-pack",
 	"version": 1,
+	"marketplace": {
+		"editorialRank": 19,
+		"heatScore": 99,
+		"remoteTags": [
+			"category:cover-pack",
+			"group:smart-packaging",
+			"variant:comic",
+			"style:comic",
+			"effect:burst"
+		],
+		"searchAliases": [
+			"漫画",
+			"爆炸",
+			"综艺"
+		]
+	},
 	"definition": {
 		"id": "cover-pack-comic",
 		"name": "封面包装漫画",

@@ -14,6 +14,22 @@
 		"assetId": "text-templates-timeline-template-comic",
 		"packageId": "text-templates-timeline-template",
 		"version": 1,
+		"marketplace": {
+			"editorialRank": 19,
+			"heatScore": 99,
+			"remoteTags": [
+				"category:timeline-template",
+				"group:templates",
+				"variant:comic",
+				"style:comic",
+				"effect:burst"
+			],
+			"searchAliases": [
+				"漫画",
+				"爆炸",
+				"综艺"
+			]
+		},
 		"definition": {
 			"id": "timeline-template-comic",
 			"name": "时间线模板漫画",

@@ -3,6 +3,22 @@
 	"assetId": "text-mine-favorites-fire",
 	"packageId": "text-mine-favorites",
 	"version": 1,
+	"marketplace": {
+		"editorialRank": 9,
+		"heatScore": 100,
+		"remoteTags": [
+			"category:favorites",
+			"group:mine",
+			"variant:fire",
+			"effect:fire",
+			"tone:hot"
+		],
+		"searchAliases": [
+			"火焰",
+			"热血",
+			"燃"
+		]
+	},
 	"definition": {
 		"id": "favorites-fire",
 		"name": "收藏火焰",

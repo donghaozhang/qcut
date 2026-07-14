@@ -3,6 +3,16 @@
 	"assetId": "text-mine-drafts-outline",
 	"packageId": "text-mine-drafts",
 	"version": 1,
+	"marketplace": {
+		"editorialRank": 120,
+		"heatScore": 81,
+		"remoteTags": [
+			"category:drafts",
+			"group:mine",
+			"variant:outline"
+		],
+		"searchAliases": []
+	},
 	"definition": {
 		"id": "drafts-outline",
 		"name": "草稿描边",

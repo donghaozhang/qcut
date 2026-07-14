@@ -3,6 +3,16 @@
 	"assetId": "text-new-text-title-glass",
 	"packageId": "text-new-text-title",
 	"version": 1,
+	"marketplace": {
+		"editorialRank": 120,
+		"heatScore": 81,
+		"remoteTags": [
+			"category:title",
+			"group:new-text",
+			"variant:glass"
+		],
+		"searchAliases": []
+	},
 	"definition": {
 		"id": "title-glass",
 		"name": "标题玻璃",

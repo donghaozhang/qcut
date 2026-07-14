@@ -3,6 +3,16 @@
 	"assetId": "text-new-text-caption-pixel",
 	"packageId": "text-new-text-caption",
 	"version": 1,
+	"marketplace": {
+		"editorialRank": 120,
+		"heatScore": 77,
+		"remoteTags": [
+			"category:caption",
+			"group:new-text",
+			"variant:pixel"
+		],
+		"searchAliases": []
+	},
 	"definition": {
 		"id": "caption-pixel",
 		"name": "说明像素",

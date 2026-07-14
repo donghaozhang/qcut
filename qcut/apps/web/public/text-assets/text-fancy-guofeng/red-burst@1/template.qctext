@@ -14,6 +14,28 @@
 		"assetId": "text-fancy-guofeng-red-burst",
 		"packageId": "text-fancy-guofeng",
 		"version": 1,
+		"marketplace": {
+			"editorialRank": 2,
+			"heatScore": 100,
+			"remoteTags": [
+				"category:guofeng",
+				"group:fancy",
+				"variant:red-burst",
+				"style:guofeng",
+				"scene:culture",
+				"effect:burst",
+				"market:hero"
+			],
+			"searchAliases": [
+				"国风",
+				"国潮",
+				"水墨",
+				"chinoiserie",
+				"爆红",
+				"爆款",
+				"放射"
+			]
+		},
 		"definition": {
 			"id": "guofeng-red-burst",
 			"name": "国风爆红",

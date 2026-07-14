@@ -3,6 +3,22 @@
 	"assetId": "text-templates-timeline-template-gold",
 	"packageId": "text-templates-timeline-template",
 	"version": 1,
+	"marketplace": {
+		"editorialRank": 22,
+		"heatScore": 98,
+		"remoteTags": [
+			"category:timeline-template",
+			"group:templates",
+			"variant:gold",
+			"material:gold",
+			"tone:premium"
+		],
+		"searchAliases": [
+			"金色",
+			"鎏金",
+			"高级"
+		]
+	},
 	"definition": {
 		"id": "timeline-template-gold",
 		"name": "时间线模板鎏金",

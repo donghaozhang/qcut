@@ -3,6 +3,28 @@
 	"assetId": "text-fancy-guofeng-fire",
 	"packageId": "text-fancy-guofeng",
 	"version": 1,
+	"marketplace": {
+		"editorialRank": 9,
+		"heatScore": 100,
+		"remoteTags": [
+			"category:guofeng",
+			"group:fancy",
+			"variant:fire",
+			"style:guofeng",
+			"scene:culture",
+			"effect:fire",
+			"tone:hot"
+		],
+		"searchAliases": [
+			"国风",
+			"国潮",
+			"水墨",
+			"chinoiserie",
+			"火焰",
+			"热血",
+			"燃"
+		]
+	},
 	"definition": {
 		"id": "guofeng-fire",
 		"name": "国风火焰",

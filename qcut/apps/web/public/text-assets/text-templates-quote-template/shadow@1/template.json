@@ -3,6 +3,16 @@
 	"assetId": "text-templates-quote-template-shadow",
 	"packageId": "text-templates-quote-template",
 	"version": 1,
+	"marketplace": {
+		"editorialRank": 120,
+		"heatScore": 77,
+		"remoteTags": [
+			"category:quote-template",
+			"group:templates",
+			"variant:shadow"
+		],
+		"searchAliases": []
+	},
 	"definition": {
 		"id": "quote-template-shadow",
 		"name": "引用模板重影",

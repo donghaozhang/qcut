@@ -14,6 +14,22 @@
 		"assetId": "text-new-text-lower-third-sticker",
 		"packageId": "text-new-text-lower-third",
 		"version": 1,
+		"marketplace": {
+			"editorialRank": 24,
+			"heatScore": 94,
+			"remoteTags": [
+				"category:lower-third",
+				"group:new-text",
+				"variant:sticker",
+				"style:sticker",
+				"tone:cute"
+			],
+			"searchAliases": [
+				"贴纸",
+				"白边",
+				"可爱"
+			]
+		},
 		"definition": {
 			"id": "lower-third-sticker",
 			"name": "角标贴纸",

@@ -3,6 +3,16 @@
 	"assetId": "text-templates-list-template-outline",
 	"packageId": "text-templates-list-template",
 	"version": 1,
+	"marketplace": {
+		"editorialRank": 120,
+		"heatScore": 81,
+		"remoteTags": [
+			"category:list-template",
+			"group:templates",
+			"variant:outline"
+		],
+		"searchAliases": []
+	},
 	"definition": {
 		"id": "list-template-outline",
 		"name": "列表模板描边",

@@ -3,6 +3,22 @@
 	"assetId": "text-mine-brand-kit-glitch",
 	"packageId": "text-mine-brand-kit",
 	"version": 1,
+	"marketplace": {
+		"editorialRank": 21,
+		"heatScore": 99,
+		"remoteTags": [
+			"category:brand-kit",
+			"group:mine",
+			"variant:glitch",
+			"effect:glitch",
+			"scene:cyber"
+		],
+		"searchAliases": [
+			"故障",
+			"赛博",
+			"抖动"
+		]
+	},
 	"definition": {
 		"id": "brand-kit-glitch",
 		"name": "品牌字故障",

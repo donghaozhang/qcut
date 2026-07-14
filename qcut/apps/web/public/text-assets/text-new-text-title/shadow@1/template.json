@@ -3,6 +3,16 @@
 	"assetId": "text-new-text-title-shadow",
 	"packageId": "text-new-text-title",
 	"version": 1,
+	"marketplace": {
+		"editorialRank": 120,
+		"heatScore": 77,
+		"remoteTags": [
+			"category:title",
+			"group:new-text",
+			"variant:shadow"
+		],
+		"searchAliases": []
+	},
 	"definition": {
 		"id": "title-shadow",
 		"name": "标题重影",

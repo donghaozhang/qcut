@@ -3,6 +3,22 @@
 	"assetId": "text-smart-text-summary-sticker",
 	"packageId": "text-smart-text-summary",
 	"version": 1,
+	"marketplace": {
+		"editorialRank": 24,
+		"heatScore": 94,
+		"remoteTags": [
+			"category:summary",
+			"group:smart-text",
+			"variant:sticker",
+			"style:sticker",
+			"tone:cute"
+		],
+		"searchAliases": [
+			"贴纸",
+			"白边",
+			"可爱"
+		]
+	},
 	"definition": {
 		"id": "summary-sticker",
 		"name": "自动摘要贴纸",

@@ -3,6 +3,22 @@
 	"assetId": "text-smart-packaging-intro-outro-gold",
 	"packageId": "text-smart-packaging-intro-outro",
 	"version": 1,
+	"marketplace": {
+		"editorialRank": 22,
+		"heatScore": 98,
+		"remoteTags": [
+			"category:intro-outro",
+			"group:smart-packaging",
+			"variant:gold",
+			"material:gold",
+			"tone:premium"
+		],
+		"searchAliases": [
+			"金色",
+			"鎏金",
+			"高级"
+		]
+	},
 	"definition": {
 		"id": "intro-outro-gold",
 		"name": "片头片尾鎏金",

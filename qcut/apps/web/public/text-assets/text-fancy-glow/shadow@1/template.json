@@ -3,6 +3,23 @@
 	"assetId": "text-fancy-glow-shadow",
 	"packageId": "text-fancy-glow",
 	"version": 1,
+	"marketplace": {
+		"editorialRank": 14,
+		"heatScore": 91,
+		"remoteTags": [
+			"category:glow",
+			"group:fancy",
+			"variant:shadow",
+			"effect:glow",
+			"scene:night"
+		],
+		"searchAliases": [
+			"发光",
+			"霓虹",
+			"夜景",
+			"neon"
+		]
+	},
 	"definition": {
 		"id": "glow-shadow",
 		"name": "发光重影",

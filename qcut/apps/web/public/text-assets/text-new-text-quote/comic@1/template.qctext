@@ -14,6 +14,22 @@
 		"assetId": "text-new-text-quote-comic",
 		"packageId": "text-new-text-quote",
 		"version": 1,
+		"marketplace": {
+			"editorialRank": 19,
+			"heatScore": 99,
+			"remoteTags": [
+				"category:quote",
+				"group:new-text",
+				"variant:comic",
+				"style:comic",
+				"effect:burst"
+			],
+			"searchAliases": [
+				"漫画",
+				"爆炸",
+				"综艺"
+			]
+		},
 		"definition": {
 			"id": "quote-comic",
 			"name": "引用漫画",

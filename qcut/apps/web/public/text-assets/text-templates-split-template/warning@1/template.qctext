@@ -14,6 +14,16 @@
 		"assetId": "text-templates-split-template-warning",
 		"packageId": "text-templates-split-template",
 		"version": 1,
+		"marketplace": {
+			"editorialRank": 120,
+			"heatScore": 77,
+			"remoteTags": [
+				"category:split-template",
+				"group:templates",
+				"variant:warning"
+			],
+			"searchAliases": []
+		},
 		"definition": {
 			"id": "split-template-warning",
 			"name": "分屏模板警示",

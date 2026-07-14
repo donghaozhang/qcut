@@ -14,6 +14,22 @@
 		"assetId": "text-templates-list-template-fire",
 		"packageId": "text-templates-list-template",
 		"version": 1,
+		"marketplace": {
+			"editorialRank": 9,
+			"heatScore": 100,
+			"remoteTags": [
+				"category:list-template",
+				"group:templates",
+				"variant:fire",
+				"effect:fire",
+				"tone:hot"
+			],
+			"searchAliases": [
+				"火焰",
+				"热血",
+				"燃"
+			]
+		},
 		"definition": {
 			"id": "list-template-fire",
 			"name": "列表模板火焰",

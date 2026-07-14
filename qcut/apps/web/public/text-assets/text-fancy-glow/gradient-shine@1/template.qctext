@@ -14,6 +14,28 @@
 		"assetId": "text-fancy-glow-gradient-shine",
 		"packageId": "text-fancy-glow",
 		"version": 1,
+		"marketplace": {
+			"editorialRank": 11,
+			"heatScore": 100,
+			"remoteTags": [
+				"category:glow",
+				"group:fancy",
+				"variant:gradient-shine",
+				"effect:glow",
+				"scene:night",
+				"effect:shine",
+				"effect:gradient"
+			],
+			"searchAliases": [
+				"发光",
+				"霓虹",
+				"夜景",
+				"neon",
+				"流光",
+				"渐变",
+				"高光"
+			]
+		},
 		"definition": {
 			"id": "glow-gradient-shine",
 			"name": "发光流光",

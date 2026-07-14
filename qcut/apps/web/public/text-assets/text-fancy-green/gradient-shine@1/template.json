@@ -3,6 +3,28 @@
 	"assetId": "text-fancy-green-gradient-shine",
 	"packageId": "text-fancy-green",
 	"version": 1,
+	"marketplace": {
+		"editorialRank": 11,
+		"heatScore": 100,
+		"remoteTags": [
+			"category:green",
+			"group:fancy",
+			"variant:gradient-shine",
+			"color:green",
+			"tone:fresh",
+			"effect:shine",
+			"effect:gradient"
+		],
+		"searchAliases": [
+			"绿色",
+			"清新",
+			"自然",
+			"green",
+			"流光",
+			"渐变",
+			"高光"
+		]
+	},
 	"definition": {
 		"id": "green-gradient-shine",
 		"name": "绿色流光",

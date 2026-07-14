@@ -3,6 +3,28 @@
 	"assetId": "text-fancy-blue-glow",
 	"packageId": "text-fancy-blue",
 	"version": 1,
+	"marketplace": {
+		"editorialRank": 15,
+		"heatScore": 100,
+		"remoteTags": [
+			"category:blue",
+			"group:fancy",
+			"variant:glow",
+			"color:blue",
+			"scene:tech",
+			"effect:glow",
+			"scene:night"
+		],
+		"searchAliases": [
+			"蓝色",
+			"冰蓝",
+			"科技",
+			"blue",
+			"发光",
+			"霓虹",
+			"夜景"
+		]
+	},
 	"definition": {
 		"id": "blue-glow",
 		"name": "蓝色发光",

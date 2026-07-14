@@ -3,6 +3,28 @@
 	"assetId": "text-fancy-yellow-sticker",
 	"packageId": "text-fancy-yellow",
 	"version": 1,
+	"marketplace": {
+		"editorialRank": 24,
+		"heatScore": 100,
+		"remoteTags": [
+			"category:yellow",
+			"group:fancy",
+			"variant:sticker",
+			"color:yellow",
+			"tone:bright",
+			"style:sticker",
+			"tone:cute"
+		],
+		"searchAliases": [
+			"黄色",
+			"醒目",
+			"高亮",
+			"yellow",
+			"贴纸",
+			"白边",
+			"可爱"
+		]
+	},
 	"definition": {
 		"id": "yellow-sticker",
 		"name": "黄色贴纸",

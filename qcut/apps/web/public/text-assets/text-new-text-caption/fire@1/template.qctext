@@ -14,6 +14,22 @@
 		"assetId": "text-new-text-caption-fire",
 		"packageId": "text-new-text-caption",
 		"version": 1,
+		"marketplace": {
+			"editorialRank": 9,
+			"heatScore": 100,
+			"remoteTags": [
+				"category:caption",
+				"group:new-text",
+				"variant:fire",
+				"effect:fire",
+				"tone:hot"
+			],
+			"searchAliases": [
+				"火焰",
+				"热血",
+				"燃"
+			]
+		},
 		"definition": {
 			"id": "caption-fire",
 			"name": "说明火焰",

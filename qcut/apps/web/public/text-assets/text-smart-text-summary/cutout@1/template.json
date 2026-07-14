@@ -3,6 +3,16 @@
 	"assetId": "text-smart-text-summary-cutout",
 	"packageId": "text-smart-text-summary",
 	"version": 1,
+	"marketplace": {
+		"editorialRank": 120,
+		"heatScore": 81,
+		"remoteTags": [
+			"category:summary",
+			"group:smart-text",
+			"variant:cutout"
+		],
+		"searchAliases": []
+	},
 	"definition": {
 		"id": "summary-cutout",
 		"name": "自动摘要剪纸",

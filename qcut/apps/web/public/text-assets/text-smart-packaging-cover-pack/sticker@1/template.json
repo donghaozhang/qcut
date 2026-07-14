@@ -3,6 +3,22 @@
 	"assetId": "text-smart-packaging-cover-pack-sticker",
 	"packageId": "text-smart-packaging-cover-pack",
 	"version": 1,
+	"marketplace": {
+		"editorialRank": 24,
+		"heatScore": 94,
+		"remoteTags": [
+			"category:cover-pack",
+			"group:smart-packaging",
+			"variant:sticker",
+			"style:sticker",
+			"tone:cute"
+		],
+		"searchAliases": [
+			"贴纸",
+			"白边",
+			"可爱"
+		]
+	},
 	"definition": {
 		"id": "cover-pack-sticker",
 		"name": "封面包装贴纸",

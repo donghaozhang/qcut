@@ -14,6 +14,27 @@
 		"assetId": "text-fancy-latest-glitch",
 		"packageId": "text-fancy-latest",
 		"version": 1,
+		"marketplace": {
+			"editorialRank": 16,
+			"heatScore": 100,
+			"remoteTags": [
+				"category:latest",
+				"group:fancy",
+				"variant:glitch",
+				"collection:latest",
+				"market:new",
+				"effect:glitch",
+				"scene:cyber"
+			],
+			"searchAliases": [
+				"最新",
+				"上新",
+				"new",
+				"故障",
+				"赛博",
+				"抖动"
+			]
+		},
 		"definition": {
 			"id": "latest-glitch",
 			"name": "最新故障",

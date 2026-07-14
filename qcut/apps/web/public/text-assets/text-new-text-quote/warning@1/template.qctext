@@ -14,6 +14,16 @@
 		"assetId": "text-new-text-quote-warning",
 		"packageId": "text-new-text-quote",
 		"version": 1,
+		"marketplace": {
+			"editorialRank": 120,
+			"heatScore": 77,
+			"remoteTags": [
+				"category:quote",
+				"group:new-text",
+				"variant:warning"
+			],
+			"searchAliases": []
+		},
 		"definition": {
 			"id": "quote-warning",
 			"name": "引用警示",

@@ -14,6 +14,16 @@
 		"assetId": "text-templates-split-template-shadow",
 		"packageId": "text-templates-split-template",
 		"version": 1,
+		"marketplace": {
+			"editorialRank": 120,
+			"heatScore": 77,
+			"remoteTags": [
+				"category:split-template",
+				"group:templates",
+				"variant:shadow"
+			],
+			"searchAliases": []
+		},
 		"definition": {
 			"id": "split-template-shadow",
 			"name": "分屏模板重影",

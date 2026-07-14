@@ -3,6 +3,25 @@
 	"assetId": "text-fancy-texture-texture-grain",
 	"packageId": "text-fancy-texture",
 	"version": 1,
+	"marketplace": {
+		"editorialRank": 13,
+		"heatScore": 100,
+		"remoteTags": [
+			"category:texture",
+			"group:fancy",
+			"variant:texture-grain",
+			"effect:texture",
+			"market:premium-look",
+			"material:grain"
+		],
+		"searchAliases": [
+			"纹理",
+			"材质",
+			"质感",
+			"texture",
+			"颗粒"
+		]
+	},
 	"definition": {
 		"id": "texture-texture-grain",
 		"name": "纹理颗粒",

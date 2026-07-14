@@ -14,6 +14,28 @@
 		"assetId": "text-fancy-glow-chrome",
 		"packageId": "text-fancy-glow",
 		"version": 1,
+		"marketplace": {
+			"editorialRank": 14,
+			"heatScore": 100,
+			"remoteTags": [
+				"category:glow",
+				"group:fancy",
+				"variant:chrome",
+				"effect:glow",
+				"scene:night",
+				"material:chrome",
+				"tone:premium"
+			],
+			"searchAliases": [
+				"发光",
+				"霓虹",
+				"夜景",
+				"neon",
+				"金属",
+				"银色",
+				"质感"
+			]
+		},
 		"definition": {
 			"id": "glow-chrome",
 			"name": "发光金属",

@@ -3,6 +3,16 @@
 	"assetId": "text-templates-quote-template-cutout",
 	"packageId": "text-templates-quote-template",
 	"version": 1,
+	"marketplace": {
+		"editorialRank": 120,
+		"heatScore": 81,
+		"remoteTags": [
+			"category:quote-template",
+			"group:templates",
+			"variant:cutout"
+		],
+		"searchAliases": []
+	},
 	"definition": {
 		"id": "quote-template-cutout",
 		"name": "引用模板剪纸",

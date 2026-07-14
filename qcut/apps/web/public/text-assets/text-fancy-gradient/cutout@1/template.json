@@ -3,6 +3,23 @@
 	"assetId": "text-fancy-gradient-cutout",
 	"packageId": "text-fancy-gradient",
 	"version": 1,
+	"marketplace": {
+		"editorialRank": 12,
+		"heatScore": 96,
+		"remoteTags": [
+			"category:gradient",
+			"group:fancy",
+			"variant:cutout",
+			"effect:gradient",
+			"tone:dreamy"
+		],
+		"searchAliases": [
+			"渐变",
+			"流光",
+			"梦幻",
+			"gradient"
+		]
+	},
 	"definition": {
 		"id": "gradient-cutout",
 		"name": "渐变剪纸",

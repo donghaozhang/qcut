@@ -3,6 +3,28 @@
 	"assetId": "text-fancy-purple-comic",
 	"packageId": "text-fancy-purple",
 	"version": 1,
+	"marketplace": {
+		"editorialRank": 19,
+		"heatScore": 100,
+		"remoteTags": [
+			"category:purple",
+			"group:fancy",
+			"variant:comic",
+			"color:purple",
+			"tone:dreamy",
+			"style:comic",
+			"effect:burst"
+		],
+		"searchAliases": [
+			"紫色",
+			"梦幻",
+			"高级",
+			"purple",
+			"漫画",
+			"爆炸",
+			"综艺"
+		]
+	},
 	"definition": {
 		"id": "purple-comic",
 		"name": "紫色漫画",

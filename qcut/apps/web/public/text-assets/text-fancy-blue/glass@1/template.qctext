@@ -14,6 +14,23 @@
 		"assetId": "text-fancy-blue-glass",
 		"packageId": "text-fancy-blue",
 		"version": 1,
+		"marketplace": {
+			"editorialRank": 30,
+			"heatScore": 92,
+			"remoteTags": [
+				"category:blue",
+				"group:fancy",
+				"variant:glass",
+				"color:blue",
+				"scene:tech"
+			],
+			"searchAliases": [
+				"蓝色",
+				"冰蓝",
+				"科技",
+				"blue"
+			]
+		},
 		"definition": {
 			"id": "blue-glass",
 			"name": "蓝色玻璃",

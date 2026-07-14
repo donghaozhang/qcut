@@ -3,6 +3,28 @@
 	"assetId": "text-fancy-glow-gold",
 	"packageId": "text-fancy-glow",
 	"version": 1,
+	"marketplace": {
+		"editorialRank": 14,
+		"heatScore": 100,
+		"remoteTags": [
+			"category:glow",
+			"group:fancy",
+			"variant:gold",
+			"effect:glow",
+			"scene:night",
+			"material:gold",
+			"tone:premium"
+		],
+		"searchAliases": [
+			"发光",
+			"霓虹",
+			"夜景",
+			"neon",
+			"金色",
+			"鎏金",
+			"高级"
+		]
+	},
 	"definition": {
 		"id": "glow-gold",
 		"name": "发光鎏金",

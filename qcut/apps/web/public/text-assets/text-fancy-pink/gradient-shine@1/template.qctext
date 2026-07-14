@@ -14,6 +14,28 @@
 		"assetId": "text-fancy-pink-gradient-shine",
 		"packageId": "text-fancy-pink",
 		"version": 1,
+		"marketplace": {
+			"editorialRank": 11,
+			"heatScore": 100,
+			"remoteTags": [
+				"category:pink",
+				"group:fancy",
+				"variant:gradient-shine",
+				"color:pink",
+				"tone:cute",
+				"effect:shine",
+				"effect:gradient"
+			],
+			"searchAliases": [
+				"粉色",
+				"甜心",
+				"可爱",
+				"pink",
+				"流光",
+				"渐变",
+				"高光"
+			]
+		},
 		"definition": {
 			"id": "pink-gradient-shine",
 			"name": "粉色流光",

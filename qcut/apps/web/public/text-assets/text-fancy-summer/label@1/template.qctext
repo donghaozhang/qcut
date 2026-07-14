@@ -14,6 +14,23 @@
 		"assetId": "text-fancy-summer-label",
 		"packageId": "text-fancy-summer",
 		"version": 1,
+		"marketplace": {
+			"editorialRank": 34,
+			"heatScore": 88,
+			"remoteTags": [
+				"category:summer",
+				"group:fancy",
+				"variant:label",
+				"season:summer",
+				"tone:fresh"
+			],
+			"searchAliases": [
+				"夏日",
+				"清爽",
+				"活动",
+				"summer"
+			]
+		},
 		"definition": {
 			"id": "summer-label",
 			"name": "夏日标签",

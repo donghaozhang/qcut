@@ -14,6 +14,16 @@
 		"assetId": "text-new-text-lower-third-pixel",
 		"packageId": "text-new-text-lower-third",
 		"version": 1,
+		"marketplace": {
+			"editorialRank": 120,
+			"heatScore": 77,
+			"remoteTags": [
+				"category:lower-third",
+				"group:new-text",
+				"variant:pixel"
+			],
+			"searchAliases": []
+		},
 		"definition": {
 			"id": "lower-third-pixel",
 			"name": "角标像素",

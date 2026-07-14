@@ -14,6 +14,22 @@
 		"assetId": "text-smart-packaging-commerce-badge-gold",
 		"packageId": "text-smart-packaging-commerce-badge",
 		"version": 1,
+		"marketplace": {
+			"editorialRank": 22,
+			"heatScore": 98,
+			"remoteTags": [
+				"category:commerce-badge",
+				"group:smart-packaging",
+				"variant:gold",
+				"material:gold",
+				"tone:premium"
+			],
+			"searchAliases": [
+				"金色",
+				"鎏金",
+				"高级"
+			]
+		},
 		"definition": {
 			"id": "commerce-badge-gold",
 			"name": "带货标牌鎏金",

@@ -3,6 +3,16 @@
 	"assetId": "text-new-text-title-pixel",
 	"packageId": "text-new-text-title",
 	"version": 1,
+	"marketplace": {
+		"editorialRank": 120,
+		"heatScore": 77,
+		"remoteTags": [
+			"category:title",
+			"group:new-text",
+			"variant:pixel"
+		],
+		"searchAliases": []
+	},
 	"definition": {
 		"id": "title-pixel",
 		"name": "标题像素",

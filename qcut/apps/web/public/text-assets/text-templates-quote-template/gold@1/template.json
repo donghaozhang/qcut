@@ -3,6 +3,22 @@
 	"assetId": "text-templates-quote-template-gold",
 	"packageId": "text-templates-quote-template",
 	"version": 1,
+	"marketplace": {
+		"editorialRank": 22,
+		"heatScore": 98,
+		"remoteTags": [
+			"category:quote-template",
+			"group:templates",
+			"variant:gold",
+			"material:gold",
+			"tone:premium"
+		],
+		"searchAliases": [
+			"金色",
+			"鎏金",
+			"高级"
+		]
+	},
 	"definition": {
 		"id": "quote-template-gold",
 		"name": "引用模板鎏金",

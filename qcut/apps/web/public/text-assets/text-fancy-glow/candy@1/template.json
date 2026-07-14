@@ -3,6 +3,28 @@
 	"assetId": "text-fancy-glow-candy",
 	"packageId": "text-fancy-glow",
 	"version": 1,
+	"marketplace": {
+		"editorialRank": 14,
+		"heatScore": 100,
+		"remoteTags": [
+			"category:glow",
+			"group:fancy",
+			"variant:candy",
+			"effect:glow",
+			"scene:night",
+			"style:candy",
+			"tone:cute"
+		],
+		"searchAliases": [
+			"发光",
+			"霓虹",
+			"夜景",
+			"neon",
+			"糖果",
+			"甜",
+			"可爱"
+		]
+	},
 	"definition": {
 		"id": "glow-candy",
 		"name": "发光糖果",

@@ -3,6 +3,16 @@
 	"assetId": "text-templates-headline-template-soft-card",
 	"packageId": "text-templates-headline-template",
 	"version": 1,
+	"marketplace": {
+		"editorialRank": 120,
+		"heatScore": 77,
+		"remoteTags": [
+			"category:headline-template",
+			"group:templates",
+			"variant:soft-card"
+		],
+		"searchAliases": []
+	},
 	"definition": {
 		"id": "headline-template-soft-card",
 		"name": "标题模板柔卡",

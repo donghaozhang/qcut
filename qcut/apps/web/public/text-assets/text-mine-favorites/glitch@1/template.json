@@ -3,6 +3,22 @@
 	"assetId": "text-mine-favorites-glitch",
 	"packageId": "text-mine-favorites",
 	"version": 1,
+	"marketplace": {
+		"editorialRank": 21,
+		"heatScore": 99,
+		"remoteTags": [
+			"category:favorites",
+			"group:mine",
+			"variant:glitch",
+			"effect:glitch",
+			"scene:cyber"
+		],
+		"searchAliases": [
+			"故障",
+			"赛博",
+			"抖动"
+		]
+	},
 	"definition": {
 		"id": "favorites-glitch",
 		"name": "收藏故障",

@@ -14,6 +14,27 @@
 		"assetId": "text-fancy-latest-texture-grain",
 		"packageId": "text-fancy-latest",
 		"version": 1,
+		"marketplace": {
+			"editorialRank": 13,
+			"heatScore": 100,
+			"remoteTags": [
+				"category:latest",
+				"group:fancy",
+				"variant:texture-grain",
+				"collection:latest",
+				"market:new",
+				"material:grain",
+				"effect:texture"
+			],
+			"searchAliases": [
+				"最新",
+				"上新",
+				"new",
+				"颗粒",
+				"纹理",
+				"质感"
+			]
+		},
 		"definition": {
 			"id": "latest-texture-grain",
 			"name": "最新颗粒",

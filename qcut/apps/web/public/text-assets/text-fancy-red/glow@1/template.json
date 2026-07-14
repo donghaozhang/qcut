@@ -3,6 +3,28 @@
 	"assetId": "text-fancy-red-glow",
 	"packageId": "text-fancy-red",
 	"version": 1,
+	"marketplace": {
+		"editorialRank": 8,
+		"heatScore": 100,
+		"remoteTags": [
+			"category:red",
+			"group:fancy",
+			"variant:glow",
+			"color:red",
+			"scene:commerce",
+			"effect:glow",
+			"scene:night"
+		],
+		"searchAliases": [
+			"红色",
+			"爆红",
+			"促销",
+			"red",
+			"发光",
+			"霓虹",
+			"夜景"
+		]
+	},
 	"definition": {
 		"id": "red-glow",
 		"name": "红色发光",

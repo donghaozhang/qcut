@@ -14,6 +14,16 @@
 		"assetId": "text-new-text-lower-third-soft-card",
 		"packageId": "text-new-text-lower-third",
 		"version": 1,
+		"marketplace": {
+			"editorialRank": 120,
+			"heatScore": 77,
+			"remoteTags": [
+				"category:lower-third",
+				"group:new-text",
+				"variant:soft-card"
+			],
+			"searchAliases": []
+		},
 		"definition": {
 			"id": "lower-third-soft-card",
 			"name": "角标柔卡",

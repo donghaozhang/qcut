@@ -3,6 +3,28 @@
 	"assetId": "text-fancy-summer-sticker",
 	"packageId": "text-fancy-summer",
 	"version": 1,
+	"marketplace": {
+		"editorialRank": 24,
+		"heatScore": 100,
+		"remoteTags": [
+			"category:summer",
+			"group:fancy",
+			"variant:sticker",
+			"season:summer",
+			"tone:fresh",
+			"style:sticker",
+			"tone:cute"
+		],
+		"searchAliases": [
+			"夏日",
+			"清爽",
+			"活动",
+			"summer",
+			"贴纸",
+			"白边",
+			"可爱"
+		]
+	},
 	"definition": {
 		"id": "summer-sticker",
 		"name": "夏日贴纸",

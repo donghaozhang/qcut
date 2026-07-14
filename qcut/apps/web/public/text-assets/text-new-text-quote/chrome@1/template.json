@@ -3,6 +3,22 @@
 	"assetId": "text-new-text-quote-chrome",
 	"packageId": "text-new-text-quote",
 	"version": 1,
+	"marketplace": {
+		"editorialRank": 32,
+		"heatScore": 97,
+		"remoteTags": [
+			"category:quote",
+			"group:new-text",
+			"variant:chrome",
+			"material:chrome",
+			"tone:premium"
+		],
+		"searchAliases": [
+			"金属",
+			"银色",
+			"质感"
+		]
+	},
 	"definition": {
 		"id": "quote-chrome",
 		"name": "引用金属",

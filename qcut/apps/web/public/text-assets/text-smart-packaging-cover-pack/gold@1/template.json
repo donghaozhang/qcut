@@ -3,6 +3,22 @@
 	"assetId": "text-smart-packaging-cover-pack-gold",
 	"packageId": "text-smart-packaging-cover-pack",
 	"version": 1,
+	"marketplace": {
+		"editorialRank": 22,
+		"heatScore": 98,
+		"remoteTags": [
+			"category:cover-pack",
+			"group:smart-packaging",
+			"variant:gold",
+			"material:gold",
+			"tone:premium"
+		],
+		"searchAliases": [
+			"金色",
+			"鎏金",
+			"高级"
+		]
+	},
 	"definition": {
 		"id": "cover-pack-gold",
 		"name": "封面包装鎏金",

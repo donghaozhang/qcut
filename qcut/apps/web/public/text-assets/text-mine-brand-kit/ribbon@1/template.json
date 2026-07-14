@@ -3,6 +3,16 @@
 	"assetId": "text-mine-brand-kit-ribbon",
 	"packageId": "text-mine-brand-kit",
 	"version": 1,
+	"marketplace": {
+		"editorialRank": 120,
+		"heatScore": 81,
+		"remoteTags": [
+			"category:brand-kit",
+			"group:mine",
+			"variant:ribbon"
+		],
+		"searchAliases": []
+	},
 	"definition": {
 		"id": "brand-kit-ribbon",
 		"name": "品牌字飘带",

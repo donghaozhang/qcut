@@ -14,6 +14,16 @@
 		"assetId": "text-new-text-basic-cutout",
 		"packageId": "text-new-text-basic",
 		"version": 1,
+		"marketplace": {
+			"editorialRank": 120,
+			"heatScore": 81,
+			"remoteTags": [
+				"category:basic",
+				"group:new-text",
+				"variant:cutout"
+			],
+			"searchAliases": []
+		},
 		"definition": {
 			"id": "basic-cutout",
 			"name": "基础文本剪纸",

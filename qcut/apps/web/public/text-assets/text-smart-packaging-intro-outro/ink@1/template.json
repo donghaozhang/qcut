@@ -3,6 +3,16 @@
 	"assetId": "text-smart-packaging-intro-outro-ink",
 	"packageId": "text-smart-packaging-intro-outro",
 	"version": 1,
+	"marketplace": {
+		"editorialRank": 120,
+		"heatScore": 81,
+		"remoteTags": [
+			"category:intro-outro",
+			"group:smart-packaging",
+			"variant:ink"
+		],
+		"searchAliases": []
+	},
 	"definition": {
 		"id": "intro-outro-ink",
 		"name": "片头片尾水墨",

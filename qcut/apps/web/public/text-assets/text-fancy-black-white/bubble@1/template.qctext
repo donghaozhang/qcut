@@ -14,6 +14,23 @@
 		"assetId": "text-fancy-black-white-bubble",
 		"packageId": "text-fancy-black-white",
 		"version": 1,
+		"marketplace": {
+			"editorialRank": 42,
+			"heatScore": 87,
+			"remoteTags": [
+				"category:black-white",
+				"group:fancy",
+				"variant:bubble",
+				"color:black-white",
+				"tone:classic"
+			],
+			"searchAliases": [
+				"黑白",
+				"高对比",
+				"经典",
+				"bw"
+			]
+		},
 		"definition": {
 			"id": "black-white-bubble",
 			"name": "黑白气泡",

@@ -3,6 +3,22 @@
 	"assetId": "text-smart-text-subtitle-title-sticker",
 	"packageId": "text-smart-text-subtitle-title",
 	"version": 1,
+	"marketplace": {
+		"editorialRank": 24,
+		"heatScore": 94,
+		"remoteTags": [
+			"category:subtitle-title",
+			"group:smart-text",
+			"variant:sticker",
+			"style:sticker",
+			"tone:cute"
+		],
+		"searchAliases": [
+			"贴纸",
+			"白边",
+			"可爱"
+		]
+	},
 	"definition": {
 		"id": "subtitle-title-sticker",
 		"name": "字幕转标题贴纸",

@@ -3,6 +3,16 @@
 	"assetId": "text-new-text-caption-soft-card",
 	"packageId": "text-new-text-caption",
 	"version": 1,
+	"marketplace": {
+		"editorialRank": 120,
+		"heatScore": 77,
+		"remoteTags": [
+			"category:caption",
+			"group:new-text",
+			"variant:soft-card"
+		],
+		"searchAliases": []
+	},
 	"definition": {
 		"id": "caption-soft-card",
 		"name": "说明柔卡",

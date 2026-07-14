@@ -14,6 +14,16 @@
 		"assetId": "text-new-text-caption-glass",
 		"packageId": "text-new-text-caption",
 		"version": 1,
+		"marketplace": {
+			"editorialRank": 120,
+			"heatScore": 81,
+			"remoteTags": [
+				"category:caption",
+				"group:new-text",
+				"variant:glass"
+			],
+			"searchAliases": []
+		},
 		"definition": {
 			"id": "caption-glass",
 			"name": "说明玻璃",

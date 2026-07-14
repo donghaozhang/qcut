@@ -3,6 +3,22 @@
 	"assetId": "text-smart-text-key-point-glow",
 	"packageId": "text-smart-text-key-point",
 	"version": 1,
+	"marketplace": {
+		"editorialRank": 15,
+		"heatScore": 100,
+		"remoteTags": [
+			"category:key-point",
+			"group:smart-text",
+			"variant:glow",
+			"effect:glow",
+			"scene:night"
+		],
+		"searchAliases": [
+			"发光",
+			"霓虹",
+			"夜景"
+		]
+	},
 	"definition": {
 		"id": "key-point-glow",
 		"name": "重点提取发光",

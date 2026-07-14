@@ -14,6 +14,22 @@
 		"assetId": "text-smart-packaging-talking-head-sticker",
 		"packageId": "text-smart-packaging-talking-head",
 		"version": 1,
+		"marketplace": {
+			"editorialRank": 24,
+			"heatScore": 94,
+			"remoteTags": [
+				"category:talking-head",
+				"group:smart-packaging",
+				"variant:sticker",
+				"style:sticker",
+				"tone:cute"
+			],
+			"searchAliases": [
+				"贴纸",
+				"白边",
+				"可爱"
+			]
+		},
 		"definition": {
 			"id": "talking-head-sticker",
 			"name": "口播卡片贴纸",

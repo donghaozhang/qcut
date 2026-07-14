@@ -3,6 +3,16 @@
 	"assetId": "text-smart-text-chapter-label",
 	"packageId": "text-smart-text-chapter",
 	"version": 1,
+	"marketplace": {
+		"editorialRank": 120,
+		"heatScore": 77,
+		"remoteTags": [
+			"category:chapter",
+			"group:smart-text",
+			"variant:label"
+		],
+		"searchAliases": []
+	},
 	"definition": {
 		"id": "chapter-label",
 		"name": "章节标题标签",

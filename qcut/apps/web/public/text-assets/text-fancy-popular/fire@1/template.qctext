@@ -14,6 +14,28 @@
 		"assetId": "text-fancy-popular-fire",
 		"packageId": "text-fancy-popular",
 		"version": 1,
+		"marketplace": {
+			"editorialRank": 4,
+			"heatScore": 100,
+			"remoteTags": [
+				"category:popular",
+				"group:fancy",
+				"variant:fire",
+				"collection:popular",
+				"market:recommended",
+				"effect:fire",
+				"tone:hot"
+			],
+			"searchAliases": [
+				"热门",
+				"爆款",
+				"推荐",
+				"popular",
+				"火焰",
+				"热血",
+				"燃"
+			]
+		},
 		"definition": {
 			"id": "popular-fire",
 			"name": "热门火焰",

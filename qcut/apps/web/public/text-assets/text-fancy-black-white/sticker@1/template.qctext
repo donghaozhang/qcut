@@ -14,6 +14,28 @@
 		"assetId": "text-fancy-black-white-sticker",
 		"packageId": "text-fancy-black-white",
 		"version": 1,
+		"marketplace": {
+			"editorialRank": 24,
+			"heatScore": 100,
+			"remoteTags": [
+				"category:black-white",
+				"group:fancy",
+				"variant:sticker",
+				"color:black-white",
+				"tone:classic",
+				"style:sticker",
+				"tone:cute"
+			],
+			"searchAliases": [
+				"黑白",
+				"高对比",
+				"经典",
+				"bw",
+				"贴纸",
+				"白边",
+				"可爱"
+			]
+		},
 		"definition": {
 			"id": "black-white-sticker",
 			"name": "黑白贴纸",

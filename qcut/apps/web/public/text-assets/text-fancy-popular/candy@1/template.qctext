@@ -14,6 +14,28 @@
 		"assetId": "text-fancy-popular-candy",
 		"packageId": "text-fancy-popular",
 		"version": 1,
+		"marketplace": {
+			"editorialRank": 4,
+			"heatScore": 100,
+			"remoteTags": [
+				"category:popular",
+				"group:fancy",
+				"variant:candy",
+				"collection:popular",
+				"market:recommended",
+				"style:candy",
+				"tone:cute"
+			],
+			"searchAliases": [
+				"热门",
+				"爆款",
+				"推荐",
+				"popular",
+				"糖果",
+				"甜",
+				"可爱"
+			]
+		},
 		"definition": {
 			"id": "popular-candy",
 			"name": "热门糖果",

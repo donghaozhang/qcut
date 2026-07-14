@@ -3,6 +3,22 @@
 	"assetId": "text-smart-packaging-commerce-badge-fire",
 	"packageId": "text-smart-packaging-commerce-badge",
 	"version": 1,
+	"marketplace": {
+		"editorialRank": 9,
+		"heatScore": 100,
+		"remoteTags": [
+			"category:commerce-badge",
+			"group:smart-packaging",
+			"variant:fire",
+			"effect:fire",
+			"tone:hot"
+		],
+		"searchAliases": [
+			"火焰",
+			"热血",
+			"燃"
+		]
+	},
 	"definition": {
 		"id": "commerce-badge-fire",
 		"name": "带货标牌火焰",

@@ -3,6 +3,23 @@
 	"assetId": "text-fancy-guofeng-label",
 	"packageId": "text-fancy-guofeng",
 	"version": 1,
+	"marketplace": {
+		"editorialRank": 20,
+		"heatScore": 90,
+		"remoteTags": [
+			"category:guofeng",
+			"group:fancy",
+			"variant:label",
+			"style:guofeng",
+			"scene:culture"
+		],
+		"searchAliases": [
+			"国风",
+			"国潮",
+			"水墨",
+			"chinoiserie"
+		]
+	},
 	"definition": {
 		"id": "guofeng-label",
 		"name": "国风标签",

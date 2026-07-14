@@ -3,6 +3,16 @@
 	"assetId": "text-new-text-quote-cutout",
 	"packageId": "text-new-text-quote",
 	"version": 1,
+	"marketplace": {
+		"editorialRank": 120,
+		"heatScore": 81,
+		"remoteTags": [
+			"category:quote",
+			"group:new-text",
+			"variant:cutout"
+		],
+		"searchAliases": []
+	},
 	"definition": {
 		"id": "quote-cutout",
 		"name": "引用剪纸",

@@ -3,6 +3,22 @@
 	"assetId": "text-smart-text-chapter-candy",
 	"packageId": "text-smart-text-chapter",
 	"version": 1,
+	"marketplace": {
+		"editorialRank": 58,
+		"heatScore": 93,
+		"remoteTags": [
+			"category:chapter",
+			"group:smart-text",
+			"variant:candy",
+			"style:candy",
+			"tone:cute"
+		],
+		"searchAliases": [
+			"糖果",
+			"甜",
+			"可爱"
+		]
+	},
 	"definition": {
 		"id": "chapter-candy",
 		"name": "章节标题糖果",

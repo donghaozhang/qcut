@@ -3,6 +3,16 @@
 	"assetId": "text-mine-favorites-warning",
 	"packageId": "text-mine-favorites",
 	"version": 1,
+	"marketplace": {
+		"editorialRank": 120,
+		"heatScore": 77,
+		"remoteTags": [
+			"category:favorites",
+			"group:mine",
+			"variant:warning"
+		],
+		"searchAliases": []
+	},
 	"definition": {
 		"id": "favorites-warning",
 		"name": "收藏警示",

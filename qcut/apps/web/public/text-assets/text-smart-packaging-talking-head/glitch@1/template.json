@@ -3,6 +3,22 @@
 	"assetId": "text-smart-packaging-talking-head-glitch",
 	"packageId": "text-smart-packaging-talking-head",
 	"version": 1,
+	"marketplace": {
+		"editorialRank": 21,
+		"heatScore": 99,
+		"remoteTags": [
+			"category:talking-head",
+			"group:smart-packaging",
+			"variant:glitch",
+			"effect:glitch",
+			"scene:cyber"
+		],
+		"searchAliases": [
+			"故障",
+			"赛博",
+			"抖动"
+		]
+	},
 	"definition": {
 		"id": "talking-head-glitch",
 		"name": "口播卡片故障",

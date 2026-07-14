@@ -14,6 +14,23 @@
 		"assetId": "text-fancy-green-outline",
 		"packageId": "text-fancy-green",
 		"version": 1,
+		"marketplace": {
+			"editorialRank": 54,
+			"heatScore": 89,
+			"remoteTags": [
+				"category:green",
+				"group:fancy",
+				"variant:outline",
+				"color:green",
+				"tone:fresh"
+			],
+			"searchAliases": [
+				"绿色",
+				"清新",
+				"自然",
+				"green"
+			]
+		},
 		"definition": {
 			"id": "green-outline",
 			"name": "绿色描边",

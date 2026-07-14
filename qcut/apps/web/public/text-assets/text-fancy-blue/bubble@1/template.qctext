@@ -14,6 +14,23 @@
 		"assetId": "text-fancy-blue-bubble",
 		"packageId": "text-fancy-blue",
 		"version": 1,
+		"marketplace": {
+			"editorialRank": 30,
+			"heatScore": 88,
+			"remoteTags": [
+				"category:blue",
+				"group:fancy",
+				"variant:bubble",
+				"color:blue",
+				"scene:tech"
+			],
+			"searchAliases": [
+				"蓝色",
+				"冰蓝",
+				"科技",
+				"blue"
+			]
+		},
 		"definition": {
 			"id": "blue-bubble",
 			"name": "蓝色气泡",

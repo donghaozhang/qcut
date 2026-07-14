@@ -3,6 +3,23 @@
 	"assetId": "text-fancy-glow-outline",
 	"packageId": "text-fancy-glow",
 	"version": 1,
+	"marketplace": {
+		"editorialRank": 14,
+		"heatScore": 95,
+		"remoteTags": [
+			"category:glow",
+			"group:fancy",
+			"variant:outline",
+			"effect:glow",
+			"scene:night"
+		],
+		"searchAliases": [
+			"发光",
+			"霓虹",
+			"夜景",
+			"neon"
+		]
+	},
 	"definition": {
 		"id": "glow-outline",
 		"name": "发光描边",

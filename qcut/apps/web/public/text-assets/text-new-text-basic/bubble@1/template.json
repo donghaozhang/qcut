@@ -3,6 +3,16 @@
 	"assetId": "text-new-text-basic-bubble",
 	"packageId": "text-new-text-basic",
 	"version": 1,
+	"marketplace": {
+		"editorialRank": 120,
+		"heatScore": 77,
+		"remoteTags": [
+			"category:basic",
+			"group:new-text",
+			"variant:bubble"
+		],
+		"searchAliases": []
+	},
 	"definition": {
 		"id": "basic-bubble",
 		"name": "基础文本气泡",

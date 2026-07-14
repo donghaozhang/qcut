@@ -14,6 +14,27 @@
 		"assetId": "text-fancy-latest-chrome",
 		"packageId": "text-fancy-latest",
 		"version": 1,
+		"marketplace": {
+			"editorialRank": 16,
+			"heatScore": 100,
+			"remoteTags": [
+				"category:latest",
+				"group:fancy",
+				"variant:chrome",
+				"collection:latest",
+				"market:new",
+				"material:chrome",
+				"tone:premium"
+			],
+			"searchAliases": [
+				"最新",
+				"上新",
+				"new",
+				"金属",
+				"银色",
+				"质感"
+			]
+		},
 		"definition": {
 			"id": "latest-chrome",
 			"name": "最新金属",

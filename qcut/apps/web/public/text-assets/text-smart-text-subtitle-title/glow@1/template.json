@@ -3,6 +3,22 @@
 	"assetId": "text-smart-text-subtitle-title-glow",
 	"packageId": "text-smart-text-subtitle-title",
 	"version": 1,
+	"marketplace": {
+		"editorialRank": 15,
+		"heatScore": 100,
+		"remoteTags": [
+			"category:subtitle-title",
+			"group:smart-text",
+			"variant:glow",
+			"effect:glow",
+			"scene:night"
+		],
+		"searchAliases": [
+			"发光",
+			"霓虹",
+			"夜景"
+		]
+	},
 	"definition": {
 		"id": "subtitle-title-glow",
 		"name": "字幕转标题发光",

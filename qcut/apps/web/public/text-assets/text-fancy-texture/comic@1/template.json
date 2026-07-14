@@ -3,6 +3,28 @@
 	"assetId": "text-fancy-texture-comic",
 	"packageId": "text-fancy-texture",
 	"version": 1,
+	"marketplace": {
+		"editorialRank": 13,
+		"heatScore": 100,
+		"remoteTags": [
+			"category:texture",
+			"group:fancy",
+			"variant:comic",
+			"effect:texture",
+			"market:premium-look",
+			"style:comic",
+			"effect:burst"
+		],
+		"searchAliases": [
+			"纹理",
+			"材质",
+			"质感",
+			"texture",
+			"漫画",
+			"爆炸",
+			"综艺"
+		]
+	},
 	"definition": {
 		"id": "texture-comic",
 		"name": "纹理漫画",

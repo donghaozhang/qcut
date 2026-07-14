@@ -3,6 +3,28 @@
 	"assetId": "text-fancy-yellow-gold",
 	"packageId": "text-fancy-yellow",
 	"version": 1,
+	"marketplace": {
+		"editorialRank": 22,
+		"heatScore": 100,
+		"remoteTags": [
+			"category:yellow",
+			"group:fancy",
+			"variant:gold",
+			"color:yellow",
+			"tone:bright",
+			"material:gold",
+			"tone:premium"
+		],
+		"searchAliases": [
+			"黄色",
+			"醒目",
+			"高亮",
+			"yellow",
+			"金色",
+			"鎏金",
+			"高级"
+		]
+	},
 	"definition": {
 		"id": "yellow-gold",
 		"name": "黄色鎏金",

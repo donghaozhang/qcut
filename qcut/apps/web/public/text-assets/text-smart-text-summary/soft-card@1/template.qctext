@@ -14,6 +14,16 @@
 		"assetId": "text-smart-text-summary-soft-card",
 		"packageId": "text-smart-text-summary",
 		"version": 1,
+		"marketplace": {
+			"editorialRank": 120,
+			"heatScore": 77,
+			"remoteTags": [
+				"category:summary",
+				"group:smart-text",
+				"variant:soft-card"
+			],
+			"searchAliases": []
+		},
 		"definition": {
 			"id": "summary-soft-card",
 			"name": "自动摘要柔卡",

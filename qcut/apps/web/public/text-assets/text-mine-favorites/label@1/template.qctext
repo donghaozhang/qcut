@@ -14,6 +14,16 @@
 		"assetId": "text-mine-favorites-label",
 		"packageId": "text-mine-favorites",
 		"version": 1,
+		"marketplace": {
+			"editorialRank": 120,
+			"heatScore": 77,
+			"remoteTags": [
+				"category:favorites",
+				"group:mine",
+				"variant:label"
+			],
+			"searchAliases": []
+		},
 		"definition": {
 			"id": "favorites-label",
 			"name": "收藏标签",

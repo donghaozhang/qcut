@@ -14,6 +14,22 @@
 		"assetId": "text-templates-quote-template-comic",
 		"packageId": "text-templates-quote-template",
 		"version": 1,
+		"marketplace": {
+			"editorialRank": 19,
+			"heatScore": 99,
+			"remoteTags": [
+				"category:quote-template",
+				"group:templates",
+				"variant:comic",
+				"style:comic",
+				"effect:burst"
+			],
+			"searchAliases": [
+				"漫画",
+				"爆炸",
+				"综艺"
+			]
+		},
 		"definition": {
 			"id": "quote-template-comic",
 			"name": "引用模板漫画",

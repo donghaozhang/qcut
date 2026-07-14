@@ -14,6 +14,22 @@
 		"assetId": "text-new-text-quote-fire",
 		"packageId": "text-new-text-quote",
 		"version": 1,
+		"marketplace": {
+			"editorialRank": 9,
+			"heatScore": 100,
+			"remoteTags": [
+				"category:quote",
+				"group:new-text",
+				"variant:fire",
+				"effect:fire",
+				"tone:hot"
+			],
+			"searchAliases": [
+				"火焰",
+				"热血",
+				"燃"
+			]
+		},
 		"definition": {
 			"id": "quote-fire",
 			"name": "引用火焰",

@@ -3,6 +3,28 @@
 	"assetId": "text-fancy-black-white-glitch",
 	"packageId": "text-fancy-black-white",
 	"version": 1,
+	"marketplace": {
+		"editorialRank": 21,
+		"heatScore": 100,
+		"remoteTags": [
+			"category:black-white",
+			"group:fancy",
+			"variant:glitch",
+			"color:black-white",
+			"tone:classic",
+			"effect:glitch",
+			"scene:cyber"
+		],
+		"searchAliases": [
+			"黑白",
+			"高对比",
+			"经典",
+			"bw",
+			"故障",
+			"赛博",
+			"抖动"
+		]
+	},
 	"definition": {
 		"id": "black-white-glitch",
 		"name": "黑白故障",

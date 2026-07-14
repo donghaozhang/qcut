@@ -14,6 +14,16 @@
 		"assetId": "text-mine-brand-kit-pop",
 		"packageId": "text-mine-brand-kit",
 		"version": 1,
+		"marketplace": {
+			"editorialRank": 120,
+			"heatScore": 81,
+			"remoteTags": [
+				"category:brand-kit",
+				"group:mine",
+				"variant:pop"
+			],
+			"searchAliases": []
+		},
 		"definition": {
 			"id": "brand-kit-pop",
 			"name": "品牌字弹幕",

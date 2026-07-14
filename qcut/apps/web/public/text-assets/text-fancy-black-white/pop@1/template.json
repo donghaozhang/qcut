@@ -3,6 +3,23 @@
 	"assetId": "text-fancy-black-white-pop",
 	"packageId": "text-fancy-black-white",
 	"version": 1,
+	"marketplace": {
+		"editorialRank": 42,
+		"heatScore": 91,
+		"remoteTags": [
+			"category:black-white",
+			"group:fancy",
+			"variant:pop",
+			"color:black-white",
+			"tone:classic"
+		],
+		"searchAliases": [
+			"黑白",
+			"高对比",
+			"经典",
+			"bw"
+		]
+	},
 	"definition": {
 		"id": "black-white-pop",
 		"name": "黑白弹幕",

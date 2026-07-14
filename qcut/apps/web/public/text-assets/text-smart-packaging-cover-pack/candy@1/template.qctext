@@ -14,6 +14,22 @@
 		"assetId": "text-smart-packaging-cover-pack-candy",
 		"packageId": "text-smart-packaging-cover-pack",
 		"version": 1,
+		"marketplace": {
+			"editorialRank": 58,
+			"heatScore": 93,
+			"remoteTags": [
+				"category:cover-pack",
+				"group:smart-packaging",
+				"variant:candy",
+				"style:candy",
+				"tone:cute"
+			],
+			"searchAliases": [
+				"糖果",
+				"甜",
+				"可爱"
+			]
+		},
 		"definition": {
 			"id": "cover-pack-candy",
 			"name": "封面包装糖果",

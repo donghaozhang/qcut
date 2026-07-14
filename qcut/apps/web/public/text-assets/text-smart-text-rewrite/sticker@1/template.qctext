@@ -14,6 +14,22 @@
 		"assetId": "text-smart-text-rewrite-sticker",
 		"packageId": "text-smart-text-rewrite",
 		"version": 1,
+		"marketplace": {
+			"editorialRank": 24,
+			"heatScore": 94,
+			"remoteTags": [
+				"category:rewrite",
+				"group:smart-text",
+				"variant:sticker",
+				"style:sticker",
+				"tone:cute"
+			],
+			"searchAliases": [
+				"贴纸",
+				"白边",
+				"可爱"
+			]
+		},
 		"definition": {
 			"id": "rewrite-sticker",
 			"name": "AI改写贴纸",

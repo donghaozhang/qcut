@@ -3,6 +3,16 @@
 	"assetId": "text-smart-packaging-info-strip-warning",
 	"packageId": "text-smart-packaging-info-strip",
 	"version": 1,
+	"marketplace": {
+		"editorialRank": 120,
+		"heatScore": 77,
+		"remoteTags": [
+			"category:info-strip",
+			"group:smart-packaging",
+			"variant:warning"
+		],
+		"searchAliases": []
+	},
 	"definition": {
 		"id": "info-strip-warning",
 		"name": "信息条警示",

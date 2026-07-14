@@ -3,6 +3,16 @@
 	"assetId": "text-smart-packaging-intro-outro-shadow",
 	"packageId": "text-smart-packaging-intro-outro",
 	"version": 1,
+	"marketplace": {
+		"editorialRank": 120,
+		"heatScore": 77,
+		"remoteTags": [
+			"category:intro-outro",
+			"group:smart-packaging",
+			"variant:shadow"
+		],
+		"searchAliases": []
+	},
 	"definition": {
 		"id": "intro-outro-shadow",
 		"name": "片头片尾重影",

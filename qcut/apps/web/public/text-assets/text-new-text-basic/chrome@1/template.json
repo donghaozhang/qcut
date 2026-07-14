@@ -3,6 +3,22 @@
 	"assetId": "text-new-text-basic-chrome",
 	"packageId": "text-new-text-basic",
 	"version": 1,
+	"marketplace": {
+		"editorialRank": 32,
+		"heatScore": 97,
+		"remoteTags": [
+			"category:basic",
+			"group:new-text",
+			"variant:chrome",
+			"material:chrome",
+			"tone:premium"
+		],
+		"searchAliases": [
+			"金属",
+			"银色",
+			"质感"
+		]
+	},
 	"definition": {
 		"id": "basic-chrome",
 		"name": "基础文本金属",

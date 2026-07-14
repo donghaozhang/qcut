@@ -3,6 +3,22 @@
 	"assetId": "text-smart-packaging-info-strip-candy",
 	"packageId": "text-smart-packaging-info-strip",
 	"version": 1,
+	"marketplace": {
+		"editorialRank": 58,
+		"heatScore": 93,
+		"remoteTags": [
+			"category:info-strip",
+			"group:smart-packaging",
+			"variant:candy",
+			"style:candy",
+			"tone:cute"
+		],
+		"searchAliases": [
+			"糖果",
+			"甜",
+			"可爱"
+		]
+	},
 	"definition": {
 		"id": "info-strip-candy",
 		"name": "信息条糖果",

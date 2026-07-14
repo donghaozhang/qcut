@@ -3,6 +3,16 @@
 	"assetId": "text-new-text-caption-ribbon",
 	"packageId": "text-new-text-caption",
 	"version": 1,
+	"marketplace": {
+		"editorialRank": 120,
+		"heatScore": 81,
+		"remoteTags": [
+			"category:caption",
+			"group:new-text",
+			"variant:ribbon"
+		],
+		"searchAliases": []
+	},
 	"definition": {
 		"id": "caption-ribbon",
 		"name": "说明飘带",

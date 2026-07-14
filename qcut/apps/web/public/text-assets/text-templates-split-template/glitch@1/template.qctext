@@ -14,6 +14,22 @@
 		"assetId": "text-templates-split-template-glitch",
 		"packageId": "text-templates-split-template",
 		"version": 1,
+		"marketplace": {
+			"editorialRank": 21,
+			"heatScore": 99,
+			"remoteTags": [
+				"category:split-template",
+				"group:templates",
+				"variant:glitch",
+				"effect:glitch",
+				"scene:cyber"
+			],
+			"searchAliases": [
+				"故障",
+				"赛博",
+				"抖动"
+			]
+		},
 		"definition": {
 			"id": "split-template-glitch",
 			"name": "分屏模板故障",

@@ -3,6 +3,22 @@
 	"assetId": "text-new-text-basic-gold",
 	"packageId": "text-new-text-basic",
 	"version": 1,
+	"marketplace": {
+		"editorialRank": 22,
+		"heatScore": 98,
+		"remoteTags": [
+			"category:basic",
+			"group:new-text",
+			"variant:gold",
+			"material:gold",
+			"tone:premium"
+		],
+		"searchAliases": [
+			"金色",
+			"鎏金",
+			"高级"
+		]
+	},
 	"definition": {
 		"id": "basic-gold",
 		"name": "基础文本鎏金",

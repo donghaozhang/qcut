@@ -14,6 +14,16 @@
 		"assetId": "text-smart-text-summary-plain",
 		"packageId": "text-smart-text-summary",
 		"version": 1,
+		"marketplace": {
+			"editorialRank": 120,
+			"heatScore": 77,
+			"remoteTags": [
+				"category:summary",
+				"group:smart-text",
+				"variant:plain"
+			],
+			"searchAliases": []
+		},
 		"definition": {
 			"id": "summary-plain",
 			"name": "自动摘要基础",

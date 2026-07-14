@@ -3,6 +3,22 @@
 	"assetId": "text-templates-split-template-candy",
 	"packageId": "text-templates-split-template",
 	"version": 1,
+	"marketplace": {
+		"editorialRank": 58,
+		"heatScore": 93,
+		"remoteTags": [
+			"category:split-template",
+			"group:templates",
+			"variant:candy",
+			"style:candy",
+			"tone:cute"
+		],
+		"searchAliases": [
+			"糖果",
+			"甜",
+			"可爱"
+		]
+	},
 	"definition": {
 		"id": "split-template-candy",
 		"name": "分屏模板糖果",

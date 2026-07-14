@@ -3,6 +3,16 @@
 	"assetId": "text-new-text-lower-third-stamp",
 	"packageId": "text-new-text-lower-third",
 	"version": 1,
+	"marketplace": {
+		"editorialRank": 120,
+		"heatScore": 77,
+		"remoteTags": [
+			"category:lower-third",
+			"group:new-text",
+			"variant:stamp"
+		],
+		"searchAliases": []
+	},
 	"definition": {
 		"id": "lower-third-stamp",
 		"name": "角标印章",

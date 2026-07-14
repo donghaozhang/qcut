@@ -14,6 +14,22 @@
 		"assetId": "text-fancy-latest-outline",
 		"packageId": "text-fancy-latest",
 		"version": 1,
+		"marketplace": {
+			"editorialRank": 16,
+			"heatScore": 94,
+			"remoteTags": [
+				"category:latest",
+				"group:fancy",
+				"variant:outline",
+				"collection:latest",
+				"market:new"
+			],
+			"searchAliases": [
+				"最新",
+				"上新",
+				"new"
+			]
+		},
 		"definition": {
 			"id": "latest-outline",
 			"name": "最新描边",

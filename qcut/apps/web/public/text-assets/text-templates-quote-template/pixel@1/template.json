@@ -3,6 +3,16 @@
 	"assetId": "text-templates-quote-template-pixel",
 	"packageId": "text-templates-quote-template",
 	"version": 1,
+	"marketplace": {
+		"editorialRank": 120,
+		"heatScore": 77,
+		"remoteTags": [
+			"category:quote-template",
+			"group:templates",
+			"variant:pixel"
+		],
+		"searchAliases": []
+	},
 	"definition": {
 		"id": "quote-template-pixel",
 		"name": "引用模板像素",

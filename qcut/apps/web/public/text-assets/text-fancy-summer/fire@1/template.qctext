@@ -14,6 +14,28 @@
 		"assetId": "text-fancy-summer-fire",
 		"packageId": "text-fancy-summer",
 		"version": 1,
+		"marketplace": {
+			"editorialRank": 9,
+			"heatScore": 100,
+			"remoteTags": [
+				"category:summer",
+				"group:fancy",
+				"variant:fire",
+				"season:summer",
+				"tone:fresh",
+				"effect:fire",
+				"tone:hot"
+			],
+			"searchAliases": [
+				"夏日",
+				"清爽",
+				"活动",
+				"summer",
+				"火焰",
+				"热血",
+				"燃"
+			]
+		},
 		"definition": {
 			"id": "summer-fire",
 			"name": "夏日火焰",

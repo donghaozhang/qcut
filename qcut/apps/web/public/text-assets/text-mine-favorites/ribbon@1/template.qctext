@@ -14,6 +14,16 @@
 		"assetId": "text-mine-favorites-ribbon",
 		"packageId": "text-mine-favorites",
 		"version": 1,
+		"marketplace": {
+			"editorialRank": 120,
+			"heatScore": 81,
+			"remoteTags": [
+				"category:favorites",
+				"group:mine",
+				"variant:ribbon"
+			],
+			"searchAliases": []
+		},
 		"definition": {
 			"id": "favorites-ribbon",
 			"name": "收藏飘带",

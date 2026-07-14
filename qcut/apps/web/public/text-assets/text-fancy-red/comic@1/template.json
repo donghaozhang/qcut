@@ -3,6 +3,28 @@
 	"assetId": "text-fancy-red-comic",
 	"packageId": "text-fancy-red",
 	"version": 1,
+	"marketplace": {
+		"editorialRank": 8,
+		"heatScore": 100,
+		"remoteTags": [
+			"category:red",
+			"group:fancy",
+			"variant:comic",
+			"color:red",
+			"scene:commerce",
+			"style:comic",
+			"effect:burst"
+		],
+		"searchAliases": [
+			"红色",
+			"爆红",
+			"促销",
+			"red",
+			"漫画",
+			"爆炸",
+			"综艺"
+		]
+	},
 	"definition": {
 		"id": "red-comic",
 		"name": "红色漫画",

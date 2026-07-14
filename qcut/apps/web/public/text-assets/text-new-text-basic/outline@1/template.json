@@ -3,6 +3,16 @@
 	"assetId": "text-new-text-basic-outline",
 	"packageId": "text-new-text-basic",
 	"version": 1,
+	"marketplace": {
+		"editorialRank": 120,
+		"heatScore": 81,
+		"remoteTags": [
+			"category:basic",
+			"group:new-text",
+			"variant:outline"
+		],
+		"searchAliases": []
+	},
 	"definition": {
 		"id": "basic-outline",
 		"name": "基础文本描边",

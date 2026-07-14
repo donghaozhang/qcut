@@ -14,6 +14,16 @@
 		"assetId": "text-mine-brand-kit-glass",
 		"packageId": "text-mine-brand-kit",
 		"version": 1,
+		"marketplace": {
+			"editorialRank": 120,
+			"heatScore": 81,
+			"remoteTags": [
+				"category:brand-kit",
+				"group:mine",
+				"variant:glass"
+			],
+			"searchAliases": []
+		},
 		"definition": {
 			"id": "brand-kit-glass",
 			"name": "品牌字玻璃",

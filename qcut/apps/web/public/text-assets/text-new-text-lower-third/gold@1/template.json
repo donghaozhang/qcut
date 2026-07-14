@@ -3,6 +3,22 @@
 	"assetId": "text-new-text-lower-third-gold",
 	"packageId": "text-new-text-lower-third",
 	"version": 1,
+	"marketplace": {
+		"editorialRank": 22,
+		"heatScore": 98,
+		"remoteTags": [
+			"category:lower-third",
+			"group:new-text",
+			"variant:gold",
+			"material:gold",
+			"tone:premium"
+		],
+		"searchAliases": [
+			"金色",
+			"鎏金",
+			"高级"
+		]
+	},
 	"definition": {
 		"id": "lower-third-gold",
 		"name": "角标鎏金",

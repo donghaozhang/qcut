@@ -3,6 +3,28 @@
 	"assetId": "text-fancy-yellow-comic",
 	"packageId": "text-fancy-yellow",
 	"version": 1,
+	"marketplace": {
+		"editorialRank": 19,
+		"heatScore": 100,
+		"remoteTags": [
+			"category:yellow",
+			"group:fancy",
+			"variant:comic",
+			"color:yellow",
+			"tone:bright",
+			"style:comic",
+			"effect:burst"
+		],
+		"searchAliases": [
+			"黄色",
+			"醒目",
+			"高亮",
+			"yellow",
+			"漫画",
+			"爆炸",
+			"综艺"
+		]
+	},
 	"definition": {
 		"id": "yellow-comic",
 		"name": "黄色漫画",

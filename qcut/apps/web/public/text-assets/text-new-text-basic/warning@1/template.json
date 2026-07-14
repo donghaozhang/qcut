@@ -3,6 +3,16 @@
 	"assetId": "text-new-text-basic-warning",
 	"packageId": "text-new-text-basic",
 	"version": 1,
+	"marketplace": {
+		"editorialRank": 120,
+		"heatScore": 77,
+		"remoteTags": [
+			"category:basic",
+			"group:new-text",
+			"variant:warning"
+		],
+		"searchAliases": []
+	},
 	"definition": {
 		"id": "basic-warning",
 		"name": "基础文本警示",

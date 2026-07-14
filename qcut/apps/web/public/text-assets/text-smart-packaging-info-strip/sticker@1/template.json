@@ -3,6 +3,22 @@
 	"assetId": "text-smart-packaging-info-strip-sticker",
 	"packageId": "text-smart-packaging-info-strip",
 	"version": 1,
+	"marketplace": {
+		"editorialRank": 24,
+		"heatScore": 94,
+		"remoteTags": [
+			"category:info-strip",
+			"group:smart-packaging",
+			"variant:sticker",
+			"style:sticker",
+			"tone:cute"
+		],
+		"searchAliases": [
+			"贴纸",
+			"白边",
+			"可爱"
+		]
+	},
 	"definition": {
 		"id": "info-strip-sticker",
 		"name": "信息条贴纸",

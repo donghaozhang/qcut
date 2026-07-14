@@ -3,6 +3,28 @@
 	"assetId": "text-fancy-guofeng-gradient-shine",
 	"packageId": "text-fancy-guofeng",
 	"version": 1,
+	"marketplace": {
+		"editorialRank": 11,
+		"heatScore": 100,
+		"remoteTags": [
+			"category:guofeng",
+			"group:fancy",
+			"variant:gradient-shine",
+			"style:guofeng",
+			"scene:culture",
+			"effect:shine",
+			"effect:gradient"
+		],
+		"searchAliases": [
+			"国风",
+			"国潮",
+			"水墨",
+			"chinoiserie",
+			"流光",
+			"渐变",
+			"高光"
+		]
+	},
 	"definition": {
 		"id": "guofeng-gradient-shine",
 		"name": "国风流光",

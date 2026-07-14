@@ -3,6 +3,23 @@
 	"assetId": "text-fancy-green-green-fresh",
 	"packageId": "text-fancy-green",
 	"version": 1,
+	"marketplace": {
+		"editorialRank": 54,
+		"heatScore": 85,
+		"remoteTags": [
+			"category:green",
+			"group:fancy",
+			"variant:green-fresh",
+			"color:green",
+			"tone:fresh"
+		],
+		"searchAliases": [
+			"绿色",
+			"清新",
+			"自然",
+			"green"
+		]
+	},
 	"definition": {
 		"id": "green-green-fresh",
 		"name": "绿色清新",

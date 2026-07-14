@@ -14,6 +14,16 @@
 		"assetId": "text-smart-text-rewrite-label",
 		"packageId": "text-smart-text-rewrite",
 		"version": 1,
+		"marketplace": {
+			"editorialRank": 120,
+			"heatScore": 77,
+			"remoteTags": [
+				"category:rewrite",
+				"group:smart-text",
+				"variant:label"
+			],
+			"searchAliases": []
+		},
 		"definition": {
 			"id": "rewrite-label",
 			"name": "AI改写标签",

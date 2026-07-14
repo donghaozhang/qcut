@@ -3,6 +3,22 @@
 	"assetId": "text-mine-downloaded-sticker",
 	"packageId": "text-mine-downloaded",
 	"version": 1,
+	"marketplace": {
+		"editorialRank": 24,
+		"heatScore": 94,
+		"remoteTags": [
+			"category:downloaded",
+			"group:mine",
+			"variant:sticker",
+			"style:sticker",
+			"tone:cute"
+		],
+		"searchAliases": [
+			"贴纸",
+			"白边",
+			"可爱"
+		]
+	},
 	"definition": {
 		"id": "downloaded-sticker",
 		"name": "已下载贴纸",

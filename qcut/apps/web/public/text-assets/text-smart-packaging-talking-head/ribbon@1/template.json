@@ -3,6 +3,16 @@
 	"assetId": "text-smart-packaging-talking-head-ribbon",
 	"packageId": "text-smart-packaging-talking-head",
 	"version": 1,
+	"marketplace": {
+		"editorialRank": 120,
+		"heatScore": 81,
+		"remoteTags": [
+			"category:talking-head",
+			"group:smart-packaging",
+			"variant:ribbon"
+		],
+		"searchAliases": []
+	},
 	"definition": {
 		"id": "talking-head-ribbon",
 		"name": "口播卡片飘带",

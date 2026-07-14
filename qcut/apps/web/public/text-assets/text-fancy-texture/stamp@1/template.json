@@ -3,6 +3,23 @@
 	"assetId": "text-fancy-texture-stamp",
 	"packageId": "text-fancy-texture",
 	"version": 1,
+	"marketplace": {
+		"editorialRank": 13,
+		"heatScore": 91,
+		"remoteTags": [
+			"category:texture",
+			"group:fancy",
+			"variant:stamp",
+			"effect:texture",
+			"market:premium-look"
+		],
+		"searchAliases": [
+			"纹理",
+			"材质",
+			"质感",
+			"texture"
+		]
+	},
 	"definition": {
 		"id": "texture-stamp",
 		"name": "纹理印章",

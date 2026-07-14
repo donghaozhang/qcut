@@ -14,6 +14,16 @@
 		"assetId": "text-mine-downloaded-shadow",
 		"packageId": "text-mine-downloaded",
 		"version": 1,
+		"marketplace": {
+			"editorialRank": 120,
+			"heatScore": 77,
+			"remoteTags": [
+				"category:downloaded",
+				"group:mine",
+				"variant:shadow"
+			],
+			"searchAliases": []
+		},
 		"definition": {
 			"id": "downloaded-shadow",
 			"name": "已下载重影",

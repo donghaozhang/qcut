@@ -3,6 +3,16 @@
 	"assetId": "text-new-text-caption-pop",
 	"packageId": "text-new-text-caption",
 	"version": 1,
+	"marketplace": {
+		"editorialRank": 120,
+		"heatScore": 81,
+		"remoteTags": [
+			"category:caption",
+			"group:new-text",
+			"variant:pop"
+		],
+		"searchAliases": []
+	},
 	"definition": {
 		"id": "caption-pop",
 		"name": "说明弹幕",

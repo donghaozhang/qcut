@@ -3,6 +3,16 @@
 	"assetId": "text-templates-list-template-glass",
 	"packageId": "text-templates-list-template",
 	"version": 1,
+	"marketplace": {
+		"editorialRank": 120,
+		"heatScore": 81,
+		"remoteTags": [
+			"category:list-template",
+			"group:templates",
+			"variant:glass"
+		],
+		"searchAliases": []
+	},
 	"definition": {
 		"id": "list-template-glass",
 		"name": "列表模板玻璃",

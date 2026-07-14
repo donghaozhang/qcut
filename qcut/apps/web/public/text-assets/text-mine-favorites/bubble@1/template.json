@@ -3,6 +3,16 @@
 	"assetId": "text-mine-favorites-bubble",
 	"packageId": "text-mine-favorites",
 	"version": 1,
+	"marketplace": {
+		"editorialRank": 120,
+		"heatScore": 77,
+		"remoteTags": [
+			"category:favorites",
+			"group:mine",
+			"variant:bubble"
+		],
+		"searchAliases": []
+	},
 	"definition": {
 		"id": "favorites-bubble",
 		"name": "收藏气泡",

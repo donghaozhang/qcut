@@ -14,6 +14,23 @@
 		"assetId": "text-fancy-texture-ink",
 		"packageId": "text-fancy-texture",
 		"version": 1,
+		"marketplace": {
+			"editorialRank": 13,
+			"heatScore": 95,
+			"remoteTags": [
+				"category:texture",
+				"group:fancy",
+				"variant:ink",
+				"effect:texture",
+				"market:premium-look"
+			],
+			"searchAliases": [
+				"纹理",
+				"材质",
+				"质感",
+				"texture"
+			]
+		},
 		"definition": {
 			"id": "texture-ink",
 			"name": "纹理水墨",

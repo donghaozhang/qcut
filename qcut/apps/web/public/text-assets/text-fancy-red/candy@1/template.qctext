@@ -14,6 +14,28 @@
 		"assetId": "text-fancy-red-candy",
 		"packageId": "text-fancy-red",
 		"version": 1,
+		"marketplace": {
+			"editorialRank": 8,
+			"heatScore": 100,
+			"remoteTags": [
+				"category:red",
+				"group:fancy",
+				"variant:candy",
+				"color:red",
+				"scene:commerce",
+				"style:candy",
+				"tone:cute"
+			],
+			"searchAliases": [
+				"红色",
+				"爆红",
+				"促销",
+				"red",
+				"糖果",
+				"甜",
+				"可爱"
+			]
+		},
 		"definition": {
 			"id": "red-candy",
 			"name": "红色糖果",

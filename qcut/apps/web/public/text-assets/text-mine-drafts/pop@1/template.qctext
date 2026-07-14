@@ -14,6 +14,16 @@
 		"assetId": "text-mine-drafts-pop",
 		"packageId": "text-mine-drafts",
 		"version": 1,
+		"marketplace": {
+			"editorialRank": 120,
+			"heatScore": 81,
+			"remoteTags": [
+				"category:drafts",
+				"group:mine",
+				"variant:pop"
+			],
+			"searchAliases": []
+		},
 		"definition": {
 			"id": "drafts-pop",
 			"name": "草稿弹幕",

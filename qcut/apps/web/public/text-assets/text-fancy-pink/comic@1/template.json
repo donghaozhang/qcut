@@ -3,6 +3,28 @@
 	"assetId": "text-fancy-pink-comic",
 	"packageId": "text-fancy-pink",
 	"version": 1,
+	"marketplace": {
+		"editorialRank": 19,
+		"heatScore": 100,
+		"remoteTags": [
+			"category:pink",
+			"group:fancy",
+			"variant:comic",
+			"color:pink",
+			"tone:cute",
+			"style:comic",
+			"effect:burst"
+		],
+		"searchAliases": [
+			"粉色",
+			"甜心",
+			"可爱",
+			"pink",
+			"漫画",
+			"爆炸",
+			"综艺"
+		]
+	},
 	"definition": {
 		"id": "pink-comic",
 		"name": "粉色漫画",

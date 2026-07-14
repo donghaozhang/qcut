@@ -3,6 +3,16 @@
 	"assetId": "text-smart-text-rewrite-cutout",
 	"packageId": "text-smart-text-rewrite",
 	"version": 1,
+	"marketplace": {
+		"editorialRank": 120,
+		"heatScore": 81,
+		"remoteTags": [
+			"category:rewrite",
+			"group:smart-text",
+			"variant:cutout"
+		],
+		"searchAliases": []
+	},
 	"definition": {
 		"id": "rewrite-cutout",
 		"name": "AI改写剪纸",

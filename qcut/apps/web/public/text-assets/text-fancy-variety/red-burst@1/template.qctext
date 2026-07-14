@@ -14,6 +14,28 @@
 		"assetId": "text-fancy-variety-red-burst",
 		"packageId": "text-fancy-variety",
 		"version": 1,
+		"marketplace": {
+			"editorialRank": 2,
+			"heatScore": 100,
+			"remoteTags": [
+				"category:variety",
+				"group:fancy",
+				"variant:red-burst",
+				"scene:variety",
+				"effect:pop",
+				"effect:burst",
+				"market:hero"
+			],
+			"searchAliases": [
+				"综艺",
+				"弹幕",
+				"爆笑",
+				"variety",
+				"爆红",
+				"爆款",
+				"放射"
+			]
+		},
 		"definition": {
 			"id": "variety-red-burst",
 			"name": "综艺感爆红",

@@ -3,6 +3,16 @@
 	"assetId": "text-templates-timeline-template-warning",
 	"packageId": "text-templates-timeline-template",
 	"version": 1,
+	"marketplace": {
+		"editorialRank": 120,
+		"heatScore": 77,
+		"remoteTags": [
+			"category:timeline-template",
+			"group:templates",
+			"variant:warning"
+		],
+		"searchAliases": []
+	},
 	"definition": {
 		"id": "timeline-template-warning",
 		"name": "时间线模板警示",

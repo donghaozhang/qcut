@@ -14,6 +14,23 @@
 		"assetId": "text-fancy-popular-shadow",
 		"packageId": "text-fancy-popular",
 		"version": 1,
+		"marketplace": {
+			"editorialRank": 4,
+			"heatScore": 93,
+			"remoteTags": [
+				"category:popular",
+				"group:fancy",
+				"variant:shadow",
+				"collection:popular",
+				"market:recommended"
+			],
+			"searchAliases": [
+				"热门",
+				"爆款",
+				"推荐",
+				"popular"
+			]
+		},
 		"definition": {
 			"id": "popular-shadow",
 			"name": "热门重影",

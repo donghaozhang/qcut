@@ -3,6 +3,28 @@
 	"assetId": "text-fancy-red-sticker",
 	"packageId": "text-fancy-red",
 	"version": 1,
+	"marketplace": {
+		"editorialRank": 8,
+		"heatScore": 100,
+		"remoteTags": [
+			"category:red",
+			"group:fancy",
+			"variant:sticker",
+			"color:red",
+			"scene:commerce",
+			"style:sticker",
+			"tone:cute"
+		],
+		"searchAliases": [
+			"红色",
+			"爆红",
+			"促销",
+			"red",
+			"贴纸",
+			"白边",
+			"可爱"
+		]
+	},
 	"definition": {
 		"id": "red-sticker",
 		"name": "红色贴纸",

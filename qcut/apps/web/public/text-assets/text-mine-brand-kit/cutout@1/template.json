@@ -3,6 +3,16 @@
 	"assetId": "text-mine-brand-kit-cutout",
 	"packageId": "text-mine-brand-kit",
 	"version": 1,
+	"marketplace": {
+		"editorialRank": 120,
+		"heatScore": 81,
+		"remoteTags": [
+			"category:brand-kit",
+			"group:mine",
+			"variant:cutout"
+		],
+		"searchAliases": []
+	},
 	"definition": {
 		"id": "brand-kit-cutout",
 		"name": "品牌字剪纸",

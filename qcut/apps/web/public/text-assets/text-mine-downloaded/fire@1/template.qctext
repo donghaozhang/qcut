@@ -14,6 +14,22 @@
 		"assetId": "text-mine-downloaded-fire",
 		"packageId": "text-mine-downloaded",
 		"version": 1,
+		"marketplace": {
+			"editorialRank": 9,
+			"heatScore": 100,
+			"remoteTags": [
+				"category:downloaded",
+				"group:mine",
+				"variant:fire",
+				"effect:fire",
+				"tone:hot"
+			],
+			"searchAliases": [
+				"火焰",
+				"热血",
+				"燃"
+			]
+		},
 		"definition": {
 			"id": "downloaded-fire",
 			"name": "已下载火焰",

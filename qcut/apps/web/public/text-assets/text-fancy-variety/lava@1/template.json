@@ -3,6 +3,28 @@
 	"assetId": "text-fancy-variety-lava",
 	"packageId": "text-fancy-variety",
 	"version": 1,
+	"marketplace": {
+		"editorialRank": 17,
+		"heatScore": 100,
+		"remoteTags": [
+			"category:variety",
+			"group:fancy",
+			"variant:lava",
+			"scene:variety",
+			"effect:pop",
+			"effect:lava",
+			"tone:hot"
+		],
+		"searchAliases": [
+			"综艺",
+			"弹幕",
+			"爆笑",
+			"variety",
+			"熔岩",
+			"热血",
+			"火"
+		]
+	},
 	"definition": {
 		"id": "variety-lava",
 		"name": "综艺感熔岩",

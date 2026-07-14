@@ -3,6 +3,16 @@
 	"assetId": "text-smart-packaging-commerce-badge-ink",
 	"packageId": "text-smart-packaging-commerce-badge",
 	"version": 1,
+	"marketplace": {
+		"editorialRank": 120,
+		"heatScore": 81,
+		"remoteTags": [
+			"category:commerce-badge",
+			"group:smart-packaging",
+			"variant:ink"
+		],
+		"searchAliases": []
+	},
 	"definition": {
 		"id": "commerce-badge-ink",
 		"name": "带货标牌水墨",

@@ -3,6 +3,16 @@
 	"assetId": "text-new-text-lower-third-ribbon",
 	"packageId": "text-new-text-lower-third",
 	"version": 1,
+	"marketplace": {
+		"editorialRank": 120,
+		"heatScore": 81,
+		"remoteTags": [
+			"category:lower-third",
+			"group:new-text",
+			"variant:ribbon"
+		],
+		"searchAliases": []
+	},
 	"definition": {
 		"id": "lower-third-ribbon",
 		"name": "角标飘带",

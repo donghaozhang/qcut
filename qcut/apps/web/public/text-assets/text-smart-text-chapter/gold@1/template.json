@@ -3,6 +3,22 @@
 	"assetId": "text-smart-text-chapter-gold",
 	"packageId": "text-smart-text-chapter",
 	"version": 1,
+	"marketplace": {
+		"editorialRank": 22,
+		"heatScore": 98,
+		"remoteTags": [
+			"category:chapter",
+			"group:smart-text",
+			"variant:gold",
+			"material:gold",
+			"tone:premium"
+		],
+		"searchAliases": [
+			"金色",
+			"鎏金",
+			"高级"
+		]
+	},
 	"definition": {
 		"id": "chapter-gold",
 		"name": "章节标题鎏金",

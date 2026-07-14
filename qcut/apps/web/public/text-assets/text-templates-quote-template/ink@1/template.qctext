@@ -14,6 +14,16 @@
 		"assetId": "text-templates-quote-template-ink",
 		"packageId": "text-templates-quote-template",
 		"version": 1,
+		"marketplace": {
+			"editorialRank": 120,
+			"heatScore": 81,
+			"remoteTags": [
+				"category:quote-template",
+				"group:templates",
+				"variant:ink"
+			],
+			"searchAliases": []
+		},
 		"definition": {
 			"id": "quote-template-ink",
 			"name": "引用模板水墨",

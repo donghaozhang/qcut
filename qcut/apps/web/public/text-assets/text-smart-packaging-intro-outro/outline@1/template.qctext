@@ -14,6 +14,16 @@
 		"assetId": "text-smart-packaging-intro-outro-outline",
 		"packageId": "text-smart-packaging-intro-outro",
 		"version": 1,
+		"marketplace": {
+			"editorialRank": 120,
+			"heatScore": 81,
+			"remoteTags": [
+				"category:intro-outro",
+				"group:smart-packaging",
+				"variant:outline"
+			],
+			"searchAliases": []
+		},
 		"definition": {
 			"id": "intro-outro-outline",
 			"name": "片头片尾描边",

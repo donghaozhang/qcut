@@ -3,6 +3,28 @@
 	"assetId": "text-fancy-pink-texture-grain",
 	"packageId": "text-fancy-pink",
 	"version": 1,
+	"marketplace": {
+		"editorialRank": 13,
+		"heatScore": 100,
+		"remoteTags": [
+			"category:pink",
+			"group:fancy",
+			"variant:texture-grain",
+			"color:pink",
+			"tone:cute",
+			"material:grain",
+			"effect:texture"
+		],
+		"searchAliases": [
+			"粉色",
+			"甜心",
+			"可爱",
+			"pink",
+			"颗粒",
+			"纹理",
+			"质感"
+		]
+	},
 	"definition": {
 		"id": "pink-texture-grain",
 		"name": "粉色颗粒",

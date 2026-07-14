@@ -14,6 +14,16 @@
 		"assetId": "text-new-text-basic-glass",
 		"packageId": "text-new-text-basic",
 		"version": 1,
+		"marketplace": {
+			"editorialRank": 120,
+			"heatScore": 81,
+			"remoteTags": [
+				"category:basic",
+				"group:new-text",
+				"variant:glass"
+			],
+			"searchAliases": []
+		},
 		"definition": {
 			"id": "basic-glass",
 			"name": "基础文本玻璃",

@@ -3,6 +3,16 @@
 	"assetId": "text-mine-drafts-cutout",
 	"packageId": "text-mine-drafts",
 	"version": 1,
+	"marketplace": {
+		"editorialRank": 120,
+		"heatScore": 81,
+		"remoteTags": [
+			"category:drafts",
+			"group:mine",
+			"variant:cutout"
+		],
+		"searchAliases": []
+	},
 	"definition": {
 		"id": "drafts-cutout",
 		"name": "草稿剪纸",

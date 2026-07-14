@@ -3,6 +3,22 @@
 	"assetId": "text-new-text-lower-third-fire",
 	"packageId": "text-new-text-lower-third",
 	"version": 1,
+	"marketplace": {
+		"editorialRank": 9,
+		"heatScore": 100,
+		"remoteTags": [
+			"category:lower-third",
+			"group:new-text",
+			"variant:fire",
+			"effect:fire",
+			"tone:hot"
+		],
+		"searchAliases": [
+			"火焰",
+			"热血",
+			"燃"
+		]
+	},
 	"definition": {
 		"id": "lower-third-fire",
 		"name": "角标火焰",

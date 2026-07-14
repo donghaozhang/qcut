@@ -3,6 +3,16 @@
 	"assetId": "text-templates-list-template-cutout",
 	"packageId": "text-templates-list-template",
 	"version": 1,
+	"marketplace": {
+		"editorialRank": 120,
+		"heatScore": 81,
+		"remoteTags": [
+			"category:list-template",
+			"group:templates",
+			"variant:cutout"
+		],
+		"searchAliases": []
+	},
 	"definition": {
 		"id": "list-template-cutout",
 		"name": "列表模板剪纸",

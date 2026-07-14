@@ -3,6 +3,23 @@
 	"assetId": "text-fancy-glow-blue-ice",
 	"packageId": "text-fancy-glow",
 	"version": 1,
+	"marketplace": {
+		"editorialRank": 14,
+		"heatScore": 95,
+		"remoteTags": [
+			"category:glow",
+			"group:fancy",
+			"variant:blue-ice",
+			"effect:glow",
+			"scene:night"
+		],
+		"searchAliases": [
+			"发光",
+			"霓虹",
+			"夜景",
+			"neon"
+		]
+	},
 	"definition": {
 		"id": "glow-blue-ice",
 		"name": "发光冰蓝",

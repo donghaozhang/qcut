@@ -3,6 +3,22 @@
 	"assetId": "text-smart-text-chapter-fire",
 	"packageId": "text-smart-text-chapter",
 	"version": 1,
+	"marketplace": {
+		"editorialRank": 9,
+		"heatScore": 100,
+		"remoteTags": [
+			"category:chapter",
+			"group:smart-text",
+			"variant:fire",
+			"effect:fire",
+			"tone:hot"
+		],
+		"searchAliases": [
+			"火焰",
+			"热血",
+			"燃"
+		]
+	},
 	"definition": {
 		"id": "chapter-fire",
 		"name": "章节标题火焰",

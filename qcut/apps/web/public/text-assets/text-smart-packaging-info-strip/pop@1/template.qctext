@@ -14,6 +14,16 @@
 		"assetId": "text-smart-packaging-info-strip-pop",
 		"packageId": "text-smart-packaging-info-strip",
 		"version": 1,
+		"marketplace": {
+			"editorialRank": 120,
+			"heatScore": 81,
+			"remoteTags": [
+				"category:info-strip",
+				"group:smart-packaging",
+				"variant:pop"
+			],
+			"searchAliases": []
+		},
 		"definition": {
 			"id": "info-strip-pop",
 			"name": "信息条弹幕",

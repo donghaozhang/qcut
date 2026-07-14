@@ -3,6 +3,28 @@
 	"assetId": "text-fancy-green-gold",
 	"packageId": "text-fancy-green",
 	"version": 1,
+	"marketplace": {
+		"editorialRank": 22,
+		"heatScore": 100,
+		"remoteTags": [
+			"category:green",
+			"group:fancy",
+			"variant:gold",
+			"color:green",
+			"tone:fresh",
+			"material:gold",
+			"tone:premium"
+		],
+		"searchAliases": [
+			"绿色",
+			"清新",
+			"自然",
+			"green",
+			"金色",
+			"鎏金",
+			"高级"
+		]
+	},
 	"definition": {
 		"id": "green-gold",
 		"name": "绿色鎏金",

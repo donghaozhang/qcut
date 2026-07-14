@@ -3,6 +3,28 @@
 	"assetId": "text-fancy-guofeng-sticker",
 	"packageId": "text-fancy-guofeng",
 	"version": 1,
+	"marketplace": {
+		"editorialRank": 20,
+		"heatScore": 100,
+		"remoteTags": [
+			"category:guofeng",
+			"group:fancy",
+			"variant:sticker",
+			"style:guofeng",
+			"scene:culture",
+			"style:sticker",
+			"tone:cute"
+		],
+		"searchAliases": [
+			"国风",
+			"国潮",
+			"水墨",
+			"chinoiserie",
+			"贴纸",
+			"白边",
+			"可爱"
+		]
+	},
 	"definition": {
 		"id": "guofeng-sticker",
 		"name": "国风贴纸",

@@ -3,6 +3,16 @@
 	"assetId": "text-templates-split-template-glass",
 	"packageId": "text-templates-split-template",
 	"version": 1,
+	"marketplace": {
+		"editorialRank": 120,
+		"heatScore": 81,
+		"remoteTags": [
+			"category:split-template",
+			"group:templates",
+			"variant:glass"
+		],
+		"searchAliases": []
+	},
 	"definition": {
 		"id": "split-template-glass",
 		"name": "分屏模板玻璃",

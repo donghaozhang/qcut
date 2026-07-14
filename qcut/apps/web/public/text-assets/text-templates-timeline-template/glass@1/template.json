@@ -3,6 +3,16 @@
 	"assetId": "text-templates-timeline-template-glass",
 	"packageId": "text-templates-timeline-template",
 	"version": 1,
+	"marketplace": {
+		"editorialRank": 120,
+		"heatScore": 81,
+		"remoteTags": [
+			"category:timeline-template",
+			"group:templates",
+			"variant:glass"
+		],
+		"searchAliases": []
+	},
 	"definition": {
 		"id": "timeline-template-glass",
 		"name": "时间线模板玻璃",

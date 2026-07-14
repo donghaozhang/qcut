@@ -14,6 +14,28 @@
 		"assetId": "text-fancy-yellow-chrome",
 		"packageId": "text-fancy-yellow",
 		"version": 1,
+		"marketplace": {
+			"editorialRank": 26,
+			"heatScore": 100,
+			"remoteTags": [
+				"category:yellow",
+				"group:fancy",
+				"variant:chrome",
+				"color:yellow",
+				"tone:bright",
+				"material:chrome",
+				"tone:premium"
+			],
+			"searchAliases": [
+				"黄色",
+				"醒目",
+				"高亮",
+				"yellow",
+				"金属",
+				"银色",
+				"质感"
+			]
+		},
 		"definition": {
 			"id": "yellow-chrome",
 			"name": "黄色金属",

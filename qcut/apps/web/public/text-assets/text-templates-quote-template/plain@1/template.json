@@ -3,6 +3,16 @@
 	"assetId": "text-templates-quote-template-plain",
 	"packageId": "text-templates-quote-template",
 	"version": 1,
+	"marketplace": {
+		"editorialRank": 120,
+		"heatScore": 77,
+		"remoteTags": [
+			"category:quote-template",
+			"group:templates",
+			"variant:plain"
+		],
+		"searchAliases": []
+	},
 	"definition": {
 		"id": "quote-template-plain",
 		"name": "引用模板基础",

@@ -14,6 +14,22 @@
 		"assetId": "text-templates-list-template-glitch",
 		"packageId": "text-templates-list-template",
 		"version": 1,
+		"marketplace": {
+			"editorialRank": 21,
+			"heatScore": 99,
+			"remoteTags": [
+				"category:list-template",
+				"group:templates",
+				"variant:glitch",
+				"effect:glitch",
+				"scene:cyber"
+			],
+			"searchAliases": [
+				"故障",
+				"赛博",
+				"抖动"
+			]
+		},
 		"definition": {
 			"id": "list-template-glitch",
 			"name": "列表模板故障",

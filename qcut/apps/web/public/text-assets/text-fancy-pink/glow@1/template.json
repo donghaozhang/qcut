@@ -3,6 +3,28 @@
 	"assetId": "text-fancy-pink-glow",
 	"packageId": "text-fancy-pink",
 	"version": 1,
+	"marketplace": {
+		"editorialRank": 15,
+		"heatScore": 100,
+		"remoteTags": [
+			"category:pink",
+			"group:fancy",
+			"variant:glow",
+			"color:pink",
+			"tone:cute",
+			"effect:glow",
+			"scene:night"
+		],
+		"searchAliases": [
+			"粉色",
+			"甜心",
+			"可爱",
+			"pink",
+			"发光",
+			"霓虹",
+			"夜景"
+		]
+	},
 	"definition": {
 		"id": "pink-glow",
 		"name": "粉色发光",

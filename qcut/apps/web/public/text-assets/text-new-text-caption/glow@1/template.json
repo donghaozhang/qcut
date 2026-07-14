@@ -3,6 +3,22 @@
 	"assetId": "text-new-text-caption-glow",
 	"packageId": "text-new-text-caption",
 	"version": 1,
+	"marketplace": {
+		"editorialRank": 15,
+		"heatScore": 100,
+		"remoteTags": [
+			"category:caption",
+			"group:new-text",
+			"variant:glow",
+			"effect:glow",
+			"scene:night"
+		],
+		"searchAliases": [
+			"发光",
+			"霓虹",
+			"夜景"
+		]
+	},
 	"definition": {
 		"id": "caption-glow",
 		"name": "说明发光",

@@ -14,6 +14,28 @@
 		"assetId": "text-fancy-texture-sticker",
 		"packageId": "text-fancy-texture",
 		"version": 1,
+		"marketplace": {
+			"editorialRank": 13,
+			"heatScore": 100,
+			"remoteTags": [
+				"category:texture",
+				"group:fancy",
+				"variant:sticker",
+				"effect:texture",
+				"market:premium-look",
+				"style:sticker",
+				"tone:cute"
+			],
+			"searchAliases": [
+				"纹理",
+				"材质",
+				"质感",
+				"texture",
+				"贴纸",
+				"白边",
+				"可爱"
+			]
+		},
 		"definition": {
 			"id": "texture-sticker",
 			"name": "纹理贴纸",

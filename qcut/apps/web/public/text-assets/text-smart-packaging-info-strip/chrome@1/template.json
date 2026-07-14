@@ -3,6 +3,22 @@
 	"assetId": "text-smart-packaging-info-strip-chrome",
 	"packageId": "text-smart-packaging-info-strip",
 	"version": 1,
+	"marketplace": {
+		"editorialRank": 32,
+		"heatScore": 97,
+		"remoteTags": [
+			"category:info-strip",
+			"group:smart-packaging",
+			"variant:chrome",
+			"material:chrome",
+			"tone:premium"
+		],
+		"searchAliases": [
+			"金属",
+			"银色",
+			"质感"
+		]
+	},
 	"definition": {
 		"id": "info-strip-chrome",
 		"name": "信息条金属",

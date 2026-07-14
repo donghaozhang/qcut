@@ -14,6 +14,28 @@
 		"assetId": "text-fancy-summer-gold",
 		"packageId": "text-fancy-summer",
 		"version": 1,
+		"marketplace": {
+			"editorialRank": 22,
+			"heatScore": 100,
+			"remoteTags": [
+				"category:summer",
+				"group:fancy",
+				"variant:gold",
+				"season:summer",
+				"tone:fresh",
+				"material:gold",
+				"tone:premium"
+			],
+			"searchAliases": [
+				"夏日",
+				"清爽",
+				"活动",
+				"summer",
+				"金色",
+				"鎏金",
+				"高级"
+			]
+		},
 		"definition": {
 			"id": "summer-gold",
 			"name": "夏日鎏金",

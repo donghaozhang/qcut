@@ -3,6 +3,22 @@
 	"assetId": "text-smart-packaging-commerce-badge-comic",
 	"packageId": "text-smart-packaging-commerce-badge",
 	"version": 1,
+	"marketplace": {
+		"editorialRank": 19,
+		"heatScore": 99,
+		"remoteTags": [
+			"category:commerce-badge",
+			"group:smart-packaging",
+			"variant:comic",
+			"style:comic",
+			"effect:burst"
+		],
+		"searchAliases": [
+			"漫画",
+			"爆炸",
+			"综艺"
+		]
+	},
 	"definition": {
 		"id": "commerce-badge-comic",
 		"name": "带货标牌漫画",

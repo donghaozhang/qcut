@@ -14,6 +14,28 @@
 		"assetId": "text-fancy-popular-texture-grain",
 		"packageId": "text-fancy-popular",
 		"version": 1,
+		"marketplace": {
+			"editorialRank": 4,
+			"heatScore": 100,
+			"remoteTags": [
+				"category:popular",
+				"group:fancy",
+				"variant:texture-grain",
+				"collection:popular",
+				"market:recommended",
+				"material:grain",
+				"effect:texture"
+			],
+			"searchAliases": [
+				"热门",
+				"爆款",
+				"推荐",
+				"popular",
+				"颗粒",
+				"纹理",
+				"质感"
+			]
+		},
 		"definition": {
 			"id": "popular-texture-grain",
 			"name": "热门颗粒",

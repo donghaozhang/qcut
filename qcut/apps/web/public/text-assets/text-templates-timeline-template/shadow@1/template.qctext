@@ -14,6 +14,16 @@
 		"assetId": "text-templates-timeline-template-shadow",
 		"packageId": "text-templates-timeline-template",
 		"version": 1,
+		"marketplace": {
+			"editorialRank": 120,
+			"heatScore": 77,
+			"remoteTags": [
+				"category:timeline-template",
+				"group:templates",
+				"variant:shadow"
+			],
+			"searchAliases": []
+		},
 		"definition": {
 			"id": "timeline-template-shadow",
 			"name": "时间线模板重影",

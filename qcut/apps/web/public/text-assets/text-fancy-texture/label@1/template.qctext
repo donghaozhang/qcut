@@ -14,6 +14,23 @@
 		"assetId": "text-fancy-texture-label",
 		"packageId": "text-fancy-texture",
 		"version": 1,
+		"marketplace": {
+			"editorialRank": 13,
+			"heatScore": 91,
+			"remoteTags": [
+				"category:texture",
+				"group:fancy",
+				"variant:label",
+				"effect:texture",
+				"market:premium-look"
+			],
+			"searchAliases": [
+				"纹理",
+				"材质",
+				"质感",
+				"texture"
+			]
+		},
 		"definition": {
 			"id": "texture-label",
 			"name": "纹理标签",

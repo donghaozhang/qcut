@@ -14,6 +14,28 @@
 		"assetId": "text-fancy-gradient-comic",
 		"packageId": "text-fancy-gradient",
 		"version": 1,
+		"marketplace": {
+			"editorialRank": 12,
+			"heatScore": 100,
+			"remoteTags": [
+				"category:gradient",
+				"group:fancy",
+				"variant:comic",
+				"effect:gradient",
+				"tone:dreamy",
+				"style:comic",
+				"effect:burst"
+			],
+			"searchAliases": [
+				"渐变",
+				"流光",
+				"梦幻",
+				"gradient",
+				"漫画",
+				"爆炸",
+				"综艺"
+			]
+		},
 		"definition": {
 			"id": "gradient-comic",
 			"name": "渐变漫画",

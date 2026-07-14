@@ -3,6 +3,16 @@
 	"assetId": "text-templates-headline-template-pixel",
 	"packageId": "text-templates-headline-template",
 	"version": 1,
+	"marketplace": {
+		"editorialRank": 120,
+		"heatScore": 77,
+		"remoteTags": [
+			"category:headline-template",
+			"group:templates",
+			"variant:pixel"
+		],
+		"searchAliases": []
+	},
 	"definition": {
 		"id": "headline-template-pixel",
 		"name": "标题模板像素",

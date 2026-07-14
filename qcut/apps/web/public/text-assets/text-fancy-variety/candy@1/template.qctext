@@ -14,6 +14,28 @@
 		"assetId": "text-fancy-variety-candy",
 		"packageId": "text-fancy-variety",
 		"version": 1,
+		"marketplace": {
+			"editorialRank": 18,
+			"heatScore": 100,
+			"remoteTags": [
+				"category:variety",
+				"group:fancy",
+				"variant:candy",
+				"scene:variety",
+				"effect:pop",
+				"style:candy",
+				"tone:cute"
+			],
+			"searchAliases": [
+				"综艺",
+				"弹幕",
+				"爆笑",
+				"variety",
+				"糖果",
+				"甜",
+				"可爱"
+			]
+		},
 		"definition": {
 			"id": "variety-candy",
 			"name": "综艺感糖果",

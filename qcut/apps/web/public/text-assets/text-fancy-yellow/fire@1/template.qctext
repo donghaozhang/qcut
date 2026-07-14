@@ -14,6 +14,28 @@
 		"assetId": "text-fancy-yellow-fire",
 		"packageId": "text-fancy-yellow",
 		"version": 1,
+		"marketplace": {
+			"editorialRank": 9,
+			"heatScore": 100,
+			"remoteTags": [
+				"category:yellow",
+				"group:fancy",
+				"variant:fire",
+				"color:yellow",
+				"tone:bright",
+				"effect:fire",
+				"tone:hot"
+			],
+			"searchAliases": [
+				"黄色",
+				"醒目",
+				"高亮",
+				"yellow",
+				"火焰",
+				"热血",
+				"燃"
+			]
+		},
 		"definition": {
 			"id": "yellow-fire",
 			"name": "黄色火焰",

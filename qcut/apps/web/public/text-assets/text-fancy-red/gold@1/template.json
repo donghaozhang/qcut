@@ -3,6 +3,28 @@
 	"assetId": "text-fancy-red-gold",
 	"packageId": "text-fancy-red",
 	"version": 1,
+	"marketplace": {
+		"editorialRank": 8,
+		"heatScore": 100,
+		"remoteTags": [
+			"category:red",
+			"group:fancy",
+			"variant:gold",
+			"color:red",
+			"scene:commerce",
+			"material:gold",
+			"tone:premium"
+		],
+		"searchAliases": [
+			"红色",
+			"爆红",
+			"促销",
+			"red",
+			"金色",
+			"鎏金",
+			"高级"
+		]
+	},
 	"definition": {
 		"id": "red-gold",
 		"name": "红色鎏金",

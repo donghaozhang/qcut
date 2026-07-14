@@ -3,6 +3,22 @@
 	"assetId": "text-templates-timeline-template-sticker",
 	"packageId": "text-templates-timeline-template",
 	"version": 1,
+	"marketplace": {
+		"editorialRank": 24,
+		"heatScore": 94,
+		"remoteTags": [
+			"category:timeline-template",
+			"group:templates",
+			"variant:sticker",
+			"style:sticker",
+			"tone:cute"
+		],
+		"searchAliases": [
+			"贴纸",
+			"白边",
+			"可爱"
+		]
+	},
 	"definition": {
 		"id": "timeline-template-sticker",
 		"name": "时间线模板贴纸",

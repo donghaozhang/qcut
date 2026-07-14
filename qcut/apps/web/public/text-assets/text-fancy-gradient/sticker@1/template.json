@@ -3,6 +3,28 @@
 	"assetId": "text-fancy-gradient-sticker",
 	"packageId": "text-fancy-gradient",
 	"version": 1,
+	"marketplace": {
+		"editorialRank": 12,
+		"heatScore": 100,
+		"remoteTags": [
+			"category:gradient",
+			"group:fancy",
+			"variant:sticker",
+			"effect:gradient",
+			"tone:dreamy",
+			"style:sticker",
+			"tone:cute"
+		],
+		"searchAliases": [
+			"渐变",
+			"流光",
+			"梦幻",
+			"gradient",
+			"贴纸",
+			"白边",
+			"可爱"
+		]
+	},
 	"definition": {
 		"id": "gradient-sticker",
 		"name": "渐变贴纸",

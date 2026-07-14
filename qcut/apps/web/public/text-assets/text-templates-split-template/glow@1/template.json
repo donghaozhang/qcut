@@ -3,6 +3,22 @@
 	"assetId": "text-templates-split-template-glow",
 	"packageId": "text-templates-split-template",
 	"version": 1,
+	"marketplace": {
+		"editorialRank": 15,
+		"heatScore": 100,
+		"remoteTags": [
+			"category:split-template",
+			"group:templates",
+			"variant:glow",
+			"effect:glow",
+			"scene:night"
+		],
+		"searchAliases": [
+			"发光",
+			"霓虹",
+			"夜景"
+		]
+	},
 	"definition": {
 		"id": "split-template-glow",
 		"name": "分屏模板发光",

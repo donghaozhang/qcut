@@ -3,6 +3,22 @@
 	"assetId": "text-mine-downloaded-glow",
 	"packageId": "text-mine-downloaded",
 	"version": 1,
+	"marketplace": {
+		"editorialRank": 15,
+		"heatScore": 100,
+		"remoteTags": [
+			"category:downloaded",
+			"group:mine",
+			"variant:glow",
+			"effect:glow",
+			"scene:night"
+		],
+		"searchAliases": [
+			"发光",
+			"霓虹",
+			"夜景"
+		]
+	},
 	"definition": {
 		"id": "downloaded-glow",
 		"name": "已下载发光",

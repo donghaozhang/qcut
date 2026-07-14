@@ -3,6 +3,22 @@
 	"assetId": "text-mine-drafts-glow",
 	"packageId": "text-mine-drafts",
 	"version": 1,
+	"marketplace": {
+		"editorialRank": 15,
+		"heatScore": 100,
+		"remoteTags": [
+			"category:drafts",
+			"group:mine",
+			"variant:glow",
+			"effect:glow",
+			"scene:night"
+		],
+		"searchAliases": [
+			"发光",
+			"霓虹",
+			"夜景"
+		]
+	},
 	"definition": {
 		"id": "drafts-glow",
 		"name": "草稿发光",

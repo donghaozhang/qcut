@@ -3,6 +3,22 @@
 	"assetId": "text-smart-text-subtitle-title-fire",
 	"packageId": "text-smart-text-subtitle-title",
 	"version": 1,
+	"marketplace": {
+		"editorialRank": 9,
+		"heatScore": 100,
+		"remoteTags": [
+			"category:subtitle-title",
+			"group:smart-text",
+			"variant:fire",
+			"effect:fire",
+			"tone:hot"
+		],
+		"searchAliases": [
+			"火焰",
+			"热血",
+			"燃"
+		]
+	},
 	"definition": {
 		"id": "subtitle-title-fire",
 		"name": "字幕转标题火焰",

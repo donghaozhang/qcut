@@ -3,6 +3,16 @@
 	"assetId": "text-smart-text-rewrite-ink",
 	"packageId": "text-smart-text-rewrite",
 	"version": 1,
+	"marketplace": {
+		"editorialRank": 120,
+		"heatScore": 81,
+		"remoteTags": [
+			"category:rewrite",
+			"group:smart-text",
+			"variant:ink"
+		],
+		"searchAliases": []
+	},
 	"definition": {
 		"id": "rewrite-ink",
 		"name": "AI改写水墨",

@@ -3,6 +3,16 @@
 	"assetId": "text-new-text-caption-outline",
 	"packageId": "text-new-text-caption",
 	"version": 1,
+	"marketplace": {
+		"editorialRank": 120,
+		"heatScore": 81,
+		"remoteTags": [
+			"category:caption",
+			"group:new-text",
+			"variant:outline"
+		],
+		"searchAliases": []
+	},
 	"definition": {
 		"id": "caption-outline",
 		"name": "说明描边",

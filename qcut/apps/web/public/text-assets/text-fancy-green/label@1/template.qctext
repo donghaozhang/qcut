@@ -14,6 +14,23 @@
 		"assetId": "text-fancy-green-label",
 		"packageId": "text-fancy-green",
 		"version": 1,
+		"marketplace": {
+			"editorialRank": 54,
+			"heatScore": 85,
+			"remoteTags": [
+				"category:green",
+				"group:fancy",
+				"variant:label",
+				"color:green",
+				"tone:fresh"
+			],
+			"searchAliases": [
+				"绿色",
+				"清新",
+				"自然",
+				"green"
+			]
+		},
 		"definition": {
 			"id": "green-label",
 			"name": "绿色标签",

@@ -14,6 +14,16 @@
 		"assetId": "text-new-text-title-bubble",
 		"packageId": "text-new-text-title",
 		"version": 1,
+		"marketplace": {
+			"editorialRank": 120,
+			"heatScore": 77,
+			"remoteTags": [
+				"category:title",
+				"group:new-text",
+				"variant:bubble"
+			],
+			"searchAliases": []
+		},
 		"definition": {
 			"id": "title-bubble",
 			"name": "标题气泡",

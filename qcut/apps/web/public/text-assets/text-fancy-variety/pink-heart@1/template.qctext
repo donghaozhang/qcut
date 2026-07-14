@@ -14,6 +14,23 @@
 		"assetId": "text-fancy-variety-pink-heart",
 		"packageId": "text-fancy-variety",
 		"version": 1,
+		"marketplace": {
+			"editorialRank": 18,
+			"heatScore": 91,
+			"remoteTags": [
+				"category:variety",
+				"group:fancy",
+				"variant:pink-heart",
+				"scene:variety",
+				"effect:pop"
+			],
+			"searchAliases": [
+				"综艺",
+				"弹幕",
+				"爆笑",
+				"variety"
+			]
+		},
 		"definition": {
 			"id": "variety-pink-heart",
 			"name": "综艺感甜心",

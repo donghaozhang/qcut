@@ -3,6 +3,23 @@
 	"assetId": "text-fancy-purple-cutout",
 	"packageId": "text-fancy-purple",
 	"version": 1,
+	"marketplace": {
+		"editorialRank": 50,
+		"heatScore": 90,
+		"remoteTags": [
+			"category:purple",
+			"group:fancy",
+			"variant:cutout",
+			"color:purple",
+			"tone:dreamy"
+		],
+		"searchAliases": [
+			"紫色",
+			"梦幻",
+			"高级",
+			"purple"
+		]
+	},
 	"definition": {
 		"id": "purple-cutout",
 		"name": "紫色剪纸",

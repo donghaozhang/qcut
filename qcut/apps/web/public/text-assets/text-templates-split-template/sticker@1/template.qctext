@@ -14,6 +14,22 @@
 		"assetId": "text-templates-split-template-sticker",
 		"packageId": "text-templates-split-template",
 		"version": 1,
+		"marketplace": {
+			"editorialRank": 24,
+			"heatScore": 94,
+			"remoteTags": [
+				"category:split-template",
+				"group:templates",
+				"variant:sticker",
+				"style:sticker",
+				"tone:cute"
+			],
+			"searchAliases": [
+				"贴纸",
+				"白边",
+				"可爱"
+			]
+		},
 		"definition": {
 			"id": "split-template-sticker",
 			"name": "分屏模板贴纸",

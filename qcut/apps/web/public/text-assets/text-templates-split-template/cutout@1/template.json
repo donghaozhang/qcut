@@ -3,6 +3,16 @@
 	"assetId": "text-templates-split-template-cutout",
 	"packageId": "text-templates-split-template",
 	"version": 1,
+	"marketplace": {
+		"editorialRank": 120,
+		"heatScore": 81,
+		"remoteTags": [
+			"category:split-template",
+			"group:templates",
+			"variant:cutout"
+		],
+		"searchAliases": []
+	},
 	"definition": {
 		"id": "split-template-cutout",
 		"name": "分屏模板剪纸",

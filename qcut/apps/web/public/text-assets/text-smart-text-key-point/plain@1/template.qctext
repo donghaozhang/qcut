@@ -14,6 +14,16 @@
 		"assetId": "text-smart-text-key-point-plain",
 		"packageId": "text-smart-text-key-point",
 		"version": 1,
+		"marketplace": {
+			"editorialRank": 120,
+			"heatScore": 77,
+			"remoteTags": [
+				"category:key-point",
+				"group:smart-text",
+				"variant:plain"
+			],
+			"searchAliases": []
+		},
 		"definition": {
 			"id": "key-point-plain",
 			"name": "重点提取基础",

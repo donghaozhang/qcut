@@ -14,6 +14,23 @@
 		"assetId": "text-fancy-glow-pop",
 		"packageId": "text-fancy-glow",
 		"version": 1,
+		"marketplace": {
+			"editorialRank": 14,
+			"heatScore": 95,
+			"remoteTags": [
+				"category:glow",
+				"group:fancy",
+				"variant:pop",
+				"effect:glow",
+				"scene:night"
+			],
+			"searchAliases": [
+				"发光",
+				"霓虹",
+				"夜景",
+				"neon"
+			]
+		},
 		"definition": {
 			"id": "glow-pop",
 			"name": "发光弹幕",

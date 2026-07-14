@@ -3,6 +3,28 @@
 	"assetId": "text-fancy-variety-texture-grain",
 	"packageId": "text-fancy-variety",
 	"version": 1,
+	"marketplace": {
+		"editorialRank": 13,
+		"heatScore": 100,
+		"remoteTags": [
+			"category:variety",
+			"group:fancy",
+			"variant:texture-grain",
+			"scene:variety",
+			"effect:pop",
+			"material:grain",
+			"effect:texture"
+		],
+		"searchAliases": [
+			"综艺",
+			"弹幕",
+			"爆笑",
+			"variety",
+			"颗粒",
+			"纹理",
+			"质感"
+		]
+	},
 	"definition": {
 		"id": "variety-texture-grain",
 		"name": "综艺感颗粒",

@@ -14,6 +14,28 @@
 		"assetId": "text-fancy-texture-gold",
 		"packageId": "text-fancy-texture",
 		"version": 1,
+		"marketplace": {
+			"editorialRank": 13,
+			"heatScore": 100,
+			"remoteTags": [
+				"category:texture",
+				"group:fancy",
+				"variant:gold",
+				"effect:texture",
+				"market:premium-look",
+				"material:gold",
+				"tone:premium"
+			],
+			"searchAliases": [
+				"纹理",
+				"材质",
+				"质感",
+				"texture",
+				"金色",
+				"鎏金",
+				"高级"
+			]
+		},
 		"definition": {
 			"id": "texture-gold",
 			"name": "纹理鎏金",

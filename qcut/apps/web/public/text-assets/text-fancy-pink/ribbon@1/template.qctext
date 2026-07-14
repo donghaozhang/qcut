@@ -14,6 +14,23 @@
 		"assetId": "text-fancy-pink-ribbon",
 		"packageId": "text-fancy-pink",
 		"version": 1,
+		"marketplace": {
+			"editorialRank": 46,
+			"heatScore": 90,
+			"remoteTags": [
+				"category:pink",
+				"group:fancy",
+				"variant:ribbon",
+				"color:pink",
+				"tone:cute"
+			],
+			"searchAliases": [
+				"粉色",
+				"甜心",
+				"可爱",
+				"pink"
+			]
+		},
 		"definition": {
 			"id": "pink-ribbon",
 			"name": "粉色飘带",

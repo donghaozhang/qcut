@@ -3,6 +3,23 @@
 	"assetId": "text-fancy-green-pop",
 	"packageId": "text-fancy-green",
 	"version": 1,
+	"marketplace": {
+		"editorialRank": 54,
+		"heatScore": 89,
+		"remoteTags": [
+			"category:green",
+			"group:fancy",
+			"variant:pop",
+			"color:green",
+			"tone:fresh"
+		],
+		"searchAliases": [
+			"绿色",
+			"清新",
+			"自然",
+			"green"
+		]
+	},
 	"definition": {
 		"id": "green-pop",
 		"name": "绿色弹幕",

@@ -14,6 +14,22 @@
 		"assetId": "text-new-text-caption-gold",
 		"packageId": "text-new-text-caption",
 		"version": 1,
+		"marketplace": {
+			"editorialRank": 22,
+			"heatScore": 98,
+			"remoteTags": [
+				"category:caption",
+				"group:new-text",
+				"variant:gold",
+				"material:gold",
+				"tone:premium"
+			],
+			"searchAliases": [
+				"金色",
+				"鎏金",
+				"高级"
+			]
+		},
 		"definition": {
 			"id": "caption-gold",
 			"name": "说明鎏金",

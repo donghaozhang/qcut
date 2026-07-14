@@ -14,6 +14,16 @@
 		"assetId": "text-templates-split-template-bubble",
 		"packageId": "text-templates-split-template",
 		"version": 1,
+		"marketplace": {
+			"editorialRank": 120,
+			"heatScore": 77,
+			"remoteTags": [
+				"category:split-template",
+				"group:templates",
+				"variant:bubble"
+			],
+			"searchAliases": []
+		},
 		"definition": {
 			"id": "split-template-bubble",
 			"name": "分屏模板气泡",

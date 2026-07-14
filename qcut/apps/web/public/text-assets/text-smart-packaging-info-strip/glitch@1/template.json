@@ -3,6 +3,22 @@
 	"assetId": "text-smart-packaging-info-strip-glitch",
 	"packageId": "text-smart-packaging-info-strip",
 	"version": 1,
+	"marketplace": {
+		"editorialRank": 21,
+		"heatScore": 99,
+		"remoteTags": [
+			"category:info-strip",
+			"group:smart-packaging",
+			"variant:glitch",
+			"effect:glitch",
+			"scene:cyber"
+		],
+		"searchAliases": [
+			"故障",
+			"赛博",
+			"抖动"
+		]
+	},
 	"definition": {
 		"id": "info-strip-glitch",
 		"name": "信息条故障",

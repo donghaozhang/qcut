@@ -14,6 +14,28 @@
 		"assetId": "text-fancy-black-white-texture-grain",
 		"packageId": "text-fancy-black-white",
 		"version": 1,
+		"marketplace": {
+			"editorialRank": 13,
+			"heatScore": 100,
+			"remoteTags": [
+				"category:black-white",
+				"group:fancy",
+				"variant:texture-grain",
+				"color:black-white",
+				"tone:classic",
+				"material:grain",
+				"effect:texture"
+			],
+			"searchAliases": [
+				"黑白",
+				"高对比",
+				"经典",
+				"bw",
+				"颗粒",
+				"纹理",
+				"质感"
+			]
+		},
 		"definition": {
 			"id": "black-white-texture-grain",
 			"name": "黑白颗粒",

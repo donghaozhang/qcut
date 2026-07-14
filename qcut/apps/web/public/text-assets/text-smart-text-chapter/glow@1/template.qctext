@@ -14,6 +14,22 @@
 		"assetId": "text-smart-text-chapter-glow",
 		"packageId": "text-smart-text-chapter",
 		"version": 1,
+		"marketplace": {
+			"editorialRank": 15,
+			"heatScore": 100,
+			"remoteTags": [
+				"category:chapter",
+				"group:smart-text",
+				"variant:glow",
+				"effect:glow",
+				"scene:night"
+			],
+			"searchAliases": [
+				"发光",
+				"霓虹",
+				"夜景"
+			]
+		},
 		"definition": {
 			"id": "chapter-glow",
 			"name": "章节标题发光",

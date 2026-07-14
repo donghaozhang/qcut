@@ -3,6 +3,16 @@
 	"assetId": "text-smart-text-key-point-outline",
 	"packageId": "text-smart-text-key-point",
 	"version": 1,
+	"marketplace": {
+		"editorialRank": 120,
+		"heatScore": 81,
+		"remoteTags": [
+			"category:key-point",
+			"group:smart-text",
+			"variant:outline"
+		],
+		"searchAliases": []
+	},
 	"definition": {
 		"id": "key-point-outline",
 		"name": "重点提取描边",

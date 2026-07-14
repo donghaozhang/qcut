@@ -14,6 +14,22 @@
 		"assetId": "text-new-text-basic-comic",
 		"packageId": "text-new-text-basic",
 		"version": 1,
+		"marketplace": {
+			"editorialRank": 19,
+			"heatScore": 99,
+			"remoteTags": [
+				"category:basic",
+				"group:new-text",
+				"variant:comic",
+				"style:comic",
+				"effect:burst"
+			],
+			"searchAliases": [
+				"漫画",
+				"爆炸",
+				"综艺"
+			]
+		},
 		"definition": {
 			"id": "basic-comic",
 			"name": "基础文本漫画",

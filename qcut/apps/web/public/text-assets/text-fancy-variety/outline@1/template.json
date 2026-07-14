@@ -3,6 +3,23 @@
 	"assetId": "text-fancy-variety-outline",
 	"packageId": "text-fancy-variety",
 	"version": 1,
+	"marketplace": {
+		"editorialRank": 18,
+		"heatScore": 95,
+		"remoteTags": [
+			"category:variety",
+			"group:fancy",
+			"variant:outline",
+			"scene:variety",
+			"effect:pop"
+		],
+		"searchAliases": [
+			"综艺",
+			"弹幕",
+			"爆笑",
+			"variety"
+		]
+	},
 	"definition": {
 		"id": "variety-outline",
 		"name": "综艺感描边",

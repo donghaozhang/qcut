@@ -3,6 +3,16 @@
 	"assetId": "text-templates-quote-template-pop",
 	"packageId": "text-templates-quote-template",
 	"version": 1,
+	"marketplace": {
+		"editorialRank": 120,
+		"heatScore": 81,
+		"remoteTags": [
+			"category:quote-template",
+			"group:templates",
+			"variant:pop"
+		],
+		"searchAliases": []
+	},
 	"definition": {
 		"id": "quote-template-pop",
 		"name": "引用模板弹幕",

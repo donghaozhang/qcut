@@ -3,6 +3,22 @@
 	"assetId": "text-smart-packaging-cover-pack-chrome",
 	"packageId": "text-smart-packaging-cover-pack",
 	"version": 1,
+	"marketplace": {
+		"editorialRank": 32,
+		"heatScore": 97,
+		"remoteTags": [
+			"category:cover-pack",
+			"group:smart-packaging",
+			"variant:chrome",
+			"material:chrome",
+			"tone:premium"
+		],
+		"searchAliases": [
+			"金属",
+			"银色",
+			"质感"
+		]
+	},
 	"definition": {
 		"id": "cover-pack-chrome",
 		"name": "封面包装金属",

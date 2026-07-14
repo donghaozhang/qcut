@@ -14,6 +14,16 @@
 		"assetId": "text-smart-text-key-point-warning",
 		"packageId": "text-smart-text-key-point",
 		"version": 1,
+		"marketplace": {
+			"editorialRank": 120,
+			"heatScore": 77,
+			"remoteTags": [
+				"category:key-point",
+				"group:smart-text",
+				"variant:warning"
+			],
+			"searchAliases": []
+		},
 		"definition": {
 			"id": "key-point-warning",
 			"name": "重点提取警示",

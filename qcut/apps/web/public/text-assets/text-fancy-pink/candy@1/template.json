@@ -3,6 +3,26 @@
 	"assetId": "text-fancy-pink-candy",
 	"packageId": "text-fancy-pink",
 	"version": 1,
+	"marketplace": {
+		"editorialRank": 46,
+		"heatScore": 100,
+		"remoteTags": [
+			"category:pink",
+			"group:fancy",
+			"variant:candy",
+			"color:pink",
+			"tone:cute",
+			"style:candy"
+		],
+		"searchAliases": [
+			"粉色",
+			"甜心",
+			"可爱",
+			"pink",
+			"糖果",
+			"甜"
+		]
+	},
 	"definition": {
 		"id": "pink-candy",
 		"name": "粉色糖果",

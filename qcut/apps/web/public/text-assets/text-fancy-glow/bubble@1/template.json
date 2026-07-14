@@ -3,6 +3,23 @@
 	"assetId": "text-fancy-glow-bubble",
 	"packageId": "text-fancy-glow",
 	"version": 1,
+	"marketplace": {
+		"editorialRank": 14,
+		"heatScore": 91,
+		"remoteTags": [
+			"category:glow",
+			"group:fancy",
+			"variant:bubble",
+			"effect:glow",
+			"scene:night"
+		],
+		"searchAliases": [
+			"发光",
+			"霓虹",
+			"夜景",
+			"neon"
+		]
+	},
 	"definition": {
 		"id": "glow-bubble",
 		"name": "发光气泡",

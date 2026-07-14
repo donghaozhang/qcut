@@ -14,6 +14,22 @@
 		"assetId": "text-mine-recent-glitch",
 		"packageId": "text-mine-recent",
 		"version": 1,
+		"marketplace": {
+			"editorialRank": 21,
+			"heatScore": 99,
+			"remoteTags": [
+				"category:recent",
+				"group:mine",
+				"variant:glitch",
+				"effect:glitch",
+				"scene:cyber"
+			],
+			"searchAliases": [
+				"故障",
+				"赛博",
+				"抖动"
+			]
+		},
 		"definition": {
 			"id": "recent-glitch",
 			"name": "最近使用故障",

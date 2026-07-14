@@ -3,6 +3,23 @@
 	"assetId": "text-fancy-gradient-pink-heart",
 	"packageId": "text-fancy-gradient",
 	"version": 1,
+	"marketplace": {
+		"editorialRank": 12,
+		"heatScore": 92,
+		"remoteTags": [
+			"category:gradient",
+			"group:fancy",
+			"variant:pink-heart",
+			"effect:gradient",
+			"tone:dreamy"
+		],
+		"searchAliases": [
+			"渐变",
+			"流光",
+			"梦幻",
+			"gradient"
+		]
+	},
 	"definition": {
 		"id": "gradient-pink-heart",
 		"name": "渐变甜心",

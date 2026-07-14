@@ -14,6 +14,16 @@
 		"assetId": "text-smart-text-subtitle-title-ribbon",
 		"packageId": "text-smart-text-subtitle-title",
 		"version": 1,
+		"marketplace": {
+			"editorialRank": 120,
+			"heatScore": 81,
+			"remoteTags": [
+				"category:subtitle-title",
+				"group:smart-text",
+				"variant:ribbon"
+			],
+			"searchAliases": []
+		},
 		"definition": {
 			"id": "subtitle-title-ribbon",
 			"name": "字幕转标题飘带",

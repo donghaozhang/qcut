@@ -3,6 +3,22 @@
 	"assetId": "text-new-text-title-gold",
 	"packageId": "text-new-text-title",
 	"version": 1,
+	"marketplace": {
+		"editorialRank": 22,
+		"heatScore": 98,
+		"remoteTags": [
+			"category:title",
+			"group:new-text",
+			"variant:gold",
+			"material:gold",
+			"tone:premium"
+		],
+		"searchAliases": [
+			"金色",
+			"鎏金",
+			"高级"
+		]
+	},
 	"definition": {
 		"id": "title-gold",
 		"name": "标题鎏金",

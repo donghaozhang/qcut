@@ -3,6 +3,16 @@
 	"assetId": "text-new-text-lower-third-label",
 	"packageId": "text-new-text-lower-third",
 	"version": 1,
+	"marketplace": {
+		"editorialRank": 120,
+		"heatScore": 77,
+		"remoteTags": [
+			"category:lower-third",
+			"group:new-text",
+			"variant:label"
+		],
+		"searchAliases": []
+	},
 	"definition": {
 		"id": "lower-third-label",
 		"name": "角标标签",

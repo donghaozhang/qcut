@@ -14,6 +14,22 @@
 		"assetId": "text-templates-headline-template-comic",
 		"packageId": "text-templates-headline-template",
 		"version": 1,
+		"marketplace": {
+			"editorialRank": 19,
+			"heatScore": 99,
+			"remoteTags": [
+				"category:headline-template",
+				"group:templates",
+				"variant:comic",
+				"style:comic",
+				"effect:burst"
+			],
+			"searchAliases": [
+				"漫画",
+				"爆炸",
+				"综艺"
+			]
+		},
 		"definition": {
 			"id": "headline-template-comic",
 			"name": "标题模板漫画",

@@ -3,6 +3,16 @@
 	"assetId": "text-smart-packaging-commerce-badge-pop",
 	"packageId": "text-smart-packaging-commerce-badge",
 	"version": 1,
+	"marketplace": {
+		"editorialRank": 120,
+		"heatScore": 81,
+		"remoteTags": [
+			"category:commerce-badge",
+			"group:smart-packaging",
+			"variant:pop"
+		],
+		"searchAliases": []
+	},
 	"definition": {
 		"id": "commerce-badge-pop",
 		"name": "带货标牌弹幕",

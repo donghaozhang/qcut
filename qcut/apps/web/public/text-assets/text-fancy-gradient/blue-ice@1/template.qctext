@@ -14,6 +14,23 @@
 		"assetId": "text-fancy-gradient-blue-ice",
 		"packageId": "text-fancy-gradient",
 		"version": 1,
+		"marketplace": {
+			"editorialRank": 12,
+			"heatScore": 96,
+			"remoteTags": [
+				"category:gradient",
+				"group:fancy",
+				"variant:blue-ice",
+				"effect:gradient",
+				"tone:dreamy"
+			],
+			"searchAliases": [
+				"渐变",
+				"流光",
+				"梦幻",
+				"gradient"
+			]
+		},
 		"definition": {
 			"id": "gradient-blue-ice",
 			"name": "渐变冰蓝",

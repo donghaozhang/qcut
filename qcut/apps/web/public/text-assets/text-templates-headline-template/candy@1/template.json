@@ -3,6 +3,22 @@
 	"assetId": "text-templates-headline-template-candy",
 	"packageId": "text-templates-headline-template",
 	"version": 1,
+	"marketplace": {
+		"editorialRank": 58,
+		"heatScore": 93,
+		"remoteTags": [
+			"category:headline-template",
+			"group:templates",
+			"variant:candy",
+			"style:candy",
+			"tone:cute"
+		],
+		"searchAliases": [
+			"糖果",
+			"甜",
+			"可爱"
+		]
+	},
 	"definition": {
 		"id": "headline-template-candy",
 		"name": "标题模板糖果",

@@ -3,6 +3,16 @@
 	"assetId": "text-smart-text-summary-shadow",
 	"packageId": "text-smart-text-summary",
 	"version": 1,
+	"marketplace": {
+		"editorialRank": 120,
+		"heatScore": 77,
+		"remoteTags": [
+			"category:summary",
+			"group:smart-text",
+			"variant:shadow"
+		],
+		"searchAliases": []
+	},
 	"definition": {
 		"id": "summary-shadow",
 		"name": "自动摘要重影",

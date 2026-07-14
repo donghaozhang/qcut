@@ -3,6 +3,22 @@
 	"assetId": "text-templates-quote-template-candy",
 	"packageId": "text-templates-quote-template",
 	"version": 1,
+	"marketplace": {
+		"editorialRank": 58,
+		"heatScore": 93,
+		"remoteTags": [
+			"category:quote-template",
+			"group:templates",
+			"variant:candy",
+			"style:candy",
+			"tone:cute"
+		],
+		"searchAliases": [
+			"糖果",
+			"甜",
+			"可爱"
+		]
+	},
 	"definition": {
 		"id": "quote-template-candy",
 		"name": "引用模板糖果",

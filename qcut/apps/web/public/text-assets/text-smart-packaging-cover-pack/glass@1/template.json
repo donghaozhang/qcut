@@ -3,6 +3,16 @@
 	"assetId": "text-smart-packaging-cover-pack-glass",
 	"packageId": "text-smart-packaging-cover-pack",
 	"version": 1,
+	"marketplace": {
+		"editorialRank": 120,
+		"heatScore": 81,
+		"remoteTags": [
+			"category:cover-pack",
+			"group:smart-packaging",
+			"variant:glass"
+		],
+		"searchAliases": []
+	},
 	"definition": {
 		"id": "cover-pack-glass",
 		"name": "封面包装玻璃",

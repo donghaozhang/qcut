@@ -3,6 +3,22 @@
 	"assetId": "text-smart-packaging-intro-outro-candy",
 	"packageId": "text-smart-packaging-intro-outro",
 	"version": 1,
+	"marketplace": {
+		"editorialRank": 58,
+		"heatScore": 93,
+		"remoteTags": [
+			"category:intro-outro",
+			"group:smart-packaging",
+			"variant:candy",
+			"style:candy",
+			"tone:cute"
+		],
+		"searchAliases": [
+			"糖果",
+			"甜",
+			"可爱"
+		]
+	},
 	"definition": {
 		"id": "intro-outro-candy",
 		"name": "片头片尾糖果",

@@ -3,6 +3,28 @@
 	"assetId": "text-fancy-purple-gradient-shine",
 	"packageId": "text-fancy-purple",
 	"version": 1,
+	"marketplace": {
+		"editorialRank": 11,
+		"heatScore": 100,
+		"remoteTags": [
+			"category:purple",
+			"group:fancy",
+			"variant:gradient-shine",
+			"color:purple",
+			"tone:dreamy",
+			"effect:shine",
+			"effect:gradient"
+		],
+		"searchAliases": [
+			"紫色",
+			"梦幻",
+			"高级",
+			"purple",
+			"流光",
+			"渐变",
+			"高光"
+		]
+	},
 	"definition": {
 		"id": "purple-gradient-shine",
 		"name": "紫色流光",

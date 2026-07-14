@@ -14,6 +14,22 @@
 		"assetId": "text-mine-drafts-chrome",
 		"packageId": "text-mine-drafts",
 		"version": 1,
+		"marketplace": {
+			"editorialRank": 32,
+			"heatScore": 97,
+			"remoteTags": [
+				"category:drafts",
+				"group:mine",
+				"variant:chrome",
+				"material:chrome",
+				"tone:premium"
+			],
+			"searchAliases": [
+				"金属",
+				"银色",
+				"质感"
+			]
+		},
 		"definition": {
 			"id": "drafts-chrome",
 			"name": "草稿金属",

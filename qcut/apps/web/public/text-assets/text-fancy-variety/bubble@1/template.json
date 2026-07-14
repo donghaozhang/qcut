@@ -3,6 +3,23 @@
 	"assetId": "text-fancy-variety-bubble",
 	"packageId": "text-fancy-variety",
 	"version": 1,
+	"marketplace": {
+		"editorialRank": 18,
+		"heatScore": 91,
+		"remoteTags": [
+			"category:variety",
+			"group:fancy",
+			"variant:bubble",
+			"scene:variety",
+			"effect:pop"
+		],
+		"searchAliases": [
+			"综艺",
+			"弹幕",
+			"爆笑",
+			"variety"
+		]
+	},
 	"definition": {
 		"id": "variety-bubble",
 		"name": "综艺感气泡",

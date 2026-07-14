@@ -3,6 +3,22 @@
 	"assetId": "text-smart-packaging-talking-head-comic",
 	"packageId": "text-smart-packaging-talking-head",
 	"version": 1,
+	"marketplace": {
+		"editorialRank": 19,
+		"heatScore": 99,
+		"remoteTags": [
+			"category:talking-head",
+			"group:smart-packaging",
+			"variant:comic",
+			"style:comic",
+			"effect:burst"
+		],
+		"searchAliases": [
+			"漫画",
+			"爆炸",
+			"综艺"
+		]
+	},
 	"definition": {
 		"id": "talking-head-comic",
 		"name": "口播卡片漫画",

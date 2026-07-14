@@ -3,6 +3,22 @@
 	"assetId": "text-smart-packaging-intro-outro-glitch",
 	"packageId": "text-smart-packaging-intro-outro",
 	"version": 1,
+	"marketplace": {
+		"editorialRank": 21,
+		"heatScore": 99,
+		"remoteTags": [
+			"category:intro-outro",
+			"group:smart-packaging",
+			"variant:glitch",
+			"effect:glitch",
+			"scene:cyber"
+		],
+		"searchAliases": [
+			"故障",
+			"赛博",
+			"抖动"
+		]
+	},
 	"definition": {
 		"id": "intro-outro-glitch",
 		"name": "片头片尾故障",

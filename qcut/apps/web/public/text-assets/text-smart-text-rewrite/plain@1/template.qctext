@@ -14,6 +14,16 @@
 		"assetId": "text-smart-text-rewrite-plain",
 		"packageId": "text-smart-text-rewrite",
 		"version": 1,
+		"marketplace": {
+			"editorialRank": 120,
+			"heatScore": 77,
+			"remoteTags": [
+				"category:rewrite",
+				"group:smart-text",
+				"variant:plain"
+			],
+			"searchAliases": []
+		},
 		"definition": {
 			"id": "rewrite-plain",
 			"name": "AI改写基础",

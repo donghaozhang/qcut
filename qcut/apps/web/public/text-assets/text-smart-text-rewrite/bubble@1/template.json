@@ -3,6 +3,16 @@
 	"assetId": "text-smart-text-rewrite-bubble",
 	"packageId": "text-smart-text-rewrite",
 	"version": 1,
+	"marketplace": {
+		"editorialRank": 120,
+		"heatScore": 77,
+		"remoteTags": [
+			"category:rewrite",
+			"group:smart-text",
+			"variant:bubble"
+		],
+		"searchAliases": []
+	},
 	"definition": {
 		"id": "rewrite-bubble",
 		"name": "AI改写气泡",

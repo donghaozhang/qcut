@@ -14,6 +14,16 @@
 		"assetId": "text-smart-text-chapter-pop",
 		"packageId": "text-smart-text-chapter",
 		"version": 1,
+		"marketplace": {
+			"editorialRank": 120,
+			"heatScore": 81,
+			"remoteTags": [
+				"category:chapter",
+				"group:smart-text",
+				"variant:pop"
+			],
+			"searchAliases": []
+		},
 		"definition": {
 			"id": "chapter-pop",
 			"name": "章节标题弹幕",

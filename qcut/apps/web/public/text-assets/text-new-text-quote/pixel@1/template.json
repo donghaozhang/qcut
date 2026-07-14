@@ -3,6 +3,16 @@
 	"assetId": "text-new-text-quote-pixel",
 	"packageId": "text-new-text-quote",
 	"version": 1,
+	"marketplace": {
+		"editorialRank": 120,
+		"heatScore": 77,
+		"remoteTags": [
+			"category:quote",
+			"group:new-text",
+			"variant:pixel"
+		],
+		"searchAliases": []
+	},
 	"definition": {
 		"id": "quote-pixel",
 		"name": "引用像素",

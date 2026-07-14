@@ -14,6 +14,22 @@
 		"assetId": "text-mine-brand-kit-gold",
 		"packageId": "text-mine-brand-kit",
 		"version": 1,
+		"marketplace": {
+			"editorialRank": 22,
+			"heatScore": 98,
+			"remoteTags": [
+				"category:brand-kit",
+				"group:mine",
+				"variant:gold",
+				"material:gold",
+				"tone:premium"
+			],
+			"searchAliases": [
+				"金色",
+				"鎏金",
+				"高级"
+			]
+		},
 		"definition": {
 			"id": "brand-kit-gold",
 			"name": "品牌字鎏金",

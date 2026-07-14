@@ -3,6 +3,28 @@
 	"assetId": "text-fancy-yellow-gradient-shine",
 	"packageId": "text-fancy-yellow",
 	"version": 1,
+	"marketplace": {
+		"editorialRank": 11,
+		"heatScore": 100,
+		"remoteTags": [
+			"category:yellow",
+			"group:fancy",
+			"variant:gradient-shine",
+			"color:yellow",
+			"tone:bright",
+			"effect:shine",
+			"effect:gradient"
+		],
+		"searchAliases": [
+			"黄色",
+			"醒目",
+			"高亮",
+			"yellow",
+			"流光",
+			"渐变",
+			"高光"
+		]
+	},
 	"definition": {
 		"id": "yellow-gradient-shine",
 		"name": "黄色流光",

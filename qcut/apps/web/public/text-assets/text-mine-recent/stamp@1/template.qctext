@@ -14,6 +14,16 @@
 		"assetId": "text-mine-recent-stamp",
 		"packageId": "text-mine-recent",
 		"version": 1,
+		"marketplace": {
+			"editorialRank": 120,
+			"heatScore": 77,
+			"remoteTags": [
+				"category:recent",
+				"group:mine",
+				"variant:stamp"
+			],
+			"searchAliases": []
+		},
 		"definition": {
 			"id": "recent-stamp",
 			"name": "最近使用印章",

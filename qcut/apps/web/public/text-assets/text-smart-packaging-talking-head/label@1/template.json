@@ -3,6 +3,16 @@
 	"assetId": "text-smart-packaging-talking-head-label",
 	"packageId": "text-smart-packaging-talking-head",
 	"version": 1,
+	"marketplace": {
+		"editorialRank": 120,
+		"heatScore": 77,
+		"remoteTags": [
+			"category:talking-head",
+			"group:smart-packaging",
+			"variant:label"
+		],
+		"searchAliases": []
+	},
 	"definition": {
 		"id": "talking-head-label",
 		"name": "口播卡片标签",

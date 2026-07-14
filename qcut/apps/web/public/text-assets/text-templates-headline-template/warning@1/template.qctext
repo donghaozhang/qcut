@@ -14,6 +14,16 @@
 		"assetId": "text-templates-headline-template-warning",
 		"packageId": "text-templates-headline-template",
 		"version": 1,
+		"marketplace": {
+			"editorialRank": 120,
+			"heatScore": 77,
+			"remoteTags": [
+				"category:headline-template",
+				"group:templates",
+				"variant:warning"
+			],
+			"searchAliases": []
+		},
 		"definition": {
 			"id": "headline-template-warning",
 			"name": "标题模板警示",

@@ -3,6 +3,16 @@
 	"assetId": "text-smart-packaging-commerce-badge-outline",
 	"packageId": "text-smart-packaging-commerce-badge",
 	"version": 1,
+	"marketplace": {
+		"editorialRank": 120,
+		"heatScore": 81,
+		"remoteTags": [
+			"category:commerce-badge",
+			"group:smart-packaging",
+			"variant:outline"
+		],
+		"searchAliases": []
+	},
 	"definition": {
 		"id": "commerce-badge-outline",
 		"name": "带货标牌描边",

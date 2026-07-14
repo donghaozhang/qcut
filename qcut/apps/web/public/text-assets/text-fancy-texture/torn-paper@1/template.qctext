@@ -14,6 +14,28 @@
 		"assetId": "text-fancy-texture-torn-paper",
 		"packageId": "text-fancy-texture",
 		"version": 1,
+		"marketplace": {
+			"editorialRank": 13,
+			"heatScore": 100,
+			"remoteTags": [
+				"category:texture",
+				"group:fancy",
+				"variant:torn-paper",
+				"effect:texture",
+				"market:premium-look",
+				"material:paper",
+				"style:collage"
+			],
+			"searchAliases": [
+				"纹理",
+				"材质",
+				"质感",
+				"texture",
+				"撕纸",
+				"纸张",
+				"拼贴"
+			]
+		},
 		"definition": {
 			"id": "texture-torn-paper",
 			"name": "纹理撕纸",

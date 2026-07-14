@@ -14,6 +14,16 @@
 		"assetId": "text-new-text-quote-plain",
 		"packageId": "text-new-text-quote",
 		"version": 1,
+		"marketplace": {
+			"editorialRank": 120,
+			"heatScore": 77,
+			"remoteTags": [
+				"category:quote",
+				"group:new-text",
+				"variant:plain"
+			],
+			"searchAliases": []
+		},
 		"definition": {
 			"id": "quote-plain",
 			"name": "引用基础",

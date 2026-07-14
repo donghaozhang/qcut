@@ -14,6 +14,22 @@
 		"assetId": "text-smart-text-chapter-sticker",
 		"packageId": "text-smart-text-chapter",
 		"version": 1,
+		"marketplace": {
+			"editorialRank": 24,
+			"heatScore": 94,
+			"remoteTags": [
+				"category:chapter",
+				"group:smart-text",
+				"variant:sticker",
+				"style:sticker",
+				"tone:cute"
+			],
+			"searchAliases": [
+				"贴纸",
+				"白边",
+				"可爱"
+			]
+		},
 		"definition": {
 			"id": "chapter-sticker",
 			"name": "章节标题贴纸",

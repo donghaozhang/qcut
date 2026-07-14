@@ -3,6 +3,28 @@
 	"assetId": "text-fancy-gradient-candy",
 	"packageId": "text-fancy-gradient",
 	"version": 1,
+	"marketplace": {
+		"editorialRank": 12,
+		"heatScore": 100,
+		"remoteTags": [
+			"category:gradient",
+			"group:fancy",
+			"variant:candy",
+			"effect:gradient",
+			"tone:dreamy",
+			"style:candy",
+			"tone:cute"
+		],
+		"searchAliases": [
+			"渐变",
+			"流光",
+			"梦幻",
+			"gradient",
+			"糖果",
+			"甜",
+			"可爱"
+		]
+	},
 	"definition": {
 		"id": "gradient-candy",
 		"name": "渐变糖果",

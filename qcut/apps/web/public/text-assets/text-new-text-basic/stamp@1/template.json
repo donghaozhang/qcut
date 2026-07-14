@@ -3,6 +3,16 @@
 	"assetId": "text-new-text-basic-stamp",
 	"packageId": "text-new-text-basic",
 	"version": 1,
+	"marketplace": {
+		"editorialRank": 120,
+		"heatScore": 77,
+		"remoteTags": [
+			"category:basic",
+			"group:new-text",
+			"variant:stamp"
+		],
+		"searchAliases": []
+	},
 	"definition": {
 		"id": "basic-stamp",
 		"name": "基础文本印章",

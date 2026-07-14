@@ -14,6 +14,27 @@
 		"assetId": "text-fancy-latest-candy",
 		"packageId": "text-fancy-latest",
 		"version": 1,
+		"marketplace": {
+			"editorialRank": 16,
+			"heatScore": 100,
+			"remoteTags": [
+				"category:latest",
+				"group:fancy",
+				"variant:candy",
+				"collection:latest",
+				"market:new",
+				"style:candy",
+				"tone:cute"
+			],
+			"searchAliases": [
+				"最新",
+				"上新",
+				"new",
+				"糖果",
+				"甜",
+				"可爱"
+			]
+		},
 		"definition": {
 			"id": "latest-candy",
 			"name": "最新糖果",

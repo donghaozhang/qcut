@@ -14,6 +14,22 @@
 		"assetId": "text-new-text-quote-glow",
 		"packageId": "text-new-text-quote",
 		"version": 1,
+		"marketplace": {
+			"editorialRank": 15,
+			"heatScore": 100,
+			"remoteTags": [
+				"category:quote",
+				"group:new-text",
+				"variant:glow",
+				"effect:glow",
+				"scene:night"
+			],
+			"searchAliases": [
+				"发光",
+				"霓虹",
+				"夜景"
+			]
+		},
 		"definition": {
 			"id": "quote-glow",
 			"name": "引用发光",

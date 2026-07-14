@@ -3,6 +3,28 @@
 	"assetId": "text-fancy-variety-gold",
 	"packageId": "text-fancy-variety",
 	"version": 1,
+	"marketplace": {
+		"editorialRank": 18,
+		"heatScore": 100,
+		"remoteTags": [
+			"category:variety",
+			"group:fancy",
+			"variant:gold",
+			"scene:variety",
+			"effect:pop",
+			"material:gold",
+			"tone:premium"
+		],
+		"searchAliases": [
+			"综艺",
+			"弹幕",
+			"爆笑",
+			"variety",
+			"金色",
+			"鎏金",
+			"高级"
+		]
+	},
 	"definition": {
 		"id": "variety-gold",
 		"name": "综艺感鎏金",

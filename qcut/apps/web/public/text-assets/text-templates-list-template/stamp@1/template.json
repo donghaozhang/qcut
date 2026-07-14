@@ -3,6 +3,16 @@
 	"assetId": "text-templates-list-template-stamp",
 	"packageId": "text-templates-list-template",
 	"version": 1,
+	"marketplace": {
+		"editorialRank": 120,
+		"heatScore": 77,
+		"remoteTags": [
+			"category:list-template",
+			"group:templates",
+			"variant:stamp"
+		],
+		"searchAliases": []
+	},
 	"definition": {
 		"id": "list-template-stamp",
 		"name": "列表模板印章",

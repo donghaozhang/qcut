@@ -3,6 +3,16 @@
 	"assetId": "text-new-text-quote-stamp",
 	"packageId": "text-new-text-quote",
 	"version": 1,
+	"marketplace": {
+		"editorialRank": 120,
+		"heatScore": 77,
+		"remoteTags": [
+			"category:quote",
+			"group:new-text",
+			"variant:stamp"
+		],
+		"searchAliases": []
+	},
 	"definition": {
 		"id": "quote-stamp",
 		"name": "引用印章",

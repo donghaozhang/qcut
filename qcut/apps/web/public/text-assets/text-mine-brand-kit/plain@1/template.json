@@ -3,6 +3,16 @@
 	"assetId": "text-mine-brand-kit-plain",
 	"packageId": "text-mine-brand-kit",
 	"version": 1,
+	"marketplace": {
+		"editorialRank": 120,
+		"heatScore": 77,
+		"remoteTags": [
+			"category:brand-kit",
+			"group:mine",
+			"variant:plain"
+		],
+		"searchAliases": []
+	},
 	"definition": {
 		"id": "brand-kit-plain",
 		"name": "品牌字基础",

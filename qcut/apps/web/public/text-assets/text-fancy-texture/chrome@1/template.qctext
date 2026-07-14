@@ -14,6 +14,27 @@
 		"assetId": "text-fancy-texture-chrome",
 		"packageId": "text-fancy-texture",
 		"version": 1,
+		"marketplace": {
+			"editorialRank": 13,
+			"heatScore": 100,
+			"remoteTags": [
+				"category:texture",
+				"group:fancy",
+				"variant:chrome",
+				"effect:texture",
+				"market:premium-look",
+				"material:chrome",
+				"tone:premium"
+			],
+			"searchAliases": [
+				"纹理",
+				"材质",
+				"质感",
+				"texture",
+				"金属",
+				"银色"
+			]
+		},
 		"definition": {
 			"id": "texture-chrome",
 			"name": "纹理金属",

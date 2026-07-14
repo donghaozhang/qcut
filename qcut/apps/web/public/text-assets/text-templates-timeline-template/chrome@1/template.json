@@ -3,6 +3,22 @@
 	"assetId": "text-templates-timeline-template-chrome",
 	"packageId": "text-templates-timeline-template",
 	"version": 1,
+	"marketplace": {
+		"editorialRank": 32,
+		"heatScore": 97,
+		"remoteTags": [
+			"category:timeline-template",
+			"group:templates",
+			"variant:chrome",
+			"material:chrome",
+			"tone:premium"
+		],
+		"searchAliases": [
+			"金属",
+			"银色",
+			"质感"
+		]
+	},
 	"definition": {
 		"id": "timeline-template-chrome",
 		"name": "时间线模板金属",

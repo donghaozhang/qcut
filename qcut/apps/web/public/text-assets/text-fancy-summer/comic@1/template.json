@@ -3,6 +3,28 @@
 	"assetId": "text-fancy-summer-comic",
 	"packageId": "text-fancy-summer",
 	"version": 1,
+	"marketplace": {
+		"editorialRank": 19,
+		"heatScore": 100,
+		"remoteTags": [
+			"category:summer",
+			"group:fancy",
+			"variant:comic",
+			"season:summer",
+			"tone:fresh",
+			"style:comic",
+			"effect:burst"
+		],
+		"searchAliases": [
+			"夏日",
+			"清爽",
+			"活动",
+			"summer",
+			"漫画",
+			"爆炸",
+			"综艺"
+		]
+	},
 	"definition": {
 		"id": "summer-comic",
 		"name": "夏日漫画",

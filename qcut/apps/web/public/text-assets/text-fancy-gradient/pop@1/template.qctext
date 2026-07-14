@@ -14,6 +14,23 @@
 		"assetId": "text-fancy-gradient-pop",
 		"packageId": "text-fancy-gradient",
 		"version": 1,
+		"marketplace": {
+			"editorialRank": 12,
+			"heatScore": 96,
+			"remoteTags": [
+				"category:gradient",
+				"group:fancy",
+				"variant:pop",
+				"effect:gradient",
+				"tone:dreamy"
+			],
+			"searchAliases": [
+				"渐变",
+				"流光",
+				"梦幻",
+				"gradient"
+			]
+		},
 		"definition": {
 			"id": "gradient-pop",
 			"name": "渐变弹幕",

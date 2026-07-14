@@ -3,6 +3,23 @@
 	"assetId": "text-fancy-purple-bubble",
 	"packageId": "text-fancy-purple",
 	"version": 1,
+	"marketplace": {
+		"editorialRank": 50,
+		"heatScore": 86,
+		"remoteTags": [
+			"category:purple",
+			"group:fancy",
+			"variant:bubble",
+			"color:purple",
+			"tone:dreamy"
+		],
+		"searchAliases": [
+			"紫色",
+			"梦幻",
+			"高级",
+			"purple"
+		]
+	},
 	"definition": {
 		"id": "purple-bubble",
 		"name": "紫色气泡",

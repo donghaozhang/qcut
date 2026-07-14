@@ -3,6 +3,16 @@
 	"assetId": "text-mine-downloaded-ink",
 	"packageId": "text-mine-downloaded",
 	"version": 1,
+	"marketplace": {
+		"editorialRank": 120,
+		"heatScore": 81,
+		"remoteTags": [
+			"category:downloaded",
+			"group:mine",
+			"variant:ink"
+		],
+		"searchAliases": []
+	},
 	"definition": {
 		"id": "downloaded-ink",
 		"name": "已下载水墨",

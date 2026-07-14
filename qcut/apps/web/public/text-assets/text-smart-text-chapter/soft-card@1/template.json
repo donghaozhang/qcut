@@ -3,6 +3,16 @@
 	"assetId": "text-smart-text-chapter-soft-card",
 	"packageId": "text-smart-text-chapter",
 	"version": 1,
+	"marketplace": {
+		"editorialRank": 120,
+		"heatScore": 77,
+		"remoteTags": [
+			"category:chapter",
+			"group:smart-text",
+			"variant:soft-card"
+		],
+		"searchAliases": []
+	},
 	"definition": {
 		"id": "chapter-soft-card",
 		"name": "章节标题柔卡",

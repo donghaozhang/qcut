@@ -3,6 +3,25 @@
 	"assetId": "text-fancy-gradient-gradient-shine",
 	"packageId": "text-fancy-gradient",
 	"version": 1,
+	"marketplace": {
+		"editorialRank": 11,
+		"heatScore": 100,
+		"remoteTags": [
+			"category:gradient",
+			"group:fancy",
+			"variant:gradient-shine",
+			"effect:gradient",
+			"tone:dreamy",
+			"effect:shine"
+		],
+		"searchAliases": [
+			"渐变",
+			"流光",
+			"梦幻",
+			"gradient",
+			"高光"
+		]
+	},
 	"definition": {
 		"id": "gradient-gradient-shine",
 		"name": "渐变流光",

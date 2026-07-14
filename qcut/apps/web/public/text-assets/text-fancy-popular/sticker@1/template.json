@@ -3,6 +3,28 @@
 	"assetId": "text-fancy-popular-sticker",
 	"packageId": "text-fancy-popular",
 	"version": 1,
+	"marketplace": {
+		"editorialRank": 4,
+		"heatScore": 100,
+		"remoteTags": [
+			"category:popular",
+			"group:fancy",
+			"variant:sticker",
+			"collection:popular",
+			"market:recommended",
+			"style:sticker",
+			"tone:cute"
+		],
+		"searchAliases": [
+			"热门",
+			"爆款",
+			"推荐",
+			"popular",
+			"贴纸",
+			"白边",
+			"可爱"
+		]
+	},
 	"definition": {
 		"id": "popular-sticker",
 		"name": "热门贴纸",

@@ -3,6 +3,16 @@
 	"assetId": "text-new-text-quote-bubble",
 	"packageId": "text-new-text-quote",
 	"version": 1,
+	"marketplace": {
+		"editorialRank": 120,
+		"heatScore": 77,
+		"remoteTags": [
+			"category:quote",
+			"group:new-text",
+			"variant:bubble"
+		],
+		"searchAliases": []
+	},
 	"definition": {
 		"id": "quote-bubble",
 		"name": "引用气泡",

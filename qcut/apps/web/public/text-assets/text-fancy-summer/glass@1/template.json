@@ -3,6 +3,23 @@
 	"assetId": "text-fancy-summer-glass",
 	"packageId": "text-fancy-summer",
 	"version": 1,
+	"marketplace": {
+		"editorialRank": 34,
+		"heatScore": 92,
+		"remoteTags": [
+			"category:summer",
+			"group:fancy",
+			"variant:glass",
+			"season:summer",
+			"tone:fresh"
+		],
+		"searchAliases": [
+			"夏日",
+			"清爽",
+			"活动",
+			"summer"
+		]
+	},
 	"definition": {
 		"id": "summer-glass",
 		"name": "夏日玻璃",

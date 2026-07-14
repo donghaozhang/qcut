@@ -14,6 +14,28 @@
 		"assetId": "text-fancy-variety-gradient-shine",
 		"packageId": "text-fancy-variety",
 		"version": 1,
+		"marketplace": {
+			"editorialRank": 11,
+			"heatScore": 100,
+			"remoteTags": [
+				"category:variety",
+				"group:fancy",
+				"variant:gradient-shine",
+				"scene:variety",
+				"effect:pop",
+				"effect:shine",
+				"effect:gradient"
+			],
+			"searchAliases": [
+				"综艺",
+				"弹幕",
+				"爆笑",
+				"variety",
+				"流光",
+				"渐变",
+				"高光"
+			]
+		},
 		"definition": {
 			"id": "variety-gradient-shine",
 			"name": "综艺感流光",

@@ -14,6 +14,16 @@
 		"assetId": "text-mine-drafts-ribbon",
 		"packageId": "text-mine-drafts",
 		"version": 1,
+		"marketplace": {
+			"editorialRank": 120,
+			"heatScore": 81,
+			"remoteTags": [
+				"category:drafts",
+				"group:mine",
+				"variant:ribbon"
+			],
+			"searchAliases": []
+		},
 		"definition": {
 			"id": "drafts-ribbon",
 			"name": "草稿飘带",

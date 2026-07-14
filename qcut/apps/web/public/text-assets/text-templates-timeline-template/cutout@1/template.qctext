@@ -14,6 +14,16 @@
 		"assetId": "text-templates-timeline-template-cutout",
 		"packageId": "text-templates-timeline-template",
 		"version": 1,
+		"marketplace": {
+			"editorialRank": 120,
+			"heatScore": 81,
+			"remoteTags": [
+				"category:timeline-template",
+				"group:templates",
+				"variant:cutout"
+			],
+			"searchAliases": []
+		},
 		"definition": {
 			"id": "timeline-template-cutout",
 			"name": "时间线模板剪纸",

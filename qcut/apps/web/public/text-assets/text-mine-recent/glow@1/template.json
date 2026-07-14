@@ -3,6 +3,22 @@
 	"assetId": "text-mine-recent-glow",
 	"packageId": "text-mine-recent",
 	"version": 1,
+	"marketplace": {
+		"editorialRank": 15,
+		"heatScore": 100,
+		"remoteTags": [
+			"category:recent",
+			"group:mine",
+			"variant:glow",
+			"effect:glow",
+			"scene:night"
+		],
+		"searchAliases": [
+			"发光",
+			"霓虹",
+			"夜景"
+		]
+	},
 	"definition": {
 		"id": "recent-glow",
 		"name": "最近使用发光",

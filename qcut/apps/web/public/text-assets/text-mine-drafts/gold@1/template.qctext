@@ -14,6 +14,22 @@
 		"assetId": "text-mine-drafts-gold",
 		"packageId": "text-mine-drafts",
 		"version": 1,
+		"marketplace": {
+			"editorialRank": 22,
+			"heatScore": 98,
+			"remoteTags": [
+				"category:drafts",
+				"group:mine",
+				"variant:gold",
+				"material:gold",
+				"tone:premium"
+			],
+			"searchAliases": [
+				"金色",
+				"鎏金",
+				"高级"
+			]
+		},
 		"definition": {
 			"id": "drafts-gold",
 			"name": "草稿鎏金",

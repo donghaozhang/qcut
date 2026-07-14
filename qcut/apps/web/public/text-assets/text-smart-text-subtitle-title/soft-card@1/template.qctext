@@ -14,6 +14,16 @@
 		"assetId": "text-smart-text-subtitle-title-soft-card",
 		"packageId": "text-smart-text-subtitle-title",
 		"version": 1,
+		"marketplace": {
+			"editorialRank": 120,
+			"heatScore": 77,
+			"remoteTags": [
+				"category:subtitle-title",
+				"group:smart-text",
+				"variant:soft-card"
+			],
+			"searchAliases": []
+		},
 		"definition": {
 			"id": "subtitle-title-soft-card",
 			"name": "字幕转标题柔卡",

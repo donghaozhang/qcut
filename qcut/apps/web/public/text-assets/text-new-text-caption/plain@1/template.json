@@ -3,6 +3,16 @@
 	"assetId": "text-new-text-caption-plain",
 	"packageId": "text-new-text-caption",
 	"version": 1,
+	"marketplace": {
+		"editorialRank": 120,
+		"heatScore": 77,
+		"remoteTags": [
+			"category:caption",
+			"group:new-text",
+			"variant:plain"
+		],
+		"searchAliases": []
+	},
 	"definition": {
 		"id": "caption-plain",
 		"name": "说明基础",

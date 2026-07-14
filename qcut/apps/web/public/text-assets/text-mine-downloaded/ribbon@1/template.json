@@ -3,6 +3,16 @@
 	"assetId": "text-mine-downloaded-ribbon",
 	"packageId": "text-mine-downloaded",
 	"version": 1,
+	"marketplace": {
+		"editorialRank": 120,
+		"heatScore": 81,
+		"remoteTags": [
+			"category:downloaded",
+			"group:mine",
+			"variant:ribbon"
+		],
+		"searchAliases": []
+	},
 	"definition": {
 		"id": "downloaded-ribbon",
 		"name": "已下载飘带",

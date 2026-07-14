@@ -3,6 +3,28 @@
 	"assetId": "text-fancy-popular-comic",
 	"packageId": "text-fancy-popular",
 	"version": 1,
+	"marketplace": {
+		"editorialRank": 4,
+		"heatScore": 100,
+		"remoteTags": [
+			"category:popular",
+			"group:fancy",
+			"variant:comic",
+			"collection:popular",
+			"market:recommended",
+			"style:comic",
+			"effect:burst"
+		],
+		"searchAliases": [
+			"热门",
+			"爆款",
+			"推荐",
+			"popular",
+			"漫画",
+			"爆炸",
+			"综艺"
+		]
+	},
 	"definition": {
 		"id": "popular-comic",
 		"name": "热门漫画",

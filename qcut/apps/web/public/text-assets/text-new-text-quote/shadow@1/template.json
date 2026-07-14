@@ -3,6 +3,16 @@
 	"assetId": "text-new-text-quote-shadow",
 	"packageId": "text-new-text-quote",
 	"version": 1,
+	"marketplace": {
+		"editorialRank": 120,
+		"heatScore": 77,
+		"remoteTags": [
+			"category:quote",
+			"group:new-text",
+			"variant:shadow"
+		],
+		"searchAliases": []
+	},
 	"definition": {
 		"id": "quote-shadow",
 		"name": "引用重影",

@@ -14,6 +14,16 @@
 		"assetId": "text-mine-downloaded-stamp",
 		"packageId": "text-mine-downloaded",
 		"version": 1,
+		"marketplace": {
+			"editorialRank": 120,
+			"heatScore": 77,
+			"remoteTags": [
+				"category:downloaded",
+				"group:mine",
+				"variant:stamp"
+			],
+			"searchAliases": []
+		},
 		"definition": {
 			"id": "downloaded-stamp",
 			"name": "已下载印章",

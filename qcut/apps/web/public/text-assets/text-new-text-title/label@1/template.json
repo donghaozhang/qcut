@@ -3,6 +3,16 @@
 	"assetId": "text-new-text-title-label",
 	"packageId": "text-new-text-title",
 	"version": 1,
+	"marketplace": {
+		"editorialRank": 120,
+		"heatScore": 77,
+		"remoteTags": [
+			"category:title",
+			"group:new-text",
+			"variant:label"
+		],
+		"searchAliases": []
+	},
 	"definition": {
 		"id": "title-label",
 		"name": "标题标签",

@@ -14,6 +14,16 @@
 		"assetId": "text-mine-downloaded-warning",
 		"packageId": "text-mine-downloaded",
 		"version": 1,
+		"marketplace": {
+			"editorialRank": 120,
+			"heatScore": 77,
+			"remoteTags": [
+				"category:downloaded",
+				"group:mine",
+				"variant:warning"
+			],
+			"searchAliases": []
+		},
 		"definition": {
 			"id": "downloaded-warning",
 			"name": "已下载警示",

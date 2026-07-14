@@ -3,6 +3,16 @@
 	"assetId": "text-new-text-lower-third-shadow",
 	"packageId": "text-new-text-lower-third",
 	"version": 1,
+	"marketplace": {
+		"editorialRank": 120,
+		"heatScore": 77,
+		"remoteTags": [
+			"category:lower-third",
+			"group:new-text",
+			"variant:shadow"
+		],
+		"searchAliases": []
+	},
 	"definition": {
 		"id": "lower-third-shadow",
 		"name": "角标重影",

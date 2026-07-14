@@ -14,6 +14,16 @@
 		"assetId": "text-smart-packaging-commerce-badge-pixel",
 		"packageId": "text-smart-packaging-commerce-badge",
 		"version": 1,
+		"marketplace": {
+			"editorialRank": 120,
+			"heatScore": 77,
+			"remoteTags": [
+				"category:commerce-badge",
+				"group:smart-packaging",
+				"variant:pixel"
+			],
+			"searchAliases": []
+		},
 		"definition": {
 			"id": "commerce-badge-pixel",
 			"name": "带货标牌像素",

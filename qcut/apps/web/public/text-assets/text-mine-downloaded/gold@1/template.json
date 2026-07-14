@@ -3,6 +3,22 @@
 	"assetId": "text-mine-downloaded-gold",
 	"packageId": "text-mine-downloaded",
 	"version": 1,
+	"marketplace": {
+		"editorialRank": 22,
+		"heatScore": 98,
+		"remoteTags": [
+			"category:downloaded",
+			"group:mine",
+			"variant:gold",
+			"material:gold",
+			"tone:premium"
+		],
+		"searchAliases": [
+			"金色",
+			"鎏金",
+			"高级"
+		]
+	},
 	"definition": {
 		"id": "downloaded-gold",
 		"name": "已下载鎏金",

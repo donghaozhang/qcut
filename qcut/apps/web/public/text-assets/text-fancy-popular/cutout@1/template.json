@@ -3,6 +3,23 @@
 	"assetId": "text-fancy-popular-cutout",
 	"packageId": "text-fancy-popular",
 	"version": 1,
+	"marketplace": {
+		"editorialRank": 4,
+		"heatScore": 97,
+		"remoteTags": [
+			"category:popular",
+			"group:fancy",
+			"variant:cutout",
+			"collection:popular",
+			"market:recommended"
+		],
+		"searchAliases": [
+			"热门",
+			"爆款",
+			"推荐",
+			"popular"
+		]
+	},
 	"definition": {
 		"id": "popular-cutout",
 		"name": "热门剪纸",

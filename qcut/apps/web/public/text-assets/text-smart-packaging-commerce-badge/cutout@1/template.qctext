@@ -14,6 +14,16 @@
 		"assetId": "text-smart-packaging-commerce-badge-cutout",
 		"packageId": "text-smart-packaging-commerce-badge",
 		"version": 1,
+		"marketplace": {
+			"editorialRank": 120,
+			"heatScore": 81,
+			"remoteTags": [
+				"category:commerce-badge",
+				"group:smart-packaging",
+				"variant:cutout"
+			],
+			"searchAliases": []
+		},
 		"definition": {
 			"id": "commerce-badge-cutout",
 			"name": "带货标牌剪纸",

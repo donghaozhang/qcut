@@ -14,6 +14,16 @@
 		"assetId": "text-smart-text-key-point-stamp",
 		"packageId": "text-smart-text-key-point",
 		"version": 1,
+		"marketplace": {
+			"editorialRank": 120,
+			"heatScore": 77,
+			"remoteTags": [
+				"category:key-point",
+				"group:smart-text",
+				"variant:stamp"
+			],
+			"searchAliases": []
+		},
 		"definition": {
 			"id": "key-point-stamp",
 			"name": "重点提取印章",

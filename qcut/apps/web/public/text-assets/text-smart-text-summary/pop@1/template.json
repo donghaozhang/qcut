@@ -3,6 +3,16 @@
 	"assetId": "text-smart-text-summary-pop",
 	"packageId": "text-smart-text-summary",
 	"version": 1,
+	"marketplace": {
+		"editorialRank": 120,
+		"heatScore": 81,
+		"remoteTags": [
+			"category:summary",
+			"group:smart-text",
+			"variant:pop"
+		],
+		"searchAliases": []
+	},
 	"definition": {
 		"id": "summary-pop",
 		"name": "自动摘要弹幕",

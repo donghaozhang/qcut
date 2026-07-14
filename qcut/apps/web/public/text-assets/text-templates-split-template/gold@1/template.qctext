@@ -14,6 +14,22 @@
 		"assetId": "text-templates-split-template-gold",
 		"packageId": "text-templates-split-template",
 		"version": 1,
+		"marketplace": {
+			"editorialRank": 22,
+			"heatScore": 98,
+			"remoteTags": [
+				"category:split-template",
+				"group:templates",
+				"variant:gold",
+				"material:gold",
+				"tone:premium"
+			],
+			"searchAliases": [
+				"金色",
+				"鎏金",
+				"高级"
+			]
+		},
 		"definition": {
 			"id": "split-template-gold",
 			"name": "分屏模板鎏金",

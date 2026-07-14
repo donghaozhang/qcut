@@ -3,6 +3,22 @@
 	"assetId": "text-smart-text-summary-comic",
 	"packageId": "text-smart-text-summary",
 	"version": 1,
+	"marketplace": {
+		"editorialRank": 19,
+		"heatScore": 99,
+		"remoteTags": [
+			"category:summary",
+			"group:smart-text",
+			"variant:comic",
+			"style:comic",
+			"effect:burst"
+		],
+		"searchAliases": [
+			"漫画",
+			"爆炸",
+			"综艺"
+		]
+	},
 	"definition": {
 		"id": "summary-comic",
 		"name": "自动摘要漫画",

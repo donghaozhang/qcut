@@ -3,6 +3,22 @@
 	"assetId": "text-smart-text-rewrite-glitch",
 	"packageId": "text-smart-text-rewrite",
 	"version": 1,
+	"marketplace": {
+		"editorialRank": 21,
+		"heatScore": 99,
+		"remoteTags": [
+			"category:rewrite",
+			"group:smart-text",
+			"variant:glitch",
+			"effect:glitch",
+			"scene:cyber"
+		],
+		"searchAliases": [
+			"故障",
+			"赛博",
+			"抖动"
+		]
+	},
 	"definition": {
 		"id": "rewrite-glitch",
 		"name": "AI改写故障",

@@ -14,6 +14,23 @@
 		"assetId": "text-fancy-texture-ribbon",
 		"packageId": "text-fancy-texture",
 		"version": 1,
+		"marketplace": {
+			"editorialRank": 13,
+			"heatScore": 95,
+			"remoteTags": [
+				"category:texture",
+				"group:fancy",
+				"variant:ribbon",
+				"effect:texture",
+				"market:premium-look"
+			],
+			"searchAliases": [
+				"纹理",
+				"材质",
+				"质感",
+				"texture"
+			]
+		},
 		"definition": {
 			"id": "texture-ribbon",
 			"name": "纹理飘带",

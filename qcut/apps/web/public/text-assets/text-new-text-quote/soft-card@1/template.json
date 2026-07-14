@@ -3,6 +3,16 @@
 	"assetId": "text-new-text-quote-soft-card",
 	"packageId": "text-new-text-quote",
 	"version": 1,
+	"marketplace": {
+		"editorialRank": 120,
+		"heatScore": 77,
+		"remoteTags": [
+			"category:quote",
+			"group:new-text",
+			"variant:soft-card"
+		],
+		"searchAliases": []
+	},
 	"definition": {
 		"id": "quote-soft-card",
 		"name": "引用柔卡",

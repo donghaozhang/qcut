@@ -3,6 +3,16 @@
 	"assetId": "text-smart-text-rewrite-pixel",
 	"packageId": "text-smart-text-rewrite",
 	"version": 1,
+	"marketplace": {
+		"editorialRank": 120,
+		"heatScore": 77,
+		"remoteTags": [
+			"category:rewrite",
+			"group:smart-text",
+			"variant:pixel"
+		],
+		"searchAliases": []
+	},
 	"definition": {
 		"id": "rewrite-pixel",
 		"name": "AI改写像素",

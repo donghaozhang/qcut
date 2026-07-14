@@ -14,6 +14,22 @@
 		"assetId": "text-mine-drafts-candy",
 		"packageId": "text-mine-drafts",
 		"version": 1,
+		"marketplace": {
+			"editorialRank": 58,
+			"heatScore": 93,
+			"remoteTags": [
+				"category:drafts",
+				"group:mine",
+				"variant:candy",
+				"style:candy",
+				"tone:cute"
+			],
+			"searchAliases": [
+				"糖果",
+				"甜",
+				"可爱"
+			]
+		},
 		"definition": {
 			"id": "drafts-candy",
 			"name": "草稿糖果",

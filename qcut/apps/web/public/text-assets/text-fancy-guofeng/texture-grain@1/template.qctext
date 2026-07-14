@@ -14,6 +14,28 @@
 		"assetId": "text-fancy-guofeng-texture-grain",
 		"packageId": "text-fancy-guofeng",
 		"version": 1,
+		"marketplace": {
+			"editorialRank": 13,
+			"heatScore": 100,
+			"remoteTags": [
+				"category:guofeng",
+				"group:fancy",
+				"variant:texture-grain",
+				"style:guofeng",
+				"scene:culture",
+				"material:grain",
+				"effect:texture"
+			],
+			"searchAliases": [
+				"国风",
+				"国潮",
+				"水墨",
+				"chinoiserie",
+				"颗粒",
+				"纹理",
+				"质感"
+			]
+		},
 		"definition": {
 			"id": "guofeng-texture-grain",
 			"name": "国风颗粒",

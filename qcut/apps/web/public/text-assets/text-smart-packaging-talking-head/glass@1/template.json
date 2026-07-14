@@ -3,6 +3,16 @@
 	"assetId": "text-smart-packaging-talking-head-glass",
 	"packageId": "text-smart-packaging-talking-head",
 	"version": 1,
+	"marketplace": {
+		"editorialRank": 120,
+		"heatScore": 81,
+		"remoteTags": [
+			"category:talking-head",
+			"group:smart-packaging",
+			"variant:glass"
+		],
+		"searchAliases": []
+	},
 	"definition": {
 		"id": "talking-head-glass",
 		"name": "口播卡片玻璃",

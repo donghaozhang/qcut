@@ -3,6 +3,16 @@
 	"assetId": "text-new-text-quote-label",
 	"packageId": "text-new-text-quote",
 	"version": 1,
+	"marketplace": {
+		"editorialRank": 120,
+		"heatScore": 77,
+		"remoteTags": [
+			"category:quote",
+			"group:new-text",
+			"variant:label"
+		],
+		"searchAliases": []
+	},
 	"definition": {
 		"id": "quote-label",
 		"name": "引用标签",

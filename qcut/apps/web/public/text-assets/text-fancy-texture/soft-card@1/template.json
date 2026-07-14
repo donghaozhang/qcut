@@ -3,6 +3,23 @@
 	"assetId": "text-fancy-texture-soft-card",
 	"packageId": "text-fancy-texture",
 	"version": 1,
+	"marketplace": {
+		"editorialRank": 13,
+		"heatScore": 91,
+		"remoteTags": [
+			"category:texture",
+			"group:fancy",
+			"variant:soft-card",
+			"effect:texture",
+			"market:premium-look"
+		],
+		"searchAliases": [
+			"纹理",
+			"材质",
+			"质感",
+			"texture"
+		]
+	},
 	"definition": {
 		"id": "texture-soft-card",
 		"name": "纹理柔卡",

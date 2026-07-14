@@ -3,6 +3,23 @@
 	"assetId": "text-fancy-variety-shadow",
 	"packageId": "text-fancy-variety",
 	"version": 1,
+	"marketplace": {
+		"editorialRank": 18,
+		"heatScore": 91,
+		"remoteTags": [
+			"category:variety",
+			"group:fancy",
+			"variant:shadow",
+			"scene:variety",
+			"effect:pop"
+		],
+		"searchAliases": [
+			"综艺",
+			"弹幕",
+			"爆笑",
+			"variety"
+		]
+	},
 	"definition": {
 		"id": "variety-shadow",
 		"name": "综艺感重影",

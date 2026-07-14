@@ -3,6 +3,22 @@
 	"assetId": "text-templates-split-template-fire",
 	"packageId": "text-templates-split-template",
 	"version": 1,
+	"marketplace": {
+		"editorialRank": 9,
+		"heatScore": 100,
+		"remoteTags": [
+			"category:split-template",
+			"group:templates",
+			"variant:fire",
+			"effect:fire",
+			"tone:hot"
+		],
+		"searchAliases": [
+			"火焰",
+			"热血",
+			"燃"
+		]
+	},
 	"definition": {
 		"id": "split-template-fire",
 		"name": "分屏模板火焰",

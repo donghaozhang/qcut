@@ -3,6 +3,16 @@
 	"assetId": "text-templates-timeline-template-outline",
 	"packageId": "text-templates-timeline-template",
 	"version": 1,
+	"marketplace": {
+		"editorialRank": 120,
+		"heatScore": 81,
+		"remoteTags": [
+			"category:timeline-template",
+			"group:templates",
+			"variant:outline"
+		],
+		"searchAliases": []
+	},
 	"definition": {
 		"id": "timeline-template-outline",
 		"name": "时间线模板描边",

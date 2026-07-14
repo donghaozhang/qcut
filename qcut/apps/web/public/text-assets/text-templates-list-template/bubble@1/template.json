@@ -3,6 +3,16 @@
 	"assetId": "text-templates-list-template-bubble",
 	"packageId": "text-templates-list-template",
 	"version": 1,
+	"marketplace": {
+		"editorialRank": 120,
+		"heatScore": 77,
+		"remoteTags": [
+			"category:list-template",
+			"group:templates",
+			"variant:bubble"
+		],
+		"searchAliases": []
+	},
 	"definition": {
 		"id": "list-template-bubble",
 		"name": "列表模板气泡",

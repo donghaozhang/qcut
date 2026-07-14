@@ -3,6 +3,28 @@
 	"assetId": "text-fancy-variety-glitch",
 	"packageId": "text-fancy-variety",
 	"version": 1,
+	"marketplace": {
+		"editorialRank": 18,
+		"heatScore": 100,
+		"remoteTags": [
+			"category:variety",
+			"group:fancy",
+			"variant:glitch",
+			"scene:variety",
+			"effect:pop",
+			"effect:glitch",
+			"scene:cyber"
+		],
+		"searchAliases": [
+			"综艺",
+			"弹幕",
+			"爆笑",
+			"variety",
+			"故障",
+			"赛博",
+			"抖动"
+		]
+	},
 	"definition": {
 		"id": "variety-glitch",
 		"name": "综艺感故障",

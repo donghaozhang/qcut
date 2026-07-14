@@ -14,6 +14,16 @@
 		"assetId": "text-new-text-caption-ink",
 		"packageId": "text-new-text-caption",
 		"version": 1,
+		"marketplace": {
+			"editorialRank": 120,
+			"heatScore": 81,
+			"remoteTags": [
+				"category:caption",
+				"group:new-text",
+				"variant:ink"
+			],
+			"searchAliases": []
+		},
 		"definition": {
 			"id": "caption-ink",
 			"name": "说明水墨",

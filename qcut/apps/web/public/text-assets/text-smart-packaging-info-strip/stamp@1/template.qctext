@@ -14,6 +14,16 @@
 		"assetId": "text-smart-packaging-info-strip-stamp",
 		"packageId": "text-smart-packaging-info-strip",
 		"version": 1,
+		"marketplace": {
+			"editorialRank": 120,
+			"heatScore": 77,
+			"remoteTags": [
+				"category:info-strip",
+				"group:smart-packaging",
+				"variant:stamp"
+			],
+			"searchAliases": []
+		},
 		"definition": {
 			"id": "info-strip-stamp",
 			"name": "信息条印章",

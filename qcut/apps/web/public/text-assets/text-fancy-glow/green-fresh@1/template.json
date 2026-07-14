@@ -3,6 +3,23 @@
 	"assetId": "text-fancy-glow-green-fresh",
 	"packageId": "text-fancy-glow",
 	"version": 1,
+	"marketplace": {
+		"editorialRank": 14,
+		"heatScore": 91,
+		"remoteTags": [
+			"category:glow",
+			"group:fancy",
+			"variant:green-fresh",
+			"effect:glow",
+			"scene:night"
+		],
+		"searchAliases": [
+			"发光",
+			"霓虹",
+			"夜景",
+			"neon"
+		]
+	},
 	"definition": {
 		"id": "glow-green-fresh",
 		"name": "发光清新",

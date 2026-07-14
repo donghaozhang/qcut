@@ -3,6 +3,16 @@
 	"assetId": "text-smart-packaging-talking-head-pixel",
 	"packageId": "text-smart-packaging-talking-head",
 	"version": 1,
+	"marketplace": {
+		"editorialRank": 120,
+		"heatScore": 77,
+		"remoteTags": [
+			"category:talking-head",
+			"group:smart-packaging",
+			"variant:pixel"
+		],
+		"searchAliases": []
+	},
 	"definition": {
 		"id": "talking-head-pixel",
 		"name": "口播卡片像素",

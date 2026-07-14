@@ -14,6 +14,28 @@
 		"assetId": "text-fancy-guofeng-gold",
 		"packageId": "text-fancy-guofeng",
 		"version": 1,
+		"marketplace": {
+			"editorialRank": 20,
+			"heatScore": 100,
+			"remoteTags": [
+				"category:guofeng",
+				"group:fancy",
+				"variant:gold",
+				"style:guofeng",
+				"scene:culture",
+				"material:gold",
+				"tone:premium"
+			],
+			"searchAliases": [
+				"国风",
+				"国潮",
+				"水墨",
+				"chinoiserie",
+				"金色",
+				"鎏金",
+				"高级"
+			]
+		},
 		"definition": {
 			"id": "guofeng-gold",
 			"name": "国风鎏金",

@@ -14,6 +14,28 @@
 		"assetId": "text-fancy-purple-candy",
 		"packageId": "text-fancy-purple",
 		"version": 1,
+		"marketplace": {
+			"editorialRank": 50,
+			"heatScore": 100,
+			"remoteTags": [
+				"category:purple",
+				"group:fancy",
+				"variant:candy",
+				"color:purple",
+				"tone:dreamy",
+				"style:candy",
+				"tone:cute"
+			],
+			"searchAliases": [
+				"紫色",
+				"梦幻",
+				"高级",
+				"purple",
+				"糖果",
+				"甜",
+				"可爱"
+			]
+		},
 		"definition": {
 			"id": "purple-candy",
 			"name": "紫色糖果",

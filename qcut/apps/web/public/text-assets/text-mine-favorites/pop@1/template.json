@@ -3,6 +3,16 @@
 	"assetId": "text-mine-favorites-pop",
 	"packageId": "text-mine-favorites",
 	"version": 1,
+	"marketplace": {
+		"editorialRank": 120,
+		"heatScore": 81,
+		"remoteTags": [
+			"category:favorites",
+			"group:mine",
+			"variant:pop"
+		],
+		"searchAliases": []
+	},
 	"definition": {
 		"id": "favorites-pop",
 		"name": "收藏弹幕",

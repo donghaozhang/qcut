@@ -3,6 +3,22 @@
 	"assetId": "text-new-text-lower-third-chrome",
 	"packageId": "text-new-text-lower-third",
 	"version": 1,
+	"marketplace": {
+		"editorialRank": 32,
+		"heatScore": 97,
+		"remoteTags": [
+			"category:lower-third",
+			"group:new-text",
+			"variant:chrome",
+			"material:chrome",
+			"tone:premium"
+		],
+		"searchAliases": [
+			"金属",
+			"银色",
+			"质感"
+		]
+	},
 	"definition": {
 		"id": "lower-third-chrome",
 		"name": "角标金属",

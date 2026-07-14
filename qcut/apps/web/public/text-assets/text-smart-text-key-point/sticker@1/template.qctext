@@ -14,6 +14,22 @@
 		"assetId": "text-smart-text-key-point-sticker",
 		"packageId": "text-smart-text-key-point",
 		"version": 1,
+		"marketplace": {
+			"editorialRank": 24,
+			"heatScore": 94,
+			"remoteTags": [
+				"category:key-point",
+				"group:smart-text",
+				"variant:sticker",
+				"style:sticker",
+				"tone:cute"
+			],
+			"searchAliases": [
+				"贴纸",
+				"白边",
+				"可爱"
+			]
+		},
 		"definition": {
 			"id": "key-point-sticker",
 			"name": "重点提取贴纸",

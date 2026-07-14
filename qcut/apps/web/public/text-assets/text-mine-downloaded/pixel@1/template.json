@@ -3,6 +3,16 @@
 	"assetId": "text-mine-downloaded-pixel",
 	"packageId": "text-mine-downloaded",
 	"version": 1,
+	"marketplace": {
+		"editorialRank": 120,
+		"heatScore": 77,
+		"remoteTags": [
+			"category:downloaded",
+			"group:mine",
+			"variant:pixel"
+		],
+		"searchAliases": []
+	},
 	"definition": {
 		"id": "downloaded-pixel",
 		"name": "已下载像素",

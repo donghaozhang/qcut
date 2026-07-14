@@ -14,6 +14,16 @@
 		"assetId": "text-smart-text-summary-outline",
 		"packageId": "text-smart-text-summary",
 		"version": 1,
+		"marketplace": {
+			"editorialRank": 120,
+			"heatScore": 81,
+			"remoteTags": [
+				"category:summary",
+				"group:smart-text",
+				"variant:outline"
+			],
+			"searchAliases": []
+		},
 		"definition": {
 			"id": "summary-outline",
 			"name": "自动摘要描边",

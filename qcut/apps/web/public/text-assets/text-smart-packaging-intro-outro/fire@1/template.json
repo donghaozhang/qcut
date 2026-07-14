@@ -3,6 +3,22 @@
 	"assetId": "text-smart-packaging-intro-outro-fire",
 	"packageId": "text-smart-packaging-intro-outro",
 	"version": 1,
+	"marketplace": {
+		"editorialRank": 9,
+		"heatScore": 100,
+		"remoteTags": [
+			"category:intro-outro",
+			"group:smart-packaging",
+			"variant:fire",
+			"effect:fire",
+			"tone:hot"
+		],
+		"searchAliases": [
+			"火焰",
+			"热血",
+			"燃"
+		]
+	},
 	"definition": {
 		"id": "intro-outro-fire",
 		"name": "片头片尾火焰",

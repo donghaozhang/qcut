@@ -14,6 +14,23 @@
 		"assetId": "text-fancy-variety-cutout",
 		"packageId": "text-fancy-variety",
 		"version": 1,
+		"marketplace": {
+			"editorialRank": 18,
+			"heatScore": 95,
+			"remoteTags": [
+				"category:variety",
+				"group:fancy",
+				"variant:cutout",
+				"scene:variety",
+				"effect:pop"
+			],
+			"searchAliases": [
+				"综艺",
+				"弹幕",
+				"爆笑",
+				"variety"
+			]
+		},
 		"definition": {
 			"id": "variety-cutout",
 			"name": "综艺感剪纸",

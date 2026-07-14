@@ -3,6 +3,28 @@
 	"assetId": "text-fancy-blue-texture-grain",
 	"packageId": "text-fancy-blue",
 	"version": 1,
+	"marketplace": {
+		"editorialRank": 13,
+		"heatScore": 100,
+		"remoteTags": [
+			"category:blue",
+			"group:fancy",
+			"variant:texture-grain",
+			"color:blue",
+			"scene:tech",
+			"material:grain",
+			"effect:texture"
+		],
+		"searchAliases": [
+			"蓝色",
+			"冰蓝",
+			"科技",
+			"blue",
+			"颗粒",
+			"纹理",
+			"质感"
+		]
+	},
 	"definition": {
 		"id": "blue-texture-grain",
 		"name": "蓝色颗粒",

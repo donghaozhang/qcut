@@ -14,6 +14,16 @@
 		"assetId": "text-templates-quote-template-stamp",
 		"packageId": "text-templates-quote-template",
 		"version": 1,
+		"marketplace": {
+			"editorialRank": 120,
+			"heatScore": 77,
+			"remoteTags": [
+				"category:quote-template",
+				"group:templates",
+				"variant:stamp"
+			],
+			"searchAliases": []
+		},
 		"definition": {
 			"id": "quote-template-stamp",
 			"name": "引用模板印章",

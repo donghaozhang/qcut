@@ -14,6 +14,16 @@
 		"assetId": "text-mine-drafts-shadow",
 		"packageId": "text-mine-drafts",
 		"version": 1,
+		"marketplace": {
+			"editorialRank": 120,
+			"heatScore": 77,
+			"remoteTags": [
+				"category:drafts",
+				"group:mine",
+				"variant:shadow"
+			],
+			"searchAliases": []
+		},
 		"definition": {
 			"id": "drafts-shadow",
 			"name": "草稿重影",

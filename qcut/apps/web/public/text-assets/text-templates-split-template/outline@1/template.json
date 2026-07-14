@@ -3,6 +3,16 @@
 	"assetId": "text-templates-split-template-outline",
 	"packageId": "text-templates-split-template",
 	"version": 1,
+	"marketplace": {
+		"editorialRank": 120,
+		"heatScore": 81,
+		"remoteTags": [
+			"category:split-template",
+			"group:templates",
+			"variant:outline"
+		],
+		"searchAliases": []
+	},
 	"definition": {
 		"id": "split-template-outline",
 		"name": "分屏模板描边",

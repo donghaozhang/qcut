@@ -3,6 +3,16 @@
 	"assetId": "text-smart-packaging-cover-pack-plain",
 	"packageId": "text-smart-packaging-cover-pack",
 	"version": 1,
+	"marketplace": {
+		"editorialRank": 120,
+		"heatScore": 77,
+		"remoteTags": [
+			"category:cover-pack",
+			"group:smart-packaging",
+			"variant:plain"
+		],
+		"searchAliases": []
+	},
 	"definition": {
 		"id": "cover-pack-plain",
 		"name": "封面包装基础",

@@ -14,6 +14,23 @@
 		"assetId": "text-fancy-texture-pop",
 		"packageId": "text-fancy-texture",
 		"version": 1,
+		"marketplace": {
+			"editorialRank": 13,
+			"heatScore": 95,
+			"remoteTags": [
+				"category:texture",
+				"group:fancy",
+				"variant:pop",
+				"effect:texture",
+				"market:premium-look"
+			],
+			"searchAliases": [
+				"纹理",
+				"材质",
+				"质感",
+				"texture"
+			]
+		},
 		"definition": {
 			"id": "texture-pop",
 			"name": "纹理弹幕",

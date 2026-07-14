@@ -14,6 +14,22 @@
 		"assetId": "text-new-text-title-sticker",
 		"packageId": "text-new-text-title",
 		"version": 1,
+		"marketplace": {
+			"editorialRank": 24,
+			"heatScore": 94,
+			"remoteTags": [
+				"category:title",
+				"group:new-text",
+				"variant:sticker",
+				"style:sticker",
+				"tone:cute"
+			],
+			"searchAliases": [
+				"贴纸",
+				"白边",
+				"可爱"
+			]
+		},
 		"definition": {
 			"id": "title-sticker",
 			"name": "标题贴纸",

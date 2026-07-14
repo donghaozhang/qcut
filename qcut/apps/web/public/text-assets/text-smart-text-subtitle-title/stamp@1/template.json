@@ -3,6 +3,16 @@
 	"assetId": "text-smart-text-subtitle-title-stamp",
 	"packageId": "text-smart-text-subtitle-title",
 	"version": 1,
+	"marketplace": {
+		"editorialRank": 120,
+		"heatScore": 77,
+		"remoteTags": [
+			"category:subtitle-title",
+			"group:smart-text",
+			"variant:stamp"
+		],
+		"searchAliases": []
+	},
 	"definition": {
 		"id": "subtitle-title-stamp",
 		"name": "字幕转标题印章",

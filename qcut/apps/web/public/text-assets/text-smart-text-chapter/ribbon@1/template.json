@@ -3,6 +3,16 @@
 	"assetId": "text-smart-text-chapter-ribbon",
 	"packageId": "text-smart-text-chapter",
 	"version": 1,
+	"marketplace": {
+		"editorialRank": 120,
+		"heatScore": 81,
+		"remoteTags": [
+			"category:chapter",
+			"group:smart-text",
+			"variant:ribbon"
+		],
+		"searchAliases": []
+	},
 	"definition": {
 		"id": "chapter-ribbon",
 		"name": "章节标题飘带",

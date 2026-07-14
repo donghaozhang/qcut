@@ -3,6 +3,16 @@
 	"assetId": "text-smart-text-rewrite-glass",
 	"packageId": "text-smart-text-rewrite",
 	"version": 1,
+	"marketplace": {
+		"editorialRank": 120,
+		"heatScore": 81,
+		"remoteTags": [
+			"category:rewrite",
+			"group:smart-text",
+			"variant:glass"
+		],
+		"searchAliases": []
+	},
 	"definition": {
 		"id": "rewrite-glass",
 		"name": "AI改写玻璃",

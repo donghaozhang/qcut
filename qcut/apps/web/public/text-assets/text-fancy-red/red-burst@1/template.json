@@ -3,6 +3,27 @@
 	"assetId": "text-fancy-red-red-burst",
 	"packageId": "text-fancy-red",
 	"version": 1,
+	"marketplace": {
+		"editorialRank": 2,
+		"heatScore": 100,
+		"remoteTags": [
+			"category:red",
+			"group:fancy",
+			"variant:red-burst",
+			"color:red",
+			"scene:commerce",
+			"effect:burst",
+			"market:hero"
+		],
+		"searchAliases": [
+			"红色",
+			"爆红",
+			"促销",
+			"red",
+			"爆款",
+			"放射"
+		]
+	},
 	"definition": {
 		"id": "red-red-burst",
 		"name": "红色爆红",

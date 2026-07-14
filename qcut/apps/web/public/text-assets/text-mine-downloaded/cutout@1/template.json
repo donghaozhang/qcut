@@ -3,6 +3,16 @@
 	"assetId": "text-mine-downloaded-cutout",
 	"packageId": "text-mine-downloaded",
 	"version": 1,
+	"marketplace": {
+		"editorialRank": 120,
+		"heatScore": 81,
+		"remoteTags": [
+			"category:downloaded",
+			"group:mine",
+			"variant:cutout"
+		],
+		"searchAliases": []
+	},
 	"definition": {
 		"id": "downloaded-cutout",
 		"name": "已下载剪纸",

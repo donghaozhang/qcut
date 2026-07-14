@@ -14,6 +14,22 @@
 		"assetId": "text-smart-text-subtitle-title-comic",
 		"packageId": "text-smart-text-subtitle-title",
 		"version": 1,
+		"marketplace": {
+			"editorialRank": 19,
+			"heatScore": 99,
+			"remoteTags": [
+				"category:subtitle-title",
+				"group:smart-text",
+				"variant:comic",
+				"style:comic",
+				"effect:burst"
+			],
+			"searchAliases": [
+				"漫画",
+				"爆炸",
+				"综艺"
+			]
+		},
 		"definition": {
 			"id": "subtitle-title-comic",
 			"name": "字幕转标题漫画",

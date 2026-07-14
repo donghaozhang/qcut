@@ -3,6 +3,27 @@
 	"assetId": "text-fancy-popular-red-burst",
 	"packageId": "text-fancy-popular",
 	"version": 1,
+	"marketplace": {
+		"editorialRank": 2,
+		"heatScore": 100,
+		"remoteTags": [
+			"category:popular",
+			"group:fancy",
+			"variant:red-burst",
+			"collection:popular",
+			"market:recommended",
+			"effect:burst",
+			"market:hero"
+		],
+		"searchAliases": [
+			"热门",
+			"爆款",
+			"推荐",
+			"popular",
+			"爆红",
+			"放射"
+		]
+	},
 	"definition": {
 		"id": "popular-red-burst",
 		"name": "热门爆红",

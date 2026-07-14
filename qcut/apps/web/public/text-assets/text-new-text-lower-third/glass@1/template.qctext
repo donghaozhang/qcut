@@ -14,6 +14,16 @@
 		"assetId": "text-new-text-lower-third-glass",
 		"packageId": "text-new-text-lower-third",
 		"version": 1,
+		"marketplace": {
+			"editorialRank": 120,
+			"heatScore": 81,
+			"remoteTags": [
+				"category:lower-third",
+				"group:new-text",
+				"variant:glass"
+			],
+			"searchAliases": []
+		},
 		"definition": {
 			"id": "lower-third-glass",
 			"name": "角标玻璃",

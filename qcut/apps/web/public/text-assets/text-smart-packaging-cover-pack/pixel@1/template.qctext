@@ -14,6 +14,16 @@
 		"assetId": "text-smart-packaging-cover-pack-pixel",
 		"packageId": "text-smart-packaging-cover-pack",
 		"version": 1,
+		"marketplace": {
+			"editorialRank": 120,
+			"heatScore": 77,
+			"remoteTags": [
+				"category:cover-pack",
+				"group:smart-packaging",
+				"variant:pixel"
+			],
+			"searchAliases": []
+		},
 		"definition": {
 			"id": "cover-pack-pixel",
 			"name": "封面包装像素",

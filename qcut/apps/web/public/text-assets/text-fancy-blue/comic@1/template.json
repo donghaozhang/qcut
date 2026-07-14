@@ -3,6 +3,28 @@
 	"assetId": "text-fancy-blue-comic",
 	"packageId": "text-fancy-blue",
 	"version": 1,
+	"marketplace": {
+		"editorialRank": 19,
+		"heatScore": 100,
+		"remoteTags": [
+			"category:blue",
+			"group:fancy",
+			"variant:comic",
+			"color:blue",
+			"scene:tech",
+			"style:comic",
+			"effect:burst"
+		],
+		"searchAliases": [
+			"蓝色",
+			"冰蓝",
+			"科技",
+			"blue",
+			"漫画",
+			"爆炸",
+			"综艺"
+		]
+	},
 	"definition": {
 		"id": "blue-comic",
 		"name": "蓝色漫画",

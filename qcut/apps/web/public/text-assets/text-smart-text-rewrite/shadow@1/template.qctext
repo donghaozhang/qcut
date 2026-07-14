@@ -14,6 +14,16 @@
 		"assetId": "text-smart-text-rewrite-shadow",
 		"packageId": "text-smart-text-rewrite",
 		"version": 1,
+		"marketplace": {
+			"editorialRank": 120,
+			"heatScore": 77,
+			"remoteTags": [
+				"category:rewrite",
+				"group:smart-text",
+				"variant:shadow"
+			],
+			"searchAliases": []
+		},
 		"definition": {
 			"id": "rewrite-shadow",
 			"name": "AI改写重影",

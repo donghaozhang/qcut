@@ -3,6 +3,22 @@
 	"assetId": "text-smart-packaging-intro-outro-sticker",
 	"packageId": "text-smart-packaging-intro-outro",
 	"version": 1,
+	"marketplace": {
+		"editorialRank": 24,
+		"heatScore": 94,
+		"remoteTags": [
+			"category:intro-outro",
+			"group:smart-packaging",
+			"variant:sticker",
+			"style:sticker",
+			"tone:cute"
+		],
+		"searchAliases": [
+			"贴纸",
+			"白边",
+			"可爱"
+		]
+	},
 	"definition": {
 		"id": "intro-outro-sticker",
 		"name": "片头片尾贴纸",

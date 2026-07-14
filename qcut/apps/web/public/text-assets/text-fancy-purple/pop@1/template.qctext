@@ -14,6 +14,23 @@
 		"assetId": "text-fancy-purple-pop",
 		"packageId": "text-fancy-purple",
 		"version": 1,
+		"marketplace": {
+			"editorialRank": 50,
+			"heatScore": 90,
+			"remoteTags": [
+				"category:purple",
+				"group:fancy",
+				"variant:pop",
+				"color:purple",
+				"tone:dreamy"
+			],
+			"searchAliases": [
+				"紫色",
+				"梦幻",
+				"高级",
+				"purple"
+			]
+		},
 		"definition": {
 			"id": "purple-pop",
 			"name": "紫色弹幕",

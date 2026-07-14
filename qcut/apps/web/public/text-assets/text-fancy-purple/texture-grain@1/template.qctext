@@ -14,6 +14,28 @@
 		"assetId": "text-fancy-purple-texture-grain",
 		"packageId": "text-fancy-purple",
 		"version": 1,
+		"marketplace": {
+			"editorialRank": 13,
+			"heatScore": 100,
+			"remoteTags": [
+				"category:purple",
+				"group:fancy",
+				"variant:texture-grain",
+				"color:purple",
+				"tone:dreamy",
+				"material:grain",
+				"effect:texture"
+			],
+			"searchAliases": [
+				"紫色",
+				"梦幻",
+				"高级",
+				"purple",
+				"颗粒",
+				"纹理",
+				"质感"
+			]
+		},
 		"definition": {
 			"id": "purple-texture-grain",
 			"name": "紫色颗粒",

@@ -14,6 +14,28 @@
 		"assetId": "text-fancy-blue-chrome",
 		"packageId": "text-fancy-blue",
 		"version": 1,
+		"marketplace": {
+			"editorialRank": 30,
+			"heatScore": 100,
+			"remoteTags": [
+				"category:blue",
+				"group:fancy",
+				"variant:chrome",
+				"color:blue",
+				"scene:tech",
+				"material:chrome",
+				"tone:premium"
+			],
+			"searchAliases": [
+				"蓝色",
+				"冰蓝",
+				"科技",
+				"blue",
+				"金属",
+				"银色",
+				"质感"
+			]
+		},
 		"definition": {
 			"id": "blue-chrome",
 			"name": "蓝色金属",

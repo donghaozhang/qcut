@@ -14,6 +14,22 @@
 		"assetId": "text-mine-recent-gold",
 		"packageId": "text-mine-recent",
 		"version": 1,
+		"marketplace": {
+			"editorialRank": 22,
+			"heatScore": 98,
+			"remoteTags": [
+				"category:recent",
+				"group:mine",
+				"variant:gold",
+				"material:gold",
+				"tone:premium"
+			],
+			"searchAliases": [
+				"金色",
+				"鎏金",
+				"高级"
+			]
+		},
 		"definition": {
 			"id": "recent-gold",
 			"name": "最近使用鎏金",

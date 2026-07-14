@@ -3,6 +3,28 @@
 	"assetId": "text-fancy-summer-gradient-shine",
 	"packageId": "text-fancy-summer",
 	"version": 1,
+	"marketplace": {
+		"editorialRank": 11,
+		"heatScore": 100,
+		"remoteTags": [
+			"category:summer",
+			"group:fancy",
+			"variant:gradient-shine",
+			"season:summer",
+			"tone:fresh",
+			"effect:shine",
+			"effect:gradient"
+		],
+		"searchAliases": [
+			"夏日",
+			"清爽",
+			"活动",
+			"summer",
+			"流光",
+			"渐变",
+			"高光"
+		]
+	},
 	"definition": {
 		"id": "summer-gradient-shine",
 		"name": "夏日流光",

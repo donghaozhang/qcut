@@ -14,6 +14,16 @@
 		"assetId": "text-smart-text-subtitle-title-glass",
 		"packageId": "text-smart-text-subtitle-title",
 		"version": 1,
+		"marketplace": {
+			"editorialRank": 120,
+			"heatScore": 81,
+			"remoteTags": [
+				"category:subtitle-title",
+				"group:smart-text",
+				"variant:glass"
+			],
+			"searchAliases": []
+		},
 		"definition": {
 			"id": "subtitle-title-glass",
 			"name": "字幕转标题玻璃",

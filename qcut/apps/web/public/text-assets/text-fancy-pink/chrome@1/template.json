@@ -3,6 +3,28 @@
 	"assetId": "text-fancy-pink-chrome",
 	"packageId": "text-fancy-pink",
 	"version": 1,
+	"marketplace": {
+		"editorialRank": 32,
+		"heatScore": 100,
+		"remoteTags": [
+			"category:pink",
+			"group:fancy",
+			"variant:chrome",
+			"color:pink",
+			"tone:cute",
+			"material:chrome",
+			"tone:premium"
+		],
+		"searchAliases": [
+			"粉色",
+			"甜心",
+			"可爱",
+			"pink",
+			"金属",
+			"银色",
+			"质感"
+		]
+	},
 	"definition": {
 		"id": "pink-chrome",
 		"name": "粉色金属",

@@ -14,6 +14,23 @@
 		"assetId": "text-fancy-blue-pop",
 		"packageId": "text-fancy-blue",
 		"version": 1,
+		"marketplace": {
+			"editorialRank": 30,
+			"heatScore": 92,
+			"remoteTags": [
+				"category:blue",
+				"group:fancy",
+				"variant:pop",
+				"color:blue",
+				"scene:tech"
+			],
+			"searchAliases": [
+				"蓝色",
+				"冰蓝",
+				"科技",
+				"blue"
+			]
+		},
 		"definition": {
 			"id": "blue-pop",
 			"name": "蓝色弹幕",

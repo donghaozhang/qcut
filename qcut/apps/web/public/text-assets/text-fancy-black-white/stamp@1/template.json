@@ -3,6 +3,23 @@
 	"assetId": "text-fancy-black-white-stamp",
 	"packageId": "text-fancy-black-white",
 	"version": 1,
+	"marketplace": {
+		"editorialRank": 42,
+		"heatScore": 87,
+		"remoteTags": [
+			"category:black-white",
+			"group:fancy",
+			"variant:stamp",
+			"color:black-white",
+			"tone:classic"
+		],
+		"searchAliases": [
+			"黑白",
+			"高对比",
+			"经典",
+			"bw"
+		]
+	},
 	"definition": {
 		"id": "black-white-stamp",
 		"name": "黑白印章",

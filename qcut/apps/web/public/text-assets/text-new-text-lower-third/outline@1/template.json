@@ -3,6 +3,16 @@
 	"assetId": "text-new-text-lower-third-outline",
 	"packageId": "text-new-text-lower-third",
 	"version": 1,
+	"marketplace": {
+		"editorialRank": 120,
+		"heatScore": 81,
+		"remoteTags": [
+			"category:lower-third",
+			"group:new-text",
+			"variant:outline"
+		],
+		"searchAliases": []
+	},
 	"definition": {
 		"id": "lower-third-outline",
 		"name": "角标描边",

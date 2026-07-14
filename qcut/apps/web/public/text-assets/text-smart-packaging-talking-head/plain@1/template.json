@@ -3,6 +3,16 @@
 	"assetId": "text-smart-packaging-talking-head-plain",
 	"packageId": "text-smart-packaging-talking-head",
 	"version": 1,
+	"marketplace": {
+		"editorialRank": 120,
+		"heatScore": 77,
+		"remoteTags": [
+			"category:talking-head",
+			"group:smart-packaging",
+			"variant:plain"
+		],
+		"searchAliases": []
+	},
 	"definition": {
 		"id": "talking-head-plain",
 		"name": "口播卡片基础",

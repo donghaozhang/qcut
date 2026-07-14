@@ -3,6 +3,16 @@
 	"assetId": "text-templates-list-template-label",
 	"packageId": "text-templates-list-template",
 	"version": 1,
+	"marketplace": {
+		"editorialRank": 120,
+		"heatScore": 77,
+		"remoteTags": [
+			"category:list-template",
+			"group:templates",
+			"variant:label"
+		],
+		"searchAliases": []
+	},
 	"definition": {
 		"id": "list-template-label",
 		"name": "列表模板标签",

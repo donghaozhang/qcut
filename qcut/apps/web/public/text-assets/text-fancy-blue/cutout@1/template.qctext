@@ -14,6 +14,23 @@
 		"assetId": "text-fancy-blue-cutout",
 		"packageId": "text-fancy-blue",
 		"version": 1,
+		"marketplace": {
+			"editorialRank": 30,
+			"heatScore": 92,
+			"remoteTags": [
+				"category:blue",
+				"group:fancy",
+				"variant:cutout",
+				"color:blue",
+				"scene:tech"
+			],
+			"searchAliases": [
+				"蓝色",
+				"冰蓝",
+				"科技",
+				"blue"
+			]
+		},
 		"definition": {
 			"id": "blue-cutout",
 			"name": "蓝色剪纸",

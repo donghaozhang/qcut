@@ -3,6 +3,16 @@
 	"assetId": "text-mine-brand-kit-warning",
 	"packageId": "text-mine-brand-kit",
 	"version": 1,
+	"marketplace": {
+		"editorialRank": 120,
+		"heatScore": 77,
+		"remoteTags": [
+			"category:brand-kit",
+			"group:mine",
+			"variant:warning"
+		],
+		"searchAliases": []
+	},
 	"definition": {
 		"id": "brand-kit-warning",
 		"name": "品牌字警示",

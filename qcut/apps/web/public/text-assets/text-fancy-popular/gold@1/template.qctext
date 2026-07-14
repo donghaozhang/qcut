@@ -14,6 +14,28 @@
 		"assetId": "text-fancy-popular-gold",
 		"packageId": "text-fancy-popular",
 		"version": 1,
+		"marketplace": {
+			"editorialRank": 4,
+			"heatScore": 100,
+			"remoteTags": [
+				"category:popular",
+				"group:fancy",
+				"variant:gold",
+				"collection:popular",
+				"market:recommended",
+				"material:gold",
+				"tone:premium"
+			],
+			"searchAliases": [
+				"热门",
+				"爆款",
+				"推荐",
+				"popular",
+				"金色",
+				"鎏金",
+				"高级"
+			]
+		},
 		"definition": {
 			"id": "popular-gold",
 			"name": "热门鎏金",

@@ -14,6 +14,16 @@
 		"assetId": "text-smart-packaging-cover-pack-stamp",
 		"packageId": "text-smart-packaging-cover-pack",
 		"version": 1,
+		"marketplace": {
+			"editorialRank": 120,
+			"heatScore": 77,
+			"remoteTags": [
+				"category:cover-pack",
+				"group:smart-packaging",
+				"variant:stamp"
+			],
+			"searchAliases": []
+		},
 		"definition": {
 			"id": "cover-pack-stamp",
 			"name": "封面包装印章",

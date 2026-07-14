@@ -14,6 +14,22 @@
 		"assetId": "text-mine-brand-kit-fire",
 		"packageId": "text-mine-brand-kit",
 		"version": 1,
+		"marketplace": {
+			"editorialRank": 9,
+			"heatScore": 100,
+			"remoteTags": [
+				"category:brand-kit",
+				"group:mine",
+				"variant:fire",
+				"effect:fire",
+				"tone:hot"
+			],
+			"searchAliases": [
+				"火焰",
+				"热血",
+				"燃"
+			]
+		},
 		"definition": {
 			"id": "brand-kit-fire",
 			"name": "品牌字火焰",

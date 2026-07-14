@@ -3,6 +3,22 @@
 	"assetId": "text-smart-packaging-cover-pack-fire",
 	"packageId": "text-smart-packaging-cover-pack",
 	"version": 1,
+	"marketplace": {
+		"editorialRank": 9,
+		"heatScore": 100,
+		"remoteTags": [
+			"category:cover-pack",
+			"group:smart-packaging",
+			"variant:fire",
+			"effect:fire",
+			"tone:hot"
+		],
+		"searchAliases": [
+			"火焰",
+			"热血",
+			"燃"
+		]
+	},
 	"definition": {
 		"id": "cover-pack-fire",
 		"name": "封面包装火焰",

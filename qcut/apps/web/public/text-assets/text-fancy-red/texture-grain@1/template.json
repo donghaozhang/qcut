@@ -3,6 +3,28 @@
 	"assetId": "text-fancy-red-texture-grain",
 	"packageId": "text-fancy-red",
 	"version": 1,
+	"marketplace": {
+		"editorialRank": 8,
+		"heatScore": 100,
+		"remoteTags": [
+			"category:red",
+			"group:fancy",
+			"variant:texture-grain",
+			"color:red",
+			"scene:commerce",
+			"material:grain",
+			"effect:texture"
+		],
+		"searchAliases": [
+			"红色",
+			"爆红",
+			"促销",
+			"red",
+			"颗粒",
+			"纹理",
+			"质感"
+		]
+	},
 	"definition": {
 		"id": "red-texture-grain",
 		"name": "红色颗粒",

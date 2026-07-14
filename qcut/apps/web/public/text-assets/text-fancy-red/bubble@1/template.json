@@ -3,6 +3,23 @@
 	"assetId": "text-fancy-red-bubble",
 	"packageId": "text-fancy-red",
 	"version": 1,
+	"marketplace": {
+		"editorialRank": 8,
+		"heatScore": 92,
+		"remoteTags": [
+			"category:red",
+			"group:fancy",
+			"variant:bubble",
+			"color:red",
+			"scene:commerce"
+		],
+		"searchAliases": [
+			"红色",
+			"爆红",
+			"促销",
+			"red"
+		]
+	},
 	"definition": {
 		"id": "red-bubble",
 		"name": "红色气泡",

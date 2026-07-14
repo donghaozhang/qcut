@@ -3,6 +3,16 @@
 	"assetId": "text-smart-packaging-talking-head-soft-card",
 	"packageId": "text-smart-packaging-talking-head",
 	"version": 1,
+	"marketplace": {
+		"editorialRank": 120,
+		"heatScore": 77,
+		"remoteTags": [
+			"category:talking-head",
+			"group:smart-packaging",
+			"variant:soft-card"
+		],
+		"searchAliases": []
+	},
 	"definition": {
 		"id": "talking-head-soft-card",
 		"name": "口播卡片柔卡",

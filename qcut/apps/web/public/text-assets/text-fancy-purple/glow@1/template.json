@@ -3,6 +3,28 @@
 	"assetId": "text-fancy-purple-glow",
 	"packageId": "text-fancy-purple",
 	"version": 1,
+	"marketplace": {
+		"editorialRank": 15,
+		"heatScore": 100,
+		"remoteTags": [
+			"category:purple",
+			"group:fancy",
+			"variant:glow",
+			"color:purple",
+			"tone:dreamy",
+			"effect:glow",
+			"scene:night"
+		],
+		"searchAliases": [
+			"紫色",
+			"梦幻",
+			"高级",
+			"purple",
+			"发光",
+			"霓虹",
+			"夜景"
+		]
+	},
 	"definition": {
 		"id": "purple-glow",
 		"name": "紫色发光",

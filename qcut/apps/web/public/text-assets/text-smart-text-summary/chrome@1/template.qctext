@@ -14,6 +14,22 @@
 		"assetId": "text-smart-text-summary-chrome",
 		"packageId": "text-smart-text-summary",
 		"version": 1,
+		"marketplace": {
+			"editorialRank": 32,
+			"heatScore": 97,
+			"remoteTags": [
+				"category:summary",
+				"group:smart-text",
+				"variant:chrome",
+				"material:chrome",
+				"tone:premium"
+			],
+			"searchAliases": [
+				"金属",
+				"银色",
+				"质感"
+			]
+		},
 		"definition": {
 			"id": "summary-chrome",
 			"name": "自动摘要金属",

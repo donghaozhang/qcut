@@ -3,6 +3,22 @@
 	"assetId": "text-smart-packaging-info-strip-comic",
 	"packageId": "text-smart-packaging-info-strip",
 	"version": 1,
+	"marketplace": {
+		"editorialRank": 19,
+		"heatScore": 99,
+		"remoteTags": [
+			"category:info-strip",
+			"group:smart-packaging",
+			"variant:comic",
+			"style:comic",
+			"effect:burst"
+		],
+		"searchAliases": [
+			"漫画",
+			"爆炸",
+			"综艺"
+		]
+	},
 	"definition": {
 		"id": "info-strip-comic",
 		"name": "信息条漫画",

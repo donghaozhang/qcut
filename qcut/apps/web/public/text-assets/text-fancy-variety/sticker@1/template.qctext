@@ -14,6 +14,28 @@
 		"assetId": "text-fancy-variety-sticker",
 		"packageId": "text-fancy-variety",
 		"version": 1,
+		"marketplace": {
+			"editorialRank": 18,
+			"heatScore": 100,
+			"remoteTags": [
+				"category:variety",
+				"group:fancy",
+				"variant:sticker",
+				"scene:variety",
+				"effect:pop",
+				"style:sticker",
+				"tone:cute"
+			],
+			"searchAliases": [
+				"综艺",
+				"弹幕",
+				"爆笑",
+				"variety",
+				"贴纸",
+				"白边",
+				"可爱"
+			]
+		},
 		"definition": {
 			"id": "variety-sticker",
 			"name": "综艺感贴纸",

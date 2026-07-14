@@ -3,6 +3,16 @@
 	"assetId": "text-templates-headline-template-glass",
 	"packageId": "text-templates-headline-template",
 	"version": 1,
+	"marketplace": {
+		"editorialRank": 120,
+		"heatScore": 81,
+		"remoteTags": [
+			"category:headline-template",
+			"group:templates",
+			"variant:glass"
+		],
+		"searchAliases": []
+	},
 	"definition": {
 		"id": "headline-template-glass",
 		"name": "标题模板玻璃",

@@ -3,6 +3,28 @@
 	"assetId": "text-fancy-gradient-fire",
 	"packageId": "text-fancy-gradient",
 	"version": 1,
+	"marketplace": {
+		"editorialRank": 9,
+		"heatScore": 100,
+		"remoteTags": [
+			"category:gradient",
+			"group:fancy",
+			"variant:fire",
+			"effect:gradient",
+			"tone:dreamy",
+			"effect:fire",
+			"tone:hot"
+		],
+		"searchAliases": [
+			"渐变",
+			"流光",
+			"梦幻",
+			"gradient",
+			"火焰",
+			"热血",
+			"燃"
+		]
+	},
 	"definition": {
 		"id": "gradient-fire",
 		"name": "渐变火焰",

@@ -3,6 +3,16 @@
 	"assetId": "text-new-text-caption-warning",
 	"packageId": "text-new-text-caption",
 	"version": 1,
+	"marketplace": {
+		"editorialRank": 120,
+		"heatScore": 77,
+		"remoteTags": [
+			"category:caption",
+			"group:new-text",
+			"variant:warning"
+		],
+		"searchAliases": []
+	},
 	"definition": {
 		"id": "caption-warning",
 		"name": "说明警示",

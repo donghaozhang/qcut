@@ -3,6 +3,16 @@
 	"assetId": "text-mine-brand-kit-soft-card",
 	"packageId": "text-mine-brand-kit",
 	"version": 1,
+	"marketplace": {
+		"editorialRank": 120,
+		"heatScore": 77,
+		"remoteTags": [
+			"category:brand-kit",
+			"group:mine",
+			"variant:soft-card"
+		],
+		"searchAliases": []
+	},
 	"definition": {
 		"id": "brand-kit-soft-card",
 		"name": "品牌字柔卡",

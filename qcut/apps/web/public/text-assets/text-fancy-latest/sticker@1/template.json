@@ -3,6 +3,27 @@
 	"assetId": "text-fancy-latest-sticker",
 	"packageId": "text-fancy-latest",
 	"version": 1,
+	"marketplace": {
+		"editorialRank": 16,
+		"heatScore": 100,
+		"remoteTags": [
+			"category:latest",
+			"group:fancy",
+			"variant:sticker",
+			"collection:latest",
+			"market:new",
+			"style:sticker",
+			"tone:cute"
+		],
+		"searchAliases": [
+			"最新",
+			"上新",
+			"new",
+			"贴纸",
+			"白边",
+			"可爱"
+		]
+	},
 	"definition": {
 		"id": "latest-sticker",
 		"name": "最新贴纸",

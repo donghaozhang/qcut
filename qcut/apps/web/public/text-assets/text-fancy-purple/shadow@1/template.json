@@ -3,6 +3,23 @@
 	"assetId": "text-fancy-purple-shadow",
 	"packageId": "text-fancy-purple",
 	"version": 1,
+	"marketplace": {
+		"editorialRank": 50,
+		"heatScore": 86,
+		"remoteTags": [
+			"category:purple",
+			"group:fancy",
+			"variant:shadow",
+			"color:purple",
+			"tone:dreamy"
+		],
+		"searchAliases": [
+			"紫色",
+			"梦幻",
+			"高级",
+			"purple"
+		]
+	},
 	"definition": {
 		"id": "purple-shadow",
 		"name": "紫色重影",

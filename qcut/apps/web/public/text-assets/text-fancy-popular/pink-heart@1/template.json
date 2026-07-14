@@ -3,6 +3,23 @@
 	"assetId": "text-fancy-popular-pink-heart",
 	"packageId": "text-fancy-popular",
 	"version": 1,
+	"marketplace": {
+		"editorialRank": 4,
+		"heatScore": 93,
+		"remoteTags": [
+			"category:popular",
+			"group:fancy",
+			"variant:pink-heart",
+			"collection:popular",
+			"market:recommended"
+		],
+		"searchAliases": [
+			"热门",
+			"爆款",
+			"推荐",
+			"popular"
+		]
+	},
 	"definition": {
 		"id": "popular-pink-heart",
 		"name": "热门甜心",

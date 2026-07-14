@@ -3,6 +3,16 @@
 	"assetId": "text-new-text-lower-third-pop",
 	"packageId": "text-new-text-lower-third",
 	"version": 1,
+	"marketplace": {
+		"editorialRank": 120,
+		"heatScore": 81,
+		"remoteTags": [
+			"category:lower-third",
+			"group:new-text",
+			"variant:pop"
+		],
+		"searchAliases": []
+	},
 	"definition": {
 		"id": "lower-third-pop",
 		"name": "角标弹幕",

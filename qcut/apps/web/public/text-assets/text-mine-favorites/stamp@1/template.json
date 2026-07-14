@@ -3,6 +3,16 @@
 	"assetId": "text-mine-favorites-stamp",
 	"packageId": "text-mine-favorites",
 	"version": 1,
+	"marketplace": {
+		"editorialRank": 120,
+		"heatScore": 77,
+		"remoteTags": [
+			"category:favorites",
+			"group:mine",
+			"variant:stamp"
+		],
+		"searchAliases": []
+	},
 	"definition": {
 		"id": "favorites-stamp",
 		"name": "收藏印章",

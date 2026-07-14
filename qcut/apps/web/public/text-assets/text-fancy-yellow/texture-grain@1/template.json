@@ -3,6 +3,28 @@
 	"assetId": "text-fancy-yellow-texture-grain",
 	"packageId": "text-fancy-yellow",
 	"version": 1,
+	"marketplace": {
+		"editorialRank": 13,
+		"heatScore": 100,
+		"remoteTags": [
+			"category:yellow",
+			"group:fancy",
+			"variant:texture-grain",
+			"color:yellow",
+			"tone:bright",
+			"material:grain",
+			"effect:texture"
+		],
+		"searchAliases": [
+			"黄色",
+			"醒目",
+			"高亮",
+			"yellow",
+			"颗粒",
+			"纹理",
+			"质感"
+		]
+	},
 	"definition": {
 		"id": "yellow-texture-grain",
 		"name": "黄色颗粒",

@@ -14,6 +14,22 @@
 		"assetId": "text-mine-favorites-gold",
 		"packageId": "text-mine-favorites",
 		"version": 1,
+		"marketplace": {
+			"editorialRank": 22,
+			"heatScore": 98,
+			"remoteTags": [
+				"category:favorites",
+				"group:mine",
+				"variant:gold",
+				"material:gold",
+				"tone:premium"
+			],
+			"searchAliases": [
+				"金色",
+				"鎏金",
+				"高级"
+			]
+		},
 		"definition": {
 			"id": "favorites-gold",
 			"name": "收藏鎏金",

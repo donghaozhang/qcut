@@ -3,6 +3,16 @@
 	"assetId": "text-mine-favorites-glass",
 	"packageId": "text-mine-favorites",
 	"version": 1,
+	"marketplace": {
+		"editorialRank": 120,
+		"heatScore": 81,
+		"remoteTags": [
+			"category:favorites",
+			"group:mine",
+			"variant:glass"
+		],
+		"searchAliases": []
+	},
 	"definition": {
 		"id": "favorites-glass",
 		"name": "收藏玻璃",

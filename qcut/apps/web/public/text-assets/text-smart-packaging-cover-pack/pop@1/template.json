@@ -3,6 +3,16 @@
 	"assetId": "text-smart-packaging-cover-pack-pop",
 	"packageId": "text-smart-packaging-cover-pack",
 	"version": 1,
+	"marketplace": {
+		"editorialRank": 120,
+		"heatScore": 81,
+		"remoteTags": [
+			"category:cover-pack",
+			"group:smart-packaging",
+			"variant:pop"
+		],
+		"searchAliases": []
+	},
 	"definition": {
 		"id": "cover-pack-pop",
 		"name": "封面包装弹幕",

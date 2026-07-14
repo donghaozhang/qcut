@@ -3,6 +3,16 @@
 	"assetId": "text-mine-recent-ribbon",
 	"packageId": "text-mine-recent",
 	"version": 1,
+	"marketplace": {
+		"editorialRank": 120,
+		"heatScore": 81,
+		"remoteTags": [
+			"category:recent",
+			"group:mine",
+			"variant:ribbon"
+		],
+		"searchAliases": []
+	},
 	"definition": {
 		"id": "recent-ribbon",
 		"name": "最近使用飘带",

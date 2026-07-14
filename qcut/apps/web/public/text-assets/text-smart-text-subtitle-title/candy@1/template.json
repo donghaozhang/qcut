@@ -3,6 +3,22 @@
 	"assetId": "text-smart-text-subtitle-title-candy",
 	"packageId": "text-smart-text-subtitle-title",
 	"version": 1,
+	"marketplace": {
+		"editorialRank": 58,
+		"heatScore": 93,
+		"remoteTags": [
+			"category:subtitle-title",
+			"group:smart-text",
+			"variant:candy",
+			"style:candy",
+			"tone:cute"
+		],
+		"searchAliases": [
+			"糖果",
+			"甜",
+			"可爱"
+		]
+	},
 	"definition": {
 		"id": "subtitle-title-candy",
 		"name": "字幕转标题糖果",

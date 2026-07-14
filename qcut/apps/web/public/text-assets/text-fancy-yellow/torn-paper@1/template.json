@@ -3,6 +3,28 @@
 	"assetId": "text-fancy-yellow-torn-paper",
 	"packageId": "text-fancy-yellow",
 	"version": 1,
+	"marketplace": {
+		"editorialRank": 26,
+		"heatScore": 100,
+		"remoteTags": [
+			"category:yellow",
+			"group:fancy",
+			"variant:torn-paper",
+			"color:yellow",
+			"tone:bright",
+			"material:paper",
+			"style:collage"
+		],
+		"searchAliases": [
+			"黄色",
+			"醒目",
+			"高亮",
+			"yellow",
+			"撕纸",
+			"纸张",
+			"拼贴"
+		]
+	},
 	"definition": {
 		"id": "yellow-torn-paper",
 		"name": "黄色撕纸",

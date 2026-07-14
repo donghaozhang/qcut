@@ -3,6 +3,28 @@
 	"assetId": "text-fancy-glow-lava",
 	"packageId": "text-fancy-glow",
 	"version": 1,
+	"marketplace": {
+		"editorialRank": 14,
+		"heatScore": 100,
+		"remoteTags": [
+			"category:glow",
+			"group:fancy",
+			"variant:lava",
+			"effect:glow",
+			"scene:night",
+			"effect:lava",
+			"tone:hot"
+		],
+		"searchAliases": [
+			"发光",
+			"霓虹",
+			"夜景",
+			"neon",
+			"熔岩",
+			"热血",
+			"火"
+		]
+	},
 	"definition": {
 		"id": "glow-lava",
 		"name": "发光熔岩",

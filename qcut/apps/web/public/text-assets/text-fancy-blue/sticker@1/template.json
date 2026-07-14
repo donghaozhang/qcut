@@ -3,6 +3,28 @@
 	"assetId": "text-fancy-blue-sticker",
 	"packageId": "text-fancy-blue",
 	"version": 1,
+	"marketplace": {
+		"editorialRank": 24,
+		"heatScore": 100,
+		"remoteTags": [
+			"category:blue",
+			"group:fancy",
+			"variant:sticker",
+			"color:blue",
+			"scene:tech",
+			"style:sticker",
+			"tone:cute"
+		],
+		"searchAliases": [
+			"蓝色",
+			"冰蓝",
+			"科技",
+			"blue",
+			"贴纸",
+			"白边",
+			"可爱"
+		]
+	},
 	"definition": {
 		"id": "blue-sticker",
 		"name": "蓝色贴纸",

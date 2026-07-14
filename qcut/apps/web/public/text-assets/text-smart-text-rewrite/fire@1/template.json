@@ -3,6 +3,22 @@
 	"assetId": "text-smart-text-rewrite-fire",
 	"packageId": "text-smart-text-rewrite",
 	"version": 1,
+	"marketplace": {
+		"editorialRank": 9,
+		"heatScore": 100,
+		"remoteTags": [
+			"category:rewrite",
+			"group:smart-text",
+			"variant:fire",
+			"effect:fire",
+			"tone:hot"
+		],
+		"searchAliases": [
+			"火焰",
+			"热血",
+			"燃"
+		]
+	},
 	"definition": {
 		"id": "rewrite-fire",
 		"name": "AI改写火焰",

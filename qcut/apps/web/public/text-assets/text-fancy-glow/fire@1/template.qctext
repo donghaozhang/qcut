@@ -14,6 +14,28 @@
 		"assetId": "text-fancy-glow-fire",
 		"packageId": "text-fancy-glow",
 		"version": 1,
+		"marketplace": {
+			"editorialRank": 9,
+			"heatScore": 100,
+			"remoteTags": [
+				"category:glow",
+				"group:fancy",
+				"variant:fire",
+				"effect:glow",
+				"scene:night",
+				"effect:fire",
+				"tone:hot"
+			],
+			"searchAliases": [
+				"发光",
+				"霓虹",
+				"夜景",
+				"neon",
+				"火焰",
+				"热血",
+				"燃"
+			]
+		},
 		"definition": {
 			"id": "glow-fire",
 			"name": "发光火焰",

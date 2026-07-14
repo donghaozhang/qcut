@@ -14,6 +14,16 @@
 		"assetId": "text-smart-packaging-commerce-badge-stamp",
 		"packageId": "text-smart-packaging-commerce-badge",
 		"version": 1,
+		"marketplace": {
+			"editorialRank": 120,
+			"heatScore": 77,
+			"remoteTags": [
+				"category:commerce-badge",
+				"group:smart-packaging",
+				"variant:stamp"
+			],
+			"searchAliases": []
+		},
 		"definition": {
 			"id": "commerce-badge-stamp",
 			"name": "带货标牌印章",

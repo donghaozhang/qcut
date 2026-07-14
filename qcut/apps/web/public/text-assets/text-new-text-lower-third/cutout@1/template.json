@@ -3,6 +3,16 @@
 	"assetId": "text-new-text-lower-third-cutout",
 	"packageId": "text-new-text-lower-third",
 	"version": 1,
+	"marketplace": {
+		"editorialRank": 120,
+		"heatScore": 81,
+		"remoteTags": [
+			"category:lower-third",
+			"group:new-text",
+			"variant:cutout"
+		],
+		"searchAliases": []
+	},
 	"definition": {
 		"id": "lower-third-cutout",
 		"name": "角标剪纸",

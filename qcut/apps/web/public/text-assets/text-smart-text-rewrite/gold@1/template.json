@@ -3,6 +3,22 @@
 	"assetId": "text-smart-text-rewrite-gold",
 	"packageId": "text-smart-text-rewrite",
 	"version": 1,
+	"marketplace": {
+		"editorialRank": 22,
+		"heatScore": 98,
+		"remoteTags": [
+			"category:rewrite",
+			"group:smart-text",
+			"variant:gold",
+			"material:gold",
+			"tone:premium"
+		],
+		"searchAliases": [
+			"金色",
+			"鎏金",
+			"高级"
+		]
+	},
 	"definition": {
 		"id": "rewrite-gold",
 		"name": "AI改写鎏金",

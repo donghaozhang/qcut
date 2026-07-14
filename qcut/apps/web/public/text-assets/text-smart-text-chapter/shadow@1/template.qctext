@@ -14,6 +14,16 @@
 		"assetId": "text-smart-text-chapter-shadow",
 		"packageId": "text-smart-text-chapter",
 		"version": 1,
+		"marketplace": {
+			"editorialRank": 120,
+			"heatScore": 77,
+			"remoteTags": [
+				"category:chapter",
+				"group:smart-text",
+				"variant:shadow"
+			],
+			"searchAliases": []
+		},
 		"definition": {
 			"id": "chapter-shadow",
 			"name": "章节标题重影",

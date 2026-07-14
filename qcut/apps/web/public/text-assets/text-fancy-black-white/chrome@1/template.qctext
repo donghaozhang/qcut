@@ -14,6 +14,28 @@
 		"assetId": "text-fancy-black-white-chrome",
 		"packageId": "text-fancy-black-white",
 		"version": 1,
+		"marketplace": {
+			"editorialRank": 32,
+			"heatScore": 100,
+			"remoteTags": [
+				"category:black-white",
+				"group:fancy",
+				"variant:chrome",
+				"color:black-white",
+				"tone:classic",
+				"material:chrome",
+				"tone:premium"
+			],
+			"searchAliases": [
+				"黑白",
+				"高对比",
+				"经典",
+				"bw",
+				"金属",
+				"银色",
+				"质感"
+			]
+		},
 		"definition": {
 			"id": "black-white-chrome",
 			"name": "黑白金属",

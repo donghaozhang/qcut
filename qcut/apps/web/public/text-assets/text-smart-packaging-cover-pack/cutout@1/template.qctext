@@ -14,6 +14,16 @@
 		"assetId": "text-smart-packaging-cover-pack-cutout",
 		"packageId": "text-smart-packaging-cover-pack",
 		"version": 1,
+		"marketplace": {
+			"editorialRank": 120,
+			"heatScore": 81,
+			"remoteTags": [
+				"category:cover-pack",
+				"group:smart-packaging",
+				"variant:cutout"
+			],
+			"searchAliases": []
+		},
 		"definition": {
 			"id": "cover-pack-cutout",
 			"name": "封面包装剪纸",

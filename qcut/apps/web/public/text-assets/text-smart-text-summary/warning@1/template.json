@@ -3,6 +3,16 @@
 	"assetId": "text-smart-text-summary-warning",
 	"packageId": "text-smart-text-summary",
 	"version": 1,
+	"marketplace": {
+		"editorialRank": 120,
+		"heatScore": 77,
+		"remoteTags": [
+			"category:summary",
+			"group:smart-text",
+			"variant:warning"
+		],
+		"searchAliases": []
+	},
 	"definition": {
 		"id": "summary-warning",
 		"name": "自动摘要警示",

@@ -14,6 +14,22 @@
 		"assetId": "text-mine-recent-chrome",
 		"packageId": "text-mine-recent",
 		"version": 1,
+		"marketplace": {
+			"editorialRank": 32,
+			"heatScore": 97,
+			"remoteTags": [
+				"category:recent",
+				"group:mine",
+				"variant:chrome",
+				"material:chrome",
+				"tone:premium"
+			],
+			"searchAliases": [
+				"金属",
+				"银色",
+				"质感"
+			]
+		},
 		"definition": {
 			"id": "recent-chrome",
 			"name": "最近使用金属",
