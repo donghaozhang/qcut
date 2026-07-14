@@ -944,4 +944,45 @@ describe("text library search", () => {
 			new Set(["live-red-style", "live-blue-style", "red-only-style"])
 		);
 	});
+
+	it("filters one-intent noise from complex marketplace searches", () => {
+		const definitions = [
+			createDefinition({
+				category: "blue",
+				content: "直播价格",
+				id: "live-blue-style",
+				keywords: ["直播", "价格", "促销"],
+				variantId: "blue-ice",
+			}),
+			createDefinition({
+				category: "red",
+				content: "封面标题",
+				id: "cover-red-style",
+				keywords: ["封面", "红色"],
+				variantId: "red-burst",
+			}),
+			createDefinition({
+				category: "red",
+				content: "直播封面",
+				id: "live-cover-red-style",
+				keywords: ["直播", "封面", "红色"],
+				variantId: "red-burst",
+			}),
+			createDefinition({
+				category: "green",
+				content: "绿色花字",
+				id: "green-only-style",
+				keywords: ["绿色"],
+				variantId: "green-fresh",
+			}),
+		];
+
+		expect(
+			rankTextTemplateSearchResults({
+				definitions,
+				query: "直播 红色 封面",
+				state: EMPTY_TEXT_LIBRARY_STATE,
+			}).map((definition) => definition.id)
+		).toEqual(["live-cover-red-style", "cover-red-style"]);
+	});
 });

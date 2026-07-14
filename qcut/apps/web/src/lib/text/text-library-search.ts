@@ -408,6 +408,9 @@ export function rankTextTemplateSearchResults({
 	const terms = buildWeightedSearchTerms({ query });
 	if (terms.length === 0) return [...definitions];
 	const intentGroups = buildSearchIntentGroups({ query });
+	const minimumIntentCoverage = getMinimumSearchIntentCoverage({
+		total: intentGroups.length,
+	});
 
 	return definitions
 		.map((definition, index) => {
@@ -425,7 +428,10 @@ export function rankTextTemplateSearchResults({
 				score: scoreResult.score,
 			};
 		})
-		.filter((result) => result.score > 0)
+		.filter(
+			(result) =>
+				result.score > 0 && result.intentCoverage >= minimumIntentCoverage
+		)
 		.sort((left, right) => {
 			if (right.intentCoverage !== left.intentCoverage) {
 				return right.intentCoverage - left.intentCoverage;
@@ -434,6 +440,11 @@ export function rankTextTemplateSearchResults({
 			return left.index - right.index;
 		})
 		.map((result) => result.definition);
+}
+
+function getMinimumSearchIntentCoverage({ total }: { total: number }): number {
+	if (total < 3) return 0;
+	return Math.ceil(total / 2);
 }
 
 export function buildWeightedSearchTerms({
