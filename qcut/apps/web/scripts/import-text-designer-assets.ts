@@ -1697,18 +1697,15 @@ async function main(): Promise<void> {
 			plan,
 			publicDir: options.publicDir,
 		});
-		const report =
-			options.writePlanPath || options.writeGapChecklistPath
-				? buildTextDesignerAssetImportPlanReport({ plan, summary })
-				: undefined;
+		let report: TextDesignerAssetImportPlanReport | undefined;
 		if (options.writePlanPath) {
-			if (!report) throw new Error("Missing designer import report");
-			await mkdir(dirname(options.writePlanPath), { recursive: true });
-			await writeFile(
-				options.writePlanPath,
-				`${JSON.stringify(report, null, "\t")}\n`,
-				"utf8"
-			);
+			report = await writeTextDesignerAssetImportPlanReport({
+				path: options.writePlanPath,
+				plan,
+				summary,
+			});
+		} else if (options.writeGapChecklistPath) {
+			report = buildTextDesignerAssetImportPlanReport({ plan, summary });
 		}
 		if (options.writeGapChecklistPath) {
 			if (!report) throw new Error("Missing designer import report");
