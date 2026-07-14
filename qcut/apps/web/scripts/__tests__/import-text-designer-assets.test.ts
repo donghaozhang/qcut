@@ -148,7 +148,9 @@ function designerPackageText({
 	},
 	packageId = "text-demo",
 	source = designerSourceText({ assetId }),
+	sourceSha256 = checksum({ value: source }),
 	thumbnailBytes = DESIGNER_THUMBNAIL_TEXT,
+	thumbnailSha256 = checksum({ value: thumbnailBytes }),
 }: {
 	assetId?: string;
 	cacheKey?: string;
@@ -158,7 +160,9 @@ function designerPackageText({
 	};
 	packageId?: string;
 	source?: string;
+	sourceSha256?: string;
 	thumbnailBytes?: Buffer;
+	thumbnailSha256?: string;
 } = {}): string {
 	const sourcePayload = JSON.parse(source) as Record<string, unknown>;
 	return `${JSON.stringify(
@@ -171,19 +175,19 @@ function designerPackageText({
 			resources: [
 				{
 					byteSize: byteLength({ value: thumbnailBytes }),
-					checksumSha256: checksum({ value: thumbnailBytes }),
+					checksumSha256: thumbnailSha256,
 					mimeType: "image/webp",
-					path: "thumbnail.webp",
+					path: files.thumbnail,
 					role: "thumbnail",
-					url: `/${cacheKey}/thumbnail.webp`,
+					url: `/${cacheKey}/${files.thumbnail}`,
 				},
 				{
 					byteSize: byteLength({ value: source }),
-					checksumSha256: checksum({ value: source }),
+					checksumSha256: sourceSha256,
 					mimeType: "application/json",
-					path: "template.json",
+					path: files.source,
 					role: "source",
-					url: `/${cacheKey}/template.json`,
+					url: `/${cacheKey}/${files.source}`,
 				},
 			],
 			schemaVersion: 1,
@@ -797,13 +801,9 @@ describe("text designer asset import script", () => {
 	it("rejects designer package resource manifests that drift from supplied files", async () => {
 		const { generatedManifest, packDir, packManifest, publicDir } =
 			await createDesignerFixture();
-		const sourceText = designerSourceText();
 		await writeFile(
 			join(packDir, "template.qctext"),
-			designerPackageText({ source: sourceText }).replace(
-				checksum({ value: sourceText }),
-				"f".repeat(64)
-			)
+			designerPackageText({ sourceSha256: "f".repeat(64) })
 		);
 
 		await expect(
@@ -814,6 +814,14 @@ describe("text designer asset import script", () => {
 				publicDir,
 			})
 		).rejects.toThrow("Designer package resource manifest mismatch");
+		await expect(
+			buildTextDesignerAssetImportPlan({
+				generatedManifest,
+				packDir,
+				packManifest,
+				publicDir,
+			})
+		).rejects.toThrow("checksumSha256 expected");
 	});
 
 	it("rejects designer source files without valid text template payloads", async () => {
