@@ -173,6 +173,18 @@ describe("text template thumbnail renderer", () => {
 			expect(model).toMatchObject({
 				kind: expectedKind,
 				layerCount: expect.any(Number),
+				elements: expect.arrayContaining([
+					expect.objectContaining({
+						content: expect.any(String),
+						fontSize: expect.any(Number),
+						height: expect.any(Number),
+						id: expect.any(String),
+						name: expect.any(String),
+						width: expect.any(Number),
+						x: expect.any(Number),
+						y: expect.any(Number),
+					}),
+				]),
 				slots: expect.arrayContaining([
 					expect.objectContaining({
 						content: expect.any(String),
@@ -182,7 +194,28 @@ describe("text template thumbnail renderer", () => {
 				]),
 			});
 			expect(model?.layerCount).toBeGreaterThan(1);
+			expect(model?.elements.length).toBe(model?.layerCount);
 			expect(model?.slots.length).toBeGreaterThan(0);
 		}
+	});
+
+	it("keeps real pack element geometry in thumbnail preview models", () => {
+		const definition = getTextTemplateDefinitionsByCategory({
+			category: "headline-template",
+		})[0];
+		const template = createTextElement({ content: "主标题" });
+		const model = getTextTemplatePackPreviewModel({ definition, template });
+
+		expect(model?.elements.map((element) => element.content)).toEqual([
+			"本期重点",
+			"主标题",
+			"三句话讲清楚",
+		]);
+
+		const [kicker, headline, subhead] = model?.elements ?? [];
+		expect(kicker?.y).toBeLessThan(headline?.y ?? 0);
+		expect(headline?.y).toBeLessThan(subhead?.y ?? 0);
+		expect(kicker?.backgroundColor).not.toBe("transparent");
+		expect(headline?.width).toBeGreaterThan(kicker?.width ?? 0);
 	});
 });

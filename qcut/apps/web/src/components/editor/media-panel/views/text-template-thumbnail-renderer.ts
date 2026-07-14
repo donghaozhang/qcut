@@ -1,6 +1,6 @@
 import type { TextTemplateDefinition } from "@/lib/text/text-template-registry";
 import { buildTextTemplatePack } from "@/lib/text/text-template-packs";
-import type { TextElement } from "@/types/timeline";
+import type { CreateTextElement, TextElement } from "@/types/timeline";
 
 export type TextTemplateThumbnailLayoutKind = "single" | "pack";
 
@@ -66,9 +66,31 @@ export type TextTemplatePackPreviewSlot = {
 	label: string;
 };
 
+export type TextTemplatePackPreviewElement = {
+	id: string;
+	backgroundColor: string;
+	backgroundOpacity: number;
+	backgroundPadding: number;
+	backgroundRadius: number;
+	color: string;
+	content: string;
+	fontSize: number;
+	height: number;
+	name: string;
+	opacity: number;
+	rotation: number;
+	strokeColor?: string;
+	strokeWidth: number;
+	textAlign: CanvasTextAlign;
+	width: number;
+	x: number;
+	y: number;
+};
+
 export type TextTemplatePackPreviewModel = {
 	kind: TextTemplatePackPreviewKind;
 	layerCount: number;
+	elements: readonly TextTemplatePackPreviewElement[];
 	slots: readonly TextTemplatePackPreviewSlot[];
 };
 
@@ -272,11 +294,43 @@ export function getTextTemplatePackPreviewModel({
 	return {
 		kind: getTextTemplatePackPreviewKind({ definition }),
 		layerCount: pack.elements.length,
+		elements: pack.elements.map((element, index) =>
+			toPackPreviewElement({ element, index })
+		),
 		slots: pack.copySlots.map((slot) => ({
 			id: slot.id,
 			content: slot.defaultContent,
 			label: slot.label,
 		})),
+	};
+}
+
+function toPackPreviewElement({
+	element,
+	index,
+}: {
+	element: CreateTextElement;
+	index: number;
+}): TextTemplatePackPreviewElement {
+	return {
+		id: `element-${index}`,
+		backgroundColor: element.backgroundColor ?? "transparent",
+		backgroundOpacity: element.backgroundOpacity ?? 0,
+		backgroundPadding: element.backgroundPadding ?? 0,
+		backgroundRadius: element.backgroundRadius ?? 0,
+		color: element.color ?? "#ffffff",
+		content: element.content,
+		fontSize: element.fontSize ?? 48,
+		height: element.height ?? element.fontSize ?? 72,
+		name: element.name ?? `Element ${index + 1}`,
+		opacity: element.opacity ?? 1,
+		rotation: element.rotation ?? 0,
+		strokeColor: element.strokeColor,
+		strokeWidth: element.strokeWidth ?? 0,
+		textAlign: element.textAlign ?? "center",
+		width: element.width ?? 320,
+		x: element.x ?? 0,
+		y: element.y ?? 0,
 	};
 }
 
@@ -1288,6 +1342,194 @@ function drawTimelinePackPreview({
 	}
 }
 
+type PackPreviewBounds = {
+	maxX: number;
+	maxY: number;
+	minX: number;
+	minY: number;
+};
+
+function getPackPreviewBounds({
+	elements,
+}: {
+	elements: readonly TextTemplatePackPreviewElement[];
+}): PackPreviewBounds {
+	const first = elements[0];
+	if (!first) return { maxX: 1, maxY: 1, minX: 0, minY: 0 };
+	return elements.reduce(
+		(bounds, element) => ({
+			maxX: Math.max(bounds.maxX, element.x + element.width),
+			maxY: Math.max(bounds.maxY, element.y + element.height),
+			minX: Math.min(bounds.minX, element.x),
+			minY: Math.min(bounds.minY, element.y),
+		}),
+		{
+			maxX: first.x + first.width,
+			maxY: first.y + first.height,
+			minX: first.x,
+			minY: first.y,
+		}
+	);
+}
+
+function mapPackPreviewElementRect({
+	bounds,
+	element,
+	height,
+	width,
+}: CanvasSize & {
+	bounds: PackPreviewBounds;
+	element: TextTemplatePackPreviewElement;
+}) {
+	const sourceWidth = Math.max(1, bounds.maxX - bounds.minX);
+	const sourceHeight = Math.max(1, bounds.maxY - bounds.minY);
+	const target = {
+		height: height * 0.68,
+		width: width * 0.76,
+		x: width * 0.12,
+		y: height * 0.16,
+	};
+	const scale = Math.min(
+		target.width / sourceWidth,
+		target.height / sourceHeight
+	);
+	const scaledWidth = sourceWidth * scale;
+	const scaledHeight = sourceHeight * scale;
+	const offsetX = target.x + (target.width - scaledWidth) / 2;
+	const offsetY = target.y + (target.height - scaledHeight) / 2;
+	return {
+		height: element.height * scale,
+		scale,
+		width: element.width * scale,
+		x: offsetX + (element.x - bounds.minX) * scale,
+		y: offsetY + (element.y - bounds.minY) * scale,
+	};
+}
+
+function getPackPreviewTextX({
+	align,
+	width,
+	x,
+}: {
+	align: CanvasTextAlign;
+	width: number;
+	x: number;
+}): number {
+	if (align === "left" || align === "start") return x;
+	if (align === "right" || align === "end") return x + width;
+	return x + width / 2;
+}
+
+function drawPackPreviewElement({
+	context,
+	element,
+	height,
+	recipe,
+	scale,
+	width,
+	x,
+	y,
+}: CanvasSize & {
+	context: CanvasRenderingContext2D;
+	element: TextTemplatePackPreviewElement;
+	recipe: TextTemplateThumbnailRecipe;
+	scale: number;
+	x: number;
+	y: number;
+}) {
+	const fontSize = Math.max(13, Math.min(58, element.fontSize * scale));
+	const text = truncatePackPreviewText({
+		maxCharacters: Math.max(
+			2,
+			Math.floor(width / Math.max(1, fontSize * 0.54))
+		),
+		text: element.content,
+	});
+
+	context.save();
+	context.globalAlpha = Math.max(0.18, Math.min(1, element.opacity));
+	context.translate(x + width / 2, y + height / 2);
+	context.rotate((element.rotation * Math.PI) / 180);
+	context.translate(-(x + width / 2), -(y + height / 2));
+
+	if (
+		element.backgroundColor &&
+		element.backgroundColor !== "transparent" &&
+		element.backgroundOpacity > 0
+	) {
+		context.save();
+		context.globalAlpha *= Math.min(1, element.backgroundOpacity);
+		context.fillStyle = element.backgroundColor;
+		fillRoundedRect({
+			context,
+			height: height + element.backgroundPadding * 0.45,
+			radius: Math.max(4, element.backgroundRadius * 0.42),
+			width: width + element.backgroundPadding * 0.9,
+			x: x - element.backgroundPadding * 0.45,
+			y: y - element.backgroundPadding * 0.22,
+		});
+		context.restore();
+	}
+
+	context.textAlign = element.textAlign;
+	context.textBaseline = "middle";
+	context.font = `900 ${fontSize}px Arial, sans-serif`;
+	context.lineJoin = "round";
+	context.shadowColor = "rgba(0,0,0,.46)";
+	context.shadowBlur = 8;
+	context.shadowOffsetY = 4;
+
+	const textX = getPackPreviewTextX({
+		align: element.textAlign,
+		width,
+		x,
+	});
+	const textY = y + height / 2;
+	context.strokeStyle = "rgba(0,0,0,.62)";
+	context.lineWidth = Math.max(2.5, fontSize * 0.12);
+	context.strokeText(text, textX, textY);
+	if (element.strokeWidth > 0) {
+		context.strokeStyle = element.strokeColor ?? recipe.accentColors[1];
+		context.lineWidth = Math.max(1, Math.min(8, element.strokeWidth * 0.75));
+		context.strokeText(text, textX, textY);
+	}
+	context.fillStyle = element.color || recipe.accentColors[2];
+	context.fillText(text, textX, textY);
+	context.restore();
+}
+
+function drawPackPreviewScene({
+	context,
+	height,
+	model,
+	recipe,
+	width,
+}: CanvasSize & {
+	context: CanvasRenderingContext2D;
+	model: TextTemplatePackPreviewModel;
+	recipe: TextTemplateThumbnailRecipe;
+}) {
+	const bounds = getPackPreviewBounds({ elements: model.elements });
+	for (const element of model.elements) {
+		const rect = mapPackPreviewElementRect({
+			bounds,
+			element,
+			height,
+			width,
+		});
+		drawPackPreviewElement({
+			context,
+			element,
+			height: rect.height,
+			recipe,
+			scale: rect.scale,
+			width: rect.width,
+			x: rect.x,
+			y: rect.y,
+		});
+	}
+}
+
 function drawTemplatePackPreview({
 	context,
 	height,
@@ -1299,6 +1541,11 @@ function drawTemplatePackPreview({
 	model: TextTemplatePackPreviewModel;
 	recipe: TextTemplateThumbnailRecipe;
 }) {
+	if (model.elements.length > 0) {
+		drawPackPreviewCard({ context, height, recipe, width });
+		drawPackPreviewScene({ context, height, model, recipe, width });
+		return;
+	}
 	if (model.kind === "quote") {
 		drawQuotePackPreview({ context, height, model, recipe, width });
 		return;
