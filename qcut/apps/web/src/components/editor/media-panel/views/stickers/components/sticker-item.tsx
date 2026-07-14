@@ -18,7 +18,10 @@ import {
 	TooltipContent,
 	TooltipTrigger,
 } from "@/components/ui/tooltip";
-import { buildIconSvgUrl } from "@/lib/stickers/iconify-api";
+import {
+	buildIconSvgUrl,
+	iconCollectionUsesPalette,
+} from "@/lib/stickers/iconify-api";
 import { resolveIconifyStickerAssetEntry } from "@/lib/assets/qcut-asset-manifest";
 import { cn } from "@/lib/utils";
 import { debugLog } from "@/lib/debug/debug-config";
@@ -31,6 +34,7 @@ export function StickerItem({
 	collection,
 	onSelect,
 	isSelected,
+	layout = "compact",
 }: StickerItemProps) {
 	const [isLoading, setIsLoading] = useState(true);
 	const [hasError, setHasError] = useState(false);
@@ -64,11 +68,12 @@ export function StickerItem({
 		setHasError(false);
 
 		try {
-			// Force white icons for maximum contrast on dark UI
 			const svgUrl = buildIconSvgUrl(collection, icon, {
-				color: "#FFFFFF",
-				width: 32,
-				height: 32,
+				color: iconCollectionUsesPalette({ prefix: collection })
+					? undefined
+					: "#FFFFFF",
+				width: layout === "catalog" ? 72 : 32,
+				height: layout === "catalog" ? 72 : 32,
 			});
 			setImageUrl(svgUrl);
 		} catch (error) {
@@ -79,7 +84,7 @@ export function StickerItem({
 			setHasError(true);
 			setIsLoading(false);
 		}
-	}, [icon, collection]);
+	}, [collection, icon, layout]);
 
 	const handleClick = () => {
 		const iconId = `${collection}:${icon}`;
@@ -130,13 +135,18 @@ export function StickerItem({
 	})();
 
 	return (
-		<div className="group relative size-14">
+		<div
+			className={cn(
+				"group relative",
+				layout === "catalog" ? "aspect-square min-h-20 w-full" : "size-14"
+			)}
+		>
 			<Tooltip>
 				<TooltipTrigger asChild>
 					<button
 						type="button"
 						className={cn(
-							"relative flex size-14 flex-col items-center justify-center overflow-hidden rounded-md border border-border/80 bg-slate-800/50 transition-colors hover:border-primary hover:bg-slate-700/70 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary",
+							"relative flex size-full flex-col items-center justify-center overflow-hidden rounded-md border border-border/80 bg-foreground/[0.04] transition-colors hover:border-primary hover:bg-foreground/[0.08] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary",
 							isSelected && "border-primary bg-slate-700/70"
 						)}
 						onClick={handleClick}
@@ -150,6 +160,7 @@ export function StickerItem({
 						aria-pressed={Boolean(isSelected)}
 						aria-label={(name || icon) + " (" + collection + ")"}
 						data-testid="sticker-item"
+						data-sticker-id={`${collection}:${icon}`}
 					>
 						{isLoading && (
 							<Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
@@ -162,7 +173,8 @@ export function StickerItem({
 								src={imageUrl}
 								alt={name || icon}
 								className={cn(
-									"h-8 w-8 object-contain",
+									"object-contain",
+									layout === "catalog" ? "size-14" : "size-8",
 									(isLoading || hasError) && "hidden"
 								)}
 								onLoad={() => setIsLoading(false)}

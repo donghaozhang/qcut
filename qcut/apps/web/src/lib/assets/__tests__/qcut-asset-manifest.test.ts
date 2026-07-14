@@ -6,6 +6,7 @@ import {
 import { CAPTION_STYLE_PRESETS } from "@/lib/captions/workbench";
 import { FILTER_PRESETS } from "@/lib/filters/filter-registry";
 import { POPULAR_COLLECTIONS } from "@/lib/stickers/iconify-api";
+import { CURATED_STICKERS } from "@/lib/stickers/sticker-catalog";
 import { TEXT_TEMPLATES } from "@/lib/text/text-template-registry";
 import { transitionPresets } from "@/components/editor/media-panel/views/transitions/transition-presets";
 import type { SoundEffect } from "@/types/sounds";
@@ -77,10 +78,12 @@ describe("QCut asset manifest", () => {
 	});
 
 	it("publishes real animated sticker sources with license and preview files", () => {
-		const expectedStickerCount = POPULAR_COLLECTIONS.reduce(
-			(total, collection) => total + (collection.samples?.length ?? 0),
-			0
-		);
+		const expectedStickerIds = new Set([
+			...POPULAR_COLLECTIONS.flatMap((collection) =>
+				(collection.samples ?? []).map((icon) => `${collection.prefix}:${icon}`)
+			),
+			...CURATED_STICKERS.map((sticker) => sticker.id),
+		]);
 		const stickers = queryAssetCatalog({
 			catalog: QCUT_ASSET_CATALOG,
 			query: { kinds: ["sticker"] },
@@ -90,7 +93,10 @@ describe("QCut asset manifest", () => {
 			query: { kinds: ["sticker"], categories: ["motion"] },
 		});
 
-		expect(stickers).toHaveLength(expectedStickerCount);
+		expect(stickers).toHaveLength(expectedStickerIds.size);
+		expect(
+			stickers.filter((sticker) => sticker.id.startsWith("fluent-emoji:"))
+		).toHaveLength(CURATED_STICKERS.length);
 		expect(motionStickers.length).toBeGreaterThanOrEqual(20);
 		for (const sticker of motionStickers) {
 			expect(sticker.files.map((file) => file.role)).toEqual([

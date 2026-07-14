@@ -1,5 +1,6 @@
-import { fireEvent, render, screen } from "@testing-library/react";
+import { fireEvent, render, screen, within } from "@testing-library/react";
 import { beforeEach, describe, expect, it } from "vitest";
+import { STICKER_CATEGORIES } from "@/lib/stickers/sticker-catalog";
 import { useAssetLibraryStore } from "@/stores/asset-library-store";
 import { useStickersStore } from "@/stores/stickers-store";
 import { StickersView } from "../stickers-view";
@@ -15,44 +16,63 @@ describe("StickersView", () => {
 		});
 	});
 
-	it("uses creator categories and opens real motion collections first", () => {
+	it("opens the creator catalog on the interaction category", () => {
 		render(<StickersView />);
 
-		expect(screen.getByRole("tab", { name: /Motion/ })).toHaveAttribute(
-			"data-state",
-			"active"
+		expect(screen.getByTestId("sticker-category-interaction")).toHaveAttribute(
+			"aria-pressed",
+			"true"
 		);
-		expect(screen.getByText("Material Line Motion")).toBeInTheDocument();
-		expect(screen.getByText("SVG Motion Loops")).toBeInTheDocument();
+		expect(screen.getByText("5 个贴纸")).toBeInTheDocument();
 		expect(
-			screen.queryByRole("tab", { name: "Tabler" })
-		).not.toBeInTheDocument();
+			within(screen.getByTestId("sticker-category-grid")).getAllByTestId(
+				"sticker-item"
+			)
+		).toHaveLength(5);
+		expect(screen.getByRole("img", { name: "点赞" })).toBeInTheDocument();
 	});
 
-	it("switches between essentials, brands, recent, and favorites", () => {
+	it("renders at least five stickers in every creator category", () => {
 		render(<StickersView />);
-		fireEvent.mouseDown(screen.getByRole("tab", { name: /Essentials/ }), {
-			button: 0,
-			ctrlKey: false,
-		});
-		expect(screen.getByText("Tabler Icons")).toBeInTheDocument();
 
-		fireEvent.mouseDown(screen.getByRole("tab", { name: /Brands/ }), {
-			button: 0,
-			ctrlKey: false,
-		});
-		expect(screen.getByText("Simple Icons (Brands)")).toBeInTheDocument();
+		for (const category of STICKER_CATEGORIES) {
+			fireEvent.click(screen.getByTestId(`sticker-category-${category.id}`));
+			const items = within(
+				screen.getByTestId("sticker-category-grid")
+			).getAllByTestId("sticker-item");
+			expect(items.length, category.id).toBeGreaterThanOrEqual(5);
+			expect(
+				screen.getByTestId(`sticker-category-${category.id}`)
+			).toHaveAttribute("aria-pressed", "true");
+		}
+	});
 
-		fireEvent.mouseDown(screen.getByRole("tab", { name: /Recent/ }), {
-			button: 0,
-			ctrlKey: false,
-		});
+	it("searches curated stickers in Chinese", () => {
+		render(<StickersView />);
+
+		fireEvent.change(
+			screen.getByRole("textbox", {
+				name: "搜索贴纸 / Search stickers",
+			}),
+			{ target: { value: "奶茶" } }
+		);
+
+		const results = screen.getAllByTestId("sticker-item");
+		expect(results).toHaveLength(5);
+		expect(screen.getByRole("img", { name: "奶茶" })).toBeInTheDocument();
+		expect(screen.getByRole("img", { name: "鼠鼠脸" })).toBeInTheDocument();
+	});
+
+	it("switches between the library, recent stickers, and favorites", () => {
+		render(<StickersView />);
+
+		fireEvent.click(screen.getByRole("button", { name: "最近" }));
 		expect(screen.getByText("No recent stickers yet")).toBeInTheDocument();
 
-		fireEvent.mouseDown(screen.getByRole("tab", { name: /Favorites/ }), {
-			button: 0,
-			ctrlKey: false,
-		});
+		fireEvent.click(screen.getByRole("button", { name: "收藏" }));
 		expect(screen.getByText("No favorite stickers")).toBeInTheDocument();
+
+		fireEvent.click(screen.getByRole("button", { name: "贴纸库" }));
+		expect(screen.getByTestId("sticker-category-grid")).toBeInTheDocument();
 	});
 });

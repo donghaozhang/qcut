@@ -2,6 +2,7 @@
 
 import { Heart } from "lucide-react";
 import { TooltipProvider } from "@/components/ui/tooltip";
+import { findStickerCatalogItem } from "@/lib/stickers/sticker-catalog";
 import { useAssetLibraryStore } from "@/stores/asset-library-store";
 import { StickerItem } from "./sticker-item";
 
@@ -32,18 +33,20 @@ export function StickersFavorites({ onSelect }: StickersFavoritesProps) {
 
 	return (
 		<TooltipProvider>
-			<div className="grid grid-cols-6 gap-2.5 p-3 sm:grid-cols-8 md:grid-cols-10 lg:grid-cols-12">
+			<div className="grid grid-cols-[repeat(auto-fill,minmax(82px,1fr))] gap-2.5 p-3">
 				{stickerIds.map((iconId) => {
 					const separatorIndex = iconId.indexOf(":");
 					if (separatorIndex <= 0) return null;
 					const collection = iconId.slice(0, separatorIndex);
 					const icon = iconId.slice(separatorIndex + 1);
+					const catalogItem = findStickerCatalogItem({ collection, icon });
 					return (
 						<StickerItem
 							key={iconId}
 							icon={icon}
-							name={icon}
+							name={catalogItem?.localizedName ?? icon}
 							collection={collection}
+							layout="catalog"
 							onSelect={onSelect}
 						/>
 					);

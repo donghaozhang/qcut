@@ -7,6 +7,7 @@ export type StickerItemProps = {
 	collection: string;
 	onSelect: (iconId: string, name: string) => void;
 	isSelected?: boolean;
+	layout?: "compact" | "catalog";
 };
 
 export type CollectionContentProps = {

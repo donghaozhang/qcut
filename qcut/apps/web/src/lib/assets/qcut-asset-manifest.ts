@@ -10,6 +10,11 @@ import { FILTER_PRESETS } from "@/lib/filters/filter-registry";
 import type { IconSet } from "@/lib/stickers/iconify-api";
 import { POPULAR_COLLECTIONS } from "@/lib/stickers/iconify-api";
 import {
+	CURATED_STICKERS,
+	findStickerCatalogItem,
+	type StickerCatalogItem,
+} from "@/lib/stickers/sticker-catalog";
+import {
 	TEXT_TEMPLATE_DEFINITIONS,
 	TEXT_TEMPLATES,
 } from "@/lib/text/text-template-registry";
@@ -148,31 +153,41 @@ function transitionAssets(): AssetManifestEntry[] {
 }
 
 export function createIconifyStickerAssetEntry({
+	catalogItem,
 	collection,
 	icon,
 }: {
+	catalogItem?: StickerCatalogItem;
 	collection: IconSet;
 	icon: string;
 }): AssetManifestEntry {
 	const animated = collection.category === "Motion";
+	const generatedName = icon
+		.split("-")
+		.map((part) => part.charAt(0).toLocaleUpperCase() + part.slice(1))
+		.join(" ");
 	return {
 		schemaVersion: ASSET_MANIFEST_SCHEMA_VERSION,
 		id: `${collection.prefix}:${icon}`,
 		kind: "sticker",
 		version: 1,
-		name: icon
-			.split("-")
-			.map((part) => part.charAt(0).toLocaleUpperCase() + part.slice(1))
-			.join(" "),
-		category: animated
-			? "motion"
-			: collection.category === "Brands"
-				? "brands"
-				: "essentials",
+		name: catalogItem?.name ?? generatedName,
+		localizedNames: catalogItem
+			? { "zh-CN": catalogItem.localizedName }
+			: undefined,
+		category:
+			catalogItem?.category ??
+			(animated
+				? "motion"
+				: collection.category === "Brands"
+					? "brands"
+					: "essentials"),
 		tags: uniqueTags({
 			tags: [
 				collection.name,
 				collection.category ?? "icons",
+				...(catalogItem?.tags ?? []),
+				...(catalogItem ? [catalogItem.localizedName] : []),
 				...(animated ? ["animated", "motion"] : []),
 				...icon.split("-"),
 			],
@@ -215,15 +230,34 @@ export function resolveIconifyStickerAssetEntry({
 		total: 0,
 		category: "Community",
 	};
-	return createIconifyStickerAssetEntry({ collection, icon });
+	const catalogItem = findStickerCatalogItem({
+		collection: collectionPrefix,
+		icon,
+	});
+	return createIconifyStickerAssetEntry({ catalogItem, collection, icon });
 }
 
 function stickerAssets(): AssetManifestEntry[] {
-	return POPULAR_COLLECTIONS.flatMap((collection) =>
-		(collection.samples ?? []).map((icon) =>
-			createIconifyStickerAssetEntry({ collection, icon })
-		)
-	);
+	const assetsById = new Map<string, AssetManifestEntry>();
+	for (const collection of POPULAR_COLLECTIONS) {
+		for (const icon of collection.samples ?? []) {
+			const asset = createIconifyStickerAssetEntry({ collection, icon });
+			assetsById.set(asset.id, asset);
+		}
+	}
+	for (const catalogItem of CURATED_STICKERS) {
+		const collection = POPULAR_COLLECTIONS.find(
+			(candidate) => candidate.prefix === catalogItem.collection
+		);
+		if (!collection) continue;
+		const asset = createIconifyStickerAssetEntry({
+			catalogItem,
+			collection,
+			icon: catalogItem.icon,
+		});
+		assetsById.set(asset.id, asset);
+	}
+	return [...assetsById.values()];
 }
 
 export const QCUT_ASSET_MANIFEST: AssetManifestPack = {

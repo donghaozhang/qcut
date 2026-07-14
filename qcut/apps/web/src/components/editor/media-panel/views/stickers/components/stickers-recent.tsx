@@ -28,7 +28,7 @@ export function StickersRecent({
 
 	return (
 		<TooltipProvider>
-			<div className="grid grid-cols-6 gap-2 p-4 sm:grid-cols-8 md:grid-cols-10 lg:grid-cols-12">
+			<div className="grid grid-cols-[repeat(auto-fill,minmax(82px,1fr))] gap-2.5 p-3">
 				{recentStickers.map((sticker) => {
 					const [collection, iconName] = sticker.iconId.split(":");
 					return (
@@ -37,6 +37,7 @@ export function StickersRecent({
 							icon={iconName}
 							name={sticker.name}
 							collection={collection}
+							layout="catalog"
 							onSelect={onSelect}
 						/>
 					);

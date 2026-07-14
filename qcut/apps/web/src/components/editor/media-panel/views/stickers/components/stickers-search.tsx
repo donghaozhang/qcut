@@ -16,7 +16,7 @@ export function StickersSearch({
 	onUploadClick,
 }: StickersSearchProps) {
 	return (
-		<div className="border-b p-4">
+		<div className="border-b border-border/50 p-3">
 			<div className="flex gap-2">
 				<div className="relative min-w-0 flex-1">
 					<Search
@@ -24,10 +24,10 @@ export function StickersSearch({
 						aria-hidden="true"
 					/>
 					<Input
-						placeholder="Search stickers..."
+						placeholder="搜索贴纸 / Search stickers"
 						value={searchQuery}
 						onChange={(event) => onSearchChange(event.target.value)}
-						aria-label="Search stickers"
+						aria-label="搜索贴纸 / Search stickers"
 						className="h-9 pl-10 pr-10"
 					/>
 					{searchQuery && (

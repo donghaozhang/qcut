@@ -2,6 +2,7 @@
 
 import { Loader2, Search } from "lucide-react";
 import { TooltipProvider } from "@/components/ui/tooltip";
+import { findStickerCatalogItem } from "@/lib/stickers/sticker-catalog";
 import { StickerItem } from "./sticker-item";
 
 interface StickersSearchResultsProps {
@@ -17,10 +18,12 @@ export function StickersSearchResults({
 	isSearching,
 	onSelect,
 }: StickersSearchResultsProps) {
-	if (isSearching) {
+	if (isSearching && searchResults.length === 0) {
 		return (
 			<div className="flex items-center justify-center py-12">
-				<Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+				<Loader2 className="h-8 w-8 animate-spin text-muted-foreground">
+					<title>Searching stickers</title>
+				</Loader2>
 			</div>
 		);
 	}
@@ -28,7 +31,9 @@ export function StickersSearchResults({
 	if (searchResults.length === 0 && searchQuery) {
 		return (
 			<div className="flex flex-col items-center justify-center py-12 text-center">
-				<Search className="mb-4 h-12 w-12 text-muted-foreground" />
+				<Search className="mb-4 h-12 w-12 text-muted-foreground">
+					<title>No sticker results</title>
+				</Search>
 				<p className="text-lg font-medium">No icons found</p>
 				<p className="text-muted-foreground">
 					Try searching with different keywords
@@ -39,18 +44,23 @@ export function StickersSearchResults({
 
 	return (
 		<TooltipProvider>
-			<div className="grid grid-cols-6 gap-2 p-4 sm:grid-cols-8 md:grid-cols-10 lg:grid-cols-12">
+			<div className="grid grid-cols-[repeat(auto-fill,minmax(82px,1fr))] gap-2.5 p-3">
 				{searchResults.map((result) => {
 					const [collection, iconName] = result.split(":");
 					if (!collection || !iconName) {
 						return null; // skip malformed entries
 					}
+					const catalogItem = findStickerCatalogItem({
+						collection,
+						icon: iconName,
+					});
 					return (
 						<StickerItem
 							key={result}
 							icon={iconName}
-							name={iconName}
+							name={catalogItem?.localizedName ?? iconName}
 							collection={collection}
+							layout="catalog"
 							onSelect={onSelect}
 						/>
 					);
