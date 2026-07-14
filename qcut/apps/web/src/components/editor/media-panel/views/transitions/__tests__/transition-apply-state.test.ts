@@ -164,7 +164,7 @@ describe("transition apply state", () => {
 
 		expect(result).toEqual({
 			status: "disabled",
-			message: "Select two adjacent video clips to prepare a transition.",
+			message: "请选择两段相邻的视频片段来添加转场。",
 		});
 	});
 
@@ -196,7 +196,7 @@ describe("transition apply state", () => {
 
 		expect(result).toEqual({
 			status: "disabled",
-			message: "The selected clips need to touch at a cut point.",
+			message: "所选片段需要在同一个剪辑点首尾相接。",
 		});
 	});
 
@@ -235,7 +235,7 @@ describe("transition apply state", () => {
 
 		expect(result).toEqual({
 			status: "disabled",
-			message: "Transitions can be prepared only between video clips.",
+			message: "转场只能添加在两段视频之间。",
 		});
 	});
 
@@ -261,7 +261,7 @@ describe("transition apply state", () => {
 
 		expect(result).toEqual({
 			status: "disabled",
-			message: "Transitions can be prepared only between video clips.",
+			message: "转场只能添加在两段视频之间。",
 		});
 	});
 
@@ -299,7 +299,7 @@ describe("transition apply state", () => {
 
 		expect(result).toEqual({
 			status: "disabled",
-			message: "Select two adjacent clips on the same media track.",
+			message: "请选择同一视频轨道上的两段相邻片段。",
 		});
 	});
 
@@ -333,7 +333,7 @@ describe("transition apply state", () => {
 
 		expect(result).toEqual({
 			status: "disabled",
-			message: "Transitions require two video clips.",
+			message: "转场需要两段视频片段。",
 		});
 	});
 
@@ -368,6 +368,6 @@ describe("transition apply state", () => {
 		expect(result.maxDuration).toBe(5);
 		expect(result.fromMediaId).toBe("clip-a-media");
 		expect(result.toMediaId).toBe("clip-b-media");
-		expect(result.message).toBe("Ready between Clip A and Clip B.");
+		expect(result.message).toBe("可在 Clip A 与 Clip B 之间添加转场。");
 	});
 });

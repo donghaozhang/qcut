@@ -279,9 +279,7 @@ describe("TransitionsView", () => {
 
 		expect(screen.getByRole("button", { name: "应用所选转场" })).toBeDisabled();
 		expect(
-			screen.getByText(
-				"Select two adjacent video clips to prepare a transition."
-			)
+			screen.getByText("请选择两段相邻的视频片段来添加转场。")
 		).toBeInTheDocument();
 	});
 
@@ -290,7 +288,7 @@ describe("TransitionsView", () => {
 		render(<TransitionsView />);
 
 		expect(
-			screen.getByText("Ready between Clip A and Clip B.")
+			screen.getByText("可在 Clip A 与 Clip B 之间添加转场。")
 		).toBeInTheDocument();
 
 		fireEvent.click(screen.getByRole("button", { name: "应用所选转场" }));
@@ -308,7 +306,7 @@ describe("TransitionsView", () => {
 				easing: "easeInOut",
 			}),
 		]);
-		expect(toast.success).toHaveBeenCalledWith("Dissolve applied.");
+		expect(toast.success).toHaveBeenCalledWith("已应用叠化。");
 	});
 
 	it("disables transition application when either selected clip is an image", () => {
@@ -322,9 +320,7 @@ describe("TransitionsView", () => {
 		render(<TransitionsView />);
 
 		expect(screen.getByRole("button", { name: "应用所选转场" })).toBeDisabled();
-		expect(
-			screen.getByText("Transitions require two video clips.")
-		).toBeInTheDocument();
+		expect(screen.getByText("转场需要两段视频片段。")).toBeInTheDocument();
 	});
 
 	it("applies a preset from the card apply button", () => {
@@ -342,7 +338,7 @@ describe("TransitionsView", () => {
 				type: "fade-black",
 			}),
 		]);
-		expect(toast.success).toHaveBeenCalledWith("Fade Through Black applied.");
+		expect(toast.success).toHaveBeenCalledWith("已应用黑场过渡。");
 	});
 
 	it("double-clicks a ready card to replace the transition at the seam", () => {
@@ -386,7 +382,7 @@ describe("TransitionsView", () => {
 				easing: "easeInOut",
 			});
 			expect(toast.error).toHaveBeenCalledWith(
-				"This cut does not have enough room for a transition."
+				"这个剪辑点没有足够空间容纳转场。"
 			);
 			expect(toast.success).not.toHaveBeenCalled();
 		} finally {
@@ -394,7 +390,7 @@ describe("TransitionsView", () => {
 		}
 	});
 
-	it("uses the selected clips' thumbnails for card previews", () => {
+	it("keeps dedicated preview art when clips are selected", () => {
 		selectAdjacentClips();
 		useMediaStore.setState({
 			mediaItems: [
@@ -408,7 +404,11 @@ describe("TransitionsView", () => {
 		const sources = Array.from(card.querySelectorAll("img")).map((img) =>
 			img.getAttribute("src")
 		);
-		expect(sources).toEqual(["blob:thumb-a", "blob:thumb-b"]);
+		const dissolve = getTransitionPresetById({ presetId: "dissolve" });
+
+		expect(sources).toEqual([dissolve?.preview.from, dissolve?.preview.to]);
+		expect(sources).not.toContain("blob:thumb-a");
+		expect(sources).not.toContain("blob:thumb-b");
 	});
 
 	it("falls back to bundled preview art when no clips are selected", () => {

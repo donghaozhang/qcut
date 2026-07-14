@@ -306,6 +306,18 @@ test.describe("Clip transition workflow", () => {
 		await transitions
 			.getByRole("button", { name: "光效", exact: true })
 			.click();
+		const catalogPreviewSources = await transitions
+			.locator('[data-testid^="transition-card-"] img')
+			.evaluateAll((images) =>
+				images
+					.map((image) => image.getAttribute("src"))
+					.filter((source): source is string => Boolean(source))
+			);
+		expect(catalogPreviewSources).toHaveLength(40);
+		expect(new Set(catalogPreviewSources).size).toBeGreaterThanOrEqual(12);
+		expect(
+			catalogPreviewSources.every((source) => source.endsWith(".webp"))
+		).toBe(true);
 		await transitions
 			.getByTestId("transition-card-prism-flare")
 			.scrollIntoViewIfNeeded();

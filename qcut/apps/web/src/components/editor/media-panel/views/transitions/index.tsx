@@ -225,9 +225,7 @@ export function TransitionsView() {
 		}
 		const config = getClipTransitionPresetConfig({ preset });
 		if (!config) {
-			toast.info(
-				`${preset.name} will be available in a later transition pack.`
-			);
+			toast.info(`${preset.localizedName} 将在后续转场包中提供。`);
 			return;
 		}
 		const resource = resolvePresetResource({
@@ -256,11 +254,11 @@ export function TransitionsView() {
 			easing: "easeInOut",
 		});
 		if (!transitionId) {
-			toast.error("This cut does not have enough room for a transition.");
+			toast.error("这个剪辑点没有足够空间容纳转场。");
 			return;
 		}
 
-		toast.success(`${preset.name} applied.`);
+		toast.success(`已应用${preset.localizedName}。`);
 	};
 
 	const handleDownload = async ({ preset }: { preset: TransitionPreset }) => {
@@ -468,7 +466,6 @@ export function TransitionsView() {
 										canApply={canApply}
 										resourceState={resource.state}
 										favorite={favoriteIds.has(preset.id)}
-										previewSources={previewSources}
 										onSelect={({ preset: nextPreset }) =>
 											setSelectedPresetId(nextPreset.id)
 										}

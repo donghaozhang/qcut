@@ -57,7 +57,7 @@ export function getTransitionApplyState({
 	if (selectedElements.length !== 2) {
 		return {
 			status: "disabled",
-			message: "Select two adjacent video clips to prepare a transition.",
+			message: "请选择两段相邻的视频片段来添加转场。",
 		};
 	}
 
@@ -69,7 +69,7 @@ export function getTransitionApplyState({
 	if (selectedMediaElements.length !== 2) {
 		return {
 			status: "disabled",
-			message: "Transitions can be prepared only between video clips.",
+			message: "转场只能添加在两段视频之间。",
 		};
 	}
 
@@ -77,7 +77,7 @@ export function getTransitionApplyState({
 	if (first.track.id !== second.track.id) {
 		return {
 			status: "disabled",
-			message: "Select two adjacent clips on the same media track.",
+			message: "请选择同一视频轨道上的两段相邻片段。",
 		};
 	}
 
@@ -94,7 +94,7 @@ export function getTransitionApplyState({
 	) {
 		return {
 			status: "disabled",
-			message: "Transitions require two video clips.",
+			message: "转场需要两段视频片段。",
 		};
 	}
 	const resolved = resolveClipTransition({
@@ -115,7 +115,7 @@ export function getTransitionApplyState({
 	if (!resolved) {
 		return {
 			status: "disabled",
-			message: "The selected clips need to touch at a cut point.",
+			message: "所选片段需要在同一个剪辑点首尾相接。",
 		};
 	}
 
@@ -127,6 +127,6 @@ export function getTransitionApplyState({
 		fromMediaId: from.element.mediaId,
 		toMediaId: to.element.mediaId,
 		maxDuration: resolved.maxDuration,
-		message: `Ready between ${from.element.name} and ${to.element.name}.`,
+		message: `可在 ${from.element.name} 与 ${to.element.name} 之间添加转场。`,
 	};
 }
