@@ -58,6 +58,18 @@ export {
 } from "./transition-presentation.js";
 
 export {
+	clipTransitionSupportsDirection,
+	getClipTransitionTuningControls,
+	getClipTransitionTuningValue,
+	removeClipTransitionTuningKeyframe,
+	resolveClipTransitionTuning,
+	transitionTuningDefaults,
+	upsertClipTransitionTuningKeyframe,
+	type ClipTransitionTuningControl,
+	type ResolvedClipTransitionTuning,
+} from "./transition-tuning.js";
+
+export {
 	isMediaElement,
 	isTextElement,
 	isStickerElement,
