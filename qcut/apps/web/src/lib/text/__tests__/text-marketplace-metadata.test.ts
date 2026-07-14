@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
 	compareTextTemplatesByMarketplaceOrder,
+	getRecommendedTextTemplateDefinitions,
 	getTextTemplateMarketplaceMetadata,
 	loadTextTemplateMarketplaceRemoteConfig,
 	parseTextTemplateMarketplaceRemoteConfig,
@@ -106,6 +107,39 @@ describe("text marketplace metadata", () => {
 				right: redBurst,
 			})
 		).toBeLessThan(0);
+	});
+
+	it("builds an operator recommendation set from heat and remote overrides", () => {
+		const definitions = getTextTemplateDefinitionsByCategory({
+			category: "red",
+		});
+		const basicPlain = getTextTemplateDefinitionsByCategory({
+			category: "basic",
+		}).find((definition) => definition.variantId === "plain");
+		if (!basicPlain) {
+			throw new Error("Expected basic marketplace fixtures");
+		}
+
+		const recommendedIds = getRecommendedTextTemplateDefinitions({
+			definitions,
+		}).map((definition) => definition.id);
+		expect(recommendedIds).toContain("red-red-burst");
+
+		expect(
+			getRecommendedTextTemplateDefinitions({
+				definitions: [basicPlain],
+			})
+		).toHaveLength(0);
+		expect(
+			getRecommendedTextTemplateDefinitions({
+				definitions: [basicPlain],
+				overrides: {
+					[basicPlain.id]: {
+						remoteTags: ["market:recommended"],
+					},
+				},
+			}).map((definition) => definition.id)
+		).toEqual([basicPlain.id]);
 	});
 
 	it("rejects malformed remote marketplace configs", () => {

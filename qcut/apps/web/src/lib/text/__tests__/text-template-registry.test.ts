@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { BUILT_IN_TEXT_PRESETS } from "../text-presets";
 import {
+	MARKETPLACE_RECOMMENDED_TEXT_CATEGORY_ID,
 	MIN_TEXT_TEMPLATES_PER_CATEGORY,
 	TEXT_TEMPLATE_CATEGORIES,
 	TEXT_TEMPLATE_DEFINITIONS,
@@ -36,7 +37,9 @@ describe("text template registry", () => {
 
 	it("materializes every category from the shared style definitions", () => {
 		expect(TEXT_TEMPLATES).toHaveLength(TEXT_TEMPLATE_DEFINITIONS.length);
-		for (const category of TEXT_TEMPLATE_CATEGORIES) {
+		for (const category of TEXT_TEMPLATE_CATEGORIES.filter(
+			(category) => !category.virtual
+		)) {
 			expect(
 				getTextTemplatesByCategory({ category: category.id }).length
 			).toBeGreaterThanOrEqual(MIN_TEXT_TEMPLATES_PER_CATEGORY);
@@ -48,6 +51,7 @@ describe("text template registry", () => {
 		for (const group of TEXT_TEMPLATE_GROUPS) {
 			expect(group.categories.length).toBeGreaterThan(0);
 			for (const category of group.categories) {
+				if (category.virtual) continue;
 				expect(
 					getTextTemplatesByCategory({ category: category.id }).length
 				).toBeGreaterThanOrEqual(MIN_TEXT_TEMPLATES_PER_CATEGORY);
@@ -61,7 +65,9 @@ describe("text template registry", () => {
 				(definition) => definition.catalogVisible
 			)
 		).toBe(true);
-		for (const category of TEXT_TEMPLATE_CATEGORIES) {
+		for (const category of TEXT_TEMPLATE_CATEGORIES.filter(
+			(category) => !category.virtual
+		)) {
 			const visibleCount = getTextTemplateDefinitionsByCategory({
 				category: category.id,
 			}).length;
@@ -101,6 +107,33 @@ describe("text template registry", () => {
 		expect(redVariantIds).not.toEqual(popularVariantIds);
 		expect(textureVariantIds).not.toEqual(popularVariantIds);
 		expect(gradientVariantIds).not.toEqual(popularVariantIds);
+	});
+
+	it("exposes a populated virtual recommended marketplace category", () => {
+		const recommendedCategory = TEXT_TEMPLATE_CATEGORIES.find(
+			(category) => category.id === MARKETPLACE_RECOMMENDED_TEXT_CATEGORY_ID
+		);
+		const recommendedDefinitions = getTextTemplateDefinitionsByCategory({
+			category: MARKETPLACE_RECOMMENDED_TEXT_CATEGORY_ID,
+		});
+
+		expect(recommendedCategory).toMatchObject({
+			groupId: "fancy",
+			label: "推荐",
+			virtual: true,
+		});
+		expect(recommendedDefinitions.length).toBeGreaterThanOrEqual(
+			MIN_TEXT_TEMPLATES_PER_CATEGORY
+		);
+		expect(recommendedDefinitions.length).toBeLessThanOrEqual(30);
+		expect(
+			recommendedDefinitions.every((definition) => definition.catalogVisible)
+		).toBe(true);
+		expect(
+			getTextTemplatesByCategory({
+				category: MARKETPLACE_RECOMMENDED_TEXT_CATEGORY_ID,
+			}).map((template) => template.id)
+		).toEqual(recommendedDefinitions.map((definition) => definition.id));
 	});
 
 	it("ships searchable marketplace metadata for template cards", () => {

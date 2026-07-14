@@ -303,6 +303,42 @@ export function compareTextTemplatesByMarketplaceOrder({
 	return left.name.localeCompare(right.name);
 }
 
+export function isTextTemplateMarketplaceRecommended({
+	definition,
+	overrides,
+}: {
+	definition: TextTemplateDefinition;
+	overrides?: TextTemplateMarketplaceMetadataOverrides;
+}): boolean {
+	const metadata = getTextTemplateMarketplaceMetadata({
+		definition,
+		overrides,
+	});
+	return (
+		metadata.remoteTags.includes("market:recommended") ||
+		metadata.heatScore >= 92 ||
+		metadata.editorialRank <= 12
+	);
+}
+
+export function getRecommendedTextTemplateDefinitions({
+	definitions,
+	limit = 80,
+	overrides,
+}: {
+	definitions: readonly TextTemplateDefinition[];
+	limit?: number;
+	overrides?: TextTemplateMarketplaceMetadataOverrides;
+}): TextTemplateDefinition[] {
+	const sortedDefinitions = [...definitions].sort((left, right) =>
+		compareTextTemplatesByMarketplaceOrder({ left, overrides, right })
+	);
+	const recommended = sortedDefinitions.filter((definition) =>
+		isTextTemplateMarketplaceRecommended({ definition, overrides })
+	);
+	return recommended.slice(0, Math.max(0, limit));
+}
+
 export function parseTextTemplateMarketplaceRemoteConfig({
 	value,
 }: {

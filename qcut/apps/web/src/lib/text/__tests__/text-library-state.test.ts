@@ -298,4 +298,24 @@ describe("text library state", () => {
 			})
 		).toEqual([]);
 	});
+
+	it("resolves marketplace recommendations from metadata overrides", () => {
+		expect(
+			getTextDefinitionsForLibraryCategory({
+				category: "recommended",
+				definitions: templateDefinitions,
+				state: EMPTY_TEXT_LIBRARY_STATE,
+			})
+		).toEqual([]);
+		expect(
+			getTextDefinitionsForLibraryCategory({
+				category: "recommended",
+				definitions: templateDefinitions,
+				marketplaceOverrides: {
+					second: { remoteTags: ["market:recommended"] },
+				},
+				state: EMPTY_TEXT_LIBRARY_STATE,
+			}).map((definition) => definition.id)
+		).toEqual(["second"]);
+	});
 });

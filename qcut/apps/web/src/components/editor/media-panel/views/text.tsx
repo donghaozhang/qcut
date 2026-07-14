@@ -1182,7 +1182,11 @@ export function sortTextDefinitionsForBrowsing({
 	definitions: readonly TextTemplateDefinition[];
 	marketplaceOverrides?: TextTemplateMarketplaceMetadataOverrides;
 }): TextTemplateDefinition[] {
-	if (categoryId === "favorites" || categoryId === "recent") {
+	if (
+		categoryId === "favorites" ||
+		categoryId === "recent" ||
+		categoryId === "recommended"
+	) {
 		return [...definitions];
 	}
 	return [...definitions].sort((left, right) =>
@@ -1245,9 +1249,10 @@ export function TextView() {
 			getTextDefinitionsForLibraryCategory({
 				category: activeCategory.id,
 				definitions: TEXT_TEMPLATE_LIBRARY_DEFINITIONS,
+				marketplaceOverrides,
 				state: libraryState,
 			}),
-		[activeCategory.id, libraryState]
+		[activeCategory.id, libraryState, marketplaceOverrides]
 	);
 	const smartTextCategoryId = getSmartTextCategoryId({
 		categoryId: activeCategory.id,

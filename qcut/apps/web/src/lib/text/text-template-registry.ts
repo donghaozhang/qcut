@@ -1,5 +1,6 @@
 import { TIMELINE_CONSTANTS } from "@/constants/timeline-constants";
 import type { TextElement } from "@/types/timeline";
+import { getRecommendedTextTemplateDefinitions } from "./text-marketplace-metadata";
 import { BUILT_IN_TEXT_PRESETS, type TextStylePreset } from "./text-presets";
 
 type TextTemplatePalette = {
@@ -568,22 +569,40 @@ const TEXT_TEMPLATE_GROUP_SEEDS = [
 	},
 ] as const;
 
+export const MARKETPLACE_RECOMMENDED_TEXT_CATEGORY_ID = "recommended";
+
 export type TextTemplateGroupId =
 	(typeof TEXT_TEMPLATE_GROUP_SEEDS)[number]["id"];
 export type TextTemplateCategoryId =
-	(typeof TEXT_TEMPLATE_GROUP_SEEDS)[number]["categories"][number]["id"];
+	| (typeof TEXT_TEMPLATE_GROUP_SEEDS)[number]["categories"][number]["id"]
+	| typeof MARKETPLACE_RECOMMENDED_TEXT_CATEGORY_ID;
 
 export interface TextTemplateCategory {
 	id: TextTemplateCategoryId;
 	groupId: TextTemplateGroupId;
 	label: string;
 	content: string;
+	virtual?: boolean;
 }
 
 export interface TextTemplateGroup {
 	id: TextTemplateGroupId;
 	label: string;
 	categories: readonly TextTemplateCategory[];
+}
+
+function marketplaceRecommendedTextCategory({
+	groupId,
+}: {
+	groupId: TextTemplateGroupId;
+}): TextTemplateCategory {
+	return {
+		id: MARKETPLACE_RECOMMENDED_TEXT_CATEGORY_ID,
+		groupId,
+		label: "推荐",
+		content: "推荐",
+		virtual: true,
+	};
 }
 
 export type TextTemplateResourceEntitlement = "free" | "svip";
@@ -1783,12 +1802,17 @@ export const TEXT_TEMPLATE_GROUPS: readonly TextTemplateGroup[] =
 	TEXT_TEMPLATE_GROUP_SEEDS.map((group) => ({
 		id: group.id,
 		label: group.label,
-		categories: group.categories.map((category) => ({
-			id: category.id,
-			groupId: group.id,
-			label: category.label,
-			content: category.content,
-		})),
+		categories: [
+			...(group.id === "fancy"
+				? [marketplaceRecommendedTextCategory({ groupId: group.id })]
+				: []),
+			...group.categories.map((category) => ({
+				id: category.id,
+				groupId: group.id,
+				label: category.label,
+				content: category.content,
+			})),
+		],
 	}));
 
 export const TEXT_TEMPLATE_CATEGORIES: readonly TextTemplateCategory[] =
@@ -2171,6 +2195,13 @@ export const TEXT_TEMPLATE_DEFINITIONS: readonly TextTemplateDefinition[] = [
 export const TEXT_TEMPLATE_LIBRARY_DEFINITIONS: readonly TextTemplateDefinition[] =
 	TEXT_TEMPLATE_DEFINITIONS.filter((definition) => definition.catalogVisible);
 
+function getMarketplaceRecommendedTextTemplateDefinitions(): TextTemplateDefinition[] {
+	return getRecommendedTextTemplateDefinitions({
+		definitions: TEXT_TEMPLATE_LIBRARY_DEFINITIONS,
+		limit: 30,
+	});
+}
+
 const textPresetsById = new Map<string, TextStylePreset>(
 	BUILT_IN_TEXT_PRESETS.map((preset) => [preset.id, preset])
 );
@@ -2218,6 +2249,9 @@ export function getTextTemplateDefinitionsByCategory({
 }: {
 	category: TextTemplateCategoryId;
 }): TextTemplateDefinition[] {
+	if (category === MARKETPLACE_RECOMMENDED_TEXT_CATEGORY_ID) {
+		return getMarketplaceRecommendedTextTemplateDefinitions();
+	}
 	return TEXT_TEMPLATE_LIBRARY_DEFINITIONS.filter(
 		(definition) => definition.category === category
 	);
@@ -2228,10 +2262,13 @@ export function getTextTemplatesByCategory({
 }: {
 	category: TextTemplateCategoryId;
 }): TextElement[] {
-	const templateIds = new Set(
-		TEXT_TEMPLATE_DEFINITIONS.filter(
-			(definition) => definition.category === category
-		).map((definition) => definition.id)
+	const templatesById = new Map(
+		TEXT_TEMPLATES.map((template) => [template.id, template])
 	);
-	return TEXT_TEMPLATES.filter((template) => templateIds.has(template.id));
+	return getTextTemplateDefinitionsByCategory({ category }).flatMap(
+		(definition) => {
+			const template = templatesById.get(definition.id);
+			return template ? [template] : [];
+		}
+	);
 }
