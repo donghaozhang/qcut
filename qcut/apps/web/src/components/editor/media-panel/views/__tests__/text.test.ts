@@ -308,6 +308,13 @@ describe("text view layout", () => {
 		expect(
 			getTextTemplateAccessibilityLabel({
 				isPack: true,
+				slotLabels: ["开场", "主标题", "副标题"],
+				templateName: "标题组合",
+			})
+		).toBe("添加组合文字模板 标题组合，可替换：开场、主标题、副标题");
+		expect(
+			getTextTemplateAccessibilityLabel({
+				isPack: true,
 				templateName: "标题组合",
 			})
 		).toBe("添加组合文字模板 标题组合");

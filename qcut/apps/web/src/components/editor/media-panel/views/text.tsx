@@ -253,14 +253,16 @@ export function getTextTemplatePackCopyDefaults({
 
 export function getTextTemplateAccessibilityLabel({
 	isPack,
+	slotLabels = [],
 	templateName,
 }: {
 	isPack: boolean;
+	slotLabels?: readonly string[];
 	templateName: string;
 }): string {
-	return isPack
-		? `添加组合文字模板 ${templateName}`
-		: `添加文字模板 ${templateName}`;
+	if (!isPack) return `添加文字模板 ${templateName}`;
+	if (slotLabels.length === 0) return `添加组合文字模板 ${templateName}`;
+	return `添加组合文字模板 ${templateName}，可替换：${slotLabels.join("、")}`;
 }
 
 export function getTextTemplatePackCopyActionLabel({
@@ -376,6 +378,7 @@ function TextTemplate({
 	const isTemplatePack = Boolean(editableTemplatePack);
 	const templateAccessibilityLabel = getTextTemplateAccessibilityLabel({
 		isPack: isTemplatePack,
+		slotLabels: editableTemplatePack?.copySlots.map((slot) => slot.label) ?? [],
 		templateName: template.name,
 	});
 	const resolveTemplate = async () => {
