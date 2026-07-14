@@ -177,7 +177,10 @@ describe("text designer pack template verifier", () => {
 			dirname(packDir),
 			"text-designer-pack-template.tar.gz"
 		);
-		await createTextDesignerPackTemplateArchive({ archivePath, outDir: packDir });
+		await createTextDesignerPackTemplateArchive({
+			archivePath,
+			outDir: packDir,
+		});
 
 		const result = await verifyTextDesignerPackTemplateInput({
 			expectedAssets: 1,
