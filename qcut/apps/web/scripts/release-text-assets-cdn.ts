@@ -65,6 +65,7 @@ export type TextAssetReleaseSummary = {
 	archivedFiles: number;
 	baseUrl: string;
 	designerGapReportPath?: string;
+	designerReady: boolean;
 	designerReadyMissing: number;
 	dryRun: boolean;
 	localIssueSummary: ReturnType<typeof summarizeVerifyIssues>["issueSummary"];
@@ -84,6 +85,16 @@ export type TextAssetReleaseSummary = {
 	totalFiles: number;
 	upload: TextAssetUploadSummary;
 	uploadPlanPath?: string;
+};
+
+export type TextAssetReleaseReadiness = {
+	designerImported: number;
+	designerReady: boolean;
+	generated: number;
+	missingDesignerAssets: number;
+	requiredDesignerCategories: readonly string[];
+	status: "designer-ready" | "generated-fallback";
+	totalAssets: number;
 };
 
 export type TextAssetStageArchiveSummary = {
@@ -331,6 +342,11 @@ export async function releaseTextAssetsToCdn({
 		minDesignerAssetsPerCategory: TEXT_DESIGNER_READY_MIN_ASSETS_PER_CATEGORY,
 		requiredDesignerCategories: [...TEXT_DESIGNER_READY_CATEGORY_IDS],
 	});
+	const releaseReadiness = buildTextAssetReleaseReadiness({
+		designerGapReport,
+		provenance,
+		requiredDesignerCategories: options.requiredDesignerCategories,
+	});
 	const { issues: manifestIssues, manifest } = buildTextAssetPublishManifest({
 		baseUrl: options.baseUrl,
 		generatedAt,
@@ -383,13 +399,14 @@ export async function releaseTextAssetsToCdn({
 	}
 	const staging = options.stageDir
 		? await stageTextAssetUploadPlan({
-				designerGapReport,
-				items,
-				prefix: options.prefix,
-				provenance,
-				requiredDesignerCategories: options.requiredDesignerCategories,
-				stageDir: options.stageDir,
-			})
+			designerGapReport,
+			items,
+			prefix: options.prefix,
+			provenance,
+			releaseReadiness,
+			requiredDesignerCategories: options.requiredDesignerCategories,
+			stageDir: options.stageDir,
+		})
 		: undefined;
 	const archive =
 		options.archivePath && options.stageDir
@@ -436,6 +453,7 @@ export async function stageTextAssetUploadPlan({
 	items,
 	prefix,
 	provenance,
+	releaseReadiness,
 	requiredDesignerCategories = [],
 	stageDir,
 }: {
@@ -443,6 +461,7 @@ export async function stageTextAssetUploadPlan({
 	items: readonly TextAssetUploadPlanItem[];
 	prefix: string;
 	provenance?: TextAssetProvenanceSummary;
+	releaseReadiness?: TextAssetReleaseReadiness;
 	requiredDesignerCategories?: readonly string[];
 	stageDir: string;
 }): Promise<{
@@ -470,17 +489,17 @@ export async function stageTextAssetUploadPlan({
 		resolvedStageDir,
 		STAGE_DESIGNER_GAP_REPORT_FILE
 	);
+	const releaseManifest = {
+		...buildTextAssetUploadPlanReport({
+			generatedAt: new Date().toISOString(),
+			items,
+			prefix,
+		}),
+		releaseReadiness,
+	};
 	await writeFile(
 		manifestPath,
-		`${JSON.stringify(
-			buildTextAssetUploadPlanReport({
-				generatedAt: new Date().toISOString(),
-				items,
-				prefix,
-			}),
-			null,
-			"\t"
-		)}\n`,
+		`${JSON.stringify(releaseManifest, null, "\t")}\n`,
 		"utf8"
 	);
 	await writeFile(
@@ -490,6 +509,7 @@ export async function stageTextAssetUploadPlan({
 			items,
 			prefix,
 			provenance,
+			releaseReadiness,
 			requiredDesignerCategories,
 		}),
 		"utf8"
@@ -514,12 +534,14 @@ function renderTextAssetReleaseReadme({
 	items,
 	prefix,
 	provenance,
+	releaseReadiness,
 	requiredDesignerCategories,
 }: {
 	designerGapReport?: TextAssetDesignerGapReport;
 	items: readonly TextAssetUploadPlanItem[];
 	prefix: string;
 	provenance?: TextAssetProvenanceSummary;
+	releaseReadiness?: TextAssetReleaseReadiness;
 	requiredDesignerCategories: readonly string[];
 }): string {
 	const roleCounts = items.reduce<Record<string, number>>((counts, item) => {
@@ -573,6 +595,8 @@ bun run assets:text:check-remote-metadata
 | prefix | ${prefix || "(none)"} |
 | files | ${items.length} |
 | bytes | ${items.reduce((total, item) => total + item.size, 0)} |
+| designerReady | ${releaseReadiness?.designerReady ? "yes" : "no"} |
+| releaseStatus | ${releaseReadiness?.status ?? "(unknown)"} |
 | designerImported | ${provenance?.designerImported ?? "(unknown)"} |
 | generated | ${provenance?.generated ?? "(unknown)"} |
 | designerReadyMissing | ${designerGapReport?.totalMissing ?? "(unknown)"} |
@@ -671,6 +695,7 @@ function buildReleaseSummary({
 		archivedFiles: stageArchivedFiles ?? 0,
 		baseUrl: options.baseUrl,
 		designerGapReportPath: stageDesignerGapReportPath,
+		designerReady: designerReadyMissing === 0,
 		designerReadyMissing,
 		dryRun: options.dryRun,
 		localIssueSummary: summarizeVerifyIssues({ issues: localIssues })
@@ -692,6 +717,27 @@ function buildReleaseSummary({
 		totalFiles: manifest.totalFiles,
 		upload,
 		uploadPlanPath: options.uploadPlanPath,
+	};
+}
+
+function buildTextAssetReleaseReadiness({
+	designerGapReport,
+	provenance,
+	requiredDesignerCategories,
+}: {
+	designerGapReport: TextAssetDesignerGapReport;
+	provenance: TextAssetProvenanceSummary;
+	requiredDesignerCategories: readonly string[];
+}): TextAssetReleaseReadiness {
+	const designerReady = designerGapReport.totalMissing === 0;
+	return {
+		designerImported: provenance.designerImported,
+		designerReady,
+		generated: provenance.generated,
+		missingDesignerAssets: designerGapReport.totalMissing,
+		requiredDesignerCategories,
+		status: designerReady ? "designer-ready" : "generated-fallback",
+		totalAssets: provenance.total,
 	};
 }
 

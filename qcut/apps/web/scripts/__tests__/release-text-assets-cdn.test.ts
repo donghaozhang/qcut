@@ -290,6 +290,7 @@ describe("text asset CDN release script", () => {
 		});
 
 		expect(summary).toMatchObject({
+			designerReady: false,
 			dryRun: true,
 			localIssueSummary: {
 				byCode: {},
@@ -392,6 +393,7 @@ describe("text asset CDN release script", () => {
 				stageDir,
 				"_qcut-text-designer-gap-report.json"
 			),
+			designerReady: false,
 			designerReadyMissing: 100,
 			dryRun: true,
 			stageDir,
@@ -430,6 +432,15 @@ describe("text asset CDN release script", () => {
 				}),
 			],
 			prefix: "prod",
+			releaseReadiness: {
+				designerImported: 0,
+				designerReady: false,
+				generated: 0,
+				missingDesignerAssets: 100,
+				requiredDesignerCategories: [],
+				status: "generated-fallback",
+				totalAssets: 1,
+			},
 			schemaVersion: 1,
 			totalFiles: 4,
 		});
@@ -445,6 +456,12 @@ describe("text asset CDN release script", () => {
 		await expect(
 			readFile(join(stageDir, "_qcut-text-assets-release-readme.md"), "utf8")
 		).resolves.toContain("designerImported | 0");
+		await expect(
+			readFile(join(stageDir, "_qcut-text-assets-release-readme.md"), "utf8")
+		).resolves.toContain("designerReady | no");
+		await expect(
+			readFile(join(stageDir, "_qcut-text-assets-release-readme.md"), "utf8")
+		).resolves.toContain("releaseStatus | generated-fallback");
 		await expect(
 			readFile(join(stageDir, "_qcut-text-assets-release-readme.md"), "utf8")
 		).resolves.toContain("designerReadyMissing | 100");
