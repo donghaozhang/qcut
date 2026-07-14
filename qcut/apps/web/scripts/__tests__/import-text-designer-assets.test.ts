@@ -16,6 +16,8 @@ function checksum({ value }: { value: string }): string {
 	return createHash("sha256").update(Buffer.from(value)).digest("hex");
 }
 
+const DESIGNER_THUMBNAIL_TEXT = "RIFF0000WEBP";
+
 function createGeneratedEntry(): TextAssetGeneratedEntry {
 	return {
 		assetId: "text-demo",
@@ -127,7 +129,7 @@ async function createDesignerFixture(): Promise<{
 	const sourceText = designerSourceText();
 	const packageText = designerPackageText();
 	await Promise.all([
-		writeFile(join(packDir, "thumbnail.webp"), "new-thumb"),
+		writeFile(join(packDir, "thumbnail.webp"), DESIGNER_THUMBNAIL_TEXT),
 		writeFile(join(packDir, "template.json"), sourceText),
 		writeFile(join(packDir, "template.qctext"), packageText),
 		writeFile(
@@ -202,8 +204,8 @@ describe("text designer asset import script", () => {
 			"package",
 		]);
 		expect(plan.updatedManifest["text-demo"]?.thumbnail).toMatchObject({
-			byteSize: "new-thumb".length,
-			checksumSha256: checksum({ value: "new-thumb" }),
+			byteSize: DESIGNER_THUMBNAIL_TEXT.length,
+			checksumSha256: checksum({ value: DESIGNER_THUMBNAIL_TEXT }),
 		});
 		expect(plan.updatedManifest["text-demo"]?.provenance).toEqual({
 			source: "designer-imported",
@@ -250,6 +252,21 @@ describe("text designer asset import script", () => {
 				publicDir,
 			})
 		).rejects.toThrow("file reference mismatch");
+	});
+
+	it("rejects designer thumbnails without WebP payloads", async () => {
+		const { generatedManifest, packDir, packManifest, publicDir } =
+			await createDesignerFixture();
+		await writeFile(join(packDir, "thumbnail.webp"), "not-webp");
+
+		await expect(
+			buildTextDesignerAssetImportPlan({
+				generatedManifest,
+				packDir,
+				packManifest,
+				publicDir,
+			})
+		).rejects.toThrow("must contain a WebP payload");
 	});
 
 	it("blocks designer files that escape the pack directory", async () => {
@@ -340,7 +357,7 @@ describe("text designer asset import script", () => {
 				join(publicDir, "text-assets/demo/plain@1/thumbnail.webp"),
 				"utf8"
 			)
-		).resolves.toBe("new-thumb");
+		).resolves.toBe(DESIGNER_THUMBNAIL_TEXT);
 		const writtenManifest = JSON.parse(
 			await readFile(generatedManifestPath, "utf8")
 		) as Record<string, TextAssetGeneratedEntry>;

@@ -307,6 +307,11 @@ function validateDesignerAssetFile({
 		if (!sourcePath.toLocaleLowerCase().endsWith(".webp")) {
 			throw new Error(`Designer thumbnail must be a .webp file: ${assetId}`);
 		}
+		if (!isWebpBytes({ bytes })) {
+			throw new Error(
+				`Designer thumbnail must contain a WebP payload: ${assetId}`
+			);
+		}
 		return;
 	}
 	const payload = parseDesignerJsonAsset({ assetId, bytes, role });
@@ -586,6 +591,14 @@ function hashBytes({ bytes }: { bytes: Buffer }): string {
 
 function isRecord(value: unknown): value is Record<string, unknown> {
 	return typeof value === "object" && value !== null && !Array.isArray(value);
+}
+
+function isWebpBytes({ bytes }: { bytes: Buffer }): boolean {
+	return (
+		bytes.byteLength >= 12 &&
+		bytes.toString("ascii", 0, 4) === "RIFF" &&
+		bytes.toString("ascii", 8, 12) === "WEBP"
+	);
 }
 
 function requireValue({
