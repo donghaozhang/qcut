@@ -172,6 +172,41 @@ const CHARACTER_POSES = [
 		tags: ["rest", "relax"],
 		message: "休息一下",
 	},
+	{
+		id: "celebrate",
+		name: "Celebrate",
+		localizedName: "庆祝一下",
+		tags: ["celebrate", "party", "confetti"],
+		message: "庆祝一下",
+	},
+	{
+		id: "idea",
+		name: "Great idea",
+		localizedName: "有灵感了",
+		tags: ["idea", "inspiration", "light bulb"],
+		message: "灵感来了",
+	},
+	{
+		id: "brave",
+		name: "Be brave",
+		localizedName: "勇敢一点",
+		tags: ["brave", "courage", "shield"],
+		message: "勇敢一点",
+	},
+	{
+		id: "welcome",
+		name: "Welcome",
+		localizedName: "欢迎",
+		tags: ["welcome", "hello", "wave"],
+		message: "欢迎",
+	},
+	{
+		id: "on-my-way",
+		name: "On my way",
+		localizedName: "马上到",
+		tags: ["on my way", "coming", "speed"],
+		message: "马上到",
+	},
 ] as const satisfies readonly CharacterStickerPose[];
 
 export const CHARACTER_STICKER_PACKS = [

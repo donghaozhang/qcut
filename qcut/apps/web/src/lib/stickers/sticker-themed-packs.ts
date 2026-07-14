@@ -38,7 +38,7 @@ export interface ThemedStickerPack {
 type PhrasePair = readonly [localizedName: string, name: string];
 
 interface ThemedStickerPackSeed {
-	count: 20 | 30;
+	count: 25 | 35;
 	name: string;
 	localizedName: string;
 	palette: ThemedStickerPalette;
@@ -73,7 +73,7 @@ const STYLE_NAMES: Record<ThemedStickerStyle, string> = {
 
 const PACK_SEEDS: Record<ThemedStickerCategoryId, ThemedStickerPackSeed> = {
 	popular: {
-		count: 30,
+		count: 35,
 		name: "Popular",
 		localizedName: "热门",
 		palette: {
@@ -96,7 +96,7 @@ const PACK_SEEDS: Record<ThemedStickerCategoryId, ThemedStickerPackSeed> = {
 		],
 	},
 	interaction: {
-		count: 20,
+		count: 25,
 		name: "Interaction",
 		localizedName: "互动",
 		palette: {
@@ -119,7 +119,7 @@ const PACK_SEEDS: Record<ThemedStickerCategoryId, ThemedStickerPackSeed> = {
 		],
 	},
 	summer: {
-		count: 20,
+		count: 25,
 		name: "Summer",
 		localizedName: "夏日",
 		palette: {
@@ -142,7 +142,7 @@ const PACK_SEEDS: Record<ThemedStickerCategoryId, ThemedStickerPackSeed> = {
 		],
 	},
 	vlog: {
-		count: 20,
+		count: 25,
 		name: "Vlog",
 		localizedName: "Vlog",
 		palette: {
@@ -165,7 +165,7 @@ const PACK_SEEDS: Record<ThemedStickerCategoryId, ThemedStickerPackSeed> = {
 		],
 	},
 	mood: {
-		count: 20,
+		count: 25,
 		name: "Mood",
 		localizedName: "情绪",
 		palette: {
@@ -188,7 +188,7 @@ const PACK_SEEDS: Record<ThemedStickerCategoryId, ThemedStickerPackSeed> = {
 		],
 	},
 	conceal: {
-		count: 20,
+		count: 25,
 		name: "Conceal",
 		localizedName: "遮挡",
 		palette: {
@@ -211,7 +211,7 @@ const PACK_SEEDS: Record<ThemedStickerCategoryId, ThemedStickerPackSeed> = {
 		],
 	},
 	festival: {
-		count: 20,
+		count: 25,
 		name: "Festival",
 		localizedName: "节日",
 		palette: {
@@ -234,7 +234,7 @@ const PACK_SEEDS: Record<ThemedStickerCategoryId, ThemedStickerPackSeed> = {
 		],
 	},
 	ecommerce: {
-		count: 20,
+		count: 25,
 		name: "E-commerce",
 		localizedName: "电商",
 		palette: {
@@ -257,7 +257,7 @@ const PACK_SEEDS: Record<ThemedStickerCategoryId, ThemedStickerPackSeed> = {
 		],
 	},
 	doodle: {
-		count: 20,
+		count: 25,
 		name: "Cute Doodles",
 		localizedName: "涂鸦萌趣",
 		palette: {
@@ -280,7 +280,7 @@ const PACK_SEEDS: Record<ThemedStickerCategoryId, ThemedStickerPackSeed> = {
 		],
 	},
 	sports: {
-		count: 20,
+		count: 25,
 		name: "Sports",
 		localizedName: "运动",
 		palette: {
@@ -303,7 +303,7 @@ const PACK_SEEDS: Record<ThemedStickerCategoryId, ThemedStickerPackSeed> = {
 		],
 	},
 	"little-blue": {
-		count: 20,
+		count: 25,
 		name: "Little Blue",
 		localizedName: "小蓝",
 		palette: {
@@ -326,7 +326,7 @@ const PACK_SEEDS: Record<ThemedStickerCategoryId, ThemedStickerPackSeed> = {
 		],
 	},
 	frames: {
-		count: 20,
+		count: 25,
 		name: "Frames",
 		localizedName: "边框",
 		palette: {
@@ -349,7 +349,7 @@ const PACK_SEEDS: Record<ThemedStickerCategoryId, ThemedStickerPackSeed> = {
 		],
 	},
 	travel: {
-		count: 20,
+		count: 25,
 		name: "Travel",
 		localizedName: "旅行",
 		palette: {
@@ -372,7 +372,7 @@ const PACK_SEEDS: Record<ThemedStickerCategoryId, ThemedStickerPackSeed> = {
 		],
 	},
 	handwriting: {
-		count: 20,
+		count: 25,
 		name: "Handwriting",
 		localizedName: "手写字",
 		palette: {
@@ -395,7 +395,7 @@ const PACK_SEEDS: Record<ThemedStickerCategoryId, ThemedStickerPackSeed> = {
 		],
 	},
 	romance: {
-		count: 20,
+		count: 25,
 		name: "Romance",
 		localizedName: "浪漫",
 		palette: {
@@ -418,7 +418,7 @@ const PACK_SEEDS: Record<ThemedStickerCategoryId, ThemedStickerPackSeed> = {
 		],
 	},
 	beauty: {
-		count: 20,
+		count: 25,
 		name: "Beauty",
 		localizedName: "美妆",
 		palette: {
@@ -441,7 +441,7 @@ const PACK_SEEDS: Record<ThemedStickerCategoryId, ThemedStickerPackSeed> = {
 		],
 	},
 	faces: {
-		count: 20,
+		count: 25,
 		name: "Faces",
 		localizedName: "颜表情",
 		palette: {
@@ -464,7 +464,7 @@ const PACK_SEEDS: Record<ThemedStickerCategoryId, ThemedStickerPackSeed> = {
 		],
 	},
 	"world-cup": {
-		count: 30,
+		count: 35,
 		name: "World Cup",
 		localizedName: "世界杯",
 		palette: {
@@ -487,7 +487,7 @@ const PACK_SEEDS: Record<ThemedStickerCategoryId, ThemedStickerPackSeed> = {
 		],
 	},
 	"line-friends": {
-		count: 30,
+		count: 35,
 		name: "QCut Line Friends",
 		localizedName: "线条伙伴",
 		palette: {
@@ -510,7 +510,7 @@ const PACK_SEEDS: Record<ThemedStickerCategoryId, ThemedStickerPackSeed> = {
 		],
 	},
 	graphics: {
-		count: 30,
+		count: 35,
 		name: "Graphics",
 		localizedName: "图形库",
 		palette: {
@@ -538,7 +538,7 @@ function createItems({
 	count,
 	phrases,
 }: {
-	count: 20 | 30;
+	count: 25 | 35;
 	phrases: readonly PhrasePair[];
 }): ThemedStickerDefinition[] {
 	return Array.from({ length: count }, (_, index) => {

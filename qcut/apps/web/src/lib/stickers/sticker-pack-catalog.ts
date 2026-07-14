@@ -64,7 +64,7 @@ export const STICKER_STORE_PACKS: readonly StickerStorePack[] = [
 		id: "qcut-original-characters",
 		accessTier: "free",
 		animated: false,
-		description: "90 个本地内置角色贴纸，断网也能使用",
+		description: "105 个本地内置角色贴纸，断网也能使用",
 		emoji: "✨",
 		items: ORIGINAL_ITEMS,
 		localizedName: "QCut 原创角色",

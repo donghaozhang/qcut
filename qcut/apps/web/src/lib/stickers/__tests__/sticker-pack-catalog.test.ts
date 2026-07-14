@@ -17,13 +17,13 @@ describe("sticker pack catalog", () => {
 		).toEqual([
 			{
 				id: "qcut-original-characters",
-				items: 90,
+				items: 105,
 				animated: false,
 				accessTier: "free",
 			},
 			{
 				id: "qcut-themed-creator",
-				items: 440,
+				items: 540,
 				animated: false,
 				accessTier: "free",
 			},

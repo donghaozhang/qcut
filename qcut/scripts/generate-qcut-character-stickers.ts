@@ -139,12 +139,12 @@ function backProps({
 	pose: CharacterStickerPose;
 }): string {
 	const { accent, outline } = pack.palette;
-	if (pose.id === "wave") {
+	if (pose.id === "wave" || pose.id === "welcome") {
 		return `<ellipse cx="389" cy="280" rx="39" ry="83" fill="${pack.palette.body}" stroke="white" stroke-width="28" transform="rotate(25 389 280)"/>
 			<ellipse cx="389" cy="280" rx="39" ry="83" fill="${pack.palette.body}" stroke="${outline}" stroke-width="12" transform="rotate(25 389 280)"/>
 			<path d="M 420 147 Q 448 164 455 194 M 397 136 Q 415 155 418 181" fill="none" stroke="${accent}" stroke-width="12" stroke-linecap="round"/>`;
 	}
-	if (pose.id === "cheer") {
+	if (pose.id === "cheer" || pose.id === "celebrate") {
 		return `<path d="M 104 116 L 132 135 L 112 163 L 82 142 Z M 410 112 L 439 128 L 425 159 L 394 142 Z" fill="${accent}" stroke="white" stroke-width="12"/>
 			<path d="M 80 223 L 107 209 M 426 217 L 453 232 M 129 83 L 138 52 M 382 77 L 373 47" stroke="#54c8b4" stroke-width="12" stroke-linecap="round"/>`;
 	}
@@ -174,6 +174,15 @@ function backProps({
 	if (pose.id === "sunny") {
 		return `<circle cx="408" cy="119" r="49" fill="#ffd166" stroke="white" stroke-width="14"/>
 			<path d="M 408 42 V 17 M 408 221 V 196 M 331 119 H 306 M 510 119 H 485 M 352 64 L 333 45 M 464 64 L 483 45 M 352 174 L 333 193 M 464 174 L 483 193" stroke="#ffd166" stroke-width="12" stroke-linecap="round"/>`;
+	}
+	if (pose.id === "idea") {
+		return `<path d="M 393 72 C 340 72 317 135 351 170 C 366 186 369 198 369 218 H 417 C 417 198 420 186 435 170 C 469 135 446 72 393 72 Z" fill="#ffd166" stroke="white" stroke-width="18"/>
+			<path d="M 393 72 C 340 72 317 135 351 170 C 366 186 369 198 369 218 H 417 C 417 198 420 186 435 170 C 469 135 446 72 393 72 Z M 371 239 H 415 M 377 260 H 409" fill="none" stroke="${outline}" stroke-width="10" stroke-linecap="round"/>
+			<path d="M 393 39 V 13 M 325 62 L 307 43 M 461 62 L 479 43 M 300 129 H 273 M 486 129 H 513" stroke="${accent}" stroke-width="11" stroke-linecap="round"/>`;
+	}
+	if (pose.id === "on-my-way") {
+		return `<path d="M 48 192 H 137 M 23 238 H 117 M 55 284 H 139" stroke="${accent}" stroke-width="13" stroke-linecap="round"/>
+			<path d="M 383 125 L 468 210 L 383 295 V 247 H 319 V 173 H 383 Z" fill="${accent}" stroke="white" stroke-width="15" stroke-linejoin="round"/>`;
 	}
 	return "";
 }
@@ -213,7 +222,7 @@ function frontProps({
 	if (pose.id === "cry") {
 		return `<ellipse cx="256" cy="431" rx="96" ry="18" fill="#7bcaf5" opacity="0.72"/>`;
 	}
-	if (pose.id === "cheer") {
+	if (pose.id === "cheer" || pose.id === "celebrate") {
 		return `<path d="M 166 351 L 91 285 L 111 270 L 185 331 M 346 350 L 421 284 L 401 269 L 327 330" stroke="${outline}" stroke-width="10" stroke-linecap="round"/>
 			<path d="M 73 226 L 151 245 L 114 295 Z M 439 225 L 361 244 L 398 294 Z" fill="${accent}" stroke="${outline}" stroke-width="9"/>`;
 	}
@@ -249,6 +258,11 @@ function frontProps({
 	if (pose.id === "rest") {
 		return `<rect x="151" y="361" width="212" height="91" rx="42" fill="#bde0fe" stroke="white" stroke-width="22" transform="rotate(-5 257 406)"/>
 			<rect x="151" y="361" width="212" height="91" rx="42" fill="#bde0fe" stroke="${outline}" stroke-width="9" transform="rotate(-5 257 406)"/>`;
+	}
+	if (pose.id === "brave") {
+		return `<path d="M 256 314 L 341 344 V 390 C 341 437 304 465 256 481 C 208 465 171 437 171 390 V 344 Z" fill="${accent}" stroke="white" stroke-width="24" stroke-linejoin="round"/>
+			<path d="M 256 314 L 341 344 V 390 C 341 437 304 465 256 481 C 208 465 171 437 171 390 V 344 Z" fill="${accent}" stroke="${outline}" stroke-width="10" stroke-linejoin="round"/>
+			<path d="M 256 347 V 446 M 206 389 H 306" stroke="white" stroke-width="12" stroke-linecap="round"/>`;
 	}
 	return "";
 }
