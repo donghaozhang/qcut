@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useRef, useState, type ChangeEvent } from "react";
-import { AlertCircle, Clock, Heart, Library, Store } from "lucide-react";
+import { AlertCircle } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { useDebounce } from "@/hooks/use-debounce";
@@ -11,9 +11,12 @@ import {
 	searchStickerCatalog,
 	type StickerCategoryId,
 } from "@/lib/stickers/sticker-catalog";
-import { cn } from "@/lib/utils";
 import { useStickersStore } from "@/stores/stickers-store";
 import { StickerCatalogGrid } from "./components/sticker-catalog-grid";
+import {
+	StickerSidebar,
+	type StickerPanelMode,
+} from "./components/sticker-sidebar";
 import { StickersFavorites } from "./components/stickers-favorites";
 import { StickersRecent } from "./components/stickers-recent";
 import { StickersSearch } from "./components/stickers-search";
@@ -21,24 +24,11 @@ import { StickersSearchResults } from "./components/stickers-search-results";
 import { StickerStorefront } from "./components/sticker-storefront";
 import { useStickerSelect } from "./hooks/use-sticker-select";
 
-type StickerLibraryMode = "library" | "store" | "recent" | "favorites";
-
-const LIBRARY_MODES = [
-	{ id: "library", label: "贴纸库", icon: Library },
-	{ id: "store", label: "商店", icon: Store },
-	{ id: "recent", label: "最近", icon: Clock },
-	{ id: "favorites", label: "收藏", icon: Heart },
-] as const satisfies ReadonlyArray<{
-	id: StickerLibraryMode;
-	label: string;
-	icon: typeof Library;
-}>;
-
 export function StickersView() {
 	const [searchQuery, setSearchQuery] = useState("");
 	const [selectedCategory, setSelectedCategory] =
 		useState<StickerCategoryId>("interaction");
-	const [mode, setMode] = useState<StickerLibraryMode>("library");
+	const [mode, setMode] = useState<StickerPanelMode>("library");
 	const [isSearching, setIsSearching] = useState(false);
 	const fileInputRef = useRef<HTMLInputElement>(null);
 
@@ -123,8 +113,13 @@ export function StickersView() {
 			data-testid="stickers-panel"
 		>
 			<StickersSearch
+				isStoreActive={mode === "store"}
 				searchQuery={searchQuery}
 				onSearchChange={setSearchQuery}
+				onStoreClick={() => {
+					setMode("store");
+					setSearchQuery("");
+				}}
 				onUploadClick={() => fileInputRef.current?.click()}
 			/>
 			<input
@@ -135,37 +130,6 @@ export function StickersView() {
 				className="hidden"
 				onChange={handleFileChange}
 			/>
-
-			<div className="grid grid-cols-4 border-b border-border/50 bg-foreground/[0.02] p-1">
-				{LIBRARY_MODES.map((item) => {
-					const Icon = item.icon;
-					return (
-						<button
-							key={item.id}
-							type="button"
-							className={cn(
-								"flex h-7 items-center justify-center gap-1.5 rounded text-[11px] transition-colors",
-								mode === item.id
-									? "bg-background text-foreground shadow-sm"
-									: "text-muted-foreground hover:bg-foreground/5 hover:text-foreground"
-							)}
-							aria-pressed={mode === item.id}
-							onClick={() => {
-								setMode(item.id);
-								setSearchQuery("");
-							}}
-							onKeyDown={(event) => {
-								if (event.key === "Enter" || event.key === " ") {
-									event.currentTarget.click();
-								}
-							}}
-						>
-							<Icon className="size-3.5" />
-							<span>{item.label}</span>
-						</button>
-					);
-				})}
-			</div>
 
 			{error && (
 				<div className="mx-3 mt-2 flex items-center gap-2 rounded border border-destructive/40 bg-destructive/10 px-2 py-1.5 text-xs text-destructive">
@@ -201,89 +165,62 @@ export function StickersView() {
 							onSelect={handleStickerSelect}
 						/>
 					</div>
-				) : mode === "store" ? (
-					<StickerStorefront
-						onDownload={handleStickerDownload}
-						onSelect={handleStickerSelect}
-					/>
-				) : mode === "recent" ? (
-					<div className="h-full overflow-y-auto">
-						<StickersRecent
-							recentStickers={recentStickers}
-							onDownload={handleStickerDownload}
-							onSelect={handleStickerSelect}
-						/>
-					</div>
-				) : mode === "favorites" ? (
-					<div className="h-full overflow-y-auto">
-						<StickersFavorites
-							onDownload={handleStickerDownload}
-							onSelect={handleStickerSelect}
-						/>
-					</div>
 				) : (
 					<div className="flex h-full min-h-0">
-						<aside className="w-[102px] shrink-0 overflow-y-auto border-r border-border/50 p-1.5">
-							<div className="mb-2 flex h-7 items-center gap-2 px-2 text-[11px] font-semibold text-foreground">
-								<Library className="size-3.5">
-									<title>Sticker library categories</title>
-								</Library>
-								<span>贴纸库</span>
-							</div>
-							<div className="space-y-0.5">
-								{STICKER_CATEGORIES.map((category) => {
-									return (
-										<button
-											key={category.id}
-											type="button"
-											className={cn(
-												"flex h-8 w-full items-center gap-1.5 rounded px-1.5 text-left text-[11px] transition-colors",
-												selectedCategory === category.id
-													? "bg-primary/15 text-primary"
-													: "text-muted-foreground hover:bg-foreground/5 hover:text-foreground"
-											)}
-											aria-pressed={selectedCategory === category.id}
-											aria-label={`${category.localizedLabel} / ${category.label}`}
-											data-testid={`sticker-category-${category.id}`}
-											onClick={() => setSelectedCategory(category.id)}
-											onKeyDown={(event) => {
-												if (event.key === "Enter" || event.key === " ") {
-													event.currentTarget.click();
-												}
-											}}
-										>
-											<span
-												className="w-4 shrink-0 text-center text-sm"
-												aria-hidden="true"
-											>
-												{category.emoji}
-											</span>
-											<span className="truncate">
-												{category.localizedLabel}
-											</span>
-										</button>
-									);
-								})}
-							</div>
-						</aside>
+						<StickerSidebar
+							mode={mode}
+							selectedCategory={selectedCategory}
+							onSelectCategory={({ category }) => {
+								setSelectedCategory(category);
+								setMode("library");
+							}}
+							onSelectMode={({ mode: nextMode }) => {
+								setMode(nextMode);
+								setSearchQuery("");
+							}}
+						/>
 
-						<section className="flex min-w-0 flex-1 flex-col">
-							<div className="flex h-10 shrink-0 items-center justify-between border-b border-border/40 px-3 text-[11px]">
-								<span className="font-medium">
-									{activeCategory?.localizedLabel ?? "贴纸"}
-								</span>
-								<span className="tabular-nums text-muted-foreground">
-									{categoryItems.length} 个贴纸
-								</span>
-							</div>
-							<div className="min-h-0 flex-1 overflow-y-auto p-2">
-								<StickerCatalogGrid
-									items={categoryItems}
+						{mode === "store" ? (
+							<div className="min-w-0 flex-1 overflow-y-auto">
+								<StickerStorefront
 									onDownload={handleStickerDownload}
 									onSelect={handleStickerSelect}
 								/>
 							</div>
-						</section>
+						) : mode === "recent" ? (
+							<div className="min-w-0 flex-1 overflow-y-auto">
+								<StickersRecent
+									recentStickers={recentStickers}
+									onDownload={handleStickerDownload}
+									onSelect={handleStickerSelect}
+								/>
+							</div>
+						) : mode === "favorites" ? (
+							<div className="min-w-0 flex-1 overflow-y-auto">
+								<StickersFavorites
+									onDownload={handleStickerDownload}
+									onSelect={handleStickerSelect}
+								/>
+							</div>
+						) : (
+							<section className="flex min-w-0 flex-1 flex-col">
+								<div className="flex h-10 shrink-0 items-center justify-between border-b border-border/40 px-3 text-[11px]">
+									<span className="font-medium">
+										{activeCategory?.localizedLabel ?? "贴纸"}
+									</span>
+									<span className="tabular-nums text-muted-foreground">
+										{categoryItems.length} 个贴纸
+									</span>
+								</div>
+								<div className="min-h-0 flex-1 overflow-y-auto p-2">
+									<StickerCatalogGrid
+										items={categoryItems}
+										onDownload={handleStickerDownload}
+										onSelect={handleStickerSelect}
+									/>
+								</div>
+							</section>
+						)}
 					</div>
 				)}
 			</div>
