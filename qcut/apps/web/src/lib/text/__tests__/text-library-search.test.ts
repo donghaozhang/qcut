@@ -614,4 +614,84 @@ describe("text library search", () => {
 			}).map((definition) => definition.id)
 		).toEqual(["shopping-link-style"]);
 	});
+
+	it("prioritizes templates that match every token in multi-intent searches", () => {
+		const definitions = [
+			createDefinition({
+				category: "red",
+				content: "红色花字",
+				id: "red-only-style",
+				keywords: ["红色", "爆款"],
+				variantId: "red-burst",
+			}),
+			createDefinition({
+				category: "blue",
+				content: "直播价格",
+				id: "live-only-style",
+				keywords: ["直播", "价格", "促销"],
+				variantId: "blue-ice",
+			}),
+			createDefinition({
+				category: "red",
+				content: "直播价格",
+				id: "live-red-style",
+				keywords: ["直播", "价格", "促销", "红色"],
+				variantId: "red-burst",
+			}),
+		];
+
+		expect(
+			rankTextTemplateSearchResults({
+				definitions,
+				query: "直播 红色",
+				state: EMPTY_TEXT_LIBRARY_STATE,
+			}).map((definition) => definition.id)
+		).toEqual(["live-red-style", "red-only-style", "live-only-style"]);
+	});
+
+	it("splits marketplace separator queries into searchable intent tokens", () => {
+		const definitions = [
+			createDefinition({
+				category: "blue",
+				content: "直播价格",
+				id: "live-blue-style",
+				keywords: ["直播", "价格", "促销"],
+				variantId: "blue-ice",
+			}),
+			createDefinition({
+				category: "red",
+				content: "直播价格",
+				id: "live-red-style",
+				keywords: ["直播", "价格", "促销", "红色"],
+				variantId: "red-burst",
+			}),
+			createDefinition({
+				category: "red",
+				content: "封面标题",
+				id: "cover-red-style",
+				keywords: ["封面", "红色"],
+				variantId: "red-burst",
+			}),
+		];
+
+		const latinSeparatorResults = rankTextTemplateSearchResults({
+			definitions,
+			query: "zhibo-red",
+			state: EMPTY_TEXT_LIBRARY_STATE,
+		}).map((definition) => definition.id);
+		const chineseSeparatorResults = rankTextTemplateSearchResults({
+			definitions,
+			query: "直播/红色",
+			state: EMPTY_TEXT_LIBRARY_STATE,
+		}).map((definition) => definition.id);
+
+		expect(latinSeparatorResults[0]).toBe("live-red-style");
+		expect(new Set(latinSeparatorResults)).toEqual(
+			new Set(["live-red-style", "live-blue-style", "cover-red-style"])
+		);
+		expect(chineseSeparatorResults[0]).toBe("live-red-style");
+		expect(new Set(chineseSeparatorResults)).toEqual(
+			new Set(["live-red-style", "live-blue-style", "cover-red-style"])
+		);
+	});
 });

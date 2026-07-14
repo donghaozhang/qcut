@@ -19,6 +19,10 @@ type SearchFieldVariant = {
 	weight: number;
 };
 
+type SearchIntentGroup = {
+	terms: readonly WeightedSearchTerm[];
+};
+
 type PinyinAlias = {
 	full: string;
 	acronym: string;
@@ -297,20 +301,29 @@ export function rankTextTemplateSearchResults({
 }): TextTemplateDefinition[] {
 	const terms = buildWeightedSearchTerms({ query });
 	if (terms.length === 0) return [...definitions];
+	const intentGroups = buildSearchIntentGroups({ query });
 
 	return definitions
-		.map((definition, index) => ({
-			definition,
-			index,
-			score: scoreTextTemplateDefinition({
+		.map((definition, index) => {
+			const scoreResult = scoreTextTemplateDefinition({
 				definition,
+				intentGroups,
 				marketplaceOverrides,
 				state,
 				terms,
-			}),
-		}))
+			});
+			return {
+				definition,
+				index,
+				intentCoverage: scoreResult.intentCoverage,
+				score: scoreResult.score,
+			};
+		})
 		.filter((result) => result.score > 0)
 		.sort((left, right) => {
+			if (right.intentCoverage !== left.intentCoverage) {
+				return right.intentCoverage - left.intentCoverage;
+			}
 			if (right.score !== left.score) return right.score - left.score;
 			return left.index - right.index;
 		})
@@ -324,7 +337,7 @@ export function buildWeightedSearchTerms({
 }): WeightedSearchTerm[] {
 	const normalizedQuery = query.trim().toLocaleLowerCase();
 	if (!normalizedQuery) return [];
-	const rawTerms = normalizedQuery.split(/\s+/).filter(Boolean);
+	const rawTerms = tokenizeSearchQuery({ query: normalizedQuery });
 	const baseTerms = rawTerms.length > 0 ? rawTerms : [normalizedQuery];
 	const weightedTerms = new Map<string, number>();
 
@@ -350,6 +363,26 @@ export function buildWeightedSearchTerms({
 		term,
 		weight,
 	}));
+}
+
+function buildSearchIntentGroups({
+	query,
+}: {
+	query: string;
+}): SearchIntentGroup[] {
+	const terms = tokenizeSearchQuery({ query });
+	if (terms.length <= 1) return [];
+	return terms.map((term) => ({
+		terms: buildWeightedSearchTerms({ query: term }),
+	}));
+}
+
+function tokenizeSearchQuery({ query }: { query: string }): string[] {
+	return query
+		.trim()
+		.toLocaleLowerCase()
+		.split(/[\s,，、/|+_-]+/)
+		.filter(Boolean);
 }
 
 function addQueryCorrections({
@@ -421,23 +454,71 @@ function addWeightedTerm({
 
 function scoreTextTemplateDefinition({
 	definition,
+	intentGroups,
 	marketplaceOverrides,
 	state,
 	terms,
 }: {
 	definition: TextTemplateDefinition;
+	intentGroups: readonly SearchIntentGroup[];
 	marketplaceOverrides?: TextTemplateMarketplaceMetadataOverrides;
 	state: TextLibraryState;
 	terms: readonly WeightedSearchTerm[];
-}): number {
+}): { intentCoverage: number; score: number } {
 	let score = 0;
 	for (const term of terms) {
 		score += scoreWeightedTerm({ definition, marketplaceOverrides, term });
 	}
-	if (score <= 0) return 0;
-	return (
-		score + getStateAwareBoost({ definition, marketplaceOverrides, state })
-	);
+	if (score <= 0) return { intentCoverage: 0, score: 0 };
+	const intentCoverage = getSearchIntentCoverage({
+		definition,
+		intentGroups,
+		marketplaceOverrides,
+	});
+	const intentBoost = getSearchIntentBoost({
+		coverage: intentCoverage,
+		total: intentGroups.length,
+	});
+	return {
+		intentCoverage,
+		score:
+			score +
+			intentBoost +
+			getStateAwareBoost({ definition, marketplaceOverrides, state }),
+	};
+}
+
+function getSearchIntentCoverage({
+	definition,
+	intentGroups,
+	marketplaceOverrides,
+}: {
+	definition: TextTemplateDefinition;
+	intentGroups: readonly SearchIntentGroup[];
+	marketplaceOverrides?: TextTemplateMarketplaceMetadataOverrides;
+}): number {
+	if (intentGroups.length === 0) return 0;
+	let coverage = 0;
+	for (const group of intentGroups) {
+		const matchesGroup = group.terms.some(
+			(term) =>
+				scoreWeightedTerm({ definition, marketplaceOverrides, term }) > 0
+		);
+		if (matchesGroup) coverage += 1;
+	}
+	return coverage;
+}
+
+function getSearchIntentBoost({
+	coverage,
+	total,
+}: {
+	coverage: number;
+	total: number;
+}): number {
+	if (total <= 1 || coverage === 0) return 0;
+	const completeCoverageBoost = coverage === total ? 48 : 0;
+	return coverage * 20 + completeCoverageBoost;
 }
 
 function scoreWeightedTerm({
