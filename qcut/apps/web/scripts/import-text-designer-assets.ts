@@ -21,6 +21,7 @@ export type TextDesignerAssetPackManifest = {
 };
 
 export type TextDesignerAssetImportOptions = {
+	allowUnchanged: boolean;
 	dryRun: boolean;
 	generatedManifestPath: string;
 	packDir: string;
@@ -80,6 +81,7 @@ export function parseTextDesignerAssetImportArgs({
 	argv: string[];
 }): TextDesignerAssetImportOptions {
 	const options: TextDesignerAssetImportOptions = {
+		allowUnchanged: false,
 		dryRun: false,
 		generatedManifestPath: DEFAULT_GENERATED_MANIFEST_PATH,
 		packDir: "",
@@ -88,6 +90,10 @@ export function parseTextDesignerAssetImportArgs({
 	};
 	for (let index = 0; index < argv.length; index += 1) {
 		const arg = argv[index];
+		if (arg === "--allow-unchanged") {
+			options.allowUnchanged = true;
+			continue;
+		}
 		if (arg === "--dry-run") {
 			options.dryRun = true;
 			continue;
@@ -133,11 +139,13 @@ export async function readDesignerAssetPackManifest({
 }
 
 export async function buildTextDesignerAssetImportPlan({
+	allowUnchanged = false,
 	generatedManifest,
 	packDir,
 	packManifest,
 	publicDir,
 }: {
+	allowUnchanged?: boolean;
 	generatedManifest: Record<string, TextAssetGeneratedEntry>;
 	packDir: string;
 	packManifest: TextDesignerAssetPackManifest;
@@ -155,7 +163,7 @@ export async function buildTextDesignerAssetImportPlan({
 				asset,
 				targetEntry,
 			});
-			return Promise.all(
+			const items = await Promise.all(
 				roleSources.map((roleSource) =>
 					buildPlanItem({
 						assetId: asset.assetId,
@@ -166,6 +174,13 @@ export async function buildTextDesignerAssetImportPlan({
 					})
 				)
 			);
+			assertDesignerAssetChanged({
+				allowUnchanged,
+				assetId: asset.assetId,
+				items,
+				targetEntry,
+			});
+			return items;
 		})
 	);
 	const items = itemGroups.flat();
@@ -176,6 +191,43 @@ export async function buildTextDesignerAssetImportPlan({
 			items,
 		}),
 	};
+}
+
+function assertDesignerAssetChanged({
+	allowUnchanged,
+	assetId,
+	items,
+	targetEntry,
+}: {
+	allowUnchanged: boolean;
+	assetId: string;
+	items: readonly TextDesignerAssetImportPlanItem[];
+	targetEntry: TextAssetGeneratedEntry;
+}): void {
+	if (allowUnchanged) return;
+	const hasChangedFile = items.some((item) => {
+		const currentFile = currentGeneratedFileForRole({
+			role: item.role,
+			targetEntry,
+		});
+		return currentFile?.checksumSha256 !== item.checksumSha256;
+	});
+	if (hasChangedFile) return;
+	throw new Error(
+		`Designer asset files are unchanged from current generated asset: ${assetId}`
+	);
+}
+
+function currentGeneratedFileForRole({
+	role,
+	targetEntry,
+}: {
+	role: TextDesignerAssetImportRole;
+	targetEntry: TextAssetGeneratedEntry;
+}): TextAssetGeneratedFile | undefined {
+	if (role === "thumbnail") return targetEntry.thumbnail;
+	if (role === "source") return targetEntry.source;
+	return targetEntry.qcutPackage;
 }
 
 export async function applyTextDesignerAssetImportPlan({
@@ -624,6 +676,7 @@ async function main(): Promise<void> {
 		readDesignerAssetPackManifest({ manifestPath: options.packManifestPath }),
 	]);
 	const plan = await buildTextDesignerAssetImportPlan({
+		allowUnchanged: options.allowUnchanged,
 		generatedManifest,
 		packDir: options.packDir,
 		packManifest,

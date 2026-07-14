@@ -155,6 +155,7 @@ describe("text designer asset import script", () => {
 		expect(
 			parseTextDesignerAssetImportArgs({
 				argv: [
+					"--allow-unchanged",
 					"--dry-run",
 					"--generated-manifest",
 					"/tmp/generated.json",
@@ -165,6 +166,7 @@ describe("text designer asset import script", () => {
 				],
 			})
 		).toMatchObject({
+			allowUnchanged: true,
 			dryRun: true,
 			generatedManifestPath: "/tmp/generated.json",
 			packDir: "/tmp/designer-pack",
@@ -267,6 +269,55 @@ describe("text designer asset import script", () => {
 				publicDir,
 			})
 		).rejects.toThrow("must contain a WebP payload");
+	});
+
+	it("rejects unchanged generated files unless explicitly allowed", async () => {
+		const { generatedManifest, packDir, packManifest, publicDir } =
+			await createDesignerFixture();
+		const sourceText = designerSourceText();
+		const packageText = designerPackageText();
+		const unchangedGeneratedManifest = {
+			"text-demo": {
+				...generatedManifest["text-demo"],
+				thumbnail: {
+					...generatedManifest["text-demo"]!.thumbnail,
+					byteSize: DESIGNER_THUMBNAIL_TEXT.length,
+					checksumSha256: checksum({ value: DESIGNER_THUMBNAIL_TEXT }),
+				},
+				source: {
+					...generatedManifest["text-demo"]!.source,
+					byteSize: sourceText.length,
+					checksumSha256: checksum({ value: sourceText }),
+				},
+				qcutPackage: {
+					...generatedManifest["text-demo"]!.qcutPackage!,
+					byteSize: packageText.length,
+					checksumSha256: checksum({ value: packageText }),
+				},
+			},
+		};
+
+		await expect(
+			buildTextDesignerAssetImportPlan({
+				generatedManifest: unchangedGeneratedManifest,
+				packDir,
+				packManifest,
+				publicDir,
+			})
+		).rejects.toThrow("files are unchanged");
+		await expect(
+			buildTextDesignerAssetImportPlan({
+				allowUnchanged: true,
+				generatedManifest: unchangedGeneratedManifest,
+				packDir,
+				packManifest,
+				publicDir,
+			})
+		).resolves.toMatchObject({
+			items: expect.arrayContaining([
+				expect.objectContaining({ assetId: "text-demo" }),
+			]),
+		});
 	});
 
 	it("blocks designer files that escape the pack directory", async () => {
