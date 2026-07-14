@@ -1,5 +1,6 @@
+import { createHash } from "node:crypto";
 import { execFile } from "node:child_process";
-import { copyFile, mkdir, writeFile } from "node:fs/promises";
+import { copyFile, mkdir, readFile, writeFile } from "node:fs/promises";
 import { dirname, join, relative, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { promisify } from "node:util";
@@ -58,7 +59,9 @@ export type TextAssetReleaseOptions = {
 };
 
 export type TextAssetReleaseSummary = {
+	archiveBytes?: number;
 	archivePath?: string;
+	archiveSha256?: string;
 	archivedFiles: number;
 	baseUrl: string;
 	designerGapReportPath?: string;
@@ -85,8 +88,10 @@ export type TextAssetReleaseSummary = {
 
 export type TextAssetStageArchiveSummary = {
 	archivePath: string;
+	byteSize: number;
 	fileCount: number;
 	format: "tar.gz";
+	sha256: string;
 };
 
 const SCRIPT_DIR = dirname(fileURLToPath(import.meta.url));
@@ -415,8 +420,10 @@ export async function releaseTextAssetsToCdn({
 		options,
 		provenance,
 		remoteIssues,
+		stageArchiveBytes: archive?.byteSize,
 		stageDesignerGapReportPath: staging?.designerGapReportPath,
 		stageArchivePath: archive?.archivePath,
+		stageArchiveSha256: archive?.sha256,
 		stageArchivedFiles: archive?.fileCount,
 		stageManifestPath: staging?.manifestPath,
 		stagedFiles: staging?.fileCount,
@@ -614,15 +621,20 @@ export async function createTextAssetStageArchive({
 		args: ["-czf", resolvedArchivePath, "-C", resolvedStageDir, "."],
 		command: "tar",
 	});
+	const archiveBytes = await readFile(resolvedArchivePath);
 	return {
 		archivePath: resolvedArchivePath,
+		byteSize: archiveBytes.byteLength,
 		fileCount: stagedFileCount + 3,
 		format: "tar.gz",
+		sha256: hashBytes({ bytes: archiveBytes }),
 	};
 }
 
 function buildReleaseSummary({
+	stageArchiveBytes,
 	stageArchivePath,
+	stageArchiveSha256,
 	stageArchivedFiles,
 	stageDesignerGapReportPath,
 	designerReadyMissing,
@@ -643,7 +655,9 @@ function buildReleaseSummary({
 	options: TextAssetReleaseOptions;
 	provenance: TextAssetProvenanceSummary;
 	remoteIssues: readonly VerifyIssue[];
+	stageArchiveBytes?: number;
 	stageArchivePath?: string;
+	stageArchiveSha256?: string;
 	stageArchivedFiles?: number;
 	stageDesignerGapReportPath?: string;
 	stageManifestPath?: string;
@@ -651,7 +665,9 @@ function buildReleaseSummary({
 	upload: TextAssetUploadSummary;
 }): TextAssetReleaseSummary {
 	return {
+		archiveBytes: stageArchiveBytes,
 		archivePath: stageArchivePath,
+		archiveSha256: stageArchiveSha256,
 		archivedFiles: stageArchivedFiles ?? 0,
 		baseUrl: options.baseUrl,
 		designerGapReportPath: stageDesignerGapReportPath,
@@ -677,6 +693,10 @@ function buildReleaseSummary({
 		upload,
 		uploadPlanPath: options.uploadPlanPath,
 	};
+}
+
+function hashBytes({ bytes }: { bytes: Buffer }): string {
+	return createHash("sha256").update(bytes).digest("hex");
 }
 
 async function runArchiveCommand({

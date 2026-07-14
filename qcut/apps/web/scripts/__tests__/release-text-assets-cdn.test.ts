@@ -366,8 +366,10 @@ describe("text asset CDN release script", () => {
 				archiveCalls.push({ archivePath, stagedFileCount, stageDir });
 				return {
 					archivePath,
+					byteSize: 1234,
 					fileCount: stagedFileCount + 3,
 					format: "tar.gz",
+					sha256: "archive-sha",
 				};
 			},
 			options: {
@@ -382,7 +384,9 @@ describe("text asset CDN release script", () => {
 		});
 
 		expect(summary).toMatchObject({
+			archiveBytes: 1234,
 			archivePath,
+			archiveSha256: "archive-sha",
 			archivedFiles: 7,
 			designerGapReportPath: join(
 				stageDir,
