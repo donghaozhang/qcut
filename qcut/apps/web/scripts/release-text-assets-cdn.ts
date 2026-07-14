@@ -10,9 +10,11 @@ import {
 import {
 	buildTextAssetPublishManifest,
 	buildTextMarketplacePublishEntry,
+	parseCommaSeparatedList,
 	readGeneratedManifest,
 	summarizeTextAssetProvenance,
 	summarizeVerifyIssues,
+	verifyDesignerCategoryCoverage,
 	verifyDesignerAssetCoverage,
 	verifyLocalFiles,
 	verifyRemoteFiles,
@@ -33,6 +35,7 @@ export type TextAssetReleaseOptions = {
 	publishManifestPath: string;
 	publicDir: string;
 	remoteConcurrency: number;
+	requiredDesignerCategories: string[];
 	skipRemoteCheck: boolean;
 	uploadConcurrency: number;
 };
@@ -47,6 +50,7 @@ export type TextAssetReleaseSummary = {
 	provenance: TextAssetProvenanceSummary;
 	remoteIssueSummary: ReturnType<typeof summarizeVerifyIssues>["issueSummary"];
 	remoteIssues: readonly VerifyIssue[];
+	requiredDesignerCategories: readonly string[];
 	totalAssets: number;
 	totalBytes: number;
 	totalFiles: number;
@@ -97,6 +101,9 @@ export function parseTextAssetReleaseArgs({
 			name: "QCUT_TEXT_ASSET_REMOTE_CONCURRENCY",
 			value: env.QCUT_TEXT_ASSET_REMOTE_CONCURRENCY ?? "16",
 		}),
+		requiredDesignerCategories: parseCommaSeparatedList({
+			value: env.QCUT_TEXT_ASSET_REQUIRED_DESIGNER_CATEGORIES,
+		}),
 		skipRemoteCheck: false,
 		uploadConcurrency: parsePositiveInteger({
 			name: "QCUT_TEXT_ASSET_UPLOAD_CONCURRENCY",
@@ -131,6 +138,14 @@ export function parseTextAssetReleaseArgs({
 		}
 		if (arg === "--min-designer-assets") {
 			options.minDesignerAssets = parseNonNegativeInteger({
+				name: arg,
+				value: requireValue({ argv, index, name: arg }),
+			});
+			index += 1;
+			continue;
+		}
+		if (arg === "--require-designer-categories") {
+			options.requiredDesignerCategories = parseCommaSeparatedList({
 				name: arg,
 				value: requireValue({ argv, index, name: arg }),
 			});
@@ -211,6 +226,10 @@ export async function releaseTextAssetsToCdn({
 		minDesignerAssets: options.minDesignerAssets,
 		provenance,
 	});
+	const designerCategoryIssues = verifyDesignerCategoryCoverage({
+		generatedManifest,
+		requiredDesignerCategories: options.requiredDesignerCategories,
+	});
 	const { issues: manifestIssues, manifest } = buildTextAssetPublishManifest({
 		baseUrl: options.baseUrl,
 		generatedAt: new Date().toISOString(),
@@ -225,6 +244,7 @@ export async function releaseTextAssetsToCdn({
 	const localIssues = [
 		...marketplace.issues,
 		...designerCoverageIssues,
+		...designerCategoryIssues,
 		...manifestIssues,
 		...(await verifyLocalFiles({ manifest })),
 	];
@@ -302,6 +322,7 @@ function buildReleaseSummary({
 		remoteIssueSummary: summarizeVerifyIssues({ issues: remoteIssues })
 			.issueSummary,
 		remoteIssues,
+		requiredDesignerCategories: options.requiredDesignerCategories,
 		totalAssets: manifest.totalAssets,
 		totalBytes: manifest.totalBytes,
 		totalFiles: manifest.totalFiles,

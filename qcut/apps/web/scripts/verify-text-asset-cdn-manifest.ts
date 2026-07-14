@@ -63,6 +63,7 @@ export type VerifyIssue = {
 		| "checksum-mismatch"
 		| "invalid-file-payload"
 		| "missing-package"
+		| "designer-category-coverage"
 		| "designer-import-threshold"
 		| "remote-unavailable"
 		| "remote-size-mismatch";
@@ -91,8 +92,10 @@ export type TextAssetCdnCliOptions = {
 	issueLimit: number;
 	manifestPath: string;
 	minDesignerAssets: number;
+	minDesignerAssetsPerCategory: number;
 	publicDir: string;
 	remoteConcurrency: number;
+	requiredDesignerCategories: string[];
 	writePath?: string;
 };
 
@@ -116,8 +119,15 @@ export function parseTextAssetCdnArgs({
 		issueLimit: 25,
 		manifestPath: DEFAULT_MANIFEST_PATH,
 		minDesignerAssets: 0,
+		minDesignerAssetsPerCategory: parsePositiveInteger({
+			name: "QCUT_TEXT_ASSET_MIN_DESIGNER_ASSETS_PER_CATEGORY",
+			value: process.env.QCUT_TEXT_ASSET_MIN_DESIGNER_ASSETS_PER_CATEGORY ?? "1",
+		}),
 		publicDir: DEFAULT_PUBLIC_DIR,
 		remoteConcurrency: 16,
+		requiredDesignerCategories: parseCommaSeparatedList({
+			value: process.env.QCUT_TEXT_ASSET_REQUIRED_DESIGNER_CATEGORIES,
+		}),
 	};
 	for (let index = 0; index < argv.length; index += 1) {
 		const arg = argv[index];
@@ -155,6 +165,22 @@ export function parseTextAssetCdnArgs({
 			index += 1;
 			continue;
 		}
+		if (arg === "--min-designer-assets-per-category") {
+			options.minDesignerAssetsPerCategory = parsePositiveInteger({
+				name: arg,
+				value: requireValue({ argv, index, name: arg }),
+			});
+			index += 1;
+			continue;
+		}
+		if (arg === "--require-designer-categories") {
+			options.requiredDesignerCategories = parseCommaSeparatedList({
+				name: arg,
+				value: requireValue({ argv, index, name: arg }),
+			});
+			index += 1;
+			continue;
+		}
 		if (arg === "--public-dir") {
 			options.publicDir = requireValue({ argv, index, name: arg });
 			index += 1;
@@ -176,6 +202,24 @@ export function parseTextAssetCdnArgs({
 		throw new Error(`Unknown argument: ${arg}`);
 	}
 	return options;
+}
+
+export function parseCommaSeparatedList({
+	name = "comma-separated list",
+	value,
+}: {
+	name?: string;
+	value?: string;
+}): string[] {
+	if (!value) return [];
+	const values = value
+		.split(",")
+		.map((item) => item.trim())
+		.filter(Boolean);
+	if (values.length === 0 && value.trim()) {
+		throw new Error(`${name} requires at least one value`);
+	}
+	return [...new Set(values)];
 }
 
 function parseNonNegativeInteger({
@@ -294,6 +338,85 @@ export function verifyDesignerAssetCoverage({
 			assetId: "text-designer-assets",
 			code: "designer-import-threshold",
 			detail: `Expected at least ${minDesignerAssets} designer-imported text assets, received ${provenance.designerImported}`,
+		},
+	];
+}
+
+const TEXT_ASSET_PACKAGE_PREFIXES = [
+	"text-smart-packaging-",
+	"text-smart-text-",
+	"text-new-text-",
+	"text-templates-",
+	"text-fancy-",
+	"text-mine-",
+] as const;
+
+export function inferTextAssetCategory({
+	entry,
+}: {
+	entry: TextAssetGeneratedEntry;
+}): string | undefined {
+	const packageIdCategory = inferTextAssetCategoryFromPackageId({
+		packageId: entry.packageId,
+	});
+	if (packageIdCategory) return packageIdCategory;
+	const [cachePackageId] = entry.cacheKey
+		.replace(/^\/+/, "")
+		.split("/")
+		.slice(1, 2);
+	if (!cachePackageId) return undefined;
+	return inferTextAssetCategoryFromPackageId({ packageId: cachePackageId });
+}
+
+function inferTextAssetCategoryFromPackageId({
+	packageId,
+}: {
+	packageId: string;
+}): string | undefined {
+	for (const prefix of TEXT_ASSET_PACKAGE_PREFIXES) {
+		if (!packageId.startsWith(prefix)) continue;
+		const category = packageId.slice(prefix.length);
+		return category || undefined;
+	}
+	return undefined;
+}
+
+export function verifyDesignerCategoryCoverage({
+	generatedManifest,
+	minDesignerAssetsPerCategory = 1,
+	requiredDesignerCategories,
+}: {
+	generatedManifest: Record<string, TextAssetGeneratedEntry>;
+	minDesignerAssetsPerCategory?: number;
+	requiredDesignerCategories: readonly string[];
+}): VerifyIssue[] {
+	if (requiredDesignerCategories.length === 0) return [];
+	const designerCountsByCategory = new Map<string, number>();
+	for (const entry of Object.values(generatedManifest)) {
+		if (entry.provenance?.source !== "designer-imported") continue;
+		const category = inferTextAssetCategory({ entry });
+		if (!category) continue;
+		designerCountsByCategory.set(
+			category,
+			(designerCountsByCategory.get(category) ?? 0) + 1
+		);
+	}
+	const missingCategories = requiredDesignerCategories.filter(
+		(category) =>
+			(designerCountsByCategory.get(category) ?? 0) <
+			minDesignerAssetsPerCategory
+	);
+	if (missingCategories.length === 0) return [];
+	return [
+		{
+			assetId: "text-designer-assets",
+			code: "designer-category-coverage",
+			detail: `Expected at least ${minDesignerAssetsPerCategory} designer-imported text assets for each category, missing: ${missingCategories
+				.map(
+					(category) =>
+						`${category} (${designerCountsByCategory.get(category) ?? 0})`
+				)
+				.join(", ")}`,
 		},
 	];
 }
@@ -889,6 +1012,11 @@ async function main(): Promise<void> {
 		minDesignerAssets: options.minDesignerAssets,
 		provenance,
 	});
+	const designerCategoryIssues = verifyDesignerCategoryCoverage({
+		generatedManifest,
+		minDesignerAssetsPerCategory: options.minDesignerAssetsPerCategory,
+		requiredDesignerCategories: options.requiredDesignerCategories,
+	});
 	const { issues: manifestIssues, manifest } = buildTextAssetPublishManifest({
 		baseUrl: options.baseUrl,
 		generatedAt: new Date().toISOString(),
@@ -906,6 +1034,7 @@ async function main(): Promise<void> {
 	const issues = [
 		...marketplace.issues,
 		...designerCoverageIssues,
+		...designerCategoryIssues,
 		...manifestIssues,
 		...localIssues,
 		...remoteIssues,
@@ -929,8 +1058,10 @@ async function main(): Promise<void> {
 				checkRemote: options.checkRemote,
 				...issueOutput,
 				minDesignerAssets: options.minDesignerAssets,
+				minDesignerAssetsPerCategory: options.minDesignerAssetsPerCategory,
 				ok: issues.length === 0,
 				provenance,
+				requiredDesignerCategories: options.requiredDesignerCategories,
 				totalAssets: manifest.totalAssets,
 				totalBytes: manifest.totalBytes,
 				totalFiles: manifest.totalFiles,

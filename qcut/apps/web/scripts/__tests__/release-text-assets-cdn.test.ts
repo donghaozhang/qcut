@@ -110,6 +110,7 @@ async function createReleaseFixture(): Promise<{
 			publicDir,
 			publishManifestPath,
 			remoteConcurrency: 2,
+			requiredDesignerCategories: [],
 			skipRemoteCheck: true,
 			uploadConcurrency: 2,
 		},
@@ -132,6 +133,8 @@ describe("text asset CDN release script", () => {
 					"public, max-age=30",
 					"--min-designer-assets",
 					"7",
+					"--require-designer-categories",
+					"red,texture",
 					"--generated-manifest",
 					"/tmp/generated.json",
 					"--prefix",
@@ -158,6 +161,7 @@ describe("text asset CDN release script", () => {
 			publicDir: "/tmp/public",
 			publishManifestPath: "/tmp/publish.json",
 			remoteConcurrency: 4,
+			requiredDesignerCategories: ["red", "texture"],
 			skipRemoteCheck: true,
 			uploadConcurrency: 3,
 		});
@@ -197,6 +201,7 @@ describe("text asset CDN release script", () => {
 				truncated: 0,
 			},
 			remoteIssues: [],
+			requiredDesignerCategories: [],
 			totalAssets: 2,
 			totalBytes: expect.any(Number),
 			totalFiles: 4,
@@ -229,6 +234,28 @@ describe("text asset CDN release script", () => {
 		expect(summary.localIssueSummary.byCode["missing-file"]).toBe(4);
 		expect(summary.upload.uploadedFiles).toBe(0);
 		expect(uploadedKeys).toEqual([]);
+	});
+
+	it("blocks release when required designer categories are missing", async () => {
+		const { options } = await createReleaseFixture();
+		const summary = await releaseTextAssetsToCdn({
+			options: {
+				...options,
+				requiredDesignerCategories: ["red"],
+			},
+			uploadFile: async () => {
+				throw new Error("Should not upload when designer coverage fails");
+			},
+		});
+
+		expect(summary.localIssues).toEqual([
+			expect.objectContaining({
+				code: "designer-category-coverage",
+				detail: "Missing designer-imported text assets for categories: red",
+			}),
+		]);
+		expect(summary.requiredDesignerCategories).toEqual(["red"]);
+		expect(summary.upload.uploadedFiles).toBe(0);
 	});
 
 	it("summarizes remote issues after release uploads", async () => {

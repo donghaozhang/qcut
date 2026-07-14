@@ -6,10 +6,12 @@ import { describe, expect, it } from "vitest";
 import {
 	buildTextAssetPublishManifest,
 	buildTextMarketplacePublishEntry,
+	inferTextAssetCategory,
 	parseTextAssetCdnArgs,
 	summarizeTextAssetProvenance,
 	summarizeVerifyIssues,
 	verifyDesignerAssetCoverage,
+	verifyDesignerCategoryCoverage,
 	verifyLocalFiles,
 	verifyRemoteFiles,
 	type TextAssetGeneratedEntry,
@@ -153,6 +155,8 @@ describe("text asset CDN manifest verifier", () => {
 					"2",
 					"--min-designer-assets",
 					"12",
+					"--require-designer-categories",
+					"red, texture,headline-template",
 					"--public-dir",
 					"/tmp/public",
 					"--remote-concurrency",
@@ -170,6 +174,7 @@ describe("text asset CDN manifest verifier", () => {
 			minDesignerAssets: 12,
 			publicDir: "/tmp/public",
 			remoteConcurrency: 4,
+			requiredDesignerCategories: ["red", "texture", "headline-template"],
 			writePath: "/tmp/publish.json",
 		});
 	});
@@ -267,6 +272,63 @@ describe("text asset CDN manifest verifier", () => {
 				assetId: "text-designer-assets",
 				code: "designer-import-threshold",
 				detail: "Expected at least 2 designer-imported text assets, received 1",
+			},
+		]);
+	});
+
+	it("infers text asset categories from package IDs and cache keys", () => {
+		expect(
+			inferTextAssetCategory({
+				entry: {
+					...createGeneratedEntry(),
+					packageId: "text-fancy-black-white",
+				},
+			})
+		).toBe("black-white");
+		expect(
+			inferTextAssetCategory({
+				entry: {
+					...createGeneratedEntry(),
+					cacheKey: "text-assets/text-templates-headline-template/plain@1",
+					packageId: "text-demo",
+				},
+			})
+		).toBe("headline-template");
+	});
+
+	it("reports missing designer category coverage", () => {
+		const redDesignerEntry: TextAssetGeneratedEntry = {
+			...createGeneratedEntry(),
+			assetId: "text-red-designer",
+			packageId: "text-fancy-red",
+			provenance: {
+				pipeline: "designer-pack-v1",
+				source: "designer-imported",
+			},
+		};
+		const textureGeneratedEntry: TextAssetGeneratedEntry = {
+			...createGeneratedEntry(),
+			assetId: "text-texture-generated",
+			packageId: "text-fancy-texture",
+			provenance: {
+				pipeline: "qcut-canvas-thumbnail-v1",
+				source: "generated",
+			},
+		};
+
+		expect(
+			verifyDesignerCategoryCoverage({
+				generatedManifest: {
+					"text-red-designer": redDesignerEntry,
+					"text-texture-generated": textureGeneratedEntry,
+				},
+				requiredDesignerCategories: ["red", "texture"],
+			})
+		).toEqual([
+			{
+				assetId: "text-designer-assets",
+				code: "designer-category-coverage",
+				detail: "Missing designer-imported text assets for categories: texture",
 			},
 		]);
 	});
