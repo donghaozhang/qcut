@@ -34,13 +34,13 @@ describe("sticker pack catalog", () => {
 				accessTier: "free",
 			},
 			{
-				id: "material-line-motion",
+				id: "qcut-motion-emphasis",
 				items: 12,
 				animated: true,
 				accessTier: "pro",
 			},
 			{
-				id: "svg-motion-loops",
+				id: "qcut-motion-creator",
 				items: 12,
 				animated: true,
 				accessTier: "pro",

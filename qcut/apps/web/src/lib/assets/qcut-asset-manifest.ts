@@ -15,6 +15,11 @@ import {
 	type StickerCatalogItem,
 } from "@/lib/stickers/sticker-catalog";
 import {
+	MOTION_STICKERS,
+	findMotionSticker,
+	type MotionStickerDefinition,
+} from "@/lib/stickers/sticker-motion-packs";
+import {
 	TEXT_TEMPLATE_DEFINITIONS,
 	TEXT_TEMPLATES,
 } from "@/lib/text/text-template-registry";
@@ -281,6 +286,37 @@ export function createBundledStickerAssetEntry({
 	};
 }
 
+export function createMotionStickerAssetEntry({
+	sticker,
+}: {
+	sticker: MotionStickerDefinition;
+}): AssetManifestEntry {
+	return {
+		schemaVersion: ASSET_MANIFEST_SCHEMA_VERSION,
+		id: sticker.id,
+		kind: "sticker",
+		version: 1,
+		name: sticker.name,
+		localizedNames: { "zh-CN": sticker.localizedName },
+		category: "motion",
+		tags: uniqueTags({
+			tags: [...sticker.tags, sticker.localizedName, "animated", "motion"],
+		}),
+		delivery: "bundled",
+		files: [
+			{ role: "thumbnail", url: sticker.url, mimeType: "image/png" },
+			{ role: "source", url: sticker.url, mimeType: "image/png" },
+		],
+		license: QCUT_BUILT_IN_LICENSE,
+		metadata: {
+			collection: sticker.collection,
+			icon: sticker.icon,
+			animated: true,
+			motion: sticker.motion,
+		},
+	};
+}
+
 function stickerCollection({ collectionPrefix }: { collectionPrefix: string }) {
 	return (
 		POPULAR_COLLECTIONS.find(
@@ -301,6 +337,12 @@ export function resolveStickerAssetEntry({
 	collectionPrefix: string;
 	icon: string;
 }): AssetManifestEntry {
+	const motionSticker = findMotionSticker({
+		collection: collectionPrefix,
+		icon,
+	});
+	if (motionSticker)
+		return createMotionStickerAssetEntry({ sticker: motionSticker });
 	const catalogItem = findStickerCatalogItem({
 		collection: collectionPrefix,
 		icon,
@@ -344,6 +386,10 @@ function stickerAssets(): AssetManifestEntry[] {
 						}),
 						icon: catalogItem.icon,
 					});
+		assetsById.set(asset.id, asset);
+	}
+	for (const sticker of MOTION_STICKERS) {
+		const asset = createMotionStickerAssetEntry({ sticker });
 		assetsById.set(asset.id, asset);
 	}
 	return [...assetsById.values()];

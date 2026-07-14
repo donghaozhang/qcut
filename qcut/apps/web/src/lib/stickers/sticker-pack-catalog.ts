@@ -1,6 +1,6 @@
 import type { Plan } from "@/lib/feature-gates";
-import { POPULAR_COLLECTIONS } from "./iconify-api";
 import { CURATED_STICKERS } from "./sticker-catalog";
+import { MOTION_STICKER_PACKS } from "./sticker-motion-packs";
 
 export type StickerPackAccessTier = "free" | "pro";
 
@@ -21,52 +21,6 @@ export interface StickerStorePack {
 	items: readonly StickerPackItem[];
 	localizedName: string;
 	name: string;
-}
-
-function titleFromIcon({ icon }: { icon: string }): string {
-	return icon
-		.split("-")
-		.map((part) => part.charAt(0).toLocaleUpperCase() + part.slice(1))
-		.join(" ");
-}
-
-function motionPack({
-	collectionPrefix,
-	description,
-	emoji,
-	id,
-	localizedName,
-}: {
-	collectionPrefix: string;
-	description: string;
-	emoji: string;
-	id: string;
-	localizedName: string;
-}): StickerStorePack {
-	const collection = POPULAR_COLLECTIONS.find(
-		(candidate) => candidate.prefix === collectionPrefix
-	);
-	if (!collection?.samples) {
-		throw new Error(
-			`Motion sticker collection is missing: ${collectionPrefix}`
-		);
-	}
-	return {
-		id,
-		accessTier: "pro",
-		animated: true,
-		description,
-		emoji,
-		localizedName,
-		name: collection.name,
-		items: collection.samples.map((icon) => ({
-			id: `${collection.prefix}:${icon}`,
-			animated: true,
-			collection: collection.prefix,
-			icon,
-			name: titleFromIcon({ icon }),
-		})),
-	};
 }
 
 const ORIGINAL_ITEMS = CURATED_STICKERS.filter(
@@ -136,20 +90,22 @@ export const STICKER_STORE_PACKS: readonly StickerStorePack[] = [
 		localizedName: "Fluent 创作基础包",
 		name: "Fluent Creator Essentials",
 	},
-	motionPack({
-		collectionPrefix: "line-md",
-		description: "12 个循环动画贴纸，适合提示与强调",
-		emoji: "💫",
-		id: "material-line-motion",
-		localizedName: "线性动态贴纸",
-	}),
-	motionPack({
-		collectionPrefix: "svg-spinners",
-		description: "12 个节奏动画贴纸，适合加载与转场提示",
-		emoji: "⚡",
-		id: "svg-motion-loops",
-		localizedName: "节奏动态贴纸",
-	}),
+	...MOTION_STICKER_PACKS.map((pack) => ({
+		id: pack.id,
+		accessTier: "pro" as const,
+		animated: true,
+		description: pack.description,
+		emoji: pack.emoji,
+		localizedName: pack.localizedName,
+		name: pack.name,
+		items: pack.items.map((item) => ({
+			id: item.id,
+			animated: true,
+			collection: item.collection,
+			icon: item.icon,
+			name: item.localizedName,
+		})),
+	})),
 ];
 
 export function canAccessStickerPack({

@@ -7,6 +7,7 @@ import { CAPTION_STYLE_PRESETS } from "@/lib/captions/workbench";
 import { FILTER_PRESETS } from "@/lib/filters/filter-registry";
 import { POPULAR_COLLECTIONS } from "@/lib/stickers/iconify-api";
 import { CURATED_STICKERS } from "@/lib/stickers/sticker-catalog";
+import { MOTION_STICKERS } from "@/lib/stickers/sticker-motion-packs";
 import { TEXT_TEMPLATES } from "@/lib/text/text-template-registry";
 import { transitionPresets } from "@/components/editor/media-panel/views/transitions/transition-presets";
 import type { SoundEffect } from "@/types/sounds";
@@ -15,6 +16,7 @@ import {
 	QCUT_ASSET_MANIFEST,
 	createFreesoundAssetEntry,
 	createTransitionAssetEntry,
+	resolveStickerAssetEntry,
 } from "../qcut-asset-manifest";
 
 function sound({ license }: { license: string }): SoundEffect {
@@ -116,6 +118,7 @@ describe("QCut asset manifest", () => {
 				(collection.samples ?? []).map((icon) => `${collection.prefix}:${icon}`)
 			),
 			...CURATED_STICKERS.map((sticker) => sticker.id),
+			...MOTION_STICKERS.map((sticker) => sticker.id),
 		]);
 		const stickers = queryAssetCatalog({
 			catalog: QCUT_ASSET_CATALOG,
@@ -136,7 +139,11 @@ describe("QCut asset manifest", () => {
 		const originalStickers = stickers.filter((sticker) =>
 			sticker.id.startsWith("qcut-original:")
 		);
-		expect(originalStickers).toHaveLength(30);
+		expect(originalStickers).toHaveLength(
+			CURATED_STICKERS.filter(
+				(sticker) => sticker.collection === "qcut-original"
+			).length
+		);
 		for (const sticker of originalStickers) {
 			expect(sticker).toMatchObject({
 				delivery: "bundled",
@@ -159,6 +166,22 @@ describe("QCut asset manifest", () => {
 			expect(sticker.license.commercialUse).toBe("allowed");
 			expect(sticker.metadata).toMatchObject({ animated: true });
 		}
+		const localMotionSticker = resolveStickerAssetEntry({
+			collectionPrefix: "qcut-motion-emphasis",
+			icon: "attention-pulse",
+		});
+		expect(localMotionSticker).toMatchObject({
+			id: "qcut-motion-emphasis:attention-pulse",
+			category: "motion",
+			delivery: "bundled",
+			metadata: {
+				animated: true,
+				motion: "pulse",
+			},
+		});
+		expect(localMotionSticker.files[0]?.url).toContain(
+			"stickers/qcut-motion/qcut-motion-emphasis/attention-pulse.png"
+		);
 	});
 
 	it("normalizes Freesound commercial licensing", () => {

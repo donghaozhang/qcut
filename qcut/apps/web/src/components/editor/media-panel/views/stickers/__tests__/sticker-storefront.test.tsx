@@ -29,12 +29,12 @@ describe("StickerStorefront", () => {
 		render(<StickerStorefront onDownload={vi.fn()} onSelect={onSelect} />);
 
 		expect(screen.getAllByTestId(/^sticker-pack-(?!grid-)/)).toHaveLength(5);
-		const motionPack = screen.getByTestId("sticker-pack-material-line-motion");
+		const motionPack = screen.getByTestId("sticker-pack-qcut-motion-emphasis");
 		expect(within(motionPack).getAllByTestId("sticker-item")).toHaveLength(12);
-		expect(within(motionPack).getByText("线性动态贴纸")).toBeInTheDocument();
+		expect(within(motionPack).getByText("动态强调贴纸")).toBeInTheDocument();
 
 		fireEvent.click(
-			within(motionPack).getByRole("button", { name: "Unlock Github Loop" })
+			within(motionPack).getByRole("button", { name: "Unlock 注意脉冲" })
 		);
 		expect(openPricingPage).toHaveBeenCalledOnce();
 		expect(onSelect).not.toHaveBeenCalled();
@@ -44,20 +44,23 @@ describe("StickerStorefront", () => {
 		const onSelect = vi.fn();
 		useLicenseStore.setState({ license: ACTIVE_PRO_LICENSE });
 		render(<StickerStorefront onDownload={vi.fn()} onSelect={onSelect} />);
-		const motionPack = screen.getByTestId("sticker-pack-material-line-motion");
+		const motionPack = screen.getByTestId("sticker-pack-qcut-motion-emphasis");
 
 		fireEvent.click(within(motionPack).getByRole("button", { name: "添加" }));
 		expect(
 			useStickerPackStore.getState().isInstalled({
-				packId: "material-line-motion",
+				packId: "qcut-motion-emphasis",
 			})
 		).toBe(true);
 
 		fireEvent.click(
 			within(motionPack).getByRole("button", {
-				name: "Github Loop (line-md)",
+				name: "注意脉冲 (qcut-motion-emphasis)",
 			})
 		);
-		expect(onSelect).toHaveBeenCalledWith("line-md:github-loop", "Github Loop");
+		expect(onSelect).toHaveBeenCalledWith(
+			"qcut-motion-emphasis:attention-pulse",
+			"注意脉冲"
+		);
 	});
 });
