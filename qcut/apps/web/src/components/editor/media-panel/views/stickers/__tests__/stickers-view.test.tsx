@@ -41,6 +41,26 @@ describe("StickersView", () => {
 		).toBeGreaterThan(0);
 	});
 
+	it("uses one collapsible sticker library hierarchy", () => {
+		render(<StickersView />);
+
+		const sidebar = screen.getByTestId("sticker-sidebar");
+		const libraryButton = within(sidebar).getByRole("button", {
+			name: "贴纸库",
+		});
+		expect(libraryButton).toHaveAttribute("aria-expanded", "true");
+		expect(
+			within(sidebar).getAllByRole("button", { name: "贴纸库" })
+		).toHaveLength(1);
+
+		fireEvent.click(libraryButton);
+		expect(libraryButton).toHaveAttribute("aria-expanded", "false");
+		expect(screen.queryByTestId("sticker-category-popular")).toBeNull();
+
+		fireEvent.click(libraryButton);
+		expect(screen.getByTestId("sticker-category-popular")).toBeInTheDocument();
+	});
+
 	it("renders at least five stickers in every creator category", () => {
 		render(<StickersView />);
 
