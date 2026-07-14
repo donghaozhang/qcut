@@ -334,6 +334,48 @@ describe("Timeline Store Operations", () => {
 		).toBe(1);
 	});
 
+	it("falls back to single text when dragged template pack payloads are invalid", () => {
+		const { result } = renderHook(() => useTimelineStore());
+
+		let added = false;
+		act(() => {
+			added = result.current.addTextToNewTrack({
+				id: "broken-pack",
+				type: "text",
+				name: "Broken pack",
+				content: "回退标题",
+				textTemplate: {
+					content: "安全标题",
+					name: "Fallback text",
+					type: "text",
+				},
+				textTemplatePack: {
+					id: "pack-broken",
+					name: "Broken pack",
+					elements: [
+						{
+							type: "text",
+							name: "Broken",
+							content: "   ",
+						},
+					] as unknown as CreateTextElement[],
+				},
+			});
+		});
+
+		expect(added).toBe(true);
+		const textTracks = result.current.tracks.filter(
+			(track) => track.type === "text"
+		);
+		expect(textTracks).toHaveLength(1);
+		expect(textTracks[0].elements[0]).toMatchObject({
+			content: "安全标题",
+			name: "Fallback text",
+			type: "text",
+		});
+		expect(textTracks[0].elements[0].groupId).toBeUndefined();
+	});
+
 	it("updates grouped text contents in one history step", () => {
 		const { result } = renderHook(() => useTimelineStore());
 		const elements: CreateTextElement[] = [

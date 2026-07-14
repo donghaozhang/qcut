@@ -1,5 +1,6 @@
 import { TIMELINE_CONSTANTS } from "@/constants/timeline-constants";
 import { clampMarkdownDuration } from "@/lib/markdown";
+import { getValidTextGroupElements } from "@/lib/timeline/text-group-drag-data";
 import { generateUUID } from "@/lib/utils";
 import type {
 	CreateTextElement,
@@ -161,9 +162,7 @@ export function createAddOps(
 			currentTime?: number;
 			groupId?: string;
 		}): boolean => {
-			const validElements = elements.filter((element) =>
-				element.content.trim()
-			);
+			const validElements = getValidTextGroupElements({ value: elements });
 			if (validElements.length === 0) return false;
 
 			const newTracks = validElements.map((element) => {
@@ -253,8 +252,19 @@ export function createAddOps(
 				"textTemplatePack" in item &&
 				item.textTemplatePack?.elements
 			) {
+				const packElements = getValidTextGroupElements({
+					value: item.textTemplatePack.elements,
+				});
+				if (packElements.length === 0) {
+					return get().addTextAtTime(
+						"textTemplate" in item && item.textTemplate
+							? item.textTemplate
+							: { content: item.content, name: item.name },
+						0
+					);
+				}
 				return get().addTextGroupAtTime({
-					elements: item.textTemplatePack.elements,
+					elements: packElements,
 					currentTime: 0,
 				});
 			}

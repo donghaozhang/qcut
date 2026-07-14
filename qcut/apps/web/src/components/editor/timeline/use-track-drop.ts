@@ -21,6 +21,7 @@ import { useProjectStore } from "@/stores/project-store";
 import { useTimelineSnapping } from "@/hooks/timeline/use-timeline-snapping";
 import { usePlaybackStore } from "@/stores/editor/playback-store";
 import { debugLog, debugError } from "@/lib/debug/debug-config";
+import { getValidTextGroupElements } from "@/lib/timeline/text-group-drag-data";
 
 /**
  * Custom hook encapsulating all drag-and-drop handling for timeline tracks.
@@ -450,9 +451,12 @@ export function useTrackDrop({
 				const dragData: DragData = JSON.parse(mediaItemData);
 
 				if (dragData.type === "text") {
-					if (dragData.textTemplatePack?.elements) {
+					const packElements = getValidTextGroupElements({
+						value: dragData.textTemplatePack?.elements,
+					});
+					if (packElements.length > 0) {
 						const packDuration = Math.max(
-							...dragData.textTemplatePack.elements.map(
+							...packElements.map(
 								(element) =>
 									element.duration ?? TIMELINE_CONSTANTS.DEFAULT_TEXT_DURATION
 							),
@@ -463,7 +467,7 @@ export function useTrackDrop({
 							packDuration
 						);
 						addTextGroupAtTime({
-							elements: dragData.textTemplatePack.elements,
+							elements: packElements,
 							currentTime: textPackSnappedTime,
 						});
 						return;
