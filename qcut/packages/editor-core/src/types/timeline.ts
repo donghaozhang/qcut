@@ -953,6 +953,13 @@ export interface TextItemDragData {
 	textTemplatePack?: {
 		id: string;
 		name: string;
+		category?: string;
+		copySlots?: {
+			defaultContent: string;
+			elementIndex: number;
+			id: string;
+			label: string;
+		}[];
 		elements: CreateTextElement[];
 	};
 }

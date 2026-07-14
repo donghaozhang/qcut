@@ -93,6 +93,10 @@ describe("text view layout", () => {
 		});
 		expect(dragData.textTemplatePack?.id).toContain(definition.id);
 		expect(dragData.textTemplatePack?.name).toContain(definition.name);
+		expect(dragData.textTemplatePack?.category).toBe(definition.category);
+		expect(
+			dragData.textTemplatePack?.copySlots?.map((slot) => slot.id)
+		).toEqual(["kicker", "headline", "subhead"]);
 		expect(dragData.textTemplatePack?.elements.length).toBeGreaterThan(1);
 	});
 

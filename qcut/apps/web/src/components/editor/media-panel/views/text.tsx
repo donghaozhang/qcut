@@ -207,6 +207,8 @@ export function buildTextTemplateDragData({
 			? {
 					id: templatePack.id,
 					name: templatePack.name,
+					category: templatePack.category,
+					copySlots: templatePack.copySlots,
 					elements: templatePack.elements,
 				}
 			: undefined,
