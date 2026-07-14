@@ -48,7 +48,11 @@ class MemoryAssetCache implements AssetResourceCacheStorage {
 	}
 }
 
-function textDefinition(): TextTemplateDefinition {
+function textDefinition({
+	sizeKb = 1,
+}: {
+	sizeKb?: number;
+} = {}): TextTemplateDefinition {
 	return {
 		id: "remote-resource-test",
 		name: "Remote resource test",
@@ -66,9 +70,26 @@ function textDefinition(): TextTemplateDefinition {
 			version: 1,
 			entitlement: "free",
 			cacheKey: "text-assets/package-remote-resource-test/plain@1",
-			sizeKb: 1,
+			sizeKb,
 		},
 		catalogVisible: true,
+	};
+}
+
+function textDefinitionWithSize({
+	sizeKb,
+}: {
+	sizeKb: number;
+}): TextTemplateDefinition {
+	const definition = textDefinition();
+	return {
+		...definition,
+		resource: definition.resource
+			? {
+					...definition.resource,
+					sizeKb,
+				}
+			: undefined,
 	};
 }
 
@@ -106,18 +127,20 @@ async function localTextAssetResponse({
 function packageText({
 	content = "Package content",
 	definition,
-	includeResources = false,
+	includeResources = true,
 	includeTemplatePack = false,
+	resourcesOverride,
 }: {
 	content?: string;
 	definition: TextTemplateDefinition;
 	includeResources?: boolean;
 	includeTemplatePack?: boolean;
+	resourcesOverride?: unknown[];
 }): string {
 	const resource = definition.resource;
 	if (!resource) throw new Error("Expected text definition resource");
 	const resources = includeResources
-		? [
+		? (resourcesOverride ?? [
 				{
 					byteSize: 184,
 					checksumSha256: checksum({ value: "t".repeat(184) }),
@@ -134,7 +157,7 @@ function packageText({
 					role: "source",
 					url: `${resource.cacheKey}/template.json`,
 				},
-			]
+			])
 		: undefined;
 	const templatePack = includeTemplatePack
 		? {
@@ -642,6 +665,70 @@ describe("downloadTextTemplateResource", () => {
 		});
 	});
 
+	it("rejects qctext packages without companion resource manifests", () => {
+		const definition = textDefinition();
+
+		expect(() =>
+			parseTextTemplatePackage({
+				text: packageText({ definition, includeResources: false }),
+			})
+		).toThrow("Invalid QCut text template package resources");
+	});
+
+	it("rejects qctext packages with incomplete companion resources", () => {
+		const definition = textDefinition();
+
+		expect(() =>
+			parseTextTemplatePackage({
+				text: packageText({
+					definition,
+					resourcesOverride: [
+						{
+							byteSize: 184,
+							checksumSha256: checksum({ value: "t".repeat(184) }),
+							mimeType: "image/webp",
+							path: "thumbnail.webp",
+							role: "thumbnail",
+							url: "text-assets/package-remote-resource-test/plain@1/thumbnail.webp",
+						},
+					],
+				}),
+			})
+		).toThrow(
+			"Incomplete QCut text template package resources: missing source"
+		);
+	});
+
+	it("rejects qctext packages with duplicate companion resource roles", () => {
+		const definition = textDefinition();
+
+		expect(() =>
+			parseTextTemplatePackage({
+				text: packageText({
+					definition,
+					resourcesOverride: [
+						{
+							byteSize: 184,
+							checksumSha256: checksum({ value: "t".repeat(184) }),
+							mimeType: "image/webp",
+							path: "thumbnail.webp",
+							role: "thumbnail",
+							url: "text-assets/package-remote-resource-test/plain@1/thumbnail.webp",
+						},
+						{
+							byteSize: 185,
+							checksumSha256: checksum({ value: "x".repeat(185) }),
+							mimeType: "image/webp",
+							path: "thumbnail-copy.webp",
+							role: "thumbnail",
+							url: "text-assets/package-remote-resource-test/plain@1/thumbnail-copy.webp",
+						},
+					],
+				}),
+			})
+		).toThrow("Duplicate QCut text template package resource role: thumbnail");
+	});
+
 	it("parses qctext package template pack payloads", () => {
 		const definition = getTextTemplateDefinitionsByCategory({
 			category: "headline-template",
@@ -710,10 +797,10 @@ describe("downloadTextTemplateResource", () => {
 	});
 
 	it("loads remote package files from the asset cache without another request", async () => {
-		const definition = textDefinition();
+		const definition = textDefinition({ sizeKb: 2 });
 		const storage = new MemoryAssetCache();
 		const packageBody = padJsonTextToByteLength({
-			targetBytes: 1024,
+			targetBytes: 2048,
 			text: packageText({ content: "IndexedDB package", definition }),
 		});
 		storage.resources.set(
@@ -722,7 +809,7 @@ describe("downloadTextTemplateResource", () => {
 				assetIdentity: "text-template:asset-remote-resource-test",
 				assetKey: "text-template:asset-remote-resource-test@1",
 				blob: new Blob([packageBody]),
-				byteSize: 1024,
+				byteSize: packageBody.length,
 				cacheKey: "text-template:asset-remote-resource-test@1:package:2",
 				cachedAt: 1,
 				checksumSha256: checksum({ value: packageBody }),
@@ -787,9 +874,9 @@ describe("downloadTextTemplateResource", () => {
 	});
 
 	it("loads remote package files from bundled fallback when the CDN is unavailable", async () => {
-		const definition = textDefinition();
+		const definition = textDefinition({ sizeKb: 2 });
 		const packageBody = padJsonTextToByteLength({
-			targetBytes: 1024,
+			targetBytes: 2048,
 			text: packageText({ content: "Bundled fallback package", definition }),
 		});
 		const fetchImpl = vi.fn<typeof fetch>(async (input) => {
@@ -828,10 +915,10 @@ describe("downloadTextTemplateResource", () => {
 	});
 
 	it("resolves timeline templates from package payloads when enabled", async () => {
-		const definition = textDefinition();
+		const definition = textDefinition({ sizeKb: 2 });
 		const fallbackTemplate = buildTextTemplate({ definition });
 		const packageBody = padJsonTextToByteLength({
-			targetBytes: 1024,
+			targetBytes: 2048,
 			text: packageText({ content: "Timeline package content", definition }),
 		});
 		const fetchImpl = vi.fn<typeof fetch>(async () => {

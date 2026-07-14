@@ -44,7 +44,7 @@ export interface TextTemplatePackageSource {
 	assetId: string;
 	cacheKey: string;
 	packageId: string;
-	resources?: TextTemplatePackageResourceFile[];
+	resources: TextTemplatePackageResourceFile[];
 	template: Partial<TextElement>;
 	templatePack?: TextTemplatePackagePackSource;
 	version: number;
@@ -270,12 +270,11 @@ function parseTextTemplatePackageResources({
 	value,
 }: {
 	value: unknown;
-}): TextTemplatePackageResourceFile[] | undefined {
-	if (value === undefined) return undefined;
+}): TextTemplatePackageResourceFile[] {
 	if (!Array.isArray(value)) {
 		throw new Error("Invalid QCut text template package resources");
 	}
-	return value.map((resource, index) => {
+	const resources = value.map((resource, index) => {
 		const record = asRecord({ value: resource });
 		const role = record
 			? parseTextTemplatePackageResourceRole({ value: record.role })
@@ -296,6 +295,31 @@ function parseTextTemplatePackageResources({
 		}
 		return { byteSize, checksumSha256, mimeType, path, role, url };
 	});
+	assertTextTemplatePackageResourceRoles({ resources });
+	return resources;
+}
+
+function assertTextTemplatePackageResourceRoles({
+	resources,
+}: {
+	resources: readonly TextTemplatePackageResourceFile[];
+}): void {
+	const roles = new Set<TextTemplatePackageResourceFile["role"]>();
+	for (const resource of resources) {
+		if (roles.has(resource.role)) {
+			throw new Error(
+				`Duplicate QCut text template package resource role: ${resource.role}`
+			);
+		}
+		roles.add(resource.role);
+	}
+	const missingRoles = ["thumbnail", "source"].filter(
+		(role) => !roles.has(role as TextTemplatePackageResourceFile["role"])
+	);
+	if (missingRoles.length === 0) return;
+	throw new Error(
+		`Incomplete QCut text template package resources: missing ${missingRoles.join(", ")}`
+	);
 }
 
 function downloadedResourceFiles({
