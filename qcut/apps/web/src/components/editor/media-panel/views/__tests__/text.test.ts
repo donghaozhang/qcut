@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import { getTextTemplateDefinitionsByCategory } from "@/lib/text/text-template-registry";
 import {
 	buildTextTemplateDragData,
+	getExpandedTextTemplateGridColumnCount,
 	getTextTemplateGridColumnCount,
 } from "../text";
 
@@ -16,6 +17,10 @@ describe("text view layout", () => {
 	it("falls back gracefully below normal editor panel widths", () => {
 		expect(getTextTemplateGridColumnCount({ width: 260 })).toBe(3);
 		expect(getTextTemplateGridColumnCount({ width: 180 })).toBe(2);
+	});
+
+	it("uses the expanded asset browser grid density for wide browsing", () => {
+		expect(getExpandedTextTemplateGridColumnCount()).toBe(5);
 	});
 
 	it("includes grouped template payloads for multi-element text drags", () => {

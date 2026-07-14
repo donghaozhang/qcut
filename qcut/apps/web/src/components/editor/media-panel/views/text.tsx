@@ -1,4 +1,11 @@
 import { DraggableMediaItem } from "@/components/ui/draggable-item";
+import {
+	Dialog,
+	DialogContent,
+	DialogDescription,
+	DialogHeader,
+	DialogTitle,
+} from "@/components/ui/dialog";
 import { TIMELINE_CONSTANTS } from "@/constants/timeline-constants";
 import { useOnlineStatus } from "@/hooks/use-online-status";
 import { resolveTextTemplateAssetEntry } from "@/lib/assets/qcut-asset-manifest";
@@ -21,6 +28,7 @@ import {
 	FileText,
 	Gem,
 	Heart,
+	Maximize2,
 	Search,
 } from "lucide-react";
 import {
@@ -347,6 +355,7 @@ function TextTemplate({
 }
 
 function TemplateGrid({
+	columnCountOverride,
 	definitions,
 	libraryState,
 	onDownload,
@@ -354,6 +363,7 @@ function TemplateGrid({
 	onUseTemplate,
 	runtimeByAssetKey,
 }: {
+	columnCountOverride?: number;
 	definitions: readonly TextTemplateDefinition[];
 	libraryState: TextLibraryState;
 	onDownload: (props: { definition: TextTemplateDefinition }) => void;
@@ -363,7 +373,8 @@ function TemplateGrid({
 }) {
 	const gridRef = useRef<HTMLDivElement | null>(null);
 	const [gridWidth, setGridWidth] = useState(0);
-	const columnCount = getTextTemplateGridColumnCount({ width: gridWidth });
+	const columnCount =
+		columnCountOverride ?? getTextTemplateGridColumnCount({ width: gridWidth });
 
 	useEffect(() => {
 		const element = gridRef.current;
@@ -471,6 +482,10 @@ export function getTextTemplateGridColumnCount({
 	if (width >= 320) return TEXT_TEMPLATE_GRID_COLUMNS.standard;
 	if (width >= 240) return TEXT_TEMPLATE_GRID_COLUMNS.narrow;
 	return TEXT_TEMPLATE_GRID_COLUMNS.compact;
+}
+
+export function getExpandedTextTemplateGridColumnCount(): number {
+	return TEXT_TEMPLATE_GRID_COLUMNS.expanded;
 }
 
 function getTextTemplateDownloadLabel({
@@ -689,6 +704,67 @@ function FilterBar<TFilter extends string>({
 	);
 }
 
+function ExpandedTextLibraryDialog({
+	activeHeading,
+	definitions,
+	emptyMessage,
+	libraryState,
+	onDownload,
+	onOpenChange,
+	onToggleFavorite,
+	onUseTemplate,
+	open,
+	runtimeByAssetKey,
+	smartTextStatus,
+}: {
+	activeHeading: string;
+	definitions: readonly TextTemplateDefinition[];
+	emptyMessage: string;
+	libraryState: TextLibraryState;
+	onDownload: (props: { definition: TextTemplateDefinition }) => void;
+	onOpenChange: (open: boolean) => void;
+	onToggleFavorite: (props: { templateId: string }) => void;
+	onUseTemplate: (props: { templateId: string }) => void;
+	open: boolean;
+	runtimeByAssetKey: Readonly<Record<string, AssetRuntimeState>>;
+	smartTextStatus: string;
+}) {
+	return (
+		<Dialog open={open} onOpenChange={onOpenChange}>
+			<DialogContent className="max-w-[min(1000px,calc(100vw-2rem))] border-border/70 bg-background p-0">
+				<DialogHeader className="px-4 pt-4">
+					<div className="flex items-center justify-between gap-4 pr-8">
+						<DialogTitle className="text-base">{activeHeading}</DialogTitle>
+						<span className="text-xs text-muted-foreground">
+							{smartTextStatus}
+						</span>
+					</div>
+					<DialogDescription className="sr-only">
+						展开文字素材库
+					</DialogDescription>
+				</DialogHeader>
+				<div className="max-h-[72vh] overflow-y-auto px-4 pb-4">
+					{definitions.length > 0 ? (
+						<TemplateGrid
+							columnCountOverride={5}
+							definitions={definitions}
+							libraryState={libraryState}
+							onDownload={onDownload}
+							onToggleFavorite={onToggleFavorite}
+							onUseTemplate={onUseTemplate}
+							runtimeByAssetKey={runtimeByAssetKey}
+						/>
+					) : (
+						<div className="py-16 text-center text-xs text-muted-foreground">
+							{emptyMessage}
+						</div>
+					)}
+				</div>
+			</DialogContent>
+		</Dialog>
+	);
+}
+
 function getTextLibraryEmptyMessage({
 	categoryId,
 	hasActiveFilters,
@@ -751,6 +827,7 @@ export function TextView() {
 	const [statusFilter, setStatusFilter] =
 		useState<TextLibraryStatusFilter>("all");
 	const [styleFilter, setStyleFilter] = useState<TextLibraryStyleFilter>("all");
+	const [expandedLibraryOpen, setExpandedLibraryOpen] = useState(false);
 	const [libraryState, setLibraryState] = useState<TextLibraryState>(() =>
 		loadTextLibraryState()
 	);
@@ -1004,13 +1081,25 @@ export function TextView() {
 							onChange={(event) => setSearchQuery(event.target.value)}
 						/>
 					</label>
-					<div className="flex h-6 items-center justify-between">
-						<h2 className="text-sm font-medium text-foreground">
+					<div className="flex h-6 items-center justify-between gap-2">
+						<h2 className="truncate text-sm font-medium text-foreground">
 							{activeHeading}
 						</h2>
-						<span className="text-[0.68rem] text-muted-foreground">
-							{smartTextStatus}
-						</span>
+						<div className="flex shrink-0 items-center gap-1.5">
+							<span className="text-[0.68rem] text-muted-foreground">
+								{smartTextStatus}
+							</span>
+							<button
+								type="button"
+								aria-label="展开文字素材库"
+								className="flex h-6 w-6 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-accent hover:text-foreground"
+								onClick={() => setExpandedLibraryOpen(true)}
+							>
+								<Maximize2 aria-hidden="true" className="h-3.5 w-3.5">
+									<title>展开文字素材库</title>
+								</Maximize2>
+							</button>
+						</div>
 					</div>
 					<FilterBar
 						activeFilter={statusFilter}
@@ -1042,6 +1131,19 @@ export function TextView() {
 						<MarkdownTemplate onAdd={addMarkdown} />
 					)}
 			</section>
+			<ExpandedTextLibraryDialog
+				activeHeading={activeHeading}
+				definitions={visibleDefinitions}
+				emptyMessage={emptyMessage}
+				libraryState={libraryState}
+				onDownload={handleDownload}
+				onOpenChange={setExpandedLibraryOpen}
+				onToggleFavorite={handleToggleFavorite}
+				onUseTemplate={handleUseTemplate}
+				open={expandedLibraryOpen}
+				runtimeByAssetKey={runtimeByAssetKey}
+				smartTextStatus={smartTextStatus}
+			/>
 		</div>
 	);
 }
