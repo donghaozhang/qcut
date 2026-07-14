@@ -548,6 +548,23 @@ describe("text designer asset import script", () => {
 				publicDir,
 				requiredDesignerCategories: ["red"],
 			})
+		).rejects.toThrow("Designer-ready imports require pack-summary.json");
+		await expect(
+			buildTextDesignerAssetImportPlan({
+				generatedManifest,
+				minDesignerAssetsPerCategory: 1,
+				packDir,
+				packManifest,
+				packSummary: {
+					assets: 1,
+					categoryCounts: { unknown: 1 },
+					expectedDesignerImportedAssets: 1,
+					requiredReplacementFiles: 3,
+					schemaVersion: 1,
+				},
+				publicDir,
+				requiredDesignerCategories: ["red"],
+			})
 		).rejects.toThrow("red (0)");
 	});
 
@@ -579,6 +596,13 @@ describe("text designer asset import script", () => {
 				minDesignerAssetsPerCategory: 1,
 				packDir,
 				packManifest,
+				packSummary: {
+					assets: 1,
+					categoryCounts: { red: 1 },
+					expectedDesignerImportedAssets: 1,
+					requiredReplacementFiles: 3,
+					schemaVersion: 1,
+				},
 				publicDir,
 				requiredDesignerCategories: ["red"],
 			})

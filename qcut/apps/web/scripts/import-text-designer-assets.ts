@@ -406,6 +406,11 @@ export async function buildTextDesignerAssetImportPlan({
 		generatedManifest,
 		items,
 	});
+	assertRequiredDesignerPackSummary({
+		minDesignerAssets,
+		packSummary,
+		requiredDesignerCategories,
+	});
 	assertDesignerPackSummaryMatchesPlan({
 		items,
 		packManifest,
@@ -479,6 +484,23 @@ function assertDesignerReadyCoverage({
 		`Designer asset pack does not satisfy ready coverage: ${issues
 			.map((issue) => issue.detail)
 			.join("; ")}`
+	);
+}
+
+function assertRequiredDesignerPackSummary({
+	minDesignerAssets,
+	packSummary,
+	requiredDesignerCategories,
+}: {
+	minDesignerAssets: number;
+	packSummary?: TextDesignerAssetPackSummary;
+	requiredDesignerCategories: readonly string[];
+}): void {
+	if (packSummary) return;
+	if (minDesignerAssets === 0 && requiredDesignerCategories.length === 0)
+		return;
+	throw new Error(
+		"Designer-ready imports require pack-summary.json. Regenerate the pack with assets:text:create-designer-ready-pack."
 	);
 }
 
