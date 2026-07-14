@@ -14,6 +14,7 @@
 		"assets:text:verify-designer-ready": "bun scripts/verify-text-asset-cdn-manifest.ts --designer-ready",
 		"assets:text:designer-gap-report": "bun scripts/verify-text-asset-cdn-manifest.ts --allow-designer-gaps --designer-ready --write-designer-gap-report dist/text-designer-gap-report.json",
 		"assets:text:contact-sheet": "bun scripts/create-text-asset-contact-sheet.ts",
+		"assets:text:apply-analytics": "bun scripts/apply-text-marketplace-analytics.ts",
 		"assets:text:publish-manifest": "bun scripts/verify-text-asset-cdn-manifest.ts --write dist/text-assets-publish-manifest.json",
 		"assets:text:check-remote": "bun scripts/verify-text-asset-cdn-manifest.ts --check-remote",
 		"assets:text:check-remote-checksum": "bun scripts/verify-text-asset-cdn-manifest.ts --check-remote-checksum",
