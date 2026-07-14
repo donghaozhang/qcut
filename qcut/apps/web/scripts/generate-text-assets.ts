@@ -1,6 +1,7 @@
 import { createHash } from "node:crypto";
 import { mkdir, rm, writeFile } from "node:fs/promises";
-import { dirname, join } from "node:path";
+import { dirname, join, resolve } from "node:path";
+import { fileURLToPath } from "node:url";
 import { chromium, type Page } from "playwright";
 import {
 	getThumbnailPreviewContent,
@@ -9,6 +10,7 @@ import {
 } from "../src/components/editor/media-panel/views/text-template-thumbnail-renderer";
 import { getTextTemplateMarketplaceMetadata } from "../src/lib/text/text-marketplace-metadata";
 import { getTextTemplateResource } from "../src/lib/text/text-resource-catalog";
+import { buildTextTemplatePack } from "../src/lib/text/text-template-packs";
 import {
 	buildTextTemplate,
 	TEXT_TEMPLATE_LIBRARY_DEFINITIONS,
@@ -32,9 +34,10 @@ type TextAssetManifestEntry = {
 	qcutPackage: TextAssetFile;
 };
 
-const PUBLIC_DIR = join(import.meta.dir, "../public");
+const SCRIPT_DIR = dirname(fileURLToPath(import.meta.url));
+const PUBLIC_DIR = join(SCRIPT_DIR, "../public");
 const MANIFEST_PATH = join(
-	import.meta.dir,
+	SCRIPT_DIR,
 	"../src/lib/text/text-asset-generated-manifest.json"
 );
 const THUMBNAIL_WIDTH = 320;
@@ -381,9 +384,18 @@ async function svgToWebp({
 	return Buffer.from(base64, "base64");
 }
 
-function sourcePayload({ definition }: { definition: TextTemplateDefinition }) {
+export function buildTextAssetSourcePayload({
+	definition,
+}: {
+	definition: TextTemplateDefinition;
+}) {
 	const resource = getTextTemplateResource({ definition });
 	const marketplace = getTextTemplateMarketplaceMetadata({ definition });
+	const template = buildTextTemplate({ definition });
+	const templatePack = buildTextTemplatePack({
+		baseTemplate: template,
+		definition,
+	});
 	return {
 		schemaVersion: 1,
 		assetId: resource.assetId,
@@ -405,7 +417,8 @@ function sourcePayload({ definition }: { definition: TextTemplateDefinition }) {
 			catalogVisible: definition.catalogVisible,
 			overrides: definition.overrides,
 		},
-		template: buildTextTemplate({ definition }),
+		template,
+		templatePack: templatePack ?? undefined,
 	};
 }
 
@@ -414,7 +427,7 @@ function qcutPackagePayload({
 	source,
 }: {
 	definition: TextTemplateDefinition;
-	source: ReturnType<typeof sourcePayload>;
+	source: ReturnType<typeof buildTextAssetSourcePayload>;
 }) {
 	const resource = getTextTemplateResource({ definition });
 	return {
@@ -456,7 +469,7 @@ async function writeAsset({
 		page,
 		svg: thumbnailSvg({ definition }),
 	});
-	const source = sourcePayload({ definition });
+	const source = buildTextAssetSourcePayload({ definition });
 	const sourceBytes = Buffer.from(
 		`${JSON.stringify(source, null, "\t")}\n`,
 		"utf8"
@@ -524,4 +537,10 @@ async function main() {
 	);
 }
 
-await main();
+if (
+	process.env.VITEST !== "true" &&
+	process.argv[1] &&
+	resolve(process.argv[1]) === fileURLToPath(import.meta.url)
+) {
+	await main();
+}

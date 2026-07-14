@@ -33,7 +33,15 @@ export interface TextTemplatePackageSource {
 	cacheKey: string;
 	packageId: string;
 	template: Partial<TextElement>;
+	templatePack?: TextTemplatePackagePackSource;
 	version: number;
+}
+
+export interface TextTemplatePackagePackSource {
+	category: string;
+	elements: Partial<TextElement>[];
+	id: string;
+	name: string;
 }
 
 function asRecord({
@@ -158,6 +166,36 @@ function parseTextTemplate({
 	};
 }
 
+function parseTextTemplatePackSource({
+	value,
+}: {
+	value: unknown;
+}): TextTemplatePackagePackSource | undefined {
+	if (value === undefined) return undefined;
+	const record = asRecord({ value });
+	if (!record) throw new Error("Invalid QCut text template pack");
+	const id = stringValue({ record, key: "id" });
+	const name = stringValue({ record, key: "name" });
+	const category = stringValue({ record, key: "category" });
+	if (!id || !name || !category || !Array.isArray(record.elements)) {
+		throw new Error("Incomplete QCut text template pack");
+	}
+	const elements = record.elements.map((element) =>
+		parseTextTemplate({ value: element })
+	);
+	if (elements.some((element) => !element)) {
+		throw new Error("Invalid QCut text template pack element");
+	}
+	return {
+		category,
+		elements: elements.filter(
+			(element): element is Partial<TextElement> => element !== null
+		),
+		id,
+		name,
+	};
+}
+
 function downloadedResourceFiles({
 	resources,
 }: {
@@ -204,6 +242,9 @@ export function parseTextTemplatePackage({
 	}
 	const source = asRecord({ value: root.source });
 	const template = parseTextTemplate({ value: source?.template });
+	const templatePack = parseTextTemplatePackSource({
+		value: source?.templatePack,
+	});
 	const assetId = stringValue({ record: root, key: "assetId" });
 	const packageId = stringValue({ record: root, key: "packageId" });
 	const cacheKey = stringValue({ record: root, key: "cacheKey" });
@@ -211,7 +252,7 @@ export function parseTextTemplatePackage({
 	if (!assetId || !packageId || !cacheKey || !version || !template) {
 		throw new Error("Incomplete QCut text template package");
 	}
-	return { assetId, cacheKey, packageId, template, version };
+	return { assetId, cacheKey, packageId, template, templatePack, version };
 }
 
 async function fetchText({

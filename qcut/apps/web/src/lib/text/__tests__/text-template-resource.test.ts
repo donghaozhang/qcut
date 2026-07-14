@@ -12,6 +12,7 @@ import {
 import {
 	TEXT_TEMPLATE_DEFINITIONS,
 	buildTextTemplate,
+	getTextTemplateDefinitionsByCategory,
 	type TextTemplateDefinition,
 } from "../text-template-registry";
 
@@ -72,12 +73,51 @@ function checksum({ value }: { value: string }): string {
 function packageText({
 	content = "Package content",
 	definition,
+	includeTemplatePack = false,
 }: {
 	content?: string;
 	definition: TextTemplateDefinition;
+	includeTemplatePack?: boolean;
 }): string {
 	const resource = definition.resource;
 	if (!resource) throw new Error("Expected text definition resource");
+	const templatePack = includeTemplatePack
+		? {
+				id: `pack-${definition.id}`,
+				name: `${definition.name} pack`,
+				category: definition.category,
+				elements: [
+					{
+						id: "pack-title",
+						type: "text",
+						name: "Pack title",
+						content,
+						color: "#ffffff",
+						fontFamily: "Inter",
+						fontSize: 48,
+						height: 120,
+						width: 640,
+						x: 80,
+						y: 120,
+						textAlign: "left",
+					},
+					{
+						id: "pack-subtitle",
+						type: "text",
+						name: "Pack subtitle",
+						content: "Subtitle",
+						color: "#facc15",
+						fontFamily: "Inter",
+						fontSize: 28,
+						height: 72,
+						width: 520,
+						x: 80,
+						y: 240,
+						textAlign: "left",
+					},
+				],
+			}
+		: undefined;
 	return JSON.stringify({
 		schemaVersion: 1,
 		kind: "qcut-text-template-package",
@@ -107,6 +147,7 @@ function packageText({
 				x: 80,
 				y: 120,
 			},
+			templatePack,
 		},
 	});
 }
@@ -287,6 +328,32 @@ describe("downloadTextTemplateResource", () => {
 				type: "text",
 			},
 			version: 1,
+		});
+	});
+
+	it("parses qctext package template pack payloads", () => {
+		const definition = getTextTemplateDefinitionsByCategory({
+			category: "headline-template",
+		})[0];
+		if (!definition) throw new Error("Expected a headline template definition");
+
+		expect(
+			parseTextTemplatePackage({
+				text: packageText({
+					content: "Pack title",
+					definition,
+					includeTemplatePack: true,
+				}),
+			})
+		).toMatchObject({
+			templatePack: {
+				category: "headline-template",
+				elements: [
+					{ content: "Pack title", type: "text" },
+					{ content: "Subtitle", type: "text" },
+				],
+				id: `pack-${definition.id}`,
+			},
 		});
 	});
 
