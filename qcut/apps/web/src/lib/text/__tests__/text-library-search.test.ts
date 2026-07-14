@@ -552,6 +552,35 @@ describe("text library search", () => {
 		).toEqual(["red-style"]);
 	});
 
+	it("bridges subtitle search terms to text and flower-word assets", () => {
+		const definitions = [
+			createDefinition({
+				category: "basic",
+				content: "基础文字",
+				id: "basic-text-style",
+				keywords: ["文字", "文本"],
+				variantId: "plain",
+			}),
+			createDefinition({
+				category: "red",
+				content: "花字标题",
+				id: "flower-title-style",
+				keywords: ["花字", "标题"],
+				variantId: "red-burst",
+			}),
+		];
+
+		for (const query of ["字幕", "zimu", "caption", "subtitle"]) {
+			expect(
+				rankTextTemplateSearchResults({
+					definitions,
+					query,
+					state: EMPTY_TEXT_LIBRARY_STATE,
+				}).map((definition) => definition.id)
+			).toEqual(["flower-title-style", "basic-text-style"]);
+		}
+	});
+
 	it("matches expanded creator commerce aliases through pinyin and typo queries", () => {
 		const definitions = [
 			createDefinition({
