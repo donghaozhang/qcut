@@ -273,6 +273,7 @@ export async function buildTextDesignerAssetImportPlan({
 		})
 	);
 	const items = itemGroups.flat();
+	assertDesignerPackItemsAreDistinct({ items });
 	const updatedManifest = applyPlanToManifest({
 		generatedManifest,
 		items,
@@ -287,6 +288,36 @@ export async function buildTextDesignerAssetImportPlan({
 		items,
 		updatedManifest,
 	};
+}
+
+function assertDesignerPackItemsAreDistinct({
+	items,
+}: {
+	items: readonly TextDesignerAssetImportPlanItem[];
+}): void {
+	const seenByRoleAndPath = new Map<string, TextDesignerAssetImportPlanItem>();
+	const seenByRoleAndChecksum = new Map<
+		string,
+		TextDesignerAssetImportPlanItem
+	>();
+	for (const item of items) {
+		const pathKey = `${item.role}:${item.sourcePath}`;
+		const checksumKey = `${item.role}:${item.checksumSha256}`;
+		const pathMatch = seenByRoleAndPath.get(pathKey);
+		if (pathMatch && pathMatch.assetId !== item.assetId) {
+			throw new Error(
+				`Designer ${item.role} file is reused across assets: ${pathMatch.assetId}, ${item.assetId}`
+			);
+		}
+		const checksumMatch = seenByRoleAndChecksum.get(checksumKey);
+		if (checksumMatch && checksumMatch.assetId !== item.assetId) {
+			throw new Error(
+				`Designer ${item.role} content is duplicated across assets: ${checksumMatch.assetId}, ${item.assetId}`
+			);
+		}
+		seenByRoleAndPath.set(pathKey, item);
+		seenByRoleAndChecksum.set(checksumKey, item);
+	}
 }
 
 function assertDesignerReadyCoverage({

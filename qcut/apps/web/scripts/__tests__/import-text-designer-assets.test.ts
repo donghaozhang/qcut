@@ -124,6 +124,15 @@ function designerSourceText({
 	)}\n`;
 }
 
+function designerTemplate({ content, id }: { content: string; id: string }) {
+	return {
+		content,
+		id,
+		name: `Designer ${id}`,
+		type: "text",
+	};
+}
+
 function designerPackageText({
 	assetId = "text-demo",
 	cacheKey = "text-assets/demo/plain@1",
@@ -206,6 +215,44 @@ async function createDesignerFixture(): Promise<{
 		packManifest,
 		publicDir,
 	};
+}
+
+async function writeDesignerAssetPackFiles({
+	assetId,
+	cacheKey,
+	packDir,
+	packageId,
+	prefix,
+	thumbnailBytes = DESIGNER_THUMBNAIL_TEXT,
+}: {
+	assetId: string;
+	cacheKey: string;
+	packDir: string;
+	packageId: string;
+	prefix: string;
+	thumbnailBytes?: Buffer;
+}) {
+	const sourceText = designerSourceText({
+		assetId,
+		packageId,
+		template: designerTemplate({
+			content: `设计师花字 ${prefix}`,
+			id: `designer-${prefix}`,
+		}),
+	});
+	await Promise.all([
+		writeFile(join(packDir, `${prefix}-thumbnail.webp`), thumbnailBytes),
+		writeFile(join(packDir, `${prefix}-template.json`), sourceText),
+		writeFile(
+			join(packDir, `${prefix}-template.qctext`),
+			designerPackageText({
+				assetId,
+				cacheKey,
+				packageId,
+				source: sourceText,
+			})
+		),
+	]);
 }
 
 describe("text designer asset import script", () => {
@@ -395,6 +442,121 @@ describe("text designer asset import script", () => {
 				publicDir,
 			})
 		).rejects.toThrow("identity mismatch");
+	});
+
+	it("rejects designer packs that reuse the same file for multiple assets", async () => {
+		const { packDir, publicDir } = await createDesignerFixture();
+		const generatedManifest = {
+			"text-demo-a": createGeneratedEntry({
+				assetId: "text-demo-a",
+				cacheKey: "text-assets/demo-a/plain@1",
+				packageId: "text-demo-a",
+			}),
+			"text-demo-b": createGeneratedEntry({
+				assetId: "text-demo-b",
+				cacheKey: "text-assets/demo-b/plain@1",
+				packageId: "text-demo-b",
+			}),
+		};
+		await writeDesignerAssetPackFiles({
+			assetId: "text-demo-a",
+			cacheKey: "text-assets/demo-a/plain@1",
+			packDir,
+			packageId: "text-demo-a",
+			prefix: "a",
+		});
+		await writeDesignerAssetPackFiles({
+			assetId: "text-demo-b",
+			cacheKey: "text-assets/demo-b/plain@1",
+			packDir,
+			packageId: "text-demo-b",
+			prefix: "b",
+		});
+
+		await expect(
+			buildTextDesignerAssetImportPlan({
+				generatedManifest,
+				packDir,
+				packManifest: {
+					assets: [
+						{
+							assetId: "text-demo-a",
+							qcutPackage: "a-template.qctext",
+							source: "a-template.json",
+							thumbnail: "a-thumbnail.webp",
+						},
+						{
+							assetId: "text-demo-b",
+							qcutPackage: "b-template.qctext",
+							source: "b-template.json",
+							thumbnail: "a-thumbnail.webp",
+						},
+					],
+					schemaVersion: 1,
+				},
+				publicDir,
+			})
+		).rejects.toThrow(
+			"Designer thumbnail file is reused across assets: text-demo-a, text-demo-b"
+		);
+	});
+
+	it("rejects designer packs that duplicate file contents across assets", async () => {
+		const { packDir, publicDir } = await createDesignerFixture();
+		const generatedManifest = {
+			"text-demo-a": createGeneratedEntry({
+				assetId: "text-demo-a",
+				cacheKey: "text-assets/demo-a/plain@1",
+				packageId: "text-demo-a",
+			}),
+			"text-demo-b": createGeneratedEntry({
+				assetId: "text-demo-b",
+				cacheKey: "text-assets/demo-b/plain@1",
+				packageId: "text-demo-b",
+			}),
+		};
+		await writeDesignerAssetPackFiles({
+			assetId: "text-demo-a",
+			cacheKey: "text-assets/demo-a/plain@1",
+			packDir,
+			packageId: "text-demo-a",
+			prefix: "a",
+		});
+		await writeDesignerAssetPackFiles({
+			assetId: "text-demo-b",
+			cacheKey: "text-assets/demo-b/plain@1",
+			packDir,
+			packageId: "text-demo-b",
+			prefix: "b",
+			thumbnailBytes: Buffer.from(DESIGNER_THUMBNAIL_TEXT),
+		});
+
+		await expect(
+			buildTextDesignerAssetImportPlan({
+				generatedManifest,
+				packDir,
+				packManifest: {
+					assets: [
+						{
+							assetId: "text-demo-a",
+							qcutPackage: "a-template.qctext",
+							source: "a-template.json",
+							thumbnail: "a-thumbnail.webp",
+						},
+						{
+							assetId: "text-demo-b",
+							qcutPackage: "b-template.qctext",
+							source: "b-template.json",
+							thumbnail: "b-thumbnail.webp",
+						},
+					],
+					schemaVersion: 1,
+				},
+				publicDir,
+			})
+		).rejects.toThrow(
+			"Designer thumbnail content is duplicated across assets: text-demo-a, text-demo-b"
+		);
 	});
 
 	it("rejects designer package file references that will not exist after import", async () => {
