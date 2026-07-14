@@ -3,6 +3,7 @@ import { getTextTemplateDefinitionsByCategory } from "@/lib/text/text-template-r
 import {
 	applyTextTemplatePackCopyValues,
 	buildTextTemplateDragData,
+	getTextTemplateAccessibilityLabel,
 	getTextTemplatePackCopyDefaults,
 	getExpandedTextTemplateGridColumnCount,
 	getTextTemplateGridColumnCount,
@@ -92,5 +93,20 @@ describe("text view layout", () => {
 				pack,
 			}).elements.map((element) => element.content)
 		).toEqual(["开场提醒", "新标题", "新副标题"]);
+	});
+
+	it("labels single and grouped text templates distinctly", () => {
+		expect(
+			getTextTemplateAccessibilityLabel({
+				isPack: false,
+				templateName: "基础文字",
+			})
+		).toBe("添加文字模板 基础文字");
+		expect(
+			getTextTemplateAccessibilityLabel({
+				isPack: true,
+				templateName: "标题组合",
+			})
+		).toBe("添加组合文字模板 标题组合");
 	});
 });

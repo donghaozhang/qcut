@@ -31,6 +31,7 @@ import {
 	FileText,
 	Gem,
 	Heart,
+	Layers3,
 	Maximize2,
 	Search,
 } from "lucide-react";
@@ -220,6 +221,18 @@ export function getTextTemplatePackCopyDefaults({
 	return copySlots.map((slot) => slot.defaultContent);
 }
 
+export function getTextTemplateAccessibilityLabel({
+	isPack,
+	templateName,
+}: {
+	isPack: boolean;
+	templateName: string;
+}): string {
+	return isPack
+		? `添加组合文字模板 ${templateName}`
+		: `添加文字模板 ${templateName}`;
+}
+
 export function applyTextTemplatePackCopyValues({
 	copyValues,
 	pack,
@@ -270,6 +283,11 @@ function TextTemplate({
 			copySlots: editableTemplatePack?.copySlots ?? [],
 		})
 	);
+	const isTemplatePack = Boolean(editableTemplatePack);
+	const templateAccessibilityLabel = getTextTemplateAccessibilityLabel({
+		isPack: isTemplatePack,
+		templateName: template.name,
+	});
 	const resolveTemplate = async () => {
 		return resolveTextTemplateForTimeline({
 			definition,
@@ -367,7 +385,7 @@ function TextTemplate({
 			<div
 				role="button"
 				tabIndex={0}
-				aria-label={`Add ${template.name}`}
+				aria-label={templateAccessibilityLabel}
 				className="relative cursor-default"
 				onClick={handleActivate}
 				onKeyDown={(event: KeyboardEvent<HTMLDivElement>) => {
@@ -386,6 +404,13 @@ function TextTemplate({
 						template={template}
 						thumbnailUrl={getTextTemplateCatalogThumbnailUrl({ definition })}
 					/>
+					{editableTemplatePack && (
+						<div className="absolute left-1 top-5 flex h-4 w-4 items-center justify-center rounded-full bg-black/55 text-cyan-200 shadow-sm ring-1 ring-white/10">
+							<Layers3 aria-hidden="true" className="h-3 w-3">
+								<title>{`组合模板，${editableTemplatePack.elements.length}层`}</title>
+							</Layers3>
+						</div>
+					)}
 					{editableTemplatePack &&
 						editableTemplatePack.copySlots.length > 0 && (
 							<button
