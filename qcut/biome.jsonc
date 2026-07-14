@@ -37,6 +37,7 @@
 				"apps/web/public/ffmpeg/**",
 				"apps/web/public/ffmpeg*.js",
 				"apps/web/public/mediapipe/**",
+				"apps/web/public/text-assets/**",
 				"apps/web/ios/**",
 				"electron/resources/ffmpeg/**",
 				"electron/resources/ffmpeg*.js",
