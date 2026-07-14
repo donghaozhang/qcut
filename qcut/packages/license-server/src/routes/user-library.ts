@@ -15,7 +15,7 @@ const LIBRARY_NAMESPACES = new Set([
 ]);
 const DOCUMENT_KEY_PATTERN = /^[a-z0-9][a-z0-9._-]{0,79}$/;
 
-function isSupportedNamespace({ value }: { value: unknown }): value is string {
+function isSupportedNamespace(value: unknown): value is string {
 	return typeof value === "string" && LIBRARY_NAMESPACES.has(value);
 }
 
@@ -33,10 +33,7 @@ userLibraryRoutes.use("/*", authMiddleware);
 userLibraryRoutes.get("/", async (c) => {
 	try {
 		const namespace = c.req.query("namespace");
-		if (
-			namespace !== undefined &&
-			!isSupportedNamespace({ value: namespace })
-		) {
+		if (namespace !== undefined && !isSupportedNamespace(namespace)) {
 			return c.json({ error: "Unsupported library namespace" }, 400);
 		}
 		const documents = await listUserLibraryDocuments({
@@ -60,7 +57,7 @@ userLibraryRoutes.get("/", async (c) => {
 userLibraryRoutes.post("/documents", async (c) => {
 	try {
 		const body = (await c.req.json()) as Record<string, unknown>;
-		if (!isSupportedNamespace({ value: body.namespace })) {
+		if (!isSupportedNamespace(body.namespace)) {
 			return c.json({ error: "Unsupported library namespace" }, 400);
 		}
 		if (

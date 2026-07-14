@@ -116,18 +116,27 @@ export const licenses = pgTable("licenses", {
 		.notNull(),
 }).enableRLS();
 
-export const deviceActivations = pgTable("device_activations", {
-	id: text("id").primaryKey(),
-	licenseId: text("license_id")
-		.notNull()
-		.references(() => licenses.id, { onDelete: "cascade" }),
-	deviceFingerprint: text("device_fingerprint").notNull(),
-	deviceName: text("device_name").notNull(),
-	lastSeenAt: timestamp("last_seen_at")
-		.$defaultFn(() => /* @__PURE__ */ new Date())
-		.notNull(),
-	isActive: boolean("is_active").notNull().default(true),
-}).enableRLS();
+export const deviceActivations = pgTable(
+	"device_activations",
+	{
+		id: text("id").primaryKey(),
+		licenseId: text("license_id")
+			.notNull()
+			.references(() => licenses.id, { onDelete: "cascade" }),
+		deviceFingerprint: text("device_fingerprint").notNull(),
+		deviceName: text("device_name").notNull(),
+		lastSeenAt: timestamp("last_seen_at")
+			.$defaultFn(() => /* @__PURE__ */ new Date())
+			.notNull(),
+		isActive: boolean("is_active").notNull().default(true),
+	},
+	(table) => [
+		uniqueIndex("device_activations_license_fingerprint_unique").on(
+			table.licenseId,
+			table.deviceFingerprint
+		),
+	]
+).enableRLS();
 
 export const creditBalances = pgTable("credit_balances", {
 	id: text("id").primaryKey(),

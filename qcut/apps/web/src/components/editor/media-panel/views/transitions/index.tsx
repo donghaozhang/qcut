@@ -7,6 +7,7 @@ import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { useTimelineStore } from "@/stores/timeline/timeline-store";
 import { useMediaStore } from "@/stores/media/media-store";
+import { useProjectStore } from "@/stores/project-store";
 import { useAssetLibraryStore } from "@/stores/asset-library-store";
 import { transitionCategories } from "./transition-categories";
 import {
@@ -52,6 +53,7 @@ export function TransitionsView() {
 	const addTransition = useTimelineStore((state) => state.addTransition);
 	const mediaItems = useMediaStore((state) => state.mediaItems);
 	const beatCache = useBeatDetectionStore((state) => state.cache);
+	const fps = useProjectStore((state) => state.activeProject?.fps ?? 30);
 	const favorites = useAssetLibraryStore((state) => state.favorites);
 	const toggleFavorite = useAssetLibraryStore((state) => state.toggleFavorite);
 	const favoriteIds = useMemo(
@@ -108,9 +110,11 @@ export function TransitionsView() {
 		) {
 			return [];
 		}
-		const absoluteBeatTimes = collectTimelineBeats({ beatCache, tracks }).map(
-			(beat) => beat.timestamp
-		);
+		const absoluteBeatTimes = collectTimelineBeats({
+			beatCache,
+			fps,
+			tracks,
+		}).map((beat) => beat.timestamp);
 		const fromMedia = mediaItems.find(
 			(item) => item.id === fromElement.mediaId
 		);
@@ -118,7 +122,7 @@ export function TransitionsView() {
 		return recommendTransitions({
 			beatTimes: absoluteBeatTimes,
 			cutTime: toElement.startTime,
-			fromDuration: getTimelineElementDuration({ element: fromElement }),
+			fromDuration: getTimelineElementDuration({ element: fromElement, fps }),
 			fromName: buildTransitionContentText({
 				fallbackName: fromElement.name,
 				mediaItem: fromMedia,
@@ -127,14 +131,14 @@ export function TransitionsView() {
 			presets: transitionPresets.filter((preset) =>
 				Boolean(getClipTransitionPresetConfig({ preset }))
 			),
-			toDuration: getTimelineElementDuration({ element: toElement }),
+			toDuration: getTimelineElementDuration({ element: toElement, fps }),
 			toName: buildTransitionContentText({
 				fallbackName: toElement.name,
 				mediaItem: toMedia,
 			}),
 			visualSignals,
 		});
-	}, [applyState, beatCache, mediaItems, tracks, visualSignals]);
+	}, [applyState, beatCache, fps, mediaItems, tracks, visualSignals]);
 
 	const handleApply = ({
 		duration,

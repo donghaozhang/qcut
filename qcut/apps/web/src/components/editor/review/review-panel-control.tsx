@@ -104,7 +104,10 @@ export function ReviewPanelControl() {
 	const [cloudProjectDuration, setCloudProjectDuration] = useState(0);
 	const [isCloudBusy, setIsCloudBusy] = useState(false);
 	const [cloudSyncError, setCloudSyncError] = useState<string>();
-	const cloudSyncPromise = useRef<Promise<StoredCloudReviewState> | null>(null);
+	const cloudSyncPromise = useRef<{
+		token: string;
+		promise: Promise<StoredCloudReviewState>;
+	} | null>(null);
 	const cloudToken = useRef<string | null>(null);
 	const lastSyncedFingerprint = useRef("");
 	const openComments = useMemo(
@@ -203,7 +206,10 @@ export function ReviewPanelControl() {
 			reviewPackage: NonNullable<typeof currentReviewPackage>;
 			silent: boolean;
 		}) => {
-			let activeOperation = cloudSyncPromise.current;
+			let activeOperation =
+				cloudSyncPromise.current?.token === state.token
+					? cloudSyncPromise.current.promise
+					: null;
 			if (!activeOperation) {
 				setIsCloudBusy(true);
 				activeOperation = (async () => {
@@ -212,10 +218,12 @@ export function ReviewPanelControl() {
 						baseRevision: state.revision,
 						reviewPackage,
 					});
-					mergePackage({ reviewPackage: snapshot.package });
 					const nextState = { ...state, revision: snapshot.revision };
 					storeCloudReview({ state: nextState });
-					cloudToken.current = nextState.token;
+					// The active project may have changed while the request was
+					// in flight; a stale result must not touch the loaded review.
+					if (cloudToken.current !== state.token) return nextState;
+					mergePackage({ reviewPackage: snapshot.package });
 					setCloudState(nextState);
 					lastSyncedFingerprint.current = JSON.stringify(
 						snapshot.package.comments
@@ -223,20 +231,25 @@ export function ReviewPanelControl() {
 					setCloudSyncError(undefined);
 					return nextState;
 				})();
-				cloudSyncPromise.current = activeOperation;
+				cloudSyncPromise.current = {
+					token: state.token,
+					promise: activeOperation,
+				};
 			}
 			try {
 				const nextState = await activeOperation;
 				if (!silent) toast.success("审片评论已同步");
 				return nextState;
 			} catch (error) {
-				setCloudSyncError(
-					error instanceof Error ? error.message : "审片同步失败"
-				);
+				if (cloudToken.current === state.token) {
+					setCloudSyncError(
+						error instanceof Error ? error.message : "审片同步失败"
+					);
+				}
 				if (!silent) throw error;
 				return state;
 			} finally {
-				if (cloudSyncPromise.current === activeOperation) {
+				if (cloudSyncPromise.current?.promise === activeOperation) {
 					cloudSyncPromise.current = null;
 					setIsCloudBusy(false);
 				}

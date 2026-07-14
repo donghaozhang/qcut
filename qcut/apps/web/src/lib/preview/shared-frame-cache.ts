@@ -246,13 +246,20 @@ export class SharedFrameCache {
 	}): void {
 		this.prune({ now });
 		while (this.entries.size > this.maxEntries || this.bytes > this.maxBytes) {
-			const candidates = Array.from(this.entries.values()).sort((a, b) => {
-				const distanceDifference =
-					Math.abs(b.key - currentTime) - Math.abs(a.key - currentTime);
-				if (distanceDifference !== 0) return distanceDifference;
-				return a.lastAccessedAt - b.lastAccessedAt;
-			});
-			const candidate = candidates[0];
+			let candidate: SharedFrameCacheEntry | undefined;
+			let candidateDistance = -1;
+			for (const entry of this.entries.values()) {
+				const distance = Math.abs(entry.key - currentTime);
+				if (
+					!candidate ||
+					distance > candidateDistance ||
+					(distance === candidateDistance &&
+						entry.lastAccessedAt < candidate.lastAccessedAt)
+				) {
+					candidate = entry;
+					candidateDistance = distance;
+				}
+			}
 			if (!candidate) return;
 			this.remove({ key: candidate.key, countEviction: true });
 		}

@@ -8,23 +8,18 @@ import {
 	writeFileSync,
 } from "node:fs";
 import path from "node:path";
-import { describe, expect, it } from "vitest";
+import { beforeAll, describe, expect, it } from "vitest";
 import {
 	getClipTransitionPresetConfig,
 	transitionPresets,
 } from "../../apps/web/src/components/editor/media-panel/views/transitions/transition-presets";
 import { portraitAuditDirectory } from "../../apps/web/src/test/e2e/helpers/portrait-audit-fixtures";
 import { buildFFmpegArgs } from "../ffmpeg-args-builder";
+import { getFFmpegPath, getFFprobePath } from "../ffmpeg/paths";
 import type { VideoSource, VideoTransition } from "../ffmpeg/types";
 
-const ffmpegPath = path.resolve(
-	__dirname,
-	"../resources/ffmpeg/darwin-arm64/ffmpeg"
-);
-const ffprobePath = path.resolve(
-	__dirname,
-	"../resources/ffmpeg/darwin-arm64/ffprobe"
-);
+let ffmpegPath = "";
+let ffprobePath = "";
 const auditOutputRoot = path.resolve(
 	"output/playwright/portrait-filter-transition-audit/run-05-real-exports"
 );
@@ -325,6 +320,11 @@ function verifyExport({
 }
 
 describe.skipIf(realSourcesMissing)("Real portrait transition exports", () => {
+	beforeAll(async () => {
+		ffmpegPath = getFFmpegPath();
+		ffprobePath = await getFFprobePath();
+	});
+
 	for (const auditCase of realExportCases) {
 		it(`exports representative transitions at the ${auditCase.id} seam`, () => {
 			const outputDirectory = path.join(auditOutputRoot, auditCase.id);
