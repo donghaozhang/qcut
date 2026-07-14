@@ -144,4 +144,31 @@ describe("StickerItem", () => {
 		expect(revokeObjectUrl).toHaveBeenCalledWith("blob:cached-sticker-preview");
 		revokeObjectUrl.mockRestore();
 	});
+
+	it("previews bundled motion stickers from the asset manifest", async () => {
+		render(
+			<TooltipProvider>
+				<StickerItem
+					icon="attention-pulse"
+					name="Attention pulse"
+					collection="qcut-motion-emphasis"
+					animated
+					layout="catalog"
+					onSelect={vi.fn()}
+				/>
+			</TooltipProvider>
+		);
+
+		const preview = await screen.findByRole("img", {
+			name: "Attention pulse",
+		});
+		expect(preview).toHaveAttribute(
+			"src",
+			expect.stringContaining(
+				"stickers/qcut-motion/qcut-motion-emphasis/attention-pulse.png"
+			)
+		);
+		expect(preview.getAttribute("src")).not.toContain("api.iconify.design");
+		expect(createCachedStickerPreviewUrl).not.toHaveBeenCalled();
+	});
 });

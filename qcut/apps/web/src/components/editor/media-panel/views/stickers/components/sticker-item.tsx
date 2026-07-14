@@ -4,6 +4,7 @@ import {
 	assetManifestIdentity,
 	assetManifestVersionKey,
 	createInitialAssetRuntimeState,
+	type AssetManifestEntry,
 } from "@qcut/editor-core";
 import {
 	AlertCircle,
@@ -27,11 +28,22 @@ import {
 	buildIconSvgUrl,
 	iconCollectionUsesPalette,
 } from "@/lib/stickers/iconify-api";
-import { findStickerCatalogItem } from "@/lib/stickers/sticker-catalog";
 import { createCachedStickerPreviewUrl } from "@/lib/stickers/sticker-resource";
 import { cn } from "@/lib/utils";
 import { useAssetLibraryStore } from "@/stores/asset-library-store";
 import type { StickerItemProps } from "../types/stickers.types";
+
+function bundledStickerPreviewUrl({
+	asset,
+}: {
+	asset: AssetManifestEntry;
+}): string | undefined {
+	for (const role of ["thumbnail", "preview", "source"] as const) {
+		const file = asset.files.find((candidate) => candidate.role === role);
+		if (file) return file.url;
+	}
+	return undefined;
+}
 
 export function StickerItem({
 	icon,
@@ -49,10 +61,6 @@ export function StickerItem({
 	const [isLoading, setIsLoading] = useState(true);
 	const [hasError, setHasError] = useState(false);
 	const [imageUrl, setImageUrl] = useState("");
-	const catalogItem = useMemo(
-		() => findStickerCatalogItem({ collection, icon }),
-		[collection, icon]
-	);
 	const asset = useMemo(
 		() => resolveStickerAssetEntry({ collectionPrefix: collection, icon }),
 		[collection, icon]
@@ -88,8 +96,12 @@ export function StickerItem({
 		setHasError(false);
 		const resolvePreview = async () => {
 			try {
-				if (catalogItem?.source.kind === "bundled") {
-					setImageUrl(catalogItem.source.url);
+				if (asset.delivery === "bundled") {
+					const bundledPreview = bundledStickerPreviewUrl({ asset });
+					if (!bundledPreview) {
+						throw new Error(`Bundled sticker has no preview file: ${asset.id}`);
+					}
+					setImageUrl(bundledPreview);
 					return;
 				}
 				if (isCached && asset.delivery === "remote") {
@@ -140,7 +152,7 @@ export function StickerItem({
 			disposed = true;
 			if (cachedObjectUrl) URL.revokeObjectURL(cachedObjectUrl);
 		};
-	}, [asset, catalogItem, collection, icon, iconId, isCached, layout]);
+	}, [asset, collection, icon, iconId, isCached, layout]);
 
 	const handleSelect = () => {
 		if (isLocked) {
