@@ -1,5 +1,5 @@
 import { createHash, randomUUID } from "node:crypto";
-import { mkdir, writeFile } from "node:fs/promises";
+import { mkdir, readFile, writeFile } from "node:fs/promises";
 import { dirname, join } from "node:path";
 import { tmpdir } from "node:os";
 import { describe, expect, it } from "vitest";
@@ -73,11 +73,13 @@ async function createReleaseFixture(): Promise<{
 	options: TextAssetReleaseOptions;
 	publicDir: string;
 	publishManifestPath: string;
+	uploadPlanPath: string;
 }> {
 	const root = join(tmpdir(), `qcut-text-release-${randomUUID()}`);
 	const publicDir = join(root, "public");
 	const generatedManifestPath = join(root, "generated.json");
 	const publishManifestPath = join(root, "publish.json");
+	const uploadPlanPath = join(root, "upload-plan.json");
 	const entry = createGeneratedEntry();
 	await Promise.all(
 		[
@@ -119,9 +121,11 @@ async function createReleaseFixture(): Promise<{
 			requiredDesignerCategories: [],
 			skipRemoteCheck: true,
 			uploadConcurrency: 2,
+			uploadPlanPath,
 		},
 		publicDir,
 		publishManifestPath,
+		uploadPlanPath,
 	};
 }
 
@@ -155,6 +159,8 @@ describe("text asset CDN release script", () => {
 					"4",
 					"--upload-concurrency",
 					"3",
+					"--write-upload-plan",
+					"/tmp/upload-plan.json",
 				],
 				env: { QCUT_TEXT_ASSET_BUCKET: "env-bucket" },
 			})
@@ -173,11 +179,13 @@ describe("text asset CDN release script", () => {
 			requiredDesignerCategories: ["red", "texture"],
 			skipRemoteCheck: true,
 			uploadConcurrency: 3,
+			uploadPlanPath: "/tmp/upload-plan.json",
 		});
 	});
 
 	it("writes a publish manifest and summarizes dry-run releases", async () => {
-		const { options, publishManifestPath } = await createReleaseFixture();
+		const { options, publishManifestPath, uploadPlanPath } =
+			await createReleaseFixture();
 		const uploadedKeys: string[] = [];
 
 		const summary = await releaseTextAssetsToCdn({
@@ -220,8 +228,29 @@ describe("text asset CDN release script", () => {
 				dryRun: true,
 				uploadedFiles: 0,
 			},
+			uploadPlanPath,
 		});
 		expect(uploadedKeys).toEqual([]);
+		await expect(
+			readFile(uploadPlanPath, "utf8").then(JSON.parse)
+		).resolves.toMatchObject({
+			bucket: "qcut-assets",
+			items: [
+				expect.objectContaining({
+					key: "prod/text-assets/demo/plain@1/thumbnail.webp",
+					role: "thumbnail",
+				}),
+				expect.any(Object),
+				expect.any(Object),
+				expect.objectContaining({
+					key: "prod/text-assets/marketplace.json",
+					role: "metadata",
+				}),
+			],
+			prefix: "prod",
+			schemaVersion: 1,
+			totalFiles: 4,
+		});
 	});
 
 	it("returns local issues without uploading", async () => {

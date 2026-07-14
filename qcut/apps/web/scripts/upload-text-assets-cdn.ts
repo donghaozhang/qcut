@@ -1,4 +1,4 @@
-import { readFile } from "node:fs/promises";
+import { mkdir, readFile, writeFile } from "node:fs/promises";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { PutObjectCommand, S3Client } from "@aws-sdk/client-s3";
@@ -24,6 +24,7 @@ export type TextAssetUploadOptions = {
 	minDesignerAssetsPerCategory: number;
 	prefix: string;
 	requiredDesignerCategories: string[];
+	writePlanPath?: string;
 };
 
 export type TextAssetUploadPlanItem = {
@@ -43,6 +44,16 @@ export type TextAssetUploadSummary = {
 	totalBytes: number;
 	totalFiles: number;
 	uploadedFiles: number;
+};
+
+export type TextAssetUploadPlanReport = {
+	bucket: string;
+	generatedAt: string;
+	items: TextAssetUploadPlanItem[];
+	prefix: string;
+	schemaVersion: 1;
+	totalBytes: number;
+	totalFiles: number;
 };
 
 type UploadFile = (props: { item: TextAssetUploadPlanItem }) => Promise<void>;
@@ -155,6 +166,11 @@ export function parseTextAssetUploadArgs({
 			index += 1;
 			continue;
 		}
+		if (arg === "--write-plan") {
+			options.writePlanPath = requireValue({ argv, index, name: arg });
+			index += 1;
+			continue;
+		}
 		throw new Error(`Unknown argument: ${arg}`);
 	}
 	if (!options.bucket) {
@@ -241,6 +257,37 @@ export function buildTextAssetUploadPlan({
 			size: file.byteSize,
 		}))
 	);
+}
+
+export function buildTextAssetUploadPlanReport({
+	generatedAt,
+	items,
+	prefix,
+}: {
+	generatedAt: string;
+	items: readonly TextAssetUploadPlanItem[];
+	prefix: string;
+}): TextAssetUploadPlanReport {
+	return {
+		bucket: items[0]?.bucket ?? "",
+		generatedAt,
+		items: [...items],
+		prefix,
+		schemaVersion: 1,
+		totalBytes: items.reduce((total, item) => total + item.size, 0),
+		totalFiles: items.length,
+	};
+}
+
+export async function writeTextAssetUploadPlanReport({
+	report,
+	writePath,
+}: {
+	report: TextAssetUploadPlanReport;
+	writePath: string;
+}): Promise<void> {
+	await mkdir(dirname(writePath), { recursive: true });
+	await writeFile(writePath, `${JSON.stringify(report, null, "\t")}\n`, "utf8");
 }
 
 export async function uploadTextAssetPlan({
@@ -378,6 +425,16 @@ async function main(): Promise<void> {
 		metadataCacheControl: options.metadataCacheControl,
 		prefix: options.prefix,
 	});
+	if (options.writePlanPath) {
+		await writeTextAssetUploadPlanReport({
+			report: buildTextAssetUploadPlanReport({
+				generatedAt: new Date().toISOString(),
+				items,
+				prefix: options.prefix,
+			}),
+			writePath: options.writePlanPath,
+		});
+	}
 	const client = new S3Client({
 		endpoint: process.env.QCUT_TEXT_ASSET_S3_ENDPOINT,
 		forcePathStyle: process.env.QCUT_TEXT_ASSET_S3_FORCE_PATH_STYLE === "true",
@@ -397,6 +454,7 @@ async function main(): Promise<void> {
 				minDesignerAssetsPerCategory: options.minDesignerAssetsPerCategory,
 				provenance: manifest.provenance,
 				requiredDesignerCategories: options.requiredDesignerCategories,
+				writePlanPath: options.writePlanPath,
 				...summary,
 			},
 			null,

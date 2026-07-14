@@ -1,13 +1,18 @@
 import { readFileSync } from "node:fs";
+import { readFile } from "node:fs/promises";
 import { dirname, join } from "node:path";
+import { tmpdir } from "node:os";
+import { randomUUID } from "node:crypto";
 import { fileURLToPath } from "node:url";
 import { describe, expect, it } from "vitest";
 import {
 	buildTextAssetUploadPlan,
+	buildTextAssetUploadPlanReport,
 	parseTextAssetUploadArgs,
 	uploadTextAssetPlan,
 	verifyUploadDesignerAssetCoverage,
 	verifyUploadDesignerCategoryCoverage,
+	writeTextAssetUploadPlanReport,
 	type TextAssetUploadPlanItem,
 } from "../upload-text-assets-cdn";
 import type { TextAssetPublishManifest } from "../verify-text-asset-cdn-manifest";
@@ -141,6 +146,8 @@ describe("text asset CDN upload script", () => {
 					"assets",
 					"--require-designer-categories",
 					"red, texture",
+					"--write-plan",
+					"/tmp/upload-plan.json",
 				],
 				env: {
 					QCUT_TEXT_ASSET_BUCKET: "env-bucket",
@@ -158,6 +165,7 @@ describe("text asset CDN upload script", () => {
 			minDesignerAssetsPerCategory: 5,
 			prefix: "assets",
 			requiredDesignerCategories: ["red", "texture"],
+			writePlanPath: "/tmp/upload-plan.json",
 		});
 	});
 
@@ -256,6 +264,53 @@ describe("text asset CDN upload script", () => {
 				size: 4,
 			}),
 		]);
+	});
+
+	it("writes a reviewable upload plan report", async () => {
+		const items = buildTextAssetUploadPlan({
+			bucket: "qcut-assets",
+			cacheControl: "public, max-age=31536000, immutable",
+			manifest: createPublishManifest(),
+			metadataCacheControl: "public, max-age=300",
+			prefix: "prod",
+		});
+		const writePath = join(
+			tmpdir(),
+			`qcut-text-upload-plan-${randomUUID()}.json`
+		);
+
+		await writeTextAssetUploadPlanReport({
+			report: buildTextAssetUploadPlanReport({
+				generatedAt: "2026-07-15T00:00:00.000Z",
+				items,
+				prefix: "prod",
+			}),
+			writePath,
+		});
+
+		await expect(readFile(writePath, "utf8").then(JSON.parse)).resolves.toEqual(
+			{
+				bucket: "qcut-assets",
+				generatedAt: "2026-07-15T00:00:00.000Z",
+				items: expect.arrayContaining([
+					expect.objectContaining({
+						cacheControl: "public, max-age=31536000, immutable",
+						contentType: "image/webp",
+						key: "prod/text-assets/demo/plain@1/thumbnail.webp",
+						sha256: "thumb-sha",
+					}),
+					expect.objectContaining({
+						cacheControl: "public, max-age=300",
+						key: "prod/text-assets/marketplace.json",
+						role: "metadata",
+					}),
+				]),
+				prefix: "prod",
+				schemaVersion: 1,
+				totalBytes: 19,
+				totalFiles: 4,
+			}
+		);
 	});
 
 	it("summarizes dry runs without calling upload", async () => {

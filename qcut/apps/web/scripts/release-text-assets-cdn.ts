@@ -3,8 +3,10 @@ import { fileURLToPath } from "node:url";
 import { S3Client } from "@aws-sdk/client-s3";
 import {
 	buildTextAssetUploadPlan,
+	buildTextAssetUploadPlanReport,
 	createS3UploadFile,
 	uploadTextAssetPlan,
+	writeTextAssetUploadPlanReport,
 	type TextAssetUploadSummary,
 } from "./upload-text-assets-cdn";
 import {
@@ -39,6 +41,7 @@ export type TextAssetReleaseOptions = {
 	requiredDesignerCategories: string[];
 	skipRemoteCheck: boolean;
 	uploadConcurrency: number;
+	uploadPlanPath?: string;
 };
 
 export type TextAssetReleaseSummary = {
@@ -57,6 +60,7 @@ export type TextAssetReleaseSummary = {
 	totalBytes: number;
 	totalFiles: number;
 	upload: TextAssetUploadSummary;
+	uploadPlanPath?: string;
 };
 
 const SCRIPT_DIR = dirname(fileURLToPath(import.meta.url));
@@ -211,6 +215,11 @@ export function parseTextAssetReleaseArgs({
 			index += 1;
 			continue;
 		}
+		if (arg === "--write-upload-plan") {
+			options.uploadPlanPath = requireValue({ argv, index, name: arg });
+			index += 1;
+			continue;
+		}
 		throw new Error(`Unknown argument: ${arg}`);
 	}
 	if (!options.bucket) {
@@ -284,6 +293,16 @@ export async function releaseTextAssetsToCdn({
 		metadataCacheControl: options.metadataCacheControl,
 		prefix: options.prefix,
 	});
+	if (options.uploadPlanPath) {
+		await writeTextAssetUploadPlanReport({
+			report: buildTextAssetUploadPlanReport({
+				generatedAt: new Date().toISOString(),
+				items,
+				prefix: options.prefix,
+			}),
+			writePath: options.uploadPlanPath,
+		});
+	}
 	const upload = await uploadTextAssetPlan({
 		concurrency: options.uploadConcurrency,
 		dryRun: options.dryRun,
@@ -343,6 +362,7 @@ function buildReleaseSummary({
 		totalBytes: manifest.totalBytes,
 		totalFiles: manifest.totalFiles,
 		upload,
+		uploadPlanPath: options.uploadPlanPath,
 	};
 }
 
