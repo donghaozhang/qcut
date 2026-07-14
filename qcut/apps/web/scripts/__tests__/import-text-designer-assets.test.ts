@@ -146,6 +146,10 @@ describe("text designer asset import script", () => {
 			byteSize: "new-thumb".length,
 			checksumSha256: checksum({ value: "new-thumb" }),
 		});
+		expect(plan.updatedManifest["text-demo"]?.provenance).toEqual({
+			source: "designer-imported",
+			pipeline: "designer-pack-v1",
+		});
 	});
 
 	it("blocks designer files that escape the pack directory", async () => {

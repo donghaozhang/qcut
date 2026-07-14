@@ -17,6 +17,10 @@ type TextTemplateGeneratedAsset = {
 	packageId: string;
 	version: number;
 	cacheKey: string;
+	provenance?: {
+		source: "generated" | "designer-imported";
+		pipeline: string;
+	};
 	thumbnail: TextTemplateGeneratedAssetFile;
 	source: TextTemplateGeneratedAssetFile;
 	qcutPackage?: TextTemplateGeneratedAssetFile;

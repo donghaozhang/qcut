@@ -287,9 +287,17 @@ function applyPlanToManifest({
 		}
 		if (item.role === "source") {
 			entry.source = updatedFile;
+			entry.provenance = {
+				source: "designer-imported",
+				pipeline: "designer-pack-v1",
+			};
 			continue;
 		}
 		entry.qcutPackage = updatedFile;
+		entry.provenance = {
+			source: "designer-imported",
+			pipeline: "designer-pack-v1",
+		};
 	}
 	return updatedManifest;
 }

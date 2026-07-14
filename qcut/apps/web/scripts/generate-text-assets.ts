@@ -43,6 +43,11 @@ const MANIFEST_PATH = join(
 const THUMBNAIL_WIDTH = 320;
 const THUMBNAIL_HEIGHT = 304;
 
+export const GENERATED_TEXT_ASSET_PROVENANCE = {
+	source: "generated" as const,
+	pipeline: "qcut-canvas-thumbnail-v1",
+};
+
 function escapeXml({ value }: { value: string }): string {
 	return value
 		.replaceAll("&", "&amp;")
@@ -511,6 +516,7 @@ async function writeAsset({
 		packageId: resource.packageId,
 		version: resource.version,
 		cacheKey: resource.cacheKey,
+		provenance: GENERATED_TEXT_ASSET_PROVENANCE,
 		thumbnail: {
 			url: thumbnailUrl,
 			mimeType: "image/webp",

@@ -16,9 +16,15 @@ export type TextAssetGeneratedEntry = {
 	packageId: string;
 	version: number;
 	cacheKey: string;
+	provenance?: TextAssetProvenance;
 	thumbnail: TextAssetGeneratedFile;
 	source: TextAssetGeneratedFile;
 	qcutPackage?: TextAssetGeneratedFile;
+};
+
+export type TextAssetProvenance = {
+	source: "generated" | "designer-imported";
+	pipeline: string;
 };
 
 export type PublishFileRole = "thumbnail" | "source" | "package" | "metadata";

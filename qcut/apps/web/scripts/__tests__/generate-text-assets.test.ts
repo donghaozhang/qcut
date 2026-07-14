@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import {
+	GENERATED_TEXT_ASSET_PROVENANCE,
 	buildTextAssetSourcePayload,
 	buildTextMarketplaceConfigPayload,
 } from "../generate-text-assets";
@@ -44,6 +45,13 @@ describe("text asset generator payloads", () => {
 
 		expect(source.templatePack).toBeUndefined();
 		expect(source.template).toMatchObject({ type: "text" });
+	});
+
+	it("exposes stable generated provenance for generated text assets", () => {
+		expect(GENERATED_TEXT_ASSET_PROVENANCE).toEqual({
+			source: "generated",
+			pipeline: "qcut-canvas-thumbnail-v1",
+		});
 	});
 
 	it("builds a remote marketplace config payload from generated definitions", () => {
