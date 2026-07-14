@@ -1,12 +1,12 @@
 import { createHash } from "node:crypto";
-import { mkdir, writeFile } from "node:fs/promises";
+import { mkdir, rm, writeFile } from "node:fs/promises";
 import { dirname, join } from "node:path";
 import { chromium, type Page } from "playwright";
 import { getTextTemplateThumbnailLayoutKind } from "../src/components/editor/media-panel/views/text-template-thumbnail-renderer";
 import { getTextTemplateResource } from "../src/lib/text/text-resource-catalog";
 import {
 	buildTextTemplate,
-	TEXT_TEMPLATE_DEFINITIONS,
+	TEXT_TEMPLATE_LIBRARY_DEFINITIONS,
 	type TextTemplateDefinition,
 } from "../src/lib/text/text-template-registry";
 
@@ -346,9 +346,8 @@ async function writeAsset({
 }
 
 async function main() {
-	const definitions = TEXT_TEMPLATE_DEFINITIONS.filter(
-		(definition) => definition.downloaded
-	);
+	const definitions = TEXT_TEMPLATE_LIBRARY_DEFINITIONS;
+	await rm(join(PUBLIC_DIR, "text-assets"), { force: true, recursive: true });
 	const browser = await chromium.launch({ headless: true });
 	const page = await browser.newPage({
 		deviceScaleFactor: 1,
