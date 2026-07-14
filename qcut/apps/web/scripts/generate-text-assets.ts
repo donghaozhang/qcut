@@ -66,13 +66,6 @@ function filePathForPublicUrl({ url }: { url: string }): string {
 	return join(PUBLIC_DIR, url.replace(/^\/+/, ""));
 }
 
-function previewText({ definition }: { definition: TextTemplateDefinition }) {
-	if (definition.groupId === "fancy") return "花字";
-	if (definition.category === "basic") return "文字";
-	if (definition.content.length <= 4) return definition.content;
-	return Array.from(definition.content).slice(0, 4).join("");
-}
-
 function thumbnailPreviewText({
 	definition,
 }: {
