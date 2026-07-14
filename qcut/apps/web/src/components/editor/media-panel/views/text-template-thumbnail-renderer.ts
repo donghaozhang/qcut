@@ -540,13 +540,13 @@ function drawText({
 }) {
 	const content = template.content || definition.content;
 	const fontSize = Math.min(
-		28,
-		Math.max(18, width / Math.max(3.5, content.length))
+		96,
+		Math.max(64, width / Math.max(2.35, content.length * 0.78))
 	);
 	const fontFamily = definition.variantId === "pixel" ? "monospace" : "Arial";
 	const strokeWidth = Math.max(
-		1.8,
-		Math.min(4.8, (template.strokeWidth ?? 1) * 0.72)
+		6,
+		Math.min(13, (template.strokeWidth ?? 1) * 1.9)
 	);
 
 	context.save();
@@ -558,9 +558,9 @@ function drawText({
 	context.lineJoin = "round";
 	context.miterLimit = 2;
 	context.shadowColor = template.shadowColor ?? "rgba(0,0,0,.7)";
-	context.shadowBlur = Math.min(12, template.shadowBlur ?? 8);
-	context.shadowOffsetX = Math.min(7, template.shadowOffsetX ?? 4);
-	context.shadowOffsetY = Math.min(8, template.shadowOffsetY ?? 4);
+	context.shadowBlur = Math.min(24, (template.shadowBlur ?? 8) * 1.7);
+	context.shadowOffsetX = Math.min(15, (template.shadowOffsetX ?? 4) * 1.8);
+	context.shadowOffsetY = Math.min(16, (template.shadowOffsetY ?? 4) * 1.8);
 
 	if (recipe.ornamentKind === "glitch") {
 		context.fillStyle = "#22d3ee";

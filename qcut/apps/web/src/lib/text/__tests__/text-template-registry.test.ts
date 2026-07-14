@@ -11,6 +11,16 @@ import {
 	getTextTemplatesByCategory,
 } from "../text-template-registry";
 
+function getVariantIdsByCategory({
+	category,
+}: {
+	category: (typeof TEXT_TEMPLATE_CATEGORIES)[number]["id"];
+}): string[] {
+	return getTextTemplateDefinitionsByCategory({ category }).map(
+		(definition) => definition.variantId
+	);
+}
+
 describe("text template registry", () => {
 	it("uses unique template IDs and valid shared style presets", () => {
 		const presetIds = new Set(BUILT_IN_TEXT_PRESETS.map((preset) => preset.id));
@@ -60,6 +70,37 @@ describe("text template registry", () => {
 			);
 			expect(visibleCount).toBeLessThanOrEqual(30);
 		}
+	});
+
+	it("curates visible fancy categories instead of reusing the same variant order", () => {
+		const popularVariantIds = getVariantIdsByCategory({ category: "popular" });
+		const redVariantIds = getVariantIdsByCategory({ category: "red" });
+		const textureVariantIds = getVariantIdsByCategory({ category: "texture" });
+		const gradientVariantIds = getVariantIdsByCategory({
+			category: "gradient",
+		});
+
+		expect(redVariantIds.slice(0, 4)).toEqual([
+			"red-burst",
+			"lava",
+			"fire",
+			"comic",
+		]);
+		expect(textureVariantIds.slice(0, 4)).toEqual([
+			"texture-grain",
+			"torn-paper",
+			"chrome",
+			"pixel",
+		]);
+		expect(gradientVariantIds.slice(0, 4)).toEqual([
+			"gradient-duotone",
+			"gradient-shine",
+			"glass",
+			"purple-dream",
+		]);
+		expect(redVariantIds).not.toEqual(popularVariantIds);
+		expect(textureVariantIds).not.toEqual(popularVariantIds);
+		expect(gradientVariantIds).not.toEqual(popularVariantIds);
 	});
 
 	it("ships searchable marketplace metadata for template cards", () => {
