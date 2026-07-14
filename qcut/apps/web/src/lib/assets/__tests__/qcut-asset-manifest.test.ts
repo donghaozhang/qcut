@@ -112,6 +112,20 @@ describe("QCut asset manifest", () => {
 		expect(
 			textAssets.every((asset) => definitionsByAssetId.has(asset.id))
 		).toBe(true);
+		expect(
+			textAssets.flatMap((asset) => asset.files.map((file) => file.url))
+		).not.toEqual(
+			expect.arrayContaining([expect.stringMatching(/^qcut-text-asset:\/\//)])
+		);
+		expect(
+			textAssets.every((asset) =>
+				asset.files.every(
+					(file) =>
+						file.url.startsWith("/text-assets/") ||
+						file.url.startsWith("https://assets.qcut.app/text-assets/")
+				)
+			)
+		).toBe(true);
 		expect(redAsset?.files.map((file) => file.role)).toEqual([
 			"thumbnail",
 			"source",
