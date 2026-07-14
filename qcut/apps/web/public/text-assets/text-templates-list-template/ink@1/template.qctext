@@ -11,8 +11,8 @@
 	},
 	"resources": [
 		{
-			"byteSize": 13644,
-			"checksumSha256": "d01c4f5eaadcf747dc192b03b5ae3cb558ca5f21adb37b24c7a6e38031358d74",
+			"byteSize": 14156,
+			"checksumSha256": "266b2e8bf837c642c74976efef7b56d2dc427e69973702f32f5fea1fcdd7f059",
 			"mimeType": "image/webp",
 			"path": "thumbnail.webp",
 			"role": "thumbnail",
