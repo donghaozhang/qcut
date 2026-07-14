@@ -56,11 +56,13 @@ describe("text view layout", () => {
 		expect(getTextTemplateGridColumnCount({ width: 180 })).toBe(2);
 	});
 
-	it("uses the expanded asset browser grid density for wide browsing", () => {
-		expect(getExpandedTextTemplateGridColumnCount({ width: 600 })).toBe(5);
-		expect(getExpandedTextTemplateGridColumnCount({ width: 680 })).toBe(6);
-		expect(getExpandedTextTemplateGridColumnCount({ width: 800 })).toBe(7);
-		expect(getExpandedTextTemplateGridColumnCount({ width: 920 })).toBe(8);
+	it("caps the expanded asset browser at screenshot-like grid density", () => {
+		expect(getExpandedTextTemplateGridColumnCount({ width: 920 })).toBe(5);
+		expect(getExpandedTextTemplateGridColumnCount({ width: 680 })).toBe(5);
+		expect(getExpandedTextTemplateGridColumnCount({ width: 560 })).toBe(5);
+		expect(getExpandedTextTemplateGridColumnCount({ width: 520 })).toBe(4);
+		expect(getExpandedTextTemplateGridColumnCount({ width: 320 })).toBe(3);
+		expect(getExpandedTextTemplateGridColumnCount({ width: 240 })).toBe(2);
 	});
 
 	it("applies marketplace overrides when sorting browse categories", () => {

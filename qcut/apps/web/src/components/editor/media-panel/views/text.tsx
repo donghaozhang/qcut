@@ -169,9 +169,6 @@ const TEXT_TEMPLATE_GRID_COLUMNS = {
 	narrow: 3,
 	standard: 4,
 	expanded: 5,
-	wide: 6,
-	gallery: 7,
-	showcase: 8,
 } as const;
 
 const markdownData: MarkdownElement = {
@@ -656,6 +653,7 @@ function TextTemplateCopyDialog({
 function TemplateGrid({
 	columnCountForWidth,
 	definitions,
+	mode = "panel",
 	libraryState,
 	onDownload,
 	onToggleFavorite,
@@ -664,6 +662,7 @@ function TemplateGrid({
 }: {
 	columnCountForWidth?: (props: { width: number }) => number;
 	definitions: readonly TextTemplateDefinition[];
+	mode?: "panel" | "expanded";
 	libraryState: TextLibraryState;
 	onDownload: (props: { definition: TextTemplateDefinition }) => void;
 	onToggleFavorite: (props: { templateId: string }) => void;
@@ -692,7 +691,7 @@ function TemplateGrid({
 	return (
 		<div
 			ref={gridRef}
-			className="grid gap-2.5 py-2"
+			className={cn("grid py-2", mode === "expanded" ? "gap-3" : "gap-2.5")}
 			style={{
 				gridTemplateColumns: `repeat(${columnCount}, minmax(0, 1fr))`,
 			}}
@@ -851,10 +850,10 @@ export function getExpandedTextTemplateGridColumnCount({
 }: {
 	width: number;
 }): number {
-	if (width >= 920) return TEXT_TEMPLATE_GRID_COLUMNS.showcase;
-	if (width >= 800) return TEXT_TEMPLATE_GRID_COLUMNS.gallery;
-	if (width >= 680) return TEXT_TEMPLATE_GRID_COLUMNS.wide;
-	return TEXT_TEMPLATE_GRID_COLUMNS.expanded;
+	if (width >= 560) return TEXT_TEMPLATE_GRID_COLUMNS.expanded;
+	if (width >= 400) return TEXT_TEMPLATE_GRID_COLUMNS.standard;
+	if (width >= 280) return TEXT_TEMPLATE_GRID_COLUMNS.narrow;
+	return TEXT_TEMPLATE_GRID_COLUMNS.compact;
 }
 
 function getTextTemplateDownloadLabel({
@@ -1267,6 +1266,7 @@ function ExpandedTextLibraryDialog({
 							<TemplateGrid
 								columnCountForWidth={getExpandedTextTemplateGridColumnCount}
 								definitions={definitions}
+								mode="expanded"
 								libraryState={libraryState}
 								onDownload={onDownload}
 								onToggleFavorite={onToggleFavorite}
