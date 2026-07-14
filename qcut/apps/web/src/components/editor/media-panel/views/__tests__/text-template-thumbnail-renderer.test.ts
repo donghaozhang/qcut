@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
 	getThumbnailPreviewContent,
+	getTextTemplateThumbnailLayoutKind,
 	getTextTemplateThumbnailRecipe,
 	type TextThumbnailBackgroundKind,
 } from "../text-template-thumbnail-renderer";
@@ -129,5 +130,26 @@ describe("text template thumbnail renderer", () => {
 		expect(
 			getThumbnailPreviewContent({ definition: basicDefinition, template })
 		).toBe("文字");
+	});
+
+	it("uses pack layout previews for multi-element template categories", () => {
+		const templateCategories = [
+			"headline-template",
+			"quote-template",
+			"list-template",
+			"split-template",
+			"timeline-template",
+		] as const;
+		for (const category of templateCategories) {
+			const definition = getTextTemplateDefinitionsByCategory({ category })[0];
+			expect(getTextTemplateThumbnailLayoutKind({ definition })).toBe("pack");
+		}
+		expect(
+			getTextTemplateThumbnailLayoutKind({
+				definition: getTextTemplateDefinitionsByCategory({
+					category: "red",
+				})[0],
+			})
+		).toBe("single");
 	});
 });

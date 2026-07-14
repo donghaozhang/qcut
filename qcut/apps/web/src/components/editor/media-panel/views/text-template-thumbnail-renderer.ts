@@ -1,6 +1,8 @@
 import type { TextTemplateDefinition } from "@/lib/text/text-template-registry";
 import type { TextElement } from "@/types/timeline";
 
+export type TextTemplateThumbnailLayoutKind = "single" | "pack";
+
 export type TextThumbnailBackgroundKind =
 	| "solid"
 	| "burst"
@@ -219,6 +221,23 @@ export function getTextTemplateThumbnailRecipe({
 			materialDetail: "standard",
 		}
 	);
+}
+
+export function getTextTemplateThumbnailLayoutKind({
+	definition,
+}: {
+	definition: TextTemplateDefinition;
+}): TextTemplateThumbnailLayoutKind {
+	if (
+		definition.category === "headline-template" ||
+		definition.category === "quote-template" ||
+		definition.category === "list-template" ||
+		definition.category === "split-template" ||
+		definition.category === "timeline-template"
+	) {
+		return "pack";
+	}
+	return "single";
 }
 
 function fillRoundedRect({
@@ -794,6 +813,366 @@ function drawTextHighlight({
 	context.restore();
 }
 
+function drawPackText({
+	align = "center",
+	color,
+	context,
+	fontSize,
+	text,
+	weight = 900,
+	x,
+	y,
+}: {
+	align?: CanvasTextAlign;
+	color: string | CanvasGradient;
+	context: CanvasRenderingContext2D;
+	fontSize: number;
+	text: string;
+	weight?: number;
+	x: number;
+	y: number;
+}) {
+	context.save();
+	context.textAlign = align;
+	context.textBaseline = "middle";
+	context.font = `${weight} ${fontSize}px Arial, sans-serif`;
+	context.lineJoin = "round";
+	context.shadowColor = "rgba(0,0,0,.42)";
+	context.shadowBlur = 8;
+	context.shadowOffsetY = 4;
+	context.strokeStyle = "rgba(0,0,0,.58)";
+	context.lineWidth = Math.max(3, fontSize * 0.1);
+	context.strokeText(text, x, y);
+	context.fillStyle = color;
+	context.fillText(text, x, y);
+	context.restore();
+}
+
+function drawPackPill({
+	context,
+	fillStyle,
+	height,
+	radius,
+	width,
+	x,
+	y,
+}: {
+	context: CanvasRenderingContext2D;
+	fillStyle: string | CanvasGradient;
+	height: number;
+	radius: number;
+	width: number;
+	x: number;
+	y: number;
+}) {
+	context.save();
+	context.fillStyle = fillStyle;
+	context.shadowColor = "rgba(0,0,0,.35)";
+	context.shadowBlur = 8;
+	context.shadowOffsetY = 4;
+	fillRoundedRect({ context, height, radius, width, x, y });
+	context.restore();
+}
+
+function drawPackPreviewCard({
+	context,
+	height,
+	recipe,
+	width,
+}: CanvasSize & {
+	context: CanvasRenderingContext2D;
+	recipe: TextTemplateThumbnailRecipe;
+}) {
+	const [dark, mid, light] = recipe.accentColors;
+	context.save();
+	context.fillStyle = "rgba(255,255,255,.13)";
+	fillRoundedRect({
+		context,
+		height: height * 0.74,
+		radius: 18,
+		width: width * 0.82,
+		x: width * 0.09,
+		y: height * 0.13,
+	});
+	context.strokeStyle = "rgba(255,255,255,.18)";
+	context.lineWidth = 2;
+	context.strokeRect(width * 0.1, height * 0.14, width * 0.8, height * 0.72);
+	context.fillStyle = createLinearGradient({
+		colors: [`${dark}cc`, `${mid}99`, `${light}44`],
+		context,
+		fromX: width * 0.1,
+		fromY: height * 0.14,
+		toX: width * 0.9,
+		toY: height * 0.86,
+	});
+	fillRoundedRect({
+		context,
+		height: height * 0.72,
+		radius: 18,
+		width: width * 0.8,
+		x: width * 0.1,
+		y: height * 0.14,
+	});
+	context.restore();
+}
+
+function drawHeadlinePackPreview({
+	context,
+	height,
+	recipe,
+	width,
+}: CanvasSize & {
+	context: CanvasRenderingContext2D;
+	recipe: TextTemplateThumbnailRecipe;
+}) {
+	const [, mid, light, accent] = recipe.accentColors;
+	drawPackPreviewCard({ context, height, recipe, width });
+	drawPackPill({
+		context,
+		fillStyle: accent,
+		height: height * 0.11,
+		radius: 13,
+		width: width * 0.34,
+		x: width * 0.18,
+		y: height * 0.21,
+	});
+	drawPackText({
+		align: "left",
+		color: "#020617",
+		context,
+		fontSize: 20,
+		text: "本期重点",
+		weight: 800,
+		x: width * 0.22,
+		y: height * 0.265,
+	});
+	drawPackText({
+		align: "left",
+		color: light,
+		context,
+		fontSize: 52,
+		text: "标题",
+		x: width * 0.18,
+		y: height * 0.48,
+	});
+	drawPackText({
+		align: "left",
+		color: mid,
+		context,
+		fontSize: 25,
+		text: "三句话讲清楚",
+		weight: 800,
+		x: width * 0.19,
+		y: height * 0.67,
+	});
+}
+
+function drawQuotePackPreview({
+	context,
+	height,
+	recipe,
+	width,
+}: CanvasSize & {
+	context: CanvasRenderingContext2D;
+	recipe: TextTemplateThumbnailRecipe;
+}) {
+	const [, mid, light, accent] = recipe.accentColors;
+	drawPackPreviewCard({ context, height, recipe, width });
+	drawPackText({
+		color: accent,
+		context,
+		fontSize: 82,
+		text: "“",
+		x: width * 0.24,
+		y: height * 0.36,
+	});
+	drawPackText({
+		align: "left",
+		color: light,
+		context,
+		fontSize: 42,
+		text: "金句",
+		x: width * 0.35,
+		y: height * 0.48,
+	});
+	drawPackText({
+		align: "left",
+		color: mid,
+		context,
+		fontSize: 22,
+		text: "— 观点摘录",
+		weight: 800,
+		x: width * 0.37,
+		y: height * 0.67,
+	});
+}
+
+function drawListPackPreview({
+	context,
+	height,
+	recipe,
+	width,
+}: CanvasSize & {
+	context: CanvasRenderingContext2D;
+	recipe: TextTemplateThumbnailRecipe;
+}) {
+	const [, mid, light, accent] = recipe.accentColors;
+	drawPackPreviewCard({ context, height, recipe, width });
+	drawPackText({
+		align: "left",
+		color: light,
+		context,
+		fontSize: 40,
+		text: "清单",
+		x: width * 0.2,
+		y: height * 0.32,
+	});
+	for (const [index, label] of ["01", "02"].entries()) {
+		const y = height * (0.5 + index * 0.16);
+		context.fillStyle = accent;
+		context.beginPath();
+		context.arc(width * 0.24, y, 13, 0, Math.PI * 2);
+		context.fill();
+		drawPackText({
+			color: "#020617",
+			context,
+			fontSize: 16,
+			text: label,
+			weight: 900,
+			x: width * 0.24,
+			y,
+		});
+		drawPackPill({
+			context,
+			fillStyle: "rgba(255,255,255,.2)",
+			height: height * 0.055,
+			radius: 8,
+			width: width * (index === 0 ? 0.42 : 0.34),
+			x: width * 0.32,
+			y: y - height * 0.027,
+		});
+	}
+	drawPackText({
+		align: "left",
+		color: mid,
+		context,
+		fontSize: 18,
+		text: "步骤模板",
+		weight: 800,
+		x: width * 0.2,
+		y: height * 0.78,
+	});
+}
+
+function drawSplitPackPreview({
+	context,
+	height,
+	recipe,
+	width,
+}: CanvasSize & {
+	context: CanvasRenderingContext2D;
+	recipe: TextTemplateThumbnailRecipe;
+}) {
+	const [dark, mid, light, accent] = recipe.accentColors;
+	drawPackPreviewCard({ context, height, recipe, width });
+	for (const [index, label] of ["之前", "之后"].entries()) {
+		const x = width * (index === 0 ? 0.16 : 0.54);
+		drawPackPill({
+			context,
+			fillStyle: index === 0 ? `${dark}cc` : `${mid}cc`,
+			height: height * 0.42,
+			radius: 18,
+			width: width * 0.3,
+			x,
+			y: height * 0.3,
+		});
+		drawPackText({
+			color: light,
+			context,
+			fontSize: 28,
+			text: label,
+			x: x + width * 0.15,
+			y: height * 0.51,
+		});
+	}
+	drawPackText({
+		color: accent,
+		context,
+		fontSize: 38,
+		text: "VS",
+		x: width * 0.5,
+		y: height * 0.5,
+	});
+}
+
+function drawTimelinePackPreview({
+	context,
+	height,
+	recipe,
+	width,
+}: CanvasSize & {
+	context: CanvasRenderingContext2D;
+	recipe: TextTemplateThumbnailRecipe;
+}) {
+	const [, mid, light, accent] = recipe.accentColors;
+	drawPackPreviewCard({ context, height, recipe, width });
+	context.save();
+	context.strokeStyle = "rgba(255,255,255,.72)";
+	context.lineWidth = 5;
+	context.lineCap = "round";
+	context.beginPath();
+	context.moveTo(width * 0.2, height * 0.5);
+	context.lineTo(width * 0.8, height * 0.5);
+	context.stroke();
+	context.restore();
+	for (const [index, label] of ["1", "阶段", "结果"].entries()) {
+		const x = width * (0.2 + index * 0.3);
+		context.fillStyle = index === 1 ? accent : mid;
+		context.beginPath();
+		context.arc(x, height * 0.5, index === 1 ? 23 : 18, 0, Math.PI * 2);
+		context.fill();
+		drawPackText({
+			color: index === 1 ? "#020617" : light,
+			context,
+			fontSize: index === 1 ? 20 : 18,
+			text: label,
+			weight: 900,
+			x,
+			y: height * (index === 1 ? 0.5 : 0.69),
+		});
+	}
+}
+
+function drawTemplatePackPreview({
+	context,
+	definition,
+	height,
+	recipe,
+	width,
+}: CanvasSize & {
+	context: CanvasRenderingContext2D;
+	definition: TextTemplateDefinition;
+	recipe: TextTemplateThumbnailRecipe;
+}) {
+	if (definition.category === "quote-template") {
+		drawQuotePackPreview({ context, height, recipe, width });
+		return;
+	}
+	if (definition.category === "list-template") {
+		drawListPackPreview({ context, height, recipe, width });
+		return;
+	}
+	if (definition.category === "split-template") {
+		drawSplitPackPreview({ context, height, recipe, width });
+		return;
+	}
+	if (definition.category === "timeline-template") {
+		drawTimelinePackPreview({ context, height, recipe, width });
+		return;
+	}
+	drawHeadlinePackPreview({ context, height, recipe, width });
+}
+
 export function renderTextTemplateThumbnail({
 	canvas,
 	definition,
@@ -812,5 +1191,9 @@ export function renderTextTemplateThumbnail({
 
 	drawBackground({ context, height, recipe, width });
 	drawOrnaments({ context, height, recipe, width });
+	if (getTextTemplateThumbnailLayoutKind({ definition }) === "pack") {
+		drawTemplatePackPreview({ context, definition, height, recipe, width });
+		return;
+	}
 	drawText({ context, definition, height, recipe, template, width });
 }
