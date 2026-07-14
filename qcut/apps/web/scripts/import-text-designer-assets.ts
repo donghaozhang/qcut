@@ -7,8 +7,12 @@ import type {
 	TextAssetGeneratedFile,
 } from "./verify-text-asset-cdn-manifest";
 import {
+	EXPECTED_TEXT_THUMBNAIL_HEIGHT,
+	EXPECTED_TEXT_THUMBNAIL_WIDTH,
 	applyTextDesignerReadyPreset,
+	getWebpDimensions,
 	inferTextAssetCategory,
+	isWebpBytes,
 	parseCommaSeparatedList,
 	parseNonNegativeInteger,
 	parsePositiveInteger,
@@ -495,6 +499,20 @@ function validateDesignerAssetFile({
 				`Designer thumbnail must contain a WebP payload: ${assetId}`
 			);
 		}
+		const dimensions = getWebpDimensions({ bytes });
+		if (!dimensions) {
+			throw new Error(
+				`Designer thumbnail dimensions could not be read: ${assetId}`
+			);
+		}
+		if (
+			dimensions.width !== EXPECTED_TEXT_THUMBNAIL_WIDTH ||
+			dimensions.height !== EXPECTED_TEXT_THUMBNAIL_HEIGHT
+		) {
+			throw new Error(
+				`Designer thumbnail dimensions must be ${EXPECTED_TEXT_THUMBNAIL_WIDTH}x${EXPECTED_TEXT_THUMBNAIL_HEIGHT} for ${assetId}, received ${dimensions.width}x${dimensions.height}`
+			);
+		}
 		return;
 	}
 	const payload = parseDesignerJsonAsset({ assetId, bytes, role });
@@ -894,14 +912,6 @@ function hashBytes({ bytes }: { bytes: Buffer }): string {
 
 function isRecord(value: unknown): value is Record<string, unknown> {
 	return typeof value === "object" && value !== null && !Array.isArray(value);
-}
-
-function isWebpBytes({ bytes }: { bytes: Buffer }): boolean {
-	return (
-		bytes.byteLength >= 12 &&
-		bytes.toString("ascii", 0, 4) === "RIFF" &&
-		bytes.toString("ascii", 8, 12) === "WEBP"
-	);
 }
 
 function requireValue({

@@ -163,8 +163,8 @@ const DEFAULT_MANIFEST_PATH = join(
 	"../src/lib/text/text-asset-generated-manifest.json"
 );
 const DEFAULT_PUBLIC_DIR = join(SCRIPT_DIR, "../public");
-const EXPECTED_TEXT_THUMBNAIL_HEIGHT = 304;
-const EXPECTED_TEXT_THUMBNAIL_WIDTH = 320;
+export const EXPECTED_TEXT_THUMBNAIL_HEIGHT = 304;
+export const EXPECTED_TEXT_THUMBNAIL_WIDTH = 320;
 export const TEXT_DESIGNER_READY_MIN_ASSETS_PER_CATEGORY = 5;
 export const TEXT_DESIGNER_READY_CATEGORY_IDS = [
 	"popular",
@@ -1299,7 +1299,7 @@ function isRecord({
 	return typeof value === "object" && value !== null && !Array.isArray(value);
 }
 
-function isWebpBytes({ bytes }: { bytes: Buffer }): boolean {
+export function isWebpBytes({ bytes }: { bytes: Buffer }): boolean {
 	return (
 		bytes.byteLength >= 12 &&
 		bytes.toString("ascii", 0, 4) === "RIFF" &&
@@ -1307,7 +1307,7 @@ function isWebpBytes({ bytes }: { bytes: Buffer }): boolean {
 	);
 }
 
-function getWebpDimensions({
+export function getWebpDimensions({
 	bytes,
 }: {
 	bytes: Buffer;

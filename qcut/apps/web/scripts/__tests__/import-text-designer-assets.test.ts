@@ -17,11 +17,42 @@ import {
 	type TextAssetGeneratedEntry,
 } from "../verify-text-asset-cdn-manifest";
 
-function checksum({ value }: { value: string }): string {
-	return createHash("sha256").update(Buffer.from(value)).digest("hex");
+type TestFileContent = Buffer | string;
+
+function checksum({ value }: { value: TestFileContent }): string {
+	return createHash("sha256").update(toBuffer({ value })).digest("hex");
 }
 
-const DESIGNER_THUMBNAIL_TEXT = "RIFF0000WEBP";
+function byteLength({ value }: { value: TestFileContent }): number {
+	return toBuffer({ value }).byteLength;
+}
+
+function toBuffer({ value }: { value: TestFileContent }): Buffer {
+	return Buffer.isBuffer(value) ? value : Buffer.from(value);
+}
+
+function createVp8xWebpBytes({
+	height,
+	width,
+}: {
+	height: number;
+	width: number;
+}): Buffer {
+	const bytes = Buffer.alloc(30);
+	bytes.write("RIFF", 0, "ascii");
+	bytes.writeUInt32LE(bytes.byteLength - 8, 4);
+	bytes.write("WEBP", 8, "ascii");
+	bytes.write("VP8X", 12, "ascii");
+	bytes.writeUInt32LE(10, 16);
+	bytes.writeUIntLE(width - 1, 24, 3);
+	bytes.writeUIntLE(height - 1, 27, 3);
+	return bytes;
+}
+
+const DESIGNER_THUMBNAIL_TEXT = createVp8xWebpBytes({
+	height: 304,
+	width: 320,
+});
 
 function createGeneratedEntry({
 	assetId = "text-demo",
@@ -251,7 +282,7 @@ describe("text designer asset import script", () => {
 			"package",
 		]);
 		expect(plan.updatedManifest["text-demo"]?.thumbnail).toMatchObject({
-			byteSize: DESIGNER_THUMBNAIL_TEXT.length,
+			byteSize: byteLength({ value: DESIGNER_THUMBNAIL_TEXT }),
 			checksumSha256: checksum({ value: DESIGNER_THUMBNAIL_TEXT }),
 		});
 		expect(plan.updatedManifest["text-demo"]?.provenance).toEqual({
@@ -436,6 +467,26 @@ describe("text designer asset import script", () => {
 		).rejects.toThrow("must contain a WebP payload");
 	});
 
+	it("rejects designer thumbnails with unexpected dimensions", async () => {
+		const { generatedManifest, packDir, packManifest, publicDir } =
+			await createDesignerFixture();
+		await writeFile(
+			join(packDir, "thumbnail.webp"),
+			createVp8xWebpBytes({ height: 200, width: 200 })
+		);
+
+		await expect(
+			buildTextDesignerAssetImportPlan({
+				generatedManifest,
+				packDir,
+				packManifest,
+				publicDir,
+			})
+		).rejects.toThrow(
+			"Designer thumbnail dimensions must be 320x304 for text-demo, received 200x200"
+		);
+	});
+
 	it("rejects unchanged generated files unless explicitly allowed", async () => {
 		const { generatedManifest, packDir, packManifest, publicDir } =
 			await createDesignerFixture();
@@ -446,7 +497,7 @@ describe("text designer asset import script", () => {
 				...generatedManifest["text-demo"],
 				thumbnail: {
 					...generatedManifest["text-demo"]!.thumbnail,
-					byteSize: DESIGNER_THUMBNAIL_TEXT.length,
+					byteSize: byteLength({ value: DESIGNER_THUMBNAIL_TEXT }),
 					checksumSha256: checksum({ value: DESIGNER_THUMBNAIL_TEXT }),
 				},
 				source: {
@@ -569,11 +620,8 @@ describe("text designer asset import script", () => {
 		).resolves.toMatchObject({ copiedFiles: 3, dryRun: false, totalFiles: 3 });
 
 		await expect(
-			readFile(
-				join(publicDir, "text-assets/demo/plain@1/thumbnail.webp"),
-				"utf8"
-			)
-		).resolves.toBe(DESIGNER_THUMBNAIL_TEXT);
+			readFile(join(publicDir, "text-assets/demo/plain@1/thumbnail.webp"))
+		).resolves.toEqual(DESIGNER_THUMBNAIL_TEXT);
 		const writtenManifest = JSON.parse(
 			await readFile(generatedManifestPath, "utf8")
 		) as Record<string, TextAssetGeneratedEntry>;
