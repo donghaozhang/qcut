@@ -17,6 +17,7 @@ describe("StickerItem", () => {
 	});
 
 	it("selects, favorites, and displays versioned cache state", async () => {
+		const onDownload = vi.fn();
 		const onSelect = vi.fn();
 		render(
 			<TooltipProvider>
@@ -24,6 +25,8 @@ describe("StickerItem", () => {
 					icon="star-pulsating-filled-loop"
 					name="Pulsating star"
 					collection="line-md"
+					layout="catalog"
+					onDownload={onDownload}
 					onSelect={onSelect}
 				/>
 			</TooltipProvider>
@@ -38,6 +41,14 @@ describe("StickerItem", () => {
 			"line-md:star-pulsating-filled-loop",
 			"Pulsating star"
 		);
+		fireEvent.click(
+			screen.getByRole("button", { name: "Download Pulsating star" })
+		);
+		expect(onDownload).toHaveBeenCalledWith(
+			"line-md:star-pulsating-filled-loop",
+			"Pulsating star"
+		);
+		expect(onSelect).toHaveBeenCalledTimes(1);
 
 		fireEvent.click(
 			screen.getByRole("button", { name: "Favorite Pulsating star" })
@@ -70,5 +81,8 @@ describe("StickerItem", () => {
 		await waitFor(() =>
 			expect(screen.getByTitle("Sticker cached")).toBeInTheDocument()
 		);
+		expect(
+			screen.getByRole("button", { name: "Pulsating star cached" })
+		).toBeDisabled();
 	});
 });

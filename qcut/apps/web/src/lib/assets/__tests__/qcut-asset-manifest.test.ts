@@ -96,7 +96,27 @@ describe("QCut asset manifest", () => {
 		expect(stickers).toHaveLength(expectedStickerIds.size);
 		expect(
 			stickers.filter((sticker) => sticker.id.startsWith("fluent-emoji:"))
-		).toHaveLength(CURATED_STICKERS.length);
+		).toHaveLength(
+			CURATED_STICKERS.filter((sticker) => sticker.source.kind === "iconify")
+				.length
+		);
+		const originalStickers = stickers.filter((sticker) =>
+			sticker.id.startsWith("qcut-original:")
+		);
+		expect(originalStickers).toHaveLength(30);
+		for (const sticker of originalStickers) {
+			expect(sticker).toMatchObject({
+				delivery: "bundled",
+				license: {
+					attributionRequired: false,
+					commercialUse: "allowed",
+				},
+			});
+			expect(sticker.files.map((file) => file.role)).toEqual([
+				"thumbnail",
+				"source",
+			]);
+		}
 		expect(motionStickers.length).toBeGreaterThanOrEqual(20);
 		for (const sticker of motionStickers) {
 			expect(sticker.files.map((file) => file.role)).toEqual([
