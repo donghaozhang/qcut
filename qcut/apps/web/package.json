@@ -13,6 +13,7 @@
 		"assets:text:verify-cdn": "bun scripts/verify-text-asset-cdn-manifest.ts",
 		"assets:text:publish-manifest": "bun scripts/verify-text-asset-cdn-manifest.ts --write dist/text-assets-publish-manifest.json",
 		"assets:text:check-remote": "bun scripts/verify-text-asset-cdn-manifest.ts --check-remote",
+		"assets:text:import-designer": "bun scripts/import-text-designer-assets.ts",
 		"assets:text:upload-cdn": "bun scripts/upload-text-assets-cdn.ts",
 		"assets:text:release-cdn": "bun scripts/release-text-assets-cdn.ts",
 		"preview": "vite preview",
