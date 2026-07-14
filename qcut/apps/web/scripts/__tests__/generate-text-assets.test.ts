@@ -88,6 +88,28 @@ describe("text asset generator payloads", () => {
 		expect(source.template).toMatchObject({ type: "text" });
 	});
 
+	it("adds stable design signatures so generated thumbnails do not collapse into duplicates", () => {
+		const definitions = getTextTemplateDefinitionsByCategory({
+			category: "basic",
+		});
+		const plain = definitions.find(
+			(definition) => definition.variantId === "plain"
+		);
+		const outline = definitions.find(
+			(definition) => definition.variantId === "outline"
+		);
+		if (!plain || !outline) {
+			throw new Error("Expected basic text thumbnail fixtures");
+		}
+
+		const plainSvg = buildTextAssetThumbnailSvg({ definition: plain });
+		const outlineSvg = buildTextAssetThumbnailSvg({ definition: outline });
+
+		expect(plainSvg).not.toBe(outlineSvg);
+		expect(plainSvg).toContain(">P</text>");
+		expect(outlineSvg).toContain(">O</text>");
+	});
+
 	it("exposes stable generated provenance for generated text assets", () => {
 		expect(GENERATED_TEXT_ASSET_PROVENANCE).toEqual({
 			source: "generated",

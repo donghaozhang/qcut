@@ -129,6 +129,68 @@ function recipeColors({
 	return paletteForDefinition({ definition });
 }
 
+function stableNumber({
+	modulo,
+	seed,
+}: {
+	modulo: number;
+	seed: string;
+}): number {
+	const digest = createHash("sha256").update(seed).digest();
+	return digest.readUInt32BE(0) % modulo;
+}
+
+function stableUnit({ index, seed }: { index: number; seed: string }): number {
+	return stableNumber({ modulo: 10_000, seed: `${seed}:${index}` }) / 10_000;
+}
+
+function designSignatureSvg({
+	definition,
+}: {
+	definition: TextTemplateDefinition;
+}): string {
+	const seed = `${definition.id}:${definition.category}:${definition.variantId}`;
+	const [, mid, light, accent] = recipeColors({ definition });
+	const angle = -26 + stableNumber({ modulo: 52, seed: `${seed}:angle` });
+	const stripeOffset = stableNumber({ modulo: 38, seed: `${seed}:stripe` });
+	const badgeX = 20 + stableNumber({ modulo: 242, seed: `${seed}:badge-x` });
+	const badgeY = 18 + stableNumber({ modulo: 212, seed: `${seed}:badge-y` });
+	const shapeCount =
+		4 + stableNumber({ modulo: 4, seed: `${seed}:shape-count` });
+	const shapes = Array.from({ length: shapeCount }, (_, index) => {
+		const x = Math.round(18 + stableUnit({ index, seed }) * 284);
+		const y = Math.round(18 + stableUnit({ index: index + 8, seed }) * 250);
+		const radius = 7 + stableNumber({ modulo: 16, seed: `${seed}:r:${index}` });
+		const opacity = (0.12 + stableUnit({ index: index + 16, seed }) * 0.22)
+			.toFixed(2)
+			.replace(/^0/, "");
+		if (index % 3 === 0) {
+			return `<path d="M${x} ${y - radius} L${x + radius} ${y} L${x} ${y + radius} L${x - radius} ${y} Z" fill="${index % 2 === 0 ? light : accent}" opacity="${opacity}"/>`;
+		}
+		return `<circle cx="${x}" cy="${y}" r="${radius}" fill="${index % 2 === 0 ? accent : mid}" opacity="${opacity}"/>`;
+	}).join("");
+	const marker = escapeXml({
+		value: definition.variantId
+			.split("-")
+			.map((part) => part[0] ?? "")
+			.join("")
+			.slice(0, 2)
+			.toLocaleUpperCase(),
+	});
+	return `<g opacity=".9">
+<g transform="rotate(${angle} 160 152)">
+<path d="M${-70 + stripeOffset} 34 H390" stroke="${light}" stroke-width="3" stroke-opacity=".18" stroke-linecap="round"/>
+<path d="M${-108 + stripeOffset} 88 H362" stroke="${accent}" stroke-width="2" stroke-opacity=".16" stroke-linecap="round"/>
+<path d="M${-44 + stripeOffset} 236 H382" stroke="${mid}" stroke-width="4" stroke-opacity=".16" stroke-linecap="round"/>
+</g>
+${shapes}
+<g transform="translate(${badgeX} ${badgeY}) rotate(${angle / 4})">
+<rect x="0" y="0" width="44" height="21" rx="8" fill="rgba(0,0,0,.28)" stroke="rgba(255,255,255,.22)" stroke-width="1"/>
+<text x="22" y="15" text-anchor="middle" font-size="11" font-weight="900" fill="${light}" opacity=".72">${marker}</text>
+</g>
+</g>`;
+}
+
 function backgroundSvg({
 	definition,
 }: {
@@ -424,6 +486,7 @@ function packThumbnailSvg({
 <filter id="shadow" x="-30%" y="-30%" width="160%" height="160%"><feDropShadow dx="0" dy="10" stdDeviation="7" flood-color="#000" flood-opacity="0.45"/></filter>
 </defs>
 ${backgroundSvg({ definition })}
+${designSignatureSvg({ definition })}
 ${ornamentSvg({ definition })}
 <rect x="32" y="42" width="256" height="220" rx="20" fill="url(#card)" stroke="rgba(255,255,255,.24)" stroke-width="2" filter="url(#shadow)"/>
 ${packBodySvg({ definition })}
@@ -466,6 +529,7 @@ export function buildTextAssetThumbnailSvg({
 <filter id="shadow" x="-30%" y="-30%" width="160%" height="160%"><feDropShadow dx="0" dy="12" stdDeviation="8" flood-color="#000" flood-opacity="0.55"/><feDropShadow dx="0" dy="0" stdDeviation="10" flood-color="${accent}" flood-opacity="${glowOpacity}"/></filter>
 </defs>
 ${backgroundSvg({ definition })}
+${designSignatureSvg({ definition })}
 ${ornamentSvg({ definition })}
 <g transform="translate(160 158) rotate(${rotate})" filter="url(#shadow)">
 <text x="0" y="0" text-anchor="middle" dominant-baseline="middle" font-family="Arial, 'PingFang SC', sans-serif" font-size="${fontSize}" font-weight="900" stroke="#000" stroke-width="18" stroke-linejoin="round">${label}</text>
