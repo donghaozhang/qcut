@@ -1,6 +1,5 @@
 import { DraggableMediaItem } from "@/components/ui/draggable-item";
 import { TIMELINE_CONSTANTS } from "@/constants/timeline-constants";
-import { colorWithOpacity } from "@/lib/text/text-style";
 import { cn } from "@/lib/utils";
 import { usePlaybackStore } from "@/stores/editor/playback-store";
 import { useTimelineStore } from "@/stores/timeline/timeline-store";
@@ -13,7 +12,6 @@ import {
 	Search,
 } from "lucide-react";
 import {
-	type CSSProperties,
 	type DragEvent,
 	type KeyboardEvent,
 	useEffect,
@@ -43,6 +41,7 @@ import {
 	type TextTemplateGroupId,
 } from "@/lib/text/text-template-registry";
 import type { MarkdownElement, TextElement } from "@/types/timeline";
+import { TextTemplateThumbnail } from "./text-template-thumbnail";
 
 type TextLibraryStatusFilter =
 	| "all"
@@ -131,72 +130,6 @@ function buildTemplateSearchText({
 		.toLocaleLowerCase();
 }
 
-function getPreviewFrameStyle({
-	definition,
-	template,
-}: {
-	definition: TextTemplateDefinition;
-	template: TextElement;
-}): CSSProperties {
-	const backgroundColor =
-		(template.backgroundOpacity ?? 0) > 0
-			? colorWithOpacity(
-					template.backgroundColor,
-					template.backgroundOpacity ?? 0
-				)
-			: "#3a3a3a";
-	const variantBackgrounds: Record<string, string> = {
-		fire: "radial-gradient(circle at 50% 82%, #facc15 0 10%, #fb923c 18%, #b91c1c 45%, #3a3a3a 46%)",
-		glitch:
-			"linear-gradient(90deg, rgba(34,211,238,.3), transparent 18%, rgba(244,114,182,.28) 44%, transparent 70%), #343438",
-		pixel:
-			"linear-gradient(45deg, rgba(255,255,255,.08) 25%, transparent 25%), linear-gradient(-45deg, rgba(255,255,255,.08) 25%, transparent 25%), #353535",
-		ink: "radial-gradient(circle at 30% 25%, rgba(255,255,255,.2), transparent 30%), #3b3935",
-		gold: "linear-gradient(135deg, #3a2b11, #8a5a12 44%, #facc15 45%, #3a2b11 68%)",
-		chrome:
-			"linear-gradient(135deg, #20242a, #6b7280 42%, #f8fafc 46%, #111827 72%)",
-		comic:
-			"radial-gradient(circle at 18% 22%, rgba(255,255,255,.45) 0 2px, transparent 3px), linear-gradient(135deg, #ef4444, #f59e0b)",
-		glass:
-			"linear-gradient(135deg, rgba(255,255,255,.22), rgba(34,211,238,.22)), #28333a",
-		candy:
-			"repeating-linear-gradient(135deg, rgba(255,255,255,.18) 0 8px, transparent 8px 16px), #4b3946",
-		warning:
-			"repeating-linear-gradient(-45deg, rgba(0,0,0,.28) 0 8px, transparent 8px 16px), #4a421d",
-	};
-
-	return {
-		background: variantBackgrounds[definition.variantId] ?? backgroundColor,
-	};
-}
-
-function getPreviewTextShadow({
-	definition,
-	template,
-}: {
-	definition: TextTemplateDefinition;
-	template: TextElement;
-}): string | undefined {
-	const shadows: string[] = [];
-	if ((template.shadowOpacity ?? 0) > 0) {
-		shadows.push(
-			`${template.shadowOffsetX ?? 0}px ${template.shadowOffsetY ?? 0}px ${template.shadowBlur ?? 0}px ${colorWithOpacity(template.shadowColor ?? "#000000", template.shadowOpacity ?? 0)}`
-		);
-	}
-	if ((template.glowOpacity ?? 0) > 0) {
-		shadows.push(
-			`0 0 ${template.glowBlur ?? 12}px ${colorWithOpacity(template.glowColor ?? "#ffffff", template.glowOpacity ?? 0)}`
-		);
-	}
-	if (definition.variantId === "glitch") {
-		shadows.push("-4px 0 0 #22d3ee", "4px 0 0 #fb7185");
-	}
-	if (definition.variantId === "fire") {
-		shadows.push("0 -10px 14px rgba(251,146,60,.8)");
-	}
-	return shadows.length > 0 ? shadows.join(", ") : undefined;
-}
-
 function TextTemplate({
 	definition,
 	isDownloaded,
@@ -215,10 +148,6 @@ function TextTemplate({
 	const template = useMemo(
 		() => buildTextTemplate({ definition }),
 		[definition]
-	);
-	const previewStrokeWidth = Math.min(
-		1.8,
-		Math.max(0, template.strokeWidth ?? 0) * 0.25
 	);
 	const addToTimeline = (currentTime?: number) => {
 		const time = currentTime ?? usePlaybackStore.getState().currentTime;
@@ -265,43 +194,7 @@ function TextTemplate({
 					className="relative aspect-[1.05] overflow-hidden rounded-md bg-muted shadow-sm transition-transform group-hover:scale-[1.02]"
 					onDragStart={handleDragStart}
 				>
-					<div
-						className="absolute inset-0 flex items-center justify-center overflow-hidden p-3"
-						style={getPreviewFrameStyle({ definition, template })}
-					>
-						{definition.variantId === "fire" && (
-							<div className="-translate-x-1/2 pointer-events-none absolute bottom-2 left-1/2 h-9 w-16 rounded-full bg-orange-400/55 blur-md" />
-						)}
-						{definition.variantId === "sticker" && (
-							<div className="pointer-events-none absolute inset-4 rounded-[1.2rem] bg-white shadow-[0_0_0_5px_rgba(255,255,255,.65)]" />
-						)}
-						{definition.variantId === "cutout" && (
-							<div className="pointer-events-none absolute inset-5 translate-x-1 translate-y-1 rounded-md bg-black/35" />
-						)}
-						<span
-							className={cn(
-								"relative z-10 max-w-full select-none break-words text-center text-[0.78rem] leading-tight",
-								definition.variantId === "pixel" && "font-mono",
-								definition.variantId === "stamp" &&
-									"border-2 border-current px-2 py-1"
-							)}
-							style={{
-								color: template.color,
-								fontFamily: template.fontFamily,
-								fontWeight: template.fontWeight,
-								fontStyle: template.fontStyle,
-								letterSpacing: template.letterSpacing,
-								transform: `rotate(${template.rotation ?? 0}deg)`,
-								WebkitTextStroke:
-									previewStrokeWidth > 0
-										? `${previewStrokeWidth}px ${template.strokeColor}`
-										: undefined,
-								textShadow: getPreviewTextShadow({ definition, template }),
-							}}
-						>
-							{template.content}
-						</span>
-					</div>
+					<TextTemplateThumbnail definition={definition} template={template} />
 					{definition.premium && (
 						<div className="absolute left-1.5 top-1.5 flex h-4 w-4 items-center justify-center rounded-full bg-cyan-300 text-slate-950 shadow-sm">
 							<Gem aria-hidden="true" className="h-3 w-3">
