@@ -90,6 +90,7 @@ describe("text designer pack template script", () => {
 			perCategoryLimit: 5,
 			provenance: "generated",
 			publicDir: "/tmp/public",
+			useDesignerGapReport: false,
 		});
 	});
 
@@ -103,6 +104,18 @@ describe("text designer pack template script", () => {
 			includeContactSheet: true,
 			includeCurrentFiles: true,
 			perCategoryLimit: TEXT_DESIGNER_READY_MIN_ASSETS_PER_CATEGORY,
+			useDesignerGapReport: true,
+		});
+	});
+
+	it("parses the explicit designer gap report selector", () => {
+		expect(
+			parseTextDesignerPackTemplateArgs({
+				argv: ["--category", "red", "--from-designer-gap-report"],
+			})
+		).toMatchObject({
+			categoryIds: ["red"],
+			useDesignerGapReport: true,
 		});
 	});
 
@@ -177,6 +190,45 @@ describe("text designer pack template script", () => {
 				provenance: "generated",
 			})
 		).toEqual(["text-red-1", "text-red-2", "text-texture-1"]);
+	});
+
+	it("selects designer-ready category slots from the actionable gap report", () => {
+		const generatedManifest = {
+			"text-red-zebra": createGeneratedEntry({
+				assetId: "text-red-zebra",
+				packageId: "text-fancy-red",
+			}),
+			"text-red-alpha": createGeneratedEntry({
+				assetId: "text-red-alpha",
+				packageId: "text-fancy-red",
+			}),
+			"text-red-imported": {
+				...createGeneratedEntry({
+					assetId: "text-red-imported",
+					packageId: "text-fancy-red",
+				}),
+				provenance: {
+					pipeline: "designer-pack-v1",
+					source: "designer-imported" as const,
+				},
+			},
+			"text-blue-alpha": createGeneratedEntry({
+				assetId: "text-blue-alpha",
+				packageId: "text-fancy-blue",
+			}),
+		};
+
+		expect(
+			selectTextDesignerPackAssetIds({
+				assetIds: [],
+				categoryIds: ["red"],
+				generatedManifest,
+				includeAll: false,
+				packageIds: [],
+				perCategoryLimit: 3,
+				useDesignerGapReport: true,
+			})
+		).toEqual(["text-red-alpha", "text-red-zebra"]);
 	});
 
 	it("builds designer pack manifests and file contracts", () => {

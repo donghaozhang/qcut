@@ -9,8 +9,10 @@ import type { TextAssetGeneratedEntry } from "./verify-text-asset-cdn-manifest";
 import {
 	TEXT_DESIGNER_READY_CATEGORY_IDS,
 	TEXT_DESIGNER_READY_MIN_ASSETS_PER_CATEGORY,
+	buildDesignerAssetGapReport,
 	inferTextAssetCategory,
 	readGeneratedManifest,
+	summarizeDesignerCategoryCoverage,
 } from "./verify-text-asset-cdn-manifest";
 
 export type TextDesignerPackTemplateOptions = {
@@ -26,6 +28,7 @@ export type TextDesignerPackTemplateOptions = {
 	perCategoryLimit: number;
 	provenance?: TextDesignerPackTemplateProvenanceFilter;
 	publicDir: string;
+	useDesignerGapReport: boolean;
 };
 
 export type TextDesignerPackTemplateProvenanceFilter =
@@ -87,6 +90,7 @@ export function parseTextDesignerPackTemplateArgs({
 		packageIds: [],
 		perCategoryLimit: 5,
 		publicDir: DEFAULT_PUBLIC_DIR,
+		useDesignerGapReport: false,
 	};
 	for (let index = 0; index < argv.length; index += 1) {
 		const arg = argv[index];
@@ -107,6 +111,11 @@ export function parseTextDesignerPackTemplateArgs({
 			options.includeContactSheet = true;
 			options.includeCurrentFiles = true;
 			options.perCategoryLimit = TEXT_DESIGNER_READY_MIN_ASSETS_PER_CATEGORY;
+			options.useDesignerGapReport = true;
+			continue;
+		}
+		if (arg === "--from-designer-gap-report") {
+			options.useDesignerGapReport = true;
 			continue;
 		}
 		if (arg === "--asset-id") {
@@ -190,6 +199,7 @@ export function selectTextDesignerPackAssetIds({
 	packageIds,
 	perCategoryLimit,
 	provenance,
+	useDesignerGapReport = false,
 }: {
 	assetIds: readonly string[];
 	categoryIds?: readonly string[];
@@ -199,17 +209,25 @@ export function selectTextDesignerPackAssetIds({
 	packageIds: readonly string[];
 	perCategoryLimit?: number;
 	provenance?: TextDesignerPackTemplateProvenanceFilter;
+	useDesignerGapReport?: boolean;
 }): string[] {
 	const selectedIds = new Set<string>();
 	for (const assetId of assetIds) {
 		selectedIds.add(assetId);
 	}
-	for (const assetId of selectTextDesignerPackCategoryAssetIds({
-		categoryIds: categoryIds ?? [],
-		generatedManifest,
-		perCategoryLimit: perCategoryLimit ?? Number.POSITIVE_INFINITY,
-		provenance,
-	})) {
+	const selectedCategoryAssetIds = useDesignerGapReport
+		? selectTextDesignerGapReportAssetIds({
+				categoryIds: categoryIds ?? [],
+				generatedManifest,
+				perCategoryLimit: perCategoryLimit ?? 1,
+			})
+		: selectTextDesignerPackCategoryAssetIds({
+				categoryIds: categoryIds ?? [],
+				generatedManifest,
+				perCategoryLimit: perCategoryLimit ?? Number.POSITIVE_INFINITY,
+				provenance,
+			});
+	for (const assetId of selectedCategoryAssetIds) {
 		selectedIds.add(assetId);
 	}
 	const selectedPackageIds = new Set(packageIds);
@@ -223,6 +241,35 @@ export function selectTextDesignerPackAssetIds({
 	}
 	const selected = [...selectedIds];
 	return limit === undefined ? selected : selected.slice(0, limit);
+}
+
+function selectTextDesignerGapReportAssetIds({
+	categoryIds,
+	generatedManifest,
+	perCategoryLimit,
+}: {
+	categoryIds: readonly string[];
+	generatedManifest: Record<string, TextAssetGeneratedEntry>;
+	perCategoryLimit: number;
+}): string[] {
+	if (categoryIds.length === 0) return [];
+	const coverage = summarizeDesignerCategoryCoverage({
+		generatedManifest,
+		minDesignerAssetsPerCategory: perCategoryLimit,
+		requiredDesignerCategories: categoryIds,
+	});
+	const report = buildDesignerAssetGapReport({
+		coverage,
+		generatedAt: new Date(0).toISOString(),
+		generatedManifest,
+		minDesignerAssetsPerCategory: perCategoryLimit,
+		requiredDesignerCategories: categoryIds,
+	});
+	return report.categories.flatMap((category) =>
+		category.suggestedImports
+			.map((slot) => slot.assetId)
+			.filter((assetId) => generatedManifest[assetId])
+	);
 }
 
 function selectTextDesignerPackCategoryAssetIds({
@@ -456,6 +503,8 @@ Each asset folder contains \`asset-contract.json\` with the required target iden
 
 Use \`--include-current-files\` when creating the pack to include the current generated files at the exact replacement paths. They are references only; designers still need to replace or edit them before import.
 
+Designer-ready pack templates use the same actionable replacement slots as \`assets:text:designer-gap-report\`, so the exported folders match the assets that currently block \`assets:text:verify-designer-ready\`.
+
 When \`CONTACT_SHEET.html\` is present, open it to review the selected categories, current thumbnails, and exact replacement folders.
 
 ## Required Files
@@ -672,6 +721,7 @@ async function main(): Promise<void> {
 		packageIds: options.packageIds,
 		perCategoryLimit: options.perCategoryLimit,
 		provenance: options.provenance,
+		useDesignerGapReport: options.useDesignerGapReport,
 	});
 	if (assetIds.length === 0) {
 		throw new Error("No text assets matched the designer pack selection.");
