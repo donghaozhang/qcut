@@ -76,23 +76,6 @@ function textDefinition({
 	};
 }
 
-function textDefinitionWithSize({
-	sizeKb,
-}: {
-	sizeKb: number;
-}): TextTemplateDefinition {
-	const definition = textDefinition();
-	return {
-		...definition,
-		resource: definition.resource
-			? {
-					...definition.resource,
-					sizeKb,
-				}
-			: undefined,
-	};
-}
-
 function remoteBody({ url }: { url: string }): string {
 	if (url.endsWith(".webp")) return "t".repeat(184);
 	if (url.endsWith(".qctext")) return "p".repeat(1024);
