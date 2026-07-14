@@ -65,6 +65,15 @@ export type TextDesignerAssetPackArchiveExtraction = {
 	fileCount: number;
 	manifestPath: string;
 	packDir: string;
+	summaryPath: string;
+};
+
+export type TextDesignerAssetPackSummary = {
+	assets: number;
+	categoryCounts: Record<string, number>;
+	expectedDesignerImportedAssets: number;
+	requiredReplacementFiles: number;
+	schemaVersion: 1;
 };
 
 export type TextDesignerAssetImportRole = "thumbnail" | "source" | "package";
@@ -125,6 +134,7 @@ const DEFAULT_MARKETPLACE_CONFIG_PATH = join(
 	"text-assets/marketplace.json"
 );
 const DESIGNER_MANIFEST_FILE = "manifest.json";
+const DESIGNER_SUMMARY_FILE = "pack-summary.json";
 const MIN_DESIGNER_THUMBNAIL_BYTES = 1024;
 const execFileAsync = promisify(execFile);
 
@@ -266,6 +276,7 @@ export async function extractTextDesignerAssetPackArchive({
 		fileCount: entries.filter((entry) => !entry.endsWith("/")).length,
 		manifestPath: join(packDir, DESIGNER_MANIFEST_FILE),
 		packDir,
+		summaryPath: join(packDir, DESIGNER_SUMMARY_FILE),
 	};
 }
 
@@ -315,6 +326,27 @@ export async function readDesignerAssetPackManifest({
 	return assertDesignerAssetPackManifest({ value: parsed });
 }
 
+export async function readOptionalDesignerAssetPackSummary({
+	summaryPath,
+}: {
+	summaryPath: string;
+}): Promise<TextDesignerAssetPackSummary | undefined> {
+	try {
+		const parsed = JSON.parse(await readFile(summaryPath, "utf8")) as unknown;
+		return assertDesignerAssetPackSummary({ value: parsed });
+	} catch (error) {
+		if (
+			error &&
+			typeof error === "object" &&
+			"code" in error &&
+			error.code === "ENOENT"
+		) {
+			return undefined;
+		}
+		throw error;
+	}
+}
+
 export async function buildTextDesignerAssetImportPlan({
 	allowUnchanged = false,
 	generatedManifest,
@@ -322,6 +354,7 @@ export async function buildTextDesignerAssetImportPlan({
 	minDesignerAssetsPerCategory = 1,
 	packDir,
 	packManifest,
+	packSummary,
 	publicDir,
 	requiredDesignerCategories = [],
 }: {
@@ -331,6 +364,7 @@ export async function buildTextDesignerAssetImportPlan({
 	minDesignerAssetsPerCategory?: number;
 	packDir: string;
 	packManifest: TextDesignerAssetPackManifest;
+	packSummary?: TextDesignerAssetPackSummary;
 	publicDir: string;
 	requiredDesignerCategories?: readonly string[];
 }): Promise<TextDesignerAssetImportPlan> {
@@ -371,6 +405,12 @@ export async function buildTextDesignerAssetImportPlan({
 	const updatedManifest = applyPlanToManifest({
 		generatedManifest,
 		items,
+	});
+	assertDesignerPackSummaryMatchesPlan({
+		items,
+		packManifest,
+		packSummary,
+		updatedManifest,
 	});
 	assertDesignerReadyCoverage({
 		generatedManifest: updatedManifest,
@@ -440,6 +480,104 @@ function assertDesignerReadyCoverage({
 			.map((issue) => issue.detail)
 			.join("; ")}`
 	);
+}
+
+function assertDesignerPackSummaryMatchesPlan({
+	items,
+	packManifest,
+	packSummary,
+	updatedManifest,
+}: {
+	items: readonly TextDesignerAssetImportPlanItem[];
+	packManifest: TextDesignerAssetPackManifest;
+	packSummary?: TextDesignerAssetPackSummary;
+	updatedManifest: Record<string, TextAssetGeneratedEntry>;
+}): void {
+	if (!packSummary) return;
+	const importedAssetIds = new Set(items.map((item) => item.assetId));
+	const actualCategoryCounts = designerPackCategoryCounts({
+		assetIds: importedAssetIds,
+		generatedManifest: updatedManifest,
+	});
+	const mismatches = [
+		numberMismatch({
+			actual: packManifest.assets.length,
+			expected: packSummary.assets,
+			field: "assets",
+		}),
+		numberMismatch({
+			actual: importedAssetIds.size,
+			expected: packSummary.expectedDesignerImportedAssets,
+			field: "expectedDesignerImportedAssets",
+		}),
+		numberMismatch({
+			actual: items.length,
+			expected: packSummary.requiredReplacementFiles,
+			field: "requiredReplacementFiles",
+		}),
+		...categoryCountMismatches({
+			actual: actualCategoryCounts,
+			expected: packSummary.categoryCounts,
+		}),
+	].filter((mismatch): mismatch is string => Boolean(mismatch));
+	if (mismatches.length === 0) return;
+	throw new Error(
+		`Designer asset pack summary mismatch: ${mismatches.join(", ")}`
+	);
+}
+
+function designerPackCategoryCounts({
+	assetIds,
+	generatedManifest,
+}: {
+	assetIds: ReadonlySet<string>;
+	generatedManifest: Record<string, TextAssetGeneratedEntry>;
+}): Record<string, number> {
+	const counts: Record<string, number> = {};
+	for (const assetId of assetIds) {
+		const entry = generatedManifest[assetId];
+		if (!entry) continue;
+		const category = inferTextAssetCategory({ entry }) ?? "unknown";
+		counts[category] = (counts[category] ?? 0) + 1;
+	}
+	return counts;
+}
+
+function categoryCountMismatches({
+	actual,
+	expected,
+}: {
+	actual: Record<string, number>;
+	expected: Record<string, number>;
+}): string[] {
+	const categories = new Set([
+		...Object.keys(actual),
+		...Object.keys(expected),
+	]);
+	const mismatches: string[] = [];
+	for (const category of categories) {
+		const actualCount = actual[category] ?? 0;
+		const expectedCount = expected[category] ?? 0;
+		if (actualCount === expectedCount) continue;
+		mismatches.push(
+			`categoryCounts.${category} expected ${expectedCount}, received ${actualCount}`
+		);
+	}
+	return mismatches;
+}
+
+function numberMismatch({
+	actual,
+	expected,
+	field,
+}: {
+	actual: number;
+	expected: number;
+	field: string;
+}): string | null {
+	return actual === expected
+		? null
+		: `${field} expected ${expected}, received ${actual}`;
 }
 
 function assertDesignerAssetChanged({
@@ -1012,6 +1150,65 @@ function assertDesignerAssetPackManifest({
 	};
 }
 
+function assertDesignerAssetPackSummary({
+	value,
+}: {
+	value: unknown;
+}): TextDesignerAssetPackSummary {
+	if (!isRecord(value) || value.schemaVersion !== 1) {
+		throw new Error("Designer asset pack summary must use schemaVersion 1");
+	}
+	if (!isRecord(value.categoryCounts)) {
+		throw new Error("Designer asset pack summary requires categoryCounts");
+	}
+	return {
+		assets: requiredPositiveSummaryNumber({
+			field: "assets",
+			value: value.assets,
+		}),
+		categoryCounts: summaryCategoryCounts({ value: value.categoryCounts }),
+		expectedDesignerImportedAssets: requiredPositiveSummaryNumber({
+			field: "expectedDesignerImportedAssets",
+			value: value.expectedDesignerImportedAssets,
+		}),
+		requiredReplacementFiles: requiredPositiveSummaryNumber({
+			field: "requiredReplacementFiles",
+			value: value.requiredReplacementFiles,
+		}),
+		schemaVersion: 1,
+	};
+}
+
+function summaryCategoryCounts({
+	value,
+}: {
+	value: Record<string, unknown>;
+}): Record<string, number> {
+	const counts: Record<string, number> = {};
+	for (const [category, count] of Object.entries(value)) {
+		if (!Number.isInteger(count) || count < 0) {
+			throw new Error(
+				`Designer asset pack summary has invalid category count: ${category}`
+			);
+		}
+		counts[category] = count;
+	}
+	return counts;
+}
+
+function requiredPositiveSummaryNumber({
+	field,
+	value,
+}: {
+	field: string;
+	value: unknown;
+}): number {
+	if (!Number.isInteger(value) || value < 0) {
+		throw new Error(`Designer asset pack summary requires ${field}`);
+	}
+	return value;
+}
+
 function assertDesignerAssetPackEntry({
 	asset,
 	index,
@@ -1101,10 +1298,13 @@ async function main(): Promise<void> {
 	const packDir = extractedPack?.packDir ?? options.packDir;
 	const packManifestPath =
 		extractedPack?.manifestPath ?? options.packManifestPath;
+	const packSummaryPath =
+		extractedPack?.summaryPath ?? join(packDir, DESIGNER_SUMMARY_FILE);
 	try {
-		const [generatedManifest, packManifest] = await Promise.all([
+		const [generatedManifest, packManifest, packSummary] = await Promise.all([
 			readGeneratedManifest({ manifestPath: options.generatedManifestPath }),
 			readDesignerAssetPackManifest({ manifestPath: packManifestPath }),
+			readOptionalDesignerAssetPackSummary({ summaryPath: packSummaryPath }),
 		]);
 		const plan = await buildTextDesignerAssetImportPlan({
 			allowUnchanged: options.allowUnchanged,
@@ -1113,6 +1313,7 @@ async function main(): Promise<void> {
 			minDesignerAssetsPerCategory: options.minDesignerAssetsPerCategory,
 			packDir,
 			packManifest,
+			packSummary,
 			publicDir: options.publicDir,
 			requiredDesignerCategories: options.requiredDesignerCategories,
 		});

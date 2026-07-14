@@ -11,8 +11,10 @@ import {
 	extractTextDesignerAssetPackArchive,
 	parseTextDesignerAssetImportArgs,
 	readDesignerAssetPackManifest,
+	readOptionalDesignerAssetPackSummary,
 	writeTextDesignerAssetImportPlanReport,
 	type TextDesignerAssetPackManifest,
+	type TextDesignerAssetPackSummary,
 } from "../import-text-designer-assets";
 import {
 	TEXT_DESIGNER_READY_CATEGORY_IDS,
@@ -233,6 +235,19 @@ async function archiveDesignerPack({
 	});
 }
 
+async function writeDesignerPackSummary({
+	packDir,
+	summary,
+}: {
+	packDir: string;
+	summary: TextDesignerAssetPackSummary;
+}): Promise<void> {
+	await writeFile(
+		join(packDir, "pack-summary.json"),
+		`${JSON.stringify(summary, null, "\t")}\n`
+	);
+}
+
 async function writeDesignerAssetPackFiles({
 	assetId,
 	cacheKey,
@@ -379,6 +394,16 @@ describe("text designer asset import script", () => {
 	it("extracts archived designer packs for direct import", async () => {
 		const { generatedManifest, packDir, packManifest, publicDir } =
 			await createDesignerFixture();
+		const packSummary: TextDesignerAssetPackSummary = {
+			assets: 1,
+			categoryCounts: {
+				unknown: 1,
+			},
+			expectedDesignerImportedAssets: 1,
+			requiredReplacementFiles: 3,
+			schemaVersion: 1,
+		};
+		await writeDesignerPackSummary({ packDir, summary: packSummary });
 		const archivePath = join(dirname(packDir), "designer-pack.tar.gz");
 		await archiveDesignerPack({ archivePath, packDir });
 
@@ -388,14 +413,19 @@ describe("text designer asset import script", () => {
 		const extractedManifest = await readDesignerAssetPackManifest({
 			manifestPath: extracted.manifestPath,
 		});
+		const extractedSummary = await readOptionalDesignerAssetPackSummary({
+			summaryPath: extracted.summaryPath,
+		});
 
-		expect(extracted.fileCount).toBe(4);
+		expect(extracted.fileCount).toBe(5);
 		expect(extractedManifest).toEqual(packManifest);
+		expect(extractedSummary).toEqual(packSummary);
 		await expect(
 			buildTextDesignerAssetImportPlan({
 				generatedManifest,
 				packDir: extracted.packDir,
 				packManifest: extractedManifest,
+				packSummary: extractedSummary,
 				publicDir,
 			})
 		).resolves.toMatchObject({
@@ -408,6 +438,46 @@ describe("text designer asset import script", () => {
 		});
 	});
 
+	it("rejects designer pack summaries that do not match the import plan", async () => {
+		const { generatedManifest, packDir, packManifest, publicDir } =
+			await createDesignerFixture();
+
+		await expect(
+			buildTextDesignerAssetImportPlan({
+				generatedManifest,
+				packDir,
+				packManifest,
+				packSummary: {
+					assets: 2,
+					categoryCounts: {
+						unknown: 1,
+					},
+					expectedDesignerImportedAssets: 1,
+					requiredReplacementFiles: 3,
+					schemaVersion: 1,
+				},
+				publicDir,
+			})
+		).rejects.toThrow("Designer asset pack summary mismatch");
+		await expect(
+			buildTextDesignerAssetImportPlan({
+				generatedManifest,
+				packDir,
+				packManifest,
+				packSummary: {
+					assets: 1,
+					categoryCounts: {
+						red: 1,
+					},
+					expectedDesignerImportedAssets: 1,
+					requiredReplacementFiles: 3,
+					schemaVersion: 1,
+				},
+				publicDir,
+			})
+		).rejects.toThrow("categoryCounts.red expected 1");
+	});
+
 	it("builds import plans and updates manifest metadata", async () => {
 		const { generatedManifest, packDir, packManifest, publicDir } =
 			await createDesignerFixture();
@@ -416,6 +486,13 @@ describe("text designer asset import script", () => {
 			generatedManifest,
 			packDir,
 			packManifest,
+			packSummary: {
+				assets: 1,
+				categoryCounts: { unknown: 1 },
+				expectedDesignerImportedAssets: 1,
+				requiredReplacementFiles: 3,
+				schemaVersion: 1,
+			},
 			publicDir,
 		});
 
@@ -433,6 +510,29 @@ describe("text designer asset import script", () => {
 			source: "designer-imported",
 			pipeline: "designer-pack-v1",
 		});
+	});
+
+	it("rejects designer pack summaries that do not match the import plan", async () => {
+		const { generatedManifest, packDir, packManifest, publicDir } =
+			await createDesignerFixture();
+
+		await expect(
+			buildTextDesignerAssetImportPlan({
+				generatedManifest,
+				packDir,
+				packManifest,
+				packSummary: {
+					assets: 1,
+					categoryCounts: { red: 1 },
+					expectedDesignerImportedAssets: 1,
+					requiredReplacementFiles: 2,
+					schemaVersion: 1,
+				},
+				publicDir,
+			})
+		).rejects.toThrow(
+			"Designer asset pack summary mismatch: requiredReplacementFiles expected 2, received 3, categoryCounts.unknown expected 0, received 1, categoryCounts.red expected 1, received 0"
+		);
 	});
 
 	it("rejects designer packs that do not satisfy ready category coverage", async () => {
