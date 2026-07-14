@@ -4,6 +4,7 @@ import {
 	markTextTemplateDownloaded,
 } from "@/lib/text/text-library-state";
 import {
+	TEXT_TEMPLATE_DEFINITIONS,
 	getTextTemplateDefinitionsByCategory,
 	type TextTemplateDefinition,
 } from "@/lib/text/text-template-registry";
@@ -27,6 +28,7 @@ import {
 	getExpandedTextTemplateGridColumnCount,
 	getTextTemplateGridColumnCount,
 	matchesMarketplaceFilter,
+	matchesSourceFilter,
 	sortTextDefinitionsForBrowsing,
 } from "../text";
 import { buildTextTemplatePack } from "@/lib/text/text-template-packs";
@@ -388,6 +390,64 @@ describe("text view layout", () => {
 				provenance: { source: "unknown" },
 			})
 		).toBeUndefined();
+	});
+
+	it("filters text assets by provenance source", () => {
+		const generatedDefinition = TEXT_TEMPLATE_DEFINITIONS.find((candidate) =>
+			matchesSourceFilter({
+				definition: candidate,
+				filter: "generated",
+			})
+		);
+		const designerDefinition = TEXT_TEMPLATE_DEFINITIONS.find((candidate) =>
+			matchesSourceFilter({
+				definition: candidate,
+				filter: "designer",
+			})
+		);
+		if (!generatedDefinition) {
+			throw new Error("Expected generated provenance text fixture");
+		}
+		if (!designerDefinition) {
+			throw new Error("Expected designer provenance text fixture");
+		}
+
+		expect(
+			matchesSourceFilter({
+				definition: generatedDefinition,
+				filter: "generated",
+			})
+		).toBe(true);
+		expect(
+			matchesSourceFilter({
+				definition: generatedDefinition,
+				filter: "designer",
+			})
+		).toBe(false);
+		expect(
+			matchesSourceFilter({
+				definition: generatedDefinition,
+				filter: "all",
+			})
+		).toBe(true);
+		expect(
+			matchesSourceFilter({
+				definition: designerDefinition,
+				filter: "designer",
+			})
+		).toBe(true);
+		expect(
+			matchesSourceFilter({
+				definition: designerDefinition,
+				filter: "generated",
+			})
+		).toBe(false);
+		expect(
+			matchesSourceFilter({
+				definition: designerDefinition,
+				filter: "all",
+			})
+		).toBe(true);
 	});
 
 	it("treats bundled generated text resources as cached in the grid", () => {

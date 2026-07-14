@@ -91,6 +91,18 @@ function remoteTextAssetFileUrl({
 	return `${baseUrl}/${remotePath}`;
 }
 
+function getLegacyTextTemplateProvenance({
+	definition,
+}: {
+	definition: TextTemplateDefinition;
+}): TextTemplateResourceProvenance | undefined {
+	if (definition.resource) return undefined;
+	return {
+		source: "designer-imported",
+		pipeline: "legacy-text-template-catalog",
+	};
+}
+
 export function getTextTemplateResource({
 	definition,
 }: {
@@ -163,6 +175,7 @@ export function getTextTemplateResourceFiles({
 		sourceByteSize: resource.sizeKb * 1024,
 		packageByteSize: resource.sizeKb * 1024,
 		bundled: false,
+		provenance: getLegacyTextTemplateProvenance({ definition }),
 	};
 }
 

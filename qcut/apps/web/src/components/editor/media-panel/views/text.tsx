@@ -131,6 +131,8 @@ type TextLibraryMarketFilter =
 	| "premium-look"
 	| "night";
 
+type TextLibrarySourceFilter = "all" | "designer" | "generated";
+
 const TEXT_LIBRARY_STATUS_FILTERS: readonly {
 	id: TextLibraryStatusFilter;
 	label: string;
@@ -168,6 +170,15 @@ const TEXT_LIBRARY_MARKET_FILTERS: readonly {
 	{ id: "variety", label: "综艺" },
 	{ id: "premium-look", label: "质感" },
 	{ id: "night", label: "夜景" },
+];
+
+const TEXT_LIBRARY_SOURCE_FILTERS: readonly {
+	id: TextLibrarySourceFilter;
+	label: string;
+}[] = [
+	{ id: "all", label: "全部来源" },
+	{ id: "designer", label: "设计师" },
+	{ id: "generated", label: "生成兜底" },
 ];
 
 const TEXT_TEMPLATE_GRID_COLUMNS = {
@@ -316,6 +327,22 @@ export function getTextTemplateAssetProvenanceBadge({
 	return undefined;
 }
 
+export function getTextTemplateAssetProvenanceSource({
+	definition,
+}: {
+	definition: TextTemplateDefinition;
+}): "designer-imported" | "generated" | undefined {
+	if (!definition.resource) return "designer-imported";
+	const asset = resolveTextTemplateAssetEntry({ definition });
+	const metadata = asset.metadata as
+		| { provenance?: { source?: string } }
+		| undefined;
+	const badge = getTextTemplateAssetProvenanceBadge({
+		provenance: metadata?.provenance,
+	});
+	return badge?.source;
+}
+
 export function applyTextTemplatePackCopyValues({
 	copyValues,
 	pack,
@@ -408,14 +435,12 @@ function TextTemplate({
 		() => buildTextTemplate({ definition }),
 		[definition]
 	);
-	const asset = useMemo(
-		() => resolveTextTemplateAssetEntry({ definition }),
-		[definition]
-	);
-	const provenanceBadge = getTextTemplateAssetProvenanceBadge({
-		provenance: (asset.metadata as { provenance?: { source?: string } })
-			?.provenance,
-	});
+	const provenanceSource = getTextTemplateAssetProvenanceSource({ definition });
+	const provenanceBadge = provenanceSource
+		? getTextTemplateAssetProvenanceBadge({
+				provenance: { source: provenanceSource },
+			})
+		: undefined;
 	const dragData = useMemo(
 		() => buildTextTemplateDragData({ definition }),
 		[definition]
@@ -1358,6 +1383,19 @@ export function matchesMarketplaceFilter({
 	return tags.has("scene:night") || tags.has("effect:glow");
 }
 
+export function matchesSourceFilter({
+	definition,
+	filter,
+}: {
+	definition: TextTemplateDefinition;
+	filter: TextLibrarySourceFilter;
+}): boolean {
+	if (filter === "all") return true;
+	const source = getTextTemplateAssetProvenanceSource({ definition });
+	if (filter === "designer") return source === "designer-imported";
+	return source === "generated";
+}
+
 function FilterBar<TFilter extends string>({
 	filters,
 	activeFilter,
@@ -1407,6 +1445,7 @@ function ExpandedTextLibraryDialog({
 	onSelectMarketFilter,
 	onSelectCategory,
 	onSelectGroup,
+	onSelectSourceFilter,
 	onSelectStatusFilter,
 	onSelectStyleFilter,
 	onToggleFavorite,
@@ -1416,6 +1455,7 @@ function ExpandedTextLibraryDialog({
 	searchQuery,
 	smartTextStatus,
 	marketFilter,
+	sourceFilter,
 	statusFilter,
 	styleFilter,
 }: {
@@ -1432,6 +1472,7 @@ function ExpandedTextLibraryDialog({
 	onSelectMarketFilter: (filter: TextLibraryMarketFilter) => void;
 	onSelectCategory: (props: { categoryId: TextTemplateCategoryId }) => void;
 	onSelectGroup: (props: { group: TextTemplateGroup }) => void;
+	onSelectSourceFilter: (filter: TextLibrarySourceFilter) => void;
 	onSelectStatusFilter: (filter: TextLibraryStatusFilter) => void;
 	onSelectStyleFilter: (filter: TextLibraryStyleFilter) => void;
 	onToggleFavorite: (props: { templateId: string }) => void;
@@ -1441,6 +1482,7 @@ function ExpandedTextLibraryDialog({
 	searchQuery: string;
 	smartTextStatus: string;
 	marketFilter: TextLibraryMarketFilter;
+	sourceFilter: TextLibrarySourceFilter;
 	statusFilter: TextLibraryStatusFilter;
 	styleFilter: TextLibraryStyleFilter;
 }) {
@@ -1503,6 +1545,11 @@ function ExpandedTextLibraryDialog({
 								activeFilter={marketFilter}
 								filters={TEXT_LIBRARY_MARKET_FILTERS}
 								onSelectFilter={onSelectMarketFilter}
+							/>
+							<FilterBar
+								activeFilter={sourceFilter}
+								filters={TEXT_LIBRARY_SOURCE_FILTERS}
+								onSelectFilter={onSelectSourceFilter}
 							/>
 						</div>
 						{definitions.length > 0 ? (
@@ -1617,6 +1664,8 @@ export function TextView() {
 	const [styleFilter, setStyleFilter] = useState<TextLibraryStyleFilter>("all");
 	const [marketFilter, setMarketFilter] =
 		useState<TextLibraryMarketFilter>("all");
+	const [sourceFilter, setSourceFilter] =
+		useState<TextLibrarySourceFilter>("all");
 	const [expandedLibraryOpen, setExpandedLibraryOpen] = useState(false);
 	const [libraryState, setLibraryState] = useState<TextLibraryState>(() =>
 		loadTextLibraryState()
@@ -1717,7 +1766,8 @@ export function TextView() {
 					definition,
 					filter: marketFilter,
 					marketplaceOverrides,
-				})
+				}) &&
+				matchesSourceFilter({ definition, filter: sourceFilter })
 			);
 		});
 	}, [
@@ -1728,6 +1778,7 @@ export function TextView() {
 		normalizedSearchQuery,
 		projectAwareDefinitions,
 		runtimeByAssetKey,
+		sourceFilter,
 		statusFilter,
 		styleFilter,
 	]);
@@ -1737,6 +1788,7 @@ export function TextView() {
 	const hasActiveFilters =
 		Boolean(normalizedSearchQuery) ||
 		marketFilter !== "all" ||
+		sourceFilter !== "all" ||
 		statusFilter !== "all" ||
 		styleFilter !== "all";
 	const emptyMessage = getTextLibraryEmptyMessage({
@@ -2071,6 +2123,11 @@ export function TextView() {
 						filters={TEXT_LIBRARY_MARKET_FILTERS}
 						onSelectFilter={setMarketFilter}
 					/>
+					<FilterBar
+						activeFilter={sourceFilter}
+						filters={TEXT_LIBRARY_SOURCE_FILTERS}
+						onSelectFilter={setSourceFilter}
+					/>
 				</div>
 				{visibleDefinitions.length > 0 ? (
 					<TemplateGrid
@@ -2103,6 +2160,7 @@ export function TextView() {
 				onOpenChange={setExpandedLibraryOpen}
 				onSearchQueryChange={handleSearchQueryChange}
 				onSelectMarketFilter={setMarketFilter}
+				onSelectSourceFilter={setSourceFilter}
 				onSelectCategory={handleSelectCategory}
 				onSelectGroup={handleSelectGroup}
 				onSelectStatusFilter={setStatusFilter}
@@ -2114,6 +2172,7 @@ export function TextView() {
 				searchQuery={searchQuery}
 				smartTextStatus={smartTextStatus}
 				marketFilter={marketFilter}
+				sourceFilter={sourceFilter}
 				statusFilter={statusFilter}
 				styleFilter={styleFilter}
 			/>
