@@ -88,6 +88,20 @@ function packageText({
 				id: `pack-${definition.id}`,
 				name: `${definition.name} pack`,
 				category: definition.category,
+				copySlots: [
+					{
+						defaultContent: content,
+						elementIndex: 0,
+						id: "headline",
+						label: "主标题",
+					},
+					{
+						defaultContent: "Subtitle",
+						elementIndex: 1,
+						id: "subhead",
+						label: "副标题",
+					},
+				],
 				elements: [
 					{
 						id: "pack-title",
@@ -350,6 +364,20 @@ describe("downloadTextTemplateResource", () => {
 		).toMatchObject({
 			templatePack: {
 				category: "headline-template",
+				copySlots: [
+					{
+						defaultContent: "Pack title",
+						elementIndex: 0,
+						id: "headline",
+						label: "主标题",
+					},
+					{
+						defaultContent: "Subtitle",
+						elementIndex: 1,
+						id: "subhead",
+						label: "副标题",
+					},
+				],
 				elements: [
 					{ content: "Pack title", type: "text" },
 					{ content: "Subtitle", type: "text" },
@@ -495,6 +523,20 @@ describe("downloadTextTemplateResource", () => {
 				storage: new MemoryAssetCache(),
 			})
 		).resolves.toMatchObject({
+			copySlots: [
+				{
+					defaultContent: "Package headline",
+					elementIndex: 0,
+					id: "headline",
+					label: "主标题",
+				},
+				{
+					defaultContent: "Subtitle",
+					elementIndex: 1,
+					id: "subhead",
+					label: "副标题",
+				},
+			],
 			elements: [
 				{
 					content: "Package headline",

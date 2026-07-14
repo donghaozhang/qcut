@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import {
+	applyTextTemplatePackCopy,
 	buildTextTemplatePack,
 	isTextTemplatePackDefinition,
 } from "../text-template-packs";
@@ -56,6 +57,26 @@ describe("text template packs", () => {
 			)
 		).toBe(true);
 		expect(pack?.elements[1].content).toBe(definition.content);
+		expect(pack?.copySlots).toEqual([
+			{
+				defaultContent: "本期重点",
+				elementIndex: 0,
+				id: "kicker",
+				label: "眉标题",
+			},
+			{
+				defaultContent: definition.content,
+				elementIndex: 1,
+				id: "headline",
+				label: "主标题",
+			},
+			{
+				defaultContent: "三句话讲清楚",
+				elementIndex: 2,
+				id: "subhead",
+				label: "副标题",
+			},
+		]);
 	});
 
 	it("uses provided base templates when expanding pack slots", () => {
@@ -109,6 +130,50 @@ describe("text template packs", () => {
 			"阶段 1",
 			getFirstDefinition({ category: "timeline-template" }).content,
 			"结果",
+		]);
+	});
+
+	it("applies batch copy to pack copy slots without touching decorative elements", () => {
+		const quotePack = buildTextTemplatePack({
+			definition: getFirstDefinition({ category: "quote-template" }),
+		});
+		if (!quotePack) throw new Error("Expected quote pack");
+
+		const updatedPack = applyTextTemplatePackCopy({
+			contents: ["新的金句", "— Peter"],
+			pack: quotePack,
+		});
+
+		expect(updatedPack.elements.map((element) => element.content)).toEqual([
+			"“",
+			"新的金句",
+			"— Peter",
+		]);
+		expect(updatedPack.copySlots.map((slot) => slot.defaultContent)).toEqual([
+			"新的金句",
+			"— Peter",
+		]);
+	});
+
+	it("ignores blank batch copy values instead of clearing existing slots", () => {
+		const splitPack = buildTextTemplatePack({
+			definition: getFirstDefinition({ category: "split-template" }),
+		});
+		if (!splitPack) throw new Error("Expected split pack");
+
+		const updatedPack = applyTextTemplatePackCopy({
+			contents: ["改版前", "   "],
+			pack: splitPack,
+		});
+
+		expect(updatedPack.elements.map((element) => element.content)).toEqual([
+			"改版前",
+			"之后",
+			"VS",
+		]);
+		expect(updatedPack.copySlots.map((slot) => slot.defaultContent)).toEqual([
+			"改版前",
+			"之后",
 		]);
 	});
 });

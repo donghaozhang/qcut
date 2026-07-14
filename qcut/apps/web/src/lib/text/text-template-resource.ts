@@ -11,6 +11,10 @@ import {
 	buildTextTemplate,
 	type TextTemplateDefinition,
 } from "./text-template-registry";
+import {
+	buildTextTemplatePackCopySlots,
+	type TextTemplatePackCopySlot,
+} from "./text-template-packs";
 
 export interface DownloadedTextTemplateResource {
 	cacheKey: string;
@@ -43,6 +47,7 @@ export interface TextTemplatePackageSource {
 
 export interface TextTemplatePackagePackSource {
 	category: string;
+	copySlots?: TextTemplatePackCopySlot[];
 	elements: Partial<TextElement>[];
 	id: string;
 	name: string;
@@ -50,6 +55,7 @@ export interface TextTemplatePackagePackSource {
 
 export interface ResolvedTextTemplatePack {
 	category: string;
+	copySlots: TextTemplatePackCopySlot[];
 	elements: CreateTextElement[];
 	id: string;
 	name: string;
@@ -199,12 +205,49 @@ function parseTextTemplatePackSource({
 	}
 	return {
 		category,
+		copySlots: parseTextTemplatePackCopySlots({ value: record.copySlots }),
 		elements: elements.filter(
 			(element): element is Partial<TextElement> => element !== null
 		),
 		id,
 		name,
 	};
+}
+
+function parseTextTemplatePackCopySlots({
+	value,
+}: {
+	value: unknown;
+}): TextTemplatePackCopySlot[] | undefined {
+	if (value === undefined) return undefined;
+	if (!Array.isArray(value)) {
+		throw new Error("Invalid QCut text template pack copy slots");
+	}
+	return value.map((slot, index) => {
+		const record = asRecord({ value: slot });
+		const id = record ? stringValue({ record, key: "id" }) : undefined;
+		const label = record ? stringValue({ record, key: "label" }) : undefined;
+		const defaultContent = record
+			? stringValue({ record, key: "defaultContent" })
+			: undefined;
+		const elementIndex = record
+			? numberValue({ record, key: "elementIndex" })
+			: undefined;
+		if (
+			!id ||
+			!label ||
+			defaultContent === undefined ||
+			elementIndex === undefined
+		) {
+			throw new Error(`Invalid QCut text template pack copy slot ${index}`);
+		}
+		return {
+			defaultContent,
+			elementIndex,
+			id,
+			label,
+		};
+	});
 }
 
 function downloadedResourceFiles({
@@ -465,6 +508,12 @@ function buildResolvedTextTemplatePack({
 	);
 	return {
 		category: packageSource.templatePack.category,
+		copySlots:
+			packageSource.templatePack.copySlots ??
+			buildTextTemplatePackCopySlots({
+				definition,
+				elements,
+			}),
 		elements,
 		id: packageSource.templatePack.id,
 		name: packageSource.templatePack.name,

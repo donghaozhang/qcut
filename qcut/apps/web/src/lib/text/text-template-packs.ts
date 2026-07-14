@@ -9,7 +9,15 @@ export interface TextTemplatePack {
 	id: string;
 	name: string;
 	category: TextTemplateDefinition["category"];
+	copySlots: TextTemplatePackCopySlot[];
 	elements: CreateTextElement[];
+}
+
+export interface TextTemplatePackCopySlot {
+	defaultContent: string;
+	elementIndex: number;
+	id: string;
+	label: string;
 }
 
 const PACK_TEMPLATE_CATEGORIES = new Set<TextTemplateDefinition["category"]>([
@@ -63,8 +71,99 @@ export function buildTextTemplatePack({
 		id: `pack-${definition.id}`,
 		name: `${definition.name} pack`,
 		category: definition.category,
+		copySlots: buildTextTemplatePackCopySlots({
+			definition,
+			elements,
+		}),
 		elements,
 	};
+}
+
+export function applyTextTemplatePackCopy({
+	contents,
+	pack,
+}: {
+	contents: readonly string[];
+	pack: TextTemplatePack;
+}): TextTemplatePack {
+	const replacements = new Map<number, string>();
+	for (const [slotIndex, slot] of pack.copySlots.entries()) {
+		const nextContent = contents[slotIndex]?.trim();
+		if (!nextContent) continue;
+		replacements.set(slot.elementIndex, nextContent);
+	}
+	if (replacements.size === 0) return pack;
+	return {
+		...pack,
+		copySlots: pack.copySlots.map((slot) => ({
+			...slot,
+			defaultContent:
+				replacements.get(slot.elementIndex) ?? slot.defaultContent,
+		})),
+		elements: pack.elements.map((element, elementIndex) => {
+			const content = replacements.get(elementIndex);
+			return content ? { ...element, content } : element;
+		}),
+	};
+}
+
+function copySlot({
+	elementIndex,
+	elements,
+	id,
+	label,
+}: {
+	elementIndex: number;
+	elements: readonly CreateTextElement[];
+	id: string;
+	label: string;
+}): TextTemplatePackCopySlot {
+	return {
+		defaultContent: elements[elementIndex]?.content ?? "",
+		elementIndex,
+		id,
+		label,
+	};
+}
+
+export function buildTextTemplatePackCopySlots({
+	definition,
+	elements,
+}: {
+	definition: TextTemplateDefinition;
+	elements: readonly CreateTextElement[];
+}): TextTemplatePackCopySlot[] {
+	if (definition.category === "quote-template") {
+		return [
+			copySlot({ elementIndex: 1, elements, id: "quote", label: "引用正文" }),
+			copySlot({ elementIndex: 2, elements, id: "attribution", label: "出处" }),
+		];
+	}
+	if (definition.category === "list-template") {
+		return [
+			copySlot({ elementIndex: 0, elements, id: "title", label: "标题" }),
+			copySlot({ elementIndex: 1, elements, id: "item-1", label: "条目 1" }),
+			copySlot({ elementIndex: 2, elements, id: "item-2", label: "条目 2" }),
+		];
+	}
+	if (definition.category === "split-template") {
+		return [
+			copySlot({ elementIndex: 0, elements, id: "left", label: "左侧文案" }),
+			copySlot({ elementIndex: 1, elements, id: "right", label: "右侧文案" }),
+		];
+	}
+	if (definition.category === "timeline-template") {
+		return [
+			copySlot({ elementIndex: 0, elements, id: "stage-1", label: "阶段 1" }),
+			copySlot({ elementIndex: 1, elements, id: "stage-2", label: "阶段 2" }),
+			copySlot({ elementIndex: 2, elements, id: "stage-3", label: "阶段 3" }),
+		];
+	}
+	return [
+		copySlot({ elementIndex: 0, elements, id: "kicker", label: "眉标题" }),
+		copySlot({ elementIndex: 1, elements, id: "headline", label: "主标题" }),
+		copySlot({ elementIndex: 2, elements, id: "subhead", label: "副标题" }),
+	];
 }
 
 function getPackSlots({
