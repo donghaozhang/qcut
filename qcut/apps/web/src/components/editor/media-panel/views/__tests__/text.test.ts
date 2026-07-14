@@ -11,6 +11,7 @@ import {
 	getTextTemplateBatchCacheTargets,
 	getTextTemplateAccessibilityLabel,
 	getTextTemplatePackCopyDefaults,
+	getTextTemplatePackCopyActionLabel,
 	getTextTemplateRuntimeDownloadStatus,
 	getExpandedTextTemplateGridColumnCount,
 	getTextTemplateGridColumnCount,
@@ -238,6 +239,12 @@ describe("text view layout", () => {
 				templateName: "标题组合",
 			})
 		).toBe("添加组合文字模板 标题组合");
+		expect(getTextTemplatePackCopyActionLabel({ slotCount: 3 })).toBe(
+			"替换 3 个模板文案"
+		);
+		expect(getTextTemplatePackCopyActionLabel({ slotCount: 0 })).toBe(
+			"替换模板文案"
+		);
 	});
 
 	it("treats bundled generated text resources as cached in the grid", () => {

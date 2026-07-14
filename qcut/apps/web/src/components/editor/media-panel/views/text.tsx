@@ -259,6 +259,14 @@ export function getTextTemplateAccessibilityLabel({
 		: `添加文字模板 ${templateName}`;
 }
 
+export function getTextTemplatePackCopyActionLabel({
+	slotCount,
+}: {
+	slotCount: number;
+}): string {
+	return slotCount > 0 ? `替换 ${slotCount} 个模板文案` : "替换模板文案";
+}
+
 export function applyTextTemplatePackCopyValues({
 	copyValues,
 	pack,
@@ -449,6 +457,9 @@ function TextTemplate({
 		isDownloaded,
 		resourceAccess,
 	});
+	const copyActionLabel = getTextTemplatePackCopyActionLabel({
+		slotCount: editableTemplatePack?.copySlots.length ?? 0,
+	});
 
 	return (
 		<div
@@ -490,8 +501,8 @@ function TextTemplate({
 						editableTemplatePack.copySlots.length > 0 && (
 							<button
 								type="button"
-								aria-label="替换模板文案"
-								className="absolute bottom-1 left-1 flex h-4 w-4 items-center justify-center rounded-full bg-black/55 text-white opacity-0 transition-colors hover:bg-black/80 group-focus-within:opacity-100 group-hover:opacity-100"
+								aria-label={copyActionLabel}
+								className="absolute bottom-1 left-1 flex h-4 w-4 items-center justify-center rounded-full bg-black/60 text-white shadow-sm ring-1 ring-white/10 transition-colors hover:bg-black/80"
 								onClick={(event) => {
 									event.stopPropagation();
 									handleOpenCopyDialog();
@@ -501,7 +512,7 @@ function TextTemplate({
 								}}
 							>
 								<FileText aria-hidden="true" className="h-3.5 w-3.5">
-									<title>替换模板文案</title>
+									<title>{copyActionLabel}</title>
 								</FileText>
 							</button>
 						)}
