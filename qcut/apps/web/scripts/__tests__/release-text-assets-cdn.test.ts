@@ -366,7 +366,7 @@ describe("text asset CDN release script", () => {
 				archiveCalls.push({ archivePath, stagedFileCount, stageDir });
 				return {
 					archivePath,
-					fileCount: stagedFileCount + 2,
+					fileCount: stagedFileCount + 3,
 					format: "tar.gz",
 				};
 			},
@@ -383,7 +383,7 @@ describe("text asset CDN release script", () => {
 
 		expect(summary).toMatchObject({
 			archivePath,
-			archivedFiles: 6,
+			archivedFiles: 7,
 			dryRun: true,
 			stageDir,
 			stageManifestPath: join(stageDir, "_qcut-text-assets-release.json"),
@@ -436,6 +436,33 @@ describe("text asset CDN release script", () => {
 		await expect(
 			readFile(join(stageDir, "_qcut-text-assets-release-readme.md"), "utf8")
 		).resolves.toContain("designerImported | 0");
+		await expect(
+			readFile(join(stageDir, "_qcut-text-assets-release-readme.md"), "utf8")
+		).resolves.toContain("designerReadyMissing | 100");
+		await expect(
+			readFile(
+				join(stageDir, "_qcut-text-designer-gap-report.json"),
+				"utf8"
+			).then(JSON.parse)
+		).resolves.toMatchObject({
+			categories: expect.arrayContaining([
+				expect.objectContaining({
+					category: TEXT_DESIGNER_READY_CATEGORY_IDS[0],
+					missing: TEXT_DESIGNER_READY_MIN_ASSETS_PER_CATEGORY,
+					required: TEXT_DESIGNER_READY_MIN_ASSETS_PER_CATEGORY,
+					suggestedImports: expect.any(Array),
+				}),
+			]),
+			minDesignerAssetsPerCategory: TEXT_DESIGNER_READY_MIN_ASSETS_PER_CATEGORY,
+			requiredDesignerCategories: [...TEXT_DESIGNER_READY_CATEGORY_IDS],
+			schemaVersion: 1,
+			totalMissing:
+				TEXT_DESIGNER_READY_CATEGORY_IDS.length *
+				TEXT_DESIGNER_READY_MIN_ASSETS_PER_CATEGORY,
+		});
+		await expect(
+			readFile(join(stageDir, "_qcut-text-assets-release-readme.md"), "utf8")
+		).resolves.toContain("_qcut-text-designer-gap-report.json");
 		await expect(
 			readFile(join(stageDir, "_qcut-text-assets-release-readme.md"), "utf8")
 		).resolves.toContain("assets:text:check-remote-checksum");

@@ -88,7 +88,7 @@ describe("text asset archive verifier", () => {
 		const runTar = async ({ args }: { args: string[] }) => {
 			calls.push(args);
 			if (args[0] === "-tzf") {
-				return "./_qcut-text-assets-release.json\n./_qcut-text-assets-release-readme.md\n./prod/text-assets/demo/plain@1/template.json\n";
+				return "./_qcut-text-assets-release.json\n./_qcut-text-assets-release-readme.md\n./_qcut-text-designer-gap-report.json\n./prod/text-assets/demo/plain@1/template.json\n";
 			}
 			if (args[0] === "-xOf") {
 				return JSON.stringify(manifest);
@@ -104,6 +104,7 @@ describe("text asset archive verifier", () => {
 		).resolves.toEqual([
 			"./_qcut-text-assets-release.json",
 			"./_qcut-text-assets-release-readme.md",
+			"./_qcut-text-designer-gap-report.json",
 			"./prod/text-assets/demo/plain@1/template.json",
 		]);
 		await expect(
@@ -126,11 +127,12 @@ describe("text asset archive verifier", () => {
 					"./prod/",
 					"./_qcut-text-assets-release.json",
 					"./_qcut-text-assets-release-readme.md",
+					"./_qcut-text-designer-gap-report.json",
 					"./prod/text-assets/demo/plain@1/template.json",
 					"../escape.json",
 				],
 			})
-		).toBe(4);
+		).toBe(5);
 	});
 
 	it("detects missing, unexpected, duplicate, and escaping archive entries", () => {
@@ -142,6 +144,7 @@ describe("text asset archive verifier", () => {
 			entries: [
 				"./_qcut-text-assets-release.json",
 				"./_qcut-text-assets-release-readme.md",
+				"./_qcut-text-designer-gap-report.json",
 				"./prod/text-assets/demo/plain@1/template.json",
 				"./prod/text-assets/demo/plain@1/template.json",
 				"./prod/text-assets/demo/plain@1/extra.json",
@@ -171,6 +174,7 @@ describe("text asset archive verifier", () => {
 				entries: [
 					"./_qcut-text-assets-release.json",
 					"./_qcut-text-assets-release-readme.md",
+					"./_qcut-text-designer-gap-report.json",
 				],
 				manifest,
 			})

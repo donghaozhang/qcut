@@ -44,6 +44,7 @@ const STAGE_MANIFEST_FILE = "_qcut-text-assets-release.json";
 const RELEASE_METADATA_FILES = [
 	STAGE_MANIFEST_FILE,
 	"_qcut-text-assets-release-readme.md",
+	"_qcut-text-designer-gap-report.json",
 ] as const;
 const execFileAsync = promisify(execFile);
 

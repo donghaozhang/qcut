@@ -15,17 +15,23 @@ import {
 } from "./upload-text-assets-cdn";
 import {
 	applyTextDesignerReadyPreset,
+	buildDesignerAssetGapReport,
 	buildTextAssetPublishManifest,
 	buildTextMarketplacePublishEntry,
 	parseCommaSeparatedList,
 	readGeneratedManifest,
+	summarizeDesignerCategoryCoverage,
 	summarizeTextAssetProvenance,
 	summarizeVerifyIssues,
+	TEXT_DESIGNER_READY_CATEGORY_IDS,
+	TEXT_DESIGNER_READY_MIN_ASSETS_PER_CATEGORY,
 	verifyDesignerCategoryCoverage,
 	verifyDesignerAssetCoverage,
 	verifyLocalFiles,
 	verifyRemoteFiles,
+	writeDesignerAssetGapReport,
 	writePublishManifest,
+	type TextAssetDesignerGapReport,
 	type TextAssetProvenanceSummary,
 	type VerifyIssue,
 } from "./verify-text-asset-cdn-manifest";
@@ -97,6 +103,7 @@ const DEFAULT_METADATA_CACHE_CONTROL =
 	"public, max-age=300, stale-while-revalidate=86400";
 const STAGE_MANIFEST_FILE = "_qcut-text-assets-release.json";
 const STAGE_README_FILE = "_qcut-text-assets-release-readme.md";
+const STAGE_DESIGNER_GAP_REPORT_FILE = "_qcut-text-designer-gap-report.json";
 const execFileAsync = promisify(execFile);
 
 export function parseTextAssetReleaseArgs({
@@ -287,6 +294,7 @@ export async function releaseTextAssetsToCdn({
 	uploadFile: Parameters<typeof uploadTextAssetPlan>[0]["uploadFile"];
 	verifyRemote?: typeof verifyRemoteFiles;
 }): Promise<TextAssetReleaseSummary> {
+	const generatedAt = new Date().toISOString();
 	const generatedManifest = await readGeneratedManifest({
 		manifestPath: options.generatedManifestPath,
 	});
@@ -305,9 +313,19 @@ export async function releaseTextAssetsToCdn({
 		minDesignerAssetsPerCategory: options.minDesignerAssetsPerCategory,
 		requiredDesignerCategories: options.requiredDesignerCategories,
 	});
+	const designerGapReport = buildDesignerAssetGapReport({
+		coverage: summarizeDesignerCategoryCoverage({
+			generatedManifest,
+			minDesignerAssetsPerCategory: TEXT_DESIGNER_READY_MIN_ASSETS_PER_CATEGORY,
+			requiredDesignerCategories: [...TEXT_DESIGNER_READY_CATEGORY_IDS],
+		}),
+		generatedAt,
+		minDesignerAssetsPerCategory: TEXT_DESIGNER_READY_MIN_ASSETS_PER_CATEGORY,
+		requiredDesignerCategories: [...TEXT_DESIGNER_READY_CATEGORY_IDS],
+	});
 	const { issues: manifestIssues, manifest } = buildTextAssetPublishManifest({
 		baseUrl: options.baseUrl,
-		generatedAt: new Date().toISOString(),
+		generatedAt,
 		generatedManifest,
 		publicDir: options.publicDir,
 		supplementalAssets: marketplace.entry ? [marketplace.entry] : [],
@@ -356,6 +374,7 @@ export async function releaseTextAssetsToCdn({
 	}
 	const staging = options.stageDir
 		? await stageTextAssetUploadPlan({
+				designerGapReport,
 				items,
 				prefix: options.prefix,
 				provenance,
@@ -400,12 +419,14 @@ export async function releaseTextAssetsToCdn({
 }
 
 export async function stageTextAssetUploadPlan({
+	designerGapReport,
 	items,
 	prefix,
 	provenance,
 	requiredDesignerCategories = [],
 	stageDir,
 }: {
+	designerGapReport?: TextAssetDesignerGapReport;
 	items: readonly TextAssetUploadPlanItem[];
 	prefix: string;
 	provenance?: TextAssetProvenanceSummary;
@@ -428,6 +449,10 @@ export async function stageTextAssetUploadPlan({
 	);
 	const manifestPath = join(resolvedStageDir, STAGE_MANIFEST_FILE);
 	const readmePath = join(resolvedStageDir, STAGE_README_FILE);
+	const designerGapReportPath = join(
+		resolvedStageDir,
+		STAGE_DESIGNER_GAP_REPORT_FILE
+	);
 	await writeFile(
 		manifestPath,
 		`${JSON.stringify(
@@ -444,6 +469,7 @@ export async function stageTextAssetUploadPlan({
 	await writeFile(
 		readmePath,
 		renderTextAssetReleaseReadme({
+			designerGapReport,
 			items,
 			prefix,
 			provenance,
@@ -451,15 +477,23 @@ export async function stageTextAssetUploadPlan({
 		}),
 		"utf8"
 	);
+	if (designerGapReport) {
+		await writeDesignerAssetGapReport({
+			report: designerGapReport,
+			writePath: designerGapReportPath,
+		});
+	}
 	return { fileCount: items.length, manifestPath };
 }
 
 function renderTextAssetReleaseReadme({
+	designerGapReport,
 	items,
 	prefix,
 	provenance,
 	requiredDesignerCategories,
 }: {
+	designerGapReport?: TextAssetDesignerGapReport;
 	items: readonly TextAssetUploadPlanItem[];
 	prefix: string;
 	provenance?: TextAssetProvenanceSummary;
@@ -481,6 +515,7 @@ Do not upload these release handoff files as public CDN assets:
 
 - \`${STAGE_MANIFEST_FILE}\`
 - \`${STAGE_README_FILE}\`
+- \`${STAGE_DESIGNER_GAP_REPORT_FILE}\`
 
 Before publishing, verify the folder and archive:
 
@@ -498,6 +533,8 @@ bun run assets:text:import-designer-ready -- --pack-dir <designer-pack>
 bun run assets:text:release-designer-ready -- --dry-run --stage-dir dist/text-assets-cdn-stage --archive-path dist/text-assets-cdn-stage.tar.gz --publish-manifest dist/text-assets-publish-manifest.json --write-upload-plan dist/text-assets-upload-plan.json
 \`\`\`
 
+The staged folder includes \`${STAGE_DESIGNER_GAP_REPORT_FILE}\`, which lists the exact designer asset slots needed to reach the screenshot-level library.
+
 After publishing, verify the remote CDN. The first command checks reachability and sizes quickly; the second downloads each object and verifies SHA-256 checksums:
 
 \`\`\`bash
@@ -514,6 +551,7 @@ bun run assets:text:check-remote-checksum
 | bytes | ${items.reduce((total, item) => total + item.size, 0)} |
 | designerImported | ${provenance?.designerImported ?? "(unknown)"} |
 | generated | ${provenance?.generated ?? "(unknown)"} |
+| designerReadyMissing | ${designerGapReport?.totalMissing ?? "(unknown)"} |
 | requiredDesignerCategories | ${requiredDesignerCategories.length || "(not enforced in this release)"} |
 
 ## Files By Role
@@ -561,7 +599,7 @@ export async function createTextAssetStageArchive({
 	});
 	return {
 		archivePath: resolvedArchivePath,
-		fileCount: stagedFileCount + 2,
+		fileCount: stagedFileCount + 3,
 		format: "tar.gz",
 	};
 }
