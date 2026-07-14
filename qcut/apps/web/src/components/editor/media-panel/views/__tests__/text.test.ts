@@ -1,9 +1,15 @@
 import { describe, expect, it } from "vitest";
-import { EMPTY_TEXT_LIBRARY_STATE } from "@/lib/text/text-library-state";
+import {
+	EMPTY_TEXT_LIBRARY_STATE,
+	markTextTemplateDownloaded,
+} from "@/lib/text/text-library-state";
 import {
 	getTextTemplateDefinitionsByCategory,
 	type TextTemplateDefinition,
 } from "@/lib/text/text-template-registry";
+import type { AssetRuntimeState } from "@qcut/editor-core";
+
+type RemoteTextRuntimeRole = "thumbnail" | "source" | "package";
 import {
 	applyTextTemplatePackCopyPaste,
 	applyTextTemplatePackCopyValues,
@@ -41,6 +47,48 @@ function createRemoteOnlyDefinition(): TextTemplateDefinition {
 			sizeKb: 128,
 		},
 		catalogVisible: true,
+	};
+}
+
+function createRemoteTextRuntime({
+	cachedFiles = ["thumbnail", "source", "package"],
+}: {
+	cachedFiles?: readonly RemoteTextRuntimeRole[];
+} = {}): Record<string, AssetRuntimeState> {
+	const assetKey = "text-template:text-remote-only@1";
+	const fileByRole = {
+		thumbnail: {
+			cacheKey: `${assetKey}:thumbnail:0`,
+			fromCache: true,
+			role: "thumbnail",
+			url: "https://assets.qcut.app/text-assets/text-remote-only/plain@1/thumbnail.webp",
+		},
+		source: {
+			cacheKey: `${assetKey}:source:1`,
+			fromCache: true,
+			role: "source",
+			url: "https://assets.qcut.app/text-assets/text-remote-only/plain@1/template.json",
+		},
+		package: {
+			cacheKey: `${assetKey}:package:2`,
+			fromCache: true,
+			role: "package",
+			url: "https://assets.qcut.app/text-assets/text-remote-only/plain@1/template.qctext",
+		},
+	} satisfies Record<
+		RemoteTextRuntimeRole,
+		NonNullable<AssetRuntimeState["cachedFiles"]>[number]
+	>;
+	return {
+		[assetKey]: {
+			assetKey,
+			cacheStatus: "cached",
+			downloadStatus: "downloaded",
+			favorite: false,
+			progress: 1,
+			cachedFileCount: cachedFiles.length,
+			cachedFiles: cachedFiles.map((role) => fileByRole[role]),
+		},
 	};
 }
 
@@ -294,6 +342,41 @@ describe("text view layout", () => {
 				definition: createRemoteOnlyDefinition(),
 				runtimeByAssetKey: {},
 				state: EMPTY_TEXT_LIBRARY_STATE,
+			})
+		).toBe("remote");
+	});
+
+	it("requires complete cached remote resource files before showing downloaded", () => {
+		const definition = createRemoteOnlyDefinition();
+		const downloadedState = markTextTemplateDownloaded({
+			definition,
+			now: 100,
+			state: EMPTY_TEXT_LIBRARY_STATE,
+		});
+
+		expect(
+			getTextTemplateRuntimeDownloadStatus({
+				definition,
+				runtimeByAssetKey: {},
+				state: downloadedState,
+			})
+		).toBe("remote");
+
+		expect(
+			getTextTemplateRuntimeDownloadStatus({
+				definition,
+				runtimeByAssetKey: createRemoteTextRuntime(),
+				state: downloadedState,
+			})
+		).toBe("cached");
+
+		expect(
+			getTextTemplateRuntimeDownloadStatus({
+				definition,
+				runtimeByAssetKey: createRemoteTextRuntime({
+					cachedFiles: ["thumbnail", "source"],
+				}),
+				state: downloadedState,
 			})
 		).toBe("remote");
 	});

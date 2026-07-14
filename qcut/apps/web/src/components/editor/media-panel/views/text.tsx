@@ -23,6 +23,7 @@ import { useSearchStore } from "@/stores/search-store";
 import { useTimelineStore } from "@/stores/timeline/timeline-store";
 import {
 	assetManifestVersionKey,
+	type AssetManifestEntry,
 	type AssetRuntimeState,
 } from "@qcut/editor-core";
 import {
@@ -766,10 +767,7 @@ export function getTextTemplateRuntimeDownloadStatus({
 	) {
 		return "downloading";
 	}
-	if (
-		runtime?.downloadStatus === "downloaded" &&
-		runtime.cacheStatus === "cached"
-	) {
+	if (hasCompleteTextTemplateRuntimeCache({ asset, runtime })) {
 		return "cached";
 	}
 	if (
@@ -778,15 +776,38 @@ export function getTextTemplateRuntimeDownloadStatus({
 	) {
 		return "failed";
 	}
-	return isTextTemplateDownloaded({
+	return getTextTemplateDownloadStatus({
 		definition,
 		state,
-	})
-		? "cached"
-		: getTextTemplateDownloadStatus({
-				definition,
-				state,
-			});
+	}) === "failed"
+		? "failed"
+		: "remote";
+}
+
+function hasCompleteTextTemplateRuntimeCache({
+	asset,
+	runtime,
+}: {
+	asset: AssetManifestEntry;
+	runtime?: AssetRuntimeState;
+}): boolean {
+	if (!runtime) return false;
+	if (
+		runtime.downloadStatus !== "downloaded" ||
+		runtime.cacheStatus !== "cached"
+	) {
+		return false;
+	}
+	const cachedFiles = runtime.cachedFiles ?? [];
+	return asset.files.every((file) =>
+		cachedFiles.some(
+			(cachedFile) =>
+				cachedFile.role === file.role &&
+				cachedFile.url === file.url &&
+				(file.checksumSha256 === undefined ||
+					cachedFile.checksumSha256 === file.checksumSha256)
+		)
+	);
 }
 
 export function getTextTemplateBatchCacheTargets({
@@ -1046,15 +1067,18 @@ function TextLibrarySearchField({
 function matchesStatusFilter({
 	definition,
 	filter,
+	runtimeDownloadStatus,
 	state,
 }: {
 	definition: TextTemplateDefinition;
 	filter: TextLibraryStatusFilter;
+	runtimeDownloadStatus?: TextTemplateDownloadStatus;
 	state: TextLibraryState;
 }): boolean {
 	if (filter === "free") return !definition.premium;
 	if (filter === "premium") return definition.premium;
 	if (filter === "downloaded") {
+		if (runtimeDownloadStatus) return runtimeDownloadStatus === "cached";
 		return isTextTemplateDownloaded({ definition, state });
 	}
 	if (filter === "favorites") {
@@ -1456,11 +1480,23 @@ export function TextView() {
 					definitions: projectAwareDefinitions,
 					marketplaceOverrides,
 				});
-		return searchBase.filter(
-			(definition) =>
+		return searchBase.filter((definition) => {
+			const runtimeDownloadStatus = getTextTemplateRuntimeDownloadStatus({
+				definition,
+				runtimeByAssetKey,
+				state: libraryState,
+			});
+			if (
+				activeCategory.id === "downloaded" &&
+				runtimeDownloadStatus !== "cached"
+			) {
+				return false;
+			}
+			return (
 				matchesStatusFilter({
 					definition,
 					filter: statusFilter,
+					runtimeDownloadStatus,
 					state: libraryState,
 				}) &&
 				matchesStyleFilter({ definition, filter: styleFilter }) &&
@@ -1469,7 +1505,8 @@ export function TextView() {
 					filter: marketFilter,
 					marketplaceOverrides,
 				})
-		);
+			);
+		});
 	}, [
 		activeCategory.id,
 		libraryState,
@@ -1477,6 +1514,7 @@ export function TextView() {
 		marketplaceOverrides,
 		normalizedSearchQuery,
 		projectAwareDefinitions,
+		runtimeByAssetKey,
 		statusFilter,
 		styleFilter,
 	]);
