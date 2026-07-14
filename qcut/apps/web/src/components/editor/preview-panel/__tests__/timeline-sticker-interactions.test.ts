@@ -25,27 +25,33 @@ function createTextDragData({
 
 function createTextElement({
 	height,
-	id,
+	name,
 	width,
 	x,
 	y,
 }: {
 	height: number;
-	id: string;
+	name: string;
 	width: number;
 	x: number;
 	y: number;
 }): CreateTextElement {
 	return {
-		content: id,
+		backgroundColor: "transparent",
+		color: "#ffffff",
+		content: name,
 		duration: 5,
+		fontFamily: "Arial",
 		fontSize: 32,
+		fontStyle: "normal",
+		fontWeight: "bold",
 		height,
-		id,
-		name: id,
+		name,
 		opacity: 1,
 		rotation: 0,
 		startTime: 0,
+		textAlign: "center",
+		textDecoration: "none",
 		trimEnd: 0,
 		trimStart: 0,
 		type: "text",
@@ -131,14 +137,14 @@ describe("timeline sticker drop interactions", () => {
 	it("preserves text group geometry while centering it on the drop point", () => {
 		const first = createTextElement({
 			height: 60,
-			id: "first",
+			name: "first",
 			width: 200,
 			x: 100,
 			y: 100,
 		});
 		const second = createTextElement({
 			height: 80,
-			id: "second",
+			name: "second",
 			width: 300,
 			x: 200,
 			y: 220,
@@ -149,13 +155,13 @@ describe("timeline sticker drop interactions", () => {
 				elements: [first, second],
 				point: { x: 960, y: 540 },
 			}).map((element) => ({
-				id: element.id,
+				name: element.name,
 				x: element.x,
 				y: element.y,
 			}))
 		).toEqual([
-			{ id: "first", x: 660, y: 300 },
-			{ id: "second", x: 760, y: 420 },
+			{ name: "first", x: 760, y: 440 },
+			{ name: "second", x: 860, y: 560 },
 		]);
 	});
 });
