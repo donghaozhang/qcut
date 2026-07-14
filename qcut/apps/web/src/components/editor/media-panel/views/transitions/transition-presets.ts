@@ -2,7 +2,7 @@ import type { ClipTransitionType } from "@/types/timeline";
 import { ADDITIONAL_TRANSITION_PRESETS } from "./transition-additional-presets";
 import { TRANSITION_CATEGORY_EXPANSIONS } from "./transition-category-expansions";
 import { buildTransitionCatalogDensity } from "./transition-catalog-density";
-import { TRANSITION_ENGINE_PRESETS } from "./transition-engine-presets";
+import { TRANSITION_ENGINE_PRESETS } from "./transition-engine-presets/index";
 import {
 	defineTransitionPreset as definePreset,
 	type ClipTransitionPresetConfig,
