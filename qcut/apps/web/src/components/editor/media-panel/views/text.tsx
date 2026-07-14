@@ -550,11 +550,13 @@ function isActivationKey({
 
 function TextLibraryNav({
 	activeCategoryId,
+	className,
 	expandedGroupIds,
 	onSelectCategory,
 	onSelectGroup,
 }: {
 	activeCategoryId: TextTemplateCategoryId;
+	className?: string;
 	expandedGroupIds: ReadonlySet<TextTemplateGroupId>;
 	onSelectCategory: (props: { categoryId: TextTemplateCategoryId }) => void;
 	onSelectGroup: (props: { group: TextTemplateGroup }) => void;
@@ -562,7 +564,10 @@ function TextLibraryNav({
 	return (
 		<nav
 			aria-label="文字分类"
-			className="w-[5.5rem] shrink-0 space-y-0.5 overflow-y-auto pr-2"
+			className={cn(
+				"w-[5.5rem] shrink-0 space-y-0.5 overflow-y-auto pr-2",
+				className
+			)}
 		>
 			{TEXT_TEMPLATE_GROUPS.map((group) => {
 				const isExpanded = expandedGroupIds.has(group.id);
@@ -630,6 +635,32 @@ function TextLibraryNav({
 				);
 			})}
 		</nav>
+	);
+}
+
+function TextLibrarySearchField({
+	onSearchQueryChange,
+	searchQuery,
+}: {
+	onSearchQueryChange: (props: { query: string }) => void;
+	searchQuery: string;
+}) {
+	return (
+		<label className="relative block">
+			<Search
+				aria-hidden="true"
+				className="-translate-y-1/2 pointer-events-none absolute left-3 top-1/2 h-4 w-4 text-muted-foreground"
+			>
+				<title>搜索</title>
+			</Search>
+			<input
+				type="search"
+				value={searchQuery}
+				placeholder="搜索花字颜色/样式"
+				className="h-8 w-full rounded-md border border-border bg-background pl-9 pr-3 text-xs text-foreground outline-none transition-colors placeholder:text-muted-foreground focus:border-cyan-400"
+				onChange={(event) => onSearchQueryChange({ query: event.target.value })}
+			/>
+		</label>
 	);
 }
 
@@ -706,32 +737,52 @@ function FilterBar<TFilter extends string>({
 
 function ExpandedTextLibraryDialog({
 	activeHeading,
+	activeCategoryId,
 	definitions,
 	emptyMessage,
+	expandedGroupIds,
 	libraryState,
 	onDownload,
 	onOpenChange,
+	onSearchQueryChange,
+	onSelectCategory,
+	onSelectGroup,
+	onSelectStatusFilter,
+	onSelectStyleFilter,
 	onToggleFavorite,
 	onUseTemplate,
 	open,
 	runtimeByAssetKey,
+	searchQuery,
 	smartTextStatus,
+	statusFilter,
+	styleFilter,
 }: {
 	activeHeading: string;
+	activeCategoryId: TextTemplateCategoryId;
 	definitions: readonly TextTemplateDefinition[];
 	emptyMessage: string;
+	expandedGroupIds: ReadonlySet<TextTemplateGroupId>;
 	libraryState: TextLibraryState;
 	onDownload: (props: { definition: TextTemplateDefinition }) => void;
 	onOpenChange: (open: boolean) => void;
+	onSearchQueryChange: (props: { query: string }) => void;
+	onSelectCategory: (props: { categoryId: TextTemplateCategoryId }) => void;
+	onSelectGroup: (props: { group: TextTemplateGroup }) => void;
+	onSelectStatusFilter: (filter: TextLibraryStatusFilter) => void;
+	onSelectStyleFilter: (filter: TextLibraryStyleFilter) => void;
 	onToggleFavorite: (props: { templateId: string }) => void;
 	onUseTemplate: (props: { templateId: string }) => void;
 	open: boolean;
 	runtimeByAssetKey: Readonly<Record<string, AssetRuntimeState>>;
+	searchQuery: string;
 	smartTextStatus: string;
+	statusFilter: TextLibraryStatusFilter;
+	styleFilter: TextLibraryStyleFilter;
 }) {
 	return (
 		<Dialog open={open} onOpenChange={onOpenChange}>
-			<DialogContent className="max-w-[min(1000px,calc(100vw-2rem))] border-border/70 bg-background p-0">
+			<DialogContent className="max-w-[min(1080px,calc(100vw-2rem))] border-border/70 bg-background p-0">
 				<DialogHeader className="px-4 pt-4">
 					<div className="flex items-center justify-between gap-4 pr-8">
 						<DialogTitle className="text-base">{activeHeading}</DialogTitle>
@@ -743,22 +794,47 @@ function ExpandedTextLibraryDialog({
 						展开文字素材库
 					</DialogDescription>
 				</DialogHeader>
-				<div className="max-h-[72vh] overflow-y-auto px-4 pb-4">
-					{definitions.length > 0 ? (
-						<TemplateGrid
-							columnCountOverride={5}
-							definitions={definitions}
-							libraryState={libraryState}
-							onDownload={onDownload}
-							onToggleFavorite={onToggleFavorite}
-							onUseTemplate={onUseTemplate}
-							runtimeByAssetKey={runtimeByAssetKey}
-						/>
-					) : (
-						<div className="py-16 text-center text-xs text-muted-foreground">
-							{emptyMessage}
+				<div className="flex max-h-[76vh] min-h-[520px] min-w-0 gap-3 px-4 pb-4">
+					<TextLibraryNav
+						activeCategoryId={activeCategoryId}
+						className="w-[7rem] border-r border-border/70 pr-3"
+						expandedGroupIds={expandedGroupIds}
+						onSelectCategory={onSelectCategory}
+						onSelectGroup={onSelectGroup}
+					/>
+					<div className="min-w-0 flex-1 overflow-y-auto">
+						<div className="sticky top-0 z-10 space-y-2 bg-background/95 pb-2">
+							<TextLibrarySearchField
+								searchQuery={searchQuery}
+								onSearchQueryChange={onSearchQueryChange}
+							/>
+							<FilterBar
+								activeFilter={statusFilter}
+								filters={TEXT_LIBRARY_STATUS_FILTERS}
+								onSelectFilter={onSelectStatusFilter}
+							/>
+							<FilterBar
+								activeFilter={styleFilter}
+								filters={TEXT_LIBRARY_STYLE_FILTERS}
+								onSelectFilter={onSelectStyleFilter}
+							/>
 						</div>
-					)}
+						{definitions.length > 0 ? (
+							<TemplateGrid
+								columnCountOverride={getExpandedTextTemplateGridColumnCount()}
+								definitions={definitions}
+								libraryState={libraryState}
+								onDownload={onDownload}
+								onToggleFavorite={onToggleFavorite}
+								onUseTemplate={onUseTemplate}
+								runtimeByAssetKey={runtimeByAssetKey}
+							/>
+						) : (
+							<div className="py-16 text-center text-xs text-muted-foreground">
+								{emptyMessage}
+							</div>
+						)}
+					</div>
 				</div>
 			</DialogContent>
 		</Dialog>
@@ -1050,6 +1126,9 @@ export function TextView() {
 			toggleFavoriteTextTemplate({ state: current, templateId })
 		);
 	};
+	const handleSearchQueryChange = ({ query }: { query: string }) => {
+		setSearchQuery(query);
+	};
 	const handleUseTemplate = ({ templateId }: { templateId: string }) => {
 		setLibraryState((current) =>
 			markTextTemplateUsed({ state: current, templateId })
@@ -1066,21 +1145,10 @@ export function TextView() {
 			/>
 			<section className="min-w-0 flex-1 overflow-y-auto border-l border-border/70 pl-3">
 				<div className="sticky top-0 z-10 space-y-2 bg-background/95 pb-2">
-					<label className="relative block">
-						<Search
-							aria-hidden="true"
-							className="-translate-y-1/2 pointer-events-none absolute left-3 top-1/2 h-4 w-4 text-muted-foreground"
-						>
-							<title>搜索</title>
-						</Search>
-						<input
-							type="search"
-							value={searchQuery}
-							placeholder="搜索花字颜色/样式"
-							className="h-8 w-full rounded-md border border-border bg-background pl-9 pr-3 text-xs text-foreground outline-none transition-colors placeholder:text-muted-foreground focus:border-cyan-400"
-							onChange={(event) => setSearchQuery(event.target.value)}
-						/>
-					</label>
+					<TextLibrarySearchField
+						searchQuery={searchQuery}
+						onSearchQueryChange={handleSearchQueryChange}
+					/>
 					<div className="flex h-6 items-center justify-between gap-2">
 						<h2 className="truncate text-sm font-medium text-foreground">
 							{activeHeading}
@@ -1133,16 +1201,26 @@ export function TextView() {
 			</section>
 			<ExpandedTextLibraryDialog
 				activeHeading={activeHeading}
+				activeCategoryId={activeCategoryId}
 				definitions={visibleDefinitions}
 				emptyMessage={emptyMessage}
+				expandedGroupIds={expandedGroupIds}
 				libraryState={libraryState}
 				onDownload={handleDownload}
 				onOpenChange={setExpandedLibraryOpen}
+				onSearchQueryChange={handleSearchQueryChange}
+				onSelectCategory={handleSelectCategory}
+				onSelectGroup={handleSelectGroup}
+				onSelectStatusFilter={setStatusFilter}
+				onSelectStyleFilter={setStyleFilter}
 				onToggleFavorite={handleToggleFavorite}
 				onUseTemplate={handleUseTemplate}
 				open={expandedLibraryOpen}
 				runtimeByAssetKey={runtimeByAssetKey}
+				searchQuery={searchQuery}
 				smartTextStatus={smartTextStatus}
+				statusFilter={statusFilter}
+				styleFilter={styleFilter}
 			/>
 		</div>
 	);
