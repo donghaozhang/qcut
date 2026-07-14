@@ -17,6 +17,7 @@ import {
 	type KeyboardEvent,
 	useEffect,
 	useMemo,
+	useRef,
 	useState,
 } from "react";
 import {
@@ -99,6 +100,13 @@ const TEXT_LIBRARY_STYLE_FILTERS: readonly {
 	{ id: "blue", label: "蓝色" },
 	{ id: "red", label: "红色" },
 ];
+
+const TEXT_TEMPLATE_GRID_COLUMNS = {
+	compact: 2,
+	narrow: 3,
+	standard: 4,
+	expanded: 5,
+} as const;
 
 const markdownData: MarkdownElement = {
 	id: "default-markdown",
@@ -300,8 +308,31 @@ function TemplateGrid({
 	onToggleFavorite: (props: { templateId: string }) => void;
 	onUseTemplate: (props: { templateId: string }) => void;
 }) {
+	const gridRef = useRef<HTMLDivElement | null>(null);
+	const [gridWidth, setGridWidth] = useState(0);
+	const columnCount = getTextTemplateGridColumnCount({ width: gridWidth });
+
+	useEffect(() => {
+		const element = gridRef.current;
+		if (!element || typeof ResizeObserver === "undefined") return;
+		const observer = new ResizeObserver((entries) => {
+			const [entry] = entries;
+			if (!entry) return;
+			setGridWidth(entry.contentRect.width);
+		});
+		observer.observe(element);
+		setGridWidth(element.getBoundingClientRect().width);
+		return () => observer.disconnect();
+	}, []);
+
 	return (
-		<div className="grid grid-cols-5 gap-2 py-2">
+		<div
+			ref={gridRef}
+			className="grid gap-2.5 py-2"
+			style={{
+				gridTemplateColumns: `repeat(${columnCount}, minmax(0, 1fr))`,
+			}}
+		>
 			{definitions.map((definition) => (
 				<TextTemplate
 					key={definition.id}
@@ -329,6 +360,17 @@ function TemplateGrid({
 			))}
 		</div>
 	);
+}
+
+export function getTextTemplateGridColumnCount({
+	width,
+}: {
+	width: number;
+}): number {
+	if (width >= 460) return TEXT_TEMPLATE_GRID_COLUMNS.expanded;
+	if (width >= 320) return TEXT_TEMPLATE_GRID_COLUMNS.standard;
+	if (width >= 240) return TEXT_TEMPLATE_GRID_COLUMNS.narrow;
+	return TEXT_TEMPLATE_GRID_COLUMNS.compact;
 }
 
 function getTextTemplateDownloadLabel({
