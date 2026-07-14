@@ -1,6 +1,6 @@
 import { execFile } from "node:child_process";
 import { copyFile, mkdir, readdir, writeFile } from "node:fs/promises";
-import { dirname, join, relative, resolve } from "node:path";
+import { basename, dirname, join, relative, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { promisify } from "node:util";
 import type {
@@ -54,6 +54,10 @@ export type TextDesignerPackTemplateAssetContract = {
 		thumbnail: TextDesignerPackTemplateFileContract;
 	};
 	packageId: string;
+	qctextResources: {
+		source: TextDesignerPackTemplatePackageResourceContract;
+		thumbnail: TextDesignerPackTemplatePackageResourceContract;
+	};
 	version: number;
 };
 
@@ -63,6 +67,13 @@ export type TextDesignerPackTemplateFileContract = {
 	currentUrl: string;
 	designerPath: string;
 	mimeType: string;
+};
+
+export type TextDesignerPackTemplatePackageResourceContract = {
+	mimeType: string;
+	path: string;
+	role: "source" | "thumbnail";
+	targetUrl: string;
 };
 
 export type TextDesignerPackTemplate = {
@@ -547,6 +558,20 @@ function buildAssetContract({
 			},
 		},
 		packageId: entry.packageId,
+		qctextResources: {
+			source: {
+				mimeType: entry.source.mimeType,
+				path: basename(entry.source.url),
+				role: "source",
+				targetUrl: entry.source.url,
+			},
+			thumbnail: {
+				mimeType: entry.thumbnail.mimeType,
+				path: basename(entry.thumbnail.url),
+				role: "thumbnail",
+				targetUrl: entry.thumbnail.url,
+			},
+		},
 		version: entry.version,
 	};
 }
@@ -612,7 +637,9 @@ When \`CONTACT_SHEET.html\` is present, open it to review the selected categorie
 | --- | --- |
 | \`thumbnail.webp\` | Must be a non-empty WebP payload. |
 | \`template.json\` | Must keep the target \`assetId\`, \`packageId\`, and text template identity. |
-| \`template.qctext\` | Must use \`kind: "qcut-text-template-package"\`, keep the same \`cacheKey\`, and reference \`template.json\` plus \`thumbnail.webp\`. |
+| \`template.qctext\` | Must use \`kind: "qcut-text-template-package"\`, keep the same \`cacheKey\`, reference \`template.json\` plus \`thumbnail.webp\`, and keep \`resources[]\` in sync with the replacement files. |
+
+Inside \`template.qctext\`, \`resources[]\` must include exactly the source and thumbnail companion files described by each asset's \`asset-contract.json.qctextResources\`. The import, stage, and archive verifiers all reject packages whose resource byte size, SHA-256, MIME type, path, or URL drifts from the actual files.
 
 The dry-run import writes \`dist/text-designer-import-plan.json\`; review that plan before applying. The import step syncs \`text-assets/marketplace.json\` from the imported source files by default; pass \`--skip-marketplace-sync\` only when intentionally updating it separately. After import, \`assets:text:release-stage\` builds the CDN handoff folder and archive, while \`assets:text:verify-archive\` verifies the tarball itself.
 

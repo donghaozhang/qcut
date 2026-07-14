@@ -279,6 +279,20 @@ describe("text designer pack template script", () => {
 					designerPath: "assets/text-demo/thumbnail.webp",
 				},
 			},
+			qctextResources: {
+				source: {
+					mimeType: "application/json",
+					path: "template.json",
+					role: "source",
+					targetUrl: "/text-assets/text-demo/plain@1/template.json",
+				},
+				thumbnail: {
+					mimeType: "image/webp",
+					path: "thumbnail.webp",
+					role: "thumbnail",
+					targetUrl: "/text-assets/text-demo/plain@1/thumbnail.webp",
+				},
+			},
 		});
 	});
 
@@ -329,6 +343,8 @@ describe("text designer pack template script", () => {
 		expect(readme).toContain("CONTACT_SHEET.html");
 		expect(readme).toContain("Must be a non-empty WebP payload");
 		expect(readme).toContain('kind: "qcut-text-template-package"');
+		expect(readme).toContain("resources[]");
+		expect(readme).toContain("asset-contract.json.qctextResources");
 		expect(readme).toContain("pack-summary.json");
 		expect(readme).toContain("--pack-archive <designer-pack.tar.gz>");
 		expect(readme).toContain("--include-current-files");
