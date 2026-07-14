@@ -1,7 +1,17 @@
 import { createHash } from "node:crypto";
-import { mkdir, readFile, writeFile, copyFile } from "node:fs/promises";
+import { execFile } from "node:child_process";
+import {
+	copyFile,
+	mkdtemp,
+	mkdir,
+	readFile,
+	rm,
+	writeFile,
+} from "node:fs/promises";
+import { tmpdir } from "node:os";
 import { basename, dirname, join, relative, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
+import { promisify } from "node:util";
 import type {
 	TextAssetGeneratedEntry,
 	TextAssetGeneratedFile,
@@ -42,12 +52,19 @@ export type TextDesignerAssetImportOptions = {
 	marketplaceConfigPath?: string;
 	minDesignerAssets: number;
 	minDesignerAssetsPerCategory: number;
+	packArchivePath?: string;
 	packDir: string;
 	packManifestPath: string;
 	publicDir: string;
 	requiredDesignerCategories: string[];
 	syncMarketplace: boolean;
 	writePlanPath?: string;
+};
+
+export type TextDesignerAssetPackArchiveExtraction = {
+	fileCount: number;
+	manifestPath: string;
+	packDir: string;
 };
 
 export type TextDesignerAssetImportRole = "thumbnail" | "source" | "package";
@@ -109,6 +126,7 @@ const DEFAULT_MARKETPLACE_CONFIG_PATH = join(
 );
 const DESIGNER_MANIFEST_FILE = "manifest.json";
 const MIN_DESIGNER_THUMBNAIL_BYTES = 1024;
+const execFileAsync = promisify(execFile);
 
 export function parseTextDesignerAssetImportArgs({
 	argv,
@@ -173,6 +191,11 @@ export function parseTextDesignerAssetImportArgs({
 			index += 1;
 			continue;
 		}
+		if (arg === "--pack-archive") {
+			options.packArchivePath = requireValue({ argv, index, name: arg });
+			index += 1;
+			continue;
+		}
 		if (arg === "--pack-manifest") {
 			options.packManifestPath = requireValue({ argv, index, name: arg });
 			index += 1;
@@ -203,13 +226,84 @@ export function parseTextDesignerAssetImportArgs({
 		}
 		throw new Error(`Unknown argument: ${arg}`);
 	}
-	if (!options.packDir) {
-		throw new Error("Missing designer asset pack directory. Pass --pack-dir.");
+	if (!options.packDir && !options.packArchivePath) {
+		throw new Error(
+			"Missing designer asset pack input. Pass --pack-dir or --pack-archive."
+		);
+	}
+	if (options.packDir && options.packArchivePath) {
+		throw new Error("Pass only one of --pack-dir or --pack-archive.");
 	}
 	if (!options.packManifestPath) {
-		options.packManifestPath = join(options.packDir, DESIGNER_MANIFEST_FILE);
+		options.packManifestPath = options.packDir
+			? join(options.packDir, DESIGNER_MANIFEST_FILE)
+			: "";
 	}
 	return options;
+}
+
+export async function extractTextDesignerAssetPackArchive({
+	archivePath,
+	command = "tar",
+	outDir,
+}: {
+	archivePath: string;
+	command?: string;
+	outDir?: string;
+}): Promise<TextDesignerAssetPackArchiveExtraction> {
+	const packDir =
+		outDir ?? (await mkdtemp(join(tmpdir(), "qcut-text-designer-pack-")));
+	const entries = await listTextDesignerPackArchiveEntries({
+		archivePath,
+		command,
+	});
+	validateTextDesignerPackArchiveEntries({ entries });
+	await mkdir(packDir, { recursive: true });
+	await execFileAsync(command, ["-xzf", archivePath, "-C", packDir], {
+		maxBuffer: 1024 * 1024,
+	});
+	return {
+		fileCount: entries.filter((entry) => !entry.endsWith("/")).length,
+		manifestPath: join(packDir, DESIGNER_MANIFEST_FILE),
+		packDir,
+	};
+}
+
+async function listTextDesignerPackArchiveEntries({
+	archivePath,
+	command,
+}: {
+	archivePath: string;
+	command: string;
+}): Promise<string[]> {
+	const { stdout } = await execFileAsync(command, ["-tzf", archivePath], {
+		maxBuffer: 1024 * 1024,
+	});
+	return stdout
+		.split(/\r?\n/)
+		.map((entry) => entry.trim())
+		.map((entry) => entry.replace(/^\.\//, ""))
+		.filter((entry) => entry && entry !== ".");
+}
+
+function validateTextDesignerPackArchiveEntries({
+	entries,
+}: {
+	entries: readonly string[];
+}): void {
+	if (!entries.includes(DESIGNER_MANIFEST_FILE)) {
+		throw new Error("Designer asset pack archive is missing manifest.json");
+	}
+	for (const entry of entries) {
+		if (
+			entry.startsWith("/") ||
+			entry === ".." ||
+			entry.startsWith("../") ||
+			entry.includes("/../")
+		) {
+			throw new Error(`Designer asset pack archive has unsafe entry: ${entry}`);
+		}
+	}
 }
 
 export async function readDesignerAssetPackManifest({
@@ -999,37 +1093,61 @@ async function main(): Promise<void> {
 	const options = parseTextDesignerAssetImportArgs({
 		argv: process.argv.slice(2),
 	});
-	const [generatedManifest, packManifest] = await Promise.all([
-		readGeneratedManifest({ manifestPath: options.generatedManifestPath }),
-		readDesignerAssetPackManifest({ manifestPath: options.packManifestPath }),
-	]);
-	const plan = await buildTextDesignerAssetImportPlan({
-		allowUnchanged: options.allowUnchanged,
-		generatedManifest,
-		minDesignerAssets: options.minDesignerAssets,
-		minDesignerAssetsPerCategory: options.minDesignerAssetsPerCategory,
-		packDir: options.packDir,
-		packManifest,
-		publicDir: options.publicDir,
-		requiredDesignerCategories: options.requiredDesignerCategories,
-	});
-	const summary = await applyTextDesignerAssetImportPlan({
-		dryRun: options.dryRun,
-		generatedManifestPath: options.generatedManifestPath,
-		marketplaceConfigPath: options.syncMarketplace
-			? options.marketplaceConfigPath
-			: undefined,
-		plan,
-		publicDir: options.publicDir,
-	});
-	if (options.writePlanPath) {
-		await writeTextDesignerAssetImportPlanReport({
-			path: options.writePlanPath,
-			plan,
-			summary,
+	const extractedPack = options.packArchivePath
+		? await extractTextDesignerAssetPackArchive({
+				archivePath: options.packArchivePath,
+			})
+		: undefined;
+	const packDir = extractedPack?.packDir ?? options.packDir;
+	const packManifestPath =
+		extractedPack?.manifestPath ?? options.packManifestPath;
+	try {
+		const [generatedManifest, packManifest] = await Promise.all([
+			readGeneratedManifest({ manifestPath: options.generatedManifestPath }),
+			readDesignerAssetPackManifest({ manifestPath: packManifestPath }),
+		]);
+		const plan = await buildTextDesignerAssetImportPlan({
+			allowUnchanged: options.allowUnchanged,
+			generatedManifest,
+			minDesignerAssets: options.minDesignerAssets,
+			minDesignerAssetsPerCategory: options.minDesignerAssetsPerCategory,
+			packDir,
+			packManifest,
+			publicDir: options.publicDir,
+			requiredDesignerCategories: options.requiredDesignerCategories,
 		});
+		const summary = await applyTextDesignerAssetImportPlan({
+			dryRun: options.dryRun,
+			generatedManifestPath: options.generatedManifestPath,
+			marketplaceConfigPath: options.syncMarketplace
+				? options.marketplaceConfigPath
+				: undefined,
+			plan,
+			publicDir: options.publicDir,
+		});
+		if (options.writePlanPath) {
+			await writeTextDesignerAssetImportPlanReport({
+				path: options.writePlanPath,
+				plan,
+				summary,
+			});
+		}
+		console.log(
+			JSON.stringify(
+				{
+					ok: true,
+					...summary,
+					extractedArchiveFiles: extractedPack?.fileCount,
+				},
+				null,
+				"\t"
+			)
+		);
+	} finally {
+		if (extractedPack) {
+			await rm(extractedPack.packDir, { force: true, recursive: true });
+		}
 	}
-	console.log(JSON.stringify({ ok: true, ...summary }, null, "\t"));
 }
 
 if (import.meta.main) {

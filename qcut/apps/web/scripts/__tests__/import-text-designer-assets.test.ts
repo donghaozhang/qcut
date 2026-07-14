@@ -1,11 +1,14 @@
+import { execFile } from "node:child_process";
 import { createHash, randomUUID } from "node:crypto";
 import { mkdir, readFile, writeFile } from "node:fs/promises";
 import { dirname, join } from "node:path";
 import { tmpdir } from "node:os";
+import { promisify } from "node:util";
 import { describe, expect, it } from "vitest";
 import {
 	applyTextDesignerAssetImportPlan,
 	buildTextDesignerAssetImportPlan,
+	extractTextDesignerAssetPackArchive,
 	parseTextDesignerAssetImportArgs,
 	readDesignerAssetPackManifest,
 	writeTextDesignerAssetImportPlanReport,
@@ -18,6 +21,7 @@ import {
 } from "../verify-text-asset-cdn-manifest";
 
 type TestFileContent = Buffer | string;
+const execFileAsync = promisify(execFile);
 
 function checksum({ value }: { value: TestFileContent }): string {
 	return createHash("sha256").update(toBuffer({ value })).digest("hex");
@@ -217,6 +221,18 @@ async function createDesignerFixture(): Promise<{
 	};
 }
 
+async function archiveDesignerPack({
+	archivePath,
+	packDir,
+}: {
+	archivePath: string;
+	packDir: string;
+}): Promise<void> {
+	await execFileAsync("tar", ["-czf", archivePath, "-C", packDir, "."], {
+		maxBuffer: 1024 * 1024,
+	});
+}
+
 async function writeDesignerAssetPackFiles({
 	assetId,
 	cacheKey,
@@ -296,6 +312,15 @@ describe("text designer asset import script", () => {
 		});
 		expect(
 			parseTextDesignerAssetImportArgs({
+				argv: ["--pack-archive", "/tmp/designer-pack.tar.gz"],
+			})
+		).toMatchObject({
+			packArchivePath: "/tmp/designer-pack.tar.gz",
+			packDir: "",
+			packManifestPath: "",
+		});
+		expect(
+			parseTextDesignerAssetImportArgs({
 				argv: [
 					"--pack-dir",
 					"/tmp/designer-pack",
@@ -315,6 +340,16 @@ describe("text designer asset import script", () => {
 			marketplaceConfigPath: undefined,
 			syncMarketplace: false,
 		});
+		expect(() =>
+			parseTextDesignerAssetImportArgs({
+				argv: [
+					"--pack-dir",
+					"/tmp/designer-pack",
+					"--pack-archive",
+					"/tmp/designer-pack.tar.gz",
+				],
+			})
+		).toThrow("Pass only one of --pack-dir or --pack-archive");
 	});
 
 	it("expands designer-ready import coverage from the shared preset", () => {
@@ -338,6 +373,38 @@ describe("text designer asset import script", () => {
 		).resolves.toMatchObject({
 			assets: [expect.objectContaining({ assetId: "text-demo" })],
 			schemaVersion: 1,
+		});
+	});
+
+	it("extracts archived designer packs for direct import", async () => {
+		const { generatedManifest, packDir, packManifest, publicDir } =
+			await createDesignerFixture();
+		const archivePath = join(dirname(packDir), "designer-pack.tar.gz");
+		await archiveDesignerPack({ archivePath, packDir });
+
+		const extracted = await extractTextDesignerAssetPackArchive({
+			archivePath,
+		});
+		const extractedManifest = await readDesignerAssetPackManifest({
+			manifestPath: extracted.manifestPath,
+		});
+
+		expect(extracted.fileCount).toBe(4);
+		expect(extractedManifest).toEqual(packManifest);
+		await expect(
+			buildTextDesignerAssetImportPlan({
+				generatedManifest,
+				packDir: extracted.packDir,
+				packManifest: extractedManifest,
+				publicDir,
+			})
+		).resolves.toMatchObject({
+			items: expect.arrayContaining([
+				expect.objectContaining({
+					assetId: "text-demo",
+					role: "thumbnail",
+				}),
+			]),
 		});
 	});
 

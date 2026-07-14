@@ -589,6 +589,7 @@ Replace the files referenced by \`manifest.json\`, then run:
 \`\`\`bash
 bun run assets:text:import-designer -- --pack-dir <this-folder> --dry-run --write-plan dist/text-designer-import-plan.json
 bun run assets:text:import-designer -- --pack-dir <this-folder>
+bun run assets:text:import-designer -- --pack-archive <designer-pack.tar.gz> --dry-run --write-plan dist/text-designer-import-plan.json
 bun run assets:text:import-designer-ready -- --pack-dir <this-folder> --dry-run
 bun run assets:text:verify-cdn
 bun run assets:text:verify-designer-ready

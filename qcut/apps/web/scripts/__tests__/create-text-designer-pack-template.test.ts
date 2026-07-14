@@ -330,6 +330,7 @@ describe("text designer pack template script", () => {
 		expect(readme).toContain("Must be a non-empty WebP payload");
 		expect(readme).toContain('kind: "qcut-text-template-package"');
 		expect(readme).toContain("pack-summary.json");
+		expect(readme).toContain("--pack-archive <designer-pack.tar.gz>");
 		expect(readme).toContain("--include-current-files");
 		expect(readme).toContain("| red | 1 |");
 		const contactSheet = await readFile(
