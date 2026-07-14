@@ -13,7 +13,7 @@ import { getTextTemplateResource } from "../src/lib/text/text-resource-catalog";
 import { buildTextTemplatePack } from "../src/lib/text/text-template-packs";
 import {
 	buildTextTemplate,
-	TEXT_TEMPLATE_LIBRARY_DEFINITIONS,
+	TEXT_TEMPLATE_DEFINITIONS,
 	type TextTemplateDefinition,
 } from "../src/lib/text/text-template-registry";
 
@@ -688,7 +688,7 @@ async function writeMarketplaceConfig({
 }
 
 async function main() {
-	const definitions = TEXT_TEMPLATE_LIBRARY_DEFINITIONS;
+	const definitions = TEXT_TEMPLATE_DEFINITIONS;
 	await rm(join(PUBLIC_DIR, "text-assets"), { force: true, recursive: true });
 	const browser = await chromium.launch({ headless: true });
 	const page = await browser.newPage({

@@ -1,3 +1,6 @@
+import { existsSync } from "node:fs";
+import { dirname, join } from "node:path";
+import { fileURLToPath } from "node:url";
 import { describe, expect, it } from "vitest";
 import {
 	queryAssetCatalog,
@@ -21,6 +24,12 @@ import {
 	createTransitionAssetEntry,
 	resolveStickerAssetEntry,
 } from "../qcut-asset-manifest";
+
+const REPO_ROOT = join(
+	dirname(fileURLToPath(import.meta.url)),
+	"../../../../../.."
+);
+const WEB_PUBLIC_DIR = join(REPO_ROOT, "apps/web/public");
 
 function sound({ license }: { license: string }): SoundEffect {
 	return {
@@ -117,15 +126,24 @@ describe("QCut asset manifest", () => {
 		).not.toEqual(
 			expect.arrayContaining([expect.stringMatching(/^qcut-text-asset:\/\//)])
 		);
-		expect(
-			textAssets.every((asset) =>
-				asset.files.every(
-					(file) =>
-						file.url.startsWith("/text-assets/") ||
-						file.url.startsWith("https://assets.qcut.app/text-assets/")
-				)
-			)
-		).toBe(true);
+		expect(textAssets.every((asset) => asset.delivery === "bundled")).toBe(
+			true
+		);
+		for (const asset of textAssets) {
+			expect(asset.files.map((file) => file.role)).toEqual([
+				"thumbnail",
+				"source",
+				"package",
+			]);
+			for (const file of asset.files) {
+				const localPath = join(WEB_PUBLIC_DIR, file.url.replace(/^\/+/, ""));
+				expect(file.url).toMatch(/^\/text-assets\/.+/);
+				expect(file.checksumSha256).toMatch(/^[a-f0-9]{64}$/);
+				expect(file.byteSize).toEqual(expect.any(Number));
+				expect(file.byteSize ?? 0).toBeGreaterThan(0);
+				expect(existsSync(localPath)).toBe(true);
+			}
+		}
 		expect(redAsset?.files.map((file) => file.role)).toEqual([
 			"thumbnail",
 			"source",

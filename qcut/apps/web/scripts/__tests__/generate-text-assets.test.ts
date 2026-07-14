@@ -6,7 +6,7 @@ import {
 	buildTextMarketplaceConfigPayload,
 } from "../generate-text-assets";
 import {
-	TEXT_TEMPLATE_LIBRARY_DEFINITIONS,
+	TEXT_TEMPLATE_DEFINITIONS,
 	getTextTemplateDefinitionsByCategory,
 } from "../../src/lib/text/text-template-registry";
 
@@ -118,13 +118,14 @@ describe("text asset generator payloads", () => {
 		});
 	});
 
-	it("builds marketplace config entries for the full text library", () => {
+	it("builds marketplace config entries for every text asset definition", () => {
 		const payload = buildTextMarketplaceConfigPayload({
-			definitions: TEXT_TEMPLATE_LIBRARY_DEFINITIONS,
+			definitions: TEXT_TEMPLATE_DEFINITIONS,
 		});
 
-		expect(payload.assets).toHaveLength(
-			TEXT_TEMPLATE_LIBRARY_DEFINITIONS.length
+		expect(payload.assets).toHaveLength(TEXT_TEMPLATE_DEFINITIONS.length);
+		expect(payload.assets.map((asset) => asset.assetId)).toEqual(
+			expect.arrayContaining(["text-legacy-heading-text"])
 		);
 	});
 });

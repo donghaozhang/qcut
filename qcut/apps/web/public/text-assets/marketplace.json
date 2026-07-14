@@ -14461,6 +14461,209 @@
 				"variant:ribbon"
 			],
 			"searchAliases": []
+		},
+		{
+			"templateId": "heading-text",
+			"assetId": "text-legacy-heading-text",
+			"editorialRank": 120,
+			"heatScore": 77,
+			"remoteTags": [
+				"category:title",
+				"group:new-text",
+				"variant:legacy-heading"
+			],
+			"searchAliases": []
+		},
+		{
+			"templateId": "subtitle-text",
+			"assetId": "text-legacy-subtitle-text",
+			"editorialRank": 120,
+			"heatScore": 77,
+			"remoteTags": [
+				"category:caption",
+				"group:new-text",
+				"variant:legacy-subtitle"
+			],
+			"searchAliases": []
+		},
+		{
+			"templateId": "editorial-title",
+			"assetId": "text-legacy-editorial-title",
+			"editorialRank": 120,
+			"heatScore": 77,
+			"remoteTags": [
+				"category:title",
+				"group:new-text",
+				"variant:legacy-editorial"
+			],
+			"searchAliases": []
+		},
+		{
+			"templateId": "social-hook",
+			"assetId": "text-legacy-social-hook",
+			"editorialRank": 120,
+			"heatScore": 77,
+			"remoteTags": [
+				"category:talking-head",
+				"group:smart-packaging",
+				"variant:legacy-social-hook"
+			],
+			"searchAliases": []
+		},
+		{
+			"templateId": "social-question",
+			"assetId": "text-legacy-social-question",
+			"editorialRank": 120,
+			"heatScore": 77,
+			"remoteTags": [
+				"category:talking-head",
+				"group:smart-packaging",
+				"variant:legacy-social-question"
+			],
+			"searchAliases": []
+		},
+		{
+			"templateId": "social-tip",
+			"assetId": "text-legacy-social-tip",
+			"editorialRank": 120,
+			"heatScore": 77,
+			"remoteTags": [
+				"category:talking-head",
+				"group:smart-packaging",
+				"variant:legacy-social-tip"
+			],
+			"searchAliases": []
+		},
+		{
+			"templateId": "social-breaking",
+			"assetId": "text-legacy-social-breaking",
+			"editorialRank": 120,
+			"heatScore": 77,
+			"remoteTags": [
+				"category:cover-pack",
+				"group:smart-packaging",
+				"variant:legacy-social-breaking"
+			],
+			"searchAliases": []
+		},
+		{
+			"templateId": "rounded-label",
+			"assetId": "text-legacy-rounded-label",
+			"editorialRank": 120,
+			"heatScore": 77,
+			"remoteTags": [
+				"category:lower-third",
+				"group:new-text",
+				"variant:legacy-rounded-label"
+			],
+			"searchAliases": []
+		},
+		{
+			"templateId": "dark-bubble",
+			"assetId": "text-legacy-dark-bubble",
+			"editorialRank": 120,
+			"heatScore": 77,
+			"remoteTags": [
+				"category:lower-third",
+				"group:new-text",
+				"variant:legacy-dark-bubble"
+			],
+			"searchAliases": []
+		},
+		{
+			"templateId": "yellow-callout",
+			"assetId": "text-legacy-yellow-callout",
+			"editorialRank": 120,
+			"heatScore": 77,
+			"remoteTags": [
+				"category:quote",
+				"group:new-text",
+				"variant:legacy-yellow-callout"
+			],
+			"searchAliases": []
+		},
+		{
+			"templateId": "blue-outline-label",
+			"assetId": "text-legacy-blue-outline-label",
+			"editorialRank": 120,
+			"heatScore": 77,
+			"remoteTags": [
+				"category:lower-third",
+				"group:new-text",
+				"variant:legacy-blue-outline-label"
+			],
+			"searchAliases": []
+		},
+		{
+			"templateId": "cyan-neon",
+			"assetId": "text-legacy-cyan-neon",
+			"editorialRank": 14,
+			"heatScore": 91,
+			"remoteTags": [
+				"category:glow",
+				"group:fancy",
+				"variant:legacy-cyan-neon",
+				"effect:glow",
+				"scene:night"
+			],
+			"searchAliases": [
+				"发光",
+				"霓虹",
+				"夜景",
+				"neon"
+			]
+		},
+		{
+			"templateId": "pink-neon-title",
+			"assetId": "text-legacy-pink-neon-title",
+			"editorialRank": 14,
+			"heatScore": 91,
+			"remoteTags": [
+				"category:glow",
+				"group:fancy",
+				"variant:legacy-pink-neon-title",
+				"effect:glow",
+				"scene:night"
+			],
+			"searchAliases": [
+				"发光",
+				"霓虹",
+				"夜景",
+				"neon"
+			]
+		},
+		{
+			"templateId": "curved-pop",
+			"assetId": "text-legacy-curved-pop",
+			"editorialRank": 4,
+			"heatScore": 93,
+			"remoteTags": [
+				"category:popular",
+				"group:fancy",
+				"variant:legacy-curved-pop",
+				"collection:popular",
+				"market:recommended"
+			],
+			"searchAliases": [
+				"热门",
+				"爆款",
+				"推荐",
+				"封面",
+				"种草",
+				"popular"
+			]
+		},
+		{
+			"templateId": "clean-quote",
+			"assetId": "text-legacy-clean-quote",
+			"editorialRank": 120,
+			"heatScore": 77,
+			"remoteTags": [
+				"category:quote",
+				"group:new-text",
+				"variant:legacy-clean-quote"
+			],
+			"searchAliases": []
 		}
 	]
 }

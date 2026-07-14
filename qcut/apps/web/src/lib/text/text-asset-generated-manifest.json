@@ -23798,5 +23798,425 @@
 			"byteSize": 2804,
 			"checksumSha256": "1c8e187208766136c153622c9f53870a1fe9ceba3b20400ff6611e7dd529671d"
 		}
+	},
+	"text-legacy-heading-text": {
+		"assetId": "text-legacy-heading-text",
+		"packageId": "text-new-text-title",
+		"version": 1,
+		"cacheKey": "text-assets/legacy/heading-text@1",
+		"provenance": {
+			"source": "generated",
+			"pipeline": "qcut-canvas-thumbnail-v1"
+		},
+		"thumbnail": {
+			"url": "/text-assets/legacy/heading-text@1/thumbnail.webp",
+			"mimeType": "image/webp",
+			"byteSize": 14060,
+			"checksumSha256": "abd750f2e36e92c266ac6bd5e4d58c01bbf84f3ce6a6ad47c1992e096e60c481"
+		},
+		"source": {
+			"url": "/text-assets/legacy/heading-text@1/template.json",
+			"mimeType": "application/json",
+			"byteSize": 1992,
+			"checksumSha256": "f86fc48c3992b3a084cda46d4c357cfc88c45c94fb593d5fce3c4d140e0177ed"
+		},
+		"qcutPackage": {
+			"url": "/text-assets/legacy/heading-text@1/template.qctext",
+			"mimeType": "application/vnd.qcut.text-template+json",
+			"byteSize": 2382,
+			"checksumSha256": "dac37002e8f2dd554cfd4177121b823abdd6fe26a9cae5e5dcb31fe484698c5a"
+		}
+	},
+	"text-legacy-subtitle-text": {
+		"assetId": "text-legacy-subtitle-text",
+		"packageId": "text-new-text-caption",
+		"version": 1,
+		"cacheKey": "text-assets/legacy/subtitle-text@1",
+		"provenance": {
+			"source": "generated",
+			"pipeline": "qcut-canvas-thumbnail-v1"
+		},
+		"thumbnail": {
+			"url": "/text-assets/legacy/subtitle-text@1/thumbnail.webp",
+			"mimeType": "image/webp",
+			"byteSize": 14262,
+			"checksumSha256": "ec73c12112cd438395c46e7fed3163cdffd83fec748f0b940019a3ffc1beb6f2"
+		},
+		"source": {
+			"url": "/text-assets/legacy/subtitle-text@1/template.json",
+			"mimeType": "application/json",
+			"byteSize": 1966,
+			"checksumSha256": "b6e49ef0ed6db3ad79ceb083a9f2bd89b8740724068a119cb7fd239610e7a03f"
+		},
+		"qcutPackage": {
+			"url": "/text-assets/legacy/subtitle-text@1/template.qctext",
+			"mimeType": "application/vnd.qcut.text-template+json",
+			"byteSize": 2358,
+			"checksumSha256": "07715b1d6ffd617a860b9e5811d7dd60e75c4b92679514e56bc62031aee2dd4d"
+		}
+	},
+	"text-legacy-editorial-title": {
+		"assetId": "text-legacy-editorial-title",
+		"packageId": "text-new-text-title",
+		"version": 1,
+		"cacheKey": "text-assets/legacy/editorial-title@1",
+		"provenance": {
+			"source": "generated",
+			"pipeline": "qcut-canvas-thumbnail-v1"
+		},
+		"thumbnail": {
+			"url": "/text-assets/legacy/editorial-title@1/thumbnail.webp",
+			"mimeType": "image/webp",
+			"byteSize": 14060,
+			"checksumSha256": "abd750f2e36e92c266ac6bd5e4d58c01bbf84f3ce6a6ad47c1992e096e60c481"
+		},
+		"source": {
+			"url": "/text-assets/legacy/editorial-title@1/template.json",
+			"mimeType": "application/json",
+			"byteSize": 2030,
+			"checksumSha256": "d778bcf4f8f2efda2fcb480a9dc9a50af0845f715c74236198e9fb3188d3b856"
+		},
+		"qcutPackage": {
+			"url": "/text-assets/legacy/editorial-title@1/template.qctext",
+			"mimeType": "application/vnd.qcut.text-template+json",
+			"byteSize": 2425,
+			"checksumSha256": "5fe38c760dbb0849251e2dc7cb21d455502831269e63ca97b7f3a34b25a6e60b"
+		}
+	},
+	"text-legacy-social-hook": {
+		"assetId": "text-legacy-social-hook",
+		"packageId": "text-smart-packaging-talking-head",
+		"version": 1,
+		"cacheKey": "text-assets/legacy/social-hook@1",
+		"provenance": {
+			"source": "generated",
+			"pipeline": "qcut-canvas-thumbnail-v1"
+		},
+		"thumbnail": {
+			"url": "/text-assets/legacy/social-hook@1/thumbnail.webp",
+			"mimeType": "image/webp",
+			"byteSize": 14060,
+			"checksumSha256": "abd750f2e36e92c266ac6bd5e4d58c01bbf84f3ce6a6ad47c1992e096e60c481"
+		},
+		"source": {
+			"url": "/text-assets/legacy/social-hook@1/template.json",
+			"mimeType": "application/json",
+			"byteSize": 2149,
+			"checksumSha256": "1572ac2fc0595f6a56eda680483fc64652d1e762668de21838f2d3a8760635bc"
+		},
+		"qcutPackage": {
+			"url": "/text-assets/legacy/social-hook@1/template.qctext",
+			"mimeType": "application/vnd.qcut.text-template+json",
+			"byteSize": 2555,
+			"checksumSha256": "6a068f82b9e635b0e045029c1221005b0e0d24c04b40d618790982451c193ee5"
+		}
+	},
+	"text-legacy-social-question": {
+		"assetId": "text-legacy-social-question",
+		"packageId": "text-smart-packaging-talking-head",
+		"version": 1,
+		"cacheKey": "text-assets/legacy/social-question@1",
+		"provenance": {
+			"source": "generated",
+			"pipeline": "qcut-canvas-thumbnail-v1"
+		},
+		"thumbnail": {
+			"url": "/text-assets/legacy/social-question@1/thumbnail.webp",
+			"mimeType": "image/webp",
+			"byteSize": 10178,
+			"checksumSha256": "7386efee03fe64f087d1720b562ff2269221ff2fa16029a65e7e44fd41be825a"
+		},
+		"source": {
+			"url": "/text-assets/legacy/social-question@1/template.json",
+			"mimeType": "application/json",
+			"byteSize": 2145,
+			"checksumSha256": "6a49dbb094c88de353f982da5f4c1289b499d99f722849d85393fa034efac762"
+		},
+		"qcutPackage": {
+			"url": "/text-assets/legacy/social-question@1/template.qctext",
+			"mimeType": "application/vnd.qcut.text-template+json",
+			"byteSize": 2557,
+			"checksumSha256": "7e1f6c79110668e34f81ae0bb736a72fc2af1a496bfa45faea10835a3df73e45"
+		}
+	},
+	"text-legacy-social-tip": {
+		"assetId": "text-legacy-social-tip",
+		"packageId": "text-smart-packaging-talking-head",
+		"version": 1,
+		"cacheKey": "text-assets/legacy/social-tip@1",
+		"provenance": {
+			"source": "generated",
+			"pipeline": "qcut-canvas-thumbnail-v1"
+		},
+		"thumbnail": {
+			"url": "/text-assets/legacy/social-tip@1/thumbnail.webp",
+			"mimeType": "image/webp",
+			"byteSize": 14060,
+			"checksumSha256": "abd750f2e36e92c266ac6bd5e4d58c01bbf84f3ce6a6ad47c1992e096e60c481"
+		},
+		"source": {
+			"url": "/text-assets/legacy/social-tip@1/template.json",
+			"mimeType": "application/json",
+			"byteSize": 2056,
+			"checksumSha256": "e209ed171cdaa2edb4bbbf8d7117fd3e9d67b7ba56ff2d7ae20b878d9455bfbd"
+		},
+		"qcutPackage": {
+			"url": "/text-assets/legacy/social-tip@1/template.qctext",
+			"mimeType": "application/vnd.qcut.text-template+json",
+			"byteSize": 2457,
+			"checksumSha256": "b94a580ed270df7ec3ddbbfecc25c0e1f5f62bcbbfac2288bdf3c7f8b52ef076"
+		}
+	},
+	"text-legacy-social-breaking": {
+		"assetId": "text-legacy-social-breaking",
+		"packageId": "text-smart-packaging-cover-pack",
+		"version": 1,
+		"cacheKey": "text-assets/legacy/social-breaking@1",
+		"provenance": {
+			"source": "generated",
+			"pipeline": "qcut-canvas-thumbnail-v1"
+		},
+		"thumbnail": {
+			"url": "/text-assets/legacy/social-breaking@1/thumbnail.webp",
+			"mimeType": "image/webp",
+			"byteSize": 14060,
+			"checksumSha256": "abd750f2e36e92c266ac6bd5e4d58c01bbf84f3ce6a6ad47c1992e096e60c481"
+		},
+		"source": {
+			"url": "/text-assets/legacy/social-breaking@1/template.json",
+			"mimeType": "application/json",
+			"byteSize": 2133,
+			"checksumSha256": "0faba78c4a2e95f422ef9b49f3bfb5a241c6c74eb923fcfe62ddabbbbbdc67e7"
+		},
+		"qcutPackage": {
+			"url": "/text-assets/legacy/social-breaking@1/template.qctext",
+			"mimeType": "application/vnd.qcut.text-template+json",
+			"byteSize": 2543,
+			"checksumSha256": "ac119981e91ef3279310d9733c1799a6576a8c565da72d1379dbaf8672ff21ed"
+		}
+	},
+	"text-legacy-rounded-label": {
+		"assetId": "text-legacy-rounded-label",
+		"packageId": "text-new-text-lower-third",
+		"version": 1,
+		"cacheKey": "text-assets/legacy/rounded-label@1",
+		"provenance": {
+			"source": "generated",
+			"pipeline": "qcut-canvas-thumbnail-v1"
+		},
+		"thumbnail": {
+			"url": "/text-assets/legacy/rounded-label@1/thumbnail.webp",
+			"mimeType": "image/webp",
+			"byteSize": 14060,
+			"checksumSha256": "abd750f2e36e92c266ac6bd5e4d58c01bbf84f3ce6a6ad47c1992e096e60c481"
+		},
+		"source": {
+			"url": "/text-assets/legacy/rounded-label@1/template.json",
+			"mimeType": "application/json",
+			"byteSize": 2037,
+			"checksumSha256": "c09655e07a3af4d6495d6e4297999f608117b805ec2d2ae9a220c829c8ff8b15"
+		},
+		"qcutPackage": {
+			"url": "/text-assets/legacy/rounded-label@1/template.qctext",
+			"mimeType": "application/vnd.qcut.text-template+json",
+			"byteSize": 2434,
+			"checksumSha256": "a6d49263d2ceff3ad28cbef002bde6c13e081648c70fbfc4b82502d42866b851"
+		}
+	},
+	"text-legacy-dark-bubble": {
+		"assetId": "text-legacy-dark-bubble",
+		"packageId": "text-new-text-lower-third",
+		"version": 1,
+		"cacheKey": "text-assets/legacy/dark-bubble@1",
+		"provenance": {
+			"source": "generated",
+			"pipeline": "qcut-canvas-thumbnail-v1"
+		},
+		"thumbnail": {
+			"url": "/text-assets/legacy/dark-bubble@1/thumbnail.webp",
+			"mimeType": "image/webp",
+			"byteSize": 14060,
+			"checksumSha256": "abd750f2e36e92c266ac6bd5e4d58c01bbf84f3ce6a6ad47c1992e096e60c481"
+		},
+		"source": {
+			"url": "/text-assets/legacy/dark-bubble@1/template.json",
+			"mimeType": "application/json",
+			"byteSize": 2015,
+			"checksumSha256": "4f30b5cc26f7d6c7aa112dc2a852976adac23996e641e54b337b0199cca42a6e"
+		},
+		"qcutPackage": {
+			"url": "/text-assets/legacy/dark-bubble@1/template.qctext",
+			"mimeType": "application/vnd.qcut.text-template+json",
+			"byteSize": 2408,
+			"checksumSha256": "205587c7efe1533bcdd904e14eee86099f1bdb3f4d6d243a538ba42867266b3e"
+		}
+	},
+	"text-legacy-yellow-callout": {
+		"assetId": "text-legacy-yellow-callout",
+		"packageId": "text-new-text-quote",
+		"version": 1,
+		"cacheKey": "text-assets/legacy/yellow-callout@1",
+		"provenance": {
+			"source": "generated",
+			"pipeline": "qcut-canvas-thumbnail-v1"
+		},
+		"thumbnail": {
+			"url": "/text-assets/legacy/yellow-callout@1/thumbnail.webp",
+			"mimeType": "image/webp",
+			"byteSize": 14060,
+			"checksumSha256": "abd750f2e36e92c266ac6bd5e4d58c01bbf84f3ce6a6ad47c1992e096e60c481"
+		},
+		"source": {
+			"url": "/text-assets/legacy/yellow-callout@1/template.json",
+			"mimeType": "application/json",
+			"byteSize": 2037,
+			"checksumSha256": "1e1a22c7f44816a25d6602657dd9c1a94bee49b98cbe573b856573c79bdf0efd"
+		},
+		"qcutPackage": {
+			"url": "/text-assets/legacy/yellow-callout@1/template.qctext",
+			"mimeType": "application/vnd.qcut.text-template+json",
+			"byteSize": 2431,
+			"checksumSha256": "ce8d447c7430c44d9a1ada1a0d3c09278388d5d1e5bfc03bd590fe5c18fa6c0f"
+		}
+	},
+	"text-legacy-blue-outline-label": {
+		"assetId": "text-legacy-blue-outline-label",
+		"packageId": "text-new-text-lower-third",
+		"version": 1,
+		"cacheKey": "text-assets/legacy/blue-outline-label@1",
+		"provenance": {
+			"source": "generated",
+			"pipeline": "qcut-canvas-thumbnail-v1"
+		},
+		"thumbnail": {
+			"url": "/text-assets/legacy/blue-outline-label@1/thumbnail.webp",
+			"mimeType": "image/webp",
+			"byteSize": 14060,
+			"checksumSha256": "abd750f2e36e92c266ac6bd5e4d58c01bbf84f3ce6a6ad47c1992e096e60c481"
+		},
+		"source": {
+			"url": "/text-assets/legacy/blue-outline-label@1/template.json",
+			"mimeType": "application/json",
+			"byteSize": 2098,
+			"checksumSha256": "f09739af1682a92282842f4bd47c88e5dcd126676b7826c4f3542cb75718945f"
+		},
+		"qcutPackage": {
+			"url": "/text-assets/legacy/blue-outline-label@1/template.qctext",
+			"mimeType": "application/vnd.qcut.text-template+json",
+			"byteSize": 2506,
+			"checksumSha256": "2a00827dca2f841ea11d78905d8b748eabd52adbf67a182a05dc528097146bf7"
+		}
+	},
+	"text-legacy-cyan-neon": {
+		"assetId": "text-legacy-cyan-neon",
+		"packageId": "text-fancy-glow",
+		"version": 1,
+		"cacheKey": "text-assets/legacy/cyan-neon@1",
+		"provenance": {
+			"source": "generated",
+			"pipeline": "qcut-canvas-thumbnail-v1"
+		},
+		"thumbnail": {
+			"url": "/text-assets/legacy/cyan-neon@1/thumbnail.webp",
+			"mimeType": "image/webp",
+			"byteSize": 13978,
+			"checksumSha256": "3cf3579979b4ccd7725816e4a568f9bc82c3c87023073c32508ed6a253112e51"
+		},
+		"source": {
+			"url": "/text-assets/legacy/cyan-neon@1/template.json",
+			"mimeType": "application/json",
+			"byteSize": 2054,
+			"checksumSha256": "bbd4059f1a53a5c56fe7da52fb0cc02e001d488115c6ea7e181eec330fee27c3"
+		},
+		"qcutPackage": {
+			"url": "/text-assets/legacy/cyan-neon@1/template.qctext",
+			"mimeType": "application/vnd.qcut.text-template+json",
+			"byteSize": 2442,
+			"checksumSha256": "c62a0ee80402f3db7c79d9c40c7534d456f77196ecc9077be8530d5e70a549ae"
+		}
+	},
+	"text-legacy-pink-neon-title": {
+		"assetId": "text-legacy-pink-neon-title",
+		"packageId": "text-fancy-glow",
+		"version": 1,
+		"cacheKey": "text-assets/legacy/pink-neon-title@1",
+		"provenance": {
+			"source": "generated",
+			"pipeline": "qcut-canvas-thumbnail-v1"
+		},
+		"thumbnail": {
+			"url": "/text-assets/legacy/pink-neon-title@1/thumbnail.webp",
+			"mimeType": "image/webp",
+			"byteSize": 13978,
+			"checksumSha256": "3cf3579979b4ccd7725816e4a568f9bc82c3c87023073c32508ed6a253112e51"
+		},
+		"source": {
+			"url": "/text-assets/legacy/pink-neon-title@1/template.json",
+			"mimeType": "application/json",
+			"byteSize": 2092,
+			"checksumSha256": "7897e310af62f63d9fe11c0a15f7231e4b24c2905c81a2104357efbbb8899199"
+		},
+		"qcutPackage": {
+			"url": "/text-assets/legacy/pink-neon-title@1/template.qctext",
+			"mimeType": "application/vnd.qcut.text-template+json",
+			"byteSize": 2491,
+			"checksumSha256": "7d7288757d46422bbcf706eccf95c39b76a4d0c266496749cc6cba9bb4306a2c"
+		}
+	},
+	"text-legacy-curved-pop": {
+		"assetId": "text-legacy-curved-pop",
+		"packageId": "text-fancy-popular",
+		"version": 1,
+		"cacheKey": "text-assets/legacy/curved-pop@1",
+		"provenance": {
+			"source": "generated",
+			"pipeline": "qcut-canvas-thumbnail-v1"
+		},
+		"thumbnail": {
+			"url": "/text-assets/legacy/curved-pop@1/thumbnail.webp",
+			"mimeType": "image/webp",
+			"byteSize": 14554,
+			"checksumSha256": "de9cfd2b29b2b80efebd355f8bc23e9f7ef4a787515c55fd0a62f1bae4976a26"
+		},
+		"source": {
+			"url": "/text-assets/legacy/curved-pop@1/template.json",
+			"mimeType": "application/json",
+			"byteSize": 2127,
+			"checksumSha256": "efbdf31ba7ce6cc8ec8147db35e6cd754d40bf16c477cf4bb8a6b67f7debf8fe"
+		},
+		"qcutPackage": {
+			"url": "/text-assets/legacy/curved-pop@1/template.qctext",
+			"mimeType": "application/vnd.qcut.text-template+json",
+			"byteSize": 2522,
+			"checksumSha256": "d6da6572bb1162cb41ff53ee5802fcdca84a3f84bcd96688150363725fe8fba3"
+		}
+	},
+	"text-legacy-clean-quote": {
+		"assetId": "text-legacy-clean-quote",
+		"packageId": "text-new-text-quote",
+		"version": 1,
+		"cacheKey": "text-assets/legacy/clean-quote@1",
+		"provenance": {
+			"source": "generated",
+			"pipeline": "qcut-canvas-thumbnail-v1"
+		},
+		"thumbnail": {
+			"url": "/text-assets/legacy/clean-quote@1/thumbnail.webp",
+			"mimeType": "image/webp",
+			"byteSize": 14060,
+			"checksumSha256": "abd750f2e36e92c266ac6bd5e4d58c01bbf84f3ce6a6ad47c1992e096e60c481"
+		},
+		"source": {
+			"url": "/text-assets/legacy/clean-quote@1/template.json",
+			"mimeType": "application/json",
+			"byteSize": 2014,
+			"checksumSha256": "26862859f8e141d87f44e79846bb4372eb07c5e1df4823d1c29faa05dd7661c7"
+		},
+		"qcutPackage": {
+			"url": "/text-assets/legacy/clean-quote@1/template.qctext",
+			"mimeType": "application/vnd.qcut.text-template+json",
+			"byteSize": 2401,
+			"checksumSha256": "537a7f35490b7ef71c33cb5a8090148940c422092acd74a2ec4da88344758cd0"
+		}
 	}
 }
