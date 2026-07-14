@@ -76,6 +76,7 @@ export type VerifyIssue = {
 		| "virtual-resource-url"
 		| "remote-unavailable"
 		| "remote-checksum-mismatch"
+		| "remote-metadata-mismatch"
 		| "remote-size-mismatch";
 	detail: string;
 	url?: string;
@@ -146,6 +147,7 @@ export type TextAssetCdnCliOptions = {
 	baseUrl: string;
 	checkRemote: boolean;
 	checkRemoteChecksum: boolean;
+	checkRemoteMetadata: boolean;
 	fullIssues: boolean;
 	issueLimit: number;
 	manifestPath: string;
@@ -214,6 +216,7 @@ export function parseTextAssetCdnArgs({
 		baseUrl: process.env.QCUT_TEXT_ASSET_CDN_URL ?? DEFAULT_BASE_URL,
 		checkRemote: false,
 		checkRemoteChecksum: false,
+		checkRemoteMetadata: false,
 		fullIssues: false,
 		issueLimit: 25,
 		manifestPath: DEFAULT_MANIFEST_PATH,
@@ -242,6 +245,11 @@ export function parseTextAssetCdnArgs({
 		if (arg === "--check-remote-checksum") {
 			options.checkRemote = true;
 			options.checkRemoteChecksum = true;
+			continue;
+		}
+		if (arg === "--check-remote-metadata") {
+			options.checkRemote = true;
+			options.checkRemoteMetadata = true;
 			continue;
 		}
 		if (arg === "--designer-ready") {
@@ -1841,11 +1849,13 @@ export async function verifyRemoteFiles({
 	concurrency = 16,
 	fetchImpl = fetch,
 	manifest,
+	metadata = false,
 }: {
 	checksum?: boolean;
 	concurrency?: number;
 	fetchImpl?: typeof fetch;
 	manifest: TextAssetPublishManifest;
+	metadata?: boolean;
 }): Promise<VerifyIssue[]> {
 	const files = manifest.assets.flatMap((asset) =>
 		asset.files.map((file) => ({ asset, file }))
@@ -1912,10 +1922,76 @@ export async function verifyRemoteFiles({
 					});
 				}
 			}
+			if (metadata) {
+				issues.push(
+					...verifyRemoteFileMetadata({
+						asset,
+						file,
+						headers: response.headers,
+					})
+				);
+			}
 			return issues;
 		},
 	});
 	return issueGroups.flat();
+}
+
+function verifyRemoteFileMetadata({
+	asset,
+	file,
+	headers,
+}: {
+	asset: TextAssetPublishEntry;
+	file: TextAssetPublishFile;
+	headers: Headers;
+}): VerifyIssue[] {
+	return expectedRemoteFileMetadata({ asset, file }).flatMap(
+		({ name, value }) => {
+			const received =
+				headers.get(`x-amz-meta-${name}`) ?? headers.get(name) ?? undefined;
+			if (received === value) return [];
+			return [
+				{
+					assetId: asset.assetId,
+					code: "remote-metadata-mismatch",
+					detail: `${name} expected ${value}, received ${received ?? "(missing)"}`,
+					url: file.url,
+				},
+			];
+		}
+	);
+}
+
+function expectedRemoteFileMetadata({
+	asset,
+	file,
+}: {
+	asset: TextAssetPublishEntry;
+	file: TextAssetPublishFile;
+}): Array<{ name: string; value: string }> {
+	return compactRemoteMetadata({
+		metadata: {
+			"qcut-asset-id": asset.assetId,
+			"qcut-cache-key": asset.cacheKey,
+			"qcut-package-id": asset.packageId,
+			"qcut-provenance-pipeline": asset.provenance?.pipeline,
+			"qcut-provenance-source": asset.provenance?.source,
+			"qcut-role": file.role,
+			"qcut-version": asset.version.toString(),
+			sha256: file.checksumSha256,
+		},
+	});
+}
+
+function compactRemoteMetadata({
+	metadata,
+}: {
+	metadata: Record<string, string | undefined>;
+}): Array<{ name: string; value: string }> {
+	return Object.entries(metadata)
+		.filter((entry): entry is [string, string] => entry[1] !== undefined)
+		.map(([name, value]) => ({ name, value }));
 }
 
 function remoteFetchErrorDetail({ error }: { error: unknown }): string {
@@ -2018,6 +2094,7 @@ async function main(): Promise<void> {
 				checksum: options.checkRemoteChecksum,
 				concurrency: options.remoteConcurrency,
 				manifest,
+				metadata: options.checkRemoteMetadata,
 			})
 		: [];
 	const issues = [
@@ -2059,6 +2136,7 @@ async function main(): Promise<void> {
 				baseUrl: manifest.baseUrl,
 				checkRemote: options.checkRemote,
 				checkRemoteChecksum: options.checkRemoteChecksum,
+				checkRemoteMetadata: options.checkRemoteMetadata,
 				designerCategoryCoverage,
 				...issueOutput,
 				minDesignerAssets: options.minDesignerAssets,

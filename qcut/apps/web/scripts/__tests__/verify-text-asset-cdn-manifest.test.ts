@@ -200,6 +200,7 @@ describe("text asset CDN manifest verifier", () => {
 					"https://cdn.example.com/assets/",
 					"--check-remote",
 					"--check-remote-checksum",
+					"--check-remote-metadata",
 					"--full-issues",
 					"--manifest",
 					"/tmp/generated.json",
@@ -227,6 +228,7 @@ describe("text asset CDN manifest verifier", () => {
 			baseUrl: "https://cdn.example.com/assets/",
 			checkRemote: true,
 			checkRemoteChecksum: true,
+			checkRemoteMetadata: true,
 			fullIssues: true,
 			issueLimit: 2,
 			manifestPath: "/tmp/generated.json",
@@ -1322,6 +1324,97 @@ describe("text asset CDN manifest verifier", () => {
 				expect.objectContaining({
 					assetId: "text-demo",
 					code: "remote-checksum-mismatch",
+					url: "/text-assets/demo/plain@1/thumbnail.webp",
+				}),
+			])
+		);
+	});
+
+	it("verifies remote object identity metadata when requested", async () => {
+		const { manifest } = buildTextAssetPublishManifest({
+			baseUrl: "https://cdn.example.com",
+			generatedAt: "2026-07-15T00:00:00.000Z",
+			generatedManifest: { "text-demo": createGeneratedEntry() },
+			publicDir: "/tmp/public",
+		});
+		const fetchImpl: typeof fetch = async (_input, init) => {
+			expect(init?.method).toBe("HEAD");
+			return new Response(null, {
+				headers: {
+					"content-length": String(byteLength({ value: THUMBNAIL_TEXT })),
+					"x-amz-meta-qcut-asset-id": "text-demo",
+					"x-amz-meta-qcut-cache-key": "text-assets/demo/plain@1",
+					"x-amz-meta-qcut-package-id": "text-demo",
+					"x-amz-meta-qcut-provenance-pipeline": "qcut-canvas-thumbnail-v1",
+					"x-amz-meta-qcut-provenance-source": "generated",
+					"x-amz-meta-qcut-role": "thumbnail",
+					"x-amz-meta-qcut-version": "1",
+					"x-amz-meta-sha256": checksum({ value: THUMBNAIL_TEXT }),
+				},
+				status: 200,
+			});
+		};
+
+		const issues = await verifyRemoteFiles({
+			fetchImpl,
+			manifest: {
+				...manifest,
+				assets: [
+					{
+						...manifest.assets[0]!,
+						files: [manifest.assets[0]!.files[0]!],
+					},
+				],
+			},
+			metadata: true,
+		});
+
+		expect(issues).toEqual([]);
+	});
+
+	it("reports remote object metadata mismatches", async () => {
+		const { manifest } = buildTextAssetPublishManifest({
+			baseUrl: "https://cdn.example.com",
+			generatedAt: "2026-07-15T00:00:00.000Z",
+			generatedManifest: { "text-demo": createGeneratedEntry() },
+			publicDir: "/tmp/public",
+		});
+		const fetchImpl: typeof fetch = async () =>
+			new Response(null, {
+				headers: {
+					"content-length": String(byteLength({ value: THUMBNAIL_TEXT })),
+					"x-amz-meta-qcut-asset-id": "wrong-asset",
+				},
+				status: 200,
+			});
+
+		const issues = await verifyRemoteFiles({
+			fetchImpl,
+			manifest: {
+				...manifest,
+				assets: [
+					{
+						...manifest.assets[0]!,
+						files: [manifest.assets[0]!.files[0]!],
+					},
+				],
+			},
+			metadata: true,
+		});
+
+		expect(issues).toEqual(
+			expect.arrayContaining([
+				expect.objectContaining({
+					assetId: "text-demo",
+					code: "remote-metadata-mismatch",
+					detail: "qcut-asset-id expected text-demo, received wrong-asset",
+					url: "/text-assets/demo/plain@1/thumbnail.webp",
+				}),
+				expect.objectContaining({
+					assetId: "text-demo",
+					code: "remote-metadata-mismatch",
+					detail:
+						"qcut-cache-key expected text-assets/demo/plain@1, received (missing)",
 					url: "/text-assets/demo/plain@1/thumbnail.webp",
 				}),
 			])

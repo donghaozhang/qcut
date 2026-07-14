@@ -19,6 +19,7 @@
 		"assets:text:publish-manifest": "bun scripts/verify-text-asset-cdn-manifest.ts --write dist/text-assets-publish-manifest.json",
 		"assets:text:check-remote": "bun scripts/verify-text-asset-cdn-manifest.ts --check-remote",
 		"assets:text:check-remote-checksum": "bun scripts/verify-text-asset-cdn-manifest.ts --check-remote-checksum",
+		"assets:text:check-remote-metadata": "bun scripts/verify-text-asset-cdn-manifest.ts --check-remote-metadata",
 		"assets:text:create-designer-pack": "bun scripts/create-text-designer-pack-template.ts",
 		"assets:text:create-designer-ready-pack": "bun scripts/create-text-designer-pack-template.ts --designer-ready",
 		"assets:text:import-designer": "bun scripts/import-text-designer-assets.ts",

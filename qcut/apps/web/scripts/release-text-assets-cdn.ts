@@ -536,11 +536,12 @@ bun run assets:text:release-designer-ready -- --dry-run --stage-dir dist/text-as
 
 The staged folder includes \`${STAGE_DESIGNER_GAP_REPORT_FILE}\`, which lists the exact designer asset slots needed to reach the screenshot-level library.
 
-After publishing, verify the remote CDN. The first command checks reachability and sizes quickly; the second downloads each object and verifies SHA-256 checksums:
+After publishing, verify the remote CDN. The first command checks reachability and sizes quickly; the second downloads each object and verifies SHA-256 checksums; the third verifies uploaded object identity metadata when your CDN exposes S3/R2 \`x-amz-meta-*\` headers:
 
 \`\`\`bash
 bun run assets:text:check-remote
 bun run assets:text:check-remote-checksum
+bun run assets:text:check-remote-metadata
 \`\`\`
 
 ## Release Summary

@@ -468,6 +468,9 @@ describe("text asset CDN release script", () => {
 		).resolves.toContain("assets:text:check-remote-checksum");
 		await expect(
 			readFile(join(stageDir, "_qcut-text-assets-release-readme.md"), "utf8")
+		).resolves.toContain("assets:text:check-remote-metadata");
+		await expect(
+			readFile(join(stageDir, "_qcut-text-assets-release-readme.md"), "utf8")
 		).resolves.toContain("including `text-assets/marketplace.json`");
 		await expect(
 			readFile(join(stageDir, "_qcut-text-assets-release-readme.md"), "utf8")
