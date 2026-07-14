@@ -6,6 +6,7 @@ import { describe, expect, it } from "vitest";
 import {
 	buildTextDesignerPackTemplate,
 	parseTextDesignerPackTemplateArgs,
+	selectTextDesignerPackAssetIds,
 	writeTextDesignerPackTemplate,
 } from "../create-text-designer-pack-template";
 import type { TextAssetGeneratedEntry } from "../verify-text-asset-cdn-manifest";
@@ -46,10 +47,16 @@ describe("text designer pack template script", () => {
 		expect(
 			parseTextDesignerPackTemplateArgs({
 				argv: [
+					"--all",
 					"--asset-id",
 					"text-demo",
 					"--asset-id",
 					"text-demo",
+					"--package-id",
+					"text-basic",
+					"--only-generated",
+					"--limit",
+					"25",
 					"--generated-manifest",
 					"/tmp/generated.json",
 					"--out-dir",
@@ -59,8 +66,46 @@ describe("text designer pack template script", () => {
 		).toMatchObject({
 			assetIds: ["text-demo"],
 			generatedManifestPath: "/tmp/generated.json",
+			includeAll: true,
+			limit: 25,
 			outDir: "/tmp/designer-template",
+			packageIds: ["text-basic"],
+			provenance: "generated",
 		});
+	});
+
+	it("requires an explicit asset selector", () => {
+		expect(() =>
+			parseTextDesignerPackTemplateArgs({
+				argv: ["--only-generated"],
+			})
+		).toThrow("Pass --asset-id, --package-id, or --all");
+	});
+
+	it("selects asset ids by package, provenance, and limit", () => {
+		const generatedManifest = {
+			"text-alpha": createGeneratedEntry({ assetId: "text-alpha" }),
+			"text-beta": {
+				...createGeneratedEntry({ assetId: "text-beta" }),
+				packageId: "text-alpha",
+				provenance: {
+					pipeline: "designer-pack-v1",
+					source: "designer-imported" as const,
+				},
+			},
+			"text-gamma": createGeneratedEntry({ assetId: "text-gamma" }),
+		};
+
+		expect(
+			selectTextDesignerPackAssetIds({
+				assetIds: [],
+				generatedManifest,
+				includeAll: false,
+				limit: 1,
+				packageIds: ["text-alpha"],
+				provenance: "generated",
+			})
+		).toEqual(["text-alpha"]);
 	});
 
 	it("builds designer pack manifests and file contracts", () => {

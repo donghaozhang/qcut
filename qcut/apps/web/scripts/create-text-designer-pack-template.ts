@@ -11,8 +11,16 @@ import { readGeneratedManifest } from "./verify-text-asset-cdn-manifest";
 export type TextDesignerPackTemplateOptions = {
 	assetIds: string[];
 	generatedManifestPath: string;
+	includeAll: boolean;
+	limit?: number;
 	outDir: string;
+	packageIds: string[];
+	provenance?: TextDesignerPackTemplateProvenanceFilter;
 };
+
+export type TextDesignerPackTemplateProvenanceFilter =
+	| "designer-imported"
+	| "generated";
 
 export type TextDesignerPackTemplateAssetContract = {
 	assetId: string;
@@ -59,12 +67,23 @@ export function parseTextDesignerPackTemplateArgs({
 	const options: TextDesignerPackTemplateOptions = {
 		assetIds: [],
 		generatedManifestPath: DEFAULT_GENERATED_MANIFEST_PATH,
+		includeAll: false,
 		outDir: DEFAULT_OUT_DIR,
+		packageIds: [],
 	};
 	for (let index = 0; index < argv.length; index += 1) {
 		const arg = argv[index];
+		if (arg === "--all") {
+			options.includeAll = true;
+			continue;
+		}
 		if (arg === "--asset-id") {
 			options.assetIds.push(requireValue({ argv, index, name: arg }));
+			index += 1;
+			continue;
+		}
+		if (arg === "--package-id") {
+			options.packageIds.push(requireValue({ argv, index, name: arg }));
 			index += 1;
 			continue;
 		}
@@ -73,20 +92,73 @@ export function parseTextDesignerPackTemplateArgs({
 			index += 1;
 			continue;
 		}
+		if (arg === "--limit") {
+			options.limit = parsePositiveInteger({
+				name: arg,
+				value: requireValue({ argv, index, name: arg }),
+			});
+			index += 1;
+			continue;
+		}
 		if (arg === "--out-dir") {
 			options.outDir = requireValue({ argv, index, name: arg });
 			index += 1;
 			continue;
 		}
+		if (arg === "--only-designer-imported") {
+			options.provenance = "designer-imported";
+			continue;
+		}
+		if (arg === "--only-generated") {
+			options.provenance = "generated";
+			continue;
+		}
 		throw new Error(`Unknown argument: ${arg}`);
 	}
-	if (options.assetIds.length === 0) {
-		throw new Error("Pass at least one --asset-id.");
+	if (
+		options.assetIds.length === 0 &&
+		options.packageIds.length === 0 &&
+		!options.includeAll
+	) {
+		throw new Error("Pass --asset-id, --package-id, or --all.");
 	}
 	return {
 		...options,
 		assetIds: uniqueAssetIds({ assetIds: options.assetIds }),
+		packageIds: uniqueAssetIds({ assetIds: options.packageIds }),
 	};
+}
+
+export function selectTextDesignerPackAssetIds({
+	assetIds,
+	generatedManifest,
+	includeAll,
+	limit,
+	packageIds,
+	provenance,
+}: {
+	assetIds: readonly string[];
+	generatedManifest: Record<string, TextAssetGeneratedEntry>;
+	includeAll: boolean;
+	limit?: number;
+	packageIds: readonly string[];
+	provenance?: TextDesignerPackTemplateProvenanceFilter;
+}): string[] {
+	const selectedIds = new Set<string>();
+	for (const assetId of assetIds) {
+		selectedIds.add(assetId);
+	}
+	const selectedPackageIds = new Set(packageIds);
+	for (const entry of Object.values(generatedManifest)) {
+		if (!entry) continue;
+		const selectedByPackage = selectedPackageIds.has(entry.packageId);
+		if (!includeAll && !selectedByPackage) continue;
+		if (!matchesProvenance({ entry, provenance })) continue;
+		selectedIds.add(entry.assetId);
+		if (limit !== undefined && selectedIds.size >= limit) break;
+	}
+	const selected = [...selectedIds];
+	return limit === undefined ? selected : selected.slice(0, limit);
 }
 
 export function buildTextDesignerPackTemplate({
@@ -262,6 +334,32 @@ function uniqueAssetIds({
 	return unique;
 }
 
+function matchesProvenance({
+	entry,
+	provenance,
+}: {
+	entry: TextAssetGeneratedEntry;
+	provenance?: TextDesignerPackTemplateProvenanceFilter;
+}): boolean {
+	if (!provenance) return true;
+	const source = entry.provenance?.source ?? "generated";
+	return source === provenance;
+}
+
+function parsePositiveInteger({
+	name,
+	value,
+}: {
+	name: string;
+	value: string;
+}): number {
+	const parsed = Number.parseInt(value, 10);
+	if (!Number.isFinite(parsed) || parsed < 1) {
+		throw new Error(`${name} requires a positive integer`);
+	}
+	return parsed;
+}
+
 function requireValue({
 	argv,
 	index,
@@ -283,8 +381,19 @@ async function main(): Promise<void> {
 	const generatedManifest = await readGeneratedManifest({
 		manifestPath: options.generatedManifestPath,
 	});
-	const template = buildTextDesignerPackTemplate({
+	const assetIds = selectTextDesignerPackAssetIds({
 		assetIds: options.assetIds,
+		generatedManifest,
+		includeAll: options.includeAll,
+		limit: options.limit,
+		packageIds: options.packageIds,
+		provenance: options.provenance,
+	});
+	if (assetIds.length === 0) {
+		throw new Error("No text assets matched the designer pack selection.");
+	}
+	const template = buildTextDesignerPackTemplate({
+		assetIds,
 		generatedManifest,
 	});
 	await writeTextDesignerPackTemplate({
