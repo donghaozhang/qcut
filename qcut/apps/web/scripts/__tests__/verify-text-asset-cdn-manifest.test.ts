@@ -185,6 +185,7 @@ describe("text asset CDN manifest verifier", () => {
 					"--base-url",
 					"https://cdn.example.com/assets/",
 					"--check-remote",
+					"--check-remote-checksum",
 					"--full-issues",
 					"--manifest",
 					"/tmp/generated.json",
@@ -211,6 +212,7 @@ describe("text asset CDN manifest verifier", () => {
 			allowDesignerGaps: true,
 			baseUrl: "https://cdn.example.com/assets/",
 			checkRemote: true,
+			checkRemoteChecksum: true,
 			fullIssues: true,
 			issueLimit: 2,
 			manifestPath: "/tmp/generated.json",
@@ -937,6 +939,42 @@ describe("text asset CDN manifest verifier", () => {
 			assetId: "text-demo",
 			code: "remote-size-mismatch",
 		});
+	});
+
+	it("reports remote checksum mismatches during strict remote verification", async () => {
+		const { manifest } = buildTextAssetPublishManifest({
+			baseUrl: "https://cdn.example.com",
+			generatedAt: "2026-07-15T00:00:00.000Z",
+			generatedManifest: { "text-demo": createGeneratedEntry() },
+			publicDir: "/tmp/public",
+		});
+		const requestedMethods: string[] = [];
+		const fetchImpl: typeof fetch = async (_input, init) => {
+			requestedMethods.push(init?.method ?? "GET");
+			return new Response("wrong-but-available", {
+				headers: {
+					"content-length": String(byteLength({ value: THUMBNAIL_TEXT })),
+				},
+				status: 200,
+			});
+		};
+
+		const issues = await verifyRemoteFiles({
+			checksum: true,
+			fetchImpl,
+			manifest,
+		});
+
+		expect(requestedMethods).toEqual(["GET", "GET", "GET"]);
+		expect(issues).toEqual(
+			expect.arrayContaining([
+				expect.objectContaining({
+					assetId: "text-demo",
+					code: "remote-checksum-mismatch",
+					url: "/text-assets/demo/plain@1/thumbnail.webp",
+				}),
+			])
+		);
 	});
 
 	it("reports remote fetch failures without aborting verification", async () => {

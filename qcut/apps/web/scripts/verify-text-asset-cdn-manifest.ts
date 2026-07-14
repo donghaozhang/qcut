@@ -73,6 +73,7 @@ export type VerifyIssue = {
 		| "designer-import-threshold"
 		| "virtual-resource-url"
 		| "remote-unavailable"
+		| "remote-checksum-mismatch"
 		| "remote-size-mismatch";
 	detail: string;
 	url?: string;
@@ -142,6 +143,7 @@ export type TextAssetCdnCliOptions = {
 	allowDesignerGaps: boolean;
 	baseUrl: string;
 	checkRemote: boolean;
+	checkRemoteChecksum: boolean;
 	fullIssues: boolean;
 	issueLimit: number;
 	manifestPath: string;
@@ -173,6 +175,7 @@ export function parseTextAssetCdnArgs({
 		allowDesignerGaps: false,
 		baseUrl: process.env.QCUT_TEXT_ASSET_CDN_URL ?? DEFAULT_BASE_URL,
 		checkRemote: false,
+		checkRemoteChecksum: false,
 		fullIssues: false,
 		issueLimit: 25,
 		manifestPath: DEFAULT_MANIFEST_PATH,
@@ -196,6 +199,11 @@ export function parseTextAssetCdnArgs({
 		}
 		if (arg === "--check-remote") {
 			options.checkRemote = true;
+			continue;
+		}
+		if (arg === "--check-remote-checksum") {
+			options.checkRemote = true;
+			options.checkRemoteChecksum = true;
 			continue;
 		}
 		if (arg === "--full-issues") {
@@ -1353,10 +1361,12 @@ function readUInt24LE({
 }
 
 export async function verifyRemoteFiles({
+	checksum = false,
 	concurrency = 16,
 	fetchImpl = fetch,
 	manifest,
 }: {
+	checksum?: boolean;
 	concurrency?: number;
 	fetchImpl?: typeof fetch;
 	manifest: TextAssetPublishManifest;
@@ -1371,13 +1381,15 @@ export async function verifyRemoteFiles({
 			const issues: VerifyIssue[] = [];
 			let response: Response;
 			try {
-				response = await fetchImpl(file.cdnUrl, { method: "HEAD" });
+				response = await fetchImpl(file.cdnUrl, {
+					method: checksum ? "GET" : "HEAD",
+				});
 			} catch (error) {
 				return [
 					{
 						assetId: asset.assetId,
 						code: "remote-unavailable",
-						detail: `HEAD ${file.cdnUrl} failed: ${remoteFetchErrorDetail({ error })}`,
+						detail: `${checksum ? "GET" : "HEAD"} ${file.cdnUrl} failed: ${remoteFetchErrorDetail({ error })}`,
 						url: file.url,
 					},
 				];
@@ -1387,7 +1399,7 @@ export async function verifyRemoteFiles({
 					{
 						assetId: asset.assetId,
 						code: "remote-unavailable",
-						detail: `HEAD ${file.cdnUrl} returned ${response.status}`,
+						detail: `${checksum ? "GET" : "HEAD"} ${file.cdnUrl} returned ${response.status}`,
 						url: file.url,
 					},
 				];
@@ -1403,6 +1415,26 @@ export async function verifyRemoteFiles({
 					detail: `Expected ${file.byteSize}, received ${contentLength}`,
 					url: file.url,
 				});
+			}
+			if (checksum) {
+				const bytes = Buffer.from(await response.arrayBuffer());
+				if (!contentLength && bytes.byteLength !== file.byteSize) {
+					issues.push({
+						assetId: asset.assetId,
+						code: "remote-size-mismatch",
+						detail: `Expected ${file.byteSize}, received ${bytes.byteLength}`,
+						url: file.url,
+					});
+				}
+				const receivedChecksum = hashBytes({ bytes });
+				if (receivedChecksum !== file.checksumSha256) {
+					issues.push({
+						assetId: asset.assetId,
+						code: "remote-checksum-mismatch",
+						detail: `Expected ${file.checksumSha256}, received ${receivedChecksum}`,
+						url: file.url,
+					});
+				}
 			}
 			return issues;
 		},
@@ -1506,6 +1538,7 @@ async function main(): Promise<void> {
 	const localIssues = await verifyLocalFiles({ manifest });
 	const remoteIssues = options.checkRemote
 		? await verifyRemoteFiles({
+				checksum: options.checkRemoteChecksum,
 				concurrency: options.remoteConcurrency,
 				manifest,
 			})
@@ -1547,6 +1580,7 @@ async function main(): Promise<void> {
 				allowDesignerGaps: options.allowDesignerGaps,
 				baseUrl: manifest.baseUrl,
 				checkRemote: options.checkRemote,
+				checkRemoteChecksum: options.checkRemoteChecksum,
 				designerCategoryCoverage,
 				...issueOutput,
 				minDesignerAssets: options.minDesignerAssets,
