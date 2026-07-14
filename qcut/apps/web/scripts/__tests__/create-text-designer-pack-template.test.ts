@@ -269,14 +269,20 @@ describe("text designer pack template script", () => {
 				qcutPackage: {
 					currentChecksumSha256: "package-sha",
 					designerPath: "assets/text-demo/template.qctext",
+					rejectsCurrentChecksumSha256: "package-sha",
+					replacementRequired: true,
 				},
 				source: {
 					currentChecksumSha256: "source-sha",
 					designerPath: "assets/text-demo/template.json",
+					rejectsCurrentChecksumSha256: "source-sha",
+					replacementRequired: true,
 				},
 				thumbnail: {
 					currentChecksumSha256: "thumb-sha",
 					designerPath: "assets/text-demo/thumbnail.webp",
+					rejectsCurrentChecksumSha256: "thumb-sha",
+					replacementRequired: true,
 				},
 			},
 			qctextResources: {
@@ -345,6 +351,8 @@ describe("text designer pack template script", () => {
 		expect(readme).toContain('kind: "qcut-text-template-package"');
 		expect(readme).toContain("resources[]");
 		expect(readme).toContain("asset-contract.json.qctextResources");
+		expect(readme).toContain("replacementRequired");
+		expect(readme).toContain("rejectsCurrentChecksumSha256");
 		expect(readme).toContain("pack-summary.json");
 		expect(readme).toContain("--pack-archive <designer-pack.tar.gz>");
 		expect(readme).toContain("--include-current-files");

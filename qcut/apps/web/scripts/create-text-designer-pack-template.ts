@@ -67,6 +67,8 @@ export type TextDesignerPackTemplateFileContract = {
 	currentUrl: string;
 	designerPath: string;
 	mimeType: string;
+	rejectsCurrentChecksumSha256: string;
+	replacementRequired: true;
 };
 
 export type TextDesignerPackTemplatePackageResourceContract = {
@@ -541,6 +543,8 @@ function buildAssetContract({
 				currentUrl: entry.qcutPackage.url,
 				designerPath: packEntry.qcutPackage,
 				mimeType: entry.qcutPackage.mimeType,
+				rejectsCurrentChecksumSha256: entry.qcutPackage.checksumSha256,
+				replacementRequired: true,
 			},
 			source: {
 				currentByteSize: entry.source.byteSize,
@@ -548,6 +552,8 @@ function buildAssetContract({
 				currentUrl: entry.source.url,
 				designerPath: packEntry.source,
 				mimeType: entry.source.mimeType,
+				rejectsCurrentChecksumSha256: entry.source.checksumSha256,
+				replacementRequired: true,
 			},
 			thumbnail: {
 				currentByteSize: entry.thumbnail.byteSize,
@@ -555,6 +561,8 @@ function buildAssetContract({
 				currentUrl: entry.thumbnail.url,
 				designerPath: packEntry.thumbnail,
 				mimeType: entry.thumbnail.mimeType,
+				rejectsCurrentChecksumSha256: entry.thumbnail.checksumSha256,
+				replacementRequired: true,
 			},
 		},
 		packageId: entry.packageId,
@@ -623,7 +631,7 @@ bun run assets:text:verify-stage
 bun run assets:text:verify-archive
 \`\`\`
 
-Each asset folder contains \`asset-contract.json\` with the required target identity. \`pack-summary.json\` records the expected imported asset count and replacement file count for handoff review. Keep \`assetId\`, \`packageId\`, \`version\`, and \`cacheKey\` unchanged inside \`template.json\` and \`template.qctext\`. The import step rejects unchanged files by default, so every listed asset must be replaced with a real designer payload.
+Each asset folder contains \`asset-contract.json\` with the required target identity and per-file \`replacementRequired\` plus \`rejectsCurrentChecksumSha256\` fields. \`pack-summary.json\` records the expected imported asset count and replacement file count for handoff review. Keep \`assetId\`, \`packageId\`, \`version\`, and \`cacheKey\` unchanged inside \`template.json\` and \`template.qctext\`. The import step rejects unchanged files by default, so every listed asset must be replaced with a real designer payload.
 
 Use \`--include-current-files\` when creating the pack to include the current generated files at the exact replacement paths. They are references only; designers still need to replace or edit them before import.
 
