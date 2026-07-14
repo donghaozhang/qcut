@@ -69,8 +69,16 @@ function designerSourceText({
 
 function designerPackageText({
 	assetId = "text-demo",
+	files = {
+		source: "template.json",
+		thumbnail: "thumbnail.webp",
+	},
 }: {
 	assetId?: string;
+	files?: {
+		source: string;
+		thumbnail: string;
+	};
 } = {}): string {
 	const source = JSON.parse(designerSourceText({ assetId })) as Record<
 		string,
@@ -80,10 +88,7 @@ function designerPackageText({
 		{
 			assetId,
 			cacheKey: "text-assets/demo/plain@1",
-			files: {
-				source: "template.json",
-				thumbnail: "thumbnail.webp",
-			},
+			files,
 			kind: "qcut-text-template-package",
 			packageId: "text-demo",
 			schemaVersion: 1,
@@ -222,6 +227,29 @@ describe("text designer asset import script", () => {
 				publicDir,
 			})
 		).rejects.toThrow("identity mismatch");
+	});
+
+	it("rejects designer package file references that will not exist after import", async () => {
+		const { generatedManifest, packDir, packManifest, publicDir } =
+			await createDesignerFixture();
+		await writeFile(
+			join(packDir, "template.qctext"),
+			designerPackageText({
+				files: {
+					source: "designer-source.json",
+					thumbnail: "designer-thumbnail.webp",
+				},
+			})
+		);
+
+		await expect(
+			buildTextDesignerAssetImportPlan({
+				generatedManifest,
+				packDir,
+				packManifest,
+				publicDir,
+			})
+		).rejects.toThrow("file reference mismatch");
 	});
 
 	it("blocks designer files that escape the pack directory", async () => {

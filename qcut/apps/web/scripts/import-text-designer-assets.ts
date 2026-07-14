@@ -1,6 +1,6 @@
 import { createHash } from "node:crypto";
 import { mkdir, readFile, writeFile, copyFile } from "node:fs/promises";
-import { dirname, join, relative, resolve } from "node:path";
+import { basename, dirname, join, relative, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import type {
 	TextAssetGeneratedEntry,
@@ -55,9 +55,15 @@ export type TextDesignerAssetImportSummary = {
 };
 
 type DesignerAssetRoleSource = {
+	expectedPackageFiles?: DesignerAssetPackageFileReferences;
 	role: TextDesignerAssetImportRole;
 	sourcePath: string;
 	targetFile: TextAssetGeneratedFile | undefined;
+};
+
+type DesignerAssetPackageFileReferences = {
+	source: string;
+	thumbnail: string;
 };
 
 const SCRIPT_DIR = dirname(fileURLToPath(import.meta.url));
@@ -227,6 +233,10 @@ function designerAssetRoleSources({
 			targetFile: targetEntry.source,
 		},
 		{
+			expectedPackageFiles: {
+				source: basename(targetEntry.source.url),
+				thumbnail: basename(targetEntry.thumbnail.url),
+			},
 			role: "package",
 			sourcePath: asset.qcutPackage,
 			targetFile: targetEntry.qcutPackage,
@@ -258,6 +268,7 @@ async function buildPlanItem({
 	validateDesignerAssetFile({
 		assetId,
 		bytes,
+		expectedPackageFiles: roleSource.expectedPackageFiles,
 		role: roleSource.role,
 		sourcePath,
 		targetEntry,
@@ -277,12 +288,14 @@ async function buildPlanItem({
 function validateDesignerAssetFile({
 	assetId,
 	bytes,
+	expectedPackageFiles,
 	role,
 	sourcePath,
 	targetEntry,
 }: {
 	assetId: string;
 	bytes: Buffer;
+	expectedPackageFiles?: DesignerAssetPackageFileReferences;
 	role: TextDesignerAssetImportRole;
 	sourcePath: string;
 	targetEntry: TextAssetGeneratedEntry;
@@ -316,6 +329,11 @@ function validateDesignerAssetFile({
 			`Designer package cacheKey mismatch for ${assetId}: expected ${targetEntry.cacheKey}`
 		);
 	}
+	assertDesignerPackageFileReferences({
+		assetId,
+		expectedPackageFiles,
+		payload,
+	});
 	const source = isRecord(payload.source) ? payload.source : null;
 	if (!source) {
 		throw new Error(`Designer package source is missing: ${assetId}`);
@@ -326,6 +344,41 @@ function validateDesignerAssetFile({
 		role: "source",
 		targetEntry,
 	});
+}
+
+function assertDesignerPackageFileReferences({
+	assetId,
+	expectedPackageFiles,
+	payload,
+}: {
+	assetId: string;
+	expectedPackageFiles?: DesignerAssetPackageFileReferences;
+	payload: Record<string, unknown>;
+}): void {
+	const files = isRecord(payload.files) ? payload.files : null;
+	if (!files) {
+		throw new Error(`Designer package files are missing: ${assetId}`);
+	}
+	if (typeof files.source !== "string" || typeof files.thumbnail !== "string") {
+		throw new Error(`Designer package files are invalid: ${assetId}`);
+	}
+	if (!expectedPackageFiles) return;
+	const mismatches = [
+		identityMismatch({
+			actual: files.source,
+			expected: expectedPackageFiles.source,
+			field: "files.source",
+		}),
+		identityMismatch({
+			actual: files.thumbnail,
+			expected: expectedPackageFiles.thumbnail,
+			field: "files.thumbnail",
+		}),
+	].filter((mismatch): mismatch is string => Boolean(mismatch));
+	if (mismatches.length === 0) return;
+	throw new Error(
+		`Designer package file reference mismatch for ${assetId}: ${mismatches.join(", ")}`
+	);
 }
 
 function parseDesignerJsonAsset({
