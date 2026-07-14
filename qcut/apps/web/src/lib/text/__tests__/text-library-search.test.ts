@@ -708,6 +708,67 @@ describe("text library search", () => {
 		).toEqual(["shopping-link-style"]);
 	});
 
+	it("matches creator platform aliases used in marketplace searches", () => {
+		const definitions = [
+			createDefinition({
+				category: "green",
+				content: "探店种草",
+				id: "xhs-style",
+				keywords: ["探店", "种草", "测评"],
+				variantId: "green-fresh",
+			}),
+			createDefinition({
+				category: "basic",
+				content: "直播口播",
+				id: "douyin-style",
+				keywords: ["直播", "口播", "热门"],
+				variantId: "plain",
+			}),
+			createDefinition({
+				category: "blue",
+				content: "教程清单",
+				id: "bilibili-style",
+				keywords: ["教程", "知识", "清单"],
+				variantId: "blue-ice",
+			}),
+		];
+
+		expect(buildWeightedSearchTerms({ query: "小红书" })).toEqual(
+			expect.arrayContaining([
+				{ term: "xiaohongshu", weight: 0.95 },
+				{ term: "xhs", weight: 0.874 },
+			])
+		);
+		expect(
+			rankTextTemplateSearchResults({
+				definitions,
+				query: "xhs",
+				state: EMPTY_TEXT_LIBRARY_STATE,
+			})[0]?.id
+		).toBe("xhs-style");
+		expect(
+			rankTextTemplateSearchResults({
+				definitions,
+				query: "douyin",
+				state: EMPTY_TEXT_LIBRARY_STATE,
+			})[0]?.id
+		).toBe("douyin-style");
+		expect(
+			rankTextTemplateSearchResults({
+				definitions,
+				query: "bilibili",
+				state: EMPTY_TEXT_LIBRARY_STATE,
+			})[0]?.id
+		).toBe("bilibili-style");
+		expect(
+			rankTextTemplateSearchResults({
+				definitions,
+				query: "b站",
+				state: EMPTY_TEXT_LIBRARY_STATE,
+			})[0]?.id
+		).toBe("bilibili-style");
+	});
+
 	it("prioritizes templates that match every token in multi-intent searches", () => {
 		const definitions = [
 			createDefinition({
