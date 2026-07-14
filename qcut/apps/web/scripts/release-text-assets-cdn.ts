@@ -31,6 +31,7 @@ export type TextAssetReleaseOptions = {
 	generatedManifestPath: string;
 	metadataCacheControl: string;
 	minDesignerAssets: number;
+	minDesignerAssetsPerCategory: number;
 	prefix: string;
 	publishManifestPath: string;
 	publicDir: string;
@@ -47,6 +48,7 @@ export type TextAssetReleaseSummary = {
 	localIssues: readonly VerifyIssue[];
 	manifestPath: string;
 	minDesignerAssets: number;
+	minDesignerAssetsPerCategory: number;
 	provenance: TextAssetProvenanceSummary;
 	remoteIssueSummary: ReturnType<typeof summarizeVerifyIssues>["issueSummary"];
 	remoteIssues: readonly VerifyIssue[];
@@ -93,6 +95,10 @@ export function parseTextAssetReleaseArgs({
 			name: "QCUT_TEXT_ASSET_MIN_DESIGNER_ASSETS",
 			value: env.QCUT_TEXT_ASSET_MIN_DESIGNER_ASSETS ?? "0",
 		}),
+		minDesignerAssetsPerCategory: parsePositiveInteger({
+			name: "QCUT_TEXT_ASSET_MIN_DESIGNER_ASSETS_PER_CATEGORY",
+			value: env.QCUT_TEXT_ASSET_MIN_DESIGNER_ASSETS_PER_CATEGORY ?? "1",
+		}),
 		prefix: env.QCUT_TEXT_ASSET_CDN_PREFIX ?? "",
 		publishManifestPath:
 			env.QCUT_TEXT_ASSET_PUBLISH_MANIFEST ?? DEFAULT_PUBLISH_MANIFEST_PATH,
@@ -138,6 +144,14 @@ export function parseTextAssetReleaseArgs({
 		}
 		if (arg === "--min-designer-assets") {
 			options.minDesignerAssets = parseNonNegativeInteger({
+				name: arg,
+				value: requireValue({ argv, index, name: arg }),
+			});
+			index += 1;
+			continue;
+		}
+		if (arg === "--min-designer-assets-per-category") {
+			options.minDesignerAssetsPerCategory = parsePositiveInteger({
 				name: arg,
 				value: requireValue({ argv, index, name: arg }),
 			});
@@ -228,6 +242,7 @@ export async function releaseTextAssetsToCdn({
 	});
 	const designerCategoryIssues = verifyDesignerCategoryCoverage({
 		generatedManifest,
+		minDesignerAssetsPerCategory: options.minDesignerAssetsPerCategory,
 		requiredDesignerCategories: options.requiredDesignerCategories,
 	});
 	const { issues: manifestIssues, manifest } = buildTextAssetPublishManifest({
@@ -318,6 +333,7 @@ function buildReleaseSummary({
 		localIssues,
 		manifestPath,
 		minDesignerAssets: options.minDesignerAssets,
+		minDesignerAssetsPerCategory: options.minDesignerAssetsPerCategory,
 		provenance,
 		remoteIssueSummary: summarizeVerifyIssues({ issues: remoteIssues })
 			.issueSummary,

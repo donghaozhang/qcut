@@ -106,6 +106,7 @@ async function createReleaseFixture(): Promise<{
 			generatedManifestPath,
 			metadataCacheControl: "public, max-age=300",
 			minDesignerAssets: 0,
+			minDesignerAssetsPerCategory: 1,
 			prefix: "prod",
 			publicDir,
 			publishManifestPath,
@@ -133,6 +134,8 @@ describe("text asset CDN release script", () => {
 					"public, max-age=30",
 					"--min-designer-assets",
 					"7",
+					"--min-designer-assets-per-category",
+					"5",
 					"--require-designer-categories",
 					"red,texture",
 					"--generated-manifest",
@@ -157,6 +160,7 @@ describe("text asset CDN release script", () => {
 			generatedManifestPath: "/tmp/generated.json",
 			metadataCacheControl: "public, max-age=30",
 			minDesignerAssets: 7,
+			minDesignerAssetsPerCategory: 5,
 			prefix: "prod",
 			publicDir: "/tmp/public",
 			publishManifestPath: "/tmp/publish.json",
@@ -188,6 +192,7 @@ describe("text asset CDN release script", () => {
 			localIssues: [],
 			manifestPath: publishManifestPath,
 			minDesignerAssets: 0,
+			minDesignerAssetsPerCategory: 1,
 			provenance: {
 				designerImported: 0,
 				generated: 0,
@@ -241,6 +246,7 @@ describe("text asset CDN release script", () => {
 		const summary = await releaseTextAssetsToCdn({
 			options: {
 				...options,
+				minDesignerAssetsPerCategory: 5,
 				requiredDesignerCategories: ["red"],
 			},
 			uploadFile: async () => {
@@ -251,7 +257,8 @@ describe("text asset CDN release script", () => {
 		expect(summary.localIssues).toEqual([
 			expect.objectContaining({
 				code: "designer-category-coverage",
-				detail: "Missing designer-imported text assets for categories: red",
+				detail:
+					"Expected at least 5 designer-imported text assets for each category, missing: red (0)",
 			}),
 		]);
 		expect(summary.requiredDesignerCategories).toEqual(["red"]);

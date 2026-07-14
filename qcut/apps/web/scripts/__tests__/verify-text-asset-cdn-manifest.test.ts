@@ -155,6 +155,8 @@ describe("text asset CDN manifest verifier", () => {
 					"2",
 					"--min-designer-assets",
 					"12",
+					"--min-designer-assets-per-category",
+					"5",
 					"--require-designer-categories",
 					"red, texture,headline-template",
 					"--public-dir",
@@ -172,6 +174,7 @@ describe("text asset CDN manifest verifier", () => {
 			issueLimit: 2,
 			manifestPath: "/tmp/generated.json",
 			minDesignerAssets: 12,
+			minDesignerAssetsPerCategory: 5,
 			publicDir: "/tmp/public",
 			remoteConcurrency: 4,
 			requiredDesignerCategories: ["red", "texture", "headline-template"],
@@ -328,7 +331,37 @@ describe("text asset CDN manifest verifier", () => {
 			{
 				assetId: "text-designer-assets",
 				code: "designer-category-coverage",
-				detail: "Missing designer-imported text assets for categories: texture",
+				detail:
+					"Expected at least 1 designer-imported text assets for each category, missing: texture (0)",
+			},
+		]);
+	});
+
+	it("reports designer categories below the per-category threshold", () => {
+		const redDesignerEntry: TextAssetGeneratedEntry = {
+			...createGeneratedEntry(),
+			assetId: "text-red-designer",
+			packageId: "text-fancy-red",
+			provenance: {
+				pipeline: "designer-pack-v1",
+				source: "designer-imported",
+			},
+		};
+
+		expect(
+			verifyDesignerCategoryCoverage({
+				generatedManifest: {
+					"text-red-designer": redDesignerEntry,
+				},
+				minDesignerAssetsPerCategory: 5,
+				requiredDesignerCategories: ["red"],
+			})
+		).toEqual([
+			{
+				assetId: "text-designer-assets",
+				code: "designer-category-coverage",
+				detail:
+					"Expected at least 5 designer-imported text assets for each category, missing: red (1)",
 			},
 		]);
 	});

@@ -11,6 +11,7 @@
 		"build:web": "VITE_BUILD_TARGET=web tsc && VITE_BUILD_TARGET=web vite build",
 		"assets:text": "bun scripts/generate-text-assets.ts",
 		"assets:text:verify-cdn": "bun scripts/verify-text-asset-cdn-manifest.ts",
+		"assets:text:verify-designer-ready": "bun scripts/verify-text-asset-cdn-manifest.ts --min-designer-assets-per-category 5 --require-designer-categories popular,latest,summer,variety,guofeng,glow,gradient,texture,red,yellow,black-white,blue,pink,green,purple,headline-template,quote-template,list-template,split-template,timeline-template",
 		"assets:text:publish-manifest": "bun scripts/verify-text-asset-cdn-manifest.ts --write dist/text-assets-publish-manifest.json",
 		"assets:text:check-remote": "bun scripts/verify-text-asset-cdn-manifest.ts --check-remote",
 		"assets:text:create-designer-pack": "bun scripts/create-text-designer-pack-template.ts",
