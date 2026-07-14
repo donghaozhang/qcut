@@ -34,6 +34,7 @@ export interface GenerationSettings {
 	imageSize: string | number;
 	seed?: number;
 	outputFormat?: OutputFormat;
+	background?: "auto" | "opaque" | "transparent";
 	negativePrompt?: string;
 	numImages?: number;
 	imageUrls?: string[];

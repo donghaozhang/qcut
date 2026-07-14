@@ -89,6 +89,17 @@ export function convertSettingsToParams(
 			break;
 		}
 
+		case "gpt-image-1-5": {
+			const allowedSizes = ["1024x1024", "1536x1024", "1024x1536"];
+			params.image_size =
+				typeof settings.imageSize === "string" &&
+				allowedSizes.includes(settings.imageSize)
+					? settings.imageSize
+					: "1024x1024";
+			if (settings.background) params.background = settings.background;
+			break;
+		}
+
 		case "wan-v2-2":
 			params.image_size = settings.imageSize;
 			break;
