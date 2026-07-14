@@ -603,9 +603,10 @@ function TextTemplate({
 	});
 
 	useEffect(() => {
+		const thumbnailAsset = resolveTextTemplateAssetEntry({ definition });
 		if (
 			downloadStatus !== "cached" ||
-			asset.delivery !== "remote" ||
+			thumbnailAsset.delivery !== "remote" ||
 			typeof URL === "undefined" ||
 			typeof URL.createObjectURL !== "function"
 		) {
@@ -627,7 +628,7 @@ function TextTemplate({
 			cancelled = true;
 			if (objectUrl) URL.revokeObjectURL(objectUrl);
 		};
-	}, [asset.delivery, definition, downloadStatus]);
+	}, [definition, downloadStatus]);
 
 	return (
 		<div
