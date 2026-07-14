@@ -18,6 +18,13 @@ function checksum({ value }: { value: string }): string {
 	return createHash("sha256").update(Buffer.from(value)).digest("hex");
 }
 
+const THUMBNAIL_TEXT = "RIFF0000WEBP";
+const SOURCE_TEXT = JSON.stringify({ schemaVersion: 1, template: {} });
+const PACKAGE_TEXT = JSON.stringify({
+	kind: "qcut-text-template-package",
+	schemaVersion: 1,
+});
+
 function createGeneratedEntry(): TextAssetGeneratedEntry {
 	return {
 		assetId: "text-demo",
@@ -25,20 +32,20 @@ function createGeneratedEntry(): TextAssetGeneratedEntry {
 		packageId: "text-demo",
 		version: 1,
 		thumbnail: {
-			byteSize: 5,
-			checksumSha256: checksum({ value: "thumb" }),
+			byteSize: THUMBNAIL_TEXT.length,
+			checksumSha256: checksum({ value: THUMBNAIL_TEXT }),
 			mimeType: "image/webp",
 			url: "/text-assets/demo/plain@1/thumbnail.webp",
 		},
 		source: {
-			byteSize: 6,
-			checksumSha256: checksum({ value: "source" }),
+			byteSize: SOURCE_TEXT.length,
+			checksumSha256: checksum({ value: SOURCE_TEXT }),
 			mimeType: "application/json",
 			url: "/text-assets/demo/plain@1/template.json",
 		},
 		qcutPackage: {
-			byteSize: 7,
-			checksumSha256: checksum({ value: "package" }),
+			byteSize: PACKAGE_TEXT.length,
+			checksumSha256: checksum({ value: PACKAGE_TEXT }),
 			mimeType: "application/vnd.qcut.text-template+json",
 			url: "/text-assets/demo/plain@1/template.qctext",
 		},
@@ -158,7 +165,9 @@ describe("text asset CDN manifest verifier", () => {
 		expect(issues).toEqual([]);
 		expect(manifest.totalAssets).toBe(1);
 		expect(manifest.totalFiles).toBe(3);
-		expect(manifest.totalBytes).toBe(18);
+		expect(manifest.totalBytes).toBe(
+			THUMBNAIL_TEXT.length + SOURCE_TEXT.length + PACKAGE_TEXT.length
+		);
 		expect(manifest.provenance).toMatchObject({
 			designerImported: 1,
 			total: 1,
@@ -205,9 +214,9 @@ describe("text asset CDN manifest verifier", () => {
 		const entry = createGeneratedEntry();
 		await Promise.all(
 			[
-				{ content: "thumb", file: entry.thumbnail },
-				{ content: "source", file: entry.source },
-				{ content: "package", file: entry.qcutPackage },
+				{ content: THUMBNAIL_TEXT, file: entry.thumbnail },
+				{ content: SOURCE_TEXT, file: entry.source },
+				{ content: PACKAGE_TEXT, file: entry.qcutPackage },
 			].map(async ({ content, file }) => {
 				const path = join(publicDir, file.url.replace(/^\/+/, ""));
 				await mkdir(dirname(path), { recursive: true });
@@ -223,6 +232,68 @@ describe("text asset CDN manifest verifier", () => {
 		});
 
 		await expect(verifyLocalFiles({ manifest })).resolves.toEqual([]);
+	});
+
+	it("reports local files with invalid resource payloads", async () => {
+		const publicDir = join(
+			tmpdir(),
+			`qcut-text-invalid-payload-${randomUUID()}`
+		);
+		const entry: TextAssetGeneratedEntry = {
+			...createGeneratedEntry(),
+			thumbnail: {
+				...createGeneratedEntry().thumbnail,
+				byteSize: "not-webp".length,
+				checksumSha256: checksum({ value: "not-webp" }),
+			},
+			source: {
+				...createGeneratedEntry().source,
+				byteSize: "not-json".length,
+				checksumSha256: checksum({ value: "not-json" }),
+			},
+			qcutPackage: {
+				...createGeneratedEntry().qcutPackage,
+				byteSize: JSON.stringify({ kind: "wrong-kind" }).length,
+				checksumSha256: checksum({
+					value: JSON.stringify({ kind: "wrong-kind" }),
+				}),
+			},
+		};
+		await Promise.all(
+			[
+				{ content: "not-webp", file: entry.thumbnail },
+				{ content: "not-json", file: entry.source },
+				{
+					content: JSON.stringify({ kind: "wrong-kind" }),
+					file: entry.qcutPackage,
+				},
+			].map(async ({ content, file }) => {
+				const path = join(publicDir, file.url.replace(/^\/+/, ""));
+				await mkdir(dirname(path), { recursive: true });
+				await writeFile(path, content);
+			})
+		);
+		const { manifest } = buildTextAssetPublishManifest({
+			baseUrl: "https://cdn.example.com",
+			generatedAt: "2026-07-15T00:00:00.000Z",
+			generatedManifest: { "text-demo": entry },
+			publicDir,
+		});
+
+		await expect(verifyLocalFiles({ manifest })).resolves.toEqual([
+			expect.objectContaining({
+				code: "invalid-file-payload",
+				url: "/text-assets/demo/plain@1/thumbnail.webp",
+			}),
+			expect.objectContaining({
+				code: "invalid-file-payload",
+				url: "/text-assets/demo/plain@1/template.json",
+			}),
+			expect.objectContaining({
+				code: "invalid-file-payload",
+				url: "/text-assets/demo/plain@1/template.qctext",
+			}),
+		]);
 	});
 
 	it("reports remote content-length mismatches", async () => {

@@ -14,6 +14,13 @@ function checksum({ value }: { value: string }): string {
 	return createHash("sha256").update(Buffer.from(value)).digest("hex");
 }
 
+const THUMBNAIL_TEXT = "RIFF0000WEBP";
+const SOURCE_TEXT = JSON.stringify({ schemaVersion: 1, template: {} });
+const PACKAGE_TEXT = JSON.stringify({
+	kind: "qcut-text-template-package",
+	schemaVersion: 1,
+});
+
 function createGeneratedEntry(): TextAssetGeneratedEntry {
 	return {
 		assetId: "text-demo",
@@ -21,20 +28,20 @@ function createGeneratedEntry(): TextAssetGeneratedEntry {
 		packageId: "text-demo",
 		version: 1,
 		thumbnail: {
-			byteSize: 5,
-			checksumSha256: checksum({ value: "thumb" }),
+			byteSize: THUMBNAIL_TEXT.length,
+			checksumSha256: checksum({ value: THUMBNAIL_TEXT }),
 			mimeType: "image/webp",
 			url: "/text-assets/demo/plain@1/thumbnail.webp",
 		},
 		source: {
-			byteSize: 6,
-			checksumSha256: checksum({ value: "source" }),
+			byteSize: SOURCE_TEXT.length,
+			checksumSha256: checksum({ value: SOURCE_TEXT }),
 			mimeType: "application/json",
 			url: "/text-assets/demo/plain@1/template.json",
 		},
 		qcutPackage: {
-			byteSize: 7,
-			checksumSha256: checksum({ value: "package" }),
+			byteSize: PACKAGE_TEXT.length,
+			checksumSha256: checksum({ value: PACKAGE_TEXT }),
 			mimeType: "application/vnd.qcut.text-template+json",
 			url: "/text-assets/demo/plain@1/template.qctext",
 		},
@@ -54,9 +61,9 @@ async function createReleaseFixture(): Promise<{
 	const entry = createGeneratedEntry();
 	await Promise.all(
 		[
-			{ content: "thumb", file: entry.thumbnail },
-			{ content: "source", file: entry.source },
-			{ content: "package", file: entry.qcutPackage },
+			{ content: THUMBNAIL_TEXT, file: entry.thumbnail },
+			{ content: SOURCE_TEXT, file: entry.source },
+			{ content: PACKAGE_TEXT, file: entry.qcutPackage },
 		].map(async ({ content, file }) => {
 			const path = join(publicDir, file.url.replace(/^\/+/, ""));
 			await mkdir(dirname(path), { recursive: true });

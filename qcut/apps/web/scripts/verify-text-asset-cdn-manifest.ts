@@ -61,6 +61,7 @@ export type VerifyIssue = {
 		| "missing-file"
 		| "byte-size-mismatch"
 		| "checksum-mismatch"
+		| "invalid-file-payload"
 		| "missing-package"
 		| "designer-import-threshold"
 		| "remote-unavailable"
@@ -438,11 +439,113 @@ export async function verifyLocalFiles({
 						url: file.url,
 					});
 				}
+				const payloadIssue = verifyLocalFilePayload({
+					assetId: asset.assetId,
+					bytes,
+					file,
+				});
+				if (payloadIssue) issues.push(payloadIssue);
 				return issues;
 			})
 		)
 	);
 	return issueGroups.flat();
+}
+
+function verifyLocalFilePayload({
+	assetId,
+	bytes,
+	file,
+}: {
+	assetId: string;
+	bytes: Buffer;
+	file: TextAssetPublishFile;
+}): VerifyIssue | null {
+	if (file.role === "thumbnail") {
+		return isWebpBytes({ bytes })
+			? null
+			: {
+					assetId,
+					code: "invalid-file-payload",
+					detail: "Thumbnail file is not a valid WebP payload",
+					url: file.url,
+				};
+	}
+	if (file.role === "metadata" || file.role === "source") {
+		return parseJsonObjectPayload({
+			assetId,
+			bytes,
+			role: file.role,
+			url: file.url,
+		});
+	}
+	if (file.role === "package") {
+		const jsonIssue = parseJsonObjectPayload({
+			assetId,
+			bytes,
+			role: file.role,
+			url: file.url,
+		});
+		if (jsonIssue) return jsonIssue;
+		const payload = JSON.parse(bytes.toString("utf8")) as Record<
+			string,
+			unknown
+		>;
+		return payload.kind === "qcut-text-template-package"
+			? null
+			: {
+					assetId,
+					code: "invalid-file-payload",
+					detail: "QCut text package must use qcut-text-template-package",
+					url: file.url,
+				};
+	}
+	return null;
+}
+
+function parseJsonObjectPayload({
+	assetId,
+	bytes,
+	role,
+	url,
+}: {
+	assetId: string;
+	bytes: Buffer;
+	role: PublishFileRole;
+	url: string;
+}): VerifyIssue | null {
+	try {
+		const parsed = JSON.parse(bytes.toString("utf8")) as unknown;
+		if (
+			typeof parsed === "object" &&
+			parsed !== null &&
+			!Array.isArray(parsed)
+		) {
+			return null;
+		}
+		return {
+			assetId,
+			code: "invalid-file-payload",
+			detail: `${role} file must be a JSON object`,
+			url,
+		};
+	} catch (error) {
+		const detail = error instanceof Error ? error.message : String(error);
+		return {
+			assetId,
+			code: "invalid-file-payload",
+			detail: `Invalid ${role} JSON: ${detail}`,
+			url,
+		};
+	}
+}
+
+function isWebpBytes({ bytes }: { bytes: Buffer }): boolean {
+	return (
+		bytes.byteLength >= 12 &&
+		bytes.toString("ascii", 0, 4) === "RIFF" &&
+		bytes.toString("ascii", 8, 12) === "WEBP"
+	);
 }
 
 export async function verifyRemoteFiles({
