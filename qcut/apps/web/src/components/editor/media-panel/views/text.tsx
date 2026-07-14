@@ -495,6 +495,16 @@ function TextTemplate({
 	const copyActionLabel = getTextTemplatePackCopyActionLabel({
 		slotCount: editableTemplatePack?.copySlots.length ?? 0,
 	});
+	const copyPreviewPack = useMemo(
+		() =>
+			editableTemplatePack
+				? applyTextTemplatePackCopyValues({
+						copyValues,
+						pack: editableTemplatePack,
+					})
+				: null,
+		[copyValues, editableTemplatePack]
+	);
 
 	useEffect(() => {
 		if (
@@ -639,11 +649,14 @@ function TextTemplate({
 					{template.name}
 				</span>
 			</div>
-			{editableTemplatePack && (
+			{editableTemplatePack && copyPreviewPack && (
 				<TextTemplateCopyDialog
 					copySlots={editableTemplatePack.copySlots}
 					copyValues={copyValues}
+					definition={definition}
+					previewPack={copyPreviewPack}
 					open={copyDialogOpen}
+					template={template}
 					templateName={template.name}
 					onBatchCopyTextChange={handleBatchCopyTextChange}
 					onCopyValueChange={handleCopyValueChange}
@@ -659,22 +672,28 @@ function TextTemplate({
 function TextTemplateCopyDialog({
 	copySlots,
 	copyValues,
+	definition,
 	onBatchCopyTextChange,
 	onCopyValueChange,
 	onCopyValuePaste,
 	onInsert,
 	onOpenChange,
 	open,
+	previewPack,
+	template,
 	templateName,
 }: {
 	copySlots: readonly TextTemplatePackCopySlot[];
 	copyValues: readonly string[];
+	definition: TextTemplateDefinition;
 	onBatchCopyTextChange: (props: { text: string }) => void;
 	onCopyValueChange: (props: { index: number; value: string }) => void;
 	onCopyValuePaste: (props: { index: number; text: string }) => boolean;
 	onInsert: () => void;
 	onOpenChange: (open: boolean) => void;
 	open: boolean;
+	previewPack: TextTemplatePack;
+	template: TextElement;
 	templateName: string;
 }) {
 	return (
@@ -685,6 +704,13 @@ function TextTemplateCopyDialog({
 					<DialogDescription>{templateName}</DialogDescription>
 				</DialogHeader>
 				<div className="space-y-3">
+					<div className="relative aspect-[1.6] overflow-hidden rounded-md bg-zinc-800 ring-1 ring-white/10">
+						<TextTemplateThumbnail
+							definition={definition}
+							pack={previewPack}
+							template={template}
+						/>
+					</div>
 					<label className="block space-y-1">
 						<span className="text-[0.72rem] text-muted-foreground">
 							批量替换

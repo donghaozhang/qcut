@@ -7,6 +7,10 @@ import {
 	type TextThumbnailBackgroundKind,
 } from "../text-template-thumbnail-renderer";
 import { getTextTemplateDefinitionsByCategory } from "@/lib/text/text-template-registry";
+import {
+	applyTextTemplatePackCopy,
+	buildTextTemplatePack,
+} from "@/lib/text/text-template-packs";
 import type { TextElement } from "@/types/timeline";
 
 function createTextElement({ content }: { content: string }): TextElement {
@@ -217,5 +221,35 @@ describe("text template thumbnail renderer", () => {
 		expect(headline?.y).toBeLessThan(subhead?.y ?? 0);
 		expect(kicker?.backgroundColor).not.toBe("transparent");
 		expect(headline?.width).toBeGreaterThan(kicker?.width ?? 0);
+	});
+
+	it("renders custom pack copy in thumbnail preview models", () => {
+		const definition = getTextTemplateDefinitionsByCategory({
+			category: "headline-template",
+		})[0];
+		const template = createTextElement({ content: "主标题" });
+		const pack = buildTextTemplatePack({ baseTemplate: template, definition });
+		if (!pack) throw new Error("Expected headline template pack");
+
+		const customizedPack = applyTextTemplatePackCopy({
+			contents: ["开场提醒", "新主标题", "新副标题"],
+			pack,
+		});
+		const model = getTextTemplatePackPreviewModel({
+			definition,
+			pack: customizedPack,
+			template,
+		});
+
+		expect(model?.slots.map((slot) => slot.content)).toEqual([
+			"开场提醒",
+			"新主标题",
+			"新副标题",
+		]);
+		expect(model?.elements.map((element) => element.content)).toEqual([
+			"开场提醒",
+			"新主标题",
+			"新副标题",
+		]);
 	});
 });

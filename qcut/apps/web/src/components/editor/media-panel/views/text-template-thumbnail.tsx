@@ -1,4 +1,5 @@
 import type { TextTemplateDefinition } from "@/lib/text/text-template-registry";
+import type { TextTemplatePackPayload } from "@/lib/text/text-template-packs";
 import type { TextElement } from "@/types/timeline";
 import { useEffect, useRef, useState } from "react";
 import { renderTextTemplateThumbnail } from "./text-template-thumbnail-renderer";
@@ -10,10 +11,12 @@ const THUMBNAIL_CANVAS_SIZE = {
 
 export function TextTemplateThumbnail({
 	definition,
+	pack,
 	template,
 	thumbnailUrl,
 }: {
 	definition: TextTemplateDefinition;
+	pack?: TextTemplatePackPayload;
 	template: TextElement;
 	thumbnailUrl?: string;
 }) {
@@ -28,8 +31,8 @@ export function TextTemplateThumbnail({
 		if (showImage) return;
 		const canvas = canvasRef.current;
 		if (!canvas) return;
-		renderTextTemplateThumbnail({ canvas, definition, template });
-	}, [definition, showImage, template]);
+		renderTextTemplateThumbnail({ canvas, definition, pack, template });
+	}, [definition, pack, showImage, template]);
 
 	return (
 		<div

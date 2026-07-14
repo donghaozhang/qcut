@@ -1,5 +1,8 @@
 import type { TextTemplateDefinition } from "@/lib/text/text-template-registry";
-import { buildTextTemplatePack } from "@/lib/text/text-template-packs";
+import {
+	buildTextTemplatePack,
+	type TextTemplatePackPayload,
+} from "@/lib/text/text-template-packs";
 import type { CreateTextElement, TextElement } from "@/types/timeline";
 
 export type TextTemplateThumbnailLayoutKind = "single" | "pack";
@@ -284,20 +287,23 @@ export function getTextTemplateThumbnailLayoutKind({
 
 export function getTextTemplatePackPreviewModel({
 	definition,
+	pack,
 	template,
 }: {
 	definition: TextTemplateDefinition;
+	pack?: TextTemplatePackPayload;
 	template: TextElement;
 }): TextTemplatePackPreviewModel | null {
-	const pack = buildTextTemplatePack({ baseTemplate: template, definition });
-	if (!pack) return null;
+	const resolvedPack =
+		pack ?? buildTextTemplatePack({ baseTemplate: template, definition });
+	if (!resolvedPack) return null;
 	return {
 		kind: getTextTemplatePackPreviewKind({ definition }),
-		layerCount: pack.elements.length,
-		elements: pack.elements.map((element, index) =>
+		layerCount: resolvedPack.elements.length,
+		elements: resolvedPack.elements.map((element, index) =>
 			toPackPreviewElement({ element, index })
 		),
-		slots: pack.copySlots.map((slot) => ({
+		slots: resolvedPack.copySlots.map((slot) => ({
 			id: slot.id,
 			content: slot.defaultContent,
 			label: slot.label,
@@ -1619,10 +1625,12 @@ function drawTemplatePackPreview({
 export function renderTextTemplateThumbnail({
 	canvas,
 	definition,
+	pack,
 	template,
 }: {
 	canvas: HTMLCanvasElement;
 	definition: TextTemplateDefinition;
+	pack?: TextTemplatePackPayload;
 	template: TextElement;
 }) {
 	const context = canvas.getContext("2d");
@@ -1635,7 +1643,11 @@ export function renderTextTemplateThumbnail({
 	drawBackground({ context, height, recipe, width });
 	drawOrnaments({ context, height, recipe, width });
 	if (getTextTemplateThumbnailLayoutKind({ definition }) === "pack") {
-		const model = getTextTemplatePackPreviewModel({ definition, template });
+		const model = getTextTemplatePackPreviewModel({
+			definition,
+			pack,
+			template,
+		});
 		if (model) {
 			drawTemplatePackPreview({ context, height, model, recipe, width });
 			return;
