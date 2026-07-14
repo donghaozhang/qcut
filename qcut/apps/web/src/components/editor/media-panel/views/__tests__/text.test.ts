@@ -55,7 +55,10 @@ describe("text view layout", () => {
 	});
 
 	it("uses the expanded asset browser grid density for wide browsing", () => {
-		expect(getExpandedTextTemplateGridColumnCount()).toBe(5);
+		expect(getExpandedTextTemplateGridColumnCount({ width: 600 })).toBe(5);
+		expect(getExpandedTextTemplateGridColumnCount({ width: 680 })).toBe(6);
+		expect(getExpandedTextTemplateGridColumnCount({ width: 800 })).toBe(7);
+		expect(getExpandedTextTemplateGridColumnCount({ width: 920 })).toBe(8);
 	});
 
 	it("applies marketplace overrides when sorting browse categories", () => {

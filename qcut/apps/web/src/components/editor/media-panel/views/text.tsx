@@ -145,6 +145,9 @@ const TEXT_TEMPLATE_GRID_COLUMNS = {
 	narrow: 3,
 	standard: 4,
 	expanded: 5,
+	wide: 6,
+	gallery: 7,
+	showcase: 8,
 } as const;
 
 const markdownData: MarkdownElement = {
@@ -627,7 +630,7 @@ function TextTemplateCopyDialog({
 }
 
 function TemplateGrid({
-	columnCountOverride,
+	columnCountForWidth,
 	definitions,
 	libraryState,
 	onDownload,
@@ -635,7 +638,7 @@ function TemplateGrid({
 	onUseTemplate,
 	runtimeByAssetKey,
 }: {
-	columnCountOverride?: number;
+	columnCountForWidth?: (props: { width: number }) => number;
 	definitions: readonly TextTemplateDefinition[];
 	libraryState: TextLibraryState;
 	onDownload: (props: { definition: TextTemplateDefinition }) => void;
@@ -645,8 +648,9 @@ function TemplateGrid({
 }) {
 	const gridRef = useRef<HTMLDivElement | null>(null);
 	const [gridWidth, setGridWidth] = useState(0);
-	const columnCount =
-		columnCountOverride ?? getTextTemplateGridColumnCount({ width: gridWidth });
+	const columnCount = columnCountForWidth
+		? columnCountForWidth({ width: gridWidth })
+		: getTextTemplateGridColumnCount({ width: gridWidth });
 
 	useEffect(() => {
 		const element = gridRef.current;
@@ -762,7 +766,14 @@ export function getTextTemplateGridColumnCount({
 	return TEXT_TEMPLATE_GRID_COLUMNS.compact;
 }
 
-export function getExpandedTextTemplateGridColumnCount(): number {
+export function getExpandedTextTemplateGridColumnCount({
+	width,
+}: {
+	width: number;
+}): number {
+	if (width >= 920) return TEXT_TEMPLATE_GRID_COLUMNS.showcase;
+	if (width >= 800) return TEXT_TEMPLATE_GRID_COLUMNS.gallery;
+	if (width >= 680) return TEXT_TEMPLATE_GRID_COLUMNS.wide;
 	return TEXT_TEMPLATE_GRID_COLUMNS.expanded;
 }
 
@@ -1099,7 +1110,7 @@ function ExpandedTextLibraryDialog({
 						</div>
 						{definitions.length > 0 ? (
 							<TemplateGrid
-								columnCountOverride={getExpandedTextTemplateGridColumnCount()}
+								columnCountForWidth={getExpandedTextTemplateGridColumnCount}
 								definitions={definitions}
 								libraryState={libraryState}
 								onDownload={onDownload}
