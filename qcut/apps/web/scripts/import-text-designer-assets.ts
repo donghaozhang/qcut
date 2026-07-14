@@ -108,6 +108,7 @@ const DEFAULT_MARKETPLACE_CONFIG_PATH = join(
 	"text-assets/marketplace.json"
 );
 const DESIGNER_MANIFEST_FILE = "manifest.json";
+const MIN_DESIGNER_THUMBNAIL_BYTES = 1024;
 
 export function parseTextDesignerAssetImportArgs({
 	argv,
@@ -527,6 +528,11 @@ function validateDesignerAssetFile({
 		if (!isWebpBytes({ bytes })) {
 			throw new Error(
 				`Designer thumbnail must contain a WebP payload: ${assetId}`
+			);
+		}
+		if (bytes.byteLength < MIN_DESIGNER_THUMBNAIL_BYTES) {
+			throw new Error(
+				`Designer thumbnail is too small for ${assetId}: expected at least ${MIN_DESIGNER_THUMBNAIL_BYTES} bytes, received ${bytes.byteLength}`
 			);
 		}
 		const dimensions = getWebpDimensions({ bytes });

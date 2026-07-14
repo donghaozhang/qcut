@@ -32,15 +32,17 @@ function toBuffer({ value }: { value: TestFileContent }): Buffer {
 }
 
 function createVp8xWebpBytes({
+	byteLength = 2048,
 	height,
 	width,
 }: {
+	byteLength?: number;
 	height: number;
 	width: number;
 }): Buffer {
-	const bytes = Buffer.alloc(30);
+	const bytes = Buffer.alloc(byteLength);
 	bytes.write("RIFF", 0, "ascii");
-	bytes.writeUInt32LE(bytes.byteLength - 8, 4);
+	bytes.writeUInt32LE(22, 4);
 	bytes.write("WEBP", 8, "ascii");
 	bytes.write("VP8X", 12, "ascii");
 	bytes.writeUInt32LE(10, 16);
@@ -493,6 +495,26 @@ describe("text designer asset import script", () => {
 				publicDir,
 			})
 		).rejects.toThrow("must contain a WebP payload");
+	});
+
+	it("rejects designer thumbnails that are too small to be real assets", async () => {
+		const { generatedManifest, packDir, packManifest, publicDir } =
+			await createDesignerFixture();
+		await writeFile(
+			join(packDir, "thumbnail.webp"),
+			createVp8xWebpBytes({ byteLength: 30, height: 304, width: 320 })
+		);
+
+		await expect(
+			buildTextDesignerAssetImportPlan({
+				generatedManifest,
+				packDir,
+				packManifest,
+				publicDir,
+			})
+		).rejects.toThrow(
+			"Designer thumbnail is too small for text-demo: expected at least 1024 bytes, received 30"
+		);
 	});
 
 	it("rejects designer thumbnails with unexpected dimensions", async () => {
