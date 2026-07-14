@@ -1,4 +1,5 @@
 import type { TextTemplateDefinition } from "@/lib/text/text-template-registry";
+import { buildTextTemplatePack } from "@/lib/text/text-template-packs";
 import type { TextElement } from "@/types/timeline";
 
 export type TextTemplateThumbnailLayoutKind = "single" | "pack";
@@ -50,6 +51,25 @@ export type TextTemplateThumbnailRecipe = {
 	ornamentKind: TextThumbnailOrnamentKind;
 	accentColors: readonly string[];
 	materialDetail: "standard" | "rich";
+};
+
+export type TextTemplatePackPreviewKind =
+	| "headline"
+	| "quote"
+	| "list"
+	| "split"
+	| "timeline";
+
+export type TextTemplatePackPreviewSlot = {
+	id: string;
+	content: string;
+	label: string;
+};
+
+export type TextTemplatePackPreviewModel = {
+	kind: TextTemplatePackPreviewKind;
+	layerCount: number;
+	slots: readonly TextTemplatePackPreviewSlot[];
 };
 
 type CanvasSize = {
@@ -238,6 +258,38 @@ export function getTextTemplateThumbnailLayoutKind({
 		return "pack";
 	}
 	return "single";
+}
+
+export function getTextTemplatePackPreviewModel({
+	definition,
+	template,
+}: {
+	definition: TextTemplateDefinition;
+	template: TextElement;
+}): TextTemplatePackPreviewModel | null {
+	const pack = buildTextTemplatePack({ baseTemplate: template, definition });
+	if (!pack) return null;
+	return {
+		kind: getTextTemplatePackPreviewKind({ definition }),
+		layerCount: pack.elements.length,
+		slots: pack.copySlots.map((slot) => ({
+			id: slot.id,
+			content: slot.defaultContent,
+			label: slot.label,
+		})),
+	};
+}
+
+function getTextTemplatePackPreviewKind({
+	definition,
+}: {
+	definition: TextTemplateDefinition;
+}): TextTemplatePackPreviewKind {
+	if (definition.category === "quote-template") return "quote";
+	if (definition.category === "list-template") return "list";
+	if (definition.category === "split-template") return "split";
+	if (definition.category === "timeline-template") return "timeline";
+	return "headline";
 }
 
 function fillRoundedRect({
@@ -916,13 +968,43 @@ function drawPackPreviewCard({
 	context.restore();
 }
 
+function getPackPreviewSlotContent({
+	fallback,
+	maxCharacters,
+	model,
+	slotId,
+}: {
+	fallback: string;
+	maxCharacters: number;
+	model: TextTemplatePackPreviewModel;
+	slotId: string;
+}): string {
+	const content =
+		model.slots.find((slot) => slot.id === slotId)?.content ?? fallback;
+	return truncatePackPreviewText({ maxCharacters, text: content || fallback });
+}
+
+function truncatePackPreviewText({
+	maxCharacters,
+	text,
+}: {
+	maxCharacters: number;
+	text: string;
+}): string {
+	const characters = Array.from(text.trim());
+	if (characters.length <= maxCharacters) return text.trim();
+	return characters.slice(0, maxCharacters).join("");
+}
+
 function drawHeadlinePackPreview({
 	context,
 	height,
+	model,
 	recipe,
 	width,
 }: CanvasSize & {
 	context: CanvasRenderingContext2D;
+	model: TextTemplatePackPreviewModel;
 	recipe: TextTemplateThumbnailRecipe;
 }) {
 	const [, mid, light, accent] = recipe.accentColors;
@@ -941,7 +1023,12 @@ function drawHeadlinePackPreview({
 		color: "#020617",
 		context,
 		fontSize: 20,
-		text: "本期重点",
+		text: getPackPreviewSlotContent({
+			fallback: "本期重点",
+			maxCharacters: 5,
+			model,
+			slotId: "kicker",
+		}),
 		weight: 800,
 		x: width * 0.22,
 		y: height * 0.265,
@@ -951,7 +1038,12 @@ function drawHeadlinePackPreview({
 		color: light,
 		context,
 		fontSize: 52,
-		text: "标题",
+		text: getPackPreviewSlotContent({
+			fallback: "标题",
+			maxCharacters: 5,
+			model,
+			slotId: "headline",
+		}),
 		x: width * 0.18,
 		y: height * 0.48,
 	});
@@ -960,7 +1052,12 @@ function drawHeadlinePackPreview({
 		color: mid,
 		context,
 		fontSize: 25,
-		text: "三句话讲清楚",
+		text: getPackPreviewSlotContent({
+			fallback: "三句话讲清楚",
+			maxCharacters: 7,
+			model,
+			slotId: "subhead",
+		}),
 		weight: 800,
 		x: width * 0.19,
 		y: height * 0.67,
@@ -970,10 +1067,12 @@ function drawHeadlinePackPreview({
 function drawQuotePackPreview({
 	context,
 	height,
+	model,
 	recipe,
 	width,
 }: CanvasSize & {
 	context: CanvasRenderingContext2D;
+	model: TextTemplatePackPreviewModel;
 	recipe: TextTemplateThumbnailRecipe;
 }) {
 	const [, mid, light, accent] = recipe.accentColors;
@@ -991,7 +1090,12 @@ function drawQuotePackPreview({
 		color: light,
 		context,
 		fontSize: 42,
-		text: "金句",
+		text: getPackPreviewSlotContent({
+			fallback: "金句",
+			maxCharacters: 5,
+			model,
+			slotId: "quote",
+		}),
 		x: width * 0.35,
 		y: height * 0.48,
 	});
@@ -1000,7 +1104,12 @@ function drawQuotePackPreview({
 		color: mid,
 		context,
 		fontSize: 22,
-		text: "— 观点摘录",
+		text: `— ${getPackPreviewSlotContent({
+			fallback: "观点摘录",
+			maxCharacters: 5,
+			model,
+			slotId: "attribution",
+		}).replace(/^—\s*/, "")}`,
 		weight: 800,
 		x: width * 0.37,
 		y: height * 0.67,
@@ -1010,10 +1119,12 @@ function drawQuotePackPreview({
 function drawListPackPreview({
 	context,
 	height,
+	model,
 	recipe,
 	width,
 }: CanvasSize & {
 	context: CanvasRenderingContext2D;
+	model: TextTemplatePackPreviewModel;
 	recipe: TextTemplateThumbnailRecipe;
 }) {
 	const [, mid, light, accent] = recipe.accentColors;
@@ -1023,11 +1134,16 @@ function drawListPackPreview({
 		color: light,
 		context,
 		fontSize: 40,
-		text: "清单",
+		text: getPackPreviewSlotContent({
+			fallback: "清单",
+			maxCharacters: 5,
+			model,
+			slotId: "title",
+		}),
 		x: width * 0.2,
 		y: height * 0.32,
 	});
-	for (const [index, label] of ["01", "02"].entries()) {
+	for (const [index, label] of ["item-1", "item-2"].entries()) {
 		const y = height * (0.5 + index * 0.16);
 		context.fillStyle = accent;
 		context.beginPath();
@@ -1037,7 +1153,7 @@ function drawListPackPreview({
 			color: "#020617",
 			context,
 			fontSize: 16,
-			text: label,
+			text: String(index + 1).padStart(2, "0"),
 			weight: 900,
 			x: width * 0.24,
 			y,
@@ -1050,6 +1166,21 @@ function drawListPackPreview({
 			width: width * (index === 0 ? 0.42 : 0.34),
 			x: width * 0.32,
 			y: y - height * 0.027,
+		});
+		drawPackText({
+			align: "left",
+			color: "rgba(255,255,255,.86)",
+			context,
+			fontSize: 15,
+			text: getPackPreviewSlotContent({
+				fallback: index === 0 ? "关键动作" : "避坑提醒",
+				maxCharacters: 5,
+				model,
+				slotId: label,
+			}).replace(/^\d+\s*/, ""),
+			weight: 800,
+			x: width * 0.34,
+			y,
 		});
 	}
 	drawPackText({
@@ -1067,15 +1198,17 @@ function drawListPackPreview({
 function drawSplitPackPreview({
 	context,
 	height,
+	model,
 	recipe,
 	width,
 }: CanvasSize & {
 	context: CanvasRenderingContext2D;
+	model: TextTemplatePackPreviewModel;
 	recipe: TextTemplateThumbnailRecipe;
 }) {
 	const [dark, mid, light, accent] = recipe.accentColors;
 	drawPackPreviewCard({ context, height, recipe, width });
-	for (const [index, label] of ["之前", "之后"].entries()) {
+	for (const [index, slotId] of ["left", "right"].entries()) {
 		const x = width * (index === 0 ? 0.16 : 0.54);
 		drawPackPill({
 			context,
@@ -1090,7 +1223,12 @@ function drawSplitPackPreview({
 			color: light,
 			context,
 			fontSize: 28,
-			text: label,
+			text: getPackPreviewSlotContent({
+				fallback: index === 0 ? "之前" : "之后",
+				maxCharacters: 4,
+				model,
+				slotId,
+			}),
 			x: x + width * 0.15,
 			y: height * 0.51,
 		});
@@ -1108,10 +1246,12 @@ function drawSplitPackPreview({
 function drawTimelinePackPreview({
 	context,
 	height,
+	model,
 	recipe,
 	width,
 }: CanvasSize & {
 	context: CanvasRenderingContext2D;
+	model: TextTemplatePackPreviewModel;
 	recipe: TextTemplateThumbnailRecipe;
 }) {
 	const [, mid, light, accent] = recipe.accentColors;
@@ -1125,7 +1265,7 @@ function drawTimelinePackPreview({
 	context.lineTo(width * 0.8, height * 0.5);
 	context.stroke();
 	context.restore();
-	for (const [index, label] of ["1", "阶段", "结果"].entries()) {
+	for (const [index, slotId] of ["stage-1", "stage-2", "stage-3"].entries()) {
 		const x = width * (0.2 + index * 0.3);
 		context.fillStyle = index === 1 ? accent : mid;
 		context.beginPath();
@@ -1135,7 +1275,12 @@ function drawTimelinePackPreview({
 			color: index === 1 ? "#020617" : light,
 			context,
 			fontSize: index === 1 ? 20 : 18,
-			text: label,
+			text: getPackPreviewSlotContent({
+				fallback: index === 0 ? "阶段 1" : index === 1 ? "阶段" : "结果",
+				maxCharacters: index === 1 ? 3 : 4,
+				model,
+				slotId,
+			}).replace(/^阶段\s*/, index === 0 ? "" : "阶段"),
 			weight: 900,
 			x,
 			y: height * (index === 1 ? 0.5 : 0.69),
@@ -1145,32 +1290,32 @@ function drawTimelinePackPreview({
 
 function drawTemplatePackPreview({
 	context,
-	definition,
 	height,
+	model,
 	recipe,
 	width,
 }: CanvasSize & {
 	context: CanvasRenderingContext2D;
-	definition: TextTemplateDefinition;
+	model: TextTemplatePackPreviewModel;
 	recipe: TextTemplateThumbnailRecipe;
 }) {
-	if (definition.category === "quote-template") {
-		drawQuotePackPreview({ context, height, recipe, width });
+	if (model.kind === "quote") {
+		drawQuotePackPreview({ context, height, model, recipe, width });
 		return;
 	}
-	if (definition.category === "list-template") {
-		drawListPackPreview({ context, height, recipe, width });
+	if (model.kind === "list") {
+		drawListPackPreview({ context, height, model, recipe, width });
 		return;
 	}
-	if (definition.category === "split-template") {
-		drawSplitPackPreview({ context, height, recipe, width });
+	if (model.kind === "split") {
+		drawSplitPackPreview({ context, height, model, recipe, width });
 		return;
 	}
-	if (definition.category === "timeline-template") {
-		drawTimelinePackPreview({ context, height, recipe, width });
+	if (model.kind === "timeline") {
+		drawTimelinePackPreview({ context, height, model, recipe, width });
 		return;
 	}
-	drawHeadlinePackPreview({ context, height, recipe, width });
+	drawHeadlinePackPreview({ context, height, model, recipe, width });
 }
 
 export function renderTextTemplateThumbnail({
@@ -1192,7 +1337,12 @@ export function renderTextTemplateThumbnail({
 	drawBackground({ context, height, recipe, width });
 	drawOrnaments({ context, height, recipe, width });
 	if (getTextTemplateThumbnailLayoutKind({ definition }) === "pack") {
-		drawTemplatePackPreview({ context, definition, height, recipe, width });
+		const model = getTextTemplatePackPreviewModel({ definition, template });
+		if (model) {
+			drawTemplatePackPreview({ context, height, model, recipe, width });
+			return;
+		}
+		drawText({ context, definition, height, recipe, template, width });
 		return;
 	}
 	drawText({ context, definition, height, recipe, template, width });

@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
 	getThumbnailPreviewContent,
+	getTextTemplatePackPreviewModel,
 	getTextTemplateThumbnailLayoutKind,
 	getTextTemplateThumbnailRecipe,
 	type TextThumbnailBackgroundKind,
@@ -151,5 +152,37 @@ describe("text template thumbnail renderer", () => {
 				})[0],
 			})
 		).toBe("single");
+	});
+
+	it("builds pack preview models from template pack copy slots", () => {
+		const template = createTextElement({ content: "主标题" });
+		const expectedKinds = {
+			"headline-template": "headline",
+			"quote-template": "quote",
+			"list-template": "list",
+			"split-template": "split",
+			"timeline-template": "timeline",
+		} as const;
+
+		for (const [category, expectedKind] of Object.entries(expectedKinds)) {
+			const definition = getTextTemplateDefinitionsByCategory({
+				category: category as keyof typeof expectedKinds,
+			})[0];
+			const model = getTextTemplatePackPreviewModel({ definition, template });
+
+			expect(model).toMatchObject({
+				kind: expectedKind,
+				layerCount: expect.any(Number),
+				slots: expect.arrayContaining([
+					expect.objectContaining({
+						content: expect.any(String),
+						id: expect.any(String),
+						label: expect.any(String),
+					}),
+				]),
+			});
+			expect(model?.layerCount).toBeGreaterThan(1);
+			expect(model?.slots.length).toBeGreaterThan(0);
+		}
 	});
 });
