@@ -584,6 +584,7 @@ The staged folder includes \`${STAGE_DESIGNER_GAP_REPORT_FILE}\`, which lists th
 After publishing, verify the remote CDN. The first command checks reachability and sizes quickly; the second downloads each object and verifies SHA-256 checksums; the third verifies uploaded object identity metadata when your CDN exposes S3/R2 \`x-amz-meta-*\` headers:
 
 \`\`\`bash
+bun run assets:text:proof-remote-release
 bun run assets:text:check-remote
 bun run assets:text:check-remote-checksum
 bun run assets:text:check-remote-metadata

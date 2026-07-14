@@ -494,6 +494,9 @@ describe("text asset CDN release script", () => {
 		).resolves.toContain("_qcut-text-designer-gap-report.json");
 		await expect(
 			readFile(join(stageDir, "_qcut-text-assets-release-readme.md"), "utf8")
+		).resolves.toContain("assets:text:proof-remote-release");
+		await expect(
+			readFile(join(stageDir, "_qcut-text-assets-release-readme.md"), "utf8")
 		).resolves.toContain("assets:text:check-remote-checksum");
 		await expect(
 			readFile(join(stageDir, "_qcut-text-assets-release-readme.md"), "utf8")

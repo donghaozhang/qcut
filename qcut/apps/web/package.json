@@ -38,6 +38,7 @@
 		"assets:text:verify-archive": "bun scripts/verify-text-assets-archive.ts",
 		"assets:text:proof-release": "bun run assets:text:verify-cdn && bun run assets:text:release-stage && bun run assets:text:verify-stage && bun run assets:text:verify-archive",
 		"assets:text:proof-designer-ready-release": "bun run assets:text:verify-designer-ready && bun run assets:text:release-designer-ready-stage && bun run assets:text:verify-stage && bun run assets:text:verify-archive",
+		"assets:text:proof-remote-release": "bun run assets:text:check-remote && bun run assets:text:check-remote-checksum && bun run assets:text:check-remote-metadata",
 		"preview": "vite preview",
 		"lint": "biome check src/",
 		"lint:fix": "biome check src/ --write",

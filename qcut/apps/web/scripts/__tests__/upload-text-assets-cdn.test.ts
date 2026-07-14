@@ -152,6 +152,9 @@ describe("text asset CDN upload script", () => {
 		).toBe(
 			"bun run assets:text:verify-designer-ready && bun run assets:text:release-designer-ready-stage && bun run assets:text:verify-stage && bun run assets:text:verify-archive"
 		);
+		expect(packageJson.scripts["assets:text:proof-remote-release"]).toBe(
+			"bun run assets:text:check-remote && bun run assets:text:check-remote-checksum && bun run assets:text:check-remote-metadata"
+		);
 	});
 
 	it("parses upload options from env and CLI overrides", () => {
