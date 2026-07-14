@@ -1576,13 +1576,20 @@ function ExpandedTextLibraryDialog({
 	);
 }
 
-function getTextLibraryEmptyMessage({
+export function getTextLibraryEmptyMessage({
 	categoryId,
+	hasDesignerSourceAssets,
 	hasActiveFilters,
+	sourceFilter,
 }: {
 	categoryId: TextTemplateCategoryId;
+	hasDesignerSourceAssets: boolean;
 	hasActiveFilters: boolean;
+	sourceFilter: TextLibrarySourceFilter;
 }): string {
+	if (sourceFilter === "designer" && !hasDesignerSourceAssets) {
+		return "还没有导入设计师文字素材包";
+	}
 	if (hasActiveFilters) return "没有找到匹配的文字样式";
 	if (categoryId === "favorites") return "还没有收藏文字样式";
 	if (categoryId === "recent") return "还没有最近使用的文字样式";
@@ -1792,9 +1799,18 @@ export function TextView() {
 		sourceFilter !== "all" ||
 		statusFilter !== "all" ||
 		styleFilter !== "all";
+	const hasDesignerSourceAssets = useMemo(
+		() =>
+			TEXT_TEMPLATE_LIBRARY_DEFINITIONS.some((definition) =>
+				matchesSourceFilter({ definition, filter: "designer" })
+			),
+		[]
+	);
 	const emptyMessage = getTextLibraryEmptyMessage({
 		categoryId: activeCategory.id,
+		hasDesignerSourceAssets,
 		hasActiveFilters,
+		sourceFilter,
 	});
 	const smartTextStatus =
 		isSmartTextCategory({ categoryId: activeCategory.id }) &&

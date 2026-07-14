@@ -20,6 +20,7 @@ import {
 	getTextTemplateAccessibilityLabel,
 	getTextTemplateAssetProvenanceBadge,
 	getTextTemplateCardThumbnailPreview,
+	getTextLibraryEmptyMessage,
 	getTextTemplatePackCopyDefaults,
 	getTextTemplatePackCopyActionLabel,
 	getTextTemplatePackCopyBadgeLabel,
@@ -456,6 +457,33 @@ describe("text view layout", () => {
 				filter: "all",
 			})
 		).toBe(true);
+	});
+
+	it("explains empty designer source results as a missing imported pack", () => {
+		expect(
+			getTextLibraryEmptyMessage({
+				categoryId: "red",
+				hasDesignerSourceAssets: false,
+				hasActiveFilters: true,
+				sourceFilter: "designer",
+			})
+		).toBe("还没有导入设计师文字素材包");
+		expect(
+			getTextLibraryEmptyMessage({
+				categoryId: "red",
+				hasDesignerSourceAssets: true,
+				hasActiveFilters: true,
+				sourceFilter: "designer",
+			})
+		).toBe("没有找到匹配的文字样式");
+		expect(
+			getTextLibraryEmptyMessage({
+				categoryId: "favorites",
+				hasDesignerSourceAssets: false,
+				hasActiveFilters: false,
+				sourceFilter: "all",
+			})
+		).toBe("还没有收藏文字样式");
 	});
 
 	it("treats bundled generated text resources as cached in the grid", () => {
