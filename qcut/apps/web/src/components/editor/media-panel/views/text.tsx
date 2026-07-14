@@ -36,7 +36,9 @@ import {
 	Heart,
 	Layers3,
 	Maximize2,
+	Palette,
 	Search,
+	Sparkles,
 } from "lucide-react";
 import {
 	type DragEvent,
@@ -289,6 +291,31 @@ export function getTextTemplatePackCopyBadgeLabel({
 	return slotCount > 0 ? `${slotCount} 个可替换文案` : "可替换文案";
 }
 
+type TextTemplateAssetProvenanceBadge = {
+	label: string;
+	source: "designer-imported" | "generated";
+};
+
+export function getTextTemplateAssetProvenanceBadge({
+	provenance,
+}: {
+	provenance?: { source?: string };
+}): TextTemplateAssetProvenanceBadge | undefined {
+	if (provenance?.source === "designer-imported") {
+		return {
+			label: "设计师素材",
+			source: "designer-imported",
+		};
+	}
+	if (provenance?.source === "generated") {
+		return {
+			label: "生成兜底素材",
+			source: "generated",
+		};
+	}
+	return undefined;
+}
+
 export function applyTextTemplatePackCopyValues({
 	copyValues,
 	pack,
@@ -385,6 +412,10 @@ function TextTemplate({
 		() => resolveTextTemplateAssetEntry({ definition }),
 		[definition]
 	);
+	const provenanceBadge = getTextTemplateAssetProvenanceBadge({
+		provenance: (asset.metadata as { provenance?: { source?: string } })
+			?.provenance,
+	});
 	const dragData = useMemo(
 		() => buildTextTemplateDragData({ definition }),
 		[definition]
@@ -644,6 +675,28 @@ function TextTemplate({
 							<Gem aria-hidden="true" className="h-2.5 w-2.5">
 								<title>会员素材</title>
 							</Gem>
+						</div>
+					)}
+					{provenanceBadge && (
+						<div
+							className={cn(
+								"absolute top-1 flex h-3.5 w-3.5 items-center justify-center rounded-full shadow-sm ring-1 ring-white/10",
+								definition.premium ? "left-5" : "left-1",
+								provenanceBadge.source === "designer-imported"
+									? "bg-emerald-300 text-slate-950"
+									: "bg-black/55 text-amber-200"
+							)}
+							title={provenanceBadge.label}
+						>
+							{provenanceBadge.source === "designer-imported" ? (
+								<Palette aria-hidden="true" className="h-2.5 w-2.5">
+									<title>{provenanceBadge.label}</title>
+								</Palette>
+							) : (
+								<Sparkles aria-hidden="true" className="h-2.5 w-2.5">
+									<title>{provenanceBadge.label}</title>
+								</Sparkles>
+							)}
 						</div>
 					)}
 					<button

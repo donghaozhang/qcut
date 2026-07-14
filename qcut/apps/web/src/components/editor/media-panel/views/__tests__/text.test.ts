@@ -17,6 +17,7 @@ import {
 	buildTextTemplateDragData,
 	getTextTemplateBatchCacheTargets,
 	getTextTemplateAccessibilityLabel,
+	getTextTemplateAssetProvenanceBadge,
 	getTextTemplateCardThumbnailPreview,
 	getTextTemplatePackCopyDefaults,
 	getTextTemplatePackCopyActionLabel,
@@ -363,6 +364,30 @@ describe("text view layout", () => {
 		expect(getTextTemplatePackCopyBadgeLabel({ slotCount: 0 })).toBe(
 			"可替换文案"
 		);
+	});
+
+	it("labels generated fallback and designer-imported text assets distinctly", () => {
+		expect(
+			getTextTemplateAssetProvenanceBadge({
+				provenance: { source: "generated" },
+			})
+		).toEqual({
+			label: "生成兜底素材",
+			source: "generated",
+		});
+		expect(
+			getTextTemplateAssetProvenanceBadge({
+				provenance: { source: "designer-imported" },
+			})
+		).toEqual({
+			label: "设计师素材",
+			source: "designer-imported",
+		});
+		expect(
+			getTextTemplateAssetProvenanceBadge({
+				provenance: { source: "unknown" },
+			})
+		).toBeUndefined();
 	});
 
 	it("treats bundled generated text resources as cached in the grid", () => {
