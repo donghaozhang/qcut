@@ -15,10 +15,25 @@ function checksum({ value }: { value: string }): string {
 }
 
 const THUMBNAIL_TEXT = "RIFF0000WEBP";
-const SOURCE_TEXT = JSON.stringify({ schemaVersion: 1, template: {} });
-const PACKAGE_TEXT = JSON.stringify({
-	kind: "qcut-text-template-package",
+const SOURCE_TEXT = JSON.stringify({
+	assetId: "text-demo",
+	packageId: "text-demo",
 	schemaVersion: 1,
+	template: {},
+	version: 1,
+});
+const PACKAGE_TEXT = JSON.stringify({
+	assetId: "text-demo",
+	cacheKey: "text-assets/demo/plain@1",
+	files: {
+		source: "template.json",
+		thumbnail: "thumbnail.webp",
+	},
+	kind: "qcut-text-template-package",
+	packageId: "text-demo",
+	schemaVersion: 1,
+	source: JSON.parse(SOURCE_TEXT) as Record<string, unknown>,
+	version: 1,
 });
 
 function createGeneratedEntry(): TextAssetGeneratedEntry {

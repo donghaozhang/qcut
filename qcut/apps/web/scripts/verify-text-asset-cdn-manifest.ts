@@ -1,7 +1,7 @@
 import { createHash } from "node:crypto";
 import { existsSync } from "node:fs";
 import { mkdir, readFile, writeFile } from "node:fs/promises";
-import { dirname, join } from "node:path";
+import { basename, dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 
 export type TextAssetGeneratedFile = {
@@ -440,7 +440,7 @@ export async function verifyLocalFiles({
 					});
 				}
 				const payloadIssue = verifyLocalFilePayload({
-					assetId: asset.assetId,
+					asset,
 					bytes,
 					file,
 				});
@@ -453,11 +453,11 @@ export async function verifyLocalFiles({
 }
 
 function verifyLocalFilePayload({
-	assetId,
+	asset,
 	bytes,
 	file,
 }: {
-	assetId: string;
+	asset: TextAssetPublishEntry;
 	bytes: Buffer;
 	file: TextAssetPublishFile;
 }): VerifyIssue | null {
@@ -465,40 +465,87 @@ function verifyLocalFilePayload({
 		return isWebpBytes({ bytes })
 			? null
 			: {
-					assetId,
+					assetId: asset.assetId,
 					code: "invalid-file-payload",
 					detail: "Thumbnail file is not a valid WebP payload",
 					url: file.url,
 				};
 	}
-	if (file.role === "metadata" || file.role === "source") {
-		return parseJsonObjectPayload({
-			assetId,
+	if (file.role === "metadata") {
+		const parsed = parseJsonObjectPayload({
+			assetId: asset.assetId,
 			bytes,
 			role: file.role,
+			url: file.url,
+		});
+		return parsed.issue ?? null;
+	}
+	if (file.role === "source") {
+		const parsed = parseJsonObjectPayload({
+			assetId: asset.assetId,
+			bytes,
+			role: file.role,
+			url: file.url,
+		});
+		if (parsed.issue) return parsed.issue;
+		return verifyTextAssetIdentity({
+			asset,
+			payload: parsed.payload,
+			role: "source",
 			url: file.url,
 		});
 	}
 	if (file.role === "package") {
-		const jsonIssue = parseJsonObjectPayload({
-			assetId,
+		const parsed = parseJsonObjectPayload({
+			assetId: asset.assetId,
 			bytes,
 			role: file.role,
 			url: file.url,
 		});
-		if (jsonIssue) return jsonIssue;
-		const payload = JSON.parse(bytes.toString("utf8")) as Record<
-			string,
-			unknown
-		>;
-		return payload.kind === "qcut-text-template-package"
-			? null
-			: {
-					assetId,
-					code: "invalid-file-payload",
-					detail: "QCut text package must use qcut-text-template-package",
-					url: file.url,
-				};
+		if (parsed.issue) return parsed.issue;
+		const payload = parsed.payload;
+		if (payload.kind !== "qcut-text-template-package") {
+			return {
+				assetId: asset.assetId,
+				code: "invalid-file-payload",
+				detail: "QCut text package must use qcut-text-template-package",
+				url: file.url,
+			};
+		}
+		const identityIssue = verifyTextAssetIdentity({
+			asset,
+			payload,
+			role: "package",
+			url: file.url,
+		});
+		if (identityIssue) return identityIssue;
+		const cacheKeyIssue = verifyTextAssetPackageCacheKey({
+			asset,
+			payload,
+			url: file.url,
+		});
+		if (cacheKeyIssue) return cacheKeyIssue;
+		const fileReferenceIssue = verifyTextAssetPackageFileReferences({
+			asset,
+			payload,
+			url: file.url,
+		});
+		if (fileReferenceIssue) return fileReferenceIssue;
+		const source = isRecord({ value: payload.source }) ? payload.source : null;
+		if (!source) {
+			return {
+				assetId: asset.assetId,
+				code: "invalid-file-payload",
+				detail: "QCut text package source must be a JSON object",
+				url: file.url,
+			};
+		}
+		return verifyTextAssetIdentity({
+			asset,
+			payload: source,
+			role: "package source",
+			url: file.url,
+		});
 	}
 	return null;
 }
@@ -513,7 +560,9 @@ function parseJsonObjectPayload({
 	bytes: Buffer;
 	role: PublishFileRole;
 	url: string;
-}): VerifyIssue | null {
+}):
+	| { issue: VerifyIssue; payload?: never }
+	| { issue?: never; payload: Record<string, unknown> } {
 	try {
 		const parsed = JSON.parse(bytes.toString("utf8")) as unknown;
 		if (
@@ -521,23 +570,143 @@ function parseJsonObjectPayload({
 			parsed !== null &&
 			!Array.isArray(parsed)
 		) {
-			return null;
+			return { payload: parsed as Record<string, unknown> };
 		}
 		return {
-			assetId,
-			code: "invalid-file-payload",
-			detail: `${role} file must be a JSON object`,
-			url,
+			issue: {
+				assetId,
+				code: "invalid-file-payload",
+				detail: `${role} file must be a JSON object`,
+				url,
+			},
 		};
 	} catch (error) {
 		const detail = error instanceof Error ? error.message : String(error);
 		return {
-			assetId,
+			issue: {
+				assetId,
+				code: "invalid-file-payload",
+				detail: `Invalid ${role} JSON: ${detail}`,
+				url,
+			},
+		};
+	}
+}
+
+function verifyTextAssetIdentity({
+	asset,
+	payload,
+	role,
+	url,
+}: {
+	asset: TextAssetPublishEntry;
+	payload: Record<string, unknown>;
+	role: string;
+	url: string;
+}): VerifyIssue | null {
+	const mismatches = [
+		fieldMismatch({
+			actual: payload.assetId,
+			expected: asset.assetId,
+			field: "assetId",
+		}),
+		fieldMismatch({
+			actual: payload.packageId,
+			expected: asset.packageId,
+			field: "packageId",
+		}),
+		fieldMismatch({
+			actual: payload.version,
+			expected: asset.version,
+			field: "version",
+		}),
+	].filter((mismatch): mismatch is string => Boolean(mismatch));
+	if (mismatches.length === 0) return null;
+	return {
+		assetId: asset.assetId,
+		code: "invalid-file-payload",
+		detail: `${role} identity mismatch: ${mismatches.join(", ")}`,
+		url,
+	};
+}
+
+function verifyTextAssetPackageCacheKey({
+	asset,
+	payload,
+	url,
+}: {
+	asset: TextAssetPublishEntry;
+	payload: Record<string, unknown>;
+	url: string;
+}): VerifyIssue | null {
+	if (payload.cacheKey === asset.cacheKey) return null;
+	return {
+		assetId: asset.assetId,
+		code: "invalid-file-payload",
+		detail: `package cacheKey expected ${asset.cacheKey}`,
+		url,
+	};
+}
+
+function verifyTextAssetPackageFileReferences({
+	asset,
+	payload,
+	url,
+}: {
+	asset: TextAssetPublishEntry;
+	payload: Record<string, unknown>;
+	url: string;
+}): VerifyIssue | null {
+	const files = isRecord({ value: payload.files }) ? payload.files : null;
+	if (!files) {
+		return {
+			assetId: asset.assetId,
 			code: "invalid-file-payload",
-			detail: `Invalid ${role} JSON: ${detail}`,
+			detail: "QCut text package files must be a JSON object",
 			url,
 		};
 	}
+	const sourceFile = asset.files.find((file) => file.role === "source");
+	const thumbnailFile = asset.files.find((file) => file.role === "thumbnail");
+	const mismatches = [
+		fieldMismatch({
+			actual: files.source,
+			expected: sourceFile ? basename(sourceFile.url) : "template.json",
+			field: "files.source",
+		}),
+		fieldMismatch({
+			actual: files.thumbnail,
+			expected: thumbnailFile ? basename(thumbnailFile.url) : "thumbnail.webp",
+			field: "files.thumbnail",
+		}),
+	].filter((mismatch): mismatch is string => Boolean(mismatch));
+	if (mismatches.length === 0) return null;
+	return {
+		assetId: asset.assetId,
+		code: "invalid-file-payload",
+		detail: `package file reference mismatch: ${mismatches.join(", ")}`,
+		url,
+	};
+}
+
+function fieldMismatch({
+	actual,
+	expected,
+	field,
+}: {
+	actual: unknown;
+	expected: number | string;
+	field: string;
+}): string | null {
+	return actual === expected ? null : `${field} expected ${expected}`;
+}
+
+function isRecord({
+	value,
+}: {
+	value: unknown;
+}): value is Record<string, unknown> {
+	return typeof value === "object" && value !== null && !Array.isArray(value);
 }
 
 function isWebpBytes({ bytes }: { bytes: Buffer }): boolean {
