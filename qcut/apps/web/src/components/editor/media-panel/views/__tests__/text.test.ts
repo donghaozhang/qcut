@@ -470,7 +470,7 @@ describe("text view layout", () => {
 				online: false,
 				runtimeByAssetKey: {},
 			}).map((definition) => definition.id)
-		).toEqual([localDefinition.id]);
+		).toEqual([]);
 
 		expect(
 			getTextTemplateBatchCacheTargets({
@@ -488,5 +488,23 @@ describe("text view layout", () => {
 				},
 			})
 		).toEqual([]);
+		expect(
+			getTextTemplateBatchCacheTargets({
+				definitions: [remoteDefinition],
+				libraryState: EMPTY_TEXT_LIBRARY_STATE,
+				online: true,
+				runtimeByAssetKey: createRemoteTextRuntime({
+					cachedFiles: ["thumbnail", "source", "package"],
+				}),
+			})
+		).toEqual([]);
+		expect(
+			getTextTemplateBatchCacheTargets({
+				definitions: [remoteDefinition],
+				libraryState: EMPTY_TEXT_LIBRARY_STATE,
+				online: true,
+				runtimeByAssetKey: {},
+			})
+		).toEqual([remoteDefinition]);
 	});
 });

@@ -990,7 +990,7 @@ export function getTextTemplateBatchCacheTargets({
 			runtimeByAssetKey,
 			state: libraryState,
 		});
-		return downloadStatus !== "downloading" && downloadStatus !== "failed";
+		return downloadStatus === "remote";
 	});
 }
 
