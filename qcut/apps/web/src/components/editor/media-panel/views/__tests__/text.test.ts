@@ -57,6 +57,22 @@ function createRemoteOnlyDefinition(): TextTemplateDefinition {
 	};
 }
 
+function createLegacyDesignerDefinition(): TextTemplateDefinition {
+	return {
+		id: "legacy-designer-text",
+		name: "Legacy designer text",
+		category: "red",
+		groupId: "fancy",
+		variantId: "legacy",
+		content: "花字",
+		stylePresetId: "clean-white",
+		keywords: ["legacy", "designer"],
+		premium: false,
+		downloaded: true,
+		catalogVisible: true,
+	};
+}
+
 function createRemoteTextRuntime({
 	cachedFiles = ["thumbnail", "source", "package"],
 }: {
@@ -399,18 +415,10 @@ describe("text view layout", () => {
 				filter: "generated",
 			})
 		);
-		const designerDefinition = TEXT_TEMPLATE_DEFINITIONS.find((candidate) =>
-			matchesSourceFilter({
-				definition: candidate,
-				filter: "designer",
-			})
-		);
 		if (!generatedDefinition) {
 			throw new Error("Expected generated provenance text fixture");
 		}
-		if (!designerDefinition) {
-			throw new Error("Expected designer provenance text fixture");
-		}
+		const designerDefinition = createLegacyDesignerDefinition();
 
 		expect(
 			matchesSourceFilter({
