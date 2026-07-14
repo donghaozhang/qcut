@@ -3,6 +3,7 @@ import {
 	isTextTemplateFavorite,
 	type TextLibraryState,
 } from "./text-library-state";
+import { getTextTemplateMarketplaceMetadata } from "./text-marketplace-metadata";
 import type { TextTemplateDefinition } from "./text-template-registry";
 
 type WeightedSearchTerm = {
@@ -136,29 +137,6 @@ const QUERY_SYNONYMS: Readonly<Record<string, readonly string[]>> = {
 	金: ["金色", "鎏金", "黄色", "高级"],
 };
 
-const HOT_CATEGORY_BOOSTS: Readonly<Record<string, number>> = {
-	popular: 18,
-	latest: 12,
-	red: 10,
-	texture: 10,
-	gradient: 10,
-	glow: 8,
-	variety: 8,
-};
-
-const HOT_VARIANT_BOOSTS: Readonly<Record<string, number>> = {
-	"red-burst": 20,
-	fire: 18,
-	"gradient-shine": 17,
-	"gradient-duotone": 16,
-	"texture-grain": 16,
-	sticker: 14,
-	glitch: 14,
-	comic: 13,
-	gold: 13,
-	lava: 13,
-};
-
 export function rankTextTemplateSearchResults({
 	definitions,
 	query,
@@ -287,6 +265,7 @@ function scoreWeightedTerm({
 		name: definition.name.toLocaleLowerCase(),
 		variantId: definition.variantId.toLocaleLowerCase(),
 	};
+	const metadata = getTextTemplateMarketplaceMetadata({ definition });
 	const keywordScore = definition.keywords.reduce(
 		(total, keyword) =>
 			total +
@@ -298,6 +277,14 @@ function scoreWeightedTerm({
 			scoreField({ field: definition.resource.packageId, term: term.term }) *
 				0.5
 		: 0;
+	const marketplaceScore = [
+		...metadata.remoteTags,
+		...metadata.searchAliases,
+	].reduce(
+		(total, value) =>
+			total + scoreField({ field: value.toLocaleLowerCase(), term: term.term }),
+		0
+	);
 	const fieldScore =
 		scoreField({ field: normalizedFields.name, term: term.term }) * 4 +
 		scoreField({ field: normalizedFields.content, term: term.term }) * 3 +
@@ -306,7 +293,10 @@ function scoreWeightedTerm({
 		scoreField({ field: normalizedFields.groupId, term: term.term }) +
 		scoreField({ field: normalizedFields.id, term: term.term });
 
-	return (fieldScore + keywordScore + resourceScore) * term.weight;
+	return (
+		(fieldScore + keywordScore + resourceScore + marketplaceScore * 1.35) *
+		term.weight
+	);
 }
 
 function scoreField({ field, term }: { field: string; term: string }): number {
@@ -457,11 +447,16 @@ function getStateAwareBoost({
 		getTextTemplateDownloadStatus({ definition, state }) === "cached" ? 14 : 0;
 	const favoriteBoost = isTextTemplateFavorite({ definition, state }) ? 16 : 0;
 	const premiumBoost = definition.premium ? 3 : 0;
-	const heatBoost =
-		(HOT_CATEGORY_BOOSTS[definition.category] ?? 0) +
-		(HOT_VARIANT_BOOSTS[definition.variantId] ?? 0);
+	const metadata = getTextTemplateMarketplaceMetadata({ definition });
+	const heatBoost = metadata.heatScore * 0.34;
+	const editorialBoost = Math.max(0, 16 - metadata.editorialRank * 0.12);
 
 	return (
-		recentBoost + downloadedBoost + favoriteBoost + premiumBoost + heatBoost
+		recentBoost +
+		downloadedBoost +
+		favoriteBoost +
+		premiumBoost +
+		heatBoost +
+		editorialBoost
 	);
 }

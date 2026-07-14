@@ -177,4 +177,37 @@ describe("text library search", () => {
 			}).map((definition) => definition.id)
 		).toEqual(["glow-style"]);
 	});
+
+	it("matches marketplace remote tags and uses heat metadata for ranking", () => {
+		const definitions = [
+			createDefinition({
+				category: "red",
+				content: "花字",
+				id: "plain-red",
+				variantId: "plain",
+			}),
+			createDefinition({
+				category: "red",
+				content: "花字",
+				id: "hero-red",
+				premium: true,
+				variantId: "red-burst",
+			}),
+		];
+
+		expect(
+			rankTextTemplateSearchResults({
+				definitions,
+				query: "hero",
+				state: EMPTY_TEXT_LIBRARY_STATE,
+			}).map((definition) => definition.id)
+		).toEqual(["hero-red"]);
+		expect(
+			rankTextTemplateSearchResults({
+				definitions,
+				query: "花字",
+				state: EMPTY_TEXT_LIBRARY_STATE,
+			}).map((definition) => definition.id)
+		).toEqual(["hero-red", "plain-red"]);
+	});
 });

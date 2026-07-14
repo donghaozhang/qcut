@@ -3,6 +3,7 @@ import { mkdir, rm, writeFile } from "node:fs/promises";
 import { dirname, join } from "node:path";
 import { chromium, type Page } from "playwright";
 import { getTextTemplateThumbnailLayoutKind } from "../src/components/editor/media-panel/views/text-template-thumbnail-renderer";
+import { getTextTemplateMarketplaceMetadata } from "../src/lib/text/text-marketplace-metadata";
 import { getTextTemplateResource } from "../src/lib/text/text-resource-catalog";
 import {
 	buildTextTemplate,
@@ -233,11 +234,13 @@ async function svgToWebp({
 
 function sourcePayload({ definition }: { definition: TextTemplateDefinition }) {
 	const resource = getTextTemplateResource({ definition });
+	const marketplace = getTextTemplateMarketplaceMetadata({ definition });
 	return {
 		schemaVersion: 1,
 		assetId: resource.assetId,
 		packageId: resource.packageId,
 		version: resource.version,
+		marketplace,
 		definition: {
 			id: definition.id,
 			name: definition.name,

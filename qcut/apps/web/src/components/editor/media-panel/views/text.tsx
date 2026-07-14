@@ -57,6 +57,7 @@ import {
 	type TextLibraryState,
 } from "@/lib/text/text-library-state";
 import { rankTextTemplateSearchResults } from "@/lib/text/text-library-search";
+import { compareTextTemplatesByMarketplaceOrder } from "@/lib/text/text-marketplace-metadata";
 import {
 	generateSmartTextSuggestions,
 	getSmartTextCategoryId,
@@ -889,6 +890,21 @@ function applySmartTextSuggestions({
 	});
 }
 
+function sortTextDefinitionsForBrowsing({
+	categoryId,
+	definitions,
+}: {
+	categoryId: TextTemplateCategoryId;
+	definitions: readonly TextTemplateDefinition[];
+}): TextTemplateDefinition[] {
+	if (categoryId === "favorites" || categoryId === "recent") {
+		return [...definitions];
+	}
+	return [...definitions].sort((left, right) =>
+		compareTextTemplatesByMarketplaceOrder({ left, right })
+	);
+}
+
 export function TextView() {
 	const tracks = useTimelineStore((state) => state.tracks);
 	const transcriptions = useSearchStore((state) => state.transcriptions);
@@ -960,7 +976,10 @@ export function TextView() {
 					query: normalizedSearchQuery,
 					state: libraryState,
 				})
-			: projectAwareDefinitions;
+			: sortTextDefinitionsForBrowsing({
+					categoryId: activeCategory.id,
+					definitions: projectAwareDefinitions,
+				});
 		return searchBase.filter(
 			(definition) =>
 				matchesStatusFilter({
@@ -970,6 +989,7 @@ export function TextView() {
 				}) && matchesStyleFilter({ definition, filter: styleFilter })
 		);
 	}, [
+		activeCategory.id,
 		libraryState,
 		normalizedSearchQuery,
 		projectAwareDefinitions,
