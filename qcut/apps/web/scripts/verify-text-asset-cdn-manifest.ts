@@ -121,7 +121,8 @@ export function parseTextAssetCdnArgs({
 		minDesignerAssets: 0,
 		minDesignerAssetsPerCategory: parsePositiveInteger({
 			name: "QCUT_TEXT_ASSET_MIN_DESIGNER_ASSETS_PER_CATEGORY",
-			value: process.env.QCUT_TEXT_ASSET_MIN_DESIGNER_ASSETS_PER_CATEGORY ?? "1",
+			value:
+				process.env.QCUT_TEXT_ASSET_MIN_DESIGNER_ASSETS_PER_CATEGORY ?? "1",
 		}),
 		publicDir: DEFAULT_PUBLIC_DIR,
 		remoteConcurrency: 16,
