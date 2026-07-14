@@ -416,6 +416,70 @@ describe("text library search", () => {
 		).toEqual(["remote-campaign"]);
 	});
 
+	it("matches localized operation terms from remote marketplace tags", () => {
+		const definitions = [
+			createDefinition({
+				category: "basic",
+				content: "花字",
+				id: "standard-style",
+				variantId: "plain",
+			}),
+			createDefinition({
+				category: "basic",
+				content: "花字",
+				id: "remote-commerce-style",
+				variantId: "shadow",
+			}),
+			createDefinition({
+				category: "basic",
+				content: "花字",
+				id: "remote-cover-style",
+				variantId: "sticker",
+			}),
+		];
+		const marketplaceOverrides = {
+			"remote-commerce-style": {
+				remoteTags: ["scene:commerce"],
+			},
+			"remote-cover-style": {
+				remoteTags: ["market:hero"],
+			},
+		};
+
+		expect(
+			rankTextTemplateSearchResults({
+				definitions,
+				marketplaceOverrides,
+				query: "电商",
+				state: EMPTY_TEXT_LIBRARY_STATE,
+			}).map((definition) => definition.id)
+		).toEqual(["remote-commerce-style"]);
+		expect(
+			rankTextTemplateSearchResults({
+				definitions,
+				marketplaceOverrides,
+				query: "dianshang",
+				state: EMPTY_TEXT_LIBRARY_STATE,
+			}).map((definition) => definition.id)
+		).toEqual(["remote-commerce-style"]);
+		expect(
+			rankTextTemplateSearchResults({
+				definitions,
+				marketplaceOverrides,
+				query: "maihuo",
+				state: EMPTY_TEXT_LIBRARY_STATE,
+			}).map((definition) => definition.id)
+		).toEqual(["remote-commerce-style"]);
+		expect(
+			rankTextTemplateSearchResults({
+				definitions,
+				marketplaceOverrides,
+				query: "fengmian",
+				state: EMPTY_TEXT_LIBRARY_STATE,
+			}).map((definition) => definition.id)
+		).toEqual(["remote-cover-style"]);
+	});
+
 	it("matches remote marketplace phrase aliases through pinyin and acronyms", () => {
 		const definitions = [
 			createDefinition({
@@ -526,7 +590,7 @@ describe("text library search", () => {
 				query: "fengmian",
 				state: EMPTY_TEXT_LIBRARY_STATE,
 			}).map((definition) => definition.id)
-		).toEqual(["cover-title-style"]);
+		).toEqual(["cover-title-style", "live-sale-style"]);
 		expect(
 			rankTextTemplateSearchResults({
 				definitions,

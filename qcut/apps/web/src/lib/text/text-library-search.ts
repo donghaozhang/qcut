@@ -136,6 +136,8 @@ const CHINESE_PINYIN: Readonly<Record<string, string>> = {
 	开: "kai",
 	促: "cu",
 	销: "xiao",
+	卖: "mai",
+	货: "huo",
 	高: "gao",
 	级: "ji",
 	推: "tui",
@@ -205,6 +207,7 @@ const CHINESE_PHRASE_PINYIN_ALIASES: Readonly<Record<string, PinyinAlias>> = {
 	带货: { full: "daihuo", acronym: "dh" },
 	到手价: { full: "daoshoujia", acronym: "dsj" },
 	地点: { full: "didian", acronym: "dd" },
+	电商: { full: "dianshang", acronym: "ds" },
 	福利: { full: "fuli", acronym: "fl" },
 	高能预警: { full: "gaonengyujing", acronym: "gnyj" },
 	感谢观看: { full: "ganxieguankan", acronym: "gxgk" },
@@ -218,6 +221,7 @@ const CHINESE_PHRASE_PINYIN_ALIASES: Readonly<Record<string, PinyinAlias>> = {
 	三秒讲清: { full: "sanmiaojiangqing", acronym: "smjq" },
 	上新: { full: "shangxin", acronym: "sx" },
 	同款链接: { full: "tongkuanlianjie", acronym: "tklj" },
+	卖货: { full: "maihuo", acronym: "mh" },
 	下期见: { full: "xiaqijian", acronym: "xqj" },
 	信息条: { full: "xinxitiao", acronym: "xxt" },
 	醒目: { full: "xingmu", acronym: "xm" },
@@ -286,6 +290,28 @@ const QUERY_CORRECTIONS: Readonly<Record<string, readonly string[]>> = {
 	黄瑟: ["黄色"],
 	蓝瑟: ["蓝色"],
 	紫瑟: ["紫色"],
+};
+
+const REMOTE_TAG_SEARCH_ALIASES: Readonly<Record<string, readonly string[]>> = {
+	"color:black-white": ["黑白", "高对比", "经典"],
+	"color:blue": ["蓝色", "科技", "教程"],
+	"color:green": ["绿色", "清新", "自然"],
+	"color:pink": ["粉色", "可爱", "甜心"],
+	"color:purple": ["紫色", "梦幻", "高级"],
+	"color:red": ["红色", "促销", "带货", "电商"],
+	"color:yellow": ["黄色", "醒目", "高亮"],
+	"effect:fire": ["火焰", "热血", "燃"],
+	"effect:glitch": ["故障", "赛博", "抖动"],
+	"effect:glow": ["发光", "霓虹", "夜景"],
+	"effect:gradient": ["渐变", "流光", "梦幻"],
+	"effect:pop": ["综艺", "弹幕", "爆款"],
+	"effect:texture": ["纹理", "材质", "质感"],
+	"market:hero": ["封面", "标题", "爆款", "醒目"],
+	"market:premium-look": ["质感", "高级", "金属"],
+	"market:recommended": ["推荐", "热门", "爆款"],
+	"scene:commerce": ["电商", "带货", "卖货", "促销", "价格", "优惠"],
+	"scene:night": ["夜景", "霓虹", "发光"],
+	"scene:variety": ["综艺", "搞笑", "弹幕"],
 };
 
 export function rankTextTemplateSearchResults({
@@ -597,7 +623,7 @@ function scoreSearchVariant({
 }): number {
 	if (field === term) return 24;
 	if (field.startsWith(term)) return 16;
-	if (field.includes(term)) return 10;
+	if (field.includes(term) && shouldUseSubstringMatch({ term })) return 10;
 	if (shouldUseFuzzyMatch({ field, term })) {
 		const distance = boundedLevenshteinDistance({ left: field, right: term });
 		if (distance === 1) return 8;
@@ -611,6 +637,11 @@ function scoreSearchVariant({
 	return 0;
 }
 
+function shouldUseSubstringMatch({ term }: { term: string }): boolean {
+	if (!/^[a-z0-9]+$/.test(term)) return true;
+	return term.length > 2;
+}
+
 function getSearchFieldVariants({
 	field,
 }: {
@@ -621,11 +652,27 @@ function getSearchFieldVariants({
 	if (compact && compact !== field) {
 		variants.push({ value: compact, weight: 0.94 });
 	}
+	for (const alias of getRemoteTagSearchAliases({ field })) {
+		variants.push({ value: alias, weight: 0.9 });
+		for (const pinyin of getPinyinAliases({ value: alias })) {
+			variants.push({ value: pinyin.full, weight: 0.78 });
+			variants.push({ value: pinyin.acronym, weight: 0.7 });
+		}
+	}
 	for (const pinyin of getPinyinAliases({ value: field })) {
 		variants.push({ value: pinyin.full, weight: 0.86 });
 		variants.push({ value: pinyin.acronym, weight: 0.78 });
 	}
 	return variants;
+}
+
+function getRemoteTagSearchAliases({
+	field,
+}: {
+	field: string;
+}): readonly string[] {
+	const normalizedField = field.toLocaleLowerCase();
+	return REMOTE_TAG_SEARCH_ALIASES[normalizedField] ?? [];
 }
 
 function getPinyinAliases({ value }: { value: string }): PinyinAlias[] {
