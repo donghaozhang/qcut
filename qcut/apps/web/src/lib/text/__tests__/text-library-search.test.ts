@@ -848,4 +848,47 @@ describe("text library search", () => {
 			new Set(["live-red-style", "live-blue-style", "cover-red-style"])
 		);
 	});
+
+	it("splits compact pinyin marketplace queries into searchable intent terms", () => {
+		const definitions = [
+			createDefinition({
+				category: "blue",
+				content: "直播价格",
+				id: "live-blue-style",
+				keywords: ["直播", "价格", "促销"],
+				variantId: "blue-ice",
+			}),
+			createDefinition({
+				category: "red",
+				content: "直播价格",
+				id: "live-red-style",
+				keywords: ["直播", "价格", "促销", "红色"],
+				variantId: "red-burst",
+			}),
+			createDefinition({
+				category: "red",
+				content: "红色花字",
+				id: "red-only-style",
+				keywords: ["红色"],
+				variantId: "red-burst",
+			}),
+		];
+
+		expect(buildWeightedSearchTerms({ query: "zhibohongse" })).toEqual(
+			expect.arrayContaining([
+				{ term: "zhibo", weight: 0.82 },
+				{ term: "hongse", weight: 0.82 },
+			])
+		);
+		const compactPinyinResults = rankTextTemplateSearchResults({
+			definitions,
+			query: "zhibohongse",
+			state: EMPTY_TEXT_LIBRARY_STATE,
+		}).map((definition) => definition.id);
+
+		expect(compactPinyinResults[0]).toBe("live-red-style");
+		expect(new Set(compactPinyinResults)).toEqual(
+			new Set(["live-red-style", "live-blue-style", "red-only-style"])
+		);
+	});
 });

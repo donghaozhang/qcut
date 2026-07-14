@@ -322,6 +322,48 @@ const QUERY_CORRECTIONS: Readonly<Record<string, readonly string[]>> = {
 	紫瑟: ["紫色"],
 };
 
+const COMPACT_PINYIN_SEGMENT_PHRASES = [
+	"小红书",
+	"哔哩哔哩",
+	"直播",
+	"口播",
+	"封面",
+	"标题",
+	"红色",
+	"蓝色",
+	"绿色",
+	"粉色",
+	"紫色",
+	"黄色",
+	"黑白",
+	"价格",
+	"促销",
+	"优惠",
+	"秒杀",
+	"带货",
+	"电商",
+	"种草",
+	"探店",
+	"测评",
+	"教程",
+	"知识",
+	"清单",
+	"综艺",
+	"国风",
+	"国潮",
+	"发光",
+	"霓虹",
+	"渐变",
+	"纹理",
+	"质感",
+	"高级",
+	"火焰",
+	"故障",
+	"贴纸",
+] as const;
+
+const COMPACT_PINYIN_SEGMENT_TERMS = buildCompactPinyinSegmentTerms();
+
 const REMOTE_TAG_SEARCH_ALIASES: Readonly<Record<string, readonly string[]>> = {
 	"color:black-white": ["黑白", "高对比", "经典"],
 	"color:blue": ["蓝色", "科技", "教程"],
@@ -401,6 +443,9 @@ export function buildWeightedSearchTerms({
 		addWeightedTerm({ term, weight: 1, weightedTerms });
 		addQueryAliases({ term, weight: 0.95, weightedTerms });
 		addQueryCorrections({ term, weight: 0.7, weightedTerms });
+		for (const segment of splitCompactPinyinQuery({ term })) {
+			addWeightedTerm({ term: segment, weight: 0.82, weightedTerms });
+		}
 		for (const synonym of QUERY_SYNONYMS[term] ?? []) {
 			addWeightedTerm({
 				term: synonym.toLocaleLowerCase(),
@@ -427,8 +472,12 @@ function buildSearchIntentGroups({
 	query: string;
 }): SearchIntentGroup[] {
 	const terms = tokenizeSearchQuery({ query });
-	if (terms.length <= 1) return [];
-	return terms.map((term) => ({
+	const segmentTerms =
+		terms.length > 1
+			? terms
+			: splitCompactPinyinQuery({ term: query.toLocaleLowerCase().trim() });
+	if (segmentTerms.length <= 1) return [];
+	return segmentTerms.map((term) => ({
 		terms: buildWeightedSearchTerms({ query: term }),
 	}));
 }
@@ -506,6 +555,55 @@ function addWeightedTerm({
 }) {
 	if (!term) return;
 	weightedTerms.set(term, Math.max(weightedTerms.get(term) ?? 0, weight));
+}
+
+function buildCompactPinyinSegmentTerms(): readonly string[] {
+	const terms = new Set<string>();
+	for (const phrase of COMPACT_PINYIN_SEGMENT_PHRASES) {
+		for (const alias of getPinyinAliases({ value: phrase })) {
+			terms.add(alias.full);
+			terms.add(alias.acronym);
+		}
+	}
+	for (const alias of Object.values(CHINESE_PHRASE_PINYIN_ALIASES)) {
+		terms.add(alias.full);
+		terms.add(alias.acronym);
+	}
+	return [...terms]
+		.filter((term) => term.length >= 2)
+		.sort((left, right) => right.length - left.length);
+}
+
+function splitCompactPinyinQuery({ term }: { term: string }): string[] {
+	const normalizedTerm = compactLatinTerm({ value: term });
+	if (
+		normalizedTerm.length < 6 ||
+		normalizedTerm !== term ||
+		!/^[a-z0-9]+$/.test(normalizedTerm)
+	) {
+		return [];
+	}
+	const segments = segmentCompactPinyinTerm({ term: normalizedTerm });
+	return segments.length > 1 ? segments : [];
+}
+
+function segmentCompactPinyinTerm({ term }: { term: string }): string[] {
+	const memo = new Map<number, string[] | undefined>();
+	const segmentFrom = ({ index }: { index: number }): string[] | undefined => {
+		if (index === term.length) return [];
+		if (memo.has(index)) return memo.get(index);
+		for (const segment of COMPACT_PINYIN_SEGMENT_TERMS) {
+			if (!term.startsWith(segment, index)) continue;
+			const next = segmentFrom({ index: index + segment.length });
+			if (!next) continue;
+			const result = [segment, ...next];
+			memo.set(index, result);
+			return result;
+		}
+		memo.set(index, undefined);
+		return undefined;
+	};
+	return segmentFrom({ index: 0 }) ?? [];
 }
 
 function scoreTextTemplateDefinition({
