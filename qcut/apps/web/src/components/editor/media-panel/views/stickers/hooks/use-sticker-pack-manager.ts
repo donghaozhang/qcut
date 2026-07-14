@@ -8,7 +8,57 @@ import {
 	type StickerStorePack,
 } from "@/lib/stickers/sticker-pack-catalog";
 import { useAssetLibraryStore } from "@/stores/asset-library-store";
+import type { AssetRuntimePatch } from "@/stores/asset-library-store";
 import { useStickerPackStore } from "@/stores/sticker-pack-store";
+
+function packAssetRuntimePatch({
+	assetDelivery,
+	cacheKey,
+	error,
+	progress,
+	status,
+}: {
+	assetDelivery: "bundled" | "generated" | "remote";
+	cacheKey?: string;
+	error?: string;
+	progress: number;
+	status: "downloading" | "downloaded" | "failed";
+}): AssetRuntimePatch {
+	if (status === "failed") {
+		return {
+			cacheKey,
+			cacheStatus: "failed",
+			downloadStatus: "failed",
+			error,
+			progress,
+		};
+	}
+	if (assetDelivery !== "remote") {
+		return {
+			cacheKey,
+			cacheStatus: "cached",
+			downloadStatus: "not-required",
+			error: undefined,
+			progress,
+		};
+	}
+	if (status === "downloaded") {
+		return {
+			cacheKey,
+			cacheStatus: "cached",
+			downloadStatus: "downloaded",
+			error: undefined,
+			progress,
+		};
+	}
+	return {
+		cacheKey,
+		cacheStatus: "caching",
+		downloadStatus: "downloading",
+		error: undefined,
+		progress,
+	};
+}
 
 export function useStickerPackManager() {
 	const beginOperation = useStickerPackStore((state) => state.beginOperation);
@@ -42,30 +92,15 @@ export function useStickerPackManager() {
 				const result = await installStickerPackResources({
 					pack,
 					onAssetProgress: ({ asset, cacheKey, error, progress, status }) => {
-						const isRemote = asset.delivery === "remote";
 						updateRuntimeState({
 							asset,
-							patch: {
+							patch: packAssetRuntimePatch({
+								assetDelivery: asset.delivery,
 								cacheKey,
-								cacheStatus:
-									status === "failed"
-										? "failed"
-										: status === "downloaded"
-											? "cached"
-											: isRemote
-												? "caching"
-												: "cached",
-								downloadStatus:
-									status === "failed"
-										? "failed"
-										: isRemote
-											? status === "downloaded"
-												? "downloaded"
-												: "downloading"
-											: "not-required",
 								error,
 								progress,
-							},
+								status,
+							}),
 						});
 					},
 					onProgress: ({ completedItems, progress }) =>
