@@ -8,6 +8,7 @@ import { describe, expect, it } from "vitest";
 import {
 	buildTextAssetUploadPlan,
 	buildTextAssetUploadPlanReport,
+	metadataForTextAssetUploadItem,
 	parseTextAssetUploadArgs,
 	uploadTextAssetPlan,
 	verifyUploadDesignerAssetCoverage,
@@ -346,6 +347,40 @@ describe("text asset CDN upload script", () => {
 				totalFiles: 4,
 			}
 		);
+	});
+
+	it("builds auditable CDN object metadata from upload plan identity fields", () => {
+		const items = buildTextAssetUploadPlan({
+			bucket: "qcut-assets",
+			cacheControl: "public, max-age=31536000, immutable",
+			manifest: createPublishManifest(),
+			metadataCacheControl: "public, max-age=300",
+			prefix: "",
+		});
+		const sourceItem = items.find((item) => item.role === "source");
+		const marketplaceItem = items.find((item) => item.role === "metadata");
+		if (!sourceItem || !marketplaceItem) {
+			throw new Error("Expected source and marketplace upload items");
+		}
+
+		expect(metadataForTextAssetUploadItem({ item: sourceItem })).toEqual({
+			"qcut-asset-id": "text-demo",
+			"qcut-cache-key": "text-assets/text-fancy-red/plain@1",
+			"qcut-package-id": "text-fancy-red",
+			"qcut-provenance-pipeline": "designer-pack-v1",
+			"qcut-provenance-source": "designer-imported",
+			"qcut-role": "source",
+			"qcut-version": "1",
+			sha256: "source-sha",
+		});
+		expect(metadataForTextAssetUploadItem({ item: marketplaceItem })).toEqual({
+			"qcut-asset-id": "text-marketplace-config",
+			"qcut-cache-key": "text-assets",
+			"qcut-package-id": "text-marketplace-config",
+			"qcut-role": "metadata",
+			"qcut-version": "1",
+			sha256: "marketplace-sha",
+		});
 	});
 
 	it("summarizes dry runs without calling upload", async () => {

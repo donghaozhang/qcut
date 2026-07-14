@@ -62,6 +62,8 @@ export type TextAssetUploadPlanReport = {
 	totalFiles: number;
 };
 
+export type TextAssetUploadObjectMetadata = Record<string, string>;
+
 type UploadFile = (props: { item: TextAssetUploadPlanItem }) => Promise<void>;
 
 const SCRIPT_DIR = dirname(fileURLToPath(import.meta.url));
@@ -294,6 +296,25 @@ export function buildTextAssetUploadPlanReport({
 	};
 }
 
+export function metadataForTextAssetUploadItem({
+	item,
+}: {
+	item: TextAssetUploadPlanItem;
+}): TextAssetUploadObjectMetadata {
+	return compactMetadata({
+		metadata: {
+			"qcut-asset-id": item.assetId,
+			"qcut-cache-key": item.cacheKey,
+			"qcut-package-id": item.packageId,
+			"qcut-provenance-pipeline": item.provenance?.pipeline,
+			"qcut-provenance-source": item.provenance?.source,
+			"qcut-role": item.role,
+			"qcut-version": item.version?.toString(),
+			sha256: item.sha256,
+		},
+	});
+}
+
 export async function writeTextAssetUploadPlanReport({
 	report,
 	writePath,
@@ -346,13 +367,22 @@ export function createS3UploadFile({
 				CacheControl: item.cacheControl,
 				ContentType: item.contentType,
 				Key: item.key,
-				Metadata: {
-					"qcut-role": item.role,
-					"sha256": item.sha256,
-				},
+				Metadata: metadataForTextAssetUploadItem({ item }),
 			})
 		);
 	};
+}
+
+function compactMetadata({
+	metadata,
+}: {
+	metadata: Record<string, string | undefined>;
+}): TextAssetUploadObjectMetadata {
+	return Object.fromEntries(
+		Object.entries(metadata).filter(
+			(entry): entry is [string, string] => entry[1] !== undefined
+		)
+	);
 }
 
 function objectKeyForAssetFile({
