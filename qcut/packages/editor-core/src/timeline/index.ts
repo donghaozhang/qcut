@@ -30,7 +30,10 @@ export {
 } from "./element-utils.js";
 
 export {
+	CLIP_TRANSITION_MAX_DURATION_SECONDS,
+	CLIP_TRANSITION_MIN_DURATION_SECONDS,
 	TRANSITION_SEAM_TOLERANCE_SECONDS,
+	clampClipTransitionDuration,
 	findClosestMediaSeam,
 	getAudioCrossfadeMaxDuration,
 	getTransitionMaxDuration,

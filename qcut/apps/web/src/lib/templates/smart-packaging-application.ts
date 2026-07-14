@@ -3,8 +3,11 @@ import {
 	normalizeTrackOrder,
 	type BeatDetectionResult,
 	type SmartPackagingAction,
+	type SmartPackagingBeat,
+	type SmartPackagingCaption,
 	type SmartPackagingOptions,
 	type SmartPackagingPlan,
+	type SmartPackagingShot,
 } from "@qcut/editor-core";
 import { getTimelineElementDuration } from "@/lib/timeline";
 import { TEXT_TEMPLATES } from "@/lib/text/text-template-registry";
@@ -13,8 +16,14 @@ import { useBeatDetectionStore } from "@/stores/beat-detection-store";
 import { collectTimelineBeats } from "@/lib/audio/timeline-beats";
 import { useProjectStore } from "@/stores/project-store";
 import { useTimelineStore } from "@/stores/timeline/timeline-store";
+import { useMediaStore } from "@/stores/media/media-store";
 import { createTrack } from "@/stores/timeline/utils";
 import {
+	getVideoMediaIds,
+	resolveVideoTransitionPair,
+} from "@/lib/transitions/video-transition-eligibility";
+import {
+	clampClipTransitionDuration,
 	getTransitionMaxDuration,
 	type ClipTransition,
 	type MediaElement,
@@ -30,24 +39,9 @@ import {
 } from "./smart-packaging-assets";
 
 export interface SmartPackagingSources {
-	captions: Array<{
-		id: string;
-		text: string;
-		startTime: number;
-		duration: number;
-	}>;
-	beats: Array<{
-		timestamp: number;
-		strength: number;
-		downbeat: boolean;
-	}>;
-	shots: Array<{
-		id: string;
-		trackId: string;
-		elementId: string;
-		startTime: number;
-		endTime: number;
-	}>;
+	captions: SmartPackagingCaption[];
+	beats: SmartPackagingBeat[];
+	shots: SmartPackagingShot[];
 }
 
 export interface SmartPackagingAppliedCounts {
@@ -435,10 +429,12 @@ function applyTransitionActions({
 	tracks,
 	actions,
 	fps,
+	videoMediaIds,
 }: {
 	tracks: TimelineTrack[];
 	actions: readonly Extract<SmartPackagingAction, { kind: "transition" }>[];
 	fps: number;
+	videoMediaIds: ReadonlySet<string>;
 }): { tracks: TimelineTrack[]; appliedCount: number } {
 	let appliedCount = 0;
 	const actionsByTrack = new Map<string, typeof actions>();
@@ -452,6 +448,16 @@ function applyTransitionActions({
 		if (!trackActions || track.type !== "media") return track;
 		let transitions = [...(track.transitions ?? [])];
 		for (const action of trackActions) {
+			if (
+				!resolveVideoTransitionPair({
+					track,
+					fromElementId: action.fromElementId,
+					toElementId: action.toElementId,
+					videoMediaIds,
+				})
+			) {
+				continue;
+			}
 			const existing = transitions.find(
 				(candidate) =>
 					candidate.fromElementId === action.fromElementId &&
@@ -469,8 +475,11 @@ function applyTransitionActions({
 				getElementDuration: ({ element }) =>
 					getTimelineElementDuration({ element, fps }),
 			});
-			const duration = Math.min(action.duration, maxDuration);
-			if (duration <= 0) continue;
+			const duration = clampClipTransitionDuration({
+				duration: action.duration,
+				maxDuration,
+			});
+			if (duration === null) continue;
 			transitions = [
 				...withoutExisting,
 				transitionFromAction({ action, id: transitionId, duration }),
@@ -486,10 +495,12 @@ export function collectSmartPackagingSources({
 	tracks,
 	beatCache,
 	fps = 30,
+	videoMediaIds,
 }: {
 	tracks: readonly TimelineTrack[];
 	beatCache: ReadonlyMap<string, BeatDetectionResult>;
 	fps?: number;
+	videoMediaIds: ReadonlySet<string>;
 }): SmartPackagingSources {
 	const captions: SmartPackagingSources["captions"] = [];
 	const beats: SmartPackagingSources["beats"] = [];
@@ -513,6 +524,7 @@ export function collectSmartPackagingSources({
 					elementId: element.id,
 					startTime: element.startTime,
 					endTime: element.startTime + duration,
+					transitionEligible: videoMediaIds.has(element.mediaId),
 				});
 			}
 		}
@@ -537,13 +549,20 @@ export function previewSmartPackagingPlan({
 	beatCache,
 	options,
 	fps = 30,
+	videoMediaIds,
 }: {
 	tracks: readonly TimelineTrack[];
 	beatCache: ReadonlyMap<string, BeatDetectionResult>;
 	options?: Partial<SmartPackagingOptions>;
 	fps?: number;
+	videoMediaIds: ReadonlySet<string>;
 }): SmartPackagingPlan {
-	const sources = collectSmartPackagingSources({ tracks, beatCache, fps });
+	const sources = collectSmartPackagingSources({
+		tracks,
+		beatCache,
+		fps,
+		videoMediaIds,
+	});
 	return buildSmartPackagingPlan({ ...sources, options });
 }
 
@@ -553,12 +572,14 @@ export function buildSmartPackagedTimeline({
 	assetIds,
 	fps = 30,
 	canvasSize = DEFAULT_CANVAS_SIZE,
+	videoMediaIds,
 }: {
 	tracks: readonly TimelineTrack[];
 	plan: SmartPackagingPlan;
 	assetIds: SmartPackagingAssetIds;
 	fps?: number;
 	canvasSize?: SmartPackagingCanvasSize;
+	videoMediaIds: ReadonlySet<string>;
 }): SmartPackagingTimelineResult {
 	const appliedCounts = { ...EMPTY_APPLIED_COUNTS };
 	const textLanes: TimelineTrack[] = [];
@@ -636,6 +657,7 @@ export function buildSmartPackagedTimeline({
 		tracks: zoomed.tracks,
 		actions: transitionActions,
 		fps,
+		videoMediaIds,
 	});
 	appliedCounts.transitions = transitioned.appliedCount;
 
@@ -665,11 +687,15 @@ export async function applySmartPackagingToEditor({
 		throw new Error("Open a project before applying Smart Pack");
 	const fps = activeProject.fps ?? 30;
 	const timeline = useTimelineStore.getState();
+	const videoMediaIds = getVideoMediaIds({
+		mediaItems: useMediaStore.getState().mediaItems,
+	});
 	const plan = previewSmartPackagingPlan({
 		tracks: timeline.tracks,
 		beatCache: useBeatDetectionStore.getState().cache,
 		options,
 		fps,
+		videoMediaIds,
 	});
 	if (plan.actions.length === 0) {
 		throw new Error("No captions, beats, or shots are available to package");
@@ -684,6 +710,7 @@ export async function applySmartPackagingToEditor({
 		assetIds,
 		fps,
 		canvasSize: activeProject.canvasSize,
+		videoMediaIds,
 	});
 	const latestTimeline = useTimelineStore.getState();
 	latestTimeline.pushHistory();

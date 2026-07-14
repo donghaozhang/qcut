@@ -265,6 +265,7 @@ export interface TimelineStore {
 		trackId: string;
 		fromElementId: string;
 		toElementId: string;
+		videoMediaIds: ReadonlySet<string>;
 		presetId: string;
 		type: ClipTransition["type"];
 		duration: number;
@@ -275,6 +276,7 @@ export interface TimelineStore {
 	updateTransition: (input: {
 		trackId: string;
 		transitionId: string;
+		videoMediaIds: ReadonlySet<string>;
 		updates: Partial<
 			Pick<
 				ClipTransition,

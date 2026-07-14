@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { Trash2Icon } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -11,8 +11,12 @@ import {
 } from "@/components/ui/select";
 import { Slider } from "@/components/ui/slider";
 import { getTimelineElementDuration } from "@/lib/timeline";
+import { useAsyncMediaItems } from "@/hooks/media/use-async-media-store";
+import { getVideoMediaIds } from "@/lib/transitions/video-transition-eligibility";
 import { useTimelineStore } from "@/stores/timeline/timeline-store";
 import {
+	CLIP_TRANSITION_MIN_DURATION_SECONDS,
+	clampClipTransitionDuration,
 	getTransitionMaxDuration,
 	type ClipTransition,
 	type ClipTransitionDirection,
@@ -41,7 +45,10 @@ function clampDuration({
 	duration: number;
 	maxDuration: number;
 }): number {
-	return Math.min(maxDuration, Math.max(0.05, duration));
+	return (
+		clampClipTransitionDuration({ duration, maxDuration }) ??
+		CLIP_TRANSITION_MIN_DURATION_SECONDS
+	);
 }
 
 export function TransitionProperties({
@@ -52,6 +59,11 @@ export function TransitionProperties({
 	transition: ClipTransition;
 }) {
 	const updateTransition = useTimelineStore((state) => state.updateTransition);
+	const { mediaItems } = useAsyncMediaItems();
+	const videoMediaIds = useMemo(
+		() => getVideoMediaIds({ mediaItems }),
+		[mediaItems]
+	);
 	const removeTransition = useTimelineStore((state) => state.removeTransition);
 	const setTransitionAudioCrossfade = useTimelineStore(
 		(state) => state.setTransitionAudioCrossfade
@@ -88,6 +100,7 @@ export function TransitionProperties({
 		updateTransition({
 			trackId: track.id,
 			transitionId: transition.id,
+			videoMediaIds,
 			updates: { duration: nextDuration },
 		});
 	};
@@ -111,12 +124,15 @@ export function TransitionProperties({
 							<PropertyItemLabel>时长</PropertyItemLabel>
 							<Input
 								type="number"
-								min={0.05}
+								min={CLIP_TRANSITION_MIN_DURATION_SECONDS}
 								max={maxDuration}
-								step={0.05}
+								step={0.1}
 								value={duration}
 								onChange={(event) =>
-									setDuration(Number(event.target.value) || 0.05)
+									setDuration(
+										Number(event.target.value) ||
+											CLIP_TRANSITION_MIN_DURATION_SECONDS
+									)
 								}
 								onBlur={() => commitDuration({ value: duration })}
 								onKeyDown={(event) => {
@@ -129,9 +145,9 @@ export function TransitionProperties({
 							/>
 						</div>
 						<Slider
-							min={0.05}
-							max={Math.max(0.05, maxDuration)}
-							step={0.05}
+							min={CLIP_TRANSITION_MIN_DURATION_SECONDS}
+							max={Math.max(CLIP_TRANSITION_MIN_DURATION_SECONDS, maxDuration)}
+							step={0.1}
 							value={[duration]}
 							onValueChange={([value]) => setDuration(value)}
 							onValueCommit={([value]) => commitDuration({ value })}
@@ -148,6 +164,7 @@ export function TransitionProperties({
 									updateTransition({
 										trackId: track.id,
 										transitionId: transition.id,
+										videoMediaIds,
 										updates: { direction: value },
 									})
 								}
@@ -177,6 +194,7 @@ export function TransitionProperties({
 								updateTransition({
 									trackId: track.id,
 									transitionId: transition.id,
+									videoMediaIds,
 									updates: { easing: value },
 								})
 							}

@@ -57,6 +57,7 @@ interface PrecisionTimelineState {
 		trackId: string;
 		fromElementId: string;
 		toElementId: string;
+		videoMediaIds: ReadonlySet<string>;
 		presetId: string;
 		type: "dissolve";
 		duration: number;
@@ -218,6 +219,7 @@ test.describe("Timeline precision editing", () => {
 				trackId: track.id,
 				fromElementId: firstId,
 				toElementId: secondId,
+				videoMediaIds: new Set([media.id]),
 				presetId: "dissolve",
 				type: "dissolve",
 				duration: 0.5,

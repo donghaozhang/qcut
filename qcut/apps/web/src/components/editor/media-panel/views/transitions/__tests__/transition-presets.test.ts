@@ -8,6 +8,7 @@ import {
 	TRANSITION_CONTENT_CATEGORIES,
 	transitionPresets,
 } from "../transition-presets";
+import { TRANSITION_CATEGORY_EXPANSIONS } from "../transition-category-expansions";
 
 function requirePreset({ presetId }: { presetId: string }): TransitionPreset {
 	const preset = getTransitionPresetById({ presetId });
@@ -16,21 +17,33 @@ function requirePreset({ presetId }: { presetId: string }): TransitionPreset {
 }
 
 describe("transition presets", () => {
-	it("ships at least two real presets in every content category", () => {
-		expect(transitionPresets.length).toBeGreaterThanOrEqual(67);
+	it("adds five real presets to every content category", () => {
+		expect(transitionPresets.length).toBeGreaterThanOrEqual(132);
 		expect(new Set(transitionPresets.map((preset) => preset.id)).size).toBe(
 			transitionPresets.length
 		);
 		for (const category of TRANSITION_CONTENT_CATEGORIES) {
+			const categoryExpansions = TRANSITION_CATEGORY_EXPANSIONS.filter(
+				(preset) => preset.category === category
+			);
+			expect(categoryExpansions).toHaveLength(5);
 			expect(
 				filterTransitionPresets({ category, query: "" }).length
-			).toBeGreaterThanOrEqual(2);
+			).toBeGreaterThanOrEqual(7);
+
+			const productionSignatures = categoryExpansions.map((preset) =>
+				JSON.stringify({
+					config: getClipTransitionPresetConfig({ preset }),
+					defaultDuration: preset.defaultDuration,
+				})
+			);
+			expect(new Set(productionSignatures).size).toBe(5);
 		}
 	});
 
 	it("filters category, favorites, popular, and latest views", () => {
 		const split = filterTransitionPresets({ category: "split", query: "" });
-		expect(split).toHaveLength(12);
+		expect(split).toHaveLength(17);
 		expect(split.map((preset) => preset.id)).toContain("slide-left");
 		expect(split.map((preset) => preset.id)).toContain("wipe-right");
 
@@ -111,6 +124,56 @@ describe("getClipTransitionPresetConfig", () => {
 			{ type: "rgb-glitch", tuning: { intensity: 1, frequency: 1 } },
 		],
 		["camera-shake", { type: "shake", tuning: { intensity: 1, frequency: 1 } }],
+		[
+			"warm-dissolve",
+			{
+				type: "light-leak",
+				tuning: { intensity: 0.35, frequency: 0.55, tint: "#ffbf8a" },
+			},
+		],
+		["sunrise-fade", { type: "fade-white" }],
+		["album-slide-left", { type: "slide", direction: "left" }],
+		[
+			"split-signal",
+			{ type: "rgb-glitch", tuning: { intensity: 0.45, frequency: 2.1 } },
+		],
+		[
+			"horizontal-smear",
+			{
+				type: "whip-pan",
+				direction: "left",
+				tuning: { intensity: 0.45 },
+			},
+		],
+		["crash-zoom", { type: "zoom-blur", tuning: { intensity: 1.8 } }],
+		[
+			"exposure-pop",
+			{ type: "flash", tuning: { intensity: 0.75, tint: "#fff2d6" } },
+		],
+		[
+			"digital-twist",
+			{ type: "rgb-glitch", tuning: { intensity: 0.5, frequency: 3 } },
+		],
+		[
+			"prism-flare",
+			{
+				type: "light-leak",
+				tuning: { intensity: 0.8, frequency: 1.5, tint: "#d8c4ff" },
+			},
+		],
+		[
+			"data-mosh",
+			{ type: "rgb-glitch", tuning: { intensity: 1.65, frequency: 0.35 } },
+		],
+		["sticker-swipe", { type: "push", direction: "right" }],
+		[
+			"kinetic-jump",
+			{ type: "shake", tuning: { intensity: 0.75, frequency: 2.35 } },
+		],
+		[
+			"love-flash",
+			{ type: "flash", tuning: { intensity: 0.7, tint: "#ff9fbd" } },
+		],
 	] as const)("maps %s to a real timeline configuration", (presetId, expected) => {
 		expect(
 			getClipTransitionPresetConfig({ preset: requirePreset({ presetId }) })

@@ -26,6 +26,7 @@ import { getTimelineElementDuration } from "@/lib/timeline";
 import { collectTimelineBeats } from "@/lib/audio/timeline-beats";
 import { buildTransitionContentText } from "./transition-content-analysis";
 import { useTransitionContentAnalysis } from "./use-transition-content-analysis";
+import { getVideoMediaIds } from "@/lib/transitions/video-transition-eligibility";
 
 function encodeDragPayload({
 	preset,
@@ -52,6 +53,10 @@ export function TransitionsView() {
 	const tracks = useTimelineStore((state) => state.tracks);
 	const addTransition = useTimelineStore((state) => state.addTransition);
 	const mediaItems = useMediaStore((state) => state.mediaItems);
+	const videoMediaIds = useMemo(
+		() => getVideoMediaIds({ mediaItems }),
+		[mediaItems]
+	);
 	const beatCache = useBeatDetectionStore((state) => state.cache);
 	const fps = useProjectStore((state) => state.activeProject?.fps ?? 30);
 	const favorites = useAssetLibraryStore((state) => state.favorites);
@@ -73,7 +78,11 @@ export function TransitionsView() {
 	const selectedPreset =
 		visiblePresets.find((preset) => preset.id === selectedPresetId) ??
 		visiblePresets[0];
-	const applyState = getTransitionApplyState({ selectedElements, tracks });
+	const applyState = getTransitionApplyState({
+		selectedElements,
+		tracks,
+		videoMediaIds,
+	});
 	const canApply = applyState.status === "ready";
 	const selectedConfig = selectedPreset
 		? getClipTransitionPresetConfig({ preset: selectedPreset })
@@ -163,6 +172,7 @@ export function TransitionsView() {
 			trackId: applyState.trackId,
 			fromElementId: applyState.fromElementId,
 			toElementId: applyState.toElementId,
+			videoMediaIds,
 			presetId: preset.id,
 			type: config.type,
 			direction: config.direction,

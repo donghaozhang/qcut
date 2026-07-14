@@ -51,7 +51,7 @@ describe("transition edge resize", () => {
 				side: "right",
 				startX: 100,
 			})
-		).toBe(0.05);
+		).toBe(0.1);
 		expect(
 			calculateTransitionKeyboardResize({
 				duration: 0.9,
@@ -61,6 +61,19 @@ describe("transition edge resize", () => {
 				side: "right",
 			})
 		).toBe(1);
+	});
+
+	it("never expands beyond five seconds even with longer source handles", () => {
+		expect(
+			calculateTransitionPointerResize({
+				currentX: 1000,
+				initialDuration: 1,
+				maxDuration: 20,
+				pixelsPerSecond: 100,
+				side: "right",
+				startX: 100,
+			})
+		).toBe(5);
 	});
 
 	it("maps arrow keys to the physical edge direction", () => {

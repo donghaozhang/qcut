@@ -8,6 +8,8 @@ import { storageService } from "@/lib/storage/storage-service";
 import { clearAutoSaveTimer } from "../timeline-store-autosave";
 import { useTimelineStore } from "../timeline-store";
 
+const VIDEO_MEDIA_IDS = new Set(["a-media", "b-media", "c-media"]);
+
 function mediaElement({
 	id,
 	startTime,
@@ -65,6 +67,7 @@ describe("timeline transition operations", () => {
 			trackId: "track-1",
 			fromElementId: "a",
 			toElementId: "b",
+			videoMediaIds: VIDEO_MEDIA_IDS,
 			presetId: "dissolve",
 			type: "dissolve",
 			duration: 0.5,
@@ -91,6 +94,7 @@ describe("timeline transition operations", () => {
 			trackId: "track-1",
 			fromElementId: "a",
 			toElementId: "b",
+			videoMediaIds: VIDEO_MEDIA_IDS,
 			presetId: "dissolve",
 			type: "dissolve",
 			duration: 0.5,
@@ -99,6 +103,7 @@ describe("timeline transition operations", () => {
 			trackId: "track-1",
 			fromElementId: "a",
 			toElementId: "b",
+			videoMediaIds: VIDEO_MEDIA_IDS,
 			presetId: "wipe-left",
 			type: "wipe",
 			direction: "left",
@@ -121,6 +126,7 @@ describe("timeline transition operations", () => {
 			trackId: "track-1",
 			fromElementId: "a",
 			toElementId: "b",
+			videoMediaIds: VIDEO_MEDIA_IDS,
 			presetId: "whip-pan-left",
 			type: "whip-pan",
 			direction: "left",
@@ -131,6 +137,7 @@ describe("timeline transition operations", () => {
 		useTimelineStore.getState().updateTransition({
 			trackId: "track-1",
 			transitionId: transitionId!,
+			videoMediaIds: VIDEO_MEDIA_IDS,
 			updates: { direction: "right", easing: "linear", duration: 0.7 },
 		});
 
@@ -151,6 +158,7 @@ describe("timeline transition operations", () => {
 			trackId: "track-1",
 			fromElementId: "a",
 			toElementId: "b",
+			videoMediaIds: VIDEO_MEDIA_IDS,
 			presetId: "dissolve",
 			type: "dissolve",
 			duration: 0.5,
@@ -167,6 +175,7 @@ describe("timeline transition operations", () => {
 			trackId: "track-1",
 			fromElementId: "a",
 			toElementId: "b",
+			videoMediaIds: VIDEO_MEDIA_IDS,
 			presetId: "dissolve",
 			type: "dissolve",
 			duration: 20,
@@ -175,6 +184,62 @@ describe("timeline transition operations", () => {
 		expect(
 			useTimelineStore.getState().tracks[0].transitions?.[0].duration
 		).toBe(4);
+	});
+
+	it("clamps duration to the global five second maximum", () => {
+		const longTrack: TimelineTrack = {
+			...track(),
+			elements: [
+				mediaElement({ id: "a", startTime: 0, duration: 10 }),
+				mediaElement({ id: "b", startTime: 10, duration: 10 }),
+			],
+		};
+		useTimelineStore.setState({ _tracks: [longTrack], tracks: [longTrack] });
+
+		useTimelineStore.getState().addTransition({
+			trackId: "track-1",
+			fromElementId: "a",
+			toElementId: "b",
+			videoMediaIds: VIDEO_MEDIA_IDS,
+			presetId: "dissolve",
+			type: "dissolve",
+			duration: 20,
+		});
+
+		expect(
+			useTimelineStore.getState().tracks[0].transitions?.[0].duration
+		).toBe(5);
+	});
+
+	it("clamps duration to the 0.1 second minimum", () => {
+		useTimelineStore.getState().addTransition({
+			trackId: "track-1",
+			fromElementId: "a",
+			toElementId: "b",
+			videoMediaIds: VIDEO_MEDIA_IDS,
+			presetId: "dissolve",
+			type: "dissolve",
+			duration: 0.01,
+		});
+
+		expect(
+			useTimelineStore.getState().tracks[0].transitions?.[0].duration
+		).toBe(0.1);
+	});
+
+	it("rejects transitions when either source asset is not a video", () => {
+		const transitionId = useTimelineStore.getState().addTransition({
+			trackId: "track-1",
+			fromElementId: "a",
+			toElementId: "b",
+			videoMediaIds: new Set(["a-media"]),
+			presetId: "dissolve",
+			type: "dissolve",
+			duration: 0.5,
+		});
+
+		expect(transitionId).toBeNull();
+		expect(useTimelineStore.getState().tracks[0].transitions ?? []).toEqual([]);
 	});
 
 	it("prevents neighboring transition windows from overlapping a short clip", () => {
@@ -192,11 +257,11 @@ describe("timeline transition operations", () => {
 			history: [],
 			redoStack: [],
 		});
-
 		useTimelineStore.getState().addTransition({
 			trackId: "track-1",
 			fromElementId: "a",
 			toElementId: "b",
+			videoMediaIds: VIDEO_MEDIA_IDS,
 			presetId: "dissolve",
 			type: "dissolve",
 			duration: 1.5,
@@ -205,6 +270,7 @@ describe("timeline transition operations", () => {
 			trackId: "track-1",
 			fromElementId: "b",
 			toElementId: "c",
+			videoMediaIds: VIDEO_MEDIA_IDS,
 			presetId: "wipe-left",
 			type: "wipe",
 			direction: "left",
@@ -230,6 +296,7 @@ describe("timeline transition operations", () => {
 			trackId: "track-1",
 			fromElementId: "a",
 			toElementId: "b",
+			videoMediaIds: VIDEO_MEDIA_IDS,
 			presetId: "dissolve",
 			type: "dissolve",
 			duration: 0.5,
@@ -281,6 +348,7 @@ describe("timeline transition operations", () => {
 			trackId: "track-1",
 			fromElementId: "a",
 			toElementId: "b",
+			videoMediaIds: VIDEO_MEDIA_IDS,
 			presetId: "dissolve",
 			type: "dissolve",
 			duration: 0.5,
@@ -301,6 +369,7 @@ describe("timeline transition operations", () => {
 			trackId: "track-1",
 			fromElementId: "a",
 			toElementId: "b",
+			videoMediaIds: VIDEO_MEDIA_IDS,
 			presetId: "slide-left",
 			type: "slide",
 			direction: "left",
@@ -345,6 +414,7 @@ describe("timeline transition operations", () => {
 			trackId: "track-1",
 			fromElementId: "a",
 			toElementId: "b",
+			videoMediaIds: VIDEO_MEDIA_IDS,
 			presetId: "dissolve",
 			type: "dissolve",
 			duration: 0.5,
@@ -372,6 +442,7 @@ describe("timeline transition operations", () => {
 		useTimelineStore.getState().updateTransition({
 			trackId: "track-1",
 			transitionId: transitionId!,
+			videoMediaIds: VIDEO_MEDIA_IDS,
 			updates: { duration: 0.75 },
 		});
 		expect(

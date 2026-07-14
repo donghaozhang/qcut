@@ -10,6 +10,8 @@ import type {
 import { getEffectiveDuration } from "./element-utils.js";
 
 export const TRANSITION_SEAM_TOLERANCE_SECONDS = 1 / 30 + 1e-6;
+export const CLIP_TRANSITION_MIN_DURATION_SECONDS = 0.1;
+export const CLIP_TRANSITION_MAX_DURATION_SECONDS = 5;
 
 export interface ResolvedClipTransition {
 	transition: ClipTransition;
@@ -43,6 +45,25 @@ type ElementDurationResolver = ({
 }: {
 	element: MediaElement;
 }) => number;
+
+export function clampClipTransitionDuration({
+	duration,
+	maxDuration = CLIP_TRANSITION_MAX_DURATION_SECONDS,
+}: {
+	duration: number;
+	maxDuration?: number;
+}): number | null {
+	if (!Number.isFinite(duration) || !Number.isFinite(maxDuration)) return null;
+	const boundedMaximum = Math.min(
+		CLIP_TRANSITION_MAX_DURATION_SECONDS,
+		maxDuration
+	);
+	if (boundedMaximum < CLIP_TRANSITION_MIN_DURATION_SECONDS) return null;
+	return Math.min(
+		boundedMaximum,
+		Math.max(CLIP_TRANSITION_MIN_DURATION_SECONDS, duration)
+	);
+}
 
 const TRANSITION_TYPES = new Set<ClipTransitionType>([
 	"dissolve",
@@ -150,9 +171,10 @@ function normalizeTransition({
 	transition: ClipTransition;
 }): ClipTransition | null {
 	if (!TRANSITION_TYPES.has(transition.type)) return null;
-	if (!Number.isFinite(transition.duration) || transition.duration <= 0) {
-		return null;
-	}
+	const duration = clampClipTransitionDuration({
+		duration: transition.duration,
+	});
+	if (duration === null) return null;
 
 	const direction =
 		transition.direction && TRANSITION_DIRECTIONS.has(transition.direction)
@@ -179,6 +201,7 @@ function normalizeTransition({
 
 	return {
 		...transition,
+		duration,
 		direction,
 		easing,
 		tuning,
@@ -205,7 +228,15 @@ export function resolveClipTransition({
 		seamTolerance,
 	});
 	if (!relation) return null;
-	const duration = Math.min(transition.duration, relation.maxDuration);
+	const maxDuration = Math.min(
+		CLIP_TRANSITION_MAX_DURATION_SECONDS,
+		relation.maxDuration
+	);
+	const duration = clampClipTransitionDuration({
+		duration: transition.duration,
+		maxDuration,
+	});
+	if (duration === null) return null;
 	const halfDuration = duration / 2;
 
 	return {
@@ -215,7 +246,7 @@ export function resolveClipTransition({
 		cutTime: relation.cutTime,
 		windowStart: relation.cutTime - halfDuration,
 		windowEnd: relation.cutTime + halfDuration,
-		maxDuration: relation.maxDuration,
+		maxDuration,
 	};
 }
 
@@ -418,7 +449,13 @@ export function getTransitionMaxDuration({
 		}
 	}
 
-	return Math.max(0, maxDuration);
+	const boundedMaximum = Math.min(
+		CLIP_TRANSITION_MAX_DURATION_SECONDS,
+		Math.max(0, maxDuration)
+	);
+	return boundedMaximum < CLIP_TRANSITION_MIN_DURATION_SECONDS
+		? 0
+		: boundedMaximum;
 }
 
 export function reconcileTrackTransitions({
@@ -469,8 +506,11 @@ export function reconcileTrackTransitions({
 			transitions: accepted,
 			getElementDuration,
 		});
-		const duration = Math.min(item.transition.duration, maxDuration);
-		if (duration <= 0) continue;
+		const duration = clampClipTransitionDuration({
+			duration: item.transition.duration,
+			maxDuration,
+		});
+		if (duration === null) continue;
 		accepted.push({ ...item.transition, duration });
 	}
 

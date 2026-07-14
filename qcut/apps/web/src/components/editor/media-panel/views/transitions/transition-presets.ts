@@ -1,5 +1,6 @@
 import type { ClipTransitionType } from "@/types/timeline";
 import { ADDITIONAL_TRANSITION_PRESETS } from "./transition-additional-presets";
+import { TRANSITION_CATEGORY_EXPANSIONS } from "./transition-category-expansions";
 import {
 	defineTransitionPreset as definePreset,
 	type ClipTransitionPresetConfig,
@@ -285,6 +286,7 @@ export const transitionPresets: TransitionPreset[] = [
 	...glitchPresets,
 	...mgPresets,
 	...ADDITIONAL_TRANSITION_PRESETS,
+	...TRANSITION_CATEGORY_EXPANSIONS,
 ];
 
 export function filterTransitionPresets({

@@ -1,4 +1,7 @@
-const MINIMUM_TRANSITION_DURATION_SECONDS = 0.05;
+import {
+	CLIP_TRANSITION_MIN_DURATION_SECONDS,
+	clampClipTransitionDuration,
+} from "@/types/timeline";
 
 type TransitionEdge = "left" | "right";
 
@@ -9,11 +12,10 @@ function clampTransitionDuration({
 	duration: number;
 	maxDuration: number;
 }) {
-	const minimumDuration = Math.min(
-		MINIMUM_TRANSITION_DURATION_SECONDS,
-		maxDuration
+	return (
+		clampClipTransitionDuration({ duration, maxDuration }) ??
+		CLIP_TRANSITION_MIN_DURATION_SECONDS
 	);
-	return Math.min(maxDuration, Math.max(minimumDuration, duration));
 }
 
 export function calculateTransitionPointerResize({

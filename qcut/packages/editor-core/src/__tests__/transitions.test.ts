@@ -5,6 +5,8 @@ import {
 	getTransitionMaxDuration,
 	reconcileTrackTransitions,
 	resolveClipTransition,
+	CLIP_TRANSITION_MAX_DURATION_SECONDS,
+	CLIP_TRANSITION_MIN_DURATION_SECONDS,
 } from "../timeline/transitions.js";
 import type {
 	AudioCrossfade,
@@ -115,8 +117,65 @@ describe("clip transitions", () => {
 			cutTime: 4,
 			windowStart: 3.7,
 			windowEnd: 4.3,
-			maxDuration: 6,
+			maxDuration: 5,
 		});
+	});
+
+	it("clamps transition durations to the 0.1 through 5 second range", () => {
+		const track = mediaTrack({
+			elements: [
+				mediaElement({ id: "a", startTime: 0, duration: 10 }),
+				mediaElement({ id: "b", startTime: 10, duration: 10 }),
+			],
+		});
+
+		const minimum = resolveClipTransition({
+			track,
+			transition: transition({
+				id: "minimum",
+				fromElementId: "a",
+				toElementId: "b",
+				duration: 0.01,
+			}),
+		});
+		const maximum = resolveClipTransition({
+			track,
+			transition: transition({
+				id: "maximum",
+				fromElementId: "a",
+				toElementId: "b",
+				duration: 20,
+			}),
+		});
+
+		expect(minimum?.transition.duration).toBe(
+			CLIP_TRANSITION_MIN_DURATION_SECONDS
+		);
+		expect(maximum?.transition.duration).toBe(
+			CLIP_TRANSITION_MAX_DURATION_SECONDS
+		);
+		expect(maximum?.maxDuration).toBe(CLIP_TRANSITION_MAX_DURATION_SECONDS);
+	});
+
+	it("rejects seams that cannot fit the minimum transition duration", () => {
+		const track = mediaTrack({
+			elements: [
+				mediaElement({ id: "a", startTime: 0, duration: 0.04 }),
+				mediaElement({ id: "b", startTime: 0.04, duration: 0.04 }),
+			],
+		});
+
+		expect(
+			resolveClipTransition({
+				track,
+				transition: transition({
+					id: "too-short",
+					fromElementId: "a",
+					toElementId: "b",
+					duration: 0.1,
+				}),
+			})
+		).toBeNull();
 	});
 
 	it("rejects reversed, separated, and non-adjacent pairs", () => {

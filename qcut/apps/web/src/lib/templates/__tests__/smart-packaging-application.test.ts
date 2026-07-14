@@ -112,6 +112,8 @@ function buildTimeline(): {
 	return { tracks: [captionTrack, mediaTrack, audioTrack], beatCache };
 }
 
+const VIDEO_MEDIA_IDS = new Set(["media-shot-a", "media-shot-b"]);
+
 describe("Smart Packaging application", () => {
 	it("maps captions, audio-relative beats, and media shots to timeline sources", () => {
 		const { tracks, beatCache } = buildTimeline();
@@ -119,6 +121,7 @@ describe("Smart Packaging application", () => {
 			tracks,
 			beatCache,
 			fps: 30,
+			videoMediaIds: VIDEO_MEDIA_IDS,
 		});
 
 		expect(sources.captions).toHaveLength(2);
@@ -139,13 +142,37 @@ describe("Smart Packaging application", () => {
 		]);
 	});
 
+	it("keeps image shots eligible for zooms but not transitions", () => {
+		const { tracks, beatCache } = buildTimeline();
+		const plan = previewSmartPackagingPlan({
+			tracks,
+			beatCache,
+			fps: 30,
+			videoMediaIds: new Set(["media-shot-a"]),
+		});
+
+		expect(
+			plan.actions.filter((action) => action.kind === "transition")
+		).toEqual([]);
+		expect(plan.sourceCounts.shots).toBe(2);
+		expect(
+			plan.actions.filter((action) => action.kind === "zoom")
+		).toHaveLength(2);
+	});
+
 	it("persists all five automation kinds without overlapping generated lanes", () => {
 		const { tracks, beatCache } = buildTimeline();
-		const plan = previewSmartPackagingPlan({ tracks, beatCache, fps: 30 });
+		const plan = previewSmartPackagingPlan({
+			tracks,
+			beatCache,
+			fps: 30,
+			videoMediaIds: VIDEO_MEDIA_IDS,
+		});
 		const result = buildSmartPackagedTimeline({
 			tracks,
 			plan,
 			fps: 30,
+			videoMediaIds: VIDEO_MEDIA_IDS,
 			assetIds: {
 				stickerMediaId: "spark-media",
 				soundMediaId: "pop-media",
@@ -204,10 +231,16 @@ describe("Smart Packaging application", () => {
 
 	it("retains every pre-existing track and element", () => {
 		const { tracks, beatCache } = buildTimeline();
-		const plan = previewSmartPackagingPlan({ tracks, beatCache, fps: 30 });
+		const plan = previewSmartPackagingPlan({
+			tracks,
+			beatCache,
+			fps: 30,
+			videoMediaIds: VIDEO_MEDIA_IDS,
+		});
 		const result = buildSmartPackagedTimeline({
 			tracks,
 			plan,
+			videoMediaIds: VIDEO_MEDIA_IDS,
 			assetIds: {
 				stickerMediaId: "spark-media",
 				soundMediaId: "pop-media",
@@ -229,10 +262,16 @@ describe("Smart Packaging application", () => {
 
 	it("places generated text away from visible text at the same time", () => {
 		const { tracks, beatCache } = buildTimeline();
-		const plan = previewSmartPackagingPlan({ tracks, beatCache, fps: 30 });
+		const plan = previewSmartPackagingPlan({
+			tracks,
+			beatCache,
+			fps: 30,
+			videoMediaIds: VIDEO_MEDIA_IDS,
+		});
 		const initialResult = buildSmartPackagedTimeline({
 			tracks,
 			plan,
+			videoMediaIds: VIDEO_MEDIA_IDS,
 			assetIds: {
 				stickerMediaId: "spark-media",
 				soundMediaId: "pop-media",
@@ -264,6 +303,7 @@ describe("Smart Packaging application", () => {
 		const result = buildSmartPackagedTimeline({
 			tracks: [occupiedTrack, ...tracks],
 			plan,
+			videoMediaIds: VIDEO_MEDIA_IDS,
 			assetIds: {
 				stickerMediaId: "spark-media",
 				soundMediaId: "pop-media",

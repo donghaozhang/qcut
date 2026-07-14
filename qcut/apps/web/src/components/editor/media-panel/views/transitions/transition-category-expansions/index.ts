@@ -1,0 +1,10 @@
+import type { TransitionPreset } from "../transition-preset-types";
+import { CLASSIC_TRANSITION_CATEGORY_EXPANSIONS } from "./classic";
+import { MOTION_TRANSITION_CATEGORY_EXPANSIONS } from "./motion";
+import { STYLIZED_TRANSITION_CATEGORY_EXPANSIONS } from "./stylized";
+
+export const TRANSITION_CATEGORY_EXPANSIONS: TransitionPreset[] = [
+	...CLASSIC_TRANSITION_CATEGORY_EXPANSIONS,
+	...MOTION_TRANSITION_CATEGORY_EXPANSIONS,
+	...STYLIZED_TRANSITION_CATEGORY_EXPANSIONS,
+];

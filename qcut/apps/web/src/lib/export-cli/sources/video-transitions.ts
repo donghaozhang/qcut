@@ -1,4 +1,8 @@
 import { getTimelineElementDuration } from "@/lib/timeline";
+import {
+	getVideoMediaIds,
+	isVideoTransitionPair,
+} from "@/lib/transitions/video-transition-eligibility";
 import type { MediaItem } from "@/stores/media/media-store-types";
 import { resolveClipTransition, type TimelineTrack } from "@/types/timeline";
 import type { VideoTransitionInput } from "../types";
@@ -12,7 +16,7 @@ export function extractVideoTransitions({
 	mediaItems: MediaItem[];
 	fps: number;
 }): VideoTransitionInput[] {
-	const mediaById = new Map(mediaItems.map((item) => [item.id, item]));
+	const videoMediaIds = getVideoMediaIds({ mediaItems });
 	const transitions: VideoTransitionInput[] = [];
 	const frameRate = Math.max(1, fps);
 
@@ -28,15 +32,15 @@ export function extractVideoTransitions({
 					getTimelineElementDuration({ element, fps: frameRate }),
 			});
 			if (!resolved) continue;
-			const fromMedia = mediaById.get(resolved.fromElement.mediaId);
-			const toMedia = mediaById.get(resolved.toElement.mediaId);
-			const fromIsVisualMedia =
-				fromMedia?.type === "video" || fromMedia?.type === "image";
-			const toIsVisualMedia =
-				toMedia?.type === "video" || toMedia?.type === "image";
-			if (!fromIsVisualMedia || !toIsVisualMedia) {
+			if (
+				!isVideoTransitionPair({
+					fromElement: resolved.fromElement,
+					toElement: resolved.toElement,
+					videoMediaIds,
+				})
+			) {
 				throw new Error(
-					`Transition ${transition.id} requires two visual media clips.`
+					`Transition ${transition.id} requires two video clips.`
 				);
 			}
 

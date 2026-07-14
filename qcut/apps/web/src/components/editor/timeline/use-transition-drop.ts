@@ -3,6 +3,7 @@ import { toast } from "sonner";
 import { TIMELINE_CONSTANTS } from "@/constants/timeline-constants";
 import { getTimelineElementDuration } from "@/lib/timeline";
 import { useTimelineStore } from "@/stores/timeline/timeline-store";
+import { isVideoTransitionPair } from "@/lib/transitions/video-transition-eligibility";
 import {
 	findClosestMediaSeam,
 	type ClipTransitionDirection,
@@ -119,10 +120,12 @@ export function useTransitionDrop({
 	track,
 	zoomLevel,
 	timelineRef,
+	videoMediaIds,
 }: {
 	track: TimelineTrack;
 	zoomLevel: number;
 	timelineRef: RefObject<HTMLDivElement | null>;
+	videoMediaIds: ReadonlySet<string>;
 }) {
 	const addTransition = useTimelineStore((state) => state.addTransition);
 	const handleTransitionDragOver = (event: DragEvent<HTMLDivElement>) => {
@@ -155,11 +158,22 @@ export function useTransitionDrop({
 			toast.error("Drop closer to the join between two touching clips.");
 			return;
 		}
+		if (
+			!isVideoTransitionPair({
+				fromElement: seam.fromElement,
+				toElement: seam.toElement,
+				videoMediaIds,
+			})
+		) {
+			toast.error("Transitions require two touching video clips.");
+			return;
+		}
 
 		const transitionId = addTransition({
 			trackId: track.id,
 			fromElementId: seam.fromElement.id,
 			toElementId: seam.toElement.id,
+			videoMediaIds,
 			presetId: payload.id,
 			type: payload.type,
 			direction: payload.direction,

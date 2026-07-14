@@ -1,7 +1,9 @@
 import { generateUUID } from "@/lib/utils";
 import { getTimelineElementDuration } from "@/lib/timeline";
+import { resolveVideoTransitionPair } from "@/lib/transitions/video-transition-eligibility";
 import { getAudioCrossfadeMaxDuration } from "@qcut/editor-core/timeline";
 import {
+	clampClipTransitionDuration,
 	type MediaElement,
 	getTransitionMaxDuration,
 	type ClipTransition,
@@ -48,6 +50,7 @@ export function createTransitionOps(
 			trackId,
 			fromElementId,
 			toElementId,
+			videoMediaIds,
 			presetId,
 			type,
 			duration,
@@ -57,6 +60,16 @@ export function createTransitionOps(
 		}) => {
 			const track = get()._tracks.find((candidate) => candidate.id === trackId);
 			if (!track || track.type !== "media") return null;
+			if (
+				!resolveVideoTransitionPair({
+					track,
+					fromElementId,
+					toElementId,
+					videoMediaIds,
+				})
+			) {
+				return null;
+			}
 			const transitions = track.transitions ?? [];
 			const existing = transitions.find(
 				(transition) =>
@@ -70,7 +83,11 @@ export function createTransitionOps(
 				transitions,
 				excludeTransitionId: existing?.id,
 			});
-			if (maxDuration <= 0) return null;
+			const nextDuration = clampClipTransitionDuration({
+				duration,
+				maxDuration,
+			});
+			if (nextDuration === null) return null;
 
 			const id = existing?.id ?? generateUUID();
 			const transition: ClipTransition = {
@@ -79,13 +96,11 @@ export function createTransitionOps(
 				toElementId,
 				presetId,
 				type,
-				duration: Math.min(Math.max(0, duration), maxDuration),
+				duration: nextDuration,
 				direction,
 				easing,
 				tuning,
 			};
-			if (transition.duration <= 0) return null;
-
 			get().pushHistory();
 			deps.updateTracksAndSave(
 				get()._tracks.map((candidate) =>
@@ -116,12 +131,22 @@ export function createTransitionOps(
 			return id;
 		},
 
-		updateTransition: ({ trackId, transitionId, updates }) => {
+		updateTransition: ({ trackId, transitionId, updates, videoMediaIds }) => {
 			const track = get()._tracks.find((candidate) => candidate.id === trackId);
 			const existing = track?.transitions?.find(
 				(transition) => transition.id === transitionId
 			);
 			if (!track || !existing) return;
+			if (
+				!resolveVideoTransitionPair({
+					track,
+					fromElementId: existing.fromElementId,
+					toElementId: existing.toElementId,
+					videoMediaIds,
+				})
+			) {
+				return;
+			}
 
 			const maxDuration = transitionDuration({
 				track,
@@ -130,12 +155,11 @@ export function createTransitionOps(
 				transitions: track.transitions ?? [],
 				excludeTransitionId: transitionId,
 			});
-			if (maxDuration <= 0) return;
-			const nextDuration = Math.min(
-				Math.max(0, updates.duration ?? existing.duration),
-				maxDuration
-			);
-			if (nextDuration <= 0) return;
+			const nextDuration = clampClipTransitionDuration({
+				duration: updates.duration ?? existing.duration,
+				maxDuration,
+			});
+			if (nextDuration === null) return;
 
 			get().pushHistory();
 			deps.updateTracksAndSave(

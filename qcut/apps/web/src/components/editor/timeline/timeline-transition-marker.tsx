@@ -17,6 +17,7 @@ import {
 	calculateTransitionKeyboardResize,
 	calculateTransitionPointerResize,
 } from "./timeline-transition-resize";
+import { isVideoTransitionPair } from "@/lib/transitions/video-transition-eligibility";
 
 type ResolvedClipTransition = NonNullable<
 	ReturnType<typeof resolveClipTransition>
@@ -26,10 +27,12 @@ type TransitionEdge = "left" | "right";
 export function TimelineTransitionMarker({
 	track,
 	transition,
+	videoMediaIds,
 	zoomLevel,
 }: {
 	track: TimelineTrack;
 	transition: ClipTransition;
+	videoMediaIds: ReadonlySet<string>;
 	zoomLevel: number;
 }) {
 	const resolved = resolveClipTransition({
@@ -39,12 +42,22 @@ export function TimelineTransitionMarker({
 			getTimelineElementDuration({ element }),
 	});
 	if (!resolved) return null;
+	if (
+		!isVideoTransitionPair({
+			fromElement: resolved.fromElement,
+			toElement: resolved.toElement,
+			videoMediaIds,
+		})
+	) {
+		return null;
+	}
 
 	return (
 		<ResolvedTimelineTransitionMarker
 			resolved={resolved}
 			track={track}
 			transition={transition}
+			videoMediaIds={videoMediaIds}
 			zoomLevel={zoomLevel}
 		/>
 	);
@@ -54,11 +67,13 @@ function ResolvedTimelineTransitionMarker({
 	resolved,
 	track,
 	transition,
+	videoMediaIds,
 	zoomLevel,
 }: {
 	resolved: ResolvedClipTransition;
 	track: TimelineTrack;
 	transition: ClipTransition;
+	videoMediaIds: ReadonlySet<string>;
 	zoomLevel: number;
 }) {
 	const selectedTransition = useTimelineStore(
@@ -67,8 +82,10 @@ function ResolvedTimelineTransitionMarker({
 	const selectTransition = useTimelineStore((state) => state.selectTransition);
 	const updateTransition = useTimelineStore((state) => state.updateTransition);
 	const pixelsPerSecond = TIMELINE_CONSTANTS.PIXELS_PER_SECOND * zoomLevel;
-	const [draftDuration, setDraftDuration] = useState(transition.duration);
-	const draftDurationRef = useRef(transition.duration);
+	const [draftDuration, setDraftDuration] = useState(
+		resolved.transition.duration
+	);
+	const draftDurationRef = useRef(resolved.transition.duration);
 	const resizeRef = useRef<{
 		side: TransitionEdge;
 		startX: number;
@@ -88,20 +105,27 @@ function ResolvedTimelineTransitionMarker({
 	}, [selectTransition, track.id, transition.id]);
 	const commitDuration = useCallback(
 		({ duration }: { duration: number }) => {
-			if (Math.abs(duration - transition.duration) < 0.000_1) return;
+			if (Math.abs(duration - resolved.transition.duration) < 0.000_1) return;
 			updateTransition({
 				trackId: track.id,
 				transitionId: transition.id,
+				videoMediaIds,
 				updates: { duration },
 			});
 		},
-		[track.id, transition.duration, transition.id, updateTransition]
+		[
+			resolved.transition.duration,
+			track.id,
+			transition.id,
+			updateTransition,
+			videoMediaIds,
+		]
 	);
 
 	useEffect(() => {
 		if (resizeRef.current) return;
-		setDurationDraft({ duration: transition.duration });
-	}, [setDurationDraft, transition.duration]);
+		setDurationDraft({ duration: resolved.transition.duration });
+	}, [resolved.transition.duration, setDurationDraft]);
 
 	useEffect(() => {
 		if (!resizing) return;
@@ -109,7 +133,7 @@ function ResolvedTimelineTransitionMarker({
 			if (commit) {
 				commitDuration({ duration: draftDurationRef.current });
 			} else {
-				setDurationDraft({ duration: transition.duration });
+				setDurationDraft({ duration: resolved.transition.duration });
 			}
 			resizeRef.current = null;
 			setResizing(false);
@@ -150,7 +174,7 @@ function ResolvedTimelineTransitionMarker({
 		resizing,
 		resolved.maxDuration,
 		setDurationDraft,
-		transition.duration,
+		resolved.transition.duration,
 	]);
 
 	const beginResize = ({
@@ -184,7 +208,7 @@ function ResolvedTimelineTransitionMarker({
 		event.stopPropagation();
 		commitDuration({
 			duration: calculateTransitionKeyboardResize({
-				duration: transition.duration,
+				duration: resolved.transition.duration,
 				key: event.key,
 				maxDuration: resolved.maxDuration,
 				shiftKey: event.shiftKey,

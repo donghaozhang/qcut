@@ -2,6 +2,7 @@ import type { SelectedElement } from "@/stores/timeline/types";
 import type { MediaElement, TimelineTrack } from "@/types/timeline";
 import { resolveClipTransition } from "@/types/timeline";
 import { getTimelineElementDuration } from "@/lib/timeline";
+import { isVideoTransitionPair } from "@/lib/transitions/video-transition-eligibility";
 
 export type TransitionApplyState =
 	| {
@@ -47,14 +48,16 @@ function findSelectedMediaElements({
 export function getTransitionApplyState({
 	selectedElements,
 	tracks,
+	videoMediaIds,
 }: {
 	selectedElements: SelectedElement[];
 	tracks: TimelineTrack[];
+	videoMediaIds: ReadonlySet<string>;
 }): TransitionApplyState {
 	if (selectedElements.length !== 2) {
 		return {
 			status: "disabled",
-			message: "Select two adjacent media clips to prepare a transition.",
+			message: "Select two adjacent video clips to prepare a transition.",
 		};
 	}
 
@@ -66,7 +69,7 @@ export function getTransitionApplyState({
 	if (selectedMediaElements.length !== 2) {
 		return {
 			status: "disabled",
-			message: "Transitions can be prepared only between media clips.",
+			message: "Transitions can be prepared only between video clips.",
 		};
 	}
 
@@ -82,6 +85,18 @@ export function getTransitionApplyState({
 		(a, b) => a.element.startTime - b.element.startTime
 	);
 	const [from, to] = sorted;
+	if (
+		!isVideoTransitionPair({
+			fromElement: from.element,
+			toElement: to.element,
+			videoMediaIds,
+		})
+	) {
+		return {
+			status: "disabled",
+			message: "Transitions require two video clips.",
+		};
+	}
 	const resolved = resolveClipTransition({
 		track: from.track,
 		transition: {

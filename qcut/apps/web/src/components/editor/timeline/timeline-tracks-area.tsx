@@ -34,6 +34,7 @@ import { getTimelineElementEndTime } from "@/lib/timeline";
 import { cn } from "@/lib/utils";
 import { TimelineTrackLabel } from "./timeline-track-label";
 import type { TimelineVisibleRange } from "./timeline-viewport";
+import { isTimelineEntityTarget } from "./timeline-click-target";
 
 const VIEWPORT_OVERSCAN_SECONDS = 5;
 const INITIAL_VISIBLE_TIME_RANGE: TimelineVisibleRange = {
@@ -313,11 +314,8 @@ export function TimelineTracksArea({
 													height: `${getTrackHeight(track.type, track.height)}px`,
 												}}
 												onClick={(e) => {
-													if (
-														!(e.target as HTMLElement).closest(
-															".timeline-element"
-														)
-													) {
+													const target = e.target as HTMLElement;
+													if (!isTimelineEntityTarget({ target })) {
 														clearSelectedElements();
 													}
 												}}

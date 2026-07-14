@@ -70,21 +70,26 @@ function adjacentClipsTrack(): TimelineTrack {
 function mediaItem({
 	id,
 	thumbnailUrl,
+	type = "video",
 }: {
 	id: string;
 	thumbnailUrl?: string;
+	type?: MediaItem["type"];
 }): MediaItem {
 	return {
 		id,
-		name: `${id}.mp4`,
-		type: "video",
-		file: new File([], `${id}.mp4`),
+		name: `${id}.${type}`,
+		type,
+		file: new File([], `${id}.${type}`),
 		thumbnailUrl,
 	};
 }
 
 function selectAdjacentClips() {
 	const track = adjacentClipsTrack();
+	useMediaStore.setState({
+		mediaItems: [mediaItem({ id: "media-a" }), mediaItem({ id: "media-b" })],
+	});
 	useTimelineStore.setState({
 		_tracks: [track],
 		tracks: [track],
@@ -152,19 +157,27 @@ describe("TransitionsView", () => {
 		).not.toBeInTheDocument();
 	});
 
-	it("exposes the expanded reference categories with working cards", () => {
+	it("exposes five additional working cards in every content category", () => {
 		render(<TransitionsView />);
 
-		for (const [category, presetId] of [
-			["叠化", "soft-dissolve"],
-			["幻灯片", "page-turn-left"],
-			["拍摄", "shutter-flash"],
-			["扭曲", "liquid-warp"],
-			["综艺", "comic-pop"],
-			["互动 emoji", "heart-pulse"],
+		for (const [category, presetId, expectedCount] of [
+			["叠化", "filmic-dissolve", 7],
+			["自然", "sunrise-fade", 7],
+			["幻灯片", "album-slide-left", 7],
+			["分割", "split-signal", 17],
+			["模糊", "horizontal-smear", 12],
+			["运镜", "crash-zoom", 14],
+			["拍摄", "exposure-pop", 7],
+			["扭曲", "digital-twist", 7],
+			["光效", "prism-flare", 14],
+			["故障", "data-mosh", 13],
+			["综艺", "sticker-swipe", 7],
+			["MG 动画", "kinetic-jump", 13],
+			["互动 emoji", "love-flash", 7],
 		] as const) {
 			fireEvent.click(screen.getByRole("button", { name: category }));
 			expect(screen.getByTestId(`transition-card-${presetId}`)).toBeVisible();
+			expect(screen.getByText(`${expectedCount} 个转场`)).toBeVisible();
 		}
 	});
 
@@ -231,7 +244,7 @@ describe("TransitionsView", () => {
 		expect(screen.getByRole("button", { name: "应用所选转场" })).toBeDisabled();
 		expect(
 			screen.getByText(
-				"Select two adjacent media clips to prepare a transition."
+				"Select two adjacent video clips to prepare a transition."
 			)
 		).toBeInTheDocument();
 	});
@@ -260,6 +273,22 @@ describe("TransitionsView", () => {
 			}),
 		]);
 		expect(toast.success).toHaveBeenCalledWith("Dissolve applied.");
+	});
+
+	it("disables transition application when either selected clip is an image", () => {
+		selectAdjacentClips();
+		useMediaStore.setState({
+			mediaItems: [
+				mediaItem({ id: "media-a" }),
+				mediaItem({ id: "media-b", type: "image" }),
+			],
+		});
+		render(<TransitionsView />);
+
+		expect(screen.getByRole("button", { name: "应用所选转场" })).toBeDisabled();
+		expect(
+			screen.getByText("Transitions require two video clips.")
+		).toBeInTheDocument();
 	});
 
 	it("applies a preset from the card apply button", () => {
@@ -312,6 +341,7 @@ describe("TransitionsView", () => {
 				trackId: "track-1",
 				fromElementId: "clip-a",
 				toElementId: "clip-b",
+				videoMediaIds: new Set(["media-a", "media-b"]),
 				presetId: "dissolve",
 				type: "dissolve",
 				direction: undefined,
