@@ -184,7 +184,7 @@ export function TransitionCard({
 				{resourceAction ? (
 					<button
 						type="button"
-						className="absolute right-1.5 top-1.5 z-10 flex size-5 items-center justify-center rounded-sm bg-background/85 text-foreground shadow-sm disabled:cursor-not-allowed disabled:text-muted-foreground"
+						className="absolute bottom-1.5 right-1.5 z-10 flex size-5 items-center justify-center rounded-sm bg-background/85 text-foreground shadow-sm disabled:cursor-not-allowed disabled:text-muted-foreground"
 						aria-label={`${resourceAction.label}: ${preset.localizedName}`}
 						title={resourceAction.label}
 						disabled={resourceAction.disabled}
@@ -204,7 +204,7 @@ export function TransitionCard({
 						style={{ width: `${resourceState.progress * 100}%` }}
 					/>
 				) : null}
-				<div className="absolute bottom-1 right-1 flex gap-0.5 opacity-0 transition-opacity group-focus-within:opacity-100 group-focus:opacity-100 group-hover:opacity-100">
+				<div className="absolute right-1 top-1 flex gap-0.5 opacity-0 transition-opacity group-focus-within:opacity-100 group-focus:opacity-100 group-hover:opacity-100">
 					<Button
 						type="button"
 						variant="text"
