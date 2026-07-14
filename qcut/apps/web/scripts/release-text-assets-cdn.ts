@@ -546,7 +546,7 @@ Before treating this as the screenshot-level production text library, verify the
 bun run assets:text:verify-designer-ready
 bun run assets:text:designer-gap-report
 bun run assets:text:import-designer-ready -- --pack-dir <designer-pack>
-bun run assets:text:release-designer-ready -- --dry-run --stage-dir dist/text-assets-cdn-stage --archive-path dist/text-assets-cdn-stage.tar.gz --publish-manifest dist/text-assets-publish-manifest.json --write-upload-plan dist/text-assets-upload-plan.json
+bun run assets:text:release-designer-ready-stage
 \`\`\`
 
 The staged folder includes \`${STAGE_DESIGNER_GAP_REPORT_FILE}\`, which lists the exact designer asset slots needed to reach the screenshot-level library.

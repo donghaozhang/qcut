@@ -117,12 +117,26 @@ describe("text asset CDN upload script", () => {
 			"assets:text:verify-designer-ready",
 			"assets:text:upload-designer-ready",
 			"assets:text:release-designer-ready",
+			"assets:text:release-designer-ready-stage",
 		]) {
 			expect(packageJson.scripts[scriptName]).toContain("--designer-ready");
 			expect(packageJson.scripts[scriptName]).not.toContain(
 				"--require-designer-categories"
 			);
 		}
+
+		expect(
+			packageJson.scripts["assets:text:release-designer-ready-stage"]
+		).toContain("--stage-dir dist/text-assets-cdn-stage");
+		expect(
+			packageJson.scripts["assets:text:release-designer-ready-stage"]
+		).toContain("--archive-path dist/text-assets-cdn-stage.tar.gz");
+		expect(
+			packageJson.scripts["assets:text:release-designer-ready-stage"]
+		).toContain("--publish-manifest dist/text-assets-publish-manifest.json");
+		expect(
+			packageJson.scripts["assets:text:release-designer-ready-stage"]
+		).toContain("--write-upload-plan dist/text-assets-upload-plan.json");
 	});
 
 	it("parses upload options from env and CLI overrides", () => {

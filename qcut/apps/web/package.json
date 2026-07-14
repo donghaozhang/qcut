@@ -31,6 +31,7 @@
 		"assets:text:release-cdn": "bun scripts/release-text-assets-cdn.ts",
 		"assets:text:release-stage": "bun scripts/release-text-assets-cdn.ts --dry-run --stage-dir dist/text-assets-cdn-stage --archive-path dist/text-assets-cdn-stage.tar.gz --publish-manifest dist/text-assets-publish-manifest.json --write-upload-plan dist/text-assets-upload-plan.json",
 		"assets:text:release-designer-ready": "bun scripts/release-text-assets-cdn.ts --designer-ready",
+		"assets:text:release-designer-ready-stage": "bun scripts/release-text-assets-cdn.ts --designer-ready --dry-run --stage-dir dist/text-assets-cdn-stage --archive-path dist/text-assets-cdn-stage.tar.gz --publish-manifest dist/text-assets-publish-manifest.json --write-upload-plan dist/text-assets-upload-plan.json",
 		"assets:text:verify-stage": "bun scripts/verify-text-assets-stage.ts --upload-plan dist/text-assets-upload-plan.json",
 		"assets:text:verify-archive": "bun scripts/verify-text-assets-archive.ts",
 		"preview": "vite preview",
