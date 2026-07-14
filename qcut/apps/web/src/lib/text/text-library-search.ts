@@ -628,7 +628,7 @@ function getSegmentedQueryTerms({ term }: { term: string }): string[] {
 function splitCompactPinyinQuery({ term }: { term: string }): string[] {
 	const normalizedTerm = compactLatinTerm({ value: term });
 	if (
-		normalizedTerm.length < 6 ||
+		normalizedTerm.length < 4 ||
 		normalizedTerm !== term ||
 		!/^[a-z0-9]+$/.test(normalizedTerm)
 	) {
