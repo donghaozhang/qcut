@@ -3,15 +3,19 @@ import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import {
 	inferTextAssetCategory,
+	buildDesignerAssetGapReport,
 	parsePositiveInteger,
 	readGeneratedManifest,
+	summarizeDesignerCategoryCoverage,
 	summarizeTextAssetProvenance,
+	type TextAssetDesignerImportSlot,
 	type TextAssetGeneratedEntry,
 } from "./verify-text-asset-cdn-manifest";
 
 export type TextAssetContactSheetOptions = {
 	assetBasePath: string;
 	categoryIds: string[];
+	designerAssetsPerCategory: number;
 	generatedManifestPath: string;
 	outPath: string;
 	perCategoryLimit: number;
@@ -27,11 +31,16 @@ export type TextAssetContactSheetItem = {
 
 export type TextAssetContactSheetCategory = {
 	category: string;
+	currentDesignerAssets: number;
+	requiredDesignerAssets: number;
+	missingDesignerAssets: number;
+	suggestedImports: TextAssetDesignerImportSlot[];
 	items: TextAssetContactSheetItem[];
 };
 
 export type TextAssetContactSheetModel = {
 	categories: TextAssetContactSheetCategory[];
+	designerGapTotal: number;
 	generatedAt: string;
 	provenance: ReturnType<typeof summarizeTextAssetProvenance>;
 	totalItems: number;
@@ -79,6 +88,7 @@ export function parseTextAssetContactSheetArgs({
 	const options: TextAssetContactSheetOptions = {
 		assetBasePath: DEFAULT_ASSET_BASE_PATH,
 		categoryIds: [...DEFAULT_TEXT_ASSET_CONTACT_SHEET_CATEGORIES],
+		designerAssetsPerCategory: 5,
 		generatedManifestPath: DEFAULT_GENERATED_MANIFEST_PATH,
 		outPath: DEFAULT_OUT_PATH,
 		perCategoryLimit: 5,
@@ -97,6 +107,14 @@ export function parseTextAssetContactSheetArgs({
 		}
 		if (arg === "--generated-manifest") {
 			options.generatedManifestPath = requireValue({ argv, index, name: arg });
+			index += 1;
+			continue;
+		}
+		if (arg === "--designer-assets-per-category") {
+			options.designerAssetsPerCategory = parsePositiveInteger({
+				name: arg,
+				value: requireValue({ argv, index, name: arg }),
+			});
 			index += 1;
 			continue;
 		}
@@ -128,21 +146,46 @@ export function parseTextAssetContactSheetArgs({
 export function buildTextAssetContactSheetModel({
 	assetBasePath,
 	categoryIds,
+	designerAssetsPerCategory = 5,
 	generatedAt,
 	generatedManifest,
 	perCategoryLimit,
 }: {
 	assetBasePath: string;
 	categoryIds: readonly string[];
+	designerAssetsPerCategory?: number;
 	generatedAt: string;
 	generatedManifest: Record<string, TextAssetGeneratedEntry>;
 	perCategoryLimit: number;
 }): TextAssetContactSheetModel {
 	const assetsByCategory = groupTextAssetsByCategory({ generatedManifest });
+	const designerCoverage = summarizeDesignerCategoryCoverage({
+		generatedManifest,
+		minDesignerAssetsPerCategory: designerAssetsPerCategory,
+		requiredDesignerCategories: categoryIds,
+	});
+	const designerGapReport = buildDesignerAssetGapReport({
+		coverage: designerCoverage,
+		generatedAt,
+		minDesignerAssetsPerCategory: designerAssetsPerCategory,
+		requiredDesignerCategories: categoryIds,
+	});
+	const designerGapByCategory = new Map(
+		designerGapReport.categories.map((category) => [
+			category.category,
+			category,
+		])
+	);
 	const categories = categoryIds.map((category) => {
 		const entries = assetsByCategory.get(category) ?? [];
+		const designerGap = designerGapByCategory.get(category);
 		return {
 			category,
+			currentDesignerAssets: designerGap?.current ?? 0,
+			missingDesignerAssets: designerGap?.missing ?? designerAssetsPerCategory,
+			requiredDesignerAssets:
+				designerGap?.required ?? designerAssetsPerCategory,
+			suggestedImports: designerGap?.suggestedImports ?? [],
 			items: entries.slice(0, perCategoryLimit).map((entry) =>
 				contactSheetItemForEntry({
 					assetBasePath,
@@ -154,6 +197,7 @@ export function buildTextAssetContactSheetModel({
 	});
 	return {
 		categories,
+		designerGapTotal: designerGapReport.totalMissing,
 		generatedAt,
 		provenance: summarizeTextAssetProvenance({ generatedManifest }),
 		totalItems: categories.reduce(
@@ -228,7 +272,9 @@ export function renderTextAssetContactSheetHtml({
 		.summary { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 4px; }
 		.badge { border: 1px solid #3a3a3a; border-radius: 6px; padding: 5px 8px; background: #232323; color: #d7d7d7; font-size: 12px; }
 		.category { margin: 22px 0 0; }
-		.category h2 { margin: 0 0 10px; font-size: 14px; color: #e9e9e9; }
+		.category h2 { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin: 0 0 10px; font-size: 14px; color: #e9e9e9; }
+		.coverage { color: #8fdde5; font-size: 11px; font-weight: 600; }
+		.coverage.missing { color: #fca5a5; }
 		.grid { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 14px; }
 		.card { overflow: hidden; border-radius: 8px; background: #2d2d2d; border: 1px solid #3a3a3a; }
 		.thumb { display: grid; place-items: center; aspect-ratio: 1 / 1; background: #3a3a3a; }
@@ -237,6 +283,10 @@ export function renderTextAssetContactSheetHtml({
 		.name { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 11px; color: #f3f3f3; }
 		.provenance { font-size: 10px; color: #8fdde5; text-transform: uppercase; }
 		.empty { border: 1px dashed #404040; border-radius: 8px; padding: 18px; color: #8a8a8a; font-size: 12px; }
+		.slots { display: grid; gap: 6px; margin-top: 10px; border: 1px dashed #453636; border-radius: 8px; padding: 10px; background: #241f1f; }
+		.slots-title { color: #fca5a5; font-size: 11px; font-weight: 700; }
+		.slot-list { display: flex; flex-wrap: wrap; gap: 6px; }
+		.slot { border-radius: 5px; background: #332727; padding: 4px 6px; color: #e6c7c7; font: 10px ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; }
 		@media (max-width: 860px) { .grid { grid-template-columns: repeat(4, minmax(0, 1fr)); } }
 		@media (max-width: 560px) { main { padding: 14px; } .grid { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
 	</style>
@@ -249,6 +299,7 @@ export function renderTextAssetContactSheetHtml({
 			<div class="summary">
 				<span class="badge">items ${model.totalItems}</span>
 				<span class="badge">designer ${model.provenance.designerImported}</span>
+				<span class="badge">designer gap ${model.designerGapTotal}</span>
 				<span class="badge">generated ${model.provenance.generated}</span>
 				<span class="badge">missing provenance ${model.provenance.missingProvenance}</span>
 			</div>
@@ -265,21 +316,53 @@ function renderCategorySection({
 }: {
 	category: TextAssetContactSheetCategory;
 }): string {
+	const heading = renderCategoryHeading({ category });
+	const suggestedImports = renderSuggestedImports({ category });
 	if (category.items.length === 0) {
 		return `		<section class="category">
-			<h2>${escapeHtml({ value: category.category })} · 0</h2>
+			${heading}
 			<div class="empty">No assets selected for this category.</div>
+${suggestedImports}
 		</section>`;
 	}
 	const cards = category.items
 		.map((item) => renderItemCard({ item }))
 		.join("\n");
 	return `		<section class="category">
-			<h2>${escapeHtml({ value: category.category })} · ${category.items.length}</h2>
+			${heading}
 			<div class="grid">
 ${cards}
 			</div>
+${suggestedImports}
 		</section>`;
+}
+
+function renderCategoryHeading({
+	category,
+}: {
+	category: TextAssetContactSheetCategory;
+}): string {
+	const coverageClass =
+		category.missingDesignerAssets > 0 ? "coverage missing" : "coverage";
+	return `<h2><span>${escapeHtml({ value: category.category })} · ${category.items.length}</span><span class="${coverageClass}">designer ${category.currentDesignerAssets}/${category.requiredDesignerAssets}</span></h2>`;
+}
+
+function renderSuggestedImports({
+	category,
+}: {
+	category: TextAssetContactSheetCategory;
+}): string {
+	if (category.suggestedImports.length === 0) return "";
+	const slots = category.suggestedImports
+		.map(
+			(slot) =>
+				`<span class="slot">${escapeHtml({ value: slot.assetId })}</span>`
+		)
+		.join("");
+	return `			<div class="slots">
+				<div class="slots-title">Missing designer replacements: ${category.missingDesignerAssets}</div>
+				<div class="slot-list">${slots}</div>
+			</div>`;
 }
 
 function renderItemCard({ item }: { item: TextAssetContactSheetItem }): string {
@@ -361,6 +444,7 @@ async function main(): Promise<void> {
 	const model = buildTextAssetContactSheetModel({
 		assetBasePath: options.assetBasePath,
 		categoryIds: options.categoryIds,
+		designerAssetsPerCategory: options.designerAssetsPerCategory,
 		generatedAt: new Date().toISOString(),
 		generatedManifest,
 		perCategoryLimit: options.perCategoryLimit,

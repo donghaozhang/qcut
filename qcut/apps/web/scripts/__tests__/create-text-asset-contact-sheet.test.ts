@@ -59,6 +59,8 @@ describe("text asset contact sheet script", () => {
 					"../public",
 					"--generated-manifest",
 					"/tmp/generated.json",
+					"--designer-assets-per-category",
+					"3",
 					"--out",
 					"/tmp/contact.html",
 					"--per-category-limit",
@@ -68,6 +70,7 @@ describe("text asset contact sheet script", () => {
 		).toEqual({
 			assetBasePath: "../public",
 			categoryIds: ["red", "headline-template"],
+			designerAssetsPerCategory: 3,
 			generatedManifestPath: "/tmp/generated.json",
 			outPath: "/tmp/contact.html",
 			perCategoryLimit: 2,
@@ -98,9 +101,11 @@ describe("text asset contact sheet script", () => {
 					packageId: "text-fancy-red",
 				}),
 			},
+			designerAssetsPerCategory: 2,
 			perCategoryLimit: 2,
 		});
 
+		expect(model.designerGapTotal).toBe(5);
 		expect(model.totalItems).toBe(3);
 		expect(model.provenance).toMatchObject({
 			designerImported: 1,
@@ -109,6 +114,9 @@ describe("text asset contact sheet script", () => {
 		expect(model.categories).toEqual([
 			expect.objectContaining({
 				category: "red",
+				currentDesignerAssets: 0,
+				missingDesignerAssets: 2,
+				requiredDesignerAssets: 2,
 				items: [
 					expect.objectContaining({
 						assetId: "text-red-a",
@@ -119,18 +127,37 @@ describe("text asset contact sheet script", () => {
 						assetId: "text-red-b",
 					}),
 				],
+				suggestedImports: [
+					expect.objectContaining({
+						assetId: "text-fancy-red-designer-01",
+					}),
+					expect.objectContaining({
+						assetId: "text-fancy-red-designer-02",
+					}),
+				],
 			}),
 			expect.objectContaining({
 				category: "headline-template",
+				currentDesignerAssets: 1,
+				missingDesignerAssets: 1,
+				requiredDesignerAssets: 2,
 				items: [
 					expect.objectContaining({
 						assetId: "text-headline",
 						provenance: "designer-imported",
 					}),
 				],
+				suggestedImports: [
+					expect.objectContaining({
+						assetId: "text-templates-headline-template-designer-02",
+					}),
+				],
 			}),
 			expect.objectContaining({
 				category: "missing",
+				currentDesignerAssets: 0,
+				missingDesignerAssets: 2,
+				requiredDesignerAssets: 2,
 				items: [],
 			}),
 		]);
@@ -147,6 +174,7 @@ describe("text asset contact sheet script", () => {
 					packageId: "text-fancy-red",
 				}),
 			},
+			designerAssetsPerCategory: 1,
 			perCategoryLimit: 5,
 		});
 
@@ -157,5 +185,11 @@ describe("text asset contact sheet script", () => {
 			"../public/text-assets/text-fancy-red/plain@1/thumbnail.webp"
 		);
 		expect(renderTextAssetContactSheetHtml({ model })).toContain("red · 1");
+		expect(renderTextAssetContactSheetHtml({ model })).toContain(
+			"designer 0/1"
+		);
+		expect(renderTextAssetContactSheetHtml({ model })).toContain(
+			"text-fancy-red-designer-01"
+		);
 	});
 });
