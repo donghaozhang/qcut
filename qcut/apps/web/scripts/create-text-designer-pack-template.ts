@@ -105,6 +105,7 @@ const DEFAULT_GENERATED_MANIFEST_PATH = join(
 const DEFAULT_OUT_DIR = join(SCRIPT_DIR, "../dist/text-designer-pack-template");
 const DEFAULT_PUBLIC_DIR = join(SCRIPT_DIR, "../public");
 const execFileAsync = promisify(execFile);
+const REQUIRED_REPLACEMENT_FILES_PER_ASSET = 3;
 
 export function parseTextDesignerPackTemplateArgs({
 	argv,
@@ -604,7 +605,8 @@ function buildPackTemplateSummary({
 		assets: contracts.length,
 		categoryCounts,
 		expectedDesignerImportedAssets: contracts.length,
-		requiredReplacementFiles: contracts.length * 3,
+		requiredReplacementFiles:
+			contracts.length * REQUIRED_REPLACEMENT_FILES_PER_ASSET,
 		schemaVersion: 1,
 	};
 }
@@ -661,8 +663,8 @@ The dry-run import writes \`dist/text-designer-import-plan.json\`; review that p
 
 ## Category Quotas
 
-| category | assets |
-| --- | ---: |
+| category | assets | required files |
+| --- | ---: | ---: |
 ${categoryRows}
 
 ## Asset Contracts
@@ -826,10 +828,16 @@ function renderCategoryRows({
 		const category = contract.category ?? "unknown";
 		countsByCategory.set(category, (countsByCategory.get(category) ?? 0) + 1);
 	}
-	return [...countsByCategory.entries()]
+	const rows = [...countsByCategory.entries()]
 		.sort(([left], [right]) => left.localeCompare(right))
-		.map(([category, count]) => `| ${category} | ${count} |`)
-		.join("\n");
+		.map(
+			([category, count]) =>
+				`| ${category} | ${count} | ${count * REQUIRED_REPLACEMENT_FILES_PER_ASSET} |`
+		);
+	rows.push(
+		`| total | ${template.summary.assets} | ${template.summary.requiredReplacementFiles} |`
+	);
+	return rows.join("\n");
 }
 
 function uniqueAssetIds({

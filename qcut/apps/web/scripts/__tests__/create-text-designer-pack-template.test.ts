@@ -357,7 +357,9 @@ describe("text designer pack template script", () => {
 		expect(readme).toContain("replacement-checklist.csv");
 		expect(readme).toContain("--pack-archive <designer-pack.tar.gz>");
 		expect(readme).toContain("--include-current-files");
-		expect(readme).toContain("| red | 1 |");
+		expect(readme).toContain("| category | assets | required files |");
+		expect(readme).toContain("| red | 1 | 3 |");
+		expect(readme).toContain("| total | 1 | 3 |");
 		const checklist = await readFile(
 			join(outDir, "replacement-checklist.csv"),
 			"utf8"
