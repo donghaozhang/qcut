@@ -40,6 +40,7 @@ export type TextAssetPublishEntry = {
 	cacheKey: string;
 	files: TextAssetPublishFile[];
 	packageId: string;
+	provenance?: TextAssetProvenance;
 	version: number;
 };
 
@@ -50,6 +51,7 @@ export type TextAssetPublishManifest = {
 	totalAssets: number;
 	totalBytes: number;
 	totalFiles: number;
+	provenance?: TextAssetProvenanceSummary;
 	assets: TextAssetPublishEntry[];
 };
 
@@ -325,6 +327,7 @@ export function buildTextAssetPublishManifest({
 			cacheKey: entry.cacheKey,
 			files,
 			packageId: entry.packageId,
+			provenance: entry.provenance,
 			version: entry.version,
 		});
 	}
@@ -345,6 +348,7 @@ export function buildTextAssetPublishManifest({
 			assets,
 			baseUrl,
 			generatedAt,
+			provenance: summarizeTextAssetProvenance({ generatedManifest }),
 			schemaVersion: 1,
 			totalAssets: assets.length,
 			totalBytes,

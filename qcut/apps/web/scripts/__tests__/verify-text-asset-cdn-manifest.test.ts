@@ -141,10 +141,17 @@ describe("text asset CDN manifest verifier", () => {
 	});
 
 	it("builds publish manifests with CDN URLs and local paths", () => {
+		const entry: TextAssetGeneratedEntry = {
+			...createGeneratedEntry(),
+			provenance: {
+				pipeline: "designer-pack-v1",
+				source: "designer-imported",
+			},
+		};
 		const { issues, manifest } = buildTextAssetPublishManifest({
 			baseUrl: "https://cdn.example.com/assets/",
 			generatedAt: "2026-07-15T00:00:00.000Z",
-			generatedManifest: { "text-demo": createGeneratedEntry() },
+			generatedManifest: { "text-demo": entry },
 			publicDir: "/tmp/public",
 		});
 
@@ -152,6 +159,11 @@ describe("text asset CDN manifest verifier", () => {
 		expect(manifest.totalAssets).toBe(1);
 		expect(manifest.totalFiles).toBe(3);
 		expect(manifest.totalBytes).toBe(18);
+		expect(manifest.provenance).toMatchObject({
+			designerImported: 1,
+			total: 1,
+		});
+		expect(manifest.assets[0]?.provenance).toEqual(entry.provenance);
 		expect(manifest.assets[0]?.files.map((file) => file.cdnUrl)).toEqual([
 			"https://cdn.example.com/assets/text-assets/demo/plain@1/thumbnail.webp",
 			"https://cdn.example.com/assets/text-assets/demo/plain@1/template.json",
