@@ -1,5 +1,5 @@
-import { mkdir, readFile } from "node:fs/promises";
-import { join } from "node:path";
+import { mkdir, readFile, writeFile } from "node:fs/promises";
+import { dirname, join } from "node:path";
 import { tmpdir } from "node:os";
 import { randomUUID } from "node:crypto";
 import { describe, expect, it } from "vitest";
@@ -50,6 +50,7 @@ describe("text designer pack template script", () => {
 			parseTextDesignerPackTemplateArgs({
 				argv: [
 					"--all",
+					"--include-current-files",
 					"--asset-id",
 					"text-demo",
 					"--asset-id",
@@ -67,18 +68,22 @@ describe("text designer pack template script", () => {
 					"/tmp/generated.json",
 					"--out-dir",
 					"/tmp/designer-template",
+					"--public-dir",
+					"/tmp/public",
 				],
 			})
 		).toMatchObject({
 			assetIds: ["text-demo"],
 			categoryIds: ["red"],
 			generatedManifestPath: "/tmp/generated.json",
+			includeCurrentFiles: true,
 			includeAll: true,
 			limit: 25,
 			outDir: "/tmp/designer-template",
 			packageIds: ["text-basic"],
 			perCategoryLimit: 5,
 			provenance: "generated",
+			publicDir: "/tmp/public",
 		});
 	});
 
@@ -227,6 +232,56 @@ describe("text designer pack template script", () => {
 		expect(readme).toContain("assets:text:import-designer");
 		expect(readme).toContain("assets:text:import-designer-ready");
 		expect(readme).toContain("assets:text:verify-designer-ready");
+		expect(readme).toContain("--include-current-files");
 		expect(readme).toContain("| red | 1 |");
+	});
+
+	it("can include current generated files as editable designer references", async () => {
+		const rootDir = join(tmpdir(), `qcut-designer-template-${randomUUID()}`);
+		const outDir = join(rootDir, "pack");
+		const publicDir = join(rootDir, "public");
+		const entry = createGeneratedEntry({
+			assetId: "text-red-demo",
+			packageId: "text-fancy-red",
+		});
+		const template = buildTextDesignerPackTemplate({
+			assetIds: ["text-red-demo"],
+			generatedManifest: {
+				"text-red-demo": entry,
+			},
+		});
+
+		await Promise.all(
+			[
+				{ content: "RIFF0000WEBP", file: entry.thumbnail },
+				{ content: '{"assetId":"text-red-demo"}', file: entry.source },
+				{
+					content: '{"kind":"qcut-text-template-package"}',
+					file: entry.qcutPackage,
+				},
+			].map(async ({ content, file }) => {
+				if (!file) return;
+				const path = join(publicDir, file.url.replace(/^\/+/, ""));
+				await mkdir(dirname(path), { recursive: true });
+				await writeFile(path, content);
+			})
+		);
+
+		await writeTextDesignerPackTemplate({
+			includeCurrentFiles: true,
+			outDir,
+			publicDir,
+			template,
+		});
+
+		await expect(
+			readFile(join(outDir, "assets/text-red-demo/thumbnail.webp"), "utf8")
+		).resolves.toBe("RIFF0000WEBP");
+		await expect(
+			readFile(join(outDir, "assets/text-red-demo/template.json"), "utf8")
+		).resolves.toContain("text-red-demo");
+		await expect(
+			readFile(join(outDir, "assets/text-red-demo/template.qctext"), "utf8")
+		).resolves.toContain("qcut-text-template-package");
 	});
 });

@@ -1,4 +1,4 @@
-import { mkdir, writeFile } from "node:fs/promises";
+import { copyFile, mkdir, writeFile } from "node:fs/promises";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import type {
@@ -15,12 +15,14 @@ export type TextDesignerPackTemplateOptions = {
 	assetIds: string[];
 	categoryIds: string[];
 	generatedManifestPath: string;
+	includeCurrentFiles: boolean;
 	includeAll: boolean;
 	limit?: number;
 	outDir: string;
 	packageIds: string[];
 	perCategoryLimit: number;
 	provenance?: TextDesignerPackTemplateProvenanceFilter;
+	publicDir: string;
 };
 
 export type TextDesignerPackTemplateProvenanceFilter =
@@ -64,6 +66,7 @@ const DEFAULT_GENERATED_MANIFEST_PATH = join(
 	"../src/lib/text/text-asset-generated-manifest.json"
 );
 const DEFAULT_OUT_DIR = join(SCRIPT_DIR, "../dist/text-designer-pack-template");
+const DEFAULT_PUBLIC_DIR = join(SCRIPT_DIR, "../public");
 
 export function parseTextDesignerPackTemplateArgs({
 	argv,
@@ -74,15 +77,21 @@ export function parseTextDesignerPackTemplateArgs({
 		assetIds: [],
 		categoryIds: [],
 		generatedManifestPath: DEFAULT_GENERATED_MANIFEST_PATH,
+		includeCurrentFiles: false,
 		includeAll: false,
 		outDir: DEFAULT_OUT_DIR,
 		packageIds: [],
 		perCategoryLimit: 5,
+		publicDir: DEFAULT_PUBLIC_DIR,
 	};
 	for (let index = 0; index < argv.length; index += 1) {
 		const arg = argv[index];
 		if (arg === "--all") {
 			options.includeAll = true;
+			continue;
+		}
+		if (arg === "--include-current-files") {
+			options.includeCurrentFiles = true;
 			continue;
 		}
 		if (arg === "--asset-id") {
@@ -123,6 +132,11 @@ export function parseTextDesignerPackTemplateArgs({
 		}
 		if (arg === "--out-dir") {
 			options.outDir = requireValue({ argv, index, name: arg });
+			index += 1;
+			continue;
+		}
+		if (arg === "--public-dir") {
+			options.publicDir = requireValue({ argv, index, name: arg });
 			index += 1;
 			continue;
 		}
@@ -246,10 +260,14 @@ export function buildTextDesignerPackTemplate({
 }
 
 export async function writeTextDesignerPackTemplate({
+	includeCurrentFiles = false,
 	outDir,
+	publicDir = DEFAULT_PUBLIC_DIR,
 	template,
 }: {
+	includeCurrentFiles?: boolean;
 	outDir: string;
+	publicDir?: string;
 	template: TextDesignerPackTemplate;
 }): Promise<void> {
 	const manifestPath = join(outDir, "manifest.json");
@@ -275,6 +293,38 @@ export async function writeTextDesignerPackTemplate({
 			writeFile(path, `${JSON.stringify(contract, null, "\t")}\n`, "utf8")
 		),
 	]);
+	if (includeCurrentFiles) {
+		await copyCurrentGeneratedFiles({
+			outDir,
+			publicDir,
+			template,
+		});
+	}
+}
+
+async function copyCurrentGeneratedFiles({
+	outDir,
+	publicDir,
+	template,
+}: {
+	outDir: string;
+	publicDir: string;
+	template: TextDesignerPackTemplate;
+}): Promise<void> {
+	await Promise.all(
+		template.contracts.flatMap((contract) =>
+			[
+				contract.files.thumbnail,
+				contract.files.source,
+				contract.files.qcutPackage,
+			].map(async (file) => {
+				const sourcePath = join(publicDir, file.currentUrl.replace(/^\/+/, ""));
+				const targetPath = join(outDir, file.designerPath);
+				await mkdir(dirname(targetPath), { recursive: true });
+				await copyFile(sourcePath, targetPath);
+			})
+		)
+	);
 }
 
 function resolveDesignerPackAssets({
@@ -376,6 +426,8 @@ bun run assets:text:verify-designer-ready
 \`\`\`
 
 Each asset folder contains \`asset-contract.json\` with the required target identity. Keep \`assetId\`, \`packageId\`, \`version\`, and \`cacheKey\` unchanged inside \`template.json\` and \`template.qctext\`. The import step rejects unchanged files by default, so every listed asset must be replaced with a real designer payload.
+
+Use \`--include-current-files\` when creating the pack to include the current generated files at the exact replacement paths. They are references only; designers still need to replace or edit them before import.
 
 ## Category Quotas
 
@@ -489,13 +541,16 @@ async function main(): Promise<void> {
 		generatedManifest,
 	});
 	await writeTextDesignerPackTemplate({
+		includeCurrentFiles: options.includeCurrentFiles,
 		outDir: options.outDir,
+		publicDir: options.publicDir,
 		template,
 	});
 	console.log(
 		JSON.stringify(
 			{
 				assets: template.contracts.length,
+				includeCurrentFiles: options.includeCurrentFiles,
 				ok: true,
 				outDir: options.outDir,
 			},
