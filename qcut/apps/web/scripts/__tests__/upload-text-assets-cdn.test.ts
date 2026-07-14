@@ -3,6 +3,7 @@ import {
 	buildTextAssetUploadPlan,
 	parseTextAssetUploadArgs,
 	uploadTextAssetPlan,
+	verifyUploadDesignerAssetCoverage,
 	type TextAssetUploadPlanItem,
 } from "../upload-text-assets-cdn";
 import type { TextAssetPublishManifest } from "../verify-text-asset-cdn-manifest";
@@ -46,6 +47,10 @@ function createPublishManifest(): TextAssetPublishManifest {
 					},
 				],
 				packageId: "text-demo",
+				provenance: {
+					pipeline: "designer-pack-v1",
+					source: "designer-imported",
+				},
 				version: 1,
 			},
 			{
@@ -68,6 +73,13 @@ function createPublishManifest(): TextAssetPublishManifest {
 		],
 		baseUrl: "https://cdn.example.com",
 		generatedAt: "2026-07-15T00:00:00.000Z",
+		provenance: {
+			designerImported: 1,
+			generated: 0,
+			missingProvenance: 0,
+			pipelines: { "designer-pack-v1": 1 },
+			total: 1,
+		},
 		schemaVersion: 1,
 		totalAssets: 2,
 		totalBytes: 19,
@@ -91,6 +103,8 @@ describe("text asset CDN upload script", () => {
 					"--dry-run",
 					"--manifest",
 					"/tmp/manifest.json",
+					"--min-designer-assets",
+					"1",
 					"--prefix",
 					"assets",
 				],
@@ -106,8 +120,43 @@ describe("text asset CDN upload script", () => {
 			dryRun: true,
 			manifestPath: "/tmp/manifest.json",
 			metadataCacheControl: "public, max-age=30",
+			minDesignerAssets: 1,
 			prefix: "assets",
 		});
+	});
+
+	it("verifies designer asset coverage from publish manifest provenance", () => {
+		expect(
+			verifyUploadDesignerAssetCoverage({
+				manifest: createPublishManifest(),
+				minDesignerAssets: 2,
+			})
+		).toEqual([
+			{
+				assetId: "text-designer-assets",
+				code: "designer-import-threshold",
+				detail: "Expected at least 2 designer-imported text assets, received 1",
+			},
+		]);
+	});
+
+	it("requires regenerated publish manifests before enforcing designer coverage", () => {
+		const manifest = createPublishManifest();
+		const legacyManifest = { ...manifest, provenance: undefined };
+
+		expect(
+			verifyUploadDesignerAssetCoverage({
+				manifest: legacyManifest,
+				minDesignerAssets: 1,
+			})
+		).toEqual([
+			{
+				assetId: "text-designer-assets",
+				code: "designer-import-threshold",
+				detail:
+					"Publish manifest is missing text asset provenance; regenerate it before enforcing designer asset coverage",
+			},
+		]);
 	});
 
 	it("builds upload keys and cache headers with optional CDN prefixes", () => {

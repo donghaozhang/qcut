@@ -4,9 +4,11 @@ import { fileURLToPath } from "node:url";
 import { PutObjectCommand, S3Client } from "@aws-sdk/client-s3";
 import {
 	mapWithConcurrency,
+	verifyDesignerAssetCoverage,
 	verifyLocalFiles,
 	type TextAssetPublishFile,
 	type TextAssetPublishManifest,
+	type VerifyIssue,
 } from "./verify-text-asset-cdn-manifest";
 
 export type TextAssetUploadOptions = {
@@ -16,6 +18,7 @@ export type TextAssetUploadOptions = {
 	dryRun: boolean;
 	manifestPath: string;
 	metadataCacheControl: string;
+	minDesignerAssets: number;
 	prefix: string;
 };
 
@@ -68,6 +71,10 @@ export function parseTextAssetUploadArgs({
 		metadataCacheControl:
 			env.QCUT_TEXT_ASSET_METADATA_CACHE_CONTROL ??
 			DEFAULT_METADATA_CACHE_CONTROL,
+		minDesignerAssets: parseNonNegativeInteger({
+			name: "QCUT_TEXT_ASSET_MIN_DESIGNER_ASSETS",
+			value: env.QCUT_TEXT_ASSET_MIN_DESIGNER_ASSETS ?? "0",
+		}),
 		prefix: env.QCUT_TEXT_ASSET_CDN_PREFIX ?? "",
 	};
 	for (let index = 0; index < argv.length; index += 1) {
@@ -108,6 +115,14 @@ export function parseTextAssetUploadArgs({
 			index += 1;
 			continue;
 		}
+		if (arg === "--min-designer-assets") {
+			options.minDesignerAssets = parseNonNegativeInteger({
+				name: arg,
+				value: requireValue({ argv, index, name: arg }),
+			});
+			index += 1;
+			continue;
+		}
 		if (arg === "--prefix") {
 			options.prefix = requireValue({ argv, index, name: arg });
 			index += 1;
@@ -129,6 +144,30 @@ export async function readPublishManifest({
 	return JSON.parse(
 		await readFile(manifestPath, "utf8")
 	) as TextAssetPublishManifest;
+}
+
+export function verifyUploadDesignerAssetCoverage({
+	manifest,
+	minDesignerAssets,
+}: {
+	manifest: TextAssetPublishManifest;
+	minDesignerAssets: number;
+}): VerifyIssue[] {
+	if (manifest.provenance) {
+		return verifyDesignerAssetCoverage({
+			minDesignerAssets,
+			provenance: manifest.provenance,
+		});
+	}
+	if (minDesignerAssets === 0) return [];
+	return [
+		{
+			assetId: "text-designer-assets",
+			code: "designer-import-threshold",
+			detail:
+				"Publish manifest is missing text asset provenance; regenerate it before enforcing designer asset coverage",
+		},
+	];
 }
 
 export function buildTextAssetUploadPlan({
@@ -221,6 +260,20 @@ function objectKeyForAssetFile({
 	return cleanPrefix ? `${cleanPrefix}/${cleanUrl}` : cleanUrl;
 }
 
+function parseNonNegativeInteger({
+	name,
+	value,
+}: {
+	name: string;
+	value: string;
+}): number {
+	const parsed = Number.parseInt(value, 10);
+	if (!Number.isFinite(parsed) || parsed < 0) {
+		throw new Error(`${name} requires a non-negative integer`);
+	}
+	return parsed;
+}
+
 function parsePositiveInteger({
 	name,
 	value,
@@ -255,8 +308,13 @@ async function main(): Promise<void> {
 		manifestPath: options.manifestPath,
 	});
 	const issues = await verifyLocalFiles({ manifest });
-	if (issues.length > 0) {
-		console.log(JSON.stringify({ issues, ok: false }, null, "\t"));
+	const designerCoverageIssues = verifyUploadDesignerAssetCoverage({
+		manifest,
+		minDesignerAssets: options.minDesignerAssets,
+	});
+	const allIssues = [...designerCoverageIssues, ...issues];
+	if (allIssues.length > 0) {
+		console.log(JSON.stringify({ issues: allIssues, ok: false }, null, "\t"));
 		process.exit(1);
 	}
 	const items = buildTextAssetUploadPlan({
@@ -277,7 +335,18 @@ async function main(): Promise<void> {
 		items,
 		uploadFile: createS3UploadFile({ client }),
 	});
-	console.log(JSON.stringify({ ok: true, ...summary }, null, "\t"));
+	console.log(
+		JSON.stringify(
+			{
+				ok: true,
+				minDesignerAssets: options.minDesignerAssets,
+				provenance: manifest.provenance,
+				...summary,
+			},
+			null,
+			"\t"
+		)
+	);
 }
 
 if (import.meta.main) {
