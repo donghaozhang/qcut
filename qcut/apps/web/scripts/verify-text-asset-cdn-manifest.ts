@@ -352,7 +352,7 @@ export async function verifyRemoteFiles({
 	return issueGroups.flat();
 }
 
-async function mapWithConcurrency<TItem, TResult>({
+export async function mapWithConcurrency<TItem, TResult>({
 	concurrency,
 	items,
 	mapper,
