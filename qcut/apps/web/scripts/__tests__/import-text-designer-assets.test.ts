@@ -272,6 +272,55 @@ async function writeDesignerPackSummary({
 	);
 }
 
+async function writeDesignerAssetContract({
+	assetId = "text-demo",
+	cacheKey = "text-assets/demo/plain@1",
+	packageChecksum = "old",
+	packageId = "text-demo",
+	packDir,
+	sourceChecksum = "old",
+	thumbnailChecksum = "old",
+}: {
+	assetId?: string;
+	cacheKey?: string;
+	packageChecksum?: string;
+	packageId?: string;
+	packDir: string;
+	sourceChecksum?: string;
+	thumbnailChecksum?: string;
+}): Promise<void> {
+	await writeFile(
+		join(packDir, "asset-contract.json"),
+		`${JSON.stringify(
+			{
+				assetId,
+				cacheKey,
+				files: {
+					qcutPackage: {
+						designerPath: "template.qctext",
+						rejectsCurrentChecksumSha256: packageChecksum,
+						replacementRequired: true,
+					},
+					source: {
+						designerPath: "template.json",
+						rejectsCurrentChecksumSha256: sourceChecksum,
+						replacementRequired: true,
+					},
+					thumbnail: {
+						designerPath: "thumbnail.webp",
+						rejectsCurrentChecksumSha256: thumbnailChecksum,
+						replacementRequired: true,
+					},
+				},
+				packageId,
+				version: 1,
+			},
+			null,
+			"\t"
+		)}\n`
+	);
+}
+
 async function writeDesignerAssetPackFiles({
 	assetId,
 	cacheKey,
@@ -640,6 +689,97 @@ describe("text designer asset import script", () => {
 				},
 			},
 		});
+	});
+
+	it("accepts matching designer asset contracts", async () => {
+		const { generatedManifest, packDir, packManifest, publicDir } =
+			await createDesignerFixture();
+		await writeDesignerAssetContract({
+			packageChecksum: generatedManifest["text-demo"]!.qcutPackage!
+				.checksumSha256,
+			packDir,
+			sourceChecksum: generatedManifest["text-demo"]!.source.checksumSha256,
+			thumbnailChecksum:
+				generatedManifest["text-demo"]!.thumbnail.checksumSha256,
+		});
+
+		await expect(
+			buildTextDesignerAssetImportPlan({
+				generatedManifest,
+				packDir,
+				packManifest,
+				publicDir,
+			})
+		).resolves.toMatchObject({
+			items: expect.arrayContaining([
+				expect.objectContaining({ assetId: "text-demo", role: "thumbnail" }),
+				expect.objectContaining({ assetId: "text-demo", role: "source" }),
+				expect.objectContaining({ assetId: "text-demo", role: "package" }),
+			]),
+		});
+	});
+
+	it("rejects designer asset contracts for another target", async () => {
+		const { generatedManifest, packDir, packManifest, publicDir } =
+			await createDesignerFixture();
+		await writeDesignerAssetContract({
+			assetId: "other-text-demo",
+			packDir,
+		});
+
+		await expect(
+			buildTextDesignerAssetImportPlan({
+				generatedManifest,
+				packDir,
+				packManifest,
+				publicDir,
+			})
+		).rejects.toThrow("Designer asset contract identity mismatch");
+	});
+
+	it("rejects contract-required replacements that keep current files", async () => {
+		const { generatedManifest, packDir, packManifest, publicDir } =
+			await createDesignerFixture();
+		const sourceText = designerSourceText();
+		const packageText = designerPackageText();
+		const unchangedGeneratedManifest = {
+			"text-demo": {
+				...generatedManifest["text-demo"],
+				thumbnail: {
+					...generatedManifest["text-demo"]!.thumbnail,
+					byteSize: byteLength({ value: DESIGNER_THUMBNAIL_TEXT }),
+					checksumSha256: checksum({ value: DESIGNER_THUMBNAIL_TEXT }),
+				},
+				source: {
+					...generatedManifest["text-demo"]!.source,
+					byteSize: sourceText.length,
+					checksumSha256: checksum({ value: sourceText }),
+				},
+				qcutPackage: {
+					...generatedManifest["text-demo"]!.qcutPackage!,
+					byteSize: packageText.length,
+					checksumSha256: checksum({ value: packageText }),
+				},
+			},
+		};
+		await writeDesignerAssetContract({
+			packageChecksum: checksum({ value: packageText }),
+			packDir,
+			sourceChecksum: checksum({ value: sourceText }),
+			thumbnailChecksum: checksum({ value: DESIGNER_THUMBNAIL_TEXT }),
+		});
+
+		await expect(
+			buildTextDesignerAssetImportPlan({
+				allowUnchanged: true,
+				generatedManifest: unchangedGeneratedManifest,
+				packDir,
+				packManifest,
+				publicDir,
+			})
+		).rejects.toThrow(
+			"Designer asset contract requires replacing current generated thumbnail"
+		);
 	});
 
 	it("rejects designer package payloads that target another asset", async () => {

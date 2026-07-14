@@ -125,6 +125,25 @@ type DesignerAssetPackageFileReferences = {
 	thumbnail: string;
 };
 
+type DesignerAssetFileContract = {
+	designerPath: string;
+	rejectsCurrentChecksumSha256?: string;
+	replacementRequired?: boolean;
+};
+
+type DesignerAssetContract = {
+	assetId: string;
+	cacheKey?: string;
+	files: Partial<
+		Record<
+			"qcutPackage" | "source" | "thumbnail",
+			DesignerAssetFileContract
+		>
+	>;
+	packageId?: string;
+	version?: number;
+};
+
 const SCRIPT_DIR = dirname(fileURLToPath(import.meta.url));
 const DEFAULT_GENERATED_MANIFEST_PATH = join(
 	SCRIPT_DIR,
@@ -397,6 +416,12 @@ export async function buildTextDesignerAssetImportPlan({
 				allowUnchanged,
 				assetId: asset.assetId,
 				items,
+				targetEntry,
+			});
+			await assertOptionalDesignerAssetContract({
+				asset,
+				items,
+				resolvedPackDir,
 				targetEntry,
 			});
 			return items;
@@ -677,6 +702,147 @@ function assertDesignerAssetChanged({
 	throw new Error(
 		`Designer asset files are unchanged from current generated asset for ${assetId}: ${unchangedRoles.join(", ")}`
 	);
+}
+
+async function assertOptionalDesignerAssetContract({
+	asset,
+	items,
+	resolvedPackDir,
+	targetEntry,
+}: {
+	asset: TextDesignerAssetPackEntry;
+	items: readonly TextDesignerAssetImportPlanItem[];
+	resolvedPackDir: string;
+	targetEntry: TextAssetGeneratedEntry;
+}): Promise<void> {
+	const contract = await readOptionalDesignerAssetContract({
+		asset,
+		resolvedPackDir,
+	});
+	if (!contract) return;
+	assertDesignerAssetContractIdentity({ contract, targetEntry });
+	for (const item of items) {
+		const contractFile = contract.files[contractFileRole({ role: item.role })];
+		if (!contractFile) {
+			throw new Error(
+				`Designer asset contract is missing ${item.role} file: ${asset.assetId}`
+			);
+		}
+		if (
+			contractFile.designerPath !==
+			manifestPathForRole({ asset, role: item.role })
+		) {
+			throw new Error(
+				`Designer asset contract path mismatch for ${asset.assetId}: ${item.role}`
+			);
+		}
+		const currentFile = currentGeneratedFileForRole({
+			role: item.role,
+			targetEntry,
+		});
+		if (
+			contractFile.rejectsCurrentChecksumSha256 &&
+			currentFile?.checksumSha256 !== contractFile.rejectsCurrentChecksumSha256
+		) {
+			throw new Error(
+				`Designer asset contract current checksum mismatch for ${asset.assetId}: ${item.role}`
+			);
+		}
+		if (
+			contractFile.replacementRequired === true &&
+			item.checksumSha256 === contractFile.rejectsCurrentChecksumSha256
+		) {
+			throw new Error(
+				`Designer asset contract requires replacing current generated ${item.role}: ${asset.assetId}`
+			);
+		}
+	}
+}
+
+async function readOptionalDesignerAssetContract({
+	asset,
+	resolvedPackDir,
+}: {
+	asset: TextDesignerAssetPackEntry;
+	resolvedPackDir: string;
+}): Promise<DesignerAssetContract | undefined> {
+	const contractPath = resolveDesignerSourcePath({
+		resolvedPackDir,
+		sourcePath: join(dirname(asset.thumbnail), "asset-contract.json"),
+	});
+	let bytes: Buffer;
+	try {
+		bytes = await readFile(contractPath);
+	} catch (error) {
+		if (
+			error &&
+			typeof error === "object" &&
+			"code" in error &&
+			error.code === "ENOENT"
+		) {
+			return undefined;
+		}
+		throw error;
+	}
+	return assertDesignerAssetContract({
+		value: JSON.parse(bytes.toString("utf8")) as unknown,
+	});
+}
+
+function assertDesignerAssetContractIdentity({
+	contract,
+	targetEntry,
+}: {
+	contract: DesignerAssetContract;
+	targetEntry: TextAssetGeneratedEntry;
+}): void {
+	const mismatches = [
+		identityMismatch({
+			actual: contract.assetId,
+			expected: targetEntry.assetId,
+			field: "assetId",
+		}),
+		identityMismatch({
+			actual: contract.cacheKey,
+			expected: targetEntry.cacheKey,
+			field: "cacheKey",
+		}),
+		identityMismatch({
+			actual: contract.packageId,
+			expected: targetEntry.packageId,
+			field: "packageId",
+		}),
+		identityMismatch({
+			actual: contract.version,
+			expected: targetEntry.version,
+			field: "version",
+		}),
+	].filter((mismatch): mismatch is string => Boolean(mismatch));
+	if (mismatches.length === 0) return;
+	throw new Error(
+		`Designer asset contract identity mismatch for ${targetEntry.assetId}: ${mismatches.join(", ")}`
+	);
+}
+
+function contractFileRole({
+	role,
+}: {
+	role: TextDesignerAssetImportRole;
+}): "qcutPackage" | "source" | "thumbnail" {
+	if (role === "package") return "qcutPackage";
+	return role;
+}
+
+function manifestPathForRole({
+	asset,
+	role,
+}: {
+	asset: TextDesignerAssetPackEntry;
+	role: TextDesignerAssetImportRole;
+}): string {
+	if (role === "package") return asset.qcutPackage;
+	if (role === "source") return asset.source;
+	return asset.thumbnail;
 }
 
 function currentGeneratedFileForRole({
@@ -1251,6 +1417,94 @@ function assertDesignerAssetPackSummary({
 		}),
 		schemaVersion: 1,
 	};
+}
+
+function assertDesignerAssetContract({
+	value,
+}: {
+	value: unknown;
+}): DesignerAssetContract {
+	if (!isRecord(value)) {
+		throw new Error("Designer asset contract must be an object");
+	}
+	const files = isRecord(value.files) ? value.files : null;
+	if (!files) {
+		throw new Error("Designer asset contract requires files");
+	}
+	return {
+		assetId: requiredContractString({
+			field: "assetId",
+			value: value.assetId,
+		}),
+		cacheKey: optionalContractString({ value: value.cacheKey }),
+		files: {
+			qcutPackage: optionalDesignerAssetFileContract({
+				field: "files.qcutPackage",
+				value: files.qcutPackage,
+			}),
+			source: optionalDesignerAssetFileContract({
+				field: "files.source",
+				value: files.source,
+			}),
+			thumbnail: optionalDesignerAssetFileContract({
+				field: "files.thumbnail",
+				value: files.thumbnail,
+			}),
+		},
+		packageId: optionalContractString({ value: value.packageId }),
+		version:
+			typeof value.version === "number" && Number.isFinite(value.version)
+				? value.version
+				: undefined,
+	};
+}
+
+function optionalDesignerAssetFileContract({
+	field,
+	value,
+}: {
+	field: string;
+	value: unknown;
+}): DesignerAssetFileContract | undefined {
+	if (value === undefined) return undefined;
+	const file = isRecord(value) ? value : null;
+	if (!file) {
+		throw new Error(`Designer asset contract ${field} must be an object`);
+	}
+	return {
+		designerPath: requiredContractString({
+			field: `${field}.designerPath`,
+			value: file.designerPath,
+		}),
+		rejectsCurrentChecksumSha256: optionalContractString({
+			value: file.rejectsCurrentChecksumSha256,
+		}),
+		replacementRequired:
+			typeof file.replacementRequired === "boolean"
+				? file.replacementRequired
+				: undefined,
+	};
+}
+
+function requiredContractString({
+	field,
+	value,
+}: {
+	field: string;
+	value: unknown;
+}): string {
+	if (typeof value !== "string" || value.length === 0) {
+		throw new Error(`Designer asset contract requires ${field}`);
+	}
+	return value;
+}
+
+function optionalContractString({
+	value,
+}: {
+	value: unknown;
+}): string | undefined {
+	return typeof value === "string" && value.length > 0 ? value : undefined;
 }
 
 function summaryCategoryCounts({
