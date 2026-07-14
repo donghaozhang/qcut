@@ -57,7 +57,11 @@ import {
 	type TextLibraryState,
 } from "@/lib/text/text-library-state";
 import { rankTextTemplateSearchResults } from "@/lib/text/text-library-search";
-import { compareTextTemplatesByMarketplaceOrder } from "@/lib/text/text-marketplace-metadata";
+import {
+	compareTextTemplatesByMarketplaceOrder,
+	loadTextTemplateMarketplaceRemoteConfig,
+	type TextTemplateMarketplaceMetadataOverrides,
+} from "@/lib/text/text-marketplace-metadata";
 import {
 	generateSmartTextSuggestions,
 	getSmartTextCategoryId,
@@ -890,18 +894,24 @@ function applySmartTextSuggestions({
 	});
 }
 
-function sortTextDefinitionsForBrowsing({
+export function sortTextDefinitionsForBrowsing({
 	categoryId,
 	definitions,
+	marketplaceOverrides,
 }: {
 	categoryId: TextTemplateCategoryId;
 	definitions: readonly TextTemplateDefinition[];
+	marketplaceOverrides?: TextTemplateMarketplaceMetadataOverrides;
 }): TextTemplateDefinition[] {
 	if (categoryId === "favorites" || categoryId === "recent") {
 		return [...definitions];
 	}
 	return [...definitions].sort((left, right) =>
-		compareTextTemplatesByMarketplaceOrder({ left, right })
+		compareTextTemplatesByMarketplaceOrder({
+			left,
+			overrides: marketplaceOverrides,
+			right,
+		})
 	);
 }
 
@@ -928,10 +938,22 @@ export function TextView() {
 	const [libraryState, setLibraryState] = useState<TextLibraryState>(() =>
 		loadTextLibraryState()
 	);
+	const [marketplaceOverrides, setMarketplaceOverrides] =
+		useState<TextTemplateMarketplaceMetadataOverrides>({});
 	const normalizedSearchQuery = searchQuery.trim().toLocaleLowerCase();
 	useEffect(() => {
 		storeTextLibraryState({ state: libraryState });
 	}, [libraryState]);
+	useEffect(() => {
+		let cancelled = false;
+		loadTextTemplateMarketplaceRemoteConfig().then((result) => {
+			if (cancelled || result.source === "empty") return;
+			setMarketplaceOverrides(result.overrides);
+		});
+		return () => {
+			cancelled = true;
+		};
+	}, []);
 	const activeCategory = useMemo(
 		() =>
 			TEXT_TEMPLATE_CATEGORIES.find(
@@ -973,12 +995,14 @@ export function TextView() {
 		const searchBase = normalizedSearchQuery
 			? rankTextTemplateSearchResults({
 					definitions: TEXT_TEMPLATE_LIBRARY_DEFINITIONS,
+					marketplaceOverrides,
 					query: normalizedSearchQuery,
 					state: libraryState,
 				})
 			: sortTextDefinitionsForBrowsing({
 					categoryId: activeCategory.id,
 					definitions: projectAwareDefinitions,
+					marketplaceOverrides,
 				});
 		return searchBase.filter(
 			(definition) =>
@@ -991,6 +1015,7 @@ export function TextView() {
 	}, [
 		activeCategory.id,
 		libraryState,
+		marketplaceOverrides,
 		normalizedSearchQuery,
 		projectAwareDefinitions,
 		statusFilter,

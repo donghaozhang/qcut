@@ -32,12 +32,28 @@ export type TextTemplateMarketplaceRemoteConfig = {
 	schemaVersion: 1;
 };
 
+export type TextTemplateMarketplaceRemoteConfigSource =
+	| "remote"
+	| "cache"
+	| "empty";
+
+export type TextTemplateMarketplaceRemoteConfigLoadResult = {
+	overrides: TextTemplateMarketplaceMetadataOverrides;
+	source: TextTemplateMarketplaceRemoteConfigSource;
+	error?: string;
+};
+
 type MarketplaceFacet = {
 	aliases: readonly string[];
 	heat: number;
 	rank: number;
 	tags: readonly string[];
 };
+
+export const DEFAULT_TEXT_MARKETPLACE_REMOTE_CONFIG_URL =
+	"https://assets.qcut.app/text-assets/marketplace.json";
+export const TEXT_MARKETPLACE_REMOTE_CONFIG_STORAGE_KEY =
+	"qcut-text-marketplace-config-v1";
 
 const CATEGORY_FACETS: Readonly<Record<string, MarketplaceFacet>> = {
 	"black-white": {
@@ -308,6 +324,36 @@ export function parseTextTemplateMarketplaceRemoteConfig({
 	return overrides;
 }
 
+export async function loadTextTemplateMarketplaceRemoteConfig({
+	fetchImpl = fetch,
+	storage = browserStorage(),
+	url = DEFAULT_TEXT_MARKETPLACE_REMOTE_CONFIG_URL,
+}: {
+	fetchImpl?: typeof fetch;
+	storage?: StorageLike;
+	url?: string;
+} = {}): Promise<TextTemplateMarketplaceRemoteConfigLoadResult> {
+	try {
+		const response = await fetchImpl(url, { cache: "no-store" });
+		if (!response.ok) {
+			throw new Error(
+				`Text marketplace config request failed (${response.status})`
+			);
+		}
+		const value = await response.json();
+		const overrides = parseTextTemplateMarketplaceRemoteConfig({ value });
+		storage?.setItem(
+			TEXT_MARKETPLACE_REMOTE_CONFIG_STORAGE_KEY,
+			JSON.stringify(value)
+		);
+		return { overrides, source: "remote" };
+	} catch (error) {
+		const cached = loadCachedMarketplaceOverrides({ storage });
+		if (cached) return { ...cached, error: errorMessage({ error }) };
+		return { error: errorMessage({ error }), overrides: {}, source: "empty" };
+	}
+}
+
 function getMarketplaceMetadataOverride({
 	definition,
 	overrides,
@@ -498,4 +544,34 @@ function clampHeatScore({ value }: { value: number }): number {
 
 function uniqueValues({ values }: { values: readonly string[] }): string[] {
 	return [...new Set(values.filter(Boolean))];
+}
+
+type StorageLike = Pick<Storage, "getItem" | "setItem">;
+
+function browserStorage(): StorageLike | undefined {
+	return typeof window === "undefined" ? undefined : window.localStorage;
+}
+
+function loadCachedMarketplaceOverrides({
+	storage,
+}: {
+	storage?: StorageLike;
+}): TextTemplateMarketplaceRemoteConfigLoadResult | undefined {
+	if (!storage) return undefined;
+	const text = storage.getItem(TEXT_MARKETPLACE_REMOTE_CONFIG_STORAGE_KEY);
+	if (!text) return undefined;
+	try {
+		return {
+			overrides: parseTextTemplateMarketplaceRemoteConfig({
+				value: JSON.parse(text),
+			}),
+			source: "cache",
+		};
+	} catch {
+		return undefined;
+	}
+}
+
+function errorMessage({ error }: { error: unknown }): string {
+	return error instanceof Error ? error.message : String(error);
 }

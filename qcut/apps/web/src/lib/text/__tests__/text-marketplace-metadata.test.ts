@@ -2,7 +2,9 @@ import { describe, expect, it } from "vitest";
 import {
 	compareTextTemplatesByMarketplaceOrder,
 	getTextTemplateMarketplaceMetadata,
+	loadTextTemplateMarketplaceRemoteConfig,
 	parseTextTemplateMarketplaceRemoteConfig,
+	TEXT_MARKETPLACE_REMOTE_CONFIG_STORAGE_KEY,
 } from "../text-marketplace-metadata";
 import { getTextTemplateDefinitionsByCategory } from "../text-template-registry";
 
@@ -129,4 +131,95 @@ describe("text marketplace metadata", () => {
 			})
 		).toThrow("invalid heatScore");
 	});
+
+	it("loads remote marketplace config and caches the raw payload", async () => {
+		const storage = new MapStorage();
+		const fetchImpl = async (input: RequestInfo | URL, init?: RequestInit) => {
+			expect(String(input)).toBe("https://cdn.example.test/marketplace.json");
+			expect(init).toMatchObject({ cache: "no-store" });
+			return new Response(
+				JSON.stringify({
+					assets: [
+						{
+							heatScore: 88,
+							remoteTags: ["campaign:remote"],
+							templateId: "template-remote",
+						},
+					],
+					schemaVersion: 1,
+				}),
+				{ status: 200 }
+			);
+		};
+
+		await expect(
+			loadTextTemplateMarketplaceRemoteConfig({
+				fetchImpl,
+				storage,
+				url: "https://cdn.example.test/marketplace.json",
+			})
+		).resolves.toMatchObject({
+			overrides: {
+				"template-remote": {
+					heatScore: 88,
+					remoteTags: ["campaign:remote"],
+				},
+			},
+			source: "remote",
+		});
+		expect(
+			storage.getItem(TEXT_MARKETPLACE_REMOTE_CONFIG_STORAGE_KEY)
+		).toContain("template-remote");
+	});
+
+	it("falls back to cached marketplace config when the remote request fails", async () => {
+		const storage = new MapStorage();
+		storage.setItem(
+			TEXT_MARKETPLACE_REMOTE_CONFIG_STORAGE_KEY,
+			JSON.stringify({
+				assets: [{ editorialRank: 3, templateId: "cached-template" }],
+				schemaVersion: 1,
+			})
+		);
+
+		await expect(
+			loadTextTemplateMarketplaceRemoteConfig({
+				fetchImpl: async () => new Response("missing", { status: 503 }),
+				storage,
+			})
+		).resolves.toMatchObject({
+			error: "Text marketplace config request failed (503)",
+			overrides: {
+				"cached-template": {
+					editorialRank: 3,
+				},
+			},
+			source: "cache",
+		});
+	});
+
+	it("returns an empty marketplace config when remote and cache are unavailable", async () => {
+		await expect(
+			loadTextTemplateMarketplaceRemoteConfig({
+				fetchImpl: async () => new Response("missing", { status: 404 }),
+				storage: new MapStorage(),
+			})
+		).resolves.toEqual({
+			error: "Text marketplace config request failed (404)",
+			overrides: {},
+			source: "empty",
+		});
+	});
 });
+
+class MapStorage {
+	private readonly values = new Map<string, string>();
+
+	getItem(key: string) {
+		return this.values.get(key) ?? null;
+	}
+
+	setItem(key: string, value: string) {
+		this.values.set(key, value);
+	}
+}

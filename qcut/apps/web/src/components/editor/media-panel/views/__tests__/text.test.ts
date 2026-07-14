@@ -4,6 +4,7 @@ import {
 	buildTextTemplateDragData,
 	getExpandedTextTemplateGridColumnCount,
 	getTextTemplateGridColumnCount,
+	sortTextDefinitionsForBrowsing,
 } from "../text";
 
 describe("text view layout", () => {
@@ -21,6 +22,30 @@ describe("text view layout", () => {
 
 	it("uses the expanded asset browser grid density for wide browsing", () => {
 		expect(getExpandedTextTemplateGridColumnCount()).toBe(5);
+	});
+
+	it("applies marketplace overrides when sorting browse categories", () => {
+		const definitions = getTextTemplateDefinitionsByCategory({
+			category: "red",
+		});
+		const plain = definitions.find(
+			(definition) => definition.variantId === "plain"
+		);
+		const redBurst = definitions.find(
+			(definition) => definition.variantId === "red-burst"
+		);
+		if (!plain || !redBurst) throw new Error("Expected red text fixtures");
+
+		expect(
+			sortTextDefinitionsForBrowsing({
+				categoryId: "red",
+				definitions,
+				marketplaceOverrides: {
+					[plain.id]: { editorialRank: 1, heatScore: 100 },
+					[redBurst.id]: { editorialRank: 40 },
+				},
+			})[0]?.id
+		).toBe(plain.id);
 	});
 
 	it("includes grouped template payloads for multi-element text drags", () => {
