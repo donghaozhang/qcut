@@ -17,6 +17,7 @@ export type TextDesignerPackTemplateOptions = {
 	assetIds: string[];
 	categoryIds: string[];
 	generatedManifestPath: string;
+	includeContactSheet: boolean;
 	includeCurrentFiles: boolean;
 	includeAll: boolean;
 	limit?: number;
@@ -79,6 +80,7 @@ export function parseTextDesignerPackTemplateArgs({
 		assetIds: [],
 		categoryIds: [],
 		generatedManifestPath: DEFAULT_GENERATED_MANIFEST_PATH,
+		includeContactSheet: false,
 		includeCurrentFiles: false,
 		includeAll: false,
 		outDir: DEFAULT_OUT_DIR,
@@ -96,8 +98,13 @@ export function parseTextDesignerPackTemplateArgs({
 			options.includeCurrentFiles = true;
 			continue;
 		}
+		if (arg === "--include-contact-sheet") {
+			options.includeContactSheet = true;
+			continue;
+		}
 		if (arg === "--designer-ready") {
 			options.categoryIds = [...TEXT_DESIGNER_READY_CATEGORY_IDS];
+			options.includeContactSheet = true;
 			options.includeCurrentFiles = true;
 			options.perCategoryLimit = TEXT_DESIGNER_READY_MIN_ASSETS_PER_CATEGORY;
 			continue;
@@ -268,11 +275,13 @@ export function buildTextDesignerPackTemplate({
 }
 
 export async function writeTextDesignerPackTemplate({
+	includeContactSheet = false,
 	includeCurrentFiles = false,
 	outDir,
 	publicDir = DEFAULT_PUBLIC_DIR,
 	template,
 }: {
+	includeContactSheet?: boolean;
 	includeCurrentFiles?: boolean;
 	outDir: string;
 	publicDir?: string;
@@ -300,6 +309,13 @@ export async function writeTextDesignerPackTemplate({
 		...contractWrites.map(({ contract, path }) =>
 			writeFile(path, `${JSON.stringify(contract, null, "\t")}\n`, "utf8")
 		),
+		includeContactSheet
+			? writeFile(
+					join(outDir, "CONTACT_SHEET.html"),
+					renderContactSheetHtml({ template }),
+					"utf8"
+				)
+			: Promise.resolve(),
 	]);
 	if (includeCurrentFiles) {
 		await copyCurrentGeneratedFiles({
@@ -440,6 +456,8 @@ Each asset folder contains \`asset-contract.json\` with the required target iden
 
 Use \`--include-current-files\` when creating the pack to include the current generated files at the exact replacement paths. They are references only; designers still need to replace or edit them before import.
 
+When \`CONTACT_SHEET.html\` is present, open it to review the selected categories, current thumbnails, and exact replacement folders.
+
 ## Required Files
 
 | file | requirement |
@@ -462,6 +480,107 @@ ${categoryRows}
 | --- | --- | --- | --- | --- |
 ${assetRows}
 `;
+}
+
+function renderContactSheetHtml({
+	template,
+}: {
+	template: TextDesignerPackTemplate;
+}): string {
+	const categorySections = renderContactSheetCategorySections({ template });
+	return `<!doctype html>
+<html lang="zh-CN">
+<head>
+	<meta charset="utf-8" />
+	<meta name="viewport" content="width=device-width, initial-scale=1" />
+	<title>QCut Text Designer Pack Contact Sheet</title>
+	<style>
+		:root { color-scheme: dark; font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; background: #1f1f1f; color: #f6f6f6; }
+		body { margin: 0; background: #1f1f1f; }
+		main { max-width: 1180px; margin: 0 auto; padding: 24px; }
+		header { display: grid; gap: 6px; margin-bottom: 20px; border-bottom: 1px solid #343434; padding-bottom: 16px; }
+		h1 { margin: 0; font-size: 22px; }
+		p { margin: 0; color: #adadad; font-size: 13px; }
+		.category { margin-top: 22px; }
+		h2 { margin: 0 0 10px; font-size: 14px; color: #e8e8e8; }
+		.grid { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 14px; }
+		.card { overflow: hidden; border: 1px solid #3a3a3a; border-radius: 8px; background: #2e2e2e; }
+		.thumb { aspect-ratio: 1 / 1; background: #3a3a3a; display: grid; place-items: center; }
+		.thumb img { width: 100%; height: 100%; object-fit: contain; display: block; }
+		.meta { display: grid; gap: 3px; padding: 8px; border-top: 1px solid #3a3a3a; }
+		.name { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 11px; color: #f2f2f2; }
+		.path { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font: 10px ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; color: #9ddbe4; }
+		@media (max-width: 860px) { .grid { grid-template-columns: repeat(4, minmax(0, 1fr)); } }
+		@media (max-width: 560px) { main { padding: 14px; } .grid { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+	</style>
+</head>
+<body>
+	<main>
+		<header>
+			<h1>QCut Text Designer Pack Contact Sheet</h1>
+			<p>${template.contracts.length} selected text assets. Replace each thumbnail.webp, template.json, and template.qctext in place.</p>
+		</header>
+${categorySections}
+	</main>
+</body>
+</html>
+`;
+}
+
+function renderContactSheetCategorySections({
+	template,
+}: {
+	template: TextDesignerPackTemplate;
+}): string {
+	const contractsByCategory = new Map<
+		string,
+		TextDesignerPackTemplateAssetContract[]
+	>();
+	for (const contract of template.contracts) {
+		const category = contract.category ?? "unknown";
+		contractsByCategory.set(category, [
+			...(contractsByCategory.get(category) ?? []),
+			contract,
+		]);
+	}
+	return [...contractsByCategory.entries()]
+		.sort(([left], [right]) => left.localeCompare(right))
+		.map(
+			([category, contracts]) => `		<section class="category">
+			<h2>${escapeHtml({ value: category })} / ${contracts.length}</h2>
+			<div class="grid">
+${contracts.map((contract) => renderContactSheetCard({ contract })).join("\n")}
+			</div>
+		</section>`
+		)
+		.join("\n");
+}
+
+function renderContactSheetCard({
+	contract,
+}: {
+	contract: TextDesignerPackTemplateAssetContract;
+}): string {
+	return `				<article class="card">
+					<div class="thumb"><img src="${escapeAttribute({ value: contract.files.thumbnail.designerPath })}" alt="${escapeAttribute({ value: contract.assetId })}" loading="lazy" /></div>
+					<div class="meta">
+						<div class="name">${escapeHtml({ value: contract.assetId })}</div>
+						<div class="path">${escapeHtml({ value: contract.files.thumbnail.designerPath })}</div>
+					</div>
+				</article>`;
+}
+
+function escapeHtml({ value }: { value: string }): string {
+	return value
+		.replaceAll("&", "&amp;")
+		.replaceAll("<", "&lt;")
+		.replaceAll(">", "&gt;")
+		.replaceAll('"', "&quot;")
+		.replaceAll("'", "&#39;");
+}
+
+function escapeAttribute({ value }: { value: string }): string {
+	return escapeHtml({ value });
 }
 
 function renderCategoryRows({
@@ -562,6 +681,7 @@ async function main(): Promise<void> {
 		generatedManifest,
 	});
 	await writeTextDesignerPackTemplate({
+		includeContactSheet: options.includeContactSheet,
 		includeCurrentFiles: options.includeCurrentFiles,
 		outDir: options.outDir,
 		publicDir: options.publicDir,
@@ -571,6 +691,7 @@ async function main(): Promise<void> {
 		JSON.stringify(
 			{
 				assets: template.contracts.length,
+				includeContactSheet: options.includeContactSheet,
 				includeCurrentFiles: options.includeCurrentFiles,
 				ok: true,
 				outDir: options.outDir,

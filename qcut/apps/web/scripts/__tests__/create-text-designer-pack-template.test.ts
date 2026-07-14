@@ -54,6 +54,7 @@ describe("text designer pack template script", () => {
 			parseTextDesignerPackTemplateArgs({
 				argv: [
 					"--all",
+					"--include-contact-sheet",
 					"--include-current-files",
 					"--asset-id",
 					"text-demo",
@@ -80,6 +81,7 @@ describe("text designer pack template script", () => {
 			assetIds: ["text-demo"],
 			categoryIds: ["red"],
 			generatedManifestPath: "/tmp/generated.json",
+			includeContactSheet: true,
 			includeCurrentFiles: true,
 			includeAll: true,
 			limit: 25,
@@ -98,6 +100,7 @@ describe("text designer pack template script", () => {
 			})
 		).toMatchObject({
 			categoryIds: [...TEXT_DESIGNER_READY_CATEGORY_IDS],
+			includeContactSheet: true,
 			includeCurrentFiles: true,
 			perCategoryLimit: TEXT_DESIGNER_READY_MIN_ASSETS_PER_CATEGORY,
 		});
@@ -236,7 +239,11 @@ describe("text designer pack template script", () => {
 			},
 		});
 
-		await writeTextDesignerPackTemplate({ outDir, template });
+		await writeTextDesignerPackTemplate({
+			includeContactSheet: true,
+			outDir,
+			template,
+		});
 
 		await expect(
 			readFile(join(outDir, "manifest.json"), "utf8")
@@ -251,10 +258,18 @@ describe("text designer pack template script", () => {
 		expect(readme).toContain("assets:text:release-stage");
 		expect(readme).toContain("assets:text:verify-archive");
 		expect(readme).toContain("dist/text-designer-import-plan.json");
+		expect(readme).toContain("CONTACT_SHEET.html");
 		expect(readme).toContain("Must be a non-empty WebP payload");
 		expect(readme).toContain('kind: "qcut-text-template-package"');
 		expect(readme).toContain("--include-current-files");
 		expect(readme).toContain("| red | 1 |");
+		const contactSheet = await readFile(
+			join(outDir, "CONTACT_SHEET.html"),
+			"utf8"
+		);
+		expect(contactSheet).toContain("QCut Text Designer Pack Contact Sheet");
+		expect(contactSheet).toContain("assets/text-red-demo/thumbnail.webp");
+		expect(contactSheet).toContain("red");
 	});
 
 	it("can include current generated files as editable designer references", async () => {
