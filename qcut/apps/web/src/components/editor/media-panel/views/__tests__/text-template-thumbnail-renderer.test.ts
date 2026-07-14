@@ -24,6 +24,9 @@ function getBackgroundKindsForCategory({
 
 describe("text template thumbnail renderer", () => {
 	it("uses raster-style canvas recipes for curated color and texture categories", () => {
+		const redDefinitions = getTextTemplateDefinitionsByCategory({
+			category: "red",
+		});
 		expect(
 			getBackgroundKindsForCategory({ category: "red" }).slice(0, 3)
 		).toEqual(["burst", "lava", "fire"]);
@@ -33,6 +36,15 @@ describe("text template thumbnail renderer", () => {
 		expect(
 			getBackgroundKindsForCategory({ category: "gradient" }).slice(0, 4)
 		).toEqual(["gradient", "gradient", "glass", "gradient"]);
+		expect(
+			redDefinitions
+				.slice(0, 3)
+				.every(
+					(definition) =>
+						getTextTemplateThumbnailRecipe({ definition }).materialDetail ===
+						"rich"
+				)
+		).toBe(true);
 	});
 
 	it("keeps visible fancy cards on non-empty thumbnail recipes", () => {
@@ -62,6 +74,7 @@ describe("text template thumbnail renderer", () => {
 				expect(recipe.accentColors.length).toBeGreaterThanOrEqual(4);
 				expect(recipe.backgroundKind.length).toBeGreaterThan(0);
 				expect(recipe.textFillKind.length).toBeGreaterThan(0);
+				expect(recipe.materialDetail.length).toBeGreaterThan(0);
 			}
 		}
 	});

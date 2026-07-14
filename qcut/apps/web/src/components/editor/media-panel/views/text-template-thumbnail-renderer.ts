@@ -47,6 +47,7 @@ export type TextTemplateThumbnailRecipe = {
 	textFillKind: TextThumbnailTextFillKind;
 	ornamentKind: TextThumbnailOrnamentKind;
 	accentColors: readonly string[];
+	materialDetail: "standard" | "rich";
 };
 
 type CanvasSize = {
@@ -60,126 +61,147 @@ const STYLE_RECIPES: Readonly<Record<string, TextTemplateThumbnailRecipe>> = {
 		textFillKind: "ice",
 		ornamentKind: "sparkles",
 		accentColors: ["#0f172a", "#0369a1", "#7dd3fc", "#ffffff"],
+		materialDetail: "rich",
 	},
 	candy: {
 		backgroundKind: "candy",
 		textFillKind: "pastel",
 		ornamentKind: "confetti",
 		accentColors: ["#831843", "#f9a8d4", "#ffffff", "#f0abfc"],
+		materialDetail: "rich",
 	},
 	chrome: {
 		backgroundKind: "chrome",
 		textFillKind: "chrome",
 		ornamentKind: "grain",
 		accentColors: ["#171717", "#737373", "#fafafa", "#262626"],
+		materialDetail: "rich",
 	},
 	comic: {
 		backgroundKind: "comic",
 		textFillKind: "solid",
 		ornamentKind: "burst-rays",
 		accentColors: ["#facc15", "#ef4444", "#f97316", "#111827"],
+		materialDetail: "rich",
 	},
 	fire: {
 		backgroundKind: "fire",
 		textFillKind: "hot",
 		ornamentKind: "fire",
 		accentColors: ["#450a0a", "#b91c1c", "#fb923c", "#facc15"],
+		materialDetail: "rich",
 	},
 	glass: {
 		backgroundKind: "glass",
 		textFillKind: "ice",
 		ornamentKind: "sparkles",
 		accentColors: ["#172554", "#0891b2", "#ffffff", "#67e8f9"],
+		materialDetail: "rich",
 	},
 	glitch: {
 		backgroundKind: "glitch",
 		textFillKind: "neon",
 		ornamentKind: "glitch",
 		accentColors: ["#111827", "#22d3ee", "#fb7185", "#ffffff"],
+		materialDetail: "rich",
 	},
 	glow: {
 		backgroundKind: "gradient",
 		textFillKind: "neon",
 		ornamentKind: "sparkles",
 		accentColors: ["#083344", "#06b6d4", "#f0abfc", "#ecfeff"],
+		materialDetail: "rich",
 	},
 	gold: {
 		backgroundKind: "gold",
 		textFillKind: "gold",
 		ornamentKind: "sparkles",
 		accentColors: ["#2b1d08", "#8a5a12", "#facc15", "#fff7ed"],
+		materialDetail: "rich",
 	},
 	"gradient-duotone": {
 		backgroundKind: "gradient",
 		textFillKind: "pastel",
 		ornamentKind: "sparkles",
 		accentColors: ["#7c3aed", "#ec4899", "#f97316", "#ffffff"],
+		materialDetail: "rich",
 	},
 	"gradient-shine": {
 		backgroundKind: "gradient",
 		textFillKind: "ice",
 		ornamentKind: "sparkles",
 		accentColors: ["#0891b2", "#9333ea", "#fb7185", "#ecfeff"],
+		materialDetail: "rich",
 	},
 	"green-fresh": {
 		backgroundKind: "soft",
 		textFillKind: "solid",
 		ornamentKind: "confetti",
 		accentColors: ["#14532d", "#16a34a", "#bef264", "#f0fdf4"],
+		materialDetail: "standard",
 	},
 	ink: {
 		backgroundKind: "ink",
 		textFillKind: "texture",
 		ornamentKind: "grain",
 		accentColors: ["#292524", "#57534e", "#e7e5e4", "#ffffff"],
+		materialDetail: "rich",
 	},
 	lava: {
 		backgroundKind: "lava",
 		textFillKind: "hot",
 		ornamentKind: "fire",
 		accentColors: ["#1c1917", "#450a0a", "#ef4444", "#facc15"],
+		materialDetail: "rich",
 	},
 	pixel: {
 		backgroundKind: "pixel",
 		textFillKind: "solid",
 		ornamentKind: "grain",
 		accentColors: ["#27272a", "#52525b", "#facc15", "#111827"],
+		materialDetail: "standard",
 	},
 	"pink-heart": {
 		backgroundKind: "candy",
 		textFillKind: "pastel",
 		ornamentKind: "sticker",
 		accentColors: ["#be185d", "#f9a8d4", "#ffffff", "#831843"],
+		materialDetail: "rich",
 	},
 	"purple-dream": {
 		backgroundKind: "gradient",
 		textFillKind: "pastel",
 		ornamentKind: "sparkles",
 		accentColors: ["#2e1065", "#7c3aed", "#f0abfc", "#ffffff"],
+		materialDetail: "rich",
 	},
 	"red-burst": {
 		backgroundKind: "burst",
 		textFillKind: "hot",
 		ornamentKind: "burst-rays",
 		accentColors: ["#7f1d1d", "#ef4444", "#facc15", "#111827"],
+		materialDetail: "rich",
 	},
 	"texture-grain": {
 		backgroundKind: "texture",
 		textFillKind: "texture",
 		ornamentKind: "grain",
 		accentColors: ["#292524", "#57534e", "#a8a29e", "#fafaf9"],
+		materialDetail: "rich",
 	},
 	"torn-paper": {
 		backgroundKind: "paper",
 		textFillKind: "solid",
 		ornamentKind: "torn-paper",
 		accentColors: ["#3f3f46", "#f5f5f4", "#a8a29e", "#111827"],
+		materialDetail: "rich",
 	},
 	warning: {
 		backgroundKind: "warning",
 		textFillKind: "solid",
 		ornamentKind: "burst-rays",
 		accentColors: ["#4a421d", "#facc15", "#111827", "#fef9c3"],
+		materialDetail: "standard",
 	},
 };
 
@@ -194,6 +216,7 @@ export function getTextTemplateThumbnailRecipe({
 			textFillKind: "solid",
 			ornamentKind: definition.variantId === "sticker" ? "sticker" : "none",
 			accentColors: ["#3a3a3a", "#ffffff", "#111827", "#60a5fa"],
+			materialDetail: "standard",
 		}
 	);
 }
@@ -319,6 +342,8 @@ function drawBackground({
 			y: height * 0.23,
 		});
 		context.globalAlpha = 1;
+		drawHalftoneDots({ context, height, opacity: 0.18, width });
+		drawSurfaceDepth({ context, height, recipe, width });
 		return;
 	}
 
@@ -330,6 +355,8 @@ function drawBackground({
 			width,
 		});
 		context.fillRect(0, 0, width, height);
+		drawHeatVeins({ context, height, recipe, width });
+		drawSurfaceDepth({ context, height, recipe, width });
 		return;
 	}
 
@@ -346,6 +373,7 @@ function drawBackground({
 			context.closePath();
 			context.fill();
 		}
+		drawSurfaceDepth({ context, height, recipe, width });
 		return;
 	}
 
@@ -385,6 +413,7 @@ function drawBackground({
 		context.lineTo(width * 0.16, height * 0.86);
 		context.closePath();
 		context.fill();
+		drawPaperFibers({ context, height, width });
 	}
 
 	if (recipe.backgroundKind === "glass" || recipe.backgroundKind === "ice") {
@@ -393,6 +422,8 @@ function drawBackground({
 		context.ellipse(width * 0.25, height * 0.18, 26, 16, -0.4, 0, Math.PI * 2);
 		context.fill();
 	}
+
+	drawSurfaceDepth({ context, height, recipe, width });
 }
 
 function drawGrain({
@@ -411,6 +442,114 @@ function drawGrain({
 		const y = (index * 53) % height;
 		context.fillStyle = index % 3 === 0 ? "#ffffff" : "#000000";
 		context.fillRect(x, y, 1 + (index % 2), 1 + (index % 2));
+	}
+	context.restore();
+}
+
+function drawSurfaceDepth({
+	context,
+	height,
+	recipe,
+	width,
+}: CanvasSize & {
+	context: CanvasRenderingContext2D;
+	recipe: TextTemplateThumbnailRecipe;
+}) {
+	context.save();
+	context.globalAlpha = recipe.materialDetail === "rich" ? 0.36 : 0.2;
+	context.fillStyle = createRadialGradient({
+		colors: ["rgba(255,255,255,.38)", "rgba(255,255,255,0)", "rgba(0,0,0,.52)"],
+		context,
+		height,
+		width,
+	});
+	context.fillRect(0, 0, width, height);
+	context.globalAlpha = 1;
+	context.strokeStyle = "rgba(255,255,255,.2)";
+	context.lineWidth = 2;
+	context.strokeRect(1, 1, width - 2, height - 2);
+	context.strokeStyle = "rgba(0,0,0,.34)";
+	context.strokeRect(4, 4, width - 8, height - 8);
+	if (recipe.materialDetail === "rich") {
+		drawGrain({ context, height, opacity: 0.18, width });
+	}
+	context.restore();
+}
+
+function drawHalftoneDots({
+	context,
+	height,
+	opacity,
+	width,
+}: CanvasSize & {
+	context: CanvasRenderingContext2D;
+	opacity: number;
+}) {
+	context.save();
+	context.globalAlpha = opacity;
+	context.fillStyle = "#111827";
+	for (let y = 12; y < height; y += 15) {
+		for (let x = 10; x < width; x += 15) {
+			const radius = 1.5 + ((x + y) % 5);
+			context.beginPath();
+			context.arc(x, y, radius, 0, Math.PI * 2);
+			context.fill();
+		}
+	}
+	context.restore();
+}
+
+function drawHeatVeins({
+	context,
+	height,
+	recipe,
+	width,
+}: CanvasSize & {
+	context: CanvasRenderingContext2D;
+	recipe: TextTemplateThumbnailRecipe;
+}) {
+	const [, mid, light, accent] = recipe.accentColors;
+	context.save();
+	context.globalAlpha = 0.42;
+	for (let index = 0; index < 8; index += 1) {
+		const y = height * (0.15 + index * 0.09);
+		context.strokeStyle = index % 2 === 0 ? light : accent;
+		context.lineWidth = 2 + (index % 3);
+		context.beginPath();
+		context.moveTo(-10, y);
+		context.bezierCurveTo(
+			width * 0.24,
+			y - 26,
+			width * 0.64,
+			y + 24,
+			width + 10,
+			y - 8
+		);
+		context.stroke();
+	}
+	context.globalAlpha = 0.2;
+	context.fillStyle = mid;
+	context.fillRect(width * 0.1, height * 0.72, width * 0.8, 3);
+	context.restore();
+}
+
+function drawPaperFibers({
+	context,
+	height,
+	width,
+}: CanvasSize & {
+	context: CanvasRenderingContext2D;
+}) {
+	context.save();
+	context.globalAlpha = 0.22;
+	context.strokeStyle = "#78716c";
+	for (let index = 0; index < 24; index += 1) {
+		const y = height * (0.22 + (index % 14) * 0.045);
+		const x = width * (0.12 + ((index * 7) % 18) * 0.035);
+		context.beginPath();
+		context.moveTo(x, y);
+		context.lineTo(x + 24 + (index % 5) * 9, y + (index % 3) * 2);
+		context.stroke();
 	}
 	context.restore();
 }
@@ -540,8 +679,8 @@ function drawText({
 }) {
 	const content = template.content || definition.content;
 	const fontSize = Math.min(
-		96,
-		Math.max(64, width / Math.max(2.35, content.length * 0.78))
+		108,
+		Math.max(70, width / Math.max(2.1, content.length * 0.7))
 	);
 	const fontFamily = definition.variantId === "pixel" ? "monospace" : "Arial";
 	const strokeWidth = Math.max(
@@ -558,9 +697,9 @@ function drawText({
 	context.lineJoin = "round";
 	context.miterLimit = 2;
 	context.shadowColor = template.shadowColor ?? "rgba(0,0,0,.7)";
-	context.shadowBlur = Math.min(24, (template.shadowBlur ?? 8) * 1.7);
-	context.shadowOffsetX = Math.min(15, (template.shadowOffsetX ?? 4) * 1.8);
-	context.shadowOffsetY = Math.min(16, (template.shadowOffsetY ?? 4) * 1.8);
+	context.shadowBlur = Math.min(30, (template.shadowBlur ?? 8) * 2);
+	context.shadowOffsetX = Math.min(17, (template.shadowOffsetX ?? 4) * 2);
+	context.shadowOffsetY = Math.min(18, (template.shadowOffsetY ?? 4) * 2);
 
 	if (recipe.ornamentKind === "glitch") {
 		context.fillStyle = "#22d3ee";
@@ -569,19 +708,61 @@ function drawText({
 		context.fillText(content, 3, 0);
 	}
 
+	context.strokeStyle = "rgba(0,0,0,.72)";
+	context.lineWidth = strokeWidth + 7;
+	context.strokeText(content, 0, 0);
+	context.strokeStyle = "#ffffff";
+	context.lineWidth = strokeWidth + 3;
+	context.strokeText(content, 0, 0);
 	context.strokeStyle =
 		definition.variantId === "red-burst"
 			? "#111827"
-			: (template.strokeColor ?? "#000000");
-	context.lineWidth = strokeWidth + 2;
-	context.strokeText(content, 0, 0);
-	context.strokeStyle =
-		definition.variantId === "sticker" ? "#ffffff" : recipe.accentColors[1];
+			: definition.variantId === "sticker"
+				? "#ffffff"
+				: recipe.accentColors[1];
 	context.lineWidth = Math.max(1, strokeWidth);
 	context.strokeText(content, 0, 0);
 	context.fillStyle = getTextFill({ context, height, recipe, width });
 	context.fillText(content, 0, 0);
+	drawTextHighlight({ content, context, fontSize, height, recipe, width });
 
+	context.restore();
+}
+
+function drawTextHighlight({
+	content,
+	context,
+	fontSize,
+	height,
+	recipe,
+	width,
+}: CanvasSize & {
+	content: string;
+	context: CanvasRenderingContext2D;
+	fontSize: number;
+	recipe: TextTemplateThumbnailRecipe;
+}) {
+	context.save();
+	context.shadowColor = "transparent";
+	context.globalAlpha = recipe.materialDetail === "rich" ? 0.52 : 0.34;
+	context.fillStyle = createLinearGradient({
+		colors: ["rgba(255,255,255,.85)", "rgba(255,255,255,.08)"],
+		context,
+		fromX: -width * 0.32,
+		fromY: -fontSize * 0.7,
+		toX: width * 0.35,
+		toY: fontSize * 0.2,
+	});
+	context.save();
+	context.beginPath();
+	context.rect(-width * 0.5, -height * 0.38, width, height * 0.28);
+	context.clip();
+	context.fillText(content, 0, -fontSize * 0.08);
+	context.restore();
+	context.globalAlpha = 1;
+	context.strokeStyle = "rgba(255,255,255,.42)";
+	context.lineWidth = 1.5;
+	context.strokeText(content, 0, -1);
 	context.restore();
 }
 

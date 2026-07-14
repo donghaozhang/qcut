@@ -4,8 +4,8 @@ import { useEffect, useRef } from "react";
 import { renderTextTemplateThumbnail } from "./text-template-thumbnail-renderer";
 
 const THUMBNAIL_CANVAS_SIZE = {
-	width: 240,
-	height: 228,
+	width: 320,
+	height: 304,
 } as const;
 
 export function TextTemplateThumbnail({

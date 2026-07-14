@@ -224,7 +224,7 @@ function TextTemplate({
 			>
 				<div
 					draggable
-					className="relative aspect-[1.05] overflow-hidden rounded-md bg-muted shadow-sm transition-transform group-hover:scale-[1.02]"
+					className="relative aspect-[1.05] overflow-hidden rounded-md bg-zinc-800 shadow-[0_1px_0_rgba(255,255,255,.08),0_10px_22px_rgba(0,0,0,.22)] ring-1 ring-white/5 transition-transform group-hover:scale-[1.02]"
 					onDragStart={handleDragStart}
 				>
 					<TextTemplateThumbnail definition={definition} template={template} />
