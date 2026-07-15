@@ -60,6 +60,9 @@ type ReplacementChecklistRow = {
 	visualGoal: string;
 };
 
+type TextDesignerPackTemplateFileRole =
+	keyof TextDesignerPackTemplateAssetContract["files"];
+
 const SCRIPT_DIR = dirname(fileURLToPath(import.meta.url));
 const DEFAULT_PACK_DIR = join(
 	SCRIPT_DIR,
@@ -73,6 +76,11 @@ const REQUIRED_REPLACEMENT_FILES = [
 	"template.json",
 	"template.qctext",
 ] as const;
+const CONTRACT_FILE_ROLES: readonly TextDesignerPackTemplateFileRole[] = [
+	"thumbnail",
+	"source",
+	"qcutPackage",
+];
 
 export function parseTextDesignerPackTemplateVerifyArgs({
 	argv,
@@ -372,6 +380,12 @@ async function verifyManifestAsset({
 			expected: asset.qcutPackage,
 			field: "files.qcutPackage.designerPath",
 		}),
+		...CONTRACT_FILE_ROLES.flatMap((role) =>
+			verifyContractReplacementProof({
+				contract: contract.value,
+				role,
+			})
+		),
 	];
 	if (mismatches.length > 0) {
 		issues.push({
@@ -381,6 +395,39 @@ async function verifyManifestAsset({
 		});
 	}
 	return issues;
+}
+
+function verifyContractReplacementProof({
+	contract,
+	role,
+}: {
+	contract: TextDesignerPackTemplateAssetContract;
+	role: TextDesignerPackTemplateFileRole;
+}): string[] {
+	const file = contract.files[role];
+	const field = `files.${role}`;
+	const mismatches: string[] = [];
+	if (file.replacementRequired !== true) {
+		mismatches.push(
+			`${field}.replacementRequired expected true, received ${String(file.replacementRequired)}`
+		);
+	}
+	if (file.currentChecksumSha256.length === 0) {
+		mismatches.push(`${field}.currentChecksumSha256 must be non-empty`);
+	}
+	if (file.rejectsCurrentChecksumSha256.length === 0) {
+		mismatches.push(`${field}.rejectsCurrentChecksumSha256 must be non-empty`);
+	}
+	if (file.rejectsCurrentChecksumSha256 !== file.currentChecksumSha256) {
+		mismatches.push(
+			...compareField({
+				actual: file.rejectsCurrentChecksumSha256,
+				expected: file.currentChecksumSha256,
+				field: `${field}.rejectsCurrentChecksumSha256`,
+			})
+		);
+	}
+	return mismatches;
 }
 
 function compareField({

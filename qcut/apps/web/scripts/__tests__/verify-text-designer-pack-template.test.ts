@@ -215,4 +215,41 @@ describe("text designer pack template verifier", () => {
 			}),
 		]);
 	});
+
+	it("reports contracts that no longer prove replacement requirements", async () => {
+		const packDir = await writePackTemplate();
+		const contractPath = join(
+			packDir,
+			"assets/text-red-demo/asset-contract.json"
+		);
+		const contract = JSON.parse(await readFile(contractPath, "utf8")) as {
+			files: {
+				thumbnail: {
+					rejectsCurrentChecksumSha256: string;
+					replacementRequired: boolean;
+				};
+			};
+		};
+		contract.files.thumbnail.replacementRequired = false;
+		contract.files.thumbnail.rejectsCurrentChecksumSha256 = "stale-thumb-sha";
+		await writeFile(contractPath, `${JSON.stringify(contract, null, "\t")}\n`);
+
+		const issues = await verifyTextDesignerPackTemplate({
+			expectedAssets: 1,
+			packDir,
+		});
+
+		expect(issues).toEqual([
+			expect.objectContaining({
+				code: "contract-mismatch",
+				detail: expect.stringContaining(
+					"files.thumbnail.replacementRequired expected true"
+				),
+				key: "assets/text-red-demo/asset-contract.json",
+			}),
+		]);
+		expect(issues[0]?.detail).toContain(
+			"files.thumbnail.rejectsCurrentChecksumSha256 expected thumb-sha"
+		);
+	});
 });
