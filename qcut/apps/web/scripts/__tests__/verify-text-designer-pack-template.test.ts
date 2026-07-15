@@ -252,4 +252,40 @@ describe("text designer pack template verifier", () => {
 			"files.thumbnail.rejectsCurrentChecksumSha256 expected thumb-sha"
 		);
 	});
+
+	it("reports malformed file contracts without throwing", async () => {
+		const packDir = await writePackTemplate();
+		const contractPath = join(
+			packDir,
+			"assets/text-red-demo/asset-contract.json"
+		);
+		const contract = JSON.parse(await readFile(contractPath, "utf8")) as {
+			files: Record<string, unknown>;
+		};
+		contract.files.source = undefined;
+		contract.files.thumbnail = {
+			replacementRequired: true,
+			rejectsCurrentChecksumSha256: 42,
+		};
+		await writeFile(contractPath, `${JSON.stringify(contract, null, "\t")}\n`);
+
+		const issues = await verifyTextDesignerPackTemplate({
+			expectedAssets: 1,
+			packDir,
+		});
+
+		expect(issues).toEqual([
+			expect.objectContaining({
+				code: "contract-mismatch",
+				detail: expect.stringContaining("files.source expected file contract"),
+				key: "assets/text-red-demo/asset-contract.json",
+			}),
+		]);
+		expect(issues[0]?.detail).toContain(
+			"files.thumbnail.currentChecksumSha256 must be non-empty"
+		);
+		expect(issues[0]?.detail).toContain(
+			"files.thumbnail.rejectsCurrentChecksumSha256 must be non-empty"
+		);
+	});
 });

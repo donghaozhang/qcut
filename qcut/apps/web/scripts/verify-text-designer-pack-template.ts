@@ -404,25 +404,38 @@ function verifyContractReplacementProof({
 	contract: TextDesignerPackTemplateAssetContract;
 	role: TextDesignerPackTemplateFileRole;
 }): string[] {
-	const file = contract.files[role];
 	const field = `files.${role}`;
+	const file = contract.files[role] as
+		| Partial<
+				TextDesignerPackTemplateAssetContract["files"][TextDesignerPackTemplateFileRole]
+		  >
+		| undefined;
+	if (!file) return [`${field} expected file contract`];
+	const currentChecksumSha256 =
+		typeof file.currentChecksumSha256 === "string"
+			? file.currentChecksumSha256
+			: "";
+	const rejectsCurrentChecksumSha256 =
+		typeof file.rejectsCurrentChecksumSha256 === "string"
+			? file.rejectsCurrentChecksumSha256
+			: "";
 	const mismatches: string[] = [];
 	if (file.replacementRequired !== true) {
 		mismatches.push(
 			`${field}.replacementRequired expected true, received ${String(file.replacementRequired)}`
 		);
 	}
-	if (file.currentChecksumSha256.length === 0) {
+	if (currentChecksumSha256.length === 0) {
 		mismatches.push(`${field}.currentChecksumSha256 must be non-empty`);
 	}
-	if (file.rejectsCurrentChecksumSha256.length === 0) {
+	if (rejectsCurrentChecksumSha256.length === 0) {
 		mismatches.push(`${field}.rejectsCurrentChecksumSha256 must be non-empty`);
 	}
-	if (file.rejectsCurrentChecksumSha256 !== file.currentChecksumSha256) {
+	if (rejectsCurrentChecksumSha256 !== currentChecksumSha256) {
 		mismatches.push(
 			...compareField({
-				actual: file.rejectsCurrentChecksumSha256,
-				expected: file.currentChecksumSha256,
+				actual: rejectsCurrentChecksumSha256,
+				expected: currentChecksumSha256,
 				field: `${field}.rejectsCurrentChecksumSha256`,
 			})
 		);
