@@ -165,6 +165,30 @@ describe("text view layout", () => {
 		).toBe(plain.id);
 	});
 
+	it("preserves virtual marketplace category order when browsing", () => {
+		const definitions = getTextTemplateDefinitionsByCategory({
+			category: "red",
+		});
+		const plain = definitions.find(
+			(definition) => definition.variantId === "plain"
+		);
+		const redBurst = definitions.find(
+			(definition) => definition.variantId === "red-burst"
+		);
+		if (!plain || !redBurst) throw new Error("Expected red text fixtures");
+
+		expect(
+			sortTextDefinitionsForBrowsing({
+				categoryId: "trending",
+				definitions: [redBurst, plain],
+				marketplaceOverrides: {
+					[plain.id]: { editorialRank: 1, heatScore: 100 },
+					[redBurst.id]: { editorialRank: 40 },
+				},
+			}).map((definition) => definition.id)
+		).toEqual([redBurst.id, plain.id]);
+	});
+
 	it("matches marketplace operation filters from tags and remote overrides", () => {
 		const redBurst = getTextTemplateDefinitionsByCategory({
 			category: "red",

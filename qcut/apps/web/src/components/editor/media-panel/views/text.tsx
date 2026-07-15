@@ -1809,7 +1809,8 @@ export function sortTextDefinitionsForBrowsing({
 	if (
 		categoryId === "favorites" ||
 		categoryId === "recent" ||
-		categoryId === "recommended"
+		categoryId === "recommended" ||
+		categoryId === "trending"
 	) {
 		return [...definitions];
 	}
