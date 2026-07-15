@@ -38,6 +38,19 @@ type TextMarketplaceAnalyticsScore = {
 	score: number;
 };
 
+export type TextMarketplaceAnalyticsMatchSummary = {
+	matchedEvents: number;
+	matchedTemplates: number;
+	totalEvents: number;
+	unmatchedEvents: number;
+	unmatchedReferences: string[];
+};
+
+type TextMarketplaceAnalyticsDefinitionIndexes = {
+	byAssetId: Map<string, TextTemplateDefinition>;
+	byTemplateId: Map<string, TextTemplateDefinition>;
+};
+
 const DEFAULT_ANALYTICS_PATH = "dist/text-marketplace-analytics.json";
 const DEFAULT_MARKETPLACE_PATH = "public/text-assets/marketplace.json";
 const TRENDING_SECTION_LIMIT = 30;
@@ -167,6 +180,46 @@ export function assertTextMarketplaceAnalyticsFreshness({
 	}
 }
 
+export function summarizeTextMarketplaceAnalyticsMatchCoverage({
+	analytics,
+	definitions,
+}: {
+	analytics: TextMarketplaceAnalyticsPayload;
+	definitions: readonly TextTemplateDefinition[];
+}): TextMarketplaceAnalyticsMatchSummary {
+	const indexes = buildAnalyticsDefinitionIndexes({ definitions });
+	const matchedTemplates = new Set<string>();
+	const unmatchedReferences: string[] = [];
+	let matchedEvents = 0;
+	for (const event of analytics.events) {
+		const definition = findDefinitionForAnalyticsEvent({ event, indexes });
+		if (!definition) {
+			unmatchedReferences.push(analyticsEventReference({ event }));
+			continue;
+		}
+		matchedEvents += 1;
+		matchedTemplates.add(definition.id);
+	}
+	return {
+		matchedEvents,
+		matchedTemplates: matchedTemplates.size,
+		totalEvents: analytics.events.length,
+		unmatchedEvents: analytics.events.length - matchedEvents,
+		unmatchedReferences,
+	};
+}
+
+export function assertTextMarketplaceAnalyticsMatchCoverage({
+	summary,
+}: {
+	summary: TextMarketplaceAnalyticsMatchSummary;
+}): void {
+	if (summary.unmatchedEvents === 0) return;
+	throw new Error(
+		`Text marketplace analytics has unmatched events: ${summary.unmatchedReferences.slice(0, 10).join(", ")}`
+	);
+}
+
 function analyticsMarketplaceSections({
 	baseSections,
 	scores,
@@ -213,24 +266,10 @@ function textMarketplaceAnalyticsScores({
 	analytics: TextMarketplaceAnalyticsPayload;
 	definitions: readonly TextTemplateDefinition[];
 }): TextMarketplaceAnalyticsScore[] {
-	const definitionByTemplateId = new Map(
-		definitions.map((definition) => [definition.id, definition])
-	);
-	const definitionByAssetId = new Map(
-		definitions.flatMap(
-			(definition): Array<[string, TextTemplateDefinition]> => {
-				const resource = getTextTemplateResource({ definition });
-				return [[resource.assetId, definition]];
-			}
-		)
-	);
+	const indexes = buildAnalyticsDefinitionIndexes({ definitions });
 	const scoresByDefinitionId = new Map<string, TextMarketplaceAnalyticsScore>();
 	for (const event of analytics.events) {
-		const definition =
-			(event.templateId
-				? definitionByTemplateId.get(event.templateId)
-				: undefined) ??
-			(event.assetId ? definitionByAssetId.get(event.assetId) : undefined);
+		const definition = findDefinitionForAnalyticsEvent({ event, indexes });
 		if (!definition) continue;
 		const score = analyticsScore({ event });
 		if (score <= 0) continue;
@@ -253,6 +292,49 @@ function textMarketplaceAnalyticsScores({
 		if (left.score !== right.score) return right.score - left.score;
 		return left.definition.id.localeCompare(right.definition.id);
 	});
+}
+
+function buildAnalyticsDefinitionIndexes({
+	definitions,
+}: {
+	definitions: readonly TextTemplateDefinition[];
+}): TextMarketplaceAnalyticsDefinitionIndexes {
+	return {
+		byAssetId: new Map(
+			definitions.flatMap(
+				(definition): Array<[string, TextTemplateDefinition]> => {
+					const resource = getTextTemplateResource({ definition });
+					return [[resource.assetId, definition]];
+				}
+			)
+		),
+		byTemplateId: new Map(
+			definitions.map((definition) => [definition.id, definition])
+		),
+	};
+}
+
+function findDefinitionForAnalyticsEvent({
+	event,
+	indexes,
+}: {
+	event: TextMarketplaceAnalyticsEvent;
+	indexes: TextMarketplaceAnalyticsDefinitionIndexes;
+}): TextTemplateDefinition | undefined {
+	return (
+		(event.templateId
+			? indexes.byTemplateId.get(event.templateId)
+			: undefined) ??
+		(event.assetId ? indexes.byAssetId.get(event.assetId) : undefined)
+	);
+}
+
+function analyticsEventReference({
+	event,
+}: {
+	event: TextMarketplaceAnalyticsEvent;
+}): string {
+	return event.templateId ?? event.assetId ?? "(unknown)";
 }
 
 function mergeAnalyticsEvents({
@@ -455,6 +537,16 @@ function cliArgValue({
 	return args[index + 1];
 }
 
+function hasCliFlag({
+	args,
+	name,
+}: {
+	args: readonly string[];
+	name: string;
+}): boolean {
+	return args.includes(name);
+}
+
 function optionalPositiveNumberArg({
 	args,
 	name,
@@ -493,6 +585,13 @@ async function main() {
 			name: "--max-age-hours",
 		}),
 	});
+	const matchSummary = summarizeTextMarketplaceAnalyticsMatchCoverage({
+		analytics,
+		definitions: TEXT_TEMPLATE_DEFINITIONS,
+	});
+	if (hasCliFlag({ args, name: "--strict-matches" })) {
+		assertTextMarketplaceAnalyticsMatchCoverage({ summary: matchSummary });
+	}
 	const config = buildTextMarketplaceConfigWithAnalytics({
 		analytics,
 		definitions: TEXT_TEMPLATE_DEFINITIONS,
@@ -502,7 +601,7 @@ async function main() {
 		config.sections.find((section) => section.id === "trending")?.assetIds
 			?.length ?? 0;
 	console.log(
-		`Wrote text marketplace config with ${analytics.events.length} analytics rows (${matchedTemplateCount} matched assets) to ${outPath}`
+		`Wrote text marketplace config with ${analytics.events.length} analytics rows (${matchedTemplateCount} matched assets, ${matchSummary.unmatchedEvents} unmatched events) to ${outPath}`
 	);
 }
 

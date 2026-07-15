@@ -1,8 +1,10 @@
 import { describe, expect, it } from "vitest";
 import {
 	assertTextMarketplaceAnalyticsFreshness,
+	assertTextMarketplaceAnalyticsMatchCoverage,
 	buildTextMarketplaceConfigWithAnalytics,
 	parseTextMarketplaceAnalyticsPayload,
+	summarizeTextMarketplaceAnalyticsMatchCoverage,
 } from "../apply-text-marketplace-analytics";
 import { getTextTemplateResource } from "../../src/lib/text/text-resource-catalog";
 import { getTextTemplateDefinitionsByCategory } from "../../src/lib/text/text-template-registry";
@@ -106,6 +108,34 @@ describe("text marketplace analytics applier", () => {
 			remoteTags: expect.arrayContaining(["source:template", "source:asset"]),
 			searchAliases: expect.arrayContaining(["green title"]),
 		});
+	});
+
+	it("summarizes analytics events that do not match shipped templates", () => {
+		const definition = requiredDefinition({ category: "red" });
+		const resource = getTextTemplateResource({ definition });
+		const summary = summarizeTextMarketplaceAnalyticsMatchCoverage({
+			analytics: {
+				events: [
+					{ templateId: definition.id, uses: 1 },
+					{ assetId: resource.assetId, downloads: 1 },
+					{ templateId: "missing-template", uses: 9 },
+					{ assetId: "missing-asset", uses: 4 },
+				],
+				schemaVersion: 1,
+			},
+			definitions: [definition],
+		});
+
+		expect(summary).toEqual({
+			matchedEvents: 2,
+			matchedTemplates: 1,
+			totalEvents: 4,
+			unmatchedEvents: 2,
+			unmatchedReferences: ["missing-template", "missing-asset"],
+		});
+		expect(() =>
+			assertTextMarketplaceAnalyticsMatchCoverage({ summary })
+		).toThrow(/missing-template, missing-asset/);
 	});
 
 	it("rejects malformed analytics payloads before writing marketplace config", () => {
