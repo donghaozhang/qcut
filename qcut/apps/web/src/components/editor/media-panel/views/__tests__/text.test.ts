@@ -17,6 +17,8 @@ import {
 	applyTextTemplatePackCopyValues,
 	buildTextTemplateDragData,
 	getTextTemplateBatchCacheTargets,
+	getTextLibraryResourceReadinessLabel,
+	getTextLibraryResourceReadinessSummary,
 	getTextTemplateAccessibilityLabel,
 	getTextTemplateAssetProvenanceBadge,
 	getTextTemplateCardThumbnailPreview,
@@ -484,6 +486,51 @@ describe("text view layout", () => {
 				sourceFilter: "all",
 			})
 		).toBe("还没有收藏文字样式");
+	});
+
+	it("summarizes generated fallback resources as missing a designer pack", () => {
+		const definition = getTextTemplateDefinitionsByCategory({
+			category: "red",
+		}).find((candidate) => !candidate.premium);
+		if (!definition) throw new Error("Expected generated text fixture");
+
+		const summary = getTextLibraryResourceReadinessSummary({
+			definitions: [definition],
+			libraryState: EMPTY_TEXT_LIBRARY_STATE,
+			runtimeByAssetKey: {},
+		});
+
+		expect(summary).toMatchObject({
+			cached: 1,
+			designerImported: 0,
+			generatedFallback: 1,
+			remoteUncached: 0,
+			status: "needs-designer-pack",
+			total: 1,
+		});
+		expect(getTextLibraryResourceReadinessLabel({ summary })).toBe(
+			"缺设计师素材包"
+		);
+	});
+
+	it("keeps designer-imported resources pending until runtime cache is complete", () => {
+		const summary = getTextLibraryResourceReadinessSummary({
+			definitions: [createLegacyDesignerDefinition()],
+			libraryState: EMPTY_TEXT_LIBRARY_STATE,
+			runtimeByAssetKey: {},
+		});
+
+		expect(summary).toMatchObject({
+			cached: 0,
+			designerImported: 1,
+			generatedFallback: 0,
+			remoteUncached: 1,
+			status: "needs-cache",
+			total: 1,
+		});
+		expect(getTextLibraryResourceReadinessLabel({ summary })).toBe(
+			"缺本地缓存"
+		);
 	});
 
 	it("treats bundled generated text resources as cached in the grid", () => {

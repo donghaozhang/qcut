@@ -133,6 +133,16 @@ type TextLibraryMarketFilter =
 
 type TextLibrarySourceFilter = "all" | "designer" | "generated";
 
+type TextLibraryResourceReadinessSummary = {
+	cached: number;
+	designerImported: number;
+	generatedFallback: number;
+	remoteUncached: number;
+	status: "empty" | "designer-ready" | "needs-cache" | "needs-designer-pack";
+	svipLocked: number;
+	total: number;
+};
+
 const TEXT_LIBRARY_STATUS_FILTERS: readonly {
 	id: TextLibraryStatusFilter;
 	label: string;
@@ -1073,6 +1083,120 @@ export function getTextTemplateBatchCacheTargets({
 	});
 }
 
+export function getTextLibraryResourceReadinessSummary({
+	definitions,
+	libraryState,
+	runtimeByAssetKey,
+}: {
+	definitions: readonly TextTemplateDefinition[];
+	libraryState: TextLibraryState;
+	runtimeByAssetKey: Readonly<Record<string, AssetRuntimeState>>;
+}): TextLibraryResourceReadinessSummary {
+	const summary: TextLibraryResourceReadinessSummary = {
+		cached: 0,
+		designerImported: 0,
+		generatedFallback: 0,
+		remoteUncached: 0,
+		status: "empty",
+		svipLocked: 0,
+		total: definitions.length,
+	};
+	for (const definition of definitions) {
+		const source = getTextTemplateAssetProvenanceSource({ definition });
+		if (source === "designer-imported") {
+			summary.designerImported += 1;
+		}
+		if (source === "generated") {
+			summary.generatedFallback += 1;
+		}
+		const resourceAccess = getTextTemplateResourceAccess({
+			definition,
+			state: libraryState,
+		});
+		if (resourceAccess === "svip-required") {
+			summary.svipLocked += 1;
+		}
+		const downloadStatus = getTextTemplateRuntimeDownloadStatus({
+			definition,
+			runtimeByAssetKey,
+			state: libraryState,
+		});
+		if (downloadStatus === "cached") {
+			summary.cached += 1;
+		}
+		if (downloadStatus === "remote") {
+			summary.remoteUncached += 1;
+		}
+	}
+	if (summary.total === 0) return summary;
+	if (summary.generatedFallback > 0) {
+		return {
+			...summary,
+			status: "needs-designer-pack",
+		};
+	}
+	if (summary.remoteUncached > 0) {
+		return {
+			...summary,
+			status: "needs-cache",
+		};
+	}
+	return {
+		...summary,
+		status: "designer-ready",
+	};
+}
+
+export function getTextLibraryResourceReadinessLabel({
+	summary,
+}: {
+	summary: TextLibraryResourceReadinessSummary;
+}): string {
+	if (summary.status === "empty") return "无资源";
+	if (summary.status === "designer-ready") return "设计师素材就绪";
+	if (summary.status === "needs-cache") return "缺本地缓存";
+	return "缺设计师素材包";
+}
+
+function TextLibraryResourceReadinessBar({
+	summary,
+}: {
+	summary: TextLibraryResourceReadinessSummary;
+}) {
+	const label = getTextLibraryResourceReadinessLabel({ summary });
+	return (
+		<div
+			aria-label={label}
+			className="flex min-w-0 items-center gap-1.5 overflow-x-auto pb-1 text-[0.68rem] text-muted-foreground"
+		>
+			<span
+				className={cn(
+					"shrink-0 rounded-md px-2 py-1",
+					summary.status === "designer-ready"
+						? "bg-emerald-500/15 text-emerald-300"
+						: "bg-amber-500/15 text-amber-200"
+				)}
+			>
+				{label}
+			</span>
+			<span className="shrink-0 rounded-md bg-muted px-2 py-1">
+				设计师 {summary.designerImported}/{summary.total}
+			</span>
+			<span className="shrink-0 rounded-md bg-muted px-2 py-1">
+				生成兜底 {summary.generatedFallback}
+			</span>
+			<span className="shrink-0 rounded-md bg-muted px-2 py-1">
+				待缓存 {summary.remoteUncached}
+			</span>
+			{summary.svipLocked > 0 && (
+				<span className="shrink-0 rounded-md bg-muted px-2 py-1">
+					SVIP锁定 {summary.svipLocked}
+				</span>
+			)}
+		</div>
+	);
+}
+
 async function mapTextTemplateCacheTargets<TItem, TResult>({
 	concurrency,
 	items,
@@ -1456,6 +1580,7 @@ function ExpandedTextLibraryDialog({
 	searchQuery,
 	smartTextStatus,
 	marketFilter,
+	resourceReadinessSummary,
 	sourceFilter,
 	statusFilter,
 	styleFilter,
@@ -1483,6 +1608,7 @@ function ExpandedTextLibraryDialog({
 	searchQuery: string;
 	smartTextStatus: string;
 	marketFilter: TextLibraryMarketFilter;
+	resourceReadinessSummary: TextLibraryResourceReadinessSummary;
 	sourceFilter: TextLibrarySourceFilter;
 	statusFilter: TextLibraryStatusFilter;
 	styleFilter: TextLibraryStyleFilter;
@@ -1551,6 +1677,9 @@ function ExpandedTextLibraryDialog({
 								activeFilter={sourceFilter}
 								filters={TEXT_LIBRARY_SOURCE_FILTERS}
 								onSelectFilter={onSelectSourceFilter}
+							/>
+							<TextLibraryResourceReadinessBar
+								summary={resourceReadinessSummary}
 							/>
 						</div>
 						{definitions.length > 0 ? (
@@ -1790,6 +1919,15 @@ export function TextView() {
 		statusFilter,
 		styleFilter,
 	]);
+	const resourceReadinessSummary = useMemo(
+		() =>
+			getTextLibraryResourceReadinessSummary({
+				definitions: visibleDefinitions,
+				libraryState,
+				runtimeByAssetKey,
+			}),
+		[visibleDefinitions, libraryState, runtimeByAssetKey]
+	);
 	const activeHeading = normalizedSearchQuery
 		? `搜索结果 ${visibleDefinitions.length}`
 		: activeCategory.label;
@@ -2145,6 +2283,7 @@ export function TextView() {
 						filters={TEXT_LIBRARY_SOURCE_FILTERS}
 						onSelectFilter={setSourceFilter}
 					/>
+					<TextLibraryResourceReadinessBar summary={resourceReadinessSummary} />
 				</div>
 				{visibleDefinitions.length > 0 ? (
 					<TemplateGrid
@@ -2189,6 +2328,7 @@ export function TextView() {
 				searchQuery={searchQuery}
 				smartTextStatus={smartTextStatus}
 				marketFilter={marketFilter}
+				resourceReadinessSummary={resourceReadinessSummary}
 				sourceFilter={sourceFilter}
 				statusFilter={statusFilter}
 				styleFilter={styleFilter}
