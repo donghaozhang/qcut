@@ -103,4 +103,25 @@ describe("UpdateSettingsSection", () => {
 			expect(mocks.updates.downloadUpdate).toHaveBeenCalledTimes(1)
 		);
 	});
+
+	it("offers a prominent restart action when an update is ready", async () => {
+		render(<UpdateSettingsSection />);
+		await screen.findByText("QCut v2026.07.11.1 is up to date");
+
+		act(() => {
+			mocks.listener?.({
+				...mocks.state,
+				phase: "ready",
+				version: "2026.07.12.1",
+			});
+		});
+
+		const install = await screen.findByRole("button", {
+			name: "Restart and install v2026.07.12.1",
+		});
+		fireEvent.click(install);
+		await waitFor(() =>
+			expect(mocks.updates.installUpdate).toHaveBeenCalledTimes(1)
+		);
+	});
 });

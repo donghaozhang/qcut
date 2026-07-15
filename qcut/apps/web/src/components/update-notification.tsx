@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useState, type KeyboardEvent } from "react";
+import { RefreshCw } from "lucide-react";
 import { toast } from "sonner";
 import {
 	PlatformCapability,
@@ -234,13 +235,14 @@ export function UpdateNotification() {
 					</button>
 					<button
 						type="button"
-						className="text-xs font-medium text-primary hover:underline"
+						className="inline-flex h-8 items-center gap-1.5 rounded-md bg-primary px-3 text-xs font-medium text-primary-foreground hover:bg-primary/90"
 						onClick={handleInstall}
 						onKeyDown={(event) =>
 							handleButtonKeyDown({ event, action: handleInstall })
 						}
 					>
-						Restart
+						<RefreshCw className="h-3.5 w-3.5" />
+						Restart and install
 					</button>
 				</div>
 			</div>

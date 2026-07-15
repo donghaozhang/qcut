@@ -63,6 +63,20 @@ function createRemoteOnlyDefinition(): TextTemplateDefinition {
 	};
 }
 
+function createBundledPremiumDefinition(): TextTemplateDefinition {
+	const definition = getTextTemplateDefinitionsByCategory({
+		category: "red",
+	}).find((candidate) => candidate.resource);
+	if (!definition?.resource) {
+		throw new Error("Expected a bundled text fixture");
+	}
+	return {
+		...definition,
+		premium: true,
+		resource: { ...definition.resource, entitlement: "svip" },
+	};
+}
+
 function createLegacyDesignerDefinition({
 	category = "red",
 	id = "legacy-designer-text",
@@ -673,10 +687,7 @@ describe("text view layout", () => {
 	});
 
 	it("keeps bundled SVIP text resources locked until access is available", () => {
-		const definition = getTextTemplateDefinitionsByCategory({
-			category: "red",
-		}).find((candidate) => candidate.premium);
-		if (!definition) throw new Error("Expected a premium text fixture");
+		const definition = createBundledPremiumDefinition();
 
 		expect(
 			getTextTemplateRuntimeDownloadStatus({
@@ -746,11 +757,9 @@ describe("text view layout", () => {
 		const localDefinition = getTextTemplateDefinitionsByCategory({
 			category: "red",
 		}).find((candidate) => !candidate.premium);
-		const premiumDefinition = getTextTemplateDefinitionsByCategory({
-			category: "red",
-		}).find((candidate) => candidate.premium);
+		const premiumDefinition = createBundledPremiumDefinition();
 		const remoteDefinition = createRemoteOnlyDefinition();
-		if (!localDefinition || !premiumDefinition) {
+		if (!localDefinition) {
 			throw new Error("Expected text cache fixtures");
 		}
 

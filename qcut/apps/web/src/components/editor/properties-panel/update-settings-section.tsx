@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useState, type KeyboardEvent } from "react";
 import { Download, RefreshCw } from "lucide-react";
+import { toast } from "sonner";
 import {
 	PlatformCapability,
 	platform,
@@ -100,6 +101,13 @@ export function UpdateSettingsSection() {
 		void platform().updates.downloadUpdate().then(setState);
 	}, [hasUpdates]);
 
+	const restartAndInstall = useCallback(() => {
+		if (!hasUpdates) return;
+		void platform()
+			.updates.installUpdate()
+			.catch(() => toast.error("Failed to install update"));
+	}, [hasUpdates]);
+
 	const handleButtonKeyDown = useCallback(
 		({ event, action }: { event: KeyboardEvent; action: () => void }) => {
 			if (event.key !== "Enter" && event.key !== " ") return;
@@ -165,6 +173,29 @@ export function UpdateSettingsSection() {
 					<Download className="h-3.5 w-3.5" />
 					Download v{state.version}
 				</Button>
+			)}
+
+			{state.phase === "ready" && state.version && (
+				<div className="mt-3 rounded-md border border-primary/40 bg-primary/5 p-3">
+					<p className="text-sm font-medium">Update downloaded</p>
+					<p className="mt-1 text-xs text-muted-foreground">
+						Restart QCut to finish installing v{state.version}.
+					</p>
+					<Button
+						type="button"
+						className="mt-3 h-9 w-full"
+						onClick={restartAndInstall}
+						onKeyDown={(event) =>
+							handleButtonKeyDown({
+								event,
+								action: restartAndInstall,
+							})
+						}
+					>
+						<RefreshCw className="h-4 w-4" />
+						Restart and install v{state.version}
+					</Button>
+				</div>
 			)}
 		</section>
 	);

@@ -90,6 +90,7 @@ import {
 	TEXT_TEMPLATE_CATEGORIES,
 	TEXT_TEMPLATE_LIBRARY_DEFINITIONS,
 	TEXT_TEMPLATE_GROUPS,
+	TEXT_TEMPLATE_SVIP_ENABLED,
 	buildTextTemplate,
 	type TextTemplateCategoryId,
 	type TextTemplateDefinition,
@@ -151,7 +152,7 @@ type TextLibraryDesignerImportGoalSummary = {
 	status: "designer-ready" | "needs-designer-pack";
 };
 
-const TEXT_LIBRARY_STATUS_FILTERS: readonly {
+const ALL_TEXT_LIBRARY_STATUS_FILTERS: readonly {
 	id: TextLibraryStatusFilter;
 	label: string;
 }[] = [
@@ -161,6 +162,10 @@ const TEXT_LIBRARY_STATUS_FILTERS: readonly {
 	{ id: "downloaded", label: "已下载" },
 	{ id: "favorites", label: "收藏" },
 ];
+
+const TEXT_LIBRARY_STATUS_FILTERS = ALL_TEXT_LIBRARY_STATUS_FILTERS.filter(
+	({ id }) => TEXT_TEMPLATE_SVIP_ENABLED || id !== "premium"
+);
 
 const TEXT_LIBRARY_STYLE_FILTERS: readonly {
 	id: TextLibraryStyleFilter;

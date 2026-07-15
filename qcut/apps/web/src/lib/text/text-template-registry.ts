@@ -2209,10 +2209,31 @@ function withSearchableKeywords({
 	};
 }
 
+// Temporary launch policy. Source tier metadata stays intact so SVIP can be
+// restored later without reclassifying every template.
+export const TEXT_TEMPLATE_SVIP_ENABLED = false;
+
+function applyTextTemplateAccessPolicy({
+	definition,
+}: {
+	definition: TextTemplateDefinition;
+}): TextTemplateDefinition {
+	if (TEXT_TEMPLATE_SVIP_ENABLED) return definition;
+	return {
+		...definition,
+		premium: false,
+		resource: definition.resource
+			? { ...definition.resource, entitlement: "free" }
+			: undefined,
+	};
+}
+
 export const TEXT_TEMPLATE_DEFINITIONS: readonly TextTemplateDefinition[] = [
 	...GENERATED_TEXT_TEMPLATE_DEFINITIONS,
 	...LEGACY_TEXT_TEMPLATE_DEFINITIONS,
-].map((definition) => withSearchableKeywords({ definition }));
+]
+	.map((definition) => withSearchableKeywords({ definition }))
+	.map((definition) => applyTextTemplateAccessPolicy({ definition }));
 
 export const TEXT_TEMPLATE_LIBRARY_DEFINITIONS: readonly TextTemplateDefinition[] =
 	TEXT_TEMPLATE_DEFINITIONS.filter((definition) => definition.catalogVisible);

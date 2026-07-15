@@ -1,5 +1,5 @@
 import { cn } from "@/lib/utils";
-import { X } from "lucide-react";
+import { Settings, X } from "lucide-react";
 import { PanelViewType, PanelView } from "@/types/panel";
 import { useTranslation } from "@/lib/i18n";
 
@@ -56,13 +56,14 @@ export function PanelTabs({ activeTab, onTabChange }: PanelTabsProps) {
 				data-testid="panel-tab-settings"
 				onClick={() => onTabChange(PanelView.SETTINGS)}
 				className={cn(
-					"px-3 py-2 text-sm font-medium border-b-2 transition-colors",
+					"flex items-center gap-1.5 px-3 py-2 text-sm font-medium border-b-2 transition-colors",
 					activeTab === PanelView.SETTINGS
 						? "border-primary text-primary"
 						: "border-transparent text-muted-foreground hover:text-foreground"
 				)}
 			>
-				{t("editor.panel.apiKeys")}
+				<Settings className="h-3.5 w-3.5" />
+				{t("editor.panel.settings")}
 			</button>
 		</div>
 	);

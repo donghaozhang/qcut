@@ -8,6 +8,7 @@ import {
 	TEXT_TEMPLATE_DEFINITIONS,
 	TEXT_TEMPLATE_GROUPS,
 	TEXT_TEMPLATE_LIBRARY_DEFINITIONS,
+	TEXT_TEMPLATE_SVIP_ENABLED,
 	TEXT_TEMPLATES,
 	getTextTemplateDefinitionsByCategory,
 	getTextTemplatesByCategory,
@@ -166,8 +167,9 @@ describe("text template registry", () => {
 
 	it("ships searchable marketplace metadata for template cards", () => {
 		expect(MIN_TEXT_TEMPLATES_PER_CATEGORY).toBeGreaterThanOrEqual(20);
+		expect(TEXT_TEMPLATE_SVIP_ENABLED).toBe(false);
 		expect(
-			TEXT_TEMPLATE_DEFINITIONS.some((definition) => definition.premium)
+			TEXT_TEMPLATE_DEFINITIONS.every((definition) => !definition.premium)
 		).toBe(true);
 		expect(
 			TEXT_TEMPLATE_DEFINITIONS.some((definition) => definition.downloaded)
@@ -179,9 +181,7 @@ describe("text template registry", () => {
 		for (const definition of TEXT_TEMPLATE_LIBRARY_DEFINITIONS) {
 			expect(definition.resource?.assetId).toContain(definition.variantId);
 			expect(definition.resource?.cacheKey).toContain("@1");
-			expect(definition.resource?.entitlement).toBe(
-				definition.premium ? "svip" : "free"
-			);
+			expect(definition.resource?.entitlement).toBe("free");
 		}
 	});
 

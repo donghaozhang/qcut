@@ -20,6 +20,56 @@ export interface ElementTransform {
 	rotation: number;
 }
 
+function defaultElementSize({
+	element,
+}: {
+	element: TimelineElement;
+}): Pick<ElementTransform, "width" | "height"> {
+	if (element.type === "text") return { width: 640, height: 180 };
+	if (element.type === "markdown") return { width: 720, height: 420 };
+	return { width: 200, height: 100 };
+}
+
+export function resolveElementTransform({
+	element,
+}: {
+	element: TimelineElement;
+}): ElementTransform {
+	const fallback = defaultElementSize({ element });
+	return {
+		x: element.x ?? 0,
+		y: element.y ?? 0,
+		width: element.width ?? fallback.width,
+		height: element.height ?? fallback.height,
+		rotation: element.rotation ?? 0,
+	};
+}
+
+export function buildCenteredOverlayStyle({
+	transform,
+	canvasSize,
+	previewDimensions,
+}: {
+	transform: ElementTransform;
+	canvasSize: { width: number; height: number };
+	previewDimensions: { width: number; height: number };
+}) {
+	const scaleX = canvasSize.width
+		? previewDimensions.width / canvasSize.width
+		: 1;
+	const scaleY = canvasSize.height
+		? previewDimensions.height / canvasSize.height
+		: 1;
+
+	return {
+		left: `calc(50% + ${transform.x * scaleX}px)`,
+		top: `calc(50% + ${transform.y * scaleY}px)`,
+		width: `${transform.width * scaleX}px`,
+		height: `${transform.height * scaleY}px`,
+		transform: `translate(-50%, -50%) rotate(${transform.rotation}deg)`,
+	};
+}
+
 interface DragState {
 	isDragging: boolean;
 	dragType: "move" | "resize" | "rotate" | null;
@@ -39,20 +89,10 @@ export function InteractiveElementOverlay({
 	const elementRef = useRef<HTMLDivElement>(null);
 	const { getElementEffects } = useEffectsStore();
 
-	// Type-safe helper to get element properties
-	const getElementProperty = <T,>(prop: string, defaultValue: T): T => {
-		const value = (element as any)[prop];
-		return value !== undefined && value !== null ? (value as T) : defaultValue;
-	};
-
 	// All hooks must be called before any conditional returns
-	const [transform, setTransform] = useState<ElementTransform>({
-		x: getElementProperty("x", 0),
-		y: getElementProperty("y", 0),
-		width: getElementProperty("width", 200),
-		height: getElementProperty("height", 100),
-		rotation: getElementProperty("rotation", 0),
-	});
+	const [transform, setTransform] = useState<ElementTransform>(() =>
+		resolveElementTransform({ element })
+	);
 
 	const [dragState, setDragState] = useState<DragState>({
 		isDragging: false,
@@ -61,6 +101,19 @@ export function InteractiveElementOverlay({
 		startY: 0,
 		startTransform: transform,
 	});
+
+	useEffect(() => {
+		if (dragState.isDragging) return;
+		setTransform(resolveElementTransform({ element }));
+	}, [
+		dragState.isDragging,
+		element,
+		element.x,
+		element.y,
+		element.width,
+		element.height,
+		element.rotation,
+	]);
 
 	// Calculate scale ratio between canvas and preview (guard against zero division)
 	const scaleX = canvasSize.width
@@ -111,52 +164,39 @@ export function InteractiveElementOverlay({
 				case "resize":
 					if (dragState.resizeHandle) {
 						const handle = dragState.resizeHandle;
+						const start = dragState.startTransform;
 
-						// Calculate new dimensions based on handle
 						if (handle.includes("e")) {
-							newTransform.width = Math.max(
-								50,
-								dragState.startTransform.width + deltaX
-							);
+							newTransform.width = Math.max(50, start.width + deltaX);
+							newTransform.x = start.x + (newTransform.width - start.width) / 2;
 						}
 						if (handle.includes("w")) {
-							const newWidth = Math.max(
-								50,
-								dragState.startTransform.width - deltaX
-							);
+							const newWidth = Math.max(50, start.width - deltaX);
 							newTransform.width = newWidth;
-							newTransform.x =
-								dragState.startTransform.x +
-								(dragState.startTransform.width - newWidth);
+							newTransform.x = start.x - (newWidth - start.width) / 2;
 						}
 						if (handle.includes("s")) {
-							newTransform.height = Math.max(
-								50,
-								dragState.startTransform.height + deltaY
-							);
+							newTransform.height = Math.max(50, start.height + deltaY);
+							newTransform.y =
+								start.y + (newTransform.height - start.height) / 2;
 						}
 						if (handle.includes("n")) {
-							const newHeight = Math.max(
-								50,
-								dragState.startTransform.height - deltaY
-							);
+							const newHeight = Math.max(50, start.height - deltaY);
 							newTransform.height = newHeight;
-							newTransform.y =
-								dragState.startTransform.y +
-								(dragState.startTransform.height - newHeight);
+							newTransform.y = start.y - (newHeight - start.height) / 2;
 						}
 					}
 					break;
 
 				case "rotate": {
-					// Calculate rotation based on mouse position relative to center
-					const centerX = transform.x + transform.width / 2;
-					const centerY = transform.y + transform.height / 2;
-					const mouseX = e.clientX / scaleX;
-					const mouseY = e.clientY / scaleY;
+					const bounds = elementRef.current?.getBoundingClientRect();
+					if (!bounds) break;
+					const centerX = bounds.left + bounds.width / 2;
+					const centerY = bounds.top + bounds.height / 2;
 
 					const angle =
-						Math.atan2(mouseY - centerY, mouseX - centerX) * (180 / Math.PI);
+						Math.atan2(e.clientY - centerY, e.clientX - centerX) *
+						(180 / Math.PI);
 					newTransform.rotation = Math.round(angle);
 					break;
 				}
@@ -209,13 +249,11 @@ export function InteractiveElementOverlay({
 		return null;
 	}
 
-	const overlayStyle = {
-		left: `${transform.x * scaleX}px`,
-		top: `${transform.y * scaleY}px`,
-		width: `${transform.width * scaleX}px`,
-		height: `${transform.height * scaleY}px`,
-		transform: `rotate(${transform.rotation}deg)`,
-	};
+	const overlayStyle = buildCenteredOverlayStyle({
+		transform,
+		canvasSize,
+		previewDimensions,
+	});
 
 	return (
 		<div
