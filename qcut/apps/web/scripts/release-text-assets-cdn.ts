@@ -40,6 +40,7 @@ import {
 } from "./verify-text-asset-cdn-manifest";
 
 export type TextAssetReleaseOptions = {
+	allowGeneratedFallbackRelease: boolean;
 	archivePath?: string;
 	baseUrl: string;
 	bucket: string;
@@ -148,6 +149,7 @@ export function parseTextAssetReleaseArgs({
 	env?: NodeJS.ProcessEnv;
 }): TextAssetReleaseOptions {
 	const options: TextAssetReleaseOptions = {
+		allowGeneratedFallbackRelease: false,
 		baseUrl: env.QCUT_TEXT_ASSET_CDN_URL ?? DEFAULT_BASE_URL,
 		bucket: env.QCUT_TEXT_ASSET_BUCKET ?? "",
 		cacheControl: env.QCUT_TEXT_ASSET_CACHE_CONTROL ?? DEFAULT_CACHE_CONTROL,
@@ -184,6 +186,10 @@ export function parseTextAssetReleaseArgs({
 	};
 	for (let index = 0; index < argv.length; index += 1) {
 		const arg = argv[index];
+		if (arg === "--allow-generated-fallback-release") {
+			options.allowGeneratedFallbackRelease = true;
+			continue;
+		}
 		if (arg === "--archive-path") {
 			options.archivePath = requireValue({ argv, index, name: arg });
 			index += 1;
@@ -377,6 +383,11 @@ export async function releaseTextAssetsToCdn({
 	});
 	const localIssues = [
 		...marketplace.issues,
+		...verifyGeneratedFallbackReleasePolicy({
+			allowGeneratedFallbackRelease: options.allowGeneratedFallbackRelease,
+			designerGapReport,
+			dryRun: options.dryRun,
+		}),
 		...designerCoverageIssues,
 		...designerCategoryIssues,
 		...manifestIssues,
@@ -466,6 +477,31 @@ export async function releaseTextAssetsToCdn({
 		stagedFiles: staging?.fileCount,
 		upload,
 	});
+}
+
+function verifyGeneratedFallbackReleasePolicy({
+	allowGeneratedFallbackRelease,
+	designerGapReport,
+	dryRun,
+}: {
+	allowGeneratedFallbackRelease: boolean;
+	designerGapReport: TextAssetDesignerGapReport;
+	dryRun: boolean;
+}): VerifyIssue[] {
+	if (
+		dryRun ||
+		allowGeneratedFallbackRelease ||
+		designerGapReport.totalMissing === 0
+	) {
+		return [];
+	}
+	return [
+		{
+			assetId: "text-designer-assets",
+			code: "generated-fallback-release",
+			detail: `Refusing to upload generated fallback text assets while ${designerGapReport.totalMissing} designer-ready assets are missing. Import the designer pack or pass --allow-generated-fallback-release for an explicit temporary release.`,
+		},
+	];
 }
 
 export async function stageTextAssetUploadPlan({
@@ -612,6 +648,8 @@ bun run assets:text:designer-gap-report
 bun run assets:text:import-designer-ready -- --pack-dir <designer-pack>
 bun run assets:text:release-designer-ready-stage
 \`\`\`
+
+Non-dry CDN uploads refuse generated fallback assets unless \`--allow-generated-fallback-release\` is passed explicitly for a temporary release.
 
 The staged folder includes \`${STAGE_DESIGNER_GAP_REPORT_FILE}\` for machine-readable coverage and \`${STAGE_DESIGNER_GAP_CHECKLIST_FILE}\` for the design handoff checklist. Together they list the exact designer asset slots needed to reach the screenshot-level library.
 

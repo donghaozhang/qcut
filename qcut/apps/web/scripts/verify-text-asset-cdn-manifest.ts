@@ -71,6 +71,7 @@ export type VerifyIssue = {
 		| "invalid-file-payload"
 		| "missing-package"
 		| "designer-category-coverage"
+		| "generated-fallback-release"
 		| "designer-import-threshold"
 		| "marketplace-metadata-coverage"
 		| "thumbnail-diversity"

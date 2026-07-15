@@ -148,6 +148,7 @@ async function createReleaseFixture(): Promise<{
 	return {
 		generatedManifestPath,
 		options: {
+			allowGeneratedFallbackRelease: false,
 			baseUrl: "https://cdn.example.com",
 			bucket: "qcut-assets",
 			cacheControl: "public, max-age=31536000, immutable",
@@ -211,6 +212,7 @@ describe("text asset CDN release script", () => {
 				env: { QCUT_TEXT_ASSET_BUCKET: "env-bucket" },
 			})
 		).toMatchObject({
+			allowGeneratedFallbackRelease: false,
 			archivePath: "/tmp/text-assets-stage.tar.gz",
 			baseUrl: "https://cdn.example.com",
 			bucket: "cli-bucket",
@@ -240,6 +242,17 @@ describe("text asset CDN release script", () => {
 		).toMatchObject({
 			minDesignerAssetsPerCategory: TEXT_DESIGNER_READY_MIN_ASSETS_PER_CATEGORY,
 			requiredDesignerCategories: [...TEXT_DESIGNER_READY_CATEGORY_IDS],
+		});
+	});
+
+	it("parses explicit generated fallback release opt-in", () => {
+		expect(
+			parseTextAssetReleaseArgs({
+				argv: ["--bucket", "qcut-assets", "--allow-generated-fallback-release"],
+				env: {},
+			})
+		).toMatchObject({
+			allowGeneratedFallbackRelease: true,
 		});
 	});
 
@@ -472,6 +485,9 @@ describe("text asset CDN release script", () => {
 		).resolves.toContain("assets:text:designer-gap-report");
 		await expect(
 			readFile(join(stageDir, "_qcut-text-assets-release-readme.md"), "utf8")
+		).resolves.toContain("--allow-generated-fallback-release");
+		await expect(
+			readFile(join(stageDir, "_qcut-text-assets-release-readme.md"), "utf8")
 		).resolves.toContain("designerImported | 0");
 		await expect(
 			readFile(join(stageDir, "_qcut-text-assets-release-readme.md"), "utf8")
@@ -598,6 +614,7 @@ describe("text asset CDN release script", () => {
 		const summary = await releaseTextAssetsToCdn({
 			options: {
 				...options,
+				allowGeneratedFallbackRelease: true,
 				dryRun: false,
 				skipRemoteCheck: false,
 			},
@@ -629,6 +646,33 @@ describe("text asset CDN release script", () => {
 		});
 		expect(summary.upload.uploadedFiles).toBe(4);
 		expect(uploadedKeys).toHaveLength(4);
+	});
+
+	it("blocks non-dry generated fallback releases without explicit opt-in", async () => {
+		const { options } = await createReleaseFixture();
+		const uploadedKeys: string[] = [];
+
+		const summary = await releaseTextAssetsToCdn({
+			options: {
+				...options,
+				dryRun: false,
+				skipRemoteCheck: true,
+			},
+			uploadFile: async ({ item }) => {
+				uploadedKeys.push(item.key);
+			},
+		});
+
+		expect(summary.localIssues).toEqual([
+			expect.objectContaining({
+				code: "generated-fallback-release",
+				detail: expect.stringContaining(
+					"Refusing to upload generated fallback text assets while 100 designer-ready assets are missing"
+				),
+			}),
+		]);
+		expect(summary.upload.uploadedFiles).toBe(0);
+		expect(uploadedKeys).toEqual([]);
 	});
 
 	it("blocks release uploads when designer asset coverage is below threshold", async () => {
@@ -667,6 +711,7 @@ describe("text asset CDN release script", () => {
 		const summary = await releaseTextAssetsToCdn({
 			options: {
 				...options,
+				allowGeneratedFallbackRelease: true,
 				dryRun: false,
 				skipRemoteCheck: false,
 			},
