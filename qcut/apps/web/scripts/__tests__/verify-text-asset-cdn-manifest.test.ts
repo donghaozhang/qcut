@@ -719,8 +719,8 @@ describe("text asset CDN manifest verifier", () => {
 
 		expect(renderDesignerAssetGapChecklistCsv({ report })).toBe(
 			[
-				'"category","currentDesignerAssets","requiredDesignerAssets","missingDesignerAssets","assetId","packageId","variantId","targetDirectory","thumbnailPath","sourcePath","qcutPackagePath","requiredFiles"',
-				'"red","3","4","1","text-fancy-red-designer-04","text-fancy-red","designer-04","text-assets/text-fancy-red/designer-04@1","text-assets/text-fancy-red/designer-04@1/thumbnail.webp","text-assets/text-fancy-red/designer-04@1/template.json","text-assets/text-fancy-red/designer-04@1/template.qctext","thumbnail.webp;template.json;template.qctext"',
+				'"category","currentDesignerAssets","requiredDesignerAssets","missingDesignerAssets","assetId","packageId","variantId","targetDirectory","visualGoal","thumbnailDirection","templateDirection","thumbnailPath","sourcePath","qcutPackagePath","requiredFiles"',
+				'"red","3","4","1","text-fancy-red-designer-04","text-fancy-red","designer-04","text-assets/text-fancy-red/designer-04@1","Commerce, live-selling, and urgent cover text with strong red impact.","Make red urgency obvious with burst, flame, sticker, or price-promo accents.","Use sale, warning, fire, or hot-list treatments with strong edges and energetic emphasis.","text-assets/text-fancy-red/designer-04@1/thumbnail.webp","text-assets/text-fancy-red/designer-04@1/template.json","text-assets/text-fancy-red/designer-04@1/template.qctext","thumbnail.webp;template.json;template.qctext"',
 				"",
 			].join("\n")
 		);

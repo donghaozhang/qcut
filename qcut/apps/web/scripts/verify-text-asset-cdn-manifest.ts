@@ -3,6 +3,7 @@ import { existsSync } from "node:fs";
 import { mkdir, readFile, writeFile } from "node:fs/promises";
 import { basename, dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
+import { getTextDesignerCategoryDesignBrief } from "./text-designer-category-briefs";
 
 export type TextAssetGeneratedFile = {
 	url: string;
@@ -2238,13 +2239,19 @@ export function renderDesignerAssetGapChecklistCsv({
 		"packageId",
 		"variantId",
 		"targetDirectory",
+		"visualGoal",
+		"thumbnailDirection",
+		"templateDirection",
 		"thumbnailPath",
 		"sourcePath",
 		"qcutPackagePath",
 		"requiredFiles",
 	];
-	const rows = report.categories.flatMap((category) =>
-		category.suggestedImports.map((slot) => [
+	const rows = report.categories.flatMap((category) => {
+		const brief = getTextDesignerCategoryDesignBrief({
+			category: category.category,
+		});
+		return category.suggestedImports.map((slot) => [
 			category.category,
 			String(category.current),
 			String(category.required),
@@ -2253,12 +2260,15 @@ export function renderDesignerAssetGapChecklistCsv({
 			slot.packageId,
 			slot.variantId,
 			slot.targetDirectory,
+			brief.visualGoal,
+			brief.thumbnailDirection,
+			brief.templateDirection,
 			slot.requiredFilePaths[0],
 			slot.requiredFilePaths[1],
 			slot.requiredFilePaths[2],
 			slot.requiredFiles.join(";"),
-		])
-	);
+		]);
+	});
 	return [header, ...rows]
 		.map((row) => row.map((value) => escapeCsvValue({ value })).join(","))
 		.join("\n")
