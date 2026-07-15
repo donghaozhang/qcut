@@ -1,0 +1,152 @@
+import type { TransitionPreset } from "../transition-preset-types";
+import { enginePresetFamily } from "./build-engine-preset-family";
+
+const waterRipplePresets = enginePresetFamily({
+	clipType: "water-ripple",
+	type: "ripple",
+	variants: [
+		{
+			id: "pond-ripple",
+			name: "Pond Ripple",
+			localizedName: "池水涟漪",
+			category: "natural",
+			intensity: 0.45,
+			frequency: 0.65,
+		},
+		{
+			id: "water-drop-ring",
+			name: "Water Drop Ring",
+			localizedName: "水滴圆环",
+			category: "natural",
+			intensity: 0.7,
+			frequency: 1.1,
+		},
+		{
+			id: "liquid-ring",
+			name: "Liquid Ring",
+			localizedName: "液态波环",
+			category: "distortion",
+			intensity: 1.05,
+			frequency: 1.4,
+		},
+		{
+			id: "wave-lens",
+			name: "Wave Lens",
+			localizedName: "波浪镜头",
+			category: "distortion",
+			intensity: 1.3,
+			frequency: 0.8,
+		},
+		{
+			id: "aqua-pulse",
+			name: "Aqua Pulse",
+			localizedName: "水光脉冲",
+			category: "light",
+			intensity: 0.8,
+			frequency: 1.8,
+			tint: "#8ee8ff",
+		},
+		{
+			id: "echo-ripple",
+			name: "Echo Ripple",
+			localizedName: "回声涟漪",
+			category: "variety",
+			intensity: 1.55,
+			frequency: 2.2,
+		},
+		{
+			id: "rain-circle",
+			name: "Rain Circle",
+			localizedName: "雨点波纹",
+			category: "shooting",
+			intensity: 0.65,
+			frequency: 2.8,
+		},
+		{
+			id: "dream-ripple",
+			name: "Dream Ripple",
+			localizedName: "梦境水波",
+			category: "slideshow",
+			intensity: 1.75,
+			frequency: 0.5,
+		},
+	],
+});
+
+const particlePresets = enginePresetFamily({
+	clipType: "particle-dissolve",
+	type: "particle",
+	variants: [
+		{
+			id: "dust-dissolve",
+			name: "Dust Dissolve",
+			localizedName: "尘埃消散",
+			category: "dissolve",
+			intensity: 0.65,
+			frequency: 0.8,
+		},
+		{
+			id: "grain-scatter",
+			name: "Grain Scatter",
+			localizedName: "颗粒散开",
+			category: "dissolve",
+			intensity: 1,
+			frequency: 1.4,
+		},
+		{
+			id: "spark-particles",
+			name: "Spark Particles",
+			localizedName: "火花粒子",
+			category: "light",
+			intensity: 1.2,
+			frequency: 1.8,
+			tint: "#ffd56a",
+		},
+		{
+			id: "confetti-dissolve",
+			name: "Confetti Dissolve",
+			localizedName: "彩纸消散",
+			category: "variety",
+			intensity: 1.35,
+			frequency: 2.1,
+		},
+		{
+			id: "heart-dust",
+			name: "Heart Dust",
+			localizedName: "心形微尘",
+			category: "emoji",
+			intensity: 0.8,
+			frequency: 1.2,
+			tint: "#ff8fb4",
+		},
+		{
+			id: "star-scatter",
+			name: "Star Scatter",
+			localizedName: "星光散落",
+			category: "emoji",
+			intensity: 1.55,
+			frequency: 2.5,
+		},
+		{
+			id: "pixel-dust",
+			name: "Pixel Dust",
+			localizedName: "像素尘粒",
+			category: "mg",
+			intensity: 1.7,
+			frequency: 3,
+		},
+		{
+			id: "ash-transition",
+			name: "Ash Transition",
+			localizedName: "灰烬过渡",
+			category: "natural",
+			intensity: 1.9,
+			frequency: 0.55,
+		},
+	],
+});
+
+export const FLUID_AND_PARTICLE_PRESETS: TransitionPreset[] = [
+	...waterRipplePresets,
+	...particlePresets,
+];

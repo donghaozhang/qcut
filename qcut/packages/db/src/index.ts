@@ -29,6 +29,11 @@ export {
 	and,
 	or,
 	not,
+	gt,
+	gte,
+	lt,
+	lte,
+	desc,
 	isNull,
 	isNotNull,
 	inArray,
@@ -36,4 +41,5 @@ export {
 	exists,
 	notExists,
 	sql,
+	type SQL,
 } from "drizzle-orm";

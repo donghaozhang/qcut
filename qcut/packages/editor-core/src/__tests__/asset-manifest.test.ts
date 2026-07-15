@@ -147,6 +147,29 @@ describe("asset manifest", () => {
 		);
 	});
 
+	it("accepts packaged source files for composite assets", () => {
+		expect(
+			validateAssetManifestPack({
+				manifest: manifest({
+					assets: [
+						{
+							...asset({
+								id: "headline-pack",
+								kind: "text-template",
+								name: "Headline Pack",
+							}),
+							files: [
+								{ role: "thumbnail", url: "/text/headline.webp" },
+								{ role: "source", url: "/text/headline.json" },
+								{ role: "package", url: "/text/headline.qctext" },
+							],
+						},
+					],
+				}),
+			})
+		).toEqual({ valid: true, issues: [] });
+	});
+
 	it("rejects the same asset version across separate packs", () => {
 		expect(() =>
 			buildAssetCatalog({
@@ -190,8 +213,17 @@ describe("asset manifest", () => {
 		).toEqual(["warm-film@2"]);
 	});
 
-	it("initializes bundled and remote runtime states", () => {
+	it("initializes bundled, generated, and remote runtime states", () => {
 		expect(createInitialAssetRuntimeState({ asset: asset() })).toMatchObject({
+			downloadStatus: "not-required",
+			cacheStatus: "cached",
+			progress: 1,
+		});
+		expect(
+			createInitialAssetRuntimeState({
+				asset: asset({ delivery: "generated" }),
+			})
+		).toMatchObject({
 			downloadStatus: "not-required",
 			cacheStatus: "cached",
 			progress: 1,

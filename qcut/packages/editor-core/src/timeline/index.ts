@@ -30,10 +30,15 @@ export {
 } from "./element-utils.js";
 
 export {
+	CLIP_TRANSITION_MAX_DURATION_SECONDS,
+	CLIP_TRANSITION_MIN_DURATION_SECONDS,
+	CLIP_TRANSITION_TYPES,
 	TRANSITION_SEAM_TOLERANCE_SECONDS,
+	clampClipTransitionDuration,
 	findClosestMediaSeam,
 	getAudioCrossfadeMaxDuration,
 	getTransitionMaxDuration,
+	isClipTransitionType,
 	reconcileTrackAudioCrossfades,
 	reconcileTimelineTransitions,
 	reconcileTrackTransitions,
@@ -51,6 +56,18 @@ export {
 	type ClipTransitionLayerPresentation,
 	type ClipTransitionRole,
 } from "./transition-presentation.js";
+
+export {
+	clipTransitionSupportsDirection,
+	getClipTransitionTuningControls,
+	getClipTransitionTuningValue,
+	removeClipTransitionTuningKeyframe,
+	resolveClipTransitionTuning,
+	transitionTuningDefaults,
+	upsertClipTransitionTuningKeyframe,
+	type ClipTransitionTuningControl,
+	type ResolvedClipTransitionTuning,
+} from "./transition-tuning.js";
 
 export {
 	isMediaElement,

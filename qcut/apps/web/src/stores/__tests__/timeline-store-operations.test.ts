@@ -7,7 +7,7 @@
 import { describe, it, expect, beforeEach, vi } from "vitest";
 import { act, renderHook } from "@testing-library/react";
 import { useTimelineStore } from "@/stores/timeline/timeline-store";
-import type { CreateMediaElement } from "@/types/timeline";
+import type { CreateMediaElement, CreateTextElement } from "@/types/timeline";
 
 // Mock dependencies (same as timeline-store.test.ts)
 vi.mock("@/stores/editor/editor-store", () => ({
@@ -139,6 +139,7 @@ describe("Timeline Store Operations", () => {
 		// Add-at-time
 		expect(store.addMediaAtTime).toBeTypeOf("function");
 		expect(store.addTextAtTime).toBeTypeOf("function");
+		expect(store.addTextGroupAtTime).toBeTypeOf("function");
 		expect(store.addMediaToNewTrack).toBeTypeOf("function");
 		expect(store.addTextToNewTrack).toBeTypeOf("function");
 
@@ -147,6 +148,305 @@ describe("Timeline Store Operations", () => {
 		expect(store.removeEffectFromElement).toBeTypeOf("function");
 		expect(store.getElementEffectIds).toBeTypeOf("function");
 		expect(store.clearElementEffects).toBeTypeOf("function");
+	});
+
+	it("adds multi-element text groups in one undo step", () => {
+		const { result } = renderHook(() => useTimelineStore());
+		const elements: CreateTextElement[] = [
+			{
+				type: "text",
+				name: "Template Title",
+				content: "核心标题",
+				duration: 5,
+				startTime: 0,
+				trimStart: 0,
+				trimEnd: 0,
+				fontSize: 64,
+				fontFamily: "Arial",
+				color: "#ffffff",
+				backgroundColor: "transparent",
+				textAlign: "center",
+				fontWeight: "bold",
+				fontStyle: "normal",
+				textDecoration: "none",
+				x: 100,
+				y: 100,
+				rotation: 0,
+				opacity: 1,
+			},
+			{
+				type: "text",
+				name: "Template Subhead",
+				content: "副标题说明",
+				duration: 5,
+				startTime: 0,
+				trimStart: 0,
+				trimEnd: 0,
+				fontSize: 34,
+				fontFamily: "Arial",
+				color: "#ffffff",
+				backgroundColor: "transparent",
+				textAlign: "center",
+				fontWeight: "normal",
+				fontStyle: "normal",
+				textDecoration: "none",
+				x: 100,
+				y: 180,
+				rotation: 0,
+				opacity: 1,
+			},
+		];
+
+		let added = false;
+		act(() => {
+			added = result.current.addTextGroupAtTime({
+				elements,
+				currentTime: 7,
+				groupId: "template-group-1",
+			});
+		});
+
+		expect(added).toBe(true);
+		const textTracks = result.current.tracks.filter(
+			(track) => track.type === "text"
+		);
+		expect(textTracks).toHaveLength(2);
+		expect(result.current.history).toHaveLength(1);
+		expect(result.current.selectedElements).toHaveLength(2);
+		for (const track of textTracks) {
+			const element = track.elements[0];
+			expect(element.type).toBe("text");
+			expect(element.startTime).toBe(7);
+			expect(element.groupId).toBe("template-group-1");
+		}
+	});
+
+	it("ignores empty text groups without touching history", () => {
+		const { result } = renderHook(() => useTimelineStore());
+
+		let added = true;
+		act(() => {
+			added = result.current.addTextGroupAtTime({
+				elements: [
+					{
+						type: "text",
+						name: "Empty",
+						content: "   ",
+						duration: 5,
+						startTime: 0,
+						trimStart: 0,
+						trimEnd: 0,
+						fontSize: 34,
+						fontFamily: "Arial",
+						color: "#ffffff",
+						backgroundColor: "transparent",
+						textAlign: "center",
+						fontWeight: "normal",
+						fontStyle: "normal",
+						textDecoration: "none",
+						x: 100,
+						y: 100,
+						rotation: 0,
+						opacity: 1,
+					},
+				],
+				currentTime: 7,
+			});
+		});
+
+		expect(added).toBe(false);
+		expect(
+			result.current.tracks.filter((track) => track.type === "text")
+		).toEqual([]);
+		expect(result.current.history).toHaveLength(0);
+	});
+
+	it("adds dragged text template packs as grouped text tracks", () => {
+		const { result } = renderHook(() => useTimelineStore());
+		const elements: CreateTextElement[] = [
+			{
+				type: "text",
+				name: "Pack Title",
+				content: "标题",
+				duration: 5,
+				startTime: 0,
+				trimStart: 0,
+				trimEnd: 0,
+				fontSize: 52,
+				fontFamily: "Arial",
+				color: "#ffffff",
+				backgroundColor: "transparent",
+				textAlign: "center",
+				fontWeight: "bold",
+				fontStyle: "normal",
+				textDecoration: "none",
+				x: 100,
+				y: 100,
+				rotation: 0,
+				opacity: 1,
+			},
+			{
+				type: "text",
+				name: "Pack Subtitle",
+				content: "副标题",
+				duration: 5,
+				startTime: 0,
+				trimStart: 0,
+				trimEnd: 0,
+				fontSize: 32,
+				fontFamily: "Arial",
+				color: "#ffffff",
+				backgroundColor: "transparent",
+				textAlign: "center",
+				fontWeight: "normal",
+				fontStyle: "normal",
+				textDecoration: "none",
+				x: 100,
+				y: 180,
+				rotation: 0,
+				opacity: 1,
+			},
+		];
+
+		let added = false;
+		act(() => {
+			added = result.current.addTextToNewTrack({
+				id: "headline-pack",
+				type: "text",
+				name: "Headline pack",
+				content: "标题",
+				textTemplatePack: {
+					id: "pack-headline",
+					name: "Headline pack",
+					elements,
+				},
+			});
+		});
+
+		expect(added).toBe(true);
+		const textTracks = result.current.tracks.filter(
+			(track) => track.type === "text"
+		);
+		expect(textTracks).toHaveLength(2);
+		expect(result.current.selectedElements).toHaveLength(2);
+		expect(
+			new Set(textTracks.map((track) => track.elements[0].groupId)).size
+		).toBe(1);
+	});
+
+	it("falls back to single text when dragged template pack payloads are invalid", () => {
+		const { result } = renderHook(() => useTimelineStore());
+
+		let added = false;
+		act(() => {
+			added = result.current.addTextToNewTrack({
+				id: "broken-pack",
+				type: "text",
+				name: "Broken pack",
+				content: "回退标题",
+				textTemplate: {
+					content: "安全标题",
+					name: "Fallback text",
+					type: "text",
+				},
+				textTemplatePack: {
+					id: "pack-broken",
+					name: "Broken pack",
+					elements: [
+						{
+							type: "text",
+							name: "Broken",
+							content: "   ",
+						},
+					] as unknown as CreateTextElement[],
+				},
+			});
+		});
+
+		expect(added).toBe(true);
+		const textTracks = result.current.tracks.filter(
+			(track) => track.type === "text"
+		);
+		expect(textTracks).toHaveLength(1);
+		expect(textTracks[0].elements[0]).toMatchObject({
+			content: "安全标题",
+			name: "Fallback text",
+			type: "text",
+		});
+		expect(textTracks[0].elements[0].groupId).toBeUndefined();
+	});
+
+	it("updates grouped text contents in one history step", () => {
+		const { result } = renderHook(() => useTimelineStore());
+		const elements: CreateTextElement[] = [
+			{
+				type: "text",
+				name: "Template Title",
+				content: "旧标题",
+				duration: 5,
+				startTime: 0,
+				trimStart: 0,
+				trimEnd: 0,
+				fontSize: 52,
+				fontFamily: "Arial",
+				color: "#ffffff",
+				backgroundColor: "transparent",
+				textAlign: "center",
+				fontWeight: "bold",
+				fontStyle: "normal",
+				textDecoration: "none",
+				x: 100,
+				y: 100,
+				rotation: 0,
+				opacity: 1,
+			},
+			{
+				type: "text",
+				name: "Template Subhead",
+				content: "旧副标题",
+				duration: 5,
+				startTime: 0,
+				trimStart: 0,
+				trimEnd: 0,
+				fontSize: 32,
+				fontFamily: "Arial",
+				color: "#ffffff",
+				backgroundColor: "transparent",
+				textAlign: "center",
+				fontWeight: "normal",
+				fontStyle: "normal",
+				textDecoration: "none",
+				x: 100,
+				y: 180,
+				rotation: 0,
+				opacity: 1,
+			},
+		];
+
+		act(() => {
+			result.current.addTextGroupAtTime({
+				elements,
+				currentTime: 3,
+				groupId: "template-group-2",
+			});
+		});
+
+		let updatedCount = 0;
+		act(() => {
+			updatedCount = result.current.updateTextGroupContents({
+				groupId: "template-group-2",
+				contents: ["新标题", "新副标题"],
+			});
+		});
+
+		expect(updatedCount).toBe(2);
+		expect(result.current.history).toHaveLength(2);
+		expect(
+			result.current.tracks
+				.filter((track) => track.type === "text")
+				.map((track) => track.elements[0])
+				.map((element) => ("content" in element ? element.content : ""))
+		).toEqual(["新标题", "新副标题"]);
 	});
 
 	// -------------------------------------------------------------------------

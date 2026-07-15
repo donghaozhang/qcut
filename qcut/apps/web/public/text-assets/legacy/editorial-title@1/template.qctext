@@ -1,0 +1,126 @@
+{
+	"schemaVersion": 1,
+	"kind": "qcut-text-template-package",
+	"assetId": "text-legacy-editorial-title",
+	"packageId": "text-new-text-title",
+	"version": 1,
+	"cacheKey": "text-assets/legacy/editorial-title@1",
+	"files": {
+		"thumbnail": "thumbnail.webp",
+		"source": "template.json"
+	},
+	"resources": [
+		{
+			"byteSize": 15878,
+			"checksumSha256": "8c144e37cd0c7cdfb69cf5f058cd7e19e4002bea3d6bc7502a1064e1648a8b2f",
+			"mimeType": "image/webp",
+			"path": "thumbnail.webp",
+			"role": "thumbnail",
+			"url": "/text-assets/legacy/editorial-title@1/thumbnail.webp"
+		},
+		{
+			"byteSize": 2030,
+			"checksumSha256": "d778bcf4f8f2efda2fcb480a9dc9a50af0845f715c74236198e9fb3188d3b856",
+			"mimeType": "application/json",
+			"path": "template.json",
+			"role": "source",
+			"url": "/text-assets/legacy/editorial-title@1/template.json"
+		}
+	],
+	"source": {
+		"schemaVersion": 1,
+		"assetId": "text-legacy-editorial-title",
+		"packageId": "text-new-text-title",
+		"version": 1,
+		"marketplace": {
+			"editorialRank": 120,
+			"heatScore": 77,
+			"remoteTags": [
+				"category:title",
+				"group:new-text",
+				"variant:legacy-editorial"
+			],
+			"searchAliases": []
+		},
+		"definition": {
+			"id": "editorial-title",
+			"name": "Editorial title",
+			"category": "title",
+			"groupId": "new-text",
+			"variantId": "legacy-editorial",
+			"content": "Editorial",
+			"stylePresetId": "editorial",
+			"keywords": [
+				"editorial",
+				"title",
+				"标题",
+				"editorial-title",
+				"Editorial title",
+				"new-text",
+				"legacy-editorial"
+			],
+			"premium": false,
+			"downloaded": true,
+			"resource": {
+				"assetId": "text-legacy-editorial-title",
+				"packageId": "text-new-text-title",
+				"version": 1,
+				"entitlement": "free",
+				"cacheKey": "text-assets/legacy/editorial-title@1",
+				"sizeKb": 192
+			},
+			"catalogVisible": false,
+			"overrides": {
+				"fontSize": 76,
+				"width": 800,
+				"height": 220
+			}
+		},
+		"template": {
+			"id": "editorial-title",
+			"type": "text",
+			"name": "Editorial title",
+			"content": "Editorial",
+			"fontSize": 76,
+			"fontFamily": "Playfair Display",
+			"color": "#ffffff",
+			"backgroundColor": "transparent",
+			"textAlign": "center",
+			"fontWeight": "bold",
+			"fontStyle": "italic",
+			"textDecoration": "none",
+			"x": 0,
+			"y": 0,
+			"rotation": 0,
+			"opacity": 1,
+			"width": 800,
+			"height": 220,
+			"letterSpacing": 1,
+			"lineHeight": 1.2,
+			"verticalAlign": "middle",
+			"strokeColor": "#000000",
+			"strokeWidth": 0,
+			"strokeOpacity": 1,
+			"backgroundOpacity": 0,
+			"backgroundRadius": 4,
+			"backgroundPadding": 12,
+			"shadowColor": "#000000",
+			"shadowOpacity": 0.45,
+			"shadowOffsetX": 2,
+			"shadowOffsetY": 4,
+			"shadowBlur": 10,
+			"glowColor": "#ffffff",
+			"glowOpacity": 0,
+			"glowBlur": 12,
+			"curve": 0,
+			"animationType": "none",
+			"animationDuration": 0.6,
+			"animationDelay": 0,
+			"blendMode": "normal",
+			"duration": 5,
+			"startTime": 0,
+			"trimStart": 0,
+			"trimEnd": 0
+		}
+	}
+}

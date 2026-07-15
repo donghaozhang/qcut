@@ -63,7 +63,11 @@ export type {
 	ClipTransition,
 	ClipTransitionDirection,
 	ClipTransitionEasing,
+	ClipTransitionKeyframeEasing,
 	ClipTransitionTuning,
+	ClipTransitionTuningKeyframe,
+	ClipTransitionTuningKeyframes,
+	ClipTransitionTuningProperty,
 	ClipTransitionType,
 	MediaAdjustments,
 	MediaMask,
@@ -169,10 +173,15 @@ export {
 	getEffectiveDuration,
 	getElementEndTime,
 	getElementNameWithSuffix,
+	CLIP_TRANSITION_MAX_DURATION_SECONDS,
+	CLIP_TRANSITION_MIN_DURATION_SECONDS,
+	CLIP_TRANSITION_TYPES,
 	TRANSITION_SEAM_TOLERANCE_SECONDS,
+	clampClipTransitionDuration,
 	findClosestMediaSeam,
 	getAudioCrossfadeMaxDuration,
 	getTransitionMaxDuration,
+	isClipTransitionType,
 	reconcileTrackAudioCrossfades,
 	reconcileTimelineTransitions,
 	reconcileTrackTransitions,
@@ -295,8 +304,21 @@ export {
 	type AssetManifestValidationCode,
 	type AssetManifestValidationIssue,
 	type AssetManifestValidationResult,
+	type AssetRuntimeFileState,
 	type AssetRuntimeState,
 } from "./assets/index.js";
+
+// Collaboration — portable review packages and deterministic conflict merging
+export {
+	MAX_REVIEW_COMMENT_LENGTH,
+	MAX_REVIEW_COMMENTS,
+	REVIEW_PACKAGE_VERSION,
+	isPortableReviewComment,
+	isReviewPackage,
+	mergeReviewComments,
+	type PortableReviewComment,
+	type ReviewPackage,
+} from "./collaboration/index.js";
 
 // Templates — versioned slot-based timeline template protocol
 export {

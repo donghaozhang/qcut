@@ -1,0 +1,146 @@
+{
+	"schemaVersion": 1,
+	"kind": "qcut-text-template-package",
+	"assetId": "text-new-text-lower-third-candy",
+	"packageId": "text-new-text-lower-third",
+	"version": 1,
+	"cacheKey": "text-assets/text-new-text-lower-third/candy@1",
+	"files": {
+		"thumbnail": "thumbnail.webp",
+		"source": "template.json"
+	},
+	"resources": [
+		{
+			"byteSize": 16240,
+			"checksumSha256": "5d6b9ef13308e519a43ae56a554847492aa54c9137374c33ae4202056301ac24",
+			"mimeType": "image/webp",
+			"path": "thumbnail.webp",
+			"role": "thumbnail",
+			"url": "/text-assets/text-new-text-lower-third/candy@1/thumbnail.webp"
+		},
+		{
+			"byteSize": 2429,
+			"checksumSha256": "37d224a71a6016f03c3ed1756ffd11264e3b54848a6c2f057aa9d145204c306c",
+			"mimeType": "application/json",
+			"path": "template.json",
+			"role": "source",
+			"url": "/text-assets/text-new-text-lower-third/candy@1/template.json"
+		}
+	],
+	"source": {
+		"schemaVersion": 1,
+		"assetId": "text-new-text-lower-third-candy",
+		"packageId": "text-new-text-lower-third",
+		"version": 1,
+		"marketplace": {
+			"editorialRank": 58,
+			"heatScore": 93,
+			"remoteTags": [
+				"category:lower-third",
+				"group:new-text",
+				"variant:candy",
+				"style:candy",
+				"tone:cute"
+			],
+			"searchAliases": [
+				"糖果",
+				"甜",
+				"可爱"
+			]
+		},
+		"definition": {
+			"id": "lower-third-candy",
+			"name": "角标糖果",
+			"category": "lower-third",
+			"groupId": "new-text",
+			"variantId": "candy",
+			"content": "人物介绍",
+			"stylePresetId": "pink-neon",
+			"keywords": [
+				"lower-third",
+				"角标",
+				"人物介绍",
+				"candy",
+				"糖果",
+				"甜美",
+				"粉色",
+				"lower-third-candy",
+				"角标糖果",
+				"new-text"
+			],
+			"premium": true,
+			"downloaded": false,
+			"resource": {
+				"assetId": "text-new-text-lower-third-candy",
+				"packageId": "text-new-text-lower-third",
+				"version": 1,
+				"entitlement": "svip",
+				"cacheKey": "text-assets/text-new-text-lower-third/candy@1",
+				"sizeKb": 384
+			},
+			"catalogVisible": true,
+			"overrides": {
+				"fontSize": 70,
+				"color": "#ffffff",
+				"fontWeight": "bold",
+				"strokeColor": "#fb7185",
+				"strokeWidth": 5,
+				"backgroundColor": "#e0f2fe",
+				"backgroundOpacity": 0.8,
+				"backgroundRadius": 30,
+				"backgroundPadding": 16,
+				"glowColor": "#ffffff",
+				"glowOpacity": 0.45,
+				"glowBlur": 8,
+				"width": 700,
+				"height": 210
+			}
+		},
+		"template": {
+			"id": "lower-third-candy",
+			"type": "text",
+			"name": "角标糖果",
+			"content": "人物介绍",
+			"fontSize": 70,
+			"fontFamily": "Arial",
+			"color": "#ffffff",
+			"backgroundColor": "#e0f2fe",
+			"textAlign": "center",
+			"fontWeight": "bold",
+			"fontStyle": "normal",
+			"textDecoration": "none",
+			"x": 0,
+			"y": 0,
+			"rotation": 0,
+			"opacity": 1,
+			"width": 700,
+			"height": 210,
+			"letterSpacing": 0,
+			"lineHeight": 1.2,
+			"verticalAlign": "middle",
+			"strokeColor": "#fb7185",
+			"strokeWidth": 5,
+			"strokeOpacity": 1,
+			"backgroundOpacity": 0.8,
+			"backgroundRadius": 30,
+			"backgroundPadding": 16,
+			"shadowColor": "#000000",
+			"shadowOpacity": 0,
+			"shadowOffsetX": 4,
+			"shadowOffsetY": 4,
+			"shadowBlur": 8,
+			"glowColor": "#ffffff",
+			"glowOpacity": 0.45,
+			"glowBlur": 8,
+			"curve": 0,
+			"animationType": "none",
+			"animationDuration": 0.6,
+			"animationDelay": 0,
+			"blendMode": "normal",
+			"duration": 5,
+			"startTime": 0,
+			"trimStart": 0,
+			"trimEnd": 0
+		}
+	}
+}

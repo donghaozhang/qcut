@@ -2,6 +2,7 @@ import type {
 	ClipTransition,
 	ClipTransitionEasing,
 } from "../types/timeline.js";
+import { resolveClipTransitionTuning } from "./transition-tuning.js";
 
 export const CLIP_TRANSITION_PROGRESS_STOPS = [0, 0.25, 0.5, 0.75, 1] as const;
 
@@ -20,6 +21,19 @@ export interface ClipTransitionLayerPresentation {
 	brightness?: number;
 	saturation?: number;
 	hueRotate?: number;
+	pixelScale?: number;
+	maskImage?: string;
+	maskSize?: string;
+	maskPosition?: string;
+	perspective?: number;
+	rotationX?: number;
+	rotationY?: number;
+	skewX?: number;
+	skewY?: number;
+	transformOrigin?: string;
+	overlayBackground?: string;
+	overlayOpacity?: number;
+	overlayBlendMode?: "normal" | "screen" | "overlay";
 }
 
 function clampProgress({ progress }: { progress: number }): number {
@@ -68,14 +82,6 @@ function transitionPeak({ progress }: { progress: number }): number {
 	return 4 * progress * (1 - progress);
 }
 
-function transitionTuning({ transition }: { transition: ClipTransition }) {
-	return {
-		intensity: Math.min(2, Math.max(0.1, transition.tuning?.intensity ?? 1)),
-		frequency: Math.min(4, Math.max(0.1, transition.tuning?.frequency ?? 1)),
-		tint: transition.tuning?.tint,
-	};
-}
-
 function enteringOffset({
 	direction,
 	distance,
@@ -121,6 +127,93 @@ function crossfadeOpacity({
 	return role === "from" ? 1 - progress : progress;
 }
 
+function maskVisibility({
+	role,
+	progress,
+}: {
+	role: ClipTransitionRole;
+	progress: number;
+}): number {
+	return role === "from" ? 1 - progress : progress;
+}
+
+function particleMask({
+	visibility,
+	frequency,
+	intensity,
+	progress,
+}: {
+	visibility: number;
+	frequency: number;
+	intensity: number;
+	progress: number;
+}): Pick<
+	ClipTransitionLayerPresentation,
+	"maskImage" | "maskPosition" | "maskSize"
+> {
+	const cellSize = Math.max(7, 20 / frequency);
+	const radius = visibility * cellSize * (0.72 + intensity * 0.08);
+	const feather = Math.max(0.75, cellSize * 0.06);
+	return {
+		maskImage: `radial-gradient(circle, #000 0 ${radius.toFixed(2)}px, transparent ${(radius + feather).toFixed(2)}px)`,
+		maskSize: `${cellSize.toFixed(2)}px ${cellSize.toFixed(2)}px`,
+		maskPosition: `${(progress * cellSize * 0.65).toFixed(2)}px ${(progress * cellSize * -0.45).toFixed(2)}px`,
+	};
+}
+
+function textureMask({
+	visibility,
+	frequency,
+	progress,
+}: {
+	visibility: number;
+	frequency: number;
+	progress: number;
+}): Pick<
+	ClipTransitionLayerPresentation,
+	"maskImage" | "maskPosition" | "maskSize"
+> {
+	const tileSize = Math.max(10, 34 / frequency);
+	const revealAngle = visibility * 25;
+	return {
+		maskImage: `repeating-conic-gradient(from ${(progress * 90).toFixed(2)}deg, #000 0 ${revealAngle.toFixed(2)}%, transparent ${revealAngle.toFixed(2)}% 25%)`,
+		maskSize: `${tileSize.toFixed(2)}px ${tileSize.toFixed(2)}px`,
+		maskPosition: `${(progress * tileSize * 0.5).toFixed(2)}px ${(progress * tileSize * 0.35).toFixed(2)}px`,
+	};
+}
+
+function pageFlipTransform({
+	direction,
+	role,
+	progress,
+}: {
+	direction: ClipTransition["direction"];
+	role: ClipTransitionRole;
+	progress: number;
+}): Pick<
+	ClipTransitionLayerPresentation,
+	"perspective" | "rotationX" | "rotationY" | "transformOrigin"
+> {
+	const enteringAngle = (1 - progress) * 90;
+	const leavingAngle = progress * 90;
+	const angle = role === "from" ? leavingAngle : enteringAngle;
+	const vertical = direction === "up" || direction === "down";
+	const sign = direction === "right" || direction === "down" ? 1 : -1;
+	const transformOrigin = vertical
+		? direction === "down"
+			? "center bottom"
+			: "center top"
+		: direction === "right"
+			? "right center"
+			: "left center";
+	return {
+		perspective: 900,
+		rotationX: vertical ? angle * sign * (role === "from" ? 1 : -1) : 0,
+		rotationY: vertical ? 0 : angle * sign * (role === "from" ? 1 : -1),
+		transformOrigin,
+	};
+}
+
 export function getClipTransitionLayerPresentation({
 	transition,
 	role,
@@ -138,7 +231,7 @@ export function getClipTransitionLayerPresentation({
 		progress,
 		easing: transition.easing,
 	});
-	const tuning = transitionTuning({ transition });
+	const tuning = resolveClipTransitionTuning({ transition, progress });
 	const base: ClipTransitionLayerPresentation = {
 		opacity: 1,
 		contentOpacity: 1,
@@ -335,5 +428,135 @@ export function getClipTransitionLayerPresentation({
 					tuning.intensity,
 			};
 		}
+		case "motion-blur": {
+			const peak = transitionPeak({ progress: eased });
+			const offset = enteringOffset({
+				direction: transition.direction,
+				distance: peak * 0.055 * tuning.intensity,
+				canvasWidth,
+				canvasHeight,
+			});
+			const roleSign = role === "from" ? -1 : 1;
+			return {
+				...base,
+				opacity: crossfadeOpacity({ role, progress: eased }),
+				offsetX: normalizedOffset({ value: offset.offsetX * roleSign }),
+				offsetY: normalizedOffset({ value: offset.offsetY * roleSign }),
+				blur: peak * 18 * tuning.intensity,
+				scale: 1 + peak * 0.035 * tuning.intensity,
+			};
+		}
+		case "pixelate": {
+			const peak = transitionPeak({ progress: eased });
+			return {
+				...base,
+				opacity: crossfadeOpacity({ role, progress: eased }),
+				pixelScale: 1 + Math.round(peak * 22 * tuning.intensity),
+				saturation: 1 + peak * 0.15 * tuning.intensity,
+			};
+		}
+		case "water-ripple": {
+			const peak = transitionPeak({ progress: eased });
+			const wave =
+				Math.sin(eased * Math.PI * 8 * tuning.frequency) *
+				peak *
+				tuning.intensity;
+			return {
+				...base,
+				opacity: crossfadeOpacity({ role, progress: eased }),
+				scale: 1 + wave * 0.018,
+				rotation: wave * (role === "from" ? -0.45 : 0.45),
+				blur: peak * 1.5 * tuning.intensity,
+				overlayBackground:
+					"repeating-radial-gradient(circle at center, transparent 0 8%, rgba(255,255,255,0.22) 9%, transparent 10% 16%)",
+				overlayOpacity: peak * 0.28 * tuning.intensity,
+				overlayBlendMode: "screen",
+			};
+		}
+		case "particle-dissolve": {
+			const visibility = maskVisibility({ role, progress: eased });
+			return {
+				...base,
+				...particleMask({
+					visibility,
+					frequency: tuning.frequency,
+					intensity: tuning.intensity,
+					progress: eased,
+				}),
+				contentOpacity: visibility <= 0.001 ? 0 : 1,
+				scale: 1 + transitionPeak({ progress: eased }) * 0.025,
+			};
+		}
+		case "glass-refraction": {
+			const peak = transitionPeak({ progress: eased });
+			const roleSign = role === "from" ? -1 : 1;
+			const vertical =
+				transition.direction === "up" || transition.direction === "down";
+			return {
+				...base,
+				opacity: crossfadeOpacity({ role, progress: eased }),
+				offsetX: vertical
+					? 0
+					: roleSign * peak * canvasWidth * 0.018 * tuning.intensity,
+				offsetY: vertical
+					? roleSign * peak * canvasHeight * 0.018 * tuning.intensity
+					: 0,
+				skewX: vertical ? roleSign * peak * 2.5 : 0,
+				skewY: vertical ? 0 : roleSign * peak * 2.5,
+				blur: peak * 2.2 * tuning.intensity,
+				saturation: 1 + peak * 0.45,
+				maskImage:
+					"repeating-linear-gradient(90deg, rgba(0,0,0,1) 0 14px, rgba(0,0,0,0.58) 14px 18px)",
+				overlayBackground:
+					"repeating-linear-gradient(90deg, transparent 0 14px, rgba(255,255,255,0.3) 15px, transparent 18px)",
+				overlayOpacity: peak * 0.55,
+				overlayBlendMode: "screen",
+			};
+		}
+		case "page-flip": {
+			const peak = transitionPeak({ progress: eased });
+			return {
+				...base,
+				...pageFlipTransform({
+					direction: transition.direction,
+					role,
+					progress: eased,
+				}),
+				opacity: crossfadeOpacity({ role, progress: eased }),
+				brightness: 1 - peak * 0.28 * tuning.intensity,
+				overlayBackground:
+					"linear-gradient(90deg, rgba(0,0,0,0.5), transparent 18%, transparent 82%, rgba(255,255,255,0.28))",
+				overlayOpacity: peak,
+				overlayBlendMode: "overlay",
+			};
+		}
+		case "texture-mask": {
+			const visibility = maskVisibility({ role, progress: eased });
+			return {
+				...base,
+				...textureMask({
+					visibility,
+					frequency: tuning.frequency,
+					progress: eased,
+				}),
+				contentOpacity: visibility <= 0.001 ? 0 : 1,
+			};
+		}
+		case "lens-flare": {
+			const peak = transitionPeak({ progress: eased });
+			const flareX = 15 + eased * 70;
+			const flareY = 30 + Math.sin(eased * Math.PI) * 28;
+			const tint = tuning.tint ?? "#ffd6a1";
+			return {
+				...base,
+				opacity: crossfadeOpacity({ role, progress: eased }),
+				brightness: 1 + peak * 0.85 * tuning.intensity,
+				saturation: 1 + peak * 0.35,
+				overlayBackground: `radial-gradient(circle at ${flareX.toFixed(2)}% ${flareY.toFixed(2)}%, ${tint} 0, rgba(255,255,255,0.72) 8%, transparent 34%), linear-gradient(${(eased * 18 - 9).toFixed(2)}deg, transparent 42%, ${tint} 49%, transparent 56%)`,
+				overlayOpacity: peak * Math.min(1, 0.72 * tuning.intensity),
+				overlayBlendMode: "screen",
+			};
+		}
 	}
+	return base;
 }

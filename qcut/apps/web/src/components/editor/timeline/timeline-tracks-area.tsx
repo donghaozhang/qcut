@@ -34,8 +34,13 @@ import { getTimelineElementEndTime } from "@/lib/timeline";
 import { cn } from "@/lib/utils";
 import { TimelineTrackLabel } from "./timeline-track-label";
 import type { TimelineVisibleRange } from "./timeline-viewport";
+import { isTimelineEntityTarget } from "./timeline-click-target";
 
 const VIEWPORT_OVERSCAN_SECONDS = 5;
+const INITIAL_VISIBLE_TIME_RANGE: TimelineVisibleRange = {
+	startTime: 0,
+	endTime: VIEWPORT_OVERSCAN_SECONDS,
+};
 
 interface TimelineTracksAreaProps {
 	tracks: TimelineTrack[];
@@ -106,7 +111,7 @@ export function TimelineTracksArea({
 		string | null
 	>(null);
 	const [visibleTimeRange, setVisibleTimeRange] =
-		useState<TimelineVisibleRange>();
+		useState<TimelineVisibleRange>(INITIAL_VISIBLE_TIME_RANGE);
 	const viewportFrameRef = useRef(0);
 	const hasSpeedRegions = useScreenRecordingEnhancementStore(
 		(s) => s.speedRegions.length > 0
@@ -309,11 +314,8 @@ export function TimelineTracksArea({
 													height: `${getTrackHeight(track.type, track.height)}px`,
 												}}
 												onClick={(e) => {
-													if (
-														!(e.target as HTMLElement).closest(
-															".timeline-element"
-														)
-													) {
+													const target = e.target as HTMLElement;
+													if (!isTimelineEntityTarget({ target })) {
 														clearSelectedElements();
 													}
 												}}

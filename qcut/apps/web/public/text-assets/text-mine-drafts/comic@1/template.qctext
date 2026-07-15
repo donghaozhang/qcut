@@ -1,0 +1,151 @@
+{
+	"schemaVersion": 1,
+	"kind": "qcut-text-template-package",
+	"assetId": "text-mine-drafts-comic",
+	"packageId": "text-mine-drafts",
+	"version": 1,
+	"cacheKey": "text-assets/text-mine-drafts/comic@1",
+	"files": {
+		"thumbnail": "thumbnail.webp",
+		"source": "template.json"
+	},
+	"resources": [
+		{
+			"byteSize": 21692,
+			"checksumSha256": "dd3488a5a9c9a1fe6b697843a308b3269c3dc1ec09870b98120a7a9e067df0b5",
+			"mimeType": "image/webp",
+			"path": "thumbnail.webp",
+			"role": "thumbnail",
+			"url": "/text-assets/text-mine-drafts/comic@1/thumbnail.webp"
+		},
+		{
+			"byteSize": 2428,
+			"checksumSha256": "ffe1f6cb6409a6984d5ac91d41abe6a9c498160eb804eb484e0fcc7713e4ebec",
+			"mimeType": "application/json",
+			"path": "template.json",
+			"role": "source",
+			"url": "/text-assets/text-mine-drafts/comic@1/template.json"
+		}
+	],
+	"source": {
+		"schemaVersion": 1,
+		"assetId": "text-mine-drafts-comic",
+		"packageId": "text-mine-drafts",
+		"version": 1,
+		"marketplace": {
+			"editorialRank": 19,
+			"heatScore": 99,
+			"remoteTags": [
+				"category:drafts",
+				"group:mine",
+				"variant:comic",
+				"style:comic",
+				"effect:burst"
+			],
+			"searchAliases": [
+				"漫画",
+				"爆炸",
+				"综艺",
+				"封面",
+				"搞笑"
+			]
+		},
+		"definition": {
+			"id": "drafts-comic",
+			"name": "草稿漫画",
+			"category": "drafts",
+			"groupId": "mine",
+			"variantId": "comic",
+			"content": "草稿",
+			"stylePresetId": "yellow-pop",
+			"keywords": [
+				"drafts",
+				"草稿",
+				"comic",
+				"漫画",
+				"综艺",
+				"爆炸",
+				"boom",
+				"drafts-comic",
+				"草稿漫画",
+				"mine"
+			],
+			"premium": true,
+			"downloaded": false,
+			"resource": {
+				"assetId": "text-mine-drafts-comic",
+				"packageId": "text-mine-drafts",
+				"version": 1,
+				"entitlement": "svip",
+				"cacheKey": "text-assets/text-mine-drafts/comic@1",
+				"sizeKb": 384
+			},
+			"catalogVisible": true,
+			"overrides": {
+				"fontSize": 72,
+				"color": "#fafaf9",
+				"fontWeight": "bold",
+				"strokeColor": "#1c1917",
+				"strokeWidth": 6,
+				"backgroundColor": "#f43f5e",
+				"backgroundOpacity": 0.85,
+				"backgroundRadius": 8,
+				"backgroundPadding": 18,
+				"rotation": -3,
+				"shadowColor": "#1c1917",
+				"shadowOpacity": 0.65,
+				"shadowOffsetX": 5,
+				"shadowOffsetY": 5,
+				"shadowBlur": 0,
+				"width": 700,
+				"height": 210
+			}
+		},
+		"template": {
+			"id": "drafts-comic",
+			"type": "text",
+			"name": "草稿漫画",
+			"content": "草稿",
+			"fontSize": 72,
+			"fontFamily": "Arial",
+			"color": "#fafaf9",
+			"backgroundColor": "#f43f5e",
+			"textAlign": "center",
+			"fontWeight": "bold",
+			"fontStyle": "normal",
+			"textDecoration": "none",
+			"x": 0,
+			"y": 0,
+			"rotation": -3,
+			"opacity": 1,
+			"width": 700,
+			"height": 210,
+			"letterSpacing": 0,
+			"lineHeight": 1.2,
+			"verticalAlign": "middle",
+			"strokeColor": "#1c1917",
+			"strokeWidth": 6,
+			"strokeOpacity": 1,
+			"backgroundOpacity": 0.85,
+			"backgroundRadius": 8,
+			"backgroundPadding": 18,
+			"shadowColor": "#1c1917",
+			"shadowOpacity": 0.65,
+			"shadowOffsetX": 5,
+			"shadowOffsetY": 5,
+			"shadowBlur": 0,
+			"glowColor": "#ffffff",
+			"glowOpacity": 0,
+			"glowBlur": 12,
+			"curve": 0,
+			"animationType": "none",
+			"animationDuration": 0.6,
+			"animationDelay": 0,
+			"blendMode": "normal",
+			"duration": 5,
+			"startTime": 0,
+			"trimStart": 0,
+			"trimEnd": 0
+		}
+	}
+}

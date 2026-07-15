@@ -17,7 +17,9 @@ import {
 	applySmartPackagingToEditor,
 	previewSmartPackagingPlan,
 } from "@/lib/templates/smart-packaging-application";
+import { getVideoMediaIds } from "@/lib/transitions/video-transition-eligibility";
 import { useBeatDetectionStore } from "@/stores/beat-detection-store";
+import { useMediaStore } from "@/stores/media/media-store";
 import { useProjectStore } from "@/stores/project-store";
 import { useTimelineStore } from "@/stores/timeline/timeline-store";
 
@@ -88,13 +90,25 @@ function sourceStat({ label, value }: { label: string; value: number }) {
 export function SmartPackagingView() {
 	const tracks = useTimelineStore((state) => state.tracks);
 	const beatCache = useBeatDetectionStore((state) => state.cache);
+	const mediaItems = useMediaStore((state) => state.mediaItems);
+	const videoMediaIds = useMemo(
+		() => getVideoMediaIds({ mediaItems }),
+		[mediaItems]
+	);
 	const fps = useProjectStore((state) => state.activeProject?.fps ?? 30);
 	const [options, setOptions] =
 		useState<SmartPackagingOptions>(DEFAULT_OPTIONS);
 	const [isApplying, setIsApplying] = useState(false);
 	const plan = useMemo(
-		() => previewSmartPackagingPlan({ tracks, beatCache, options, fps }),
-		[beatCache, fps, options, tracks]
+		() =>
+			previewSmartPackagingPlan({
+				tracks,
+				beatCache,
+				options,
+				fps,
+				videoMediaIds,
+			}),
+		[beatCache, fps, options, tracks, videoMediaIds]
 	);
 	const actionCounts = useMemo(
 		() => ({

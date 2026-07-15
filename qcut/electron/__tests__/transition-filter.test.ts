@@ -1,5 +1,9 @@
 import { describe, expect, it } from "vitest";
 import {
+	getClipTransitionPresetConfig,
+	transitionPresets,
+} from "../../apps/web/src/components/editor/media-panel/views/transitions/transition-presets";
+import {
 	buildXfadeTransitionFilter,
 	canUseTransitionSourceHandles,
 	prepareTransitionSource,
@@ -48,6 +52,31 @@ function source(overrides: Partial<VideoSource> = {}): VideoSource {
 }
 
 describe("FFmpeg transition filters", () => {
+	it("exports every visible transition preset through the production filter", () => {
+		for (const preset of transitionPresets) {
+			const config = getClipTransitionPresetConfig({ preset });
+			expect(
+				config,
+				`${preset.id} is missing its timeline mapping`
+			).not.toBeNull();
+			if (!config) continue;
+
+			const filter = buildXfadeTransitionFilter({
+				transition: {
+					...transition({
+						type: config.type,
+						direction: config.direction,
+						duration: preset.defaultDuration,
+						tuning: config.tuning,
+					}),
+					presetId: preset.id,
+				},
+			});
+			expect(filter.transition).toBe("custom");
+			expect(filter.expression.length).toBeGreaterThan(0);
+		}
+	});
+
 	it("uses real source handles at constant speed", () => {
 		const prepared = prepareTransitionSource({
 			source: source({ playbackRate: 2 }),
@@ -131,6 +160,22 @@ describe("FFmpeg transition filters", () => {
 		{ type: "light-leak", direction: undefined, expected: "eq(PLANE,0),90" },
 		{ type: "rgb-glitch", direction: undefined, expected: "mod(Y,12)" },
 		{ type: "shake", direction: undefined, expected: "sin((" },
+		{ type: "motion-blur", direction: "left", expected: ")/5" },
+		{ type: "pixelate", direction: undefined, expected: "floor(X/" },
+		{ type: "water-ripple", direction: undefined, expected: "sqrt(pow(" },
+		{
+			type: "particle-dissolve",
+			direction: undefined,
+			expected: "abs(sin(floor(X/",
+		},
+		{
+			type: "glass-refraction",
+			direction: "right",
+			expected: "mod(floor(Y/",
+		},
+		{ type: "page-flip", direction: "up", expected: "abs(Y-" },
+		{ type: "texture-mask", direction: undefined, expected: "sin(X/W*" },
+		{ type: "lens-flare", direction: undefined, expected: "0.035*H" },
 	] satisfies Array<{
 		type: VideoTransition["type"];
 		direction: VideoTransition["direction"] | undefined;

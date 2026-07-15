@@ -1,7 +1,11 @@
 import { describe, expect, it } from "vitest";
 import type { ClipTransition } from "@/types/timeline";
 import {
+	buildClipTransitionAnchoredTransform,
+	buildClipTransitionContentStyle,
 	buildClipTransitionCssFilter,
+	buildClipTransitionMaskStyle,
+	buildClipTransitionOverlayStyle,
 	CLIP_TRANSITION_PROGRESS_STOPS,
 	easeClipTransitionProgress,
 	getClipTransitionLayerPresentation,
@@ -246,6 +250,105 @@ describe("clip transition presentation", () => {
 			hueRotate: 42,
 		});
 		expect(midpoint({ type: "shake" }).rotation).toBeCloseTo(-2.5);
+	});
+
+	it("describes every advanced transition with a dedicated visual primitive", () => {
+		const midpoint = ({
+			type,
+			direction = "left",
+		}: {
+			type: ClipTransition["type"];
+			direction?: ClipTransition["direction"];
+		}) =>
+			getClipTransitionLayerPresentation({
+				transition: transition({ type, direction }),
+				role: "to",
+				progress: 0.5,
+				canvasWidth: 320,
+				canvasHeight: 180,
+			});
+
+		expect(midpoint({ type: "motion-blur" })).toMatchObject({
+			opacity: 0.5,
+			blur: 18,
+		});
+		expect(midpoint({ type: "pixelate" }).pixelScale).toBeGreaterThan(10);
+		expect(midpoint({ type: "water-ripple" }).overlayBackground).toContain(
+			"repeating-radial-gradient"
+		);
+		expect(midpoint({ type: "particle-dissolve" }).maskImage).toContain(
+			"radial-gradient"
+		);
+		expect(midpoint({ type: "glass-refraction" })).toMatchObject({
+			maskImage: expect.stringContaining("repeating-linear-gradient"),
+			overlayBlendMode: "screen",
+		});
+		expect(midpoint({ type: "page-flip" })).toMatchObject({
+			perspective: 900,
+			transformOrigin: "left center",
+		});
+		expect(midpoint({ type: "texture-mask" }).maskImage).toContain(
+			"repeating-conic-gradient"
+		);
+		expect(midpoint({ type: "lens-flare" })).toMatchObject({
+			overlayBackground: expect.stringContaining("radial-gradient"),
+			overlayBlendMode: "screen",
+		});
+	});
+
+	it("converts advanced primitives into browser content, mask, and overlay styles", () => {
+		const pixel = getClipTransitionLayerPresentation({
+			transition: transition({ type: "pixelate" }),
+			role: "to",
+			progress: 0.5,
+			canvasWidth: 320,
+			canvasHeight: 180,
+		});
+		expect(
+			buildClipTransitionContentStyle({ presentation: pixel })
+		).toMatchObject({
+			imageRendering: "pixelated",
+			transformOrigin: "top left",
+		});
+
+		const page = getClipTransitionLayerPresentation({
+			transition: transition({ type: "page-flip", direction: "right" }),
+			role: "to",
+			progress: 0.5,
+			canvasWidth: 320,
+			canvasHeight: 180,
+		});
+		expect(
+			buildClipTransitionAnchoredTransform({ presentation: page })
+		).toContain("perspective(900px)");
+
+		const texture = getClipTransitionLayerPresentation({
+			transition: transition({ type: "texture-mask" }),
+			role: "to",
+			progress: 0.5,
+			canvasWidth: 320,
+			canvasHeight: 180,
+		});
+		expect(
+			buildClipTransitionMaskStyle({ presentation: texture })
+		).toMatchObject({
+			maskRepeat: "repeat",
+			maskImage: expect.stringContaining("conic-gradient"),
+		});
+
+		const flare = getClipTransitionLayerPresentation({
+			transition: transition({ type: "lens-flare" }),
+			role: "to",
+			progress: 0.5,
+			canvasWidth: 320,
+			canvasHeight: 180,
+		});
+		expect(
+			buildClipTransitionOverlayStyle({ presentation: flare })
+		).toMatchObject({
+			position: "absolute",
+			mixBlendMode: "screen",
+		});
 	});
 
 	it("builds a CSS filter only when presentation effects are active", () => {

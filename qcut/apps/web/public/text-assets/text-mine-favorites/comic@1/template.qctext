@@ -1,0 +1,151 @@
+{
+	"schemaVersion": 1,
+	"kind": "qcut-text-template-package",
+	"assetId": "text-mine-favorites-comic",
+	"packageId": "text-mine-favorites",
+	"version": 1,
+	"cacheKey": "text-assets/text-mine-favorites/comic@1",
+	"files": {
+		"thumbnail": "thumbnail.webp",
+		"source": "template.json"
+	},
+	"resources": [
+		{
+			"byteSize": 22220,
+			"checksumSha256": "adbc374b2746014b72bc2911c268965b93eccd1e3fd1034fe58ef73e40906a0a",
+			"mimeType": "image/webp",
+			"path": "thumbnail.webp",
+			"role": "thumbnail",
+			"url": "/text-assets/text-mine-favorites/comic@1/thumbnail.webp"
+		},
+		{
+			"byteSize": 2461,
+			"checksumSha256": "7eb37a21a5a07f67234e38a8e4785058331f66bfa0b585312b41e2d5f669a462",
+			"mimeType": "application/json",
+			"path": "template.json",
+			"role": "source",
+			"url": "/text-assets/text-mine-favorites/comic@1/template.json"
+		}
+	],
+	"source": {
+		"schemaVersion": 1,
+		"assetId": "text-mine-favorites-comic",
+		"packageId": "text-mine-favorites",
+		"version": 1,
+		"marketplace": {
+			"editorialRank": 19,
+			"heatScore": 99,
+			"remoteTags": [
+				"category:favorites",
+				"group:mine",
+				"variant:comic",
+				"style:comic",
+				"effect:burst"
+			],
+			"searchAliases": [
+				"漫画",
+				"爆炸",
+				"综艺",
+				"封面",
+				"搞笑"
+			]
+		},
+		"definition": {
+			"id": "favorites-comic",
+			"name": "收藏漫画",
+			"category": "favorites",
+			"groupId": "mine",
+			"variantId": "comic",
+			"content": "收藏",
+			"stylePresetId": "yellow-pop",
+			"keywords": [
+				"favorites",
+				"收藏",
+				"comic",
+				"漫画",
+				"综艺",
+				"爆炸",
+				"boom",
+				"favorites-comic",
+				"收藏漫画",
+				"mine"
+			],
+			"premium": true,
+			"downloaded": false,
+			"resource": {
+				"assetId": "text-mine-favorites-comic",
+				"packageId": "text-mine-favorites",
+				"version": 1,
+				"entitlement": "svip",
+				"cacheKey": "text-assets/text-mine-favorites/comic@1",
+				"sizeKb": 384
+			},
+			"catalogVisible": true,
+			"overrides": {
+				"fontSize": 72,
+				"color": "#fff1f2",
+				"fontWeight": "bold",
+				"strokeColor": "#4c0519",
+				"strokeWidth": 6,
+				"backgroundColor": "#fb7185",
+				"backgroundOpacity": 0.85,
+				"backgroundRadius": 8,
+				"backgroundPadding": 18,
+				"rotation": -3,
+				"shadowColor": "#4c0519",
+				"shadowOpacity": 0.65,
+				"shadowOffsetX": 5,
+				"shadowOffsetY": 5,
+				"shadowBlur": 0,
+				"width": 700,
+				"height": 210
+			}
+		},
+		"template": {
+			"id": "favorites-comic",
+			"type": "text",
+			"name": "收藏漫画",
+			"content": "收藏",
+			"fontSize": 72,
+			"fontFamily": "Arial",
+			"color": "#fff1f2",
+			"backgroundColor": "#fb7185",
+			"textAlign": "center",
+			"fontWeight": "bold",
+			"fontStyle": "normal",
+			"textDecoration": "none",
+			"x": 0,
+			"y": 0,
+			"rotation": -3,
+			"opacity": 1,
+			"width": 700,
+			"height": 210,
+			"letterSpacing": 0,
+			"lineHeight": 1.2,
+			"verticalAlign": "middle",
+			"strokeColor": "#4c0519",
+			"strokeWidth": 6,
+			"strokeOpacity": 1,
+			"backgroundOpacity": 0.85,
+			"backgroundRadius": 8,
+			"backgroundPadding": 18,
+			"shadowColor": "#4c0519",
+			"shadowOpacity": 0.65,
+			"shadowOffsetX": 5,
+			"shadowOffsetY": 5,
+			"shadowBlur": 0,
+			"glowColor": "#ffffff",
+			"glowOpacity": 0,
+			"glowBlur": 12,
+			"curve": 0,
+			"animationType": "none",
+			"animationDuration": 0.6,
+			"animationDelay": 0,
+			"blendMode": "normal",
+			"duration": 5,
+			"startTime": 0,
+			"trimStart": 0,
+			"trimEnd": 0
+		}
+	}
+}

@@ -1,0 +1,138 @@
+{
+	"schemaVersion": 1,
+	"kind": "qcut-text-template-package",
+	"assetId": "text-mine-drafts-plain",
+	"packageId": "text-mine-drafts",
+	"version": 1,
+	"cacheKey": "text-assets/text-mine-drafts/plain@1",
+	"files": {
+		"thumbnail": "thumbnail.webp",
+		"source": "template.json"
+	},
+	"resources": [
+		{
+			"byteSize": 15072,
+			"checksumSha256": "45acdc0914639975194df298df51e821ed13ee2da75076a2c14789ac38b8e48f",
+			"mimeType": "image/webp",
+			"path": "thumbnail.webp",
+			"role": "thumbnail",
+			"url": "/text-assets/text-mine-drafts/plain@1/thumbnail.webp"
+		},
+		{
+			"byteSize": 2191,
+			"checksumSha256": "0a1924896b123c37a18496fb057119e00196fd864d62fce427c33d672994b390",
+			"mimeType": "application/json",
+			"path": "template.json",
+			"role": "source",
+			"url": "/text-assets/text-mine-drafts/plain@1/template.json"
+		}
+	],
+	"source": {
+		"schemaVersion": 1,
+		"assetId": "text-mine-drafts-plain",
+		"packageId": "text-mine-drafts",
+		"version": 1,
+		"marketplace": {
+			"editorialRank": 120,
+			"heatScore": 77,
+			"remoteTags": [
+				"category:drafts",
+				"group:mine",
+				"variant:plain"
+			],
+			"searchAliases": []
+		},
+		"definition": {
+			"id": "drafts-plain",
+			"name": "草稿基础",
+			"category": "drafts",
+			"groupId": "mine",
+			"variantId": "plain",
+			"content": "草稿",
+			"stylePresetId": "clean-white",
+			"keywords": [
+				"drafts",
+				"草稿",
+				"plain",
+				"基础",
+				"干净",
+				"白色",
+				"clean",
+				"drafts-plain",
+				"草稿基础",
+				"mine"
+			],
+			"premium": false,
+			"downloaded": true,
+			"resource": {
+				"assetId": "text-mine-drafts-plain",
+				"packageId": "text-mine-drafts",
+				"version": 1,
+				"entitlement": "free",
+				"cacheKey": "text-assets/text-mine-drafts/plain@1",
+				"sizeKb": 192
+			},
+			"catalogVisible": true,
+			"overrides": {
+				"fontSize": 64,
+				"color": "#fafaf9",
+				"fontWeight": "bold",
+				"strokeColor": "#1c1917",
+				"strokeWidth": 1,
+				"shadowColor": "#1c1917",
+				"shadowOpacity": 0.25,
+				"shadowOffsetX": 2,
+				"shadowOffsetY": 4,
+				"shadowBlur": 8,
+				"width": 720,
+				"height": 180
+			}
+		},
+		"template": {
+			"id": "drafts-plain",
+			"type": "text",
+			"name": "草稿基础",
+			"content": "草稿",
+			"fontSize": 64,
+			"fontFamily": "Arial",
+			"color": "#fafaf9",
+			"backgroundColor": "transparent",
+			"textAlign": "center",
+			"fontWeight": "bold",
+			"fontStyle": "normal",
+			"textDecoration": "none",
+			"x": 0,
+			"y": 0,
+			"rotation": 0,
+			"opacity": 1,
+			"width": 720,
+			"height": 180,
+			"letterSpacing": 0,
+			"lineHeight": 1.2,
+			"verticalAlign": "middle",
+			"strokeColor": "#1c1917",
+			"strokeWidth": 1,
+			"strokeOpacity": 1,
+			"backgroundOpacity": 0,
+			"backgroundRadius": 4,
+			"backgroundPadding": 12,
+			"shadowColor": "#1c1917",
+			"shadowOpacity": 0.25,
+			"shadowOffsetX": 2,
+			"shadowOffsetY": 4,
+			"shadowBlur": 8,
+			"glowColor": "#ffffff",
+			"glowOpacity": 0,
+			"glowBlur": 12,
+			"curve": 0,
+			"animationType": "none",
+			"animationDuration": 0.6,
+			"animationDelay": 0,
+			"blendMode": "normal",
+			"duration": 5,
+			"startTime": 0,
+			"trimStart": 0,
+			"trimEnd": 0
+		}
+	}
+}

@@ -1,0 +1,153 @@
+{
+	"schemaVersion": 1,
+	"kind": "qcut-text-template-package",
+	"assetId": "text-fancy-summer-pink-heart",
+	"packageId": "text-fancy-summer",
+	"version": 1,
+	"cacheKey": "text-assets/text-fancy-summer/pink-heart@1",
+	"files": {
+		"thumbnail": "thumbnail.webp",
+		"source": "template.json"
+	},
+	"resources": [
+		{
+			"byteSize": 14214,
+			"checksumSha256": "08d48af721ffe93a17a8ada0acb43ead70d8aa3c0e87bf4d1ecc3aefad6458cd",
+			"mimeType": "image/webp",
+			"path": "thumbnail.webp",
+			"role": "thumbnail",
+			"url": "/text-assets/text-fancy-summer/pink-heart@1/thumbnail.webp"
+		},
+		{
+			"byteSize": 2503,
+			"checksumSha256": "697e82d9aadc5c34bb5a07aaf1da1bba4904cc07645b30eb1c2e61c16615d85e",
+			"mimeType": "application/json",
+			"path": "template.json",
+			"role": "source",
+			"url": "/text-assets/text-fancy-summer/pink-heart@1/template.json"
+		}
+	],
+	"source": {
+		"schemaVersion": 1,
+		"assetId": "text-fancy-summer-pink-heart",
+		"packageId": "text-fancy-summer",
+		"version": 1,
+		"marketplace": {
+			"editorialRank": 34,
+			"heatScore": 88,
+			"remoteTags": [
+				"category:summer",
+				"group:fancy",
+				"variant:pink-heart",
+				"season:summer",
+				"tone:fresh"
+			],
+			"searchAliases": [
+				"夏日",
+				"清爽",
+				"活动",
+				"节日",
+				"旅行",
+				"summer"
+			]
+		},
+		"definition": {
+			"id": "summer-pink-heart",
+			"name": "夏日甜心",
+			"category": "summer",
+			"groupId": "fancy",
+			"variantId": "pink-heart",
+			"content": "夏日",
+			"stylePresetId": "pink-neon",
+			"keywords": [
+				"summer",
+				"夏日",
+				"pink-heart",
+				"甜心",
+				"粉色",
+				"甜美",
+				"可爱",
+				"pink",
+				"heart",
+				"summer-pink-heart",
+				"夏日甜心",
+				"fancy"
+			],
+			"premium": false,
+			"downloaded": false,
+			"resource": {
+				"assetId": "text-fancy-summer-pink-heart",
+				"packageId": "text-fancy-summer",
+				"version": 1,
+				"entitlement": "free",
+				"cacheKey": "text-assets/text-fancy-summer/pink-heart@1",
+				"sizeKb": 192
+			},
+			"catalogVisible": true,
+			"overrides": {
+				"fontSize": 70,
+				"color": "#fdf2f8",
+				"fontWeight": "bold",
+				"strokeColor": "#db2777",
+				"strokeWidth": 5,
+				"backgroundColor": "#f9a8d4",
+				"backgroundOpacity": 0.72,
+				"backgroundRadius": 32,
+				"backgroundPadding": 18,
+				"shadowColor": "#831843",
+				"shadowOpacity": 0.35,
+				"shadowOffsetX": 4,
+				"shadowOffsetY": 7,
+				"shadowBlur": 8,
+				"width": 720,
+				"height": 210
+			}
+		},
+		"template": {
+			"id": "summer-pink-heart",
+			"type": "text",
+			"name": "夏日甜心",
+			"content": "夏日",
+			"fontSize": 70,
+			"fontFamily": "Arial",
+			"color": "#fdf2f8",
+			"backgroundColor": "#f9a8d4",
+			"textAlign": "center",
+			"fontWeight": "bold",
+			"fontStyle": "normal",
+			"textDecoration": "none",
+			"x": 0,
+			"y": 0,
+			"rotation": 0,
+			"opacity": 1,
+			"width": 720,
+			"height": 210,
+			"letterSpacing": 0,
+			"lineHeight": 1.2,
+			"verticalAlign": "middle",
+			"strokeColor": "#db2777",
+			"strokeWidth": 5,
+			"strokeOpacity": 1,
+			"backgroundOpacity": 0.72,
+			"backgroundRadius": 32,
+			"backgroundPadding": 18,
+			"shadowColor": "#831843",
+			"shadowOpacity": 0.35,
+			"shadowOffsetX": 4,
+			"shadowOffsetY": 7,
+			"shadowBlur": 8,
+			"glowColor": "#ff3ca6",
+			"glowOpacity": 0.9,
+			"glowBlur": 18,
+			"curve": 0,
+			"animationType": "none",
+			"animationDuration": 0.6,
+			"animationDelay": 0,
+			"blendMode": "normal",
+			"duration": 5,
+			"startTime": 0,
+			"trimStart": 0,
+			"trimEnd": 0
+		}
+	}
+}

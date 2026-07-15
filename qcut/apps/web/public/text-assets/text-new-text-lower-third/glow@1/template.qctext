@@ -1,0 +1,145 @@
+{
+	"schemaVersion": 1,
+	"kind": "qcut-text-template-package",
+	"assetId": "text-new-text-lower-third-glow",
+	"packageId": "text-new-text-lower-third",
+	"version": 1,
+	"cacheKey": "text-assets/text-new-text-lower-third/glow@1",
+	"files": {
+		"thumbnail": "thumbnail.webp",
+		"source": "template.json"
+	},
+	"resources": [
+		{
+			"byteSize": 20236,
+			"checksumSha256": "7f8f8047f114ee545637fd4672719b87df3251891233253ed9e650b00a82fe19",
+			"mimeType": "image/webp",
+			"path": "thumbnail.webp",
+			"role": "thumbnail",
+			"url": "/text-assets/text-new-text-lower-third/glow@1/thumbnail.webp"
+		},
+		{
+			"byteSize": 2372,
+			"checksumSha256": "a4767f046d8a65f3c253e00040fd7a98d65c71ae7650f9d766061d012415cb00",
+			"mimeType": "application/json",
+			"path": "template.json",
+			"role": "source",
+			"url": "/text-assets/text-new-text-lower-third/glow@1/template.json"
+		}
+	],
+	"source": {
+		"schemaVersion": 1,
+		"assetId": "text-new-text-lower-third-glow",
+		"packageId": "text-new-text-lower-third",
+		"version": 1,
+		"marketplace": {
+			"editorialRank": 15,
+			"heatScore": 100,
+			"remoteTags": [
+				"category:lower-third",
+				"group:new-text",
+				"variant:glow",
+				"effect:glow",
+				"scene:night"
+			],
+			"searchAliases": [
+				"发光",
+				"霓虹",
+				"夜景"
+			]
+		},
+		"definition": {
+			"id": "lower-third-glow",
+			"name": "角标发光",
+			"category": "lower-third",
+			"groupId": "new-text",
+			"variantId": "glow",
+			"content": "人物介绍",
+			"stylePresetId": "cyan-neon",
+			"keywords": [
+				"lower-third",
+				"角标",
+				"人物介绍",
+				"glow",
+				"发光",
+				"霓虹",
+				"夜景",
+				"neon",
+				"lower-third-glow",
+				"角标发光",
+				"new-text"
+			],
+			"premium": true,
+			"downloaded": false,
+			"resource": {
+				"assetId": "text-new-text-lower-third-glow",
+				"packageId": "text-new-text-lower-third",
+				"version": 1,
+				"entitlement": "svip",
+				"cacheKey": "text-assets/text-new-text-lower-third/glow@1",
+				"sizeKb": 384
+			},
+			"catalogVisible": true,
+			"overrides": {
+				"fontSize": 70,
+				"color": "#ffffff",
+				"fontWeight": "bold",
+				"strokeColor": "#0ea5e9",
+				"strokeWidth": 1,
+				"glowColor": "#fb7185",
+				"glowOpacity": 0.9,
+				"glowBlur": 20,
+				"shadowOpacity": 0,
+				"width": 740,
+				"height": 220,
+				"animationType": "fade"
+			}
+		},
+		"template": {
+			"id": "lower-third-glow",
+			"type": "text",
+			"name": "角标发光",
+			"content": "人物介绍",
+			"fontSize": 70,
+			"fontFamily": "Arial",
+			"color": "#ffffff",
+			"backgroundColor": "transparent",
+			"textAlign": "center",
+			"fontWeight": "bold",
+			"fontStyle": "normal",
+			"textDecoration": "none",
+			"x": 0,
+			"y": 0,
+			"rotation": 0,
+			"opacity": 1,
+			"width": 740,
+			"height": 220,
+			"letterSpacing": 0,
+			"lineHeight": 1.2,
+			"verticalAlign": "middle",
+			"strokeColor": "#0ea5e9",
+			"strokeWidth": 1,
+			"strokeOpacity": 1,
+			"backgroundOpacity": 0,
+			"backgroundRadius": 4,
+			"backgroundPadding": 12,
+			"shadowColor": "#000000",
+			"shadowOpacity": 0,
+			"shadowOffsetX": 4,
+			"shadowOffsetY": 4,
+			"shadowBlur": 8,
+			"glowColor": "#fb7185",
+			"glowOpacity": 0.9,
+			"glowBlur": 20,
+			"curve": 0,
+			"animationType": "fade",
+			"animationDuration": 0.6,
+			"animationDelay": 0,
+			"blendMode": "normal",
+			"duration": 5,
+			"startTime": 0,
+			"trimStart": 0,
+			"trimEnd": 0
+		}
+	}
+}

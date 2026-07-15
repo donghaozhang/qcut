@@ -1,0 +1,152 @@
+{
+	"schemaVersion": 1,
+	"kind": "qcut-text-template-package",
+	"assetId": "text-smart-text-rewrite-candy",
+	"packageId": "text-smart-text-rewrite",
+	"version": 1,
+	"cacheKey": "text-assets/text-smart-text-rewrite/candy@1",
+	"files": {
+		"thumbnail": "thumbnail.webp",
+		"source": "template.json"
+	},
+	"resources": [
+		{
+			"byteSize": 12004,
+			"checksumSha256": "544f1b39d7314b78762c2e6b24284156b1d5b4b6e8f526eda795dcb28affeb01",
+			"mimeType": "image/webp",
+			"path": "thumbnail.webp",
+			"role": "thumbnail",
+			"url": "/text-assets/text-smart-text-rewrite/candy@1/thumbnail.webp"
+		},
+		{
+			"byteSize": 2495,
+			"checksumSha256": "8bcc30a093109eca7f06240442ee71be8621eca25b2c77eed07b45582b3957e3",
+			"mimeType": "application/json",
+			"path": "template.json",
+			"role": "source",
+			"url": "/text-assets/text-smart-text-rewrite/candy@1/template.json"
+		}
+	],
+	"source": {
+		"schemaVersion": 1,
+		"assetId": "text-smart-text-rewrite-candy",
+		"packageId": "text-smart-text-rewrite",
+		"version": 1,
+		"marketplace": {
+			"editorialRank": 58,
+			"heatScore": 93,
+			"remoteTags": [
+				"category:rewrite",
+				"group:smart-text",
+				"variant:candy",
+				"style:candy",
+				"tone:cute"
+			],
+			"searchAliases": [
+				"糖果",
+				"甜",
+				"可爱"
+			]
+		},
+		"definition": {
+			"id": "rewrite-candy",
+			"name": "AI改写糖果",
+			"category": "rewrite",
+			"groupId": "smart-text",
+			"variantId": "candy",
+			"content": "更短一点",
+			"stylePresetId": "pink-neon",
+			"keywords": [
+				"rewrite",
+				"AI改写",
+				"改写",
+				"更口语",
+				"更有冲击",
+				"更短一点",
+				"更专业",
+				"ai",
+				"润色",
+				"candy",
+				"糖果",
+				"甜美",
+				"粉色",
+				"rewrite-candy",
+				"AI改写糖果",
+				"smart-text"
+			],
+			"premium": true,
+			"downloaded": false,
+			"resource": {
+				"assetId": "text-smart-text-rewrite-candy",
+				"packageId": "text-smart-text-rewrite",
+				"version": 1,
+				"entitlement": "svip",
+				"cacheKey": "text-assets/text-smart-text-rewrite/candy@1",
+				"sizeKb": 384
+			},
+			"catalogVisible": true,
+			"overrides": {
+				"fontSize": 70,
+				"color": "#f5f3ff",
+				"fontWeight": "bold",
+				"strokeColor": "#84cc16",
+				"strokeWidth": 5,
+				"backgroundColor": "#ede9fe",
+				"backgroundOpacity": 0.8,
+				"backgroundRadius": 30,
+				"backgroundPadding": 16,
+				"glowColor": "#ffffff",
+				"glowOpacity": 0.45,
+				"glowBlur": 8,
+				"width": 700,
+				"height": 210
+			}
+		},
+		"template": {
+			"id": "rewrite-candy",
+			"type": "text",
+			"name": "AI改写糖果",
+			"content": "更短一点",
+			"fontSize": 70,
+			"fontFamily": "Arial",
+			"color": "#f5f3ff",
+			"backgroundColor": "#ede9fe",
+			"textAlign": "center",
+			"fontWeight": "bold",
+			"fontStyle": "normal",
+			"textDecoration": "none",
+			"x": 0,
+			"y": 0,
+			"rotation": 0,
+			"opacity": 1,
+			"width": 700,
+			"height": 210,
+			"letterSpacing": 0,
+			"lineHeight": 1.2,
+			"verticalAlign": "middle",
+			"strokeColor": "#84cc16",
+			"strokeWidth": 5,
+			"strokeOpacity": 1,
+			"backgroundOpacity": 0.8,
+			"backgroundRadius": 30,
+			"backgroundPadding": 16,
+			"shadowColor": "#000000",
+			"shadowOpacity": 0,
+			"shadowOffsetX": 4,
+			"shadowOffsetY": 4,
+			"shadowBlur": 8,
+			"glowColor": "#ffffff",
+			"glowOpacity": 0.45,
+			"glowBlur": 8,
+			"curve": 0,
+			"animationType": "none",
+			"animationDuration": 0.6,
+			"animationDelay": 0,
+			"blendMode": "normal",
+			"duration": 5,
+			"startTime": 0,
+			"trimStart": 0,
+			"trimEnd": 0
+		}
+	}
+}

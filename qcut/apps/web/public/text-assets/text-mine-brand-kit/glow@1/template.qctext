@@ -1,0 +1,145 @@
+{
+	"schemaVersion": 1,
+	"kind": "qcut-text-template-package",
+	"assetId": "text-mine-brand-kit-glow",
+	"packageId": "text-mine-brand-kit",
+	"version": 1,
+	"cacheKey": "text-assets/text-mine-brand-kit/glow@1",
+	"files": {
+		"thumbnail": "thumbnail.webp",
+		"source": "template.json"
+	},
+	"resources": [
+		{
+			"byteSize": 14636,
+			"checksumSha256": "f0e12e22579b0a241547873d7953d610b5b7ac228d8b56db969bc001880be64c",
+			"mimeType": "image/webp",
+			"path": "thumbnail.webp",
+			"role": "thumbnail",
+			"url": "/text-assets/text-mine-brand-kit/glow@1/thumbnail.webp"
+		},
+		{
+			"byteSize": 2312,
+			"checksumSha256": "852477d3195edbaa2b9f509163fdead667600359512d06008174ddf0df366940",
+			"mimeType": "application/json",
+			"path": "template.json",
+			"role": "source",
+			"url": "/text-assets/text-mine-brand-kit/glow@1/template.json"
+		}
+	],
+	"source": {
+		"schemaVersion": 1,
+		"assetId": "text-mine-brand-kit-glow",
+		"packageId": "text-mine-brand-kit",
+		"version": 1,
+		"marketplace": {
+			"editorialRank": 15,
+			"heatScore": 100,
+			"remoteTags": [
+				"category:brand-kit",
+				"group:mine",
+				"variant:glow",
+				"effect:glow",
+				"scene:night"
+			],
+			"searchAliases": [
+				"发光",
+				"霓虹",
+				"夜景"
+			]
+		},
+		"definition": {
+			"id": "brand-kit-glow",
+			"name": "品牌字发光",
+			"category": "brand-kit",
+			"groupId": "mine",
+			"variantId": "glow",
+			"content": "品牌",
+			"stylePresetId": "cyan-neon",
+			"keywords": [
+				"brand-kit",
+				"品牌字",
+				"品牌",
+				"glow",
+				"发光",
+				"霓虹",
+				"夜景",
+				"neon",
+				"brand-kit-glow",
+				"品牌字发光",
+				"mine"
+			],
+			"premium": true,
+			"downloaded": false,
+			"resource": {
+				"assetId": "text-mine-brand-kit-glow",
+				"packageId": "text-mine-brand-kit",
+				"version": 1,
+				"entitlement": "svip",
+				"cacheKey": "text-assets/text-mine-brand-kit/glow@1",
+				"sizeKb": 384
+			},
+			"catalogVisible": true,
+			"overrides": {
+				"fontSize": 70,
+				"color": "#f5f3ff",
+				"fontWeight": "bold",
+				"strokeColor": "#7c3aed",
+				"strokeWidth": 1,
+				"glowColor": "#f59e0b",
+				"glowOpacity": 0.9,
+				"glowBlur": 20,
+				"shadowOpacity": 0,
+				"width": 740,
+				"height": 220,
+				"animationType": "fade"
+			}
+		},
+		"template": {
+			"id": "brand-kit-glow",
+			"type": "text",
+			"name": "品牌字发光",
+			"content": "品牌",
+			"fontSize": 70,
+			"fontFamily": "Arial",
+			"color": "#f5f3ff",
+			"backgroundColor": "transparent",
+			"textAlign": "center",
+			"fontWeight": "bold",
+			"fontStyle": "normal",
+			"textDecoration": "none",
+			"x": 0,
+			"y": 0,
+			"rotation": 0,
+			"opacity": 1,
+			"width": 740,
+			"height": 220,
+			"letterSpacing": 0,
+			"lineHeight": 1.2,
+			"verticalAlign": "middle",
+			"strokeColor": "#7c3aed",
+			"strokeWidth": 1,
+			"strokeOpacity": 1,
+			"backgroundOpacity": 0,
+			"backgroundRadius": 4,
+			"backgroundPadding": 12,
+			"shadowColor": "#000000",
+			"shadowOpacity": 0,
+			"shadowOffsetX": 4,
+			"shadowOffsetY": 4,
+			"shadowBlur": 8,
+			"glowColor": "#f59e0b",
+			"glowOpacity": 0.9,
+			"glowBlur": 20,
+			"curve": 0,
+			"animationType": "fade",
+			"animationDuration": 0.6,
+			"animationDelay": 0,
+			"blendMode": "normal",
+			"duration": 5,
+			"startTime": 0,
+			"trimStart": 0,
+			"trimEnd": 0
+		}
+	}
+}

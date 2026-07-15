@@ -1,0 +1,138 @@
+{
+	"schemaVersion": 1,
+	"kind": "qcut-text-template-package",
+	"assetId": "text-mine-recent-cutout",
+	"packageId": "text-mine-recent",
+	"version": 1,
+	"cacheKey": "text-assets/text-mine-recent/cutout@1",
+	"files": {
+		"thumbnail": "thumbnail.webp",
+		"source": "template.json"
+	},
+	"resources": [
+		{
+			"byteSize": 15588,
+			"checksumSha256": "4d9f18a0c67557092e103b5ecb634037e00ee252206eab09e8c880ef07b3fc27",
+			"mimeType": "image/webp",
+			"path": "thumbnail.webp",
+			"role": "thumbnail",
+			"url": "/text-assets/text-mine-recent/cutout@1/thumbnail.webp"
+		},
+		{
+			"byteSize": 2224,
+			"checksumSha256": "9215852e2481cdbdf6554b22fc69b7c8fe9e65fb2bfc2da1cdf5e07422718560",
+			"mimeType": "application/json",
+			"path": "template.json",
+			"role": "source",
+			"url": "/text-assets/text-mine-recent/cutout@1/template.json"
+		}
+	],
+	"source": {
+		"schemaVersion": 1,
+		"assetId": "text-mine-recent-cutout",
+		"packageId": "text-mine-recent",
+		"version": 1,
+		"marketplace": {
+			"editorialRank": 120,
+			"heatScore": 81,
+			"remoteTags": [
+				"category:recent",
+				"group:mine",
+				"variant:cutout"
+			],
+			"searchAliases": []
+		},
+		"definition": {
+			"id": "recent-cutout",
+			"name": "最近使用剪纸",
+			"category": "recent",
+			"groupId": "mine",
+			"variantId": "cutout",
+			"content": "最近",
+			"stylePresetId": "blue-outline",
+			"keywords": [
+				"recent",
+				"最近使用",
+				"最近",
+				"cutout",
+				"剪纸",
+				"贴边",
+				"层次",
+				"recent-cutout",
+				"最近使用剪纸",
+				"mine"
+			],
+			"premium": true,
+			"downloaded": false,
+			"resource": {
+				"assetId": "text-mine-recent-cutout",
+				"packageId": "text-mine-recent",
+				"version": 1,
+				"entitlement": "svip",
+				"cacheKey": "text-assets/text-mine-recent/cutout@1",
+				"sizeKb": 384
+			},
+			"catalogVisible": true,
+			"overrides": {
+				"fontSize": 70,
+				"color": "#cffafe",
+				"fontWeight": "bold",
+				"strokeColor": "#0891b2",
+				"strokeWidth": 7,
+				"shadowColor": "#164e63",
+				"shadowOpacity": 0.4,
+				"shadowOffsetX": 7,
+				"shadowOffsetY": 7,
+				"shadowBlur": 0,
+				"width": 760,
+				"height": 220
+			}
+		},
+		"template": {
+			"id": "recent-cutout",
+			"type": "text",
+			"name": "最近使用剪纸",
+			"content": "最近",
+			"fontSize": 70,
+			"fontFamily": "Arial",
+			"color": "#cffafe",
+			"backgroundColor": "transparent",
+			"textAlign": "center",
+			"fontWeight": "bold",
+			"fontStyle": "normal",
+			"textDecoration": "none",
+			"x": 0,
+			"y": 0,
+			"rotation": 0,
+			"opacity": 1,
+			"width": 760,
+			"height": 220,
+			"letterSpacing": 0,
+			"lineHeight": 1.2,
+			"verticalAlign": "middle",
+			"strokeColor": "#0891b2",
+			"strokeWidth": 7,
+			"strokeOpacity": 1,
+			"backgroundOpacity": 0,
+			"backgroundRadius": 4,
+			"backgroundPadding": 12,
+			"shadowColor": "#164e63",
+			"shadowOpacity": 0.4,
+			"shadowOffsetX": 7,
+			"shadowOffsetY": 7,
+			"shadowBlur": 0,
+			"glowColor": "#ffffff",
+			"glowOpacity": 0,
+			"glowBlur": 12,
+			"curve": 0,
+			"animationType": "none",
+			"animationDuration": 0.6,
+			"animationDelay": 0,
+			"blendMode": "normal",
+			"duration": 5,
+			"startTime": 0,
+			"trimStart": 0,
+			"trimEnd": 0
+		}
+	}
+}

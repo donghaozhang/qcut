@@ -37,6 +37,7 @@ interface VideoPlayerProps {
 	trackId?: string;
 	trackMuted?: boolean;
 	previewGain?: number;
+	sourceTimeOffset?: number;
 }
 
 function getVideoPlaybackRate({
@@ -83,6 +84,7 @@ export function VideoPlayer({
 	trackId,
 	trackMuted = false,
 	previewGain = 1,
+	sourceTimeOffset = 0,
 }: VideoPlayerProps) {
 	const videoRef = useRef<HTMLVideoElement>(null);
 	const blobUrlRef = useRef<string | null>(null);
@@ -126,20 +128,29 @@ export function VideoPlayer({
 	const getVideoTime = useCallback(
 		(timelineTime: number) => {
 			if (!timingElement) {
-				return Math.max(
+				const sourceTime = Math.max(
 					trimStart,
 					Math.min(
 						clipDuration - trimEnd,
 						timelineTime - clipStartTime + trimStart
 					)
 				);
+				return Math.max(0, sourceTime - sourceTimeOffset);
 			}
-			return getMediaSourcePlaybackTime({
+			const sourceTime = getMediaSourcePlaybackTime({
 				element: timingElement,
 				localTimelineTime: timelineTime - clipStartTime,
 			});
+			return Math.max(0, sourceTime - sourceTimeOffset);
 		},
-		[timingElement, trimStart, trimEnd, clipDuration, clipStartTime]
+		[
+			timingElement,
+			trimStart,
+			trimEnd,
+			clipDuration,
+			clipStartTime,
+			sourceTimeOffset,
+		]
 	);
 	const syncVideoTiming = useCallback(
 		({

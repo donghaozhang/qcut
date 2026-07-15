@@ -35,6 +35,8 @@ import { KeyboardShortcutsHelp } from "./keyboard-shortcuts-help";
 import { ScreenshotControl } from "./editor/screenshot-control";
 import { LanguageSelector } from "./language-selector";
 import { useTranslation } from "@/lib/i18n";
+import { ReviewPanelControl } from "./editor/review/review-panel-control";
+import { UserLibrarySyncControl } from "./user-library-sync-control";
 
 /** Editor header bar with project name, export, screenshot, and recording controls. */
 export function EditorHeader() {
@@ -163,6 +165,8 @@ export function EditorHeader() {
 			<LanguageSelector />
 			<PanelPresetSelector />
 			<ScreenRecordingControl />
+			<UserLibrarySyncControl />
+			<ReviewPanelControl />
 			<Button
 				type="button"
 				size="sm"

@@ -1,4 +1,10 @@
-import { fireEvent, render, screen, within } from "@testing-library/react";
+import {
+	fireEvent,
+	render,
+	screen,
+	waitFor,
+	within,
+} from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { toast } from "sonner";
 import { useTimelineStore } from "@/stores/timeline/timeline-store";
@@ -8,6 +14,7 @@ import { useAssetLibraryStore } from "@/stores/asset-library-store";
 import type { MediaItem } from "@/stores/media/media-store-types";
 import type { MediaElement, TimelineTrack } from "@/types/timeline";
 import { TransitionsView } from "../index";
+import { getTransitionPresetById } from "../transition-presets";
 
 vi.mock("sonner", () => ({
 	toast: {
@@ -70,21 +77,26 @@ function adjacentClipsTrack(): TimelineTrack {
 function mediaItem({
 	id,
 	thumbnailUrl,
+	type = "video",
 }: {
 	id: string;
 	thumbnailUrl?: string;
+	type?: MediaItem["type"];
 }): MediaItem {
 	return {
 		id,
-		name: `${id}.mp4`,
-		type: "video",
-		file: new File([], `${id}.mp4`),
+		name: `${id}.${type}`,
+		type,
+		file: new File([], `${id}.${type}`),
 		thumbnailUrl,
 	};
 }
 
 function selectAdjacentClips() {
 	const track = adjacentClipsTrack();
+	useMediaStore.setState({
+		mediaItems: [mediaItem({ id: "media-a" }), mediaItem({ id: "media-b" })],
+	});
 	useTimelineStore.setState({
 		_tracks: [track],
 		tracks: [track],
@@ -111,6 +123,7 @@ describe("TransitionsView", () => {
 
 	afterEach(() => {
 		clearAutoSaveTimer();
+		vi.unstubAllGlobals();
 		vi.clearAllMocks();
 	});
 
@@ -150,6 +163,30 @@ describe("TransitionsView", () => {
 		expect(
 			screen.queryByTestId("transition-card-wipe-left")
 		).not.toBeInTheDocument();
+	});
+
+	it("exposes at least twenty working cards in every content category", () => {
+		render(<TransitionsView />);
+
+		for (const [category, presetId, expectedCount] of [
+			["叠化", "filmic-dissolve", 20],
+			["自然", "sunrise-fade", 20],
+			["幻灯片", "album-slide-left", 20],
+			["分割", "split-signal", 21],
+			["模糊", "horizontal-smear", 20],
+			["运镜", "crash-zoom", 20],
+			["拍摄", "exposure-pop", 20],
+			["扭曲", "digital-twist", 20],
+			["光效", "prism-flare", 20],
+			["故障", "data-mosh", 20],
+			["综艺", "sticker-swipe", 20],
+			["MG 动画", "kinetic-jump", 20],
+			["互动 emoji", "love-flash", 20],
+		] as const) {
+			fireEvent.click(screen.getByRole("button", { name: category }));
+			expect(screen.getByTestId(`transition-card-${presetId}`)).toBeVisible();
+			expect(screen.getByText(`${expectedCount} 个转场`)).toBeVisible();
+		}
 	});
 
 	it("shows the empty state when no presets match the search", () => {
@@ -209,14 +246,40 @@ describe("TransitionsView", () => {
 		).toBe(true);
 	});
 
+	it("downloads and unlocks a remote transition preset", async () => {
+		const mockFetch = vi.fn(
+			async () => new Response("preview", { status: 200 })
+		);
+		vi.stubGlobal("fetch", mockFetch);
+		render(<TransitionsView />);
+		fireEvent.change(screen.getByLabelText("搜索转场"), {
+			target: { value: "Speed Trail" },
+		});
+
+		const card = screen.getByTestId("transition-card-speed-trail");
+		expect(card).toHaveAttribute("draggable", "false");
+		fireEvent.click(
+			within(card).getByRole("button", { name: "下载转场素材: 高速轨迹" })
+		);
+
+		await waitFor(() => expect(card).toHaveAttribute("draggable", "true"));
+		expect(mockFetch).toHaveBeenCalledTimes(2);
+		expect(
+			Object.values(useAssetLibraryStore.getState().runtimeByAssetKey).some(
+				(runtime) =>
+					runtime.assetKey === "transition:speed-trail@1" &&
+					runtime.downloadStatus === "downloaded" &&
+					runtime.cacheStatus === "cached"
+			)
+		).toBe(true);
+	});
+
 	it("disables the apply button without a valid selection", () => {
 		render(<TransitionsView />);
 
 		expect(screen.getByRole("button", { name: "应用所选转场" })).toBeDisabled();
 		expect(
-			screen.getByText(
-				"Select two adjacent media clips to prepare a transition."
-			)
+			screen.getByText("请选择两段相邻的视频片段来添加转场。")
 		).toBeInTheDocument();
 	});
 
@@ -225,7 +288,7 @@ describe("TransitionsView", () => {
 		render(<TransitionsView />);
 
 		expect(
-			screen.getByText("Ready between Clip A and Clip B.")
+			screen.getByText("可在 Clip A 与 Clip B 之间添加转场。")
 		).toBeInTheDocument();
 
 		fireEvent.click(screen.getByRole("button", { name: "应用所选转场" }));
@@ -243,7 +306,21 @@ describe("TransitionsView", () => {
 				easing: "easeInOut",
 			}),
 		]);
-		expect(toast.success).toHaveBeenCalledWith("Dissolve applied.");
+		expect(toast.success).toHaveBeenCalledWith("已应用叠化。");
+	});
+
+	it("disables transition application when either selected clip is an image", () => {
+		selectAdjacentClips();
+		useMediaStore.setState({
+			mediaItems: [
+				mediaItem({ id: "media-a" }),
+				mediaItem({ id: "media-b", type: "image" }),
+			],
+		});
+		render(<TransitionsView />);
+
+		expect(screen.getByRole("button", { name: "应用所选转场" })).toBeDisabled();
+		expect(screen.getByText("转场需要两段视频片段。")).toBeInTheDocument();
 	});
 
 	it("applies a preset from the card apply button", () => {
@@ -261,7 +338,7 @@ describe("TransitionsView", () => {
 				type: "fade-black",
 			}),
 		]);
-		expect(toast.success).toHaveBeenCalledWith("Fade Through Black applied.");
+		expect(toast.success).toHaveBeenCalledWith("已应用黑场过渡。");
 	});
 
 	it("double-clicks a ready card to replace the transition at the seam", () => {
@@ -296,6 +373,7 @@ describe("TransitionsView", () => {
 				trackId: "track-1",
 				fromElementId: "clip-a",
 				toElementId: "clip-b",
+				videoMediaIds: new Set(["media-a", "media-b"]),
 				presetId: "dissolve",
 				type: "dissolve",
 				direction: undefined,
@@ -304,7 +382,7 @@ describe("TransitionsView", () => {
 				easing: "easeInOut",
 			});
 			expect(toast.error).toHaveBeenCalledWith(
-				"This cut does not have enough room for a transition."
+				"这个剪辑点没有足够空间容纳转场。"
 			);
 			expect(toast.success).not.toHaveBeenCalled();
 		} finally {
@@ -312,7 +390,7 @@ describe("TransitionsView", () => {
 		}
 	});
 
-	it("uses the selected clips' thumbnails for card previews", () => {
+	it("keeps dedicated preview art when clips are selected", () => {
 		selectAdjacentClips();
 		useMediaStore.setState({
 			mediaItems: [
@@ -326,8 +404,11 @@ describe("TransitionsView", () => {
 		const sources = Array.from(card.querySelectorAll("img")).map((img) =>
 			img.getAttribute("src")
 		);
+		const dissolve = getTransitionPresetById({ presetId: "dissolve" });
 
-		expect(sources).toEqual(["blob:thumb-a", "blob:thumb-b"]);
+		expect(sources).toEqual([dissolve?.preview.from, dissolve?.preview.to]);
+		expect(sources).not.toContain("blob:thumb-a");
+		expect(sources).not.toContain("blob:thumb-b");
 	});
 
 	it("falls back to bundled preview art when no clips are selected", () => {
@@ -337,11 +418,9 @@ describe("TransitionsView", () => {
 		const sources = Array.from(card.querySelectorAll("img")).map((img) =>
 			img.getAttribute("src")
 		);
+		const dissolve = getTransitionPresetById({ presetId: "dissolve" });
 
-		expect(sources).toEqual([
-			"/images/filter-previews/coastal.webp",
-			"/images/filter-previews/golden-hour.webp",
-		]);
+		expect(sources).toEqual([dissolve?.preview.from, dissolve?.preview.to]);
 	});
 
 	it("starts a drag with the encoded transition payload", () => {

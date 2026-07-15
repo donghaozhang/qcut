@@ -1,6 +1,10 @@
 import type { MediaColorSettings } from "@/types/timeline";
 import { generateUUID } from "@/types/timeline";
 import { DEFAULT_MEDIA_COLOR_SETTINGS } from "./color-properties";
+import {
+	notifyUserLibraryChanged,
+	USER_LIBRARY_NAMESPACES,
+} from "@/lib/user-library/user-library-events";
 
 export const COLOR_PRESET_STORAGE_KEY = "qcut-color-presets";
 export const COLOR_PRESETS_CHANGED_EVENT = "qcut:color-presets-changed";
@@ -12,6 +16,23 @@ export interface SavedColorPreset {
 	color: MediaColorSettings;
 }
 
+export function parseColorPreset({
+	value,
+}: {
+	value: unknown;
+}): SavedColorPreset | null {
+	if (
+		typeof value !== "object" ||
+		value === null ||
+		typeof (value as Partial<SavedColorPreset>).id !== "string" ||
+		typeof (value as Partial<SavedColorPreset>).name !== "string" ||
+		typeof (value as Partial<SavedColorPreset>).color !== "object"
+	) {
+		return null;
+	}
+	return value as SavedColorPreset;
+}
+
 export function loadColorPresets(): SavedColorPreset[] {
 	if (typeof localStorage === "undefined") return [];
 	try {
@@ -19,14 +40,9 @@ export function loadColorPresets(): SavedColorPreset[] {
 			localStorage.getItem(COLOR_PRESET_STORAGE_KEY) ?? "[]"
 		);
 		if (!Array.isArray(stored)) return [];
-		return stored.filter(
-			(candidate): candidate is SavedColorPreset =>
-				typeof candidate === "object" &&
-				candidate !== null &&
-				typeof (candidate as Partial<SavedColorPreset>).id === "string" &&
-				typeof (candidate as Partial<SavedColorPreset>).name === "string" &&
-				typeof (candidate as Partial<SavedColorPreset>).color === "object"
-		);
+		return stored
+			.map((value) => parseColorPreset({ value }))
+			.filter((preset): preset is SavedColorPreset => preset !== null);
 	} catch {
 		return [];
 	}
@@ -39,6 +55,9 @@ export function persistColorPresets({
 }) {
 	localStorage.setItem(COLOR_PRESET_STORAGE_KEY, JSON.stringify(presets));
 	window.dispatchEvent(new Event(COLOR_PRESETS_CHANGED_EVENT));
+	notifyUserLibraryChanged({
+		namespace: USER_LIBRARY_NAMESPACES.colorPresets,
+	});
 }
 
 export function createColorPreset({

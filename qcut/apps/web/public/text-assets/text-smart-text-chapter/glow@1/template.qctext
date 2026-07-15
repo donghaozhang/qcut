@@ -1,0 +1,151 @@
+{
+	"schemaVersion": 1,
+	"kind": "qcut-text-template-package",
+	"assetId": "text-smart-text-chapter-glow",
+	"packageId": "text-smart-text-chapter",
+	"version": 1,
+	"cacheKey": "text-assets/text-smart-text-chapter/glow@1",
+	"files": {
+		"thumbnail": "thumbnail.webp",
+		"source": "template.json"
+	},
+	"resources": [
+		{
+			"byteSize": 14504,
+			"checksumSha256": "77a7aaedd645c152e21da9528fa8937c2827b606bd2fbe8b4a0a87e5311c1b78",
+			"mimeType": "image/webp",
+			"path": "thumbnail.webp",
+			"role": "thumbnail",
+			"url": "/text-assets/text-smart-text-chapter/glow@1/thumbnail.webp"
+		},
+		{
+			"byteSize": 2427,
+			"checksumSha256": "7dc8315fc64112d04ae9d55eb5bf4e39ca15e208accd5ddf0fe949cff0fce673",
+			"mimeType": "application/json",
+			"path": "template.json",
+			"role": "source",
+			"url": "/text-assets/text-smart-text-chapter/glow@1/template.json"
+		}
+	],
+	"source": {
+		"schemaVersion": 1,
+		"assetId": "text-smart-text-chapter-glow",
+		"packageId": "text-smart-text-chapter",
+		"version": 1,
+		"marketplace": {
+			"editorialRank": 15,
+			"heatScore": 100,
+			"remoteTags": [
+				"category:chapter",
+				"group:smart-text",
+				"variant:glow",
+				"effect:glow",
+				"scene:night"
+			],
+			"searchAliases": [
+				"发光",
+				"霓虹",
+				"夜景"
+			]
+		},
+		"definition": {
+			"id": "chapter-glow",
+			"name": "章节标题发光",
+			"category": "chapter",
+			"groupId": "smart-text",
+			"variantId": "glow",
+			"content": "方法",
+			"stylePresetId": "cyan-neon",
+			"keywords": [
+				"chapter",
+				"章节标题",
+				"章节",
+				"第 1 章",
+				"背景",
+				"方法",
+				"结论",
+				"ai",
+				"分段",
+				"glow",
+				"发光",
+				"霓虹",
+				"夜景",
+				"neon",
+				"chapter-glow",
+				"章节标题发光",
+				"smart-text"
+			],
+			"premium": true,
+			"downloaded": false,
+			"resource": {
+				"assetId": "text-smart-text-chapter-glow",
+				"packageId": "text-smart-text-chapter",
+				"version": 1,
+				"entitlement": "svip",
+				"cacheKey": "text-assets/text-smart-text-chapter/glow@1",
+				"sizeKb": 384
+			},
+			"catalogVisible": true,
+			"overrides": {
+				"fontSize": 70,
+				"color": "#dbeafe",
+				"fontWeight": "bold",
+				"strokeColor": "#2563eb",
+				"strokeWidth": 1,
+				"glowColor": "#a855f7",
+				"glowOpacity": 0.9,
+				"glowBlur": 20,
+				"shadowOpacity": 0,
+				"width": 740,
+				"height": 220,
+				"animationType": "fade"
+			}
+		},
+		"template": {
+			"id": "chapter-glow",
+			"type": "text",
+			"name": "章节标题发光",
+			"content": "方法",
+			"fontSize": 70,
+			"fontFamily": "Arial",
+			"color": "#dbeafe",
+			"backgroundColor": "transparent",
+			"textAlign": "center",
+			"fontWeight": "bold",
+			"fontStyle": "normal",
+			"textDecoration": "none",
+			"x": 0,
+			"y": 0,
+			"rotation": 0,
+			"opacity": 1,
+			"width": 740,
+			"height": 220,
+			"letterSpacing": 0,
+			"lineHeight": 1.2,
+			"verticalAlign": "middle",
+			"strokeColor": "#2563eb",
+			"strokeWidth": 1,
+			"strokeOpacity": 1,
+			"backgroundOpacity": 0,
+			"backgroundRadius": 4,
+			"backgroundPadding": 12,
+			"shadowColor": "#000000",
+			"shadowOpacity": 0,
+			"shadowOffsetX": 4,
+			"shadowOffsetY": 4,
+			"shadowBlur": 8,
+			"glowColor": "#a855f7",
+			"glowOpacity": 0.9,
+			"glowBlur": 20,
+			"curve": 0,
+			"animationType": "fade",
+			"animationDuration": 0.6,
+			"animationDelay": 0,
+			"blendMode": "normal",
+			"duration": 5,
+			"startTime": 0,
+			"trimStart": 0,
+			"trimEnd": 0
+		}
+	}
+}

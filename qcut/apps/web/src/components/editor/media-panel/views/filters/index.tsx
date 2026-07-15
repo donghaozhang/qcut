@@ -240,7 +240,7 @@ export function FiltersView() {
 			</div>
 
 			<div className="flex min-h-0 flex-1">
-				<aside className="w-[104px] shrink-0 overflow-y-auto border-r border-border/50 p-2">
+				<aside className="w-[120px] shrink-0 overflow-y-auto border-r border-border/50 p-2">
 					<div className="space-y-0.5">
 						{FILTER_CATEGORIES.filter(
 							(item) => mode === "library" || item.id !== "mine"
@@ -268,7 +268,9 @@ export function FiltersView() {
 									}}
 								>
 									<Icon className="size-3.5 shrink-0" />
-									<span className="truncate">{item.localizedLabel}</span>
+									<span className="whitespace-nowrap">
+										{item.localizedLabel}
+									</span>
 								</button>
 							);
 						})}

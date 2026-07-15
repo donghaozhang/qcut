@@ -1,0 +1,134 @@
+{
+	"schemaVersion": 1,
+	"kind": "qcut-text-template-package",
+	"assetId": "text-legacy-pink-neon-title",
+	"packageId": "text-fancy-glow",
+	"version": 1,
+	"cacheKey": "text-assets/legacy/pink-neon-title@1",
+	"files": {
+		"thumbnail": "thumbnail.webp",
+		"source": "template.json"
+	},
+	"resources": [
+		{
+			"byteSize": 15498,
+			"checksumSha256": "3d088fb3272e64b3e533003b23096978a7919f2eddd9f02456f0d415a7a0780d",
+			"mimeType": "image/webp",
+			"path": "thumbnail.webp",
+			"role": "thumbnail",
+			"url": "/text-assets/legacy/pink-neon-title@1/thumbnail.webp"
+		},
+		{
+			"byteSize": 2092,
+			"checksumSha256": "7897e310af62f63d9fe11c0a15f7231e4b24c2905c81a2104357efbbb8899199",
+			"mimeType": "application/json",
+			"path": "template.json",
+			"role": "source",
+			"url": "/text-assets/legacy/pink-neon-title@1/template.json"
+		}
+	],
+	"source": {
+		"schemaVersion": 1,
+		"assetId": "text-legacy-pink-neon-title",
+		"packageId": "text-fancy-glow",
+		"version": 1,
+		"marketplace": {
+			"editorialRank": 14,
+			"heatScore": 91,
+			"remoteTags": [
+				"category:glow",
+				"group:fancy",
+				"variant:legacy-pink-neon-title",
+				"effect:glow",
+				"scene:night"
+			],
+			"searchAliases": [
+				"发光",
+				"霓虹",
+				"夜景",
+				"neon"
+			]
+		},
+		"definition": {
+			"id": "pink-neon-title",
+			"name": "Pink neon",
+			"category": "glow",
+			"groupId": "fancy",
+			"variantId": "legacy-pink-neon-title",
+			"content": "Night life",
+			"stylePresetId": "pink-neon",
+			"keywords": [
+				"pink",
+				"neon",
+				"发光",
+				"pink-neon-title",
+				"Pink neon",
+				"glow",
+				"fancy",
+				"legacy-pink-neon-title"
+			],
+			"premium": false,
+			"downloaded": true,
+			"resource": {
+				"assetId": "text-legacy-pink-neon-title",
+				"packageId": "text-fancy-glow",
+				"version": 1,
+				"entitlement": "free",
+				"cacheKey": "text-assets/legacy/pink-neon-title@1",
+				"sizeKb": 192
+			},
+			"catalogVisible": false,
+			"overrides": {
+				"fontSize": 76,
+				"width": 760,
+				"height": 230
+			}
+		},
+		"template": {
+			"id": "pink-neon-title",
+			"type": "text",
+			"name": "Pink neon",
+			"content": "Night life",
+			"fontSize": 76,
+			"fontFamily": "Arial",
+			"color": "#fff0fa",
+			"backgroundColor": "transparent",
+			"textAlign": "center",
+			"fontWeight": "bold",
+			"fontStyle": "normal",
+			"textDecoration": "none",
+			"x": 0,
+			"y": 0,
+			"rotation": 0,
+			"opacity": 1,
+			"width": 760,
+			"height": 230,
+			"letterSpacing": 0,
+			"lineHeight": 1.2,
+			"verticalAlign": "middle",
+			"strokeColor": "#ff3ca6",
+			"strokeWidth": 1,
+			"strokeOpacity": 1,
+			"backgroundOpacity": 0,
+			"backgroundRadius": 4,
+			"backgroundPadding": 12,
+			"shadowColor": "#000000",
+			"shadowOpacity": 0,
+			"shadowOffsetX": 4,
+			"shadowOffsetY": 4,
+			"shadowBlur": 8,
+			"glowColor": "#ff3ca6",
+			"glowOpacity": 0.9,
+			"glowBlur": 18,
+			"curve": 0,
+			"animationType": "none",
+			"animationDuration": 0.6,
+			"animationDelay": 0,
+			"blendMode": "normal",
+			"duration": 5,
+			"startTime": 0,
+			"trimStart": 0,
+			"trimEnd": 0
+		}
+	}
+}

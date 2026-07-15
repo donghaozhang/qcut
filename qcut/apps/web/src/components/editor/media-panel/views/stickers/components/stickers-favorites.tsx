@@ -2,14 +2,20 @@
 
 import { Heart } from "lucide-react";
 import { TooltipProvider } from "@/components/ui/tooltip";
+import { findStickerCatalogItem } from "@/lib/stickers/sticker-catalog";
 import { useAssetLibraryStore } from "@/stores/asset-library-store";
+import { StickerGrid } from "./sticker-grid";
 import { StickerItem } from "./sticker-item";
 
 interface StickersFavoritesProps {
+	onDownload: (iconId: string, name: string) => void | Promise<void>;
 	onSelect: (iconId: string, name: string) => void;
 }
 
-export function StickersFavorites({ onSelect }: StickersFavoritesProps) {
+export function StickersFavorites({
+	onDownload,
+	onSelect,
+}: StickersFavoritesProps) {
 	const favorites = useAssetLibraryStore((state) => state.favorites);
 	const stickerIds = Object.keys(favorites)
 		.filter((identity) => identity.startsWith("sticker:"))
@@ -32,23 +38,26 @@ export function StickersFavorites({ onSelect }: StickersFavoritesProps) {
 
 	return (
 		<TooltipProvider>
-			<div className="grid grid-cols-6 gap-2.5 p-3 sm:grid-cols-8 md:grid-cols-10 lg:grid-cols-12">
+			<StickerGrid className="p-2">
 				{stickerIds.map((iconId) => {
 					const separatorIndex = iconId.indexOf(":");
 					if (separatorIndex <= 0) return null;
 					const collection = iconId.slice(0, separatorIndex);
 					const icon = iconId.slice(separatorIndex + 1);
+					const catalogItem = findStickerCatalogItem({ collection, icon });
 					return (
 						<StickerItem
 							key={iconId}
 							icon={icon}
-							name={icon}
+							name={catalogItem?.localizedName ?? icon}
 							collection={collection}
+							layout="catalog"
+							onDownload={onDownload}
 							onSelect={onSelect}
 						/>
 					);
 				})}
-			</div>
+			</StickerGrid>
 		</TooltipProvider>
 	);
 }

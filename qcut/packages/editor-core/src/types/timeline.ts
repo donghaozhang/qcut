@@ -147,7 +147,15 @@ export type ClipTransitionType =
 	| "flash"
 	| "light-leak"
 	| "rgb-glitch"
-	| "shake";
+	| "shake"
+	| "motion-blur"
+	| "pixelate"
+	| "water-ripple"
+	| "particle-dissolve"
+	| "glass-refraction"
+	| "page-flip"
+	| "texture-mask"
+	| "lens-flare";
 
 export type ClipTransitionDirection = "left" | "right" | "up" | "down";
 
@@ -158,6 +166,26 @@ export interface ClipTransitionTuning {
 	intensity?: number;
 	frequency?: number;
 }
+
+export type ClipTransitionTuningProperty = keyof ClipTransitionTuning;
+
+export type ClipTransitionKeyframeEasing =
+	| "linear"
+	| "easeIn"
+	| "easeOut"
+	| "easeInOut";
+
+export interface ClipTransitionTuningKeyframe {
+	id: string;
+	/** Normalized position inside the transition window. */
+	position: number;
+	value: number | string;
+	easing: ClipTransitionKeyframeEasing;
+}
+
+export type ClipTransitionTuningKeyframes = Partial<
+	Record<ClipTransitionTuningProperty, ClipTransitionTuningKeyframe[]>
+>;
 
 /** A visual transition joining two touching media elements on one track. */
 export interface ClipTransition {
@@ -170,6 +198,7 @@ export interface ClipTransition {
 	direction?: ClipTransitionDirection;
 	easing: ClipTransitionEasing;
 	tuning?: ClipTransitionTuning;
+	tuningKeyframes?: ClipTransitionTuningKeyframes;
 }
 
 export type MediaComboAnimationType = "none" | "pulse" | "drift";
@@ -920,6 +949,19 @@ export interface TextItemDragData {
 	content: string;
 	/** Full style payload for template drags; older drag data can omit it. */
 	textTemplate?: Partial<TextElement>;
+	/** Multi-element template payload for grouped text template drags. */
+	textTemplatePack?: {
+		id: string;
+		name: string;
+		category?: string;
+		copySlots?: {
+			defaultContent: string;
+			elementIndex: number;
+			id: string;
+			label: string;
+		}[];
+		elements: CreateTextElement[];
+	};
 }
 
 export interface StickerItemDragData {

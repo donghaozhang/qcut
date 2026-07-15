@@ -1,0 +1,142 @@
+{
+	"schemaVersion": 1,
+	"kind": "qcut-text-template-package",
+	"assetId": "text-new-text-title-warning",
+	"packageId": "text-new-text-title",
+	"version": 1,
+	"cacheKey": "text-assets/text-new-text-title/warning@1",
+	"files": {
+		"thumbnail": "thumbnail.webp",
+		"source": "template.json"
+	},
+	"resources": [
+		{
+			"byteSize": 15510,
+			"checksumSha256": "5d5511899926bd189e5ea3ff6a1aff84977d06b1a3a58fd0c24b93f9c24e24d7",
+			"mimeType": "image/webp",
+			"path": "thumbnail.webp",
+			"role": "thumbnail",
+			"url": "/text-assets/text-new-text-title/warning@1/thumbnail.webp"
+		},
+		{
+			"byteSize": 2352,
+			"checksumSha256": "7491eb24504971b48337df5d2170a29763112ef1579f88b8b269a89b008c422a",
+			"mimeType": "application/json",
+			"path": "template.json",
+			"role": "source",
+			"url": "/text-assets/text-new-text-title/warning@1/template.json"
+		}
+	],
+	"source": {
+		"schemaVersion": 1,
+		"assetId": "text-new-text-title-warning",
+		"packageId": "text-new-text-title",
+		"version": 1,
+		"marketplace": {
+			"editorialRank": 120,
+			"heatScore": 77,
+			"remoteTags": [
+				"category:title",
+				"group:new-text",
+				"variant:warning"
+			],
+			"searchAliases": []
+		},
+		"definition": {
+			"id": "title-warning",
+			"name": "标题警示",
+			"category": "title",
+			"groupId": "new-text",
+			"variantId": "warning",
+			"content": "标题",
+			"stylePresetId": "yellow-callout",
+			"keywords": [
+				"title",
+				"标题",
+				"warning",
+				"警示",
+				"醒目",
+				"黄色",
+				"title-warning",
+				"标题警示",
+				"new-text"
+			],
+			"premium": false,
+			"downloaded": false,
+			"resource": {
+				"assetId": "text-new-text-title-warning",
+				"packageId": "text-new-text-title",
+				"version": 1,
+				"entitlement": "free",
+				"cacheKey": "text-assets/text-new-text-title/warning@1",
+				"sizeKb": 192
+			},
+			"catalogVisible": true,
+			"overrides": {
+				"fontSize": 68,
+				"color": "#0f172a",
+				"fontWeight": "bold",
+				"strokeColor": "#facc15",
+				"strokeWidth": 2,
+				"backgroundColor": "#f8fafc",
+				"backgroundOpacity": 1,
+				"backgroundRadius": 2,
+				"backgroundPadding": 16,
+				"rotation": -2,
+				"shadowColor": "#0f172a",
+				"shadowOpacity": 0.35,
+				"shadowOffsetX": 4,
+				"shadowOffsetY": 5,
+				"shadowBlur": 0,
+				"width": 650,
+				"height": 190
+			}
+		},
+		"template": {
+			"id": "title-warning",
+			"type": "text",
+			"name": "标题警示",
+			"content": "标题",
+			"fontSize": 68,
+			"fontFamily": "Arial",
+			"color": "#0f172a",
+			"backgroundColor": "#f8fafc",
+			"textAlign": "center",
+			"fontWeight": "bold",
+			"fontStyle": "normal",
+			"textDecoration": "none",
+			"x": 0,
+			"y": 0,
+			"rotation": -2,
+			"opacity": 1,
+			"width": 650,
+			"height": 190,
+			"letterSpacing": 0,
+			"lineHeight": 1.2,
+			"verticalAlign": "middle",
+			"strokeColor": "#facc15",
+			"strokeWidth": 2,
+			"strokeOpacity": 1,
+			"backgroundOpacity": 1,
+			"backgroundRadius": 2,
+			"backgroundPadding": 16,
+			"shadowColor": "#0f172a",
+			"shadowOpacity": 0.35,
+			"shadowOffsetX": 4,
+			"shadowOffsetY": 5,
+			"shadowBlur": 0,
+			"glowColor": "#ffffff",
+			"glowOpacity": 0,
+			"glowBlur": 12,
+			"curve": 0,
+			"animationType": "none",
+			"animationDuration": 0.6,
+			"animationDelay": 0,
+			"blendMode": "normal",
+			"duration": 5,
+			"startTime": 0,
+			"trimStart": 0,
+			"trimEnd": 0
+		}
+	}
+}

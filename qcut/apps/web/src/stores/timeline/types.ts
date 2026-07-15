@@ -10,6 +10,7 @@ export type {
 	TrackType,
 	TimelineElement,
 	CreateTimelineElement,
+	CreateTextElement,
 	TimelineTrack,
 	TextElement,
 	MarkdownElement,
@@ -36,6 +37,7 @@ import type {
 	TimelineElement,
 	TrackType,
 	CreateTimelineElement,
+	CreateTextElement,
 	TextElement,
 	MarkdownElement,
 	MediaElement,
@@ -214,6 +216,11 @@ export interface TimelineStore {
 		element: CreateTimelineElement,
 		options?: { pushHistory?: boolean; selectElement?: boolean }
 	) => string | null;
+	addTextGroupAtTime: (input: {
+		elements: CreateTextElement[];
+		currentTime?: number;
+		groupId?: string;
+	}) => boolean;
 	/** Remove an element from a track, optionally pushing to history */
 	removeElementFromTrack: (
 		trackId: string,
@@ -248,10 +255,24 @@ export interface TimelineStore {
 		startTime: number,
 		pushHistory?: boolean
 	) => void;
+	slipElement: (input: {
+		trackId: string;
+		elementId: string;
+		timelineDelta: number;
+		pushHistory?: boolean;
+	}) => number;
+	rollEdit: (input: {
+		trackId: string;
+		fromElementId: string;
+		toElementId: string;
+		timelineDelta: number;
+		pushHistory?: boolean;
+	}) => number;
 	addTransition: (input: {
 		trackId: string;
 		fromElementId: string;
 		toElementId: string;
+		videoMediaIds: ReadonlySet<string>;
 		presetId: string;
 		type: ClipTransition["type"];
 		duration: number;
@@ -262,6 +283,7 @@ export interface TimelineStore {
 	updateTransition: (input: {
 		trackId: string;
 		transitionId: string;
+		videoMediaIds: ReadonlySet<string>;
 		updates: Partial<
 			Pick<
 				ClipTransition,
@@ -456,6 +478,15 @@ export interface TimelineStore {
 		>,
 		pushHistory?: boolean
 	) => void;
+	updateTextGroupContents: ({
+		contents,
+		groupId,
+		pushHistory,
+	}: {
+		contents: readonly string[];
+		groupId: string;
+		pushHistory?: boolean;
+	}) => number;
 	updateCaptionElement: (
 		trackId: string,
 		elementId: string,
@@ -558,6 +589,11 @@ export interface TimelineStore {
 		updates: Partial<
 			Pick<
 				MediaElement,
+				| "mediaId"
+				| "name"
+				| "duration"
+				| "trimStart"
+				| "trimEnd"
 				| "volume"
 				| "x"
 				| "y"

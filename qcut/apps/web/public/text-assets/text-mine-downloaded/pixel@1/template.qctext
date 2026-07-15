@@ -1,0 +1,140 @@
+{
+	"schemaVersion": 1,
+	"kind": "qcut-text-template-package",
+	"assetId": "text-mine-downloaded-pixel",
+	"packageId": "text-mine-downloaded",
+	"version": 1,
+	"cacheKey": "text-assets/text-mine-downloaded/pixel@1",
+	"files": {
+		"thumbnail": "thumbnail.webp",
+		"source": "template.json"
+	},
+	"resources": [
+		{
+			"byteSize": 13222,
+			"checksumSha256": "423298c3dd7781401c8f3193f28258ad5fd529f2e78a0fbd0e8abe81733c7da1",
+			"mimeType": "image/webp",
+			"path": "thumbnail.webp",
+			"role": "thumbnail",
+			"url": "/text-assets/text-mine-downloaded/pixel@1/thumbnail.webp"
+		},
+		{
+			"byteSize": 2303,
+			"checksumSha256": "caaa2a97118beaa075e1babf44ec97418d70063f92599359503d716ed00c9eab",
+			"mimeType": "application/json",
+			"path": "template.json",
+			"role": "source",
+			"url": "/text-assets/text-mine-downloaded/pixel@1/template.json"
+		}
+	],
+	"source": {
+		"schemaVersion": 1,
+		"assetId": "text-mine-downloaded-pixel",
+		"packageId": "text-mine-downloaded",
+		"version": 1,
+		"marketplace": {
+			"editorialRank": 120,
+			"heatScore": 77,
+			"remoteTags": [
+				"category:downloaded",
+				"group:mine",
+				"variant:pixel"
+			],
+			"searchAliases": []
+		},
+		"definition": {
+			"id": "downloaded-pixel",
+			"name": "已下载像素",
+			"category": "downloaded",
+			"groupId": "mine",
+			"variantId": "pixel",
+			"content": "已下载",
+			"stylePresetId": "yellow-pop",
+			"keywords": [
+				"downloaded",
+				"已下载",
+				"pixel",
+				"像素",
+				"游戏",
+				"方块",
+				"game",
+				"downloaded-pixel",
+				"已下载像素",
+				"mine"
+			],
+			"premium": false,
+			"downloaded": false,
+			"resource": {
+				"assetId": "text-mine-downloaded-pixel",
+				"packageId": "text-mine-downloaded",
+				"version": 1,
+				"entitlement": "free",
+				"cacheKey": "text-assets/text-mine-downloaded/pixel@1",
+				"sizeKb": 192
+			},
+			"catalogVisible": true,
+			"overrides": {
+				"fontSize": 64,
+				"fontFamily": "monospace",
+				"color": "#38bdf8",
+				"fontWeight": "bold",
+				"strokeColor": "#052e16",
+				"strokeWidth": 4,
+				"letterSpacing": 3,
+				"shadowColor": "#16a34a",
+				"shadowOpacity": 1,
+				"shadowOffsetX": 5,
+				"shadowOffsetY": 5,
+				"shadowBlur": 0,
+				"width": 760,
+				"height": 210
+			}
+		},
+		"template": {
+			"id": "downloaded-pixel",
+			"type": "text",
+			"name": "已下载像素",
+			"content": "已下载",
+			"fontSize": 64,
+			"fontFamily": "monospace",
+			"color": "#38bdf8",
+			"backgroundColor": "transparent",
+			"textAlign": "center",
+			"fontWeight": "bold",
+			"fontStyle": "normal",
+			"textDecoration": "none",
+			"x": 0,
+			"y": 0,
+			"rotation": 0,
+			"opacity": 1,
+			"width": 760,
+			"height": 210,
+			"letterSpacing": 3,
+			"lineHeight": 1.2,
+			"verticalAlign": "middle",
+			"strokeColor": "#052e16",
+			"strokeWidth": 4,
+			"strokeOpacity": 1,
+			"backgroundOpacity": 0,
+			"backgroundRadius": 4,
+			"backgroundPadding": 12,
+			"shadowColor": "#16a34a",
+			"shadowOpacity": 1,
+			"shadowOffsetX": 5,
+			"shadowOffsetY": 5,
+			"shadowBlur": 0,
+			"glowColor": "#ffffff",
+			"glowOpacity": 0,
+			"glowBlur": 12,
+			"curve": 0,
+			"animationType": "none",
+			"animationDuration": 0.6,
+			"animationDelay": 0,
+			"blendMode": "normal",
+			"duration": 5,
+			"startTime": 0,
+			"trimStart": 0,
+			"trimEnd": 0
+		}
+	}
+}

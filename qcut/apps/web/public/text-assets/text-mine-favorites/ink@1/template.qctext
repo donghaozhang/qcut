@@ -1,0 +1,140 @@
+{
+	"schemaVersion": 1,
+	"kind": "qcut-text-template-package",
+	"assetId": "text-mine-favorites-ink",
+	"packageId": "text-mine-favorites",
+	"version": 1,
+	"cacheKey": "text-assets/text-mine-favorites/ink@1",
+	"files": {
+		"thumbnail": "thumbnail.webp",
+		"source": "template.json"
+	},
+	"resources": [
+		{
+			"byteSize": 13242,
+			"checksumSha256": "2daf4d4b0c52b0a81a840f5b6fe080e777723cd262b70b516cd7e01b6b18f6cd",
+			"mimeType": "image/webp",
+			"path": "thumbnail.webp",
+			"role": "thumbnail",
+			"url": "/text-assets/text-mine-favorites/ink@1/thumbnail.webp"
+		},
+		{
+			"byteSize": 2256,
+			"checksumSha256": "ad5e29247b862c3ebac5b991a03a4203c64fafbc1f47d78dfa17c32b796f6a6b",
+			"mimeType": "application/json",
+			"path": "template.json",
+			"role": "source",
+			"url": "/text-assets/text-mine-favorites/ink@1/template.json"
+		}
+	],
+	"source": {
+		"schemaVersion": 1,
+		"assetId": "text-mine-favorites-ink",
+		"packageId": "text-mine-favorites",
+		"version": 1,
+		"marketplace": {
+			"editorialRank": 120,
+			"heatScore": 81,
+			"remoteTags": [
+				"category:favorites",
+				"group:mine",
+				"variant:ink"
+			],
+			"searchAliases": []
+		},
+		"definition": {
+			"id": "favorites-ink",
+			"name": "收藏水墨",
+			"category": "favorites",
+			"groupId": "mine",
+			"variantId": "ink",
+			"content": "收藏",
+			"stylePresetId": "editorial",
+			"keywords": [
+				"favorites",
+				"收藏",
+				"ink",
+				"水墨",
+				"国风",
+				"书法",
+				"brush",
+				"favorites-ink",
+				"收藏水墨",
+				"mine"
+			],
+			"premium": true,
+			"downloaded": false,
+			"resource": {
+				"assetId": "text-mine-favorites-ink",
+				"packageId": "text-mine-favorites",
+				"version": 1,
+				"entitlement": "svip",
+				"cacheKey": "text-assets/text-mine-favorites/ink@1",
+				"sizeKb": 384
+			},
+			"catalogVisible": true,
+			"overrides": {
+				"fontSize": 76,
+				"fontFamily": "serif",
+				"color": "#4c0519",
+				"fontWeight": "bold",
+				"fontStyle": "italic",
+				"strokeColor": "#ffe4e6",
+				"strokeWidth": 1,
+				"shadowColor": "#e11d48",
+				"shadowOpacity": 0.45,
+				"shadowOffsetX": 3,
+				"shadowOffsetY": 5,
+				"shadowBlur": 7,
+				"width": 760,
+				"height": 230
+			}
+		},
+		"template": {
+			"id": "favorites-ink",
+			"type": "text",
+			"name": "收藏水墨",
+			"content": "收藏",
+			"fontSize": 76,
+			"fontFamily": "serif",
+			"color": "#4c0519",
+			"backgroundColor": "transparent",
+			"textAlign": "center",
+			"fontWeight": "bold",
+			"fontStyle": "italic",
+			"textDecoration": "none",
+			"x": 0,
+			"y": 0,
+			"rotation": 0,
+			"opacity": 1,
+			"width": 760,
+			"height": 230,
+			"letterSpacing": 1,
+			"lineHeight": 1.2,
+			"verticalAlign": "middle",
+			"strokeColor": "#ffe4e6",
+			"strokeWidth": 1,
+			"strokeOpacity": 1,
+			"backgroundOpacity": 0,
+			"backgroundRadius": 4,
+			"backgroundPadding": 12,
+			"shadowColor": "#e11d48",
+			"shadowOpacity": 0.45,
+			"shadowOffsetX": 3,
+			"shadowOffsetY": 5,
+			"shadowBlur": 7,
+			"glowColor": "#ffffff",
+			"glowOpacity": 0,
+			"glowBlur": 12,
+			"curve": 0,
+			"animationType": "none",
+			"animationDuration": 0.6,
+			"animationDelay": 0,
+			"blendMode": "normal",
+			"duration": 5,
+			"startTime": 0,
+			"trimStart": 0,
+			"trimEnd": 0
+		}
+	}
+}

@@ -116,18 +116,27 @@ export const licenses = pgTable("licenses", {
 		.notNull(),
 }).enableRLS();
 
-export const deviceActivations = pgTable("device_activations", {
-	id: text("id").primaryKey(),
-	licenseId: text("license_id")
-		.notNull()
-		.references(() => licenses.id, { onDelete: "cascade" }),
-	deviceFingerprint: text("device_fingerprint").notNull(),
-	deviceName: text("device_name").notNull(),
-	lastSeenAt: timestamp("last_seen_at")
-		.$defaultFn(() => /* @__PURE__ */ new Date())
-		.notNull(),
-	isActive: boolean("is_active").notNull().default(true),
-}).enableRLS();
+export const deviceActivations = pgTable(
+	"device_activations",
+	{
+		id: text("id").primaryKey(),
+		licenseId: text("license_id")
+			.notNull()
+			.references(() => licenses.id, { onDelete: "cascade" }),
+		deviceFingerprint: text("device_fingerprint").notNull(),
+		deviceName: text("device_name").notNull(),
+		lastSeenAt: timestamp("last_seen_at")
+			.$defaultFn(() => /* @__PURE__ */ new Date())
+			.notNull(),
+		isActive: boolean("is_active").notNull().default(true),
+	},
+	(table) => [
+		uniqueIndex("device_activations_license_fingerprint_unique").on(
+			table.licenseId,
+			table.deviceFingerprint
+		),
+	]
+).enableRLS();
 
 export const creditBalances = pgTable("credit_balances", {
 	id: text("id").primaryKey(),
@@ -211,6 +220,70 @@ export const usageRecords = pgTable("usage_records", {
 		.$defaultFn(() => /* @__PURE__ */ new Date())
 		.notNull(),
 }).enableRLS();
+
+export const userLibraryDocuments = pgTable(
+	"user_library_documents",
+	{
+		id: text("id").primaryKey(),
+		userId: text("user_id")
+			.notNull()
+			.references(() => users.id, { onDelete: "cascade" }),
+		namespace: text("namespace").notNull(),
+		documentKey: text("document_key").notNull(),
+		payload: jsonb("payload").$type<unknown>().notNull(),
+		version: integer("version").notNull().default(1),
+		createdAt: timestamp("created_at")
+			.$defaultFn(() => /* @__PURE__ */ new Date())
+			.notNull(),
+		updatedAt: timestamp("updated_at")
+			.$defaultFn(() => /* @__PURE__ */ new Date())
+			.notNull(),
+	},
+	(table) => [
+		uniqueIndex("user_library_documents_user_namespace_key_unique").on(
+			table.userId,
+			table.namespace,
+			table.documentKey
+		),
+		index("user_library_documents_user_namespace_idx").on(
+			table.userId,
+			table.namespace
+		),
+	]
+).enableRLS();
+
+export const reviewShares = pgTable(
+	"review_shares",
+	{
+		id: text("id").primaryKey(),
+		ownerUserId: text("owner_user_id")
+			.notNull()
+			.references(() => users.id, { onDelete: "cascade" }),
+		tokenHash: text("token_hash").notNull().unique(),
+		projectId: text("project_id").notNull(),
+		projectName: text("project_name").notNull(),
+		durationMs: integer("duration_ms").notNull(),
+		package: jsonb("package").$type<Record<string, unknown>>().notNull(),
+		revision: integer("revision").notNull().default(1),
+		status: text("status", { enum: ["active", "revoked"] })
+			.notNull()
+			.default("active"),
+		expiresAt: timestamp("expires_at"),
+		createdAt: timestamp("created_at")
+			.$defaultFn(() => /* @__PURE__ */ new Date())
+			.notNull(),
+		updatedAt: timestamp("updated_at")
+			.$defaultFn(() => /* @__PURE__ */ new Date())
+			.notNull(),
+	},
+	(table) => [
+		index("review_shares_owner_project_idx").on(
+			table.ownerUserId,
+			table.projectId
+		),
+		index("review_shares_token_status_idx").on(table.tokenHash, table.status),
+	]
+).enableRLS();
 
 // --- Agent path (headless CLI) + Sandbox (interactive browser shell) ---
 //

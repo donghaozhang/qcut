@@ -2,16 +2,19 @@
 
 import { Clock } from "lucide-react";
 import { TooltipProvider } from "@/components/ui/tooltip";
+import { StickerGrid } from "./sticker-grid";
 import { StickerItem } from "./sticker-item";
 import type { RecentSticker } from "../types/stickers.types";
 
 interface StickersRecentProps {
 	recentStickers: RecentSticker[];
+	onDownload: (iconId: string, name: string) => void | Promise<void>;
 	onSelect: (iconId: string, name: string) => void;
 }
 
 export function StickersRecent({
 	recentStickers,
+	onDownload,
 	onSelect,
 }: StickersRecentProps) {
 	if (recentStickers.length === 0) {
@@ -28,7 +31,7 @@ export function StickersRecent({
 
 	return (
 		<TooltipProvider>
-			<div className="grid grid-cols-6 gap-2 p-4 sm:grid-cols-8 md:grid-cols-10 lg:grid-cols-12">
+			<StickerGrid className="p-2">
 				{recentStickers.map((sticker) => {
 					const [collection, iconName] = sticker.iconId.split(":");
 					return (
@@ -37,11 +40,13 @@ export function StickersRecent({
 							icon={iconName}
 							name={sticker.name}
 							collection={collection}
+							layout="catalog"
+							onDownload={onDownload}
 							onSelect={onSelect}
 						/>
 					);
 				})}
-			</div>
+			</StickerGrid>
 		</TooltipProvider>
 	);
 }

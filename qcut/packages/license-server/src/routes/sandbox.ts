@@ -17,7 +17,7 @@
 
 import { Hono, type Context } from "hono";
 // `eq` is also used below for the agent_secrets lookup
-import { and, eq, inArray } from "drizzle-orm";
+import { and, eq, inArray } from "@qcut/db";
 import { Sandbox } from "e2b";
 import { SignJWT } from "jose";
 

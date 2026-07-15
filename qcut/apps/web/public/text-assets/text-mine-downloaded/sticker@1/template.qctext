@@ -1,0 +1,148 @@
+{
+	"schemaVersion": 1,
+	"kind": "qcut-text-template-package",
+	"assetId": "text-mine-downloaded-sticker",
+	"packageId": "text-mine-downloaded",
+	"version": 1,
+	"cacheKey": "text-assets/text-mine-downloaded/sticker@1",
+	"files": {
+		"thumbnail": "thumbnail.webp",
+		"source": "template.json"
+	},
+	"resources": [
+		{
+			"byteSize": 17286,
+			"checksumSha256": "418b3c705bf8e365ba5336ba23845a6b0f0d511623feca0b07ec9c1369939fa1",
+			"mimeType": "image/webp",
+			"path": "thumbnail.webp",
+			"role": "thumbnail",
+			"url": "/text-assets/text-mine-downloaded/sticker@1/thumbnail.webp"
+		},
+		{
+			"byteSize": 2473,
+			"checksumSha256": "70222ea95ea74eb82d7ec4a1cac5e3e9fb42b36a739568a6a32aff794cb14604",
+			"mimeType": "application/json",
+			"path": "template.json",
+			"role": "source",
+			"url": "/text-assets/text-mine-downloaded/sticker@1/template.json"
+		}
+	],
+	"source": {
+		"schemaVersion": 1,
+		"assetId": "text-mine-downloaded-sticker",
+		"packageId": "text-mine-downloaded",
+		"version": 1,
+		"marketplace": {
+			"editorialRank": 24,
+			"heatScore": 94,
+			"remoteTags": [
+				"category:downloaded",
+				"group:mine",
+				"variant:sticker",
+				"style:sticker",
+				"tone:cute"
+			],
+			"searchAliases": [
+				"贴纸",
+				"白边",
+				"可爱"
+			]
+		},
+		"definition": {
+			"id": "downloaded-sticker",
+			"name": "已下载贴纸",
+			"category": "downloaded",
+			"groupId": "mine",
+			"variantId": "sticker",
+			"content": "已下载",
+			"stylePresetId": "rounded-label",
+			"keywords": [
+				"downloaded",
+				"已下载",
+				"sticker",
+				"贴纸",
+				"白边",
+				"可爱",
+				"downloaded-sticker",
+				"已下载贴纸",
+				"mine"
+			],
+			"premium": false,
+			"downloaded": true,
+			"resource": {
+				"assetId": "text-mine-downloaded-sticker",
+				"packageId": "text-mine-downloaded",
+				"version": 1,
+				"entitlement": "free",
+				"cacheKey": "text-assets/text-mine-downloaded/sticker@1",
+				"sizeKb": 192
+			},
+			"catalogVisible": true,
+			"overrides": {
+				"fontSize": 66,
+				"color": "#16a34a",
+				"fontWeight": "bold",
+				"strokeColor": "#dcfce7",
+				"strokeWidth": 7,
+				"backgroundColor": "#ffffff",
+				"backgroundOpacity": 0.95,
+				"backgroundRadius": 26,
+				"backgroundPadding": 20,
+				"rotation": 4,
+				"shadowColor": "#052e16",
+				"shadowOpacity": 0.28,
+				"shadowOffsetX": 5,
+				"shadowOffsetY": 7,
+				"shadowBlur": 8,
+				"width": 690,
+				"height": 200
+			}
+		},
+		"template": {
+			"id": "downloaded-sticker",
+			"type": "text",
+			"name": "已下载贴纸",
+			"content": "已下载",
+			"fontSize": 66,
+			"fontFamily": "Arial",
+			"color": "#16a34a",
+			"backgroundColor": "#ffffff",
+			"textAlign": "center",
+			"fontWeight": "bold",
+			"fontStyle": "normal",
+			"textDecoration": "none",
+			"x": 0,
+			"y": 0,
+			"rotation": 4,
+			"opacity": 1,
+			"width": 690,
+			"height": 200,
+			"letterSpacing": 0,
+			"lineHeight": 1.2,
+			"verticalAlign": "middle",
+			"strokeColor": "#dcfce7",
+			"strokeWidth": 7,
+			"strokeOpacity": 1,
+			"backgroundOpacity": 0.95,
+			"backgroundRadius": 26,
+			"backgroundPadding": 20,
+			"shadowColor": "#052e16",
+			"shadowOpacity": 0.28,
+			"shadowOffsetX": 5,
+			"shadowOffsetY": 7,
+			"shadowBlur": 8,
+			"glowColor": "#ffffff",
+			"glowOpacity": 0,
+			"glowBlur": 12,
+			"curve": 0,
+			"animationType": "none",
+			"animationDuration": 0.6,
+			"animationDelay": 0,
+			"blendMode": "normal",
+			"duration": 5,
+			"startTime": 0,
+			"trimStart": 0,
+			"trimEnd": 0
+		}
+	}
+}

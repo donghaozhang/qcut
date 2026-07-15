@@ -1,6 +1,6 @@
 import { mkdir } from "node:fs/promises";
 import path from "node:path";
-import type { Page } from "@playwright/test";
+import type { Locator, Page } from "@playwright/test";
 import {
 	createTestProject,
 	expect,
@@ -8,9 +8,9 @@ import {
 	test,
 } from "./helpers/electron-helpers";
 
-const screenshotPath = path.resolve(
+const screenshotDirectory = path.resolve(
 	process.cwd(),
-	"output/playwright/qcut-transition-electron-e2e.png"
+	"output/playwright/transition-workflow"
 );
 
 interface ExposedMediaState {
@@ -26,7 +26,7 @@ interface ExposedTimelineState {
 		id: string;
 		type: string;
 		isMain?: boolean;
-		elements: Array<{ id: string; startTime: number }>;
+		elements: Array<{ id: string; startTime: number; duration: number }>;
 		transitions?: Array<{
 			id: string;
 			presetId: string;
@@ -34,6 +34,7 @@ interface ExposedTimelineState {
 			direction?: string;
 			duration: number;
 			easing: string;
+			tuning?: { intensity?: number };
 		}>;
 		audioCrossfades?: Array<{ duration: number; curve: string }>;
 	}>;
@@ -53,6 +54,7 @@ interface ExposedTimelineState {
 		trackId: string;
 		fromElementId: string;
 		toElementId: string;
+		videoMediaIds: ReadonlySet<string>;
 		presetId: string;
 		type: "dissolve";
 		duration: number;
@@ -80,6 +82,48 @@ async function seek({ page, time }: { page: Page; time: number }) {
 			editorWindow.__playbackStore.getState().seek(nextTime);
 		},
 		{ nextTime: time }
+	);
+}
+
+async function selectAdjacentClips({ page }: { page: Page }) {
+	await page.evaluate(() => {
+		const editorWindow = window as unknown as ExposedEditorWindow;
+		const timeline = editorWindow.__timelineStore.getState();
+		const track = timeline.tracks.find(
+			(candidate) => candidate.isMain || candidate.type === "media"
+		);
+		if (!track || track.elements.length < 2) {
+			throw new Error("Missing adjacent transition clips");
+		}
+		timeline.setSelectedElements(
+			track.elements.slice(0, 2).map((element) => ({
+				trackId: track.id,
+				elementId: element.id,
+			}))
+		);
+	});
+}
+
+async function assertTransitionCategory({
+	transitions,
+	category,
+	presetIds,
+}: {
+	transitions: Locator;
+	category: string;
+	presetIds: string[];
+}) {
+	await transitions
+		.getByRole("button", { name: category, exact: true })
+		.click();
+	const visibleCards = transitions.locator('[data-testid^="transition-card-"]');
+	await expect.poll(() => visibleCards.count()).toBeGreaterThanOrEqual(20);
+	await Promise.all(
+		presetIds.map((presetId) =>
+			expect(
+				transitions.getByTestId(`transition-card-${presetId}`)
+			).toBeVisible()
+		)
 	);
 }
 
@@ -145,6 +189,7 @@ test.describe("Clip transition workflow", () => {
 				trackId: track.id,
 				fromElementId,
 				toElementId,
+				videoMediaIds: new Set([media.id]),
 				presetId: "dissolve",
 				type: "dissolve",
 				duration: 1,
@@ -188,23 +233,142 @@ test.describe("Clip transition workflow", () => {
 
 		await page.getByTestId("transitions-panel-tab").click();
 		await expect(page.getByTestId("transition-card-dissolve")).toBeVisible();
-		await page.evaluate(() => {
-			const editorWindow = window as unknown as ExposedEditorWindow;
-			const timeline = editorWindow.__timelineStore.getState();
-			const track = timeline.tracks.find(
-				(candidate) => candidate.isMain || candidate.type === "media"
-			);
-			if (!track || track.elements.length < 2) {
-				throw new Error("Missing adjacent transition clips");
-			}
-			timeline.setSelectedElements(
-				track.elements.slice(0, 2).map((element) => ({
-					trackId: track.id,
-					elementId: element.id,
-				}))
-			);
+		const transitions = page.getByTestId("transitions-view");
+		await selectAdjacentClips({ page });
+		const recommendations = page.getByTestId("transition-recommendations");
+		await expect(recommendations).toBeVisible();
+		await expect(recommendations.getByRole("button")).toHaveCount(3);
+		await assertTransitionCategory({
+			transitions,
+			category: "叠化",
+			presetIds: ["dissolve", "filmic-dissolve"],
 		});
-		await page.getByTestId("transition-card-whip-pan-left").dblclick();
+		await assertTransitionCategory({
+			transitions,
+			category: "自然",
+			presetIds: ["fade-to-black", "sunrise-fade"],
+		});
+		await assertTransitionCategory({
+			transitions,
+			category: "幻灯片",
+			presetIds: ["page-turn-left", "album-slide-left"],
+		});
+		await assertTransitionCategory({
+			transitions,
+			category: "分割",
+			presetIds: ["wipe-left", "split-signal"],
+		});
+		await assertTransitionCategory({
+			transitions,
+			category: "模糊",
+			presetIds: ["zoom-blur", "horizontal-smear"],
+		});
+		await assertTransitionCategory({
+			transitions,
+			category: "运镜",
+			presetIds: ["whip-pan-left", "crash-zoom"],
+		});
+		await assertTransitionCategory({
+			transitions,
+			category: "拍摄",
+			presetIds: ["shutter-flash", "exposure-pop"],
+		});
+		await assertTransitionCategory({
+			transitions,
+			category: "扭曲",
+			presetIds: ["liquid-warp", "digital-twist"],
+		});
+		await assertTransitionCategory({
+			transitions,
+			category: "光效",
+			presetIds: ["film-burn", "prism-flare"],
+		});
+		await assertTransitionCategory({
+			transitions,
+			category: "故障",
+			presetIds: ["rgb-glitch", "data-mosh"],
+		});
+		await assertTransitionCategory({
+			transitions,
+			category: "综艺",
+			presetIds: ["comic-pop", "sticker-swipe"],
+		});
+		await assertTransitionCategory({
+			transitions,
+			category: "MG 动画",
+			presetIds: ["pop-zoom", "kinetic-jump"],
+		});
+		await assertTransitionCategory({
+			transitions,
+			category: "互动 emoji",
+			presetIds: ["heart-pulse", "love-flash"],
+		});
+		await transitions
+			.getByRole("button", { name: "光效", exact: true })
+			.click();
+		const catalogPreviewSources = await transitions
+			.locator('[data-testid^="transition-card-"] img')
+			.evaluateAll((images) =>
+				images
+					.map((image) => image.getAttribute("src"))
+					.filter((source): source is string => Boolean(source))
+			);
+		expect(catalogPreviewSources).toHaveLength(40);
+		expect(new Set(catalogPreviewSources).size).toBeGreaterThanOrEqual(12);
+		expect(
+			catalogPreviewSources.every((source) => source.endsWith(".webp"))
+		).toBe(true);
+		await transitions
+			.getByTestId("transition-card-prism-flare")
+			.scrollIntoViewIfNeeded();
+		await mkdir(screenshotDirectory, { recursive: true });
+		await page.screenshot({
+			path: path.join(screenshotDirectory, "00-expanded-light-category.png"),
+		});
+		await transitions
+			.getByRole("button", { name: "扭曲", exact: true })
+			.click();
+		await transitions.getByTestId("transition-card-liquid-warp").dblclick();
+		await expect
+			.poll(() =>
+				page.evaluate(() => {
+					const editorWindow = window as unknown as ExposedEditorWindow;
+					return editorWindow.__timelineStore
+						.getState()
+						.tracks.flatMap((track) => track.transitions ?? [])[0];
+				})
+			)
+			.toMatchObject({
+				id: transitionId,
+				presetId: "liquid-warp",
+				type: "zoom-blur",
+				tuning: { intensity: 1.25 },
+			});
+		await selectAdjacentClips({ page });
+		await transitions
+			.getByRole("button", { name: "全部", exact: true })
+			.click();
+		const previewCard = page.getByTestId("transition-card-whip-pan-left");
+		await previewCard.hover();
+		const previewProgress = previewCard.getByTestId(
+			"transition-preview-progress"
+		);
+		await expect
+			.poll(() =>
+				previewProgress.evaluate((element) =>
+					Number.parseFloat((element as HTMLElement).style.width)
+				)
+			)
+			.toBeGreaterThan(0);
+		await page.screenshot({
+			path: path.join(
+				screenshotDirectory,
+				"01-recommendations-and-previews.png"
+			),
+		});
+		await previewCard.click();
+		await expect(previewCard).toHaveAttribute("aria-pressed", "true");
+		await page.getByRole("button", { name: "应用所选转场" }).click();
 		await expect
 			.poll(() =>
 				page.evaluate(() => {
@@ -221,7 +385,75 @@ test.describe("Clip transition workflow", () => {
 				direction: "left",
 			});
 		await marker.click();
-		await expect(page.getByLabel("转场时长（秒）")).toHaveValue("0.4");
+		const rightHandle = page.getByTestId(
+			`transition-handle-right-${transitionId}`
+		);
+		await expect(rightHandle).toBeVisible();
+		const availableMaximum = await page.evaluate(() => {
+			const editorWindow = window as unknown as ExposedEditorWindow;
+			const track = editorWindow.__timelineStore.getState().tracks[0];
+			const durations = track.elements
+				.slice(0, 2)
+				.map((element) => element.duration);
+			return Math.min(5, 2 * Math.min(...durations));
+		});
+		const maximumHandleBounds = await rightHandle.boundingBox();
+		if (!maximumHandleBounds)
+			throw new Error("Missing transition resize handle");
+		await page.mouse.move(
+			maximumHandleBounds.x + maximumHandleBounds.width / 2,
+			maximumHandleBounds.y + maximumHandleBounds.height / 2
+		);
+		await page.mouse.down();
+		await page.waitForTimeout(50);
+		await page.mouse.move(
+			(page.viewportSize()?.width ?? 1600) - 1,
+			maximumHandleBounds.y + maximumHandleBounds.height / 2,
+			{ steps: 8 }
+		);
+		await page.mouse.up();
+		await expect
+			.poll(() =>
+				page.evaluate(() => {
+					const editorWindow = window as unknown as ExposedEditorWindow;
+					return editorWindow.__timelineStore
+						.getState()
+						.tracks.flatMap((track) => track.transitions ?? [])[0]?.duration;
+				})
+			)
+			.toBeCloseTo(availableMaximum, 3);
+
+		const minimumHandleBounds = await rightHandle.boundingBox();
+		if (!minimumHandleBounds)
+			throw new Error("Missing transition resize handle");
+		await page.mouse.move(
+			minimumHandleBounds.x + minimumHandleBounds.width / 2,
+			minimumHandleBounds.y + minimumHandleBounds.height / 2
+		);
+		await page.mouse.down();
+		await page.waitForTimeout(50);
+		await page.mouse.move(
+			1,
+			minimumHandleBounds.y + minimumHandleBounds.height / 2,
+			{ steps: 8 }
+		);
+		await page.mouse.up();
+		await expect
+			.poll(() =>
+				page.evaluate(() => {
+					const editorWindow = window as unknown as ExposedEditorWindow;
+					return editorWindow.__timelineStore
+						.getState()
+						.tracks.flatMap((track) => track.transitions ?? [])[0]?.duration;
+				})
+			)
+			.toBe(0.1);
+		await expect(marker).toHaveAttribute("data-transition-duration", "0.100");
+		await expect(page.getByLabel("转场时长（秒）")).toHaveValue("0.1");
+		await page.screenshot({
+			path: path.join(screenshotDirectory, "02-resized-transition-minimum.png"),
+			animations: "disabled",
+		});
 		await page.getByLabel("转场时长（秒）").fill("0.7");
 		await page.getByLabel("转场时长（秒）").press("Enter");
 		await page.getByLabel("转场方向").click();
@@ -253,8 +485,13 @@ test.describe("Clip transition workflow", () => {
 		await expect.poll(() => previewVideos.count()).toBeGreaterThanOrEqual(2);
 		await page.waitForTimeout(250);
 
-		await mkdir(path.dirname(screenshotPath), { recursive: true });
-		await page.screenshot({ path: screenshotPath, animations: "disabled" });
+		await page.screenshot({
+			path: path.join(
+				screenshotDirectory,
+				"03-applied-transition-properties.png"
+			),
+			animations: "disabled",
+		});
 		await page.getByRole("button", { name: "删除转场" }).click();
 		await expect(marker).toHaveCount(0);
 		await page.waitForTimeout(1100);

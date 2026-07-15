@@ -1,0 +1,140 @@
+{
+	"schemaVersion": 1,
+	"kind": "qcut-text-template-package",
+	"assetId": "text-new-text-lower-third-glass",
+	"packageId": "text-new-text-lower-third",
+	"version": 1,
+	"cacheKey": "text-assets/text-new-text-lower-third/glass@1",
+	"files": {
+		"thumbnail": "thumbnail.webp",
+		"source": "template.json"
+	},
+	"resources": [
+		{
+			"byteSize": 20600,
+			"checksumSha256": "7ee6716899192b5958a5b50d1b337ac1e2ebc2f08ec1e286a44094aa20e17221",
+			"mimeType": "image/webp",
+			"path": "thumbnail.webp",
+			"role": "thumbnail",
+			"url": "/text-assets/text-new-text-lower-third/glass@1/thumbnail.webp"
+		},
+		{
+			"byteSize": 2362,
+			"checksumSha256": "37624e9dfa3b4b9433f45bc4f87893aed80144e924dcf4be2679212e7bd8c9ef",
+			"mimeType": "application/json",
+			"path": "template.json",
+			"role": "source",
+			"url": "/text-assets/text-new-text-lower-third/glass@1/template.json"
+		}
+	],
+	"source": {
+		"schemaVersion": 1,
+		"assetId": "text-new-text-lower-third-glass",
+		"packageId": "text-new-text-lower-third",
+		"version": 1,
+		"marketplace": {
+			"editorialRank": 120,
+			"heatScore": 81,
+			"remoteTags": [
+				"category:lower-third",
+				"group:new-text",
+				"variant:glass"
+			],
+			"searchAliases": []
+		},
+		"definition": {
+			"id": "lower-third-glass",
+			"name": "角标玻璃",
+			"category": "lower-third",
+			"groupId": "new-text",
+			"variantId": "glass",
+			"content": "人物介绍",
+			"stylePresetId": "cyan-neon",
+			"keywords": [
+				"lower-third",
+				"角标",
+				"人物介绍",
+				"glass",
+				"玻璃",
+				"透明",
+				"冰感",
+				"lower-third-glass",
+				"角标玻璃",
+				"new-text"
+			],
+			"premium": true,
+			"downloaded": false,
+			"resource": {
+				"assetId": "text-new-text-lower-third-glass",
+				"packageId": "text-new-text-lower-third",
+				"version": 1,
+				"entitlement": "svip",
+				"cacheKey": "text-assets/text-new-text-lower-third/glass@1",
+				"sizeKb": 384
+			},
+			"catalogVisible": true,
+			"overrides": {
+				"fontSize": 70,
+				"color": "#e0f2fe",
+				"fontWeight": "bold",
+				"strokeColor": "#ffffff",
+				"strokeWidth": 2,
+				"backgroundColor": "#0ea5e9",
+				"backgroundOpacity": 0.22,
+				"backgroundRadius": 18,
+				"backgroundPadding": 18,
+				"glowColor": "#fb7185",
+				"glowOpacity": 0.55,
+				"glowBlur": 18,
+				"width": 700,
+				"height": 210
+			}
+		},
+		"template": {
+			"id": "lower-third-glass",
+			"type": "text",
+			"name": "角标玻璃",
+			"content": "人物介绍",
+			"fontSize": 70,
+			"fontFamily": "Arial",
+			"color": "#e0f2fe",
+			"backgroundColor": "#0ea5e9",
+			"textAlign": "center",
+			"fontWeight": "bold",
+			"fontStyle": "normal",
+			"textDecoration": "none",
+			"x": 0,
+			"y": 0,
+			"rotation": 0,
+			"opacity": 1,
+			"width": 700,
+			"height": 210,
+			"letterSpacing": 0,
+			"lineHeight": 1.2,
+			"verticalAlign": "middle",
+			"strokeColor": "#ffffff",
+			"strokeWidth": 2,
+			"strokeOpacity": 1,
+			"backgroundOpacity": 0.22,
+			"backgroundRadius": 18,
+			"backgroundPadding": 18,
+			"shadowColor": "#000000",
+			"shadowOpacity": 0,
+			"shadowOffsetX": 4,
+			"shadowOffsetY": 4,
+			"shadowBlur": 8,
+			"glowColor": "#fb7185",
+			"glowOpacity": 0.55,
+			"glowBlur": 18,
+			"curve": 0,
+			"animationType": "none",
+			"animationDuration": 0.6,
+			"animationDelay": 0,
+			"blendMode": "normal",
+			"duration": 5,
+			"startTime": 0,
+			"trimStart": 0,
+			"trimEnd": 0
+		}
+	}
+}

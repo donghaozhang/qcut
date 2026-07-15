@@ -21,6 +21,7 @@ import { useProjectStore } from "@/stores/project-store";
 import { useTimelineSnapping } from "@/hooks/timeline/use-timeline-snapping";
 import { usePlaybackStore } from "@/stores/editor/playback-store";
 import { debugLog, debugError } from "@/lib/debug/debug-config";
+import { getValidTextGroupElements } from "@/lib/timeline/text-group-drag-data";
 
 /**
  * Custom hook encapsulating all drag-and-drop handling for timeline tracks.
@@ -45,6 +46,7 @@ export function useTrackDrop({
 		(s) => s.updateElementStartTimeWithRipple
 	);
 	const addElementToTrack = useTimelineStore((s) => s.addElementToTrack);
+	const addTextGroupAtTime = useTimelineStore((s) => s.addTextGroupAtTime);
 	const insertTrackAt = useTimelineStore((s) => s.insertTrackAt);
 	const snappingEnabled = useTimelineStore((s) => s.snappingEnabled);
 	const rippleEditingEnabled = useTimelineStore((s) => s.rippleEditingEnabled);
@@ -449,6 +451,27 @@ export function useTrackDrop({
 				const dragData: DragData = JSON.parse(mediaItemData);
 
 				if (dragData.type === "text") {
+					const packElements = getValidTextGroupElements({
+						value: dragData.textTemplatePack?.elements,
+					});
+					if (packElements.length > 0) {
+						const packDuration = Math.max(
+							...packElements.map(
+								(element) =>
+									element.duration ?? TIMELINE_CONSTANTS.DEFAULT_TEXT_DURATION
+							),
+							TIMELINE_CONSTANTS.DEFAULT_TEXT_DURATION
+						);
+						const textPackSnappedTime = getDropSnappedTime(
+							newStartTime,
+							packDuration
+						);
+						addTextGroupAtTime({
+							elements: packElements,
+							currentTime: textPackSnappedTime,
+						});
+						return;
+					}
 					let targetTrackId = track.id;
 					let targetTrack = track;
 

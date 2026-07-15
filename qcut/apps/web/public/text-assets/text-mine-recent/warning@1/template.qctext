@@ -1,0 +1,143 @@
+{
+	"schemaVersion": 1,
+	"kind": "qcut-text-template-package",
+	"assetId": "text-mine-recent-warning",
+	"packageId": "text-mine-recent",
+	"version": 1,
+	"cacheKey": "text-assets/text-mine-recent/warning@1",
+	"files": {
+		"thumbnail": "thumbnail.webp",
+		"source": "template.json"
+	},
+	"resources": [
+		{
+			"byteSize": 14826,
+			"checksumSha256": "181f8c89fad2857e2d21dcd40512935c64d38dbc8cd76691e0f79259b61a0302",
+			"mimeType": "image/webp",
+			"path": "thumbnail.webp",
+			"role": "thumbnail",
+			"url": "/text-assets/text-mine-recent/warning@1/thumbnail.webp"
+		},
+		{
+			"byteSize": 2368,
+			"checksumSha256": "5baec5c0d85b8d11a85ef32c6677979b82f7e6791fe51a1947d58fea38af7980",
+			"mimeType": "application/json",
+			"path": "template.json",
+			"role": "source",
+			"url": "/text-assets/text-mine-recent/warning@1/template.json"
+		}
+	],
+	"source": {
+		"schemaVersion": 1,
+		"assetId": "text-mine-recent-warning",
+		"packageId": "text-mine-recent",
+		"version": 1,
+		"marketplace": {
+			"editorialRank": 120,
+			"heatScore": 77,
+			"remoteTags": [
+				"category:recent",
+				"group:mine",
+				"variant:warning"
+			],
+			"searchAliases": []
+		},
+		"definition": {
+			"id": "recent-warning",
+			"name": "最近使用警示",
+			"category": "recent",
+			"groupId": "mine",
+			"variantId": "warning",
+			"content": "最近",
+			"stylePresetId": "yellow-callout",
+			"keywords": [
+				"recent",
+				"最近使用",
+				"最近",
+				"warning",
+				"警示",
+				"醒目",
+				"黄色",
+				"recent-warning",
+				"最近使用警示",
+				"mine"
+			],
+			"premium": false,
+			"downloaded": false,
+			"resource": {
+				"assetId": "text-mine-recent-warning",
+				"packageId": "text-mine-recent",
+				"version": 1,
+				"entitlement": "free",
+				"cacheKey": "text-assets/text-mine-recent/warning@1",
+				"sizeKb": 192
+			},
+			"catalogVisible": true,
+			"overrides": {
+				"fontSize": 68,
+				"color": "#164e63",
+				"fontWeight": "bold",
+				"strokeColor": "#a3e635",
+				"strokeWidth": 2,
+				"backgroundColor": "#ecfeff",
+				"backgroundOpacity": 1,
+				"backgroundRadius": 2,
+				"backgroundPadding": 16,
+				"rotation": -2,
+				"shadowColor": "#164e63",
+				"shadowOpacity": 0.35,
+				"shadowOffsetX": 4,
+				"shadowOffsetY": 5,
+				"shadowBlur": 0,
+				"width": 650,
+				"height": 190
+			}
+		},
+		"template": {
+			"id": "recent-warning",
+			"type": "text",
+			"name": "最近使用警示",
+			"content": "最近",
+			"fontSize": 68,
+			"fontFamily": "Arial",
+			"color": "#164e63",
+			"backgroundColor": "#ecfeff",
+			"textAlign": "center",
+			"fontWeight": "bold",
+			"fontStyle": "normal",
+			"textDecoration": "none",
+			"x": 0,
+			"y": 0,
+			"rotation": -2,
+			"opacity": 1,
+			"width": 650,
+			"height": 190,
+			"letterSpacing": 0,
+			"lineHeight": 1.2,
+			"verticalAlign": "middle",
+			"strokeColor": "#a3e635",
+			"strokeWidth": 2,
+			"strokeOpacity": 1,
+			"backgroundOpacity": 1,
+			"backgroundRadius": 2,
+			"backgroundPadding": 16,
+			"shadowColor": "#164e63",
+			"shadowOpacity": 0.35,
+			"shadowOffsetX": 4,
+			"shadowOffsetY": 5,
+			"shadowBlur": 0,
+			"glowColor": "#ffffff",
+			"glowOpacity": 0,
+			"glowBlur": 12,
+			"curve": 0,
+			"animationType": "none",
+			"animationDuration": 0.6,
+			"animationDelay": 0,
+			"blendMode": "normal",
+			"duration": 5,
+			"startTime": 0,
+			"trimStart": 0,
+			"trimEnd": 0
+		}
+	}
+}

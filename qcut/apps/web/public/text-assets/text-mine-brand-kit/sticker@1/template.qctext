@@ -1,0 +1,149 @@
+{
+	"schemaVersion": 1,
+	"kind": "qcut-text-template-package",
+	"assetId": "text-mine-brand-kit-sticker",
+	"packageId": "text-mine-brand-kit",
+	"version": 1,
+	"cacheKey": "text-assets/text-mine-brand-kit/sticker@1",
+	"files": {
+		"thumbnail": "thumbnail.webp",
+		"source": "template.json"
+	},
+	"resources": [
+		{
+			"byteSize": 15732,
+			"checksumSha256": "39ec1a6d3eb8d3a6ee2d3b5cd5e1522f79dec882085361ca6a62084ab1f3ca45",
+			"mimeType": "image/webp",
+			"path": "thumbnail.webp",
+			"role": "thumbnail",
+			"url": "/text-assets/text-mine-brand-kit/sticker@1/thumbnail.webp"
+		},
+		{
+			"byteSize": 2471,
+			"checksumSha256": "1274ee82e86e9e2b4f23ef3f8100a0cf5dc1f7e7518275de3e12221830074cf9",
+			"mimeType": "application/json",
+			"path": "template.json",
+			"role": "source",
+			"url": "/text-assets/text-mine-brand-kit/sticker@1/template.json"
+		}
+	],
+	"source": {
+		"schemaVersion": 1,
+		"assetId": "text-mine-brand-kit-sticker",
+		"packageId": "text-mine-brand-kit",
+		"version": 1,
+		"marketplace": {
+			"editorialRank": 24,
+			"heatScore": 94,
+			"remoteTags": [
+				"category:brand-kit",
+				"group:mine",
+				"variant:sticker",
+				"style:sticker",
+				"tone:cute"
+			],
+			"searchAliases": [
+				"贴纸",
+				"白边",
+				"可爱"
+			]
+		},
+		"definition": {
+			"id": "brand-kit-sticker",
+			"name": "品牌字贴纸",
+			"category": "brand-kit",
+			"groupId": "mine",
+			"variantId": "sticker",
+			"content": "品牌",
+			"stylePresetId": "rounded-label",
+			"keywords": [
+				"brand-kit",
+				"品牌字",
+				"品牌",
+				"sticker",
+				"贴纸",
+				"白边",
+				"可爱",
+				"brand-kit-sticker",
+				"品牌字贴纸",
+				"mine"
+			],
+			"premium": false,
+			"downloaded": true,
+			"resource": {
+				"assetId": "text-mine-brand-kit-sticker",
+				"packageId": "text-mine-brand-kit",
+				"version": 1,
+				"entitlement": "free",
+				"cacheKey": "text-assets/text-mine-brand-kit/sticker@1",
+				"sizeKb": 192
+			},
+			"catalogVisible": true,
+			"overrides": {
+				"fontSize": 66,
+				"color": "#7c3aed",
+				"fontWeight": "bold",
+				"strokeColor": "#ede9fe",
+				"strokeWidth": 7,
+				"backgroundColor": "#ffffff",
+				"backgroundOpacity": 0.95,
+				"backgroundRadius": 26,
+				"backgroundPadding": 20,
+				"rotation": -4,
+				"shadowColor": "#2e1065",
+				"shadowOpacity": 0.28,
+				"shadowOffsetX": 5,
+				"shadowOffsetY": 7,
+				"shadowBlur": 8,
+				"width": 690,
+				"height": 200
+			}
+		},
+		"template": {
+			"id": "brand-kit-sticker",
+			"type": "text",
+			"name": "品牌字贴纸",
+			"content": "品牌",
+			"fontSize": 66,
+			"fontFamily": "Arial",
+			"color": "#7c3aed",
+			"backgroundColor": "#ffffff",
+			"textAlign": "center",
+			"fontWeight": "bold",
+			"fontStyle": "normal",
+			"textDecoration": "none",
+			"x": 0,
+			"y": 0,
+			"rotation": -4,
+			"opacity": 1,
+			"width": 690,
+			"height": 200,
+			"letterSpacing": 0,
+			"lineHeight": 1.2,
+			"verticalAlign": "middle",
+			"strokeColor": "#ede9fe",
+			"strokeWidth": 7,
+			"strokeOpacity": 1,
+			"backgroundOpacity": 0.95,
+			"backgroundRadius": 26,
+			"backgroundPadding": 20,
+			"shadowColor": "#2e1065",
+			"shadowOpacity": 0.28,
+			"shadowOffsetX": 5,
+			"shadowOffsetY": 7,
+			"shadowBlur": 8,
+			"glowColor": "#ffffff",
+			"glowOpacity": 0,
+			"glowBlur": 12,
+			"curve": 0,
+			"animationType": "none",
+			"animationDuration": 0.6,
+			"animationDelay": 0,
+			"blendMode": "normal",
+			"duration": 5,
+			"startTime": 0,
+			"trimStart": 0,
+			"trimEnd": 0
+		}
+	}
+}

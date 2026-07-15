@@ -1,7 +1,10 @@
 import { useCallback, useRef, useState } from "react";
 import { toast } from "sonner";
 import { useAIPipeline } from "@/hooks/use-ai-pipeline";
-import { syncProjectMediaIfNeeded } from "@/lib/claude-bridge/claude-timeline-bridge-helpers";
+import {
+	generatedMediaUrl,
+	resolveGeneratedMedia,
+} from "@/lib/ai-video/generated-media";
 import { estimateAlignedAvatarCostUsd } from "@/lib/cloud-tasks/task-costs";
 import { registerCloudTaskRuntimeActions } from "@/lib/cloud-tasks/task-runtime-actions";
 import {
@@ -16,50 +19,6 @@ import type { AIPipelineProgress, AIPipelineResult } from "@/types/electron";
 
 type GenerationKind = "speech" | "avatar" | "pair";
 type PairPhase = "speech" | "avatar";
-
-async function resolveGeneratedMedia({
-	result,
-	projectId,
-}: {
-	result: AIPipelineResult;
-	projectId: string;
-}): Promise<MediaItem | undefined> {
-	const resultLocations = new Set(
-		[result.importedPath, result.outputPath].filter(
-			(location): location is string => Boolean(location)
-		)
-	);
-	const findMedia = () =>
-		useMediaStore
-			.getState()
-			.mediaItems.find(
-				(item) =>
-					item.id === result.mediaId ||
-					[item.localPath, item.originalUrl, item.url].some(
-						(location) => location && resultLocations.has(location)
-					)
-			);
-	const imported = findMedia();
-	if (imported) return imported;
-	await syncProjectMediaIfNeeded({ projectId });
-	return findMedia();
-}
-
-function generatedMediaUrl({
-	media,
-	result,
-}: {
-	media: MediaItem;
-	result: AIPipelineResult;
-}): string | undefined {
-	return (
-		media.localPath ??
-		media.originalUrl ??
-		media.url ??
-		result.importedPath ??
-		result.outputPath
-	);
-}
 
 export function useSpeechAvatarGeneration({
 	captionElementId,

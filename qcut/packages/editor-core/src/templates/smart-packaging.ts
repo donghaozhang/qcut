@@ -17,6 +17,7 @@ export interface SmartPackagingShot {
 	elementId: string;
 	startTime: number;
 	endTime: number;
+	transitionEligible?: boolean;
 }
 
 export interface SmartPackagingOptions {
@@ -212,6 +213,10 @@ export function buildSmartPackagingPlan({
 		limit: config.maxTextOverlays ?? 6,
 	});
 	const shotPairs = touchingShotPairs({ shots });
+	const transitionPairs = shotPairs.filter(
+		({ from, to }) =>
+			from.transitionEligible !== false && to.transitionEligible !== false
+	);
 
 	if (config.addText) {
 		const textTemplates = ["social-hook", "dark-bubble", "social-breaking"];
@@ -294,7 +299,7 @@ export function buildSmartPackagingPlan({
 	}
 
 	if (config.addTransitions) {
-		for (const [index, pair] of shotPairs
+		for (const [index, pair] of transitionPairs
 			.slice(0, config.maxTransitions ?? 8)
 			.entries()) {
 			actions.push({
@@ -307,8 +312,8 @@ export function buildSmartPackagingPlan({
 				presetId: index % 3 === 2 ? "whip-pan-right" : "dissolve",
 			});
 		}
-		if (shotPairs.length === 0)
-			warnings.push("No touching shots found for transitions");
+		if (transitionPairs.length === 0)
+			warnings.push("No touching video shots found for transitions");
 	}
 
 	return {

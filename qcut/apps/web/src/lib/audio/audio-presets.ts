@@ -4,6 +4,10 @@ import {
 	createDefaultMediaAudioSettings,
 	normalizeMediaAudioSettings,
 } from "./audio-properties";
+import {
+	notifyUserLibraryChanged,
+	USER_LIBRARY_NAMESPACES,
+} from "@/lib/user-library/user-library-events";
 
 export const AUDIO_PRESET_STORAGE_KEY = "qcut-audio-presets-v1";
 
@@ -16,6 +20,24 @@ export interface AudioPreset {
 	builtIn: boolean;
 	createdAt?: string;
 	audio: MediaAudioSettings;
+}
+
+export function parseCustomAudioPreset({
+	value,
+}: {
+	value: unknown;
+}): AudioPreset | null {
+	if (
+		typeof value !== "object" ||
+		value === null ||
+		typeof (value as Partial<AudioPreset>).id !== "string" ||
+		typeof (value as Partial<AudioPreset>).name !== "string" ||
+		(value as Partial<AudioPreset>).builtIn !== false ||
+		typeof (value as Partial<AudioPreset>).audio !== "object"
+	) {
+		return null;
+	}
+	return value as AudioPreset;
 }
 
 interface AudioPresetOverrides {
@@ -290,15 +312,9 @@ export function loadCustomAudioPresets(): AudioPreset[] {
 			localStorage.getItem(AUDIO_PRESET_STORAGE_KEY) ?? "[]"
 		);
 		if (!Array.isArray(stored)) return [];
-		return stored.filter(
-			(candidate): candidate is AudioPreset =>
-				typeof candidate === "object" &&
-				candidate !== null &&
-				typeof (candidate as Partial<AudioPreset>).id === "string" &&
-				typeof (candidate as Partial<AudioPreset>).name === "string" &&
-				(candidate as Partial<AudioPreset>).builtIn === false &&
-				typeof (candidate as Partial<AudioPreset>).audio === "object"
-		);
+		return stored
+			.map((value) => parseCustomAudioPreset({ value }))
+			.filter((preset): preset is AudioPreset => preset !== null);
 	} catch {
 		return [];
 	}
@@ -309,5 +325,9 @@ export function persistCustomAudioPresets({
 }: {
 	presets: AudioPreset[];
 }) {
+	if (typeof localStorage === "undefined") return;
 	localStorage.setItem(AUDIO_PRESET_STORAGE_KEY, JSON.stringify(presets));
+	notifyUserLibraryChanged({
+		namespace: USER_LIBRARY_NAMESPACES.audioPresets,
+	});
 }

@@ -90,6 +90,24 @@ function selection({
 	return { trackId, elementId };
 }
 
+function transitionApplyState({
+	selectedElements,
+	tracks,
+	videoMediaIds = new Set(
+		tracks.flatMap((track) =>
+			track.elements.flatMap((element) =>
+				element.type === "media" ? [element.mediaId] : []
+			)
+		)
+	),
+}: {
+	selectedElements: SelectedElement[];
+	tracks: TimelineTrack[];
+	videoMediaIds?: ReadonlySet<string>;
+}) {
+	return getTransitionApplyState({ selectedElements, tracks, videoMediaIds });
+}
+
 describe("transition apply state", () => {
 	it("is ready for two touching media clips on the same track", () => {
 		const tracks = [
@@ -111,7 +129,7 @@ describe("transition apply state", () => {
 			}),
 		];
 
-		const result = getTransitionApplyState({
+		const result = transitionApplyState({
 			selectedElements: [
 				selection({ elementId: "clip-b" }),
 				selection({ elementId: "clip-a" }),
@@ -128,7 +146,7 @@ describe("transition apply state", () => {
 	});
 
 	it("requires exactly two selected clips", () => {
-		const result = getTransitionApplyState({
+		const result = transitionApplyState({
 			selectedElements: [selection({ elementId: "clip-a" })],
 			tracks: [
 				mediaTrack({
@@ -146,12 +164,12 @@ describe("transition apply state", () => {
 
 		expect(result).toEqual({
 			status: "disabled",
-			message: "Select two adjacent media clips to prepare a transition.",
+			message: "请选择两段相邻的视频片段来添加转场。",
 		});
 	});
 
 	it("rejects clips with a gap between them", () => {
-		const result = getTransitionApplyState({
+		const result = transitionApplyState({
 			selectedElements: [
 				selection({ elementId: "clip-a" }),
 				selection({ elementId: "clip-b" }),
@@ -178,12 +196,12 @@ describe("transition apply state", () => {
 
 		expect(result).toEqual({
 			status: "disabled",
-			message: "The selected clips need to touch at a cut point.",
+			message: "所选片段需要在同一个剪辑点首尾相接。",
 		});
 	});
 
 	it("rejects selections that include non-media elements", () => {
-		const result = getTransitionApplyState({
+		const result = transitionApplyState({
 			selectedElements: [
 				selection({ elementId: "clip-a" }),
 				selection({ trackId: "track-text", elementId: "title-a" }),
@@ -217,12 +235,12 @@ describe("transition apply state", () => {
 
 		expect(result).toEqual({
 			status: "disabled",
-			message: "Transitions can be prepared only between media clips.",
+			message: "转场只能添加在两段视频之间。",
 		});
 	});
 
 	it("rejects selections referencing elements missing from the tracks", () => {
-		const result = getTransitionApplyState({
+		const result = transitionApplyState({
 			selectedElements: [
 				selection({ elementId: "clip-a" }),
 				selection({ elementId: "clip-missing" }),
@@ -243,12 +261,12 @@ describe("transition apply state", () => {
 
 		expect(result).toEqual({
 			status: "disabled",
-			message: "Transitions can be prepared only between media clips.",
+			message: "转场只能添加在两段视频之间。",
 		});
 	});
 
 	it("rejects media clips selected on different tracks", () => {
-		const result = getTransitionApplyState({
+		const result = transitionApplyState({
 			selectedElements: [
 				selection({ trackId: "track-1", elementId: "clip-a" }),
 				selection({ trackId: "track-2", elementId: "clip-b" }),
@@ -281,12 +299,46 @@ describe("transition apply state", () => {
 
 		expect(result).toEqual({
 			status: "disabled",
-			message: "Select two adjacent clips on the same media track.",
+			message: "请选择同一视频轨道上的两段相邻片段。",
+		});
+	});
+
+	it("rejects a touching pair when either asset is not a video", () => {
+		const tracks = [
+			mediaTrack({
+				elements: [
+					mediaElement({
+						id: "clip-a",
+						name: "Clip A",
+						startTime: 0,
+						duration: 4,
+					}),
+					mediaElement({
+						id: "clip-b",
+						name: "Image B",
+						startTime: 4,
+						duration: 3,
+					}),
+				],
+			}),
+		];
+		const result = transitionApplyState({
+			selectedElements: [
+				selection({ elementId: "clip-a" }),
+				selection({ elementId: "clip-b" }),
+			],
+			tracks,
+			videoMediaIds: new Set(["clip-a-media"]),
+		});
+
+		expect(result).toEqual({
+			status: "disabled",
+			message: "转场需要两段视频片段。",
 		});
 	});
 
 	it("reports the max duration and clip names when ready", () => {
-		const result = getTransitionApplyState({
+		const result = transitionApplyState({
 			selectedElements: [
 				selection({ elementId: "clip-a" }),
 				selection({ elementId: "clip-b" }),
@@ -313,10 +365,9 @@ describe("transition apply state", () => {
 
 		expect(result.status).toBe("ready");
 		if (result.status !== "ready") return;
-		// 2 * min(fromDuration = 4, toDuration = 3)
-		expect(result.maxDuration).toBe(6);
+		expect(result.maxDuration).toBe(5);
 		expect(result.fromMediaId).toBe("clip-a-media");
 		expect(result.toMediaId).toBe("clip-b-media");
-		expect(result.message).toBe("Ready between Clip A and Clip B.");
+		expect(result.message).toBe("可在 Clip A 与 Clip B 之间添加转场。");
 	});
 });

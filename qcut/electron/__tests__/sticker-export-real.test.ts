@@ -27,6 +27,10 @@ const FIXTURES_DIR = path.resolve(
 );
 const TEST_VIDEO = path.join(FIXTURES_DIR, "sample-video.mp4");
 const TEST_IMAGE = path.join(FIXTURES_DIR, "sample-image.png");
+const TEST_ANIMATED_STICKER = path.resolve(
+	__dirname,
+	"../../apps/web/public/stickers/qcut-motion/qcut-motion-emphasis/attention-pulse.png"
+);
 const TMP_DIR = path.join(__dirname, "../../.tmp/sticker-export-test");
 
 // ---------------------------------------------------------------------------
@@ -91,6 +95,71 @@ function createTestSticker(
 	);
 }
 
+function createSolidVideo({
+	ffmpegPath,
+	outputPath,
+}: {
+	ffmpegPath: string;
+	outputPath: string;
+}): void {
+	execSync(
+		`"${ffmpegPath}" -y -f lavfi -i "color=c=black:s=320x240:d=2:r=30" -c:v libx264 -pix_fmt yuv420p "${outputPath}"`,
+		{ timeout: 10_000 }
+	);
+}
+
+function extractFrameBytes({
+	ffmpegPath,
+	inputPath,
+	time,
+}: {
+	ffmpegPath: string;
+	inputPath: string;
+	time: number;
+}): Buffer {
+	const result = spawnSync(
+		ffmpegPath,
+		[
+			"-hide_banner",
+			"-loglevel",
+			"error",
+			"-ss",
+			String(time),
+			"-i",
+			inputPath,
+			"-vf",
+			"crop=256:240:0:0,format=rgba",
+			"-frames:v",
+			"1",
+			"-f",
+			"rawvideo",
+			"pipe:1",
+		],
+		{ timeout: 10_000 }
+	);
+	if (result.status !== 0 || !result.stdout) {
+		throw new Error(`Failed to extract frame: ${String(result.stderr)}`);
+	}
+	return result.stdout;
+}
+
+function countChangedBytes({
+	first,
+	second,
+}: {
+	first: Buffer;
+	second: Buffer;
+}): number {
+	if (first.length !== second.length) {
+		throw new Error("Extracted animation frames have different dimensions");
+	}
+	let changedBytes = 0;
+	for (let index = 0; index < first.length; index++) {
+		if (first[index] !== second[index]) changedBytes++;
+	}
+	return changedBytes;
+}
+
 function runFFmpeg(
 	ffmpegPath: string,
 	args: string[]
@@ -123,6 +192,7 @@ describe.skipIf(!detectedFFmpeg)(
 		let stickerPath1: string;
 		let stickerPath2: string;
 		let stickerPath3: string;
+		let solidVideoPath: string;
 
 		beforeAll(() => {
 			ffmpegPath = detectedFFmpeg!;
@@ -130,6 +200,9 @@ describe.skipIf(!detectedFFmpeg)(
 			// Ensure test fixtures exist
 			if (!fs.existsSync(TEST_VIDEO)) {
 				throw new Error(`Test video not found: ${TEST_VIDEO}`);
+			}
+			if (!fs.existsSync(TEST_ANIMATED_STICKER)) {
+				throw new Error(`Animated sticker not found: ${TEST_ANIMATED_STICKER}`);
 			}
 
 			// Create temp dir
@@ -139,9 +212,11 @@ describe.skipIf(!detectedFFmpeg)(
 			stickerPath1 = path.join(TMP_DIR, "sticker-red.png");
 			stickerPath2 = path.join(TMP_DIR, "sticker-blue.png");
 			stickerPath3 = path.join(TMP_DIR, "sticker-green.png");
+			solidVideoPath = path.join(TMP_DIR, "solid-video.mp4");
 			createTestSticker(stickerPath1, ffmpegPath, 64, "red");
 			createTestSticker(stickerPath2, ffmpegPath, 48, "blue");
 			createTestSticker(stickerPath3, ffmpegPath, 32, "green");
+			createSolidVideo({ ffmpegPath, outputPath: solidVideoPath });
 		});
 
 		afterAll(() => {
@@ -197,6 +272,57 @@ describe.skipIf(!detectedFFmpeg)(
 			expect(probe.width).toBe(1280);
 			expect(probe.height).toBe(720);
 			expect(probe.duration).toBeGreaterThan(0);
+		});
+
+		it("should preserve APNG motion in the exported video", () => {
+			const outputFile = path.join(TMP_DIR, "output-animated-sticker.mp4");
+			const stickerSources: StickerSource[] = [
+				{
+					id: "animated-pulse",
+					animated: true,
+					path: TEST_ANIMATED_STICKER,
+					x: 0,
+					y: 0,
+					width: 256,
+					height: 256,
+					startTime: 0,
+					endTime: 2,
+					zIndex: 1,
+				},
+			];
+
+			const args = buildFFmpegArgs({
+				inputDir: TMP_DIR,
+				outputFile,
+				width: 320,
+				height: 240,
+				fps: 30,
+				quality: "medium",
+				duration: 2,
+				audioFiles: [],
+				useVideoInput: true,
+				videoInputPath: solidVideoPath,
+				stickerSources,
+				stickerFilterChain: "placeholder",
+			});
+
+			expect(args).toContain("-stream_loop");
+			const result = runFFmpeg(ffmpegPath, args);
+			expect(result.success).toBe(true);
+
+			const earlyFrame = extractFrameBytes({
+				ffmpegPath,
+				inputPath: outputFile,
+				time: 0.1,
+			});
+			const laterFrame = extractFrameBytes({
+				ffmpegPath,
+				inputPath: outputFile,
+				time: 0.65,
+			});
+			expect(
+				countChangedBytes({ first: earlyFrame, second: laterFrame })
+			).toBeGreaterThan(1_000);
 		});
 
 		// =========================================================================

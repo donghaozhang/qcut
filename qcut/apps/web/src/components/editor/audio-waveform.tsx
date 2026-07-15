@@ -2,8 +2,13 @@ import { useEffect, useRef, useState } from "react";
 import {
 	audioWaveformCache,
 	sampleAudioWaveformBars,
+	type AudioWaveformLoader,
 	type AudioWaveformPeaks,
 } from "@/lib/audio/audio-waveform-cache";
+import {
+	canDecodeNativeAudioWaveform,
+	decodeNativeAudioWaveform,
+} from "@/lib/audio/native-audio-waveform";
 import { cn } from "@/lib/utils";
 
 interface AudioWaveformProps {
@@ -12,6 +17,31 @@ interface AudioWaveformProps {
 	className?: string;
 	sourceStart?: number;
 	sourceEnd?: number;
+	sourcePath?: string;
+	sourceDuration?: number;
+	cacheKey?: string;
+}
+
+function nativeWaveformLoader({
+	sourcePath,
+	sourceDuration,
+}: {
+	sourcePath?: string;
+	sourceDuration?: number;
+}): AudioWaveformLoader | undefined {
+	if (
+		!sourcePath ||
+		!sourceDuration ||
+		sourceDuration <= 0 ||
+		!canDecodeNativeAudioWaveform()
+	) {
+		return;
+	}
+	return () =>
+		decodeNativeAudioWaveform({
+			sourcePath,
+			duration: sourceDuration,
+		});
 }
 
 function drawWaveform({
@@ -65,6 +95,9 @@ export default function AudioWaveform({
 	className = "",
 	sourceStart,
 	sourceEnd,
+	sourcePath,
+	sourceDuration,
+	cacheKey,
 }: AudioWaveformProps) {
 	const containerRef = useRef<HTMLDivElement>(null);
 	const canvasRef = useRef<HTMLCanvasElement>(null);
@@ -75,14 +108,24 @@ export default function AudioWaveform({
 		let active = true;
 		setWaveform(null);
 		setError(undefined);
-		if (!audioUrl) {
+		const nativeLoader = nativeWaveformLoader({ sourcePath, sourceDuration });
+		const useNativeDecoder = Boolean(nativeLoader);
+		if (!audioUrl && !useNativeDecoder) {
 			setError("Audio unavailable");
 			return () => {
 				active = false;
 			};
 		}
 		void audioWaveformCache
-			.get({ audioUrl })
+			.get({
+				audioUrl,
+				cacheKey:
+					cacheKey ??
+					(useNativeDecoder
+						? `native:${sourcePath}:${sourceDuration}`
+						: audioUrl),
+				loader: nativeLoader,
+			})
 			.then((result) => {
 				if (active) setWaveform(result);
 			})
@@ -92,7 +135,7 @@ export default function AudioWaveform({
 		return () => {
 			active = false;
 		};
-	}, [audioUrl]);
+	}, [audioUrl, cacheKey, sourceDuration, sourcePath]);
 
 	useEffect(() => {
 		const container = containerRef.current;

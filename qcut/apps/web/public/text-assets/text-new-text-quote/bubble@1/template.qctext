@@ -1,0 +1,142 @@
+{
+	"schemaVersion": 1,
+	"kind": "qcut-text-template-package",
+	"assetId": "text-new-text-quote-bubble",
+	"packageId": "text-new-text-quote",
+	"version": 1,
+	"cacheKey": "text-assets/text-new-text-quote/bubble@1",
+	"files": {
+		"thumbnail": "thumbnail.webp",
+		"source": "template.json"
+	},
+	"resources": [
+		{
+			"byteSize": 15622,
+			"checksumSha256": "df7ba9a24a62fdcdb28e5052054b02fef630c2ecac1f9b2cdd37989e3051192b",
+			"mimeType": "image/webp",
+			"path": "thumbnail.webp",
+			"role": "thumbnail",
+			"url": "/text-assets/text-new-text-quote/bubble@1/thumbnail.webp"
+		},
+		{
+			"byteSize": 2336,
+			"checksumSha256": "210f70208e82c4d2b9c519183cfbccce2cc0b0fb2286aed19f86cbbb6bbb40f2",
+			"mimeType": "application/json",
+			"path": "template.json",
+			"role": "source",
+			"url": "/text-assets/text-new-text-quote/bubble@1/template.json"
+		}
+	],
+	"source": {
+		"schemaVersion": 1,
+		"assetId": "text-new-text-quote-bubble",
+		"packageId": "text-new-text-quote",
+		"version": 1,
+		"marketplace": {
+			"editorialRank": 120,
+			"heatScore": 77,
+			"remoteTags": [
+				"category:quote",
+				"group:new-text",
+				"variant:bubble"
+			],
+			"searchAliases": []
+		},
+		"definition": {
+			"id": "quote-bubble",
+			"name": "引用气泡",
+			"category": "quote",
+			"groupId": "new-text",
+			"variantId": "bubble",
+			"content": "金句",
+			"stylePresetId": "pink-neon",
+			"keywords": [
+				"quote",
+				"引用",
+				"金句",
+				"bubble",
+				"气泡",
+				"圆润",
+				"可爱",
+				"quote-bubble",
+				"引用气泡",
+				"new-text"
+			],
+			"premium": false,
+			"downloaded": true,
+			"resource": {
+				"assetId": "text-new-text-quote-bubble",
+				"packageId": "text-new-text-quote",
+				"version": 1,
+				"entitlement": "free",
+				"cacheKey": "text-assets/text-new-text-quote/bubble@1",
+				"sizeKb": 192
+			},
+			"catalogVisible": true,
+			"overrides": {
+				"fontSize": 66,
+				"color": "#92400e",
+				"fontWeight": "bold",
+				"strokeColor": "#ffffff",
+				"strokeWidth": 6,
+				"backgroundColor": "#fffbeb",
+				"backgroundOpacity": 1,
+				"backgroundRadius": 42,
+				"backgroundPadding": 22,
+				"shadowColor": "#f97316",
+				"shadowOpacity": 0.45,
+				"shadowOffsetX": 0,
+				"shadowOffsetY": 8,
+				"shadowBlur": 14,
+				"width": 680,
+				"height": 210
+			}
+		},
+		"template": {
+			"id": "quote-bubble",
+			"type": "text",
+			"name": "引用气泡",
+			"content": "金句",
+			"fontSize": 66,
+			"fontFamily": "Arial",
+			"color": "#92400e",
+			"backgroundColor": "#fffbeb",
+			"textAlign": "center",
+			"fontWeight": "bold",
+			"fontStyle": "normal",
+			"textDecoration": "none",
+			"x": 0,
+			"y": 0,
+			"rotation": 0,
+			"opacity": 1,
+			"width": 680,
+			"height": 210,
+			"letterSpacing": 0,
+			"lineHeight": 1.2,
+			"verticalAlign": "middle",
+			"strokeColor": "#ffffff",
+			"strokeWidth": 6,
+			"strokeOpacity": 1,
+			"backgroundOpacity": 1,
+			"backgroundRadius": 42,
+			"backgroundPadding": 22,
+			"shadowColor": "#f97316",
+			"shadowOpacity": 0.45,
+			"shadowOffsetX": 0,
+			"shadowOffsetY": 8,
+			"shadowBlur": 14,
+			"glowColor": "#ff3ca6",
+			"glowOpacity": 0.9,
+			"glowBlur": 18,
+			"curve": 0,
+			"animationType": "none",
+			"animationDuration": 0.6,
+			"animationDelay": 0,
+			"blendMode": "normal",
+			"duration": 5,
+			"startTime": 0,
+			"trimStart": 0,
+			"trimEnd": 0
+		}
+	}
+}

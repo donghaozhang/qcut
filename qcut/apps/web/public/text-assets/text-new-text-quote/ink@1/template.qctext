@@ -1,0 +1,141 @@
+{
+	"schemaVersion": 1,
+	"kind": "qcut-text-template-package",
+	"assetId": "text-new-text-quote-ink",
+	"packageId": "text-new-text-quote",
+	"version": 1,
+	"cacheKey": "text-assets/text-new-text-quote/ink@1",
+	"files": {
+		"thumbnail": "thumbnail.webp",
+		"source": "template.json"
+	},
+	"resources": [
+		{
+			"byteSize": 12128,
+			"checksumSha256": "b98ce4a9d54f65452227cd2e0789c123a2170d424875288a9d94c4a19796cb17",
+			"mimeType": "image/webp",
+			"path": "thumbnail.webp",
+			"role": "thumbnail",
+			"url": "/text-assets/text-new-text-quote/ink@1/thumbnail.webp"
+		},
+		{
+			"byteSize": 2257,
+			"checksumSha256": "2dd678a73ed60cb24f6fc938f7799d92eb593e8ebdd357978660dbc300c4840b",
+			"mimeType": "application/json",
+			"path": "template.json",
+			"role": "source",
+			"url": "/text-assets/text-new-text-quote/ink@1/template.json"
+		}
+	],
+	"source": {
+		"schemaVersion": 1,
+		"assetId": "text-new-text-quote-ink",
+		"packageId": "text-new-text-quote",
+		"version": 1,
+		"marketplace": {
+			"editorialRank": 120,
+			"heatScore": 81,
+			"remoteTags": [
+				"category:quote",
+				"group:new-text",
+				"variant:ink"
+			],
+			"searchAliases": []
+		},
+		"definition": {
+			"id": "quote-ink",
+			"name": "引用水墨",
+			"category": "quote",
+			"groupId": "new-text",
+			"variantId": "ink",
+			"content": "金句",
+			"stylePresetId": "editorial",
+			"keywords": [
+				"quote",
+				"引用",
+				"金句",
+				"ink",
+				"水墨",
+				"国风",
+				"书法",
+				"brush",
+				"quote-ink",
+				"引用水墨",
+				"new-text"
+			],
+			"premium": true,
+			"downloaded": false,
+			"resource": {
+				"assetId": "text-new-text-quote-ink",
+				"packageId": "text-new-text-quote",
+				"version": 1,
+				"entitlement": "svip",
+				"cacheKey": "text-assets/text-new-text-quote/ink@1",
+				"sizeKb": 384
+			},
+			"catalogVisible": true,
+			"overrides": {
+				"fontSize": 76,
+				"fontFamily": "serif",
+				"color": "#451a03",
+				"fontWeight": "bold",
+				"fontStyle": "italic",
+				"strokeColor": "#fffbeb",
+				"strokeWidth": 1,
+				"shadowColor": "#92400e",
+				"shadowOpacity": 0.45,
+				"shadowOffsetX": 3,
+				"shadowOffsetY": 5,
+				"shadowBlur": 7,
+				"width": 760,
+				"height": 230
+			}
+		},
+		"template": {
+			"id": "quote-ink",
+			"type": "text",
+			"name": "引用水墨",
+			"content": "金句",
+			"fontSize": 76,
+			"fontFamily": "serif",
+			"color": "#451a03",
+			"backgroundColor": "transparent",
+			"textAlign": "center",
+			"fontWeight": "bold",
+			"fontStyle": "italic",
+			"textDecoration": "none",
+			"x": 0,
+			"y": 0,
+			"rotation": 0,
+			"opacity": 1,
+			"width": 760,
+			"height": 230,
+			"letterSpacing": 1,
+			"lineHeight": 1.2,
+			"verticalAlign": "middle",
+			"strokeColor": "#fffbeb",
+			"strokeWidth": 1,
+			"strokeOpacity": 1,
+			"backgroundOpacity": 0,
+			"backgroundRadius": 4,
+			"backgroundPadding": 12,
+			"shadowColor": "#92400e",
+			"shadowOpacity": 0.45,
+			"shadowOffsetX": 3,
+			"shadowOffsetY": 5,
+			"shadowBlur": 7,
+			"glowColor": "#ffffff",
+			"glowOpacity": 0,
+			"glowBlur": 12,
+			"curve": 0,
+			"animationType": "none",
+			"animationDuration": 0.6,
+			"animationDelay": 0,
+			"blendMode": "normal",
+			"duration": 5,
+			"startTime": 0,
+			"trimStart": 0,
+			"trimEnd": 0
+		}
+	}
+}

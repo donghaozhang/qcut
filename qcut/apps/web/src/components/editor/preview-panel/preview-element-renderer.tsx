@@ -1,5 +1,6 @@
 "use client";
 
+import { useMemo } from "react";
 import { AudioPlayer } from "@/components/ui/audio-player";
 import { VideoPlayer } from "@/components/ui/video-player";
 import { TEST_MEDIA_ID } from "@/constants/timeline-constants";
@@ -15,7 +16,10 @@ import { getTextAnimationState } from "@/lib/text/text-animation";
 import { resolveTextKeyframes } from "@/lib/text/text-keyframes";
 import { resolveTrackedTextElement } from "@/lib/text/text-tracking";
 import { getCurvedTextTransforms } from "@/lib/text/curved-text";
-import { resolveMediaKeyframes } from "@/lib/video/video-properties";
+import {
+	DEFAULT_MEDIA_ENHANCEMENTS,
+	resolveMediaKeyframes,
+} from "@/lib/video/video-properties";
 import { useMaskEditorStore } from "@/stores/editor/mask-editor-store";
 import { buildCssPerspectiveTransform } from "@/lib/video/video-perspective";
 import {
@@ -46,8 +50,12 @@ import {
 import { useColorPickerStore } from "@/stores/editor/color-picker-store";
 import type { ClipTransitionPreviewState } from "@/lib/transitions/clip-transition-preview";
 import {
+	buildClipTransitionAnchoredTransform,
+	buildClipTransitionContentStyle,
 	buildClipTransitionCssFilter,
 	buildClipTransitionCssTransform,
+	buildClipTransitionMaskStyle,
+	buildClipTransitionOverlayStyle,
 	getClipTransitionLayerPresentation,
 } from "@/lib/transitions/clip-transition-presentation";
 import { buildMediaMaskStrokeCssFilter } from "@/lib/video/media-mask-stroke";
@@ -55,6 +63,12 @@ import { CaptionsDisplay } from "@/components/captions/captions-display";
 import { WORD_FILTER_STATE } from "@/types/word-timeline";
 import { TimelineStickerLayer } from "./timeline-sticker-layer";
 import type { AudioCrossfadePreviewState } from "@/lib/audio/audio-crossfade-preview";
+import { useNativeVideoEnhancementPreview } from "@/hooks/preview/use-native-video-enhancement-preview";
+import {
+	getVideoEnhancementProxyWindow,
+	useVideoEnhancementProxy,
+} from "@/hooks/preview/use-video-enhancement-proxy";
+import { LoaderCircle, TriangleAlert } from "lucide-react";
 
 interface ElementResizeParams {
 	elementId: string;
@@ -78,12 +92,19 @@ interface PreviewElementRendererProps {
 	tracks: TimelineTrack[];
 	transitionState?: ClipTransitionPreviewState;
 	audioCrossfadeState?: AudioCrossfadePreviewState;
+	compositionPreviewEnabled: boolean;
 	onTextPointerDown: (
 		event: React.PointerEvent<HTMLDivElement>,
 		element: Pick<TimelineElement, "id" | "x" | "y">,
 		trackId: string
 	) => void;
-	onElementSelect: ({ elementId }: { elementId: string }) => void;
+	onElementSelect: ({
+		elementId,
+		multi,
+	}: {
+		elementId: string;
+		multi: boolean;
+	}) => void;
 	onElementResize: ({ elementId, width, height }: ElementResizeParams) => void;
 }
 
@@ -212,6 +233,7 @@ export function PreviewElementRenderer({
 	tracks,
 	transitionState,
 	audioCrossfadeState,
+	compositionPreviewEnabled,
 	onTextPointerDown,
 	onElementSelect,
 	onElementResize,
@@ -228,6 +250,71 @@ export function PreviewElementRenderer({
 			state,
 			elementId: elementData.element.id,
 		})
+	);
+	const previewMediaVisual =
+		elementData.element.type === "media"
+			? resolveMediaKeyframes({
+					element: elementData.element,
+					currentTime,
+					fps: activeProject?.fps ?? 30,
+				})
+			: undefined;
+	const generatedPreviewMask = previewMediaVisual?.masks.find(
+		(mask) => mask.enabled !== false && Boolean(mask.sourceMediaId)
+	);
+	const previewMediaItem = elementData.mediaItem;
+	const previewEnhancements =
+		previewMediaVisual?.enhancements ?? DEFAULT_MEDIA_ENHANCEMENTS;
+	const proxyWindow =
+		elementData.element.type === "media"
+			? getVideoEnhancementProxyWindow({
+					element: elementData.element,
+					currentTime,
+				})
+			: { sourceStart: 0, sourceDuration: 0 };
+	const enhancementProxy = useVideoEnhancementProxy({
+		enabled:
+			elementData.element.type === "media" &&
+			previewMediaItem?.type === "video" &&
+			elementData.element.id === currentMediaElement?.element.id &&
+			!generatedPreviewMask,
+		elementId: elementData.element.id,
+		sourcePath: previewMediaItem?.localPath,
+		sourceStart: proxyWindow.sourceStart,
+		sourceDuration: proxyWindow.sourceDuration,
+		sourceWidth: previewMediaItem?.width ?? canvasSize.width,
+		sourceHeight: previewMediaItem?.height ?? canvasSize.height,
+		fps: activeProject?.fps ?? 30,
+		enhancements: previewEnhancements,
+	});
+	const nativeEnhancementPreview = useNativeVideoEnhancementPreview({
+		enabled:
+			!isPlaying &&
+			!compositionPreviewEnabled &&
+			elementData.element.type === "media" &&
+			previewMediaItem?.type === "video" &&
+			elementData.element.id === currentMediaElement?.element.id &&
+			!generatedPreviewMask,
+		elementId: elementData.element.id,
+		videoId: previewMediaItem?.id ?? "",
+		sourcePath: previewMediaItem?.localPath,
+		sourceTimeOffset:
+			enhancementProxy.status === "ready"
+				? enhancementProxy.sourceTimeOffset
+				: 0,
+		currentTime,
+		width: previewDimensions.width || canvasSize.width,
+		height: previewDimensions.height || canvasSize.height,
+		fps: activeProject?.fps ?? 30,
+		fitMode: previewMediaVisual?.fitMode ?? "cover",
+		enhancements: previewEnhancements,
+	});
+	const enhancementProxyVideoSource = useMemo<VideoSource>(
+		() =>
+			enhancementProxy.status === "ready" && enhancementProxy.url
+				? { type: "remote", src: enhancementProxy.url }
+				: null,
+		[enhancementProxy.status, enhancementProxy.url]
 	);
 	try {
 		const { element, mediaItem } = elementData;
@@ -277,13 +364,21 @@ export function PreviewElementRenderer({
 				<div
 					key={elementKey}
 					className="absolute flex cursor-grab"
-					onClick={() => onElementSelect({ elementId: element.id })}
+					onClick={(event) =>
+						onElementSelect({
+							elementId: element.id,
+							multi: event.shiftKey || event.metaKey,
+						})
+					}
 					onKeyDown={(event) => {
 						if (event.key !== "Enter" && event.key !== " ") {
 							return;
 						}
 						event.preventDefault();
-						onElementSelect({ elementId: element.id });
+						onElementSelect({
+							elementId: element.id,
+							multi: event.shiftKey || event.metaKey,
+						});
 					}}
 					onPointerDown={(event) =>
 						onTextPointerDown(event, element, elementData.track.id)
@@ -378,13 +473,21 @@ export function PreviewElementRenderer({
 				<div
 					key={elementKey}
 					className="absolute cursor-grab"
-					onClick={() => onElementSelect({ elementId: element.id })}
+					onClick={(event) =>
+						onElementSelect({
+							elementId: element.id,
+							multi: event.shiftKey || event.metaKey,
+						})
+					}
 					onKeyDown={(event) => {
 						if (event.key !== "Enter" && event.key !== " ") {
 							return;
 						}
 						event.preventDefault();
-						onElementSelect({ elementId: element.id });
+						onElementSelect({
+							elementId: element.id,
+							multi: event.shiftKey || event.metaKey,
+						});
 					}}
 					onPointerDown={(event) =>
 						onTextPointerDown(event, element, elementData.track.id)
@@ -486,6 +589,12 @@ export function PreviewElementRenderer({
 			const transitionFilter = buildClipTransitionCssFilter({
 				presentation: transitionPresentation,
 			});
+			const transitionMaskStyle = buildClipTransitionMaskStyle({
+				presentation: transitionPresentation,
+			});
+			const transitionOverlayStyle = buildClipTransitionOverlayStyle({
+				presentation: transitionPresentation,
+			});
 			if (!mediaItem || element.mediaId === TEST_MEDIA_ID) {
 				return (
 					<div
@@ -500,13 +609,18 @@ export function PreviewElementRenderer({
 							transform: buildClipTransitionCssTransform({
 								presentation: transitionPresentation,
 							}),
-							transformOrigin: "center",
+							transformOrigin:
+								transitionPresentation.transformOrigin ?? "center",
+							...transitionMaskStyle,
 						}}
 					>
 						<div className="text-center">
 							<div className="text-2xl mb-2">🎬</div>
 							<p className="text-xs text-foreground">{element.name}</p>
 						</div>
+						{transitionOverlayStyle ? (
+							<div aria-hidden="true" style={transitionOverlayStyle} />
+						) : null}
 					</div>
 				);
 			}
@@ -577,11 +691,15 @@ export function PreviewElementRenderer({
 					hasEnabledEffects && element.id === currentMediaElement?.element.id;
 				const isDraggingThisElement =
 					dragState.isDragging && dragState.elementId === element.id;
-				const visual = resolveMediaKeyframes({
-					element,
-					currentTime,
-					fps: activeProject?.fps ?? 30,
-				});
+				const visual = previewMediaVisual;
+				if (!visual) return null;
+				const proxyReady =
+					enhancementProxy.status === "ready" && Boolean(enhancementProxy.url);
+				const visualSource = enhancementProxyVideoSource ?? source;
+				const nativePreviewUrl = isPlaying
+					? undefined
+					: nativeEnhancementPreview.url;
+				const usesNativeEnhancement = proxyReady || Boolean(nativePreviewUrl);
 				const mediaAnimation = getMediaAnimationState({
 					element,
 					currentTime,
@@ -605,7 +723,7 @@ export function PreviewElementRenderer({
 					? ""
 					: buildMediaChromaKeyCssFilter(visual.chromaKey);
 				const combinedFilter = [
-					enhancementFilter,
+					usesNativeEnhancement ? "" : enhancementFilter,
 					chromaKeyFilter,
 					shouldApplyFilter ? filterStyle : "",
 				]
@@ -642,6 +760,10 @@ export function PreviewElementRenderer({
 				const sourceVideoId = generatedMaskSource
 					? `${mediaItem.id}-mask-${generatedMask?.sourceMediaId}`
 					: mediaItem.id;
+				const nativePreviewId = `${sourceVideoId}-native-enhancement`;
+				const colorPreviewSourceSelector = nativePreviewUrl
+					? `img[data-native-enhancement-id="${nativePreviewId.replaceAll('"', '\\"')}"]`
+					: `video[data-video-id="${sourceVideoId.replaceAll('"', '\\"')}"]`;
 				const selectedMask =
 					isEditingMask && selectedMaskElementId === element.id
 						? visual.masks.find((mask) => mask.id === selectedMaskId)
@@ -651,15 +773,20 @@ export function PreviewElementRenderer({
 					<div
 						key={elementKey}
 						className="absolute cursor-grab"
-						onClick={() => onElementSelect({ elementId: element.id })}
+						onClick={(event) =>
+							onElementSelect({
+								elementId: element.id,
+								multi: event.shiftKey || event.metaKey,
+							})
+						}
 						onKeyDown={(event) => {
 							if (event.key !== "Enter" && event.key !== " ") return;
 							event.preventDefault();
-							onElementSelect({ elementId: element.id });
+							onElementSelect({
+								elementId: element.id,
+								multi: event.shiftKey || event.metaKey,
+							});
 						}}
-						onPointerDown={(event) =>
-							onTextPointerDown(event, element, elementData.track.id)
-						}
 						tabIndex={0}
 						role="button"
 						aria-label={`Video: ${element.name}`}
@@ -668,8 +795,20 @@ export function PreviewElementRenderer({
 							top: `${50 + ((displayY + mediaAnimation.offsetY + transitionPresentation.offsetY) / canvasSize.height) * 100}%`,
 							width: "100%",
 							height: "100%",
-							transform: `translate(-50%, -50%) rotate(${visual.rotation + (transitionPresentation.rotation ?? 0)}deg) scale(${visual.scaleX * mediaAnimation.scale * (transitionPresentation.scale ?? 1) * (visual.flipHorizontal ? -1 : 1)}, ${visual.scaleY * mediaAnimation.scale * (transitionPresentation.scale ?? 1) * (visual.flipVertical ? -1 : 1)})`,
-							transformOrigin: "center",
+							transform: buildClipTransitionAnchoredTransform({
+								presentation: transitionPresentation,
+								rotation: visual.rotation,
+								scaleX:
+									visual.scaleX *
+									mediaAnimation.scale *
+									(visual.flipHorizontal ? -1 : 1),
+								scaleY:
+									visual.scaleY *
+									mediaAnimation.scale *
+									(visual.flipVertical ? -1 : 1),
+							}),
+							transformOrigin:
+								transitionPresentation.transformOrigin ?? "center",
 							filter:
 								[transitionFilter, maskStrokeFilter]
 									.filter(Boolean)
@@ -682,20 +821,34 @@ export function PreviewElementRenderer({
 							zIndex: index + 1,
 							clipPath: transitionPresentation.clipPath,
 							backgroundColor: transitionPresentation.backgroundColor,
+							...transitionMaskStyle,
 						}}
 					>
 						<div
 							className="size-full"
+							data-native-enhancement-preview-status={
+								nativeEnhancementPreview.status
+							}
+							data-video-enhancement-proxy-status={enhancementProxy.status}
+							data-video-enhancement-proxy-progress={Math.round(
+								enhancementProxy.progress * 100
+							)}
 							style={{
-								opacity: transitionPresentation.contentOpacity,
+								...buildClipTransitionContentStyle({
+									presentation: transitionPresentation,
+									baseTransform: perspectiveTransform,
+								}),
 								clipPath: `inset(${visual.crop.top * 100}% ${visual.crop.right * 100}% ${visual.crop.bottom * 100}% ${visual.crop.left * 100}%)`,
-								transform: perspectiveTransform,
-								transformOrigin: "0 0",
+								transformOrigin:
+									transitionPresentation.pixelScale &&
+									transitionPresentation.pixelScale > 1
+										? "top left"
+										: "0 0",
 								...maskStyle,
 							}}
 						>
 							<VideoPlayer
-								videoSource={generatedMaskSource ?? source}
+								videoSource={generatedMaskSource ?? visualSource}
 								poster={
 									generatedMaskSource ? undefined : mediaItem.thumbnailUrl
 								}
@@ -719,15 +872,32 @@ export function PreviewElementRenderer({
 								previewGain={previewAudioGain}
 								playbackWindow={audioPlaybackWindow}
 								videoId={sourceVideoId}
+								sourceTimeOffset={
+									proxyReady ? enhancementProxy.sourceTimeOffset : 0
+								}
 								style={{
 									objectFit: visual.fitMode,
 									filter: combinedFilter || undefined,
-									opacity: usesPixelColor ? 0 : undefined,
+									opacity: nativePreviewUrl || usesPixelColor ? 0 : undefined,
 								}}
 							/>
+							{nativePreviewUrl ? (
+								<img
+									src={nativePreviewUrl}
+									alt=""
+									className="absolute inset-0 size-full"
+									data-native-enhancement-id={nativePreviewId}
+									data-native-enhancement-preview="ready"
+									style={{
+										objectFit: "fill",
+										filter: combinedFilter || undefined,
+										opacity: usesPixelColor ? 0 : undefined,
+									}}
+								/>
+							) : null}
 							{usesPixelColor || isColorPickerTarget ? (
 								<ColorPreviewCanvas
-									sourceSelector={`video[data-video-id="${sourceVideoId.replaceAll('"', '\\"')}"]`}
+									sourceSelector={colorPreviewSourceSelector}
 									settings={visual.color}
 									masks={geometricMasks}
 									fitMode={visual.fitMode}
@@ -736,6 +906,61 @@ export function PreviewElementRenderer({
 									)}
 									filter={combinedFilter || undefined}
 								/>
+							) : null}
+							{enhancementProxy.status === "generating" ? (
+								<div
+									className="pointer-events-none absolute right-2 top-2 z-30 flex h-6 min-w-12 items-center justify-center gap-1 rounded-sm bg-background/85 px-1.5 text-[10px] tabular-nums text-foreground shadow-sm"
+									title="Generating enhanced playback proxy"
+								>
+									<LoaderCircle className="size-3.5 animate-spin">
+										<title>Generating enhanced playback proxy</title>
+									</LoaderCircle>
+									<span>{Math.round(enhancementProxy.progress * 100)}%</span>
+								</div>
+							) : nativeEnhancementPreview.status === "rendering" ? (
+								<div
+									className="pointer-events-none absolute right-2 top-2 z-30 flex size-6 items-center justify-center rounded-sm bg-background/80 text-foreground shadow-sm"
+									title="Rendering high-quality preview"
+								>
+									<LoaderCircle className="size-3.5 animate-spin">
+										<title>Rendering high-quality preview</title>
+									</LoaderCircle>
+								</div>
+							) : null}
+							{enhancementProxy.status === "error" ? (
+								<div
+									className="absolute right-2 top-2 z-30 flex size-6 cursor-pointer items-center justify-center rounded-sm bg-destructive/85 text-destructive-foreground shadow-sm"
+									title={enhancementProxy.error ?? "Playback proxy failed"}
+									onClick={(event) => {
+										event.stopPropagation();
+										enhancementProxy.retry();
+									}}
+									onPointerDown={(event) => event.stopPropagation()}
+									onKeyDown={(event) => {
+										if (event.key !== "Enter" && event.key !== " ") return;
+										event.preventDefault();
+										event.stopPropagation();
+										enhancementProxy.retry();
+									}}
+									role="button"
+									tabIndex={0}
+								>
+									<TriangleAlert className="size-3.5">
+										<title>Retry enhanced playback proxy</title>
+									</TriangleAlert>
+								</div>
+							) : nativeEnhancementPreview.status === "error" ? (
+								<div
+									className="pointer-events-none absolute right-2 top-2 z-30 flex size-6 items-center justify-center rounded-sm bg-destructive/85 text-destructive-foreground shadow-sm"
+									title={
+										nativeEnhancementPreview.error ??
+										"High-quality preview failed"
+									}
+								>
+									<TriangleAlert className="size-3.5">
+										<title>High-quality preview failed</title>
+									</TriangleAlert>
+								</div>
 							) : null}
 							{generatedMaskSource && !hasDerivedAudio ? (
 								<VideoPlayer
@@ -767,6 +992,9 @@ export function PreviewElementRenderer({
 							) : null}
 							{derivedAudioPlayers}
 						</div>
+						{transitionOverlayStyle ? (
+							<div aria-hidden="true" style={transitionOverlayStyle} />
+						) : null}
 						<CustomCutoutOverlay
 							element={element}
 							trackId={elementData.track.id}
@@ -841,13 +1069,21 @@ export function PreviewElementRenderer({
 						<div
 							key={elementKey}
 							className="absolute cursor-grab"
-							onClick={() => onElementSelect({ elementId: element.id })}
+							onClick={(event) =>
+								onElementSelect({
+									elementId: element.id,
+									multi: event.shiftKey || event.metaKey,
+								})
+							}
 							onKeyDown={(event) => {
 								if (event.key !== "Enter" && event.key !== " ") {
 									return;
 								}
 								event.preventDefault();
-								onElementSelect({ elementId: element.id });
+								onElementSelect({
+									elementId: element.id,
+									multi: event.shiftKey || event.metaKey,
+								});
 							}}
 							onPointerDown={(event) =>
 								onTextPointerDown(event, element, elementData.track.id)
@@ -876,8 +1112,12 @@ export function PreviewElementRenderer({
 								top: `${50 + ((displayY + transitionPresentation.offsetY) / canvasSize.height) * 100}%`,
 								width: `${currentWidth * scaleRatio}px`,
 								height: `${currentHeight * scaleRatio}px`,
-								transform: `translate(-50%, -50%) rotate(${(element.rotation ?? 0) + (transitionPresentation.rotation ?? 0)}deg) scale(${transitionPresentation.scale ?? 1})`,
-								transformOrigin: "center",
+								transform: buildClipTransitionAnchoredTransform({
+									presentation: transitionPresentation,
+									rotation: element.rotation ?? 0,
+								}),
+								transformOrigin:
+									transitionPresentation.transformOrigin ?? "center",
 								filter:
 									[transitionFilter, maskStrokeFilter]
 										.filter(Boolean)
@@ -886,11 +1126,14 @@ export function PreviewElementRenderer({
 								opacity: transitionPresentation.opacity,
 								clipPath: transitionPresentation.clipPath,
 								backgroundColor: transitionPresentation.backgroundColor,
+								...transitionMaskStyle,
 							}}
 						>
 							<div
 								className="size-full"
-								style={{ opacity: transitionPresentation.contentOpacity }}
+								style={buildClipTransitionContentStyle({
+									presentation: transitionPresentation,
+								})}
 							>
 								<img
 									src={mediaItem.url}
@@ -915,6 +1158,9 @@ export function PreviewElementRenderer({
 									/>
 								) : null}
 							</div>
+							{transitionOverlayStyle ? (
+								<div aria-hidden="true" style={transitionOverlayStyle} />
+							) : null}
 							{selectedMask ? (
 								<MediaMaskOverlay
 									element={element}
@@ -944,12 +1190,16 @@ export function PreviewElementRenderer({
 							transform: buildClipTransitionCssTransform({
 								presentation: transitionPresentation,
 							}),
-							transformOrigin: "center",
+							transformOrigin:
+								transitionPresentation.transformOrigin ?? "center",
+							...transitionMaskStyle,
 						}}
 					>
 						<div
 							className="size-full"
-							style={{ opacity: transitionPresentation.contentOpacity }}
+							style={buildClipTransitionContentStyle({
+								presentation: transitionPresentation,
+							})}
 						>
 							<img
 								src={mediaItem.url}
@@ -974,6 +1224,9 @@ export function PreviewElementRenderer({
 								/>
 							) : null}
 						</div>
+						{transitionOverlayStyle ? (
+							<div aria-hidden="true" style={transitionOverlayStyle} />
+						) : null}
 						{selectedMask ? (
 							<MediaMaskOverlay
 								element={element}

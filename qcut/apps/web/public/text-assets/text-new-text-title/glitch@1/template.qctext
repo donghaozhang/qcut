@@ -1,0 +1,149 @@
+{
+	"schemaVersion": 1,
+	"kind": "qcut-text-template-package",
+	"assetId": "text-new-text-title-glitch",
+	"packageId": "text-new-text-title",
+	"version": 1,
+	"cacheKey": "text-assets/text-new-text-title/glitch@1",
+	"files": {
+		"thumbnail": "thumbnail.webp",
+		"source": "template.json"
+	},
+	"resources": [
+		{
+			"byteSize": 14808,
+			"checksumSha256": "6bf39cb4d81721c7bbd1e3e04a0592796c4fb3c04e9e3c5dd0e2c8df6f2025ea",
+			"mimeType": "image/webp",
+			"path": "thumbnail.webp",
+			"role": "thumbnail",
+			"url": "/text-assets/text-new-text-title/glitch@1/thumbnail.webp"
+		},
+		{
+			"byteSize": 2421,
+			"checksumSha256": "6e2791142d5e951d4980991356739ac9c2cbcb4d7ccea15c53a34ede5ad450a8",
+			"mimeType": "application/json",
+			"path": "template.json",
+			"role": "source",
+			"url": "/text-assets/text-new-text-title/glitch@1/template.json"
+		}
+	],
+	"source": {
+		"schemaVersion": 1,
+		"assetId": "text-new-text-title-glitch",
+		"packageId": "text-new-text-title",
+		"version": 1,
+		"marketplace": {
+			"editorialRank": 21,
+			"heatScore": 99,
+			"remoteTags": [
+				"category:title",
+				"group:new-text",
+				"variant:glitch",
+				"effect:glitch",
+				"scene:cyber"
+			],
+			"searchAliases": [
+				"故障",
+				"赛博",
+				"抖动"
+			]
+		},
+		"definition": {
+			"id": "title-glitch",
+			"name": "标题故障",
+			"category": "title",
+			"groupId": "new-text",
+			"variantId": "glitch",
+			"content": "标题",
+			"stylePresetId": "pink-neon",
+			"keywords": [
+				"title",
+				"标题",
+				"glitch",
+				"故障",
+				"赛博",
+				"抖动",
+				"cyber",
+				"title-glitch",
+				"标题故障",
+				"new-text"
+			],
+			"premium": true,
+			"downloaded": false,
+			"resource": {
+				"assetId": "text-new-text-title-glitch",
+				"packageId": "text-new-text-title",
+				"version": 1,
+				"entitlement": "svip",
+				"cacheKey": "text-assets/text-new-text-title/glitch@1",
+				"sizeKb": 384
+			},
+			"catalogVisible": true,
+			"overrides": {
+				"fontSize": 68,
+				"color": "#f8fafc",
+				"fontWeight": "bold",
+				"strokeColor": "#0f172a",
+				"strokeWidth": 2,
+				"letterSpacing": 2,
+				"shadowColor": "#22d3ee",
+				"shadowOpacity": 0.7,
+				"shadowOffsetX": -5,
+				"shadowOffsetY": 0,
+				"shadowBlur": 0,
+				"glowColor": "#fb7185",
+				"glowOpacity": 0.65,
+				"glowBlur": 10,
+				"width": 760,
+				"height": 210,
+				"animationType": "fade"
+			}
+		},
+		"template": {
+			"id": "title-glitch",
+			"type": "text",
+			"name": "标题故障",
+			"content": "标题",
+			"fontSize": 68,
+			"fontFamily": "Arial",
+			"color": "#f8fafc",
+			"backgroundColor": "transparent",
+			"textAlign": "center",
+			"fontWeight": "bold",
+			"fontStyle": "normal",
+			"textDecoration": "none",
+			"x": 0,
+			"y": 0,
+			"rotation": 0,
+			"opacity": 1,
+			"width": 760,
+			"height": 210,
+			"letterSpacing": 2,
+			"lineHeight": 1.2,
+			"verticalAlign": "middle",
+			"strokeColor": "#0f172a",
+			"strokeWidth": 2,
+			"strokeOpacity": 1,
+			"backgroundOpacity": 0,
+			"backgroundRadius": 4,
+			"backgroundPadding": 12,
+			"shadowColor": "#22d3ee",
+			"shadowOpacity": 0.7,
+			"shadowOffsetX": -5,
+			"shadowOffsetY": 0,
+			"shadowBlur": 0,
+			"glowColor": "#fb7185",
+			"glowOpacity": 0.65,
+			"glowBlur": 10,
+			"curve": 0,
+			"animationType": "fade",
+			"animationDuration": 0.6,
+			"animationDelay": 0,
+			"blendMode": "normal",
+			"duration": 5,
+			"startTime": 0,
+			"trimStart": 0,
+			"trimEnd": 0
+		}
+	}
+}

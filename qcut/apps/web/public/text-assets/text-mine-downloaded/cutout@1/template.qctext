@@ -1,0 +1,137 @@
+{
+	"schemaVersion": 1,
+	"kind": "qcut-text-template-package",
+	"assetId": "text-mine-downloaded-cutout",
+	"packageId": "text-mine-downloaded",
+	"version": 1,
+	"cacheKey": "text-assets/text-mine-downloaded/cutout@1",
+	"files": {
+		"thumbnail": "thumbnail.webp",
+		"source": "template.json"
+	},
+	"resources": [
+		{
+			"byteSize": 16498,
+			"checksumSha256": "b30c99b86ab5880c2d90583523f89db1f98666bc4f6b4cd1f2db99021d3b99f5",
+			"mimeType": "image/webp",
+			"path": "thumbnail.webp",
+			"role": "thumbnail",
+			"url": "/text-assets/text-mine-downloaded/cutout@1/thumbnail.webp"
+		},
+		{
+			"byteSize": 2249,
+			"checksumSha256": "5c478bffaac6ceec17b32920c81bc3d0311e3ff0e947be34e1b43ae9ba564dda",
+			"mimeType": "application/json",
+			"path": "template.json",
+			"role": "source",
+			"url": "/text-assets/text-mine-downloaded/cutout@1/template.json"
+		}
+	],
+	"source": {
+		"schemaVersion": 1,
+		"assetId": "text-mine-downloaded-cutout",
+		"packageId": "text-mine-downloaded",
+		"version": 1,
+		"marketplace": {
+			"editorialRank": 120,
+			"heatScore": 81,
+			"remoteTags": [
+				"category:downloaded",
+				"group:mine",
+				"variant:cutout"
+			],
+			"searchAliases": []
+		},
+		"definition": {
+			"id": "downloaded-cutout",
+			"name": "已下载剪纸",
+			"category": "downloaded",
+			"groupId": "mine",
+			"variantId": "cutout",
+			"content": "已下载",
+			"stylePresetId": "blue-outline",
+			"keywords": [
+				"downloaded",
+				"已下载",
+				"cutout",
+				"剪纸",
+				"贴边",
+				"层次",
+				"downloaded-cutout",
+				"已下载剪纸",
+				"mine"
+			],
+			"premium": true,
+			"downloaded": false,
+			"resource": {
+				"assetId": "text-mine-downloaded-cutout",
+				"packageId": "text-mine-downloaded",
+				"version": 1,
+				"entitlement": "svip",
+				"cacheKey": "text-assets/text-mine-downloaded/cutout@1",
+				"sizeKb": 384
+			},
+			"catalogVisible": true,
+			"overrides": {
+				"fontSize": 70,
+				"color": "#dcfce7",
+				"fontWeight": "bold",
+				"strokeColor": "#16a34a",
+				"strokeWidth": 7,
+				"shadowColor": "#052e16",
+				"shadowOpacity": 0.4,
+				"shadowOffsetX": 7,
+				"shadowOffsetY": 7,
+				"shadowBlur": 0,
+				"width": 760,
+				"height": 220
+			}
+		},
+		"template": {
+			"id": "downloaded-cutout",
+			"type": "text",
+			"name": "已下载剪纸",
+			"content": "已下载",
+			"fontSize": 70,
+			"fontFamily": "Arial",
+			"color": "#dcfce7",
+			"backgroundColor": "transparent",
+			"textAlign": "center",
+			"fontWeight": "bold",
+			"fontStyle": "normal",
+			"textDecoration": "none",
+			"x": 0,
+			"y": 0,
+			"rotation": 0,
+			"opacity": 1,
+			"width": 760,
+			"height": 220,
+			"letterSpacing": 0,
+			"lineHeight": 1.2,
+			"verticalAlign": "middle",
+			"strokeColor": "#16a34a",
+			"strokeWidth": 7,
+			"strokeOpacity": 1,
+			"backgroundOpacity": 0,
+			"backgroundRadius": 4,
+			"backgroundPadding": 12,
+			"shadowColor": "#052e16",
+			"shadowOpacity": 0.4,
+			"shadowOffsetX": 7,
+			"shadowOffsetY": 7,
+			"shadowBlur": 0,
+			"glowColor": "#ffffff",
+			"glowOpacity": 0,
+			"glowBlur": 12,
+			"curve": 0,
+			"animationType": "none",
+			"animationDuration": 0.6,
+			"animationDelay": 0,
+			"blendMode": "normal",
+			"duration": 5,
+			"startTime": 0,
+			"trimStart": 0,
+			"trimEnd": 0
+		}
+	}
+}

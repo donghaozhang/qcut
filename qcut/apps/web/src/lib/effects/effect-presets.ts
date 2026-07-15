@@ -82,6 +82,19 @@ export const EFFECT_PRESETS = [
 		parameters: { sepia: 80 },
 	},
 	{
+		id: "faded-film",
+		name: "Faded Film",
+		description: "Blend a restrained sepia cast with faded color and contrast.",
+		category: "vintage",
+		icon: "FF",
+		parameters: {
+			brightness: 6,
+			contrast: -8,
+			saturation: -20,
+			sepia: 35,
+		},
+	},
+	{
 		id: "grayscale",
 		name: "Black & White",
 		description: "Remove color for a monochrome image.",

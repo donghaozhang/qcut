@@ -1,7 +1,10 @@
 import { useEffect, useState } from "react";
 import {
+	buildClipTransitionContentStyle,
 	buildClipTransitionCssFilter,
 	buildClipTransitionCssTransform,
+	buildClipTransitionMaskStyle,
+	buildClipTransitionOverlayStyle,
 	getClipTransitionLayerPresentation,
 	type ClipTransitionRole,
 } from "@/lib/transitions/clip-transition-presentation";
@@ -15,11 +18,6 @@ export interface TransitionPreviewSources {
 	from?: string;
 	to?: string;
 }
-
-const FALLBACK_SOURCES: Required<TransitionPreviewSources> = {
-	from: "/images/filter-previews/coastal.webp",
-	to: "/images/filter-previews/golden-hour.webp",
-};
 
 function previewTransition({
 	preset,
@@ -58,6 +56,7 @@ function PreviewLayer({
 		canvasWidth: 240,
 		canvasHeight: 135,
 	});
+	const overlayStyle = buildClipTransitionOverlayStyle({ presentation });
 
 	return (
 		<div
@@ -68,16 +67,18 @@ function PreviewLayer({
 				clipPath: presentation.clipPath,
 				filter: buildClipTransitionCssFilter({ presentation }),
 				transform: buildClipTransitionCssTransform({ presentation }),
-				transformOrigin: "center",
+				transformOrigin: presentation.transformOrigin ?? "center",
+				...buildClipTransitionMaskStyle({ presentation }),
 			}}
 		>
 			<img
 				src={source}
 				alt=""
 				className="h-full w-full object-cover"
-				style={{ opacity: presentation.contentOpacity }}
+				style={buildClipTransitionContentStyle({ presentation })}
 				draggable={false}
 			/>
+			{overlayStyle ? <div aria-hidden="true" style={overlayStyle} /> : null}
 		</div>
 	);
 }
@@ -93,8 +94,8 @@ export function TransitionPreview({
 }) {
 	const [progress, setProgress] = useState(0);
 	const transition = previewTransition({ preset });
-	const fromSource = sources?.from || FALLBACK_SOURCES.from;
-	const toSource = sources?.to || FALLBACK_SOURCES.to;
+	const fromSource = sources?.from || preset.preview.from;
+	const toSource = sources?.to || preset.preview.to;
 
 	useEffect(() => {
 		if (!isPlaying) {
@@ -131,6 +132,7 @@ export function TransitionPreview({
 			<div className="absolute inset-x-2 bottom-1.5 h-0.5 overflow-hidden rounded-full bg-white/25">
 				<div
 					className="h-full rounded-full bg-white/85"
+					data-testid="transition-preview-progress"
 					style={{ width: `${progress * 100}%` }}
 				/>
 			</div>

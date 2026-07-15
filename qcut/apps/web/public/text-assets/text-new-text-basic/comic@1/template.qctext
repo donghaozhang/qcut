@@ -1,0 +1,152 @@
+{
+	"schemaVersion": 1,
+	"kind": "qcut-text-template-package",
+	"assetId": "text-new-text-basic-comic",
+	"packageId": "text-new-text-basic",
+	"version": 1,
+	"cacheKey": "text-assets/text-new-text-basic/comic@1",
+	"files": {
+		"thumbnail": "thumbnail.webp",
+		"source": "template.json"
+	},
+	"resources": [
+		{
+			"byteSize": 22232,
+			"checksumSha256": "b6957c807e4e432b812bfdaa70c410e5d859ef3311b8fb7d6c5af7902b5aaa6e",
+			"mimeType": "image/webp",
+			"path": "thumbnail.webp",
+			"role": "thumbnail",
+			"url": "/text-assets/text-new-text-basic/comic@1/thumbnail.webp"
+		},
+		{
+			"byteSize": 2504,
+			"checksumSha256": "0817cd41b7fc80370eacb3359aeb99eab13e7671f5c53c9c167bd14e9d0aa39b",
+			"mimeType": "application/json",
+			"path": "template.json",
+			"role": "source",
+			"url": "/text-assets/text-new-text-basic/comic@1/template.json"
+		}
+	],
+	"source": {
+		"schemaVersion": 1,
+		"assetId": "text-new-text-basic-comic",
+		"packageId": "text-new-text-basic",
+		"version": 1,
+		"marketplace": {
+			"editorialRank": 19,
+			"heatScore": 99,
+			"remoteTags": [
+				"category:basic",
+				"group:new-text",
+				"variant:comic",
+				"style:comic",
+				"effect:burst"
+			],
+			"searchAliases": [
+				"漫画",
+				"爆炸",
+				"综艺",
+				"封面",
+				"搞笑"
+			]
+		},
+		"definition": {
+			"id": "basic-comic",
+			"name": "基础文本漫画",
+			"category": "basic",
+			"groupId": "new-text",
+			"variantId": "comic",
+			"content": "Default text",
+			"stylePresetId": "yellow-pop",
+			"keywords": [
+				"basic",
+				"基础文本",
+				"Default text",
+				"comic",
+				"漫画",
+				"综艺",
+				"爆炸",
+				"boom",
+				"basic-comic",
+				"基础文本漫画",
+				"new-text"
+			],
+			"premium": true,
+			"downloaded": false,
+			"resource": {
+				"assetId": "text-new-text-basic-comic",
+				"packageId": "text-new-text-basic",
+				"version": 1,
+				"entitlement": "svip",
+				"cacheKey": "text-assets/text-new-text-basic/comic@1",
+				"sizeKb": 384
+			},
+			"catalogVisible": true,
+			"overrides": {
+				"fontSize": 72,
+				"color": "#ffffff",
+				"fontWeight": "bold",
+				"strokeColor": "#000000",
+				"strokeWidth": 6,
+				"backgroundColor": "#60a5fa",
+				"backgroundOpacity": 0.85,
+				"backgroundRadius": 8,
+				"backgroundPadding": 18,
+				"rotation": -3,
+				"shadowColor": "#000000",
+				"shadowOpacity": 0.65,
+				"shadowOffsetX": 5,
+				"shadowOffsetY": 5,
+				"shadowBlur": 0,
+				"width": 700,
+				"height": 210
+			}
+		},
+		"template": {
+			"id": "basic-comic",
+			"type": "text",
+			"name": "基础文本漫画",
+			"content": "Default text",
+			"fontSize": 72,
+			"fontFamily": "Arial",
+			"color": "#ffffff",
+			"backgroundColor": "#60a5fa",
+			"textAlign": "center",
+			"fontWeight": "bold",
+			"fontStyle": "normal",
+			"textDecoration": "none",
+			"x": 0,
+			"y": 0,
+			"rotation": -3,
+			"opacity": 1,
+			"width": 700,
+			"height": 210,
+			"letterSpacing": 0,
+			"lineHeight": 1.2,
+			"verticalAlign": "middle",
+			"strokeColor": "#000000",
+			"strokeWidth": 6,
+			"strokeOpacity": 1,
+			"backgroundOpacity": 0.85,
+			"backgroundRadius": 8,
+			"backgroundPadding": 18,
+			"shadowColor": "#000000",
+			"shadowOpacity": 0.65,
+			"shadowOffsetX": 5,
+			"shadowOffsetY": 5,
+			"shadowBlur": 0,
+			"glowColor": "#ffffff",
+			"glowOpacity": 0,
+			"glowBlur": 12,
+			"curve": 0,
+			"animationType": "none",
+			"animationDuration": 0.6,
+			"animationDelay": 0,
+			"blendMode": "normal",
+			"duration": 5,
+			"startTime": 0,
+			"trimStart": 0,
+			"trimEnd": 0
+		}
+	}
+}

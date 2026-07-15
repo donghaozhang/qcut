@@ -1,5 +1,5 @@
 import { Hono } from "hono";
-import { eq } from "drizzle-orm";
+import { eq } from "@qcut/db";
 import { scryptAsync } from "@noble/hashes/scrypt";
 import { adminAuthMiddleware } from "../middleware/admin-auth";
 import { db } from "../db/drizzle";

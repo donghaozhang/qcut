@@ -15,14 +15,6 @@ interface DaytonaDownloadApiClient {
 	): Promise<DaytonaDownloadResponse>;
 }
 
-interface DaytonaDownloadFileSystem {
-	apiClient?: DaytonaDownloadApiClient;
-}
-
-interface DaytonaDownloadSandbox {
-	fs: DaytonaDownloadFileSystem;
-}
-
 interface MultipartPart {
 	name: string | null;
 	filename: string | null;
@@ -35,11 +27,11 @@ export async function downloadDaytonaFileBytes({
 	remotePath,
 	timeoutSeconds,
 }: {
-	sandbox: DaytonaDownloadSandbox;
+	sandbox: unknown;
 	remotePath: string;
 	timeoutSeconds: number;
 }): Promise<Uint8Array> {
-	const apiClient = sandbox.fs.apiClient;
+	const apiClient = getDaytonaDownloadApiClient({ sandbox });
 	if (!apiClient) {
 		throw new Error("daytona_download_api_unavailable");
 	}
@@ -86,6 +78,29 @@ export async function downloadDaytonaFileBytes({
 	}
 
 	return copyBytes({ bytes: filePart.data });
+}
+
+function getDaytonaDownloadApiClient({
+	sandbox,
+}: {
+	sandbox: unknown;
+}): DaytonaDownloadApiClient | undefined {
+	if (!sandbox || typeof sandbox !== "object") {
+		return undefined;
+	}
+	const fs = Reflect.get(sandbox, "fs");
+	if (!fs || typeof fs !== "object") {
+		return undefined;
+	}
+	const apiClient = Reflect.get(fs, "apiClient");
+	if (!apiClient || typeof apiClient !== "object") {
+		return undefined;
+	}
+	const downloadFiles = Reflect.get(apiClient, "downloadFiles");
+	if (typeof downloadFiles !== "function") {
+		return undefined;
+	}
+	return apiClient as DaytonaDownloadApiClient;
 }
 
 async function normalizeDownloadResponseBytes({

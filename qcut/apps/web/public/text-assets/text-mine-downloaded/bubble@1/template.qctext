@@ -1,0 +1,141 @@
+{
+	"schemaVersion": 1,
+	"kind": "qcut-text-template-package",
+	"assetId": "text-mine-downloaded-bubble",
+	"packageId": "text-mine-downloaded",
+	"version": 1,
+	"cacheKey": "text-assets/text-mine-downloaded/bubble@1",
+	"files": {
+		"thumbnail": "thumbnail.webp",
+		"source": "template.json"
+	},
+	"resources": [
+		{
+			"byteSize": 16576,
+			"checksumSha256": "370e617d7901cffc4d3bf1da2f5982d706b21d782b4492bd22e1db40d55875b9",
+			"mimeType": "image/webp",
+			"path": "thumbnail.webp",
+			"role": "thumbnail",
+			"url": "/text-assets/text-mine-downloaded/bubble@1/thumbnail.webp"
+		},
+		{
+			"byteSize": 2364,
+			"checksumSha256": "110b3fd7d6127480943f8ed3f188fa247122d1f193be1ba15417880f0bc484a7",
+			"mimeType": "application/json",
+			"path": "template.json",
+			"role": "source",
+			"url": "/text-assets/text-mine-downloaded/bubble@1/template.json"
+		}
+	],
+	"source": {
+		"schemaVersion": 1,
+		"assetId": "text-mine-downloaded-bubble",
+		"packageId": "text-mine-downloaded",
+		"version": 1,
+		"marketplace": {
+			"editorialRank": 120,
+			"heatScore": 77,
+			"remoteTags": [
+				"category:downloaded",
+				"group:mine",
+				"variant:bubble"
+			],
+			"searchAliases": []
+		},
+		"definition": {
+			"id": "downloaded-bubble",
+			"name": "已下载气泡",
+			"category": "downloaded",
+			"groupId": "mine",
+			"variantId": "bubble",
+			"content": "已下载",
+			"stylePresetId": "pink-neon",
+			"keywords": [
+				"downloaded",
+				"已下载",
+				"bubble",
+				"气泡",
+				"圆润",
+				"可爱",
+				"downloaded-bubble",
+				"已下载气泡",
+				"mine"
+			],
+			"premium": false,
+			"downloaded": true,
+			"resource": {
+				"assetId": "text-mine-downloaded-bubble",
+				"packageId": "text-mine-downloaded",
+				"version": 1,
+				"entitlement": "free",
+				"cacheKey": "text-assets/text-mine-downloaded/bubble@1",
+				"sizeKb": 192
+			},
+			"catalogVisible": true,
+			"overrides": {
+				"fontSize": 66,
+				"color": "#16a34a",
+				"fontWeight": "bold",
+				"strokeColor": "#ffffff",
+				"strokeWidth": 6,
+				"backgroundColor": "#dcfce7",
+				"backgroundOpacity": 1,
+				"backgroundRadius": 42,
+				"backgroundPadding": 22,
+				"shadowColor": "#38bdf8",
+				"shadowOpacity": 0.45,
+				"shadowOffsetX": 0,
+				"shadowOffsetY": 8,
+				"shadowBlur": 14,
+				"width": 680,
+				"height": 210
+			}
+		},
+		"template": {
+			"id": "downloaded-bubble",
+			"type": "text",
+			"name": "已下载气泡",
+			"content": "已下载",
+			"fontSize": 66,
+			"fontFamily": "Arial",
+			"color": "#16a34a",
+			"backgroundColor": "#dcfce7",
+			"textAlign": "center",
+			"fontWeight": "bold",
+			"fontStyle": "normal",
+			"textDecoration": "none",
+			"x": 0,
+			"y": 0,
+			"rotation": 0,
+			"opacity": 1,
+			"width": 680,
+			"height": 210,
+			"letterSpacing": 0,
+			"lineHeight": 1.2,
+			"verticalAlign": "middle",
+			"strokeColor": "#ffffff",
+			"strokeWidth": 6,
+			"strokeOpacity": 1,
+			"backgroundOpacity": 1,
+			"backgroundRadius": 42,
+			"backgroundPadding": 22,
+			"shadowColor": "#38bdf8",
+			"shadowOpacity": 0.45,
+			"shadowOffsetX": 0,
+			"shadowOffsetY": 8,
+			"shadowBlur": 14,
+			"glowColor": "#ff3ca6",
+			"glowOpacity": 0.9,
+			"glowBlur": 18,
+			"curve": 0,
+			"animationType": "none",
+			"animationDuration": 0.6,
+			"animationDelay": 0,
+			"blendMode": "normal",
+			"duration": 5,
+			"startTime": 0,
+			"trimStart": 0,
+			"trimEnd": 0
+		}
+	}
+}

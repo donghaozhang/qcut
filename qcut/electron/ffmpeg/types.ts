@@ -135,6 +135,18 @@ export interface AudioExportResult {
 	fileSize: number;
 }
 
+export interface AudioWaveformOptions {
+	sourcePath: string;
+	duration: number;
+	peakCount?: number;
+}
+
+export interface AudioWaveformResult {
+	duration: number;
+	values: Float32Array;
+	cacheHit: boolean;
+}
+
 /** Options for converting a temporary video export to GIF. */
 export interface GifConversionOptions {
 	sessionId: string;
@@ -198,7 +210,15 @@ export interface VideoTransition {
 		| "flash"
 		| "light-leak"
 		| "rgb-glitch"
-		| "shake";
+		| "shake"
+		| "motion-blur"
+		| "pixelate"
+		| "water-ripple"
+		| "particle-dissolve"
+		| "glass-refraction"
+		| "page-flip"
+		| "texture-mask"
+		| "lens-flare";
 	direction?: "left" | "right" | "up" | "down";
 	easing: "linear" | "easeInOut";
 	duration: number;
@@ -434,6 +454,8 @@ export interface ImageSource {
 export interface StickerSource {
 	/** Unique identifier for the sticker */
 	id: string;
+	/** Whether the source contains multiple animation frames */
+	animated?: boolean;
 	trackId?: string;
 	trackOrder?: number;
 	elementOrder?: number;
@@ -459,6 +481,13 @@ export interface StickerSource {
 	rotation?: number;
 	/** Preserve original aspect ratio during scaling */
 	maintainAspectRatio?: boolean;
+}
+
+export interface TextAssLayer {
+	content: string;
+	blendMode: NonNullable<VideoVisual["blendMode"]>;
+	trackOrder?: number;
+	elementOrder?: number;
 }
 
 /**
@@ -487,18 +516,7 @@ export interface ExportOptions {
 	/** Optional FFmpeg drawtext filter chain for text overlays */
 	textFilterChain?: string;
 	/** Ordered ASS documents for advanced text overlays and blend modes */
-	textAssLayers?: Array<{
-		content: string;
-		blendMode:
-			| "normal"
-			| "multiply"
-			| "screen"
-			| "overlay"
-			| "darken"
-			| "lighten";
-		trackOrder?: number;
-		elementOrder?: number;
-	}>;
+	textAssLayers?: TextAssLayer[];
 	/** Optional FFmpeg overlay filter chain for stickers */
 	stickerFilterChain?: string;
 	/** Sticker image sources for overlay (when stickerFilterChain is provided) */
@@ -548,6 +566,76 @@ export interface FrameProcessOptions {
 	outputFrameName: string;
 	/** FFmpeg filter chain to apply */
 	filterChain: string;
+}
+
+export interface VideoFramePreviewOptions {
+	requestId: string;
+	sourcePath: string;
+	sourceTime: number;
+	width: number;
+	height: number;
+	fps: number;
+	fitMode: VideoVisual["fitMode"];
+	enhancements: NonNullable<VideoVisual["enhancements"]>;
+}
+
+export interface VideoFramePreviewResult {
+	requestId: string;
+	pngData: Uint8Array;
+	cacheHit: boolean;
+	sourceTime: number;
+}
+
+export interface VideoCompositionFramePreviewOptions {
+	requestId: string;
+	timelineTime: number;
+	duration: number;
+	width: number;
+	height: number;
+	fps: number;
+	backgroundColor?: string;
+	videoSources: VideoSource[];
+	videoTransitions?: VideoTransition[];
+	imageSources?: ImageSource[];
+	stickerSources?: StickerSource[];
+	textAssLayers?: TextAssLayer[];
+}
+
+export interface VideoCompositionFramePreviewResult {
+	requestId: string;
+	pngData: Uint8Array;
+	cacheHit: boolean;
+	timelineTime: number;
+}
+
+export interface VideoPreviewProxyOptions {
+	requestId: string;
+	sourcePath: string;
+	sourceStart: number;
+	sourceDuration: number;
+	width: number;
+	height: number;
+	fps: number;
+	enhancements: NonNullable<VideoVisual["enhancements"]>;
+}
+
+export interface VideoPreviewProxyResult {
+	requestId: string;
+	proxyUrl: string;
+	cacheKey: string;
+	cacheHit: boolean;
+	sourceStart: number;
+	duration: number;
+	width: number;
+	height: number;
+	fileSize: number;
+}
+
+export interface VideoPreviewProxyProgress {
+	requestId: string;
+	progress: number;
+	processedSeconds: number;
+	duration: number;
 }
 
 /**

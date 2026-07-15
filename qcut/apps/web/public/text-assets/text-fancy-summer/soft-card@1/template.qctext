@@ -1,0 +1,151 @@
+{
+	"schemaVersion": 1,
+	"kind": "qcut-text-template-package",
+	"assetId": "text-fancy-summer-soft-card",
+	"packageId": "text-fancy-summer",
+	"version": 1,
+	"cacheKey": "text-assets/text-fancy-summer/soft-card@1",
+	"files": {
+		"thumbnail": "thumbnail.webp",
+		"source": "template.json"
+	},
+	"resources": [
+		{
+			"byteSize": 16500,
+			"checksumSha256": "03cdfac06864de6a8934a1b3804f33857f66137739862b36b5f699321cb63a1a",
+			"mimeType": "image/webp",
+			"path": "thumbnail.webp",
+			"role": "thumbnail",
+			"url": "/text-assets/text-fancy-summer/soft-card@1/thumbnail.webp"
+		},
+		{
+			"byteSize": 2446,
+			"checksumSha256": "8587b63d8c8313dabf517124b741304346824552b5852ad94985df8214100990",
+			"mimeType": "application/json",
+			"path": "template.json",
+			"role": "source",
+			"url": "/text-assets/text-fancy-summer/soft-card@1/template.json"
+		}
+	],
+	"source": {
+		"schemaVersion": 1,
+		"assetId": "text-fancy-summer-soft-card",
+		"packageId": "text-fancy-summer",
+		"version": 1,
+		"marketplace": {
+			"editorialRank": 34,
+			"heatScore": 88,
+			"remoteTags": [
+				"category:summer",
+				"group:fancy",
+				"variant:soft-card",
+				"season:summer",
+				"tone:fresh"
+			],
+			"searchAliases": [
+				"夏日",
+				"清爽",
+				"活动",
+				"节日",
+				"旅行",
+				"summer"
+			]
+		},
+		"definition": {
+			"id": "summer-soft-card",
+			"name": "夏日柔卡",
+			"category": "summer",
+			"groupId": "fancy",
+			"variantId": "soft-card",
+			"content": "夏日",
+			"stylePresetId": "highlight",
+			"keywords": [
+				"summer",
+				"夏日",
+				"soft-card",
+				"柔卡",
+				"柔和",
+				"卡片",
+				"清新",
+				"soft",
+				"summer-soft-card",
+				"夏日柔卡",
+				"fancy"
+			],
+			"premium": false,
+			"downloaded": true,
+			"resource": {
+				"assetId": "text-fancy-summer-soft-card",
+				"packageId": "text-fancy-summer",
+				"version": 1,
+				"entitlement": "free",
+				"cacheKey": "text-assets/text-fancy-summer/soft-card@1",
+				"sizeKb": 192
+			},
+			"catalogVisible": true,
+			"overrides": {
+				"fontSize": 60,
+				"color": "#7c2d12",
+				"fontWeight": "bold",
+				"strokeWidth": 0,
+				"backgroundColor": "#ffedd5",
+				"backgroundOpacity": 1,
+				"backgroundRadius": 20,
+				"backgroundPadding": 18,
+				"shadowColor": "#fb923c",
+				"shadowOpacity": 0.18,
+				"shadowOffsetX": 0,
+				"shadowOffsetY": 9,
+				"shadowBlur": 18,
+				"width": 660,
+				"height": 190
+			}
+		},
+		"template": {
+			"id": "summer-soft-card",
+			"type": "text",
+			"name": "夏日柔卡",
+			"content": "夏日",
+			"fontSize": 60,
+			"fontFamily": "Arial",
+			"color": "#7c2d12",
+			"backgroundColor": "#ffedd5",
+			"textAlign": "center",
+			"fontWeight": "bold",
+			"fontStyle": "normal",
+			"textDecoration": "none",
+			"x": 0,
+			"y": 0,
+			"rotation": 0,
+			"opacity": 1,
+			"width": 660,
+			"height": 190,
+			"letterSpacing": 0,
+			"lineHeight": 1.2,
+			"verticalAlign": "middle",
+			"strokeColor": "#000000",
+			"strokeWidth": 0,
+			"strokeOpacity": 1,
+			"backgroundOpacity": 1,
+			"backgroundRadius": 20,
+			"backgroundPadding": 18,
+			"shadowColor": "#fb923c",
+			"shadowOpacity": 0.18,
+			"shadowOffsetX": 0,
+			"shadowOffsetY": 9,
+			"shadowBlur": 18,
+			"glowColor": "#ffffff",
+			"glowOpacity": 0,
+			"glowBlur": 12,
+			"curve": 0,
+			"animationType": "none",
+			"animationDuration": 0.6,
+			"animationDelay": 0,
+			"blendMode": "normal",
+			"duration": 5,
+			"startTime": 0,
+			"trimStart": 0,
+			"trimEnd": 0
+		}
+	}
+}

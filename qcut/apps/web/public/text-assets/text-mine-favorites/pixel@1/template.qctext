@@ -1,0 +1,140 @@
+{
+	"schemaVersion": 1,
+	"kind": "qcut-text-template-package",
+	"assetId": "text-mine-favorites-pixel",
+	"packageId": "text-mine-favorites",
+	"version": 1,
+	"cacheKey": "text-assets/text-mine-favorites/pixel@1",
+	"files": {
+		"thumbnail": "thumbnail.webp",
+		"source": "template.json"
+	},
+	"resources": [
+		{
+			"byteSize": 13632,
+			"checksumSha256": "b4439b9136135e551026fc272d636a8443d1f95edaf170074f4985ddc2c6fda6",
+			"mimeType": "image/webp",
+			"path": "thumbnail.webp",
+			"role": "thumbnail",
+			"url": "/text-assets/text-mine-favorites/pixel@1/thumbnail.webp"
+		},
+		{
+			"byteSize": 2274,
+			"checksumSha256": "64551a1f714eeea865387fc87457eafad3192028bec636e96335e15216805723",
+			"mimeType": "application/json",
+			"path": "template.json",
+			"role": "source",
+			"url": "/text-assets/text-mine-favorites/pixel@1/template.json"
+		}
+	],
+	"source": {
+		"schemaVersion": 1,
+		"assetId": "text-mine-favorites-pixel",
+		"packageId": "text-mine-favorites",
+		"version": 1,
+		"marketplace": {
+			"editorialRank": 120,
+			"heatScore": 77,
+			"remoteTags": [
+				"category:favorites",
+				"group:mine",
+				"variant:pixel"
+			],
+			"searchAliases": []
+		},
+		"definition": {
+			"id": "favorites-pixel",
+			"name": "收藏像素",
+			"category": "favorites",
+			"groupId": "mine",
+			"variantId": "pixel",
+			"content": "收藏",
+			"stylePresetId": "yellow-pop",
+			"keywords": [
+				"favorites",
+				"收藏",
+				"pixel",
+				"像素",
+				"游戏",
+				"方块",
+				"game",
+				"favorites-pixel",
+				"收藏像素",
+				"mine"
+			],
+			"premium": false,
+			"downloaded": false,
+			"resource": {
+				"assetId": "text-mine-favorites-pixel",
+				"packageId": "text-mine-favorites",
+				"version": 1,
+				"entitlement": "free",
+				"cacheKey": "text-assets/text-mine-favorites/pixel@1",
+				"sizeKb": 192
+			},
+			"catalogVisible": true,
+			"overrides": {
+				"fontSize": 64,
+				"fontFamily": "monospace",
+				"color": "#fb7185",
+				"fontWeight": "bold",
+				"strokeColor": "#4c0519",
+				"strokeWidth": 4,
+				"letterSpacing": 3,
+				"shadowColor": "#e11d48",
+				"shadowOpacity": 1,
+				"shadowOffsetX": 5,
+				"shadowOffsetY": 5,
+				"shadowBlur": 0,
+				"width": 760,
+				"height": 210
+			}
+		},
+		"template": {
+			"id": "favorites-pixel",
+			"type": "text",
+			"name": "收藏像素",
+			"content": "收藏",
+			"fontSize": 64,
+			"fontFamily": "monospace",
+			"color": "#fb7185",
+			"backgroundColor": "transparent",
+			"textAlign": "center",
+			"fontWeight": "bold",
+			"fontStyle": "normal",
+			"textDecoration": "none",
+			"x": 0,
+			"y": 0,
+			"rotation": 0,
+			"opacity": 1,
+			"width": 760,
+			"height": 210,
+			"letterSpacing": 3,
+			"lineHeight": 1.2,
+			"verticalAlign": "middle",
+			"strokeColor": "#4c0519",
+			"strokeWidth": 4,
+			"strokeOpacity": 1,
+			"backgroundOpacity": 0,
+			"backgroundRadius": 4,
+			"backgroundPadding": 12,
+			"shadowColor": "#e11d48",
+			"shadowOpacity": 1,
+			"shadowOffsetX": 5,
+			"shadowOffsetY": 5,
+			"shadowBlur": 0,
+			"glowColor": "#ffffff",
+			"glowOpacity": 0,
+			"glowBlur": 12,
+			"curve": 0,
+			"animationType": "none",
+			"animationDuration": 0.6,
+			"animationDelay": 0,
+			"blendMode": "normal",
+			"duration": 5,
+			"startTime": 0,
+			"trimStart": 0,
+			"trimEnd": 0
+		}
+	}
+}

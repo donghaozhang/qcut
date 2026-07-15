@@ -1,0 +1,148 @@
+{
+	"schemaVersion": 1,
+	"kind": "qcut-text-template-package",
+	"assetId": "text-mine-favorites-sticker",
+	"packageId": "text-mine-favorites",
+	"version": 1,
+	"cacheKey": "text-assets/text-mine-favorites/sticker@1",
+	"files": {
+		"thumbnail": "thumbnail.webp",
+		"source": "template.json"
+	},
+	"resources": [
+		{
+			"byteSize": 18060,
+			"checksumSha256": "6cfc05a96b18744544d1da3281d5aab10a5e3839114c51da2b4faba7a01c3a27",
+			"mimeType": "image/webp",
+			"path": "thumbnail.webp",
+			"role": "thumbnail",
+			"url": "/text-assets/text-mine-favorites/sticker@1/thumbnail.webp"
+		},
+		{
+			"byteSize": 2446,
+			"checksumSha256": "35ed95c63730203c8721bfe7f30080aa0ef9740a71ee3fdddca28a89c8d8e40c",
+			"mimeType": "application/json",
+			"path": "template.json",
+			"role": "source",
+			"url": "/text-assets/text-mine-favorites/sticker@1/template.json"
+		}
+	],
+	"source": {
+		"schemaVersion": 1,
+		"assetId": "text-mine-favorites-sticker",
+		"packageId": "text-mine-favorites",
+		"version": 1,
+		"marketplace": {
+			"editorialRank": 24,
+			"heatScore": 94,
+			"remoteTags": [
+				"category:favorites",
+				"group:mine",
+				"variant:sticker",
+				"style:sticker",
+				"tone:cute"
+			],
+			"searchAliases": [
+				"贴纸",
+				"白边",
+				"可爱"
+			]
+		},
+		"definition": {
+			"id": "favorites-sticker",
+			"name": "收藏贴纸",
+			"category": "favorites",
+			"groupId": "mine",
+			"variantId": "sticker",
+			"content": "收藏",
+			"stylePresetId": "rounded-label",
+			"keywords": [
+				"favorites",
+				"收藏",
+				"sticker",
+				"贴纸",
+				"白边",
+				"可爱",
+				"favorites-sticker",
+				"收藏贴纸",
+				"mine"
+			],
+			"premium": false,
+			"downloaded": true,
+			"resource": {
+				"assetId": "text-mine-favorites-sticker",
+				"packageId": "text-mine-favorites",
+				"version": 1,
+				"entitlement": "free",
+				"cacheKey": "text-assets/text-mine-favorites/sticker@1",
+				"sizeKb": 192
+			},
+			"catalogVisible": true,
+			"overrides": {
+				"fontSize": 66,
+				"color": "#e11d48",
+				"fontWeight": "bold",
+				"strokeColor": "#ffe4e6",
+				"strokeWidth": 7,
+				"backgroundColor": "#ffffff",
+				"backgroundOpacity": 0.95,
+				"backgroundRadius": 26,
+				"backgroundPadding": 20,
+				"rotation": -4,
+				"shadowColor": "#4c0519",
+				"shadowOpacity": 0.28,
+				"shadowOffsetX": 5,
+				"shadowOffsetY": 7,
+				"shadowBlur": 8,
+				"width": 690,
+				"height": 200
+			}
+		},
+		"template": {
+			"id": "favorites-sticker",
+			"type": "text",
+			"name": "收藏贴纸",
+			"content": "收藏",
+			"fontSize": 66,
+			"fontFamily": "Arial",
+			"color": "#e11d48",
+			"backgroundColor": "#ffffff",
+			"textAlign": "center",
+			"fontWeight": "bold",
+			"fontStyle": "normal",
+			"textDecoration": "none",
+			"x": 0,
+			"y": 0,
+			"rotation": -4,
+			"opacity": 1,
+			"width": 690,
+			"height": 200,
+			"letterSpacing": 0,
+			"lineHeight": 1.2,
+			"verticalAlign": "middle",
+			"strokeColor": "#ffe4e6",
+			"strokeWidth": 7,
+			"strokeOpacity": 1,
+			"backgroundOpacity": 0.95,
+			"backgroundRadius": 26,
+			"backgroundPadding": 20,
+			"shadowColor": "#4c0519",
+			"shadowOpacity": 0.28,
+			"shadowOffsetX": 5,
+			"shadowOffsetY": 7,
+			"shadowBlur": 8,
+			"glowColor": "#ffffff",
+			"glowOpacity": 0,
+			"glowBlur": 12,
+			"curve": 0,
+			"animationType": "none",
+			"animationDuration": 0.6,
+			"animationDelay": 0,
+			"blendMode": "normal",
+			"duration": 5,
+			"startTime": 0,
+			"trimStart": 0,
+			"trimEnd": 0
+		}
+	}
+}

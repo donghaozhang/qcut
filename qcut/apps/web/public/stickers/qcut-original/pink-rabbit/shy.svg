@@ -1,0 +1,34 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" role="img" aria-label="Pink Rabbit Shy">
+	<defs>
+		<filter id="shadow" x="-30%" y="-30%" width="160%" height="170%">
+			<feDropShadow dx="0" dy="13" stdDeviation="10" flood-color="#312331" flood-opacity="0.22"/>
+		</filter>
+	</defs>
+	<g filter="url(#shadow)">
+
+
+			<g stroke-linejoin="round">
+				<rect x="158" y="44" width="72" height="180" rx="36" fill="#f7a8c8" stroke="white" stroke-width="32" transform="rotate(-10 194 134)"/>
+				<rect x="282" y="44" width="72" height="180" rx="36" fill="#f7a8c8" stroke="white" stroke-width="32" transform="rotate(10 318 134)"/>
+				<rect x="158" y="44" width="72" height="180" rx="36" fill="#f7a8c8" stroke="#63384a" stroke-width="12" transform="rotate(-10 194 134)"/>
+				<rect x="282" y="44" width="72" height="180" rx="36" fill="#f7a8c8" stroke="#63384a" stroke-width="12" transform="rotate(10 318 134)"/>
+				<rect x="181" y="68" width="27" height="126" rx="14" fill="#ffd8e8" transform="rotate(-10 194 134)"/>
+				<rect x="304" y="68" width="27" height="126" rx="14" fill="#ffd8e8" transform="rotate(10 318 134)"/>
+			</g>
+		<ellipse cx="256" cy="367" rx="128" ry="105" fill="#f7a8c8" stroke="white" stroke-width="32"/>
+		<path d="M 128 230 C 128 142 188 112 256 112 C 324 112 384 142 384 230 C 384 329 330 371 256 371 C 182 371 128 329 128 230 Z" fill="#f7a8c8" stroke="white" stroke-width="32" stroke-linejoin="round"/>
+		<ellipse cx="256" cy="367" rx="128" ry="105" fill="#f7a8c8" stroke="#63384a" stroke-width="12"/>
+		<path d="M 128 230 C 128 142 188 112 256 112 C 324 112 384 142 384 230 C 384 329 330 371 256 371 C 182 371 128 329 128 230 Z" fill="#f7a8c8" stroke="#63384a" stroke-width="12" stroke-linejoin="round"/>
+		<ellipse cx="171" cy="373" rx="47" ry="36" fill="#f7a8c8" stroke="#63384a" stroke-width="10" transform="rotate(20 171 373)"/>
+		<ellipse cx="341" cy="373" rx="47" ry="36" fill="#f7a8c8" stroke="#63384a" stroke-width="10" transform="rotate(-20 341 373)"/>
+		<ellipse cx="214" cy="452" rx="52" ry="28" fill="#ffd8e8" stroke="#63384a" stroke-width="10"/>
+		<ellipse cx="298" cy="452" rx="52" ry="28" fill="#ffd8e8" stroke="#63384a" stroke-width="10"/>
+		<path d="M 246 280 Q 256 270 266 280 Q 256 294 246 280 Z" fill="#63384a"/>
+		<path d="M 256 289 L 256 304" stroke="#63384a" stroke-width="7" stroke-linecap="round"/>
+		<path d="M 194 254 Q 214 238 234 254 M 278 254 Q 298 238 318 254" fill="none" stroke="#63384a" stroke-width="11" stroke-linecap="round"/>
+			<ellipse cx="182" cy="291" rx="31" ry="15" fill="#ff5f9b" opacity="0.55"/><ellipse cx="330" cy="291" rx="31" ry="15" fill="#ff5f9b" opacity="0.55"/>
+			<path d="M 238 306 Q 256 320 274 306" fill="none" stroke="#63384a" stroke-width="9" stroke-linecap="round"/>
+
+
+	</g>
+</svg>

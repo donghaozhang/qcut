@@ -40,6 +40,16 @@ export type {
 	PlatformScreenshotAPI,
 	PlatformScreenRecordingAPI,
 	PlatformFFmpegAPI,
+	PlatformVideoEnhancements,
+	PlatformVideoFramePreviewOptions,
+	PlatformVideoFramePreviewResult,
+	PlatformVideoCompositionFramePreviewOptions,
+	PlatformVideoCompositionFramePreviewResult,
+	PlatformVideoPreviewProxyOptions,
+	PlatformVideoPreviewProxyResult,
+	PlatformVideoPreviewProxyProgress,
+	PlatformAudioWaveformOptions,
+	PlatformAudioWaveformResult,
 	PlatformTranscriptionAPI,
 } from "./types/media-api.js";
 

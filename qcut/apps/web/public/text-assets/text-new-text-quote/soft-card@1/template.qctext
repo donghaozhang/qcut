@@ -1,0 +1,143 @@
+{
+	"schemaVersion": 1,
+	"kind": "qcut-text-template-package",
+	"assetId": "text-new-text-quote-soft-card",
+	"packageId": "text-new-text-quote",
+	"version": 1,
+	"cacheKey": "text-assets/text-new-text-quote/soft-card@1",
+	"files": {
+		"thumbnail": "thumbnail.webp",
+		"source": "template.json"
+	},
+	"resources": [
+		{
+			"byteSize": 15548,
+			"checksumSha256": "92335904654ae4ac7677cc2f321eb4696848da033f7ff8c9f3971df9558de227",
+			"mimeType": "image/webp",
+			"path": "thumbnail.webp",
+			"role": "thumbnail",
+			"url": "/text-assets/text-new-text-quote/soft-card@1/thumbnail.webp"
+		},
+		{
+			"byteSize": 2356,
+			"checksumSha256": "56c714725f6c8a36902836c5a413db8a58a7e3c338eb041f831f5e3cff60574c",
+			"mimeType": "application/json",
+			"path": "template.json",
+			"role": "source",
+			"url": "/text-assets/text-new-text-quote/soft-card@1/template.json"
+		}
+	],
+	"source": {
+		"schemaVersion": 1,
+		"assetId": "text-new-text-quote-soft-card",
+		"packageId": "text-new-text-quote",
+		"version": 1,
+		"marketplace": {
+			"editorialRank": 120,
+			"heatScore": 77,
+			"remoteTags": [
+				"category:quote",
+				"group:new-text",
+				"variant:soft-card"
+			],
+			"searchAliases": []
+		},
+		"definition": {
+			"id": "quote-soft-card",
+			"name": "引用柔卡",
+			"category": "quote",
+			"groupId": "new-text",
+			"variantId": "soft-card",
+			"content": "金句",
+			"stylePresetId": "highlight",
+			"keywords": [
+				"quote",
+				"引用",
+				"金句",
+				"soft-card",
+				"柔卡",
+				"柔和",
+				"卡片",
+				"清新",
+				"soft",
+				"quote-soft-card",
+				"引用柔卡",
+				"new-text"
+			],
+			"premium": false,
+			"downloaded": true,
+			"resource": {
+				"assetId": "text-new-text-quote-soft-card",
+				"packageId": "text-new-text-quote",
+				"version": 1,
+				"entitlement": "free",
+				"cacheKey": "text-assets/text-new-text-quote/soft-card@1",
+				"sizeKb": 192
+			},
+			"catalogVisible": true,
+			"overrides": {
+				"fontSize": 60,
+				"color": "#451a03",
+				"fontWeight": "bold",
+				"strokeWidth": 0,
+				"backgroundColor": "#fffbeb",
+				"backgroundOpacity": 1,
+				"backgroundRadius": 20,
+				"backgroundPadding": 18,
+				"shadowColor": "#92400e",
+				"shadowOpacity": 0.18,
+				"shadowOffsetX": 0,
+				"shadowOffsetY": 9,
+				"shadowBlur": 18,
+				"width": 660,
+				"height": 190
+			}
+		},
+		"template": {
+			"id": "quote-soft-card",
+			"type": "text",
+			"name": "引用柔卡",
+			"content": "金句",
+			"fontSize": 60,
+			"fontFamily": "Arial",
+			"color": "#451a03",
+			"backgroundColor": "#fffbeb",
+			"textAlign": "center",
+			"fontWeight": "bold",
+			"fontStyle": "normal",
+			"textDecoration": "none",
+			"x": 0,
+			"y": 0,
+			"rotation": 0,
+			"opacity": 1,
+			"width": 660,
+			"height": 190,
+			"letterSpacing": 0,
+			"lineHeight": 1.2,
+			"verticalAlign": "middle",
+			"strokeColor": "#000000",
+			"strokeWidth": 0,
+			"strokeOpacity": 1,
+			"backgroundOpacity": 1,
+			"backgroundRadius": 20,
+			"backgroundPadding": 18,
+			"shadowColor": "#92400e",
+			"shadowOpacity": 0.18,
+			"shadowOffsetX": 0,
+			"shadowOffsetY": 9,
+			"shadowBlur": 18,
+			"glowColor": "#ffffff",
+			"glowOpacity": 0,
+			"glowBlur": 12,
+			"curve": 0,
+			"animationType": "none",
+			"animationDuration": 0.6,
+			"animationDelay": 0,
+			"blendMode": "normal",
+			"duration": 5,
+			"startTime": 0,
+			"trimStart": 0,
+			"trimEnd": 0
+		}
+	}
+}

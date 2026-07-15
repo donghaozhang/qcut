@@ -1,0 +1,141 @@
+{
+	"schemaVersion": 1,
+	"kind": "qcut-text-template-package",
+	"assetId": "text-mine-downloaded-label",
+	"packageId": "text-mine-downloaded",
+	"version": 1,
+	"cacheKey": "text-assets/text-mine-downloaded/label@1",
+	"files": {
+		"thumbnail": "thumbnail.webp",
+		"source": "template.json"
+	},
+	"resources": [
+		{
+			"byteSize": 16636,
+			"checksumSha256": "eb45b9123599460e2117df0ccd94df6b56906258aa8012890c5963db8f4c4596",
+			"mimeType": "image/webp",
+			"path": "thumbnail.webp",
+			"role": "thumbnail",
+			"url": "/text-assets/text-mine-downloaded/label@1/thumbnail.webp"
+		},
+		{
+			"byteSize": 2338,
+			"checksumSha256": "2249cbe6fa9d323c85440e451cb311ba75fcb73db327a6258be774d9f6bbfb3f",
+			"mimeType": "application/json",
+			"path": "template.json",
+			"role": "source",
+			"url": "/text-assets/text-mine-downloaded/label@1/template.json"
+		}
+	],
+	"source": {
+		"schemaVersion": 1,
+		"assetId": "text-mine-downloaded-label",
+		"packageId": "text-mine-downloaded",
+		"version": 1,
+		"marketplace": {
+			"editorialRank": 120,
+			"heatScore": 77,
+			"remoteTags": [
+				"category:downloaded",
+				"group:mine",
+				"variant:label"
+			],
+			"searchAliases": []
+		},
+		"definition": {
+			"id": "downloaded-label",
+			"name": "已下载标签",
+			"category": "downloaded",
+			"groupId": "mine",
+			"variantId": "label",
+			"content": "已下载",
+			"stylePresetId": "rounded-label",
+			"keywords": [
+				"downloaded",
+				"已下载",
+				"label",
+				"标签",
+				"贴片",
+				"底板",
+				"badge",
+				"downloaded-label",
+				"已下载标签",
+				"mine"
+			],
+			"premium": false,
+			"downloaded": true,
+			"resource": {
+				"assetId": "text-mine-downloaded-label",
+				"packageId": "text-mine-downloaded",
+				"version": 1,
+				"entitlement": "free",
+				"cacheKey": "text-assets/text-mine-downloaded/label@1",
+				"sizeKb": 192
+			},
+			"catalogVisible": true,
+			"overrides": {
+				"fontSize": 56,
+				"color": "#052e16",
+				"fontWeight": "bold",
+				"strokeWidth": 0,
+				"backgroundColor": "#dcfce7",
+				"backgroundOpacity": 1,
+				"backgroundRadius": 18,
+				"backgroundPadding": 18,
+				"shadowColor": "#16a34a",
+				"shadowOpacity": 0.3,
+				"shadowOffsetX": 0,
+				"shadowOffsetY": 7,
+				"shadowBlur": 16,
+				"width": 620,
+				"height": 170
+			}
+		},
+		"template": {
+			"id": "downloaded-label",
+			"type": "text",
+			"name": "已下载标签",
+			"content": "已下载",
+			"fontSize": 56,
+			"fontFamily": "Arial",
+			"color": "#052e16",
+			"backgroundColor": "#dcfce7",
+			"textAlign": "center",
+			"fontWeight": "bold",
+			"fontStyle": "normal",
+			"textDecoration": "none",
+			"x": 0,
+			"y": 0,
+			"rotation": 0,
+			"opacity": 1,
+			"width": 620,
+			"height": 170,
+			"letterSpacing": 0,
+			"lineHeight": 1.2,
+			"verticalAlign": "middle",
+			"strokeColor": "#000000",
+			"strokeWidth": 0,
+			"strokeOpacity": 1,
+			"backgroundOpacity": 1,
+			"backgroundRadius": 18,
+			"backgroundPadding": 18,
+			"shadowColor": "#16a34a",
+			"shadowOpacity": 0.3,
+			"shadowOffsetX": 0,
+			"shadowOffsetY": 7,
+			"shadowBlur": 16,
+			"glowColor": "#ffffff",
+			"glowOpacity": 0,
+			"glowBlur": 12,
+			"curve": 0,
+			"animationType": "none",
+			"animationDuration": 0.6,
+			"animationDelay": 0,
+			"blendMode": "normal",
+			"duration": 5,
+			"startTime": 0,
+			"trimStart": 0,
+			"trimEnd": 0
+		}
+	}
+}

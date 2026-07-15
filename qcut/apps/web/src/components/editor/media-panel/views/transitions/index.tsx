@@ -1,23 +1,67 @@
+import {
+	assetManifestVersionKey,
+	createInitialAssetRuntimeState,
+	type AssetRuntimeState,
+} from "@qcut/editor-core";
 import { useMemo, useState } from "react";
 import type { DragEvent } from "react";
-import { SearchIcon } from "lucide-react";
+import { SearchIcon, SparklesIcon } from "lucide-react";
 import { toast } from "sonner";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { useTimelineStore } from "@/stores/timeline/timeline-store";
 import { useMediaStore } from "@/stores/media/media-store";
+import { useProjectStore } from "@/stores/project-store";
 import { useAssetLibraryStore } from "@/stores/asset-library-store";
 import { transitionCategories } from "./transition-categories";
 import {
 	filterTransitionPresets,
 	getClipTransitionPresetConfig,
+	transitionPresets,
 	type ClipTransitionPresetConfig,
 	type TransitionCategory,
 	type TransitionPreset,
 } from "./transition-presets";
 import { TransitionCard } from "./transition-card";
 import { getTransitionApplyState } from "./transition-apply-state";
+import { recommendTransitions } from "./transition-recommendations";
+import { useBeatDetectionStore } from "@/stores/beat-detection-store";
+import { getTimelineElementDuration } from "@/lib/timeline";
+import { collectTimelineBeats } from "@/lib/audio/timeline-beats";
+import { buildTransitionContentText } from "./transition-content-analysis";
+import { useTransitionContentAnalysis } from "./use-transition-content-analysis";
+import { getVideoMediaIds } from "@/lib/transitions/video-transition-eligibility";
+import {
+	downloadTransitionResource,
+	getTransitionResourceState,
+} from "@/lib/transitions/transition-resource";
+import { resolveTransitionAssetEntry } from "@/lib/assets/qcut-asset-manifest";
+import { useOnlineStatus } from "@/hooks/use-online-status";
+
+function resolvePresetResource({
+	preset,
+	runtimeByAssetKey,
+	online,
+}: {
+	preset: TransitionPreset;
+	runtimeByAssetKey: Readonly<Record<string, AssetRuntimeState>>;
+	online: boolean;
+}) {
+	const asset = resolveTransitionAssetEntry({ preset });
+	const assetKey = assetManifestVersionKey({
+		kind: asset.kind,
+		id: asset.id,
+		version: asset.version,
+	});
+	const runtime =
+		runtimeByAssetKey[assetKey] ?? createInitialAssetRuntimeState({ asset });
+	return {
+		asset,
+		runtime,
+		state: getTransitionResourceState({ asset, runtime, online }),
+	};
+}
 
 function encodeDragPayload({
 	preset,
@@ -44,8 +88,21 @@ export function TransitionsView() {
 	const tracks = useTimelineStore((state) => state.tracks);
 	const addTransition = useTimelineStore((state) => state.addTransition);
 	const mediaItems = useMediaStore((state) => state.mediaItems);
+	const videoMediaIds = useMemo(
+		() => getVideoMediaIds({ mediaItems }),
+		[mediaItems]
+	);
+	const beatCache = useBeatDetectionStore((state) => state.cache);
+	const fps = useProjectStore((state) => state.activeProject?.fps ?? 30);
 	const favorites = useAssetLibraryStore((state) => state.favorites);
+	const runtimeByAssetKey = useAssetLibraryStore(
+		(state) => state.runtimeByAssetKey
+	);
+	const updateRuntimeState = useAssetLibraryStore(
+		(state) => state.updateRuntimeState
+	);
 	const toggleFavorite = useAssetLibraryStore((state) => state.toggleFavorite);
+	const online = useOnlineStatus();
 	const favoriteIds = useMemo(
 		() =>
 			new Set(
@@ -63,10 +120,21 @@ export function TransitionsView() {
 	const selectedPreset =
 		visiblePresets.find((preset) => preset.id === selectedPresetId) ??
 		visiblePresets[0];
-	const applyState = getTransitionApplyState({ selectedElements, tracks });
+	const applyState = getTransitionApplyState({
+		selectedElements,
+		tracks,
+		videoMediaIds,
+	});
 	const canApply = applyState.status === "ready";
 	const selectedConfig = selectedPreset
 		? getClipTransitionPresetConfig({ preset: selectedPreset })
+		: null;
+	const selectedResource = selectedPreset
+		? resolvePresetResource({
+				preset: selectedPreset,
+				runtimeByAssetKey,
+				online,
+			})
 		: null;
 	const previewSources = useMemo(() => {
 		if (applyState.status !== "ready") return;
@@ -79,17 +147,94 @@ export function TransitionsView() {
 			to: toMedia?.thumbnailUrl,
 		};
 	}, [applyState, mediaItems]);
+	const visualSignals = useTransitionContentAnalysis({
+		sources: previewSources,
+	});
+	const recommendations = useMemo(() => {
+		if (applyState.status !== "ready") return [];
+		const track = tracks.find(
+			(candidate) => candidate.id === applyState.trackId
+		);
+		const fromElement = track?.elements.find(
+			(candidate) => candidate.id === applyState.fromElementId
+		);
+		const toElement = track?.elements.find(
+			(candidate) => candidate.id === applyState.toElementId
+		);
+		if (
+			!track ||
+			fromElement?.type !== "media" ||
+			toElement?.type !== "media"
+		) {
+			return [];
+		}
+		const absoluteBeatTimes = collectTimelineBeats({
+			beatCache,
+			fps,
+			tracks,
+		}).map((beat) => beat.timestamp);
+		const fromMedia = mediaItems.find(
+			(item) => item.id === fromElement.mediaId
+		);
+		const toMedia = mediaItems.find((item) => item.id === toElement.mediaId);
+		return recommendTransitions({
+			beatTimes: absoluteBeatTimes,
+			cutTime: toElement.startTime,
+			fromDuration: getTimelineElementDuration({ element: fromElement, fps }),
+			fromName: buildTransitionContentText({
+				fallbackName: fromElement.name,
+				mediaItem: fromMedia,
+			}),
+			maxDuration: applyState.maxDuration,
+			presets: transitionPresets.filter((preset) => {
+				if (!getClipTransitionPresetConfig({ preset })) return false;
+				return resolvePresetResource({
+					preset,
+					runtimeByAssetKey,
+					online,
+				}).state.available;
+			}),
+			toDuration: getTimelineElementDuration({ element: toElement, fps }),
+			toName: buildTransitionContentText({
+				fallbackName: toElement.name,
+				mediaItem: toMedia,
+			}),
+			visualSignals,
+		});
+	}, [
+		applyState,
+		beatCache,
+		fps,
+		mediaItems,
+		online,
+		runtimeByAssetKey,
+		tracks,
+		visualSignals,
+	]);
 
-	const handleApply = ({ preset }: { preset: TransitionPreset }) => {
+	const handleApply = ({
+		duration,
+		preset,
+	}: {
+		duration?: number;
+		preset: TransitionPreset;
+	}) => {
 		if (applyState.status !== "ready") {
 			toast.error(applyState.message);
 			return;
 		}
 		const config = getClipTransitionPresetConfig({ preset });
 		if (!config) {
-			toast.info(
-				`${preset.name} will be available in a later transition pack.`
-			);
+			toast.info(`${preset.localizedName} 将在后续转场包中提供。`);
+			return;
+		}
+		const resource = resolvePresetResource({
+			preset,
+			runtimeByAssetKey: useAssetLibraryStore.getState().runtimeByAssetKey,
+			online,
+		});
+		if (!resource.state.available) {
+			toast.info("请先下载这个转场素材。");
 			return;
 		}
 
@@ -97,19 +242,84 @@ export function TransitionsView() {
 			trackId: applyState.trackId,
 			fromElementId: applyState.fromElementId,
 			toElementId: applyState.toElementId,
+			videoMediaIds,
 			presetId: preset.id,
 			type: config.type,
 			direction: config.direction,
 			tuning: config.tuning,
-			duration: Math.min(preset.defaultDuration, applyState.maxDuration),
+			duration: Math.min(
+				duration ?? preset.defaultDuration,
+				applyState.maxDuration
+			),
 			easing: "easeInOut",
 		});
 		if (!transitionId) {
-			toast.error("This cut does not have enough room for a transition.");
+			toast.error("这个剪辑点没有足够空间容纳转场。");
 			return;
 		}
 
-		toast.success(`${preset.name} applied.`);
+		toast.success(`已应用${preset.localizedName}。`);
+	};
+
+	const handleDownload = async ({ preset }: { preset: TransitionPreset }) => {
+		const resource = resolvePresetResource({
+			preset,
+			runtimeByAssetKey: useAssetLibraryStore.getState().runtimeByAssetKey,
+			online,
+		});
+		if (resource.asset.delivery !== "remote") return;
+		if (!online) {
+			toast.error("当前处于离线状态，无法下载转场素材。");
+			return;
+		}
+		if (resource.state.status === "downloading") return;
+
+		updateRuntimeState({
+			asset: resource.asset,
+			patch: {
+				downloadStatus: "downloading",
+				cacheStatus: "caching",
+				progress: 0,
+				error: "",
+			},
+		});
+		try {
+			const { cacheKey } = await downloadTransitionResource({
+				asset: resource.asset,
+				onProgress: ({ progress }) =>
+					updateRuntimeState({
+						asset: resource.asset,
+						patch: {
+							downloadStatus: "downloading",
+							cacheStatus: "caching",
+							progress,
+						},
+					}),
+			});
+			updateRuntimeState({
+				asset: resource.asset,
+				patch: {
+					downloadStatus: "downloaded",
+					cacheStatus: "cached",
+					progress: 1,
+					cacheKey,
+					error: "",
+				},
+			});
+			toast.success(`${preset.localizedName} 已可离线使用。`);
+		} catch (error) {
+			const message = error instanceof Error ? error.message : String(error);
+			updateRuntimeState({
+				asset: resource.asset,
+				patch: {
+					downloadStatus: "failed",
+					cacheStatus: "failed",
+					progress: 0,
+					error: message,
+				},
+			});
+			toast.error(`转场素材下载失败：${message}`);
+		}
 	};
 
 	const handleDragStart = ({
@@ -133,8 +343,11 @@ export function TransitionsView() {
 	};
 
 	return (
-		<div className="flex h-full min-h-0 bg-panel text-foreground">
-			<aside className="w-[104px] shrink-0 border-r border-border/50 p-2">
+		<div
+			className="flex h-full min-h-0 bg-panel text-foreground"
+			data-testid="transitions-view"
+		>
+			<aside className="w-[92px] shrink-0 overflow-y-auto border-r border-border/50 p-1.5">
 				<div className="space-y-1">
 					{transitionCategories.map((item) => {
 						const Icon = item.icon;
@@ -143,23 +356,26 @@ export function TransitionsView() {
 								key={item.id}
 								type="button"
 								className={cn(
-									"flex h-8 w-full items-center gap-2 rounded px-2 text-left text-[11px] transition-colors",
+									"flex h-7 w-full items-center gap-1.5 rounded px-1.5 text-left text-[10px] transition-colors",
 									category === item.id
 										? "bg-primary/15 text-primary"
 										: "text-muted-foreground hover:bg-foreground/5 hover:text-foreground"
 								)}
 								aria-pressed={category === item.id}
 								onClick={() => setCategory(item.id)}
+								onKeyDown={(event) => {
+									if (event.key === "Escape") event.currentTarget.blur();
+								}}
 							>
-								<Icon className="h-3.5 w-3.5 shrink-0" />
-								<span className="truncate">{item.label}</span>
+								<Icon className="size-3 shrink-0" />
+								<span className="whitespace-nowrap">{item.label}</span>
 							</button>
 						);
 					})}
 				</div>
 			</aside>
 			<section className="flex min-w-0 flex-1 flex-col">
-				<div className="border-b border-border/50 p-3">
+				<div className="border-b border-border/50 p-2">
 					<div className="relative">
 						<SearchIcon className="absolute left-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-muted-foreground" />
 						<Input
@@ -176,32 +392,95 @@ export function TransitionsView() {
 							{applyState.message}
 						</span>
 					</div>
+					{recommendations.length > 0 ? (
+						<div
+							className="mt-2 border-t border-border/50 pt-2"
+							data-testid="transition-recommendations"
+						>
+							<div className="mb-1.5 flex items-center gap-1 text-[10px] font-medium text-primary">
+								<SparklesIcon className="h-3 w-3">
+									<title>智能转场推荐</title>
+								</SparklesIcon>
+								<span>智能推荐</span>
+							</div>
+							<div className="flex gap-1.5 overflow-x-auto pb-0.5">
+								{recommendations.map((recommendation) => {
+									const preset = transitionPresets.find(
+										(candidate) => candidate.id === recommendation.presetId
+									);
+									if (!preset) return null;
+									const applyRecommendation = () => {
+										setSelectedPresetId(preset.id);
+										handleApply({
+											duration: recommendation.duration,
+											preset,
+										});
+									};
+									return (
+										<button
+											type="button"
+											key={recommendation.presetId}
+											className="min-w-24 shrink-0 border border-primary/30 bg-primary/5 px-1.5 py-1 text-left transition-colors hover:border-primary/60 hover:bg-primary/10 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary"
+											onClick={applyRecommendation}
+											onKeyDown={(event) => {
+												if (event.key !== "Enter" && event.key !== " ") return;
+												event.preventDefault();
+												applyRecommendation();
+											}}
+											aria-label={`应用推荐转场 ${preset.localizedName}`}
+											title={`应用 ${preset.localizedName}: ${recommendation.reason}`}
+											data-recommendation-score={recommendation.score.toFixed(
+												2
+											)}
+											data-recommendation-duration={recommendation.duration.toFixed(
+												3
+											)}
+										>
+											<span className="block truncate text-[10px] font-medium text-foreground">
+												{preset.localizedName}
+											</span>
+											<span className="block truncate text-[9px] text-muted-foreground">
+												{recommendation.reason}
+											</span>
+										</button>
+									);
+								})}
+							</div>
+						</div>
+					) : null}
 				</div>
-				<div className="min-h-0 flex-1 overflow-y-auto p-3">
+				<div className="min-h-0 flex-1 overflow-y-auto p-2">
 					{visiblePresets.length > 0 ? (
-						<div className="grid grid-cols-2 gap-2 lg:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5">
-							{visiblePresets.map((preset) => (
-								<TransitionCard
-									key={preset.id}
-									preset={preset}
-									selected={selectedPreset?.id === preset.id}
-									canApply={canApply}
-									available={Boolean(getClipTransitionPresetConfig({ preset }))}
-									favorite={favoriteIds.has(preset.id)}
-									previewSources={previewSources}
-									onSelect={({ preset: nextPreset }) =>
-										setSelectedPresetId(nextPreset.id)
-									}
-									onApply={handleApply}
-									onToggleFavorite={({ preset: favoritePreset }) =>
-										toggleFavorite({
-											kind: "transition",
-											id: favoritePreset.id,
-										})
-									}
-									onDragStart={handleDragStart}
-								/>
-							))}
+						<div className="grid grid-cols-[repeat(auto-fill,minmax(88px,1fr))] gap-1.5">
+							{visiblePresets.map((preset) => {
+								const resource = resolvePresetResource({
+									preset,
+									runtimeByAssetKey,
+									online,
+								});
+								return (
+									<TransitionCard
+										key={preset.id}
+										preset={preset}
+										selected={selectedPreset?.id === preset.id}
+										canApply={canApply}
+										resourceState={resource.state}
+										favorite={favoriteIds.has(preset.id)}
+										onSelect={({ preset: nextPreset }) =>
+											setSelectedPresetId(nextPreset.id)
+										}
+										onApply={handleApply}
+										onToggleFavorite={({ preset: favoritePreset }) =>
+											toggleFavorite({
+												kind: "transition",
+												id: favoritePreset.id,
+											})
+										}
+										onDownload={handleDownload}
+										onDragStart={handleDragStart}
+									/>
+								);
+							})}
 						</div>
 					) : (
 						<div className="flex h-full items-center justify-center rounded-md border border-dashed border-border/70 text-center text-xs text-muted-foreground">
@@ -209,13 +488,18 @@ export function TransitionsView() {
 						</div>
 					)}
 				</div>
-				<div className="border-t border-border/50 p-3">
+				<div className="border-t border-border/50 p-2">
 					<Button
 						type="button"
 						variant="secondary"
 						size="sm"
 						className="h-8 w-full text-xs"
-						disabled={!canApply || !selectedPreset || !selectedConfig}
+						disabled={
+							!canApply ||
+							!selectedPreset ||
+							!selectedConfig ||
+							!selectedResource?.state.available
+						}
 						onClick={() =>
 							selectedPreset && handleApply({ preset: selectedPreset })
 						}

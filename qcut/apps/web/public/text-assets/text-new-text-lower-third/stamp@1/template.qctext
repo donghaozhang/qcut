@@ -1,0 +1,139 @@
+{
+	"schemaVersion": 1,
+	"kind": "qcut-text-template-package",
+	"assetId": "text-new-text-lower-third-stamp",
+	"packageId": "text-new-text-lower-third",
+	"version": 1,
+	"cacheKey": "text-assets/text-new-text-lower-third/stamp@1",
+	"files": {
+		"thumbnail": "thumbnail.webp",
+		"source": "template.json"
+	},
+	"resources": [
+		{
+			"byteSize": 21282,
+			"checksumSha256": "ca70257e654d6eb77e84ce8d55e95b3413bf55f32c4dda37d5f1061952c80015",
+			"mimeType": "image/webp",
+			"path": "thumbnail.webp",
+			"role": "thumbnail",
+			"url": "/text-assets/text-new-text-lower-third/stamp@1/thumbnail.webp"
+		},
+		{
+			"byteSize": 2332,
+			"checksumSha256": "2ec557ac494aecaf1765b278b01538ebd64fc66006a84d322ca52c53ff76fe74",
+			"mimeType": "application/json",
+			"path": "template.json",
+			"role": "source",
+			"url": "/text-assets/text-new-text-lower-third/stamp@1/template.json"
+		}
+	],
+	"source": {
+		"schemaVersion": 1,
+		"assetId": "text-new-text-lower-third-stamp",
+		"packageId": "text-new-text-lower-third",
+		"version": 1,
+		"marketplace": {
+			"editorialRank": 120,
+			"heatScore": 77,
+			"remoteTags": [
+				"category:lower-third",
+				"group:new-text",
+				"variant:stamp"
+			],
+			"searchAliases": []
+		},
+		"definition": {
+			"id": "lower-third-stamp",
+			"name": "角标印章",
+			"category": "lower-third",
+			"groupId": "new-text",
+			"variantId": "stamp",
+			"content": "人物介绍",
+			"stylePresetId": "red-label",
+			"keywords": [
+				"lower-third",
+				"角标",
+				"人物介绍",
+				"stamp",
+				"印章",
+				"国风",
+				"红色",
+				"lower-third-stamp",
+				"角标印章",
+				"new-text"
+			],
+			"premium": false,
+			"downloaded": false,
+			"resource": {
+				"assetId": "text-new-text-lower-third-stamp",
+				"packageId": "text-new-text-lower-third",
+				"version": 1,
+				"entitlement": "free",
+				"cacheKey": "text-assets/text-new-text-lower-third/stamp@1",
+				"sizeKb": 192
+			},
+			"catalogVisible": true,
+			"overrides": {
+				"fontSize": 60,
+				"color": "#0ea5e9",
+				"fontWeight": "bold",
+				"strokeColor": "#0ea5e9",
+				"strokeWidth": 2,
+				"backgroundColor": "#e0f2fe",
+				"backgroundOpacity": 0.9,
+				"backgroundRadius": 4,
+				"backgroundPadding": 16,
+				"letterSpacing": 2,
+				"rotation": -6,
+				"width": 560,
+				"height": 170
+			}
+		},
+		"template": {
+			"id": "lower-third-stamp",
+			"type": "text",
+			"name": "角标印章",
+			"content": "人物介绍",
+			"fontSize": 60,
+			"fontFamily": "Arial",
+			"color": "#0ea5e9",
+			"backgroundColor": "#e0f2fe",
+			"textAlign": "center",
+			"fontWeight": "bold",
+			"fontStyle": "normal",
+			"textDecoration": "none",
+			"x": 0,
+			"y": 0,
+			"rotation": -6,
+			"opacity": 1,
+			"width": 560,
+			"height": 170,
+			"letterSpacing": 2,
+			"lineHeight": 1.2,
+			"verticalAlign": "middle",
+			"strokeColor": "#0ea5e9",
+			"strokeWidth": 2,
+			"strokeOpacity": 1,
+			"backgroundOpacity": 0.9,
+			"backgroundRadius": 4,
+			"backgroundPadding": 16,
+			"shadowColor": "#000000",
+			"shadowOpacity": 0.25,
+			"shadowOffsetX": 2,
+			"shadowOffsetY": 4,
+			"shadowBlur": 8,
+			"glowColor": "#ffffff",
+			"glowOpacity": 0,
+			"glowBlur": 12,
+			"curve": 0,
+			"animationType": "none",
+			"animationDuration": 0.6,
+			"animationDelay": 0,
+			"blendMode": "normal",
+			"duration": 5,
+			"startTime": 0,
+			"trimStart": 0,
+			"trimEnd": 0
+		}
+	}
+}

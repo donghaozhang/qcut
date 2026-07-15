@@ -247,6 +247,22 @@ export function createTransparentSvgBlobUrl(svgContent: string): string {
 // Popular collections with sample icons
 export const POPULAR_COLLECTIONS: IconSet[] = [
 	{
+		prefix: "fluent-emoji",
+		name: "Fluent Emoji",
+		total: 3126,
+		category: "Emoji",
+		author: {
+			name: "Microsoft Corporation",
+			url: "https://github.com/microsoft/fluentui-emoji",
+		},
+		license: {
+			title: "MIT",
+			spdx: "MIT",
+			url: "https://github.com/microsoft/fluentui-emoji/blob/main/LICENSE",
+		},
+		palette: true,
+	},
+	{
 		prefix: "line-md",
 		name: "Material Line Motion",
 		total: 1218,
@@ -455,3 +471,14 @@ export const POPULAR_COLLECTIONS: IconSet[] = [
 		palette: false,
 	},
 ];
+
+export function iconCollectionUsesPalette({
+	prefix,
+}: {
+	prefix: string;
+}): boolean {
+	return (
+		POPULAR_COLLECTIONS.find((collection) => collection.prefix === prefix)
+			?.palette === true
+	);
+}

@@ -16,6 +16,11 @@ import { app, net, protocol } from "electron";
 import * as fs from "node:fs";
 import * as path from "node:path";
 import { pathToFileURL } from "node:url";
+import {
+	resolveVideoPreviewProxyFilename,
+	VIDEO_PREVIEW_PROXY_PROTOCOL_PATH,
+} from "./ffmpeg/video-preview-proxy-cache.js";
+import { createVideoPreviewProxyResponse } from "./ffmpeg/video-preview-proxy-response.js";
 
 export interface RegisterAppProtocolOptions {
 	/** Override the logger — defaults to console. */
@@ -82,6 +87,21 @@ export function registerAppProtocol(
 		const pathSegments = normalizedPath.split(/[\\/]+/);
 
 		try {
+			if (pathSegments[0] === VIDEO_PREVIEW_PROXY_PROTOCOL_PATH) {
+				const filename = pathSegments[1];
+				if (pathSegments.length !== 2 || !filename) {
+					return new Response("Not Found", { status: 404 });
+				}
+				const proxyPath = resolveVideoPreviewProxyFilename({ filename });
+				if (!proxyPath || !fs.existsSync(proxyPath)) {
+					return new Response("Not Found", { status: 404 });
+				}
+				return createVideoPreviewProxyResponse({
+					request,
+					filePath: proxyPath,
+				});
+			}
+
 			// Handle FFmpeg resources specifically
 			if (pathSegments[0] === "ffmpeg") {
 				const filename = pathSegments.slice(1).join(path.sep);

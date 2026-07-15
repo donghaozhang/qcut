@@ -42,6 +42,8 @@ import {
 	getVisibleTimelineElements,
 	type TimelineVisibleRange,
 } from "./timeline-viewport";
+import { getVideoMediaIds } from "@/lib/transitions/video-transition-eligibility";
+import { isTimelineEntityTarget } from "./timeline-click-target";
 
 function TimelineTrackContentComponent({
 	track,
@@ -59,6 +61,10 @@ function TimelineTrackContentComponent({
 		loading: mediaItemsLoading,
 		error: mediaItemsError,
 	} = useAsyncMediaItems();
+	const videoMediaIds = useMemo(
+		() => getVideoMediaIds({ mediaItems }),
+		[mediaItems]
+	);
 	// Use individual selectors to keep snapshots stable and avoid infinite update loops
 	const tracks = useTimelineStore((s) => s.tracks);
 	const moveElementToTrack = useTimelineStore((s) => s.moveElementToTrack);
@@ -94,6 +100,7 @@ function TimelineTrackContentComponent({
 		track,
 		zoomLevel,
 		timelineRef,
+		videoMediaIds,
 	});
 	// Ref (not state) so recording the mouse-down position does NOT trigger a
 	// re-render. Re-rendering the clip subtree between mousedown and mouseup
@@ -616,13 +623,8 @@ function TimelineTrackContentComponent({
 			className="w-full h-full hover:bg-muted/20"
 			data-drop-zone
 			onClick={(e) => {
-				// Click on empty track area clears selection. Element / gap clicks
-				// have their own handlers and we must not steal them here.
 				const target = e.target as HTMLElement;
-				const onElement = !!target.closest(".timeline-element");
-				const onGap = !!target.closest("[data-gap-indicator]");
-				const onTransition = !!target.closest("[data-transition-marker]");
-				if (!onElement && !onGap && !onTransition) {
+				if (!isTimelineEntityTarget({ target })) {
 					clearSelectedElements();
 				}
 			}}
@@ -749,6 +751,7 @@ function TimelineTrackContentComponent({
 									key={transition.id}
 									track={track}
 									transition={transition}
+									videoMediaIds={videoMediaIds}
 									zoomLevel={zoomLevel}
 								/>
 							))}

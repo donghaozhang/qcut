@@ -1,0 +1,147 @@
+{
+	"schemaVersion": 1,
+	"kind": "qcut-text-template-package",
+	"assetId": "text-fancy-blue-shadow",
+	"packageId": "text-fancy-blue",
+	"version": 1,
+	"cacheKey": "text-assets/text-fancy-blue/shadow@1",
+	"files": {
+		"thumbnail": "thumbnail.webp",
+		"source": "template.json"
+	},
+	"resources": [
+		{
+			"byteSize": 15332,
+			"checksumSha256": "e16d0fa97b340cde7efc6c257b4cd71ef82dd24c8237398488691bdc4d8da668",
+			"mimeType": "image/webp",
+			"path": "thumbnail.webp",
+			"role": "thumbnail",
+			"url": "/text-assets/text-fancy-blue/shadow@1/thumbnail.webp"
+		},
+		{
+			"byteSize": 2297,
+			"checksumSha256": "decb14f3d48688a3babedaa00f71d2cb245d50c7e57c4e2ad1a155f5e73b820b",
+			"mimeType": "application/json",
+			"path": "template.json",
+			"role": "source",
+			"url": "/text-assets/text-fancy-blue/shadow@1/template.json"
+		}
+	],
+	"source": {
+		"schemaVersion": 1,
+		"assetId": "text-fancy-blue-shadow",
+		"packageId": "text-fancy-blue",
+		"version": 1,
+		"marketplace": {
+			"editorialRank": 30,
+			"heatScore": 88,
+			"remoteTags": [
+				"category:blue",
+				"group:fancy",
+				"variant:shadow",
+				"color:blue",
+				"scene:tech"
+			],
+			"searchAliases": [
+				"蓝色",
+				"冰蓝",
+				"科技",
+				"知识",
+				"教程",
+				"blue"
+			]
+		},
+		"definition": {
+			"id": "blue-shadow",
+			"name": "蓝色重影",
+			"category": "blue",
+			"groupId": "fancy",
+			"variantId": "shadow",
+			"content": "花字",
+			"stylePresetId": "soft-shadow",
+			"keywords": [
+				"blue",
+				"蓝色",
+				"花字",
+				"shadow",
+				"重影",
+				"投影",
+				"立体",
+				"blue-shadow",
+				"蓝色重影",
+				"fancy"
+			],
+			"premium": false,
+			"downloaded": false,
+			"resource": {
+				"assetId": "text-fancy-blue-shadow",
+				"packageId": "text-fancy-blue",
+				"version": 1,
+				"entitlement": "free",
+				"cacheKey": "text-assets/text-fancy-blue/shadow@1",
+				"sizeKb": 192
+			},
+			"catalogVisible": true,
+			"overrides": {
+				"fontSize": 72,
+				"color": "#dbeafe",
+				"fontWeight": "bold",
+				"strokeColor": "#172554",
+				"strokeWidth": 2,
+				"shadowColor": "#2563eb",
+				"shadowOpacity": 0.9,
+				"shadowOffsetX": 8,
+				"shadowOffsetY": 8,
+				"shadowBlur": 0,
+				"width": 760,
+				"height": 220
+			}
+		},
+		"template": {
+			"id": "blue-shadow",
+			"type": "text",
+			"name": "蓝色重影",
+			"content": "花字",
+			"fontSize": 72,
+			"fontFamily": "Arial",
+			"color": "#dbeafe",
+			"backgroundColor": "transparent",
+			"textAlign": "center",
+			"fontWeight": "bold",
+			"fontStyle": "normal",
+			"textDecoration": "none",
+			"x": 0,
+			"y": 0,
+			"rotation": 0,
+			"opacity": 1,
+			"width": 760,
+			"height": 220,
+			"letterSpacing": 0,
+			"lineHeight": 1.2,
+			"verticalAlign": "middle",
+			"strokeColor": "#172554",
+			"strokeWidth": 2,
+			"strokeOpacity": 1,
+			"backgroundOpacity": 0,
+			"backgroundRadius": 4,
+			"backgroundPadding": 12,
+			"shadowColor": "#2563eb",
+			"shadowOpacity": 0.9,
+			"shadowOffsetX": 8,
+			"shadowOffsetY": 8,
+			"shadowBlur": 0,
+			"glowColor": "#ffffff",
+			"glowOpacity": 0,
+			"glowBlur": 12,
+			"curve": 0,
+			"animationType": "none",
+			"animationDuration": 0.6,
+			"animationDelay": 0,
+			"blendMode": "normal",
+			"duration": 5,
+			"startTime": 0,
+			"trimStart": 0,
+			"trimEnd": 0
+		}
+	}
+}

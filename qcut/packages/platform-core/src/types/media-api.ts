@@ -185,6 +185,97 @@ export interface PlatformScreenRecordingAPI {
 // FFmpeg
 // ---------------------------------------------------------------------------
 
+export interface PlatformVideoEnhancements {
+	stabilization: number;
+	denoise: number;
+	clarity: number;
+	upscale: 1 | 2 | 4;
+	relight: number;
+	beauty: number;
+}
+
+export interface PlatformVideoFramePreviewOptions {
+	requestId: string;
+	sourcePath: string;
+	sourceTime: number;
+	width: number;
+	height: number;
+	fps: number;
+	fitMode: "cover" | "contain" | "fill";
+	enhancements: PlatformVideoEnhancements;
+}
+
+export interface PlatformVideoFramePreviewResult {
+	requestId: string;
+	pngData: Uint8Array;
+	cacheHit: boolean;
+	sourceTime: number;
+}
+
+export interface PlatformVideoCompositionFramePreviewOptions {
+	requestId: string;
+	timelineTime: number;
+	duration: number;
+	width: number;
+	height: number;
+	fps: number;
+	backgroundColor?: string;
+	videoSources: unknown[];
+	videoTransitions?: unknown[];
+	imageSources?: unknown[];
+	stickerSources?: unknown[];
+	textAssLayers?: unknown[];
+}
+
+export interface PlatformVideoCompositionFramePreviewResult {
+	requestId: string;
+	pngData: Uint8Array;
+	cacheHit: boolean;
+	timelineTime: number;
+}
+
+export interface PlatformVideoPreviewProxyOptions {
+	requestId: string;
+	sourcePath: string;
+	sourceStart: number;
+	sourceDuration: number;
+	width: number;
+	height: number;
+	fps: number;
+	enhancements: PlatformVideoEnhancements;
+}
+
+export interface PlatformVideoPreviewProxyResult {
+	requestId: string;
+	proxyUrl: string;
+	cacheKey: string;
+	cacheHit: boolean;
+	sourceStart: number;
+	duration: number;
+	width: number;
+	height: number;
+	fileSize: number;
+}
+
+export interface PlatformVideoPreviewProxyProgress {
+	requestId: string;
+	progress: number;
+	processedSeconds: number;
+	duration: number;
+}
+
+export interface PlatformAudioWaveformOptions {
+	sourcePath: string;
+	duration: number;
+	peakCount?: number;
+}
+
+export interface PlatformAudioWaveformResult {
+	duration: number;
+	values: Float32Array;
+	cacheHit: boolean;
+}
+
 export interface PlatformFFmpegAPI {
 	createExportSession(): Promise<{ sessionId: string; framesDir: string }>;
 	saveFrame(data: {
@@ -205,6 +296,9 @@ export interface PlatformFFmpegAPI {
 		videoPath: string;
 		format?: string;
 	}): Promise<{ audioPath: string; fileSize: number }>;
+	extractAudioWaveform(
+		options: PlatformAudioWaveformOptions
+	): Promise<PlatformAudioWaveformResult>;
 	exportAudioCLI(options: {
 		outputPath: string;
 		duration: number;
@@ -241,6 +335,20 @@ export interface PlatformFFmpegAPI {
 		outputFrameName: string;
 		filterChain: string;
 	}): Promise<void>;
+	renderVideoFramePreview(
+		options: PlatformVideoFramePreviewOptions
+	): Promise<PlatformVideoFramePreviewResult>;
+	renderVideoCompositionFramePreview(
+		options: PlatformVideoCompositionFramePreviewOptions
+	): Promise<PlatformVideoCompositionFramePreviewResult>;
+	cancelVideoFramePreview(requestId: string): Promise<boolean>;
+	renderVideoPreviewProxy(
+		options: PlatformVideoPreviewProxyOptions
+	): Promise<PlatformVideoPreviewProxyResult>;
+	cancelVideoPreviewProxy(requestId: string): Promise<boolean>;
+	onVideoPreviewProxyProgress(
+		callback: (progress: PlatformVideoPreviewProxyProgress) => void
+	): () => void;
 	validateFilterChain(filterChain: string): Promise<boolean>;
 	getFFmpegResourcePath(filename: string): Promise<string>;
 	checkFFmpegResource(filename: string): Promise<boolean>;

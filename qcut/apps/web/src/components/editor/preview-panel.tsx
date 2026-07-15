@@ -33,6 +33,10 @@ import {
 	PreviewBlurBackground,
 	PreviewElementRenderer,
 } from "./preview-panel/preview-element-renderer";
+import {
+	MediaTransformOverlay,
+	type SelectedMediaTransformTarget,
+} from "./preview-panel/media-transform-overlay";
 import { usePreviewMedia } from "./preview-panel/use-preview-media";
 import { usePreviewSizing } from "./preview-panel/use-preview-sizing";
 import type { ActiveElement } from "./preview-panel/types";
@@ -58,6 +62,13 @@ import {
 	useTimelineStickerDrop,
 } from "./preview-panel/timeline-sticker-interactions";
 import { AdjustmentLayerStack } from "./preview-panel/adjustment-layer-stack";
+import {
+	canUseNativeCompositionPreview,
+	useNativeCompositionFramePreview,
+} from "@/hooks/preview/use-native-composition-frame-preview";
+import { useMaskEditorStore } from "@/stores/editor/mask-editor-store";
+import { useColorPickerStore } from "@/stores/editor/color-picker-store";
+import { LoaderCircle, TriangleAlert } from "lucide-react";
 
 function getPreviewElementDuration(element: TimelineElement): number {
 	return element.type === "media"
@@ -75,6 +86,8 @@ export function PreviewPanel() {
 		updateElementPosition,
 		updateElementSize,
 		updateElementRotation,
+		selectedElements,
+		selectElement,
 	} = useTimelineStore();
 	const {
 		mediaItems,
@@ -84,6 +97,8 @@ export function PreviewPanel() {
 	const { currentTime, toggle, setCurrentTime, isPlaying } = usePlaybackStore();
 	const { activeProject } = useProjectStore();
 	const { canvasSize } = useEditorStore();
+	const maskEditorActive = useMaskEditorStore((state) => state.isEditing);
+	const colorPickerActive = useColorPickerStore((state) => state.active);
 	const previewRef = useRef<HTMLDivElement>(null);
 	const containerRef = useRef<HTMLDivElement>(null);
 	// Canvas refs for frame caching - non-interfering
@@ -205,15 +220,9 @@ export function PreviewPanel() {
 		updateElementPosition,
 	});
 
-	// State for selected element (for interactive overlay)
-	const [selectedElementId, setSelectedElementId] = useState<string | null>(
-		null
-	);
-
 	// Frame caching - non-intrusive addition
 	const { preRenderNearbyFrames } = useFrameCache({
-		maxCacheSize: 300,
-		cacheResolution: 30,
+		namespace: activeProject?.id ?? "default",
 		persist: true,
 	});
 
@@ -390,7 +399,45 @@ export function PreviewPanel() {
 		() => getActiveElements(),
 		[getActiveElements]
 	);
-	const stickerDropHandlers = useTimelineStickerDrop({ currentTime });
+	const totalDuration = getTotalDuration();
+	const compositionPreviewEnabled =
+		!isPlaying &&
+		previewMode === "video" &&
+		activeProject?.backgroundType !== "blur" &&
+		!maskEditorActive &&
+		!colorPickerActive &&
+		canvasSize.width <= 4096 &&
+		canvasSize.height <= 4096 &&
+		canUseNativeCompositionPreview({
+			activeElements,
+			hasActiveTransition:
+				activeTransitionPreview.forceActiveElementIds.size > 0,
+		});
+	const nativeCompositionPreview = useNativeCompositionFramePreview({
+		enabled: compositionPreviewEnabled,
+		tracks: renderTracks,
+		mediaItems,
+		currentTime,
+		totalDuration,
+		width: canvasSize.width,
+		height: canvasSize.height,
+		fps: activeProject?.fps ?? 30,
+		backgroundColor: activeProject?.backgroundColor,
+	});
+	const selectedMediaTargets = useMemo<SelectedMediaTransformTarget[]>(() => {
+		return selectedElements.flatMap(({ trackId, elementId }) => {
+			const active = activeElements.find(
+				(candidate) =>
+					candidate.track.id === trackId && candidate.element.id === elementId
+			);
+			if (!active || active.element.type !== "media") return [];
+			return [{ trackId, element: active.element }];
+		});
+	}, [activeElements, selectedElements]);
+	const stickerDropHandlers = useTimelineStickerDrop({
+		canvasSize,
+		currentTime,
+	});
 	const {
 		blurBackgroundElements,
 		videoSourcesById,
@@ -583,8 +630,11 @@ export function PreviewPanel() {
 				audioCrossfadeState={activeAudioCrossfadePreview.statesByElementId.get(
 					elementData.element.id
 				)}
+				compositionPreviewEnabled={compositionPreviewEnabled}
 				onTextPointerDown={handleTextPointerDown}
-				onElementSelect={({ elementId }) => setSelectedElementId(elementId)}
+				onElementSelect={({ elementId, multi }) =>
+					selectElement(elementData.track.id, elementId, multi)
+				}
 				onElementResize={handleElementResize}
 			/>
 		),
@@ -593,6 +643,7 @@ export function PreviewPanel() {
 			activeAudioCrossfadePreview.statesByElementId,
 			activeTransitionPreview.statesByElementId,
 			canvasSize,
+			compositionPreviewEnabled,
 			currentMediaElement,
 			currentTime,
 			dragState,
@@ -602,6 +653,7 @@ export function PreviewPanel() {
 			hasEnabledEffects,
 			isPlaying,
 			previewDimensions,
+			selectElement,
 			smoothTime,
 			videoSourcesById,
 			tracks,
@@ -717,7 +769,7 @@ export function PreviewPanel() {
 					{hasAnyElements ? (
 						<div
 							ref={previewRef}
-							className="relative overflow-hidden border"
+							className="relative overflow-visible border"
 							data-testid="preview-canvas"
 							style={{
 								width: previewDimensions.width || canvasSize.width,
@@ -733,63 +785,99 @@ export function PreviewPanel() {
 							onDragOver={stickerDropHandlers.onDragOver}
 							onDrop={stickerDropHandlers.onDrop}
 						>
-							{(() => {
-								const pw = previewDimensions.width || canvasSize.width;
-								const ph = previewDimensions.height || canvasSize.height;
-								const hasBg = recordingBackground.type !== "none";
-								const padding = hasBg ? recordingBackground.padding : 0;
-								const cursorW = pw - padding * 2;
-								const cursorH = ph - padding * 2;
+							<div className="absolute inset-0 overflow-hidden">
+								{(() => {
+									const pw = previewDimensions.width || canvasSize.width;
+									const ph = previewDimensions.height || canvasSize.height;
+									const hasBg = recordingBackground.type !== "none";
+									const padding = hasBg ? recordingBackground.padding : 0;
+									const cursorW = pw - padding * 2;
+									const cursorH = ph - padding * 2;
 
-								const cursorOverlay = cursorTelemetry && showCursorOverlay && (
-									<CursorOverlay
-										canvasWidth={cursorW}
-										canvasHeight={cursorH}
-										currentTimeMs={
-											(isPlaying ? smoothTime : currentTime) * 1000
-										}
-										telemetry={cursorTelemetry}
-										config={cursorConfig}
-										visible={showCursorOverlay}
-									/>
-								);
-
-								const zoomContent = (
-									<div className="absolute inset-0" style={zoomStyle}>
-										{renderBlurBackground()}
-										{activeElements.length === 0 ? (
-											<div className="absolute inset-0 flex items-center justify-center text-muted-foreground">
-												No elements at current time
-											</div>
-										) : (
-											<AdjustmentLayerStack
-												activeElements={activeElements}
-												currentTime={currentTime}
-												renderElement={renderElement}
+									const cursorOverlay = cursorTelemetry &&
+										showCursorOverlay && (
+											<CursorOverlay
+												canvasWidth={cursorW}
+												canvasHeight={cursorH}
+												currentTimeMs={
+													(isPlaying ? smoothTime : currentTime) * 1000
+												}
+												telemetry={cursorTelemetry}
+												config={cursorConfig}
+												visible={showCursorOverlay}
 											/>
-										)}
-										{cursorOverlay}
-									</div>
-								);
-								return hasBg ? (
-									<RecordingBackground
-										background={recordingBackground}
-										width={pw}
-										height={ph}
+										);
+
+									const zoomContent = (
+										<div className="absolute inset-0" style={zoomStyle}>
+											{renderBlurBackground()}
+											{activeElements.length === 0 ? (
+												<div className="absolute inset-0 flex items-center justify-center text-muted-foreground">
+													No elements at current time
+												</div>
+											) : (
+												<AdjustmentLayerStack
+													activeElements={activeElements}
+													currentTime={currentTime}
+													renderElement={renderElement}
+												/>
+											)}
+											{nativeCompositionPreview.status === "ready" &&
+											nativeCompositionPreview.url ? (
+												<img
+													src={nativeCompositionPreview.url}
+													alt=""
+													className="pointer-events-none absolute inset-0 z-30 size-full object-fill"
+													data-native-composition-preview="ready"
+												/>
+											) : null}
+											{cursorOverlay}
+										</div>
+									);
+									return hasBg ? (
+										<RecordingBackground
+											background={recordingBackground}
+											width={pw}
+											height={ph}
+										>
+											{zoomContent}
+										</RecordingBackground>
+									) : (
+										zoomContent
+									);
+								})()}
+								{activeProject?.backgroundType === "blur" &&
+									blurBackgroundElements.length === 0 &&
+									activeElements.length > 0 && (
+										<div className="absolute bottom-2 left-2 right-2 bg-background/70 text-foreground text-xs p-2 rounded">
+											Add a video or image to use blur background
+										</div>
+									)}
+								{nativeCompositionPreview.status === "rendering" ? (
+									<div
+										className="pointer-events-none absolute right-2 top-2 z-[60] flex size-7 items-center justify-center rounded-sm bg-background/85 text-foreground shadow-sm"
+										title="Rendering exact composition preview"
+										data-testid="native-composition-preview-loading"
 									>
-										{zoomContent}
-									</RecordingBackground>
-								) : (
-									zoomContent
-								);
-							})()}
-							{activeProject?.backgroundType === "blur" &&
-								blurBackgroundElements.length === 0 &&
-								activeElements.length > 0 && (
-									<div className="absolute bottom-2 left-2 right-2 bg-background/70 text-foreground text-xs p-2 rounded">
-										Add a video or image to use blur background
+										<LoaderCircle className="size-4 animate-spin">
+											<title>Rendering exact composition preview</title>
+										</LoaderCircle>
 									</div>
-								)}
+								) : nativeCompositionPreview.status === "error" ? (
+									<div
+										className="pointer-events-none absolute right-2 top-2 z-[60] flex size-7 items-center justify-center rounded-sm bg-destructive/85 text-destructive-foreground shadow-sm"
+										title={
+											nativeCompositionPreview.error ??
+											"Exact composition preview failed"
+										}
+										data-testid="native-composition-preview-error"
+									>
+										<TriangleAlert className="size-4">
+											<title>Exact composition preview failed</title>
+										</TriangleAlert>
+									</div>
+								) : null}
+							</div>
 
 							{showSafeAreas ? (
 								<div
@@ -801,6 +889,16 @@ export function PreviewPanel() {
 								</div>
 							) : null}
 
+							{isPlaying ? null : (
+								<MediaTransformOverlay
+									targets={selectedMediaTargets}
+									canvasSize={canvasSize}
+									previewRef={previewRef}
+									currentTime={currentTime}
+									fps={activeProject?.fps ?? 30}
+								/>
+							)}
+
 							{/* Interactive element overlays for elements with effects */}
 							{EFFECTS_ENABLED &&
 								activeElements
@@ -809,7 +907,11 @@ export function PreviewPanel() {
 										<InteractiveElementOverlay
 											key={`${elementData.element.id}-${elementData.track.id}`}
 											element={elementData.element}
-											isSelected={selectedElementId === elementData.element.id}
+											isSelected={selectedElements.some(
+												(selection) =>
+													selection.trackId === elementData.track.id &&
+													selection.elementId === elementData.element.id
+											)}
 											canvasSize={canvasSize}
 											previewDimensions={previewDimensions}
 											onTransformUpdate={handleTransformUpdate}

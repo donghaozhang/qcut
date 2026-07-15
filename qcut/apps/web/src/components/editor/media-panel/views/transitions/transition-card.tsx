@@ -1,14 +1,19 @@
 import {
+	AlertCircleIcon,
+	CloudDownloadIcon,
+	CloudOffIcon,
 	CrownIcon,
-	DownloadIcon,
 	HeartIcon,
+	LoaderCircleIcon,
 	MousePointerClickIcon,
+	RefreshCwIcon,
 } from "lucide-react";
-import type { DragEvent, KeyboardEvent } from "react";
-import { useState } from "react";
+import type { DragEvent, KeyboardEvent, PointerEvent } from "react";
+import { useRef, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
+import type { TransitionResourceState } from "@/lib/transitions/transition-resource";
 import type { TransitionPreset } from "./transition-presets";
 import {
 	TransitionPreview,
@@ -19,12 +24,13 @@ interface TransitionCardProps {
 	preset: TransitionPreset;
 	selected: boolean;
 	canApply: boolean;
-	available: boolean;
+	resourceState: TransitionResourceState;
 	favorite: boolean;
 	previewSources?: TransitionPreviewSources;
 	onSelect: ({ preset }: { preset: TransitionPreset }) => void;
 	onApply: ({ preset }: { preset: TransitionPreset }) => void;
 	onToggleFavorite: ({ preset }: { preset: TransitionPreset }) => void;
+	onDownload: ({ preset }: { preset: TransitionPreset }) => void;
 	onDragStart: ({
 		event,
 		preset,
@@ -38,15 +44,34 @@ export function TransitionCard({
 	preset,
 	selected,
 	canApply,
-	available,
+	resourceState,
 	favorite,
 	previewSources,
 	onSelect,
 	onApply,
 	onToggleFavorite,
+	onDownload,
 	onDragStart,
 }: TransitionCardProps) {
 	const [isPreviewing, setIsPreviewing] = useState(false);
+	const selectedOnPointerDown = useRef(false);
+	const available = resourceState.available;
+	const handlePointerDown = ({
+		event,
+	}: {
+		event: PointerEvent<HTMLDivElement>;
+	}) => {
+		if (event.button !== 0) return;
+		selectedOnPointerDown.current = true;
+		onSelect({ preset });
+	};
+	const handleClick = () => {
+		if (selectedOnPointerDown.current) {
+			selectedOnPointerDown.current = false;
+			return;
+		}
+		onSelect({ preset });
+	};
 	const handleKeyDown = ({
 		event,
 	}: {
@@ -59,11 +84,67 @@ export function TransitionCard({
 		event.preventDefault();
 		onSelect({ preset });
 	};
+	const resourceAction = (() => {
+		switch (resourceState.status) {
+			case "ready":
+				return null;
+			case "downloading":
+				return {
+					label: `正在下载 ${Math.round(resourceState.progress * 100)}%`,
+					disabled: true,
+					icon: (
+						<LoaderCircleIcon className="size-3 animate-spin">
+							<title>正在下载</title>
+						</LoaderCircleIcon>
+					),
+				};
+			case "update":
+				return {
+					label: "更新转场素材",
+					disabled: false,
+					icon: (
+						<RefreshCwIcon className="size-3">
+							<title>更新转场素材</title>
+						</RefreshCwIcon>
+					),
+				};
+			case "offline":
+				return {
+					label: "离线，无法下载",
+					disabled: true,
+					icon: (
+						<CloudOffIcon className="size-3">
+							<title>离线</title>
+						</CloudOffIcon>
+					),
+				};
+			case "failed":
+				return {
+					label: "下载失败，点击重试",
+					disabled: false,
+					icon: (
+						<AlertCircleIcon className="size-3 text-destructive">
+							<title>下载失败</title>
+						</AlertCircleIcon>
+					),
+				};
+			case "download":
+				return {
+					label: "下载转场素材",
+					disabled: false,
+					icon: (
+						<CloudDownloadIcon className="size-3">
+							<title>下载转场素材</title>
+						</CloudDownloadIcon>
+					),
+				};
+		}
+	})();
 
 	return (
 		<div
 			className={cn(
-				"group flex h-[132px] min-w-0 flex-col overflow-hidden rounded-md border bg-card text-left transition-colors hover:border-primary/60 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary",
+				"group flex h-[112px] min-w-0 flex-col overflow-hidden rounded border bg-card text-left transition-colors hover:border-primary/60 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary",
 				available ? "cursor-grab" : "cursor-pointer",
 				selected && "border-primary"
 			)}
@@ -72,7 +153,8 @@ export function TransitionCard({
 			role="button"
 			tabIndex={0}
 			title={`${preset.localizedName}: ${preset.description}`}
-			onClick={() => onSelect({ preset })}
+			onClick={handleClick}
+			onPointerDown={(event) => handlePointerDown({ event })}
 			onDoubleClick={(event) => {
 				event.stopPropagation();
 				if (available && canApply) onApply({ preset });
@@ -85,7 +167,7 @@ export function TransitionCard({
 			onBlur={() => setIsPreviewing(false)}
 			data-testid={`transition-card-${preset.id}`}
 		>
-			<div className="relative h-[78px] shrink-0">
+			<div className="relative h-[72px] shrink-0">
 				<TransitionPreview
 					preset={preset}
 					isPlaying={isPreviewing}
@@ -98,20 +180,72 @@ export function TransitionCard({
 							Pro
 						</Badge>
 					)}
-					{available ? (
-						<Badge className="border-cyan-400/30 bg-cyan-950/80 px-1 py-0 text-[9px] text-cyan-100">
-							可用
-						</Badge>
-					) : (
-						<Badge className="gap-0.5 border-white/20 bg-black/60 px-1 py-0 text-[9px] text-white">
-							<DownloadIcon className="h-2.5 w-2.5" />
-							素材
-						</Badge>
-					)}
+				</div>
+				{resourceAction ? (
+					<button
+						type="button"
+						className="absolute bottom-1.5 right-1.5 z-10 flex size-5 items-center justify-center rounded-sm bg-background/85 text-foreground shadow-sm disabled:cursor-not-allowed disabled:text-muted-foreground"
+						aria-label={`${resourceAction.label}: ${preset.localizedName}`}
+						title={resourceAction.label}
+						disabled={resourceAction.disabled}
+						onClick={(event) => {
+							event.stopPropagation();
+							onDownload({ preset });
+						}}
+						onPointerDown={(event) => event.stopPropagation()}
+						onKeyDown={(event) => event.stopPropagation()}
+					>
+						{resourceAction.icon}
+					</button>
+				) : null}
+				{resourceState.status === "downloading" ? (
+					<div
+						className="absolute inset-x-0 top-0 h-0.5 bg-primary"
+						style={{ width: `${resourceState.progress * 100}%` }}
+					/>
+				) : null}
+				<div className="absolute right-1 top-1 flex gap-0.5 opacity-0 transition-opacity group-focus-within:opacity-100 group-focus:opacity-100 group-hover:opacity-100">
+					<Button
+						type="button"
+						variant="text"
+						size="icon"
+						className="h-6 w-6 bg-background/80 backdrop-blur-sm"
+						title={favorite ? "取消收藏" : "收藏"}
+						aria-label={favorite ? "取消收藏" : "收藏"}
+						onClick={(event) => {
+							event.stopPropagation();
+							onToggleFavorite({ preset });
+						}}
+						onPointerDown={(event) => event.stopPropagation()}
+						onKeyDown={(event) => event.stopPropagation()}
+					>
+						<HeartIcon
+							className={
+								favorite ? "size-3.5 fill-rose-500 text-rose-500" : "size-3.5"
+							}
+						/>
+					</Button>
+					<Button
+						type="button"
+						variant="text"
+						size="icon"
+						className="h-6 w-6 bg-background/80 backdrop-blur-sm"
+						disabled={!canApply || !available}
+						title={`应用${preset.localizedName}`}
+						aria-label={`应用${preset.localizedName}`}
+						onClick={(event) => {
+							event.stopPropagation();
+							onApply({ preset });
+						}}
+						onPointerDown={(event) => event.stopPropagation()}
+						onKeyDown={(event) => event.stopPropagation()}
+					>
+						<MousePointerClickIcon className="h-3.5 w-3.5" />
+					</Button>
 				</div>
 			</div>
-			<div className="flex min-h-0 flex-1 items-center gap-1.5 p-1.5">
-				<div className="min-w-0 flex-1">
+			<div className="min-h-0 flex-1 px-1.5 py-1">
+				<div className="min-w-0">
 					<div className="truncate text-[11px] font-medium text-foreground">
 						{preset.localizedName}
 					</div>
@@ -119,41 +253,6 @@ export function TransitionCard({
 						{preset.defaultDuration.toFixed(2)}s
 					</div>
 				</div>
-				<Button
-					type="button"
-					variant="text"
-					size="icon"
-					className="h-6 w-6 shrink-0 opacity-0 transition-opacity group-hover:opacity-100 group-focus:opacity-100"
-					title={favorite ? "取消收藏" : "收藏"}
-					aria-label={favorite ? "取消收藏" : "收藏"}
-					onClick={(event) => {
-						event.stopPropagation();
-						onToggleFavorite({ preset });
-					}}
-					onKeyDown={(event) => event.stopPropagation()}
-				>
-					<HeartIcon
-						className={
-							favorite ? "size-3.5 fill-rose-500 text-rose-500" : "size-3.5"
-						}
-					/>
-				</Button>
-				<Button
-					type="button"
-					variant="text"
-					size="icon"
-					className="h-6 w-6 shrink-0 opacity-0 transition-opacity group-hover:opacity-100 group-focus:opacity-100"
-					disabled={!canApply || !available}
-					title={`应用${preset.localizedName}`}
-					aria-label={`应用${preset.localizedName}`}
-					onClick={(event) => {
-						event.stopPropagation();
-						onApply({ preset });
-					}}
-					onKeyDown={(event) => event.stopPropagation()}
-				>
-					<MousePointerClickIcon className="h-3.5 w-3.5" />
-				</Button>
 			</div>
 		</div>
 	);

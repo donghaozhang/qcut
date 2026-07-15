@@ -1,0 +1,147 @@
+{
+	"schemaVersion": 1,
+	"kind": "qcut-text-template-package",
+	"assetId": "text-mine-drafts-gold",
+	"packageId": "text-mine-drafts",
+	"version": 1,
+	"cacheKey": "text-assets/text-mine-drafts/gold@1",
+	"files": {
+		"thumbnail": "thumbnail.webp",
+		"source": "template.json"
+	},
+	"resources": [
+		{
+			"byteSize": 14646,
+			"checksumSha256": "7aea6b5f9e598ac9c0c387b73d792e2ceea496f8edce9576be4eabe2e44decf7",
+			"mimeType": "image/webp",
+			"path": "thumbnail.webp",
+			"role": "thumbnail",
+			"url": "/text-assets/text-mine-drafts/gold@1/thumbnail.webp"
+		},
+		{
+			"byteSize": 2332,
+			"checksumSha256": "04abba7e0a071ca5b0d306198f45d4c5cd7d83bf9613b4c3bc60dc373dfa90ac",
+			"mimeType": "application/json",
+			"path": "template.json",
+			"role": "source",
+			"url": "/text-assets/text-mine-drafts/gold@1/template.json"
+		}
+	],
+	"source": {
+		"schemaVersion": 1,
+		"assetId": "text-mine-drafts-gold",
+		"packageId": "text-mine-drafts",
+		"version": 1,
+		"marketplace": {
+			"editorialRank": 22,
+			"heatScore": 98,
+			"remoteTags": [
+				"category:drafts",
+				"group:mine",
+				"variant:gold",
+				"material:gold",
+				"tone:premium"
+			],
+			"searchAliases": [
+				"金色",
+				"鎏金",
+				"高级"
+			]
+		},
+		"definition": {
+			"id": "drafts-gold",
+			"name": "草稿鎏金",
+			"category": "drafts",
+			"groupId": "mine",
+			"variantId": "gold",
+			"content": "草稿",
+			"stylePresetId": "yellow-callout",
+			"keywords": [
+				"drafts",
+				"草稿",
+				"gold",
+				"鎏金",
+				"金色",
+				"高级",
+				"luxury",
+				"drafts-gold",
+				"草稿鎏金",
+				"mine"
+			],
+			"premium": true,
+			"downloaded": false,
+			"resource": {
+				"assetId": "text-mine-drafts-gold",
+				"packageId": "text-mine-drafts",
+				"version": 1,
+				"entitlement": "svip",
+				"cacheKey": "text-assets/text-mine-drafts/gold@1",
+				"sizeKb": 384
+			},
+			"catalogVisible": true,
+			"overrides": {
+				"fontSize": 72,
+				"color": "#fef3c7",
+				"fontWeight": "bold",
+				"strokeColor": "#78350f",
+				"strokeWidth": 4,
+				"shadowColor": "#f43f5e",
+				"shadowOpacity": 0.55,
+				"shadowOffsetX": 3,
+				"shadowOffsetY": 6,
+				"shadowBlur": 8,
+				"glowColor": "#facc15",
+				"glowOpacity": 0.5,
+				"glowBlur": 12,
+				"width": 760,
+				"height": 220
+			}
+		},
+		"template": {
+			"id": "drafts-gold",
+			"type": "text",
+			"name": "草稿鎏金",
+			"content": "草稿",
+			"fontSize": 72,
+			"fontFamily": "Arial",
+			"color": "#fef3c7",
+			"backgroundColor": "#ffe600",
+			"textAlign": "center",
+			"fontWeight": "bold",
+			"fontStyle": "normal",
+			"textDecoration": "none",
+			"x": 0,
+			"y": 0,
+			"rotation": 0,
+			"opacity": 1,
+			"width": 760,
+			"height": 220,
+			"letterSpacing": 0,
+			"lineHeight": 1.2,
+			"verticalAlign": "middle",
+			"strokeColor": "#78350f",
+			"strokeWidth": 4,
+			"strokeOpacity": 1,
+			"backgroundOpacity": 1,
+			"backgroundRadius": 8,
+			"backgroundPadding": 16,
+			"shadowColor": "#f43f5e",
+			"shadowOpacity": 0.55,
+			"shadowOffsetX": 3,
+			"shadowOffsetY": 6,
+			"shadowBlur": 8,
+			"glowColor": "#facc15",
+			"glowOpacity": 0.5,
+			"glowBlur": 12,
+			"curve": 0,
+			"animationType": "none",
+			"animationDuration": 0.6,
+			"animationDelay": 0,
+			"blendMode": "normal",
+			"duration": 5,
+			"startTime": 0,
+			"trimStart": 0,
+			"trimEnd": 0
+		}
+	}
+}

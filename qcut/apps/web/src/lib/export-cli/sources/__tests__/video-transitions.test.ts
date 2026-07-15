@@ -45,14 +45,14 @@ function transitionTrack(): TimelineTrack {
 		name: "Main",
 		type: "media",
 		elements: [
-			mediaElement({ id: "image", mediaId: "image-asset", startTime: 0 }),
-			mediaElement({ id: "video", mediaId: "video-asset", startTime: 2 }),
+			mediaElement({ id: "video-a", mediaId: "video-a-asset", startTime: 0 }),
+			mediaElement({ id: "video-b", mediaId: "video-b-asset", startTime: 2 }),
 		],
 		transitions: [
 			{
-				id: "image-to-video",
-				fromElementId: "image",
-				toElementId: "video",
+				id: "video-to-video",
+				fromElementId: "video-a",
+				toElementId: "video-b",
 				presetId: "dissolve",
 				type: "dissolve",
 				easing: "linear",
@@ -63,36 +63,39 @@ function transitionTrack(): TimelineTrack {
 }
 
 describe("extractVideoTransitions", () => {
-	it("exports transitions between image and video clips", () => {
+	it("exports transitions between two video clips", () => {
 		const result = extractVideoTransitions({
 			tracks: [transitionTrack()],
 			mediaItems: [
-				mediaItem({ id: "image-asset", type: "image" }),
-				mediaItem({ id: "video-asset", type: "video" }),
+				mediaItem({ id: "video-a-asset", type: "video" }),
+				mediaItem({ id: "video-b-asset", type: "video" }),
 			],
 			fps: 30,
 		});
 
 		expect(result).toEqual([
 			expect.objectContaining({
-				id: "image-to-video",
-				fromElementId: "image",
-				toElementId: "video",
+				id: "video-to-video",
+				fromElementId: "video-a",
+				toElementId: "video-b",
 				duration: 1,
 			}),
 		]);
 	});
 
-	it("rejects non-visual media at a transition seam", () => {
+	it.each([
+		"image",
+		"audio",
+	] as const)("rejects a %s asset at a transition seam", (type) => {
 		expect(() =>
 			extractVideoTransitions({
 				tracks: [transitionTrack()],
 				mediaItems: [
-					mediaItem({ id: "image-asset", type: "audio" }),
-					mediaItem({ id: "video-asset", type: "video" }),
+					mediaItem({ id: "video-a-asset", type }),
+					mediaItem({ id: "video-b-asset", type: "video" }),
 				],
 				fps: 30,
 			})
-		).toThrow("requires two visual media clips");
+		).toThrow("requires two video clips");
 	});
 });

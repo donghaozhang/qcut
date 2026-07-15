@@ -1,0 +1,152 @@
+{
+	"schemaVersion": 1,
+	"kind": "qcut-text-template-package",
+	"assetId": "text-smart-text-subtitle-title-glow",
+	"packageId": "text-smart-text-subtitle-title",
+	"version": 1,
+	"cacheKey": "text-assets/text-smart-text-subtitle-title/glow@1",
+	"files": {
+		"thumbnail": "thumbnail.webp",
+		"source": "template.json"
+	},
+	"resources": [
+		{
+			"byteSize": 16472,
+			"checksumSha256": "b2fcf0270a93aee1278e946fabb31c7d547427d9d044b869b02cb6edb6030101",
+			"mimeType": "image/webp",
+			"path": "thumbnail.webp",
+			"role": "thumbnail",
+			"url": "/text-assets/text-smart-text-subtitle-title/glow@1/thumbnail.webp"
+		},
+		{
+			"byteSize": 2573,
+			"checksumSha256": "72b91932b49daf5ba157a4f6e248bfc6c7ff02ad54fc100a0d93e8e8eb48b4e7",
+			"mimeType": "application/json",
+			"path": "template.json",
+			"role": "source",
+			"url": "/text-assets/text-smart-text-subtitle-title/glow@1/template.json"
+		}
+	],
+	"source": {
+		"schemaVersion": 1,
+		"assetId": "text-smart-text-subtitle-title-glow",
+		"packageId": "text-smart-text-subtitle-title",
+		"version": 1,
+		"marketplace": {
+			"editorialRank": 15,
+			"heatScore": 100,
+			"remoteTags": [
+				"category:subtitle-title",
+				"group:smart-text",
+				"variant:glow",
+				"effect:glow",
+				"scene:night"
+			],
+			"searchAliases": [
+				"发光",
+				"霓虹",
+				"夜景"
+			]
+		},
+		"definition": {
+			"id": "subtitle-title-glow",
+			"name": "字幕转标题发光",
+			"category": "subtitle-title",
+			"groupId": "smart-text",
+			"variantId": "glow",
+			"content": "段落标题",
+			"stylePresetId": "cyan-neon",
+			"keywords": [
+				"subtitle-title",
+				"字幕转标题",
+				"字幕标题",
+				"这一段讲什么",
+				"自动小标题",
+				"段落标题",
+				"subtitle",
+				"ai",
+				"字幕",
+				"标题",
+				"glow",
+				"发光",
+				"霓虹",
+				"夜景",
+				"neon",
+				"subtitle-title-glow",
+				"字幕转标题发光",
+				"smart-text"
+			],
+			"premium": true,
+			"downloaded": false,
+			"resource": {
+				"assetId": "text-smart-text-subtitle-title-glow",
+				"packageId": "text-smart-text-subtitle-title",
+				"version": 1,
+				"entitlement": "svip",
+				"cacheKey": "text-assets/text-smart-text-subtitle-title/glow@1",
+				"sizeKb": 384
+			},
+			"catalogVisible": true,
+			"overrides": {
+				"fontSize": 70,
+				"color": "#fdf2f8",
+				"fontWeight": "bold",
+				"strokeColor": "#db2777",
+				"strokeWidth": 1,
+				"glowColor": "#22d3ee",
+				"glowOpacity": 0.9,
+				"glowBlur": 20,
+				"shadowOpacity": 0,
+				"width": 740,
+				"height": 220,
+				"animationType": "fade"
+			}
+		},
+		"template": {
+			"id": "subtitle-title-glow",
+			"type": "text",
+			"name": "字幕转标题发光",
+			"content": "段落标题",
+			"fontSize": 70,
+			"fontFamily": "Arial",
+			"color": "#fdf2f8",
+			"backgroundColor": "transparent",
+			"textAlign": "center",
+			"fontWeight": "bold",
+			"fontStyle": "normal",
+			"textDecoration": "none",
+			"x": 0,
+			"y": 0,
+			"rotation": 0,
+			"opacity": 1,
+			"width": 740,
+			"height": 220,
+			"letterSpacing": 0,
+			"lineHeight": 1.2,
+			"verticalAlign": "middle",
+			"strokeColor": "#db2777",
+			"strokeWidth": 1,
+			"strokeOpacity": 1,
+			"backgroundOpacity": 0,
+			"backgroundRadius": 4,
+			"backgroundPadding": 12,
+			"shadowColor": "#000000",
+			"shadowOpacity": 0,
+			"shadowOffsetX": 4,
+			"shadowOffsetY": 4,
+			"shadowBlur": 8,
+			"glowColor": "#22d3ee",
+			"glowOpacity": 0.9,
+			"glowBlur": 20,
+			"curve": 0,
+			"animationType": "fade",
+			"animationDuration": 0.6,
+			"animationDelay": 0,
+			"blendMode": "normal",
+			"duration": 5,
+			"startTime": 0,
+			"trimStart": 0,
+			"trimEnd": 0
+		}
+	}
+}

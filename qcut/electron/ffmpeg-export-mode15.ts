@@ -22,6 +22,7 @@ import type {
 
 import { parseProgress, getFFprobePath, normalizeVideo } from "./ffmpeg/utils";
 import { buildTimelineAudioFilters } from "./ffmpeg/audio-filter-graph";
+import { appendStickerInputArgs } from "./ffmpeg-sticker-input";
 
 import type { IpcMainInvokeEvent } from "electron";
 
@@ -501,9 +502,8 @@ function buildMode15StickerArgs(
 ): string[] {
 	const args: string[] = ["-y", "-i", inputVideoPath];
 
-	// Add sticker inputs (looped images)
 	for (const sticker of stickers) {
-		args.push("-loop", "1", "-i", sticker.path);
+		appendStickerInputArgs({ args, sticker });
 	}
 
 	// Build filter_complex chain

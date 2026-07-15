@@ -15,7 +15,7 @@ export interface FFmpegArtifact {
 export interface FFmpegTarget {
 	platform: string;
 	arch: string;
-	versionToken: string;
+	versionMarker: string;
 	hardwareAccelerators: string[];
 	artifacts: FFmpegArtifact[];
 }
@@ -57,7 +57,7 @@ function assertTarget({
 	if (`${target.platform}-${target.arch}` !== key) {
 		throw new Error(`FFmpeg target key does not match platform/arch: ${key}`);
 	}
-	if (!target.versionToken || target.artifacts.length === 0) {
+	if (!target.versionMarker || target.artifacts.length === 0) {
 		throw new Error(`FFmpeg target is incomplete: ${key}`);
 	}
 

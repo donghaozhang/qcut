@@ -1,4 +1,4 @@
-import { and, eq } from "drizzle-orm";
+import { and, eq } from "@qcut/db";
 import { db } from "../db/drizzle";
 import { deviceActivations, licenses } from "@qcut/db/schema";
 

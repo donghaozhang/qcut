@@ -305,6 +305,39 @@ describe("buildFFmpegArgs", () => {
 			);
 		});
 
+		it("loops complete animated sticker streams", () => {
+			const args = buildFFmpegArgs(
+				createBaseOptions({
+					useVideoInput: true,
+					videoInputPath: "/input.mp4",
+					stickerSources: [
+						{
+							id: "motion",
+							animated: true,
+							path: "/motion.png",
+							x: 10,
+							y: 10,
+							width: 64,
+							height: 64,
+							startTime: 1,
+							endTime: 4,
+							zIndex: 1,
+						},
+					],
+				})
+			);
+
+			const inputIndex = args.indexOf("/motion.png");
+			expect(args.slice(inputIndex - 5, inputIndex + 1)).toEqual([
+				"-stream_loop",
+				"-1",
+				"-t",
+				"4",
+				"-i",
+				"/motion.png",
+			]);
+		});
+
 		it("builds one transition run across image and video inputs", () => {
 			const args = buildFFmpegArgs(
 				createBaseOptions({

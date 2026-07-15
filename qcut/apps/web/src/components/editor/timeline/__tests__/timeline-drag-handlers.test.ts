@@ -151,6 +151,74 @@ describe("useDragHandlers", () => {
 		expect(addMediaToNewTrack).toHaveBeenCalledWith(mediaItem);
 	});
 
+	it("handleDrop preserves grouped text template drag data", async () => {
+		const { result } = renderHook(() =>
+			useDragHandlers({
+				mediaItems: [],
+				addMediaItem: undefined,
+				activeProject: { id: "project-1" },
+			})
+		);
+		const dragData = {
+			id: "headline-template",
+			type: "text",
+			name: "Headline pack",
+			content: "主标题",
+			textTemplate: {
+				id: "headline-template",
+				type: "text",
+				name: "Headline pack",
+				content: "主标题",
+			},
+			textTemplatePack: {
+				id: "pack-headline-template",
+				name: "Headline pack",
+				category: "headline-template",
+				copySlots: [
+					{
+						defaultContent: "主标题",
+						elementIndex: 0,
+						id: "headline",
+						label: "主标题",
+					},
+				],
+				elements: [
+					{
+						content: "主标题",
+						duration: 5,
+						id: "headline-element",
+						name: "Headline",
+						startTime: 0,
+						trimEnd: 0,
+						trimStart: 0,
+						type: "text",
+					},
+					{
+						content: "副标题",
+						duration: 5,
+						id: "subhead-element",
+						name: "Subhead",
+						startTime: 0,
+						trimEnd: 0,
+						trimStart: 0,
+						type: "text",
+					},
+				],
+			},
+		};
+
+		await act(async () => {
+			await result.current.dragProps.onDrop(
+				createDragEvent({
+					itemData: JSON.stringify(dragData),
+					types: ["application/x-media-item"],
+				})
+			);
+		});
+
+		expect(addTextToNewTrack).toHaveBeenCalledWith(dragData);
+	});
+
 	it("handleDrop processes markdown drag data", async () => {
 		const { result } = renderHook(() =>
 			useDragHandlers({

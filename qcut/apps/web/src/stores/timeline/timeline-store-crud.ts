@@ -272,6 +272,7 @@ export function createCrudOperations(
 			// If removing a sticker element, also clean up the overlay store
 			const track = get()._tracks.find((t) => t.id === trackId);
 			const element = track?.elements.find((el) => el.id === elementId);
+			if (!track || !element) return;
 			if (element?.type === "sticker" && "stickerId" in element) {
 				const stickerId = (element as { stickerId: string }).stickerId;
 				import("@/stores/stickers-overlay-store")
@@ -301,6 +302,7 @@ export function createCrudOperations(
 				get().removeElementFromTrackWithRipple(trackId, elementId, pushHistory);
 			} else {
 				if (pushHistory) get().pushHistory();
+				get().deselectElement(trackId, elementId);
 				updateTracksAndSave(
 					get()
 						._tracks.map((t) =>
@@ -621,6 +623,31 @@ export function createCrudOperations(
 						: t
 				)
 			);
+		},
+
+		updateTextGroupContents: ({ groupId, contents, pushHistory = true }) => {
+			const normalizedContents = contents.map((content) => content.trim());
+			let slotIndex = 0;
+			let updatedCount = 0;
+			const nextTracks = get()._tracks.map((track) => ({
+				...track,
+				elements: track.elements.map((element) => {
+					if (element.type !== "text" || element.groupId !== groupId) {
+						return element;
+					}
+					const nextContent = normalizedContents[slotIndex];
+					slotIndex += 1;
+					if (!nextContent || nextContent === element.content) {
+						return element;
+					}
+					updatedCount += 1;
+					return { ...element, content: nextContent };
+				}),
+			}));
+			if (updatedCount === 0) return 0;
+			if (pushHistory) get().pushHistory();
+			updateTracksAndSave(nextTracks);
+			return updatedCount;
 		},
 
 		updateCaptionElement: (trackId, elementId, updates, pushHistory = true) => {

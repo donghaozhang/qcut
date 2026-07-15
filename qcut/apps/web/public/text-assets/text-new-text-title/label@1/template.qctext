@@ -1,0 +1,141 @@
+{
+	"schemaVersion": 1,
+	"kind": "qcut-text-template-package",
+	"assetId": "text-new-text-title-label",
+	"packageId": "text-new-text-title",
+	"version": 1,
+	"cacheKey": "text-assets/text-new-text-title/label@1",
+	"files": {
+		"thumbnail": "thumbnail.webp",
+		"source": "template.json"
+	},
+	"resources": [
+		{
+			"byteSize": 17056,
+			"checksumSha256": "d26d50c35ef7f4a3e377e316b13e5478ac1a5626f561a135a73af1e688d6e688",
+			"mimeType": "image/webp",
+			"path": "thumbnail.webp",
+			"role": "thumbnail",
+			"url": "/text-assets/text-new-text-title/label@1/thumbnail.webp"
+		},
+		{
+			"byteSize": 2297,
+			"checksumSha256": "9452fb49b31b17415ebb9f133a903e1ae04214066df3d946d47e1a22b33dae4a",
+			"mimeType": "application/json",
+			"path": "template.json",
+			"role": "source",
+			"url": "/text-assets/text-new-text-title/label@1/template.json"
+		}
+	],
+	"source": {
+		"schemaVersion": 1,
+		"assetId": "text-new-text-title-label",
+		"packageId": "text-new-text-title",
+		"version": 1,
+		"marketplace": {
+			"editorialRank": 120,
+			"heatScore": 77,
+			"remoteTags": [
+				"category:title",
+				"group:new-text",
+				"variant:label"
+			],
+			"searchAliases": []
+		},
+		"definition": {
+			"id": "title-label",
+			"name": "标题标签",
+			"category": "title",
+			"groupId": "new-text",
+			"variantId": "label",
+			"content": "标题",
+			"stylePresetId": "rounded-label",
+			"keywords": [
+				"title",
+				"标题",
+				"label",
+				"标签",
+				"贴片",
+				"底板",
+				"badge",
+				"title-label",
+				"标题标签",
+				"new-text"
+			],
+			"premium": false,
+			"downloaded": true,
+			"resource": {
+				"assetId": "text-new-text-title-label",
+				"packageId": "text-new-text-title",
+				"version": 1,
+				"entitlement": "free",
+				"cacheKey": "text-assets/text-new-text-title/label@1",
+				"sizeKb": 192
+			},
+			"catalogVisible": true,
+			"overrides": {
+				"fontSize": 56,
+				"color": "#0f172a",
+				"fontWeight": "bold",
+				"strokeWidth": 0,
+				"backgroundColor": "#dbeafe",
+				"backgroundOpacity": 1,
+				"backgroundRadius": 18,
+				"backgroundPadding": 18,
+				"shadowColor": "#2563eb",
+				"shadowOpacity": 0.3,
+				"shadowOffsetX": 0,
+				"shadowOffsetY": 7,
+				"shadowBlur": 16,
+				"width": 620,
+				"height": 170
+			}
+		},
+		"template": {
+			"id": "title-label",
+			"type": "text",
+			"name": "标题标签",
+			"content": "标题",
+			"fontSize": 56,
+			"fontFamily": "Arial",
+			"color": "#0f172a",
+			"backgroundColor": "#dbeafe",
+			"textAlign": "center",
+			"fontWeight": "bold",
+			"fontStyle": "normal",
+			"textDecoration": "none",
+			"x": 0,
+			"y": 0,
+			"rotation": 0,
+			"opacity": 1,
+			"width": 620,
+			"height": 170,
+			"letterSpacing": 0,
+			"lineHeight": 1.2,
+			"verticalAlign": "middle",
+			"strokeColor": "#000000",
+			"strokeWidth": 0,
+			"strokeOpacity": 1,
+			"backgroundOpacity": 1,
+			"backgroundRadius": 18,
+			"backgroundPadding": 18,
+			"shadowColor": "#2563eb",
+			"shadowOpacity": 0.3,
+			"shadowOffsetX": 0,
+			"shadowOffsetY": 7,
+			"shadowBlur": 16,
+			"glowColor": "#ffffff",
+			"glowOpacity": 0,
+			"glowBlur": 12,
+			"curve": 0,
+			"animationType": "none",
+			"animationDuration": 0.6,
+			"animationDelay": 0,
+			"blendMode": "normal",
+			"duration": 5,
+			"startTime": 0,
+			"trimStart": 0,
+			"trimEnd": 0
+		}
+	}
+}

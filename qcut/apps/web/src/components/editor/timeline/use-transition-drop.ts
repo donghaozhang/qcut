@@ -3,8 +3,10 @@ import { toast } from "sonner";
 import { TIMELINE_CONSTANTS } from "@/constants/timeline-constants";
 import { getTimelineElementDuration } from "@/lib/timeline";
 import { useTimelineStore } from "@/stores/timeline/timeline-store";
+import { isVideoTransitionPair } from "@/lib/transitions/video-transition-eligibility";
 import {
 	findClosestMediaSeam,
+	isClipTransitionType,
 	type ClipTransitionDirection,
 	type ClipTransitionTuning,
 	type ClipTransitionType,
@@ -51,23 +53,6 @@ function parseTuning({
 		: { intensity, frequency, tint };
 }
 
-function isTransitionType(value: unknown): value is ClipTransitionType {
-	return (
-		value === "dissolve" ||
-		value === "fade-black" ||
-		value === "fade-white" ||
-		value === "slide" ||
-		value === "wipe" ||
-		value === "push" ||
-		value === "zoom-blur" ||
-		value === "whip-pan" ||
-		value === "flash" ||
-		value === "light-leak" ||
-		value === "rgb-glitch" ||
-		value === "shake"
-	);
-}
-
 function isDirection(value: unknown): value is ClipTransitionDirection {
 	return (
 		value === "left" || value === "right" || value === "up" || value === "down"
@@ -83,10 +68,11 @@ function parseTransitionPayload({
 		const parsed: unknown = JSON.parse(data);
 		if (!parsed || typeof parsed !== "object") return null;
 		const candidate = parsed as Record<string, unknown>;
+		const typeCandidate = { value: candidate.type };
 		if (
 			candidate.kind !== "qcut-transition-preset" ||
 			typeof candidate.id !== "string" ||
-			!isTransitionType(candidate.type) ||
+			!isClipTransitionType(typeCandidate) ||
 			typeof candidate.defaultDuration !== "number" ||
 			!Number.isFinite(candidate.defaultDuration) ||
 			(candidate.direction !== undefined && !isDirection(candidate.direction))
@@ -97,7 +83,7 @@ function parseTransitionPayload({
 		return {
 			kind: "qcut-transition-preset",
 			id: candidate.id,
-			type: candidate.type,
+			type: typeCandidate.value,
 			direction: candidate.direction,
 			tuning: parseTuning({ value: candidate.tuning }),
 			defaultDuration: candidate.defaultDuration,
@@ -119,10 +105,12 @@ export function useTransitionDrop({
 	track,
 	zoomLevel,
 	timelineRef,
+	videoMediaIds,
 }: {
 	track: TimelineTrack;
 	zoomLevel: number;
 	timelineRef: RefObject<HTMLDivElement | null>;
+	videoMediaIds: ReadonlySet<string>;
 }) {
 	const addTransition = useTimelineStore((state) => state.addTransition);
 	const handleTransitionDragOver = (event: DragEvent<HTMLDivElement>) => {
@@ -155,11 +143,22 @@ export function useTransitionDrop({
 			toast.error("Drop closer to the join between two touching clips.");
 			return;
 		}
+		if (
+			!isVideoTransitionPair({
+				fromElement: seam.fromElement,
+				toElement: seam.toElement,
+				videoMediaIds,
+			})
+		) {
+			toast.error("Transitions require two touching video clips.");
+			return;
+		}
 
 		const transitionId = addTransition({
 			trackId: track.id,
 			fromElementId: seam.fromElement.id,
 			toElementId: seam.toElement.id,
+			videoMediaIds,
 			presetId: payload.id,
 			type: payload.type,
 			direction: payload.direction,

@@ -122,6 +122,22 @@ describe("video visual properties", () => {
 		expect(
 			hasMediaVisualEdits(
 				mediaElement({
+					adjustments: {
+						brightness: 10,
+						contrast: 0,
+						saturation: 0,
+						temperature: 0,
+						tint: 0,
+						sharpness: 0,
+						fade: 0,
+						vignette: 0,
+					},
+				})
+			)
+		).toBe(true);
+		expect(
+			hasMediaVisualEdits(
+				mediaElement({
 					keyframes: {
 						opacity: [{ id: "o0", frame: 0, value: 1, easing: "linear" }],
 					},

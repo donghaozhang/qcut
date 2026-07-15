@@ -39,6 +39,25 @@ describe("AudioWaveformCache", () => {
 		);
 		expect(loader).toHaveBeenCalledTimes(2);
 	});
+
+	it("deduplicates changing blob URLs by a stable media cache key", async () => {
+		const cache = new AudioWaveformCache();
+		const loader = vi.fn(async () => waveform);
+
+		const first = await cache.get({
+			audioUrl: "blob:first",
+			cacheKey: "media:audio-1",
+			loader,
+		});
+		const second = await cache.get({
+			audioUrl: "blob:second",
+			cacheKey: "media:audio-1",
+			loader,
+		});
+
+		expect(first).toBe(second);
+		expect(loader).toHaveBeenCalledOnce();
+	});
 });
 
 describe("sampleAudioWaveformBars", () => {

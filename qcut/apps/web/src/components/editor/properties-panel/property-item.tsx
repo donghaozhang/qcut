@@ -31,11 +31,17 @@ export function PropertyItem({
 export function PropertyItemLabel({
 	children,
 	className,
+	htmlFor,
 }: {
 	children: React.ReactNode;
 	className?: string;
+	htmlFor?: string;
 }) {
-	return <label className={cn("text-xs", className)}>{children}</label>;
+	return (
+		<label className={cn("text-xs", className)} htmlFor={htmlFor}>
+			{children}
+		</label>
+	);
 }
 
 export function PropertyItemValue({

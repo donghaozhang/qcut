@@ -13,6 +13,7 @@
 		"./search": "./src/search/index.ts",
 		"./captions": "./src/captions/index.ts",
 		"./assets": "./src/assets/index.ts",
+		"./collaboration": "./src/collaboration/index.ts",
 		"./templates": "./src/templates/index.ts"
 	},
 	"devDependencies": {

@@ -13,6 +13,7 @@ import { useLicenseStore } from "@/stores/license-store";
 import { setupClaudeBridgeLifecycle } from "@/lib/claude-bridge/claude-bridge-lifecycle";
 import { debugLog } from "@/lib/debug/debug-config";
 import { useIsDesktop } from "@/hooks/use-platform-capability";
+import { UserLibrarySyncInitializer } from "@/components/user-library-sync-initializer";
 import "@/lib/media/blob-url-debug"; // Enable blob URL debugging in development
 
 /**
@@ -61,6 +62,7 @@ function RootComponent() {
 			<RemotionInitializer />
 			{isDesktop && <ClaudeInitializer />}
 			<LicenseInitializer />
+			<UserLibrarySyncInitializer />
 			<TooltipProvider>
 				<ErrorBoundary>
 					<StorageProvider>

@@ -4,9 +4,20 @@ import { EFFECT_PRESETS } from "../effect-presets";
 import { parametersToCSSFilters } from "../effects-utils";
 
 describe("effect presets", () => {
-	it("registers 15 unique production effects", () => {
-		expect(EFFECT_PRESETS).toHaveLength(15);
-		expect(new Set(EFFECT_PRESETS.map((preset) => preset.id)).size).toBe(15);
+	it("registers unique production effects with at least two per category", () => {
+		expect(EFFECT_PRESETS).toHaveLength(16);
+		expect(new Set(EFFECT_PRESETS.map((preset) => preset.id)).size).toBe(16);
+		for (const category of [
+			"basic",
+			"color",
+			"artistic",
+			"vintage",
+			"cinematic",
+		] as const) {
+			expect(
+				EFFECT_PRESETS.filter((preset) => preset.category === category).length
+			).toBeGreaterThanOrEqual(2);
+		}
 	});
 
 	it("provides browser preview and FFmpeg export filters for every preset", () => {
@@ -30,5 +41,19 @@ describe("effect presets", () => {
 		expect(FFmpegFilterChain.fromEffectParameters(sepia.parameters)).toContain(
 			"colorchannelmixer="
 		);
+	});
+
+	it("keeps the faded film look backed by browser and export filters", () => {
+		const fadedFilm = EFFECT_PRESETS.find(
+			(preset) => preset.id === "faded-film"
+		);
+		if (!fadedFilm) throw new Error("Faded Film preset is missing");
+
+		expect(parametersToCSSFilters(fadedFilm.parameters)).toContain(
+			"sepia(0.35)"
+		);
+		expect(
+			FFmpegFilterChain.fromEffectParameters(fadedFilm.parameters)
+		).toContain("colorchannelmixer=");
 	});
 });

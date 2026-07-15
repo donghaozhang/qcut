@@ -1,0 +1,150 @@
+{
+	"schemaVersion": 1,
+	"kind": "qcut-text-template-package",
+	"assetId": "text-fancy-purple-gradient-duotone",
+	"packageId": "text-fancy-purple",
+	"version": 1,
+	"cacheKey": "text-assets/text-fancy-purple/gradient-duotone@1",
+	"files": {
+		"thumbnail": "thumbnail.webp",
+		"source": "template.json"
+	},
+	"resources": [
+		{
+			"byteSize": 13914,
+			"checksumSha256": "09228693985ed490572f4701fc1951ac85a4d9e93d4eabf6388e50c69be1cc9d",
+			"mimeType": "image/webp",
+			"path": "thumbnail.webp",
+			"role": "thumbnail",
+			"url": "/text-assets/text-fancy-purple/gradient-duotone@1/thumbnail.webp"
+		},
+		{
+			"byteSize": 2489,
+			"checksumSha256": "2d685c6940b54b3877531e481acc64b75c45f01f6440597de8633a47991c0f90",
+			"mimeType": "application/json",
+			"path": "template.json",
+			"role": "source",
+			"url": "/text-assets/text-fancy-purple/gradient-duotone@1/template.json"
+		}
+	],
+	"source": {
+		"schemaVersion": 1,
+		"assetId": "text-fancy-purple-gradient-duotone",
+		"packageId": "text-fancy-purple",
+		"version": 1,
+		"marketplace": {
+			"editorialRank": 50,
+			"heatScore": 90,
+			"remoteTags": [
+				"category:purple",
+				"group:fancy",
+				"variant:gradient-duotone",
+				"color:purple",
+				"tone:dreamy"
+			],
+			"searchAliases": [
+				"紫色",
+				"梦幻",
+				"高级",
+				"purple"
+			]
+		},
+		"definition": {
+			"id": "purple-gradient-duotone",
+			"name": "紫色双色",
+			"category": "purple",
+			"groupId": "fancy",
+			"variantId": "gradient-duotone",
+			"content": "花字",
+			"stylePresetId": "pink-neon",
+			"keywords": [
+				"purple",
+				"紫色",
+				"花字",
+				"gradient-duotone",
+				"双色",
+				"渐变",
+				"霓虹",
+				"gradient",
+				"duotone",
+				"purple-gradient-duotone",
+				"紫色双色",
+				"fancy"
+			],
+			"premium": true,
+			"downloaded": false,
+			"resource": {
+				"assetId": "text-fancy-purple-gradient-duotone",
+				"packageId": "text-fancy-purple",
+				"version": 1,
+				"entitlement": "svip",
+				"cacheKey": "text-assets/text-fancy-purple/gradient-duotone@1",
+				"sizeKb": 384
+			},
+			"catalogVisible": true,
+			"overrides": {
+				"fontSize": 72,
+				"color": "#ede9fe",
+				"fontWeight": "bold",
+				"strokeColor": "#7c3aed",
+				"strokeWidth": 4,
+				"shadowColor": "#c084fc",
+				"shadowOpacity": 0.55,
+				"shadowOffsetX": 4,
+				"shadowOffsetY": 5,
+				"shadowBlur": 8,
+				"glowColor": "#f5f3ff",
+				"glowOpacity": 0.55,
+				"glowBlur": 16,
+				"width": 760,
+				"height": 220
+			}
+		},
+		"template": {
+			"id": "purple-gradient-duotone",
+			"type": "text",
+			"name": "紫色双色",
+			"content": "花字",
+			"fontSize": 72,
+			"fontFamily": "Arial",
+			"color": "#ede9fe",
+			"backgroundColor": "transparent",
+			"textAlign": "center",
+			"fontWeight": "bold",
+			"fontStyle": "normal",
+			"textDecoration": "none",
+			"x": 0,
+			"y": 0,
+			"rotation": 0,
+			"opacity": 1,
+			"width": 760,
+			"height": 220,
+			"letterSpacing": 0,
+			"lineHeight": 1.2,
+			"verticalAlign": "middle",
+			"strokeColor": "#7c3aed",
+			"strokeWidth": 4,
+			"strokeOpacity": 1,
+			"backgroundOpacity": 0,
+			"backgroundRadius": 4,
+			"backgroundPadding": 12,
+			"shadowColor": "#c084fc",
+			"shadowOpacity": 0.55,
+			"shadowOffsetX": 4,
+			"shadowOffsetY": 5,
+			"shadowBlur": 8,
+			"glowColor": "#f5f3ff",
+			"glowOpacity": 0.55,
+			"glowBlur": 16,
+			"curve": 0,
+			"animationType": "none",
+			"animationDuration": 0.6,
+			"animationDelay": 0,
+			"blendMode": "normal",
+			"duration": 5,
+			"startTime": 0,
+			"trimStart": 0,
+			"trimEnd": 0
+		}
+	}
+}

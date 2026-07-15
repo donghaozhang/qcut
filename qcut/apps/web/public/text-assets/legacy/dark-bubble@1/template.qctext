@@ -1,0 +1,126 @@
+{
+	"schemaVersion": 1,
+	"kind": "qcut-text-template-package",
+	"assetId": "text-legacy-dark-bubble",
+	"packageId": "text-new-text-lower-third",
+	"version": 1,
+	"cacheKey": "text-assets/legacy/dark-bubble@1",
+	"files": {
+		"thumbnail": "thumbnail.webp",
+		"source": "template.json"
+	},
+	"resources": [
+		{
+			"byteSize": 15798,
+			"checksumSha256": "32ce4ecc792d91e87f4e30cdc5eaa2d0120f3c4fcfe9643471db82fdfa729952",
+			"mimeType": "image/webp",
+			"path": "thumbnail.webp",
+			"role": "thumbnail",
+			"url": "/text-assets/legacy/dark-bubble@1/thumbnail.webp"
+		},
+		{
+			"byteSize": 2015,
+			"checksumSha256": "4f30b5cc26f7d6c7aa112dc2a852976adac23996e641e54b337b0199cca42a6e",
+			"mimeType": "application/json",
+			"path": "template.json",
+			"role": "source",
+			"url": "/text-assets/legacy/dark-bubble@1/template.json"
+		}
+	],
+	"source": {
+		"schemaVersion": 1,
+		"assetId": "text-legacy-dark-bubble",
+		"packageId": "text-new-text-lower-third",
+		"version": 1,
+		"marketplace": {
+			"editorialRank": 120,
+			"heatScore": 77,
+			"remoteTags": [
+				"category:lower-third",
+				"group:new-text",
+				"variant:legacy-dark-bubble"
+			],
+			"searchAliases": []
+		},
+		"definition": {
+			"id": "dark-bubble",
+			"name": "Dark bubble",
+			"category": "lower-third",
+			"groupId": "new-text",
+			"variantId": "legacy-dark-bubble",
+			"content": "Dark bubble",
+			"stylePresetId": "dark-bubble",
+			"keywords": [
+				"label",
+				"bubble",
+				"角标",
+				"dark-bubble",
+				"Dark bubble",
+				"lower-third",
+				"new-text",
+				"legacy-dark-bubble"
+			],
+			"premium": false,
+			"downloaded": true,
+			"resource": {
+				"assetId": "text-legacy-dark-bubble",
+				"packageId": "text-new-text-lower-third",
+				"version": 1,
+				"entitlement": "free",
+				"cacheKey": "text-assets/legacy/dark-bubble@1",
+				"sizeKb": 192
+			},
+			"catalogVisible": false,
+			"overrides": {
+				"width": 600,
+				"height": 150
+			}
+		},
+		"template": {
+			"id": "dark-bubble",
+			"type": "text",
+			"name": "Dark bubble",
+			"content": "Dark bubble",
+			"fontSize": 48,
+			"fontFamily": "Arial",
+			"color": "#ffffff",
+			"backgroundColor": "#111827",
+			"textAlign": "center",
+			"fontWeight": "bold",
+			"fontStyle": "normal",
+			"textDecoration": "none",
+			"x": 0,
+			"y": 0,
+			"rotation": 0,
+			"opacity": 1,
+			"width": 600,
+			"height": 150,
+			"letterSpacing": 0,
+			"lineHeight": 1.2,
+			"verticalAlign": "middle",
+			"strokeColor": "#000000",
+			"strokeWidth": 0,
+			"strokeOpacity": 1,
+			"backgroundOpacity": 0.92,
+			"backgroundRadius": 18,
+			"backgroundPadding": 18,
+			"shadowColor": "#000000",
+			"shadowOpacity": 0.45,
+			"shadowOffsetX": 0,
+			"shadowOffsetY": 8,
+			"shadowBlur": 16,
+			"glowColor": "#ffffff",
+			"glowOpacity": 0,
+			"glowBlur": 12,
+			"curve": 0,
+			"animationType": "none",
+			"animationDuration": 0.6,
+			"animationDelay": 0,
+			"blendMode": "normal",
+			"duration": 5,
+			"startTime": 0,
+			"trimStart": 0,
+			"trimEnd": 0
+		}
+	}
+}

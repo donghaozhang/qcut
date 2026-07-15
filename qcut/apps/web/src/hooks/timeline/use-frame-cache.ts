@@ -1,137 +1,142 @@
-import { useRef, useCallback, useEffect } from "react";
+import { useCallback, useEffect, useMemo, useRef } from "react";
 import { openDB, type IDBPDatabase } from "idb";
-import type {
-	MediaElement,
-	TimelineTrack,
-	TimelineElement,
-} from "@/types/timeline";
+import type { TimelineTrack } from "@/types/timeline";
 import type { MediaItem } from "@/stores/media/media-store-types";
 import type { TProject } from "@/types/project";
 import { getTimelineElementEndTime } from "@/lib/timeline";
+import {
+	getSharedFrameCache,
+	type SharedFrameCacheSnapshotEntry,
+} from "@/lib/preview/shared-frame-cache";
 
-interface CachedFrame {
-	imageData: ImageData;
-	timelineHash: string;
-	timestamp: number;
-}
-
-interface CacheSnapshot {
-	key: number;
-	imageData: ImageData;
-	timelineHash: string;
-	timestamp: number;
-}
+const DEFAULT_MAX_CACHE_ENTRIES = 120;
+const DEFAULT_MAX_CACHE_BYTES = 96 * 1024 * 1024;
+const DEFAULT_CACHE_TTL_MS = 30 * 60 * 1000;
+const MAX_PERSISTED_CACHE_BYTES = 32 * 1024 * 1024;
 
 interface FrameCacheOptions {
+	namespace?: string;
 	maxCacheSize?: number;
+	maxCacheBytes?: number;
+	cacheTtlMs?: number;
 	cacheResolution?: number;
 	persist?: boolean;
 	onError?: (error: unknown) => void;
 }
 
-export function useFrameCache(options: FrameCacheOptions = {}) {
-	const {
-		maxCacheSize = 300,
-		cacheResolution = 30,
-		persist = false,
-		onError,
-	} = options; // 10 seconds at 30fps
-	const frameCacheRef = useRef(new Map<number, CachedFrame>());
-	const persistTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+function hashValue({ value }: { value: string }): string {
+	let hash = 2166136261;
+	for (let index = 0; index < value.length; index++) {
+		hash ^= value.charCodeAt(index);
+		hash = Math.imul(hash, 16777619);
+	}
+	return (hash >>> 0).toString(36);
+}
 
-	// Generate a hash of the timeline state that affects rendering
+function mediaSignature({ mediaItem }: { mediaItem?: MediaItem }) {
+	if (!mediaItem) return null;
+	return {
+		id: mediaItem.id,
+		name: mediaItem.name,
+		type: mediaItem.type,
+		localPath: mediaItem.localPath,
+		url: mediaItem.url,
+		originalUrl: mediaItem.originalUrl,
+		duration: mediaItem.duration,
+		width: mediaItem.width,
+		height: mediaItem.height,
+		fps: mediaItem.fps,
+		file: {
+			name: mediaItem.file.name,
+			size: mediaItem.file.size,
+			lastModified: mediaItem.file.lastModified,
+			type: mediaItem.file.type,
+		},
+	};
+}
+
+export function useFrameCache({
+	namespace = "default",
+	maxCacheSize = DEFAULT_MAX_CACHE_ENTRIES,
+	maxCacheBytes = DEFAULT_MAX_CACHE_BYTES,
+	cacheTtlMs = DEFAULT_CACHE_TTL_MS,
+	cacheResolution = 30,
+	persist = false,
+	onError,
+}: FrameCacheOptions = {}) {
+	const persistTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+	const cache = useMemo(
+		() =>
+			getSharedFrameCache({
+				namespace,
+				maxEntries: maxCacheSize,
+				maxBytes: maxCacheBytes,
+				ttlMs: cacheTtlMs,
+			}),
+		[cacheTtlMs, maxCacheBytes, maxCacheSize, namespace]
+	);
+
 	const getTimelineHash = useCallback(
-		(
-			time: number,
-			tracks: TimelineTrack[],
-			mediaItems: MediaItem[],
-			activeProject: TProject | null,
-			sceneId?: string
-		): string => {
-			// Get elements that are active at this time
-			const activeElements: Array<{
-				id: string;
-				type: string;
-				startTime: number;
-				duration: number;
-				trimStart: number;
-				trimEnd: number;
-				mediaId?: string;
-				timing?: Pick<
-					MediaElement,
-					| "playbackRate"
-					| "speedKeyframes"
-					| "reverse"
-					| "freezeFrameTime"
-					| "freezeFrameDuration"
-				>;
-			}> = [];
+		({
+			time,
+			tracks,
+			mediaItems,
+			activeProject,
+			sceneId,
+		}: {
+			time: number;
+			tracks: TimelineTrack[];
+			mediaItems: MediaItem[];
+			activeProject: TProject | null;
+			sceneId?: string;
+		}): string => {
+			const mediaById = new Map(mediaItems.map((item) => [item.id, item]));
+			const activeElements: Array<Record<string, unknown>> = [];
 
 			for (const track of tracks) {
 				if (track.muted) continue;
-
 				for (const element of track.elements) {
-					// Check if element has hidden property
 					const isHidden = "hidden" in element ? element.hidden : false;
 					if (isHidden) continue;
-
-					const elementStart = element.startTime;
 					const elementEnd = getTimelineElementEndTime({
 						element,
 						fps: activeProject?.fps ?? 30,
 					});
-
-					if (time >= elementStart && time < elementEnd) {
-						activeElements.push({
-							id: element.id,
-							type: element.type,
-							startTime: element.startTime,
-							duration: element.duration,
-							trimStart: element.trimStart,
-							trimEnd: element.trimEnd,
-							mediaId:
-								element.type === "media" && "mediaId" in element
-									? element.mediaId
-									: undefined,
-							timing:
-								element.type === "media"
-									? {
-											playbackRate: element.playbackRate,
-											speedKeyframes: element.speedKeyframes,
-											reverse: element.reverse,
-											freezeFrameTime: element.freezeFrameTime,
-											freezeFrameDuration: element.freezeFrameDuration,
-										}
-									: undefined,
-						});
-					}
+					if (time < element.startTime || time >= elementEnd) continue;
+					activeElements.push({
+						trackId: track.id,
+						element,
+						media:
+							element.type === "media"
+								? mediaSignature({ mediaItem: mediaById.get(element.mediaId) })
+								: null,
+					});
 				}
 			}
 
-			// Include project settings that affect rendering
-			const projectState = {
-				backgroundColor: activeProject?.backgroundColor,
-				backgroundType: activeProject?.backgroundType,
-				blurIntensity: activeProject?.blurIntensity,
-			};
-
-			// Sort activeElements by id for consistent hashing
-			const sortedElements = [...activeElements].sort((a, b) =>
-				a.id.localeCompare(b.id)
+			activeElements.sort((a, b) =>
+				String((a.element as { id?: string }).id).localeCompare(
+					String((b.element as { id?: string }).id)
+				)
 			);
-
-			// Create a stable string representation
-			return JSON.stringify({
-				activeElements: sortedElements,
-				projectState,
-				sceneId: sceneId || "default", // Include scene ID for cache isolation
-				time: Math.floor(time * cacheResolution) / cacheResolution, // Quantize time
+			return hashValue({
+				value: JSON.stringify({
+					activeElements,
+					project: {
+						backgroundColor: activeProject?.backgroundColor,
+						backgroundType: activeProject?.backgroundType,
+						blurIntensity: activeProject?.blurIntensity,
+						canvasSize: activeProject?.canvasSize,
+						fps: activeProject?.fps,
+					},
+					sceneId: sceneId ?? activeProject?.currentSceneId ?? "default",
+					time: Math.floor(time * cacheResolution) / cacheResolution,
+				}),
 			});
 		},
 		[cacheResolution]
 	);
 
-	// Get cached frame if available and valid
 	const getCachedFrame = useCallback(
 		(
 			time: number,
@@ -141,62 +146,40 @@ export function useFrameCache(options: FrameCacheOptions = {}) {
 			sceneId?: string
 		): ImageData | null => {
 			const frameTime = Math.floor(time * cacheResolution) / cacheResolution;
-			const cached = frameCacheRef.current.get(frameTime);
-
-			if (!cached) {
-				// metrics: miss when no entry
-				metricsRef.current.misses++;
-				return null;
-			}
-
-			const currentHash = getTimelineHash(
-				time,
-				tracks,
-				mediaItems,
-				activeProject,
-				sceneId
-			);
-			if (cached.timelineHash !== currentHash) {
-				// Cache is stale, remove it
-				frameCacheRef.current.delete(frameTime);
-				metricsRef.current.misses++;
-				return null;
-			}
-
-			metricsRef.current.hits++;
-			return cached.imageData;
+			return cache.read({
+				key: frameTime,
+				timelineHash: getTimelineHash({
+					time,
+					tracks,
+					mediaItems,
+					activeProject,
+					sceneId,
+				}),
+			});
 		},
-		[getTimelineHash, cacheResolution]
+		[cache, cacheResolution, getTimelineHash]
 	);
 
-	// IndexedDB persistence helpers
 	const saveToIndexedDB = useCallback(async () => {
 		if (!persist) return;
 		try {
-			const db = await openDB("frame-cache", 1, {
-				upgrade(db: IDBPDatabase) {
-					if (!db.objectStoreNames.contains("frames")) {
-						db.createObjectStore("frames");
+			const db = await openDB("frame-cache", 2, {
+				upgrade(database: IDBPDatabase) {
+					if (!database.objectStoreNames.contains("frames")) {
+						database.createObjectStore("frames");
 					}
 				},
 			});
-
-			const cacheArray = Array.from(frameCacheRef.current.entries()).map(
-				([key, value]) => ({
-					key,
-					imageData: value.imageData,
-					timelineHash: value.timelineHash,
-					timestamp: value.timestamp,
-				})
+			await db.put(
+				"frames",
+				cache.snapshot({ maxBytes: MAX_PERSISTED_CACHE_BYTES }),
+				`cache-snapshot:${cache.namespace}`
 			);
-
-			await db.put("frames", cacheArray, "cache-snapshot");
 		} catch (error) {
 			onError?.(error);
 		}
-	}, [persist, onError]);
+	}, [cache, onError, persist]);
 
-	// Cache a rendered frame
 	const cacheFrame = useCallback(
 		(
 			time: number,
@@ -206,72 +189,33 @@ export function useFrameCache(options: FrameCacheOptions = {}) {
 			activeProject: TProject | null,
 			sceneId?: string
 		): void => {
-			const startTime = performance.now();
 			const frameTime = Math.floor(time * cacheResolution) / cacheResolution;
-			const timelineHash = getTimelineHash(
-				time,
-				tracks,
-				mediaItems,
-				activeProject,
-				sceneId
-			);
-
-			// Distance and age-based eviction (keeps frames near current position, evicts old distant frames)
-			if (frameCacheRef.current.size >= maxCacheSize) {
-				const entries = Array.from(frameCacheRef.current.entries());
-				// Sort by distance (far first) then age (older first)
-				entries.sort((a, b) => {
-					const aDistance = Math.abs(a[0] - frameTime);
-					const bDistance = Math.abs(b[0] - frameTime);
-					const aAge = Date.now() - a[1].timestamp;
-					const bAge = Date.now() - b[1].timestamp;
-					if (aDistance >= 5 && bDistance < 5) return -1;
-					if (bDistance >= 5 && aDistance < 5) return 1;
-					return bAge - aAge; // older first among equals
-				});
-				// Remove oldest ~20%
-				const toRemove = Math.max(1, Math.floor(entries.length * 0.2));
-				for (let i = 0; i < toRemove; i++) {
-					const k = entries.at(i)?.[0];
-					if (k !== undefined) frameCacheRef.current.delete(k);
-				}
-			}
-
-			frameCacheRef.current.set(frameTime, {
+			cache.write({
+				key: frameTime,
 				imageData,
-				timelineHash,
-				timestamp: Date.now(),
+				timelineHash: getTimelineHash({
+					time,
+					tracks,
+					mediaItems,
+					activeProject,
+					sceneId,
+				}),
+				currentTime: frameTime,
 			});
-
-			// metrics: approximate capture/caching time
-			const captureTime = performance.now() - startTime;
-			metricsRef.current.captureCount++;
-			metricsRef.current.avgCaptureTime =
-				(metricsRef.current.avgCaptureTime *
-					(metricsRef.current.captureCount - 1) +
-					captureTime) /
-				metricsRef.current.captureCount;
-
-			// schedule persistence if enabled (debounced)
-			if (persist) {
-				if (persistTimerRef.current) clearTimeout(persistTimerRef.current);
-				persistTimerRef.current = setTimeout(() => {
-					saveToIndexedDB().catch(() => {});
-				}, 1000);
-			}
+			if (!persist) return;
+			if (persistTimerRef.current) clearTimeout(persistTimerRef.current);
+			persistTimerRef.current = setTimeout(() => {
+				void saveToIndexedDB();
+			}, 1000);
 		},
-		[getTimelineHash, cacheResolution, maxCacheSize, persist, saveToIndexedDB]
+		[cache, cacheResolution, getTimelineHash, persist, saveToIndexedDB]
 	);
 
-	// Clear cache when timeline changes significantly
 	const invalidateCache = useCallback(() => {
-		frameCacheRef.current.clear();
-		if (persist) {
-			saveToIndexedDB().catch(() => {});
-		}
-	}, [persist, saveToIndexedDB]);
+		cache.clear();
+		if (persist) void saveToIndexedDB();
+	}, [cache, persist, saveToIndexedDB]);
 
-	// Get render status for timeline indicator
 	const getRenderStatus = useCallback(
 		(
 			time: number,
@@ -280,64 +224,57 @@ export function useFrameCache(options: FrameCacheOptions = {}) {
 			activeProject: TProject | null
 		): "cached" | "not-cached" => {
 			const frameTime = Math.floor(time * cacheResolution) / cacheResolution;
-			const cached = frameCacheRef.current.get(frameTime);
-
-			if (!cached) return "not-cached";
-
-			const currentHash = getTimelineHash(
-				time,
-				tracks,
-				mediaItems,
-				activeProject
-			);
-			return cached.timelineHash === currentHash ? "cached" : "not-cached";
+			return cache.has({
+				key: frameTime,
+				timelineHash: getTimelineHash({
+					time,
+					tracks,
+					mediaItems,
+					activeProject,
+				}),
+			})
+				? "cached"
+				: "not-cached";
 		},
-		[getTimelineHash, cacheResolution]
+		[cache, cacheResolution, getTimelineHash]
 	);
 
-	// Helper to check if a frame is cached and valid
 	const isFrameCached = useCallback(
 		(
 			time: number,
 			tracks: TimelineTrack[],
 			mediaItems: MediaItem[],
 			activeProject: TProject | null
-		): boolean => {
-			return (
-				getRenderStatus(time, tracks, mediaItems, activeProject) === "cached"
-			);
-		},
+		): boolean =>
+			getRenderStatus(time, tracks, mediaItems, activeProject) === "cached",
 		[getRenderStatus]
 	);
 
-	// Pre-render frames around current time during idle time
 	const preRenderNearbyFrames = useCallback(
 		async (
 			currentTime: number,
 			renderFunction: (time: number) => Promise<ImageData>,
-			range = 2, // kept for API compatibility
+			_range = 2,
 			tracks?: TimelineTrack[],
 			mediaItems?: MediaItem[],
 			activeProject?: TProject | null
 		) => {
 			if (!tracks || !mediaItems) return;
-
-			// For safety with DOM-capture rendering, only pre-render the quantized current frame
 			const frameTime =
 				Math.floor(currentTime * cacheResolution) / cacheResolution;
-			if (
-				!isFrameCached(frameTime, tracks, mediaItems, activeProject ?? null)
-			) {
-				const schedule = (fn: () => void) => {
-					if ("requestIdleCallback" in window) {
-						window.requestIdleCallback(fn, { timeout: 1000 });
-					} else {
-						setTimeout(fn, 0);
-					}
-				};
-
-				schedule(() => {
-					(async () => {
+			if (isFrameCached(frameTime, tracks, mediaItems, activeProject ?? null)) {
+				return;
+			}
+			const schedule = ({ callback }: { callback: () => void }) => {
+				if ("requestIdleCallback" in window) {
+					window.requestIdleCallback(callback, { timeout: 1000 });
+					return;
+				}
+				setTimeout(callback, 0);
+			};
+			schedule({
+				callback: () => {
+					void (async () => {
 						try {
 							const imageData = await renderFunction(frameTime);
 							cacheFrame(
@@ -347,59 +284,48 @@ export function useFrameCache(options: FrameCacheOptions = {}) {
 								mediaItems,
 								activeProject ?? null
 							);
-						} catch (error) {
-							// Silently ignore if render couldn't proceed (e.g., targeted time capture unsupported)
+						} catch {
+							return;
 						}
 					})();
-				});
-			}
+				},
+			});
 		},
 		[cacheFrame, cacheResolution, isFrameCached]
 	);
 
-	// Performance metrics
-	interface CacheMetrics {
-		hits: number;
-		misses: number;
-		avgCaptureTime: number;
-		captureCount: number;
-	}
-	const metricsRef = useRef<CacheMetrics>({
-		hits: 0,
-		misses: 0,
-		avgCaptureTime: 0,
-		captureCount: 0,
-	});
-
 	const restoreFromIndexedDB = useCallback(async () => {
 		if (!persist) return;
 		try {
-			const db = await openDB("frame-cache", 1);
-			const cacheArray = (await db.get("frames", "cache-snapshot")) as
-				| CacheSnapshot[]
-				| undefined;
-			if (cacheArray && Array.isArray(cacheArray)) {
-				frameCacheRef.current.clear();
-				for (const item of cacheArray) {
-					frameCacheRef.current.set(item.key, {
-						imageData: item.imageData,
-						timelineHash: item.timelineHash,
-						timestamp: item.timestamp,
-					});
-				}
-			}
+			const db = await openDB("frame-cache", 2, {
+				upgrade(database: IDBPDatabase) {
+					if (!database.objectStoreNames.contains("frames")) {
+						database.createObjectStore("frames");
+					}
+				},
+			});
+			const entries = (await db.get(
+				"frames",
+				`cache-snapshot:${cache.namespace}`
+			)) as SharedFrameCacheSnapshotEntry[] | undefined;
+			if (Array.isArray(entries)) cache.restore({ entries });
 		} catch (error) {
 			onError?.(error);
 		}
-	}, [persist, onError]);
+	}, [cache, onError, persist]);
 
-	// Restore on mount when persistence enabled
 	useEffect(() => {
-		if (persist) {
-			restoreFromIndexedDB().catch(() => {});
-		}
-	}, [persist, restoreFromIndexedDB]);
+		void restoreFromIndexedDB();
+	}, [restoreFromIndexedDB]);
 
+	useEffect(
+		() => () => {
+			if (persistTimerRef.current) clearTimeout(persistTimerRef.current);
+		},
+		[]
+	);
+
+	const metrics = cache.metrics;
 	return {
 		getCachedFrame,
 		cacheFrame,
@@ -407,10 +333,10 @@ export function useFrameCache(options: FrameCacheOptions = {}) {
 		getRenderStatus,
 		isFrameCached,
 		preRenderNearbyFrames,
-		cacheMetrics: metricsRef.current,
-		cacheHitRate:
-			(metricsRef.current.hits || 0) /
-			Math.max(1, metricsRef.current.hits + metricsRef.current.misses),
-		cacheSize: frameCacheRef.current.size,
+		cacheMetrics: metrics,
+		cacheHitRate: metrics.hits / Math.max(1, metrics.hits + metrics.misses),
+		cacheSize: metrics.entries,
+		cacheBytes: metrics.bytes,
+		cacheByteBudget: cache.byteBudget,
 	};
 }

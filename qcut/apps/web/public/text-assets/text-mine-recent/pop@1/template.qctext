@@ -1,0 +1,142 @@
+{
+	"schemaVersion": 1,
+	"kind": "qcut-text-template-package",
+	"assetId": "text-mine-recent-pop",
+	"packageId": "text-mine-recent",
+	"version": 1,
+	"cacheKey": "text-assets/text-mine-recent/pop@1",
+	"files": {
+		"thumbnail": "thumbnail.webp",
+		"source": "template.json"
+	},
+	"resources": [
+		{
+			"byteSize": 16872,
+			"checksumSha256": "12ff6844f7880e7688edc586d159ceddef0c588665cc5de1aff9085018fbb0e8",
+			"mimeType": "image/webp",
+			"path": "thumbnail.webp",
+			"role": "thumbnail",
+			"url": "/text-assets/text-mine-recent/pop@1/thumbnail.webp"
+		},
+		{
+			"byteSize": 2286,
+			"checksumSha256": "10fd2af574e9d6175bb16da0bde9c8aedd89fa1fe4a61eb4ec0edc15e22bae2a",
+			"mimeType": "application/json",
+			"path": "template.json",
+			"role": "source",
+			"url": "/text-assets/text-mine-recent/pop@1/template.json"
+		}
+	],
+	"source": {
+		"schemaVersion": 1,
+		"assetId": "text-mine-recent-pop",
+		"packageId": "text-mine-recent",
+		"version": 1,
+		"marketplace": {
+			"editorialRank": 120,
+			"heatScore": 81,
+			"remoteTags": [
+				"category:recent",
+				"group:mine",
+				"variant:pop"
+			],
+			"searchAliases": []
+		},
+		"definition": {
+			"id": "recent-pop",
+			"name": "最近使用弹幕",
+			"category": "recent",
+			"groupId": "mine",
+			"variantId": "pop",
+			"content": "最近",
+			"stylePresetId": "yellow-pop",
+			"keywords": [
+				"recent",
+				"最近使用",
+				"最近",
+				"pop",
+				"弹幕",
+				"综艺",
+				"冲击",
+				"variety",
+				"recent-pop",
+				"最近使用弹幕",
+				"mine"
+			],
+			"premium": true,
+			"downloaded": false,
+			"resource": {
+				"assetId": "text-mine-recent-pop",
+				"packageId": "text-mine-recent",
+				"version": 1,
+				"entitlement": "svip",
+				"cacheKey": "text-assets/text-mine-recent/pop@1",
+				"sizeKb": 384
+			},
+			"catalogVisible": true,
+			"overrides": {
+				"fontSize": 72,
+				"color": "#a3e635",
+				"fontWeight": "bold",
+				"strokeColor": "#164e63",
+				"strokeWidth": 4,
+				"shadowColor": "#0891b2",
+				"shadowOpacity": 0.45,
+				"shadowOffsetX": 5,
+				"shadowOffsetY": 6,
+				"shadowBlur": 2,
+				"curve": -12,
+				"rotation": -2,
+				"width": 780,
+				"height": 230,
+				"animationType": "slide-up"
+			}
+		},
+		"template": {
+			"id": "recent-pop",
+			"type": "text",
+			"name": "最近使用弹幕",
+			"content": "最近",
+			"fontSize": 72,
+			"fontFamily": "Arial",
+			"color": "#a3e635",
+			"backgroundColor": "transparent",
+			"textAlign": "center",
+			"fontWeight": "bold",
+			"fontStyle": "normal",
+			"textDecoration": "none",
+			"x": 0,
+			"y": 0,
+			"rotation": -2,
+			"opacity": 1,
+			"width": 780,
+			"height": 230,
+			"letterSpacing": 0,
+			"lineHeight": 1.2,
+			"verticalAlign": "middle",
+			"strokeColor": "#164e63",
+			"strokeWidth": 4,
+			"strokeOpacity": 1,
+			"backgroundOpacity": 0,
+			"backgroundRadius": 4,
+			"backgroundPadding": 12,
+			"shadowColor": "#0891b2",
+			"shadowOpacity": 0.45,
+			"shadowOffsetX": 5,
+			"shadowOffsetY": 6,
+			"shadowBlur": 2,
+			"glowColor": "#ffffff",
+			"glowOpacity": 0,
+			"glowBlur": 12,
+			"curve": -12,
+			"animationType": "slide-up",
+			"animationDuration": 0.6,
+			"animationDelay": 0,
+			"blendMode": "normal",
+			"duration": 5,
+			"startTime": 0,
+			"trimStart": 0,
+			"trimEnd": 0
+		}
+	}
+}

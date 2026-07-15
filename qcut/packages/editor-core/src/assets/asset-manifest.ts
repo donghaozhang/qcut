@@ -20,6 +20,7 @@ export const ASSET_FILE_ROLES = [
 	"lut",
 	"font",
 	"waveform",
+	"package",
 ] as const;
 
 export type AssetFileRole = (typeof ASSET_FILE_ROLES)[number];
@@ -88,7 +89,21 @@ export interface AssetRuntimeState {
 	cacheStatus: AssetCacheStatus;
 	progress: number;
 	cacheKey?: string;
+	cachedBytes?: number;
+	cachedFileCount?: number;
+	cacheHitCount?: number;
+	cachedFiles?: readonly AssetRuntimeFileState[];
 	error?: string;
+}
+
+export interface AssetRuntimeFileState {
+	role: AssetFileRole;
+	url: string;
+	cacheKey: string;
+	fromCache: boolean;
+	byteSize?: number;
+	mimeType?: string;
+	checksumSha256?: string;
 }
 
 export type AssetManifestValidationCode =
@@ -549,7 +564,7 @@ export function createInitialAssetRuntimeState({
 }: {
 	asset: AssetManifestEntry;
 }): AssetRuntimeState {
-	const isBundled = asset.delivery === "bundled";
+	const requiresDownload = asset.delivery === "remote";
 	const hasCacheableFile = asset.files.length > 0;
 	return {
 		assetKey: assetManifestVersionKey({
@@ -558,12 +573,12 @@ export function createInitialAssetRuntimeState({
 			version: asset.version,
 		}),
 		favorite: false,
-		downloadStatus: isBundled ? "not-required" : "not-downloaded",
+		downloadStatus: requiresDownload ? "not-downloaded" : "not-required",
 		cacheStatus: hasCacheableFile
-			? isBundled
-				? "cached"
-				: "uncached"
+			? requiresDownload
+				? "uncached"
+				: "cached"
 			: "unavailable",
-		progress: isBundled ? 1 : 0,
+		progress: requiresDownload ? 0 : 1,
 	};
 }

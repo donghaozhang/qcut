@@ -68,8 +68,8 @@ test.describe("Production effects workflow", () => {
 		const effects = page.getByTestId("effects-view");
 		await expect(effects).toBeVisible();
 		const cards = effects.locator('[data-testid^="effect-card-"]');
-		await expect(cards).toHaveCount(15);
-		await expect(cards.locator("img")).toHaveCount(15);
+		await expect(cards).toHaveCount(16);
+		await expect(cards.locator("img")).toHaveCount(16);
 		await expect
 			.poll(() =>
 				cards
@@ -85,14 +85,21 @@ test.describe("Production effects workflow", () => {
 			)
 			.toBe(true);
 
-		await effects.getByTestId("effect-card-sepia").click();
+		await effects.getByTestId("effect-category-vintage").click();
+		await expect(cards).toHaveCount(2);
+		await effects.getByTestId("effect-card-faded-film").click();
 		await expect
 			.poll(() => appliedEffects({ page }))
 			.toEqual([
 				expect.objectContaining({
-					name: "Sepia",
-					effectType: "sepia",
-					parameters: { sepia: 80 },
+					name: "Faded Film",
+					effectType: "brightness",
+					parameters: {
+						brightness: 6,
+						contrast: -8,
+						saturation: -20,
+						sepia: 35,
+					},
 					enabled: true,
 				}),
 			]);
@@ -102,13 +109,17 @@ test.describe("Production effects workflow", () => {
 			.first();
 		await expect
 			.poll(() => previewVideo.evaluate((video) => video.style.filter))
-			.toContain("sepia(0.8)");
-		await expect(page.getByText("Sepia", { exact: true }).last()).toBeVisible();
+			.toContain("sepia(0.35)");
+		await expect(
+			page.getByText("Faded Film", { exact: true }).last()
+		).toBeVisible();
 
 		await mkdir(path.dirname(screenshotPath), { recursive: true });
 		await page.screenshot({ path: screenshotPath, animations: "disabled" });
 
-		await page.getByRole("button", { name: "Remove Sepia effect" }).click();
+		await page
+			.getByRole("button", { name: "Remove Faded Film effect" })
+			.click();
 		await expect.poll(() => appliedEffects({ page })).toEqual([]);
 	});
 });

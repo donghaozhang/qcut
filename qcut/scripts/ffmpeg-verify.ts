@@ -122,7 +122,7 @@ export async function verifyFFmpegBinaries({
 	assertIncludesAll({
 		text: ffmpegText,
 		values: [
-			target.versionToken,
+			target.versionMarker,
 			...requiredBuildFlags,
 			...target.hardwareAccelerators,
 		],
@@ -135,7 +135,7 @@ export async function verifyFFmpegBinaries({
 	}
 	assertIncludesAll({
 		text: ffprobeText,
-		values: [target.versionToken],
+		values: [target.versionMarker],
 		label: `${targetKey} ffprobe binary`,
 	});
 
@@ -174,12 +174,12 @@ export async function verifyFFmpegBinaries({
 
 	assertIncludesAll({
 		text: ffmpegVersionText,
-		values: [target.versionToken],
+		values: [target.versionMarker],
 		label: `${targetKey} ffmpeg version output`,
 	});
 	assertIncludesAll({
 		text: ffprobeVersionText,
-		values: [target.versionToken],
+		values: [target.versionMarker],
 		label: `${targetKey} ffprobe version output`,
 	});
 	assertIncludesAll({

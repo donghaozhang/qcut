@@ -91,6 +91,44 @@ describe("buildSmartPackagingPlan", () => {
 		).toHaveLength(3);
 	});
 
+	it("keeps ineligible shots for zooms while excluding their transition pairs", () => {
+		const plan = buildSmartPackagingPlan({
+			captions: [],
+			beats: [],
+			shots: [
+				{
+					id: "video",
+					trackId: "track",
+					elementId: "video-element",
+					startTime: 0,
+					endTime: 2,
+					transitionEligible: true,
+				},
+				{
+					id: "image",
+					trackId: "track",
+					elementId: "image-element",
+					startTime: 2,
+					endTime: 4,
+					transitionEligible: false,
+				},
+			],
+			options: {
+				addText: false,
+				addStickers: false,
+				addSoundEffects: false,
+			},
+		});
+
+		expect(plan.sourceCounts.shots).toBe(2);
+		expect(
+			plan.actions.filter((action) => action.kind === "zoom")
+		).toHaveLength(2);
+		expect(
+			plan.actions.filter((action) => action.kind === "transition")
+		).toEqual([]);
+	});
+
 	it("uses caption starts when no beat analysis exists", () => {
 		const plan = buildSmartPackagingPlan({
 			captions: [

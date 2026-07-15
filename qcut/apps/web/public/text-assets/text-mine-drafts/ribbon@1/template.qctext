@@ -1,0 +1,137 @@
+{
+	"schemaVersion": 1,
+	"kind": "qcut-text-template-package",
+	"assetId": "text-mine-drafts-ribbon",
+	"packageId": "text-mine-drafts",
+	"version": 1,
+	"cacheKey": "text-assets/text-mine-drafts/ribbon@1",
+	"files": {
+		"thumbnail": "thumbnail.webp",
+		"source": "template.json"
+	},
+	"resources": [
+		{
+			"byteSize": 15882,
+			"checksumSha256": "d195a9484c11be239bf5f5bc55a2fd148ea4e3ed5999a75025b3d7f2031000a1",
+			"mimeType": "image/webp",
+			"path": "thumbnail.webp",
+			"role": "thumbnail",
+			"url": "/text-assets/text-mine-drafts/ribbon@1/thumbnail.webp"
+		},
+		{
+			"byteSize": 2192,
+			"checksumSha256": "bc82d83f983d8f5a6ea2bdd63533b2cb198d2e316afa0716dd367b5d4bd0582f",
+			"mimeType": "application/json",
+			"path": "template.json",
+			"role": "source",
+			"url": "/text-assets/text-mine-drafts/ribbon@1/template.json"
+		}
+	],
+	"source": {
+		"schemaVersion": 1,
+		"assetId": "text-mine-drafts-ribbon",
+		"packageId": "text-mine-drafts",
+		"version": 1,
+		"marketplace": {
+			"editorialRank": 120,
+			"heatScore": 81,
+			"remoteTags": [
+				"category:drafts",
+				"group:mine",
+				"variant:ribbon"
+			],
+			"searchAliases": []
+		},
+		"definition": {
+			"id": "drafts-ribbon",
+			"name": "草稿飘带",
+			"category": "drafts",
+			"groupId": "mine",
+			"variantId": "ribbon",
+			"content": "草稿",
+			"stylePresetId": "red-label",
+			"keywords": [
+				"drafts",
+				"草稿",
+				"ribbon",
+				"飘带",
+				"横幅",
+				"促销",
+				"drafts-ribbon",
+				"草稿飘带",
+				"mine"
+			],
+			"premium": true,
+			"downloaded": false,
+			"resource": {
+				"assetId": "text-mine-drafts-ribbon",
+				"packageId": "text-mine-drafts",
+				"version": 1,
+				"entitlement": "svip",
+				"cacheKey": "text-assets/text-mine-drafts/ribbon@1",
+				"sizeKb": 384
+			},
+			"catalogVisible": true,
+			"overrides": {
+				"fontSize": 62,
+				"color": "#fafaf9",
+				"fontWeight": "bold",
+				"strokeColor": "#1c1917",
+				"strokeWidth": 2,
+				"backgroundColor": "#78716c",
+				"backgroundOpacity": 1,
+				"backgroundRadius": 4,
+				"backgroundPadding": 18,
+				"curve": -8,
+				"width": 720,
+				"height": 190
+			}
+		},
+		"template": {
+			"id": "drafts-ribbon",
+			"type": "text",
+			"name": "草稿飘带",
+			"content": "草稿",
+			"fontSize": 62,
+			"fontFamily": "Arial",
+			"color": "#fafaf9",
+			"backgroundColor": "#78716c",
+			"textAlign": "center",
+			"fontWeight": "bold",
+			"fontStyle": "normal",
+			"textDecoration": "none",
+			"x": 0,
+			"y": 0,
+			"rotation": 0,
+			"opacity": 1,
+			"width": 720,
+			"height": 190,
+			"letterSpacing": 0,
+			"lineHeight": 1.2,
+			"verticalAlign": "middle",
+			"strokeColor": "#1c1917",
+			"strokeWidth": 2,
+			"strokeOpacity": 1,
+			"backgroundOpacity": 1,
+			"backgroundRadius": 4,
+			"backgroundPadding": 18,
+			"shadowColor": "#000000",
+			"shadowOpacity": 0.25,
+			"shadowOffsetX": 2,
+			"shadowOffsetY": 4,
+			"shadowBlur": 8,
+			"glowColor": "#ffffff",
+			"glowOpacity": 0,
+			"glowBlur": 12,
+			"curve": -8,
+			"animationType": "none",
+			"animationDuration": 0.6,
+			"animationDelay": 0,
+			"blendMode": "normal",
+			"duration": 5,
+			"startTime": 0,
+			"trimStart": 0,
+			"trimEnd": 0
+		}
+	}
+}

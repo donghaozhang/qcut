@@ -11,7 +11,11 @@ import {
 	type AudioBatchSelection,
 } from "./audio-multi-selection-properties";
 import { MediaProperties } from "./media-properties";
-import { TextProperties } from "./text-properties";
+import {
+	TextGroupProperties,
+	TextProperties,
+	type TextGroupSelection,
+} from "./text-properties";
 import { PanelTabs } from "./panel-tabs";
 import { useExportStore } from "@/stores/export-store";
 import { ExportPanelContent } from "./export-panel-content";
@@ -109,6 +113,23 @@ export function PropertiesPanel() {
 	const isAudioBatchSelection =
 		resolvedSelections.length > 1 &&
 		audioBatchSelections.length === resolvedSelections.length;
+	const textGroupSelections = useMemo(() => {
+		if (resolvedSelections.length < 2) return [];
+		const textSelections = resolvedSelections.flatMap(({ trackId, element }) =>
+			element.type === "text"
+				? ([{ trackId, element }] satisfies TextGroupSelection[])
+				: []
+		);
+		if (textSelections.length !== resolvedSelections.length) return [];
+		const groupId = textSelections[0]?.element.groupId;
+		if (!groupId) return [];
+		return textSelections.every(
+			(selection) => selection.element.groupId === groupId
+		)
+			? textSelections
+			: [];
+	}, [resolvedSelections]);
+	const isTextGroupSelection = textGroupSelections.length > 1;
 	const showScreenRecordingPanel = useScreenRecordingEnhancementStore(
 		(s) => s.cursorTelemetry !== null || hasActiveEnhancements(s)
 	);
@@ -240,6 +261,8 @@ export function PropertiesPanel() {
 									<AudioMultiSelectionProperties
 										selections={audioBatchSelections}
 									/>
+								) : isTextGroupSelection ? (
+									<TextGroupProperties selections={textGroupSelections} />
 								) : resolvedSelections.length === 1 ? (
 									(() => {
 										const { trackId, element } = resolvedSelections[0];

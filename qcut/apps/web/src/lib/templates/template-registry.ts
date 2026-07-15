@@ -5,6 +5,7 @@ import {
 	type TimelineTemplate,
 	type TimelineTemplateVariant,
 } from "@qcut/editor-core/templates";
+import { loadCustomTimelineTemplates } from "./custom-template-registry";
 
 function createCreatorVariant({
 	aspectRatio,
@@ -288,6 +289,10 @@ export const TIMELINE_TEMPLATES: TimelineTemplate[] = [
 	},
 ];
 
+export const BUILT_IN_TIMELINE_TEMPLATE_IDS = new Set(
+	TIMELINE_TEMPLATES.map((template) => template.id)
+);
+
 for (const template of TIMELINE_TEMPLATES) {
 	const validation = validateTimelineTemplate({ template });
 	if (!validation.valid) {
@@ -304,5 +309,14 @@ export function getTimelineTemplate({
 }: {
 	templateId: string;
 }): TimelineTemplate | undefined {
-	return TIMELINE_TEMPLATES.find((template) => template.id === templateId);
+	return getTimelineTemplates().find((template) => template.id === templateId);
+}
+
+export function getTimelineTemplates(): TimelineTemplate[] {
+	return [
+		...TIMELINE_TEMPLATES,
+		...loadCustomTimelineTemplates().filter(
+			(template) => !BUILT_IN_TIMELINE_TEMPLATE_IDS.has(template.id)
+		),
+	];
 }
