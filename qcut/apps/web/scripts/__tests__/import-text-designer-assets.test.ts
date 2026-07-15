@@ -631,6 +631,14 @@ describe("text designer asset import script", () => {
 				requiredDesignerCategories: ["red"],
 			})
 		).rejects.toThrow("Designer-ready imports require pack-summary.json");
+		await writeDesignerAssetContract({
+			packageChecksum:
+				generatedManifest["text-demo"]!.qcutPackage!.checksumSha256,
+			packDir,
+			sourceChecksum: generatedManifest["text-demo"]!.source.checksumSha256,
+			thumbnailChecksum:
+				generatedManifest["text-demo"]!.thumbnail.checksumSha256,
+		});
 		await expect(
 			buildTextDesignerAssetImportPlan({
 				generatedManifest,
@@ -651,6 +659,63 @@ describe("text designer asset import script", () => {
 	});
 
 	it("accepts designer packs that satisfy ready category coverage", async () => {
+		const { packDir, packManifest, publicDir } = await createDesignerFixture();
+		const generatedManifest = {
+			"text-demo": createGeneratedEntry({
+				cacheKey: "text-assets/text-fancy-red/plain@1",
+				packageId: "text-fancy-red",
+			}),
+		};
+		const sourceText = designerSourceText({ packageId: "text-fancy-red" });
+		const packageText = designerPackageText({
+			cacheKey: "text-assets/text-fancy-red/plain@1",
+			packageId: "text-fancy-red",
+			source: sourceText,
+		});
+		await Promise.all([
+			writeFile(join(packDir, "template.json"), sourceText),
+			writeFile(join(packDir, "template.qctext"), packageText),
+		]);
+		await writeDesignerAssetContract({
+			cacheKey: "text-assets/text-fancy-red/plain@1",
+			packageChecksum:
+				generatedManifest["text-demo"]!.qcutPackage!.checksumSha256,
+			packageId: "text-fancy-red",
+			packDir,
+			sourceChecksum: generatedManifest["text-demo"]!.source.checksumSha256,
+			thumbnailChecksum:
+				generatedManifest["text-demo"]!.thumbnail.checksumSha256,
+		});
+
+		await expect(
+			buildTextDesignerAssetImportPlan({
+				generatedManifest,
+				minDesignerAssets: 1,
+				minDesignerAssetsPerCategory: 1,
+				packDir,
+				packManifest,
+				packSummary: {
+					assets: 1,
+					categoryCounts: { red: 1 },
+					expectedDesignerImportedAssets: 1,
+					requiredReplacementFiles: 3,
+					schemaVersion: 1,
+				},
+				publicDir,
+				requiredDesignerCategories: ["red"],
+			})
+		).resolves.toMatchObject({
+			updatedManifest: {
+				"text-demo": {
+					provenance: {
+						source: "designer-imported",
+					},
+				},
+			},
+		});
+	});
+
+	it("requires designer asset contracts for designer-ready imports", async () => {
 		const { packDir, packManifest, publicDir } = await createDesignerFixture();
 		const generatedManifest = {
 			"text-demo": createGeneratedEntry({
@@ -688,15 +753,9 @@ describe("text designer asset import script", () => {
 				publicDir,
 				requiredDesignerCategories: ["red"],
 			})
-		).resolves.toMatchObject({
-			updatedManifest: {
-				"text-demo": {
-					provenance: {
-						source: "designer-imported",
-					},
-				},
-			},
-		});
+		).rejects.toThrow(
+			"Designer-ready imports require asset-contract.json for text-demo"
+		);
 	});
 
 	it("accepts matching designer asset contracts", async () => {

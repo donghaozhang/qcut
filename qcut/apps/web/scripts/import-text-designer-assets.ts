@@ -408,6 +408,13 @@ export async function buildTextDesignerAssetImportPlan({
 }): Promise<TextDesignerAssetImportPlan> {
 	assertUniqueAssetIds({ packManifest });
 	const resolvedPackDir = resolve(packDir);
+	const requiresDesignerAssetContracts =
+		minDesignerAssets > 0 || requiredDesignerCategories.length > 0;
+	assertRequiredDesignerPackSummary({
+		minDesignerAssets,
+		packSummary,
+		requiredDesignerCategories,
+	});
 	const itemGroups = await Promise.all(
 		packManifest.assets.map(async (asset) => {
 			const targetEntry = generatedManifest[asset.assetId];
@@ -435,9 +442,10 @@ export async function buildTextDesignerAssetImportPlan({
 				items,
 				targetEntry,
 			});
-			await assertOptionalDesignerAssetContract({
+			await assertDesignerAssetContractForImport({
 				asset,
 				items,
+				required: requiresDesignerAssetContracts,
 				resolvedPackDir,
 				targetEntry,
 			});
@@ -450,11 +458,6 @@ export async function buildTextDesignerAssetImportPlan({
 	const updatedManifest = applyPlanToManifest({
 		generatedManifest,
 		items,
-	});
-	assertRequiredDesignerPackSummary({
-		minDesignerAssets,
-		packSummary,
-		requiredDesignerCategories,
 	});
 	assertDesignerPackSummaryMatchesPlan({
 		items,
@@ -721,14 +724,16 @@ function assertDesignerAssetChanged({
 	);
 }
 
-async function assertOptionalDesignerAssetContract({
+async function assertDesignerAssetContractForImport({
 	asset,
 	items,
+	required,
 	resolvedPackDir,
 	targetEntry,
 }: {
 	asset: TextDesignerAssetPackEntry;
 	items: readonly TextDesignerAssetImportPlanItem[];
+	required: boolean;
 	resolvedPackDir: string;
 	targetEntry: TextAssetGeneratedEntry;
 }): Promise<void> {
@@ -736,7 +741,12 @@ async function assertOptionalDesignerAssetContract({
 		asset,
 		resolvedPackDir,
 	});
-	if (!contract) return;
+	if (!contract) {
+		if (!required) return;
+		throw new Error(
+			`Designer-ready imports require asset-contract.json for ${asset.assetId}`
+		);
+	}
 	assertDesignerAssetContractIdentity({ contract, targetEntry });
 	for (const item of items) {
 		const contractFile = contract.files[contractFileRole({ role: item.role })];
