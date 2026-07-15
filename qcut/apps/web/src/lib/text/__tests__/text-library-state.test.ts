@@ -332,4 +332,21 @@ describe("text library state", () => {
 			}).map((definition) => definition.id)
 		).toEqual(["second", "first"]);
 	});
+
+	it("resolves marketplace trending from remote sections before heat fallback", () => {
+		expect(
+			getTextDefinitionsForLibraryCategory({
+				category: "trending",
+				definitions: templateDefinitions,
+				marketplaceSections: [
+					{
+						id: "trending",
+						templateIds: ["third", "missing", "second", "third"],
+						title: "实时热门",
+					},
+				],
+				state: EMPTY_TEXT_LIBRARY_STATE,
+			}).map((definition) => definition.id)
+		).toEqual(["third", "second"]);
+	});
 });

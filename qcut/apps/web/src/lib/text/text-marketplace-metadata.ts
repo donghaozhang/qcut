@@ -361,6 +361,46 @@ export function getRecommendedTextTemplateDefinitions({
 	return recommended.slice(0, Math.max(0, limit));
 }
 
+export function getTrendingTextTemplateDefinitions({
+	definitions,
+	limit = 80,
+	overrides,
+	sections = [],
+}: {
+	definitions: readonly TextTemplateDefinition[];
+	limit?: number;
+	overrides?: TextTemplateMarketplaceMetadataOverrides;
+	sections?: readonly TextTemplateMarketplaceSection[];
+}): TextTemplateDefinition[] {
+	const sectionDefinitions = getTextTemplateDefinitionsForMarketplaceSection({
+		definitions,
+		sectionId: "trending",
+		sections,
+	});
+	if (sectionDefinitions.length > 0) {
+		return sectionDefinitions.slice(0, Math.max(0, limit));
+	}
+	return [...definitions]
+		.sort((left, right) => {
+			const leftMetadata = getTextTemplateMarketplaceMetadata({
+				definition: left,
+				overrides,
+			});
+			const rightMetadata = getTextTemplateMarketplaceMetadata({
+				definition: right,
+				overrides,
+			});
+			if (leftMetadata.heatScore !== rightMetadata.heatScore) {
+				return rightMetadata.heatScore - leftMetadata.heatScore;
+			}
+			if (leftMetadata.editorialRank !== rightMetadata.editorialRank) {
+				return leftMetadata.editorialRank - rightMetadata.editorialRank;
+			}
+			return left.name.localeCompare(right.name);
+		})
+		.slice(0, Math.max(0, limit));
+}
+
 export function getTextTemplateDefinitionsForMarketplaceSection({
 	definitions,
 	sectionId,

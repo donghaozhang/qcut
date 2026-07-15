@@ -5,6 +5,7 @@ import type {
 import { getTextTemplateResource } from "./text-resource-catalog";
 import {
 	getRecommendedTextTemplateDefinitions,
+	getTrendingTextTemplateDefinitions,
 	type TextTemplateMarketplaceMetadataOverrides,
 	type TextTemplateMarketplaceSection,
 } from "./text-marketplace-metadata";
@@ -295,6 +296,13 @@ export function getTextDefinitionsForLibraryCategory({
 	}
 	if (category === "recommended") {
 		return getRecommendedTextTemplateDefinitions({
+			definitions,
+			overrides: marketplaceOverrides,
+			sections: marketplaceSections,
+		});
+	}
+	if (category === "trending") {
+		return getTrendingTextTemplateDefinitions({
 			definitions,
 			overrides: marketplaceOverrides,
 			sections: marketplaceSections,

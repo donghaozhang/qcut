@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import { BUILT_IN_TEXT_PRESETS } from "../text-presets";
 import {
 	MARKETPLACE_RECOMMENDED_TEXT_CATEGORY_ID,
+	MARKETPLACE_TRENDING_TEXT_CATEGORY_ID,
 	MIN_TEXT_TEMPLATES_PER_CATEGORY,
 	TEXT_TEMPLATE_CATEGORIES,
 	TEXT_TEMPLATE_DEFINITIONS,
@@ -134,6 +135,33 @@ describe("text template registry", () => {
 				category: MARKETPLACE_RECOMMENDED_TEXT_CATEGORY_ID,
 			}).map((template) => template.id)
 		).toEqual(recommendedDefinitions.map((definition) => definition.id));
+	});
+
+	it("exposes a populated virtual trending marketplace category", () => {
+		const trendingCategory = TEXT_TEMPLATE_CATEGORIES.find(
+			(category) => category.id === MARKETPLACE_TRENDING_TEXT_CATEGORY_ID
+		);
+		const trendingDefinitions = getTextTemplateDefinitionsByCategory({
+			category: MARKETPLACE_TRENDING_TEXT_CATEGORY_ID,
+		});
+
+		expect(trendingCategory).toMatchObject({
+			groupId: "fancy",
+			label: "实时热门",
+			virtual: true,
+		});
+		expect(trendingDefinitions.length).toBeGreaterThanOrEqual(
+			MIN_TEXT_TEMPLATES_PER_CATEGORY
+		);
+		expect(trendingDefinitions.length).toBeLessThanOrEqual(30);
+		expect(
+			trendingDefinitions.every((definition) => definition.catalogVisible)
+		).toBe(true);
+		expect(
+			getTextTemplatesByCategory({
+				category: MARKETPLACE_TRENDING_TEXT_CATEGORY_ID,
+			}).map((template) => template.id)
+		).toEqual(trendingDefinitions.map((definition) => definition.id));
 	});
 
 	it("ships searchable marketplace metadata for template cards", () => {

@@ -1,6 +1,9 @@
 import { TIMELINE_CONSTANTS } from "@/constants/timeline-constants";
 import type { TextElement } from "@/types/timeline";
-import { getRecommendedTextTemplateDefinitions } from "./text-marketplace-metadata";
+import {
+	getRecommendedTextTemplateDefinitions,
+	getTrendingTextTemplateDefinitions,
+} from "./text-marketplace-metadata";
 import { BUILT_IN_TEXT_PRESETS, type TextStylePreset } from "./text-presets";
 
 type TextTemplatePalette = {
@@ -570,12 +573,14 @@ const TEXT_TEMPLATE_GROUP_SEEDS = [
 ] as const;
 
 export const MARKETPLACE_RECOMMENDED_TEXT_CATEGORY_ID = "recommended";
+export const MARKETPLACE_TRENDING_TEXT_CATEGORY_ID = "trending";
 
 export type TextTemplateGroupId =
 	(typeof TEXT_TEMPLATE_GROUP_SEEDS)[number]["id"];
 export type TextTemplateCategoryId =
 	| (typeof TEXT_TEMPLATE_GROUP_SEEDS)[number]["categories"][number]["id"]
-	| typeof MARKETPLACE_RECOMMENDED_TEXT_CATEGORY_ID;
+	| typeof MARKETPLACE_RECOMMENDED_TEXT_CATEGORY_ID
+	| typeof MARKETPLACE_TRENDING_TEXT_CATEGORY_ID;
 
 export interface TextTemplateCategory {
 	id: TextTemplateCategoryId;
@@ -601,6 +606,20 @@ function marketplaceRecommendedTextCategory({
 		groupId,
 		label: "推荐",
 		content: "推荐",
+		virtual: true,
+	};
+}
+
+function marketplaceTrendingTextCategory({
+	groupId,
+}: {
+	groupId: TextTemplateGroupId;
+}): TextTemplateCategory {
+	return {
+		id: MARKETPLACE_TRENDING_TEXT_CATEGORY_ID,
+		groupId,
+		label: "实时热门",
+		content: "热门",
 		virtual: true,
 	};
 }
@@ -1804,7 +1823,10 @@ export const TEXT_TEMPLATE_GROUPS: readonly TextTemplateGroup[] =
 		label: group.label,
 		categories: [
 			...(group.id === "fancy"
-				? [marketplaceRecommendedTextCategory({ groupId: group.id })]
+				? [
+						marketplaceRecommendedTextCategory({ groupId: group.id }),
+						marketplaceTrendingTextCategory({ groupId: group.id }),
+					]
 				: []),
 			...group.categories.map((category) => ({
 				id: category.id,
@@ -2202,6 +2224,13 @@ function getMarketplaceRecommendedTextTemplateDefinitions(): TextTemplateDefinit
 	});
 }
 
+function getMarketplaceTrendingTextTemplateDefinitions(): TextTemplateDefinition[] {
+	return getTrendingTextTemplateDefinitions({
+		definitions: TEXT_TEMPLATE_LIBRARY_DEFINITIONS,
+		limit: 30,
+	});
+}
+
 const textPresetsById = new Map<string, TextStylePreset>(
 	BUILT_IN_TEXT_PRESETS.map((preset) => [preset.id, preset])
 );
@@ -2251,6 +2280,9 @@ export function getTextTemplateDefinitionsByCategory({
 }): TextTemplateDefinition[] {
 	if (category === MARKETPLACE_RECOMMENDED_TEXT_CATEGORY_ID) {
 		return getMarketplaceRecommendedTextTemplateDefinitions();
+	}
+	if (category === MARKETPLACE_TRENDING_TEXT_CATEGORY_ID) {
+		return getMarketplaceTrendingTextTemplateDefinitions();
 	}
 	return TEXT_TEMPLATE_LIBRARY_DEFINITIONS.filter(
 		(definition) => definition.category === category
