@@ -143,6 +143,14 @@ type TextLibraryResourceReadinessSummary = {
 	total: number;
 };
 
+type TextLibraryDesignerImportGoalSummary = {
+	designerImported: number;
+	generatedFallback: number;
+	missingDesignerAssets: number;
+	requiredDesignerAssets: number;
+	status: "designer-ready" | "needs-designer-pack";
+};
+
 const TEXT_LIBRARY_STATUS_FILTERS: readonly {
 	id: TextLibraryStatusFilter;
 	label: string;
@@ -197,6 +205,30 @@ const TEXT_TEMPLATE_GRID_COLUMNS = {
 	standard: 4,
 	expanded: 5,
 } as const;
+
+const TEXT_DESIGNER_READY_MIN_ASSETS_PER_CATEGORY = 5;
+const TEXT_DESIGNER_READY_CATEGORY_IDS = [
+	"popular",
+	"latest",
+	"summer",
+	"variety",
+	"guofeng",
+	"glow",
+	"gradient",
+	"texture",
+	"red",
+	"yellow",
+	"black-white",
+	"blue",
+	"pink",
+	"green",
+	"purple",
+	"headline-template",
+	"quote-template",
+	"list-template",
+	"split-template",
+	"timeline-template",
+] as const satisfies readonly TextTemplateCategoryId[];
 
 const markdownData: MarkdownElement = {
 	id: "default-markdown",
@@ -1200,15 +1232,72 @@ export function getTextLibraryResourceReadinessLabel({
 	return "缺设计师素材包";
 }
 
-function TextLibraryResourceReadinessBar({
+export function getTextLibraryDesignerImportGoalSummary({
+	definitions,
+	minDesignerAssetsPerCategory = TEXT_DESIGNER_READY_MIN_ASSETS_PER_CATEGORY,
+	requiredCategories = TEXT_DESIGNER_READY_CATEGORY_IDS,
+}: {
+	definitions: readonly TextTemplateDefinition[];
+	minDesignerAssetsPerCategory?: number;
+	requiredCategories?: readonly TextTemplateCategoryId[];
+}): TextLibraryDesignerImportGoalSummary {
+	const designerCountsByCategory = new Map<TextTemplateCategoryId, number>();
+	let generatedFallback = 0;
+	for (const definition of definitions) {
+		const source = getTextTemplateAssetProvenanceSource({ definition });
+		if (source === "generated") {
+			generatedFallback += 1;
+			continue;
+		}
+		if (source !== "designer-imported") continue;
+		const currentCount = designerCountsByCategory.get(definition.category) ?? 0;
+		designerCountsByCategory.set(definition.category, currentCount + 1);
+	}
+	let designerImported = 0;
+	let missingDesignerAssets = 0;
+	for (const category of requiredCategories) {
+		const current = designerCountsByCategory.get(category) ?? 0;
+		designerImported += Math.min(current, minDesignerAssetsPerCategory);
+		missingDesignerAssets += Math.max(
+			0,
+			minDesignerAssetsPerCategory - current
+		);
+	}
+	const requiredDesignerAssets =
+		requiredCategories.length * minDesignerAssetsPerCategory;
+	return {
+		designerImported,
+		generatedFallback,
+		missingDesignerAssets,
+		requiredDesignerAssets,
+		status:
+			missingDesignerAssets === 0 ? "designer-ready" : "needs-designer-pack",
+	};
+}
+
+export function getTextLibraryDesignerImportGoalLabel({
 	summary,
 }: {
+	summary: TextLibraryDesignerImportGoalSummary;
+}): string {
+	if (summary.status === "designer-ready") return "设计师目标达成";
+	return `设计师目标缺 ${summary.missingDesignerAssets}`;
+}
+
+function TextLibraryResourceReadinessBar({
+	designerGoalSummary,
+	summary,
+}: {
+	designerGoalSummary: TextLibraryDesignerImportGoalSummary;
 	summary: TextLibraryResourceReadinessSummary;
 }) {
 	const label = getTextLibraryResourceReadinessLabel({ summary });
+	const designerGoalLabel = getTextLibraryDesignerImportGoalLabel({
+		summary: designerGoalSummary,
+	});
 	return (
 		<div
-			aria-label={label}
+			aria-label={`${label}，${designerGoalLabel}`}
 			className="flex min-w-0 items-center gap-1.5 overflow-x-auto pb-1 text-[0.68rem] text-muted-foreground"
 		>
 			<span
@@ -1221,15 +1310,31 @@ function TextLibraryResourceReadinessBar({
 			>
 				{label}
 			</span>
-			<span className="shrink-0 rounded-md bg-muted px-2 py-1">
-				设计师 {summary.designerImported}/{summary.total}
+			<span
+				className={cn(
+					"shrink-0 rounded-md px-2 py-1",
+					designerGoalSummary.status === "designer-ready"
+						? "bg-emerald-500/15 text-emerald-300"
+						: "bg-amber-500/15 text-amber-200"
+				)}
+			>
+				设计师目标 {designerGoalSummary.designerImported}/
+				{designerGoalSummary.requiredDesignerAssets}
 			</span>
 			<span className="shrink-0 rounded-md bg-muted px-2 py-1">
-				生成兜底 {summary.generatedFallback}
+				当前设计师 {summary.designerImported}/{summary.total}
+			</span>
+			<span className="shrink-0 rounded-md bg-muted px-2 py-1">
+				当前兜底 {summary.generatedFallback}
 			</span>
 			<span className="shrink-0 rounded-md bg-muted px-2 py-1">
 				待缓存 {summary.remoteUncached}
 			</span>
+			{designerGoalSummary.generatedFallback > 0 && (
+				<span className="shrink-0 rounded-md bg-muted px-2 py-1">
+					全库兜底 {designerGoalSummary.generatedFallback}
+				</span>
+			)}
 			{summary.svipLocked > 0 && (
 				<span className="shrink-0 rounded-md bg-muted px-2 py-1">
 					SVIP锁定 {summary.svipLocked}
@@ -1601,6 +1706,7 @@ function FilterBar<TFilter extends string>({
 function ExpandedTextLibraryDialog({
 	activeHeading,
 	activeCategoryId,
+	designerGoalSummary,
 	definitions,
 	emptyMessage,
 	expandedGroupIds,
@@ -1629,6 +1735,7 @@ function ExpandedTextLibraryDialog({
 }: {
 	activeHeading: string;
 	activeCategoryId: TextTemplateCategoryId;
+	designerGoalSummary: TextLibraryDesignerImportGoalSummary;
 	definitions: readonly TextTemplateDefinition[];
 	emptyMessage: string;
 	expandedGroupIds: ReadonlySet<TextTemplateGroupId>;
@@ -1721,6 +1828,7 @@ function ExpandedTextLibraryDialog({
 								onSelectFilter={onSelectSourceFilter}
 							/>
 							<TextLibraryResourceReadinessBar
+								designerGoalSummary={designerGoalSummary}
 								summary={resourceReadinessSummary}
 							/>
 						</div>
@@ -1970,6 +2078,13 @@ export function TextView() {
 				runtimeByAssetKey,
 			}),
 		[visibleDefinitions, libraryState, runtimeByAssetKey]
+	);
+	const designerGoalSummary = useMemo(
+		() =>
+			getTextLibraryDesignerImportGoalSummary({
+				definitions: TEXT_TEMPLATE_LIBRARY_DEFINITIONS,
+			}),
+		[]
 	);
 	const activeHeading = normalizedSearchQuery
 		? `搜索结果 ${visibleDefinitions.length}`
@@ -2326,7 +2441,10 @@ export function TextView() {
 						filters={TEXT_LIBRARY_SOURCE_FILTERS}
 						onSelectFilter={setSourceFilter}
 					/>
-					<TextLibraryResourceReadinessBar summary={resourceReadinessSummary} />
+					<TextLibraryResourceReadinessBar
+						designerGoalSummary={designerGoalSummary}
+						summary={resourceReadinessSummary}
+					/>
 				</div>
 				{visibleDefinitions.length > 0 ? (
 					<TemplateGrid
@@ -2350,6 +2468,7 @@ export function TextView() {
 			<ExpandedTextLibraryDialog
 				activeHeading={activeHeading}
 				activeCategoryId={activeCategoryId}
+				designerGoalSummary={designerGoalSummary}
 				definitions={visibleDefinitions}
 				emptyMessage={emptyMessage}
 				expandedGroupIds={expandedGroupIds}

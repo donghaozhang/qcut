@@ -22,6 +22,8 @@ import {
 	getTextTemplateAccessibilityLabel,
 	getTextTemplateAssetProvenanceBadge,
 	getTextTemplateCardThumbnailPreview,
+	getTextLibraryDesignerImportGoalLabel,
+	getTextLibraryDesignerImportGoalSummary,
 	getTextLibraryEmptyMessage,
 	getTextTemplatePackCopyDefaults,
 	getTextTemplatePackCopyActionLabel,
@@ -61,11 +63,17 @@ function createRemoteOnlyDefinition(): TextTemplateDefinition {
 	};
 }
 
-function createLegacyDesignerDefinition(): TextTemplateDefinition {
+function createLegacyDesignerDefinition({
+	category = "red",
+	id = "legacy-designer-text",
+}: {
+	category?: TextTemplateDefinition["category"];
+	id?: string;
+} = {}): TextTemplateDefinition {
 	return {
-		id: "legacy-designer-text",
+		id,
 		name: "Legacy designer text",
-		category: "red",
+		category,
 		groupId: "fancy",
 		variantId: "legacy",
 		content: "花字",
@@ -555,6 +563,76 @@ describe("text view layout", () => {
 		});
 		expect(getTextLibraryResourceReadinessLabel({ summary })).toBe(
 			"缺设计师素材包"
+		);
+	});
+
+	it("summarizes the global designer import target by required category", () => {
+		const generatedDefinition = getTextTemplateDefinitionsByCategory({
+			category: "red",
+		}).find((candidate) => !candidate.premium);
+		if (!generatedDefinition) {
+			throw new Error("Expected generated text fixture");
+		}
+		const redDesigner = createLegacyDesignerDefinition({
+			category: "red",
+			id: "designer-red",
+		});
+		const blueDesigner = createLegacyDesignerDefinition({
+			category: "blue",
+			id: "designer-blue",
+		});
+
+		const summary = getTextLibraryDesignerImportGoalSummary({
+			definitions: [redDesigner, blueDesigner, generatedDefinition],
+			minDesignerAssetsPerCategory: 2,
+			requiredCategories: ["red", "blue"],
+		});
+
+		expect(summary).toEqual({
+			designerImported: 2,
+			generatedFallback: 1,
+			missingDesignerAssets: 2,
+			requiredDesignerAssets: 4,
+			status: "needs-designer-pack",
+		});
+		expect(getTextLibraryDesignerImportGoalLabel({ summary })).toBe(
+			"设计师目标缺 2"
+		);
+	});
+
+	it("marks the global designer import target ready only when every category is filled", () => {
+		const summary = getTextLibraryDesignerImportGoalSummary({
+			definitions: [
+				createLegacyDesignerDefinition({
+					category: "red",
+					id: "designer-red-1",
+				}),
+				createLegacyDesignerDefinition({
+					category: "red",
+					id: "designer-red-2",
+				}),
+				createLegacyDesignerDefinition({
+					category: "blue",
+					id: "designer-blue-1",
+				}),
+				createLegacyDesignerDefinition({
+					category: "blue",
+					id: "designer-blue-2",
+				}),
+			],
+			minDesignerAssetsPerCategory: 2,
+			requiredCategories: ["red", "blue"],
+		});
+
+		expect(summary).toEqual({
+			designerImported: 4,
+			generatedFallback: 0,
+			missingDesignerAssets: 0,
+			requiredDesignerAssets: 4,
+			status: "designer-ready",
+		});
+		expect(getTextLibraryDesignerImportGoalLabel({ summary })).toBe(
+			"设计师目标达成"
 		);
 	});
 
