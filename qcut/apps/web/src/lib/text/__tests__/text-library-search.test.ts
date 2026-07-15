@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import { EMPTY_TEXT_LIBRARY_STATE } from "../text-library-state";
 import {
 	buildWeightedSearchTerms,
+	getTextTemplateSearchMatchSummary,
 	rankTextTemplateSearchResults,
 } from "../text-library-search";
 import type { TextTemplateDefinition } from "../text-template-registry";
@@ -414,6 +415,42 @@ describe("text library search", () => {
 				state: EMPTY_TEXT_LIBRARY_STATE,
 			}).map((definition) => definition.id)
 		).toEqual(["remote-campaign"]);
+	});
+
+	it("explains the strongest marketplace alias match for search results", () => {
+		const definition = createDefinition({
+			category: "basic",
+			content: "花字",
+			id: "remote-campaign",
+			variantId: "shadow",
+		});
+
+		const summary = getTextTemplateSearchMatchSummary({
+			definition,
+			marketplaceOverrides: {
+				"remote-campaign": {
+					remoteTags: ["campaign:launch"],
+					searchAliases: ["开业活动"],
+				},
+			},
+			query: "kaiye",
+			state: EMPTY_TEXT_LIBRARY_STATE,
+		});
+
+		expect(summary.bestMatch).toMatchObject({
+			field: "kaiyehuodong",
+			source: "marketplace",
+			term: "kaiye",
+		});
+		expect(summary.matches).toEqual(
+			expect.arrayContaining([
+				expect.objectContaining({
+					source: "marketplace",
+					term: "kaiye",
+				}),
+			])
+		);
+		expect(summary.score).toBeGreaterThan(summary.stateBoost);
 	});
 
 	it("matches localized operation terms from remote marketplace tags", () => {
@@ -993,6 +1030,31 @@ describe("text library search", () => {
 		expect(chineseEnglishResults[0]).toBe("live-red-style");
 		expect(new Set(chineseEnglishResults)).toEqual(
 			new Set(["live-red-style", "live-blue-style", "red-only-style"])
+		);
+	});
+
+	it("reports intent coverage for mixed marketplace search summaries", () => {
+		const definition = createDefinition({
+			category: "red",
+			content: "直播价格",
+			id: "live-red-style",
+			keywords: ["直播", "价格", "促销", "红色"],
+			variantId: "red-burst",
+		});
+
+		const summary = getTextTemplateSearchMatchSummary({
+			definition,
+			query: "zhibo红色",
+			state: EMPTY_TEXT_LIBRARY_STATE,
+		});
+
+		expect(summary.intentCoverage).toBe(2);
+		expect(summary.intentBoost).toBeGreaterThan(0);
+		expect(summary.matches).toEqual(
+			expect.arrayContaining([
+				expect.objectContaining({ term: "zhibo" }),
+				expect.objectContaining({ term: "红色" }),
+			])
 		);
 	});
 

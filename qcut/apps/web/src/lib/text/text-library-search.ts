@@ -23,6 +23,34 @@ type SearchIntentGroup = {
 	terms: readonly WeightedSearchTerm[];
 };
 
+export type TextTemplateSearchMatchSource =
+	| "category"
+	| "content"
+	| "group"
+	| "id"
+	| "keyword"
+	| "marketplace"
+	| "name"
+	| "resource"
+	| "variant";
+
+export type TextTemplateSearchMatch = {
+	field: string;
+	score: number;
+	source: TextTemplateSearchMatchSource;
+	term: string;
+	weightedScore: number;
+};
+
+export type TextTemplateSearchMatchSummary = {
+	bestMatch?: TextTemplateSearchMatch;
+	intentCoverage: number;
+	intentBoost: number;
+	matches: readonly TextTemplateSearchMatch[];
+	score: number;
+	stateBoost: number;
+};
+
 type PinyinAlias = {
 	full: string;
 	acronym: string;
@@ -442,6 +470,37 @@ export function rankTextTemplateSearchResults({
 		.map((result) => result.definition);
 }
 
+export function getTextTemplateSearchMatchSummary({
+	definition,
+	marketplaceOverrides,
+	query,
+	state,
+}: {
+	definition: TextTemplateDefinition;
+	marketplaceOverrides?: TextTemplateMarketplaceMetadataOverrides;
+	query: string;
+	state: TextLibraryState;
+}): TextTemplateSearchMatchSummary {
+	const terms = buildWeightedSearchTerms({ query });
+	if (terms.length === 0) {
+		return {
+			intentCoverage: 0,
+			intentBoost: 0,
+			matches: [],
+			score: 0,
+			stateBoost: 0,
+		};
+	}
+	const intentGroups = buildSearchIntentGroups({ query });
+	return scoreTextTemplateDefinition({
+		definition,
+		intentGroups,
+		marketplaceOverrides,
+		state,
+		terms,
+	});
+}
+
 function getMinimumSearchIntentCoverage({ total }: { total: number }): number {
 	if (total < 3) return 0;
 	return Math.ceil(total / 2);
@@ -747,12 +806,27 @@ function scoreTextTemplateDefinition({
 	marketplaceOverrides?: TextTemplateMarketplaceMetadataOverrides;
 	state: TextLibraryState;
 	terms: readonly WeightedSearchTerm[];
-}): { intentCoverage: number; score: number } {
+}): TextTemplateSearchMatchSummary {
 	let score = 0;
+	const matches: TextTemplateSearchMatch[] = [];
 	for (const term of terms) {
-		score += scoreWeightedTerm({ definition, marketplaceOverrides, term });
+		const termMatch = scoreWeightedTermMatch({
+			definition,
+			marketplaceOverrides,
+			term,
+		});
+		score += termMatch.score;
+		matches.push(...termMatch.matches);
 	}
-	if (score <= 0) return { intentCoverage: 0, score: 0 };
+	if (score <= 0) {
+		return {
+			intentCoverage: 0,
+			intentBoost: 0,
+			matches: [],
+			score: 0,
+			stateBoost: 0,
+		};
+	}
 	const intentCoverage = getSearchIntentCoverage({
 		definition,
 		intentGroups,
@@ -762,12 +836,24 @@ function scoreTextTemplateDefinition({
 		coverage: intentCoverage,
 		total: intentGroups.length,
 	});
+	const stateBoost = getStateAwareBoost({
+		definition,
+		marketplaceOverrides,
+		state,
+	});
+	const sortedMatches = matches.sort((left, right) => {
+		if (right.weightedScore !== left.weightedScore) {
+			return right.weightedScore - left.weightedScore;
+		}
+		return left.source.localeCompare(right.source);
+	});
 	return {
+		bestMatch: sortedMatches[0],
 		intentCoverage,
-		score:
-			score +
-			intentBoost +
-			getStateAwareBoost({ definition, marketplaceOverrides, state }),
+		intentBoost,
+		matches: sortedMatches.slice(0, 8),
+		score: score + intentBoost + stateBoost,
+		stateBoost,
 	};
 }
 
@@ -813,6 +899,22 @@ function scoreWeightedTerm({
 	marketplaceOverrides?: TextTemplateMarketplaceMetadataOverrides;
 	term: WeightedSearchTerm;
 }): number {
+	return scoreWeightedTermMatch({
+		definition,
+		marketplaceOverrides,
+		term,
+	}).score;
+}
+
+function scoreWeightedTermMatch({
+	definition,
+	marketplaceOverrides,
+	term,
+}: {
+	definition: TextTemplateDefinition;
+	marketplaceOverrides?: TextTemplateMarketplaceMetadataOverrides;
+	term: WeightedSearchTerm;
+}): { matches: TextTemplateSearchMatch[]; score: number } {
 	const normalizedFields = {
 		category: definition.category.toLocaleLowerCase(),
 		content: definition.content.toLocaleLowerCase(),
@@ -825,50 +927,85 @@ function scoreWeightedTerm({
 		definition,
 		overrides: marketplaceOverrides,
 	});
-	const keywordScore = definition.keywords.reduce(
-		(total, keyword) =>
-			total +
-			scoreField({ field: keyword.toLocaleLowerCase(), term: term.term }),
-		0
-	);
-	const resourceScore = definition.resource
-		? scoreField({ field: definition.resource.assetId, term: term.term }) +
-			scoreField({ field: definition.resource.packageId, term: term.term }) *
-				0.5
-		: 0;
-	const marketplaceScore = [
-		...metadata.remoteTags,
-		...metadata.searchAliases,
-	].reduce(
-		(total, value) =>
-			total + scoreField({ field: value.toLocaleLowerCase(), term: term.term }),
-		0
-	);
-	const fieldScore =
-		scoreField({ field: normalizedFields.name, term: term.term }) * 4 +
-		scoreField({ field: normalizedFields.content, term: term.term }) * 3 +
-		scoreField({ field: normalizedFields.variantId, term: term.term }) * 2.5 +
-		scoreField({ field: normalizedFields.category, term: term.term }) * 2 +
-		scoreField({ field: normalizedFields.groupId, term: term.term }) +
-		scoreField({ field: normalizedFields.id, term: term.term });
-
-	return (
-		(fieldScore + keywordScore + resourceScore + marketplaceScore * 1.35) *
-		term.weight
-	);
+	const matchInputs: Array<{
+		field: string;
+		source: TextTemplateSearchMatchSource;
+		weight: number;
+	}> = [
+		{ field: normalizedFields.name, source: "name", weight: 4 },
+		{ field: normalizedFields.content, source: "content", weight: 3 },
+		{ field: normalizedFields.variantId, source: "variant", weight: 2.5 },
+		{ field: normalizedFields.category, source: "category", weight: 2 },
+		{ field: normalizedFields.groupId, source: "group", weight: 1 },
+		{ field: normalizedFields.id, source: "id", weight: 1 },
+		...definition.keywords.map((keyword) => ({
+			field: keyword.toLocaleLowerCase(),
+			source: "keyword" as const,
+			weight: 1,
+		})),
+		...(definition.resource
+			? [
+					{
+						field: definition.resource.assetId,
+						source: "resource" as const,
+						weight: 1,
+					},
+					{
+						field: definition.resource.packageId,
+						source: "resource" as const,
+						weight: 0.5,
+					},
+				]
+			: []),
+		...[...metadata.remoteTags, ...metadata.searchAliases].map((value) => ({
+			field: value.toLocaleLowerCase(),
+			source: "marketplace" as const,
+			weight: 1.35,
+		})),
+	];
+	const matches: TextTemplateSearchMatch[] = [];
+	let score = 0;
+	for (const input of matchInputs) {
+		const fieldMatch = scoreFieldMatch({
+			field: input.field,
+			term: term.term,
+		});
+		if (fieldMatch.score <= 0) continue;
+		const weightedScore = fieldMatch.score * input.weight * term.weight;
+		score += weightedScore;
+		matches.push({
+			field: fieldMatch.field,
+			score: fieldMatch.score,
+			source: input.source,
+			term: term.term,
+			weightedScore,
+		});
+	}
+	return { matches, score };
 }
 
 function scoreField({ field, term }: { field: string; term: string }): number {
+	return scoreFieldMatch({ field, term }).score;
+}
+
+function scoreFieldMatch({ field, term }: { field: string; term: string }): {
+	field: string;
+	score: number;
+} {
 	const normalizedTerm = normalizeSearchValue({ value: term });
-	if (!normalizedTerm) return 0;
+	if (!normalizedTerm) return { field, score: 0 };
 	let bestScore = 0;
+	let bestField = field;
 	for (const variant of getSearchFieldVariants({ field })) {
 		const value = normalizeSearchValue({ value: variant.value });
 		if (!value) continue;
 		const score = scoreSearchVariant({ field: value, term: normalizedTerm });
-		bestScore = Math.max(bestScore, score * variant.weight);
+		const weightedScore = score * variant.weight;
+		if (weightedScore <= bestScore) continue;
+		bestScore = weightedScore;
+		bestField = variant.value;
 	}
-	return bestScore;
+	return { field: bestField, score: bestScore };
 }
 
 function scoreSearchVariant({
