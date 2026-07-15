@@ -492,6 +492,11 @@ describe("text asset CDN release script", () => {
 			readFile(join(stageDir, "_qcut-text-assets-release-readme.md"), "utf8")
 		).resolves.toContain("designerReadyMissing | 100");
 		await expect(
+			readFile(join(stageDir, "_qcut-text-assets-release-readme.md"), "utf8")
+		).resolves.toContain(
+			"| popular | 0 | 5 | 5 | text-assets/text-fancy-popular/designer-01@1 |"
+		);
+		await expect(
 			readFile(
 				join(stageDir, "_qcut-text-designer-gap-report.json"),
 				"utf8"

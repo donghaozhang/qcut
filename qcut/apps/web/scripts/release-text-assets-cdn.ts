@@ -584,6 +584,7 @@ function renderTextAssetReleaseReadme({
 		.sort(([left], [right]) => left.localeCompare(right))
 		.map(([role, count]) => `| ${role} | ${count} |`)
 		.join("\n");
+	const designerGapRows = renderDesignerGapRows({ designerGapReport });
 	return `# QCut Text Asset CDN Release
 
 This folder mirrors the CDN object keys for the text asset release. Upload every planned public asset under this folder to the configured bucket using the listed key paths, including \`text-assets/marketplace.json\`.
@@ -642,12 +643,39 @@ bun run assets:text:check-remote-metadata
 | designerReadyMissing | ${designerGapReport?.totalMissing ?? "(unknown)"} |
 | requiredDesignerCategories | ${requiredDesignerCategories.length || "(not enforced in this release)"} |
 
+## Designer Gaps
+
+${designerGapRows}
+
 ## Files By Role
 
 | role | files |
 | --- | ---: |
 ${roleRows}
 `;
+}
+
+function renderDesignerGapRows({
+	designerGapReport,
+}: {
+	designerGapReport?: TextAssetDesignerGapReport;
+}): string {
+	if (!designerGapReport) return "No designer gap report was generated.";
+	const missingCategories = designerGapReport.categories.filter(
+		(category) => category.missing > 0
+	);
+	if (missingCategories.length === 0) {
+		return "Designer-ready category coverage is complete.";
+	}
+	const rows = missingCategories.map((category) => {
+		const firstSlot = category.suggestedImports[0];
+		return `| ${category.category} | ${category.current} | ${category.required} | ${category.missing} | ${firstSlot?.targetDirectory ?? "(none)"} |`;
+	});
+	return [
+		"| category | current | required | missing | first target directory |",
+		"| --- | ---: | ---: | ---: | --- |",
+		...rows,
+	].join("\n");
 }
 
 export async function createTextAssetStageArchive({
