@@ -254,6 +254,16 @@ describe("text designer pack template script", () => {
 		});
 		expect(template.summary).toEqual({
 			assets: 1,
+			categoryDesignBriefs: {
+				unknown: {
+					templateDirection:
+						"Keep the text editable, centered in the safe area, and reusable across short-video canvases.",
+					thumbnailDirection:
+						"Export a transparent or dark-compatible WebP preview that clearly shows the final text effect at library-card size.",
+					visualGoal:
+						"Create a polished designer text asset that is visibly distinct from the generated fallback.",
+				},
+			},
 			categoryCounts: {
 				unknown: 1,
 			},
@@ -265,6 +275,10 @@ describe("text designer pack template script", () => {
 			assetId: "text-demo",
 			cacheKey: "text-assets/text-demo/plain@1",
 			category: undefined,
+			designBrief: {
+				visualGoal:
+					"Create a polished designer text asset that is visibly distinct from the generated fallback.",
+			},
 			files: {
 				qcutPackage: {
 					currentChecksumSha256: "package-sha",
@@ -357,18 +371,22 @@ describe("text designer pack template script", () => {
 		expect(readme).toContain("replacement-checklist.csv");
 		expect(readme).toContain("--pack-archive <designer-pack.tar.gz>");
 		expect(readme).toContain("--include-current-files");
-		expect(readme).toContain("| category | assets | required files |");
-		expect(readme).toContain("| red | 1 | 3 |");
-		expect(readme).toContain("| total | 1 | 3 |");
+		expect(readme).toContain(
+			"| category | assets | required files | visual goal |"
+		);
+		expect(readme).toContain(
+			"| red | 1 | 3 | Commerce, live-selling, and urgent cover text with strong red impact. |"
+		);
+		expect(readme).toContain("| total | 1 | 3 | (see category rows) |");
 		const checklist = await readFile(
 			join(outDir, "replacement-checklist.csv"),
 			"utf8"
 		);
 		expect(checklist).toContain(
-			'"assetId","category","packageId","version","cacheKey","targetDirectory","thumbnailPath","sourcePath","qcutPackagePath","requiredFiles"'
+			'"assetId","category","packageId","version","cacheKey","targetDirectory","visualGoal","thumbnailPath","sourcePath","qcutPackagePath","requiredFiles"'
 		);
 		expect(checklist).toContain(
-			'"text-red-demo","red","text-fancy-red","1","text-assets/text-red-demo/plain@1","assets/text-red-demo","assets/text-red-demo/thumbnail.webp","assets/text-red-demo/template.json","assets/text-red-demo/template.qctext","thumbnail.webp;template.json;template.qctext"'
+			'"text-red-demo","red","text-fancy-red","1","text-assets/text-red-demo/plain@1","assets/text-red-demo","Commerce, live-selling, and urgent cover text with strong red impact.","assets/text-red-demo/thumbnail.webp","assets/text-red-demo/template.json","assets/text-red-demo/template.qctext","thumbnail.webp;template.json;template.qctext"'
 		);
 		const contactSheet = await readFile(
 			join(outDir, "CONTACT_SHEET.html"),
@@ -377,6 +395,9 @@ describe("text designer pack template script", () => {
 		expect(contactSheet).toContain("QCut Text Designer Pack Contact Sheet");
 		expect(contactSheet).toContain("assets/text-red-demo/thumbnail.webp");
 		expect(contactSheet).toContain("red");
+		expect(contactSheet).toContain(
+			"Commerce, live-selling, and urgent cover text with strong red impact."
+		);
 	});
 
 	it("can include current generated files as editable designer references", async () => {

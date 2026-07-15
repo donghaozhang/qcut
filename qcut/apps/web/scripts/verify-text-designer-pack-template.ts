@@ -57,6 +57,7 @@ type ReplacementChecklistRow = {
 	targetDirectory: string;
 	thumbnailPath: string;
 	version: string;
+	visualGoal: string;
 };
 
 const SCRIPT_DIR = dirname(fileURLToPath(import.meta.url));
@@ -447,6 +448,7 @@ async function readReplacementChecklist({
 		"version",
 		"cacheKey",
 		"targetDirectory",
+		"visualGoal",
 		"thumbnailPath",
 		"sourcePath",
 		"qcutPackagePath",
@@ -475,10 +477,11 @@ async function readReplacementChecklist({
 				version: row[3] ?? "",
 				cacheKey: row[4] ?? "",
 				targetDirectory: row[5] ?? "",
-				thumbnailPath: row[6] ?? "",
-				sourcePath: row[7] ?? "",
-				qcutPackagePath: row[8] ?? "",
-				requiredFiles: row[9] ?? "",
+				visualGoal: row[6] ?? "",
+				thumbnailPath: row[7] ?? "",
+				sourcePath: row[8] ?? "",
+				qcutPackagePath: row[9] ?? "",
+				requiredFiles: row[10] ?? "",
 			})),
 	};
 }
