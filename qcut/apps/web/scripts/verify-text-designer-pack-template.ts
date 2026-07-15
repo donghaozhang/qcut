@@ -365,20 +365,20 @@ async function verifyManifestAsset({
 			expected: asset.assetId,
 			field: "assetId",
 		}),
-		...compareField({
-			actual: contract.value.files.thumbnail.designerPath,
+		...verifyContractDesignerPath({
+			contract: contract.value,
 			expected: asset.thumbnail,
-			field: "files.thumbnail.designerPath",
+			role: "thumbnail",
 		}),
-		...compareField({
-			actual: contract.value.files.source.designerPath,
+		...verifyContractDesignerPath({
+			contract: contract.value,
 			expected: asset.source,
-			field: "files.source.designerPath",
+			role: "source",
 		}),
-		...compareField({
-			actual: contract.value.files.qcutPackage.designerPath,
+		...verifyContractDesignerPath({
+			contract: contract.value,
 			expected: asset.qcutPackage,
-			field: "files.qcutPackage.designerPath",
+			role: "qcutPackage",
 		}),
 		...CONTRACT_FILE_ROLES.flatMap((role) =>
 			verifyContractReplacementProof({
@@ -397,6 +397,25 @@ async function verifyManifestAsset({
 	return issues;
 }
 
+function verifyContractDesignerPath({
+	contract,
+	expected,
+	role,
+}: {
+	contract: TextDesignerPackTemplateAssetContract;
+	expected: string;
+	role: TextDesignerPackTemplateFileRole;
+}): string[] {
+	const field = `files.${role}`;
+	const file = getContractFile({ contract, role });
+	if (!file) return [`${field} expected file contract`];
+	return compareField({
+		actual: typeof file.designerPath === "string" ? file.designerPath : "",
+		expected,
+		field: `${field}.designerPath`,
+	});
+}
+
 function verifyContractReplacementProof({
 	contract,
 	role,
@@ -405,11 +424,7 @@ function verifyContractReplacementProof({
 	role: TextDesignerPackTemplateFileRole;
 }): string[] {
 	const field = `files.${role}`;
-	const file = contract.files[role] as
-		| Partial<
-				TextDesignerPackTemplateAssetContract["files"][TextDesignerPackTemplateFileRole]
-		  >
-		| undefined;
+	const file = getContractFile({ contract, role });
 	if (!file) return [`${field} expected file contract`];
 	const currentChecksumSha256 =
 		typeof file.currentChecksumSha256 === "string"
@@ -441,6 +456,24 @@ function verifyContractReplacementProof({
 		);
 	}
 	return mismatches;
+}
+
+function getContractFile({
+	contract,
+	role,
+}: {
+	contract: TextDesignerPackTemplateAssetContract;
+	role: TextDesignerPackTemplateFileRole;
+}):
+	| Partial<
+			TextDesignerPackTemplateAssetContract["files"][TextDesignerPackTemplateFileRole]
+	  >
+	| undefined {
+	return contract.files[role] as
+		| Partial<
+				TextDesignerPackTemplateAssetContract["files"][TextDesignerPackTemplateFileRole]
+		  >
+		| undefined;
 }
 
 function compareField({
