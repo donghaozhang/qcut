@@ -27,6 +27,7 @@ import {
 	getTextTemplatePackCopyActionLabel,
 	getTextTemplatePackCopyBadgeLabel,
 	getTextTemplatePackLayerBadgeLabel,
+	getTextTemplatePackSlotPreviewLabels,
 	getTextTemplateRuntimeDownloadStatus,
 	getExpandedTextTemplateGridColumnCount,
 	getTextTemplateGridColumnCount,
@@ -385,6 +386,26 @@ describe("text view layout", () => {
 		expect(getTextTemplatePackCopyBadgeLabel({ slotCount: 0 })).toBe(
 			"可替换文案"
 		);
+	});
+
+	it("summarizes template pack replacement slots for compact cards", () => {
+		const definition = getTextTemplateDefinitionsByCategory({
+			category: "headline-template",
+		})[0];
+		const pack = buildTextTemplatePack({ definition });
+		if (!pack) throw new Error("Expected headline template pack");
+
+		expect(
+			getTextTemplatePackSlotPreviewLabels({
+				copySlots: pack.copySlots,
+			})
+		).toEqual(["眉标题", "主标题", "+1"]);
+		expect(
+			getTextTemplatePackSlotPreviewLabels({
+				copySlots: pack.copySlots,
+				maxVisible: 3,
+			})
+		).toEqual(["眉标题", "主标题", "副标题"]);
 	});
 
 	it("labels generated fallback and designer-imported text assets distinctly", () => {

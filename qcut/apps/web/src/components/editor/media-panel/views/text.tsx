@@ -312,6 +312,22 @@ export function getTextTemplatePackCopyBadgeLabel({
 	return slotCount > 0 ? `${slotCount} 个可替换文案` : "可替换文案";
 }
 
+export function getTextTemplatePackSlotPreviewLabels({
+	copySlots,
+	maxVisible = 2,
+}: {
+	copySlots: readonly TextTemplatePackCopySlot[];
+	maxVisible?: number;
+}): string[] {
+	const visibleCount = Math.max(0, maxVisible);
+	const labels = copySlots.map((slot) => slot.label).filter(Boolean);
+	const visibleLabels = labels.slice(0, visibleCount);
+	const hiddenCount = labels.length - visibleLabels.length;
+	return hiddenCount > 0
+		? [...visibleLabels, `+${hiddenCount}`]
+		: visibleLabels;
+}
+
 type TextTemplateAssetProvenanceBadge = {
 	label: string;
 	source: "designer-imported" | "generated";
@@ -596,6 +612,16 @@ function TextTemplate({
 	const templatePackCopyBadgeLabel = getTextTemplatePackCopyBadgeLabel({
 		slotCount: templatePackCopySlotCount,
 	});
+	const templatePackSlotPreviewLabels = editableTemplatePack
+		? getTextTemplatePackSlotPreviewLabels({
+				copySlots: editableTemplatePack.copySlots,
+			})
+		: [];
+	const templatePackSlotPreviewTitle = editableTemplatePack
+		? `可替换文案：${editableTemplatePack.copySlots
+				.map((slot) => slot.label)
+				.join("、")}`
+		: "";
 	const copyPreviewPack = useMemo(
 		() =>
 			editableTemplatePack
@@ -706,6 +732,22 @@ function TextTemplate({
 								</span>
 							</button>
 						)}
+					{templatePackSlotPreviewLabels.length > 0 && (
+						<div
+							aria-label={templatePackSlotPreviewTitle}
+							className="absolute bottom-6 left-1 right-1 flex min-w-0 justify-center gap-0.5"
+							title={templatePackSlotPreviewTitle}
+						>
+							{templatePackSlotPreviewLabels.map((label) => (
+								<span
+									key={label}
+									className="min-w-0 truncate rounded-sm bg-black/58 px-1 py-0.5 text-[0.52rem] font-medium leading-none text-white shadow-sm ring-1 ring-white/10"
+								>
+									{label}
+								</span>
+							))}
+						</div>
+					)}
 					{definition.premium && (
 						<div className="absolute left-1 top-1 flex h-3.5 w-3.5 items-center justify-center rounded-full bg-cyan-300 text-slate-950 shadow-sm">
 							<Gem aria-hidden="true" className="h-2.5 w-2.5">
