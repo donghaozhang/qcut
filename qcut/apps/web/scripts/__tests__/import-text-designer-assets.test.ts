@@ -511,6 +511,12 @@ describe("text designer asset import script", () => {
 				publicDir,
 			})
 		).resolves.toMatchObject({
+			contractSummary: {
+				assetsWithContracts: 0,
+				missingContracts: 1,
+				required: false,
+				totalAssets: 1,
+			},
 			items: expect.arrayContaining([
 				expect.objectContaining({
 					assetId: "text-demo",
@@ -579,6 +585,12 @@ describe("text designer asset import script", () => {
 		});
 
 		expect(plan.items).toHaveLength(3);
+		expect(plan.contractSummary).toEqual({
+			assetsWithContracts: 0,
+			missingContracts: 1,
+			required: false,
+			totalAssets: 1,
+		});
 		expect(plan.items.map((item) => item.role)).toEqual([
 			"thumbnail",
 			"source",
@@ -705,6 +717,12 @@ describe("text designer asset import script", () => {
 				requiredDesignerCategories: ["red"],
 			})
 		).resolves.toMatchObject({
+			contractSummary: {
+				assetsWithContracts: 1,
+				missingContracts: 0,
+				required: true,
+				totalAssets: 1,
+			},
 			updatedManifest: {
 				"text-demo": {
 					provenance: {
@@ -778,6 +796,12 @@ describe("text designer asset import script", () => {
 				publicDir,
 			})
 		).resolves.toMatchObject({
+			contractSummary: {
+				assetsWithContracts: 1,
+				missingContracts: 0,
+				required: false,
+				totalAssets: 1,
+			},
 			items: expect.arrayContaining([
 				expect.objectContaining({ assetId: "text-demo", role: "thumbnail" }),
 				expect.objectContaining({ assetId: "text-demo", role: "source" }),
@@ -1396,6 +1420,12 @@ describe("text designer asset import script", () => {
 		) as typeof report;
 
 		expect(report).toMatchObject({
+			contractSummary: {
+				assetsWithContracts: 0,
+				missingContracts: 1,
+				required: false,
+				totalAssets: 1,
+			},
 			designerGapReport: {
 				minDesignerAssetsPerCategory: 5,
 				requiredDesignerCategories: expect.arrayContaining([
@@ -1419,6 +1449,7 @@ describe("text designer asset import script", () => {
 			},
 		});
 		expect(builtReport).toMatchObject({
+			contractSummary: report.contractSummary,
 			items: report.items,
 			releaseReadiness: report.releaseReadiness,
 			schemaVersion: report.schemaVersion,

@@ -101,8 +101,16 @@ export type TextDesignerAssetImportPlanItem = {
 };
 
 export type TextDesignerAssetImportPlan = {
+	contractSummary: TextDesignerAssetImportContractSummary;
 	items: TextDesignerAssetImportPlanItem[];
 	updatedManifest: Record<string, TextAssetGeneratedEntry>;
+};
+
+export type TextDesignerAssetImportContractSummary = {
+	assetsWithContracts: number;
+	missingContracts: number;
+	required: boolean;
+	totalAssets: number;
 };
 
 export type TextDesignerAssetImportSummary = {
@@ -116,6 +124,7 @@ export type TextDesignerAssetImportSummary = {
 };
 
 export type TextDesignerAssetImportPlanReport = {
+	contractSummary: TextDesignerAssetImportContractSummary;
 	designerGapReport: TextAssetDesignerGapReport;
 	generatedAt: string;
 	items: TextDesignerAssetImportPlanItem[];
@@ -415,7 +424,7 @@ export async function buildTextDesignerAssetImportPlan({
 		packSummary,
 		requiredDesignerCategories,
 	});
-	const itemGroups = await Promise.all(
+	const assetPlans = await Promise.all(
 		packManifest.assets.map(async (asset) => {
 			const targetEntry = generatedManifest[asset.assetId];
 			if (!targetEntry) {
@@ -442,17 +451,21 @@ export async function buildTextDesignerAssetImportPlan({
 				items,
 				targetEntry,
 			});
-			await assertDesignerAssetContractForImport({
+			const hasContract = await assertDesignerAssetContractForImport({
 				asset,
 				items,
 				required: requiresDesignerAssetContracts,
 				resolvedPackDir,
 				targetEntry,
 			});
-			return items;
+			return { hasContract, items };
 		})
 	);
-	const items = itemGroups.flat();
+	const items = assetPlans.flatMap((assetPlan) => assetPlan.items);
+	const contractSummary = summarizeDesignerImportContracts({
+		assetPlans,
+		required: requiresDesignerAssetContracts,
+	});
 	assertDesignerPackItemsAreDistinct({ items });
 	await assertDesignerPackageResourcesMatchPlan({ items });
 	const updatedManifest = applyPlanToManifest({
@@ -472,8 +485,30 @@ export async function buildTextDesignerAssetImportPlan({
 		requiredDesignerCategories,
 	});
 	return {
+		contractSummary,
 		items,
 		updatedManifest,
+	};
+}
+
+function summarizeDesignerImportContracts({
+	assetPlans,
+	required,
+}: {
+	assetPlans: readonly {
+		hasContract: boolean;
+		items: readonly TextDesignerAssetImportPlanItem[];
+	}[];
+	required: boolean;
+}): TextDesignerAssetImportContractSummary {
+	const assetsWithContracts = assetPlans.filter(
+		(assetPlan) => assetPlan.hasContract
+	).length;
+	return {
+		assetsWithContracts,
+		missingContracts: assetPlans.length - assetsWithContracts,
+		required,
+		totalAssets: assetPlans.length,
 	};
 }
 
@@ -736,13 +771,13 @@ async function assertDesignerAssetContractForImport({
 	required: boolean;
 	resolvedPackDir: string;
 	targetEntry: TextAssetGeneratedEntry;
-}): Promise<void> {
+}): Promise<boolean> {
 	const contract = await readOptionalDesignerAssetContract({
 		asset,
 		resolvedPackDir,
 	});
 	if (!contract) {
-		if (!required) return;
+		if (!required) return false;
 		throw new Error(
 			`Designer-ready imports require asset-contract.json for ${asset.assetId}`
 		);
@@ -784,6 +819,7 @@ async function assertDesignerAssetContractForImport({
 			);
 		}
 	}
+	return true;
 }
 
 async function readOptionalDesignerAssetContract({
@@ -966,6 +1002,7 @@ export function buildTextDesignerAssetImportPlanReport({
 }): TextDesignerAssetImportPlanReport {
 	const generatedAt = new Date().toISOString();
 	return {
+		contractSummary: plan.contractSummary,
 		designerGapReport: buildDesignerAssetGapReport({
 			coverage: summarizeDesignerCategoryCoverage({
 				generatedManifest: plan.updatedManifest,
