@@ -16,6 +16,7 @@
 		"assets:text:contact-sheet": "bun scripts/create-text-asset-contact-sheet.ts",
 		"assets:text:apply-analytics": "bun scripts/apply-text-marketplace-analytics.ts",
 		"assets:text:apply-analytics-fresh": "bun scripts/apply-text-marketplace-analytics.ts --max-age-hours 48",
+		"assets:text:apply-analytics-strict": "bun scripts/apply-text-marketplace-analytics.ts --max-age-hours 48 --strict-matches",
 		"assets:text:sync-marketplace": "bun scripts/sync-text-marketplace-from-sources.ts",
 		"assets:text:publish-manifest": "bun scripts/verify-text-asset-cdn-manifest.ts --write dist/text-assets-publish-manifest.json",
 		"assets:text:check-remote": "bun scripts/verify-text-asset-cdn-manifest.ts --check-remote",

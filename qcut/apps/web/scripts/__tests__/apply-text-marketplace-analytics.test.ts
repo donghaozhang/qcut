@@ -1,3 +1,6 @@
+import { readFile } from "node:fs/promises";
+import { dirname, join } from "node:path";
+import { fileURLToPath } from "node:url";
 import { describe, expect, it } from "vitest";
 import {
 	assertTextMarketplaceAnalyticsFreshness,
@@ -8,6 +11,11 @@ import {
 } from "../apply-text-marketplace-analytics";
 import { getTextTemplateResource } from "../../src/lib/text/text-resource-catalog";
 import { getTextTemplateDefinitionsByCategory } from "../../src/lib/text/text-template-registry";
+
+const PACKAGE_JSON_PATH = join(
+	dirname(fileURLToPath(import.meta.url)),
+	"../../package.json"
+);
 
 function requiredDefinition({
 	category,
@@ -22,6 +30,16 @@ function requiredDefinition({
 }
 
 describe("text marketplace analytics applier", () => {
+	it("keeps the strict real-analytics script wired to freshness and match gates", async () => {
+		const packageJson = JSON.parse(
+			await readFile(PACKAGE_JSON_PATH, "utf8")
+		) as { scripts: Record<string, string> };
+
+		expect(packageJson.scripts["assets:text:apply-analytics-strict"]).toBe(
+			"bun scripts/apply-text-marketplace-analytics.ts --max-age-hours 48 --strict-matches"
+		);
+	});
+
 	it("promotes analytics-backed templates into recommended and trending sections", () => {
 		const popular = requiredDefinition({ category: "red" });
 		const secondary = requiredDefinition({ category: "blue" });
