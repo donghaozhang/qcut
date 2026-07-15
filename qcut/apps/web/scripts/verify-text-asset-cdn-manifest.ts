@@ -1595,6 +1595,12 @@ function verifyLocalFilePayload({
 			url: file.url,
 		});
 		if (fileReferenceIssue) return fileReferenceIssue;
+		const resourceManifestIssue = verifyTextAssetPackageResources({
+			asset,
+			payload,
+			url: file.url,
+		});
+		if (resourceManifestIssue) return resourceManifestIssue;
 		const source = isRecord({ value: payload.source }) ? payload.source : null;
 		if (!source) {
 			return {
@@ -1920,6 +1926,195 @@ function verifyTextAssetPackageFileReferences({
 		detail: `package file reference mismatch: ${mismatches.join(", ")}`,
 		url,
 	};
+}
+
+type TextAssetPackageCompanionRole = Extract<
+	PublishFileRole,
+	"source" | "thumbnail"
+>;
+
+type TextAssetPackageCompanionResource = {
+	byteSize: number;
+	checksumSha256: string;
+	mimeType: string;
+	path: string;
+	role: TextAssetPackageCompanionRole;
+	url: string;
+};
+
+const TEXT_ASSET_PACKAGE_COMPANION_ROLES = ["thumbnail", "source"] as const;
+
+function verifyTextAssetPackageResources({
+	asset,
+	payload,
+	url,
+}: {
+	asset: TextAssetPublishEntry;
+	payload: Record<string, unknown>;
+	url: string;
+}): VerifyIssue | null {
+	const resources = parseTextAssetPackageResources({
+		assetId: asset.assetId,
+		value: payload.resources,
+		url,
+	});
+	if (resources.issue) return resources.issue;
+	const resourcesByRole = new Map<
+		TextAssetPackageCompanionRole,
+		TextAssetPackageCompanionResource
+	>();
+	for (const resource of resources.value) {
+		if (resourcesByRole.has(resource.role)) {
+			return {
+				assetId: asset.assetId,
+				code: "invalid-file-payload",
+				detail: `QCut text package declares duplicate ${resource.role} resource`,
+				url,
+			};
+		}
+		resourcesByRole.set(resource.role, resource);
+	}
+	for (const role of TEXT_ASSET_PACKAGE_COMPANION_ROLES) {
+		const resource = resourcesByRole.get(role);
+		if (!resource) {
+			return {
+				assetId: asset.assetId,
+				code: "invalid-file-payload",
+				detail: `QCut text package resources missing ${role}`,
+				url,
+			};
+		}
+		const file = asset.files.find((assetFile) => assetFile.role === role);
+		if (!file) {
+			return {
+				assetId: asset.assetId,
+				code: "invalid-file-payload",
+				detail: `QCut text package resources reference missing ${role} publish file`,
+				url,
+			};
+		}
+		const mismatch = textAssetPackageResourceMismatch({ file, resource });
+		if (mismatch) {
+			return {
+				assetId: asset.assetId,
+				code: "invalid-file-payload",
+				detail: `${role} package resource mismatch: ${mismatch}`,
+				url,
+			};
+		}
+	}
+	return null;
+}
+
+function parseTextAssetPackageResources({
+	assetId,
+	value,
+	url,
+}: {
+	assetId: string;
+	value: unknown;
+	url: string;
+}):
+	| { issue: VerifyIssue; value?: never }
+	| { issue?: never; value: TextAssetPackageCompanionResource[] } {
+	if (!Array.isArray(value) || value.length === 0) {
+		return {
+			issue: {
+				assetId,
+				code: "invalid-file-payload",
+				detail: "QCut text package resources must be a non-empty array",
+				url,
+			},
+		};
+	}
+	const resources: TextAssetPackageCompanionResource[] = [];
+	for (const [index, rawResource] of value.entries()) {
+		const resource = parseTextAssetPackageResource({ value: rawResource });
+		if (!resource) {
+			return {
+				issue: {
+					assetId,
+					code: "invalid-file-payload",
+					detail: `Invalid QCut text package resource at index ${index}`,
+					url,
+				},
+			};
+		}
+		resources.push(resource);
+	}
+	return { value: resources };
+}
+
+function parseTextAssetPackageResource({
+	value,
+}: {
+	value: unknown;
+}): TextAssetPackageCompanionResource | null {
+	const record = isRecord({ value }) ? value : null;
+	if (!record) return null;
+	const role = textAssetPackageCompanionRole({ value: record.role });
+	const path = stringField({ field: "path", record });
+	const url = stringField({ field: "url", record });
+	const mimeType = stringField({ field: "mimeType", record });
+	const byteSize = record.byteSize;
+	const checksumSha256 = stringField({ field: "checksumSha256", record });
+	if (
+		!role ||
+		!path ||
+		!url ||
+		!mimeType ||
+		typeof byteSize !== "number" ||
+		!Number.isFinite(byteSize) ||
+		!checksumSha256
+	) {
+		return null;
+	}
+	return { byteSize, checksumSha256, mimeType, path, role, url };
+}
+
+function textAssetPackageCompanionRole({
+	value,
+}: {
+	value: unknown;
+}): TextAssetPackageCompanionRole | undefined {
+	return value === "thumbnail" || value === "source" ? value : undefined;
+}
+
+function textAssetPackageResourceMismatch({
+	file,
+	resource,
+}: {
+	file: TextAssetPublishFile;
+	resource: TextAssetPackageCompanionResource;
+}): string | null {
+	const mismatches = [
+		fieldMismatch({
+			actual: resource.path,
+			expected: basename(file.url),
+			field: "path",
+		}),
+		fieldMismatch({
+			actual: resource.url,
+			expected: file.url,
+			field: "url",
+		}),
+		fieldMismatch({
+			actual: resource.mimeType,
+			expected: file.mimeType,
+			field: "mimeType",
+		}),
+		fieldMismatch({
+			actual: resource.byteSize,
+			expected: file.byteSize,
+			field: "byteSize",
+		}),
+		fieldMismatch({
+			actual: resource.checksumSha256,
+			expected: file.checksumSha256,
+			field: "checksumSha256",
+		}),
+	].filter((mismatch): mismatch is string => Boolean(mismatch));
+	return mismatches.length > 0 ? mismatches.join(", ") : null;
 }
 
 function fieldMismatch({

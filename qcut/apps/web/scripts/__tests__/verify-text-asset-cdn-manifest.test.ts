@@ -101,6 +101,11 @@ function createPackagePayload({
 		thumbnail: "thumbnail.webp",
 	},
 	packageId = DEFAULT_PACKAGE_ID,
+	resources = createPackageResources({
+		cacheKey,
+		sourceText: SOURCE_TEXT,
+		thumbnailText: THUMBNAIL_TEXT,
+	}),
 	version = DEFAULT_VERSION,
 	source = createSourcePayload({ assetId, packageId, version }),
 }: {
@@ -108,6 +113,7 @@ function createPackagePayload({
 	cacheKey?: string;
 	files?: Record<string, unknown>;
 	packageId?: string;
+	resources?: Record<string, unknown>[];
 	source?: Record<string, unknown>;
 	version?: number;
 } = {}): Record<string, unknown> {
@@ -117,6 +123,7 @@ function createPackagePayload({
 		files,
 		kind: "qcut-text-template-package",
 		packageId,
+		resources,
 		schemaVersion: 1,
 		source,
 		version,
@@ -124,13 +131,76 @@ function createPackagePayload({
 }
 
 const SOURCE_TEXT = JSON.stringify(createSourcePayload());
-const PACKAGE_TEXT = JSON.stringify(createPackagePayload());
+
+function createPackageResources({
+	cacheKey = DEFAULT_CACHE_KEY,
+	sourceText = SOURCE_TEXT,
+	thumbnailText = THUMBNAIL_TEXT,
+}: {
+	cacheKey?: string;
+	sourceText?: string;
+	thumbnailText?: TestFileContent;
+} = {}): Record<string, unknown>[] {
+	return [
+		{
+			byteSize: byteLength({ value: thumbnailText }),
+			checksumSha256: checksum({ value: thumbnailText }),
+			mimeType: "image/webp",
+			path: "thumbnail.webp",
+			role: "thumbnail",
+			url: `/${cacheKey}/thumbnail.webp`,
+		},
+		{
+			byteSize: byteLength({ value: sourceText }),
+			checksumSha256: checksum({ value: sourceText }),
+			mimeType: "application/json",
+			path: "template.json",
+			role: "source",
+			url: `/${cacheKey}/template.json`,
+		},
+	];
+}
+
+function createPackageText({
+	assetId = DEFAULT_ASSET_ID,
+	cacheKey = DEFAULT_CACHE_KEY,
+	packageId = DEFAULT_PACKAGE_ID,
+	source = JSON.parse(SOURCE_TEXT) as Record<string, unknown>,
+	sourceText = SOURCE_TEXT,
+	thumbnailText = THUMBNAIL_TEXT,
+	version = DEFAULT_VERSION,
+}: {
+	assetId?: string;
+	cacheKey?: string;
+	packageId?: string;
+	source?: Record<string, unknown>;
+	sourceText?: string;
+	thumbnailText?: TestFileContent;
+	version?: number;
+} = {}): string {
+	return JSON.stringify(
+		createPackagePayload({
+			assetId,
+			cacheKey,
+			packageId,
+			resources: createPackageResources({
+				cacheKey,
+				sourceText,
+				thumbnailText,
+			}),
+			source,
+			version,
+		})
+	);
+}
+
+const PACKAGE_TEXT = createPackageText();
 
 function createGeneratedEntry({
 	assetId = DEFAULT_ASSET_ID,
 	cacheKey = DEFAULT_CACHE_KEY,
 	packageId = DEFAULT_PACKAGE_ID,
-	packageText = PACKAGE_TEXT,
+	packageText,
 	sourceText = SOURCE_TEXT,
 	thumbnailText = THUMBNAIL_TEXT,
 }: {
@@ -141,6 +211,16 @@ function createGeneratedEntry({
 	sourceText?: string;
 	thumbnailText?: TestFileContent;
 } = {}): TextAssetGeneratedEntry {
+	const resolvedPackageText =
+		packageText ??
+		createPackageText({
+			assetId,
+			cacheKey,
+			packageId,
+			source: JSON.parse(sourceText) as Record<string, unknown>,
+			sourceText,
+			thumbnailText,
+		});
 	return {
 		assetId,
 		cacheKey,
@@ -159,8 +239,8 @@ function createGeneratedEntry({
 			url: `/${cacheKey}/template.json`,
 		},
 		qcutPackage: {
-			byteSize: Buffer.byteLength(packageText),
-			checksumSha256: checksum({ value: packageText }),
+			byteSize: Buffer.byteLength(resolvedPackageText),
+			checksumSha256: checksum({ value: resolvedPackageText }),
 			mimeType: "application/vnd.qcut.text-template+json",
 			url: `/${cacheKey}/template.qctext`,
 		},
@@ -169,7 +249,7 @@ function createGeneratedEntry({
 
 async function writeGeneratedEntryFiles({
 	entry,
-	packageText = PACKAGE_TEXT,
+	packageText,
 	publicDir,
 	sourceText = SOURCE_TEXT,
 	thumbnailText = THUMBNAIL_TEXT,
@@ -180,11 +260,22 @@ async function writeGeneratedEntryFiles({
 	sourceText?: string;
 	thumbnailText?: TestFileContent;
 }): Promise<void> {
+	const resolvedPackageText =
+		packageText ??
+		createPackageText({
+			assetId: entry.assetId,
+			cacheKey: entry.cacheKey,
+			packageId: entry.packageId,
+			source: JSON.parse(sourceText) as Record<string, unknown>,
+			sourceText,
+			thumbnailText,
+			version: entry.version,
+		});
 	await Promise.all(
 		[
 			{ content: thumbnailText, file: entry.thumbnail },
 			{ content: sourceText, file: entry.source },
-			{ content: packageText, file: entry.qcutPackage },
+			{ content: resolvedPackageText, file: entry.qcutPackage },
 		].map(async ({ content, file }) => {
 			if (!file) return;
 			const path = join(publicDir, file.url.replace(/^\/+/, ""));
@@ -1304,6 +1395,11 @@ describe("text asset CDN manifest verifier", () => {
 				detail: expect.stringContaining("source identity mismatch"),
 				url: "/text-assets/demo/plain@1/template.json",
 			}),
+			expect.objectContaining({
+				code: "invalid-file-payload",
+				detail: expect.stringContaining("package source identity mismatch"),
+				url: "/text-assets/demo/plain@1/template.qctext",
+			}),
 		]);
 	});
 
@@ -1330,6 +1426,11 @@ describe("text asset CDN manifest verifier", () => {
 				code: "invalid-file-payload",
 				detail: "source template must be a text element",
 				url: "/text-assets/demo/plain@1/template.json",
+			}),
+			expect.objectContaining({
+				code: "invalid-file-payload",
+				detail: "package source template must be a text element",
+				url: "/text-assets/demo/plain@1/template.qctext",
 			}),
 		]);
 	});
@@ -1358,6 +1459,72 @@ describe("text asset CDN manifest verifier", () => {
 			expect.objectContaining({
 				code: "invalid-file-payload",
 				detail: expect.stringContaining("package file reference mismatch"),
+				url: "/text-assets/demo/plain@1/template.qctext",
+			}),
+		]);
+	});
+
+	it("reports local package resource manifest mismatches", async () => {
+		const publicDir = join(
+			tmpdir(),
+			`qcut-text-package-resources-${randomUUID()}`
+		);
+		const packageText = JSON.stringify(
+			createPackagePayload({
+				resources: [
+					{
+						...createPackageResources()[0],
+						checksumSha256: "wrong-checksum",
+					},
+					createPackageResources()[1] ?? {},
+				],
+			})
+		);
+		const entry = createGeneratedEntry({ packageText });
+		await writeGeneratedEntryFiles({ entry, packageText, publicDir });
+
+		const { manifest } = buildTextAssetPublishManifest({
+			baseUrl: "https://cdn.example.com",
+			generatedAt: "2026-07-15T00:00:00.000Z",
+			generatedManifest: { "text-demo": entry },
+			publicDir,
+		});
+
+		await expect(verifyLocalFiles({ manifest })).resolves.toEqual([
+			expect.objectContaining({
+				code: "invalid-file-payload",
+				detail: expect.stringContaining("thumbnail package resource mismatch"),
+				url: "/text-assets/demo/plain@1/template.qctext",
+			}),
+		]);
+	});
+
+	it("reports local packages missing companion resources", async () => {
+		const publicDir = join(
+			tmpdir(),
+			`qcut-text-package-missing-resources-${randomUUID()}`
+		);
+		const packageText = JSON.stringify(
+			Object.fromEntries(
+				Object.entries(createPackagePayload()).filter(
+					([key]) => key !== "resources"
+				)
+			)
+		);
+		const entry = createGeneratedEntry({ packageText });
+		await writeGeneratedEntryFiles({ entry, packageText, publicDir });
+
+		const { manifest } = buildTextAssetPublishManifest({
+			baseUrl: "https://cdn.example.com",
+			generatedAt: "2026-07-15T00:00:00.000Z",
+			generatedManifest: { "text-demo": entry },
+			publicDir,
+		});
+
+		await expect(verifyLocalFiles({ manifest })).resolves.toEqual([
+			expect.objectContaining({
+				code: "invalid-file-payload",
+				detail: "QCut text package resources must be a non-empty array",
 				url: "/text-assets/demo/plain@1/template.qctext",
 			}),
 		]);
