@@ -89,6 +89,13 @@ export type VerifyIssueSummary = {
 	truncated: number;
 };
 
+export type TextAssetVerifierFileReadinessSummary = {
+	localFilesReady: boolean;
+	localIssueSummary: VerifyIssueSummary;
+	remoteFilesReady: boolean;
+	remoteIssueSummary: VerifyIssueSummary;
+};
+
 export type TextAssetProvenanceSummary = {
 	designerImported: number;
 	generated: number;
@@ -877,6 +884,27 @@ export function summarizeVerifyIssues({
 			truncated: Math.max(0, issues.length - sampleLimit),
 		},
 		issues: issues.slice(0, sampleLimit),
+	};
+}
+
+export function summarizeTextAssetVerifierFileReadiness({
+	localIssues,
+	remoteIssues,
+}: {
+	localIssues: readonly VerifyIssue[];
+	remoteIssues: readonly VerifyIssue[];
+}): TextAssetVerifierFileReadinessSummary {
+	return {
+		localFilesReady: localIssues.length === 0,
+		localIssueSummary: summarizeVerifyIssues({
+			issues: localIssues,
+			limit: 0,
+		}).issueSummary,
+		remoteFilesReady: remoteIssues.length === 0,
+		remoteIssueSummary: summarizeVerifyIssues({
+			issues: remoteIssues,
+			limit: 0,
+		}).issueSummary,
 	};
 }
 
@@ -2381,6 +2409,10 @@ async function main(): Promise<void> {
 				issues,
 			}
 		: summarizeVerifyIssues({ issues, limit: options.issueLimit });
+	const fileReadiness = summarizeTextAssetVerifierFileReadiness({
+		localIssues,
+		remoteIssues,
+	});
 	console.log(
 		JSON.stringify(
 			{
@@ -2391,6 +2423,7 @@ async function main(): Promise<void> {
 				checkRemoteMetadata: options.checkRemoteMetadata,
 				designerCategoryCoverage,
 				...issueOutput,
+				...fileReadiness,
 				minDesignerAssets: options.minDesignerAssets,
 				minDesignerAssetsPerCategory: options.minDesignerAssetsPerCategory,
 				ok: issues.length === 0,

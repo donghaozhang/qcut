@@ -15,6 +15,7 @@ import {
 	summarizeDesignerCategoryCoverage,
 	summarizeTextAssetReleaseReadiness,
 	summarizeTextAssetProvenance,
+	summarizeTextAssetVerifierFileReadiness,
 	summarizeVerifyIssues,
 	verifyDesignerAssetCoverage,
 	verifyDesignerCategoryCoverage,
@@ -289,6 +290,48 @@ describe("text asset CDN manifest verifier", () => {
 			truncated: 1,
 		});
 		expect(issues.map((issue) => issue.detail)).toEqual(["first", "second"]);
+	});
+
+	it("summarizes local and remote file readiness separately from coverage gates", () => {
+		expect(
+			summarizeTextAssetVerifierFileReadiness({
+				localIssues: [
+					{
+						assetId: "text-demo",
+						code: "missing-file",
+						detail: "missing thumbnail",
+					},
+				],
+				remoteIssues: [
+					{
+						assetId: "text-demo",
+						code: "remote-checksum-mismatch",
+						detail: "bad remote checksum",
+					},
+					{
+						assetId: "text-demo",
+						code: "remote-unavailable",
+						detail: "HEAD failed",
+					},
+				],
+			})
+		).toEqual({
+			localFilesReady: false,
+			localIssueSummary: {
+				byCode: { "missing-file": 1 },
+				count: 1,
+				truncated: 1,
+			},
+			remoteFilesReady: false,
+			remoteIssueSummary: {
+				byCode: {
+					"remote-checksum-mismatch": 1,
+					"remote-unavailable": 1,
+				},
+				count: 2,
+				truncated: 2,
+			},
+		});
 	});
 
 	it("summarizes generated versus designer-imported provenance", () => {
