@@ -33,6 +33,7 @@ import {
 	PreviewBlurBackground,
 	PreviewElementRenderer,
 } from "./preview-panel/preview-element-renderer";
+import { TimelineStickerInteractionLayer } from "./preview-panel/timeline-sticker-layer";
 import {
 	MediaTransformOverlay,
 	type SelectedMediaTransformTarget,
@@ -412,6 +413,7 @@ export function PreviewPanel() {
 			activeElements,
 			hasActiveTransition:
 				activeTransitionPreview.forceActiveElementIds.size > 0,
+			hasSelection: selectedElements.length > 0,
 		});
 	const nativeCompositionPreview = useNativeCompositionFramePreview({
 		enabled: compositionPreviewEnabled,
@@ -899,24 +901,35 @@ export function PreviewPanel() {
 								/>
 							)}
 
-							{/* Interactive element overlays for elements with effects */}
-							{EFFECTS_ENABLED &&
-								activeElements
-									.filter((elementData) => elementData.element.type !== "media")
-									.map((elementData) => (
-										<InteractiveElementOverlay
-											key={`${elementData.element.id}-${elementData.track.id}`}
-											element={elementData.element}
-											isSelected={selectedElements.some(
-												(selection) =>
-													selection.trackId === elementData.track.id &&
-													selection.elementId === elementData.element.id
-											)}
-											canvasSize={canvasSize}
-											previewDimensions={previewDimensions}
-											onTransformUpdate={handleTransformUpdate}
-										/>
-									))}
+							<TimelineStickerInteractionLayer
+								activeElements={activeElements}
+								mediaItems={mediaItems}
+							/>
+
+							{/* Canvas hit targets and transform controls */}
+							{activeElements
+								.filter((elementData) => elementData.element.type !== "media")
+								.map((elementData) => (
+									<InteractiveElementOverlay
+										key={`${elementData.element.id}-${elementData.track.id}`}
+										element={elementData.element}
+										isSelected={selectedElements.some(
+											(selection) =>
+												selection.trackId === elementData.track.id &&
+												selection.elementId === elementData.element.id
+										)}
+										canvasSize={canvasSize}
+										previewDimensions={previewDimensions}
+										onSelect={({ multi }) =>
+											selectElement(
+												elementData.track.id,
+												elementData.element.id,
+												multi
+											)
+										}
+										onTransformUpdate={handleTransformUpdate}
+									/>
+								))}
 
 							{/* Hidden canvas for frame caching - non-visual */}
 							<canvas

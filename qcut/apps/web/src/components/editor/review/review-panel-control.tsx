@@ -42,6 +42,7 @@ import {
 } from "@/lib/review/review-cloud-state";
 import { resolveReviewProjectDuration } from "@/lib/review/review-project";
 import { SITE_URL } from "@/constants/site";
+import { useTranslation } from "@/lib/i18n";
 import { formatTimeCode } from "@/lib/time";
 import { usePlaybackStore } from "@/stores/editor/playback-store";
 import { useLicenseStore } from "@/stores/license-store";
@@ -80,6 +81,7 @@ function portableComment({
 }
 
 export function ReviewPanelControl() {
+	const { t } = useTranslation();
 	const activeProject = useProjectStore((state) => state.activeProject);
 	const currentTime = usePlaybackStore((state) => state.currentTime);
 	const timelineDuration = useTimelineStore((state) =>
@@ -150,11 +152,11 @@ export function ReviewPanelControl() {
 				if (error instanceof DOMException && error.name === "AbortError")
 					return;
 				setCloudSyncError(
-					error instanceof Error ? error.message : "审片链接读取失败"
+					error instanceof Error ? error.message : t("review.linkLoadFailed")
 				);
 			});
 		return () => controller.abort();
-	}, [activeProject?.id, loadProject, mergePackage]);
+	}, [activeProject?.id, loadProject, mergePackage, t]);
 
 	const reviewMediaUrl = useMemo(() => {
 		for (const item of mediaItems) {
@@ -238,12 +240,12 @@ export function ReviewPanelControl() {
 			}
 			try {
 				const nextState = await activeOperation;
-				if (!silent) toast.success("审片评论已同步");
+				if (!silent) toast.success(t("review.commentsSynced"));
 				return nextState;
 			} catch (error) {
 				if (cloudToken.current === state.token) {
 					setCloudSyncError(
-						error instanceof Error ? error.message : "审片同步失败"
+						error instanceof Error ? error.message : t("review.syncFailed")
 					);
 				}
 				if (!silent) throw error;
@@ -255,7 +257,7 @@ export function ReviewPanelControl() {
 				}
 			}
 		},
-		[mergePackage]
+		[mergePackage, t]
 	);
 
 	useEffect(() => {
@@ -288,10 +290,10 @@ export function ReviewPanelControl() {
 		});
 		try {
 			await navigator.clipboard.writeText(token);
-			toast.success("Review package copied");
+			toast.success(t("review.packageCopied"));
 		} catch {
 			setPackageText(token);
-			toast.info("Review package is ready in the import field");
+			toast.info(t("review.packageReady"));
 		}
 	};
 
@@ -325,9 +327,11 @@ export function ReviewPanelControl() {
 				setCloudSyncError(undefined);
 			}
 			await navigator.clipboard.writeText(nextState.url);
-			toast.success("审片链接已复制");
+			toast.success(t("review.linkCopied"));
 		} catch (error) {
-			toast.error(error instanceof Error ? error.message : "创建审片链接失败");
+			toast.error(
+				error instanceof Error ? error.message : t("review.createLinkFailed")
+			);
 		} finally {
 			setIsCloudBusy(false);
 		}
@@ -345,9 +349,11 @@ export function ReviewPanelControl() {
 			setCloudProjectDuration(0);
 			setCloudSyncError(undefined);
 			lastSyncedFingerprint.current = "";
-			toast.success("审片链接已撤销");
+			toast.success(t("review.linkRevoked"));
 		} catch (error) {
-			toast.error(error instanceof Error ? error.message : "撤销审片链接失败");
+			toast.error(
+				error instanceof Error ? error.message : t("review.revokeLinkFailed")
+			);
 		} finally {
 			setIsCloudBusy(false);
 		}
@@ -360,14 +366,14 @@ export function ReviewPanelControl() {
 			setPackageText("");
 			toast.success(
 				merged > 0
-					? `Merged ${merged} review comments`
-					: "Review is already current"
+					? t("review.commentsMerged", { count: merged })
+					: t("review.alreadyCurrent")
 			);
 			return;
 		}
 		const token = extractCloudReviewToken({ value: packageText });
 		if (!token) {
-			toast.error("Invalid review link or package");
+			toast.error(t("review.invalidPackage"));
 			return;
 		}
 		setIsCloudBusy(true);
@@ -390,10 +396,14 @@ export function ReviewPanelControl() {
 			}
 			setPackageText("");
 			toast.success(
-				merged > 0 ? `Merged ${merged} review comments` : "Review is current"
+				merged > 0
+					? t("review.commentsMerged", { count: merged })
+					: t("review.current")
 			);
 		} catch (error) {
-			toast.error(error instanceof Error ? error.message : "审片链接读取失败");
+			toast.error(
+				error instanceof Error ? error.message : t("review.linkLoadFailed")
+			);
 		} finally {
 			setIsCloudBusy(false);
 		}
@@ -407,14 +417,14 @@ export function ReviewPanelControl() {
 					variant="outline"
 					size="sm"
 					className="relative h-7 gap-1.5 px-2 text-xs"
-					aria-label={`Open review comments, ${openComments} open`}
-					title="Review comments"
+					aria-label={t("review.triggerAria", { count: openComments })}
+					title={t("review.title")}
 					data-testid="review-panel-trigger"
 				>
 					<MessageSquareMore className="h-3.5 w-3.5">
-						<title>Review comments</title>
+						<title>{t("review.title")}</title>
 					</MessageSquareMore>
-					<span>审片</span>
+					<span>{t("review.label")}</span>
 					{openComments > 0 ? (
 						<span className="grid min-w-4 place-items-center bg-destructive px-1 text-[9px] leading-4 text-destructive-foreground">
 							{openComments > 99 ? "99+" : openComments}
@@ -424,10 +434,8 @@ export function ReviewPanelControl() {
 			</DialogTrigger>
 			<DialogContent className="flex max-h-[80vh] max-w-2xl flex-col overflow-hidden">
 				<DialogHeader>
-					<DialogTitle>审片评论</DialogTitle>
-					<DialogDescription>
-						评论按时间码保存在当前工程，并可通过审片链接实时合并。
-					</DialogDescription>
+					<DialogTitle>{t("review.title")}</DialogTitle>
+					<DialogDescription>{t("review.description")}</DialogDescription>
 				</DialogHeader>
 
 				<form
@@ -441,7 +449,11 @@ export function ReviewPanelControl() {
 						});
 						if (!id) {
 							if (comments.length >= MAX_REVIEW_COMMENTS) {
-								toast.error(`每个工程最多 ${MAX_REVIEW_COMMENTS} 条审片评论`);
+								toast.error(
+									t("review.maxComments", {
+										count: MAX_REVIEW_COMMENTS,
+									})
+								);
 							}
 							return;
 						}
@@ -461,10 +473,10 @@ export function ReviewPanelControl() {
 					<Textarea
 						value={commentText}
 						onChange={(event) => setCommentText(event.target.value)}
-						placeholder="输入这个时间点的修改意见"
+						placeholder={t("review.commentPlaceholder")}
 						maxLength={2000}
 						className="min-h-20 resize-none"
-						aria-label="Review comment"
+						aria-label={t("review.commentPlaceholder")}
 					/>
 					<div className="mt-2 flex justify-end">
 						<Button
@@ -474,7 +486,7 @@ export function ReviewPanelControl() {
 								!commentText.trim() || comments.length >= MAX_REVIEW_COMMENTS
 							}
 						>
-							添加评论
+							{t("review.addComment")}
 						</Button>
 					</div>
 				</form>
@@ -485,7 +497,7 @@ export function ReviewPanelControl() {
 				>
 					{comments.length === 0 ? (
 						<div className="py-10 text-center text-sm text-muted-foreground">
-							暂无审片评论
+							{t("review.empty")}
 						</div>
 					) : (
 						comments.map((comment) => {
@@ -510,10 +522,10 @@ export function ReviewPanelControl() {
 										onKeyDown={(event) =>
 											activateOnKeyboard({ action: seekToComment, event })
 										}
-										title="Jump to comment time"
+										title={t("review.jumpToTime")}
 									>
 										<Clock3 className="h-3 w-3">
-											<title>Jump to comment time</title>
+											<title>{t("review.jumpToTime")}</title>
 										</Clock3>
 										{formatTimeCode(
 											comment.time,
@@ -539,19 +551,23 @@ export function ReviewPanelControl() {
 											activateOnKeyboard({ action: resolveComment, event })
 										}
 										aria-label={
-											comment.resolved ? "Reopen comment" : "Resolve comment"
+											comment.resolved
+												? t("review.reopenComment")
+												: t("review.resolveComment")
 										}
 										title={
-											comment.resolved ? "Reopen comment" : "Resolve comment"
+											comment.resolved
+												? t("review.reopenComment")
+												: t("review.resolveComment")
 										}
 									>
 										{comment.resolved ? (
 											<RotateCcw className="h-3.5 w-3.5">
-												<title>Reopen comment</title>
+												<title>{t("review.reopenComment")}</title>
 											</RotateCcw>
 										) : (
 											<CheckCircle2 className="h-3.5 w-3.5">
-												<title>Resolve comment</title>
+												<title>{t("review.resolveComment")}</title>
 											</CheckCircle2>
 										)}
 									</Button>
@@ -564,11 +580,11 @@ export function ReviewPanelControl() {
 										onKeyDown={(event) =>
 											activateOnKeyboard({ action: deleteComment, event })
 										}
-										aria-label="Delete review comment"
-										title="Delete review comment"
+										aria-label={t("review.deleteComment")}
+										title={t("review.deleteComment")}
 									>
 										<Trash2 className="h-3.5 w-3.5">
-											<title>Delete review comment</title>
+											<title>{t("review.deleteComment")}</title>
 										</Trash2>
 									</Button>
 								</div>
@@ -595,9 +611,15 @@ export function ReviewPanelControl() {
 							data-testid="review-cloud-link"
 						>
 							<Link2 className="h-3.5 w-3.5">
-								<title>Copy cloud review link</title>
+								<title>
+									{cloudState
+										? t("review.syncAndCopyLink")
+										: t("review.createLink")}
+								</title>
 							</Link2>
-							{cloudState ? "同步并复制链接" : "创建审片链接"}
+							{cloudState
+								? t("review.syncAndCopyLink")
+								: t("review.createLink")}
 						</Button>
 						{cloudState ? (
 							<>
@@ -611,9 +633,11 @@ export function ReviewPanelControl() {
 									}
 								>
 									<Cloud className="size-3 shrink-0">
-										<title>Cloud review connected</title>
+										<title>{t("review.cloudConnected")}</title>
 									</Cloud>
-									{cloudSyncError ? "同步失败" : `v${cloudState.revision}`}
+									{cloudSyncError
+										? t("review.syncFailed")
+										: `v${cloudState.revision}`}
 								</span>
 								<Button
 									type="button"
@@ -628,11 +652,11 @@ export function ReviewPanelControl() {
 											event,
 										})
 									}
-									aria-label="Revoke review link"
-									title="Revoke review link"
+									aria-label={t("review.revokeLink")}
+									title={t("review.revokeLink")}
 								>
 									<Link2Off className="size-3.5">
-										<title>Revoke review link</title>
+										<title>{t("review.revokeLink")}</title>
 									</Link2Off>
 								</Button>
 							</>
@@ -642,7 +666,7 @@ export function ReviewPanelControl() {
 								title={cloudSyncError}
 								data-testid="review-cloud-sync-error"
 							>
-								同步失败
+								{t("review.syncFailed")}
 							</span>
 						) : null}
 					</div>
@@ -659,19 +683,19 @@ export function ReviewPanelControl() {
 									event,
 								})
 							}
-							title="Copy portable review package"
+							title={t("review.copyPackage")}
 						>
 							<ClipboardCopy className="h-3.5 w-3.5">
-								<title>Copy portable review package</title>
+								<title>{t("review.copyPackage")}</title>
 							</ClipboardCopy>
-							复制审片包
+							{t("review.copyPackage")}
 						</Button>
 						<Textarea
 							value={packageText}
 							onChange={(event) => setPackageText(event.target.value)}
-							placeholder="粘贴审片链接或 qcut-review 审片包"
+							placeholder={t("review.importPlaceholder")}
 							className="min-h-9 flex-1 resize-none py-2 text-[10px]"
-							aria-label="Review package import"
+							aria-label={t("review.importPackage")}
 						/>
 						<Button
 							type="button"
@@ -686,7 +710,7 @@ export function ReviewPanelControl() {
 								})
 							}
 						>
-							合并
+							{t("review.merge")}
 						</Button>
 					</div>
 				</div>

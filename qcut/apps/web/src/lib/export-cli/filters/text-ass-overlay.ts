@@ -8,6 +8,13 @@ import {
 import { resolveTextKeyframes } from "@/lib/text/text-keyframes";
 import { resolveTrackedTextElement } from "@/lib/text/text-tracking";
 import { resolveTextStyle } from "@/lib/text/text-style";
+import {
+	buildTextFont,
+	createTextWidthMeasurer,
+	measureTextLineWidth,
+	wrapTextToWidth,
+	type TextWidthMeasurer,
+} from "@/lib/text/text-measurement";
 import type { TextElement, TimelineTrack } from "@/types/timeline";
 
 export interface TextASSExport {
@@ -38,43 +45,34 @@ function escapeASSText(text: string): string {
 		.replace(/\r?\n/g, "\\N");
 }
 
-function wrapEstimatedText(element: TextElement): string[] {
+function wrapMeasuredText({
+	element,
+	measureTextWidth,
+}: {
+	element: TextElement;
+	measureTextWidth?: TextWidthMeasurer;
+}): string[] {
 	const style = resolveTextStyle(element);
 	const usableWidth = Math.max(1, style.width - style.backgroundPadding * 2);
-	const estimatedCharacterWidth = Math.max(
-		1,
-		element.fontSize * 0.58 + style.letterSpacing
-	);
-	const maxCharacters = Math.max(
-		1,
-		Math.floor(usableWidth / estimatedCharacterWidth)
-	);
-	const output: string[] = [];
-
-	for (const paragraph of element.content.replace(/\r/g, "").split("\n")) {
-		if (!paragraph) {
-			output.push("");
-			continue;
-		}
-		let line = "";
-		for (const token of paragraph.match(/\S+\s*|\s+/g) ?? [paragraph]) {
-			const candidate = `${line}${token}`;
-			if (Array.from(candidate.trimEnd()).length <= maxCharacters) {
-				line = candidate;
-				continue;
-			}
-			if (line) output.push(line.trimEnd());
-			line = "";
-			const characters = Array.from(token.trim());
-			while (characters.length > maxCharacters) {
-				output.push(characters.splice(0, maxCharacters).join(""));
-			}
-			line = characters.join("");
-		}
-		output.push(line.trimEnd());
-	}
-
-	return output;
+	const font = buildTextFont({
+		fontFamily: element.fontFamily,
+		fontSize: element.fontSize,
+		fontStyle: element.fontStyle,
+		fontWeight: element.fontWeight,
+	});
+	const textWidthMeasurer =
+		measureTextWidth ?? createTextWidthMeasurer({ fontSize: element.fontSize });
+	return wrapTextToWidth({
+		maxWidth: usableWidth,
+		measureLineWidth: ({ text }) =>
+			measureTextLineWidth({
+				font,
+				letterSpacing: style.letterSpacing,
+				measureTextWidth: textWidthMeasurer,
+				text,
+			}),
+		text: element.content,
+	});
 }
 
 function getTextAnchor({
@@ -117,14 +115,16 @@ function getStraightLineLayout({
 	element,
 	canvasWidth,
 	canvasHeight,
+	measureTextWidth,
 }: {
 	element: TextElement;
 	canvasWidth: number;
 	canvasHeight: number;
+	measureTextWidth?: TextWidthMeasurer;
 }): Array<{ text: string; x: number; y: number; alignment: number }> {
 	const style = resolveTextStyle(element);
 	const anchor = getTextAnchor({ element, canvasWidth, canvasHeight });
-	const lines = wrapEstimatedText(element);
+	const lines = wrapMeasuredText({ element, measureTextWidth });
 	const lineAdvance = element.fontSize * style.lineHeight;
 	return lines.map((text, lineIndex) => {
 		let y = anchor.y;
@@ -243,6 +243,7 @@ function buildElementEvents({
 	canvasHeight,
 	eventStart,
 	eventEnd,
+	measureTextWidth,
 }: {
 	element: TextElement;
 	index: number;
@@ -250,6 +251,7 @@ function buildElementEvents({
 	canvasHeight: number;
 	eventStart?: number;
 	eventEnd?: number;
+	measureTextWidth?: TextWidthMeasurer;
 }): { styles: string[]; events: string[] } {
 	const style = resolveTextStyle(element);
 	const styleName = `QCutText${index}`;
@@ -335,6 +337,7 @@ function buildElementEvents({
 					element,
 					canvasWidth,
 					canvasHeight,
+					measureTextWidth,
 				}).map((line) => ({
 					text: line.text,
 					x: line.x,
@@ -429,6 +432,7 @@ function buildElementEvents({
 			element,
 			canvasWidth,
 			canvasHeight,
+			measureTextWidth,
 		})) {
 			const tags = `\\an${line.alignment}${baseTags}${motionTags({
 				element,
@@ -457,12 +461,14 @@ export function buildTextASSOverlay({
 	canvasWidth,
 	canvasHeight,
 	fps = 30,
+	measureTextWidth,
 }: {
 	tracks: TimelineTrack[];
 	allTracks?: TimelineTrack[];
 	canvasWidth: number;
 	canvasHeight: number;
 	fps?: number;
+	measureTextWidth?: TextWidthMeasurer;
 }): TextASSExport {
 	const styles: string[] = [];
 	const events: string[] = [];
@@ -515,6 +521,7 @@ export function buildTextASSOverlay({
 						canvasHeight,
 						eventStart: frameStart,
 						eventEnd: frameEnd,
+						measureTextWidth,
 					});
 					styles.push(...result.styles);
 					events.push(...result.events);
@@ -530,6 +537,7 @@ export function buildTextASSOverlay({
 					index: index++,
 					canvasWidth,
 					canvasHeight,
+					measureTextWidth,
 				});
 				styles.push(...result.styles);
 				events.push(...result.events);

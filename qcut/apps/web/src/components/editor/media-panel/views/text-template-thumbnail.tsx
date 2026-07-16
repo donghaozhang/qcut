@@ -2,6 +2,7 @@ import type { TextTemplateDefinition } from "@/lib/text/text-template-registry";
 import type { TextTemplatePackPayload } from "@/lib/text/text-template-packs";
 import type { TextElement } from "@/types/timeline";
 import { useEffect, useRef, useState } from "react";
+import { useTranslation } from "@/lib/i18n";
 import { renderTextTemplateThumbnail } from "./text-template-thumbnail-renderer";
 
 const THUMBNAIL_CANVAS_SIZE = {
@@ -20,12 +21,16 @@ export function TextTemplateThumbnail({
 	template: TextElement;
 	thumbnailUrl?: string;
 }) {
+	const { t } = useTranslation();
 	const canvasRef = useRef<HTMLCanvasElement | null>(null);
 	const [failedThumbnailUrl, setFailedThumbnailUrl] = useState<
 		string | undefined
 	>();
 	const showImage =
 		Boolean(thumbnailUrl) && failedThumbnailUrl !== thumbnailUrl;
+	const thumbnailLabel = t("textLibrary.thumbnailAria", {
+		name: template.name,
+	});
 
 	useEffect(() => {
 		if (showImage) return;
@@ -41,7 +46,7 @@ export function TextTemplateThumbnail({
 		>
 			{showImage ? (
 				<img
-					alt={`${template.name} 缩略图`}
+					alt={thumbnailLabel}
 					className="h-full w-full object-cover"
 					decoding="async"
 					draggable={false}
@@ -51,7 +56,7 @@ export function TextTemplateThumbnail({
 			) : (
 				<canvas
 					ref={canvasRef}
-					aria-label={`${template.name} 缩略图`}
+					aria-label={thumbnailLabel}
 					className="h-full w-full"
 					height={THUMBNAIL_CANVAS_SIZE.height}
 					role="img"

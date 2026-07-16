@@ -23,4 +23,17 @@ describe("interface translations", () => {
 			"Audio aligned (96% confidence)"
 		);
 	});
+
+	it("keeps English text, review, task, and sync copy free of Chinese characters", () => {
+		const localizedPrefixes = [
+			"textLibrary.",
+			"review.",
+			"taskCenter.",
+			"librarySync.",
+		];
+		for (const [key, value] of Object.entries(TRANSLATIONS.en)) {
+			if (!localizedPrefixes.some((prefix) => key.startsWith(prefix))) continue;
+			expect(value).not.toMatch(/[\u3400-\u9fff]/);
+		}
+	});
 });

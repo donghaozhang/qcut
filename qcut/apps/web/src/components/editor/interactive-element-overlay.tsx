@@ -1,23 +1,26 @@
-import { useState, useRef, useCallback, useEffect } from "react";
-import { TimelineElement } from "@/types/timeline";
-import { useEffectsStore } from "@/stores/ai/effects-store";
+import { Move, RotateCw } from "lucide-react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { cn } from "@/lib/utils";
-import { RotateCw, Move, Maximize2 } from "lucide-react";
+import { useEffectsStore } from "@/stores/ai/effects-store";
+import type { TimelineElement } from "@/types/timeline";
+import {
+	getInteractiveElementOverlayStyle,
+	getInteractiveElementPreviewScale,
+	getTimelineElementTransform,
+	resizeInteractiveElementFromCenter,
+	type ElementResizeHandle,
+	type ElementTransform,
+} from "./interactive-element-overlay-geometry";
+
+export type { ElementTransform } from "./interactive-element-overlay-geometry";
 
 interface InteractiveElementOverlayProps {
 	element: TimelineElement;
 	isSelected: boolean;
 	canvasSize: { width: number; height: number };
 	previewDimensions: { width: number; height: number };
+	onSelect: ({ multi }: { multi: boolean }) => void;
 	onTransformUpdate: (elementId: string, transform: ElementTransform) => void;
-}
-
-export interface ElementTransform {
-	x: number;
-	y: number;
-	width: number;
-	height: number;
-	rotation: number;
 }
 
 interface DragState {
@@ -26,7 +29,7 @@ interface DragState {
 	startX: number;
 	startY: number;
 	startTransform: ElementTransform;
-	resizeHandle?: "nw" | "ne" | "sw" | "se" | "n" | "e" | "s" | "w";
+	resizeHandle?: ElementResizeHandle;
 }
 
 export function InteractiveElementOverlay({
@@ -34,25 +37,15 @@ export function InteractiveElementOverlay({
 	isSelected,
 	canvasSize,
 	previewDimensions,
+	onSelect,
 	onTransformUpdate,
 }: InteractiveElementOverlayProps) {
 	const elementRef = useRef<HTMLDivElement>(null);
 	const { getElementEffects } = useEffectsStore();
 
-	// Type-safe helper to get element properties
-	const getElementProperty = <T,>(prop: string, defaultValue: T): T => {
-		const value = (element as any)[prop];
-		return value !== undefined && value !== null ? (value as T) : defaultValue;
-	};
-
-	// All hooks must be called before any conditional returns
-	const [transform, setTransform] = useState<ElementTransform>({
-		x: getElementProperty("x", 0),
-		y: getElementProperty("y", 0),
-		width: getElementProperty("width", 200),
-		height: getElementProperty("height", 100),
-		rotation: getElementProperty("rotation", 0),
-	});
+	const [transform, setTransform] = useState<ElementTransform>(() =>
+		getTimelineElementTransform({ element })
+	);
 
 	const [dragState, setDragState] = useState<DragState>({
 		isDragging: false,
@@ -62,20 +55,22 @@ export function InteractiveElementOverlay({
 		startTransform: transform,
 	});
 
-	// Calculate scale ratio between canvas and preview (guard against zero division)
-	const scaleX = canvasSize.width
-		? previewDimensions.width / canvasSize.width
-		: 1;
-	const scaleY = canvasSize.height
-		? previewDimensions.height / canvasSize.height
-		: 1;
+	const previewScale = getInteractiveElementPreviewScale({
+		canvasSize,
+		previewDimensions,
+	});
+
+	useEffect(() => {
+		if (dragState.isDragging) return;
+		setTransform(getTimelineElementTransform({ element }));
+	}, [dragState.isDragging, element]);
 
 	// Handle mouse down for drag start
 	const handleMouseDown = useCallback(
 		(
 			e: React.MouseEvent,
 			type: "move" | "resize" | "rotate",
-			handle?: string
+			handle?: ElementResizeHandle
 		) => {
 			e.preventDefault();
 			e.stopPropagation();
@@ -86,7 +81,7 @@ export function InteractiveElementOverlay({
 				startX: e.clientX,
 				startY: e.clientY,
 				startTransform: { ...transform },
-				resizeHandle: handle as any,
+				resizeHandle: handle,
 			});
 		},
 		[transform]
@@ -97,10 +92,10 @@ export function InteractiveElementOverlay({
 		(e: MouseEvent) => {
 			if (!dragState.isDragging) return;
 
-			const deltaX = (e.clientX - dragState.startX) / scaleX;
-			const deltaY = (e.clientY - dragState.startY) / scaleY;
+			const deltaX = (e.clientX - dragState.startX) / previewScale;
+			const deltaY = (e.clientY - dragState.startY) / previewScale;
 
-			const newTransform = { ...transform };
+			let newTransform = { ...dragState.startTransform };
 
 			switch (dragState.dragType) {
 				case "move":
@@ -110,54 +105,23 @@ export function InteractiveElementOverlay({
 
 				case "resize":
 					if (dragState.resizeHandle) {
-						const handle = dragState.resizeHandle;
-
-						// Calculate new dimensions based on handle
-						if (handle.includes("e")) {
-							newTransform.width = Math.max(
-								50,
-								dragState.startTransform.width + deltaX
-							);
-						}
-						if (handle.includes("w")) {
-							const newWidth = Math.max(
-								50,
-								dragState.startTransform.width - deltaX
-							);
-							newTransform.width = newWidth;
-							newTransform.x =
-								dragState.startTransform.x +
-								(dragState.startTransform.width - newWidth);
-						}
-						if (handle.includes("s")) {
-							newTransform.height = Math.max(
-								50,
-								dragState.startTransform.height + deltaY
-							);
-						}
-						if (handle.includes("n")) {
-							const newHeight = Math.max(
-								50,
-								dragState.startTransform.height - deltaY
-							);
-							newTransform.height = newHeight;
-							newTransform.y =
-								dragState.startTransform.y +
-								(dragState.startTransform.height - newHeight);
-						}
+						newTransform = resizeInteractiveElementFromCenter({
+							delta: { x: deltaX, y: deltaY },
+							handle: dragState.resizeHandle,
+							transform: dragState.startTransform,
+						});
 					}
 					break;
 
 				case "rotate": {
-					// Calculate rotation based on mouse position relative to center
-					const centerX = transform.x + transform.width / 2;
-					const centerY = transform.y + transform.height / 2;
-					const mouseX = e.clientX / scaleX;
-					const mouseY = e.clientY / scaleY;
-
+					const bounds = elementRef.current?.getBoundingClientRect();
+					if (!bounds) return;
+					const centerX = bounds.left + bounds.width / 2;
+					const centerY = bounds.top + bounds.height / 2;
 					const angle =
-						Math.atan2(mouseY - centerY, mouseX - centerX) * (180 / Math.PI);
-					newTransform.rotation = Math.round(angle);
+						Math.atan2(e.clientY - centerY, e.clientX - centerX) *
+						(180 / Math.PI);
+					newTransform.rotation = Math.round(angle + 90);
 					break;
 				}
 			}
@@ -165,7 +129,7 @@ export function InteractiveElementOverlay({
 			setTransform(newTransform);
 			onTransformUpdate(element.id, newTransform);
 		},
-		[dragState, transform, scaleX, scaleY, element.id, onTransformUpdate]
+		[dragState, previewScale, element.id, onTransformUpdate]
 	);
 
 	// Handle mouse up for drag end
@@ -184,6 +148,90 @@ export function InteractiveElementOverlay({
 		});
 	}, [dragState.isDragging, transform, element.id, onTransformUpdate]);
 
+	const handleResizeKeyDown = useCallback(
+		({
+			event,
+			handle,
+		}: {
+			event: React.KeyboardEvent<HTMLDivElement>;
+			handle: ElementResizeHandle;
+		}) => {
+			const step = event.shiftKey ? 10 : 1;
+			const delta = {
+				x:
+					event.key === "ArrowLeft"
+						? -step
+						: event.key === "ArrowRight"
+							? step
+							: 0,
+				y:
+					event.key === "ArrowUp"
+						? -step
+						: event.key === "ArrowDown"
+							? step
+							: 0,
+			};
+			if (delta.x === 0 && delta.y === 0) return;
+
+			event.preventDefault();
+			const nextTransform = resizeInteractiveElementFromCenter({
+				delta,
+				handle,
+				transform,
+			});
+			setTransform(nextTransform);
+			onTransformUpdate(element.id, nextTransform);
+		},
+		[element.id, onTransformUpdate, transform]
+	);
+
+	const handleMoveSurfaceMouseDown = useCallback(
+		(event: React.MouseEvent<HTMLButtonElement>) => {
+			onSelect({ multi: event.shiftKey || event.metaKey });
+			handleMouseDown(event, "move");
+		},
+		[handleMouseDown, onSelect]
+	);
+
+	const handleMoveSurfaceKeyDown = useCallback(
+		(event: React.KeyboardEvent<HTMLButtonElement>) => {
+			if (event.key === "Enter" || event.key === " ") {
+				event.preventDefault();
+				onSelect({ multi: event.shiftKey || event.metaKey });
+				return;
+			}
+
+			if (!isSelected) return;
+
+			const step = event.shiftKey ? 10 : 1;
+			const delta = {
+				x:
+					event.key === "ArrowLeft"
+						? -step
+						: event.key === "ArrowRight"
+							? step
+							: 0,
+				y:
+					event.key === "ArrowUp"
+						? -step
+						: event.key === "ArrowDown"
+							? step
+							: 0,
+			};
+			if (delta.x === 0 && delta.y === 0) return;
+
+			event.preventDefault();
+			const nextTransform = {
+				...transform,
+				x: transform.x + delta.x,
+				y: transform.y + delta.y,
+			};
+			setTransform(nextTransform);
+			onTransformUpdate(element.id, nextTransform);
+		},
+		[element.id, isSelected, onSelect, onTransformUpdate, transform]
+	);
+
 	// Add mouse event listeners
 	useEffect(() => {
 		if (dragState.isDragging) {
@@ -197,206 +245,149 @@ export function InteractiveElementOverlay({
 		}
 	}, [dragState.isDragging, handleMouseMove, handleMouseUp]);
 
-	// Check if element has effects
 	const hasEffects = getElementEffects(element.id).length > 0;
+	const hasDirectCanvasInteraction =
+		element.type === "text" || element.type === "markdown";
 
-	// Only show interactive overlay for elements with effects or text/markdown elements
-	if (!hasEffects && element.type !== "text" && element.type !== "markdown") {
+	if (!hasEffects && !hasDirectCanvasInteraction) {
 		return null;
 	}
 
-	if (!isSelected) {
+	if (!isSelected && !hasDirectCanvasInteraction) {
 		return null;
 	}
 
-	const overlayStyle = {
-		left: `${transform.x * scaleX}px`,
-		top: `${transform.y * scaleY}px`,
-		width: `${transform.width * scaleX}px`,
-		height: `${transform.height * scaleY}px`,
-		transform: `rotate(${transform.rotation}deg)`,
-	};
+	const overlayStyle = getInteractiveElementOverlayStyle({
+		canvasSize,
+		previewDimensions,
+		transform,
+	});
 
 	return (
 		<div
 			ref={elementRef}
+			data-testid="interactive-element-overlay"
 			className={cn(
-				"absolute border-2 border-primary pointer-events-auto",
+				"pointer-events-none absolute z-[80]",
+				isSelected && "border-2 border-primary",
 				dragState.isDragging && "cursor-grabbing"
 			)}
 			style={overlayStyle}
 		>
-			{/* Move handle - center of element */}
-			<div
-				className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-8 h-8 bg-primary/20 rounded-full flex items-center justify-center cursor-move hover:bg-primary/30 focus:outline-none focus:ring-2 focus:ring-primary"
-				onMouseDown={(e) => handleMouseDown(e, "move")}
-				onKeyDown={(e) => {
-					const step = e.shiftKey ? 10 : 1;
-					if (e.key === "ArrowUp") {
-						e.preventDefault();
-						const newTransform = { ...transform, y: transform.y - step };
-						setTransform(newTransform);
-						onTransformUpdate(element.id, newTransform);
-					} else if (e.key === "ArrowDown") {
-						e.preventDefault();
-						const newTransform = { ...transform, y: transform.y + step };
-						setTransform(newTransform);
-						onTransformUpdate(element.id, newTransform);
-					} else if (e.key === "ArrowLeft") {
-						e.preventDefault();
-						const newTransform = { ...transform, x: transform.x - step };
-						setTransform(newTransform);
-						onTransformUpdate(element.id, newTransform);
-					} else if (e.key === "ArrowRight") {
-						e.preventDefault();
-						const newTransform = { ...transform, x: transform.x + step };
-						setTransform(newTransform);
-						onTransformUpdate(element.id, newTransform);
-					} else if (e.key === "Enter" || e.key === " ") {
-						e.preventDefault();
-						handleMouseDown(e as any, "move");
-					}
-				}}
-				tabIndex={0}
-				role="button"
-				aria-label="Move element. Press Enter to activate, then use arrow keys to move"
+			<button
+				type="button"
+				className="pointer-events-auto absolute inset-0 z-0 cursor-move border-0 bg-transparent p-0 focus:outline-none focus:ring-2 focus:ring-primary"
+				onMouseDown={handleMoveSurfaceMouseDown}
+				onKeyDown={handleMoveSurfaceKeyDown}
+				tabIndex={isSelected ? 0 : -1}
+				aria-label={
+					isSelected
+						? "Move element. Use arrow keys to move"
+						: `Select ${element.type} element`
+				}
+				data-testid="interactive-element-drag-surface"
 			>
-				<Move className="w-4 h-4 text-primary-foreground" />
-			</div>
+				{isSelected ? (
+					<span className="absolute left-1/2 top-1/2 flex size-8 -translate-x-1/2 -translate-y-1/2 items-center justify-center rounded-full bg-primary/20 hover:bg-primary/30">
+						<Move className="size-4 text-primary-foreground" />
+					</span>
+				) : null}
+			</button>
 
-			{/* Resize handles - corners and edges */}
-			<div
-				className="absolute -top-1 -left-1 w-3 h-3 bg-primary rounded-full cursor-nw-resize focus:outline-none focus:ring-2 focus:ring-primary"
-				onMouseDown={(e) => handleMouseDown(e, "resize", "nw")}
-				onKeyDown={(e) => {
-					if (e.key === "Enter" || e.key === " ") {
-						e.preventDefault();
-						handleMouseDown(e as any, "resize", "nw");
-					}
-				}}
-				tabIndex={0}
-				role="button"
-				aria-label="Resize from top-left corner"
-			/>
-			<div
-				className="absolute -top-1 -right-1 w-3 h-3 bg-primary rounded-full cursor-ne-resize focus:outline-none focus:ring-2 focus:ring-primary"
-				onMouseDown={(e) => handleMouseDown(e, "resize", "ne")}
-				onKeyDown={(e) => {
-					if (e.key === "Enter" || e.key === " ") {
-						e.preventDefault();
-						handleMouseDown(e as any, "resize", "ne");
-					}
-				}}
-				tabIndex={0}
-				role="button"
-				aria-label="Resize from top-right corner"
-			/>
-			<div
-				className="absolute -bottom-1 -left-1 w-3 h-3 bg-primary rounded-full cursor-sw-resize focus:outline-none focus:ring-2 focus:ring-primary"
-				onMouseDown={(e) => handleMouseDown(e, "resize", "sw")}
-				onKeyDown={(e) => {
-					if (e.key === "Enter" || e.key === " ") {
-						e.preventDefault();
-						handleMouseDown(e as any, "resize", "sw");
-					}
-				}}
-				tabIndex={0}
-				role="button"
-				aria-label="Resize from bottom-left corner"
-			/>
-			<div
-				className="absolute -bottom-1 -right-1 w-3 h-3 bg-primary rounded-full cursor-se-resize focus:outline-none focus:ring-2 focus:ring-primary"
-				onMouseDown={(e) => handleMouseDown(e, "resize", "se")}
-				onKeyDown={(e) => {
-					if (e.key === "Enter" || e.key === " ") {
-						e.preventDefault();
-						handleMouseDown(e as any, "resize", "se");
-					}
-				}}
-				tabIndex={0}
-				role="button"
-				aria-label="Resize from bottom-right corner"
-			/>
+			{isSelected ? (
+				<>
+					{/* Resize handles - corners and edges */}
+					<div
+						className="absolute -top-1 -left-1 w-3 h-3 bg-primary rounded-full cursor-nw-resize focus:outline-none focus:ring-2 focus:ring-primary"
+						onMouseDown={(e) => handleMouseDown(e, "resize", "nw")}
+						onKeyDown={(event) => handleResizeKeyDown({ event, handle: "nw" })}
+						tabIndex={0}
+						role="button"
+						aria-label="Resize from top-left corner"
+					/>
+					<div
+						className="absolute -top-1 -right-1 w-3 h-3 bg-primary rounded-full cursor-ne-resize focus:outline-none focus:ring-2 focus:ring-primary"
+						onMouseDown={(e) => handleMouseDown(e, "resize", "ne")}
+						onKeyDown={(event) => handleResizeKeyDown({ event, handle: "ne" })}
+						tabIndex={0}
+						role="button"
+						aria-label="Resize from top-right corner"
+					/>
+					<div
+						className="absolute -bottom-1 -left-1 w-3 h-3 bg-primary rounded-full cursor-sw-resize focus:outline-none focus:ring-2 focus:ring-primary"
+						onMouseDown={(e) => handleMouseDown(e, "resize", "sw")}
+						onKeyDown={(event) => handleResizeKeyDown({ event, handle: "sw" })}
+						tabIndex={0}
+						role="button"
+						aria-label="Resize from bottom-left corner"
+					/>
+					<div
+						className="absolute -bottom-1 -right-1 w-3 h-3 bg-primary rounded-full cursor-se-resize focus:outline-none focus:ring-2 focus:ring-primary"
+						onMouseDown={(e) => handleMouseDown(e, "resize", "se")}
+						onKeyDown={(event) => handleResizeKeyDown({ event, handle: "se" })}
+						tabIndex={0}
+						role="button"
+						aria-label="Resize from bottom-right corner"
+					/>
 
-			{/* Edge resize handles */}
-			<div
-				className="absolute -top-1 left-1/2 -translate-x-1/2 w-3 h-3 bg-primary rounded-full cursor-n-resize focus:outline-none focus:ring-2 focus:ring-primary"
-				onMouseDown={(e) => handleMouseDown(e, "resize", "n")}
-				onKeyDown={(e) => {
-					if (e.key === "Enter" || e.key === " ") {
-						e.preventDefault();
-						handleMouseDown(e as any, "resize", "n");
-					}
-				}}
-				tabIndex={0}
-				role="button"
-				aria-label="Resize from top edge"
-			/>
-			<div
-				className="absolute -bottom-1 left-1/2 -translate-x-1/2 w-3 h-3 bg-primary rounded-full cursor-s-resize focus:outline-none focus:ring-2 focus:ring-primary"
-				onMouseDown={(e) => handleMouseDown(e, "resize", "s")}
-				onKeyDown={(e) => {
-					if (e.key === "Enter" || e.key === " ") {
-						e.preventDefault();
-						handleMouseDown(e as any, "resize", "s");
-					}
-				}}
-				tabIndex={0}
-				role="button"
-				aria-label="Resize from bottom edge"
-			/>
-			<div
-				className="absolute top-1/2 -left-1 -translate-y-1/2 w-3 h-3 bg-primary rounded-full cursor-w-resize focus:outline-none focus:ring-2 focus:ring-primary"
-				onMouseDown={(e) => handleMouseDown(e, "resize", "w")}
-				onKeyDown={(e) => {
-					if (e.key === "Enter" || e.key === " ") {
-						e.preventDefault();
-						handleMouseDown(e as any, "resize", "w");
-					}
-				}}
-				tabIndex={0}
-				role="button"
-				aria-label="Resize from left edge"
-			/>
-			<div
-				className="absolute top-1/2 -right-1 -translate-y-1/2 w-3 h-3 bg-primary rounded-full cursor-e-resize focus:outline-none focus:ring-2 focus:ring-primary"
-				onMouseDown={(e) => handleMouseDown(e, "resize", "e")}
-				onKeyDown={(e) => {
-					if (e.key === "Enter" || e.key === " ") {
-						e.preventDefault();
-						handleMouseDown(e as any, "resize", "e");
-					}
-				}}
-				tabIndex={0}
-				role="button"
-				aria-label="Resize from right edge"
-			/>
+					{/* Edge resize handles */}
+					<div
+						className="absolute -top-1 left-1/2 -translate-x-1/2 w-3 h-3 bg-primary rounded-full cursor-n-resize focus:outline-none focus:ring-2 focus:ring-primary"
+						onMouseDown={(e) => handleMouseDown(e, "resize", "n")}
+						onKeyDown={(event) => handleResizeKeyDown({ event, handle: "n" })}
+						tabIndex={0}
+						role="button"
+						aria-label="Resize from top edge"
+					/>
+					<div
+						className="absolute -bottom-1 left-1/2 -translate-x-1/2 w-3 h-3 bg-primary rounded-full cursor-s-resize focus:outline-none focus:ring-2 focus:ring-primary"
+						onMouseDown={(e) => handleMouseDown(e, "resize", "s")}
+						onKeyDown={(event) => handleResizeKeyDown({ event, handle: "s" })}
+						tabIndex={0}
+						role="button"
+						aria-label="Resize from bottom edge"
+					/>
+					<div
+						className="absolute top-1/2 -left-1 -translate-y-1/2 w-3 h-3 bg-primary rounded-full cursor-w-resize focus:outline-none focus:ring-2 focus:ring-primary"
+						onMouseDown={(e) => handleMouseDown(e, "resize", "w")}
+						onKeyDown={(event) => handleResizeKeyDown({ event, handle: "w" })}
+						tabIndex={0}
+						role="button"
+						aria-label="Resize from left edge"
+					/>
+					<div
+						className="absolute top-1/2 -right-1 -translate-y-1/2 w-3 h-3 bg-primary rounded-full cursor-e-resize focus:outline-none focus:ring-2 focus:ring-primary"
+						onMouseDown={(e) => handleMouseDown(e, "resize", "e")}
+						onKeyDown={(event) => handleResizeKeyDown({ event, handle: "e" })}
+						tabIndex={0}
+						role="button"
+						aria-label="Resize from right edge"
+					/>
 
-			{/* Rotation handle - top center */}
-			<div
-				className="absolute -top-8 left-1/2 -translate-x-1/2 w-6 h-6 bg-primary/80 rounded-full flex items-center justify-center cursor-pointer hover:bg-primary focus:outline-none focus:ring-2 focus:ring-primary"
-				onMouseDown={(e) => handleMouseDown(e, "rotate")}
-				onKeyDown={(e) => {
-					if (e.key === "Enter" || e.key === " ") {
-						e.preventDefault();
-						handleMouseDown(e as any, "rotate");
-					} else if (e.key === "ArrowLeft" || e.key === "ArrowRight") {
-						e.preventDefault();
-						const rotationStep = e.shiftKey ? 15 : 5;
-						const direction = e.key === "ArrowLeft" ? -1 : 1;
-						const newRotation =
-							(transform.rotation || 0) + direction * rotationStep;
-						const nextTransform = { ...transform, rotation: newRotation };
-						setTransform(nextTransform);
-						onTransformUpdate(element.id, nextTransform);
-					}
-				}}
-				tabIndex={0}
-				role="button"
-				aria-label="Rotate element. Press Enter to drag or use arrow keys to rotate"
-			>
-				<RotateCw className="w-3 h-3 text-primary-foreground" />
-			</div>
+					{/* Rotation handle - top center */}
+					<div
+						className="absolute -top-8 left-1/2 -translate-x-1/2 w-6 h-6 bg-primary/80 rounded-full flex items-center justify-center cursor-pointer hover:bg-primary focus:outline-none focus:ring-2 focus:ring-primary"
+						onMouseDown={(e) => handleMouseDown(e, "rotate")}
+						onKeyDown={(e) => {
+							if (e.key === "ArrowLeft" || e.key === "ArrowRight") {
+								e.preventDefault();
+								const rotationStep = e.shiftKey ? 15 : 5;
+								const direction = e.key === "ArrowLeft" ? -1 : 1;
+								const newRotation =
+									(transform.rotation || 0) + direction * rotationStep;
+								const nextTransform = { ...transform, rotation: newRotation };
+								setTransform(nextTransform);
+								onTransformUpdate(element.id, nextTransform);
+							}
+						}}
+						tabIndex={0}
+						role="button"
+						aria-label="Rotate element. Use arrow keys to rotate"
+					>
+						<RotateCw className="w-3 h-3 text-primary-foreground" />
+					</div>
+				</>
+			) : null}
 
 			{/* Visual feedback for active drag state */}
 			{dragState.isDragging && (

@@ -4,11 +4,22 @@
  * Individual draggable sticker element with selection and interaction support.
  */
 
-import React, { memo, useCallback, useEffect, useRef } from "react";
+import {
+	memo,
+	useCallback,
+	useEffect,
+	useRef,
+	type KeyboardEvent,
+	type MouseEvent,
+	type RefObject,
+	type TouchEvent,
+	type WheelEvent,
+} from "react";
 import { cn } from "@/lib/utils";
 import { debugLog } from "@/lib/debug/debug-config";
 import { useStickerDrag } from "./hooks/useStickerDrag";
 import { useStickersOverlayStore } from "@/stores/stickers-overlay-store";
+import { useTimelineStore } from "@/stores/timeline/timeline-store";
 import { ResizeHandles } from "./ResizeHandles";
 import { StickerControls, SimpleStickerControls } from "./StickerControls";
 import type { OverlaySticker } from "@/types/sticker-overlay";
@@ -17,14 +28,15 @@ import type { MediaItem } from "@/stores/media/media-store-types";
 interface StickerElementProps {
 	sticker: OverlaySticker;
 	mediaItem: MediaItem;
-	canvasRef: React.RefObject<HTMLDivElement | null>;
+	canvasRef: RefObject<HTMLDivElement | null>;
+	renderMode?: "full" | "interaction" | "visual";
 }
 
 /**
  * Draggable sticker element with full interaction support
  */
 export const StickerElement = memo<StickerElementProps>(
-	({ sticker, mediaItem, canvasRef }) => {
+	({ sticker, mediaItem, canvasRef, renderMode = "full" }) => {
 		const elementRef = useRef<HTMLDivElement>(null);
 
 		// Store hooks
@@ -34,7 +46,12 @@ export const StickerElement = memo<StickerElementProps>(
 			updateOverlaySticker,
 			saveHistorySnapshot,
 		} = useStickersOverlayStore();
+		const clearSelectedElements = useTimelineStore(
+			(state) => state.clearSelectedElements
+		);
 		const isSelected = selectedStickerId === sticker.id;
+		const canInteract = renderMode !== "visual";
+		const showsMedia = renderMode !== "interaction";
 
 		// Drag functionality
 		const {
@@ -48,7 +65,7 @@ export const StickerElement = memo<StickerElementProps>(
 		/**
 		 * Handle element click for selection
 		 */
-		const handleClick = (e: React.MouseEvent) => {
+		const handleClick = (e: MouseEvent<HTMLDivElement>) => {
 			e.stopPropagation();
 			if (!isDragging) {
 				selectSticker(sticker.id);
@@ -58,13 +75,27 @@ export const StickerElement = memo<StickerElementProps>(
 		/**
 		 * Combined mouse down handler
 		 */
-		const handleMouseDownWrapper = (e: React.MouseEvent) => {
+		const handleMouseDownWrapper = (e: MouseEvent<HTMLDivElement>) => {
 			debugLog(
 				"[StickerElement] 🎯 MOUSE DOWN WRAPPER: Called for sticker",
 				sticker.id
 			);
+			clearSelectedElements();
 			selectSticker(sticker.id);
 			handleMouseDown(e);
+		};
+
+		const handleTouchStartWrapper = (event: TouchEvent<HTMLDivElement>) => {
+			clearSelectedElements();
+			selectSticker(sticker.id);
+			handleTouchStart(event);
+		};
+
+		const handleKeyDown = (event: KeyboardEvent<HTMLDivElement>) => {
+			if (event.key !== "Enter" && event.key !== " ") return;
+			event.preventDefault();
+			clearSelectedElements();
+			selectSticker(sticker.id);
 		};
 
 		/**
@@ -80,7 +111,7 @@ export const StickerElement = memo<StickerElementProps>(
 			return () => clearTimeout(wheelTimeoutRef.current);
 		}, []);
 		const handleWheel = useCallback(
-			(e: React.WheelEvent) => {
+			(e: WheelEvent<HTMLDivElement>) => {
 				if (!isSelected) return;
 				e.preventDefault();
 				e.stopPropagation();
@@ -177,7 +208,7 @@ export const StickerElement = memo<StickerElementProps>(
 			height: `${sticker.size.height}%`,
 			transform: `translate(-50%, -50%) rotate(${sticker.rotation}deg)`,
 			opacity: sticker.opacity,
-			zIndex: isSelected ? 9999 : sticker.zIndex,
+			zIndex: renderMode !== "visual" && isSelected ? 9999 : sticker.zIndex,
 			transformOrigin: "center",
 			// Smooth transitions except during drag
 			transition: isDragging ? "none" : "box-shadow 0.2s",
@@ -187,53 +218,56 @@ export const StickerElement = memo<StickerElementProps>(
 			<div
 				ref={elementRef}
 				className={cn(
-					"absolute pointer-events-auto",
-					"transition-shadow duration-200",
-					isDragging ? "cursor-grabbing" : "cursor-grab",
-					isSelected && "ring-2 ring-primary shadow-lg z-50",
-					!isSelected && "hover:ring-1 hover:ring-primary/50"
+					"absolute",
+					canInteract
+						? "pointer-events-auto transition-shadow duration-200"
+						: "pointer-events-none",
+					canInteract && (isDragging ? "cursor-grabbing" : "cursor-grab"),
+					canInteract && isSelected && "ring-2 ring-primary shadow-lg z-50",
+					canInteract && !isSelected && "hover:ring-1 hover:ring-primary/50"
 				)}
 				style={elementStyle}
-				onClick={handleClick}
-				onMouseDown={handleMouseDownWrapper}
-				onWheel={handleWheel}
-				onTouchStart={handleTouchStart}
-				onTouchMove={handleTouchMove}
-				onTouchEnd={handleTouchEnd}
+				onClick={canInteract ? handleClick : undefined}
+				onMouseDown={canInteract ? handleMouseDownWrapper : undefined}
+				onKeyDown={canInteract ? handleKeyDown : undefined}
+				onWheel={canInteract ? handleWheel : undefined}
+				onTouchStart={canInteract ? handleTouchStartWrapper : undefined}
+				onTouchMove={canInteract ? handleTouchMove : undefined}
+				onTouchEnd={canInteract ? handleTouchEnd : undefined}
 				data-sticker-id={sticker.id}
-				role="button"
-				tabIndex={0}
-				aria-label={`Sticker: ${mediaItem.name}`}
-				aria-selected={isSelected}
+				data-sticker-render-mode={renderMode}
+				role={canInteract ? "button" : undefined}
+				tabIndex={canInteract ? 0 : undefined}
+				aria-label={canInteract ? `Sticker: ${mediaItem.name}` : undefined}
+				aria-selected={canInteract ? isSelected : undefined}
 			>
-				{/* Media content */}
-				{renderMediaContent()}
+				{showsMedia ? renderMediaContent() : null}
 
-				{/* Resize handles for selected sticker */}
-				<ResizeHandles
-					stickerId={sticker.id}
-					isVisible={isSelected}
-					sticker={sticker}
-					elementRef={elementRef}
-					canvasRef={canvasRef}
-				/>
+				{canInteract ? (
+					<ResizeHandles
+						stickerId={sticker.id}
+						isVisible={isSelected}
+						sticker={sticker}
+						elementRef={elementRef}
+						canvasRef={canvasRef}
+					/>
+				) : null}
 
-				{/* Control buttons for selected sticker */}
-				{isSelected && sticker.size.width > 20 ? (
+				{canInteract && isSelected && sticker.size.width > 20 ? (
 					<StickerControls
 						stickerId={sticker.id}
 						isVisible={isSelected}
 						sticker={sticker}
 					/>
-				) : (
+				) : canInteract ? (
 					<SimpleStickerControls
 						stickerId={sticker.id}
 						isVisible={isSelected}
 					/>
-				)}
+				) : null}
 
 				{/* Debug info in development */}
-				{import.meta.env.DEV && isSelected && (
+				{canInteract && import.meta.env.DEV && isSelected && (
 					<div className="absolute -bottom-8 left-0 text-xs bg-black/75 text-white px-1 rounded whitespace-nowrap">
 						{Math.round(sticker.position.x)}, {Math.round(sticker.position.y)} |{" "}
 						{Math.round(sticker.size.width)}x{Math.round(sticker.size.height)}

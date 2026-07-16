@@ -19,6 +19,7 @@ import {
 	DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { Progress } from "@/components/ui/progress";
+import { type TranslationKey, useTranslation } from "@/lib/i18n";
 import {
 	clearCloudTaskRuntimeActions,
 	getCloudTaskRuntimeActions,
@@ -29,13 +30,13 @@ import {
 	useCloudTaskStore,
 } from "@/stores/cloud-task-store";
 
-const STATUS_LABELS: Record<CloudTaskStatus, string> = {
-	queued: "等待中",
-	running: "处理中",
-	completed: "已完成",
-	failed: "失败",
-	canceled: "已取消",
-	interrupted: "已中断",
+const STATUS_LABEL_KEYS: Record<CloudTaskStatus, TranslationKey> = {
+	queued: "taskCenter.status.queued",
+	running: "taskCenter.status.running",
+	completed: "taskCenter.status.completed",
+	failed: "taskCenter.status.failed",
+	canceled: "taskCenter.status.canceled",
+	interrupted: "taskCenter.status.interrupted",
 };
 
 function TaskIcon({ status }: { status: CloudTaskStatus }) {
@@ -64,6 +65,7 @@ function activate({
 }
 
 function TaskRow({ task }: { task: CloudTask }) {
+	const { t } = useTranslation();
 	const cancelTask = useCloudTaskStore((state) => state.cancelTask);
 	const retryTask = useCloudTaskStore((state) => state.retryTask);
 	const removeTask = useCloudTaskStore((state) => state.removeTask);
@@ -98,7 +100,7 @@ function TaskRow({ task }: { task: CloudTask }) {
 					{task.label}
 				</span>
 				<span className="text-[10px] text-muted-foreground">
-					{STATUS_LABELS[task.status]}
+					{t(STATUS_LABEL_KEYS[task.status])}
 				</span>
 			</div>
 			<Progress value={task.progress} className="h-1" />
@@ -121,7 +123,7 @@ function TaskRow({ task }: { task: CloudTask }) {
 						onKeyDown={(event) => activate({ event, action: undo })}
 					>
 						<Undo2 className="size-3" />
-						撤销
+						{t("taskCenter.undo")}
 					</Button>
 				) : null}
 				{actions?.open ? (
@@ -134,7 +136,7 @@ function TaskRow({ task }: { task: CloudTask }) {
 						onKeyDown={(event) => activate({ event, action: open })}
 					>
 						<Play className="size-3" />
-						打开
+						{t("taskCenter.open")}
 					</Button>
 				) : null}
 				{active && actions?.cancel ? (
@@ -147,7 +149,7 @@ function TaskRow({ task }: { task: CloudTask }) {
 						onKeyDown={(event) => activate({ event, action: cancel })}
 					>
 						<Square className="size-3" />
-						取消
+						{t("taskCenter.cancel")}
 					</Button>
 				) : null}
 				{retryable && actions?.retry ? (
@@ -160,7 +162,7 @@ function TaskRow({ task }: { task: CloudTask }) {
 						onKeyDown={(event) => activate({ event, action: retry })}
 					>
 						<RotateCcw className="size-3" />
-						重试
+						{t("taskCenter.retry")}
 					</Button>
 				) : null}
 				{active ? null : (
@@ -169,8 +171,8 @@ function TaskRow({ task }: { task: CloudTask }) {
 						variant="text"
 						size="icon"
 						className="size-6"
-						aria-label="移除任务记录"
-						title="移除任务记录"
+						aria-label={t("taskCenter.remove")}
+						title={t("taskCenter.remove")}
 						onClick={remove}
 						onKeyDown={(event) => activate({ event, action: remove })}
 					>
@@ -183,6 +185,7 @@ function TaskRow({ task }: { task: CloudTask }) {
 }
 
 export function CloudTaskCenter() {
+	const { t } = useTranslation();
 	const tasks = useCloudTaskStore((state) => state.tasks);
 	const clearFinished = useCloudTaskStore((state) => state.clearFinished);
 	const activeCount = tasks.filter(
@@ -204,8 +207,8 @@ export function CloudTaskCenter() {
 					variant="text"
 					size="icon"
 					className="relative"
-					aria-label="任务中心"
-					title="任务中心"
+					aria-label={t("taskCenter.title")}
+					title={t("taskCenter.title")}
 					data-testid="cloud-task-center-trigger"
 				>
 					<ListTodo className="size-4" />
@@ -218,7 +221,9 @@ export function CloudTaskCenter() {
 			</DropdownMenuTrigger>
 			<DropdownMenuContent align="end" className="w-[360px] p-0">
 				<div className="flex items-center justify-between px-3 py-2">
-					<DropdownMenuLabel className="p-0">任务中心</DropdownMenuLabel>
+					<DropdownMenuLabel className="p-0">
+						{t("taskCenter.title")}
+					</DropdownMenuLabel>
 					<Button
 						type="button"
 						variant="text"
@@ -232,7 +237,7 @@ export function CloudTaskCenter() {
 						onClick={clearEnded}
 						onKeyDown={(event) => activate({ event, action: clearEnded })}
 					>
-						清除已结束
+						{t("taskCenter.clearFinished")}
 					</Button>
 				</div>
 				<DropdownMenuSeparator className="m-0" />
@@ -241,7 +246,7 @@ export function CloudTaskCenter() {
 						tasks.map((task) => <TaskRow key={task.id} task={task} />)
 					) : (
 						<div className="px-3 py-10 text-center text-xs text-muted-foreground">
-							暂无任务
+							{t("taskCenter.empty")}
 						</div>
 					)}
 				</div>

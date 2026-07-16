@@ -176,10 +176,13 @@ async function cleanupStickerPreviewSession({
 export function canUseNativeCompositionPreview({
 	activeElements,
 	hasActiveTransition,
+	hasSelection = false,
 }: {
 	activeElements: ActiveElement[];
 	hasActiveTransition: boolean;
+	hasSelection?: boolean;
 }): boolean {
+	if (hasSelection) return false;
 	let hasVisualMedia = false;
 	let hasVisualEdits = false;
 	let hasCompositedOverlay = false;

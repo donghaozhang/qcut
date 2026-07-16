@@ -1,12 +1,17 @@
 import { fireEvent, render, screen } from "@testing-library/react";
-import { describe, expect, it } from "vitest";
+import { beforeEach, describe, expect, it } from "vitest";
 import {
 	buildTextTemplate,
 	getTextTemplateDefinitionsByCategory,
 } from "@/lib/text/text-template-registry";
+import { useLocaleStore } from "@/stores/locale-store";
 import { TextTemplateThumbnail } from "../text-template-thumbnail";
 
 describe("TextTemplateThumbnail", () => {
+	beforeEach(() => {
+		useLocaleStore.getState().setLocale({ locale: "zh" });
+	});
+
 	it("uses generated image assets before falling back to canvas rendering", () => {
 		const definition = getTextTemplateDefinitionsByCategory({
 			category: "red",
@@ -35,5 +40,21 @@ describe("TextTemplateThumbnail", () => {
 		expect(
 			container.querySelector('[data-thumbnail-renderer="canvas"]')
 		).not.toBeNull();
+	});
+
+	it("localizes the accessible thumbnail name in English", () => {
+		useLocaleStore.getState().setLocale({ locale: "en" });
+		const definition = getTextTemplateDefinitionsByCategory({
+			category: "red",
+		})[0];
+		const template = buildTextTemplate({ definition });
+
+		render(
+			<TextTemplateThumbnail definition={definition} template={template} />
+		);
+
+		expect(
+			screen.getByRole("img", { name: `${template.name} thumbnail` })
+		).toBeInTheDocument();
 	});
 });

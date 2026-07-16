@@ -235,6 +235,16 @@ describe("native composition frame preview", () => {
 		).toBe(false);
 	});
 
+	it("disables the static composition frame while an element is selected", () => {
+		expect(
+			canUseNativeCompositionPreview({
+				activeElements: [activeVideo()],
+				hasActiveTransition: true,
+				hasSelection: true,
+			})
+		).toBe(false);
+	});
+
 	it("renders the exact timeline frame and exposes its object URL", async () => {
 		const { result } = renderHook(() =>
 			useNativeCompositionFramePreview(hookProps())

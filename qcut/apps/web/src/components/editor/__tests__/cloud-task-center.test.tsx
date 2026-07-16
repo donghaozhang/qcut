@@ -7,11 +7,24 @@ import {
 	registerCloudTaskRuntimeActions,
 } from "@/lib/cloud-tasks/task-runtime-actions";
 import { useCloudTaskStore } from "@/stores/cloud-task-store";
+import { useLocaleStore } from "@/stores/locale-store";
 
 describe("CloudTaskCenter", () => {
 	beforeEach(() => {
+		useLocaleStore.getState().setLocale({ locale: "zh" });
 		useCloudTaskStore.getState().resetTasks();
 		clearAllCloudTaskRuntimeActions();
+	});
+
+	it("localizes the task center chrome in English", () => {
+		useLocaleStore.getState().setLocale({ locale: "en" });
+		render(<CloudTaskCenter />);
+		fireEvent.pointerDown(screen.getByRole("button", { name: "Task center" }), {
+			button: 0,
+			ctrlKey: false,
+		});
+
+		expect(screen.getByText("No tasks")).toBeInTheDocument();
 	});
 
 	it("shows persistent progress and invokes the underlying cancel action", () => {

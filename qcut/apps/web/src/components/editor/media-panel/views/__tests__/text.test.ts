@@ -19,6 +19,7 @@ import {
 	getTextTemplateBatchCacheTargets,
 	getTextLibraryResourceReadinessLabel,
 	getTextLibraryResourceReadinessSummary,
+	getTextLibraryNavWidthClass,
 	getTextTemplateAccessibilityLabel,
 	getTextTemplateAssetProvenanceBadge,
 	getTextTemplateCardThumbnailPreview,
@@ -128,6 +129,11 @@ function createRemoteTextRuntime({
 }
 
 describe("text view layout", () => {
+	it("gives English category labels enough horizontal room", () => {
+		expect(getTextLibraryNavWidthClass({ locale: "en" })).toBe("w-40");
+		expect(getTextLibraryNavWidthClass({ locale: "zh" })).toBe("w-[5.5rem]");
+	});
+
 	it("keeps the asset grid at four or five columns for typical panel widths", () => {
 		expect(getTextTemplateGridColumnCount({ width: 520 })).toBe(5);
 		expect(getTextTemplateGridColumnCount({ width: 460 })).toBe(5);
@@ -420,6 +426,28 @@ describe("text view layout", () => {
 		);
 	});
 
+	it("localizes template actions and resource status labels in English", () => {
+		expect(
+			getTextTemplateAccessibilityLabel({
+				isPack: true,
+				locale: "en",
+				slotLabels: ["Headline", "Subhead"],
+				templateName: "Headline Glow",
+			})
+		).toBe(
+			"Add grouped text template Headline Glow; replaceable: Headline, Subhead"
+		);
+		expect(
+			getTextTemplatePackCopyActionLabel({ locale: "en", slotCount: 3 })
+		).toBe("Replace 3 copy fields");
+		expect(
+			getTextTemplateAssetProvenanceBadge({
+				locale: "en",
+				provenance: { source: "designer-imported" },
+			})
+		).toEqual({ label: "Designer asset", source: "designer-imported" });
+	});
+
 	it("summarizes template pack replacement slots for compact cards", () => {
 		const definition = getTextTemplateDefinitionsByCategory({
 			category: "headline-template",
@@ -539,6 +567,30 @@ describe("text view layout", () => {
 				sourceFilter: "all",
 			})
 		).toBe("还没有收藏文字样式");
+	});
+
+	it("localizes empty states and designer readiness labels in English", () => {
+		expect(
+			getTextLibraryEmptyMessage({
+				categoryId: "red",
+				hasDesignerSourceAssets: false,
+				hasActiveFilters: true,
+				locale: "en",
+				sourceFilter: "designer",
+			})
+		).toBe("No designer text asset pack imported yet");
+		expect(
+			getTextLibraryDesignerImportGoalLabel({
+				locale: "en",
+				summary: {
+					designerImported: 3,
+					generatedFallback: 1,
+					missingDesignerAssets: 2,
+					requiredDesignerAssets: 5,
+					status: "needs-designer-pack",
+				},
+			})
+		).toBe("Designer target short by 2");
 	});
 
 	it("summarizes generated fallback resources as missing a designer pack", () => {

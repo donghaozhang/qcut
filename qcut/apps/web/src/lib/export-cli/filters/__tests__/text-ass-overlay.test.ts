@@ -73,6 +73,29 @@ describe("buildTextASSOverlay", () => {
 		expect(result.content).not.toContain("\\N");
 	});
 
+	it("keeps a measured auto-fitted text box on one line", () => {
+		const result = buildTextASSOverlay({
+			tracks: [
+				createTrack(
+					createTextElement({
+						content: "Default text",
+						fontSize: 66,
+						fontWeight: "bold",
+						width: 400,
+						height: 120,
+						backgroundPadding: 20,
+					})
+				),
+			],
+			canvasWidth: 1920,
+			canvasHeight: 1080,
+			measureTextWidth: () => 359.390625,
+		});
+
+		expect(result.content.match(/Dialogue: 2/g)).toHaveLength(1);
+		expect(result.content).toContain("}Default text");
+	});
+
 	it("exports curved text as individually positioned characters", () => {
 		const result = buildTextASSOverlay({
 			tracks: [createTrack(createTextElement({ content: "ARC", curve: 90 }))],

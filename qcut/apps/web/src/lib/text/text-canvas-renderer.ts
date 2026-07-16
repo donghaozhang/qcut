@@ -8,6 +8,7 @@ import {
 import { getTextAnimationState } from "./text-animation";
 import { resolveTextKeyframes } from "./text-keyframes";
 import { getCurvedTextTransforms } from "./curved-text";
+import { wrapTextToWidth } from "./text-measurement";
 
 type CanvasTextContext =
 	| CanvasRenderingContext2D
@@ -30,32 +31,6 @@ function measureWithSpacing(
 	);
 }
 
-function splitOversizedToken({
-	ctx,
-	token,
-	maxWidth,
-	letterSpacing,
-}: {
-	ctx: CanvasTextContext;
-	token: string;
-	maxWidth: number;
-	letterSpacing: number;
-}): string[] {
-	const chunks: string[] = [];
-	let chunk = "";
-	for (const character of Array.from(token)) {
-		const candidate = `${chunk}${character}`;
-		if (chunk && measureWithSpacing(ctx, candidate, letterSpacing) > maxWidth) {
-			chunks.push(chunk);
-			chunk = character;
-		} else {
-			chunk = candidate;
-		}
-	}
-	if (chunk) chunks.push(chunk);
-	return chunks;
-}
-
 export function wrapTextForBox({
 	ctx,
 	text,
@@ -67,43 +42,12 @@ export function wrapTextForBox({
 	maxWidth: number;
 	letterSpacing: number;
 }): string[] {
-	const lines: string[] = [];
-	for (const paragraph of text.replace(/\r/g, "").split("\n")) {
-		if (!paragraph) {
-			lines.push("");
-			continue;
-		}
-
-		const tokens = paragraph.match(/\S+\s*|\s+/g) ?? [paragraph];
-		let line = "";
-		for (const token of tokens) {
-			const candidate = `${line}${token}`;
-			if (
-				measureWithSpacing(ctx, candidate.trimEnd(), letterSpacing) <= maxWidth
-			) {
-				line = candidate;
-				continue;
-			}
-
-			if (line) lines.push(line.trimEnd());
-			line = "";
-			if (measureWithSpacing(ctx, token.trimEnd(), letterSpacing) <= maxWidth) {
-				line = token.trimStart();
-				continue;
-			}
-
-			const chunks = splitOversizedToken({
-				ctx,
-				token: token.trim(),
-				maxWidth,
-				letterSpacing,
-			});
-			lines.push(...chunks.slice(0, -1));
-			line = chunks.at(-1) ?? "";
-		}
-		lines.push(line.trimEnd());
-	}
-	return lines.length > 0 ? lines : [""];
+	return wrapTextToWidth({
+		maxWidth,
+		measureLineWidth: ({ text: candidate }) =>
+			measureWithSpacing(ctx, candidate, letterSpacing),
+		text,
+	});
 }
 
 function roundedRectPath({

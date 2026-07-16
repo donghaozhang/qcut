@@ -12,21 +12,34 @@ import {
 	TooltipContent,
 	TooltipTrigger,
 } from "@/components/ui/tooltip";
+import { translate, type AppLocale, useTranslation } from "@/lib/i18n";
 import { useUserLibrarySyncStore } from "@/stores/user-library-sync-store";
 
 function statusLabel({
 	status,
 	error,
+	locale,
 }: {
 	status: ReturnType<typeof useUserLibrarySyncStore.getState>["status"];
 	error: string | null;
+	locale: AppLocale;
 }): string {
-	if (status === "syncing") return "正在同步模板和预设";
-	if (status === "synced") return "模板和预设已同步";
-	if (status === "offline") return "离线：恢复网络后自动同步";
-	if (status === "signed-out") return "登录后同步模板和预设";
-	if (status === "error") return error ?? "同步失败，点击重试";
-	return "同步模板和预设";
+	if (status === "syncing") {
+		return translate({ locale, key: "librarySync.syncing" });
+	}
+	if (status === "synced") {
+		return translate({ locale, key: "librarySync.synced" });
+	}
+	if (status === "offline") {
+		return translate({ locale, key: "librarySync.offline" });
+	}
+	if (status === "signed-out") {
+		return translate({ locale, key: "librarySync.signedOut" });
+	}
+	if (status === "error") {
+		return error ?? translate({ locale, key: "librarySync.failed" });
+	}
+	return translate({ locale, key: "librarySync.idle" });
 }
 
 function StatusIcon({
@@ -34,10 +47,11 @@ function StatusIcon({
 }: {
 	status: ReturnType<typeof useUserLibrarySyncStore.getState>["status"];
 }) {
+	const { t } = useTranslation();
 	if (status === "syncing") {
 		return (
 			<LoaderCircle className="size-3.5 animate-spin">
-				<title>Syncing user library</title>
+				<title>{t("librarySync.syncing")}</title>
 			</LoaderCircle>
 		);
 	}
@@ -52,29 +66,34 @@ function StatusIcon({
 	if (status === "offline" || status === "signed-out") {
 		return (
 			<CloudOff className="size-4">
-				<title>Cloud library unavailable</title>
+				<title>
+					{status === "offline"
+						? t("librarySync.offline")
+						: t("librarySync.signedOut")}
+				</title>
 			</CloudOff>
 		);
 	}
 	if (status === "error") {
 		return (
 			<TriangleAlert className="size-4 text-amber-500">
-				<title>Cloud library sync failed</title>
+				<title>{t("librarySync.failed")}</title>
 			</TriangleAlert>
 		);
 	}
 	return (
 		<RefreshCw className="size-4">
-			<title>Sync user library</title>
+			<title>{t("librarySync.idle")}</title>
 		</RefreshCw>
 	);
 }
 
 export function UserLibrarySyncControl() {
+	const { locale } = useTranslation();
 	const status = useUserLibrarySyncStore((state) => state.status);
 	const error = useUserLibrarySyncStore((state) => state.error);
 	const sync = useUserLibrarySyncStore((state) => state.sync);
-	const label = statusLabel({ status, error });
+	const label = statusLabel({ status, error, locale });
 
 	return (
 		<Tooltip>

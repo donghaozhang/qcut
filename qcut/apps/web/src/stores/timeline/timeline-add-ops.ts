@@ -1,5 +1,6 @@
 import { TIMELINE_CONSTANTS } from "@/constants/timeline-constants";
 import { clampMarkdownDuration } from "@/lib/markdown";
+import { fitTextElementBoxToContent } from "@/lib/text/text-box-sizing";
 import { getValidTextGroupElements } from "@/lib/timeline/text-group-drag-data";
 import { generateUUID } from "@/lib/utils";
 import type {
@@ -102,7 +103,7 @@ export function createAddOps(
 		addTextAtTime: (item: Partial<TextElement>, currentTime = 0): boolean => {
 			const targetTrackId = get().insertTrackAt("text", 0); // Always create new text track at the top
 
-			get().addElementToTrack(targetTrackId, {
+			const textElement: CreateTextElement = {
 				type: "text",
 				name: item.name || "Text",
 				content: item.content || "Default Text",
@@ -149,7 +150,11 @@ export function createAddOps(
 				animationDelay: item.animationDelay ?? 0,
 				keyframes: item.keyframes,
 				blendMode: item.blendMode ?? "normal",
-			});
+			};
+			get().addElementToTrack(
+				targetTrackId,
+				fitTextElementBoxToContent({ element: textElement })
+			);
 			return true;
 		},
 

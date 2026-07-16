@@ -11,7 +11,20 @@ import {
 import { TIMELINE_CONSTANTS } from "@/constants/timeline-constants";
 import { useOnlineStatus } from "@/hooks/use-online-status";
 import { resolveTextTemplateAssetEntry } from "@/lib/assets/qcut-asset-manifest";
+import {
+	translate,
+	type AppLocale,
+	type TranslationKey,
+	useTranslation,
+} from "@/lib/i18n";
 import { getTextTemplateCatalogThumbnailUrl } from "@/lib/text/text-resource-catalog";
+import {
+	getLocalizedTextTemplateCategoryLabel,
+	getLocalizedTextTemplateDefinition,
+	getLocalizedTextTemplateDefinitionName,
+	getLocalizedTextTemplateGroupLabel,
+	getLocalizedTextTemplatePackSlotLabel,
+} from "@/lib/text/text-template-i18n";
 import {
 	downloadTextTemplateResource,
 	loadTextTemplateThumbnailBlob,
@@ -153,50 +166,56 @@ type TextLibraryDesignerImportGoalSummary = {
 
 const TEXT_LIBRARY_STATUS_FILTERS: readonly {
 	id: TextLibraryStatusFilter;
-	label: string;
+	labelKey: TranslationKey;
 }[] = [
-	{ id: "all", label: "全部" },
-	{ id: "free", label: "免费" },
-	{ id: "premium", label: "SVIP" },
-	{ id: "downloaded", label: "已下载" },
-	{ id: "favorites", label: "收藏" },
+	{ id: "all", labelKey: "textLibrary.filter.status.all" },
+	{ id: "free", labelKey: "textLibrary.filter.status.free" },
+	{ id: "premium", labelKey: "textLibrary.filter.status.premium" },
+	{ id: "downloaded", labelKey: "textLibrary.filter.status.downloaded" },
+	{ id: "favorites", labelKey: "textLibrary.filter.status.favorites" },
 ];
 
 const TEXT_LIBRARY_STYLE_FILTERS: readonly {
 	id: TextLibraryStyleFilter;
-	label: string;
+	labelKey: TranslationKey;
 }[] = [
-	{ id: "all", label: "全部风格" },
-	{ id: "fire", label: "火焰" },
-	{ id: "glitch", label: "故障" },
-	{ id: "sticker", label: "贴纸" },
-	{ id: "pixel", label: "像素" },
-	{ id: "guofeng", label: "国风" },
-	{ id: "glow", label: "发光" },
-	{ id: "blue", label: "蓝色" },
-	{ id: "red", label: "红色" },
+	{ id: "all", labelKey: "textLibrary.filter.style.all" },
+	{ id: "fire", labelKey: "textLibrary.filter.style.fire" },
+	{ id: "glitch", labelKey: "textLibrary.filter.style.glitch" },
+	{ id: "sticker", labelKey: "textLibrary.filter.style.sticker" },
+	{ id: "pixel", labelKey: "textLibrary.filter.style.pixel" },
+	{ id: "guofeng", labelKey: "textLibrary.filter.style.guofeng" },
+	{ id: "glow", labelKey: "textLibrary.filter.style.glow" },
+	{ id: "blue", labelKey: "textLibrary.filter.style.blue" },
+	{ id: "red", labelKey: "textLibrary.filter.style.red" },
 ];
 
 const TEXT_LIBRARY_MARKET_FILTERS: readonly {
 	id: TextLibraryMarketFilter;
-	label: string;
+	labelKey: TranslationKey;
 }[] = [
-	{ id: "all", label: "全部运营" },
-	{ id: "recommended", label: "推荐" },
-	{ id: "commerce", label: "带货" },
-	{ id: "cover", label: "封面" },
-	{ id: "variety", label: "综艺" },
-	{ id: "premium-look", label: "质感" },
-	{ id: "night", label: "夜景" },
+	{ id: "all", labelKey: "textLibrary.filter.market.all" },
+	{
+		id: "recommended",
+		labelKey: "textLibrary.filter.market.recommended",
+	},
+	{ id: "commerce", labelKey: "textLibrary.filter.market.commerce" },
+	{ id: "cover", labelKey: "textLibrary.filter.market.cover" },
+	{ id: "variety", labelKey: "textLibrary.filter.market.variety" },
+	{
+		id: "premium-look",
+		labelKey: "textLibrary.filter.market.premiumLook",
+	},
+	{ id: "night", labelKey: "textLibrary.filter.market.night" },
 ];
 
 const TEXT_LIBRARY_SOURCE_FILTERS: readonly {
 	id: TextLibrarySourceFilter;
-	label: string;
+	labelKey: TranslationKey;
 }[] = [
-	{ id: "all", label: "全部来源" },
-	{ id: "designer", label: "设计师" },
-	{ id: "generated", label: "生成兜底" },
+	{ id: "all", labelKey: "textLibrary.filter.source.all" },
+	{ id: "designer", labelKey: "textLibrary.filter.source.designer" },
+	{ id: "generated", labelKey: "textLibrary.filter.source.generated" },
 ];
 
 const TEXT_TEMPLATE_GRID_COLUMNS = {
@@ -308,40 +327,88 @@ export function getTextTemplatePackCopyDefaults({
 
 export function getTextTemplateAccessibilityLabel({
 	isPack,
+	locale = "zh",
 	slotLabels = [],
 	templateName,
 }: {
 	isPack: boolean;
+	locale?: AppLocale;
 	slotLabels?: readonly string[];
 	templateName: string;
 }): string {
-	if (!isPack) return `添加文字模板 ${templateName}`;
-	if (slotLabels.length === 0) return `添加组合文字模板 ${templateName}`;
-	return `添加组合文字模板 ${templateName}，可替换：${slotLabels.join("、")}`;
+	if (!isPack) {
+		return translate({
+			locale,
+			key: "textLibrary.card.addTemplate",
+			values: { name: templateName },
+		});
+	}
+	if (slotLabels.length === 0) {
+		return translate({
+			locale,
+			key: "textLibrary.card.addPack",
+			values: { name: templateName },
+		});
+	}
+	return translate({
+		locale,
+		key: "textLibrary.card.addPackWithSlots",
+		values: {
+			name: templateName,
+			slots: slotLabels.join(locale === "zh" ? "、" : ", "),
+		},
+	});
 }
 
 export function getTextTemplatePackCopyActionLabel({
+	locale = "zh",
 	slotCount,
 }: {
+	locale?: AppLocale;
 	slotCount: number;
 }): string {
-	return slotCount > 0 ? `替换 ${slotCount} 个模板文案` : "替换模板文案";
+	return translate({
+		locale,
+		key:
+			slotCount > 0
+				? "textLibrary.card.replaceCopyCount"
+				: "textLibrary.card.replaceCopy",
+		values: { count: slotCount },
+	});
 }
 
 export function getTextTemplatePackLayerBadgeLabel({
 	elementCount,
+	locale = "zh",
 }: {
 	elementCount: number;
+	locale?: AppLocale;
 }): string {
-	return elementCount > 0 ? `${elementCount} 层组合` : "组合模板";
+	return translate({
+		locale,
+		key:
+			elementCount > 0
+				? "textLibrary.card.packLayers"
+				: "textLibrary.card.pack",
+		values: { count: elementCount },
+	});
 }
 
 export function getTextTemplatePackCopyBadgeLabel({
+	locale = "zh",
 	slotCount,
 }: {
+	locale?: AppLocale;
 	slotCount: number;
 }): string {
-	return slotCount > 0 ? `${slotCount} 个可替换文案` : "可替换文案";
+	return translate({
+		locale,
+		key:
+			slotCount > 0
+				? "textLibrary.card.replaceableCount"
+				: "textLibrary.card.replaceable",
+		values: { count: slotCount },
+	});
 }
 
 export function getTextTemplatePackSlotPreviewLabels({
@@ -366,19 +433,27 @@ type TextTemplateAssetProvenanceBadge = {
 };
 
 export function getTextTemplateAssetProvenanceBadge({
+	locale = "zh",
 	provenance,
 }: {
+	locale?: AppLocale;
 	provenance?: { source?: string };
 }): TextTemplateAssetProvenanceBadge | undefined {
 	if (provenance?.source === "designer-imported") {
 		return {
-			label: "设计师素材",
+			label: translate({
+				locale,
+				key: "textLibrary.card.designerAsset",
+			}),
 			source: "designer-imported",
 		};
 	}
 	if (provenance?.source === "generated") {
 		return {
-			label: "生成兜底素材",
+			label: translate({
+				locale,
+				key: "textLibrary.card.generatedAsset",
+			}),
 			source: "generated",
 		};
 	}
@@ -395,10 +470,11 @@ export function getTextTemplateAssetProvenanceSource({
 	const metadata = asset.metadata as
 		| { provenance?: { source?: string } }
 		| undefined;
-	const badge = getTextTemplateAssetProvenanceBadge({
-		provenance: metadata?.provenance,
-	});
-	return badge?.source;
+	if (metadata?.provenance?.source === "designer-imported") {
+		return "designer-imported";
+	}
+	if (metadata?.provenance?.source === "generated") return "generated";
+	return undefined;
 }
 
 export function applyTextTemplatePackCopyValues({
@@ -489,23 +565,29 @@ function TextTemplate({
 	onToggleFavorite: (props: { templateId: string }) => void;
 	onUseTemplate: (props: { templateId: string }) => void;
 }) {
+	const { locale, t } = useTranslation();
+	const localizedDefinition = useMemo(
+		() => getLocalizedTextTemplateDefinition({ definition, locale }),
+		[definition, locale]
+	);
 	const template = useMemo(
-		() => buildTextTemplate({ definition }),
-		[definition]
+		() => buildTextTemplate({ definition: localizedDefinition }),
+		[localizedDefinition]
 	);
 	const provenanceSource = getTextTemplateAssetProvenanceSource({ definition });
 	const provenanceBadge = provenanceSource
 		? getTextTemplateAssetProvenanceBadge({
+				locale,
 				provenance: { source: provenanceSource },
 			})
 		: undefined;
 	const dragData = useMemo(
-		() => buildTextTemplateDragData({ definition }),
-		[definition]
+		() => buildTextTemplateDragData({ definition: localizedDefinition }),
+		[localizedDefinition]
 	);
 	const editableTemplatePack = useMemo(
-		() => buildTextTemplatePack({ definition }),
-		[definition]
+		() => buildTextTemplatePack({ definition: localizedDefinition }),
+		[localizedDefinition]
 	);
 	const [copyDialogOpen, setCopyDialogOpen] = useState(false);
 	const [copyValues, setCopyValues] = useState<string[]>(() =>
@@ -517,14 +599,23 @@ function TextTemplate({
 		string | undefined
 	>();
 	const isTemplatePack = Boolean(editableTemplatePack);
+	const localizedCopySlots = useMemo(
+		() =>
+			(editableTemplatePack?.copySlots ?? []).map((slot) => ({
+				...slot,
+				label: getLocalizedTextTemplatePackSlotLabel({ locale, slot }),
+			})),
+		[editableTemplatePack?.copySlots, locale]
+	);
 	const templateAccessibilityLabel = getTextTemplateAccessibilityLabel({
 		isPack: isTemplatePack,
-		slotLabels: editableTemplatePack?.copySlots.map((slot) => slot.label) ?? [],
+		locale,
+		slotLabels: localizedCopySlots.map((slot) => slot.label),
 		templateName: template.name,
 	});
 	const resolveTemplate = async () => {
 		return resolveTextTemplateForTimeline({
-			definition,
+			definition: localizedDefinition,
 			enabled: isDownloaded,
 			fallbackTemplate: template,
 		});
@@ -537,19 +628,19 @@ function TextTemplate({
 		customCopyValues?: readonly string[];
 	} = {}) => {
 		if (resourceAccess === "svip-required") {
-			toast.error("这个文字样式需要 SVIP。");
+			toast.error(t("textLibrary.toast.svipRequired"));
 			return;
 		}
 		const time = currentTime ?? usePlaybackStore.getState().currentTime;
 		const resolvedTemplate = await resolveTemplate();
 		const fallbackTemplatePack = buildTextTemplatePack({
 			baseTemplate: resolvedTemplate,
-			definition,
+			definition: localizedDefinition,
 			currentTime: time,
 		});
 		const timedTemplatePack = await resolveTextTemplatePackForTimeline({
 			currentTime: time,
-			definition,
+			definition: localizedDefinition,
 			enabled: isDownloaded,
 			fallbackPack: fallbackTemplatePack,
 			fallbackTemplate: resolvedTemplate,
@@ -631,28 +722,34 @@ function TextTemplate({
 	const downloadLabel = getTextTemplateDownloadLabel({
 		downloadStatus,
 		isDownloaded,
+		locale,
 		resourceAccess,
 	});
 	const copyActionLabel = getTextTemplatePackCopyActionLabel({
+		locale,
 		slotCount: editableTemplatePack?.copySlots.length ?? 0,
 	});
 	const templatePackElementCount = editableTemplatePack?.elements.length ?? 0;
 	const templatePackCopySlotCount = editableTemplatePack?.copySlots.length ?? 0;
 	const templatePackLayerBadgeLabel = getTextTemplatePackLayerBadgeLabel({
 		elementCount: templatePackElementCount,
+		locale,
 	});
 	const templatePackCopyBadgeLabel = getTextTemplatePackCopyBadgeLabel({
+		locale,
 		slotCount: templatePackCopySlotCount,
 	});
 	const templatePackSlotPreviewLabels = editableTemplatePack
 		? getTextTemplatePackSlotPreviewLabels({
-				copySlots: editableTemplatePack.copySlots,
+				copySlots: localizedCopySlots,
 			})
 		: [];
 	const templatePackSlotPreviewTitle = editableTemplatePack
-		? `可替换文案：${editableTemplatePack.copySlots
-				.map((slot) => slot.label)
-				.join("、")}`
+		? t("textLibrary.card.replaceableTitle", {
+				slots: localizedCopySlots
+					.map((slot) => slot.label)
+					.join(locale === "zh" ? "、" : ", "),
+			})
 		: "";
 	const copyPreviewPack = useMemo(
 		() =>
@@ -667,7 +764,8 @@ function TextTemplate({
 	const cardThumbnailPreview = getTextTemplateCardThumbnailPreview({
 		templatePack: editableTemplatePack,
 		thumbnailUrl:
-			cachedThumbnailUrl ?? getTextTemplateCatalogThumbnailUrl({ definition }),
+			cachedThumbnailUrl ??
+			getTextTemplateCatalogThumbnailUrl({ definition: localizedDefinition }),
 	});
 
 	useEffect(() => {
@@ -783,7 +881,7 @@ function TextTemplate({
 					{definition.premium && (
 						<div className="absolute left-1 top-1 flex h-3.5 w-3.5 items-center justify-center rounded-full bg-cyan-300 text-slate-950 shadow-sm">
 							<Gem aria-hidden="true" className="h-2.5 w-2.5">
-								<title>会员素材</title>
+								<title>{t("textLibrary.card.premiumAsset")}</title>
 							</Gem>
 						</div>
 					)}
@@ -811,7 +909,11 @@ function TextTemplate({
 					)}
 					<button
 						type="button"
-						aria-label={isFavorite ? "取消收藏" : "收藏"}
+						aria-label={
+							isFavorite
+								? t("textLibrary.card.unfavorite")
+								: t("textLibrary.card.favorite")
+						}
 						className={cn(
 							"absolute right-1 top-1 flex h-4 w-4 items-center justify-center rounded-full bg-black/50 text-white opacity-0 transition-colors hover:bg-black/75 group-focus-within:opacity-100 group-hover:opacity-100",
 							isFavorite && "bg-rose-500 text-white hover:bg-rose-600"
@@ -828,7 +930,11 @@ function TextTemplate({
 							aria-hidden="true"
 							className={cn("h-3.5 w-3.5", isFavorite && "fill-current")}
 						>
-							<title>{isFavorite ? "取消收藏" : "收藏"}</title>
+							<title>
+								{isFavorite
+									? t("textLibrary.card.unfavorite")
+									: t("textLibrary.card.favorite")}
+							</title>
 						</Heart>
 					</button>
 					<button
@@ -864,7 +970,7 @@ function TextTemplate({
 				<TextTemplateCopyDialog
 					copySlots={editableTemplatePack.copySlots}
 					copyValues={copyValues}
-					definition={definition}
+					definition={localizedDefinition}
 					previewPack={copyPreviewPack}
 					open={copyDialogOpen}
 					template={template}
@@ -907,11 +1013,14 @@ function TextTemplateCopyDialog({
 	template: TextElement;
 	templateName: string;
 }) {
+	const { locale, t } = useTranslation();
 	return (
 		<Dialog open={open} onOpenChange={onOpenChange}>
 			<DialogContent className="max-w-sm border-border/70 bg-background">
 				<DialogHeader>
-					<DialogTitle className="text-base">替换模板文案</DialogTitle>
+					<DialogTitle className="text-base">
+						{t("textLibrary.copy.title")}
+					</DialogTitle>
 					<DialogDescription>{templateName}</DialogDescription>
 				</DialogHeader>
 				<div className="space-y-3">
@@ -924,7 +1033,7 @@ function TextTemplateCopyDialog({
 					</div>
 					<label className="block space-y-1">
 						<span className="text-[0.72rem] text-muted-foreground">
-							批量替换
+							{t("textLibrary.copy.batch")}
 						</span>
 						<Textarea
 							value={copyValues.join("\n")}
@@ -938,7 +1047,7 @@ function TextTemplateCopyDialog({
 						{copySlots.map((slot, index) => (
 							<label key={slot.id} className="block space-y-1">
 								<span className="text-[0.72rem] text-muted-foreground">
-									{slot.label}
+									{getLocalizedTextTemplatePackSlotLabel({ locale, slot })}
 								</span>
 								<input
 									type="text"
@@ -972,7 +1081,7 @@ function TextTemplateCopyDialog({
 							onInsert();
 						}}
 					>
-						插入模板
+						{t("textLibrary.copy.insert")}
 					</button>
 				</DialogFooter>
 			</DialogContent>
@@ -1222,14 +1331,22 @@ export function getTextLibraryResourceReadinessSummary({
 }
 
 export function getTextLibraryResourceReadinessLabel({
+	locale = "zh",
 	summary,
 }: {
+	locale?: AppLocale;
 	summary: TextLibraryResourceReadinessSummary;
 }): string {
-	if (summary.status === "empty") return "无资源";
-	if (summary.status === "designer-ready") return "设计师素材就绪";
-	if (summary.status === "needs-cache") return "缺本地缓存";
-	return "缺设计师素材包";
+	if (summary.status === "empty") {
+		return translate({ locale, key: "textLibrary.readiness.empty" });
+	}
+	if (summary.status === "designer-ready") {
+		return translate({ locale, key: "textLibrary.readiness.designerReady" });
+	}
+	if (summary.status === "needs-cache") {
+		return translate({ locale, key: "textLibrary.readiness.needsCache" });
+	}
+	return translate({ locale, key: "textLibrary.readiness.needsDesignerPack" });
 }
 
 export function getTextLibraryDesignerImportGoalSummary({
@@ -1276,12 +1393,20 @@ export function getTextLibraryDesignerImportGoalSummary({
 }
 
 export function getTextLibraryDesignerImportGoalLabel({
+	locale = "zh",
 	summary,
 }: {
+	locale?: AppLocale;
 	summary: TextLibraryDesignerImportGoalSummary;
 }): string {
-	if (summary.status === "designer-ready") return "设计师目标达成";
-	return `设计师目标缺 ${summary.missingDesignerAssets}`;
+	if (summary.status === "designer-ready") {
+		return translate({ locale, key: "textLibrary.goal.ready" });
+	}
+	return translate({
+		locale,
+		key: "textLibrary.goal.missing",
+		values: { count: summary.missingDesignerAssets },
+	});
 }
 
 function TextLibraryResourceReadinessBar({
@@ -1291,13 +1416,18 @@ function TextLibraryResourceReadinessBar({
 	designerGoalSummary: TextLibraryDesignerImportGoalSummary;
 	summary: TextLibraryResourceReadinessSummary;
 }) {
-	const label = getTextLibraryResourceReadinessLabel({ summary });
+	const { locale, t } = useTranslation();
+	const label = getTextLibraryResourceReadinessLabel({ locale, summary });
 	const designerGoalLabel = getTextLibraryDesignerImportGoalLabel({
+		locale,
 		summary: designerGoalSummary,
 	});
 	return (
 		<div
-			aria-label={`${label}，${designerGoalLabel}`}
+			aria-label={t("textLibrary.readinessAria", {
+				status: label,
+				goal: designerGoalLabel,
+			})}
 			className="flex min-w-0 items-center gap-1.5 overflow-x-auto pb-1 text-[0.68rem] text-muted-foreground"
 		>
 			<span
@@ -1318,26 +1448,39 @@ function TextLibraryResourceReadinessBar({
 						: "bg-amber-500/15 text-amber-200"
 				)}
 			>
-				设计师目标 {designerGoalSummary.designerImported}/
-				{designerGoalSummary.requiredDesignerAssets}
+				{t("textLibrary.metrics.designerGoal", {
+					current: designerGoalSummary.designerImported,
+					required: designerGoalSummary.requiredDesignerAssets,
+				})}
 			</span>
 			<span className="shrink-0 rounded-md bg-muted px-2 py-1">
-				当前设计师 {summary.designerImported}/{summary.total}
+				{t("textLibrary.metrics.currentDesigner", {
+					current: summary.designerImported,
+					total: summary.total,
+				})}
 			</span>
 			<span className="shrink-0 rounded-md bg-muted px-2 py-1">
-				当前兜底 {summary.generatedFallback}
+				{t("textLibrary.metrics.currentFallback", {
+					count: summary.generatedFallback,
+				})}
 			</span>
 			<span className="shrink-0 rounded-md bg-muted px-2 py-1">
-				待缓存 {summary.remoteUncached}
+				{t("textLibrary.metrics.pendingCache", {
+					count: summary.remoteUncached,
+				})}
 			</span>
 			{designerGoalSummary.generatedFallback > 0 && (
 				<span className="shrink-0 rounded-md bg-muted px-2 py-1">
-					全库兜底 {designerGoalSummary.generatedFallback}
+					{t("textLibrary.metrics.catalogFallback", {
+						count: designerGoalSummary.generatedFallback,
+					})}
 				</span>
 			)}
 			{summary.svipLocked > 0 && (
 				<span className="shrink-0 rounded-md bg-muted px-2 py-1">
-					SVIP锁定 {summary.svipLocked}
+					{t("textLibrary.metrics.svipLocked", {
+						count: summary.svipLocked,
+					})}
 				</span>
 			)}
 		</div>
@@ -1396,19 +1539,27 @@ export function getExpandedTextTemplateGridColumnCount({
 function getTextTemplateDownloadLabel({
 	downloadStatus,
 	isDownloaded,
+	locale,
 	resourceAccess,
 }: {
 	downloadStatus: TextTemplateDownloadStatus;
 	isDownloaded: boolean;
+	locale: AppLocale;
 	resourceAccess: TextTemplateResourceAccess;
 }): string {
-	if (isDownloaded) return "已下载";
-	if (downloadStatus === "failed" && resourceAccess === "svip-required") {
-		return "需要SVIP";
+	if (isDownloaded) {
+		return translate({ locale, key: "textLibrary.download.downloaded" });
 	}
-	if (downloadStatus === "downloading") return "下载中";
-	if (downloadStatus === "failed") return "重试下载";
-	return "下载";
+	if (downloadStatus === "failed" && resourceAccess === "svip-required") {
+		return translate({ locale, key: "textLibrary.download.svipRequired" });
+	}
+	if (downloadStatus === "downloading") {
+		return translate({ locale, key: "textLibrary.download.downloading" });
+	}
+	if (downloadStatus === "failed") {
+		return translate({ locale, key: "textLibrary.download.retry" });
+	}
+	return translate({ locale, key: "textLibrary.download.download" });
 }
 
 function MarkdownTemplate({
@@ -1453,6 +1604,14 @@ function isActivationKey({
 	return event.key === "Enter" || event.key === " ";
 }
 
+export function getTextLibraryNavWidthClass({
+	locale,
+}: {
+	locale: AppLocale;
+}): string {
+	return locale === "en" ? "w-40" : "w-[5.5rem]";
+}
+
 function TextLibraryNav({
 	activeCategoryId,
 	className,
@@ -1466,11 +1625,13 @@ function TextLibraryNav({
 	onSelectCategory: (props: { categoryId: TextTemplateCategoryId }) => void;
 	onSelectGroup: (props: { group: TextTemplateGroup }) => void;
 }) {
+	const { locale, t } = useTranslation();
 	return (
 		<nav
-			aria-label="文字分类"
+			aria-label={t("textLibrary.navLabel")}
 			className={cn(
-				"w-[5.5rem] shrink-0 space-y-0.5 overflow-y-auto pr-2",
+				getTextLibraryNavWidthClass({ locale }),
+				"shrink-0 space-y-0.5 overflow-y-auto pr-2",
 				className
 			)}
 		>
@@ -1497,7 +1658,12 @@ function TextLibraryNav({
 								onSelectGroup({ group });
 							}}
 						>
-							<span className="truncate">{group.label}</span>
+							<span
+								className="truncate"
+								title={getLocalizedTextTemplateGroupLabel({ group, locale })}
+							>
+								{getLocalizedTextTemplateGroupLabel({ group, locale })}
+							</span>
 							<ChevronDown
 								aria-hidden="true"
 								className={cn(
@@ -1515,6 +1681,10 @@ function TextLibraryNav({
 										<button
 											key={category.id}
 											type="button"
+											title={getLocalizedTextTemplateCategoryLabel({
+												category,
+												locale,
+											})}
 											className={cn(
 												"h-6 w-full truncate rounded-md px-2 text-left text-[0.7rem] transition-colors",
 												isActive
@@ -1530,7 +1700,10 @@ function TextLibraryNav({
 												onSelectCategory({ categoryId: category.id });
 											}}
 										>
-											{category.label}
+											{getLocalizedTextTemplateCategoryLabel({
+												category,
+												locale,
+											})}
 										</button>
 									);
 								})}
@@ -1550,18 +1723,19 @@ function TextLibrarySearchField({
 	onSearchQueryChange: (props: { query: string }) => void;
 	searchQuery: string;
 }) {
+	const { t } = useTranslation();
 	return (
 		<label className="relative block">
 			<Search
 				aria-hidden="true"
 				className="-translate-y-1/2 pointer-events-none absolute left-3 top-1/2 h-4 w-4 text-muted-foreground"
 			>
-				<title>搜索</title>
+				<title>{t("textLibrary.search")}</title>
 			</Search>
 			<input
 				type="search"
 				value={searchQuery}
-				placeholder="搜索花字颜色/样式"
+				placeholder={t("textLibrary.searchPlaceholder")}
 				className="h-8 w-full rounded-md border border-border bg-background pl-9 pr-3 text-xs text-foreground outline-none transition-colors placeholder:text-muted-foreground focus:border-cyan-400"
 				onChange={(event) => onSearchQueryChange({ query: event.target.value })}
 			/>
@@ -1673,10 +1847,11 @@ function FilterBar<TFilter extends string>({
 	activeFilter,
 	onSelectFilter,
 }: {
-	filters: readonly { id: TFilter; label: string }[];
+	filters: readonly { id: TFilter; labelKey: TranslationKey }[];
 	activeFilter: TFilter;
 	onSelectFilter: (filter: TFilter) => void;
 }) {
+	const { t } = useTranslation();
 	return (
 		<div className="flex gap-1 overflow-x-auto pb-1">
 			{filters.map((filter) => (
@@ -1696,7 +1871,7 @@ function FilterBar<TFilter extends string>({
 						onSelectFilter(filter.id);
 					}}
 				>
-					{filter.label}
+					{t(filter.labelKey)}
 				</button>
 			))}
 		</div>
@@ -1762,6 +1937,7 @@ function ExpandedTextLibraryDialog({
 	statusFilter: TextLibraryStatusFilter;
 	styleFilter: TextLibraryStyleFilter;
 }) {
+	const { t } = useTranslation();
 	return (
 		<Dialog open={open} onOpenChange={onOpenChange}>
 			<DialogContent className="max-w-[min(1080px,calc(100vw-2rem))] border-border/70 bg-background p-0">
@@ -1774,7 +1950,7 @@ function ExpandedTextLibraryDialog({
 							</span>
 							<button
 								type="button"
-								aria-label="缓存当前文字素材"
+								aria-label={t("textLibrary.cacheCurrent")}
 								className="flex h-7 w-7 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-accent hover:text-foreground"
 								onClick={onCacheVisibleTemplates}
 								onKeyDown={(event) => {
@@ -1784,13 +1960,13 @@ function ExpandedTextLibraryDialog({
 								}}
 							>
 								<Download aria-hidden="true" className="h-3.5 w-3.5">
-									<title>缓存当前文字素材</title>
+									<title>{t("textLibrary.cacheCurrent")}</title>
 								</Download>
 							</button>
 						</div>
 					</div>
 					<DialogDescription className="sr-only">
-						展开文字素材库
+						{t("textLibrary.expand")}
 					</DialogDescription>
 				</DialogHeader>
 				<div className="flex max-h-[76vh] min-h-[520px] min-w-0 gap-3 px-4 pb-4">
@@ -1859,22 +2035,34 @@ export function getTextLibraryEmptyMessage({
 	categoryId,
 	hasDesignerSourceAssets,
 	hasActiveFilters,
+	locale = "zh",
 	sourceFilter,
 }: {
 	categoryId: TextTemplateCategoryId;
 	hasDesignerSourceAssets: boolean;
 	hasActiveFilters: boolean;
+	locale?: AppLocale;
 	sourceFilter: TextLibrarySourceFilter;
 }): string {
 	if (sourceFilter === "designer" && !hasDesignerSourceAssets) {
-		return "还没有导入设计师文字素材包";
+		return translate({ locale, key: "textLibrary.empty.designer" });
 	}
-	if (hasActiveFilters) return "没有找到匹配的文字样式";
-	if (categoryId === "favorites") return "还没有收藏文字样式";
-	if (categoryId === "recent") return "还没有最近使用的文字样式";
-	if (categoryId === "brand-kit") return "还没有品牌字资产";
-	if (categoryId === "drafts") return "还没有保存的文字草稿";
-	return "没有找到匹配的文字样式";
+	if (hasActiveFilters) {
+		return translate({ locale, key: "textLibrary.empty.filtered" });
+	}
+	if (categoryId === "favorites") {
+		return translate({ locale, key: "textLibrary.empty.favorites" });
+	}
+	if (categoryId === "recent") {
+		return translate({ locale, key: "textLibrary.empty.recent" });
+	}
+	if (categoryId === "brand-kit") {
+		return translate({ locale, key: "textLibrary.empty.brand" });
+	}
+	if (categoryId === "drafts") {
+		return translate({ locale, key: "textLibrary.empty.drafts" });
+	}
+	return translate({ locale, key: "textLibrary.empty.filtered" });
 }
 
 function applySmartTextSuggestions({
@@ -1932,6 +2120,7 @@ export function sortTextDefinitionsForBrowsing({
 }
 
 export function TextView() {
+	const { locale, t } = useTranslation();
 	const tracks = useTimelineStore((state) => state.tracks);
 	const transcriptions = useSearchStore((state) => state.transcriptions);
 	const runtimeByAssetKey = useAssetLibraryStore(
@@ -2087,8 +2276,11 @@ export function TextView() {
 		[]
 	);
 	const activeHeading = normalizedSearchQuery
-		? `搜索结果 ${visibleDefinitions.length}`
-		: activeCategory.label;
+		? t("textLibrary.searchResults", { count: visibleDefinitions.length })
+		: getLocalizedTextTemplateCategoryLabel({
+				category: activeCategory,
+				locale,
+			});
 	const hasActiveFilters =
 		Boolean(normalizedSearchQuery) ||
 		marketFilter !== "all" ||
@@ -2106,15 +2298,18 @@ export function TextView() {
 		categoryId: activeCategory.id,
 		hasDesignerSourceAssets,
 		hasActiveFilters,
+		locale,
 		sourceFilter,
 	});
 	const smartTextStatus =
 		isSmartTextCategory({ categoryId: activeCategory.id }) &&
 		!normalizedSearchQuery
 			? smartTextSuggestions.length > 0
-				? `已生成 ${smartTextSuggestions.length} 条`
-				: "添加字幕后生成"
-			: `${visibleDefinitions.length} 个样式`;
+				? t("textLibrary.suggestionsGenerated", {
+						count: smartTextSuggestions.length,
+					})
+				: t("textLibrary.generateAfterCaptions")
+			: t("textLibrary.styleCount", { count: visibleDefinitions.length });
 	const addMarkdown = (currentTime?: number) => {
 		const time = currentTime ?? usePlaybackStore.getState().currentTime;
 		useTimelineStore.getState().addMarkdownAtTime(markdownData, time);
@@ -2153,7 +2348,7 @@ export function TextView() {
 					state: current,
 				})
 			);
-			toast.error("这个文字样式需要 SVIP。");
+			toast.error(t("textLibrary.toast.svipRequired"));
 			return;
 		}
 		if (asset.delivery !== "remote") {
@@ -2175,7 +2370,11 @@ export function TextView() {
 			setLibraryState((current) =>
 				markTextTemplateDownloaded({ definition, state: current })
 			);
-			toast.success(`${definition.name} 已可使用。`);
+			toast.success(
+				t("textLibrary.toast.ready", {
+					name: getLocalizedTextTemplateDefinitionName({ definition, locale }),
+				})
+			);
 			return;
 		}
 		if (!online) {
@@ -2195,7 +2394,7 @@ export function TextView() {
 					state: current,
 				})
 			);
-			toast.error("当前离线，无法下载文字资源。");
+			toast.error(t("textLibrary.toast.offline"));
 			return;
 		}
 		const runtime = useAssetLibraryStore.getState().getRuntimeState({ asset });
@@ -2244,7 +2443,11 @@ export function TextView() {
 			setLibraryState((current) =>
 				markTextTemplateDownloaded({ definition, state: current })
 			);
-			toast.success(`${definition.name} 已下载。`);
+			toast.success(
+				t("textLibrary.toast.downloaded", {
+					name: getLocalizedTextTemplateDefinitionName({ definition, locale }),
+				})
+			);
 		} catch (error) {
 			const message = error instanceof Error ? error.message : String(error);
 			updateRuntimeState({
@@ -2263,7 +2466,7 @@ export function TextView() {
 					state: current,
 				})
 			);
-			toast.error(`文字资源下载失败：${message}`);
+			toast.error(t("textLibrary.toast.downloadFailed", { message }));
 		}
 	};
 	const handleToggleFavorite = ({ templateId }: { templateId: string }) => {
@@ -2287,7 +2490,7 @@ export function TextView() {
 			runtimeByAssetKey,
 		});
 		if (targets.length === 0) {
-			toast.info("当前结果没有需要缓存的文字素材。");
+			toast.info(t("textLibrary.toast.nothingToCache"));
 			return;
 		}
 		const results = await mapTextTemplateCacheTargets({
@@ -2361,10 +2564,15 @@ export function TextView() {
 		const cachedCount = results.filter((result) => result.ok).length;
 		const failedCount = results.length - cachedCount;
 		if (failedCount > 0) {
-			toast.error(`已缓存 ${cachedCount} 个，${failedCount} 个失败。`);
+			toast.error(
+				t("textLibrary.toast.cachePartial", {
+					cached: cachedCount,
+					failed: failedCount,
+				})
+			);
 			return;
 		}
-		toast.success(`已缓存 ${cachedCount} 个文字素材。`);
+		toast.success(t("textLibrary.toast.cacheComplete", { count: cachedCount }));
 	};
 
 	return (
@@ -2391,7 +2599,7 @@ export function TextView() {
 							</span>
 							<button
 								type="button"
-								aria-label="缓存当前文字素材"
+								aria-label={t("textLibrary.cacheCurrent")}
 								className="flex h-6 w-6 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-accent hover:text-foreground"
 								onClick={() => void handleCacheVisibleTemplates()}
 								onKeyDown={(event) => {
@@ -2401,12 +2609,12 @@ export function TextView() {
 								}}
 							>
 								<Download aria-hidden="true" className="h-3.5 w-3.5">
-									<title>缓存当前文字素材</title>
+									<title>{t("textLibrary.cacheCurrent")}</title>
 								</Download>
 							</button>
 							<button
 								type="button"
-								aria-label="展开文字素材库"
+								aria-label={t("textLibrary.expand")}
 								className="flex h-6 w-6 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-accent hover:text-foreground"
 								onClick={() => setExpandedLibraryOpen(true)}
 								onKeyDown={(event) => {
@@ -2416,7 +2624,7 @@ export function TextView() {
 								}}
 							>
 								<Maximize2 aria-hidden="true" className="h-3.5 w-3.5">
-									<title>展开文字素材库</title>
+									<title>{t("textLibrary.expand")}</title>
 								</Maximize2>
 							</button>
 						</div>
