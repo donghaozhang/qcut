@@ -69,6 +69,7 @@ import {
 } from "@/hooks/preview/use-native-composition-frame-preview";
 import { useMaskEditorStore } from "@/stores/editor/mask-editor-store";
 import { useColorPickerStore } from "@/stores/editor/color-picker-store";
+import { useStickersOverlayStore } from "@/stores/stickers-overlay-store";
 import { LoaderCircle, TriangleAlert } from "lucide-react";
 
 function getPreviewElementDuration(element: TimelineElement): number {
@@ -100,6 +101,13 @@ export function PreviewPanel() {
 	const { canvasSize } = useEditorStore();
 	const maskEditorActive = useMaskEditorStore((state) => state.isEditing);
 	const colorPickerActive = useColorPickerStore((state) => state.active);
+	const stickerInteractionActive = useStickersOverlayStore(
+		(state) =>
+			Boolean(state.selectedStickerId) ||
+			state.isDragging ||
+			state.isResizing ||
+			state.isRotating
+	);
 	const previewRef = useRef<HTMLDivElement>(null);
 	const containerRef = useRef<HTMLDivElement>(null);
 	// Canvas refs for frame caching - non-interfering
@@ -413,7 +421,7 @@ export function PreviewPanel() {
 			activeElements,
 			hasActiveTransition:
 				activeTransitionPreview.forceActiveElementIds.size > 0,
-			hasSelection: selectedElements.length > 0,
+			hasSelection: selectedElements.length > 0 || stickerInteractionActive,
 		});
 	const nativeCompositionPreview = useNativeCompositionFramePreview({
 		enabled: compositionPreviewEnabled,

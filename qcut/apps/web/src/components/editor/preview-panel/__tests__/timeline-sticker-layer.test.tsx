@@ -2,7 +2,10 @@ import { render, screen } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
 import type { MediaItem } from "@/stores/media/media-store-types";
 import type { StickerElement, TimelineTrack } from "@/types/timeline";
-import { TimelineStickerInteractionLayer } from "../timeline-sticker-layer";
+import {
+	TimelineStickerInteractionLayer,
+	TimelineStickerLayer,
+} from "../timeline-sticker-layer";
 
 vi.mock("@/stores/stickers-overlay-store", () => ({
 	useStickersOverlayStore: <T,>(
@@ -46,6 +49,21 @@ const mediaItem: MediaItem = {
 };
 
 describe("TimelineStickerInteractionLayer", () => {
+	it("places sticker visuals above the native composition preview", () => {
+		render(
+			<TimelineStickerLayer
+				element={element}
+				elementOrder={0}
+				mediaItems={[mediaItem]}
+			/>
+		);
+
+		expect(
+			screen.getByTestId(`timeline-sticker-layer-${element.id}`)
+		).toHaveClass("z-[35]", "pointer-events-none");
+		expect(screen.getByTestId("sticker-visual")).toBeInTheDocument();
+	});
+
 	it("places sticker hit targets above the selected-media transform layer", () => {
 		render(
 			<TimelineStickerInteractionLayer

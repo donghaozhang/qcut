@@ -5,6 +5,7 @@ import type {
 } from "@/lib/assets/asset-resource-cache";
 import {
 	createCachedStickerPreviewUrl,
+	createStickerMediaUrl,
 	downloadStickerResource,
 } from "../sticker-resource";
 
@@ -53,6 +54,41 @@ describe("sticker resources", () => {
 		expect(downloaded.file.name).toBe("粉红兔子-开心.svg");
 		expect(downloaded.file.type).toContain("image/svg+xml");
 		expect(downloaded.blob.size).toBeGreaterThan(0);
+	});
+
+	it("repairs generic MIME types using the sticker manifest", async () => {
+		const svg = '<svg xmlns="http://www.w3.org/2000/svg" />';
+		const fetchImpl = vi.fn(
+			async () =>
+				new Response(svg, {
+					status: 200,
+					headers: { "content-type": "application/octet-stream" },
+				})
+		) as unknown as typeof fetch;
+
+		const downloaded = await downloadStickerResource({
+			collection: "qcut-original",
+			fetchImpl,
+			icon: "pink-rabbit-happy",
+			name: "Happy",
+		});
+
+		expect(downloaded.blob.type).toBe("image/svg+xml");
+		expect(downloaded.file.type).toBe("image/svg+xml");
+	});
+
+	it("uses a correctly typed data URL for SVG media", async () => {
+		const createObjectUrl = vi.spyOn(URL, "createObjectURL");
+		const mediaUrl = await createStickerMediaUrl({
+			blob: new Blob(['<svg xmlns="http://www.w3.org/2000/svg" />'], {
+				type: "image/svg+xml",
+			}),
+		});
+
+		expect(mediaUrl.revoke).toBe(false);
+		expect(mediaUrl.url).toMatch(/^data:image\/svg\+xml;charset=utf-8,/);
+		expect(createObjectUrl).not.toHaveBeenCalled();
+		createObjectUrl.mockRestore();
 	});
 
 	it("creates preview URLs from cached remote sticker sources", async () => {

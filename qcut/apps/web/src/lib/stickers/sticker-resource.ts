@@ -19,6 +19,41 @@ export interface StickerPreviewResource {
 	url: string;
 }
 
+const GENERIC_BINARY_MIME_TYPES = new Set([
+	"application/octet-stream",
+	"binary/octet-stream",
+]);
+
+function resolveStickerMimeType({
+	blobType,
+	resourceMimeType,
+	sourceMimeType,
+}: {
+	blobType?: string;
+	resourceMimeType?: string;
+	sourceMimeType?: string;
+}): string {
+	const candidates = [blobType, resourceMimeType, sourceMimeType];
+	return (
+		candidates.find(
+			(candidate) => candidate && !GENERIC_BINARY_MIME_TYPES.has(candidate)
+		) ??
+		candidates.find(Boolean) ??
+		"image/svg+xml"
+	);
+}
+
+function normalizeStickerBlob({
+	blob,
+	mimeType,
+}: {
+	blob: Blob;
+	mimeType: string;
+}): Blob {
+	if (blob.type === mimeType) return blob;
+	return new Blob([blob], { type: mimeType });
+}
+
 function stickerExtension({ mimeType }: { mimeType: string }): string {
 	if (mimeType.includes("svg")) return "svg";
 	if (mimeType.includes("gif")) return "gif";
@@ -91,23 +126,34 @@ export async function downloadStickerResource({
 	});
 	const resource = resources[0];
 	if (!resource) throw new Error(`Sticker source is missing: ${asset.id}`);
+	const sourceMimeType = asset.files.find(
+		(file) => file.role === "source"
+	)?.mimeType;
 	const blob =
 		resource.blob ??
 		(await fetchBundledSticker({
 			fetchImpl,
 			resource,
-			sourceMimeType: asset.files.find((file) => file.role === "source")
-				?.mimeType,
+			sourceMimeType,
 		}));
 	if (blob.size === 0) throw new Error("Sticker resource is empty");
-	const mimeType = blob.type || resource.mimeType || "image/svg+xml";
+	const mimeType = resolveStickerMimeType({
+		blobType: blob.type,
+		resourceMimeType: resource.mimeType,
+		sourceMimeType,
+	});
+	const normalizedBlob = normalizeStickerBlob({ blob, mimeType });
 	return {
 		asset,
-		blob,
+		blob: normalizedBlob,
 		cacheKey: resource.cacheKey,
-		file: new File([blob], safeStickerFileName({ icon, mimeType, name }), {
-			type: mimeType,
-		}),
+		file: new File(
+			[normalizedBlob],
+			safeStickerFileName({ icon, mimeType, name }),
+			{
+				type: mimeType,
+			}
+		),
 		resource,
 	};
 }
@@ -117,7 +163,7 @@ export async function createStickerMediaUrl({
 }: {
 	blob: Blob;
 }): Promise<{ revoke: boolean; url: string }> {
-	if (window.location.protocol === "file:" && blob.type.includes("svg")) {
+	if (blob.type.includes("svg")) {
 		const svg = await blob.text();
 		return {
 			revoke: false,
@@ -148,5 +194,12 @@ export async function createCachedStickerPreviewUrl({
 	});
 	const resource = resources[0];
 	if (!resource?.blob) return;
-	return { revoke: true, url: URL.createObjectURL(resource.blob) };
+	const mimeType = resolveStickerMimeType({
+		blobType: resource.blob.type,
+		resourceMimeType: resource.mimeType,
+		sourceMimeType: asset.files.find((file) => file.role === "source")
+			?.mimeType,
+	});
+	const blob = normalizeStickerBlob({ blob: resource.blob, mimeType });
+	return { revoke: true, url: URL.createObjectURL(blob) };
 }

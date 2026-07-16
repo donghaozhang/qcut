@@ -17,7 +17,7 @@ export interface ActiveSkillContext {
 	id: string;
 	name: string;
 	content: string;
-	folderName?: string; // Skill folder name for --project-doc flag
+	folderName?: string; // Skill folder name for OpenRouter's --project-doc flag
 }
 
 /**

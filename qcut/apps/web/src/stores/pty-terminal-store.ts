@@ -3,7 +3,7 @@ import { platform } from "@qcut/platform-core";
 import type { CliProvider } from "@/types/cli-provider";
 import {
 	CLI_PROVIDERS,
-	getDefaultCodexModel,
+	getDefaultOpenRouterModel,
 	getDefaultClaudeModel,
 } from "@/types/cli-provider";
 import type {
@@ -149,6 +149,31 @@ function generateSessionLabel(
 	return `${providerName} ${n}`;
 }
 
+function getProviderChangeLabel({
+	session,
+	provider,
+	sessions,
+	tabId,
+}: {
+	session: SessionState;
+	provider: CliProvider;
+	sessions: Map<string, SessionState>;
+	tabId: string;
+}): string {
+	const currentPrefix = `${CLI_PROVIDERS[session.cliProvider].name} `;
+	const currentSuffix = session.label.slice(currentPrefix.length);
+	const hasGeneratedLabel =
+		session.label.startsWith(currentPrefix) && /^\d+$/.test(currentSuffix);
+
+	if (!hasGeneratedLabel) {
+		return session.label;
+	}
+
+	const otherSessions = new Map(sessions);
+	otherSessions.delete(tabId);
+	return generateSessionLabel(provider, otherSessions);
+}
+
 function createDefaultSession(
 	provider: CliProvider,
 	label: string
@@ -159,7 +184,7 @@ function createDefaultSession(
 		exitCode: null,
 		error: null,
 		cliProvider: provider,
-		selectedModel: getDefaultCodexModel(),
+		selectedModel: getDefaultOpenRouterModel(),
 		selectedClaudeModel: getDefaultClaudeModel(),
 		isGeminiMode: provider === "gemini",
 		activeSkill: null,
@@ -192,7 +217,7 @@ function flatFieldsFrom(
 			exitCode: null,
 			error: null,
 			cliProvider: "claude",
-			selectedModel: getDefaultCodexModel(),
+			selectedModel: getDefaultOpenRouterModel(),
 			selectedClaudeModel: getDefaultClaudeModel(),
 			isGeminiMode: false,
 			activeSkill: null,
@@ -250,6 +275,9 @@ function getConnectErrorMessage({
 	if (cliProvider === "claude" && isBinaryMissing) {
 		return "Claude Code CLI is not installed. Install `claude` and try again.";
 	}
+	if (cliProvider === "codex" && isBinaryMissing) {
+		return "OpenAI Codex CLI is not installed. Install `codex` and try again.";
+	}
 	return message;
 }
 
@@ -290,7 +318,7 @@ const initialState: PtyTerminalState = {
 	exitCode: null,
 	error: null,
 	cliProvider: "claude",
-	selectedModel: getDefaultCodexModel(),
+	selectedModel: getDefaultOpenRouterModel(),
 	selectedClaudeModel: getDefaultClaudeModel(),
 	isGeminiMode: false,
 	activeSkill: null,
@@ -470,7 +498,7 @@ export const usePtyTerminalStore = create<PtyTerminalStore>((set, get) => {
 				const resolvedCwd = options.cwd || workingDirectory || undefined;
 
 				// Build command based on provider
-				if (cliProvider === "codex") {
+				if (cliProvider === "openrouter") {
 					let apiKeysResult: Record<string, string>;
 					try {
 						apiKeysResult = await platform().apiKeys.get();
@@ -502,6 +530,15 @@ export const usePtyTerminalStore = create<PtyTerminalStore>((set, get) => {
 						const escapedPath = escapeStringForShell(skillFilePath);
 						command += ` --project-doc "${escapedPath}"`;
 					}
+				} else if (cliProvider === "codex") {
+					command = providerConfig.command;
+					if (resolvedProjectId) {
+						env.QCUT_PROJECT_ID = resolvedProjectId;
+					}
+					if (resolvedCwd) {
+						env.QCUT_PROJECT_ROOT = resolvedCwd;
+					}
+					env.QCUT_API_BASE_URL = "http://127.0.0.1:8765";
 				} else if (cliProvider === "claude") {
 					try {
 						const claudeApiKeys = await platform().apiKeys.get();
@@ -551,12 +588,12 @@ export const usePtyTerminalStore = create<PtyTerminalStore>((set, get) => {
 							resolvedProjectId ?? projectId ?? AUTO_CONNECT_GLOBAL_KEY,
 					});
 
-					// Gemini skill prompt injection
+					// Gemini and official Codex accept skill context through the TUI.
 					const latest = get().sessions.get(tabId);
 					if (
 						latest?.activeSkill &&
 						!latest.skillPromptSent &&
-						cliProvider === "gemini"
+						(cliProvider === "gemini" || cliProvider === "codex")
 					) {
 						const capturedTabId = tabId;
 						setTimeout(() => {
@@ -688,10 +725,22 @@ export const usePtyTerminalStore = create<PtyTerminalStore>((set, get) => {
 
 		// CLI provider management (active session, or flat fields if no session)
 		setCliProvider: (provider) => {
-			if (get().activeSessionId) {
+			const state = get();
+			if (state.activeSessionId) {
+				const session = state.sessions.get(state.activeSessionId);
 				setActiveSession({
 					cliProvider: provider,
 					isGeminiMode: provider === "gemini",
+					...(session
+						? {
+								label: getProviderChangeLabel({
+									session,
+									provider,
+									sessions: state.sessions,
+									tabId: state.activeSessionId,
+								}),
+							}
+						: {}),
 				});
 			} else {
 				set({ cliProvider: provider, isGeminiMode: provider === "gemini" });
@@ -775,7 +824,7 @@ export const usePtyTerminalStore = create<PtyTerminalStore>((set, get) => {
 			if (
 				!session?.activeSkill ||
 				session.skillPromptSent ||
-				session.cliProvider !== "gemini" ||
+				(session.cliProvider !== "gemini" && session.cliProvider !== "codex") ||
 				!session.sessionId
 			)
 				return;

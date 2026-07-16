@@ -305,8 +305,10 @@ class StorageService {
 			// Only store non-blob URLs (e.g., data URLs, http URLs)
 			// Blob URLs are temporary and don't persist across sessions
 			url: mediaItem.url?.startsWith("blob:") ? undefined : mediaItem.url,
-			// Persist thumbnail data URL for videos (survives reload)
-			thumbnailUrl: mediaItem.thumbnailUrl,
+			// Blob URLs are scoped to the current renderer and cannot survive reloads.
+			thumbnailUrl: mediaItem.thumbnailUrl?.startsWith("blob:")
+				? undefined
+				: mediaItem.thumbnailUrl,
 			metadata: mediaItem.metadata,
 			// Persist localPath for FFmpeg CLI export (videos only)
 			localPath: mediaItem.localPath,
@@ -336,7 +338,16 @@ class StorageService {
 
 		if (file && file.size > 0) {
 			// File exists with content
-			actualFile = file;
+			const isSvgImage =
+				metadata.type === "image" &&
+				metadata.name.toLowerCase().endsWith(".svg");
+			actualFile =
+				isSvgImage && file.type !== "image/svg+xml"
+					? new File([file], metadata.name, {
+							type: "image/svg+xml",
+							lastModified: file.lastModified,
+						})
+					: file;
 
 			// In Electron, convert to data URL for better compatibility
 			if (this.isElectronEnvironment() && metadata.type === "image") {
@@ -351,7 +362,7 @@ class StorageService {
 						}
 					};
 					reader.onerror = () => reject(reader.error);
-					reader.readAsDataURL(file);
+					reader.readAsDataURL(actualFile);
 				});
 				debugLog(
 					`[StorageService] Created data URL for ${metadata.name} in Electron`
@@ -446,14 +457,18 @@ class StorageService {
 			}
 		}
 
+		const persistedThumbnailUrl = metadata.thumbnailUrl?.startsWith("blob:")
+			? undefined
+			: metadata.thumbnailUrl;
+
 		return {
 			id: metadata.id,
 			name: metadata.name,
 			type: metadata.type,
 			file: actualFile,
 			url,
-			// Load persisted thumbnail data URL (survives reload)
-			thumbnailUrl: metadata.thumbnailUrl,
+			thumbnailUrl:
+				persistedThumbnailUrl ?? (metadata.type === "image" ? url : undefined),
 			width: metadata.width,
 			height: metadata.height,
 			duration: metadata.duration,

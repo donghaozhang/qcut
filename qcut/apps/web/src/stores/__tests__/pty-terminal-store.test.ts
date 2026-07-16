@@ -5,7 +5,7 @@ import { mockElectronAPI, setupElectronMock } from "@/test/mocks/electron";
 import { initPlatform } from "@qcut/platform-core";
 import { createDesktopAdapter } from "@qcut/platform-desktop";
 import {
-	getDefaultCodexModel,
+	getDefaultOpenRouterModel,
 	getDefaultClaudeModel,
 } from "@/types/cli-provider";
 
@@ -30,7 +30,7 @@ describe("usePtyTerminalStore", () => {
 			cols: 80,
 			rows: 24,
 			cliProvider: "claude",
-			selectedModel: getDefaultCodexModel(),
+			selectedModel: getDefaultOpenRouterModel(),
 			selectedClaudeModel: getDefaultClaudeModel(),
 			isGeminiMode: false,
 			projectId: null,
@@ -127,7 +127,7 @@ describe("usePtyTerminalStore", () => {
 			);
 		});
 
-		it("should spawn Codex with model when cliProvider is codex and API key is set", async () => {
+		it("should spawn OpenRouter Agent with its model and API key", async () => {
 			// Setup API key mock to return a valid key
 			vi.mocked(mockElectronAPI.apiKeys.get).mockResolvedValueOnce({
 				falApiKey: "",
@@ -142,7 +142,7 @@ describe("usePtyTerminalStore", () => {
 			const { result } = renderHook(() => usePtyTerminalStore());
 
 			act(() => {
-				result.current.setCliProvider("codex");
+				result.current.setCliProvider("openrouter");
 				result.current.setSelectedModel("anthropic/claude-sonnet-4");
 			});
 
@@ -162,7 +162,7 @@ describe("usePtyTerminalStore", () => {
 			);
 		});
 
-		it("should include model in Codex command when selectedModel is set", async () => {
+		it("should include the selected model in the OpenRouter command", async () => {
 			// Setup API key mock
 			vi.mocked(mockElectronAPI.apiKeys.get).mockResolvedValueOnce({
 				falApiKey: "",
@@ -177,7 +177,7 @@ describe("usePtyTerminalStore", () => {
 			const { result } = renderHook(() => usePtyTerminalStore());
 
 			act(() => {
-				result.current.setCliProvider("codex");
+				result.current.setCliProvider("openrouter");
 				result.current.setSelectedModel("openai/gpt-4o");
 			});
 
@@ -192,7 +192,7 @@ describe("usePtyTerminalStore", () => {
 			);
 		});
 
-		it("should fail with error when Codex is selected but API key is missing", async () => {
+		it("should fail when OpenRouter Agent is selected without an API key", async () => {
 			// API key mock returns empty key
 			vi.mocked(mockElectronAPI.apiKeys.get).mockResolvedValueOnce({
 				falApiKey: "",
@@ -207,7 +207,7 @@ describe("usePtyTerminalStore", () => {
 			const { result } = renderHook(() => usePtyTerminalStore());
 
 			act(() => {
-				result.current.setCliProvider("codex");
+				result.current.setCliProvider("openrouter");
 			});
 
 			await act(async () => {
@@ -219,6 +219,35 @@ describe("usePtyTerminalStore", () => {
 				"OpenRouter API key not configured"
 			);
 			expect(mockElectronAPI.pty!.spawn).not.toHaveBeenCalled();
+		});
+
+		it("should spawn the official Codex CLI without reading OpenRouter keys", async () => {
+			const { result } = renderHook(() => usePtyTerminalStore());
+
+			act(() => {
+				result.current.setCliProvider("codex");
+				result.current.setProjectContext({
+					projectId: "project-123",
+					workingDirectory: "/tmp/qcut-project",
+				});
+			});
+
+			await act(async () => {
+				await result.current.connect();
+			});
+
+			expect(mockElectronAPI.apiKeys.get).not.toHaveBeenCalled();
+			expect(mockElectronAPI.pty!.spawn).toHaveBeenCalledWith({
+				cols: 80,
+				rows: 24,
+				cwd: "/tmp/qcut-project",
+				command: "codex",
+				env: {
+					QCUT_PROJECT_ID: "project-123",
+					QCUT_PROJECT_ROOT: "/tmp/qcut-project",
+					QCUT_API_BASE_URL: "http://127.0.0.1:8765",
+				},
+			});
 		});
 
 		it("should handle spawn failure", async () => {
@@ -431,6 +460,35 @@ describe("usePtyTerminalStore", () => {
 			expect(result.current.isGeminiMode).toBe(true);
 		});
 
+		it("should update generated session labels when the provider changes", () => {
+			const { result } = renderHook(() => usePtyTerminalStore());
+
+			act(() => {
+				result.current.createSession("claude");
+				result.current.setCliProvider("codex");
+			});
+
+			expect(result.current.cliProvider).toBe("codex");
+			expect(
+				result.current.sessions.get(result.current.activeSessionId!)?.label
+			).toBe("OpenAI Codex CLI 1");
+		});
+
+		it("should preserve custom session labels when the provider changes", () => {
+			const { result } = renderHook(() => usePtyTerminalStore());
+			let tabId = "";
+
+			act(() => {
+				tabId = result.current.createSession("claude");
+				result.current.renameSession(tabId, "My editing agent");
+				result.current.setCliProvider("codex");
+			});
+
+			expect(result.current.sessions.get(tabId)?.label).toBe(
+				"My editing agent"
+			);
+		});
+
 		it("should update selected model", () => {
 			const { result } = renderHook(() => usePtyTerminalStore());
 
@@ -528,7 +586,7 @@ describe("usePtyTerminalStore", () => {
 			expect(result.current.skillPromptSent).toBe(false);
 		});
 
-		it("should send skill prompt only for Gemini provider", async () => {
+		it("should send skill prompt for Gemini provider", async () => {
 			const { result } = renderHook(() => usePtyTerminalStore());
 
 			act(() => {
@@ -561,7 +619,7 @@ describe("usePtyTerminalStore", () => {
 			expect(result.current.skillPromptSent).toBe(true);
 		});
 
-		it("should not send skill prompt for Codex provider", async () => {
+		it("should not send skill prompt for OpenRouter Agent", async () => {
 			// Setup API key mock
 			vi.mocked(mockElectronAPI.apiKeys.get).mockResolvedValue({
 				falApiKey: "",
@@ -576,7 +634,7 @@ describe("usePtyTerminalStore", () => {
 			const { result } = renderHook(() => usePtyTerminalStore());
 
 			act(() => {
-				result.current.setCliProvider("codex");
+				result.current.setCliProvider("openrouter");
 			});
 
 			// Connect
@@ -601,9 +659,36 @@ describe("usePtyTerminalStore", () => {
 				result.current.sendSkillPrompt();
 			});
 
-			// Should not send prompt for Codex (uses --full-context flag instead)
+			// OpenRouter receives the skill through --project-doc at launch.
 			expect(mockElectronAPI.pty!.write).not.toHaveBeenCalled();
 			expect(result.current.skillPromptSent).toBe(false);
+		});
+
+		it("should send skill prompt for the official Codex CLI", async () => {
+			const { result } = renderHook(() => usePtyTerminalStore());
+
+			act(() => {
+				result.current.setCliProvider("codex");
+			});
+
+			await act(async () => {
+				await result.current.connect();
+			});
+
+			act(() => {
+				result.current.setActiveSkill({
+					id: "test-skill",
+					name: "Test Skill",
+					content: "Test skill content",
+				});
+				result.current.sendSkillPrompt();
+			});
+
+			expect(mockElectronAPI.pty!.write).toHaveBeenCalledWith(
+				"test-pty-session",
+				expect.stringContaining("Test Skill")
+			);
+			expect(result.current.skillPromptSent).toBe(true);
 		});
 	});
 

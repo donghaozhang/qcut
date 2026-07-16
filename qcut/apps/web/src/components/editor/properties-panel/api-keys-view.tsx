@@ -429,7 +429,7 @@ export function ApiKeysView() {
 				}
 				description={
 					<>
-						For Codex CLI (300+ AI models). Get your key at{" "}
+						For OpenRouter Agent (300+ AI models). Get your key at{" "}
 						<a
 							href="https://openrouter.ai/keys"
 							target="_blank"

@@ -18,7 +18,7 @@ import type { CliProvider } from "@/types/cli-provider";
  * Start the specified skill in the PTY terminal using the specified or current CLI provider.
  *
  * @param skillId - The ID of the skill to run
- * @param preferredProvider - Optional provider to use: "gemini", "codex", or "claude". If omitted, uses the current provider.
+ * @param preferredProvider - Optional agent provider. If omitted, uses the current provider.
  * @returns No value.
  */
 export function useSkillRunner() {
@@ -39,13 +39,13 @@ export function useSkillRunner() {
 	 * Run a skill with the specified or current CLI provider.
 	 *
 	 * @param skillId - The ID of the skill to run
-	 * @param preferredProvider - Optional provider to use ("gemini", "codex", or "claude")
+	 * @param preferredProvider - Optional agent provider
 	 *                           If not specified, uses the currently selected provider
 	 */
 	const runSkill = useCallback(
 		async (
 			skillId: string,
-			preferredProvider?: "gemini" | "codex" | "claude"
+			preferredProvider?: Exclude<CliProvider, "shell">
 		) => {
 			const skill = skills.find((s) => s.id === skillId);
 			if (!skill) {
@@ -68,12 +68,12 @@ export function useSkillRunner() {
 				// Ignore - skills path is optional
 			}
 
-			// 2. Set skill as active context (used by both providers)
+			// 2. Set skill as active context
 			setActiveSkill({
 				id: skill.id,
 				name: skill.name,
 				content: skill.content,
-				folderName: skill.folderName, // For Codex --project-doc flag
+				folderName: skill.folderName, // For OpenRouter --project-doc flag
 			});
 
 			// 3. Set provider if specified

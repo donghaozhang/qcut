@@ -3,14 +3,20 @@
  *
  * Supports multiple AI coding agents:
  * - Gemini CLI: Free with Google account, uses OAuth
- * - Codex (OpenRouter): 300+ models, pay-per-use with API key
+ * - OpenRouter Agent: 300+ models, pay-per-use with API key
+ * - OpenAI Codex CLI: Official OpenAI coding agent, uses ChatGPT login
  * - Claude Code: Direct Anthropic access, requires claude CLI installed
  */
 
 /**
  * Supported CLI providers for AI coding agents.
  */
-export type CliProvider = "gemini" | "codex" | "claude" | "shell";
+export type CliProvider =
+	| "gemini"
+	| "openrouter"
+	| "codex"
+	| "claude"
+	| "shell";
 
 /**
  * Configuration for each CLI provider.
@@ -46,15 +52,23 @@ export const CLI_PROVIDERS: Record<CliProvider, CliProviderConfig> = {
 		requiresApiKey: false, // Uses OAuth
 		supportsSkillFlag: false, // Uses prompt injection
 	},
-	codex: {
-		id: "codex",
-		name: "Codex (OpenRouter)",
+	openrouter: {
+		id: "openrouter",
+		name: "OpenRouter Agent",
 		description: "Multi-model AI via OpenRouter (300+ models)",
 		command: "npx open-codex",
 		requiresApiKey: true,
 		apiKeyEnvVar: "OPENROUTER_API_KEY",
 		supportsSkillFlag: true,
 		skillFlagFormat: "--project-doc", // Pass skill markdown file as context
+	},
+	codex: {
+		id: "codex",
+		name: "OpenAI Codex CLI",
+		description: "Official OpenAI coding agent (uses ChatGPT login)",
+		command: "codex",
+		requiresApiKey: false,
+		supportsSkillFlag: false, // Uses prompt injection
 	},
 	claude: {
 		id: "claude",
@@ -77,7 +91,7 @@ export const CLI_PROVIDERS: Record<CliProvider, CliProviderConfig> = {
 };
 
 /**
- * Available models for Codex/OpenRouter.
+ * Available models for OpenRouter Agent.
  */
 export interface OpenRouterModel {
 	/** Model ID in OpenRouter format (e.g., "anthropic/claude-sonnet-4") */
@@ -197,14 +211,14 @@ export function providerRequiresApiKey(provider: CliProvider): boolean {
 	return CLI_PROVIDERS[provider].requiresApiKey;
 }
 
-/** Default model ID for Codex (explicit to avoid array order dependency) */
-const DEFAULT_CODEX_MODEL_ID = "anthropic/claude-sonnet-4";
+/** Default OpenRouter model ID (explicit to avoid array order dependency) */
+const DEFAULT_OPENROUTER_MODEL_ID = "anthropic/claude-sonnet-4";
 
 /**
- * Get default model for Codex provider.
+ * Get default model for OpenRouter Agent.
  */
-export function getDefaultCodexModel(): string {
-	return DEFAULT_CODEX_MODEL_ID;
+export function getDefaultOpenRouterModel(): string {
+	return DEFAULT_OPENROUTER_MODEL_ID;
 }
 
 /** Default model ID for Claude (explicit to avoid array order dependency) */

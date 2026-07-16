@@ -13,6 +13,7 @@ import { getStickerTimingMap } from "@/lib/stickers/sticker-timeline-query";
 import { resolveTimelineStickerVisual } from "@/lib/stickers/timeline-sticker-visual";
 import { rasterizeSvgToPng, isSvgContent } from "./svg-rasterizer";
 import { platform } from "@qcut/platform-core";
+import { dataUrlToBlob } from "@/lib/media/data-url";
 
 /**
  * Logger function type for dependency injection.
@@ -53,6 +54,26 @@ interface StickersStoreGetter {
 	getStickersForExport: () => StickerOverlayData[];
 }
 
+async function loadStickerBlob({
+	mediaItem,
+}: {
+	mediaItem: MediaItem;
+}): Promise<Blob> {
+	if (mediaItem.file?.size) return mediaItem.file;
+	if (!mediaItem.url) {
+		throw new Error(`No URL for sticker media item ${mediaItem.id}`);
+	}
+	if (mediaItem.url.startsWith("data:")) {
+		return dataUrlToBlob({ dataUrl: mediaItem.url });
+	}
+
+	const response = await fetch(mediaItem.url);
+	if (!response.ok) {
+		throw new Error(`Failed to fetch sticker: ${response.status}`);
+	}
+	return response.blob();
+}
+
 /**
  * Download sticker blob/data URL to temp directory for FFmpeg CLI access.
  * SVG stickers are rasterized to PNG since FFmpeg has limited SVG support.
@@ -82,18 +103,9 @@ async function downloadStickerToTemp(
 		return mediaItem.localPath;
 	}
 
-	if (!mediaItem.url) {
-		throw new Error(`No URL for sticker media item ${mediaItem.id}`);
-	}
-
-	// Fetch blob/data URL
+	// Blob/data sources stay local so CSP connect-src does not block them.
 	logger(`[StickerSources] Downloading sticker ${sticker.id}...`);
-	const response = await fetch(mediaItem.url);
-	if (!response.ok) {
-		throw new Error(`Failed to fetch sticker: ${response.status}`);
-	}
-
-	const blob = await response.blob();
+	const blob = await loadStickerBlob({ mediaItem });
 	let imageBytes: Uint8Array;
 	let format: string;
 

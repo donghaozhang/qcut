@@ -3,7 +3,7 @@ import { render, screen, fireEvent } from "@testing-library/react";
 import { PreviewAgentView } from "../preview-agent-view";
 import { usePtyTerminalStore } from "@/stores/pty-terminal-store";
 import {
-	getDefaultCodexModel,
+	getDefaultOpenRouterModel,
 	getDefaultClaudeModel,
 } from "@/types/cli-provider";
 
@@ -59,7 +59,7 @@ const resetStore = () => {
 		cols: 80,
 		rows: 24,
 		cliProvider: "claude",
-		selectedModel: getDefaultCodexModel(),
+		selectedModel: getDefaultOpenRouterModel(),
 		selectedClaudeModel: getDefaultClaudeModel(),
 		isGeminiMode: false,
 		projectId: null,
