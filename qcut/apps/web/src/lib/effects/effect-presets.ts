@@ -140,3 +140,5 @@ export const EFFECT_PRESETS = [
 		parameters: { invert: 100 },
 	},
 ] as const satisfies readonly EffectPreset[];
+
+export type EffectPresetId = (typeof EFFECT_PRESETS)[number]["id"];

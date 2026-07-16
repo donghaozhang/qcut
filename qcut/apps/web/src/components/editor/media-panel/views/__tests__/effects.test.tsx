@@ -1,7 +1,8 @@
-import { fireEvent, render, screen } from "@testing-library/react";
+import { act, fireEvent, render, screen } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { clearAutoSaveTimer } from "@/stores/timeline/timeline-store-autosave";
 import { useEffectsStore } from "@/stores/ai/effects-store";
+import { useLocaleStore } from "@/stores/locale-store";
 import { useMediaStore } from "@/stores/media/media-store";
 import { useTimelineStore } from "@/stores/timeline/timeline-store";
 import EffectsView from "../effects";
@@ -38,6 +39,7 @@ function addSelectedMediaClip(): string {
 
 describe("EffectsView", () => {
 	beforeEach(() => {
+		useLocaleStore.getState().setLocale({ locale: "en" });
 		useTimelineStore.getState().clearTimeline();
 		useEffectsStore.setState({
 			activeEffects: new Map(),
@@ -82,6 +84,27 @@ describe("EffectsView", () => {
 		});
 		expect(screen.getAllByTestId(/^effect-card-/)).toHaveLength(1);
 		expect(screen.getByTestId("effect-card-invert")).toBeVisible();
+	});
+
+	it("updates labels and search when the interface language changes", () => {
+		render(<EffectsView />);
+
+		expect(screen.getByText("Basic")).toBeVisible();
+		expect(screen.getByText("Brighten")).toBeVisible();
+
+		act(() => {
+			useLocaleStore.getState().setLocale({ locale: "zh" });
+		});
+
+		expect(screen.getByText("基础")).toBeVisible();
+		expect(screen.getByText("提亮")).toBeVisible();
+		expect(screen.getAllByText("可用")).toHaveLength(16);
+
+		fireEvent.change(screen.getByLabelText("搜索特效"), {
+			target: { value: "提亮" },
+		});
+		expect(screen.getAllByTestId(/^effect-card-/)).toHaveLength(1);
+		expect(screen.getByTestId("effect-card-brightness-increase")).toBeVisible();
 	});
 
 	it("applies the same sepia parameters used by FFmpeg export", () => {
