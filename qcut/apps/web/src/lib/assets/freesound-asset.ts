@@ -6,6 +6,7 @@ import {
 	type AssetManifestFile,
 } from "@qcut/editor-core";
 import type { SoundEffect } from "@/types/sounds";
+import { QCUT_BUILT_IN_LICENSE } from "./qcut-built-in-license";
 
 function uniqueSoundTags({ tags }: { tags: readonly string[] }): string[] {
 	const seen = new Set<string>();
@@ -61,7 +62,7 @@ export function resolveFreesoundLicense({
 	};
 }
 
-export function createFreesoundAssetEntry({
+export function createAudioLibraryAssetEntry({
 	sound,
 	kind,
 	category,
@@ -75,13 +76,18 @@ export function createFreesoundAssetEntry({
 		files.push({
 			role: "preview",
 			url: sound.previewUrl,
-			mimeType: "audio/mpeg",
+			mimeType: sound.previewUrl.endsWith(".ogg") ? "audio/ogg" : "audio/mpeg",
 		});
 	}
 	if (sound.downloadUrl) {
-		files.push({ role: "source", url: sound.downloadUrl });
+		files.push({
+			role: "source",
+			url: sound.downloadUrl,
+			mimeType: sound.downloadUrl.endsWith(".ogg") ? "audio/ogg" : undefined,
+		});
 	}
 
+	const isBuiltIn = sound.source === "qcut";
 	return {
 		schemaVersion: ASSET_MANIFEST_SCHEMA_VERSION,
 		id: String(sound.id),
@@ -90,14 +96,23 @@ export function createFreesoundAssetEntry({
 		name: sound.name,
 		category: category ?? (kind === "music" ? "music" : "sound-effects"),
 		tags: uniqueSoundTags({ tags: sound.tags }),
-		delivery: "remote",
+		delivery: isBuiltIn ? "bundled" : "remote",
 		files,
-		license: resolveFreesoundLicense({ licenseUrl: sound.license }),
+		license: isBuiltIn
+			? QCUT_BUILT_IN_LICENSE
+			: resolveFreesoundLicense({ licenseUrl: sound.license }),
 		metadata: {
 			creator: sound.username,
 			duration: sound.duration,
 			rating: sound.rating,
 			downloads: sound.downloads,
+			bpm: sound.bpm,
+			musicalKey: sound.musicalKey,
+			moods: sound.moods,
+			scenes: sound.scenes,
+			loopable: sound.loopable,
 		},
 	};
 }
+
+export const createFreesoundAssetEntry = createAudioLibraryAssetEntry;
