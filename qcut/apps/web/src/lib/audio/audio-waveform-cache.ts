@@ -129,6 +129,24 @@ export class AudioWaveformCache {
 
 export const audioWaveformCache = new AudioWaveformCache();
 
+/**
+ * Display gain that scales the loudest sampled bar toward full height, the way
+ * professional editors normalize clip waveforms. Amplification is capped so
+ * quiet-but-real audio becomes readable while near-silence stays flat.
+ */
+export function audioWaveformDisplayGain({
+	bars,
+}: {
+	bars: Float32Array;
+}): number {
+	let maxPeak = 0;
+	for (const value of bars) {
+		if (value > maxPeak) maxPeak = value;
+	}
+	if (maxPeak < 0.02) return 1;
+	return Math.min(1 / maxPeak, 6);
+}
+
 export function sampleAudioWaveformBars({
 	waveform,
 	startTime = 0,

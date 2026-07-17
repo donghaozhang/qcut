@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import {
 	audioWaveformCache,
+	audioWaveformDisplayGain,
 	sampleAudioWaveformBars,
 	type AudioWaveformLoader,
 	type AudioWaveformPeaks,
@@ -13,6 +14,7 @@ import { cn } from "@/lib/utils";
 
 interface AudioWaveformProps {
 	audioUrl: string;
+	/** Fixed pixel height; omit to fill the container (size it via className). */
 	height?: number;
 	className?: string;
 	sourceStart?: number;
@@ -81,9 +83,11 @@ function drawWaveform({
 		endTime: sourceEnd,
 		barCount,
 	});
-	context.fillStyle = "rgba(255, 255, 255, 0.72)";
+	const gain = audioWaveformDisplayGain({ bars });
+	context.fillStyle = "rgba(255, 255, 255, 0.9)";
 	for (let index = 0; index < bars.length; index++) {
-		const barHeight = Math.max(1, bars[index] * (height - 2));
+		const amplitude = Math.min(1, bars[index] * gain);
+		const barHeight = Math.max(1, amplitude * (height - 2));
 		context.fillRect(
 			index * (barWidth + barGap),
 			(height - barHeight) / 2,
@@ -95,7 +99,7 @@ function drawWaveform({
 
 export default function AudioWaveform({
 	audioUrl,
-	height = 32,
+	height,
 	className = "",
 	sourceStart,
 	sourceEnd,
@@ -150,12 +154,12 @@ export default function AudioWaveform({
 		const canvas = canvasRef.current;
 		if (!container || !canvas || !waveform) return;
 		const render = () => {
-			const width = Math.max(1, container.getBoundingClientRect().width);
+			const rect = container.getBoundingClientRect();
 			drawWaveform({
 				canvas,
 				waveform,
-				height,
-				width,
+				height: height ?? Math.max(1, rect.height),
+				width: Math.max(1, rect.width),
 				sourceStart,
 				sourceEnd,
 			});
@@ -170,7 +174,7 @@ export default function AudioWaveform({
 		<div
 			ref={containerRef}
 			className={cn("relative overflow-hidden", className)}
-			style={{ height }}
+			style={height === undefined ? undefined : { height }}
 			data-testid="audio-waveform"
 		>
 			<canvas

@@ -6,7 +6,7 @@ import path from "node:path";
 import type { AudioWaveformOptions, AudioWaveformResult } from "./types.js";
 import { getFFmpegPath } from "./utils.js";
 
-const CACHE_VERSION = 1;
+const CACHE_VERSION = 2;
 const DEFAULT_PEAK_COUNT = 4_096;
 const MIN_PEAK_COUNT = 64;
 const MAX_PEAK_COUNT = 16_384;
@@ -87,7 +87,9 @@ export function buildAudioWaveformCommand({
 	const normalized = normalizeAudioWaveformOptions({ options });
 	const filter = [
 		"aformat=channel_layouts=mono",
-		`showwavespic=s=${normalized.peakCount}x${WAVEFORM_HEIGHT}:colors=white:scale=lin:draw=full`,
+		// filter=peak: the default (average) flattens music to a fraction of its
+		// real amplitude, making clip waveforms look nearly silent.
+		`showwavespic=s=${normalized.peakCount}x${WAVEFORM_HEIGHT}:colors=white:scale=lin:draw=full:filter=peak`,
 		"format=gray",
 	].join(",");
 	return {

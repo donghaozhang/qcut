@@ -1,6 +1,7 @@
 import { describe, expect, it, vi } from "vitest";
 import {
 	AudioWaveformCache,
+	audioWaveformDisplayGain,
 	sampleAudioWaveformBars,
 	type AudioWaveformPeaks,
 } from "../audio-waveform-cache";
@@ -70,5 +71,28 @@ describe("sampleAudioWaveformBars", () => {
 		});
 
 		expect([...bars]).toEqual([expect.closeTo(0.8, 5), expect.closeTo(0.9, 5)]);
+	});
+});
+
+describe("audioWaveformDisplayGain", () => {
+	it("scales the loudest bar toward full height", () => {
+		const gain = audioWaveformDisplayGain({
+			bars: new Float32Array([0.1, 0.5, 0.25]),
+		});
+		expect(gain).toBeCloseTo(2, 5);
+	});
+
+	it("caps amplification for quiet audio", () => {
+		const gain = audioWaveformDisplayGain({
+			bars: new Float32Array([0.05, 0.02]),
+		});
+		expect(gain).toBe(6);
+	});
+
+	it("leaves near-silence unamplified", () => {
+		expect(
+			audioWaveformDisplayGain({ bars: new Float32Array([0.001, 0]) })
+		).toBe(1);
+		expect(audioWaveformDisplayGain({ bars: new Float32Array(0) })).toBe(1);
 	});
 });
