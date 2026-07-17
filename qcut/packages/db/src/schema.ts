@@ -252,6 +252,14 @@ export const userLibraryDocuments = pgTable(
 	]
 ).enableRLS();
 
+export const audioTrackDownloads = pgTable("audio_track_downloads", {
+	trackKey: text("track_key").primaryKey(),
+	downloads: integer("downloads").notNull().default(0),
+	updatedAt: timestamp("updated_at")
+		.$defaultFn(() => /* @__PURE__ */ new Date())
+		.notNull(),
+}).enableRLS();
+
 export const reviewShares = pgTable(
 	"review_shares",
 	{

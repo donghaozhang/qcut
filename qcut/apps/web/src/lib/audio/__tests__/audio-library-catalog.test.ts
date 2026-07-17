@@ -94,4 +94,17 @@ describe("audio library catalog", () => {
 			"Road Trip"
 		);
 	});
+
+	it("matches tracks by artist/source name", () => {
+		const travel = findAudioLibraryCategory({ categoryId: "music-travel" });
+		const byArtist = getBuiltInAudio({
+			category: travel,
+			query: "qcut studio",
+		});
+		expect(byArtist.length).toBeGreaterThan(0);
+		expect(byArtist.map((item) => item.name)).toContain("Golden Hour Ride");
+		expect(
+			getBuiltInAudio({ category: travel, query: "no-such-artist" })
+		).toHaveLength(0);
+	});
 });

@@ -137,6 +137,7 @@ function matchesAudioQuery({
 		sound.localizedName,
 		sound.description,
 		sound.localizedDescription,
+		sound.username,
 		...sound.tags,
 		...(sound.moods ?? []),
 		...(sound.scenes ?? []),

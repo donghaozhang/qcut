@@ -30,3 +30,12 @@ bun run assets:audio:verify-cdn -- --manifest apps/web/audio-cdn/dist/manifest.j
 ```
 
 The app picks the catalog up via `VITE_AUDIO_CDN_MANIFEST_URL`.
+
+## Real download counts
+
+The editor reports catalog-track usage to the license server
+(`POST /api/audio-metrics/downloads`, best-effort, signed-in users only).
+Pass `--downloads-url https://<license-server>/api/audio-metrics/downloads`
+(auth via `--downloads-token` or `QCUT_AUDIO_METRICS_TOKEN`) to the release
+script to backfill `downloads` in the manifest so the trending sort reflects
+actual usage.

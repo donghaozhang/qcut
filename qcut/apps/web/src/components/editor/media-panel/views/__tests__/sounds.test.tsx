@@ -100,6 +100,20 @@ describe("SoundsView", () => {
 		expect(screen.getByText("静谧流光")).toBeVisible();
 	});
 
+	it("finds tracks by artist name", () => {
+		render(<SoundsView />);
+
+		fireEvent.change(screen.getByLabelText("搜索音频库"), {
+			target: { value: "QCut Studio" },
+		});
+		expect(screen.getByText("静谧流光")).toBeVisible();
+
+		fireEvent.change(screen.getByLabelText("搜索音频库"), {
+			target: { value: "Unknown Artist" },
+		});
+		expect(screen.queryByText("静谧流光")).not.toBeInTheDocument();
+	});
+
 	it("switches all library chrome to English", () => {
 		render(<SoundsView />);
 

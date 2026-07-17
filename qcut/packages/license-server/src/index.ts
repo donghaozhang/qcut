@@ -12,6 +12,7 @@ import { sandboxRoutes } from "./routes/sandbox";
 import { agentRoutes } from "./routes/agent";
 import { reviewRoutes } from "./routes/reviews";
 import { userLibraryRoutes } from "./routes/user-library";
+import { audioMetricsRoutes } from "./routes/audio-metrics";
 import { getMockResponse, isMockMode } from "./middleware/mock";
 import { getAllowedCorsOrigins } from "./services/payment-config";
 
@@ -87,5 +88,6 @@ app.route("/api/sandbox", sandboxRoutes);
 app.route("/api/agent", agentRoutes);
 app.route("/api/reviews", reviewRoutes);
 app.route("/api/library", userLibraryRoutes);
+app.route("/api/audio-metrics", audioMetricsRoutes);
 
 export default app;

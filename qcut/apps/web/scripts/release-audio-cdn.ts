@@ -54,6 +54,29 @@ const baseUrl = (
 const bucket = flagValue({ flag: "--bucket" });
 const prefix = (flagValue({ flag: "--prefix" }) ?? "audio").replace(/\/$/, "");
 const dryRun = process.argv.includes("--dry-run") || !bucket;
+const downloadsUrl = flagValue({ flag: "--downloads-url" });
+
+/**
+ * Optionally backfill real usage counters from the license-server
+ * audio-metrics endpoint (GET /api/audio-metrics/downloads) so the trending
+ * sort reflects actual downloads instead of hand-maintained numbers.
+ */
+async function fetchDownloadCounts(): Promise<Record<string, number>> {
+	if (!downloadsUrl) return {};
+	const token =
+		flagValue({ flag: "--downloads-token" }) ??
+		process.env.QCUT_AUDIO_METRICS_TOKEN;
+	const response = await fetch(downloadsUrl, {
+		headers: token ? { Authorization: `Bearer ${token}` } : undefined,
+	});
+	if (!response.ok) {
+		throw new Error(`Downloads endpoint responded ${response.status}`);
+	}
+	const body = (await response.json()) as {
+		downloads?: Record<string, number>;
+	};
+	return body.downloads ?? {};
+}
 
 function contentTypeFor({ file }: { file: string }): string {
 	if (file.endsWith(".ogg")) return "audio/ogg";
@@ -163,8 +186,23 @@ if (import.meta.main) {
 		process.exit(1);
 	}
 
+	const downloadCounts = await fetchDownloadCounts();
+	const enrichedTracks = tracks.map((track) => ({
+		...track,
+		downloads: downloadCounts[`${track.kind}:${track.id}`] ?? track.downloads,
+	}));
+	if (downloadsUrl) {
+		console.log(
+			`📈 Backfilled download counts for ${
+				enrichedTracks.filter(
+					(track) => downloadCounts[`${track.kind}:${track.id}`] !== undefined
+				).length
+			} of ${enrichedTracks.length} tracks`
+		);
+	}
+
 	const manifest = buildManifest({
-		tracks,
+		tracks: enrichedTracks,
 		generatedAt: new Date().toISOString(),
 	});
 	if (!parseAudioCdnManifest({ value: manifest })) {
