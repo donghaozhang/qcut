@@ -18,7 +18,9 @@ import type { CliProvider } from "@/types/cli-provider";
  * Start the specified skill in the PTY terminal using the specified or current CLI provider.
  *
  * @param skillId - The ID of the skill to run
- * @param preferredProvider - Optional agent provider. If omitted, uses the current provider.
+ * @param preferredProvider - Optional agent provider. If omitted, uses the
+ *                            current provider unless it is `shell`, in which
+ *                            case `claude` is selected.
  * @returns No value.
  */
 export function useSkillRunner() {
@@ -39,8 +41,9 @@ export function useSkillRunner() {
 	 * Run a skill with the specified or current CLI provider.
 	 *
 	 * @param skillId - The ID of the skill to run
-	 * @param preferredProvider - Optional agent provider
-	 *                           If not specified, uses the currently selected provider
+	 * @param preferredProvider - Optional agent provider. If not specified,
+	 *                           uses the currently selected provider unless it
+	 *                           is `shell`, in which case `claude` is selected.
 	 */
 	const runSkill = useCallback(
 		async (

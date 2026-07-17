@@ -19,10 +19,14 @@ export function useAudioPreview({
 	const [duration, setDuration] = useState(0);
 	const [volume, setVolumeState] = useState(0.8);
 	const audioRef = useRef<HTMLAudioElement | undefined>(undefined);
+	// Bumped on every stop/switch so in-flight download/play chains from an
+	// older preview cannot update state after a newer selection or unmount.
+	const generationRef = useRef(0);
 	const onEndedRef = useRef(onEnded);
 	onEndedRef.current = onEnded;
 
 	const stop = useCallback(() => {
+		generationRef.current += 1;
 		audioRef.current?.pause();
 		audioRef.current = undefined;
 		setPlayingId(null);
@@ -61,6 +65,7 @@ export function useAudioPreview({
 			}
 			stop();
 			if (!sound.previewUrl) return;
+			const generation = generationRef.current;
 
 			try {
 				let audioUrl = sound.previewUrl;
@@ -69,6 +74,7 @@ export function useAudioPreview({
 						url: sound.previewUrl,
 						id: sound.id,
 					});
+					if (generationRef.current !== generation) return;
 					if (result.success && result.localPath) {
 						audioUrl = result.localPath;
 					} else if (result.error) {
@@ -85,9 +91,11 @@ export function useAudioPreview({
 				const audio = new Audio(audioUrl);
 				audio.volume = volume;
 				audio.addEventListener("timeupdate", () => {
+					if (audioRef.current !== audio) return;
 					setCurrentTime(audio.currentTime);
 				});
 				audio.addEventListener("durationchange", () => {
+					if (audioRef.current !== audio) return;
 					setDuration(Number.isFinite(audio.duration) ? audio.duration : 0);
 				});
 				audio.addEventListener(
@@ -99,9 +107,20 @@ export function useAudioPreview({
 					},
 					{ once: true }
 				);
-				audio.addEventListener("error", stop, { once: true });
+				audio.addEventListener(
+					"error",
+					() => {
+						if (audioRef.current !== audio) return;
+						stop();
+					},
+					{ once: true }
+				);
 				audioRef.current = audio;
 				await audio.play();
+				if (generationRef.current !== generation) {
+					audio.pause();
+					return;
+				}
 				setPlayingId(sound.id);
 				setPlayingSound(sound);
 				setIsPlaying(true);
@@ -109,7 +128,7 @@ export function useAudioPreview({
 					Number.isFinite(audio.duration) ? audio.duration : sound.duration
 				);
 			} catch (error) {
-				stop();
+				if (generationRef.current === generation) stop();
 				handleError(error, {
 					operation: "Play audio preview",
 					category: ErrorCategory.MEDIA_PROCESSING,

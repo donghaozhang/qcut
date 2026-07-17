@@ -197,6 +197,6 @@ describe("audio library timeline insertion", () => {
 			"loop-1",
 			false
 		);
-		expect(removeTrack).not.toHaveBeenCalled();
+		expect(removeTrack).toHaveBeenCalledWith("music-track");
 	});
 });

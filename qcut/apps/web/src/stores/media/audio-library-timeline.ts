@@ -115,13 +115,13 @@ export function insertAudioLibraryMedia({
 		);
 		if (!elementId) {
 			// Roll back the partial insertion so a failed fit-project add does
-			// not leave a dangling track or orphaned segments behind.
+			// not leave a dangling track or orphaned segments behind. The track
+			// is removed unconditionally because element removal is not
+			// guaranteed to drop the emptied track.
 			for (const insertedId of insertedElementIds) {
 				timeline.removeElementFromTrack(targetTrackId, insertedId, false);
 			}
-			if (insertedElementIds.length === 0) {
-				timeline.removeTrack(targetTrackId);
-			}
+			timeline.removeTrack(targetTrackId);
 			return {
 				success: false,
 				segmentCount: 0,
