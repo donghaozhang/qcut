@@ -24,12 +24,28 @@ collide with bundled (-1000s) or Freesound (positive) IDs.
 
 ## Publishing
 
+Current host: **Supabase Storage** (public bucket `audio-cdn`, served through
+Supabase's CDN — free-tier egress is 5GB/month; migrate to R2 when usage
+grows, the tooling is S3-compatible either way):
+
 ```bash
-bun run assets:audio:release-cdn -- --base-url https://assets.qcut.app/audio --bucket qcut-assets
+# 1. Build the manifest against the Supabase public URL
+bun run assets:audio:release-cdn --   --base-url "$SUPABASE_URL/storage/v1/object/public/audio-cdn" --dry-run
+# 2. Upload payloads + dist/manifest.json to the bucket via the storage REST
+#    API (service-role key) or any S3 client, then verify:
 bun run assets:audio:verify-cdn -- --manifest apps/web/audio-cdn/dist/manifest.json --check-remote
 ```
 
-The app picks the catalog up via `VITE_AUDIO_CDN_MANIFEST_URL`.
+R2 alternative:
+
+```bash
+bun run assets:audio:release-cdn -- --base-url https://assets.qcut.app/audio --bucket qcut-assets
+```
+
+The app picks the catalog up via `VITE_AUDIO_CDN_MANIFEST_URL` (baked at
+build time — set it in apps/web/.env.local or CI). The CDN host must be
+allowed by the CSP `connect-src`/`img-src` (electron/main.ts and
+apps/web/index.html).
 
 ## Real download counts
 
