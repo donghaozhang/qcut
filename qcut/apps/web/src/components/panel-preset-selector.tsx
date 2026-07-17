@@ -14,22 +14,27 @@ import {
 	type PanelPreset,
 	PRESET_LABELS,
 } from "@/stores/editor/panel-store";
+import { useMediaPanelStore } from "@/components/editor/media-panel/store";
 import { useTranslation, type TranslationKey } from "@/lib/i18n";
 
 const presets = Object.keys(PRESET_LABELS) as PanelPreset[];
 
 const PRESET_LABEL_KEYS: Record<PanelPreset, TranslationKey> = {
 	default: "editor.preset.default",
+	audio: "editor.preset.audio",
 	media: "editor.preset.media",
 	inspector: "editor.preset.inspector",
 	"vertical-preview": "editor.preset.vertical",
+	"vertical-preview-left": "editor.preset.verticalLeft",
 };
 
 const PRESET_DESCRIPTION_KEYS: Record<PanelPreset, TranslationKey> = {
 	default: "editor.preset.defaultDescription",
+	audio: "editor.preset.audioDescription",
 	media: "editor.preset.mediaDescription",
 	inspector: "editor.preset.inspectorDescription",
 	"vertical-preview": "editor.preset.verticalDescription",
+	"vertical-preview-left": "editor.preset.verticalLeftDescription",
 };
 
 export function PanelPresetSelector() {
@@ -66,7 +71,13 @@ export function PanelPresetSelector() {
 				{presets.map((preset) => (
 					<DropdownMenuItem
 						key={preset}
-						onClick={() => setActivePreset(preset)}
+						onClick={() => {
+							setActivePreset(preset);
+							// Audio creation is about the sound library; bring it up too.
+							if (preset === "audio") {
+								useMediaPanelStore.getState().setActiveTab("audio");
+							}
+						}}
 						className="flex items-start justify-between gap-2 py-2"
 					>
 						<div className="flex-1">

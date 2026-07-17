@@ -1,4 +1,4 @@
-import { act, fireEvent, render, screen } from "@testing-library/react";
+import { act, fireEvent, render, screen, within } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { useMediaPanelStore } from "@/components/editor/media-panel/store";
 import { AUDIO_LIBRARY_DRAG_MIME } from "@/lib/audio/audio-library-drag";
@@ -100,6 +100,20 @@ describe("SoundsView", () => {
 		expect(screen.getByText("静谧流光")).toBeVisible();
 	});
 
+	it("finds tracks by artist name", () => {
+		render(<SoundsView />);
+
+		fireEvent.change(screen.getByLabelText("搜索音频库"), {
+			target: { value: "QCut Studio" },
+		});
+		expect(screen.getByText("静谧流光")).toBeVisible();
+
+		fireEvent.change(screen.getByLabelText("搜索音频库"), {
+			target: { value: "Unknown Artist" },
+		});
+		expect(screen.queryByText("静谧流光")).not.toBeInTheDocument();
+	});
+
 	it("switches all library chrome to English", () => {
 		render(<SoundsView />);
 
@@ -113,6 +127,50 @@ describe("SoundsView", () => {
 		expect(
 			screen.getByPlaceholderText("Search songs, artists, or sound effects")
 		).toBeVisible();
+	});
+
+	it("renders cover artwork and falls back to the gradient on error", () => {
+		render(<SoundsView />);
+
+		const artwork = screen.getByTestId("audio-artwork-music--1002");
+		expect(artwork).toHaveAttribute(
+			"src",
+			"/audio/builtin/artwork/neon-steps.webp"
+		);
+
+		fireEvent.error(artwork);
+		expect(
+			screen.queryByTestId("audio-artwork-music--1002")
+		).not.toBeInTheDocument();
+	});
+
+	it("shows the artist source on every card", () => {
+		render(<SoundsView />);
+
+		const card = screen.getByTestId("audio-library-item-music--1002");
+		expect(within(card).getByText("QCut Studio")).toBeVisible();
+	});
+
+	it("starts a preview after dwelling on the artwork", () => {
+		vi.useFakeTimers();
+		try {
+			render(<SoundsView />);
+
+			const card = screen.getByTestId("audio-library-item-music--1002");
+			const playButton = within(card).getAllByRole("button")[0];
+			fireEvent.pointerEnter(playButton);
+			expect(useSoundsStore.getState().recentSounds).toHaveLength(0);
+
+			act(() => {
+				vi.advanceTimersByTime(600);
+			});
+			expect(useSoundsStore.getState().recentSounds[0]).toMatchObject({
+				id: -1002,
+				kind: "music",
+			});
+		} finally {
+			vi.useRealTimers();
+		}
 	});
 
 	it("publishes a compatible audio payload while dragging a card", () => {

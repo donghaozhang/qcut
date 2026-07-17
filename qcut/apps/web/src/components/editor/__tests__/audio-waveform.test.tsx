@@ -43,4 +43,34 @@ describe("AudioWaveform", () => {
 			})
 		);
 	});
+
+	it("retries a transiently failing decode instead of pinning the error", async () => {
+		vi.useFakeTimers();
+		nativeMocks.decode
+			.mockRejectedValueOnce(new Error("decode pressure"))
+			.mockResolvedValueOnce({
+				duration: 300,
+				values: new Float32Array([0.4]),
+			});
+		try {
+			const { queryByText } = render(
+				<AudioWaveform
+					audioUrl="blob:flaky-audio"
+					sourcePath="/project/flaky-audio.mp3"
+					sourceDuration={300}
+					cacheKey="media:flaky-audio:1"
+					errorLabel="Audio unavailable"
+				/>
+			);
+
+			await vi.waitFor(() => expect(nativeMocks.decode).toHaveBeenCalledOnce());
+			await vi.advanceTimersByTimeAsync(1500);
+			await vi.waitFor(() =>
+				expect(nativeMocks.decode).toHaveBeenCalledTimes(2)
+			);
+			expect(queryByText("Audio unavailable")).toBeNull();
+		} finally {
+			vi.useRealTimers();
+		}
+	});
 });

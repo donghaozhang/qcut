@@ -30,6 +30,7 @@ describe("audio waveform extraction", () => {
 		expect(command.expectedBytes).toBe(4_096 * 128);
 		expect(command.args).toContain(sourcePath);
 		expect(command.args.join(" ")).toContain("showwavespic=s=4096x128");
+		expect(command.args.join(" ")).toContain("filter=peak");
 		expect(command.args.at(-1)).toBe("pipe:1");
 	});
 

@@ -25,6 +25,7 @@ import {
 	MediaLayout,
 	InspectorLayout,
 	VerticalPreviewLayout,
+	VerticalPreviewLeftLayout,
 } from "@/components/editor/panel-layouts";
 
 export const Route = createLazyFileRoute("/editor/$project_id")({
@@ -292,6 +293,12 @@ function EditorPage() {
 		media: <MediaLayout resetCounter={resetCounter} />,
 		inspector: <InspectorLayout resetCounter={resetCounter} />,
 		"vertical-preview": <VerticalPreviewLayout resetCounter={resetCounter} />,
+		"vertical-preview-left": (
+			<VerticalPreviewLeftLayout resetCounter={resetCounter} />
+		),
+		// Audio creation reuses the default arrangement; its preset sizes give
+		// the timeline most of the height.
+		audio: <DefaultLayout resetCounter={resetCounter} />,
 		default: <DefaultLayout resetCounter={resetCounter} />,
 	};
 

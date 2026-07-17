@@ -88,6 +88,10 @@ export function createAudioLibraryAssetEntry({
 	}
 
 	const isBuiltIn = sound.source === "qcut";
+	// QCut CDN catalog tracks share source "qcut" but live on absolute URLs,
+	// so delivery must stay remote for them.
+	const isBundled =
+		isBuiltIn && !/^https?:/i.test(sound.previewUrl ?? sound.url ?? "");
 	return {
 		schemaVersion: ASSET_MANIFEST_SCHEMA_VERSION,
 		id: String(sound.id),
@@ -96,7 +100,7 @@ export function createAudioLibraryAssetEntry({
 		name: sound.name,
 		category: category ?? (kind === "music" ? "music" : "sound-effects"),
 		tags: uniqueSoundTags({ tags: sound.tags }),
-		delivery: isBuiltIn ? "bundled" : "remote",
+		delivery: isBundled ? "bundled" : "remote",
 		files,
 		license: isBuiltIn
 			? QCUT_BUILT_IN_LICENSE

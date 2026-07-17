@@ -54,14 +54,46 @@ export function createAudioWaveformPeaks({
 	return { duration: buffer.duration, values };
 }
 
-export async function decodeAudioWaveform({
-	audioUrl,
+// Full-file decodes hold the whole PCM buffer in memory (a 3-minute track is
+// ~60MB); a library panel mounting dozens of waveforms at once must not decode
+// them all concurrently or decodes start failing under memory pressure.
+const MAX_CONCURRENT_DECODES = 3;
+let activeDecodes = 0;
+const pendingDecodes: (() => void)[] = [];
+
+async function withDecodeSlot<T>({
+	task,
 }: {
-	audioUrl: string;
-}): Promise<AudioWaveformPeaks> {
-	const response = await fetch(audioUrl);
-	if (!response.ok) {
-		throw new Error(`Audio waveform request failed (${response.status})`);
+	task: () => Promise<T>;
+}): Promise<T> {
+	if (activeDecodes >= MAX_CONCURRENT_DECODES) {
+		await new Promise<void>((resolve) => pendingDecodes.push(resolve));
+	}
+	activeDecodes += 1;
+	try {
+		return await task();
+	} finally {
+		activeDecodes -= 1;
+		pendingDecodes.shift()?.();
+	}
+}
+
+async function decodeArrayBuffer({
+	arrayBuffer,
+}: {
+	arrayBuffer: ArrayBuffer;
+}): Promise<AudioBuffer> {
+	// OfflineAudioContext decodes without claiming a realtime audio context
+	// (those are a limited hardware-backed resource).
+	const OfflineConstructor =
+		window.OfflineAudioContext ??
+		(
+			window as Window & {
+				webkitOfflineAudioContext?: typeof OfflineAudioContext;
+			}
+		).webkitOfflineAudioContext;
+	if (OfflineConstructor) {
+		return new OfflineConstructor(1, 1, 44_100).decodeAudioData(arrayBuffer);
 	}
 	const AudioContextConstructor =
 		window.AudioContext ??
@@ -72,17 +104,37 @@ export async function decodeAudioWaveform({
 	}
 	const context = new AudioContextConstructor();
 	try {
-		const buffer = await context.decodeAudioData(await response.arrayBuffer());
-		return createAudioWaveformPeaks({ buffer });
+		return await context.decodeAudioData(arrayBuffer);
 	} finally {
 		await context.close();
 	}
 }
 
+export async function decodeAudioWaveform({
+	audioUrl,
+}: {
+	audioUrl: string;
+}): Promise<AudioWaveformPeaks> {
+	return withDecodeSlot({
+		task: async () => {
+			const response = await fetch(audioUrl);
+			if (!response.ok) {
+				throw new Error(`Audio waveform request failed (${response.status})`);
+			}
+			const buffer = await decodeArrayBuffer({
+				arrayBuffer: await response.arrayBuffer(),
+			});
+			return createAudioWaveformPeaks({ buffer });
+		},
+	});
+}
+
 export class AudioWaveformCache {
 	private readonly entries = new Map<string, AudioWaveformCacheEntry>();
 
-	constructor(private readonly maxEntries = 24) {}
+	// Peaks are ~16KB each; keep enough for a full library panel plus timeline
+	// clips so scrolling doesn't evict-and-redecode multi-megabyte sources.
+	constructor(private readonly maxEntries = 96) {}
 
 	get({
 		audioUrl,
@@ -128,6 +180,24 @@ export class AudioWaveformCache {
 }
 
 export const audioWaveformCache = new AudioWaveformCache();
+
+/**
+ * Display gain that scales the loudest sampled bar toward full height, the way
+ * professional editors normalize clip waveforms. Amplification is capped so
+ * quiet-but-real audio becomes readable while near-silence stays flat.
+ */
+export function audioWaveformDisplayGain({
+	bars,
+}: {
+	bars: Float32Array;
+}): number {
+	let maxPeak = 0;
+	for (const value of bars) {
+		if (value > maxPeak) maxPeak = value;
+	}
+	if (maxPeak < 0.02) return 1;
+	return Math.min(1 / maxPeak, 6);
+}
 
 export function sampleAudioWaveformBars({
 	waveform,

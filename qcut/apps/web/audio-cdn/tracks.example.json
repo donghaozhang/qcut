@@ -1,0 +1,23 @@
+[
+	{
+		"id": -100001,
+		"kind": "music",
+		"name": "City Dawn",
+		"localizedName": "城市黎明",
+		"description": "Warm synth pads for morning city timelapses.",
+		"localizedDescription": "适合城市清晨延时的温暖合成器音乐。",
+		"tags": ["synth", "city", "morning", "vlog"],
+		"duration": 96,
+		"file": "tracks/city-dawn.ogg",
+		"artworkFile": "artwork/city-dawn.webp",
+		"bpm": 92,
+		"musicalKey": "F",
+		"moods": ["optimistic", "fresh"],
+		"scenes": ["city", "morning", "vlog"],
+		"loopable": true,
+		"downloads": 0,
+		"license": "qcut://license/built-in",
+		"username": "QCut Studio",
+		"created": "2026-07-17T00:00:00.000Z"
+	}
+]

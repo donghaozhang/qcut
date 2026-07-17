@@ -44,6 +44,24 @@ describe("audio library catalog", () => {
 		}
 	});
 
+	it("ships cover artwork for every bundled track", () => {
+		for (const sound of BUILT_IN_AUDIO) {
+			expect(sound.artworkUrl, `${sound.name} should have artwork`).toMatch(
+				/^\/audio\/builtin\/artwork\/.+\.webp$/
+			);
+			const artworkPath = path.join(
+				import.meta.dirname,
+				"../../../../public",
+				(sound.artworkUrl ?? "").replace(/^\//, "")
+			);
+			expect(
+				existsSync(artworkPath),
+				`${sound.name} artwork file should exist`
+			).toBe(true);
+			expect(statSync(artworkPath).size).toBeGreaterThan(500);
+		}
+	});
+
 	it("keeps every category useful without an online provider", () => {
 		for (const category of AUDIO_LIBRARY_CATEGORIES) {
 			expect(
@@ -75,5 +93,18 @@ describe("audio library catalog", () => {
 		expect(localizeAudioLibraryTag({ tag: "road-trip", locale: "en" })).toBe(
 			"Road Trip"
 		);
+	});
+
+	it("matches tracks by artist/source name", () => {
+		const travel = findAudioLibraryCategory({ categoryId: "music-travel" });
+		const byArtist = getBuiltInAudio({
+			category: travel,
+			query: "qcut studio",
+		});
+		expect(byArtist.length).toBeGreaterThan(0);
+		expect(byArtist.map((item) => item.name)).toContain("Golden Hour Ride");
+		expect(
+			getBuiltInAudio({ category: travel, query: "no-such-artist" })
+		).toHaveLength(0);
 	});
 });

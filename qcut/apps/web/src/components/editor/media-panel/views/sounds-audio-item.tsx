@@ -19,7 +19,7 @@ import {
 	Volume2,
 	Waves,
 } from "lucide-react";
-import { useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Button } from "@/components/ui/button";
 import {
 	DropdownMenu,
@@ -88,6 +88,19 @@ export function AudioLibraryItem({
 	const { locale, t } = useTranslation();
 	const [isAdding, setIsAdding] = useState(false);
 	const [isDragging, setIsDragging] = useState(false);
+	const [artworkFailed, setArtworkFailed] = useState(false);
+	const artworkUrl = artworkFailed ? undefined : sound.artworkUrl;
+	// Hover-to-play: start the preview after a short dwell on the artwork so
+	// browsing feels like JianYing without firing on incidental pointer moves.
+	const hoverPlayTimerRef = useRef<ReturnType<typeof setTimeout> | undefined>(
+		undefined
+	);
+	const cancelHoverPlay = useCallback(() => {
+		if (hoverPlayTimerRef.current === undefined) return;
+		clearTimeout(hoverPlayTimerRef.current);
+		hoverPlayTimerRef.current = undefined;
+	}, []);
+	useEffect(() => cancelHoverPlay, [cancelHoverPlay]);
 	const asset = useMemo(
 		() => createAudioLibraryAssetEntry({ sound, kind: assetKind }),
 		[assetKind, sound]
@@ -166,6 +179,7 @@ export function AudioLibraryItem({
 			data-testid={`audio-library-item-${assetKind}-${sound.id}`}
 			draggable
 			onDragStart={(event) => {
+				cancelHoverPlay();
 				setIsDragging(true);
 				event.dataTransfer.effectAllowed = "copy";
 				event.dataTransfer.setData(
@@ -192,14 +206,32 @@ export function AudioLibraryItem({
 						? t("audioLibrary.player.pause")
 						: t("audioLibrary.player.play")
 				}
-				onClick={onPlay}
-				onKeyDown={(event) => {
-					if (event.key === "Enter" || event.key === " ") {
-						event.preventDefault();
-						onPlay();
-					}
+				onClick={() => {
+					cancelHoverPlay();
+					onPlay();
 				}}
+				onPointerEnter={() => {
+					if (isPlaying) return;
+					cancelHoverPlay();
+					hoverPlayTimerRef.current = setTimeout(() => {
+						hoverPlayTimerRef.current = undefined;
+						onPlay();
+					}, 550);
+				}}
+				onPointerLeave={cancelHoverPlay}
+				onKeyDown={cancelHoverPlay}
 			>
+				{artworkUrl ? (
+					<img
+						src={artworkUrl}
+						alt=""
+						loading="lazy"
+						draggable={false}
+						className="absolute inset-0 size-full object-cover"
+						data-testid={`audio-artwork-${assetKind}-${sound.id}`}
+						onError={() => setArtworkFailed(true)}
+					/>
+				) : null}
 				<div className="absolute inset-x-2 bottom-2 flex h-7 items-end justify-center gap-0.5 opacity-75">
 					{WAVEFORM_HEIGHTS.map((height, index) => (
 						<span
@@ -328,6 +360,11 @@ export function AudioLibraryItem({
 
 				<div className="mt-auto flex min-w-0 items-center justify-between gap-1 text-[9px] text-muted-foreground">
 					<div className="flex min-w-0 items-center gap-1.5">
+						{sound.username && description ? (
+							<span className="max-w-20 truncate" title={sound.username}>
+								{sound.username}
+							</span>
+						) : null}
 						<span className="tabular-nums">
 							{formatAudioDuration({ duration: sound.duration })}
 						</span>

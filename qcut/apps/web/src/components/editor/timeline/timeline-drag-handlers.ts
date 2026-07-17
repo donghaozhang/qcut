@@ -1,4 +1,6 @@
 import { useCallback, useRef, useState } from "react";
+import type { RefObject } from "react";
+import { TIMELINE_CONSTANTS } from "@/constants/timeline-constants";
 import { createObjectURL } from "@/lib/media/blob-manager";
 import { useTimelineStore } from "@/stores/timeline/timeline-store";
 import { usePlaybackStore } from "@/stores/editor/playback-store";
@@ -15,6 +17,9 @@ interface UseDragHandlersParams {
 	mediaItems: MediaItem[];
 	addMediaItem: MediaStore["addMediaItem"] | undefined;
 	activeProject: { id: string } | null;
+	/** Tracks scroll viewport; lets background drops resolve the drop time from the pointer. */
+	tracksScrollRef?: RefObject<HTMLDivElement | null>;
+	zoomLevel?: number;
 }
 
 interface DragProps {
@@ -39,6 +44,8 @@ export function useDragHandlers({
 	mediaItems,
 	addMediaItem,
 	activeProject,
+	tracksScrollRef,
+	zoomLevel,
 }: UseDragHandlersParams): UseDragHandlersReturn {
 	const [isDragOver, setIsDragOver] = useState(false);
 	const [isProcessing, setIsProcessing] = useState(false);
@@ -94,9 +101,24 @@ export function useDragHandlers({
 					useTimelineStore.getState().snappingEnabled && payload.sound.bpm
 						? "nearest"
 						: undefined;
+				// Drops on the timeline background (e.g. the empty area below the
+				// tracks) land here rather than on a lane; keep the horizontal drop
+				// position instead of falling back to the playhead.
+				const scrollContainer = tracksScrollRef?.current;
+				const dropTime =
+					scrollContainer && zoomLevel
+						? Math.max(
+								0,
+								(e.clientX -
+									scrollContainer.getBoundingClientRect().left +
+									scrollContainer.scrollLeft) /
+									(TIMELINE_CONSTANTS.PIXELS_PER_SECOND * zoomLevel)
+							)
+						: undefined;
 				await useSoundsStore.getState().addSoundToTimeline({
 					sound: payload.sound,
 					kind: payload.kind,
+					...(dropTime !== undefined ? { startTime: dropTime } : {}),
 					...(beatAlignment ? { beatAlignment } : {}),
 				});
 				return;
@@ -299,7 +321,7 @@ export function useDragHandlers({
 				}
 			}
 		},
-		[activeProject, addMediaItem, mediaItems]
+		[activeProject, addMediaItem, mediaItems, tracksScrollRef, zoomLevel]
 	);
 
 	const dragProps: DragProps = {

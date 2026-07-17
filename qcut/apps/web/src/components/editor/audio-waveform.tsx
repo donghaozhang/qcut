@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import {
 	audioWaveformCache,
+	audioWaveformDisplayGain,
 	sampleAudioWaveformBars,
 	type AudioWaveformLoader,
 	type AudioWaveformPeaks,
@@ -13,6 +14,7 @@ import { cn } from "@/lib/utils";
 
 interface AudioWaveformProps {
 	audioUrl: string;
+	/** Fixed pixel height; omit to fill the container (size it via className). */
 	height?: number;
 	className?: string;
 	sourceStart?: number;
@@ -81,9 +83,11 @@ function drawWaveform({
 		endTime: sourceEnd,
 		barCount,
 	});
-	context.fillStyle = "rgba(255, 255, 255, 0.72)";
-	for (let index = 0; index < bars.length; index++) {
-		const barHeight = Math.max(1, bars[index] * (height - 2));
+	const gain = audioWaveformDisplayGain({ bars });
+	context.fillStyle = "rgba(255, 255, 255, 0.9)";
+	for (const [index, bar] of bars.entries()) {
+		const amplitude = Math.min(1, bar * gain);
+		const barHeight = Math.max(1, amplitude * (height - 2));
 		context.fillRect(
 			index * (barWidth + barGap),
 			(height - barHeight) / 2,
@@ -95,7 +99,7 @@ function drawWaveform({
 
 export default function AudioWaveform({
 	audioUrl,
-	height = 32,
+	height,
 	className = "",
 	sourceStart,
 	sourceEnd,
@@ -114,6 +118,7 @@ export default function AudioWaveform({
 
 	useEffect(() => {
 		let active = true;
+		let retryTimer: ReturnType<typeof setTimeout> | undefined;
 		setWaveform(null);
 		setError(undefined);
 		const nativeLoader = nativeWaveformLoader({ sourcePath, sourceDuration });
@@ -124,24 +129,39 @@ export default function AudioWaveform({
 				active = false;
 			};
 		}
-		void audioWaveformCache
-			.get({
-				audioUrl,
-				cacheKey:
-					cacheKey ??
-					(useNativeDecoder
-						? `native:${sourcePath}:${sourceDuration}`
-						: audioUrl),
-				loader: nativeLoader,
-			})
-			.then((result) => {
-				if (active) setWaveform(result);
-			})
-			.catch(() => {
-				if (active) setError(errorLabel);
-			});
+		// Decodes can fail transiently (memory pressure while a whole library
+		// panel decodes at once); the cache evicts failed promises, so a retry
+		// re-runs the loader instead of pinning the error until remount.
+		const load = ({ attempt }: { attempt: number }) => {
+			void audioWaveformCache
+				.get({
+					audioUrl,
+					cacheKey:
+						cacheKey ??
+						(useNativeDecoder
+							? `native:${sourcePath}:${sourceDuration}`
+							: audioUrl),
+					loader: nativeLoader,
+				})
+				.then((result) => {
+					if (active) setWaveform(result);
+				})
+				.catch(() => {
+					if (!active) return;
+					if (attempt < 2) {
+						retryTimer = setTimeout(
+							() => load({ attempt: attempt + 1 }),
+							1500 * (attempt + 1)
+						);
+						return;
+					}
+					setError(errorLabel);
+				});
+		};
+		load({ attempt: 0 });
 		return () => {
 			active = false;
+			clearTimeout(retryTimer);
 		};
 	}, [audioUrl, cacheKey, errorLabel, sourceDuration, sourcePath]);
 
@@ -150,12 +170,12 @@ export default function AudioWaveform({
 		const canvas = canvasRef.current;
 		if (!container || !canvas || !waveform) return;
 		const render = () => {
-			const width = Math.max(1, container.getBoundingClientRect().width);
+			const rect = container.getBoundingClientRect();
 			drawWaveform({
 				canvas,
 				waveform,
-				height,
-				width,
+				height: height ?? Math.max(1, rect.height),
+				width: Math.max(1, rect.width),
 				sourceStart,
 				sourceEnd,
 			});
@@ -170,7 +190,7 @@ export default function AudioWaveform({
 		<div
 			ref={containerRef}
 			className={cn("relative overflow-hidden", className)}
-			style={{ height }}
+			style={height === undefined ? undefined : { height }}
 			data-testid="audio-waveform"
 		>
 			<canvas

@@ -1467,19 +1467,16 @@ function TimelineElementComponent({
 		// Render audio element ->
 		if (mediaItem.type === "audio") {
 			return (
-				<div className="w-full h-full flex items-center gap-2">
-					<div className="flex-1 min-w-0">
-						<AudioWaveform
-							audioUrl={mediaItem.url || ""}
-							sourcePath={mediaItem.localPath}
-							sourceDuration={mediaItem.duration ?? element.duration}
-							cacheKey={`media:${mediaItem.id}:${mediaItem.file.size}:${mediaItem.file.lastModified}`}
-							height={24}
-							className="w-full"
-							sourceStart={element.trimStart}
-							sourceEnd={element.duration - element.trimEnd}
-						/>
-					</div>
+				<div className="w-full h-full py-[3px]">
+					<AudioWaveform
+						audioUrl={mediaItem.url || ""}
+						sourcePath={mediaItem.localPath}
+						sourceDuration={mediaItem.duration ?? element.duration}
+						cacheKey={`media:${mediaItem.id}:${mediaItem.file.size}:${mediaItem.file.lastModified}`}
+						className="w-full h-full"
+						sourceStart={element.trimStart}
+						sourceEnd={element.duration - element.trimEnd}
+					/>
 				</div>
 			);
 		}

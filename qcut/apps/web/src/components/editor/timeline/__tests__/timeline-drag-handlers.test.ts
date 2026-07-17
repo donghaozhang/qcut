@@ -57,13 +57,16 @@ function createDragEvent({
 	itemData = "",
 	audioData = "",
 	types = [],
+	clientX = 0,
 }: {
 	itemData?: string;
 	audioData?: string;
 	types?: string[];
+	clientX?: number;
 }): React.DragEvent<HTMLDivElement> {
 	return {
 		preventDefault: vi.fn(),
+		clientX,
 		dataTransfer: {
 			types,
 			getData: (key: string) => {
@@ -199,6 +202,44 @@ describe("useDragHandlers", () => {
 		expect(addSoundToTimeline).toHaveBeenCalledWith({
 			sound,
 			kind: "music",
+		});
+	});
+
+	it("resolves background audio drops to the pointer position", async () => {
+		const tracksScrollRef = {
+			current: {
+				getBoundingClientRect: () => ({ left: 100 }),
+				scrollLeft: 50,
+			} as unknown as HTMLDivElement,
+		};
+		const { result } = renderHook(() =>
+			useDragHandlers({
+				mediaItems: [],
+				addMediaItem: undefined,
+				activeProject: { id: "project-1" },
+				tracksScrollRef,
+				zoomLevel: 1,
+			})
+		);
+		const sound = BUILT_IN_AUDIO[0];
+
+		await act(async () => {
+			await result.current.dragProps.onDrop(
+				createDragEvent({
+					audioData: serializeAudioLibraryDrag({
+						payload: { sound, kind: "music" },
+					}),
+					types: [AUDIO_LIBRARY_DRAG_MIME],
+					clientX: 400,
+				})
+			);
+		});
+
+		// (400 - 100 + 50) px at 50 px/s and zoom 1 => 7s
+		expect(addSoundToTimeline).toHaveBeenCalledWith({
+			sound,
+			kind: "music",
+			startTime: 7,
 		});
 	});
 

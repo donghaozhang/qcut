@@ -59,17 +59,23 @@ const EN_TRANSLATIONS = {
 	"editor.preset.open": "Open presets menu",
 	"editor.preset.reset": "Reset {{name}} preset",
 	"editor.preset.default": "Default",
+	"editor.preset.audio": "Audio creation",
 	"editor.preset.media": "Media",
 	"editor.preset.inspector": "Inspector",
-	"editor.preset.vertical": "Vertical preview",
+	"editor.preset.vertical": "Vertical preview (right)",
+	"editor.preset.verticalLeft": "Vertical preview (left)",
 	"editor.preset.defaultDescription":
 		"Media, preview, and inspector on top; timeline below",
+	"editor.preset.audioDescription":
+		"Taller timeline with the audio library open for music and SFX work",
 	"editor.preset.mediaDescription":
 		"Full-height media on the left; preview and inspector on top",
 	"editor.preset.inspectorDescription":
 		"Full-height inspector on the right; media and preview on top",
 	"editor.preset.verticalDescription":
 		"Full-height preview on the right for vertical video",
+	"editor.preset.verticalLeftDescription":
+		"Full-height preview on the left for vertical video",
 	"editor.preview.video": "Video",
 	"editor.preview.mcp": "MCP",
 	"editor.preview.agent": "Agent",
@@ -1065,16 +1071,21 @@ const ZH_TRANSLATIONS: Record<TranslationKey, string> = {
 	"editor.preset.title": "面板布局预设",
 	"editor.preset.open": "打开布局预设菜单",
 	"editor.preset.reset": "重置{{name}}预设",
-	"editor.preset.default": "默认",
-	"editor.preset.media": "素材优先",
-	"editor.preset.inspector": "属性优先",
-	"editor.preset.vertical": "竖屏预览",
+	"editor.preset.default": "默认布局",
+	"editor.preset.audio": "音频创作",
+	"editor.preset.media": "媒体素材优先",
+	"editor.preset.inspector": "属性调节优先",
+	"editor.preset.vertical": "竖屏创作（右）",
+	"editor.preset.verticalLeft": "竖屏创作（左）",
 	"editor.preset.defaultDescription":
 		"上方显示素材、预览和属性，下方显示时间线",
+	"editor.preset.audioDescription":
+		"加大时间线并打开音频库，适合配乐与音效创作",
 	"editor.preset.mediaDescription": "左侧素材区占满高度，右侧显示预览和属性",
 	"editor.preset.inspectorDescription":
 		"右侧属性区占满高度，左侧显示素材和预览",
 	"editor.preset.verticalDescription": "右侧预览区占满高度，适合竖屏视频",
+	"editor.preset.verticalLeftDescription": "左侧预览区占满高度，适合竖屏视频",
 	"editor.preview.video": "视频",
 	"editor.preview.mcp": "MCP",
 	"editor.preview.agent": "智能体",

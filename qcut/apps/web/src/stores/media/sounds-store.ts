@@ -12,6 +12,7 @@ import type { SoundEffect, SavedSound } from "@/types/sounds";
 import { toast } from "sonner";
 import { createObjectURL, revokeObjectURL } from "@/lib/media/blob-manager";
 import { createAudioLibraryAssetEntry } from "@/lib/assets/freesound-asset";
+import { reportAudioTrackDownload } from "@/lib/audio/audio-download-metrics";
 import { ensureAssetResources } from "@/lib/assets/asset-resource-cache";
 import { useAssetLibraryStore } from "@/stores/asset-library-store";
 import { translate, type TranslationKey } from "@/lib/i18n";
@@ -205,6 +206,7 @@ function soundToSavedSound({
 		localizedName: sound.localizedName,
 		localizedDescription: sound.localizedDescription,
 		artworkColors: sound.artworkColors,
+		artworkUrl: sound.artworkUrl,
 		bpm: sound.bpm,
 		musicalKey: sound.musicalKey,
 		moods: sound.moods,
@@ -738,7 +740,10 @@ export const useSoundsStore = create<SoundsStore>((set, get) => ({
 				beatAlignment,
 				fps: activeProject.fps,
 			});
-			if (insertion.success) get().markSoundRecent(sound, kind);
+			if (insertion.success) {
+				get().markSoundRecent(sound, kind);
+				reportAudioTrackDownload({ sound, kind });
+			}
 			return insertion.success;
 		}
 
@@ -758,7 +763,10 @@ export const useSoundsStore = create<SoundsStore>((set, get) => ({
 				beatAlignment,
 				fps: activeProject.fps,
 			});
-			if (insertion.success) get().markSoundRecent(sound, kind);
+			if (insertion.success) {
+				get().markSoundRecent(sound, kind);
+				reportAudioTrackDownload({ sound, kind });
+			}
 			return insertion.success;
 		}
 
@@ -859,6 +867,7 @@ export const useSoundsStore = create<SoundsStore>((set, get) => ({
 
 			if (success) {
 				get().markSoundRecent(sound, kind);
+				reportAudioTrackDownload({ sound, kind });
 				updateRuntimeState({
 					asset,
 					patch: {

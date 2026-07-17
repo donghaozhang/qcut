@@ -74,16 +74,32 @@ export function createAddOps(
 
 		addMediaAtTime: (item: MediaItem, currentTime = 0): boolean => {
 			const trackType = item.type === "audio" ? "audio" : "media";
-			const targetTrackId = get().findOrCreateTrack(trackType);
-
 			const duration =
 				item.duration || TIMELINE_CONSTANTS.DEFAULT_IMAGE_DURATION;
 
-			if (get().checkElementOverlap(targetTrackId, currentTime, duration)) {
-				toast.error(
-					"Cannot place element here - it would overlap with existing elements"
-				);
-				return false;
+			// Never reject a drop as "overlapping": place on the first same-type
+			// track with room at this time, or stack a new track when every lane
+			// is occupied — the behavior users know from professional editors.
+			const freeTrack = get()._tracks.find(
+				(track) =>
+					track.type === trackType &&
+					!track.locked &&
+					!get().checkElementOverlap(track.id, currentTime, duration)
+			);
+			let targetTrackId: string;
+			if (freeTrack) {
+				targetTrackId = freeTrack.id;
+			} else if (trackType === "audio") {
+				// Audio lanes stack downward at the bottom of the timeline.
+				targetTrackId = get().addTrack("audio");
+			} else {
+				// Keep media lanes grouped above the audio lanes: insert right
+				// after the last existing media track.
+				let lastMediaIndex = -1;
+				for (const [index, track] of get()._tracks.entries()) {
+					if (track.type === "media") lastMediaIndex = index;
+				}
+				targetTrackId = get().insertTrackAt("media", lastMediaIndex + 1);
 			}
 
 			get().addElementToTrack(targetTrackId, {

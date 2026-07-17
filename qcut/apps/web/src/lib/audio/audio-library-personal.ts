@@ -136,6 +136,7 @@ export function parseSavedAudio({
 			value: record.localizedDescription,
 		}),
 		artworkColors: parseArtworkColors({ value: record.artworkColors }),
+		artworkUrl: optionalString({ value: record.artworkUrl }),
 		bpm: optionalNumber({ value: record.bpm }),
 		musicalKey: optionalString({ value: record.musicalKey }),
 		moods: stringArray({ value: record.moods }),
