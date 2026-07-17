@@ -15,7 +15,14 @@
  * resume where they stopped. Requires FAL credentials (music + covers).
  */
 import { existsSync } from "node:fs";
-import { mkdir, readFile, readdir, rm, writeFile } from "node:fs/promises";
+import {
+	mkdir,
+	readFile,
+	readdir,
+	rename,
+	rm,
+	writeFile,
+} from "node:fs/promises";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import { createCanvas, loadImage } from "@napi-rs/canvas";
@@ -43,7 +50,12 @@ interface SourceSpec {
 
 function flagValue({ flag }: { flag: string }): string | undefined {
 	const index = process.argv.indexOf(flag);
-	return index >= 0 ? process.argv[index + 1] : undefined;
+	if (index < 0) return undefined;
+	const value = process.argv[index + 1];
+	if (!value || value.startsWith("--")) {
+		throw new Error(`${flag} requires a value`);
+	}
+	return value;
 }
 
 const repoRoot = path.resolve(import.meta.dir, "../../..");
@@ -128,6 +140,9 @@ async function generateMusicPayload({
 		const entries = await readdir(stagingDir, { recursive: true });
 		const audioFile = entries.find((entry) => /\.(mp3|wav|ogg)$/i.test(entry));
 		if (!audioFile) throw new Error("generate-music produced no audio file");
+		// Encode to a temporary sibling and rename so interrupted runs never
+		// leave a partial file that resume logic would treat as complete.
+		const temporaryPath = `${outputPath}.tmp.ogg`;
 		await run({
 			command: [
 				"ffmpeg",
@@ -141,9 +156,10 @@ async function generateMusicPayload({
 				"libopus",
 				"-b:a",
 				"96k",
-				outputPath,
+				temporaryPath,
 			],
 		});
+		await rename(temporaryPath, outputPath);
 	} finally {
 		await rm(stagingDir, { recursive: true, force: true });
 	}
@@ -230,7 +246,9 @@ async function generateArtworkPayload({
 			ARTWORK_SIZE,
 			ARTWORK_SIZE
 		);
-		await writeFile(outputPath, await canvas.encode("webp", WEBP_QUALITY));
+		const temporaryPath = `${outputPath}.tmp.webp`;
+		await writeFile(temporaryPath, await canvas.encode("webp", WEBP_QUALITY));
+		await rename(temporaryPath, outputPath);
 	} finally {
 		await rm(stagingDir, { recursive: true, force: true });
 	}

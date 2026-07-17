@@ -279,8 +279,14 @@ export async function loadAudioCdnCatalog({
 		return manifestToSounds({ manifest: cached.manifest });
 	}
 
+	// Bound the request so a stalled fetch falls through to the stale cache
+	// instead of leaving the catalog empty for the session.
+	const controller = new AbortController();
+	const timeoutId = setTimeout(() => controller.abort(), 15_000);
 	try {
-		const response = await fetchImpl(manifestUrl);
+		const response = await fetchImpl(manifestUrl, {
+			signal: controller.signal,
+		});
 		if (!response.ok) {
 			throw new Error(`Manifest request failed: ${response.status}`);
 		}
@@ -290,5 +296,7 @@ export async function loadAudioCdnCatalog({
 		return manifestToSounds({ manifest });
 	} catch {
 		return cached ? manifestToSounds({ manifest: cached.manifest }) : [];
+	} finally {
+		clearTimeout(timeoutId);
 	}
 }

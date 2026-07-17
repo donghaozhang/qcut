@@ -35,11 +35,24 @@ const outputDirectory = path.resolve(
 const args = new Set(process.argv.slice(2));
 const force = args.has("--force");
 const procedural = args.has("--procedural");
-const modelFlagIndex = process.argv.indexOf("--model");
-const model =
-	modelFlagIndex >= 0 ? process.argv[modelFlagIndex + 1] : "flux_dev";
-const onlyFlagIndex = process.argv.indexOf("--only");
-const only = onlyFlagIndex >= 0 ? process.argv[onlyFlagIndex + 1] : undefined;
+function readFlagValue({
+	flag,
+	fallback,
+}: {
+	flag: string;
+	fallback?: string;
+}): string | undefined {
+	const index = process.argv.indexOf(flag);
+	if (index < 0) return fallback;
+	const value = process.argv[index + 1];
+	if (!value || value.startsWith("--")) {
+		throw new Error(`${flag} requires a value`);
+	}
+	return value;
+}
+
+const model = readFlagValue({ flag: "--model", fallback: "flux_dev" });
+const only = readFlagValue({ flag: "--only" });
 
 function trackSlug({ name }: { name: string }): string {
 	return name.toLocaleLowerCase().replaceAll(" ", "-");

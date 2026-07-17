@@ -105,7 +105,10 @@ async function verifyRemoteUrls({
 				const url = uniqueUrls[nextIndex];
 				nextIndex += 1;
 				try {
-					const response = await fetch(url, { method: "HEAD" });
+					const response = await fetch(url, {
+						method: "HEAD",
+						signal: AbortSignal.timeout(30_000),
+					});
 					if (!response.ok) {
 						issues.push({
 							level: "error",

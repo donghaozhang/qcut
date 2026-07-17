@@ -41,7 +41,12 @@ interface SourceTrack extends Omit<AudioCdnTrack, "previewUrl" | "artworkUrl"> {
 
 function flagValue({ flag }: { flag: string }): string | undefined {
 	const index = process.argv.indexOf(flag);
-	return index >= 0 ? process.argv[index + 1] : undefined;
+	if (index < 0) return undefined;
+	const value = process.argv[index + 1];
+	if (!value || value.startsWith("--")) {
+		throw new Error(`${flag} requires a value`);
+	}
+	return value;
 }
 
 const sourceDir = path.resolve(
@@ -68,6 +73,7 @@ async function fetchDownloadCounts(): Promise<Record<string, number>> {
 		process.env.QCUT_AUDIO_METRICS_TOKEN;
 	const response = await fetch(downloadsUrl, {
 		headers: token ? { Authorization: `Bearer ${token}` } : undefined,
+		signal: AbortSignal.timeout(30_000),
 	});
 	if (!response.ok) {
 		throw new Error(`Downloads endpoint responded ${response.status}`);
@@ -117,8 +123,19 @@ function validateSourceTracks({ tracks }: { tracks: SourceTrack[] }): string[] {
 			errors.push(`Duplicate track id ${track.id}`);
 		}
 		seenIds.add(track.id);
+		// Payload paths must stay inside the catalog directory: a credentialed
+		// release run must never read or publish files outside it.
+		if (!track.file || typeof track.file !== "string") {
+			errors.push(`Track "${track.name}" is missing a payload file path`);
+		}
 		for (const file of [track.file, track.artworkFile]) {
-			if (file && !existsSync(path.join(sourceDir, file))) {
+			if (!file) continue;
+			const resolved = path.resolve(sourceDir, file);
+			if (path.isAbsolute(file) || !resolved.startsWith(sourceDir + path.sep)) {
+				errors.push(`Payload path escapes the catalog dir: ${file}`);
+				continue;
+			}
+			if (!existsSync(resolved)) {
 				errors.push(`Missing payload for "${track.name}": ${file}`);
 			}
 		}
@@ -146,18 +163,28 @@ async function uploadFiles({
 			(file): file is string => typeof file === "string"
 		)
 	);
-	for (const file of [...new Set(payloadFiles)]) {
-		await client.send(
-			new PutObjectCommand({
-				Bucket: bucket,
-				Key: `${prefix}/${file}`,
-				Body: await readFile(path.join(sourceDir, file)),
-				ContentType: contentTypeFor({ file }),
-				CacheControl: "public, max-age=31536000, immutable",
-			})
-		);
-		console.log(`⬆️  ${prefix}/${file}`);
-	}
+	const uniqueFiles = [...new Set(payloadFiles)];
+	let nextIndex = 0;
+	const uploadWorkers = Array.from(
+		{ length: Math.min(4, uniqueFiles.length) },
+		async () => {
+			while (nextIndex < uniqueFiles.length) {
+				const file = uniqueFiles[nextIndex];
+				nextIndex += 1;
+				await client.send(
+					new PutObjectCommand({
+						Bucket: bucket,
+						Key: `${prefix}/${file}`,
+						Body: await readFile(path.resolve(sourceDir, file)),
+						ContentType: contentTypeFor({ file }),
+						CacheControl: "public, max-age=31536000, immutable",
+					})
+				);
+				console.log(`⬆️  ${prefix}/${file}`);
+			}
+		}
+	);
+	await Promise.all(uploadWorkers);
 	await client.send(
 		new PutObjectCommand({
 			Bucket: bucket,

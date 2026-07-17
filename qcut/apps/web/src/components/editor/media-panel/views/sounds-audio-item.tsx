@@ -219,13 +219,7 @@ export function AudioLibraryItem({
 					}, 550);
 				}}
 				onPointerLeave={cancelHoverPlay}
-				onKeyDown={(event) => {
-					if (event.key === "Enter" || event.key === " ") {
-						event.preventDefault();
-						cancelHoverPlay();
-						onPlay();
-					}
-				}}
+				onKeyDown={cancelHoverPlay}
 			>
 				{artworkUrl ? (
 					<img
@@ -366,7 +360,7 @@ export function AudioLibraryItem({
 
 				<div className="mt-auto flex min-w-0 items-center justify-between gap-1 text-[9px] text-muted-foreground">
 					<div className="flex min-w-0 items-center gap-1.5">
-						{sound.username ? (
+						{sound.username && description ? (
 							<span className="max-w-20 truncate" title={sound.username}>
 								{sound.username}
 							</span>

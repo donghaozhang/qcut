@@ -67,8 +67,11 @@ describe("audio cdn catalog", () => {
 	});
 
 	it("converts tracks into library-compatible sound effects", () => {
+		const track = parseAudioCdnTrack({ value: VALID_TRACK });
+		expect(track).not.toBeNull();
+		if (!track) throw new Error("Expected VALID_TRACK to pass validation");
 		const sound = cdnTrackToSoundEffect({
-			track: parseAudioCdnTrack({ value: VALID_TRACK })!,
+			track,
 			generatedAt: "2026-07-17T00:00:00.000Z",
 		});
 		expect(sound).toMatchObject({
@@ -163,8 +166,15 @@ describe("audio cdn catalog", () => {
 	});
 
 	it("resolves to an empty catalog when no manifest URL is configured", async () => {
-		const fetchImpl = vi.fn() as unknown as typeof fetch;
-		await expect(loadAudioCdnCatalog({ fetchImpl })).resolves.toEqual([]);
-		expect(fetchImpl).not.toHaveBeenCalled();
+		// .env.local may configure a real manifest URL for dev builds; force
+		// the unconfigured state for this test.
+		vi.stubEnv("VITE_AUDIO_CDN_MANIFEST_URL", "");
+		try {
+			const fetchImpl = vi.fn() as unknown as typeof fetch;
+			await expect(loadAudioCdnCatalog({ fetchImpl })).resolves.toEqual([]);
+			expect(fetchImpl).not.toHaveBeenCalled();
+		} finally {
+			vi.unstubAllEnvs();
+		}
 	});
 });

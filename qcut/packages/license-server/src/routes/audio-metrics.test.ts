@@ -63,15 +63,15 @@ describe("audio metrics routes", () => {
 		});
 	});
 
-	it("rejects malformed track keys", async () => {
-		for (const trackKey of [
-			"music:abc",
-			"voice:-1",
-			"music:-1; DROP TABLE",
-			42,
-			undefined,
-		]) {
-			const response = await postDownload({ body: { trackKey } });
+	it("rejects malformed track keys and non-object bodies", async () => {
+		const responses = await Promise.all([
+			...["music:abc", "voice:-1", "music:-1; DROP TABLE", 42, undefined].map(
+				(trackKey) => postDownload({ body: { trackKey } })
+			),
+			postDownload({ body: null }),
+			postDownload({ body: [1, 2] }),
+		]);
+		for (const response of responses) {
 			expect(response.status).toBe(400);
 		}
 		expect(metricsService.incrementAudioTrackDownloads).not.toHaveBeenCalled();

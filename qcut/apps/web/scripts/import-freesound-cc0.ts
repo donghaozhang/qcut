@@ -18,7 +18,14 @@
  * default key in dist/electron/config/default-keys.js.
  */
 import { existsSync } from "node:fs";
-import { mkdir, readFile, readdir, rm, writeFile } from "node:fs/promises";
+import {
+	mkdir,
+	readFile,
+	readdir,
+	rename,
+	rm,
+	writeFile,
+} from "node:fs/promises";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import { createCanvas, loadImage } from "@napi-rs/canvas";
@@ -56,7 +63,12 @@ interface FreesoundResult {
 
 function flagValue({ flag }: { flag: string }): string | undefined {
 	const index = process.argv.indexOf(flag);
-	return index >= 0 ? process.argv[index + 1] : undefined;
+	if (index < 0) return undefined;
+	const value = process.argv[index + 1];
+	if (!value || value.startsWith("--")) {
+		throw new Error(`${flag} requires a value`);
+	}
+	return value;
 }
 
 const repoRoot = path.resolve(import.meta.dir, "../../..");
@@ -100,7 +112,20 @@ async function searchBestCc0Match({
 		if (!response.ok) {
 			throw new Error(`Freesound lookup failed: ${response.status}`);
 		}
-		return (await response.json()) as FreesoundResult;
+		const pinned = (await response.json()) as FreesoundResult & {
+			license?: string;
+		};
+		// Pinned IDs are published under the CC0 label, so anything else must
+		// be rejected here rather than silently relicensed.
+		if (!pinned.license?.includes("publicdomain/zero")) {
+			throw new Error(
+				`Freesound #${source.freesoundId} is not CC0 (${pinned.license ?? "unknown"})`
+			);
+		}
+		if (!pinned.previews?.["preview-hq-ogg"]) {
+			throw new Error(`Freesound #${source.freesoundId} has no HQ OGG preview`);
+		}
+		return pinned;
 	}
 	const filter = `license:"Creative Commons 0" duration:${
 		source.durationFilter ?? DEFAULT_DURATION_FILTER
@@ -146,6 +171,9 @@ async function downloadAndEncode({
 	);
 	await writeFile(stagingFile, new Uint8Array(await response.arrayBuffer()));
 	try {
+		// Encode to a temporary sibling and rename so interrupted runs never
+		// leave a partial file that resume logic would treat as complete.
+		const temporaryPath = `${outputPath}.tmp.ogg`;
 		const child = Bun.spawn(
 			[
 				"ffmpeg",
@@ -159,7 +187,7 @@ async function downloadAndEncode({
 				"libopus",
 				"-b:a",
 				"72k",
-				outputPath,
+				temporaryPath,
 			],
 			{ stderr: "pipe", stdout: "ignore" }
 		);
@@ -170,6 +198,7 @@ async function downloadAndEncode({
 		if (exitCode !== 0) {
 			throw new Error(`ffmpeg failed: ${stderrText}`);
 		}
+		await rename(temporaryPath, outputPath);
 	} finally {
 		await rm(stagingFile, { force: true });
 	}
@@ -287,7 +316,9 @@ async function generateArtwork({
 			ARTWORK_SIZE,
 			ARTWORK_SIZE
 		);
-		await writeFile(outputPath, await canvas.encode("webp", WEBP_QUALITY));
+		const temporaryPath = `${outputPath}.tmp.webp`;
+		await writeFile(temporaryPath, await canvas.encode("webp", WEBP_QUALITY));
+		await rename(temporaryPath, outputPath);
 	} finally {
 		await rm(stagingDir, { recursive: true, force: true });
 	}
@@ -318,7 +349,7 @@ if (import.meta.main) {
 
 	const produced = new Map<
 		number,
-		{ creator: string; duration: number; hasArtwork: boolean }
+		{ creator?: string; duration: number; hasArtwork: boolean }
 	>();
 	const failures: string[] = [];
 	let nextIndex = 0;
@@ -332,7 +363,7 @@ if (import.meta.main) {
 				const audioPath = path.join(sourceDir, "tracks", `${slug}.ogg`);
 				const artworkPath = path.join(sourceDir, "artwork", `${slug}.webp`);
 				try {
-					let creator = "Freesound (CC0)";
+					let creator: string | undefined;
 					if (force || !existsSync(audioPath)) {
 						const match = await searchBestCc0Match({ source, apiKey });
 						creator = match.username;
@@ -365,10 +396,18 @@ if (import.meta.main) {
 	await Promise.all(workers);
 
 	// Upsert produced entries into tracks.json, preserving existing entries.
+	// Resumed entries (audio already on disk) keep their previous creator,
+	// download counters, and creation time instead of being reset.
 	const tracksPath = path.join(sourceDir, "tracks.json");
 	const existing = existsSync(tracksPath)
-		? (JSON.parse(await readFile(tracksPath, "utf8")) as { id: number }[])
+		? (JSON.parse(await readFile(tracksPath, "utf8")) as {
+				id: number;
+				username?: string;
+				downloads?: number;
+				created?: string;
+			}[])
 		: [];
+	const existingById = new Map(existing.map((entry) => [entry.id, entry]));
 	const producedIds = new Set(produced.keys());
 	const generatedAt = new Date().toISOString();
 	const newEntries = selected
@@ -376,6 +415,7 @@ if (import.meta.main) {
 		.map((source) => {
 			const slug = trackSlug({ name: source.name });
 			const result = produced.get(source.id);
+			const previous = existingById.get(source.id);
 			return {
 				id: source.id,
 				kind: "sound-effect" as const,
@@ -390,10 +430,10 @@ if (import.meta.main) {
 				duration: result?.duration ?? 0,
 				file: `tracks/${slug}.ogg`,
 				...(result?.hasArtwork ? { artworkFile: `artwork/${slug}.webp` } : {}),
-				downloads: 0,
+				downloads: previous?.downloads ?? 0,
 				license: CC0_LICENSE_URL,
-				username: result?.creator ?? "Freesound (CC0)",
-				created: generatedAt,
+				username: result?.creator ?? previous?.username ?? "Freesound (CC0)",
+				created: previous?.created ?? generatedAt,
 			};
 		});
 	const merged = [
