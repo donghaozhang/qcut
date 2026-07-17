@@ -893,16 +893,16 @@ function matchesBuiltInQuery({
 		.every((token) => searchable.includes(token));
 }
 
-export function getBuiltInAudio({
+export function getCatalogAudio({
 	category,
 	query,
+	catalog = BUILT_IN_AUDIO,
 }: {
 	category: AudioLibraryCategory;
 	query: string;
+	catalog?: readonly SoundEffect[];
 }): SoundEffect[] {
-	const candidates = BUILT_IN_AUDIO.filter(
-		(sound) => sound.kind === category.kind
-	);
+	const candidates = catalog.filter((sound) => sound.kind === category.kind);
 	const queryMatches = candidates.filter((sound) =>
 		matchesBuiltInQuery({ sound, query })
 	);
@@ -920,6 +920,16 @@ export function getBuiltInAudio({
 		if (category.sort === "downloads") return right.downloads - left.downloads;
 		return right.rating - left.rating || right.downloads - left.downloads;
 	});
+}
+
+export function getBuiltInAudio({
+	category,
+	query,
+}: {
+	category: AudioLibraryCategory;
+	query: string;
+}): SoundEffect[] {
+	return getCatalogAudio({ category, query });
 }
 
 export function restoreSavedAudio({

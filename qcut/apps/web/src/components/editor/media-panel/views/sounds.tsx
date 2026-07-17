@@ -25,6 +25,7 @@ import {
 import { Input } from "@/components/ui/input";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { useAudioLibrarySearch } from "@/hooks/media/use-audio-library-search";
+import { useAudioCdnCatalog } from "@/hooks/media/use-audio-cdn-catalog";
 import { useAudioPreview } from "@/hooks/media/use-audio-preview";
 import {
 	AUDIO_LIBRARY_CATEGORIES,
@@ -32,7 +33,7 @@ import {
 	MUSIC_CATEGORIES,
 	SOUND_EFFECT_CATEGORIES,
 	findAudioLibraryCategory,
-	getBuiltInAudio,
+	getCatalogAudio,
 	restoreSavedAudio,
 	translateAudioSearchQuery,
 	type AudioLibraryCategory,
@@ -320,9 +321,18 @@ export function SoundsView() {
 			);
 	}, [reloadPersonalLibrary]);
 
+	const cdnTracks = useAudioCdnCatalog();
 	const builtInResults = useMemo(
-		() => getBuiltInAudio({ category, query }),
-		[category, query]
+		() =>
+			getCatalogAudio({
+				category,
+				query,
+				catalog: mergeUniqueAudio({
+					primary: BUILT_IN_AUDIO,
+					secondary: cdnTracks,
+				}),
+			}),
+		[category, cdnTracks, query]
 	);
 	const catalogResults = useMemo(
 		() =>
@@ -655,7 +665,10 @@ export function SoundsView() {
 							<span className="font-medium text-foreground">{title}</span>
 							<span>
 								{t("audioLibrary.resultCount", {
-									count: displayedItems.length,
+									count:
+										catalogActive && hasNextPage
+											? `${displayedItems.length}+`
+											: displayedItems.length,
 								})}
 							</span>
 						</div>

@@ -1,4 +1,8 @@
 import { platform } from "@qcut/platform-core";
+import {
+	audioArtworkSeed,
+	renderAudioArtworkDataUrl,
+} from "@/lib/audio/audio-artwork";
 import { getOrCreateObjectURL } from "@/lib/media/blob-manager";
 import {
 	getMediaDuration,
@@ -76,6 +80,11 @@ export async function importGeneratedMusic({
 	);
 	const duration = await getMediaDuration(file).catch(() => targetDuration);
 	const url = getOrCreateObjectURL(file, "ai-music-result");
+	// Generated tracks get a procedural cover so they match the bundled
+	// catalog's artwork instead of regressing to a plain gradient card.
+	const artworkUrl = renderAudioArtworkDataUrl({
+		seed: audioArtworkSeed({ value: `${file.name}:${prompt}` }),
+	});
 	const mediaId = await useMediaStore.getState().addMediaItem(projectId, {
 		name: file.name,
 		type: "audio",
@@ -89,6 +98,7 @@ export async function importGeneratedMusic({
 			instrumental,
 			targetDuration,
 			bpm,
+			...(artworkUrl ? { artworkUrl } : {}),
 		},
 	});
 	const mediaItem = useMediaStore
