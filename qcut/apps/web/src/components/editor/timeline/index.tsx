@@ -77,10 +77,17 @@ export function Timeline() {
 			containerRef: timelineRef,
 			isInTimeline,
 		});
+	// Scroll synchronization refs (tracksScrollRef also resolves background
+	// drop positions in useDragHandlers)
+	const rulerScrollRef = useRef<HTMLDivElement>(null);
+	const tracksScrollRef = useRef<HTMLDivElement>(null);
+
 	const { dragProps } = useDragHandlers({
 		mediaItems,
 		addMediaItem,
 		activeProject,
+		tracksScrollRef,
+		zoomLevel,
 	});
 
 	// Dynamic timeline width calculation
@@ -89,10 +96,6 @@ export function Timeline() {
 		zoomLevel,
 		containerRef: timelineRef,
 	});
-
-	// Scroll synchronization refs
-	const rulerScrollRef = useRef<HTMLDivElement>(null);
-	const tracksScrollRef = useRef<HTMLDivElement>(null);
 	const trackLabelsRef = useRef<HTMLDivElement>(null);
 	const playheadRef = useRef<HTMLDivElement>(null);
 	const trackLabelsScrollRef = useRef<HTMLDivElement>(null);
