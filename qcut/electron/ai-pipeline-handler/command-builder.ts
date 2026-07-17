@@ -58,6 +58,7 @@ export function commandSupportsOutputDir({
 			command === "generate-image" ||
 			command === "create-video" ||
 			command === "generate-avatar" ||
+			command === "generate-music" ||
 			command === "generate-speech" ||
 			command === "run-pipeline"
 		);
@@ -78,6 +79,7 @@ export function commandRequiresFalKey({
 			command === "generate-image" ||
 			command === "create-video" ||
 			command === "generate-avatar" ||
+			command === "generate-music" ||
 			command === "generate-speech" ||
 			command === "run-pipeline"
 		);
@@ -202,6 +204,7 @@ export function getDefaultFeatures(): Record<string, boolean> {
 		textToVideo: true,
 		imageToVideo: true,
 		avatarGeneration: true,
+		musicGeneration: true,
 		speechGeneration: true,
 		videoUpscale: true,
 		yamlPipelines: true,

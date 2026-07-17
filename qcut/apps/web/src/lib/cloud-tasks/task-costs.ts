@@ -29,6 +29,9 @@ export function estimatePipelineTaskCostUsd({
 		const text = String(options.args.text ?? "");
 		return Math.max(0.005, text.length * 0.00003);
 	}
+	if (options.command === "generate-music") {
+		return options.args.model === "minimax_music_v2_5" ? 0.08 : 0.1;
+	}
 	if (options.command === "generate-avatar") {
 		return duration * 0.09 * resolutionMultiplier;
 	}

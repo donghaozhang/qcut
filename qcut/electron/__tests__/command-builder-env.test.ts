@@ -227,3 +227,10 @@ describe("speech pipeline command support", () => {
 		expect(commandRequiresFalKey({ command: "generate-speech" })).toBe(true);
 	});
 });
+
+describe("music pipeline command support", () => {
+	it("gives generated music an output directory and FAL credentials", () => {
+		expect(commandSupportsOutputDir({ command: "generate-music" })).toBe(true);
+		expect(commandRequiresFalKey({ command: "generate-music" })).toBe(true);
+	});
+});
