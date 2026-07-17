@@ -202,6 +202,12 @@ export function TimelineTracksArea({
 															ref={draggableProvided.innerRef}
 															{...draggableProvided.draggableProps}
 															style={draggableProvided.draggableProps.style}
+															// Match the 4px inter-track gap the lanes get from
+															// getCumulativeHeightBefore, or label rows drift
+															// 4px per track relative to their lanes.
+															className={
+																index < tracks.length - 1 ? "mb-1" : undefined
+															}
 														>
 															<TimelineTrackLabel
 																track={track}
