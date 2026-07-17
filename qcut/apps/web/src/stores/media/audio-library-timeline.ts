@@ -24,6 +24,12 @@ interface AudioTimelineInsertionTarget {
 		element: CreateTimelineElement,
 		options?: { pushHistory?: boolean; selectElement?: boolean }
 	) => string | null;
+	removeElementFromTrack: (
+		trackId: string,
+		elementId: string,
+		pushHistory?: boolean
+	) => void;
+	removeTrack: (trackId: string) => void;
 	updateTrackAudio: (
 		trackId: string,
 		updates: Partial<TimelineTrackAudioSettings>,
@@ -46,6 +52,7 @@ export function insertAudioLibraryMedia({
 	autoDucking,
 	bpm,
 	beatAlignment,
+	fps,
 }: {
 	timeline: AudioTimelineInsertionTarget;
 	mediaItem: MediaItem;
@@ -54,6 +61,7 @@ export function insertAudioLibraryMedia({
 	autoDucking: boolean;
 	bpm?: number;
 	beatAlignment?: AudioBeatAlignment;
+	fps?: number;
 }): AudioTimelineInsertionResult {
 	if (mode === "single") {
 		const resolvedStartTime = beatAlignment
@@ -70,7 +78,7 @@ export function insertAudioLibraryMedia({
 		};
 	}
 
-	const targetEnd = getVisualTimelineEnd({ tracks: timeline.tracks });
+	const targetEnd = getVisualTimelineEnd({ tracks: timeline.tracks, fps });
 	const sourceDuration = mediaItem.duration ?? 0;
 	const segments = buildAudioLoopSegments({
 		sourceDuration,
@@ -86,6 +94,7 @@ export function insertAudioLibraryMedia({
 	}
 
 	const targetTrackId = timeline.addTrack("audio");
+	const insertedElementIds: string[] = [];
 	for (const [index, segment] of segments.entries()) {
 		const elementId = timeline.addElementToTrack(
 			targetTrackId,
@@ -105,13 +114,22 @@ export function insertAudioLibraryMedia({
 			}
 		);
 		if (!elementId) {
+			// Roll back the partial insertion so a failed fit-project add does
+			// not leave a dangling track or orphaned segments behind.
+			for (const insertedId of insertedElementIds) {
+				timeline.removeElementFromTrack(targetTrackId, insertedId, false);
+			}
+			if (insertedElementIds.length === 0) {
+				timeline.removeTrack(targetTrackId);
+			}
 			return {
 				success: false,
-				segmentCount: index,
+				segmentCount: 0,
 				duckingSourceCount: 0,
 				reason: "insert-failed",
 			};
 		}
+		insertedElementIds.push(elementId);
 	}
 
 	const sourceTrackIds = autoDucking

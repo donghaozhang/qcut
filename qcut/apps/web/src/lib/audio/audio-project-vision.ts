@@ -1,6 +1,8 @@
 import type { MediaItem } from "@/stores/media/media-store-types";
 import type { TimelineTrack } from "@/types/timeline";
 
+const MAX_CONCURRENT_ANALYSIS_REQUESTS = 2;
+
 export const AUDIO_RECOMMENDATION_VISION_METADATA_KEY =
 	"audioRecommendationVision";
 
@@ -260,44 +262,87 @@ export async function analyzeProjectAudioVisuals({
 	eventCount: number;
 }> {
 	const videoMedia = getReferencedProjectVideoMedia({ mediaItems, tracks });
-	const results = await Promise.all(
-		videoMedia.map(async (mediaItem) => {
-			const cached = getAudioProjectVisionAnalysis({ mediaItem });
-			if (cached && !force) return { analysis: cached, cached: true };
-			const result = await analyzeVideo(projectId, {
-				source: { type: "media", mediaId: mediaItem.id },
-				analysisType: "timeline",
-				model: "gemini-2.5-flash",
-				format: "json",
-			});
-			if (!result.success) {
-				throw new Error(result.error || "Video analysis failed");
+	const analyzeReferencedVideo = async ({
+		mediaItem,
+	}: {
+		mediaItem: MediaItem;
+	}): Promise<{ analysis: AudioProjectVisionAnalysis; cached: boolean }> => {
+		const cached = getAudioProjectVisionAnalysis({ mediaItem });
+		if (cached && !force) return { analysis: cached, cached: true };
+		const result = await analyzeVideo(projectId, {
+			source: { type: "media", mediaId: mediaItem.id },
+			analysisType: "timeline",
+			model: "gemini-2.5-flash",
+			format: "json",
+		});
+		if (!result.success) {
+			throw new Error(result.error || "Video analysis failed");
+		}
+		const events = eventsFromResult({ result });
+		if (events.length === 0) {
+			throw new Error("Video analysis returned no timeline events");
+		}
+		const analysis: AudioProjectVisionAnalysis = {
+			version: 1,
+			sourceSignature: audioVisionSourceSignature({ mediaItem }),
+			analyzedAt: now().toISOString(),
+			events,
+		};
+		const saved = await updateMediaItem(projectId, mediaItem.id, {
+			metadata: {
+				...mediaItem.metadata,
+				[AUDIO_RECOMMENDATION_VISION_METADATA_KEY]: analysis,
+			},
+		});
+		if (!saved) throw new Error("Video analysis could not be saved");
+		return { analysis, cached: false };
+	};
+
+	// Analyze with bounded provider concurrency, letting every item settle so
+	// failures are reported explicitly instead of leaving invisible partial
+	// state behind a rejected batch.
+	const results: ({
+		analysis: AudioProjectVisionAnalysis;
+		cached: boolean;
+	} | null)[] = videoMedia.map(() => null);
+	const failures: string[] = [];
+	let nextIndex = 0;
+	const workers = Array.from(
+		{ length: Math.min(MAX_CONCURRENT_ANALYSIS_REQUESTS, videoMedia.length) },
+		async () => {
+			while (nextIndex < videoMedia.length) {
+				const index = nextIndex;
+				nextIndex += 1;
+				const mediaItem = videoMedia[index];
+				try {
+					results[index] = await analyzeReferencedVideo({ mediaItem });
+				} catch (error) {
+					failures.push(
+						`${mediaItem.name}: ${
+							error instanceof Error ? error.message : String(error)
+						}`
+					);
+				}
 			}
-			const events = eventsFromResult({ result });
-			if (events.length === 0) {
-				throw new Error("Video analysis returned no timeline events");
-			}
-			const analysis: AudioProjectVisionAnalysis = {
-				version: 1,
-				sourceSignature: audioVisionSourceSignature({ mediaItem }),
-				analyzedAt: now().toISOString(),
-				events,
-			};
-			const saved = await updateMediaItem(projectId, mediaItem.id, {
-				metadata: {
-					...mediaItem.metadata,
-					[AUDIO_RECOMMENDATION_VISION_METADATA_KEY]: analysis,
-				},
-			});
-			if (!saved) throw new Error("Video analysis could not be saved");
-			return { analysis, cached: false };
-		})
+		}
 	);
+	await Promise.all(workers);
+	const completed = results.filter(
+		(
+			result
+		): result is { analysis: AudioProjectVisionAnalysis; cached: boolean } =>
+			result !== null
+	);
+	if (failures.length > 0) {
+		throw new Error(
+			`Video analysis failed for ${failures.length} of ${videoMedia.length} video(s): ${failures.join("; ")}`
+		);
+	}
 	return {
-		total: results.length,
-		analyzed: results.filter((result) => !result.cached).length,
-		cached: results.filter((result) => result.cached).length,
-		eventCount: results.reduce(
+		total: completed.length,
+		analyzed: completed.filter((result) => !result.cached).length,
+		cached: completed.filter((result) => result.cached).length,
+		eventCount: completed.reduce(
 			(total, result) => total + result.analysis.events.length,
 			0
 		),

@@ -1,5 +1,5 @@
 import { act, fireEvent, render, screen } from "@testing-library/react";
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { useMediaPanelStore } from "@/components/editor/media-panel/store";
 import { AUDIO_LIBRARY_DRAG_MIME } from "@/lib/audio/audio-library-drag";
 import { BUILT_IN_AUDIO } from "@/lib/audio/audio-library-catalog";
@@ -46,6 +46,17 @@ vi.mock("../sounds-ai-music", () => ({
 }));
 
 describe("SoundsView", () => {
+	// Captured once so afterEach can restore actions even when a failing
+	// assertion skips a test's own cleanup.
+	const originalStoreActions = {
+		addSoundToTimeline: useSoundsStore.getState().addSoundToTimeline,
+		addSoundCuesToTimeline: useSoundsStore.getState().addSoundCuesToTimeline,
+	};
+
+	afterEach(() => {
+		useSoundsStore.setState(originalStoreActions);
+	});
+
 	beforeEach(() => {
 		localStorage.clear();
 		useLocaleStore.getState().setLocale({ locale: "zh" });
@@ -125,7 +136,6 @@ describe("SoundsView", () => {
 	});
 
 	it("offers project-fit and auto-duck actions for loopable music", async () => {
-		const originalAdd = useSoundsStore.getState().addSoundToTimeline;
 		const addSoundToTimeline = vi.fn(async () => true);
 		useSoundsStore.setState({ addSoundToTimeline });
 		render(<SoundsView />);
@@ -141,11 +151,9 @@ describe("SoundsView", () => {
 				autoDucking: true,
 			})
 		);
-		useSoundsStore.setState({ addSoundToTimeline: originalAdd });
 	});
 
 	it("adds BPM-tagged music on the nearest beat", async () => {
-		const originalAdd = useSoundsStore.getState().addSoundToTimeline;
 		const addSoundToTimeline = vi.fn(async () => true);
 		useSoundsStore.setState({ addSoundToTimeline });
 		render(<SoundsView />);
@@ -160,7 +168,6 @@ describe("SoundsView", () => {
 				beatAlignment: "nearest",
 			})
 		);
-		useSoundsStore.setState({ addSoundToTimeline: originalAdd });
 	});
 
 	it("shows current project audio as reusable library cards", () => {
@@ -250,7 +257,6 @@ describe("SoundsView", () => {
 			elements: clips,
 		};
 		useTimelineStore.setState({ _tracks: [track], tracks: [track] });
-		const originalAddCues = useSoundsStore.getState().addSoundCuesToTimeline;
 		const addSoundCuesToTimeline = vi.fn(async () => 3);
 		useSoundsStore.setState({ addSoundCuesToTimeline });
 		render(<SoundsView />);
@@ -269,6 +275,5 @@ describe("SoundsView", () => {
 				expect.objectContaining({ startTime: 6, kind: "sound-effect" }),
 			]),
 		});
-		useSoundsStore.setState({ addSoundCuesToTimeline: originalAddCues });
 	});
 });

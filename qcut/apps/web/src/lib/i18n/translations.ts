@@ -215,6 +215,7 @@ const EN_TRANSLATIONS = {
 	"audioLibrary.folders.save": "Save",
 	"audioLibrary.folders.invalid":
 		"Use a unique folder name between 1 and 40 characters.",
+	"audioLibrary.folders.full": "This folder is full",
 	"audioLibrary.folders.addTo": "Add to folder",
 	"audioLibrary.recommendation.summary":
 		"Matched from {{clips}} visual clips and {{captions}} captions, plus project text and media metadata.",
@@ -236,6 +237,8 @@ const EN_TRANSLATIONS = {
 	"audioLibrary.recommendation.noCues":
 		"Add more cuts or transitions to generate automatic SFX cues.",
 	"audioLibrary.recommendation.placed": "Placed {{count}} sound effects",
+	"audioLibrary.recommendation.placeFailed":
+		"Could not place the suggested sound effects",
 	"audioLibrary.recommendation.signal.cinematic": "Cinematic",
 	"audioLibrary.recommendation.signal.dialogue": "Dialogue",
 	"audioLibrary.recommendation.signal.dynamic": "Fast edits",
@@ -1216,6 +1219,7 @@ const ZH_TRANSLATIONS: Record<TranslationKey, string> = {
 	"audioLibrary.folders.cancel": "取消",
 	"audioLibrary.folders.save": "保存",
 	"audioLibrary.folders.invalid": "请输入 1 到 40 个字符且不重复的名称。",
+	"audioLibrary.folders.full": "该收藏夹已满",
 	"audioLibrary.folders.addTo": "加入收藏夹",
 	"audioLibrary.recommendation.summary":
 		"已结合 {{clips}} 个画面片段、{{captions}} 条字幕以及项目文本和素材信息进行匹配。",
@@ -1237,6 +1241,7 @@ const ZH_TRANSLATIONS: Record<TranslationKey, string> = {
 	"audioLibrary.recommendation.noCues":
 		"增加剪辑点或转场后可自动生成音效点位。",
 	"audioLibrary.recommendation.placed": "已铺设 {{count}} 个音效",
+	"audioLibrary.recommendation.placeFailed": "无法铺设建议音效",
 	"audioLibrary.recommendation.signal.cinematic": "电影感",
 	"audioLibrary.recommendation.signal.dialogue": "对白",
 	"audioLibrary.recommendation.signal.dynamic": "快节奏剪辑",

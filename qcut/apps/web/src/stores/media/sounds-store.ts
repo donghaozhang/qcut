@@ -18,6 +18,8 @@ import { translate, type TranslationKey } from "@/lib/i18n";
 import { useLocaleStore } from "@/stores/locale-store";
 import {
 	AUDIO_FOLDER_NAME_MAX_LENGTH,
+	AUDIO_LIBRARY_MAX_FOLDER_ITEMS,
+	AUDIO_LIBRARY_MAX_FOLDERS,
 	audioLibraryAssetKey,
 	loadAudioLibraryFavorites,
 	loadAudioLibraryFolders,
@@ -524,8 +526,14 @@ export const useSoundsStore = create<SoundsStore>((set, get) => ({
 				(item) => item.id !== sound.id || (item.kind ?? "sound-effect") !== kind
 			),
 		].slice(0, MAX_RECENT_SOUNDS);
-		persistAudioLibraryRecents({ sounds: recentSounds });
 		set({ recentSounds });
+		// Recent history is best-effort bookkeeping: a storage failure must
+		// never reject the timeline insertion that triggered it.
+		try {
+			persistAudioLibraryRecents({ sounds: recentSounds });
+		} catch {
+			// Ignore persistence failures (e.g. storage quota exceeded).
+		}
 	},
 
 	createAudioFolder: ({ name }) => {
@@ -534,6 +542,9 @@ export const useSoundsStore = create<SoundsStore>((set, get) => ({
 			!normalizedName ||
 			normalizedName.length > AUDIO_FOLDER_NAME_MAX_LENGTH
 		) {
+			return null;
+		}
+		if (get().audioFolders.length >= AUDIO_LIBRARY_MAX_FOLDERS) {
 			return null;
 		}
 		if (
@@ -597,24 +608,34 @@ export const useSoundsStore = create<SoundsStore>((set, get) => ({
 	},
 
 	toggleSoundInFolder: async ({ folderId, sound, kind }) => {
-		if (!get().isSoundSaved(sound.id, kind)) {
+		const assetKey = audioLibraryAssetKey({ kind, id: sound.id });
+		const targetFolder = get().audioFolders.find(
+			(folder) => folder.id === folderId
+		);
+		if (!targetFolder) return;
+		const includesSound = targetFolder.assetKeys.includes(assetKey);
+		if (
+			!includesSound &&
+			targetFolder.assetKeys.length >= AUDIO_LIBRARY_MAX_FOLDER_ITEMS
+		) {
+			toast.error(localizedAudioMessage({ key: "audioLibrary.folders.full" }));
+			return;
+		}
+		// Only adding membership implies favoriting; removal must not save.
+		if (!includesSound && !get().isSoundSaved(sound.id, kind)) {
 			await get().saveSoundEffect(sound, kind);
 		}
-		const assetKey = audioLibraryAssetKey({ kind, id: sound.id });
-		let found = false;
-		const audioFolders = get().audioFolders.map((folder) => {
-			if (folder.id !== folderId) return folder;
-			found = true;
-			const includesSound = folder.assetKeys.includes(assetKey);
-			return {
-				...folder,
-				assetKeys: includesSound
-					? folder.assetKeys.filter((candidate) => candidate !== assetKey)
-					: [...folder.assetKeys, assetKey],
-				updatedAt: Date.now(),
-			};
-		});
-		if (!found) return;
+		const audioFolders = get().audioFolders.map((folder) =>
+			folder.id === folderId
+				? {
+						...folder,
+						assetKeys: includesSound
+							? folder.assetKeys.filter((candidate) => candidate !== assetKey)
+							: [...folder.assetKeys, assetKey],
+						updatedAt: Date.now(),
+					}
+				: folder
+		);
 		persistAudioLibraryFolders({ folders: audioFolders });
 		set({ audioFolders });
 	},
@@ -678,13 +699,6 @@ export const useSoundsStore = create<SoundsStore>((set, get) => ({
 			return false;
 		}
 
-		const audioUrl = sound.previewUrl;
-		if (!audioUrl) {
-			toast.error(
-				localizedAudioMessage({ key: "audioLibrary.error.unavailable" })
-			);
-			return false;
-		}
 		if (mode === "fit-project" && !sound.loopable) {
 			toast.error(
 				localizedAudioMessage({ key: "audioLibrary.toast.notLoopable" })
@@ -693,7 +707,10 @@ export const useSoundsStore = create<SoundsStore>((set, get) => ({
 		}
 		if (
 			mode === "fit-project" &&
-			getVisualTimelineEnd({ tracks: useTimelineStore.getState().tracks }) <= 0
+			getVisualTimelineEnd({
+				tracks: useTimelineStore.getState().tracks,
+				fps: activeProject.fps,
+			}) <= 0
 		) {
 			toast.error(
 				localizedAudioMessage({ key: "audioLibrary.toast.noVisualContent" })
@@ -719,6 +736,7 @@ export const useSoundsStore = create<SoundsStore>((set, get) => ({
 				autoDucking,
 				bpm: sound.bpm,
 				beatAlignment,
+				fps: activeProject.fps,
 			});
 			if (insertion.success) get().markSoundRecent(sound, kind);
 			return insertion.success;
@@ -738,9 +756,20 @@ export const useSoundsStore = create<SoundsStore>((set, get) => ({
 				autoDucking,
 				bpm: sound.bpm,
 				beatAlignment,
+				fps: activeProject.fps,
 			});
 			if (insertion.success) get().markSoundRecent(sound, kind);
 			return insertion.success;
+		}
+
+		// Project-backed and already-imported sounds are reused above without a
+		// download; only materialization needs a preview URL.
+		const audioUrl = sound.previewUrl;
+		if (!audioUrl) {
+			toast.error(
+				localizedAudioMessage({ key: "audioLibrary.error.unavailable" })
+			);
+			return false;
 		}
 
 		let objectUrl: string | null = null;
@@ -824,6 +853,7 @@ export const useSoundsStore = create<SoundsStore>((set, get) => ({
 				autoDucking,
 				bpm: sound.bpm,
 				beatAlignment,
+				fps: activeProject.fps,
 			});
 			const success = insertion.success;
 

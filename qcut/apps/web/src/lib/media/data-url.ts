@@ -16,8 +16,13 @@ export function dataUrlToBlob({ dataUrl }: { dataUrl: string }): Blob {
 	);
 
 	try {
+		// Base64 payloads may arrive percent-encoded (e.g. %3D for =) or with
+		// whitespace/newlines; normalize before decoding.
 		const bytes = isBase64
-			? Uint8Array.from(atob(payload), (character) => character.charCodeAt(0))
+			? Uint8Array.from(
+					atob(decodeURIComponent(payload).replace(/\s/g, "")),
+					(character) => character.charCodeAt(0)
+				)
 			: new TextEncoder().encode(decodeURIComponent(payload));
 		return new Blob([bytes], { type: mimeType || "text/plain" });
 	} catch {

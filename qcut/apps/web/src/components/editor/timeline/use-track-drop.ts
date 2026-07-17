@@ -145,6 +145,9 @@ export function useTrackDrop({
 
 		// Check for potential overlaps and show appropriate feedback
 		let hasOverlap = false;
+		// Audio-library drags compute a beat/duration-aware indicator position
+		// that must survive the generic fallback below.
+		let audioDropPosition: number | null = null;
 
 		if (hasAudioLibraryItem) {
 			const payload = parseAudioLibraryDrag({
@@ -158,11 +161,10 @@ export function useTrackDrop({
 								bpm: payload.sound.bpm,
 							})
 						: dropTime;
-				const snappedTime = getDropSnappedTime(
+				audioDropPosition = getDropSnappedTime(
 					beatAlignedTime,
 					payload.sound.duration
 				);
-				setDropPosition(snappedTime);
 			}
 		} else if (hasMediaItem) {
 			try {
@@ -290,14 +292,14 @@ export function useTrackDrop({
 			e.dataTransfer.dropEffect = "none";
 			setWouldOverlap(true);
 			// Use default duration for position indicator
-			setDropPosition(getDropSnappedTime(dropTime, 5));
+			setDropPosition(audioDropPosition ?? getDropSnappedTime(dropTime, 5));
 			return;
 		}
 
 		e.dataTransfer.dropEffect = hasTimelineElement ? "move" : "copy";
 		setWouldOverlap(false);
 		// Use default duration for position indicator
-		setDropPosition(getDropSnappedTime(dropTime, 5));
+		setDropPosition(audioDropPosition ?? getDropSnappedTime(dropTime, 5));
 	};
 
 	const handleTrackDragEnter = (e: React.DragEvent) => {

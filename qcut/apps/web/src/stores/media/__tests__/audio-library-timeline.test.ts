@@ -37,6 +37,8 @@ describe("audio library timeline insertion", () => {
 				addMediaAtTime,
 				addTrack: vi.fn(),
 				addElementToTrack: vi.fn(),
+				removeElementFromTrack: vi.fn(),
+				removeTrack: vi.fn(),
 				updateTrackAudio: vi.fn(),
 			},
 			mediaItem,
@@ -57,6 +59,8 @@ describe("audio library timeline insertion", () => {
 				addMediaAtTime,
 				addTrack: vi.fn(),
 				addElementToTrack: vi.fn(),
+				removeElementFromTrack: vi.fn(),
+				removeTrack: vi.fn(),
 				updateTrackAudio: vi.fn(),
 			},
 			mediaItem,
@@ -92,6 +96,8 @@ describe("audio library timeline insertion", () => {
 				addMediaAtTime: vi.fn(),
 				addTrack: vi.fn(() => "music-track"),
 				addElementToTrack,
+				removeElementFromTrack: vi.fn(),
+				removeTrack: vi.fn(),
 				updateTrackAudio,
 			},
 			mediaItem,
@@ -135,6 +141,8 @@ describe("audio library timeline insertion", () => {
 				addMediaAtTime: vi.fn(),
 				addTrack,
 				addElementToTrack: vi.fn(),
+				removeElementFromTrack: vi.fn(),
+				removeTrack: vi.fn(),
 				updateTrackAudio: vi.fn(),
 			},
 			mediaItem,
@@ -145,5 +153,50 @@ describe("audio library timeline insertion", () => {
 
 		expect(result.reason).toBe("no-visual-content");
 		expect(addTrack).not.toHaveBeenCalled();
+	});
+
+	it("rolls back partial fit-project insertion when a segment fails", () => {
+		const addElementToTrack = vi
+			.fn()
+			.mockReturnValueOnce("loop-1")
+			.mockReturnValueOnce(null);
+		const removeElementFromTrack = vi.fn();
+		const removeTrack = vi.fn();
+		const result = insertAudioLibraryMedia({
+			timeline: {
+				tracks: [
+					{
+						id: "video-track",
+						name: "Video",
+						type: "media",
+						muted: false,
+						elements: [mediaElement({ id: "video", duration: 10 })],
+					},
+				],
+				addMediaAtTime: vi.fn(),
+				addTrack: vi.fn(() => "music-track"),
+				addElementToTrack,
+				removeElementFromTrack,
+				removeTrack,
+				updateTrackAudio: vi.fn(),
+			},
+			mediaItem,
+			mode: "fit-project",
+			startTime: 0,
+			autoDucking: false,
+		});
+
+		expect(result).toEqual({
+			success: false,
+			segmentCount: 0,
+			duckingSourceCount: 0,
+			reason: "insert-failed",
+		});
+		expect(removeElementFromTrack).toHaveBeenCalledWith(
+			"music-track",
+			"loop-1",
+			false
+		);
+		expect(removeTrack).not.toHaveBeenCalled();
 	});
 });

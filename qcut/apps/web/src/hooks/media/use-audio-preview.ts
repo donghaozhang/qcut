@@ -40,8 +40,19 @@ export function useAudioPreview({
 				const activeAudio = audioRef.current;
 				if (!activeAudio) return;
 				if (activeAudio.paused) {
-					await activeAudio.play();
-					setIsPlaying(true);
+					try {
+						await activeAudio.play();
+						setIsPlaying(true);
+					} catch (error) {
+						stop();
+						handleError(error, {
+							operation: "Play audio preview",
+							category: ErrorCategory.MEDIA_PROCESSING,
+							severity: ErrorSeverity.LOW,
+							showToast: false,
+							metadata: { soundId: sound.id, soundName: sound.name },
+						});
+					}
 					return;
 				}
 				activeAudio.pause();

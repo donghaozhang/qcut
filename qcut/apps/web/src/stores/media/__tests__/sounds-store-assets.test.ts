@@ -92,9 +92,11 @@ describe("sounds store asset identity", () => {
 			duration: 60,
 			url: "blob:qcut-audio",
 		});
+		// Newly created media must use an ID distinct from the seeded item so
+		// materialization assertions cannot accidentally match the seed.
 		mocks.addMediaItem.mockImplementation(async (_projectId, item) => {
-			mocks.mediaItems.push({ id: "media-1", ...item });
-			return "media-1";
+			mocks.mediaItems.push({ id: "media-2", ...item });
+			return "media-2";
 		});
 		useAssetLibraryStore.getState().resetLibrary();
 		useSoundsStore.setState({
@@ -158,7 +160,7 @@ describe("sounds store asset identity", () => {
 			expect.objectContaining({ cacheBundledResources: true })
 		);
 		expect(mocks.addMediaAtTime).toHaveBeenCalledWith(
-			expect.objectContaining({ id: "media-1" }),
+			expect.objectContaining({ id: "media-2" }),
 			3
 		);
 		expect(useSoundsStore.getState().recentSounds[0]).toMatchObject({
@@ -205,12 +207,12 @@ describe("sounds store asset identity", () => {
 		expect(mocks.addMediaItem).toHaveBeenCalledTimes(1);
 		expect(mocks.addMediaAtTime).toHaveBeenNthCalledWith(
 			1,
-			expect.objectContaining({ id: "media-1" }),
+			expect.objectContaining({ id: "media-2" }),
 			1
 		);
 		expect(mocks.addMediaAtTime).toHaveBeenNthCalledWith(
 			2,
-			expect.objectContaining({ id: "media-1" }),
+			expect.objectContaining({ id: "media-2" }),
 			2
 		);
 	});

@@ -340,7 +340,7 @@ class StorageService {
 			// File exists with content
 			const isSvgImage =
 				metadata.type === "image" &&
-				metadata.name.toLowerCase().endsWith(".svg");
+				metadata.name?.toLowerCase().endsWith(".svg");
 			actualFile =
 				isSvgImage && file.type !== "image/svg+xml"
 					? new File([file], metadata.name, {

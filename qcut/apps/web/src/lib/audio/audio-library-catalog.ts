@@ -924,16 +924,19 @@ export function restoreSavedAudio({
 }: {
 	savedSound: SavedSound;
 }): SoundEffect {
+	// Download-only saved sounds must stay playable, so fall back to the
+	// download URL when no preview URL was persisted.
+	const audioUrl = savedSound.previewUrl ?? savedSound.downloadUrl ?? "";
 	return {
 		id: savedSound.id,
 		name: savedSound.name,
 		description: savedSound.description ?? "",
-		url: savedSound.previewUrl ?? "",
-		previewUrl: savedSound.previewUrl,
+		url: audioUrl,
+		previewUrl: audioUrl || undefined,
 		downloadUrl: savedSound.downloadUrl,
 		duration: savedSound.duration,
 		filesize: 0,
-		type: savedSound.previewUrl?.endsWith(".ogg") ? "audio/ogg" : "audio/mpeg",
+		type: audioUrl.endsWith(".ogg") ? "audio/ogg" : "audio/mpeg",
 		channels: 0,
 		bitrate: 0,
 		bitdepth: 0,

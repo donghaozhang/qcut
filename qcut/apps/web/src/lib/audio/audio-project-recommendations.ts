@@ -291,8 +291,9 @@ function cueSound({
 	const preferredName =
 		dynamic && index % 3 === 2 ? "Cinematic Impact" : "Air Whoosh";
 	return (
-		catalog.find((sound) => sound.name === preferredName) ??
-		catalog.find((sound) => sound.kind === "sound-effect")
+		catalog.find(
+			(sound) => sound.kind === "sound-effect" && sound.name === preferredName
+		) ?? catalog.find((sound) => sound.kind === "sound-effect")
 	);
 }
 
@@ -315,13 +316,22 @@ export function buildProjectAudioRecommendations({
 		mediaItems,
 		tracks,
 	});
+	// Only timeline-referenced media may contribute context; unused library
+	// assets would otherwise bias recommendations for unrelated edits.
+	const referencedMediaIds = new Set(
+		timelineElements.flatMap((element) =>
+			element.type === "media" ? [element.mediaId] : []
+		)
+	);
 	const contextText = [
 		projectName,
 		...timelineElements.flatMap((element) => elementText({ element })),
-		...mediaItems.flatMap((item) => [
-			item.name,
-			...metadataText({ metadata: item.metadata }),
-		]),
+		...mediaItems
+			.filter((item) => referencedMediaIds.has(item.id))
+			.flatMap((item) => [
+				item.name,
+				...metadataText({ metadata: item.metadata }),
+			]),
 		...referencedVideoMedia.flatMap((mediaItem) =>
 			audioProjectVisionContext({ mediaItem })
 		),

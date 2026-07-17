@@ -11,8 +11,8 @@ export const AUDIO_LIBRARY_FOLDERS_STORAGE_KEY = "qcut-audio-folders-v1";
 export const AUDIO_LIBRARY_PERSONAL_CHANGED_EVENT =
 	"qcut:audio-library-personal-changed";
 
-const MAX_FOLDERS = 100;
-const MAX_FOLDER_ITEMS = 500;
+export const AUDIO_LIBRARY_MAX_FOLDERS = 100;
+export const AUDIO_LIBRARY_MAX_FOLDER_ITEMS = 500;
 export const AUDIO_FOLDER_NAME_MAX_LENGTH = 40;
 
 export type AudioLibraryAssetKind = "music" | "sound-effect";
@@ -167,7 +167,7 @@ export function parseAudioLibraryFolder({
 	}
 	const assetKeys = [
 		...new Set(stringArray({ value: record.assetKeys })),
-	].slice(0, MAX_FOLDER_ITEMS);
+	].slice(0, AUDIO_LIBRARY_MAX_FOLDER_ITEMS);
 	return {
 		id: record.id,
 		name: record.name.trim(),
@@ -201,9 +201,28 @@ export function loadAudioLibraryRecents(): SavedSound[] {
 
 export function loadAudioLibraryFolders(): AudioLibraryFolder[] {
 	return readJsonArray({ key: AUDIO_LIBRARY_FOLDERS_STORAGE_KEY })
-		.slice(0, MAX_FOLDERS)
+		.slice(0, AUDIO_LIBRARY_MAX_FOLDERS)
 		.map((value) => parseAudioLibraryFolder({ value }))
 		.filter((folder): folder is AudioLibraryFolder => folder !== null);
+}
+
+/**
+ * Clamp folders to the same limits the readers enforce so writes can never
+ * persist data that would silently disappear on the next load.
+ */
+export function normalizeAudioLibraryFolders({
+	folders,
+}: {
+	folders: readonly AudioLibraryFolder[];
+}): AudioLibraryFolder[] {
+	return folders.slice(0, AUDIO_LIBRARY_MAX_FOLDERS).map((folder) =>
+		folder.assetKeys.length > AUDIO_LIBRARY_MAX_FOLDER_ITEMS
+			? {
+					...folder,
+					assetKeys: folder.assetKeys.slice(0, AUDIO_LIBRARY_MAX_FOLDER_ITEMS),
+				}
+			: folder
+	);
 }
 
 function dispatchPersonalLibraryChanged(): void {
@@ -252,7 +271,7 @@ export function persistAudioLibraryFolders({
 	if (typeof localStorage === "undefined") return;
 	localStorage.setItem(
 		AUDIO_LIBRARY_FOLDERS_STORAGE_KEY,
-		JSON.stringify(folders)
+		JSON.stringify(normalizeAudioLibraryFolders({ folders }))
 	);
 	if (notify) notifyAudioLibrarySync();
 }

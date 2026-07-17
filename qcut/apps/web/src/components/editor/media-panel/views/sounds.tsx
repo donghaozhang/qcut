@@ -279,6 +279,12 @@ export function SoundsView() {
 	});
 	const category = findAudioLibraryCategory({ categoryId: activeSection });
 	const catalogActive = isKnownCategory({ section: activeSection });
+	// Personal sections (favorites, recents, folders) have no catalog category;
+	// untyped legacy items there default to sound effects, never to the
+	// fallback music category.
+	const fallbackKind: AudioAssetKind = catalogActive
+		? category.kind
+		: "sound-effect";
 	const externalQuery = query.trim()
 		? translateAudioSearchQuery({ query })
 		: category.query;
@@ -471,6 +477,8 @@ export function SoundsView() {
 				})),
 			});
 			toast.success(t("audioLibrary.recommendation.placed", { count }));
+		} catch {
+			toast.error(t("audioLibrary.recommendation.placeFailed"));
 		} finally {
 			setIsPlacingSuggestions(false);
 		}
@@ -511,12 +519,12 @@ export function SoundsView() {
 			);
 			const nextSound = displayedItems[currentIndex + 1];
 			if (!nextSound) return;
-			const nextKind = nextSound.kind ?? category.kind;
+			const nextKind = nextSound.kind ?? fallbackKind;
 			markSoundRecent(nextSound, nextKind);
 			void preview.togglePreview({ sound: nextSound });
 		};
 	}, [
-		category.kind,
+		fallbackKind,
 		continuousPlayback,
 		displayedItems,
 		markSoundRecent,
@@ -686,7 +694,7 @@ export function SoundsView() {
 							) : displayedItems.length > 0 ? (
 								<div className="grid grid-cols-[repeat(auto-fill,minmax(220px,1fr))] gap-2">
 									{displayedItems.map((sound) => {
-										const kind = sound.kind ?? category.kind;
+										const kind = sound.kind ?? fallbackKind;
 										return (
 											<AudioLibraryItem
 												key={`${kind}-${sound.id}`}

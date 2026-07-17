@@ -1,3 +1,4 @@
+import { getMediaTimelineDuration } from "@/lib/video/video-timing";
 import type { TimelineTrack } from "@/types/timeline";
 
 export interface AudioLoopSegment {
@@ -46,14 +47,22 @@ function effectiveElementDuration({
 
 export function getVisualTimelineEnd({
 	tracks,
+	fps,
 }: {
 	tracks: readonly TimelineTrack[];
+	fps?: number;
 }): number {
 	let timelineEnd = 0;
 	for (const track of tracks) {
 		if (track.type === "audio") continue;
 		for (const element of track.elements) {
-			const endTime = element.startTime + effectiveElementDuration(element);
+			// Media elements need the timeline-aware duration so speed-adjusted
+			// clips report the length they actually occupy on the timeline.
+			const elementDuration =
+				element.type === "media"
+					? getMediaTimelineDuration(element, fps)
+					: effectiveElementDuration(element);
+			const endTime = element.startTime + elementDuration;
 			timelineEnd = Math.max(timelineEnd, endTime);
 		}
 	}

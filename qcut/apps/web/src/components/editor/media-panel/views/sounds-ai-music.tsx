@@ -32,6 +32,16 @@ import { useMediaPanelStore } from "../store";
 
 const TARGET_DURATIONS = [15, 30, 60, 120] as const;
 
+const BPM_MIN = 40;
+const BPM_MAX = 220;
+const BPM_DEFAULT = 100;
+
+function clampBpm({ value }: { value: string }): number {
+	const parsed = Number(value);
+	if (!Number.isFinite(parsed) || parsed <= 0) return BPM_DEFAULT;
+	return Math.min(BPM_MAX, Math.max(BPM_MIN, Math.round(parsed)));
+}
+
 type MusicModel = "minimax_music_v2_6" | "minimax_music_v2_5";
 
 export function AiMusicView() {
@@ -44,12 +54,22 @@ export function AiMusicView() {
 	const [mood, setMood] = useState("");
 	const [scene, setScene] = useState("");
 	const [targetDuration, setTargetDuration] = useState<number>(30);
-	const [bpm, setBpm] = useState(100);
+	const [bpmInput, setBpmInput] = useState(String(BPM_DEFAULT));
 	const [instrumental, setInstrumental] = useState(true);
 	const [lyrics, setLyrics] = useState("");
 	const [model, setModel] = useState<MusicModel>("minimax_music_v2_6");
 	const [validationError, setValidationError] = useState<string>();
-	const [generatedMedia, setGeneratedMedia] = useState<MediaItem>();
+	const [generatedResult, setGeneratedResult] = useState<{
+		projectId: string;
+		mediaItem: MediaItem;
+	}>();
+	// Results stay bound to their originating project so a project switch
+	// during generation cannot leak media into the newly opened project.
+	const generatedMedia =
+		generatedResult && generatedResult.projectId === activeProject?.id
+			? generatedResult.mediaItem
+			: undefined;
+	const bpm = clampBpm({ value: bpmInput });
 	const {
 		generate,
 		cancel,
@@ -70,7 +90,7 @@ export function AiMusicView() {
 			return;
 		}
 		setValidationError(undefined);
-		setGeneratedMedia(undefined);
+		setGeneratedResult(undefined);
 		const prompt = buildAiMusicPrompt({
 			style,
 			mood,
@@ -103,7 +123,7 @@ export function AiMusicView() {
 				targetDuration,
 				bpm,
 			});
-			setGeneratedMedia(mediaItem);
+			setGeneratedResult({ projectId: activeProject.id, mediaItem });
 			toast.success(t("audioLibrary.aiMusic.toast.saved"));
 		} catch (error) {
 			setValidationError(
@@ -210,12 +230,11 @@ export function AiMusicView() {
 					<Input
 						id="ai-music-bpm"
 						type="number"
-						min={40}
-						max={220}
-						value={bpm}
-						onChange={(event) =>
-							setBpm(Math.min(220, Math.max(40, Number(event.target.value))))
-						}
+						min={BPM_MIN}
+						max={BPM_MAX}
+						value={bpmInput}
+						onChange={(event) => setBpmInput(event.target.value)}
+						onBlur={() => setBpmInput(String(clampBpm({ value: bpmInput })))}
 					/>
 				</div>
 				<div className="space-y-1.5">

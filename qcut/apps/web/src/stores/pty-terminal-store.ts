@@ -731,6 +731,11 @@ export const usePtyTerminalStore = create<PtyTerminalStore>((set, get) => {
 				setActiveSession({
 					cliProvider: provider,
 					isGeminiMode: provider === "gemini",
+					// A provider change starts a fresh CLI session, so the skill
+					// prompt must be delivered again.
+					...(session?.cliProvider !== provider
+						? { skillPromptSent: false }
+						: {}),
 					...(session
 						? {
 								label: getProviderChangeLabel({
