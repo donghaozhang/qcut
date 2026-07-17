@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { searchSounds } from "@/lib/api-adapter";
 import type { SoundEffect } from "@/types/sounds";
+import type { AudioLibrarySort } from "@/lib/audio/audio-library-catalog";
 
 export type AudioLibrarySearchType = "effects" | "songs";
 
@@ -30,12 +31,16 @@ export function useAudioLibrarySearch({
 	query,
 	type,
 	commercialOnly,
+	sort,
+	enabled = true,
 	pageSize = 20,
 	debounceMs = 300,
 }: {
 	query: string;
 	type: AudioLibrarySearchType;
 	commercialOnly: boolean;
+	sort?: AudioLibrarySort;
+	enabled?: boolean;
 	pageSize?: number;
 	debounceMs?: number;
 }) {
@@ -62,7 +67,7 @@ export function useAudioLibrarySearch({
 				type,
 				page: pageNumber,
 				page_size: pageSize,
-				sort: query.trim() ? "score" : "downloads",
+				sort: sort ?? (query.trim() ? "score" : "downloads"),
 				min_rating: 3,
 				commercial_only: commercialOnly,
 			})) as SoundSearchResponse;
@@ -78,7 +83,7 @@ export function useAudioLibrarySearch({
 			setHasNextPage(Boolean(response.next));
 			setTotalCount(response.count ?? incoming.length);
 		},
-		[commercialOnly, pageSize, query, type]
+		[commercialOnly, pageSize, query, sort, type]
 	);
 
 	useEffect(() => {
@@ -89,6 +94,7 @@ export function useAudioLibrarySearch({
 		setHasNextPage(false);
 		setTotalCount(0);
 		setError(undefined);
+		if (!enabled) return;
 
 		const timeoutId = window.setTimeout(() => {
 			setIsLoading(true);
@@ -107,10 +113,10 @@ export function useAudioLibrarySearch({
 		}, debounceMs);
 
 		return () => window.clearTimeout(timeoutId);
-	}, [debounceMs, runSearch]);
+	}, [debounceMs, enabled, runSearch]);
 
 	const loadMore = useCallback(async () => {
-		if (isLoading || isLoadingMore || !hasNextPage) return;
+		if (!enabled || isLoading || isLoadingMore || !hasNextPage) return;
 		const generation = requestGeneration.current;
 		setIsLoadingMore(true);
 		setError(undefined);
@@ -129,7 +135,7 @@ export function useAudioLibrarySearch({
 		} finally {
 			if (generation === requestGeneration.current) setIsLoadingMore(false);
 		}
-	}, [hasNextPage, isLoading, isLoadingMore, page, runSearch]);
+	}, [enabled, hasNextPage, isLoading, isLoadingMore, page, runSearch]);
 
 	return {
 		results,

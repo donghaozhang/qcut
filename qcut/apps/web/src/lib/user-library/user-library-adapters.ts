@@ -1,4 +1,8 @@
 import {
+	loadAudioLibraryCloudItems,
+	persistAudioLibraryCloudItems,
+} from "@/lib/audio/audio-library-personal";
+import {
 	loadCustomAudioPresets,
 	parseCustomAudioPreset,
 	persistCustomAudioPresets,
@@ -37,6 +41,12 @@ export interface UserLibraryAdapter {
 }
 
 export const USER_LIBRARY_ADAPTERS: UserLibraryAdapter[] = [
+	{
+		documentKey: "default",
+		load: loadAudioLibraryCloudItems,
+		namespace: USER_LIBRARY_NAMESPACES.audioLibrary,
+		persist: persistAudioLibraryCloudItems,
+	},
 	{
 		documentKey: "default",
 		load: loadCustomAudioPresets,

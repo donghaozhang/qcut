@@ -5,6 +5,11 @@ import { usePlaybackStore } from "@/stores/editor/playback-store";
 import { toast } from "sonner";
 import type { DragData } from "@/types/timeline";
 import type { MediaItem, MediaStore } from "@/stores/media/media-store-types";
+import {
+	AUDIO_LIBRARY_DRAG_MIME,
+	parseAudioLibraryDrag,
+} from "@/lib/audio/audio-library-drag";
+import { useSoundsStore } from "@/stores/media/sounds-store";
 
 interface UseDragHandlersParams {
 	mediaItems: MediaItem[];
@@ -76,6 +81,24 @@ export function useDragHandlers({
 			dragCounterRef.current = 0;
 
 			if (isDropOfTimelineElement({ e })) {
+				return;
+			}
+			const audioLibraryData = e.dataTransfer.getData(AUDIO_LIBRARY_DRAG_MIME);
+			if (audioLibraryData) {
+				const payload = parseAudioLibraryDrag({ value: audioLibraryData });
+				if (!payload) {
+					toast.error("Invalid audio library item");
+					return;
+				}
+				const beatAlignment =
+					useTimelineStore.getState().snappingEnabled && payload.sound.bpm
+						? "nearest"
+						: undefined;
+				await useSoundsStore.getState().addSoundToTimeline({
+					sound: payload.sound,
+					kind: payload.kind,
+					...(beatAlignment ? { beatAlignment } : {}),
+				});
 				return;
 			}
 

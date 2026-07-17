@@ -7,6 +7,7 @@ import {
 
 const MAX_LIBRARY_PAYLOAD_BYTES = 512 * 1_024;
 const LIBRARY_NAMESPACES = new Set([
+	"audio-library",
 	"audio-presets",
 	"clip-presets",
 	"color-presets",
