@@ -85,8 +85,8 @@ function drawWaveform({
 	});
 	const gain = audioWaveformDisplayGain({ bars });
 	context.fillStyle = "rgba(255, 255, 255, 0.9)";
-	for (let index = 0; index < bars.length; index++) {
-		const amplitude = Math.min(1, bars[index] * gain);
+	for (const [index, bar] of bars.entries()) {
+		const amplitude = Math.min(1, bar * gain);
 		const barHeight = Math.max(1, amplitude * (height - 2));
 		context.fillRect(
 			index * (barWidth + barGap),
