@@ -163,10 +163,12 @@ async function downloadAndEncode({
 			],
 			{ stderr: "pipe", stdout: "ignore" }
 		);
-		if ((await child.exited) !== 0) {
-			throw new Error(
-				`ffmpeg failed: ${await new Response(child.stderr).text()}`
-			);
+		const [stderrText, exitCode] = await Promise.all([
+			new Response(child.stderr).text(),
+			child.exited,
+		]);
+		if (exitCode !== 0) {
+			throw new Error(`ffmpeg failed: ${stderrText}`);
 		}
 	} finally {
 		await rm(stagingFile, { force: true });
@@ -237,10 +239,12 @@ async function generateArtwork({
 			],
 			{ cwd: repoRoot, stdout: "pipe", stderr: "pipe" }
 		);
-		if ((await child.exited) !== 0) {
-			throw new Error(
-				`generate-image failed: ${await new Response(child.stderr).text()}`
-			);
+		const [stderrText, exitCode] = await Promise.all([
+			new Response(child.stderr).text(),
+			child.exited,
+		]);
+		if (exitCode !== 0) {
+			throw new Error(`generate-image failed: ${stderrText}`);
 		}
 		const entries = await readdir(stagingDir, { recursive: true });
 		let imagePath = entries.find((entry) =>

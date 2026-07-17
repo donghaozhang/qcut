@@ -48,6 +48,21 @@ describe("audio metrics routes", () => {
 		});
 	});
 
+	it("rejects malformed JSON bodies as client errors", async () => {
+		const response = await buildApp().request("/api/audio-metrics/downloads", {
+			method: "POST",
+			headers: {
+				Authorization: "Bearer test-token",
+				"Content-Type": "application/json",
+			},
+			body: "{not json",
+		});
+		expect(response.status).toBe(400);
+		await expect(response.json()).resolves.toEqual({
+			error: "Invalid JSON body",
+		});
+	});
+
 	it("rejects malformed track keys", async () => {
 		for (const trackKey of [
 			"music:abc",

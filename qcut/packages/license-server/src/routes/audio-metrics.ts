@@ -11,8 +11,13 @@ const audioMetricsRoutes = new Hono();
 audioMetricsRoutes.use("/*", authMiddleware);
 
 audioMetricsRoutes.post("/downloads", async (c) => {
+	let body: Record<string, unknown>;
 	try {
-		const body = (await c.req.json()) as Record<string, unknown>;
+		body = (await c.req.json()) as Record<string, unknown>;
+	} catch {
+		return c.json({ error: "Invalid JSON body" }, 400);
+	}
+	try {
 		if (
 			typeof body.trackKey !== "string" ||
 			!TRACK_KEY_PATTERN.test(body.trackKey)
