@@ -118,6 +118,7 @@ export default function AudioWaveform({
 
 	useEffect(() => {
 		let active = true;
+		let retryTimer: ReturnType<typeof setTimeout> | undefined;
 		setWaveform(null);
 		setError(undefined);
 		const nativeLoader = nativeWaveformLoader({ sourcePath, sourceDuration });
@@ -128,24 +129,39 @@ export default function AudioWaveform({
 				active = false;
 			};
 		}
-		void audioWaveformCache
-			.get({
-				audioUrl,
-				cacheKey:
-					cacheKey ??
-					(useNativeDecoder
-						? `native:${sourcePath}:${sourceDuration}`
-						: audioUrl),
-				loader: nativeLoader,
-			})
-			.then((result) => {
-				if (active) setWaveform(result);
-			})
-			.catch(() => {
-				if (active) setError(errorLabel);
-			});
+		// Decodes can fail transiently (memory pressure while a whole library
+		// panel decodes at once); the cache evicts failed promises, so a retry
+		// re-runs the loader instead of pinning the error until remount.
+		const load = ({ attempt }: { attempt: number }) => {
+			void audioWaveformCache
+				.get({
+					audioUrl,
+					cacheKey:
+						cacheKey ??
+						(useNativeDecoder
+							? `native:${sourcePath}:${sourceDuration}`
+							: audioUrl),
+					loader: nativeLoader,
+				})
+				.then((result) => {
+					if (active) setWaveform(result);
+				})
+				.catch(() => {
+					if (!active) return;
+					if (attempt < 2) {
+						retryTimer = setTimeout(
+							() => load({ attempt: attempt + 1 }),
+							1500 * (attempt + 1)
+						);
+						return;
+					}
+					setError(errorLabel);
+				});
+		};
+		load({ attempt: 0 });
 		return () => {
 			active = false;
+			clearTimeout(retryTimer);
 		};
 	}, [audioUrl, cacheKey, errorLabel, sourceDuration, sourcePath]);
 
