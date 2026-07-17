@@ -20,6 +20,10 @@ interface AudioWaveformProps {
 	sourcePath?: string;
 	sourceDuration?: number;
 	cacheKey?: string;
+	ariaLabel?: string;
+	showStatus?: boolean;
+	loadingLabel?: string;
+	errorLabel?: string;
 }
 
 function nativeWaveformLoader({
@@ -98,6 +102,10 @@ export default function AudioWaveform({
 	sourcePath,
 	sourceDuration,
 	cacheKey,
+	ariaLabel = "Audio waveform",
+	showStatus = true,
+	loadingLabel = "Loading waveform...",
+	errorLabel = "Audio unavailable",
 }: AudioWaveformProps) {
 	const containerRef = useRef<HTMLDivElement>(null);
 	const canvasRef = useRef<HTMLCanvasElement>(null);
@@ -111,7 +119,7 @@ export default function AudioWaveform({
 		const nativeLoader = nativeWaveformLoader({ sourcePath, sourceDuration });
 		const useNativeDecoder = Boolean(nativeLoader);
 		if (!audioUrl && !useNativeDecoder) {
-			setError("Audio unavailable");
+			setError(errorLabel);
 			return () => {
 				active = false;
 			};
@@ -130,12 +138,12 @@ export default function AudioWaveform({
 				if (active) setWaveform(result);
 			})
 			.catch(() => {
-				if (active) setError("Audio unavailable");
+				if (active) setError(errorLabel);
 			});
 		return () => {
 			active = false;
 		};
-	}, [audioUrl, cacheKey, sourceDuration, sourcePath]);
+	}, [audioUrl, cacheKey, errorLabel, sourceDuration, sourcePath]);
 
 	useEffect(() => {
 		const container = containerRef.current;
@@ -171,12 +179,12 @@ export default function AudioWaveform({
 					"block transition-opacity duration-150",
 					waveform ? "opacity-100" : "opacity-0"
 				)}
-				aria-label="Audio waveform"
+				aria-label={ariaLabel}
 			/>
-			{waveform ? null : (
+			{waveform || !showStatus ? null : (
 				<div className="absolute inset-0 flex items-center justify-center">
 					<span className="truncate px-1 text-[10px] text-foreground/60">
-						{error ?? "Loading waveform..."}
+						{error ?? loadingLabel}
 					</span>
 				</div>
 			)}

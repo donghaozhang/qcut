@@ -4,25 +4,52 @@ import {
 	createInitialAssetRuntimeState,
 } from "@qcut/editor-core";
 import {
-	AudioWaveform,
 	Check,
+	AudioLines,
+	Download,
+	Flame,
+	FolderPlus,
 	Heart,
 	Loader2,
+	MoreHorizontal,
 	Music2,
 	Pause,
 	Play,
-	Plus,
+	Repeat2,
+	Volume2,
+	Waves,
 } from "lucide-react";
 import { useMemo, useState } from "react";
 import { Button } from "@/components/ui/button";
 import {
-	createFreesoundAssetEntry,
-	resolveFreesoundLicense,
-} from "@/lib/assets/freesound-asset";
+	DropdownMenu,
+	DropdownMenuCheckboxItem,
+	DropdownMenuContent,
+	DropdownMenuItem,
+	DropdownMenuSeparator,
+	DropdownMenuSub,
+	DropdownMenuSubContent,
+	DropdownMenuSubTrigger,
+	DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+import { createAudioLibraryAssetEntry } from "@/lib/assets/freesound-asset";
+import AudioWaveform from "@/components/editor/audio-waveform";
+import {
+	AUDIO_LIBRARY_DRAG_MIME,
+	serializeAudioLibraryDrag,
+} from "@/lib/audio/audio-library-drag";
+import { localizeAudioLibraryTag } from "@/lib/audio/audio-library-catalog";
+import { useTranslation } from "@/lib/i18n";
 import { cn } from "@/lib/utils";
 import { useAssetLibraryStore } from "@/stores/asset-library-store";
 import { useSoundsStore } from "@/stores/media/sounds-store";
+import type { AudioTimelineAddMode } from "@/stores/media/sounds-store";
 import type { SoundEffect } from "@/types/sounds";
+import type { AudioBeatAlignment } from "@/lib/audio/audio-library-placement";
+import {
+	audioLibraryAssetKey,
+	type AudioLibraryFolder,
+} from "@/lib/audio/audio-library-personal";
 
 export type AudioAssetKind = "sound-effect" | "music";
 
@@ -30,27 +57,39 @@ interface AudioLibraryItemProps {
 	sound: SoundEffect;
 	assetKind: AudioAssetKind;
 	isPlaying: boolean;
+	folders: readonly AudioLibraryFolder[];
 	onPlay: () => void;
 	onToggleSaved: () => void;
+	onToggleFolder: ({ folderId }: { folderId: string }) => void;
 }
 
-function formatDuration({ duration }: { duration: number }): string {
+export function formatAudioDuration({
+	duration,
+}: {
+	duration: number;
+}): string {
 	const roundedSeconds = Math.max(0, Math.round(duration));
 	const minutes = Math.floor(roundedSeconds / 60);
 	const seconds = String(roundedSeconds % 60).padStart(2, "0");
 	return `${minutes}:${seconds}`;
 }
 
+const WAVEFORM_HEIGHTS = [35, 68, 48, 84, 55, 74, 42, 62, 32, 78];
+
 export function AudioLibraryItem({
 	sound,
 	assetKind,
+	folders,
 	isPlaying,
 	onPlay,
+	onToggleFolder,
 	onToggleSaved,
 }: AudioLibraryItemProps) {
+	const { locale, t } = useTranslation();
 	const [isAdding, setIsAdding] = useState(false);
+	const [isDragging, setIsDragging] = useState(false);
 	const asset = useMemo(
-		() => createFreesoundAssetEntry({ sound, kind: assetKind }),
+		() => createAudioLibraryAssetEntry({ sound, kind: assetKind }),
 		[assetKind, sound]
 	);
 	const identity = assetManifestIdentity({ kind: asset.kind, id: asset.id });
@@ -69,127 +108,347 @@ export function AudioLibraryItem({
 	const addSoundToTimeline = useSoundsStore(
 		(state) => state.addSoundToTimeline
 	);
-	const license = resolveFreesoundLicense({ licenseUrl: sound.license });
-	const licenseLabel = license.spdxId ?? license.name;
+	const name =
+		locale === "zh" ? (sound.localizedName ?? sound.name) : sound.name;
+	const description =
+		locale === "zh"
+			? (sound.localizedDescription ?? sound.description)
+			: sound.description;
+	const colors = sound.artworkColors ?? ["#28465c", "#9ed7c7"];
+	const licenseLabel = asset.license.spdxId ?? asset.license.name;
+	const localizedMoods = (sound.moods ?? []).map((mood) =>
+		localizeAudioLibraryTag({ tag: mood, locale })
+	);
+	const localizedScenes = (sound.scenes ?? []).map((scene) =>
+		localizeAudioLibraryTag({ tag: scene, locale })
+	);
+	const popularity = new Intl.NumberFormat(
+		locale === "zh" ? "zh-CN" : "en-US",
+		{ notation: "compact", maximumFractionDigits: 1 }
+	).format(sound.downloads);
+	const fullPopularity = new Intl.NumberFormat(
+		locale === "zh" ? "zh-CN" : "en-US"
+	).format(sound.downloads);
+	const folderAssetKey = audioLibraryAssetKey({
+		kind: assetKind,
+		id: sound.id,
+	});
 
-	const handleAdd = async () => {
+	const handleAdd = async ({
+		mode = "single",
+		autoDucking = false,
+		beatAlignment,
+	}: {
+		mode?: AudioTimelineAddMode;
+		autoDucking?: boolean;
+		beatAlignment?: AudioBeatAlignment;
+	} = {}) => {
 		setIsAdding(true);
 		try {
-			await addSoundToTimeline(sound, assetKind);
+			await addSoundToTimeline({
+				sound,
+				kind: assetKind,
+				mode,
+				autoDucking,
+				beatAlignment,
+			});
 		} finally {
 			setIsAdding(false);
 		}
 	};
 
-	const MediaIcon = assetKind === "music" ? Music2 : AudioWaveform;
 	return (
 		<div
-			className="flex min-h-14 items-center gap-2 border-b border-border/45 py-2"
+			className={cn(
+				"group flex h-[106px] min-w-0 cursor-grab select-none gap-2 overflow-hidden rounded-md border border-border/60 bg-card p-2 transition-colors hover:border-primary/45 active:cursor-grabbing",
+				isDragging && "border-primary/70 opacity-55"
+			)}
 			data-testid={`audio-library-item-${assetKind}-${sound.id}`}
+			draggable
+			onDragStart={(event) => {
+				setIsDragging(true);
+				event.dataTransfer.effectAllowed = "copy";
+				event.dataTransfer.setData(
+					AUDIO_LIBRARY_DRAG_MIME,
+					serializeAudioLibraryDrag({
+						payload: { sound, kind: assetKind },
+					})
+				);
+				event.dataTransfer.setData("text/plain", name);
+			}}
+			onDragEnd={() => setIsDragging(false)}
 		>
-			<Button
+			<button
 				type="button"
-				variant="outline"
-				size="icon"
-				className="relative size-10 shrink-0"
-				aria-label={isPlaying ? `Pause ${sound.name}` : `Preview ${sound.name}`}
-				title={isPlaying ? "Pause preview" : "Play preview"}
+				className="relative flex size-[88px] shrink-0 items-center justify-center overflow-hidden rounded text-white shadow-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary"
+				style={{ backgroundColor: colors[0], color: colors[1] }}
+				aria-label={
+					isPlaying
+						? t("audioLibrary.card.pause", { name })
+						: t("audioLibrary.card.preview", { name })
+				}
+				title={
+					isPlaying
+						? t("audioLibrary.player.pause")
+						: t("audioLibrary.player.play")
+				}
 				onClick={onPlay}
 				onKeyDown={(event) => {
-					if (event.key === " ") {
+					if (event.key === "Enter" || event.key === " ") {
 						event.preventDefault();
 						onPlay();
 					}
 				}}
 			>
-				<MediaIcon className="absolute size-5 text-muted-foreground">
-					<title>{assetKind === "music" ? "Music" : "Sound effect"}</title>
-				</MediaIcon>
-				{isPlaying ? (
-					<Pause className="relative size-4 fill-background text-foreground">
-						<title>Pause</title>
-					</Pause>
+				<div className="absolute inset-x-2 bottom-2 flex h-7 items-end justify-center gap-0.5 opacity-75">
+					{WAVEFORM_HEIGHTS.map((height, index) => (
+						<span
+							key={`${sound.id}-wave-${index}`}
+							className="w-0.5 rounded-full bg-current"
+							style={{ height: `${height}%` }}
+						/>
+					))}
+				</div>
+				<div className="pointer-events-none absolute inset-x-2 bottom-2 h-7 overflow-hidden">
+					<AudioWaveform
+						audioUrl={sound.previewUrl ?? ""}
+						cacheKey={`audio-library:${assetKind}:${sound.id}`}
+						height={28}
+						className="w-full opacity-90"
+						ariaLabel={t("audioLibrary.card.waveform", { name })}
+						showStatus={false}
+					/>
+				</div>
+				{assetKind === "music" ? (
+					<Music2 className="absolute left-2 top-2 size-3.5 opacity-80" />
 				) : (
-					<Play className="relative size-4 fill-background text-foreground">
-						<title>Play</title>
-					</Play>
+					<Waves className="absolute left-2 top-2 size-3.5 opacity-80" />
 				)}
-			</Button>
-
-			<div className="min-w-0 flex-1">
-				<div className="truncate text-xs font-medium" title={sound.name}>
-					{sound.name}
-				</div>
-				<div className="mt-0.5 flex min-w-0 items-center gap-1.5 text-[10px] text-muted-foreground">
-					<span className="max-w-24 truncate">{sound.username}</span>
-					<span aria-hidden="true">·</span>
-					<span className="tabular-nums">
-						{formatDuration({ duration: sound.duration })}
+				{sound.downloads > 0 ? (
+					<span
+						className="pointer-events-none absolute right-1.5 top-1.5 flex items-center gap-0.5 rounded bg-black/45 px-1 py-0.5 text-[8px] tabular-nums"
+						aria-label={t("audioLibrary.card.popularity", {
+							count: fullPopularity,
+						})}
+						title={t("audioLibrary.card.popularity", {
+							count: fullPopularity,
+						})}
+					>
+						<Flame className="size-2.5" />
+						{popularity}
 					</span>
-					<span aria-hidden="true">·</span>
-					<span className="truncate" title={license.name}>
-						{licenseLabel}
-					</span>
-				</div>
-			</div>
-
-			<div className="flex shrink-0 items-center gap-0.5">
-				<Button
-					type="button"
-					variant="text"
-					size="icon"
-					className="size-8"
-					disabled={isAdding}
-					aria-label={`Add ${sound.name} to timeline`}
-					title="Add to timeline"
-					onClick={handleAdd}
-					onKeyDown={(event) => {
-						if (event.key === " ") {
-							event.preventDefault();
-							void handleAdd();
-						}
-					}}
-				>
-					{isAdding || runtime.downloadStatus === "downloading" ? (
-						<Loader2 className="size-4 animate-spin">
-							<title>Adding audio</title>
-						</Loader2>
-					) : runtime.cacheStatus === "cached" ? (
-						<Check className="size-4 text-emerald-400">
-							<title>Audio cached</title>
-						</Check>
+				) : null}
+				<span className="relative flex size-7 items-center justify-center rounded-full bg-black/55 text-white opacity-0 transition-opacity group-hover:opacity-100 group-focus-within:opacity-100">
+					{isPlaying ? (
+						<Pause className="size-3.5 fill-current" />
 					) : (
-						<Plus className="size-4">
-							<title>Add to timeline</title>
-						</Plus>
+						<Play className="size-3.5 fill-current" />
 					)}
-				</Button>
-				<Button
-					type="button"
-					variant="text"
-					size="icon"
-					className={cn(
-						"size-8 text-muted-foreground",
-						favorite && "text-amber-300"
-					)}
-					aria-label={
-						favorite
-							? `Remove ${sound.name} from favorites`
-							: `Favorite ${sound.name}`
-					}
-					title={favorite ? "Remove from favorites" : "Add to favorites"}
-					onClick={onToggleSaved}
-					onKeyDown={(event) => {
-						if (event.key === " ") {
-							event.preventDefault();
-							onToggleSaved();
+				</span>
+			</button>
+
+			<div className="flex min-w-0 flex-1 flex-col py-0.5">
+				<div className="flex min-w-0 items-start gap-1">
+					<div className="min-w-0 flex-1">
+						<div className="truncate text-[11px] font-medium" title={name}>
+							{name}
+						</div>
+						<div
+							className="mt-0.5 truncate text-[9px] text-muted-foreground"
+							title={description}
+						>
+							{description || sound.username}
+						</div>
+					</div>
+					<Button
+						type="button"
+						variant="text"
+						size="icon"
+						className={cn(
+							"-mr-1 -mt-1 size-7 text-muted-foreground",
+							favorite && "text-rose-400"
+						)}
+						aria-label={
+							favorite
+								? t("audioLibrary.card.unfavorite", { name })
+								: t("audioLibrary.card.favorite", { name })
 						}
-					}}
-				>
-					<Heart className={cn("size-4", favorite && "fill-current")}>
-						<title>{favorite ? "Favorited" : "Favorite audio"}</title>
-					</Heart>
-				</Button>
+						title={
+							favorite
+								? t("audioLibrary.card.removeFavorite")
+								: t("audioLibrary.card.addFavorite")
+						}
+						onClick={onToggleSaved}
+						onKeyDown={(event) => {
+							if (event.key === "Enter" || event.key === " ") {
+								event.preventDefault();
+								onToggleSaved();
+							}
+						}}
+					>
+						<Heart className={cn("size-3.5", favorite && "fill-current")} />
+					</Button>
+				</div>
+				{sound.musicalKey ||
+				localizedMoods.length > 0 ||
+				localizedScenes.length > 0 ? (
+					<div className="mt-1 flex min-w-0 items-center gap-1 overflow-hidden text-[8px] text-muted-foreground">
+						{sound.musicalKey ? (
+							<span
+								className="shrink-0 rounded-sm border border-border/70 px-1 py-0.5"
+								title={t("audioLibrary.card.key", {
+									key: sound.musicalKey,
+								})}
+							>
+								{sound.musicalKey}
+							</span>
+						) : null}
+						{localizedMoods.length > 0 ? (
+							<span
+								className="max-w-14 truncate rounded-sm border border-border/70 px-1 py-0.5"
+								title={t("audioLibrary.card.mood", {
+									mood: localizedMoods.join(", "),
+								})}
+							>
+								{localizedMoods[0]}
+							</span>
+						) : null}
+						{localizedScenes.length > 0 ? (
+							<span
+								className="max-w-14 truncate rounded-sm border border-border/70 px-1 py-0.5"
+								title={t("audioLibrary.card.scene", {
+									scene: localizedScenes.join(", "),
+								})}
+							>
+								{localizedScenes[0]}
+							</span>
+						) : null}
+					</div>
+				) : null}
+
+				<div className="mt-auto flex min-w-0 items-center justify-between gap-1 text-[9px] text-muted-foreground">
+					<div className="flex min-w-0 items-center gap-1.5">
+						<span className="tabular-nums">
+							{formatAudioDuration({ duration: sound.duration })}
+						</span>
+						{sound.bpm ? <span>{sound.bpm} BPM</span> : null}
+						{sound.loopable ? (
+							<span className="text-emerald-400">
+								{t("audioLibrary.card.loop")}
+							</span>
+						) : null}
+						<span className="max-w-16 truncate" title={asset.license.name}>
+							{licenseLabel}
+						</span>
+					</div>
+					<div className="-mb-1 -mr-1 flex shrink-0 items-center">
+						<Button
+							type="button"
+							variant="text"
+							size="icon"
+							className="size-7 shrink-0"
+							disabled={isAdding}
+							aria-label={t("audioLibrary.card.add", { name })}
+							title={t("audioLibrary.card.addToTimeline")}
+							onClick={() => void handleAdd()}
+							onKeyDown={(event) => {
+								if (event.key === "Enter" || event.key === " ") {
+									event.preventDefault();
+									void handleAdd();
+								}
+							}}
+						>
+							{isAdding || runtime.downloadStatus === "downloading" ? (
+								<Loader2 className="size-3.5 animate-spin" />
+							) : sound.source === "project" ||
+								runtime.cacheStatus === "cached" ? (
+								<Check className="size-3.5 text-emerald-400" />
+							) : (
+								<Download className="size-3.5" />
+							)}
+						</Button>
+						{folders.length > 0 ||
+						(assetKind === "music" && (sound.bpm || sound.loopable)) ? (
+							<DropdownMenu>
+								<DropdownMenuTrigger asChild>
+									<Button
+										type="button"
+										variant="text"
+										size="icon"
+										className="size-7 shrink-0"
+										disabled={isAdding}
+										aria-label={t("audioLibrary.card.moreActions", {
+											name,
+										})}
+										title={t("audioLibrary.card.moreActions", { name })}
+									>
+										<MoreHorizontal className="size-3.5" />
+									</Button>
+								</DropdownMenuTrigger>
+								<DropdownMenuContent align="end" className="w-48">
+									{folders.length > 0 ? (
+										<DropdownMenuSub>
+											<DropdownMenuSubTrigger>
+												<FolderPlus />
+												{t("audioLibrary.folders.addTo")}
+											</DropdownMenuSubTrigger>
+											<DropdownMenuSubContent className="w-44">
+												{folders.map((folder) => (
+													<DropdownMenuCheckboxItem
+														key={folder.id}
+														checked={folder.assetKeys.includes(folderAssetKey)}
+														onCheckedChange={() =>
+															onToggleFolder({ folderId: folder.id })
+														}
+														onSelect={(event) => event.preventDefault()}
+													>
+														<span className="truncate">{folder.name}</span>
+													</DropdownMenuCheckboxItem>
+												))}
+											</DropdownMenuSubContent>
+										</DropdownMenuSub>
+									) : null}
+									{folders.length > 0 &&
+									assetKind === "music" &&
+									(sound.bpm || sound.loopable) ? (
+										<DropdownMenuSeparator />
+									) : null}
+									{sound.bpm ? (
+										<DropdownMenuItem
+											onSelect={() =>
+												void handleAdd({ beatAlignment: "nearest" })
+											}
+										>
+											<AudioLines />
+											{t("audioLibrary.action.alignBeat")}
+										</DropdownMenuItem>
+									) : null}
+									{sound.loopable ? (
+										<DropdownMenuItem
+											onSelect={() => void handleAdd({ mode: "fit-project" })}
+										>
+											<Repeat2 />
+											{t("audioLibrary.action.fitProject")}
+										</DropdownMenuItem>
+									) : null}
+									{sound.loopable ? (
+										<DropdownMenuItem
+											onSelect={() =>
+												void handleAdd({
+													mode: "fit-project",
+													autoDucking: true,
+												})
+											}
+										>
+											<Volume2 />
+											{t("audioLibrary.action.fitAndDuck")}
+										</DropdownMenuItem>
+									) : null}
+								</DropdownMenuContent>
+							</DropdownMenu>
+						) : null}
+					</div>
+				</div>
 			</div>
 		</div>
 	);
