@@ -173,6 +173,15 @@ describe("Handler Map", () => {
 	});
 });
 
+describe("Editor command metadata", () => {
+	it("accepts the standard audio library panel", () => {
+		const command = getCommand("editor:ui:switch-panel");
+		const panelFlag = command?.flags.find((flag) => flag.name === "--panel");
+
+		expect(panelFlag?.enum).toContain("audio");
+	});
+});
+
 describe("Aliases & Deprecation", () => {
 	afterEach(() => {
 		vi.restoreAllMocks();

@@ -65,6 +65,7 @@ export function createExtraEditorCommands({
 					enum: [
 						"media",
 						"text",
+						"audio",
 						"stickers",
 						"video-edit",
 						"effects",
