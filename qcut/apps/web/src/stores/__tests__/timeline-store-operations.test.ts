@@ -150,6 +150,52 @@ describe("Timeline Store Operations", () => {
 		expect(store.clearElementEffects).toBeTypeOf("function");
 	});
 
+	it("stacks audio onto a free or new track instead of rejecting overlaps", () => {
+		const { result } = renderHook(() => useTimelineStore());
+		const song = {
+			id: "audio-1",
+			name: "Song",
+			type: "audio",
+			duration: 120,
+		} as Parameters<typeof result.current.addMediaAtTime>[0];
+
+		act(() => {
+			expect(result.current.addMediaAtTime(song, 0)).toBe(true);
+		});
+		const firstAudioTrack = result.current.tracks.find(
+			(track) => track.type === "audio"
+		);
+		expect(firstAudioTrack?.elements).toHaveLength(1);
+
+		// Same position again: must succeed on a NEW audio track, not error.
+		act(() => {
+			expect(
+				result.current.addMediaAtTime({ ...song, id: "audio-2" }, 10)
+			).toBe(true);
+		});
+		const audioTracks = result.current.tracks.filter(
+			(track) => track.type === "audio"
+		);
+		expect(audioTracks).toHaveLength(2);
+		expect(audioTracks[1].elements[0].startTime).toBe(10);
+
+		// A position that fits on the first track reuses it instead of stacking.
+		act(() => {
+			expect(
+				result.current.addMediaAtTime(
+					{ ...song, id: "audio-3", duration: 5 },
+					150
+				)
+			).toBe(true);
+		});
+		expect(
+			result.current.tracks.filter((track) => track.type === "audio")
+		).toHaveLength(2);
+		expect(
+			result.current.tracks.find((track) => track.type === "audio")?.elements
+		).toHaveLength(2);
+	});
+
 	it("adds multi-element text groups in one undo step", () => {
 		const { result } = renderHook(() => useTimelineStore());
 		const elements: CreateTextElement[] = [
