@@ -88,6 +88,8 @@ export function AudioLibraryItem({
 	const { locale, t } = useTranslation();
 	const [isAdding, setIsAdding] = useState(false);
 	const [isDragging, setIsDragging] = useState(false);
+	const [artworkFailed, setArtworkFailed] = useState(false);
+	const artworkUrl = artworkFailed ? undefined : sound.artworkUrl;
 	const asset = useMemo(
 		() => createAudioLibraryAssetEntry({ sound, kind: assetKind }),
 		[assetKind, sound]
@@ -200,6 +202,17 @@ export function AudioLibraryItem({
 					}
 				}}
 			>
+				{artworkUrl ? (
+					<img
+						src={artworkUrl}
+						alt=""
+						loading="lazy"
+						draggable={false}
+						className="absolute inset-0 size-full object-cover"
+						data-testid={`audio-artwork-${assetKind}-${sound.id}`}
+						onError={() => setArtworkFailed(true)}
+					/>
+				) : null}
 				<div className="absolute inset-x-2 bottom-2 flex h-7 items-end justify-center gap-0.5 opacity-75">
 					{WAVEFORM_HEIGHTS.map((height, index) => (
 						<span
@@ -328,6 +341,11 @@ export function AudioLibraryItem({
 
 				<div className="mt-auto flex min-w-0 items-center justify-between gap-1 text-[9px] text-muted-foreground">
 					<div className="flex min-w-0 items-center gap-1.5">
+						{sound.username ? (
+							<span className="max-w-20 truncate" title={sound.username}>
+								{sound.username}
+							</span>
+						) : null}
 						<span className="tabular-nums">
 							{formatAudioDuration({ duration: sound.duration })}
 						</span>

@@ -205,6 +205,7 @@ function soundToSavedSound({
 		localizedName: sound.localizedName,
 		localizedDescription: sound.localizedDescription,
 		artworkColors: sound.artworkColors,
+		artworkUrl: sound.artworkUrl,
 		bpm: sound.bpm,
 		musicalKey: sound.musicalKey,
 		moods: sound.moods,

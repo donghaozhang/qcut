@@ -25,6 +25,7 @@ export type SoundEffect = {
 	localizedName?: string;
 	localizedDescription?: string;
 	artworkColors?: readonly [string, string];
+	artworkUrl?: string;
 	bpm?: number;
 	musicalKey?: string;
 	moods?: string[];
@@ -50,6 +51,7 @@ export type SavedSound = {
 	localizedName?: string;
 	localizedDescription?: string;
 	artworkColors?: readonly [string, string];
+	artworkUrl?: string;
 	bpm?: number;
 	musicalKey?: string;
 	moods?: string[];

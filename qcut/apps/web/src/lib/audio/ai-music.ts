@@ -146,5 +146,7 @@ export function projectAudioToSound({
 		scenes: ["project"],
 		loopable: false,
 		artworkColors: isAiMusic ? ["#166534", "#86efac"] : ["#374151", "#d1d5db"],
+		artworkUrl:
+			typeof metadata.artworkUrl === "string" ? metadata.artworkUrl : undefined,
 	};
 }
