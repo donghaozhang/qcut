@@ -4,9 +4,11 @@ import { debugLog, debugError, isDebugEnabled } from "@/lib/debug/debug-config";
 
 export type PanelPreset =
 	| "default"
+	| "audio"
 	| "media"
 	| "inspector"
-	| "vertical-preview";
+	| "vertical-preview"
+	| "vertical-preview-left";
 
 // DEBUG: Trace infinite loop on project click
 let updateCounter = 0;
@@ -186,6 +188,16 @@ const PRESET_CONFIGS: Record<PanelPreset, PanelSizes> = {
 		aiPanelWidth: 22,
 		aiPanelMinWidth: 4,
 	},
+	// Audio creation: a taller timeline for waveform work, wider library panel.
+	audio: {
+		toolsPanel: 34,
+		previewPanel: 44,
+		propertiesPanel: 22,
+		mainContent: 48,
+		timeline: 52,
+		aiPanelWidth: 22,
+		aiPanelMinWidth: 4,
+	},
 	media: {
 		toolsPanel: 30,
 		previewPanel: 40,
@@ -213,20 +225,33 @@ const PRESET_CONFIGS: Record<PanelPreset, PanelSizes> = {
 		aiPanelWidth: 22,
 		aiPanelMinWidth: 4,
 	},
+	"vertical-preview-left": {
+		toolsPanel: 25,
+		previewPanel: 40,
+		propertiesPanel: 35,
+		mainContent: 75,
+		timeline: 25,
+		aiPanelWidth: 22,
+		aiPanelMinWidth: 4,
+	},
 };
 
 const PRESET_LABELS: Record<PanelPreset, string> = {
 	default: "默认",
-	media: "素材优先",
-	inspector: "属性优先",
-	"vertical-preview": "竖屏预览",
+	audio: "音频创作",
+	"vertical-preview": "竖屏创作（右）",
+	"vertical-preview-left": "竖屏创作（左）",
+	inspector: "属性调节优先",
+	media: "媒体素材优先",
 };
 
 const PRESET_DESCRIPTIONS: Record<PanelPreset, string> = {
 	default: "上方显示素材、预览和属性，下方显示时间线",
-	media: "左侧素材区占满高度，右侧显示预览和属性",
-	inspector: "右侧属性区占满高度，左侧显示素材和预览",
+	audio: "加大时间线并打开音频库，适合配乐与音效创作",
 	"vertical-preview": "右侧预览区占满高度，适合竖屏视频",
+	"vertical-preview-left": "左侧预览区占满高度，适合竖屏视频",
+	inspector: "右侧属性区占满高度，左侧显示素材和预览",
+	media: "左侧素材区占满高度，右侧显示预览和属性",
 };
 
 // Export for use in other components
@@ -329,9 +354,11 @@ export const usePanelStore = create<PanelState>()(
 			activePreset: "default" as PanelPreset,
 			presetCustomSizes: {
 				default: {},
+				audio: {},
 				media: {},
 				inspector: {},
 				"vertical-preview": {},
+				"vertical-preview-left": {},
 			},
 			resetCounter: 0,
 

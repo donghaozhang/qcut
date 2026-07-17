@@ -359,6 +359,107 @@ export function InspectorLayout({ resetCounter }: LayoutProps) {
 	);
 }
 
+/** Mirror of VerticalPreviewLayout: the full-height preview sits on the left. */
+export function VerticalPreviewLeftLayout({ resetCounter }: LayoutProps) {
+	const {
+		toolsPanel,
+		previewPanel,
+		mainContent,
+		timeline,
+		propertiesPanel,
+		setToolsPanel,
+		setPreviewPanel,
+		setMainContent,
+		setTimeline,
+		setPropertiesPanel,
+	} = usePanelStore();
+
+	// biome-ignore lint/correctness/useExhaustiveDependencies: intentional — only recompute on preset reset, not during drag (v4 re-applies defaultSize)
+	const defaults = React.useMemo(() => {
+		const rightTotal = Math.max(1, toolsPanel + propertiesPanel);
+		return {
+			right: pct(toolsPanel + propertiesPanel),
+			main: pct(mainContent),
+			time: pct(timeline),
+			tools: pct((toolsPanel / rightTotal) * 100),
+			properties: pct((propertiesPanel / rightTotal) * 100),
+			preview: pct(previewPanel),
+		};
+	}, [resetCounter]);
+
+	const rightGroupTotal = Math.max(1, 100 - previewPanel);
+	const toGlobalTools = (pctVal: number) => (pctVal * rightGroupTotal) / 100;
+	const toGlobalProperties = (pctVal: number) =>
+		(pctVal * rightGroupTotal) / 100;
+
+	return (
+		<ResizablePanelGroup
+			key={`vertical-preview-left-${resetCounter}`}
+			orientation="horizontal"
+			className="h-full w-full px-3 pb-3"
+		>
+			<ResizablePanel
+				defaultSize={defaults.preview}
+				minSize="20%"
+				onResize={(size) => setPreviewPanel(size.asPercentage)}
+			>
+				<PanelBoundary name="Preview">
+					<PreviewPanel />
+				</PanelBoundary>
+			</ResizablePanel>
+			<ResizableHandle withHandle />
+			<ResizablePanel defaultSize={defaults.right} minSize="50%">
+				<ResizablePanelGroup orientation="vertical" className="h-full w-full">
+					<ResizablePanel
+						defaultSize={defaults.main}
+						minSize="30%"
+						onResize={(size) => setMainContent(size.asPercentage)}
+					>
+						<ResizablePanelGroup
+							orientation="horizontal"
+							className="h-full w-full"
+						>
+							<ResizablePanel
+								defaultSize={defaults.tools}
+								minSize="15%"
+								onResize={(size) =>
+									setToolsPanel(toGlobalTools(size.asPercentage))
+								}
+							>
+								<PanelBoundary name="Media">
+									<MediaPanel />
+								</PanelBoundary>
+							</ResizablePanel>
+							<ResizableHandle withHandle />
+							<ResizablePanel
+								defaultSize={defaults.properties}
+								minSize="15%"
+								onResize={(size) =>
+									setPropertiesPanel(toGlobalProperties(size.asPercentage))
+								}
+							>
+								<PanelBoundary name="Properties">
+									<PropertiesPanel />
+								</PanelBoundary>
+							</ResizablePanel>
+						</ResizablePanelGroup>
+					</ResizablePanel>
+					<ResizableHandle withHandle />
+					<ResizablePanel
+						defaultSize={defaults.time}
+						minSize="15%"
+						onResize={(size) => setTimeline(size.asPercentage)}
+					>
+						<PanelBoundary name="Timeline">
+							<Timeline />
+						</PanelBoundary>
+					</ResizablePanel>
+				</ResizablePanelGroup>
+			</ResizablePanel>
+		</ResizablePanelGroup>
+	);
+}
+
 export function VerticalPreviewLayout({ resetCounter }: LayoutProps) {
 	const {
 		toolsPanel,
