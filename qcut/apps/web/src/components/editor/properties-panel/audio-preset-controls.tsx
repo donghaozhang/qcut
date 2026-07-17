@@ -12,6 +12,8 @@ import {
 } from "@/components/ui/select";
 import {
 	BUILT_IN_AUDIO_PRESETS,
+	type AudioPreset,
+	type AudioPresetCategory,
 	applyAudioPreset,
 	createAudioPreset,
 	loadCustomAudioPresets,
@@ -19,13 +21,26 @@ import {
 } from "@/lib/audio/audio-presets";
 import { activateButtonFromKeyboard } from "./audio-property-controls";
 import type { AudioSettingsEditorBindings } from "./audio-properties-types";
+import { useTranslation, type TranslationKey } from "@/lib/i18n";
+import { AUDIO_PRESET_NAME_KEYS } from "./audio-properties-i18n";
 
-const CATEGORY_LABELS = {
-	voice: "人声",
-	music: "音乐",
-	effect: "音效",
-	custom: "自定义",
-} as const;
+const CATEGORY_LABEL_KEYS: Record<AudioPresetCategory, TranslationKey> = {
+	voice: "audioProperties.preset.category.voice",
+	music: "audioProperties.preset.category.music",
+	effect: "audioProperties.preset.category.effect",
+	custom: "audioProperties.preset.category.custom",
+};
+
+function localizedPresetName({
+	preset,
+	t,
+}: {
+	preset: AudioPreset;
+	t: ReturnType<typeof useTranslation>["t"];
+}): string {
+	const key = AUDIO_PRESET_NAME_KEYS[preset.id];
+	return key ? t(key) : preset.name;
+}
 
 const VOICE_PRESETS = BUILT_IN_AUDIO_PRESETS.filter(
 	(preset) => preset.category === "voice"
@@ -36,6 +51,7 @@ export function AudioVoicePresetControls({
 }: {
 	bindings: AudioSettingsEditorBindings;
 }) {
+	const { t } = useTranslation();
 	const [selectedPresetId, setSelectedPresetId] = useState<string>();
 	const selectedPreset = VOICE_PRESETS.find(
 		(preset) => preset.id === selectedPresetId
@@ -48,7 +64,11 @@ export function AudioVoicePresetControls({
 				preset: selectedPreset,
 			})
 		);
-		toast.success(`已应用 ${selectedPreset.name}`);
+		toast.success(
+			t("audioProperties.preset.applied", {
+				name: localizedPresetName({ preset: selectedPreset, t }),
+			})
+		);
 	};
 
 	return (
@@ -62,14 +82,14 @@ export function AudioVoicePresetControls({
 			>
 				<SelectTrigger
 					className="h-8 min-w-0 flex-1 text-xs"
-					aria-label="人声预设"
+					aria-label={t("audioProperties.preset.voiceLabel")}
 				>
-					<SelectValue placeholder="选择人声预设" />
+					<SelectValue placeholder={t("audioProperties.preset.selectVoice")} />
 				</SelectTrigger>
 				<SelectContent>
 					{VOICE_PRESETS.map((preset) => (
 						<SelectItem key={preset.id} value={preset.id}>
-							{preset.name}
+							{localizedPresetName({ preset, t })}
 						</SelectItem>
 					))}
 				</SelectContent>
@@ -80,8 +100,8 @@ export function AudioVoicePresetControls({
 				size="icon"
 				className="size-8 shrink-0"
 				disabled={!selectedPreset}
-				aria-label="应用人声预设"
-				title="应用人声预设"
+				aria-label={t("audioProperties.preset.applyVoice")}
+				title={t("audioProperties.preset.applyVoice")}
 				onClick={applySelectedPreset}
 				onKeyDown={(event) => activateButtonFromKeyboard({ event })}
 			>
@@ -96,6 +116,7 @@ export function AudioPresetControls({
 }: {
 	bindings: AudioSettingsEditorBindings;
 }) {
+	const { t } = useTranslation();
 	const [customPresets, setCustomPresets] = useState(loadCustomAudioPresets);
 	const [selectedPresetId, setSelectedPresetId] = useState<string>();
 	const [presetName, setPresetName] = useState("");
@@ -112,7 +133,11 @@ export function AudioPresetControls({
 				preset: selectedPreset,
 			})
 		);
-		toast.success(`已应用 ${selectedPreset.name}`);
+		toast.success(
+			t("audioProperties.preset.applied", {
+				name: localizedPresetName({ preset: selectedPreset, t }),
+			})
+		);
 	};
 	const saveCurrentPreset = () => {
 		const preset = createAudioPreset({
@@ -125,9 +150,9 @@ export function AudioPresetControls({
 			setCustomPresets(nextPresets);
 			setSelectedPresetId(preset.id);
 			setPresetName("");
-			toast.success("音频预设已保存");
+			toast.success(t("audioProperties.preset.saved"));
 		} catch {
-			toast.error("无法保存音频预设");
+			toast.error(t("audioProperties.preset.saveFailed"));
 		}
 	};
 	const deleteSelectedPreset = () => {
@@ -139,9 +164,9 @@ export function AudioPresetControls({
 			persistCustomAudioPresets({ presets: nextPresets });
 			setCustomPresets(nextPresets);
 			setSelectedPresetId(undefined);
-			toast.success("音频预设已删除");
+			toast.success(t("audioProperties.preset.deleted"));
 		} catch {
-			toast.error("无法删除音频预设");
+			toast.error(t("audioProperties.preset.deleteFailed"));
 		}
 	};
 
@@ -157,14 +182,17 @@ export function AudioPresetControls({
 				>
 					<SelectTrigger
 						className="h-8 min-w-0 flex-1 text-xs"
-						aria-label="音频处理预设"
+						aria-label={t("audioProperties.preset.processLabel")}
 					>
-						<SelectValue placeholder="选择处理预设" />
+						<SelectValue
+							placeholder={t("audioProperties.preset.selectProcess")}
+						/>
 					</SelectTrigger>
 					<SelectContent>
 						{presets.map((preset) => (
 							<SelectItem key={preset.id} value={preset.id}>
-								{preset.name} · {CATEGORY_LABELS[preset.category]}
+								{localizedPresetName({ preset, t })} ·{" "}
+								{t(CATEGORY_LABEL_KEYS[preset.category])}
 							</SelectItem>
 						))}
 					</SelectContent>
@@ -175,8 +203,8 @@ export function AudioPresetControls({
 					size="icon"
 					className="size-8 shrink-0"
 					disabled={!selectedPreset}
-					aria-label="应用音频预设"
-					title="应用音频预设"
+					aria-label={t("audioProperties.preset.apply")}
+					title={t("audioProperties.preset.apply")}
 					onClick={applySelectedPreset}
 					onKeyDown={(event) => activateButtonFromKeyboard({ event })}
 				>
@@ -187,8 +215,8 @@ export function AudioPresetControls({
 				<Input
 					value={presetName}
 					onChange={(event) => setPresetName(event.target.value)}
-					placeholder="预设名称"
-					aria-label="音频预设名称"
+					placeholder={t("audioProperties.preset.namePlaceholder")}
+					aria-label={t("audioProperties.preset.nameLabel")}
 					className="h-8 min-w-0 flex-1 text-xs"
 				/>
 				<Button
@@ -196,8 +224,8 @@ export function AudioPresetControls({
 					variant="outline"
 					size="icon"
 					className="size-8 shrink-0"
-					aria-label="保存音频预设"
-					title="保存音频预设"
+					aria-label={t("audioProperties.preset.save")}
+					title={t("audioProperties.preset.save")}
 					onClick={saveCurrentPreset}
 					onKeyDown={(event) => activateButtonFromKeyboard({ event })}
 				>
@@ -209,8 +237,8 @@ export function AudioPresetControls({
 					size="icon"
 					className="size-8 shrink-0"
 					disabled={!selectedPreset || selectedPreset.builtIn}
-					aria-label="删除自定义音频预设"
-					title="删除自定义音频预设"
+					aria-label={t("audioProperties.preset.delete")}
+					title={t("audioProperties.preset.delete")}
 					onClick={deleteSelectedPreset}
 					onKeyDown={(event) => activateButtonFromKeyboard({ event })}
 				>

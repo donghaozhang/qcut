@@ -12,19 +12,17 @@ import {
 	activateButtonFromKeyboard,
 } from "./audio-property-controls";
 import type { AudioSettingsEditorBindings } from "./audio-properties-types";
+import { useTranslation } from "@/lib/i18n";
+import { AUDIO_STEM_LABEL_KEYS } from "./audio-properties-i18n";
 
-const STEM_LABELS: Partial<Record<AudioStemName, string>> = {
-	vocals: "人声",
-	instrumental: "伴奏",
-	drums: "鼓组",
-	bass: "贝斯",
-	other: "其他",
-	guitar: "吉他",
-	piano: "钢琴",
-};
-
-function errorMessage(error: unknown): string {
-	return error instanceof Error ? error.message : "音频处理失败";
+function errorMessage({
+	error,
+	fallback,
+}: {
+	error: unknown;
+	fallback: string;
+}): string {
+	return error instanceof Error ? error.message : fallback;
 }
 
 export function AudioSeparationSettings({
@@ -32,6 +30,7 @@ export function AudioSeparationSettings({
 }: {
 	bindings: AudioSettingsEditorBindings;
 }) {
+	const { t } = useTranslation();
 	const {
 		settings,
 		onSettingsChange,
@@ -46,7 +45,7 @@ export function AudioSeparationSettings({
 	);
 	return (
 		<AudioModuleSection
-			title="音源分离"
+			title={t("audioProperties.section.separation")}
 			enabled={settings.separation.enabled}
 			onEnabledChange={(enabled) =>
 				onSettingsChange({
@@ -74,7 +73,9 @@ export function AudioSeparationSettings({
 			{stemEntries.map(([stem]) => (
 				<AudioNumberControl
 					key={stem}
-					label={STEM_LABELS[stem] ?? stem}
+					label={
+						AUDIO_STEM_LABEL_KEYS[stem] ? t(AUDIO_STEM_LABEL_KEYS[stem]) : stem
+					}
 					value={(settings.separation.stemGains?.[stem] ?? 1) * 100}
 					min={0}
 					max={100}
@@ -113,13 +114,13 @@ export function AudioSeparationSettings({
 						}}
 						variant="outline"
 						size="sm"
-						aria-label="音源分离结果"
+						aria-label={t("audioProperties.separation.result")}
 					>
 						<ToggleGroupItem value="original" className="h-7 text-[10px]">
-							原始
+							{t("audioProperties.separation.original")}
 						</ToggleGroupItem>
 						<ToggleGroupItem value="stems" className="h-7 text-[10px]">
-							分轨
+							{t("audioProperties.separation.stems")}
 						</ToggleGroupItem>
 					</ToggleGroup>
 					<Button
@@ -127,8 +128,8 @@ export function AudioSeparationSettings({
 						variant="text"
 						size="icon"
 						className="size-7"
-						aria-label="删除分离音轨"
-						title="删除分离音轨"
+						aria-label={t("audioProperties.separation.delete")}
+						title={t("audioProperties.separation.delete")}
 						onClick={() =>
 							onSettingsChange({
 								...settings,
@@ -156,8 +157,11 @@ export function AudioSeparationSettings({
 			<div className="flex items-center justify-between gap-2">
 				<span className="text-[10px] text-muted-foreground">
 					{settings.separation.status === "ready"
-						? `已生成 ${stemEntries.length} 条分轨`
-						: settings.separation.error || "Demucs 六轨音源分离"}
+						? t("audioProperties.separation.ready", {
+								count: stemEntries.length,
+							})
+						: settings.separation.error ||
+							t("audioProperties.separation.description")}
 				</span>
 				<Button
 					type="button"
@@ -166,7 +170,12 @@ export function AudioSeparationSettings({
 					disabled={settings.separation.status === "processing"}
 					onClick={() =>
 						void onRunSeparation().catch((error) =>
-							toast.error(errorMessage(error))
+							toast.error(
+								errorMessage({
+									error,
+									fallback: t("audioProperties.processing.failed"),
+								})
+							)
 						)
 					}
 					onKeyDown={(event) => activateButtonFromKeyboard({ event })}
@@ -176,7 +185,9 @@ export function AudioSeparationSettings({
 					) : (
 						<AudioLines className="size-3" />
 					)}
-					{settings.separation.status === "ready" ? "重新分离" : "开始分离"}
+					{settings.separation.status === "ready"
+						? t("audioProperties.separation.restart")
+						: t("audioProperties.separation.start")}
 				</Button>
 			</div>
 		</AudioModuleSection>
@@ -188,13 +199,14 @@ export function AudioVoiceConversionSettings({
 }: {
 	bindings: AudioSettingsEditorBindings;
 }) {
+	const { t } = useTranslation();
 	const { settings, onSettingsChange, onRunVoiceConversion } = bindings;
 	const [targetVoiceUrl, setTargetVoiceUrl] = useState("");
 	const [targetVoiceFile, setTargetVoiceFile] = useState<File>();
 	const fileInputRef = useRef<HTMLInputElement>(null);
 	return (
 		<AudioModuleSection
-			title="音色转换"
+			title={t("audioProperties.section.voiceConversion")}
 			enabled={settings.voiceConversion.enabled}
 			onEnabledChange={(enabled) =>
 				onSettingsChange({
@@ -222,7 +234,7 @@ export function AudioVoiceConversionSettings({
 			<Input
 				value={targetVoiceUrl}
 				onChange={(event) => setTargetVoiceUrl(event.target.value)}
-				placeholder="目标音色 URL（可选）"
+				placeholder={t("audioProperties.voiceConversion.targetPlaceholder")}
 			/>
 			<input
 				ref={fileInputRef}
@@ -241,7 +253,8 @@ export function AudioVoiceConversionSettings({
 				>
 					<Upload className="size-3" />
 					<span className="max-w-28 truncate">
-						{targetVoiceFile?.name ?? "参考音色"}
+						{targetVoiceFile?.name ??
+							t("audioProperties.voiceConversion.reference")}
 					</span>
 				</Button>
 				<Button
@@ -253,7 +266,14 @@ export function AudioVoiceConversionSettings({
 						void onRunVoiceConversion({
 							targetVoiceUrl,
 							targetVoiceFile,
-						}).catch((error) => toast.error(errorMessage(error)))
+						}).catch((error) =>
+							toast.error(
+								errorMessage({
+									error,
+									fallback: t("audioProperties.processing.failed"),
+								})
+							)
+						)
 					}
 					onKeyDown={(event) => activateButtonFromKeyboard({ event })}
 				>
@@ -263,8 +283,8 @@ export function AudioVoiceConversionSettings({
 						<AudioLines className="size-3" />
 					)}
 					{settings.voiceConversion.status === "ready"
-						? "重新转换"
-						: "开始转换"}
+						? t("audioProperties.voiceConversion.restart")
+						: t("audioProperties.voiceConversion.start")}
 				</Button>
 			</div>
 			{settings.voiceConversion.sourceMediaId ? (
@@ -284,13 +304,13 @@ export function AudioVoiceConversionSettings({
 						}}
 						variant="outline"
 						size="sm"
-						aria-label="音色转换结果"
+						aria-label={t("audioProperties.voiceConversion.result")}
 					>
 						<ToggleGroupItem value="original" className="h-7 text-[10px]">
-							原始
+							{t("audioProperties.separation.original")}
 						</ToggleGroupItem>
 						<ToggleGroupItem value="converted" className="h-7 text-[10px]">
-							转换后
+							{t("audioProperties.voiceConversion.converted")}
 						</ToggleGroupItem>
 					</ToggleGroup>
 					<Button
@@ -298,8 +318,8 @@ export function AudioVoiceConversionSettings({
 						variant="text"
 						size="icon"
 						className="size-7"
-						aria-label="删除音色转换结果"
-						title="删除音色转换结果"
+						aria-label={t("audioProperties.voiceConversion.delete")}
+						title={t("audioProperties.voiceConversion.delete")}
 						onClick={() =>
 							onSettingsChange({
 								...settings,

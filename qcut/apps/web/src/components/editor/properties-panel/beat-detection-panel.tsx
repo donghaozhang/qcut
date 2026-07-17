@@ -20,6 +20,7 @@ import { useTimelineStore } from "@/stores/timeline/timeline-store";
 import { useBeatDetectionStore } from "@/stores/beat-detection-store";
 import { splitOnBeats } from "@/stores/timeline/split-operations";
 import type { OperationContext } from "@/stores/timeline/types";
+import { useTranslation } from "@/lib/i18n";
 
 interface BeatDetectionPanelProps {
 	elementId: string;
@@ -33,6 +34,7 @@ export function BeatDetectionPanel({
 	trackId,
 	audioUrl,
 }: BeatDetectionPanelProps) {
+	const { t } = useTranslation();
 	const {
 		result,
 		isAnalyzing,
@@ -100,15 +102,17 @@ export function BeatDetectionPanel({
 	if (!audioUrl) return null;
 
 	return (
-		<PropertyGroup title="节拍检测" defaultExpanded={true}>
+		<PropertyGroup title={t("audioProperties.beat.title")} defaultExpanded>
 			<div className="space-y-3">
 				{/* Sensitivity control */}
 				<PropertyItem direction="column">
-					<PropertyItemLabel>灵敏度</PropertyItemLabel>
+					<PropertyItemLabel>
+						{t("audioProperties.beat.sensitivity")}
+					</PropertyItemLabel>
 					<PropertyItemValue>
 						<div className="flex items-center gap-2">
 							<Slider
-								aria-label="节拍检测灵敏度"
+								aria-label={t("audioProperties.beat.sensitivityLabel")}
 								value={[sensitivity * 10]}
 								min={5}
 								max={30}
@@ -124,14 +128,15 @@ export function BeatDetectionPanel({
 				{/* Analyze button */}
 				{!result && !isAnalyzing && (
 					<Button
+						type="button"
 						size="sm"
 						variant="outline"
 						className="w-full gap-2"
 						onClick={handleAnalyze}
-						aria-label="检测节拍"
+						aria-label={t("audioProperties.beat.detect")}
 					>
 						<Music className="size-3.5" />
-						检测节拍
+						{t("audioProperties.beat.detect")}
 					</Button>
 				)}
 
@@ -139,7 +144,7 @@ export function BeatDetectionPanel({
 				{isAnalyzing && (
 					<div className="space-y-1">
 						<div className="flex items-center justify-between text-xs text-muted-foreground">
-							<span>正在分析...</span>
+							<span>{t("audioProperties.beat.analyzing")}</span>
 							<span>{Math.round(progress * 100)}%</span>
 						</div>
 						<div className="h-1.5 w-full rounded-full bg-muted">
@@ -166,40 +171,47 @@ export function BeatDetectionPanel({
 								<div className="font-medium">
 									{Math.round(result.confidence * 100)}%
 								</div>
-								<div className="text-muted-foreground">置信度</div>
+								<div className="text-muted-foreground">
+									{t("audioProperties.beat.confidence")}
+								</div>
 							</div>
 							<div className="text-center">
 								<div className="font-medium">{result.beats.length}</div>
-								<div className="text-muted-foreground">节拍数</div>
+								<div className="text-muted-foreground">
+									{t("audioProperties.beat.count")}
+								</div>
 							</div>
 						</div>
 
 						<div className="flex gap-2">
 							<Button
+								type="button"
 								size="sm"
 								variant="default"
 								className="flex-1 gap-2"
 								onClick={handleAutoCut}
 								disabled={result.beats.length === 0}
-								aria-label="按节拍自动切割"
+								aria-label={t("audioProperties.beat.autoCut")}
 							>
 								<Scissors className="size-3.5" />
-								自动切割
+								{t("audioProperties.beat.autoCut")}
 							</Button>
 							<Button
+								type="button"
 								size="sm"
 								variant="secondary"
 								onClick={() => {
 									clear();
 								}}
-								aria-label="清除节拍检测结果"
+								aria-label={t("audioProperties.beat.clearLabel")}
 							>
-								清除
+								{t("audioProperties.beat.clear")}
 							</Button>
 						</div>
 
 						{/* Re-analyze with different sensitivity */}
 						<Button
+							type="button"
 							size="sm"
 							variant="secondary"
 							className="w-full gap-2 text-xs"
@@ -207,10 +219,10 @@ export function BeatDetectionPanel({
 								clear();
 								handleAnalyze();
 							}}
-							aria-label="重新分析节拍"
+							aria-label={t("audioProperties.beat.reanalyze")}
 						>
 							<Music className="size-3.5" />
-							重新分析
+							{t("audioProperties.beat.reanalyze")}
 						</Button>
 					</>
 				)}

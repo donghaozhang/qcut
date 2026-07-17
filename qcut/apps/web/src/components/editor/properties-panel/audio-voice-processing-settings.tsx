@@ -6,6 +6,7 @@ import {
 	AudioToggleRow,
 } from "./audio-property-controls";
 import type { AudioSettingsEditorBindings } from "./audio-properties-types";
+import { useTranslation } from "@/lib/i18n";
 
 function keyframedProps({
 	bindings,
@@ -29,10 +30,11 @@ export function AudioVoiceEnhancementSettings({
 }: {
 	bindings: AudioSettingsEditorBindings;
 }) {
+	const { t } = useTranslation();
 	const { settings, onSettingsChange } = bindings;
 	return (
 		<AudioModuleSection
-			title="人声增强"
+			title={t("audioProperties.section.voiceEnhance")}
 			enabled={settings.voiceEnhance.enabled}
 			onEnabledChange={(enabled) =>
 				onSettingsChange({
@@ -72,10 +74,11 @@ export function AudioPitchSettings({
 }: {
 	bindings: AudioSettingsEditorBindings;
 }) {
+	const { t } = useTranslation();
 	const { settings, onSettingsChange } = bindings;
 	return (
 		<AudioModuleSection
-			title="音调"
+			title={t("audioProperties.section.pitch")}
 			enabled={settings.pitch.enabled}
 			onEnabledChange={(enabled) =>
 				onSettingsChange({
@@ -99,7 +102,7 @@ export function AudioPitchSettings({
 				{...keyframedProps({ bindings })}
 			/>
 			<AudioToggleRow
-				label="保留共振峰"
+				label={t("audioProperties.label.preserveFormants")}
 				checked={settings.pitch.preserveFormants}
 				onCheckedChange={(preserveFormants) =>
 					onSettingsChange({

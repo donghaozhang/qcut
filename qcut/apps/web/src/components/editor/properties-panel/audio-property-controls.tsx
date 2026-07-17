@@ -17,6 +17,8 @@ import type {
 } from "@/types/timeline";
 import { AUDIO_KEYFRAME_DEFINITIONS } from "@/lib/audio/audio-properties";
 import { getAudioKeyframePropertyValue } from "@/lib/audio/audio-keyframe-properties";
+import { useTranslation } from "@/lib/i18n";
+import { AUDIO_KEYFRAME_LABEL_KEYS } from "./audio-properties-i18n";
 
 export function activateButtonFromKeyboard({
 	event,
@@ -90,6 +92,7 @@ export function AudioModuleSection({
 	disableChildrenWhenOff?: boolean;
 	testId?: string;
 }) {
+	const { t } = useTranslation();
 	return (
 		<details
 			open={defaultExpanded}
@@ -98,7 +101,7 @@ export function AudioModuleSection({
 		>
 			<summary className="flex cursor-pointer list-none items-center gap-2 [&::-webkit-details-marker]:hidden">
 				<Switch
-					aria-label={`启用${title}`}
+					aria-label={t("audioProperties.control.enable", { name: title })}
 					checked={enabled}
 					onClick={(event) => event.stopPropagation()}
 					onKeyDown={(event) => event.stopPropagation()}
@@ -113,7 +116,7 @@ export function AudioModuleSection({
 					{title}
 				</span>
 				<AudioIconButton
-					label={`重置${title}`}
+					label={t("audioProperties.control.reset", { name: title })}
 					onClick={onReset}
 					stopPropagation
 				>
@@ -189,6 +192,7 @@ export function AudioNumberControl({
 	onInteractionStart: () => void;
 	onInteractionEnd: () => void;
 }) {
+	const { t } = useTranslation();
 	const supportsKeyframes = Boolean(onToggleKeyframe);
 	return (
 		<div
@@ -214,9 +218,9 @@ export function AudioNumberControl({
 			<div className="flex shrink-0 items-center gap-0.5">
 				<Input
 					type="number"
-					aria-label={`${label}数值`}
+					aria-label={t("audioProperties.control.value", { name: label })}
 					value={mixed ? "" : Number(value.toFixed(step < 1 ? 2 : 0))}
-					placeholder={mixed ? "多值" : undefined}
+					placeholder={mixed ? t("audioProperties.control.mixed") : undefined}
 					min={min}
 					max={max}
 					step={step}
@@ -234,7 +238,9 @@ export function AudioNumberControl({
 				{supportsKeyframes ? (
 					<div className="flex items-center">
 						<AudioIconButton
-							label={`上一个${label}关键帧`}
+							label={t("audioProperties.control.previousKeyframe", {
+								name: label,
+							})}
 							onClick={onPreviousKeyframe ?? (() => {})}
 							disabled={!hasPreviousKeyframe}
 						>
@@ -242,7 +248,13 @@ export function AudioNumberControl({
 						</AudioIconButton>
 						<AudioIconButton
 							label={
-								keyframedHere ? `删除${label}关键帧` : `添加${label}关键帧`
+								keyframedHere
+									? t("audioProperties.control.removeKeyframe", {
+											name: label,
+										})
+									: t("audioProperties.control.addKeyframe", {
+											name: label,
+										})
 							}
 							onClick={onToggleKeyframe ?? (() => {})}
 							active={keyframedHere}
@@ -255,7 +267,9 @@ export function AudioNumberControl({
 							/>
 						</AudioIconButton>
 						<AudioIconButton
-							label={`下一个${label}关键帧`}
+							label={t("audioProperties.control.nextKeyframe", {
+								name: label,
+							})}
 							onClick={onNextKeyframe ?? (() => {})}
 							disabled={!hasNextKeyframe}
 						>
@@ -291,6 +305,7 @@ export function AudioKeyframedControl({
 	onInteractionStart: () => void;
 	onInteractionEnd: () => void;
 }) {
+	const { t } = useTranslation();
 	const definition = AUDIO_KEYFRAME_DEFINITIONS[property];
 	const frames = (settings.keyframes?.[property] ?? [])
 		.map((keyframe) => keyframe.frame)
@@ -301,7 +316,7 @@ export function AudioKeyframedControl({
 	const nextFrame = frames.find((frame) => frame > currentFrame);
 	return (
 		<AudioNumberControl
-			label={definition.label}
+			label={t(AUDIO_KEYFRAME_LABEL_KEYS[property])}
 			value={getAudioKeyframePropertyValue({
 				settings: resolvedSettings,
 				property,

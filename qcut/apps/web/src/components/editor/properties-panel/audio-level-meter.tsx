@@ -3,6 +3,7 @@ import type { AudioMeterReading } from "@/lib/audio/audio-metering";
 import { SILENT_AUDIO_METER } from "@/lib/audio/audio-metering";
 import { cn } from "@/lib/utils";
 import { useAudioMeterStore } from "@/stores/editor/audio-meter-store";
+import { useTranslation } from "@/lib/i18n";
 
 function meterWidth({ value }: { value: number }): string {
 	return `${Math.min(100, Math.max(0, ((value + 60) / 60) * 100))}%`;
@@ -55,6 +56,7 @@ function MeterRow({
 }
 
 export function AudioLevelMeter({ trackId }: { trackId: string }) {
+	const { t } = useTranslation();
 	const track = useAudioMeterStore(
 		(state) => state.tracks[trackId] ?? SILENT_AUDIO_METER
 	);
@@ -64,8 +66,8 @@ export function AudioLevelMeter({ trackId }: { trackId: string }) {
 			className="space-y-2 border-b border-border/70 py-3"
 			data-testid="audio-level-meter"
 		>
-			<MeterRow label="轨道" reading={track} />
-			<MeterRow label="主输出" reading={master} />
+			<MeterRow label={t("audioProperties.meter.track")} reading={track} />
+			<MeterRow label={t("audioProperties.meter.master")} reading={master} />
 		</section>
 	);
 }

@@ -44,6 +44,7 @@ import {
 	selectAudioPreviewBypassed,
 	useAudioPreviewStore,
 } from "@/stores/editor/audio-preview-store";
+import { useTranslation } from "@/lib/i18n";
 
 type MediaUpdates = Parameters<
 	ReturnType<typeof useTimelineStore.getState>["updateMediaElement"]
@@ -56,6 +57,7 @@ export function AudioPropertiesPanel({
 	element: MediaElement;
 	trackId: string;
 }) {
+	const { t } = useTranslation();
 	const updateMediaElement = useTimelineStore(
 		(state) => state.updateMediaElement
 	);
@@ -221,7 +223,9 @@ export function AudioPropertiesPanel({
 						...settings.loudness,
 						analysisStatus: "error",
 						analysisError:
-							error instanceof Error ? error.message : "Analysis failed",
+							error instanceof Error
+								? error.message
+								: t("audioProperties.loudness.failed"),
 					},
 				},
 				history: false,
@@ -288,7 +292,9 @@ export function AudioPropertiesPanel({
 	return (
 		<div data-testid="audio-properties-panel">
 			<div className="flex h-9 items-center gap-1 border-b border-border px-3">
-				<span className="text-xs font-medium">声音</span>
+				<span className="text-xs font-medium">
+					{t("audioProperties.title")}
+				</span>
 				<span className="mx-1 text-xs text-muted-foreground">·</span>
 				<span className="min-w-0 flex-1 truncate text-xs text-muted-foreground">
 					{element.name}
@@ -298,8 +304,16 @@ export function AudioPropertiesPanel({
 					variant="text"
 					size="icon"
 					className="size-7 shrink-0"
-					aria-label={isPlaying ? "暂停声音预览" : "预览声音"}
-					title={isPlaying ? "暂停声音预览" : "预览声音"}
+					aria-label={
+						isPlaying
+							? t("audioProperties.preview.pause")
+							: t("audioProperties.preview.play")
+					}
+					title={
+						isPlaying
+							? t("audioProperties.preview.pause")
+							: t("audioProperties.preview.play")
+					}
 					data-testid="audio-preview-playback"
 					onClick={toggleAudition}
 					onKeyDown={(event) => {
@@ -319,9 +333,17 @@ export function AudioPropertiesPanel({
 					variant={previewBypassed ? "secondary" : "text"}
 					size="icon"
 					className="size-7 shrink-0"
-					aria-label={previewBypassed ? "试听处理后的声音" : "试听原始声音"}
+					aria-label={
+						previewBypassed
+							? t("audioProperties.preview.processed")
+							: t("audioProperties.preview.original")
+					}
 					aria-pressed={previewBypassed}
-					title={previewBypassed ? "试听处理后的声音" : "试听原始声音"}
+					title={
+						previewBypassed
+							? t("audioProperties.preview.processed")
+							: t("audioProperties.preview.original")
+					}
 					data-testid="audio-preview-bypass"
 					onClick={() =>
 						setElementBypassed({
@@ -346,8 +368,8 @@ export function AudioPropertiesPanel({
 					variant="text"
 					size="icon"
 					className="size-7 shrink-0"
-					aria-label="重置全部声音处理"
-					title="重置全部声音处理"
+					aria-label={t("audioProperties.resetAll")}
+					title={t("audioProperties.resetAll")}
 					data-testid="audio-reset-all"
 					onClick={resetAllProcessing}
 					onKeyDown={(event) => {
@@ -372,31 +394,31 @@ export function AudioPropertiesPanel({
 						value="basic"
 						className="h-9 min-w-0 rounded-none border-b-2 border-transparent px-1 text-[10px] data-[state=active]:border-primary data-[state=active]:bg-transparent"
 					>
-						基础
+						{t("audioProperties.tab.basic")}
 					</TabsTrigger>
 					<TabsTrigger
 						value="voice"
 						className="h-9 min-w-0 rounded-none border-b-2 border-transparent px-1 text-[10px] data-[state=active]:border-primary data-[state=active]:bg-transparent"
 					>
-						人声
+						{t("audioProperties.tab.voice")}
 					</TabsTrigger>
 					<TabsTrigger
 						value="effects"
 						className="h-9 min-w-0 rounded-none border-b-2 border-transparent px-1 text-[10px] data-[state=active]:border-primary data-[state=active]:bg-transparent"
 					>
-						音效
+						{t("audioProperties.tab.effects")}
 					</TabsTrigger>
 					<TabsTrigger
 						value="speed"
 						className="h-9 min-w-0 rounded-none border-b-2 border-transparent px-1 text-[10px] data-[state=active]:border-primary data-[state=active]:bg-transparent"
 					>
-						变速
+						{t("audioProperties.tab.speed")}
 					</TabsTrigger>
 					<TabsTrigger
 						value="lyrics"
 						className="h-9 min-w-0 rounded-none border-b-2 border-transparent px-1 text-[10px] data-[state=active]:border-primary data-[state=active]:bg-transparent"
 					>
-						歌词
+						{t("audioProperties.tab.lyrics")}
 					</TabsTrigger>
 				</TabsList>
 				<TabsContent value="basic" className="m-0 px-3">
