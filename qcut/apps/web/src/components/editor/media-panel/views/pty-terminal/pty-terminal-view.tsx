@@ -22,6 +22,7 @@ import {
 	Brain,
 	X,
 	Bot,
+	Network,
 	MessageSquare,
 	Plus,
 } from "lucide-react";
@@ -139,7 +140,7 @@ export function PtyTerminalView() {
 							disabled={isConnected || isConnecting}
 						>
 							<SelectTrigger
-								className="w-[140px] h-8"
+								className="w-[175px] h-8"
 								aria-label="Select CLI provider"
 								data-testid="terminal-provider-selector"
 							>
@@ -155,6 +156,9 @@ export function PtyTerminalView() {
 											{provider.id === "codex" && (
 												<Bot className="h-3 w-3" aria-hidden="true" />
 											)}
+											{provider.id === "openrouter" && (
+												<Network className="h-3 w-3" aria-hidden="true" />
+											)}
 											{provider.id === "claude" && (
 												<MessageSquare className="h-3 w-3" aria-hidden="true" />
 											)}
@@ -168,8 +172,8 @@ export function PtyTerminalView() {
 							</SelectContent>
 						</Select>
 
-						{/* Model Selector (only for Codex) */}
-						{cliProvider === "codex" && (
+						{/* Model Selector (only for OpenRouter Agent) */}
+						{cliProvider === "openrouter" && (
 							<Select
 								value={selectedModel || ""}
 								onValueChange={setSelectedModel}
@@ -450,7 +454,7 @@ function SessionPlaceholder({
 					<p className="text-xs mt-1 opacity-70">
 						Click Start to run with {CLI_PROVIDERS[cliProvider].name}
 					</p>
-					{cliProvider === "codex" && (
+					{cliProvider === "openrouter" && (
 						<p className="text-xs mt-2 text-muted-foreground">
 							Using model: {selectedModel || "default"}
 						</p>
@@ -460,7 +464,7 @@ function SessionPlaceholder({
 							Using model: {selectedClaudeModel || "sonnet"}
 						</p>
 					)}
-					{cliProvider === "gemini" && (
+					{(cliProvider === "gemini" || cliProvider === "codex") && (
 						<p className="text-xs mt-2 text-muted-foreground">
 							Skill instructions will be sent automatically
 						</p>
@@ -473,6 +477,9 @@ function SessionPlaceholder({
 					)}
 					{cliProvider === "codex" && (
 						<Bot className="h-12 w-12 mb-4 opacity-50" />
+					)}
+					{cliProvider === "openrouter" && (
+						<Network className="h-12 w-12 mb-4 opacity-50" />
 					)}
 					{cliProvider === "claude" && (
 						<MessageSquare className="h-12 w-12 mb-4 opacity-50" />
@@ -488,9 +495,14 @@ function SessionPlaceholder({
 							Requires Google account authentication on first use
 						</p>
 					)}
-					{cliProvider === "codex" && (
+					{cliProvider === "openrouter" && (
 						<p className="text-xs mt-1 opacity-70">
 							Requires OpenRouter API key in Settings
+						</p>
+					)}
+					{cliProvider === "codex" && (
+						<p className="text-xs mt-1 opacity-70">
+							Uses your Codex login (run `codex login` if needed)
 						</p>
 					)}
 					{cliProvider === "claude" && (

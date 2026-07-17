@@ -106,6 +106,33 @@ describe("user library routes", () => {
 		});
 	});
 
+	it("accepts the synced audio library namespace", async () => {
+		vi.mocked(libraryService.putUserLibraryDocument).mockResolvedValue({
+			document: { ...libraryDocument(), namespace: "audio-library" },
+			status: "updated",
+		});
+		const payload = {
+			items: [{ id: "favorite:music:-1001", type: "favorite" }],
+		};
+		const response = await postDocument({
+			body: {
+				namespace: "audio-library",
+				documentKey: "default",
+				payload,
+				baseVersion: 0,
+			},
+		});
+
+		expect(response.status).toBe(200);
+		expect(libraryService.putUserLibraryDocument).toHaveBeenCalledWith({
+			baseVersion: 0,
+			documentKey: "default",
+			namespace: "audio-library",
+			payload,
+			userId: "mock-user-001",
+		});
+	});
+
 	it("returns the current document when optimistic locking fails", async () => {
 		vi.mocked(libraryService.putUserLibraryDocument).mockResolvedValue({
 			current: libraryDocument({ version: 4 }),

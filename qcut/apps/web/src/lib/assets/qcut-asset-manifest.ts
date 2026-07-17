@@ -32,15 +32,15 @@ import {
 	transitionPresets,
 	type TransitionPreset,
 } from "@/components/editor/media-panel/views/transitions/transition-presets";
-export { createFreesoundAssetEntry } from "./freesound-asset";
+import { QCUT_BUILT_IN_LICENSE } from "./qcut-built-in-license";
+import { BUILT_IN_AUDIO } from "@/lib/audio/audio-library-catalog";
+import { createAudioLibraryAssetEntry } from "./freesound-asset";
+export {
+	createAudioLibraryAssetEntry,
+	createFreesoundAssetEntry,
+} from "./freesound-asset";
 
 export const QCUT_ASSET_MANIFEST_ID = "qcut-creator-library";
-
-const QCUT_BUILT_IN_LICENSE: AssetLicense = {
-	name: "QCut built-in asset license",
-	commercialUse: "allowed",
-	attributionRequired: false,
-};
 
 const TEXT_TEMPLATES_BY_ID = new Map(
 	TEXT_TEMPLATES.map((template) => [template.id, template])
@@ -458,6 +458,16 @@ function stickerAssets(): AssetManifestEntry[] {
 	return [...assetsById.values()];
 }
 
+function audioAssets(): AssetManifestEntry[] {
+	return BUILT_IN_AUDIO.map((sound) =>
+		createAudioLibraryAssetEntry({
+			sound,
+			kind: sound.kind ?? "sound-effect",
+			category: sound.kind === "music" ? "music" : "sound-effects",
+		})
+	);
+}
+
 export const QCUT_ASSET_MANIFEST: AssetManifestPack = {
 	schemaVersion: ASSET_MANIFEST_SCHEMA_VERSION,
 	id: QCUT_ASSET_MANIFEST_ID,
@@ -468,6 +478,7 @@ export const QCUT_ASSET_MANIFEST: AssetManifestPack = {
 		...captionStyleAssets(),
 		...transitionAssets(),
 		...stickerAssets(),
+		...audioAssets(),
 	],
 };
 

@@ -26,6 +26,7 @@ import {
 	PropertyItemLabel,
 	PropertyItemValue,
 } from "./property-item";
+import { useTranslation } from "@/lib/i18n";
 
 const SPEED_PRESETS = [0.5, 1, 1.5, 2] as const;
 
@@ -56,6 +57,7 @@ function SpeedNumberControl({
 	onInteractionStart,
 	onInteractionEnd,
 }: SpeedNumberControlProps) {
+	const { t } = useTranslation();
 	return (
 		<PropertyItem direction="column">
 			<div className="flex items-center justify-between gap-3">
@@ -63,7 +65,7 @@ function SpeedNumberControl({
 				<div className="flex items-center gap-1">
 					<Input
 						type="number"
-						aria-label={`${label}数值`}
+						aria-label={t("audioProperties.control.value", { name: label })}
 						value={Number(value.toFixed(2))}
 						min={min}
 						max={max}
@@ -146,6 +148,7 @@ export function MediaSpeedProperties({
 	trackId: string;
 	mediaKind?: "audio" | "video";
 }) {
+	const { t } = useTranslation();
 	const updateMediaElement = useTimelineStore(
 		(state) => state.updateMediaElement
 	);
@@ -231,18 +234,21 @@ export function MediaSpeedProperties({
 			<Tabs value={speedMode} onValueChange={changeSpeedMode}>
 				<TabsList className="grid w-full grid-cols-2">
 					<TabsTrigger value="normal" data-testid="speed-mode-normal">
-						常规变速
+						{t("audioProperties.speed.normal")}
 					</TabsTrigger>
 					<TabsTrigger value="curve" data-testid="speed-mode-curve">
-						曲线变速
+						{t("audioProperties.speed.curve")}
 					</TabsTrigger>
 				</TabsList>
 
 				<TabsContent value="normal" className="mt-4">
-					<PropertyGroup title="常规变速" defaultExpanded>
+					<PropertyGroup
+						title={t("audioProperties.speed.normal")}
+						defaultExpanded
+					>
 						<div className="space-y-4">
 							<SpeedNumberControl
-								label="倍速"
+								label={t("audioProperties.speed.rate")}
 								value={clampPlaybackRate(element.playbackRate)}
 								min={0.1}
 								max={8}
@@ -270,7 +276,9 @@ export function MediaSpeedProperties({
 								))}
 							</div>
 							<PropertyItem>
-								<PropertyItemLabel>时长</PropertyItemLabel>
+								<PropertyItemLabel>
+									{t("audioProperties.speed.duration")}
+								</PropertyItemLabel>
 								<output
 									className="text-xs tabular-nums text-muted-foreground"
 									data-testid="speed-output-duration"
@@ -283,10 +291,13 @@ export function MediaSpeedProperties({
 				</TabsContent>
 
 				<TabsContent value="curve" className="mt-4">
-					<PropertyGroup title="曲线变速" defaultExpanded>
+					<PropertyGroup
+						title={t("audioProperties.speed.curve")}
+						defaultExpanded
+					>
 						<KeyframeEditor
 							propName="playbackRate"
-							propLabel="速度"
+							propLabel={t("audioProperties.speed.curveLabel")}
 							propType="number"
 							keyframes={speedKeyframes as Keyframe[]}
 							durationInFrames={sourceDurationInFrames}
@@ -310,23 +321,31 @@ export function MediaSpeedProperties({
 				</TabsContent>
 			</Tabs>
 
-			<PropertyGroup title="时间处理" defaultExpanded>
+			<PropertyGroup
+				title={t("audioProperties.speed.timeProcessing")}
+				defaultExpanded
+			>
 				<div className="space-y-4">
 					{mediaKind === "audio" ? (
 						<div
 							className="flex items-center justify-between gap-3"
 							data-testid="audio-speed-preserve-pitch"
 						>
-							<PropertyItemLabel>音调不变</PropertyItemLabel>
+							<PropertyItemLabel>
+								{t("audioProperties.speed.preservePitch")}
+							</PropertyItemLabel>
 							<span className="flex items-center gap-1 text-xs text-muted-foreground">
 								<Check className="size-3.5 text-primary" />
-								已开启
+								{t("audioProperties.speed.enabled")}
 							</span>
 						</div>
 					) : null}
 					<div className="flex items-center justify-between gap-3">
-						<PropertyItemLabel>倒放</PropertyItemLabel>
+						<PropertyItemLabel>
+							{t("audioProperties.speed.reverse")}
+						</PropertyItemLabel>
 						<Switch
+							aria-label={t("audioProperties.speed.reverse")}
 							checked={element.reverse ?? false}
 							onCheckedChange={(reverse) => update({ reverse })}
 						/>
@@ -334,8 +353,11 @@ export function MediaSpeedProperties({
 					{mediaKind === "video" ? (
 						<>
 							<div className="flex items-center justify-between gap-3">
-								<PropertyItemLabel>定格</PropertyItemLabel>
+								<PropertyItemLabel>
+									{t("audioProperties.speed.freeze")}
+								</PropertyItemLabel>
 								<Switch
+									aria-label={t("audioProperties.speed.freeze")}
 									checked={(element.freezeFrameDuration ?? 0) > 0}
 									onCheckedChange={(checked) =>
 										update(
@@ -352,7 +374,7 @@ export function MediaSpeedProperties({
 							{(element.freezeFrameDuration ?? 0) > 0 ? (
 								<>
 									<SpeedNumberControl
-										label="定格位置"
+										label={t("audioProperties.speed.freezePosition")}
 										value={element.freezeFrameTime ?? 0}
 										min={0}
 										max={Math.max(0.1, sourceDuration)}
@@ -365,7 +387,7 @@ export function MediaSpeedProperties({
 										onInteractionEnd={endInteraction}
 									/>
 									<SpeedNumberControl
-										label="定格时长"
+										label={t("audioProperties.speed.freezeDuration")}
 										value={element.freezeFrameDuration ?? 0}
 										min={0.1}
 										max={10}

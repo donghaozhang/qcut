@@ -15,6 +15,7 @@ export interface GenerateOptions {
 		| "generate-image"
 		| "create-video"
 		| "generate-avatar"
+		| "generate-music"
 		| "generate-speech"
 		| "list-models"
 		| "estimate-cost"

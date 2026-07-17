@@ -153,6 +153,54 @@ export async function resizeImage(
 	});
 }
 
+const THUMBNAIL_MAX_DIMENSION = 128;
+
+/**
+ * Render a small, durable data-URL thumbnail for an image blob.
+ *
+ * Used to persist a preview that survives reloads when the media item itself
+ * only has renderer-scoped blob: URLs (e.g. raster stickers). Returns
+ * undefined when the image cannot be decoded or rendered.
+ */
+export async function generateImageThumbnailDataUrl({
+	file,
+	maxDimension = THUMBNAIL_MAX_DIMENSION,
+}: {
+	file: Blob;
+	maxDimension?: number;
+}): Promise<string | undefined> {
+	const objectUrl = URL.createObjectURL(file);
+	try {
+		const image = await new Promise<HTMLImageElement | null>((resolve) => {
+			const element = new Image();
+			element.onload = () => resolve(element);
+			element.onerror = () => resolve(null);
+			element.src = objectUrl;
+		});
+		if (!image) return undefined;
+		const sourceWidth = image.naturalWidth || image.width;
+		const sourceHeight = image.naturalHeight || image.height;
+		if (!sourceWidth || !sourceHeight) return undefined;
+		const scale = Math.min(
+			1,
+			maxDimension / Math.max(sourceWidth, sourceHeight)
+		);
+		const canvas = document.createElement("canvas");
+		canvas.width = Math.max(1, Math.round(sourceWidth * scale));
+		canvas.height = Math.max(1, Math.round(sourceHeight * scale));
+		const context = canvas.getContext("2d");
+		if (!context) return undefined;
+		context.drawImage(image, 0, 0, canvas.width, canvas.height);
+		// PNG keeps sticker transparency intact.
+		const dataUrl = canvas.toDataURL("image/png");
+		return dataUrl.startsWith("data:image/") ? dataUrl : undefined;
+	} catch {
+		return undefined;
+	} finally {
+		URL.revokeObjectURL(objectUrl);
+	}
+}
+
 /**
  * Convert image to data URL
  */

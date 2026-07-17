@@ -10,7 +10,7 @@ import {
 	DEFAULT_OPENROUTER_MODELS,
 	getProviderConfig,
 	providerRequiresApiKey,
-	getDefaultCodexModel,
+	getDefaultOpenRouterModel,
 	type CliProvider,
 	type CliProviderConfig,
 	type OpenRouterModel,
@@ -23,7 +23,9 @@ import {
 describe("CLI_PROVIDERS", () => {
 	it("should have all required providers defined", () => {
 		expect(CLI_PROVIDERS).toHaveProperty("gemini");
+		expect(CLI_PROVIDERS).toHaveProperty("openrouter");
 		expect(CLI_PROVIDERS).toHaveProperty("codex");
+		expect(CLI_PROVIDERS).toHaveProperty("claude");
 		expect(CLI_PROVIDERS).toHaveProperty("shell");
 	});
 
@@ -48,26 +50,46 @@ describe("CLI_PROVIDERS", () => {
 		});
 	});
 
-	describe("codex provider", () => {
-		const codex = CLI_PROVIDERS.codex;
+	describe("openrouter provider", () => {
+		const openrouter = CLI_PROVIDERS.openrouter;
 
 		it("should have correct id and name", () => {
-			expect(codex.id).toBe("codex");
-			expect(codex.name).toBe("Codex (OpenRouter)");
+			expect(openrouter.id).toBe("openrouter");
+			expect(openrouter.name).toBe("OpenRouter Agent");
 		});
 
 		it("should require API key", () => {
-			expect(codex.requiresApiKey).toBe(true);
-			expect(codex.apiKeyEnvVar).toBe("OPENROUTER_API_KEY");
+			expect(openrouter.requiresApiKey).toBe(true);
+			expect(openrouter.apiKeyEnvVar).toBe("OPENROUTER_API_KEY");
 		});
 
 		it("should have a valid command", () => {
-			expect(codex.command).toBe("npx open-codex");
+			expect(openrouter.command).toBe("npx open-codex");
 		});
 
 		it("should support skill flag", () => {
-			expect(codex.supportsSkillFlag).toBe(true);
-			expect(codex.skillFlagFormat).toBe("--project-doc");
+			expect(openrouter.supportsSkillFlag).toBe(true);
+			expect(openrouter.skillFlagFormat).toBe("--project-doc");
+		});
+	});
+
+	describe("codex provider", () => {
+		const codex = CLI_PROVIDERS.codex;
+
+		it("should identify the official OpenAI CLI", () => {
+			expect(codex.id).toBe("codex");
+			expect(codex.name).toBe("OpenAI Codex CLI");
+			expect(codex.command).toBe("codex");
+		});
+
+		it("should use the user's Codex login", () => {
+			expect(codex.requiresApiKey).toBe(false);
+			expect(codex.apiKeyEnvVar).toBeUndefined();
+		});
+
+		it("should inject skills through the TUI", () => {
+			expect(codex.supportsSkillFlag).toBe(false);
+			expect(codex.skillFlagFormat).toBeUndefined();
 		});
 	});
 
@@ -183,7 +205,13 @@ describe("getProviderConfig", () => {
 	it("should return correct config for codex", () => {
 		const config = getProviderConfig("codex");
 		expect(config.id).toBe("codex");
-		expect(config.name).toBe("Codex (OpenRouter)");
+		expect(config.name).toBe("OpenAI Codex CLI");
+	});
+
+	it("should return correct config for OpenRouter Agent", () => {
+		const config = getProviderConfig("openrouter");
+		expect(config.id).toBe("openrouter");
+		expect(config.name).toBe("OpenRouter Agent");
 	});
 
 	it("should return correct config for shell", () => {
@@ -194,6 +222,7 @@ describe("getProviderConfig", () => {
 
 	it("should return same object as CLI_PROVIDERS", () => {
 		expect(getProviderConfig("gemini")).toBe(CLI_PROVIDERS.gemini);
+		expect(getProviderConfig("openrouter")).toBe(CLI_PROVIDERS.openrouter);
 		expect(getProviderConfig("codex")).toBe(CLI_PROVIDERS.codex);
 		expect(getProviderConfig("shell")).toBe(CLI_PROVIDERS.shell);
 	});
@@ -204,8 +233,12 @@ describe("providerRequiresApiKey", () => {
 		expect(providerRequiresApiKey("gemini")).toBe(false);
 	});
 
-	it("should return true for codex", () => {
-		expect(providerRequiresApiKey("codex")).toBe(true);
+	it("should return true for OpenRouter Agent", () => {
+		expect(providerRequiresApiKey("openrouter")).toBe(true);
+	});
+
+	it("should return false for official Codex CLI", () => {
+		expect(providerRequiresApiKey("codex")).toBe(false);
 	});
 
 	it("should return false for shell", () => {
@@ -213,14 +246,14 @@ describe("providerRequiresApiKey", () => {
 	});
 });
 
-describe("getDefaultCodexModel", () => {
-	it("should return default codex model ID", () => {
-		const defaultModel = getDefaultCodexModel();
+describe("getDefaultOpenRouterModel", () => {
+	it("should return the default OpenRouter model ID", () => {
+		const defaultModel = getDefaultOpenRouterModel();
 		expect(defaultModel).toBe("anthropic/claude-sonnet-4");
 	});
 
 	it("should return a valid OpenRouter model ID", () => {
-		const defaultModel = getDefaultCodexModel();
+		const defaultModel = getDefaultOpenRouterModel();
 		expect(defaultModel).toMatch(/^[\w-]+\/[\w.-]+$/);
 	});
 });
@@ -232,7 +265,13 @@ describe("getDefaultCodexModel", () => {
 describe("Type Safety", () => {
 	it("should correctly type CliProvider", () => {
 		// These should all be valid CliProvider values
-		const validProviders: CliProvider[] = ["gemini", "codex", "shell"];
+		const validProviders: CliProvider[] = [
+			"gemini",
+			"openrouter",
+			"codex",
+			"claude",
+			"shell",
+		];
 
 		for (const provider of validProviders) {
 			expect(CLI_PROVIDERS[provider]).toBeDefined();
@@ -240,7 +279,13 @@ describe("Type Safety", () => {
 	});
 
 	it("should have matching provider IDs as keys and values", () => {
-		const providers: CliProvider[] = ["gemini", "codex", "shell"];
+		const providers: CliProvider[] = [
+			"gemini",
+			"openrouter",
+			"codex",
+			"claude",
+			"shell",
+		];
 
 		for (const provider of providers) {
 			expect(CLI_PROVIDERS[provider].id).toBe(provider);

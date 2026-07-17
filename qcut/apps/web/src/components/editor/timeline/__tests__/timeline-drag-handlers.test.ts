@@ -1,33 +1,50 @@
 import { act, renderHook } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
+import { BUILT_IN_AUDIO } from "@/lib/audio/audio-library-catalog";
+import {
+	AUDIO_LIBRARY_DRAG_MIME,
+	serializeAudioLibraryDrag,
+} from "@/lib/audio/audio-library-drag";
 import { useDragHandlers } from "../timeline-drag-handlers";
 
 const {
 	addTextToNewTrack,
 	addMarkdownToNewTrack,
 	addMediaToNewTrack,
+	addSoundToTimeline,
 	mockedTimelineStore,
+	mockedSoundsStore,
 } = vi.hoisted(() => {
 	const addTextToNewTrackFn = vi.fn();
 	const addMarkdownToNewTrackFn = vi.fn();
 	const addMediaToNewTrackFn = vi.fn();
+	const addSoundToTimelineFn = vi.fn(async () => true);
 	const mockedTimelineStoreFn = Object.assign(vi.fn(), {
 		getState: vi.fn(() => ({
 			addTextToNewTrack: addTextToNewTrackFn,
 			addMarkdownToNewTrack: addMarkdownToNewTrackFn,
 			addMediaToNewTrack: addMediaToNewTrackFn,
+			snappingEnabled: false,
 		})),
 	});
 	return {
 		addTextToNewTrack: addTextToNewTrackFn,
 		addMarkdownToNewTrack: addMarkdownToNewTrackFn,
 		addMediaToNewTrack: addMediaToNewTrackFn,
+		addSoundToTimeline: addSoundToTimelineFn,
 		mockedTimelineStore: mockedTimelineStoreFn,
+		mockedSoundsStore: {
+			getState: vi.fn(() => ({ addSoundToTimeline: addSoundToTimelineFn })),
+		},
 	};
 });
 
 vi.mock("@/stores/timeline/timeline-store", () => ({
 	useTimelineStore: mockedTimelineStore,
+}));
+
+vi.mock("@/stores/media/sounds-store", () => ({
+	useSoundsStore: mockedSoundsStore,
 }));
 
 vi.mock("sonner", () => ({
@@ -38,17 +55,22 @@ vi.mock("sonner", () => ({
 
 function createDragEvent({
 	itemData = "",
+	audioData = "",
 	types = [],
 }: {
 	itemData?: string;
+	audioData?: string;
 	types?: string[];
 }): React.DragEvent<HTMLDivElement> {
 	return {
 		preventDefault: vi.fn(),
 		dataTransfer: {
 			types,
-			getData: (key: string) =>
-				key === "application/x-media-item" ? itemData : "",
+			getData: (key: string) => {
+				if (key === "application/x-media-item") return itemData;
+				if (key === AUDIO_LIBRARY_DRAG_MIME) return audioData;
+				return "";
+			},
 			files: null,
 		},
 	} as unknown as React.DragEvent<HTMLDivElement>;
@@ -61,6 +83,7 @@ describe("useDragHandlers", () => {
 			addTextToNewTrack,
 			addMarkdownToNewTrack,
 			addMediaToNewTrack,
+			snappingEnabled: false,
 		});
 	});
 
@@ -149,6 +172,68 @@ describe("useDragHandlers", () => {
 		});
 
 		expect(addMediaToNewTrack).toHaveBeenCalledWith(mediaItem);
+	});
+
+	it("handleDrop downloads a dragged audio catalog item", async () => {
+		const { result } = renderHook(() =>
+			useDragHandlers({
+				mediaItems: [],
+				addMediaItem: undefined,
+				activeProject: { id: "project-1" },
+			})
+		);
+		const sound = BUILT_IN_AUDIO[0];
+		const audioData = serializeAudioLibraryDrag({
+			payload: { sound, kind: "music" },
+		});
+
+		await act(async () => {
+			await result.current.dragProps.onDrop(
+				createDragEvent({
+					audioData,
+					types: [AUDIO_LIBRARY_DRAG_MIME],
+				})
+			);
+		});
+
+		expect(addSoundToTimeline).toHaveBeenCalledWith({
+			sound,
+			kind: "music",
+		});
+	});
+
+	it("aligns catalog audio drops when timeline snapping is enabled", async () => {
+		mockedTimelineStore.getState.mockReturnValue({
+			addTextToNewTrack,
+			addMarkdownToNewTrack,
+			addMediaToNewTrack,
+			snappingEnabled: true,
+		});
+		const { result } = renderHook(() =>
+			useDragHandlers({
+				mediaItems: [],
+				addMediaItem: undefined,
+				activeProject: { id: "project-1" },
+			})
+		);
+		const sound = BUILT_IN_AUDIO[0];
+
+		await act(async () => {
+			await result.current.dragProps.onDrop(
+				createDragEvent({
+					audioData: serializeAudioLibraryDrag({
+						payload: { sound, kind: "music" },
+					}),
+					types: [AUDIO_LIBRARY_DRAG_MIME],
+				})
+			);
+		});
+
+		expect(addSoundToTimeline).toHaveBeenCalledWith({
+			sound,
+			kind: "music",
+			beatAlignment: "nearest",
+		});
 	});
 
 	it("handleDrop preserves grouped text template drag data", async () => {

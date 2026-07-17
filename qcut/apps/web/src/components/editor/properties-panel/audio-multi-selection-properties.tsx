@@ -14,6 +14,7 @@ import type {
 	MediaElement,
 } from "@/types/timeline";
 import { AudioNumberControl } from "./audio-property-controls";
+import { useTranslation } from "@/lib/i18n";
 
 export interface AudioBatchSelection {
 	trackId: string;
@@ -37,6 +38,7 @@ export function AudioMultiSelectionProperties({
 }: {
 	selections: AudioBatchSelection[];
 }) {
+	const { t } = useTranslation();
 	const updateMediaElement = useTimelineStore(
 		(state) => state.updateMediaElement
 	);
@@ -120,7 +122,7 @@ export function AudioMultiSelectionProperties({
 		<div className="space-y-4" data-testid="audio-multi-selection-properties">
 			<div className="flex h-9 items-center border-b border-border px-3">
 				<span className="min-w-0 flex-1 truncate text-xs font-medium">
-					{selections.length} audio clips
+					{t("audioProperties.multi.count", { count: selections.length })}
 				</span>
 				<Button
 					type="button"
@@ -128,15 +130,15 @@ export function AudioMultiSelectionProperties({
 					size="icon"
 					className="size-7 rounded-sm"
 					onClick={resetBasics}
-					aria-label="Reset selected audio basics"
-					title="Reset selected audio basics"
+					aria-label={t("audioProperties.multi.reset")}
+					title={t("audioProperties.multi.reset")}
 				>
 					<RotateCcw className="size-3.5" />
 				</Button>
 			</div>
 			<div className="space-y-4 px-3 pb-3">
 				<AudioNumberControl
-					label="Volume"
+					label={t("audioProperties.label.volume")}
 					value={volume.value}
 					mixed={volume.mixed}
 					min={-60}
@@ -148,7 +150,7 @@ export function AudioMultiSelectionProperties({
 					onInteractionEnd={endInteraction}
 				/>
 				<AudioNumberControl
-					label="Fade in"
+					label={t("audioProperties.label.fadeIn")}
 					value={fadeIn.value}
 					mixed={fadeIn.mixed}
 					min={0}
@@ -160,7 +162,7 @@ export function AudioMultiSelectionProperties({
 					onInteractionEnd={endInteraction}
 				/>
 				<AudioNumberControl
-					label="Fade out"
+					label={t("audioProperties.label.fadeOut")}
 					value={fadeOut.value}
 					mixed={fadeOut.mixed}
 					min={0}
@@ -172,7 +174,7 @@ export function AudioMultiSelectionProperties({
 					onInteractionEnd={endInteraction}
 				/>
 				<AudioNumberControl
-					label="Stereo balance"
+					label={t("audioProperties.section.pan")}
 					value={pan.value}
 					mixed={pan.mixed}
 					min={-100}

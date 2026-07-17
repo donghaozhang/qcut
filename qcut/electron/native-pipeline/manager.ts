@@ -33,6 +33,7 @@ import {
 	handleVimaxListModels,
 } from "./cli/vimax-cli-handlers.js";
 import type { CLIRunOptions } from "./cli/cli-runner/types.js";
+import { handleGenerateMusic } from "./cli/cli-handlers-music.js";
 import { handleGenerateSpeech } from "./cli/cli-handlers-speech.js";
 
 // Re-export types from the original handler for compatibility
@@ -41,6 +42,7 @@ export interface GenerateOptions {
 		| "generate-image"
 		| "create-video"
 		| "generate-avatar"
+		| "generate-music"
 		| "generate-speech"
 		| "list-models"
 		| "estimate-cost"
@@ -145,6 +147,7 @@ export class NativePipelineManager {
 			costEstimation: true,
 			promptGeneration: true,
 			speechToText: true,
+			musicGeneration: true,
 			textToSpeech: true,
 			imageUnderstanding: true,
 			vimaxPipelines: true,
@@ -170,6 +173,13 @@ export class NativePipelineManager {
 					return this.handleGenerate(options, sessionId, onProgress, startTime);
 				case "generate-avatar":
 					return this.handleGenerate(options, sessionId, onProgress, startTime);
+				case "generate-music":
+					return this.handleGenerateMusic(
+						options,
+						sessionId,
+						onProgress,
+						startTime
+					);
 				case "generate-speech":
 					return this.handleGenerateSpeech(
 						options,
@@ -404,6 +414,53 @@ export class NativePipelineManager {
 
 		try {
 			const result = await handleGenerateSpeech(
+				cliOptions as CLIRunOptions,
+				onProgress,
+				abortController.signal
+			);
+			const pipelineResult: PipelineResult = {
+				...result,
+				duration: result.duration ?? (Date.now() - startTime) / 1000,
+			};
+			return this.maybeAutoImport(options, pipelineResult);
+		} finally {
+			this.activeRequests.delete(sessionId);
+		}
+	}
+
+	private async handleGenerateMusic(
+		options: GenerateOptions,
+		sessionId: string,
+		onProgress: (progress: PipelineProgress) => void,
+		startTime: number
+	): Promise<PipelineResult> {
+		const abortController = new AbortController();
+		this.activeRequests.set(sessionId, abortController);
+		const outputDir = this.resolveOutputDir(options, sessionId);
+		const args = options.args;
+		const cliOptions = {
+			command: "generate-music",
+			outputDir,
+			saveIntermediates: false,
+			json: true,
+			verbose: false,
+			quiet: false,
+			model: args.model as string | undefined,
+			provider: args.provider as string | undefined,
+			text: (args.text ?? args.prompt) as string | undefined,
+			lyrics: args.lyrics as string | undefined,
+			instrumental: args.instrumental as boolean | undefined,
+			sampleRate: (args["sample-rate"] ?? args.sample_rate) as
+				| number
+				| undefined,
+			bitrate: args.bitrate as number | undefined,
+			audioFormat: (args["audio-format"] ?? args.audio_format) as
+				| string
+				| undefined,
+		} satisfies Partial<CLIRunOptions>;
+
+		try {
+			const result = await handleGenerateMusic(
 				cliOptions as CLIRunOptions,
 				onProgress,
 				abortController.signal
@@ -698,6 +755,8 @@ export class NativePipelineManager {
 			case "create-video":
 			case "generate-avatar":
 				return ".mp4";
+			case "generate-music":
+				return ".mp3";
 			case "generate-speech":
 				return ".wav";
 			default:

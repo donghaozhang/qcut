@@ -16,6 +16,7 @@ const REQUEST_TIMEOUT_MS = 5000;
 const VALID_PANELS = [
 	"media",
 	"text",
+	"audio",
 	"stickers",
 	"video-edit",
 	"effects",

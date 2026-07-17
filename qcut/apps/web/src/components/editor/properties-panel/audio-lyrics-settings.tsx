@@ -31,6 +31,16 @@ import type { AudioLyricsWord, MediaElement } from "@/types/timeline";
 import { WORD_FILTER_STATE, type WordItem } from "@/types/word-timeline";
 import type { AudioSettingsEditorBindings } from "./audio-properties-types";
 import { activateButtonFromKeyboard } from "./audio-property-controls";
+import { useTranslation, type TranslationKey } from "@/lib/i18n";
+
+const AUDIO_STATUS_KEYS: Partial<Record<string, TranslationKey>> = {
+	idle: "audioProperties.status.idle",
+	separating: "audioProperties.status.separating",
+	converting: "audioProperties.status.converting",
+	processing: "audioProperties.status.processing",
+	ready: "audioProperties.status.ready",
+	error: "audioProperties.status.error",
+};
 
 function editableWords({ words }: { words: AudioLyricsWord[] }): WordItem[] {
 	return words.map((word) => ({
@@ -66,6 +76,7 @@ export function AudioLyricsSettings({
 	mediaItem: MediaItem | undefined;
 	bindings: AudioSettingsEditorBindings;
 }) {
+	const { t } = useTranslation();
 	const fps = useProjectStore((state) => state.activeProject?.fps ?? 30);
 	const addTrack = useTimelineStore((state) => state.addTrack);
 	const addElementToTrack = useTimelineStore(
@@ -84,6 +95,8 @@ export function AudioLyricsSettings({
 	const cover = bindings.settings.cover;
 	const coverBusy =
 		cover.status === "separating" || cover.status === "converting";
+	const coverStatusKey = AUDIO_STATUS_KEYS[cover.status];
+	const coverStatus = coverStatusKey ? t(coverStatusKey) : cover.status;
 	const sourcePath =
 		mediaItem?.localPath ?? mediaItem?.importMetadata?.originalPath;
 
@@ -117,7 +130,7 @@ export function AudioLyricsSettings({
 				nextLyrics: {
 					...latestSettings().lyrics,
 					status: "error",
-					error: error ?? "语音识别失败",
+					error: error ?? t("audioProperties.lyrics.failed"),
 				},
 			});
 			return;
@@ -141,7 +154,7 @@ export function AudioLyricsSettings({
 				error: undefined,
 			},
 		});
-		toast.success("歌词识别完成");
+		toast.success(t("audioProperties.lyrics.done"));
 	};
 	const saveDraft = () => {
 		const words = retimeLyricsWords({
@@ -149,7 +162,7 @@ export function AudioLyricsSettings({
 			words: editableWords({ words: lyrics.words }),
 		});
 		if (words.length === 0) {
-			toast.error("歌词不能为空");
+			toast.error(t("audioProperties.lyrics.required"));
 			return;
 		}
 		updateLyrics({
@@ -161,7 +174,7 @@ export function AudioLyricsSettings({
 				error: undefined,
 			},
 		});
-		toast.success("歌词已保存");
+		toast.success(t("audioProperties.lyrics.saved"));
 	};
 	const openWordEditor = () => {
 		useWordTimelineStore.getState().loadFromData(
@@ -188,7 +201,7 @@ export function AudioLyricsSettings({
 				error: undefined,
 			},
 		});
-		toast.success("已同步文字编辑器中的歌词");
+		toast.success(t("audioProperties.lyrics.synced"));
 	};
 	const createKaraokeTrack = () => {
 		const captions = buildKaraokeCaptionElements({
@@ -198,7 +211,7 @@ export function AudioLyricsSettings({
 			fps,
 		});
 		if (captions.length === 0) {
-			toast.error("没有可用的歌词时间信息");
+			toast.error(t("audioProperties.lyrics.noTiming"));
 			return;
 		}
 		if (
@@ -217,15 +230,19 @@ export function AudioLyricsSettings({
 		updateLyrics({
 			nextLyrics: { ...lyrics, captionTrackId },
 		});
-		toast.success(`已创建 ${captions.length} 条卡拉 OK 字幕`);
+		toast.success(
+			t("audioProperties.lyrics.karaokeCreated", { count: captions.length })
+		);
 	};
 	const runCover = async () => {
 		try {
 			await bindings.onRunCover({ targetVoiceUrl, targetVoiceFile });
-			toast.success("AI 翻唱已生成");
+			toast.success(t("audioProperties.lyrics.coverDone"));
 		} catch (coverError) {
 			toast.error(
-				coverError instanceof Error ? coverError.message : "AI 翻唱失败"
+				coverError instanceof Error
+					? coverError.message
+					: t("audioProperties.lyrics.coverFailed")
 			);
 		}
 	};
@@ -259,21 +276,29 @@ export function AudioLyricsSettings({
 		>
 			<section className="space-y-3 py-3">
 				<div className="flex items-center gap-2">
-					<span className="min-w-0 flex-1 text-xs">语音识别</span>
+					<span className="min-w-0 flex-1 text-xs">
+						{t("audioProperties.lyrics.transcription")}
+					</span>
 					<Button
 						type="button"
 						variant="outline"
 						size="sm"
 						disabled={!sourcePath || isTranscribing}
 						onClick={() => void transcribe()}
-						title={sourcePath ? "识别歌词" : "需要本地媒体文件"}
+						title={
+							sourcePath
+								? t("audioProperties.lyrics.recognize")
+								: t("audioProperties.lyrics.localRequired")
+						}
 					>
 						{isTranscribing ? (
 							<LoaderCircle className="size-3.5 animate-spin" />
 						) : (
 							<FileText className="size-3.5" />
 						)}
-						{lyrics.status === "ready" ? "重新识别" : "开始识别"}
+						{lyrics.status === "ready"
+							? t("audioProperties.lyrics.restart")
+							: t("audioProperties.lyrics.start")}
 					</Button>
 				</div>
 				{isTranscribing ? (
@@ -289,7 +314,7 @@ export function AudioLyricsSettings({
 			<section className="space-y-3 py-3">
 				<div className="flex items-center gap-2">
 					<label htmlFor={`lyrics-${element.id}`} className="text-xs">
-						歌词
+						{t("audioProperties.lyrics.title")}
 					</label>
 					<span className="ml-auto text-[10px] text-muted-foreground">
 						{lyrics.language ?? "--"}
@@ -312,7 +337,7 @@ export function AudioLyricsSettings({
 						onClick={saveDraft}
 					>
 						<Save className="size-3.5" />
-						保存
+						{t("audioProperties.lyrics.save")}
 					</Button>
 					<Button
 						type="button"
@@ -322,7 +347,7 @@ export function AudioLyricsSettings({
 						onClick={openWordEditor}
 					>
 						<ListMusic className="size-3.5" />
-						文字编辑器
+						{t("audioProperties.lyrics.wordEditor")}
 					</Button>
 					<Button
 						type="button"
@@ -331,7 +356,7 @@ export function AudioLyricsSettings({
 						disabled={!wordEditorData}
 						onClick={syncFromWordEditor}
 					>
-						同步修改
+						{t("audioProperties.lyrics.sync")}
 					</Button>
 					<Button
 						type="button"
@@ -341,23 +366,27 @@ export function AudioLyricsSettings({
 						onClick={createKaraokeTrack}
 					>
 						<ListMusic className="size-3.5" />
-						{lyrics.captionTrackId ? "更新卡拉 OK" : "添加卡拉 OK"}
+						{lyrics.captionTrackId
+							? t("audioProperties.lyrics.karaokeUpdate")
+							: t("audioProperties.lyrics.karaokeAdd")}
 					</Button>
 				</div>
 			</section>
 
 			<section className="space-y-3 py-3" data-testid="audio-cover-settings">
 				<div className="flex items-center gap-2">
-					<span className="min-w-0 flex-1 text-xs">AI 翻唱</span>
+					<span className="min-w-0 flex-1 text-xs">
+						{t("audioProperties.lyrics.aiCover")}
+					</span>
 					<span className="text-[10px] capitalize text-muted-foreground">
-						{cover.status}
+						{coverStatus}
 					</span>
 				</div>
 				<Input
 					value={targetVoiceUrl}
 					onChange={(event) => setTargetVoiceUrl(event.target.value)}
-					placeholder="目标音色 URL（可选）"
-					aria-label="AI 翻唱目标音色 URL"
+					placeholder={t("audioProperties.lyrics.targetPlaceholder")}
+					aria-label={t("audioProperties.lyrics.targetLabel")}
 				/>
 				<input
 					ref={targetVoiceInputRef}
@@ -376,7 +405,7 @@ export function AudioLyricsSettings({
 					>
 						<Upload className="size-3.5" />
 						<span className="max-w-28 truncate">
-							{targetVoiceFile?.name ?? "参考音色"}
+							{targetVoiceFile?.name ?? t("audioProperties.lyrics.reference")}
 						</span>
 					</Button>
 					<Button
@@ -392,7 +421,9 @@ export function AudioLyricsSettings({
 						) : (
 							<Mic2 className="size-3.5" />
 						)}
-						{cover.status === "ready" ? "重新生成" : "生成翻唱"}
+						{cover.status === "ready"
+							? t("audioProperties.lyrics.regenerate")
+							: t("audioProperties.lyrics.generate")}
 					</Button>
 				</div>
 				{cover.convertedVocalMediaId ? (
@@ -407,13 +438,13 @@ export function AudioLyricsSettings({
 							}}
 							variant="outline"
 							size="sm"
-							aria-label="AI 翻唱结果"
+							aria-label={t("audioProperties.lyrics.coverResult")}
 						>
 							<ToggleGroupItem value="original" className="h-7 text-[10px]">
-								原始
+								{t("audioProperties.lyrics.original")}
 							</ToggleGroupItem>
 							<ToggleGroupItem value="cover" className="h-7 text-[10px]">
-								翻唱
+								{t("audioProperties.lyrics.cover")}
 							</ToggleGroupItem>
 						</ToggleGroup>
 						<Button
@@ -421,8 +452,8 @@ export function AudioLyricsSettings({
 							variant="text"
 							size="icon"
 							className="size-7"
-							aria-label="删除 AI 翻唱结果"
-							title="删除 AI 翻唱结果"
+							aria-label={t("audioProperties.lyrics.deleteCover")}
+							title={t("audioProperties.lyrics.deleteCover")}
 							onClick={removeCoverResult}
 							onKeyDown={(event) => activateButtonFromKeyboard({ event })}
 						>
@@ -432,7 +463,9 @@ export function AudioLyricsSettings({
 				) : null}
 				{cover.targetVoiceLabel ? (
 					<p className="text-[10px] text-muted-foreground">
-						音色：{cover.targetVoiceLabel}
+						{t("audioProperties.lyrics.voice", {
+							name: cover.targetVoiceLabel,
+						})}
 					</p>
 				) : null}
 				{cover.error ? (

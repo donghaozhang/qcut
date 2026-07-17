@@ -24,9 +24,11 @@ describe("interface translations", () => {
 		);
 	});
 
-	it("keeps English text, review, task, and sync copy free of Chinese characters", () => {
+	it("keeps localized English feature copy free of Chinese characters", () => {
 		const localizedPrefixes = [
 			"textLibrary.",
+			"audioLibrary.",
+			"audioProperties.",
 			"review.",
 			"taskCenter.",
 			"librarySync.",

@@ -1,6 +1,7 @@
 export const USER_LIBRARY_CHANGED_EVENT = "qcut:user-library-changed";
 
 export const USER_LIBRARY_NAMESPACES = {
+	audioLibrary: "audio-library",
 	audioPresets: "audio-presets",
 	clipPresets: "clip-presets",
 	colorPresets: "color-presets",

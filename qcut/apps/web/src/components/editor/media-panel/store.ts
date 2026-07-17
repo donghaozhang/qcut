@@ -28,6 +28,7 @@ import {
 	SlidersHorizontalIcon,
 } from "lucide-react";
 import { create } from "zustand";
+import type { AudioLibrarySectionId } from "@/lib/audio/audio-library-catalog";
 
 export type Tab =
 	| "media"
@@ -208,7 +209,7 @@ export const STANDARD_EDITOR_TABS = [
 ] as const satisfies readonly Tab[];
 
 export type StandardEditorTab = (typeof STANDARD_EDITOR_TABS)[number];
-export type SoundsPanelTab = "sound-effects" | "songs" | "ai-voice" | "saved";
+export type SoundsPanelTab = AudioLibrarySectionId;
 
 export const tabGroups: { [key in TabGroup]: TabGroupDef } = {
 	"ai-create": {
@@ -325,7 +326,7 @@ export const useMediaPanelStore = create<MediaPanelStore>((set) => ({
 	// AI-specific state defaults
 	aiActiveTab: "text",
 	setAiActiveTab: (tab) => set({ aiActiveTab: tab }),
-	activeSoundsTab: "sound-effects",
+	activeSoundsTab: "music-latest",
 	setActiveSoundsTab: (activeSoundsTab) => set({ activeSoundsTab }),
 }));
 

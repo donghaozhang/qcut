@@ -19,6 +19,18 @@ export type SoundEffect = {
 	downloads: number;
 	rating: number;
 	ratingCount: number;
+	source?: "freesound" | "qcut" | "project";
+	mediaId?: string;
+	kind?: "sound-effect" | "music";
+	localizedName?: string;
+	localizedDescription?: string;
+	artworkColors?: readonly [string, string];
+	bpm?: number;
+	musicalKey?: string;
+	moods?: string[];
+	scenes?: string[];
+	loopable?: boolean;
+	featured?: boolean;
 };
 
 export type SavedSound = {
@@ -32,6 +44,17 @@ export type SavedSound = {
 	tags: string[];
 	license: string;
 	savedAt: string; // iso date string
+	description?: string;
+	source?: "freesound" | "qcut" | "project";
+	mediaId?: string;
+	localizedName?: string;
+	localizedDescription?: string;
+	artworkColors?: readonly [string, string];
+	bpm?: number;
+	musicalKey?: string;
+	moods?: string[];
+	scenes?: string[];
+	loopable?: boolean;
 };
 
 export type SavedSoundsData = {

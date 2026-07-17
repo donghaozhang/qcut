@@ -1,0 +1,9 @@
+# CodeRabbit configuration
+# Schema: https://docs.coderabbit.ai/reference/configuration
+reviews:
+  pre_merge_checks:
+    # Repo standard (qcut/CLAUDE.md): self-documenting code with JSDoc only
+    # for complex functions, so a blanket docstring-coverage threshold does
+    # not fit this codebase.
+    docstrings:
+      mode: "off"

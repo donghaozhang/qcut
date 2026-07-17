@@ -45,7 +45,6 @@ export function StickersView() {
 		handleStickerDownload: downloadSticker,
 		handleStickerSelect,
 		handleStickerUpload,
-		cleanupObjectUrls,
 	} = useStickerSelect();
 	const handleStickerDownload = async (iconId: string, name: string) => {
 		await downloadSticker(iconId, name);
@@ -71,8 +70,6 @@ export function StickersView() {
 		() => [...new Set([...curatedSearchResults, ...searchResults])],
 		[curatedSearchResults, searchResults]
 	);
-
-	useEffect(() => cleanupObjectUrls, [cleanupObjectUrls]);
 
 	useEffect(() => {
 		if (!debouncedSearchQuery.trim()) {

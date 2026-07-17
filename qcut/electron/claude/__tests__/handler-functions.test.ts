@@ -53,6 +53,18 @@ import {
 	getExportPresets,
 	getExportRecommendation,
 } from "../handlers/claude-export-handler";
+import {
+	getAvailablePanels,
+	resolvePanelId,
+} from "../handlers/claude-ui-handler";
+
+describe("UI Handler Functions", () => {
+	it("recognizes the standard audio library independently from AI audio", () => {
+		expect(resolvePanelId("audio")).toBe("audio");
+		expect(resolvePanelId("sounds")).toBe("sounds");
+		expect(getAvailablePanels()).toContain("audio");
+	});
+});
 
 describe("Export Handler Functions", () => {
 	it("getExportPresets returns all presets", () => {

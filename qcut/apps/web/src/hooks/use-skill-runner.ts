@@ -18,7 +18,9 @@ import type { CliProvider } from "@/types/cli-provider";
  * Start the specified skill in the PTY terminal using the specified or current CLI provider.
  *
  * @param skillId - The ID of the skill to run
- * @param preferredProvider - Optional provider to use: "gemini", "codex", or "claude". If omitted, uses the current provider.
+ * @param preferredProvider - Optional agent provider. If omitted, uses the
+ *                            current provider unless it is `shell`, in which
+ *                            case `claude` is selected.
  * @returns No value.
  */
 export function useSkillRunner() {
@@ -39,13 +41,14 @@ export function useSkillRunner() {
 	 * Run a skill with the specified or current CLI provider.
 	 *
 	 * @param skillId - The ID of the skill to run
-	 * @param preferredProvider - Optional provider to use ("gemini", "codex", or "claude")
-	 *                           If not specified, uses the currently selected provider
+	 * @param preferredProvider - Optional agent provider. If not specified,
+	 *                           uses the currently selected provider unless it
+	 *                           is `shell`, in which case `claude` is selected.
 	 */
 	const runSkill = useCallback(
 		async (
 			skillId: string,
-			preferredProvider?: "gemini" | "codex" | "claude"
+			preferredProvider?: Exclude<CliProvider, "shell">
 		) => {
 			const skill = skills.find((s) => s.id === skillId);
 			if (!skill) {
@@ -58,7 +61,10 @@ export function useSkillRunner() {
 				return;
 			}
 
-			const providerToUse: CliProvider = preferredProvider || cliProvider;
+			// A plain shell cannot execute skills, so an omitted provider must
+			// never resolve to it; fall back to the default agent provider.
+			const providerToUse: Exclude<CliProvider, "shell"> =
+				preferredProvider ?? (cliProvider === "shell" ? "claude" : cliProvider);
 
 			// 1. Get the project's skills folder path
 			let skillsPath = "";
@@ -68,17 +74,17 @@ export function useSkillRunner() {
 				// Ignore - skills path is optional
 			}
 
-			// 2. Set skill as active context (used by both providers)
+			// 2. Set skill as active context
 			setActiveSkill({
 				id: skill.id,
 				name: skill.name,
 				content: skill.content,
-				folderName: skill.folderName, // For Codex --project-doc flag
+				folderName: skill.folderName, // For OpenRouter --project-doc flag
 			});
 
-			// 3. Set provider if specified
-			if (preferredProvider) {
-				setCliProvider(preferredProvider);
+			// 3. Ensure the terminal uses a skill-capable provider
+			if (providerToUse !== cliProvider) {
+				setCliProvider(providerToUse);
 			}
 
 			// 4. Set working directory to project folder (parent of skills folder)

@@ -10,7 +10,9 @@ import {
 import { useMemo, useState, type DragEvent } from "react";
 import { toast } from "sonner";
 import { Input } from "@/components/ui/input";
+import { getEffectPresetTranslationKeys } from "@/lib/effects/effect-preset-translations";
 import { parametersToCSSFilters } from "@/lib/effects/effects-utils";
+import { useTranslation, type TranslationKey } from "@/lib/i18n";
 import { cn } from "@/lib/utils";
 import { useEffectsStore } from "@/stores/ai/effects-store";
 import { useMediaStore } from "@/stores/media/media-store";
@@ -21,20 +23,29 @@ const FALLBACK_PREVIEW = "/images/filter-previews/coastal.webp";
 
 interface EffectCategoryItem {
 	id: EffectCategory | "all";
-	label: string;
+	labelKey: TranslationKey;
 	icon: LucideIcon;
 }
 
 const EFFECT_CATEGORIES: EffectCategoryItem[] = [
-	{ id: "all", label: "All", icon: SparklesIcon },
-	{ id: "basic", label: "Basic", icon: SlidersHorizontalIcon },
-	{ id: "color", label: "Color", icon: PaletteIcon },
-	{ id: "artistic", label: "Artistic", icon: BrushIcon },
-	{ id: "vintage", label: "Vintage", icon: FilmIcon },
-	{ id: "cinematic", label: "Cinema", icon: ClapperboardIcon },
+	{ id: "all", labelKey: "effects.category.all", icon: SparklesIcon },
+	{
+		id: "basic",
+		labelKey: "effects.category.basic",
+		icon: SlidersHorizontalIcon,
+	},
+	{ id: "color", labelKey: "effects.category.color", icon: PaletteIcon },
+	{ id: "artistic", labelKey: "effects.category.artistic", icon: BrushIcon },
+	{ id: "vintage", labelKey: "effects.category.vintage", icon: FilmIcon },
+	{
+		id: "cinematic",
+		labelKey: "effects.category.cinematic",
+		icon: ClapperboardIcon,
+	},
 ];
 
 export default function EffectsView() {
+	const { t } = useTranslation();
 	const presets = useEffectsStore((state) => state.presets);
 	const selectedCategory = useEffectsStore((state) => state.selectedCategory);
 	const setSelectedCategory = useEffectsStore(
@@ -49,19 +60,35 @@ export default function EffectsView() {
 	const mediaItems = useMediaStore((state) => state.mediaItems);
 	const [searchQuery, setSearchQuery] = useState("");
 	const [draggedEffectId, setDraggedEffectId] = useState<string | null>(null);
+	const localizedPresets = useMemo(
+		() =>
+			presets.map((preset) => {
+				const translationKeys = getEffectPresetTranslationKeys({
+					presetId: preset.id,
+				});
+				return {
+					preset,
+					name: translationKeys ? t(translationKeys.name) : preset.name,
+					description: translationKeys
+						? t(translationKeys.description)
+						: preset.description,
+				};
+			}),
+		[presets, t]
+	);
 
 	const filteredPresets = useMemo(() => {
 		const normalizedQuery = searchQuery.trim().toLowerCase();
-		return presets.filter((preset) => {
+		return localizedPresets.filter(({ preset, name, description }) => {
 			const matchesCategory =
 				selectedCategory === "all" || preset.category === selectedCategory;
 			if (!matchesCategory) return false;
 			if (!normalizedQuery) return true;
-			return `${preset.name} ${preset.description}`
+			return `${name} ${description} ${preset.name} ${preset.description}`
 				.toLowerCase()
 				.includes(normalizedQuery);
 		});
-	}, [presets, searchQuery, selectedCategory]);
+	}, [localizedPresets, searchQuery, selectedCategory]);
 
 	const previewSource = useMemo(() => {
 		const selection = selectedElements[0];
@@ -84,7 +111,7 @@ export default function EffectsView() {
 	const handleApplyEffect = ({ preset }: { preset: EffectPreset }) => {
 		const selectedElementId = selectedElements[0]?.elementId;
 		if (!selectedElementId) {
-			toast.info("Select a timeline clip before applying an effect.");
+			toast.info(t("effects.toast.selectClip"));
 			return;
 		}
 		applyEffect(selectedElementId, preset);
@@ -133,7 +160,7 @@ export default function EffectsView() {
 								}}
 							>
 								<Icon className="size-3.5 shrink-0" />
-								<span className="truncate">{category.label}</span>
+								<span className="truncate">{t(category.labelKey)}</span>
 							</button>
 						);
 					})}
@@ -144,18 +171,18 @@ export default function EffectsView() {
 				<div className="border-b border-border/50 p-3">
 					<Input
 						type="search"
-						placeholder="Search effects"
+						placeholder={t("effects.search.placeholder")}
 						value={searchQuery}
 						onChange={(event) => setSearchQuery(event.target.value)}
 						className="h-8 w-full text-xs"
-						aria-label="Search effects"
+						aria-label={t("effects.search.label")}
 					/>
 					<div className="mt-2 flex items-center justify-between gap-2 text-[11px] text-muted-foreground">
-						<span>{filteredPresets.length} effects</span>
+						<span>{t("effects.count", { count: filteredPresets.length })}</span>
 						<span className={cn(selectedElements.length > 0 && "text-primary")}>
 							{selectedElements.length > 0
-								? "Apply to selected clip"
-								: "Select a timeline clip"}
+								? t("effects.apply.selected")
+								: t("effects.selectClip")}
 						</span>
 					</div>
 				</div>
@@ -163,7 +190,7 @@ export default function EffectsView() {
 				<div className="min-h-0 flex-1 overflow-y-auto p-3">
 					{filteredPresets.length > 0 ? (
 						<div className="grid grid-cols-[repeat(auto-fill,minmax(108px,1fr))] gap-2">
-							{filteredPresets.map((preset) => (
+							{filteredPresets.map(({ preset, name, description }) => (
 								<button
 									key={preset.id}
 									type="button"
@@ -171,10 +198,10 @@ export default function EffectsView() {
 										"group flex h-[116px] min-w-0 flex-col overflow-hidden rounded-md border bg-card text-left transition-colors hover:border-primary/60 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary",
 										draggedEffectId === preset.id && "opacity-50"
 									)}
-									aria-label={`Apply ${preset.name} effect`}
+									aria-label={t("effects.card.apply", { name })}
 									data-testid={`effect-card-${preset.id}`}
 									draggable
-									title={`${preset.name}: ${preset.description}`}
+									title={`${name}: ${description}`}
 									onClick={() => handleApplyEffect({ preset })}
 									onKeyDown={(event) => {
 										if (event.key === "Escape") event.currentTarget.blur();
@@ -195,10 +222,10 @@ export default function EffectsView() {
 									</div>
 									<div className="flex min-h-0 flex-1 items-center justify-between gap-1.5 px-2">
 										<span className="truncate text-[11px] font-medium">
-											{preset.name}
+											{name}
 										</span>
 										<span className="shrink-0 text-[9px] text-primary">
-											Ready
+											{t("effects.status.ready")}
 										</span>
 									</div>
 								</button>
@@ -206,7 +233,7 @@ export default function EffectsView() {
 						</div>
 					) : (
 						<div className="flex h-full items-center justify-center rounded-md border border-dashed border-border/70 text-center text-xs text-muted-foreground">
-							No effects match this search.
+							{t("effects.empty")}
 						</div>
 					)}
 				</div>

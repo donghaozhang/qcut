@@ -34,8 +34,7 @@ export function TimelineStickerLayer({
 	return (
 		<div
 			ref={canvasRef}
-			className="absolute inset-0 pointer-events-none"
-			style={{ zIndex: elementOrder + 1 }}
+			className="pointer-events-none absolute inset-0 z-[35]"
 			data-testid={`timeline-sticker-layer-${element.id}`}
 		>
 			<InteractiveStickerElement

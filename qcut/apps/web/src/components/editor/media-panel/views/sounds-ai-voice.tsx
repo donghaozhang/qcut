@@ -414,7 +414,7 @@ export function AIVoiceView() {
 			ratingCount: 0,
 		};
 
-		await addSoundToTimeline(soundEffect);
+		await addSoundToTimeline({ sound: soundEffect });
 	}, [generatedAudio, addSoundToTimeline, provider, mode]);
 
 	return (

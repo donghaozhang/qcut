@@ -36,7 +36,7 @@ interface SkillCardProps {
 /**
  * Renders a card for a skill with controls to view file paths, copy paths to clipboard, run the skill with different Runners, and delete the skill.
  *
- * Displays skill metadata (name, description, dependencies), an expandable file list showing the skill folder and files (with copy buttons), and action controls for running with Claude/Codex/Gemini and deleting the skill.
+ * Displays skill metadata (name, description, dependencies), an expandable file list showing the skill folder and files (with copy buttons), and action controls for running with the available agents and deleting the skill.
  *
  * @param skill - The skill to display (includes name, description, folderName, mainFile, additionalFiles, dependencies, and id)
  * @param onDelete - Callback invoked when the user confirms deletion of the skill
@@ -74,7 +74,14 @@ export function SkillCard({ skill, onDelete }: SkillCardProps) {
 
 	const handleRunWithCodex = () => {
 		runSkill(skill.id, "codex");
-		toast.info(`Running "${skill.name}" with Codex (OpenRouter)`, {
+		toast.info(`Running "${skill.name}" with OpenAI Codex CLI`, {
+			description: "Switching to terminal...",
+		});
+	};
+
+	const handleRunWithOpenRouter = () => {
+		runSkill(skill.id, "openrouter");
+		toast.info(`Running "${skill.name}" with OpenRouter Agent`, {
 			description: "Switching to terminal...",
 		});
 	};
@@ -267,7 +274,11 @@ export function SkillCard({ skill, onDelete }: SkillCardProps) {
 						<DropdownMenuContent align="end">
 							<DropdownMenuItem onClick={handleRunWithCodex}>
 								<Bot className="h-4 w-4 mr-2" />
-								Run with Codex (OpenRouter)
+								Run with OpenAI Codex CLI
+							</DropdownMenuItem>
+							<DropdownMenuItem onClick={handleRunWithOpenRouter}>
+								<Bot className="h-4 w-4 mr-2" />
+								Run with OpenRouter Agent
 							</DropdownMenuItem>
 							<DropdownMenuItem onClick={handleRunWithGemini}>
 								<Sparkles className="h-4 w-4 mr-2" />

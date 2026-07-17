@@ -22,6 +22,12 @@ import { useTimelineSnapping } from "@/hooks/timeline/use-timeline-snapping";
 import { usePlaybackStore } from "@/stores/editor/playback-store";
 import { debugLog, debugError } from "@/lib/debug/debug-config";
 import { getValidTextGroupElements } from "@/lib/timeline/text-group-drag-data";
+import {
+	AUDIO_LIBRARY_DRAG_MIME,
+	parseAudioLibraryDrag,
+} from "@/lib/audio/audio-library-drag";
+import { snapTimeToAudioBeatGrid } from "@/lib/audio/audio-library-placement";
+import { useSoundsStore } from "@/stores/media/sounds-store";
 
 /**
  * Custom hook encapsulating all drag-and-drop handling for timeline tracks.
@@ -120,8 +126,11 @@ export function useTrackDrop({
 		const hasMediaItem = e.dataTransfer.types.includes(
 			"application/x-media-item"
 		);
+		const hasAudioLibraryItem = e.dataTransfer.types.includes(
+			AUDIO_LIBRARY_DRAG_MIME
+		);
 
-		if (!hasTimelineElement && !hasMediaItem) return;
+		if (!hasTimelineElement && !hasMediaItem && !hasAudioLibraryItem) return;
 
 		// Calculate drop position for overlap checking
 		const trackContainer = e.currentTarget.querySelector(
@@ -136,8 +145,28 @@ export function useTrackDrop({
 
 		// Check for potential overlaps and show appropriate feedback
 		let hasOverlap = false;
+		// Audio-library drags compute a beat/duration-aware indicator position
+		// that must survive the generic fallback below.
+		let audioDropPosition: number | null = null;
 
-		if (hasMediaItem) {
+		if (hasAudioLibraryItem) {
+			const payload = parseAudioLibraryDrag({
+				value: e.dataTransfer.getData(AUDIO_LIBRARY_DRAG_MIME),
+			});
+			if (payload) {
+				const beatAlignedTime =
+					snappingEnabled && payload.sound.bpm
+						? snapTimeToAudioBeatGrid({
+								time: dropTime,
+								bpm: payload.sound.bpm,
+							})
+						: dropTime;
+				audioDropPosition = getDropSnappedTime(
+					beatAlignedTime,
+					payload.sound.duration
+				);
+			}
+		} else if (hasMediaItem) {
 			try {
 				const mediaItemData = e.dataTransfer.getData(
 					"application/x-media-item"
@@ -263,14 +292,14 @@ export function useTrackDrop({
 			e.dataTransfer.dropEffect = "none";
 			setWouldOverlap(true);
 			// Use default duration for position indicator
-			setDropPosition(getDropSnappedTime(dropTime, 5));
+			setDropPosition(audioDropPosition ?? getDropSnappedTime(dropTime, 5));
 			return;
 		}
 
 		e.dataTransfer.dropEffect = hasTimelineElement ? "move" : "copy";
 		setWouldOverlap(false);
 		// Use default duration for position indicator
-		setDropPosition(getDropSnappedTime(dropTime, 5));
+		setDropPosition(audioDropPosition ?? getDropSnappedTime(dropTime, 5));
 	};
 
 	const handleTrackDragEnter = (e: React.DragEvent) => {
@@ -282,8 +311,11 @@ export function useTrackDrop({
 		const hasMediaItem = e.dataTransfer.types.includes(
 			"application/x-media-item"
 		);
+		const hasAudioLibraryItem = e.dataTransfer.types.includes(
+			AUDIO_LIBRARY_DRAG_MIME
+		);
 
-		if (!hasTimelineElement && !hasMediaItem) return;
+		if (!hasTimelineElement && !hasMediaItem && !hasAudioLibraryItem) return;
 
 		dragCounterRef.current++;
 		setIsDropping(true);
@@ -298,8 +330,11 @@ export function useTrackDrop({
 		const hasMediaItem = e.dataTransfer.types.includes(
 			"application/x-media-item"
 		);
+		const hasAudioLibraryItem = e.dataTransfer.types.includes(
+			AUDIO_LIBRARY_DRAG_MIME
+		);
 
-		if (!hasTimelineElement && !hasMediaItem) return;
+		if (!hasTimelineElement && !hasMediaItem && !hasAudioLibraryItem) return;
 
 		dragCounterRef.current = Math.max(0, dragCounterRef.current - 1);
 
@@ -318,7 +353,8 @@ export function useTrackDrop({
 		clientX: number,
 		clientY: number,
 		mediaItemData: string | null,
-		timelineElementData: string | null
+		timelineElementData: string | null,
+		audioLibraryData: string | null
 	) => {
 		// Reset all drag states
 		dragCounterRef.current = 0;
@@ -328,17 +364,39 @@ export function useTrackDrop({
 
 		const hasTimelineElement = !!timelineElementData;
 		const hasMediaItem = !!mediaItemData;
+		const hasAudioLibraryItem = !!audioLibraryData;
 
-		if (!hasTimelineElement && !hasMediaItem) return;
+		if (!hasTimelineElement && !hasMediaItem && !hasAudioLibraryItem) return;
 
 		const rect = trackContainer.getBoundingClientRect();
 		const mouseX = Math.max(0, clientX - rect.left);
 		const mouseY = clientY - rect.top;
 		const newStartTime =
 			mouseX / (TIMELINE_CONSTANTS.PIXELS_PER_SECOND * zoomLevel);
-		const projectStore = useProjectStore.getState();
-		const projectFps = projectStore.activeProject?.fps || 30;
-		const snappedTime = snapTimeToFrame(newStartTime, projectFps);
+		if (audioLibraryData) {
+			const payload = parseAudioLibraryDrag({ value: audioLibraryData });
+			if (!payload) {
+				toast.error("Invalid audio library item");
+				return;
+			}
+			const beatAlignedTime =
+				snappingEnabled && payload.sound.bpm
+					? snapTimeToAudioBeatGrid({
+							time: newStartTime,
+							bpm: payload.sound.bpm,
+						})
+					: newStartTime;
+			const audioStartTime = getDropSnappedTime(
+				beatAlignedTime,
+				payload.sound.duration
+			);
+			void useSoundsStore.getState().addSoundToTimeline({
+				sound: payload.sound,
+				kind: payload.kind,
+				startTime: audioStartTime,
+			});
+			return;
+		}
 
 		// Calculate drop position relative to tracks
 		const currentTrackIndex = tracks.findIndex((t) => t.id === track.id);
@@ -816,13 +874,19 @@ export function useTrackDrop({
 		)
 			? e.dataTransfer.getData("application/x-timeline-element")
 			: null;
+		const audioLibraryData = e.dataTransfer.types.includes(
+			AUDIO_LIBRARY_DRAG_MIME
+		)
+			? e.dataTransfer.getData(AUDIO_LIBRARY_DRAG_MIME)
+			: null;
 
 		processDropAtPosition(
 			trackContainer,
 			e.clientX,
 			e.clientY,
 			mediaData,
-			timelineData
+			timelineData,
+			audioLibraryData
 		);
 	};
 
@@ -834,7 +898,7 @@ export function useTrackDrop({
 		clientY: number
 	) => {
 		// Touch drops from media panel always carry media item data
-		processDropAtPosition(trackContainer, clientX, clientY, data, null);
+		processDropAtPosition(trackContainer, clientX, clientY, data, null, null);
 	};
 
 	return {

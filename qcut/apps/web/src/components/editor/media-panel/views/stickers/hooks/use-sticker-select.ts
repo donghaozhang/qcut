@@ -1,4 +1,4 @@
-import { useCallback, useRef } from "react";
+import { useCallback } from "react";
 import { toast } from "sonner";
 import { resolveStickerAssetEntry } from "@/lib/assets/qcut-asset-manifest";
 import { debugError } from "@/lib/debug/debug-config";
@@ -59,7 +59,13 @@ export function useStickerSelect() {
 	const updateRuntimeState = useAssetLibraryStore(
 		(state) => state.updateRuntimeState
 	);
-	const objectUrlsRef = useRef<Set<string>>(new Set());
+
+	const revokeUnownedMediaUrl = useCallback(({ url }: { url: string }) => {
+		const mediaOwnsUrl = useMediaStore
+			.getState()
+			.mediaItems.some((item) => item.url === url || item.thumbnailUrl === url);
+		if (!mediaOwnsUrl) URL.revokeObjectURL(url);
+	}, []);
 
 	const placeStickerOnTimeline = useCallback(
 		async ({ mediaItemId }: { mediaItemId: string }): Promise<boolean> => {
@@ -181,7 +187,6 @@ export function useStickerSelect() {
 					(await isAnimatedStickerFile({ file: downloaded.file }));
 				const mediaUrl = await createStickerMediaUrl({ blob: downloaded.blob });
 				createdObjectUrl = mediaUrl.revoke ? mediaUrl.url : null;
-				if (mediaUrl.revoke) objectUrlsRef.current.add(mediaUrl.url);
 				const dimensions = await readImageDimensions({ url: mediaUrl.url });
 				const mediaItemId = await addMediaItem(activeProject.id, {
 					name: downloaded.file.name,
@@ -205,10 +210,7 @@ export function useStickerSelect() {
 				return mediaItemId;
 			} catch (error) {
 				debugError(`[StickerSelect] Error adding sticker ${iconId}:`, error);
-				if (createdObjectUrl) {
-					URL.revokeObjectURL(createdObjectUrl);
-					objectUrlsRef.current.delete(createdObjectUrl);
-				}
+				if (createdObjectUrl) revokeUnownedMediaUrl({ url: createdObjectUrl });
 				toast.error("Failed to add sticker to project");
 				return;
 			}
@@ -219,6 +221,7 @@ export function useStickerSelect() {
 			addRecentSticker,
 			placeStickerOnTimeline,
 			prepareSticker,
+			revokeUnownedMediaUrl,
 		]
 	);
 
@@ -233,8 +236,8 @@ export function useStickerSelect() {
 				return;
 			}
 
-			const imageUrl = URL.createObjectURL(file);
-			objectUrlsRef.current.add(imageUrl);
+			const mediaUrl = await createStickerMediaUrl({ blob: file });
+			const imageUrl = mediaUrl.url;
 			try {
 				const [dimensions, animatedSticker] = await Promise.all([
 					readImageDimensions({ url: imageUrl }),
@@ -258,28 +261,20 @@ export function useStickerSelect() {
 				toast.success(`Added ${file.name} to timeline`);
 				return mediaItemId;
 			} catch (error) {
-				URL.revokeObjectURL(imageUrl);
-				objectUrlsRef.current.delete(imageUrl);
+				if (mediaUrl.revoke) revokeUnownedMediaUrl({ url: imageUrl });
 				toast.error(
 					error instanceof Error ? error.message : "Failed to upload sticker"
 				);
 				return;
 			}
 		},
-		[activeProject, addMediaItem, placeStickerOnTimeline]
+		[activeProject, addMediaItem, placeStickerOnTimeline, revokeUnownedMediaUrl]
 	);
-
-	const cleanupObjectUrls = useCallback(() => {
-		for (const url of objectUrlsRef.current) URL.revokeObjectURL(url);
-		objectUrlsRef.current.clear();
-	}, []);
 
 	return {
 		handleStickerDownload,
 		handleStickerSelect,
 		handleStickerSelectToOverlay: handleStickerSelect,
 		handleStickerUpload,
-		cleanupObjectUrls,
-		objectUrlsRef,
 	};
 }
