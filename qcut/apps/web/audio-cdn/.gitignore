@@ -1,0 +1,4 @@
+# Generated payloads live on the CDN, not in git.
+tracks/
+artwork/
+dist/

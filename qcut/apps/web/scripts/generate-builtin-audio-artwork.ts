@@ -19,7 +19,7 @@ import { existsSync } from "node:fs";
 import { mkdir, readdir, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import path from "node:path";
-import { createCanvas } from "@napi-rs/canvas";
+import { createCanvas, loadImage } from "@napi-rs/canvas";
 import { BUILT_IN_AUDIO } from "../src/lib/audio/audio-library-catalog";
 
 const MAX_CONCURRENT_GENERATIONS = 2;
@@ -97,10 +97,59 @@ async function findGeneratedImage({
 }): Promise<string> {
 	const entries = await readdir(directory, { recursive: true });
 	const image = entries.find((entry) => /\.(png|jpg|jpeg|webp)$/i.test(entry));
-	if (!image) {
-		throw new Error(`No image produced in ${directory}`);
+	if (image) return path.join(directory, image);
+
+	// The pipeline CLI writes a JSON result whose output points at the hosted
+	// image; download it into the staging directory.
+	const resultFile = entries.find((entry) => entry.endsWith(".json"));
+	if (!resultFile) {
+		throw new Error(`No image or result JSON produced in ${directory}`);
 	}
-	return path.join(directory, image);
+	const result = JSON.parse(
+		await Bun.file(path.join(directory, resultFile)).text()
+	) as { output?: Record<string, unknown> };
+	const url = [
+		result.output?.image_url,
+		result.output?.url,
+		result.output?.video_url,
+	].find((value): value is string => typeof value === "string");
+	if (!url) {
+		throw new Error(`Result JSON in ${directory} has no output URL`);
+	}
+	const response = await fetch(url);
+	if (!response.ok) {
+		throw new Error(`Image download failed: ${response.status}`);
+	}
+	const extension = path.extname(new URL(url).pathname) || ".jpg";
+	const downloadPath = path.join(directory, `generated${extension}`);
+	await Bun.write(downloadPath, await response.arrayBuffer());
+	return downloadPath;
+}
+
+/** Center-crop the generated image into a square 256px webp. */
+async function convertToArtworkWebp({
+	sourcePath,
+	outputPath,
+}: {
+	sourcePath: string;
+	outputPath: string;
+}): Promise<void> {
+	const image = await loadImage(sourcePath);
+	const cropSize = Math.min(image.width, image.height);
+	const canvas = createCanvas(ARTWORK_SIZE, ARTWORK_SIZE);
+	const context = canvas.getContext("2d");
+	context.drawImage(
+		image,
+		(image.width - cropSize) / 2,
+		(image.height - cropSize) / 2,
+		cropSize,
+		cropSize,
+		0,
+		0,
+		ARTWORK_SIZE,
+		ARTWORK_SIZE
+	);
+	await writeFile(outputPath, await canvas.encode("webp", WEBP_QUALITY));
 }
 
 function seededRandom({ seed }: { seed: number }): () => number {
@@ -308,24 +357,7 @@ async function generateCover({
 			cwd: repoRoot,
 		});
 		const generatedImage = await findGeneratedImage({ directory: stagingDir });
-		await run({
-			command: [
-				"ffmpeg",
-				"-hide_banner",
-				"-loglevel",
-				"error",
-				"-y",
-				"-i",
-				generatedImage,
-				"-vf",
-				`scale=${ARTWORK_SIZE}:${ARTWORK_SIZE}:force_original_aspect_ratio=increase,crop=${ARTWORK_SIZE}:${ARTWORK_SIZE}`,
-				"-c:v",
-				"libwebp",
-				"-quality",
-				String(WEBP_QUALITY),
-				outputPath,
-			],
-		});
+		await convertToArtworkWebp({ sourcePath: generatedImage, outputPath });
 		return "generated";
 	} finally {
 		await rm(stagingDir, { recursive: true, force: true });
