@@ -112,7 +112,7 @@ export function MediaPreview({ item }: MediaPreviewProps) {
 						cacheKey={
 							item.file
 								? `media:${item.id}:${item.file.size}:${item.file.lastModified}`
-								: `media:${item.id}`
+								: `media:${item.id}:${item.localPath ?? item.url ?? ""}`
 						}
 						className="h-full w-full"
 						showStatus={false}
@@ -122,7 +122,9 @@ export function MediaPreview({ item }: MediaPreviewProps) {
 						anchor="bottom"
 					/>
 				</div>
-				<Music className="absolute left-1 top-1 h-3.5 w-3.5 text-[#7EC4FF]/80" />
+				<Music className="absolute left-1 top-1 h-3.5 w-3.5 text-[#7EC4FF]/80">
+					<title>Audio</title>
+				</Music>
 				{item.duration ? (
 					<div className="absolute bottom-1 right-1 rounded bg-black/65 px-1 py-0.5 text-[10px] text-white">
 						{formatDuration(item.duration)}

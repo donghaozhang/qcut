@@ -97,13 +97,16 @@ function drawWaveform({
 	});
 	const gain = audioWaveformDisplayGain({ bars });
 	context.fillStyle = color;
+	// A bar narrower than one device pixel rasterizes as a faint anti-aliased
+	// smear on low-DPI displays; clamp the drawn width, keeping the bar pitch.
+	const drawnBarWidth = Math.max(barWidth, 1 / pixelRatio);
 	for (const [index, bar] of bars.entries()) {
 		const amplitude = Math.min(1, bar * gain);
 		const barHeight = Math.max(1, amplitude * (height - 2));
 		context.fillRect(
 			index * (barWidth + barGap),
 			anchor === "bottom" ? height - barHeight : (height - barHeight) / 2,
-			barWidth,
+			drawnBarWidth,
 			barHeight
 		);
 	}

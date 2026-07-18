@@ -317,8 +317,11 @@ if (import.meta.main) {
 	try {
 		const parsed = JSON.parse(await readFile(tracksJsonPath, "utf8"));
 		if (Array.isArray(parsed)) previousEntries = parsed;
-	} catch {
-		// First run: no existing tracks.json to merge.
+	} catch (error) {
+		// Only a missing tracks.json means a first run. Malformed JSON or a
+		// read failure must abort, or the rewrite below would drop foreign
+		// entries, download counts, and original created dates.
+		if ((error as NodeJS.ErrnoException).code !== "ENOENT") throw error;
 	}
 	const previousById = new Map(
 		previousEntries.map((entry) => [entry.id as number, entry])

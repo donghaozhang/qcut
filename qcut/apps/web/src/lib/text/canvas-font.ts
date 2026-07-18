@@ -10,9 +10,21 @@
 const CANVAS_FONT_FALLBACKS =
 	'"PingFang SC", "Hiragino Sans GB", "Microsoft YaHei", "Noto Sans SC", sans-serif';
 
+/** Quoting a CSS generic keyword turns it into a literal family name. */
+const GENERIC_FONT_FAMILIES = new Set([
+	"serif",
+	"sans-serif",
+	"monospace",
+	"cursive",
+	"fantasy",
+	"system-ui",
+]);
+
 export function canvasFontFamily(family?: string): string {
 	const cleaned = (family ?? "").replaceAll('"', "").trim();
-	return cleaned
-		? `"${cleaned}", ${CANVAS_FONT_FALLBACKS}`
-		: CANVAS_FONT_FALLBACKS;
+	if (!cleaned) return CANVAS_FONT_FALLBACKS;
+	if (GENERIC_FONT_FAMILIES.has(cleaned.toLowerCase())) {
+		return `${cleaned.toLowerCase()}, ${CANVAS_FONT_FALLBACKS}`;
+	}
+	return `"${cleaned}", ${CANVAS_FONT_FALLBACKS}`;
 }
