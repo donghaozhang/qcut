@@ -44,7 +44,7 @@ describe("EffectCompositeCanvas", () => {
 				const context = createContext();
 				contexts.set(this, context);
 				return context;
-			}
+			} as unknown as HTMLCanvasElement["getContext"]
 		);
 		const program: EffectRenderProgram = {
 			version: 1,

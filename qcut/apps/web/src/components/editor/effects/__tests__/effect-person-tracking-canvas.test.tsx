@@ -62,8 +62,8 @@ describe("EffectPersonTrackingCanvas", () => {
 			"createImageBitmap",
 			vi.fn(async () => ({}))
 		);
-		vi.spyOn(HTMLCanvasElement.prototype, "getContext").mockImplementation(() =>
-			createContext()
+		vi.spyOn(HTMLCanvasElement.prototype, "getContext").mockImplementation(
+			(() => createContext()) as unknown as HTMLCanvasElement["getContext"]
 		);
 	});
 
