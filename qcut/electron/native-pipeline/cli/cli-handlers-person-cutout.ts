@@ -17,6 +17,11 @@ import {
 	type ApiCallResult,
 	uploadToFalStorage,
 } from "../infra/api-caller.js";
+import {
+	resolvePortraitFilter,
+	type ResolvedPortraitFilter,
+} from "../filters/portrait-filter-catalog.js";
+import { buildAlphaSafePortraitGraph } from "../filters/portrait-filter-ffmpeg.js";
 import type {
 	CLIRunOptions,
 	CLIResult,
@@ -44,6 +49,7 @@ export interface PersonCutoutPaths {
 	cutoutOutput: string;
 	compositeOutput?: string;
 	fit: BackgroundFit;
+	portraitFilter: ResolvedPortraitFilter;
 }
 
 export interface PersonCutoutDependencies {
@@ -285,6 +291,12 @@ export function resolvePersonCutoutPaths({
 		cutoutOutput,
 		compositeOutput,
 		fit: resolveBackgroundFit({ value: options.backgroundFit }),
+		portraitFilter: resolvePortraitFilter({
+			presetId: options.portraitFilter ?? "none",
+			intensity: options.filterIntensity,
+			beauty: options.beauty,
+			defaultBeauty: 0,
+		}),
 	};
 }
 
@@ -332,9 +344,16 @@ export function buildBackgroundCompositeArgs({
 	const width = Math.max(2, probe.width - (probe.width % 2));
 	const height = Math.max(2, probe.height - (probe.height % 2));
 	const frameRate = Math.min(60, Math.max(1, probe.frameRate));
+	const portraitGraph = buildAlphaSafePortraitGraph({
+		inputLabel: "[1:v]",
+		outputLabel: "[portrait_filtered]",
+		labelPrefix: "portrait",
+		filter: paths.portraitFilter,
+	});
 	const filter =
 		`[0:v]${buildBackgroundLayer({ width, height, fit: paths.fit })}[background];` +
-		`[1:v]format=rgba,scale=${width}:${height}:force_original_aspect_ratio=decrease,` +
+		`${portraitGraph};` +
+		`[portrait_filtered]scale=${width}:${height}:force_original_aspect_ratio=decrease,` +
 		`pad=${width}:${height}:(ow-iw)/2:(oh-ih)/2:color=black@0[person];` +
 		"[background][person]overlay=0:0:shortest=1:format=auto[video]";
 
@@ -557,6 +576,9 @@ export async function handlePersonCutout(
 			composite_path: paths.compositeOutput ?? null,
 			model: DEFAULT_PERSON_CUTOUT_ENDPOINT,
 			fit: paths.fit,
+			portrait_filter: paths.portraitFilter.presetId,
+			filter_intensity: paths.portraitFilter.intensity,
+			beauty: paths.portraitFilter.beauty,
 			width: probe.width,
 			height: probe.height,
 			frame_rate: probe.frameRate,
