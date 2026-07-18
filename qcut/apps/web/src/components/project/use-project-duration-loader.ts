@@ -10,7 +10,13 @@ export function useProjectDurationLoader(): (
 		const existingRequest = durationRequests.current.get(projectId);
 		if (existingRequest) return existingRequest;
 
-		const request = useTimelineStore.getState().getProjectDuration(projectId);
+		const request = useTimelineStore
+			.getState()
+			.getProjectDuration(projectId)
+			.catch((error: unknown) => {
+				durationRequests.current.delete(projectId);
+				throw error;
+			});
 		durationRequests.current.set(projectId, request);
 		return request;
 	}, []);

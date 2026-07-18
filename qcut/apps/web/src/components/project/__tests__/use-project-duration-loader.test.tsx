@@ -32,4 +32,17 @@ describe("useProjectDurationLoader", () => {
 		await expect(result.current("project-1")).resolves.toBe(42);
 		expect(getProjectDuration).toHaveBeenCalledTimes(1);
 	});
+
+	it("retries a project after a cached request rejects", async () => {
+		getProjectDuration
+			.mockRejectedValueOnce(new Error("IndexedDB unavailable"))
+			.mockResolvedValueOnce(18);
+		const { result } = renderHook(() => useProjectDurationLoader());
+
+		await expect(result.current("project-1")).rejects.toThrow(
+			"IndexedDB unavailable"
+		);
+		await expect(result.current("project-1")).resolves.toBe(18);
+		expect(getProjectDuration).toHaveBeenCalledTimes(2);
+	});
 });
