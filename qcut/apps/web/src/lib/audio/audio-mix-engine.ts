@@ -26,6 +26,7 @@ interface MeterTap {
 	kWeightedAnalyser: AnalyserNode;
 	rawSamples: Float32Array<ArrayBuffer>;
 	kWeightedSamples: Float32Array<ArrayBuffer>;
+	frequencySamples: Uint8Array<ArrayBuffer>;
 }
 
 interface ProcessingStrip {
@@ -103,6 +104,8 @@ function createMeterTap({
 	const rawAnalyser = context.createAnalyser();
 	rawAnalyser.fftSize = 2_048;
 	rawAnalyser.smoothingTimeConstant = 0.65;
+	rawAnalyser.minDecibels = -90;
+	rawAnalyser.maxDecibels = -10;
 	input.connect(rawAnalyser);
 
 	const kShelf = context.createBiquadFilter();
@@ -131,6 +134,9 @@ function createMeterTap({
 		kWeightedSamples: createSampleBuffer({
 			length: kWeightedAnalyser.fftSize,
 		}),
+		frequencySamples: new Uint8Array(
+			rawAnalyser.frequencyBinCount
+		) as Uint8Array<ArrayBuffer>,
 	};
 }
 
@@ -517,6 +523,47 @@ export function readAudioMixMeters(): AudioMixMeterSnapshot | null {
 		buses,
 		duckingReductionDb,
 	};
+}
+
+const AUDIO_REACTIVE_BAND_RANGES = {
+	bass: [20, 250],
+	mid: [250, 4_000],
+	treble: [4_000, 16_000],
+	full: [20, 16_000],
+} as const;
+
+/** Reads normalized live energy from the source track or the project master. */
+export function readAudioReactiveLevel({
+	driver,
+	band,
+	trackId,
+}: {
+	driver: "source" | "timeline";
+	band: "bass" | "mid" | "treble" | "full";
+	trackId: string;
+}): number {
+	const context = getAudioMixContext();
+	const strip =
+		driver === "source" ? trackStrips.get(trackId) : (masterStrip ?? undefined);
+	if (!context || !strip) return 0;
+	const analyser = strip.meter.rawAnalyser;
+	const samples = strip.meter.frequencySamples;
+	analyser.getByteFrequencyData(samples);
+	const [minimumHz, maximumHz] = AUDIO_REACTIVE_BAND_RANGES[band];
+	const hertzPerBin = context.sampleRate / 2 / samples.length;
+	const firstBin = Math.max(0, Math.floor(minimumHz / hertzPerBin));
+	const lastBin = Math.min(
+		samples.length - 1,
+		Math.ceil(maximumHz / hertzPerBin)
+	);
+	let sumOfSquares = 0;
+	let count = 0;
+	for (let index = firstBin; index <= lastBin; index += 1) {
+		const normalized = (samples[index] ?? 0) / 255;
+		sumOfSquares += normalized * normalized;
+		count += 1;
+	}
+	return count === 0 ? 0 : Math.min(1, Math.sqrt(sumOfSquares / count));
 }
 
 export function getAudioTrackInput({
