@@ -5,6 +5,7 @@ import type {
 	MediaElement,
 } from "@qcut/editor-core";
 import { platform } from "@qcut/platform-core";
+import { debugWarn } from "@/lib/debug/debug-config";
 import {
 	getMediaTimelineDuration,
 	mapMediaTimelineTime,
@@ -43,6 +44,24 @@ type DecodeWaveform = ({
 interface EnvelopeSample {
 	timeSeconds: number;
 	value: number;
+}
+
+async function resolveWaveformEntry({
+	key,
+	pending,
+}: {
+	key: string;
+	pending: Promise<AudioWaveform>;
+}): Promise<readonly [string, AudioWaveform] | null> {
+	try {
+		return [key, await pending] as const;
+	} catch (error) {
+		debugWarn(
+			`[Effect Export] Skipping audio-reactive source that could not be analyzed: ${key}`,
+			error
+		);
+		return null;
+	}
 }
 
 function elementTimelineDuration({
@@ -376,10 +395,14 @@ export async function extractEffectAudioReactiveEnvelopes({
 			);
 		}
 	}
-	const waveformEntries = await Promise.all(
-		[...waveformPromises].map(
-			async ([key, pending]) => [key, await pending] as const
+	const waveformEntries = (
+		await Promise.all(
+			[...waveformPromises].map(([key, pending]) =>
+				resolveWaveformEntry({ key, pending })
+			)
 		)
+	).filter(
+		(entry): entry is readonly [string, AudioWaveform] => entry !== null
 	);
 	const waveforms = new Map(waveformEntries);
 	const mediaElements = mediaElementById({ tracks });
