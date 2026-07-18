@@ -3,6 +3,11 @@ import type {
 	EffectMotionProperty,
 	EffectRenderProgram,
 } from "./effect-render-types";
+import {
+	effectWindowDuration,
+	effectWindowLocalTime,
+	gateEffectExpression,
+} from "./effect-render-window";
 
 export interface EffectMotionExpressions {
 	x: string;
@@ -91,12 +96,26 @@ export function buildEffectMotionExpressions({
 
 	for (const stage of program?.stages ?? []) {
 		if (stage.kind !== "motion") continue;
+		const stageTime = effectWindowLocalTime({
+			window: stage.window,
+			timeVariable,
+		});
+		const stageDuration = effectWindowDuration({
+			window: stage.window,
+			fallback: duration,
+		});
 		for (const channel of stage.channels) {
-			const value = buildChannelValue({
+			const activeValue = buildChannelValue({
 				channel,
 				intensity: stage.intensity,
+				timeVariable: stageTime,
+				duration: stageDuration,
+			});
+			const value = gateEffectExpression({
+				active: activeValue,
+				inactive: "0",
+				window: stage.window,
 				timeVariable,
-				duration,
 			});
 			if (channel.property === "x") {
 				expressions.x.push(`(${numberExpression(width)})*(${value})`);
