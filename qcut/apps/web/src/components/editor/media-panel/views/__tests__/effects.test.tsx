@@ -176,7 +176,6 @@ describe("EffectsView", () => {
 		expect(screen.getByText("画面特效")).toBeVisible();
 		expect(screen.getByText("基础")).toBeVisible();
 		expect(screen.getByText("震动镜头")).toBeVisible();
-
 		fireEvent.change(screen.getByLabelText("搜索特效"), {
 			target: { value: "提亮" },
 		});
@@ -186,6 +185,20 @@ describe("EffectsView", () => {
 		expect(
 			screen.getByTestId("effect-card-creative-ai-aura-bloom")
 		).toBeVisible();
+	});
+
+	it("localizes favorite controls with the interface language", () => {
+		render(<EffectsView />);
+
+		expect(
+			screen.getByTestId("effect-favorite-dynamic-camera-shake")
+		).toHaveAccessibleName("Add Camera Shake to favorites");
+		act(() => {
+			useLocaleStore.getState().setLocale({ locale: "zh" });
+		});
+		expect(
+			screen.getByTestId("effect-favorite-dynamic-camera-shake")
+		).toHaveAccessibleName("收藏震动镜头");
 	});
 
 	it("derives Favorites from the same catalog entries", () => {

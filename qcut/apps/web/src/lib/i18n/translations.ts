@@ -768,6 +768,8 @@ const EN_TRANSLATIONS = {
 	"effects.status.ready": "Ready",
 	"effects.empty": "No effects match this search.",
 	"effects.card.apply": "Apply {{name}} effect",
+	"effects.card.favorite": "Add {{name}} to favorites",
+	"effects.card.unfavorite": "Remove {{name}} from favorites",
 	"effects.preset.brightness-increase.name": "Brighten",
 	"effects.preset.brightness-increase.description":
 		"Lift exposure for a brighter image.",
@@ -1985,6 +1987,8 @@ const ZH_TRANSLATIONS: Record<TranslationKey, string> = {
 	"effects.status.ready": "可用",
 	"effects.empty": "没有符合搜索条件的特效。",
 	"effects.card.apply": "应用{{name}}特效",
+	"effects.card.favorite": "收藏{{name}}",
+	"effects.card.unfavorite": "取消收藏{{name}}",
 	"effects.preset.brightness-increase.name": "提亮",
 	"effects.preset.brightness-increase.description": "提升曝光，让画面更明亮。",
 	"effects.preset.brightness-decrease.name": "压暗",

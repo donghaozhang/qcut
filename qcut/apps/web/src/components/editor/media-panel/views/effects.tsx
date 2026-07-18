@@ -340,6 +340,12 @@ export default function EffectsView() {
 						<div className="grid grid-cols-[repeat(auto-fill,minmax(108px,1fr))] gap-2">
 							{visibleEntries.map(({ entry, name, description }) => {
 								const favorite = favoriteIds.has(entry.preset.id);
+								const favoriteLabel = t(
+									favorite
+										? "effects.card.unfavorite"
+										: "effects.card.favorite",
+									{ name }
+								);
 								return (
 									<div
 										key={entry.preset.id}
@@ -385,14 +391,10 @@ export default function EffectsView() {
 												"absolute bottom-1.5 right-1.5 flex size-6 items-center justify-center rounded text-muted-foreground transition-colors hover:bg-foreground/10 hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary",
 												favorite && "text-yellow-500"
 											)}
-											aria-label={
-												favorite ? "Remove from favorites" : "Add to favorites"
-											}
+											aria-label={favoriteLabel}
 											aria-pressed={favorite}
 											data-testid={`effect-favorite-${entry.preset.id}`}
-											title={
-												favorite ? "Remove from favorites" : "Add to favorites"
-											}
+											title={favoriteLabel}
 											onClick={() =>
 												handleToggleFavorite({ presetId: entry.preset.id })
 											}
@@ -401,6 +403,7 @@ export default function EffectsView() {
 											}}
 										>
 											<Star
+												aria-hidden="true"
 												className={cn("size-3.5", favorite && "fill-current")}
 											/>
 										</button>
