@@ -41,6 +41,7 @@ import type { SubtitleStyle } from "@/types/timeline";
 import { useTimelineStore } from "@/stores/timeline/timeline-store";
 import { useCaptionsStore } from "@/stores/captions-store";
 import { CaptionTemplateGallery } from "@/components/captions/caption-template-gallery";
+import { LyricsRecognitionCard } from "@/components/captions/lyrics-recognition-card";
 import {
 	SmartRecognitionCard,
 	type SmartRecognitionOutcome,
@@ -586,6 +587,9 @@ export function CaptionsView() {
 
 			{/* Smart recognition on timeline / library media (JianYing-style) */}
 			<SmartRecognitionCard onCompleted={handleSmartRecognitionCompleted} />
+
+			{/* Lyrics recognition producing a karaoke caption track */}
+			<LyricsRecognitionCard />
 
 			{/* Language Selection */}
 			<div className="space-y-2">
