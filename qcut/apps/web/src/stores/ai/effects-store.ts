@@ -185,6 +185,7 @@ export const useEffectsStore = create<EffectsStore>((set, get) => ({
 			effectType: preset.effectType ?? inferEffectType(preset.parameters),
 			parameters: { ...preset.parameters },
 			renderProgram: preset.renderProgram,
+			audioCompanion: preset.audioCompanion,
 			duration: 0, // Will be set based on element duration
 			enabled: true,
 		};
@@ -346,6 +347,7 @@ export const useEffectsStore = create<EffectsStore>((set, get) => ({
 					effectType: preset.effectType ?? inferEffectType(preset.parameters),
 					parameters: { ...preset.parameters },
 					renderProgram: preset.renderProgram,
+					audioCompanion: preset.audioCompanion,
 				};
 
 				const newEffects = [...effects];
