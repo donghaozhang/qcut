@@ -1479,6 +1479,7 @@ function TimelineElementComponent({
 						barWidth={0.5}
 						barGap={0.5}
 						color="rgba(126, 196, 255, 0.95)"
+						anchor="bottom"
 					/>
 				</div>
 			);

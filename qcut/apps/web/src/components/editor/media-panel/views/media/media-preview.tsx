@@ -119,6 +119,7 @@ export function MediaPreview({ item }: MediaPreviewProps) {
 						barWidth={1}
 						barGap={1}
 						color="rgba(126, 196, 255, 0.95)"
+						anchor="bottom"
 					/>
 				</div>
 				<Music className="absolute left-1 top-1 h-3.5 w-3.5 text-[#7EC4FF]/80" />

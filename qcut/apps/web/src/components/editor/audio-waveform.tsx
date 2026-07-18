@@ -30,6 +30,8 @@ interface AudioWaveformProps {
 	barWidth?: number;
 	barGap?: number;
 	color?: string;
+	/** "center" mirrors bars around the midline; "bottom" grows them from a solid baseline (JianYing style). */
+	anchor?: "center" | "bottom";
 }
 
 function nativeWaveformLoader({
@@ -64,6 +66,7 @@ function drawWaveform({
 	barWidth,
 	barGap,
 	color,
+	anchor,
 }: {
 	canvas: HTMLCanvasElement;
 	waveform: AudioWaveformPeaks;
@@ -74,6 +77,7 @@ function drawWaveform({
 	barWidth: number;
 	barGap: number;
 	color: string;
+	anchor: "center" | "bottom";
 }) {
 	const pixelRatio = Math.min(window.devicePixelRatio || 1, 2);
 	canvas.width = Math.max(1, Math.round(width * pixelRatio));
@@ -98,7 +102,7 @@ function drawWaveform({
 		const barHeight = Math.max(1, amplitude * (height - 2));
 		context.fillRect(
 			index * (barWidth + barGap),
-			(height - barHeight) / 2,
+			anchor === "bottom" ? height - barHeight : (height - barHeight) / 2,
 			barWidth,
 			barHeight
 		);
@@ -121,6 +125,7 @@ export default function AudioWaveform({
 	barWidth = 2,
 	barGap = 1,
 	color = "rgba(255, 255, 255, 0.9)",
+	anchor = "center",
 }: AudioWaveformProps) {
 	const containerRef = useRef<HTMLDivElement>(null);
 	const canvasRef = useRef<HTMLCanvasElement>(null);
@@ -192,13 +197,23 @@ export default function AudioWaveform({
 				barWidth,
 				barGap,
 				color,
+				anchor,
 			});
 		};
 		render();
 		const observer = new ResizeObserver(render);
 		observer.observe(container);
 		return () => observer.disconnect();
-	}, [height, sourceEnd, sourceStart, waveform, barWidth, barGap, color]);
+	}, [
+		height,
+		sourceEnd,
+		sourceStart,
+		waveform,
+		barWidth,
+		barGap,
+		color,
+		anchor,
+	]);
 
 	return (
 		<div
