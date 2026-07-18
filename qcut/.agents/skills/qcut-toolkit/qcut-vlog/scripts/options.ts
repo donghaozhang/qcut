@@ -1,6 +1,8 @@
 import { basename, dirname, extname, join, resolve } from "node:path";
 import {
+	VLOG_BACKGROUND_FITS,
 	VLOG_PRESETS,
+	type VlogBackgroundFit,
 	type VlogOptions,
 	type VlogPaths,
 	type VlogPreset,
@@ -15,6 +17,8 @@ interface ParsedTokens {
 	input?: string;
 	outputDir?: string;
 	finalName?: string;
+	background?: string;
+	backgroundFit?: string;
 	preset?: string;
 	style?: string;
 	model?: string;
@@ -140,6 +144,16 @@ function parseTokens({ argv }: { argv: string[] }): ParsedTokens {
 			index += 1;
 			continue;
 		}
+		if (token === "--background" || token === "-b") {
+			parsed.background = readOptionValue({ argv, index, flag: token });
+			index += 1;
+			continue;
+		}
+		if (token === "--background-fit") {
+			parsed.backgroundFit = readOptionValue({ argv, index, flag: token });
+			index += 1;
+			continue;
+		}
 		if (token === "--preset") {
 			parsed.preset = readOptionValue({ argv, index, flag: token });
 			index += 1;
@@ -223,6 +237,20 @@ function resolvePreset({ value }: { value?: string }): VlogPreset {
 	return preset as VlogPreset;
 }
 
+function resolveBackgroundFit({
+	value,
+}: {
+	value?: string;
+}): VlogBackgroundFit {
+	const fit = value ?? "cover";
+	if (!VLOG_BACKGROUND_FITS.includes(fit as VlogBackgroundFit)) {
+		throw new Error(
+			`--background-fit must be one of: ${VLOG_BACKGROUND_FITS.join(", ")}`
+		);
+	}
+	return fit as VlogBackgroundFit;
+}
+
 function resolveFinalName({ input, value }: { input: string; value?: string }) {
 	const defaultName = `${basename(input, extname(input))}_vlog.mp4`;
 	const finalName = value ?? defaultName;
@@ -251,6 +279,7 @@ export function parseVlogOptions({
 			input: "",
 			outputDir: "",
 			finalName: "",
+			backgroundFit: "cover",
 			preset: "default",
 			model: "scribe_v2",
 			silenceThreshold: DEFAULT_SILENCE_THRESHOLD,
@@ -279,6 +308,8 @@ export function parseVlogOptions({
 		input,
 		outputDir,
 		finalName: resolveFinalName({ input, value: parsed.finalName }),
+		background: parsed.background ? resolve(cwd, parsed.background) : undefined,
+		backgroundFit: resolveBackgroundFit({ value: parsed.backgroundFit }),
 		preset: resolvePreset({ value: parsed.preset }),
 		style: parsed.style,
 		model: parsed.model ?? "scribe_v2",
@@ -309,12 +340,28 @@ export function createVlogPaths({
 		options.outputDir,
 		`${stem}_clean${extname(options.input)}`
 	);
+	const cutoutVideo = join(options.outputDir, `${stem}_cutout.webm`);
+	const editableVideo = join(options.outputDir, `${stem}_vlog_editable.mp4`);
 	const finalVideo = join(options.outputDir, options.finalName);
 	if (resolve(cleanVideo) === resolve(options.input)) {
 		throw new Error("Clean-video output cannot replace the source video");
 	}
 	if (resolve(finalVideo) === resolve(options.input)) {
 		throw new Error("Final-video output cannot replace the source video");
+	}
+	if (resolve(editableVideo) === resolve(options.input)) {
+		throw new Error("Editable-video output cannot replace the source video");
+	}
+	if (resolve(finalVideo) === resolve(editableVideo)) {
+		throw new Error("Final and editable video outputs must be different files");
+	}
+	if (
+		options.background &&
+		[cutoutVideo, editableVideo, finalVideo].some(
+			(outputPath) => resolve(outputPath) === resolve(options.background ?? "")
+		)
+	) {
+		throw new Error("Vlog outputs cannot replace the background image");
 	}
 	return {
 		input: options.input,
@@ -327,10 +374,13 @@ export function createVlogPaths({
 		cuts: join(metadataDir, "cuts.json"),
 		keeps: join(metadataDir, "keeps.json"),
 		cleanVideo,
+		cutoutVideo,
+		editableVideo,
 		cleanAudio: join(options.outputDir, `${stem}_clean_audio.mp3`),
 		srt: join(options.outputDir, "transcription.srt"),
 		finalVideo,
 		previewImage: join(verificationDir, "subtitle-preview.png"),
+		backgroundPreviewImage: join(verificationDir, "background-preview.png"),
 		manifest: join(options.outputDir, "vlog-manifest.json"),
 	};
 }
@@ -345,6 +395,8 @@ Options:
   -i, --input <path>              Input talking-head video
   -o, --output-dir <path>         Output directory (default: <name>-vlog)
       --final-name <name.mp4>     Final filename
+  -b, --background <image>        Cut out the person and composite this image
+      --background-fit <mode>     cover|contain|stretch (default: cover)
       --preset <name>             default|cinematic|bold|minimal|karaoke|news
       --style <json>              Subtitle style overrides
       --model <name>              Transcription model (default: scribe_v2)
