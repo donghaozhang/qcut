@@ -26,6 +26,7 @@ import { QUALITY_SETTINGS, debugLog, debugWarn } from "./ffmpeg/utils";
 import {
 	buildVideoTimelineFilters,
 	buildVideoTimelineLayers,
+	getVideoSourceTimelineDuration,
 } from "./ffmpeg-video-transform";
 import { buildTimelineAudioFilters } from "./ffmpeg/audio-filter-graph";
 import {
@@ -128,6 +129,11 @@ interface ResolvedTextAssLayer {
 
 interface EffectOverlayCarrier {
 	duration: number;
+	trimStart?: number;
+	trimEnd?: number;
+	playbackRate?: number;
+	speedKeyframes?: VideoSource["speedKeyframes"];
+	freezeFrameDuration?: number;
 	effectOverlaySources?: EffectOverlaySource[];
 }
 
@@ -139,16 +145,23 @@ interface EffectPersonCarrier {
 function appendEffectOverlayInputs<T extends EffectOverlayCarrier>({
 	args,
 	fps,
+	fallbackDuration,
 	sources,
 	startInputIndex,
 }: {
 	args: string[];
 	fps: number;
+	fallbackDuration: number;
 	sources: readonly T[];
 	startInputIndex: number;
 }): { sources: T[]; inputCount: number } {
 	let nextInputIndex = startInputIndex;
 	const resolvedSources = sources.map((source) => {
+		const resolvedDuration = getVideoSourceTimelineDuration({ source, fps });
+		const inputDuration =
+			Number.isFinite(resolvedDuration) && resolvedDuration > 0
+				? resolvedDuration
+				: fallbackDuration;
 		const effectOverlaySources = source.effectOverlaySources?.map((overlay) => {
 			if (!fs.existsSync(overlay.path)) {
 				throw new Error(`Effect overlay source not found: ${overlay.path}`);
@@ -158,9 +171,13 @@ function appendEffectOverlayInputs<T extends EffectOverlayCarrier>({
 			} else {
 				args.push("-loop", "1");
 			}
+			const boundedInputDuration = Math.max(
+				1 / Math.max(1, fps),
+				inputDuration
+			);
 			args.push(
 				"-t",
-				String(Math.max(1 / Math.max(1, fps), source.duration)),
+				Number(boundedInputDuration.toFixed(6)).toString(),
 				"-i",
 				overlay.path
 			);
@@ -502,12 +519,14 @@ function buildCompositeEncodeArgs(
 	const resolvedVideoOverlayInputs = appendEffectOverlayInputs({
 		args,
 		fps,
+		fallbackDuration: duration,
 		sources: videoSources,
 		startInputIndex: effectOverlayInputStartIndex,
 	});
 	const resolvedImageOverlayInputs = appendEffectOverlayInputs({
 		args,
 		fps,
+		fallbackDuration: duration,
 		sources: validImages,
 		startInputIndex:
 			effectOverlayInputStartIndex + resolvedVideoOverlayInputs.inputCount,

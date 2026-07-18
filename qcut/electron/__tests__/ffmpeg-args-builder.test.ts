@@ -189,6 +189,42 @@ describe("buildFFmpegArgs", () => {
 			expect(filter).toContain("gblur=sigma=12");
 		});
 
+		it("bounds effect overlays to the speed-aware source duration", () => {
+			const args = buildFFmpegArgs(
+				createBaseOptions({
+					videoSources: [
+						{
+							path: "/source.mp4",
+							startTime: 0,
+							duration: 10,
+							trimStart: 1,
+							trimEnd: 1,
+							playbackRate: 2,
+							freezeFrameDuration: 1,
+							effectOverlaySources: [
+								{
+									resourceId: "sparkle",
+									stageIndex: 0,
+									path: "/sparkle.png",
+									animated: false,
+								},
+							],
+						},
+					],
+				})
+			);
+
+			const overlayInput = args.indexOf("/sparkle.png");
+			expect(args.slice(overlayInput - 5, overlayInput + 1)).toEqual([
+				"-loop",
+				"1",
+				"-t",
+				"5",
+				"-i",
+				"/sparkle.png",
+			]);
+		});
+
 		it("applies per-clip audio processing before mixing", () => {
 			const args = buildFFmpegArgs(
 				createBaseOptions({

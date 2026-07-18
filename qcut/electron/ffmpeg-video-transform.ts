@@ -259,6 +259,13 @@ function easingProgress(progress: number, easing: string): number {
 
 type SpeedSource = Pick<VideoSource, "playbackRate" | "speedKeyframes">;
 
+export interface VideoSourceTimingInput extends SpeedSource {
+	duration: number;
+	trimStart?: number;
+	trimEnd?: number;
+	freezeFrameDuration?: number;
+}
+
 function speedAtFrame(source: SpeedSource, frame: number, fps: number): number {
 	const fallback = clamp(source.playbackRate ?? 1, 0.1, 8);
 	const keyframes = [...(source.speedKeyframes ?? [])].sort(
@@ -321,6 +328,42 @@ export function outputTimeAtSource(
 			sample.sourceStart) /
 			sample.rate
 	);
+}
+
+function resolveVideoSourceTiming({
+	source,
+	fps,
+}: {
+	source: VideoSourceTimingInput;
+	fps: number;
+}) {
+	const sourceDuration = Math.max(
+		1 / Math.max(1, fps),
+		source.duration -
+			Math.max(0, source.trimStart ?? 0) -
+			Math.max(0, source.trimEnd ?? 0)
+	);
+	const speedSamples = buildSpeedSamples(source, sourceDuration, fps);
+	const speedDuration =
+		speedSamples[speedSamples.length - 1]?.outputEnd ?? sourceDuration;
+	const freezeDuration = Math.max(0, source.freezeFrameDuration ?? 0);
+	return {
+		duration: speedDuration + freezeDuration,
+		freezeDuration,
+		sourceDuration,
+		speedDuration,
+		speedSamples,
+	};
+}
+
+export function getVideoSourceTimelineDuration({
+	source,
+	fps,
+}: {
+	source: VideoSourceTimingInput;
+	fps: number;
+}): number {
+	return resolveVideoSourceTiming({ source, fps }).duration;
 }
 
 function buildSpeedSetptsExpression(samples: SpeedSample[]): string {
@@ -1040,16 +1083,13 @@ function buildSegmentFilters({
 	transparentOutput?: boolean;
 }): { steps: string[]; outputLabel: string; duration: number } {
 	const visual = resolveVisual(source);
-	const trimStart = Math.max(0, source.trimStart ?? 0);
-	const sourceDuration = Math.max(
-		1 / Math.max(1, fps),
-		source.duration - trimStart - Math.max(0, source.trimEnd ?? 0)
-	);
-	const speedSamples = buildSpeedSamples(source, sourceDuration, fps);
-	const speedDuration =
-		speedSamples[speedSamples.length - 1]?.outputEnd ?? sourceDuration;
-	const freezeDuration = Math.max(0, source.freezeFrameDuration ?? 0);
-	const duration = speedDuration + freezeDuration;
+	const {
+		duration,
+		freezeDuration,
+		sourceDuration,
+		speedDuration,
+		speedSamples,
+	} = resolveVideoSourceTiming({ source, fps });
 	const steps: string[] = [];
 	const timedSource = buildTimedVideoInput({
 		inputLabel: `${inputIndex}:v`,
