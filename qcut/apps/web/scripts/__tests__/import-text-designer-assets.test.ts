@@ -26,8 +26,8 @@ import {
 type TestFileContent = Buffer | string;
 const execFileAsync = promisify(execFile);
 const IMPORT_SCRIPT_PATH = join(
-	process.cwd(),
-	"apps/web/scripts/import-text-designer-assets.ts"
+	import.meta.dirname,
+	"../import-text-designer-assets.ts"
 );
 
 function checksum({ value }: { value: TestFileContent }): string {
