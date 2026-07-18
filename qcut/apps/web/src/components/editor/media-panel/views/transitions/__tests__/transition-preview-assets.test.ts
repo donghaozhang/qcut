@@ -4,7 +4,12 @@ import { describe, expect, it } from "vitest";
 import { transitionPresets } from "../transition-presets";
 
 function publicAssetPath({ url }: { url: string }): string {
-	return path.resolve("apps/web/public", url.replace(/^\//, ""));
+	// Resolve from this file, not cwd: vitest runs with cwd=apps/web in CI.
+	return path.resolve(
+		import.meta.dirname,
+		"../../../../../../../public",
+		url.replace(/^\//, "")
+	);
 }
 
 describe("transition preview assets", () => {
