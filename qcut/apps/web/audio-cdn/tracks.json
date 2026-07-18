@@ -6,24 +6,11 @@
 		"localizedName": "城市黎明",
 		"description": "Warm synth pads and soft beats for morning city timelapses.",
 		"localizedDescription": "适合城市清晨延时与通勤vlog的温暖合成器音乐。",
-		"tags": [
-			"synth",
-			"city",
-			"morning",
-			"vlog",
-			"optimistic"
-		],
+		"tags": ["synth", "city", "morning", "vlog", "optimistic"],
 		"bpm": 92,
 		"musicalKey": "F",
-		"moods": [
-			"optimistic",
-			"fresh"
-		],
-		"scenes": [
-			"city",
-			"morning",
-			"vlog"
-		],
+		"moods": ["optimistic", "fresh"],
+		"scenes": ["city", "morning", "vlog"],
 		"loopable": false,
 		"duration": 148.83,
 		"file": "tracks/city-dawn.ogg",
@@ -40,24 +27,11 @@
 		"localizedName": "海岛微风",
 		"description": "Tropical acoustic guitar and ukulele for beach travel edits.",
 		"localizedDescription": "适合海岛旅拍与夏日出行的热带吉他音乐。",
-		"tags": [
-			"acoustic",
-			"travel",
-			"beach",
-			"summer",
-			"ukulele"
-		],
+		"tags": ["acoustic", "travel", "beach", "summer", "ukulele"],
 		"bpm": 105,
 		"musicalKey": "C",
-		"moods": [
-			"sunny",
-			"playful"
-		],
-		"scenes": [
-			"travel",
-			"beach",
-			"outdoor"
-		],
+		"moods": ["sunny", "playful"],
+		"scenes": ["travel", "beach", "outdoor"],
 		"loopable": false,
 		"duration": 157.81,
 		"file": "tracks/island-breeze.ogg",
@@ -74,24 +48,11 @@
 		"localizedName": "霓虹电路",
 		"description": "Punchy electro house built for rhythm cuts and beat drops.",
 		"localizedDescription": "适合卡点剪辑与潮流混剪的电子舞曲。",
-		"tags": [
-			"electronic",
-			"dance",
-			"beat",
-			"energetic",
-			"transition"
-		],
+		"tags": ["electronic", "dance", "beat", "energetic", "transition"],
 		"bpm": 126,
 		"musicalKey": "A",
-		"moods": [
-			"energetic",
-			"confident"
-		],
-		"scenes": [
-			"city",
-			"fashion",
-			"social"
-		],
+		"moods": ["energetic", "confident"],
+		"scenes": ["city", "fashion", "social"],
 		"loopable": false,
 		"duration": 126.8,
 		"file": "tracks/neon-circuit.ogg",
@@ -108,24 +69,11 @@
 		"localizedName": "初雪",
 		"description": "Delicate piano and celesta for quiet winter scenes.",
 		"localizedDescription": "适合冬日雪景与温柔叙事的钢琴音乐。",
-		"tags": [
-			"piano",
-			"winter",
-			"peaceful",
-			"snow",
-			"delicate"
-		],
+		"tags": ["piano", "winter", "peaceful", "snow", "delicate"],
 		"bpm": 72,
 		"musicalKey": "D",
-		"moods": [
-			"peaceful",
-			"delicate"
-		],
-		"scenes": [
-			"winter",
-			"night",
-			"story"
-		],
+		"moods": ["peaceful", "delicate"],
+		"scenes": ["winter", "night", "story"],
 		"loopable": false,
 		"duration": 164.61,
 		"file": "tracks/first-snow.ogg",
@@ -142,24 +90,11 @@
 		"localizedName": "深海专注",
 		"description": "Slow ambient textures for study and concentration videos.",
 		"localizedDescription": "适合学习、专注与冥想内容的氛围音乐。",
-		"tags": [
-			"ambient",
-			"focus",
-			"study",
-			"calm",
-			"instrumental"
-		],
+		"tags": ["ambient", "focus", "study", "calm", "instrumental"],
 		"bpm": 70,
 		"musicalKey": "G",
-		"moods": [
-			"calm",
-			"healing"
-		],
-		"scenes": [
-			"focus",
-			"study",
-			"sleep"
-		],
+		"moods": ["calm", "healing"],
+		"scenes": ["focus", "study", "sleep"],
 		"loopable": false,
 		"duration": 212.97,
 		"file": "tracks/deep-focus.ogg",
@@ -176,24 +111,11 @@
 		"localizedName": "金色毕业季",
 		"description": "Nostalgic uplifting pop orchestra for farewell montages.",
 		"localizedDescription": "适合毕业季回忆与告别混剪的怀旧管弦流行乐。",
-		"tags": [
-			"orchestral",
-			"graduation",
-			"memory",
-			"nostalgic",
-			"hopeful"
-		],
+		"tags": ["orchestral", "graduation", "memory", "nostalgic", "hopeful"],
 		"bpm": 100,
 		"musicalKey": "E",
-		"moods": [
-			"nostalgic",
-			"emotional"
-		],
-		"scenes": [
-			"graduation",
-			"memory",
-			"farewell"
-		],
+		"moods": ["nostalgic", "emotional"],
+		"scenes": ["graduation", "memory", "farewell"],
 		"loopable": false,
 		"duration": 161.41,
 		"file": "tracks/golden-graduation.ogg",
@@ -210,24 +132,11 @@
 		"localizedName": "午夜疾驰",
 		"description": "Synthwave cruise for night city driving footage.",
 		"localizedDescription": "适合夜晚城市开车与街拍的复古合成器音乐。",
-		"tags": [
-			"synthwave",
-			"night",
-			"road-trip",
-			"retro",
-			"city"
-		],
+		"tags": ["synthwave", "night", "road-trip", "retro", "city"],
 		"bpm": 110,
 		"musicalKey": "B",
-		"moods": [
-			"confident",
-			"reflective"
-		],
-		"scenes": [
-			"night",
-			"city",
-			"road-trip"
-		],
+		"moods": ["confident", "reflective"],
+		"scenes": ["night", "city", "road-trip"],
 		"loopable": false,
 		"duration": 194.82,
 		"file": "tracks/midnight-drive.ogg",
@@ -244,24 +153,11 @@
 		"localizedName": "纸飞机",
 		"description": "Light playful pop with whistling for everyday vlogs.",
 		"localizedDescription": "适合日常vlog与轻松生活记录的俏皮音乐。",
-		"tags": [
-			"pop",
-			"playful",
-			"vlog",
-			"happy",
-			"light"
-		],
+		"tags": ["pop", "playful", "vlog", "happy", "light"],
 		"bpm": 118,
 		"musicalKey": "C",
-		"moods": [
-			"playful",
-			"positive"
-		],
-		"scenes": [
-			"vlog",
-			"lifestyle",
-			"social"
-		],
+		"moods": ["playful", "positive"],
+		"scenes": ["vlog", "lifestyle", "social"],
 		"loopable": false,
 		"duration": 128.77,
 		"file": "tracks/paper-plane.ogg",
@@ -278,24 +174,11 @@
 		"localizedName": "花期",
 		"description": "Romantic strings and piano for love stories and weddings.",
 		"localizedDescription": "适合婚礼、恋爱叙事与春日画面的浪漫弦乐。",
-		"tags": [
-			"strings",
-			"romantic",
-			"wedding",
-			"spring",
-			"emotional"
-		],
+		"tags": ["strings", "romantic", "wedding", "spring", "emotional"],
 		"bpm": 84,
 		"musicalKey": "F",
-		"moods": [
-			"emotional",
-			"warm"
-		],
-		"scenes": [
-			"love",
-			"wedding",
-			"story"
-		],
+		"moods": ["emotional", "warm"],
+		"scenes": ["love", "wedding", "story"],
 		"loopable": false,
 		"duration": 438.79,
 		"file": "tracks/blossom-season.ogg",
@@ -312,24 +195,11 @@
 		"localizedName": "街头脉搏",
 		"description": "Boom-bap hip-hop groove for urban and fashion edits.",
 		"localizedDescription": "适合街头潮流与时尚大片的嘻哈节奏。",
-		"tags": [
-			"hip-hop",
-			"urban",
-			"fashion",
-			"street",
-			"groove"
-		],
+		"tags": ["hip-hop", "urban", "fashion", "street", "groove"],
 		"bpm": 95,
 		"musicalKey": "G",
-		"moods": [
-			"confident",
-			"energetic"
-		],
-		"scenes": [
-			"fashion",
-			"city",
-			"social"
-		],
+		"moods": ["confident", "energetic"],
+		"scenes": ["fashion", "city", "social"],
 		"loopable": false,
 		"duration": 152.16,
 		"file": "tracks/street-pulse.ogg",
@@ -346,24 +216,11 @@
 		"localizedName": "云端露台",
 		"description": "Chill jazz lounge for cafe and interior lifestyle scenes.",
 		"localizedDescription": "适合咖啡馆、家居与慢生活记录的爵士音乐。",
-		"tags": [
-			"jazz",
-			"lounge",
-			"cafe",
-			"cozy",
-			"lifestyle"
-		],
+		"tags": ["jazz", "lounge", "cafe", "cozy", "lifestyle"],
 		"bpm": 88,
 		"musicalKey": "Bb",
-		"moods": [
-			"smooth",
-			"warm"
-		],
-		"scenes": [
-			"interior",
-			"lifestyle",
-			"food"
-		],
+		"moods": ["smooth", "warm"],
+		"scenes": ["interior", "lifestyle", "food"],
 		"loopable": false,
 		"duration": 273.69,
 		"file": "tracks/cloud-terrace.ogg",
@@ -380,24 +237,11 @@
 		"localizedName": "星光巡游",
 		"description": "Epic hybrid orchestra for trailers and reveal moments.",
 		"localizedDescription": "适合预告片、开场与高光揭晓的史诗管弦乐。",
-		"tags": [
-			"cinematic",
-			"trailer",
-			"epic",
-			"orchestral",
-			"dramatic"
-		],
+		"tags": ["cinematic", "trailer", "epic", "orchestral", "dramatic"],
 		"bpm": 128,
 		"musicalKey": "D",
-		"moods": [
-			"dramatic",
-			"confident"
-		],
-		"scenes": [
-			"trailer",
-			"reveal",
-			"title"
-		],
+		"moods": ["dramatic", "confident"],
+		"scenes": ["trailer", "reveal", "title"],
 		"loopable": false,
 		"duration": 7.08,
 		"file": "tracks/starlight-parade.ogg",
@@ -414,24 +258,11 @@
 		"localizedName": "早市烟火",
 		"description": "Upbeat folk for food, documentary, and daily life stories.",
 		"localizedDescription": "适合美食探店与市井纪实的轻快民谣。",
-		"tags": [
-			"folk",
-			"documentary",
-			"food",
-			"daily",
-			"acoustic"
-		],
+		"tags": ["folk", "documentary", "food", "daily", "acoustic"],
 		"bpm": 112,
 		"musicalKey": "G",
-		"moods": [
-			"positive",
-			"fresh"
-		],
-		"scenes": [
-			"documentary",
-			"food",
-			"lifestyle"
-		],
+		"moods": ["positive", "fresh"],
+		"scenes": ["documentary", "food", "lifestyle"],
 		"loopable": false,
 		"duration": 114.27,
 		"file": "tracks/morning-market.ogg",
@@ -448,24 +279,11 @@
 		"localizedName": "霓虹偶像",
 		"description": "Bright K-pop style dance track for fashion and dance reels.",
 		"localizedDescription": "适合韩流舞蹈与时尚短视频的电子舞曲。",
-		"tags": [
-			"kpop",
-			"dance",
-			"fashion",
-			"bright",
-			"electronic"
-		],
+		"tags": ["kpop", "dance", "fashion", "bright", "electronic"],
 		"bpm": 124,
 		"musicalKey": "A",
-		"moods": [
-			"energetic",
-			"confident"
-		],
-		"scenes": [
-			"fashion",
-			"dance",
-			"social"
-		],
+		"moods": ["energetic", "confident"],
+		"scenes": ["fashion", "dance", "social"],
 		"loopable": false,
 		"duration": 160.17,
 		"file": "tracks/neon-idol.ogg",
@@ -482,24 +300,11 @@
 		"localizedName": "雨天窗台",
 		"description": "Mellow lo-fi with rain textures for cozy nostalgic scenes.",
 		"localizedDescription": "适合雨天独处与治愈氛围的lo-fi音乐。",
-		"tags": [
-			"lofi",
-			"rain",
-			"nostalgic",
-			"cozy",
-			"healing"
-		],
+		"tags": ["lofi", "rain", "nostalgic", "cozy", "healing"],
 		"bpm": 76,
 		"musicalKey": "Eb",
-		"moods": [
-			"nostalgic",
-			"healing"
-		],
-		"scenes": [
-			"rain",
-			"interior",
-			"memory"
-		],
+		"moods": ["nostalgic", "healing"],
+		"scenes": ["rain", "interior", "memory"],
 		"loopable": false,
 		"duration": 112.31,
 		"file": "tracks/rainy-windowsill.ogg",
@@ -516,24 +321,11 @@
 		"localizedName": "冲线时刻",
 		"description": "High-energy rock-electronic hybrid for sports highlights.",
 		"localizedDescription": "适合运动集锦与竞速高光的燃向音乐。",
-		"tags": [
-			"rock",
-			"sport",
-			"energetic",
-			"electronic",
-			"achievement"
-		],
+		"tags": ["rock", "sport", "energetic", "electronic", "achievement"],
 		"bpm": 132,
 		"musicalKey": "E",
-		"moods": [
-			"energetic",
-			"dramatic"
-		],
-		"scenes": [
-			"sport",
-			"motion",
-			"recap"
-		],
+		"moods": ["energetic", "dramatic"],
+		"scenes": ["sport", "motion", "recap"],
 		"loopable": false,
 		"duration": 135.74,
 		"file": "tracks/victory-lap.ogg",
@@ -550,23 +342,11 @@
 		"localizedName": "午后吉他",
 		"description": "Lazy fingerstyle acoustic guitar for warm afternoon scenes.",
 		"localizedDescription": "慵懒指弹木吉他，适合午后阳光与生活记录。",
-		"tags": [
-			"instrumental",
-			"guitar",
-			"acoustic",
-			"afternoon"
-		],
+		"tags": ["instrumental", "guitar", "acoustic", "afternoon"],
 		"bpm": 88,
 		"musicalKey": "C",
-		"moods": [
-			"warm",
-			"smooth"
-		],
-		"scenes": [
-			"lifestyle",
-			"interior",
-			"vlog"
-		],
+		"moods": ["warm", "smooth"],
+		"scenes": ["lifestyle", "interior", "vlog"],
 		"loopable": false,
 		"duration": 161.21,
 		"file": "tracks/afternoon-guitar.ogg",
@@ -583,22 +363,11 @@
 		"localizedName": "安静的钢琴信",
 		"description": "Intimate solo piano like a handwritten letter.",
 		"localizedDescription": "如手写信般亲密的独奏钢琴。",
-		"tags": [
-			"instrumental",
-			"piano",
-			"emotional"
-		],
+		"tags": ["instrumental", "piano", "emotional"],
 		"bpm": 72,
 		"musicalKey": "G",
-		"moods": [
-			"delicate",
-			"reflective"
-		],
-		"scenes": [
-			"story",
-			"memory",
-			"love"
-		],
+		"moods": ["delicate", "reflective"],
+		"scenes": ["story", "memory", "love"],
 		"loopable": false,
 		"duration": 150.16,
 		"file": "tracks/quiet-piano-letter.ogg",
@@ -615,22 +384,11 @@
 		"localizedName": "星河弦乐",
 		"description": "Chamber strings drifting under a starry sky.",
 		"localizedDescription": "星空下流动的室内弦乐。",
-		"tags": [
-			"instrumental",
-			"strings",
-			"night"
-		],
+		"tags": ["instrumental", "strings", "night"],
 		"bpm": 76,
 		"musicalKey": "D",
-		"moods": [
-			"calm",
-			"dreamy"
-		],
-		"scenes": [
-			"night",
-			"documentary",
-			"title"
-		],
+		"moods": ["calm", "dreamy"],
+		"scenes": ["night", "documentary", "title"],
 		"loopable": false,
 		"duration": 455.85,
 		"file": "tracks/starlit-strings.ogg",
@@ -647,22 +405,11 @@
 		"localizedName": "纸船",
 		"description": "Music box and piano lullaby, light as a paper boat.",
 		"localizedDescription": "八音盒与钢琴的摇篮曲，轻得像一只纸船。",
-		"tags": [
-			"instrumental",
-			"healing",
-			"musicbox"
-		],
+		"tags": ["instrumental", "healing", "musicbox"],
 		"bpm": 70,
 		"musicalKey": "F",
-		"moods": [
-			"healing",
-			"nostalgic"
-		],
-		"scenes": [
-			"memory",
-			"sleep",
-			"story"
-		],
+		"moods": ["healing", "nostalgic"],
+		"scenes": ["memory", "sleep", "story"],
 		"loopable": false,
 		"duration": 167.26,
 		"file": "tracks/paper-boat.ogg",
@@ -679,22 +426,11 @@
 		"localizedName": "青春纪念册",
 		"description": "Hopeful pop-rock instrumental for graduation montages.",
 		"localizedDescription": "适合毕业混剪的青春流行摇滚。",
-		"tags": [
-			"graduation",
-			"youth",
-			"band"
-		],
+		"tags": ["graduation", "youth", "band"],
 		"bpm": 120,
 		"musicalKey": "E",
-		"moods": [
-			"optimistic",
-			"energetic"
-		],
-		"scenes": [
-			"graduation",
-			"recap",
-			"sport"
-		],
+		"moods": ["optimistic", "energetic"],
+		"scenes": ["graduation", "recap", "sport"],
 		"loopable": false,
 		"duration": 195.02,
 		"file": "tracks/youth-album.ogg",
@@ -711,23 +447,11 @@
 		"localizedName": "教室的黄昏",
 		"description": "Nostalgic piano for empty classrooms and long goodbyes.",
 		"localizedDescription": "夕阳下空教室的怀旧钢琴。",
-		"tags": [
-			"graduation",
-			"piano",
-			"nostalgic",
-			"emotional"
-		],
+		"tags": ["graduation", "piano", "nostalgic", "emotional"],
 		"bpm": 80,
 		"musicalKey": "A",
-		"moods": [
-			"nostalgic",
-			"emotional"
-		],
-		"scenes": [
-			"graduation",
-			"farewell",
-			"memory"
-		],
+		"moods": ["nostalgic", "emotional"],
+		"scenes": ["graduation", "farewell", "memory"],
 		"loopable": false,
 		"duration": 139.7,
 		"file": "tracks/dusk-classroom.ogg",
@@ -744,22 +468,11 @@
 		"localizedName": "抛起学士帽",
 		"description": "Triumphant brass and strings for the big graduation moment.",
 		"localizedDescription": "抛帽瞬间的辉煌铜管与弦乐。",
-		"tags": [
-			"graduation",
-			"orchestral",
-			"celebration"
-		],
+		"tags": ["graduation", "orchestral", "celebration"],
 		"bpm": 112,
 		"musicalKey": "C",
-		"moods": [
-			"confident",
-			"dramatic"
-		],
-		"scenes": [
-			"graduation",
-			"reveal",
-			"trailer"
-		],
+		"moods": ["confident", "dramatic"],
+		"scenes": ["graduation", "reveal", "trailer"],
 		"loopable": false,
 		"duration": 139.42,
 		"file": "tracks/cap-toss.ogg",
@@ -776,22 +489,11 @@
 		"localizedName": "最后的夏日铃声",
 		"description": "Bittersweet school band vibe with glockenspiel and light drums.",
 		"localizedDescription": "苦乐参半的校园乐队氛围，钟琴与轻鼓点。",
-		"tags": [
-			"graduation",
-			"school",
-			"light"
-		],
+		"tags": ["graduation", "school", "light"],
 		"bpm": 100,
 		"musicalKey": "G",
-		"moods": [
-			"nostalgic",
-			"warm"
-		],
-		"scenes": [
-			"graduation",
-			"farewell",
-			"recap"
-		],
+		"moods": ["nostalgic", "warm"],
+		"scenes": ["graduation", "farewell", "recap"],
 		"loopable": false,
 		"duration": 165.34,
 		"file": "tracks/last-summer-bell.ogg",
@@ -808,23 +510,11 @@
 		"localizedName": "阳光尤克里里",
 		"description": "Cheerful ukulele strums with hand claps.",
 		"localizedDescription": "欢快的尤克里里扫弦与拍手声。",
-		"tags": [
-			"light",
-			"ukulele",
-			"happy",
-			"vlog"
-		],
+		"tags": ["light", "ukulele", "happy", "vlog"],
 		"bpm": 108,
 		"musicalKey": "C",
-		"moods": [
-			"sunny",
-			"playful"
-		],
-		"scenes": [
-			"vlog",
-			"travel",
-			"food"
-		],
+		"moods": ["sunny", "playful"],
+		"scenes": ["vlog", "travel", "food"],
 		"loopable": false,
 		"duration": 99.84,
 		"file": "tracks/sunny-ukulele.ogg",
@@ -841,22 +531,11 @@
 		"localizedName": "清晨口哨",
 		"description": "Whistle melody over an easy acoustic groove.",
 		"localizedDescription": "轻松原声律动上的口哨旋律。",
-		"tags": [
-			"light",
-			"whistle",
-			"morning"
-		],
+		"tags": ["light", "whistle", "morning"],
 		"bpm": 104,
 		"musicalKey": "D",
-		"moods": [
-			"fresh",
-			"optimistic"
-		],
-		"scenes": [
-			"morning",
-			"lifestyle",
-			"vlog"
-		],
+		"moods": ["fresh", "optimistic"],
+		"scenes": ["morning", "lifestyle", "vlog"],
 		"loopable": false,
 		"duration": 194.86,
 		"file": "tracks/morning-whistle.ogg",
@@ -873,23 +552,11 @@
 		"localizedName": "野餐摇摆",
 		"description": "Playful gypsy-jazz swing for picnics and picnics.",
 		"localizedDescription": "适合野餐日常的俏皮吉普赛爵士摇摆。",
-		"tags": [
-			"light",
-			"jazz",
-			"swing",
-			"playful"
-		],
+		"tags": ["light", "jazz", "swing", "playful"],
 		"bpm": 140,
 		"musicalKey": "Bb",
-		"moods": [
-			"playful",
-			"warm"
-		],
-		"scenes": [
-			"food",
-			"lifestyle",
-			"social"
-		],
+		"moods": ["playful", "warm"],
+		"scenes": ["food", "lifestyle", "social"],
 		"loopable": false,
 		"duration": 155.56,
 		"file": "tracks/picnic-swing.ogg",
@@ -906,23 +573,11 @@
 		"localizedName": "汽水气泡",
 		"description": "Fizzy cute pop with plucks and bells.",
 		"localizedDescription": "气泡感的可爱流行，拨弦与铃铛。",
-		"tags": [
-			"light",
-			"cute",
-			"pop",
-			"social"
-		],
+		"tags": ["light", "cute", "pop", "social"],
 		"bpm": 118,
 		"musicalKey": "F",
-		"moods": [
-			"playful",
-			"sunny"
-		],
-		"scenes": [
-			"social",
-			"food",
-			"vlog"
-		],
+		"moods": ["playful", "sunny"],
+		"scenes": ["social", "food", "vlog"],
 		"loopable": false,
 		"duration": 142.31,
 		"file": "tracks/soda-bubbles.ogg",
@@ -939,23 +594,11 @@
 		"localizedName": "霓虹首尔",
 		"description": "Sleek K-pop dance instrumental with neon synths.",
 		"localizedDescription": "霓虹合成器的韩流舞曲律动。",
-		"tags": [
-			"kpop",
-			"dance",
-			"synth",
-			"city"
-		],
+		"tags": ["kpop", "dance", "synth", "city"],
 		"bpm": 124,
 		"musicalKey": "Am",
-		"moods": [
-			"confident",
-			"energetic"
-		],
-		"scenes": [
-			"fashion",
-			"dance",
-			"city"
-		],
+		"moods": ["confident", "energetic"],
+		"scenes": ["fashion", "dance", "city"],
 		"loopable": false,
 		"duration": 181.37,
 		"file": "tracks/neon-seoul.ogg",
@@ -972,22 +615,11 @@
 		"localizedName": "打歌舞台",
 		"description": "High-energy K-pop stage anthem instrumental.",
 		"localizedDescription": "高能量的打歌舞台伴奏。",
-		"tags": [
-			"kpop",
-			"dance",
-			"dynamic"
-		],
+		"tags": ["kpop", "dance", "dynamic"],
 		"bpm": 128,
 		"musicalKey": "Cm",
-		"moods": [
-			"energetic",
-			"confident"
-		],
-		"scenes": [
-			"dance",
-			"trailer",
-			"sport"
-		],
+		"moods": ["energetic", "confident"],
+		"scenes": ["dance", "trailer", "sport"],
 		"loopable": false,
 		"duration": 177.59,
 		"file": "tracks/idol-stage.ogg",
@@ -1004,23 +636,11 @@
 		"localizedName": "奶茶心动",
 		"description": "Soft city-pop groove with retro synth chords.",
 		"localizedDescription": "复古合成器和弦的柔软 city-pop 律动。",
-		"tags": [
-			"kpop",
-			"citypop",
-			"retro",
-			"love"
-		],
+		"tags": ["kpop", "citypop", "retro", "love"],
 		"bpm": 102,
 		"musicalKey": "Eb",
-		"moods": [
-			"smooth",
-			"dreamy"
-		],
-		"scenes": [
-			"love",
-			"fashion",
-			"city"
-		],
+		"moods": ["smooth", "dreamy"],
+		"scenes": ["love", "fashion", "city"],
 		"loopable": false,
 		"duration": 207.76,
 		"file": "tracks/bubble-tea-crush.ogg",
@@ -1037,22 +657,11 @@
 		"localizedName": "练习室",
 		"description": "Rhythmic dance-practice beat with claps and 808s.",
 		"localizedDescription": "拍手与808的舞蹈练习室节拍。",
-		"tags": [
-			"kpop",
-			"dance",
-			"beat"
-		],
+		"tags": ["kpop", "dance", "beat"],
 		"bpm": 120,
 		"musicalKey": "Gm",
-		"moods": [
-			"confident",
-			"energetic"
-		],
-		"scenes": [
-			"dance",
-			"sport",
-			"motion"
-		],
+		"moods": ["confident", "energetic"],
+		"scenes": ["dance", "sport", "motion"],
 		"loopable": false,
 		"duration": 261.87,
 		"file": "tracks/practice-room.ogg",
@@ -1069,22 +678,11 @@
 		"localizedName": "高速的风",
 		"description": "Driving indie-rock instrumental for road trips.",
 		"localizedDescription": "适合公路旅行的驰骋独立摇滚。",
-		"tags": [
-			"travel",
-			"rock",
-			"road"
-		],
+		"tags": ["travel", "rock", "road"],
 		"bpm": 118,
 		"musicalKey": "D",
-		"moods": [
-			"energetic",
-			"optimistic"
-		],
-		"scenes": [
-			"road-trip",
-			"travel",
-			"outdoor"
-		],
+		"moods": ["energetic", "optimistic"],
+		"scenes": ["road-trip", "travel", "outdoor"],
 		"loopable": false,
 		"duration": 185.96,
 		"file": "tracks/highway-wind.ogg",
@@ -1101,23 +699,11 @@
 		"localizedName": "跳岛之旅",
 		"description": "Tropical house groove with steel drums and marimba.",
 		"localizedDescription": "钢鼓与马林巴的热带浩室律动。",
-		"tags": [
-			"travel",
-			"tropical",
-			"beach",
-			"light"
-		],
+		"tags": ["travel", "tropical", "beach", "light"],
 		"bpm": 110,
 		"musicalKey": "A",
-		"moods": [
-			"sunny",
-			"smooth"
-		],
-		"scenes": [
-			"beach",
-			"travel",
-			"vlog"
-		],
+		"moods": ["sunny", "smooth"],
+		"scenes": ["beach", "travel", "vlog"],
 		"loopable": false,
 		"duration": 183.84,
 		"file": "tracks/island-hopping.ogg",
@@ -1134,23 +720,11 @@
 		"localizedName": "背包民谣",
 		"description": "Rambling folk with banjo, stomps and claps.",
 		"localizedDescription": "班卓琴、跺脚与拍手的漫游民谣。",
-		"tags": [
-			"travel",
-			"folk",
-			"banjo",
-			"outdoor"
-		],
+		"tags": ["travel", "folk", "banjo", "outdoor"],
 		"bpm": 116,
 		"musicalKey": "G",
-		"moods": [
-			"warm",
-			"playful"
-		],
-		"scenes": [
-			"outdoor",
-			"travel",
-			"documentary"
-		],
+		"moods": ["warm", "playful"],
+		"scenes": ["outdoor", "travel", "documentary"],
 		"loopable": false,
 		"duration": 172.75,
 		"file": "tracks/backpack-folk.ogg",
@@ -1167,22 +741,11 @@
 		"localizedName": "沙漠日落",
 		"description": "Cinematic world music with duduk and hand percussion.",
 		"localizedDescription": "杜杜克与手鼓的电影感世界音乐。",
-		"tags": [
-			"travel",
-			"world",
-			"cinematic"
-		],
+		"tags": ["travel", "world", "cinematic"],
 		"bpm": 92,
 		"musicalKey": "Dm",
-		"moods": [
-			"dramatic",
-			"reflective"
-		],
-		"scenes": [
-			"travel",
-			"documentary",
-			"trailer"
-		],
+		"moods": ["dramatic", "reflective"],
+		"scenes": ["travel", "documentary", "trailer"],
 		"loopable": false,
 		"duration": 201.9,
 		"file": "tracks/desert-sunset.ogg",
@@ -1199,23 +762,11 @@
 		"localizedName": "热门节奏",
 		"description": "Instantly catchy groove built for short videos.",
 		"localizedDescription": "为短视频而生的洗脑律动。",
-		"tags": [
-			"social",
-			"funk",
-			"catchy",
-			"dynamic"
-		],
+		"tags": ["social", "funk", "catchy", "dynamic"],
 		"bpm": 122,
 		"musicalKey": "E",
-		"moods": [
-			"playful",
-			"energetic"
-		],
-		"scenes": [
-			"social",
-			"fashion",
-			"food"
-		],
+		"moods": ["playful", "energetic"],
+		"scenes": ["social", "fashion", "food"],
 		"loopable": false,
 		"duration": 132.65,
 		"file": "tracks/viral-groove.ogg",
@@ -1232,22 +783,11 @@
 		"localizedName": "洗脑旋律",
 		"description": "Minimal pop hook with vocal-chop textures.",
 		"localizedDescription": "人声切片质感的极简流行钩子。",
-		"tags": [
-			"social",
-			"pop",
-			"vocal-chop"
-		],
+		"tags": ["social", "pop", "vocal-chop"],
 		"bpm": 116,
 		"musicalKey": "B",
-		"moods": [
-			"playful",
-			"confident"
-		],
-		"scenes": [
-			"social",
-			"fashion",
-			"reveal"
-		],
+		"moods": ["playful", "confident"],
+		"scenes": ["social", "fashion", "reveal"],
 		"loopable": true,
 		"duration": 132.01,
 		"file": "tracks/hook-machine.ogg",
@@ -1264,23 +804,11 @@
 		"localizedName": "漂移律动",
 		"description": "Dark phonk with cowbell lead and heavy 808s.",
 		"localizedDescription": "牛铃主奏与重808的暗黑Phonk。",
-		"tags": [
-			"social",
-			"phonk",
-			"beat",
-			"dynamic"
-		],
+		"tags": ["social", "phonk", "beat", "dynamic"],
 		"bpm": 130,
 		"musicalKey": "Fm",
-		"moods": [
-			"confident",
-			"dramatic"
-		],
-		"scenes": [
-			"motion",
-			"sport",
-			"night"
-		],
+		"moods": ["confident", "dramatic"],
+		"scenes": ["motion", "sport", "night"],
 		"loopable": false,
 		"duration": 317.14,
 		"file": "tracks/phonk-drift.ogg",
@@ -1297,21 +825,11 @@
 		"localizedName": "整活时刻",
 		"description": "Goofy quirky track for comedy cuts and memes.",
 		"localizedDescription": "适合搞笑整活片段的滑稽配乐。",
-		"tags": [
-			"social",
-			"comedy",
-			"quirky"
-		],
+		"tags": ["social", "comedy", "quirky"],
 		"bpm": 126,
 		"musicalKey": "C",
-		"moods": [
-			"playful"
-		],
-		"scenes": [
-			"social",
-			"story",
-			"food"
-		],
+		"moods": ["playful"],
+		"scenes": ["social", "story", "food"],
 		"loopable": false,
 		"duration": 58.75,
 		"file": "tracks/meme-energy.ogg",
@@ -1328,23 +846,11 @@
 		"localizedName": "节拍降临",
 		"description": "Big-room EDM build and drop for beat-sync edits.",
 		"localizedDescription": "适合卡点剪辑的大房间EDM铺垫与落拍。",
-		"tags": [
-			"beat",
-			"edm",
-			"drop",
-			"dynamic"
-		],
+		"tags": ["beat", "edm", "drop", "dynamic"],
 		"bpm": 128,
 		"musicalKey": "Gm",
-		"moods": [
-			"energetic",
-			"dramatic"
-		],
-		"scenes": [
-			"motion",
-			"dance",
-			"trailer"
-		],
+		"moods": ["energetic", "dramatic"],
+		"scenes": ["motion", "dance", "trailer"],
 		"loopable": false,
 		"duration": 150.36,
 		"file": "tracks/beat-drop.ogg",
@@ -1361,22 +867,11 @@
 		"localizedName": "变速卡点",
 		"description": "Half-time trap switches for dramatic beat cuts.",
 		"localizedDescription": "戏剧性变速切换的Trap卡点。",
-		"tags": [
-			"beat",
-			"trap",
-			"switch"
-		],
+		"tags": ["beat", "trap", "switch"],
 		"bpm": 140,
 		"musicalKey": "Cm",
-		"moods": [
-			"confident",
-			"dramatic"
-		],
-		"scenes": [
-			"motion",
-			"fashion",
-			"sport"
-		],
+		"moods": ["confident", "dramatic"],
+		"scenes": ["motion", "fashion", "sport"],
 		"loopable": false,
 		"duration": 156.21,
 		"file": "tracks/trap-switch.ogg",
@@ -1393,23 +888,11 @@
 		"localizedName": "派对四拍",
 		"description": "Groovy house four-on-the-floor with piano stabs.",
 		"localizedDescription": "钢琴切分的律动浩室四拍。",
-		"tags": [
-			"beat",
-			"house",
-			"dance",
-			"social"
-		],
+		"tags": ["beat", "house", "dance", "social"],
 		"bpm": 124,
 		"musicalKey": "Am",
-		"moods": [
-			"energetic",
-			"playful"
-		],
-		"scenes": [
-			"dance",
-			"social",
-			"city"
-		],
+		"moods": ["energetic", "playful"],
+		"scenes": ["dance", "social", "city"],
 		"loopable": true,
 		"duration": 262.15,
 		"file": "tracks/house-party.ogg",
@@ -1426,22 +909,11 @@
 		"localizedName": "重拳剪辑",
 		"description": "Heavy percussion hits spaced for hard cuts.",
 		"localizedDescription": "为硬切设计的重打击乐点。",
-		"tags": [
-			"beat",
-			"percussion",
-			"trailer"
-		],
+		"tags": ["beat", "percussion", "trailer"],
 		"bpm": 96,
 		"musicalKey": "Dm",
-		"moods": [
-			"dramatic",
-			"confident"
-		],
-		"scenes": [
-			"trailer",
-			"sport",
-			"reveal"
-		],
+		"moods": ["dramatic", "confident"],
+		"scenes": ["trailer", "sport", "reveal"],
 		"loopable": false,
 		"duration": 46.98,
 		"file": "tracks/punch-cut.ogg",
@@ -1458,22 +930,11 @@
 		"localizedName": "炉火爵士",
 		"description": "Cozy jazz trio beside a crackling fireplace.",
 		"localizedDescription": "炉火旁的温暖爵士三重奏。",
-		"tags": [
-			"winter",
-			"jazz",
-			"cozy"
-		],
+		"tags": ["winter", "jazz", "cozy"],
 		"bpm": 90,
 		"musicalKey": "Bb",
-		"moods": [
-			"warm",
-			"smooth"
-		],
-		"scenes": [
-			"interior",
-			"winter",
-			"food"
-		],
+		"moods": ["warm", "smooth"],
+		"scenes": ["interior", "winter", "food"],
 		"loopable": false,
 		"duration": 122.2,
 		"file": "tracks/fireplace-jazz.ogg",
@@ -1490,22 +951,11 @@
 		"localizedName": "落雪铃铛",
 		"description": "Sleigh bells and celesta drifting like snow.",
 		"localizedDescription": "雪橇铃与钢片琴如雪飘落。",
-		"tags": [
-			"winter",
-			"bells",
-			"holiday"
-		],
+		"tags": ["winter", "bells", "holiday"],
 		"bpm": 84,
 		"musicalKey": "F",
-		"moods": [
-			"peaceful",
-			"warm"
-		],
-		"scenes": [
-			"winter",
-			"night",
-			"story"
-		],
+		"moods": ["peaceful", "warm"],
+		"scenes": ["winter", "night", "story"],
 		"loopable": false,
 		"duration": 193.17,
 		"file": "tracks/snowfall-bells.ogg",
@@ -1522,23 +972,11 @@
 		"localizedName": "温暖毛衣",
 		"description": "Lo-fi beat with vinyl warmth for cold days.",
 		"localizedDescription": "冷天里带黑胶温度的Lo-fi节拍。",
-		"tags": [
-			"winter",
-			"lofi",
-			"healing",
-			"study"
-		],
+		"tags": ["winter", "lofi", "healing", "study"],
 		"bpm": 82,
 		"musicalKey": "Eb",
-		"moods": [
-			"warm",
-			"calm"
-		],
-		"scenes": [
-			"study",
-			"interior",
-			"winter"
-		],
+		"moods": ["warm", "calm"],
+		"scenes": ["study", "interior", "winter"],
 		"loopable": true,
 		"duration": 163.09,
 		"file": "tracks/cozy-sweater.ogg",
@@ -1555,22 +993,11 @@
 		"localizedName": "冰湖漫步",
 		"description": "Crystalline ambient piano over frozen pads.",
 		"localizedDescription": "冰封铺底上的晶莹环境钢琴。",
-		"tags": [
-			"winter",
-			"ambient",
-			"instrumental"
-		],
+		"tags": ["winter", "ambient", "instrumental"],
 		"bpm": 68,
 		"musicalKey": "A",
-		"moods": [
-			"peaceful",
-			"reflective"
-		],
-		"scenes": [
-			"winter",
-			"outdoor",
-			"documentary"
-		],
+		"moods": ["peaceful", "reflective"],
+		"scenes": ["winter", "outdoor", "documentary"],
 		"loopable": false,
 		"duration": 239.56,
 		"file": "tracks/ice-lake-walk.ogg",
@@ -1587,22 +1014,11 @@
 		"localizedName": "深呼吸",
 		"description": "Slow meditation pads with soft chimes.",
 		"localizedDescription": "冥想铺底与轻柔风铃。",
-		"tags": [
-			"healing",
-			"meditation",
-			"ambient"
-		],
+		"tags": ["healing", "meditation", "ambient"],
 		"bpm": 60,
 		"musicalKey": "C",
-		"moods": [
-			"healing",
-			"peaceful"
-		],
-		"scenes": [
-			"sleep",
-			"focus",
-			"study"
-		],
+		"moods": ["healing", "peaceful"],
+		"scenes": ["sleep", "focus", "study"],
 		"loopable": true,
 		"duration": 127.52,
 		"file": "tracks/deep-breath.ogg",
@@ -1619,23 +1035,11 @@
 		"localizedName": "林间小雨",
 		"description": "Gentle guitar and piano with rainy forest air.",
 		"localizedDescription": "雨中森林气息的吉他与钢琴。",
-		"tags": [
-			"healing",
-			"nature",
-			"rain",
-			"instrumental"
-		],
+		"tags": ["healing", "nature", "rain", "instrumental"],
 		"bpm": 74,
 		"musicalKey": "G",
-		"moods": [
-			"healing",
-			"fresh"
-		],
-		"scenes": [
-			"rain",
-			"outdoor",
-			"sleep"
-		],
+		"moods": ["healing", "fresh"],
+		"scenes": ["rain", "outdoor", "sleep"],
 		"loopable": false,
 		"duration": 172.59,
 		"file": "tracks/forest-rain.ogg",
@@ -1652,22 +1056,11 @@
 		"localizedName": "云朵枕头",
 		"description": "Dreamy bedtime pads with slow harp.",
 		"localizedDescription": "梦境般的睡前铺底与慢竖琴。",
-		"tags": [
-			"healing",
-			"sleep",
-			"harp"
-		],
+		"tags": ["healing", "sleep", "harp"],
 		"bpm": 58,
 		"musicalKey": "Db",
-		"moods": [
-			"calm",
-			"dreamy"
-		],
-		"scenes": [
-			"sleep",
-			"night",
-			"story"
-		],
+		"moods": ["calm", "dreamy"],
+		"scenes": ["sleep", "night", "story"],
 		"loopable": true,
 		"duration": 206.4,
 		"file": "tracks/cloud-pillow.ogg",
@@ -1684,22 +1077,11 @@
 		"localizedName": "温柔潮汐",
 		"description": "Soft neo-classical piano swelling like tides.",
 		"localizedDescription": "如潮汐起伏的新古典钢琴。",
-		"tags": [
-			"healing",
-			"piano",
-			"emotional"
-		],
+		"tags": ["healing", "piano", "emotional"],
 		"bpm": 66,
 		"musicalKey": "F",
-		"moods": [
-			"healing",
-			"emotional"
-		],
-		"scenes": [
-			"beach",
-			"memory",
-			"documentary"
-		],
+		"moods": ["healing", "emotional"],
+		"scenes": ["beach", "memory", "documentary"],
 		"loopable": false,
 		"duration": 178.51,
 		"file": "tracks/warm-tide.ogg",
@@ -1716,21 +1098,11 @@
 		"localizedName": "冲刺",
 		"description": "Fast breakbeat with urgent synth stabs.",
 		"localizedDescription": "急促合成器切分的快速碎拍。",
-		"tags": [
-			"dynamic",
-			"breakbeat",
-			"sport"
-		],
+		"tags": ["dynamic", "breakbeat", "sport"],
 		"bpm": 150,
 		"musicalKey": "Em",
-		"moods": [
-			"energetic"
-		],
-		"scenes": [
-			"sport",
-			"motion",
-			"trailer"
-		],
+		"moods": ["energetic"],
+		"scenes": ["sport", "motion", "trailer"],
 		"loopable": false,
 		"duration": 173.06,
 		"file": "tracks/sprint.ogg",
@@ -1747,22 +1119,11 @@
 		"localizedName": "能量满格",
 		"description": "Electro rock hybrid with big riffs and synths.",
 		"localizedDescription": "大失真吉他与合成器的电子摇滚。",
-		"tags": [
-			"dynamic",
-			"rock",
-			"electro"
-		],
+		"tags": ["dynamic", "rock", "electro"],
 		"bpm": 132,
 		"musicalKey": "Am",
-		"moods": [
-			"energetic",
-			"confident"
-		],
-		"scenes": [
-			"sport",
-			"trailer",
-			"motion"
-		],
+		"moods": ["energetic", "confident"],
+		"scenes": ["sport", "trailer", "motion"],
 		"loopable": false,
 		"duration": 256.13,
 		"file": "tracks/power-up.ogg",
@@ -1779,23 +1140,11 @@
 		"localizedName": "霓虹赛车",
 		"description": "Synthwave chase with pulsing arpeggios.",
 		"localizedDescription": "脉冲琶音的合成器浪潮追逐。",
-		"tags": [
-			"dynamic",
-			"synthwave",
-			"retro",
-			"city"
-		],
+		"tags": ["dynamic", "synthwave", "retro", "city"],
 		"bpm": 118,
 		"musicalKey": "Bm",
-		"moods": [
-			"confident",
-			"energetic"
-		],
-		"scenes": [
-			"motion",
-			"night",
-			"city"
-		],
+		"moods": ["confident", "energetic"],
+		"scenes": ["motion", "night", "city"],
 		"loopable": false,
 		"duration": 168.7,
 		"file": "tracks/neon-racer.ogg",
@@ -1812,23 +1161,11 @@
 		"localizedName": "灌篮时刻",
 		"description": "Hype sports hip-hop with brass hits.",
 		"localizedDescription": "铜管重击的热血运动嘻哈。",
-		"tags": [
-			"dynamic",
-			"hiphop",
-			"sport",
-			"beat"
-		],
+		"tags": ["dynamic", "hiphop", "sport", "beat"],
 		"bpm": 96,
 		"musicalKey": "Gm",
-		"moods": [
-			"confident",
-			"energetic"
-		],
-		"scenes": [
-			"sport",
-			"recap",
-			"social"
-		],
+		"moods": ["confident", "energetic"],
+		"scenes": ["sport", "recap", "social"],
 		"loopable": false,
 		"duration": 103.37,
 		"file": "tracks/slam-dunk.ogg",
@@ -1845,23 +1182,11 @@
 		"localizedName": "咖啡日记",
 		"description": "Chill-hop with warm keys for cafe vlogs.",
 		"localizedDescription": "适合咖啡馆vlog的温暖Chill-hop。",
-		"tags": [
-			"vlog",
-			"chillhop",
-			"cafe",
-			"study"
-		],
+		"tags": ["vlog", "chillhop", "cafe", "study"],
 		"bpm": 86,
 		"musicalKey": "Ab",
-		"moods": [
-			"smooth",
-			"warm"
-		],
-		"scenes": [
-			"food",
-			"interior",
-			"vlog"
-		],
+		"moods": ["smooth", "warm"],
+		"scenes": ["food", "interior", "vlog"],
 		"loopable": true,
 		"duration": 128.49,
 		"file": "tracks/coffee-shop-diary.ogg",
@@ -1878,23 +1203,11 @@
 		"localizedName": "阳台的阳光",
 		"description": "Breezy bossa guitar for slow mornings.",
 		"localizedDescription": "慢早晨的清风波萨吉他。",
-		"tags": [
-			"vlog",
-			"bossa",
-			"morning",
-			"light"
-		],
+		"tags": ["vlog", "bossa", "morning", "light"],
 		"bpm": 98,
 		"musicalKey": "C",
-		"moods": [
-			"sunny",
-			"smooth"
-		],
-		"scenes": [
-			"morning",
-			"lifestyle",
-			"interior"
-		],
+		"moods": ["sunny", "smooth"],
+		"scenes": ["morning", "lifestyle", "interior"],
 		"loopable": false,
 		"duration": 126.88,
 		"file": "tracks/sunny-balcony.ogg",
@@ -1911,22 +1224,11 @@
 		"localizedName": "城市漫步",
 		"description": "Mid-tempo pop groove for street strolls.",
 		"localizedDescription": "街头漫步的中速流行律动。",
-		"tags": [
-			"vlog",
-			"city",
-			"pop"
-		],
+		"tags": ["vlog", "city", "pop"],
 		"bpm": 106,
 		"musicalKey": "E",
-		"moods": [
-			"fresh",
-			"confident"
-		],
-		"scenes": [
-			"city",
-			"fashion",
-			"travel"
-		],
+		"moods": ["fresh", "confident"],
+		"scenes": ["city", "fashion", "travel"],
 		"loopable": false,
 		"duration": 183.17,
 		"file": "tracks/city-walk.ogg",
@@ -1943,23 +1245,11 @@
 		"localizedName": "周末早午餐",
 		"description": "Happy folk-pop with claps and glockenspiel.",
 		"localizedDescription": "拍手与钟琴的快乐民谣流行。",
-		"tags": [
-			"vlog",
-			"folk",
-			"happy",
-			"light"
-		],
+		"tags": ["vlog", "folk", "happy", "light"],
 		"bpm": 112,
 		"musicalKey": "D",
-		"moods": [
-			"sunny",
-			"warm"
-		],
-		"scenes": [
-			"food",
-			"social",
-			"lifestyle"
-		],
+		"moods": ["sunny", "warm"],
+		"scenes": ["food", "social", "lifestyle"],
 		"loopable": false,
 		"duration": 97.48,
 		"file": "tracks/weekend-brunch.ogg",
@@ -1976,23 +1266,11 @@
 		"localizedName": "告别信",
 		"description": "Sorrowful cello and piano farewell theme.",
 		"localizedDescription": "大提琴与钢琴的告别主题。",
-		"tags": [
-			"emotional",
-			"cello",
-			"sad",
-			"instrumental"
-		],
+		"tags": ["emotional", "cello", "sad", "instrumental"],
 		"bpm": 62,
 		"musicalKey": "Dm",
-		"moods": [
-			"emotional",
-			"reflective"
-		],
-		"scenes": [
-			"farewell",
-			"memory",
-			"story"
-		],
+		"moods": ["emotional", "reflective"],
+		"scenes": ["farewell", "memory", "story"],
 		"loopable": false,
 		"duration": 146.51,
 		"file": "tracks/farewell-letter.ogg",
@@ -2009,22 +1287,11 @@
 		"localizedName": "希望的黎明",
 		"description": "Slow-building cinematic hope with full strings.",
 		"localizedDescription": "弦乐渐强的电影感希望之光。",
-		"tags": [
-			"emotional",
-			"cinematic",
-			"hope"
-		],
+		"tags": ["emotional", "cinematic", "hope"],
 		"bpm": 78,
 		"musicalKey": "C",
-		"moods": [
-			"emotional",
-			"optimistic"
-		],
-		"scenes": [
-			"trailer",
-			"documentary",
-			"recap"
-		],
+		"moods": ["emotional", "optimistic"],
+		"scenes": ["trailer", "documentary", "recap"],
 		"loopable": false,
 		"duration": 195.77,
 		"file": "tracks/hopeful-dawn.ogg",
@@ -2041,23 +1308,11 @@
 		"localizedName": "雨天窗前",
 		"description": "Melancholic piano with rain-soft textures.",
 		"localizedDescription": "带雨声质感的忧郁钢琴。",
-		"tags": [
-			"emotional",
-			"piano",
-			"rain",
-			"healing"
-		],
+		"tags": ["emotional", "piano", "rain", "healing"],
 		"bpm": 70,
 		"musicalKey": "Bm",
-		"moods": [
-			"reflective",
-			"emotional"
-		],
-		"scenes": [
-			"rain",
-			"night",
-			"memory"
-		],
+		"moods": ["reflective", "emotional"],
+		"scenes": ["rain", "night", "memory"],
 		"loopable": false,
 		"duration": 144.95,
 		"file": "tracks/rainy-window.ogg",
@@ -2074,22 +1329,11 @@
 		"localizedName": "无声拥抱",
 		"description": "Warm ambient swell that says what words cannot.",
 		"localizedDescription": "替语言说话的温暖环境音墙。",
-		"tags": [
-			"emotional",
-			"ambient",
-			"healing"
-		],
+		"tags": ["emotional", "ambient", "healing"],
 		"bpm": 64,
 		"musicalKey": "Ab",
-		"moods": [
-			"emotional",
-			"healing"
-		],
-		"scenes": [
-			"love",
-			"memory",
-			"documentary"
-		],
+		"moods": ["emotional", "healing"],
+		"scenes": ["love", "memory", "documentary"],
 		"loopable": false,
 		"duration": 247.57,
 		"file": "tracks/silent-embrace.ogg",
@@ -2106,18 +1350,9 @@
 		"localizedName": "转场呼啸",
 		"description": "Fast air swoosh for cuts and scene transitions.",
 		"localizedDescription": "适合卡点转场与画面切换的呼啸音效。",
-		"tags": [
-			"whoosh",
-			"transition",
-			"motion"
-		],
-		"moods": [
-			"energetic"
-		],
-		"scenes": [
-			"transition",
-			"motion"
-		],
+		"tags": ["whoosh", "transition", "motion"],
+		"moods": ["energetic"],
+		"scenes": ["transition", "motion"],
 		"loopable": false,
 		"duration": 5.32,
 		"file": "tracks/swoosh-transition.ogg",
@@ -2134,18 +1369,9 @@
 		"localizedName": "深沉重击",
 		"description": "Cinematic low boom for reveals and title hits.",
 		"localizedDescription": "适合标题揭晓与预告片重音的电影级低频冲击。",
-		"tags": [
-			"impact",
-			"cinematic",
-			"trailer"
-		],
-		"moods": [
-			"dramatic"
-		],
-		"scenes": [
-			"trailer",
-			"reveal"
-		],
+		"tags": ["impact", "cinematic", "trailer"],
+		"moods": ["dramatic"],
+		"scenes": ["trailer", "reveal"],
 		"loopable": false,
 		"duration": 4.29,
 		"file": "tracks/deep-impact-boom.ogg",
@@ -2162,17 +1388,9 @@
 		"localizedName": "玻璃碎裂",
 		"description": "Sharp glass breaking crash.",
 		"localizedDescription": "适合冲突画面与打碎效果的玻璃碎裂声。",
-		"tags": [
-			"impact",
-			"glass",
-			"foley"
-		],
-		"moods": [
-			"dramatic"
-		],
-		"scenes": [
-			"action"
-		],
+		"tags": ["impact", "glass", "foley"],
+		"moods": ["dramatic"],
+		"scenes": ["action"],
 		"loopable": false,
 		"duration": 1.91,
 		"file": "tracks/glass-shatter.ogg",
@@ -2189,18 +1407,9 @@
 		"localizedName": "拳击命中",
 		"description": "Punchy body hit for action edits.",
 		"localizedDescription": "适合动作剪辑与搞笑打击的拳击命中音。",
-		"tags": [
-			"impact",
-			"action",
-			"punch"
-		],
-		"moods": [
-			"energetic"
-		],
-		"scenes": [
-			"action",
-			"sport"
-		],
+		"tags": ["impact", "action", "punch"],
+		"moods": ["energetic"],
+		"scenes": ["action", "sport"],
 		"loopable": false,
 		"duration": 7.8,
 		"file": "tracks/punch-hit.ogg",
@@ -2217,18 +1426,9 @@
 		"localizedName": "界面点击",
 		"description": "Clean soft click for interface moments.",
 		"localizedDescription": "适合界面操作演示与教程的清脆点击声。",
-		"tags": [
-			"ui",
-			"click",
-			"tutorial"
-		],
-		"moods": [
-			"clean"
-		],
-		"scenes": [
-			"tutorial",
-			"ui"
-		],
+		"tags": ["ui", "click", "tutorial"],
+		"moods": ["clean"],
+		"scenes": ["tutorial", "ui"],
 		"loopable": false,
 		"duration": 0.24,
 		"file": "tracks/soft-ui-click.ogg",
@@ -2245,19 +1445,9 @@
 		"localizedName": "气泡破裂",
 		"description": "Playful bubble pop accent.",
 		"localizedDescription": "适合贴纸弹出与俏皮强调的气泡音效。",
-		"tags": [
-			"ui",
-			"pop",
-			"playful",
-			"sticker"
-		],
-		"moods": [
-			"playful"
-		],
-		"scenes": [
-			"social",
-			"sticker"
-		],
+		"tags": ["ui", "pop", "playful", "sticker"],
+		"moods": ["playful"],
+		"scenes": ["social", "sticker"],
 		"loopable": false,
 		"duration": 3.09,
 		"file": "tracks/bubble-pop.ogg",
@@ -2274,18 +1464,9 @@
 		"localizedName": "提示叮声",
 		"description": "Bright notification bell ding.",
 		"localizedDescription": "适合消息提示与要点强调的清脆叮声。",
-		"tags": [
-			"ui",
-			"notification",
-			"bell"
-		],
-		"moods": [
-			"bright"
-		],
-		"scenes": [
-			"tutorial",
-			"social"
-		],
+		"tags": ["ui", "notification", "bell"],
+		"moods": ["bright"],
+		"scenes": ["tutorial", "social"],
 		"loopable": false,
 		"duration": 4.04,
 		"file": "tracks/notification-ding.ogg",
@@ -2302,18 +1483,9 @@
 		"localizedName": "错误提示",
 		"description": "Short buzzer for mistakes and fails.",
 		"localizedDescription": "适合答错与失败瞬间的短促提示音。",
-		"tags": [
-			"ui",
-			"notification",
-			"fail"
-		],
-		"moods": [
-			"playful"
-		],
-		"scenes": [
-			"tutorial",
-			"social"
-		],
+		"tags": ["ui", "notification", "fail"],
+		"moods": ["playful"],
+		"scenes": ["tutorial", "social"],
 		"loopable": false,
 		"duration": 2.78,
 		"file": "tracks/error-beep.ogg",
@@ -2330,18 +1502,9 @@
 		"localizedName": "键盘敲击",
 		"description": "Mechanical keyboard typing loop.",
 		"localizedDescription": "适合办公场景与代码演示的键盘敲击声。",
-		"tags": [
-			"foley",
-			"tech",
-			"office"
-		],
-		"moods": [
-			"focus"
-		],
-		"scenes": [
-			"study",
-			"tutorial"
-		],
+		"tags": ["foley", "tech", "office"],
+		"moods": ["focus"],
+		"scenes": ["study", "tutorial"],
 		"loopable": false,
 		"duration": 1.29,
 		"file": "tracks/keyboard-typing.ogg",
@@ -2358,18 +1521,9 @@
 		"localizedName": "相机快门",
 		"description": "Single camera shutter click.",
 		"localizedDescription": "适合照片定格与晒图瞬间的快门声。",
-		"tags": [
-			"foley",
-			"photo",
-			"click"
-		],
-		"moods": [
-			"clean"
-		],
-		"scenes": [
-			"photo",
-			"social"
-		],
+		"tags": ["foley", "photo", "click"],
+		"moods": ["clean"],
+		"scenes": ["photo", "social"],
 		"loopable": false,
 		"duration": 2.81,
 		"file": "tracks/camera-shutter.ogg",
@@ -2386,18 +1540,9 @@
 		"localizedName": "木地板脚步",
 		"description": "Walking footsteps on a wooden floor.",
 		"localizedDescription": "适合室内叙事与悬疑铺垫的木地板脚步声。",
-		"tags": [
-			"foley",
-			"footstep",
-			"interior"
-		],
-		"moods": [
-			"neutral"
-		],
-		"scenes": [
-			"story",
-			"interior"
-		],
+		"tags": ["foley", "footstep", "interior"],
+		"moods": ["neutral"],
+		"scenes": ["story", "interior"],
 		"loopable": false,
 		"duration": 3.83,
 		"file": "tracks/footsteps-on-wood.ogg",
@@ -2414,18 +1559,9 @@
 		"localizedName": "开关门声",
 		"description": "Household door opening and closing.",
 		"localizedDescription": "适合居家场景与出场入场的开关门声。",
-		"tags": [
-			"foley",
-			"door",
-			"interior"
-		],
-		"moods": [
-			"neutral"
-		],
-		"scenes": [
-			"interior",
-			"story"
-		],
+		"tags": ["foley", "door", "interior"],
+		"moods": ["neutral"],
+		"scenes": ["interior", "story"],
 		"loopable": false,
 		"duration": 0.97,
 		"file": "tracks/door-open-close.ogg",
@@ -2442,18 +1578,9 @@
 		"localizedName": "翻页声",
 		"description": "Paper page flipping.",
 		"localizedDescription": "适合阅读、笔记与章节切换的翻页声。",
-		"tags": [
-			"foley",
-			"paper",
-			"title"
-		],
-		"moods": [
-			"delicate"
-		],
-		"scenes": [
-			"study",
-			"story"
-		],
+		"tags": ["foley", "paper", "title"],
+		"moods": ["delicate"],
+		"scenes": ["study", "story"],
 		"loopable": false,
 		"duration": 1.98,
 		"file": "tracks/page-flip.ogg",
@@ -2470,18 +1597,9 @@
 		"localizedName": "水花飞溅",
 		"description": "Fresh water splash.",
 		"localizedDescription": "适合夏日戏水与清爽转场的水花声。",
-		"tags": [
-			"foley",
-			"water",
-			"summer"
-		],
-		"moods": [
-			"fresh"
-		],
-		"scenes": [
-			"travel",
-			"outdoor"
-		],
+		"tags": ["foley", "water", "summer"],
+		"moods": ["fresh"],
+		"scenes": ["travel", "outdoor"],
 		"loopable": false,
 		"duration": 2.03,
 		"file": "tracks/water-splash.ogg",
@@ -2498,18 +1616,9 @@
 		"localizedName": "硬币落下",
 		"description": "Metal coin dropping and settling.",
 		"localizedDescription": "适合收益结算与游戏化场景的硬币声。",
-		"tags": [
-			"foley",
-			"coin",
-			"game"
-		],
-		"moods": [
-			"playful"
-		],
-		"scenes": [
-			"achievement",
-			"social"
-		],
+		"tags": ["foley", "coin", "game"],
+		"moods": ["playful"],
+		"scenes": ["achievement", "social"],
 		"loopable": false,
 		"duration": 6.14,
 		"file": "tracks/coin-drop.ogg",
@@ -2526,18 +1635,9 @@
 		"localizedName": "森林鸟鸣",
 		"description": "Morning forest birds ambience.",
 		"localizedDescription": "适合清晨与户外自然的森林鸟鸣。",
-		"tags": [
-			"nature",
-			"birds",
-			"forest"
-		],
-		"moods": [
-			"peaceful"
-		],
-		"scenes": [
-			"outdoor",
-			"morning"
-		],
+		"tags": ["nature", "birds", "forest"],
+		"moods": ["peaceful"],
+		"scenes": ["outdoor", "morning"],
 		"loopable": false,
 		"duration": 24.01,
 		"file": "tracks/forest-birds.ogg",
@@ -2554,18 +1654,9 @@
 		"localizedName": "雷声轰鸣",
 		"description": "Distant rolling thunder.",
 		"localizedDescription": "适合天气渲染与紧张铺垫的滚雷声。",
-		"tags": [
-			"nature",
-			"thunder",
-			"dramatic"
-		],
-		"moods": [
-			"dramatic"
-		],
-		"scenes": [
-			"rain",
-			"story"
-		],
+		"tags": ["nature", "thunder", "dramatic"],
+		"moods": ["dramatic"],
+		"scenes": ["rain", "story"],
 		"loopable": false,
 		"duration": 8.25,
 		"file": "tracks/thunder-rumble.ogg",
@@ -2582,18 +1673,9 @@
 		"localizedName": "海浪拍岸",
 		"description": "Waves washing onto the shore.",
 		"localizedDescription": "适合海边旅拍与放松场景的海浪声。",
-		"tags": [
-			"nature",
-			"ocean",
-			"travel"
-		],
-		"moods": [
-			"calm"
-		],
-		"scenes": [
-			"beach",
-			"travel"
-		],
+		"tags": ["nature", "ocean", "travel"],
+		"moods": ["calm"],
+		"scenes": ["beach", "travel"],
 		"loopable": false,
 		"duration": 35,
 		"file": "tracks/ocean-waves.ogg",
@@ -2610,18 +1692,9 @@
 		"localizedName": "冬夜风声",
 		"description": "Cold howling wind.",
 		"localizedDescription": "适合冬日与荒野氛围的呼啸风声。",
-		"tags": [
-			"nature",
-			"wind",
-			"winter"
-		],
-		"moods": [
-			"reflective"
-		],
-		"scenes": [
-			"winter",
-			"outdoor"
-		],
+		"tags": ["nature", "wind", "winter"],
+		"moods": ["reflective"],
+		"scenes": ["winter", "outdoor"],
 		"loopable": false,
 		"duration": 25.48,
 		"file": "tracks/winter-wind.ogg",
@@ -2638,18 +1711,9 @@
 		"localizedName": "咖啡馆人声",
 		"description": "Cozy cafe crowd chatter bed.",
 		"localizedDescription": "适合探店与生活方式视频的咖啡馆环境音。",
-		"tags": [
-			"ambient",
-			"cafe",
-			"crowd"
-		],
-		"moods": [
-			"warm"
-		],
-		"scenes": [
-			"interior",
-			"lifestyle"
-		],
+		"tags": ["ambient", "cafe", "crowd"],
+		"moods": ["warm"],
+		"scenes": ["interior", "lifestyle"],
 		"loopable": false,
 		"duration": 41.18,
 		"file": "tracks/cafe-crowd.ogg",
@@ -2666,18 +1730,9 @@
 		"localizedName": "篝火噼啪",
 		"description": "Crackling campfire ambience.",
 		"localizedDescription": "适合露营夜话与温暖氛围的篝火声。",
-		"tags": [
-			"ambient",
-			"fire",
-			"cozy"
-		],
-		"moods": [
-			"warm"
-		],
-		"scenes": [
-			"outdoor",
-			"night"
-		],
+		"tags": ["ambient", "fire", "cozy"],
+		"moods": ["warm"],
+		"scenes": ["outdoor", "night"],
 		"loopable": false,
 		"duration": 39.57,
 		"file": "tracks/campfire-crackle.ogg",
@@ -2694,18 +1749,9 @@
 		"localizedName": "成功音效",
 		"description": "Positive chime for wins and confirmations.",
 		"localizedDescription": "适合成就达成与操作成功的上扬音效。",
-		"tags": [
-			"ui",
-			"achievement",
-			"positive"
-		],
-		"moods": [
-			"positive"
-		],
-		"scenes": [
-			"achievement",
-			"tutorial"
-		],
+		"tags": ["ui", "achievement", "positive"],
+		"moods": ["positive"],
+		"scenes": ["achievement", "tutorial"],
 		"loopable": false,
 		"duration": 3.3,
 		"file": "tracks/success-chime.ogg",
@@ -2722,18 +1768,9 @@
 		"localizedName": "雨声环境",
 		"description": "Steady rain ambience bed.",
 		"localizedDescription": "适合雨天氛围与治愈叙事的雨声底噪。",
-		"tags": [
-			"nature",
-			"rain",
-			"ambient"
-		],
-		"moods": [
-			"calm"
-		],
-		"scenes": [
-			"rain",
-			"sleep"
-		],
+		"tags": ["nature", "rain", "ambient"],
+		"moods": ["calm"],
+		"scenes": ["rain", "sleep"],
 		"loopable": false,
 		"duration": 26.33,
 		"file": "tracks/rain-ambience.ogg",
@@ -2750,18 +1787,9 @@
 		"localizedName": "心跳声",
 		"description": "Slow heartbeat for suspense.",
 		"localizedDescription": "适合悬念铺垫与情绪特写的心跳声。",
-		"tags": [
-			"cinematic",
-			"heartbeat",
-			"tension"
-		],
-		"moods": [
-			"dramatic"
-		],
-		"scenes": [
-			"story",
-			"trailer"
-		],
+		"tags": ["cinematic", "heartbeat", "tension"],
+		"moods": ["dramatic"],
+		"scenes": ["story", "trailer"],
 		"loopable": false,
 		"duration": 28.25,
 		"file": "tracks/heartbeat-tension.ogg",

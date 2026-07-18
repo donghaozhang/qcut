@@ -7,24 +7,11 @@
 		"description": "Warm synth pads and soft beats for morning city timelapses.",
 		"localizedDescription": "适合城市清晨延时与通勤vlog的温暖合成器音乐。",
 		"prompt": "Warm uplifting instrumental with soft synth pads, gentle beat around 92 bpm, morning city atmosphere, optimistic and fresh, for vlog background music",
-		"tags": [
-			"synth",
-			"city",
-			"morning",
-			"vlog",
-			"optimistic"
-		],
+		"tags": ["synth", "city", "morning", "vlog", "optimistic"],
 		"bpm": 92,
 		"musicalKey": "F",
-		"moods": [
-			"optimistic",
-			"fresh"
-		],
-		"scenes": [
-			"city",
-			"morning",
-			"vlog"
-		]
+		"moods": ["optimistic", "fresh"],
+		"scenes": ["city", "morning", "vlog"]
 	},
 	{
 		"id": -100002,
@@ -34,24 +21,11 @@
 		"description": "Tropical acoustic guitar and ukulele for beach travel edits.",
 		"localizedDescription": "适合海岛旅拍与夏日出行的热带吉他音乐。",
 		"prompt": "Tropical acoustic instrumental with ukulele, light guitar, hand percussion around 105 bpm, sunny beach vacation mood, breezy and happy travel video music",
-		"tags": [
-			"acoustic",
-			"travel",
-			"beach",
-			"summer",
-			"ukulele"
-		],
+		"tags": ["acoustic", "travel", "beach", "summer", "ukulele"],
 		"bpm": 105,
 		"musicalKey": "C",
-		"moods": [
-			"sunny",
-			"playful"
-		],
-		"scenes": [
-			"travel",
-			"beach",
-			"outdoor"
-		]
+		"moods": ["sunny", "playful"],
+		"scenes": ["travel", "beach", "outdoor"]
 	},
 	{
 		"id": -100003,
@@ -61,24 +35,11 @@
 		"description": "Punchy electro house built for rhythm cuts and beat drops.",
 		"localizedDescription": "适合卡点剪辑与潮流混剪的电子舞曲。",
 		"prompt": "Punchy electro house instrumental at 126 bpm with strong four on the floor kick, bright synth stabs, clear beat drops for rhythm-cut video editing",
-		"tags": [
-			"electronic",
-			"dance",
-			"beat",
-			"energetic",
-			"transition"
-		],
+		"tags": ["electronic", "dance", "beat", "energetic", "transition"],
 		"bpm": 126,
 		"musicalKey": "A",
-		"moods": [
-			"energetic",
-			"confident"
-		],
-		"scenes": [
-			"city",
-			"fashion",
-			"social"
-		]
+		"moods": ["energetic", "confident"],
+		"scenes": ["city", "fashion", "social"]
 	},
 	{
 		"id": -100004,
@@ -88,24 +49,11 @@
 		"description": "Delicate piano and celesta for quiet winter scenes.",
 		"localizedDescription": "适合冬日雪景与温柔叙事的钢琴音乐。",
 		"prompt": "Delicate instrumental with soft piano, celesta and light strings around 72 bpm, quiet snowy winter evening, tender and peaceful mood",
-		"tags": [
-			"piano",
-			"winter",
-			"peaceful",
-			"snow",
-			"delicate"
-		],
+		"tags": ["piano", "winter", "peaceful", "snow", "delicate"],
 		"bpm": 72,
 		"musicalKey": "D",
-		"moods": [
-			"peaceful",
-			"delicate"
-		],
-		"scenes": [
-			"winter",
-			"night",
-			"story"
-		]
+		"moods": ["peaceful", "delicate"],
+		"scenes": ["winter", "night", "story"]
 	},
 	{
 		"id": -100005,
@@ -115,24 +63,11 @@
 		"description": "Slow ambient textures for study and concentration videos.",
 		"localizedDescription": "适合学习、专注与冥想内容的氛围音乐。",
 		"prompt": "Slow ambient instrumental around 70 bpm with warm drone pads, subtle piano notes, deep calm focus atmosphere for study and meditation videos",
-		"tags": [
-			"ambient",
-			"focus",
-			"study",
-			"calm",
-			"instrumental"
-		],
+		"tags": ["ambient", "focus", "study", "calm", "instrumental"],
 		"bpm": 70,
 		"musicalKey": "G",
-		"moods": [
-			"calm",
-			"healing"
-		],
-		"scenes": [
-			"focus",
-			"study",
-			"sleep"
-		]
+		"moods": ["calm", "healing"],
+		"scenes": ["focus", "study", "sleep"]
 	},
 	{
 		"id": -100006,
@@ -142,24 +77,11 @@
 		"description": "Nostalgic uplifting pop orchestra for farewell montages.",
 		"localizedDescription": "适合毕业季回忆与告别混剪的怀旧管弦流行乐。",
 		"prompt": "Nostalgic uplifting instrumental at 100 bpm blending warm strings, piano and light pop drums, graduation farewell memories, bittersweet and hopeful",
-		"tags": [
-			"orchestral",
-			"graduation",
-			"memory",
-			"nostalgic",
-			"hopeful"
-		],
+		"tags": ["orchestral", "graduation", "memory", "nostalgic", "hopeful"],
 		"bpm": 100,
 		"musicalKey": "E",
-		"moods": [
-			"nostalgic",
-			"emotional"
-		],
-		"scenes": [
-			"graduation",
-			"memory",
-			"farewell"
-		]
+		"moods": ["nostalgic", "emotional"],
+		"scenes": ["graduation", "memory", "farewell"]
 	},
 	{
 		"id": -100007,
@@ -169,24 +91,11 @@
 		"description": "Synthwave cruise for night city driving footage.",
 		"localizedDescription": "适合夜晚城市开车与街拍的复古合成器音乐。",
 		"prompt": "Retro synthwave instrumental at 110 bpm with analog synth bass, gated drums, neon night driving mood, cool and cinematic",
-		"tags": [
-			"synthwave",
-			"night",
-			"road-trip",
-			"retro",
-			"city"
-		],
+		"tags": ["synthwave", "night", "road-trip", "retro", "city"],
 		"bpm": 110,
 		"musicalKey": "B",
-		"moods": [
-			"confident",
-			"reflective"
-		],
-		"scenes": [
-			"night",
-			"city",
-			"road-trip"
-		]
+		"moods": ["confident", "reflective"],
+		"scenes": ["night", "city", "road-trip"]
 	},
 	{
 		"id": -100008,
@@ -196,24 +105,11 @@
 		"description": "Light playful pop with whistling for everyday vlogs.",
 		"localizedDescription": "适合日常vlog与轻松生活记录的俏皮音乐。",
 		"prompt": "Light playful pop instrumental at 118 bpm with whistling melody, claps, bouncy acoustic guitar, cheerful everyday vlog mood",
-		"tags": [
-			"pop",
-			"playful",
-			"vlog",
-			"happy",
-			"light"
-		],
+		"tags": ["pop", "playful", "vlog", "happy", "light"],
 		"bpm": 118,
 		"musicalKey": "C",
-		"moods": [
-			"playful",
-			"positive"
-		],
-		"scenes": [
-			"vlog",
-			"lifestyle",
-			"social"
-		]
+		"moods": ["playful", "positive"],
+		"scenes": ["vlog", "lifestyle", "social"]
 	},
 	{
 		"id": -100009,
@@ -223,24 +119,11 @@
 		"description": "Romantic strings and piano for love stories and weddings.",
 		"localizedDescription": "适合婚礼、恋爱叙事与春日画面的浪漫弦乐。",
 		"prompt": "Romantic instrumental at 84 bpm with lush strings, gentle piano arpeggios, blooming spring love story, warm and tender wedding mood",
-		"tags": [
-			"strings",
-			"romantic",
-			"wedding",
-			"spring",
-			"emotional"
-		],
+		"tags": ["strings", "romantic", "wedding", "spring", "emotional"],
 		"bpm": 84,
 		"musicalKey": "F",
-		"moods": [
-			"emotional",
-			"warm"
-		],
-		"scenes": [
-			"love",
-			"wedding",
-			"story"
-		]
+		"moods": ["emotional", "warm"],
+		"scenes": ["love", "wedding", "story"]
 	},
 	{
 		"id": -100010,
@@ -250,24 +133,11 @@
 		"description": "Boom-bap hip-hop groove for urban and fashion edits.",
 		"localizedDescription": "适合街头潮流与时尚大片的嘻哈节奏。",
 		"prompt": "Boom bap hip hop instrumental at 95 bpm with punchy drums, vinyl texture, deep bass groove, confident urban street fashion attitude",
-		"tags": [
-			"hip-hop",
-			"urban",
-			"fashion",
-			"street",
-			"groove"
-		],
+		"tags": ["hip-hop", "urban", "fashion", "street", "groove"],
 		"bpm": 95,
 		"musicalKey": "G",
-		"moods": [
-			"confident",
-			"energetic"
-		],
-		"scenes": [
-			"fashion",
-			"city",
-			"social"
-		]
+		"moods": ["confident", "energetic"],
+		"scenes": ["fashion", "city", "social"]
 	},
 	{
 		"id": -100011,
@@ -277,24 +147,11 @@
 		"description": "Chill jazz lounge for cafe and interior lifestyle scenes.",
 		"localizedDescription": "适合咖啡馆、家居与慢生活记录的爵士音乐。",
 		"prompt": "Chill jazz lounge instrumental at 88 bpm with soft electric piano, brushed drums, mellow upright bass, cozy cafe afternoon atmosphere",
-		"tags": [
-			"jazz",
-			"lounge",
-			"cafe",
-			"cozy",
-			"lifestyle"
-		],
+		"tags": ["jazz", "lounge", "cafe", "cozy", "lifestyle"],
 		"bpm": 88,
 		"musicalKey": "Bb",
-		"moods": [
-			"smooth",
-			"warm"
-		],
-		"scenes": [
-			"interior",
-			"lifestyle",
-			"food"
-		]
+		"moods": ["smooth", "warm"],
+		"scenes": ["interior", "lifestyle", "food"]
 	},
 	{
 		"id": -100012,
@@ -304,24 +161,11 @@
 		"description": "Epic hybrid orchestra for trailers and reveal moments.",
 		"localizedDescription": "适合预告片、开场与高光揭晓的史诗管弦乐。",
 		"prompt": "Epic cinematic hybrid orchestral instrumental at 128 bpm with powerful percussion, brass swells, soaring strings, trailer reveal energy",
-		"tags": [
-			"cinematic",
-			"trailer",
-			"epic",
-			"orchestral",
-			"dramatic"
-		],
+		"tags": ["cinematic", "trailer", "epic", "orchestral", "dramatic"],
 		"bpm": 128,
 		"musicalKey": "D",
-		"moods": [
-			"dramatic",
-			"confident"
-		],
-		"scenes": [
-			"trailer",
-			"reveal",
-			"title"
-		]
+		"moods": ["dramatic", "confident"],
+		"scenes": ["trailer", "reveal", "title"]
 	},
 	{
 		"id": -100013,
@@ -331,24 +175,11 @@
 		"description": "Upbeat folk for food, documentary, and daily life stories.",
 		"localizedDescription": "适合美食探店与市井纪实的轻快民谣。",
 		"prompt": "Upbeat folk instrumental at 112 bpm with acoustic guitar, mandolin, light claps, bustling morning market documentary feel, warm human energy",
-		"tags": [
-			"folk",
-			"documentary",
-			"food",
-			"daily",
-			"acoustic"
-		],
+		"tags": ["folk", "documentary", "food", "daily", "acoustic"],
 		"bpm": 112,
 		"musicalKey": "G",
-		"moods": [
-			"positive",
-			"fresh"
-		],
-		"scenes": [
-			"documentary",
-			"food",
-			"lifestyle"
-		]
+		"moods": ["positive", "fresh"],
+		"scenes": ["documentary", "food", "lifestyle"]
 	},
 	{
 		"id": -100014,
@@ -358,24 +189,11 @@
 		"description": "Bright K-pop style dance track for fashion and dance reels.",
 		"localizedDescription": "适合韩流舞蹈与时尚短视频的电子舞曲。",
 		"prompt": "Bright K-pop style dance instrumental at 124 bpm with glossy synths, tight electronic drums, catchy hooks, idol stage fashion energy",
-		"tags": [
-			"kpop",
-			"dance",
-			"fashion",
-			"bright",
-			"electronic"
-		],
+		"tags": ["kpop", "dance", "fashion", "bright", "electronic"],
 		"bpm": 124,
 		"musicalKey": "A",
-		"moods": [
-			"energetic",
-			"confident"
-		],
-		"scenes": [
-			"fashion",
-			"dance",
-			"social"
-		]
+		"moods": ["energetic", "confident"],
+		"scenes": ["fashion", "dance", "social"]
 	},
 	{
 		"id": -100015,
@@ -385,24 +203,11 @@
 		"description": "Mellow lo-fi with rain textures for cozy nostalgic scenes.",
 		"localizedDescription": "适合雨天独处与治愈氛围的lo-fi音乐。",
 		"prompt": "Mellow lofi instrumental at 76 bpm with dusty piano chords, soft vinyl crackle, gentle rain mood, cozy nostalgic afternoon by the window",
-		"tags": [
-			"lofi",
-			"rain",
-			"nostalgic",
-			"cozy",
-			"healing"
-		],
+		"tags": ["lofi", "rain", "nostalgic", "cozy", "healing"],
 		"bpm": 76,
 		"musicalKey": "Eb",
-		"moods": [
-			"nostalgic",
-			"healing"
-		],
-		"scenes": [
-			"rain",
-			"interior",
-			"memory"
-		]
+		"moods": ["nostalgic", "healing"],
+		"scenes": ["rain", "interior", "memory"]
 	},
 	{
 		"id": -100016,
@@ -412,24 +217,11 @@
 		"description": "High-energy rock-electronic hybrid for sports highlights.",
 		"localizedDescription": "适合运动集锦与竞速高光的燃向音乐。",
 		"prompt": "High energy instrumental at 132 bpm blending electric guitar riffs, driving electronic drums, stadium sports highlight adrenaline, triumphant finish",
-		"tags": [
-			"rock",
-			"sport",
-			"energetic",
-			"electronic",
-			"achievement"
-		],
+		"tags": ["rock", "sport", "energetic", "electronic", "achievement"],
 		"bpm": 132,
 		"musicalKey": "E",
-		"moods": [
-			"energetic",
-			"dramatic"
-		],
-		"scenes": [
-			"sport",
-			"motion",
-			"recap"
-		]
+		"moods": ["energetic", "dramatic"],
+		"scenes": ["sport", "motion", "recap"]
 	},
 	{
 		"id": -100041,
@@ -439,23 +231,11 @@
 		"description": "Lazy fingerstyle acoustic guitar for warm afternoon scenes.",
 		"localizedDescription": "慵懒指弹木吉他，适合午后阳光与生活记录。",
 		"prompt": "Relaxed fingerstyle acoustic guitar instrumental, warm and lazy afternoon feeling, soft room ambience, 88 bpm, gentle and intimate, no drums heavy, background music",
-		"tags": [
-			"instrumental",
-			"guitar",
-			"acoustic",
-			"afternoon"
-		],
+		"tags": ["instrumental", "guitar", "acoustic", "afternoon"],
 		"bpm": 88,
 		"musicalKey": "C",
-		"moods": [
-			"warm",
-			"smooth"
-		],
-		"scenes": [
-			"lifestyle",
-			"interior",
-			"vlog"
-		],
+		"moods": ["warm", "smooth"],
+		"scenes": ["lifestyle", "interior", "vlog"],
 		"loopable": false
 	},
 	{
@@ -466,22 +246,11 @@
 		"description": "Intimate solo piano like a handwritten letter.",
 		"localizedDescription": "如手写信般亲密的独奏钢琴。",
 		"prompt": "Intimate solo piano instrumental, slow tender melody like writing a letter to an old friend, soft pedal, quiet room tone, 72 bpm, delicate and sincere",
-		"tags": [
-			"instrumental",
-			"piano",
-			"emotional"
-		],
+		"tags": ["instrumental", "piano", "emotional"],
 		"bpm": 72,
 		"musicalKey": "G",
-		"moods": [
-			"delicate",
-			"reflective"
-		],
-		"scenes": [
-			"story",
-			"memory",
-			"love"
-		],
+		"moods": ["delicate", "reflective"],
+		"scenes": ["story", "memory", "love"],
 		"loopable": false
 	},
 	{
@@ -492,22 +261,11 @@
 		"description": "Chamber strings drifting under a starry sky.",
 		"localizedDescription": "星空下流动的室内弦乐。",
 		"prompt": "Gentle chamber strings instrumental, violin and cello weaving a starry night melody, slow and dreamy, cinematic but soft, 76 bpm, wonder and calm",
-		"tags": [
-			"instrumental",
-			"strings",
-			"night"
-		],
+		"tags": ["instrumental", "strings", "night"],
 		"bpm": 76,
 		"musicalKey": "D",
-		"moods": [
-			"calm",
-			"dreamy"
-		],
-		"scenes": [
-			"night",
-			"documentary",
-			"title"
-		],
+		"moods": ["calm", "dreamy"],
+		"scenes": ["night", "documentary", "title"],
 		"loopable": false
 	},
 	{
@@ -518,22 +276,11 @@
 		"description": "Music box and piano lullaby, light as a paper boat.",
 		"localizedDescription": "八音盒与钢琴的摇篮曲，轻得像一只纸船。",
 		"prompt": "Music box and soft piano lullaby instrumental, innocent and nostalgic childhood memory, very gentle, 70 bpm, tiny bells, dreamlike and pure",
-		"tags": [
-			"instrumental",
-			"healing",
-			"musicbox"
-		],
+		"tags": ["instrumental", "healing", "musicbox"],
 		"bpm": 70,
 		"musicalKey": "F",
-		"moods": [
-			"healing",
-			"nostalgic"
-		],
-		"scenes": [
-			"memory",
-			"sleep",
-			"story"
-		],
+		"moods": ["healing", "nostalgic"],
+		"scenes": ["memory", "sleep", "story"],
 		"loopable": false
 	},
 	{
@@ -544,22 +291,11 @@
 		"description": "Hopeful pop-rock instrumental for graduation montages.",
 		"localizedDescription": "适合毕业混剪的青春流行摇滚。",
 		"prompt": "Uplifting pop rock instrumental, bright clean electric guitar and driving drums, youthful and hopeful graduation energy, 120 bpm, anthemic chorus feeling",
-		"tags": [
-			"graduation",
-			"youth",
-			"band"
-		],
+		"tags": ["graduation", "youth", "band"],
 		"bpm": 120,
 		"musicalKey": "E",
-		"moods": [
-			"optimistic",
-			"energetic"
-		],
-		"scenes": [
-			"graduation",
-			"recap",
-			"sport"
-		],
+		"moods": ["optimistic", "energetic"],
+		"scenes": ["graduation", "recap", "sport"],
 		"loopable": false
 	},
 	{
@@ -570,23 +306,11 @@
 		"description": "Nostalgic piano for empty classrooms and long goodbyes.",
 		"localizedDescription": "夕阳下空教室的怀旧钢琴。",
 		"prompt": "Nostalgic solo piano with soft strings, golden afternoon light in an empty classroom, bittersweet farewell mood, 80 bpm, tender and wistful",
-		"tags": [
-			"graduation",
-			"piano",
-			"nostalgic",
-			"emotional"
-		],
+		"tags": ["graduation", "piano", "nostalgic", "emotional"],
 		"bpm": 80,
 		"musicalKey": "A",
-		"moods": [
-			"nostalgic",
-			"emotional"
-		],
-		"scenes": [
-			"graduation",
-			"farewell",
-			"memory"
-		],
+		"moods": ["nostalgic", "emotional"],
+		"scenes": ["graduation", "farewell", "memory"],
 		"loopable": false
 	},
 	{
@@ -597,22 +321,11 @@
 		"description": "Triumphant brass and strings for the big graduation moment.",
 		"localizedDescription": "抛帽瞬间的辉煌铜管与弦乐。",
 		"prompt": "Triumphant orchestral instrumental, bright brass fanfare and soaring strings, celebration and achievement, 112 bpm, cinematic graduation ceremony climax",
-		"tags": [
-			"graduation",
-			"orchestral",
-			"celebration"
-		],
+		"tags": ["graduation", "orchestral", "celebration"],
 		"bpm": 112,
 		"musicalKey": "C",
-		"moods": [
-			"confident",
-			"dramatic"
-		],
-		"scenes": [
-			"graduation",
-			"reveal",
-			"trailer"
-		],
+		"moods": ["confident", "dramatic"],
+		"scenes": ["graduation", "reveal", "trailer"],
 		"loopable": false
 	},
 	{
@@ -623,22 +336,11 @@
 		"description": "Bittersweet school band vibe with glockenspiel and light drums.",
 		"localizedDescription": "苦乐参半的校园乐队氛围，钟琴与轻鼓点。",
 		"prompt": "Bittersweet school band instrumental, glockenspiel melody with light drums and warm bass, last day of summer school feeling, 100 bpm, sweet and sentimental",
-		"tags": [
-			"graduation",
-			"school",
-			"light"
-		],
+		"tags": ["graduation", "school", "light"],
 		"bpm": 100,
 		"musicalKey": "G",
-		"moods": [
-			"nostalgic",
-			"warm"
-		],
-		"scenes": [
-			"graduation",
-			"farewell",
-			"recap"
-		],
+		"moods": ["nostalgic", "warm"],
+		"scenes": ["graduation", "farewell", "recap"],
 		"loopable": false
 	},
 	{
@@ -649,23 +351,11 @@
 		"description": "Cheerful ukulele strums with hand claps.",
 		"localizedDescription": "欢快的尤克里里扫弦与拍手声。",
 		"prompt": "Cheerful ukulele instrumental with hand claps and light whistling melody, sunny beach day energy, 108 bpm, carefree and bright, happy background music",
-		"tags": [
-			"light",
-			"ukulele",
-			"happy",
-			"vlog"
-		],
+		"tags": ["light", "ukulele", "happy", "vlog"],
 		"bpm": 108,
 		"musicalKey": "C",
-		"moods": [
-			"sunny",
-			"playful"
-		],
-		"scenes": [
-			"vlog",
-			"travel",
-			"food"
-		],
+		"moods": ["sunny", "playful"],
+		"scenes": ["vlog", "travel", "food"],
 		"loopable": false
 	},
 	{
@@ -676,22 +366,11 @@
 		"description": "Whistle melody over an easy acoustic groove.",
 		"localizedDescription": "轻松原声律动上的口哨旋律。",
 		"prompt": "Light acoustic pop instrumental with whistle lead melody, easy morning groove, brushed drums, 104 bpm, fresh start of the day optimism",
-		"tags": [
-			"light",
-			"whistle",
-			"morning"
-		],
+		"tags": ["light", "whistle", "morning"],
 		"bpm": 104,
 		"musicalKey": "D",
-		"moods": [
-			"fresh",
-			"optimistic"
-		],
-		"scenes": [
-			"morning",
-			"lifestyle",
-			"vlog"
-		],
+		"moods": ["fresh", "optimistic"],
+		"scenes": ["morning", "lifestyle", "vlog"],
 		"loopable": false
 	},
 	{
@@ -702,23 +381,11 @@
 		"description": "Playful gypsy-jazz swing for picnics and picnics.",
 		"localizedDescription": "适合野餐日常的俏皮吉普赛爵士摇摆。",
 		"prompt": "Playful gypsy jazz swing instrumental, bouncy rhythm guitar and clarinet melody, vintage picnic afternoon, 140 bpm, lighthearted and mischievous",
-		"tags": [
-			"light",
-			"jazz",
-			"swing",
-			"playful"
-		],
+		"tags": ["light", "jazz", "swing", "playful"],
 		"bpm": 140,
 		"musicalKey": "Bb",
-		"moods": [
-			"playful",
-			"warm"
-		],
-		"scenes": [
-			"food",
-			"lifestyle",
-			"social"
-		],
+		"moods": ["playful", "warm"],
+		"scenes": ["food", "lifestyle", "social"],
 		"loopable": false
 	},
 	{
@@ -729,23 +396,11 @@
 		"description": "Fizzy cute pop with plucks and bells.",
 		"localizedDescription": "气泡感的可爱流行，拨弦与铃铛。",
 		"prompt": "Cute fizzy pop instrumental, pizzicato plucks, marimba and small bells, bubbly soda pop feeling, 118 bpm, adorable and bouncy, kawaii background music",
-		"tags": [
-			"light",
-			"cute",
-			"pop",
-			"social"
-		],
+		"tags": ["light", "cute", "pop", "social"],
 		"bpm": 118,
 		"musicalKey": "F",
-		"moods": [
-			"playful",
-			"sunny"
-		],
-		"scenes": [
-			"social",
-			"food",
-			"vlog"
-		],
+		"moods": ["playful", "sunny"],
+		"scenes": ["social", "food", "vlog"],
 		"loopable": false
 	},
 	{
@@ -756,23 +411,11 @@
 		"description": "Sleek K-pop dance instrumental with neon synths.",
 		"localizedDescription": "霓虹合成器的韩流舞曲律动。",
 		"prompt": "Sleek kpop dance instrumental, punchy synth bass, bright plucks and tight drums, neon city night energy, 124 bpm, stylish and confident, no vocals",
-		"tags": [
-			"kpop",
-			"dance",
-			"synth",
-			"city"
-		],
+		"tags": ["kpop", "dance", "synth", "city"],
 		"bpm": 124,
 		"musicalKey": "Am",
-		"moods": [
-			"confident",
-			"energetic"
-		],
-		"scenes": [
-			"fashion",
-			"dance",
-			"city"
-		],
+		"moods": ["confident", "energetic"],
+		"scenes": ["fashion", "dance", "city"],
 		"loopable": false
 	},
 	{
@@ -783,22 +426,11 @@
 		"description": "High-energy K-pop stage anthem instrumental.",
 		"localizedDescription": "高能量的打歌舞台伴奏。",
 		"prompt": "High energy kpop stage instrumental, powerful brass synth hits, EDM build and drop, idol performance anthem, 128 bpm, explosive and polished, no vocals",
-		"tags": [
-			"kpop",
-			"dance",
-			"dynamic"
-		],
+		"tags": ["kpop", "dance", "dynamic"],
 		"bpm": 128,
 		"musicalKey": "Cm",
-		"moods": [
-			"energetic",
-			"confident"
-		],
-		"scenes": [
-			"dance",
-			"trailer",
-			"sport"
-		],
+		"moods": ["energetic", "confident"],
+		"scenes": ["dance", "trailer", "sport"],
 		"loopable": false
 	},
 	{
@@ -809,23 +441,11 @@
 		"description": "Soft city-pop groove with retro synth chords.",
 		"localizedDescription": "复古合成器和弦的柔软 city-pop 律动。",
 		"prompt": "Soft city pop instrumental, retro electric piano chords, smooth bass groove and airy synth lead, sweet crush feeling, 102 bpm, dreamy and stylish, no vocals",
-		"tags": [
-			"kpop",
-			"citypop",
-			"retro",
-			"love"
-		],
+		"tags": ["kpop", "citypop", "retro", "love"],
 		"bpm": 102,
 		"musicalKey": "Eb",
-		"moods": [
-			"smooth",
-			"dreamy"
-		],
-		"scenes": [
-			"love",
-			"fashion",
-			"city"
-		],
+		"moods": ["smooth", "dreamy"],
+		"scenes": ["love", "fashion", "city"],
 		"loopable": false
 	},
 	{
@@ -836,22 +456,11 @@
 		"description": "Rhythmic dance-practice beat with claps and 808s.",
 		"localizedDescription": "拍手与808的舞蹈练习室节拍。",
 		"prompt": "Rhythmic dance practice instrumental, tight claps, 808 bass and minimal synth stabs, mirror room rehearsal groove, 120 bpm, focused and cool, no vocals",
-		"tags": [
-			"kpop",
-			"dance",
-			"beat"
-		],
+		"tags": ["kpop", "dance", "beat"],
 		"bpm": 120,
 		"musicalKey": "Gm",
-		"moods": [
-			"confident",
-			"energetic"
-		],
-		"scenes": [
-			"dance",
-			"sport",
-			"motion"
-		],
+		"moods": ["confident", "energetic"],
+		"scenes": ["dance", "sport", "motion"],
 		"loopable": false
 	},
 	{
@@ -862,22 +471,11 @@
 		"description": "Driving indie-rock instrumental for road trips.",
 		"localizedDescription": "适合公路旅行的驰骋独立摇滚。",
 		"prompt": "Driving indie rock instrumental, jangly electric guitars and steady beat, windows down highway freedom, 118 bpm, wide open and adventurous",
-		"tags": [
-			"travel",
-			"rock",
-			"road"
-		],
+		"tags": ["travel", "rock", "road"],
 		"bpm": 118,
 		"musicalKey": "D",
-		"moods": [
-			"energetic",
-			"optimistic"
-		],
-		"scenes": [
-			"road-trip",
-			"travel",
-			"outdoor"
-		],
+		"moods": ["energetic", "optimistic"],
+		"scenes": ["road-trip", "travel", "outdoor"],
 		"loopable": false
 	},
 	{
@@ -888,23 +486,11 @@
 		"description": "Tropical house groove with steel drums and marimba.",
 		"localizedDescription": "钢鼓与马林巴的热带浩室律动。",
 		"prompt": "Tropical house instrumental, steel drums, marimba and warm synth chords, island vacation groove, 110 bpm, sunny and relaxed, beach party background",
-		"tags": [
-			"travel",
-			"tropical",
-			"beach",
-			"light"
-		],
+		"tags": ["travel", "tropical", "beach", "light"],
 		"bpm": 110,
 		"musicalKey": "A",
-		"moods": [
-			"sunny",
-			"smooth"
-		],
-		"scenes": [
-			"beach",
-			"travel",
-			"vlog"
-		],
+		"moods": ["sunny", "smooth"],
+		"scenes": ["beach", "travel", "vlog"],
 		"loopable": false
 	},
 	{
@@ -915,23 +501,11 @@
 		"description": "Rambling folk with banjo, stomps and claps.",
 		"localizedDescription": "班卓琴、跺脚与拍手的漫游民谣。",
 		"prompt": "Rambling folk instrumental, banjo and acoustic guitar with stomps and claps, backpacking through the countryside, 116 bpm, earthy and joyful",
-		"tags": [
-			"travel",
-			"folk",
-			"banjo",
-			"outdoor"
-		],
+		"tags": ["travel", "folk", "banjo", "outdoor"],
 		"bpm": 116,
 		"musicalKey": "G",
-		"moods": [
-			"warm",
-			"playful"
-		],
-		"scenes": [
-			"outdoor",
-			"travel",
-			"documentary"
-		],
+		"moods": ["warm", "playful"],
+		"scenes": ["outdoor", "travel", "documentary"],
 		"loopable": false
 	},
 	{
@@ -942,22 +516,11 @@
 		"description": "Cinematic world music with duduk and hand percussion.",
 		"localizedDescription": "杜杜克与手鼓的电影感世界音乐。",
 		"prompt": "Cinematic world music instrumental, duduk melody over hand percussion and drone strings, desert sunset caravan mood, 92 bpm, mysterious and vast",
-		"tags": [
-			"travel",
-			"world",
-			"cinematic"
-		],
+		"tags": ["travel", "world", "cinematic"],
 		"bpm": 92,
 		"musicalKey": "Dm",
-		"moods": [
-			"dramatic",
-			"reflective"
-		],
-		"scenes": [
-			"travel",
-			"documentary",
-			"trailer"
-		],
+		"moods": ["dramatic", "reflective"],
+		"scenes": ["travel", "documentary", "trailer"],
 		"loopable": false
 	},
 	{
@@ -968,23 +531,11 @@
 		"description": "Instantly catchy groove built for short videos.",
 		"localizedDescription": "为短视频而生的洗脑律动。",
 		"prompt": "Instantly catchy funk pop instrumental, punchy bass slaps, tight drums and bright synth hook, short video viral energy, 122 bpm, fun and addictive, no vocals",
-		"tags": [
-			"social",
-			"funk",
-			"catchy",
-			"dynamic"
-		],
+		"tags": ["social", "funk", "catchy", "dynamic"],
 		"bpm": 122,
 		"musicalKey": "E",
-		"moods": [
-			"playful",
-			"energetic"
-		],
-		"scenes": [
-			"social",
-			"fashion",
-			"food"
-		],
+		"moods": ["playful", "energetic"],
+		"scenes": ["social", "fashion", "food"],
 		"loopable": false
 	},
 	{
@@ -995,22 +546,11 @@
 		"description": "Minimal pop hook with vocal-chop textures.",
 		"localizedDescription": "人声切片质感的极简流行钩子。",
 		"prompt": "Minimal pop instrumental with vocal chop textures as melody, bouncy beat and deep bass, loopable earworm hook, 116 bpm, trendy short video background, no lyrics",
-		"tags": [
-			"social",
-			"pop",
-			"vocal-chop"
-		],
+		"tags": ["social", "pop", "vocal-chop"],
 		"bpm": 116,
 		"musicalKey": "B",
-		"moods": [
-			"playful",
-			"confident"
-		],
-		"scenes": [
-			"social",
-			"fashion",
-			"reveal"
-		],
+		"moods": ["playful", "confident"],
+		"scenes": ["social", "fashion", "reveal"],
 		"loopable": true
 	},
 	{
@@ -1021,23 +561,11 @@
 		"description": "Dark phonk with cowbell lead and heavy 808s.",
 		"localizedDescription": "牛铃主奏与重808的暗黑Phonk。",
 		"prompt": "Dark phonk instrumental, cowbell melody, distorted 808 bass and lofi drums, drift racing night energy, 130 bpm, aggressive and cool, no vocals",
-		"tags": [
-			"social",
-			"phonk",
-			"beat",
-			"dynamic"
-		],
+		"tags": ["social", "phonk", "beat", "dynamic"],
 		"bpm": 130,
 		"musicalKey": "Fm",
-		"moods": [
-			"confident",
-			"dramatic"
-		],
-		"scenes": [
-			"motion",
-			"sport",
-			"night"
-		],
+		"moods": ["confident", "dramatic"],
+		"scenes": ["motion", "sport", "night"],
 		"loopable": false
 	},
 	{
@@ -1048,21 +576,11 @@
 		"description": "Goofy quirky track for comedy cuts and memes.",
 		"localizedDescription": "适合搞笑整活片段的滑稽配乐。",
 		"prompt": "Goofy quirky comedy instrumental, bouncing tuba and pizzicato strings, silly kazoo melody, cartoon meme timing, 126 bpm, ridiculous and fun",
-		"tags": [
-			"social",
-			"comedy",
-			"quirky"
-		],
+		"tags": ["social", "comedy", "quirky"],
 		"bpm": 126,
 		"musicalKey": "C",
-		"moods": [
-			"playful"
-		],
-		"scenes": [
-			"social",
-			"story",
-			"food"
-		],
+		"moods": ["playful"],
+		"scenes": ["social", "story", "food"],
 		"loopable": false
 	},
 	{
@@ -1073,23 +591,11 @@
 		"description": "Big-room EDM build and drop for beat-sync edits.",
 		"localizedDescription": "适合卡点剪辑的大房间EDM铺垫与落拍。",
 		"prompt": "Big room EDM instrumental with clear build up and hard drop, punchy four on the floor kick, festival energy, 128 bpm, perfect for beat synced edits, no vocals",
-		"tags": [
-			"beat",
-			"edm",
-			"drop",
-			"dynamic"
-		],
+		"tags": ["beat", "edm", "drop", "dynamic"],
 		"bpm": 128,
 		"musicalKey": "Gm",
-		"moods": [
-			"energetic",
-			"dramatic"
-		],
-		"scenes": [
-			"motion",
-			"dance",
-			"trailer"
-		],
+		"moods": ["energetic", "dramatic"],
+		"scenes": ["motion", "dance", "trailer"],
 		"loopable": false
 	},
 	{
@@ -1100,22 +606,11 @@
 		"description": "Half-time trap switches for dramatic beat cuts.",
 		"localizedDescription": "戏剧性变速切换的Trap卡点。",
 		"prompt": "Trap instrumental with dramatic half time switches, crisp hi hat rolls, deep 808 and sparse dark keys, tempo change moments for edits, 140 bpm, hard and cinematic",
-		"tags": [
-			"beat",
-			"trap",
-			"switch"
-		],
+		"tags": ["beat", "trap", "switch"],
 		"bpm": 140,
 		"musicalKey": "Cm",
-		"moods": [
-			"confident",
-			"dramatic"
-		],
-		"scenes": [
-			"motion",
-			"fashion",
-			"sport"
-		],
+		"moods": ["confident", "dramatic"],
+		"scenes": ["motion", "fashion", "sport"],
 		"loopable": false
 	},
 	{
@@ -1126,23 +621,11 @@
 		"description": "Groovy house four-on-the-floor with piano stabs.",
 		"localizedDescription": "钢琴切分的律动浩室四拍。",
 		"prompt": "Groovy house instrumental, four on the floor kick, classic piano stabs and filtered disco loops, party groove, 124 bpm, feel good dance energy, no vocals",
-		"tags": [
-			"beat",
-			"house",
-			"dance",
-			"social"
-		],
+		"tags": ["beat", "house", "dance", "social"],
 		"bpm": 124,
 		"musicalKey": "Am",
-		"moods": [
-			"energetic",
-			"playful"
-		],
-		"scenes": [
-			"dance",
-			"social",
-			"city"
-		],
+		"moods": ["energetic", "playful"],
+		"scenes": ["dance", "social", "city"],
 		"loopable": true
 	},
 	{
@@ -1153,22 +636,11 @@
 		"description": "Heavy percussion hits spaced for hard cuts.",
 		"localizedDescription": "为硬切设计的重打击乐点。",
 		"prompt": "Heavy percussion instrumental, taiko and cinematic drum hits with silence gaps for hard cuts, rising risers between impacts, 96 bpm, powerful trailer editing rhythm",
-		"tags": [
-			"beat",
-			"percussion",
-			"trailer"
-		],
+		"tags": ["beat", "percussion", "trailer"],
 		"bpm": 96,
 		"musicalKey": "Dm",
-		"moods": [
-			"dramatic",
-			"confident"
-		],
-		"scenes": [
-			"trailer",
-			"sport",
-			"reveal"
-		],
+		"moods": ["dramatic", "confident"],
+		"scenes": ["trailer", "sport", "reveal"],
 		"loopable": false
 	},
 	{
@@ -1179,22 +651,11 @@
 		"description": "Cozy jazz trio beside a crackling fireplace.",
 		"localizedDescription": "炉火旁的温暖爵士三重奏。",
 		"prompt": "Cozy jazz trio instrumental, brushed drums, warm upright bass and soft piano, fireplace crackle winter evening, 90 bpm, intimate and comforting",
-		"tags": [
-			"winter",
-			"jazz",
-			"cozy"
-		],
+		"tags": ["winter", "jazz", "cozy"],
 		"bpm": 90,
 		"musicalKey": "Bb",
-		"moods": [
-			"warm",
-			"smooth"
-		],
-		"scenes": [
-			"interior",
-			"winter",
-			"food"
-		],
+		"moods": ["warm", "smooth"],
+		"scenes": ["interior", "winter", "food"],
 		"loopable": false
 	},
 	{
@@ -1205,22 +666,11 @@
 		"description": "Sleigh bells and celesta drifting like snow.",
 		"localizedDescription": "雪橇铃与钢片琴如雪飘落。",
 		"prompt": "Gentle winter instrumental, sleigh bells, celesta and soft strings, snow falling at dusk, 84 bpm, magical and quiet, holiday season warmth",
-		"tags": [
-			"winter",
-			"bells",
-			"holiday"
-		],
+		"tags": ["winter", "bells", "holiday"],
 		"bpm": 84,
 		"musicalKey": "F",
-		"moods": [
-			"peaceful",
-			"warm"
-		],
-		"scenes": [
-			"winter",
-			"night",
-			"story"
-		],
+		"moods": ["peaceful", "warm"],
+		"scenes": ["winter", "night", "story"],
 		"loopable": false
 	},
 	{
@@ -1231,23 +681,11 @@
 		"description": "Lo-fi beat with vinyl warmth for cold days.",
 		"localizedDescription": "冷天里带黑胶温度的Lo-fi节拍。",
 		"prompt": "Cozy lofi hip hop instrumental, dusty vinyl texture, warm electric piano and relaxed beat, hot cocoa on a cold day, 82 bpm, snug and mellow",
-		"tags": [
-			"winter",
-			"lofi",
-			"healing",
-			"study"
-		],
+		"tags": ["winter", "lofi", "healing", "study"],
 		"bpm": 82,
 		"musicalKey": "Eb",
-		"moods": [
-			"warm",
-			"calm"
-		],
-		"scenes": [
-			"study",
-			"interior",
-			"winter"
-		],
+		"moods": ["warm", "calm"],
+		"scenes": ["study", "interior", "winter"],
 		"loopable": true
 	},
 	{
@@ -1258,22 +696,11 @@
 		"description": "Crystalline ambient piano over frozen pads.",
 		"localizedDescription": "冰封铺底上的晶莹环境钢琴。",
 		"prompt": "Crystalline ambient instrumental, sparse icy piano notes over frozen synth pads, walking on a silent frozen lake, 68 bpm, serene and vast",
-		"tags": [
-			"winter",
-			"ambient",
-			"instrumental"
-		],
+		"tags": ["winter", "ambient", "instrumental"],
 		"bpm": 68,
 		"musicalKey": "A",
-		"moods": [
-			"peaceful",
-			"reflective"
-		],
-		"scenes": [
-			"winter",
-			"outdoor",
-			"documentary"
-		],
+		"moods": ["peaceful", "reflective"],
+		"scenes": ["winter", "outdoor", "documentary"],
 		"loopable": false
 	},
 	{
@@ -1284,22 +711,11 @@
 		"description": "Slow meditation pads with soft chimes.",
 		"localizedDescription": "冥想铺底与轻柔风铃。",
 		"prompt": "Slow meditation ambient instrumental, warm evolving pads, soft wind chimes and distant piano, deep breathing relaxation, 60 bpm, weightless and healing",
-		"tags": [
-			"healing",
-			"meditation",
-			"ambient"
-		],
+		"tags": ["healing", "meditation", "ambient"],
 		"bpm": 60,
 		"musicalKey": "C",
-		"moods": [
-			"healing",
-			"peaceful"
-		],
-		"scenes": [
-			"sleep",
-			"focus",
-			"study"
-		],
+		"moods": ["healing", "peaceful"],
+		"scenes": ["sleep", "focus", "study"],
 		"loopable": true
 	},
 	{
@@ -1310,23 +726,11 @@
 		"description": "Gentle guitar and piano with rainy forest air.",
 		"localizedDescription": "雨中森林气息的吉他与钢琴。",
 		"prompt": "Gentle acoustic guitar and piano duet instrumental, soft rainy forest atmosphere, unhurried and green, 74 bpm, fresh after rain healing feeling",
-		"tags": [
-			"healing",
-			"nature",
-			"rain",
-			"instrumental"
-		],
+		"tags": ["healing", "nature", "rain", "instrumental"],
 		"bpm": 74,
 		"musicalKey": "G",
-		"moods": [
-			"healing",
-			"fresh"
-		],
-		"scenes": [
-			"rain",
-			"outdoor",
-			"sleep"
-		],
+		"moods": ["healing", "fresh"],
+		"scenes": ["rain", "outdoor", "sleep"],
 		"loopable": false
 	},
 	{
@@ -1337,22 +741,11 @@
 		"description": "Dreamy bedtime pads with slow harp.",
 		"localizedDescription": "梦境般的睡前铺底与慢竖琴。",
 		"prompt": "Dreamy sleep instrumental, floating synth pads and slow harp arpeggios, sinking into a cloud pillow, 58 bpm, extremely gentle bedtime music",
-		"tags": [
-			"healing",
-			"sleep",
-			"harp"
-		],
+		"tags": ["healing", "sleep", "harp"],
 		"bpm": 58,
 		"musicalKey": "Db",
-		"moods": [
-			"calm",
-			"dreamy"
-		],
-		"scenes": [
-			"sleep",
-			"night",
-			"story"
-		],
+		"moods": ["calm", "dreamy"],
+		"scenes": ["sleep", "night", "story"],
 		"loopable": true
 	},
 	{
@@ -1363,22 +756,11 @@
 		"description": "Soft neo-classical piano swelling like tides.",
 		"localizedDescription": "如潮汐起伏的新古典钢琴。",
 		"prompt": "Soft neoclassical piano instrumental with subtle strings swelling like ocean tides, emotional but soothing, 66 bpm, warm embrace of the sea",
-		"tags": [
-			"healing",
-			"piano",
-			"emotional"
-		],
+		"tags": ["healing", "piano", "emotional"],
 		"bpm": 66,
 		"musicalKey": "F",
-		"moods": [
-			"healing",
-			"emotional"
-		],
-		"scenes": [
-			"beach",
-			"memory",
-			"documentary"
-		],
+		"moods": ["healing", "emotional"],
+		"scenes": ["beach", "memory", "documentary"],
 		"loopable": false
 	},
 	{
@@ -1389,21 +771,11 @@
 		"description": "Fast breakbeat with urgent synth stabs.",
 		"localizedDescription": "急促合成器切分的快速碎拍。",
 		"prompt": "Fast breakbeat instrumental, urgent synth stabs and driving percussion, final sprint to the finish line, 150 bpm, adrenaline and speed, no vocals",
-		"tags": [
-			"dynamic",
-			"breakbeat",
-			"sport"
-		],
+		"tags": ["dynamic", "breakbeat", "sport"],
 		"bpm": 150,
 		"musicalKey": "Em",
-		"moods": [
-			"energetic"
-		],
-		"scenes": [
-			"sport",
-			"motion",
-			"trailer"
-		],
+		"moods": ["energetic"],
+		"scenes": ["sport", "motion", "trailer"],
 		"loopable": false
 	},
 	{
@@ -1414,22 +786,11 @@
 		"description": "Electro rock hybrid with big riffs and synths.",
 		"localizedDescription": "大失真吉他与合成器的电子摇滚。",
 		"prompt": "Electro rock instrumental, big distorted guitar riffs layered with electronic synths and pounding drums, power up energy boost, 132 bpm, fierce and unstoppable",
-		"tags": [
-			"dynamic",
-			"rock",
-			"electro"
-		],
+		"tags": ["dynamic", "rock", "electro"],
 		"bpm": 132,
 		"musicalKey": "Am",
-		"moods": [
-			"energetic",
-			"confident"
-		],
-		"scenes": [
-			"sport",
-			"trailer",
-			"motion"
-		],
+		"moods": ["energetic", "confident"],
+		"scenes": ["sport", "trailer", "motion"],
 		"loopable": false
 	},
 	{
@@ -1440,23 +801,11 @@
 		"description": "Synthwave chase with pulsing arpeggios.",
 		"localizedDescription": "脉冲琶音的合成器浪潮追逐。",
 		"prompt": "Synthwave instrumental, pulsing analog arpeggios, retro drums and neon lead melody, midnight highway chase, 118 bpm, retro futuristic drive",
-		"tags": [
-			"dynamic",
-			"synthwave",
-			"retro",
-			"city"
-		],
+		"tags": ["dynamic", "synthwave", "retro", "city"],
 		"bpm": 118,
 		"musicalKey": "Bm",
-		"moods": [
-			"confident",
-			"energetic"
-		],
-		"scenes": [
-			"motion",
-			"night",
-			"city"
-		],
+		"moods": ["confident", "energetic"],
+		"scenes": ["motion", "night", "city"],
 		"loopable": false
 	},
 	{
@@ -1467,23 +816,11 @@
 		"description": "Hype sports hip-hop with brass hits.",
 		"localizedDescription": "铜管重击的热血运动嘻哈。",
 		"prompt": "Hype sports hip hop instrumental, punchy brass hits, scratch effects and hard boom bap drums, basketball highlight energy, 96 bpm, swagger and hype, no vocals",
-		"tags": [
-			"dynamic",
-			"hiphop",
-			"sport",
-			"beat"
-		],
+		"tags": ["dynamic", "hiphop", "sport", "beat"],
 		"bpm": 96,
 		"musicalKey": "Gm",
-		"moods": [
-			"confident",
-			"energetic"
-		],
-		"scenes": [
-			"sport",
-			"recap",
-			"social"
-		],
+		"moods": ["confident", "energetic"],
+		"scenes": ["sport", "recap", "social"],
 		"loopable": false
 	},
 	{
@@ -1494,23 +831,11 @@
 		"description": "Chill-hop with warm keys for cafe vlogs.",
 		"localizedDescription": "适合咖啡馆vlog的温暖Chill-hop。",
 		"prompt": "Chill hop instrumental, warm electric piano, mellow beat and soft vinyl noise, cozy coffee shop journaling, 86 bpm, laid back daily vlog background",
-		"tags": [
-			"vlog",
-			"chillhop",
-			"cafe",
-			"study"
-		],
+		"tags": ["vlog", "chillhop", "cafe", "study"],
 		"bpm": 86,
 		"musicalKey": "Ab",
-		"moods": [
-			"smooth",
-			"warm"
-		],
-		"scenes": [
-			"food",
-			"interior",
-			"vlog"
-		],
+		"moods": ["smooth", "warm"],
+		"scenes": ["food", "interior", "vlog"],
 		"loopable": true
 	},
 	{
@@ -1521,23 +846,11 @@
 		"description": "Breezy bossa guitar for slow mornings.",
 		"localizedDescription": "慢早晨的清风波萨吉他。",
 		"prompt": "Breezy bossa nova guitar instrumental, light shaker groove and soft flute, sunny balcony slow morning, 98 bpm, effortless and pleasant",
-		"tags": [
-			"vlog",
-			"bossa",
-			"morning",
-			"light"
-		],
+		"tags": ["vlog", "bossa", "morning", "light"],
 		"bpm": 98,
 		"musicalKey": "C",
-		"moods": [
-			"sunny",
-			"smooth"
-		],
-		"scenes": [
-			"morning",
-			"lifestyle",
-			"interior"
-		],
+		"moods": ["sunny", "smooth"],
+		"scenes": ["morning", "lifestyle", "interior"],
 		"loopable": false
 	},
 	{
@@ -1548,22 +861,11 @@
 		"description": "Mid-tempo pop groove for street strolls.",
 		"localizedDescription": "街头漫步的中速流行律动。",
 		"prompt": "Mid tempo pop instrumental, crisp guitar chops, easy bass groove and finger snaps, strolling through city streets, 106 bpm, casual and stylish",
-		"tags": [
-			"vlog",
-			"city",
-			"pop"
-		],
+		"tags": ["vlog", "city", "pop"],
 		"bpm": 106,
 		"musicalKey": "E",
-		"moods": [
-			"fresh",
-			"confident"
-		],
-		"scenes": [
-			"city",
-			"fashion",
-			"travel"
-		],
+		"moods": ["fresh", "confident"],
+		"scenes": ["city", "fashion", "travel"],
 		"loopable": false
 	},
 	{
@@ -1574,23 +876,11 @@
 		"description": "Happy folk-pop with claps and glockenspiel.",
 		"localizedDescription": "拍手与钟琴的快乐民谣流行。",
 		"prompt": "Happy folk pop instrumental, acoustic strums, hand claps and glockenspiel sparkles, weekend brunch with friends, 112 bpm, wholesome and bright",
-		"tags": [
-			"vlog",
-			"folk",
-			"happy",
-			"light"
-		],
+		"tags": ["vlog", "folk", "happy", "light"],
 		"bpm": 112,
 		"musicalKey": "D",
-		"moods": [
-			"sunny",
-			"warm"
-		],
-		"scenes": [
-			"food",
-			"social",
-			"lifestyle"
-		],
+		"moods": ["sunny", "warm"],
+		"scenes": ["food", "social", "lifestyle"],
 		"loopable": false
 	},
 	{
@@ -1601,23 +891,11 @@
 		"description": "Sorrowful cello and piano farewell theme.",
 		"localizedDescription": "大提琴与钢琴的告别主题。",
 		"prompt": "Sorrowful cello and piano duet instrumental, slow farewell theme with long breathing phrases, 62 bpm, heartbreaking but dignified, cinematic sadness",
-		"tags": [
-			"emotional",
-			"cello",
-			"sad",
-			"instrumental"
-		],
+		"tags": ["emotional", "cello", "sad", "instrumental"],
 		"bpm": 62,
 		"musicalKey": "Dm",
-		"moods": [
-			"emotional",
-			"reflective"
-		],
-		"scenes": [
-			"farewell",
-			"memory",
-			"story"
-		],
+		"moods": ["emotional", "reflective"],
+		"scenes": ["farewell", "memory", "story"],
 		"loopable": false
 	},
 	{
@@ -1628,22 +906,11 @@
 		"description": "Slow-building cinematic hope with full strings.",
 		"localizedDescription": "弦乐渐强的电影感希望之光。",
 		"prompt": "Cinematic instrumental building slowly from solo piano to full strings and soft drums, darkness turning into dawn, 78 bpm, hope rising and triumphant tears",
-		"tags": [
-			"emotional",
-			"cinematic",
-			"hope"
-		],
+		"tags": ["emotional", "cinematic", "hope"],
 		"bpm": 78,
 		"musicalKey": "C",
-		"moods": [
-			"emotional",
-			"optimistic"
-		],
-		"scenes": [
-			"trailer",
-			"documentary",
-			"recap"
-		],
+		"moods": ["emotional", "optimistic"],
+		"scenes": ["trailer", "documentary", "recap"],
 		"loopable": false
 	},
 	{
@@ -1654,23 +921,11 @@
 		"description": "Melancholic piano with rain-soft textures.",
 		"localizedDescription": "带雨声质感的忧郁钢琴。",
 		"prompt": "Melancholic solo piano instrumental with soft rain ambience, watching rain from the window, 70 bpm, lonely but beautiful, quiet longing",
-		"tags": [
-			"emotional",
-			"piano",
-			"rain",
-			"healing"
-		],
+		"tags": ["emotional", "piano", "rain", "healing"],
 		"bpm": 70,
 		"musicalKey": "Bm",
-		"moods": [
-			"reflective",
-			"emotional"
-		],
-		"scenes": [
-			"rain",
-			"night",
-			"memory"
-		],
+		"moods": ["reflective", "emotional"],
+		"scenes": ["rain", "night", "memory"],
 		"loopable": false
 	},
 	{
@@ -1681,22 +936,11 @@
 		"description": "Warm ambient swell that says what words cannot.",
 		"localizedDescription": "替语言说话的温暖环境音墙。",
 		"prompt": "Warm ambient instrumental, slowly swelling pads and distant choir textures, a silent embrace after hard times, 64 bpm, deeply moving and comforting",
-		"tags": [
-			"emotional",
-			"ambient",
-			"healing"
-		],
+		"tags": ["emotional", "ambient", "healing"],
 		"bpm": 64,
 		"musicalKey": "Ab",
-		"moods": [
-			"emotional",
-			"healing"
-		],
-		"scenes": [
-			"love",
-			"memory",
-			"documentary"
-		],
+		"moods": ["emotional", "healing"],
+		"scenes": ["love", "memory", "documentary"],
 		"loopable": false
 	}
 ]
