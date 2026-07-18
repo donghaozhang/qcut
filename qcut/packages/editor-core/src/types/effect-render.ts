@@ -10,6 +10,12 @@ export type EffectMotionProperty = "x" | "y" | "scale" | "rotation" | "opacity";
 
 export type EffectMotionWaveform = "sine" | "cosine" | "linear";
 
+/** Clip-local output time in seconds. */
+export interface EffectRenderWindow {
+	startSeconds: number;
+	endSeconds: number;
+}
+
 export interface EffectMotionChannel {
 	/** x/y amplitudes are canvas ratios; scale/opacity are ratios; rotation is degrees. */
 	property: EffectMotionProperty;
@@ -21,12 +27,14 @@ export interface EffectMotionChannel {
 
 export interface EffectFilterRenderStage {
 	kind: "filter";
+	window?: EffectRenderWindow;
 }
 
 export interface EffectMotionRenderStage {
 	kind: "motion";
 	intensity: number;
 	channels: EffectMotionChannel[];
+	window?: EffectRenderWindow;
 }
 
 export interface EffectOverlayRenderStage {
@@ -35,6 +43,7 @@ export interface EffectOverlayRenderStage {
 	blendMode: "normal" | "screen" | "multiply" | "overlay";
 	opacity: number;
 	fit: "cover" | "contain" | "stretch";
+	window?: EffectRenderWindow;
 }
 
 export interface EffectCompositeRenderStage {
@@ -42,6 +51,7 @@ export interface EffectCompositeRenderStage {
 	layout: "split-horizontal" | "split-vertical" | "mirror" | "grid";
 	copies: 2 | 4;
 	gap: number;
+	window?: EffectRenderWindow;
 }
 
 export interface EffectAudioReactiveRenderStage {
@@ -53,6 +63,7 @@ export interface EffectAudioReactiveRenderStage {
 	maximum: number;
 	attackMs: number;
 	releaseMs: number;
+	window?: EffectRenderWindow;
 }
 
 export interface EffectAudioReactiveKeyframe {
@@ -71,6 +82,7 @@ export interface EffectPersonTrackingRenderStage {
 	target: "face" | "body" | "person";
 	treatment: "outline" | "spotlight" | "background-blur";
 	fallback: "center" | "full-frame" | "disable";
+	window?: EffectRenderWindow;
 }
 
 export type EffectRenderStage =
