@@ -47,6 +47,12 @@ describe("person-cutout CLI", () => {
 			"output/editable.mp4",
 			"--background-fit",
 			"contain",
+			"--portrait-filter",
+			"clean-beauty",
+			"--filter-intensity",
+			"62",
+			"--beauty",
+			"25",
 		]);
 
 		expect(options.command).toBe("person-cutout");
@@ -56,6 +62,9 @@ describe("person-cutout CLI", () => {
 		expect(options.cutoutOutput).toBe("output/person.webm");
 		expect(options.output).toBe("output/editable.mp4");
 		expect(options.backgroundFit).toBe("contain");
+		expect(options.portraitFilter).toBe("clean-beauty");
+		expect(options.filterIntensity).toBe(62);
+		expect(options.beauty).toBe(25);
 	});
 
 	it("builds a transparent cloud request and alpha-aware FFmpeg composition", () => {
@@ -64,6 +73,9 @@ describe("person-cutout CLI", () => {
 			background: "office.png",
 			output: "output/editable.mp4",
 			backgroundFit: "cover",
+			portraitFilter: "clean-beauty",
+			filterIntensity: 68,
+			beauty: 25,
 		};
 		const paths = resolvePersonCutoutPaths({ options, cwd: "/project" });
 		const args = buildBackgroundCompositeArgs({
@@ -87,6 +99,10 @@ describe("person-cutout CLI", () => {
 		expect(args[args.indexOf("-map") + 1]).toBe("[video]");
 		expect(args).toContain("2:a?");
 		expect(args.join(" ")).toContain("crop=1080:1920");
+		expect(args.join(" ")).toContain("alphaextract");
+		expect(args.join(" ")).toContain("alphamerge");
+		expect(args.join(" ")).toContain("hqdn3d=");
+		expect(args.join(" ")).toContain("lut3d=file=");
 		expect(args.at(-1)).toBe("/project/output/editable.mp4");
 	});
 
