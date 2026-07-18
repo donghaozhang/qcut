@@ -57,4 +57,16 @@ describe("project folders drag and drop", () => {
 			"folder-1"
 		);
 	});
+
+	it("clears an abandoned folder name when the controlled dialog reopens", () => {
+		render(<FoldersStrip currentFolderId={null} onOpenFolder={vi.fn()} />);
+
+		fireEvent.click(screen.getByTestId("new-folder-button"));
+		const input = screen.getByPlaceholderText("projects.folderName");
+		fireEvent.change(input, { target: { value: "Abandoned draft" } });
+		fireEvent.click(screen.getByText("common.cancel"));
+		fireEvent.click(screen.getByTestId("new-folder-button"));
+
+		expect(screen.getByPlaceholderText("projects.folderName")).toHaveValue("");
+	});
 });

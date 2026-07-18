@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import {
 	ChevronRight,
 	Folder,
@@ -58,17 +58,16 @@ function FolderNameDialog({
 	const { t } = useTranslation();
 	const [name, setName] = useState(initialName);
 
-	const handleOpenChange = (open: boolean) => {
-		if (open) setName(initialName);
-		onOpenChange(open);
-	};
+	useEffect(() => {
+		if (isOpen) setName(initialName);
+	}, [initialName, isOpen]);
 
 	const submit = () => {
 		if (name.trim()) onConfirm(name);
 	};
 
 	return (
-		<Dialog open={isOpen} onOpenChange={handleOpenChange}>
+		<Dialog open={isOpen} onOpenChange={onOpenChange}>
 			<DialogContent>
 				<DialogHeader>
 					<DialogTitle>{title}</DialogTitle>
