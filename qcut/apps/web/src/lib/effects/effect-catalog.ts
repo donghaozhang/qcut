@@ -5,6 +5,9 @@ import type {
 } from "./effect-catalog-types";
 import { MOTION_EFFECT_CATALOG } from "./effect-motion-catalog";
 import { FILTER_EFFECT_CATALOG } from "./effect-filter-catalog";
+import { OVERLAY_EFFECT_CATALOG } from "./effect-overlay-catalog";
+import { COMPOSITE_EFFECT_CATALOG } from "./effect-composite-catalog";
+import { SOUND_EFFECT_CATALOG } from "./effect-sound-catalog";
 
 interface LegacyEffectMetadata {
 	category: VisualEffectCategoryId;
@@ -135,4 +138,7 @@ export const EFFECT_CATALOG: readonly VisualEffectCatalogEntry[] = [
 	...LEGACY_EFFECT_CATALOG,
 	...FILTER_EFFECT_CATALOG,
 	...MOTION_EFFECT_CATALOG,
+	...OVERLAY_EFFECT_CATALOG,
+	...COMPOSITE_EFFECT_CATALOG,
+	...SOUND_EFFECT_CATALOG,
 ];
