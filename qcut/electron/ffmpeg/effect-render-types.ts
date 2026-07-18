@@ -34,6 +34,20 @@ export interface EffectAudioReactiveEnvelope {
 	keyframes: Array<{ timeSeconds: number; value: number }>;
 }
 
+export interface EffectPersonSource {
+	stageIndex: number;
+	path: string;
+	animated: boolean;
+	inputIndex?: number;
+}
+
+export interface EffectPersonTrackingRenderStage {
+	kind: "person-tracking";
+	target: "face" | "body" | "person";
+	treatment: "outline" | "spotlight" | "background-blur";
+	fallback: "center" | "full-frame" | "disable";
+}
+
 export type EffectRenderStage =
 	| { kind: "filter" }
 	| EffectMotionRenderStage
@@ -49,12 +63,7 @@ export type EffectRenderStage =
 			attackMs: number;
 			releaseMs: number;
 	  }
-	| {
-			kind: "person-tracking";
-			target: "face" | "body" | "person";
-			treatment: "outline" | "spotlight" | "background-blur";
-			fallback: "center" | "full-frame" | "disable";
-	  };
+	| EffectPersonTrackingRenderStage;
 
 export interface EffectRenderProgram {
 	version: 1;
