@@ -3,6 +3,7 @@ import type {
 	EffectRenderProgram,
 } from "./effect-render-types";
 import { buildNumericKeyframeExpression } from "./keyframe-expression";
+import { gateEffectExpression } from "./effect-render-window";
 
 type AudioReactiveProperty = "brightness" | "scale" | "opacity";
 
@@ -68,8 +69,16 @@ export function buildEffectAudioReactiveExpression({
 			(candidate) => candidate.stageIndex === stageIndex
 		);
 		const level = normalizedEnvelopeExpression({ envelope, timeVariable });
+		const active =
+			`(${stage.minimum})+` +
+			`((${stage.maximum})-(${stage.minimum}))*(${level})`;
 		expressions.push(
-			`(${stage.minimum})+((${stage.maximum})-(${stage.minimum}))*(${level})`
+			gateEffectExpression({
+				active,
+				inactive: "1",
+				window: stage.window,
+				timeVariable,
+			})
 		);
 	}
 	return expressions.length === 0
