@@ -191,6 +191,15 @@ export interface VideoSource {
 	visual?: VideoVisual;
 	effectFilter?: string;
 	effectRenderProgram?: EffectRenderProgram;
+	effectOverlaySources?: EffectOverlaySource[];
+}
+
+export interface EffectOverlaySource {
+	resourceId: string;
+	stageIndex: number;
+	path: string;
+	animated: boolean;
+	inputIndex?: number;
 }
 
 export interface VideoTransition {
@@ -447,6 +456,7 @@ export interface ImageSource {
 	visual?: VideoVisual;
 	effectFilter?: string;
 	effectRenderProgram?: EffectRenderProgram;
+	effectOverlaySources?: EffectOverlaySource[];
 }
 
 /**
