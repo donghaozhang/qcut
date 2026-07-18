@@ -65,7 +65,7 @@ describe("EffectsView", () => {
 		).toBeVisible();
 		expect(screen.getByTestId("effect-card-camera-push-in")).toBeVisible();
 		const previews = container.querySelectorAll<HTMLImageElement>(
-			'[data-testid^="effect-card-"] img'
+			'[data-testid^="effect-card-"] img[data-effect-preview-base="true"]'
 		);
 		expect(previews).toHaveLength(12);
 		for (const preview of previews) {
@@ -90,6 +90,50 @@ describe("EffectsView", () => {
 		});
 		expect(screen.getAllByTestId(/^effect-card-/)).toHaveLength(1);
 		expect(screen.getByTestId("effect-card-invert")).toBeVisible();
+	});
+
+	it("renders three real multi-screen previews from composite programs", () => {
+		const { container } = render(<EffectsView />);
+
+		fireEvent.click(screen.getByTestId("effect-navigation-multiscreen"));
+		expect(screen.getAllByTestId(/^effect-card-/)).toHaveLength(3);
+		expect(
+			screen.getByTestId("effect-card-multiscreen-side-by-side")
+		).toBeVisible();
+		expect(
+			container.querySelectorAll("canvas[data-effect-composite-layout]")
+		).toHaveLength(3);
+	});
+
+	it("applies three paired sound effects with their persisted audio resource", () => {
+		const elementId = addSelectedMediaClip();
+		const { container } = render(<EffectsView />);
+
+		fireEvent.click(screen.getByTestId("effect-navigation-sound"));
+		expect(screen.getAllByTestId(/^effect-card-/)).toHaveLength(3);
+		expect(
+			container.querySelectorAll("[data-effect-audio-companion]")
+		).toHaveLength(3);
+		fireEvent.click(screen.getByTestId("effect-card-sound-cinematic-impact"));
+
+		expect(useEffectsStore.getState().getElementEffects(elementId)).toEqual([
+			expect.objectContaining({
+				presetId: "sound-cinematic-impact",
+				audioCompanion: {
+					resourceId: "-2003",
+					offsetSeconds: 0,
+					durationSeconds: 1.6,
+					gain: 0.9,
+				},
+			}),
+		]);
+		const timelineElement = useTimelineStore
+			.getState()
+			.tracks.flatMap((track) => track.elements)
+			.find((element) => element.id === elementId);
+		expect(timelineElement?.effects?.[0]?.audioCompanion?.resourceId).toBe(
+			"-2003"
+		);
 	});
 
 	it("updates labels and search when the interface language changes", () => {
