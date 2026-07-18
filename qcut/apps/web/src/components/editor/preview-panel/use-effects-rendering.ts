@@ -1,6 +1,7 @@
 import { useMemo } from "react";
 import {
 	combineEffectRenderPrograms,
+	type EffectAudioCompanion,
 	type EffectInstance,
 	type EffectRenderProgram,
 } from "@qcut/editor-core";
@@ -14,11 +15,19 @@ export interface ElementEffectsRendering {
 	filterStyle: string;
 	hasEffects: boolean;
 	renderProgram?: EffectRenderProgram;
+	audioCompanions: readonly ElementEffectAudioCompanion[];
+}
+
+export interface ElementEffectAudioCompanion {
+	effectId: string;
+	effectName: string;
+	companion: EffectAudioCompanion;
 }
 
 export const EMPTY_ELEMENT_EFFECTS_RENDERING: ElementEffectsRendering = {
 	filterStyle: "",
 	hasEffects: false,
+	audioCompanions: [],
 };
 
 export function buildElementEffectsRendering({
@@ -37,11 +46,23 @@ export function buildElementEffectsRendering({
 			effect.renderProgram ? [effect.renderProgram] : []
 		),
 	});
+	const audioCompanions = enabledEffects.flatMap((effect) =>
+		effect.audioCompanion
+			? [
+					{
+						effectId: effect.id,
+						effectName: effect.name,
+						companion: effect.audioCompanion,
+					},
+				]
+			: []
+	);
 
 	return {
 		filterStyle: parametersToCSSFilters(mergedParameters),
 		hasEffects: true,
 		renderProgram,
+		audioCompanions,
 	};
 }
 
