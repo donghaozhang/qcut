@@ -210,7 +210,8 @@ export default defineConfig(({ mode }) => {
 			},
 		},
 		server: {
-			port: 5173,
+			// Dev tooling assigns a port via PORT when 5173 is taken.
+			port: Number(process.env.PORT) || 5173,
 			host: true,
 		},
 	};
