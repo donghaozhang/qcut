@@ -136,6 +136,33 @@ describe("EffectsView", () => {
 		);
 	});
 
+	it("renders three dynamic audio-reactive previews", () => {
+		const { container } = render(<EffectsView />);
+
+		fireEvent.click(screen.getByTestId("effect-navigation-audio"));
+		expect(screen.getAllByTestId(/^effect-card-/)).toHaveLength(3);
+		expect(screen.getByTestId("effect-card-audio-bass-pulse")).toBeVisible();
+		expect(
+			container.querySelectorAll('[data-effect-audio-reactive="true"]')
+		).toHaveLength(3);
+	});
+
+	it("renders three multi-stage creative AI recipes", () => {
+		const { container } = render(<EffectsView />);
+
+		fireEvent.click(screen.getByTestId("effect-navigation-creative-ai"));
+		expect(screen.getAllByTestId(/^effect-card-/)).toHaveLength(3);
+		expect(
+			screen.getByTestId("effect-card-creative-ai-aura-bloom")
+		).toBeVisible();
+		expect(
+			container.querySelectorAll("[data-effect-overlay-resource]")
+		).toHaveLength(2);
+		expect(
+			container.querySelectorAll("canvas[data-effect-composite-layout]")
+		).toHaveLength(1);
+	});
+
 	it("updates labels and search when the interface language changes", () => {
 		render(<EffectsView />);
 
@@ -153,9 +180,12 @@ describe("EffectsView", () => {
 		fireEvent.change(screen.getByLabelText("搜索特效"), {
 			target: { value: "提亮" },
 		});
-		expect(screen.getAllByTestId(/^effect-card-/)).toHaveLength(2);
+		expect(screen.getAllByTestId(/^effect-card-/)).toHaveLength(3);
 		expect(screen.getByTestId("effect-card-brightness-increase")).toBeVisible();
 		expect(screen.getByTestId("effect-card-basic-clean-bright")).toBeVisible();
+		expect(
+			screen.getByTestId("effect-card-creative-ai-aura-bloom")
+		).toBeVisible();
 	});
 
 	it("derives Favorites from the same catalog entries", () => {
