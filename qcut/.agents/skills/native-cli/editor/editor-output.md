@@ -237,7 +237,7 @@ for architecture details.
 qcut editor:ui:switch-panel --panel media
 ```
 
-Available left panels: `media`, `text`, `audio`, `stickers`, `video-edit`, `effects`, `transitions`, `filters`, `text2image`, `nano-edit`, `ai`, `sounds`, `segmentation`, `remotion`, `pty`, `word-timeline`, `project-folder`, `upscale`, `moyin`
+Available left panels: `media`, `text`, `stickers`, `video-edit`, `effects`, `transitions`, `filters`, `text2image`, `nano-edit`, `ai`, `sounds`, `segmentation`, `remotion`, `pty`, `word-timeline`, `project-folder`, `upscale`, `moyin`
 
 ### Switch properties panel tab
 
