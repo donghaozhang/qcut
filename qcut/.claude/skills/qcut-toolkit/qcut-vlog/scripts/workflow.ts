@@ -56,6 +56,38 @@ export function buildAudioExtractArgs({
 	];
 }
 
+export function buildBackgroundArgs({
+	options,
+	paths,
+	cleanVideo,
+}: {
+	options: VlogOptions;
+	paths: VlogPaths;
+	cleanVideo: string;
+}): string[] {
+	if (!options.background) {
+		throw new Error("Background composition requires --background");
+	}
+	return [
+		"edit",
+		"person-cutout",
+		"-i",
+		cleanVideo,
+		"--background",
+		options.background,
+		"--background-fit",
+		options.backgroundFit,
+		"--output-dir",
+		paths.outputDir,
+		"--cutout-output",
+		paths.cutoutVideo,
+		"--output",
+		paths.editableVideo,
+		"--force",
+		"--json",
+	];
+}
+
 export function buildTranscribeArgs({
 	options,
 	paths,
@@ -125,6 +157,27 @@ export function buildPreviewArgs({
 		"-vf",
 		"scale=720:-2",
 		paths.previewImage,
+	];
+}
+
+export function buildBackgroundPreviewArgs({
+	paths,
+	previewTime,
+}: {
+	paths: VlogPaths;
+	previewTime: number;
+}): string[] {
+	return [
+		"-y",
+		"-ss",
+		previewTime.toFixed(3),
+		"-i",
+		paths.editableVideo,
+		"-frames:v",
+		"1",
+		"-vf",
+		"scale=720:-2",
+		paths.backgroundPreviewImage,
 	];
 }
 
