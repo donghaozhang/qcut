@@ -14,7 +14,7 @@ interface AudioWaveformCacheEntry {
 	accessedAt: number;
 }
 
-const DEFAULT_PEAK_COUNT = 4_096;
+const DEFAULT_PEAK_COUNT = 8_192;
 
 export function createAudioWaveformPeaks({
 	buffer,

@@ -12,7 +12,7 @@ export function canDecodeNativeAudioWaveform(): boolean {
 export async function decodeNativeAudioWaveform({
 	sourcePath,
 	duration,
-	peakCount = 4_096,
+	peakCount = 8_192,
 }: {
 	sourcePath: string;
 	duration: number;
