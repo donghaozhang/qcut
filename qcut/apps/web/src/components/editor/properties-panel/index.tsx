@@ -212,7 +212,7 @@ export function PropertiesPanel() {
 		}
 
 		if (element.type === "adjustment") {
-			return <AdjustmentProperties />;
+			return <AdjustmentProperties element={element} trackId={trackId} />;
 		}
 
 		if (element.type === "captions" || (element as any).type === "caption") {
@@ -267,8 +267,7 @@ export function PropertiesPanel() {
 									(() => {
 										const { trackId, element } = resolvedSelections[0];
 										const showEffects =
-											EFFECTS_ENABLED &&
-											(element.type === "adjustment" || hasEffects(element.id));
+											EFFECTS_ENABLED && hasEffects(element.id);
 										const showTransform =
 											element.type === "markdown" ||
 											(showEffects && element.type !== "adjustment");

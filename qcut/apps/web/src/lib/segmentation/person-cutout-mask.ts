@@ -12,6 +12,42 @@ export interface ProcessedPersonMask {
 
 const clamp01 = (value: number) => Math.min(1, Math.max(0, value));
 
+export function hasPersonMaskForeground({
+	alpha,
+	threshold = 0.05,
+}: {
+	alpha: Float32Array;
+	threshold?: number;
+}): boolean {
+	let detectedPixels = 0;
+	const minimumPixels = Math.max(1, Math.floor(alpha.length * 0.0005));
+	for (const value of alpha) {
+		if (value < threshold) continue;
+		detectedPixels += 1;
+		if (detectedPixels >= minimumPixels) return true;
+	}
+	return false;
+}
+
+export function createCenterPersonFallbackAlpha({
+	width,
+	height,
+}: {
+	width: number;
+	height: number;
+}): Float32Array {
+	const alpha = new Float32Array(width * height);
+	for (let y = 0; y < height; y += 1) {
+		for (let x = 0; x < width; x += 1) {
+			const normalizedX = (x / Math.max(1, width - 1) - 0.5) / 0.28;
+			const normalizedY = (y / Math.max(1, height - 1) - 0.5) / 0.42;
+			const distance = normalizedX * normalizedX + normalizedY * normalizedY;
+			alpha[y * width + x] = Math.max(0, Math.min(1, 1.2 - distance));
+		}
+	}
+	return alpha;
+}
+
 function smoothstep(edge0: number, edge1: number, value: number): number {
 	if (edge0 === edge1) return value >= edge1 ? 1 : 0;
 	const normalized = clamp01((value - edge0) / (edge1 - edge0));

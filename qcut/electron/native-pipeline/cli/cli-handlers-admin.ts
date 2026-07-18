@@ -21,6 +21,7 @@ import {
 	setupEnvTemplate,
 } from "../infra/key-manager.js";
 import { getLicenseServerUrl } from "../infra/proxy-client.js";
+import { pullCloudKeys } from "./cli-handlers-keys-sync.js";
 import {
 	initProject,
 	organizeProject,
@@ -319,9 +320,24 @@ export async function handleLogin(options: CLIRunOptions): Promise<CLIResult> {
 		}
 
 		setKey("QCUT_AUTH_TOKEN", token);
+
+		// Best-effort: fill missing local keys from the account's cloud
+		// vault so a fresh machine works right after sign-in.
+		let keySyncNote = "";
+		try {
+			const pulled = await pullCloudKeys({ overwrite: false });
+			if (pulled.added.length > 0) {
+				keySyncNote = `; synced ${pulled.added.length} cloud key(s)`;
+			}
+		} catch {
+			// Login itself succeeded; key sync can be retried via sync-keys.
+		}
+
 		return {
 			success: true,
-			data: { message: `Logged in as ${options.email.trim()}` },
+			data: {
+				message: `Logged in as ${options.email.trim()}${keySyncNote}`,
+			},
 		};
 	} catch (err) {
 		return {

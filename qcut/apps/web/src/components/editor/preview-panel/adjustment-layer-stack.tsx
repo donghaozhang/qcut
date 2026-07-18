@@ -5,10 +5,12 @@ import type { ActiveElement } from "./types";
 export function AdjustmentLayerStack({
 	activeElements,
 	currentTime,
+	fps = 30,
 	renderElement,
 }: {
 	activeElements: ActiveElement[];
 	currentTime: number;
+	fps?: number;
 	renderElement: (elementData: ActiveElement, index: number) => ReactNode;
 }) {
 	let renderedLayers: ReactNode[] = [];
@@ -23,6 +25,7 @@ export function AdjustmentLayerStack({
 		const filter = buildAdjustmentCssFilter({
 			element: adjustment,
 			currentTime,
+			fps,
 		});
 		renderedLayers = [
 			<div

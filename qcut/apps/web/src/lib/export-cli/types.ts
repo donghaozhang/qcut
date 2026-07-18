@@ -6,6 +6,10 @@
  */
 
 import type {
+	EffectAudioReactiveEnvelope,
+	EffectRenderProgram,
+} from "@qcut/editor-core";
+import type {
 	AudioCrossfade,
 	AudioMixBusSettings,
 	ClipTransitionDirection,
@@ -194,6 +198,23 @@ export interface VideoSourceInput {
 	freezeFrameDuration: number;
 	visual?: VideoVisualInput;
 	effectFilter?: string;
+	effectRenderProgram?: EffectRenderProgram;
+	effectOverlaySources?: EffectOverlaySourceInput[];
+	effectPersonSources?: EffectPersonSourceInput[];
+	effectAudioReactiveEnvelopes?: EffectAudioReactiveEnvelope[];
+}
+
+export interface EffectOverlaySourceInput {
+	resourceId: string;
+	stageIndex: number;
+	path: string;
+	animated: boolean;
+}
+
+export interface EffectPersonSourceInput {
+	stageIndex: number;
+	path: string;
+	animated: boolean;
 }
 
 /**
@@ -246,6 +267,10 @@ export interface ImageSourceInput {
 	elementId: string; // For debugging
 	visual?: VideoVisualInput;
 	effectFilter?: string;
+	effectRenderProgram?: EffectRenderProgram;
+	effectOverlaySources?: EffectOverlaySourceInput[];
+	effectPersonSources?: EffectPersonSourceInput[];
+	effectAudioReactiveEnvelopes?: EffectAudioReactiveEnvelope[];
 }
 
 /**

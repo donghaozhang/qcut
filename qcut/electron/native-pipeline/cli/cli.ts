@@ -148,6 +148,13 @@ export function parseCliArgs(argv: string[]): CLIRunOptions {
 			policy: { type: "string" },
 			resume: { type: "string" },
 			input: { type: "string", short: "i" },
+			background: { type: "string", short: "b" },
+			"cutout-output": { type: "string" },
+			"background-fit": { type: "string" },
+			"portrait-filter": { type: "string" },
+			"filter-intensity": { type: "string" },
+			beauty: { type: "string" },
+			"list-presets": { type: "boolean", default: false },
 			profile: { type: "string", multiple: true },
 			"save-intermediates": { type: "boolean", default: false },
 			parallel: { type: "boolean", default: false },
@@ -325,8 +332,12 @@ export function parseCliArgs(argv: string[]): CLIRunOptions {
 			replace: { type: "boolean", default: false },
 			ripple: { type: "boolean", default: false },
 			"cross-track-ripple": { type: "boolean", default: false },
-			"remove-fillers": { type: "boolean", default: false },
-			"remove-silences": { type: "boolean", default: false },
+			"remove-fillers": { type: "boolean" },
+			"remove-silences": { type: "boolean" },
+			"no-remove-fillers": { type: "boolean", default: false },
+			"no-remove-silences": { type: "boolean", default: false },
+			push: { type: "boolean", default: false },
+			pull: { type: "boolean", default: false },
 			html: { type: "string" },
 			message: { type: "string" },
 			stack: { type: "string" },
@@ -468,6 +479,16 @@ export function parseCliArgs(argv: string[]): CLIRunOptions {
 		policy: values.policy as string | undefined,
 		resume: values.resume as string | undefined,
 		input: values.input as string | undefined,
+		background: values.background as string | undefined,
+		cutoutOutput: values["cutout-output"] as string | undefined,
+		backgroundFit: values["background-fit"] as string | undefined,
+		portraitFilter: values["portrait-filter"] as string | undefined,
+		filterIntensity:
+			values["filter-intensity"] === undefined
+				? undefined
+				: Number(values["filter-intensity"]),
+		beauty: values.beauty === undefined ? undefined : Number(values.beauty),
+		listPresets: (values["list-presets"] as boolean) ?? false,
 		profile: values.profile as string[] | undefined,
 		saveIntermediates: (values["save-intermediates"] as boolean) ?? false,
 		parallel: (values.parallel as boolean) ?? false,
@@ -783,8 +804,16 @@ export function parseCliArgs(argv: string[]): CLIRunOptions {
 		replace: (values.replace as boolean) ?? false,
 		ripple: (values.ripple as boolean) ?? false,
 		crossTrackRipple: (values["cross-track-ripple"] as boolean) ?? false,
-		removeFillers: (values["remove-fillers"] as boolean) ?? false,
-		removeSilences: (values["remove-silences"] as boolean) ?? false,
+		push: (values.push as boolean) ?? false,
+		pull: (values.pull as boolean) ?? false,
+		// Absent flags stay undefined so the clean-audio runner applies its
+		// documented default (true); --no-* flags force them off.
+		removeFillers: values["no-remove-fillers"]
+			? false
+			: (values["remove-fillers"] as boolean | undefined),
+		removeSilences: values["no-remove-silences"]
+			? false
+			: (values["remove-silences"] as boolean | undefined),
 		html: values.html as string | undefined,
 		message: values.message as string | undefined,
 		stack: values.stack as string | undefined,

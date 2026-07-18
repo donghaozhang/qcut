@@ -13,6 +13,8 @@ import fs from "fs";
 import type {
 	AudioCrossfade,
 	AudioFile,
+	EffectOverlaySource,
+	EffectPersonSource,
 	VideoSource,
 	VideoTransition,
 	ImageSource,
@@ -24,6 +26,7 @@ import { QUALITY_SETTINGS, debugLog, debugWarn } from "./ffmpeg/utils";
 import {
 	buildVideoTimelineFilters,
 	buildVideoTimelineLayers,
+	getVideoSourceTimelineDuration,
 } from "./ffmpeg-video-transform";
 import { buildTimelineAudioFilters } from "./ffmpeg/audio-filter-graph";
 import {
@@ -124,6 +127,103 @@ interface ResolvedTextAssLayer {
 	sourceIndex: number;
 }
 
+interface EffectOverlayCarrier {
+	duration: number;
+	trimStart?: number;
+	trimEnd?: number;
+	playbackRate?: number;
+	speedKeyframes?: VideoSource["speedKeyframes"];
+	freezeFrameDuration?: number;
+	effectOverlaySources?: EffectOverlaySource[];
+}
+
+interface EffectPersonCarrier {
+	duration: number;
+	effectPersonSources?: EffectPersonSource[];
+}
+
+function appendEffectOverlayInputs<T extends EffectOverlayCarrier>({
+	args,
+	fps,
+	fallbackDuration,
+	sources,
+	startInputIndex,
+}: {
+	args: string[];
+	fps: number;
+	fallbackDuration: number;
+	sources: readonly T[];
+	startInputIndex: number;
+}): { sources: T[]; inputCount: number } {
+	let nextInputIndex = startInputIndex;
+	const resolvedSources = sources.map((source) => {
+		const resolvedDuration = getVideoSourceTimelineDuration({ source, fps });
+		const inputDuration =
+			Number.isFinite(resolvedDuration) && resolvedDuration > 0
+				? resolvedDuration
+				: fallbackDuration;
+		const effectOverlaySources = source.effectOverlaySources?.map((overlay) => {
+			if (!fs.existsSync(overlay.path)) {
+				throw new Error(`Effect overlay source not found: ${overlay.path}`);
+			}
+			if (overlay.animated) {
+				args.push("-stream_loop", "-1");
+			} else {
+				args.push("-loop", "1");
+			}
+			const boundedInputDuration = Math.max(
+				1 / Math.max(1, fps),
+				inputDuration
+			);
+			args.push(
+				"-t",
+				Number(boundedInputDuration.toFixed(6)).toString(),
+				"-i",
+				overlay.path
+			);
+			return { ...overlay, inputIndex: nextInputIndex++ };
+		});
+		return { ...source, effectOverlaySources };
+	});
+	return {
+		sources: resolvedSources,
+		inputCount: nextInputIndex - startInputIndex,
+	};
+}
+
+function appendEffectPersonInputs<T extends EffectPersonCarrier>({
+	args,
+	sources,
+	startInputIndex,
+}: {
+	args: string[];
+	sources: readonly T[];
+	startInputIndex: number;
+}): { sources: T[]; inputCount: number } {
+	let nextInputIndex = startInputIndex;
+	const resolvedSources = sources.map((source) => {
+		const effectPersonSources = source.effectPersonSources?.map(
+			(personSource) => {
+				if (!fs.existsSync(personSource.path)) {
+					throw new Error(
+						`Person effect source not found: ${personSource.path}`
+					);
+				}
+				if (!personSource.animated) {
+					args.push("-loop", "1", "-t", String(source.duration));
+				}
+				args.push("-i", personSource.path);
+				return { ...personSource, inputIndex: nextInputIndex++ };
+			}
+		);
+		return { ...source, effectPersonSources };
+	});
+	return {
+		sources: resolvedSources,
+		inputCount: nextInputIndex - startInputIndex,
+	};
+}
+
 function ffmpegColorValue(color: string): string {
 	if (color.trim().toLowerCase() === "#000000") return "black";
 	const match = /^#([0-9a-f]{6})$/i.exec(color.trim());
@@ -174,6 +274,10 @@ function buildCanonicalVisualFilters({
 		trimEnd: image.trimEnd,
 		visual: image.visual,
 		effectFilter: image.effectFilter,
+		effectRenderProgram: image.effectRenderProgram,
+		effectOverlaySources: image.effectOverlaySources,
+		effectPersonSources: image.effectPersonSources,
+		effectAudioReactiveEnvelopes: image.effectAudioReactiveEnvelopes,
 	}));
 	const timelineSources = [...videoSources, ...imageSources];
 	const inputIndexes = timelineSources.map((_source, index) =>
@@ -410,6 +514,44 @@ function buildCompositeEncodeArgs(
 		);
 	}
 
+	const effectOverlayInputStartIndex =
+		baseInputCount + validImages.length + validStickers.length;
+	const resolvedVideoOverlayInputs = appendEffectOverlayInputs({
+		args,
+		fps,
+		fallbackDuration: duration,
+		sources: videoSources,
+		startInputIndex: effectOverlayInputStartIndex,
+	});
+	const resolvedImageOverlayInputs = appendEffectOverlayInputs({
+		args,
+		fps,
+		fallbackDuration: duration,
+		sources: validImages,
+		startInputIndex:
+			effectOverlayInputStartIndex + resolvedVideoOverlayInputs.inputCount,
+	});
+	const effectOverlayInputCount =
+		resolvedVideoOverlayInputs.inputCount +
+		resolvedImageOverlayInputs.inputCount;
+	const effectPersonInputStartIndex =
+		effectOverlayInputStartIndex + effectOverlayInputCount;
+	const resolvedVideoPersonInputs = appendEffectPersonInputs({
+		args,
+		sources: resolvedVideoOverlayInputs.sources,
+		startInputIndex: effectPersonInputStartIndex,
+	});
+	const resolvedImagePersonInputs = appendEffectPersonInputs({
+		args,
+		sources: resolvedImageOverlayInputs.sources,
+		startInputIndex:
+			effectPersonInputStartIndex + resolvedVideoPersonInputs.inputCount,
+	});
+	const resolvedVideoSources = resolvedVideoPersonInputs.sources;
+	const resolvedImages = resolvedImagePersonInputs.sources;
+	const effectPersonInputCount =
+		resolvedVideoPersonInputs.inputCount + resolvedImagePersonInputs.inputCount;
+
 	for (const audioFile of audioFiles) {
 		if (!fs.existsSync(audioFile.path)) {
 			throw new Error(`Audio file not found: ${audioFile.path}`);
@@ -426,19 +568,23 @@ function buildCompositeEncodeArgs(
 		...textAssLayers,
 	].map((layer, sourceIndex) => ({ ...layer, sourceIndex }));
 	const usesCanonicalVisualOrder =
-		!useVideoInput &&
-		[
-			...videoSources,
-			...validImages,
-			...validStickers,
-			...resolvedTextAssLayers,
-		].some((layer) => Number.isFinite(layer.trackOrder));
+		(!useVideoInput &&
+			[
+				...resolvedVideoSources,
+				...resolvedImages,
+				...validStickers,
+				...resolvedTextAssLayers,
+			].some((layer) => Number.isFinite(layer.trackOrder))) ||
+		(!useVideoInput &&
+			[...resolvedVideoSources, ...resolvedImages].some(
+				(source) => source.effectFilter || source.effectRenderProgram
+			));
 
 	if (usesCanonicalVisualOrder) {
 		const canonical = buildCanonicalVisualFilters({
-			videoSources,
+			videoSources: resolvedVideoSources,
 			videoTransitions,
-			images: validImages,
+			images: resolvedImages,
 			stickers: validStickers,
 			textAssLayers: resolvedTextAssLayers,
 			baseInputCount,
@@ -454,9 +600,9 @@ function buildCompositeEncodeArgs(
 		currentVideoLabel = canonical.outputLabel;
 	} else {
 		let filterLabelIndex = 0;
-		if (videoSources.length > 0) {
+		if (resolvedVideoSources.length > 0) {
 			const timeline = buildVideoTimelineFilters({
-				videoSources,
+				videoSources: resolvedVideoSources,
 				videoTransitions,
 				width,
 				height,
@@ -474,7 +620,7 @@ function buildCompositeEncodeArgs(
 			currentVideoLabel = outputLabel;
 		}
 
-		for (const [index, image] of validImages.entries()) {
+		for (const [index, image] of resolvedImages.entries()) {
 			const imageInputIndex = baseInputCount + index;
 			const scaledLabel = `img_scaled_${index}`;
 			const paddedLabel = `img_padded_${index}`;
@@ -612,7 +758,11 @@ function buildCompositeEncodeArgs(
 	}
 
 	const audioInputStartIndex =
-		baseInputCount + validImages.length + validStickers.length;
+		baseInputCount +
+		validImages.length +
+		validStickers.length +
+		effectOverlayInputCount +
+		effectPersonInputCount;
 	const audioResult = buildTimelineAudioFilters({
 		audioFiles,
 		audioCrossfades,

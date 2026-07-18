@@ -1,6 +1,7 @@
 export const ASSET_MANIFEST_SCHEMA_VERSION = 1 as const;
 
 export const ASSET_KINDS = [
+	"effect",
 	"sticker",
 	"text-template",
 	"caption-style",

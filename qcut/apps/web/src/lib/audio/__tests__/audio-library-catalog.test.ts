@@ -1,20 +1,34 @@
-import { existsSync, statSync } from "node:fs";
+import { existsSync, readFileSync, statSync } from "node:fs";
 import path from "node:path";
 import { describe, expect, it } from "vitest";
+import { cdnTrackToSoundEffect } from "../audio-cdn-catalog";
 import {
 	AUDIO_LIBRARY_CATEGORIES,
+	type AudioLibraryKind,
 	BUILT_IN_AUDIO,
 	findAudioLibraryCategory,
 	getBuiltInAudio,
+	getCatalogAudio,
 	localizeAudioLibraryTag,
+	MUSIC_CATEGORIES,
 	translateAudioSearchQuery,
 } from "../audio-library-catalog";
+
+type AudioCdnSourceTrackForTest = {
+	id: number;
+	kind: AudioLibraryKind;
+	name: string;
+	duration: number;
+	tags: string[];
+	file: string;
+	artworkFile?: string;
+};
 
 describe("audio library catalog", () => {
 	it("ships browsable music and sound-effect categories", () => {
 		expect(
 			AUDIO_LIBRARY_CATEGORIES.filter((category) => category.kind === "music")
-		).toHaveLength(15);
+		).toHaveLength(16);
 		expect(
 			AUDIO_LIBRARY_CATEGORIES.filter(
 				(category) => category.kind === "sound-effect"
@@ -71,6 +85,41 @@ describe("audio library catalog", () => {
 		}
 	});
 
+	it("keeps every released music category stocked with at least three tracks", () => {
+		const tracksPath = path.join(
+			import.meta.dirname,
+			"../../../../audio-cdn/tracks.json"
+		);
+		const sourceTracks = JSON.parse(
+			readFileSync(tracksPath, "utf8")
+		) as AudioCdnSourceTrackForTest[];
+		const cdnTracks = sourceTracks.map((track) => ({
+			...track,
+			previewUrl: `https://assets.qcut.test/audio/${track.file}`,
+			artworkUrl: track.artworkFile
+				? `https://assets.qcut.test/audio/${track.artworkFile}`
+				: undefined,
+		}));
+
+		const cdnSounds = cdnTracks.map((track) =>
+			cdnTrackToSoundEffect({
+				track,
+				generatedAt: "2026-07-18T00:00:00.000Z",
+			})
+		);
+		const releasedCatalog = [...BUILT_IN_AUDIO, ...cdnSounds];
+		for (const category of MUSIC_CATEGORIES) {
+			expect(
+				getCatalogAudio({
+					category,
+					query: "",
+					catalog: releasedCatalog,
+				}).length,
+				`${category.id} should have at least three released tracks`
+			).toBeGreaterThanOrEqual(3);
+		}
+	});
+
 	it("maps Chinese creator searches and scene categories", () => {
 		expect(translateAudioSearchQuery({ query: "旅行 卡点" })).toBe(
 			"travel vlog rhythmic beat"
@@ -78,6 +127,17 @@ describe("audio library catalog", () => {
 		expect(translateAudioSearchQuery({ query: "韩流 雨声" })).toBe(
 			"kpop dance rain ambient"
 		);
+		expect(translateAudioSearchQuery({ query: "周杰伦 华语" })).toBe(
+			"mandopop piano rnb chinese pop mandopop chinese pop"
+		);
+		const mandopop = findAudioLibraryCategory({
+			categoryId: "music-mandopop",
+		});
+		expect(
+			getBuiltInAudio({ category: mandopop, query: "" }).map(
+				(item) => item.name
+			)
+		).toEqual(["Warm Window", "Moonlit Farewell", "Snow Lantern"]);
 		const travel = findAudioLibraryCategory({ categoryId: "music-travel" });
 		expect(
 			getBuiltInAudio({ category: travel, query: "" }).map((item) => item.name)

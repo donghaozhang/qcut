@@ -5,6 +5,7 @@ import {
 	type AssetManifestEntry,
 } from "@qcut/editor-core";
 import {
+	LEGACY_EFFECT_FAVORITES_STORAGE_KEY,
 	LEGACY_FILTER_FAVORITES_STORAGE_KEY,
 	LEGACY_SAVED_SOUNDS_STORAGE_KEY,
 	normalizeAssetLibraryPersistedState,
@@ -56,6 +57,10 @@ describe("asset library store", () => {
 
 	it("migrates valid legacy filter and sound favorites", () => {
 		localStorage.setItem(
+			LEGACY_EFFECT_FAVORITES_STORAGE_KEY,
+			JSON.stringify(["light-sparkle-pop", 4])
+		);
+		localStorage.setItem(
 			LEGACY_FILTER_FAVORITES_STORAGE_KEY,
 			JSON.stringify(["vivid", "warm-film", 4])
 		);
@@ -67,11 +72,29 @@ describe("asset library store", () => {
 		useAssetLibraryStore.getState().importLegacyFavorites();
 
 		expect(useAssetLibraryStore.getState().favorites).toEqual({
+			"effect:light-sparkle-pop": true,
 			"filter:vivid": true,
 			"filter:warm-film": true,
 			"sound-effect:42": true,
 			"sound-effect:84": true,
 		});
+	});
+
+	it("keeps the legacy effect favorites bridge current", () => {
+		const store = useAssetLibraryStore.getState();
+		store.toggleFavorite({ kind: "effect", id: "light-sparkle-pop" });
+		expect(
+			JSON.parse(
+				localStorage.getItem(LEGACY_EFFECT_FAVORITES_STORAGE_KEY) ?? "[]"
+			)
+		).toEqual(["light-sparkle-pop"]);
+
+		store.toggleFavorite({ kind: "effect", id: "light-sparkle-pop" });
+		expect(
+			JSON.parse(
+				localStorage.getItem(LEGACY_EFFECT_FAVORITES_STORAGE_KEY) ?? "[]"
+			)
+		).toEqual([]);
 	});
 
 	it("toggles stable favorites and keeps the legacy filter bridge current", () => {

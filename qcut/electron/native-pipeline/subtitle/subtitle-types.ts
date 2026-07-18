@@ -50,17 +50,19 @@ export interface CaptionElement {
 export const DEFAULT_SUBTITLE_STYLE: SubtitleStyle = {
 	fontFamily: "Arial",
 	fontSize: 48,
-	fontColor: "#ffffff",
+	// Yellow with a black outline reads well on most footage without
+	// needing a background box; presets that want a box opt in via bgOpacity.
+	fontColor: "#ffff00",
 	fontOpacity: 1,
 	bold: false,
 	italic: false,
 	underline: false,
 	outlineColor: "#000000",
-	outlineWidth: 2,
+	outlineWidth: 3,
 	shadowColor: "#000000",
 	shadowOffset: { x: 1, y: 1 },
 	backgroundColor: "#000000",
-	bgOpacity: 0.8,
+	bgOpacity: 0,
 	position: { align: "bottom", x: 50, y: 90 },
 	lineSpacing: 1.4,
 };

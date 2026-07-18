@@ -6,6 +6,16 @@ import { buildFFmpegArgs } from "../ffmpeg-args-builder";
 import type { VideoTransition, VideoVisual } from "../ffmpeg/types";
 import { EFFECT_PRESETS } from "../../apps/web/src/lib/effects/effect-presets";
 import { FFmpegFilterChain } from "../../apps/web/src/lib/ffmpeg/ffmpeg-filter-chain";
+import { MOTION_EFFECT_CATALOG } from "../../apps/web/src/lib/effects/effect-motion-catalog";
+import { FILTER_EFFECT_CATALOG } from "../../apps/web/src/lib/effects/effect-filter-catalog";
+import { OVERLAY_EFFECT_CATALOG } from "../../apps/web/src/lib/effects/effect-overlay-catalog";
+import { COMPOSITE_EFFECT_CATALOG } from "../../apps/web/src/lib/effects/effect-composite-catalog";
+import { SOUND_EFFECT_CATALOG } from "../../apps/web/src/lib/effects/effect-sound-catalog";
+import { AUDIO_REACTIVE_EFFECT_CATALOG } from "../../apps/web/src/lib/effects/effect-audio-reactive-catalog";
+import { CREATIVE_AI_EFFECT_CATALOG } from "../../apps/web/src/lib/effects/effect-creative-ai-catalog";
+import { PERSON_EFFECT_CATALOG } from "../../apps/web/src/lib/effects/effect-person-catalog";
+import { extractEffectAudioReactiveEnvelopes } from "../../apps/web/src/lib/export-cli/sources/effect-audio-reactive-sources";
+import { extractAudioWaveform } from "../ffmpeg/audio-waveform";
 
 const ffmpegPath = path.resolve(
 	__dirname,
@@ -183,6 +193,13 @@ function toneMagnitude({
 		(2 * Math.sqrt(real * real + imaginary * imaginary)) /
 		Math.max(1, samples.length)
 	);
+}
+
+function rootMeanSquare({ samples }: { samples: number[] }): number {
+	if (samples.length === 0) return 0;
+	let sumOfSquares = 0;
+	for (const sample of samples) sumOfSquares += sample * sample;
+	return Math.sqrt(sumOfSquares / samples.length);
 }
 
 function defaultVisual(overrides: Partial<VideoVisual> = {}): VideoVisual {
@@ -764,7 +781,11 @@ describe.skipIf(!fs.existsSync(ffmpegPath))(
 		});
 
 		it("exports every registered production effect", () => {
-			for (const preset of EFFECT_PRESETS) {
+			const productionFilterPresets = [
+				...EFFECT_PRESETS,
+				...FILTER_EFFECT_CATALOG.map((entry) => entry.preset),
+			];
+			for (const preset of productionFilterPresets) {
 				const effectFilter = FFmpegFilterChain.fromEffectParameters(
 					preset.parameters
 				);
@@ -1290,6 +1311,1019 @@ describe.skipIf(!fs.existsSync(ffmpegPath))(
 			const result = runFFmpeg(args);
 			expect(result.status, result.stderr?.toString()).toBe(0);
 			expect(fs.statSync(adjustedPath).size).toBeGreaterThan(1_000);
+		});
+
+		it("renders catalog motion programs through the real FFmpeg pipeline", () => {
+			const stripedSourcePath = path.join(tempDir, "effect-motion-stripes.mp4");
+			const baselinePath = path.join(tempDir, "effect-motion-baseline.mp4");
+			const pushInPath = path.join(tempDir, "effect-motion-push-in.mp4");
+			const source = runFFmpeg([
+				"-y",
+				"-f",
+				"lavfi",
+				"-i",
+				"color=c=black:s=320x180:d=1:r=30," +
+					"drawbox=x=0:y=0:w=80:h=180:c=red:t=fill," +
+					"drawbox=x=80:y=0:w=80:h=180:c=green:t=fill," +
+					"drawbox=x=160:y=0:w=80:h=180:c=blue:t=fill," +
+					"drawbox=x=240:y=0:w=80:h=180:c=yellow:t=fill",
+				"-c:v",
+				"libx264",
+				"-pix_fmt",
+				"yuv420p",
+				stripedSourcePath,
+			]);
+			expect(source.status, source.stderr?.toString()).toBe(0);
+
+			const renderCases = [
+				{ outputFile: baselinePath, effectRenderProgram: undefined },
+				...MOTION_EFFECT_CATALOG.map((entry) => ({
+					outputFile:
+						entry.preset.id === "camera-push-in"
+							? pushInPath
+							: path.join(tempDir, `effect-motion-${entry.preset.id}.mp4`),
+					effectRenderProgram: entry.preset.renderProgram,
+				})),
+			];
+
+			for (const { outputFile, effectRenderProgram } of renderCases) {
+				const args = buildFFmpegArgs({
+					inputDir: tempDir,
+					outputFile,
+					width: 320,
+					height: 180,
+					fps: 30,
+					quality: "low",
+					duration: 1,
+					videoSources: [
+						{
+							path: stripedSourcePath,
+							startTime: 0,
+							duration: 1,
+							effectRenderProgram,
+						},
+					],
+				});
+				const result = runFFmpeg(args);
+				expect(result.status, result.stderr?.toString()).toBe(0);
+				expect(fs.statSync(outputFile).size).toBeGreaterThan(1_000);
+			}
+
+			const baselinePixel = readFramePixelAt({
+				inputPath: baselinePath,
+				time: 0.9,
+				x: 75,
+				y: 90,
+			});
+			const pushInPixel = readFramePixelAt({
+				inputPath: pushInPath,
+				time: 0.9,
+				x: 75,
+				y: 90,
+			});
+			expect(baselinePixel[0]).toBeGreaterThan(baselinePixel[1] * 2);
+			expect(pushInPixel[1]).toBeGreaterThan(pushInPixel[0] * 1.5);
+		});
+
+		it("renders every catalog overlay program through the real FFmpeg pipeline", () => {
+			const redSourcePath = path.join(tempDir, "effect-overlay-source.mp4");
+			const redImagePath = path.join(tempDir, "effect-overlay-source.png");
+			const overlayPath = path.join(tempDir, "effect-overlay-frame.png");
+			const source = runFFmpeg([
+				"-y",
+				"-f",
+				"lavfi",
+				"-i",
+				"color=c=red:s=320x180:d=1:r=30",
+				"-c:v",
+				"libx264",
+				"-pix_fmt",
+				"yuv420p",
+				redSourcePath,
+			]);
+			const overlay = runFFmpeg([
+				"-y",
+				"-f",
+				"lavfi",
+				"-i",
+				"color=c=black@0:s=320x180:d=0.1:r=30,format=rgba," +
+					"drawbox=x=0:y=0:w=iw:h=ih:c=green@0.8:t=10:replace=1",
+				"-frames:v",
+				"1",
+				overlayPath,
+			]);
+			const redImage = runFFmpeg([
+				"-y",
+				"-f",
+				"lavfi",
+				"-i",
+				"color=c=red:s=320x180:d=0.1:r=30",
+				"-frames:v",
+				"1",
+				redImagePath,
+			]);
+			expect(source.status, source.stderr?.toString()).toBe(0);
+			expect(overlay.status, overlay.stderr?.toString()).toBe(0);
+			expect(redImage.status, redImage.stderr?.toString()).toBe(0);
+			const animatedPresetIds = new Set([
+				"light-sparkle-pop",
+				"light-creator-sparkle",
+				"heart-beat",
+				"heart-creator-beat",
+			]);
+
+			for (const entry of OVERLAY_EFFECT_CATALOG) {
+				const effectRenderProgram = entry.preset.renderProgram;
+				if (!effectRenderProgram) {
+					throw new Error(`Missing render program: ${entry.preset.id}`);
+				}
+				const outputPath = path.join(
+					tempDir,
+					`effect-overlay-${entry.preset.id}.mp4`
+				);
+				const effectOverlaySources = effectRenderProgram.stages.flatMap(
+					(stage, stageIndex) =>
+						stage.kind === "overlay"
+							? [
+									{
+										resourceId: stage.resourceId,
+										stageIndex,
+										path: overlayPath,
+										animated: animatedPresetIds.has(entry.preset.id),
+									},
+								]
+							: []
+				);
+				const result = runFFmpeg(
+					buildFFmpegArgs({
+						inputDir: tempDir,
+						outputFile: outputPath,
+						width: 320,
+						height: 180,
+						fps: 30,
+						quality: "low",
+						duration: 1,
+						videoSources: [
+							{
+								path: redSourcePath,
+								startTime: 0,
+								duration: 1,
+								effectRenderProgram,
+								effectOverlaySources,
+							},
+						],
+					})
+				);
+				expect(
+					result.status,
+					`${entry.preset.id}: ${result.stderr?.toString()}`
+				).toBe(0);
+				expect(fs.statSync(outputPath).size).toBeGreaterThan(1_000);
+			}
+
+			const imageEntry = OVERLAY_EFFECT_CATALOG[0];
+			const imageProgram = imageEntry.preset.renderProgram;
+			if (!imageProgram)
+				throw new Error("Missing image overlay render program");
+			const imageOverlayStage = imageProgram.stages[0];
+			if (imageOverlayStage.kind !== "overlay") {
+				throw new Error("Expected image overlay stage");
+			}
+			const imageOutputPath = path.join(
+				tempDir,
+				"effect-overlay-image-source.mp4"
+			);
+			const imageResult = runFFmpeg(
+				buildFFmpegArgs({
+					inputDir: tempDir,
+					outputFile: imageOutputPath,
+					width: 320,
+					height: 180,
+					fps: 30,
+					quality: "low",
+					duration: 1,
+					imageSources: [
+						{
+							path: redImagePath,
+							elementId: "image-overlay-source",
+							trackId: "track-1",
+							trackOrder: 0,
+							elementOrder: 0,
+							startTime: 0,
+							duration: 1,
+							trimStart: 0,
+							trimEnd: 0,
+							effectRenderProgram: imageProgram,
+							effectOverlaySources: [
+								{
+									resourceId: imageOverlayStage.resourceId,
+									stageIndex: 0,
+									path: overlayPath,
+									animated: false,
+								},
+							],
+						},
+					],
+				})
+			);
+			expect(imageResult.status, imageResult.stderr?.toString()).toBe(0);
+			expect(fs.statSync(imageOutputPath).size).toBeGreaterThan(1_000);
+
+			const proofPath = path.join(
+				tempDir,
+				"effect-overlay-border-today-frame.mp4"
+			);
+			const borderPixel = readFramePixelAt({
+				inputPath: proofPath,
+				time: 0.5,
+				x: 5,
+				y: 5,
+			});
+			const centerPixel = readFramePixelAt({
+				inputPath: proofPath,
+				time: 0.5,
+				x: 160,
+				y: 90,
+			});
+			expect(borderPixel[1]).toBeGreaterThan(borderPixel[0]);
+			expect(centerPixel[0]).toBeGreaterThan(centerPixel[1] * 2);
+			const imageBorderPixel = readFramePixelAt({
+				inputPath: imageOutputPath,
+				time: 0.5,
+				x: 5,
+				y: 5,
+			});
+			expect(imageBorderPixel[1]).toBeGreaterThan(imageBorderPixel[0]);
+		});
+
+		it("renders every catalog multi-screen program through the real FFmpeg pipeline", () => {
+			const stripedSourcePath = path.join(
+				tempDir,
+				"effect-composite-stripes.mp4"
+			);
+			const stripedImagePath = path.join(
+				tempDir,
+				"effect-composite-stripes.png"
+			);
+			const stripeFilter =
+				"color=c=black:s=320x180:d=1:r=30," +
+				"drawbox=x=0:y=0:w=80:h=180:c=red:t=fill," +
+				"drawbox=x=80:y=0:w=80:h=180:c=green:t=fill," +
+				"drawbox=x=160:y=0:w=80:h=180:c=blue:t=fill," +
+				"drawbox=x=240:y=0:w=80:h=180:c=yellow:t=fill";
+			const source = runFFmpeg([
+				"-y",
+				"-f",
+				"lavfi",
+				"-i",
+				stripeFilter,
+				"-c:v",
+				"libx264",
+				"-pix_fmt",
+				"yuv420p",
+				stripedSourcePath,
+			]);
+			const imageSource = runFFmpeg([
+				"-y",
+				"-f",
+				"lavfi",
+				"-i",
+				stripeFilter,
+				"-frames:v",
+				"1",
+				stripedImagePath,
+			]);
+			expect(source.status, source.stderr?.toString()).toBe(0);
+			expect(imageSource.status, imageSource.stderr?.toString()).toBe(0);
+
+			const outputById = new Map<string, string>();
+			for (const entry of COMPOSITE_EFFECT_CATALOG) {
+				const outputPath = path.join(
+					tempDir,
+					`effect-composite-${entry.preset.id}.mp4`
+				);
+				const result = runFFmpeg(
+					buildFFmpegArgs({
+						inputDir: tempDir,
+						outputFile: outputPath,
+						width: 320,
+						height: 180,
+						fps: 30,
+						quality: "low",
+						duration: 1,
+						videoSources: [
+							{
+								path: stripedSourcePath,
+								startTime: 0,
+								duration: 1,
+								effectRenderProgram: entry.preset.renderProgram,
+							},
+						],
+					})
+				);
+				expect(
+					result.status,
+					`${entry.preset.id}: ${result.stderr?.toString()}`
+				).toBe(0);
+				expect(fs.statSync(outputPath).size).toBeGreaterThan(1_000);
+				outputById.set(entry.preset.id, outputPath);
+			}
+
+			const sideBySide = outputById.get("multiscreen-side-by-side");
+			const mirror = outputById.get("multiscreen-mirror-duo");
+			const grid = outputById.get("multiscreen-quad-grid");
+			if (!sideBySide || !mirror || !grid) {
+				throw new Error("Missing multi-screen proof outputs");
+			}
+			const imageOutputPath = path.join(
+				tempDir,
+				"effect-composite-image-grid.mp4"
+			);
+			const imageResult = runFFmpeg(
+				buildFFmpegArgs({
+					inputDir: tempDir,
+					outputFile: imageOutputPath,
+					width: 320,
+					height: 180,
+					fps: 30,
+					quality: "low",
+					duration: 1,
+					imageSources: [
+						{
+							path: stripedImagePath,
+							elementId: "composite-image",
+							trackId: "track-1",
+							trackOrder: 0,
+							elementOrder: 0,
+							startTime: 0,
+							duration: 1,
+							trimStart: 0,
+							trimEnd: 0,
+							effectRenderProgram:
+								COMPOSITE_EFFECT_CATALOG[2].preset.renderProgram,
+						},
+					],
+				})
+			);
+			expect(imageResult.status, imageResult.stderr?.toString()).toBe(0);
+			expect(fs.statSync(imageOutputPath).size).toBeGreaterThan(1_000);
+			const sideLeft = readFramePixelAt({
+				inputPath: sideBySide,
+				time: 0.5,
+				x: 20,
+				y: 90,
+			});
+			const sideRight = readFramePixelAt({
+				inputPath: sideBySide,
+				time: 0.5,
+				x: 182,
+				y: 90,
+			});
+			expect(Math.abs(sideLeft[1] - sideRight[1])).toBeLessThan(20);
+			expect(sideLeft[1]).toBeGreaterThan(sideLeft[0]);
+
+			const mirrorLeft = readFramePixelAt({
+				inputPath: mirror,
+				time: 0.5,
+				x: 20,
+				y: 90,
+			});
+			const mirrorRight = readFramePixelAt({
+				inputPath: mirror,
+				time: 0.5,
+				x: 182,
+				y: 90,
+			});
+			expect(mirrorLeft[1]).toBeGreaterThan(mirrorLeft[2]);
+			expect(mirrorRight[2]).toBeGreaterThan(mirrorRight[1]);
+
+			const gridTopLeft = readFramePixelAt({
+				inputPath: grid,
+				time: 0.5,
+				x: 12,
+				y: 20,
+			});
+			const gridBottomRight = readFramePixelAt({
+				inputPath: grid,
+				time: 0.5,
+				x: 174,
+				y: 112,
+			});
+			expect(Math.abs(gridTopLeft[0] - gridBottomRight[0])).toBeLessThan(20);
+			expect(gridTopLeft[0]).toBeGreaterThan(gridTopLeft[2]);
+			const imageGridPixel = readFramePixelAt({
+				inputPath: imageOutputPath,
+				time: 0.5,
+				x: 174,
+				y: 112,
+			});
+			expect(imageGridPixel[0]).toBeGreaterThan(imageGridPixel[2]);
+		});
+
+		it("renders every paired sound effect with real companion audio", () => {
+			const sourcePath = path.join(tempDir, "effect-sound-source.mp4");
+			const source = runFFmpeg([
+				"-y",
+				"-f",
+				"lavfi",
+				"-i",
+				"testsrc2=s=320x180:d=2:r=30",
+				"-c:v",
+				"libx264",
+				"-pix_fmt",
+				"yuv420p",
+				sourcePath,
+			]);
+			expect(source.status, source.stderr?.toString()).toBe(0);
+			const audioPathByResourceId = new Map([
+				[
+					"-2003",
+					path.resolve(
+						__dirname,
+						"../../apps/web/public/audio/builtin/cinematic-impact.ogg"
+					),
+				],
+				[
+					"-2004",
+					path.resolve(
+						__dirname,
+						"../../apps/web/public/audio/builtin/air-whoosh.ogg"
+					),
+				],
+				[
+					"-2005",
+					path.resolve(
+						__dirname,
+						"../../apps/web/public/audio/builtin/camera-shutter.ogg"
+					),
+				],
+			] as const);
+
+			for (const entry of SOUND_EFFECT_CATALOG) {
+				const companion = entry.preset.audioCompanion;
+				if (!companion) {
+					throw new Error(`Missing audio companion: ${entry.preset.id}`);
+				}
+				const audioPath = audioPathByResourceId.get(companion.resourceId);
+				if (!audioPath || !fs.existsSync(audioPath)) {
+					throw new Error(`Missing sound resource: ${companion.resourceId}`);
+				}
+				const outputPath = path.join(
+					tempDir,
+					`effect-sound-${entry.preset.id}.mp4`
+				);
+				const result = runFFmpeg(
+					buildFFmpegArgs({
+						inputDir: tempDir,
+						outputFile: outputPath,
+						width: 320,
+						height: 180,
+						fps: 30,
+						quality: "low",
+						duration: 2,
+						videoSources: [
+							{
+								path: sourcePath,
+								startTime: 0,
+								duration: 2,
+								effectRenderProgram: entry.preset.renderProgram,
+							},
+						],
+						audioFiles: [
+							{
+								elementId: entry.preset.id,
+								trackId: "effect-track",
+								path: audioPath,
+								startTime: companion.offsetSeconds,
+								volume: companion.gain,
+								trimStart: 0,
+								trimEnd: 0,
+								duration: companion.durationSeconds,
+							},
+						],
+					})
+				);
+				expect(
+					result.status,
+					`${entry.preset.id}: ${result.stderr?.toString()}`
+				).toBe(0);
+				expect(fs.statSync(outputPath).size).toBeGreaterThan(5_000);
+				const activeSamples = readMonoAudioSamples({
+					inputPath: outputPath,
+					time: companion.offsetSeconds,
+					duration: Math.min(0.4, companion.durationSeconds),
+				});
+				const lateSamples = readMonoAudioSamples({
+					inputPath: outputPath,
+					time: 1.85,
+					duration: 0.1,
+				});
+				expect(activeSamples.length).toBeGreaterThan(1_000);
+				expect(rootMeanSquare({ samples: activeSamples })).toBeGreaterThan(
+					0.002
+				);
+				expect(rootMeanSquare({ samples: lateSamples })).toBeLessThan(0.0001);
+			}
+		});
+
+		it("drives every audio-reactive effect from real analyzed audio", async () => {
+			const sourcePath = path.join(tempDir, "effect-audio-reactive-source.mp4");
+			const audioPath = path.join(tempDir, "effect-audio-reactive-input.wav");
+			const stripeFilter =
+				"color=c=black:s=320x180:d=2:r=30," +
+				"drawbox=x=0:y=0:w=80:h=180:c=red:t=fill," +
+				"drawbox=x=80:y=0:w=80:h=180:c=green:t=fill," +
+				"drawbox=x=160:y=0:w=80:h=180:c=blue:t=fill," +
+				"drawbox=x=240:y=0:w=80:h=180:c=yellow:t=fill";
+			const source = runFFmpeg([
+				"-y",
+				"-f",
+				"lavfi",
+				"-i",
+				stripeFilter,
+				"-c:v",
+				"libx264",
+				"-pix_fmt",
+				"yuv420p",
+				sourcePath,
+			]);
+			const audio = runFFmpeg([
+				"-y",
+				"-f",
+				"lavfi",
+				"-i",
+				"anoisesrc=color=white:amplitude=0.02:d=0.5:r=48000",
+				"-f",
+				"lavfi",
+				"-i",
+				"anoisesrc=color=white:amplitude=0.8:d=0.5:r=48000",
+				"-f",
+				"lavfi",
+				"-i",
+				"anoisesrc=color=white:amplitude=0.02:d=0.5:r=48000",
+				"-f",
+				"lavfi",
+				"-i",
+				"anoisesrc=color=white:amplitude=0.8:d=0.5:r=48000",
+				"-filter_complex",
+				"[0:a][1:a][2:a][3:a]concat=n=4:v=0:a=1[reactive]",
+				"-map",
+				"[reactive]",
+				"-c:a",
+				"pcm_s16le",
+				audioPath,
+			]);
+			expect(source.status, source.stderr?.toString()).toBe(0);
+			expect(audio.status, audio.stderr?.toString()).toBe(0);
+			const clip = {
+				id: "reactive-clip",
+				name: "Reactive clip",
+				type: "media" as const,
+				mediaId: "reactive-media",
+				startTime: 0,
+				duration: 2,
+				trimStart: 0,
+				trimEnd: 0,
+			};
+			const tracks = [
+				{
+					id: "video-track",
+					name: "Video",
+					type: "media" as const,
+					elements: [clip],
+				},
+			];
+			const audioFiles = [
+				{
+					elementId: "music",
+					trackId: "audio-track",
+					path: audioPath,
+					startTime: 0,
+					volume: 1,
+					trimStart: 0,
+					trimEnd: 0,
+					duration: 2,
+				},
+			];
+
+			await Promise.all(
+				AUDIO_REACTIVE_EFFECT_CATALOG.map(async (entry) => {
+					const program = entry.preset.renderProgram;
+					if (!program) throw new Error(`Missing program: ${entry.preset.id}`);
+					const envelopeMap = await extractEffectAudioReactiveEnvelopes({
+						programsByElementId: new Map([[clip.id, program]]),
+						tracks,
+						audioFiles,
+						fps: 30,
+						decodeWaveform: async ({
+							sourcePath: waveformPath,
+							duration,
+							peakCount,
+							band,
+						}) =>
+							extractAudioWaveform({
+								options: {
+									sourcePath: waveformPath,
+									duration,
+									peakCount,
+									band,
+								},
+							}),
+					});
+					const envelopes = envelopeMap.get(clip.id);
+					const keyframes = envelopes?.[0]?.keyframes ?? [];
+					if (keyframes.length < 2) {
+						throw new Error(`Missing envelope: ${entry.preset.id}`);
+					}
+					const minimum = keyframes.reduce((lowest, keyframe) =>
+						keyframe.value < lowest.value ? keyframe : lowest
+					);
+					const maximum = keyframes.reduce((highest, keyframe) =>
+						keyframe.value > highest.value ? keyframe : highest
+					);
+					expect(maximum.value).toBeGreaterThan(0.7);
+					expect(minimum.value).toBeLessThan(0.35);
+					const outputPath = path.join(
+						tempDir,
+						`effect-audio-reactive-${entry.preset.id}.mp4`
+					);
+					const result = runFFmpeg(
+						buildFFmpegArgs({
+							inputDir: tempDir,
+							outputFile: outputPath,
+							width: 320,
+							height: 180,
+							fps: 30,
+							quality: "low",
+							duration: 2,
+							videoSources: [
+								{
+									elementId: clip.id,
+									trackId: "video-track",
+									path: sourcePath,
+									startTime: 0,
+									duration: 2,
+									effectRenderProgram: program,
+									effectAudioReactiveEnvelopes: envelopes,
+								},
+							],
+							audioFiles,
+						})
+					);
+					expect(
+						result.status,
+						`${entry.preset.id}: ${result.stderr?.toString()}`
+					).toBe(0);
+					expect(fs.statSync(outputPath).size).toBeGreaterThan(5_000);
+					const sampleX = entry.preset.id === "audio-bass-pulse" ? 75 : 40;
+					const lowPixel = readFramePixelAt({
+						inputPath: outputPath,
+						time: Math.min(1.9, Math.max(0.05, minimum.timeSeconds)),
+						x: sampleX,
+						y: 90,
+					});
+					const highPixel = readFramePixelAt({
+						inputPath: outputPath,
+						time: Math.min(1.9, Math.max(0.05, maximum.timeSeconds)),
+						x: sampleX,
+						y: 90,
+					});
+					const pixelDifference = lowPixel.reduce(
+						(sum, value, index) => sum + Math.abs(value - highPixel[index]),
+						0
+					);
+					expect(pixelDifference).toBeGreaterThan(20);
+				})
+			);
+		});
+
+		it("renders every multi-stage creative AI recipe", () => {
+			const sourcePath = path.join(tempDir, "effect-creative-ai-source.mp4");
+			const overlayPath = path.join(tempDir, "effect-creative-ai-overlay.png");
+			const stripeFilter =
+				"color=c=black:s=320x180:d=1:r=30," +
+				"drawbox=x=0:y=0:w=80:h=180:c=red:t=fill," +
+				"drawbox=x=80:y=0:w=80:h=180:c=green:t=fill," +
+				"drawbox=x=160:y=0:w=80:h=180:c=blue:t=fill," +
+				"drawbox=x=240:y=0:w=80:h=180:c=yellow:t=fill";
+			const source = runFFmpeg([
+				"-y",
+				"-f",
+				"lavfi",
+				"-i",
+				stripeFilter,
+				"-c:v",
+				"libx264",
+				"-pix_fmt",
+				"yuv420p",
+				sourcePath,
+			]);
+			const overlay = runFFmpeg([
+				"-y",
+				"-f",
+				"lavfi",
+				"-i",
+				"color=c=black@0:s=320x180:d=0.1:r=30,format=rgba," +
+					"drawbox=x=0:y=0:w=320:h=180:c=green@1:t=12:replace=1",
+				"-frames:v",
+				"1",
+				overlayPath,
+			]);
+			expect(source.status, source.stderr?.toString()).toBe(0);
+			expect(overlay.status, overlay.stderr?.toString()).toBe(0);
+			const outputById = new Map<string, string>();
+
+			for (const entry of CREATIVE_AI_EFFECT_CATALOG) {
+				const program = entry.preset.renderProgram;
+				if (!program) throw new Error(`Missing program: ${entry.preset.id}`);
+				const effectOverlaySources = program.stages.flatMap(
+					(stage, stageIndex) =>
+						stage.kind === "overlay"
+							? [
+									{
+										resourceId: stage.resourceId,
+										stageIndex,
+										path: overlayPath,
+										animated: false,
+									},
+								]
+							: []
+				);
+				const outputPath = path.join(
+					tempDir,
+					`effect-creative-ai-${entry.preset.id}.mp4`
+				);
+				const result = runFFmpeg(
+					buildFFmpegArgs({
+						inputDir: tempDir,
+						outputFile: outputPath,
+						width: 320,
+						height: 180,
+						fps: 30,
+						quality: "low",
+						duration: 1,
+						videoSources: [
+							{
+								path: sourcePath,
+								startTime: 0,
+								duration: 1,
+								effectFilter: FFmpegFilterChain.fromEffectParameters(
+									entry.preset.parameters
+								),
+								effectRenderProgram: program,
+								effectOverlaySources,
+							},
+						],
+					})
+				);
+				expect(
+					result.status,
+					`${entry.preset.id}: ${result.stderr?.toString()}`
+				).toBe(0);
+				expect(fs.statSync(outputPath).size).toBeGreaterThan(3_000);
+				outputById.set(entry.preset.id, outputPath);
+			}
+
+			const aura = outputById.get("creative-ai-aura-bloom");
+			const grid = outputById.get("creative-ai-echo-grid");
+			const dream = outputById.get("creative-ai-dream-lens");
+			if (!aura || !grid || !dream)
+				throw new Error("Missing creative AI outputs");
+			for (const outputPath of [aura, dream]) {
+				const border = readFramePixelAt({
+					inputPath: outputPath,
+					time: 0.5,
+					x: 4,
+					y: 4,
+				});
+				expect(border[1]).toBeGreaterThan(25);
+			}
+			const gridTopLeft = readFramePixelAt({
+				inputPath: grid,
+				time: 0.5,
+				x: 12,
+				y: 20,
+			});
+			const gridBottomRight = readFramePixelAt({
+				inputPath: grid,
+				time: 0.5,
+				x: 174,
+				y: 112,
+			});
+			expect(Math.abs(gridTopLeft[0] - gridBottomRight[0])).toBeLessThan(25);
+		});
+
+		it("renders every person effect and preserves absent-person frames", () => {
+			const personSourcePath = path.join(tempDir, "effect-person-source.mp4");
+			const personMaskPath = path.join(tempDir, "effect-person-mask.png");
+			const transparentMaskPath = path.join(
+				tempDir,
+				"effect-person-transparent.png"
+			);
+			const fullFrameMaskPath = path.join(
+				tempDir,
+				"effect-person-full-frame.png"
+			);
+			const source = runFFmpeg([
+				"-y",
+				"-f",
+				"lavfi",
+				"-i",
+				"testsrc2=s=320x180:d=1:r=30",
+				"-c:v",
+				"libx264",
+				"-pix_fmt",
+				"yuv420p",
+				personSourcePath,
+			]);
+			const personMask = runFFmpeg([
+				"-y",
+				"-f",
+				"lavfi",
+				"-i",
+				"color=c=black@0:s=320x180:d=0.1:r=30,format=rgba," +
+					"drawbox=x=100:y=25:w=120:h=145:c=white@1:t=fill:replace=1",
+				"-frames:v",
+				"1",
+				personMaskPath,
+			]);
+			const transparentMask = runFFmpeg([
+				"-y",
+				"-f",
+				"lavfi",
+				"-i",
+				"color=c=black@0:s=320x180:d=0.1:r=30,format=rgba",
+				"-frames:v",
+				"1",
+				transparentMaskPath,
+			]);
+			const fullFrameMask = runFFmpeg([
+				"-y",
+				"-f",
+				"lavfi",
+				"-i",
+				"color=c=white@1:s=320x180:d=0.1:r=30,format=rgba",
+				"-frames:v",
+				"1",
+				fullFrameMaskPath,
+			]);
+			for (const result of [
+				source,
+				personMask,
+				transparentMask,
+				fullFrameMask,
+			]) {
+				expect(result.status, result.stderr?.toString()).toBe(0);
+			}
+
+			const baselinePath = path.join(tempDir, "effect-person-baseline.mp4");
+			const baseline = runFFmpeg(
+				buildFFmpegArgs({
+					inputDir: tempDir,
+					outputFile: baselinePath,
+					width: 320,
+					height: 180,
+					fps: 30,
+					quality: "low",
+					duration: 1,
+					videoSources: [{ path: personSourcePath, startTime: 0, duration: 1 }],
+				})
+			);
+			expect(baseline.status, baseline.stderr?.toString()).toBe(0);
+
+			const outputById = new Map<string, string>();
+			for (const entry of PERSON_EFFECT_CATALOG) {
+				const program = entry.preset.renderProgram;
+				if (!program) throw new Error(`Missing program: ${entry.preset.id}`);
+				const outputPath = path.join(
+					tempDir,
+					`effect-person-${entry.preset.id}.mp4`
+				);
+				const result = runFFmpeg(
+					buildFFmpegArgs({
+						inputDir: tempDir,
+						outputFile: outputPath,
+						width: 320,
+						height: 180,
+						fps: 30,
+						quality: "low",
+						duration: 1,
+						videoSources: [
+							{
+								path: personSourcePath,
+								startTime: 0,
+								duration: 1,
+								effectRenderProgram: program,
+								effectPersonSources: [
+									{
+										stageIndex: 0,
+										path: personMaskPath,
+										animated: false,
+									},
+								],
+							},
+						],
+					})
+				);
+				expect(
+					result.status,
+					`${entry.preset.id}: ${result.stderr?.toString()}`
+				).toBe(0);
+				expect(fs.statSync(outputPath).size).toBeGreaterThan(2_000);
+				outputById.set(entry.preset.id, outputPath);
+
+				const absentMaskPath =
+					entry.preset.id === "person-neon-outline"
+						? transparentMaskPath
+						: fullFrameMaskPath;
+				const absentPath = path.join(
+					tempDir,
+					`effect-person-absent-${entry.preset.id}.mp4`
+				);
+				const absent = runFFmpeg(
+					buildFFmpegArgs({
+						inputDir: tempDir,
+						outputFile: absentPath,
+						width: 320,
+						height: 180,
+						fps: 30,
+						quality: "low",
+						duration: 1,
+						videoSources: [
+							{
+								path: personSourcePath,
+								startTime: 0,
+								duration: 1,
+								effectRenderProgram: program,
+								effectPersonSources: [
+									{
+										stageIndex: 0,
+										path: absentMaskPath,
+										animated: false,
+									},
+								],
+							},
+						],
+					})
+				);
+				expect(
+					absent.status,
+					`absent ${entry.preset.id}: ${absent.stderr?.toString()}`
+				).toBe(0);
+				for (const [x, y] of [
+					[25, 30],
+					[160, 90],
+				] as const) {
+					const baselinePixel = readFramePixelAt({
+						inputPath: baselinePath,
+						time: 0.5,
+						x,
+						y,
+					});
+					const absentPixel = readFramePixelAt({
+						inputPath: absentPath,
+						time: 0.5,
+						x,
+						y,
+					});
+					const difference = baselinePixel.reduce(
+						(sum, value, index) => sum + Math.abs(value - absentPixel[index]),
+						0
+					);
+					expect(difference).toBeLessThan(24);
+				}
+			}
+
+			const baselineOuter = readFramePixelAt({
+				inputPath: baselinePath,
+				time: 0.5,
+				x: 25,
+				y: 30,
+			});
+			for (const id of ["person-spotlight", "person-background-blur"]) {
+				const outputPath = outputById.get(id);
+				if (!outputPath) throw new Error(`Missing output: ${id}`);
+				const effected = readFramePixelAt({
+					inputPath: outputPath,
+					time: 0.5,
+					x: 25,
+					y: 30,
+				});
+				const difference = baselineOuter.reduce(
+					(sum, value, index) => sum + Math.abs(value - effected[index]),
+					0
+				);
+				expect(difference).toBeGreaterThan(15);
+			}
+			const outlinePath = outputById.get("person-neon-outline");
+			if (!outlinePath) throw new Error("Missing person outline output");
+			const outlineEdge = readFramePixelAt({
+				inputPath: outlinePath,
+				time: 0.5,
+				x: 98,
+				y: 90,
+			});
+			expect(outlineEdge[1] + outlineEdge[2]).toBeGreaterThan(outlineEdge[0]);
 		});
 
 		it("preserves and processes per-clip audio", () => {

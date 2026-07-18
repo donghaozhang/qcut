@@ -16,6 +16,7 @@
 // Types
 export type {
 	VideoSourceInput,
+	EffectOverlaySourceInput,
 	AudioFileInput,
 	StickerSourceForFilter,
 	ProgressCallback,
@@ -45,4 +46,5 @@ export {
 	extractVideoSources,
 	extractVideoInputPath,
 	extractStickerSources,
+	extractEffectOverlaySources,
 } from "./sources";

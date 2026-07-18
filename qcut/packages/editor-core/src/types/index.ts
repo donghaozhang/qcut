@@ -12,6 +12,7 @@ export type {
 
 export type {
 	BlurIntensity,
+	ProjectFolder,
 	Scene,
 	TProject,
 } from "./project.js";
@@ -45,7 +46,27 @@ export type {
 } from "./color.js";
 
 export type {
+	EffectAudioReactiveRenderStage,
+	EffectAudioReactiveEnvelope,
+	EffectAudioReactiveKeyframe,
+	EffectCompositeRenderStage,
+	EffectFilterRenderStage,
+	EffectMotionChannel,
+	EffectMotionProperty,
+	EffectMotionRenderStage,
+	EffectMotionWaveform,
+	EffectOverlayRenderStage,
+	EffectPersonTrackingRenderStage,
+	EffectRenderProgram,
+	EffectRenderWindow,
+	EffectRenderStage,
+	EffectRenderStageKind,
+} from "./effect-render.js";
+
+export type {
 	AnimatedParameter,
+	EffectAudioCompanion,
+	EffectTimelineRange,
 	EffectChain,
 	EffectInstance,
 	EffectKeyframe,
@@ -57,6 +78,7 @@ export type {
 	MediaType,
 	TrackType,
 	MediaElement,
+	EffectElement,
 	CompoundMediaClip,
 	MediaCompound,
 	MediaBlendMode,
@@ -134,6 +156,7 @@ export type {
 	MarkdownElement,
 	TimelineElement,
 	CreateMediaElement,
+	CreateEffectElement,
 	CreateTextElement,
 	CreateStickerElement,
 	CreateAdjustmentElement,

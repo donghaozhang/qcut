@@ -139,6 +139,7 @@ export interface AudioWaveformOptions {
 	sourcePath: string;
 	duration: number;
 	peakCount?: number;
+	band?: "bass" | "mid" | "treble" | "full";
 }
 
 export interface AudioWaveformResult {
@@ -190,6 +191,18 @@ export interface VideoSource {
 	freezeFrameDuration?: number;
 	visual?: VideoVisual;
 	effectFilter?: string;
+	effectRenderProgram?: EffectRenderProgram;
+	effectOverlaySources?: EffectOverlaySource[];
+	effectPersonSources?: EffectPersonSource[];
+	effectAudioReactiveEnvelopes?: EffectAudioReactiveEnvelope[];
+}
+
+export interface EffectOverlaySource {
+	resourceId: string;
+	stageIndex: number;
+	path: string;
+	animated: boolean;
+	inputIndex?: number;
 }
 
 export interface VideoTransition {
@@ -445,6 +458,10 @@ export interface ImageSource {
 	elementId: string;
 	visual?: VideoVisual;
 	effectFilter?: string;
+	effectRenderProgram?: EffectRenderProgram;
+	effectOverlaySources?: EffectOverlaySource[];
+	effectPersonSources?: EffectPersonSource[];
+	effectAudioReactiveEnvelopes?: EffectAudioReactiveEnvelope[];
 }
 
 /**
@@ -802,3 +819,9 @@ export interface FFmpegHandlers {
 		options: GifConversionOptions
 	) => Promise<{ outputPath: string; fileSize: number }>;
 }
+import type {
+	EffectAudioReactiveEnvelope,
+	EffectPersonSource,
+	EffectRenderProgram,
+} from "./effect-render-types";
+export type { EffectPersonSource } from "./effect-render-types";

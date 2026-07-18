@@ -3,6 +3,7 @@ import { translate, type AppLocale, type TranslationKey } from "@/lib/i18n";
 
 const TRACK_NAME_KEYS: Record<TrackType, TranslationKey> = {
 	media: "timeline.track.media",
+	effect: "timeline.track.effect",
 	text: "timeline.track.text",
 	markdown: "timeline.track.markdown",
 	audio: "timeline.track.audio",
@@ -14,6 +15,7 @@ const TRACK_NAME_KEYS: Record<TrackType, TranslationKey> = {
 
 const SYSTEM_TRACK_NAMES: Record<TrackType, ReadonlySet<string>> = {
 	media: new Set(["Media Track", "视频轨道"]),
+	effect: new Set(["Effects Track", "特效轨道"]),
 	text: new Set(["Text Track", "文本轨道"]),
 	markdown: new Set(["Markdown Track", "Markdown 轨道"]),
 	audio: new Set(["Audio Track", "音频轨道"]),

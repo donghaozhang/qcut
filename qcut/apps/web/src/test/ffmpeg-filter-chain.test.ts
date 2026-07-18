@@ -99,4 +99,39 @@ describe("FFmpegFilterChain", () => {
 				"br=0.2176:bg=0.4272:bb=0.3048"
 		);
 	});
+
+	it("gates every filter to an end-exclusive clip-local window", () => {
+		const chain = FFmpegFilterChain.fromEffectParameters(
+			{ brightness: 10, invert: 100 },
+			{ startSeconds: 1.25, endSeconds: 3.5 }
+		);
+
+		expect(chain).toBe(
+			"eq=brightness=0.1:enable='gte(t,1.25)*lt(t,3.5)'," +
+				"negate=enable='gte(t,1.25)*lt(t,3.5)'"
+		);
+	});
+
+	it("builds frame-evaluated keyframes in effect-local time", () => {
+		const chain = FFmpegFilterChain.fromEffectInstance({
+			parameters: { brightness: 10 },
+			animations: [
+				{
+					parameter: "brightness",
+					keyframes: [
+						{ time: 0, value: 0 },
+						{ time: 2, value: 100 },
+					],
+					interpolation: "linear",
+				},
+			],
+			window: { startSeconds: 3, endSeconds: 6 },
+		});
+
+		expect(chain).toContain("eq=brightness='");
+		expect(chain).toContain("(t-3)/2");
+		expect(chain).toContain(":eval=frame");
+		expect(chain).toContain("enable='gte(t,3)*lt(t,6)'");
+		expect(chain).not.toContain("brightness=0.1");
+	});
 });

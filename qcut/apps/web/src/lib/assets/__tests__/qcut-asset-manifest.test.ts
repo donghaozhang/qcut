@@ -9,6 +9,7 @@ import {
 } from "@qcut/editor-core";
 import { CAPTION_STYLE_PRESETS } from "@/lib/captions/workbench";
 import { FILTER_PRESETS } from "@/lib/filters/filter-registry";
+import { EFFECT_CATALOG } from "@/lib/effects/effect-catalog";
 import { POPULAR_COLLECTIONS } from "@/lib/stickers/iconify-api";
 import { CURATED_STICKERS } from "@/lib/stickers/sticker-catalog";
 import { MOTION_STICKERS } from "@/lib/stickers/sticker-motion-packs";
@@ -69,6 +70,12 @@ describe("QCut asset manifest", () => {
 		expect(
 			queryAssetCatalog({
 				catalog: QCUT_ASSET_CATALOG,
+				query: { kinds: ["effect"] },
+			})
+		).toHaveLength(EFFECT_CATALOG.length);
+		expect(
+			queryAssetCatalog({
+				catalog: QCUT_ASSET_CATALOG,
 				query: { kinds: ["filter"] },
 			})
 		).toHaveLength(FILTER_PRESETS.length);
@@ -99,6 +106,51 @@ describe("QCut asset manifest", () => {
 			"thumbnail",
 			"preview",
 		]);
+	});
+
+	it("records effect versions and shared overlay, sound, and person resources", () => {
+		const effects = queryAssetCatalog({
+			catalog: QCUT_ASSET_CATALOG,
+			query: { kinds: ["effect"] },
+		});
+		const byId = new Map(effects.map((effect) => [effect.id, effect]));
+
+		expect(byId.get("light-sparkle-pop")).toMatchObject({
+			version: 1,
+			delivery: "generated",
+			metadata: {
+				dependencies: [
+					{
+						kind: "sticker",
+						id: "qcut-motion-emphasis:sparkle-pop",
+						roles: ["source"],
+					},
+				],
+			},
+		});
+		expect(byId.get("sound-cinematic-impact")).toMatchObject({
+			metadata: {
+				dependencies: [
+					{ kind: "sound-effect", id: "-2003", roles: ["source"] },
+				],
+			},
+		});
+		expect(byId.get("person-neon-outline")).toMatchObject({
+			delivery: "bundled",
+			files: expect.arrayContaining([
+				expect.objectContaining({
+					role: "source",
+					url: "/models/person-segmentation.tflite",
+				}),
+			]),
+		});
+		const personFiles = byId.get("person-neon-outline")?.files ?? [];
+		expect(personFiles).toHaveLength(9);
+		for (const file of personFiles) {
+			expect(
+				existsSync(join(WEB_PUBLIC_DIR, file.url.replace(/^\/+/, "")))
+			).toBe(true);
+		}
 	});
 
 	it("publishes text templates as versioned downloadable resource assets", () => {

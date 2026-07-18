@@ -15,10 +15,21 @@ import { AiStatusIndicator } from "@/components/project/ai-status-indicator";
 import { CreateProjectTile } from "@/components/project/create-project-tile";
 import { NoProjects, NoResults } from "@/components/project/empty-state";
 import { ProjectCard } from "@/components/project/project-card";
-import { ProjectListRow } from "@/components/project/project-list-row";
+import { FoldersStrip } from "@/components/project/project-folders";
+import {
+	buildProjectCreationOptions,
+	getVisibleSelectionState,
+} from "@/components/project/project-page-helpers";
+import {
+	ProjectListHeader,
+	ProjectListRow,
+} from "@/components/project/project-list-row";
+import { ProjectsUserChip } from "@/components/project/projects-user-chip";
 import { RecentActivity } from "@/components/project/recent-activity";
+import { StartCreatingBanner } from "@/components/project/start-creating-banner";
 import { StudioBackground } from "@/components/project/studio-background";
 import { TemplateGallery } from "@/components/project/template-gallery";
+import { useProjectDurationLoader } from "@/components/project/use-project-duration-loader";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Input } from "@/components/ui/input";
@@ -32,9 +43,7 @@ import {
 import { Skeleton } from "@/components/ui/skeleton";
 import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
 import { useProjectStore } from "@/stores/project-store";
-import { useLicenseStore } from "@/stores/license-store";
 import { useTimelineStore } from "@/stores/timeline/timeline-store";
-import { UserAvatar } from "@/components/user-avatar";
 import type { CanvasSize } from "@/types/editor";
 import { LanguageSelector } from "@/components/language-selector";
 import { useTranslation } from "@/lib/i18n";
@@ -64,8 +73,10 @@ function ProjectsPage() {
 	);
 	const [isBulkDeleteDialogOpen, setIsBulkDeleteDialogOpen] = useState(false);
 	const [searchQuery, setSearchQuery] = useState("");
-	const [sortOption, setSortOption] = useState("createdAt-desc");
+	const [sortOption, setSortOption] = useState("updatedAt-desc");
 	const [viewMode, setViewMode] = useState<"grid" | "list">("grid");
+	const [currentFolderId, setCurrentFolderId] = useState<string | null>(null);
+	const getProjectDuration = useProjectDurationLoader();
 	const navigate = useNavigate();
 	const { t } = useTranslation();
 
@@ -95,7 +106,10 @@ function ProjectsPage() {
 	);
 
 	const handleCreateProject = async () => {
-		const projectId = await createNewProject(t("projects.new"));
+		const projectId = await createNewProject(
+			t("projects.new"),
+			buildProjectCreationOptions({ folderId: currentFolderId })
+		);
 		navigate({ to: "/editor/$project_id", params: { project_id: projectId } });
 	};
 
@@ -103,9 +117,20 @@ function ProjectsPage() {
 		name: string,
 		canvasSize: CanvasSize
 	) => {
-		const projectId = await createNewProject(name, { canvasSize });
+		const projectId = await createNewProject(
+			name,
+			buildProjectCreationOptions({
+				folderId: currentFolderId,
+				canvasSize,
+			})
+		);
 		navigate({ to: "/editor/$project_id", params: { project_id: projectId } });
 	};
+
+	const handleOpenFolder = useCallback((folderId: string | null) => {
+		setCurrentFolderId(folderId);
+		setSelectedProjects(new Set());
+	}, []);
 
 	const handleSelectProject = (projectId: string, checked: boolean) => {
 		const newSelected = new Set(selectedProjects);
@@ -119,7 +144,7 @@ function ProjectsPage() {
 
 	const handleSelectAll = (checked: boolean) => {
 		if (checked) {
-			setSelectedProjects(new Set(sortedProjects.map((p) => p.id)));
+			setSelectedProjects(new Set(visibleProjects.map((p) => p.id)));
 		} else {
 			setSelectedProjects(new Set());
 		}
@@ -141,31 +166,40 @@ function ProjectsPage() {
 
 	const sortedProjects = getFilteredAndSortedProjects(searchQuery, sortOption);
 
-	const allSelected =
-		sortedProjects.length > 0 &&
-		selectedProjects.size === sortedProjects.length;
-	const someSelected =
-		selectedProjects.size > 0 && selectedProjects.size < sortedProjects.length;
+	// Search looks across every folder; otherwise show the current folder only
+	const visibleProjects = searchQuery
+		? sortedProjects
+		: sortedProjects.filter(
+				(project) => (project.folderId ?? null) === currentFolderId
+			);
+
+	const { allSelected, someSelected } = getVisibleSelectionState({
+		visibleProjectIds: visibleProjects.map((project) => project.id),
+		selectedProjectIds: selectedProjects,
+	});
 
 	// Center grid when few projects (including create tile) — grid mode only
 	const useFlexLayout =
-		viewMode === "grid" && sortedProjects.length <= 2 && !isSelectionMode;
+		viewMode === "grid" && visibleProjects.length <= 2 && !isSelectionMode;
 
 	return (
 		<div className="relative min-h-screen bg-background">
 			<StudioBackground />
 			{/* Top bar */}
 			<div className="pt-6 px-6 flex items-center justify-between w-full h-16">
-				<Link
-					to="/"
-					className="flex items-center gap-1 hover:text-muted-foreground transition-colors"
-				>
-					<ChevronLeft className="size-5! shrink-0" />
-					<span className="text-sm font-medium">{t("projects.back")}</span>
-				</Link>
+				<div className="flex items-center gap-4">
+					<Link
+						to="/"
+						className="flex items-center gap-1 hover:text-muted-foreground transition-colors"
+					>
+						<ChevronLeft className="size-5! shrink-0" />
+						<span className="text-sm font-medium">{t("projects.back")}</span>
+					</Link>
+					<div className="h-5 w-px bg-border/60" />
+					<ProjectsUserChip />
+				</div>
 				<div className="flex items-center gap-3">
 					<LanguageSelector />
-					<ProjectsUserAvatar />
 					<div className="block md:hidden">
 						{isSelectionMode ? (
 							<div className="flex items-center gap-2">
@@ -205,6 +239,11 @@ function ProjectsPage() {
 			</div>
 
 			<main className="max-w-5xl mx-auto px-6 pt-6 pb-6">
+				{/* Start creating banner */}
+				{!isSelectionMode && (
+					<StartCreatingBanner onClick={handleCreateProject} />
+				)}
+
 				{/* Header: title + actions */}
 				<div className="mb-8 flex items-center justify-between">
 					<div className="flex flex-col gap-2">
@@ -311,6 +350,9 @@ function ProjectsPage() {
 							<SelectValue placeholder={t("projects.sortBy")} />
 						</SelectTrigger>
 						<SelectContent>
+							<SelectItem value="updatedAt-desc">
+								{t("projects.recentlyModified")}
+							</SelectItem>
 							<SelectItem value="createdAt-desc">
 								{t("projects.newest")}
 							</SelectItem>
@@ -325,8 +367,16 @@ function ProjectsPage() {
 					</Select>
 				</div>
 
+				{/* Folder navigation (hidden while searching — search spans all folders) */}
+				{!searchQuery && !isLoading && isInitialized && (
+					<FoldersStrip
+						currentFolderId={currentFolderId}
+						onOpenFolder={handleOpenFolder}
+					/>
+				)}
+
 				{/* Select all bar */}
-				{isSelectionMode && sortedProjects.length > 0 && (
+				{isSelectionMode && visibleProjects.length > 0 && (
 					<button
 						type="button"
 						onClick={() => handleSelectAll(!allSelected)}
@@ -348,7 +398,7 @@ function ProjectsPage() {
 						<span className="text-sm text-muted-foreground">
 							{t("projects.selectionSummary", {
 								selected: selectedProjects.size,
-								total: sortedProjects.length,
+								total: visibleProjects.length,
 							})}
 						</span>
 					</button>
@@ -387,14 +437,19 @@ function ProjectsPage() {
 					)
 				) : savedProjects.length === 0 ? (
 					<NoProjects onCreateProject={handleCreateProject} />
-				) : sortedProjects.length === 0 ? (
+				) : visibleProjects.length === 0 && searchQuery ? (
 					<NoResults
 						searchQuery={searchQuery}
 						onClearSearch={() => setSearchQuery("")}
 					/>
+				) : visibleProjects.length === 0 && currentFolderId ? (
+					<p className="py-16 text-center text-sm text-muted-foreground">
+						{t("projects.folderEmpty")}
+					</p>
 				) : viewMode === "list" ? (
 					<div className="rounded-lg border border-border/50 divide-y divide-border/30 overflow-hidden">
-						{sortedProjects.map((project, index) => (
+						<ProjectListHeader />
+						{visibleProjects.map((project, index) => (
 							<motion.div
 								key={project.id}
 								initial={{ opacity: 0 }}
@@ -411,6 +466,7 @@ function ProjectsPage() {
 									isSelected={selectedProjects.has(project.id)}
 									onSelect={handleSelectProject}
 									getProjectThumbnail={getProjectThumbnail}
+									getProjectDuration={getProjectDuration}
 								/>
 							</motion.div>
 						))}
@@ -423,7 +479,7 @@ function ProjectsPage() {
 								: "grid grid-cols-1 xs:grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-6"
 						}
 					>
-						{sortedProjects.map((project, index) => (
+						{visibleProjects.map((project, index) => (
 							<motion.div
 								key={project.id}
 								initial={{ opacity: 0, y: 12 }}
@@ -441,6 +497,7 @@ function ProjectsPage() {
 									isSelected={selectedProjects.has(project.id)}
 									onSelect={handleSelectProject}
 									getProjectThumbnail={getProjectThumbnail}
+									getProjectDuration={getProjectDuration}
 								/>
 							</motion.div>
 						))}
@@ -450,7 +507,7 @@ function ProjectsPage() {
 								animate={{ opacity: 1, y: 0 }}
 								transition={{
 									duration: 0.3,
-									delay: sortedProjects.length * 0.05,
+									delay: visibleProjects.length * 0.05,
 									ease: "easeOut",
 								}}
 								className={useFlexLayout ? "w-full max-w-[280px]" : undefined}
@@ -479,10 +536,4 @@ function ProjectsPage() {
 			/>
 		</div>
 	);
-}
-
-function ProjectsUserAvatar() {
-	const user = useLicenseStore((s) => s.license?.user);
-	if (!user) return null;
-	return <UserAvatar user={user} />;
 }

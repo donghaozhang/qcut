@@ -130,6 +130,8 @@ export interface VideoSource {
 	freezeFrameDuration?: number;
 	visual?: import("../ffmpeg/types").VideoVisual;
 	effectFilter?: string;
+	effectRenderProgram?: import("../ffmpeg/effect-render-types").EffectRenderProgram;
+	effectOverlaySources?: import("../ffmpeg/types").EffectOverlaySource[];
 }
 
 export interface ExportOptions {

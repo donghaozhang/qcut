@@ -1,5 +1,10 @@
 import { describe, expect, it } from "vitest";
-import { buildPresetCube, parseCubeLut, serializeCubeLut } from "../color-lut";
+import {
+	buildPresetCube,
+	parseCubeLut,
+	parseLutFile,
+	serializeCubeLut,
+} from "../color-lut";
 import { sampleCubeLut } from "../color-space-math";
 
 describe("3D LUT support", () => {
@@ -40,6 +45,40 @@ describe("3D LUT support", () => {
 				fallbackName: "broken.cube",
 			})
 		).toThrow(/Expected 8 LUT rows/);
+	});
+
+	it("parses Autodesk-style .3dl LUT payloads", () => {
+		const source = [
+			"3DMESH",
+			"Mesh 4 10",
+			"0 0 0",
+			"1023 0 0",
+			"0 1023 0",
+			"1023 1023 0",
+			"0 0 1023",
+			"1023 0 1023",
+			"0 1023 1023",
+			"1023 1023 1023",
+		].join("\n");
+		const parsed = parseLutFile({
+			text: source,
+			fallbackName: "identity.3dl",
+		});
+		expect(parsed.name).toBe("identity");
+		expect(parsed.cube.size).toBe(2);
+		expect(parsed.cube.values).toHaveLength(24);
+		expect(
+			sampleCubeLut({ cube: parsed.cube, color: { r: 0.25, g: 0.5, b: 0.75 } })
+		).toEqual({ r: 0.25, g: 0.5, b: 0.75 });
+	});
+
+	it("rejects incomplete .3dl grids", () => {
+		expect(() =>
+			parseLutFile({
+				text: "3DMESH\n0 0 0\n1 1 1",
+				fallbackName: "broken.3dl",
+			})
+		).toThrow(/complete 3D LUT grid/);
 	});
 
 	it("builds usable preset cubes", () => {

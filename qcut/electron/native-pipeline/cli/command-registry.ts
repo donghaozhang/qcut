@@ -825,6 +825,12 @@ const CORE_COMMANDS: Record<string, CommandDef> = {
 				"Remove long silences (default: true)",
 				{ default: true }
 			),
+			f("--no-remove-fillers", "boolean", "Keep filler words", {
+				default: false,
+			}),
+			f("--no-remove-silences", "boolean", "Keep long silences", {
+				default: false,
+			}),
 			f(
 				"--silence-threshold",
 				"number",
@@ -844,6 +850,72 @@ const CORE_COMMANDS: Record<string, CommandDef> = {
 			"qcut-pipeline clean-audio -i video.mp4 --remove-silences --silence-threshold 1.5",
 			"qcut-pipeline clean-audio -i video.mp4 --dry-run",
 			"qcut-pipeline clean-audio -i video.mp4 -s transcript.srt -o /tmp/clean",
+		],
+	},
+
+	"person-cutout": {
+		name: "person-cutout",
+		description:
+			"Remove a person's video background and optionally composite a still background",
+		category: "analysis",
+		flags: [
+			f("--input", "string", "Input video file path", {
+				short: "-i",
+				required: true,
+			}),
+			f("--background", "string", "Replacement background image", {
+				short: "-b",
+			}),
+			f("--output-dir", "string", "Output directory", { short: "-o" }),
+			f("--cutout-output", "string", "Transparent VP9 WebM output path"),
+			f("--output", "string", "Composited MP4 output path"),
+			f("--background-fit", "string", "Background fit mode", {
+				enum: ["cover", "contain", "stretch"],
+				default: "cover",
+			}),
+			f("--portrait-filter", "string", "Portrait filter applied to the person"),
+			f(
+				"--filter-intensity",
+				"number",
+				"Portrait filter intensity from 0 to 100"
+			),
+			f("--beauty", "number", "Skin smoothing amount from 0 to 100"),
+			f("--force", "boolean", "Replace existing outputs", {
+				default: false,
+			}),
+		],
+		examples: [
+			"qcut edit person-cutout -i talking-head.mp4 -o ./output",
+			"qcut edit person-cutout -i talking-head.mp4 -b office.png --output ./output/editable.mp4",
+		],
+	},
+
+	"portrait-filter": {
+		name: "portrait-filter",
+		description:
+			"Apply QCut portrait color presets and local skin smoothing to a video",
+		category: "analysis",
+		flags: [
+			f("--input", "string", "Input video file path", { short: "-i" }),
+			f("--output", "string", "Filtered MP4 output path"),
+			f("--output-dir", "string", "Output directory", { short: "-o" }),
+			f("--preset", "string", "Portrait preset ID", {
+				default: "soft-skin",
+			}),
+			f("--filter-intensity", "number", "Filter intensity from 0 to 100"),
+			f("--beauty", "number", "Skin smoothing amount from 0 to 100", {
+				default: 25,
+			}),
+			f("--list-presets", "boolean", "List available portrait presets", {
+				default: false,
+			}),
+			f("--force", "boolean", "Replace an existing output", {
+				default: false,
+			}),
+		],
+		examples: [
+			"qcut edit portrait-filter --list-presets --json",
+			"qcut edit portrait-filter -i talking-head.mp4 --preset soft-skin --beauty 25 --output filtered.mp4",
 		],
 	},
 
@@ -1242,6 +1314,28 @@ const CORE_COMMANDS: Record<string, CommandDef> = {
 			f("--value", "string", "Key value (prompted if omitted)"),
 		],
 		examples: ["qcut-pipeline set-key --name FAL_KEY --value sk-xxx"],
+	},
+	"sync-keys": {
+		name: "sync-keys",
+		description:
+			"Sync API keys with the cloud vault (pull by default; requires login)",
+		category: "keys",
+		flags: [
+			f("--pull", "boolean", "Fetch cloud keys, filling missing local ones", {
+				default: false,
+			}),
+			f("--push", "boolean", "Upload locally configured keys to the cloud", {
+				default: false,
+			}),
+			f("--force", "boolean", "On pull, let cloud values overwrite local", {
+				default: false,
+			}),
+		],
+		examples: [
+			"qcut-pipeline system sync-keys",
+			"qcut-pipeline system sync-keys --push",
+			"qcut-pipeline system sync-keys --pull --force",
+		],
 	},
 	"get-key": {
 		name: "get-key",

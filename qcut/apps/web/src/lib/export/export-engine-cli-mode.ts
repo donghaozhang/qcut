@@ -155,6 +155,9 @@ export function buildExportOptions(params: BuildExportOptionsParams) {
 	} = params;
 
 	const hasImageFilters = imageSources.length > 0;
+	const hasPerClipVideoEffects = videoSources.some(
+		(source) => source.effectFilter || source.effectRenderProgram
+	);
 
 	return {
 		sessionId,
@@ -180,6 +183,7 @@ export function buildExportOptions(params: BuildExportOptionsParams) {
 			!hasTextFilters &&
 			!hasStickerFilters &&
 			!hasImageFilters &&
+			!hasPerClipVideoEffects &&
 			audioCrossfades.length === 0 &&
 			!wordFilterSegments
 		),

@@ -6,6 +6,11 @@ import type {
 import type { TimelineTrack, TimelineElement } from "@/types/timeline";
 import { MediaItem } from "@/stores/media/media-store";
 import { platform } from "@qcut/platform-core";
+import {
+	combineEffectRenderPrograms,
+	type EffectInstance,
+	type EffectRenderProgram,
+} from "@qcut/editor-core";
 import { debugLog, debugError, debugWarn } from "@/lib/debug/debug-config";
 import { useEffectsStore } from "@/stores/ai/effects-store";
 import { useStickersOverlayStore } from "@/stores/stickers-overlay-store";
@@ -39,6 +44,10 @@ import {
 	extractStickerSources,
 	extractImageSources,
 	extractAudioMixConfig,
+	extractEffectOverlaySources,
+	extractEffectPersonSources,
+	extractEffectCompanionAudioSources,
+	extractEffectAudioReactiveEnvelopes,
 } from "../export-cli/sources";
 import {
 	prepareAudioFilesForExport,
@@ -76,6 +85,25 @@ export type {
 } from "../export-cli/types";
 
 type EffectsStore = ReturnType<typeof useEffectsStore.getState>;
+
+function collectExportEffects({
+	tracks,
+	effectsStore,
+}: {
+	tracks: readonly TimelineTrack[];
+	effectsStore?: EffectsStore;
+}): ReadonlyMap<string, readonly EffectInstance[]> {
+	const effectsByElementId = new Map<string, readonly EffectInstance[]>();
+	for (const track of tracks) {
+		for (const element of track.elements) {
+			const effects = effectsStore
+				? effectsStore.getElementEffects(element.id)
+				: (element.effects ?? []);
+			if (effects.length > 0) effectsByElementId.set(element.id, effects);
+		}
+	}
+	return effectsByElementId;
+}
 
 /** FFmpeg CLI-based export engine that renders timeline projects to video files via Electron IPC. */
 export class CLIExportEngine extends ExportEngine {
@@ -296,6 +324,18 @@ export class CLIExportEngine extends ExportEngine {
 	private async exportWithCLI(
 		progressCallback?: ProgressCallback
 	): Promise<string> {
+		const effectsByElementId = collectExportEffects({
+			tracks: this.tracks,
+			effectsStore: this.effectsStore,
+		});
+		const hasAudioReactiveEffects = [...effectsByElementId.values()].some(
+			(effects) =>
+				effects.some((effect) =>
+					effect.renderProgram?.stages.some(
+						(stage) => stage.kind === "audio-reactive"
+					)
+				)
+		);
 		// Prepare audio files
 		progressCallback?.(5, "Preparing audio files...");
 		const includeAudio = this.audioOptions.includeAudio ?? true;
@@ -305,12 +345,13 @@ export class CLIExportEngine extends ExportEngine {
 		});
 
 		let audioFiles: AudioFileInput[] = [];
-		if (includeAudio) {
+		let audioReactiveAnalysisFiles: AudioFileInput[] = [];
+		if (includeAudio || hasAudioReactiveEffects) {
 			const { tracks, mediaItems } = await resolveAudioPreparationInputs({
 				mediaItems: this.mediaItems,
 				tracks: this.tracks,
 			});
-			audioFiles = await prepareAudioFilesForExport({
+			const preparedAudioFiles = await prepareAudioFilesForExport({
 				fileExists: ({ filePath }) => fileExistsUtil({ filePath }),
 				invokeIfAvailable: ({ args = [], channel }) =>
 					invokeIfAvailableUtil({ args, channel }),
@@ -321,6 +362,17 @@ export class CLIExportEngine extends ExportEngine {
 				includeEmbeddedVideoAudio:
 					this.exportAnalysis?.optimizationStrategy !== "direct-copy",
 			});
+			audioReactiveAnalysisFiles = preparedAudioFiles;
+			if (includeAudio) {
+				audioFiles = preparedAudioFiles;
+				audioFiles.push(
+					...(await extractEffectCompanionAudioSources({
+						tracks: this.tracks,
+						effectsByElementId,
+						fps: this.getFrameRate(),
+					}))
+				);
+			}
 		} else {
 			debugLog(
 				"[CLI Export] Audio excluded by user setting (includeAudio=false)"
@@ -346,9 +398,13 @@ export class CLIExportEngine extends ExportEngine {
 		}
 
 		audioFiles = await validateAudioFiles(audioFiles);
+		audioReactiveAnalysisFiles = includeAudio
+			? audioFiles
+			: await validateAudioFiles(audioReactiveAnalysisFiles);
 
 		// Collect effects filter chains
 		const elementFilterChains = new Map<string, string>();
+		const elementRenderPrograms = new Map<string, EffectRenderProgram>();
 		for (const track of this.tracks) {
 			for (const element of track.elements) {
 				if (this.effectsStore) {
@@ -359,12 +415,63 @@ export class CLIExportEngine extends ExportEngine {
 						elementFilterChains.set(element.id, filterChain);
 					}
 				}
+				const renderProgram = combineEffectRenderPrograms({
+					programs: (effectsByElementId.get(element.id) ?? [])
+						.filter((effect) => effect.enabled && effect.renderProgram)
+						.flatMap((effect) =>
+							effect.renderProgram ? [effect.renderProgram] : []
+						),
+				});
+				if (renderProgram) {
+					elementRenderPrograms.set(element.id, renderProgram);
+				}
 			}
 		}
-		const hasPerClipVideoEffects = elementFilterChains.size > 0;
+		const hasPerClipVideoEffects =
+			elementFilterChains.size > 0 || elementRenderPrograms.size > 0;
 		const combinedFilterChain = hasPerClipVideoEffects
 			? ""
 			: Array.from(elementFilterChains.values()).join(",");
+		const hasEffectOverlayStages = Array.from(
+			elementRenderPrograms.values()
+		).some((program) =>
+			program.stages.some((stage) => stage.kind === "overlay")
+		);
+		const hasEffectPersonStages = Array.from(
+			elementRenderPrograms.values()
+		).some((program) =>
+			program.stages.some((stage) => stage.kind === "person-tracking")
+		);
+		if (hasEffectOverlayStages && !this.sessionId) {
+			throw new Error("Effect overlay export requires an active session");
+		}
+		if (hasEffectPersonStages && !this.sessionId) {
+			throw new Error("Person effect export requires an active session");
+		}
+		const effectOverlaySourcesByElementId = this.sessionId
+			? await extractEffectOverlaySources({
+					programsByElementId: elementRenderPrograms,
+					sessionId: this.sessionId,
+					canvasWidth: this.canvas.width,
+					canvasHeight: this.canvas.height,
+					logger: debugLog,
+				})
+			: new Map();
+		const effectPersonSourcesByElementId = this.sessionId
+			? await extractEffectPersonSources({
+					programsByElementId: elementRenderPrograms,
+					tracks: this.tracks,
+					mediaItems: this.mediaItems,
+					sessionId: this.sessionId,
+				})
+			: new Map();
+		const effectAudioReactiveEnvelopesByElementId =
+			await extractEffectAudioReactiveEnvelopes({
+				programsByElementId: elementRenderPrograms,
+				tracks: this.tracks,
+				audioFiles: audioReactiveAnalysisFiles,
+				fps: this.getFrameRate(),
+			});
 
 		// Build text overlay filter chain
 		console.log(
@@ -487,6 +594,15 @@ export class CLIExportEngine extends ExportEngine {
 				imageSources = imageSources.map((source) => ({
 					...source,
 					effectFilter: elementFilterChains.get(source.elementId),
+					effectRenderProgram: elementRenderPrograms.get(source.elementId),
+					effectOverlaySources: effectOverlaySourcesByElementId.get(
+						source.elementId
+					),
+					effectPersonSources: effectPersonSourcesByElementId.get(
+						source.elementId
+					),
+					effectAudioReactiveEnvelopes:
+						effectAudioReactiveEnvelopesByElementId.get(source.elementId),
 				}));
 				if (imageSources.length > 0) {
 					imageFilterChain = buildImageOverlayFilters(
@@ -592,6 +708,14 @@ export class CLIExportEngine extends ExportEngine {
 		const videoSources = extractedVideoSources.map((source) => ({
 			...source,
 			effectFilter: elementFilterChains.get(source.elementId),
+			effectRenderProgram: elementRenderPrograms.get(source.elementId),
+			effectOverlaySources: effectOverlaySourcesByElementId.get(
+				source.elementId
+			),
+			effectPersonSources: effectPersonSourcesByElementId.get(source.elementId),
+			effectAudioReactiveEnvelopes: effectAudioReactiveEnvelopesByElementId.get(
+				source.elementId
+			),
 		}));
 		const videoTransitions: VideoTransitionInput[] = hasTransitions
 			? extractVideoTransitions({

@@ -30,6 +30,12 @@ export {
 } from "./element-utils.js";
 
 export {
+	collectTimelineEffectsByTarget,
+	getEffectRenderWindow,
+	getTimelineEffectsAtTime,
+} from "./effect-elements.js";
+
+export {
 	CLIP_TRANSITION_MAX_DURATION_SECONDS,
 	CLIP_TRANSITION_MIN_DURATION_SECONDS,
 	CLIP_TRANSITION_TYPES,
@@ -71,6 +77,7 @@ export {
 
 export {
 	isMediaElement,
+	isEffectElement,
 	isTextElement,
 	isStickerElement,
 	isAdjustmentElement,

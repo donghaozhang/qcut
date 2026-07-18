@@ -5,6 +5,11 @@ import {
 	processEffectChain,
 } from "@/lib/effects/effects-chaining";
 import { parametersToCSSFilters } from "@/lib/effects/effects-utils";
+import {
+	resolveMediaColorAtTime,
+	hasMediaColorEdits,
+} from "@/lib/color/color-properties";
+import { buildColorCssFilter } from "@/lib/color/color-rendering";
 
 export function resolveTimelineElementEffects({
 	element,
@@ -23,11 +28,18 @@ export function resolveTimelineElementEffects({
 export function buildAdjustmentCssFilter({
 	element,
 	currentTime,
+	fps = 30,
 }: {
 	element: AdjustmentElement;
 	currentTime: number;
+	fps?: number;
 }): string {
-	return parametersToCSSFilters(
+	const effectsFilter = parametersToCSSFilters(
 		resolveTimelineElementEffects({ element, currentTime })
 	);
+	const color = resolveMediaColorAtTime({ element, currentTime, fps });
+	const colorFilter = hasMediaColorEdits({ settings: color })
+		? buildColorCssFilter({ settings: color })
+		: "";
+	return [effectsFilter, colorFilter].filter(Boolean).join(" ");
 }

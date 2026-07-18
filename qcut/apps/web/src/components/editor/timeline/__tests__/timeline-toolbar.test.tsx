@@ -1,6 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { fireEvent, render, screen } from "@testing-library/react";
-import type { TimelineTrack } from "@/types/timeline";
+import type { TimelineTrack, TrackType } from "@/types/timeline";
 import { TimelineToolbar } from "../timeline-toolbar";
 import { useTimelineStore } from "@/stores/timeline/timeline-store";
 import { usePlaybackStore } from "@/stores/editor/playback-store";
@@ -42,11 +42,12 @@ type ProjectSelector<T> = (state: MockProjectState) => T;
 
 interface MockTimelineState {
 	tracks: TimelineTrack[];
-	addTrack: (trackType: "media") => string;
+	addTrack: (trackType: TrackType) => string;
 	addElementToTrack: (
 		trackId: string,
 		element: Record<string, unknown>
-	) => void;
+	) => string | null;
+	getTotalDuration: () => number;
 	addMarkdownAtTime: (element: Record<string, unknown>, time: number) => void;
 	removeElementFromTrack: (trackId: string, elementId: string) => void;
 	removeElementFromTrackWithRipple: (
@@ -111,7 +112,8 @@ describe("TimelineToolbar", () => {
 			},
 		],
 		addTrack: () => "new-track",
-		addElementToTrack: vi.fn(),
+		addElementToTrack: vi.fn(() => "new-element"),
+		getTotalDuration: vi.fn(() => 20),
 		addMarkdownAtTime: vi.fn(),
 		removeElementFromTrack: vi.fn(),
 		removeElementFromTrackWithRipple: vi.fn(),

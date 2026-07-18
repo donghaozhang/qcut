@@ -43,6 +43,10 @@ import { renderTextToCanvas } from "@/lib/text/text-canvas-renderer";
 import { resolveMediaKeyframes } from "@/lib/video/video-properties";
 import { getMediaSourcePlaybackTime } from "@/lib/video/video-timing";
 import { drawColorGradedSourceWithMasks } from "@/lib/color/browser-color-rendering";
+import {
+	hasMediaColorEdits,
+	resolveMediaColorAtTime,
+} from "@/lib/color/color-properties";
 import { resolveTimelineStickerVisual } from "@/lib/stickers/timeline-sticker-visual";
 import { resolveTimelineElementEffects } from "@/lib/effects/adjustment-layer";
 import { canvasFontFamily } from "@/lib/text/canvas-font";
@@ -219,7 +223,7 @@ async function renderElement(
 			currentTime,
 		});
 	} else if (element.type === "adjustment") {
-		applyCanvasAdjustment({ context, element, currentTime });
+		await applyCanvasAdjustment({ context, element, currentTime });
 	} else if (element.type === "remotion") {
 		// Remotion elements are handled by RemotionExportEngine.compositeRemotionFrames()
 		// Skip in standard canvas render to avoid double-rendering
@@ -227,7 +231,7 @@ async function renderElement(
 	}
 }
 
-function applyCanvasAdjustment({
+async function applyCanvasAdjustment({
 	context,
 	element,
 	currentTime,
@@ -235,7 +239,7 @@ function applyCanvasAdjustment({
 	context: RenderContext;
 	element: import("@/types/timeline").AdjustmentElement;
 	currentTime: number;
-}): void {
+}): Promise<void> {
 	const { canvas, ctx } = context;
 	if (
 		!adjustmentFrameCanvas ||
@@ -252,11 +256,29 @@ function applyCanvasAdjustment({
 	adjustmentFrameCtx.clearRect(0, 0, canvas.width, canvas.height);
 	adjustmentFrameCtx.drawImage(canvas, 0, 0);
 	const parameters = resolveTimelineElementEffects({ element, currentTime });
-	ctx.clearRect(0, 0, canvas.width, canvas.height);
+	const color = resolveMediaColorAtTime({
+		element,
+		currentTime,
+		fps: context.fps,
+	});
 	ctx.save();
 	ctx.globalAlpha = element.opacity ?? 1;
 	applyEffectsToCanvas(ctx, parameters);
-	ctx.drawImage(adjustmentFrameCanvas, 0, 0);
+	if (hasMediaColorEdits({ settings: color })) {
+		await drawColorGradedSourceWithMasks({
+			context: ctx,
+			source: adjustmentFrameCanvas,
+			x: 0,
+			y: 0,
+			width: canvas.width,
+			height: canvas.height,
+			masks: [],
+			settings: color,
+			frameSeed: Math.round(currentTime * context.fps),
+		});
+	} else {
+		ctx.drawImage(adjustmentFrameCanvas, 0, 0);
+	}
 	ctx.restore();
 	applyAdvancedCanvasEffects(ctx, parameters);
 }

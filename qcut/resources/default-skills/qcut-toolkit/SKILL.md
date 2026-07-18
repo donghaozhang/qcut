@@ -6,7 +6,7 @@ argument-hint: [task description]
 
 # QCut Toolkit
 
-Unified entry point for QCut's six sub-skills. Route tasks to the appropriate sub-skill based on what the user needs.
+Unified entry point for QCut's eight sub-skills. Route tasks to the appropriate sub-skill based on what the user needs.
 
 ## Sub-Skills
 
@@ -22,7 +22,22 @@ Handles:
 - Running editor media/timeline/export/diagnostic commands (`editor:*`)
 - Running additional native pipeline commands when needed
 
-### 2. ffmpeg-skill — Media Processing
+### 2. qcut-vlog — Talking-Head & Vlog Cleanup
+**When:** Cleaning and naturally enhancing a talking-head/vlog, replacing its background, regenerating aligned subtitles, and exporting editable plus hard-captioned versions
+**Invoke:** `/qcut-vlog`
+**Skill path:** `.claude/skills/qcut-toolkit/qcut-vlog/SKILL.md`
+
+Handles:
+- Word-level transcription for filler, stutter, and silence decisions
+- Non-destructive FFmpeg trim/concat with retained cut metadata
+- Shared QCut portrait filters and restrained skin smoothing through the native CLI
+- Person cutout and still-image background replacement through the native CLI
+- Post-cut retranscription so subtitle timing cannot drift
+- Editable MP4 plus sidecar SRT, alongside a hard-captioned publishing MP4
+- Separate background and subtitle verification frames
+- Safe resume based on artifact dependency timestamps
+
+### 3. ffmpeg-skill — Media Processing
 **When:** Converting, compressing, trimming, resizing, extracting audio, adding subtitles, creating GIFs, applying effects
 **Invoke:** `/ffmpeg-skill`
 **Skill path:** `.claude/skills/qcut-toolkit/ffmpeg-skill/SKILL.md`
@@ -34,7 +49,7 @@ Handles:
 - GIF creation, speed changes, merging/concatenation
 - Streaming (HLS, DASH, RTMP) and complex filtergraphs
 
-### 3. ai-content-pipeline — AI Content Generation & Analysis
+### 4. ai-content-pipeline — AI Content Generation & Analysis
 **When:** Generating images/videos/avatars, transcribing audio, analyzing video, running AI pipelines
 **Invoke:** `/ai-content-pipeline`
 **Skill path:** `.claude/skills/qcut-toolkit/ai-content-pipeline/SKILL.md`
@@ -48,7 +63,7 @@ Handles:
 - YAML pipeline orchestration with parallel execution
 - Motion transfer between images and videos
 
-### 4. seedance — Video Prompt Engineering
+### 5. seedance — Video Prompt Engineering
 **When:** Writing video prompts, Seedance/即梦 workflows, AI video prompt generation, video descriptions (Chinese or English)
 **Invoke:** `/seedance`
 **Skill path:** `.claude/skills/qcut-toolkit/seedance/SKILL.md`
@@ -59,7 +74,7 @@ Handles:
 - Short drama (短剧), advertising video, and cinematic prompt templates
 - Prompt engineering best practices for ByteDance video models
 
-### 5. qcut-mcp-preview-test — MCP Preview Testing
+### 6. qcut-mcp-preview-test — MCP Preview Testing
 **When:** Testing MCP app preview, toggling "MCP Media App" mode, debugging iframe rendering, troubleshooting `mcp:app-html` events or `/api/claude/mcp/app`
 **Invoke:** `/qcut-mcp-preview-test`
 **Skill path:** `.claude/skills/qcut-toolkit/qcut-mcp-preview-test/SKILL.md`
@@ -70,7 +85,7 @@ Handles:
 - Debugging IPC (`mcp:app-html`) and HTTP (`/api/claude/mcp/app`) delivery
 - Crafting prompts that modify MCP media app UI safely
 
-### 6. ipad-cli — Real iPad & Simulator Automation
+### 7. ipad-cli — Real iPad & Simulator Automation
 **When:** Installing on iPad, testing on iPad, taking iPad screenshots, running E2E device tests, sending CLI commands to the iPad app
 **Invoke:** `/ipad-cli`
 **Skill path:** `.claude/skills/qcut-toolkit/ipad-cli/SKILL.md`
@@ -82,7 +97,7 @@ Handles:
 - E2E testing: navigate to editor, trigger exports, check state, FPS benchmarks
 - Managing pymobiledevice3 tunnels for advanced device access
 
-### 7. pr-comments — PR Review Processing
+### 8. pr-comments — PR Review Processing
 **When:** Exporting PR comments, evaluating code reviews, fixing review feedback from CodeRabbit/Gemini bots
 **Invoke:** `/pr-comments`
 **Skill path:** `.claude/skills/pr-comments/SKILL.md`
@@ -100,17 +115,19 @@ Handles:
 When the user's request involves multiple sub-skills, chain them in this order:
 
 1. **Organize first** — Ensure project structure exists before processing
-2. **Process with FFmpeg** — Convert, trim, or prepare source media
-3. **Generate with AI** — Create new content or analyze existing media
-4. **Write prompts** — Generate video prompts for Seedance/即梦 if needed
-5. **Control editor** — Use native-cli `editor:*` commands to update timeline, settings, or import results
-6. **Organize output** — Place results in `media/generated/` or `output/`
+2. **Use the dedicated vlog flow** — Route talking-head cleanup through qcut-vlog instead of manually chaining generic tools
+3. **Process with FFmpeg** — Convert, trim, or prepare other source media
+4. **Generate with AI** — Create new content or analyze existing media
+5. **Write prompts** — Generate video prompts for Seedance/即梦 if needed
+6. **Control editor** — Use native-cli `editor:*` commands to update timeline, settings, or import results
+7. **Organize output** — Place results in `media/generated/` or `output/`
 
 ### Quick Routing Table
 
 | User says | Route to |
 |-----------|----------|
 | "organize", "set up project", "clean up files" | native-cli |
+| "vlog", "talking head", "剪口播", "去口头词", "去停顿", "人像滤镜", "美颜", "口播字幕", "抠像换背景" | qcut-vlog |
 | "convert", "compress", "trim", "resize", "extract audio", "gif", "subtitle" | ffmpeg-skill |
 | "generate image", "generate video", "avatar", "lipsync", "transcribe", "analyze video", "AI pipeline" | ai-content-pipeline |
 | "add to timeline", "update project settings", "list media", "export preset", "configure for TikTok" | native-cli |

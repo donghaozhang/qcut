@@ -73,6 +73,13 @@ export type SerializedProject = Omit<
 	scenes: SerializedScene[];
 };
 
+/** Studio-page project folder payload for storage (Date -> string). */
+export interface SerializedProjectFolder {
+	id: string;
+	name: string;
+	createdAt: string;
+}
+
 // Extend FileSystemDirectoryHandle with missing async iterator methods
 declare global {
 	interface FileSystemDirectoryHandle {

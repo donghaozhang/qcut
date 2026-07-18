@@ -14,6 +14,12 @@ export { extractImageSources } from "./image-sources";
 // Sticker source extraction
 export { extractStickerSources } from "./sticker-sources";
 
+// Effect resource extraction
+export { extractEffectOverlaySources } from "./effect-overlay-sources";
+export { extractEffectPersonSources } from "./effect-person-sources";
+export { extractEffectCompanionAudioSources } from "./effect-companion-audio-sources";
+export { extractEffectAudioReactiveEnvelopes } from "./effect-audio-reactive-sources";
+
 // Audio source detection (shared between dialog UI and export pipeline)
 export { detectAudioSources, type AudioSourceInfo } from "./audio-detection";
 

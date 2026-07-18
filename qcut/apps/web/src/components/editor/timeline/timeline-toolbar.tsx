@@ -50,6 +50,7 @@ import {
 import { toast } from "sonner";
 import { debugLog, debugError } from "@/lib/debug/debug-config";
 import { getTimelineElementEndTime } from "@/lib/timeline";
+import { addAdjustmentLayer } from "@/lib/timeline/adjustment-layer";
 import { mapMediaTimelineTime } from "@/lib/video/video-timing";
 import {
 	DropdownMenu,
@@ -93,6 +94,7 @@ export function TimelineToolbar({
 	const tracks = useTimelineStore((s) => s.tracks);
 	const addTrack = useTimelineStore((s) => s.addTrack);
 	const addElementToTrack = useTimelineStore((s) => s.addElementToTrack);
+	const getTotalDuration = useTimelineStore((s) => s.getTotalDuration);
 	const addMarkdownAtTime = useTimelineStore((s) => s.addMarkdownAtTime);
 	const removeElementFromTrack = useTimelineStore(
 		(s) => s.removeElementFromTrack
@@ -370,19 +372,13 @@ export function TimelineToolbar({
 
 	const currentBookmarked = isBookmarked(currentTime);
 	const addTrackFromMenu = ({ type }: { type: TrackType }) => {
-		const trackId = addTrack(type);
-		if (type !== "adjustment") return;
-		const projectEnd = useTimelineStore.getState().getTotalDuration();
-		addElementToTrack(trackId, {
-			type: "adjustment",
-			name: "Adjustment Layer",
-			startTime: currentTime,
-			duration: Math.max(5, projectEnd - currentTime),
-			trimStart: 0,
-			trimEnd: 0,
-			opacity: 1,
-			effects: [],
-			effectChains: [],
+		if (type !== "adjustment") {
+			addTrack(type);
+			return;
+		}
+		addAdjustmentLayer({
+			timeline: { addTrack, addElementToTrack, getTotalDuration },
+			currentTime,
 		});
 	};
 

@@ -32,6 +32,12 @@ import {
 	transitionPresets,
 	type TransitionPreset,
 } from "@/components/editor/media-panel/views/transitions/transition-presets";
+import { EFFECT_CATALOG } from "@/lib/effects/effect-catalog";
+import type {
+	EffectAssetDependency,
+	EffectAssetMetadata,
+	EffectCatalogEntry,
+} from "@/lib/effects/effect-catalog-types";
 import { QCUT_BUILT_IN_LICENSE } from "./qcut-built-in-license";
 import { BUILT_IN_AUDIO } from "@/lib/audio/audio-library-catalog";
 import { createAudioLibraryAssetEntry } from "./freesound-asset";
@@ -41,6 +47,54 @@ export {
 } from "./freesound-asset";
 
 export const QCUT_ASSET_MANIFEST_ID = "qcut-creator-library";
+
+const PERSON_EFFECT_RUNTIME_FILES = [
+	{
+		role: "package",
+		url: "/mediapipe/person-cutout-worker.js",
+		mimeType: "text/javascript",
+	},
+	{
+		role: "package",
+		url: "/mediapipe/vision_bundle.cjs.js",
+		mimeType: "text/javascript",
+	},
+	{
+		role: "package",
+		url: "/mediapipe/wasm/vision_wasm_internal.js",
+		mimeType: "text/javascript",
+	},
+	{
+		role: "package",
+		url: "/mediapipe/wasm/vision_wasm_internal.wasm",
+		mimeType: "application/wasm",
+	},
+	{
+		role: "package",
+		url: "/mediapipe/wasm/vision_wasm_module_internal.js",
+		mimeType: "text/javascript",
+	},
+	{
+		role: "package",
+		url: "/mediapipe/wasm/vision_wasm_module_internal.wasm",
+		mimeType: "application/wasm",
+	},
+	{
+		role: "package",
+		url: "/mediapipe/wasm/vision_wasm_nosimd_internal.js",
+		mimeType: "text/javascript",
+	},
+	{
+		role: "package",
+		url: "/mediapipe/wasm/vision_wasm_nosimd_internal.wasm",
+		mimeType: "application/wasm",
+	},
+	{
+		role: "source",
+		url: "/models/person-segmentation.tflite",
+		mimeType: "application/octet-stream",
+	},
+] as const;
 
 const TEXT_TEMPLATES_BY_ID = new Map(
 	TEXT_TEMPLATES.map((template) => [template.id, template])
@@ -57,6 +111,77 @@ function uniqueTags({ tags }: { tags: readonly string[] }): string[] {
 		result.push(trimmed);
 	}
 	return result;
+}
+
+function effectDependencies({
+	entry,
+}: {
+	entry: EffectCatalogEntry;
+}): EffectAssetDependency[] {
+	const dependencies = new Map<string, EffectAssetDependency>();
+	for (const stage of entry.preset.renderProgram?.stages ?? []) {
+		if (stage.kind !== "overlay") continue;
+		const dependency: EffectAssetDependency = {
+			kind: "sticker",
+			id: stage.resourceId,
+			roles: ["source"],
+		};
+		dependencies.set(`${dependency.kind}:${dependency.id}`, dependency);
+	}
+	if (entry.preset.audioCompanion) {
+		const dependency: EffectAssetDependency = {
+			kind: "sound-effect",
+			id: entry.preset.audioCompanion.resourceId,
+			roles: ["source"],
+		};
+		dependencies.set(`${dependency.kind}:${dependency.id}`, dependency);
+	}
+	return [...dependencies.values()];
+}
+
+export function createEffectAssetEntry({
+	entry,
+}: {
+	entry: EffectCatalogEntry;
+}): AssetManifestEntry<EffectAssetMetadata> {
+	const personTracking = entry.render.kind === "person-tracking";
+	return {
+		schemaVersion: ASSET_MANIFEST_SCHEMA_VERSION,
+		id: entry.preset.id,
+		kind: "effect",
+		version: entry.assetVersion,
+		name: entry.preset.name,
+		localizedNames: entry.localizedName
+			? { "zh-CN": entry.localizedName }
+			: undefined,
+		category: entry.family === "person" ? "person" : entry.category,
+		tags: uniqueTags({
+			tags: [entry.family, entry.render.kind, ...entry.tags],
+		}),
+		delivery: personTracking ? "bundled" : "generated",
+		files: personTracking ? PERSON_EFFECT_RUNTIME_FILES : [],
+		license: QCUT_BUILT_IN_LICENSE,
+		metadata: {
+			effectPresetId: entry.preset.id,
+			family: entry.family,
+			publication: entry.publication,
+			renderKind: entry.render.kind,
+			renderProgramVersion: entry.preset.renderProgram?.version,
+			dependencies: effectDependencies({ entry }),
+		},
+	};
+}
+
+export function resolveEffectAssetEntry({
+	entry,
+}: {
+	entry: EffectCatalogEntry;
+}): AssetManifestEntry<EffectAssetMetadata> {
+	return createEffectAssetEntry({ entry });
+}
+
+function effectAssets(): AssetManifestEntry<EffectAssetMetadata>[] {
+	return EFFECT_CATALOG.map((entry) => createEffectAssetEntry({ entry }));
 }
 
 function iconifyAssetUrl({
@@ -473,6 +598,7 @@ export const QCUT_ASSET_MANIFEST: AssetManifestPack = {
 	id: QCUT_ASSET_MANIFEST_ID,
 	version: 1,
 	assets: [
+		...effectAssets(),
 		...filterAssets(),
 		...textTemplateAssets(),
 		...captionStyleAssets(),

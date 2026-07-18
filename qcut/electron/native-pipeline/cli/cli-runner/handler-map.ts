@@ -36,6 +36,7 @@ import {
 	handleListModels as adminHandleListModels,
 	handleEstimateCost as adminHandleEstimateCost,
 } from "../cli-handlers-admin.js";
+import { handleSyncKeys } from "../cli-handlers-keys-sync.js";
 import {
 	handleCreateElement as elementHandleCreate,
 	handleListElements as elementHandleList,
@@ -97,6 +98,8 @@ import { handleGenerateMusic } from "../cli-handlers-music.js";
 import { handleRecord } from "../cli-handlers-record.js";
 import { handleRecordDaemon } from "../cli-handlers-record-daemon.js";
 import { handleSystemDoctor } from "../cli-handlers-system-doctor.js";
+import { handlePersonCutout } from "../cli-handlers-person-cutout.js";
+import { handlePortraitFilter } from "../cli-handlers-portrait-filter.js";
 
 /**
  * Unified handler signature.
@@ -187,6 +190,7 @@ export const HANDLER_MAP: Record<string, CommandHandler> = {
 	"logout": wrap0(adminHandleLogout),
 	"setup": wrap0(adminHandleSetup),
 	"set-key": wrap(adminHandleSetKey),
+	"sync-keys": wrap(handleSyncKeys),
 	"get-key": wrap(adminHandleGetKey),
 	"keys": wrap(adminHandleCheckKeys),
 	"check-keys": wrap(adminHandleCheckKeys),
@@ -258,6 +262,8 @@ export const HANDLER_MAP: Record<string, CommandHandler> = {
 	// ── Subtitle ──
 	"subtitle-style": wrapOP(handleSubtitleStyle),
 	"subtitle-export": wrapOPS(handleSubtitleExport),
+	"person-cutout": wrapOPS(handlePersonCutout),
+	"portrait-filter": wrapOPS(handlePortraitFilter),
 
 	// ── Autoclip ──
 	"autoclip": async (options, onProgress, _executor, signal) =>

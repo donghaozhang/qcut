@@ -27,6 +27,24 @@ export interface PersistenceDeps {
 	updateTracksAndSave: (tracks: TimelineTrack[]) => void;
 }
 
+/** Total duration in seconds of the given tracks (latest element end time). */
+function computeTracksDuration(tracks: TimelineTrack[]): number {
+	if (tracks.length === 0) return 0;
+
+	const trackEndTimes = tracks.map((track) =>
+		track.elements.reduce((maxEnd, element) => {
+			const elementEnd =
+				element.startTime +
+				(element.type === "media"
+					? getMediaTimelineDuration(element)
+					: element.duration - element.trimStart - element.trimEnd);
+			return Math.max(maxEnd, elementEnd);
+		}, 0)
+	);
+
+	return Math.max(...trackEndTimes, 0);
+}
+
 /** Creates persistence operations (load, save, redo, thumbnail, clear) for the timeline store. */
 export function createPersistenceOperations(
 	get: StoreGet,
@@ -36,22 +54,42 @@ export function createPersistenceOperations(
 	const { updateTracks, updateTracksAndSave } = deps;
 
 	return {
-		getTotalDuration: () => {
-			const { _tracks } = get();
-			if (_tracks.length === 0) return 0;
+		getTotalDuration: () => computeTracksDuration(get()._tracks),
 
-			const trackEndTimes = _tracks.map((track) =>
-				track.elements.reduce((maxEnd, element) => {
-					const elementEnd =
-						element.startTime +
-						(element.type === "media"
-							? getMediaTimelineDuration(element)
-							: element.duration - element.trimStart - element.trimEnd);
-					return Math.max(maxEnd, elementEnd);
-				}, 0)
-			);
-
-			return Math.max(...trackEndTimes, 0);
+		getProjectDuration: async (projectId) => {
+			try {
+				const project = await storageService.loadProject({ id: projectId });
+				const sceneTracks = await Promise.all(
+					(project?.scenes ?? []).map((scene) =>
+						storageService.loadTimeline({
+							projectId,
+							sceneId: scene.id,
+						})
+					)
+				);
+				let total = sceneTracks.reduce(
+					(duration, tracks) =>
+						duration + (tracks ? computeTracksDuration(tracks) : 0),
+					0
+				);
+				if (total === 0) {
+					// Projects saved before scene timelines used one project-level key.
+					const tracks = await storageService.loadTimeline({
+						projectId,
+					});
+					if (tracks) total = computeTracksDuration(tracks);
+				}
+				return total;
+			} catch (error) {
+				handleError(error, {
+					operation: "Get Project Duration",
+					category: ErrorCategory.STORAGE,
+					severity: ErrorSeverity.LOW,
+					showToast: false,
+					metadata: { projectId },
+				});
+				return null;
+			}
 		},
 
 		getProjectThumbnail: async (projectId) => {

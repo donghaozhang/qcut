@@ -15,6 +15,8 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { useProjectStore } from "@/stores/project-store";
 import type { TProject } from "@/types/project";
+import { MoveToFolderSubmenu } from "./project-folders";
+import { PROJECT_DRAG_MIME, formatProjectDuration } from "./project-meta";
 
 export interface ProjectCardProps {
 	project: TProject;
@@ -22,6 +24,7 @@ export interface ProjectCardProps {
 	isSelected?: boolean;
 	onSelect?: (projectId: string, checked: boolean) => void;
 	getProjectThumbnail: (projectId: string) => Promise<string | null>;
+	getProjectDuration?: (projectId: string) => Promise<number | null>;
 }
 
 export function formatDate(date: Date): string {
@@ -51,12 +54,14 @@ export function ProjectCard({
 	isSelected = false,
 	onSelect,
 	getProjectThumbnail,
+	getProjectDuration,
 }: ProjectCardProps) {
 	const [isDropdownOpen, setIsDropdownOpen] = useState(false);
 	const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
 	const [isRenameDialogOpen, setIsRenameDialogOpen] = useState(false);
 	const [dynamicThumbnail, setDynamicThumbnail] = useState<string | null>(null);
 	const [isLoadingThumbnail, setIsLoadingThumbnail] = useState(true);
+	const [duration, setDuration] = useState<number | null>(null);
 	const { deleteProject, renameProject, duplicateProject } = useProjectStore();
 
 	useEffect(() => {
@@ -71,6 +76,21 @@ export function ProjectCard({
 		};
 		loadThumbnail();
 	}, [project.id, getProjectThumbnail]);
+
+	useEffect(() => {
+		if (!getProjectDuration) return;
+		let cancelled = false;
+		getProjectDuration(project.id)
+			.then((value) => {
+				if (!cancelled) setDuration(value);
+			})
+			.catch(() => {
+				if (!cancelled) setDuration(null);
+			});
+		return () => {
+			cancelled = true;
+		};
+	}, [project.id, getProjectDuration]);
 
 	const handleDeleteProject = async () => {
 		await deleteProject(project.id);
@@ -142,6 +162,12 @@ export function ProjectCard({
 						</div>
 					)}
 				</div>
+
+				{duration !== null && duration > 0 && (
+					<span className="absolute bottom-2 right-2 px-1.5 py-0.5 rounded bg-black/65 text-white text-[11px] leading-none tabular-nums">
+						{formatProjectDuration(duration)}
+					</span>
+				)}
 			</div>
 
 			<CardContent className="px-3 pt-3 pb-2 flex flex-col gap-1">
@@ -195,6 +221,7 @@ export function ProjectCard({
 								>
 									Duplicate
 								</DropdownMenuItem>
+								<MoveToFolderSubmenu project={project} />
 								<DropdownMenuSeparator />
 								<DropdownMenuItem
 									variant="destructive"
@@ -239,6 +266,11 @@ export function ProjectCard({
 					to="/editor/$project_id"
 					params={{ project_id: project.id }}
 					className="block group"
+					draggable
+					onDragStart={(e) => {
+						e.dataTransfer.setData(PROJECT_DRAG_MIME, project.id);
+						e.dataTransfer.effectAllowed = "move";
+					}}
 				>
 					{cardContent}
 				</Link>

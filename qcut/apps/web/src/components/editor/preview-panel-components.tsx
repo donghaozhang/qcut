@@ -273,6 +273,7 @@ export function FullscreenPreview({
 						<AdjustmentLayerStack
 							activeElements={activeElements}
 							currentTime={currentTime}
+							fps={activeProject?.fps ?? 30}
 							renderElement={renderElement}
 						/>
 					)}

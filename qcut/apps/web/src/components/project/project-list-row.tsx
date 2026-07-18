@@ -13,8 +13,36 @@ import {
 	DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { useProjectStore } from "@/stores/project-store";
+import { useTranslation } from "@/lib/i18n";
 import { formatDate } from "./project-card";
 import type { ProjectCardProps } from "./project-card";
+import { MoveToFolderSubmenu } from "./project-folders";
+import {
+	PROJECT_DRAG_MIME,
+	formatProjectDuration,
+	getProjectTypeKey,
+} from "./project-meta";
+
+/** Column header row rendered above the studio list view. */
+export function ProjectListHeader() {
+	const { t } = useTranslation();
+	return (
+		<div className="flex items-center gap-3 px-3 py-2 text-xs text-muted-foreground border-b border-border/50">
+			<div className="w-16 shrink-0" />
+			<span className="flex-1 min-w-0">{t("projects.columnName")}</span>
+			<span className="w-14 text-right shrink-0 hidden md:block">
+				{t("projects.columnDuration")}
+			</span>
+			<span className="w-16 shrink-0 hidden md:block">
+				{t("projects.columnType")}
+			</span>
+			<span className="w-28 shrink-0 hidden sm:block">
+				{t("projects.columnLastModified")}
+			</span>
+			<div className="size-6 shrink-0" />
+		</div>
+	);
+}
 
 export function ProjectListRow({
 	project,
@@ -22,13 +50,16 @@ export function ProjectListRow({
 	isSelected = false,
 	onSelect,
 	getProjectThumbnail,
+	getProjectDuration,
 }: ProjectCardProps) {
 	const [isDropdownOpen, setIsDropdownOpen] = useState(false);
 	const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
 	const [isRenameDialogOpen, setIsRenameDialogOpen] = useState(false);
 	const [dynamicThumbnail, setDynamicThumbnail] = useState<string | null>(null);
 	const [isLoadingThumbnail, setIsLoadingThumbnail] = useState(true);
+	const [duration, setDuration] = useState<number | null>(null);
 	const { deleteProject, renameProject, duplicateProject } = useProjectStore();
+	const { t } = useTranslation();
 
 	useEffect(() => {
 		const loadThumbnail = async () => {
@@ -44,6 +75,21 @@ export function ProjectListRow({
 		};
 		loadThumbnail();
 	}, [project.id, getProjectThumbnail]);
+
+	useEffect(() => {
+		if (!getProjectDuration) return;
+		let cancelled = false;
+		getProjectDuration(project.id)
+			.then((value) => {
+				if (!cancelled) setDuration(value);
+			})
+			.catch(() => {
+				if (!cancelled) setDuration(null);
+			});
+		return () => {
+			cancelled = true;
+		};
+	}, [project.id, getProjectDuration]);
 
 	const handleDeleteProject = async () => {
 		await deleteProject(project.id);
@@ -121,7 +167,17 @@ export function ProjectListRow({
 				{project.name}
 			</span>
 
-			<span className="text-xs text-muted-foreground shrink-0 hidden sm:block">
+			<span className="w-14 text-right text-xs text-muted-foreground tabular-nums shrink-0 hidden md:block">
+				{duration !== null && duration > 0
+					? formatProjectDuration(duration)
+					: "–"}
+			</span>
+
+			<span className="w-16 text-xs text-muted-foreground shrink-0 hidden md:block">
+				{t(getProjectTypeKey(project.canvasSize))}
+			</span>
+
+			<span className="w-28 text-xs text-muted-foreground shrink-0 hidden sm:block">
 				{formatDate(project.updatedAt)}
 			</span>
 
@@ -169,6 +225,7 @@ export function ProjectListRow({
 						>
 							Duplicate
 						</DropdownMenuItem>
+						<MoveToFolderSubmenu project={project} />
 						<DropdownMenuSeparator />
 						<DropdownMenuItem
 							variant="destructive"
@@ -204,6 +261,11 @@ export function ProjectListRow({
 					to="/editor/$project_id"
 					params={{ project_id: project.id }}
 					className="group"
+					draggable
+					onDragStart={(e) => {
+						e.dataTransfer.setData(PROJECT_DRAG_MIME, project.id);
+						e.dataTransfer.effectAllowed = "move";
+					}}
 				>
 					{rowContent}
 				</Link>

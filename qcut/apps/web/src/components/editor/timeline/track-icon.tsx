@@ -6,6 +6,7 @@ import {
 	FileText,
 	Captions,
 	SlidersHorizontal,
+	Sparkles,
 } from "lucide-react";
 import type { TrackType } from "@/types/timeline";
 
@@ -15,6 +16,8 @@ interface TrackIconProps {
 
 export function TrackIcon({ type }: TrackIconProps) {
 	switch (type) {
+		case "effect":
+			return <Sparkles className="w-4 h-4 shrink-0 text-muted-foreground" />;
 		case "text":
 			return <TypeIcon className="w-4 h-4 shrink-0 text-muted-foreground" />;
 		case "audio":

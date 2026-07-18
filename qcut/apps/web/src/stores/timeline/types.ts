@@ -400,6 +400,7 @@ export interface TimelineStore {
 	// Computed values
 	getTotalDuration: () => number;
 	getProjectThumbnail: (projectId: string) => Promise<string | null>;
+	getProjectDuration: (projectId: string) => Promise<number | null>;
 
 	// History actions
 	undo: () => void;
@@ -546,6 +547,23 @@ export interface TimelineStore {
 				| "height"
 				| "rotation"
 				| "opacity"
+			>
+		>,
+		pushHistory?: boolean
+	) => void;
+	updateAdjustmentElement: (
+		trackId: string,
+		elementId: string,
+		updates: Partial<
+			Pick<
+				AdjustmentElement,
+				| "name"
+				| "duration"
+				| "opacity"
+				| "color"
+				| "adjustments"
+				| "effects"
+				| "effectChains"
 			>
 		>,
 		pushHistory?: boolean

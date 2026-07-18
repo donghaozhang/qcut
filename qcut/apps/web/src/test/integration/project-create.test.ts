@@ -42,6 +42,8 @@ vi.mock("@/lib/storage/storage-service", () => ({
 		saveProject: vi.fn().mockResolvedValue(undefined),
 		loadProject: vi.fn().mockResolvedValue(null),
 		loadAllProjects: vi.fn().mockResolvedValue([]),
+		loadAllProjectFolders: vi.fn().mockResolvedValue([]),
+		loadProjectTimeline: vi.fn().mockResolvedValue(null),
 		deleteProject: vi.fn().mockResolvedValue(undefined),
 		loadAllMediaItems: vi.fn().mockResolvedValue([]),
 		saveMediaItem: vi.fn().mockResolvedValue(undefined),
@@ -74,6 +76,7 @@ describe("Project Creation", () => {
 		useProjectStore.setState({
 			activeProject: null,
 			savedProjects: [],
+			projectFolders: [],
 			isLoading: true,
 			isInitialized: false,
 			invalidProjectIds: new Set<string>(),

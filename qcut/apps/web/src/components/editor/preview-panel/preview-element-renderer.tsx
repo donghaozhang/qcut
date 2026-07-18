@@ -28,6 +28,8 @@ import {
 	buildMediaMaskStyle,
 	getMediaAnimationState,
 } from "@/lib/video/video-animation";
+import { getMediaTimelineDuration } from "@/lib/video/video-timing";
+import { getEffectMotionState } from "@/lib/effects/effect-motion-preview";
 import { hasMediaColorEdits } from "@/lib/color/color-properties";
 import type { TextElementDragState } from "@/types/editor";
 import type { TProject } from "@/types/project";
@@ -69,6 +71,18 @@ import {
 	useVideoEnhancementProxy,
 } from "@/hooks/preview/use-video-enhancement-proxy";
 import { LoaderCircle, TriangleAlert } from "lucide-react";
+import {
+	EMPTY_ELEMENT_EFFECTS_RENDERING,
+	type ElementEffectsRendering,
+} from "./use-effects-rendering";
+import { EffectOverlayLayers } from "@/components/editor/effects/effect-overlay-layers";
+import { EffectCompositeCanvas } from "@/components/editor/effects/effect-composite-canvas";
+import { EffectPersonTrackingCanvas } from "@/components/editor/effects/effect-person-tracking-canvas";
+import { useEffectAudioReactivePreview } from "@/components/editor/effects/use-effect-audio-reactive-preview";
+import {
+	appendAudioReactiveBrightnessFilter,
+	mergeEffectMotionWithAudioReactive,
+} from "@/lib/effects/effect-audio-reactive-state";
 
 interface ElementResizeParams {
 	elementId: string;
@@ -82,8 +96,7 @@ interface PreviewElementRendererProps {
 	previewDimensions: PreviewDimensions;
 	canvasSize: { width: number; height: number };
 	currentTime: number;
-	filterStyle: string;
-	hasEnabledEffects: boolean;
+	effectRendering?: ElementEffectsRendering;
 	videoSourcesById: Map<string, VideoSource>;
 	currentMediaElement: ActiveElement | null;
 	dragState: TextElementDragState;
@@ -112,9 +125,7 @@ interface PreviewBlurBackgroundProps {
 	activeProject: TProject | null;
 	blurBackgroundElements: ActiveElement[];
 	blurBackgroundSource: VideoSource;
-	currentMediaElement: ActiveElement | null;
-	filterStyle: string;
-	hasEnabledEffects: boolean;
+	effectsRenderingByElementId: ReadonlyMap<string, ElementEffectsRendering>;
 }
 
 /** Renders a blurred background video layer behind the main preview content. */
@@ -122,9 +133,7 @@ export function PreviewBlurBackground({
 	activeProject,
 	blurBackgroundElements,
 	blurBackgroundSource,
-	currentMediaElement,
-	filterStyle,
-	hasEnabledEffects,
+	effectsRenderingByElementId,
 }: PreviewBlurBackgroundProps): React.ReactNode {
 	try {
 		if (activeProject?.backgroundType !== "blur") {
@@ -156,8 +165,9 @@ export function PreviewBlurBackground({
 				);
 			}
 
-			const shouldApplyFilter =
-				hasEnabledEffects && element.id === currentMediaElement?.element.id;
+			const effectRendering =
+				effectsRenderingByElementId.get(element.id) ??
+				EMPTY_ELEMENT_EFFECTS_RENDERING;
 
 			return (
 				<div
@@ -179,7 +189,11 @@ export function PreviewBlurBackground({
 						clipDuration={element.duration}
 						clipVolume={0}
 						className="object-cover"
-						style={shouldApplyFilter ? { filter: filterStyle } : undefined}
+						style={
+							effectRendering.filterStyle
+								? { filter: effectRendering.filterStyle }
+								: undefined
+						}
 					/>
 				</div>
 			);
@@ -223,8 +237,7 @@ export function PreviewElementRenderer({
 	previewDimensions,
 	canvasSize,
 	currentTime,
-	filterStyle,
-	hasEnabledEffects,
+	effectRendering = EMPTY_ELEMENT_EFFECTS_RENDERING,
 	videoSourcesById,
 	currentMediaElement,
 	dragState,
@@ -251,6 +264,14 @@ export function PreviewElementRenderer({
 			elementId: elementData.element.id,
 		})
 	);
+	const audioReactive = useEffectAudioReactivePreview({
+		program: effectRendering.renderProgram,
+		trackId: elementData.track.id,
+	});
+	const effectFilterStyle = appendAudioReactiveBrightnessFilter({
+		filter: effectRendering.filterStyle,
+		audioReactive,
+	});
 	const previewMediaVisual =
 		elementData.element.type === "media"
 			? resolveMediaKeyframes({
@@ -687,8 +708,6 @@ export function PreviewElementRenderer({
 					);
 				}
 
-				const shouldApplyFilter =
-					hasEnabledEffects && element.id === currentMediaElement?.element.id;
 				const isDraggingThisElement =
 					dragState.isDragging && dragState.elementId === element.id;
 				const visual = previewMediaVisual;
@@ -705,6 +724,16 @@ export function PreviewElementRenderer({
 					currentTime,
 					canvasWidth: canvasSize.width,
 					canvasHeight: canvasSize.height,
+				});
+				const effectMotion = mergeEffectMotionWithAudioReactive({
+					motion: getEffectMotionState({
+						program: effectRendering.renderProgram,
+						localTime: Math.max(0, currentTime - element.startTime),
+						duration: getMediaTimelineDuration(element),
+						canvasWidth: canvasSize.width,
+						canvasHeight: canvasSize.height,
+					}),
+					audioReactive,
 				});
 				const displayX = isDraggingThisElement ? dragState.currentX : visual.x;
 				const displayY = isDraggingThisElement ? dragState.currentY : visual.y;
@@ -725,7 +754,7 @@ export function PreviewElementRenderer({
 				const combinedFilter = [
 					usesNativeEnhancement ? "" : enhancementFilter,
 					chromaKeyFilter,
-					shouldApplyFilter ? filterStyle : "",
+					effectFilterStyle,
 				]
 					.filter(Boolean)
 					.join(" ");
@@ -791,20 +820,22 @@ export function PreviewElementRenderer({
 						role="button"
 						aria-label={`Video: ${element.name}`}
 						style={{
-							left: `${50 + ((displayX + mediaAnimation.offsetX + transitionPresentation.offsetX) / canvasSize.width) * 100}%`,
-							top: `${50 + ((displayY + mediaAnimation.offsetY + transitionPresentation.offsetY) / canvasSize.height) * 100}%`,
+							left: `${50 + ((displayX + mediaAnimation.offsetX + effectMotion.offsetX + transitionPresentation.offsetX) / canvasSize.width) * 100}%`,
+							top: `${50 + ((displayY + mediaAnimation.offsetY + effectMotion.offsetY + transitionPresentation.offsetY) / canvasSize.height) * 100}%`,
 							width: "100%",
 							height: "100%",
 							transform: buildClipTransitionAnchoredTransform({
 								presentation: transitionPresentation,
-								rotation: visual.rotation,
+								rotation: visual.rotation + effectMotion.rotation,
 								scaleX:
 									visual.scaleX *
 									mediaAnimation.scale *
+									effectMotion.scale *
 									(visual.flipHorizontal ? -1 : 1),
 								scaleY:
 									visual.scaleY *
 									mediaAnimation.scale *
+									effectMotion.scale *
 									(visual.flipVertical ? -1 : 1),
 							}),
 							transformOrigin:
@@ -816,6 +847,7 @@ export function PreviewElementRenderer({
 							opacity:
 								visual.opacity *
 								mediaAnimation.opacity *
+								effectMotion.opacity *
 								transitionPresentation.opacity,
 							mixBlendMode: visual.blendMode,
 							zIndex: index + 1,
@@ -907,6 +939,16 @@ export function PreviewElementRenderer({
 									filter={combinedFilter || undefined}
 								/>
 							) : null}
+							<EffectCompositeCanvas
+								program={effectRendering.renderProgram}
+								sourceSelector={colorPreviewSourceSelector}
+								fitMode={visual.fitMode}
+							/>
+							<EffectPersonTrackingCanvas
+								program={effectRendering.renderProgram}
+								sourceSelector={colorPreviewSourceSelector}
+								fitMode={visual.fitMode}
+							/>
 							{enhancementProxy.status === "generating" ? (
 								<div
 									className="pointer-events-none absolute right-2 top-2 z-30 flex h-6 min-w-12 items-center justify-center gap-1 rounded-sm bg-background/85 px-1.5 text-[10px] tabular-nums text-foreground shadow-sm"
@@ -992,6 +1034,7 @@ export function PreviewElementRenderer({
 							) : null}
 							{derivedAudioPlayers}
 						</div>
+						<EffectOverlayLayers program={effectRendering.renderProgram} />
 						{transitionOverlayStyle ? (
 							<div aria-hidden="true" style={transitionOverlayStyle} />
 						) : null}
@@ -1026,6 +1069,16 @@ export function PreviewElementRenderer({
 					element,
 					currentTime,
 					fps: activeProject?.fps ?? 30,
+				});
+				const effectMotion = mergeEffectMotionWithAudioReactive({
+					motion: getEffectMotionState({
+						program: effectRendering.renderProgram,
+						localTime: Math.max(0, currentTime - element.startTime),
+						duration: getMediaTimelineDuration(element),
+						canvasWidth: canvasSize.width,
+						canvasHeight: canvasSize.height,
+					}),
+					audioReactive,
 				});
 				const usesPixelColor = hasMediaColorEdits({ settings: visual.color });
 				const gradeMaskIds = visual.color.mask.enabled
@@ -1108,13 +1161,15 @@ export function PreviewElementRenderer({
 							role="button"
 							aria-label={`Sticker: ${element.name}`}
 							style={{
-								left: `${50 + ((displayX + transitionPresentation.offsetX) / canvasSize.width) * 100}%`,
-								top: `${50 + ((displayY + transitionPresentation.offsetY) / canvasSize.height) * 100}%`,
+								left: `${50 + ((displayX + effectMotion.offsetX + transitionPresentation.offsetX) / canvasSize.width) * 100}%`,
+								top: `${50 + ((displayY + effectMotion.offsetY + transitionPresentation.offsetY) / canvasSize.height) * 100}%`,
 								width: `${currentWidth * scaleRatio}px`,
 								height: `${currentHeight * scaleRatio}px`,
 								transform: buildClipTransitionAnchoredTransform({
 									presentation: transitionPresentation,
-									rotation: element.rotation ?? 0,
+									rotation: (element.rotation ?? 0) + effectMotion.rotation,
+									scaleX: effectMotion.scale,
+									scaleY: effectMotion.scale,
 								}),
 								transformOrigin:
 									transitionPresentation.transformOrigin ?? "center",
@@ -1123,7 +1178,7 @@ export function PreviewElementRenderer({
 										.filter(Boolean)
 										.join(" ") || undefined,
 								zIndex: index + 1,
-								opacity: transitionPresentation.opacity,
+								opacity: transitionPresentation.opacity * effectMotion.opacity,
 								clipPath: transitionPresentation.clipPath,
 								backgroundColor: transitionPresentation.backgroundColor,
 								...transitionMaskStyle,
@@ -1141,6 +1196,7 @@ export function PreviewElementRenderer({
 									className="w-full h-full object-contain"
 									style={{
 										...maskStyle,
+										filter: effectFilterStyle || undefined,
 										opacity: usesPixelColor ? 0 : undefined,
 									}}
 									data-color-source="true"
@@ -1152,12 +1208,24 @@ export function PreviewElementRenderer({
 										settings={visual.color}
 										masks={visual.masks}
 										fitMode="contain"
+										filter={effectFilterStyle || undefined}
 										frameSeed={Math.round(
 											currentTime * (activeProject?.fps ?? 30)
 										)}
 									/>
 								) : null}
+								<EffectCompositeCanvas
+									program={effectRendering.renderProgram}
+									sourceSelector='img[data-color-source="true"]'
+									fitMode="contain"
+								/>
+								<EffectPersonTrackingCanvas
+									program={effectRendering.renderProgram}
+									sourceSelector='img[data-color-source="true"]'
+									fitMode="contain"
+								/>
 							</div>
+							<EffectOverlayLayers program={effectRendering.renderProgram} />
 							{transitionOverlayStyle ? (
 								<div aria-hidden="true" style={transitionOverlayStyle} />
 							) : null}
@@ -1180,16 +1248,21 @@ export function PreviewElementRenderer({
 						className="absolute inset-0 flex items-center justify-center"
 						style={{
 							zIndex: index + 1,
-							opacity: transitionPresentation.opacity,
+							opacity: transitionPresentation.opacity * effectMotion.opacity,
 							clipPath: transitionPresentation.clipPath,
 							backgroundColor: transitionPresentation.backgroundColor,
 							filter:
 								[transitionFilter, maskStrokeFilter]
 									.filter(Boolean)
 									.join(" ") || undefined,
-							transform: buildClipTransitionCssTransform({
-								presentation: transitionPresentation,
-							}),
+							transform: [
+								buildClipTransitionCssTransform({
+									presentation: transitionPresentation,
+								}),
+								`translate3d(${effectMotion.offsetX}px, ${effectMotion.offsetY}px, 0)`,
+								`rotate(${effectMotion.rotation}deg)`,
+								`scale(${effectMotion.scale})`,
+							].join(" "),
 							transformOrigin:
 								transitionPresentation.transformOrigin ?? "center",
 							...transitionMaskStyle,
@@ -1207,6 +1280,7 @@ export function PreviewElementRenderer({
 								className="w-full h-full object-cover"
 								style={{
 									...maskStyle,
+									filter: effectFilterStyle || undefined,
 									opacity: usesPixelColor ? 0 : undefined,
 								}}
 								data-color-source="true"
@@ -1218,12 +1292,24 @@ export function PreviewElementRenderer({
 									settings={visual.color}
 									masks={visual.masks}
 									fitMode="cover"
+									filter={effectFilterStyle || undefined}
 									frameSeed={Math.round(
 										currentTime * (activeProject?.fps ?? 30)
 									)}
 								/>
 							) : null}
+							<EffectCompositeCanvas
+								program={effectRendering.renderProgram}
+								sourceSelector='img[data-color-source="true"]'
+								fitMode="cover"
+							/>
+							<EffectPersonTrackingCanvas
+								program={effectRendering.renderProgram}
+								sourceSelector='img[data-color-source="true"]'
+								fitMode="cover"
+							/>
 						</div>
+						<EffectOverlayLayers program={effectRendering.renderProgram} />
 						{transitionOverlayStyle ? (
 							<div aria-hidden="true" style={transitionOverlayStyle} />
 						) : null}

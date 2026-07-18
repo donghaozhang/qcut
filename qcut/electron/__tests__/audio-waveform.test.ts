@@ -34,6 +34,29 @@ describe("audio waveform extraction", () => {
 		expect(command.args.at(-1)).toBe("pipe:1");
 	});
 
+	it("filters requested frequency bands and isolates their cache entries", () => {
+		const bass = buildAudioWaveformCommand({
+			options: { sourcePath, duration: 10, peakCount: 128, band: "bass" },
+		});
+		const treble = buildAudioWaveformCommand({
+			options: { sourcePath, duration: 10, peakCount: 128, band: "treble" },
+		});
+		const bassFilter = bass.args.join(" ");
+		const trebleFilter = treble.args.join(" ");
+
+		expect(bassFilter).toContain("highpass=f=20,lowpass=f=250");
+		expect(trebleFilter).toContain("highpass=f=4000,lowpass=f=16000");
+		expect(
+			buildAudioWaveformCacheKey({
+				options: { sourcePath, duration: 10, peakCount: 128, band: "bass" },
+			})
+		).not.toBe(
+			buildAudioWaveformCacheKey({
+				options: { sourcePath, duration: 10, peakCount: 128, band: "treble" },
+			})
+		);
+	});
+
 	it("reduces gray pixels to normalized per-column peaks", () => {
 		const pixels = new Uint8Array([
 			0, 0, 255, 255, 0, 255, 255, 255, 0, 0, 255, 255, 0, 0, 0, 255,

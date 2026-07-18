@@ -1,41 +1,84 @@
 import { useMemo } from "react";
+import {
+	combineEffectRenderPrograms,
+	type EffectAudioCompanion,
+	type EffectInstance,
+	type EffectRenderProgram,
+} from "@qcut/editor-core";
 import { useEffectsStore } from "@/stores/ai/effects-store";
 import {
-	parametersToCSSFilters,
 	mergeEffectParameters,
+	parametersToCSSFilters,
 } from "@/lib/effects/effects-utils";
 
-const EMPTY_EFFECTS: readonly never[] = [];
+export interface ElementEffectsRendering {
+	filterStyle: string;
+	hasEffects: boolean;
+	renderProgram?: EffectRenderProgram;
+	audioCompanions: readonly ElementEffectAudioCompanion[];
+}
 
-/** Compute the aggregate CSS filter string for an element's enabled effects. */
-export function useEffectsRendering(elementId: string | null, enabled = false) {
-	const effects = useEffectsStore((state) => {
-		if (!enabled || !elementId) return EMPTY_EFFECTS;
-		return state.activeEffects.get(elementId) ?? EMPTY_EFFECTS;
+export interface ElementEffectAudioCompanion {
+	effectId: string;
+	effectName: string;
+	companion: EffectAudioCompanion;
+}
+
+export const EMPTY_ELEMENT_EFFECTS_RENDERING: ElementEffectsRendering = {
+	filterStyle: "",
+	hasEffects: false,
+	audioCompanions: [],
+};
+
+export function buildElementEffectsRendering({
+	effects,
+}: {
+	effects: readonly EffectInstance[];
+}): ElementEffectsRendering {
+	const enabledEffects = effects.filter((effect) => effect.enabled);
+	if (enabledEffects.length === 0) return EMPTY_ELEMENT_EFFECTS_RENDERING;
+
+	const mergedParameters = mergeEffectParameters(
+		...enabledEffects.map((effect) => effect.parameters)
+	);
+	const renderProgram = combineEffectRenderPrograms({
+		programs: enabledEffects.flatMap((effect) =>
+			effect.renderProgram ? [effect.renderProgram] : []
+		),
 	});
+	const audioCompanions = enabledEffects.flatMap((effect) =>
+		effect.audioCompanion
+			? [
+					{
+						effectId: effect.id,
+						effectName: effect.name,
+						companion: effect.audioCompanion,
+					},
+				]
+			: []
+	);
+
+	return {
+		filterStyle: parametersToCSSFilters(mergedParameters),
+		hasEffects: true,
+		renderProgram,
+		audioCompanions,
+	};
+}
+
+/** Computes preview render data for every timeline element with enabled effects. */
+export function useEffectsRendering(
+	enabled = false
+): ReadonlyMap<string, ElementEffectsRendering> {
+	const activeEffects = useEffectsStore((state) => state.activeEffects);
 
 	return useMemo(() => {
-		if (!enabled || effects.length === 0) {
-			return { filterStyle: "", hasEffects: false };
+		if (!enabled) return new Map<string, ElementEffectsRendering>();
+		const result = new Map<string, ElementEffectsRendering>();
+		for (const [elementId, effects] of activeEffects) {
+			const rendering = buildElementEffectsRendering({ effects });
+			if (rendering.hasEffects) result.set(elementId, rendering);
 		}
-
-		try {
-			const enabledEffects = effects.filter((e) => e.enabled);
-
-			if (enabledEffects.length === 0) {
-				return { filterStyle: "", hasEffects: false };
-			}
-
-			const mergedParams = mergeEffectParameters(
-				...enabledEffects.map((e) => e.parameters)
-			);
-
-			return {
-				filterStyle: parametersToCSSFilters(mergedParams),
-				hasEffects: true,
-			};
-		} catch {
-			return { filterStyle: "", hasEffects: false };
-		}
-	}, [enabled, effects]);
+		return result;
+	}, [activeEffects, enabled]);
 }

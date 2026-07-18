@@ -1,3 +1,5 @@
+import type { EffectRenderProgram } from "./effect-render.js";
+
 export type EffectType =
 	| "blur"
 	| "brightness"
@@ -34,7 +36,12 @@ export type EffectType =
 	| "overlay"
 	| "multiply"
 	| "screen"
-	| "color-dodge";
+	| "color-dodge"
+	| "motion"
+	| "resource-overlay"
+	| "composite-layout"
+	| "audio-reactive"
+	| "person-tracking";
 
 export interface EffectParameters {
 	opacity?: number;
@@ -120,14 +127,32 @@ export interface AnimatedParameter {
 	interpolation?: "linear" | "step" | "smooth";
 }
 
+export interface EffectAudioCompanion {
+	resourceId: string;
+	offsetSeconds: number;
+	durationSeconds: number;
+	gain: number;
+}
+
+/** Global timeline range assigned when an effect comes from an effect element. */
+export interface EffectTimelineRange {
+	startTime: number;
+	duration: number;
+}
+
 export interface EffectInstance {
 	id: string;
+	presetId?: string;
 	name: string;
 	effectType: EffectType;
 	parameters: EffectParameters;
+	renderProgram?: EffectRenderProgram;
+	audioCompanion?: EffectAudioCompanion;
 	duration: number;
 	enabled: boolean;
 	animations?: AnimatedParameter[];
+	/** Runtime range; omitted for legacy effects that cover their entire target clip. */
+	timelineRange?: EffectTimelineRange;
 }
 
 export interface EffectChain {

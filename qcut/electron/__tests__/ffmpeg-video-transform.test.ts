@@ -108,6 +108,125 @@ describe("FFmpeg video transform filters", () => {
 		expect(filter).toContain("concat=n=3:v=1:a=0");
 	});
 
+	it.each([
+		{
+			treatment: "outline" as const,
+			expected: ["alphaextract", "dilation,dilation", "all_mode=subtract"],
+		},
+		{
+			treatment: "spotlight" as const,
+			expected: ["alphaextract", "brightness=-0.28", "alphamerge"],
+		},
+		{
+			treatment: "background-blur" as const,
+			expected: ["alphaextract", "gblur=sigma=12", "alphamerge"],
+		},
+	])("builds $treatment person treatment filters", ({
+		treatment,
+		expected,
+	}) => {
+		const result = buildVideoTimelineFilters({
+			videoSources: [
+				{
+					path: "/person.mp4",
+					startTime: 0,
+					duration: 2,
+					effectRenderProgram: {
+						version: 1,
+						stages: [
+							{
+								kind: "person-tracking",
+								target: "person",
+								treatment,
+								fallback: "disable",
+							},
+						],
+					},
+					effectPersonSources: [
+						{
+							stageIndex: 0,
+							path: "/person-alpha.webm",
+							animated: true,
+							inputIndex: 1,
+						},
+					],
+				},
+			],
+			width: 640,
+			height: 360,
+			fps: 30,
+			totalDuration: 2,
+		});
+		const filter = result.filterSteps.join(";");
+		for (const fragment of expected) expect(filter).toContain(fragment);
+		expect(filter).toContain("[1:v]trim=start=0:duration=2");
+	});
+
+	it("gates overlay, composite, and person stages to their windows", () => {
+		const result = buildVideoTimelineFilters({
+			videoSources: [
+				{
+					path: "/source.mp4",
+					startTime: 0,
+					duration: 4,
+					effectRenderProgram: {
+						version: 1,
+						stages: [
+							{
+								kind: "composite",
+								layout: "mirror",
+								copies: 2,
+								gap: 0,
+								window: { startSeconds: 0.5, endSeconds: 1.5 },
+							},
+							{
+								kind: "overlay",
+								resourceId: "light",
+								blendMode: "normal",
+								opacity: 0.8,
+								fit: "cover",
+								window: { startSeconds: 1.5, endSeconds: 2.5 },
+							},
+							{
+								kind: "person-tracking",
+								target: "person",
+								treatment: "spotlight",
+								fallback: "disable",
+								window: { startSeconds: 2.5, endSeconds: 3.5 },
+							},
+						],
+					},
+					effectOverlaySources: [
+						{
+							resourceId: "light",
+							stageIndex: 1,
+							path: "/light.png",
+							animated: false,
+							inputIndex: 1,
+						},
+					],
+					effectPersonSources: [
+						{
+							stageIndex: 2,
+							path: "/person.webm",
+							animated: true,
+							inputIndex: 2,
+						},
+					],
+				},
+			],
+			width: 640,
+			height: 360,
+			fps: 30,
+			totalDuration: 4,
+		});
+		const filter = result.filterSteps.join(";");
+
+		expect(filter).toContain("if(gte(T,0.5)*lt(T,1.5),B,A)");
+		expect(filter).toContain("enable='gte(t,1.5)*lt(t,2.5)'");
+		expect(filter).toContain("if(gte(T,2.5)*lt(T,3.5),B,A)");
+	});
+
 	it("composites ordered video tracks from bottom to top", () => {
 		const sources: VideoSource[] = [
 			{

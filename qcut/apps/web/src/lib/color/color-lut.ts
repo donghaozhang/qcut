@@ -17,6 +17,15 @@ export interface ParsedCubeLut {
 	cube: ColorCubeLut;
 }
 
+export interface ParsedLutFile {
+	name: string;
+	cube: ColorCubeLut;
+}
+
+function lutNameFromFile({ fallbackName }: { fallbackName: string }): string {
+	return fallbackName.replace(/\.(cube|3dl)$/i, "");
+}
+
 function parseTriplet({
 	line,
 	label,
@@ -38,7 +47,7 @@ export function parseCubeLut({
 	text: string;
 	fallbackName: string;
 }): ParsedCubeLut {
-	let name = fallbackName.replace(/\.cube$/i, "");
+	let name = lutNameFromFile({ fallbackName });
 	let size = 0;
 	let domainMin: [number, number, number] = [0, 0, 0];
 	let domainMax: [number, number, number] = [1, 1, 1];
@@ -85,6 +94,86 @@ export function parseCubeLut({
 		);
 	}
 	return { name, cube: { size, domainMin, domainMax, values } };
+}
+
+function cubeSizeFromRowCount({ rowCount }: { rowCount: number }): number {
+	const size = Math.round(Math.cbrt(rowCount));
+	if (size ** 3 !== rowCount || size < 2 || size > 65) {
+		throw new Error("3DL data must contain a complete 3D LUT grid");
+	}
+	return size;
+}
+
+function parseThreeDlBitDepth({ line }: { line: string }): number | undefined {
+	const [, , outputBits] = line.match(/^Mesh\s+(\d+)\s+(\d+)/i) ?? [];
+	const bits = Number(outputBits);
+	if (!Number.isInteger(bits) || bits < 8 || bits > 16) return;
+	return bits;
+}
+
+export function parseThreeDlLut({
+	text,
+	fallbackName,
+}: {
+	text: string;
+	fallbackName: string;
+}): ParsedLutFile {
+	let outputScale = 0;
+	const rows: number[][] = [];
+	for (const rawLine of text.split(/\r?\n/)) {
+		const line = rawLine.replace(/#.*$/, "").trim();
+		if (!line) continue;
+		const bitDepth = parseThreeDlBitDepth({ line });
+		if (bitDepth) {
+			outputScale = 2 ** bitDepth - 1;
+			continue;
+		}
+		const numbers = line.split(/\s+/).map(Number);
+		if (numbers.some((value) => !Number.isFinite(value))) continue;
+		if (numbers.length === 3) {
+			rows.push(numbers);
+			continue;
+		}
+		if (numbers.length >= 6) {
+			rows.push(numbers.slice(-3));
+		}
+	}
+	if (rows.length === 0) throw new Error("Missing 3DL color data");
+	const size = cubeSizeFromRowCount({ rowCount: rows.length });
+	const maxValue = Math.max(...rows.flat());
+	const normalizer = outputScale || (maxValue > 1 ? maxValue : 1);
+	const values = rows.flatMap((row) =>
+		row.map((value) => clamp01(value / normalizer))
+	);
+	return {
+		name: lutNameFromFile({ fallbackName }),
+		cube: {
+			size,
+			domainMin: [0, 0, 0],
+			domainMax: [1, 1, 1],
+			values,
+		},
+	};
+}
+
+export function parseLutFile({
+	text,
+	fallbackName,
+}: {
+	text: string;
+	fallbackName: string;
+}): ParsedLutFile {
+	const firstContentLine = text
+		.split(/\r?\n/)
+		.map((line) => line.replace(/#.*$/, "").trim())
+		.find(Boolean);
+	if (
+		/\.3dl$/i.test(fallbackName) ||
+		/^3DMESH$/i.test(firstContentLine ?? "")
+	) {
+		return parseThreeDlLut({ text, fallbackName });
+	}
+	return parseCubeLut({ text, fallbackName });
 }
 
 function presetTransform({

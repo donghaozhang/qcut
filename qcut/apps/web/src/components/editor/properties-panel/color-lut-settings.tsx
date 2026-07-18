@@ -16,7 +16,7 @@ import {
 import {
 	COLOR_LUT_PRESETS,
 	buildPresetCube,
-	parseCubeLut,
+	parseLutFile,
 	type ColorLutPresetId,
 } from "@/lib/color/color-lut";
 import {
@@ -54,7 +54,7 @@ export function ColorLutSettings({
 	};
 	const importCube = async (file: File) => {
 		try {
-			const parsed = parseCubeLut({
+			const parsed = parseLutFile({
 				text: await file.text(),
 				fallbackName: file.name,
 			});
@@ -129,7 +129,7 @@ export function ColorLutSettings({
 				<input
 					ref={fileInput}
 					type="file"
-					accept=".cube,text/plain"
+					accept=".cube,.3dl,text/plain"
 					className="hidden"
 					onChange={(event) => {
 						const file = event.target.files?.[0];
@@ -142,8 +142,8 @@ export function ColorLutSettings({
 					variant="outline"
 					size="icon"
 					className="size-8"
-					title="导入 .cube LUT"
-					aria-label="导入 .cube LUT"
+					title="导入 LUT"
+					aria-label="导入 LUT"
 					onClick={() => fileInput.current?.click()}
 					onKeyDown={(event) => {
 						if (event.key === "Enter" || event.key === " ")
