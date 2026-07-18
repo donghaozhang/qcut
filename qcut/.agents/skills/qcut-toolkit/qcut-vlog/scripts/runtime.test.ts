@@ -29,11 +29,20 @@ describe("qcut-vlog artifact freshness", () => {
 		expect(
 			isArtifactFresh({ artifact: missing, dependencies: [dependency] })
 		).toBe(false);
-		expect(
-			isArtifactFresh({ artifact, dependencies: [dependency, missing] })
-		).toBe(false);
+			expect(
+				isArtifactFresh({ artifact, dependencies: [dependency, missing] })
+			).toBe(false);
 
-		utimesSync(dependency, now, now);
+			utimesSync(secondDependency, now - 10, now - 10);
+			expect(
+				isArtifactFresh({
+					artifact,
+					dependencies: [dependency, secondDependency],
+				})
+			).toBe(false);
+			utimesSync(secondDependency, now - 20, now - 20);
+
+			utimesSync(dependency, now, now);
 		expect(
 			isArtifactFresh({
 				artifact,

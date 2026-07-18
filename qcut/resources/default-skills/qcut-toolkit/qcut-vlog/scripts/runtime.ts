@@ -271,7 +271,7 @@ export function isArtifactFresh({
 	for (const dependency of dependencies) {
 		if (
 			!existsSync(dependency) ||
-			statSync(dependency).mtimeMs > artifactTime
+			statSync(dependency).mtimeMs >= artifactTime
 		) {
 			return false;
 		}
