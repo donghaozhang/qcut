@@ -52,6 +52,8 @@ if (args[0] === "edit" && args[1] === "clean-audio") {
 } else if (args[0] === "edit" && args[1] === "person-cutout") {
   writeFileSync(value("--cutout-output"), "transparent-person-video");
   writeFileSync(value("--output"), "editable-background-video");
+} else if (args[0] === "edit" && args[1] === "portrait-filter") {
+  writeFileSync(value("--output"), "portrait-video");
 } else if (args[0] === "analyze" && args[1] === "transcribe") {
   const output = value("-o");
   mkdirSync(output, { recursive: true });
@@ -117,6 +119,7 @@ describe("qcut-vlog orchestration", () => {
 			readFileSync(tools.invocationLog, "utf8").trim().split("\n")
 		).toEqual([
 			"qcut edit clean-audio",
+			"qcut edit portrait-filter",
 			"qcut analyze transcribe",
 			"qcut edit subtitle-export",
 		]);
@@ -157,12 +160,13 @@ describe("qcut-vlog orchestration", () => {
 		});
 
 		expect(resumed?.stages.clean.status).toBe("skipped");
+		expect(resumed?.stages.portrait.status).toBe("skipped");
 		expect(resumed?.stages["extract-audio"].status).toBe("skipped");
 		expect(resumed?.stages.transcribe.status).toBe("skipped");
 		expect(resumed?.stages.subtitle.status).toBe("skipped");
 		expect(
 			readFileSync(tools.invocationLog, "utf8").trim().split("\n")
-		).toHaveLength(3);
+		).toHaveLength(4);
 
 		await Bun.sleep(10);
 		writeFileSync(join(output, "episode_clean.MOV"), "updated-clean-video");
@@ -173,6 +177,7 @@ describe("qcut-vlog orchestration", () => {
 		});
 
 		expect(rebuilt?.stages.clean.status).toBe("skipped");
+		expect(rebuilt?.stages.portrait.status).toBe("completed");
 		expect(rebuilt?.stages["extract-audio"].status).toBe("completed");
 		expect(rebuilt?.stages.transcribe.status).toBe("completed");
 		expect(rebuilt?.stages.subtitle.status).toBe("completed");
@@ -180,8 +185,10 @@ describe("qcut-vlog orchestration", () => {
 			readFileSync(tools.invocationLog, "utf8").trim().split("\n")
 		).toEqual([
 			"qcut edit clean-audio",
+			"qcut edit portrait-filter",
 			"qcut analyze transcribe",
 			"qcut edit subtitle-export",
+			"qcut edit portrait-filter",
 			"qcut analyze transcribe",
 			"qcut edit subtitle-export",
 		]);
@@ -227,6 +234,7 @@ describe("qcut-vlog orchestration", () => {
 		const cutoutVideo = join(output, "talking-head_cutout.webm");
 		const editableVideo = join(output, "talking-head_vlog_editable.mp4");
 		expect(first?.stages.background.status).toBe("completed");
+		expect(first?.stages.portrait.status).toBe("skipped");
 		expect(first?.artifacts).toMatchObject({
 			backgroundImage: background,
 			cutoutVideo,
@@ -252,6 +260,8 @@ describe("qcut-vlog orchestration", () => {
 		expect(backgroundCommand).toContain(background);
 		expect(backgroundCommand).toContain(cutoutVideo);
 		expect(backgroundCommand).toContain(editableVideo);
+		expect(backgroundCommand).toContain("soft-skin");
+		expect(backgroundCommand).toContain("25");
 		expect(audioCommand).toContain(editableVideo);
 		expect(subtitleCommand).toContain(editableVideo);
 
