@@ -31,9 +31,9 @@ import {
 import { selectEffectCatalogEntries } from "@/lib/effects/effect-catalog-selectors";
 import type {
 	EffectCatalogNavigation,
+	EffectCatalogEntry,
 	EffectCollectionId,
 	EffectLibrarySectionId,
-	VisualEffectCatalogEntry,
 	VisualEffectCategoryId,
 } from "@/lib/effects/effect-catalog-types";
 import {
@@ -103,10 +103,10 @@ function localizeCatalogEntry({
 	locale,
 	t,
 }: {
-	entry: VisualEffectCatalogEntry;
+	entry: EffectCatalogEntry;
 	locale: "en" | "zh";
 	t: ReturnType<typeof useTranslation>["t"];
-}): { entry: VisualEffectCatalogEntry; name: string; description: string } {
+}): { entry: EffectCatalogEntry; name: string; description: string } {
 	const translationKeys = getEffectPresetTranslationKeys({
 		presetId: entry.preset.id,
 	});
