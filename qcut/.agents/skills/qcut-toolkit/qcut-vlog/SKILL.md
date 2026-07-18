@@ -1,6 +1,6 @@
 ---
 name: qcut-vlog
-description: End-to-end QCut CLI workflow for cleaning talking-head and vlog footage, optionally cutting out the speaker and replacing the background, regenerating time-aligned SRT captions after the cuts, and exporting both an editable MP4 plus SRT and a hard-captioned MP4. Use for vlog editing, talking-head cleanup, background replacement, 口播剪辑, 剪口播, 去口头词, 去停顿, 抠像换背景, 自动字幕, 中文字幕, or exporting a captioned social video.
+description: End-to-end QCut CLI workflow for cleaning talking-head and vlog footage, applying restrained portrait filters and skin smoothing, optionally cutting out the speaker and replacing the background, regenerating time-aligned SRT captions after the cuts, and exporting both an editable MP4 plus SRT and a hard-captioned MP4. Use for vlog editing, talking-head cleanup, portrait enhancement, background replacement, 口播剪辑, 剪口播, 去口头词, 去停顿, 人像滤镜, 美颜, 抠像换背景, 自动字幕, 中文字幕, or exporting a captioned social video.
 ---
 
 # QCut Vlog
@@ -17,6 +17,7 @@ Always preserve this sequence:
 source video
   -> word-level transcription for edit decisions
   -> clean-audio trim/concat
+  -> apply a restrained portrait filter and skin smoothing
   -> optional person cutout and background composite
   -> preserve the composite as the editable MP4
   -> extract audio from that editable video
@@ -52,7 +53,18 @@ staged FFmpeg/FFprobe binaries when available.
 
 Background replacement uses `qcut edit person-cutout`, which requires a working
 QCut/FAL API configuration. It writes a transparent VP9 WebM before compositing
-the supplied image with the cleaned speaker video and original audio.
+the supplied image with the cleaned speaker video and original audio. Portrait
+processing splits and restores the alpha channel, so it affects the speaker
+without restoring the removed source background or recoloring the replacement.
+
+The default portrait treatment is `soft-skin` with `--beauty 25`. It is
+intentionally restrained: reduce uneven redness while retaining skin texture.
+List all presets or use the standalone filter command with:
+
+```bash
+bun run pipeline edit portrait-filter --list-presets --json
+bun run pipeline edit portrait-filter -i input.mp4 --preset soft-skin --beauty 25 --output portrait.mp4
+```
 
 ## Modes
 
@@ -78,6 +90,8 @@ box. It is the preferred pure-subtitle style.
 ```bash
 bun "$QCUT_VLOG_ROOT/scripts/main.ts" input.mov \
   --background /path/to/office.png \
+  --portrait-filter soft-skin \
+  --beauty 25 \
   --preset default \
   --silence-threshold 1.0 \
   --keep-padding 0.15 \
@@ -99,9 +113,10 @@ bun "$QCUT_VLOG_ROOT/scripts/main.ts" input.mov --output-dir output --force
 ```
 
 `--resume` rejects changed settings and stale dependencies. In particular, it
-reruns cutout/composition when the cleaned video or background is newer,
-regenerates audio when the editable video is newer, regenerates SRT when audio
-is newer, and re-burns the video when either the editable video or SRT is newer.
+reruns portrait processing when the cleaned video is newer, reruns
+cutout/composition when the cleaned video or background is newer, regenerates
+audio when the editable video is newer, regenerates SRT when audio is newer, and
+re-burns the video when either the editable video or SRT is newer.
 
 ## Options
 
@@ -111,6 +126,9 @@ is newer, and re-burns the video when either the editable video or SRT is newer.
 | `--final-name <name.mp4>` | Choose the final MP4 filename |
 | `-b, --background <image>` | Cut out the person and composite a still background |
 | `--background-fit <mode>` | `cover`, `contain`, or `stretch`; default `cover` |
+| `--portrait-filter <name>` | QCut portrait preset; default `soft-skin`, or `none` to disable the LUT |
+| `--filter-intensity <0-100>` | Override the preset's default intensity |
+| `--beauty <0-100>` | Skin smoothing amount; default `25`, or `0` to disable |
 | `--preset <name>` | `default`, `cinematic`, `bold`, `minimal`, `karaoke`, or `news` |
 | `--style <json>` | Apply subtitle style overrides |
 | `--model <name>` | Select transcription model; default `scribe_v2` |
@@ -131,6 +149,7 @@ is newer, and re-burns the video when either the editable video or SRT is newer.
 ```text
 <video-name>-vlog/
 ├── <video-name>_clean.<source-extension>
+├── <video-name>_vlog_portrait.mp4           # without --background; no burned captions
 ├── <video-name>_cutout.webm                 # when --background is used
 ├── <video-name>_vlog_editable.mp4           # when --background is used; no burned captions
 ├── <video-name>_clean_audio.mp3
@@ -150,14 +169,16 @@ is newer, and re-burns the video when either the editable video or SRT is newer.
 
 If no cuts are needed, the workflow uses the source as the clean working video
 without copying it. Without `--background`, `artifacts.editableVideo` points to
-that clean/source video instead of creating a duplicate. The sidecar SRT remains
-editable, while `<video-name>_vlog.mp4` always contains hard-burned captions.
+the portrait-filtered MP4. If both `--portrait-filter none` and `--beauty 0`
+are supplied, it points to the clean/source video instead. The sidecar SRT
+remains editable, while `<video-name>_vlog.mp4` always contains hard-burned
+captions.
 
 ## Completion Checks
 
 Before reporting success:
 
-1. Read `vlog-manifest.json` and confirm all six stages completed or were safely skipped.
+1. Read `vlog-manifest.json` and confirm all seven stages completed or were safely skipped.
 2. Confirm final-video duration differs from editable-video duration by no more than `0.25s`.
 3. Confirm `transcription.srt` contains at least one entry.
 4. When a background was requested, open `verification/background-preview.png` and confirm the person, background, orientation, edge quality, and framing.
