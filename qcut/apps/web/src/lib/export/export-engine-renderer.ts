@@ -261,7 +261,6 @@ async function applyCanvasAdjustment({
 		currentTime,
 		fps: context.fps,
 	});
-	ctx.clearRect(0, 0, canvas.width, canvas.height);
 	ctx.save();
 	ctx.globalAlpha = element.opacity ?? 1;
 	applyEffectsToCanvas(ctx, parameters);
