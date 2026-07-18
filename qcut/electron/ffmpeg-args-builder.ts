@@ -14,6 +14,7 @@ import type {
 	AudioCrossfade,
 	AudioFile,
 	EffectOverlaySource,
+	EffectPersonSource,
 	VideoSource,
 	VideoTransition,
 	ImageSource,
@@ -130,6 +131,11 @@ interface EffectOverlayCarrier {
 	effectOverlaySources?: EffectOverlaySource[];
 }
 
+interface EffectPersonCarrier {
+	duration: number;
+	effectPersonSources?: EffectPersonSource[];
+}
+
 function appendEffectOverlayInputs<T extends EffectOverlayCarrier>({
 	args,
 	fps,
@@ -161,6 +167,39 @@ function appendEffectOverlayInputs<T extends EffectOverlayCarrier>({
 			return { ...overlay, inputIndex: nextInputIndex++ };
 		});
 		return { ...source, effectOverlaySources };
+	});
+	return {
+		sources: resolvedSources,
+		inputCount: nextInputIndex - startInputIndex,
+	};
+}
+
+function appendEffectPersonInputs<T extends EffectPersonCarrier>({
+	args,
+	sources,
+	startInputIndex,
+}: {
+	args: string[];
+	sources: readonly T[];
+	startInputIndex: number;
+}): { sources: T[]; inputCount: number } {
+	let nextInputIndex = startInputIndex;
+	const resolvedSources = sources.map((source) => {
+		const effectPersonSources = source.effectPersonSources?.map(
+			(personSource) => {
+				if (!fs.existsSync(personSource.path)) {
+					throw new Error(
+						`Person effect source not found: ${personSource.path}`
+					);
+				}
+				if (!personSource.animated) {
+					args.push("-loop", "1", "-t", String(source.duration));
+				}
+				args.push("-i", personSource.path);
+				return { ...personSource, inputIndex: nextInputIndex++ };
+			}
+		);
+		return { ...source, effectPersonSources };
 	});
 	return {
 		sources: resolvedSources,
@@ -220,6 +259,8 @@ function buildCanonicalVisualFilters({
 		effectFilter: image.effectFilter,
 		effectRenderProgram: image.effectRenderProgram,
 		effectOverlaySources: image.effectOverlaySources,
+		effectPersonSources: image.effectPersonSources,
+		effectAudioReactiveEnvelopes: image.effectAudioReactiveEnvelopes,
 	}));
 	const timelineSources = [...videoSources, ...imageSources];
 	const inputIndexes = timelineSources.map((_source, index) =>
@@ -471,11 +512,26 @@ function buildCompositeEncodeArgs(
 		startInputIndex:
 			effectOverlayInputStartIndex + resolvedVideoOverlayInputs.inputCount,
 	});
-	const resolvedVideoSources = resolvedVideoOverlayInputs.sources;
-	const resolvedImages = resolvedImageOverlayInputs.sources;
 	const effectOverlayInputCount =
 		resolvedVideoOverlayInputs.inputCount +
 		resolvedImageOverlayInputs.inputCount;
+	const effectPersonInputStartIndex =
+		effectOverlayInputStartIndex + effectOverlayInputCount;
+	const resolvedVideoPersonInputs = appendEffectPersonInputs({
+		args,
+		sources: resolvedVideoOverlayInputs.sources,
+		startInputIndex: effectPersonInputStartIndex,
+	});
+	const resolvedImagePersonInputs = appendEffectPersonInputs({
+		args,
+		sources: resolvedImageOverlayInputs.sources,
+		startInputIndex:
+			effectPersonInputStartIndex + resolvedVideoPersonInputs.inputCount,
+	});
+	const resolvedVideoSources = resolvedVideoPersonInputs.sources;
+	const resolvedImages = resolvedImagePersonInputs.sources;
+	const effectPersonInputCount =
+		resolvedVideoPersonInputs.inputCount + resolvedImagePersonInputs.inputCount;
 
 	for (const audioFile of audioFiles) {
 		if (!fs.existsSync(audioFile.path)) {
@@ -686,7 +742,8 @@ function buildCompositeEncodeArgs(
 		baseInputCount +
 		validImages.length +
 		validStickers.length +
-		effectOverlayInputCount;
+		effectOverlayInputCount +
+		effectPersonInputCount;
 	const audioResult = buildTimelineAudioFilters({
 		audioFiles,
 		audioCrossfades,
