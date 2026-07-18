@@ -1,7 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { toast } from "sonner";
 import { Switch } from "@/components/ui/switch";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
 	buildLegacyColorAdjustments,
 	DEFAULT_MEDIA_COLOR_SETTINGS,
@@ -30,7 +29,6 @@ import type {
 	ColorKeyframeProperty,
 	ColorPropertyKeyframe,
 	MediaColorSettings,
-	MediaMask,
 } from "@/types/timeline";
 import { usePlaybackStore } from "@/stores/editor/playback-store";
 import { useProjectStore } from "@/stores/project-store";
@@ -38,14 +36,7 @@ import { useTimelineStore } from "@/stores/timeline/timeline-store";
 import { useColorPreviewStore } from "@/stores/editor/color-preview-store";
 import type { ColorSettingsEditorBindings } from "./color-properties-types";
 import { ColorBasicSettings } from "./color-basic-settings";
-import { ColorCurvesSettings } from "./color-curves-settings";
-import { ColorHslSettings } from "./color-hsl-settings";
-import { ColorLutSettings } from "./color-lut-settings";
-import { ColorManagementSettingsPanel } from "./color-management-settings";
 import { ColorPresetControls } from "./color-preset-controls";
-import { ColorSecondaryCurvesSettings } from "./color-secondary-curves-settings";
-import { ColorWheelSettingsPanel } from "./color-wheel-settings";
-import { ColorMaskSettings } from "./color-mask-settings";
 
 function curveShapeSamples({
 	property,
@@ -57,8 +48,6 @@ function curveShapeSamples({
 	if (!property.startsWith("secondaryCurves.")) return;
 	return buildSecondaryCurve({ points }).samples;
 }
-
-const EMPTY_MASKS: MediaMask[] = [];
 
 export function AdjustmentProperties({
 	element,
@@ -332,39 +321,7 @@ export function AdjustmentProperties({
 					settings.enabled ? undefined : "pointer-events-none opacity-45"
 				}
 			>
-				<Tabs defaultValue="basic">
-					<TabsList className="grid h-auto w-full grid-cols-5 gap-1">
-						<TabsTrigger value="basic">基础</TabsTrigger>
-						<TabsTrigger value="hsl">HSL</TabsTrigger>
-						<TabsTrigger value="curves">曲线</TabsTrigger>
-						<TabsTrigger value="wheels">色轮</TabsTrigger>
-						<TabsTrigger value="mask">蒙版</TabsTrigger>
-					</TabsList>
-					<TabsContent value="basic" className="mt-2">
-						<ColorLutSettings bindings={bindings} />
-						<ColorBasicSettings bindings={bindings} />
-						<ColorManagementSettingsPanel bindings={bindings} />
-					</TabsContent>
-					<TabsContent value="hsl" className="mt-2">
-						<ColorHslSettings bindings={bindings} />
-					</TabsContent>
-					<TabsContent value="curves" className="mt-2">
-						<ColorCurvesSettings bindings={bindings} />
-						<ColorSecondaryCurvesSettings bindings={bindings} />
-					</TabsContent>
-					<TabsContent value="wheels" className="mt-2">
-						<ColorWheelSettingsPanel bindings={bindings} />
-					</TabsContent>
-					<TabsContent value="mask" className="mt-2">
-						<ColorMaskSettings
-							bindings={bindings}
-							masks={EMPTY_MASKS}
-							onCreateMask={() =>
-								toast.info("调节层蒙版即将支持，请先在素材属性里使用蒙版")
-							}
-						/>
-					</TabsContent>
-				</Tabs>
+				<ColorBasicSettings bindings={bindings} />
 			</div>
 		</div>
 	);

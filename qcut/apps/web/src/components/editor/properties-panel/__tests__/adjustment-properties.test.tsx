@@ -59,4 +59,21 @@ describe("AdjustmentProperties", () => {
 			true
 		);
 	});
+
+	it("only exposes color controls supported by the adjustment preview", () => {
+		useTimelineStore.setState({
+			updateAdjustmentElement: vi.fn(),
+			pushHistory: vi.fn(),
+		});
+
+		render(
+			<AdjustmentProperties element={adjustment} trackId="adjustment-track" />
+		);
+
+		expect(screen.getByTestId("color-module-basic")).toBeVisible();
+		expect(screen.queryByText("HSL")).not.toBeInTheDocument();
+		expect(screen.queryByText("曲线")).not.toBeInTheDocument();
+		expect(screen.queryByText("色轮")).not.toBeInTheDocument();
+		expect(screen.queryByText("蒙版")).not.toBeInTheDocument();
+	});
 });
