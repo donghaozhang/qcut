@@ -24014,13 +24014,13 @@
 			"url": "/text-assets/legacy/rounded-label@1/template.json",
 			"mimeType": "application/json",
 			"byteSize": 2043,
-			"checksumSha256": "fe7e88cf4ea1bb0ce76fb07747a129719a3d09a432f2e80a0ff620be5695158b"
+			"checksumSha256": "3343f75e2b69ce0ffda138340496fcf0f3f3f6bb4a582c1e2b08e3dfaf9db92b"
 		},
 		"qcutPackage": {
 			"url": "/text-assets/legacy/rounded-label@1/template.qctext",
 			"mimeType": "application/vnd.qcut.text-template+json",
 			"byteSize": 2989,
-			"checksumSha256": "4fa801ebedc8c5daf733e51ff4bcdf039a6cfaed4b52e130cc690d92ef819217"
+			"checksumSha256": "e4bd4aad3ec05fc114dc1b89ef2c3f533dee5238c8cf9ab41007562028975750"
 		}
 	},
 	"text-legacy-dark-bubble": {
@@ -24070,13 +24070,13 @@
 			"url": "/text-assets/legacy/yellow-callout@1/template.json",
 			"mimeType": "application/json",
 			"byteSize": 2043,
-			"checksumSha256": "d23a72143c9cdc6baf41ad98f6dbae81588fc9f28e0f152ef0edfea2c1372fe7"
+			"checksumSha256": "51a6a91cf98c83182a0851a8a4069d7a2decceefe119ffcc7577e767fba1d5db"
 		},
 		"qcutPackage": {
 			"url": "/text-assets/legacy/yellow-callout@1/template.qctext",
 			"mimeType": "application/vnd.qcut.text-template+json",
 			"byteSize": 2988,
-			"checksumSha256": "2a103a12a73a7118ce837f163ca4b844388418460bb4c235ba10b79ecc8011ca"
+			"checksumSha256": "c5506423553b90fb5c7a7d1787fe8dd500f8272c80d26cd9a7ed80ad1adbd315"
 		}
 	},
 	"text-legacy-blue-outline-label": {

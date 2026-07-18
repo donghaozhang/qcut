@@ -83,7 +83,7 @@
 			"content": "Rounded label",
 			"fontSize": 48,
 			"fontFamily": "Arial",
-			"color": "#111111",
+			"color": "#ffffff",
 			"backgroundColor": "transparent",
 			"textAlign": "center",
 			"fontWeight": "bold",

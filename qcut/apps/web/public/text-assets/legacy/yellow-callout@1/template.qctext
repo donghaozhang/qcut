@@ -84,7 +84,7 @@
 			"content": "Important",
 			"fontSize": 48,
 			"fontFamily": "Arial",
-			"color": "#111111",
+			"color": "#fef3c7",
 			"backgroundColor": "transparent",
 			"textAlign": "center",
 			"fontWeight": "bold",

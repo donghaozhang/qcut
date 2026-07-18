@@ -1928,6 +1928,25 @@ function buildTextTemplateResource({
 	};
 }
 
+/**
+ * Perceptual darkness check for template text. An exact palette.dark match
+ * misses near-black preset colors (e.g. legacy labels use #111111), which
+ * would keep dark text + dark stroke once the background plate is stripped.
+ */
+function isDarkTemplateTextColor({ color }: { color?: string }): boolean {
+	const match = color?.trim().match(/^#([0-9a-f]{3}|[0-9a-f]{6})$/iu);
+	if (!match) return false;
+	const hex =
+		match[1].length === 3
+			? [...match[1]].map((digit) => digit + digit).join("")
+			: match[1];
+	const value = Number.parseInt(hex, 16);
+	const red = (value >> 16) & 0xff;
+	const green = (value >> 8) & 0xff;
+	const blue = value & 0xff;
+	return 0.2126 * red + 0.7152 * green + 0.0722 * blue < 96;
+}
+
 function stripTemplateBackground<T extends Partial<TextElement>>({
 	template,
 	palette,
@@ -1939,7 +1958,8 @@ function stripTemplateBackground<T extends Partial<TextElement>>({
 		return template;
 	}
 	const reliedOnPlate = (template.backgroundOpacity ?? 1) >= 0.5;
-	const darkText = palette && template.color === palette.dark;
+	const darkText =
+		palette && isDarkTemplateTextColor({ color: template.color });
 	return {
 		...template,
 		backgroundColor: "transparent",

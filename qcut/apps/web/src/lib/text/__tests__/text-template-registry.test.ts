@@ -276,4 +276,24 @@ describe("text template registry", () => {
 		expect(template?.glowOpacity).toBe(0.9);
 		expect(template?.strokeColor).toBe("#06b6d4");
 	});
+
+	it("keeps stripped-plate templates legible when the preset text is dark", () => {
+		// Near-black preset text (#111111) must flip to the palette's light
+		// primary when the background plate is stripped; otherwise dark text
+		// sits on a dark stroke with no plate and becomes unreadable.
+		const roundedLabel = TEXT_TEMPLATES.find(
+			(template) => template.id === "rounded-label"
+		);
+		const yellowCallout = TEXT_TEMPLATES.find(
+			(template) => template.id === "yellow-callout"
+		);
+
+		expect(roundedLabel?.backgroundColor).toBe("transparent");
+		expect(roundedLabel?.color).toBe("#ffffff");
+		expect(yellowCallout?.backgroundColor).toBe("transparent");
+		expect(yellowCallout?.color).toBe("#fef3c7");
+		for (const template of [roundedLabel, yellowCallout]) {
+			expect(template?.strokeWidth ?? 0).toBeGreaterThanOrEqual(2);
+		}
+	});
 });
