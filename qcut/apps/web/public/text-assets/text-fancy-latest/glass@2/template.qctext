@@ -1,0 +1,150 @@
+{
+	"schemaVersion": 1,
+	"kind": "qcut-text-template-package",
+	"assetId": "text-fancy-latest-glass",
+	"packageId": "text-fancy-latest",
+	"version": 2,
+	"cacheKey": "text-assets/text-fancy-latest/glass@2",
+	"files": {
+		"thumbnail": "thumbnail.webp",
+		"source": "template.json"
+	},
+	"resources": [
+		{
+			"byteSize": 15532,
+			"checksumSha256": "100008335897df5ffd60959bde0fda5070f3ca0cb30c4bc258c4f062a9eb58ca",
+			"mimeType": "image/webp",
+			"path": "thumbnail.webp",
+			"role": "thumbnail",
+			"url": "/text-assets/text-fancy-latest/glass@2/thumbnail.webp"
+		},
+		{
+			"byteSize": 2427,
+			"checksumSha256": "d0cb4d1533e8e96a0e127ca2265e693a50a9afc29f6a58c7d726599e01d0cdf6",
+			"mimeType": "application/json",
+			"path": "template.json",
+			"role": "source",
+			"url": "/text-assets/text-fancy-latest/glass@2/template.json"
+		}
+	],
+	"source": {
+		"schemaVersion": 1,
+		"assetId": "text-fancy-latest-glass",
+		"packageId": "text-fancy-latest",
+		"version": 2,
+		"marketplace": {
+			"editorialRank": 16,
+			"heatScore": 94,
+			"remoteTags": [
+				"category:latest",
+				"group:fancy",
+				"variant:glass",
+				"collection:latest",
+				"market:new"
+			],
+			"searchAliases": [
+				"最新",
+				"上新",
+				"新品",
+				"发布",
+				"new"
+			]
+		},
+		"definition": {
+			"id": "latest-glass",
+			"name": "最新玻璃",
+			"category": "latest",
+			"groupId": "fancy",
+			"variantId": "glass",
+			"content": "花字",
+			"stylePresetId": "cyan-neon",
+			"keywords": [
+				"latest",
+				"最新",
+				"花字",
+				"glass",
+				"玻璃",
+				"透明",
+				"冰感",
+				"latest-glass",
+				"最新玻璃",
+				"fancy"
+			],
+			"premium": true,
+			"downloaded": false,
+			"resource": {
+				"assetId": "text-fancy-latest-glass",
+				"packageId": "text-fancy-latest",
+				"version": 2,
+				"entitlement": "svip",
+				"cacheKey": "text-assets/text-fancy-latest/glass@2",
+				"sizeKb": 384
+			},
+			"catalogVisible": true,
+			"overrides": {
+				"fontSize": 70,
+				"color": "#ede9fe",
+				"fontWeight": "bold",
+				"strokeColor": "#ffffff",
+				"strokeWidth": 2,
+				"backgroundColor": "transparent",
+				"backgroundOpacity": 0,
+				"backgroundRadius": 18,
+				"backgroundPadding": 0,
+				"glowColor": "#22d3ee",
+				"glowOpacity": 0.55,
+				"glowBlur": 18,
+				"width": 700,
+				"height": 210,
+				"shadowColor": "#2e1065",
+				"shadowOpacity": 0.35
+			}
+		},
+		"template": {
+			"id": "latest-glass",
+			"type": "text",
+			"name": "最新玻璃",
+			"content": "花字",
+			"fontSize": 70,
+			"fontFamily": "Arial",
+			"color": "#ede9fe",
+			"backgroundColor": "transparent",
+			"textAlign": "center",
+			"fontWeight": "bold",
+			"fontStyle": "normal",
+			"textDecoration": "none",
+			"x": 0,
+			"y": 0,
+			"rotation": 0,
+			"opacity": 1,
+			"width": 700,
+			"height": 210,
+			"letterSpacing": 0,
+			"lineHeight": 1.2,
+			"verticalAlign": "middle",
+			"strokeColor": "#ffffff",
+			"strokeWidth": 2,
+			"strokeOpacity": 1,
+			"backgroundOpacity": 0,
+			"backgroundRadius": 18,
+			"backgroundPadding": 0,
+			"shadowColor": "#2e1065",
+			"shadowOpacity": 0.35,
+			"shadowOffsetX": 4,
+			"shadowOffsetY": 4,
+			"shadowBlur": 8,
+			"glowColor": "#22d3ee",
+			"glowOpacity": 0.55,
+			"glowBlur": 18,
+			"curve": 0,
+			"animationType": "none",
+			"animationDuration": 0.6,
+			"animationDelay": 0,
+			"blendMode": "normal",
+			"duration": 5,
+			"startTime": 0,
+			"trimStart": 0,
+			"trimEnd": 0
+		}
+	}
+}

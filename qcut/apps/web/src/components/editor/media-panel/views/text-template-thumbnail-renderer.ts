@@ -4,6 +4,7 @@ import {
 	type TextTemplatePackPayload,
 } from "@/lib/text/text-template-packs";
 import type { CreateTextElement, TextElement } from "@/types/timeline";
+import { canvasFontFamily } from "@/lib/text/canvas-font";
 
 export type TextTemplateThumbnailLayoutKind = "single" | "pack";
 
@@ -983,7 +984,7 @@ function drawText({
 	context.rotate(((template.rotation ?? 0) * Math.PI) / 180);
 	context.textAlign = "center";
 	context.textBaseline = "middle";
-	context.font = `900 ${fontSize}px ${fontFamily}`;
+	context.font = `900 ${fontSize}px ${canvasFontFamily(fontFamily)}`;
 	context.lineJoin = "round";
 	context.miterLimit = 2;
 	context.shadowColor = template.shadowColor ?? "rgba(0,0,0,.7)";

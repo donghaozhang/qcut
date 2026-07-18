@@ -1,0 +1,146 @@
+{
+	"schemaVersion": 1,
+	"kind": "qcut-text-template-package",
+	"assetId": "text-fancy-guofeng-stamp",
+	"packageId": "text-fancy-guofeng",
+	"version": 2,
+	"cacheKey": "text-assets/text-fancy-guofeng/stamp@2",
+	"files": {
+		"thumbnail": "thumbnail.webp",
+		"source": "template.json"
+	},
+	"resources": [
+		{
+			"byteSize": 16150,
+			"checksumSha256": "42e287e18fa5a8c2fdcb95992c1f61e7d40c285b54e80b1f42f3efb21d88b94b",
+			"mimeType": "image/webp",
+			"path": "thumbnail.webp",
+			"role": "thumbnail",
+			"url": "/text-assets/text-fancy-guofeng/stamp@2/thumbnail.webp"
+		},
+		{
+			"byteSize": 2375,
+			"checksumSha256": "2046766828c2932f1576a0fe38aa45dbf857383d591be9683d603389352e67ea",
+			"mimeType": "application/json",
+			"path": "template.json",
+			"role": "source",
+			"url": "/text-assets/text-fancy-guofeng/stamp@2/template.json"
+		}
+	],
+	"source": {
+		"schemaVersion": 1,
+		"assetId": "text-fancy-guofeng-stamp",
+		"packageId": "text-fancy-guofeng",
+		"version": 2,
+		"marketplace": {
+			"editorialRank": 20,
+			"heatScore": 90,
+			"remoteTags": [
+				"category:guofeng",
+				"group:fancy",
+				"variant:stamp",
+				"style:guofeng",
+				"scene:culture"
+			],
+			"searchAliases": [
+				"国风",
+				"国潮",
+				"水墨",
+				"chinoiserie"
+			]
+		},
+		"definition": {
+			"id": "guofeng-stamp",
+			"name": "国风印章",
+			"category": "guofeng",
+			"groupId": "fancy",
+			"variantId": "stamp",
+			"content": "国风",
+			"stylePresetId": "red-label",
+			"keywords": [
+				"guofeng",
+				"国风",
+				"stamp",
+				"印章",
+				"红色",
+				"guofeng-stamp",
+				"国风印章",
+				"fancy"
+			],
+			"premium": false,
+			"downloaded": false,
+			"resource": {
+				"assetId": "text-fancy-guofeng-stamp",
+				"packageId": "text-fancy-guofeng",
+				"version": 2,
+				"entitlement": "free",
+				"cacheKey": "text-assets/text-fancy-guofeng/stamp@2",
+				"sizeKb": 192
+			},
+			"catalogVisible": true,
+			"overrides": {
+				"fontSize": 60,
+				"color": "#b91c1c",
+				"fontWeight": "bold",
+				"strokeColor": "#b91c1c",
+				"strokeWidth": 4,
+				"backgroundColor": "transparent",
+				"backgroundOpacity": 0,
+				"backgroundRadius": 4,
+				"backgroundPadding": 0,
+				"letterSpacing": 2,
+				"rotation": -6,
+				"width": 560,
+				"height": 170,
+				"shadowColor": "#3f1d0b",
+				"shadowOpacity": 0.35
+			}
+		},
+		"template": {
+			"id": "guofeng-stamp",
+			"type": "text",
+			"name": "国风印章",
+			"content": "国风",
+			"fontSize": 60,
+			"fontFamily": "Arial",
+			"color": "#b91c1c",
+			"backgroundColor": "transparent",
+			"textAlign": "center",
+			"fontWeight": "bold",
+			"fontStyle": "normal",
+			"textDecoration": "none",
+			"x": 0,
+			"y": 0,
+			"rotation": -6,
+			"opacity": 1,
+			"width": 560,
+			"height": 170,
+			"letterSpacing": 2,
+			"lineHeight": 1.2,
+			"verticalAlign": "middle",
+			"strokeColor": "#b91c1c",
+			"strokeWidth": 4,
+			"strokeOpacity": 1,
+			"backgroundOpacity": 0,
+			"backgroundRadius": 4,
+			"backgroundPadding": 0,
+			"shadowColor": "#3f1d0b",
+			"shadowOpacity": 0.35,
+			"shadowOffsetX": 2,
+			"shadowOffsetY": 4,
+			"shadowBlur": 8,
+			"glowColor": "#ffffff",
+			"glowOpacity": 0,
+			"glowBlur": 12,
+			"curve": 0,
+			"animationType": "none",
+			"animationDuration": 0.6,
+			"animationDelay": 0,
+			"blendMode": "normal",
+			"duration": 5,
+			"startTime": 0,
+			"trimStart": 0,
+			"trimEnd": 0
+		}
+	}
+}

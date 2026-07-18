@@ -16,6 +16,7 @@ import {
 	type TextWidthMeasurer,
 } from "@/lib/text/text-measurement";
 import type { TextElement, TimelineTrack } from "@/types/timeline";
+import { assCompatibleFontFamily } from "@/lib/text/ass-font";
 
 export interface TextASSExport {
 	content: string;
@@ -195,7 +196,10 @@ function styleLine(name: string, element: TextElement): string {
 	const style = resolveTextStyle(element);
 	return [
 		name,
-		element.fontFamily,
+		assCompatibleFontFamily({
+			family: element.fontFamily,
+			content: element.content,
+		}),
 		element.fontSize,
 		rgbToASSColor(element.color, 1),
 		"&H00FFFFFF",

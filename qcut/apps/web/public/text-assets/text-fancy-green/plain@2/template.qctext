@@ -1,0 +1,148 @@
+{
+	"schemaVersion": 1,
+	"kind": "qcut-text-template-package",
+	"assetId": "text-fancy-green-plain",
+	"packageId": "text-fancy-green",
+	"version": 2,
+	"cacheKey": "text-assets/text-fancy-green/plain@2",
+	"files": {
+		"thumbnail": "thumbnail.webp",
+		"source": "template.json"
+	},
+	"resources": [
+		{
+			"byteSize": 14900,
+			"checksumSha256": "27c232df9ef40ecec5b2f2bb307af071a7a7715a6468196d0f286c69acd04c0f",
+			"mimeType": "image/webp",
+			"path": "thumbnail.webp",
+			"role": "thumbnail",
+			"url": "/text-assets/text-fancy-green/plain@2/thumbnail.webp"
+		},
+		{
+			"byteSize": 2314,
+			"checksumSha256": "ae15de44483fa568e90ef2d3cfbfdbd821c8ad5d4539a33c90938a16f8162227",
+			"mimeType": "application/json",
+			"path": "template.json",
+			"role": "source",
+			"url": "/text-assets/text-fancy-green/plain@2/template.json"
+		}
+	],
+	"source": {
+		"schemaVersion": 1,
+		"assetId": "text-fancy-green-plain",
+		"packageId": "text-fancy-green",
+		"version": 2,
+		"marketplace": {
+			"editorialRank": 54,
+			"heatScore": 85,
+			"remoteTags": [
+				"category:green",
+				"group:fancy",
+				"variant:plain",
+				"color:green",
+				"tone:fresh"
+			],
+			"searchAliases": [
+				"绿色",
+				"清新",
+				"自然",
+				"旅行",
+				"探店",
+				"green"
+			]
+		},
+		"definition": {
+			"id": "green-plain",
+			"name": "绿色基础",
+			"category": "green",
+			"groupId": "fancy",
+			"variantId": "plain",
+			"content": "花字",
+			"stylePresetId": "clean-white",
+			"keywords": [
+				"green",
+				"绿色",
+				"花字",
+				"plain",
+				"基础",
+				"干净",
+				"白色",
+				"clean",
+				"green-plain",
+				"绿色基础",
+				"fancy"
+			],
+			"premium": false,
+			"downloaded": true,
+			"resource": {
+				"assetId": "text-fancy-green-plain",
+				"packageId": "text-fancy-green",
+				"version": 2,
+				"entitlement": "free",
+				"cacheKey": "text-assets/text-fancy-green/plain@2",
+				"sizeKb": 192
+			},
+			"catalogVisible": true,
+			"overrides": {
+				"fontSize": 64,
+				"color": "#dcfce7",
+				"fontWeight": "bold",
+				"strokeColor": "#052e16",
+				"strokeWidth": 1,
+				"shadowColor": "#052e16",
+				"shadowOpacity": 0.25,
+				"shadowOffsetX": 2,
+				"shadowOffsetY": 4,
+				"shadowBlur": 8,
+				"width": 720,
+				"height": 180
+			}
+		},
+		"template": {
+			"id": "green-plain",
+			"type": "text",
+			"name": "绿色基础",
+			"content": "花字",
+			"fontSize": 64,
+			"fontFamily": "Arial",
+			"color": "#dcfce7",
+			"backgroundColor": "transparent",
+			"textAlign": "center",
+			"fontWeight": "bold",
+			"fontStyle": "normal",
+			"textDecoration": "none",
+			"x": 0,
+			"y": 0,
+			"rotation": 0,
+			"opacity": 1,
+			"width": 720,
+			"height": 180,
+			"letterSpacing": 0,
+			"lineHeight": 1.2,
+			"verticalAlign": "middle",
+			"strokeColor": "#052e16",
+			"strokeWidth": 1,
+			"strokeOpacity": 1,
+			"backgroundOpacity": 0,
+			"backgroundRadius": 4,
+			"backgroundPadding": 12,
+			"shadowColor": "#052e16",
+			"shadowOpacity": 0.25,
+			"shadowOffsetX": 2,
+			"shadowOffsetY": 4,
+			"shadowBlur": 8,
+			"glowColor": "#ffffff",
+			"glowOpacity": 0,
+			"glowBlur": 12,
+			"curve": 0,
+			"animationType": "none",
+			"animationDuration": 0.6,
+			"animationDelay": 0,
+			"blendMode": "normal",
+			"duration": 5,
+			"startTime": 0,
+			"trimStart": 0,
+			"trimEnd": 0
+		}
+	}
+}

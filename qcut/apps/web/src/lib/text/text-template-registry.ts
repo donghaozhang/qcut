@@ -1902,13 +1902,51 @@ function buildTextTemplateResource({
 	const packageId = `text-${groupId}-${category.id}`;
 	const assetId = `${packageId}-${variant.id}`;
 	const entitlement = variant.premium ? "svip" : "free";
+	// Fancy packs were re-baked without background plates (v2); bumping the
+	// version rolls the cache key so previously downloaded packs refresh.
+	const version = groupId === "fancy" ? 2 : 1;
 	return {
 		assetId,
 		packageId,
-		version: 1,
+		version,
 		entitlement,
-		cacheKey: `text-assets/${packageId}/${variant.id}@1`,
+		cacheKey: `text-assets/${packageId}/${variant.id}@${version}`,
 		sizeKb: variant.premium ? 384 : 192,
+	};
+}
+
+/**
+ * JianYing-style 花字 are pure glyph styling — gradients, strokes and glows on
+ * the characters over a transparent background. Variants that leaned on a
+ * background plate for contrast get a compensating stroke and shadow, and
+ * dark-on-light-plate text flips to a light fill so it stays readable over
+ * arbitrary video.
+ */
+function stripFancyBackground({
+	overrides,
+	category,
+}: {
+	overrides: Partial<TextElement>;
+	category: TextTemplateCategorySeed;
+}): Partial<TextElement> {
+	if (
+		!overrides.backgroundColor ||
+		overrides.backgroundColor === "transparent"
+	) {
+		return overrides;
+	}
+	const reliedOnPlate = (overrides.backgroundOpacity ?? 1) >= 0.5;
+	const darkText = overrides.color === category.palette.dark;
+	return {
+		...overrides,
+		backgroundColor: "transparent",
+		backgroundOpacity: 0,
+		backgroundPadding: 0,
+		color: darkText ? category.palette.primary : overrides.color,
+		strokeColor: overrides.strokeColor ?? category.palette.dark,
+		strokeWidth: Math.max(overrides.strokeWidth ?? 0, reliedOnPlate ? 4 : 2),
+		shadowColor: overrides.shadowColor ?? category.palette.dark,
+		shadowOpacity: Math.max(overrides.shadowOpacity ?? 0, 0.35),
 	};
 }
 
@@ -1928,6 +1966,7 @@ function buildGeneratedDefinition({
 		variant.getContent?.(category) ??
 		category.contentSamples?.[index % category.contentSamples.length] ??
 		category.content;
+	const overrides = variant.buildOverrides({ category, index });
 	return {
 		id: isDefaultText ? "default-text" : `${category.id}-${variant.id}`,
 		name: isDefaultText ? "Default text" : `${category.label}${variant.label}`,
@@ -1950,7 +1989,10 @@ function buildGeneratedDefinition({
 		downloaded: variant.downloaded ?? false,
 		resource: buildTextTemplateResource({ category, groupId, variant }),
 		catalogVisible: true,
-		overrides: variant.buildOverrides({ category, index }),
+		overrides:
+			groupId === "fancy"
+				? stripFancyBackground({ overrides, category })
+				: overrides,
 	};
 }
 
@@ -2247,13 +2289,31 @@ export function buildTextTemplate({
 		);
 	}
 
-	return {
+	const template = {
 		...BASE_TEXT_TEMPLATE,
 		...stylePreset.updates,
 		...definition.overrides,
 		id: definition.id,
 		name: definition.name,
 		content: definition.content,
+	};
+
+	if (
+		definition.groupId !== "fancy" ||
+		!template.backgroundColor ||
+		template.backgroundColor === "transparent"
+	) {
+		return template;
+	}
+
+	const reliedOnPlate = (template.backgroundOpacity ?? 1) >= 0.5;
+	return {
+		...template,
+		backgroundColor: "transparent",
+		backgroundOpacity: 0,
+		backgroundPadding: 0,
+		strokeWidth: Math.max(template.strokeWidth ?? 0, reliedOnPlate ? 4 : 2),
+		shadowOpacity: Math.max(template.shadowOpacity ?? 0, 0.35),
 	};
 }
 

@@ -8,6 +8,7 @@ import type { WordItem } from "@/types/word-timeline";
 import { generateASS } from "./ass-generator";
 import { saveExportedFile, type SaveResult } from "@/lib/export/export-output";
 import { createPlainTextExport } from "./workbench";
+import { assCompatibleFontFamily } from "@/lib/text/ass-font";
 
 /** Supported caption export format identifiers. */
 export type CaptionFormat =
@@ -132,7 +133,10 @@ export function exportAss(
 	segments: TranscriptionSegment[],
 	options: Partial<CaptionExportOptions> = {}
 ): string {
-	const fontFamily = options.fontFamily || "Arial";
+	const fontFamily = assCompatibleFontFamily({
+		family: options.fontFamily || "Arial",
+		content: segments.map((segment) => segment.text).join(""),
+	});
 	const fontSize = options.fontSize || 16;
 	const fontColor = options.fontColor || "&Hffffff";
 

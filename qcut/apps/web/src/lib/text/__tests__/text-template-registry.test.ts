@@ -178,10 +178,27 @@ describe("text template registry", () => {
 		}
 		for (const definition of TEXT_TEMPLATE_LIBRARY_DEFINITIONS) {
 			expect(definition.resource?.assetId).toContain(definition.variantId);
-			expect(definition.resource?.cacheKey).toContain("@1");
+			expect(definition.resource?.cacheKey).toContain(
+				definition.groupId === "fancy" ? "@2" : "@1"
+			);
 			expect(definition.resource?.entitlement).toBe(
 				definition.premium ? "svip" : "free"
 			);
+		}
+	});
+
+	it("keeps fancy flower-word templates transparent after style preset merging", () => {
+		const definitionsById = new Map(
+			TEXT_TEMPLATE_DEFINITIONS.map((definition) => [definition.id, definition])
+		);
+		const fancyTemplates = TEXT_TEMPLATES.filter(
+			(template) => definitionsById.get(template.id)?.groupId === "fancy"
+		);
+
+		expect(fancyTemplates.length).toBeGreaterThan(0);
+		for (const template of fancyTemplates) {
+			expect(template.backgroundColor).toBe("transparent");
+			expect(template.backgroundOpacity).toBe(0);
 		}
 	});
 

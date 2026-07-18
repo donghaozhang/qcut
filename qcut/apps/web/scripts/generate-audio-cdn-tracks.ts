@@ -308,7 +308,26 @@ if (import.meta.main) {
 	);
 	await Promise.all(workers);
 
-	// Assemble tracks.json from every spec whose payloads exist.
+	// Assemble tracks.json from every spec whose payloads exist, merging with
+	// the existing file: entries owned by other producers (e.g. the Freesound
+	// SFX importer) must survive, and previously published tracks keep their
+	// original created date and download counts.
+	const tracksJsonPath = path.join(sourceDir, "tracks.json");
+	let previousEntries: Record<string, unknown>[] = [];
+	try {
+		const parsed = JSON.parse(await readFile(tracksJsonPath, "utf8"));
+		if (Array.isArray(parsed)) previousEntries = parsed;
+	} catch (error) {
+		// Only a missing tracks.json means a first run. Malformed JSON or a
+		// read failure must abort, or the rewrite below would drop foreign
+		// entries, download counts, and original created dates.
+		if ((error as NodeJS.ErrnoException).code !== "ENOENT") throw error;
+	}
+	const previousById = new Map(
+		previousEntries.map((entry) => [entry.id as number, entry])
+	);
+	const specIds = new Set(specs.map((spec) => spec.id));
+
 	const generatedAt = new Date().toISOString();
 	const entries = [];
 	for (const spec of specs) {
@@ -316,6 +335,7 @@ if (import.meta.main) {
 		const audioPath = path.join(sourceDir, "tracks", `${slug}.ogg`);
 		const artworkPath = path.join(sourceDir, "artwork", `${slug}.webp`);
 		if (!existsSync(audioPath)) continue;
+		const previous = previousById.get(spec.id);
 		const { prompt: _prompt, ...manifestSpec } = spec;
 		entries.push({
 			...manifestSpec,
@@ -325,18 +345,21 @@ if (import.meta.main) {
 			...(existsSync(artworkPath)
 				? { artworkFile: `artwork/${slug}.webp` }
 				: {}),
-			downloads: 0,
+			downloads:
+				typeof previous?.downloads === "number" ? previous.downloads : 0,
 			license: "qcut://license/built-in",
 			username: "QCut Studio",
-			created: generatedAt,
+			created:
+				typeof previous?.created === "string" ? previous.created : generatedAt,
 		});
 	}
-	await writeFile(
-		path.join(sourceDir, "tracks.json"),
-		`${JSON.stringify(entries, null, "\t")}\n`
+	const foreignEntries = previousEntries.filter(
+		(entry) => !specIds.has(entry.id as number)
 	);
+	entries.push(...foreignEntries);
+	await writeFile(tracksJsonPath, `${JSON.stringify(entries, null, "\t")}\n`);
 	console.log(
-		`📄 tracks.json: ${entries.length} entries; failures: ${failures.length}`
+		`📄 tracks.json: ${entries.length} entries (${foreignEntries.length} preserved); failures: ${failures.length}`
 	);
 	if (failures.length > 0) {
 		console.error(`Failed: ${failures.join(", ")}`);

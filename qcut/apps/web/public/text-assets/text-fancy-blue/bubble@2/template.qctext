@@ -1,0 +1,151 @@
+{
+	"schemaVersion": 1,
+	"kind": "qcut-text-template-package",
+	"assetId": "text-fancy-blue-bubble",
+	"packageId": "text-fancy-blue",
+	"version": 2,
+	"cacheKey": "text-assets/text-fancy-blue/bubble@2",
+	"files": {
+		"thumbnail": "thumbnail.webp",
+		"source": "template.json"
+	},
+	"resources": [
+		{
+			"byteSize": 15242,
+			"checksumSha256": "896569c138408c5b34defa8483ee7c8fbd5c263bd29cbbd0026abf74ddd11efb",
+			"mimeType": "image/webp",
+			"path": "thumbnail.webp",
+			"role": "thumbnail",
+			"url": "/text-assets/text-fancy-blue/bubble@2/thumbnail.webp"
+		},
+		{
+			"byteSize": 2418,
+			"checksumSha256": "6f6cb7291f8a796692ed11100a237f57e98c8a2c54fc8e50aec9accb75ec78f7",
+			"mimeType": "application/json",
+			"path": "template.json",
+			"role": "source",
+			"url": "/text-assets/text-fancy-blue/bubble@2/template.json"
+		}
+	],
+	"source": {
+		"schemaVersion": 1,
+		"assetId": "text-fancy-blue-bubble",
+		"packageId": "text-fancy-blue",
+		"version": 2,
+		"marketplace": {
+			"editorialRank": 30,
+			"heatScore": 88,
+			"remoteTags": [
+				"category:blue",
+				"group:fancy",
+				"variant:bubble",
+				"color:blue",
+				"scene:tech"
+			],
+			"searchAliases": [
+				"蓝色",
+				"冰蓝",
+				"科技",
+				"知识",
+				"教程",
+				"blue"
+			]
+		},
+		"definition": {
+			"id": "blue-bubble",
+			"name": "蓝色气泡",
+			"category": "blue",
+			"groupId": "fancy",
+			"variantId": "bubble",
+			"content": "花字",
+			"stylePresetId": "pink-neon",
+			"keywords": [
+				"blue",
+				"蓝色",
+				"花字",
+				"bubble",
+				"气泡",
+				"圆润",
+				"可爱",
+				"blue-bubble",
+				"蓝色气泡",
+				"fancy"
+			],
+			"premium": false,
+			"downloaded": true,
+			"resource": {
+				"assetId": "text-fancy-blue-bubble",
+				"packageId": "text-fancy-blue",
+				"version": 2,
+				"entitlement": "free",
+				"cacheKey": "text-assets/text-fancy-blue/bubble@2",
+				"sizeKb": 192
+			},
+			"catalogVisible": true,
+			"overrides": {
+				"fontSize": 66,
+				"color": "#2563eb",
+				"fontWeight": "bold",
+				"strokeColor": "#ffffff",
+				"strokeWidth": 6,
+				"backgroundColor": "transparent",
+				"backgroundOpacity": 0,
+				"backgroundRadius": 42,
+				"backgroundPadding": 0,
+				"shadowColor": "#22d3ee",
+				"shadowOpacity": 0.45,
+				"shadowOffsetX": 0,
+				"shadowOffsetY": 8,
+				"shadowBlur": 14,
+				"width": 680,
+				"height": 210
+			}
+		},
+		"template": {
+			"id": "blue-bubble",
+			"type": "text",
+			"name": "蓝色气泡",
+			"content": "花字",
+			"fontSize": 66,
+			"fontFamily": "Arial",
+			"color": "#2563eb",
+			"backgroundColor": "transparent",
+			"textAlign": "center",
+			"fontWeight": "bold",
+			"fontStyle": "normal",
+			"textDecoration": "none",
+			"x": 0,
+			"y": 0,
+			"rotation": 0,
+			"opacity": 1,
+			"width": 680,
+			"height": 210,
+			"letterSpacing": 0,
+			"lineHeight": 1.2,
+			"verticalAlign": "middle",
+			"strokeColor": "#ffffff",
+			"strokeWidth": 6,
+			"strokeOpacity": 1,
+			"backgroundOpacity": 0,
+			"backgroundRadius": 42,
+			"backgroundPadding": 0,
+			"shadowColor": "#22d3ee",
+			"shadowOpacity": 0.45,
+			"shadowOffsetX": 0,
+			"shadowOffsetY": 8,
+			"shadowBlur": 14,
+			"glowColor": "#ff3ca6",
+			"glowOpacity": 0.9,
+			"glowBlur": 18,
+			"curve": 0,
+			"animationType": "none",
+			"animationDuration": 0.6,
+			"animationDelay": 0,
+			"blendMode": "normal",
+			"duration": 5,
+			"startTime": 0,
+			"trimStart": 0,
+			"trimEnd": 0
+		}
+	}
+}
