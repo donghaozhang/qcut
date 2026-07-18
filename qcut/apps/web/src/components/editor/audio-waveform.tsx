@@ -26,6 +26,10 @@ interface AudioWaveformProps {
 	showStatus?: boolean;
 	loadingLabel?: string;
 	errorLabel?: string;
+	/** Bar width/gap in CSS px; 1/1 gives the fine JianYing-style rendering. */
+	barWidth?: number;
+	barGap?: number;
+	color?: string;
 }
 
 function nativeWaveformLoader({
@@ -57,6 +61,9 @@ function drawWaveform({
 	width,
 	sourceStart,
 	sourceEnd,
+	barWidth,
+	barGap,
+	color,
 }: {
 	canvas: HTMLCanvasElement;
 	waveform: AudioWaveformPeaks;
@@ -64,6 +71,9 @@ function drawWaveform({
 	width: number;
 	sourceStart?: number;
 	sourceEnd?: number;
+	barWidth: number;
+	barGap: number;
+	color: string;
 }) {
 	const pixelRatio = Math.min(window.devicePixelRatio || 1, 2);
 	canvas.width = Math.max(1, Math.round(width * pixelRatio));
@@ -74,8 +84,6 @@ function drawWaveform({
 	if (!context) return;
 	context.setTransform(pixelRatio, 0, 0, pixelRatio, 0, 0);
 	context.clearRect(0, 0, width, height);
-	const barWidth = 2;
-	const barGap = 1;
 	const barCount = Math.max(1, Math.floor(width / (barWidth + barGap)));
 	const bars = sampleAudioWaveformBars({
 		waveform,
@@ -84,7 +92,7 @@ function drawWaveform({
 		barCount,
 	});
 	const gain = audioWaveformDisplayGain({ bars });
-	context.fillStyle = "rgba(255, 255, 255, 0.9)";
+	context.fillStyle = color;
 	for (const [index, bar] of bars.entries()) {
 		const amplitude = Math.min(1, bar * gain);
 		const barHeight = Math.max(1, amplitude * (height - 2));
@@ -110,6 +118,9 @@ export default function AudioWaveform({
 	showStatus = true,
 	loadingLabel = "Loading waveform...",
 	errorLabel = "Audio unavailable",
+	barWidth = 2,
+	barGap = 1,
+	color = "rgba(255, 255, 255, 0.9)",
 }: AudioWaveformProps) {
 	const containerRef = useRef<HTMLDivElement>(null);
 	const canvasRef = useRef<HTMLCanvasElement>(null);
@@ -178,13 +189,16 @@ export default function AudioWaveform({
 				width: Math.max(1, rect.width),
 				sourceStart,
 				sourceEnd,
+				barWidth,
+				barGap,
+				color,
 			});
 		};
 		render();
 		const observer = new ResizeObserver(render);
 		observer.observe(container);
 		return () => observer.disconnect();
-	}, [height, sourceEnd, sourceStart, waveform]);
+	}, [height, sourceEnd, sourceStart, waveform, barWidth, barGap, color]);
 
 	return (
 		<div

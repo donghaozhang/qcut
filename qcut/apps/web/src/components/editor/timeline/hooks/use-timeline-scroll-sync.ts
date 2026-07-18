@@ -1,4 +1,4 @@
-import { useEffect, useRef } from "react";
+import { useEffect } from "react";
 import type { RefObject } from "react";
 
 interface UseTimelineScrollSyncOptions {
@@ -16,15 +16,14 @@ export function useTimelineScrollSync({
 	mediaStoreLoading,
 	tracksLength,
 }: UseTimelineScrollSyncOptions) {
-	const isUpdatingRef = useRef(false);
-	const lastRulerSync = useRef(0);
-	const lastTracksSync = useRef(0);
-	const lastVerticalSync = useRef(0);
-
 	// --- Scroll synchronization effect ---
 	// Re-runs when mediaStoreLoading changes because the component renders a
 	// loading spinner (early return) until the store is ready, so refs are null
 	// on the first effect run. Without this dependency the listeners never attach.
+	//
+	// Sync must run on EVERY scroll event: a time-based throttle drops the
+	// final event of a gesture, leaving the mirrored pane permanently offset
+	// by a few pixels. The equality check breaks the assignment echo loop.
 	// biome-ignore lint/correctness/useExhaustiveDependencies: intentional re-attach when loading state or track count changes
 	useEffect(() => {
 		const rulerViewport = rulerScrollRef.current;
@@ -37,20 +36,14 @@ export function useTimelineScrollSync({
 
 		// Horizontal scroll synchronization between ruler and tracks
 		const handleRulerScroll = () => {
-			const now = Date.now();
-			if (isUpdatingRef.current || now - lastRulerSync.current < 16) return;
-			lastRulerSync.current = now;
-			isUpdatingRef.current = true;
-			tracksViewport.scrollLeft = rulerViewport.scrollLeft;
-			isUpdatingRef.current = false;
+			if (tracksViewport.scrollLeft !== rulerViewport.scrollLeft) {
+				tracksViewport.scrollLeft = rulerViewport.scrollLeft;
+			}
 		};
 		const handleTracksScroll = () => {
-			const now = Date.now();
-			if (isUpdatingRef.current || now - lastTracksSync.current < 16) return;
-			lastTracksSync.current = now;
-			isUpdatingRef.current = true;
-			rulerViewport.scrollLeft = tracksViewport.scrollLeft;
-			isUpdatingRef.current = false;
+			if (rulerViewport.scrollLeft !== tracksViewport.scrollLeft) {
+				rulerViewport.scrollLeft = tracksViewport.scrollLeft;
+			}
 		};
 
 		rulerViewport.addEventListener("scroll", handleRulerScroll);
@@ -59,22 +52,14 @@ export function useTimelineScrollSync({
 		// Vertical scroll synchronization between track labels and tracks content
 		if (trackLabelsViewport) {
 			const handleTrackLabelsScroll = () => {
-				const now = Date.now();
-				if (isUpdatingRef.current || now - lastVerticalSync.current < 16)
-					return;
-				lastVerticalSync.current = now;
-				isUpdatingRef.current = true;
-				tracksViewport.scrollTop = trackLabelsViewport.scrollTop;
-				isUpdatingRef.current = false;
+				if (tracksViewport.scrollTop !== trackLabelsViewport.scrollTop) {
+					tracksViewport.scrollTop = trackLabelsViewport.scrollTop;
+				}
 			};
 			const handleTracksVerticalScroll = () => {
-				const now = Date.now();
-				if (isUpdatingRef.current || now - lastVerticalSync.current < 16)
-					return;
-				lastVerticalSync.current = now;
-				isUpdatingRef.current = true;
-				trackLabelsViewport.scrollTop = tracksViewport.scrollTop;
-				isUpdatingRef.current = false;
+				if (trackLabelsViewport.scrollTop !== tracksViewport.scrollTop) {
+					trackLabelsViewport.scrollTop = tracksViewport.scrollTop;
+				}
 			};
 
 			trackLabelsViewport.addEventListener("scroll", handleTrackLabelsScroll);

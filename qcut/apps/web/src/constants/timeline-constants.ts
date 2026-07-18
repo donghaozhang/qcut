@@ -16,8 +16,9 @@ export const TRACK_COLORS: Record<
 		border: "border-white/80",
 	},
 	audio: {
-		solid: "bg-green-500",
-		background: "bg-green-500/20",
+		// JianYing-style audio palette: opaque navy clip with light-blue waveform
+		solid: "bg-[#3D7EBF]",
+		background: "bg-[#1E3A5F]",
 		border: "border-white/80",
 	},
 	sticker: {

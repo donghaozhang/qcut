@@ -1476,6 +1476,9 @@ function TimelineElementComponent({
 						className="w-full h-full"
 						sourceStart={element.trimStart}
 						sourceEnd={element.duration - element.trimEnd}
+						barWidth={1}
+						barGap={1}
+						color="rgba(126, 196, 255, 0.95)"
 					/>
 				</div>
 			);
