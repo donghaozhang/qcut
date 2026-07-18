@@ -88,8 +88,6 @@ export function EffectPersonTrackingCanvas({
 	const sourceCanvasRef = useRef<HTMLCanvasElement | null>(null);
 	const maskCanvasRef = useRef<HTMLCanvasElement | null>(null);
 	const clientRef = useRef<PersonCutoutClient | null>(null);
-	const processingRef = useRef(false);
-	const rerenderRef = useRef(false);
 	const lastVideoTimeRef = useRef(Number.NEGATIVE_INFINITY);
 	const [status, setStatus] = useState<
 		"idle" | "processing" | "ready" | "error"
@@ -105,6 +103,8 @@ export function EffectPersonTrackingCanvas({
 		if (!canvas || !parent || stages.length === 0) return;
 		let cancelled = false;
 		let animationFrame = 0;
+		let processing = false;
+		let rerender = false;
 
 		const resolveSource = (): PersonEffectSource | null => {
 			const colorCanvas = parent.querySelector<HTMLCanvasElement>(
@@ -123,13 +123,13 @@ export function EffectPersonTrackingCanvas({
 		};
 		const render = async () => {
 			if (cancelled) return;
-			if (processingRef.current) {
-				rerenderRef.current = true;
+			if (processing) {
+				rerender = true;
 				return;
 			}
 			const source = resolveSource();
 			if (!source || !sourceReady({ source })) return;
-			processingRef.current = true;
+			processing = true;
 			setStatus("processing");
 			try {
 				sourceCanvasRef.current ??= document.createElement("canvas");
@@ -169,9 +169,9 @@ export function EffectPersonTrackingCanvas({
 			} catch {
 				if (!cancelled) setStatus("error");
 			} finally {
-				processingRef.current = false;
-				if (rerenderRef.current && !cancelled) {
-					rerenderRef.current = false;
+				processing = false;
+				if (rerender && !cancelled) {
+					rerender = false;
 					void render();
 				}
 			}
