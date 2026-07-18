@@ -27,6 +27,11 @@ export const VISUAL_EFFECT_CATEGORY_IDS = [
 export type VisualEffectCategoryId =
 	(typeof VISUAL_EFFECT_CATEGORY_IDS)[number];
 
+export const PERSON_EFFECT_CATEGORY_IDS = ["person"] as const;
+
+export type PersonEffectCategoryId =
+	(typeof PERSON_EFFECT_CATEGORY_IDS)[number];
+
 export const EFFECT_COLLECTION_IDS = ["popular", "latest"] as const;
 
 export type EffectCollectionId = (typeof EFFECT_COLLECTION_IDS)[number];
@@ -61,18 +66,30 @@ export interface EffectRenderContract {
 	parity: "verified" | "pending";
 }
 
-export interface VisualEffectCatalogEntry {
+interface EffectCatalogEntryBase {
 	preset: EffectPreset;
 	localizedName?: string;
 	localizedDescription?: string;
-	family: "visual";
-	category: VisualEffectCategoryId;
 	tags: readonly string[];
 	releasedAt: string;
 	popularityScore: number;
 	publication: "published" | "legacy" | "planned";
 	render: EffectRenderContract;
 }
+
+export interface VisualEffectCatalogEntry extends EffectCatalogEntryBase {
+	family: "visual";
+	category: VisualEffectCategoryId;
+}
+
+export interface PersonEffectCatalogEntry extends EffectCatalogEntryBase {
+	family: "person";
+	category: PersonEffectCategoryId;
+}
+
+export type EffectCatalogEntry =
+	| VisualEffectCatalogEntry
+	| PersonEffectCatalogEntry;
 
 export interface EffectLibrarySectionDefinition {
 	id: EffectLibrarySectionId;
