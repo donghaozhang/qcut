@@ -160,6 +160,8 @@ export type {
 	EffectParameters,
 	EffectType,
 	EffectAudioReactiveRenderStage,
+	EffectAudioReactiveEnvelope,
+	EffectAudioReactiveKeyframe,
 	EffectCompositeRenderStage,
 	EffectFilterRenderStage,
 	EffectMotionChannel,
