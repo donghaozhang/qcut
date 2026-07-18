@@ -8,6 +8,7 @@ import { MediaItem } from "@/stores/media/media-store";
 import { platform } from "@qcut/platform-core";
 import {
 	combineEffectRenderPrograms,
+	type EffectInstance,
 	type EffectRenderProgram,
 } from "@qcut/editor-core";
 import { debugLog, debugError, debugWarn } from "@/lib/debug/debug-config";
@@ -44,6 +45,7 @@ import {
 	extractImageSources,
 	extractAudioMixConfig,
 	extractEffectOverlaySources,
+	extractEffectCompanionAudioSources,
 } from "../export-cli/sources";
 import {
 	prepareAudioFilesForExport,
@@ -81,6 +83,25 @@ export type {
 } from "../export-cli/types";
 
 type EffectsStore = ReturnType<typeof useEffectsStore.getState>;
+
+function collectExportEffects({
+	tracks,
+	effectsStore,
+}: {
+	tracks: readonly TimelineTrack[];
+	effectsStore?: EffectsStore;
+}): ReadonlyMap<string, readonly EffectInstance[]> {
+	const effectsByElementId = new Map<string, readonly EffectInstance[]>();
+	for (const track of tracks) {
+		for (const element of track.elements) {
+			const effects = effectsStore
+				? effectsStore.getElementEffects(element.id)
+				: (element.effects ?? []);
+			if (effects.length > 0) effectsByElementId.set(element.id, effects);
+		}
+	}
+	return effectsByElementId;
+}
 
 /** FFmpeg CLI-based export engine that renders timeline projects to video files via Electron IPC. */
 export class CLIExportEngine extends ExportEngine {
@@ -301,6 +322,10 @@ export class CLIExportEngine extends ExportEngine {
 	private async exportWithCLI(
 		progressCallback?: ProgressCallback
 	): Promise<string> {
+		const effectsByElementId = collectExportEffects({
+			tracks: this.tracks,
+			effectsStore: this.effectsStore,
+		});
 		// Prepare audio files
 		progressCallback?.(5, "Preparing audio files...");
 		const includeAudio = this.audioOptions.includeAudio ?? true;
@@ -326,6 +351,12 @@ export class CLIExportEngine extends ExportEngine {
 				includeEmbeddedVideoAudio:
 					this.exportAnalysis?.optimizationStrategy !== "direct-copy",
 			});
+			audioFiles.push(
+				...(await extractEffectCompanionAudioSources({
+					tracks: this.tracks,
+					effectsByElementId,
+				}))
+			);
 		} else {
 			debugLog(
 				"[CLI Export] Audio excluded by user setting (includeAudio=false)"
@@ -364,17 +395,16 @@ export class CLIExportEngine extends ExportEngine {
 					if (filterChain) {
 						elementFilterChains.set(element.id, filterChain);
 					}
-					const renderProgram = combineEffectRenderPrograms({
-						programs: this.effectsStore
-							.getElementEffects(element.id)
-							.filter((effect) => effect.enabled && effect.renderProgram)
-							.flatMap((effect) =>
-								effect.renderProgram ? [effect.renderProgram] : []
-							),
-					});
-					if (renderProgram) {
-						elementRenderPrograms.set(element.id, renderProgram);
-					}
+				}
+				const renderProgram = combineEffectRenderPrograms({
+					programs: (effectsByElementId.get(element.id) ?? [])
+						.filter((effect) => effect.enabled && effect.renderProgram)
+						.flatMap((effect) =>
+							effect.renderProgram ? [effect.renderProgram] : []
+						),
+				});
+				if (renderProgram) {
+					elementRenderPrograms.set(element.id, renderProgram);
 				}
 			}
 		}
