@@ -4,6 +4,7 @@ import {
 	collectEffectRenderStageKinds,
 	combineEffectRenderPrograms,
 	validateEffectRenderProgram,
+	withEffectRenderWindow,
 } from "../effects/render-program";
 
 describe("effect render programs", () => {
@@ -77,5 +78,37 @@ describe("effect render programs", () => {
 
 		expect(result.valid).toBe(false);
 		expect(result.errors).toHaveLength(4);
+	});
+
+	it("applies a clip-local window without mutating the source", () => {
+		const program: EffectRenderProgram = {
+			version: 1,
+			stages: [
+				{ kind: "filter" },
+				{
+					kind: "overlay",
+					resourceId: "light",
+					blendMode: "screen",
+					opacity: 0.8,
+					fit: "cover",
+				},
+			],
+		};
+		const scheduled = withEffectRenderWindow({
+			program,
+			window: { startSeconds: 1.25, endSeconds: 3.5 },
+		});
+
+		expect(
+			scheduled.stages.every(
+				(stage) => stage.window?.startSeconds === 1.25
+			)
+		).toBe(true);
+		expect(program.stages.every((stage) => stage.window === undefined)).toBe(
+			true
+		);
+		expect(validateEffectRenderProgram({ program: scheduled }).valid).toBe(
+			true
+		);
 	});
 });
