@@ -21,12 +21,21 @@ export interface Scene {
 	updatedAt: Date;
 }
 
+/** A user-created folder for grouping projects in the studio page. */
+export interface ProjectFolder {
+	id: string;
+	name: string;
+	createdAt: Date;
+}
+
 export interface TProject {
 	id: string;
 	name: string;
 	thumbnail: string;
 	createdAt: Date;
 	updatedAt: Date;
+	/** Folder this project lives in on the studio page (null/undefined = root). */
+	folderId?: string | null;
 	/** All scenes in this project (first/main scene created by default). */
 	scenes: Scene[];
 	/** The scene currently selected in the editor. */

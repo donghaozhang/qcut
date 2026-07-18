@@ -1,4 +1,4 @@
-import { TProject } from "@/types/project";
+import { ProjectFolder, TProject } from "@/types/project";
 import { MediaItem } from "@/stores/media/media-store";
 import { IndexedDBAdapter } from "./indexeddb-adapter";
 import { LocalStorageAdapter } from "./localstorage-adapter";
@@ -8,6 +8,7 @@ import {
 	MediaFileData,
 	StorageConfig,
 	SerializedProject,
+	SerializedProjectFolder,
 	SerializedScene,
 	TimelineData,
 	StorageAdapter,
@@ -20,6 +21,8 @@ import { debugLog, debugError, debugWarn } from "@/lib/debug/debug-config";
 
 class StorageService {
 	private projectsAdapter!: StorageAdapter<SerializedProject>;
+	private projectFoldersAdapter: StorageAdapter<SerializedProjectFolder> | null =
+		null;
 	private config: StorageConfig;
 	private isInitialized = false;
 	private mediaAdapterCache = new Map<
@@ -141,6 +144,44 @@ class StorageService {
 		return adapter;
 	}
 
+	// Helper to get the app-level project-folders adapter (same fallback
+	// chain as the projects adapter: Electron IPC -> IndexedDB -> localStorage)
+	private async getProjectFoldersAdapter(): Promise<
+		StorageAdapter<SerializedProjectFolder>
+	> {
+		if (this.projectFoldersAdapter) {
+			return this.projectFoldersAdapter;
+		}
+
+		const dbName = "video-editor-project-folders";
+
+		if (this.isElectronEnvironment()) {
+			try {
+				const adapter = new ElectronStorageAdapter<SerializedProjectFolder>(
+					dbName,
+					"folders"
+				);
+				await adapter.list();
+				this.projectFoldersAdapter = adapter;
+				return adapter;
+			} catch {}
+		}
+
+		try {
+			const adapter = new IndexedDBAdapter<SerializedProjectFolder>(
+				dbName,
+				"folders",
+				this.config.version
+			);
+			await adapter.list();
+			this.projectFoldersAdapter = adapter;
+		} catch {
+			this.projectFoldersAdapter =
+				new LocalStorageAdapter<SerializedProjectFolder>(dbName, "folders");
+		}
+		return this.projectFoldersAdapter;
+	}
+
 	// Helper to get project-specific timeline adapter
 	private getProjectTimelineAdapter({
 		projectId,
@@ -193,6 +234,7 @@ class StorageService {
 			fps: project.fps,
 			canvasSize: project.canvasSize,
 			canvasMode: project.canvasMode,
+			folderId: project.folderId ?? null,
 		};
 
 		await this.projectsAdapter.set(project.id, serializedProject);
@@ -229,7 +271,45 @@ class StorageService {
 			fps: serializedProject.fps,
 			canvasSize: serializedProject.canvasSize || { width: 1920, height: 1080 },
 			canvasMode: serializedProject.canvasMode || "preset",
+			folderId: serializedProject.folderId ?? null,
 		};
+	}
+
+	// Project folder operations (studio-page grouping)
+	async loadAllProjectFolders(): Promise<ProjectFolder[]> {
+		const adapter = await this.getProjectFoldersAdapter();
+		const ids = await adapter.list();
+		const serializedFolders = await Promise.all(
+			ids.map((id) => adapter.get(id))
+		);
+		const folders = serializedFolders.flatMap((serialized) =>
+			serialized
+				? [
+						{
+							id: serialized.id,
+							name: serialized.name,
+							createdAt: new Date(serialized.createdAt),
+						},
+					]
+				: []
+		);
+		return folders.sort(
+			(a, b) => a.createdAt.getTime() - b.createdAt.getTime()
+		);
+	}
+
+	async saveProjectFolder(folder: ProjectFolder): Promise<void> {
+		const adapter = await this.getProjectFoldersAdapter();
+		await adapter.set(folder.id, {
+			id: folder.id,
+			name: folder.name,
+			createdAt: folder.createdAt.toISOString(),
+		});
+	}
+
+	async deleteProjectFolder(id: string): Promise<void> {
+		const adapter = await this.getProjectFoldersAdapter();
+		await adapter.remove(id);
 	}
 
 	async loadAllProjects(): Promise<TProject[]> {

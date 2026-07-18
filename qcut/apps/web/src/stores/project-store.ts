@@ -1,5 +1,5 @@
 import { platform } from "@qcut/platform-core";
-import { TProject, Scene, BlurIntensity } from "@/types/project";
+import { TProject, Scene, BlurIntensity, ProjectFolder } from "@/types/project";
 import { CanvasSize, CanvasMode } from "@/types/editor";
 import { create } from "zustand";
 import { storageService } from "@/lib/storage/storage-service";
@@ -53,6 +53,7 @@ export class NotFoundError extends Error {
 interface ProjectStore {
 	activeProject: TProject | null;
 	savedProjects: TProject[];
+	projectFolders: ProjectFolder[];
 	isLoading: boolean;
 	isInitialized: boolean;
 	invalidProjectIds?: Set<string>;
@@ -60,7 +61,7 @@ interface ProjectStore {
 	// Actions
 	createNewProject: (
 		name: string,
-		options?: { canvasSize?: CanvasSize }
+		options?: { canvasSize?: CanvasSize; folderId?: string | null }
 	) => Promise<string>;
 	loadProject: (id: string) => Promise<void>;
 	saveCurrentProject: () => Promise<void>;
@@ -76,6 +77,15 @@ interface ProjectStore {
 	) => Promise<void>;
 	updateProjectFps: (fps: number) => Promise<void>;
 	updateProjectAudioMix: (audioMix: ProjectAudioMixSettings) => Promise<void>;
+
+	// Studio-page folder methods
+	createProjectFolder: (name: string) => Promise<string>;
+	renameProjectFolder: (folderId: string, name: string) => Promise<void>;
+	deleteProjectFolder: (folderId: string) => Promise<boolean>;
+	moveProjectToFolder: (
+		projectId: string,
+		folderId: string | null
+	) => Promise<boolean>;
 
 	// Bookmark methods
 	toggleBookmark: (time: number) => Promise<void>;
@@ -96,6 +106,7 @@ interface ProjectStore {
 export const useProjectStore = create<ProjectStore>((set, get) => ({
 	activeProject: null,
 	savedProjects: [],
+	projectFolders: [],
 	isLoading: true,
 	isInitialized: false,
 	invalidProjectIds: new Set<string>(),
@@ -197,7 +208,7 @@ export const useProjectStore = create<ProjectStore>((set, get) => ({
 
 	createNewProject: async (
 		name: string,
-		options?: { canvasSize?: CanvasSize }
+		options?: { canvasSize?: CanvasSize; folderId?: string | null }
 	) => {
 		const mainScene = createMainScene();
 
@@ -207,6 +218,7 @@ export const useProjectStore = create<ProjectStore>((set, get) => ({
 			thumbnail: "",
 			createdAt: new Date(),
 			updatedAt: new Date(),
+			folderId: options?.folderId ?? null,
 			scenes: [mainScene],
 			currentSceneId: mainScene.id,
 			backgroundColor: "#000000",
@@ -377,6 +389,105 @@ export const useProjectStore = create<ProjectStore>((set, get) => ({
 			});
 		} finally {
 			set({ isLoading: false, isInitialized: true });
+		}
+
+		// Folder list failures shouldn't block the projects list
+		try {
+			const folders = await storageService.loadAllProjectFolders();
+			set({ projectFolders: folders });
+		} catch (error) {
+			handleStorageError(error, "Load project folders", {
+				operation: "loadAllProjects",
+			});
+		}
+	},
+
+	createProjectFolder: async (name: string) => {
+		const folder: ProjectFolder = {
+			id: generateUUID(),
+			name: name.trim(),
+			createdAt: new Date(),
+		};
+		try {
+			await storageService.saveProjectFolder(folder);
+			set((state) => ({ projectFolders: [...state.projectFolders, folder] }));
+		} catch (error) {
+			handleStorageError(error, "Create project folder", {
+				operation: "createProjectFolder",
+			});
+		}
+		return folder.id;
+	},
+
+	renameProjectFolder: async (folderId: string, name: string) => {
+		const folder = get().projectFolders.find((f) => f.id === folderId);
+		if (!folder) return;
+		const updated = { ...folder, name: name.trim() };
+		try {
+			await storageService.saveProjectFolder(updated);
+			set((state) => ({
+				projectFolders: state.projectFolders.map((f) =>
+					f.id === folderId ? updated : f
+				),
+			}));
+		} catch (error) {
+			handleStorageError(error, "Rename project folder", {
+				operation: "renameProjectFolder",
+				folderId,
+			});
+		}
+	},
+
+	deleteProjectFolder: async (folderId: string) => {
+		try {
+			const members = get().savedProjects.filter(
+				(p) => p.folderId === folderId
+			);
+			const moveResults = await Promise.all(
+				members.map((project) => get().moveProjectToFolder(project.id, null))
+			);
+			if (moveResults.some((wasMoved) => !wasMoved)) return false;
+
+			await storageService.deleteProjectFolder(folderId);
+			set((state) => ({
+				projectFolders: state.projectFolders.filter((f) => f.id !== folderId),
+			}));
+			return true;
+		} catch (error) {
+			handleStorageError(error, "Delete project folder", {
+				operation: "deleteProjectFolder",
+				folderId,
+			});
+			return false;
+		}
+	},
+
+	moveProjectToFolder: async (projectId: string, folderId: string | null) => {
+		try {
+			const project =
+				get().savedProjects.find((item) => item.id === projectId) ??
+				(await storageService.loadProject({ id: projectId }));
+			if (!project) return false;
+			if ((project.folderId ?? null) === folderId) return true;
+
+			const updatedProject: TProject = { ...project, folderId };
+			await storageService.saveProject({ project: updatedProject });
+			set((state) => ({
+				savedProjects: state.savedProjects.map((p) =>
+					p.id === projectId ? updatedProject : p
+				),
+				activeProject:
+					state.activeProject?.id === projectId
+						? updatedProject
+						: state.activeProject,
+			}));
+			return true;
+		} catch (error) {
+			handleStorageError(error, "Move project to folder", {
+				operation: "moveProjectToFolder",
+				projectId,
+			});
+			return false;
 		}
 	},
 
@@ -607,7 +718,7 @@ export const useProjectStore = create<ProjectStore>((set, get) => ({
 		const sortedProjects = [...filteredProjects].sort((a, b) => {
 			const [key, order] = sortOption.split("-");
 
-			if (key !== "createdAt" && key !== "name") {
+			if (key !== "createdAt" && key !== "updatedAt" && key !== "name") {
 				// Invalid sort key
 				return 0;
 			}
