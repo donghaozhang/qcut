@@ -131,11 +131,6 @@ describe("text template registry", () => {
 			recommendedDefinitions.every((definition) => definition.catalogVisible)
 		).toBe(true);
 		expect(
-			recommendedDefinitions.every(
-				(definition) => definition.groupId === "fancy"
-			)
-		).toBe(true);
-		expect(
 			getTextTemplatesByCategory({
 				category: MARKETPLACE_RECOMMENDED_TEXT_CATEGORY_ID,
 			}).map((template) => template.id)
@@ -159,9 +154,6 @@ describe("text template registry", () => {
 			MIN_TEXT_TEMPLATES_PER_CATEGORY
 		);
 		expect(trendingDefinitions.length).toBeLessThanOrEqual(30);
-		expect(
-			trendingDefinitions.every((definition) => definition.groupId === "fancy")
-		).toBe(true);
 		expect(
 			trendingDefinitions.every((definition) => definition.catalogVisible)
 		).toBe(true);
@@ -187,11 +179,7 @@ describe("text template registry", () => {
 		for (const definition of TEXT_TEMPLATE_LIBRARY_DEFINITIONS) {
 			expect(definition.resource?.assetId).toContain(definition.variantId);
 			expect(definition.resource?.cacheKey).toContain(
-				definition.groupId === "fancy"
-					? "@3"
-					: definition.groupId === "new-text"
-						? "@2"
-						: "@1"
+				definition.groupId === "fancy" ? "@2" : "@1"
 			);
 			expect(definition.resource?.entitlement).toBe(
 				definition.premium ? "svip" : "free"
@@ -199,35 +187,22 @@ describe("text template registry", () => {
 		}
 	});
 
-	it("keeps decorative text templates transparent after style preset merging", () => {
+	it("keeps fancy flower-word templates transparent after style preset merging", () => {
 		const definitionsById = new Map(
-			TEXT_TEMPLATE_DEFINITIONS.map((definition) => [definition.id, definition])
+			TEXT_TEMPLATE_DEFINITIONS.map((definition) => [
+				definition.id,
+				definition,
+			])
 		);
-		const decorativeTemplates = TEXT_TEMPLATES.filter((template) =>
-			["fancy", "new-text"].includes(
-				definitionsById.get(template.id)?.groupId ?? ""
-			)
+		const fancyTemplates = TEXT_TEMPLATES.filter(
+			(template) => definitionsById.get(template.id)?.groupId === "fancy"
 		);
 
-		expect(decorativeTemplates.length).toBeGreaterThan(0);
-		for (const template of decorativeTemplates) {
+		expect(fancyTemplates.length).toBeGreaterThan(0);
+		for (const template of fancyTemplates) {
 			expect(template.backgroundColor).toBe("transparent");
 			expect(template.backgroundOpacity).toBe(0);
 		}
-
-		for (const templateId of ["basic-bubble", "basic-sticker"]) {
-			expect(
-				TEXT_TEMPLATES.find((template) => template.id === templateId)
-			).toMatchObject({
-				backgroundColor: "transparent",
-				backgroundOpacity: 0,
-				backgroundPadding: 0,
-			});
-		}
-		expect(
-			TEXT_TEMPLATES.find((template) => template.id === "commerce-badge-bubble")
-				?.backgroundColor
-		).not.toBe("transparent");
 	});
 
 	it("uses scenario-specific content for packaging, template, and smart text categories", () => {
