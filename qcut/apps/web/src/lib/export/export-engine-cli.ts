@@ -43,6 +43,7 @@ import {
 	extractStickerSources,
 	extractImageSources,
 	extractAudioMixConfig,
+	extractEffectOverlaySources,
 } from "../export-cli/sources";
 import {
 	prepareAudioFilesForExport,
@@ -382,6 +383,23 @@ export class CLIExportEngine extends ExportEngine {
 		const combinedFilterChain = hasPerClipVideoEffects
 			? ""
 			: Array.from(elementFilterChains.values()).join(",");
+		const hasEffectOverlayStages = Array.from(
+			elementRenderPrograms.values()
+		).some((program) =>
+			program.stages.some((stage) => stage.kind === "overlay")
+		);
+		if (hasEffectOverlayStages && !this.sessionId) {
+			throw new Error("Effect overlay export requires an active session");
+		}
+		const effectOverlaySourcesByElementId = this.sessionId
+			? await extractEffectOverlaySources({
+					programsByElementId: elementRenderPrograms,
+					sessionId: this.sessionId,
+					canvasWidth: this.canvas.width,
+					canvasHeight: this.canvas.height,
+					logger: debugLog,
+				})
+			: new Map();
 
 		// Build text overlay filter chain
 		console.log(
@@ -505,6 +523,9 @@ export class CLIExportEngine extends ExportEngine {
 					...source,
 					effectFilter: elementFilterChains.get(source.elementId),
 					effectRenderProgram: elementRenderPrograms.get(source.elementId),
+					effectOverlaySources: effectOverlaySourcesByElementId.get(
+						source.elementId
+					),
 				}));
 				if (imageSources.length > 0) {
 					imageFilterChain = buildImageOverlayFilters(
@@ -611,6 +632,9 @@ export class CLIExportEngine extends ExportEngine {
 			...source,
 			effectFilter: elementFilterChains.get(source.elementId),
 			effectRenderProgram: elementRenderPrograms.get(source.elementId),
+			effectOverlaySources: effectOverlaySourcesByElementId.get(
+				source.elementId
+			),
 		}));
 		const videoTransitions: VideoTransitionInput[] = hasTransitions
 			? extractVideoTransitions({
