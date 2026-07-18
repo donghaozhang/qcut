@@ -2,7 +2,7 @@ import type {
 	EffectCompositeRenderStage,
 	EffectRenderProgram,
 } from "@qcut/editor-core";
-import { useEffect, useRef } from "react";
+import { useEffect, useMemo, useRef } from "react";
 
 type CompositeSource = HTMLCanvasElement | HTMLImageElement | HTMLVideoElement;
 
@@ -135,13 +135,15 @@ function drawSourceTile({
 	context.restore();
 }
 
-function firstCompositeStage({
+function compositeStages({
 	program,
 }: {
 	program?: EffectRenderProgram;
-}): EffectCompositeRenderStage | undefined {
-	return program?.stages.find(
-		(stage): stage is EffectCompositeRenderStage => stage.kind === "composite"
+}): EffectCompositeRenderStage[] {
+	return (
+		program?.stages.filter(
+			(stage): stage is EffectCompositeRenderStage => stage.kind === "composite"
+		) ?? []
 	);
 }
 
@@ -155,12 +157,13 @@ export function EffectCompositeCanvas({
 	fitMode: "contain" | "cover" | "fill";
 }) {
 	const canvasRef = useRef<HTMLCanvasElement>(null);
-	const stage = firstCompositeStage({ program });
+	const stages = useMemo(() => compositeStages({ program }), [program]);
 
 	useEffect(() => {
 		const canvas = canvasRef.current;
 		const parent = canvas?.parentElement;
-		if (!canvas || !parent || !stage) return;
+		if (!canvas || !parent || stages.length === 0) return;
+		const scratchCanvas = document.createElement("canvas");
 		let cancelled = false;
 		let animationFrame = 0;
 		let lastVideoTime = -1;
@@ -180,21 +183,40 @@ export function EffectCompositeCanvas({
 			const scale = Math.min(2, window.devicePixelRatio || 1);
 			canvas.width = Math.max(1, Math.round(parent.clientWidth * scale));
 			canvas.height = Math.max(1, Math.round(parent.clientHeight * scale));
+			scratchCanvas.width = canvas.width;
+			scratchCanvas.height = canvas.height;
 		};
 		const draw = () => {
 			const source = resolveSource();
 			const context = canvas.getContext("2d");
 			if (!source || !context || !sourceReady({ source })) return;
-			context.clearRect(0, 0, canvas.width, canvas.height);
-			context.fillStyle = "black";
-			context.fillRect(0, 0, canvas.width, canvas.height);
-			context.filter = getComputedStyle(source).filter || "none";
-			for (const tile of compositeTiles({
-				stage,
-				width: canvas.width,
-				height: canvas.height,
-			})) {
-				drawSourceTile({ context, fitMode, source, tile });
+			let stageSource = source;
+			for (const [stageIndex, stage] of stages.entries()) {
+				if (stageIndex > 0) {
+					const scratchContext = scratchCanvas.getContext("2d");
+					if (!scratchContext) return;
+					scratchContext.clearRect(
+						0,
+						0,
+						scratchCanvas.width,
+						scratchCanvas.height
+					);
+					scratchContext.filter = "none";
+					scratchContext.drawImage(canvas, 0, 0);
+					stageSource = scratchCanvas;
+				}
+				context.clearRect(0, 0, canvas.width, canvas.height);
+				context.fillStyle = "black";
+				context.fillRect(0, 0, canvas.width, canvas.height);
+				context.filter =
+					stageIndex === 0 ? getComputedStyle(source).filter || "none" : "none";
+				for (const tile of compositeTiles({
+					stage,
+					width: canvas.width,
+					height: canvas.height,
+				})) {
+					drawSourceTile({ context, fitMode, source: stageSource, tile });
+				}
 			}
 			if (source instanceof HTMLVideoElement)
 				lastVideoTime = source.currentTime;
@@ -230,14 +252,16 @@ export function EffectCompositeCanvas({
 			parent.removeEventListener("seeked", draw, true);
 			cancelAnimationFrame(animationFrame);
 		};
-	}, [fitMode, sourceSelector, stage]);
+	}, [fitMode, sourceSelector, stages]);
 
-	if (!stage) return null;
+	if (stages.length === 0) return null;
 	return (
 		<canvas
 			ref={canvasRef}
 			className="pointer-events-none absolute inset-0 z-10 size-full"
-			data-effect-composite-layout={stage.layout}
+			data-effect-composite-layout={stages
+				.map((stage) => stage.layout)
+				.join(",")}
 		/>
 	);
 }
