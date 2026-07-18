@@ -139,6 +139,7 @@ export interface AudioWaveformOptions {
 	sourcePath: string;
 	duration: number;
 	peakCount?: number;
+	band?: "bass" | "mid" | "treble" | "full";
 }
 
 export interface AudioWaveformResult {
@@ -192,6 +193,7 @@ export interface VideoSource {
 	effectFilter?: string;
 	effectRenderProgram?: EffectRenderProgram;
 	effectOverlaySources?: EffectOverlaySource[];
+	effectAudioReactiveEnvelopes?: EffectAudioReactiveEnvelope[];
 }
 
 export interface EffectOverlaySource {
@@ -457,6 +459,7 @@ export interface ImageSource {
 	effectFilter?: string;
 	effectRenderProgram?: EffectRenderProgram;
 	effectOverlaySources?: EffectOverlaySource[];
+	effectAudioReactiveEnvelopes?: EffectAudioReactiveEnvelope[];
 }
 
 /**
@@ -814,4 +817,7 @@ export interface FFmpegHandlers {
 		options: GifConversionOptions
 	) => Promise<{ outputPath: string; fileSize: number }>;
 }
-import type { EffectRenderProgram } from "./effect-render-types";
+import type {
+	EffectAudioReactiveEnvelope,
+	EffectRenderProgram,
+} from "./effect-render-types";
