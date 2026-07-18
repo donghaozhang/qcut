@@ -1,6 +1,6 @@
 ---
 name: qcut-vlog
-description: End-to-end QCut CLI workflow for cleaning talking-head and vlog footage, removing filler words, stutters, and long pauses, regenerating time-aligned SRT captions after the cuts, and burning transparent-background subtitles into the final MP4. Use for requests such as vlog editing, talking-head cleanup, 口播剪辑, 剪口播, 去口头词, 去停顿, 自动字幕, 中文字幕, or exporting a captioned social video.
+description: End-to-end QCut CLI workflow for cleaning talking-head and vlog footage, optionally cutting out the speaker and replacing the background, regenerating time-aligned SRT captions after the cuts, and exporting both an editable MP4 plus SRT and a hard-captioned MP4. Use for vlog editing, talking-head cleanup, background replacement, 口播剪辑, 剪口播, 去口头词, 去停顿, 抠像换背景, 自动字幕, 中文字幕, or exporting a captioned social video.
 ---
 
 # QCut Vlog
@@ -17,10 +17,13 @@ Always preserve this sequence:
 source video
   -> word-level transcription for edit decisions
   -> clean-audio trim/concat
-  -> extract audio from the completed clean video
+  -> optional person cutout and background composite
+  -> preserve the composite as the editable MP4
+  -> extract audio from that editable video
   -> transcribe that clean audio into a new SRT
-  -> burn the new SRT into the clean video
-  -> verify durations and inspect a subtitle frame
+  -> preserve the SRT beside the editable MP4
+  -> burn the SRT into a separate publishing MP4
+  -> verify durations and inspect background/subtitle frames
 ```
 
 Never remap or reuse the pre-cut transcription as the final SRT. Re-transcribing
@@ -34,6 +37,11 @@ export QCUT_VLOG_ROOT=".claude/skills/qcut-toolkit/qcut-vlog"
 bun "$QCUT_VLOG_ROOT/scripts/main.ts" /path/to/talking-head.mov
 bun "$QCUT_VLOG_ROOT/scripts/main.ts" /path/to/talking-head.mov \
   --output-dir /path/to/output
+
+bun "$QCUT_VLOG_ROOT/scripts/main.ts" /path/to/talking-head.mov \
+  --background /path/to/office.png \
+  --background-fit cover \
+  --output-dir /path/to/output
 ```
 
 Use `npx -y bun` instead when Bun is not installed globally.
@@ -41,6 +49,10 @@ Use `npx -y bun` instead when Bun is not installed globally.
 The runner resolves the current repository's `bun run pipeline` first. Outside a
 QCut checkout, it uses `qcut` or `qcut-pipeline` from `PATH`. It prefers QCut's
 staged FFmpeg/FFprobe binaries when available.
+
+Background replacement uses `qcut edit person-cutout`, which requires a working
+QCut/FAL API configuration. It writes a transparent VP9 WebM before compositing
+the supplied image with the cleaned speaker video and original audio.
 
 ## Modes
 
@@ -65,6 +77,7 @@ box. It is the preferred pure-subtitle style.
 
 ```bash
 bun "$QCUT_VLOG_ROOT/scripts/main.ts" input.mov \
+  --background /path/to/office.png \
   --preset default \
   --silence-threshold 1.0 \
   --keep-padding 0.15 \
@@ -86,8 +99,9 @@ bun "$QCUT_VLOG_ROOT/scripts/main.ts" input.mov --output-dir output --force
 ```
 
 `--resume` rejects changed settings and stale dependencies. In particular, it
-regenerates audio when the clean video is newer, regenerates SRT when audio is
-newer, and re-burns the video when either the clean video or SRT is newer.
+reruns cutout/composition when the cleaned video or background is newer,
+regenerates audio when the editable video is newer, regenerates SRT when audio
+is newer, and re-burns the video when either the editable video or SRT is newer.
 
 ## Options
 
@@ -95,6 +109,8 @@ newer, and re-burns the video when either the clean video or SRT is newer.
 |---|---|
 | `-o, --output-dir <path>` | Choose the artifact directory |
 | `--final-name <name.mp4>` | Choose the final MP4 filename |
+| `-b, --background <image>` | Cut out the person and composite a still background |
+| `--background-fit <mode>` | `cover`, `contain`, or `stretch`; default `cover` |
 | `--preset <name>` | `default`, `cinematic`, `bold`, `minimal`, `karaoke`, or `news` |
 | `--style <json>` | Apply subtitle style overrides |
 | `--model <name>` | Select transcription model; default `scribe_v2` |
@@ -115,9 +131,11 @@ newer, and re-burns the video when either the clean video or SRT is newer.
 ```text
 <video-name>-vlog/
 ├── <video-name>_clean.<source-extension>
+├── <video-name>_cutout.webm                 # when --background is used
+├── <video-name>_vlog_editable.mp4           # when --background is used; no burned captions
 ├── <video-name>_clean_audio.mp3
-├── transcription.srt
-├── <video-name>_vlog.mp4
+├── transcription.srt                        # edit this if captions need correction
+├── <video-name>_vlog.mp4                     # hard-captioned publishing version
 ├── vlog-manifest.json
 ├── clean-metadata/
 │   ├── words.json
@@ -126,21 +144,25 @@ newer, and re-burns the video when either the clean video or SRT is newer.
 │   └── keeps.json
 ├── logs/
 └── verification/
+    ├── background-preview.png                # when --background is used
     └── subtitle-preview.png
 ```
 
 If no cuts are needed, the workflow uses the source as the clean working video
-without copying it. The final MP4 still goes into the output directory.
+without copying it. Without `--background`, `artifacts.editableVideo` points to
+that clean/source video instead of creating a duplicate. The sidecar SRT remains
+editable, while `<video-name>_vlog.mp4` always contains hard-burned captions.
 
 ## Completion Checks
 
 Before reporting success:
 
-1. Read `vlog-manifest.json` and confirm all five stages completed or were safely skipped.
-2. Confirm final-video duration differs from clean-video duration by no more than `0.25s`.
+1. Read `vlog-manifest.json` and confirm all six stages completed or were safely skipped.
+2. Confirm final-video duration differs from editable-video duration by no more than `0.25s`.
 3. Confirm `transcription.srt` contains at least one entry.
-4. Open `verification/subtitle-preview.png` and visually verify readable text, no unwanted box, correct orientation, and no clipping.
-5. Report source duration, clean duration, actual removed duration, cut categories, subtitle count, final path, SRT path, and preview path.
+4. When a background was requested, open `verification/background-preview.png` and confirm the person, background, orientation, edge quality, and framing.
+5. Open `verification/subtitle-preview.png` and verify readable text, no unwanted box, correct orientation, and no clipping.
+6. Report source/editable/final durations, actual removed duration, cut categories, subtitle count, editable MP4 path, SRT path, hard-captioned MP4 path, and both preview paths.
 
 Do not treat the obsolete `<name>_clean.mp3` pattern from earlier ad hoc runs as
 authoritative. The runner's `<name>_clean_audio.mp3` is tied to the clean video's
