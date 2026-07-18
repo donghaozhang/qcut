@@ -47,6 +47,7 @@ function createPersonEffectEntry({
 
 	return {
 		preset,
+		assetVersion: 1,
 		localizedName,
 		localizedDescription,
 		family: "person",

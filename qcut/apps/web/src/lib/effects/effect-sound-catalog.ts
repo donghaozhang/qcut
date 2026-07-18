@@ -1,7 +1,6 @@
 import type { EffectMotionChannel } from "@qcut/editor-core";
 import type { EffectPreset } from "@/types/effects";
 import type { VisualEffectCatalogEntry } from "./effect-catalog-types";
-import { resolveEffectSoundAsset } from "./effect-sound-resources";
 
 function createSoundEffectEntry({
 	id,
@@ -32,7 +31,6 @@ function createSoundEffectEntry({
 	releasedAt: string;
 	popularityScore: number;
 }): VisualEffectCatalogEntry {
-	resolveEffectSoundAsset({ resourceId });
 	const preset: EffectPreset = {
 		id,
 		name,
@@ -55,6 +53,7 @@ function createSoundEffectEntry({
 
 	return {
 		preset,
+		assetVersion: 1,
 		localizedName,
 		localizedDescription,
 		family: "visual",

@@ -3,7 +3,7 @@ import type {
 	VisualEffectCatalogEntry,
 	VisualEffectCategoryId,
 } from "./effect-catalog-types";
-import { EFFECT_OVERLAY_RESOURCE_IDS } from "./effect-overlay-resources";
+import { EFFECT_OVERLAY_RESOURCE_IDS } from "./effect-overlay-resource-definitions";
 
 function createOverlayCatalogEntry({
 	id,
@@ -58,6 +58,7 @@ function createOverlayCatalogEntry({
 
 	return {
 		preset,
+		assetVersion: 1,
 		localizedName,
 		localizedDescription,
 		family: "visual",

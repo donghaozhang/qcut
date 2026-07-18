@@ -37,6 +37,7 @@ function createCompositeCatalogEntry({
 	};
 	return {
 		preset,
+		assetVersion: 1,
 		localizedName,
 		localizedDescription,
 		family: "visual",

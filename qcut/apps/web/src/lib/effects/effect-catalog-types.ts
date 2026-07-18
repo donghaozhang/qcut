@@ -1,3 +1,4 @@
+import type { AssetFileRole, AssetKind } from "@qcut/editor-core";
 import type { EffectPreset } from "@/types/effects";
 
 export const EFFECT_LIBRARY_SECTION_IDS = [
@@ -68,6 +69,7 @@ export interface EffectRenderContract {
 
 interface EffectCatalogEntryBase {
 	preset: EffectPreset;
+	assetVersion: number;
 	localizedName?: string;
 	localizedDescription?: string;
 	tags: readonly string[];
@@ -90,6 +92,21 @@ export interface PersonEffectCatalogEntry extends EffectCatalogEntryBase {
 export type EffectCatalogEntry =
 	| VisualEffectCatalogEntry
 	| PersonEffectCatalogEntry;
+
+export interface EffectAssetDependency {
+	kind: Extract<AssetKind, "sound-effect" | "sticker">;
+	id: string;
+	roles: readonly AssetFileRole[];
+}
+
+export interface EffectAssetMetadata {
+	effectPresetId: string;
+	family: EffectCatalogEntry["family"];
+	publication: EffectCatalogEntry["publication"];
+	renderKind: EffectRenderKind;
+	renderProgramVersion?: number;
+	dependencies: readonly EffectAssetDependency[];
+}
 
 export interface EffectLibrarySectionDefinition {
 	id: EffectLibrarySectionId;

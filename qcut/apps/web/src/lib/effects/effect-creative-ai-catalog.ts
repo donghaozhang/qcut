@@ -8,7 +8,7 @@ import type {
 	EffectRenderKind,
 	VisualEffectCatalogEntry,
 } from "./effect-catalog-types";
-import { EFFECT_OVERLAY_RESOURCE_IDS } from "./effect-overlay-resources";
+import { EFFECT_OVERLAY_RESOURCE_IDS } from "./effect-overlay-resource-definitions";
 
 function createCreativeAiEntry({
 	id,
@@ -51,6 +51,7 @@ function createCreativeAiEntry({
 	};
 	return {
 		preset,
+		assetVersion: 1,
 		localizedName,
 		localizedDescription,
 		family: "visual",

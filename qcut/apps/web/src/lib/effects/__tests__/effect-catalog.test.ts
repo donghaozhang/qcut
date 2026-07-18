@@ -39,6 +39,7 @@ function createPublishedEntry({
 	};
 	return {
 		preset,
+		assetVersion: 1,
 		family: "visual",
 		category,
 		tags: [category],

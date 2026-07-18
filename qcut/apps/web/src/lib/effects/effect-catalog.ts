@@ -123,6 +123,7 @@ export const LEGACY_EFFECT_CATALOG = EFFECT_PRESETS.map((preset) => {
 	const metadata = LEGACY_EFFECT_METADATA[preset.id];
 	return {
 		preset,
+		assetVersion: 1,
 		family: "visual",
 		category: metadata.category,
 		tags: metadata.tags,
