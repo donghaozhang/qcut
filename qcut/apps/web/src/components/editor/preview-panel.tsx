@@ -46,6 +46,7 @@ import {
 	buildMcpMediaAppHtml,
 } from "./preview-panel/mcp-media-app";
 import { useEffectsRendering } from "./preview-panel/use-effects-rendering";
+import { EffectCompanionAudioPlayers } from "./effects/effect-companion-audio-players";
 import { usePreviewDrag } from "./preview-panel/use-preview-drag";
 import {
 	usePreviewModeStore,
@@ -611,37 +612,50 @@ export function PreviewPanel() {
 	);
 
 	const renderElement = useCallback(
-		(elementData: ActiveElement, index: number) => (
-			<PreviewElementRenderer
-				key={`${elementData.element.id}-${elementData.track.id}`}
-				elementData={elementData}
-				index={index}
-				previewDimensions={previewDimensions}
-				canvasSize={canvasSize}
-				currentTime={isPlaying ? smoothTime : currentTime}
-				effectRendering={effectsRenderingByElementId.get(
-					elementData.element.id
-				)}
-				videoSourcesById={videoSourcesById}
-				currentMediaElement={currentMediaElement}
-				dragState={dragState}
-				isPlaying={isPlaying}
-				activeProject={activeProject}
-				tracks={tracks}
-				transitionState={activeTransitionPreview.statesByElementId.get(
-					elementData.element.id
-				)}
-				audioCrossfadeState={activeAudioCrossfadePreview.statesByElementId.get(
-					elementData.element.id
-				)}
-				compositionPreviewEnabled={compositionPreviewEnabled}
-				onTextPointerDown={handleTextPointerDown}
-				onElementSelect={({ elementId, multi }) =>
-					selectElement(elementData.track.id, elementId, multi)
-				}
-				onElementResize={handleElementResize}
-			/>
-		),
+		(elementData: ActiveElement, index: number) => {
+			const effectRendering = effectsRenderingByElementId.get(
+				elementData.element.id
+			);
+			return (
+				<div
+					key={`${elementData.element.id}-${elementData.track.id}`}
+					className="contents"
+				>
+					<EffectCompanionAudioPlayers
+						companions={effectRendering?.audioCompanions ?? []}
+						element={elementData.element}
+						trackId={elementData.track.id}
+						trackMuted={elementData.track.muted}
+					/>
+					<PreviewElementRenderer
+						elementData={elementData}
+						index={index}
+						previewDimensions={previewDimensions}
+						canvasSize={canvasSize}
+						currentTime={isPlaying ? smoothTime : currentTime}
+						effectRendering={effectRendering}
+						videoSourcesById={videoSourcesById}
+						currentMediaElement={currentMediaElement}
+						dragState={dragState}
+						isPlaying={isPlaying}
+						activeProject={activeProject}
+						tracks={tracks}
+						transitionState={activeTransitionPreview.statesByElementId.get(
+							elementData.element.id
+						)}
+						audioCrossfadeState={activeAudioCrossfadePreview.statesByElementId.get(
+							elementData.element.id
+						)}
+						compositionPreviewEnabled={compositionPreviewEnabled}
+						onTextPointerDown={handleTextPointerDown}
+						onElementSelect={({ elementId, multi }) =>
+							selectElement(elementData.track.id, elementId, multi)
+						}
+						onElementResize={handleElementResize}
+					/>
+				</div>
+			);
+		},
 		[
 			activeProject,
 			activeAudioCrossfadePreview.statesByElementId,
