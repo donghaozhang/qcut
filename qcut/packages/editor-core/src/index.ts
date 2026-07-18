@@ -153,6 +153,7 @@ export type {
 	CaptionFormat,
 	CaptionExportOptions,
 	AnimatedParameter,
+	EffectAudioCompanion,
 	EffectChain,
 	EffectInstance,
 	EffectKeyframe,
