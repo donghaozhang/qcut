@@ -62,6 +62,7 @@ export type {
 
 export type {
 	AnimatedParameter,
+	EffectAudioCompanion,
 	EffectChain,
 	EffectInstance,
 	EffectKeyframe,
