@@ -1,4 +1,4 @@
 interface:
   display_name: "QCut Vlog"
-  short_description: "Clean talking-head videos and burn aligned subtitles"
-  default_prompt: "Use $qcut-vlog to clean this talking-head video, regenerate aligned subtitles, and export the captioned vlog."
+  short_description: "Clean, replace backgrounds, and caption talking-head videos"
+  default_prompt: "Use $qcut-vlog to clean this talking-head video, optionally replace its background, regenerate aligned subtitles, and export both editable and hard-captioned deliverables."
