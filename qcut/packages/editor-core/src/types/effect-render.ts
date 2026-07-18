@@ -55,6 +55,17 @@ export interface EffectAudioReactiveRenderStage {
 	releaseMs: number;
 }
 
+export interface EffectAudioReactiveKeyframe {
+	timeSeconds: number;
+	value: number;
+}
+
+/** Export-time normalized audio envelope for one audio-reactive stage. */
+export interface EffectAudioReactiveEnvelope {
+	stageIndex: number;
+	keyframes: EffectAudioReactiveKeyframe[];
+}
+
 export interface EffectPersonTrackingRenderStage {
 	kind: "person-tracking";
 	target: "face" | "body" | "person";
