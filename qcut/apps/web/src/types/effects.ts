@@ -1,5 +1,6 @@
 import type {
 	AnimatedParameter,
+	EffectAudioCompanion,
 	EffectParameters,
 	EffectRenderProgram,
 	EffectType,
@@ -7,6 +8,7 @@ import type {
 
 export type {
 	AnimatedParameter,
+	EffectAudioCompanion,
 	EffectChain,
 	EffectInstance,
 	EffectKeyframe,
@@ -26,6 +28,7 @@ export interface EffectPreset {
 	parameters: EffectParameters;
 	effectType?: EffectType;
 	renderProgram?: EffectRenderProgram;
+	audioCompanion?: EffectAudioCompanion;
 	preview?: string;
 }
 
