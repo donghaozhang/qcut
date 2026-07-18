@@ -108,6 +108,60 @@ describe("FFmpeg video transform filters", () => {
 		expect(filter).toContain("concat=n=3:v=1:a=0");
 	});
 
+	it.each([
+		{
+			treatment: "outline" as const,
+			expected: ["alphaextract", "dilation,dilation", "all_mode=subtract"],
+		},
+		{
+			treatment: "spotlight" as const,
+			expected: ["alphaextract", "brightness=-0.28", "alphamerge"],
+		},
+		{
+			treatment: "background-blur" as const,
+			expected: ["alphaextract", "gblur=sigma=12", "alphamerge"],
+		},
+	])("builds $treatment person treatment filters", ({
+		treatment,
+		expected,
+	}) => {
+		const result = buildVideoTimelineFilters({
+			videoSources: [
+				{
+					path: "/person.mp4",
+					startTime: 0,
+					duration: 2,
+					effectRenderProgram: {
+						version: 1,
+						stages: [
+							{
+								kind: "person-tracking",
+								target: "person",
+								treatment,
+								fallback: "disable",
+							},
+						],
+					},
+					effectPersonSources: [
+						{
+							stageIndex: 0,
+							path: "/person-alpha.webm",
+							animated: true,
+							inputIndex: 1,
+						},
+					],
+				},
+			],
+			width: 640,
+			height: 360,
+			fps: 30,
+			totalDuration: 2,
+		});
+		const filter = result.filterSteps.join(";");
+		for (const fragment of expected) expect(filter).toContain(fragment);
+		expect(filter).toContain("[1:v]trim=start=0:duration=2");
+	});
+
 	it("composites ordered video tracks from bottom to top", () => {
 		const sources: VideoSource[] = [
 			{
