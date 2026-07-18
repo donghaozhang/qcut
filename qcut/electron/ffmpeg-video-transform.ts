@@ -729,14 +729,14 @@ function buildEffectOverlayFilters({
 		const prepared = `${prefix}_prepared`;
 		filterSteps.push(
 			`[${overlaySource.inputIndex}:v]${buildEffectOverlayFitFilter({ stage, width, height })},` +
-				`fps=${fps},trim=duration=${duration},setpts=PTS-STARTPTS[${prepared}]`
+				`format=rgba,fps=${fps},trim=duration=${duration},setpts=PTS-STARTPTS[${prepared}]`
 		);
 		let overlayLabel = prepared;
 		if (stage.opacity < 1) {
 			const alpha = `${prefix}_alpha`;
 			filterSteps.push(
 				`[${prepared}]geq=r='r(X,Y)':g='g(X,Y)':b='b(X,Y)':` +
-					`a='${stage.opacity}*alpha(X,Y)'[${alpha}]`
+					`a='${stage.opacity}*alpha(X,Y)',format=rgba[${alpha}]`
 			);
 			overlayLabel = alpha;
 		}
