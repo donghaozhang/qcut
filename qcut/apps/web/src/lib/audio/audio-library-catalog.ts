@@ -28,6 +28,7 @@ const AUDIO_LIBRARY_TAGS_ZH: Record<string, string> = {
 	interior: "室内",
 	lifestyle: "生活记录",
 	memory: "回忆",
+	mandopop: "华语流行",
 	modern: "现代",
 	morning: "清晨",
 	motion: "动态",
@@ -92,6 +93,7 @@ export type AudioLibraryCategoryId =
 			| "graduation"
 			| "light"
 			| "kpop"
+			| "mandopop"
 			| "travel"
 			| "social"
 			| "beat"
@@ -177,6 +179,14 @@ export const MUSIC_CATEGORIES = [
 		query: "kpop inspired instrumental dance",
 		sort: "downloads",
 		matchTags: ["kpop"],
+	},
+	{
+		id: "music-mandopop",
+		kind: "music",
+		labelKey: "audioLibrary.category.mandopop",
+		query: "mandopop chinese pop piano rnb instrumental",
+		sort: "downloads",
+		matchTags: ["mandopop", "chinese-pop", "华语"],
 	},
 	{
 		id: "music-travel",
@@ -465,7 +475,16 @@ export const BUILT_IN_AUDIO: readonly SoundEffect[] = [
 		localizedDescription: "适合生活记录、回忆与轻松片段的温暖旋律。",
 		duration: 12,
 		kind: "music",
-		tags: ["light", "healing", "vlog", "graduation", "轻快", "毕业"],
+		tags: [
+			"light",
+			"healing",
+			"vlog",
+			"graduation",
+			"mandopop",
+			"华语",
+			"轻快",
+			"毕业",
+		],
 		artworkColors: ["#d9772f", "#ffe0a8"],
 		bpm: 96,
 		musicalKey: "A",
@@ -525,6 +544,8 @@ export const BUILT_IN_AUDIO: readonly SoundEffect[] = [
 			"graduation",
 			"healing",
 			"instrumental",
+			"mandopop",
+			"华语",
 			"毕业",
 			"情绪",
 		],
@@ -545,7 +566,16 @@ export const BUILT_IN_AUDIO: readonly SoundEffect[] = [
 		localizedDescription: "适合冬日、治愈和安静情绪片段的空灵旋律。",
 		duration: 12,
 		kind: "music",
-		tags: ["winter", "healing", "emotional", "instrumental", "冬天", "治愈"],
+		tags: [
+			"winter",
+			"healing",
+			"emotional",
+			"instrumental",
+			"mandopop",
+			"华语",
+			"冬天",
+			"治愈",
+		],
 		artworkColors: ["#315a6b", "#d8f3ff"],
 		bpm: 84,
 		musicalKey: "C",
@@ -837,6 +867,9 @@ const CHINESE_SEARCH_ALIASES: Readonly<Record<string, string>> = {
 	环境: "ambient atmosphere",
 	韩流: "kpop dance",
 	流行: "pop social",
+	华语: "mandopop chinese pop",
+	周杰伦: "mandopop piano rnb chinese pop",
+	国风流行: "mandopop chinese pop instrumental",
 	雨声: "rain ambient",
 	森林: "forest nature",
 	脚步: "footstep foley",
