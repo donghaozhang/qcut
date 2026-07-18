@@ -973,9 +973,7 @@ function formatElementForExport(
 			return {
 				...baseElement,
 				targetElementId: element.targetElementId,
-				effects: [
-					element.effect.presetId ?? element.effect.effectType,
-				],
+				effects: [element.effect.presetId ?? element.effect.effectType],
 			};
 		case "remotion":
 			return {
