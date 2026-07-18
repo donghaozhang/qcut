@@ -49,6 +49,9 @@ if (args[0] === "edit" && args[1] === "clean-audio") {
     const stem = basename(input, extname(input));
     writeFileSync(join(output, stem + "_clean" + extname(input)), "clean-video");
   }
+} else if (args[0] === "edit" && args[1] === "person-cutout") {
+  writeFileSync(value("--cutout-output"), "transparent-person-video");
+  writeFileSync(value("--output"), "editable-background-video");
 } else if (args[0] === "analyze" && args[1] === "transcribe") {
   const output = value("-o");
   mkdirSync(output, { recursive: true });
@@ -190,5 +193,94 @@ describe("qcut-vlog orchestration", () => {
 		expect(manifest.verification?.previewImage).toContain(
 			"subtitle-preview.png"
 		);
+	});
+
+	test("composites a cutout background before creating editable and hard-captioned deliverables", async () => {
+		const directory = mkdtempSync(join(tmpdir(), "qcut-vlog-background-"));
+		const input = join(directory, "talking-head.MOV");
+		const background = join(directory, "office.png");
+		const output = join(directory, "vlog-output");
+		writeFileSync(input, "source-video");
+		writeFileSync(background, "background-image");
+		const tools = createFakeToolchain({ directory });
+		const env = {
+			...process.env,
+			QCUT_VLOG_QCUT_BIN: tools.qcut,
+			QCUT_VLOG_FFMPEG_BIN: tools.ffmpeg,
+			QCUT_VLOG_FFPROBE_BIN: tools.ffprobe,
+			FAKE_INVOCATION_LOG: tools.invocationLog,
+		};
+
+		const first = await runVlog({
+			argv: [
+				input,
+				"--output-dir",
+				output,
+				"--background",
+				background,
+				"--json",
+			],
+			env,
+			printOutput: false,
+		});
+
+		const cutoutVideo = join(output, "talking-head_cutout.webm");
+		const editableVideo = join(output, "talking-head_vlog_editable.mp4");
+		expect(first?.stages.background.status).toBe("completed");
+		expect(first?.artifacts).toMatchObject({
+			backgroundImage: background,
+			cutoutVideo,
+			editableVideo,
+			srt: join(output, "transcription.srt"),
+			finalVideo: join(output, "talking-head_vlog.mp4"),
+		});
+		expect(existsSync(cutoutVideo)).toBe(true);
+		expect(existsSync(editableVideo)).toBe(true);
+		expect(
+			existsSync(join(output, "verification", "background-preview.png"))
+		).toBe(true);
+
+		const backgroundCommand = first?.commands.find(
+			(command) => command.stage === "background"
+		)?.command;
+		const audioCommand = first?.commands.find(
+			(command) => command.stage === "extract-audio"
+		)?.command;
+		const subtitleCommand = first?.commands.find(
+			(command) => command.stage === "subtitle"
+		)?.command;
+		expect(backgroundCommand).toContain(background);
+		expect(backgroundCommand).toContain(cutoutVideo);
+		expect(backgroundCommand).toContain(editableVideo);
+		expect(audioCommand).toContain(editableVideo);
+		expect(subtitleCommand).toContain(editableVideo);
+
+		expect(
+			readFileSync(tools.invocationLog, "utf8").trim().split("\n")
+		).toEqual([
+			"qcut edit clean-audio",
+			"qcut edit person-cutout",
+			"qcut analyze transcribe",
+			"qcut edit subtitle-export",
+		]);
+
+		const resumed = await runVlog({
+			argv: [
+				input,
+				"--output-dir",
+				output,
+				"--background",
+				background,
+				"--resume",
+				"--json",
+			],
+			env,
+			printOutput: false,
+		});
+
+		expect(resumed?.stages.background.status).toBe("skipped");
+		expect(
+			readFileSync(tools.invocationLog, "utf8").trim().split("\n")
+		).toHaveLength(4);
 	});
 });
