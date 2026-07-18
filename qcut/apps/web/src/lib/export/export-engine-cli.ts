@@ -45,6 +45,7 @@ import {
 	extractImageSources,
 	extractAudioMixConfig,
 	extractEffectOverlaySources,
+	extractEffectPersonSources,
 	extractEffectCompanionAudioSources,
 	extractEffectAudioReactiveEnvelopes,
 } from "../export-cli/sources";
@@ -435,8 +436,16 @@ export class CLIExportEngine extends ExportEngine {
 		).some((program) =>
 			program.stages.some((stage) => stage.kind === "overlay")
 		);
+		const hasEffectPersonStages = Array.from(
+			elementRenderPrograms.values()
+		).some((program) =>
+			program.stages.some((stage) => stage.kind === "person-tracking")
+		);
 		if (hasEffectOverlayStages && !this.sessionId) {
 			throw new Error("Effect overlay export requires an active session");
+		}
+		if (hasEffectPersonStages && !this.sessionId) {
+			throw new Error("Person effect export requires an active session");
 		}
 		const effectOverlaySourcesByElementId = this.sessionId
 			? await extractEffectOverlaySources({
@@ -445,6 +454,14 @@ export class CLIExportEngine extends ExportEngine {
 					canvasWidth: this.canvas.width,
 					canvasHeight: this.canvas.height,
 					logger: debugLog,
+				})
+			: new Map();
+		const effectPersonSourcesByElementId = this.sessionId
+			? await extractEffectPersonSources({
+					programsByElementId: elementRenderPrograms,
+					tracks: this.tracks,
+					mediaItems: this.mediaItems,
+					sessionId: this.sessionId,
 				})
 			: new Map();
 		const effectAudioReactiveEnvelopesByElementId =
@@ -580,6 +597,9 @@ export class CLIExportEngine extends ExportEngine {
 					effectOverlaySources: effectOverlaySourcesByElementId.get(
 						source.elementId
 					),
+					effectPersonSources: effectPersonSourcesByElementId.get(
+						source.elementId
+					),
 					effectAudioReactiveEnvelopes:
 						effectAudioReactiveEnvelopesByElementId.get(source.elementId),
 				}));
@@ -691,6 +711,7 @@ export class CLIExportEngine extends ExportEngine {
 			effectOverlaySources: effectOverlaySourcesByElementId.get(
 				source.elementId
 			),
+			effectPersonSources: effectPersonSourcesByElementId.get(source.elementId),
 			effectAudioReactiveEnvelopes: effectAudioReactiveEnvelopesByElementId.get(
 				source.elementId
 			),
