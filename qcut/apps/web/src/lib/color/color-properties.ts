@@ -286,7 +286,7 @@ function legacyBasic({
 export function normalizeMediaColorSettings({
 	element,
 }: {
-	element: Pick<MediaElement, "color" | "adjustments">;
+	element: { color?: MediaColorSettings; adjustments?: MediaAdjustments };
 }): MediaColorSettings {
 	const stored = element.color as Partial<MediaColorSettings> | undefined;
 	const basic = {
@@ -520,7 +520,11 @@ export function resolveMediaColorAtTime({
 	currentTime,
 	fps,
 }: {
-	element: Pick<MediaElement, "startTime" | "color" | "adjustments">;
+	element: {
+		startTime: number;
+		color?: MediaColorSettings;
+		adjustments?: MediaAdjustments;
+	};
 	currentTime: number;
 	fps: number;
 }): MediaColorSettings {

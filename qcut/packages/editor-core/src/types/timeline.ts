@@ -796,6 +796,9 @@ export interface StickerElement extends BaseTimelineElement {
 export interface AdjustmentElement extends BaseTimelineElement {
 	type: "adjustment";
 	opacity?: number;
+	adjustments?: MediaAdjustments;
+	/** Canonical non-destructive color grading state for adjustment layers. */
+	color?: MediaColorSettings;
 }
 
 /** Visual style properties for subtitle/caption elements */

@@ -6,6 +6,8 @@ import { buildFFmpegArgs } from "../ffmpeg-args-builder";
 import type { VideoTransition, VideoVisual } from "../ffmpeg/types";
 import { EFFECT_PRESETS } from "../../apps/web/src/lib/effects/effect-presets";
 import { FFmpegFilterChain } from "../../apps/web/src/lib/ffmpeg/ffmpeg-filter-chain";
+import { MOTION_EFFECT_CATALOG } from "../../apps/web/src/lib/effects/effect-motion-catalog";
+import { FILTER_EFFECT_CATALOG } from "../../apps/web/src/lib/effects/effect-filter-catalog";
 
 const ffmpegPath = path.resolve(
 	__dirname,
@@ -764,7 +766,11 @@ describe.skipIf(!fs.existsSync(ffmpegPath))(
 		});
 
 		it("exports every registered production effect", () => {
-			for (const preset of EFFECT_PRESETS) {
+			const productionFilterPresets = [
+				...EFFECT_PRESETS,
+				...FILTER_EFFECT_CATALOG.map((entry) => entry.preset),
+			];
+			for (const preset of productionFilterPresets) {
 				const effectFilter = FFmpegFilterChain.fromEffectParameters(
 					preset.parameters
 				);
@@ -1290,6 +1296,78 @@ describe.skipIf(!fs.existsSync(ffmpegPath))(
 			const result = runFFmpeg(args);
 			expect(result.status, result.stderr?.toString()).toBe(0);
 			expect(fs.statSync(adjustedPath).size).toBeGreaterThan(1_000);
+		});
+
+		it("renders catalog motion programs through the real FFmpeg pipeline", () => {
+			const stripedSourcePath = path.join(tempDir, "effect-motion-stripes.mp4");
+			const baselinePath = path.join(tempDir, "effect-motion-baseline.mp4");
+			const pushInPath = path.join(tempDir, "effect-motion-push-in.mp4");
+			const source = runFFmpeg([
+				"-y",
+				"-f",
+				"lavfi",
+				"-i",
+				"color=c=black:s=320x180:d=1:r=30," +
+					"drawbox=x=0:y=0:w=80:h=180:c=red:t=fill," +
+					"drawbox=x=80:y=0:w=80:h=180:c=green:t=fill," +
+					"drawbox=x=160:y=0:w=80:h=180:c=blue:t=fill," +
+					"drawbox=x=240:y=0:w=80:h=180:c=yellow:t=fill",
+				"-c:v",
+				"libx264",
+				"-pix_fmt",
+				"yuv420p",
+				stripedSourcePath,
+			]);
+			expect(source.status, source.stderr?.toString()).toBe(0);
+
+			const renderCases = [
+				{ outputFile: baselinePath, effectRenderProgram: undefined },
+				...MOTION_EFFECT_CATALOG.map((entry) => ({
+					outputFile:
+						entry.preset.id === "camera-push-in"
+							? pushInPath
+							: path.join(tempDir, `effect-motion-${entry.preset.id}.mp4`),
+					effectRenderProgram: entry.preset.renderProgram,
+				})),
+			];
+
+			for (const { outputFile, effectRenderProgram } of renderCases) {
+				const args = buildFFmpegArgs({
+					inputDir: tempDir,
+					outputFile,
+					width: 320,
+					height: 180,
+					fps: 30,
+					quality: "low",
+					duration: 1,
+					videoSources: [
+						{
+							path: stripedSourcePath,
+							startTime: 0,
+							duration: 1,
+							effectRenderProgram,
+						},
+					],
+				});
+				const result = runFFmpeg(args);
+				expect(result.status, result.stderr?.toString()).toBe(0);
+				expect(fs.statSync(outputFile).size).toBeGreaterThan(1_000);
+			}
+
+			const baselinePixel = readFramePixelAt({
+				inputPath: baselinePath,
+				time: 0.9,
+				x: 75,
+				y: 90,
+			});
+			const pushInPixel = readFramePixelAt({
+				inputPath: pushInPath,
+				time: 0.9,
+				x: 75,
+				y: 90,
+			});
+			expect(baselinePixel[0]).toBeGreaterThan(baselinePixel[1] * 2);
+			expect(pushInPixel[1]).toBeGreaterThan(pushInPixel[0] * 1.5);
 		});
 
 		it("preserves and processes per-clip audio", () => {

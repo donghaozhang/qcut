@@ -6,6 +6,10 @@ import type {
 import type { TimelineTrack, TimelineElement } from "@/types/timeline";
 import { MediaItem } from "@/stores/media/media-store";
 import { platform } from "@qcut/platform-core";
+import {
+	combineEffectRenderPrograms,
+	type EffectRenderProgram,
+} from "@qcut/editor-core";
 import { debugLog, debugError, debugWarn } from "@/lib/debug/debug-config";
 import { useEffectsStore } from "@/stores/ai/effects-store";
 import { useStickersOverlayStore } from "@/stores/stickers-overlay-store";
@@ -349,6 +353,7 @@ export class CLIExportEngine extends ExportEngine {
 
 		// Collect effects filter chains
 		const elementFilterChains = new Map<string, string>();
+		const elementRenderPrograms = new Map<string, EffectRenderProgram>();
 		for (const track of this.tracks) {
 			for (const element of track.elements) {
 				if (this.effectsStore) {
@@ -358,10 +363,22 @@ export class CLIExportEngine extends ExportEngine {
 					if (filterChain) {
 						elementFilterChains.set(element.id, filterChain);
 					}
+					const renderProgram = combineEffectRenderPrograms({
+						programs: this.effectsStore
+							.getElementEffects(element.id)
+							.filter((effect) => effect.enabled && effect.renderProgram)
+							.flatMap((effect) =>
+								effect.renderProgram ? [effect.renderProgram] : []
+							),
+					});
+					if (renderProgram) {
+						elementRenderPrograms.set(element.id, renderProgram);
+					}
 				}
 			}
 		}
-		const hasPerClipVideoEffects = elementFilterChains.size > 0;
+		const hasPerClipVideoEffects =
+			elementFilterChains.size > 0 || elementRenderPrograms.size > 0;
 		const combinedFilterChain = hasPerClipVideoEffects
 			? ""
 			: Array.from(elementFilterChains.values()).join(",");
@@ -487,6 +504,7 @@ export class CLIExportEngine extends ExportEngine {
 				imageSources = imageSources.map((source) => ({
 					...source,
 					effectFilter: elementFilterChains.get(source.elementId),
+					effectRenderProgram: elementRenderPrograms.get(source.elementId),
 				}));
 				if (imageSources.length > 0) {
 					imageFilterChain = buildImageOverlayFilters(
@@ -592,6 +610,7 @@ export class CLIExportEngine extends ExportEngine {
 		const videoSources = extractedVideoSources.map((source) => ({
 			...source,
 			effectFilter: elementFilterChains.get(source.elementId),
+			effectRenderProgram: elementRenderPrograms.get(source.elementId),
 		}));
 		const videoTransitions: VideoTransitionInput[] = hasTransitions
 			? extractVideoTransitions({

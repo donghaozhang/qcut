@@ -15,6 +15,8 @@ import { Trash2, Copy } from "lucide-react";
 import { getParameterRange } from "@/constants/effect-parameter-ranges";
 import type { EffectInstance, EffectParameters } from "@/types/effects";
 
+const EMPTY_EFFECTS: EffectInstance[] = [];
+
 // Labels only; numeric ranges come from getParameterRange()
 const PARAMETER_LABELS: Partial<Record<keyof EffectParameters, string>> = {
 	// Transform parameters
@@ -107,7 +109,9 @@ export function EffectsProperties({ elementId }: EffectsPropertiesProps) {
 		duplicateEffect,
 	} = useEffectsStore();
 
-	const effects = useEffectsStore((s) => s.activeEffects.get(elementId) || []);
+	const effects = useEffectsStore(
+		(s) => s.activeEffects.get(elementId) ?? EMPTY_EFFECTS
+	);
 
 	const handleParameterChange = useCallback(
 		(

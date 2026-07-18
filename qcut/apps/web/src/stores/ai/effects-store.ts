@@ -18,7 +18,7 @@ import {
 } from "@/lib/effects/effects-chaining";
 import { inferEffectType, stripCopySuffix } from "@/lib/utils/effects";
 import { collectTimelineEffectState } from "@/lib/effects/timeline-effect-state";
-import { EFFECT_PRESETS } from "@/lib/effects/effect-presets";
+import { EFFECT_CATALOG } from "@/lib/effects/effect-catalog";
 import { useTimelineStore } from "@/stores/timeline/timeline-store";
 import type { TimelineTrack } from "@/types/timeline";
 import {
@@ -150,9 +150,10 @@ interface EffectsStore {
 }
 
 let hydratingFromTimeline = false;
+const ALL_EFFECT_PRESETS = EFFECT_CATALOG.map((entry) => entry.preset);
 
 export const useEffectsStore = create<EffectsStore>((set, get) => ({
-	presets: EFFECT_PRESETS,
+	presets: ALL_EFFECT_PRESETS,
 	activeEffects: new Map(),
 	effectChains: new Map(),
 	selectedCategory: "all",
@@ -179,9 +180,11 @@ export const useEffectsStore = create<EffectsStore>((set, get) => ({
 
 		const newEffect: EffectInstance = {
 			id: generateUUID(),
+			presetId: preset.id,
 			name: preset.name,
-			effectType: inferEffectType(preset.parameters),
+			effectType: preset.effectType ?? inferEffectType(preset.parameters),
 			parameters: { ...preset.parameters },
+			renderProgram: preset.renderProgram,
 			duration: 0, // Will be set based on element duration
 			enabled: true,
 		};
@@ -328,15 +331,21 @@ export const useEffectsStore = create<EffectsStore>((set, get) => ({
 			// Find the original preset (strip "(Copy)" and fallback by inferred type)
 			const baseName = stripCopySuffix(effect.name);
 			const preset =
-				EFFECT_PRESETS.find((p) => p.name === baseName) ??
-				EFFECT_PRESETS.find(
+				ALL_EFFECT_PRESETS.find(
+					(candidate) => candidate.id === effect.presetId
+				) ??
+				ALL_EFFECT_PRESETS.find((p) => p.name === baseName) ??
+				ALL_EFFECT_PRESETS.find(
 					(p) => inferEffectType(p.parameters) === effect.effectType
 				);
 
 			if (preset) {
 				const resetEffect: EffectInstance = {
 					...effect,
+					presetId: preset.id,
+					effectType: preset.effectType ?? inferEffectType(preset.parameters),
 					parameters: { ...preset.parameters },
+					renderProgram: preset.renderProgram,
 				};
 
 				const newEffects = [...effects];

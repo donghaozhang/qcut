@@ -1,6 +1,7 @@
 import type {
 	AnimatedParameter,
 	EffectParameters,
+	EffectRenderProgram,
 	EffectType,
 } from "@qcut/editor-core";
 
@@ -10,6 +11,9 @@ export type {
 	EffectInstance,
 	EffectKeyframe,
 	EffectParameters,
+	EffectRenderProgram,
+	EffectRenderStage,
+	EffectMotionRenderStage,
 	EffectType,
 } from "@qcut/editor-core";
 
@@ -20,6 +24,8 @@ export interface EffectPreset {
 	category: EffectCategory;
 	icon: string;
 	parameters: EffectParameters;
+	effectType?: EffectType;
+	renderProgram?: EffectRenderProgram;
 	preview?: string;
 }
 

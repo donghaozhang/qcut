@@ -459,10 +459,7 @@ export function PreviewPanel() {
 		activeProject,
 	});
 
-	const { filterStyle, hasEffects: hasEnabledEffects } = useEffectsRendering(
-		currentMediaElement?.element.id ?? null,
-		EFFECTS_ENABLED
-	);
+	const effectsRenderingByElementId = useEffectsRendering(EFFECTS_ENABLED);
 
 	useEffect(() => {
 		const seekTime = lastSeekEventTimeRef.current;
@@ -602,18 +599,14 @@ export function PreviewPanel() {
 				activeProject={activeProject}
 				blurBackgroundElements={blurBackgroundElements}
 				blurBackgroundSource={blurBackgroundSource}
-				currentMediaElement={currentMediaElement}
-				filterStyle={filterStyle}
-				hasEnabledEffects={hasEnabledEffects}
+				effectsRenderingByElementId={effectsRenderingByElementId}
 			/>
 		),
 		[
 			activeProject,
 			blurBackgroundElements,
 			blurBackgroundSource,
-			currentMediaElement,
-			filterStyle,
-			hasEnabledEffects,
+			effectsRenderingByElementId,
 		]
 	);
 
@@ -626,8 +619,9 @@ export function PreviewPanel() {
 				previewDimensions={previewDimensions}
 				canvasSize={canvasSize}
 				currentTime={isPlaying ? smoothTime : currentTime}
-				filterStyle={filterStyle}
-				hasEnabledEffects={hasEnabledEffects}
+				effectRendering={effectsRenderingByElementId.get(
+					elementData.element.id
+				)}
 				videoSourcesById={videoSourcesById}
 				currentMediaElement={currentMediaElement}
 				dragState={dragState}
@@ -657,10 +651,9 @@ export function PreviewPanel() {
 			currentMediaElement,
 			currentTime,
 			dragState,
-			filterStyle,
+			effectsRenderingByElementId,
 			handleElementResize,
 			handleTextPointerDown,
-			hasEnabledEffects,
 			isPlaying,
 			previewDimensions,
 			selectElement,
@@ -829,6 +822,7 @@ export function PreviewPanel() {
 												<AdjustmentLayerStack
 													activeElements={activeElements}
 													currentTime={currentTime}
+													fps={activeProject?.fps ?? 30}
 													renderElement={renderElement}
 												/>
 											)}

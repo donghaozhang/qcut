@@ -194,6 +194,7 @@ export interface VideoSourceInput {
 	freezeFrameDuration: number;
 	visual?: VideoVisualInput;
 	effectFilter?: string;
+	effectRenderProgram?: EffectRenderProgram;
 }
 
 /**
@@ -246,6 +247,7 @@ export interface ImageSourceInput {
 	elementId: string; // For debugging
 	visual?: VideoVisualInput;
 	effectFilter?: string;
+	effectRenderProgram?: EffectRenderProgram;
 }
 
 /**
@@ -294,3 +296,4 @@ export type Platform = "win32" | "darwin" | "linux";
  * Re-export TextElement for use in filter modules (using export from).
  */
 export type { TextElement } from "@/types/timeline";
+import type { EffectRenderProgram } from "@qcut/editor-core";
