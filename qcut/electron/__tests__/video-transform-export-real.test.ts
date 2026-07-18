@@ -1406,7 +1406,8 @@ describe.skipIf(!fs.existsSync(ffmpegPath))(
 				"-f",
 				"lavfi",
 				"-i",
-				"color=c=green@0.8:s=320x180:d=0.1:r=30,format=rgba",
+				"color=c=black@0:s=320x180:d=0.1:r=30,format=rgba," +
+					"drawbox=x=0:y=0:w=iw:h=ih:c=green@0.8:t=10:replace=1",
 				"-frames:v",
 				"1",
 				overlayPath,
