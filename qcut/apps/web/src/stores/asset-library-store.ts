@@ -14,6 +14,7 @@ import { create } from "zustand";
 import { createJSONStorage, persist } from "zustand/middleware";
 
 export const ASSET_LIBRARY_STORAGE_KEY = "qcut-asset-library-v1";
+export const LEGACY_EFFECT_FAVORITES_STORAGE_KEY = "effectsFavorites";
 export const LEGACY_FILTER_FAVORITES_STORAGE_KEY = "qcut-filter-favorites";
 export const LEGACY_SAVED_SOUNDS_STORAGE_KEY = "qcut-saved-sounds";
 
@@ -106,6 +107,15 @@ function parseJson({ value }: { value: string | null }): unknown {
 function readLegacyFavorites(): FavoriteIdentities {
 	if (typeof window === "undefined") return {};
 	const favorites: FavoriteIdentities = {};
+	const effectIds = parseJson({
+		value: window.localStorage.getItem(LEGACY_EFFECT_FAVORITES_STORAGE_KEY),
+	});
+	if (Array.isArray(effectIds)) {
+		for (const id of effectIds) {
+			if (typeof id !== "string" || !id.trim()) continue;
+			favorites[assetManifestIdentity({ kind: "effect", id })] = true;
+		}
+	}
 	const filterIds = parseJson({
 		value: window.localStorage.getItem(LEGACY_FILTER_FAVORITES_STORAGE_KEY),
 	});
@@ -132,6 +142,22 @@ function readLegacyFavorites(): FavoriteIdentities {
 	}
 
 	return favorites;
+}
+
+function syncLegacyEffectFavorites({
+	favorites,
+}: {
+	favorites: FavoriteIdentities;
+}): void {
+	if (typeof window === "undefined") return;
+	const effectPrefix = "effect:";
+	const effectIds = Object.keys(favorites)
+		.filter((identity) => identity.startsWith(effectPrefix))
+		.map((identity) => identity.slice(effectPrefix.length));
+	window.localStorage.setItem(
+		LEGACY_EFFECT_FAVORITES_STORAGE_KEY,
+		JSON.stringify(effectIds)
+	);
 }
 
 function syncLegacyFilterFavorites({
@@ -302,10 +328,16 @@ export const useAssetLibraryStore = create<AssetLibraryStore>()(
 						const filteredFavorites = Object.fromEntries(
 							entries
 						) as FavoriteIdentities;
+						if (kind === "effect") {
+							syncLegacyEffectFavorites({ favorites: filteredFavorites });
+						}
 						if (kind === "filter") {
 							syncLegacyFilterFavorites({ favorites: filteredFavorites });
 						}
 						return { favorites: filteredFavorites };
+					}
+					if (kind === "effect") {
+						syncLegacyEffectFavorites({ favorites: nextFavorites });
 					}
 					if (kind === "filter") {
 						syncLegacyFilterFavorites({ favorites: nextFavorites });
