@@ -80,6 +80,31 @@ describe("effect render programs", () => {
 		expect(result.errors).toHaveLength(4);
 	});
 
+	it("rejects non-finite audio-reactive envelope timings", () => {
+		const result = validateEffectRenderProgram({
+			program: {
+				version: 1,
+				stages: [
+					{
+						kind: "audio-reactive",
+						driver: "source",
+						band: "bass",
+						property: "brightness",
+						minimum: 0,
+						maximum: 1,
+						attackMs: Number.NaN,
+						releaseMs: Number.POSITIVE_INFINITY,
+					},
+				],
+			},
+		});
+
+		expect(result.valid).toBe(false);
+		expect(result.errors).toContain(
+			"stages[0].attackMs and releaseMs must be finite and non-negative"
+		);
+	});
+
 	it("applies a clip-local window without mutating the source", () => {
 		const program: EffectRenderProgram = {
 			version: 1,

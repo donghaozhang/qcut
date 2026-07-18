@@ -102,8 +102,15 @@ function validateStage({
 		if (stage.minimum > stage.maximum) {
 			errors.push(`${prefix}.minimum must not exceed maximum`);
 		}
-		if (stage.attackMs < 0 || stage.releaseMs < 0) {
-			errors.push(`${prefix}.attackMs and releaseMs must be non-negative`);
+		if (
+			!isFiniteNumber(stage.attackMs) ||
+			!isFiniteNumber(stage.releaseMs) ||
+			stage.attackMs < 0 ||
+			stage.releaseMs < 0
+		) {
+			errors.push(
+				`${prefix}.attackMs and releaseMs must be finite and non-negative`
+			);
 		}
 		return [...windowErrors, ...errors];
 	}
