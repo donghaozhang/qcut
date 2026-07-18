@@ -1,14 +1,11 @@
 "use client";
 
 import { useState, useRef, useCallback } from "react";
-import { platform } from "@qcut/platform-core";
 
 // Constants for file size validation
 const MAX_FILE_SIZE_MB = 100;
 const HARD_LIMIT_FILE_SIZE_MB = 500;
 import { Button } from "@/components/ui/button";
-import { Progress } from "@/components/ui/progress";
-import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -21,23 +18,29 @@ import {
 	ErrorCategory,
 	ErrorSeverity,
 } from "@/lib/debug/error-handler";
-import { Upload, Loader2, CheckCircle, AlertCircle, Plus } from "lucide-react";
-import { useDragDrop } from "@/hooks/use-drag-drop";
-import { cn, openInNewTab } from "@/lib/utils";
-// DEPRECATED: Modal Whisper utilities removed for Gemini migration
-// import { isTranscriptionConfigured } from "@/lib/transcription/transcription-utils";
-// import { encryptWithRandomKey } from "@/lib/transcription/zk-encryption";
 import {
-	isGeminiConfigured,
+	Upload,
+	Loader2,
+	CheckCircle,
+	AlertCircle,
+	Plus,
+	FileUp,
+} from "lucide-react";
+import { useDragDrop } from "@/hooks/use-drag-drop";
+import { useTranslation } from "@/lib/i18n";
+import { cn, openInNewTab } from "@/lib/utils";
+import {
+	importedCaptionElements,
+	importedCaptionResult,
+	parseSubtitleFile,
+} from "@/lib/captions/caption-import";
+import {
 	getGeminiSetupUrl,
 	getGeminiSetupInstructions,
 } from "@/lib/gemini/gemini-utils";
-import type {
-	TranscriptionResult,
-	TranscriptionSegment,
-} from "@/types/captions";
+import { useGeminiFileTranscription } from "@/hooks/captions/use-gemini-file-transcription";
+import type { TranscriptionResult } from "@/types/captions";
 import type { SubtitleStyle } from "@/types/timeline";
-// REMOVED: import { r2Client } from "@/lib/storage/r2-client";
 import { useTimelineStore } from "@/stores/timeline/timeline-store";
 import { useCaptionsStore } from "@/stores/captions-store";
 import { CaptionTemplateGallery } from "@/components/captions/caption-template-gallery";
@@ -64,6 +67,7 @@ interface TranscriptionState {
  * @returns The rendered React element for the captions transcription panel
  */
 export function CaptionsView() {
+	const { t } = useTranslation();
 	const [selectedLanguage, setSelectedLanguage] = useState("auto");
 	const [state, setState] = useState<TranscriptionState>({
 		isTranscribing: false,
@@ -73,23 +77,20 @@ export function CaptionsView() {
 	});
 
 	const fileInputRef = useRef<HTMLInputElement>(null);
+	const subtitleInputRef = useRef<HTMLInputElement>(null);
 	const containerRef = useRef<HTMLDivElement>(null);
 
 	// Timeline and captions store hooks
 	const { findOrCreateTrack, addElementToTrack, removeTrack, tracks } =
 		useTimelineStore();
-	const {
-		createCaptionElements,
-		completeTranscriptionJob,
-		startTranscriptionJob,
-	} = useCaptionsStore();
-
-	// Check if transcription is configured (Gemini)
-	const { configured, missingVars } = isGeminiConfigured();
+	const { createCaptionElements } = useCaptionsStore();
 
 	const updateState = useCallback((updates: Partial<TranscriptionState>) => {
 		setState((prev) => ({ ...prev, ...updates }));
 	}, []);
+
+	const { configured, getCachedTranscription, startTranscription } =
+		useGeminiFileTranscription({ selectedLanguage, updateState });
 
 	const addCaptionsToTimeline = useCallback(
 		({
@@ -111,7 +112,7 @@ export function CaptionsView() {
 					);
 
 				if (captionElements.length === 0) {
-					toast.warning("No captions were generated from the transcription");
+					toast.warning(t("captions.panel.noneGenerated"));
 					return;
 				}
 
@@ -131,7 +132,9 @@ export function CaptionsView() {
 				}
 
 				toast.success(
-					`Added ${captionElements.length} caption segments to timeline`
+					t("captions.panel.addedToTimeline", {
+						count: captionElements.length,
+					})
 				);
 			} catch (error) {
 				handleError(error, {
@@ -151,7 +154,27 @@ export function CaptionsView() {
 			addElementToTrack,
 			removeTrack,
 			tracks,
+			t,
 		]
+	);
+
+	const handleSubtitleImport = useCallback(
+		async (files: FileList) => {
+			const file = files[0];
+			if (!file) return;
+			const segments = parseSubtitleFile({ content: await file.text() });
+			if (segments.length === 0) {
+				toast.error(t("captions.panel.importEmpty"));
+				return;
+			}
+			const result = importedCaptionResult({ segments });
+			addCaptionsToTimeline({
+				result,
+				elements: importedCaptionElements({ segments }),
+			});
+			updateState({ result, error: null });
+		},
+		[addCaptionsToTimeline, t, updateState]
 	);
 
 	const handleSmartRecognitionCompleted = useCallback(
@@ -170,313 +193,10 @@ export function CaptionsView() {
 	const stopTranscription = useCallback(() => {
 		updateState({
 			isTranscribing: false,
-			error: "Transcription cancelled by user",
+			error: t("captions.panel.cancelledDetail"),
 		});
-		toast.info("Transcription cancelled");
-	}, [updateState]);
-
-	// Performance: Simple cache for transcription results
-	const getCachedTranscription = useCallback(
-		(fileKey: string): TranscriptionResult | null => {
-			try {
-				const cached = localStorage.getItem(`transcription-${fileKey}`);
-				if (cached) {
-					const parsed = JSON.parse(cached);
-					// Cache valid for 24 hours
-					if (Date.now() - parsed.timestamp < 24 * 60 * 60 * 1000) {
-						return parsed.result;
-					}
-					localStorage.removeItem(`transcription-${fileKey}`);
-				}
-			} catch (error) {
-				handleError(error, {
-					operation: "Read Transcription Cache",
-					category: ErrorCategory.STORAGE,
-					severity: ErrorSeverity.LOW,
-					showToast: false,
-					metadata: {
-						fileKey,
-					},
-				});
-			}
-			return null;
-		},
-		[]
-	);
-
-	const startTranscription = useCallback(
-		async (
-			file: File,
-			fileKey?: string
-		): Promise<TranscriptionResult | null> => {
-			if (!configured) {
-				toast.error(
-					`Transcription not configured. Missing: ${missingVars.join(", ")}`
-				);
-				return null;
-			}
-
-			updateState({
-				error: null,
-				result: null,
-				currentFile: file,
-			});
-
-			try {
-				// Start transcription job in store
-				const jobId = startTranscriptionJob({
-					fileName: file.name,
-					language: selectedLanguage,
-				});
-
-				// Step 1: Extract audio from video file (if needed)
-				console.log("[Gemini Transcription] Starting transcription process...");
-				console.log(
-					"[Gemini Transcription] File:",
-					file.name,
-					"Type:",
-					file.type,
-					"Size:",
-					file.size
-				);
-
-				let audioFilePath: string;
-				if (file.type.startsWith("video/")) {
-					// Validate supported video formats
-					const supportedVideoTypes = [
-						"video/mp4",
-						"video/webm",
-						"video/quicktime", // .mov
-						"video/avi",
-						"video/x-msvideo", // .avi alternative MIME
-						"video/x-matroska", // .mkv
-					];
-
-					if (!supportedVideoTypes.includes(file.type)) {
-						throw new Error(`Unsupported video format: ${file.type}`);
-					}
-
-					console.log(
-						"[Gemini Transcription] Extracting audio from video using FFmpeg CLI..."
-					);
-					toast.info("Extracting audio from video...");
-
-					// Save video file to temp location first
-					if (!platform().audio?.saveTemp) {
-						throw new Error("Audio temp save not available on this platform");
-					}
-
-					const videoBuffer = await file.arrayBuffer();
-					const videoTempPath = await platform().audio.saveTemp(
-						new Uint8Array(videoBuffer),
-						file.name
-					);
-					console.log(
-						"[Gemini Transcription] Video saved to temp:",
-						videoTempPath
-					);
-
-					// Extract audio using FFmpeg CLI (much faster than WebAssembly!)
-					if (!platform().ffmpeg?.extractAudio) {
-						throw new Error(
-							"FFmpeg audio extraction not available on this platform"
-						);
-					}
-
-					const { audioPath, fileSize } = await platform().ffmpeg.extractAudio({
-						videoPath: videoTempPath,
-						format: "wav",
-					});
-
-					console.log(
-						"[Gemini Transcription] ✅ Audio extracted:",
-						audioPath,
-						"Size:",
-						fileSize,
-						"bytes"
-					);
-					audioFilePath = audioPath;
-				} else {
-					// Audio file - save directly to temp
-					console.log(
-						"[Gemini Transcription] Processing audio file directly..."
-					);
-
-					if (!platform().audio?.saveTemp) {
-						throw new Error("Audio temp save not available on this platform");
-					}
-
-					const audioBuffer = await file.arrayBuffer();
-					audioFilePath = await platform().audio.saveTemp(
-						new Uint8Array(audioBuffer),
-						file.name
-					);
-					console.log(
-						"[Gemini Transcription] Audio saved to temp:",
-						audioFilePath
-					);
-				}
-
-				// Step 2: Call Gemini transcription via Electron IPC (audioFilePath is already in temp)
-				console.log("[Gemini Transcription] Calling Gemini API...");
-				console.log("[Gemini Transcription] Audio path:", audioFilePath);
-				console.log("[Gemini Transcription] Language:", selectedLanguage);
-				toast.info("Transcribing with Gemini...");
-				updateState({
-					isTranscribing: true,
-				});
-
-				if (!platform().transcription?.transcribe) {
-					throw new Error("Transcription not available on this platform");
-				}
-
-				const startTime = Date.now();
-				const result = await platform().transcription.transcribe({
-					audioPath: audioFilePath,
-					language: selectedLanguage,
-				});
-				const duration = ((Date.now() - startTime) / 1000).toFixed(2);
-
-				console.log(
-					"[Gemini Transcription] ✅ Transcription completed in",
-					duration,
-					"seconds"
-				);
-				console.log(
-					"[Gemini Transcription] Segments found:",
-					result.segments.length
-				);
-				console.log(
-					"[Gemini Transcription] Detected language:",
-					result.language
-				);
-				console.log("[Gemini Transcription] Full text:", result.text);
-
-				// Complete transcription job in store
-				completeTranscriptionJob(jobId, result);
-
-				updateState({
-					isTranscribing: false,
-					result,
-				});
-
-				console.log("[Gemini Transcription] 🎉 Transcription successful!");
-				toast.success(
-					`Transcription completed! Found ${result.segments.length} segments.`
-				);
-
-				// Performance: Cache the result for future use
-				if (fileKey) {
-					console.log(
-						"[Gemini Transcription] Caching result for future use..."
-					);
-					try {
-						const cacheData = { result, timestamp: Date.now() };
-						localStorage.setItem(
-							`transcription-${fileKey}`,
-							JSON.stringify(cacheData)
-						);
-					} catch (error) {
-						handleError(error, {
-							operation: "Cache Transcription Result",
-							category: ErrorCategory.STORAGE,
-							severity: ErrorSeverity.LOW,
-							showToast: false,
-							metadata: {
-								fileKey,
-							},
-						});
-					}
-				}
-				return result;
-			} catch (error) {
-				console.error("[Gemini Transcription] ❌ Error:", error);
-				handleError(error, {
-					operation: "Audio Transcription",
-					category: ErrorCategory.AI_SERVICE,
-					severity: ErrorSeverity.HIGH,
-					showToast: false, // We show more specific toasts below
-					metadata: {
-						language: selectedLanguage,
-						fileSize: file?.size,
-						fileName: file?.name,
-					},
-				});
-				const errorMessage =
-					error instanceof Error ? error.message : "Transcription failed";
-
-				console.error("[Gemini Transcription] Error message:", errorMessage);
-				updateState({
-					isTranscribing: false,
-					error: errorMessage,
-				});
-
-				// Gemini-specific error handling with actionable suggestions
-				if (
-					errorMessage.includes("GEMINI_API_KEY") ||
-					errorMessage.includes("API key")
-				) {
-					toast.error(
-						"Gemini API key missing or invalid. Please add GEMINI_API_KEY to your .env file.",
-						{
-							action: {
-								label: "Get API Key",
-								onClick: () => openInNewTab(getGeminiSetupUrl()),
-							},
-						}
-					);
-				} else if (
-					errorMessage.includes("rate limit") ||
-					errorMessage.includes("429") ||
-					errorMessage.includes("quota")
-				) {
-					toast.error(
-						"Gemini API quota exceeded. Please wait a few minutes before trying again."
-					);
-				} else if (
-					errorMessage.includes("audio format") ||
-					errorMessage.includes("unsupported")
-				) {
-					toast.error(
-						"Unsupported audio format. Please use WAV, MP3, AAC, OGG, or FLAC."
-					);
-				} else if (
-					errorMessage.includes("20 MB") ||
-					errorMessage.includes("too large")
-				) {
-					toast.error(
-						"Audio file too large (max 20 MB). Please compress your audio or use a shorter clip."
-					);
-				} else if (
-					errorMessage.includes("network") ||
-					errorMessage.includes("fetch") ||
-					errorMessage.includes("ECONNREFUSED")
-				) {
-					toast.error(
-						"Network error. Check your internet connection and try again."
-					);
-				} else if (
-					errorMessage.includes("500") ||
-					errorMessage.includes("503")
-				) {
-					toast.error(
-						"Gemini API is temporarily unavailable. Please try again in a few moments."
-					);
-				} else {
-					toast.error(`Transcription failed: ${errorMessage}`);
-				}
-				return null;
-			}
-		},
-		[
-			configured,
-			missingVars,
-			updateState,
-			startTranscriptionJob,
-			completeTranscriptionJob,
-			selectedLanguage,
-		]
-	);
+		toast.info(t("captions.panel.cancelled"));
+	}, [t, updateState]);
 
 	const handleFileSelect = useCallback(
 		(files: FileList) => {
@@ -502,7 +222,7 @@ export function CaptionsView() {
 					/\.(mp4|mov|avi|webm|mkv|mp3|wav|m4a)$/i.test(file.name));
 
 			if (!isValidType) {
-				toast.error("Please select a video or audio file");
+				toast.error(t("captions.panel.invalidType"));
 				return;
 			}
 
@@ -511,7 +231,7 @@ export function CaptionsView() {
 			const cachedResult = getCachedTranscription(fileKey);
 
 			if (cachedResult) {
-				toast.success("Found cached transcription!");
+				toast.success(t("captions.panel.cachedFound"));
 				setState((prev) => ({ ...prev, result: cachedResult }));
 				return;
 			}
@@ -530,7 +250,7 @@ export function CaptionsView() {
 
 			startTranscription(file, fileKey);
 		},
-		[getCachedTranscription, startTranscription]
+		[getCachedTranscription, startTranscription, t]
 	);
 
 	const transcribeFileForWorkbench = useCallback(
@@ -568,7 +288,7 @@ export function CaptionsView() {
 					<div className="flex items-center gap-2">
 						<AlertCircle className="size-4 text-yellow-500" />
 						<p className="text-sm font-medium">
-							Gemini Transcription Not Configured
+							{t("captions.panel.notConfigured")}
 						</p>
 					</div>
 					<div className="text-xs text-muted-foreground space-y-1">
@@ -579,7 +299,7 @@ export function CaptionsView() {
 							rel="noopener noreferrer"
 							className="text-blue-500 hover:underline inline-flex items-center gap-1"
 						>
-							Get API Key →
+							{t("captions.panel.getApiKey")} →
 						</a>
 					</div>
 				</div>
@@ -593,7 +313,7 @@ export function CaptionsView() {
 
 			{/* Language Selection */}
 			<div className="space-y-2">
-				<Label htmlFor="language">Transcription Language</Label>
+				<Label htmlFor="language">{t("captions.panel.language")}</Label>
 				<LanguageSelect
 					selectedCountry={selectedLanguage}
 					onSelect={setSelectedLanguage}
@@ -621,21 +341,31 @@ export function CaptionsView() {
 							</div>
 							<div>
 								<p className="text-sm font-medium">
-									Drop video or audio files here
+									{t("captions.panel.dropHint")}
 								</p>
 								<p className="text-xs text-muted-foreground">
-									Supports MP4, MOV, MP3, WAV, M4A (max 100MB)
+									{t("captions.panel.dropFormats")}
 								</p>
 							</div>
-							<Button
-								variant="outline"
-								onClick={() => fileInputRef.current?.click()}
-								disabled={!configured}
-								data-testid="transcription-upload-button"
-							>
-								<Plus className="size-4 mr-2" />
-								Choose File
-							</Button>
+							<div className="flex justify-center gap-2">
+								<Button
+									variant="outline"
+									onClick={() => fileInputRef.current?.click()}
+									disabled={!configured}
+									data-testid="transcription-upload-button"
+								>
+									<Plus className="size-4 mr-2" />
+									{t("captions.panel.chooseFile")}
+								</Button>
+								<Button
+									variant="outline"
+									onClick={() => subtitleInputRef.current?.click()}
+									data-testid="subtitle-import-button"
+								>
+									<FileUp className="size-4 mr-2" />
+									{t("captions.panel.importSubtitle")}
+								</Button>
+							</div>
 						</>
 					)}
 
@@ -669,7 +399,7 @@ export function CaptionsView() {
 							<div className="flex items-center justify-center gap-2">
 								<Loader2 className="size-4 animate-spin" />
 								<p className="text-sm font-medium">
-									Transcribing with Gemini...
+									{t("captions.panel.transcribing")}
 								</p>
 							</div>
 							{state.currentFile && (
@@ -683,7 +413,7 @@ export function CaptionsView() {
 								onClick={stopTranscription}
 								className="w-full"
 							>
-								Cancel
+								{t("captions.panel.cancel")}
 							</Button>
 						</div>
 					)}
@@ -693,9 +423,13 @@ export function CaptionsView() {
 						<div className="space-y-3">
 							<CheckCircle className="size-8 mx-auto text-green-500" />
 							<div>
-								<p className="text-sm font-medium">Transcription Complete</p>
+								<p className="text-sm font-medium">
+									{t("captions.panel.complete")}
+								</p>
 								<p className="text-xs text-muted-foreground">
-									Found {state.result.segments.length} segments
+									{t("captions.panel.foundSegments", {
+										count: state.result.segments.length,
+									})}
 								</p>
 							</div>
 						</div>
@@ -707,7 +441,7 @@ export function CaptionsView() {
 							<AlertCircle className="size-8 mx-auto text-red-500" />
 							<div>
 								<p className="text-sm font-medium text-red-500">
-									Gemini Transcription Failed
+									{t("captions.panel.failed")}
 								</p>
 								<p className="text-xs text-muted-foreground">{state.error}</p>
 							</div>
@@ -717,11 +451,11 @@ export function CaptionsView() {
 									size="sm"
 									onClick={() => {
 										updateState({ error: null });
-										toast.info("Ready to try again");
+										toast.info(t("captions.panel.readyRetry"));
 									}}
 									className="flex-1"
 								>
-									Try Again
+									{t("captions.panel.tryAgain")}
 								</Button>
 								{state.error.includes("API key") && (
 									<Button
@@ -729,7 +463,7 @@ export function CaptionsView() {
 										size="sm"
 										onClick={() => openInNewTab(getGeminiSetupUrl())}
 									>
-										Get API Key
+										{t("captions.panel.getApiKey")}
 									</Button>
 								)}
 							</div>
@@ -742,7 +476,7 @@ export function CaptionsView() {
 			{state.result && (
 				<div className="space-y-3">
 					<div className="flex items-center justify-between">
-						<Label>Transcription Result</Label>
+						<Label>{t("captions.panel.result")}</Label>
 						<Button
 							size="sm"
 							variant="outline"
@@ -751,7 +485,7 @@ export function CaptionsView() {
 							}
 						>
 							<Plus className="size-4 mr-2" />
-							Add to Timeline
+							{t("captions.panel.addToTimeline")}
 						</Button>
 					</div>
 
@@ -771,8 +505,10 @@ export function CaptionsView() {
 					</ScrollArea>
 
 					<div className="text-xs text-muted-foreground">
-						Language: {state.result.language} • {state.result.segments.length}{" "}
-						segments
+						{t("captions.panel.resultMeta", {
+							language: state.result.language,
+							count: state.result.segments.length,
+						})}
 					</div>
 				</div>
 			)}
@@ -787,13 +523,23 @@ export function CaptionsView() {
 			{/* JianYing-style 字幕模板 gallery backed by the qctext packs */}
 			<CaptionTemplateGallery />
 
-			{/* Hidden File Input */}
+			{/* Hidden File Inputs */}
 			<input
 				ref={fileInputRef}
 				type="file"
 				className="hidden"
 				accept="video/*,audio/*"
 				onChange={(e) => e.target.files && handleFileSelect(e.target.files)}
+			/>
+			<input
+				ref={subtitleInputRef}
+				type="file"
+				className="hidden"
+				accept=".srt,.vtt"
+				onChange={(e) => {
+					if (e.target.files) void handleSubtitleImport(e.target.files);
+					e.target.value = "";
+				}}
 			/>
 		</div>
 	);
