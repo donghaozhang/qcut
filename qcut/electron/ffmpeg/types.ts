@@ -193,6 +193,7 @@ export interface VideoSource {
 	effectFilter?: string;
 	effectRenderProgram?: EffectRenderProgram;
 	effectOverlaySources?: EffectOverlaySource[];
+	effectPersonSources?: EffectPersonSource[];
 	effectAudioReactiveEnvelopes?: EffectAudioReactiveEnvelope[];
 }
 
@@ -459,6 +460,7 @@ export interface ImageSource {
 	effectFilter?: string;
 	effectRenderProgram?: EffectRenderProgram;
 	effectOverlaySources?: EffectOverlaySource[];
+	effectPersonSources?: EffectPersonSource[];
 	effectAudioReactiveEnvelopes?: EffectAudioReactiveEnvelope[];
 }
 
@@ -819,5 +821,7 @@ export interface FFmpegHandlers {
 }
 import type {
 	EffectAudioReactiveEnvelope,
+	EffectPersonSource,
 	EffectRenderProgram,
 } from "./effect-render-types";
+export type { EffectPersonSource } from "./effect-render-types";
