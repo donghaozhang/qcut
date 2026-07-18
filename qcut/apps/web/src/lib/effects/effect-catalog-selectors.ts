@@ -78,9 +78,7 @@ export function selectEffectCatalogEntries({
 	);
 	if (!navigation) return sectionEntries;
 	if (navigation.kind === "category") {
-		return sectionEntries.filter(
-			(entry) => entry.family === "visual" && entry.category === navigation.id
-		);
+		return sectionEntries.filter((entry) => entry.category === navigation.id);
 	}
 
 	const sorted = [...sectionEntries].sort((left, right) =>
