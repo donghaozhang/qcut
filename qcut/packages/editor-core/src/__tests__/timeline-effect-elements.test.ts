@@ -96,9 +96,7 @@ describe("timeline effect elements", () => {
 					id: "top",
 					type: "effect",
 					order: 0,
-					elements: [
-						effectElement({ id: "top", startTime: 12, duration: 4 }),
-					],
+					elements: [effectElement({ id: "top", startTime: 12, duration: 4 })],
 				}),
 				track({
 					id: "bottom",
