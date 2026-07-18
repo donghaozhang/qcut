@@ -1,7 +1,4 @@
-import type {
-	EffectInstance,
-	EffectTimelineRange,
-} from "../types/effects.js";
+import type { EffectInstance, EffectTimelineRange } from "../types/effects.js";
 import type {
 	EffectElement,
 	TimelineElement,
@@ -19,8 +16,7 @@ function findTargetElement({
 }): TimelineElement | undefined {
 	for (const track of tracks) {
 		const target = track.elements.find(
-			(element) =>
-				element.type !== "effect" && element.id === targetElementId
+			(element) => element.type !== "effect" && element.id === targetElementId
 		);
 		if (target) return target;
 	}
@@ -96,7 +92,9 @@ export function getTimelineEffectsAtTime({
 	currentTime: number;
 }): ReadonlyMap<string, readonly EffectInstance[]> {
 	const active = new Map<string, readonly EffectInstance[]>();
-	for (const [targetId, effects] of collectTimelineEffectsByTarget({ tracks })) {
+	for (const [targetId, effects] of collectTimelineEffectsByTarget({
+		tracks,
+	})) {
 		const atTime = effects.filter((effect) => {
 			if (!effect.enabled) return false;
 			if (!effect.timelineRange) return true;
@@ -117,7 +115,10 @@ export function getEffectRenderWindow({
 	target,
 }: {
 	effect: EffectInstance;
-	target: Pick<TimelineElement, "startTime" | "duration" | "trimStart" | "trimEnd">;
+	target: Pick<
+		TimelineElement,
+		"startTime" | "duration" | "trimStart" | "trimEnd"
+	>;
 }): { startSeconds: number; endSeconds: number } | undefined {
 	if (!effect.timelineRange) return;
 	const targetDuration = Math.max(
