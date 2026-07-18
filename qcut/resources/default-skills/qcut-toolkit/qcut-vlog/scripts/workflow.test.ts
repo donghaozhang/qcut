@@ -4,6 +4,7 @@ import {
 	assertDurationParity,
 	buildBackgroundArgs,
 	buildCleanArgs,
+	buildPortraitArgs,
 	buildSubtitleArgs,
 	buildTranscribeArgs,
 	getPreviewTime,
@@ -43,6 +44,20 @@ describe("qcut-vlog workflow rules", () => {
 		expect(args[args.indexOf("--preset") + 1]).toBe("default");
 	});
 
+	test("creates an editable portrait-filtered MP4 before subtitles", () => {
+		const args = buildPortraitArgs({
+			options,
+			paths,
+			cleanVideo: paths.cleanVideo,
+		});
+
+		expect(args.slice(0, 2)).toEqual(["edit", "portrait-filter"]);
+		expect(args[args.indexOf("-i") + 1]).toBe(paths.cleanVideo);
+		expect(args[args.indexOf("--preset") + 1]).toBe("soft-skin");
+		expect(args[args.indexOf("--beauty") + 1]).toBe("25");
+		expect(args[args.indexOf("--output") + 1]).toBe(paths.portraitVideo);
+	});
+
 	test("creates an editable background composite before subtitle burn-in", () => {
 		const backgroundOptions = parseVlogOptions({
 			argv: [
@@ -68,6 +83,10 @@ describe("qcut-vlog workflow rules", () => {
 		expect(args[args.indexOf("--output") + 1]).toBe(
 			backgroundPaths.editableVideo
 		);
+		expect(args[args.indexOf("--portrait-filter") + 1]).toBe(
+			"soft-skin"
+		);
+		expect(args[args.indexOf("--beauty") + 1]).toBe("25");
 		expect(args).not.toContain(backgroundPaths.srt);
 	});
 
