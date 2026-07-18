@@ -400,6 +400,7 @@ export interface TimelineStore {
 	// Computed values
 	getTotalDuration: () => number;
 	getProjectThumbnail: (projectId: string) => Promise<string | null>;
+	getProjectDuration: (projectId: string) => Promise<number | null>;
 
 	// History actions
 	undo: () => void;
