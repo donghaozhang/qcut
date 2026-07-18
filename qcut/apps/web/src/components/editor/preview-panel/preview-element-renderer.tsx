@@ -75,6 +75,8 @@ import {
 	EMPTY_ELEMENT_EFFECTS_RENDERING,
 	type ElementEffectsRendering,
 } from "./use-effects-rendering";
+import { EffectOverlayLayers } from "@/components/editor/effects/effect-overlay-layers";
+import { EffectCompositeCanvas } from "@/components/editor/effects/effect-composite-canvas";
 
 interface ElementResizeParams {
 	elementId: string;
@@ -920,6 +922,11 @@ export function PreviewElementRenderer({
 									filter={combinedFilter || undefined}
 								/>
 							) : null}
+							<EffectCompositeCanvas
+								program={effectRendering.renderProgram}
+								sourceSelector={colorPreviewSourceSelector}
+								fitMode={visual.fitMode}
+							/>
 							{enhancementProxy.status === "generating" ? (
 								<div
 									className="pointer-events-none absolute right-2 top-2 z-30 flex h-6 min-w-12 items-center justify-center gap-1 rounded-sm bg-background/85 px-1.5 text-[10px] tabular-nums text-foreground shadow-sm"
@@ -1005,6 +1012,7 @@ export function PreviewElementRenderer({
 							) : null}
 							{derivedAudioPlayers}
 						</div>
+						<EffectOverlayLayers program={effectRendering.renderProgram} />
 						{transitionOverlayStyle ? (
 							<div aria-hidden="true" style={transitionOverlayStyle} />
 						) : null}
@@ -1181,7 +1189,13 @@ export function PreviewElementRenderer({
 										)}
 									/>
 								) : null}
+								<EffectCompositeCanvas
+									program={effectRendering.renderProgram}
+									sourceSelector='img[data-color-source="true"]'
+									fitMode="contain"
+								/>
 							</div>
+							<EffectOverlayLayers program={effectRendering.renderProgram} />
 							{transitionOverlayStyle ? (
 								<div aria-hidden="true" style={transitionOverlayStyle} />
 							) : null}
@@ -1254,7 +1268,13 @@ export function PreviewElementRenderer({
 									)}
 								/>
 							) : null}
+							<EffectCompositeCanvas
+								program={effectRendering.renderProgram}
+								sourceSelector='img[data-color-source="true"]'
+								fitMode="cover"
+							/>
 						</div>
+						<EffectOverlayLayers program={effectRendering.renderProgram} />
 						{transitionOverlayStyle ? (
 							<div aria-hidden="true" style={transitionOverlayStyle} />
 						) : null}
