@@ -63,6 +63,8 @@ export const COMMAND_GROUPS: CommandGroup[] = [
 			"clean-audio": "clean-audio",
 			"person-cutout": "person-cutout",
 			"background-replace": "person-cutout",
+			"portrait-filter": "portrait-filter",
+			beautify: "portrait-filter",
 		},
 	},
 	{
