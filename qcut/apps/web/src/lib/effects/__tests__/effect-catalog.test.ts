@@ -111,6 +111,13 @@ describe("effect catalog", () => {
 		});
 		expect(coverage).toHaveLength(VISUAL_EFFECT_CATEGORY_IDS.length);
 		expect(coverage.every((item) => item.status === "underfilled")).toBe(true);
+		expect(
+			selectEffectCatalogEntries({
+				entries: EFFECT_CATALOG,
+				section: "visual",
+				query: "negative",
+			})
+		).toEqual([]);
 	});
 
 	it("publishes three real effects in every implemented category", () => {
@@ -159,6 +166,25 @@ describe("effect catalog", () => {
 			)
 		).toBe(true);
 		expect(auditEffectRenderContracts({ entries: EFFECT_CATALOG })).toEqual([]);
+	});
+
+	it("publishes three verified person effects from the shared catalog", () => {
+		const entries = EFFECT_CATALOG.filter(
+			(entry) => entry.family === "person" && entry.publication === "published"
+		);
+		expect(entries).toHaveLength(3);
+		expect(entries.map((entry) => entry.preset.id)).toEqual([
+			"person-neon-outline",
+			"person-spotlight",
+			"person-background-blur",
+		]);
+		expect(
+			entries.every(
+				(entry) =>
+					entry.render.parity === "verified" &&
+					entry.preset.renderProgram?.stages[0]?.kind === "person-tracking"
+			)
+		).toBe(true);
 	});
 
 	it("builds Popular and Latest from shared entries without duplication", () => {
