@@ -24,6 +24,12 @@ export interface CLIRunOptions {
 	outputDirExplicit?: boolean;
 	config?: string;
 	input?: string;
+	/** Still image used behind a transparent person cutout. */
+	background?: string;
+	/** Transparent VP9 WebM output path for person-cutout. */
+	cutoutOutput?: string;
+	/** Background image fit mode: cover, contain, or stretch. */
+	backgroundFit?: string;
 	duration?: string;
 	aspectRatio?: string;
 	resolution?: string;

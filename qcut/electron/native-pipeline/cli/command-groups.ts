@@ -61,6 +61,8 @@ export const COMMAND_GROUPS: CommandGroup[] = [
 			subtitle: "subtitle-style",
 			"subtitle-export": "subtitle-export",
 			"clean-audio": "clean-audio",
+			"person-cutout": "person-cutout",
+			"background-replace": "person-cutout",
 		},
 	},
 	{

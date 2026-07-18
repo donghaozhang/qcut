@@ -853,6 +853,36 @@ const CORE_COMMANDS: Record<string, CommandDef> = {
 		],
 	},
 
+	"person-cutout": {
+		name: "person-cutout",
+		description:
+			"Remove a person's video background and optionally composite a still background",
+		category: "analysis",
+		flags: [
+			f("--input", "string", "Input video file path", {
+				short: "-i",
+				required: true,
+			}),
+			f("--background", "string", "Replacement background image", {
+				short: "-b",
+			}),
+			f("--output-dir", "string", "Output directory", { short: "-o" }),
+			f("--cutout-output", "string", "Transparent VP9 WebM output path"),
+			f("--output", "string", "Composited MP4 output path"),
+			f("--background-fit", "string", "Background fit mode", {
+				enum: ["cover", "contain", "stretch"],
+				default: "cover",
+			}),
+			f("--force", "boolean", "Replace existing outputs", {
+				default: false,
+			}),
+		],
+		examples: [
+			"qcut edit person-cutout -i talking-head.mp4 -o ./output",
+			"qcut edit person-cutout -i talking-head.mp4 -b office.png --output ./output/editable.mp4",
+		],
+	},
+
 	// ── Translate ──
 	"translate-video": {
 		name: "translate-video",
