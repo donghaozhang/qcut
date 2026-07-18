@@ -29,6 +29,7 @@ import {
 	buildBackgroundArgs,
 	buildBackgroundPreviewArgs,
 	buildCleanArgs,
+	buildPortraitArgs,
 	buildPreviewArgs,
 	buildSubtitleArgs,
 	buildTranscribeArgs,
@@ -38,6 +39,10 @@ import {
 } from "./workflow";
 
 const SCRIPT_DIRECTORY = dirname(fileURLToPath(import.meta.url));
+
+function isPortraitEnabled({ options }: { options: VlogOptions }): boolean {
+	return options.portraitFilter !== "none" || options.beauty > 0;
+}
 
 function createManifest({
 	options,
@@ -49,7 +54,7 @@ function createManifest({
 	const now = new Date().toISOString();
 	const pending = { status: "pending" as const };
 	return {
-		schemaVersion: 2,
+		schemaVersion: 3,
 		workflow: "qcut-vlog",
 		input: paths.input,
 		outputDir: paths.outputDir,
@@ -59,6 +64,9 @@ function createManifest({
 			finalName: options.finalName,
 			background: options.background,
 			backgroundFit: options.backgroundFit,
+			portraitFilter: options.portraitFilter,
+			filterIntensity: options.filterIntensity,
+			beauty: options.beauty,
 			preset: options.preset,
 			style: options.style,
 			model: options.model,
@@ -72,11 +80,17 @@ function createManifest({
 		},
 		artifacts: {
 			cleanVideo: paths.cleanVideo,
+			portraitVideo:
+				!options.background && isPortraitEnabled({ options })
+					? paths.portraitVideo
+					: undefined,
 			backgroundImage: options.background,
 			cutoutVideo: options.background ? paths.cutoutVideo : undefined,
 			editableVideo: options.background
 				? paths.editableVideo
-				: paths.cleanVideo,
+				: isPortraitEnabled({ options })
+					? paths.portraitVideo
+					: paths.cleanVideo,
 			cleanAudio: paths.cleanAudio,
 			srt: paths.srt,
 			finalVideo: paths.finalVideo,
@@ -88,6 +102,7 @@ function createManifest({
 		},
 		stages: {
 			clean: { ...pending },
+			portrait: { ...pending },
 			background: { ...pending },
 			"extract-audio": { ...pending },
 			transcribe: { ...pending },
@@ -118,6 +133,9 @@ function expectedSettings({ options }: { options: VlogOptions }) {
 		finalName: options.finalName,
 		background: options.background,
 		backgroundFit: options.backgroundFit,
+		portraitFilter: options.portraitFilter,
+		filterIntensity: options.filterIntensity,
+		beauty: options.beauty,
 		preset: options.preset,
 		style: options.style,
 		model: options.model,
@@ -145,7 +163,7 @@ function loadManifest({
 		readFileSync(paths.manifest, "utf8")
 	) as VlogManifest;
 	if (
-		manifest.schemaVersion !== 2 ||
+		manifest.schemaVersion !== 3 ||
 		manifest.workflow !== "qcut-vlog" ||
 		manifest.input !== paths.input
 	) {
@@ -171,6 +189,7 @@ function knownArtifacts({ paths }: { paths: VlogPaths }): string[] {
 		paths.cuts,
 		paths.keeps,
 		paths.cleanVideo,
+		paths.portraitVideo,
 		paths.cutoutVideo,
 		paths.editableVideo,
 		paths.cleanAudio,
@@ -238,6 +257,19 @@ function resolveCleanVideo({ paths }: { paths: VlogPaths }): string {
 	const decisions = readJsonFile({ filePath: paths.decisions });
 	if (Array.isArray(decisions) && decisions.length === 0) return paths.input;
 	throw new Error("Clean stage produced decisions but no cleaned video");
+}
+
+function isPortraitReusable({
+	paths,
+	cleanVideo,
+}: {
+	paths: VlogPaths;
+	cleanVideo: string;
+}): boolean {
+	return isArtifactFresh({
+		artifact: paths.portraitVideo,
+		dependencies: [cleanVideo],
+	});
 }
 
 function isBackgroundReusable({
@@ -459,14 +491,67 @@ export async function runVlog({
 	const cleanVideo = resolveCleanVideo({ paths });
 	manifest.artifacts.cleanVideo = cleanVideo;
 	let workingVideo = cleanVideo;
+	if (options.background) {
+		skipStage({
+			manifest,
+			paths,
+			stage: "portrait",
+			details:
+				"Portrait filter is applied to the transparent person during background composition",
+		});
+	} else if (!isPortraitEnabled({ options })) {
+		skipStage({
+			manifest,
+			paths,
+			stage: "portrait",
+			details: "Portrait filter and beauty smoothing are disabled",
+		});
+	} else if (
+		options.resume &&
+		isPortraitReusable({ paths, cleanVideo })
+	) {
+		skipStage({
+			manifest,
+			paths,
+			stage: "portrait",
+			details: "Reused portrait video newer than the cleaned video",
+		});
+		workingVideo = paths.portraitVideo;
+	} else {
+		await executeStage({
+			manifest,
+			paths,
+			stage: "portrait",
+			operation: async () => {
+				await runAndRecord({
+					manifest,
+					paths,
+					stage: "portrait",
+					label: "qcut",
+					tool: toolchain.qcut,
+					args: buildPortraitArgs({ options, paths, cleanVideo }),
+					echoOutput,
+					env,
+				});
+				if (!existsSync(paths.portraitVideo)) {
+					throw new Error("Portrait filter did not create the editable MP4");
+				}
+				return `Applied ${options.portraitFilter} with beauty ${options.beauty}`;
+			},
+		});
+		workingVideo = paths.portraitVideo;
+	}
+	manifest.artifacts.portraitVideo =
+		workingVideo === paths.portraitVideo ? paths.portraitVideo : undefined;
+
 	if (!options.background) {
 		skipStage({
 			manifest,
 			paths,
 			stage: "background",
-			details: "No background requested; clean video is the editable source",
+			details: "No background requested; portrait result is the editable source",
 		});
-		manifest.artifacts.editableVideo = cleanVideo;
+		manifest.artifacts.editableVideo = workingVideo;
 	} else if (
 		options.resume &&
 		isBackgroundReusable({ options, paths, cleanVideo })

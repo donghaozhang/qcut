@@ -56,6 +56,35 @@ export function buildAudioExtractArgs({
 	];
 }
 
+export function buildPortraitArgs({
+	options,
+	paths,
+	cleanVideo,
+}: {
+	options: VlogOptions;
+	paths: VlogPaths;
+	cleanVideo: string;
+}): string[] {
+	const args = [
+		"edit",
+		"portrait-filter",
+		"-i",
+		cleanVideo,
+		"--preset",
+		options.portraitFilter,
+		"--beauty",
+		String(options.beauty),
+		"--output",
+		paths.portraitVideo,
+		"--force",
+		"--json",
+	];
+	if (options.filterIntensity !== undefined) {
+		args.splice(8, 0, "--filter-intensity", String(options.filterIntensity));
+	}
+	return args;
+}
+
 export function buildBackgroundArgs({
 	options,
 	paths,
@@ -68,7 +97,7 @@ export function buildBackgroundArgs({
 	if (!options.background) {
 		throw new Error("Background composition requires --background");
 	}
-	return [
+	const args = [
 		"edit",
 		"person-cutout",
 		"-i",
@@ -77,6 +106,10 @@ export function buildBackgroundArgs({
 		options.background,
 		"--background-fit",
 		options.backgroundFit,
+		"--portrait-filter",
+		options.portraitFilter,
+		"--beauty",
+		String(options.beauty),
 		"--output-dir",
 		paths.outputDir,
 		"--cutout-output",
@@ -86,6 +119,10 @@ export function buildBackgroundArgs({
 		"--force",
 		"--json",
 	];
+	if (options.filterIntensity !== undefined) {
+		args.splice(12, 0, "--filter-intensity", String(options.filterIntensity));
+	}
+	return args;
 }
 
 export function buildTranscribeArgs({

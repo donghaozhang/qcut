@@ -12,6 +12,8 @@ const DEFAULT_SILENCE_THRESHOLD = 1;
 const DEFAULT_KEEP_PADDING = 0.15;
 const DEFAULT_SRT_MAX_WORDS = 8;
 const DEFAULT_SRT_MAX_DURATION = 4;
+const DEFAULT_PORTRAIT_FILTER = "soft-skin";
+const DEFAULT_BEAUTY = 25;
 
 interface ParsedTokens {
 	input?: string;
@@ -19,6 +21,9 @@ interface ParsedTokens {
 	finalName?: string;
 	background?: string;
 	backgroundFit?: string;
+	portraitFilter?: string;
+	filterIntensity?: number;
+	beauty?: number;
 	preset?: string;
 	style?: string;
 	model?: string;
@@ -154,6 +159,31 @@ function parseTokens({ argv }: { argv: string[] }): ParsedTokens {
 			index += 1;
 			continue;
 		}
+		if (token === "--portrait-filter") {
+			parsed.portraitFilter = readOptionValue({ argv, index, flag: token });
+			index += 1;
+			continue;
+		}
+		if (token === "--filter-intensity") {
+			parsed.filterIntensity = parseNumber({
+				value: readOptionValue({ argv, index, flag: token }),
+				flag: token,
+				min: 0,
+				max: 100,
+			});
+			index += 1;
+			continue;
+		}
+		if (token === "--beauty") {
+			parsed.beauty = parseNumber({
+				value: readOptionValue({ argv, index, flag: token }),
+				flag: token,
+				min: 0,
+				max: 100,
+			});
+			index += 1;
+			continue;
+		}
 		if (token === "--preset") {
 			parsed.preset = readOptionValue({ argv, index, flag: token });
 			index += 1;
@@ -280,6 +310,8 @@ export function parseVlogOptions({
 			outputDir: "",
 			finalName: "",
 			backgroundFit: "cover",
+			portraitFilter: DEFAULT_PORTRAIT_FILTER,
+			beauty: DEFAULT_BEAUTY,
 			preset: "default",
 			model: "scribe_v2",
 			silenceThreshold: DEFAULT_SILENCE_THRESHOLD,
@@ -310,6 +342,9 @@ export function parseVlogOptions({
 		finalName: resolveFinalName({ input, value: parsed.finalName }),
 		background: parsed.background ? resolve(cwd, parsed.background) : undefined,
 		backgroundFit: resolveBackgroundFit({ value: parsed.backgroundFit }),
+		portraitFilter: parsed.portraitFilter ?? DEFAULT_PORTRAIT_FILTER,
+		filterIntensity: parsed.filterIntensity,
+		beauty: parsed.beauty ?? DEFAULT_BEAUTY,
 		preset: resolvePreset({ value: parsed.preset }),
 		style: parsed.style,
 		model: parsed.model ?? "scribe_v2",
@@ -340,6 +375,7 @@ export function createVlogPaths({
 		options.outputDir,
 		`${stem}_clean${extname(options.input)}`
 	);
+	const portraitVideo = join(options.outputDir, `${stem}_vlog_portrait.mp4`);
 	const cutoutVideo = join(options.outputDir, `${stem}_cutout.webm`);
 	const editableVideo = join(options.outputDir, `${stem}_vlog_editable.mp4`);
 	const finalVideo = join(options.outputDir, options.finalName);
@@ -351,6 +387,9 @@ export function createVlogPaths({
 	}
 	if (resolve(editableVideo) === resolve(options.input)) {
 		throw new Error("Editable-video output cannot replace the source video");
+	}
+	if (resolve(portraitVideo) === resolve(options.input)) {
+		throw new Error("Portrait-video output cannot replace the source video");
 	}
 	if (resolve(finalVideo) === resolve(editableVideo)) {
 		throw new Error("Final and editable video outputs must be different files");
@@ -374,6 +413,7 @@ export function createVlogPaths({
 		cuts: join(metadataDir, "cuts.json"),
 		keeps: join(metadataDir, "keeps.json"),
 		cleanVideo,
+		portraitVideo,
 		cutoutVideo,
 		editableVideo,
 		cleanAudio: join(options.outputDir, `${stem}_clean_audio.mp3`),
@@ -397,6 +437,9 @@ Options:
       --final-name <name.mp4>     Final filename
   -b, --background <image>        Cut out the person and composite this image
       --background-fit <mode>     cover|contain|stretch (default: cover)
+      --portrait-filter <name>    Portrait preset (default: soft-skin; use none to disable)
+      --filter-intensity <0-100>  Override the portrait preset intensity
+      --beauty <0-100>            Skin smoothing amount (default: 25)
       --preset <name>             default|cinematic|bold|minimal|karaoke|news
       --style <json>              Subtitle style overrides
       --model <name>              Transcription model (default: scribe_v2)

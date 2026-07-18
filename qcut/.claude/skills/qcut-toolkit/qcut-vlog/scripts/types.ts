@@ -14,6 +14,7 @@ export type VlogBackgroundFit = (typeof VLOG_BACKGROUND_FITS)[number];
 
 export type VlogStage =
 	| "clean"
+	| "portrait"
 	| "background"
 	| "extract-audio"
 	| "transcribe"
@@ -26,6 +27,9 @@ export interface VlogOptions {
 	finalName: string;
 	background?: string;
 	backgroundFit: VlogBackgroundFit;
+	portraitFilter: string;
+	filterIntensity?: number;
+	beauty: number;
 	preset: VlogPreset;
 	style?: string;
 	model: string;
@@ -54,6 +58,7 @@ export interface VlogPaths {
 	cuts: string;
 	keeps: string;
 	cleanVideo: string;
+	portraitVideo: string;
 	cutoutVideo: string;
 	editableVideo: string;
 	cleanAudio: string;
@@ -135,7 +140,7 @@ export interface CommandRecord {
 }
 
 export interface VlogManifest {
-	schemaVersion: 2;
+	schemaVersion: 3;
 	workflow: "qcut-vlog";
 	input: string;
 	outputDir: string;
@@ -145,6 +150,9 @@ export interface VlogManifest {
 		finalName: string;
 		background?: string;
 		backgroundFit: VlogBackgroundFit;
+		portraitFilter: string;
+		filterIntensity?: number;
+		beauty: number;
 		preset: VlogPreset;
 		style?: string;
 		model: string;
@@ -158,6 +166,7 @@ export interface VlogManifest {
 	};
 	artifacts: {
 		cleanVideo: string;
+		portraitVideo?: string;
 		backgroundImage?: string;
 		cutoutVideo?: string;
 		editableVideo: string;
