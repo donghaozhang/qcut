@@ -1,0 +1,149 @@
+{
+	"schemaVersion": 1,
+	"kind": "qcut-text-template-package",
+	"assetId": "text-fancy-glow-pop",
+	"packageId": "text-fancy-glow",
+	"version": 3,
+	"cacheKey": "text-assets/text-fancy-glow/pop@3",
+	"files": {
+		"thumbnail": "thumbnail.webp",
+		"source": "template.json"
+	},
+	"resources": [
+		{
+			"byteSize": 24364,
+			"checksumSha256": "e3926fc73ec74d602ad8583ac359e7280e4245043c89c597e5c61cd614290339",
+			"mimeType": "image/webp",
+			"path": "thumbnail.webp",
+			"role": "thumbnail",
+			"url": "/text-assets/text-fancy-glow/pop@3/thumbnail.webp"
+		},
+		{
+			"byteSize": 2335,
+			"checksumSha256": "1270c3a83c01384157161ec6773b33291292af5e14b3c1d4c688cc2487c9d49c",
+			"mimeType": "application/json",
+			"path": "template.json",
+			"role": "source",
+			"url": "/text-assets/text-fancy-glow/pop@3/template.json"
+		}
+	],
+	"source": {
+		"schemaVersion": 1,
+		"assetId": "text-fancy-glow-pop",
+		"packageId": "text-fancy-glow",
+		"version": 3,
+		"marketplace": {
+			"editorialRank": 14,
+			"heatScore": 95,
+			"remoteTags": [
+				"category:glow",
+				"group:fancy",
+				"variant:pop",
+				"effect:glow",
+				"scene:night"
+			],
+			"searchAliases": [
+				"发光",
+				"霓虹",
+				"夜景",
+				"neon"
+			]
+		},
+		"definition": {
+			"id": "glow-pop",
+			"name": "发光弹幕",
+			"category": "glow",
+			"groupId": "fancy",
+			"variantId": "pop",
+			"content": "花字",
+			"stylePresetId": "yellow-pop",
+			"keywords": [
+				"glow",
+				"发光",
+				"花字",
+				"pop",
+				"弹幕",
+				"综艺",
+				"冲击",
+				"variety",
+				"glow-pop",
+				"发光弹幕",
+				"fancy"
+			],
+			"premium": true,
+			"downloaded": false,
+			"resource": {
+				"assetId": "text-fancy-glow-pop",
+				"packageId": "text-fancy-glow",
+				"version": 3,
+				"entitlement": "svip",
+				"cacheKey": "text-assets/text-fancy-glow/pop@3",
+				"sizeKb": 384
+			},
+			"catalogVisible": true,
+			"overrides": {
+				"fontSize": 72,
+				"color": "#f0abfc",
+				"fontWeight": "bold",
+				"strokeColor": "#083344",
+				"strokeWidth": 4,
+				"shadowColor": "#06b6d4",
+				"shadowOpacity": 0.45,
+				"shadowOffsetX": 5,
+				"shadowOffsetY": 6,
+				"shadowBlur": 2,
+				"curve": -12,
+				"rotation": -2,
+				"width": 780,
+				"height": 230,
+				"animationType": "slide-up"
+			}
+		},
+		"template": {
+			"id": "glow-pop",
+			"type": "text",
+			"name": "发光弹幕",
+			"content": "花字",
+			"fontSize": 72,
+			"fontFamily": "Arial",
+			"color": "#f0abfc",
+			"backgroundColor": "transparent",
+			"textAlign": "center",
+			"fontWeight": "bold",
+			"fontStyle": "normal",
+			"textDecoration": "none",
+			"x": 0,
+			"y": 0,
+			"rotation": -2,
+			"opacity": 1,
+			"width": 780,
+			"height": 230,
+			"letterSpacing": 0,
+			"lineHeight": 1.2,
+			"verticalAlign": "middle",
+			"strokeColor": "#083344",
+			"strokeWidth": 4,
+			"strokeOpacity": 1,
+			"backgroundOpacity": 0,
+			"backgroundRadius": 4,
+			"backgroundPadding": 12,
+			"shadowColor": "#06b6d4",
+			"shadowOpacity": 0.45,
+			"shadowOffsetX": 5,
+			"shadowOffsetY": 6,
+			"shadowBlur": 2,
+			"glowColor": "#ffffff",
+			"glowOpacity": 0,
+			"glowBlur": 12,
+			"curve": -12,
+			"animationType": "slide-up",
+			"animationDuration": 0.6,
+			"animationDelay": 0,
+			"blendMode": "normal",
+			"duration": 5,
+			"startTime": 0,
+			"trimStart": 0,
+			"trimEnd": 0
+		}
+	}
+}

@@ -1,0 +1,140 @@
+{
+	"schemaVersion": 1,
+	"kind": "qcut-text-template-package",
+	"assetId": "text-new-text-title-stamp",
+	"packageId": "text-new-text-title",
+	"version": 2,
+	"cacheKey": "text-assets/text-new-text-title/stamp@2",
+	"files": {
+		"thumbnail": "thumbnail.webp",
+		"source": "template.json"
+	},
+	"resources": [
+		{
+			"byteSize": 19334,
+			"checksumSha256": "4b7589ff0c273e076cf897d09d2b88eb698603e9c5bd704c479086bcf0113a24",
+			"mimeType": "image/webp",
+			"path": "thumbnail.webp",
+			"role": "thumbnail",
+			"url": "/text-assets/text-new-text-title/stamp@2/thumbnail.webp"
+		},
+		{
+			"byteSize": 2292,
+			"checksumSha256": "caa2ee37811d2a7d12435e8ed74e5d7ab06d240a3ba1cacaf9c480efa1350b98",
+			"mimeType": "application/json",
+			"path": "template.json",
+			"role": "source",
+			"url": "/text-assets/text-new-text-title/stamp@2/template.json"
+		}
+	],
+	"source": {
+		"schemaVersion": 1,
+		"assetId": "text-new-text-title-stamp",
+		"packageId": "text-new-text-title",
+		"version": 2,
+		"marketplace": {
+			"editorialRank": 120,
+			"heatScore": 77,
+			"remoteTags": [
+				"category:title",
+				"group:new-text",
+				"variant:stamp"
+			],
+			"searchAliases": []
+		},
+		"definition": {
+			"id": "title-stamp",
+			"name": "标题印章",
+			"category": "title",
+			"groupId": "new-text",
+			"variantId": "stamp",
+			"content": "标题",
+			"stylePresetId": "red-label",
+			"keywords": [
+				"title",
+				"标题",
+				"stamp",
+				"印章",
+				"国风",
+				"红色",
+				"title-stamp",
+				"标题印章",
+				"new-text"
+			],
+			"premium": false,
+			"downloaded": false,
+			"resource": {
+				"assetId": "text-new-text-title-stamp",
+				"packageId": "text-new-text-title",
+				"version": 2,
+				"entitlement": "free",
+				"cacheKey": "text-assets/text-new-text-title/stamp@2",
+				"sizeKb": 192
+			},
+			"catalogVisible": true,
+			"overrides": {
+				"fontSize": 60,
+				"color": "#2563eb",
+				"fontWeight": "bold",
+				"strokeColor": "#2563eb",
+				"strokeWidth": 4,
+				"backgroundColor": "transparent",
+				"backgroundOpacity": 0,
+				"backgroundRadius": 4,
+				"backgroundPadding": 0,
+				"letterSpacing": 2,
+				"rotation": -6,
+				"width": 560,
+				"height": 170,
+				"shadowColor": "#0f172a",
+				"shadowOpacity": 0.35
+			}
+		},
+		"template": {
+			"id": "title-stamp",
+			"type": "text",
+			"name": "标题印章",
+			"content": "标题",
+			"fontSize": 60,
+			"fontFamily": "Arial",
+			"color": "#2563eb",
+			"backgroundColor": "transparent",
+			"textAlign": "center",
+			"fontWeight": "bold",
+			"fontStyle": "normal",
+			"textDecoration": "none",
+			"x": 0,
+			"y": 0,
+			"rotation": -6,
+			"opacity": 1,
+			"width": 560,
+			"height": 170,
+			"letterSpacing": 2,
+			"lineHeight": 1.2,
+			"verticalAlign": "middle",
+			"strokeColor": "#2563eb",
+			"strokeWidth": 4,
+			"strokeOpacity": 1,
+			"backgroundOpacity": 0,
+			"backgroundRadius": 4,
+			"backgroundPadding": 0,
+			"shadowColor": "#0f172a",
+			"shadowOpacity": 0.35,
+			"shadowOffsetX": 2,
+			"shadowOffsetY": 4,
+			"shadowBlur": 8,
+			"glowColor": "#ffffff",
+			"glowOpacity": 0,
+			"glowBlur": 12,
+			"curve": 0,
+			"animationType": "none",
+			"animationDuration": 0.6,
+			"animationDelay": 0,
+			"blendMode": "normal",
+			"duration": 5,
+			"startTime": 0,
+			"trimStart": 0,
+			"trimEnd": 0
+		}
+	}
+}

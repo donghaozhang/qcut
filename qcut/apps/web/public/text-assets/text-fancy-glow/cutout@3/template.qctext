@@ -1,0 +1,145 @@
+{
+	"schemaVersion": 1,
+	"kind": "qcut-text-template-package",
+	"assetId": "text-fancy-glow-cutout",
+	"packageId": "text-fancy-glow",
+	"version": 3,
+	"cacheKey": "text-assets/text-fancy-glow/cutout@3",
+	"files": {
+		"thumbnail": "thumbnail.webp",
+		"source": "template.json"
+	},
+	"resources": [
+		{
+			"byteSize": 24376,
+			"checksumSha256": "8440710195f45f67e38531f6f94e9847734e13bb35dd9759a02fc6ba1417eefc",
+			"mimeType": "image/webp",
+			"path": "thumbnail.webp",
+			"role": "thumbnail",
+			"url": "/text-assets/text-fancy-glow/cutout@3/thumbnail.webp"
+		},
+		{
+			"byteSize": 2273,
+			"checksumSha256": "f4f50efd84cd68e58e891a5f76d18b721a049121fe8ebf1cfdd7b04ae0ba04fd",
+			"mimeType": "application/json",
+			"path": "template.json",
+			"role": "source",
+			"url": "/text-assets/text-fancy-glow/cutout@3/template.json"
+		}
+	],
+	"source": {
+		"schemaVersion": 1,
+		"assetId": "text-fancy-glow-cutout",
+		"packageId": "text-fancy-glow",
+		"version": 3,
+		"marketplace": {
+			"editorialRank": 14,
+			"heatScore": 95,
+			"remoteTags": [
+				"category:glow",
+				"group:fancy",
+				"variant:cutout",
+				"effect:glow",
+				"scene:night"
+			],
+			"searchAliases": [
+				"发光",
+				"霓虹",
+				"夜景",
+				"neon"
+			]
+		},
+		"definition": {
+			"id": "glow-cutout",
+			"name": "发光剪纸",
+			"category": "glow",
+			"groupId": "fancy",
+			"variantId": "cutout",
+			"content": "花字",
+			"stylePresetId": "blue-outline",
+			"keywords": [
+				"glow",
+				"发光",
+				"花字",
+				"cutout",
+				"剪纸",
+				"贴边",
+				"层次",
+				"glow-cutout",
+				"发光剪纸",
+				"fancy"
+			],
+			"premium": true,
+			"downloaded": false,
+			"resource": {
+				"assetId": "text-fancy-glow-cutout",
+				"packageId": "text-fancy-glow",
+				"version": 3,
+				"entitlement": "svip",
+				"cacheKey": "text-assets/text-fancy-glow/cutout@3",
+				"sizeKb": 384
+			},
+			"catalogVisible": true,
+			"overrides": {
+				"fontSize": 70,
+				"color": "#cffafe",
+				"fontWeight": "bold",
+				"strokeColor": "#06b6d4",
+				"strokeWidth": 7,
+				"shadowColor": "#083344",
+				"shadowOpacity": 0.4,
+				"shadowOffsetX": 7,
+				"shadowOffsetY": 7,
+				"shadowBlur": 0,
+				"width": 760,
+				"height": 220
+			}
+		},
+		"template": {
+			"id": "glow-cutout",
+			"type": "text",
+			"name": "发光剪纸",
+			"content": "花字",
+			"fontSize": 70,
+			"fontFamily": "Arial",
+			"color": "#cffafe",
+			"backgroundColor": "transparent",
+			"textAlign": "center",
+			"fontWeight": "bold",
+			"fontStyle": "normal",
+			"textDecoration": "none",
+			"x": 0,
+			"y": 0,
+			"rotation": 0,
+			"opacity": 1,
+			"width": 760,
+			"height": 220,
+			"letterSpacing": 0,
+			"lineHeight": 1.2,
+			"verticalAlign": "middle",
+			"strokeColor": "#06b6d4",
+			"strokeWidth": 7,
+			"strokeOpacity": 1,
+			"backgroundOpacity": 0,
+			"backgroundRadius": 4,
+			"backgroundPadding": 12,
+			"shadowColor": "#083344",
+			"shadowOpacity": 0.4,
+			"shadowOffsetX": 7,
+			"shadowOffsetY": 7,
+			"shadowBlur": 0,
+			"glowColor": "#ffffff",
+			"glowOpacity": 0,
+			"glowBlur": 12,
+			"curve": 0,
+			"animationType": "none",
+			"animationDuration": 0.6,
+			"animationDelay": 0,
+			"blendMode": "normal",
+			"duration": 5,
+			"startTime": 0,
+			"trimStart": 0,
+			"trimEnd": 0
+		}
+	}
+}

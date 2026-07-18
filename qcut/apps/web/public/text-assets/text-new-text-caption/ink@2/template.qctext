@@ -1,0 +1,141 @@
+{
+	"schemaVersion": 1,
+	"kind": "qcut-text-template-package",
+	"assetId": "text-new-text-caption-ink",
+	"packageId": "text-new-text-caption",
+	"version": 2,
+	"cacheKey": "text-assets/text-new-text-caption/ink@2",
+	"files": {
+		"thumbnail": "thumbnail.webp",
+		"source": "template.json"
+	},
+	"resources": [
+		{
+			"byteSize": 20692,
+			"checksumSha256": "dcda2cdb595b483c5f9171fca64e8de7df62df2f45401d9ffe2c2e6e3ab22606",
+			"mimeType": "image/webp",
+			"path": "thumbnail.webp",
+			"role": "thumbnail",
+			"url": "/text-assets/text-new-text-caption/ink@2/thumbnail.webp"
+		},
+		{
+			"byteSize": 2297,
+			"checksumSha256": "b02c2fff7eea3c3109414d426172bf7cbd0d1890fb475911ea0bea153d2794ff",
+			"mimeType": "application/json",
+			"path": "template.json",
+			"role": "source",
+			"url": "/text-assets/text-new-text-caption/ink@2/template.json"
+		}
+	],
+	"source": {
+		"schemaVersion": 1,
+		"assetId": "text-new-text-caption-ink",
+		"packageId": "text-new-text-caption",
+		"version": 2,
+		"marketplace": {
+			"editorialRank": 120,
+			"heatScore": 81,
+			"remoteTags": [
+				"category:caption",
+				"group:new-text",
+				"variant:ink"
+			],
+			"searchAliases": []
+		},
+		"definition": {
+			"id": "caption-ink",
+			"name": "说明水墨",
+			"category": "caption",
+			"groupId": "new-text",
+			"variantId": "ink",
+			"content": "说明文字",
+			"stylePresetId": "editorial",
+			"keywords": [
+				"caption",
+				"说明",
+				"说明文字",
+				"ink",
+				"水墨",
+				"国风",
+				"书法",
+				"brush",
+				"caption-ink",
+				"说明水墨",
+				"new-text"
+			],
+			"premium": true,
+			"downloaded": false,
+			"resource": {
+				"assetId": "text-new-text-caption-ink",
+				"packageId": "text-new-text-caption",
+				"version": 2,
+				"entitlement": "svip",
+				"cacheKey": "text-assets/text-new-text-caption/ink@2",
+				"sizeKb": 384
+			},
+			"catalogVisible": true,
+			"overrides": {
+				"fontSize": 76,
+				"fontFamily": "serif",
+				"color": "#111827",
+				"fontWeight": "bold",
+				"fontStyle": "italic",
+				"strokeColor": "#e5e7eb",
+				"strokeWidth": 1,
+				"shadowColor": "#374151",
+				"shadowOpacity": 0.45,
+				"shadowOffsetX": 3,
+				"shadowOffsetY": 5,
+				"shadowBlur": 7,
+				"width": 760,
+				"height": 230
+			}
+		},
+		"template": {
+			"id": "caption-ink",
+			"type": "text",
+			"name": "说明水墨",
+			"content": "说明文字",
+			"fontSize": 76,
+			"fontFamily": "serif",
+			"color": "#111827",
+			"backgroundColor": "transparent",
+			"textAlign": "center",
+			"fontWeight": "bold",
+			"fontStyle": "italic",
+			"textDecoration": "none",
+			"x": 0,
+			"y": 0,
+			"rotation": 0,
+			"opacity": 1,
+			"width": 760,
+			"height": 230,
+			"letterSpacing": 1,
+			"lineHeight": 1.2,
+			"verticalAlign": "middle",
+			"strokeColor": "#e5e7eb",
+			"strokeWidth": 1,
+			"strokeOpacity": 1,
+			"backgroundOpacity": 0,
+			"backgroundRadius": 4,
+			"backgroundPadding": 12,
+			"shadowColor": "#374151",
+			"shadowOpacity": 0.45,
+			"shadowOffsetX": 3,
+			"shadowOffsetY": 5,
+			"shadowBlur": 7,
+			"glowColor": "#ffffff",
+			"glowOpacity": 0,
+			"glowBlur": 12,
+			"curve": 0,
+			"animationType": "none",
+			"animationDuration": 0.6,
+			"animationDelay": 0,
+			"blendMode": "normal",
+			"duration": 5,
+			"startTime": 0,
+			"trimStart": 0,
+			"trimEnd": 0
+		}
+	}
+}

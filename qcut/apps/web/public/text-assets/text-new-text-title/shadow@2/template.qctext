@@ -1,0 +1,137 @@
+{
+	"schemaVersion": 1,
+	"kind": "qcut-text-template-package",
+	"assetId": "text-new-text-title-shadow",
+	"packageId": "text-new-text-title",
+	"version": 2,
+	"cacheKey": "text-assets/text-new-text-title/shadow@2",
+	"files": {
+		"thumbnail": "thumbnail.webp",
+		"source": "template.json"
+	},
+	"resources": [
+		{
+			"byteSize": 19168,
+			"checksumSha256": "e88972c15bd967f92c846ecdba5e72261690717a910d05dc9998287987ba208f",
+			"mimeType": "image/webp",
+			"path": "thumbnail.webp",
+			"role": "thumbnail",
+			"url": "/text-assets/text-new-text-title/shadow@2/thumbnail.webp"
+		},
+		{
+			"byteSize": 2208,
+			"checksumSha256": "15a2a362878796aa9b70b6885ca9384ab7565b7cb38919db5cd4c6846a894197",
+			"mimeType": "application/json",
+			"path": "template.json",
+			"role": "source",
+			"url": "/text-assets/text-new-text-title/shadow@2/template.json"
+		}
+	],
+	"source": {
+		"schemaVersion": 1,
+		"assetId": "text-new-text-title-shadow",
+		"packageId": "text-new-text-title",
+		"version": 2,
+		"marketplace": {
+			"editorialRank": 120,
+			"heatScore": 77,
+			"remoteTags": [
+				"category:title",
+				"group:new-text",
+				"variant:shadow"
+			],
+			"searchAliases": []
+		},
+		"definition": {
+			"id": "title-shadow",
+			"name": "标题重影",
+			"category": "title",
+			"groupId": "new-text",
+			"variantId": "shadow",
+			"content": "标题",
+			"stylePresetId": "soft-shadow",
+			"keywords": [
+				"title",
+				"标题",
+				"shadow",
+				"重影",
+				"投影",
+				"立体",
+				"title-shadow",
+				"标题重影",
+				"new-text"
+			],
+			"premium": false,
+			"downloaded": false,
+			"resource": {
+				"assetId": "text-new-text-title-shadow",
+				"packageId": "text-new-text-title",
+				"version": 2,
+				"entitlement": "free",
+				"cacheKey": "text-assets/text-new-text-title/shadow@2",
+				"sizeKb": 192
+			},
+			"catalogVisible": true,
+			"overrides": {
+				"fontSize": 72,
+				"color": "#f8fafc",
+				"fontWeight": "bold",
+				"strokeColor": "#0f172a",
+				"strokeWidth": 2,
+				"shadowColor": "#2563eb",
+				"shadowOpacity": 0.9,
+				"shadowOffsetX": 8,
+				"shadowOffsetY": 8,
+				"shadowBlur": 0,
+				"width": 760,
+				"height": 220
+			}
+		},
+		"template": {
+			"id": "title-shadow",
+			"type": "text",
+			"name": "标题重影",
+			"content": "标题",
+			"fontSize": 72,
+			"fontFamily": "Arial",
+			"color": "#f8fafc",
+			"backgroundColor": "transparent",
+			"textAlign": "center",
+			"fontWeight": "bold",
+			"fontStyle": "normal",
+			"textDecoration": "none",
+			"x": 0,
+			"y": 0,
+			"rotation": 0,
+			"opacity": 1,
+			"width": 760,
+			"height": 220,
+			"letterSpacing": 0,
+			"lineHeight": 1.2,
+			"verticalAlign": "middle",
+			"strokeColor": "#0f172a",
+			"strokeWidth": 2,
+			"strokeOpacity": 1,
+			"backgroundOpacity": 0,
+			"backgroundRadius": 4,
+			"backgroundPadding": 12,
+			"shadowColor": "#2563eb",
+			"shadowOpacity": 0.9,
+			"shadowOffsetX": 8,
+			"shadowOffsetY": 8,
+			"shadowBlur": 0,
+			"glowColor": "#ffffff",
+			"glowOpacity": 0,
+			"glowBlur": 12,
+			"curve": 0,
+			"animationType": "none",
+			"animationDuration": 0.6,
+			"animationDelay": 0,
+			"blendMode": "normal",
+			"duration": 5,
+			"startTime": 0,
+			"trimStart": 0,
+			"trimEnd": 0
+		}
+	}
+}

@@ -1,0 +1,146 @@
+{
+	"schemaVersion": 1,
+	"kind": "qcut-text-template-package",
+	"assetId": "text-fancy-summer-outline",
+	"packageId": "text-fancy-summer",
+	"version": 3,
+	"cacheKey": "text-assets/text-fancy-summer/outline@3",
+	"files": {
+		"thumbnail": "thumbnail.webp",
+		"source": "template.json"
+	},
+	"resources": [
+		{
+			"byteSize": 20574,
+			"checksumSha256": "e32fb7ef42e822fdb0b041f23b6595845cd368ed46ad3e511a31d787e84af10a",
+			"mimeType": "image/webp",
+			"path": "thumbnail.webp",
+			"role": "thumbnail",
+			"url": "/text-assets/text-fancy-summer/outline@3/thumbnail.webp"
+		},
+		{
+			"byteSize": 2320,
+			"checksumSha256": "6e99f850e715f5ad1cb50825d9e4d01a49f5db50c5b26ee053bd817e5a9e34ac",
+			"mimeType": "application/json",
+			"path": "template.json",
+			"role": "source",
+			"url": "/text-assets/text-fancy-summer/outline@3/template.json"
+		}
+	],
+	"source": {
+		"schemaVersion": 1,
+		"assetId": "text-fancy-summer-outline",
+		"packageId": "text-fancy-summer",
+		"version": 3,
+		"marketplace": {
+			"editorialRank": 34,
+			"heatScore": 92,
+			"remoteTags": [
+				"category:summer",
+				"group:fancy",
+				"variant:outline",
+				"season:summer",
+				"tone:fresh"
+			],
+			"searchAliases": [
+				"夏日",
+				"清爽",
+				"活动",
+				"节日",
+				"旅行",
+				"summer"
+			]
+		},
+		"definition": {
+			"id": "summer-outline",
+			"name": "夏日描边",
+			"category": "summer",
+			"groupId": "fancy",
+			"variantId": "outline",
+			"content": "夏日",
+			"stylePresetId": "blue-outline",
+			"keywords": [
+				"summer",
+				"夏日",
+				"outline",
+				"描边",
+				"轮廓",
+				"stroke",
+				"summer-outline",
+				"夏日描边",
+				"fancy"
+			],
+			"premium": true,
+			"downloaded": false,
+			"resource": {
+				"assetId": "text-fancy-summer-outline",
+				"packageId": "text-fancy-summer",
+				"version": 3,
+				"entitlement": "svip",
+				"cacheKey": "text-assets/text-fancy-summer/outline@3",
+				"sizeKb": 384
+			},
+			"catalogVisible": true,
+			"overrides": {
+				"fontSize": 72,
+				"color": "#ffedd5",
+				"fontWeight": "bold",
+				"strokeColor": "#fb923c",
+				"strokeWidth": 5,
+				"shadowColor": "#7c2d12",
+				"shadowOpacity": 0.3,
+				"shadowOffsetX": 4,
+				"shadowOffsetY": 5,
+				"shadowBlur": 3,
+				"width": 760,
+				"height": 210
+			}
+		},
+		"template": {
+			"id": "summer-outline",
+			"type": "text",
+			"name": "夏日描边",
+			"content": "夏日",
+			"fontSize": 72,
+			"fontFamily": "Arial",
+			"color": "#ffedd5",
+			"backgroundColor": "transparent",
+			"textAlign": "center",
+			"fontWeight": "bold",
+			"fontStyle": "normal",
+			"textDecoration": "none",
+			"x": 0,
+			"y": 0,
+			"rotation": 0,
+			"opacity": 1,
+			"width": 760,
+			"height": 210,
+			"letterSpacing": 0,
+			"lineHeight": 1.2,
+			"verticalAlign": "middle",
+			"strokeColor": "#fb923c",
+			"strokeWidth": 5,
+			"strokeOpacity": 1,
+			"backgroundOpacity": 0,
+			"backgroundRadius": 4,
+			"backgroundPadding": 12,
+			"shadowColor": "#7c2d12",
+			"shadowOpacity": 0.3,
+			"shadowOffsetX": 4,
+			"shadowOffsetY": 5,
+			"shadowBlur": 3,
+			"glowColor": "#ffffff",
+			"glowOpacity": 0,
+			"glowBlur": 12,
+			"curve": 0,
+			"animationType": "none",
+			"animationDuration": 0.6,
+			"animationDelay": 0,
+			"blendMode": "normal",
+			"duration": 5,
+			"startTime": 0,
+			"trimStart": 0,
+			"trimEnd": 0
+		}
+	}
+}

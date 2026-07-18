@@ -1,0 +1,147 @@
+{
+	"schemaVersion": 1,
+	"kind": "qcut-text-template-package",
+	"assetId": "text-fancy-black-white-ribbon",
+	"packageId": "text-fancy-black-white",
+	"version": 3,
+	"cacheKey": "text-assets/text-fancy-black-white/ribbon@3",
+	"files": {
+		"thumbnail": "thumbnail.webp",
+		"source": "template.json"
+	},
+	"resources": [
+		{
+			"byteSize": 17880,
+			"checksumSha256": "be99eafb05d15b236906492c65cdfa839213bb9aa5c7affc85bfbc771ac32ae4",
+			"mimeType": "image/webp",
+			"path": "thumbnail.webp",
+			"role": "thumbnail",
+			"url": "/text-assets/text-fancy-black-white/ribbon@3/thumbnail.webp"
+		},
+		{
+			"byteSize": 2424,
+			"checksumSha256": "82607683c17e9e028edffe71f1e6bca3c05600c2c3245f751dbb322ceece7250",
+			"mimeType": "application/json",
+			"path": "template.json",
+			"role": "source",
+			"url": "/text-assets/text-fancy-black-white/ribbon@3/template.json"
+		}
+	],
+	"source": {
+		"schemaVersion": 1,
+		"assetId": "text-fancy-black-white-ribbon",
+		"packageId": "text-fancy-black-white",
+		"version": 3,
+		"marketplace": {
+			"editorialRank": 42,
+			"heatScore": 91,
+			"remoteTags": [
+				"category:black-white",
+				"group:fancy",
+				"variant:ribbon",
+				"color:black-white",
+				"tone:classic"
+			],
+			"searchAliases": [
+				"黑白",
+				"高对比",
+				"经典",
+				"bw"
+			]
+		},
+		"definition": {
+			"id": "black-white-ribbon",
+			"name": "黑白飘带",
+			"category": "black-white",
+			"groupId": "fancy",
+			"variantId": "ribbon",
+			"content": "花字",
+			"stylePresetId": "red-label",
+			"keywords": [
+				"black-white",
+				"黑白",
+				"花字",
+				"ribbon",
+				"飘带",
+				"横幅",
+				"促销",
+				"black-white-ribbon",
+				"黑白飘带",
+				"fancy"
+			],
+			"premium": true,
+			"downloaded": false,
+			"resource": {
+				"assetId": "text-fancy-black-white-ribbon",
+				"packageId": "text-fancy-black-white",
+				"version": 3,
+				"entitlement": "svip",
+				"cacheKey": "text-assets/text-fancy-black-white/ribbon@3",
+				"sizeKb": 384
+			},
+			"catalogVisible": true,
+			"overrides": {
+				"fontSize": 62,
+				"color": "#ffffff",
+				"fontWeight": "bold",
+				"strokeColor": "#000000",
+				"strokeWidth": 4,
+				"backgroundColor": "transparent",
+				"backgroundOpacity": 0,
+				"backgroundRadius": 4,
+				"backgroundPadding": 0,
+				"curve": -8,
+				"width": 720,
+				"height": 190,
+				"shadowColor": "#000000",
+				"shadowOpacity": 0.35
+			}
+		},
+		"template": {
+			"id": "black-white-ribbon",
+			"type": "text",
+			"name": "黑白飘带",
+			"content": "花字",
+			"fontSize": 62,
+			"fontFamily": "Arial",
+			"color": "#ffffff",
+			"backgroundColor": "transparent",
+			"textAlign": "center",
+			"fontWeight": "bold",
+			"fontStyle": "normal",
+			"textDecoration": "none",
+			"x": 0,
+			"y": 0,
+			"rotation": 0,
+			"opacity": 1,
+			"width": 720,
+			"height": 190,
+			"letterSpacing": 0,
+			"lineHeight": 1.2,
+			"verticalAlign": "middle",
+			"strokeColor": "#000000",
+			"strokeWidth": 4,
+			"strokeOpacity": 1,
+			"backgroundOpacity": 0,
+			"backgroundRadius": 4,
+			"backgroundPadding": 0,
+			"shadowColor": "#000000",
+			"shadowOpacity": 0.35,
+			"shadowOffsetX": 2,
+			"shadowOffsetY": 4,
+			"shadowBlur": 8,
+			"glowColor": "#ffffff",
+			"glowOpacity": 0,
+			"glowBlur": 12,
+			"curve": -8,
+			"animationType": "none",
+			"animationDuration": 0.6,
+			"animationDelay": 0,
+			"blendMode": "normal",
+			"duration": 5,
+			"startTime": 0,
+			"trimStart": 0,
+			"trimEnd": 0
+		}
+	}
+}
