@@ -147,6 +147,48 @@ describe("buildFFmpegArgs", () => {
 			expect(args).toContain("[a_0]");
 		});
 
+		it("places person effect media before audio and assigns its filter input", () => {
+			const args = buildFFmpegArgs(
+				createBaseOptions({
+					videoSources: [
+						{
+							path: "/person.mp4",
+							startTime: 0,
+							duration: 2,
+							effectRenderProgram: {
+								version: 1,
+								stages: [
+									{
+										kind: "person-tracking",
+										target: "person",
+										treatment: "background-blur",
+										fallback: "disable",
+									},
+								],
+							},
+							effectPersonSources: [
+								{
+									stageIndex: 0,
+									path: "/person-alpha.webm",
+									animated: true,
+								},
+							],
+						},
+					],
+					audioFiles: [{ path: "/voice.wav", startTime: 0, volume: 1 }],
+				})
+			);
+			expect(args.indexOf("/person.mp4")).toBeLessThan(
+				args.indexOf("/person-alpha.webm")
+			);
+			expect(args.indexOf("/person-alpha.webm")).toBeLessThan(
+				args.indexOf("/voice.wav")
+			);
+			const filter = args[args.indexOf("-filter_complex") + 1];
+			expect(filter).toContain("[1:v]trim=start=0:duration=2");
+			expect(filter).toContain("gblur=sigma=12");
+		});
+
 		it("applies per-clip audio processing before mixing", () => {
 			const args = buildFFmpegArgs(
 				createBaseOptions({
