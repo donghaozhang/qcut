@@ -1,5 +1,6 @@
 import {
 	VISUAL_EFFECT_CATEGORY_IDS,
+	type EffectCatalogEntry,
 	type VisualEffectCatalogEntry,
 	type VisualEffectCategoryId,
 } from "./effect-catalog-types";
@@ -29,14 +30,16 @@ export function auditEffectCatalogCoverage({
 	minimum = 2,
 	maximum = 3,
 }: {
-	entries: readonly VisualEffectCatalogEntry[];
+	entries: readonly EffectCatalogEntry[];
 	minimum?: number;
 	maximum?: number;
 }): EffectCategoryCoverage[] {
 	return VISUAL_EFFECT_CATEGORY_IDS.map((category) => {
 		const count = entries.filter(
 			(entry) =>
-				entry.publication === "published" && entry.category === category
+				entry.family === "visual" &&
+				entry.publication === "published" &&
+				entry.category === category
 		).length;
 		const status = resolveCoverageStatus({ count, minimum, maximum });
 		return { category, count, status };
@@ -46,7 +49,7 @@ export function auditEffectCatalogCoverage({
 export function auditEffectRenderContracts({
 	entries,
 }: {
-	entries: readonly VisualEffectCatalogEntry[];
+	entries: readonly EffectCatalogEntry[];
 }): string[] {
 	return entries.flatMap((entry) => {
 		if (entry.publication !== "published") return [];
