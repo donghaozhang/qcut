@@ -315,7 +315,8 @@ if (import.meta.main) {
 	const tracksJsonPath = path.join(sourceDir, "tracks.json");
 	let previousEntries: Record<string, unknown>[] = [];
 	try {
-		previousEntries = JSON.parse(await readFile(tracksJsonPath, "utf8"));
+		const parsed = JSON.parse(await readFile(tracksJsonPath, "utf8"));
+		if (Array.isArray(parsed)) previousEntries = parsed;
 	} catch {
 		// First run: no existing tracks.json to merge.
 	}

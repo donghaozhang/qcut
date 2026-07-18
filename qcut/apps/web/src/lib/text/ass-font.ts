@@ -17,6 +17,10 @@ function runtimePlatform(): string {
 	if (typeof window !== "undefined" && window.electronAPI?.platform) {
 		return window.electronAPI.platform;
 	}
+	// Node contexts (CLI, main process) have no window; use process.platform.
+	if (typeof process !== "undefined" && process.platform) {
+		return process.platform;
+	}
 	return "darwin";
 }
 

@@ -23,7 +23,8 @@ export function useTimelineScrollSync({
 	//
 	// Sync must run on EVERY scroll event: a time-based throttle drops the
 	// final event of a gesture, leaving the mirrored pane permanently offset
-	// by a few pixels. The equality check breaks the assignment echo loop.
+	// by a few pixels. The 1px threshold breaks the assignment echo loop even
+	// when subpixel scroll precision makes strict equality unreachable.
 	// biome-ignore lint/correctness/useExhaustiveDependencies: intentional re-attach when loading state or track count changes
 	useEffect(() => {
 		const rulerViewport = rulerScrollRef.current;
@@ -36,12 +37,12 @@ export function useTimelineScrollSync({
 
 		// Horizontal scroll synchronization between ruler and tracks
 		const handleRulerScroll = () => {
-			if (tracksViewport.scrollLeft !== rulerViewport.scrollLeft) {
+			if (Math.abs(tracksViewport.scrollLeft - rulerViewport.scrollLeft) >= 1) {
 				tracksViewport.scrollLeft = rulerViewport.scrollLeft;
 			}
 		};
 		const handleTracksScroll = () => {
-			if (rulerViewport.scrollLeft !== tracksViewport.scrollLeft) {
+			if (Math.abs(rulerViewport.scrollLeft - tracksViewport.scrollLeft) >= 1) {
 				rulerViewport.scrollLeft = tracksViewport.scrollLeft;
 			}
 		};
@@ -52,12 +53,18 @@ export function useTimelineScrollSync({
 		// Vertical scroll synchronization between track labels and tracks content
 		if (trackLabelsViewport) {
 			const handleTrackLabelsScroll = () => {
-				if (tracksViewport.scrollTop !== trackLabelsViewport.scrollTop) {
+				if (
+					Math.abs(tracksViewport.scrollTop - trackLabelsViewport.scrollTop) >=
+					1
+				) {
 					tracksViewport.scrollTop = trackLabelsViewport.scrollTop;
 				}
 			};
 			const handleTracksVerticalScroll = () => {
-				if (trackLabelsViewport.scrollTop !== tracksViewport.scrollTop) {
+				if (
+					Math.abs(trackLabelsViewport.scrollTop - tracksViewport.scrollTop) >=
+					1
+				) {
 					trackLabelsViewport.scrollTop = tracksViewport.scrollTop;
 				}
 			};
