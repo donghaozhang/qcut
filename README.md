@@ -20,6 +20,35 @@
   <b>Click to watch demo video</b>
 </a>
 
+## Product Tour
+
+### Multi-track editing
+
+Build videos on a professional timeline with live preview, text, stickers, audio, and precise clip controls.
+
+<img src="qcut/docs/assets/readme/qcut-editor-timeline.png" alt="QCut multi-track editor with live preview and text library" width="100%" />
+
+<table width="100%">
+  <tr>
+    <td width="50%" valign="top">
+      <h3>Media workspace</h3>
+      <p>Organize video, audio, images, and reusable assets in one searchable workspace.</p>
+      <img src="qcut/docs/assets/readme/qcut-media-library.png" alt="QCut media library with video and audio assets" width="100%" />
+    </td>
+    <td width="50%" valign="top">
+      <h3>Filter library</h3>
+      <p>Preview curated looks across portrait, landscape, cinematic, vintage, and stylized collections.</p>
+      <img src="qcut/docs/assets/readme/qcut-filter-library.png" alt="QCut filter library and video preview" width="100%" />
+    </td>
+  </tr>
+</table>
+
+### AI video generation
+
+Generate video from text, images, or avatars, compare leading AI models, and add results directly to the timeline.
+
+<img src="qcut/docs/assets/readme/qcut-ai-video-generation.png" alt="QCut AI video generation workspace with model selection and live preview" width="100%" />
+
 ## Why?
 
 - **Privacy**: Your videos stay on your device
