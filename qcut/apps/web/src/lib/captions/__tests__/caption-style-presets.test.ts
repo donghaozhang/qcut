@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import { BUILT_IN_TEXT_PRESETS } from "@/lib/text/text-presets";
 import {
 	CAPTION_STYLE_PRESETS,
+	captionStyleFromTextTemplate,
 	createCaptionStyleFromTextPreset,
 } from "../caption-style-presets";
 
@@ -35,5 +36,26 @@ describe("caption style presets", () => {
 				overrides: {},
 			})
 		).toThrow("Unknown shared text style preset 'missing-style'");
+	});
+});
+
+describe("captionStyleFromTextTemplate", () => {
+	it("converts a qctext template into a legible caption style", () => {
+		const style = captionStyleFromTextTemplate({
+			stylePresetId: "cyan-neon",
+			overrides: { fontSize: 120, color: "#ff00aa" },
+		});
+
+		expect(style).not.toBeNull();
+		expect(style?.fontColor).toBe("#ff00aa");
+		// Fancy-text sizes are clamped into a caption-legible range.
+		expect(style?.fontSize).toBeLessThanOrEqual(64);
+		expect(style?.position.align).toBe("bottom");
+	});
+
+	it("returns null for an unknown style preset instead of throwing", () => {
+		expect(
+			captionStyleFromTextTemplate({ stylePresetId: "missing-style" })
+		).toBeNull();
 	});
 });

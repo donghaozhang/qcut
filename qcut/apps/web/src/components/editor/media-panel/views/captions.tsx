@@ -40,6 +40,7 @@ import type { SubtitleStyle } from "@/types/timeline";
 // REMOVED: import { r2Client } from "@/lib/storage/r2-client";
 import { useTimelineStore } from "@/stores/timeline/timeline-store";
 import { useCaptionsStore } from "@/stores/captions-store";
+import { CaptionTemplateGallery } from "@/components/captions/caption-template-gallery";
 import {
 	SmartRecognitionCard,
 	type SmartRecognitionOutcome,
@@ -778,6 +779,9 @@ export function CaptionsView() {
 				onAddToTimeline={addCaptionsToTimeline}
 				onTranscribeFile={transcribeFileForWorkbench}
 			/>
+
+			{/* JianYing-style 字幕模板 gallery backed by the qctext packs */}
+			<CaptionTemplateGallery />
 
 			{/* Hidden File Input */}
 			<input
