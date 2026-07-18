@@ -873,6 +873,13 @@ const CORE_COMMANDS: Record<string, CommandDef> = {
 				enum: ["cover", "contain", "stretch"],
 				default: "cover",
 			}),
+			f("--portrait-filter", "string", "Portrait filter applied to the person"),
+			f(
+				"--filter-intensity",
+				"number",
+				"Portrait filter intensity from 0 to 100"
+			),
+			f("--beauty", "number", "Skin smoothing amount from 0 to 100"),
 			f("--force", "boolean", "Replace existing outputs", {
 				default: false,
 			}),
@@ -880,6 +887,35 @@ const CORE_COMMANDS: Record<string, CommandDef> = {
 		examples: [
 			"qcut edit person-cutout -i talking-head.mp4 -o ./output",
 			"qcut edit person-cutout -i talking-head.mp4 -b office.png --output ./output/editable.mp4",
+		],
+	},
+
+	"portrait-filter": {
+		name: "portrait-filter",
+		description:
+			"Apply QCut portrait color presets and local skin smoothing to a video",
+		category: "analysis",
+		flags: [
+			f("--input", "string", "Input video file path", { short: "-i" }),
+			f("--output", "string", "Filtered MP4 output path"),
+			f("--output-dir", "string", "Output directory", { short: "-o" }),
+			f("--preset", "string", "Portrait preset ID", {
+				default: "soft-skin",
+			}),
+			f("--filter-intensity", "number", "Filter intensity from 0 to 100"),
+			f("--beauty", "number", "Skin smoothing amount from 0 to 100", {
+				default: 25,
+			}),
+			f("--list-presets", "boolean", "List available portrait presets", {
+				default: false,
+			}),
+			f("--force", "boolean", "Replace an existing output", {
+				default: false,
+			}),
+		],
+		examples: [
+			"qcut edit portrait-filter --list-presets --json",
+			"qcut edit portrait-filter -i talking-head.mp4 --preset soft-skin --beauty 25 --output filtered.mp4",
 		],
 	},
 
