@@ -30,6 +30,14 @@ export interface CLIRunOptions {
 	cutoutOutput?: string;
 	/** Background image fit mode: cover, contain, or stretch. */
 	backgroundFit?: string;
+	/** QCut portrait filter preset ID. */
+	portraitFilter?: string;
+	/** Portrait filter intensity from 0 to 100. */
+	filterIntensity?: number;
+	/** Local portrait smoothing amount from 0 to 100. */
+	beauty?: number;
+	/** Print available portrait filter presets. */
+	listPresets?: boolean;
 	duration?: string;
 	aspectRatio?: string;
 	resolution?: string;
