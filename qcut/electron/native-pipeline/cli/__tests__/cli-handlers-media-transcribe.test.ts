@@ -48,14 +48,45 @@ describe("handleTranscribe provider mapping", () => {
 		registerSpeechToTextModels();
 	});
 
-	it("defaults to the direct ElevenLabs model", async () => {
+	it("defaults to the direct ElevenLabs model when its key is set", async () => {
 		const captured: PipelineStep[] = [];
 
 		const result = await handleTranscribe(
 			makeTranscribeOptions({}),
 			() => undefined,
 			makeExecutor({ captured }) as never,
-			new AbortController().signal
+			new AbortController().signal,
+			(name) => name === "ELEVENLABS_API_KEY"
+		);
+
+		expect(result.success).toBe(true);
+		expect(captured[0]?.model).toBe("elevenlabs_scribe_v2");
+	});
+
+	it("falls back to the FAL-hosted scribe when only a FAL key is set", async () => {
+		const captured: PipelineStep[] = [];
+
+		const result = await handleTranscribe(
+			makeTranscribeOptions({}),
+			() => undefined,
+			makeExecutor({ captured }) as never,
+			new AbortController().signal,
+			(name) => name === "FAL_KEY"
+		);
+
+		expect(result.success).toBe(true);
+		expect(captured[0]?.model).toBe("scribe_v2");
+	});
+
+	it("defaults to the direct ElevenLabs model when no keys are set", async () => {
+		const captured: PipelineStep[] = [];
+
+		const result = await handleTranscribe(
+			makeTranscribeOptions({}),
+			() => undefined,
+			makeExecutor({ captured }) as never,
+			new AbortController().signal,
+			() => false
 		);
 
 		expect(result.success).toBe(true);

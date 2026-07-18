@@ -13,6 +13,7 @@ import { mkdirSync, writeFileSync } from "node:fs";
 import { basename, dirname, join, resolve } from "node:path";
 import { promisify } from "node:util";
 import type { CLIRunOptions, CLIResult } from "./cli-runner/types.js";
+import { getKey } from "../infra/key-manager.js";
 import { ModelRegistry } from "../infra/registry.js";
 import type { PipelineStep } from "../execution/executor.js";
 import type { PipelineExecutor } from "../execution/executor.js";
@@ -164,27 +165,38 @@ type ProgressFn = (progress: {
 
 /**
  * Resolve which transcription model to use from an explicit model or a provider
- * name. An explicit model wins; otherwise the provider selects a default
- * (defaulting to ElevenLabs). Returns an `error` for unsupported providers.
+ * name. An explicit model wins, then the provider; with neither, pick by which
+ * API keys are configured so a FAL-only setup still transcribes.
+ * Returns an `error` for unsupported providers.
  */
 function resolveTranscribeModel({
 	model,
 	provider,
+	hasKey,
 }: {
 	model?: string;
 	provider?: string;
+	hasKey: (name: string) => boolean;
 }): { model?: string; error?: string } {
 	if (model) return { model };
-	if (!provider) return { model: "elevenlabs_scribe_v2" };
 
-	const normalizedProvider = provider.toLowerCase();
-	if (normalizedProvider === "elevenlabs") {
-		return { model: "elevenlabs_scribe_v2" };
+	if (provider) {
+		const normalizedProvider = provider.toLowerCase();
+		if (normalizedProvider === "elevenlabs") {
+			return { model: "elevenlabs_scribe_v2" };
+		}
+		return {
+			error: `Unknown provider '${provider}'. Supported transcribe providers: elevenlabs.`,
+		};
 	}
 
-	return {
-		error: `Unknown provider '${provider}'. Supported transcribe providers: elevenlabs.`,
-	};
+	if (
+		!hasKey("ELEVENLABS_API_KEY") &&
+		(hasKey("FAL_KEY") || hasKey("FAL_API_KEY"))
+	) {
+		return { model: "scribe_v2" };
+	}
+	return { model: "elevenlabs_scribe_v2" };
 }
 
 /**
@@ -869,7 +881,8 @@ export async function handleTranscribe(
 	options: CLIRunOptions,
 	onProgress: ProgressFn,
 	executor: PipelineExecutor,
-	signal: AbortSignal
+	signal: AbortSignal,
+	hasKey: (name: string) => boolean = (name) => Boolean(getKey(name))
 ): Promise<CLIResult> {
 	const audioInput = options.input || options.audioUrl;
 	if (!audioInput) {
@@ -879,6 +892,7 @@ export async function handleTranscribe(
 	const modelResolution = resolveTranscribeModel({
 		model: options.model,
 		provider: options.provider,
+		hasKey,
 	});
 	if (modelResolution.error) {
 		return { success: false, error: modelResolution.error };
