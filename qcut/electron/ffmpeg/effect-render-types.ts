@@ -1,5 +1,10 @@
 export type EffectMotionProperty = "x" | "y" | "scale" | "rotation" | "opacity";
 
+export interface EffectRenderWindow {
+	startSeconds: number;
+	endSeconds: number;
+}
+
 export interface EffectMotionChannel {
 	property: EffectMotionProperty;
 	waveform: "sine" | "cosine" | "linear";
@@ -12,6 +17,7 @@ export interface EffectMotionRenderStage {
 	kind: "motion";
 	intensity: number;
 	channels: EffectMotionChannel[];
+	window?: EffectRenderWindow;
 }
 
 export interface EffectOverlayRenderStage {
@@ -20,6 +26,7 @@ export interface EffectOverlayRenderStage {
 	blendMode: "normal" | "screen" | "multiply" | "overlay";
 	opacity: number;
 	fit: "cover" | "contain" | "stretch";
+	window?: EffectRenderWindow;
 }
 
 export interface EffectCompositeRenderStage {
@@ -27,6 +34,7 @@ export interface EffectCompositeRenderStage {
 	layout: "split-horizontal" | "split-vertical" | "mirror" | "grid";
 	copies: 2 | 4;
 	gap: number;
+	window?: EffectRenderWindow;
 }
 
 export interface EffectAudioReactiveEnvelope {
@@ -46,10 +54,11 @@ export interface EffectPersonTrackingRenderStage {
 	target: "face" | "body" | "person";
 	treatment: "outline" | "spotlight" | "background-blur";
 	fallback: "center" | "full-frame" | "disable";
+	window?: EffectRenderWindow;
 }
 
 export type EffectRenderStage =
-	| { kind: "filter" }
+	| { kind: "filter"; window?: EffectRenderWindow }
 	| EffectMotionRenderStage
 	| EffectOverlayRenderStage
 	| EffectCompositeRenderStage
@@ -62,6 +71,7 @@ export type EffectRenderStage =
 			maximum: number;
 			attackMs: number;
 			releaseMs: number;
+			window?: EffectRenderWindow;
 	  }
 	| EffectPersonTrackingRenderStage;
 
