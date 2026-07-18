@@ -825,6 +825,12 @@ const CORE_COMMANDS: Record<string, CommandDef> = {
 				"Remove long silences (default: true)",
 				{ default: true }
 			),
+			f("--no-remove-fillers", "boolean", "Keep filler words", {
+				default: false,
+			}),
+			f("--no-remove-silences", "boolean", "Keep long silences", {
+				default: false,
+			}),
 			f(
 				"--silence-threshold",
 				"number",
