@@ -2,6 +2,9 @@ import { useEffect, useRef } from "react";
 import { getEffectMotionState } from "@/lib/effects/effect-motion-preview";
 import { parametersToCSSFilters } from "@/lib/effects/effects-utils";
 import type { VisualEffectCatalogEntry } from "@/lib/effects/effect-catalog-types";
+import { EffectOverlayLayers } from "@/components/editor/effects/effect-overlay-layers";
+import { EffectCompositeCanvas } from "@/components/editor/effects/effect-composite-canvas";
+import { Volume2 } from "lucide-react";
 
 const PREVIEW_WIDTH = 160;
 const PREVIEW_HEIGHT = 90;
@@ -51,13 +54,33 @@ export function EffectPreviewThumbnail({
 	}, [entry]);
 
 	return (
-		<img
-			ref={imageRef}
-			src={source}
-			alt=""
-			className="size-full scale-[1.04] object-cover"
-			style={{ filter: parametersToCSSFilters(entry.preset.parameters) }}
-			draggable={false}
-		/>
+		<div className="relative size-full overflow-hidden">
+			<img
+				ref={imageRef}
+				src={source}
+				alt=""
+				className="size-full scale-[1.04] object-cover"
+				style={{ filter: parametersToCSSFilters(entry.preset.parameters) }}
+				data-effect-preview-base="true"
+				draggable={false}
+			/>
+			<EffectCompositeCanvas
+				program={entry.preset.renderProgram}
+				sourceSelector='img[data-effect-preview-base="true"]'
+				fitMode="cover"
+			/>
+			<EffectOverlayLayers program={entry.preset.renderProgram} />
+			{entry.preset.audioCompanion ? (
+				<span
+					className="absolute bottom-1 left-1 flex size-5 items-center justify-center rounded bg-black/70 text-white"
+					title="Includes sound effect"
+					data-effect-audio-companion={entry.preset.audioCompanion.resourceId}
+				>
+					<Volume2 className="size-3" aria-hidden="true">
+						<title>Includes sound effect</title>
+					</Volume2>
+				</span>
+			) : null}
+		</div>
 	);
 }
