@@ -91,6 +91,8 @@ interface NumberControlProps {
 	step?: number;
 	onChange: (value: number) => void;
 	suffix?: string;
+	/** Hide the slider so two controls fit side by side (JianYing-style spacing row). */
+	compact?: boolean;
 }
 
 function NumberControl({
@@ -101,6 +103,7 @@ function NumberControl({
 	step = 1,
 	onChange,
 	suffix,
+	compact = false,
 }: NumberControlProps) {
 	const [inputValue, setInputValue] = useState(String(value));
 
@@ -120,16 +123,24 @@ function NumberControl({
 			<PropertyItemLabel>{label}</PropertyItemLabel>
 			<PropertyItemValue>
 				<div className="flex items-center gap-2">
-					<Slider
-						aria-label={label}
-						value={[value]}
-						min={min}
-						max={max}
-						step={step}
-						onValueChange={([next]) => onChange(next)}
-						className="min-w-0 flex-1"
-					/>
-					<div className="flex w-20 items-center gap-1">
+					{compact ? null : (
+						<Slider
+							aria-label={label}
+							value={[value]}
+							min={min}
+							max={max}
+							step={step}
+							onValueChange={([next]) => onChange(next)}
+							className="min-w-0 flex-1"
+						/>
+					)}
+					<div
+						className={
+							compact
+								? "flex flex-1 items-center gap-1"
+								: "flex w-20 items-center gap-1"
+						}
+					>
 						<Input
 							type="number"
 							aria-label={`${label} value`}
@@ -259,7 +270,7 @@ function PresetButton({
 				}}
 			>
 				<span
-					className="text-xl"
+					className="text-3xl leading-none"
 					style={{
 						color: preset.updates.color ?? "#ffffff",
 						fontFamily: preset.updates.fontFamily,
@@ -750,6 +761,156 @@ export function TextProperties({
 				onChange={(event) => update({ content: event.target.value })}
 			/>
 
+			<PropertyGroup title="Typography" defaultExpanded>
+				<div className="space-y-4">
+					<PropertyItem direction="row">
+						<PropertyItemLabel>Font</PropertyItemLabel>
+						<PropertyItemValue>
+							<FontPicker
+								value={element.fontFamily as FontFamily}
+								onValueChange={(fontFamily) => update({ fontFamily })}
+							/>
+						</PropertyItemValue>
+					</PropertyItem>
+
+					<NumberControl
+						label="Font size"
+						value={element.fontSize}
+						min={8}
+						max={300}
+						onChange={(fontSize) => update({ fontSize })}
+						suffix="px"
+					/>
+
+					<PropertyItem direction="row">
+						<PropertyItemLabel>Style</PropertyItemLabel>
+						<PropertyItemValue>
+							<div className="flex flex-wrap gap-2">
+								<IconToggle
+									label="Bold"
+									pressed={element.fontWeight === "bold"}
+									onClick={() =>
+										update({
+											fontWeight:
+												element.fontWeight === "bold" ? "normal" : "bold",
+										})
+									}
+								>
+									<Bold className="size-4" />
+								</IconToggle>
+								<IconToggle
+									label="Italic"
+									pressed={element.fontStyle === "italic"}
+									onClick={() =>
+										update({
+											fontStyle:
+												element.fontStyle === "italic" ? "normal" : "italic",
+										})
+									}
+								>
+									<Italic className="size-4" />
+								</IconToggle>
+								<IconToggle
+									label="Underline"
+									pressed={element.textDecoration === "underline"}
+									onClick={() =>
+										update({
+											textDecoration:
+												element.textDecoration === "underline"
+													? "none"
+													: "underline",
+										})
+									}
+								>
+									<Underline className="size-4" />
+								</IconToggle>
+								<IconToggle
+									label="Strikethrough"
+									pressed={element.textDecoration === "line-through"}
+									onClick={() =>
+										update({
+											textDecoration:
+												element.textDecoration === "line-through"
+													? "none"
+													: "line-through",
+										})
+									}
+								>
+									<Strikethrough className="size-4" />
+								</IconToggle>
+							</div>
+						</PropertyItemValue>
+					</PropertyItem>
+
+					<ColorControl
+						label="Color"
+						value={element.color}
+						onChange={(color) => update({ color })}
+					/>
+
+					<div className="grid grid-cols-2 gap-3">
+						<NumberControl
+							compact
+							label="Letter spacing"
+							value={style.letterSpacing}
+							min={-20}
+							max={100}
+							onChange={(letterSpacing) => update({ letterSpacing })}
+							suffix="px"
+						/>
+						<NumberControl
+							compact
+							label="Line height"
+							value={style.lineHeight}
+							min={0.5}
+							max={3}
+							step={0.05}
+							onChange={(lineHeight) => update({ lineHeight })}
+							suffix="x"
+						/>
+					</div>
+
+					<PropertyItem direction="row">
+						<PropertyItemLabel>Alignment</PropertyItemLabel>
+						<PropertyItemValue>
+							<div className="flex flex-wrap gap-2">
+								{(
+									[
+										["left", AlignLeft],
+										["center", AlignCenter],
+										["right", AlignRight],
+									] as const
+								).map(([alignment, Icon]) => (
+									<IconToggle
+										key={alignment}
+										label={`Align ${alignment}`}
+										pressed={element.textAlign === alignment}
+										onClick={() => update({ textAlign: alignment })}
+									>
+										<Icon className="size-4" />
+									</IconToggle>
+								))}
+								{(["top", "middle", "bottom"] as const).map((alignment) => (
+									<Button
+										key={alignment}
+										type="button"
+										aria-pressed={style.verticalAlign === alignment}
+										variant={
+											style.verticalAlign === alignment ? "default" : "outline"
+										}
+										size="sm"
+										className="h-8 px-2 text-[10px] capitalize"
+										onClick={() => update({ verticalAlign: alignment })}
+									>
+										{alignment}
+									</Button>
+								))}
+							</div>
+						</PropertyItemValue>
+					</PropertyItem>
+				</div>
+			</PropertyGroup>
+
 			<PropertyGroup title="Style presets" defaultExpanded>
 				<div className="space-y-3">
 					<div className="grid grid-cols-5 gap-2">
@@ -1062,146 +1223,6 @@ export function TextProperties({
 				</div>
 			</PropertyGroup>
 
-			<PropertyGroup title="Typography" defaultExpanded>
-				<div className="space-y-4">
-					<PropertyItem direction="row">
-						<PropertyItemLabel>Font</PropertyItemLabel>
-						<PropertyItemValue>
-							<FontPicker
-								value={element.fontFamily as FontFamily}
-								onValueChange={(fontFamily) => update({ fontFamily })}
-							/>
-						</PropertyItemValue>
-					</PropertyItem>
-
-					<NumberControl
-						label="Font size"
-						value={element.fontSize}
-						min={8}
-						max={300}
-						onChange={(fontSize) => update({ fontSize })}
-						suffix="px"
-					/>
-
-					<PropertyItem direction="row">
-						<PropertyItemLabel>Style</PropertyItemLabel>
-						<PropertyItemValue>
-							<div className="flex flex-wrap gap-2">
-								<IconToggle
-									label="Bold"
-									pressed={element.fontWeight === "bold"}
-									onClick={() =>
-										update({
-											fontWeight:
-												element.fontWeight === "bold" ? "normal" : "bold",
-										})
-									}
-								>
-									<Bold className="size-4" />
-								</IconToggle>
-								<IconToggle
-									label="Italic"
-									pressed={element.fontStyle === "italic"}
-									onClick={() =>
-										update({
-											fontStyle:
-												element.fontStyle === "italic" ? "normal" : "italic",
-										})
-									}
-								>
-									<Italic className="size-4" />
-								</IconToggle>
-								<IconToggle
-									label="Underline"
-									pressed={element.textDecoration === "underline"}
-									onClick={() =>
-										update({
-											textDecoration:
-												element.textDecoration === "underline"
-													? "none"
-													: "underline",
-										})
-									}
-								>
-									<Underline className="size-4" />
-								</IconToggle>
-								<IconToggle
-									label="Strikethrough"
-									pressed={element.textDecoration === "line-through"}
-									onClick={() =>
-										update({
-											textDecoration:
-												element.textDecoration === "line-through"
-													? "none"
-													: "line-through",
-										})
-									}
-								>
-									<Strikethrough className="size-4" />
-								</IconToggle>
-							</div>
-						</PropertyItemValue>
-					</PropertyItem>
-
-					<NumberControl
-						label="Letter spacing"
-						value={style.letterSpacing}
-						min={-20}
-						max={100}
-						onChange={(letterSpacing) => update({ letterSpacing })}
-						suffix="px"
-					/>
-					<NumberControl
-						label="Line height"
-						value={style.lineHeight}
-						min={0.5}
-						max={3}
-						step={0.05}
-						onChange={(lineHeight) => update({ lineHeight })}
-						suffix="x"
-					/>
-
-					<PropertyItem direction="row">
-						<PropertyItemLabel>Alignment</PropertyItemLabel>
-						<PropertyItemValue>
-							<div className="flex flex-wrap gap-2">
-								{(
-									[
-										["left", AlignLeft],
-										["center", AlignCenter],
-										["right", AlignRight],
-									] as const
-								).map(([alignment, Icon]) => (
-									<IconToggle
-										key={alignment}
-										label={`Align ${alignment}`}
-										pressed={element.textAlign === alignment}
-										onClick={() => update({ textAlign: alignment })}
-									>
-										<Icon className="size-4" />
-									</IconToggle>
-								))}
-								{(["top", "middle", "bottom"] as const).map((alignment) => (
-									<Button
-										key={alignment}
-										type="button"
-										aria-pressed={style.verticalAlign === alignment}
-										variant={
-											style.verticalAlign === alignment ? "default" : "outline"
-										}
-										size="sm"
-										className="h-8 px-2 text-[10px] capitalize"
-										onClick={() => update({ verticalAlign: alignment })}
-									>
-										{alignment}
-									</Button>
-								))}
-							</div>
-						</PropertyItemValue>
-					</PropertyItem>
-				</div>
-			</PropertyGroup>
-
 			<PropertyGroup title="Layout" defaultExpanded>
 				<div className="space-y-4">
 					<NumberControl
@@ -1275,11 +1296,6 @@ export function TextProperties({
 
 			<PropertyGroup title="Appearance" defaultExpanded>
 				<div className="space-y-4">
-					<ColorControl
-						label="Text color"
-						value={element.color}
-						onChange={(color) => update({ color })}
-					/>
 					<NumberControl
 						label="Opacity"
 						value={Math.round(element.opacity * 100)}
