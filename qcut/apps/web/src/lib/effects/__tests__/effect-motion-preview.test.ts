@@ -85,4 +85,36 @@ describe("getEffectMotionState", () => {
 			}).scale
 		).toBeCloseTo(1.1);
 	});
+
+	it("samples motion stages only within their render window", () => {
+		const program: EffectRenderProgram = {
+			version: 1,
+			stages: [
+				{
+					kind: "motion",
+					intensity: 1,
+					window: { startSeconds: 1, endSeconds: 3 },
+					channels: [
+						{
+							property: "scale",
+							waveform: "linear",
+							amplitude: 0.2,
+						},
+					],
+				},
+			],
+		};
+		const scaleAt = (localTime: number) =>
+			getEffectMotionState({
+				program,
+				localTime,
+				duration: 4,
+				canvasWidth: 1920,
+				canvasHeight: 1080,
+			}).scale;
+
+		expect(scaleAt(0.5)).toBe(1);
+		expect(scaleAt(2)).toBeCloseTo(1.1);
+		expect(scaleAt(3)).toBe(1);
+	});
 });
