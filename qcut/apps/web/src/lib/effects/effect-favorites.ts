@@ -24,10 +24,14 @@ export function writeEffectFavoriteIds({
 	favoriteIds: ReadonlySet<string>;
 }): void {
 	if (typeof localStorage === "undefined") return;
-	localStorage.setItem(
-		EFFECT_FAVORITES_STORAGE_KEY,
-		JSON.stringify([...favoriteIds])
-	);
+	try {
+		localStorage.setItem(
+			EFFECT_FAVORITES_STORAGE_KEY,
+			JSON.stringify([...favoriteIds])
+		);
+	} catch {
+		// The in-memory favorite remains usable when browser storage is unavailable.
+	}
 }
 
 export function toggleEffectFavoriteId({
