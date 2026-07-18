@@ -18,10 +18,8 @@ function runtimePlatform(): string {
 		return window.electronAPI.platform;
 	}
 	// Node contexts (CLI, main process) have no window; use process.platform.
-	if (typeof process !== "undefined" && process.platform) {
-		return process.platform;
-	}
-	return "darwin";
+	// biome-ignore lint/style/noRestrictedGlobals: Node-only fallback reads process.platform, never process.env; renderer path returns above
+	return typeof process !== "undefined" ? process.platform : "darwin";
 }
 
 export function assCompatibleFontFamily({
