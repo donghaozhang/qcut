@@ -100,9 +100,7 @@ describe("effect render programs", () => {
 		});
 
 		expect(
-			scheduled.stages.every(
-				(stage) => stage.window?.startSeconds === 1.25
-			)
+			scheduled.stages.every((stage) => stage.window?.startSeconds === 1.25)
 		).toBe(true);
 		expect(program.stages.every((stage) => stage.window === undefined)).toBe(
 			true
