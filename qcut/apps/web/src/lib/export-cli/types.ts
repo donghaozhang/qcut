@@ -5,6 +5,7 @@
  * Extracted from export-engine-cli.ts for reuse across filter and source modules.
  */
 
+import type { EffectRenderProgram } from "@qcut/editor-core";
 import type {
 	AudioCrossfade,
 	AudioMixBusSettings,
@@ -195,6 +196,14 @@ export interface VideoSourceInput {
 	visual?: VideoVisualInput;
 	effectFilter?: string;
 	effectRenderProgram?: EffectRenderProgram;
+	effectOverlaySources?: EffectOverlaySourceInput[];
+}
+
+export interface EffectOverlaySourceInput {
+	resourceId: string;
+	stageIndex: number;
+	path: string;
+	animated: boolean;
 }
 
 /**
@@ -248,6 +257,7 @@ export interface ImageSourceInput {
 	visual?: VideoVisualInput;
 	effectFilter?: string;
 	effectRenderProgram?: EffectRenderProgram;
+	effectOverlaySources?: EffectOverlaySourceInput[];
 }
 
 /**
@@ -296,4 +306,3 @@ export type Platform = "win32" | "darwin" | "linux";
  * Re-export TextElement for use in filter modules (using export from).
  */
 export type { TextElement } from "@/types/timeline";
-import type { EffectRenderProgram } from "@qcut/editor-core";
