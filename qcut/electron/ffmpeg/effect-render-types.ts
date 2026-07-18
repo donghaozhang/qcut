@@ -29,6 +29,11 @@ export interface EffectCompositeRenderStage {
 	gap: number;
 }
 
+export interface EffectAudioReactiveEnvelope {
+	stageIndex: number;
+	keyframes: Array<{ timeSeconds: number; value: number }>;
+}
+
 export type EffectRenderStage =
 	| { kind: "filter" }
 	| EffectMotionRenderStage
