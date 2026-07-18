@@ -78,8 +78,25 @@ export function getEffectMotionState({
 	const state = { ...IDENTITY_EFFECT_MOTION_STATE };
 	for (const stage of program.stages) {
 		if (stage.kind !== "motion") continue;
+		if (
+			stage.window &&
+			(localTime < stage.window.startSeconds ||
+				localTime >= stage.window.endSeconds)
+		) {
+			continue;
+		}
+		const stageTime = stage.window
+			? localTime - stage.window.startSeconds
+			: localTime;
+		const stageDuration = stage.window
+			? stage.window.endSeconds - stage.window.startSeconds
+			: duration;
 		for (const channel of stage.channels) {
-			const sample = sampleWaveform({ channel, localTime, duration });
+			const sample = sampleWaveform({
+				channel,
+				localTime: stageTime,
+				duration: stageDuration,
+			});
 			applyChannel({
 				state,
 				property: channel.property,
