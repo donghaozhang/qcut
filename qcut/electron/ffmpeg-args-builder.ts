@@ -13,6 +13,7 @@ import fs from "fs";
 import type {
 	AudioCrossfade,
 	AudioFile,
+	EffectOverlaySource,
 	VideoSource,
 	VideoTransition,
 	ImageSource,
@@ -124,6 +125,49 @@ interface ResolvedTextAssLayer {
 	sourceIndex: number;
 }
 
+interface EffectOverlayCarrier {
+	duration: number;
+	effectOverlaySources?: EffectOverlaySource[];
+}
+
+function appendEffectOverlayInputs<T extends EffectOverlayCarrier>({
+	args,
+	fps,
+	sources,
+	startInputIndex,
+}: {
+	args: string[];
+	fps: number;
+	sources: readonly T[];
+	startInputIndex: number;
+}): { sources: T[]; inputCount: number } {
+	let nextInputIndex = startInputIndex;
+	const resolvedSources = sources.map((source) => {
+		const effectOverlaySources = source.effectOverlaySources?.map((overlay) => {
+			if (!fs.existsSync(overlay.path)) {
+				throw new Error(`Effect overlay source not found: ${overlay.path}`);
+			}
+			if (overlay.animated) {
+				args.push("-stream_loop", "-1");
+			} else {
+				args.push("-loop", "1");
+			}
+			args.push(
+				"-t",
+				String(Math.max(1 / Math.max(1, fps), source.duration)),
+				"-i",
+				overlay.path
+			);
+			return { ...overlay, inputIndex: nextInputIndex++ };
+		});
+		return { ...source, effectOverlaySources };
+	});
+	return {
+		sources: resolvedSources,
+		inputCount: nextInputIndex - startInputIndex,
+	};
+}
+
 function ffmpegColorValue(color: string): string {
 	if (color.trim().toLowerCase() === "#000000") return "black";
 	const match = /^#([0-9a-f]{6})$/i.exec(color.trim());
@@ -175,6 +219,7 @@ function buildCanonicalVisualFilters({
 		visual: image.visual,
 		effectFilter: image.effectFilter,
 		effectRenderProgram: image.effectRenderProgram,
+		effectOverlaySources: image.effectOverlaySources,
 	}));
 	const timelineSources = [...videoSources, ...imageSources];
 	const inputIndexes = timelineSources.map((_source, index) =>
@@ -411,6 +456,27 @@ function buildCompositeEncodeArgs(
 		);
 	}
 
+	const effectOverlayInputStartIndex =
+		baseInputCount + validImages.length + validStickers.length;
+	const resolvedVideoOverlayInputs = appendEffectOverlayInputs({
+		args,
+		fps,
+		sources: videoSources,
+		startInputIndex: effectOverlayInputStartIndex,
+	});
+	const resolvedImageOverlayInputs = appendEffectOverlayInputs({
+		args,
+		fps,
+		sources: validImages,
+		startInputIndex:
+			effectOverlayInputStartIndex + resolvedVideoOverlayInputs.inputCount,
+	});
+	const resolvedVideoSources = resolvedVideoOverlayInputs.sources;
+	const resolvedImages = resolvedImageOverlayInputs.sources;
+	const effectOverlayInputCount =
+		resolvedVideoOverlayInputs.inputCount +
+		resolvedImageOverlayInputs.inputCount;
+
 	for (const audioFile of audioFiles) {
 		if (!fs.existsSync(audioFile.path)) {
 			throw new Error(`Audio file not found: ${audioFile.path}`);
@@ -427,19 +493,23 @@ function buildCompositeEncodeArgs(
 		...textAssLayers,
 	].map((layer, sourceIndex) => ({ ...layer, sourceIndex }));
 	const usesCanonicalVisualOrder =
-		!useVideoInput &&
-		[
-			...videoSources,
-			...validImages,
-			...validStickers,
-			...resolvedTextAssLayers,
-		].some((layer) => Number.isFinite(layer.trackOrder));
+		(!useVideoInput &&
+			[
+				...resolvedVideoSources,
+				...resolvedImages,
+				...validStickers,
+				...resolvedTextAssLayers,
+			].some((layer) => Number.isFinite(layer.trackOrder))) ||
+		(!useVideoInput &&
+			[...resolvedVideoSources, ...resolvedImages].some(
+				(source) => source.effectFilter || source.effectRenderProgram
+			));
 
 	if (usesCanonicalVisualOrder) {
 		const canonical = buildCanonicalVisualFilters({
-			videoSources,
+			videoSources: resolvedVideoSources,
 			videoTransitions,
-			images: validImages,
+			images: resolvedImages,
 			stickers: validStickers,
 			textAssLayers: resolvedTextAssLayers,
 			baseInputCount,
@@ -455,9 +525,9 @@ function buildCompositeEncodeArgs(
 		currentVideoLabel = canonical.outputLabel;
 	} else {
 		let filterLabelIndex = 0;
-		if (videoSources.length > 0) {
+		if (resolvedVideoSources.length > 0) {
 			const timeline = buildVideoTimelineFilters({
-				videoSources,
+				videoSources: resolvedVideoSources,
 				videoTransitions,
 				width,
 				height,
@@ -475,7 +545,7 @@ function buildCompositeEncodeArgs(
 			currentVideoLabel = outputLabel;
 		}
 
-		for (const [index, image] of validImages.entries()) {
+		for (const [index, image] of resolvedImages.entries()) {
 			const imageInputIndex = baseInputCount + index;
 			const scaledLabel = `img_scaled_${index}`;
 			const paddedLabel = `img_padded_${index}`;
@@ -613,7 +683,10 @@ function buildCompositeEncodeArgs(
 	}
 
 	const audioInputStartIndex =
-		baseInputCount + validImages.length + validStickers.length;
+		baseInputCount +
+		validImages.length +
+		validStickers.length +
+		effectOverlayInputCount;
 	const audioResult = buildTimelineAudioFilters({
 		audioFiles,
 		audioCrossfades,
