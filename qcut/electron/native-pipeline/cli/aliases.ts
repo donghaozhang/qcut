@@ -33,6 +33,7 @@ export const COMMAND_ALIASES: Record<string, string> = {
 	"subtitle-export": "edit subtitle-export",
 	"clean-audio": "edit clean-audio",
 	"person-cutout": "edit person-cutout",
+	"portrait-filter": "edit portrait-filter",
 	"run-pipeline": "flow run",
 	"pipeline:status": "flow status",
 	"vimax:idea2video": "flow idea2video",
