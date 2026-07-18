@@ -12,10 +12,10 @@ import { Onboarding } from "@/components/onboarding";
 import { debugError, debugLog } from "@/lib/debug/debug-config";
 import { useSkillsStore } from "@/stores/skills-store";
 import { cleanupPtyOnEditorExit } from "@/lib/debug/pty-session-cleanup";
-import { useMediaPanelStore } from "@/components/editor/media-panel/store";
 import { usePtyTerminalStore } from "@/stores/pty-terminal-store";
 import { useClaudeProjectUpdates } from "@/hooks/use-claude-project-updates";
 import { useGapGeneration } from "@/hooks/timeline/use-gap-generation";
+import { useEditorEntryDefaults } from "@/hooks/use-editor-entry-defaults";
 import "@/lib/debug/ios-console-bridge"; // iPad console log capture (auto-gates behind DEV)
 import "@/lib/stickers/debug-sticker-overlay"; // Load debug utilities
 import "@/lib/stickers/sticker-test-helper"; // Load sticker test helper
@@ -40,10 +40,10 @@ export const Route = createLazyFileRoute("/editor/$project_id")({
 function EditorPage() {
 	const navigate = useNavigate();
 	const { project_id } = Route.useParams();
-	const setActiveTab = useMediaPanelStore((state) => state.setActiveTab);
 	const { setProjectContext, setWorkingDirectory, ensureAutoConnected } =
 		usePtyTerminalStore();
 
+	useEditorEntryDefaults({ projectId: project_id });
 	useClaudeProjectUpdates({ projectId: project_id });
 
 	useEffect(() => {
@@ -232,8 +232,6 @@ function EditorPage() {
 				return;
 			}
 
-			setActiveTab("pty");
-
 			let projectRoot = "";
 			try {
 				projectRoot =
@@ -276,7 +274,6 @@ function EditorPage() {
 		activeProject?.id,
 		ensureAutoConnected,
 		project_id,
-		setActiveTab,
 		setProjectContext,
 		setWorkingDirectory,
 	]);
