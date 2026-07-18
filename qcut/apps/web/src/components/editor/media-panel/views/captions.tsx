@@ -40,19 +40,12 @@ import type { SubtitleStyle } from "@/types/timeline";
 // REMOVED: import { r2Client } from "@/lib/storage/r2-client";
 import { useTimelineStore } from "@/stores/timeline/timeline-store";
 import { useCaptionsStore } from "@/stores/captions-store";
+import {
+	SmartRecognitionCard,
+	type SmartRecognitionOutcome,
+} from "@/components/captions/smart-recognition-card";
+import type { CreateCaptionElement } from "@/types/timeline";
 import { CaptionWorkbench } from "./caption-workbench";
-// DEPRECATED: Modal Whisper API removed for Gemini migration
-// import { transcribeAudio } from "@/lib/api-adapter";
-
-// Helper function to convert ArrayBuffer to base64 for JSON serialization
-function arrayBufferToBase64(ab: ArrayBuffer): string {
-	const bytes = new Uint8Array(ab);
-	let binary = "";
-	for (let i = 0; i < bytes.length; i++) {
-		binary += String.fromCharCode(bytes[i]);
-	}
-	return btoa(binary);
-}
 
 interface TranscriptionState {
 	isTranscribing: boolean;
@@ -81,7 +74,8 @@ export function CaptionsView() {
 	const containerRef = useRef<HTMLDivElement>(null);
 
 	// Timeline and captions store hooks
-	const { addTrack, addElementToTrack } = useTimelineStore();
+	const { findOrCreateTrack, addElementToTrack, removeTrack, tracks } =
+		useTimelineStore();
 	const {
 		createCaptionElements,
 		completeTranscriptionJob,
@@ -99,23 +93,35 @@ export function CaptionsView() {
 		({
 			result,
 			style,
+			elements,
+			clearExisting = false,
 		}: {
 			result: TranscriptionResult;
 			style?: SubtitleStyle;
+			elements?: CreateCaptionElement[];
+			clearExisting?: boolean;
 		}) => {
 			try {
-				// Create caption elements from transcription result
-				const captionElements = createCaptionElements(result).map((element) =>
-					style ? { ...element, style } : element
-				);
+				const captionElements =
+					elements ??
+					createCaptionElements(result).map((element) =>
+						style ? { ...element, style } : element
+					);
 
 				if (captionElements.length === 0) {
 					toast.warning("No captions were generated from the transcription");
 					return;
 				}
 
-				// Create or find a captions track
-				const trackId = addTrack("captions");
+				if (clearExisting) {
+					for (const track of tracks) {
+						if (track.type === "captions") removeTrack(track.id);
+					}
+				}
+
+				// Reuse the existing captions track so repeated runs don't stack
+				// duplicate tracks.
+				const trackId = findOrCreateTrack("captions");
 
 				// Add all caption elements to the track
 				for (const captionElement of captionElements) {
@@ -137,7 +143,26 @@ export function CaptionsView() {
 				});
 			}
 		},
-		[createCaptionElements, addTrack, addElementToTrack]
+		[
+			createCaptionElements,
+			findOrCreateTrack,
+			addElementToTrack,
+			removeTrack,
+			tracks,
+		]
+	);
+
+	const handleSmartRecognitionCompleted = useCallback(
+		(outcome: SmartRecognitionOutcome) => {
+			addCaptionsToTimeline({
+				result: outcome.result,
+				elements: outcome.elements,
+				clearExisting: outcome.clearExisting,
+			});
+			// Surface the result in the panel so the workbench can refine it.
+			updateState({ result: outcome.result, error: null });
+		},
+		[addCaptionsToTimeline, updateState]
 	);
 
 	const stopTranscription = useCallback(() => {
@@ -289,84 +314,6 @@ export function CaptionsView() {
 						audioFilePath
 					);
 				}
-
-				// DEPRECATED: Encryption/R2 upload removed for Gemini migration
-				// Step 2: Encrypt the audio file using zero-knowledge encryption
-				// toast.info("Encrypting audio file...");
-				// const { encryptedData, key, iv } = await encryptWithRandomKey(
-				//   await audioFile.arrayBuffer()
-				// );
-				// // Convert key and IV to base64 for JSON transport
-				// const keyB64 = arrayBufferToBase64(key);
-				// const ivB64 = arrayBufferToBase64(iv);
-				// updateState({ uploadProgress: 50 });
-
-				// // Step 3: Upload encrypted file to server
-				// toast.info("Uploading to secure storage...");
-				// // Generate unique key for the audio file
-				// const timestamp = Date.now();
-				// const random = Math.random().toString(36).substring(2, 15);
-				// const lastDotIndex = audioFile.name.lastIndexOf(".");
-				// const extension =
-				//   lastDotIndex > 0 ? audioFile.name.slice(lastDotIndex + 1) : "wav";
-				// const r2Key = `transcription/${timestamp}-${random}.${extension}`;
-
-				// // Upload to server via API using multipart form-data
-				// const form = new FormData();
-				// form.append("filename", r2Key);
-				// form.append(
-				//   "file",
-				//   new Blob([encryptedData], { type: "application/octet-stream" }),
-				//   r2Key
-				// );
-				// const uploadResponse = await fetch("/api/upload-audio", {
-				//   method: "POST",
-				//   body: form,
-				// });
-
-				// if (!uploadResponse.ok) {
-				//   let message = "Upload failed";
-				//   try {
-				//     const uploadError = await uploadResponse.json();
-				//     message = uploadError.message || message;
-				//   } catch {
-				//     const text = await uploadResponse.text();
-				//     if (text) message = text;
-				//   }
-				//   throw new Error(message);
-				// }
-
-				// updateState({ uploadProgress: 70 });
-
-				// // Step 4: Call transcription API
-				// toast.info("Starting transcription...");
-				// updateState({
-				//   isUploading: false,
-				//   uploadProgress: 100,
-				//   isTranscribing: true,
-				//   transcriptionProgress: 10,
-				// });
-
-				// const apiResult = await transcribeAudio({
-				//   filename: r2Key,
-				//   language: selectedLanguage,
-				//   decryptionKey: keyB64,
-				//   iv: ivB64,
-				// });
-
-				// if (apiResult?.success === false) {
-				//   throw new Error(
-				//     apiResult.error || apiResult.message || "Transcription failed"
-				//   );
-				// }
-
-				// updateState({ transcriptionProgress: 90 });
-
-				// const result: TranscriptionResult = {
-				//   text: apiResult.text || "",
-				//   segments: apiResult.segments || [],
-				//   language: apiResult.language || selectedLanguage,
-				// };
 
 				// Step 2: Call Gemini transcription via Electron IPC (audioFilePath is already in temp)
 				console.log("[Gemini Transcription] Calling Gemini API...");
@@ -635,6 +582,9 @@ export function CaptionsView() {
 					</div>
 				</div>
 			)}
+
+			{/* Smart recognition on timeline / library media (JianYing-style) */}
+			<SmartRecognitionCard onCompleted={handleSmartRecognitionCompleted} />
 
 			{/* Language Selection */}
 			<div className="space-y-2">
