@@ -63,4 +63,30 @@ describe("effect motion FFmpeg expressions", () => {
 			false
 		);
 	});
+
+	it("restarts motion inside its end-exclusive timeline window", () => {
+		const program: EffectRenderProgram = {
+			version: 1,
+			stages: [
+				{
+					kind: "motion",
+					intensity: 1,
+					window: { startSeconds: 1, endSeconds: 3 },
+					channels: [{ property: "scale", waveform: "linear", amplitude: 0.2 }],
+				},
+			],
+		};
+
+		const expression = buildEffectMotionExpressions({
+			program,
+			timeVariable: "t",
+			duration: 6,
+			width: 100,
+			height: 100,
+		}).scale;
+
+		expect(expression).toContain("gte(t,1)*lt(t,3)");
+		expect(expression).toContain("((t)-1)/2");
+		expect(expression).toContain(",0)");
+	});
 });
