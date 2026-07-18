@@ -136,6 +136,8 @@ describe("effect catalog", () => {
 			"sound",
 			"light",
 			"heart",
+			"audio",
+			"creative-ai",
 		] as const) {
 			expect(coverageByCategory.get(category)).toMatchObject({
 				count: 3,
