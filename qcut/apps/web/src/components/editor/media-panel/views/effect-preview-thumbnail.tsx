@@ -5,6 +5,12 @@ import type { VisualEffectCatalogEntry } from "@/lib/effects/effect-catalog-type
 import { EffectOverlayLayers } from "@/components/editor/effects/effect-overlay-layers";
 import { EffectCompositeCanvas } from "@/components/editor/effects/effect-composite-canvas";
 import { Volume2 } from "lucide-react";
+import {
+	appendAudioReactiveBrightnessFilter,
+	getEffectAudioReactiveStages,
+	getEffectAudioReactiveState,
+	mergeEffectMotionWithAudioReactive,
+} from "@/lib/effects/effect-audio-reactive-state";
 
 const PREVIEW_WIDTH = 160;
 const PREVIEW_HEIGHT = 90;
@@ -30,16 +36,35 @@ export function EffectPreviewThumbnail({
 			{ length: PREVIEW_SAMPLE_COUNT },
 			(_item, index) => {
 				const progress = index / (PREVIEW_SAMPLE_COUNT - 1);
-				const state = getEffectMotionState({
+				const audioLevel =
+					(1 + Math.sin(progress * Math.PI * 4 - Math.PI / 2)) / 2;
+				const levelByStageIndex = new Map<number, number>();
+				for (const stage of getEffectAudioReactiveStages({
 					program: entry.preset.renderProgram,
-					localTime: progress * PREVIEW_DURATION_SECONDS,
-					duration: PREVIEW_DURATION_SECONDS,
-					canvasWidth: PREVIEW_WIDTH,
-					canvasHeight: PREVIEW_HEIGHT,
+				})) {
+					levelByStageIndex.set(stage.stageIndex, audioLevel);
+				}
+				const audioReactive = getEffectAudioReactiveState({
+					program: entry.preset.renderProgram,
+					levelByStageIndex,
+				});
+				const state = mergeEffectMotionWithAudioReactive({
+					motion: getEffectMotionState({
+						program: entry.preset.renderProgram,
+						localTime: progress * PREVIEW_DURATION_SECONDS,
+						duration: PREVIEW_DURATION_SECONDS,
+						canvasWidth: PREVIEW_WIDTH,
+						canvasHeight: PREVIEW_HEIGHT,
+					}),
+					audioReactive,
 				});
 				return {
 					transform: `translate3d(${state.offsetX}px, ${state.offsetY}px, 0) rotate(${state.rotation}deg) scale(${state.scale})`,
 					opacity: state.opacity,
+					filter: appendAudioReactiveBrightnessFilter({
+						filter: parametersToCSSFilters(entry.preset.parameters),
+						audioReactive,
+					}),
 					offset: progress,
 				};
 			}
@@ -54,7 +79,15 @@ export function EffectPreviewThumbnail({
 	}, [entry]);
 
 	return (
-		<div className="relative size-full overflow-hidden">
+		<div
+			className="relative size-full overflow-hidden"
+			data-effect-audio-reactive={
+				getEffectAudioReactiveStages({ program: entry.preset.renderProgram })
+					.length > 0
+					? "true"
+					: undefined
+			}
+		>
 			<img
 				ref={imageRef}
 				src={source}
