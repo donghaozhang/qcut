@@ -1,0 +1,140 @@
+{
+	"schemaVersion": 1,
+	"kind": "qcut-text-template-package",
+	"assetId": "text-new-text-lower-third-ribbon",
+	"packageId": "text-new-text-lower-third",
+	"version": 2,
+	"cacheKey": "text-assets/text-new-text-lower-third/ribbon@2",
+	"files": {
+		"thumbnail": "thumbnail.webp",
+		"source": "template.json"
+	},
+	"resources": [
+		{
+			"byteSize": 26850,
+			"checksumSha256": "80d6dc53d3c6af405cbab8b2e8a5170b4add6c09a768eac5637136eae9583fb0",
+			"mimeType": "image/webp",
+			"path": "thumbnail.webp",
+			"role": "thumbnail",
+			"url": "/text-assets/text-new-text-lower-third/ribbon@2/thumbnail.webp"
+		},
+		{
+			"byteSize": 2371,
+			"checksumSha256": "9e344630ed8af6315f07702a0b73a616b3be8d08bfe12528cb9146d6406d77a1",
+			"mimeType": "application/json",
+			"path": "template.json",
+			"role": "source",
+			"url": "/text-assets/text-new-text-lower-third/ribbon@2/template.json"
+		}
+	],
+	"source": {
+		"schemaVersion": 1,
+		"assetId": "text-new-text-lower-third-ribbon",
+		"packageId": "text-new-text-lower-third",
+		"version": 2,
+		"marketplace": {
+			"editorialRank": 120,
+			"heatScore": 81,
+			"remoteTags": [
+				"category:lower-third",
+				"group:new-text",
+				"variant:ribbon"
+			],
+			"searchAliases": []
+		},
+		"definition": {
+			"id": "lower-third-ribbon",
+			"name": "角标飘带",
+			"category": "lower-third",
+			"groupId": "new-text",
+			"variantId": "ribbon",
+			"content": "人物介绍",
+			"stylePresetId": "red-label",
+			"keywords": [
+				"lower-third",
+				"角标",
+				"人物介绍",
+				"ribbon",
+				"飘带",
+				"横幅",
+				"促销",
+				"lower-third-ribbon",
+				"角标飘带",
+				"new-text"
+			],
+			"premium": true,
+			"downloaded": false,
+			"resource": {
+				"assetId": "text-new-text-lower-third-ribbon",
+				"packageId": "text-new-text-lower-third",
+				"version": 2,
+				"entitlement": "svip",
+				"cacheKey": "text-assets/text-new-text-lower-third/ribbon@2",
+				"sizeKb": 384
+			},
+			"catalogVisible": true,
+			"overrides": {
+				"fontSize": 62,
+				"color": "#ffffff",
+				"fontWeight": "bold",
+				"strokeColor": "#082f49",
+				"strokeWidth": 4,
+				"backgroundColor": "transparent",
+				"backgroundOpacity": 0,
+				"backgroundRadius": 4,
+				"backgroundPadding": 0,
+				"curve": -8,
+				"width": 720,
+				"height": 190,
+				"shadowColor": "#082f49",
+				"shadowOpacity": 0.35
+			}
+		},
+		"template": {
+			"id": "lower-third-ribbon",
+			"type": "text",
+			"name": "角标飘带",
+			"content": "人物介绍",
+			"fontSize": 62,
+			"fontFamily": "Arial",
+			"color": "#ffffff",
+			"backgroundColor": "transparent",
+			"textAlign": "center",
+			"fontWeight": "bold",
+			"fontStyle": "normal",
+			"textDecoration": "none",
+			"x": 0,
+			"y": 0,
+			"rotation": 0,
+			"opacity": 1,
+			"width": 720,
+			"height": 190,
+			"letterSpacing": 0,
+			"lineHeight": 1.2,
+			"verticalAlign": "middle",
+			"strokeColor": "#082f49",
+			"strokeWidth": 4,
+			"strokeOpacity": 1,
+			"backgroundOpacity": 0,
+			"backgroundRadius": 4,
+			"backgroundPadding": 0,
+			"shadowColor": "#082f49",
+			"shadowOpacity": 0.35,
+			"shadowOffsetX": 2,
+			"shadowOffsetY": 4,
+			"shadowBlur": 8,
+			"glowColor": "#ffffff",
+			"glowOpacity": 0,
+			"glowBlur": 12,
+			"curve": -8,
+			"animationType": "none",
+			"animationDuration": 0.6,
+			"animationDelay": 0,
+			"blendMode": "normal",
+			"duration": 5,
+			"startTime": 0,
+			"trimStart": 0,
+			"trimEnd": 0
+		}
+	}
+}

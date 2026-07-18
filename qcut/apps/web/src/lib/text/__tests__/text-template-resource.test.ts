@@ -5,6 +5,7 @@ import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import type { CachedAssetResource } from "@/lib/assets/asset-resource-cache";
 import type { AssetResourceCacheStorage } from "@/lib/assets/asset-resource-cache";
+import type { TextElement } from "@/types/timeline";
 import { describe, expect, it, vi } from "vitest";
 import {
 	downloadTextTemplateResource,
@@ -113,12 +114,14 @@ function packageText({
 	includeResources = true,
 	includeTemplatePack = false,
 	resourcesOverride,
+	templateOverrides,
 }: {
 	content?: string;
 	definition: TextTemplateDefinition;
 	includeResources?: boolean;
 	includeTemplatePack?: boolean;
 	resourcesOverride?: unknown[];
+	templateOverrides?: Partial<TextElement>;
 }): string {
 	const resource = definition.resource;
 	if (!resource) throw new Error("Expected text definition resource");
@@ -226,6 +229,7 @@ function packageText({
 				width: 640,
 				x: 80,
 				y: 120,
+				...templateOverrides,
 			},
 			templatePack,
 		},
@@ -976,6 +980,49 @@ describe("downloadTextTemplateResource", () => {
 			content: "Timeline package content",
 			id: fallbackTemplate.id,
 			type: "text",
+		});
+	});
+
+	it("keeps decorative templates transparent after package payload merging", async () => {
+		const definition = {
+			...textDefinition({ sizeKb: 2 }),
+			category: "basic",
+			groupId: "new-text",
+		} satisfies TextTemplateDefinition;
+		const fallbackTemplate = buildTextTemplate({ definition });
+		const packageBody = padJsonTextToByteLength({
+			targetBytes: 2048,
+			text: packageText({
+				definition,
+				templateOverrides: {
+					backgroundColor: "#ffffff",
+					backgroundOpacity: 1,
+					backgroundPadding: 24,
+				},
+			}),
+		});
+		const fetchImpl = vi.fn<typeof fetch>(
+			async () =>
+				new Response(packageBody, {
+					headers: {
+						"content-length": String(packageBody.length),
+						"content-type": "application/vnd.qcut.text-template+json",
+					},
+					status: 200,
+				})
+		);
+
+		await expect(
+			resolveTextTemplateForTimeline({
+				definition,
+				fallbackTemplate,
+				fetchImpl,
+				storage: new MemoryAssetCache(),
+			})
+		).resolves.toMatchObject({
+			backgroundColor: "transparent",
+			backgroundOpacity: 0,
+			backgroundPadding: 0,
 		});
 	});
 

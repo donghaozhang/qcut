@@ -1,4 +1,7 @@
-import type { TextTemplateDefinition } from "@/lib/text/text-template-registry";
+import {
+	type TextTemplateDefinition,
+	usesTransparentTextTemplateBackground,
+} from "@/lib/text/text-template-registry";
 import {
 	buildTextTemplatePack,
 	type TextTemplatePackPayload,
@@ -1952,9 +1955,15 @@ export function renderTextTemplateThumbnail({
 	const width = canvas.width;
 	const height = canvas.height;
 	const recipe = getTextTemplateThumbnailRecipe({ definition });
+	const usesTransparentBackground = usesTransparentTextTemplateBackground({
+		groupId: definition.groupId,
+	});
 
-	drawBackground({ context, height, recipe, width });
-	drawOrnaments({ context, height, recipe, width });
+	context.clearRect(0, 0, width, height);
+	if (!usesTransparentBackground) {
+		drawBackground({ context, height, recipe, width });
+		drawOrnaments({ context, height, recipe, width });
+	}
 	if (getTextTemplateThumbnailLayoutKind({ definition }) === "pack") {
 		const model = getTextTemplatePackPreviewModel({
 			definition,

@@ -1,0 +1,145 @@
+{
+	"schemaVersion": 1,
+	"kind": "qcut-text-template-package",
+	"assetId": "text-fancy-purple-outline",
+	"packageId": "text-fancy-purple",
+	"version": 3,
+	"cacheKey": "text-assets/text-fancy-purple/outline@3",
+	"files": {
+		"thumbnail": "thumbnail.webp",
+		"source": "template.json"
+	},
+	"resources": [
+		{
+			"byteSize": 21974,
+			"checksumSha256": "52208f75cb7088b423450bd2e1dde935b8f92410869d49bf17cd1df860cab05f",
+			"mimeType": "image/webp",
+			"path": "thumbnail.webp",
+			"role": "thumbnail",
+			"url": "/text-assets/text-fancy-purple/outline@3/thumbnail.webp"
+		},
+		{
+			"byteSize": 2307,
+			"checksumSha256": "76294836c168b9ad95726d8b3ec593b83d27e53ebfb62c2cc78db7817ef93254",
+			"mimeType": "application/json",
+			"path": "template.json",
+			"role": "source",
+			"url": "/text-assets/text-fancy-purple/outline@3/template.json"
+		}
+	],
+	"source": {
+		"schemaVersion": 1,
+		"assetId": "text-fancy-purple-outline",
+		"packageId": "text-fancy-purple",
+		"version": 3,
+		"marketplace": {
+			"editorialRank": 50,
+			"heatScore": 90,
+			"remoteTags": [
+				"category:purple",
+				"group:fancy",
+				"variant:outline",
+				"color:purple",
+				"tone:dreamy"
+			],
+			"searchAliases": [
+				"紫色",
+				"梦幻",
+				"高级",
+				"purple"
+			]
+		},
+		"definition": {
+			"id": "purple-outline",
+			"name": "紫色描边",
+			"category": "purple",
+			"groupId": "fancy",
+			"variantId": "outline",
+			"content": "花字",
+			"stylePresetId": "blue-outline",
+			"keywords": [
+				"purple",
+				"紫色",
+				"花字",
+				"outline",
+				"描边",
+				"轮廓",
+				"stroke",
+				"purple-outline",
+				"紫色描边",
+				"fancy"
+			],
+			"premium": true,
+			"downloaded": false,
+			"resource": {
+				"assetId": "text-fancy-purple-outline",
+				"packageId": "text-fancy-purple",
+				"version": 3,
+				"entitlement": "svip",
+				"cacheKey": "text-assets/text-fancy-purple/outline@3",
+				"sizeKb": 384
+			},
+			"catalogVisible": true,
+			"overrides": {
+				"fontSize": 72,
+				"color": "#f5f3ff",
+				"fontWeight": "bold",
+				"strokeColor": "#7c3aed",
+				"strokeWidth": 5,
+				"shadowColor": "#2e1065",
+				"shadowOpacity": 0.3,
+				"shadowOffsetX": 4,
+				"shadowOffsetY": 5,
+				"shadowBlur": 3,
+				"width": 760,
+				"height": 210
+			}
+		},
+		"template": {
+			"id": "purple-outline",
+			"type": "text",
+			"name": "紫色描边",
+			"content": "花字",
+			"fontSize": 72,
+			"fontFamily": "Arial",
+			"color": "#f5f3ff",
+			"backgroundColor": "transparent",
+			"textAlign": "center",
+			"fontWeight": "bold",
+			"fontStyle": "normal",
+			"textDecoration": "none",
+			"x": 0,
+			"y": 0,
+			"rotation": 0,
+			"opacity": 1,
+			"width": 760,
+			"height": 210,
+			"letterSpacing": 0,
+			"lineHeight": 1.2,
+			"verticalAlign": "middle",
+			"strokeColor": "#7c3aed",
+			"strokeWidth": 5,
+			"strokeOpacity": 1,
+			"backgroundOpacity": 0,
+			"backgroundRadius": 4,
+			"backgroundPadding": 12,
+			"shadowColor": "#2e1065",
+			"shadowOpacity": 0.3,
+			"shadowOffsetX": 4,
+			"shadowOffsetY": 5,
+			"shadowBlur": 3,
+			"glowColor": "#ffffff",
+			"glowOpacity": 0,
+			"glowBlur": 12,
+			"curve": 0,
+			"animationType": "none",
+			"animationDuration": 0.6,
+			"animationDelay": 0,
+			"blendMode": "normal",
+			"duration": 5,
+			"startTime": 0,
+			"trimStart": 0,
+			"trimEnd": 0
+		}
+	}
+}

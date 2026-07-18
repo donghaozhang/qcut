@@ -1,0 +1,142 @@
+{
+	"schemaVersion": 1,
+	"kind": "qcut-text-template-package",
+	"assetId": "text-new-text-caption-bubble",
+	"packageId": "text-new-text-caption",
+	"version": 2,
+	"cacheKey": "text-assets/text-new-text-caption/bubble@2",
+	"files": {
+		"thumbnail": "thumbnail.webp",
+		"source": "template.json"
+	},
+	"resources": [
+		{
+			"byteSize": 19082,
+			"checksumSha256": "d88e0969d7d70bc05a22e95980abac2d971c9234b361ea6d5d6f9c6d1b4942d2",
+			"mimeType": "image/webp",
+			"path": "thumbnail.webp",
+			"role": "thumbnail",
+			"url": "/text-assets/text-new-text-caption/bubble@2/thumbnail.webp"
+		},
+		{
+			"byteSize": 2382,
+			"checksumSha256": "c9fe69a9d5a196c2654644bbec4d263a519d84194b55101d167b01b03e91c86d",
+			"mimeType": "application/json",
+			"path": "template.json",
+			"role": "source",
+			"url": "/text-assets/text-new-text-caption/bubble@2/template.json"
+		}
+	],
+	"source": {
+		"schemaVersion": 1,
+		"assetId": "text-new-text-caption-bubble",
+		"packageId": "text-new-text-caption",
+		"version": 2,
+		"marketplace": {
+			"editorialRank": 120,
+			"heatScore": 77,
+			"remoteTags": [
+				"category:caption",
+				"group:new-text",
+				"variant:bubble"
+			],
+			"searchAliases": []
+		},
+		"definition": {
+			"id": "caption-bubble",
+			"name": "说明气泡",
+			"category": "caption",
+			"groupId": "new-text",
+			"variantId": "bubble",
+			"content": "说明文字",
+			"stylePresetId": "pink-neon",
+			"keywords": [
+				"caption",
+				"说明",
+				"说明文字",
+				"bubble",
+				"气泡",
+				"圆润",
+				"可爱",
+				"caption-bubble",
+				"说明气泡",
+				"new-text"
+			],
+			"premium": false,
+			"downloaded": true,
+			"resource": {
+				"assetId": "text-new-text-caption-bubble",
+				"packageId": "text-new-text-caption",
+				"version": 2,
+				"entitlement": "free",
+				"cacheKey": "text-assets/text-new-text-caption/bubble@2",
+				"sizeKb": 192
+			},
+			"catalogVisible": true,
+			"overrides": {
+				"fontSize": 66,
+				"color": "#374151",
+				"fontWeight": "bold",
+				"strokeColor": "#ffffff",
+				"strokeWidth": 6,
+				"backgroundColor": "transparent",
+				"backgroundOpacity": 0,
+				"backgroundRadius": 42,
+				"backgroundPadding": 0,
+				"shadowColor": "#22c55e",
+				"shadowOpacity": 0.45,
+				"shadowOffsetX": 0,
+				"shadowOffsetY": 8,
+				"shadowBlur": 14,
+				"width": 680,
+				"height": 210
+			}
+		},
+		"template": {
+			"id": "caption-bubble",
+			"type": "text",
+			"name": "说明气泡",
+			"content": "说明文字",
+			"fontSize": 66,
+			"fontFamily": "Arial",
+			"color": "#374151",
+			"backgroundColor": "transparent",
+			"textAlign": "center",
+			"fontWeight": "bold",
+			"fontStyle": "normal",
+			"textDecoration": "none",
+			"x": 0,
+			"y": 0,
+			"rotation": 0,
+			"opacity": 1,
+			"width": 680,
+			"height": 210,
+			"letterSpacing": 0,
+			"lineHeight": 1.2,
+			"verticalAlign": "middle",
+			"strokeColor": "#ffffff",
+			"strokeWidth": 6,
+			"strokeOpacity": 1,
+			"backgroundOpacity": 0,
+			"backgroundRadius": 42,
+			"backgroundPadding": 0,
+			"shadowColor": "#22c55e",
+			"shadowOpacity": 0.45,
+			"shadowOffsetX": 0,
+			"shadowOffsetY": 8,
+			"shadowBlur": 14,
+			"glowColor": "#ff3ca6",
+			"glowOpacity": 0.9,
+			"glowBlur": 18,
+			"curve": 0,
+			"animationType": "none",
+			"animationDuration": 0.6,
+			"animationDelay": 0,
+			"blendMode": "normal",
+			"duration": 5,
+			"startTime": 0,
+			"trimStart": 0,
+			"trimEnd": 0
+		}
+	}
+}

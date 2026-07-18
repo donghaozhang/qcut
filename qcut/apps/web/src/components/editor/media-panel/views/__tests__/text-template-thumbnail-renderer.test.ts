@@ -1,13 +1,17 @@
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import {
 	getThumbnailPreviewContent,
 	getTextTemplatePackPreviewBounds,
 	getTextTemplatePackPreviewModel,
 	getTextTemplateThumbnailLayoutKind,
 	getTextTemplateThumbnailRecipe,
+	renderTextTemplateThumbnail,
 	type TextThumbnailBackgroundKind,
 } from "../text-template-thumbnail-renderer";
-import { getTextTemplateDefinitionsByCategory } from "@/lib/text/text-template-registry";
+import {
+	buildTextTemplate,
+	getTextTemplateDefinitionsByCategory,
+} from "@/lib/text/text-template-registry";
 import {
 	applyTextTemplatePackCopy,
 	buildTextTemplatePack,
@@ -56,7 +60,62 @@ function getBackgroundKindsForCategory({
 		);
 }
 
+function createCanvasFixture() {
+	const gradient = { addColorStop: vi.fn() } as unknown as CanvasGradient;
+	const clearRect = vi.fn();
+	const fillRect = vi.fn();
+	const context = new Proxy(
+		{
+			clearRect,
+			createLinearGradient: vi.fn(() => gradient),
+			createRadialGradient: vi.fn(() => gradient),
+			fillRect,
+		},
+		{
+			get(target, property, receiver) {
+				if (Reflect.has(target, property)) {
+					return Reflect.get(target, property, receiver);
+				}
+				const method = vi.fn();
+				Reflect.set(target, property, method);
+				return method;
+			},
+		}
+	) as unknown as CanvasRenderingContext2D;
+	const canvas = {
+		getContext: vi.fn(() => context),
+		height: 304,
+		width: 320,
+	} as unknown as HTMLCanvasElement;
+	return { canvas, clearRect, fillRect };
+}
+
 describe("text template thumbnail renderer", () => {
+	it("renders decorative cards over a transparent canvas", () => {
+		const definition = getTextTemplateDefinitionsByCategory({
+			category: "basic",
+		})[0];
+		const template = buildTextTemplate({ definition });
+		const { canvas, clearRect, fillRect } = createCanvasFixture();
+
+		renderTextTemplateThumbnail({ canvas, definition, template });
+
+		expect(clearRect).toHaveBeenCalledWith(0, 0, 320, 304);
+		expect(fillRect).not.toHaveBeenCalled();
+	});
+
+	it("retains scene backdrops for semantic packaging cards", () => {
+		const definition = getTextTemplateDefinitionsByCategory({
+			category: "cover-pack",
+		})[0];
+		const template = buildTextTemplate({ definition });
+		const { canvas, fillRect } = createCanvasFixture();
+
+		renderTextTemplateThumbnail({ canvas, definition, template });
+
+		expect(fillRect).toHaveBeenCalledWith(0, 0, 320, 304);
+	});
+
 	it("uses raster-style canvas recipes for curated color and texture categories", () => {
 		const redDefinitions = getTextTemplateDefinitionsByCategory({
 			category: "red",

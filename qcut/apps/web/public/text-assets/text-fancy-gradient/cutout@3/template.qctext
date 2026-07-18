@@ -1,0 +1,145 @@
+{
+	"schemaVersion": 1,
+	"kind": "qcut-text-template-package",
+	"assetId": "text-fancy-gradient-cutout",
+	"packageId": "text-fancy-gradient",
+	"version": 3,
+	"cacheKey": "text-assets/text-fancy-gradient/cutout@3",
+	"files": {
+		"thumbnail": "thumbnail.webp",
+		"source": "template.json"
+	},
+	"resources": [
+		{
+			"byteSize": 22040,
+			"checksumSha256": "bd3b01771aed31f8e90eeefe8c3ff79f122e72c6ac3015fade558c7ac27c1f18",
+			"mimeType": "image/webp",
+			"path": "thumbnail.webp",
+			"role": "thumbnail",
+			"url": "/text-assets/text-fancy-gradient/cutout@3/thumbnail.webp"
+		},
+		{
+			"byteSize": 2325,
+			"checksumSha256": "3c7b0a957c6765dc92a8d57fa7a91e7d2d256838786e06ad7a887d8a190a22ee",
+			"mimeType": "application/json",
+			"path": "template.json",
+			"role": "source",
+			"url": "/text-assets/text-fancy-gradient/cutout@3/template.json"
+		}
+	],
+	"source": {
+		"schemaVersion": 1,
+		"assetId": "text-fancy-gradient-cutout",
+		"packageId": "text-fancy-gradient",
+		"version": 3,
+		"marketplace": {
+			"editorialRank": 12,
+			"heatScore": 96,
+			"remoteTags": [
+				"category:gradient",
+				"group:fancy",
+				"variant:cutout",
+				"effect:gradient",
+				"tone:dreamy"
+			],
+			"searchAliases": [
+				"渐变",
+				"流光",
+				"梦幻",
+				"gradient"
+			]
+		},
+		"definition": {
+			"id": "gradient-cutout",
+			"name": "渐变剪纸",
+			"category": "gradient",
+			"groupId": "fancy",
+			"variantId": "cutout",
+			"content": "花字",
+			"stylePresetId": "blue-outline",
+			"keywords": [
+				"gradient",
+				"渐变",
+				"花字",
+				"cutout",
+				"剪纸",
+				"贴边",
+				"层次",
+				"gradient-cutout",
+				"渐变剪纸",
+				"fancy"
+			],
+			"premium": true,
+			"downloaded": false,
+			"resource": {
+				"assetId": "text-fancy-gradient-cutout",
+				"packageId": "text-fancy-gradient",
+				"version": 3,
+				"entitlement": "svip",
+				"cacheKey": "text-assets/text-fancy-gradient/cutout@3",
+				"sizeKb": 384
+			},
+			"catalogVisible": true,
+			"overrides": {
+				"fontSize": 70,
+				"color": "#f3e8ff",
+				"fontWeight": "bold",
+				"strokeColor": "#9333ea",
+				"strokeWidth": 7,
+				"shadowColor": "#581c87",
+				"shadowOpacity": 0.4,
+				"shadowOffsetX": 7,
+				"shadowOffsetY": 7,
+				"shadowBlur": 0,
+				"width": 760,
+				"height": 220
+			}
+		},
+		"template": {
+			"id": "gradient-cutout",
+			"type": "text",
+			"name": "渐变剪纸",
+			"content": "花字",
+			"fontSize": 70,
+			"fontFamily": "Arial",
+			"color": "#f3e8ff",
+			"backgroundColor": "transparent",
+			"textAlign": "center",
+			"fontWeight": "bold",
+			"fontStyle": "normal",
+			"textDecoration": "none",
+			"x": 0,
+			"y": 0,
+			"rotation": 0,
+			"opacity": 1,
+			"width": 760,
+			"height": 220,
+			"letterSpacing": 0,
+			"lineHeight": 1.2,
+			"verticalAlign": "middle",
+			"strokeColor": "#9333ea",
+			"strokeWidth": 7,
+			"strokeOpacity": 1,
+			"backgroundOpacity": 0,
+			"backgroundRadius": 4,
+			"backgroundPadding": 12,
+			"shadowColor": "#581c87",
+			"shadowOpacity": 0.4,
+			"shadowOffsetX": 7,
+			"shadowOffsetY": 7,
+			"shadowBlur": 0,
+			"glowColor": "#ffffff",
+			"glowOpacity": 0,
+			"glowBlur": 12,
+			"curve": 0,
+			"animationType": "none",
+			"animationDuration": 0.6,
+			"animationDelay": 0,
+			"blendMode": "normal",
+			"duration": 5,
+			"startTime": 0,
+			"trimStart": 0,
+			"trimEnd": 0
+		}
+	}
+}

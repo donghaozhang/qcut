@@ -582,6 +582,19 @@ export type TextTemplateCategoryId =
 	| typeof MARKETPLACE_RECOMMENDED_TEXT_CATEGORY_ID
 	| typeof MARKETPLACE_TRENDING_TEXT_CATEGORY_ID;
 
+const TRANSPARENT_TEXT_TEMPLATE_GROUPS = new Set<TextTemplateGroupId>([
+	"new-text",
+	"fancy",
+]);
+
+export function usesTransparentTextTemplateBackground({
+	groupId,
+}: {
+	groupId: TextTemplateGroupId;
+}): boolean {
+	return TRANSPARENT_TEXT_TEMPLATE_GROUPS.has(groupId);
+}
+
 export interface TextTemplateCategory {
 	id: TextTemplateCategoryId;
 	groupId: TextTemplateGroupId;
@@ -1902,9 +1915,9 @@ function buildTextTemplateResource({
 	const packageId = `text-${groupId}-${category.id}`;
 	const assetId = `${packageId}-${variant.id}`;
 	const entitlement = variant.premium ? "svip" : "free";
-	// Fancy packs were re-baked without background plates (v2); bumping the
-	// version rolls the cache key so previously downloaded packs refresh.
-	const version = groupId === "fancy" ? 2 : 1;
+	// Background-policy changes need a new cache key so previously downloaded
+	// packs cannot restore old plates or opaque thumbnails after merging.
+	const version = groupId === "fancy" ? 3 : groupId === "new-text" ? 2 : 1;
 	return {
 		assetId,
 		packageId,
@@ -1916,38 +1929,48 @@ function buildTextTemplateResource({
 }
 
 /**
- * JianYing-style 花字 are pure glyph styling — gradients, strokes and glows on
- * the characters over a transparent background. Variants that leaned on a
- * background plate for contrast get a compensating stroke and shadow, and
- * dark-on-light-plate text flips to a light fill so it stays readable over
- * arbitrary video.
+ * Perceptual darkness check for template text. An exact palette.dark match
+ * misses near-black preset colors (e.g. legacy labels use #111111), which
+ * would keep dark text + dark stroke once the background plate is stripped.
  */
-function stripFancyBackground({
-	overrides,
-	category,
+function isDarkTemplateTextColor({ color }: { color?: string }): boolean {
+	const match = color?.trim().match(/^#([0-9a-f]{3}|[0-9a-f]{6})$/iu);
+	if (!match) return false;
+	const hex =
+		match[1].length === 3
+			? [...match[1]].map((digit) => digit + digit).join("")
+			: match[1];
+	const value = Number.parseInt(hex, 16);
+	const red = (value >> 16) & 0xff;
+	const green = (value >> 8) & 0xff;
+	const blue = value & 0xff;
+	return 0.2126 * red + 0.7152 * green + 0.0722 * blue < 96;
+}
+
+function stripTemplateBackground<T extends Partial<TextElement>>({
+	template,
+	palette,
 }: {
-	overrides: Partial<TextElement>;
-	category: TextTemplateCategorySeed;
-}): Partial<TextElement> {
-	if (
-		!overrides.backgroundColor ||
-		overrides.backgroundColor === "transparent"
-	) {
-		return overrides;
+	template: T;
+	palette?: TextTemplatePalette;
+}): T {
+	if (!template.backgroundColor || template.backgroundColor === "transparent") {
+		return template;
 	}
-	const reliedOnPlate = (overrides.backgroundOpacity ?? 1) >= 0.5;
-	const darkText = overrides.color === category.palette.dark;
+	const reliedOnPlate = (template.backgroundOpacity ?? 1) >= 0.5;
+	const darkText =
+		palette && isDarkTemplateTextColor({ color: template.color });
 	return {
-		...overrides,
+		...template,
 		backgroundColor: "transparent",
 		backgroundOpacity: 0,
 		backgroundPadding: 0,
-		color: darkText ? category.palette.primary : overrides.color,
-		strokeColor: overrides.strokeColor ?? category.palette.dark,
-		strokeWidth: Math.max(overrides.strokeWidth ?? 0, reliedOnPlate ? 4 : 2),
-		shadowColor: overrides.shadowColor ?? category.palette.dark,
-		shadowOpacity: Math.max(overrides.shadowOpacity ?? 0, 0.35),
-	};
+		color: darkText ? palette.primary : template.color,
+		strokeColor: template.strokeColor ?? palette?.dark,
+		strokeWidth: Math.max(template.strokeWidth ?? 0, reliedOnPlate ? 4 : 2),
+		shadowColor: template.shadowColor ?? palette?.dark,
+		shadowOpacity: Math.max(template.shadowOpacity ?? 0, 0.35),
+	} as T;
 }
 
 function buildGeneratedDefinition({
@@ -1989,10 +2012,12 @@ function buildGeneratedDefinition({
 		downloaded: variant.downloaded ?? false,
 		resource: buildTextTemplateResource({ category, groupId, variant }),
 		catalogVisible: true,
-		overrides:
-			groupId === "fancy"
-				? stripFancyBackground({ overrides, category })
-				: overrides,
+		overrides: usesTransparentTextTemplateBackground({ groupId })
+			? stripTemplateBackground({
+					template: overrides,
+					palette: category.palette,
+				})
+			: overrides,
 	};
 }
 
@@ -2261,14 +2286,18 @@ export const TEXT_TEMPLATE_LIBRARY_DEFINITIONS: readonly TextTemplateDefinition[
 
 function getMarketplaceRecommendedTextTemplateDefinitions(): TextTemplateDefinition[] {
 	return getRecommendedTextTemplateDefinitions({
-		definitions: TEXT_TEMPLATE_LIBRARY_DEFINITIONS,
+		definitions: TEXT_TEMPLATE_LIBRARY_DEFINITIONS.filter(
+			(definition) => definition.groupId === "fancy"
+		),
 		limit: 30,
 	});
 }
 
 function getMarketplaceTrendingTextTemplateDefinitions(): TextTemplateDefinition[] {
 	return getTrendingTextTemplateDefinitions({
-		definitions: TEXT_TEMPLATE_LIBRARY_DEFINITIONS,
+		definitions: TEXT_TEMPLATE_LIBRARY_DEFINITIONS.filter(
+			(definition) => definition.groupId === "fancy"
+		),
 		limit: 30,
 	});
 }
@@ -2276,6 +2305,35 @@ function getMarketplaceTrendingTextTemplateDefinitions(): TextTemplateDefinition
 const textPresetsById = new Map<string, TextStylePreset>(
 	BUILT_IN_TEXT_PRESETS.map((preset) => [preset.id, preset])
 );
+
+function getTextTemplatePalette({
+	definition,
+}: {
+	definition: TextTemplateDefinition;
+}): TextTemplatePalette | undefined {
+	return TEXT_TEMPLATE_GROUP_SEEDS.find(
+		(group) => group.id === definition.groupId
+	)?.categories.find((category) => category.id === definition.category)
+		?.palette;
+}
+
+export function applyTextTemplateBackgroundPolicy<
+	T extends Partial<TextElement>,
+>({
+	definition,
+	template,
+}: {
+	definition: TextTemplateDefinition;
+	template: T;
+}): T {
+	if (!usesTransparentTextTemplateBackground({ groupId: definition.groupId })) {
+		return template;
+	}
+	return stripTemplateBackground({
+		template,
+		palette: getTextTemplatePalette({ definition }),
+	});
+}
 
 export function buildTextTemplate({
 	definition,
@@ -2289,7 +2347,7 @@ export function buildTextTemplate({
 		);
 	}
 
-	const template = {
+	const template: TextElement = {
 		...BASE_TEXT_TEMPLATE,
 		...stylePreset.updates,
 		...definition.overrides,
@@ -2298,23 +2356,7 @@ export function buildTextTemplate({
 		content: definition.content,
 	};
 
-	if (
-		definition.groupId !== "fancy" ||
-		!template.backgroundColor ||
-		template.backgroundColor === "transparent"
-	) {
-		return template;
-	}
-
-	const reliedOnPlate = (template.backgroundOpacity ?? 1) >= 0.5;
-	return {
-		...template,
-		backgroundColor: "transparent",
-		backgroundOpacity: 0,
-		backgroundPadding: 0,
-		strokeWidth: Math.max(template.strokeWidth ?? 0, reliedOnPlate ? 4 : 2),
-		shadowOpacity: Math.max(template.shadowOpacity ?? 0, 0.35),
-	};
+	return applyTextTemplateBackgroundPolicy({ definition, template });
 }
 
 export const TEXT_TEMPLATES: readonly TextElement[] =

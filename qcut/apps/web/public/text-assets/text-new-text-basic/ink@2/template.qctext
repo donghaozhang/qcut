@@ -1,0 +1,141 @@
+{
+	"schemaVersion": 1,
+	"kind": "qcut-text-template-package",
+	"assetId": "text-new-text-basic-ink",
+	"packageId": "text-new-text-basic",
+	"version": 2,
+	"cacheKey": "text-assets/text-new-text-basic/ink@2",
+	"files": {
+		"thumbnail": "thumbnail.webp",
+		"source": "template.json"
+	},
+	"resources": [
+		{
+			"byteSize": 21106,
+			"checksumSha256": "839f352827db9bb750f670175e6492255908c1c5012dadb33e6224e9c162b0e6",
+			"mimeType": "image/webp",
+			"path": "thumbnail.webp",
+			"role": "thumbnail",
+			"url": "/text-assets/text-new-text-basic/ink@2/thumbnail.webp"
+		},
+		{
+			"byteSize": 2299,
+			"checksumSha256": "3d084e7f4eaf4a5f653248f77e5abf9f7203c403ac684e52cf262ed31fae64a7",
+			"mimeType": "application/json",
+			"path": "template.json",
+			"role": "source",
+			"url": "/text-assets/text-new-text-basic/ink@2/template.json"
+		}
+	],
+	"source": {
+		"schemaVersion": 1,
+		"assetId": "text-new-text-basic-ink",
+		"packageId": "text-new-text-basic",
+		"version": 2,
+		"marketplace": {
+			"editorialRank": 120,
+			"heatScore": 81,
+			"remoteTags": [
+				"category:basic",
+				"group:new-text",
+				"variant:ink"
+			],
+			"searchAliases": []
+		},
+		"definition": {
+			"id": "basic-ink",
+			"name": "基础文本水墨",
+			"category": "basic",
+			"groupId": "new-text",
+			"variantId": "ink",
+			"content": "Default text",
+			"stylePresetId": "editorial",
+			"keywords": [
+				"basic",
+				"基础文本",
+				"Default text",
+				"ink",
+				"水墨",
+				"国风",
+				"书法",
+				"brush",
+				"basic-ink",
+				"基础文本水墨",
+				"new-text"
+			],
+			"premium": true,
+			"downloaded": false,
+			"resource": {
+				"assetId": "text-new-text-basic-ink",
+				"packageId": "text-new-text-basic",
+				"version": 2,
+				"entitlement": "svip",
+				"cacheKey": "text-assets/text-new-text-basic/ink@2",
+				"sizeKb": 384
+			},
+			"catalogVisible": true,
+			"overrides": {
+				"fontSize": 76,
+				"fontFamily": "serif",
+				"color": "#000000",
+				"fontWeight": "bold",
+				"fontStyle": "italic",
+				"strokeColor": "#ffffff",
+				"strokeWidth": 1,
+				"shadowColor": "#111827",
+				"shadowOpacity": 0.45,
+				"shadowOffsetX": 3,
+				"shadowOffsetY": 5,
+				"shadowBlur": 7,
+				"width": 760,
+				"height": 230
+			}
+		},
+		"template": {
+			"id": "basic-ink",
+			"type": "text",
+			"name": "基础文本水墨",
+			"content": "Default text",
+			"fontSize": 76,
+			"fontFamily": "serif",
+			"color": "#000000",
+			"backgroundColor": "transparent",
+			"textAlign": "center",
+			"fontWeight": "bold",
+			"fontStyle": "italic",
+			"textDecoration": "none",
+			"x": 0,
+			"y": 0,
+			"rotation": 0,
+			"opacity": 1,
+			"width": 760,
+			"height": 230,
+			"letterSpacing": 1,
+			"lineHeight": 1.2,
+			"verticalAlign": "middle",
+			"strokeColor": "#ffffff",
+			"strokeWidth": 1,
+			"strokeOpacity": 1,
+			"backgroundOpacity": 0,
+			"backgroundRadius": 4,
+			"backgroundPadding": 12,
+			"shadowColor": "#111827",
+			"shadowOpacity": 0.45,
+			"shadowOffsetX": 3,
+			"shadowOffsetY": 5,
+			"shadowBlur": 7,
+			"glowColor": "#ffffff",
+			"glowOpacity": 0,
+			"glowBlur": 12,
+			"curve": 0,
+			"animationType": "none",
+			"animationDuration": 0.6,
+			"animationDelay": 0,
+			"blendMode": "normal",
+			"duration": 5,
+			"startTime": 0,
+			"trimStart": 0,
+			"trimEnd": 0
+		}
+	}
+}

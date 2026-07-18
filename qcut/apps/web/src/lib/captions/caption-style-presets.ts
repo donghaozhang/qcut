@@ -119,6 +119,40 @@ export function createCaptionStyleFromTextPreset({
 	};
 }
 
+/** Captions read at smaller sizes than fancy text; keep templates legible. */
+const CAPTION_TEMPLATE_FONT_SIZE_RANGE = { min: 32, max: 64 };
+
+/**
+ * Convert a qctext text-template definition (花字库) into a caption style so
+ * the shared template gallery can drive the 字幕模板 experience.
+ */
+export function captionStyleFromTextTemplate({
+	stylePresetId,
+	overrides,
+}: {
+	stylePresetId: string;
+	overrides?: TextPresetUpdates;
+}): SubtitleStyle | null {
+	const preset = BUILT_IN_TEXT_PRESETS.find(
+		(candidate) => candidate.id === stylePresetId
+	);
+	if (!preset) return null;
+	const style: SubtitleStyle = {
+		...DEFAULT_CAPTION_STYLE,
+		...definedStyleValues({
+			style: textUpdatesToCaptionStyle({ updates: preset.updates }),
+		}),
+		...definedStyleValues({
+			style: textUpdatesToCaptionStyle({ updates: overrides ?? {} }),
+		}),
+	};
+	style.fontSize = Math.min(
+		CAPTION_TEMPLATE_FONT_SIZE_RANGE.max,
+		Math.max(CAPTION_TEMPLATE_FONT_SIZE_RANGE.min, style.fontSize)
+	);
+	return style;
+}
+
 export const CAPTION_STYLE_PRESETS: readonly CaptionStylePreset[] = [
 	{
 		id: "talking-head-bold",

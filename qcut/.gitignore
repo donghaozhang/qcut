@@ -191,3 +191,6 @@ docs/task/daytona-supabase-agent/ffas-review-export-debug/
 
 # Deprioritized task docs (parked locally, not tracked)
 docs/task/Low-priority/
+
+# Supabase CLI local link state
+packages/db/supabase/.temp/

@@ -1,0 +1,153 @@
+{
+	"schemaVersion": 1,
+	"kind": "qcut-text-template-package",
+	"assetId": "text-fancy-blue-soft-card",
+	"packageId": "text-fancy-blue",
+	"version": 3,
+	"cacheKey": "text-assets/text-fancy-blue/soft-card@3",
+	"files": {
+		"thumbnail": "thumbnail.webp",
+		"source": "template.json"
+	},
+	"resources": [
+		{
+			"byteSize": 22620,
+			"checksumSha256": "997a86c5638685e70baa7d941923577fceae28929f9e5ec7c6edd50ec2f7273f",
+			"mimeType": "image/webp",
+			"path": "thumbnail.webp",
+			"role": "thumbnail",
+			"url": "/text-assets/text-fancy-blue/soft-card@3/thumbnail.webp"
+		},
+		{
+			"byteSize": 2467,
+			"checksumSha256": "8f427efe5c0578a1e633b051af29bf35311478b68815234202a94f736184b3b2",
+			"mimeType": "application/json",
+			"path": "template.json",
+			"role": "source",
+			"url": "/text-assets/text-fancy-blue/soft-card@3/template.json"
+		}
+	],
+	"source": {
+		"schemaVersion": 1,
+		"assetId": "text-fancy-blue-soft-card",
+		"packageId": "text-fancy-blue",
+		"version": 3,
+		"marketplace": {
+			"editorialRank": 30,
+			"heatScore": 88,
+			"remoteTags": [
+				"category:blue",
+				"group:fancy",
+				"variant:soft-card",
+				"color:blue",
+				"scene:tech"
+			],
+			"searchAliases": [
+				"蓝色",
+				"冰蓝",
+				"科技",
+				"知识",
+				"教程",
+				"blue"
+			]
+		},
+		"definition": {
+			"id": "blue-soft-card",
+			"name": "蓝色柔卡",
+			"category": "blue",
+			"groupId": "fancy",
+			"variantId": "soft-card",
+			"content": "花字",
+			"stylePresetId": "highlight",
+			"keywords": [
+				"blue",
+				"蓝色",
+				"花字",
+				"soft-card",
+				"柔卡",
+				"柔和",
+				"卡片",
+				"清新",
+				"soft",
+				"blue-soft-card",
+				"蓝色柔卡",
+				"fancy"
+			],
+			"premium": false,
+			"downloaded": true,
+			"resource": {
+				"assetId": "text-fancy-blue-soft-card",
+				"packageId": "text-fancy-blue",
+				"version": 3,
+				"entitlement": "free",
+				"cacheKey": "text-assets/text-fancy-blue/soft-card@3",
+				"sizeKb": 192
+			},
+			"catalogVisible": true,
+			"overrides": {
+				"fontSize": 60,
+				"color": "#dbeafe",
+				"fontWeight": "bold",
+				"strokeWidth": 4,
+				"backgroundColor": "transparent",
+				"backgroundOpacity": 0,
+				"backgroundRadius": 20,
+				"backgroundPadding": 0,
+				"shadowColor": "#2563eb",
+				"shadowOpacity": 0.35,
+				"shadowOffsetX": 0,
+				"shadowOffsetY": 9,
+				"shadowBlur": 18,
+				"width": 660,
+				"height": 190,
+				"strokeColor": "#172554"
+			}
+		},
+		"template": {
+			"id": "blue-soft-card",
+			"type": "text",
+			"name": "蓝色柔卡",
+			"content": "花字",
+			"fontSize": 60,
+			"fontFamily": "Arial",
+			"color": "#dbeafe",
+			"backgroundColor": "transparent",
+			"textAlign": "center",
+			"fontWeight": "bold",
+			"fontStyle": "normal",
+			"textDecoration": "none",
+			"x": 0,
+			"y": 0,
+			"rotation": 0,
+			"opacity": 1,
+			"width": 660,
+			"height": 190,
+			"letterSpacing": 0,
+			"lineHeight": 1.2,
+			"verticalAlign": "middle",
+			"strokeColor": "#172554",
+			"strokeWidth": 4,
+			"strokeOpacity": 1,
+			"backgroundOpacity": 0,
+			"backgroundRadius": 20,
+			"backgroundPadding": 0,
+			"shadowColor": "#2563eb",
+			"shadowOpacity": 0.35,
+			"shadowOffsetX": 0,
+			"shadowOffsetY": 9,
+			"shadowBlur": 18,
+			"glowColor": "#ffffff",
+			"glowOpacity": 0,
+			"glowBlur": 12,
+			"curve": 0,
+			"animationType": "none",
+			"animationDuration": 0.6,
+			"animationDelay": 0,
+			"blendMode": "normal",
+			"duration": 5,
+			"startTime": 0,
+			"trimStart": 0,
+			"trimEnd": 0
+		}
+	}
+}

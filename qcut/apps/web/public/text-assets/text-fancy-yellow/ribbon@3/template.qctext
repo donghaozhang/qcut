@@ -1,0 +1,149 @@
+{
+	"schemaVersion": 1,
+	"kind": "qcut-text-template-package",
+	"assetId": "text-fancy-yellow-ribbon",
+	"packageId": "text-fancy-yellow",
+	"version": 3,
+	"cacheKey": "text-assets/text-fancy-yellow/ribbon@3",
+	"files": {
+		"thumbnail": "thumbnail.webp",
+		"source": "template.json"
+	},
+	"resources": [
+		{
+			"byteSize": 18816,
+			"checksumSha256": "7a5f8efec74368da6fde1a2fe2a2c162c271c9fe114a4d8c992fcd6f52920596",
+			"mimeType": "image/webp",
+			"path": "thumbnail.webp",
+			"role": "thumbnail",
+			"url": "/text-assets/text-fancy-yellow/ribbon@3/thumbnail.webp"
+		},
+		{
+			"byteSize": 2390,
+			"checksumSha256": "2c96c59eda776d6aa43d83e8fee38aa148dc223a9cd86d4de6c2e28c6f3b167f",
+			"mimeType": "application/json",
+			"path": "template.json",
+			"role": "source",
+			"url": "/text-assets/text-fancy-yellow/ribbon@3/template.json"
+		}
+	],
+	"source": {
+		"schemaVersion": 1,
+		"assetId": "text-fancy-yellow-ribbon",
+		"packageId": "text-fancy-yellow",
+		"version": 3,
+		"marketplace": {
+			"editorialRank": 26,
+			"heatScore": 93,
+			"remoteTags": [
+				"category:yellow",
+				"group:fancy",
+				"variant:ribbon",
+				"color:yellow",
+				"tone:bright"
+			],
+			"searchAliases": [
+				"黄色",
+				"醒目",
+				"高亮",
+				"封面",
+				"价格",
+				"yellow"
+			]
+		},
+		"definition": {
+			"id": "yellow-ribbon",
+			"name": "黄色飘带",
+			"category": "yellow",
+			"groupId": "fancy",
+			"variantId": "ribbon",
+			"content": "花字",
+			"stylePresetId": "red-label",
+			"keywords": [
+				"yellow",
+				"黄色",
+				"花字",
+				"ribbon",
+				"飘带",
+				"横幅",
+				"促销",
+				"yellow-ribbon",
+				"黄色飘带",
+				"fancy"
+			],
+			"premium": true,
+			"downloaded": false,
+			"resource": {
+				"assetId": "text-fancy-yellow-ribbon",
+				"packageId": "text-fancy-yellow",
+				"version": 3,
+				"entitlement": "svip",
+				"cacheKey": "text-assets/text-fancy-yellow/ribbon@3",
+				"sizeKb": 384
+			},
+			"catalogVisible": true,
+			"overrides": {
+				"fontSize": 62,
+				"color": "#fef9c3",
+				"fontWeight": "bold",
+				"strokeColor": "#422006",
+				"strokeWidth": 4,
+				"backgroundColor": "transparent",
+				"backgroundOpacity": 0,
+				"backgroundRadius": 4,
+				"backgroundPadding": 0,
+				"curve": -8,
+				"width": 720,
+				"height": 190,
+				"shadowColor": "#422006",
+				"shadowOpacity": 0.35
+			}
+		},
+		"template": {
+			"id": "yellow-ribbon",
+			"type": "text",
+			"name": "黄色飘带",
+			"content": "花字",
+			"fontSize": 62,
+			"fontFamily": "Arial",
+			"color": "#fef9c3",
+			"backgroundColor": "transparent",
+			"textAlign": "center",
+			"fontWeight": "bold",
+			"fontStyle": "normal",
+			"textDecoration": "none",
+			"x": 0,
+			"y": 0,
+			"rotation": 0,
+			"opacity": 1,
+			"width": 720,
+			"height": 190,
+			"letterSpacing": 0,
+			"lineHeight": 1.2,
+			"verticalAlign": "middle",
+			"strokeColor": "#422006",
+			"strokeWidth": 4,
+			"strokeOpacity": 1,
+			"backgroundOpacity": 0,
+			"backgroundRadius": 4,
+			"backgroundPadding": 0,
+			"shadowColor": "#422006",
+			"shadowOpacity": 0.35,
+			"shadowOffsetX": 2,
+			"shadowOffsetY": 4,
+			"shadowBlur": 8,
+			"glowColor": "#ffffff",
+			"glowOpacity": 0,
+			"glowBlur": 12,
+			"curve": -8,
+			"animationType": "none",
+			"animationDuration": 0.6,
+			"animationDelay": 0,
+			"blendMode": "normal",
+			"duration": 5,
+			"startTime": 0,
+			"trimStart": 0,
+			"trimEnd": 0
+		}
+	}
+}
