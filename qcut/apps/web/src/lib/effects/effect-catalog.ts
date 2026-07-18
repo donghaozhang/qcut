@@ -1,5 +1,6 @@
 import { EFFECT_PRESETS, type EffectPresetId } from "./effect-presets";
 import type {
+	EffectCatalogEntry,
 	VisualEffectCatalogEntry,
 	VisualEffectCategoryId,
 } from "./effect-catalog-types";
@@ -8,6 +9,9 @@ import { FILTER_EFFECT_CATALOG } from "./effect-filter-catalog";
 import { OVERLAY_EFFECT_CATALOG } from "./effect-overlay-catalog";
 import { COMPOSITE_EFFECT_CATALOG } from "./effect-composite-catalog";
 import { SOUND_EFFECT_CATALOG } from "./effect-sound-catalog";
+import { AUDIO_REACTIVE_EFFECT_CATALOG } from "./effect-audio-reactive-catalog";
+import { CREATIVE_AI_EFFECT_CATALOG } from "./effect-creative-ai-catalog";
+import { PERSON_EFFECT_CATALOG } from "./effect-person-catalog";
 
 interface LegacyEffectMetadata {
 	category: VisualEffectCategoryId;
@@ -134,11 +138,14 @@ export const LEGACY_EFFECT_CATALOG = EFFECT_PRESETS.map((preset) => {
 	};
 }) satisfies readonly VisualEffectCatalogEntry[];
 
-export const EFFECT_CATALOG: readonly VisualEffectCatalogEntry[] = [
+export const EFFECT_CATALOG: readonly EffectCatalogEntry[] = [
 	...LEGACY_EFFECT_CATALOG,
 	...FILTER_EFFECT_CATALOG,
 	...MOTION_EFFECT_CATALOG,
 	...OVERLAY_EFFECT_CATALOG,
 	...COMPOSITE_EFFECT_CATALOG,
 	...SOUND_EFFECT_CATALOG,
+	...AUDIO_REACTIVE_EFFECT_CATALOG,
+	...CREATIVE_AI_EFFECT_CATALOG,
+	...PERSON_EFFECT_CATALOG,
 ];
