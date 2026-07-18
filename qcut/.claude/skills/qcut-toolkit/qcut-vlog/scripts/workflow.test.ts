@@ -2,6 +2,7 @@ import { describe, expect, test } from "bun:test";
 import { createVlogPaths, parseVlogOptions } from "./options";
 import {
 	assertDurationParity,
+	buildBackgroundArgs,
 	buildCleanArgs,
 	buildSubtitleArgs,
 	buildTranscribeArgs,
@@ -40,6 +41,34 @@ describe("qcut-vlog workflow rules", () => {
 		expect(args[args.indexOf("-i") + 1]).toBe(paths.cleanVideo);
 		expect(args[args.indexOf("-s") + 1]).toBe(paths.srt);
 		expect(args[args.indexOf("--preset") + 1]).toBe("default");
+	});
+
+	test("creates an editable background composite before subtitle burn-in", () => {
+		const backgroundOptions = parseVlogOptions({
+			argv: [
+				"/tmp/source.mov",
+				"-o",
+				"/tmp/out",
+				"--background",
+				"/tmp/office.png",
+			],
+		});
+		const backgroundPaths = createVlogPaths({ options: backgroundOptions });
+		const args = buildBackgroundArgs({
+			options: backgroundOptions,
+			paths: backgroundPaths,
+			cleanVideo: backgroundPaths.cleanVideo,
+		});
+
+		expect(args.slice(0, 2)).toEqual(["edit", "person-cutout"]);
+		expect(args[args.indexOf("--background") + 1]).toBe("/tmp/office.png");
+		expect(args[args.indexOf("--cutout-output") + 1]).toBe(
+			backgroundPaths.cutoutVideo
+		);
+		expect(args[args.indexOf("--output") + 1]).toBe(
+			backgroundPaths.editableVideo
+		);
+		expect(args).not.toContain(backgroundPaths.srt);
 	});
 
 	test("parses subtitle cards and chooses an active verification frame", () => {
