@@ -200,11 +200,18 @@ export interface VideoSourceInput {
 	effectFilter?: string;
 	effectRenderProgram?: EffectRenderProgram;
 	effectOverlaySources?: EffectOverlaySourceInput[];
+	effectPersonSources?: EffectPersonSourceInput[];
 	effectAudioReactiveEnvelopes?: EffectAudioReactiveEnvelope[];
 }
 
 export interface EffectOverlaySourceInput {
 	resourceId: string;
+	stageIndex: number;
+	path: string;
+	animated: boolean;
+}
+
+export interface EffectPersonSourceInput {
 	stageIndex: number;
 	path: string;
 	animated: boolean;
@@ -262,6 +269,7 @@ export interface ImageSourceInput {
 	effectFilter?: string;
 	effectRenderProgram?: EffectRenderProgram;
 	effectOverlaySources?: EffectOverlaySourceInput[];
+	effectPersonSources?: EffectPersonSourceInput[];
 	effectAudioReactiveEnvelopes?: EffectAudioReactiveEnvelope[];
 }
 
