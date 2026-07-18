@@ -46,6 +46,21 @@ export type {
 } from "./color.js";
 
 export type {
+	EffectAudioReactiveRenderStage,
+	EffectCompositeRenderStage,
+	EffectFilterRenderStage,
+	EffectMotionChannel,
+	EffectMotionProperty,
+	EffectMotionRenderStage,
+	EffectMotionWaveform,
+	EffectOverlayRenderStage,
+	EffectPersonTrackingRenderStage,
+	EffectRenderProgram,
+	EffectRenderStage,
+	EffectRenderStageKind,
+} from "./effect-render.js";
+
+export type {
 	AnimatedParameter,
 	EffectChain,
 	EffectInstance,

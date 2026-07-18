@@ -1,3 +1,5 @@
+import type { EffectRenderProgram } from "./effect-render.js";
+
 export type EffectType =
 	| "blur"
 	| "brightness"
@@ -34,7 +36,12 @@ export type EffectType =
 	| "overlay"
 	| "multiply"
 	| "screen"
-	| "color-dodge";
+	| "color-dodge"
+	| "motion"
+	| "resource-overlay"
+	| "composite-layout"
+	| "audio-reactive"
+	| "person-tracking";
 
 export interface EffectParameters {
 	opacity?: number;
@@ -122,9 +129,11 @@ export interface AnimatedParameter {
 
 export interface EffectInstance {
 	id: string;
+	presetId?: string;
 	name: string;
 	effectType: EffectType;
 	parameters: EffectParameters;
+	renderProgram?: EffectRenderProgram;
 	duration: number;
 	enabled: boolean;
 	animations?: AnimatedParameter[];

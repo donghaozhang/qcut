@@ -158,7 +158,26 @@ export type {
 	EffectKeyframe,
 	EffectParameters,
 	EffectType,
+	EffectAudioReactiveRenderStage,
+	EffectCompositeRenderStage,
+	EffectFilterRenderStage,
+	EffectMotionChannel,
+	EffectMotionProperty,
+	EffectMotionRenderStage,
+	EffectMotionWaveform,
+	EffectOverlayRenderStage,
+	EffectPersonTrackingRenderStage,
+	EffectRenderProgram,
+	EffectRenderStage,
+	EffectRenderStageKind,
 } from "./types/index.js";
+
+export {
+	collectEffectRenderStageKinds,
+	combineEffectRenderPrograms,
+	validateEffectRenderProgram,
+	type EffectRenderProgramValidation,
+} from "./effects/index.js";
 
 // Timeline utilities
 export {
