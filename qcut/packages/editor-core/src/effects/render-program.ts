@@ -1,5 +1,6 @@
 import type {
 	EffectRenderProgram,
+	EffectRenderWindow,
 	EffectRenderStage,
 	EffectRenderStageKind,
 } from "../types/effect-render.js";
@@ -21,7 +22,15 @@ function validateStage({
 	index: number;
 }): string[] {
 	const prefix = `stages[${index}]`;
-	if (stage.kind === "filter") return [];
+	const windowErrors =
+		stage.window &&
+		(!isFiniteNumber(stage.window.startSeconds) ||
+			!isFiniteNumber(stage.window.endSeconds) ||
+			stage.window.startSeconds < 0 ||
+			stage.window.endSeconds <= stage.window.startSeconds)
+			? [`${prefix}.window must be a positive ordered range`]
+			: [];
+	if (stage.kind === "filter") return windowErrors;
 
 	if (stage.kind === "motion") {
 		const errors: string[] = [];
@@ -49,7 +58,7 @@ function validateStage({
 				errors.push(`${prefix}.channels[${channelIndex}].phase must be finite`);
 			}
 		}
-		return errors;
+		return [...windowErrors, ...errors];
 	}
 
 	if (stage.kind === "overlay") {
@@ -64,7 +73,7 @@ function validateStage({
 		) {
 			errors.push(`${prefix}.opacity must be between 0 and 1`);
 		}
-		return errors;
+		return [...windowErrors, ...errors];
 	}
 
 	if (stage.kind === "composite") {
@@ -82,7 +91,7 @@ function validateStage({
 		) {
 			errors.push(`${prefix}.copies must be 2 for split layouts`);
 		}
-		return errors;
+		return [...windowErrors, ...errors];
 	}
 
 	if (stage.kind === "audio-reactive") {
@@ -96,10 +105,10 @@ function validateStage({
 		if (stage.attackMs < 0 || stage.releaseMs < 0) {
 			errors.push(`${prefix}.attackMs and releaseMs must be non-negative`);
 		}
-		return errors;
+		return [...windowErrors, ...errors];
 	}
 
-	return [];
+	return windowErrors;
 }
 
 export function validateEffectRenderProgram({
@@ -127,6 +136,21 @@ export function combineEffectRenderPrograms({
 	const stages = programs.flatMap((program) => program.stages);
 	if (stages.length === 0) return undefined;
 	return { version: 1, stages };
+}
+
+/** Applies one clip-local timeline window to every stage in a program. */
+export function withEffectRenderWindow({
+	program,
+	window,
+}: {
+	program: EffectRenderProgram;
+	window?: EffectRenderWindow;
+}): EffectRenderProgram {
+	if (!window) return program;
+	return {
+		version: program.version,
+		stages: program.stages.map((stage) => ({ ...stage, window })),
+	};
 }
 
 export function collectEffectRenderStageKinds({
