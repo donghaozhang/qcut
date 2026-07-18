@@ -11,6 +11,11 @@ import { FILTER_EFFECT_CATALOG } from "../../apps/web/src/lib/effects/effect-fil
 import { OVERLAY_EFFECT_CATALOG } from "../../apps/web/src/lib/effects/effect-overlay-catalog";
 import { COMPOSITE_EFFECT_CATALOG } from "../../apps/web/src/lib/effects/effect-composite-catalog";
 import { SOUND_EFFECT_CATALOG } from "../../apps/web/src/lib/effects/effect-sound-catalog";
+import { AUDIO_REACTIVE_EFFECT_CATALOG } from "../../apps/web/src/lib/effects/effect-audio-reactive-catalog";
+import { CREATIVE_AI_EFFECT_CATALOG } from "../../apps/web/src/lib/effects/effect-creative-ai-catalog";
+import { PERSON_EFFECT_CATALOG } from "../../apps/web/src/lib/effects/effect-person-catalog";
+import { extractEffectAudioReactiveEnvelopes } from "../../apps/web/src/lib/export-cli/sources/effect-audio-reactive-sources";
+import { extractAudioWaveform } from "../ffmpeg/audio-waveform";
 
 const ffmpegPath = path.resolve(
 	__dirname,
@@ -1401,8 +1406,7 @@ describe.skipIf(!fs.existsSync(ffmpegPath))(
 				"-f",
 				"lavfi",
 				"-i",
-				"color=c=black@0:s=320x180:d=0.1:r=30,format=rgba," +
-					"drawbox=x=0:y=0:w=320:h=180:c=green@1:t=12:replace=1",
+				"color=c=green@0.8:s=320x180:d=0.1:r=30,format=rgba",
 				"-frames:v",
 				"1",
 				overlayPath,
@@ -1819,6 +1823,506 @@ describe.skipIf(!fs.existsSync(ffmpegPath))(
 				);
 				expect(rootMeanSquare({ samples: lateSamples })).toBeLessThan(0.0001);
 			}
+		});
+
+		it("drives every audio-reactive effect from real analyzed audio", async () => {
+			const sourcePath = path.join(tempDir, "effect-audio-reactive-source.mp4");
+			const audioPath = path.join(tempDir, "effect-audio-reactive-input.wav");
+			const stripeFilter =
+				"color=c=black:s=320x180:d=2:r=30," +
+				"drawbox=x=0:y=0:w=80:h=180:c=red:t=fill," +
+				"drawbox=x=80:y=0:w=80:h=180:c=green:t=fill," +
+				"drawbox=x=160:y=0:w=80:h=180:c=blue:t=fill," +
+				"drawbox=x=240:y=0:w=80:h=180:c=yellow:t=fill";
+			const source = runFFmpeg([
+				"-y",
+				"-f",
+				"lavfi",
+				"-i",
+				stripeFilter,
+				"-c:v",
+				"libx264",
+				"-pix_fmt",
+				"yuv420p",
+				sourcePath,
+			]);
+			const audio = runFFmpeg([
+				"-y",
+				"-f",
+				"lavfi",
+				"-i",
+				"anoisesrc=color=white:amplitude=0.02:d=0.5:r=48000",
+				"-f",
+				"lavfi",
+				"-i",
+				"anoisesrc=color=white:amplitude=0.8:d=0.5:r=48000",
+				"-f",
+				"lavfi",
+				"-i",
+				"anoisesrc=color=white:amplitude=0.02:d=0.5:r=48000",
+				"-f",
+				"lavfi",
+				"-i",
+				"anoisesrc=color=white:amplitude=0.8:d=0.5:r=48000",
+				"-filter_complex",
+				"[0:a][1:a][2:a][3:a]concat=n=4:v=0:a=1[reactive]",
+				"-map",
+				"[reactive]",
+				"-c:a",
+				"pcm_s16le",
+				audioPath,
+			]);
+			expect(source.status, source.stderr?.toString()).toBe(0);
+			expect(audio.status, audio.stderr?.toString()).toBe(0);
+			const clip = {
+				id: "reactive-clip",
+				name: "Reactive clip",
+				type: "media" as const,
+				mediaId: "reactive-media",
+				startTime: 0,
+				duration: 2,
+				trimStart: 0,
+				trimEnd: 0,
+			};
+			const tracks = [
+				{
+					id: "video-track",
+					name: "Video",
+					type: "media" as const,
+					elements: [clip],
+				},
+			];
+			const audioFiles = [
+				{
+					elementId: "music",
+					trackId: "audio-track",
+					path: audioPath,
+					startTime: 0,
+					volume: 1,
+					trimStart: 0,
+					trimEnd: 0,
+					duration: 2,
+				},
+			];
+
+			await Promise.all(
+				AUDIO_REACTIVE_EFFECT_CATALOG.map(async (entry) => {
+					const program = entry.preset.renderProgram;
+					if (!program) throw new Error(`Missing program: ${entry.preset.id}`);
+					const envelopeMap = await extractEffectAudioReactiveEnvelopes({
+						programsByElementId: new Map([[clip.id, program]]),
+						tracks,
+						audioFiles,
+						fps: 30,
+						decodeWaveform: async ({
+							sourcePath: waveformPath,
+							duration,
+							peakCount,
+							band,
+						}) =>
+							extractAudioWaveform({
+								options: {
+									sourcePath: waveformPath,
+									duration,
+									peakCount,
+									band,
+								},
+							}),
+					});
+					const envelopes = envelopeMap.get(clip.id);
+					const keyframes = envelopes?.[0]?.keyframes ?? [];
+					if (keyframes.length < 2) {
+						throw new Error(`Missing envelope: ${entry.preset.id}`);
+					}
+					const minimum = keyframes.reduce((lowest, keyframe) =>
+						keyframe.value < lowest.value ? keyframe : lowest
+					);
+					const maximum = keyframes.reduce((highest, keyframe) =>
+						keyframe.value > highest.value ? keyframe : highest
+					);
+					expect(maximum.value).toBeGreaterThan(0.7);
+					expect(minimum.value).toBeLessThan(0.35);
+					const outputPath = path.join(
+						tempDir,
+						`effect-audio-reactive-${entry.preset.id}.mp4`
+					);
+					const result = runFFmpeg(
+						buildFFmpegArgs({
+							inputDir: tempDir,
+							outputFile: outputPath,
+							width: 320,
+							height: 180,
+							fps: 30,
+							quality: "low",
+							duration: 2,
+							videoSources: [
+								{
+									elementId: clip.id,
+									trackId: "video-track",
+									path: sourcePath,
+									startTime: 0,
+									duration: 2,
+									effectRenderProgram: program,
+									effectAudioReactiveEnvelopes: envelopes,
+								},
+							],
+							audioFiles,
+						})
+					);
+					expect(
+						result.status,
+						`${entry.preset.id}: ${result.stderr?.toString()}`
+					).toBe(0);
+					expect(fs.statSync(outputPath).size).toBeGreaterThan(5_000);
+					const sampleX = entry.preset.id === "audio-bass-pulse" ? 75 : 40;
+					const lowPixel = readFramePixelAt({
+						inputPath: outputPath,
+						time: Math.min(1.9, Math.max(0.05, minimum.timeSeconds)),
+						x: sampleX,
+						y: 90,
+					});
+					const highPixel = readFramePixelAt({
+						inputPath: outputPath,
+						time: Math.min(1.9, Math.max(0.05, maximum.timeSeconds)),
+						x: sampleX,
+						y: 90,
+					});
+					const pixelDifference = lowPixel.reduce(
+						(sum, value, index) => sum + Math.abs(value - highPixel[index]),
+						0
+					);
+					expect(pixelDifference).toBeGreaterThan(20);
+				})
+			);
+		});
+
+		it("renders every multi-stage creative AI recipe", () => {
+			const sourcePath = path.join(tempDir, "effect-creative-ai-source.mp4");
+			const overlayPath = path.join(tempDir, "effect-creative-ai-overlay.png");
+			const stripeFilter =
+				"color=c=black:s=320x180:d=1:r=30," +
+				"drawbox=x=0:y=0:w=80:h=180:c=red:t=fill," +
+				"drawbox=x=80:y=0:w=80:h=180:c=green:t=fill," +
+				"drawbox=x=160:y=0:w=80:h=180:c=blue:t=fill," +
+				"drawbox=x=240:y=0:w=80:h=180:c=yellow:t=fill";
+			const source = runFFmpeg([
+				"-y",
+				"-f",
+				"lavfi",
+				"-i",
+				stripeFilter,
+				"-c:v",
+				"libx264",
+				"-pix_fmt",
+				"yuv420p",
+				sourcePath,
+			]);
+			const overlay = runFFmpeg([
+				"-y",
+				"-f",
+				"lavfi",
+				"-i",
+				"color=c=black@0:s=320x180:d=0.1:r=30,format=rgba," +
+					"drawbox=x=0:y=0:w=320:h=180:c=green@1:t=12:replace=1",
+				"-frames:v",
+				"1",
+				overlayPath,
+			]);
+			expect(source.status, source.stderr?.toString()).toBe(0);
+			expect(overlay.status, overlay.stderr?.toString()).toBe(0);
+			const outputById = new Map<string, string>();
+
+			for (const entry of CREATIVE_AI_EFFECT_CATALOG) {
+				const program = entry.preset.renderProgram;
+				if (!program) throw new Error(`Missing program: ${entry.preset.id}`);
+				const effectOverlaySources = program.stages.flatMap(
+					(stage, stageIndex) =>
+						stage.kind === "overlay"
+							? [
+									{
+										resourceId: stage.resourceId,
+										stageIndex,
+										path: overlayPath,
+										animated: false,
+									},
+								]
+							: []
+				);
+				const outputPath = path.join(
+					tempDir,
+					`effect-creative-ai-${entry.preset.id}.mp4`
+				);
+				const result = runFFmpeg(
+					buildFFmpegArgs({
+						inputDir: tempDir,
+						outputFile: outputPath,
+						width: 320,
+						height: 180,
+						fps: 30,
+						quality: "low",
+						duration: 1,
+						videoSources: [
+							{
+								path: sourcePath,
+								startTime: 0,
+								duration: 1,
+								effectFilter: FFmpegFilterChain.fromEffectParameters(
+									entry.preset.parameters
+								),
+								effectRenderProgram: program,
+								effectOverlaySources,
+							},
+						],
+					})
+				);
+				expect(
+					result.status,
+					`${entry.preset.id}: ${result.stderr?.toString()}`
+				).toBe(0);
+				expect(fs.statSync(outputPath).size).toBeGreaterThan(3_000);
+				outputById.set(entry.preset.id, outputPath);
+			}
+
+			const aura = outputById.get("creative-ai-aura-bloom");
+			const grid = outputById.get("creative-ai-echo-grid");
+			const dream = outputById.get("creative-ai-dream-lens");
+			if (!aura || !grid || !dream)
+				throw new Error("Missing creative AI outputs");
+			for (const outputPath of [aura, dream]) {
+				const border = readFramePixelAt({
+					inputPath: outputPath,
+					time: 0.5,
+					x: 4,
+					y: 4,
+				});
+				expect(border[1]).toBeGreaterThan(25);
+			}
+			const gridTopLeft = readFramePixelAt({
+				inputPath: grid,
+				time: 0.5,
+				x: 12,
+				y: 20,
+			});
+			const gridBottomRight = readFramePixelAt({
+				inputPath: grid,
+				time: 0.5,
+				x: 174,
+				y: 112,
+			});
+			expect(Math.abs(gridTopLeft[0] - gridBottomRight[0])).toBeLessThan(25);
+		});
+
+		it("renders every person effect and preserves absent-person frames", () => {
+			const personSourcePath = path.join(tempDir, "effect-person-source.mp4");
+			const personMaskPath = path.join(tempDir, "effect-person-mask.png");
+			const transparentMaskPath = path.join(
+				tempDir,
+				"effect-person-transparent.png"
+			);
+			const fullFrameMaskPath = path.join(
+				tempDir,
+				"effect-person-full-frame.png"
+			);
+			const source = runFFmpeg([
+				"-y",
+				"-f",
+				"lavfi",
+				"-i",
+				"testsrc2=s=320x180:d=1:r=30",
+				"-c:v",
+				"libx264",
+				"-pix_fmt",
+				"yuv420p",
+				personSourcePath,
+			]);
+			const personMask = runFFmpeg([
+				"-y",
+				"-f",
+				"lavfi",
+				"-i",
+				"color=c=black@0:s=320x180:d=0.1:r=30,format=rgba," +
+					"drawbox=x=100:y=25:w=120:h=145:c=white@1:t=fill:replace=1",
+				"-frames:v",
+				"1",
+				personMaskPath,
+			]);
+			const transparentMask = runFFmpeg([
+				"-y",
+				"-f",
+				"lavfi",
+				"-i",
+				"color=c=black@0:s=320x180:d=0.1:r=30,format=rgba",
+				"-frames:v",
+				"1",
+				transparentMaskPath,
+			]);
+			const fullFrameMask = runFFmpeg([
+				"-y",
+				"-f",
+				"lavfi",
+				"-i",
+				"color=c=white@1:s=320x180:d=0.1:r=30,format=rgba",
+				"-frames:v",
+				"1",
+				fullFrameMaskPath,
+			]);
+			for (const result of [
+				source,
+				personMask,
+				transparentMask,
+				fullFrameMask,
+			]) {
+				expect(result.status, result.stderr?.toString()).toBe(0);
+			}
+
+			const baselinePath = path.join(tempDir, "effect-person-baseline.mp4");
+			const baseline = runFFmpeg(
+				buildFFmpegArgs({
+					inputDir: tempDir,
+					outputFile: baselinePath,
+					width: 320,
+					height: 180,
+					fps: 30,
+					quality: "low",
+					duration: 1,
+					videoSources: [{ path: personSourcePath, startTime: 0, duration: 1 }],
+				})
+			);
+			expect(baseline.status, baseline.stderr?.toString()).toBe(0);
+
+			const outputById = new Map<string, string>();
+			for (const entry of PERSON_EFFECT_CATALOG) {
+				const program = entry.preset.renderProgram;
+				if (!program) throw new Error(`Missing program: ${entry.preset.id}`);
+				const outputPath = path.join(
+					tempDir,
+					`effect-person-${entry.preset.id}.mp4`
+				);
+				const result = runFFmpeg(
+					buildFFmpegArgs({
+						inputDir: tempDir,
+						outputFile: outputPath,
+						width: 320,
+						height: 180,
+						fps: 30,
+						quality: "low",
+						duration: 1,
+						videoSources: [
+							{
+								path: personSourcePath,
+								startTime: 0,
+								duration: 1,
+								effectRenderProgram: program,
+								effectPersonSources: [
+									{
+										stageIndex: 0,
+										path: personMaskPath,
+										animated: false,
+									},
+								],
+							},
+						],
+					})
+				);
+				expect(
+					result.status,
+					`${entry.preset.id}: ${result.stderr?.toString()}`
+				).toBe(0);
+				expect(fs.statSync(outputPath).size).toBeGreaterThan(2_000);
+				outputById.set(entry.preset.id, outputPath);
+
+				const absentMaskPath =
+					entry.preset.id === "person-neon-outline"
+						? transparentMaskPath
+						: fullFrameMaskPath;
+				const absentPath = path.join(
+					tempDir,
+					`effect-person-absent-${entry.preset.id}.mp4`
+				);
+				const absent = runFFmpeg(
+					buildFFmpegArgs({
+						inputDir: tempDir,
+						outputFile: absentPath,
+						width: 320,
+						height: 180,
+						fps: 30,
+						quality: "low",
+						duration: 1,
+						videoSources: [
+							{
+								path: personSourcePath,
+								startTime: 0,
+								duration: 1,
+								effectRenderProgram: program,
+								effectPersonSources: [
+									{
+										stageIndex: 0,
+										path: absentMaskPath,
+										animated: false,
+									},
+								],
+							},
+						],
+					})
+				);
+				expect(
+					absent.status,
+					`absent ${entry.preset.id}: ${absent.stderr?.toString()}`
+				).toBe(0);
+				for (const [x, y] of [
+					[25, 30],
+					[160, 90],
+				] as const) {
+					const baselinePixel = readFramePixelAt({
+						inputPath: baselinePath,
+						time: 0.5,
+						x,
+						y,
+					});
+					const absentPixel = readFramePixelAt({
+						inputPath: absentPath,
+						time: 0.5,
+						x,
+						y,
+					});
+					const difference = baselinePixel.reduce(
+						(sum, value, index) => sum + Math.abs(value - absentPixel[index]),
+						0
+					);
+					expect(difference).toBeLessThan(24);
+				}
+			}
+
+			const baselineOuter = readFramePixelAt({
+				inputPath: baselinePath,
+				time: 0.5,
+				x: 25,
+				y: 30,
+			});
+			for (const id of ["person-spotlight", "person-background-blur"]) {
+				const outputPath = outputById.get(id);
+				if (!outputPath) throw new Error(`Missing output: ${id}`);
+				const effected = readFramePixelAt({
+					inputPath: outputPath,
+					time: 0.5,
+					x: 25,
+					y: 30,
+				});
+				const difference = baselineOuter.reduce(
+					(sum, value, index) => sum + Math.abs(value - effected[index]),
+					0
+				);
+				expect(difference).toBeGreaterThan(15);
+			}
+			const outlinePath = outputById.get("person-neon-outline");
+			if (!outlinePath) throw new Error("Missing person outline output");
+			const outlineEdge = readFramePixelAt({
+				inputPath: outlinePath,
+				time: 0.5,
+				x: 98,
+				y: 90,
+			});
+			expect(outlineEdge[1] + outlineEdge[2]).toBeGreaterThan(outlineEdge[0]);
 		});
 
 		it("preserves and processes per-clip audio", () => {
