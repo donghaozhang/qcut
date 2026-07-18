@@ -151,6 +151,10 @@ export function parseCliArgs(argv: string[]): CLIRunOptions {
 			background: { type: "string", short: "b" },
 			"cutout-output": { type: "string" },
 			"background-fit": { type: "string" },
+			"portrait-filter": { type: "string" },
+			"filter-intensity": { type: "string" },
+			beauty: { type: "string" },
+			"list-presets": { type: "boolean", default: false },
 			profile: { type: "string", multiple: true },
 			"save-intermediates": { type: "boolean", default: false },
 			parallel: { type: "boolean", default: false },
@@ -478,6 +482,13 @@ export function parseCliArgs(argv: string[]): CLIRunOptions {
 		background: values.background as string | undefined,
 		cutoutOutput: values["cutout-output"] as string | undefined,
 		backgroundFit: values["background-fit"] as string | undefined,
+		portraitFilter: values["portrait-filter"] as string | undefined,
+		filterIntensity:
+			values["filter-intensity"] === undefined
+				? undefined
+				: Number(values["filter-intensity"]),
+		beauty: values.beauty === undefined ? undefined : Number(values.beauty),
+		listPresets: (values["list-presets"] as boolean) ?? false,
 		profile: values.profile as string[] | undefined,
 		saveIntermediates: (values["save-intermediates"] as boolean) ?? false,
 		parallel: (values.parallel as boolean) ?? false,
