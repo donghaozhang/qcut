@@ -29,6 +29,7 @@ describe("interface translations", () => {
 			"textLibrary.",
 			"audioLibrary.",
 			"audioProperties.",
+			"textProperties.",
 			"review.",
 			"taskCenter.",
 			"librarySync.",

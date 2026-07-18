@@ -73,6 +73,16 @@ import {
 import { KeyframeEditor } from "./keyframe-editor";
 import { buildCursorTextTrackingKeyframes } from "@/lib/text/cursor-text-tracking";
 import { useSpeechAvatarGeneration } from "@/hooks/use-speech-avatar-generation";
+import { useTranslation } from "@/lib/i18n";
+import {
+	TEXT_ALIGN_LABEL_KEYS,
+	TEXT_ANIMATION_TYPE_KEYS,
+	TEXT_BLEND_MODE_KEYS,
+	TEXT_KEYFRAME_PROPERTY_KEYS,
+	TEXT_PRESET_NAME_KEYS,
+	TEXT_REWRITE_MODE_KEYS,
+	TEXT_VERTICAL_ALIGN_LABEL_KEYS,
+} from "./text-properties-i18n";
 
 type TextUpdates = Parameters<
 	ReturnType<typeof useTimelineStore.getState>["updateTextElement"]
@@ -224,6 +234,9 @@ function PresetButton({
 	onApply: () => void;
 	onDelete?: () => void;
 }) {
+	const { t } = useTranslation();
+	const presetNameKey = TEXT_PRESET_NAME_KEYS[preset.id];
+	const presetName = presetNameKey ? t(presetNameKey) : preset.name;
 	const backgroundOpacity = preset.updates.backgroundOpacity ?? 0;
 	const strokeWidth = preset.updates.strokeWidth ?? 0;
 	const glowOpacity = preset.updates.glowOpacity ?? 0;
@@ -244,8 +257,8 @@ function PresetButton({
 		<div className="relative">
 			<button
 				type="button"
-				aria-label={`Apply ${preset.name} text preset`}
-				title={preset.name}
+				aria-label={t("textProperties.aria.applyPreset", { name: presetName })}
+				title={presetName}
 				onClick={onApply}
 				className="flex aspect-square w-full items-center justify-center overflow-hidden rounded-sm border border-border bg-muted transition-colors hover:border-primary"
 				style={{
@@ -281,8 +294,10 @@ function PresetButton({
 					variant="destructive"
 					size="icon"
 					className="absolute -right-1 -top-1 size-5"
-					aria-label={`Delete ${preset.name} preset`}
-					title="Delete preset"
+					aria-label={t("textProperties.aria.deletePreset", {
+						name: presetName,
+					})}
+					title={t("textProperties.action.deletePreset")}
 					onClick={onDelete}
 				>
 					<Trash2 className="size-3" />
@@ -355,6 +370,7 @@ export function TextGroupProperties({
 }: {
 	selections: readonly TextGroupSelection[];
 }) {
+	const { t } = useTranslation();
 	const updateTextGroupContents = useTimelineStore(
 		(state) => state.updateTextGroupContents
 	);
@@ -391,7 +407,9 @@ export function TextGroupProperties({
 			contents: slotContents,
 		});
 		if (updatedCount > 0) {
-			toast.success(`Updated ${updatedCount} text layers`);
+			toast.success(
+				t("textProperties.toast.updatedLayers", { count: updatedCount })
+			);
 		}
 	};
 	const handleDraftChange = ({ value }: { value: string }) => {
@@ -423,7 +441,10 @@ export function TextGroupProperties({
 
 	return (
 		<div className="space-y-5" data-testid="text-group-properties">
-			<PropertyGroup title="Template text" defaultExpanded>
+			<PropertyGroup
+				title={t("textProperties.section.templateText")}
+				defaultExpanded
+			>
 				<div className="space-y-3">
 					<div className="grid gap-2">
 						{slots.map((slot) => (
@@ -436,12 +457,16 @@ export function TextGroupProperties({
 										{String(slot.index + 1).padStart(2, "0")} {slot.name}
 									</span>
 									{slotContents[slot.index] !== slot.content ? (
-										<span className="shrink-0 text-cyan-300">changed</span>
+										<span className="shrink-0 text-cyan-300">
+											{t("textProperties.status.changed")}
+										</span>
 									) : null}
 								</label>
 								<Input
 									id={`text-group-slot-${slot.elementId}`}
-									aria-label={`Text layer ${slot.index + 1} content`}
+									aria-label={t("textProperties.aria.textLayerContent", {
+										index: slot.index + 1,
+									})}
 									value={slotContents[slot.index] ?? ""}
 									className="h-8 bg-background/50 text-xs"
 									onChange={(event) =>
@@ -461,9 +486,9 @@ export function TextGroupProperties({
 						))}
 					</div>
 					<Textarea
-						aria-label="Template group text content"
+						aria-label={t("textProperties.aria.groupContent")}
 						value={draft}
-						placeholder="每行替换一个文字层"
+						placeholder={t("textProperties.placeholder.groupDraft")}
 						className="min-h-32 resize-y bg-background/50"
 						onChange={(event) =>
 							handleDraftChange({ value: event.target.value })
@@ -486,7 +511,11 @@ export function TextGroupProperties({
 							disabled={!groupId || changedCount === 0}
 							onClick={applyGroupContents}
 						>
-							Apply {changedCount > 0 ? changedCount : ""} text
+							{changedCount > 0
+								? t("textProperties.action.applyTextCount", {
+										count: changedCount,
+									})
+								: t("textProperties.action.applyText")}
 						</Button>
 						<Button
 							type="button"
@@ -494,7 +523,7 @@ export function TextGroupProperties({
 							disabled={changedCount === 0}
 							onClick={resetGroupContents}
 						>
-							Reset
+							{t("textProperties.action.reset")}
 						</Button>
 					</div>
 				</div>
@@ -510,6 +539,7 @@ export function TextProperties({
 	element: TextElement;
 	trackId: string;
 }) {
+	const { t } = useTranslation();
 	const updateTextElement = useTimelineStore(
 		(state) => state.updateTextElement
 	);
@@ -677,12 +707,14 @@ export function TextProperties({
 				maxTokens: 256,
 			});
 			if (!result.success || !result.text?.trim()) {
-				throw new Error(result.error || "Text rewrite returned no content");
+				throw new Error(result.error || t("textProperties.toast.rewriteEmpty"));
 			}
 			update({ content: result.text.trim() });
 		} catch (error) {
 			toast.error(
-				error instanceof Error ? error.message : "Text rewrite failed"
+				error instanceof Error
+					? error.message
+					: t("textProperties.toast.rewriteFailed")
 			);
 		} finally {
 			setIsRewriting(false);
@@ -699,7 +731,7 @@ export function TextProperties({
 			fps,
 		});
 		if (tracking.x.length === 0) {
-			toast.error("No cursor movement overlaps this text clip");
+			toast.error(t("textProperties.toast.noCursorOverlap"));
 			return;
 		}
 
@@ -723,7 +755,11 @@ export function TextProperties({
 				),
 			},
 		});
-		toast.success(`Added ${tracking.x.length} cursor tracking keyframes`);
+		toast.success(
+			t("textProperties.toast.addedCursorKeyframes", {
+				count: tracking.x.length,
+			})
+		);
 	};
 
 	const clearCursorTracking = () => {
@@ -743,14 +779,17 @@ export function TextProperties({
 	return (
 		<div className="space-y-5 p-5" data-testid="text-properties">
 			<Textarea
-				aria-label="Text content"
-				placeholder="Enter text"
+				aria-label={t("textProperties.aria.textContent")}
+				placeholder={t("textProperties.placeholder.enterText")}
 				value={element.content}
 				className="min-h-24 resize-y bg-background/50"
 				onChange={(event) => update({ content: event.target.value })}
 			/>
 
-			<PropertyGroup title="Style presets" defaultExpanded>
+			<PropertyGroup
+				title={t("textProperties.section.presets")}
+				defaultExpanded
+			>
 				<div className="space-y-3">
 					<div className="grid grid-cols-5 gap-2">
 						{[...BUILT_IN_TEXT_PRESETS, ...customPresets].map((preset) => (
@@ -770,12 +809,16 @@ export function TextProperties({
 						className="w-full"
 						onClick={saveCurrentPreset}
 					>
-						<Save className="mr-2 size-4" /> Save current style
+						<Save className="mr-2 size-4" />{" "}
+						{t("textProperties.action.saveCurrentStyle")}
 					</Button>
 				</div>
 			</PropertyGroup>
 
-			<PropertyGroup title="Animation" defaultExpanded={false}>
+			<PropertyGroup
+				title={t("textProperties.section.animation")}
+				defaultExpanded={false}
+			>
 				<div className="space-y-4">
 					<div className="grid grid-cols-2 gap-2">
 						{TEXT_ANIMATION_TYPES.map((animationType) => (
@@ -787,17 +830,17 @@ export function TextProperties({
 									animation.type === animationType ? "default" : "outline"
 								}
 								size="sm"
-								className="h-8 capitalize"
+								className="h-8"
 								onClick={() => update({ animationType })}
 							>
-								{animationType.replace("-", " ")}
+								{t(TEXT_ANIMATION_TYPE_KEYS[animationType])}
 							</Button>
 						))}
 					</div>
 					{animation.type !== "none" ? (
 						<>
 							<NumberControl
-								label="Duration"
+								label={t("textProperties.label.duration")}
 								value={animation.duration}
 								min={0.1}
 								max={3}
@@ -806,7 +849,7 @@ export function TextProperties({
 								suffix="s"
 							/>
 							<NumberControl
-								label="Delay"
+								label={t("textProperties.label.delay")}
 								value={animation.delay}
 								min={0}
 								max={5}
@@ -819,10 +862,15 @@ export function TextProperties({
 				</div>
 			</PropertyGroup>
 
-			<PropertyGroup title="AI writing and speech" defaultExpanded={false}>
+			<PropertyGroup
+				title={t("textProperties.section.aiWriting")}
+				defaultExpanded={false}
+			>
 				<div className="space-y-4">
 					<PropertyItem direction="column">
-						<PropertyItemLabel>Rewrite</PropertyItemLabel>
+						<PropertyItemLabel>
+							{t("textProperties.label.rewrite")}
+						</PropertyItemLabel>
 						<PropertyItemValue>
 							<div className="grid grid-cols-3 gap-2">
 								{(["shorter", "punchier", "professional"] as const).map(
@@ -841,7 +889,7 @@ export function TextProperties({
 											) : (
 												<Sparkles className="mr-1 size-3" />
 											)}
-											{mode}
+											{t(TEXT_REWRITE_MODE_KEYS[mode])}
 										</Button>
 									)
 								)}
@@ -850,7 +898,9 @@ export function TextProperties({
 					</PropertyItem>
 
 					<PropertyItem direction="row">
-						<PropertyItemLabel>Voice model</PropertyItemLabel>
+						<PropertyItemLabel>
+							{t("textProperties.label.voiceModel")}
+						</PropertyItemLabel>
 						<PropertyItemValue>
 							<Select value={speechModel} onValueChange={setSpeechModel}>
 								<SelectTrigger className="h-8 text-xs">
@@ -873,8 +923,8 @@ export function TextProperties({
 						disabled={!canGenerateSpeech}
 						title={
 							isSpeechAvailable
-								? "Generate speech"
-								: "Configure a FAL API key to generate speech"
+								? t("textProperties.action.generateSpeech")
+								: t("textProperties.hint.configureFalKey")
 						}
 						onClick={createSpeech}
 					>
@@ -884,20 +934,28 @@ export function TextProperties({
 							<AudioLines className="mr-2 size-4" />
 						)}
 						{isGeneratingAI && generationKind === "speech"
-							? (speechProgress?.message ?? "Generating speech")
-							: "Generate speech"}
+							? (speechProgress?.message ??
+								t("textProperties.action.generatingSpeech"))
+							: t("textProperties.action.generateSpeech")}
 					</Button>
 				</div>
 			</PropertyGroup>
 
-			<PropertyGroup title="Digital human" defaultExpanded={false}>
+			<PropertyGroup
+				title={t("textProperties.section.digitalHuman")}
+				defaultExpanded={false}
+			>
 				<div className="space-y-4">
 					<PropertyItem direction="row">
-						<PropertyItemLabel>Portrait</PropertyItemLabel>
+						<PropertyItemLabel>
+							{t("textProperties.label.portrait")}
+						</PropertyItemLabel>
 						<PropertyItemValue>
 							<Select value={avatarImageId} onValueChange={setAvatarImageId}>
 								<SelectTrigger className="h-8 text-xs">
-									<SelectValue placeholder="Choose an image" />
+									<SelectValue
+										placeholder={t("textProperties.placeholder.chooseImage")}
+									/>
 								</SelectTrigger>
 								<SelectContent>
 									{avatarImages.map((image) => (
@@ -915,8 +973,8 @@ export function TextProperties({
 						disabled={!canGenerateAvatar}
 						title={
 							avatarImages.length > 0
-								? "Generate a talking portrait"
-								: "Import a portrait image first"
+								? t("textProperties.hint.generatePortrait")
+								: t("textProperties.hint.importPortraitFirst")
 						}
 						onClick={createAvatar}
 					>
@@ -926,16 +984,22 @@ export function TextProperties({
 							<Sparkles className="mr-2 size-4" />
 						)}
 						{isGeneratingAI && generationKind === "avatar"
-							? (speechProgress?.message ?? "Generating digital human")
-							: "Generate digital human"}
+							? (speechProgress?.message ??
+								t("textProperties.action.generatingDigitalHuman"))
+							: t("textProperties.action.generateDigitalHuman")}
 					</Button>
 				</div>
 			</PropertyGroup>
 
-			<PropertyGroup title="Tracking" defaultExpanded={false}>
+			<PropertyGroup
+				title={t("textProperties.section.tracking")}
+				defaultExpanded={false}
+			>
 				<div className="space-y-4">
 					<PropertyItem direction="row">
-						<PropertyItemLabel>Follow clip</PropertyItemLabel>
+						<PropertyItemLabel>
+							{t("textProperties.label.followClip")}
+						</PropertyItemLabel>
 						<PropertyItemValue>
 							<Select
 								value={element.trackingTargetId ?? "none"}
@@ -949,7 +1013,7 @@ export function TextProperties({
 									<SelectValue />
 								</SelectTrigger>
 								<SelectContent>
-									<SelectItem value="none">None</SelectItem>
+									<SelectItem value="none">{t("common.none")}</SelectItem>
 									{trackingTargets.map((target) => (
 										<SelectItem key={target.id} value={target.id}>
 											{target.name}
@@ -962,7 +1026,7 @@ export function TextProperties({
 					{element.trackingTargetId ? (
 						<>
 							<NumberControl
-								label="Horizontal offset"
+								label={t("textProperties.label.horizontalOffset")}
 								value={element.trackingOffsetX ?? 0}
 								min={-canvasSize.width}
 								max={canvasSize.width}
@@ -970,7 +1034,7 @@ export function TextProperties({
 								suffix="px"
 							/>
 							<NumberControl
-								label="Vertical offset"
+								label={t("textProperties.label.verticalOffset")}
 								value={element.trackingOffsetY ?? 0}
 								min={-canvasSize.height}
 								max={canvasSize.height}
@@ -978,7 +1042,9 @@ export function TextProperties({
 								suffix="px"
 							/>
 							<div className="flex items-center justify-between gap-3">
-								<PropertyItemLabel>Follow rotation</PropertyItemLabel>
+								<PropertyItemLabel>
+									{t("textProperties.label.followRotation")}
+								</PropertyItemLabel>
 								<Switch
 									checked={element.trackingRotation ?? false}
 									onCheckedChange={(trackingRotation) =>
@@ -994,12 +1060,13 @@ export function TextProperties({
 							disabled={!cursorTelemetry}
 							title={
 								cursorTelemetry
-									? "Follow the recorded cursor"
-									: "Cursor telemetry is available for screen recordings"
+									? t("textProperties.hint.followRecordedCursor")
+									: t("textProperties.hint.cursorTelemetry")
 							}
 							onClick={applyCursorTracking}
 						>
-							<MousePointer2 className="mr-2 size-4" /> Track cursor
+							<MousePointer2 className="mr-2 size-4" />{" "}
+							{t("textProperties.action.trackCursor")}
 						</Button>
 						<Button
 							type="button"
@@ -1012,16 +1079,22 @@ export function TextProperties({
 							}
 							onClick={clearCursorTracking}
 						>
-							<Unlink className="mr-2 size-4" /> Clear
+							<Unlink className="mr-2 size-4" />{" "}
+							{t("textProperties.action.clear")}
 						</Button>
 					</div>
 				</div>
 			</PropertyGroup>
 
-			<PropertyGroup title="Keyframes" defaultExpanded={false}>
+			<PropertyGroup
+				title={t("textProperties.section.keyframes")}
+				defaultExpanded={false}
+			>
 				<div className="space-y-4">
 					<PropertyItem direction="row">
-						<PropertyItemLabel>Property</PropertyItemLabel>
+						<PropertyItemLabel>
+							{t("textProperties.label.property")}
+						</PropertyItemLabel>
 						<PropertyItemValue>
 							<Select
 								value={keyframeProperty}
@@ -1035,7 +1108,7 @@ export function TextProperties({
 								<SelectContent>
 									{TEXT_KEYFRAME_PROPERTIES.map((property) => (
 										<SelectItem key={property.value} value={property.value}>
-											{property.label}
+											{t(TEXT_KEYFRAME_PROPERTY_KEYS[property.value])}
 										</SelectItem>
 									))}
 								</SelectContent>
@@ -1044,11 +1117,7 @@ export function TextProperties({
 					</PropertyItem>
 					<KeyframeEditor
 						propName={keyframeProperty}
-						propLabel={
-							TEXT_KEYFRAME_PROPERTIES.find(
-								(property) => property.value === keyframeProperty
-							)?.label ?? keyframeProperty
-						}
+						propLabel={t(TEXT_KEYFRAME_PROPERTY_KEYS[keyframeProperty])}
 						propType="number"
 						keyframes={propertyKeyframes as Keyframe[]}
 						durationInFrames={durationInFrames}
@@ -1062,10 +1131,15 @@ export function TextProperties({
 				</div>
 			</PropertyGroup>
 
-			<PropertyGroup title="Typography" defaultExpanded>
+			<PropertyGroup
+				title={t("textProperties.section.typography")}
+				defaultExpanded
+			>
 				<div className="space-y-4">
 					<PropertyItem direction="row">
-						<PropertyItemLabel>Font</PropertyItemLabel>
+						<PropertyItemLabel>
+							{t("textProperties.label.font")}
+						</PropertyItemLabel>
 						<PropertyItemValue>
 							<FontPicker
 								value={element.fontFamily as FontFamily}
@@ -1075,7 +1149,7 @@ export function TextProperties({
 					</PropertyItem>
 
 					<NumberControl
-						label="Font size"
+						label={t("textProperties.label.fontSize")}
 						value={element.fontSize}
 						min={8}
 						max={300}
@@ -1084,11 +1158,13 @@ export function TextProperties({
 					/>
 
 					<PropertyItem direction="row">
-						<PropertyItemLabel>Style</PropertyItemLabel>
+						<PropertyItemLabel>
+							{t("textProperties.label.style")}
+						</PropertyItemLabel>
 						<PropertyItemValue>
 							<div className="flex flex-wrap gap-2">
 								<IconToggle
-									label="Bold"
+									label={t("textProperties.style.bold")}
 									pressed={element.fontWeight === "bold"}
 									onClick={() =>
 										update({
@@ -1100,7 +1176,7 @@ export function TextProperties({
 									<Bold className="size-4" />
 								</IconToggle>
 								<IconToggle
-									label="Italic"
+									label={t("textProperties.style.italic")}
 									pressed={element.fontStyle === "italic"}
 									onClick={() =>
 										update({
@@ -1112,7 +1188,7 @@ export function TextProperties({
 									<Italic className="size-4" />
 								</IconToggle>
 								<IconToggle
-									label="Underline"
+									label={t("textProperties.style.underline")}
 									pressed={element.textDecoration === "underline"}
 									onClick={() =>
 										update({
@@ -1126,7 +1202,7 @@ export function TextProperties({
 									<Underline className="size-4" />
 								</IconToggle>
 								<IconToggle
-									label="Strikethrough"
+									label={t("textProperties.style.strikethrough")}
 									pressed={element.textDecoration === "line-through"}
 									onClick={() =>
 										update({
@@ -1144,7 +1220,7 @@ export function TextProperties({
 					</PropertyItem>
 
 					<NumberControl
-						label="Letter spacing"
+						label={t("textProperties.label.letterSpacing")}
 						value={style.letterSpacing}
 						min={-20}
 						max={100}
@@ -1152,7 +1228,7 @@ export function TextProperties({
 						suffix="px"
 					/>
 					<NumberControl
-						label="Line height"
+						label={t("textProperties.label.lineHeight")}
 						value={style.lineHeight}
 						min={0.5}
 						max={3}
@@ -1162,7 +1238,9 @@ export function TextProperties({
 					/>
 
 					<PropertyItem direction="row">
-						<PropertyItemLabel>Alignment</PropertyItemLabel>
+						<PropertyItemLabel>
+							{t("textProperties.label.alignment")}
+						</PropertyItemLabel>
 						<PropertyItemValue>
 							<div className="flex flex-wrap gap-2">
 								{(
@@ -1174,7 +1252,7 @@ export function TextProperties({
 								).map(([alignment, Icon]) => (
 									<IconToggle
 										key={alignment}
-										label={`Align ${alignment}`}
+										label={t(TEXT_ALIGN_LABEL_KEYS[alignment])}
 										pressed={element.textAlign === alignment}
 										onClick={() => update({ textAlign: alignment })}
 									>
@@ -1190,10 +1268,10 @@ export function TextProperties({
 											style.verticalAlign === alignment ? "default" : "outline"
 										}
 										size="sm"
-										className="h-8 px-2 text-[10px] capitalize"
+										className="h-8 px-2 text-[10px]"
 										onClick={() => update({ verticalAlign: alignment })}
 									>
-										{alignment}
+										{t(TEXT_VERTICAL_ALIGN_LABEL_KEYS[alignment])}
 									</Button>
 								))}
 							</div>
@@ -1202,10 +1280,10 @@ export function TextProperties({
 				</div>
 			</PropertyGroup>
 
-			<PropertyGroup title="Layout" defaultExpanded>
+			<PropertyGroup title={t("textProperties.section.layout")} defaultExpanded>
 				<div className="space-y-4">
 					<NumberControl
-						label="Text box width"
+						label={t("textProperties.label.textBoxWidth")}
 						value={style.width}
 						min={40}
 						max={Math.max(40, canvasSize.width)}
@@ -1213,7 +1291,7 @@ export function TextProperties({
 						suffix="px"
 					/>
 					<NumberControl
-						label="Text box height"
+						label={t("textProperties.label.textBoxHeight")}
 						value={style.height}
 						min={40}
 						max={Math.max(40, canvasSize.height)}
@@ -1221,7 +1299,7 @@ export function TextProperties({
 						suffix="px"
 					/>
 					<NumberControl
-						label="X position"
+						label={t("textProperties.label.xPosition")}
 						value={element.x}
 						min={-canvasSize.width / 2}
 						max={canvasSize.width / 2}
@@ -1229,7 +1307,7 @@ export function TextProperties({
 						suffix="px"
 					/>
 					<NumberControl
-						label="Y position"
+						label={t("textProperties.label.yPosition")}
 						value={element.y}
 						min={-canvasSize.height / 2}
 						max={canvasSize.height / 2}
@@ -1237,7 +1315,7 @@ export function TextProperties({
 						suffix="px"
 					/>
 					<NumberControl
-						label="Rotation"
+						label={t("textProperties.label.rotation")}
 						value={element.rotation}
 						min={-180}
 						max={180}
@@ -1247,7 +1325,8 @@ export function TextProperties({
 
 					<PropertyItem direction="row">
 						<PropertyItemLabel className="flex items-center gap-1.5">
-							<Grid3X3 className="size-3.5" /> Position
+							<Grid3X3 className="size-3.5" />{" "}
+							{t("textProperties.label.position")}
 						</PropertyItemLabel>
 						<PropertyItemValue className="flex justify-end">
 							<div className="grid grid-cols-3 gap-1">
@@ -1259,8 +1338,11 @@ export function TextProperties({
 											variant="outline"
 											size="icon"
 											className="size-7"
-											aria-label={`Place text at ${column}-${row}`}
-											title="Place text on canvas"
+											aria-label={t("textProperties.aria.placeTextAt", {
+												column,
+												row,
+											})}
+											title={t("textProperties.hint.placeText")}
 											onClick={() => quickPosition(column, row)}
 										>
 											<span className="size-1.5 rounded-full bg-current" />
@@ -1273,15 +1355,18 @@ export function TextProperties({
 				</div>
 			</PropertyGroup>
 
-			<PropertyGroup title="Appearance" defaultExpanded>
+			<PropertyGroup
+				title={t("textProperties.section.appearance")}
+				defaultExpanded
+			>
 				<div className="space-y-4">
 					<ColorControl
-						label="Text color"
+						label={t("textProperties.label.textColor")}
 						value={element.color}
 						onChange={(color) => update({ color })}
 					/>
 					<NumberControl
-						label="Opacity"
+						label={t("textProperties.label.opacity")}
 						value={Math.round(element.opacity * 100)}
 						min={0}
 						max={100}
@@ -1289,7 +1374,9 @@ export function TextProperties({
 						suffix="%"
 					/>
 					<PropertyItem direction="row">
-						<PropertyItemLabel>Blend mode</PropertyItemLabel>
+						<PropertyItemLabel>
+							{t("textProperties.label.blendMode")}
+						</PropertyItemLabel>
 						<PropertyItemValue>
 							<Select
 								value={style.blendMode}
@@ -1306,8 +1393,8 @@ export function TextProperties({
 								</SelectTrigger>
 								<SelectContent>
 									{TEXT_BLEND_MODES.map((mode) => (
-										<SelectItem key={mode} value={mode} className="capitalize">
-											{mode}
+										<SelectItem key={mode} value={mode}>
+											{t(TEXT_BLEND_MODE_KEYS[mode])}
 										</SelectItem>
 									))}
 								</SelectContent>
@@ -1317,15 +1404,18 @@ export function TextProperties({
 				</div>
 			</PropertyGroup>
 
-			<PropertyGroup title="Stroke" defaultExpanded={false}>
+			<PropertyGroup
+				title={t("textProperties.section.stroke")}
+				defaultExpanded={false}
+			>
 				<div className="space-y-4">
 					<ColorControl
-						label="Color"
+						label={t("textProperties.label.color")}
 						value={style.strokeColor}
 						onChange={(strokeColor) => update({ strokeColor })}
 					/>
 					<NumberControl
-						label="Width"
+						label={t("textProperties.label.width")}
 						value={style.strokeWidth}
 						min={0}
 						max={20}
@@ -1334,7 +1424,7 @@ export function TextProperties({
 						suffix="px"
 					/>
 					<NumberControl
-						label="Opacity"
+						label={t("textProperties.label.opacity")}
 						value={Math.round(style.strokeOpacity * 100)}
 						min={0}
 						max={100}
@@ -1346,15 +1436,18 @@ export function TextProperties({
 				</div>
 			</PropertyGroup>
 
-			<PropertyGroup title="Background" defaultExpanded={false}>
+			<PropertyGroup
+				title={t("textProperties.section.background")}
+				defaultExpanded={false}
+			>
 				<div className="space-y-4">
 					<ColorControl
-						label="Color"
+						label={t("textProperties.label.color")}
 						value={element.backgroundColor}
 						onChange={(backgroundColor) => update({ backgroundColor })}
 					/>
 					<NumberControl
-						label="Opacity"
+						label={t("textProperties.label.opacity")}
 						value={Math.round(style.backgroundOpacity * 100)}
 						min={0}
 						max={100}
@@ -1364,7 +1457,7 @@ export function TextProperties({
 						suffix="%"
 					/>
 					<NumberControl
-						label="Corner radius"
+						label={t("textProperties.label.cornerRadius")}
 						value={style.backgroundRadius}
 						min={0}
 						max={100}
@@ -1372,7 +1465,7 @@ export function TextProperties({
 						suffix="px"
 					/>
 					<NumberControl
-						label="Padding"
+						label={t("textProperties.label.padding")}
 						value={style.backgroundPadding}
 						min={0}
 						max={100}
@@ -1382,15 +1475,18 @@ export function TextProperties({
 				</div>
 			</PropertyGroup>
 
-			<PropertyGroup title="Shadow" defaultExpanded={false}>
+			<PropertyGroup
+				title={t("textProperties.section.shadow")}
+				defaultExpanded={false}
+			>
 				<div className="space-y-4">
 					<ColorControl
-						label="Color"
+						label={t("textProperties.label.color")}
 						value={style.shadowColor}
 						onChange={(shadowColor) => update({ shadowColor })}
 					/>
 					<NumberControl
-						label="Opacity"
+						label={t("textProperties.label.opacity")}
 						value={Math.round(style.shadowOpacity * 100)}
 						min={0}
 						max={100}
@@ -1400,7 +1496,7 @@ export function TextProperties({
 						suffix="%"
 					/>
 					<NumberControl
-						label="Horizontal offset"
+						label={t("textProperties.label.horizontalOffset")}
 						value={style.shadowOffsetX}
 						min={-100}
 						max={100}
@@ -1408,7 +1504,7 @@ export function TextProperties({
 						suffix="px"
 					/>
 					<NumberControl
-						label="Vertical offset"
+						label={t("textProperties.label.verticalOffset")}
 						value={style.shadowOffsetY}
 						min={-100}
 						max={100}
@@ -1416,7 +1512,7 @@ export function TextProperties({
 						suffix="px"
 					/>
 					<NumberControl
-						label="Blur"
+						label={t("textProperties.label.blur")}
 						value={style.shadowBlur}
 						min={0}
 						max={100}
@@ -1426,15 +1522,18 @@ export function TextProperties({
 				</div>
 			</PropertyGroup>
 
-			<PropertyGroup title="Glow" defaultExpanded={false}>
+			<PropertyGroup
+				title={t("textProperties.section.glow")}
+				defaultExpanded={false}
+			>
 				<div className="space-y-4">
 					<ColorControl
-						label="Color"
+						label={t("textProperties.label.color")}
 						value={style.glowColor}
 						onChange={(glowColor) => update({ glowColor })}
 					/>
 					<NumberControl
-						label="Opacity"
+						label={t("textProperties.label.opacity")}
 						value={Math.round(style.glowOpacity * 100)}
 						min={0}
 						max={100}
@@ -1444,7 +1543,7 @@ export function TextProperties({
 						suffix="%"
 					/>
 					<NumberControl
-						label="Blur"
+						label={t("textProperties.label.blur")}
 						value={style.glowBlur}
 						min={0}
 						max={100}
@@ -1454,9 +1553,12 @@ export function TextProperties({
 				</div>
 			</PropertyGroup>
 
-			<PropertyGroup title="Curve" defaultExpanded={false}>
+			<PropertyGroup
+				title={t("textProperties.section.curve")}
+				defaultExpanded={false}
+			>
 				<NumberControl
-					label="Arc"
+					label={t("textProperties.label.arc")}
 					value={style.curve}
 					min={-180}
 					max={180}
@@ -1471,7 +1573,8 @@ export function TextProperties({
 				className="w-full"
 				onClick={resetVisualStyle}
 			>
-				<RotateCcw className="mr-2 size-4" /> Reset visual style
+				<RotateCcw className="mr-2 size-4" />{" "}
+				{t("textProperties.action.resetVisualStyle")}
 			</Button>
 		</div>
 	);
