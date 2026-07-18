@@ -26,6 +26,7 @@ import {
 	buildTextTemplate,
 	TEXT_TEMPLATE_DEFINITIONS,
 	type TextTemplateDefinition,
+	usesTransparentTextTemplateBackground,
 } from "../src/lib/text/text-template-registry";
 
 type TextAssetFile = {
@@ -309,6 +310,19 @@ function ornamentSvg({
 	return "";
 }
 
+function thumbnailSceneSvg({
+	definition,
+}: {
+	definition: TextTemplateDefinition;
+}): string {
+	if (usesTransparentTextTemplateBackground({ groupId: definition.groupId })) {
+		return "";
+	}
+	return `${backgroundSvg({ definition })}
+${designSignatureSvg({ definition })}
+${ornamentSvg({ definition })}`;
+}
+
 function textFillUrl({
 	definition,
 }: {
@@ -324,6 +338,21 @@ function textFillUrl({
 	if (recipe.textFillKind === "texture") return "url(#textureText)";
 	const [, , , accent] = recipeColors({ definition });
 	return accent;
+}
+
+function thumbnailAccentStrokeColor({
+	definition,
+	fallback,
+	usesTransparentBackground,
+}: {
+	definition: TextTemplateDefinition;
+	fallback: string;
+	usesTransparentBackground: boolean;
+}): string {
+	if (!usesTransparentBackground) return fallback;
+	if (definition.variantId === "red-burst") return "#111827";
+	if (definition.variantId === "sticker") return "#ffffff";
+	return fallback;
 }
 
 function packContent({
@@ -727,9 +756,7 @@ function packThumbnailSvg({
 <linearGradient id="card" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="rgba(255,255,255,.82)"/><stop offset="1" stop-color="rgba(255,255,255,.16)"/></linearGradient>
 <filter id="shadow" x="-30%" y="-30%" width="160%" height="160%"><feDropShadow dx="0" dy="10" stdDeviation="7" flood-color="#000" flood-opacity="0.45"/></filter>
 </defs>
-${backgroundSvg({ definition })}
-${designSignatureSvg({ definition })}
-${ornamentSvg({ definition })}
+${thumbnailSceneSvg({ definition })}
 ${
 	packPreview ??
 	`<rect x="32" y="42" width="256" height="220" rx="20" fill="url(#card)" stroke="rgba(255,255,255,.24)" stroke-width="2" filter="url(#shadow)"/>
@@ -756,6 +783,26 @@ export function buildTextAssetThumbnailSvg({
 				? 3
 				: 0;
 	const fontSize = label.length > 2 ? 96 : 112;
+	const template = buildTextTemplate({ definition });
+	const usesTransparentBackground = usesTransparentTextTemplateBackground({
+		groupId: definition.groupId,
+	});
+	const templateStrokeWidth = Math.max(
+		6,
+		Math.min(13, (template.strokeWidth ?? 1) * 1.9)
+	);
+	const outerStrokeWidth = usesTransparentBackground
+		? templateStrokeWidth + 7
+		: 18;
+	const innerStrokeWidth = usesTransparentBackground
+		? templateStrokeWidth + 3
+		: 10;
+	const accentStrokeWidth = usesTransparentBackground ? templateStrokeWidth : 5;
+	const accentStrokeColor = thumbnailAccentStrokeColor({
+		definition,
+		fallback: mid,
+		usesTransparentBackground,
+	});
 	const glowOpacity =
 		recipe.textFillKind === "neon" || definition.category === "glow"
 			? "0.85"
@@ -773,13 +820,11 @@ export function buildTextAssetThumbnailSvg({
 <linearGradient id="textureText" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#fafaf9"/><stop offset=".45" stop-color="#a8a29e"/><stop offset="1" stop-color="#57534e"/></linearGradient>
 <filter id="shadow" x="-30%" y="-30%" width="160%" height="160%"><feDropShadow dx="0" dy="12" stdDeviation="8" flood-color="#000" flood-opacity="0.55"/><feDropShadow dx="0" dy="0" stdDeviation="10" flood-color="${accent}" flood-opacity="${glowOpacity}"/></filter>
 </defs>
-${backgroundSvg({ definition })}
-${designSignatureSvg({ definition })}
-${ornamentSvg({ definition })}
+${thumbnailSceneSvg({ definition })}
 <g transform="translate(160 158) rotate(${rotate})" filter="url(#shadow)">
-<text x="0" y="0" text-anchor="middle" dominant-baseline="middle" font-family="Arial, 'PingFang SC', sans-serif" font-size="${fontSize}" font-weight="900" stroke="#000" stroke-width="18" stroke-linejoin="round">${label}</text>
-<text x="0" y="0" text-anchor="middle" dominant-baseline="middle" font-family="Arial, 'PingFang SC', sans-serif" font-size="${fontSize}" font-weight="900" stroke="#fff" stroke-width="10" stroke-linejoin="round">${label}</text>
-<text x="0" y="0" text-anchor="middle" dominant-baseline="middle" font-family="Arial, 'PingFang SC', sans-serif" font-size="${fontSize}" font-weight="900" stroke="${mid}" stroke-width="5" stroke-linejoin="round">${label}</text>
+<text x="0" y="0" text-anchor="middle" dominant-baseline="middle" font-family="Arial, 'PingFang SC', sans-serif" font-size="${fontSize}" font-weight="900" stroke="#000" stroke-width="${outerStrokeWidth}" stroke-linejoin="round">${label}</text>
+<text x="0" y="0" text-anchor="middle" dominant-baseline="middle" font-family="Arial, 'PingFang SC', sans-serif" font-size="${fontSize}" font-weight="900" stroke="#fff" stroke-width="${innerStrokeWidth}" stroke-linejoin="round">${label}</text>
+<text x="0" y="0" text-anchor="middle" dominant-baseline="middle" font-family="Arial, 'PingFang SC', sans-serif" font-size="${fontSize}" font-weight="900" stroke="${accentStrokeColor}" stroke-width="${accentStrokeWidth}" stroke-linejoin="round">${label}</text>
 <text x="0" y="0" text-anchor="middle" dominant-baseline="middle" font-family="Arial, 'PingFang SC', sans-serif" font-size="${fontSize}" font-weight="900" fill="${textFillUrl({ definition })}">${label}</text>
 <path d="M-92 -28 C-38 -54 34 -54 92 -28" fill="none" stroke="#fff" stroke-width="6" stroke-linecap="round" opacity=".28"/>
 </g>

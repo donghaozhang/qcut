@@ -13,6 +13,7 @@ import { resolveTextTemplateAssetEntry } from "@/lib/assets/qcut-asset-manifest"
 import type { CreateTextElement, TextElement } from "@/types/timeline";
 import { DEFAULT_TEXT_ASSET_REMOTE_BASE_URL } from "./text-resource-catalog";
 import {
+	applyTextTemplateBackgroundPolicy,
 	buildTextTemplate,
 	type TextTemplateDefinition,
 } from "./text-template-registry";
@@ -724,12 +725,15 @@ export async function resolveTextTemplateForTimeline({
 			fetchImpl,
 			storage,
 		});
-		return {
-			...fallbackTemplate,
-			...packageSource.template,
-			id: fallbackTemplate.id,
-			type: fallbackTemplate.type,
-		};
+		return applyTextTemplateBackgroundPolicy({
+			definition,
+			template: {
+				...fallbackTemplate,
+				...packageSource.template,
+				id: fallbackTemplate.id,
+				type: fallbackTemplate.type,
+			},
+		});
 	} catch {
 		return fallbackTemplate;
 	}
@@ -738,15 +742,17 @@ export async function resolveTextTemplateForTimeline({
 function completeTextTemplatePackElement({
 	baseTemplate,
 	currentTime,
+	definition,
 	element,
 	fallbackElement,
 }: {
 	baseTemplate: TextElement;
 	currentTime: number;
+	definition: TextTemplateDefinition;
 	element: Partial<TextElement>;
 	fallbackElement?: CreateTextElement;
 }): CreateTextElement {
-	return {
+	const completedElement: CreateTextElement = {
 		...baseTemplate,
 		...fallbackElement,
 		...element,
@@ -760,6 +766,10 @@ function completeTextTemplatePackElement({
 		trimStart: 0,
 		trimEnd: 0,
 	};
+	return applyTextTemplateBackgroundPolicy({
+		definition,
+		template: completedElement,
+	});
 }
 
 function resolvePackageBaseTemplate({
@@ -773,12 +783,15 @@ function resolvePackageBaseTemplate({
 }): TextElement {
 	const registryTemplate =
 		fallbackTemplate ?? buildTextTemplate({ definition });
-	return {
-		...registryTemplate,
-		...packageTemplate,
-		id: registryTemplate.id,
-		type: "text",
-	};
+	return applyTextTemplateBackgroundPolicy({
+		definition,
+		template: {
+			...registryTemplate,
+			...packageTemplate,
+			id: registryTemplate.id,
+			type: "text",
+		},
+	});
 }
 
 function buildResolvedTextTemplatePack({
@@ -804,6 +817,7 @@ function buildResolvedTextTemplatePack({
 		completeTextTemplatePackElement({
 			baseTemplate,
 			currentTime,
+			definition,
 			element,
 			fallbackElement: fallbackPack?.elements[index],
 		})

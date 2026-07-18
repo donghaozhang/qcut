@@ -183,7 +183,7 @@ describe("text asset generator payloads", () => {
 		});
 	});
 
-	it("adds stable design signatures so generated thumbnails do not collapse into duplicates", () => {
+	it("keeps decorative thumbnails transparent and visually distinct", () => {
 		const definitions = getTextTemplateDefinitionsByCategory({
 			category: "basic",
 		});
@@ -201,8 +201,16 @@ describe("text asset generator payloads", () => {
 		const outlineSvg = buildTextAssetThumbnailSvg({ definition: outline });
 
 		expect(plainSvg).not.toBe(outlineSvg);
-		expect(plainSvg).toContain(">P</text>");
-		expect(outlineSvg).toContain(">O</text>");
+		expect(plainSvg).not.toContain('<rect width="320" height="304"');
+		expect(outlineSvg).not.toContain('<rect width="320" height="304"');
+	});
+
+	it("keeps scene backdrops for semantic packaging thumbnails", () => {
+		const definition = firstDefinition({ category: "cover-pack" });
+
+		expect(buildTextAssetThumbnailSvg({ definition })).toContain(
+			'<rect width="320" height="304"'
+		);
 	});
 
 	it("exposes stable generated provenance for generated text assets", () => {
