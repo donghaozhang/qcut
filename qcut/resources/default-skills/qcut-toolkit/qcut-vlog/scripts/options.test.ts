@@ -12,6 +12,7 @@ describe("qcut-vlog options", () => {
 			input: "/tmp/project/clips/episode.MOV",
 			outputDir: "/tmp/project/clips/episode-vlog",
 			finalName: "episode_vlog.mp4",
+			backgroundFit: "cover",
 			preset: "default",
 			model: "scribe_v2",
 			silenceThreshold: 1,
@@ -27,6 +28,12 @@ describe("qcut-vlog options", () => {
 		expect(paths.cleanAudio).toBe(
 			"/tmp/project/clips/episode-vlog/episode_clean_audio.mp3"
 		);
+		expect(paths.cutoutVideo).toBe(
+			"/tmp/project/clips/episode-vlog/episode_cutout.webm"
+		);
+		expect(paths.editableVideo).toBe(
+			"/tmp/project/clips/episode-vlog/episode_vlog_editable.mp4"
+		);
 		expect(paths.finalVideo).toBe(
 			"/tmp/project/clips/episode-vlog/episode_vlog.mp4"
 		);
@@ -36,6 +43,10 @@ describe("qcut-vlog options", () => {
 		const options = parseVlogOptions({
 			argv: [
 				"input.mp4",
+				"--background",
+				"office.png",
+				"--background-fit",
+				"contain",
 				"--preset",
 				"bold",
 				"--style",
@@ -53,6 +64,8 @@ describe("qcut-vlog options", () => {
 		});
 
 		expect(options.preset).toBe("bold");
+		expect(options.background).toBe("/tmp/office.png");
+		expect(options.backgroundFit).toBe("contain");
 		expect(options.style).toContain('"bgOpacity":0');
 		expect(options.silenceThreshold).toBe(1.5);
 		expect(options.keepPadding).toBe(0.2);
@@ -67,6 +80,9 @@ describe("qcut-vlog options", () => {
 		expect(() =>
 			parseVlogOptions({ argv: ["input.mp4", "--srt-max-words", "0"] })
 		).toThrow("between 1 and 50");
+		expect(() =>
+			parseVlogOptions({ argv: ["input.mp4", "--background-fit", "tile"] })
+		).toThrow("background-fit");
 		expect(() =>
 			parseVlogOptions({ argv: ["input.mp4", "--final-name", "../bad.mp4"] })
 		).toThrow("without directories");
