@@ -190,6 +190,7 @@ export interface VideoSource {
 	freezeFrameDuration?: number;
 	visual?: VideoVisual;
 	effectFilter?: string;
+	effectRenderProgram?: EffectRenderProgram;
 }
 
 export interface VideoTransition {
@@ -445,6 +446,7 @@ export interface ImageSource {
 	elementId: string;
 	visual?: VideoVisual;
 	effectFilter?: string;
+	effectRenderProgram?: EffectRenderProgram;
 }
 
 /**
@@ -802,3 +804,4 @@ export interface FFmpegHandlers {
 		options: GifConversionOptions
 	) => Promise<{ outputPath: string; fileSize: number }>;
 }
+import type { EffectRenderProgram } from "./effect-render-types";

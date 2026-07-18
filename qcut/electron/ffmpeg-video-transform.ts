@@ -27,6 +27,10 @@ import {
 	buildVideoEnhancementFilter,
 	DEFAULT_VIDEO_ENHANCEMENTS,
 } from "./ffmpeg/video-enhancement-filter";
+import {
+	buildEffectMotionExpressions,
+	hasEffectMotionProperty,
+} from "./ffmpeg/effect-motion-expression";
 
 const DEFAULT_ADJUSTMENTS: NonNullable<VideoVisual["adjustments"]> = {
 	brightness: 0,
@@ -762,8 +766,41 @@ function buildSegmentFilters({
 		fallback: visual.scaleY,
 		timeVariable: "t",
 	});
+	if (
+		hasEffectMotionProperty({
+			program: source.effectRenderProgram,
+			property: "scale",
+		})
+	) {
+		const padded = `video_${segmentIndex}_effect_zoom_pad`;
+		const zoomed = `video_${segmentIndex}_effect_zoom`;
+		const effectZoomMotion = buildEffectMotionExpressions({
+			program: source.effectRenderProgram,
+			duration,
+			width,
+			height,
+			timeVariable: `(on/${Math.max(1, fps)})`,
+		});
+		steps.push(
+			`[${current}]pad=w=iw*2:h=ih*2:x=iw/2:y=ih/2:color=black@0,format=rgba[${padded}]`
+		);
+		steps.push(
+			`[${padded}]zoompan=` +
+				`z='2*max(0.5,${effectZoomMotion.scale})':` +
+				`x='iw/2-(iw/zoom/2)':y='ih/2-(ih/zoom/2)':` +
+				`d=1:s=${width}x${height}:fps=${fps},format=rgba[${zoomed}]`
+		);
+		current = zoomed;
+	}
 	const transformAnimation = buildAnimationExpressions({
 		visual,
+		duration,
+		width,
+		height,
+		timeVariable: "t",
+	});
+	const effectTransformMotion = buildEffectMotionExpressions({
+		program: source.effectRenderProgram,
 		duration,
 		width,
 		height,
@@ -782,10 +819,17 @@ function buildSegmentFilters({
 		fallback: visual.rotation,
 		timeVariable: "t",
 	});
-	if (visual.rotation !== 0 || (visual.keyframes?.rotation?.length ?? 0) > 0) {
+	if (
+		visual.rotation !== 0 ||
+		(visual.keyframes?.rotation?.length ?? 0) > 0 ||
+		hasEffectMotionProperty({
+			program: source.effectRenderProgram,
+			property: "rotation",
+		})
+	) {
 		const rotated = `video_${segmentIndex}_rotated`;
 		steps.push(
-			`[${current}]rotate=angle='(${rotation})*PI/180':ow='hypot(iw,ih)':oh='hypot(iw,ih)':c=none[${rotated}]`
+			`[${current}]rotate=angle='((${rotation})+(${effectTransformMotion.rotation}))*PI/180':ow='hypot(iw,ih)':oh='hypot(iw,ih)':c=none[${rotated}]`
 		);
 		current = rotated;
 	}
@@ -802,11 +846,18 @@ function buildSegmentFilters({
 		height,
 		timeVariable: "T",
 	});
+	const effectOpacityMotion = buildEffectMotionExpressions({
+		program: source.effectRenderProgram,
+		duration,
+		width,
+		height,
+		timeVariable: "T",
+	});
 	const alpha = `video_${segmentIndex}_opacity`;
 	steps.push(
 		`[${current}]format=rgba,geq=` +
 			`r='r(X,Y)':g='g(X,Y)':b='b(X,Y)':` +
-			`a='alpha(X,Y)*max(0,min(1,(${opacity})*(${opacityAnimation.opacity})))'[${alpha}]`
+			`a='alpha(X,Y)*max(0,min(1,(${opacity})*(${opacityAnimation.opacity})*(${effectOpacityMotion.opacity})))'[${alpha}]`
 	);
 	current = alpha;
 
@@ -829,8 +880,8 @@ function buildSegmentFilters({
 	);
 	steps.push(
 		`[${transparent}][${current}]overlay=` +
-			`x='(W-w)/2+(${x})+(${transformAnimation.x})':` +
-			`y='(H-h)/2+(${y})+(${transformAnimation.y})':shortest=1:format=auto[${foreground}]`
+			`x='(W-w)/2+(${x})+(${transformAnimation.x})+(${effectTransformMotion.x})':` +
+			`y='(H-h)/2+(${y})+(${transformAnimation.y})+(${effectTransformMotion.y})':shortest=1:format=auto[${foreground}]`
 	);
 	if (transparentOutput) {
 		const layer = `video_${segmentIndex}_layer`;

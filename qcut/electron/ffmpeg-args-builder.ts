@@ -174,6 +174,7 @@ function buildCanonicalVisualFilters({
 		trimEnd: image.trimEnd,
 		visual: image.visual,
 		effectFilter: image.effectFilter,
+		effectRenderProgram: image.effectRenderProgram,
 	}));
 	const timelineSources = [...videoSources, ...imageSources];
 	const inputIndexes = timelineSources.map((_source, index) =>
