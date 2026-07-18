@@ -5,7 +5,10 @@
  * Extracted from export-engine-cli.ts for reuse across filter and source modules.
  */
 
-import type { EffectRenderProgram } from "@qcut/editor-core";
+import type {
+	EffectAudioReactiveEnvelope,
+	EffectRenderProgram,
+} from "@qcut/editor-core";
 import type {
 	AudioCrossfade,
 	AudioMixBusSettings,
@@ -197,6 +200,7 @@ export interface VideoSourceInput {
 	effectFilter?: string;
 	effectRenderProgram?: EffectRenderProgram;
 	effectOverlaySources?: EffectOverlaySourceInput[];
+	effectAudioReactiveEnvelopes?: EffectAudioReactiveEnvelope[];
 }
 
 export interface EffectOverlaySourceInput {
@@ -258,6 +262,7 @@ export interface ImageSourceInput {
 	effectFilter?: string;
 	effectRenderProgram?: EffectRenderProgram;
 	effectOverlaySources?: EffectOverlaySourceInput[];
+	effectAudioReactiveEnvelopes?: EffectAudioReactiveEnvelope[];
 }
 
 /**
