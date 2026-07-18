@@ -1,11 +1,11 @@
 import type {
+	EffectCatalogEntry,
 	EffectCatalogNavigation,
 	EffectLibrarySectionId,
-	VisualEffectCatalogEntry,
 } from "./effect-catalog-types";
 
 interface SelectEffectCatalogEntriesOptions {
-	entries: readonly VisualEffectCatalogEntry[];
+	entries: readonly EffectCatalogEntry[];
 	section: EffectLibrarySectionId;
 	navigation?: EffectCatalogNavigation;
 	favoriteIds?: ReadonlySet<string>;
@@ -17,8 +17,8 @@ function compareByPopularity({
 	left,
 	right,
 }: {
-	left: VisualEffectCatalogEntry;
-	right: VisualEffectCatalogEntry;
+	left: EffectCatalogEntry;
+	right: EffectCatalogEntry;
 }) {
 	return right.popularityScore - left.popularityScore;
 }
@@ -27,8 +27,8 @@ function compareByReleaseDate({
 	left,
 	right,
 }: {
-	left: VisualEffectCatalogEntry;
-	right: VisualEffectCatalogEntry;
+	left: EffectCatalogEntry;
+	right: EffectCatalogEntry;
 }) {
 	return Date.parse(right.releasedAt) - Date.parse(left.releasedAt);
 }
@@ -37,7 +37,7 @@ function matchesQuery({
 	entry,
 	query,
 }: {
-	entry: VisualEffectCatalogEntry;
+	entry: EffectCatalogEntry;
 	query: string;
 }) {
 	if (!query) return true;
@@ -61,13 +61,11 @@ export function selectEffectCatalogEntries({
 	favoriteIds = new Set<string>(),
 	query = "",
 	collectionLimit = 3,
-}: SelectEffectCatalogEntriesOptions): VisualEffectCatalogEntry[] {
-	if (section === "person") return [];
-
+}: SelectEffectCatalogEntriesOptions): EffectCatalogEntry[] {
 	const normalizedQuery = query.trim().toLowerCase();
 	const availableEntries = entries.filter(
 		(entry) =>
-			entry.publication !== "planned" &&
+			entry.publication === "published" &&
 			matchesQuery({ entry, query: normalizedQuery })
 	);
 
@@ -75,12 +73,17 @@ export function selectEffectCatalogEntries({
 		return availableEntries.filter((entry) => favoriteIds.has(entry.preset.id));
 	}
 
-	if (!navigation) return availableEntries;
+	const sectionEntries = availableEntries.filter(
+		(entry) => entry.family === section
+	);
+	if (!navigation) return sectionEntries;
 	if (navigation.kind === "category") {
-		return availableEntries.filter((entry) => entry.category === navigation.id);
+		return sectionEntries.filter(
+			(entry) => entry.family === "visual" && entry.category === navigation.id
+		);
 	}
 
-	const sorted = [...availableEntries].sort((left, right) =>
+	const sorted = [...sectionEntries].sort((left, right) =>
 		navigation.id === "popular"
 			? compareByPopularity({ left, right })
 			: compareByReleaseDate({ left, right })
