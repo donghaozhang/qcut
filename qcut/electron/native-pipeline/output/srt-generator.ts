@@ -27,6 +27,52 @@ interface SrtEntry {
 	text: string;
 }
 
+/** CJK ideographs, kana, and fullwidth/CJK punctuation. */
+const CJK_CHAR =
+	/[\u3000-\u303f\u3040-\u30ff\u3400-\u4dbf\u4e00-\u9fff\uf900-\ufaff\uff00-\uffef]/;
+
+/** Tokens that are only punctuation/whitespace (never start a line). */
+const PUNCT_ONLY_TOKEN =
+	/^[\s。，、！？；：…·—～「」『』（）《》【】!?,.;:'")\]]+$/;
+
+/** Closing punctuation stuck to the front of a token (e.g. "，Sol"). */
+const LEADING_CLOSER = /^[。，、！？；：…·—～」』）》】!?,.;:'")\]]+/;
+
+/**
+ * STT tokens sometimes carry the previous clause's closing punctuation as
+ * a prefix ("，Sol，"). Move that prefix onto the preceding token so a
+ * subtitle line can never start with it.
+ */
+function reattachLeadingPunctuation(words: WordTimestamp[]): WordTimestamp[] {
+	const out: WordTimestamp[] = [];
+	for (const word of words) {
+		const prefix = word.word.match(LEADING_CLOSER)?.[0];
+		if (prefix && prefix.length < word.word.length && out.length > 0) {
+			const prev = out[out.length - 1];
+			out[out.length - 1] = { ...prev, word: prev.word + prefix };
+			out.push({ ...word, word: word.word.slice(prefix.length) });
+		} else {
+			out.push(word);
+		}
+	}
+	return out;
+}
+
+/** Join tokens with spaces only between non-CJK neighbors (Latin words). */
+function joinTokens(words: WordTimestamp[]): string {
+	let text = "";
+	for (const { word } of words) {
+		const token = word.trim();
+		if (!token) continue;
+		const needsSpace =
+			text.length > 0 &&
+			!CJK_CHAR.test(text[text.length - 1]) &&
+			!CJK_CHAR.test(token[0]);
+		text += needsSpace ? ` ${token}` : token;
+	}
+	return text;
+}
+
 /**
  * Format seconds into SRT timecode: HH:MM:SS,mmm
  */
@@ -114,17 +160,27 @@ function groupWords(
 
 	function flush(): void {
 		if (currentWords.length === 0) return;
-		entries.push({
-			index,
-			start: currentWords[0].start,
-			end: currentWords[currentWords.length - 1].end,
-			text: currentWords.map((w) => w.word).join(" "),
-		});
-		index++;
+		const text = joinTokens(currentWords);
+		if (text) {
+			entries.push({
+				index,
+				start: currentWords[0].start,
+				end: currentWords[currentWords.length - 1].end,
+				text,
+			});
+			index++;
+		}
 		currentWords = [];
 	}
 
 	for (const word of words) {
+		// Punctuation must not start a line: keep it on the current one
+		// even when that line is already at its limits.
+		if (currentWords.length > 0 && PUNCT_ONLY_TOKEN.test(word.word)) {
+			currentWords.push(word);
+			continue;
+		}
+
 		const wouldExceedWords = currentWords.length >= maxWords;
 		const wouldExceedDuration =
 			currentWords.length > 0 && word.end - currentWords[0].start > maxDuration;
@@ -150,7 +206,11 @@ export function generateSrt(
 	const maxWords = options?.maxWords ?? 8;
 	const maxDuration = options?.maxDuration ?? 4.0;
 
-	const entries = groupWords(words, maxWords, maxDuration);
+	const entries = groupWords(
+		reattachLeadingPunctuation(words),
+		maxWords,
+		maxDuration
+	);
 
 	return entries
 		.map(
