@@ -127,6 +127,13 @@ export interface AnimatedParameter {
 	interpolation?: "linear" | "step" | "smooth";
 }
 
+export interface EffectAudioCompanion {
+	resourceId: string;
+	offsetSeconds: number;
+	durationSeconds: number;
+	gain: number;
+}
+
 export interface EffectInstance {
 	id: string;
 	presetId?: string;
@@ -134,6 +141,7 @@ export interface EffectInstance {
 	effectType: EffectType;
 	parameters: EffectParameters;
 	renderProgram?: EffectRenderProgram;
+	audioCompanion?: EffectAudioCompanion;
 	duration: number;
 	enabled: boolean;
 	animations?: AnimatedParameter[];
