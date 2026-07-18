@@ -189,10 +189,7 @@ describe("text template registry", () => {
 
 	it("keeps fancy flower-word templates transparent after style preset merging", () => {
 		const definitionsById = new Map(
-			TEXT_TEMPLATE_DEFINITIONS.map((definition) => [
-				definition.id,
-				definition,
-			])
+			TEXT_TEMPLATE_DEFINITIONS.map((definition) => [definition.id, definition])
 		);
 		const fancyTemplates = TEXT_TEMPLATES.filter(
 			(template) => definitionsById.get(template.id)?.groupId === "fancy"
