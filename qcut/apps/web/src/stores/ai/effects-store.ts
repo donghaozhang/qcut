@@ -337,7 +337,9 @@ export const useEffectsStore = create<EffectsStore>((set, get) => ({
 				) ??
 				ALL_EFFECT_PRESETS.find((p) => p.name === baseName) ??
 				ALL_EFFECT_PRESETS.find(
-					(p) => inferEffectType(p.parameters) === effect.effectType
+					(p) =>
+						(p.effectType ?? inferEffectType(p.parameters)) ===
+						effect.effectType
 				);
 
 			if (preset) {
