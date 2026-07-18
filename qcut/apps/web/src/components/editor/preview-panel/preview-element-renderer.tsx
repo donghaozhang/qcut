@@ -77,6 +77,11 @@ import {
 } from "./use-effects-rendering";
 import { EffectOverlayLayers } from "@/components/editor/effects/effect-overlay-layers";
 import { EffectCompositeCanvas } from "@/components/editor/effects/effect-composite-canvas";
+import { useEffectAudioReactivePreview } from "@/components/editor/effects/use-effect-audio-reactive-preview";
+import {
+	appendAudioReactiveBrightnessFilter,
+	mergeEffectMotionWithAudioReactive,
+} from "@/lib/effects/effect-audio-reactive-state";
 
 interface ElementResizeParams {
 	elementId: string;
@@ -258,6 +263,14 @@ export function PreviewElementRenderer({
 			elementId: elementData.element.id,
 		})
 	);
+	const audioReactive = useEffectAudioReactivePreview({
+		program: effectRendering.renderProgram,
+		trackId: elementData.track.id,
+	});
+	const effectFilterStyle = appendAudioReactiveBrightnessFilter({
+		filter: effectRendering.filterStyle,
+		audioReactive,
+	});
 	const previewMediaVisual =
 		elementData.element.type === "media"
 			? resolveMediaKeyframes({
@@ -711,12 +724,15 @@ export function PreviewElementRenderer({
 					canvasWidth: canvasSize.width,
 					canvasHeight: canvasSize.height,
 				});
-				const effectMotion = getEffectMotionState({
-					program: effectRendering.renderProgram,
-					localTime: Math.max(0, currentTime - element.startTime),
-					duration: getMediaTimelineDuration(element),
-					canvasWidth: canvasSize.width,
-					canvasHeight: canvasSize.height,
+				const effectMotion = mergeEffectMotionWithAudioReactive({
+					motion: getEffectMotionState({
+						program: effectRendering.renderProgram,
+						localTime: Math.max(0, currentTime - element.startTime),
+						duration: getMediaTimelineDuration(element),
+						canvasWidth: canvasSize.width,
+						canvasHeight: canvasSize.height,
+					}),
+					audioReactive,
 				});
 				const displayX = isDraggingThisElement ? dragState.currentX : visual.x;
 				const displayY = isDraggingThisElement ? dragState.currentY : visual.y;
@@ -737,7 +753,7 @@ export function PreviewElementRenderer({
 				const combinedFilter = [
 					usesNativeEnhancement ? "" : enhancementFilter,
 					chromaKeyFilter,
-					effectRendering.filterStyle,
+					effectFilterStyle,
 				]
 					.filter(Boolean)
 					.join(" ");
@@ -1048,12 +1064,15 @@ export function PreviewElementRenderer({
 					currentTime,
 					fps: activeProject?.fps ?? 30,
 				});
-				const effectMotion = getEffectMotionState({
-					program: effectRendering.renderProgram,
-					localTime: Math.max(0, currentTime - element.startTime),
-					duration: getMediaTimelineDuration(element),
-					canvasWidth: canvasSize.width,
-					canvasHeight: canvasSize.height,
+				const effectMotion = mergeEffectMotionWithAudioReactive({
+					motion: getEffectMotionState({
+						program: effectRendering.renderProgram,
+						localTime: Math.max(0, currentTime - element.startTime),
+						duration: getMediaTimelineDuration(element),
+						canvasWidth: canvasSize.width,
+						canvasHeight: canvasSize.height,
+					}),
+					audioReactive,
 				});
 				const usesPixelColor = hasMediaColorEdits({ settings: visual.color });
 				const gradeMaskIds = visual.color.mask.enabled
@@ -1171,7 +1190,7 @@ export function PreviewElementRenderer({
 									className="w-full h-full object-contain"
 									style={{
 										...maskStyle,
-										filter: effectRendering.filterStyle || undefined,
+										filter: effectFilterStyle || undefined,
 										opacity: usesPixelColor ? 0 : undefined,
 									}}
 									data-color-source="true"
@@ -1183,7 +1202,7 @@ export function PreviewElementRenderer({
 										settings={visual.color}
 										masks={visual.masks}
 										fitMode="contain"
-										filter={effectRendering.filterStyle || undefined}
+										filter={effectFilterStyle || undefined}
 										frameSeed={Math.round(
 											currentTime * (activeProject?.fps ?? 30)
 										)}
@@ -1250,7 +1269,7 @@ export function PreviewElementRenderer({
 								className="w-full h-full object-cover"
 								style={{
 									...maskStyle,
-									filter: effectRendering.filterStyle || undefined,
+									filter: effectFilterStyle || undefined,
 									opacity: usesPixelColor ? 0 : undefined,
 								}}
 								data-color-source="true"
@@ -1262,7 +1281,7 @@ export function PreviewElementRenderer({
 									settings={visual.color}
 									masks={visual.masks}
 									fitMode="cover"
-									filter={effectRendering.filterStyle || undefined}
+									filter={effectFilterStyle || undefined}
 									frameSeed={Math.round(
 										currentTime * (activeProject?.fps ?? 30)
 									)}
