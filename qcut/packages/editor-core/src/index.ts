@@ -182,8 +182,17 @@ export type {
 export {
 	collectEffectRenderStageKinds,
 	combineEffectRenderPrograms,
+	EFFECT_KEYFRAME_PARAMETER_KEYS,
+	findEffectKeyframeAtTime,
+	isEffectKeyframeParameter,
+	removeEffectKeyframe,
+	resolveEffectAnimationValue,
+	resolveEffectParametersAtTime,
+	trimEffectAnimations,
+	upsertEffectKeyframe,
 	withEffectRenderWindow,
 	validateEffectRenderProgram,
+	type EffectKeyframeParameter,
 	type EffectRenderProgramValidation,
 } from "./effects/index.js";
 
