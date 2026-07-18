@@ -26,6 +26,8 @@ import type {
 import {
 	assertDurationParity,
 	buildAudioExtractArgs,
+	buildBackgroundArgs,
+	buildBackgroundPreviewArgs,
 	buildCleanArgs,
 	buildPreviewArgs,
 	buildSubtitleArgs,
@@ -47,7 +49,7 @@ function createManifest({
 	const now = new Date().toISOString();
 	const pending = { status: "pending" as const };
 	return {
-		schemaVersion: 1,
+		schemaVersion: 2,
 		workflow: "qcut-vlog",
 		input: paths.input,
 		outputDir: paths.outputDir,
@@ -55,6 +57,8 @@ function createManifest({
 		updatedAt: now,
 		settings: {
 			finalName: options.finalName,
+			background: options.background,
+			backgroundFit: options.backgroundFit,
 			preset: options.preset,
 			style: options.style,
 			model: options.model,
@@ -68,14 +72,23 @@ function createManifest({
 		},
 		artifacts: {
 			cleanVideo: paths.cleanVideo,
+			backgroundImage: options.background,
+			cutoutVideo: options.background ? paths.cutoutVideo : undefined,
+			editableVideo: options.background
+				? paths.editableVideo
+				: paths.cleanVideo,
 			cleanAudio: paths.cleanAudio,
 			srt: paths.srt,
 			finalVideo: paths.finalVideo,
 			previewImage: paths.previewImage,
+			backgroundPreviewImage: options.background
+				? paths.backgroundPreviewImage
+				: undefined,
 			metadataDir: paths.metadataDir,
 		},
 		stages: {
 			clean: { ...pending },
+			background: { ...pending },
 			"extract-audio": { ...pending },
 			transcribe: { ...pending },
 			subtitle: { ...pending },
@@ -103,6 +116,8 @@ function writeManifest({
 function expectedSettings({ options }: { options: VlogOptions }) {
 	return {
 		finalName: options.finalName,
+		background: options.background,
+		backgroundFit: options.backgroundFit,
 		preset: options.preset,
 		style: options.style,
 		model: options.model,
@@ -129,9 +144,13 @@ function loadManifest({
 	const manifest = JSON.parse(
 		readFileSync(paths.manifest, "utf8")
 	) as VlogManifest;
-	if (manifest.workflow !== "qcut-vlog" || manifest.input !== paths.input) {
+	if (
+		manifest.schemaVersion !== 2 ||
+		manifest.workflow !== "qcut-vlog" ||
+		manifest.input !== paths.input
+	) {
 		throw new Error(
-			"The existing manifest belongs to a different workflow or input"
+			"The existing manifest is incompatible or belongs to a different input"
 		);
 	}
 	if (
@@ -152,10 +171,13 @@ function knownArtifacts({ paths }: { paths: VlogPaths }): string[] {
 		paths.cuts,
 		paths.keeps,
 		paths.cleanVideo,
+		paths.cutoutVideo,
+		paths.editableVideo,
 		paths.cleanAudio,
 		paths.srt,
 		paths.finalVideo,
 		paths.previewImage,
+		paths.backgroundPreviewImage,
 		paths.manifest,
 	];
 }
@@ -169,6 +191,9 @@ function prepareOutput({
 }): void {
 	if (!existsSync(paths.input))
 		throw new Error(`Input video not found: ${paths.input}`);
+	if (options.background && !existsSync(options.background)) {
+		throw new Error(`Background image not found: ${options.background}`);
+	}
 	mkdirSync(paths.outputDir, { recursive: true });
 	mkdirSync(paths.logsDir, { recursive: true });
 	mkdirSync(paths.verificationDir, { recursive: true });
@@ -208,11 +233,34 @@ function isCleanReusable({ paths }: { paths: VlogPaths }): boolean {
 	);
 }
 
-function resolveWorkingVideo({ paths }: { paths: VlogPaths }): string {
+function resolveCleanVideo({ paths }: { paths: VlogPaths }): string {
 	if (existsSync(paths.cleanVideo)) return paths.cleanVideo;
 	const decisions = readJsonFile({ filePath: paths.decisions });
 	if (Array.isArray(decisions) && decisions.length === 0) return paths.input;
 	throw new Error("Clean stage produced decisions but no cleaned video");
+}
+
+function isBackgroundReusable({
+	options,
+	paths,
+	cleanVideo,
+}: {
+	options: VlogOptions;
+	paths: VlogPaths;
+	cleanVideo: string;
+}): boolean {
+	if (!options.background) return false;
+	const dependencies = [cleanVideo, options.background];
+	return (
+		isArtifactFresh({
+			artifact: paths.cutoutVideo,
+			dependencies,
+		}) &&
+		isArtifactFresh({
+			artifact: paths.editableVideo,
+			dependencies: [paths.cutoutVideo, options.background, cleanVideo],
+		})
+	);
 }
 
 function markStage({
@@ -339,7 +387,7 @@ function printResult({
 		return;
 	}
 	process.stdout.write(
-		`\nQCut Vlog complete\nVideo: ${manifest.artifacts.finalVideo}\nSRT: ${manifest.artifacts.srt}\nPreview: ${manifest.artifacts.previewImage}\nManifest: ${join(manifest.outputDir, "vlog-manifest.json")}\n`
+		`\nQCut Vlog complete\nEditable: ${manifest.artifacts.editableVideo}\nSRT: ${manifest.artifacts.srt}\nHard-captioned: ${manifest.artifacts.finalVideo}\nPreview: ${manifest.artifacts.previewImage}\nManifest: ${join(manifest.outputDir, "vlog-manifest.json")}\n`
 	);
 }
 
@@ -408,7 +456,59 @@ export async function runVlog({
 		return manifest;
 	}
 
-	const workingVideo = resolveWorkingVideo({ paths });
+	const cleanVideo = resolveCleanVideo({ paths });
+	manifest.artifacts.cleanVideo = cleanVideo;
+	let workingVideo = cleanVideo;
+	if (!options.background) {
+		skipStage({
+			manifest,
+			paths,
+			stage: "background",
+			details: "No background requested; clean video is the editable source",
+		});
+		manifest.artifacts.editableVideo = cleanVideo;
+	} else if (
+		options.resume &&
+		isBackgroundReusable({ options, paths, cleanVideo })
+	) {
+		skipStage({
+			manifest,
+			paths,
+			stage: "background",
+			details: "Reused fresh person cutout and background composite",
+		});
+		workingVideo = paths.editableVideo;
+	} else {
+		await executeStage({
+			manifest,
+			paths,
+			stage: "background",
+			operation: async () => {
+				await runAndRecord({
+					manifest,
+					paths,
+					stage: "background",
+					label: "qcut",
+					tool: toolchain.qcut,
+					args: buildBackgroundArgs({ options, paths, cleanVideo }),
+					echoOutput,
+					env,
+				});
+				if (!existsSync(paths.cutoutVideo)) {
+					throw new Error("Person cutout did not create a transparent WebM");
+				}
+				if (!existsSync(paths.editableVideo)) {
+					throw new Error(
+						"Background composition did not create the editable MP4"
+					);
+				}
+				return "Created transparent person layer and editable background composite";
+			},
+		});
+		workingVideo = paths.editableVideo;
+	}
+	manifest.artifacts.editableVideo = workingVideo;
+	writeManifest({ manifest, paths });
 	if (
 		options.resume &&
 		isArtifactFresh({
@@ -558,6 +658,21 @@ export async function runVlog({
 				content: readFileSync(paths.srt, "utf8"),
 			});
 			const previewTime = getPreviewTime({ entries });
+			if (options.background) {
+				await runAndRecord({
+					manifest,
+					paths,
+					stage: "verify",
+					label: "background-preview",
+					tool: toolchain.ffmpeg,
+					args: buildBackgroundPreviewArgs({ paths, previewTime }),
+					echoOutput,
+					env,
+				});
+				if (!existsSync(paths.backgroundPreviewImage)) {
+					throw new Error("Background verification frame was not created");
+				}
+			}
 			await runAndRecord({
 				manifest,
 				paths,
@@ -580,6 +695,9 @@ export async function runVlog({
 				subtitleCount: entries.length,
 				previewTime,
 				previewImage: paths.previewImage,
+				backgroundPreviewImage: options.background
+					? paths.backgroundPreviewImage
+					: undefined,
 			};
 			return `${entries.length} subtitles; duration parity ${durationDifference.toFixed(3)}s`;
 		},
