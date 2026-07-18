@@ -66,7 +66,8 @@ export function resolveEffectOverlayAsset({
 	resourceId: string;
 }): AssetManifestEntry {
 	const reference = EFFECT_OVERLAY_RESOURCE_REFERENCES[resourceId];
-	if (!reference) throw new Error(`Unknown effect overlay resource: ${resourceId}`);
+	if (!reference)
+		throw new Error(`Unknown effect overlay resource: ${resourceId}`);
 	const asset = resolveStickerAssetEntry({
 		collectionPrefix: reference.collection,
 		icon: reference.icon,
@@ -84,6 +85,7 @@ export function resolveEffectOverlayPreviewUrl({
 }): string {
 	const asset = resolveEffectOverlayAsset({ resourceId });
 	const source = asset.files.find((file) => file.role === "source");
-	if (!source) throw new Error(`Effect overlay source is missing: ${resourceId}`);
+	if (!source)
+		throw new Error(`Effect overlay source is missing: ${resourceId}`);
 	return source.url;
 }
