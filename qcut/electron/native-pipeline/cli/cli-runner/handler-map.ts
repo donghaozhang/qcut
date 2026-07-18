@@ -36,6 +36,7 @@ import {
 	handleListModels as adminHandleListModels,
 	handleEstimateCost as adminHandleEstimateCost,
 } from "../cli-handlers-admin.js";
+import { handleSyncKeys } from "../cli-handlers-keys-sync.js";
 import {
 	handleCreateElement as elementHandleCreate,
 	handleListElements as elementHandleList,
@@ -187,6 +188,7 @@ export const HANDLER_MAP: Record<string, CommandHandler> = {
 	"logout": wrap0(adminHandleLogout),
 	"setup": wrap0(adminHandleSetup),
 	"set-key": wrap(adminHandleSetKey),
+	"sync-keys": wrap(handleSyncKeys),
 	"get-key": wrap(adminHandleGetKey),
 	"keys": wrap(adminHandleCheckKeys),
 	"check-keys": wrap(adminHandleCheckKeys),

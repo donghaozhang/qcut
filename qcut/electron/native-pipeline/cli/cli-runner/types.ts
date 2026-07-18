@@ -270,6 +270,9 @@ export interface CLIRunOptions {
 	sourceId?: string;
 	discard?: boolean;
 	force?: boolean;
+	// key-sync options (system sync-keys)
+	push?: boolean;
+	pull?: boolean;
 	// `qcut record` standalone options (Phase 1 of dual-mode CLI recording)
 	/** Auto-stop recording after N seconds (omit to wait for Ctrl-C) */
 	recordDuration?: number;

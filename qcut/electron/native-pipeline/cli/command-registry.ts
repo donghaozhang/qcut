@@ -1249,6 +1249,28 @@ const CORE_COMMANDS: Record<string, CommandDef> = {
 		],
 		examples: ["qcut-pipeline set-key --name FAL_KEY --value sk-xxx"],
 	},
+	"sync-keys": {
+		name: "sync-keys",
+		description:
+			"Sync API keys with the cloud vault (pull by default; requires login)",
+		category: "keys",
+		flags: [
+			f("--pull", "boolean", "Fetch cloud keys, filling missing local ones", {
+				default: false,
+			}),
+			f("--push", "boolean", "Upload locally configured keys to the cloud", {
+				default: false,
+			}),
+			f("--force", "boolean", "On pull, let cloud values overwrite local", {
+				default: false,
+			}),
+		],
+		examples: [
+			"qcut-pipeline system sync-keys",
+			"qcut-pipeline system sync-keys --push",
+			"qcut-pipeline system sync-keys --pull --force",
+		],
+	},
 	"get-key": {
 		name: "get-key",
 		description: "Get an API key (masked)",

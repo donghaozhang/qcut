@@ -100,6 +100,7 @@ export const COMMAND_GROUPS: CommandGroup[] = [
 			"delete-key": "delete-key",
 			keys: "keys",
 			"check-keys": "check-keys",
+			"sync-keys": "sync-keys",
 			doctor: "system-doctor",
 			models: "list-models",
 			"models-video": "list-video-models",

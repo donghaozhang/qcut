@@ -329,6 +329,8 @@ export function parseCliArgs(argv: string[]): CLIRunOptions {
 			"remove-silences": { type: "boolean" },
 			"no-remove-fillers": { type: "boolean", default: false },
 			"no-remove-silences": { type: "boolean", default: false },
+			push: { type: "boolean", default: false },
+			pull: { type: "boolean", default: false },
 			html: { type: "string" },
 			message: { type: "string" },
 			stack: { type: "string" },
@@ -785,6 +787,8 @@ export function parseCliArgs(argv: string[]): CLIRunOptions {
 		replace: (values.replace as boolean) ?? false,
 		ripple: (values.ripple as boolean) ?? false,
 		crossTrackRipple: (values["cross-track-ripple"] as boolean) ?? false,
+		push: (values.push as boolean) ?? false,
+		pull: (values.pull as boolean) ?? false,
 		// Absent flags stay undefined so the clean-audio runner applies its
 		// documented default (true); --no-* flags force them off.
 		removeFillers: values["no-remove-fillers"]
