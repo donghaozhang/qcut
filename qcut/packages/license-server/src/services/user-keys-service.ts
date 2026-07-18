@@ -20,25 +20,28 @@ export async function upsertUserKeys({
 	keys: Record<string, string>;
 }): Promise<{ saved: number }> {
 	const now = new Date();
-	let saved = 0;
-	for (const [key, value] of Object.entries(keys)) {
-		await db
-			.insert(agentSecrets)
-			.values({
-				id: crypto.randomUUID(),
-				userId,
-				key,
-				value,
-				createdAt: now,
-				updatedAt: now,
-			})
-			.onConflictDoUpdate({
-				target: [agentSecrets.userId, agentSecrets.key],
-				set: { value, updatedAt: now },
-			});
-		saved++;
-	}
-	return { saved };
+	const entries = Object.entries(keys);
+	return db.transaction(async (tx) => {
+		await Promise.all(
+			entries.map(([key, value]) =>
+				tx
+					.insert(agentSecrets)
+					.values({
+						id: crypto.randomUUID(),
+						userId,
+						key,
+						value,
+						createdAt: now,
+						updatedAt: now,
+					})
+					.onConflictDoUpdate({
+						target: [agentSecrets.userId, agentSecrets.key],
+						set: { value, updatedAt: now },
+					})
+			)
+		);
+		return { saved: entries.length };
+	});
 }
 
 export async function deleteUserKey({
