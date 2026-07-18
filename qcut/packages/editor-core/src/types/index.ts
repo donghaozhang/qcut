@@ -47,6 +47,8 @@ export type {
 
 export type {
 	EffectAudioReactiveRenderStage,
+	EffectAudioReactiveEnvelope,
+	EffectAudioReactiveKeyframe,
 	EffectCompositeRenderStage,
 	EffectFilterRenderStage,
 	EffectMotionChannel,
