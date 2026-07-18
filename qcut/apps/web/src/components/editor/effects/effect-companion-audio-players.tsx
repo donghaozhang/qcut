@@ -48,7 +48,7 @@ function EffectCompanionAudioPlayer({
 			duration,
 			startTime,
 			trimStart: 0,
-			trimEnd: duration,
+			trimEnd: 0,
 			volume: companion.gain,
 		}),
 		[
@@ -78,7 +78,7 @@ function EffectCompanionAudioPlayer({
 				src={resolved.source.url}
 				clipStartTime={startTime}
 				trimStart={0}
-				trimEnd={duration}
+				trimEnd={0}
 				clipDuration={duration}
 				trackMuted={trackMuted}
 				trackId={trackId}
