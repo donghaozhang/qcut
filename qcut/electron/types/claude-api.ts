@@ -96,7 +96,9 @@ export interface ClaudeElement {
 		| "captions"
 		| "remotion"
 		| "media"
+		| "effect"
 		| "markdown";
+	targetElementId?: string;
 	sourceId?: string;
 	sourceName?: string;
 	mediaId?: string;

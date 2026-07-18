@@ -16,6 +16,7 @@ export type MediaType = "image" | "video" | "audio";
 /** Valid track types in the video editor timeline */
 export type TrackType =
 	| "media"
+	| "effect"
 	| "text"
 	| "audio"
 	| "sticker"
@@ -801,6 +802,13 @@ export interface AdjustmentElement extends BaseTimelineElement {
 	color?: MediaColorSettings;
 }
 
+/** Independently editable effect range targeting one timeline element. */
+export interface EffectElement extends BaseTimelineElement {
+	type: "effect";
+	targetElementId: string;
+	effect: EffectInstance;
+}
+
 /** Visual style properties for subtitle/caption elements */
 export interface SubtitleStyle {
 	fontFamily: string;
@@ -886,6 +894,7 @@ export interface MarkdownElement extends BaseTimelineElement {
 /** Union of all timeline element types */
 export type TimelineElement =
 	| MediaElement
+	| EffectElement
 	| TextElement
 	| StickerElement
 	| AdjustmentElement
@@ -898,6 +907,7 @@ export type TimelineElement =
 // ---------------------------------------------------------------------------
 
 export type CreateMediaElement = Omit<MediaElement, "id">;
+export type CreateEffectElement = Omit<EffectElement, "id">;
 export type CreateTextElement = Omit<TextElement, "id">;
 export type CreateStickerElement = Omit<StickerElement, "id">;
 export type CreateAdjustmentElement = Omit<AdjustmentElement, "id">;
@@ -906,6 +916,7 @@ export type CreateRemotionElement = Omit<RemotionElement, "id">;
 export type CreateMarkdownElement = Omit<MarkdownElement, "id">;
 export type CreateTimelineElement =
 	| CreateMediaElement
+	| CreateEffectElement
 	| CreateTextElement
 	| CreateStickerElement
 	| CreateAdjustmentElement

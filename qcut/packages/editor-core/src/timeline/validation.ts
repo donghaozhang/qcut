@@ -12,6 +12,7 @@ export function canElementGoOnTrack(
 	elementType:
 		| "text"
 		| "media"
+		| "effect"
 		| "sticker"
 		| "adjustment"
 		| "captions"
@@ -22,6 +23,7 @@ export function canElementGoOnTrack(
 	if (elementType === "text") return trackType === "text";
 	if (elementType === "media")
 		return trackType === "media" || trackType === "audio";
+	if (elementType === "effect") return trackType === "effect";
 	if (elementType === "sticker") return trackType === "sticker";
 	if (elementType === "adjustment") return trackType === "adjustment";
 	if (elementType === "captions") return trackType === "captions";
@@ -36,6 +38,7 @@ export function validateElementTrackCompatibility(
 		type:
 			| "text"
 			| "media"
+			| "effect"
 			| "sticker"
 			| "adjustment"
 			| "captions"
@@ -48,6 +51,7 @@ export function validateElementTrackCompatibility(
 
 	if (!isValid) {
 		const errorMessages: Record<string, string> = {
+			effect: "Effect elements can only be placed on effect tracks",
 			text: "Text elements can only be placed on text tracks",
 			sticker: "Sticker elements can only be placed on sticker tracks",
 			adjustment: "Adjustment elements can only be placed on adjustment tracks",

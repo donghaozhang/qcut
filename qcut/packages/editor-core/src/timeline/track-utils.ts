@@ -16,6 +16,7 @@ const TRACK_PRIORITY: Record<TrackType, number> = {
 	remotion: 3,
 	sticker: 4,
 	adjustment: 4.5,
+	effect: 4.75,
 	media: 5,
 	audio: 6,
 };
@@ -167,6 +168,8 @@ export function getTrackName(type: TrackType): string {
 	switch (type) {
 		case "media":
 			return "视频轨道";
+		case "effect":
+			return "特效轨道";
 		case "text":
 			return "文本轨道";
 		case "markdown":

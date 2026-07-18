@@ -969,6 +969,14 @@ function formatElementForExport(
 				...baseElement,
 				sourceId: element.stickerId,
 			};
+		case "effect":
+			return {
+				...baseElement,
+				targetElementId: element.targetElementId,
+				effects: [
+					element.effect.presetId ?? element.effect.effectType,
+				],
+			};
 		case "remotion":
 			return {
 				...baseElement,

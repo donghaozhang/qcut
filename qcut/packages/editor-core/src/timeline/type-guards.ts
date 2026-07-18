@@ -8,6 +8,7 @@
 import type {
 	TimelineElement,
 	MediaElement,
+	EffectElement,
 	TextElement,
 	StickerElement,
 	AdjustmentElement,
@@ -21,6 +22,12 @@ export function isMediaElement(
 	element: TimelineElement
 ): element is MediaElement {
 	return element.type === "media";
+}
+
+export function isEffectElement(
+	element: TimelineElement
+): element is EffectElement {
+	return element.type === "effect";
 }
 
 export function isTextElement(
