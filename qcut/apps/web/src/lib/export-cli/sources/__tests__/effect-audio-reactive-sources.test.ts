@@ -187,6 +187,38 @@ describe("extractEffectAudioReactiveEnvelopes", () => {
 		).toBe(true);
 	});
 
+	it("keeps valid project audio when another source has no audio stream", async () => {
+		const clip = mediaElement({ id: "clip-a" });
+		const decodeWaveform = vi.fn(
+			async ({ sourcePath }: { sourcePath: string }) => {
+				if (sourcePath.endsWith("silent.mp4")) {
+					throw new Error("No audio stream");
+				}
+				return {
+					duration: 2,
+					values: pulsingWaveform(),
+				};
+			}
+		);
+
+		const result = await extractEffectAudioReactiveEnvelopes({
+			programsByElementId: new Map([["clip-a", program()]]),
+			tracks: [track({ elements: [clip] })],
+			audioFiles: [
+				audioFile({ elementId: "video", path: "/tmp/silent.mp4" }),
+				audioFile({ elementId: "music", path: "/tmp/music.wav" }),
+			],
+			fps: 30,
+			decodeWaveform,
+		});
+
+		expect(decodeWaveform).toHaveBeenCalledTimes(2);
+		const keyframes = result.get("clip-a")?.[0]?.keyframes ?? [];
+		expect(
+			Math.max(...keyframes.map((keyframe) => keyframe.value))
+		).toBeGreaterThan(0.7);
+	});
+
 	it("emits a zero envelope when a project has no usable audio", async () => {
 		const clip = mediaElement({ id: "clip-a" });
 		const decodeWaveform = vi.fn();
