@@ -1,6 +1,10 @@
 # CodeRabbit configuration
 # Schema: https://docs.coderabbit.ai/reference/configuration
 reviews:
+  path_filters:
+    # Generated text/fancy-text asset packs (thousands of webp/qctext/json
+    # files) blow past the per-PR file limit and carry no reviewable code.
+    - "!qcut/apps/web/public/text-assets/**"
   pre_merge_checks:
     # Repo standard (qcut/CLAUDE.md): self-documenting code with JSDoc only
     # for complex functions, so a blanket docstring-coverage threshold does
