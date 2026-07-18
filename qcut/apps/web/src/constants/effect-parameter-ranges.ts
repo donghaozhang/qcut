@@ -36,6 +36,8 @@ export type NumericParameterKey =
 	| "emboss"
 	| "edge"
 	| "pixelate"
+	| "chromatic"
+	| "radiance"
 	| "wave"
 	| "waveFrequency"
 	| "waveAmplitude"
@@ -106,6 +108,8 @@ export const PARAMETER_RANGES = {
 	emboss: { min: 0, max: 100, step: 10 },
 	edge: { min: 0, max: 100, step: 10 },
 	pixelate: { min: 1, max: 50, step: 5 },
+	chromatic: { min: 0, max: 100, step: 5 },
+	radiance: { min: 0, max: 100, step: 5 },
 
 	// Distortion effects
 	wave: { min: 0, max: 100, step: 10 },
