@@ -23,15 +23,17 @@ Handles:
 - Running additional native pipeline commands when needed
 
 ### 2. qcut-vlog — Talking-Head & Vlog Cleanup
-**When:** Cleaning a talking-head/vlog, removing filler words or long pauses, regenerating aligned subtitles, and burning captions
+**When:** Cleaning a talking-head/vlog, replacing its background, regenerating aligned subtitles, and exporting editable plus hard-captioned versions
 **Invoke:** `/qcut-vlog`
 **Skill path:** `.claude/skills/qcut-toolkit/qcut-vlog/SKILL.md`
 
 Handles:
 - Word-level transcription for filler, stutter, and silence decisions
 - Non-destructive FFmpeg trim/concat with retained cut metadata
+- Person cutout and still-image background replacement through the native CLI
 - Post-cut retranscription so subtitle timing cannot drift
-- Transparent-background subtitle burn-in and visual verification frames
+- Editable MP4 plus sidecar SRT, alongside a hard-captioned publishing MP4
+- Separate background and subtitle verification frames
 - Safe resume based on artifact dependency timestamps
 
 ### 3. ffmpeg-skill — Media Processing
@@ -124,7 +126,7 @@ When the user's request involves multiple sub-skills, chain them in this order:
 | User says | Route to |
 |-----------|----------|
 | "organize", "set up project", "clean up files" | native-cli |
-| "vlog", "talking head", "剪口播", "去口头词", "去停顿", "口播字幕" | qcut-vlog |
+| "vlog", "talking head", "剪口播", "去口头词", "去停顿", "口播字幕", "抠像换背景" | qcut-vlog |
 | "convert", "compress", "trim", "resize", "extract audio", "gif", "subtitle" | ffmpeg-skill |
 | "generate image", "generate video", "avatar", "lipsync", "transcribe", "analyze video", "AI pipeline" | ai-content-pipeline |
 | "add to timeline", "update project settings", "list media", "export preset", "configure for TikTok" | native-cli |
