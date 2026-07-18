@@ -1,4 +1,9 @@
 import { DraggableMediaItem } from "@/components/ui/draggable-item";
+import {
+	ResizableHandle,
+	ResizablePanel,
+	ResizablePanelGroup,
+} from "@/components/ui/resizable";
 import { Textarea } from "@/components/ui/textarea";
 import {
 	Dialog,
@@ -1612,6 +1617,15 @@ export function getTextLibraryNavWidthClass({
 	return locale === "en" ? "w-40" : "w-[5.5rem]";
 }
 
+/** Default pixel width of the resizable category nav, mirroring the width classes above. */
+export function getTextLibraryNavDefaultWidth({
+	locale,
+}: {
+	locale: AppLocale;
+}): number {
+	return locale === "en" ? 160 : 88;
+}
+
 function TextLibraryNav({
 	activeCategoryId,
 	className,
@@ -2576,103 +2590,116 @@ export function TextView() {
 	};
 
 	return (
-		<div className="flex h-full min-h-0 p-2" data-testid="text-panel">
-			<TextLibraryNav
-				activeCategoryId={activeCategoryId}
-				expandedGroupIds={expandedGroupIds}
-				onSelectCategory={handleSelectCategory}
-				onSelectGroup={handleSelectGroup}
-			/>
-			<section className="min-w-0 flex-1 overflow-y-auto border-l border-border/70 pl-3">
-				<div className="sticky top-0 z-10 space-y-2 bg-background/95 pb-2">
-					<TextLibrarySearchField
-						searchQuery={searchQuery}
-						onSearchQueryChange={handleSearchQueryChange}
+		<div className="h-full min-h-0 p-2" data-testid="text-panel">
+			<ResizablePanelGroup orientation="horizontal">
+				<ResizablePanel
+					className="min-w-0"
+					defaultSize={getTextLibraryNavDefaultWidth({ locale })}
+					maxSize={280}
+					minSize={64}
+				>
+					<TextLibraryNav
+						activeCategoryId={activeCategoryId}
+						className="h-full w-full"
+						expandedGroupIds={expandedGroupIds}
+						onSelectCategory={handleSelectCategory}
+						onSelectGroup={handleSelectGroup}
 					/>
-					<div className="flex h-6 items-center justify-between gap-2">
-						<h2 className="truncate text-sm font-medium text-foreground">
-							{activeHeading}
-						</h2>
-						<div className="flex shrink-0 items-center gap-1.5">
-							<span className="text-[0.68rem] text-muted-foreground">
-								{smartTextStatus}
-							</span>
-							<button
-								type="button"
-								aria-label={t("textLibrary.cacheCurrent")}
-								className="flex h-6 w-6 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-accent hover:text-foreground"
-								onClick={() => void handleCacheVisibleTemplates()}
-								onKeyDown={(event) => {
-									if (!isActivationKey({ event })) return;
-									event.preventDefault();
-									void handleCacheVisibleTemplates();
-								}}
-							>
-								<Download aria-hidden="true" className="h-3.5 w-3.5">
-									<title>{t("textLibrary.cacheCurrent")}</title>
-								</Download>
-							</button>
-							<button
-								type="button"
-								aria-label={t("textLibrary.expand")}
-								className="flex h-6 w-6 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-accent hover:text-foreground"
-								onClick={() => setExpandedLibraryOpen(true)}
-								onKeyDown={(event) => {
-									if (!isActivationKey({ event })) return;
-									event.preventDefault();
-									setExpandedLibraryOpen(true);
-								}}
-							>
-								<Maximize2 aria-hidden="true" className="h-3.5 w-3.5">
-									<title>{t("textLibrary.expand")}</title>
-								</Maximize2>
-							</button>
+				</ResizablePanel>
+				<ResizableHandle />
+				<ResizablePanel className="min-w-0" minSize="50%">
+					<section className="h-full min-w-0 overflow-y-auto pl-2">
+						<div className="sticky top-0 z-10 space-y-2 bg-background/95 pb-2">
+							<TextLibrarySearchField
+								searchQuery={searchQuery}
+								onSearchQueryChange={handleSearchQueryChange}
+							/>
+							<div className="flex h-6 items-center justify-between gap-2">
+								<h2 className="truncate text-sm font-medium text-foreground">
+									{activeHeading}
+								</h2>
+								<div className="flex shrink-0 items-center gap-1.5">
+									<span className="text-[0.68rem] text-muted-foreground">
+										{smartTextStatus}
+									</span>
+									<button
+										type="button"
+										aria-label={t("textLibrary.cacheCurrent")}
+										className="flex h-6 w-6 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-accent hover:text-foreground"
+										onClick={() => void handleCacheVisibleTemplates()}
+										onKeyDown={(event) => {
+											if (!isActivationKey({ event })) return;
+											event.preventDefault();
+											void handleCacheVisibleTemplates();
+										}}
+									>
+										<Download aria-hidden="true" className="h-3.5 w-3.5">
+											<title>{t("textLibrary.cacheCurrent")}</title>
+										</Download>
+									</button>
+									<button
+										type="button"
+										aria-label={t("textLibrary.expand")}
+										className="flex h-6 w-6 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-accent hover:text-foreground"
+										onClick={() => setExpandedLibraryOpen(true)}
+										onKeyDown={(event) => {
+											if (!isActivationKey({ event })) return;
+											event.preventDefault();
+											setExpandedLibraryOpen(true);
+										}}
+									>
+										<Maximize2 aria-hidden="true" className="h-3.5 w-3.5">
+											<title>{t("textLibrary.expand")}</title>
+										</Maximize2>
+									</button>
+								</div>
+							</div>
+							<FilterBar
+								activeFilter={statusFilter}
+								filters={TEXT_LIBRARY_STATUS_FILTERS}
+								onSelectFilter={setStatusFilter}
+							/>
+							<FilterBar
+								activeFilter={styleFilter}
+								filters={TEXT_LIBRARY_STYLE_FILTERS}
+								onSelectFilter={setStyleFilter}
+							/>
+							<FilterBar
+								activeFilter={marketFilter}
+								filters={TEXT_LIBRARY_MARKET_FILTERS}
+								onSelectFilter={setMarketFilter}
+							/>
+							<FilterBar
+								activeFilter={sourceFilter}
+								filters={TEXT_LIBRARY_SOURCE_FILTERS}
+								onSelectFilter={setSourceFilter}
+							/>
+							<TextLibraryResourceReadinessBar
+								designerGoalSummary={designerGoalSummary}
+								summary={resourceReadinessSummary}
+							/>
 						</div>
-					</div>
-					<FilterBar
-						activeFilter={statusFilter}
-						filters={TEXT_LIBRARY_STATUS_FILTERS}
-						onSelectFilter={setStatusFilter}
-					/>
-					<FilterBar
-						activeFilter={styleFilter}
-						filters={TEXT_LIBRARY_STYLE_FILTERS}
-						onSelectFilter={setStyleFilter}
-					/>
-					<FilterBar
-						activeFilter={marketFilter}
-						filters={TEXT_LIBRARY_MARKET_FILTERS}
-						onSelectFilter={setMarketFilter}
-					/>
-					<FilterBar
-						activeFilter={sourceFilter}
-						filters={TEXT_LIBRARY_SOURCE_FILTERS}
-						onSelectFilter={setSourceFilter}
-					/>
-					<TextLibraryResourceReadinessBar
-						designerGoalSummary={designerGoalSummary}
-						summary={resourceReadinessSummary}
-					/>
-				</div>
-				{visibleDefinitions.length > 0 ? (
-					<TemplateGrid
-						definitions={visibleDefinitions}
-						libraryState={libraryState}
-						onDownload={handleDownload}
-						onToggleFavorite={handleToggleFavorite}
-						onUseTemplate={handleUseTemplate}
-						runtimeByAssetKey={runtimeByAssetKey}
-					/>
-				) : (
-					<div className="py-12 text-center text-xs text-muted-foreground">
-						{emptyMessage}
-					</div>
-				)}
-				{!normalizedSearchQuery &&
-					activeCategory.id === DEFAULT_TEXT_TEMPLATE_CATEGORY_ID && (
-						<MarkdownTemplate onAdd={addMarkdown} />
-					)}
-			</section>
+						{visibleDefinitions.length > 0 ? (
+							<TemplateGrid
+								definitions={visibleDefinitions}
+								libraryState={libraryState}
+								onDownload={handleDownload}
+								onToggleFavorite={handleToggleFavorite}
+								onUseTemplate={handleUseTemplate}
+								runtimeByAssetKey={runtimeByAssetKey}
+							/>
+						) : (
+							<div className="py-12 text-center text-xs text-muted-foreground">
+								{emptyMessage}
+							</div>
+						)}
+						{!normalizedSearchQuery &&
+							activeCategory.id === DEFAULT_TEXT_TEMPLATE_CATEGORY_ID && (
+								<MarkdownTemplate onAdd={addMarkdown} />
+							)}
+					</section>
+				</ResizablePanel>
+			</ResizablePanelGroup>
 			<ExpandedTextLibraryDialog
 				activeHeading={activeHeading}
 				activeCategoryId={activeCategoryId}
