@@ -9,6 +9,7 @@ vi.mock("lucide-react", () => ({
 	Sticker: () => <svg data-testid="sticker-icon" />,
 	FileText: () => <svg data-testid="markdown-icon" />,
 	Captions: () => <svg data-testid="captions-icon" />,
+	Sparkles: () => <svg data-testid="effect-icon" />,
 }));
 
 describe("TrackIcon", () => {
@@ -20,6 +21,11 @@ describe("TrackIcon", () => {
 	it('renders Music icon for "audio" type', () => {
 		render(<TrackIcon type="audio" />);
 		expect(document.querySelector('[data-testid="music-icon"]')).toBeTruthy();
+	});
+
+	it('renders Sparkles icon for "effect" type', () => {
+		render(<TrackIcon type="effect" />);
+		expect(document.querySelector('[data-testid="effect-icon"]')).toBeTruthy();
 	});
 
 	it('renders FileText icon for "markdown" type', () => {
