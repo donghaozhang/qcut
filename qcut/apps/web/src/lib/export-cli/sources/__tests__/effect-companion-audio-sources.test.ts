@@ -86,6 +86,7 @@ describe("extractEffectCompanionAudioSources", () => {
 
 		const result = await extractEffectCompanionAudioSources({
 			tracks: [track],
+			fps: 30,
 			effectsByElementId: new Map([
 				[
 					"clip-a",
@@ -160,6 +161,7 @@ describe("extractEffectCompanionAudioSources", () => {
 
 		const result = await extractEffectCompanionAudioSources({
 			tracks,
+			fps: 30,
 			effectsByElementId: new Map([
 				["muted", [companionEffect({ id: "muted-effect" })]],
 				["hidden", [companionEffect({ id: "hidden-effect" })]],
@@ -186,6 +188,7 @@ describe("extractEffectCompanionAudioSources", () => {
 		await expect(
 			extractEffectCompanionAudioSources({
 				tracks: [track],
+				fps: 30,
 				effectsByElementId: new Map([
 					["clip-a", [companionEffect({ id: "effect-a" })]],
 				]),
@@ -201,5 +204,49 @@ describe("extractEffectCompanionAudioSources", () => {
 				],
 			})
 		).rejects.toThrow("has no exportable bytes");
+	});
+
+	it("caps companions to the speed-aware media timeline duration", async () => {
+		const element = mediaElement({ id: "clip-a", startTime: 2, duration: 10 });
+		element.trimStart = 1;
+		element.trimEnd = 1;
+		element.playbackRate = 2;
+		element.freezeFrameDuration = 1;
+		const track: TimelineTrack = {
+			id: "track-1",
+			name: "Video",
+			type: "media",
+			elements: [element],
+		};
+
+		const result = await extractEffectCompanionAudioSources({
+			tracks: [track],
+			fps: 30,
+			effectsByElementId: new Map([
+				[
+					"clip-a",
+					[
+						companionEffect({
+							id: "effect-a",
+							offsetSeconds: 1,
+							durationSeconds: 10,
+						}),
+					],
+				],
+			]),
+			api: { saveTemp: vi.fn(async () => "/tmp/effect.ogg") },
+			ensureSourceResource: async () => [
+				{
+					cacheKey: "sound",
+					fromCache: true,
+					role: "source",
+					sourceUrl: "/effect.ogg",
+					url: "blob:sound",
+					blob: new Blob([new Uint8Array([1])]),
+				},
+			],
+		});
+
+		expect(result[0]).toMatchObject({ startTime: 3, duration: 4 });
 	});
 });

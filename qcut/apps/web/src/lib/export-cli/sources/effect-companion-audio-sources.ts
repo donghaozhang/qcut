@@ -9,6 +9,7 @@ import {
 	type ResolvedAssetResource,
 } from "@/lib/assets/asset-resource-cache";
 import { resolveEffectSoundAsset } from "@/lib/effects/effect-sound-resources";
+import { getMediaTimelineDuration } from "@/lib/video/video-timing";
 import type { TimelineElement, TimelineTrack } from "@/types/timeline";
 import type { AudioFileInput } from "../types";
 
@@ -56,9 +57,11 @@ function validateCompanion({
 function collectCompanionReferences({
 	tracks,
 	effectsByElementId,
+	fps,
 }: {
 	tracks: readonly TimelineTrack[];
 	effectsByElementId: ReadonlyMap<string, readonly EffectInstance[]>;
+	fps: number;
 }): EffectCompanionReference[] {
 	const references: EffectCompanionReference[] = [];
 	for (const track of tracks) {
@@ -72,8 +75,15 @@ function collectCompanionReferences({
 					companion: effect.audioCompanion,
 					effectId: effect.id,
 				});
+				const timelineDuration =
+					element.type === "media"
+						? getMediaTimelineDuration(element, fps)
+						: Math.max(
+								0,
+								element.duration - element.trimStart - element.trimEnd
+							);
 				const availableDuration =
-					element.duration - effect.audioCompanion.offsetSeconds;
+					timelineDuration - effect.audioCompanion.offsetSeconds;
 				const duration = Math.min(
 					effect.audioCompanion.durationSeconds,
 					availableDuration
@@ -134,6 +144,7 @@ async function materializeCompanionAudio({
 export async function extractEffectCompanionAudioSources({
 	tracks,
 	effectsByElementId,
+	fps,
 	api = platform().audio,
 	ensureSourceResource = ({ asset }) =>
 		ensureAssetResources({
@@ -144,10 +155,15 @@ export async function extractEffectCompanionAudioSources({
 }: {
 	tracks: readonly TimelineTrack[];
 	effectsByElementId: ReadonlyMap<string, readonly EffectInstance[]>;
+	fps: number;
 	api?: EffectCompanionAudioExportAPI;
 	ensureSourceResource?: EnsureSourceResource;
 }): Promise<AudioFileInput[]> {
-	const references = collectCompanionReferences({ tracks, effectsByElementId });
+	const references = collectCompanionReferences({
+		tracks,
+		effectsByElementId,
+		fps,
+	});
 	if (references.length === 0) return [];
 	if (!api?.saveTemp) {
 		throw new Error("Effect companion audio export API is unavailable");

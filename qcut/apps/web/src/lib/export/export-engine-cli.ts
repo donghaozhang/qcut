@@ -369,6 +369,7 @@ export class CLIExportEngine extends ExportEngine {
 					...(await extractEffectCompanionAudioSources({
 						tracks: this.tracks,
 						effectsByElementId,
+						fps: this.getFrameRate(),
 					}))
 				);
 			}
