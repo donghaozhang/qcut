@@ -45,7 +45,7 @@ bun "$QCUT_VLOG_ROOT/scripts/main.ts" /path/to/talking-head.mov \
   --output-dir /path/to/output
 ```
 
-Use `npx -y bun` instead when Bun is not installed globally.
+Use `npx -y bun@1.3.10` instead when Bun is not installed globally.
 
 The runner resolves the current repository's `bun run pipeline` first. Outside a
 QCut checkout, it uses `qcut` or `qcut-pipeline` from `PATH`. It prefers QCut's
