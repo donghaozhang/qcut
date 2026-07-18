@@ -27,16 +27,23 @@ export function addAdjustmentLayer({
 		DEFAULT_ADJUSTMENT_LAYER_DURATION,
 		projectEnd - currentTime
 	);
-	const elementId = timeline.addElementToTrack(trackId, {
-		type: "adjustment",
-		name,
-		startTime: currentTime,
-		duration,
-		trimStart: 0,
-		trimEnd: 0,
-		opacity: 1,
-		effects: [],
-		effectChains: [],
-	});
+	const elementId = timeline.addElementToTrack(
+		trackId,
+		{
+			type: "adjustment",
+			name,
+			startTime: currentTime,
+			duration,
+			trimStart: 0,
+			trimEnd: 0,
+			opacity: 1,
+			effects: [],
+			effectChains: [],
+		},
+		{
+			pushHistory: false,
+			selectElement: true,
+		}
+	);
 	return { trackId, elementId };
 }

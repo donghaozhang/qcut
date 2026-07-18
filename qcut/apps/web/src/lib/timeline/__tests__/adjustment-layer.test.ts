@@ -39,7 +39,8 @@ describe("addAdjustmentLayer", () => {
 				name: "Adjustment Layer",
 				startTime: 8,
 				duration: 12,
-			})
+			}),
+			{ pushHistory: false, selectElement: true }
 		);
 	});
 
@@ -60,7 +61,8 @@ describe("addAdjustmentLayer", () => {
 				name: "自定义调节",
 				startTime: 10,
 				duration: 5,
-			})
+			}),
+			{ pushHistory: false, selectElement: true }
 		);
 	});
 });
