@@ -14,16 +14,18 @@ export interface EffectMotionRenderStage {
 	channels: EffectMotionChannel[];
 }
 
+export interface EffectOverlayRenderStage {
+	kind: "overlay";
+	resourceId: string;
+	blendMode: "normal" | "screen" | "multiply" | "overlay";
+	opacity: number;
+	fit: "cover" | "contain" | "stretch";
+}
+
 export type EffectRenderStage =
 	| { kind: "filter" }
 	| EffectMotionRenderStage
-	| {
-			kind: "overlay";
-			resourceId: string;
-			blendMode: "normal" | "screen" | "multiply" | "overlay";
-			opacity: number;
-			fit: "cover" | "contain" | "stretch";
-	  }
+	| EffectOverlayRenderStage
 	| {
 			kind: "composite";
 			layout: "split-horizontal" | "split-vertical" | "mirror" | "grid";
