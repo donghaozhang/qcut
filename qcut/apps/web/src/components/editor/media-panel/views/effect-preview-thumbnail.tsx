@@ -1,9 +1,10 @@
 import { useEffect, useRef } from "react";
 import { getEffectMotionState } from "@/lib/effects/effect-motion-preview";
 import { parametersToCSSFilters } from "@/lib/effects/effects-utils";
-import type { VisualEffectCatalogEntry } from "@/lib/effects/effect-catalog-types";
+import type { EffectCatalogEntry } from "@/lib/effects/effect-catalog-types";
 import { EffectOverlayLayers } from "@/components/editor/effects/effect-overlay-layers";
 import { EffectCompositeCanvas } from "@/components/editor/effects/effect-composite-canvas";
+import { EffectPersonTrackingCanvas } from "@/components/editor/effects/effect-person-tracking-canvas";
 import { Volume2 } from "lucide-react";
 import {
 	appendAudioReactiveBrightnessFilter,
@@ -21,7 +22,7 @@ export function EffectPreviewThumbnail({
 	entry,
 	source,
 }: {
-	entry: VisualEffectCatalogEntry;
+	entry: EffectCatalogEntry;
 	source: string;
 }) {
 	const imageRef = useRef<HTMLImageElement>(null);
@@ -90,7 +91,9 @@ export function EffectPreviewThumbnail({
 		>
 			<img
 				ref={imageRef}
-				src={source}
+				src={
+					entry.family === "person" ? entry.preset.preview || source : source
+				}
 				alt=""
 				className="size-full scale-[1.04] object-cover"
 				style={{ filter: parametersToCSSFilters(entry.preset.parameters) }}
@@ -98,6 +101,11 @@ export function EffectPreviewThumbnail({
 				draggable={false}
 			/>
 			<EffectCompositeCanvas
+				program={entry.preset.renderProgram}
+				sourceSelector='img[data-effect-preview-base="true"]'
+				fitMode="cover"
+			/>
+			<EffectPersonTrackingCanvas
 				program={entry.preset.renderProgram}
 				sourceSelector='img[data-effect-preview-base="true"]'
 				fitMode="cover"
