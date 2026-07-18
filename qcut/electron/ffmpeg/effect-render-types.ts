@@ -22,16 +22,18 @@ export interface EffectOverlayRenderStage {
 	fit: "cover" | "contain" | "stretch";
 }
 
+export interface EffectCompositeRenderStage {
+	kind: "composite";
+	layout: "split-horizontal" | "split-vertical" | "mirror" | "grid";
+	copies: 2 | 4;
+	gap: number;
+}
+
 export type EffectRenderStage =
 	| { kind: "filter" }
 	| EffectMotionRenderStage
 	| EffectOverlayRenderStage
-	| {
-			kind: "composite";
-			layout: "split-horizontal" | "split-vertical" | "mirror" | "grid";
-			copies: 2 | 4;
-			gap: number;
-	  }
+	| EffectCompositeRenderStage
 	| {
 			kind: "audio-reactive";
 			driver: "source" | "timeline";
