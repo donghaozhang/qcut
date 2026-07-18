@@ -127,12 +127,27 @@ describe("effect catalog", () => {
 			count: 3,
 			status: "ready",
 		});
-		for (const category of ["basic", "atmosphere", "trendy"] as const) {
+		for (const category of [
+			"basic",
+			"atmosphere",
+			"trendy",
+			"border",
+			"multiscreen",
+			"sound",
+			"light",
+			"heart",
+		] as const) {
 			expect(coverageByCategory.get(category)).toMatchObject({
 				count: 3,
 				status: "ready",
 			});
 		}
+		expect(
+			EFFECT_CATALOG.filter(
+				(entry) =>
+					entry.publication === "published" && entry.category === "sound"
+			).every((entry) => entry.preset.audioCompanion !== undefined)
+		).toBe(true);
 		expect(
 			EFFECT_CATALOG.filter(
 				(entry) =>
