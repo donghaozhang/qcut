@@ -77,6 +77,7 @@ import {
 } from "./use-effects-rendering";
 import { EffectOverlayLayers } from "@/components/editor/effects/effect-overlay-layers";
 import { EffectCompositeCanvas } from "@/components/editor/effects/effect-composite-canvas";
+import { EffectPersonTrackingCanvas } from "@/components/editor/effects/effect-person-tracking-canvas";
 import { useEffectAudioReactivePreview } from "@/components/editor/effects/use-effect-audio-reactive-preview";
 import {
 	appendAudioReactiveBrightnessFilter,
@@ -943,6 +944,11 @@ export function PreviewElementRenderer({
 								sourceSelector={colorPreviewSourceSelector}
 								fitMode={visual.fitMode}
 							/>
+							<EffectPersonTrackingCanvas
+								program={effectRendering.renderProgram}
+								sourceSelector={colorPreviewSourceSelector}
+								fitMode={visual.fitMode}
+							/>
 							{enhancementProxy.status === "generating" ? (
 								<div
 									className="pointer-events-none absolute right-2 top-2 z-30 flex h-6 min-w-12 items-center justify-center gap-1 rounded-sm bg-background/85 px-1.5 text-[10px] tabular-nums text-foreground shadow-sm"
@@ -1213,6 +1219,11 @@ export function PreviewElementRenderer({
 									sourceSelector='img[data-color-source="true"]'
 									fitMode="contain"
 								/>
+								<EffectPersonTrackingCanvas
+									program={effectRendering.renderProgram}
+									sourceSelector='img[data-color-source="true"]'
+									fitMode="contain"
+								/>
 							</div>
 							<EffectOverlayLayers program={effectRendering.renderProgram} />
 							{transitionOverlayStyle ? (
@@ -1288,6 +1299,11 @@ export function PreviewElementRenderer({
 								/>
 							) : null}
 							<EffectCompositeCanvas
+								program={effectRendering.renderProgram}
+								sourceSelector='img[data-color-source="true"]'
+								fitMode="cover"
+							/>
+							<EffectPersonTrackingCanvas
 								program={effectRendering.renderProgram}
 								sourceSelector='img[data-color-source="true"]'
 								fitMode="cover"
