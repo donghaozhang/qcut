@@ -39,7 +39,9 @@ import type {
 	EffectCompositeRenderStage,
 	EffectOverlayRenderStage,
 	EffectPersonTrackingRenderStage,
+	EffectRenderWindow,
 } from "./ffmpeg/effect-render-types";
+import { effectWindowExpression } from "./ffmpeg/effect-render-window";
 
 const DEFAULT_ADJUSTMENTS: NonNullable<VideoVisual["adjustments"]> = {
 	brightness: 0,
@@ -151,6 +153,27 @@ export interface VideoTimelineLayerFilterResult {
 function ffmpegColor(color: string): string {
 	const match = /^#([0-9a-f]{6})$/i.exec(color.trim());
 	return match ? `0x${match[1]}` : "black";
+}
+
+function blendEffectWindow({
+	baseLabel,
+	effectLabel,
+	filterSteps,
+	outputLabel,
+	window,
+}: {
+	baseLabel?: string;
+	effectLabel: string;
+	filterSteps: string[];
+	outputLabel: string;
+	window?: EffectRenderWindow;
+}): string {
+	if (!baseLabel || !window) return effectLabel;
+	const enabled = effectWindowExpression({ window, timeVariable: "T" });
+	filterSteps.push(
+		`[${baseLabel}][${effectLabel}]blend=all_expr='if(${enabled},B,A)'[${outputLabel}]`
+	);
+	return outputLabel;
 }
 
 export function buildVideoKeyframeExpression({
@@ -656,10 +679,17 @@ function buildEffectCompositeFilters({
 	for (const [stageIndex, stage] of program.stages.entries()) {
 		if (stage.kind !== "composite") continue;
 		const prefix = `video_${segmentIndex}_effect_composite_${stageIndex}`;
+		let stageInput = outputLabel;
+		let baseLabel: string | undefined;
+		if (stage.window) {
+			baseLabel = `${prefix}_base`;
+			stageInput = `${prefix}_input`;
+			filterSteps.push(`[${outputLabel}]split=2[${baseLabel}][${stageInput}]`);
+		}
 		const tiles = effectCompositeTiles({ stage, width, height });
 		const splitLabels = tiles.map((_tile, index) => `${prefix}_copy_${index}`);
 		filterSteps.push(
-			`[${outputLabel}]split=${tiles.length}${splitLabels.map((label) => `[${label}]`).join("")}`
+			`[${stageInput}]split=${tiles.length}${splitLabels.map((label) => `[${label}]`).join("")}`
 		);
 		const preparedLabels = tiles.map((tile, index) => {
 			const scaled = `${prefix}_scaled_${index}`;
@@ -685,7 +715,13 @@ function buildEffectCompositeFilters({
 			);
 			composedLabel = composed;
 		}
-		outputLabel = composedLabel;
+		outputLabel = blendEffectWindow({
+			baseLabel,
+			effectLabel: composedLabel,
+			filterSteps,
+			outputLabel: `${prefix}_windowed`,
+			window: stage.window,
+		});
 	}
 	return { filterSteps, outputLabel };
 }
@@ -726,6 +762,11 @@ function buildEffectOverlayFilters({
 		}
 
 		const prefix = `video_${segmentIndex}_effect_overlay_${stageIndex}`;
+		const enabled = effectWindowExpression({
+			window: stage.window,
+			timeVariable: "t",
+		});
+		const enableOption = enabled ? `:enable='${enabled}'` : "";
 		const prepared = `${prefix}_prepared`;
 		filterSteps.push(
 			`[${overlaySource.inputIndex}:v]${buildEffectOverlayFitFilter({ stage, width, height })},` +
@@ -744,7 +785,7 @@ function buildEffectOverlayFilters({
 		const composed = `${prefix}_composed`;
 		if (stage.blendMode === "normal") {
 			filterSteps.push(
-				`[${outputLabel}][${overlayLabel}]overlay=shortest=1:format=auto[${composed}]`
+				`[${outputLabel}][${overlayLabel}]overlay=shortest=1:format=auto${enableOption}[${composed}]`
 			);
 			outputLabel = composed;
 			continue;
@@ -767,7 +808,7 @@ function buildEffectOverlayFilters({
 		filterSteps.push(`[${overlayAlpha}]alphaextract[${mask}]`);
 		filterSteps.push(`[${blended}][${mask}]alphamerge[${blendedAlpha}]`);
 		filterSteps.push(
-			`[${baseOriginal}][${blendedAlpha}]overlay=shortest=1:format=auto[${composed}]`
+			`[${baseOriginal}][${blendedAlpha}]overlay=shortest=1:format=auto${enableOption}[${composed}]`
 		);
 		outputLabel = composed;
 	}
@@ -887,6 +928,13 @@ function buildEffectPersonFilters({
 			throw new Error(`Missing person effect input at stage ${stageIndex}`);
 		}
 		const prefix = `video_${segmentIndex}_effect_person_${stageIndex}`;
+		let stageInput = outputLabel;
+		let baseLabel: string | undefined;
+		if (stage.window) {
+			baseLabel = `${prefix}_base`;
+			stageInput = `${prefix}_input`;
+			filterSteps.push(`[${outputLabel}]split=2[${baseLabel}][${stageInput}]`);
+		}
 		const timed = buildTimedVideoInput({
 			inputLabel: `${personSource.inputIndex}:v`,
 			prefix: `${prefix}_source`,
@@ -926,9 +974,15 @@ function buildEffectPersonFilters({
 			);
 			filterSteps.push(`[${color}][${edge}]alphamerge[${outline}]`);
 			filterSteps.push(
-				`[${outputLabel}][${outline}]overlay=shortest=1:format=auto[${composed}]`
+				`[${stageInput}][${outline}]overlay=shortest=1:format=auto[${composed}]`
 			);
-			outputLabel = composed;
+			outputLabel = blendEffectWindow({
+				baseLabel,
+				effectLabel: composed,
+				filterSteps,
+				outputLabel: `${prefix}_windowed`,
+				window: stage.window,
+			});
 			continue;
 		}
 
@@ -939,7 +993,7 @@ function buildEffectPersonFilters({
 		const foreground = `${prefix}_foreground`;
 		const composed = `${prefix}_composed`;
 		filterSteps.push(
-			`[${outputLabel}]split=2[${backgroundInput}][${foregroundInput}]`
+			`[${stageInput}]split=2[${backgroundInput}][${foregroundInput}]`
 		);
 		if (stage.treatment === "spotlight") {
 			filterSteps.push(
@@ -955,7 +1009,13 @@ function buildEffectPersonFilters({
 		filterSteps.push(
 			`[${background}][${foreground}]overlay=shortest=1:format=auto[${composed}]`
 		);
-		outputLabel = composed;
+		outputLabel = blendEffectWindow({
+			baseLabel,
+			effectLabel: composed,
+			filterSteps,
+			outputLabel: `${prefix}_windowed`,
+			window: stage.window,
+		});
 	}
 	return { filterSteps, outputLabel };
 }
