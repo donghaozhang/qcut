@@ -31,9 +31,14 @@ import {
 	buildEffectMotionExpressions,
 	hasEffectMotionProperty,
 } from "./ffmpeg/effect-motion-expression";
+import {
+	buildEffectAudioReactiveExpression,
+	hasEffectAudioReactiveProperty,
+} from "./ffmpeg/effect-audio-reactive-expression";
 import type {
 	EffectCompositeRenderStage,
 	EffectOverlayRenderStage,
+	EffectPersonTrackingRenderStage,
 } from "./ffmpeg/effect-render-types";
 
 const DEFAULT_ADJUSTMENTS: NonNullable<VideoVisual["adjustments"]> = {
@@ -769,6 +774,192 @@ function buildEffectOverlayFilters({
 	return { filterSteps, outputLabel };
 }
 
+function buildTimedVideoInput({
+	inputLabel,
+	prefix,
+	source,
+	sourceDuration,
+	speedSamples,
+	speedDuration,
+	freezeDuration,
+	fps,
+}: {
+	inputLabel: string;
+	prefix: string;
+	source: VideoSource;
+	sourceDuration: number;
+	speedSamples: SpeedSample[];
+	speedDuration: number;
+	freezeDuration: number;
+	fps: number;
+}): { filterSteps: string[]; outputLabel: string } {
+	const filterSteps: string[] = [];
+	const trimStart = Math.max(0, source.trimStart ?? 0);
+	let outputLabel = `${prefix}_trimmed`;
+	filterSteps.push(
+		`[${inputLabel}]trim=start=${trimStart}:duration=${sourceDuration},setpts=PTS-STARTPTS[${outputLabel}]`
+	);
+	if (source.reverse) {
+		const reversed = `${prefix}_reversed`;
+		filterSteps.push(`[${outputLabel}]reverse[${reversed}]`);
+		outputLabel = reversed;
+	}
+	const hasSpeedCurve = (source.speedKeyframes?.length ?? 0) > 0;
+	const playbackRate = clamp(source.playbackRate ?? 1, 0.1, 8);
+	if (hasSpeedCurve || playbackRate !== 1) {
+		const sped = `${prefix}_sped`;
+		const expression = hasSpeedCurve
+			? buildSpeedSetptsExpression(speedSamples)
+			: `((PTS-STARTPTS)*TB)/${playbackRate}`;
+		filterSteps.push(`[${outputLabel}]setpts='(${expression})/TB'[${sped}]`);
+		outputLabel = sped;
+	}
+	if (freezeDuration <= 0) return { filterSteps, outputLabel };
+
+	const freezeSourceTime = clamp(
+		source.freezeFrameTime ?? sourceDuration,
+		0,
+		sourceDuration
+	);
+	const freezeStart = outputTimeAtSource(speedSamples, freezeSourceTime);
+	const splitA = `${prefix}_freeze_a`;
+	const splitB = `${prefix}_freeze_b`;
+	const splitC = `${prefix}_freeze_c`;
+	const before = `${prefix}_before_freeze`;
+	const frozen = `${prefix}_frozen`;
+	const after = `${prefix}_after_freeze`;
+	const withFreeze = `${prefix}_with_freeze`;
+	filterSteps.push(`[${outputLabel}]split=3[${splitA}][${splitB}][${splitC}]`);
+	filterSteps.push(
+		`[${splitA}]trim=start=0:end=${freezeStart},setpts=PTS-STARTPTS[${before}]`
+	);
+	filterSteps.push(
+		`[${splitB}]trim=start=${freezeStart}:end=${Math.min(speedDuration, freezeStart + 1 / Math.max(1, fps))},` +
+			`setpts=PTS-STARTPTS,tpad=stop_mode=clone:stop_duration=${freezeDuration},trim=duration=${freezeDuration},setpts=PTS-STARTPTS[${frozen}]`
+	);
+	filterSteps.push(
+		`[${splitC}]trim=start=${freezeStart}:end=${speedDuration},setpts=PTS-STARTPTS[${after}]`
+	);
+	filterSteps.push(
+		`[${before}][${frozen}][${after}]concat=n=3:v=1:a=0[${withFreeze}]`
+	);
+	return { filterSteps, outputLabel: withFreeze };
+}
+
+function buildEffectPersonFilters({
+	currentLabel,
+	freezeDuration,
+	fps,
+	height,
+	segmentIndex,
+	source,
+	sourceDuration,
+	speedDuration,
+	speedSamples,
+	width,
+}: {
+	currentLabel: string;
+	freezeDuration: number;
+	fps: number;
+	height: number;
+	segmentIndex: number;
+	source: VideoSource;
+	sourceDuration: number;
+	speedDuration: number;
+	speedSamples: SpeedSample[];
+	width: number;
+}): { filterSteps: string[]; outputLabel: string } {
+	const stages = (source.effectRenderProgram?.stages ?? []).flatMap(
+		(stage, stageIndex) =>
+			stage.kind === "person-tracking" ? [{ stage, stageIndex }] : []
+	) as Array<{ stage: EffectPersonTrackingRenderStage; stageIndex: number }>;
+	if (stages.length === 0)
+		return { filterSteps: [], outputLabel: currentLabel };
+
+	const duration = speedDuration + freezeDuration;
+	const filterSteps: string[] = [];
+	let outputLabel = currentLabel;
+	for (const { stage, stageIndex } of stages) {
+		const personSource = source.effectPersonSources?.find(
+			(candidate) => candidate.stageIndex === stageIndex
+		);
+		if (personSource?.inputIndex === undefined) {
+			throw new Error(`Missing person effect input at stage ${stageIndex}`);
+		}
+		const prefix = `video_${segmentIndex}_effect_person_${stageIndex}`;
+		const timed = buildTimedVideoInput({
+			inputLabel: `${personSource.inputIndex}:v`,
+			prefix: `${prefix}_source`,
+			source,
+			sourceDuration,
+			speedSamples,
+			speedDuration,
+			freezeDuration,
+			fps,
+		});
+		filterSteps.push(...timed.filterSteps);
+		const fitted = `${prefix}_fitted`;
+		filterSteps.push(
+			`[${timed.outputLabel}]${buildVideoFitFilter({ fitMode: resolveVisual(source).fitMode, width, height })},` +
+				`setsar=1,format=rgba,fps=${fps}[${fitted}]`
+		);
+		const mask = `${prefix}_mask`;
+		filterSteps.push(`[${fitted}]alphaextract[${mask}]`);
+
+		if (stage.treatment === "outline") {
+			const inner = `${prefix}_inner`;
+			const outer = `${prefix}_outer`;
+			const expanded = `${prefix}_expanded`;
+			const edge = `${prefix}_edge`;
+			const color = `${prefix}_color`;
+			const outline = `${prefix}_outline`;
+			const composed = `${prefix}_composed`;
+			filterSteps.push(`[${mask}]split=2[${inner}][${outer}]`);
+			filterSteps.push(
+				`[${outer}]dilation,dilation,gblur=sigma=1[${expanded}]`
+			);
+			filterSteps.push(
+				`[${expanded}][${inner}]blend=all_mode=subtract[${edge}]`
+			);
+			filterSteps.push(
+				`color=c=0x22d3ee@1:s=${width}x${height}:d=${duration}:r=${fps},format=rgba[${color}]`
+			);
+			filterSteps.push(`[${color}][${edge}]alphamerge[${outline}]`);
+			filterSteps.push(
+				`[${outputLabel}][${outline}]overlay=shortest=1:format=auto[${composed}]`
+			);
+			outputLabel = composed;
+			continue;
+		}
+
+		const backgroundInput = `${prefix}_background_input`;
+		const foregroundInput = `${prefix}_foreground_input`;
+		const background = `${prefix}_background`;
+		const foregroundRgba = `${prefix}_foreground_rgba`;
+		const foreground = `${prefix}_foreground`;
+		const composed = `${prefix}_composed`;
+		filterSteps.push(
+			`[${outputLabel}]split=2[${backgroundInput}][${foregroundInput}]`
+		);
+		if (stage.treatment === "spotlight") {
+			filterSteps.push(
+				`[${backgroundInput}]eq=brightness=-0.28:saturation=0.72[${background}]`
+			);
+		} else {
+			filterSteps.push(
+				`[${backgroundInput}]gblur=sigma=12:steps=2[${background}]`
+			);
+		}
+		filterSteps.push(`[${foregroundInput}]format=rgba[${foregroundRgba}]`);
+		filterSteps.push(`[${foregroundRgba}][${mask}]alphamerge[${foreground}]`);
+		filterSteps.push(
+			`[${background}][${foreground}]overlay=shortest=1:format=auto[${composed}]`
+		);
+		outputLabel = composed;
+	}
+	return { filterSteps, outputLabel };
+}
+
 function buildSegmentFilters({
 	source,
 	inputIndex,
@@ -800,55 +991,18 @@ function buildSegmentFilters({
 	const freezeDuration = Math.max(0, source.freezeFrameDuration ?? 0);
 	const duration = speedDuration + freezeDuration;
 	const steps: string[] = [];
-	let current = `video_${segmentIndex}_trimmed`;
-	steps.push(
-		`[${inputIndex}:v]trim=start=${trimStart}:duration=${sourceDuration},setpts=PTS-STARTPTS[${current}]`
-	);
-	if (source.reverse) {
-		const reversed = `video_${segmentIndex}_reversed`;
-		steps.push(`[${current}]reverse[${reversed}]`);
-		current = reversed;
-	}
-	const hasSpeedCurve = (source.speedKeyframes?.length ?? 0) > 0;
-	const playbackRate = clamp(source.playbackRate ?? 1, 0.1, 8);
-	if (hasSpeedCurve || playbackRate !== 1) {
-		const sped = `video_${segmentIndex}_sped`;
-		const expression = hasSpeedCurve
-			? buildSpeedSetptsExpression(speedSamples)
-			: `((PTS-STARTPTS)*TB)/${playbackRate}`;
-		steps.push(`[${current}]setpts='(${expression})/TB'[${sped}]`);
-		current = sped;
-	}
-	if (freezeDuration > 0) {
-		const freezeSourceTime = clamp(
-			source.freezeFrameTime ?? sourceDuration,
-			0,
-			sourceDuration
-		);
-		const freezeStart = outputTimeAtSource(speedSamples, freezeSourceTime);
-		const splitA = `video_${segmentIndex}_freeze_a`;
-		const splitB = `video_${segmentIndex}_freeze_b`;
-		const splitC = `video_${segmentIndex}_freeze_c`;
-		const before = `video_${segmentIndex}_before_freeze`;
-		const frozen = `video_${segmentIndex}_frozen`;
-		const after = `video_${segmentIndex}_after_freeze`;
-		const withFreeze = `video_${segmentIndex}_with_freeze`;
-		steps.push(`[${current}]split=3[${splitA}][${splitB}][${splitC}]`);
-		steps.push(
-			`[${splitA}]trim=start=0:end=${freezeStart},setpts=PTS-STARTPTS[${before}]`
-		);
-		steps.push(
-			`[${splitB}]trim=start=${freezeStart}:end=${Math.min(speedDuration, freezeStart + 1 / Math.max(1, fps))},` +
-				`setpts=PTS-STARTPTS,tpad=stop_mode=clone:stop_duration=${freezeDuration},trim=duration=${freezeDuration},setpts=PTS-STARTPTS[${frozen}]`
-		);
-		steps.push(
-			`[${splitC}]trim=start=${freezeStart}:end=${speedDuration},setpts=PTS-STARTPTS[${after}]`
-		);
-		steps.push(
-			`[${before}][${frozen}][${after}]concat=n=3:v=1:a=0[${withFreeze}]`
-		);
-		current = withFreeze;
-	}
+	const timedSource = buildTimedVideoInput({
+		inputLabel: `${inputIndex}:v`,
+		prefix: `video_${segmentIndex}`,
+		source,
+		sourceDuration,
+		speedSamples,
+		speedDuration,
+		freezeDuration,
+		fps,
+	});
+	steps.push(...timedSource.filterSteps);
+	let current = timedSource.outputLabel;
 
 	const fitted = `video_${segmentIndex}_fitted`;
 	steps.push(
@@ -913,6 +1067,38 @@ function buildSegmentFilters({
 		steps.push(`[${current}]${source.effectFilter}[${effected}]`);
 		current = effected;
 	}
+	if (
+		hasEffectAudioReactiveProperty({
+			program: source.effectRenderProgram,
+			property: "brightness",
+		})
+	) {
+		const brightness = buildEffectAudioReactiveExpression({
+			program: source.effectRenderProgram,
+			envelopes: source.effectAudioReactiveEnvelopes,
+			property: "brightness",
+			timeVariable: "t",
+		});
+		const reacted = `video_${segmentIndex}_effect_audio_brightness`;
+		steps.push(
+			`[${current}]eq=brightness='max(-1,min(1,(${brightness})-1))':eval=frame[${reacted}]`
+		);
+		current = reacted;
+	}
+	const effectPersonGraph = buildEffectPersonFilters({
+		currentLabel: current,
+		freezeDuration,
+		fps,
+		height,
+		segmentIndex,
+		source,
+		sourceDuration,
+		speedDuration,
+		speedSamples,
+		width,
+	});
+	steps.push(...effectPersonGraph.filterSteps);
+	current = effectPersonGraph.outputLabel;
 	const effectCompositeGraph = buildEffectCompositeFilters({
 		currentLabel: current,
 		duration,
@@ -1028,6 +1214,10 @@ function buildSegmentFilters({
 		hasEffectMotionProperty({
 			program: source.effectRenderProgram,
 			property: "scale",
+		}) ||
+		hasEffectAudioReactiveProperty({
+			program: source.effectRenderProgram,
+			property: "scale",
 		})
 	) {
 		const padded = `video_${segmentIndex}_effect_zoom_pad`;
@@ -1039,12 +1229,18 @@ function buildSegmentFilters({
 			height,
 			timeVariable: `(on/${Math.max(1, fps)})`,
 		});
+		const effectAudioScale = buildEffectAudioReactiveExpression({
+			program: source.effectRenderProgram,
+			envelopes: source.effectAudioReactiveEnvelopes,
+			property: "scale",
+			timeVariable: `(on/${Math.max(1, fps)})`,
+		});
 		steps.push(
 			`[${current}]pad=w=iw*2:h=ih*2:x=iw/2:y=ih/2:color=black@0,format=rgba[${padded}]`
 		);
 		steps.push(
 			`[${padded}]zoompan=` +
-				`z='2*max(0.5,${effectZoomMotion.scale})':` +
+				`z='2*max(0.5,(${effectZoomMotion.scale})*(${effectAudioScale}))':` +
 				`x='iw/2-(iw/zoom/2)':y='ih/2-(ih/zoom/2)':` +
 				`d=1:s=${width}x${height}:fps=${fps},format=rgba[${zoomed}]`
 		);
@@ -1111,11 +1307,17 @@ function buildSegmentFilters({
 		height,
 		timeVariable: "T",
 	});
+	const effectAudioOpacity = buildEffectAudioReactiveExpression({
+		program: source.effectRenderProgram,
+		envelopes: source.effectAudioReactiveEnvelopes,
+		property: "opacity",
+		timeVariable: "T",
+	});
 	const alpha = `video_${segmentIndex}_opacity`;
 	steps.push(
 		`[${current}]format=rgba,geq=` +
 			`r='r(X,Y)':g='g(X,Y)':b='b(X,Y)':` +
-			`a='alpha(X,Y)*max(0,min(1,(${opacity})*(${opacityAnimation.opacity})*(${effectOpacityMotion.opacity})))'[${alpha}]`
+			`a='alpha(X,Y)*max(0,min(1,(${opacity})*(${opacityAnimation.opacity})*(${effectOpacityMotion.opacity})*(${effectAudioOpacity})))'[${alpha}]`
 	);
 	current = alpha;
 
