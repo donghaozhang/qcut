@@ -1,0 +1,153 @@
+{
+	"schemaVersion": 1,
+	"kind": "qcut-text-template-package",
+	"assetId": "text-fancy-yellow-soft-card",
+	"packageId": "text-fancy-yellow",
+	"version": 2,
+	"cacheKey": "text-assets/text-fancy-yellow/soft-card@2",
+	"files": {
+		"thumbnail": "thumbnail.webp",
+		"source": "template.json"
+	},
+	"resources": [
+		{
+			"byteSize": 15708,
+			"checksumSha256": "eb82997060625f2ab1bda4a43cac8bf26fa9dac7dfbd5cd37e8746f40dc378f8",
+			"mimeType": "image/webp",
+			"path": "thumbnail.webp",
+			"role": "thumbnail",
+			"url": "/text-assets/text-fancy-yellow/soft-card@2/thumbnail.webp"
+		},
+		{
+			"byteSize": 2494,
+			"checksumSha256": "51800ef0f15f6ffd0a9e9600fce26fd20976da4d13925d227982b0d5dc3c19d7",
+			"mimeType": "application/json",
+			"path": "template.json",
+			"role": "source",
+			"url": "/text-assets/text-fancy-yellow/soft-card@2/template.json"
+		}
+	],
+	"source": {
+		"schemaVersion": 1,
+		"assetId": "text-fancy-yellow-soft-card",
+		"packageId": "text-fancy-yellow",
+		"version": 2,
+		"marketplace": {
+			"editorialRank": 26,
+			"heatScore": 89,
+			"remoteTags": [
+				"category:yellow",
+				"group:fancy",
+				"variant:soft-card",
+				"color:yellow",
+				"tone:bright"
+			],
+			"searchAliases": [
+				"黄色",
+				"醒目",
+				"高亮",
+				"封面",
+				"价格",
+				"yellow"
+			]
+		},
+		"definition": {
+			"id": "yellow-soft-card",
+			"name": "黄色柔卡",
+			"category": "yellow",
+			"groupId": "fancy",
+			"variantId": "soft-card",
+			"content": "花字",
+			"stylePresetId": "highlight",
+			"keywords": [
+				"yellow",
+				"黄色",
+				"花字",
+				"soft-card",
+				"柔卡",
+				"柔和",
+				"卡片",
+				"清新",
+				"soft",
+				"yellow-soft-card",
+				"黄色柔卡",
+				"fancy"
+			],
+			"premium": false,
+			"downloaded": true,
+			"resource": {
+				"assetId": "text-fancy-yellow-soft-card",
+				"packageId": "text-fancy-yellow",
+				"version": 2,
+				"entitlement": "free",
+				"cacheKey": "text-assets/text-fancy-yellow/soft-card@2",
+				"sizeKb": 192
+			},
+			"catalogVisible": true,
+			"overrides": {
+				"fontSize": 60,
+				"color": "#fef9c3",
+				"fontWeight": "bold",
+				"strokeWidth": 4,
+				"backgroundColor": "transparent",
+				"backgroundOpacity": 0,
+				"backgroundRadius": 20,
+				"backgroundPadding": 0,
+				"shadowColor": "#eab308",
+				"shadowOpacity": 0.35,
+				"shadowOffsetX": 0,
+				"shadowOffsetY": 9,
+				"shadowBlur": 18,
+				"width": 660,
+				"height": 190,
+				"strokeColor": "#422006"
+			}
+		},
+		"template": {
+			"id": "yellow-soft-card",
+			"type": "text",
+			"name": "黄色柔卡",
+			"content": "花字",
+			"fontSize": 60,
+			"fontFamily": "Arial",
+			"color": "#fef9c3",
+			"backgroundColor": "transparent",
+			"textAlign": "center",
+			"fontWeight": "bold",
+			"fontStyle": "normal",
+			"textDecoration": "none",
+			"x": 0,
+			"y": 0,
+			"rotation": 0,
+			"opacity": 1,
+			"width": 660,
+			"height": 190,
+			"letterSpacing": 0,
+			"lineHeight": 1.2,
+			"verticalAlign": "middle",
+			"strokeColor": "#422006",
+			"strokeWidth": 4,
+			"strokeOpacity": 1,
+			"backgroundOpacity": 0,
+			"backgroundRadius": 20,
+			"backgroundPadding": 0,
+			"shadowColor": "#eab308",
+			"shadowOpacity": 0.35,
+			"shadowOffsetX": 0,
+			"shadowOffsetY": 9,
+			"shadowBlur": 18,
+			"glowColor": "#ffffff",
+			"glowOpacity": 0,
+			"glowBlur": 12,
+			"curve": 0,
+			"animationType": "none",
+			"animationDuration": 0.6,
+			"animationDelay": 0,
+			"blendMode": "normal",
+			"duration": 5,
+			"startTime": 0,
+			"trimStart": 0,
+			"trimEnd": 0
+		}
+	}
+}

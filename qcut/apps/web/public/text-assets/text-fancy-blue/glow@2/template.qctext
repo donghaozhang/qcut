@@ -1,0 +1,153 @@
+{
+	"schemaVersion": 1,
+	"kind": "qcut-text-template-package",
+	"assetId": "text-fancy-blue-glow",
+	"packageId": "text-fancy-blue",
+	"version": 2,
+	"cacheKey": "text-assets/text-fancy-blue/glow@2",
+	"files": {
+		"thumbnail": "thumbnail.webp",
+		"source": "template.json"
+	},
+	"resources": [
+		{
+			"byteSize": 15722,
+			"checksumSha256": "af6df2efc180a5c5e90563ec805b91baa6d8146adff5114b8e0bae446ba78c14",
+			"mimeType": "image/webp",
+			"path": "thumbnail.webp",
+			"role": "thumbnail",
+			"url": "/text-assets/text-fancy-blue/glow@2/thumbnail.webp"
+		},
+		{
+			"byteSize": 2363,
+			"checksumSha256": "1f61ef763564f55172ff1a8cfda3bb2606f1dad2269d406a651b4743f5382862",
+			"mimeType": "application/json",
+			"path": "template.json",
+			"role": "source",
+			"url": "/text-assets/text-fancy-blue/glow@2/template.json"
+		}
+	],
+	"source": {
+		"schemaVersion": 1,
+		"assetId": "text-fancy-blue-glow",
+		"packageId": "text-fancy-blue",
+		"version": 2,
+		"marketplace": {
+			"editorialRank": 15,
+			"heatScore": 100,
+			"remoteTags": [
+				"category:blue",
+				"group:fancy",
+				"variant:glow",
+				"color:blue",
+				"scene:tech",
+				"effect:glow",
+				"scene:night"
+			],
+			"searchAliases": [
+				"蓝色",
+				"冰蓝",
+				"科技",
+				"知识",
+				"教程",
+				"blue",
+				"发光",
+				"霓虹",
+				"夜景"
+			]
+		},
+		"definition": {
+			"id": "blue-glow",
+			"name": "蓝色发光",
+			"category": "blue",
+			"groupId": "fancy",
+			"variantId": "glow",
+			"content": "花字",
+			"stylePresetId": "cyan-neon",
+			"keywords": [
+				"blue",
+				"蓝色",
+				"花字",
+				"glow",
+				"发光",
+				"霓虹",
+				"夜景",
+				"neon",
+				"blue-glow",
+				"蓝色发光",
+				"fancy"
+			],
+			"premium": true,
+			"downloaded": false,
+			"resource": {
+				"assetId": "text-fancy-blue-glow",
+				"packageId": "text-fancy-blue",
+				"version": 2,
+				"entitlement": "svip",
+				"cacheKey": "text-assets/text-fancy-blue/glow@2",
+				"sizeKb": 384
+			},
+			"catalogVisible": true,
+			"overrides": {
+				"fontSize": 70,
+				"color": "#dbeafe",
+				"fontWeight": "bold",
+				"strokeColor": "#2563eb",
+				"strokeWidth": 1,
+				"glowColor": "#22d3ee",
+				"glowOpacity": 0.9,
+				"glowBlur": 20,
+				"shadowOpacity": 0,
+				"width": 740,
+				"height": 220,
+				"animationType": "fade"
+			}
+		},
+		"template": {
+			"id": "blue-glow",
+			"type": "text",
+			"name": "蓝色发光",
+			"content": "花字",
+			"fontSize": 70,
+			"fontFamily": "Arial",
+			"color": "#dbeafe",
+			"backgroundColor": "transparent",
+			"textAlign": "center",
+			"fontWeight": "bold",
+			"fontStyle": "normal",
+			"textDecoration": "none",
+			"x": 0,
+			"y": 0,
+			"rotation": 0,
+			"opacity": 1,
+			"width": 740,
+			"height": 220,
+			"letterSpacing": 0,
+			"lineHeight": 1.2,
+			"verticalAlign": "middle",
+			"strokeColor": "#2563eb",
+			"strokeWidth": 1,
+			"strokeOpacity": 1,
+			"backgroundOpacity": 0,
+			"backgroundRadius": 4,
+			"backgroundPadding": 12,
+			"shadowColor": "#000000",
+			"shadowOpacity": 0,
+			"shadowOffsetX": 4,
+			"shadowOffsetY": 4,
+			"shadowBlur": 8,
+			"glowColor": "#22d3ee",
+			"glowOpacity": 0.9,
+			"glowBlur": 20,
+			"curve": 0,
+			"animationType": "fade",
+			"animationDuration": 0.6,
+			"animationDelay": 0,
+			"blendMode": "normal",
+			"duration": 5,
+			"startTime": 0,
+			"trimStart": 0,
+			"trimEnd": 0
+		}
+	}
+}

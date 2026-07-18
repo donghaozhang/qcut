@@ -1,0 +1,148 @@
+{
+	"schemaVersion": 1,
+	"kind": "qcut-text-template-package",
+	"assetId": "text-fancy-blue-plain",
+	"packageId": "text-fancy-blue",
+	"version": 2,
+	"cacheKey": "text-assets/text-fancy-blue/plain@2",
+	"files": {
+		"thumbnail": "thumbnail.webp",
+		"source": "template.json"
+	},
+	"resources": [
+		{
+			"byteSize": 15296,
+			"checksumSha256": "ef1cd6c048d1df0eb8f1ff73dd6922f880cc201af86f8105d85e786e5695d0e0",
+			"mimeType": "image/webp",
+			"path": "thumbnail.webp",
+			"role": "thumbnail",
+			"url": "/text-assets/text-fancy-blue/plain@2/thumbnail.webp"
+		},
+		{
+			"byteSize": 2301,
+			"checksumSha256": "5eef6a7a91dfcaf48973d82530e5bb318da4898a6f5174930b212b141e2be474",
+			"mimeType": "application/json",
+			"path": "template.json",
+			"role": "source",
+			"url": "/text-assets/text-fancy-blue/plain@2/template.json"
+		}
+	],
+	"source": {
+		"schemaVersion": 1,
+		"assetId": "text-fancy-blue-plain",
+		"packageId": "text-fancy-blue",
+		"version": 2,
+		"marketplace": {
+			"editorialRank": 30,
+			"heatScore": 88,
+			"remoteTags": [
+				"category:blue",
+				"group:fancy",
+				"variant:plain",
+				"color:blue",
+				"scene:tech"
+			],
+			"searchAliases": [
+				"蓝色",
+				"冰蓝",
+				"科技",
+				"知识",
+				"教程",
+				"blue"
+			]
+		},
+		"definition": {
+			"id": "blue-plain",
+			"name": "蓝色基础",
+			"category": "blue",
+			"groupId": "fancy",
+			"variantId": "plain",
+			"content": "花字",
+			"stylePresetId": "clean-white",
+			"keywords": [
+				"blue",
+				"蓝色",
+				"花字",
+				"plain",
+				"基础",
+				"干净",
+				"白色",
+				"clean",
+				"blue-plain",
+				"蓝色基础",
+				"fancy"
+			],
+			"premium": false,
+			"downloaded": true,
+			"resource": {
+				"assetId": "text-fancy-blue-plain",
+				"packageId": "text-fancy-blue",
+				"version": 2,
+				"entitlement": "free",
+				"cacheKey": "text-assets/text-fancy-blue/plain@2",
+				"sizeKb": 192
+			},
+			"catalogVisible": true,
+			"overrides": {
+				"fontSize": 64,
+				"color": "#dbeafe",
+				"fontWeight": "bold",
+				"strokeColor": "#172554",
+				"strokeWidth": 1,
+				"shadowColor": "#172554",
+				"shadowOpacity": 0.25,
+				"shadowOffsetX": 2,
+				"shadowOffsetY": 4,
+				"shadowBlur": 8,
+				"width": 720,
+				"height": 180
+			}
+		},
+		"template": {
+			"id": "blue-plain",
+			"type": "text",
+			"name": "蓝色基础",
+			"content": "花字",
+			"fontSize": 64,
+			"fontFamily": "Arial",
+			"color": "#dbeafe",
+			"backgroundColor": "transparent",
+			"textAlign": "center",
+			"fontWeight": "bold",
+			"fontStyle": "normal",
+			"textDecoration": "none",
+			"x": 0,
+			"y": 0,
+			"rotation": 0,
+			"opacity": 1,
+			"width": 720,
+			"height": 180,
+			"letterSpacing": 0,
+			"lineHeight": 1.2,
+			"verticalAlign": "middle",
+			"strokeColor": "#172554",
+			"strokeWidth": 1,
+			"strokeOpacity": 1,
+			"backgroundOpacity": 0,
+			"backgroundRadius": 4,
+			"backgroundPadding": 12,
+			"shadowColor": "#172554",
+			"shadowOpacity": 0.25,
+			"shadowOffsetX": 2,
+			"shadowOffsetY": 4,
+			"shadowBlur": 8,
+			"glowColor": "#ffffff",
+			"glowOpacity": 0,
+			"glowBlur": 12,
+			"curve": 0,
+			"animationType": "none",
+			"animationDuration": 0.6,
+			"animationDelay": 0,
+			"blendMode": "normal",
+			"duration": 5,
+			"startTime": 0,
+			"trimStart": 0,
+			"trimEnd": 0
+		}
+	}
+}

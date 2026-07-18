@@ -1,0 +1,152 @@
+{
+	"schemaVersion": 1,
+	"kind": "qcut-text-template-package",
+	"assetId": "text-fancy-yellow-label",
+	"packageId": "text-fancy-yellow",
+	"version": 2,
+	"cacheKey": "text-assets/text-fancy-yellow/label@2",
+	"files": {
+		"thumbnail": "thumbnail.webp",
+		"source": "template.json"
+	},
+	"resources": [
+		{
+			"byteSize": 15304,
+			"checksumSha256": "6c4244dee177f47c24c0352cc6860562a5210db5c3a121557ffd7c9354815d3d",
+			"mimeType": "image/webp",
+			"path": "thumbnail.webp",
+			"role": "thumbnail",
+			"url": "/text-assets/text-fancy-yellow/label@2/thumbnail.webp"
+		},
+		{
+			"byteSize": 2450,
+			"checksumSha256": "6500a86e0040ed6aee7a77880fb172013e0f7deb537445f5582b1551e61bb6f7",
+			"mimeType": "application/json",
+			"path": "template.json",
+			"role": "source",
+			"url": "/text-assets/text-fancy-yellow/label@2/template.json"
+		}
+	],
+	"source": {
+		"schemaVersion": 1,
+		"assetId": "text-fancy-yellow-label",
+		"packageId": "text-fancy-yellow",
+		"version": 2,
+		"marketplace": {
+			"editorialRank": 26,
+			"heatScore": 89,
+			"remoteTags": [
+				"category:yellow",
+				"group:fancy",
+				"variant:label",
+				"color:yellow",
+				"tone:bright"
+			],
+			"searchAliases": [
+				"黄色",
+				"醒目",
+				"高亮",
+				"封面",
+				"价格",
+				"yellow"
+			]
+		},
+		"definition": {
+			"id": "yellow-label",
+			"name": "黄色标签",
+			"category": "yellow",
+			"groupId": "fancy",
+			"variantId": "label",
+			"content": "花字",
+			"stylePresetId": "rounded-label",
+			"keywords": [
+				"yellow",
+				"黄色",
+				"花字",
+				"label",
+				"标签",
+				"贴片",
+				"底板",
+				"badge",
+				"yellow-label",
+				"黄色标签",
+				"fancy"
+			],
+			"premium": false,
+			"downloaded": true,
+			"resource": {
+				"assetId": "text-fancy-yellow-label",
+				"packageId": "text-fancy-yellow",
+				"version": 2,
+				"entitlement": "free",
+				"cacheKey": "text-assets/text-fancy-yellow/label@2",
+				"sizeKb": 192
+			},
+			"catalogVisible": true,
+			"overrides": {
+				"fontSize": 56,
+				"color": "#fef9c3",
+				"fontWeight": "bold",
+				"strokeWidth": 4,
+				"backgroundColor": "transparent",
+				"backgroundOpacity": 0,
+				"backgroundRadius": 18,
+				"backgroundPadding": 0,
+				"shadowColor": "#eab308",
+				"shadowOpacity": 0.35,
+				"shadowOffsetX": 0,
+				"shadowOffsetY": 7,
+				"shadowBlur": 16,
+				"width": 620,
+				"height": 170,
+				"strokeColor": "#422006"
+			}
+		},
+		"template": {
+			"id": "yellow-label",
+			"type": "text",
+			"name": "黄色标签",
+			"content": "花字",
+			"fontSize": 56,
+			"fontFamily": "Arial",
+			"color": "#fef9c3",
+			"backgroundColor": "transparent",
+			"textAlign": "center",
+			"fontWeight": "bold",
+			"fontStyle": "normal",
+			"textDecoration": "none",
+			"x": 0,
+			"y": 0,
+			"rotation": 0,
+			"opacity": 1,
+			"width": 620,
+			"height": 170,
+			"letterSpacing": 0,
+			"lineHeight": 1.2,
+			"verticalAlign": "middle",
+			"strokeColor": "#422006",
+			"strokeWidth": 4,
+			"strokeOpacity": 1,
+			"backgroundOpacity": 0,
+			"backgroundRadius": 18,
+			"backgroundPadding": 0,
+			"shadowColor": "#eab308",
+			"shadowOpacity": 0.35,
+			"shadowOffsetX": 0,
+			"shadowOffsetY": 7,
+			"shadowBlur": 16,
+			"glowColor": "#ffffff",
+			"glowOpacity": 0,
+			"glowBlur": 12,
+			"curve": 0,
+			"animationType": "none",
+			"animationDuration": 0.6,
+			"animationDelay": 0,
+			"blendMode": "normal",
+			"duration": 5,
+			"startTime": 0,
+			"trimStart": 0,
+			"trimEnd": 0
+		}
+	}
+}
