@@ -8,6 +8,9 @@ import { EFFECT_PRESETS } from "../../apps/web/src/lib/effects/effect-presets";
 import { FFmpegFilterChain } from "../../apps/web/src/lib/ffmpeg/ffmpeg-filter-chain";
 import { MOTION_EFFECT_CATALOG } from "../../apps/web/src/lib/effects/effect-motion-catalog";
 import { FILTER_EFFECT_CATALOG } from "../../apps/web/src/lib/effects/effect-filter-catalog";
+import { OVERLAY_EFFECT_CATALOG } from "../../apps/web/src/lib/effects/effect-overlay-catalog";
+import { COMPOSITE_EFFECT_CATALOG } from "../../apps/web/src/lib/effects/effect-composite-catalog";
+import { SOUND_EFFECT_CATALOG } from "../../apps/web/src/lib/effects/effect-sound-catalog";
 
 const ffmpegPath = path.resolve(
 	__dirname,
@@ -185,6 +188,13 @@ function toneMagnitude({
 		(2 * Math.sqrt(real * real + imaginary * imaginary)) /
 		Math.max(1, samples.length)
 	);
+}
+
+function rootMeanSquare({ samples }: { samples: number[] }): number {
+	if (samples.length === 0) return 0;
+	let sumOfSquares = 0;
+	for (const sample of samples) sumOfSquares += sample * sample;
+	return Math.sqrt(sumOfSquares / samples.length);
 }
 
 function defaultVisual(overrides: Partial<VideoVisual> = {}): VideoVisual {
@@ -1368,6 +1378,447 @@ describe.skipIf(!fs.existsSync(ffmpegPath))(
 			});
 			expect(baselinePixel[0]).toBeGreaterThan(baselinePixel[1] * 2);
 			expect(pushInPixel[1]).toBeGreaterThan(pushInPixel[0] * 1.5);
+		});
+
+		it("renders every catalog overlay program through the real FFmpeg pipeline", () => {
+			const redSourcePath = path.join(tempDir, "effect-overlay-source.mp4");
+			const redImagePath = path.join(tempDir, "effect-overlay-source.png");
+			const overlayPath = path.join(tempDir, "effect-overlay-frame.png");
+			const source = runFFmpeg([
+				"-y",
+				"-f",
+				"lavfi",
+				"-i",
+				"color=c=red:s=320x180:d=1:r=30",
+				"-c:v",
+				"libx264",
+				"-pix_fmt",
+				"yuv420p",
+				redSourcePath,
+			]);
+			const overlay = runFFmpeg([
+				"-y",
+				"-f",
+				"lavfi",
+				"-i",
+				"color=c=black@0:s=320x180:d=0.1:r=30,format=rgba," +
+					"drawbox=x=0:y=0:w=320:h=180:c=green@1:t=12:replace=1",
+				"-frames:v",
+				"1",
+				overlayPath,
+			]);
+			const redImage = runFFmpeg([
+				"-y",
+				"-f",
+				"lavfi",
+				"-i",
+				"color=c=red:s=320x180:d=0.1:r=30",
+				"-frames:v",
+				"1",
+				redImagePath,
+			]);
+			expect(source.status, source.stderr?.toString()).toBe(0);
+			expect(overlay.status, overlay.stderr?.toString()).toBe(0);
+			expect(redImage.status, redImage.stderr?.toString()).toBe(0);
+			const animatedPresetIds = new Set([
+				"light-sparkle-pop",
+				"light-creator-sparkle",
+				"heart-beat",
+				"heart-creator-beat",
+			]);
+
+			for (const entry of OVERLAY_EFFECT_CATALOG) {
+				const effectRenderProgram = entry.preset.renderProgram;
+				if (!effectRenderProgram) {
+					throw new Error(`Missing render program: ${entry.preset.id}`);
+				}
+				const outputPath = path.join(
+					tempDir,
+					`effect-overlay-${entry.preset.id}.mp4`
+				);
+				const effectOverlaySources = effectRenderProgram.stages.flatMap(
+					(stage, stageIndex) =>
+						stage.kind === "overlay"
+							? [
+									{
+										resourceId: stage.resourceId,
+										stageIndex,
+										path: overlayPath,
+										animated: animatedPresetIds.has(entry.preset.id),
+									},
+								]
+							: []
+				);
+				const result = runFFmpeg(
+					buildFFmpegArgs({
+						inputDir: tempDir,
+						outputFile: outputPath,
+						width: 320,
+						height: 180,
+						fps: 30,
+						quality: "low",
+						duration: 1,
+						videoSources: [
+							{
+								path: redSourcePath,
+								startTime: 0,
+								duration: 1,
+								effectRenderProgram,
+								effectOverlaySources,
+							},
+						],
+					})
+				);
+				expect(
+					result.status,
+					`${entry.preset.id}: ${result.stderr?.toString()}`
+				).toBe(0);
+				expect(fs.statSync(outputPath).size).toBeGreaterThan(1_000);
+			}
+
+			const imageEntry = OVERLAY_EFFECT_CATALOG[0];
+			const imageProgram = imageEntry.preset.renderProgram;
+			if (!imageProgram)
+				throw new Error("Missing image overlay render program");
+			const imageOverlayStage = imageProgram.stages[0];
+			if (imageOverlayStage.kind !== "overlay") {
+				throw new Error("Expected image overlay stage");
+			}
+			const imageOutputPath = path.join(
+				tempDir,
+				"effect-overlay-image-source.mp4"
+			);
+			const imageResult = runFFmpeg(
+				buildFFmpegArgs({
+					inputDir: tempDir,
+					outputFile: imageOutputPath,
+					width: 320,
+					height: 180,
+					fps: 30,
+					quality: "low",
+					duration: 1,
+					imageSources: [
+						{
+							path: redImagePath,
+							elementId: "image-overlay-source",
+							trackId: "track-1",
+							trackOrder: 0,
+							elementOrder: 0,
+							startTime: 0,
+							duration: 1,
+							trimStart: 0,
+							trimEnd: 0,
+							effectRenderProgram: imageProgram,
+							effectOverlaySources: [
+								{
+									resourceId: imageOverlayStage.resourceId,
+									stageIndex: 0,
+									path: overlayPath,
+									animated: false,
+								},
+							],
+						},
+					],
+				})
+			);
+			expect(imageResult.status, imageResult.stderr?.toString()).toBe(0);
+			expect(fs.statSync(imageOutputPath).size).toBeGreaterThan(1_000);
+
+			const proofPath = path.join(
+				tempDir,
+				"effect-overlay-border-today-frame.mp4"
+			);
+			const borderPixel = readFramePixelAt({
+				inputPath: proofPath,
+				time: 0.5,
+				x: 5,
+				y: 5,
+			});
+			const centerPixel = readFramePixelAt({
+				inputPath: proofPath,
+				time: 0.5,
+				x: 160,
+				y: 90,
+			});
+			expect(borderPixel[1]).toBeGreaterThan(borderPixel[0]);
+			expect(centerPixel[0]).toBeGreaterThan(centerPixel[1] * 2);
+			const imageBorderPixel = readFramePixelAt({
+				inputPath: imageOutputPath,
+				time: 0.5,
+				x: 5,
+				y: 5,
+			});
+			expect(imageBorderPixel[1]).toBeGreaterThan(imageBorderPixel[0]);
+		});
+
+		it("renders every catalog multi-screen program through the real FFmpeg pipeline", () => {
+			const stripedSourcePath = path.join(
+				tempDir,
+				"effect-composite-stripes.mp4"
+			);
+			const stripedImagePath = path.join(
+				tempDir,
+				"effect-composite-stripes.png"
+			);
+			const stripeFilter =
+				"color=c=black:s=320x180:d=1:r=30," +
+				"drawbox=x=0:y=0:w=80:h=180:c=red:t=fill," +
+				"drawbox=x=80:y=0:w=80:h=180:c=green:t=fill," +
+				"drawbox=x=160:y=0:w=80:h=180:c=blue:t=fill," +
+				"drawbox=x=240:y=0:w=80:h=180:c=yellow:t=fill";
+			const source = runFFmpeg([
+				"-y",
+				"-f",
+				"lavfi",
+				"-i",
+				stripeFilter,
+				"-c:v",
+				"libx264",
+				"-pix_fmt",
+				"yuv420p",
+				stripedSourcePath,
+			]);
+			const imageSource = runFFmpeg([
+				"-y",
+				"-f",
+				"lavfi",
+				"-i",
+				stripeFilter,
+				"-frames:v",
+				"1",
+				stripedImagePath,
+			]);
+			expect(source.status, source.stderr?.toString()).toBe(0);
+			expect(imageSource.status, imageSource.stderr?.toString()).toBe(0);
+
+			const outputById = new Map<string, string>();
+			for (const entry of COMPOSITE_EFFECT_CATALOG) {
+				const outputPath = path.join(
+					tempDir,
+					`effect-composite-${entry.preset.id}.mp4`
+				);
+				const result = runFFmpeg(
+					buildFFmpegArgs({
+						inputDir: tempDir,
+						outputFile: outputPath,
+						width: 320,
+						height: 180,
+						fps: 30,
+						quality: "low",
+						duration: 1,
+						videoSources: [
+							{
+								path: stripedSourcePath,
+								startTime: 0,
+								duration: 1,
+								effectRenderProgram: entry.preset.renderProgram,
+							},
+						],
+					})
+				);
+				expect(
+					result.status,
+					`${entry.preset.id}: ${result.stderr?.toString()}`
+				).toBe(0);
+				expect(fs.statSync(outputPath).size).toBeGreaterThan(1_000);
+				outputById.set(entry.preset.id, outputPath);
+			}
+
+			const sideBySide = outputById.get("multiscreen-side-by-side");
+			const mirror = outputById.get("multiscreen-mirror-duo");
+			const grid = outputById.get("multiscreen-quad-grid");
+			if (!sideBySide || !mirror || !grid) {
+				throw new Error("Missing multi-screen proof outputs");
+			}
+			const imageOutputPath = path.join(
+				tempDir,
+				"effect-composite-image-grid.mp4"
+			);
+			const imageResult = runFFmpeg(
+				buildFFmpegArgs({
+					inputDir: tempDir,
+					outputFile: imageOutputPath,
+					width: 320,
+					height: 180,
+					fps: 30,
+					quality: "low",
+					duration: 1,
+					imageSources: [
+						{
+							path: stripedImagePath,
+							elementId: "composite-image",
+							trackId: "track-1",
+							trackOrder: 0,
+							elementOrder: 0,
+							startTime: 0,
+							duration: 1,
+							trimStart: 0,
+							trimEnd: 0,
+							effectRenderProgram:
+								COMPOSITE_EFFECT_CATALOG[2].preset.renderProgram,
+						},
+					],
+				})
+			);
+			expect(imageResult.status, imageResult.stderr?.toString()).toBe(0);
+			expect(fs.statSync(imageOutputPath).size).toBeGreaterThan(1_000);
+			const sideLeft = readFramePixelAt({
+				inputPath: sideBySide,
+				time: 0.5,
+				x: 20,
+				y: 90,
+			});
+			const sideRight = readFramePixelAt({
+				inputPath: sideBySide,
+				time: 0.5,
+				x: 182,
+				y: 90,
+			});
+			expect(Math.abs(sideLeft[1] - sideRight[1])).toBeLessThan(20);
+			expect(sideLeft[1]).toBeGreaterThan(sideLeft[0]);
+
+			const mirrorLeft = readFramePixelAt({
+				inputPath: mirror,
+				time: 0.5,
+				x: 20,
+				y: 90,
+			});
+			const mirrorRight = readFramePixelAt({
+				inputPath: mirror,
+				time: 0.5,
+				x: 182,
+				y: 90,
+			});
+			expect(mirrorLeft[1]).toBeGreaterThan(mirrorLeft[2]);
+			expect(mirrorRight[2]).toBeGreaterThan(mirrorRight[1]);
+
+			const gridTopLeft = readFramePixelAt({
+				inputPath: grid,
+				time: 0.5,
+				x: 12,
+				y: 20,
+			});
+			const gridBottomRight = readFramePixelAt({
+				inputPath: grid,
+				time: 0.5,
+				x: 174,
+				y: 112,
+			});
+			expect(Math.abs(gridTopLeft[0] - gridBottomRight[0])).toBeLessThan(20);
+			expect(gridTopLeft[0]).toBeGreaterThan(gridTopLeft[2]);
+			const imageGridPixel = readFramePixelAt({
+				inputPath: imageOutputPath,
+				time: 0.5,
+				x: 174,
+				y: 112,
+			});
+			expect(imageGridPixel[0]).toBeGreaterThan(imageGridPixel[2]);
+		});
+
+		it("renders every paired sound effect with real companion audio", () => {
+			const sourcePath = path.join(tempDir, "effect-sound-source.mp4");
+			const source = runFFmpeg([
+				"-y",
+				"-f",
+				"lavfi",
+				"-i",
+				"testsrc2=s=320x180:d=2:r=30",
+				"-c:v",
+				"libx264",
+				"-pix_fmt",
+				"yuv420p",
+				sourcePath,
+			]);
+			expect(source.status, source.stderr?.toString()).toBe(0);
+			const audioPathByResourceId = new Map([
+				[
+					"-2003",
+					path.resolve(
+						__dirname,
+						"../../apps/web/public/audio/builtin/cinematic-impact.ogg"
+					),
+				],
+				[
+					"-2004",
+					path.resolve(
+						__dirname,
+						"../../apps/web/public/audio/builtin/air-whoosh.ogg"
+					),
+				],
+				[
+					"-2005",
+					path.resolve(
+						__dirname,
+						"../../apps/web/public/audio/builtin/camera-shutter.ogg"
+					),
+				],
+			] as const);
+
+			for (const entry of SOUND_EFFECT_CATALOG) {
+				const companion = entry.preset.audioCompanion;
+				if (!companion) {
+					throw new Error(`Missing audio companion: ${entry.preset.id}`);
+				}
+				const audioPath = audioPathByResourceId.get(companion.resourceId);
+				if (!audioPath || !fs.existsSync(audioPath)) {
+					throw new Error(`Missing sound resource: ${companion.resourceId}`);
+				}
+				const outputPath = path.join(
+					tempDir,
+					`effect-sound-${entry.preset.id}.mp4`
+				);
+				const result = runFFmpeg(
+					buildFFmpegArgs({
+						inputDir: tempDir,
+						outputFile: outputPath,
+						width: 320,
+						height: 180,
+						fps: 30,
+						quality: "low",
+						duration: 2,
+						videoSources: [
+							{
+								path: sourcePath,
+								startTime: 0,
+								duration: 2,
+								effectRenderProgram: entry.preset.renderProgram,
+							},
+						],
+						audioFiles: [
+							{
+								elementId: entry.preset.id,
+								trackId: "effect-track",
+								path: audioPath,
+								startTime: companion.offsetSeconds,
+								volume: companion.gain,
+								trimStart: 0,
+								trimEnd: 0,
+								duration: companion.durationSeconds,
+							},
+						],
+					})
+				);
+				expect(
+					result.status,
+					`${entry.preset.id}: ${result.stderr?.toString()}`
+				).toBe(0);
+				expect(fs.statSync(outputPath).size).toBeGreaterThan(5_000);
+				const activeSamples = readMonoAudioSamples({
+					inputPath: outputPath,
+					time: companion.offsetSeconds,
+					duration: Math.min(0.4, companion.durationSeconds),
+				});
+				const lateSamples = readMonoAudioSamples({
+					inputPath: outputPath,
+					time: 1.85,
+					duration: 0.1,
+				});
+				expect(activeSamples.length).toBeGreaterThan(1_000);
+				expect(rootMeanSquare({ samples: activeSamples })).toBeGreaterThan(
+					0.002
+				);
+				expect(rootMeanSquare({ samples: lateSamples })).toBeLessThan(0.0001);
+			}
 		});
 
 		it("preserves and processes per-clip audio", () => {
