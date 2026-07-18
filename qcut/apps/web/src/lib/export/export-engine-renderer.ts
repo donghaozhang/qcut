@@ -45,6 +45,7 @@ import { getMediaSourcePlaybackTime } from "@/lib/video/video-timing";
 import { drawColorGradedSourceWithMasks } from "@/lib/color/browser-color-rendering";
 import { resolveTimelineStickerVisual } from "@/lib/stickers/timeline-sticker-visual";
 import { resolveTimelineElementEffects } from "@/lib/effects/adjustment-layer";
+import { canvasFontFamily } from "@/lib/text/canvas-font";
 
 let exportCompositor: ScreenRecordingExportCompositor | null = null;
 let compositorFrameCanvas: HTMLCanvasElement | null = null;
@@ -733,7 +734,7 @@ export function renderCaptionElement(
 
 	ctx.save();
 	ctx.globalAlpha = style.fontOpacity * animation.opacity;
-	ctx.font = `${fontStyle} ${fontWeight} ${style.fontSize}px ${style.fontFamily}`;
+	ctx.font = `${fontStyle} ${fontWeight} ${style.fontSize}px ${canvasFontFamily(style.fontFamily)}`;
 	ctx.letterSpacing = `${style.letterSpacing}px`;
 	ctx.textAlign = style.textAlign;
 	ctx.textBaseline = "middle";
@@ -920,7 +921,7 @@ export function renderMarkdownElement({
 		ctx.clip();
 
 		ctx.fillStyle = element.textColor || "#ffffff";
-		ctx.font = `${fontSize}px ${element.fontFamily || "Arial"}`;
+		ctx.font = `${fontSize}px ${canvasFontFamily(element.fontFamily || "Arial")}`;
 		ctx.textAlign = "left";
 		ctx.textBaseline = "top";
 

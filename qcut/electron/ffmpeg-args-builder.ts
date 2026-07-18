@@ -90,6 +90,26 @@ function escapeFilterPath(filePath: string): string {
 		.replace(/([,;[\]])/g, "\\$1");
 }
 
+/**
+ * The bundled static FFmpeg's libass has no system font discovery: it only
+ * loads fonts from an explicit fontsdir. Point it at the platform directory
+ * that carries CJK-capable fonts so burned-in text keeps its glyphs.
+ */
+export function assFontsDirectory(): string | undefined {
+	if (process.platform === "darwin") {
+		return "/System/Library/Fonts/Supplemental";
+	}
+	if (process.platform === "win32") {
+		return `${process.env.WINDIR ?? "C:\\Windows"}\\Fonts`;
+	}
+	return undefined;
+}
+
+function assFontsDirSuffix(): string {
+	const directory = assFontsDirectory();
+	return directory ? `:fontsdir='${escapeFilterPath(directory)}'` : "";
+}
+
 interface ResolvedTextAssLayer {
 	path: string;
 	blendMode:
@@ -252,7 +272,7 @@ function buildCanonicalVisualFilters({
 		const overlayLabel = `visual_text_ass_${index}`;
 		filterSteps.push(
 			`color=c=black@0.0:s=${width}x${height}:d=${duration}:r=${fps},format=rgba,` +
-				`ass=filename='${escapeFilterPath(layer.path)}':alpha=1[${overlayLabel}]`
+				`ass=filename='${escapeFilterPath(layer.path)}':alpha=1${assFontsDirSuffix()}[${overlayLabel}]`
 		);
 		layers.push({
 			inputLabel: overlayLabel,
@@ -553,7 +573,7 @@ function buildCompositeEncodeArgs(
 			}
 			const overlayLabel = `text_ass_overlay_${index}`;
 			filterSteps.push(
-				`color=c=black@0.0:s=${width}x${height}:d=${duration}:r=${fps},format=rgba,ass=filename='${escapeFilterPath(layer.path)}':alpha=1[${overlayLabel}]`
+				`color=c=black@0.0:s=${width}x${height}:d=${duration}:r=${fps},format=rgba,ass=filename='${escapeFilterPath(layer.path)}':alpha=1${assFontsDirSuffix()}[${overlayLabel}]`
 			);
 			const outputLabel = `v_text_ass_${filterLabelIndex++}`;
 			if (layer.blendMode === "normal") {

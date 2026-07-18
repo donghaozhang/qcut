@@ -32,6 +32,23 @@ import type {
 	ProgressFn,
 } from "./cli-runner/types.js";
 
+// The bundled static FFmpeg's libass has no system font discovery; point it
+// at a platform fonts directory so CJK subtitles keep their glyphs.
+function assFontsDirSuffixForCli(): string {
+	const directory =
+		process.platform === "darwin"
+			? "/System/Library/Fonts/Supplemental"
+			: process.platform === "win32"
+				? `${process.env.WINDIR ?? "C:\\Windows"}\\Fonts`
+				: undefined;
+	if (!directory) return "";
+	const escaped = directory
+		.replace(/\\/g, "/")
+		.replace(/'/g, "\\'")
+		.replace(/:/g, "\\:");
+	return `:fontsdir='${escaped}'`;
+}
+
 const execFileAsync = promisify(execFile);
 
 /**
@@ -319,7 +336,7 @@ export async function handleSubtitleExport(
 				"-i",
 				videoPath,
 				"-vf",
-				`ass=${escapedAssPath}`,
+				`ass=${escapedAssPath}${assFontsDirSuffixForCli()}`,
 				"-c:a",
 				"copy",
 				"-y",

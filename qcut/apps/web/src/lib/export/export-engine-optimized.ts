@@ -12,6 +12,7 @@ import { stripMarkdownSyntax } from "@/lib/markdown";
 import { renderTextToCanvas } from "@/lib/text/text-canvas-renderer";
 import { getTimelineElementEndTime } from "@/lib/timeline";
 import { getMediaSourcePlaybackTime } from "@/lib/video/video-timing";
+import { canvasFontFamily } from "@/lib/text/canvas-font";
 
 // Frame cache entry
 interface CachedFrame {
@@ -418,7 +419,7 @@ export class OptimizedExportEngine extends ExportEngine {
 			ctx.save();
 			ctx.globalAlpha = element.opacity ?? 1;
 			ctx.fillStyle = element.textColor || "#ffffff";
-			ctx.font = `${element.fontSize || 18}px ${element.fontFamily || "Arial"}`;
+			ctx.font = `${element.fontSize || 18}px ${canvasFontFamily(element.fontFamily || "Arial")}`;
 			ctx.textAlign = "left";
 			ctx.textBaseline = "top";
 			for (let index = 0; index < lines.length; index++) {

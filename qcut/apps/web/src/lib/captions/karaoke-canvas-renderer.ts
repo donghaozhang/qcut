@@ -1,5 +1,6 @@
 import type { CaptionElement, SubtitleStyle } from "@/types/timeline";
 import { getCaptionAnimationState, hexToRgba } from "./subtitle-style";
+import { canvasFontFamily } from "@/lib/text/canvas-font";
 
 interface KaraokeCanvasLine {
 	words: NonNullable<CaptionElement["words"]>;
@@ -105,7 +106,7 @@ export function renderKaraokeCaptionToCanvas({
 	});
 	ctx.save();
 	ctx.globalAlpha = style.fontOpacity * animation.opacity;
-	ctx.font = `${fontStyle} ${fontWeight} ${style.fontSize}px ${style.fontFamily}`;
+	ctx.font = `${fontStyle} ${fontWeight} ${style.fontSize}px ${canvasFontFamily(style.fontFamily)}`;
 	ctx.letterSpacing = `${style.letterSpacing}px`;
 	ctx.textAlign = "left";
 	ctx.textBaseline = "middle";

@@ -9,6 +9,7 @@ import { getTextAnimationState } from "./text-animation";
 import { resolveTextKeyframes } from "./text-keyframes";
 import { getCurvedTextTransforms } from "./curved-text";
 import { wrapTextToWidth } from "./text-measurement";
+import { canvasFontFamily } from "@/lib/text/canvas-font";
 
 type CanvasTextContext =
 	| CanvasRenderingContext2D
@@ -203,7 +204,7 @@ export function renderTextToCanvas({
 	ctx.rotate((renderedElement.rotation * Math.PI) / 180);
 	ctx.globalAlpha = renderedElement.opacity * animationState.opacity;
 	ctx.globalCompositeOperation = blendModeToCanvas(style.blendMode);
-	ctx.font = `${renderedElement.fontStyle} ${renderedElement.fontWeight} ${renderedElement.fontSize}px "${renderedElement.fontFamily.replaceAll('"', "")}"`;
+	ctx.font = `${renderedElement.fontStyle} ${renderedElement.fontWeight} ${renderedElement.fontSize}px ${canvasFontFamily(renderedElement.fontFamily)}`;
 	ctx.textAlign = "left";
 	ctx.textBaseline = "top";
 
