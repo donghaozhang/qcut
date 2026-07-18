@@ -46,6 +46,7 @@ import {
 	extractAudioMixConfig,
 	extractEffectOverlaySources,
 	extractEffectCompanionAudioSources,
+	extractEffectAudioReactiveEnvelopes,
 } from "../export-cli/sources";
 import {
 	prepareAudioFilesForExport,
@@ -326,6 +327,14 @@ export class CLIExportEngine extends ExportEngine {
 			tracks: this.tracks,
 			effectsStore: this.effectsStore,
 		});
+		const hasAudioReactiveEffects = [...effectsByElementId.values()].some(
+			(effects) =>
+				effects.some((effect) =>
+					effect.renderProgram?.stages.some(
+						(stage) => stage.kind === "audio-reactive"
+					)
+				)
+		);
 		// Prepare audio files
 		progressCallback?.(5, "Preparing audio files...");
 		const includeAudio = this.audioOptions.includeAudio ?? true;
@@ -335,12 +344,13 @@ export class CLIExportEngine extends ExportEngine {
 		});
 
 		let audioFiles: AudioFileInput[] = [];
-		if (includeAudio) {
+		let audioReactiveAnalysisFiles: AudioFileInput[] = [];
+		if (includeAudio || hasAudioReactiveEffects) {
 			const { tracks, mediaItems } = await resolveAudioPreparationInputs({
 				mediaItems: this.mediaItems,
 				tracks: this.tracks,
 			});
-			audioFiles = await prepareAudioFilesForExport({
+			const preparedAudioFiles = await prepareAudioFilesForExport({
 				fileExists: ({ filePath }) => fileExistsUtil({ filePath }),
 				invokeIfAvailable: ({ args = [], channel }) =>
 					invokeIfAvailableUtil({ args, channel }),
@@ -351,12 +361,16 @@ export class CLIExportEngine extends ExportEngine {
 				includeEmbeddedVideoAudio:
 					this.exportAnalysis?.optimizationStrategy !== "direct-copy",
 			});
-			audioFiles.push(
-				...(await extractEffectCompanionAudioSources({
-					tracks: this.tracks,
-					effectsByElementId,
-				}))
-			);
+			audioReactiveAnalysisFiles = preparedAudioFiles;
+			if (includeAudio) {
+				audioFiles = preparedAudioFiles;
+				audioFiles.push(
+					...(await extractEffectCompanionAudioSources({
+						tracks: this.tracks,
+						effectsByElementId,
+					}))
+				);
+			}
 		} else {
 			debugLog(
 				"[CLI Export] Audio excluded by user setting (includeAudio=false)"
@@ -382,6 +396,9 @@ export class CLIExportEngine extends ExportEngine {
 		}
 
 		audioFiles = await validateAudioFiles(audioFiles);
+		audioReactiveAnalysisFiles = includeAudio
+			? audioFiles
+			: await validateAudioFiles(audioReactiveAnalysisFiles);
 
 		// Collect effects filter chains
 		const elementFilterChains = new Map<string, string>();
@@ -430,6 +447,13 @@ export class CLIExportEngine extends ExportEngine {
 					logger: debugLog,
 				})
 			: new Map();
+		const effectAudioReactiveEnvelopesByElementId =
+			await extractEffectAudioReactiveEnvelopes({
+				programsByElementId: elementRenderPrograms,
+				tracks: this.tracks,
+				audioFiles: audioReactiveAnalysisFiles,
+				fps: this.getFrameRate(),
+			});
 
 		// Build text overlay filter chain
 		console.log(
@@ -556,6 +580,8 @@ export class CLIExportEngine extends ExportEngine {
 					effectOverlaySources: effectOverlaySourcesByElementId.get(
 						source.elementId
 					),
+					effectAudioReactiveEnvelopes:
+						effectAudioReactiveEnvelopesByElementId.get(source.elementId),
 				}));
 				if (imageSources.length > 0) {
 					imageFilterChain = buildImageOverlayFilters(
@@ -663,6 +689,9 @@ export class CLIExportEngine extends ExportEngine {
 			effectFilter: elementFilterChains.get(source.elementId),
 			effectRenderProgram: elementRenderPrograms.get(source.elementId),
 			effectOverlaySources: effectOverlaySourcesByElementId.get(
+				source.elementId
+			),
+			effectAudioReactiveEnvelopes: effectAudioReactiveEnvelopesByElementId.get(
 				source.elementId
 			),
 		}));
