@@ -7,10 +7,14 @@ export const VLOG_PRESETS = [
 	"news",
 ] as const;
 
+export const VLOG_BACKGROUND_FITS = ["cover", "contain", "stretch"] as const;
+
 export type VlogPreset = (typeof VLOG_PRESETS)[number];
+export type VlogBackgroundFit = (typeof VLOG_BACKGROUND_FITS)[number];
 
 export type VlogStage =
 	| "clean"
+	| "background"
 	| "extract-audio"
 	| "transcribe"
 	| "subtitle"
@@ -20,6 +24,8 @@ export interface VlogOptions {
 	input: string;
 	outputDir: string;
 	finalName: string;
+	background?: string;
+	backgroundFit: VlogBackgroundFit;
 	preset: VlogPreset;
 	style?: string;
 	model: string;
@@ -48,10 +54,13 @@ export interface VlogPaths {
 	cuts: string;
 	keeps: string;
 	cleanVideo: string;
+	cutoutVideo: string;
+	editableVideo: string;
 	cleanAudio: string;
 	srt: string;
 	finalVideo: string;
 	previewImage: string;
+	backgroundPreviewImage: string;
 	manifest: string;
 }
 
@@ -104,6 +113,7 @@ export interface VerificationSummary {
 	subtitleCount: number;
 	previewTime: number;
 	previewImage: string;
+	backgroundPreviewImage?: string;
 }
 
 export interface StageRecord {
@@ -125,7 +135,7 @@ export interface CommandRecord {
 }
 
 export interface VlogManifest {
-	schemaVersion: 1;
+	schemaVersion: 2;
 	workflow: "qcut-vlog";
 	input: string;
 	outputDir: string;
@@ -133,6 +143,8 @@ export interface VlogManifest {
 	updatedAt: string;
 	settings: {
 		finalName: string;
+		background?: string;
+		backgroundFit: VlogBackgroundFit;
 		preset: VlogPreset;
 		style?: string;
 		model: string;
@@ -146,10 +158,14 @@ export interface VlogManifest {
 	};
 	artifacts: {
 		cleanVideo: string;
+		backgroundImage?: string;
+		cutoutVideo?: string;
+		editableVideo: string;
 		cleanAudio: string;
 		srt: string;
 		finalVideo: string;
 		previewImage: string;
+		backgroundPreviewImage?: string;
 		metadataDir: string;
 	};
 	stages: Record<VlogStage, StageRecord>;
