@@ -551,6 +551,23 @@ export interface TimelineStore {
 		>,
 		pushHistory?: boolean
 	) => void;
+	updateAdjustmentElement: (
+		trackId: string,
+		elementId: string,
+		updates: Partial<
+			Pick<
+				AdjustmentElement,
+				| "name"
+				| "duration"
+				| "opacity"
+				| "color"
+				| "adjustments"
+				| "effects"
+				| "effectChains"
+			>
+		>,
+		pushHistory?: boolean
+	) => void;
 
 	// Interactive element manipulation (for effects)
 	setElementEffectState: ({

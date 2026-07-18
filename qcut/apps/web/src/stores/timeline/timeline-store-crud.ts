@@ -756,6 +756,31 @@ export function createCrudOperations(
 			);
 		},
 
+		updateAdjustmentElement: (
+			trackId,
+			elementId,
+			updates,
+			pushHistory = true
+		) => {
+			if (pushHistory) {
+				get().pushHistory();
+			}
+			updateTracksAndSave(
+				get()._tracks.map((track) =>
+					track.id === trackId
+						? {
+								...track,
+								elements: track.elements.map((element) =>
+									element.id === elementId && element.type === "adjustment"
+										? { ...element, ...updates }
+										: element
+								),
+							}
+						: track
+				)
+			);
+		},
+
 		updateElementTransform: (elementId, updates, options) => {
 			const push = options?.pushHistory !== false;
 			if (push) get().pushHistory();

@@ -61,7 +61,11 @@ export function useTimelineElementResize({
 
 	const canExtendElementDuration = useCallback(() => {
 		// Text elements can always be extended
-		if (element.type === "text" || element.type === "markdown") {
+		if (
+			element.type === "text" ||
+			element.type === "markdown" ||
+			element.type === "adjustment"
+		) {
 			return true;
 		}
 
