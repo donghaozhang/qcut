@@ -51,6 +51,7 @@ export type {
 	MediaType,
 	TrackType,
 	MediaElement,
+	EffectElement,
 	CompoundMediaClip,
 	MediaCompound,
 	MediaBlendMode,
@@ -128,6 +129,7 @@ export type {
 	MarkdownElement,
 	TimelineElement,
 	CreateMediaElement,
+	CreateEffectElement,
 	CreateTextElement,
 	CreateStickerElement,
 	CreateAdjustmentElement,
@@ -154,6 +156,7 @@ export type {
 	CaptionExportOptions,
 	AnimatedParameter,
 	EffectAudioCompanion,
+	EffectTimelineRange,
 	EffectChain,
 	EffectInstance,
 	EffectKeyframe,
@@ -171,6 +174,7 @@ export type {
 	EffectOverlayRenderStage,
 	EffectPersonTrackingRenderStage,
 	EffectRenderProgram,
+	EffectRenderWindow,
 	EffectRenderStage,
 	EffectRenderStageKind,
 } from "./types/index.js";
@@ -178,6 +182,7 @@ export type {
 export {
 	collectEffectRenderStageKinds,
 	combineEffectRenderPrograms,
+	withEffectRenderWindow,
 	validateEffectRenderProgram,
 	type EffectRenderProgramValidation,
 } from "./effects/index.js";
@@ -212,6 +217,7 @@ export {
 	resolveClipTransition,
 	type ResolvedAudioCrossfade,
 	isMediaElement,
+	isEffectElement,
 	isTextElement,
 	isStickerElement,
 	isAdjustmentElement,
@@ -222,6 +228,9 @@ export {
 	getActiveRemotionElements,
 	canElementGoOnTrack,
 	validateElementTrackCompatibility,
+	collectTimelineEffectsByTarget,
+	getEffectRenderWindow,
+	getTimelineEffectsAtTime,
 } from "./timeline/index.js";
 
 export type {
