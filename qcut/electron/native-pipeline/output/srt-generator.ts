@@ -67,7 +67,8 @@ function joinTokens(words: WordTimestamp[]): string {
 		const needsSpace =
 			text.length > 0 &&
 			!CJK_CHAR.test(text[text.length - 1]) &&
-			!CJK_CHAR.test(token[0]);
+			!CJK_CHAR.test(token[0]) &&
+			!PUNCT_ONLY_TOKEN.test(token);
 		text += needsSpace ? ` ${token}` : token;
 	}
 	return text;

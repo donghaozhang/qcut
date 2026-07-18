@@ -22,6 +22,16 @@ describe("generateSrt", () => {
 		expect(entryTexts(srt)).toEqual(["Hello world again"]);
 	});
 
+	it("attaches standalone Latin punctuation to the preceding word", () => {
+		const srt = generateSrt([
+			w("Hello", 0, 0.4),
+			w(",", 0.4, 0.5),
+			w("world", 0.5, 0.9),
+			w("!", 0.9, 1),
+		]);
+		expect(entryTexts(srt)).toEqual(["Hello, world!"]);
+	});
+
 	it("joins CJK tokens without inserting spaces", () => {
 		const srt = generateSrt([
 			w("很", 0, 0.2),
