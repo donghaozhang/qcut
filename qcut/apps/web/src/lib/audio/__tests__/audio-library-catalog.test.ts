@@ -94,11 +94,11 @@ describe("audio library catalog", () => {
 			readFileSync(tracksPath, "utf8")
 		) as AudioCdnSourceTrackForTest[];
 		const cdnTracks = sourceTracks.map((track) => ({
-				...track,
-				previewUrl: `https://assets.qcut.test/audio/${track.file}`,
-				artworkUrl: track.artworkFile
-					? `https://assets.qcut.test/audio/${track.artworkFile}`
-					: undefined,
+			...track,
+			previewUrl: `https://assets.qcut.test/audio/${track.file}`,
+			artworkUrl: track.artworkFile
+				? `https://assets.qcut.test/audio/${track.artworkFile}`
+				: undefined,
 		}));
 
 		const cdnSounds = cdnTracks.map((track) =>
