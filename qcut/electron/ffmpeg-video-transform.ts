@@ -31,6 +31,10 @@ import {
 	buildEffectMotionExpressions,
 	hasEffectMotionProperty,
 } from "./ffmpeg/effect-motion-expression";
+import type {
+	EffectCompositeRenderStage,
+	EffectOverlayRenderStage,
+} from "./ffmpeg/effect-render-types";
 
 const DEFAULT_ADJUSTMENTS: NonNullable<VideoVisual["adjustments"]> = {
 	brightness: 0,
@@ -533,6 +537,238 @@ function hasPerspectiveKeyframes(visual: VideoVisual): boolean {
 	);
 }
 
+function buildEffectOverlayFitFilter({
+	stage,
+	width,
+	height,
+}: {
+	stage: EffectOverlayRenderStage;
+	width: number;
+	height: number;
+}): string {
+	if (stage.fit === "stretch") {
+		return `scale=${width}:${height},format=rgba`;
+	}
+	if (stage.fit === "cover") {
+		return (
+			`scale=${width}:${height}:force_original_aspect_ratio=increase,` +
+			`crop=${width}:${height},format=rgba`
+		);
+	}
+	return (
+		`scale=${width}:${height}:force_original_aspect_ratio=decrease,format=rgba,` +
+		`pad=${width}:${height}:(ow-iw)/2:(oh-ih)/2:color=0x00000000`
+	);
+}
+
+interface EffectCompositeTile {
+	x: number;
+	y: number;
+	width: number;
+	height: number;
+	mirror: boolean;
+}
+
+function effectCompositeTiles({
+	stage,
+	width,
+	height,
+}: {
+	stage: EffectCompositeRenderStage;
+	width: number;
+	height: number;
+}): EffectCompositeTile[] {
+	const gap = Math.max(0, Math.round(Math.min(width, height) * stage.gap));
+	if (stage.layout === "split-horizontal") {
+		const tileHeight = Math.max(2, Math.floor((height - gap) / 2));
+		return [
+			{ x: 0, y: 0, width, height: tileHeight, mirror: false },
+			{ x: 0, y: tileHeight + gap, width, height: tileHeight, mirror: false },
+		];
+	}
+	if (stage.layout === "grid") {
+		const tileWidth = Math.max(2, Math.floor((width - gap) / 2));
+		const tileHeight = Math.max(2, Math.floor((height - gap) / 2));
+		return [
+			{ x: 0, y: 0, width: tileWidth, height: tileHeight, mirror: false },
+			{
+				x: tileWidth + gap,
+				y: 0,
+				width: tileWidth,
+				height: tileHeight,
+				mirror: false,
+			},
+			{
+				x: 0,
+				y: tileHeight + gap,
+				width: tileWidth,
+				height: tileHeight,
+				mirror: false,
+			},
+			{
+				x: tileWidth + gap,
+				y: tileHeight + gap,
+				width: tileWidth,
+				height: tileHeight,
+				mirror: false,
+			},
+		];
+	}
+	const tileWidth = Math.max(2, Math.floor((width - gap) / 2));
+	return [
+		{ x: 0, y: 0, width: tileWidth, height, mirror: false },
+		{
+			x: tileWidth + gap,
+			y: 0,
+			width: tileWidth,
+			height,
+			mirror: stage.layout === "mirror",
+		},
+	];
+}
+
+function buildEffectCompositeFilters({
+	currentLabel,
+	duration,
+	fps,
+	height,
+	segmentIndex,
+	source,
+	width,
+}: {
+	currentLabel: string;
+	duration: number;
+	fps: number;
+	height: number;
+	segmentIndex: number;
+	source: VideoSource;
+	width: number;
+}): { filterSteps: string[]; outputLabel: string } {
+	const program = source.effectRenderProgram;
+	if (!program) return { filterSteps: [], outputLabel: currentLabel };
+	const filterSteps: string[] = [];
+	let outputLabel = currentLabel;
+	for (const [stageIndex, stage] of program.stages.entries()) {
+		if (stage.kind !== "composite") continue;
+		const prefix = `video_${segmentIndex}_effect_composite_${stageIndex}`;
+		const tiles = effectCompositeTiles({ stage, width, height });
+		const splitLabels = tiles.map((_tile, index) => `${prefix}_copy_${index}`);
+		filterSteps.push(
+			`[${outputLabel}]split=${tiles.length}${splitLabels.map((label) => `[${label}]`).join("")}`
+		);
+		const preparedLabels = tiles.map((tile, index) => {
+			const scaled = `${prefix}_scaled_${index}`;
+			filterSteps.push(
+				`[${splitLabels[index]}]scale=${tile.width}:${tile.height}:` +
+					`force_original_aspect_ratio=increase,crop=${tile.width}:${tile.height},setsar=1[${scaled}]`
+			);
+			if (!tile.mirror) return scaled;
+			const mirrored = `${prefix}_mirrored_${index}`;
+			filterSteps.push(`[${scaled}]hflip[${mirrored}]`);
+			return mirrored;
+		});
+		const background = `${prefix}_background`;
+		filterSteps.push(
+			`color=c=black:s=${width}x${height}:d=${duration}:r=${fps},format=rgba[${background}]`
+		);
+		let composedLabel = background;
+		for (const [tileIndex, tile] of tiles.entries()) {
+			const composed = `${prefix}_tile_${tileIndex}`;
+			filterSteps.push(
+				`[${composedLabel}][${preparedLabels[tileIndex]}]overlay=` +
+					`x=${tile.x}:y=${tile.y}:shortest=1:format=auto[${composed}]`
+			);
+			composedLabel = composed;
+		}
+		outputLabel = composedLabel;
+	}
+	return { filterSteps, outputLabel };
+}
+
+function buildEffectOverlayFilters({
+	currentLabel,
+	duration,
+	fps,
+	height,
+	segmentIndex,
+	source,
+	width,
+}: {
+	currentLabel: string;
+	duration: number;
+	fps: number;
+	height: number;
+	segmentIndex: number;
+	source: VideoSource;
+	width: number;
+}): { filterSteps: string[]; outputLabel: string } {
+	const program = source.effectRenderProgram;
+	if (!program) return { filterSteps: [], outputLabel: currentLabel };
+
+	const filterSteps: string[] = [];
+	let outputLabel = currentLabel;
+	for (const [stageIndex, stage] of program.stages.entries()) {
+		if (stage.kind !== "overlay") continue;
+		const overlaySource = source.effectOverlaySources?.find(
+			(candidate) =>
+				candidate.stageIndex === stageIndex &&
+				candidate.resourceId === stage.resourceId
+		);
+		if (overlaySource?.inputIndex === undefined) {
+			throw new Error(
+				`Missing FFmpeg input for effect overlay ${stage.resourceId} at stage ${stageIndex}`
+			);
+		}
+
+		const prefix = `video_${segmentIndex}_effect_overlay_${stageIndex}`;
+		const prepared = `${prefix}_prepared`;
+		filterSteps.push(
+			`[${overlaySource.inputIndex}:v]${buildEffectOverlayFitFilter({ stage, width, height })},` +
+				`fps=${fps},trim=duration=${duration},setpts=PTS-STARTPTS[${prepared}]`
+		);
+		let overlayLabel = prepared;
+		if (stage.opacity < 1) {
+			const alpha = `${prefix}_alpha`;
+			filterSteps.push(
+				`[${prepared}]geq=r='r(X,Y)':g='g(X,Y)':b='b(X,Y)':` +
+					`a='${stage.opacity}*alpha(X,Y)'[${alpha}]`
+			);
+			overlayLabel = alpha;
+		}
+
+		const composed = `${prefix}_composed`;
+		if (stage.blendMode === "normal") {
+			filterSteps.push(
+				`[${outputLabel}][${overlayLabel}]overlay=shortest=1:format=auto[${composed}]`
+			);
+			outputLabel = composed;
+			continue;
+		}
+
+		const baseOriginal = `${prefix}_base_original`;
+		const baseBlend = `${prefix}_base_blend`;
+		const overlayBlend = `${prefix}_overlay_blend`;
+		const overlayAlpha = `${prefix}_overlay_alpha`;
+		const blended = `${prefix}_blended`;
+		const mask = `${prefix}_mask`;
+		const blendedAlpha = `${prefix}_blended_alpha`;
+		filterSteps.push(`[${outputLabel}]split=2[${baseOriginal}][${baseBlend}]`);
+		filterSteps.push(
+			`[${overlayLabel}]split=2[${overlayBlend}][${overlayAlpha}]`
+		);
+		filterSteps.push(
+			`[${baseBlend}][${overlayBlend}]blend=all_mode=${stage.blendMode}[${blended}]`
+		);
+		filterSteps.push(`[${overlayAlpha}]alphaextract[${mask}]`);
+		filterSteps.push(`[${blended}][${mask}]alphamerge[${blendedAlpha}]`);
+		filterSteps.push(
+			`[${baseOriginal}][${blendedAlpha}]overlay=shortest=1:format=auto[${composed}]`
+		);
+		outputLabel = composed;
+	}
+	return { filterSteps, outputLabel };
+}
+
 function buildSegmentFilters({
 	source,
 	inputIndex,
@@ -677,6 +913,28 @@ function buildSegmentFilters({
 		steps.push(`[${current}]${source.effectFilter}[${effected}]`);
 		current = effected;
 	}
+	const effectCompositeGraph = buildEffectCompositeFilters({
+		currentLabel: current,
+		duration,
+		fps,
+		height,
+		segmentIndex,
+		source,
+		width,
+	});
+	steps.push(...effectCompositeGraph.filterSteps);
+	current = effectCompositeGraph.outputLabel;
+	const effectOverlayGraph = buildEffectOverlayFilters({
+		currentLabel: current,
+		duration,
+		fps,
+		height,
+		segmentIndex,
+		source,
+		width,
+	});
+	steps.push(...effectOverlayGraph.filterSteps);
+	current = effectOverlayGraph.outputLabel;
 	const crop = visual.crop;
 	const left = buildVideoKeyframeExpression({
 		visual,
