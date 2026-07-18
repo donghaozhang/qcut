@@ -6,7 +6,7 @@ import path from "node:path";
 import type { AudioWaveformOptions, AudioWaveformResult } from "./types.js";
 import { getFFmpegPath } from "./utils.js";
 
-const CACHE_VERSION = 2;
+const CACHE_VERSION = 3;
 const DEFAULT_PEAK_COUNT = 4_096;
 const MIN_PEAK_COUNT = 64;
 const MAX_PEAK_COUNT = 16_384;
@@ -20,7 +20,15 @@ interface NormalizedAudioWaveformOptions {
 	sourcePath: string;
 	duration: number;
 	peakCount: number;
+	band: "bass" | "mid" | "treble" | "full";
 }
+
+const AUDIO_BAND_FILTERS = {
+	bass: ["highpass=f=20", "lowpass=f=250"],
+	mid: ["highpass=f=250", "lowpass=f=4000"],
+	treble: ["highpass=f=4000", "lowpass=f=16000"],
+	full: [],
+} as const;
 
 export interface AudioWaveformCommand {
 	args: string[];
@@ -41,6 +49,10 @@ function normalizeAudioWaveformOptions({
 		throw new Error("Audio waveform duration must be positive");
 	}
 	const peakCount = options.peakCount ?? DEFAULT_PEAK_COUNT;
+	const band = options.band ?? "full";
+	if (!(band in AUDIO_BAND_FILTERS)) {
+		throw new Error(`Unsupported audio waveform band: ${band}`);
+	}
 	if (
 		!Number.isInteger(peakCount) ||
 		peakCount < MIN_PEAK_COUNT ||
@@ -54,6 +66,7 @@ function normalizeAudioWaveformOptions({
 		sourcePath: options.sourcePath,
 		duration: Number(options.duration.toFixed(6)),
 		peakCount,
+		band,
 	};
 }
 
@@ -73,6 +86,7 @@ export function buildAudioWaveformCacheKey({
 				sourceModified: source.mtimeMs,
 				duration: normalized.duration,
 				peakCount: normalized.peakCount,
+				band: normalized.band,
 				height: WAVEFORM_HEIGHT,
 			})
 		)
@@ -87,6 +101,7 @@ export function buildAudioWaveformCommand({
 	const normalized = normalizeAudioWaveformOptions({ options });
 	const filter = [
 		"aformat=channel_layouts=mono",
+		...AUDIO_BAND_FILTERS[normalized.band],
 		// filter=peak: the default (average) flattens music to a fraction of its
 		// real amplitude, making clip waveforms look nearly silent.
 		`showwavespic=s=${normalized.peakCount}x${WAVEFORM_HEIGHT}:colors=white:scale=lin:draw=full:filter=peak`,
