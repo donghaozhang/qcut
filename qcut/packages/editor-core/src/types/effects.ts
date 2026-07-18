@@ -134,6 +134,12 @@ export interface EffectAudioCompanion {
 	gain: number;
 }
 
+/** Global timeline range assigned when an effect comes from an effect element. */
+export interface EffectTimelineRange {
+	startTime: number;
+	duration: number;
+}
+
 export interface EffectInstance {
 	id: string;
 	presetId?: string;
@@ -145,6 +151,8 @@ export interface EffectInstance {
 	duration: number;
 	enabled: boolean;
 	animations?: AnimatedParameter[];
+	/** Runtime range; omitted for legacy effects that cover their entire target clip. */
+	timelineRange?: EffectTimelineRange;
 }
 
 export interface EffectChain {
