@@ -1,4 +1,10 @@
-import { existsSync, mkdtempSync, writeFileSync } from "node:fs";
+import {
+	existsSync,
+	mkdtempSync,
+	readFileSync,
+	readdirSync,
+	writeFileSync,
+} from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { describe, expect, it } from "bun:test";
@@ -7,6 +13,7 @@ import {
 	buildPersonCutoutPayload,
 	handlePersonCutout,
 	resolvePersonCutoutPaths,
+	resolvePersonCutoutFrameRate,
 	type PersonCutoutDependencies,
 } from "../cli-handlers-person-cutout.js";
 import { parseCliArgs } from "../cli.js";
@@ -106,6 +113,15 @@ describe("person-cutout CLI", () => {
 		expect(args.at(-1)).toBe("/project/output/editable.mp4");
 	});
 
+	it("falls back to the real frame rate when the average is invalid", () => {
+		expect(
+			resolvePersonCutoutFrameRate({
+				averageFrameRate: "0/0",
+				realFrameRate: "30000/1001",
+			})
+		).toBeCloseTo(29.97, 2);
+	});
+
 	it("uploads, downloads, composites, and reports both deliverables", async () => {
 		const directory = mkdtempSync(join(tmpdir(), "qcut-person-cutout-"));
 		const input = join(directory, "speaker.mov");
@@ -168,6 +184,120 @@ describe("person-cutout CLI", () => {
 			provider: "fal",
 			payload: { background_color: "Transparent" },
 		});
+	});
+
+	it("returns a structured failure when upload rejects", async () => {
+		const directory = mkdtempSync(join(tmpdir(), "qcut-person-cutout-"));
+		const input = join(directory, "speaker.mov");
+		writeFileSync(input, "video");
+		const result = await handlePersonCutout(
+			baseOptions({ input, outputDir: directory }),
+			() => undefined,
+			new AbortController().signal,
+			{
+				uploadFile: async () => {
+					throw new Error("storage unavailable");
+				},
+				callModel: async () => ({ success: false }),
+				downloadFile: async () => "",
+				probeVideo: async () => {
+					throw new Error("unexpected probe");
+				},
+				composeVideo: async () => undefined,
+			}
+		);
+
+		expect(result.success).toBe(false);
+		expect(result.error).toBe("Upload failed: storage unavailable");
+	});
+
+	it("returns a structured failure when the model call rejects", async () => {
+		const directory = mkdtempSync(join(tmpdir(), "qcut-person-cutout-"));
+		const input = join(directory, "speaker.mov");
+		writeFileSync(input, "video");
+		const result = await handlePersonCutout(
+			baseOptions({ input, outputDir: directory }),
+			() => undefined,
+			new AbortController().signal,
+			{
+				uploadFile: async () => ({
+					success: true,
+					url: "https://fal.storage/source.mov",
+				}),
+				callModel: async () => {
+					throw new Error("model unavailable");
+				},
+				downloadFile: async () => "",
+				probeVideo: async () => {
+					throw new Error("unexpected probe");
+				},
+				composeVideo: async () => undefined,
+			}
+		);
+
+		expect(result.success).toBe(false);
+		expect(result.error).toBe("Person cutout failed: model unavailable");
+	});
+
+	it("preserves existing outputs until every staged file validates", async () => {
+		const directory = mkdtempSync(join(tmpdir(), "qcut-person-cutout-"));
+		const input = join(directory, "speaker.mov");
+		const background = join(directory, "office.png");
+		const output = join(directory, "editable.mp4");
+		const cutout = join(directory, "person.webm");
+		writeFileSync(input, "video");
+		writeFileSync(background, "image");
+		writeFileSync(cutout, "stable cutout");
+		writeFileSync(output, "stable composite");
+		const result = await handlePersonCutout(
+			{
+				...baseOptions({ input, outputDir: directory }),
+				background,
+				output,
+				cutoutOutput: cutout,
+				force: true,
+			},
+			() => undefined,
+			new AbortController().signal,
+			{
+				uploadFile: async () => ({
+					success: true,
+					url: "https://fal.storage/source.mov",
+				}),
+				callModel: async () => ({
+					success: true,
+					outputUrl: "https://fal.media/cutout.webm",
+				}),
+				downloadFile: async ({ outputPath }) => {
+					writeFileSync(outputPath, "new cutout");
+					return outputPath;
+				},
+				probeVideo: async ({ filePath }) => {
+					if (filePath.endsWith(".webm")) {
+						return {
+							width: 720,
+							height: 1280,
+							frameRate: 30,
+							duration: 5,
+						};
+					}
+					throw new Error("invalid composite");
+				},
+				composeVideo: async ({ args }) => {
+					writeFileSync(args.at(-1) ?? "", "new composite");
+				},
+			}
+		);
+
+		expect(result.success).toBe(false);
+		expect(result.error).toContain("invalid composite");
+		expect(readFileSync(cutout, "utf8")).toBe("stable cutout");
+		expect(readFileSync(output, "utf8")).toBe("stable composite");
+		expect(
+			readdirSync(directory).filter((fileName) =>
+				fileName.includes("temporary")
+			)
+		).toEqual([]);
 	});
 
 	it("rejects source replacement and non-WebM alpha outputs", () => {

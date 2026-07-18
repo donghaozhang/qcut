@@ -6,7 +6,8 @@
  */
 
 import { execFile } from "node:child_process";
-import { existsSync, mkdirSync } from "node:fs";
+import { randomUUID } from "node:crypto";
+import { existsSync, mkdirSync, renameSync, rmSync } from "node:fs";
 import { basename, dirname, extname, join, resolve } from "node:path";
 import { promisify } from "node:util";
 import { getFFmpegPath, getFFprobePath } from "../../ffmpeg/paths.js";
@@ -98,8 +99,8 @@ interface FFprobePayload {
 	format?: { duration?: string };
 }
 
-function parseFrameRate({ value }: { value?: string }): number {
-	if (!value) return 30;
+function parseFrameRate({ value }: { value?: string }): number | undefined {
+	if (!value) return;
 	const [numerator, denominator = "1"] = value.split("/");
 	const parsedNumerator = Number(numerator);
 	const parsedDenominator = Number(denominator);
@@ -108,10 +109,24 @@ function parseFrameRate({ value }: { value?: string }): number {
 		!Number.isFinite(parsedDenominator) ||
 		parsedDenominator === 0
 	) {
-		return 30;
+		return;
 	}
 	const frameRate = parsedNumerator / parsedDenominator;
-	return frameRate > 0 ? Math.min(60, frameRate) : 30;
+	return frameRate > 0 ? Math.min(60, frameRate) : undefined;
+}
+
+export function resolvePersonCutoutFrameRate({
+	averageFrameRate,
+	realFrameRate,
+}: {
+	averageFrameRate?: string;
+	realFrameRate?: string;
+}): number {
+	return (
+		parseFrameRate({ value: averageFrameRate }) ??
+		parseFrameRate({ value: realFrameRate }) ??
+		30
+	);
 }
 
 function displayedDimensions({
@@ -175,8 +190,9 @@ async function probeVideo({
 	return {
 		width: dimensions.width,
 		height: dimensions.height,
-		frameRate: parseFrameRate({
-			value: stream?.avg_frame_rate || stream?.r_frame_rate,
+		frameRate: resolvePersonCutoutFrameRate({
+			averageFrameRate: stream?.avg_frame_rate,
+			realFrameRate: stream?.r_frame_rate,
 		}),
 		duration,
 	};
@@ -420,6 +436,75 @@ function ensureWritableOutputs({
 	}
 }
 
+interface StagedOutput {
+	temporaryPath: string;
+	outputPath: string;
+}
+
+function siblingWorkingPath({
+	outputPath,
+	marker,
+}: {
+	outputPath: string;
+	marker: "backup" | "temporary";
+}): string {
+	const extension = extname(outputPath);
+	const stem = basename(outputPath, extension);
+	return join(
+		dirname(outputPath),
+		`.${stem}.${randomUUID()}.${marker}${extension}`
+	);
+}
+
+function tryRemoveFile({ filePath }: { filePath: string }): void {
+	try {
+		rmSync(filePath, { force: true });
+	} catch {
+		return;
+	}
+}
+
+function discardStagedOutputs({ outputs }: { outputs: StagedOutput[] }): void {
+	for (const output of outputs) {
+		tryRemoveFile({ filePath: output.temporaryPath });
+	}
+}
+
+function commitStagedOutputs({ outputs }: { outputs: StagedOutput[] }): void {
+	const backups: Array<{ backupPath: string; outputPath: string }> = [];
+	const committed: StagedOutput[] = [];
+	try {
+		for (const output of outputs) {
+			if (!existsSync(output.outputPath)) continue;
+			const backupPath = siblingWorkingPath({
+				outputPath: output.outputPath,
+				marker: "backup",
+			});
+			renameSync(output.outputPath, backupPath);
+			backups.push({ backupPath, outputPath: output.outputPath });
+		}
+		for (const output of outputs) {
+			renameSync(output.temporaryPath, output.outputPath);
+			committed.push(output);
+		}
+	} catch (error) {
+		for (const output of [...committed].reverse()) {
+			tryRemoveFile({ filePath: output.outputPath });
+		}
+		for (const backup of [...backups].reverse()) {
+			renameSync(backup.backupPath, backup.outputPath);
+		}
+		throw error;
+	}
+	for (const backup of backups) {
+		tryRemoveFile({ filePath: backup.backupPath });
+	}
+}
+
+function errorText({ error }: { error: unknown }): string {
+	return error instanceof Error ? error.message : String(error);
+}
+
 export async function handlePersonCutout(
 	options: CLIRunOptions,
 	onProgress: ProgressFn,
@@ -449,11 +534,21 @@ export async function handlePersonCutout(
 		message: `Uploading ${basename(paths.input)} for person cutout...`,
 		model: DEFAULT_PERSON_CUTOUT_ENDPOINT,
 	});
-	const upload = await dependencies.uploadFile({ filePath: paths.input });
+	let upload: Awaited<ReturnType<PersonCutoutDependencies["uploadFile"]>>;
+	try {
+		upload = await dependencies.uploadFile({ filePath: paths.input });
+	} catch (error) {
+		return {
+			success: false,
+			error: `Upload failed: ${errorText({ error })}`,
+			duration: (Date.now() - startTime) / 1000,
+		};
+	}
 	if (!upload.success || !upload.url) {
 		return {
 			success: false,
 			error: `Upload failed: ${upload.error ?? "unknown error"}`,
+			duration: (Date.now() - startTime) / 1000,
 		};
 	}
 
@@ -463,22 +558,31 @@ export async function handlePersonCutout(
 		message: "Removing the video background...",
 		model: DEFAULT_PERSON_CUTOUT_ENDPOINT,
 	});
-	const result = await dependencies.callModel({
-		options: {
-			endpoint: DEFAULT_PERSON_CUTOUT_ENDPOINT,
-			payload: buildPersonCutoutPayload({ videoUrl: upload.url }),
-			provider: "fal",
-			signal,
-			onProgress: (percent, message) => {
-				onProgress({
-					stage: "cutout",
-					percent: Math.min(82, 15 + percent * 0.67),
-					message: message || "Removing the video background...",
-					model: DEFAULT_PERSON_CUTOUT_ENDPOINT,
-				});
+	let result: ApiCallResult;
+	try {
+		result = await dependencies.callModel({
+			options: {
+				endpoint: DEFAULT_PERSON_CUTOUT_ENDPOINT,
+				payload: buildPersonCutoutPayload({ videoUrl: upload.url }),
+				provider: "fal",
+				signal,
+				onProgress: (percent, message) => {
+					onProgress({
+						stage: "cutout",
+						percent: Math.min(82, 15 + percent * 0.67),
+						message: message || "Removing the video background...",
+						model: DEFAULT_PERSON_CUTOUT_ENDPOINT,
+					});
+				},
 			},
-		},
-	});
+		});
+	} catch (error) {
+		return {
+			success: false,
+			error: `Person cutout failed: ${errorText({ error })}`,
+			duration: (Date.now() - startTime) / 1000,
+		};
+	}
 	if (!result.success || !result.outputUrl) {
 		return {
 			success: false,
@@ -493,15 +597,35 @@ export async function handlePersonCutout(
 		message: "Downloading transparent person layer...",
 		model: DEFAULT_PERSON_CUTOUT_ENDPOINT,
 	});
+	const stagedOutputs: StagedOutput[] = [
+		{
+			temporaryPath: siblingWorkingPath({
+				outputPath: paths.cutoutOutput,
+				marker: "temporary",
+			}),
+			outputPath: paths.cutoutOutput,
+		},
+	];
+	if (paths.compositeOutput) {
+		stagedOutputs.push({
+			temporaryPath: siblingWorkingPath({
+				outputPath: paths.compositeOutput,
+				marker: "temporary",
+			}),
+			outputPath: paths.compositeOutput,
+		});
+	}
+	const stagedCutout = stagedOutputs[0].temporaryPath;
 	try {
 		await dependencies.downloadFile({
 			url: result.outputUrl,
-			outputPath: paths.cutoutOutput,
+			outputPath: stagedCutout,
 		});
 	} catch (error) {
+		discardStagedOutputs({ outputs: stagedOutputs });
 		return {
 			success: false,
-			error: `Cutout download failed: ${error instanceof Error ? error.message : String(error)}`,
+			error: `Cutout download failed: ${errorText({ error })}`,
 			duration: (Date.now() - startTime) / 1000,
 		};
 	}
@@ -509,13 +633,14 @@ export async function handlePersonCutout(
 	let probe: PersonCutoutVideoProbe;
 	try {
 		probe = await dependencies.probeVideo({
-			filePath: paths.cutoutOutput,
+			filePath: stagedCutout,
 			signal,
 		});
 	} catch (error) {
+		discardStagedOutputs({ outputs: stagedOutputs });
 		return {
 			success: false,
-			error: `Transparent output verification failed: ${error instanceof Error ? error.message : String(error)}`,
+			error: `Transparent output verification failed: ${errorText({ error })}`,
 			duration: (Date.now() - startTime) / 1000,
 		};
 	}
@@ -528,12 +653,18 @@ export async function handlePersonCutout(
 			model: DEFAULT_PERSON_CUTOUT_ENDPOINT,
 		});
 		try {
+			const stagedComposite = stagedOutputs[1].temporaryPath;
+			const stagedPaths = {
+				...paths,
+				cutoutOutput: stagedCutout,
+				compositeOutput: stagedComposite,
+			};
 			await dependencies.composeVideo({
-				args: buildBackgroundCompositeArgs({ paths, probe }),
+				args: buildBackgroundCompositeArgs({ paths: stagedPaths, probe }),
 				signal,
 			});
 			const compositeProbe = await dependencies.probeVideo({
-				filePath: paths.compositeOutput,
+				filePath: stagedComposite,
 				signal,
 			});
 			const durationDifference = Math.abs(
@@ -545,12 +676,23 @@ export async function handlePersonCutout(
 				);
 			}
 		} catch (error) {
+			discardStagedOutputs({ outputs: stagedOutputs });
 			return {
 				success: false,
-				error: `Background composition failed: ${error instanceof Error ? error.message : String(error)}`,
+				error: `Background composition failed: ${errorText({ error })}`,
 				duration: (Date.now() - startTime) / 1000,
 			};
 		}
+	}
+	try {
+		commitStagedOutputs({ outputs: stagedOutputs });
+	} catch (error) {
+		discardStagedOutputs({ outputs: stagedOutputs });
+		return {
+			success: false,
+			error: `Unable to commit person-cutout outputs: ${errorText({ error })}`,
+			duration: (Date.now() - startTime) / 1000,
+		};
 	}
 
 	onProgress({
