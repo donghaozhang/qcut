@@ -149,6 +149,18 @@ function validateStage({
 		return [...windowErrors, ...errors];
 	}
 
+	if (stage.kind === "distortion") {
+		const errors: string[] = [];
+		if (
+			!isFiniteNumber(stage.strength) ||
+			stage.strength < 0 ||
+			stage.strength > 1
+		) {
+			errors.push(`${prefix}.strength must be between 0 and 1`);
+		}
+		return [...windowErrors, ...errors];
+	}
+
 	return windowErrors;
 }
 

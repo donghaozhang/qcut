@@ -178,6 +178,9 @@ describe("effect catalog", () => {
 			"basic-grid",
 			"basic-film-end",
 			"atmosphere-rainbow-rays",
+			"basic-fisheye",
+			"dynamic-ripple",
+			"dynamic-shockwave",
 		]);
 	});
 

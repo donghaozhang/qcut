@@ -168,6 +168,8 @@ export type {
 	EffectCompositeRenderStage,
 	EffectDecorationRenderStage,
 	EffectDecorationVariant,
+	EffectDistortionRenderStage,
+	EffectDistortionVariant,
 	EffectFilterRenderStage,
 	EffectMotionChannel,
 	EffectMotionProperty,
@@ -197,9 +199,11 @@ export {
 	withEffectRenderWindow,
 	validateEffectRenderProgram,
 	sampleEffectParticles,
+	sampleDistortionSource,
 	type EffectKeyframeParameter,
 	type EffectRenderProgramValidation,
 	type SampledEffectParticle,
+	type DistortionSample,
 } from "./effects/index.js";
 
 // Timeline utilities

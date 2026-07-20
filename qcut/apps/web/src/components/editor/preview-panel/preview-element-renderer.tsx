@@ -77,6 +77,7 @@ import {
 } from "./use-effects-rendering";
 import { EffectOverlayLayers } from "@/components/editor/effects/effect-overlay-layers";
 import { EffectCompositeCanvas } from "@/components/editor/effects/effect-composite-canvas";
+import { EffectDistortionCanvas } from "@/components/editor/effects/effect-distortion-canvas";
 import { EffectParticleCanvas } from "@/components/editor/effects/effect-particle-canvas";
 import { EffectDecorationCanvas } from "@/components/editor/effects/effect-decoration-canvas";
 import { EffectPersonTrackingCanvas } from "@/components/editor/effects/effect-person-tracking-canvas";
@@ -946,6 +947,10 @@ export function PreviewElementRenderer({
 								sourceSelector={colorPreviewSourceSelector}
 								fitMode={visual.fitMode}
 							/>
+							<EffectDistortionCanvas
+								program={effectRendering.renderProgram}
+								sourceSelector={colorPreviewSourceSelector}
+							/>
 							<EffectPersonTrackingCanvas
 								program={effectRendering.renderProgram}
 								sourceSelector={colorPreviewSourceSelector}
@@ -1226,6 +1231,10 @@ export function PreviewElementRenderer({
 									sourceSelector='img[data-color-source="true"]'
 									fitMode="contain"
 								/>
+								<EffectDistortionCanvas
+									program={effectRendering.renderProgram}
+									sourceSelector='img[data-color-source="true"]'
+								/>
 								<EffectPersonTrackingCanvas
 									program={effectRendering.renderProgram}
 									sourceSelector='img[data-color-source="true"]'
@@ -1314,6 +1323,10 @@ export function PreviewElementRenderer({
 								program={effectRendering.renderProgram}
 								sourceSelector='img[data-color-source="true"]'
 								fitMode="cover"
+							/>
+							<EffectDistortionCanvas
+								program={effectRendering.renderProgram}
+								sourceSelector='img[data-color-source="true"]'
 							/>
 							<EffectPersonTrackingCanvas
 								program={effectRendering.renderProgram}

@@ -52,6 +52,8 @@ export type {
 	EffectCompositeRenderStage,
 	EffectDecorationRenderStage,
 	EffectDecorationVariant,
+	EffectDistortionRenderStage,
+	EffectDistortionVariant,
 	EffectFilterRenderStage,
 	EffectMotionChannel,
 	EffectMotionProperty,

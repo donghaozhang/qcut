@@ -49,7 +49,8 @@ export type EffectRenderKind =
 	| "composite"
 	| "audio-reactive"
 	| "person-tracking"
-	| "particles";
+	| "particles"
+	| "distortion";
 
 export type EffectPreviewBackend =
 	| "css-filter"

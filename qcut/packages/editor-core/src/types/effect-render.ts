@@ -6,7 +6,8 @@ export type EffectRenderStageKind =
 	| "audio-reactive"
 	| "person-tracking"
 	| "particles"
-	| "decoration";
+	| "decoration"
+	| "distortion";
 
 export type EffectMotionProperty = "x" | "y" | "scale" | "rotation" | "opacity";
 
@@ -133,6 +134,21 @@ export interface EffectDecorationRenderStage {
 	window?: EffectRenderWindow;
 }
 
+export type EffectDistortionVariant = "fisheye" | "ripple" | "shockwave";
+
+/**
+ * Radial displacement distortion (鱼眼 / 水波纹 / 冲击波). Sampled per output
+ * pixel from clip-local time via sampleDistortionSource; the canvas preview
+ * remaps the source frame and frame-based export burn-in is a follow-up.
+ */
+export interface EffectDistortionRenderStage {
+	kind: "distortion";
+	variant: EffectDistortionVariant;
+	/** Distortion amount, 0–1. */
+	strength: number;
+	window?: EffectRenderWindow;
+}
+
 export type EffectRenderStage =
 	| EffectFilterRenderStage
 	| EffectMotionRenderStage
@@ -141,7 +157,8 @@ export type EffectRenderStage =
 	| EffectAudioReactiveRenderStage
 	| EffectPersonTrackingRenderStage
 	| EffectParticleRenderStage
-	| EffectDecorationRenderStage;
+	| EffectDecorationRenderStage
+	| EffectDistortionRenderStage;
 
 export interface EffectRenderProgram {
 	version: 1;

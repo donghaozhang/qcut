@@ -12,6 +12,7 @@ import { SOUND_EFFECT_CATALOG } from "./effect-sound-catalog";
 import { AUDIO_REACTIVE_EFFECT_CATALOG } from "./effect-audio-reactive-catalog";
 import { CREATIVE_AI_EFFECT_CATALOG } from "./effect-creative-ai-catalog";
 import { DECORATION_EFFECT_CATALOG } from "./effect-decoration-catalog";
+import { DISTORTION_EFFECT_CATALOG } from "./effect-distortion-catalog";
 import { PARTICLE_EFFECT_CATALOG } from "./effect-particle-catalog";
 import { PERSON_EFFECT_CATALOG } from "./effect-person-catalog";
 
@@ -156,5 +157,6 @@ export const EFFECT_CATALOG: readonly EffectCatalogEntry[] = [
 	...CREATIVE_AI_EFFECT_CATALOG,
 	...PARTICLE_EFFECT_CATALOG,
 	...DECORATION_EFFECT_CATALOG,
+	...DISTORTION_EFFECT_CATALOG,
 	...PERSON_EFFECT_CATALOG,
 ];

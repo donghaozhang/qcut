@@ -4,6 +4,7 @@ import { parametersToCSSFilters } from "@/lib/effects/effects-utils";
 import type { EffectCatalogEntry } from "@/lib/effects/effect-catalog-types";
 import { EffectOverlayLayers } from "@/components/editor/effects/effect-overlay-layers";
 import { EffectCompositeCanvas } from "@/components/editor/effects/effect-composite-canvas";
+import { EffectDistortionCanvas } from "@/components/editor/effects/effect-distortion-canvas";
 import { EffectParticleCanvas } from "@/components/editor/effects/effect-particle-canvas";
 import { EffectDecorationCanvas } from "@/components/editor/effects/effect-decoration-canvas";
 import { EffectPersonTrackingCanvas } from "@/components/editor/effects/effect-person-tracking-canvas";
@@ -107,6 +108,7 @@ export function EffectPreviewThumbnail({
 				sourceSelector='img[data-effect-preview-base="true"]'
 				fitMode="cover"
 			/>
+			<EffectDistortionCanvas program={entry.preset.renderProgram} />
 			<EffectPersonTrackingCanvas
 				program={entry.preset.renderProgram}
 				sourceSelector='img[data-effect-preview-base="true"]'
