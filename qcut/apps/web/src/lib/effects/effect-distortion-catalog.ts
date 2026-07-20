@@ -109,4 +109,18 @@ export const DISTORTION_EFFECT_CATALOG = [
 		releasedAt: "2026-07-20T06:02:00.000Z",
 		popularityScore: 86,
 	}),
+	createDistortionCatalogEntry({
+		id: "basic-magnifier",
+		name: "Magnifier",
+		localizedName: "放大镜",
+		description: "A circular loupe that magnifies the center of the frame.",
+		localizedDescription: "圆形放大镜,放大画面中心区域。",
+		category: "basic",
+		icon: "MG",
+		variant: "magnifier",
+		strength: 0.7,
+		tags: ["magnifier", "zoom", "loupe", "basic"],
+		releasedAt: "2026-07-20T06:03:00.000Z",
+		popularityScore: 80,
+	}),
 ] as const satisfies readonly VisualEffectCatalogEntry[];

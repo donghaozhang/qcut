@@ -39,6 +39,11 @@ export function sampleDistortionSource({
 	if (stage.variant === "fisheye") {
 		// Bulge: sample nearer the center for outer pixels to magnify the middle.
 		newNormalized = normalized * (1 - strength * 0.55 * (1 - normalized));
+	} else if (stage.variant === "magnifier") {
+		// Circular loupe: strongly magnify a central disc, untouched outside it.
+		const lensRadius = 0.5;
+		if (normalized >= lensRadius) return { u, v };
+		newNormalized = normalized * (1 - strength * 0.6);
 	} else if (stage.variant === "ripple") {
 		const wave = Math.sin(normalized * 22 - timeSeconds * 5);
 		newNormalized = normalized + strength * 0.05 * wave;

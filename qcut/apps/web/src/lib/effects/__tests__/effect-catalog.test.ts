@@ -178,9 +178,15 @@ describe("effect catalog", () => {
 			"basic-grid",
 			"basic-film-end",
 			"atmosphere-rainbow-rays",
+			"basic-iris",
+			"basic-standby",
+			"dynamic-burst",
+			"light-lens-flare",
+			"atmosphere-floating-text",
 			"basic-fisheye",
 			"dynamic-ripple",
 			"dynamic-shockwave",
+			"basic-magnifier",
 		]);
 	});
 

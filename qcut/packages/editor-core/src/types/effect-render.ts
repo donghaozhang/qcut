@@ -117,7 +117,15 @@ export interface EffectParticleRenderStage {
 	window?: EffectRenderWindow;
 }
 
-export type EffectDecorationVariant = "grid" | "rainbow-rays" | "film-end";
+export type EffectDecorationVariant =
+	| "grid"
+	| "rainbow-rays"
+	| "film-end"
+	| "iris"
+	| "standby"
+	| "burst"
+	| "lens-flare"
+	| "floating-text";
 
 /**
  * Procedural non-particle overlays (上下网格 / 彩虹射线 / 全剧终) drawn on a
@@ -134,7 +142,11 @@ export interface EffectDecorationRenderStage {
 	window?: EffectRenderWindow;
 }
 
-export type EffectDistortionVariant = "fisheye" | "ripple" | "shockwave";
+export type EffectDistortionVariant =
+	| "fisheye"
+	| "ripple"
+	| "shockwave"
+	| "magnifier";
 
 /**
  * Radial displacement distortion (鱼眼 / 水波纹 / 冲击波). Sampled per output

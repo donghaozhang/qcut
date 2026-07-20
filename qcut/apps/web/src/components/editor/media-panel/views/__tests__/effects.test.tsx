@@ -82,8 +82,8 @@ describe("EffectsView", () => {
 		fireEvent.click(screen.getByTestId("effect-navigation-dynamic"));
 		// 3 original + heartbeat/flash-black/hard-shake/impact +
 		// subtle-shake/rhythm-swing/quad-shake/step-push/flash-pulse + mermaid +
-		// ripple/shockwave distortion.
-		expect(screen.getAllByTestId(/^effect-card-/)).toHaveLength(15);
+		// ripple/shockwave distortion + burst decoration.
+		expect(screen.getAllByTestId(/^effect-card-/)).toHaveLength(16);
 		expect(
 			screen.getByTestId("effect-card-dynamic-rhythm-pulse")
 		).toBeVisible();
