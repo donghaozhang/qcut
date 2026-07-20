@@ -126,9 +126,8 @@ describe("effect catalog", () => {
 			coverage.map((item) => [item.category, item])
 		);
 
-		// All implemented categories are ready (nature is a scaffold-only tab).
+		// Every category (including the new 自然 tab) ships ready with content.
 		for (const category of VISUAL_EFFECT_CATEGORY_IDS) {
-			if (category === "nature") continue;
 			const entry = coverageByCategory.get(category);
 			expect(entry?.status).toBe("ready");
 			expect(entry?.count ?? 0).toBeGreaterThanOrEqual(3);
@@ -167,6 +166,9 @@ describe("effect catalog", () => {
 			"atmosphere-stars",
 			"atmosphere-confetti",
 			"atmosphere-fog",
+			"nature-falling-leaves",
+			"nature-fireflies",
+			"nature-snowfall",
 		]);
 	});
 

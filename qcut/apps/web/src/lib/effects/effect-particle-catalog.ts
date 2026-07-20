@@ -1,6 +1,9 @@
 import type { EffectParticleVariant } from "@qcut/editor-core";
 import type { EffectPreset } from "@/types/effects";
-import type { VisualEffectCatalogEntry } from "./effect-catalog-types";
+import type {
+	VisualEffectCatalogEntry,
+	VisualEffectCategoryId,
+} from "./effect-catalog-types";
 
 function createParticleCatalogEntry({
 	id,
@@ -8,6 +11,7 @@ function createParticleCatalogEntry({
 	localizedName,
 	description,
 	localizedDescription,
+	category = "atmosphere",
 	icon,
 	variant,
 	density,
@@ -23,6 +27,7 @@ function createParticleCatalogEntry({
 	localizedName: string;
 	description: string;
 	localizedDescription: string;
+	category?: VisualEffectCategoryId;
 	icon: string;
 	variant: EffectParticleVariant;
 	density: number;
@@ -52,7 +57,7 @@ function createParticleCatalogEntry({
 		localizedName,
 		localizedDescription,
 		family: "visual",
-		category: "atmosphere",
+		category,
 		tags,
 		releasedAt,
 		popularityScore,
@@ -165,5 +170,58 @@ export const PARTICLE_EFFECT_CATALOG = [
 		tags: ["fog", "mist", "cloud", "atmosphere", "particles"],
 		releasedAt: "2026-07-20T03:05:00.000Z",
 		popularityScore: 84,
+	}),
+	// Nature tab — reuses the particle model so the new 自然 category ships with
+	// content instead of an empty scaffold.
+	createParticleCatalogEntry({
+		id: "nature-falling-leaves",
+		name: "Falling Leaves",
+		localizedName: "落叶纷飞",
+		description: "Autumn leaves tumbling and swaying downward.",
+		localizedDescription: "秋叶翻转摇曳,缓缓飘落。",
+		category: "nature",
+		icon: "LV",
+		variant: "sakura",
+		density: 0.6,
+		speed: 0.85,
+		color: "#e0a04a",
+		opacity: 0.92,
+		tags: ["leaves", "autumn", "nature", "particles"],
+		releasedAt: "2026-07-20T03:06:00.000Z",
+		popularityScore: 85,
+	}),
+	createParticleCatalogEntry({
+		id: "nature-fireflies",
+		name: "Fireflies",
+		localizedName: "萤火虫",
+		description: "Soft fireflies drifting and glowing in the dark.",
+		localizedDescription: "柔和的萤火虫飘忽闪烁。",
+		category: "nature",
+		icon: "FF",
+		variant: "embers",
+		density: 0.5,
+		speed: 0.5,
+		color: "#c8ff7a",
+		opacity: 0.9,
+		tags: ["fireflies", "glow", "nature", "particles"],
+		releasedAt: "2026-07-20T03:07:00.000Z",
+		popularityScore: 86,
+	}),
+	createParticleCatalogEntry({
+		id: "nature-snowfall",
+		name: "Nature Snow",
+		localizedName: "林间飘雪",
+		description: "Gentle snow settling over a natural scene.",
+		localizedDescription: "自然场景中轻柔飘落的雪。",
+		category: "nature",
+		icon: "NS",
+		variant: "snow",
+		density: 0.7,
+		speed: 0.9,
+		color: "#f4f9ff",
+		opacity: 0.85,
+		tags: ["snow", "winter", "nature", "particles"],
+		releasedAt: "2026-07-20T03:08:00.000Z",
+		popularityScore: 83,
 	}),
 ] as const satisfies readonly VisualEffectCatalogEntry[];
