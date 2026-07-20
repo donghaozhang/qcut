@@ -97,4 +97,21 @@ export const COMPOSITE_EFFECT_CATALOG = [
 		releasedAt: "2026-07-18T04:02:00.000Z",
 		popularityScore: 82,
 	}),
+	createCompositeCatalogEntry({
+		id: "multiscreen-stacked",
+		name: "Stacked",
+		localizedName: "上下双屏",
+		description: "Repeats the frame across two balanced horizontal panels.",
+		localizedDescription: "将画面重复排列为上下两个均衡分屏。",
+		icon: "2H",
+		stage: {
+			kind: "composite",
+			layout: "split-horizontal",
+			copies: 2,
+			gap: 0.012,
+		},
+		tags: ["split", "double", "horizontal", "多屏"],
+		releasedAt: "2026-07-20T04:03:00.000Z",
+		popularityScore: 80,
+	}),
 ] as const satisfies readonly VisualEffectCatalogEntry[];

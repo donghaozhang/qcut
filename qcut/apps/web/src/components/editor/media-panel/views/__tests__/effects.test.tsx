@@ -93,17 +93,18 @@ describe("EffectsView", () => {
 		expect(screen.getByTestId("effect-card-invert")).toBeVisible();
 	});
 
-	it("renders three real multi-screen previews from composite programs", () => {
+	it("renders real multi-screen previews from composite programs", () => {
 		const { container } = render(<EffectsView />);
 
 		fireEvent.click(screen.getByTestId("effect-navigation-multiscreen"));
-		expect(screen.getAllByTestId(/^effect-card-/)).toHaveLength(3);
+		// side-by-side / mirror / quad-grid / stacked.
+		expect(screen.getAllByTestId(/^effect-card-/)).toHaveLength(4);
 		expect(
 			screen.getByTestId("effect-card-multiscreen-side-by-side")
 		).toBeVisible();
 		expect(
 			container.querySelectorAll("canvas[data-effect-composite-layout]")
-		).toHaveLength(3);
+		).toHaveLength(4);
 	});
 
 	it("applies three paired sound effects with their persisted audio resource", () => {
