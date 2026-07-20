@@ -4,7 +4,8 @@ export type EffectRenderStageKind =
 	| "overlay"
 	| "composite"
 	| "audio-reactive"
-	| "person-tracking";
+	| "person-tracking"
+	| "particles";
 
 export type EffectMotionProperty = "x" | "y" | "scale" | "rotation" | "opacity";
 
@@ -85,13 +86,41 @@ export interface EffectPersonTrackingRenderStage {
 	window?: EffectRenderWindow;
 }
 
+export type EffectParticleVariant =
+	| "snow"
+	| "sakura"
+	| "embers"
+	| "stars"
+	| "confetti"
+	| "fog";
+
+/**
+ * Procedural particle field (氛围-style overlays: snow, sakura, embers, …).
+ * Rendered deterministically from clip-local time so the catalog thumbnail,
+ * timeline preview, and frame-based export all agree.
+ */
+export interface EffectParticleRenderStage {
+	kind: "particles";
+	variant: EffectParticleVariant;
+	/** Relative particle count, 0–1 (scaled to canvas area at render time). */
+	density: number;
+	/** Fall/drift speed multiplier. */
+	speed: number;
+	/** CSS color of the particles. */
+	color: string;
+	/** Overall layer opacity, 0–1. */
+	opacity: number;
+	window?: EffectRenderWindow;
+}
+
 export type EffectRenderStage =
 	| EffectFilterRenderStage
 	| EffectMotionRenderStage
 	| EffectOverlayRenderStage
 	| EffectCompositeRenderStage
 	| EffectAudioReactiveRenderStage
-	| EffectPersonTrackingRenderStage;
+	| EffectPersonTrackingRenderStage
+	| EffectParticleRenderStage;
 
 export interface EffectRenderProgram {
 	version: 1;

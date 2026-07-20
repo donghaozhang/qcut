@@ -48,7 +48,8 @@ export type EffectRenderKind =
 	| "overlay"
 	| "composite"
 	| "audio-reactive"
-	| "person-tracking";
+	| "person-tracking"
+	| "particles";
 
 export type EffectPreviewBackend =
 	| "css-filter"

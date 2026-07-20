@@ -172,6 +172,8 @@ export type {
 	EffectMotionRenderStage,
 	EffectMotionWaveform,
 	EffectOverlayRenderStage,
+	EffectParticleRenderStage,
+	EffectParticleVariant,
 	EffectPersonTrackingRenderStage,
 	EffectRenderProgram,
 	EffectRenderWindow,
@@ -192,8 +194,10 @@ export {
 	upsertEffectKeyframe,
 	withEffectRenderWindow,
 	validateEffectRenderProgram,
+	sampleEffectParticles,
 	type EffectKeyframeParameter,
 	type EffectRenderProgramValidation,
+	type SampledEffectParticle,
 } from "./effects/index.js";
 
 // Timeline utilities

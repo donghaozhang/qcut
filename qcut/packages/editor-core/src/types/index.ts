@@ -56,6 +56,8 @@ export type {
 	EffectMotionRenderStage,
 	EffectMotionWaveform,
 	EffectOverlayRenderStage,
+	EffectParticleRenderStage,
+	EffectParticleVariant,
 	EffectPersonTrackingRenderStage,
 	EffectRenderProgram,
 	EffectRenderWindow,
