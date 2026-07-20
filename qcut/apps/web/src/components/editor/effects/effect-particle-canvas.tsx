@@ -69,6 +69,46 @@ function drawParticle({
 		return;
 	}
 
+	if (stage.variant === "coins") {
+		// Spinning gold coin: width oscillates with rotation to fake a flip.
+		context.save();
+		context.translate(px, py);
+		const flip = Math.abs(Math.cos((particle.rotation * Math.PI) / 180));
+		context.fillStyle = stage.color;
+		context.beginPath();
+		context.ellipse(0, 0, Math.max(0.5, size * flip), size, 0, 0, Math.PI * 2);
+		context.fill();
+		context.restore();
+		return;
+	}
+
+	if (stage.variant === "butterfly") {
+		context.save();
+		context.translate(px, py);
+		context.rotate(
+			(Math.sin((particle.rotation * Math.PI) / 180) * 20 * Math.PI) / 180
+		);
+		context.fillStyle = stage.color;
+		// Two wings that flap: wing width follows the rotation phase.
+		const flap =
+			0.4 + 0.6 * Math.abs(Math.sin((particle.rotation * Math.PI) / 90));
+		for (const dir of [-1, 1]) {
+			context.beginPath();
+			context.ellipse(
+				dir * size * 0.6 * flap,
+				0,
+				size * flap,
+				size * 0.7,
+				0,
+				0,
+				Math.PI * 2
+			);
+			context.fill();
+		}
+		context.restore();
+		return;
+	}
+
 	if (stage.variant === "sakura") {
 		context.save();
 		context.translate(px, py);

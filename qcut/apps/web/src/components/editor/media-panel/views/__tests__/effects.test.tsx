@@ -80,8 +80,9 @@ describe("EffectsView", () => {
 		render(<EffectsView />);
 
 		fireEvent.click(screen.getByTestId("effect-navigation-dynamic"));
-		// 3 original + heartbeat/flash-black/hard-shake/impact.
-		expect(screen.getAllByTestId(/^effect-card-/)).toHaveLength(7);
+		// 3 original + heartbeat/flash-black/hard-shake/impact +
+		// subtle-shake/rhythm-swing/quad-shake/step-push/flash-pulse + mermaid.
+		expect(screen.getAllByTestId(/^effect-card-/)).toHaveLength(13);
 		expect(
 			screen.getByTestId("effect-card-dynamic-rhythm-pulse")
 		).toBeVisible();

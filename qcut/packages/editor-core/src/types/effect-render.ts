@@ -92,7 +92,9 @@ export type EffectParticleVariant =
 	| "embers"
 	| "stars"
 	| "confetti"
-	| "fog";
+	| "fog"
+	| "coins"
+	| "butterfly";
 
 /**
  * Procedural particle field (氛围-style overlays: snow, sakura, embers, …).

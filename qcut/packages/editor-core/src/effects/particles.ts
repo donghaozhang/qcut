@@ -80,6 +80,22 @@ const VARIANT_CONFIG: Record<EffectParticleVariant, ParticleVariantConfig> = {
 		swayAmplitude: 0.16,
 		twinkle: false,
 	},
+	coins: {
+		baseCount: 40,
+		sizeMin: 0.014,
+		sizeMax: 0.03,
+		fallPerSecond: 0.26,
+		swayAmplitude: 0.08,
+		twinkle: false,
+	},
+	butterfly: {
+		baseCount: 22,
+		sizeMin: 0.02,
+		sizeMax: 0.04,
+		fallPerSecond: 0.06,
+		swayAmplitude: 0.14,
+		twinkle: false,
+	},
 };
 
 /** Deterministic hash → [0, 1). Keeps particle layout stable across renders. */
