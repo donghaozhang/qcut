@@ -50,6 +50,8 @@ export type {
 	EffectAudioReactiveEnvelope,
 	EffectAudioReactiveKeyframe,
 	EffectCompositeRenderStage,
+	EffectDecorationRenderStage,
+	EffectDecorationVariant,
 	EffectFilterRenderStage,
 	EffectMotionChannel,
 	EffectMotionProperty,

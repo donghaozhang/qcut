@@ -137,6 +137,18 @@ function validateStage({
 		return [...windowErrors, ...errors];
 	}
 
+	if (stage.kind === "decoration") {
+		const errors: string[] = [];
+		if (
+			!isFiniteNumber(stage.opacity) ||
+			stage.opacity < 0 ||
+			stage.opacity > 1
+		) {
+			errors.push(`${prefix}.opacity must be between 0 and 1`);
+		}
+		return [...windowErrors, ...errors];
+	}
+
 	return windowErrors;
 }
 

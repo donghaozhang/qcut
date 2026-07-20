@@ -5,7 +5,8 @@ export type EffectRenderStageKind =
 	| "composite"
 	| "audio-reactive"
 	| "person-tracking"
-	| "particles";
+	| "particles"
+	| "decoration";
 
 export type EffectMotionProperty = "x" | "y" | "scale" | "rotation" | "opacity";
 
@@ -115,6 +116,23 @@ export interface EffectParticleRenderStage {
 	window?: EffectRenderWindow;
 }
 
+export type EffectDecorationVariant = "grid" | "rainbow-rays" | "film-end";
+
+/**
+ * Procedural non-particle overlays (上下网格 / 彩虹射线 / 全剧终) drawn on a
+ * canvas from clip-local time. Like particles, the preview is complete and
+ * frame-based export burn-in is a tracked follow-up.
+ */
+export interface EffectDecorationRenderStage {
+	kind: "decoration";
+	variant: EffectDecorationVariant;
+	/** Primary CSS color (grid lines, ray tint, letterbox text). */
+	color: string;
+	/** Overall layer opacity, 0–1. */
+	opacity: number;
+	window?: EffectRenderWindow;
+}
+
 export type EffectRenderStage =
 	| EffectFilterRenderStage
 	| EffectMotionRenderStage
@@ -122,7 +140,8 @@ export type EffectRenderStage =
 	| EffectCompositeRenderStage
 	| EffectAudioReactiveRenderStage
 	| EffectPersonTrackingRenderStage
-	| EffectParticleRenderStage;
+	| EffectParticleRenderStage
+	| EffectDecorationRenderStage;
 
 export interface EffectRenderProgram {
 	version: 1;

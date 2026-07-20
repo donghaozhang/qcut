@@ -78,6 +78,7 @@ import {
 import { EffectOverlayLayers } from "@/components/editor/effects/effect-overlay-layers";
 import { EffectCompositeCanvas } from "@/components/editor/effects/effect-composite-canvas";
 import { EffectParticleCanvas } from "@/components/editor/effects/effect-particle-canvas";
+import { EffectDecorationCanvas } from "@/components/editor/effects/effect-decoration-canvas";
 import { EffectPersonTrackingCanvas } from "@/components/editor/effects/effect-person-tracking-canvas";
 import { useEffectAudioReactivePreview } from "@/components/editor/effects/use-effect-audio-reactive-preview";
 import {
@@ -1040,6 +1041,7 @@ export function PreviewElementRenderer({
 							parameters={effectRendering.parameters}
 						/>
 						<EffectParticleCanvas program={effectRendering.renderProgram} />
+						<EffectDecorationCanvas program={effectRendering.renderProgram} />
 						{transitionOverlayStyle ? (
 							<div aria-hidden="true" style={transitionOverlayStyle} />
 						) : null}
@@ -1235,6 +1237,7 @@ export function PreviewElementRenderer({
 								parameters={effectRendering.parameters}
 							/>
 							<EffectParticleCanvas program={effectRendering.renderProgram} />
+							<EffectDecorationCanvas program={effectRendering.renderProgram} />
 							{transitionOverlayStyle ? (
 								<div aria-hidden="true" style={transitionOverlayStyle} />
 							) : null}
@@ -1323,6 +1326,7 @@ export function PreviewElementRenderer({
 							parameters={effectRendering.parameters}
 						/>
 						<EffectParticleCanvas program={effectRendering.renderProgram} />
+						<EffectDecorationCanvas program={effectRendering.renderProgram} />
 						{transitionOverlayStyle ? (
 							<div aria-hidden="true" style={transitionOverlayStyle} />
 						) : null}

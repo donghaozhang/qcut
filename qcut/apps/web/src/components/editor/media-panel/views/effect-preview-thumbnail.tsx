@@ -5,6 +5,7 @@ import type { EffectCatalogEntry } from "@/lib/effects/effect-catalog-types";
 import { EffectOverlayLayers } from "@/components/editor/effects/effect-overlay-layers";
 import { EffectCompositeCanvas } from "@/components/editor/effects/effect-composite-canvas";
 import { EffectParticleCanvas } from "@/components/editor/effects/effect-particle-canvas";
+import { EffectDecorationCanvas } from "@/components/editor/effects/effect-decoration-canvas";
 import { EffectPersonTrackingCanvas } from "@/components/editor/effects/effect-person-tracking-canvas";
 import { Volume2 } from "lucide-react";
 import {
@@ -116,6 +117,7 @@ export function EffectPreviewThumbnail({
 				parameters={entry.preset.parameters}
 			/>
 			<EffectParticleCanvas program={entry.preset.renderProgram} />
+			<EffectDecorationCanvas program={entry.preset.renderProgram} />
 			{entry.preset.audioCompanion ? (
 				<span
 					className="absolute bottom-1 left-1 flex size-5 items-center justify-center rounded bg-black/70 text-white"

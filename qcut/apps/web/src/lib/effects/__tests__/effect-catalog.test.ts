@@ -175,6 +175,9 @@ describe("effect catalog", () => {
 			"nature-falling-leaves",
 			"nature-fireflies",
 			"nature-snowfall",
+			"basic-grid",
+			"basic-film-end",
+			"atmosphere-rainbow-rays",
 		]);
 	});
 
