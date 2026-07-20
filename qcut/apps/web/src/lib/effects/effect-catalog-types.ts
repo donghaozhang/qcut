@@ -23,6 +23,7 @@ export const VISUAL_EFFECT_CATEGORY_IDS = [
 	"audio",
 	"creative-ai",
 	"camera",
+	"nature",
 ] as const;
 
 export type VisualEffectCategoryId =

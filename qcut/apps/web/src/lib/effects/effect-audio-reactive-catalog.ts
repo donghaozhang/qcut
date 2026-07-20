@@ -48,7 +48,7 @@ function createAudioReactiveEntry({
 		publication: "published",
 		render: {
 			kind: "audio-reactive",
-			previewBackend: "webgl",
+			previewBackend: "canvas",
 			exportBackend: "ffmpeg-filter-complex",
 			parity: "verified",
 		},

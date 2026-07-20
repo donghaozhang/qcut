@@ -28,7 +28,9 @@ function resolveCoverageStatus({
 export function auditEffectCatalogCoverage({
 	entries,
 	minimum = 2,
-	maximum = 3,
+	// No upper ceiling by default: categories grow toward JianYing-scale depth.
+	// Callers can still pass a maximum to flag intentionally-capped sets.
+	maximum = Number.POSITIVE_INFINITY,
 }: {
 	entries: readonly EffectCatalogEntry[];
 	minimum?: number;

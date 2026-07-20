@@ -119,6 +119,10 @@ const LEGACY_EFFECT_METADATA = {
 	},
 } as const satisfies Record<EffectPresetId, LegacyEffectMetadata>;
 
+// The classic CSS-filter presets ship published: each already has a verified
+// css-filter preview + ffmpeg-filter export contract and a localized Chinese
+// name (effects.preset.<id>.name in translations.ts), so publishing them
+// deepens basic/atmosphere/trendy/light with zero new render code.
 export const LEGACY_EFFECT_CATALOG = EFFECT_PRESETS.map((preset) => {
 	const metadata = LEGACY_EFFECT_METADATA[preset.id];
 	return {
@@ -129,7 +133,7 @@ export const LEGACY_EFFECT_CATALOG = EFFECT_PRESETS.map((preset) => {
 		tags: metadata.tags,
 		releasedAt: metadata.releasedAt,
 		popularityScore: metadata.popularityScore,
-		publication: "legacy",
+		publication: "published",
 		render: {
 			kind: "filter",
 			previewBackend: "css-filter",
