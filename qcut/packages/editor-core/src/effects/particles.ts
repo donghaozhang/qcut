@@ -130,7 +130,9 @@ export function sampleEffectParticles({
 }): SampledEffectParticle[] {
 	const config = VARIANT_CONFIG[stage.variant];
 	const density = Math.min(1, Math.max(0, stage.density));
-	const count = Math.max(1, Math.round(config.baseCount * density));
+	// density 0 means "no particles" (per the type doc); only clamp to >=1 above 0.
+	const count =
+		density > 0 ? Math.max(1, Math.round(config.baseCount * density)) : 0;
 	const speed = stage.speed <= 0 ? 1 : stage.speed;
 	const particles: SampledEffectParticle[] = [];
 

@@ -304,13 +304,12 @@ export function EffectDecorationCanvas({
 		const canvas = canvasRef.current;
 		const parent = canvas?.parentElement;
 		if (!canvas || !parent || stages.length === 0) return;
-		const animated = stages.some((stage) => stage.variant !== "grid");
-		if (
-			animated &&
-			window.matchMedia?.("(prefers-reduced-motion: reduce)").matches
-		) {
-			return;
-		}
+		const reducedMotion =
+			window.matchMedia?.("(prefers-reduced-motion: reduce)").matches ?? false;
+		// Animate only if a non-static stage is present and motion is allowed;
+		// otherwise every stage (including a static grid) still draws once below.
+		const animated =
+			!reducedMotion && stages.some((stage) => stage.variant !== "grid");
 
 		let cancelled = false;
 		let animationFrame = 0;

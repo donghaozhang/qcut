@@ -62,6 +62,9 @@ export function EffectDistortionCanvas({
 		let cancelled = false;
 		let animationFrame = 0;
 		let lastVideoTime = -1;
+		// Reused across frames to avoid ~800KB/frame of ImageData garbage on the
+		// real-time path; recreated only when the canvas size changes.
+		let outputBuffer: ImageData | null = null;
 		const startTime = performance.now();
 
 		const resolveSource = (): DistortionSource | null => {
@@ -98,6 +101,7 @@ export function EffectDistortionCanvas({
 				canvas.height = height;
 				scratch.width = width;
 				scratch.height = height;
+				outputBuffer = null;
 			}
 
 			// Cover-fit the source into the scratch buffer.
@@ -128,7 +132,9 @@ export function EffectDistortionCanvas({
 			);
 
 			const sourcePixels = scratchContext.getImageData(0, 0, width, height);
-			const output = outputContext.createImageData(width, height);
+			if (!outputBuffer)
+				outputBuffer = outputContext.createImageData(width, height);
+			const output = outputBuffer;
 			const timeSeconds = (performance.now() - startTime) / 1000;
 			const src = sourcePixels.data;
 			const dst = output.data;

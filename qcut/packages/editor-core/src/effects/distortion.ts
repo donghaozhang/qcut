@@ -38,23 +38,37 @@ export function sampleDistortionSource({
 	const strength = Math.min(1, Math.max(0, stage.strength));
 
 	let newNormalized = normalized;
-	if (stage.variant === "fisheye") {
-		// Bulge: sample nearer the center for outer pixels to magnify the middle.
-		newNormalized = normalized * (1 - strength * 0.55 * (1 - normalized));
-	} else if (stage.variant === "magnifier") {
-		// Circular loupe: strongly magnify a central disc, untouched outside it.
-		const lensRadius = 0.5;
-		if (normalized >= lensRadius) return { u, v };
-		newNormalized = normalized * (1 - strength * 0.6);
-	} else if (stage.variant === "ripple") {
-		const wave = Math.sin(normalized * 22 - timeSeconds * 5);
-		newNormalized = normalized + strength * 0.05 * wave;
-	} else {
-		// shockwave: a ring of displacement expanding outward over time.
-		const front = (timeSeconds * 0.55) % 1.35;
-		const delta = normalized - front;
-		const impulse = delta * Math.exp(-(delta * delta) / 0.006);
-		newNormalized = normalized + strength * 0.12 * impulse;
+	switch (stage.variant) {
+		case "fisheye": {
+			// Bulge: sample nearer the center for outer pixels to magnify the middle.
+			newNormalized = normalized * (1 - strength * 0.55 * (1 - normalized));
+			break;
+		}
+		case "magnifier": {
+			// Circular loupe: strongly magnify a central disc, untouched outside it.
+			const lensRadius = 0.5;
+			if (normalized >= lensRadius) return { u, v };
+			newNormalized = normalized * (1 - strength * 0.6);
+			break;
+		}
+		case "ripple": {
+			const wave = Math.sin(normalized * 22 - timeSeconds * 5);
+			newNormalized = normalized + strength * 0.05 * wave;
+			break;
+		}
+		case "shockwave": {
+			// A ring of displacement expanding outward over time.
+			const front = (timeSeconds * 0.55) % 1.35;
+			const delta = normalized - front;
+			const impulse = delta * Math.exp(-(delta * delta) / 0.006);
+			newNormalized = normalized + strength * 0.12 * impulse;
+			break;
+		}
+		default: {
+			// Compile-time guard: a new variant must be handled above.
+			stage.variant satisfies never;
+			return { u, v };
+		}
 	}
 
 	const scale = newNormalized / normalized;

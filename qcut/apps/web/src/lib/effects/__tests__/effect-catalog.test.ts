@@ -157,8 +157,9 @@ describe("effect catalog", () => {
 			)
 		).toBe(true);
 		// Every published effect has a verified render contract EXCEPT the
-		// procedural particle effects: their canvas preview is complete but
-		// frame-based export burn-in is a tracked follow-up (parity: pending).
+		// procedural canvas effects — particle, decoration (8), and distortion (4):
+		// their canvas preview is complete but frame-based export burn-in is a
+		// tracked follow-up (parity: pending).
 		expect(auditEffectRenderContracts({ entries: EFFECT_CATALOG })).toEqual([
 			"atmosphere-snow",
 			"atmosphere-sakura",
