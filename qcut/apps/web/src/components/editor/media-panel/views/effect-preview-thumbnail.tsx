@@ -110,7 +110,10 @@ export function EffectPreviewThumbnail({
 				sourceSelector='img[data-effect-preview-base="true"]'
 				fitMode="cover"
 			/>
-			<EffectOverlayLayers program={entry.preset.renderProgram} />
+			<EffectOverlayLayers
+				program={entry.preset.renderProgram}
+				parameters={entry.preset.parameters}
+			/>
 			{entry.preset.audioCompanion ? (
 				<span
 					className="absolute bottom-1 left-1 flex size-5 items-center justify-center rounded bg-black/70 text-white"

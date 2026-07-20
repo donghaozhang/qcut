@@ -81,6 +81,23 @@ export class FFmpegFilterChain {
 		return this;
 	}
 
+	addVignette(value: number): this {
+		// Darken the corners. FFmpeg's vignette angle grows the dark falloff;
+		// map 0–100 onto 0…~PI/2.2 so full strength is a strong but not black ring.
+		const angle = clamp((value / 100) * (Math.PI / 2.2), 0, Math.PI / 2);
+		if (angle <= 0) return this;
+		this.addFilter(`vignette=a=${angle.toFixed(4)}`);
+		return this;
+	}
+
+	addSharpen(value: number): this {
+		// unsharp masking. luma_amount 0–2 covers subtle → crisp; keep it bounded.
+		const amount = clamp((value / 100) * 2, 0, 2);
+		if (amount <= 0) return this;
+		this.addFilter(`unsharp=5:5:${amount.toFixed(3)}:5:5:0`);
+		return this;
+	}
+
 	addSepia(value: number): this {
 		const strength = clamp(value / 100, 0, 1);
 		const rr = 1 - 0.607 * strength;
@@ -119,6 +136,8 @@ export class FFmpegFilterChain {
 		if (params.grayscale !== undefined) chain.addGrayscale(params.grayscale);
 		if (params.invert !== undefined) chain.addInvert(params.invert);
 		if (params.sepia !== undefined) chain.addSepia(params.sepia);
+		if (params.vignette !== undefined) chain.addVignette(params.vignette);
+		if (params.sharpen !== undefined) chain.addSharpen(params.sharpen);
 
 		return chain.build();
 	}
@@ -210,6 +229,9 @@ export class FFmpegFilterChain {
 		}
 		if (parameters.invert !== undefined) chain.addInvert(parameters.invert);
 		if (parameters.sepia !== undefined) chain.addSepia(parameters.sepia);
+		if (parameters.vignette !== undefined)
+			chain.addVignette(parameters.vignette);
+		if (parameters.sharpen !== undefined) chain.addSharpen(parameters.sharpen);
 
 		return chain.build();
 	}

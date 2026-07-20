@@ -134,4 +134,20 @@ describe("FFmpegFilterChain", () => {
 		expect(chain).toContain("enable='gte(t,3)*lt(t,6)'");
 		expect(chain).not.toContain("brightness=0.1");
 	});
+
+	it("builds a vignette filter for the 暗角 preset", () => {
+		const chain = FFmpegFilterChain.fromEffectParameters({ vignette: 55 });
+		expect(chain).toMatch(/^vignette=a=/);
+	});
+
+	it("builds an unsharp filter for the 画质清晰 preset", () => {
+		const chain = FFmpegFilterChain.fromEffectParameters({ sharpen: 60 });
+		expect(chain).toContain("unsharp=5:5:");
+	});
+
+	it("skips vignette and sharpen when their strength is zero", () => {
+		expect(
+			FFmpegFilterChain.fromEffectParameters({ vignette: 0, sharpen: 0 })
+		).toBe("");
+	});
 });

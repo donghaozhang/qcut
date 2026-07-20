@@ -1034,7 +1034,10 @@ export function PreviewElementRenderer({
 							) : null}
 							{derivedAudioPlayers}
 						</div>
-						<EffectOverlayLayers program={effectRendering.renderProgram} />
+						<EffectOverlayLayers
+							program={effectRendering.renderProgram}
+							parameters={effectRendering.parameters}
+						/>
 						{transitionOverlayStyle ? (
 							<div aria-hidden="true" style={transitionOverlayStyle} />
 						) : null}
@@ -1225,7 +1228,10 @@ export function PreviewElementRenderer({
 									fitMode="contain"
 								/>
 							</div>
-							<EffectOverlayLayers program={effectRendering.renderProgram} />
+							<EffectOverlayLayers
+								program={effectRendering.renderProgram}
+								parameters={effectRendering.parameters}
+							/>
 							{transitionOverlayStyle ? (
 								<div aria-hidden="true" style={transitionOverlayStyle} />
 							) : null}
@@ -1309,7 +1315,10 @@ export function PreviewElementRenderer({
 								fitMode="cover"
 							/>
 						</div>
-						<EffectOverlayLayers program={effectRendering.renderProgram} />
+						<EffectOverlayLayers
+							program={effectRendering.renderProgram}
+							parameters={effectRendering.parameters}
+						/>
 						{transitionOverlayStyle ? (
 							<div aria-hidden="true" style={transitionOverlayStyle} />
 						) : null}
