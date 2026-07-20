@@ -54,6 +54,11 @@ export function EffectDistortionCanvas({
 		}
 
 		const scratch = document.createElement("canvas");
+		// Cache both contexts once; querying getContext per frame is wasteful.
+		const scratchContext = scratch.getContext("2d", {
+			willReadFrequently: true,
+		});
+		const outputContext = canvas.getContext("2d");
 		let cancelled = false;
 		let animationFrame = 0;
 		let lastVideoTime = -1;
@@ -71,10 +76,15 @@ export function EffectDistortionCanvas({
 			);
 		};
 
-		const draw = () => {
-			const source = resolveSource();
-			const context = canvas.getContext("2d");
-			if (!source || !context || !sourceReady({ source })) return;
+		const draw = (source: DistortionSource | null = resolveSource()) => {
+			if (
+				!source ||
+				!outputContext ||
+				!scratchContext ||
+				!sourceReady({ source })
+			) {
+				return;
+			}
 
 			const aspect = parent.clientHeight
 				? parent.clientWidth / parent.clientHeight
@@ -90,10 +100,6 @@ export function EffectDistortionCanvas({
 				scratch.height = height;
 			}
 
-			const scratchContext = scratch.getContext("2d", {
-				willReadFrequently: true,
-			});
-			if (!scratchContext) return;
 			// Cover-fit the source into the scratch buffer.
 			scratchContext.clearRect(0, 0, width, height);
 			scratchContext.filter = getComputedStyle(source).filter || "none";
@@ -122,7 +128,7 @@ export function EffectDistortionCanvas({
 			);
 
 			const sourcePixels = scratchContext.getImageData(0, 0, width, height);
-			const output = context.createImageData(width, height);
+			const output = outputContext.createImageData(width, height);
 			const timeSeconds = (performance.now() - startTime) / 1000;
 			const src = sourcePixels.data;
 			const dst = output.data;
@@ -137,13 +143,14 @@ export function EffectDistortionCanvas({
 						v,
 						timeSeconds,
 					});
+					// floor (not round): round shifts by one pixel + duplicates edges.
 					const sx = Math.min(
 						width - 1,
-						Math.max(0, Math.round(sample.u * width))
+						Math.max(0, Math.floor(sample.u * width))
 					);
 					const sy = Math.min(
 						height - 1,
-						Math.max(0, Math.round(sample.v * height))
+						Math.max(0, Math.floor(sample.v * height))
 					);
 					const from = (sy * width + sx) * 4;
 					const to = (y * width + x) * 4;
@@ -153,11 +160,12 @@ export function EffectDistortionCanvas({
 					dst[to + 3] = src[from + 3];
 				}
 			}
-			context.putImageData(output, 0, 0);
+			outputContext.putImageData(output, 0, 0);
 			if (source instanceof HTMLVideoElement)
 				lastVideoTime = source.currentTime;
 		};
 
+		const redraw = () => draw();
 		const loop = () => {
 			if (cancelled) return;
 			const source = resolveSource();
@@ -167,24 +175,24 @@ export function EffectDistortionCanvas({
 				(source instanceof HTMLVideoElement &&
 					Math.abs(source.currentTime - lastVideoTime) > 0.001)
 			) {
-				draw();
+				draw(source);
 			}
 			animationFrame = requestAnimationFrame(loop);
 		};
 
 		draw();
-		const observer = new ResizeObserver(draw);
+		const observer = new ResizeObserver(redraw);
 		observer.observe(parent);
-		parent.addEventListener("loadeddata", draw, true);
-		parent.addEventListener("load", draw, true);
-		parent.addEventListener("seeked", draw, true);
+		parent.addEventListener("loadeddata", redraw, true);
+		parent.addEventListener("load", redraw, true);
+		parent.addEventListener("seeked", redraw, true);
 		animationFrame = requestAnimationFrame(loop);
 		return () => {
 			cancelled = true;
 			observer.disconnect();
-			parent.removeEventListener("loadeddata", draw, true);
-			parent.removeEventListener("load", draw, true);
-			parent.removeEventListener("seeked", draw, true);
+			parent.removeEventListener("loadeddata", redraw, true);
+			parent.removeEventListener("load", redraw, true);
+			parent.removeEventListener("seeked", redraw, true);
 			cancelAnimationFrame(animationFrame);
 		};
 	}, [sourceSelector, stages]);

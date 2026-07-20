@@ -30,7 +30,9 @@ export function sampleDistortionSource({
 }): DistortionSample {
 	const dx = u - 0.5;
 	const dy = v - 0.5;
-	const radius = Math.hypot(dx, dy);
+	// sqrt over hypot: dx/dy are bounded to [-0.5, 0.5] so there is no overflow
+	// risk, and this runs once per output pixel — hypot's guards are pure cost.
+	const radius = Math.sqrt(dx * dx + dy * dy);
 	if (radius <= 1e-6) return { u, v };
 	const normalized = radius / MAX_RADIUS; // 0 at center, ~1 at corners
 	const strength = Math.min(1, Math.max(0, stage.strength));

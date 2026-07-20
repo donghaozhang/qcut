@@ -106,7 +106,7 @@ function drawFilmEnd({
 	const fade = Math.min(1, timeSeconds / 1.2);
 	context.globalAlpha = stage.opacity * (0.35 + 0.4 * fade);
 	context.fillRect(0, 0, width, height);
-	context.globalAlpha = fade;
+	context.globalAlpha = fade * stage.opacity;
 	context.fillStyle = stage.color;
 	context.textAlign = "center";
 	context.textBaseline = "middle";
