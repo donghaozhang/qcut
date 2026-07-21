@@ -53,6 +53,12 @@ export interface EffectPersonTrackingRenderStage {
 	kind: "person-tracking";
 	target: "face" | "body" | "person";
 	treatment: "outline" | "spotlight" | "background-blur";
+	stroke?: {
+		style: string;
+		color: string;
+		width: number;
+		glow: number;
+	};
 	fallback: "center" | "full-frame" | "disable";
 	window?: EffectRenderWindow;
 }

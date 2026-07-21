@@ -84,6 +84,24 @@ export interface EffectPersonTrackingRenderStage {
 	kind: "person-tracking";
 	target: "face" | "body" | "person";
 	treatment: "outline" | "spotlight" | "background-blur";
+	/** Styling for the "outline" treatment; defaults match the classic cyan edge. */
+	stroke?: {
+		style:
+			| "solid"
+			| "electric"
+			| "rainbow"
+			| "flow"
+			| "crayon"
+			| "handwritten"
+			| "shatter"
+			| "neon";
+		/** CSS hex color of the edge. */
+		color: string;
+		/** Edge thickness, 1–3 (dilation passes on export). */
+		width: number;
+		/** Glow softness, 0–3 (blur radius factor). */
+		glow: number;
+	};
 	fallback: "center" | "full-frame" | "disable";
 	window?: EffectRenderWindow;
 }

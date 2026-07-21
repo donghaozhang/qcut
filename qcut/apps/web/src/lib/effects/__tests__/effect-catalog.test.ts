@@ -163,15 +163,23 @@ describe("effect catalog", () => {
 		expect(auditEffectRenderContracts({ entries: EFFECT_CATALOG })).toEqual([]);
 	});
 
-	it("publishes three verified person effects from the shared catalog", () => {
+	it("publishes verified person effects from the shared catalog", () => {
 		const entries = EFFECT_CATALOG.filter(
 			(entry) => entry.family === "person" && entry.publication === "published"
 		);
-		expect(entries).toHaveLength(3);
+		expect(entries).toHaveLength(11);
 		expect(entries.map((entry) => entry.preset.id)).toEqual([
 			"person-neon-outline",
 			"person-spotlight",
 			"person-background-blur",
+			"person-electric-outline",
+			"person-electric-outline-2",
+			"person-rainbow-edge",
+			"person-flow-outline",
+			"person-crayon-outline",
+			"person-handwritten-outline",
+			"person-shatter-edge",
+			"person-neon-outline-2",
 		]);
 		expect(
 			entries.every(

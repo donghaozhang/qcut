@@ -1072,6 +1072,47 @@ function buildTimedVideoInput({
 	return { filterSteps, outputLabel: withFreeze };
 }
 
+/**
+ * Animated stroke styles for the person outline: alpha/geq modulation on the
+ * edge mask and hue motion on the color plate, mirroring the preview looks.
+ */
+function applyPersonStrokeStyle({
+	filterSteps,
+	colorLabel,
+	edgeLabel,
+	prefix,
+	style,
+}: {
+	filterSteps: string[];
+	colorLabel: string;
+	edgeLabel: string;
+	prefix: string;
+	style: string;
+}): { colorLabel: string; edgeLabel: string } {
+	if (style === "rainbow" || style === "flow") {
+		const spun = `${prefix}_style_hue`;
+		const speed = style === "flow" ? "1.4" : "2.2";
+		filterSteps.push(`[${colorLabel}]hue=H=${speed}*PI*t[${spun}]`);
+		if (style === "rainbow") return { colorLabel: spun, edgeLabel };
+		const swept = `${prefix}_style_sweep`;
+		filterSteps.push(
+			`[${edgeLabel}]geq=lum='lum(X,Y)*(0.35+0.65*pow(sin(X/W*6.283-T*3),2))'[${swept}]`
+		);
+		return { colorLabel: spun, edgeLabel: swept };
+	}
+	const modulations: Record<string, string> = {
+		electric: "lum(X,Y)*(0.55+0.45*abs(sin(40*T)))",
+		crayon: "lum(X,Y)*if(gt(random(1),0.35),1,0.3)",
+		handwritten: "lum(X+3*sin(Y/9+T*2),Y)",
+		shatter: "lum(X,Y)*if(gt(sin((X+Y)/6+T*8),-0.35),1,0.2)",
+	};
+	const expression = modulations[style];
+	if (!expression) return { colorLabel, edgeLabel };
+	const styled = `${prefix}_style_alpha`;
+	filterSteps.push(`[${edgeLabel}]geq=lum='${expression}'[${styled}]`);
+	return { colorLabel, edgeLabel: styled };
+}
+
 function buildEffectPersonFilters({
 	currentLabel,
 	freezeDuration,
@@ -1140,6 +1181,12 @@ function buildEffectPersonFilters({
 		filterSteps.push(`[${fitted}]alphaextract[${mask}]`);
 
 		if (stage.treatment === "outline") {
+			const stroke = stage.stroke ?? {
+				style: "solid",
+				color: "#22d3ee",
+				width: 1,
+				glow: 1,
+			};
 			const inner = `${prefix}_inner`;
 			const outer = `${prefix}_outer`;
 			const expanded = `${prefix}_expanded`;
@@ -1148,16 +1195,31 @@ function buildEffectPersonFilters({
 			const outline = `${prefix}_outline`;
 			const composed = `${prefix}_composed`;
 			filterSteps.push(`[${mask}]split=2[${inner}][${outer}]`);
+			const dilations = Array.from(
+				{ length: Math.min(4, Math.max(1, Math.round(stroke.width + 1))) },
+				() => "dilation"
+			).join(",");
+			const sigma = Math.max(0.4, stroke.glow).toFixed(2);
 			filterSteps.push(
-				`[${outer}]dilation,dilation,gblur=sigma=1[${expanded}]`
+				`[${outer}]${dilations},gblur=sigma=${sigma}[${expanded}]`
 			);
 			filterSteps.push(
 				`[${expanded}][${inner}]blend=all_mode=subtract[${edge}]`
 			);
+			const colorValue = `0x${stroke.color.replace("#", "")}`;
 			filterSteps.push(
-				`color=c=0x22d3ee@1:s=${width}x${height}:d=${duration}:r=${fps},format=rgba[${color}]`
+				`color=c=${colorValue}@1:s=${width}x${height}:d=${duration}:r=${fps},format=rgba[${color}]`
 			);
-			filterSteps.push(`[${color}][${edge}]alphamerge[${outline}]`);
+			const styled = applyPersonStrokeStyle({
+				filterSteps,
+				colorLabel: color,
+				edgeLabel: edge,
+				prefix,
+				style: stroke.style,
+			});
+			filterSteps.push(
+				`[${styled.colorLabel}][${styled.edgeLabel}]alphamerge[${outline}]`
+			);
 			filterSteps.push(
 				`[${stageInput}][${outline}]overlay=shortest=1:format=auto[${composed}]`
 			);

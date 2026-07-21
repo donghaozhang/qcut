@@ -65,27 +65,106 @@ function maskedFrame({
 	return canvas;
 }
 
+function strokeFillStyle({
+	context,
+	stroke,
+	width,
+	timeSeconds,
+}: {
+	context: CanvasRenderingContext2D;
+	stroke: NonNullable<EffectPersonTrackingRenderStage["stroke"]>;
+	width: number;
+	timeSeconds: number;
+}): string | CanvasGradient {
+	if (stroke.style === "rainbow") {
+		return `hsl(${Math.round((timeSeconds * 120) % 360)}, 95%, 62%)`;
+	}
+	if (stroke.style === "flow") {
+		const gradient = context.createLinearGradient(0, 0, width, 0);
+		const shift = (timeSeconds * 0.35) % 1;
+		for (let index = 0; index <= 4; index += 1) {
+			const position = index / 4;
+			const hue = ((position + shift) * 360) % 360;
+			gradient.addColorStop(position, `hsl(${hue.toFixed(0)}, 90%, 64%)`);
+		}
+		return gradient;
+	}
+	return stroke.color;
+}
+
+function strokeAlpha({
+	stroke,
+	timeSeconds,
+}: {
+	stroke: NonNullable<EffectPersonTrackingRenderStage["stroke"]>;
+	timeSeconds: number;
+}): number {
+	if (stroke.style === "electric") {
+		return 0.6 + 0.4 * Math.abs(Math.sin(timeSeconds * 40));
+	}
+	if (stroke.style === "shatter") {
+		return Math.sin(timeSeconds * 8) > -0.35 ? 0.95 : 0.25;
+	}
+	if (stroke.style === "crayon") return 0.8;
+	return 0.95;
+}
+
+const DEFAULT_STROKE: NonNullable<EffectPersonTrackingRenderStage["stroke"]> = {
+	style: "solid",
+	color: "#22d3ee",
+	width: 1,
+	glow: 1,
+};
+
 function drawOutline({
 	context,
 	source,
 	maskCanvas,
+	stroke = DEFAULT_STROKE,
 }: {
 	context: CanvasRenderingContext2D;
 	source: HTMLCanvasElement;
 	maskCanvas: HTMLCanvasElement;
+	stroke?: EffectPersonTrackingRenderStage["stroke"];
 }) {
+	const timeSeconds = performance.now() / 1000;
 	context.clearRect(0, 0, source.width, source.height);
 	context.drawImage(source, 0, 0);
 	const outline = createCanvas({ width: source.width, height: source.height });
 	const outlineContext = outline.getContext("2d");
 	if (!outlineContext)
 		throw new Error("Unable to create person outline canvas");
-	outlineContext.filter = `blur(${Math.max(2, source.width / 160)}px)`;
+	const baseRadius = Math.max(2, source.width / 160);
+	const radius =
+		baseRadius * Math.max(0.5, stroke.width * 0.7 + stroke.glow * 0.5);
+	outlineContext.filter = `blur(${radius.toFixed(2)}px)`;
 	outlineContext.drawImage(maskCanvas, 0, 0);
+	if (stroke.style === "neon") {
+		// Second, tighter pass reads as a bright core inside the wide glow.
+		outlineContext.filter = `blur(${(radius * 0.35).toFixed(2)}px)`;
+		outlineContext.drawImage(maskCanvas, 0, 0);
+	}
+	if (stroke.style === "handwritten" || stroke.style === "crayon") {
+		// Rough passes: re-stamp the mask slightly offset for a hand-drawn edge.
+		const wobble = stroke.style === "crayon" ? 2.5 : 1.5;
+		outlineContext.filter = `blur(${(radius * 0.6).toFixed(2)}px)`;
+		outlineContext.drawImage(
+			maskCanvas,
+			Math.sin(timeSeconds * 2) * wobble,
+			Math.cos(timeSeconds * 1.7) * wobble
+		);
+	}
 	outlineContext.filter = "none";
 	outlineContext.globalCompositeOperation = "source-in";
-	outlineContext.fillStyle = "rgba(34, 211, 238, 0.95)";
+	outlineContext.globalAlpha = strokeAlpha({ stroke, timeSeconds });
+	outlineContext.fillStyle = strokeFillStyle({
+		context: outlineContext,
+		stroke,
+		width: outline.width,
+		timeSeconds,
+	});
 	outlineContext.fillRect(0, 0, outline.width, outline.height);
+	outlineContext.globalAlpha = 1;
 	outlineContext.globalCompositeOperation = "destination-out";
 	outlineContext.drawImage(maskCanvas, 0, 0);
 	context.drawImage(outline, 0, 0);
@@ -170,7 +249,12 @@ export function drawPersonEffectFrame({
 		});
 		current.getContext("2d")?.drawImage(outputCanvas, 0, 0);
 		if (stage.treatment === "outline") {
-			drawOutline({ context, source: current, maskCanvas });
+			drawOutline({
+				context,
+				source: current,
+				maskCanvas,
+				stroke: stage.stroke,
+			});
 			continue;
 		}
 		if (stage.treatment === "spotlight") {
