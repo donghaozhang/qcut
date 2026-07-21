@@ -4,6 +4,9 @@ import { parametersToCSSFilters } from "@/lib/effects/effects-utils";
 import type { EffectCatalogEntry } from "@/lib/effects/effect-catalog-types";
 import { EffectOverlayLayers } from "@/components/editor/effects/effect-overlay-layers";
 import { EffectCompositeCanvas } from "@/components/editor/effects/effect-composite-canvas";
+import { EffectDistortionCanvas } from "@/components/editor/effects/effect-distortion-canvas";
+import { EffectParticleCanvas } from "@/components/editor/effects/effect-particle-canvas";
+import { EffectDecorationCanvas } from "@/components/editor/effects/effect-decoration-canvas";
 import { EffectPersonTrackingCanvas } from "@/components/editor/effects/effect-person-tracking-canvas";
 import { Volume2 } from "lucide-react";
 import {
@@ -105,12 +108,18 @@ export function EffectPreviewThumbnail({
 				sourceSelector='img[data-effect-preview-base="true"]'
 				fitMode="cover"
 			/>
+			<EffectDistortionCanvas program={entry.preset.renderProgram} />
 			<EffectPersonTrackingCanvas
 				program={entry.preset.renderProgram}
 				sourceSelector='img[data-effect-preview-base="true"]'
 				fitMode="cover"
 			/>
-			<EffectOverlayLayers program={entry.preset.renderProgram} />
+			<EffectOverlayLayers
+				program={entry.preset.renderProgram}
+				parameters={entry.preset.parameters}
+			/>
+			<EffectParticleCanvas program={entry.preset.renderProgram} />
+			<EffectDecorationCanvas program={entry.preset.renderProgram} />
 			{entry.preset.audioCompanion ? (
 				<span
 					className="absolute bottom-1 left-1 flex size-5 items-center justify-center rounded bg-black/70 text-white"

@@ -80,7 +80,10 @@ describe("EffectsView", () => {
 		render(<EffectsView />);
 
 		fireEvent.click(screen.getByTestId("effect-navigation-dynamic"));
-		expect(screen.getAllByTestId(/^effect-card-/)).toHaveLength(3);
+		// 3 original + heartbeat/flash-black/hard-shake/impact +
+		// subtle-shake/rhythm-swing/quad-shake/step-push/flash-pulse + mermaid +
+		// ripple/shockwave distortion + burst decoration.
+		expect(screen.getAllByTestId(/^effect-card-/)).toHaveLength(16);
 		expect(
 			screen.getByTestId("effect-card-dynamic-rhythm-pulse")
 		).toBeVisible();
@@ -92,17 +95,18 @@ describe("EffectsView", () => {
 		expect(screen.getByTestId("effect-card-invert")).toBeVisible();
 	});
 
-	it("renders three real multi-screen previews from composite programs", () => {
+	it("renders real multi-screen previews from composite programs", () => {
 		const { container } = render(<EffectsView />);
 
 		fireEvent.click(screen.getByTestId("effect-navigation-multiscreen"));
-		expect(screen.getAllByTestId(/^effect-card-/)).toHaveLength(3);
+		// side-by-side / mirror / quad-grid / stacked.
+		expect(screen.getAllByTestId(/^effect-card-/)).toHaveLength(4);
 		expect(
 			screen.getByTestId("effect-card-multiscreen-side-by-side")
 		).toBeVisible();
 		expect(
 			container.querySelectorAll("canvas[data-effect-composite-layout]")
-		).toHaveLength(3);
+		).toHaveLength(4);
 	});
 
 	it("applies three paired sound effects with their persisted audio resource", () => {

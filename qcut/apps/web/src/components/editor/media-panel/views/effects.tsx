@@ -7,6 +7,7 @@ import {
 	Frame,
 	Grid2X2,
 	Heart,
+	Leaf,
 	Lightbulb,
 	Search,
 	SlidersHorizontal,
@@ -71,6 +72,7 @@ const CATEGORY_ICONS: Record<VisualEffectCategoryId, LucideIcon> = {
 	audio: AudioLines,
 	"creative-ai": WandSparkles,
 	camera: Video,
+	nature: Leaf,
 };
 
 const COLLECTION_ICONS: Record<EffectCollectionId, LucideIcon> = {

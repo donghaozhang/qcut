@@ -23,6 +23,7 @@ export const VISUAL_EFFECT_CATEGORY_IDS = [
 	"audio",
 	"creative-ai",
 	"camera",
+	"nature",
 ] as const;
 
 export type VisualEffectCategoryId =
@@ -47,7 +48,9 @@ export type EffectRenderKind =
 	| "overlay"
 	| "composite"
 	| "audio-reactive"
-	| "person-tracking";
+	| "person-tracking"
+	| "particles"
+	| "distortion";
 
 export type EffectPreviewBackend =
 	| "css-filter"

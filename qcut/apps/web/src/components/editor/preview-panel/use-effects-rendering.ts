@@ -3,6 +3,7 @@ import {
 	combineEffectRenderPrograms,
 	type EffectAudioCompanion,
 	type EffectInstance,
+	type EffectParameters,
 	type EffectRenderProgram,
 } from "@qcut/editor-core";
 import { useEffectsStore } from "@/stores/ai/effects-store";
@@ -15,6 +16,8 @@ export interface ElementEffectsRendering {
 	filterStyle: string;
 	hasEffects: boolean;
 	renderProgram?: EffectRenderProgram;
+	/** Merged effect parameters (drives overlay-rendered filters like vignette). */
+	parameters?: EffectParameters;
 	audioCompanions: readonly ElementEffectAudioCompanion[];
 }
 
@@ -62,6 +65,7 @@ export function buildElementEffectsRendering({
 		filterStyle: parametersToCSSFilters(mergedParameters),
 		hasEffects: true,
 		renderProgram,
+		parameters: mergedParameters,
 		audioCompanions,
 	};
 }

@@ -92,4 +92,9 @@ export const VISUAL_EFFECT_NAVIGATION = [
 		label: "Camera motion",
 		localizedLabel: "运镜",
 	},
+	{
+		navigation: { kind: "category", id: "nature" },
+		label: "Nature",
+		localizedLabel: "自然",
+	},
 ] as const satisfies readonly EffectCatalogNavigationDefinition[];

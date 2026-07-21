@@ -77,6 +77,9 @@ import {
 } from "./use-effects-rendering";
 import { EffectOverlayLayers } from "@/components/editor/effects/effect-overlay-layers";
 import { EffectCompositeCanvas } from "@/components/editor/effects/effect-composite-canvas";
+import { EffectDistortionCanvas } from "@/components/editor/effects/effect-distortion-canvas";
+import { EffectParticleCanvas } from "@/components/editor/effects/effect-particle-canvas";
+import { EffectDecorationCanvas } from "@/components/editor/effects/effect-decoration-canvas";
 import { EffectPersonTrackingCanvas } from "@/components/editor/effects/effect-person-tracking-canvas";
 import { useEffectAudioReactivePreview } from "@/components/editor/effects/use-effect-audio-reactive-preview";
 import {
@@ -944,6 +947,10 @@ export function PreviewElementRenderer({
 								sourceSelector={colorPreviewSourceSelector}
 								fitMode={visual.fitMode}
 							/>
+							<EffectDistortionCanvas
+								program={effectRendering.renderProgram}
+								sourceSelector={colorPreviewSourceSelector}
+							/>
 							<EffectPersonTrackingCanvas
 								program={effectRendering.renderProgram}
 								sourceSelector={colorPreviewSourceSelector}
@@ -1034,7 +1041,12 @@ export function PreviewElementRenderer({
 							) : null}
 							{derivedAudioPlayers}
 						</div>
-						<EffectOverlayLayers program={effectRendering.renderProgram} />
+						<EffectOverlayLayers
+							program={effectRendering.renderProgram}
+							parameters={effectRendering.parameters}
+						/>
+						<EffectParticleCanvas program={effectRendering.renderProgram} />
+						<EffectDecorationCanvas program={effectRendering.renderProgram} />
 						{transitionOverlayStyle ? (
 							<div aria-hidden="true" style={transitionOverlayStyle} />
 						) : null}
@@ -1219,13 +1231,22 @@ export function PreviewElementRenderer({
 									sourceSelector='img[data-color-source="true"]'
 									fitMode="contain"
 								/>
+								<EffectDistortionCanvas
+									program={effectRendering.renderProgram}
+									sourceSelector='img[data-color-source="true"]'
+								/>
 								<EffectPersonTrackingCanvas
 									program={effectRendering.renderProgram}
 									sourceSelector='img[data-color-source="true"]'
 									fitMode="contain"
 								/>
 							</div>
-							<EffectOverlayLayers program={effectRendering.renderProgram} />
+							<EffectOverlayLayers
+								program={effectRendering.renderProgram}
+								parameters={effectRendering.parameters}
+							/>
+							<EffectParticleCanvas program={effectRendering.renderProgram} />
+							<EffectDecorationCanvas program={effectRendering.renderProgram} />
 							{transitionOverlayStyle ? (
 								<div aria-hidden="true" style={transitionOverlayStyle} />
 							) : null}
@@ -1303,13 +1324,22 @@ export function PreviewElementRenderer({
 								sourceSelector='img[data-color-source="true"]'
 								fitMode="cover"
 							/>
+							<EffectDistortionCanvas
+								program={effectRendering.renderProgram}
+								sourceSelector='img[data-color-source="true"]'
+							/>
 							<EffectPersonTrackingCanvas
 								program={effectRendering.renderProgram}
 								sourceSelector='img[data-color-source="true"]'
 								fitMode="cover"
 							/>
 						</div>
-						<EffectOverlayLayers program={effectRendering.renderProgram} />
+						<EffectOverlayLayers
+							program={effectRendering.renderProgram}
+							parameters={effectRendering.parameters}
+						/>
+						<EffectParticleCanvas program={effectRendering.renderProgram} />
+						<EffectDecorationCanvas program={effectRendering.renderProgram} />
 						{transitionOverlayStyle ? (
 							<div aria-hidden="true" style={transitionOverlayStyle} />
 						) : null}

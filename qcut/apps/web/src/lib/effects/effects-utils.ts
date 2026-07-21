@@ -54,6 +54,13 @@ export function parametersToCSSFilters(parameters: EffectParameters): string {
 		filters.push(`invert(${invert})`);
 	}
 
+	// Sharpen — CSS has no sharpen filter; approximate perceived crispness with
+	// a small contrast lift (real sharpening happens on export via unsharp).
+	if (parameters.sharpen !== undefined && parameters.sharpen > 0) {
+		const sharpenContrast = 1 + (parameters.sharpen / 100) * 0.35;
+		filters.push(`contrast(${sharpenContrast.toFixed(3)})`);
+	}
+
 	// Combined effects that need custom implementation
 	if (parameters.vintage !== undefined) {
 		// Vintage effect combines multiple filters

@@ -16,3 +16,11 @@ export {
 	upsertEffectKeyframe,
 	type EffectKeyframeParameter,
 } from "./keyframes.js";
+export {
+	sampleEffectParticles,
+	type SampledEffectParticle,
+} from "./particles.js";
+export {
+	sampleDistortionSource,
+	type DistortionSample,
+} from "./distortion.js";

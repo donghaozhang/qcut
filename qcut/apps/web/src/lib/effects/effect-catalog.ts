@@ -11,6 +11,9 @@ import { COMPOSITE_EFFECT_CATALOG } from "./effect-composite-catalog";
 import { SOUND_EFFECT_CATALOG } from "./effect-sound-catalog";
 import { AUDIO_REACTIVE_EFFECT_CATALOG } from "./effect-audio-reactive-catalog";
 import { CREATIVE_AI_EFFECT_CATALOG } from "./effect-creative-ai-catalog";
+import { DECORATION_EFFECT_CATALOG } from "./effect-decoration-catalog";
+import { DISTORTION_EFFECT_CATALOG } from "./effect-distortion-catalog";
+import { PARTICLE_EFFECT_CATALOG } from "./effect-particle-catalog";
 import { PERSON_EFFECT_CATALOG } from "./effect-person-catalog";
 
 interface LegacyEffectMetadata {
@@ -119,6 +122,10 @@ const LEGACY_EFFECT_METADATA = {
 	},
 } as const satisfies Record<EffectPresetId, LegacyEffectMetadata>;
 
+// The classic CSS-filter presets ship published: each already has a verified
+// css-filter preview + ffmpeg-filter export contract and a localized Chinese
+// name (effects.preset.<id>.name in translations.ts), so publishing them
+// deepens basic/atmosphere/trendy/light with zero new render code.
 export const LEGACY_EFFECT_CATALOG = EFFECT_PRESETS.map((preset) => {
 	const metadata = LEGACY_EFFECT_METADATA[preset.id];
 	return {
@@ -129,7 +136,7 @@ export const LEGACY_EFFECT_CATALOG = EFFECT_PRESETS.map((preset) => {
 		tags: metadata.tags,
 		releasedAt: metadata.releasedAt,
 		popularityScore: metadata.popularityScore,
-		publication: "legacy",
+		publication: "published",
 		render: {
 			kind: "filter",
 			previewBackend: "css-filter",
@@ -148,5 +155,8 @@ export const EFFECT_CATALOG: readonly EffectCatalogEntry[] = [
 	...SOUND_EFFECT_CATALOG,
 	...AUDIO_REACTIVE_EFFECT_CATALOG,
 	...CREATIVE_AI_EFFECT_CATALOG,
+	...PARTICLE_EFFECT_CATALOG,
+	...DECORATION_EFFECT_CATALOG,
+	...DISTORTION_EFFECT_CATALOG,
 	...PERSON_EFFECT_CATALOG,
 ];

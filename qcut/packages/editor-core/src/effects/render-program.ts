@@ -115,6 +115,52 @@ function validateStage({
 		return [...windowErrors, ...errors];
 	}
 
+	if (stage.kind === "particles") {
+		const errors: string[] = [];
+		if (
+			!isFiniteNumber(stage.density) ||
+			stage.density < 0 ||
+			stage.density > 1
+		) {
+			errors.push(`${prefix}.density must be between 0 and 1`);
+		}
+		if (
+			!isFiniteNumber(stage.opacity) ||
+			stage.opacity < 0 ||
+			stage.opacity > 1
+		) {
+			errors.push(`${prefix}.opacity must be between 0 and 1`);
+		}
+		if (!isFiniteNumber(stage.speed) || stage.speed <= 0) {
+			errors.push(`${prefix}.speed must be a positive number`);
+		}
+		return [...windowErrors, ...errors];
+	}
+
+	if (stage.kind === "decoration") {
+		const errors: string[] = [];
+		if (
+			!isFiniteNumber(stage.opacity) ||
+			stage.opacity < 0 ||
+			stage.opacity > 1
+		) {
+			errors.push(`${prefix}.opacity must be between 0 and 1`);
+		}
+		return [...windowErrors, ...errors];
+	}
+
+	if (stage.kind === "distortion") {
+		const errors: string[] = [];
+		if (
+			!isFiniteNumber(stage.strength) ||
+			stage.strength < 0 ||
+			stage.strength > 1
+		) {
+			errors.push(`${prefix}.strength must be between 0 and 1`);
+		}
+		return [...windowErrors, ...errors];
+	}
+
 	return windowErrors;
 }
 

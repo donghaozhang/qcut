@@ -95,62 +95,52 @@ describe("effect catalog", () => {
 		expect(collections).toEqual(EFFECT_COLLECTION_IDS);
 	});
 
-	it("keeps legacy presets resolvable without counting them as launch content", () => {
+	it("publishes the 16 classic CSS-filter presets with verified contracts", () => {
 		expect(LEGACY_EFFECT_CATALOG).toHaveLength(16);
 		expect(
 			new Set(LEGACY_EFFECT_CATALOG.map((entry) => entry.preset.id)).size
 		).toBe(16);
+		// Formerly publication:"legacy" and hidden — now surfaced in the panel.
 		expect(
-			LEGACY_EFFECT_CATALOG.every((entry) => entry.publication === "legacy")
+			LEGACY_EFFECT_CATALOG.every((entry) => entry.publication === "published")
+		).toBe(true);
+		expect(
+			LEGACY_EFFECT_CATALOG.every((entry) => entry.render.parity === "verified")
 		).toBe(true);
 		expect(
 			auditEffectRenderContracts({ entries: LEGACY_EFFECT_CATALOG })
 		).toEqual([]);
-
-		const coverage = auditEffectCatalogCoverage({
-			entries: LEGACY_EFFECT_CATALOG,
-		});
-		expect(coverage).toHaveLength(VISUAL_EFFECT_CATEGORY_IDS.length);
-		expect(coverage.every((item) => item.status === "underfilled")).toBe(true);
+		// The published "invert" preset (tagged negative) is now searchable.
 		expect(
 			selectEffectCatalogEntries({
 				entries: EFFECT_CATALOG,
 				section: "visual",
 				query: "negative",
-			})
-		).toEqual([]);
+			}).map((entry) => entry.preset.id)
+		).toContain("invert");
 	});
 
-	it("publishes three real effects in every implemented category", () => {
+	it("keeps every implemented category ready and deepens the filter tabs", () => {
 		const coverage = auditEffectCatalogCoverage({ entries: EFFECT_CATALOG });
 		const coverageByCategory = new Map(
 			coverage.map((item) => [item.category, item])
 		);
 
-		expect(coverageByCategory.get("dynamic")).toMatchObject({
-			count: 3,
-			status: "ready",
-		});
-		expect(coverageByCategory.get("camera")).toMatchObject({
-			count: 3,
-			status: "ready",
-		});
+		// Every category (including the new 自然 tab) ships ready with content.
+		for (const category of VISUAL_EFFECT_CATEGORY_IDS) {
+			const entry = coverageByCategory.get(category);
+			expect(entry?.status).toBe("ready");
+			expect(entry?.count ?? 0).toBeGreaterThanOrEqual(3);
+		}
+
+		// Classic filters deepen the four filter-driven tabs past the old cap of 3.
 		for (const category of [
 			"basic",
 			"atmosphere",
 			"trendy",
-			"border",
-			"multiscreen",
-			"sound",
 			"light",
-			"heart",
-			"audio",
-			"creative-ai",
 		] as const) {
-			expect(coverageByCategory.get(category)).toMatchObject({
-				count: 3,
-				status: "ready",
-			});
+			expect(coverageByCategory.get(category)?.count ?? 0).toBeGreaterThan(3);
 		}
 		expect(
 			EFFECT_CATALOG.filter(
@@ -166,7 +156,39 @@ describe("effect catalog", () => {
 				(entry) => entry.preset.renderProgram?.stages[0]?.kind === "motion"
 			)
 		).toBe(true);
-		expect(auditEffectRenderContracts({ entries: EFFECT_CATALOG })).toEqual([]);
+		// Every published effect has a verified render contract EXCEPT the
+		// procedural canvas effects — particle, decoration (8), and distortion (4):
+		// their canvas preview is complete but frame-based export burn-in is a
+		// tracked follow-up (parity: pending).
+		expect(auditEffectRenderContracts({ entries: EFFECT_CATALOG })).toEqual([
+			"atmosphere-snow",
+			"atmosphere-sakura",
+			"atmosphere-embers",
+			"atmosphere-stars",
+			"atmosphere-confetti",
+			"atmosphere-fog",
+			"atmosphere-snow-sparkle",
+			"atmosphere-sad-snow",
+			"atmosphere-gold-stars",
+			"atmosphere-gold-coins",
+			"atmosphere-butterfly",
+			"atmosphere-dissolve",
+			"nature-falling-leaves",
+			"nature-fireflies",
+			"nature-snowfall",
+			"basic-grid",
+			"basic-film-end",
+			"atmosphere-rainbow-rays",
+			"basic-iris",
+			"basic-standby",
+			"dynamic-burst",
+			"light-lens-flare",
+			"atmosphere-floating-text",
+			"basic-fisheye",
+			"dynamic-ripple",
+			"dynamic-shockwave",
+			"basic-magnifier",
+		]);
 	});
 
 	it("publishes three verified person effects from the shared catalog", () => {

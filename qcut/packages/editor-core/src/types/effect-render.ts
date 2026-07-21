@@ -4,7 +4,10 @@ export type EffectRenderStageKind =
 	| "overlay"
 	| "composite"
 	| "audio-reactive"
-	| "person-tracking";
+	| "person-tracking"
+	| "particles"
+	| "decoration"
+	| "distortion";
 
 export type EffectMotionProperty = "x" | "y" | "scale" | "rotation" | "opacity";
 
@@ -85,13 +88,89 @@ export interface EffectPersonTrackingRenderStage {
 	window?: EffectRenderWindow;
 }
 
+export type EffectParticleVariant =
+	| "snow"
+	| "sakura"
+	| "embers"
+	| "stars"
+	| "confetti"
+	| "fog"
+	| "coins"
+	| "butterfly";
+
+/**
+ * Procedural particle field (氛围-style overlays: snow, sakura, embers, …).
+ * Rendered deterministically from clip-local time so the catalog thumbnail,
+ * timeline preview, and frame-based export all agree.
+ */
+export interface EffectParticleRenderStage {
+	kind: "particles";
+	variant: EffectParticleVariant;
+	/** Relative particle count, 0–1 (scaled to canvas area at render time). */
+	density: number;
+	/** Fall/drift speed multiplier. */
+	speed: number;
+	/** CSS color of the particles. */
+	color: string;
+	/** Overall layer opacity, 0–1. */
+	opacity: number;
+	window?: EffectRenderWindow;
+}
+
+export type EffectDecorationVariant =
+	| "grid"
+	| "rainbow-rays"
+	| "film-end"
+	| "iris"
+	| "standby"
+	| "burst"
+	| "lens-flare"
+	| "floating-text";
+
+/**
+ * Procedural non-particle overlays (上下网格 / 彩虹射线 / 全剧终) drawn on a
+ * canvas from clip-local time. Like particles, the preview is complete and
+ * frame-based export burn-in is a tracked follow-up.
+ */
+export interface EffectDecorationRenderStage {
+	kind: "decoration";
+	variant: EffectDecorationVariant;
+	/** Primary CSS color (grid lines, ray tint, letterbox text). */
+	color: string;
+	/** Overall layer opacity, 0–1. */
+	opacity: number;
+	window?: EffectRenderWindow;
+}
+
+export type EffectDistortionVariant =
+	| "fisheye"
+	| "ripple"
+	| "shockwave"
+	| "magnifier";
+
+/**
+ * Radial displacement distortion (鱼眼 / 水波纹 / 冲击波). Sampled per output
+ * pixel from clip-local time via sampleDistortionSource; the canvas preview
+ * remaps the source frame and frame-based export burn-in is a follow-up.
+ */
+export interface EffectDistortionRenderStage {
+	kind: "distortion";
+	variant: EffectDistortionVariant;
+	/** Distortion amount, 0–1. */
+	strength: number;
+	window?: EffectRenderWindow;
+}
+
 export type EffectRenderStage =
 	| EffectFilterRenderStage
 	| EffectMotionRenderStage
 	| EffectOverlayRenderStage
 	| EffectCompositeRenderStage
 	| EffectAudioReactiveRenderStage
-	| EffectPersonTrackingRenderStage;
+	| EffectPersonTrackingRenderStage
+	| EffectParticleRenderStage
+	| EffectDecorationRenderStage
+	| EffectDistortionRenderStage;
 
 export interface EffectRenderProgram {
 	version: 1;
