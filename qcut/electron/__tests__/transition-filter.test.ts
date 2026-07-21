@@ -220,4 +220,65 @@ describe("FFmpeg transition filters", () => {
 		});
 		expect(filter.expression).toContain("eq(PLANE,0),189");
 	});
+
+	it("builds an expression for every engine and every mask shape", () => {
+		const engineTypes = [
+			"dissolve",
+			"fade-black",
+			"fade-white",
+			"slide",
+			"wipe",
+			"push",
+			"zoom-blur",
+			"whip-pan",
+			"flash",
+			"light-leak",
+			"rgb-glitch",
+			"shake",
+			"motion-blur",
+			"pixelate",
+			"water-ripple",
+			"particle-dissolve",
+			"glass-refraction",
+			"page-flip",
+			"texture-mask",
+			"lens-flare",
+			"vortex",
+			"shockwave",
+			"cube",
+		] as const;
+		for (const type of engineTypes) {
+			const filter = buildXfadeTransitionFilter({
+				transition: transition({ type }),
+			});
+			expect(filter.transition).toBe("custom");
+			expect(filter.expression.length).toBeGreaterThan(4);
+		}
+
+		const maskShapes = [
+			"circle",
+			"clock",
+			"blinds",
+			"cross",
+			"triptych",
+			"arrow",
+			"heart",
+			"star",
+			"ink",
+			"cloud",
+			"fog",
+			"drip",
+			"curtain",
+		];
+		const expressions = new Set<string>();
+		for (const maskShape of maskShapes) {
+			const filter = buildXfadeTransitionFilter({
+				transition: { ...transition({ type: "texture-mask" }), maskShape },
+			});
+			expect(filter.expression.length).toBeGreaterThan(4);
+			expressions.add(filter.expression);
+		}
+		// Every shape must produce distinct export geometry.
+		expect(expressions.size).toBe(maskShapes.length);
+	});
 });
