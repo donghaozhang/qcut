@@ -187,6 +187,10 @@ function noiseBlobMask({
 	progress: number;
 }): string {
 	const layers: string[] = [];
+	const backing = Math.min(1, Math.max(0, (progress - 0.68) / 0.3));
+	if (backing > 0) {
+		layers.push(`linear-gradient(rgba(0,0,0,${backing.toFixed(3)}) 0 0)`);
+	}
 	for (let index = 0; index < blobCount; index += 1) {
 		const x = hash01(seedBase + index * 3.7) * 100;
 		const y = hash01(seedBase + index * 7.3 + 1) * 100;
@@ -693,6 +697,22 @@ export function getClipTransitionLayerPresentation({
 		}
 		case "texture-mask": {
 			if (transition.maskShape) {
+				// Snap at the boundaries to mirror the FFmpeg export expression
+				// (if(lte(p,0.001),A,if(gte(p,0.999),B,...))): no incoming slivers
+				// before the wipe starts, no outgoing residue after it completes.
+				if (role === "from") {
+					return {
+						...base,
+						opacity: eased >= 0.999 ? 0 : 1,
+						contentOpacity: eased >= 0.999 ? 0 : 1,
+					};
+				}
+				if (eased <= 0.001) {
+					return { ...base, opacity: 0, contentOpacity: 0 };
+				}
+				if (eased >= 0.999) {
+					return base;
+				}
 				return {
 					...base,
 					...shapeMask({
