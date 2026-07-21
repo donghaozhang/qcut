@@ -163,6 +163,25 @@ function appendEffectOverlayInputs<T extends EffectOverlayCarrier>({
 				? resolvedDuration
 				: fallbackDuration;
 		const effectOverlaySources = source.effectOverlaySources?.map((overlay) => {
+			if (overlay.sequence) {
+				// Baked procedural frame sequence: image2 pattern input timed by
+				// -framerate; the frame count already bounds its duration.
+				const firstFramePath = overlay.path.replace("%05d", "00000");
+				if (!fs.existsSync(firstFramePath)) {
+					throw new Error(
+						`Effect sequence source not found: ${firstFramePath}`
+					);
+				}
+				args.push(
+					"-framerate",
+					String(overlay.sequence.framerate),
+					"-start_number",
+					"0",
+					"-i",
+					overlay.path
+				);
+				return { ...overlay, inputIndex: nextInputIndex++ };
+			}
 			if (!fs.existsSync(overlay.path)) {
 				throw new Error(`Effect overlay source not found: ${overlay.path}`);
 			}

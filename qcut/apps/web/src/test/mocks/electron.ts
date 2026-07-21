@@ -87,6 +87,11 @@ export const mockElectronAPI: ElectronAPI = {
 			success: true,
 			path: "/tmp/sticker.png",
 		}),
+		saveEffectSequenceFrame: vi.fn().mockResolvedValue({
+			success: true,
+			path: "/tmp/effect-sequences/seq/f_00000.png",
+			patternPath: "/tmp/effect-sequences/seq/f_%05d.png",
+		}),
 		exportVideoCLI: vi.fn().mockResolvedValue({
 			success: true,
 			outputFile: "output.mp4",

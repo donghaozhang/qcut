@@ -61,9 +61,11 @@ function createDecorationCatalogEntry({
 		render: {
 			kind: "overlay",
 			previewBackend: "canvas",
-			// Canvas preview complete; frame-based export burn-in is a follow-up.
+			// The export pipeline bakes the same canvas frames to a transparent PNG
+			// sequence (one frame for static grids) and composites them in the
+			// native FFmpeg pass (effect-procedural-sources).
 			exportBackend: "frame-renderer",
-			parity: "pending",
+			parity: "verified",
 		},
 	};
 }

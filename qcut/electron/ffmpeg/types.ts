@@ -202,6 +202,11 @@ export interface EffectOverlaySource {
 	stageIndex: number;
 	path: string;
 	animated: boolean;
+	/**
+	 * Present for baked procedural frame sequences: `path` is then an image2
+	 * pattern (…/f_%05d.png) consumed with -framerate instead of -loop.
+	 */
+	sequence?: { framerate: number };
 	inputIndex?: number;
 }
 

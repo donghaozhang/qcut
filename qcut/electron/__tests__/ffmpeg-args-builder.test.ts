@@ -225,6 +225,53 @@ describe("buildFFmpegArgs", () => {
 			]);
 		});
 
+		it("feeds baked procedural sequences as image2 pattern inputs", () => {
+			const args = buildFFmpegArgs(
+				createBaseOptions({
+					videoSources: [
+						{
+							path: "/source.mp4",
+							startTime: 0,
+							duration: 10,
+							trimStart: 0,
+							trimEnd: 0,
+							playbackRate: 1,
+							freezeFrameDuration: 0,
+							effectOverlaySources: [
+								{
+									resourceId: "procedural:particles:snow",
+									stageIndex: 0,
+									path: "/frames/effect-sequences/el-s0/f_%05d.png",
+									animated: true,
+									sequence: { framerate: 30 },
+								},
+							],
+						},
+					],
+				})
+			);
+
+			// Existence is checked against the first concrete frame, not the pattern.
+			expect(existsSyncMock).toHaveBeenCalledWith(
+				"/frames/effect-sequences/el-s0/f_00000.png"
+			);
+			const patternInput = args.indexOf(
+				"/frames/effect-sequences/el-s0/f_%05d.png"
+			);
+			expect(args.slice(patternInput - 5, patternInput + 1)).toEqual([
+				"-framerate",
+				"30",
+				"-start_number",
+				"0",
+				"-i",
+				"/frames/effect-sequences/el-s0/f_%05d.png",
+			]);
+			// Sequence inputs must not loop or clamp with -t.
+			expect(args.slice(patternInput - 7, patternInput - 5)).not.toContain(
+				"-stream_loop"
+			);
+		});
+
 		it("applies per-clip audio processing before mixing", () => {
 			const args = buildFFmpegArgs(
 				createBaseOptions({

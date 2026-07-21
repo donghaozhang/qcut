@@ -57,6 +57,32 @@ export interface EffectPersonTrackingRenderStage {
 	window?: EffectRenderWindow;
 }
 
+export interface EffectParticleRenderStage {
+	kind: "particles";
+	variant: string;
+	density: number;
+	speed: number;
+	color: string;
+	opacity: number;
+	window?: EffectRenderWindow;
+}
+
+export interface EffectDecorationRenderStage {
+	kind: "decoration";
+	variant: string;
+	color: string;
+	opacity: number;
+	window?: EffectRenderWindow;
+}
+
+export interface EffectDistortionRenderStage {
+	kind: "distortion";
+	variant: string;
+	/** Distortion amount, 0–1. */
+	strength: number;
+	window?: EffectRenderWindow;
+}
+
 export type EffectRenderStage =
 	| { kind: "filter"; window?: EffectRenderWindow }
 	| EffectMotionRenderStage
@@ -73,7 +99,10 @@ export type EffectRenderStage =
 			releaseMs: number;
 			window?: EffectRenderWindow;
 	  }
-	| EffectPersonTrackingRenderStage;
+	| EffectPersonTrackingRenderStage
+	| EffectParticleRenderStage
+	| EffectDecorationRenderStage
+	| EffectDistortionRenderStage;
 
 export interface EffectRenderProgram {
 	version: 1;

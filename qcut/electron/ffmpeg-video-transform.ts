@@ -858,6 +858,66 @@ function buildEffectOverlayFilters({
 	return { filterSteps, outputLabel };
 }
 
+/**
+ * Composites baked procedural particle/decoration frame sequences over the
+ * segment. Opacity and blending are already baked into the RGBA frames, so
+ * every stage composites with a plain alpha overlay. Unlike asset overlays,
+ * baked sequences are finite: rely on overlay's default eof_action=repeat
+ * (hold last frame) instead of shortest=1, which would truncate the segment.
+ */
+function buildEffectProceduralFilters({
+	currentLabel,
+	duration,
+	fps,
+	height,
+	segmentIndex,
+	source,
+	width,
+}: {
+	currentLabel: string;
+	duration: number;
+	fps: number;
+	height: number;
+	segmentIndex: number;
+	source: VideoSource;
+	width: number;
+}): { filterSteps: string[]; outputLabel: string } {
+	const program = source.effectRenderProgram;
+	if (!program) return { filterSteps: [], outputLabel: currentLabel };
+
+	const filterSteps: string[] = [];
+	let outputLabel = currentLabel;
+	for (const [stageIndex, stage] of program.stages.entries()) {
+		if (stage.kind !== "particles" && stage.kind !== "decoration") continue;
+		const overlaySource = source.effectOverlaySources?.find(
+			(candidate) => candidate.stageIndex === stageIndex
+		);
+		if (overlaySource?.inputIndex === undefined) {
+			throw new Error(
+				`Missing FFmpeg input for procedural effect ${stage.kind}:${stage.variant} at stage ${stageIndex}`
+			);
+		}
+
+		const prefix = `video_${segmentIndex}_effect_procedural_${stageIndex}`;
+		const enabled = effectWindowExpression({
+			window: stage.window,
+			timeVariable: "t",
+		});
+		const enableOption = enabled ? `:enable='${enabled}'` : "";
+		const prepared = `${prefix}_prepared`;
+		filterSteps.push(
+			`[${overlaySource.inputIndex}:v]scale=${width}:${height},format=rgba,` +
+				`fps=${fps},trim=duration=${duration},setpts=PTS-STARTPTS[${prepared}]`
+		);
+		const composed = `${prefix}_composed`;
+		filterSteps.push(
+			`[${outputLabel}][${prepared}]overlay=x=0:y=0:format=auto${enableOption}[${composed}]`
+		);
+		outputLabel = composed;
+	}
+	return { filterSteps, outputLabel };
+}
+
 function buildTimedVideoInput({
 	inputLabel,
 	prefix,
@@ -1221,6 +1281,17 @@ function buildSegmentFilters({
 	});
 	steps.push(...effectOverlayGraph.filterSteps);
 	current = effectOverlayGraph.outputLabel;
+	const effectProceduralGraph = buildEffectProceduralFilters({
+		currentLabel: current,
+		duration,
+		fps,
+		height,
+		segmentIndex,
+		source,
+		width,
+	});
+	steps.push(...effectProceduralGraph.filterSteps);
+	current = effectProceduralGraph.outputLabel;
 	const crop = visual.crop;
 	const left = buildVideoKeyframeExpression({
 		visual,

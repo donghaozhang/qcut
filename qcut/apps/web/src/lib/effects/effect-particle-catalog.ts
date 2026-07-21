@@ -65,11 +65,11 @@ function createParticleCatalogEntry({
 		render: {
 			kind: "particles",
 			previewBackend: "canvas",
-			// Rendered per-frame from the deterministic particle model. Preview is
-			// complete; frame-based export burn-in is the tracked follow-up, so the
-			// contract is honestly marked pending (see effect-catalog audit).
+			// Rendered per-frame from the deterministic particle model. The export
+			// pipeline bakes the same frames to a transparent PNG sequence and
+			// composites them in the native FFmpeg pass (effect-procedural-sources).
 			exportBackend: "frame-renderer",
-			parity: "pending",
+			parity: "verified",
 		},
 	};
 }

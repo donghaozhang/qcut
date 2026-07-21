@@ -157,33 +157,11 @@ describe("effect catalog", () => {
 			)
 		).toBe(true);
 		// Every published effect has a verified render contract EXCEPT the
-		// procedural canvas effects — particle, decoration (8), and distortion (4):
-		// their canvas preview is complete but frame-based export burn-in is a
-		// tracked follow-up (parity: pending).
+		// distortion effects (4): their canvas preview is complete but the FFmpeg
+		// remap/lenscorrection export path is the tracked follow-up (parity:
+		// pending). Particle and decoration effects export via baked PNG
+		// sequences composited in the native FFmpeg pass.
 		expect(auditEffectRenderContracts({ entries: EFFECT_CATALOG })).toEqual([
-			"atmosphere-snow",
-			"atmosphere-sakura",
-			"atmosphere-embers",
-			"atmosphere-stars",
-			"atmosphere-confetti",
-			"atmosphere-fog",
-			"atmosphere-snow-sparkle",
-			"atmosphere-sad-snow",
-			"atmosphere-gold-stars",
-			"atmosphere-gold-coins",
-			"atmosphere-butterfly",
-			"atmosphere-dissolve",
-			"nature-falling-leaves",
-			"nature-fireflies",
-			"nature-snowfall",
-			"basic-grid",
-			"basic-film-end",
-			"atmosphere-rainbow-rays",
-			"basic-iris",
-			"basic-standby",
-			"dynamic-burst",
-			"light-lens-flare",
-			"atmosphere-floating-text",
 			"basic-fisheye",
 			"dynamic-ripple",
 			"dynamic-shockwave",

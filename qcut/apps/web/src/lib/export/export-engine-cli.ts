@@ -45,6 +45,7 @@ import {
 	extractImageSources,
 	extractAudioMixConfig,
 	extractEffectOverlaySources,
+	extractEffectProceduralSources,
 	extractEffectPersonSources,
 	extractEffectCompanionAudioSources,
 	extractEffectAudioReactiveEnvelopes,
@@ -442,21 +443,62 @@ export class CLIExportEngine extends ExportEngine {
 		).some((program) =>
 			program.stages.some((stage) => stage.kind === "person-tracking")
 		);
+		const hasEffectProceduralStages = Array.from(
+			elementRenderPrograms.values()
+		).some((program) =>
+			program.stages.some(
+				(stage) => stage.kind === "particles" || stage.kind === "decoration"
+			)
+		);
 		if (hasEffectOverlayStages && !this.sessionId) {
 			throw new Error("Effect overlay export requires an active session");
 		}
 		if (hasEffectPersonStages && !this.sessionId) {
 			throw new Error("Person effect export requires an active session");
 		}
-		const effectOverlaySourcesByElementId = this.sessionId
-			? await extractEffectOverlaySources({
+		if (hasEffectProceduralStages && !this.sessionId) {
+			throw new Error("Procedural effect export requires an active session");
+		}
+		const effectOverlaySourcesByElementId = new Map(
+			this.sessionId
+				? await extractEffectOverlaySources({
+						programsByElementId: elementRenderPrograms,
+						sessionId: this.sessionId,
+						canvasWidth: this.canvas.width,
+						canvasHeight: this.canvas.height,
+						logger: debugLog,
+					})
+				: []
+		);
+		if (hasEffectProceduralStages && this.sessionId) {
+			// Bake particle/decoration stages to transparent PNG sequences so the
+			// native FFmpeg pass composites the exact frames the preview draws.
+			const proceduralSourcesByElementId = await extractEffectProceduralSources(
+				{
 					programsByElementId: elementRenderPrograms,
+					tracks: this.tracks,
 					sessionId: this.sessionId,
 					canvasWidth: this.canvas.width,
 					canvasHeight: this.canvas.height,
+					fps: this.getFrameRate(),
 					logger: debugLog,
-				})
-			: new Map();
+					onProgress: ({ bakedFrames, totalFrames }) => {
+						const ratio = totalFrames > 0 ? bakedFrames / totalFrames : 1;
+						progressCallback?.(
+							10 + Math.round(ratio * 8),
+							`Baking effect frames (${bakedFrames}/${totalFrames})...`
+						);
+					},
+				}
+			);
+			for (const [elementId, sources] of proceduralSourcesByElementId) {
+				const existing = effectOverlaySourcesByElementId.get(elementId) ?? [];
+				effectOverlaySourcesByElementId.set(elementId, [
+					...existing,
+					...sources,
+				]);
+			}
+		}
 		const effectPersonSourcesByElementId = this.sessionId
 			? await extractEffectPersonSources({
 					programsByElementId: elementRenderPrograms,
