@@ -288,7 +288,13 @@ export interface TimelineStore {
 		updates: Partial<
 			Pick<
 				ClipTransition,
-				"presetId" | "type" | "duration" | "direction" | "easing" | "tuning"
+				| "presetId"
+				| "type"
+				| "duration"
+				| "direction"
+				| "easing"
+				| "tuning"
+				| "maskShape"
 			>
 		>;
 	}) => void;

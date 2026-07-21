@@ -204,6 +204,125 @@ function noiseBlobMask({
 	return layers.join(", ");
 }
 
+type ShapeMaskPresentation = Partial<ClipTransitionLayerPresentation>;
+
+function circleMask({ progress }: { progress: number }): ShapeMaskPresentation {
+	return { clipPath: `circle(${(progress * 75).toFixed(2)}% at 50% 50%)` };
+}
+
+function clockMask({ progress }: { progress: number }): ShapeMaskPresentation {
+	const points = ["50% 50%", "50% -50%"];
+	const sweep = progress * Math.PI * 2;
+	const steps = Math.max(1, Math.ceil(sweep / (Math.PI / 15)));
+	for (let index = 0; index <= steps; index += 1) {
+		const angle = (sweep * index) / steps;
+		const x = 50 + 150 * Math.sin(angle);
+		const y = 50 - 150 * Math.cos(angle);
+		points.push(`${x.toFixed(1)}% ${y.toFixed(1)}%`);
+	}
+	return { clipPath: `polygon(${points.join(", ")})` };
+}
+
+function blindsMask({ progress }: { progress: number }): ShapeMaskPresentation {
+	const slat = (progress * 12.5).toFixed(2);
+	return {
+		maskImage: `repeating-linear-gradient(180deg, #000 0 ${slat}%, transparent ${slat}% 12.5%)`,
+		maskSize: "100% 100%",
+		maskRepeat: "no-repeat",
+	};
+}
+
+function crossMask({ progress }: { progress: number }): ShapeMaskPresentation {
+	const arm = (progress * 50).toFixed(2);
+	return {
+		maskImage:
+			`linear-gradient(90deg, transparent calc(50% - ${arm}%), #000 calc(50% - ${arm}%) calc(50% + ${arm}%), transparent calc(50% + ${arm}%)), ` +
+			`linear-gradient(180deg, transparent calc(50% - ${arm}%), #000 calc(50% - ${arm}%) calc(50% + ${arm}%), transparent calc(50% + ${arm}%))`,
+		maskSize: "100% 100%",
+		maskRepeat: "no-repeat",
+	};
+}
+
+function triptychMask({
+	progress,
+}: {
+	progress: number;
+}): ShapeMaskPresentation {
+	return {
+		maskImage: "linear-gradient(#000 0 0)",
+		maskSize: `33.4% ${(progress * 100).toFixed(2)}%`,
+		maskPosition: "0 0",
+		maskRepeat: "repeat-x",
+	};
+}
+
+function arrowMask({ progress }: { progress: number }): ShapeMaskPresentation {
+	const edge = progress * 125 - 25;
+	return {
+		clipPath: `polygon(-1% -1%, ${edge.toFixed(1)}% -1%, ${(edge + 25).toFixed(1)}% 50%, ${edge.toFixed(1)}% 101%, -1% 101%)`,
+	};
+}
+
+function svgMask({
+	svg,
+	progress,
+}: {
+	svg: string;
+	progress: number;
+}): ShapeMaskPresentation {
+	return {
+		maskImage: `url("data:image/svg+xml,${svg}")`,
+		maskSize: `${(progress * 260).toFixed(1)}%`,
+		maskPosition: "center",
+		maskRepeat: "no-repeat",
+	};
+}
+
+function curtainMask({
+	progress,
+}: {
+	progress: number;
+}): ShapeMaskPresentation {
+	const half = (progress * 50).toFixed(2);
+	return {
+		maskImage: `linear-gradient(90deg, transparent 0 calc(50% - ${half}%), #000 calc(50% - ${half}%) calc(50% + ${half}%), transparent calc(50% + ${half}%))`,
+		maskSize: "100% 100%",
+		maskRepeat: "no-repeat",
+	};
+}
+
+function noiseMask({
+	seedBase,
+	blobCount,
+	spread,
+	progress,
+	backing,
+}: {
+	seedBase: number;
+	blobCount: number;
+	spread: number;
+	progress: number;
+	backing?: string;
+}): ShapeMaskPresentation {
+	const blobs = noiseBlobMask({ seedBase, blobCount, spread, progress });
+	return {
+		maskImage: backing ? `${backing}, ${blobs}` : blobs,
+		maskSize: "100% 100%",
+		maskRepeat: "no-repeat",
+	};
+}
+
+function dripMask({ progress }: { progress: number }): ShapeMaskPresentation {
+	const front = (progress * 130 - 15).toFixed(2);
+	return noiseMask({
+		seedBase: 67,
+		blobCount: 6,
+		spread: 16,
+		progress,
+		backing: `linear-gradient(180deg, #000 0 ${front}%, transparent calc(${front}% + 12%))`,
+	});
+}
+
 /**
  * Procedural wipe masks for texture-mask transitions with a maskShape. The
  * incoming layer is clipped/masked by a growing shape; the outgoing layer
@@ -217,108 +336,41 @@ function shapeMask({
 	shape: NonNullable<ClipTransition["maskShape"]>;
 	role: ClipTransitionRole;
 	progress: number;
-}): Partial<ClipTransitionLayerPresentation> {
+}): ShapeMaskPresentation {
 	if (role === "from") return {};
 	switch (shape) {
 		case "circle":
-			return { clipPath: `circle(${(progress * 75).toFixed(2)}% at 50% 50%)` };
-		case "clock": {
-			const points = ["50% 50%", "50% -50%"];
-			const sweep = progress * Math.PI * 2;
-			const steps = Math.max(1, Math.ceil(sweep / (Math.PI / 15)));
-			for (let index = 0; index <= steps; index += 1) {
-				const angle = (sweep * index) / steps;
-				const x = 50 + 150 * Math.sin(angle);
-				const y = 50 - 150 * Math.cos(angle);
-				points.push(`${x.toFixed(1)}% ${y.toFixed(1)}%`);
-			}
-			return { clipPath: `polygon(${points.join(", ")})` };
-		}
-		case "blinds": {
-			const slat = (progress * 12.5).toFixed(2);
-			return {
-				maskImage: `repeating-linear-gradient(180deg, #000 0 ${slat}%, transparent ${slat}% 12.5%)`,
-				maskSize: "100% 100%",
-				maskRepeat: "no-repeat",
-			};
-		}
-		case "cross": {
-			const arm = (progress * 50).toFixed(2);
-			return {
-				maskImage:
-					`linear-gradient(90deg, transparent calc(50% - ${arm}%), #000 calc(50% - ${arm}%) calc(50% + ${arm}%), transparent calc(50% + ${arm}%)), ` +
-					`linear-gradient(180deg, transparent calc(50% - ${arm}%), #000 calc(50% - ${arm}%) calc(50% + ${arm}%), transparent calc(50% + ${arm}%))`,
-				maskSize: "100% 100%",
-				maskRepeat: "no-repeat",
-			};
-		}
+			return circleMask({ progress });
+		case "clock":
+			return clockMask({ progress });
+		case "blinds":
+			return blindsMask({ progress });
+		case "cross":
+			return crossMask({ progress });
 		case "triptych":
-			return {
-				maskImage: "linear-gradient(#000 0 0)",
-				maskSize: `33.4% ${(progress * 100).toFixed(2)}%`,
-				maskPosition: "0 0",
-				maskRepeat: "repeat-x",
-			};
-		case "arrow": {
-			const edge = progress * 125 - 25;
-			return {
-				clipPath: `polygon(-1% -1%, ${edge.toFixed(1)}% -1%, ${(edge + 25).toFixed(1)}% 50%, ${edge.toFixed(1)}% 101%, -1% 101%)`,
-			};
-		}
+			return triptychMask({ progress });
+		case "arrow":
+			return arrowMask({ progress });
 		case "heart":
-		case "star": {
-			const svg = shape === "heart" ? HEART_MASK_SVG : STAR_MASK_SVG;
-			return {
-				maskImage: `url("data:image/svg+xml,${svg}")`,
-				maskSize: `${(progress * 260).toFixed(1)}%`,
-				maskPosition: "center",
-				maskRepeat: "no-repeat",
-			};
-		}
+			return svgMask({ svg: HEART_MASK_SVG, progress });
+		case "star":
+			return svgMask({ svg: STAR_MASK_SVG, progress });
 		case "ink":
-			return {
-				maskImage: noiseBlobMask({
-					seedBase: 5,
-					blobCount: 7,
-					spread: 26,
-					progress,
-				}),
-				maskSize: "100% 100%",
-				maskRepeat: "no-repeat",
-			};
+			return noiseMask({ seedBase: 5, blobCount: 7, spread: 26, progress });
 		case "cloud":
-			return {
-				maskImage: noiseBlobMask({
-					seedBase: 23,
-					blobCount: 10,
-					spread: 20,
-					progress,
-				}),
-				maskSize: "100% 100%",
-				maskRepeat: "no-repeat",
-			};
+			return noiseMask({ seedBase: 23, blobCount: 10, spread: 20, progress });
 		case "fog":
-			return {
-				maskImage: `linear-gradient(rgba(0,0,0,${Math.min(1, progress * 1.25).toFixed(3)}) 0 0), ${noiseBlobMask({ seedBase: 41, blobCount: 6, spread: 34, progress })}`,
-				maskSize: "100% 100%",
-				maskRepeat: "no-repeat",
-			};
-		case "curtain": {
-			const half = (progress * 50).toFixed(2);
-			return {
-				maskImage: `linear-gradient(90deg, transparent 0 calc(50% - ${half}%), #000 calc(50% - ${half}%) calc(50% + ${half}%), transparent calc(50% + ${half}%))`,
-				maskSize: "100% 100%",
-				maskRepeat: "no-repeat",
-			};
-		}
-		case "drip": {
-			const front = (progress * 130 - 15).toFixed(2);
-			return {
-				maskImage: `linear-gradient(180deg, #000 0 ${front}%, transparent calc(${front}% + 12%)), ${noiseBlobMask({ seedBase: 67, blobCount: 6, spread: 16, progress })}`,
-				maskSize: "100% 100%",
-				maskRepeat: "no-repeat",
-			};
-		}
+			return noiseMask({
+				seedBase: 41,
+				blobCount: 6,
+				spread: 34,
+				progress,
+				backing: `linear-gradient(rgba(0,0,0,${Math.min(1, progress * 1.25).toFixed(3)}) 0 0)`,
+			});
+		case "drip":
+			return dripMask({ progress });
+		case "curtain":
+			return curtainMask({ progress });
 		default: {
 			shape satisfies never;
 			return {};

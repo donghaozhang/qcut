@@ -264,7 +264,20 @@ export interface VideoTransition {
 		intensity?: number;
 		frequency?: number;
 	};
-	maskShape?: string;
+	maskShape?:
+		| "circle"
+		| "clock"
+		| "blinds"
+		| "cross"
+		| "triptych"
+		| "arrow"
+		| "heart"
+		| "star"
+		| "ink"
+		| "cloud"
+		| "fog"
+		| "drip"
+		| "curtain";
 }
 
 export interface VideoMask {
