@@ -333,8 +333,13 @@ describe("FFmpeg video transform filters", () => {
 		});
 		const filter = result.filterSteps.join(";");
 
-		expect(filter).toContain("[1:v]scale=640:360,fps=30,trim=duration=");
-		expect(filter).toContain("[2:v]scale=640:360,fps=30,trim=duration=");
+		// tpad holds the last map frame so finite sequences cover the segment.
+		expect(filter).toContain(
+			"[1:v]scale=640:360,fps=30,tpad=stop_mode=clone:stop=-1,trim=duration="
+		);
+		expect(filter).toContain(
+			"[2:v]scale=640:360,fps=30,tpad=stop_mode=clone:stop=-1,trim=duration="
+		);
 		expect(filter).toContain("remap=fill=black");
 		// Window gating splits the base and re-blends with a time expression.
 		expect(filter).toContain("if(gte(T,1)*lt(T,3),B,A)");

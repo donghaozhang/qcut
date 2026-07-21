@@ -4,30 +4,19 @@ import {
 	type EffectRenderProgram,
 	type TimelineTrack,
 } from "@qcut/editor-core";
-import { platform } from "@qcut/platform-core";
 import type { EffectDistortionSourceInput } from "../types";
-
-type LogFn = (...args: unknown[]) => void;
+import {
+	defaultEffectSequenceExportAPI,
+	elementTimelineDurationSeconds,
+	sanitizeSequenceElementId,
+	type EffectSequenceExportAPI,
+	type LogFn,
+} from "./effect-sequence-shared";
 
 interface DistortionStageReference {
 	elementId: string;
 	stageIndex: number;
 	stage: EffectDistortionRenderStage;
-}
-
-interface EffectSequenceExportAPI {
-	saveEffectSequenceFrame: (params: {
-		sessionId: string;
-		sequenceId: string;
-		frameIndex: number;
-		imageData: Uint8Array;
-		extension?: string;
-	}) => Promise<{
-		success: boolean;
-		path?: string;
-		patternPath?: string;
-		error?: string;
-	}>;
 }
 
 /**
@@ -69,26 +58,7 @@ function sequenceId({
 	stageIndex: number;
 	axis: "x" | "y";
 }): string {
-	return `${elementId.replace(/[^a-zA-Z0-9._-]/g, "_")}-s${stageIndex}${axis}`;
-}
-
-function elementTimelineDurationSeconds({
-	tracks,
-	elementId,
-}: {
-	tracks: readonly TimelineTrack[];
-	elementId: string;
-}): number | undefined {
-	for (const track of tracks) {
-		for (const element of track.elements) {
-			if (element.id !== elementId) continue;
-			return Math.max(
-				0,
-				element.duration - element.trimStart - element.trimEnd
-			);
-		}
-	}
-	return undefined;
+	return `${sanitizeSequenceElementId({ elementId })}-s${stageIndex}${axis}`;
 }
 
 function mapDimensions({
@@ -257,7 +227,7 @@ export async function extractEffectDistortionSources({
 	canvasWidth,
 	canvasHeight,
 	fps,
-	api = platform().ffmpeg as unknown as EffectSequenceExportAPI,
+	api = defaultEffectSequenceExportAPI(),
 	logger = console.log,
 }: {
 	programsByElementId: ReadonlyMap<string, EffectRenderProgram>;

@@ -911,13 +911,18 @@ function buildEffectDistortionFilters({
 		}
 		const xmapLabel = `${prefix}_xmap`;
 		const ymapLabel = `${prefix}_ymap`;
+		// tpad clones the last map frame indefinitely before trim closes the
+		// stream, so a finite baked sequence always covers the full segment
+		// even when speed keyframes or freeze frames stretch it beyond the
+		// baked duration (remap would otherwise end the stream early).
+		const mapCoverageFilter =
+			`scale=${width}:${height},fps=${fps},tpad=stop_mode=clone:stop=-1,` +
+			`trim=duration=${duration},setpts=PTS-STARTPTS`;
 		filterSteps.push(
-			`[${distortionSource.xmapInputIndex}:v]scale=${width}:${height},fps=${fps},` +
-				`trim=duration=${duration},setpts=PTS-STARTPTS[${xmapLabel}]`
+			`[${distortionSource.xmapInputIndex}:v]${mapCoverageFilter}[${xmapLabel}]`
 		);
 		filterSteps.push(
-			`[${distortionSource.ymapInputIndex}:v]scale=${width}:${height},fps=${fps},` +
-				`trim=duration=${duration},setpts=PTS-STARTPTS[${ymapLabel}]`
+			`[${distortionSource.ymapInputIndex}:v]${mapCoverageFilter}[${ymapLabel}]`
 		);
 		const remapped = `${prefix}_remapped`;
 		filterSteps.push(

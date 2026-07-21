@@ -4,15 +4,19 @@ import type {
 	EffectRenderProgram,
 	TimelineTrack,
 } from "@qcut/editor-core";
-import { platform } from "@qcut/platform-core";
 import {
 	drawDecorationStageFrame,
 	drawParticleStageFrame,
 	isDecorationStageAnimated,
 } from "@/lib/effects/effect-procedural-draw";
 import type { EffectOverlaySourceInput } from "../types";
-
-type LogFn = (...args: unknown[]) => void;
+import {
+	defaultEffectSequenceExportAPI,
+	elementTimelineDurationSeconds,
+	sanitizeSequenceElementId,
+	type EffectSequenceExportAPI,
+	type LogFn,
+} from "./effect-sequence-shared";
 
 type ProceduralRenderStage =
 	| EffectParticleRenderStage
@@ -22,20 +26,6 @@ interface ProceduralStageReference {
 	elementId: string;
 	stageIndex: number;
 	stage: ProceduralRenderStage;
-}
-
-interface EffectSequenceExportAPI {
-	saveEffectSequenceFrame: (params: {
-		sessionId: string;
-		sequenceId: string;
-		frameIndex: number;
-		imageData: Uint8Array;
-	}) => Promise<{
-		success: boolean;
-		path?: string;
-		patternPath?: string;
-		error?: string;
-	}>;
 }
 
 interface ProceduralFrameCanvas {
@@ -83,31 +73,12 @@ function sequenceId({
 	elementId: string;
 	stageIndex: number;
 }): string {
-	return `${elementId.replace(/[^a-zA-Z0-9._-]/g, "_")}-s${stageIndex}`;
+	return `${sanitizeSequenceElementId({ elementId })}-s${stageIndex}`;
 }
 
 function isStageAnimated({ stage }: { stage: ProceduralRenderStage }): boolean {
 	if (stage.kind === "particles") return true;
 	return isDecorationStageAnimated({ stage });
-}
-
-function elementTimelineDurationSeconds({
-	tracks,
-	elementId,
-}: {
-	tracks: readonly TimelineTrack[];
-	elementId: string;
-}): number | undefined {
-	for (const track of tracks) {
-		for (const element of track.elements) {
-			if (element.id !== elementId) continue;
-			return Math.max(
-				0,
-				element.duration - element.trimStart - element.trimEnd
-			);
-		}
-	}
-	return undefined;
 }
 
 function drawProceduralFrame({
@@ -236,7 +207,7 @@ export async function extractEffectProceduralSources({
 	canvasWidth,
 	canvasHeight,
 	fps,
-	api = platform().ffmpeg as unknown as EffectSequenceExportAPI,
+	api = defaultEffectSequenceExportAPI(),
 	createCanvas = ({ width, height }) => new OffscreenCanvas(width, height),
 	logger = console.log,
 	onProgress,
