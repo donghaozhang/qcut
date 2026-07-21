@@ -201,6 +201,7 @@ export interface VideoSourceInput {
 	effectRenderProgram?: EffectRenderProgram;
 	effectOverlaySources?: EffectOverlaySourceInput[];
 	effectPersonSources?: EffectPersonSourceInput[];
+	effectDistortionSources?: EffectDistortionSourceInput[];
 	effectAudioReactiveEnvelopes?: EffectAudioReactiveEnvelope[];
 }
 
@@ -220,6 +221,19 @@ export interface EffectPersonSourceInput {
 	stageIndex: number;
 	path: string;
 	animated: boolean;
+}
+
+/**
+ * Baked remap coordinate maps for one distortion render stage. Paths are
+ * concrete PGM files for static variants or image2 patterns (…/f_%05d.pgm)
+ * for animated ones.
+ */
+export interface EffectDistortionSourceInput {
+	stageIndex: number;
+	xmapPath: string;
+	ymapPath: string;
+	animated: boolean;
+	sequence?: { framerate: number };
 }
 
 /**
@@ -275,6 +289,7 @@ export interface ImageSourceInput {
 	effectRenderProgram?: EffectRenderProgram;
 	effectOverlaySources?: EffectOverlaySourceInput[];
 	effectPersonSources?: EffectPersonSourceInput[];
+	effectDistortionSources?: EffectDistortionSourceInput[];
 	effectAudioReactiveEnvelopes?: EffectAudioReactiveEnvelope[];
 }
 

@@ -156,17 +156,11 @@ describe("effect catalog", () => {
 				(entry) => entry.preset.renderProgram?.stages[0]?.kind === "motion"
 			)
 		).toBe(true);
-		// Every published effect has a verified render contract EXCEPT the
-		// distortion effects (4): their canvas preview is complete but the FFmpeg
-		// remap/lenscorrection export path is the tracked follow-up (parity:
-		// pending). Particle and decoration effects export via baked PNG
-		// sequences composited in the native FFmpeg pass.
-		expect(auditEffectRenderContracts({ entries: EFFECT_CATALOG })).toEqual([
-			"basic-fisheye",
-			"dynamic-ripple",
-			"dynamic-shockwave",
-			"basic-magnifier",
-		]);
+		// Every published effect has a verified render contract: procedural
+		// particle/decoration effects export via baked PNG sequences and
+		// distortion effects via baked remap coordinate maps, both composited
+		// in the native FFmpeg pass.
+		expect(auditEffectRenderContracts({ entries: EFFECT_CATALOG })).toEqual([]);
 	});
 
 	it("publishes three verified person effects from the shared catalog", () => {

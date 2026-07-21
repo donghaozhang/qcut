@@ -99,6 +99,7 @@ export interface FFmpegExportAPI {
 			sequenceId: string;
 			frameIndex: number;
 			imageData: Uint8Array;
+			extension?: string;
 		}) => Promise<{
 			success: boolean;
 			path?: string;

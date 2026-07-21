@@ -859,6 +859,83 @@ function buildEffectOverlayFilters({
 }
 
 /**
+ * Applies baked distortion stages through FFmpeg's remap filter. The xmap and
+ * ymap inputs are 16-bit PGM coordinate maps sampled from the same
+ * sampleDistortionSource model the preview uses, generated at reduced
+ * resolution and scaled up in-graph. Window gating splits the base stream and
+ * re-blends because remap has no timeline (enable) support.
+ */
+function buildEffectDistortionFilters({
+	currentLabel,
+	duration,
+	fps,
+	height,
+	segmentIndex,
+	source,
+	width,
+}: {
+	currentLabel: string;
+	duration: number;
+	fps: number;
+	height: number;
+	segmentIndex: number;
+	source: VideoSource;
+	width: number;
+}): { filterSteps: string[]; outputLabel: string } {
+	const program = source.effectRenderProgram;
+	if (!program) return { filterSteps: [], outputLabel: currentLabel };
+
+	const filterSteps: string[] = [];
+	let outputLabel = currentLabel;
+	for (const [stageIndex, stage] of program.stages.entries()) {
+		if (stage.kind !== "distortion") continue;
+		const distortionSource = source.effectDistortionSources?.find(
+			(candidate) => candidate.stageIndex === stageIndex
+		);
+		if (
+			distortionSource?.xmapInputIndex === undefined ||
+			distortionSource?.ymapInputIndex === undefined
+		) {
+			throw new Error(
+				`Missing FFmpeg input for distortion effect ${stage.variant} at stage ${stageIndex}`
+			);
+		}
+
+		const prefix = `video_${segmentIndex}_effect_distortion_${stageIndex}`;
+		let stageInput = outputLabel;
+		let baseLabel: string | undefined;
+		if (stage.window) {
+			baseLabel = `${prefix}_base`;
+			stageInput = `${prefix}_input`;
+			filterSteps.push(`[${outputLabel}]split=2[${baseLabel}][${stageInput}]`);
+		}
+		const xmapLabel = `${prefix}_xmap`;
+		const ymapLabel = `${prefix}_ymap`;
+		filterSteps.push(
+			`[${distortionSource.xmapInputIndex}:v]scale=${width}:${height},fps=${fps},` +
+				`trim=duration=${duration},setpts=PTS-STARTPTS[${xmapLabel}]`
+		);
+		filterSteps.push(
+			`[${distortionSource.ymapInputIndex}:v]scale=${width}:${height},fps=${fps},` +
+				`trim=duration=${duration},setpts=PTS-STARTPTS[${ymapLabel}]`
+		);
+		const remapped = `${prefix}_remapped`;
+		filterSteps.push(
+			`[${stageInput}][${xmapLabel}][${ymapLabel}]remap=fill=black[${prefix}_raw]`
+		);
+		filterSteps.push(`[${prefix}_raw]format=rgba[${remapped}]`);
+		outputLabel = blendEffectWindow({
+			baseLabel,
+			effectLabel: remapped,
+			filterSteps,
+			outputLabel: `${prefix}_windowed`,
+			window: stage.window,
+		});
+	}
+	return { filterSteps, outputLabel };
+}
+
+/**
  * Composites baked procedural particle/decoration frame sequences over the
  * segment. Opacity and blending are already baked into the RGBA frames, so
  * every stage composites with a plain alpha overlay. Unlike asset overlays,
@@ -1281,6 +1358,17 @@ function buildSegmentFilters({
 	});
 	steps.push(...effectOverlayGraph.filterSteps);
 	current = effectOverlayGraph.outputLabel;
+	const effectDistortionGraph = buildEffectDistortionFilters({
+		currentLabel: current,
+		duration,
+		fps,
+		height,
+		segmentIndex,
+		source,
+		width,
+	});
+	steps.push(...effectDistortionGraph.filterSteps);
+	current = effectDistortionGraph.outputLabel;
 	const effectProceduralGraph = buildEffectProceduralFilters({
 		currentLabel: current,
 		duration,

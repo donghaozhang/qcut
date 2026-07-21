@@ -295,6 +295,73 @@ describe("FFmpeg video transform filters", () => {
 		}
 	});
 
+	it("remaps baked distortion maps with window-gated blending", () => {
+		const result = buildVideoTimelineFilters({
+			videoSources: [
+				{
+					path: "/source.mp4",
+					startTime: 0,
+					duration: 4,
+					effectRenderProgram: {
+						version: 1,
+						stages: [
+							{
+								kind: "distortion",
+								variant: "ripple",
+								strength: 1,
+								window: { startSeconds: 1, endSeconds: 3 },
+							},
+						],
+					},
+					effectDistortionSources: [
+						{
+							stageIndex: 0,
+							xmapPath: "/frames/effect-sequences/el-s0x/f_%05d.pgm",
+							ymapPath: "/frames/effect-sequences/el-s0y/f_%05d.pgm",
+							animated: true,
+							sequence: { framerate: 30 },
+							xmapInputIndex: 1,
+							ymapInputIndex: 2,
+						},
+					],
+				},
+			],
+			width: 640,
+			height: 360,
+			fps: 30,
+			totalDuration: 4,
+		});
+		const filter = result.filterSteps.join(";");
+
+		expect(filter).toContain("[1:v]scale=640:360,fps=30,trim=duration=");
+		expect(filter).toContain("[2:v]scale=640:360,fps=30,trim=duration=");
+		expect(filter).toContain("remap=fill=black");
+		// Window gating splits the base and re-blends with a time expression.
+		expect(filter).toContain("if(gte(T,1)*lt(T,3),B,A)");
+	});
+
+	it("throws when a distortion stage is missing its FFmpeg input", () => {
+		expect(() =>
+			buildVideoTimelineFilters({
+				videoSources: [
+					{
+						path: "/source.mp4",
+						startTime: 0,
+						duration: 4,
+						effectRenderProgram: {
+							version: 1,
+							stages: [{ kind: "distortion", variant: "fisheye", strength: 1 }],
+						},
+					},
+				],
+				width: 640,
+				height: 360,
+				fps: 30,
+				totalDuration: 4,
+			})
+		).toThrow(/Missing FFmpeg input for distortion effect/);
+	});
+
 	it("throws when a procedural stage is missing its FFmpeg input", () => {
 		expect(() =>
 			buildVideoTimelineFilters({

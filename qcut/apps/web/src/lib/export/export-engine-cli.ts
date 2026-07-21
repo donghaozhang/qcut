@@ -46,6 +46,7 @@ import {
 	extractAudioMixConfig,
 	extractEffectOverlaySources,
 	extractEffectProceduralSources,
+	extractEffectDistortionSources,
 	extractEffectPersonSources,
 	extractEffectCompanionAudioSources,
 	extractEffectAudioReactiveEnvelopes,
@@ -450,6 +451,11 @@ export class CLIExportEngine extends ExportEngine {
 				(stage) => stage.kind === "particles" || stage.kind === "decoration"
 			)
 		);
+		const hasEffectDistortionStages = Array.from(
+			elementRenderPrograms.values()
+		).some((program) =>
+			program.stages.some((stage) => stage.kind === "distortion")
+		);
 		if (hasEffectOverlayStages && !this.sessionId) {
 			throw new Error("Effect overlay export requires an active session");
 		}
@@ -458,6 +464,9 @@ export class CLIExportEngine extends ExportEngine {
 		}
 		if (hasEffectProceduralStages && !this.sessionId) {
 			throw new Error("Procedural effect export requires an active session");
+		}
+		if (hasEffectDistortionStages && !this.sessionId) {
+			throw new Error("Distortion effect export requires an active session");
 		}
 		const effectOverlaySourcesByElementId = new Map(
 			this.sessionId
@@ -499,6 +508,24 @@ export class CLIExportEngine extends ExportEngine {
 				]);
 			}
 		}
+		const distortionSessionId = this.sessionId;
+		const effectDistortionSourcesByElementId =
+			hasEffectDistortionStages && distortionSessionId
+				? await (async () => {
+						// Bake remap coordinate maps so native FFmpeg reproduces the
+						// preview's per-pixel distortion (鱼眼/放大镜/水波纹/冲击波).
+						progressCallback?.(18, "Baking distortion maps...");
+						return extractEffectDistortionSources({
+							programsByElementId: elementRenderPrograms,
+							tracks: this.tracks,
+							sessionId: distortionSessionId,
+							canvasWidth: this.canvas.width,
+							canvasHeight: this.canvas.height,
+							fps: this.getFrameRate(),
+							logger: debugLog,
+						});
+					})()
+				: new Map();
 		const effectPersonSourcesByElementId = this.sessionId
 			? await extractEffectPersonSources({
 					programsByElementId: elementRenderPrograms,
@@ -643,6 +670,9 @@ export class CLIExportEngine extends ExportEngine {
 					effectPersonSources: effectPersonSourcesByElementId.get(
 						source.elementId
 					),
+					effectDistortionSources: effectDistortionSourcesByElementId.get(
+						source.elementId
+					),
 					effectAudioReactiveEnvelopes:
 						effectAudioReactiveEnvelopesByElementId.get(source.elementId),
 				}));
@@ -755,6 +785,9 @@ export class CLIExportEngine extends ExportEngine {
 				source.elementId
 			),
 			effectPersonSources: effectPersonSourcesByElementId.get(source.elementId),
+			effectDistortionSources: effectDistortionSourcesByElementId.get(
+				source.elementId
+			),
 			effectAudioReactiveEnvelopes: effectAudioReactiveEnvelopesByElementId.get(
 				source.elementId
 			),

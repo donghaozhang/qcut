@@ -46,6 +46,7 @@ export interface ElectronFFmpegOps {
 			sequenceId: string;
 			frameIndex: number;
 			imageData: Uint8Array;
+			extension?: string;
 		}) => Promise<{
 			success: boolean;
 			path?: string;

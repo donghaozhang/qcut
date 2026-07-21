@@ -59,9 +59,11 @@ function createDistortionCatalogEntry({
 		render: {
 			kind: "distortion",
 			previewBackend: "canvas",
-			// Canvas remap preview complete; frame-based export is a follow-up.
-			exportBackend: "frame-renderer",
-			parity: "pending",
+			// The export pipeline bakes remap coordinate maps from the same
+			// sampleDistortionSource model and applies them with FFmpeg's remap
+			// filter (effect-distortion-sources), matching the canvas preview.
+			exportBackend: "ffmpeg-filter-complex",
+			parity: "verified",
 		},
 	};
 }

@@ -272,6 +272,95 @@ describe("buildFFmpegArgs", () => {
 			);
 		});
 
+		it("feeds baked distortion maps as xmap/ymap inputs", () => {
+			const args = buildFFmpegArgs(
+				createBaseOptions({
+					videoSources: [
+						{
+							path: "/source.mp4",
+							startTime: 0,
+							duration: 10,
+							trimStart: 0,
+							trimEnd: 0,
+							playbackRate: 1,
+							freezeFrameDuration: 0,
+							effectDistortionSources: [
+								{
+									stageIndex: 0,
+									xmapPath: "/frames/effect-sequences/el-s0x/f_00000.pgm",
+									ymapPath: "/frames/effect-sequences/el-s0y/f_00000.pgm",
+									animated: false,
+								},
+							],
+						},
+					],
+					audioFiles: [{ path: "/voice.wav", startTime: 0, volume: 1 }],
+				})
+			);
+
+			// Static maps loop a single PGM bounded by the source duration.
+			const xmapInput = args.indexOf(
+				"/frames/effect-sequences/el-s0x/f_00000.pgm"
+			);
+			expect(args.slice(xmapInput - 5, xmapInput + 1)).toEqual([
+				"-loop",
+				"1",
+				"-t",
+				"10",
+				"-i",
+				"/frames/effect-sequences/el-s0x/f_00000.pgm",
+			]);
+			// ymap follows xmap, and audio inputs come after every map input.
+			expect(xmapInput).toBeLessThan(
+				args.indexOf("/frames/effect-sequences/el-s0y/f_00000.pgm")
+			);
+			expect(
+				args.indexOf("/frames/effect-sequences/el-s0y/f_00000.pgm")
+			).toBeLessThan(args.indexOf("/voice.wav"));
+		});
+
+		it("feeds animated distortion maps as image2 patterns", () => {
+			const args = buildFFmpegArgs(
+				createBaseOptions({
+					videoSources: [
+						{
+							path: "/source.mp4",
+							startTime: 0,
+							duration: 10,
+							trimStart: 0,
+							trimEnd: 0,
+							playbackRate: 1,
+							freezeFrameDuration: 0,
+							effectDistortionSources: [
+								{
+									stageIndex: 0,
+									xmapPath: "/frames/effect-sequences/el-s0x/f_%05d.pgm",
+									ymapPath: "/frames/effect-sequences/el-s0y/f_%05d.pgm",
+									animated: true,
+									sequence: { framerate: 30 },
+								},
+							],
+						},
+					],
+				})
+			);
+
+			expect(existsSyncMock).toHaveBeenCalledWith(
+				"/frames/effect-sequences/el-s0x/f_00000.pgm"
+			);
+			const xmapInput = args.indexOf(
+				"/frames/effect-sequences/el-s0x/f_%05d.pgm"
+			);
+			expect(args.slice(xmapInput - 5, xmapInput + 1)).toEqual([
+				"-framerate",
+				"30",
+				"-start_number",
+				"0",
+				"-i",
+				"/frames/effect-sequences/el-s0x/f_%05d.pgm",
+			]);
+		});
+
 		it("applies per-clip audio processing before mixing", () => {
 			const args = buildFFmpegArgs(
 				createBaseOptions({

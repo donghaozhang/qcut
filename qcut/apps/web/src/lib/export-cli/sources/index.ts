@@ -17,6 +17,7 @@ export { extractStickerSources } from "./sticker-sources";
 // Effect resource extraction
 export { extractEffectOverlaySources } from "./effect-overlay-sources";
 export { extractEffectProceduralSources } from "./effect-procedural-sources";
+export { extractEffectDistortionSources } from "./effect-distortion-sources";
 export { extractEffectPersonSources } from "./effect-person-sources";
 export { extractEffectCompanionAudioSources } from "./effect-companion-audio-sources";
 export { extractEffectAudioReactiveEnvelopes } from "./effect-audio-reactive-sources";

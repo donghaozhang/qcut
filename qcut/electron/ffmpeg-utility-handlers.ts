@@ -386,11 +386,13 @@ export function setupUtilityHandlers(tempManager: TempManager): void {
 				sequenceId,
 				frameIndex,
 				imageData,
+				extension = "png",
 			}: {
 				sessionId: string;
 				sequenceId: string;
 				frameIndex: number;
 				imageData: Uint8Array;
+				extension?: string;
 			}
 		): Promise<{
 			success: boolean;
@@ -404,6 +406,9 @@ export function setupUtilityHandlers(tempManager: TempManager): void {
 				if (!Number.isInteger(frameIndex) || frameIndex < 0) {
 					throw new Error(`Invalid effect frame index: ${frameIndex}`);
 				}
+				if (extension !== "png" && extension !== "pgm") {
+					throw new Error(`Invalid effect frame extension: ${extension}`);
+				}
 				const sequenceDir = path.join(
 					tempManager.getFrameDir(sessionId),
 					"effect-sequences",
@@ -414,7 +419,7 @@ export function setupUtilityHandlers(tempManager: TempManager): void {
 					await fs.promises.mkdir(sequenceDir, { recursive: true });
 				}
 
-				const filename = `f_${String(frameIndex).padStart(5, "0")}.png`;
+				const filename = `f_${String(frameIndex).padStart(5, "0")}.${extension}`;
 				const framePath = path.join(sequenceDir, filename);
 
 				// Verify resolved path stays within the sequence directory
@@ -428,7 +433,7 @@ export function setupUtilityHandlers(tempManager: TempManager): void {
 				return {
 					success: true,
 					path: framePath,
-					patternPath: path.join(sequenceDir, "f_%05d.png"),
+					patternPath: path.join(sequenceDir, `f_%05d.${extension}`),
 				};
 			} catch (error: any) {
 				console.error(
