@@ -27,13 +27,30 @@ export function defaultEffectSequenceExportAPI(): EffectSequenceExportAPI {
 	return platform().ffmpeg as unknown as EffectSequenceExportAPI;
 }
 
-/** Matches the main-process charset validation in save-effect-sequence-frame. */
+function fnv1a32({ value }: { value: string }): string {
+	let hash = 0x811c9dc5;
+	for (let index = 0; index < value.length; index += 1) {
+		hash ^= value.charCodeAt(index);
+		hash = Math.imul(hash, 0x01000193);
+	}
+	return (hash >>> 0).toString(16).padStart(8, "0");
+}
+
+/**
+ * Maps an element id to a filesystem-safe sequence directory name, matching
+ * the main-process charset validation in save-effect-sequence-frame. Charset
+ * replacement alone is lossy ("clip/a" and "clip_a" both map to "clip_a"),
+ * so ids that needed sanitizing get a hash of the original id appended to
+ * keep distinct elements in distinct sequence directories.
+ */
 export function sanitizeSequenceElementId({
 	elementId,
 }: {
 	elementId: string;
 }): string {
-	return elementId.replace(/[^a-zA-Z0-9._-]/g, "_");
+	const sanitized = elementId.replace(/[^a-zA-Z0-9._-]/g, "_");
+	if (sanitized === elementId) return sanitized;
+	return `${sanitized}-h${fnv1a32({ value: elementId })}`;
 }
 
 export function elementTimelineDurationSeconds({
