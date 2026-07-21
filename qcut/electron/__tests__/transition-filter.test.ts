@@ -269,6 +269,7 @@ describe("FFmpeg transition filters", () => {
 			"fog",
 			"drip",
 			"curtain",
+			"diagonal",
 		];
 		const expressions = new Set<string>();
 		for (const maskShape of maskShapes) {

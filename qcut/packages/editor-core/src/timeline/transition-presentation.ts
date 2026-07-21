@@ -278,6 +278,19 @@ function svgMask({
 	};
 }
 
+function diagonalMask({
+	progress,
+}: {
+	progress: number;
+}): ShapeMaskPresentation {
+	const front = (progress * 145 - 22.5).toFixed(2);
+	return {
+		maskImage: `linear-gradient(135deg, #000 0 ${front}%, rgba(0,0,0,0.55) calc(${front}% + 4%), transparent calc(${front}% + 11%))`,
+		maskSize: "100% 100%",
+		maskRepeat: "no-repeat",
+	};
+}
+
 function curtainMask({
 	progress,
 }: {
@@ -371,6 +384,8 @@ function shapeMask({
 			return dripMask({ progress });
 		case "curtain":
 			return curtainMask({ progress });
+		case "diagonal":
+			return diagonalMask({ progress });
 		default: {
 			shape satisfies never;
 			return {};

@@ -733,6 +733,150 @@ const pseudo3dSlideshow = categoryExpansion({
 	],
 });
 
+const parityRoundTwo = categoryExpansion({
+	category: "dissolve",
+	rows: [
+		[
+			"shadow-diagonal-sweep",
+			"Shadow Diagonal Sweep",
+			"阴影斜扫",
+			"texture",
+			"texture-mask",
+			0.6,
+			{ maskShape: "diagonal", tags: ["shadow", "diagonal"], popular: true },
+		],
+		[
+			"push-zoom-defocus",
+			"Push Zoom Defocus",
+			"推镜虚化",
+			"zoom",
+			"zoom-blur",
+			0.6,
+			{ tuning: { intensity: 0.75 }, tags: ["defocus", "push"] },
+		],
+	],
+});
+
+const parityRoundTwoCamera = categoryExpansion({
+	category: "camera",
+	rows: [
+		[
+			"punch-through-3",
+			"Punch Through III",
+			"穿越Ⅲ",
+			"zoom",
+			"zoom-blur",
+			0.4,
+			{ tuning: { intensity: 1.9 }, tags: ["punch", "through"], popular: true },
+		],
+		[
+			"shake-cut-2",
+			"Shake Cut II",
+			"震动Ⅱ",
+			"shake",
+			"shake",
+			0.42,
+			{ tuning: { intensity: 1.2, frequency: 9 }, tags: ["shake"] },
+		],
+		[
+			"memory-pull-2",
+			"Memory Pull II",
+			"回忆拉屏Ⅱ",
+			"whip",
+			"whip-pan",
+			0.75,
+			{
+				direction: "up",
+				tuning: { intensity: 1, tint: "#ffffff" },
+				tags: ["memory"],
+			},
+		],
+		[
+			"screen-pull-left",
+			"Screen Pull Left",
+			"向左拉屏",
+			"whip",
+			"whip-pan",
+			0.5,
+			{
+				direction: "left",
+				tuning: { intensity: 0.85, tint: "#ffffff" },
+				tags: ["pull"],
+				latest: true,
+			},
+		],
+	],
+});
+
+const parityRoundTwoSlideshow = categoryExpansion({
+	category: "slideshow",
+	rows: [
+		[
+			"circle-spin",
+			"Circle Spin",
+			"圆圈旋转",
+			"texture",
+			"texture-mask",
+			0.5,
+			{ maskShape: "clock", tags: ["circle", "spin"] },
+		],
+	],
+});
+
+const parityRoundTwoNatural = categoryExpansion({
+	category: "natural",
+	rows: [
+		[
+			"cloud-drift-2",
+			"Cloud Drift II",
+			"云朵Ⅱ",
+			"texture",
+			"texture-mask",
+			1.1,
+			{ maskShape: "cloud", tags: ["cloud", "slow"] },
+		],
+	],
+});
+
+const parityRoundTwoShooting = categoryExpansion({
+	category: "shooting",
+	rows: [
+		[
+			"exposure-pop-2",
+			"Exposure Pop II",
+			"曝光闪切Ⅱ",
+			"flash",
+			"flash",
+			0.32,
+			{ tuning: { intensity: 1.2, tint: "#ffffff" }, tags: ["exposure"] },
+		],
+		[
+			"zoom-shutter",
+			"Zoom Shutter",
+			"变焦快门",
+			"zoom",
+			"zoom-blur",
+			0.36,
+			{ tuning: { intensity: 0.9 }, tags: ["shutter", "zoom"] },
+		],
+	],
+});
+
+const parityRoundTwoBlur = categoryExpansion({
+	category: "blur",
+	rows: [
+		[
+			"depth-defocus",
+			"Depth Defocus",
+			"纵深虚化",
+			"motion-blur",
+			"motion-blur",
+			0.55,
+			{ direction: "up", tuning: { intensity: 0.5 }, tags: ["depth"] },
+		],
+	],
+});
+
 export const JIANYING_PARITY_TRANSITION_EXPANSIONS: TransitionPreset[] = [
 	...dissolveParity,
 	...cameraParity,
@@ -752,4 +896,10 @@ export const JIANYING_PARITY_TRANSITION_EXPANSIONS: TransitionPreset[] = [
 	...maskParityNatural,
 	...distortionParity,
 	...pseudo3dSlideshow,
+	...parityRoundTwo,
+	...parityRoundTwoCamera,
+	...parityRoundTwoSlideshow,
+	...parityRoundTwoNatural,
+	...parityRoundTwoShooting,
+	...parityRoundTwoBlur,
 ];

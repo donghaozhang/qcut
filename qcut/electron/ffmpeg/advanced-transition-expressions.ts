@@ -401,6 +401,10 @@ export function maskShapeExpression({
 			field = `(0.7*${organicNoise}+0.3*${radius})`;
 			feather = 0.11;
 			break;
+		case "diagonal":
+			field = "((X/W+Y/H)/2)";
+			feather = 0.05;
+			break;
 		case "curtain":
 			field = `(abs(${dx})*2)`;
 			feather = 0.02;

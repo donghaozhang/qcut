@@ -209,7 +209,8 @@ export type ClipTransitionMaskShape =
 	| "cloud"
 	| "fog"
 	| "drip"
-	| "curtain";
+	| "curtain"
+	| "diagonal";
 
 /** A visual transition joining two touching media elements on one track. */
 export interface ClipTransition {

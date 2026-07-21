@@ -277,7 +277,8 @@ export interface VideoTransition {
 		| "cloud"
 		| "fog"
 		| "drip"
-		| "curtain";
+		| "curtain"
+		| "diagonal";
 }
 
 export interface VideoMask {
