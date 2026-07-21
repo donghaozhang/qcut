@@ -266,6 +266,11 @@ export async function extractEffectProceduralSources({
 	if (!(fps > 0)) {
 		throw new Error(`Procedural effect bake requires a positive fps: ${fps}`);
 	}
+	if (!(canvasWidth > 0) || !(canvasHeight > 0)) {
+		throw new Error(
+			`Procedural effect bake requires positive canvas dimensions: ${canvasWidth}x${canvasHeight}`
+		);
+	}
 
 	const jobs = references.map((reference) => {
 		const durationSeconds = elementTimelineDurationSeconds({

@@ -142,8 +142,16 @@ export function renderDistortionMapPair({
 				v: (y + 0.5) / mapHeight,
 				timeSeconds,
 			});
-			const sx = Math.round(sample.u * (sourceWidth - 1));
-			const sy = Math.round(sample.v * (sourceHeight - 1));
+			// Clamp so a future non-clamping sampler variant cannot wrap the
+			// unsigned 16-bit PGM values out of the source bounds.
+			const sx = Math.max(
+				0,
+				Math.min(sourceWidth - 1, Math.round(sample.u * (sourceWidth - 1)))
+			);
+			const sy = Math.max(
+				0,
+				Math.min(sourceHeight - 1, Math.round(sample.v * (sourceHeight - 1)))
+			);
 			// PGM P5 with maxval 65535 stores big-endian 16-bit samples.
 			xmap[offset] = (sx >> 8) & 0xff;
 			xmap[offset + 1] = sx & 0xff;
@@ -268,6 +276,11 @@ export async function extractEffectDistortionSources({
 	}
 	if (!(fps > 0)) {
 		throw new Error(`Distortion map bake requires a positive fps: ${fps}`);
+	}
+	if (!(canvasWidth > 0) || !(canvasHeight > 0)) {
+		throw new Error(
+			`Distortion map bake requires positive canvas dimensions: ${canvasWidth}x${canvasHeight}`
+		);
 	}
 
 	const sourcesByElementId = new Map<string, EffectDistortionSourceInput[]>();

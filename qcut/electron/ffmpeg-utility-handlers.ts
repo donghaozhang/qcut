@@ -401,8 +401,16 @@ export function setupUtilityHandlers(tempManager: TempManager): void {
 			error?: string;
 		}> => {
 			try {
-				// Sanitize inputs to prevent path traversal
+				// Sanitize inputs to prevent path traversal: basename alone can
+				// still yield "." or "..", so require an explicit safe charset.
 				const safeSequenceId = path.basename(sequenceId);
+				if (
+					safeSequenceId === "." ||
+					safeSequenceId === ".." ||
+					!/^[a-zA-Z0-9._-]+$/.test(safeSequenceId)
+				) {
+					throw new Error(`Invalid effect sequence id: ${sequenceId}`);
+				}
 				if (!Number.isInteger(frameIndex) || frameIndex < 0) {
 					throw new Error(`Invalid effect frame index: ${frameIndex}`);
 				}
