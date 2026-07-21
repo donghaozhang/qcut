@@ -27,21 +27,25 @@ export function defaultEffectSequenceExportAPI(): EffectSequenceExportAPI {
 	return platform().ffmpeg as unknown as EffectSequenceExportAPI;
 }
 
-function fnv1a32({ value }: { value: string }): string {
-	let hash = 0x811c9dc5;
-	for (let index = 0; index < value.length; index += 1) {
-		hash ^= value.charCodeAt(index);
-		hash = Math.imul(hash, 0x01000193);
+function utf8Hex({ value }: { value: string }): string {
+	let hex = "";
+	for (const byte of new TextEncoder().encode(value)) {
+		hex += byte.toString(16).padStart(2, "0");
 	}
-	return (hash >>> 0).toString(16).padStart(8, "0");
+	return hex;
 }
 
 /**
  * Maps an element id to a filesystem-safe sequence directory name, matching
- * the main-process charset validation in save-effect-sequence-frame. Charset
- * replacement alone is lossy ("clip/a" and "clip_a" both map to "clip_a"),
- * so ids that needed sanitizing get a hash of the original id appended to
- * keep distinct elements in distinct sequence directories.
+ * the main-process charset validation in save-effect-sequence-frame.
+ *
+ * The mapping is injective by construction: already-safe ids keep their name
+ * inside the "p-" (plain) namespace, while ids that need sanitizing move to
+ * the "e-" (encoded) namespace carrying a readable prefix plus the full
+ * UTF-8 hex of the original id as the final hyphen-separated segment. Hex
+ * never contains a hyphen, so the original id is always recoverable, and the
+ * two namespaces cannot collide — distinct elements always get distinct
+ * sequence directories.
  */
 export function sanitizeSequenceElementId({
 	elementId,
@@ -49,8 +53,8 @@ export function sanitizeSequenceElementId({
 	elementId: string;
 }): string {
 	const sanitized = elementId.replace(/[^a-zA-Z0-9._-]/g, "_");
-	if (sanitized === elementId) return sanitized;
-	return `${sanitized}-h${fnv1a32({ value: elementId })}`;
+	if (sanitized === elementId) return `p-${elementId}`;
+	return `e-${sanitized.slice(0, 24)}-${utf8Hex({ value: elementId })}`;
 }
 
 export function elementTimelineDurationSeconds({

@@ -126,7 +126,7 @@ describe("extractEffectProceduralSources", () => {
 			1,
 			expect.objectContaining({
 				sessionId: "session-1",
-				sequenceId: "clip-a-s0",
+				sequenceId: "p-clip-a-s0",
 				frameIndex: 0,
 			})
 		);
@@ -135,7 +135,7 @@ describe("extractEffectProceduralSources", () => {
 			{
 				resourceId: "procedural:particles:snow",
 				stageIndex: 0,
-				path: "/tmp/effect-sequences/clip-a-s0/f_%05d.png",
+				path: "/tmp/effect-sequences/p-clip-a-s0/f_%05d.png",
 				animated: true,
 				sequence: { framerate: 10 },
 			},
@@ -162,7 +162,7 @@ describe("extractEffectProceduralSources", () => {
 			{
 				resourceId: "procedural:decoration:grid",
 				stageIndex: 0,
-				path: "/tmp/effect-sequences/clip-b-s0/f_00000.png",
+				path: "/tmp/effect-sequences/p-clip-b-s0/f_00000.png",
 				animated: false,
 			},
 		]);

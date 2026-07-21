@@ -118,13 +118,13 @@ describe("extractEffectDistortionSources", () => {
 		// One xmap + one ymap, regardless of the element duration.
 		expect(saveEffectSequenceFrame).toHaveBeenCalledTimes(2);
 		expect(saveEffectSequenceFrame).toHaveBeenCalledWith(
-			expect.objectContaining({ sequenceId: "clip-a-s0x", extension: "pgm" })
+			expect.objectContaining({ sequenceId: "p-clip-a-s0x", extension: "pgm" })
 		);
 		expect(result.get("clip-a")).toEqual([
 			{
 				stageIndex: 0,
-				xmapPath: "/tmp/effect-sequences/clip-a-s0x/f_00000.pgm",
-				ymapPath: "/tmp/effect-sequences/clip-a-s0y/f_00000.pgm",
+				xmapPath: "/tmp/effect-sequences/p-clip-a-s0x/f_00000.pgm",
+				ymapPath: "/tmp/effect-sequences/p-clip-a-s0y/f_00000.pgm",
 				animated: false,
 			},
 		]);
@@ -151,8 +151,8 @@ describe("extractEffectDistortionSources", () => {
 		expect(result.get("clip-a")).toEqual([
 			{
 				stageIndex: 0,
-				xmapPath: "/tmp/effect-sequences/clip-a-s0x/f_%05d.pgm",
-				ymapPath: "/tmp/effect-sequences/clip-a-s0y/f_%05d.pgm",
+				xmapPath: "/tmp/effect-sequences/p-clip-a-s0x/f_%05d.pgm",
+				ymapPath: "/tmp/effect-sequences/p-clip-a-s0y/f_%05d.pgm",
 				animated: true,
 				sequence: { framerate: 10 },
 			},
