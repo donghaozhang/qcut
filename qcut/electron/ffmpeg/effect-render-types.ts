@@ -52,7 +52,14 @@ export interface EffectPersonSource {
 export interface EffectPersonTrackingRenderStage {
 	kind: "person-tracking";
 	target: "face" | "body" | "person";
-	treatment: "outline" | "spotlight" | "background-blur";
+	treatment:
+		| "outline"
+		| "spotlight"
+		| "background-blur"
+		| "subject-blur"
+		| "subject-pixelate";
+	intensity?: number;
+	vignette?: boolean;
 	stroke?: {
 		style: string;
 		color: string;

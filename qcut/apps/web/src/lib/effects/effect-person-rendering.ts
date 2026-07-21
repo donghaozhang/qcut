@@ -174,17 +174,79 @@ function drawSpotlight({
 	context,
 	source,
 	maskCanvas,
+	intensity = 1,
+	vignette = false,
 }: {
 	context: CanvasRenderingContext2D;
 	source: HTMLCanvasElement;
 	maskCanvas: HTMLCanvasElement;
+	intensity?: number;
+	vignette?: boolean;
 }) {
 	const person = maskedFrame({ source, maskCanvas });
+	const clamped = Math.min(2, Math.max(0.5, intensity));
+	const brightness = Math.max(0.12, 0.52 - 0.2 * (clamped - 1)).toFixed(3);
+	const saturate = Math.max(0.2, 0.72 - 0.25 * (clamped - 1)).toFixed(3);
 	context.clearRect(0, 0, source.width, source.height);
-	context.filter = "brightness(0.52) saturate(0.72)";
+	context.filter = `brightness(${brightness}) saturate(${saturate})`;
 	context.drawImage(source, 0, 0);
 	context.filter = "none";
+	if (vignette) {
+		const gradient = context.createRadialGradient(
+			source.width / 2,
+			source.height / 2,
+			Math.min(source.width, source.height) * 0.32,
+			source.width / 2,
+			source.height / 2,
+			Math.max(source.width, source.height) * 0.72
+		);
+		gradient.addColorStop(0, "rgba(0,0,0,0)");
+		gradient.addColorStop(1, "rgba(0,0,0,0.78)");
+		context.fillStyle = gradient;
+		context.fillRect(0, 0, source.width, source.height);
+	}
 	context.drawImage(person, 0, 0);
+}
+
+function drawSubjectTreatment({
+	context,
+	source,
+	maskCanvas,
+	treatment,
+	intensity = 1,
+}: {
+	context: CanvasRenderingContext2D;
+	source: HTMLCanvasElement;
+	maskCanvas: HTMLCanvasElement;
+	treatment: "subject-blur" | "subject-pixelate";
+	intensity?: number;
+}) {
+	const clamped = Math.min(2, Math.max(0.5, intensity));
+	const treated = createCanvas({ width: source.width, height: source.height });
+	const treatedContext = treated.getContext("2d");
+	if (!treatedContext)
+		throw new Error("Unable to create person subject canvas");
+	if (treatment === "subject-blur") {
+		treatedContext.filter = `blur(${Math.max(6, (source.width / 55) * clamped).toFixed(2)}px)`;
+		treatedContext.drawImage(source, 0, 0);
+		treatedContext.filter = "none";
+	} else {
+		const block = Math.min(64, Math.max(8, Math.round(18 * clamped)));
+		const tinyWidth = Math.max(1, Math.round(source.width / block));
+		const tinyHeight = Math.max(1, Math.round(source.height / block));
+		const tiny = createCanvas({ width: tinyWidth, height: tinyHeight });
+		const tinyContext = tiny.getContext("2d");
+		if (!tinyContext) throw new Error("Unable to create pixelate canvas");
+		tinyContext.drawImage(source, 0, 0, tinyWidth, tinyHeight);
+		treatedContext.imageSmoothingEnabled = false;
+		treatedContext.drawImage(tiny, 0, 0, source.width, source.height);
+		treatedContext.imageSmoothingEnabled = true;
+	}
+	treatedContext.globalCompositeOperation = "destination-in";
+	treatedContext.drawImage(maskCanvas, 0, 0, treated.width, treated.height);
+	context.clearRect(0, 0, source.width, source.height);
+	context.drawImage(source, 0, 0);
+	context.drawImage(treated, 0, 0);
 }
 
 function drawBackgroundBlur({
@@ -258,7 +320,26 @@ export function drawPersonEffectFrame({
 			continue;
 		}
 		if (stage.treatment === "spotlight") {
-			drawSpotlight({ context, source: current, maskCanvas });
+			drawSpotlight({
+				context,
+				source: current,
+				maskCanvas,
+				intensity: stage.intensity,
+				vignette: stage.vignette,
+			});
+			continue;
+		}
+		if (
+			stage.treatment === "subject-blur" ||
+			stage.treatment === "subject-pixelate"
+		) {
+			drawSubjectTreatment({
+				context,
+				source: current,
+				maskCanvas,
+				treatment: stage.treatment,
+				intensity: stage.intensity,
+			});
 			continue;
 		}
 		drawBackgroundBlur({ context, source: current, maskCanvas });

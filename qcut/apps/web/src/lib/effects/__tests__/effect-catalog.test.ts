@@ -167,7 +167,7 @@ describe("effect catalog", () => {
 		const entries = EFFECT_CATALOG.filter(
 			(entry) => entry.family === "person" && entry.publication === "published"
 		);
-		expect(entries).toHaveLength(11);
+		expect(entries).toHaveLength(16);
 		expect(entries.map((entry) => entry.preset.id)).toEqual([
 			"person-neon-outline",
 			"person-spotlight",
@@ -180,6 +180,11 @@ describe("effect catalog", () => {
 			"person-handwritten-outline",
 			"person-shatter-edge",
 			"person-neon-outline-2",
+			"person-highlight-moment",
+			"person-highlight-solo",
+			"person-vignette-focus",
+			"person-subject-blur",
+			"person-subject-pixelate",
 		]);
 		expect(
 			entries.every(

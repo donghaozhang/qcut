@@ -83,7 +83,16 @@ export interface EffectAudioReactiveEnvelope {
 export interface EffectPersonTrackingRenderStage {
 	kind: "person-tracking";
 	target: "face" | "body" | "person";
-	treatment: "outline" | "spotlight" | "background-blur";
+	treatment:
+		| "outline"
+		| "spotlight"
+		| "background-blur"
+		| "subject-blur"
+		| "subject-pixelate";
+	/** Strength scaler for spotlight/subject treatments (0.5–2). */
+	intensity?: number;
+	/** Adds darkened corners to spotlight variants (暗角聚焦). */
+	vignette?: boolean;
 	/** Styling for the "outline" treatment; defaults match the classic cyan edge. */
 	stroke?: {
 		style:

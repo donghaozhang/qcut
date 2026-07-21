@@ -1242,17 +1242,49 @@ function buildEffectPersonFilters({
 		filterSteps.push(
 			`[${stageInput}]split=2[${backgroundInput}][${foregroundInput}]`
 		);
+		const focusIntensity = Math.min(2, Math.max(0.5, stage.intensity ?? 1));
 		if (stage.treatment === "spotlight") {
+			const dim = (-0.28 * focusIntensity).toFixed(3);
+			const desaturate = Math.max(0.2, 1 - 0.28 * focusIntensity).toFixed(3);
+			const vignette = stage.vignette ? ",vignette=a=PI/4" : "";
 			filterSteps.push(
-				`[${backgroundInput}]eq=brightness=-0.28:saturation=0.72[${background}]`
+				`[${backgroundInput}]eq=brightness=${dim}:saturation=${desaturate}${vignette}[${background}]`
 			);
+		} else if (
+			stage.treatment === "subject-blur" ||
+			stage.treatment === "subject-pixelate"
+		) {
+			// Subject treatments modify the PERSON while the scene stays sharp.
+			filterSteps.push(`[${backgroundInput}]null[${background}]`);
 		} else {
+			const sigma = Math.round(12 * focusIntensity);
 			filterSteps.push(
-				`[${backgroundInput}]gblur=sigma=12:steps=2[${background}]`
+				`[${backgroundInput}]gblur=sigma=${sigma}:steps=2[${background}]`
 			);
 		}
-		filterSteps.push(`[${foregroundInput}]format=rgba[${foregroundRgba}]`);
-		filterSteps.push(`[${foregroundRgba}][${mask}]alphamerge[${foreground}]`);
+		if (
+			stage.treatment === "subject-blur" ||
+			stage.treatment === "subject-pixelate"
+		) {
+			const treated = `${prefix}_subject_treated`;
+			if (stage.treatment === "subject-blur") {
+				filterSteps.push(
+					`[${foregroundInput}]gblur=sigma=${Math.round(14 * focusIntensity)}:steps=2,format=rgba[${treated}]`
+				);
+			} else {
+				const block = Math.min(
+					64,
+					Math.max(8, Math.round(18 * focusIntensity))
+				);
+				filterSteps.push(
+					`[${foregroundInput}]pixelize=width=${block}:height=${block},format=rgba[${treated}]`
+				);
+			}
+			filterSteps.push(`[${treated}][${mask}]alphamerge[${foreground}]`);
+		} else {
+			filterSteps.push(`[${foregroundInput}]format=rgba[${foregroundRgba}]`);
+			filterSteps.push(`[${foregroundRgba}][${mask}]alphamerge[${foreground}]`);
+		}
 		filterSteps.push(
 			`[${background}][${foreground}]overlay=shortest=1:format=auto[${composed}]`
 		);

@@ -13,6 +13,8 @@ function createPersonEffectEntry({
 	localizedDescription,
 	treatment,
 	stroke,
+	intensity,
+	vignette,
 	tags,
 	releasedAt,
 	popularityScore,
@@ -24,6 +26,8 @@ function createPersonEffectEntry({
 	localizedDescription: string;
 	treatment: EffectPersonTrackingRenderStage["treatment"];
 	stroke?: EffectPersonTrackingRenderStage["stroke"];
+	intensity?: number;
+	vignette?: boolean;
 	tags: readonly string[];
 	releasedAt: string;
 	popularityScore: number;
@@ -34,6 +38,8 @@ function createPersonEffectEntry({
 		treatment,
 		fallback: "disable",
 		...(stroke ? { stroke } : {}),
+		...(intensity !== undefined ? { intensity } : {}),
+		...(vignette ? { vignette } : {}),
 	};
 	const effectType: EffectType = "person-tracking";
 	const preset: EffectPreset = {
@@ -198,5 +204,67 @@ export const PERSON_EFFECT_CATALOG = [
 		tags: ["person", "outline", "neon", "tracking"],
 		releasedAt: "2026-07-22T02:00:00.000Z",
 		popularityScore: 86,
+	}),
+	createPersonEffectEntry({
+		id: "person-highlight-moment",
+		name: "Highlight Moment",
+		localizedName: "高光时刻",
+		description:
+			"Strong spotlight that dims the whole scene around the subject.",
+		localizedDescription: "强力聚光,大幅压暗人物以外的场景。",
+		treatment: "spotlight",
+		intensity: 1.6,
+		tags: ["person", "focus", "spotlight", "tracking"],
+		releasedAt: "2026-07-22T02:10:00.000Z",
+		popularityScore: 92,
+	}),
+	createPersonEffectEntry({
+		id: "person-highlight-solo",
+		name: "Highlight Solo",
+		localizedName: "高光人物",
+		description: "Near-black surroundings keep only the subject lit.",
+		localizedDescription: "背景近乎全黑,只保留人物高亮。",
+		treatment: "spotlight",
+		intensity: 2,
+		tags: ["person", "focus", "spotlight", "tracking"],
+		releasedAt: "2026-07-22T02:10:00.000Z",
+		popularityScore: 88,
+	}),
+	createPersonEffectEntry({
+		id: "person-vignette-focus",
+		name: "Vignette Focus",
+		localizedName: "暗角聚焦",
+		description: "Spotlight with heavy darkened corners.",
+		localizedDescription: "聚光加浓重暗角,视线聚焦人物。",
+		treatment: "spotlight",
+		intensity: 1.2,
+		vignette: true,
+		tags: ["person", "focus", "spotlight", "tracking"],
+		releasedAt: "2026-07-22T02:10:00.000Z",
+		popularityScore: 85,
+	}),
+	createPersonEffectEntry({
+		id: "person-subject-blur",
+		name: "Subject Blur",
+		localizedName: "局部模糊",
+		description: "Blurs the tracked person while the scene stays sharp.",
+		localizedDescription: "模糊人物区域,画面其余部分保持清晰。",
+		treatment: "subject-blur",
+		intensity: 1,
+		tags: ["person", "focus", "subject-blur", "tracking"],
+		releasedAt: "2026-07-22T02:10:00.000Z",
+		popularityScore: 86,
+	}),
+	createPersonEffectEntry({
+		id: "person-subject-pixelate",
+		name: "Subject Pixelate",
+		localizedName: "局部马赛克",
+		description: "Pixelates the tracked person for quick privacy.",
+		localizedDescription: "对人物区域打上马赛克,一键遮挡。",
+		treatment: "subject-pixelate",
+		intensity: 1,
+		tags: ["person", "focus", "subject-pixelate", "tracking"],
+		releasedAt: "2026-07-22T02:10:00.000Z",
+		popularityScore: 87,
 	}),
 ] as const satisfies readonly PersonEffectCatalogEntry[];
