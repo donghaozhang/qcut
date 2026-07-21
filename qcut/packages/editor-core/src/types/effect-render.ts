@@ -88,7 +88,10 @@ export interface EffectPersonTrackingRenderStage {
 		| "spotlight"
 		| "background-blur"
 		| "subject-blur"
-		| "subject-pixelate";
+		| "subject-pixelate"
+		| "echo";
+	/** Clone/echo styling for the "echo" treatment. */
+	echoVariant?: "strobe" | "trail" | "shatter" | "dots";
 	/** Strength scaler for spotlight/subject treatments (0.5–2). */
 	intensity?: number;
 	/** Adds darkened corners to spotlight variants (暗角聚焦). */

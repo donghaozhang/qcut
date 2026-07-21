@@ -1242,6 +1242,60 @@ function buildEffectPersonFilters({
 		filterSteps.push(
 			`[${stageInput}]split=2[${backgroundInput}][${foregroundInput}]`
 		);
+		if (stage.treatment === "echo") {
+			const variant = stage.echoVariant ?? "strobe";
+			const person = `${prefix}_echo_person`;
+			const personRgba = `${prefix}_echo_rgba`;
+			filterSteps.push(`[${stageInput}]format=rgba[${personRgba}]`);
+			filterSteps.push(`[${personRgba}][${mask}]alphamerge[${person}]`);
+			const copyCount = variant === "trail" || variant === "shatter" ? 3 : 2;
+			const copies = Array.from(
+				{ length: copyCount + 1 },
+				(_, index) => `${prefix}_echo_copy_${index}`
+			);
+			filterSteps.push(
+				`[${person}]split=${copyCount + 1}${copies.map((label) => `[${label}]`).join("")}`
+			);
+			let composed = stageInput;
+			for (let index = 0; index < copyCount; index += 1) {
+				const ghost = `${prefix}_echo_ghost_${index}`;
+				const alpha = (0.5 - index * 0.13).toFixed(2);
+				let chain = `colorchannelmixer=aa=${alpha}`;
+				let x = "0";
+				let y = "0";
+				if (variant === "strobe") {
+					x = `W*${(0.04 + index * 0.03).toFixed(3)}*sin(t*8)`;
+				} else if (variant === "trail") {
+					x = `-W*${(0.04 * (index + 1)).toFixed(3)}`;
+				} else if (variant === "shatter") {
+					x = `W*${(index % 2 === 0 ? 0.05 : -0.06).toFixed(2)}*(1+0.3*sin(t*5))`;
+					y = `H*${(index % 2 === 0 ? -0.04 : 0.05).toFixed(2)}`;
+				} else {
+					chain = `pixelize=width=14:height=14,hue=h=${index === 0 ? 70 : -70},colorchannelmixer=aa=${alpha}`;
+					x = `W*${index === 0 ? "0.05" : "-0.05"}`;
+				}
+				const treatedGhost = `${prefix}_echo_treated_${index}`;
+				filterSteps.push(`[${copies[index]}]${chain}[${treatedGhost}]`);
+				const next = `${prefix}_echo_stack_${index}`;
+				filterSteps.push(
+					`[${composed}][${treatedGhost}]overlay=x='${x}':y='${y}':shortest=1:format=auto[${next}]`
+				);
+				composed = next;
+			}
+			const final = `${prefix}_echo_final`;
+			filterSteps.push(
+				`[${composed}][${copies[copyCount]}]overlay=shortest=1:format=auto[${final}]`
+			);
+			outputLabel = blendEffectWindow({
+				baseLabel,
+				effectLabel: final,
+				filterSteps,
+				outputLabel: `${prefix}_windowed`,
+				window: stage.window,
+			});
+			continue;
+		}
+
 		const focusIntensity = Math.min(2, Math.max(0.5, stage.intensity ?? 1));
 		if (stage.treatment === "spotlight") {
 			const dim = (-0.28 * focusIntensity).toFixed(3);

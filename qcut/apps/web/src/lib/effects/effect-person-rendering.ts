@@ -276,6 +276,44 @@ function drawBackgroundBlur({
 	context.drawImage(person, 0, 0);
 }
 
+function drawEcho({
+	context,
+	source,
+	maskCanvas,
+	variant = "strobe",
+}: {
+	context: CanvasRenderingContext2D;
+	source: HTMLCanvasElement;
+	maskCanvas: HTMLCanvasElement;
+	variant?: EffectPersonTrackingRenderStage["echoVariant"];
+}) {
+	const person = maskedFrame({ source, maskCanvas });
+	const t = performance.now() / 1000;
+	const w = source.width;
+	const h = source.height;
+	context.clearRect(0, 0, w, h);
+	context.drawImage(source, 0, 0);
+	const copies = variant === "trail" || variant === "shatter" ? 3 : 2;
+	for (let index = 0; index < copies; index += 1) {
+		context.globalAlpha = 0.5 - index * 0.13;
+		let x = 0;
+		let y = 0;
+		if (variant === "strobe") x = w * (0.04 + index * 0.03) * Math.sin(t * 8);
+		else if (variant === "trail") x = -w * 0.04 * (index + 1);
+		else if (variant === "shatter") {
+			x = w * (index % 2 === 0 ? 0.05 : -0.06) * (1 + 0.3 * Math.sin(t * 5));
+			y = h * (index % 2 === 0 ? -0.04 : 0.05);
+		} else {
+			x = w * (index === 0 ? 0.05 : -0.05);
+			context.filter = `hue-rotate(${index === 0 ? 70 : -70}deg) blur(1px)`;
+		}
+		context.drawImage(person, x, y);
+		context.filter = "none";
+	}
+	context.globalAlpha = 1;
+	context.drawImage(person, 0, 0);
+}
+
 export function drawPersonEffectFrame({
 	outputCanvas,
 	maskCanvas,
@@ -326,6 +364,15 @@ export function drawPersonEffectFrame({
 				maskCanvas,
 				intensity: stage.intensity,
 				vignette: stage.vignette,
+			});
+			continue;
+		}
+		if (stage.treatment === "echo") {
+			drawEcho({
+				context,
+				source: current,
+				maskCanvas,
+				variant: stage.echoVariant,
 			});
 			continue;
 		}

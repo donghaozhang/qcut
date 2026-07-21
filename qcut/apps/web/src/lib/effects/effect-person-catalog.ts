@@ -15,6 +15,7 @@ function createPersonEffectEntry({
 	stroke,
 	intensity,
 	vignette,
+	echoVariant,
 	tags,
 	releasedAt,
 	popularityScore,
@@ -28,6 +29,7 @@ function createPersonEffectEntry({
 	stroke?: EffectPersonTrackingRenderStage["stroke"];
 	intensity?: number;
 	vignette?: boolean;
+	echoVariant?: EffectPersonTrackingRenderStage["echoVariant"];
 	tags: readonly string[];
 	releasedAt: string;
 	popularityScore: number;
@@ -40,6 +42,7 @@ function createPersonEffectEntry({
 		...(stroke ? { stroke } : {}),
 		...(intensity !== undefined ? { intensity } : {}),
 		...(vignette ? { vignette } : {}),
+		...(echoVariant ? { echoVariant } : {}),
 	};
 	const effectType: EffectType = "person-tracking";
 	const preset: EffectPreset = {
@@ -266,5 +269,53 @@ export const PERSON_EFFECT_CATALOG = [
 		tags: ["person", "focus", "subject-pixelate", "tracking"],
 		releasedAt: "2026-07-22T02:10:00.000Z",
 		popularityScore: 87,
+	}),
+	createPersonEffectEntry({
+		id: "person-strobe-echo",
+		name: "Strobe Echo",
+		localizedName: "闪影",
+		description: "Oscillating ghost copies flash beside the subject.",
+		localizedDescription: "人物两侧闪烁摆动的残影分身。",
+		treatment: "echo",
+		echoVariant: "strobe",
+		tags: ["person", "echo", "strobe", "tracking"],
+		releasedAt: "2026-07-22T02:20:00.000Z",
+		popularityScore: 89,
+	}),
+	createPersonEffectEntry({
+		id: "person-motion-trail",
+		name: "Motion Trail",
+		localizedName: "背景拖影",
+		description: "Fading trail copies stretch behind the subject.",
+		localizedDescription: "人物身后拖出渐隐的运动残影。",
+		treatment: "echo",
+		echoVariant: "trail",
+		tags: ["person", "echo", "trail", "tracking"],
+		releasedAt: "2026-07-22T02:20:00.000Z",
+		popularityScore: 90,
+	}),
+	createPersonEffectEntry({
+		id: "person-shatter-clones",
+		name: "Shatter Clones",
+		localizedName: "碎片分身",
+		description: "Scattered jittering clones burst around the subject.",
+		localizedDescription: "环绕人物散落抖动的碎片分身。",
+		treatment: "echo",
+		echoVariant: "shatter",
+		tags: ["person", "echo", "shatter", "tracking"],
+		releasedAt: "2026-07-22T02:20:00.000Z",
+		popularityScore: 85,
+	}),
+	createPersonEffectEntry({
+		id: "person-dot-clones",
+		name: "Dot Clones",
+		localizedName: "波点分身",
+		description: "Halftone-tinted clones flank the subject.",
+		localizedDescription: "色偏波点质感的左右分身。",
+		treatment: "echo",
+		echoVariant: "dots",
+		tags: ["person", "echo", "dots", "tracking"],
+		releasedAt: "2026-07-22T02:20:00.000Z",
+		popularityScore: 84,
 	}),
 ] as const satisfies readonly PersonEffectCatalogEntry[];

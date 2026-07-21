@@ -57,7 +57,10 @@ export interface EffectPersonTrackingRenderStage {
 		| "spotlight"
 		| "background-blur"
 		| "subject-blur"
-		| "subject-pixelate";
+		| "subject-pixelate"
+		| "echo";
+	/** Clone/echo styling for the "echo" treatment. */
+	echoVariant?: "strobe" | "trail" | "shatter" | "dots";
 	intensity?: number;
 	vignette?: boolean;
 	stroke?: {
