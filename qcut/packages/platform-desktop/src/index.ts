@@ -128,6 +128,7 @@ const ffmpegAdapter = {
 	exportAudioCLI: (o: any) => api().ffmpeg.exportAudioCLI(o),
 	convertVideoToGif: (o: any) => api().ffmpeg.convertVideoToGif(o),
 	saveStickerForExport: (d: any) => api().ffmpeg.saveStickerForExport(d),
+	saveEffectSequenceFrame: (d: any) => api().ffmpeg.saveEffectSequenceFrame(d),
 	processFrame: (o: any) => api().ffmpeg.processFrame(o),
 	renderVideoFramePreview: (o: any) => api().ffmpeg.renderVideoFramePreview(o),
 	renderVideoCompositionFramePreview: (

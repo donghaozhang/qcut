@@ -330,6 +330,18 @@ export interface PlatformFFmpegAPI {
 		imageData: Uint8Array;
 		format?: string;
 	}): Promise<{ success: boolean; path?: string; error?: string }>;
+	saveEffectSequenceFrame(data: {
+		sessionId: string;
+		sequenceId: string;
+		frameIndex: number;
+		imageData: Uint8Array;
+		extension?: string;
+	}): Promise<{
+		success: boolean;
+		path?: string;
+		patternPath?: string;
+		error?: string;
+	}>;
 	processFrame(options: {
 		sessionId: string;
 		inputFrameName: string;
