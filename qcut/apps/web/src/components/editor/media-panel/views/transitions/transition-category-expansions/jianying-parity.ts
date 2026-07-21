@@ -999,6 +999,153 @@ const shootingRoundThree = categoryExpansion({
 	],
 });
 
+const fillerSweepDissolve = categoryExpansion({
+	category: "dissolve",
+	rows: [
+		[
+			"slow-cinema-dissolve",
+			"Slow Cinema Dissolve",
+			"慢速叠化",
+			"dissolve",
+			"dissolve",
+			1.5,
+			{ tuning: { intensity: 0.9 }, tags: ["slow", "cinematic"] },
+		],
+	],
+});
+
+const fillerSweepShooting = categoryExpansion({
+	category: "shooting",
+	rows: [
+		[
+			"film-burn-flare",
+			"Film Burn Flare",
+			"胶片烧灼",
+			"light",
+			"light-leak",
+			0.6,
+			{ tuning: { intensity: 1.1, tint: "#ff8c42" }, tags: ["film", "burn"] },
+		],
+		[
+			"slow-shutter-smear",
+			"Slow Shutter Smear",
+			"慢门拖影",
+			"motion-blur",
+			"motion-blur",
+			0.8,
+			{ direction: "right", tuning: { intensity: 0.85 }, tags: ["shutter"] },
+		],
+		[
+			"snap-freeze-flash",
+			"Snap Freeze Flash",
+			"闪拍定格",
+			"flash",
+			"flash",
+			0.34,
+			{
+				tuning: { intensity: 1.1, frequency: 2, tint: "#ffffff" },
+				tags: ["snap"],
+			},
+		],
+	],
+});
+
+const fillerSweepDistortion = categoryExpansion({
+	category: "distortion",
+	rows: [
+		[
+			"vortex-storm",
+			"Vortex Storm",
+			"涡旋强旋",
+			"ripple",
+			"vortex",
+			0.55,
+			{ tuning: { intensity: 1.6 }, tags: ["vortex", "storm"] },
+		],
+	],
+});
+
+const fillerSweepVariety = categoryExpansion({
+	category: "variety",
+	rows: [
+		[
+			"variety-color-swipe",
+			"Variety Color Swipe",
+			"综艺色扫",
+			"wipe",
+			"color-swipe",
+			0.4,
+			{ direction: "right", tuning: { tint: "#ff5f8f" }, tags: ["variety"] },
+		],
+	],
+});
+
+const fillerSweepEmoji = categoryExpansion({
+	category: "emoji",
+	rows: [
+		[
+			"heart-multi-flash",
+			"Heart Multi Flash",
+			"爱心连闪",
+			"flash",
+			"flash",
+			0.4,
+			{
+				tuning: { intensity: 0.85, frequency: 3, tint: "#ff9fbd" },
+				tags: ["heart"],
+			},
+		],
+		[
+			"star-spin-wipe",
+			"Star Spin Wipe",
+			"星星旋转",
+			"texture",
+			"texture-mask",
+			0.45,
+			{ maskShape: "clock", tags: ["star", "spin"] },
+		],
+		[
+			"heartbeat-zoom",
+			"Heartbeat Zoom",
+			"心跳缩放",
+			"zoom",
+			"zoom-blur",
+			0.4,
+			{ tuning: { intensity: 0.5 }, tags: ["heartbeat"] },
+		],
+		[
+			"rainbow-swipe",
+			"Rainbow Swipe",
+			"彩虹色扫",
+			"wipe",
+			"color-swipe",
+			0.45,
+			{ direction: "up", tuning: { tint: "#7c5cff" }, tags: ["rainbow"] },
+		],
+		[
+			"candy-bounce",
+			"Candy Bounce",
+			"糖果弹跳",
+			"shake",
+			"shake",
+			0.5,
+			{ tuning: { intensity: 0.6, frequency: 3 }, tags: ["candy"] },
+		],
+		[
+			"bubble-dissolve",
+			"Bubble Dissolve",
+			"泡泡消散",
+			"particle",
+			"particle-dissolve",
+			0.65,
+			{
+				tuning: { intensity: 0.7, frequency: 4, tint: "#bfe7ff" },
+				tags: ["bubble"],
+			},
+		],
+	],
+});
+
 export const JIANYING_PARITY_TRANSITION_EXPANSIONS: TransitionPreset[] = [
 	...dissolveParity,
 	...cameraParity,
@@ -1027,4 +1174,9 @@ export const JIANYING_PARITY_TRANSITION_EXPANSIONS: TransitionPreset[] = [
 	...mgParity,
 	...emojiParity,
 	...shootingRoundThree,
+	...fillerSweepDissolve,
+	...fillerSweepShooting,
+	...fillerSweepDistortion,
+	...fillerSweepVariety,
+	...fillerSweepEmoji,
 ];
