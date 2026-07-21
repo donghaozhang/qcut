@@ -245,6 +245,88 @@ export function pageFlipExpression({
 	return `if(eq(PLANE,3),${base},min(255,(${base})*(${shade})+(${highlight})))`;
 }
 
+/**
+ * Shaped wipe fields for texture-mask transitions with a maskShape. Each
+ * shape maps every pixel to a scalar in [0,1] describing when the incoming
+ * clip reveals it; the field is compared against progress with a feathered
+ * edge, mirroring the preview's clip-path/mask geometry.
+ */
+export function maskShapeExpression({
+	shape,
+	progress,
+}: {
+	shape: string;
+	progress: string;
+}): string {
+	const dx = "(X/W-0.5)";
+	const dy = "(Y/H-0.5)";
+	const radius = `(sqrt(pow(${dx},2)+pow(${dy},2))/0.7071)`;
+	const angle = `((atan2(${dy},${dx})+PI)/(2*PI))`;
+	const organicNoise =
+		"((sin(X/W*13+sin(Y/H*17)*2)+cos(Y/H*11+sin(X/W*7)*2)+2)/4)";
+	let field: string;
+	let feather = 0.03;
+	switch (shape) {
+		case "circle":
+			field = radius;
+			break;
+		case "clock":
+			field = angle;
+			feather = 0.015;
+			break;
+		case "blinds":
+			field = "mod(Y*8/H,1)";
+			feather = 0.02;
+			break;
+		case "cross":
+			field = `(min(abs(${dx}),abs(${dy}))*2)`;
+			break;
+		case "triptych":
+			field = "(Y/H*0.9+mod(floor(X*3/W),3)*0.05)";
+			feather = 0.02;
+			break;
+		case "arrow":
+			field = "((X+abs(Y-H/2))/(W+H/2))";
+			feather = 0.02;
+			break;
+		case "heart":
+			field = `(sqrt(pow(${dx},2)+pow(${dy},2))/(0.34*(1.35-sin(atan2(-(${dy}),${dx})))+0.08))`;
+			feather = 0.05;
+			break;
+		case "star":
+			field = `(sqrt(pow(${dx},2)+pow(${dy},2))/(0.42+0.24*cos(5*atan2(${dy},${dx})+PI/2)))`;
+			feather = 0.05;
+			break;
+		case "ink":
+			field = `(0.6*${organicNoise}+0.4*${radius})`;
+			feather = 0.09;
+			break;
+		case "cloud":
+			field = `(0.55*${organicNoise}+0.45*(Y/H))`;
+			feather = 0.09;
+			break;
+		case "fog":
+			field = `(0.7*${organicNoise}+0.3*${radius})`;
+			feather = 0.11;
+			break;
+		case "drip":
+			field = `(0.75*(Y/H)+0.25*${organicNoise})`;
+			feather = 0.07;
+			break;
+		default:
+			field = radius;
+			break;
+	}
+	const scaledProgress = `((${progress})*${(1 + 2 * feather).toFixed(3)})`;
+	const localMix = `min(1,max(0,((${scaledProgress})-(${field})+${feather})/${(feather * 2).toFixed(4)}))`;
+	const shapedBlend = blendSamples({
+		progress: localMix,
+		outgoing: "A",
+		incoming: "B",
+	});
+	return `if(lte(${progress},0.001),A,if(gte(${progress},0.999),B,${shapedBlend}))`;
+}
+
 export function textureMaskExpression({
 	progress,
 	frequency,

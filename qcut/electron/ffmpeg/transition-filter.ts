@@ -6,6 +6,7 @@ import {
 	pageFlipExpression,
 	particleDissolveExpression,
 	pixelateExpression,
+	maskShapeExpression,
 	textureMaskExpression,
 	waterRippleExpression,
 } from "./advanced-transition-expressions";
@@ -634,10 +635,15 @@ export function buildXfadeTransitionFilter({
 			});
 			break;
 		case "texture-mask":
-			expression = textureMaskExpression({
-				progress,
-				frequency: tuning.frequency,
-			});
+			expression = transition.maskShape
+				? maskShapeExpression({
+						shape: transition.maskShape,
+						progress,
+					})
+				: textureMaskExpression({
+						progress,
+						frequency: tuning.frequency,
+					});
 			break;
 		case "lens-flare":
 			expression = lensFlareExpression({

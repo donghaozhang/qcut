@@ -247,6 +247,7 @@ export function TransitionsView() {
 			type: config.type,
 			direction: config.direction,
 			tuning: config.tuning,
+			maskShape: config.maskShape,
 			duration: Math.min(
 				duration ?? preset.defaultDuration,
 				applyState.maxDuration

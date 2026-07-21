@@ -279,6 +279,7 @@ export interface TimelineStore {
 		direction?: ClipTransition["direction"];
 		easing?: ClipTransition["easing"];
 		tuning?: ClipTransition["tuning"];
+		maskShape?: ClipTransition["maskShape"];
 	}) => string | null;
 	updateTransition: (input: {
 		trackId: string;

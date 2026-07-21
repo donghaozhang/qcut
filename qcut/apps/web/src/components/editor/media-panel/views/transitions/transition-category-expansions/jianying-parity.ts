@@ -414,6 +414,174 @@ const shootingParity = categoryExpansion({
 	],
 });
 
+const maskParityDissolve = categoryExpansion({
+	category: "dissolve",
+	rows: [
+		[
+			"circle-expand",
+			"Circle Expand",
+			"圆圈扩散",
+			"texture",
+			"texture-mask",
+			0.6,
+			{ maskShape: "circle", tags: ["circle", "mask"], popular: true },
+		],
+	],
+});
+
+const maskParitySlideshow = categoryExpansion({
+	category: "slideshow",
+	rows: [
+		[
+			"clock-wipe",
+			"Clock Wipe",
+			"旋转擦除",
+			"texture",
+			"texture-mask",
+			0.7,
+			{ maskShape: "clock", tags: ["clock", "sweep"], popular: true },
+		],
+		[
+			"blinds-sweep",
+			"Blinds Sweep",
+			"百叶窗",
+			"texture",
+			"texture-mask",
+			0.6,
+			{ maskShape: "blinds", tags: ["blinds"] },
+		],
+		[
+			"arrow-sweep",
+			"Arrow Sweep",
+			"箭头右扫",
+			"texture",
+			"texture-mask",
+			0.55,
+			{ maskShape: "arrow", tags: ["arrow"] },
+		],
+	],
+});
+
+const maskParitySplit = categoryExpansion({
+	category: "split",
+	rows: [
+		[
+			"cross-split",
+			"Cross Split",
+			"十字分割",
+			"texture",
+			"texture-mask",
+			0.55,
+			{ maskShape: "cross", tags: ["cross"], latest: true },
+		],
+		[
+			"triptych-open",
+			"Triptych Open",
+			"三屏拉开",
+			"texture",
+			"texture-mask",
+			0.6,
+			{ maskShape: "triptych", tags: ["panels"] },
+		],
+	],
+});
+
+const maskParityEmoji = categoryExpansion({
+	category: "emoji",
+	rows: [
+		[
+			"heart-expand",
+			"Heart Expand",
+			"爱心扩散",
+			"texture",
+			"texture-mask",
+			0.65,
+			{ maskShape: "heart", tags: ["heart", "love"], popular: true },
+		],
+	],
+});
+
+const maskParityVariety = categoryExpansion({
+	category: "variety",
+	rows: [
+		[
+			"star-expand",
+			"Star Expand",
+			"星形扩散",
+			"texture",
+			"texture-mask",
+			0.6,
+			{ maskShape: "star", tags: ["star"] },
+		],
+		[
+			"gold-dust-dissolve",
+			"Gold Dust Dissolve",
+			"金粉消散",
+			"particle",
+			"particle-dissolve",
+			0.75,
+			{
+				tuning: { intensity: 0.8, frequency: 5, tint: "#ffd76a" },
+				tags: ["gold"],
+			},
+		],
+	],
+});
+
+const maskParityNatural = categoryExpansion({
+	category: "natural",
+	rows: [
+		[
+			"ink-bleed",
+			"Ink Bleed",
+			"水墨晕染",
+			"texture",
+			"texture-mask",
+			0.8,
+			{ maskShape: "ink", tags: ["ink", "水墨"], popular: true },
+		],
+		[
+			"cloud-drift-wipe",
+			"Cloud Drift",
+			"云朵漫卷",
+			"texture",
+			"texture-mask",
+			0.85,
+			{ maskShape: "cloud", tags: ["cloud", "云"] },
+		],
+		[
+			"fog-roll",
+			"Fog Roll",
+			"雾漫",
+			"texture",
+			"texture-mask",
+			0.9,
+			{ maskShape: "fog", tags: ["fog", "雾"] },
+		],
+		[
+			"water-drip-bleed",
+			"Water Drip",
+			"水滴晕染",
+			"texture",
+			"texture-mask",
+			0.75,
+			{ maskShape: "drip", tags: ["drip", "water"], latest: true },
+		],
+		[
+			"snow-mist-dissolve",
+			"Snow Mist Dissolve",
+			"雪雾消散",
+			"particle",
+			"particle-dissolve",
+			0.8,
+			{
+				tuning: { intensity: 0.6, frequency: 3, tint: "#eef4ff" },
+				tags: ["snow"],
+			},
+		],
+	],
+});
+
 export const JIANYING_PARITY_TRANSITION_EXPANSIONS: TransitionPreset[] = [
 	...dissolveParity,
 	...cameraParity,
@@ -425,4 +593,10 @@ export const JIANYING_PARITY_TRANSITION_EXPANSIONS: TransitionPreset[] = [
 	...splitParity,
 	...naturalParity,
 	...shootingParity,
+	...maskParityDissolve,
+	...maskParitySlideshow,
+	...maskParitySplit,
+	...maskParityEmoji,
+	...maskParityVariety,
+	...maskParityNatural,
 ];

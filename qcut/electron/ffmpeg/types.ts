@@ -261,6 +261,7 @@ export interface VideoTransition {
 		intensity?: number;
 		frequency?: number;
 	};
+	maskShape?: string;
 }
 
 export interface VideoMask {
