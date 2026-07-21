@@ -254,7 +254,8 @@ export interface VideoTransition {
 		| "texture-mask"
 		| "lens-flare"
 		| "vortex"
-		| "shockwave";
+		| "shockwave"
+		| "cube";
 	direction?: "left" | "right" | "up" | "down";
 	easing: "linear" | "easeInOut";
 	duration: number;

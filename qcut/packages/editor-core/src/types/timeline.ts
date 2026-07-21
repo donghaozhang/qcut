@@ -158,7 +158,8 @@ export type ClipTransitionType =
 	| "texture-mask"
 	| "lens-flare"
 	| "vortex"
-	| "shockwave";
+	| "shockwave"
+	| "cube";
 
 export type ClipTransitionDirection = "left" | "right" | "up" | "down";
 
@@ -207,7 +208,8 @@ export type ClipTransitionMaskShape =
 	| "ink"
 	| "cloud"
 	| "fog"
-	| "drip";
+	| "drip"
+	| "curtain";
 
 /** A visual transition joining two touching media elements on one track. */
 export interface ClipTransition {

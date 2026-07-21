@@ -309,6 +309,35 @@ export function shockwaveExpression({
 }
 
 /**
+ * Cube rotation: the outgoing face squeezes toward one edge while the
+ * incoming face expands from the other, with rotation shading, mirroring a
+ * horizontal 3D cube spin.
+ */
+export function cubeExpression({
+	progress,
+	intensity,
+}: {
+	progress: string;
+	intensity: number;
+}): string {
+	const split = `((1-(${progress}))*W)`;
+	const outgoing = clampedPlaneSample({
+		input: "a",
+		x: `X/max(0.0001,1-(${progress}))`,
+		y: "Y",
+	});
+	const incoming = clampedPlaneSample({
+		input: "b",
+		x: `(X-(${split}))/max(0.0001,(${progress}))`,
+		y: "Y",
+	});
+	const base = `if(lt(X,${split}),${outgoing},${incoming})`;
+	const shade = (0.38 * intensity).toFixed(3);
+	const shading = `if(lt(X,${split}),1-${shade}*(${progress}),1-${shade}*(1-(${progress})))`;
+	return `if(eq(PLANE,3),${base},(${base})*(${shading}))`;
+}
+
+/**
  * Shaped wipe fields for texture-mask transitions with a maskShape. Each
  * shape maps every pixel to a scalar in [0,1] describing when the incoming
  * clip reveals it; the field is compared against progress with a feathered
@@ -371,6 +400,10 @@ export function maskShapeExpression({
 		case "fog":
 			field = `(0.7*${organicNoise}+0.3*${radius})`;
 			feather = 0.11;
+			break;
+		case "curtain":
+			field = `(abs(${dx})*2)`;
+			feather = 0.02;
 			break;
 		case "drip":
 			field = `(0.75*(Y/H)+0.25*${organicNoise})`;

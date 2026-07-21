@@ -668,6 +668,71 @@ const distortionParity = categoryExpansion({
 	],
 });
 
+const pseudo3dSlideshow = categoryExpansion({
+	category: "slideshow",
+	rows: [
+		[
+			"cube-rotate",
+			"Cube Rotate",
+			"立方旋转",
+			"page",
+			"cube",
+			0.7,
+			{ tuning: { intensity: 1 }, tags: ["cube", "3d"], popular: true },
+		],
+		[
+			"cube-rotate-2",
+			"Cube Rotate II",
+			"立方旋转Ⅱ",
+			"page",
+			"cube",
+			0.55,
+			{ tuning: { intensity: 1.5 }, tags: ["cube", "fast"] },
+		],
+		[
+			"curtain-open",
+			"Curtain Open",
+			"开幕",
+			"texture",
+			"texture-mask",
+			0.7,
+			{ maskShape: "curtain", tags: ["curtain", "reveal"], popular: true },
+		],
+		[
+			"curtain-open-slow",
+			"Curtain Open II",
+			"开幕Ⅱ",
+			"texture",
+			"texture-mask",
+			1,
+			{ maskShape: "curtain", tags: ["curtain", "cinematic"] },
+		],
+		[
+			"page-flip-up-2",
+			"Page Flip Up II",
+			"翻页Ⅱ",
+			"page",
+			"page-flip",
+			0.6,
+			{ direction: "up", tuning: { intensity: 0.9 }, tags: ["page"] },
+		],
+		[
+			"fold-unfold",
+			"Fold Unfold",
+			"对折展开",
+			"page",
+			"page-flip",
+			0.65,
+			{
+				direction: "left",
+				tuning: { intensity: 1.4 },
+				tags: ["fold"],
+				latest: true,
+			},
+		],
+	],
+});
+
 export const JIANYING_PARITY_TRANSITION_EXPANSIONS: TransitionPreset[] = [
 	...dissolveParity,
 	...cameraParity,
@@ -686,4 +751,5 @@ export const JIANYING_PARITY_TRANSITION_EXPANSIONS: TransitionPreset[] = [
 	...maskParityVariety,
 	...maskParityNatural,
 	...distortionParity,
+	...pseudo3dSlideshow,
 ];

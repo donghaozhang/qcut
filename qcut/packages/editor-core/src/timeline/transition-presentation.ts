@@ -299,6 +299,14 @@ function shapeMask({
 				maskSize: "100% 100%",
 				maskRepeat: "no-repeat",
 			};
+		case "curtain": {
+			const half = (progress * 50).toFixed(2);
+			return {
+				maskImage: `linear-gradient(90deg, transparent 0 calc(50% - ${half}%), #000 calc(50% - ${half}%) calc(50% + ${half}%), transparent calc(50% + ${half}%))`,
+				maskSize: "100% 100%",
+				maskRepeat: "no-repeat",
+			};
+		}
 		case "drip": {
 			const front = (progress * 130 - 15).toFixed(2);
 			return {
@@ -705,6 +713,27 @@ export function getClipTransitionLayerPresentation({
 					progress: eased,
 				}),
 				contentOpacity: visibility <= 0.001 ? 0 : 1,
+			};
+		}
+		case "cube": {
+			const shade = 0.34 * tuning.intensity;
+			if (role === "from") {
+				return {
+					...base,
+					opacity: eased >= 0.999 ? 0 : 1,
+					rotationY: -90 * eased,
+					perspective: 1100,
+					transformOrigin: "100% 50%",
+					brightness: 1 - shade * eased,
+				};
+			}
+			return {
+				...base,
+				opacity: eased <= 0.001 ? 0 : 1,
+				rotationY: 90 * (1 - eased),
+				perspective: 1100,
+				transformOrigin: "0% 50%",
+				brightness: 1 - shade * (1 - eased),
 			};
 		}
 		case "vortex": {

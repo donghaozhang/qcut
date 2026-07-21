@@ -98,7 +98,7 @@ function audioCrossfade({
 
 describe("clip transitions", () => {
 	it("recognizes every persisted transition engine", () => {
-		expect(CLIP_TRANSITION_TYPES).toHaveLength(22);
+		expect(CLIP_TRANSITION_TYPES).toHaveLength(23);
 		for (const type of CLIP_TRANSITION_TYPES) {
 			expect(isClipTransitionType({ value: type })).toBe(true);
 		}

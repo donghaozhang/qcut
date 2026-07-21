@@ -215,6 +215,7 @@ export type AtmosphericEffect =
 	| "lens-flare"
 	| "vortex"
 	| "shockwave"
+	| "cube"
 	| "light-rays"
 	| "falling-leaves"
 	| "cherry-blossom"

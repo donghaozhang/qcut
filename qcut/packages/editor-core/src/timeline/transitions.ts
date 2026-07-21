@@ -88,6 +88,7 @@ export const CLIP_TRANSITION_TYPES = [
 	"lens-flare",
 	"vortex",
 	"shockwave",
+	"cube",
 ] as const satisfies readonly ClipTransitionType[];
 
 const TRANSITION_TYPES = new Set<ClipTransitionType>(CLIP_TRANSITION_TYPES);

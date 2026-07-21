@@ -1,5 +1,6 @@
 import type { VideoSource, VideoTransition } from "./types";
 import {
+	cubeExpression,
 	glassRefractionExpression,
 	lensFlareExpression,
 	motionBlurExpression,
@@ -665,6 +666,12 @@ export function buildXfadeTransitionFilter({
 				progress,
 				intensity: tuning.intensity,
 				frequency: tuning.frequency,
+			});
+			break;
+		case "cube":
+			expression = cubeExpression({
+				progress,
+				intensity: tuning.intensity,
 			});
 			break;
 		default: {
