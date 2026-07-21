@@ -707,6 +707,32 @@ export function getClipTransitionLayerPresentation({
 				contentOpacity: visibility <= 0.001 ? 0 : 1,
 			};
 		}
+		case "vortex": {
+			const peak = transitionPeak({ progress: eased });
+			const spin = 160 * tuning.intensity;
+			return {
+				...base,
+				opacity: crossfadeOpacity({ role, progress: eased }),
+				rotation: role === "from" ? eased * spin : -(1 - eased) * spin,
+				scale: 1 + peak * 0.24 * tuning.intensity,
+				blur: peak * 7 * tuning.intensity,
+				transformOrigin: "50% 50%",
+			};
+		}
+		case "shockwave": {
+			const peak = transitionPeak({ progress: eased });
+			const ring = Math.min(100, eased * 130);
+			return {
+				...base,
+				opacity: crossfadeOpacity({ role, progress: eased }),
+				scale: 1 + peak * 0.1 * tuning.intensity,
+				blur: peak * 3 * tuning.intensity,
+				brightness: 1 + peak * 0.2 * tuning.intensity,
+				overlayBackground: `radial-gradient(circle at 50% 50%, transparent ${Math.max(0, ring - 9).toFixed(1)}%, rgba(255,255,255,0.85) ${ring.toFixed(1)}%, transparent ${Math.min(110, ring + 9).toFixed(1)}%)`,
+				overlayOpacity: peak * Math.min(1, 0.8 * tuning.intensity),
+				overlayBlendMode: "screen",
+			};
+		}
 		case "lens-flare": {
 			const peak = transitionPeak({ progress: eased });
 			const flareX = 15 + eased * 70;

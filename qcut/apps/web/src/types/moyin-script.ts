@@ -213,6 +213,8 @@ export type AtmosphericEffect =
 	| "fire"
 	| "sparks"
 	| "lens-flare"
+	| "vortex"
+	| "shockwave"
 	| "light-rays"
 	| "falling-leaves"
 	| "cherry-blossom"

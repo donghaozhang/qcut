@@ -245,6 +245,69 @@ export function pageFlipExpression({
 	return `if(eq(PLANE,3),${base},min(255,(${base})*(${shade})+(${highlight})))`;
 }
 
+function swirledSample({
+	input,
+	spin,
+}: {
+	input: "a" | "b";
+	spin: string;
+}): string {
+	const distance = "sqrt(pow(X-W/2,2)+pow(Y-H/2,2))";
+	const falloff = `max(0,1-(${distance})/(0.75*sqrt(W*W+H*H)/2))`;
+	const angle = `((${spin})*(${falloff}))`;
+	const sampleX = `W/2+(X-W/2)*cos(${angle})-(Y-H/2)*sin(${angle})`;
+	const sampleY = `H/2+(X-W/2)*sin(${angle})+(Y-H/2)*cos(${angle})`;
+	return clampedPlaneSample({ input, x: sampleX, y: sampleY });
+}
+
+/** Vortex: both clips swirl around center while crossfading. */
+export function vortexExpression({
+	progress,
+	intensity,
+}: {
+	progress: string;
+	intensity: number;
+}): string {
+	const strength = (2.6 * intensity).toFixed(3);
+	return blendSamples({
+		progress,
+		outgoing: swirledSample({
+			input: "a",
+			spin: `(${progress})*${strength}`,
+		}),
+		incoming: swirledSample({
+			input: "b",
+			spin: `-(1-(${progress}))*${strength}`,
+		}),
+	});
+}
+
+/** Shockwave: an expanding ring displaces pixels radially, with a bright rim. */
+export function shockwaveExpression({
+	progress,
+	intensity,
+	frequency,
+}: {
+	progress: string;
+	intensity: number;
+	frequency: number;
+}): string {
+	const distance = "sqrt(pow((X-W/2)/W,2)+pow((Y-H/2)/H,2))";
+	const front = `((${progress})*0.82)`;
+	const delta = `((${distance})-(${front}))`;
+	const impulse = `((${delta})*exp(-pow(${delta},2)/${(0.007 / frequency).toFixed(5)}))`;
+	const shift = `(${impulse})*${(0.6 * intensity).toFixed(3)}`;
+	const sampleX = `X+(${shift})*W*((X-W/2)/(W/2))`;
+	const sampleY = `Y+(${shift})*H*((Y-H/2)/(H/2))`;
+	const blend = blendSamples({
+		progress,
+		outgoing: clampedPlaneSample({ input: "a", x: sampleX, y: sampleY }),
+		incoming: clampedPlaneSample({ input: "b", x: sampleX, y: sampleY }),
+	});
+	const rim = `max(0,1-abs(${delta})*${Math.round(46 / frequency)})*${Math.min(70, Math.round(48 * intensity))}`;
+	return `if(eq(PLANE,3),${blend},min(255,(${blend})+(${rim})))`;
+}
+
 /**
  * Shaped wipe fields for texture-mask transitions with a maskShape. Each
  * shape maps every pixel to a scalar in [0,1] describing when the incoming

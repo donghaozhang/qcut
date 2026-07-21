@@ -582,6 +582,92 @@ const maskParityNatural = categoryExpansion({
 	],
 });
 
+const distortionParity = categoryExpansion({
+	category: "distortion",
+	rows: [
+		[
+			"shockwave-cut",
+			"Shockwave Cut",
+			"冲击波切换",
+			"ripple",
+			"shockwave",
+			0.55,
+			{
+				tuning: { intensity: 1, frequency: 1 },
+				tags: ["shockwave"],
+				popular: true,
+			},
+		],
+		[
+			"shockwave-heavy",
+			"Shockwave II",
+			"冲击波Ⅱ",
+			"ripple",
+			"shockwave",
+			0.5,
+			{ tuning: { intensity: 1.6, frequency: 0.7 }, tags: ["impact"] },
+		],
+		[
+			"vortex-twist",
+			"Vortex Twist",
+			"涡旋扭转",
+			"ripple",
+			"vortex",
+			0.65,
+			{ tuning: { intensity: 1 }, tags: ["vortex", "swirl"], popular: true },
+		],
+		[
+			"vortex-gentle",
+			"Vortex Soft",
+			"涡旋轻旋",
+			"ripple",
+			"vortex",
+			0.75,
+			{ tuning: { intensity: 0.5 }, tags: ["swirl", "soft"] },
+		],
+		[
+			"water-pierce",
+			"Water Pierce",
+			"水波穿越",
+			"ripple",
+			"water-ripple",
+			0.6,
+			{
+				tuning: { intensity: 1.3, frequency: 1.4 },
+				tags: ["water"],
+				latest: true,
+			},
+		],
+		[
+			"ripple-touch",
+			"Ripple Touch",
+			"涟漪轻探",
+			"ripple",
+			"water-ripple",
+			0.8,
+			{ tuning: { intensity: 0.5, frequency: 0.8 }, tags: ["gentle"] },
+		],
+		[
+			"fisheye-pierce",
+			"Fisheye Pierce",
+			"鱼眼穿越Ⅲ",
+			"zoom",
+			"zoom-blur",
+			0.5,
+			{ tuning: { intensity: 1.7 }, tags: ["fisheye", "punch"] },
+		],
+		[
+			"glass-shock",
+			"Glass Shock",
+			"玻璃冲击",
+			"glass",
+			"glass-refraction",
+			0.5,
+			{ tuning: { intensity: 1.25, frequency: 1.2 }, tags: ["glass"] },
+		],
+	],
+});
+
 export const JIANYING_PARITY_TRANSITION_EXPANSIONS: TransitionPreset[] = [
 	...dissolveParity,
 	...cameraParity,
@@ -599,4 +685,5 @@ export const JIANYING_PARITY_TRANSITION_EXPANSIONS: TransitionPreset[] = [
 	...maskParityEmoji,
 	...maskParityVariety,
 	...maskParityNatural,
+	...distortionParity,
 ];

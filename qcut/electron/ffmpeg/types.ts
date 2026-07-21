@@ -252,7 +252,9 @@ export interface VideoTransition {
 		| "glass-refraction"
 		| "page-flip"
 		| "texture-mask"
-		| "lens-flare";
+		| "lens-flare"
+		| "vortex"
+		| "shockwave";
 	direction?: "left" | "right" | "up" | "down";
 	easing: "linear" | "easeInOut";
 	duration: number;

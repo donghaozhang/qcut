@@ -156,7 +156,9 @@ export type ClipTransitionType =
 	| "glass-refraction"
 	| "page-flip"
 	| "texture-mask"
-	| "lens-flare";
+	| "lens-flare"
+	| "vortex"
+	| "shockwave";
 
 export type ClipTransitionDirection = "left" | "right" | "up" | "down";
 

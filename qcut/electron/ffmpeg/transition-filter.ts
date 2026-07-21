@@ -7,6 +7,8 @@ import {
 	particleDissolveExpression,
 	pixelateExpression,
 	maskShapeExpression,
+	shockwaveExpression,
+	vortexExpression,
 	textureMaskExpression,
 	waterRippleExpression,
 } from "./advanced-transition-expressions";
@@ -650,6 +652,19 @@ export function buildXfadeTransitionFilter({
 				progress,
 				intensity: tuning.intensity,
 				tint: tuning.tint,
+			});
+			break;
+		case "vortex":
+			expression = vortexExpression({
+				progress,
+				intensity: tuning.intensity,
+			});
+			break;
+		case "shockwave":
+			expression = shockwaveExpression({
+				progress,
+				intensity: tuning.intensity,
+				frequency: tuning.frequency,
 			});
 			break;
 		default: {
