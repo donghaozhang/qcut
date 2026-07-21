@@ -159,7 +159,8 @@ export type ClipTransitionType =
 	| "lens-flare"
 	| "vortex"
 	| "shockwave"
-	| "cube";
+	| "cube"
+	| "color-swipe";
 
 export type ClipTransitionDirection = "left" | "right" | "up" | "down";
 

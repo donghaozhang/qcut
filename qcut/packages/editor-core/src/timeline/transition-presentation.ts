@@ -823,6 +823,29 @@ export function getClipTransitionLayerPresentation({
 				brightness: 1 - shade * (1 - eased),
 			};
 		}
+		case "color-swipe": {
+			const tint = tuning.tint ?? "#ffd233";
+			const angle =
+				transition.direction === "right"
+					? 90
+					: transition.direction === "up"
+						? 0
+						: transition.direction === "down"
+							? 180
+							: 270;
+			const front = Math.min(200, eased * 200);
+			const back = Math.max(0, front - 100);
+			const clampedFront = Math.min(100, front);
+			return {
+				...base,
+				opacity: 1,
+				contentOpacity:
+					role === "from" ? (eased < 0.5 ? 1 : 0) : eased >= 0.5 ? 1 : 0,
+				overlayBackground: `linear-gradient(${angle}deg, transparent 0 ${back.toFixed(2)}%, ${tint} ${back.toFixed(2)}% ${clampedFront.toFixed(2)}%, transparent ${clampedFront.toFixed(2)}%)`,
+				overlayOpacity: front > 0 && back < 100 ? 1 : 0,
+				overlayBlendMode: "normal",
+			};
+		}
 		case "vortex": {
 			const peak = transitionPeak({ progress: eased });
 			const spin = 160 * tuning.intensity;

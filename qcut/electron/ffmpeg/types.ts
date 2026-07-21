@@ -255,7 +255,8 @@ export interface VideoTransition {
 		| "lens-flare"
 		| "vortex"
 		| "shockwave"
-		| "cube";
+		| "cube"
+		| "color-swipe";
 	direction?: "left" | "right" | "up" | "down";
 	easing: "linear" | "easeInOut";
 	duration: number;

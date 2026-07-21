@@ -180,7 +180,7 @@ describe("TransitionsView", () => {
 			["光效", "prism-flare", 22],
 			["故障", "data-mosh", 21],
 			["综艺", "sticker-swipe", 20],
-			["MG 动画", "kinetic-jump", 20],
+			["MG 动画", "kinetic-jump", 25],
 			["互动 emoji", "love-flash", 20],
 		] as const) {
 			fireEvent.click(screen.getByRole("button", { name: category }));

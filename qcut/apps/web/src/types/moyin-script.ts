@@ -216,6 +216,7 @@ export type AtmosphericEffect =
 	| "vortex"
 	| "shockwave"
 	| "cube"
+	| "color-swipe"
 	| "light-rays"
 	| "falling-leaves"
 	| "cherry-blossom"

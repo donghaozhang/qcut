@@ -309,6 +309,33 @@ export function shockwaveExpression({
 }
 
 /**
+ * MG color swipe: a solid color panel sweeps across the frame; the outgoing
+ * clip shows ahead of the panel and the incoming clip is revealed behind it.
+ */
+export function colorSwipeExpression({
+	direction,
+	progress,
+	tint,
+}: {
+	direction: VideoTransition["direction"];
+	progress: string;
+	tint: string | undefined;
+}): string {
+	const axis =
+		direction === "right"
+			? "(X/W)"
+			: direction === "up"
+				? "(1-Y/H)"
+				: direction === "down"
+					? "(Y/H)"
+					: "(1-X/W)";
+	const front = `(2*(${progress}))`;
+	const back = `(2*(${progress})-1)`;
+	const color = tintPlaneExpression({ tint: tint ?? "#ffd233" });
+	return `if(eq(PLANE,3),255,if(gt(${axis},${front}),A,if(lt(${axis},${back}),B,${color})))`;
+}
+
+/**
  * Cube rotation: the outgoing face squeezes toward one edge while the
  * incoming face expands from the other, with rotation shading, mirroring a
  * horizontal 3D cube spin.

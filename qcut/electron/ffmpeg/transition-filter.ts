@@ -1,5 +1,6 @@
 import type { VideoSource, VideoTransition } from "./types";
 import {
+	colorSwipeExpression,
 	cubeExpression,
 	glassRefractionExpression,
 	lensFlareExpression,
@@ -672,6 +673,13 @@ export function buildXfadeTransitionFilter({
 			expression = cubeExpression({
 				progress,
 				intensity: tuning.intensity,
+			});
+			break;
+		case "color-swipe":
+			expression = colorSwipeExpression({
+				direction: transition.direction,
+				progress,
+				tint: tuning.tint,
 			});
 			break;
 		default: {

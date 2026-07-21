@@ -877,6 +877,128 @@ const parityRoundTwoBlur = categoryExpansion({
 	],
 });
 
+const mgParity = categoryExpansion({
+	category: "mg",
+	rows: [
+		[
+			"color-swipe-left",
+			"Color Swipe Left",
+			"色块左扫",
+			"wipe",
+			"color-swipe",
+			0.5,
+			{
+				direction: "left",
+				tuning: { tint: "#ffd233" },
+				tags: ["mg", "color"],
+				popular: true,
+			},
+		],
+		[
+			"color-swipe-right",
+			"Color Swipe Right",
+			"色块右扫",
+			"wipe",
+			"color-swipe",
+			0.5,
+			{
+				direction: "right",
+				tuning: { tint: "#4f8bff" },
+				tags: ["mg", "color"],
+			},
+		],
+		[
+			"color-swipe-up",
+			"Color Swipe Up",
+			"色块上扫",
+			"wipe",
+			"color-swipe",
+			0.45,
+			{ direction: "up", tuning: { tint: "#ff5f8f" }, tags: ["mg", "color"] },
+		],
+		[
+			"color-swipe-dark",
+			"Ink Panel Swipe",
+			"墨色幕扫",
+			"wipe",
+			"color-swipe",
+			0.55,
+			{
+				direction: "down",
+				tuning: { tint: "#181818" },
+				tags: ["mg", "dark"],
+				latest: true,
+			},
+		],
+		[
+			"circle-dash",
+			"Circle Dash",
+			"圆形穿梭",
+			"texture",
+			"texture-mask",
+			0.45,
+			{ maskShape: "circle", tags: ["mg", "circle"] },
+		],
+		[
+			"star-pop-in",
+			"Star Pop In",
+			"星形弹入",
+			"texture",
+			"texture-mask",
+			0.5,
+			{ maskShape: "star", tags: ["mg", "star"] },
+		],
+		[
+			"arrow-dash",
+			"Arrow Dash",
+			"箭头冲屏",
+			"texture",
+			"texture-mask",
+			0.4,
+			{ maskShape: "arrow", tags: ["mg", "arrow"] },
+		],
+	],
+});
+
+const emojiParity = categoryExpansion({
+	category: "emoji",
+	rows: [
+		[
+			"heart-flash",
+			"Heart Flash",
+			"爱心闪现",
+			"texture",
+			"texture-mask",
+			0.5,
+			{ maskShape: "heart", tags: ["emoji", "heart"], popular: true },
+		],
+		[
+			"star-mood",
+			"Star Mood",
+			"星星心情",
+			"texture",
+			"texture-mask",
+			0.55,
+			{ maskShape: "star", tags: ["emoji", "star"] },
+		],
+	],
+});
+
+const shootingRoundThree = categoryExpansion({
+	category: "shooting",
+	rows: [
+		[
+			"focus-breath",
+			"Focus Breath",
+			"对焦呼吸",
+			"zoom",
+			"zoom-blur",
+			0.7,
+			{ tuning: { intensity: 0.35 }, tags: ["focus", "breath"] },
+		],
+	],
+});
+
 export const JIANYING_PARITY_TRANSITION_EXPANSIONS: TransitionPreset[] = [
 	...dissolveParity,
 	...cameraParity,
@@ -902,4 +1024,7 @@ export const JIANYING_PARITY_TRANSITION_EXPANSIONS: TransitionPreset[] = [
 	...parityRoundTwoNatural,
 	...parityRoundTwoShooting,
 	...parityRoundTwoBlur,
+	...mgParity,
+	...emojiParity,
+	...shootingRoundThree,
 ];

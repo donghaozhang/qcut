@@ -246,6 +246,7 @@ describe("FFmpeg transition filters", () => {
 			"vortex",
 			"shockwave",
 			"cube",
+			"color-swipe",
 		] as const;
 		for (const type of engineTypes) {
 			const filter = buildXfadeTransitionFilter({
