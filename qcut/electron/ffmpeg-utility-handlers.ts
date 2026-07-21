@@ -375,6 +375,87 @@ export function setupUtilityHandlers(tempManager: TempManager): void {
 		}
 	);
 
+	// Save one baked procedural-effect frame (PNG) into a per-sequence
+	// directory laid out for FFmpeg's image2 pattern input (f_%05d.png).
+	ipcMain.handle(
+		"save-effect-sequence-frame",
+		async (
+			event: IpcMainInvokeEvent,
+			{
+				sessionId,
+				sequenceId,
+				frameIndex,
+				imageData,
+				extension = "png",
+			}: {
+				sessionId: string;
+				sequenceId: string;
+				frameIndex: number;
+				imageData: Uint8Array;
+				extension?: string;
+			}
+		): Promise<{
+			success: boolean;
+			path?: string;
+			patternPath?: string;
+			error?: string;
+		}> => {
+			try {
+				// Sanitize inputs to prevent path traversal: basename alone can
+				// still yield "." or "..", so require an explicit safe charset.
+				const safeSequenceId = path.basename(sequenceId);
+				if (
+					safeSequenceId === "." ||
+					safeSequenceId === ".." ||
+					!/^[a-zA-Z0-9._-]+$/.test(safeSequenceId)
+				) {
+					throw new Error(`Invalid effect sequence id: ${sequenceId}`);
+				}
+				if (!Number.isInteger(frameIndex) || frameIndex < 0) {
+					throw new Error(`Invalid effect frame index: ${frameIndex}`);
+				}
+				if (extension !== "png" && extension !== "pgm") {
+					throw new Error(`Invalid effect frame extension: ${extension}`);
+				}
+				const sequenceDir = path.join(
+					tempManager.getFrameDir(sessionId),
+					"effect-sequences",
+					safeSequenceId
+				);
+
+				if (!fs.existsSync(sequenceDir)) {
+					await fs.promises.mkdir(sequenceDir, { recursive: true });
+				}
+
+				const filename = `f_${String(frameIndex).padStart(5, "0")}.${extension}`;
+				const framePath = path.join(sequenceDir, filename);
+
+				// Verify resolved path stays within the sequence directory
+				const resolvedPath = path.resolve(framePath);
+				if (!resolvedPath.startsWith(path.resolve(sequenceDir))) {
+					throw new Error("Invalid effect frame path: path traversal detected");
+				}
+
+				await fs.promises.writeFile(framePath, Buffer.from(imageData));
+
+				return {
+					success: true,
+					path: framePath,
+					patternPath: path.join(sequenceDir, `f_%05d.${extension}`),
+				};
+			} catch (error: any) {
+				console.error(
+					`[FFmpeg] Failed to save effect sequence frame ${sequenceId}#${frameIndex}:`,
+					error
+				);
+				return {
+					success: false,
+					error: error.message,
+				};
+			}
+		}
+	);
+
 	// Save sticker image for export
 	ipcMain.handle(
 		"save-sticker-for-export",

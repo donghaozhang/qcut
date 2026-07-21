@@ -13,6 +13,7 @@ import fs from "fs";
 import type {
 	AudioCrossfade,
 	AudioFile,
+	EffectDistortionSource,
 	EffectOverlaySource,
 	EffectPersonSource,
 	VideoSource,
@@ -163,6 +164,25 @@ function appendEffectOverlayInputs<T extends EffectOverlayCarrier>({
 				? resolvedDuration
 				: fallbackDuration;
 		const effectOverlaySources = source.effectOverlaySources?.map((overlay) => {
+			if (overlay.sequence) {
+				// Baked procedural frame sequence: image2 pattern input timed by
+				// -framerate; the frame count already bounds its duration.
+				const firstFramePath = overlay.path.replace("%05d", "00000");
+				if (!fs.existsSync(firstFramePath)) {
+					throw new Error(
+						`Effect sequence source not found: ${firstFramePath}`
+					);
+				}
+				args.push(
+					"-framerate",
+					String(overlay.sequence.framerate),
+					"-start_number",
+					"0",
+					"-i",
+					overlay.path
+				);
+				return { ...overlay, inputIndex: nextInputIndex++ };
+			}
 			if (!fs.existsSync(overlay.path)) {
 				throw new Error(`Effect overlay source not found: ${overlay.path}`);
 			}
@@ -184,6 +204,106 @@ function appendEffectOverlayInputs<T extends EffectOverlayCarrier>({
 			return { ...overlay, inputIndex: nextInputIndex++ };
 		});
 		return { ...source, effectOverlaySources };
+	});
+	return {
+		sources: resolvedSources,
+		inputCount: nextInputIndex - startInputIndex,
+	};
+}
+
+interface EffectDistortionCarrier {
+	duration: number;
+	trimStart?: number;
+	trimEnd?: number;
+	playbackRate?: number;
+	speedKeyframes?: VideoSource["speedKeyframes"];
+	freezeFrameDuration?: number;
+	effectDistortionSources?: EffectDistortionSource[];
+}
+
+/**
+ * Appends xmap/ymap coordinate-map inputs for baked distortion stages. Static
+ * variants loop a single PGM; animated variants read an image2 pattern.
+ */
+function appendEffectDistortionInputs<T extends EffectDistortionCarrier>({
+	args,
+	fps,
+	fallbackDuration,
+	sources,
+	startInputIndex,
+}: {
+	args: string[];
+	fps: number;
+	fallbackDuration: number;
+	sources: readonly T[];
+	startInputIndex: number;
+}): { sources: T[]; inputCount: number } {
+	let nextInputIndex = startInputIndex;
+	const appendMapInput = ({
+		mapPath,
+		animated,
+		sequence,
+		inputDuration,
+	}: {
+		mapPath: string;
+		animated: boolean;
+		sequence?: { framerate: number };
+		inputDuration: number;
+	}): number => {
+		if (animated && sequence) {
+			const firstFramePath = mapPath.replace("%05d", "00000");
+			if (!fs.existsSync(firstFramePath)) {
+				throw new Error(`Distortion map sequence not found: ${firstFramePath}`);
+			}
+			args.push(
+				"-framerate",
+				String(sequence.framerate),
+				"-start_number",
+				"0",
+				"-i",
+				mapPath
+			);
+			return nextInputIndex++;
+		}
+		if (!fs.existsSync(mapPath)) {
+			throw new Error(`Distortion map not found: ${mapPath}`);
+		}
+		const boundedInputDuration = Math.max(1 / Math.max(1, fps), inputDuration);
+		args.push(
+			"-loop",
+			"1",
+			"-t",
+			Number(boundedInputDuration.toFixed(6)).toString(),
+			"-i",
+			mapPath
+		);
+		return nextInputIndex++;
+	};
+
+	const resolvedSources = sources.map((source) => {
+		const resolvedDuration = getVideoSourceTimelineDuration({ source, fps });
+		const inputDuration =
+			Number.isFinite(resolvedDuration) && resolvedDuration > 0
+				? resolvedDuration
+				: fallbackDuration;
+		const effectDistortionSources = source.effectDistortionSources?.map(
+			(distortion) => ({
+				...distortion,
+				xmapInputIndex: appendMapInput({
+					mapPath: distortion.xmapPath,
+					animated: distortion.animated,
+					sequence: distortion.sequence,
+					inputDuration,
+				}),
+				ymapInputIndex: appendMapInput({
+					mapPath: distortion.ymapPath,
+					animated: distortion.animated,
+					sequence: distortion.sequence,
+					inputDuration,
+				}),
+			})
+		);
+		return { ...source, effectDistortionSources };
 	});
 	return {
 		sources: resolvedSources,
@@ -277,6 +397,7 @@ function buildCanonicalVisualFilters({
 		effectRenderProgram: image.effectRenderProgram,
 		effectOverlaySources: image.effectOverlaySources,
 		effectPersonSources: image.effectPersonSources,
+		effectDistortionSources: image.effectDistortionSources,
 		effectAudioReactiveEnvelopes: image.effectAudioReactiveEnvelopes,
 	}));
 	const timelineSources = [...videoSources, ...imageSources];
@@ -547,10 +668,31 @@ function buildCompositeEncodeArgs(
 		startInputIndex:
 			effectPersonInputStartIndex + resolvedVideoPersonInputs.inputCount,
 	});
-	const resolvedVideoSources = resolvedVideoPersonInputs.sources;
-	const resolvedImages = resolvedImagePersonInputs.sources;
 	const effectPersonInputCount =
 		resolvedVideoPersonInputs.inputCount + resolvedImagePersonInputs.inputCount;
+	const effectDistortionInputStartIndex =
+		effectPersonInputStartIndex + effectPersonInputCount;
+	const resolvedVideoDistortionInputs = appendEffectDistortionInputs({
+		args,
+		fps,
+		fallbackDuration: duration,
+		sources: resolvedVideoPersonInputs.sources,
+		startInputIndex: effectDistortionInputStartIndex,
+	});
+	const resolvedImageDistortionInputs = appendEffectDistortionInputs({
+		args,
+		fps,
+		fallbackDuration: duration,
+		sources: resolvedImagePersonInputs.sources,
+		startInputIndex:
+			effectDistortionInputStartIndex +
+			resolvedVideoDistortionInputs.inputCount,
+	});
+	const resolvedVideoSources = resolvedVideoDistortionInputs.sources;
+	const resolvedImages = resolvedImageDistortionInputs.sources;
+	const effectDistortionInputCount =
+		resolvedVideoDistortionInputs.inputCount +
+		resolvedImageDistortionInputs.inputCount;
 
 	for (const audioFile of audioFiles) {
 		if (!fs.existsSync(audioFile.path)) {
@@ -762,7 +904,8 @@ function buildCompositeEncodeArgs(
 		validImages.length +
 		validStickers.length +
 		effectOverlayInputCount +
-		effectPersonInputCount;
+		effectPersonInputCount +
+		effectDistortionInputCount;
 	const audioResult = buildTimelineAudioFilters({
 		audioFiles,
 		audioCrossfades,

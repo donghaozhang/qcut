@@ -858,6 +858,148 @@ function buildEffectOverlayFilters({
 	return { filterSteps, outputLabel };
 }
 
+/**
+ * Applies baked distortion stages through FFmpeg's remap filter. The xmap and
+ * ymap inputs are 16-bit PGM coordinate maps sampled from the same
+ * sampleDistortionSource model the preview uses, generated at reduced
+ * resolution and scaled up in-graph. Window gating splits the base stream and
+ * re-blends because remap has no timeline (enable) support.
+ */
+function buildEffectDistortionFilters({
+	currentLabel,
+	duration,
+	fps,
+	height,
+	segmentIndex,
+	source,
+	width,
+}: {
+	currentLabel: string;
+	duration: number;
+	fps: number;
+	height: number;
+	segmentIndex: number;
+	source: VideoSource;
+	width: number;
+}): { filterSteps: string[]; outputLabel: string } {
+	const program = source.effectRenderProgram;
+	if (!program) return { filterSteps: [], outputLabel: currentLabel };
+
+	const filterSteps: string[] = [];
+	let outputLabel = currentLabel;
+	for (const [stageIndex, stage] of program.stages.entries()) {
+		if (stage.kind !== "distortion") continue;
+		const distortionSource = source.effectDistortionSources?.find(
+			(candidate) => candidate.stageIndex === stageIndex
+		);
+		if (
+			distortionSource?.xmapInputIndex === undefined ||
+			distortionSource?.ymapInputIndex === undefined
+		) {
+			throw new Error(
+				`Missing FFmpeg input for distortion effect ${stage.variant} at stage ${stageIndex}`
+			);
+		}
+
+		const prefix = `video_${segmentIndex}_effect_distortion_${stageIndex}`;
+		let stageInput = outputLabel;
+		let baseLabel: string | undefined;
+		if (stage.window) {
+			baseLabel = `${prefix}_base`;
+			stageInput = `${prefix}_input`;
+			filterSteps.push(`[${outputLabel}]split=2[${baseLabel}][${stageInput}]`);
+		}
+		const xmapLabel = `${prefix}_xmap`;
+		const ymapLabel = `${prefix}_ymap`;
+		// tpad clones the last map frame indefinitely before trim closes the
+		// stream, so a finite baked sequence always covers the full segment
+		// even when speed keyframes or freeze frames stretch it beyond the
+		// baked duration (remap would otherwise end the stream early).
+		const mapCoverageFilter =
+			`scale=${width}:${height},fps=${fps},tpad=stop_mode=clone:stop=-1,` +
+			`trim=duration=${duration},setpts=PTS-STARTPTS`;
+		filterSteps.push(
+			`[${distortionSource.xmapInputIndex}:v]${mapCoverageFilter}[${xmapLabel}]`
+		);
+		filterSteps.push(
+			`[${distortionSource.ymapInputIndex}:v]${mapCoverageFilter}[${ymapLabel}]`
+		);
+		const remapped = `${prefix}_remapped`;
+		filterSteps.push(
+			`[${stageInput}][${xmapLabel}][${ymapLabel}]remap=fill=black[${prefix}_raw]`
+		);
+		filterSteps.push(`[${prefix}_raw]format=rgba[${remapped}]`);
+		outputLabel = blendEffectWindow({
+			baseLabel,
+			effectLabel: remapped,
+			filterSteps,
+			outputLabel: `${prefix}_windowed`,
+			window: stage.window,
+		});
+	}
+	return { filterSteps, outputLabel };
+}
+
+/**
+ * Composites baked procedural particle/decoration frame sequences over the
+ * segment. Opacity and blending are already baked into the RGBA frames, so
+ * every stage composites with a plain alpha overlay. Unlike asset overlays,
+ * baked sequences are finite: rely on overlay's default eof_action=repeat
+ * (hold last frame) instead of shortest=1, which would truncate the segment.
+ */
+function buildEffectProceduralFilters({
+	currentLabel,
+	duration,
+	fps,
+	height,
+	segmentIndex,
+	source,
+	width,
+}: {
+	currentLabel: string;
+	duration: number;
+	fps: number;
+	height: number;
+	segmentIndex: number;
+	source: VideoSource;
+	width: number;
+}): { filterSteps: string[]; outputLabel: string } {
+	const program = source.effectRenderProgram;
+	if (!program) return { filterSteps: [], outputLabel: currentLabel };
+
+	const filterSteps: string[] = [];
+	let outputLabel = currentLabel;
+	for (const [stageIndex, stage] of program.stages.entries()) {
+		if (stage.kind !== "particles" && stage.kind !== "decoration") continue;
+		const overlaySource = source.effectOverlaySources?.find(
+			(candidate) => candidate.stageIndex === stageIndex
+		);
+		if (overlaySource?.inputIndex === undefined) {
+			throw new Error(
+				`Missing FFmpeg input for procedural effect ${stage.kind}:${stage.variant} at stage ${stageIndex}`
+			);
+		}
+
+		const prefix = `video_${segmentIndex}_effect_procedural_${stageIndex}`;
+		const enabled = effectWindowExpression({
+			window: stage.window,
+			timeVariable: "t",
+		});
+		const enableOption = enabled ? `:enable='${enabled}'` : "";
+		const prepared = `${prefix}_prepared`;
+		filterSteps.push(
+			`[${overlaySource.inputIndex}:v]scale=${width}:${height},format=rgba,` +
+				`fps=${fps},trim=duration=${duration},setpts=PTS-STARTPTS[${prepared}]`
+		);
+		const composed = `${prefix}_composed`;
+		filterSteps.push(
+			`[${outputLabel}][${prepared}]overlay=x=0:y=0:format=auto${enableOption}[${composed}]`
+		);
+		outputLabel = composed;
+	}
+	return { filterSteps, outputLabel };
+}
+
 function buildTimedVideoInput({
 	inputLabel,
 	prefix,
@@ -1221,6 +1363,28 @@ function buildSegmentFilters({
 	});
 	steps.push(...effectOverlayGraph.filterSteps);
 	current = effectOverlayGraph.outputLabel;
+	const effectDistortionGraph = buildEffectDistortionFilters({
+		currentLabel: current,
+		duration,
+		fps,
+		height,
+		segmentIndex,
+		source,
+		width,
+	});
+	steps.push(...effectDistortionGraph.filterSteps);
+	current = effectDistortionGraph.outputLabel;
+	const effectProceduralGraph = buildEffectProceduralFilters({
+		currentLabel: current,
+		duration,
+		fps,
+		height,
+		segmentIndex,
+		source,
+		width,
+	});
+	steps.push(...effectProceduralGraph.filterSteps);
+	current = effectProceduralGraph.outputLabel;
 	const crop = visual.crop;
 	const left = buildVideoKeyframeExpression({
 		visual,
