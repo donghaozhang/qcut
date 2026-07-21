@@ -825,14 +825,13 @@ export function getClipTransitionLayerPresentation({
 		}
 		case "color-swipe": {
 			const tint = tuning.tint ?? "#ffd233";
-			const angle =
-				transition.direction === "right"
-					? 90
-					: transition.direction === "up"
-						? 0
-						: transition.direction === "down"
-							? 180
-							: 270;
+			const angleByDirection = {
+				right: 90,
+				up: 0,
+				down: 180,
+				left: 270,
+			} as const;
+			const angle = angleByDirection[transition.direction ?? "left"];
 			const front = Math.min(200, eased * 200);
 			const back = Math.max(0, front - 100);
 			const clampedFront = Math.min(100, front);

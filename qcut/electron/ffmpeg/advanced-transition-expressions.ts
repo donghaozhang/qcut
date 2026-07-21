@@ -321,14 +321,13 @@ export function colorSwipeExpression({
 	progress: string;
 	tint: string | undefined;
 }): string {
-	const axis =
-		direction === "right"
-			? "(X/W)"
-			: direction === "up"
-				? "(1-Y/H)"
-				: direction === "down"
-					? "(Y/H)"
-					: "(1-X/W)";
+	const axisByDirection: Record<TransitionDirection, string> = {
+		right: "(X/W)",
+		up: "(1-Y/H)",
+		down: "(Y/H)",
+		left: "(1-X/W)",
+	};
+	const axis = axisByDirection[resolveTransitionDirection({ direction })];
 	const front = `(2*(${progress}))`;
 	const back = `(2*(${progress})-1)`;
 	const color = tintPlaneExpression({ tint: tint ?? "#ffd233" });
