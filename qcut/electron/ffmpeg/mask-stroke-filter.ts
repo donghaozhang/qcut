@@ -73,7 +73,7 @@ function alphaExpression({ stroke }: { stroke: VideoMaskStroke }): string {
 		stroke.style === "dashed"
 			? `*lt(mod(X+Y,${Math.max(6, Math.round(stroke.width * 5))}),${Math.max(3, Math.round(stroke.width * 2.5))})`
 			: stroke.style === "sketch"
-				? `*(0.7+0.3*lt(mod(X*3+Y*5,11),7))`
+				? "*(0.7+0.3*lt(mod(X*3+Y*5,11),7))"
 				: "";
 	return `${sample}*${bounds}*${stroke.opacity}${pattern}`;
 }

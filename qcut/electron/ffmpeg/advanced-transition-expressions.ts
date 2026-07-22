@@ -245,6 +245,214 @@ export function pageFlipExpression({
 	return `if(eq(PLANE,3),${base},min(255,(${base})*(${shade})+(${highlight})))`;
 }
 
+function swirledSample({
+	input,
+	spin,
+}: {
+	input: "a" | "b";
+	spin: string;
+}): string {
+	const distance = "sqrt(pow(X-W/2,2)+pow(Y-H/2,2))";
+	const falloff = `max(0,1-(${distance})/(0.75*sqrt(W*W+H*H)/2))`;
+	const angle = `((${spin})*(${falloff}))`;
+	const sampleX = `W/2+(X-W/2)*cos(${angle})-(Y-H/2)*sin(${angle})`;
+	const sampleY = `H/2+(X-W/2)*sin(${angle})+(Y-H/2)*cos(${angle})`;
+	return clampedPlaneSample({ input, x: sampleX, y: sampleY });
+}
+
+/** Vortex: both clips swirl around center while crossfading. */
+export function vortexExpression({
+	progress,
+	intensity,
+}: {
+	progress: string;
+	intensity: number;
+}): string {
+	const strength = (2.6 * intensity).toFixed(3);
+	return blendSamples({
+		progress,
+		outgoing: swirledSample({
+			input: "a",
+			spin: `(${progress})*${strength}`,
+		}),
+		incoming: swirledSample({
+			input: "b",
+			spin: `-(1-(${progress}))*${strength}`,
+		}),
+	});
+}
+
+/** Shockwave: an expanding ring displaces pixels radially, with a bright rim. */
+export function shockwaveExpression({
+	progress,
+	intensity,
+	frequency,
+}: {
+	progress: string;
+	intensity: number;
+	frequency: number;
+}): string {
+	const distance = "sqrt(pow((X-W/2)/W,2)+pow((Y-H/2)/H,2))";
+	const front = `((${progress})*0.82)`;
+	const delta = `((${distance})-(${front}))`;
+	const impulse = `((${delta})*exp(-pow(${delta},2)/${(0.007 / frequency).toFixed(5)}))`;
+	const shift = `(${impulse})*${(0.6 * intensity).toFixed(3)}`;
+	const sampleX = `X+(${shift})*W*((X-W/2)/(W/2))`;
+	const sampleY = `Y+(${shift})*H*((Y-H/2)/(H/2))`;
+	const blend = blendSamples({
+		progress,
+		outgoing: clampedPlaneSample({ input: "a", x: sampleX, y: sampleY }),
+		incoming: clampedPlaneSample({ input: "b", x: sampleX, y: sampleY }),
+	});
+	const rim = `max(0,1-abs(${delta})*${Math.round(46 / frequency)})*${Math.min(70, Math.round(48 * intensity))}`;
+	return `if(eq(PLANE,3),${blend},min(255,(${blend})+(${rim})))`;
+}
+
+/**
+ * MG color swipe: a solid color panel sweeps across the frame; the outgoing
+ * clip shows ahead of the panel and the incoming clip is revealed behind it.
+ */
+export function colorSwipeExpression({
+	direction,
+	progress,
+	tint,
+}: {
+	direction: VideoTransition["direction"];
+	progress: string;
+	tint: string | undefined;
+}): string {
+	const axisByDirection: Record<TransitionDirection, string> = {
+		right: "(X/W)",
+		up: "(1-Y/H)",
+		down: "(Y/H)",
+		left: "(1-X/W)",
+	};
+	const axis = axisByDirection[resolveTransitionDirection({ direction })];
+	const front = `(2*(${progress}))`;
+	const back = `(2*(${progress})-1)`;
+	const color = tintPlaneExpression({ tint: tint ?? "#ffd233" });
+	return `if(eq(PLANE,3),255,if(gt(${axis},${front}),A,if(lt(${axis},${back}),B,${color})))`;
+}
+
+/**
+ * Cube rotation: the outgoing face squeezes toward one edge while the
+ * incoming face expands from the other, with rotation shading, mirroring a
+ * horizontal 3D cube spin.
+ */
+export function cubeExpression({
+	progress,
+	intensity,
+}: {
+	progress: string;
+	intensity: number;
+}): string {
+	const split = `((1-(${progress}))*W)`;
+	const outgoing = clampedPlaneSample({
+		input: "a",
+		x: `X/max(0.0001,1-(${progress}))`,
+		y: "Y",
+	});
+	const incoming = clampedPlaneSample({
+		input: "b",
+		x: `(X-(${split}))/max(0.0001,(${progress}))`,
+		y: "Y",
+	});
+	const base = `if(lt(X,${split}),${outgoing},${incoming})`;
+	const shade = (0.38 * intensity).toFixed(3);
+	const shading = `if(lt(X,${split}),1-${shade}*(${progress}),1-${shade}*(1-(${progress})))`;
+	return `if(eq(PLANE,3),${base},(${base})*(${shading}))`;
+}
+
+/**
+ * Shaped wipe fields for texture-mask transitions with a maskShape. Each
+ * shape maps every pixel to a scalar in [0,1] describing when the incoming
+ * clip reveals it; the field is compared against progress with a feathered
+ * edge, mirroring the preview's clip-path/mask geometry.
+ */
+export function maskShapeExpression({
+	shape,
+	progress,
+}: {
+	shape: string;
+	progress: string;
+}): string {
+	const dx = "(X/W-0.5)";
+	const dy = "(Y/H-0.5)";
+	const radius = `(sqrt(pow(${dx},2)+pow(${dy},2))/0.7071)`;
+	const angle = `((atan2(${dy},${dx})+PI)/(2*PI))`;
+	const organicNoise =
+		"((sin(X/W*13+sin(Y/H*17)*2)+cos(Y/H*11+sin(X/W*7)*2)+2)/4)";
+	let field: string;
+	let feather = 0.03;
+	switch (shape) {
+		case "circle":
+			field = radius;
+			break;
+		case "clock":
+			field = angle;
+			feather = 0.015;
+			break;
+		case "blinds":
+			field = "mod(Y*8/H,1)";
+			feather = 0.02;
+			break;
+		case "cross":
+			field = `(min(abs(${dx}),abs(${dy}))*2)`;
+			break;
+		case "triptych":
+			field = "(Y/H*0.9+mod(floor(X*3/W),3)*0.05)";
+			feather = 0.02;
+			break;
+		case "arrow":
+			field = "((X+abs(Y-H/2))/(W+H/2))";
+			feather = 0.02;
+			break;
+		case "heart":
+			field = `(sqrt(pow(${dx},2)+pow(${dy},2))/(0.34*(1.35-sin(atan2(-(${dy}),${dx})))+0.08))`;
+			feather = 0.05;
+			break;
+		case "star":
+			field = `(sqrt(pow(${dx},2)+pow(${dy},2))/(0.42+0.24*cos(5*atan2(${dy},${dx})+PI/2)))`;
+			feather = 0.05;
+			break;
+		case "ink":
+			field = `(0.6*${organicNoise}+0.4*${radius})`;
+			feather = 0.09;
+			break;
+		case "cloud":
+			field = `(0.55*${organicNoise}+0.45*(Y/H))`;
+			feather = 0.09;
+			break;
+		case "fog":
+			field = `(0.7*${organicNoise}+0.3*${radius})`;
+			feather = 0.11;
+			break;
+		case "diagonal":
+			field = "((X/W+Y/H)/2)";
+			feather = 0.05;
+			break;
+		case "curtain":
+			field = `(abs(${dx})*2)`;
+			feather = 0.02;
+			break;
+		case "drip":
+			field = `(0.75*(Y/H)+0.25*${organicNoise})`;
+			feather = 0.07;
+			break;
+		default:
+			field = radius;
+			break;
+	}
+	const scaledProgress = `((${progress})*${(1 + 2 * feather).toFixed(3)})`;
+	const localMix = `min(1,max(0,((${scaledProgress})-(${field})+${feather})/${(feather * 2).toFixed(4)}))`;
+	const shapedBlend = blendSamples({
+		progress: localMix,
+		outgoing: "A",
+		incoming: "B",
+	});
+	return `if(lte(${progress},0.001),A,if(gte(${progress},0.999),B,${shapedBlend}))`;
+}
+
 export function textureMaskExpression({
 	progress,
 	frequency,

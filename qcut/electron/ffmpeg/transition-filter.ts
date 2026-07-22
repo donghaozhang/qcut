@@ -1,11 +1,16 @@
 import type { VideoSource, VideoTransition } from "./types";
 import {
+	colorSwipeExpression,
+	cubeExpression,
 	glassRefractionExpression,
 	lensFlareExpression,
 	motionBlurExpression,
 	pageFlipExpression,
 	particleDissolveExpression,
 	pixelateExpression,
+	maskShapeExpression,
+	shockwaveExpression,
+	vortexExpression,
 	textureMaskExpression,
 	waterRippleExpression,
 } from "./advanced-transition-expressions";
@@ -634,15 +639,46 @@ export function buildXfadeTransitionFilter({
 			});
 			break;
 		case "texture-mask":
-			expression = textureMaskExpression({
-				progress,
-				frequency: tuning.frequency,
-			});
+			expression = transition.maskShape
+				? maskShapeExpression({
+						shape: transition.maskShape,
+						progress,
+					})
+				: textureMaskExpression({
+						progress,
+						frequency: tuning.frequency,
+					});
 			break;
 		case "lens-flare":
 			expression = lensFlareExpression({
 				progress,
 				intensity: tuning.intensity,
+				tint: tuning.tint,
+			});
+			break;
+		case "vortex":
+			expression = vortexExpression({
+				progress,
+				intensity: tuning.intensity,
+			});
+			break;
+		case "shockwave":
+			expression = shockwaveExpression({
+				progress,
+				intensity: tuning.intensity,
+				frequency: tuning.frequency,
+			});
+			break;
+		case "cube":
+			expression = cubeExpression({
+				progress,
+				intensity: tuning.intensity,
+			});
+			break;
+		case "color-swipe":
+			expression = colorSwipeExpression({
+				direction: transition.direction,
+				progress,
 				tint: tuning.tint,
 			});
 			break;

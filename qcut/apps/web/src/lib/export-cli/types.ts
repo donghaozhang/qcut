@@ -15,6 +15,7 @@ import type {
 	ClipTransitionDirection,
 	ClipTransitionEasing,
 	ClipTransitionType,
+	ClipTransitionMaskShape,
 	ClipTransitionTuning,
 	MediaAudioSettings,
 	MediaColorSettings,
@@ -48,6 +49,7 @@ export interface VideoTransitionInput {
 	easing: ClipTransitionEasing;
 	duration: number;
 	tuning?: ClipTransitionTuning;
+	maskShape?: ClipTransitionMaskShape;
 }
 
 /**

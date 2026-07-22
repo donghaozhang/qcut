@@ -342,6 +342,7 @@ export function getClipTransitionPresetConfig({
 		type: preset.clipType,
 		...(preset.direction ? { direction: preset.direction } : {}),
 		...(preset.tuning ? { tuning: preset.tuning } : {}),
+		...(preset.maskShape ? { maskShape: preset.maskShape } : {}),
 	};
 }
 
