@@ -75,7 +75,10 @@ function parseFiniteCliNumber({
 	value: unknown;
 }): number | undefined {
 	if (typeof value !== "string") return undefined;
-	const parsed = Number(value);
+	// Number("") and Number("  ") are 0 — blank flags must not become valid.
+	const trimmed = value.trim();
+	if (!trimmed) return undefined;
+	const parsed = Number(trimmed);
 	return Number.isFinite(parsed) ? parsed : undefined;
 }
 

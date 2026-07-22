@@ -89,6 +89,8 @@ function probeCandidate({ candidate, env, spawn }) {
 			env: { ...env, ...candidate.env },
 			encoding: "utf8",
 			stdio: ["ignore", "pipe", "pipe"],
+			// A hung candidate must not block CLI resolution forever.
+			timeout: 5000,
 		}
 	);
 	if (result.status !== 0) return null;

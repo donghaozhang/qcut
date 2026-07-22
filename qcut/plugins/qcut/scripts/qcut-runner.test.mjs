@@ -136,6 +136,7 @@ test("reports no CLI when every candidate fails", () => {
 		cwd: tempRoot,
 		scriptPath: join(tempRoot, "outside/qcut-runner.mjs"),
 		spawn: () => ({ status: 127, stdout: "" }),
+		installedCandidates: [],
 	});
 	assert.equal(resolved, null);
 });

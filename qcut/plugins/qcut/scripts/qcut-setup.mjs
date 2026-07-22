@@ -403,15 +403,21 @@ export async function openQCutMediaPage({
 	});
 	if (mediaPanel.status !== "ok") return mediaPanel;
 	await waitImpl({ milliseconds: 800 });
-	const statePayload = execute({
-		resolved,
-		args: ["editor:state:snapshot", "--include", "editor,project"],
-		env,
-	});
-	if (statePayload.status !== "ok") return statePayload;
-	const state = editorState({ payload: statePayload });
-	const activePanel = state?.editor?.activePanel?.group;
-	const activeProjectId = state?.project?.activeProject?.id;
+	let activePanel;
+	let activeProjectId;
+	for (let attempt = 0; attempt < 10; attempt += 1) {
+		const statePayload = execute({
+			resolved,
+			args: ["editor:state:snapshot", "--include", "editor,project"],
+			env,
+		});
+		if (statePayload.status !== "ok") return statePayload;
+		const state = editorState({ payload: statePayload });
+		activePanel = state?.editor?.activePanel?.group;
+		activeProjectId = state?.project?.activeProject?.id;
+		if (activePanel === "media" && activeProjectId === project.id) break;
+		await waitImpl({ milliseconds: 300 });
+	}
 	if (activePanel !== "media" || activeProjectId !== project.id) {
 		return {
 			status: "error",
@@ -420,15 +426,12 @@ export async function openQCutMediaPage({
 			data: { activePanel, activeProjectId, requestedProjectId: project.id },
 		};
 	}
+	let focusWarning;
 	if (app.installed) {
 		const focus = activate({ app, platform });
-		if (!focus.launched) {
-			return {
-				status: "error",
-				code: "qcut:focus_failed",
-				error: focus.error,
-			};
-		}
+		// The media page is already verified; a failed best-effort focus
+		// must not discard that success.
+		if (!focus.launched) focusWarning = focus.error;
 	}
 	return {
 		status: "ok",
@@ -436,6 +439,7 @@ export async function openQCutMediaPage({
 			project,
 			panel: activePanel,
 			verified: true,
+			...(focusWarning ? { focusWarning } : {}),
 			cli: {
 				source: resolved.source,
 				version: resolved.version,

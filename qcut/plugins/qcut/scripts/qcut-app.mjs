@@ -175,6 +175,8 @@ function readPackagedVersion({ candidate, env, spawn = spawnSync }) {
 			env: { ...env, ELECTRON_RUN_AS_NODE: "1" },
 			encoding: "utf8",
 			stdio: ["ignore", "pipe", "pipe"],
+			// A hung Electron-as-Node probe must not block app discovery.
+			timeout: 5000,
 		}
 	);
 	if (result.status !== 0) return null;
@@ -261,6 +263,10 @@ export function launchQCutApp({
 			detached: true,
 			stdio: "ignore",
 		});
+		// spawn() failures surface via the async "error" event, which the
+		// surrounding try/catch cannot observe; swallow it so a missing or
+		// non-executable binary cannot crash the host process.
+		child.on("error", () => {});
 		child.unref();
 		return { launched: true };
 	} catch (error) {
