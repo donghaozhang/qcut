@@ -128,6 +128,11 @@ Background mode fails without focusing QCut when DevTools or another debugger
 already owns the renderer's CDP connection. Close that debugger or explicitly
 retry with `--foreground`; never silently change modes. The desktop app displays
 the Agent cursor, operation status, click ripple, and drag trail in either mode.
+The CLI also requires the running editor to advertise `state.pointer` version
+`1.1.0` or newer for background actions. This safety check remains active with
+`--no-capability-check`. Update a build that does not advertise `state.pointer`;
+an editor advertising version `1.0.0` may use `--foreground` after confirming
+that focus may move.
 Use coordinates only when a snapshot ref cannot represent the target, and keep
 them inside the current editor viewport. Click, double-click, right-click, and
 drag are confirmation-tier actions; use `--force` only after the requested

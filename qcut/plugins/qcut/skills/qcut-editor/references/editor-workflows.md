@@ -98,6 +98,12 @@ Background mode does not fall back to foreground input. If DevTools or another
 debugger is attached, close it or explicitly choose `--foreground` after
 confirming that focus can move to QCut.
 
+Background actions require the running editor to advertise `state.pointer`
+version `1.1.0` or newer. The CLI enforces this even with
+`--no-capability-check`. Update a build that does not advertise the capability;
+an editor advertising version `1.0.0` may intentionally use `--foreground`
+after confirming the focus change is acceptable.
+
 After click or drag, verify the resulting editor or timeline state rather than
 treating a successful input event as proof of the intended edit. Use
 `editor:undo` to restore an E2E drag fixture after verification.

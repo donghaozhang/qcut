@@ -5,6 +5,14 @@ import { parseSessionLine } from "../native-pipeline/cli/cli-runner/session.js";
 import type { CLIRunOptions } from "../native-pipeline/cli/cli-runner/types.js";
 import type { EditorApiClient } from "../native-pipeline/editor/editor-api-client.js";
 
+const BACKGROUND_POINTER_REQUIREMENT = {
+	name: "state.pointer",
+	minVersion: "1.1.0",
+	feature: "Background pointer input",
+	remediation:
+		"Update QCut. Editors advertising state.pointer 1.0.0 can retry with --foreground.",
+} as const;
+
 function makeOptions({
 	command,
 	values = {},
@@ -25,9 +33,11 @@ function makeOptions({
 
 function createClient() {
 	const post = vi.fn(async () => ({ ok: true }));
+	const requireCapability = vi.fn(async () => undefined);
 	return {
-		client: { post } as unknown as EditorApiClient,
+		client: { post, requireCapability } as unknown as EditorApiClient,
 		post,
+		requireCapability,
 	};
 }
 
@@ -75,7 +85,7 @@ describe("editor pointer CLI handlers", () => {
 		"double-click",
 		"right-click",
 	])("routes pointer %s by snapshot ref", async (action) => {
-		const { client, post } = createClient();
+		const { client, post, requireCapability } = createClient();
 		const result = await handlePointerCommand({
 			client,
 			options: makeOptions({
@@ -89,10 +99,13 @@ describe("editor pointer CLI handlers", () => {
 			ref: "@e12",
 			inputMode: "background",
 		});
+		expect(requireCapability).toHaveBeenCalledWith(
+			BACKGROUND_POINTER_REQUIREMENT
+		);
 	});
 
 	it("routes coordinate drag endpoints without losing zero coordinates", async () => {
-		const { client, post } = createClient();
+		const { client, post, requireCapability } = createClient();
 		const result = await handlePointerCommand({
 			client,
 			options: makeOptions({
@@ -107,10 +120,13 @@ describe("editor pointer CLI handlers", () => {
 			to: { x: 800, y: 700 },
 			inputMode: "background",
 		});
+		expect(requireCapability).toHaveBeenCalledWith(
+			BACKGROUND_POINTER_REQUIREMENT
+		);
 	});
 
 	it("routes wheel deltas at an optional target", async () => {
-		const { client, post } = createClient();
+		const { client, post, requireCapability } = createClient();
 		const result = await handlePointerCommand({
 			client,
 			options: makeOptions({
@@ -125,10 +141,13 @@ describe("editor pointer CLI handlers", () => {
 			inputMode: "background",
 			deltaY: 400,
 		});
+		expect(requireCapability).toHaveBeenCalledWith(
+			BACKGROUND_POINTER_REQUIREMENT
+		);
 	});
 
 	it("routes explicit foreground input without changing the target", async () => {
-		const { client, post } = createClient();
+		const { client, post, requireCapability } = createClient();
 		const result = await handlePointerCommand({
 			client,
 			options: makeOptions({
@@ -142,6 +161,27 @@ describe("editor pointer CLI handlers", () => {
 			ref: "@e12",
 			inputMode: "foreground",
 		});
+		expect(requireCapability).not.toHaveBeenCalled();
+	});
+
+	it("rejects background input when the running editor is too old", async () => {
+		const { client, post, requireCapability } = createClient();
+		requireCapability.mockRejectedValue(
+			new Error(
+				"Background pointer input requires QCut capability 'state.pointer' 1.1.0+"
+			)
+		);
+
+		await expect(
+			handlePointerCommand({
+				client,
+				options: makeOptions({
+					command: "editor:pointer:click",
+					values: { ref: "@e12" },
+				}),
+			})
+		).rejects.toThrow("state.pointer");
+		expect(post).not.toHaveBeenCalled();
 	});
 
 	it("rejects ambiguous and partial pointer targets before sending a request", async () => {
@@ -170,13 +210,14 @@ describe("editor pointer CLI handlers", () => {
 	});
 
 	it("routes hide and validates incomplete targets", async () => {
-		const { client, post } = createClient();
+		const { client, post, requireCapability } = createClient();
 		const hideResult = await handlePointerCommand({
 			client,
 			options: makeOptions({ command: "editor:pointer:hide" }),
 		});
 		expect(hideResult.success).toBe(true);
 		expect(post).toHaveBeenCalledWith("/api/claude/pointer/hide", {});
+		expect(requireCapability).not.toHaveBeenCalled();
 
 		const invalidResult = await handlePointerCommand({
 			client,

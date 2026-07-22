@@ -149,7 +149,7 @@ bun run pipeline editor:pointer:click --ref @e12 --foreground --force --json
 bun run pipeline editor:pointer:hide --json
 ```
 
-Background mode is the default and never silently falls back to foreground input. It returns a clear error when DevTools or another debugger already owns the CDP connection. The existing `editor:snapshot:click` command delegates to the same controller, so ref resolution and click semantics have one implementation.
+Background mode is the default and never silently falls back to foreground input. Before sending an action, the CLI strictly requires the running editor to advertise `state.pointer` capability version `1.1.0` or newer. This check cannot be disabled by `--no-capability-check`; an editor without the capability must be upgraded, while version `1.0.0` can be used explicitly with `--foreground`. An ignored `inputMode` field can therefore never turn a requested background action into an unexpected focus change. Background mode also returns a clear error when DevTools or another debugger already owns the CDP connection. The existing `editor:snapshot:click` command delegates to the same controller, so ref resolution and click semantics have one implementation.
 
 **Live E2E evidence**:
 
@@ -160,6 +160,9 @@ Background mode is the default and never silently falls back to foreground input
 5. Drag moved a temporary timeline element from `startTime: 0` to `startTime: 4` while Google Chrome remained active. The element was then removed and the timeline was verified empty.
 6. Explicit `--foreground` changed the frontmost application from Calculator to Electron and returned `inputMode: "foreground"`, `input: "electron-send-input-event"`, and `windowFocused: true`.
 7. Hide removed both the pointer and Agent operation status. Evidence frames are saved as `13-background-pointer-move.png` through `19-background-pointer-hidden.png` in `~/Movies/QCut Recordings/`.
+8. With QCut hidden and Calculator active, a background move made QCut visible through `showInactive()` while Calculator remained frontmost.
+9. With QCut minimized and Calculator active, a background move restored the window (`AXMinimized: true` to `false`) while Calculator remained frontmost.
+10. The installed legacy build `2026.7.1802`, which does not advertise `state.pointer`, rejected background click before dispatch even with `--no-capability-check`; Calculator remained frontmost.
 
 **Implemented files**:
 
@@ -183,10 +186,11 @@ Background mode is the default and never silently falls back to foreground input
 - `electron/claude/__tests__/claude-http-server.test.ts`
 - `electron/claude/__tests__/claude-snapshot-handler.test.ts`
 - `electron/__tests__/cli-command-groups.test.ts`
+- `electron/__tests__/editor-api-client.test.ts`
 - `electron/__tests__/editor-pointer-cli.test.ts`
 - `apps/web/src/components/editor/__tests__/agent-pointer-overlay.test.tsx`
 
-The focused suite passes 173 tests across these files. Electron TypeScript,
+The focused suite passes 210 tests across these files. Electron TypeScript,
 preload bundling, and the production web renderer build also pass.
 
 ---

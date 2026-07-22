@@ -76,6 +76,13 @@ interface EndpointCapabilityRequirement {
 	minVersion?: string;
 }
 
+export interface RequiredEditorCapability {
+	name: string;
+	minVersion: string;
+	feature: string;
+	remediation?: string;
+}
+
 export interface PollOptions {
 	interval?: number;
 	timeout?: number;
@@ -191,6 +198,56 @@ export class EditorApiClient {
 			return await this.capabilityNegotiationPromise;
 		} catch {
 			return null;
+		}
+	}
+
+	/** Require an advertised server capability when downgrading would be unsafe. */
+	async requireCapability({
+		name,
+		minVersion,
+		feature,
+		remediation,
+	}: RequiredEditorCapability): Promise<void> {
+		const manifest = await this.negotiateCapabilities();
+		const requirement = `'${name}' ${minVersion}+`;
+		const nextStep = remediation?.trim()
+			? ` ${remediation.trim()}`
+			: " Update the running QCut editor and try again.";
+
+		if (!manifest) {
+			throw new EditorApiError(
+				`${feature} requires QCut capability ${requirement}, but the running editor did not provide a valid capability manifest.${nextStep}`
+			);
+		}
+
+		const capability = manifest.capabilities.find(
+			(entry) => entry?.name === name
+		);
+		if (!capability) {
+			throw new EditorApiError(
+				`${feature} requires QCut capability ${requirement}, but the running editor does not advertise it.${nextStep}`
+			);
+		}
+		if (!this.parseSemver({ value: minVersion })) {
+			throw new EditorApiError(
+				`${feature} has an invalid minimum capability version '${minVersion}'.`
+			);
+		}
+		if (
+			typeof capability.version !== "string" ||
+			!this.parseSemver({ value: capability.version })
+		) {
+			throw new EditorApiError(
+				`${feature} requires QCut capability ${requirement}, but the running editor advertises an invalid version.${nextStep}`
+			);
+		}
+
+		if (
+			this.compareSemver({ left: capability.version, right: minVersion }) < 0
+		) {
+			throw new EditorApiError(
+				`${feature} requires QCut capability ${requirement}, but the running editor advertises ${capability.version}.${nextStep}`
+			);
 		}
 	}
 
