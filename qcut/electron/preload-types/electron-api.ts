@@ -49,6 +49,7 @@ import type {
 	ClaudeNavigatorAPI,
 	ClaudeScreenRecordingBridgeAPI,
 	ClaudeProjectCrudAPI,
+	ClaudePointerAPI,
 	ClaudeUiAPI,
 	ClaudeStateAPI,
 } from "./api-types/claude-ui-api";
@@ -106,6 +107,7 @@ export interface ElectronAPI
 		ClaudeNavigatorAPI &
 		ClaudeScreenRecordingBridgeAPI &
 		ClaudeProjectCrudAPI &
+		ClaudePointerAPI &
 		ClaudeUiAPI &
 		ClaudeStateAPI;
 }

@@ -1,5 +1,6 @@
 import type { BrowserWindow } from "electron";
 import type {
+	AgentPointerResolvedTarget,
 	EditorSnapshotActionResult,
 	EditorSnapshotClickRequest,
 	EditorSnapshotFillRequest,
@@ -11,11 +12,14 @@ import type {
 import {
 	DEFAULT_SNAPSHOT_MAX_BYTES,
 	DEFAULT_SNAPSHOT_MAX_NODES,
+	DEFAULT_EDITOR_SNAPSHOT_DEPTH,
 	EDITOR_SNAPSHOT_REF_ATTRIBUTE,
+	EDITOR_SNAPSHOT_IGNORE_ATTRIBUTE,
 	EDITOR_SNAPSHOT_STATE_KEY,
 	EDITOR_SNAPSHOT_VERSION,
 	MAX_EDITOR_SNAPSHOT_DEPTH,
 } from "../../types/claude-api.js";
+import { getAgentPointerController } from "./agent-pointer-controller.js";
 
 interface SnapshotActionFailure {
 	ok: false;
@@ -46,7 +50,7 @@ function normalizeSnapshotRequest({
 }): Required<EditorSnapshotRequest> {
 	const interactive = request?.interactive === true;
 
-	let depth = MAX_EDITOR_SNAPSHOT_DEPTH;
+	let depth = DEFAULT_EDITOR_SNAPSHOT_DEPTH;
 	if (typeof request?.depth === "number" && Number.isFinite(request.depth)) {
 		const parsedDepth = Math.trunc(request.depth);
 		if (parsedDepth >= 0) {
@@ -88,6 +92,7 @@ function buildSnapshotScript({
 	const normalized = normalizeSnapshotRequest({ request });
 	return `(() => {
 		const REF_ATTR = ${JSON.stringify(EDITOR_SNAPSHOT_REF_ATTRIBUTE)};
+		const IGNORE_ATTR = ${JSON.stringify(EDITOR_SNAPSHOT_IGNORE_ATTRIBUTE)};
 		const SNAPSHOT_STATE_KEY = ${JSON.stringify(EDITOR_SNAPSHOT_STATE_KEY)};
 		const interactiveOnly = ${normalized.interactive ? "true" : "false"};
 		const maxDepth = ${normalized.depth};
@@ -95,6 +100,11 @@ function buildSnapshotScript({
 		const MAX_NODES = ${normalized.maxNodes};
 		const MAX_TEXT = 120;
 		const MAX_VALUE = 120;
+		const QCUT_ACTIONABLE_TEST_IDS = new Set([
+			"media-item",
+			"timeline-element",
+			"timeline-track",
+		]);
 
 		const getSnapshotState = () => {
 			const host = window;
@@ -262,6 +272,10 @@ function buildSnapshotScript({
 			if (!(element instanceof HTMLElement)) return false;
 			const role = getRole(element);
 			const tag = element.tagName.toLowerCase();
+			const testId = element.getAttribute("data-testid");
+			if (testId && QCUT_ACTIONABLE_TEST_IDS.has(testId)) return true;
+			if (element.hasAttribute("data-element-id")) return true;
+			if (element.getAttribute("draggable") === "true") return true;
 			if (tag === "button" || tag === "summary" || tag === "select" || tag === "textarea") {
 				return true;
 			}
@@ -307,6 +321,7 @@ function buildSnapshotScript({
 		let nodeBudgetExhausted = false;
 		const walk = (node, depth, parentRef) => {
 			if (!(node instanceof HTMLElement)) return;
+			if (node.hasAttribute(IGNORE_ATTR)) return;
 			if (!isVisible(node)) return;
 			if (nodeBudgetExhausted) return;
 
@@ -622,37 +637,44 @@ export function buildSnapshotActionPrelude(): string {
 	`;
 }
 
-function buildSnapshotClickScript({
-	request,
-}: {
-	request: EditorSnapshotClickRequest;
-}): string {
-	const ref = normalizeSnapshotRef({ ref: request.ref });
+function buildSnapshotRefTargetScript({ ref }: { ref: string }): string {
+	const normalizedRef = normalizeSnapshotRef({ ref });
 	return `(() => {
 		${buildSnapshotActionPrelude()}
-		const targetRef = ${JSON.stringify(ref)};
+		const targetRef = ${JSON.stringify(normalizedRef)};
 		const element = findElementByRef(targetRef);
 		if (!(element instanceof HTMLElement)) {
 			return buildFailure("not_found", "No element found for snapshot ref " + targetRef + ". Capture a fresh snapshot first.");
 		}
 
-		const disabled =
+		element.scrollIntoView({ block: "nearest", inline: "nearest" });
+		const rect = element.getBoundingClientRect();
+		const left = Math.max(0, rect.left);
+		const top = Math.max(0, rect.top);
+		const right = Math.min(window.innerWidth, rect.right);
+		const bottom = Math.min(window.innerHeight, rect.bottom);
+		if (right <= left || bottom <= top) {
+			return buildFailure("not_visible", "Snapshot ref " + targetRef + " is outside the visible editor viewport.");
+		}
+
+		return {
+			ref: targetRef,
+			x: Math.round((left + right) / 2),
+			y: Math.round((top + bottom) / 2),
+			bounds: {
+				x: Math.round(rect.x),
+				y: Math.round(rect.y),
+				width: Math.round(rect.width),
+				height: Math.round(rect.height),
+			},
+			tagName: element.tagName.toLowerCase(),
+			role: getRole(element),
+			name: getName(element),
+			value: getValue(element),
+			disabled:
 			element.hasAttribute("disabled") ||
-			element.getAttribute("aria-disabled") === "true";
-		if (disabled) {
-			return buildFailure("disabled", "Cannot click a disabled element.");
-		}
-
-		element.focus?.();
-		if (typeof element.click === "function") {
-			element.click();
-		} else {
-			for (const type of ["pointerdown", "mousedown", "pointerup", "mouseup", "click"]) {
-				element.dispatchEvent(new MouseEvent(type, { bubbles: true, cancelable: true, button: 0 }));
-			}
-		}
-
-		return buildSuccess(element, "click", targetRef);
+				element.getAttribute("aria-disabled") === "true",
+		};
 	})()`;
 }
 
@@ -786,6 +808,21 @@ function isValidSnapshotActionResult(
 	);
 }
 
+function isValidPointerTarget(
+	value: unknown
+): value is AgentPointerResolvedTarget {
+	if (typeof value !== "object" || value === null) return false;
+	const candidate = value as Partial<AgentPointerResolvedTarget>;
+	return (
+		typeof candidate.ref === "string" &&
+		typeof candidate.x === "number" &&
+		Number.isFinite(candidate.x) &&
+		typeof candidate.y === "number" &&
+		Number.isFinite(candidate.y) &&
+		typeof candidate.tagName === "string"
+	);
+}
+
 function toSnapshotActionError({
 	failure,
 }: {
@@ -838,14 +875,47 @@ export async function requestEditorSnapshotFromRenderer(
 	return snapshot;
 }
 
+export async function resolveEditorSnapshotRef({
+	win,
+	ref,
+}: {
+	win: BrowserWindow;
+	ref: string;
+}): Promise<AgentPointerResolvedTarget> {
+	const result = await win.webContents.executeJavaScript(
+		buildSnapshotRefTargetScript({ ref })
+	);
+
+	if (isSnapshotActionFailure(result)) {
+		throw toSnapshotActionError({ failure: result });
+	}
+	if (!isValidPointerTarget(result)) {
+		throw new Error("Renderer returned an invalid snapshot pointer target");
+	}
+	return result;
+}
+
 export async function clickEditorSnapshotRef(
 	win: BrowserWindow,
 	request: EditorSnapshotClickRequest
 ): Promise<EditorSnapshotActionResult> {
-	return await executeSnapshotAction({
+	const pointer = getAgentPointerController({
 		win,
-		script: buildSnapshotClickScript({ request }),
+		resolveRef: resolveEditorSnapshotRef,
 	});
+	const result = await pointer.click({ ref: request.ref });
+	const target = result.target;
+	if (!target?.ref || !target.tagName) {
+		throw new Error("Pointer click did not resolve a snapshot element");
+	}
+	return {
+		action: "click",
+		ref: target.ref,
+		tagName: target.tagName,
+		role: target.role ?? null,
+		name: target.name ?? null,
+		value: target.value ?? null,
+	};
 }
 
 export async function fillEditorSnapshotRef(

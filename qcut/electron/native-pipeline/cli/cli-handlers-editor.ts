@@ -36,6 +36,7 @@ import {
 import { handleDiffCommand } from "./cli-handlers-diff.js";
 import { handleSessionCommand } from "./cli-handlers-session.js";
 import { handleSnapshotCommand } from "./cli-handlers-snapshot.js";
+import { handlePointerCommand } from "./cli-handlers-pointer.js";
 
 type ProgressFn = (progress: {
 	stage: string;
@@ -301,6 +302,9 @@ export async function handleEditorCommand(
 			case "snapshot":
 				return await handleSnapshotCommand({ client, options });
 
+			case "pointer":
+				return await handlePointerCommand({ client, options });
+
 			case "diff":
 				return await handleDiffCommand({ options });
 
@@ -325,7 +329,7 @@ export async function handleEditorCommand(
 			default:
 				return {
 					success: false,
-					error: `Unknown editor module: ${module}. Available: auth, health, media, project, timeline, editing, analyze, transcribe, search, generate, export, diagnostics, mcp, remotion, sticker, navigator, screen-recording, ui, snapshot, diff, session, console, errors, moyin, novel, screenshot, undo, redo, state`,
+					error: `Unknown editor module: ${module}. Available: auth, health, media, project, timeline, editing, analyze, transcribe, search, generate, export, diagnostics, mcp, remotion, sticker, navigator, screen-recording, ui, snapshot, pointer, diff, session, console, errors, moyin, novel, screenshot, undo, redo, state`,
 				};
 		}
 	} catch (err) {

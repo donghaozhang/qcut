@@ -57,9 +57,15 @@ import {
 	clickEditorSnapshotRef,
 	fillEditorSnapshotRef,
 	requestEditorSnapshotFromRenderer,
+	resolveEditorSnapshotRef,
 	selectEditorSnapshotRef,
 } from "../claude/handlers/claude-snapshot-handler.js";
+import { getAgentPointerController } from "../claude/handlers/agent-pointer-controller.js";
 import type {
+	AgentPointerClickRequest,
+	AgentPointerDragRequest,
+	AgentPointerMoveRequest,
+	AgentPointerScrollRequest,
 	EditorStateRequest,
 	EditorSnapshotCheckRequest,
 	EditorSnapshotClickRequest,
@@ -430,6 +436,10 @@ async function handleMainRequest(
 
 	const win = getWindow();
 	if (!win) throw new Error("No active window");
+	const pointerController = getAgentPointerController({
+		win,
+		resolveRef: resolveEditorSnapshotRef,
+	});
 
 	switch (channel) {
 		case "webcontents-send": {
@@ -474,6 +484,49 @@ async function handleMainRequest(
 		case "snapshot:check": {
 			const req = data as { request: EditorSnapshotCheckRequest };
 			return checkEditorSnapshotRef(win, req.request);
+		}
+
+		case "pointer:state": {
+			return pointerController.getState();
+		}
+
+		case "pointer:move": {
+			const req = data as { request: AgentPointerMoveRequest };
+			return pointerController.move(req.request);
+		}
+
+		case "pointer:hover": {
+			const req = data as { request: AgentPointerMoveRequest };
+			return pointerController.hover(req.request);
+		}
+
+		case "pointer:click": {
+			const req = data as { request: AgentPointerClickRequest };
+			return pointerController.click(req.request);
+		}
+
+		case "pointer:double-click": {
+			const req = data as { request: AgentPointerClickRequest };
+			return pointerController.doubleClick(req.request);
+		}
+
+		case "pointer:right-click": {
+			const req = data as { request: AgentPointerClickRequest };
+			return pointerController.rightClick(req.request);
+		}
+
+		case "pointer:drag": {
+			const req = data as { request: AgentPointerDragRequest };
+			return pointerController.drag(req.request);
+		}
+
+		case "pointer:scroll": {
+			const req = data as { request: AgentPointerScrollRequest };
+			return pointerController.scroll(req.request);
+		}
+
+		case "pointer:hide": {
+			return pointerController.hide();
 		}
 
 		case "split-element": {

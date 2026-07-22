@@ -17,6 +17,12 @@ export function createExtraEditorCommands({
 		examples?: string[]
 	) => CommandDef;
 }): Record<string, CommandDef> {
+	const pointerTargetFlags = () => [
+		f("--ref", "string", "Snapshot ref, for example @e12"),
+		f("--x", "number", "Editor viewport X coordinate"),
+		f("--y", "number", "Editor viewport Y coordinate"),
+	];
+
 	return {
 		// ── Auth ──
 		"editor:auth:token": ed(
@@ -168,6 +174,71 @@ export function createExtraEditorCommands({
 				"qcut-pipeline editor:snapshot:check --ref @e12 --checked --json",
 				"qcut-pipeline editor:snapshot:check --ref @e12 --no-checked --json",
 			]
+		),
+		"editor:pointer:move": ed(
+			"editor:pointer:move",
+			"Move the visible Agent pointer to a snapshot ref or editor coordinate",
+			pointerTargetFlags(),
+			[
+				"qcut-pipeline editor:pointer:move --ref @e12 --json",
+				"qcut-pipeline editor:pointer:move --x 640 --y 360 --json",
+			]
+		),
+		"editor:pointer:hover": ed(
+			"editor:pointer:hover",
+			"Move the Agent pointer and settle long enough to trigger hover UI",
+			pointerTargetFlags(),
+			["qcut-pipeline editor:pointer:hover --ref @e12 --json"]
+		),
+		"editor:pointer:click": ed(
+			"editor:pointer:click",
+			"Click with real Electron mouseDown and mouseUp events",
+			pointerTargetFlags(),
+			["qcut-pipeline editor:pointer:click --ref @e12 --force --json"]
+		),
+		"editor:pointer:double-click": ed(
+			"editor:pointer:double-click",
+			"Double-click with real Electron input events",
+			pointerTargetFlags(),
+			["qcut-pipeline editor:pointer:double-click --ref @e12 --force --json"]
+		),
+		"editor:pointer:right-click": ed(
+			"editor:pointer:right-click",
+			"Open a context menu with a real right-click sequence",
+			pointerTargetFlags(),
+			["qcut-pipeline editor:pointer:right-click --ref @e12 --force --json"]
+		),
+		"editor:pointer:drag": ed(
+			"editor:pointer:drag",
+			"Drag between snapshot refs or editor coordinates",
+			[
+				f("--from-ref", "string", "Starting snapshot ref"),
+				f("--to-ref", "string", "Destination snapshot ref"),
+				f("--from-x", "number", "Starting editor viewport X coordinate"),
+				f("--from-y", "number", "Starting editor viewport Y coordinate"),
+				f("--to-x", "number", "Destination editor viewport X coordinate"),
+				f("--to-y", "number", "Destination editor viewport Y coordinate"),
+			],
+			[
+				"qcut-pipeline editor:pointer:drag --from-ref @e12 --to-ref @e27 --force --json",
+				"qcut-pipeline editor:pointer:drag --from-x 400 --from-y 700 --to-x 700 --to-y 700 --force --json",
+			]
+		),
+		"editor:pointer:scroll": ed(
+			"editor:pointer:scroll",
+			"Scroll at the current pointer, a snapshot ref, or editor coordinate",
+			[
+				...pointerTargetFlags(),
+				f("--delta-x", "number", "Horizontal wheel delta"),
+				f("--delta-y", "number", "Vertical wheel delta"),
+			],
+			["qcut-pipeline editor:pointer:scroll --delta-y 400 --json"]
+		),
+		"editor:pointer:hide": ed(
+			"editor:pointer:hide",
+			"Hide the Agent pointer overlay",
+			[],
+			["qcut-pipeline editor:pointer:hide --json"]
 		),
 		"editor:diff:snapshot": ed(
 			"editor:diff:snapshot",

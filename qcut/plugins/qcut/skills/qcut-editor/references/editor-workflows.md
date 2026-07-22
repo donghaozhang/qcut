@@ -60,3 +60,31 @@ qcut editor:console --level error --since 30s --json
 ```
 
 Do not clear diagnostics until the failure is understood.
+
+## Operate a visible UI control
+
+Capture a fresh snapshot whenever navigation or a previous click may have
+changed the visible DOM. Prefer refs to coordinates because refs resolve to the
+visible center of the current element.
+
+```bash
+qcut editor:snapshot --interactive --depth 24 --json
+qcut editor:pointer:hover --ref @e12 --json
+qcut editor:pointer:click --ref @e12 --force --json
+qcut editor:snapshot --interactive --depth 24 --json
+```
+
+Additional real-input actions:
+
+```bash
+qcut editor:pointer:double-click --ref @e12 --force --json
+qcut editor:pointer:right-click --ref @e12 --force --json
+qcut editor:pointer:drag --from-ref @e12 --to-ref @e27 --force --json
+qcut editor:pointer:drag --from-x 400 --from-y 700 --to-x 700 --to-y 700 --force --json
+qcut editor:pointer:scroll --delta-y 400 --json
+qcut editor:pointer:hide --json
+```
+
+After click or drag, verify the resulting editor or timeline state rather than
+treating a successful input event as proof of the intended edit. Use
+`editor:undo` to restore an E2E drag fixture after verification.

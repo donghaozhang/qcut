@@ -1,4 +1,5 @@
 import type {
+	AgentPointerVisualState,
 	EditorEvent,
 	EditorStateRequest,
 	EditorStateSnapshot,
@@ -206,6 +207,14 @@ export interface ClaudeUiAPI {
 			result?: { switched: boolean; panel: string; group: string },
 			error?: string
 		) => void;
+		removeListeners: () => void;
+	};
+}
+
+/** Visible Agent pointer state bridge. */
+export interface ClaudePointerAPI {
+	pointer: {
+		onStateChange: (callback: (state: AgentPointerVisualState) => void) => void;
 		removeListeners: () => void;
 	};
 }

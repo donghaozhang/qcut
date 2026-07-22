@@ -4,6 +4,7 @@ import { createLazyFileRoute, useNavigate } from "@tanstack/react-router";
 import { EditorHeader } from "@/components/editor-header";
 import { usePanelStore } from "@/stores/editor/panel-store";
 import { EditorProvider } from "@/components/editor-provider";
+import { AgentPointerOverlay } from "@/components/editor/agent-pointer-overlay";
 import { useProjectStore, NotFoundError } from "@/stores/project-store";
 import { usePlaybackControls } from "@/hooks/timeline/use-playback-controls";
 import { useSaveOnVisibilityChange } from "@/hooks/use-save-on-visibility-change";
@@ -307,6 +308,7 @@ function EditorPage() {
 				<EditorHeader />
 				<div className="flex-1 min-h-0 min-w-0">{selectedLayout}</div>
 				<Onboarding />
+				<AgentPointerOverlay />
 			</div>
 		</EditorProvider>
 	);

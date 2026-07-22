@@ -703,6 +703,15 @@ export function createClaudeAPI(): NonNullable<ElectronAPI["claude"]> {
 				ipcRenderer.removeAllListeners("claude:ui:switch-panel:request");
 			},
 		},
+		pointer: {
+			onStateChange: (callback) => {
+				ipcRenderer.removeAllListeners("claude:pointer:state");
+				ipcRenderer.on("claude:pointer:state", (_, state) => callback(state));
+			},
+			removeListeners: () => {
+				ipcRenderer.removeAllListeners("claude:pointer:state");
+			},
+		},
 		state: {
 			onSnapshotRequest: (
 				callback: (data: {

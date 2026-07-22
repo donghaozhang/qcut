@@ -338,6 +338,40 @@ export interface PlatformClaudeUiAPI {
 	removeListeners(): void;
 }
 
+export type PlatformAgentPointerAction =
+	| "hidden"
+	| "idle"
+	| "move"
+	| "hover"
+	| "press"
+	| "click"
+	| "double-click"
+	| "right-click"
+	| "drag"
+	| "scroll";
+
+export interface PlatformAgentPointerVisualState {
+	visible: boolean;
+	active: boolean;
+	action: PlatformAgentPointerAction;
+	label: string;
+	x: number;
+	y: number;
+	pressed: boolean;
+	dragging: boolean;
+	button: "left" | "middle" | "right" | null;
+	pulseId: number;
+	sequence: number;
+	timestamp: number;
+}
+
+export interface PlatformClaudePointerAPI {
+	onStateChange(
+		callback: (state: PlatformAgentPointerVisualState) => void
+	): void;
+	removeListeners(): void;
+}
+
 // ---------------------------------------------------------------------------
 // Claude State
 // ---------------------------------------------------------------------------
@@ -419,6 +453,7 @@ export interface PlatformClaudeAPI {
 	navigator: PlatformClaudeNavigatorAPI;
 	screenRecordingBridge: PlatformClaudeScreenRecordingBridgeAPI;
 	ui: PlatformClaudeUiAPI;
+	pointer: PlatformClaudePointerAPI;
 	state: PlatformClaudeStateAPI;
 	projectCrud: PlatformClaudeProjectCrudAPI;
 }

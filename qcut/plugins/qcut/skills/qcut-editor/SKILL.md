@@ -94,11 +94,35 @@ node <plugin-root>/scripts/qcut-runner.mjs editor:timeline:export --project-id <
 See [editor-workflows.md](references/editor-workflows.md) for editing and export
 sequences.
 
+## Visible Agent pointer
+
+Use the pointer commands when a visible UI interaction is required and no
+semantic editor command covers it. Capture a fresh interactive snapshot first;
+`@ref` values belong to the latest editor snapshot and should not be reused
+after substantial UI changes.
+
+```bash
+node <plugin-root>/scripts/qcut-runner.mjs editor:snapshot --interactive --depth 24 --json
+node <plugin-root>/scripts/qcut-runner.mjs editor:pointer:move --ref @e12 --json
+node <plugin-root>/scripts/qcut-runner.mjs editor:pointer:hover --ref @e12 --json
+node <plugin-root>/scripts/qcut-runner.mjs editor:pointer:click --ref @e12 --force --json
+node <plugin-root>/scripts/qcut-runner.mjs editor:pointer:drag --from-ref @e12 --to-ref @e27 --force --json
+node <plugin-root>/scripts/qcut-runner.mjs editor:pointer:scroll --ref @e27 --delta-y 400 --json
+node <plugin-root>/scripts/qcut-runner.mjs editor:pointer:hide --json
+```
+
+The desktop app displays the Agent cursor, operation status, click ripple, and
+drag trail. Click, double-click, right-click, and drag use real Electron mouse
+input. Use coordinates only when a snapshot ref cannot represent the target,
+and keep them inside the current editor viewport. Click, double-click,
+right-click, and drag are confirmation-tier actions; use `--force` only after
+the requested action and target are clear.
+
 ## Editing rules
 
 - Prefer setup and `editor:*` CLI commands for installation checks, launch,
   navigation, project state, media, timeline, and export. Use UI snapshot
-  controls only when no semantic command exists.
+  controls and the visible pointer only when no semantic command exists.
 - Prefer `editor:timeline:split`, `move`, `trim`, and dedicated sticker or
   export commands over raw JSON patches.
 - Before using `add-element` or `update-element`, export the timeline and reuse

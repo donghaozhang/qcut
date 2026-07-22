@@ -250,6 +250,14 @@ export interface CLIRunOptions {
 	interactive?: boolean;
 	depth?: number;
 	ref?: string;
+	fromRef?: string;
+	toRef?: string;
+	fromX?: number;
+	fromY?: number;
+	toX?: number;
+	toY?: number;
+	deltaX?: number;
+	deltaY?: number;
 	replace?: boolean;
 	ripple?: boolean;
 	crossTrackRipple?: boolean;

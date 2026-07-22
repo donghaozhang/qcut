@@ -3,6 +3,7 @@
 **Source**: [vercel-labs/agent-browser](https://github.com/vercel-labs/agent-browser)
 **Target**: QCut Native CLI (`electron/native-pipeline/`)
 **Date**: 2026-03-12
+**Updated**: 2026-07-22
 
 ---
 
@@ -16,7 +17,8 @@ agent-browser is a headless browser automation CLI designed for AI agents. It us
 
 | Pattern | Status | Notes |
 |--------|--------|-------|
-| Accessibility Snapshots with Refs | Mostly complete | `editor:snapshot`, `editor:snapshot:click`, `editor:snapshot:fill`, `editor:snapshot:select`, and `editor:snapshot:check` are implemented on 2026-03-12; refs reuse stable renderer keys across re-snapshots |
+| Accessibility Snapshots with Refs | Complete for current UI automation | Snapshot depth now supports QCut's deeply nested editor controls; media cards, timeline tracks, and timeline elements are actionable by `@ref` |
+| Visible Agent Pointer and Real Mouse Input | Complete | Electron `sendInputEvent()` drives move, hover, click, double-click, right-click, drag, and wheel input; the editor shows Agent status, click pulses, and drag trails |
 | Console Message & Error Capture | Mostly complete | HTTP + CLI list/clear/stream path implemented on 2026-03-12 |
 | Action Policy Engine | Mostly complete | Default allow/confirm/deny policy, flag-sensitive matching, `--policy`, runner enforcement, and tests implemented on 2026-03-12 |
 | Session State Persistence | Mostly complete | Named session files, `--resume`, sticky project/panel hydration, autosave, and `editor:session:save/load/list/delete` commands are implemented on 2026-03-12 |
@@ -124,6 +126,58 @@ bun run pipeline editor:snapshot:check --ref @e4 --no-checked --json
 - `electron/claude/__tests__/claude-snapshot-handler.test.ts`
 - `electron/claude/__tests__/claude-http-server.test.ts`
 - `electron/__tests__/editor-snapshot-cli.test.ts`
+
+---
+
+### Pattern 1A: Visible Agent Pointer and Real Mouse Input (HIGH VALUE)
+
+**Status (2026-07-22)**: Implemented and validated against a running QCut Electron app.
+
+`AgentPointerController` resolves snapshot refs to element-center coordinates and sends real Chromium mouse events through Electron 40's `webContents.sendInputEvent()`. A top-level renderer overlay is visual only (`pointer-events: none`) and reports movement, active action, button state, click pulses, and drag trails without intercepting the underlying input.
+
+**Commands**:
+
+```bash
+bun run pipeline editor:pointer:move --ref @e12 --json
+bun run pipeline editor:pointer:hover --ref @e12 --json
+bun run pipeline editor:pointer:click --ref @e12 --force --json
+bun run pipeline editor:pointer:double-click --ref @e12 --force --json
+bun run pipeline editor:pointer:right-click --ref @e12 --force --json
+bun run pipeline editor:pointer:drag --from-ref @e12 --to-ref @e27 --force --json
+bun run pipeline editor:pointer:scroll --ref @e27 --delta-y 400 --json
+bun run pipeline editor:pointer:hide --json
+```
+
+The existing `editor:snapshot:click` command now delegates to the same controller, so ref resolution and click semantics have one implementation.
+
+**Live E2E evidence**:
+
+1. Move and hover positioned the visible pointer over snapshot-selected controls.
+2. A real click changed the active editor panel and displayed a click pulse.
+3. Right-button down/up opened the timeline clip's existing Radix context menu.
+4. Double-click selected a real transition card and showed the double-click action state.
+5. Wheel input visibly scrolled the clip properties panel.
+6. Drag moved a timeline element from `startTime: 0` to `startTime: 6`; the test element was then removed and the timeline restored.
+7. Hide removed both the pointer and Agent operation status from the captured frame.
+
+**Implemented files**:
+
+- `electron/claude/handlers/agent-pointer-controller.ts`
+- `electron/claude/handlers/agent-pointer-error.ts`
+- `electron/claude/handlers/agent-pointer-input.ts`
+- `electron/claude/handlers/agent-pointer-motion.ts`
+- `electron/claude/handlers/agent-pointer-visual-state.ts`
+- `electron/claude/http/claude-http-pointer-routes.ts`
+- `electron/native-pipeline/cli/cli-handlers-pointer.ts`
+- `electron/types/claude-pointer-api.ts`
+- `apps/web/src/components/editor/agent-pointer-overlay.tsx`
+
+**Focused tests**:
+
+- `electron/claude/__tests__/agent-pointer-controller.test.ts`
+- `electron/claude/__tests__/claude-http-pointer-routes.test.ts`
+- `electron/__tests__/editor-pointer-cli.test.ts`
+- `apps/web/src/components/editor/__tests__/agent-pointer-overlay.test.tsx`
 
 ---
 
@@ -480,7 +534,8 @@ bun run pipeline editor:console --stream
 
 | # | Pattern | Value | Effort | Priority |
 |---|---------|-------|--------|----------|
-| 1 | Accessibility Snapshots with Refs | HIGH | ~6h | **P0 (mostly complete)** |
+| 1 | Accessibility Snapshots with Refs | HIGH | ~6h | **P0 (complete for current UI automation)** |
+| 1A | Visible Agent Pointer and Real Mouse Input | HIGH | Delivered | **P0 (complete)** |
 | 5 | Console Message & Error Capture | HIGH | ~6.5h | **P0 (mostly complete)** |
 | 2 | Action Policy Engine | MEDIUM | ~3h | **P1 (mostly complete)** |
 | 3 | Session State Persistence | MEDIUM | ~3h | **P1 (mostly complete)** |
@@ -500,7 +555,7 @@ agent-browser                          QCut Native CLI (proposed)
 Rust CLI ──→ Unix Socket ──→ Daemon    bun CLI ──→ HTTP ──→ Electron
                   │                                   │
             Playwright                     webContents.executeJavaScript()
-                  │                          webContents.debugger (CDP)
+                  │                          webContents.sendInputEvent()
             Chromium (external)                       │
                                              Electron Renderer (internal)
 ```
@@ -515,6 +570,7 @@ Key difference: QCut doesn't need an external browser. The Electron renderer IS 
 electron/native-pipeline/
 ├── cli/
 │   ├── cli-handlers-snapshot.ts    # NEW: Accessibility snapshot with refs (click, fill, select, check)
+│   ├── cli-handlers-pointer.ts     # NEW: Visible real-mouse pointer commands
 │   ├── cli-handlers-console.ts     # NEW: Console message capture CLI
 │   ├── cli-handlers-diff.ts        # NEW: Snapshot tree diff + pixel-level screenshot diff (sharp)
 │   ├── cli-handlers-session.ts     # NEW: Explicit local session save/load commands
@@ -535,6 +591,11 @@ electron/native-pipeline/
 │   ├── session-state.test.ts       # NEW: Session persistence coverage
 │   └── editor-diff-cli.test.ts     # NEW: Snapshot diff parsing and execution coverage
 electron/claude/handlers/
+│   ├── agent-pointer-controller.ts # NEW: Serialized pointer action orchestration
+│   ├── agent-pointer-error.ts      # NEW: Typed pointer API errors
+│   ├── agent-pointer-input.ts      # NEW: Electron mouse input and viewport checks
+│   ├── agent-pointer-motion.ts     # NEW: Smooth pointer movement paths
+│   ├── agent-pointer-visual-state.ts # NEW: Overlay state and idle transitions
 │   ├── claude-snapshot-handler.ts  # NEW: Snapshot capture + ref-based actions
 │   └── claude-console-handler.ts   # NEW: Console capture + ring buffer
 electron/claude/__tests__/
@@ -542,6 +603,7 @@ electron/claude/__tests__/
 │   ├── claude-console-handler.test.ts # NEW: Buffer/filtering coverage
 │   └── claude-http-server.test.ts     # MODIFY: Console + snapshot route coverage
 electron/claude/http/
+│   ├── claude-http-pointer-routes.ts # NEW: Pointer action endpoints
 │   ├── claude-http-auth.ts          # NEW: Shared auth rules for sensitive local routes
 │   ├── claude-http-snapshot-routes.ts # NEW: Snapshot read/write route registration
 │   ├── claude-http-console-routes.ts # NEW: Console routes + SSE stream
@@ -550,6 +612,7 @@ electron/utility/
 │   ├── utility-http-server.ts      # MODIFY: Expose console + snapshot read/write endpoints in the live server
 │   └── utility-bridge.ts           # MODIFY: Bridge console + snapshot read/write requests to main process
 electron/types/
+│   ├── claude-pointer-api.ts       # NEW: Pointer request/result and visual state schema
 │   └── claude-snapshot-api.ts      # NEW: Snapshot request/result schema
 electron/
 │   └── main.ts                     # MODIFY: Attach console capture on window creation

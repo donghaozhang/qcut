@@ -92,6 +92,9 @@ export type {
 	PlatformClaudeNavigatorAPI,
 	PlatformClaudeScreenRecordingBridgeAPI,
 	PlatformClaudeUiAPI,
+	PlatformAgentPointerAction,
+	PlatformAgentPointerVisualState,
+	PlatformClaudePointerAPI,
 	PlatformClaudeStateAPI,
 	PlatformClaudeProjectCrudAPI,
 } from "./types/claude-api.js";

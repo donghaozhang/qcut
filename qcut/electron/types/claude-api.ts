@@ -901,6 +901,7 @@ export type {
 	CommandRegistryEntry,
 } from "./claude-api-capabilities.js";
 export * from "./claude-events-api";
+export * from "./claude-pointer-api";
 export * from "./claude-snapshot-api";
 export * from "./claude-state-api";
 export * from "./operation-notification";
