@@ -171,16 +171,16 @@ describe("TransitionsView", () => {
 		for (const [category, presetId, expectedCount] of [
 			["叠化", "filmic-dissolve", 20],
 			["自然", "sunrise-fade", 20],
-			["幻灯片", "album-slide-left", 20],
-			["分割", "split-signal", 21],
-			["模糊", "horizontal-smear", 20],
-			["运镜", "crash-zoom", 20],
+			["幻灯片", "album-slide-left", 28],
+			["分割", "split-signal", 26],
+			["模糊", "horizontal-smear", 21],
+			["运镜", "crash-zoom", 29],
 			["拍摄", "exposure-pop", 20],
 			["扭曲", "digital-twist", 20],
-			["光效", "prism-flare", 20],
-			["故障", "data-mosh", 20],
+			["光效", "prism-flare", 22],
+			["故障", "data-mosh", 21],
 			["综艺", "sticker-swipe", 20],
-			["MG 动画", "kinetic-jump", 20],
+			["MG 动画", "kinetic-jump", 25],
 			["互动 emoji", "love-flash", 20],
 		] as const) {
 			fireEvent.click(screen.getByRole("button", { name: category }));

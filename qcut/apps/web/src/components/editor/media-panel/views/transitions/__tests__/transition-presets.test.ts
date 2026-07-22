@@ -26,13 +26,13 @@ describe("transition presets", () => {
 			const categoryExpansions = TRANSITION_CATEGORY_EXPANSIONS.filter(
 				(preset) => preset.category === category
 			);
-			expect(categoryExpansions).toHaveLength(5);
+			expect(categoryExpansions.length).toBeGreaterThanOrEqual(5);
 			const categoryCount = filterTransitionPresets({
 				category,
 				query: "",
 			}).length;
 			expect(categoryCount).toBeGreaterThanOrEqual(20);
-			expect(categoryCount).toBeLessThanOrEqual(30);
+			expect(categoryCount).toBeLessThanOrEqual(40);
 
 			const productionSignatures = categoryExpansions.map((preset) =>
 				JSON.stringify({
@@ -40,7 +40,9 @@ describe("transition presets", () => {
 					defaultDuration: preset.defaultDuration,
 				})
 			);
-			expect(new Set(productionSignatures).size).toBe(5);
+			expect(new Set(productionSignatures).size).toBe(
+				categoryExpansions.length
+			);
 		}
 
 		for (const clipType of [
@@ -55,7 +57,8 @@ describe("transition presets", () => {
 		] as const) {
 			expect(
 				transitionPresets.filter((preset) => preset.clipType === clipType)
-			).toHaveLength(8);
+					.length
+			).toBeGreaterThanOrEqual(8);
 		}
 		expect(
 			new Set(

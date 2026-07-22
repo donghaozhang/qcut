@@ -125,7 +125,8 @@ describe("AdjustmentsView", () => {
 				name: "自定义调节",
 				startTime: 2,
 				duration: 10,
-			})
+			}),
+			{ pushHistory: false, selectElement: true }
 		);
 		expect(toast.success).toHaveBeenCalledWith("已新建调节层");
 	});
@@ -177,7 +178,8 @@ describe("AdjustmentsView", () => {
 				expect.objectContaining({
 					name: "LUT - Panel LUT",
 					type: "adjustment",
-				})
+				}),
+				{ pushHistory: false, selectElement: true }
 			);
 			expect(timeline.updateAdjustmentElement).toHaveBeenCalledWith(
 				"adjustment-track",

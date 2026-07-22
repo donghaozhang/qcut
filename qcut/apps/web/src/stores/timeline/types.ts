@@ -279,6 +279,7 @@ export interface TimelineStore {
 		direction?: ClipTransition["direction"];
 		easing?: ClipTransition["easing"];
 		tuning?: ClipTransition["tuning"];
+		maskShape?: ClipTransition["maskShape"];
 	}) => string | null;
 	updateTransition: (input: {
 		trackId: string;
@@ -287,7 +288,13 @@ export interface TimelineStore {
 		updates: Partial<
 			Pick<
 				ClipTransition,
-				"presetId" | "type" | "duration" | "direction" | "easing" | "tuning"
+				| "presetId"
+				| "type"
+				| "duration"
+				| "direction"
+				| "easing"
+				| "tuning"
+				| "maskShape"
 			>
 		>;
 	}) => void;
