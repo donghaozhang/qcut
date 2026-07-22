@@ -151,6 +151,8 @@ bun run pipeline editor:pointer:hide --json
 
 Background mode is the default and never silently falls back to foreground input. Before sending an action, the CLI strictly requires the running editor to advertise `state.pointer` capability version `1.1.0` or newer. This check cannot be disabled by `--no-capability-check`; an editor without the capability must be upgraded, while version `1.0.0` can be used explicitly with `--foreground`. An ignored `inputMode` field can therefore never turn a requested background action into an unexpected focus change. Background mode also returns a clear error when DevTools or another debugger already owns the CDP connection. The existing `editor:snapshot:click` command delegates to the same controller, so ref resolution and click semantics have one implementation.
 
+Capability negotiation caches successful manifests but not failures. A reused CLI session can therefore recover when QCut was still starting or temporarily unavailable during its first background pointer command.
+
 **Live E2E evidence**:
 
 1. Background move, click, hover, wheel, double-click, right-click, drag, and hide all returned `inputMode: "background"`, `input: "cdp-dispatch-mouse-event"`, and `windowFocused: false`.
@@ -190,7 +192,7 @@ Background mode is the default and never silently falls back to foreground input
 - `electron/__tests__/editor-pointer-cli.test.ts`
 - `apps/web/src/components/editor/__tests__/agent-pointer-overlay.test.tsx`
 
-The focused suite passes 210 tests across these files. Electron TypeScript,
+The focused suite passes 211 tests across these files. Electron TypeScript,
 preload bundling, and the production web renderer build also pass.
 
 ---

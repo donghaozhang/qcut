@@ -210,6 +210,35 @@ describe("EditorApiClient", () => {
 			installFetchMock(BASE_URL);
 		});
 
+		it("retries strict negotiation after a transient failure", async () => {
+			const freshClient = new EditorApiClient({ baseUrl: BASE_URL });
+			const warnSpy = vi.spyOn(console, "warn").mockImplementation(() => {});
+			const requirement = {
+				name: "state.pointer",
+				minVersion: "1.1.0",
+				feature: "Background pointer input",
+			};
+
+			mockRoute(
+				"GET",
+				"/api/claude/capabilities",
+				{ success: false, error: "Editor is still starting" },
+				503
+			);
+			await expect(freshClient.requireCapability(requirement)).rejects.toThrow(
+				"did not provide a valid capability manifest"
+			);
+
+			mockCapabilityManifest({
+				capabilities: [{ name: "state.pointer", version: "1.1.0" }],
+			});
+			await expect(
+				freshClient.requireCapability(requirement)
+			).resolves.toBeUndefined();
+
+			warnSpy.mockRestore();
+		});
+
 		it("warns before calling an endpoint when required capability is missing", async () => {
 			const freshClient = new EditorApiClient({ baseUrl: BASE_URL });
 			const warnSpy = vi.spyOn(console, "warn").mockImplementation(() => {});

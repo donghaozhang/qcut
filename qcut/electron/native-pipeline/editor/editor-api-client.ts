@@ -108,7 +108,7 @@ export interface SseEvent {
 /** EditorApiClient class. */
 export class EditorApiClient {
 	private config: EditorApiConfig;
-	private capabilityManifestCache: CapabilityManifest | null | undefined;
+	private capabilityManifestCache: CapabilityManifest | undefined;
 	private capabilityNegotiationPromise: Promise<CapabilityManifest | null> | null =
 		null;
 	private warningCache = new Set<string>();
@@ -139,7 +139,7 @@ export class EditorApiClient {
 
 	async negotiateCapabilities(): Promise<CapabilityManifest | null> {
 		try {
-			if (this.capabilityManifestCache !== undefined) {
+			if (this.capabilityManifestCache) {
 				return this.capabilityManifestCache;
 			}
 
@@ -154,7 +154,6 @@ export class EditorApiClient {
 						`${this.config.baseUrl}/api/claude/capabilities`
 					);
 					if (!this.isCapabilityManifest(manifest)) {
-						this.capabilityManifestCache = null;
 						this.warnOnce({
 							key: "capabilities:invalid-manifest",
 							message:
@@ -165,7 +164,6 @@ export class EditorApiClient {
 					this.capabilityManifestCache = manifest;
 					return manifest;
 				} catch (error) {
-					this.capabilityManifestCache = null;
 					if (
 						error instanceof EditorApiError &&
 						(error.statusCode === 404 || error.statusCode === 501)
