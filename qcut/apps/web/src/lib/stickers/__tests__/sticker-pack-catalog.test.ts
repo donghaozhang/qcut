@@ -104,7 +104,7 @@ describe("sticker pack catalog", () => {
 				builtIn: false,
 				delivery: "remote",
 				id: "fluent-creator-essentials",
-				version: 1,
+				version: 2,
 			},
 			{
 				builtIn: false,
