@@ -54,6 +54,9 @@ Editor Commands (requires running QCut — use --project-id for most):
   editor:sticker:*, editor:moyin:*, editor:novel:*, editor:navigator:*,
   editor:auth:*, editor:diagnostics:*, editor:mcp:forward-html,
   editor:ui:switch-panel, editor:ui:context-menu
+  editor:pointer:move, editor:pointer:hover, editor:pointer:click,
+  editor:pointer:double-click, editor:pointer:right-click,
+  editor:pointer:drag, editor:pointer:scroll, editor:pointer:hide
 
   Use <command> --help --json for detailed flag info per command.
 

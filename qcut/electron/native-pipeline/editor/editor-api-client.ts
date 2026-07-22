@@ -653,6 +653,12 @@ export class EditorApiClient {
 			if (path.startsWith("/api/claude/screenshot/")) {
 				return { name: "media.screenshot" };
 			}
+			if (path.startsWith("/api/claude/snapshot")) {
+				return { name: "state.snapshot" };
+			}
+			if (path.startsWith("/api/claude/pointer/")) {
+				return { name: "state.pointer" };
+			}
 			if (path.startsWith("/api/claude/ui/")) {
 				return { name: "state.ui.panelSwitch" };
 			}

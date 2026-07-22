@@ -12,15 +12,26 @@ import type {
 function createSnapshotWindow({ result }: { result: unknown }): {
 	window: Electron.BrowserWindow;
 	executeJavaScript: ReturnType<typeof vi.fn>;
+	sendInputEvent: ReturnType<typeof vi.fn>;
 } {
 	const executeJavaScript = vi.fn(async () => result);
+	const sendInputEvent = vi.fn();
 	return {
 		window: {
+			isDestroyed: () => false,
+			isVisible: () => true,
+			show: vi.fn(),
+			focus: vi.fn(),
+			getContentSize: () => [1200, 800],
 			webContents: {
 				executeJavaScript,
+				isDestroyed: () => false,
+				send: vi.fn(),
+				sendInputEvent,
 			},
 		} as unknown as Electron.BrowserWindow,
 		executeJavaScript,
+		sendInputEvent,
 	};
 }
 
@@ -74,6 +85,30 @@ describe("claude-snapshot-handler", () => {
 			'const SNAPSHOT_STATE_KEY = "__qcutSnapshotState";'
 		);
 		expect(script).toContain("const assignStableRef = (element, usedRefs) =>");
+		expect(script).toContain('"timeline-element"');
+		expect(script).toContain('element.getAttribute("draggable") === "true"');
+	});
+
+	it("allows explicit deep snapshots for nested editor controls", async () => {
+		const snapshot: EditorSnapshotResult = {
+			version: 1,
+			timestamp: 123,
+			interactiveOnly: true,
+			maxDepth: 24,
+			elements: [],
+			summary: { total: 0, actionable: 0 },
+		};
+		const { window, executeJavaScript } = createSnapshotWindow({
+			result: snapshot,
+		});
+
+		await requestEditorSnapshotFromRenderer(window, {
+			interactive: true,
+			depth: 24,
+		});
+
+		const [script] = executeJavaScript.mock.calls[0] ?? [];
+		expect(script).toContain("const maxDepth = 24;");
 	});
 
 	it("rejects invalid renderer payloads", async () => {
@@ -87,28 +122,44 @@ describe("claude-snapshot-handler", () => {
 	});
 
 	it("clicks a snapshot ref through the renderer", async () => {
-		const actionResult: EditorSnapshotActionResult = {
+		const target = {
+			ref: "@e1",
+			x: 50,
+			y: 36,
+			bounds: { x: 10, y: 20, width: 80, height: 32 },
+			tagName: "button",
+			role: "button",
+			name: "Export",
+			value: null,
+			disabled: false,
+		};
+		const { window, executeJavaScript, sendInputEvent } = createSnapshotWindow({
+			result: target,
+		});
+
+		const result = await clickEditorSnapshotRef(window, { ref: "@e1" });
+
+		expect(result).toEqual({
 			action: "click",
 			ref: "@e1",
 			tagName: "button",
 			role: "button",
 			name: "Export",
 			value: null,
-		};
-		const { window, executeJavaScript } = createSnapshotWindow({
-			result: actionResult,
 		});
-
-		const result = await clickEditorSnapshotRef(window, { ref: "@e1" });
-
-		expect(result).toEqual(actionResult);
 		const [script] = executeJavaScript.mock.calls[0] ?? [];
 		expect(script).toContain('const targetRef = "@e1";');
-		expect(script).toContain("element.click()");
+		expect(script).toContain("element.scrollIntoView");
+		expect(script).not.toContain("element.click()");
 		expect(script).toContain("const stableKey = state.keyByRef[targetRef];");
 		expect(script).toContain(
 			"const findElementByStableKey = (stableKey, targetRef) =>"
 		);
+		expect(sendInputEvent.mock.calls.map(([event]) => event.type)).toEqual([
+			"mouseMove",
+			"mouseDown",
+			"mouseUp",
+		]);
 	});
 
 	it("fills a snapshot ref through the renderer", async () => {

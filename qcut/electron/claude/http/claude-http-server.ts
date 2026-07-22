@@ -58,13 +58,16 @@ import {
 import { registerStateRoutes } from "./claude-http-state-routes.js";
 import { requestEditorStateSnapshotFromRenderer } from "../handlers/claude-state-handler.js";
 import { registerSnapshotRoutes } from "./claude-http-snapshot-routes.js";
+import { registerAgentPointerRoutes } from "./claude-http-pointer-routes.js";
 import {
 	checkEditorSnapshotRef,
 	clickEditorSnapshotRef,
 	fillEditorSnapshotRef,
 	requestEditorSnapshotFromRenderer,
+	resolveEditorSnapshotRef,
 	selectEditorSnapshotRef,
 } from "../handlers/claude-snapshot-handler.js";
+import { getAgentPointerController } from "../handlers/agent-pointer-controller.js";
 import {
 	getClaudeEvents,
 	subscribeClaudeEvents,
@@ -122,6 +125,11 @@ export function startClaudeHTTPServer(
 	}
 
 	const router = createRouter();
+	const pointerController = () =>
+		getAgentPointerController({
+			win: getWindow(),
+			resolveRef: resolveEditorSnapshotRef,
+		});
 
 	// Create WindowAccessor for direct main-process BrowserWindow access
 	const accessor: WindowAccessor = {
@@ -228,6 +236,17 @@ export function startClaudeHTTPServer(
 		selectSnapshotRef: (request) =>
 			selectEditorSnapshotRef(getWindow(), request),
 		checkSnapshotRef: (request) => checkEditorSnapshotRef(getWindow(), request),
+	});
+	registerAgentPointerRoutes(router, {
+		getState: async () => pointerController().getState(),
+		move: (request) => pointerController().move(request),
+		hover: (request) => pointerController().hover(request),
+		click: (request) => pointerController().click(request),
+		doubleClick: (request) => pointerController().doubleClick(request),
+		rightClick: (request) => pointerController().rightClick(request),
+		drag: (request) => pointerController().drag(request),
+		scroll: (request) => pointerController().scroll(request),
+		hide: () => pointerController().hide(),
 	});
 	registerClaudeEventsRoutes(router, {
 		/** Lists recorded Claude/editor events. */

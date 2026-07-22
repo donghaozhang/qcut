@@ -69,6 +69,19 @@ function getDefaultOutputDir(): string {
 	);
 }
 
+function parseFiniteCliNumber({
+	value,
+}: {
+	value: unknown;
+}): number | undefined {
+	if (typeof value !== "string") return undefined;
+	// Number("") and Number("  ") are 0 — blank flags must not become valid.
+	const trimmed = value.trim();
+	if (!trimmed) return undefined;
+	const parsed = Number(trimmed);
+	return Number.isFinite(parsed) ? parsed : undefined;
+}
+
 /** Parse process argv into CLIRunOptions, exiting on --help/--version. */
 export function parseCliArgs(argv: string[]): CLIRunOptions {
 	let command = argv[0];
@@ -328,6 +341,14 @@ export function parseCliArgs(argv: string[]): CLIRunOptions {
 			interactive: { type: "boolean", default: false },
 			depth: { type: "string" },
 			ref: { type: "string", multiple: true },
+			"from-ref": { type: "string" },
+			"to-ref": { type: "string" },
+			"from-x": { type: "string" },
+			"from-y": { type: "string" },
+			"to-x": { type: "string" },
+			"to-y": { type: "string" },
+			"delta-x": { type: "string" },
+			"delta-y": { type: "string" },
 			checked: { type: "boolean" },
 			replace: { type: "boolean", default: false },
 			ripple: { type: "boolean", default: false },
@@ -799,6 +820,14 @@ export function parseCliArgs(argv: string[]): CLIRunOptions {
 				: parseInt(values.depth as string, 10)
 			: undefined,
 		ref: (values.ref as string[] | undefined)?.[0],
+		fromRef: values["from-ref"] as string | undefined,
+		toRef: values["to-ref"] as string | undefined,
+		fromX: parseFiniteCliNumber({ value: values["from-x"] }),
+		fromY: parseFiniteCliNumber({ value: values["from-y"] }),
+		toX: parseFiniteCliNumber({ value: values["to-x"] }),
+		toY: parseFiniteCliNumber({ value: values["to-y"] }),
+		deltaX: parseFiniteCliNumber({ value: values["delta-x"] }),
+		deltaY: parseFiniteCliNumber({ value: values["delta-y"] }),
 		selectValue: values.value as string | undefined,
 		checked: values.checked as boolean | undefined,
 		replace: (values.replace as boolean) ?? false,

@@ -1,7 +1,9 @@
 export const EDITOR_SNAPSHOT_VERSION = 1;
-export const MAX_EDITOR_SNAPSHOT_DEPTH = 8;
+export const DEFAULT_EDITOR_SNAPSHOT_DEPTH = 8;
+export const MAX_EDITOR_SNAPSHOT_DEPTH = 32;
 export const EDITOR_SNAPSHOT_REF_ATTRIBUTE = "data-qcut-snapshot-ref";
 export const EDITOR_SNAPSHOT_STATE_KEY = "__qcutSnapshotState";
+export const EDITOR_SNAPSHOT_IGNORE_ATTRIBUTE = "data-qcut-snapshot-ignore";
 
 /**
  * Default soft cap on the serialised snapshot payload (256 KB). Beyond

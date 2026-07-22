@@ -19,6 +19,7 @@ import {
 } from "../claude/http/claude-http-shared-routes.js";
 import { registerStateRoutes } from "../claude/http/claude-http-state-routes.js";
 import { registerSnapshotRoutes } from "../claude/http/claude-http-snapshot-routes.js";
+import { registerAgentPointerRoutes } from "../claude/http/claude-http-pointer-routes.js";
 import {
 	handleClaudeEventsStreamRequest,
 	registerClaudeEventsRoutes,
@@ -59,6 +60,8 @@ import type {
 } from "../claude/handlers/claude-transaction-handler.js";
 import type { ClaudeConsoleEntry } from "../claude/handlers/claude-console-handler.js";
 import type {
+	AgentPointerResult,
+	AgentPointerVisualState,
 	EditorSnapshotActionResult,
 	EditorSnapshotResponse,
 } from "../types/claude-api.js";
@@ -403,6 +406,41 @@ export function startUtilityHttpServer(config: UtilityHttpConfig): void {
 				request,
 			})) as EditorSnapshotActionResult,
 		timeoutMs: 10_000,
+	});
+	registerAgentPointerRoutes(router, {
+		getState: async () =>
+			(await requestFromMain("pointer:state", {})) as AgentPointerVisualState,
+		move: async (request) =>
+			(await requestFromMain("pointer:move", {
+				request,
+			})) as AgentPointerResult,
+		hover: async (request) =>
+			(await requestFromMain("pointer:hover", {
+				request,
+			})) as AgentPointerResult,
+		click: async (request) =>
+			(await requestFromMain("pointer:click", {
+				request,
+			})) as AgentPointerResult,
+		doubleClick: async (request) =>
+			(await requestFromMain("pointer:double-click", {
+				request,
+			})) as AgentPointerResult,
+		rightClick: async (request) =>
+			(await requestFromMain("pointer:right-click", {
+				request,
+			})) as AgentPointerResult,
+		drag: async (request) =>
+			(await requestFromMain("pointer:drag", {
+				request,
+			})) as AgentPointerResult,
+		scroll: async (request) =>
+			(await requestFromMain("pointer:scroll", {
+				request,
+			})) as AgentPointerResult,
+		hide: async () =>
+			(await requestFromMain("pointer:hide", {})) as AgentPointerResult,
+		timeoutMs: 15_000,
 	});
 	registerClaudeEventsRoutes(router, {
 		/** Lists recorded Claude/editor events through the bridge. */

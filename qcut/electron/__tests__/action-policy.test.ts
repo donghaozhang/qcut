@@ -131,6 +131,21 @@ describe("action policy", () => {
 		expect(result.decision).toBe("allow");
 	});
 
+	it("allows pointer observation but confirms pointer mutations", () => {
+		expect(
+			evaluateActionPolicy({
+				command: "editor:pointer:hover",
+				policy: DEFAULT_ACTION_POLICY,
+			}).decision
+		).toBe("allow");
+		expect(
+			evaluateActionPolicy({
+				command: "editor:pointer:drag",
+				policy: DEFAULT_ACTION_POLICY,
+			}).decision
+		).toBe("confirm");
+	});
+
 	it("keeps masked auth token reads in allow tier", () => {
 		const result = evaluateActionPolicy({
 			options: defaultOptions({

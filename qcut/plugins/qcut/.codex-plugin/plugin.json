@@ -1,0 +1,32 @@
+{
+	"name": "qcut",
+	"version": "0.1.0+codex.20260722074439",
+	"description": "Create media and control the QCut desktop video editor from Codex.",
+	"author": {
+		"name": "QCut Team",
+		"email": "support@qcut.app",
+		"url": "https://github.com/Quriosity-agent/qcut"
+	},
+	"homepage": "https://github.com/Quriosity-agent/qcut",
+	"repository": "https://github.com/Quriosity-agent/qcut",
+	"license": "MIT",
+	"keywords": ["video", "editing", "media", "generation", "qcut"],
+	"skills": "./skills/",
+	"interface": {
+		"displayName": "QCut",
+		"shortDescription": "Generate media and edit QCut projects from Codex.",
+		"longDescription": "Use QCut's structured CLI to generate and analyze media, transcribe footage, edit timelines, and export projects from a running QCut desktop app.",
+		"developerName": "QCut Team",
+		"category": "Developer Tools",
+		"capabilities": ["Interactive", "Read", "Write"],
+		"websiteURL": "https://github.com/Quriosity-agent/qcut",
+		"brandColor": "#18B8B8",
+		"composerIcon": "./assets/icon.png",
+		"logo": "./assets/icon.png",
+		"defaultPrompt": [
+			"Check whether QCut is installed, help me install the official latest release if needed, and open my project on the Media page.",
+			"Use QCut to transcribe this video and prepare an editable timeline.",
+			"Open my QCut project, inspect the timeline, and make the requested edits or generate media."
+		]
+	}
+}

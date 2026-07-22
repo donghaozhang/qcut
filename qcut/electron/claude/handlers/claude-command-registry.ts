@@ -171,6 +171,41 @@ const PARAM_PROPERTIES: Record<string, ParamProperty> = {
 	},
 	panel: { type: "string", description: "UI panel name (--panel)." },
 	tab: { type: "string", description: "Nested panel tab key (--tab)." },
+	ref: { type: "string", description: "Snapshot element ref (--ref)." },
+	x: { type: "number", description: "Editor viewport X coordinate (--x)." },
+	y: { type: "number", description: "Editor viewport Y coordinate (--y)." },
+	fromRef: {
+		type: "string",
+		description: "Drag starting snapshot ref (--from-ref).",
+	},
+	toRef: {
+		type: "string",
+		description: "Drag destination snapshot ref (--to-ref).",
+	},
+	fromX: { type: "number", description: "Drag starting X (--from-x)." },
+	fromY: { type: "number", description: "Drag starting Y (--from-y)." },
+	toX: { type: "number", description: "Drag destination X (--to-x)." },
+	toY: { type: "number", description: "Drag destination Y (--to-y)." },
+	deltaX: {
+		type: "number",
+		description: "Horizontal scroll delta (--delta-x).",
+	},
+	deltaY: { type: "number", description: "Vertical scroll delta (--delta-y)." },
+	interactive: {
+		type: "boolean",
+		description: "Include only interactive snapshot elements (--interactive).",
+	},
+	depth: { type: "number", description: "Maximum snapshot depth (--depth)." },
+	maxBytes: {
+		type: "number",
+		description: "Maximum snapshot payload bytes (--max-bytes).",
+	},
+	maxNodes: {
+		type: "number",
+		description: "Maximum snapshot DOM node count (--max-nodes).",
+	},
+	value: { type: "string", description: "Control value (--value)." },
+	checked: { type: "boolean", description: "Checkbox state (--checked)." },
 	script: { type: "string", description: "Script file path (--script)." },
 	language: { type: "string", description: "Language code (--language)." },
 	provider: { type: "string", description: "Provider key (--provider)." },
@@ -287,6 +322,19 @@ const EDITOR_COMMANDS = [
 	"editor:remotion:update-props",
 	"editor:remotion:export",
 	"editor:ui:switch-panel",
+	"editor:snapshot",
+	"editor:snapshot:click",
+	"editor:snapshot:fill",
+	"editor:snapshot:select",
+	"editor:snapshot:check",
+	"editor:pointer:move",
+	"editor:pointer:hover",
+	"editor:pointer:click",
+	"editor:pointer:double-click",
+	"editor:pointer:right-click",
+	"editor:pointer:drag",
+	"editor:pointer:scroll",
+	"editor:pointer:hide",
 	"editor:moyin:set-script",
 	"editor:moyin:parse",
 	"editor:moyin:status",
@@ -313,6 +361,8 @@ const MODULE_LABELS: Record<string, string> = {
 	"screen-recording": "Screen Recording",
 	remotion: "Remotion",
 	ui: "UI",
+	snapshot: "Snapshot",
+	pointer: "Agent pointer",
 	moyin: "Moyin",
 	screenshot: "Screenshot",
 	search: "Search",
@@ -379,6 +429,25 @@ const ACTION_LABELS: Record<string, string> = {
 	"set-script": "Set Moyin script text",
 	parse: "Trigger Moyin parse",
 	capture: "Capture QCut screenshot",
+};
+
+const SNAPSHOT_ACTION_LABELS: Record<string, string> = {
+	unknown: "Capture accessibility snapshot",
+	click: "Click an element",
+	fill: "Fill a text control",
+	select: "Select a control value",
+	check: "Set a checkbox state",
+};
+
+const POINTER_ACTION_LABELS: Record<string, string> = {
+	move: "Move to an element or coordinate",
+	hover: "Hover over an element",
+	click: "Click an element",
+	"double-click": "Double-click an element",
+	"right-click": "Right-click an element",
+	drag: "Drag between elements or coordinates",
+	scroll: "Scroll the editor",
+	hide: "Hide the Agent pointer",
 };
 
 function uniqKeys({ values }: { values: string[] }): string[] {
@@ -495,6 +564,8 @@ function getRequiredCapability({ command }: { command: string }): string {
 	try {
 		if (command === "editor:health") return "state.health";
 		if (command === "editor:ui:switch-panel") return "state.ui.panelSwitch";
+		if (command.startsWith("editor:snapshot")) return "state.snapshot";
+		if (command.startsWith("editor:pointer:")) return "state.pointer";
 		if (command.startsWith("editor:moyin:")) return "state.moyin.pipeline";
 		if (command === "editor:mcp:forward-html") return "events.mcpPreview";
 		if (command.startsWith("editor:navigator:")) return "project.navigator";
@@ -603,7 +674,11 @@ function getCommandDescription({ command }: { command: string }): string {
 		}
 
 		const moduleLabel = MODULE_LABELS[module] ?? module;
-		const actionLabel = ACTION_LABELS[action] ?? action.replace(/-/g, " ");
+		const actionLabel =
+			(module === "snapshot" ? SNAPSHOT_ACTION_LABELS[action] : undefined) ??
+			(module === "pointer" ? POINTER_ACTION_LABELS[action] : undefined) ??
+			ACTION_LABELS[action] ??
+			action.replace(/-/g, " ");
 		return `${moduleLabel}: ${actionLabel}.`;
 	} catch {
 		return "Editor command.";
@@ -680,6 +755,8 @@ function getCommandParamsSchema({
 			module !== "navigator" &&
 			module !== "screen-recording" &&
 			module !== "ui" &&
+			module !== "snapshot" &&
+			module !== "pointer" &&
 			module !== "moyin" &&
 			module !== "screenshot";
 
@@ -881,6 +958,27 @@ function getCommandParamsSchema({
 			removeKey({ values: required, key: "projectId" });
 			required.push("panel");
 			add("tab");
+		}
+
+		if (module === "snapshot") {
+			removeKey({ values: required, key: "projectId" });
+			if (action === "unknown")
+				add("interactive", "depth", "maxBytes", "maxNodes");
+			if (action === "click") required.push("ref");
+			if (action === "fill") required.push("ref", "text");
+			if (action === "select") required.push("ref", "value");
+			if (action === "check") required.push("ref", "checked");
+		}
+
+		if (module === "pointer") {
+			removeKey({ values: required, key: "projectId" });
+			if (action === "drag") {
+				add("fromRef", "fromX", "fromY", "toRef", "toX", "toY");
+			} else if (action === "scroll") {
+				add("ref", "x", "y", "deltaX", "deltaY");
+			} else if (action !== "hide") {
+				add("ref", "x", "y");
+			}
 		}
 
 		if (module === "moyin") {

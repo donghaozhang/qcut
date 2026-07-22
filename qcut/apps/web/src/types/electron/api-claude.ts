@@ -27,6 +27,7 @@ import type {
 	ErrorReport,
 	DiagnosticResult,
 	EditorEvent,
+	AgentPointerVisualState,
 } from "../../../../../electron/types/claude-api";
 
 type EmitPayload = Omit<EditorEvent, "eventId" | "timestamp"> &
@@ -529,6 +530,12 @@ export interface ElectronClaudeOps {
 				requestId: string,
 				result?: { switched: boolean; panel: string; group: string },
 				error?: string
+			) => void;
+			removeListeners: () => void;
+		};
+		pointer: {
+			onStateChange: (
+				callback: (state: AgentPointerVisualState) => void
 			) => void;
 			removeListeners: () => void;
 		};

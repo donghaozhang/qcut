@@ -180,6 +180,35 @@ describe("Editor command metadata", () => {
 
 		expect(panelFlag?.enum).toContain("audio");
 	});
+
+	it("registers the complete Agent pointer command surface", () => {
+		const commands = [
+			"editor:pointer:move",
+			"editor:pointer:hover",
+			"editor:pointer:click",
+			"editor:pointer:double-click",
+			"editor:pointer:right-click",
+			"editor:pointer:drag",
+			"editor:pointer:scroll",
+			"editor:pointer:hide",
+		];
+
+		for (const command of commands) {
+			expect(getCommand(command)?.name).toBe(command);
+		}
+		expect(
+			getCommand("editor:pointer:drag")?.flags.map((flag) => flag.name)
+		).toEqual(
+			expect.arrayContaining([
+				"--from-ref",
+				"--to-ref",
+				"--from-x",
+				"--from-y",
+				"--to-x",
+				"--to-y",
+			])
+		);
+	});
 });
 
 describe("Aliases & Deprecation", () => {

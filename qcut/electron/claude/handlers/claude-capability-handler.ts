@@ -5,7 +5,7 @@ import {
 	type CapabilityManifest,
 } from "../../types/claude-api-capabilities.js";
 
-const CLAUDE_API_VERSION = "1.1.0";
+const CLAUDE_API_VERSION = "1.2.0";
 const CLAUDE_PROTOCOL_VERSION = "1.0.0";
 
 const CAPABILITIES: Capability[] = [
@@ -38,6 +38,22 @@ const CAPABILITIES: Capability[] = [
 		version: "1.0.0",
 		description: "Editor panel switching and UI state navigation.",
 		since: "1.0.0",
+		category: CLAUDE_CAPABILITY_CATEGORIES.STATE,
+	},
+	{
+		name: "state.snapshot",
+		version: "1.0.0",
+		description:
+			"Ref-based accessibility snapshots and direct form interactions.",
+		since: "1.2.0",
+		category: CLAUDE_CAPABILITY_CATEGORIES.STATE,
+	},
+	{
+		name: "state.pointer",
+		version: "1.0.0",
+		description:
+			"Visible Agent pointer control using real Electron mouse input events.",
+		since: "1.2.0",
 		category: CLAUDE_CAPABILITY_CATEGORIES.STATE,
 	},
 	{

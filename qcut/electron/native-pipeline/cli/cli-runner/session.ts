@@ -79,6 +79,19 @@ export function resetSessionState(): void {
 	sessionHealthChecked = false;
 }
 
+function parseFiniteSessionNumber({
+	value,
+}: {
+	value: unknown;
+}): number | undefined {
+	if (typeof value !== "string") return undefined;
+	// Number("") and Number("  ") are 0 — blank flags must not become valid.
+	const trimmed = value.trim();
+	if (!trimmed) return undefined;
+	const parsed = Number(trimmed);
+	return Number.isFinite(parsed) ? parsed : undefined;
+}
+
 /**
  * Parse a single command line into CLIRunOptions.
  * Uses lightweight arg parsing without process.exit.
@@ -224,6 +237,14 @@ function parseSessionArgs(args: string[]): Partial<CLIRunOptions> {
 				value: { type: "string" },
 				checked: { type: "boolean" },
 				ref: { type: "string" },
+				"from-ref": { type: "string" },
+				"to-ref": { type: "string" },
+				"from-x": { type: "string" },
+				"from-y": { type: "string" },
+				"to-x": { type: "string" },
+				"to-y": { type: "string" },
+				"delta-x": { type: "string" },
+				"delta-y": { type: "string" },
 				force: { type: "boolean", default: false },
 				discard: { type: "boolean", default: false },
 				replace: { type: "boolean", default: false },
@@ -297,6 +318,14 @@ function parseSessionArgs(args: string[]): Partial<CLIRunOptions> {
 		if (values.value) result.selectValue = values.value as string;
 		if (typeof values.checked === "boolean") result.checked = values.checked;
 		if (values.ref) result.ref = values.ref as string;
+		if (values["from-ref"]) result.fromRef = values["from-ref"] as string;
+		if (values["to-ref"]) result.toRef = values["to-ref"] as string;
+		result.fromX = parseFiniteSessionNumber({ value: values["from-x"] });
+		result.fromY = parseFiniteSessionNumber({ value: values["from-y"] });
+		result.toX = parseFiniteSessionNumber({ value: values["to-x"] });
+		result.toY = parseFiniteSessionNumber({ value: values["to-y"] });
+		result.deltaX = parseFiniteSessionNumber({ value: values["delta-x"] });
+		result.deltaY = parseFiniteSessionNumber({ value: values["delta-y"] });
 		if (values.force) result.force = true;
 		if (values.discard) result.discard = true;
 		if (values.replace) result.replace = true;

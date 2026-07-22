@@ -422,6 +422,11 @@ describe("Claude HTTP Server", () => {
 				(cap: { name: string }) => cap.name === "state.health"
 			)
 		).toBe(true);
+		expect(
+			res.body.data.capabilities.some(
+				(cap: { name: string }) => cap.name === "state.pointer"
+			)
+		).toBe(true);
 	});
 
 	it("GET /api/claude/capabilities/:name checks support and version", async () => {
@@ -454,6 +459,23 @@ describe("Claude HTTP Server", () => {
 				(cmd: { name: string }) => cmd.name === "editor:health"
 			)
 		).toBe(true);
+		expect(
+			res.body.data.commands.some(
+				(cmd: { name: string }) => cmd.name === "editor:snapshot"
+			)
+		).toBe(true);
+		expect(
+			res.body.data.commands.some(
+				(cmd: { name: string }) => cmd.name === "editor:pointer:drag"
+			)
+		).toBe(true);
+		const snapshotCommand = res.body.data.commands.find(
+			(cmd: { name: string }) => cmd.name === "editor:snapshot"
+		);
+		expect(snapshotCommand.paramsSchema.properties).toHaveProperty("maxNodes");
+		expect(snapshotCommand.paramsSchema.properties).not.toHaveProperty(
+			"maxElements"
+		);
 		expect(res.body.data.commands[0]).toHaveProperty("paramsSchema");
 		expect(res.body.data.commands[0]).toHaveProperty("requiredCapability");
 	});
@@ -642,20 +664,31 @@ describe("Claude HTTP Server", () => {
 
 	it("POST /api/claude/snapshot/click proxies click-by-ref requests", async () => {
 		const executeJavaScript = vi.fn(async () => ({
-			action: "click",
 			ref: "@e1",
+			x: 50,
+			y: 36,
+			bounds: { x: 10, y: 20, width: 80, height: 32 },
 			tagName: "button",
 			role: "button",
 			name: "Export",
 			value: null,
+			disabled: false,
 		}));
+		const sendInputEvent = vi.fn();
 		const mockWindow = {
+			isDestroyed: () => false,
+			isVisible: () => true,
+			focus: vi.fn(),
+			show: vi.fn(),
+			getContentSize: () => [1200, 800],
 			webContents: {
 				send: vi.fn(),
+				isDestroyed: () => false,
+				sendInputEvent,
 				executeJavaScript,
 			},
 		} as unknown as Electron.BrowserWindow;
-		vi.mocked(BrowserWindow.getAllWindows).mockReturnValueOnce([mockWindow]);
+		vi.mocked(BrowserWindow.getAllWindows).mockReturnValue([mockWindow]);
 
 		const res = await fetch("/api/claude/snapshot/click", {
 			method: "POST",
@@ -669,6 +702,80 @@ describe("Claude HTTP Server", () => {
 		const [script] = executeJavaScript.mock.calls[0] ?? [];
 		expect(script).toContain('const targetRef = "@e1";');
 		expect(script).toContain("const stableKey = state.keyByRef[targetRef];");
+		expect(sendInputEvent.mock.calls.map(([event]) => event.type)).toEqual([
+			"mouseMove",
+			"mouseDown",
+			"mouseUp",
+		]);
+
+		await fetch("/api/claude/pointer/hide", {
+			method: "POST",
+			body: JSON.stringify({}),
+		});
+	});
+
+	it("pointer routes send real click, drag, and wheel input events", async () => {
+		const sendInputEvent = vi.fn();
+		const mockWindow = {
+			isDestroyed: () => false,
+			isVisible: () => true,
+			focus: vi.fn(),
+			show: vi.fn(),
+			getContentSize: () => [1200, 800],
+			webContents: {
+				isDestroyed: () => false,
+				send: vi.fn(),
+				sendInputEvent,
+				executeJavaScript: vi.fn(),
+			},
+		} as unknown as Electron.BrowserWindow;
+		vi.mocked(BrowserWindow.getAllWindows).mockReturnValue([mockWindow]);
+
+		const click = await fetch("/api/claude/pointer/click", {
+			method: "POST",
+			body: JSON.stringify({ x: 120, y: 160 }),
+		});
+		const drag = await fetch("/api/claude/pointer/drag", {
+			method: "POST",
+			body: JSON.stringify({
+				from: { x: 120, y: 600 },
+				to: { x: 620, y: 600 },
+			}),
+		});
+		const scroll = await fetch("/api/claude/pointer/scroll", {
+			method: "POST",
+			body: JSON.stringify({ x: 620, y: 400, deltaY: 320 }),
+		});
+
+		expect(click.status).toBe(200);
+		expect(click.body.data).toEqual(
+			expect.objectContaining({
+				action: "click",
+				input: "electron-send-input-event",
+				x: 120,
+				y: 160,
+			})
+		);
+		expect(drag.status).toBe(200);
+		expect(scroll.status).toBe(200);
+		expect(scroll.body.data).toEqual(
+			expect.objectContaining({ action: "scroll", deltaY: 320 })
+		);
+		expect(sendInputEvent.mock.calls.map(([event]) => event.type)).toEqual(
+			expect.arrayContaining([
+				"mouseDown",
+				"mouseUp",
+				"mouseMove",
+				"mouseWheel",
+			])
+		);
+
+		const hide = await fetch("/api/claude/pointer/hide", {
+			method: "POST",
+			body: JSON.stringify({}),
+		});
+		expect(hide.status).toBe(200);
+		expect(hide.body.data.visible).toBe(false);
 	});
 
 	it("POST /api/claude/snapshot/fill proxies fill-by-ref requests", async () => {
