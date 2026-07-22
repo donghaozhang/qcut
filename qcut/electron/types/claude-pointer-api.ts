@@ -1,6 +1,13 @@
 export const AGENT_POINTER_STATE_CHANNEL = "claude:pointer:state";
 
 export type AgentPointerButton = "left" | "middle" | "right";
+export type AgentPointerInputMode = "background" | "foreground";
+export type AgentPointerInputBackend =
+	| "cdp-dispatch-mouse-event"
+	| "electron-send-input-event";
+
+export const DEFAULT_AGENT_POINTER_INPUT_MODE: AgentPointerInputMode =
+	"background";
 
 export type AgentPointerAction =
 	| "hidden"
@@ -23,6 +30,10 @@ export interface AgentPointerTarget extends Partial<AgentPointerPoint> {
 	ref?: string;
 }
 
+export interface AgentPointerInputOptions {
+	inputMode?: AgentPointerInputMode;
+}
+
 export interface AgentPointerBounds extends AgentPointerPoint {
 	width: number;
 	height: number;
@@ -38,16 +49,22 @@ export interface AgentPointerResolvedTarget extends AgentPointerPoint {
 	disabled?: boolean;
 }
 
-export interface AgentPointerMoveRequest extends AgentPointerTarget {}
+export interface AgentPointerMoveRequest
+	extends AgentPointerTarget,
+		AgentPointerInputOptions {}
 
-export interface AgentPointerClickRequest extends AgentPointerTarget {}
+export interface AgentPointerClickRequest
+	extends AgentPointerTarget,
+		AgentPointerInputOptions {}
 
-export interface AgentPointerDragRequest {
+export interface AgentPointerDragRequest extends AgentPointerInputOptions {
 	from: AgentPointerTarget;
 	to: AgentPointerTarget;
 }
 
-export interface AgentPointerScrollRequest extends AgentPointerTarget {
+export interface AgentPointerScrollRequest
+	extends AgentPointerTarget,
+		AgentPointerInputOptions {
 	deltaX?: number;
 	deltaY?: number;
 }
@@ -60,6 +77,7 @@ export interface AgentPointerVisualState extends AgentPointerPoint {
 	pressed: boolean;
 	dragging: boolean;
 	button: AgentPointerButton | null;
+	inputMode: AgentPointerInputMode | null;
 	pulseId: number;
 	sequence: number;
 	timestamp: number;
@@ -68,7 +86,9 @@ export interface AgentPointerVisualState extends AgentPointerPoint {
 export interface AgentPointerResult extends AgentPointerPoint {
 	action: AgentPointerAction;
 	visible: boolean;
-	input: "electron-send-input-event";
+	input: AgentPointerInputBackend;
+	inputMode: AgentPointerInputMode;
+	windowFocused: boolean;
 	target?: AgentPointerResolvedTarget;
 	deltaX?: number;
 	deltaY?: number;

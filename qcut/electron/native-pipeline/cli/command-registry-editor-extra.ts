@@ -21,6 +21,12 @@ export function createExtraEditorCommands({
 		f("--ref", "string", "Snapshot ref, for example @e12"),
 		f("--x", "number", "Editor viewport X coordinate"),
 		f("--y", "number", "Editor viewport Y coordinate"),
+		f(
+			"--foreground",
+			"boolean",
+			"Focus QCut and use native Electron input instead of background input",
+			{ default: false }
+		),
 	];
 
 	return {
@@ -177,7 +183,7 @@ export function createExtraEditorCommands({
 		),
 		"editor:pointer:move": ed(
 			"editor:pointer:move",
-			"Move the visible Agent pointer to a snapshot ref or editor coordinate",
+			"Move the visible Agent pointer without activating QCut by default",
 			pointerTargetFlags(),
 			[
 				"qcut-pipeline editor:pointer:move --ref @e12 --json",
@@ -218,6 +224,12 @@ export function createExtraEditorCommands({
 				f("--from-y", "number", "Starting editor viewport Y coordinate"),
 				f("--to-x", "number", "Destination editor viewport X coordinate"),
 				f("--to-y", "number", "Destination editor viewport Y coordinate"),
+				f(
+					"--foreground",
+					"boolean",
+					"Focus QCut and use native Electron input instead of background input",
+					{ default: false }
+				),
 			],
 			[
 				"qcut-pipeline editor:pointer:drag --from-ref @e12 --to-ref @e27 --force --json",

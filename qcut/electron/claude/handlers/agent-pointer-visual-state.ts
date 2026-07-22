@@ -45,6 +45,7 @@ export class AgentPointerVisualStateStore {
 		pressed: false,
 		dragging: false,
 		button: null,
+		inputMode: null,
 		pulseId: 0,
 		sequence: 0,
 		timestamp: Date.now(),

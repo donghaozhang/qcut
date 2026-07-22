@@ -5,7 +5,7 @@ import {
 	type CapabilityManifest,
 } from "../../types/claude-api-capabilities.js";
 
-const CLAUDE_API_VERSION = "1.2.0";
+const CLAUDE_API_VERSION = "1.3.0";
 const CLAUDE_PROTOCOL_VERSION = "1.0.0";
 
 const CAPABILITIES: Capability[] = [
@@ -50,9 +50,9 @@ const CAPABILITIES: Capability[] = [
 	},
 	{
 		name: "state.pointer",
-		version: "1.0.0",
+		version: "1.1.0",
 		description:
-			"Visible Agent pointer control using real Electron mouse input events.",
+			"Visible Agent pointer control with background CDP and foreground Electron mouse input modes.",
 		since: "1.2.0",
 		category: CLAUDE_CAPABILITY_CATEGORIES.STATE,
 	},

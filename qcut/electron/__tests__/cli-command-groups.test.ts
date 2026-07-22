@@ -196,6 +196,11 @@ describe("Editor command metadata", () => {
 		for (const command of commands) {
 			expect(getCommand(command)?.name).toBe(command);
 		}
+		for (const command of commands.slice(0, -1)) {
+			expect(
+				getCommand(command)?.flags.some((flag) => flag.name === "--foreground")
+			).toBe(true);
+		}
 		expect(
 			getCommand("editor:pointer:drag")?.flags.map((flag) => flag.name)
 		).toEqual(
@@ -206,6 +211,7 @@ describe("Editor command metadata", () => {
 				"--from-y",
 				"--to-x",
 				"--to-y",
+				"--foreground",
 			])
 		);
 	});

@@ -1,5 +1,8 @@
 import { describe, expect, it } from "vitest";
-import { parseAgentPointerTarget } from "../http/claude-http-pointer-routes.js";
+import {
+	parseAgentPointerInputMode,
+	parseAgentPointerTarget,
+} from "../http/claude-http-pointer-routes.js";
 
 describe("parseAgentPointerTarget", () => {
 	it("accepts a snapshot ref", () => {
@@ -29,5 +32,15 @@ describe("parseAgentPointerTarget", () => {
 
 	it("allows an omitted target when the caller supplies a pointer fallback", () => {
 		expect(parseAgentPointerTarget({ value: {}, required: false })).toEqual({});
+	});
+
+	it("defaults to background input and validates explicit foreground mode", () => {
+		expect(parseAgentPointerInputMode({ value: undefined })).toBe("background");
+		expect(parseAgentPointerInputMode({ value: "foreground" })).toBe(
+			"foreground"
+		);
+		expect(() => parseAgentPointerInputMode({ value: "silent" })).toThrow(
+			"background' or 'foreground"
+		);
 	});
 });

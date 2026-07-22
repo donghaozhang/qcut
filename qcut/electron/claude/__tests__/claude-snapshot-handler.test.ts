@@ -12,25 +12,50 @@ import type {
 function createSnapshotWindow({ result }: { result: unknown }): {
 	window: Electron.BrowserWindow;
 	executeJavaScript: ReturnType<typeof vi.fn>;
+	detach: ReturnType<typeof vi.fn>;
+	sendCommand: ReturnType<typeof vi.fn>;
 	sendInputEvent: ReturnType<typeof vi.fn>;
 } {
 	const executeJavaScript = vi.fn(async () => result);
+	const sendCommand = vi.fn(
+		async (_method: string, _params: Record<string, unknown>) => ({})
+	);
 	const sendInputEvent = vi.fn();
+	let debuggerAttached = false;
+	const detach = vi.fn(() => {
+		debuggerAttached = false;
+	});
 	return {
 		window: {
 			isDestroyed: () => false,
 			isVisible: () => true,
+			isFocused: () => false,
+			isMinimized: () => false,
 			show: vi.fn(),
+			showInactive: vi.fn(),
+			restore: vi.fn(),
 			focus: vi.fn(),
 			getContentSize: () => [1200, 800],
 			webContents: {
+				backgroundThrottling: true,
 				executeJavaScript,
 				isDestroyed: () => false,
+				isDevToolsOpened: () => false,
 				send: vi.fn(),
 				sendInputEvent,
+				debugger: {
+					isAttached: () => debuggerAttached,
+					attach: vi.fn(() => {
+						debuggerAttached = true;
+					}),
+					detach,
+					sendCommand,
+				},
 			},
 		} as unknown as Electron.BrowserWindow,
 		executeJavaScript,
+		detach,
+		sendCommand,
 		sendInputEvent,
 	};
 }
@@ -133,9 +158,8 @@ describe("claude-snapshot-handler", () => {
 			value: null,
 			disabled: false,
 		};
-		const { window, executeJavaScript, sendInputEvent } = createSnapshotWindow({
-			result: target,
-		});
+		const { window, executeJavaScript, sendCommand, sendInputEvent } =
+			createSnapshotWindow({ result: target });
 
 		const result = await clickEditorSnapshotRef(window, { ref: "@e1" });
 
@@ -155,10 +179,11 @@ describe("claude-snapshot-handler", () => {
 		expect(script).toContain(
 			"const findElementByStableKey = (stableKey, targetRef) =>"
 		);
-		expect(sendInputEvent.mock.calls.map(([event]) => event.type)).toEqual([
-			"mouseMove",
-			"mouseDown",
-			"mouseUp",
+		expect(sendInputEvent).not.toHaveBeenCalled();
+		expect(sendCommand.mock.calls.map(([, params]) => params.type)).toEqual([
+			"mouseMoved",
+			"mousePressed",
+			"mouseReleased",
 		]);
 	});
 
@@ -188,7 +213,7 @@ describe("claude-snapshot-handler", () => {
 	});
 
 	it("maps renderer action failures to rejected promises", async () => {
-		const { window } = createSnapshotWindow({
+		const { window, detach, sendCommand } = createSnapshotWindow({
 			result: {
 				ok: false,
 				errorCode: "not_found",
@@ -199,6 +224,8 @@ describe("claude-snapshot-handler", () => {
 		await expect(
 			clickEditorSnapshotRef(window, { ref: "@e9" })
 		).rejects.toThrow("No element found for snapshot ref @e9.");
+		expect(sendCommand).not.toHaveBeenCalled();
+		expect(detach).toHaveBeenCalledOnce();
 	});
 
 	// Truncation guard tests — pin the snapshot truncation contract.

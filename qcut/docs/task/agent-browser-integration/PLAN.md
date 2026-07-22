@@ -18,7 +18,7 @@ agent-browser is a headless browser automation CLI designed for AI agents. It us
 | Pattern | Status | Notes |
 |--------|--------|-------|
 | Accessibility Snapshots with Refs | Complete for current UI automation | Snapshot depth now supports QCut's deeply nested editor controls; media cards, timeline tracks, and timeline elements are actionable by `@ref` |
-| Visible Agent Pointer and Real Mouse Input | Complete | Electron `sendInputEvent()` drives move, hover, click, double-click, right-click, drag, and wheel input; the editor shows Agent status, click pulses, and drag trails |
+| Visible Agent Pointer and Real Mouse Input | Complete | Background CDP input drives the visible pointer without activating QCut; explicit foreground Electron input remains available for compatibility |
 | Console Message & Error Capture | Mostly complete | HTTP + CLI list/clear/stream path implemented on 2026-03-12 |
 | Action Policy Engine | Mostly complete | Default allow/confirm/deny policy, flag-sensitive matching, `--policy`, runner enforcement, and tests implemented on 2026-03-12 |
 | Session State Persistence | Mostly complete | Named session files, `--resume`, sticky project/panel hydration, autosave, and `editor:session:save/load/list/delete` commands are implemented on 2026-03-12 |
@@ -131,9 +131,9 @@ bun run pipeline editor:snapshot:check --ref @e4 --no-checked --json
 
 ### Pattern 1A: Visible Agent Pointer and Real Mouse Input (HIGH VALUE)
 
-**Status (2026-07-22)**: Implemented and validated against a running QCut Electron app.
+**Status (2026-07-22)**: Implemented with background and foreground input modes.
 
-`AgentPointerController` resolves snapshot refs to element-center coordinates and sends real Chromium mouse events through Electron 40's `webContents.sendInputEvent()`. A top-level renderer overlay is visual only (`pointer-events: none`) and reports movement, active action, button state, click pulses, and drag trails without intercepting the underlying input.
+`AgentPointerController` resolves snapshot refs to element-center coordinates. Its default background mode uses the renderer's Electron debugger connection and CDP `Input.dispatchMouseEvent`, allowing QCut to remain visible without becoming the active desktop window. Explicit `--foreground` mode preserves Electron 40's `webContents.sendInputEvent()` behavior for compatibility. A top-level renderer overlay is visual only (`pointer-events: none`) and reports movement, active action, input mode, button state, click pulses, and drag trails without intercepting the underlying input.
 
 **Commands**:
 
@@ -145,20 +145,21 @@ bun run pipeline editor:pointer:double-click --ref @e12 --force --json
 bun run pipeline editor:pointer:right-click --ref @e12 --force --json
 bun run pipeline editor:pointer:drag --from-ref @e12 --to-ref @e27 --force --json
 bun run pipeline editor:pointer:scroll --ref @e27 --delta-y 400 --json
+bun run pipeline editor:pointer:click --ref @e12 --foreground --force --json
 bun run pipeline editor:pointer:hide --json
 ```
 
-The existing `editor:snapshot:click` command now delegates to the same controller, so ref resolution and click semantics have one implementation.
+Background mode is the default and never silently falls back to foreground input. It returns a clear error when DevTools or another debugger already owns the CDP connection. The existing `editor:snapshot:click` command delegates to the same controller, so ref resolution and click semantics have one implementation.
 
 **Live E2E evidence**:
 
-1. Move and hover positioned the visible pointer over snapshot-selected controls.
-2. A real click changed the active editor panel and displayed a click pulse.
-3. Right-button down/up opened the timeline clip's existing Radix context menu.
-4. Double-click selected a real transition card and showed the double-click action state.
-5. Wheel input visibly scrolled the clip properties panel.
-6. Drag moved a timeline element from `startTime: 0` to `startTime: 6`; the test element was then removed and the timeline restored.
-7. Hide removed both the pointer and Agent operation status from the captured frame.
+1. Background move, click, hover, wheel, double-click, right-click, drag, and hide all returned `inputMode: "background"`, `input: "cdp-dispatch-mouse-event"`, and `windowFocused: false`.
+2. Clicking the Audio panel while ChatGPT was active changed the visible QCut panel without changing the macOS frontmost application.
+3. Wheel input moved the Audio category named `最新` from `y: 510` to `y: 30` while ChatGPT remained active.
+4. Right-click opened the timeline clip's existing Radix context menu with 29 discoverable menu items while Google Chrome remained active.
+5. Drag moved a temporary timeline element from `startTime: 0` to `startTime: 4` while Google Chrome remained active. The element was then removed and the timeline was verified empty.
+6. Explicit `--foreground` changed the frontmost application from Calculator to Electron and returned `inputMode: "foreground"`, `input: "electron-send-input-event"`, and `windowFocused: true`.
+7. Hide removed both the pointer and Agent operation status. Evidence frames are saved as `13-background-pointer-move.png` through `19-background-pointer-hidden.png` in `~/Movies/QCut Recordings/`.
 
 **Implemented files**:
 
@@ -166,6 +167,8 @@ The existing `editor:snapshot:click` command now delegates to the same controlle
 - `electron/claude/handlers/agent-pointer-error.ts`
 - `electron/claude/handlers/agent-pointer-input.ts`
 - `electron/claude/handlers/agent-pointer-motion.ts`
+- `electron/claude/handlers/agent-pointer-operation-queue.ts`
+- `electron/claude/handlers/agent-pointer-target-resolver.ts`
 - `electron/claude/handlers/agent-pointer-visual-state.ts`
 - `electron/claude/http/claude-http-pointer-routes.ts`
 - `electron/native-pipeline/cli/cli-handlers-pointer.ts`
@@ -174,10 +177,17 @@ The existing `editor:snapshot:click` command now delegates to the same controlle
 
 **Focused tests**:
 
+- `electron/claude/__tests__/agent-pointer-input.test.ts`
 - `electron/claude/__tests__/agent-pointer-controller.test.ts`
 - `electron/claude/__tests__/claude-http-pointer-routes.test.ts`
+- `electron/claude/__tests__/claude-http-server.test.ts`
+- `electron/claude/__tests__/claude-snapshot-handler.test.ts`
+- `electron/__tests__/cli-command-groups.test.ts`
 - `electron/__tests__/editor-pointer-cli.test.ts`
 - `apps/web/src/components/editor/__tests__/agent-pointer-overlay.test.tsx`
+
+The focused suite passes 173 tests across these files. Electron TypeScript,
+preload bundling, and the production web renderer build also pass.
 
 ---
 

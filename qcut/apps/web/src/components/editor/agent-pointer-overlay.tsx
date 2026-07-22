@@ -148,7 +148,11 @@ export function AgentPointerOverlay() {
 						transition={{ duration: 0.14 }}
 					>
 						<Bot aria-hidden="true" className="h-4 w-4 text-cyan-300" />
-						<span className="font-medium">Agent 正在操作</span>
+						<span className="font-medium">
+							{pointer.inputMode === "background"
+								? "Agent 后台操作"
+								: "Agent 正在操作"}
+						</span>
 						<span className="text-neutral-400">{pointer.label}</span>
 					</motion.div>
 				) : null}

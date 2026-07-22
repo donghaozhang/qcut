@@ -85,6 +85,19 @@ qcut editor:pointer:scroll --delta-y 400 --json
 qcut editor:pointer:hide --json
 ```
 
+These actions use the non-activating background input mode by default. Verify
+`inputMode`, `input`, and `windowFocused` in each result when preserving the
+user's active application matters. Add `--foreground` only for an intentional
+foreground action:
+
+```bash
+qcut editor:pointer:click --ref @e12 --foreground --force --json
+```
+
+Background mode does not fall back to foreground input. If DevTools or another
+debugger is attached, close it or explicitly choose `--foreground` after
+confirming that focus can move to QCut.
+
 After click or drag, verify the resulting editor or timeline state rather than
 treating a successful input event as proof of the intended edit. Use
 `editor:undo` to restore an E2E drag fixture after verification.

@@ -258,6 +258,7 @@ export interface CLIRunOptions {
 	toY?: number;
 	deltaX?: number;
 	deltaY?: number;
+	foreground?: boolean;
 	replace?: boolean;
 	ripple?: boolean;
 	crossTrackRipple?: boolean;

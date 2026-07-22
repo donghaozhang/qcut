@@ -35,6 +35,7 @@ function pointerState({
 		pressed: false,
 		dragging: false,
 		button: null,
+		inputMode: "background",
 		pulseId: 0,
 		sequence: 1,
 		timestamp: 1,
@@ -63,8 +64,20 @@ describe("AgentPointerOverlay", () => {
 			"true"
 		);
 		expect(screen.getByTestId("agent-pointer-cursor")).toBeInTheDocument();
-		expect(screen.getByText("Agent 正在操作")).toBeInTheDocument();
+		expect(screen.getByText("Agent 后台操作")).toBeInTheDocument();
 		expect(screen.getByText("点击")).toBeInTheDocument();
+	});
+
+	it("labels explicit foreground input", () => {
+		render(<AgentPointerOverlay />);
+
+		act(() => {
+			pointerBridge.emit(
+				pointerState({ overrides: { inputMode: "foreground" } })
+			);
+		});
+
+		expect(screen.getByText("Agent 正在操作")).toBeInTheDocument();
 	});
 
 	it("draws a drag trail and removes the overlay when hidden", () => {

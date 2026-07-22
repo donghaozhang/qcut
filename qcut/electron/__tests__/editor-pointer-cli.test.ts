@@ -41,6 +41,7 @@ describe("editor pointer CLI handlers", () => {
 			"700",
 			"--to-y",
 			"0",
+			"--foreground",
 			"--force",
 		]);
 		const session = parseSessionLine(
@@ -53,6 +54,7 @@ describe("editor pointer CLI handlers", () => {
 				fromRef: "@e12",
 				toX: 700,
 				toY: 0,
+				foreground: true,
 				force: true,
 			})
 		);
@@ -85,6 +87,7 @@ describe("editor pointer CLI handlers", () => {
 		expect(result.success).toBe(true);
 		expect(post).toHaveBeenCalledWith(`/api/claude/pointer/${action}`, {
 			ref: "@e12",
+			inputMode: "background",
 		});
 	});
 
@@ -102,6 +105,7 @@ describe("editor pointer CLI handlers", () => {
 		expect(post).toHaveBeenCalledWith("/api/claude/pointer/drag", {
 			from: { x: 0, y: 700 },
 			to: { x: 800, y: 700 },
+			inputMode: "background",
 		});
 	});
 
@@ -118,7 +122,25 @@ describe("editor pointer CLI handlers", () => {
 		expect(result.success).toBe(true);
 		expect(post).toHaveBeenCalledWith("/api/claude/pointer/scroll", {
 			ref: "@e20",
+			inputMode: "background",
 			deltaY: 400,
+		});
+	});
+
+	it("routes explicit foreground input without changing the target", async () => {
+		const { client, post } = createClient();
+		const result = await handlePointerCommand({
+			client,
+			options: makeOptions({
+				command: "editor:pointer:click",
+				values: { ref: "@e12", foreground: true },
+			}),
+		});
+
+		expect(result.success).toBe(true);
+		expect(post).toHaveBeenCalledWith("/api/claude/pointer/click", {
+			ref: "@e12",
+			inputMode: "foreground",
 		});
 	});
 

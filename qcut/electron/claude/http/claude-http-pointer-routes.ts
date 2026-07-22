@@ -7,6 +7,7 @@ import type {
 	AgentPointerTarget,
 	AgentPointerVisualState,
 } from "../../types/claude-api.js";
+import { DEFAULT_AGENT_POINTER_INPUT_MODE } from "../../types/claude-api.js";
 import { AgentPointerError } from "../handlers/agent-pointer-controller.js";
 import { EditorSnapshotActionError } from "../handlers/claude-snapshot-handler.js";
 import type { Router } from "../utils/http-router.js";
@@ -100,8 +101,29 @@ export function parseAgentPointerTarget({
 	return {};
 }
 
-function parseTargetRequest({ body }: { body: unknown }): AgentPointerTarget {
-	return parseAgentPointerTarget({ value: body });
+export function parseAgentPointerInputMode({
+	value,
+}: {
+	value: unknown;
+}): "background" | "foreground" {
+	if (value === undefined) return DEFAULT_AGENT_POINTER_INPUT_MODE;
+	if (value === "background" || value === "foreground") return value;
+	throw new HttpError(
+		400,
+		"Pointer 'inputMode' must be 'background' or 'foreground'."
+	);
+}
+
+function parseTargetRequest({
+	body,
+}: {
+	body: unknown;
+}): AgentPointerMoveRequest {
+	const parsed = requireBodyObject({ body });
+	return {
+		...parseAgentPointerTarget({ value: parsed }),
+		inputMode: parseAgentPointerInputMode({ value: parsed.inputMode }),
+	};
 }
 
 function parseDragRequest({
@@ -113,6 +135,7 @@ function parseDragRequest({
 	return {
 		from: parseAgentPointerTarget({ value: parsed.from, field: "from" }),
 		to: parseAgentPointerTarget({ value: parsed.to, field: "to" }),
+		inputMode: parseAgentPointerInputMode({ value: parsed.inputMode }),
 	};
 }
 
@@ -128,7 +151,12 @@ function parseScrollRequest({
 	if (deltaX === undefined && deltaY === undefined) {
 		throw new HttpError(400, "Pointer scroll requires deltaX or deltaY.");
 	}
-	return { ...target, deltaX, deltaY };
+	return {
+		...target,
+		inputMode: parseAgentPointerInputMode({ value: parsed.inputMode }),
+		deltaX,
+		deltaY,
+	};
 }
 
 async function withPointerTimeout<T>({

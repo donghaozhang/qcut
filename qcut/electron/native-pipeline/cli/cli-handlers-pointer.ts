@@ -12,6 +12,14 @@ interface PointerTargetOptions {
 	y?: number;
 }
 
+function pointerInputMode({
+	options,
+}: {
+	options: CLIRunOptions;
+}): "background" | "foreground" {
+	return options.foreground ? "foreground" : "background";
+}
+
 type PointerTargetResult =
 	| { ok: true; target: AgentPointerTarget }
 	| { ok: false; error: string };
@@ -59,10 +67,10 @@ async function postTargetAction({
 	});
 	if (!target.ok) return { success: false, error: target.error };
 
-	const data = await client.post(
-		`/api/claude/pointer/${action}`,
-		target.target
-	);
+	const data = await client.post(`/api/claude/pointer/${action}`, {
+		...target.target,
+		inputMode: pointerInputMode({ options }),
+	});
 	return { success: true, data };
 }
 
@@ -96,6 +104,7 @@ async function handleDrag({
 	const request: AgentPointerDragRequest = {
 		from: from.target,
 		to: to.target,
+		inputMode: pointerInputMode({ options }),
 	};
 	const data = await client.post("/api/claude/pointer/drag", request);
 	return { success: true, data };
@@ -120,6 +129,7 @@ async function handleScroll({
 	}
 
 	const request: AgentPointerScrollRequest = {
+		inputMode: pointerInputMode({ options }),
 		...(hasDeltaX ? { deltaX: options.deltaX } : {}),
 		...(hasDeltaY ? { deltaY: options.deltaY } : {}),
 	};

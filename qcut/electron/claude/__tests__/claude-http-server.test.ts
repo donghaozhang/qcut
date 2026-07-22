@@ -262,6 +262,49 @@ import {
 let serverPort: number;
 const fetch = createFetch(() => serverPort);
 
+function createPointerWindow({
+	executeJavaScript = vi.fn(),
+}: {
+	executeJavaScript?: ReturnType<typeof vi.fn>;
+} = {}) {
+	const sendInputEvent = vi.fn();
+	const focus = vi.fn();
+	const sendCommand = vi.fn(
+		async (_method: string, _params: Record<string, unknown>) => ({})
+	);
+	let debuggerAttached = false;
+	const mockWindow = {
+		isDestroyed: () => false,
+		isVisible: () => true,
+		isFocused: () => false,
+		isMinimized: () => false,
+		focus,
+		show: vi.fn(),
+		showInactive: vi.fn(),
+		restore: vi.fn(),
+		getContentSize: () => [1200, 800],
+		webContents: {
+			backgroundThrottling: true,
+			isDestroyed: () => false,
+			isDevToolsOpened: () => false,
+			send: vi.fn(),
+			sendInputEvent,
+			executeJavaScript,
+			debugger: {
+				isAttached: () => debuggerAttached,
+				attach: vi.fn(() => {
+					debuggerAttached = true;
+				}),
+				detach: vi.fn(() => {
+					debuggerAttached = false;
+				}),
+				sendCommand,
+			},
+		},
+	} as unknown as Electron.BrowserWindow;
+	return { focus, mockWindow, sendCommand, sendInputEvent };
+}
+
 beforeAll(async () => {
 	serverPort = 18_765 + Math.floor(Math.random() * 1000);
 	process.env.QCUT_API_PORT = String(serverPort);
@@ -413,7 +456,7 @@ describe("Claude HTTP Server", () => {
 
 		expect(res.status).toBe(200);
 		expect(res.body.success).toBe(true);
-		expect(res.body.data.apiVersion).toBeTypeOf("string");
+		expect(res.body.data.apiVersion).toBe("1.3.0");
 		expect(res.body.data.protocolVersion).toBeTypeOf("string");
 		expect(res.body.data.appVersion).toBe("1.0.0-test");
 		expect(Array.isArray(res.body.data.capabilities)).toBe(true);
@@ -422,11 +465,13 @@ describe("Claude HTTP Server", () => {
 				(cap: { name: string }) => cap.name === "state.health"
 			)
 		).toBe(true);
-		expect(
-			res.body.data.capabilities.some(
-				(cap: { name: string }) => cap.name === "state.pointer"
-			)
-		).toBe(true);
+		const pointerCapability = res.body.data.capabilities.find(
+			(cap: { name: string }) => cap.name === "state.pointer"
+		);
+		expect(pointerCapability).toMatchObject({
+			version: "1.1.0",
+			since: "1.2.0",
+		});
 	});
 
 	it("GET /api/claude/capabilities/:name checks support and version", async () => {
@@ -674,20 +719,8 @@ describe("Claude HTTP Server", () => {
 			value: null,
 			disabled: false,
 		}));
-		const sendInputEvent = vi.fn();
-		const mockWindow = {
-			isDestroyed: () => false,
-			isVisible: () => true,
-			focus: vi.fn(),
-			show: vi.fn(),
-			getContentSize: () => [1200, 800],
-			webContents: {
-				send: vi.fn(),
-				isDestroyed: () => false,
-				sendInputEvent,
-				executeJavaScript,
-			},
-		} as unknown as Electron.BrowserWindow;
+		const { focus, mockWindow, sendCommand, sendInputEvent } =
+			createPointerWindow({ executeJavaScript });
 		vi.mocked(BrowserWindow.getAllWindows).mockReturnValue([mockWindow]);
 
 		const res = await fetch("/api/claude/snapshot/click", {
@@ -702,11 +735,13 @@ describe("Claude HTTP Server", () => {
 		const [script] = executeJavaScript.mock.calls[0] ?? [];
 		expect(script).toContain('const targetRef = "@e1";');
 		expect(script).toContain("const stableKey = state.keyByRef[targetRef];");
-		expect(sendInputEvent.mock.calls.map(([event]) => event.type)).toEqual([
-			"mouseMove",
-			"mouseDown",
-			"mouseUp",
+		expect(sendInputEvent).not.toHaveBeenCalled();
+		expect(sendCommand.mock.calls.map(([, params]) => params.type)).toEqual([
+			"mouseMoved",
+			"mousePressed",
+			"mouseReleased",
 		]);
+		expect(focus).not.toHaveBeenCalled();
 
 		await fetch("/api/claude/pointer/hide", {
 			method: "POST",
@@ -714,21 +749,9 @@ describe("Claude HTTP Server", () => {
 		});
 	});
 
-	it("pointer routes send real click, drag, and wheel input events", async () => {
-		const sendInputEvent = vi.fn();
-		const mockWindow = {
-			isDestroyed: () => false,
-			isVisible: () => true,
-			focus: vi.fn(),
-			show: vi.fn(),
-			getContentSize: () => [1200, 800],
-			webContents: {
-				isDestroyed: () => false,
-				send: vi.fn(),
-				sendInputEvent,
-				executeJavaScript: vi.fn(),
-			},
-		} as unknown as Electron.BrowserWindow;
+	it("pointer routes use background CDP input without focusing QCut", async () => {
+		const { focus, mockWindow, sendCommand, sendInputEvent } =
+			createPointerWindow();
 		vi.mocked(BrowserWindow.getAllWindows).mockReturnValue([mockWindow]);
 
 		const click = await fetch("/api/claude/pointer/click", {
@@ -751,7 +774,9 @@ describe("Claude HTTP Server", () => {
 		expect(click.body.data).toEqual(
 			expect.objectContaining({
 				action: "click",
-				input: "electron-send-input-event",
+				input: "cdp-dispatch-mouse-event",
+				inputMode: "background",
+				windowFocused: false,
 				x: 120,
 				y: 160,
 			})
@@ -761,14 +786,16 @@ describe("Claude HTTP Server", () => {
 		expect(scroll.body.data).toEqual(
 			expect.objectContaining({ action: "scroll", deltaY: 320 })
 		);
-		expect(sendInputEvent.mock.calls.map(([event]) => event.type)).toEqual(
+		expect(sendCommand.mock.calls.map(([, params]) => params.type)).toEqual(
 			expect.arrayContaining([
-				"mouseDown",
-				"mouseUp",
-				"mouseMove",
+				"mousePressed",
+				"mouseReleased",
+				"mouseMoved",
 				"mouseWheel",
 			])
 		);
+		expect(sendInputEvent).not.toHaveBeenCalled();
+		expect(focus).not.toHaveBeenCalled();
 
 		const hide = await fetch("/api/claude/pointer/hide", {
 			method: "POST",
