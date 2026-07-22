@@ -59,7 +59,7 @@ jobs:
           submodules: recursive
 
       - name: Setup Python 3.12
-        uses: actions/setup-python@v5
+        uses: actions/setup-python@v6
         with:
           python-version: "3.12"
 
@@ -126,7 +126,7 @@ jobs:
           find artifacts -type f \( -name 'aicp' -o -name 'aicp.exe' \) -exec sha256sum {} \; | tee artifacts/SHA256SUMS.txt
 
       - name: Upload assets to GitHub release
-        uses: softprops/action-gh-release@v2
+        uses: softprops/action-gh-release@v3
         with:
           tag_name: ${{ github.ref_name }}
           files: |
