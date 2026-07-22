@@ -367,6 +367,71 @@ describe("FFmpeg video transform filters", () => {
 		).toThrow(/Missing FFmpeg input for distortion effect/);
 	});
 
+	it("keeps echo and big-head person graphs free of dangling split pads", () => {
+		for (const [treatment, extra] of [
+			["echo", { echoVariant: "strobe" }],
+			["big-head", { intensity: 1 }],
+		] as const) {
+			const result = buildVideoTimelineFilters({
+				videoSources: [
+					{
+						path: "/person.mp4",
+						startTime: 0,
+						duration: 2,
+						effectRenderProgram: {
+							version: 1,
+							stages: [
+								{
+									kind: "person-tracking",
+									target: "person",
+									treatment,
+									fallback: "disable",
+									...extra,
+								},
+							],
+						},
+						effectPersonSources: [
+							{
+								stageIndex: 0,
+								path: "/person-alpha.webm",
+								animated: true,
+								inputIndex: 1,
+							},
+						],
+					},
+				],
+				width: 640,
+				height: 360,
+				fps: 30,
+				totalDuration: 2,
+			});
+			const filter = result.filterSteps.join(";");
+			// The focus-family split must not run for these treatments — its
+			// unconsumed pads would make FFmpeg reject the whole graph.
+			expect(filter).not.toContain("_background_input");
+			// Full connectivity: every label a step produces must be consumed
+			// as an input by a later step, except the graph's final output.
+			const produced = new Map<string, number>();
+			const consumed = new Map<string, number>();
+			for (const step of result.filterSteps) {
+				const inputs = step.match(/^(?:\[[^\]]+\])+/)?.[0] ?? "";
+				const outputs = step.match(/(?:\[[^\]]+\])+$/)?.[0] ?? "";
+				for (const [, label] of inputs.matchAll(/\[([^\]]+)\]/g)) {
+					consumed.set(label, (consumed.get(label) ?? 0) + 1);
+				}
+				for (const [, label] of outputs.matchAll(/\[([^\]]+)\]/g)) {
+					produced.set(label, (produced.get(label) ?? 0) + 1);
+				}
+			}
+			expect(produced.size).toBeGreaterThan(0);
+			const dangling = [...produced.keys()].filter(
+				(label) =>
+					label !== result.outputLabel && (consumed.get(label) ?? 0) === 0
+			);
+			expect(dangling).toEqual([]);
+		}
+	});
+
 	it("throws when a procedural stage is missing its FFmpeg input", () => {
 		expect(() =>
 			buildVideoTimelineFilters({

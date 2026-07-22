@@ -163,21 +163,46 @@ describe("effect catalog", () => {
 		expect(auditEffectRenderContracts({ entries: EFFECT_CATALOG })).toEqual([]);
 	});
 
-	it("publishes three verified person effects from the shared catalog", () => {
+	it("publishes verified person effects from the shared catalog", () => {
 		const entries = EFFECT_CATALOG.filter(
 			(entry) => entry.family === "person" && entry.publication === "published"
 		);
-		expect(entries).toHaveLength(3);
+		expect(entries).toHaveLength(26);
 		expect(entries.map((entry) => entry.preset.id)).toEqual([
 			"person-neon-outline",
 			"person-spotlight",
 			"person-background-blur",
+			"person-electric-outline",
+			"person-electric-outline-2",
+			"person-rainbow-edge",
+			"person-flow-outline",
+			"person-crayon-outline",
+			"person-handwritten-outline",
+			"person-shatter-edge",
+			"person-neon-outline-2",
+			"person-highlight-moment",
+			"person-highlight-solo",
+			"person-vignette-focus",
+			"person-subject-blur",
+			"person-subject-pixelate",
+			"person-strobe-echo",
+			"person-motion-trail",
+			"person-shatter-clones",
+			"person-dot-clones",
+			"person-question-marks",
+			"person-hearts-orbit",
+			"person-idea-bulb",
+			"person-anger-burst",
+			"person-hp-bar",
+			"person-big-head",
 		]);
 		expect(
 			entries.every(
 				(entry) =>
 					entry.render.parity === "verified" &&
-					entry.preset.renderProgram?.stages[0]?.kind === "person-tracking"
+					["person-tracking", "decoration"].includes(
+						entry.preset.renderProgram?.stages[0]?.kind ?? ""
+					)
 			)
 		).toBe(true);
 	});

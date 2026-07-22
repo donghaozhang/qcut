@@ -2195,6 +2195,12 @@ describe.skipIf(!fs.existsSync(ffmpegPath))(
 			for (const entry of PERSON_EFFECT_CATALOG) {
 				const program = entry.preset.renderProgram;
 				if (!program) throw new Error(`Missing program: ${entry.preset.id}`);
+				const personStage = program.stages.find(
+					(stage) => stage.kind === "person-tracking"
+				);
+				// Emotion-prop presets render through baked decoration sequences
+				// (frame-renderer backend), not the FFmpeg person pipeline.
+				if (!personStage) continue;
 				const outputPath = path.join(
 					tempDir,
 					`effect-person-${entry.preset.id}.mp4`
@@ -2232,10 +2238,19 @@ describe.skipIf(!fs.existsSync(ffmpegPath))(
 				expect(fs.statSync(outputPath).size).toBeGreaterThan(2_000);
 				outputById.set(entry.preset.id, outputPath);
 
-				const absentMaskPath =
-					entry.preset.id === "person-neon-outline"
-						? transparentMaskPath
-						: fullFrameMaskPath;
+				// Subject-targeted treatments must leave the frame untouched when
+				// the matte is empty; background treatments are invisible when the
+				// person fills the frame, so "absent" means a full-frame matte.
+				const subjectTreatments = new Set([
+					"outline",
+					"subject-blur",
+					"subject-pixelate",
+					"echo",
+					"big-head",
+				]);
+				const absentMaskPath = subjectTreatments.has(personStage.treatment)
+					? transparentMaskPath
+					: fullFrameMaskPath;
 				const absentPath = path.join(
 					tempDir,
 					`effect-person-absent-${entry.preset.id}.mp4`

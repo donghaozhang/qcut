@@ -52,7 +52,32 @@ export interface EffectPersonSource {
 export interface EffectPersonTrackingRenderStage {
 	kind: "person-tracking";
 	target: "face" | "body" | "person";
-	treatment: "outline" | "spotlight" | "background-blur";
+	treatment:
+		| "outline"
+		| "spotlight"
+		| "background-blur"
+		| "subject-blur"
+		| "subject-pixelate"
+		| "echo"
+		| "big-head";
+	/** Clone/echo styling for the "echo" treatment. */
+	echoVariant?: "strobe" | "trail" | "shatter" | "dots";
+	intensity?: number;
+	vignette?: boolean;
+	stroke?: {
+		style:
+			| "solid"
+			| "electric"
+			| "rainbow"
+			| "flow"
+			| "crayon"
+			| "handwritten"
+			| "shatter"
+			| "neon";
+		color: string;
+		width: number;
+		glow: number;
+	};
 	fallback: "center" | "full-frame" | "disable";
 	window?: EffectRenderWindow;
 }

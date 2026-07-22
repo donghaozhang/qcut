@@ -83,7 +83,38 @@ export interface EffectAudioReactiveEnvelope {
 export interface EffectPersonTrackingRenderStage {
 	kind: "person-tracking";
 	target: "face" | "body" | "person";
-	treatment: "outline" | "spotlight" | "background-blur";
+	treatment:
+		| "outline"
+		| "spotlight"
+		| "background-blur"
+		| "subject-blur"
+		| "subject-pixelate"
+		| "echo"
+		| "big-head";
+	/** Clone/echo styling for the "echo" treatment. */
+	echoVariant?: "strobe" | "trail" | "shatter" | "dots";
+	/** Strength scaler for spotlight/subject treatments (0.5–2). */
+	intensity?: number;
+	/** Adds darkened corners to spotlight variants (暗角聚焦). */
+	vignette?: boolean;
+	/** Styling for the "outline" treatment; defaults match the classic cyan edge. */
+	stroke?: {
+		style:
+			| "solid"
+			| "electric"
+			| "rainbow"
+			| "flow"
+			| "crayon"
+			| "handwritten"
+			| "shatter"
+			| "neon";
+		/** CSS hex color of the edge. */
+		color: string;
+		/** Edge thickness, 1–3 (dilation passes on export). */
+		width: number;
+		/** Glow softness, 0–3 (blur radius factor). */
+		glow: number;
+	};
 	fallback: "center" | "full-frame" | "disable";
 	window?: EffectRenderWindow;
 }
@@ -125,7 +156,12 @@ export type EffectDecorationVariant =
 	| "standby"
 	| "burst"
 	| "lens-flare"
-	| "floating-text";
+	| "floating-text"
+	| "question-marks"
+	| "hearts-orbit"
+	| "idea-bulb"
+	| "anger-burst"
+	| "hp-bar";
 
 /**
  * Procedural non-particle overlays (上下网格 / 彩虹射线 / 全剧终) drawn on a
