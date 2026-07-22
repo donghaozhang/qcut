@@ -77,6 +77,70 @@ function createPersonEffectEntry({
 	};
 }
 
+function createPersonPropEntry({
+	id,
+	name,
+	localizedName,
+	description,
+	localizedDescription,
+	variant,
+	color,
+	tags,
+	releasedAt,
+	popularityScore,
+}: {
+	id: string;
+	name: string;
+	localizedName: string;
+	description: string;
+	localizedDescription: string;
+	variant:
+		| "question-marks"
+		| "hearts-orbit"
+		| "idea-bulb"
+		| "anger-burst"
+		| "hp-bar";
+	color: string;
+	tags: readonly string[];
+	releasedAt: string;
+	popularityScore: number;
+}): PersonEffectCatalogEntry {
+	const preset: EffectPreset = {
+		id,
+		name,
+		description,
+		category: "artistic",
+		icon: "PT",
+		parameters: {},
+		effectType: "person-tracking",
+		renderProgram: {
+			version: 1,
+			stages: [{ kind: "decoration", variant, color, opacity: 0.95 }],
+		},
+		preview: "/images/filter-previews/glow-portrait.webp",
+	};
+	return {
+		preset,
+		assetVersion: 1,
+		localizedName,
+		localizedDescription,
+		family: "person",
+		category: "person",
+		tags,
+		releasedAt,
+		popularityScore,
+		publication: "published",
+		render: {
+			kind: "overlay",
+			previewBackend: "canvas",
+			// Props render through the decoration primitive: canvas preview and
+			// baked PNG sequences in the native FFmpeg pass.
+			exportBackend: "frame-renderer",
+			parity: "verified",
+		},
+	};
+}
+
 export const PERSON_EFFECT_CATALOG = [
 	createPersonEffectEntry({
 		id: "person-neon-outline",
@@ -317,5 +381,77 @@ export const PERSON_EFFECT_CATALOG = [
 		tags: ["person", "echo", "dots", "tracking"],
 		releasedAt: "2026-07-22T02:20:00.000Z",
 		popularityScore: 84,
+	}),
+	createPersonPropEntry({
+		id: "person-question-marks",
+		name: "Question Marks",
+		localizedName: "一脸问号",
+		description: "Bobbing question marks pop above the subject.",
+		localizedDescription: "头顶冒出上下浮动的问号。",
+		variant: "question-marks",
+		color: "#ffd233",
+		tags: ["person", "props", "question-marks"],
+		releasedAt: "2026-07-22T02:30:00.000Z",
+		popularityScore: 88,
+	}),
+	createPersonPropEntry({
+		id: "person-hearts-orbit",
+		name: "Hearts Orbit",
+		localizedName: "爱心环绕",
+		description: "A ring of hearts orbits around the subject.",
+		localizedDescription: "环绕人物旋转的一圈爱心。",
+		variant: "hearts-orbit",
+		color: "#ff5f8f",
+		tags: ["person", "props", "hearts-orbit"],
+		releasedAt: "2026-07-22T02:30:00.000Z",
+		popularityScore: 90,
+	}),
+	createPersonPropEntry({
+		id: "person-idea-bulb",
+		name: "Idea Bulb",
+		localizedName: "灵机一动",
+		description: "A bright bulb flashes on above the head.",
+		localizedDescription: "头顶亮起灵光一闪的灯泡。",
+		variant: "idea-bulb",
+		color: "#fff1b8",
+		tags: ["person", "props", "idea-bulb"],
+		releasedAt: "2026-07-22T02:30:00.000Z",
+		popularityScore: 84,
+	}),
+	createPersonPropEntry({
+		id: "person-anger-burst",
+		name: "Anger Burst",
+		localizedName: "气炸了",
+		description: "Anger veins pulse beside the head.",
+		localizedDescription: "头侧爆出跳动的怒气符号。",
+		variant: "anger-burst",
+		color: "#ff4d4d",
+		tags: ["person", "props", "anger-burst"],
+		releasedAt: "2026-07-22T02:30:00.000Z",
+		popularityScore: 86,
+	}),
+	createPersonPropEntry({
+		id: "person-hp-bar",
+		name: "HP Bar",
+		localizedName: "血条掉血",
+		description: "A draining game HP bar hovers overhead.",
+		localizedDescription: "头顶悬浮持续掉血的游戏血条。",
+		variant: "hp-bar",
+		color: "#e33b3b",
+		tags: ["person", "props", "hp-bar"],
+		releasedAt: "2026-07-22T02:30:00.000Z",
+		popularityScore: 87,
+	}),
+	createPersonEffectEntry({
+		id: "person-big-head",
+		name: "Big Head",
+		localizedName: "大头",
+		description: "Enlarges the head zone of the tracked person.",
+		localizedDescription: "放大人物头部区域的搞笑大头效果。",
+		treatment: "big-head",
+		intensity: 1,
+		tags: ["person", "big-head", "funny", "tracking"],
+		releasedAt: "2026-07-22T02:30:00.000Z",
+		popularityScore: 91,
 	}),
 ] as const satisfies readonly PersonEffectCatalogEntry[];

@@ -1242,6 +1242,42 @@ function buildEffectPersonFilters({
 		filterSteps.push(
 			`[${stageInput}]split=2[${backgroundInput}][${foregroundInput}]`
 		);
+		if (stage.treatment === "big-head") {
+			const scale = (
+				1 +
+				0.32 * Math.min(2, Math.max(0.5, stage.intensity ?? 1))
+			).toFixed(3);
+			const person = `${prefix}_bighead_person`;
+			const personRgba = `${prefix}_bighead_rgba`;
+			const headCrop = `${prefix}_bighead_crop`;
+			const headScaled = `${prefix}_bighead_scaled`;
+			const withPerson = `${prefix}_bighead_base`;
+			const personA = `${prefix}_bighead_a`;
+			const personB = `${prefix}_bighead_b`;
+			filterSteps.push(`[${stageInput}]format=rgba[${personRgba}]`);
+			filterSteps.push(`[${personRgba}][${mask}]alphamerge[${person}]`);
+			filterSteps.push(`[${person}]split=2[${personA}][${personB}]`);
+			filterSteps.push(`[${personA}]crop=w=iw:h=ih*0.42:x=0:y=0[${headCrop}]`);
+			filterSteps.push(
+				`[${headCrop}]scale=w=iw*${scale}:h=ih*${scale}[${headScaled}]`
+			);
+			filterSteps.push(
+				`[${stageInput}][${personB}]overlay=shortest=1:format=auto[${withPerson}]`
+			);
+			const composed = `${prefix}_bighead_composed`;
+			filterSteps.push(
+				`[${withPerson}][${headScaled}]overlay=x='(W-w)/2':y='-(h-H*0.42)*0.75':shortest=1:format=auto[${composed}]`
+			);
+			outputLabel = blendEffectWindow({
+				baseLabel,
+				effectLabel: composed,
+				filterSteps,
+				outputLabel: `${prefix}_windowed`,
+				window: stage.window,
+			});
+			continue;
+		}
+
 		if (stage.treatment === "echo") {
 			const variant = stage.echoVariant ?? "strobe";
 			const person = `${prefix}_echo_person`;

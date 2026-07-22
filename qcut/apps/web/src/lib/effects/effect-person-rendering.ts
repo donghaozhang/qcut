@@ -314,6 +314,39 @@ function drawEcho({
 	context.drawImage(person, 0, 0);
 }
 
+function drawBigHead({
+	context,
+	source,
+	maskCanvas,
+	intensity = 1,
+}: {
+	context: CanvasRenderingContext2D;
+	source: HTMLCanvasElement;
+	maskCanvas: HTMLCanvasElement;
+	intensity?: number;
+}) {
+	// Head-zone approximation: enlarge the top slice of the tracked person.
+	const person = maskedFrame({ source, maskCanvas });
+	const scale = 1 + 0.32 * Math.min(2, Math.max(0.5, intensity));
+	const headHeight = Math.round(source.height * 0.42);
+	context.clearRect(0, 0, source.width, source.height);
+	context.drawImage(source, 0, 0);
+	context.drawImage(person, 0, 0);
+	const drawWidth = source.width * scale;
+	const drawHeight = headHeight * scale;
+	context.drawImage(
+		person,
+		0,
+		0,
+		source.width,
+		headHeight,
+		(source.width - drawWidth) / 2,
+		-(drawHeight - headHeight) * 0.75,
+		drawWidth,
+		drawHeight
+	);
+}
+
 export function drawPersonEffectFrame({
 	outputCanvas,
 	maskCanvas,
@@ -364,6 +397,15 @@ export function drawPersonEffectFrame({
 				maskCanvas,
 				intensity: stage.intensity,
 				vignette: stage.vignette,
+			});
+			continue;
+		}
+		if (stage.treatment === "big-head") {
+			drawBigHead({
+				context,
+				source: current,
+				maskCanvas,
+				intensity: stage.intensity,
 			});
 			continue;
 		}

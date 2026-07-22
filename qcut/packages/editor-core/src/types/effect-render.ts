@@ -89,7 +89,8 @@ export interface EffectPersonTrackingRenderStage {
 		| "background-blur"
 		| "subject-blur"
 		| "subject-pixelate"
-		| "echo";
+		| "echo"
+		| "big-head";
 	/** Clone/echo styling for the "echo" treatment. */
 	echoVariant?: "strobe" | "trail" | "shatter" | "dots";
 	/** Strength scaler for spotlight/subject treatments (0.5–2). */
@@ -155,7 +156,12 @@ export type EffectDecorationVariant =
 	| "standby"
 	| "burst"
 	| "lens-flare"
-	| "floating-text";
+	| "floating-text"
+	| "question-marks"
+	| "hearts-orbit"
+	| "idea-bulb"
+	| "anger-burst"
+	| "hp-bar";
 
 /**
  * Procedural non-particle overlays (上下网格 / 彩虹射线 / 全剧终) drawn on a

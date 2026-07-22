@@ -437,6 +437,79 @@ function drawFloatingText({
 	context.globalAlpha = 1;
 }
 
+function drawGlyphProps({
+	context,
+	stage,
+	timeSeconds,
+	width,
+	height,
+	glyphs,
+	seed,
+}: DecorationDrawArgs & { glyphs: readonly string[]; seed: number }) {
+	const size = Math.round(Math.min(width, height) * 0.12);
+	context.globalAlpha = stage.opacity;
+	context.fillStyle = stage.color;
+	context.font = `700 ${size}px "Noto Sans SC", sans-serif`;
+	context.textAlign = "center";
+	context.textBaseline = "middle";
+	for (const [index, glyph] of glyphs.entries()) {
+		const sway = Math.sin(timeSeconds * 2 + index * 1.7 + seed);
+		const x = width * (0.5 + (index - (glyphs.length - 1) / 2) * 0.09);
+		const y = height * 0.16 + sway * height * 0.03;
+		context.globalAlpha =
+			stage.opacity * (0.7 + 0.3 * Math.abs(Math.sin(timeSeconds * 3 + index)));
+		context.fillText(glyph, x, y - Math.abs(sway) * 6);
+	}
+	context.globalAlpha = 1;
+}
+
+function drawHeartsOrbit({
+	context,
+	stage,
+	timeSeconds,
+	width,
+	height,
+}: DecorationDrawArgs) {
+	const size = Math.round(Math.min(width, height) * 0.085);
+	context.globalAlpha = stage.opacity;
+	context.fillStyle = stage.color;
+	context.font = `700 ${size}px "Noto Sans SC", sans-serif`;
+	context.textAlign = "center";
+	context.textBaseline = "middle";
+	const count = 6;
+	for (let index = 0; index < count; index += 1) {
+		const angle = timeSeconds * 1.4 + (index / count) * Math.PI * 2;
+		const x = width * 0.5 + Math.cos(angle) * width * 0.2;
+		const y = height * 0.3 + Math.sin(angle) * height * 0.1;
+		context.globalAlpha = stage.opacity * (0.55 + 0.45 * Math.sin(angle));
+		context.fillText("♥", x, y);
+	}
+	context.globalAlpha = 1;
+}
+
+function drawHpBar({
+	context,
+	stage,
+	timeSeconds,
+	width,
+	height,
+}: DecorationDrawArgs) {
+	const barWidth = width * 0.34;
+	const barHeight = Math.max(6, height * 0.035);
+	const x = (width - barWidth) / 2;
+	const y = height * 0.08;
+	const drain = 0.25 + 0.65 * Math.abs(Math.sin(timeSeconds * 0.9));
+	context.globalAlpha = stage.opacity;
+	context.fillStyle = "rgba(20,20,24,0.82)";
+	context.fillRect(x - 3, y - 3, barWidth + 6, barHeight + 6);
+	context.fillStyle = stage.color;
+	context.fillRect(x, y, barWidth * drain, barHeight);
+	context.strokeStyle = "#ffffff";
+	context.lineWidth = Math.max(1, barHeight * 0.14);
+	context.strokeRect(x - 3, y - 3, barWidth + 6, barHeight + 6);
+	context.globalAlpha = 1;
+}
+
 /** Draws one decoration stage for one point in time. Caller clears the canvas. */
 export function drawDecorationStageFrame({
 	context,
@@ -466,6 +539,16 @@ export function drawDecorationStageFrame({
 		drawBurst(args);
 	} else if (stage.variant === "lens-flare") {
 		drawLensFlare(args);
+	} else if (stage.variant === "question-marks") {
+		drawGlyphProps({ ...args, glyphs: ["?", "?", "?"], seed: 1 });
+	} else if (stage.variant === "idea-bulb") {
+		drawGlyphProps({ ...args, glyphs: ["!", "💡"], seed: 4 });
+	} else if (stage.variant === "anger-burst") {
+		drawGlyphProps({ ...args, glyphs: ["💢", "＃"], seed: 7 });
+	} else if (stage.variant === "hearts-orbit") {
+		drawHeartsOrbit(args);
+	} else if (stage.variant === "hp-bar") {
+		drawHpBar(args);
 	} else {
 		drawFloatingText(args);
 	}

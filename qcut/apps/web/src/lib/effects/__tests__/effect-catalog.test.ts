@@ -167,7 +167,7 @@ describe("effect catalog", () => {
 		const entries = EFFECT_CATALOG.filter(
 			(entry) => entry.family === "person" && entry.publication === "published"
 		);
-		expect(entries).toHaveLength(20);
+		expect(entries).toHaveLength(26);
 		expect(entries.map((entry) => entry.preset.id)).toEqual([
 			"person-neon-outline",
 			"person-spotlight",
@@ -189,12 +189,20 @@ describe("effect catalog", () => {
 			"person-motion-trail",
 			"person-shatter-clones",
 			"person-dot-clones",
+			"person-question-marks",
+			"person-hearts-orbit",
+			"person-idea-bulb",
+			"person-anger-burst",
+			"person-hp-bar",
+			"person-big-head",
 		]);
 		expect(
 			entries.every(
 				(entry) =>
 					entry.render.parity === "verified" &&
-					entry.preset.renderProgram?.stages[0]?.kind === "person-tracking"
+					["person-tracking", "decoration"].includes(
+						entry.preset.renderProgram?.stages[0]?.kind ?? ""
+					)
 			)
 		).toBe(true);
 	});
