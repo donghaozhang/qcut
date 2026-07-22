@@ -65,7 +65,15 @@ export interface EffectPersonTrackingRenderStage {
 	intensity?: number;
 	vignette?: boolean;
 	stroke?: {
-		style: string;
+		style:
+			| "solid"
+			| "electric"
+			| "rainbow"
+			| "flow"
+			| "crayon"
+			| "handwritten"
+			| "shatter"
+			| "neon";
 		color: string;
 		width: number;
 		glow: number;

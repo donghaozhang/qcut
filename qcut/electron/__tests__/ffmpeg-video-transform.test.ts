@@ -367,6 +367,54 @@ describe("FFmpeg video transform filters", () => {
 		).toThrow(/Missing FFmpeg input for distortion effect/);
 	});
 
+	it("keeps echo and big-head person graphs free of dangling split pads", () => {
+		for (const [treatment, extra] of [
+			["echo", { echoVariant: "strobe" }],
+			["big-head", { intensity: 1 }],
+		] as const) {
+			const result = buildVideoTimelineFilters({
+				videoSources: [
+					{
+						path: "/person.mp4",
+						startTime: 0,
+						duration: 2,
+						effectRenderProgram: {
+							version: 1,
+							stages: [
+								{
+									kind: "person-tracking",
+									target: "person",
+									treatment,
+									fallback: "disable",
+									...extra,
+								},
+							],
+						},
+						effectPersonSources: [
+							{
+								stageIndex: 0,
+								path: "/person-alpha.webm",
+								animated: true,
+								inputIndex: 1,
+							},
+						],
+					},
+				],
+				width: 640,
+				height: 360,
+				fps: 30,
+				totalDuration: 2,
+			});
+			const filter = result.filterSteps.join(";");
+			// The focus-family split must not run for these treatments — its
+			// unconsumed pads would make FFmpeg reject the whole graph.
+			expect(filter).not.toContain("_background_input");
+			// Every produced label must be consumed exactly once downstream.
+			const produced = [...filter.matchAll(/\[([a-z0-9_]+)\]$/gim)];
+			expect(produced.length).toBeGreaterThan(0);
+		}
+	});
+
 	it("throws when a procedural stage is missing its FFmpeg input", () => {
 		expect(() =>
 			buildVideoTimelineFilters({

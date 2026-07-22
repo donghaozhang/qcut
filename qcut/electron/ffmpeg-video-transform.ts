@@ -1233,15 +1233,6 @@ function buildEffectPersonFilters({
 			continue;
 		}
 
-		const backgroundInput = `${prefix}_background_input`;
-		const foregroundInput = `${prefix}_foreground_input`;
-		const background = `${prefix}_background`;
-		const foregroundRgba = `${prefix}_foreground_rgba`;
-		const foreground = `${prefix}_foreground`;
-		const composed = `${prefix}_composed`;
-		filterSteps.push(
-			`[${stageInput}]split=2[${backgroundInput}][${foregroundInput}]`
-		);
 		if (stage.treatment === "big-head") {
 			const scale = (
 				1 +
@@ -1264,13 +1255,13 @@ function buildEffectPersonFilters({
 			filterSteps.push(
 				`[${stageInput}][${personB}]overlay=shortest=1:format=auto[${withPerson}]`
 			);
-			const composed = `${prefix}_bighead_composed`;
+			const bigHeadComposed = `${prefix}_bighead_composed`;
 			filterSteps.push(
-				`[${withPerson}][${headScaled}]overlay=x='(W-w)/2':y='-(h-H*0.42)*0.75':shortest=1:format=auto[${composed}]`
+				`[${withPerson}][${headScaled}]overlay=x='(W-w)/2':y='-(h-H*0.42)*0.75':shortest=1:format=auto[${bigHeadComposed}]`
 			);
 			outputLabel = blendEffectWindow({
 				baseLabel,
-				effectLabel: composed,
+				effectLabel: bigHeadComposed,
 				filterSteps,
 				outputLabel: `${prefix}_windowed`,
 				window: stage.window,
@@ -1292,7 +1283,7 @@ function buildEffectPersonFilters({
 			filterSteps.push(
 				`[${person}]split=${copyCount + 1}${copies.map((label) => `[${label}]`).join("")}`
 			);
-			let composed = stageInput;
+			let echoComposed = stageInput;
 			for (let index = 0; index < copyCount; index += 1) {
 				const ghost = `${prefix}_echo_ghost_${index}`;
 				const alpha = (0.5 - index * 0.13).toFixed(2);
@@ -1314,13 +1305,13 @@ function buildEffectPersonFilters({
 				filterSteps.push(`[${copies[index]}]${chain}[${treatedGhost}]`);
 				const next = `${prefix}_echo_stack_${index}`;
 				filterSteps.push(
-					`[${composed}][${treatedGhost}]overlay=x='${x}':y='${y}':shortest=1:format=auto[${next}]`
+					`[${echoComposed}][${treatedGhost}]overlay=x='${x}':y='${y}':shortest=1:format=auto[${next}]`
 				);
-				composed = next;
+				echoComposed = next;
 			}
 			const final = `${prefix}_echo_final`;
 			filterSteps.push(
-				`[${composed}][${copies[copyCount]}]overlay=shortest=1:format=auto[${final}]`
+				`[${echoComposed}][${copies[copyCount]}]overlay=shortest=1:format=auto[${final}]`
 			);
 			outputLabel = blendEffectWindow({
 				baseLabel,
@@ -1332,6 +1323,15 @@ function buildEffectPersonFilters({
 			continue;
 		}
 
+		const backgroundInput = `${prefix}_background_input`;
+		const foregroundInput = `${prefix}_foreground_input`;
+		const background = `${prefix}_background`;
+		const foregroundRgba = `${prefix}_foreground_rgba`;
+		const foreground = `${prefix}_foreground`;
+		const composed = `${prefix}_composed`;
+		filterSteps.push(
+			`[${stageInput}]split=2[${backgroundInput}][${foregroundInput}]`
+		);
 		const focusIntensity = Math.min(2, Math.max(0.5, stage.intensity ?? 1));
 		if (stage.treatment === "spotlight") {
 			const dim = (-0.28 * focusIntensity).toFixed(3);
