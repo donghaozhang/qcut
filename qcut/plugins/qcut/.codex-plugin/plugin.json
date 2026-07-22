@@ -1,6 +1,6 @@
 {
 	"name": "qcut",
-	"version": "0.1.0+codex.20260722054616",
+	"version": "0.1.0+codex.20260722063654",
 	"description": "Create media and control the QCut desktop video editor from Codex.",
 	"author": {
 		"name": "QCut Team",
@@ -26,8 +26,7 @@
 		"defaultPrompt": [
 			"Check whether QCut is installed, help me install the official latest release if needed, and open my project on the Media page.",
 			"Use QCut to transcribe this video and prepare an editable timeline.",
-			"Open my QCut project, inspect the timeline, and make the requested edits.",
-			"Generate media with QCut and add the result to the current project."
+			"Open my QCut project, inspect the timeline, and make the requested edits or generate media."
 		]
 	}
 }
