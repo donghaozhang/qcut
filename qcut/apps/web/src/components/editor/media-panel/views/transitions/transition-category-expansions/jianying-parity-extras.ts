@@ -375,7 +375,7 @@ const fillerSweepEmoji = categoryExpansion({
 			"texture",
 			"texture-mask",
 			0.45,
-			{ maskShape: "clock", tags: ["star", "spin"] },
+			{ maskShape: "star", tags: ["star", "spin"] },
 		],
 		[
 			"heartbeat-zoom",
