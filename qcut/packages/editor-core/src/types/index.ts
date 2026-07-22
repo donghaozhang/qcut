@@ -98,6 +98,7 @@ export type {
 	ClipTransition,
 	ClipTransitionDirection,
 	ClipTransitionEasing,
+	ClipTransitionMaskShape,
 	ClipTransitionKeyframeEasing,
 	ClipTransitionTuning,
 	ClipTransitionTuningKeyframe,

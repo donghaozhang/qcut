@@ -89,6 +89,20 @@ const TUNING_CONTROLS: Partial<
 	],
 	"page-flip": [{ ...INTENSITY_CONTROL, label: "立体阴影" }],
 	"texture-mask": [{ ...FREQUENCY_CONTROL, label: "纹理密度" }],
+	vortex: [{ ...INTENSITY_CONTROL, label: "旋转强度" }],
+	cube: [{ ...INTENSITY_CONTROL, label: "立体阴影" }],
+	"color-swipe": [
+		{
+			property: "tint",
+			label: "色块颜色",
+			kind: "color",
+			defaultValue: "#ffd233",
+		},
+	],
+	shockwave: [
+		{ ...INTENSITY_CONTROL, label: "冲击强度" },
+		{ ...FREQUENCY_CONTROL, label: "波纹密度" },
+	],
 	"lens-flare": [
 		{ ...INTENSITY_CONTROL, label: "光斑强度" },
 		{

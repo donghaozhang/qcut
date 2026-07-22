@@ -86,6 +86,10 @@ export const CLIP_TRANSITION_TYPES = [
 	"page-flip",
 	"texture-mask",
 	"lens-flare",
+	"vortex",
+	"shockwave",
+	"cube",
+	"color-swipe",
 ] as const satisfies readonly ClipTransitionType[];
 
 const TRANSITION_TYPES = new Set<ClipTransitionType>(CLIP_TRANSITION_TYPES);

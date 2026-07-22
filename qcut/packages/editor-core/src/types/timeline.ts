@@ -156,7 +156,11 @@ export type ClipTransitionType =
 	| "glass-refraction"
 	| "page-flip"
 	| "texture-mask"
-	| "lens-flare";
+	| "lens-flare"
+	| "vortex"
+	| "shockwave"
+	| "cube"
+	| "color-swipe";
 
 export type ClipTransitionDirection = "left" | "right" | "up" | "down";
 
@@ -188,6 +192,27 @@ export type ClipTransitionTuningKeyframes = Partial<
 	Record<ClipTransitionTuningProperty, ClipTransitionTuningKeyframe[]>
 >;
 
+/**
+ * Procedural wipe geometry for texture-mask transitions. Geometric shapes
+ * reveal through animated clip paths; ink/cloud/fog/drip reveal through a
+ * deterministic noise threshold.
+ */
+export type ClipTransitionMaskShape =
+	| "circle"
+	| "clock"
+	| "blinds"
+	| "cross"
+	| "triptych"
+	| "arrow"
+	| "heart"
+	| "star"
+	| "ink"
+	| "cloud"
+	| "fog"
+	| "drip"
+	| "curtain"
+	| "diagonal";
+
 /** A visual transition joining two touching media elements on one track. */
 export interface ClipTransition {
 	id: string;
@@ -200,6 +225,7 @@ export interface ClipTransition {
 	easing: ClipTransitionEasing;
 	tuning?: ClipTransitionTuning;
 	tuningKeyframes?: ClipTransitionTuningKeyframes;
+	maskShape?: ClipTransitionMaskShape;
 }
 
 export type MediaComboAnimationType = "none" | "pulse" | "drift";

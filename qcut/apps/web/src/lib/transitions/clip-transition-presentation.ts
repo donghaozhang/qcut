@@ -88,8 +88,8 @@ export function buildClipTransitionMaskStyle({
 		WebkitMaskSize: presentation.maskSize,
 		maskPosition: presentation.maskPosition,
 		WebkitMaskPosition: presentation.maskPosition,
-		maskRepeat: "repeat",
-		WebkitMaskRepeat: "repeat",
+		maskRepeat: presentation.maskRepeat ?? "repeat",
+		WebkitMaskRepeat: presentation.maskRepeat ?? "repeat",
 	};
 }
 
