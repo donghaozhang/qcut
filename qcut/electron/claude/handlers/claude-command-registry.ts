@@ -191,6 +191,10 @@ const PARAM_PROPERTIES: Record<string, ParamProperty> = {
 		description: "Horizontal scroll delta (--delta-x).",
 	},
 	deltaY: { type: "number", description: "Vertical scroll delta (--delta-y)." },
+	foreground: {
+		type: "boolean",
+		description: "Activate QCut and use native Electron input (--foreground).",
+	},
 	interactive: {
 		type: "boolean",
 		description: "Include only interactive snapshot elements (--interactive).",
@@ -972,6 +976,7 @@ function getCommandParamsSchema({
 
 		if (module === "pointer") {
 			removeKey({ values: required, key: "projectId" });
+			if (action !== "hide") add("foreground");
 			if (action === "drag") {
 				add("fromRef", "fromX", "fromY", "toRef", "toX", "toY");
 			} else if (action === "scroll") {

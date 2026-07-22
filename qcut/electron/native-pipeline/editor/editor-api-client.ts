@@ -76,6 +76,13 @@ interface EndpointCapabilityRequirement {
 	minVersion?: string;
 }
 
+export interface RequiredEditorCapability {
+	name: string;
+	minVersion: string;
+	feature: string;
+	remediation?: string;
+}
+
 export interface PollOptions {
 	interval?: number;
 	timeout?: number;
@@ -101,7 +108,7 @@ export interface SseEvent {
 /** EditorApiClient class. */
 export class EditorApiClient {
 	private config: EditorApiConfig;
-	private capabilityManifestCache: CapabilityManifest | null | undefined;
+	private capabilityManifestCache: CapabilityManifest | undefined;
 	private capabilityNegotiationPromise: Promise<CapabilityManifest | null> | null =
 		null;
 	private warningCache = new Set<string>();
@@ -132,7 +139,7 @@ export class EditorApiClient {
 
 	async negotiateCapabilities(): Promise<CapabilityManifest | null> {
 		try {
-			if (this.capabilityManifestCache !== undefined) {
+			if (this.capabilityManifestCache) {
 				return this.capabilityManifestCache;
 			}
 
@@ -147,7 +154,6 @@ export class EditorApiClient {
 						`${this.config.baseUrl}/api/claude/capabilities`
 					);
 					if (!this.isCapabilityManifest(manifest)) {
-						this.capabilityManifestCache = null;
 						this.warnOnce({
 							key: "capabilities:invalid-manifest",
 							message:
@@ -158,7 +164,6 @@ export class EditorApiClient {
 					this.capabilityManifestCache = manifest;
 					return manifest;
 				} catch (error) {
-					this.capabilityManifestCache = null;
 					if (
 						error instanceof EditorApiError &&
 						(error.statusCode === 404 || error.statusCode === 501)
@@ -191,6 +196,56 @@ export class EditorApiClient {
 			return await this.capabilityNegotiationPromise;
 		} catch {
 			return null;
+		}
+	}
+
+	/** Require an advertised server capability when downgrading would be unsafe. */
+	async requireCapability({
+		name,
+		minVersion,
+		feature,
+		remediation,
+	}: RequiredEditorCapability): Promise<void> {
+		const manifest = await this.negotiateCapabilities();
+		const requirement = `'${name}' ${minVersion}+`;
+		const nextStep = remediation?.trim()
+			? ` ${remediation.trim()}`
+			: " Update the running QCut editor and try again.";
+
+		if (!manifest) {
+			throw new EditorApiError(
+				`${feature} requires QCut capability ${requirement}, but the running editor did not provide a valid capability manifest.${nextStep}`
+			);
+		}
+
+		const capability = manifest.capabilities.find(
+			(entry) => entry?.name === name
+		);
+		if (!capability) {
+			throw new EditorApiError(
+				`${feature} requires QCut capability ${requirement}, but the running editor does not advertise it.${nextStep}`
+			);
+		}
+		if (!this.parseSemver({ value: minVersion })) {
+			throw new EditorApiError(
+				`${feature} has an invalid minimum capability version '${minVersion}'.`
+			);
+		}
+		if (
+			typeof capability.version !== "string" ||
+			!this.parseSemver({ value: capability.version })
+		) {
+			throw new EditorApiError(
+				`${feature} requires QCut capability ${requirement}, but the running editor advertises an invalid version.${nextStep}`
+			);
+		}
+
+		if (
+			this.compareSemver({ left: capability.version, right: minVersion }) < 0
+		) {
+			throw new EditorApiError(
+				`${feature} requires QCut capability ${requirement}, but the running editor advertises ${capability.version}.${nextStep}`
+			);
 		}
 	}
 

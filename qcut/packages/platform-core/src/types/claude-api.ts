@@ -360,6 +360,7 @@ export interface PlatformAgentPointerVisualState {
 	pressed: boolean;
 	dragging: boolean;
 	button: "left" | "middle" | "right" | null;
+	inputMode: "background" | "foreground" | null;
 	pulseId: number;
 	sequence: number;
 	timestamp: number;

@@ -33,6 +33,29 @@ function mockRoute(method: string, path: string, body: unknown, status = 200) {
 	routes.set(`${method} ${path}`, { status, body });
 }
 
+function mockCapabilityManifest({
+	capabilities,
+	apiVersion = "1.3.0",
+}: {
+	capabilities: { name: string; version: string }[];
+	apiVersion?: string;
+}) {
+	mockRoute("GET", "/api/claude/capabilities", {
+		success: true,
+		data: {
+			apiVersion,
+			protocolVersion: "1.0.0",
+			capabilities: capabilities.map(({ name, version }) => ({
+				name,
+				version,
+				description: `${name} test capability`,
+				since: "1.0.0",
+				category: "state",
+			})),
+		},
+	});
+}
+
 /** Handle clear routes. */
 function clearRoutes() {
 	routes.clear();
@@ -187,6 +210,35 @@ describe("EditorApiClient", () => {
 			installFetchMock(BASE_URL);
 		});
 
+		it("retries strict negotiation after a transient failure", async () => {
+			const freshClient = new EditorApiClient({ baseUrl: BASE_URL });
+			const warnSpy = vi.spyOn(console, "warn").mockImplementation(() => {});
+			const requirement = {
+				name: "state.pointer",
+				minVersion: "1.1.0",
+				feature: "Background pointer input",
+			};
+
+			mockRoute(
+				"GET",
+				"/api/claude/capabilities",
+				{ success: false, error: "Editor is still starting" },
+				503
+			);
+			await expect(freshClient.requireCapability(requirement)).rejects.toThrow(
+				"did not provide a valid capability manifest"
+			);
+
+			mockCapabilityManifest({
+				capabilities: [{ name: "state.pointer", version: "1.1.0" }],
+			});
+			await expect(
+				freshClient.requireCapability(requirement)
+			).resolves.toBeUndefined();
+
+			warnSpy.mockRestore();
+		});
+
 		it("warns before calling an endpoint when required capability is missing", async () => {
 			const freshClient = new EditorApiClient({ baseUrl: BASE_URL });
 			const warnSpy = vi.spyOn(console, "warn").mockImplementation(() => {});
@@ -234,6 +286,98 @@ describe("EditorApiClient", () => {
 			});
 
 			await expect(freshClient.getApiVersion()).resolves.toBe("1.2.3");
+		});
+
+		it("accepts a capability at the required minimum version", async () => {
+			const freshClient = new EditorApiClient({ baseUrl: BASE_URL });
+
+			mockCapabilityManifest({
+				capabilities: [{ name: "state.pointer", version: "1.1.0" }],
+			});
+
+			await expect(
+				freshClient.requireCapability({
+					name: "state.pointer",
+					minVersion: "1.1.0",
+					feature: "Background pointer input",
+				})
+			).resolves.toBeUndefined();
+		});
+
+		it("rejects an older capability even when warning checks are disabled", async () => {
+			const freshClient = new EditorApiClient({
+				baseUrl: BASE_URL,
+				skipCapabilityCheck: true,
+			});
+
+			mockCapabilityManifest({
+				capabilities: [{ name: "state.pointer", version: "1.0.0" }],
+				apiVersion: "1.2.0",
+			});
+
+			await expect(
+				freshClient.requireCapability({
+					name: "state.pointer",
+					minVersion: "1.1.0",
+					feature: "Background pointer input",
+					remediation:
+						"Update QCut. Editors advertising state.pointer 1.0.0 can retry with --foreground.",
+				})
+			).rejects.toThrow(
+				"running editor advertises 1.0.0. Update QCut. Editors advertising state.pointer 1.0.0 can retry with --foreground."
+			);
+		});
+
+		it("rejects a malformed advertised capability version", async () => {
+			const freshClient = new EditorApiClient({ baseUrl: BASE_URL });
+
+			mockCapabilityManifest({
+				capabilities: [{ name: "state.pointer", version: "latest" }],
+			});
+
+			await expect(
+				freshClient.requireCapability({
+					name: "state.pointer",
+					minVersion: "1.1.0",
+					feature: "Background pointer input",
+				})
+			).rejects.toThrow("advertises an invalid version");
+		});
+
+		it("rejects a missing strict capability", async () => {
+			const freshClient = new EditorApiClient({ baseUrl: BASE_URL });
+
+			mockCapabilityManifest({ capabilities: [] });
+
+			await expect(
+				freshClient.requireCapability({
+					name: "state.pointer",
+					minVersion: "1.1.0",
+					feature: "Background pointer input",
+				})
+			).rejects.toThrow("does not advertise it");
+		});
+
+		it("rejects strict capability checks when negotiation is unavailable", async () => {
+			const freshClient = new EditorApiClient({ baseUrl: BASE_URL });
+			const warnSpy = vi.spyOn(console, "warn").mockImplementation(() => {});
+
+			mockRoute(
+				"GET",
+				"/api/claude/capabilities",
+				{ success: false, error: "Not found" },
+				404
+			);
+
+			await expect(
+				freshClient.requireCapability({
+					name: "state.pointer",
+					minVersion: "1.1.0",
+					feature: "Background pointer input",
+				})
+			).rejects.toThrow("did not provide a valid capability manifest");
+
+			warnSpy.mockRestore();
 		});
 	});
 

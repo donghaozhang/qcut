@@ -8,6 +8,10 @@ import type { AgentPointerResolvedTarget } from "../../types/claude-api.js";
 
 function createPointerHarness() {
 	const inputEvents: MouseInputEvent[] = [];
+	const debuggerCommands: Array<{
+		method: string;
+		params?: Record<string, unknown>;
+	}> = [];
 	const visualStates: Array<Record<string, unknown>> = [];
 	const resolvedTarget: AgentPointerResolvedTarget = {
 		ref: "@e12",
@@ -21,19 +25,43 @@ function createPointerHarness() {
 		disabled: false,
 	};
 	const resolveRef = vi.fn(async () => resolvedTarget);
-	const focus = vi.fn();
+	let focused = false;
+	let debuggerAttached = false;
+	const focus = vi.fn(() => {
+		focused = true;
+	});
 	let destroyed = false;
 	const win = {
 		isDestroyed: () => destroyed,
 		isVisible: () => true,
+		isFocused: () => focused,
+		isMinimized: () => false,
 		show: vi.fn(),
+		showInactive: vi.fn(),
+		restore: vi.fn(),
 		focus,
 		getContentSize: () => [1200, 800] as [number, number],
 		webContents: {
+			backgroundThrottling: true,
 			isDestroyed: () => destroyed,
+			isDevToolsOpened: () => false,
 			sendInputEvent: (event: MouseInputEvent) => inputEvents.push(event),
 			send: (_channel: string, state: Record<string, unknown>) =>
 				visualStates.push(state),
+			debugger: {
+				isAttached: () => debuggerAttached,
+				attach: vi.fn(() => {
+					debuggerAttached = true;
+				}),
+				detach: vi.fn(() => {
+					debuggerAttached = false;
+				}),
+				sendCommand: vi.fn(
+					async (method: string, params?: Record<string, unknown>) => {
+						debuggerCommands.push({ method, params });
+					}
+				),
+			},
 		},
 	} as unknown as BrowserWindow;
 	const controller = new AgentPointerController({
@@ -43,6 +71,7 @@ function createPointerHarness() {
 	});
 	return {
 		controller,
+		debuggerCommands,
 		destroy: () => {
 			destroyed = true;
 		},
@@ -55,7 +84,7 @@ function createPointerHarness() {
 }
 
 describe("AgentPointerController", () => {
-	it("resolves refs and clicks through real Electron input events", async () => {
+	it("uses background CDP input without focusing QCut by default", async () => {
 		const harness = createPointerHarness();
 
 		const result = await harness.controller.click({ ref: "@e12" });
@@ -64,30 +93,39 @@ describe("AgentPointerController", () => {
 			win: expect.anything(),
 			ref: "@e12",
 		});
-		expect(harness.focus).toHaveBeenCalled();
-		expect(harness.inputEvents.map((event) => event.type)).toEqual([
-			"mouseMove",
-			"mouseDown",
-			"mouseUp",
+		expect(harness.focus).not.toHaveBeenCalled();
+		expect(harness.inputEvents).toHaveLength(0);
+		expect(harness.debuggerCommands.map(({ params }) => params?.type)).toEqual([
+			"mouseMoved",
+			"mousePressed",
+			"mouseReleased",
 		]);
-		expect(harness.inputEvents.slice(1)).toEqual([
+		expect(harness.debuggerCommands.slice(1)).toEqual([
 			expect.objectContaining({
-				type: "mouseDown",
-				button: "left",
-				x: 240,
-				y: 180,
+				method: "Input.dispatchMouseEvent",
+				params: expect.objectContaining({
+					type: "mousePressed",
+					button: "left",
+					x: 240,
+					y: 180,
+				}),
 			}),
 			expect.objectContaining({
-				type: "mouseUp",
-				button: "left",
-				x: 240,
-				y: 180,
+				method: "Input.dispatchMouseEvent",
+				params: expect.objectContaining({
+					type: "mouseReleased",
+					button: "left",
+					x: 240,
+					y: 180,
+				}),
 			}),
 		]);
 		expect(result).toEqual(
 			expect.objectContaining({
 				action: "click",
-				input: "electron-send-input-event",
+				input: "cdp-dispatch-mouse-event",
+				inputMode: "background",
+				windowFocused: false,
 				x: 240,
 				y: 180,
 			})
@@ -96,13 +134,16 @@ describe("AgentPointerController", () => {
 			expect.objectContaining({
 				active: true,
 				action: "click",
+				inputMode: "background",
 				pulseId: 1,
 			})
 		);
 		await expect(harness.controller.hide()).resolves.toEqual({
 			action: "hidden",
 			visible: false,
-			input: "electron-send-input-event",
+			input: "cdp-dispatch-mouse-event",
+			inputMode: "background",
+			windowFocused: false,
 			x: 240,
 			y: 180,
 		});
@@ -110,10 +151,18 @@ describe("AgentPointerController", () => {
 
 	it("moves through intermediate hover points", async () => {
 		const harness = createPointerHarness();
-		await harness.controller.move({ x: 40, y: 40 });
+		await harness.controller.move({
+			x: 40,
+			y: 40,
+			inputMode: "foreground",
+		});
 		harness.inputEvents.splice(0, harness.inputEvents.length);
 
-		await harness.controller.hover({ x: 740, y: 440 });
+		await harness.controller.hover({
+			x: 740,
+			y: 440,
+			inputMode: "foreground",
+		});
 
 		expect(harness.inputEvents.length).toBeGreaterThan(3);
 		expect(
@@ -123,8 +172,14 @@ describe("AgentPointerController", () => {
 			expect.objectContaining({ x: 740, y: 440 })
 		);
 		expect(harness.visualStates.at(-1)).toEqual(
-			expect.objectContaining({ action: "hover", x: 740, y: 440 })
+			expect.objectContaining({
+				action: "hover",
+				inputMode: "foreground",
+				x: 740,
+				y: 440,
+			})
 		);
+		expect(harness.focus).toHaveBeenCalled();
 		await harness.controller.hide();
 	});
 
@@ -134,6 +189,7 @@ describe("AgentPointerController", () => {
 		const result = await harness.controller.drag({
 			from: { x: 200, y: 700 },
 			to: { x: 820, y: 700 },
+			inputMode: "foreground",
 		});
 
 		const downIndex = harness.inputEvents.findIndex(
@@ -169,6 +225,7 @@ describe("AgentPointerController", () => {
 			harness.controller.drag({
 				from: { x: 200, y: 700 },
 				to: { x: 1400, y: 700 },
+				inputMode: "foreground",
 			})
 		).rejects.toThrow("outside the editor viewport");
 
@@ -190,7 +247,11 @@ describe("AgentPointerController", () => {
 	it("supports double-click, right-click, wheel, and hide", async () => {
 		const harness = createPointerHarness();
 
-		await harness.controller.doubleClick({ x: 300, y: 250 });
+		await harness.controller.doubleClick({
+			x: 300,
+			y: 250,
+			inputMode: "foreground",
+		});
 		const doubleClickEvents = harness.inputEvents.filter(
 			(event) => event.type === "mouseDown" || event.type === "mouseUp"
 		);
@@ -199,7 +260,11 @@ describe("AgentPointerController", () => {
 		]);
 
 		harness.inputEvents.splice(0, harness.inputEvents.length);
-		await harness.controller.rightClick({ x: 320, y: 260 });
+		await harness.controller.rightClick({
+			x: 320,
+			y: 260,
+			inputMode: "foreground",
+		});
 		expect(
 			harness.inputEvents
 				.filter((event) => event.type !== "mouseMove")
@@ -212,7 +277,10 @@ describe("AgentPointerController", () => {
 		).toBe(true);
 
 		harness.inputEvents.splice(0, harness.inputEvents.length);
-		const scrollResult = await harness.controller.scroll({ deltaY: 400 });
+		const scrollResult = await harness.controller.scroll({
+			deltaY: 400,
+			inputMode: "foreground",
+		});
 		expect(harness.inputEvents).toContainEqual(
 			expect.objectContaining({ type: "mouseWheel", deltaY: 400 })
 		);

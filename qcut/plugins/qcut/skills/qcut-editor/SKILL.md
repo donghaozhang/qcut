@@ -111,12 +111,32 @@ node <plugin-root>/scripts/qcut-runner.mjs editor:pointer:scroll --ref @e27 --de
 node <plugin-root>/scripts/qcut-runner.mjs editor:pointer:hide --json
 ```
 
-The desktop app displays the Agent cursor, operation status, click ripple, and
-drag trail. Click, double-click, right-click, and drag use real Electron mouse
-input. Use coordinates only when a snapshot ref cannot represent the target,
-and keep them inside the current editor viewport. Click, double-click,
-right-click, and drag are confirmation-tier actions; use `--force` only after
-the requested action and target are clear.
+Pointer actions use background input by default. QCut can remain visible while
+another application keeps keyboard focus, so the user can watch the Agent
+cursor without losing control of their active window. Successful results report
+`inputMode: "background"`, `input: "cdp-dispatch-mouse-event"`, and whether the
+QCut window was focused when the action completed.
+
+Use `--foreground` only when the user explicitly wants QCut activated or a
+control requires Electron's native `sendInputEvent()` path:
+
+```bash
+node <plugin-root>/scripts/qcut-runner.mjs editor:pointer:click --ref @e12 --foreground --force --json
+```
+
+Background mode fails without focusing QCut when DevTools or another debugger
+already owns the renderer's CDP connection. Close that debugger or explicitly
+retry with `--foreground`; never silently change modes. The desktop app displays
+the Agent cursor, operation status, click ripple, and drag trail in either mode.
+The CLI also requires the running editor to advertise `state.pointer` version
+`1.1.0` or newer for background actions. This safety check remains active with
+`--no-capability-check`. Update a build that does not advertise `state.pointer`;
+an editor advertising version `1.0.0` may use `--foreground` after confirming
+that focus may move.
+Use coordinates only when a snapshot ref cannot represent the target, and keep
+them inside the current editor viewport. Click, double-click, right-click, and
+drag are confirmation-tier actions; use `--force` only after the requested
+action and target are clear.
 
 ## Editing rules
 

@@ -15,12 +15,18 @@ import {
 import { AgentPointerError } from "./agent-pointer-error.js";
 import {
 	AgentPointerInput,
+	type AgentPointerInputSession,
 	hasExplicitPointerTarget,
 } from "./agent-pointer-input.js";
 import {
 	buildPointerMovementPath,
 	POINTER_MOVE_STEP_MS,
 } from "./agent-pointer-motion.js";
+import { AgentPointerOperationQueue } from "./agent-pointer-operation-queue.js";
+import {
+	AgentPointerTargetResolver,
+	type ResolveAgentPointerRef,
+} from "./agent-pointer-target-resolver.js";
 import { AgentPointerVisualStateStore } from "./agent-pointer-visual-state.js";
 
 export { AgentPointerError } from "./agent-pointer-error.js";
@@ -29,11 +35,6 @@ export { buildPointerMovementPath } from "./agent-pointer-motion.js";
 const POINTER_PRESS_MS = 55;
 const POINTER_DOUBLE_CLICK_GAP_MS = 80;
 const POINTER_HOVER_SETTLE_MS = 180;
-
-type ResolveAgentPointerRef = (input: {
-	win: BrowserWindow;
-	ref: string;
-}) => Promise<AgentPointerResolvedTarget>;
 
 type Sleep = (input: { durationMs: number }) => Promise<void>;
 
@@ -44,6 +45,7 @@ interface AgentPointerControllerOptions {
 }
 
 interface MovePathOptions {
+	session: AgentPointerInputSession;
 	points: AgentPointerPoint[];
 	index?: number;
 	action: AgentPointerAction;
@@ -52,6 +54,7 @@ interface MovePathOptions {
 }
 
 interface MoveToOptions {
+	session: AgentPointerInputSession;
 	target: AgentPointerTarget;
 	action: AgentPointerAction;
 	button?: AgentPointerButton | null;
@@ -59,6 +62,7 @@ interface MoveToOptions {
 }
 
 interface PressCycleOptions {
+	session: AgentPointerInputSession;
 	target: AgentPointerResolvedTarget;
 	action: "click" | "double-click" | "right-click";
 	button: "left" | "right";
@@ -70,23 +74,26 @@ function defaultSleep({ durationMs }: { durationMs: number }): Promise<void> {
 }
 
 export class AgentPointerController {
-	private readonly win: BrowserWindow;
-	private readonly resolveRef: ResolveAgentPointerRef;
 	private readonly sleep: Sleep;
 	private readonly input: AgentPointerInput;
+	private readonly operations: AgentPointerOperationQueue;
+	private readonly targets: AgentPointerTargetResolver;
 	private readonly visual: AgentPointerVisualStateStore;
 	private currentPosition: AgentPointerPoint | null = null;
-	private queue: Promise<void> = Promise.resolve();
 
 	constructor({
 		win,
 		resolveRef,
 		sleep = defaultSleep,
 	}: AgentPointerControllerOptions) {
-		this.win = win;
-		this.resolveRef = resolveRef;
 		this.sleep = sleep;
 		this.input = new AgentPointerInput({ win });
+		this.operations = new AgentPointerOperationQueue({ input: this.input });
+		this.targets = new AgentPointerTargetResolver({
+			win,
+			input: this.input,
+			resolveRef,
+		});
 		this.visual = new AgentPointerVisualStateStore({ win });
 	}
 
@@ -95,52 +102,71 @@ export class AgentPointerController {
 	}
 
 	move(request: AgentPointerMoveRequest): Promise<AgentPointerResult> {
-		return this.enqueue({
-			operation: async () => {
-				const target = await this.moveTo({ target: request, action: "move" });
+		return this.operations.runInput({
+			inputMode: request.inputMode,
+			operation: async ({ session }) => {
+				const target = await this.moveTo({
+					session,
+					target: request,
+					action: "move",
+				});
 				this.visual.scheduleIdle();
-				return this.buildResult({ action: "move", target });
+				return this.buildResult({ session, action: "move", target });
 			},
 		});
 	}
 
 	hover(request: AgentPointerMoveRequest): Promise<AgentPointerResult> {
-		return this.enqueue({
-			operation: async () => {
-				const target = await this.moveTo({ target: request, action: "hover" });
+		return this.operations.runInput({
+			inputMode: request.inputMode,
+			operation: async ({ session }) => {
+				const target = await this.moveTo({
+					session,
+					target: request,
+					action: "hover",
+				});
 				await this.sleep({ durationMs: POINTER_HOVER_SETTLE_MS });
 				this.visual.scheduleIdle();
-				return this.buildResult({ action: "hover", target });
+				return this.buildResult({ session, action: "hover", target });
 			},
 		});
 	}
 
 	click(request: AgentPointerClickRequest): Promise<AgentPointerResult> {
-		return this.enqueue({
-			operation: async () => {
-				const target = await this.moveTo({ target: request, action: "click" });
-				this.assertTargetEnabled({ target });
+		return this.operations.runInput({
+			inputMode: request.inputMode,
+			operation: async ({ session }) => {
+				const target = await this.moveTo({
+					session,
+					target: request,
+					action: "click",
+				});
+				this.targets.assertEnabled({ target });
 				await this.pressCycle({
+					session,
 					target,
 					action: "click",
 					button: "left",
 					clickCount: 1,
 				});
 				this.visual.scheduleIdle();
-				return this.buildResult({ action: "click", target });
+				return this.buildResult({ session, action: "click", target });
 			},
 		});
 	}
 
 	doubleClick(request: AgentPointerClickRequest): Promise<AgentPointerResult> {
-		return this.enqueue({
-			operation: async () => {
+		return this.operations.runInput({
+			inputMode: request.inputMode,
+			operation: async ({ session }) => {
 				const target = await this.moveTo({
+					session,
 					target: request,
 					action: "double-click",
 				});
-				this.assertTargetEnabled({ target });
+				this.targets.assertEnabled({ target });
 				await this.pressCycle({
+					session,
 					target,
 					action: "double-click",
 					button: "left",
@@ -148,41 +174,55 @@ export class AgentPointerController {
 				});
 				await this.sleep({ durationMs: POINTER_DOUBLE_CLICK_GAP_MS });
 				await this.pressCycle({
+					session,
 					target,
 					action: "double-click",
 					button: "left",
 					clickCount: 2,
 				});
 				this.visual.scheduleIdle();
-				return this.buildResult({ action: "double-click", target });
+				return this.buildResult({
+					session,
+					action: "double-click",
+					target,
+				});
 			},
 		});
 	}
 
 	rightClick(request: AgentPointerClickRequest): Promise<AgentPointerResult> {
-		return this.enqueue({
-			operation: async () => {
+		return this.operations.runInput({
+			inputMode: request.inputMode,
+			operation: async ({ session }) => {
 				const target = await this.moveTo({
+					session,
 					target: request,
 					action: "right-click",
 				});
-				this.assertTargetEnabled({ target });
+				this.targets.assertEnabled({ target });
 				await this.pressCycle({
+					session,
 					target,
 					action: "right-click",
 					button: "right",
 					clickCount: 1,
 				});
 				this.visual.scheduleIdle();
-				return this.buildResult({ action: "right-click", target });
+				return this.buildResult({
+					session,
+					action: "right-click",
+					target,
+				});
 			},
 		});
 	}
 
 	drag(request: AgentPointerDragRequest): Promise<AgentPointerResult> {
-		return this.enqueue({
-			operation: async () => {
+		return this.operations.runInput({
+			inputMode: request.inputMode,
+			operation: async ({ session }) => {
 				const from = await this.moveTo({
+					session,
 					target: request.from,
 					action: "drag",
 				});
@@ -191,11 +231,13 @@ export class AgentPointerController {
 				try {
 					this.visual.update({
 						action: "drag",
+						inputMode: session.inputMode,
 						pressed: true,
 						dragging: true,
 						button: "left",
 					});
-					this.input.sendMouse({
+					await this.input.sendMouse({
+						session,
 						type: "mouseDown",
 						point: from,
 						button: "left",
@@ -205,6 +247,7 @@ export class AgentPointerController {
 					await this.sleep({ durationMs: POINTER_PRESS_MS });
 
 					destination = await this.moveTo({
+						session,
 						target: request.to,
 						action: "drag",
 						button: "left",
@@ -213,7 +256,8 @@ export class AgentPointerController {
 				} finally {
 					try {
 						if (buttonDown) {
-							this.input.sendMouse({
+							await this.input.sendMouse({
+								session,
 								type: "mouseUp",
 								point: this.currentPosition ?? from,
 								button: "left",
@@ -223,6 +267,7 @@ export class AgentPointerController {
 					} finally {
 						this.visual.update({
 							action: "drag",
+							inputMode: session.inputMode,
 							pressed: false,
 							dragging: false,
 							button: null,
@@ -237,26 +282,42 @@ export class AgentPointerController {
 						statusCode: 500,
 					});
 				}
-				return this.buildResult({ action: "drag", target: destination });
+				return this.buildResult({
+					session,
+					action: "drag",
+					target: destination,
+				});
 			},
 		});
 	}
 
 	scroll(request: AgentPointerScrollRequest): Promise<AgentPointerResult> {
-		return this.enqueue({
-			operation: async () => {
+		return this.operations.runInput({
+			inputMode: request.inputMode,
+			operation: async ({ session }) => {
 				const target = hasExplicitPointerTarget({ target: request })
-					? await this.moveTo({ target: request, action: "scroll" })
-					: await this.resolveCurrentOrCenter();
-				this.input.ensureWindowReady();
-				this.visual.update({ action: "scroll", x: target.x, y: target.y });
+					? await this.moveTo({ session, target: request, action: "scroll" })
+					: this.targets.currentOrCenter({
+							currentPosition: this.currentPosition,
+						});
+				this.visual.update({
+					action: "scroll",
+					inputMode: session.inputMode,
+					x: target.x,
+					y: target.y,
+				});
 
 				const deltaX = request.deltaX ?? 0;
 				const deltaY = request.deltaY ?? 0;
-				this.input.sendWheel({ point: target, deltaX, deltaY });
+				await this.input.sendWheel({
+					session,
+					point: target,
+					deltaX,
+					deltaY,
+				});
 				this.visual.scheduleIdle();
 				return {
-					...this.buildResult({ action: "scroll", target }),
+					...this.buildResult({ session, action: "scroll", target }),
 					deltaX,
 					deltaY,
 				};
@@ -265,7 +326,7 @@ export class AgentPointerController {
 	}
 
 	hide(): Promise<AgentPointerResult> {
-		return this.enqueue({
+		return this.operations.run({
 			operation: async () => {
 				this.visual.clearIdle();
 				this.visual.update({
@@ -275,49 +336,41 @@ export class AgentPointerController {
 					pressed: false,
 					dragging: false,
 					button: null,
+					inputMode: null,
 					pulseId: 0,
 				});
 				const point = this.currentPosition ?? { x: 0, y: 0 };
+				const lastInput = this.operations.getLastInput();
 				return {
 					action: "hidden",
 					visible: false,
-					input: "electron-send-input-event",
+					input: lastInput.backend,
+					inputMode: lastInput.inputMode,
+					windowFocused: this.input.isWindowFocused(),
 					...point,
 				};
 			},
 		});
 	}
 
-	private enqueue<T>({
-		operation,
-	}: {
-		operation: () => Promise<T>;
-	}): Promise<T> {
-		const result = this.queue.then(operation, operation);
-		this.queue = result.then(
-			() => undefined,
-			() => undefined
-		);
-		return result;
-	}
-
 	private async moveTo({
+		session,
 		target,
 		action,
 		button = null,
 		dragging = false,
 	}: MoveToOptions): Promise<AgentPointerResolvedTarget> {
-		this.input.ensureWindowReady();
-		const resolvedTarget = await this.resolveTarget({ target });
+		const resolvedTarget = await this.targets.resolve({ target });
 		const points = buildPointerMovementPath({
 			from: this.currentPosition,
 			to: resolvedTarget,
 		});
-		await this.moveAlongPath({ points, action, button, dragging });
+		await this.moveAlongPath({ session, points, action, button, dragging });
 		return resolvedTarget;
 	}
 
 	private async moveAlongPath({
+		session,
 		points,
 		index = 0,
 		action,
@@ -328,7 +381,8 @@ export class AgentPointerController {
 		if (!point) return;
 
 		const previous = this.currentPosition;
-		this.input.sendMouse({
+		await this.input.sendMouse({
+			session,
 			type: "mouseMove",
 			point,
 			button: button ?? undefined,
@@ -339,6 +393,7 @@ export class AgentPointerController {
 		this.currentPosition = { x: point.x, y: point.y };
 		this.visual.update({
 			action,
+			inputMode: session.inputMode,
 			x: point.x,
 			y: point.y,
 			pressed: button !== null,
@@ -349,6 +404,7 @@ export class AgentPointerController {
 		if (index >= points.length - 1) return;
 		await this.sleep({ durationMs: POINTER_MOVE_STEP_MS });
 		await this.moveAlongPath({
+			session,
 			points,
 			index: index + 1,
 			action,
@@ -358,6 +414,7 @@ export class AgentPointerController {
 	}
 
 	private async pressCycle({
+		session,
 		target,
 		action,
 		button,
@@ -365,19 +422,22 @@ export class AgentPointerController {
 	}: PressCycleOptions): Promise<void> {
 		this.visual.update({
 			action,
+			inputMode: session.inputMode,
 			pressed: true,
 			button,
 			x: target.x,
 			y: target.y,
 		});
-		this.input.sendMouse({
+		await this.input.sendMouse({
+			session,
 			type: "mouseDown",
 			point: target,
 			button,
 			clickCount,
 		});
 		await this.sleep({ durationMs: POINTER_PRESS_MS });
-		this.input.sendMouse({
+		await this.input.sendMouse({
+			session,
 			type: "mouseUp",
 			point: target,
 			button,
@@ -385,77 +445,28 @@ export class AgentPointerController {
 		});
 		this.visual.update({
 			action,
+			inputMode: session.inputMode,
 			pressed: false,
 			button: null,
 			pulseId: this.visual.getState().pulseId + 1,
 		});
 	}
 
-	private async resolveTarget({
-		target,
-	}: {
-		target: AgentPointerTarget;
-	}): Promise<AgentPointerResolvedTarget> {
-		const ref = target.ref?.trim();
-		if (ref) {
-			const resolved = await this.resolveRef({ win: this.win, ref });
-			this.input.assertInsideViewport({ point: resolved });
-			return resolved;
-		}
-
-		const coordinateX = target.x;
-		const coordinateY = target.y;
-		if (
-			typeof coordinateX !== "number" ||
-			!Number.isFinite(coordinateX) ||
-			typeof coordinateY !== "number" ||
-			!Number.isFinite(coordinateY)
-		) {
-			throw new AgentPointerError({
-				message:
-					"Pointer target requires either 'ref' or finite 'x' and 'y' coordinates.",
-				statusCode: 400,
-			});
-		}
-
-		const point = {
-			x: Math.round(coordinateX),
-			y: Math.round(coordinateY),
-		};
-		this.input.assertInsideViewport({ point });
-		return point;
-	}
-
-	private async resolveCurrentOrCenter(): Promise<AgentPointerResolvedTarget> {
-		if (this.currentPosition) {
-			return { ...this.currentPosition };
-		}
-		return this.input.getViewportCenter();
-	}
-
-	private assertTargetEnabled({
-		target,
-	}: {
-		target: AgentPointerResolvedTarget;
-	}): void {
-		if (target.disabled !== true) return;
-		throw new AgentPointerError({
-			message: "Cannot interact with a disabled element.",
-			statusCode: 409,
-		});
-	}
-
 	private buildResult({
+		session,
 		action,
 		target,
 	}: {
+		session: AgentPointerInputSession;
 		action: AgentPointerAction;
 		target: AgentPointerResolvedTarget;
 	}): AgentPointerResult {
 		return {
 			action,
 			visible: true,
-			input: "electron-send-input-event",
+			input: session.backend,
+			inputMode: session.inputMode,
+			windowFocused: this.input.isWindowFocused(),
 			x: target.x,
 			y: target.y,
 			target,

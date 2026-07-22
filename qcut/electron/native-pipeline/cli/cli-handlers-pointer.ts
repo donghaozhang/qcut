@@ -12,6 +12,33 @@ interface PointerTargetOptions {
 	y?: number;
 }
 
+const BACKGROUND_POINTER_CAPABILITY = {
+	name: "state.pointer",
+	minVersion: "1.1.0",
+	feature: "Background pointer input",
+	remediation:
+		"Update QCut. Editors advertising state.pointer 1.0.0 can retry with --foreground.",
+} as const;
+
+function pointerInputMode({
+	options,
+}: {
+	options: CLIRunOptions;
+}): "background" | "foreground" {
+	return options.foreground ? "foreground" : "background";
+}
+
+async function requirePointerInputSupport({
+	client,
+	options,
+}: {
+	client: EditorApiClient;
+	options: CLIRunOptions;
+}): Promise<void> {
+	if (options.foreground) return;
+	await client.requireCapability(BACKGROUND_POINTER_CAPABILITY);
+}
+
 type PointerTargetResult =
 	| { ok: true; target: AgentPointerTarget }
 	| { ok: false; error: string };
@@ -59,10 +86,11 @@ async function postTargetAction({
 	});
 	if (!target.ok) return { success: false, error: target.error };
 
-	const data = await client.post(
-		`/api/claude/pointer/${action}`,
-		target.target
-	);
+	await requirePointerInputSupport({ client, options });
+	const data = await client.post(`/api/claude/pointer/${action}`, {
+		...target.target,
+		inputMode: pointerInputMode({ options }),
+	});
 	return { success: true, data };
 }
 
@@ -96,7 +124,9 @@ async function handleDrag({
 	const request: AgentPointerDragRequest = {
 		from: from.target,
 		to: to.target,
+		inputMode: pointerInputMode({ options }),
 	};
+	await requirePointerInputSupport({ client, options });
 	const data = await client.post("/api/claude/pointer/drag", request);
 	return { success: true, data };
 }
@@ -120,6 +150,7 @@ async function handleScroll({
 	}
 
 	const request: AgentPointerScrollRequest = {
+		inputMode: pointerInputMode({ options }),
 		...(hasDeltaX ? { deltaX: options.deltaX } : {}),
 		...(hasDeltaY ? { deltaY: options.deltaY } : {}),
 	};
@@ -136,6 +167,7 @@ async function handleScroll({
 		Object.assign(request, target.target);
 	}
 
+	await requirePointerInputSupport({ client, options });
 	const data = await client.post("/api/claude/pointer/scroll", request);
 	return { success: true, data };
 }
