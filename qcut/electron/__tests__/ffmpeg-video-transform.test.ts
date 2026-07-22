@@ -409,9 +409,26 @@ describe("FFmpeg video transform filters", () => {
 			// The focus-family split must not run for these treatments — its
 			// unconsumed pads would make FFmpeg reject the whole graph.
 			expect(filter).not.toContain("_background_input");
-			// Every produced label must be consumed exactly once downstream.
-			const produced = [...filter.matchAll(/\[([a-z0-9_]+)\]$/gim)];
-			expect(produced.length).toBeGreaterThan(0);
+			// Full connectivity: every label a step produces must be consumed
+			// as an input by a later step, except the graph's final output.
+			const produced = new Map<string, number>();
+			const consumed = new Map<string, number>();
+			for (const step of result.filterSteps) {
+				const inputs = step.match(/^(?:\[[^\]]+\])+/)?.[0] ?? "";
+				const outputs = step.match(/(?:\[[^\]]+\])+$/)?.[0] ?? "";
+				for (const [, label] of inputs.matchAll(/\[([^\]]+)\]/g)) {
+					consumed.set(label, (consumed.get(label) ?? 0) + 1);
+				}
+				for (const [, label] of outputs.matchAll(/\[([^\]]+)\]/g)) {
+					produced.set(label, (produced.get(label) ?? 0) + 1);
+				}
+			}
+			expect(produced.size).toBeGreaterThan(0);
+			const dangling = [...produced.keys()].filter(
+				(label) =>
+					label !== result.outputLabel && (consumed.get(label) ?? 0) === 0
+			);
+			expect(dangling).toEqual([]);
 		}
 	});
 
