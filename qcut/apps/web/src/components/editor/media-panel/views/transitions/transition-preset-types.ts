@@ -1,5 +1,6 @@
 import type {
 	ClipTransitionDirection,
+	ClipTransitionMaskShape,
 	ClipTransitionTuning,
 	ClipTransitionType,
 } from "@/types/timeline";
@@ -70,6 +71,7 @@ export interface TransitionPreset {
 	direction?: ClipTransitionDirection;
 	clipType: ClipTransitionType;
 	tuning?: ClipTransitionTuning;
+	maskShape?: ClipTransitionMaskShape;
 	premium?: boolean;
 	downloaded?: boolean;
 	popular?: boolean;
@@ -80,6 +82,7 @@ export interface ClipTransitionPresetConfig {
 	type: ClipTransitionType;
 	direction?: ClipTransitionDirection;
 	tuning?: ClipTransitionTuning;
+	maskShape?: ClipTransitionMaskShape;
 }
 
 type PresetInput = Omit<

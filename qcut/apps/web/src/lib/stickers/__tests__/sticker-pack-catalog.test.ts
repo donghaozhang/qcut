@@ -29,7 +29,7 @@ describe("sticker pack catalog", () => {
 			},
 			{
 				id: "fluent-creator-essentials",
-				items: 160,
+				items: 385,
 				animated: false,
 				accessTier: "free",
 			},
@@ -104,7 +104,7 @@ describe("sticker pack catalog", () => {
 				builtIn: false,
 				delivery: "remote",
 				id: "fluent-creator-essentials",
-				version: 1,
+				version: 2,
 			},
 			{
 				builtIn: false,

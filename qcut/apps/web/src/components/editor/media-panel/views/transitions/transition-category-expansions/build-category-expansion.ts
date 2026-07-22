@@ -1,5 +1,6 @@
 import type {
 	ClipTransitionDirection,
+	ClipTransitionMaskShape,
 	ClipTransitionTuning,
 	ClipTransitionType,
 } from "@/types/timeline";
@@ -13,6 +14,7 @@ import {
 interface ExpandedPresetOptions {
 	direction?: ClipTransitionDirection;
 	tuning?: ClipTransitionTuning;
+	maskShape?: ClipTransitionMaskShape;
 	tags?: string[];
 	popular?: boolean;
 	latest?: boolean;
@@ -51,6 +53,7 @@ export function categoryExpansion({
 				defaultDuration,
 				direction: options?.direction,
 				tuning: options?.tuning,
+				maskShape: options?.maskShape,
 				tags: options?.tags,
 				popular: options?.popular,
 				latest: options?.latest,

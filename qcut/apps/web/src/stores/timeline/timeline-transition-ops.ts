@@ -57,6 +57,7 @@ export function createTransitionOps(
 			direction,
 			easing = "easeInOut",
 			tuning,
+			maskShape,
 		}) => {
 			const track = get()._tracks.find((candidate) => candidate.id === trackId);
 			if (!track || track.type !== "media") return null;
@@ -100,6 +101,7 @@ export function createTransitionOps(
 				direction,
 				easing,
 				tuning,
+				maskShape,
 			};
 			get().pushHistory();
 			deps.updateTracksAndSave(

@@ -252,7 +252,11 @@ export interface VideoTransition {
 		| "glass-refraction"
 		| "page-flip"
 		| "texture-mask"
-		| "lens-flare";
+		| "lens-flare"
+		| "vortex"
+		| "shockwave"
+		| "cube"
+		| "color-swipe";
 	direction?: "left" | "right" | "up" | "down";
 	easing: "linear" | "easeInOut";
 	duration: number;
@@ -261,6 +265,21 @@ export interface VideoTransition {
 		intensity?: number;
 		frequency?: number;
 	};
+	maskShape?:
+		| "circle"
+		| "clock"
+		| "blinds"
+		| "cross"
+		| "triptych"
+		| "arrow"
+		| "heart"
+		| "star"
+		| "ink"
+		| "cloud"
+		| "fog"
+		| "drip"
+		| "curtain"
+		| "diagonal";
 }
 
 export interface VideoMask {
