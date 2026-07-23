@@ -123,16 +123,16 @@ describe("cache management", () => {
 });
 
 describe("wrapBundledCode", () => {
-	it.each(["@remotion/zod-types", "@remotion/zod-types-v3"])(
-		"injects Zod 3-compatible aliases for %s imports",
-		(packageName) => {
-			const bundledCode = `import { zColor as colorSchema } from "${packageName}";`;
-			const wrappedCode = wrapBundledCode(bundledCode);
+	it.each([
+		"@remotion/zod-types",
+		"@remotion/zod-types-v3",
+	])("injects Zod 3-compatible aliases for %s imports", (packageName) => {
+		const bundledCode = `import { zColor as colorSchema } from "${packageName}";`;
+		const wrappedCode = wrapBundledCode(bundledCode);
 
-			expect(wrappedCode).not.toContain(`from "${packageName}"`);
-			expect(wrappedCode).toContain("const colorSchema = zColor;");
-		}
-	);
+		expect(wrappedCode).not.toContain(`from "${packageName}"`);
+		expect(wrappedCode).toContain("const colorSchema = zColor;");
+	});
 });
 
 // ============================================================================
