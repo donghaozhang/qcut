@@ -10,8 +10,9 @@
 import { ipcMain, app } from "electron";
 import * as fs from "fs/promises";
 import * as path from "path";
-import { EditorApiClient } from "./native-pipeline/editor/editor-api-client.js";
+import { resolveQCutRuntimeEndpoint } from "./claude/runtime-endpoint.js";
 import { buildProjectJSON } from "./native-pipeline/cli/project-json-builder.js";
+import { EditorApiClient } from "./native-pipeline/editor/editor-api-client.js";
 
 const LOG_PREFIX = "[ProjectJSON]";
 
@@ -30,7 +31,7 @@ export function setupProjectJsonIPC(): void {
 		async (_event, projectId: string): Promise<{ ok: boolean }> => {
 			try {
 				const client = new EditorApiClient({
-					baseUrl: "http://127.0.0.1:8765",
+					baseUrl: resolveQCutRuntimeEndpoint().baseUrl,
 					timeout: 5000,
 					skipCapabilityCheck: true,
 				});
@@ -46,11 +47,11 @@ export function setupProjectJsonIPC(): void {
 
 				console.log(`${LOG_PREFIX} Wrote project.json for ${projectId}`);
 				return { ok: true };
-			} catch (error: any) {
+			} catch (error: unknown) {
 				// Don't crash — project.json is informational, not critical
 				console.warn(
 					`${LOG_PREFIX} Failed to write project.json:`,
-					error.message
+					error instanceof Error ? error.message : String(error)
 				);
 				return { ok: false };
 			}
