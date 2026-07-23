@@ -224,6 +224,8 @@ function parseSessionArgs(args: string[]): Partial<CLIRunOptions> {
 				"job-id": { type: "string" },
 				source: { type: "string" },
 				"source-id": { type: "string" },
+				"capture-mode": { type: "string" },
+				"recording-quality": { type: "string" },
 				data: { type: "string" },
 				items: { type: "string" },
 				sources: { type: "string" },
