@@ -105,6 +105,7 @@ import {
 	type ClaudeUndoRedoResponse,
 } from "./claude-http-transaction-routes.js";
 import { EditorApiClient } from "../../native-pipeline/editor/editor-api-client.js";
+import { resolveQCutRuntimeEndpoint } from "../runtime-endpoint.js";
 import { buildProjectJSON } from "../../native-pipeline/cli/project-json-builder.js";
 import { claudeLog } from "../utils/logger.js";
 
@@ -299,7 +300,7 @@ async function writeProjectJsonSnapshot({
 }): Promise<void> {
 	try {
 		const client = new EditorApiClient({
-			baseUrl: "http://127.0.0.1:8765",
+			baseUrl: resolveQCutRuntimeEndpoint().baseUrl,
 			timeout: 5000,
 			skipCapabilityCheck: true,
 		});
