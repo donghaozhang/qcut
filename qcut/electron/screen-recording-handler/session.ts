@@ -50,6 +50,9 @@ export function buildStatus(): ScreenRecordingStatus {
 			startedAt: null,
 			durationMs: 0,
 			mimeType: null,
+			firstChunkAt: null,
+			chunkCount: 0,
+			ready: false,
 		};
 	}
 
@@ -65,6 +68,9 @@ export function buildStatus(): ScreenRecordingStatus {
 		startedAt: activeSession.startedAt,
 		durationMs,
 		mimeType: activeSession.mimeType,
+		firstChunkAt: activeSession.firstChunkAt,
+		chunkCount: activeSession.chunkCount,
+		ready: activeSession.firstChunkAt !== null,
 	};
 }
 
