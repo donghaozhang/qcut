@@ -723,6 +723,14 @@ export const EDITOR_COMMANDS: Record<string, CommandDef> = {
 		[
 			f("--source-id", "string", "Capture source ID"),
 			f("--filename", "string", "Output filename"),
+			f("--capture-mode", "string", "Capture the editor or HD preview", {
+				default: "editor",
+				enum: ["editor", "preview"],
+			}),
+			f("--recording-quality", "string", "Recording output quality", {
+				default: "native",
+				enum: ["native", "1080p", "1440p", "2k", "2160p", "4k"],
+			}),
 			f("--force", "boolean", "Force-stop existing recording first", {
 				default: false,
 			}),
