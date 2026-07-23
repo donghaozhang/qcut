@@ -79,6 +79,37 @@ describe("CLI speech args", () => {
 			expect(opts.voice).toBe("Vivian");
 			expect(opts.temperature).toBe(0.9);
 		});
+
+		it("parses Seed Audio generation controls", () => {
+			const opts = parseCliArgs([
+				"gen",
+				"tts",
+				"-t",
+				"中文产品旁白",
+				"--model",
+				"seed_audio",
+				"--audio-format",
+				"mp3",
+				"--sample-rate",
+				"48000",
+				"--speed",
+				"1.05",
+				"--volume",
+				"0.9",
+				"--pitch",
+				"-1",
+				"--multilingual",
+			]);
+
+			expect(opts.command).toBe("generate-speech");
+			expect(opts.model).toBe("seed_audio");
+			expect(opts.audioFormat).toBe("mp3");
+			expect(opts.sampleRate).toBe(48_000);
+			expect(opts.speed).toBe(1.05);
+			expect(opts.volume).toBe(0.9);
+			expect(opts.pitch).toBe(-1);
+			expect(opts.multilingual).toBe(true);
+		});
 	});
 
 	describe("convert-speech", () => {
