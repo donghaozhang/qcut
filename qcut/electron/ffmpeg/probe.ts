@@ -169,6 +169,89 @@ export async function probeHasAudioStream({
 	});
 }
 
+/** Returns the container duration in milliseconds. */
+export async function probeMediaDurationMs({
+	mediaPath,
+}: {
+	mediaPath: string;
+}): Promise<number> {
+	const ffprobePath = await getFFprobePath();
+
+	return new Promise<number>((resolve, reject) => {
+		const ffprobe = spawn(
+			ffprobePath,
+			[
+				"-v",
+				"error",
+				"-show_entries",
+				"format=duration",
+				"-of",
+				"default=noprint_wrappers=1:nokey=1",
+				mediaPath,
+			],
+			{
+				windowsHide: true,
+				stdio: ["ignore", "pipe", "pipe"],
+			}
+		);
+		let stdout = "";
+		let stderr = "";
+		let settled = false;
+		const timeoutId = setTimeout(() => {
+			ffprobe.kill();
+			finish({ error: new Error(`ffprobe timeout for: ${mediaPath}`) });
+		}, 10_000);
+		const finish = ({
+			error,
+			durationMs,
+		}: {
+			error?: Error;
+			durationMs?: number;
+		}): void => {
+			if (settled) return;
+			settled = true;
+			clearTimeout(timeoutId);
+			if (error) {
+				reject(error);
+				return;
+			}
+			if (durationMs === undefined) {
+				reject(new Error(`ffprobe returned no duration for: ${mediaPath}`));
+				return;
+			}
+			resolve(durationMs);
+		};
+
+		ffprobe.stdout?.on("data", (data) => {
+			stdout += data.toString();
+		});
+		ffprobe.stderr?.on("data", (data) => {
+			stderr += data.toString();
+		});
+		ffprobe.on("close", (code) => {
+			if (code !== 0) {
+				finish({
+					error: new Error(
+						`ffprobe failed with code ${code}: ${stderr.trim()}`
+					),
+				});
+				return;
+			}
+			const durationSeconds = Number.parseFloat(stdout.trim());
+			if (!Number.isFinite(durationSeconds) || durationSeconds <= 0) {
+				finish({
+					error: new Error(`Invalid ffprobe duration for: ${mediaPath}`),
+				});
+				return;
+			}
+			finish({ durationMs: durationSeconds * 1000 });
+		});
+		ffprobe.on("error", (error) => {
+			finish({ error: new Error(`Failed to spawn ffprobe: ${error.message}`) });
+		});
+	});
+}
+
 /**
  * Normalize a single video to target resolution and fps using FFmpeg padding.
  */
