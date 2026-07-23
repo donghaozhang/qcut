@@ -19,4 +19,9 @@ export { verifyFFmpegBinary } from "./health";
 
 export { parseProgress } from "./progress";
 
-export { probeVideoFile, probeHasAudioStream, normalizeVideo } from "./probe";
+export {
+	probeVideoFile,
+	probeHasAudioStream,
+	probeMediaDurationMs,
+	normalizeVideo,
+} from "./probe";
