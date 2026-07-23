@@ -4,7 +4,10 @@ import { usePreviewModeStore } from "@/stores/preview-mode-store";
 
 describe("usePreviewModeStore", () => {
 	beforeEach(() => {
-		usePreviewModeStore.setState({ previewMode: "video" });
+		usePreviewModeStore.setState({
+			previewMode: "video",
+			isPreviewExpanded: false,
+		});
 	});
 
 	it("should default to video mode", () => {
@@ -43,6 +46,17 @@ describe("usePreviewModeStore", () => {
 		act(() => {
 			result.current.setPreviewMode("video");
 		});
+		expect(result.current.previewMode).toBe("video");
+	});
+
+	it("controls fullscreen preview independently from preview content mode", () => {
+		const { result } = renderHook(() => usePreviewModeStore());
+
+		act(() => {
+			result.current.setPreviewExpanded({ expanded: true });
+		});
+
+		expect(result.current.isPreviewExpanded).toBe(true);
 		expect(result.current.previewMode).toBe("video");
 	});
 });
