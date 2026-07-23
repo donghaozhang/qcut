@@ -8,6 +8,7 @@ import {
 import { log } from "./logger.js";
 import { replaceExtension } from "./path-utils.js";
 import { removeFileIfExists, moveFile } from "./file-ops.js";
+import { buildScreenRecordingTranscodeArgs } from "./transcode-settings.js";
 
 export async function transcodeWebmToMp4({
 	inputPath,
@@ -18,32 +19,10 @@ export async function transcodeWebmToMp4({
 }): Promise<void> {
 	try {
 		const ffmpegPath = getFFmpegPath();
-		const args = [
-			"-y",
-			"-i",
+		const args = buildScreenRecordingTranscodeArgs({
 			inputPath,
-			"-c:v",
-			"libx264",
-			"-preset",
-			"veryfast",
-			"-b:v",
-			"4M",
-			"-minrate",
-			"2M",
-			"-maxrate",
-			"8M",
-			"-bufsize",
-			"4M",
-			"-pix_fmt",
-			"yuv420p",
-			"-r",
-			"30",
-			"-vsync",
-			"cfr",
-			"-movflags",
-			"+faststart",
 			outputPath,
-		];
+		});
 
 		await new Promise<void>((resolve, reject) => {
 			try {
@@ -52,7 +31,7 @@ export async function transcodeWebmToMp4({
 					windowsHide: true,
 				});
 
-				/** Reduced from 300s — FFmpeg transcoding (libx264 veryfast) typically takes <60s for short recordings. */
+				/** Short recordings should finish well within one minute at the fast preset. */
 				const TRANSCODE_TIMEOUT_MS = 60_000;
 				const timeout = setTimeout(() => {
 					ffmpegProcess.kill();
