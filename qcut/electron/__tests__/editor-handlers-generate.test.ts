@@ -1,3 +1,4 @@
+import * as path from "node:path";
 import { afterAll, afterEach, beforeAll, describe, expect, it } from "vitest";
 import { EditorApiClient } from "../native-pipeline/editor/editor-api-client.js";
 import { handleGenerateExportCommand } from "../native-pipeline/editor/editor-handlers-generate.js";
@@ -373,27 +374,30 @@ describe("Export handlers", () => {
 				);
 			};
 
-			const result = await handleGenerateExportCommand(
-				client,
-				makeOpts({
-					command: "editor:export:start",
-					projectId: "p1",
-					output: "/tmp/qcut-exact-export",
-					engine: "cli",
-				}),
-				noopProgress
-			);
+			try {
+				const result = await handleGenerateExportCommand(
+					client,
+					makeOpts({
+						command: "editor:export:start",
+						projectId: "p1",
+						output: "/tmp/qcut-exact-export",
+						engine: "cli",
+					}),
+					noopProgress
+				);
 
-			expect(result.success).toBe(true);
-			expect(capturedBody).toEqual(
-				expect.objectContaining({
-					engine: "cli",
-					outputPath: "/tmp/qcut-exact-export.mp4",
-				})
-			);
-
-			globalThis.fetch = origFetch;
-			installFetchMock(BASE_URL);
+				expect(result.success).toBe(true);
+				expect(capturedBody).toEqual(
+					expect.objectContaining({
+						engine: "cli",
+						// path.resolve keeps the expectation valid on Windows (D:\tmp\...)
+						outputPath: path.resolve("/tmp/qcut-exact-export.mp4"),
+					})
+				);
+			} finally {
+				globalThis.fetch = origFetch;
+				installFetchMock(BASE_URL);
+			}
 		});
 	});
 

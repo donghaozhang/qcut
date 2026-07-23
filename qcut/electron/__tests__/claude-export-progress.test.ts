@@ -1,5 +1,6 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import { EventEmitter } from "node:events";
+import * as path from "node:path";
 
 const { mockSpawn, mockGetFFmpegPath, mockParseProgress, mockFsPromises } =
 	vi.hoisted(() => {
@@ -189,7 +190,8 @@ describe("Claude export progress", () => {
 
 		const job = getExportJobStatus(jobId);
 		expect(job?.progress).toBe(1);
-		expect(job?.outputPath).toBe("/tmp/progress-2.mp4");
+		// The handler path.resolve()s outputPath, so match that on Windows too
+		expect(job?.outputPath).toBe(path.resolve("/tmp/progress-2.mp4"));
 	});
 
 	it("returns failed status with error message", async () => {
