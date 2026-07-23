@@ -218,12 +218,20 @@ export interface CLIRunOptions {
 	elementId?: string;
 	jobId?: string;
 	trackId?: string;
+	trackType?: string;
+	index?: number;
 	toTrack?: string;
 	splitTime?: number;
 	seekTime?: number;
 	startTime?: number;
 	endTime?: number;
 	newName?: string;
+	/** Project name alias used by editor project create. */
+	name?: string;
+	/** Open a newly-created or selected project in the editor. */
+	open?: boolean;
+	/** Wait for the project, media bridge, and timeline bridge to be ready. */
+	waitReady?: boolean;
 	changes?: string;
 	updates?: string;
 	elements?: string;
@@ -250,12 +258,38 @@ export interface CLIRunOptions {
 	interactive?: boolean;
 	depth?: number;
 	ref?: string;
+	/** Stable semantic pointer target such as panel.text or export.button. */
+	from?: string;
+	to?: string;
 	fromRef?: string;
 	toRef?: string;
 	fromX?: number;
 	fromY?: number;
 	toX?: number;
 	toY?: number;
+	normalizedX?: number;
+	normalizedY?: number;
+	fromNormalizedX?: number;
+	fromNormalizedY?: number;
+	toNormalizedX?: number;
+	toNormalizedY?: number;
+	toTime?: number;
+	toIndex?: number;
+	via?: string;
+	holdMs?: number;
+	durationMs?: number;
+	steps?: number;
+	releaseDelayMs?: number;
+	keys?: string;
+	intervalMs?: number;
+	actions?: string;
+	plan?: string;
+	record?: string;
+	eventTrack?: string;
+	speed?: number;
+	skipIdle?: boolean;
+	waitFor?: string;
+	timeoutMs?: number;
 	deltaX?: number;
 	deltaY?: number;
 	foreground?: boolean;
@@ -331,6 +365,18 @@ export interface CLIRunOptions {
 	example?: boolean;
 	/** Output file path for export commands */
 	output?: string;
+	/** Explicit export engine. */
+	engine?: string;
+	/** Comma-separated timestamps to extract and inspect after export. */
+	verifyFrames?: string;
+	/** Track name used by editor:track:create/update. */
+	trackName?: string;
+	/** Declarative editor timeline manifest (inline JSON, @file, or stdin). */
+	manifest?: string;
+	/** Group timeline apply mutations into a rollback-capable transaction. */
+	atomic?: boolean;
+	/** Read the result back and verify requested state. */
+	verify?: boolean;
 	/**
 	 * editor:state:snapshot: include raw `data:` thumbnail URLs in the
 	 * `media` section. Default is `false` because base64 thumbnails can

@@ -45,6 +45,7 @@ export interface PlatformClaudeTimelineAPI {
 	): Promise<unknown>;
 	deleteRange(projectId: string, request: unknown): Promise<unknown>;
 	arrange(projectId: string, request: unknown): Promise<unknown>;
+	trackOperation(projectId: string, request: unknown): Promise<unknown>;
 	splitElement(
 		projectId: string,
 		elementId: string,
@@ -87,6 +88,10 @@ export interface PlatformClaudeTimelineAPI {
 	sendDeleteRangeResponse(requestId: string, result: unknown): void;
 	onArrange(callback: (data: unknown) => void): void;
 	sendArrangeResponse(requestId: string, result: unknown): void;
+	onTrackOperation(
+		callback: (data: { requestId: string; request: unknown }) => void
+	): void;
+	sendTrackOperationResponse(requestId: string, result: unknown): void;
 	onLoadSpeech(callback: (data: unknown) => void): void;
 	sendResponse(timeline: unknown): void;
 	removeListeners(): void;

@@ -28,6 +28,22 @@ import {
 import { HANDLER_MAP } from "./handler-map.js";
 import { ModelRegistry } from "../../infra/registry.js";
 
+function isLowRiskSemanticPointerAction(options: CLIRunOptions): boolean {
+	if (
+		options.command === "editor:pointer:click" &&
+		options.target?.startsWith("panel.")
+	) {
+		return true;
+	}
+	return (
+		options.command === "editor:pointer:drag" &&
+		options.from === "timeline.playhead" &&
+		typeof options.toTime === "number" &&
+		Number.isFinite(options.toTime) &&
+		options.toTime >= 0
+	);
+}
+
 async function enforceActionPolicy({
 	options,
 }: {
@@ -57,6 +73,10 @@ async function enforceActionPolicy({
 		}
 
 		if (evaluation.decision !== "confirm") {
+			return null;
+		}
+
+		if (source === "default" && isLowRiskSemanticPointerAction(options)) {
 			return null;
 		}
 

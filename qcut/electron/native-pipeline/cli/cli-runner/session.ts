@@ -204,6 +204,8 @@ function parseSessionArgs(args: string[]): Partial<CLIRunOptions> {
 				"keyframe-images": { type: "string", multiple: true },
 				"keyframe-indexes": { type: "string", multiple: true },
 				"output-dir": { type: "string", short: "o" },
+				host: { type: "string" },
+				port: { type: "string" },
 				policy: { type: "string" },
 				resume: { type: "string" },
 				"state-dir": { type: "string" },
@@ -228,6 +230,10 @@ function parseSessionArgs(args: string[]): Partial<CLIRunOptions> {
 				elements: { type: "string" },
 				time: { type: "string" },
 				"new-name": { type: "string" },
+				name: { type: "string" },
+				open: { type: "boolean", default: false },
+				"wait-ready": { type: "boolean", default: false },
+				"timeout-ms": { type: "string" },
 				filename: { type: "string" },
 				panel: { type: "string" },
 				tab: { type: "string" },
@@ -237,12 +243,27 @@ function parseSessionArgs(args: string[]): Partial<CLIRunOptions> {
 				value: { type: "string" },
 				checked: { type: "boolean" },
 				ref: { type: "string" },
+				target: { type: "string" },
+				from: { type: "string" },
+				to: { type: "string" },
 				"from-ref": { type: "string" },
 				"to-ref": { type: "string" },
 				"from-x": { type: "string" },
 				"from-y": { type: "string" },
 				"to-x": { type: "string" },
 				"to-y": { type: "string" },
+				"normalized-x": { type: "string" },
+				"normalized-y": { type: "string" },
+				"from-normalized-x": { type: "string" },
+				"from-normalized-y": { type: "string" },
+				"to-normalized-x": { type: "string" },
+				"to-normalized-y": { type: "string" },
+				"to-time": { type: "string" },
+				speed: { type: "string" },
+				"skip-idle": { type: "boolean", default: false },
+				"wait-for": { type: "string" },
+				"event-track": { type: "string" },
+				plan: { type: "string" },
 				"delta-x": { type: "string" },
 				"delta-y": { type: "string" },
 				force: { type: "boolean", default: false },
@@ -279,6 +300,8 @@ function parseSessionArgs(args: string[]): Partial<CLIRunOptions> {
 		if (values["keyframe-indexes"])
 			result.keyframeIndexes = values["keyframe-indexes"] as string[];
 		if (values["output-dir"]) result.outputDir = values["output-dir"] as string;
+		if (values.host) result.host = values.host as string;
+		if (values.port) result.port = values.port as string;
 		if (values.policy) result.policy = values.policy as string;
 		if (values.resume) result.resume = values.resume as string;
 		if (values["state-dir"]) result.stateDir = values["state-dir"] as string;
@@ -308,6 +331,15 @@ function parseSessionArgs(args: string[]): Partial<CLIRunOptions> {
 		if (values.sources) result.sources = values.sources as string;
 		if (values.elements) result.elements = values.elements as string;
 		if (values["new-name"]) result.newName = values["new-name"] as string;
+		if (values.name) result.name = values.name as string;
+		if (values.open) result.open = true;
+		if (values["wait-ready"]) result.waitReady = true;
+		if (values["timeout-ms"]) {
+			const parsed = parseFiniteSessionNumber({
+				value: values["timeout-ms"],
+			});
+			if (parsed !== undefined) result.timeoutMs = parsed;
+		}
 		if (values.filename) result.filename = values.filename as string;
 		if (values.panel) result.panel = values.panel as string;
 		if (values.tab) result.tab = values.tab as string;
@@ -318,12 +350,40 @@ function parseSessionArgs(args: string[]): Partial<CLIRunOptions> {
 		if (values.value) result.selectValue = values.value as string;
 		if (typeof values.checked === "boolean") result.checked = values.checked;
 		if (values.ref) result.ref = values.ref as string;
+		if (values.target) result.target = values.target as string;
+		if (values.from) result.from = values.from as string;
+		if (values.to) result.to = values.to as string;
 		if (values["from-ref"]) result.fromRef = values["from-ref"] as string;
 		if (values["to-ref"]) result.toRef = values["to-ref"] as string;
 		result.fromX = parseFiniteSessionNumber({ value: values["from-x"] });
 		result.fromY = parseFiniteSessionNumber({ value: values["from-y"] });
 		result.toX = parseFiniteSessionNumber({ value: values["to-x"] });
 		result.toY = parseFiniteSessionNumber({ value: values["to-y"] });
+		result.normalizedX = parseFiniteSessionNumber({
+			value: values["normalized-x"],
+		});
+		result.normalizedY = parseFiniteSessionNumber({
+			value: values["normalized-y"],
+		});
+		result.fromNormalizedX = parseFiniteSessionNumber({
+			value: values["from-normalized-x"],
+		});
+		result.fromNormalizedY = parseFiniteSessionNumber({
+			value: values["from-normalized-y"],
+		});
+		result.toNormalizedX = parseFiniteSessionNumber({
+			value: values["to-normalized-x"],
+		});
+		result.toNormalizedY = parseFiniteSessionNumber({
+			value: values["to-normalized-y"],
+		});
+		result.toTime = parseFiniteSessionNumber({ value: values["to-time"] });
+		result.speed = parseFiniteSessionNumber({ value: values.speed });
+		if (values["skip-idle"]) result.skipIdle = true;
+		if (values["wait-for"]) result.waitFor = values["wait-for"] as string;
+		if (values["event-track"])
+			result.eventTrack = values["event-track"] as string;
+		if (values.plan) result.plan = values.plan as string;
 		result.deltaX = parseFiniteSessionNumber({ value: values["delta-x"] });
 		result.deltaY = parseFiniteSessionNumber({ value: values["delta-y"] });
 		if (values.force) result.force = true;
@@ -407,6 +467,8 @@ export async function runSession(
 		});
 		sessionBaseOptions = {
 			...sessionBaseOptions,
+			host: hydrated.host,
+			port: hydrated.port,
 			projectId: hydrated.projectId,
 			panel: hydrated.panel,
 			tab: hydrated.tab,
@@ -444,6 +506,13 @@ export async function runSession(
 
 		try {
 			const result = await runner.run(options, onProgress);
+			if (result.success && (options.host || options.port)) {
+				sessionBaseOptions = {
+					...sessionBaseOptions,
+					host: options.host ?? sessionBaseOptions.host,
+					port: options.port ?? sessionBaseOptions.port,
+				};
+			}
 			if (options.command === "editor:session:load" && result.success) {
 				const payload = extractSessionCommandPayload({ value: result.data });
 				if (payload) {
@@ -452,6 +521,8 @@ export async function runSession(
 						...sessionBaseOptions,
 						resume: payload.session.sessionName,
 						stateDir: options.stateDir ?? sessionBaseOptions.stateDir,
+						host: payload.session.host,
+						port: payload.session.port,
 						projectId: payload.session.projectId,
 						panel: payload.session.lastPanel,
 						tab: payload.session.lastTab,
@@ -470,6 +541,8 @@ export async function runSession(
 				});
 				sessionBaseOptions = {
 					...sessionBaseOptions,
+					host: activeSessionState.host,
+					port: activeSessionState.port,
 					projectId: activeSessionState.projectId,
 					panel: activeSessionState.lastPanel,
 					tab: activeSessionState.lastTab,

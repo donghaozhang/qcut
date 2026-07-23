@@ -9,6 +9,7 @@
  */
 
 import * as fs from "fs";
+import * as os from "os";
 import * as path from "path";
 import type { EditorApiClient } from "../editor/editor-api-client.js";
 import type { CLIRunOptions, CLIResult } from "../cli/cli-runner/types.js";
@@ -18,6 +19,7 @@ import {
 	writeTimelineCaptions,
 	type EditorCaptionFormat,
 } from "./editor-caption-export.js";
+import { verifyExportFrames } from "./editor-export-verification.js";
 
 type ProgressFn = (progress: {
 	stage: string;
@@ -281,6 +283,7 @@ async function exportStart(
 
 	const body: Record<string, unknown> = {};
 	if (opts.preset) body.preset = opts.preset;
+	if (opts.engine) body.engine = opts.engine;
 
 	// --format or --export-format sets the export format (mp4, gif, webm, etc.)
 	const exportFormat = opts.exportFormat || opts.format;
@@ -366,14 +369,28 @@ async function exportStart(
 		};
 	}
 
-	if (opts.outputDir && opts.outputDir !== "./output") {
-		const ext = opts.exportFormat || opts.format || "mp4";
+	const ext = opts.exportFormat || opts.format || "mp4";
+	const expandHome = (value: string) =>
+		value === "~" || value.startsWith(`~${path.sep}`)
+			? path.join(os.homedir(), value.slice(2))
+			: value;
+	const ensureExtension = (value: string) =>
+		path.extname(value).length > 1 ? value : `${value}.${ext}`;
+	if (opts.output) {
+		body.outputPath = path.resolve(ensureExtension(expandHome(opts.output)));
+	} else if (
+		opts.filename ||
+		(opts.outputDir && opts.outputDir !== "./output")
+	) {
 		const ts = new Date().toISOString().replace(/[:.]/g, "-").slice(0, 19);
-		const basename = opts.filename || `export-${ts}`;
-		const hasExt = path.extname(basename).length > 1;
-		body.outputPath = path.join(
-			opts.outputDir,
-			hasExt ? basename : `${basename}.${ext}`
+		const basename = expandHome(opts.filename || `export-${ts}`);
+		body.outputPath = path.resolve(
+			path.isAbsolute(basename)
+				? ensureExtension(basename)
+				: path.join(
+						expandHome(opts.outputDir || "./output"),
+						ensureExtension(basename)
+					)
 		);
 	}
 
@@ -382,7 +399,8 @@ async function exportStart(
 		body
 	);
 
-	if (!opts.poll) {
+	const shouldPoll = opts.poll || Boolean(opts.verifyFrames);
+	if (!shouldPoll) {
 		return { success: true, data: startResult };
 	}
 
@@ -408,7 +426,45 @@ async function exportStart(
 		}
 	);
 
-	return { success: true, data: result };
+	if (!opts.verifyFrames) {
+		return { success: true, data: result };
+	}
+
+	const completed = result as Record<string, unknown>;
+	const outputPath =
+		typeof completed.outputPath === "string"
+			? completed.outputPath
+			: typeof body.outputPath === "string"
+				? body.outputPath
+				: null;
+	if (!outputPath) {
+		return {
+			success: false,
+			error:
+				"Export completed without an outputPath; frame verification is unavailable",
+			data: result,
+		};
+	}
+	const frameEntries = opts.verifyFrames
+		.split(",")
+		.map((value) => value.trim());
+	const invalidEntries = frameEntries.filter(
+		(value) => value === "" || !Number.isFinite(Number(value))
+	);
+	if (invalidEntries.length > 0) {
+		return {
+			success: false,
+			error: `Invalid --verify-frames values: ${invalidEntries.join(", ")}`,
+			data: result,
+		};
+	}
+	const timestamps = frameEntries.map(Number);
+	const verification = await verifyExportFrames(outputPath, timestamps);
+	return {
+		success: true,
+		outputPath,
+		data: { ...completed, verification },
+	};
 }
 
 /** Export the project mix as a standalone MP3 file. */

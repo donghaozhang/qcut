@@ -61,6 +61,7 @@ vi.mock("../handlers/claude-timeline-handler.js", () => ({
 	requestTimelineFromRenderer: vi.fn(),
 	requestSplitFromRenderer: vi.fn(),
 	requestSelectionFromRenderer: vi.fn(),
+	requestTrackOperationFromRenderer: vi.fn(),
 	batchAddElements: vi.fn(async () => ({ added: [], failedCount: 0 })),
 	batchUpdateElements: vi.fn(async () => ({
 		updatedCount: 0,
@@ -305,6 +306,39 @@ describe("Claude HTTP Server - Timeline", () => {
 			"element_abc",
 			3.5,
 			"split",
+			expect.any(String)
+		);
+	});
+
+	it("PATCH /api/claude/timeline/:projectId/tracks/:trackId updates name and index", async () => {
+		const mockWindow = createMockWindow();
+		vi.mocked(BrowserWindow.getAllWindows).mockReturnValue([mockWindow]);
+		vi.mocked(
+			timelineHandler.requestTrackOperationFromRenderer
+		).mockResolvedValueOnce({
+			success: true,
+			trackId: "track-1",
+			index: 1,
+			tracks: [],
+		});
+
+		const res = await fetch("/api/claude/timeline/proj_123/tracks/track-1", {
+			method: "PATCH",
+			body: JSON.stringify({ name: "Dialogue", index: 1 }),
+		});
+
+		expect(res.status).toBe(200);
+		expect(res.body.success).toBe(true);
+		expect(
+			timelineHandler.requestTrackOperationFromRenderer
+		).toHaveBeenCalledWith(
+			mockWindow,
+			expect.objectContaining({
+				action: "update",
+				trackId: "track-1",
+				name: "Dialogue",
+				index: 1,
+			}),
 			expect.any(String)
 		);
 	});

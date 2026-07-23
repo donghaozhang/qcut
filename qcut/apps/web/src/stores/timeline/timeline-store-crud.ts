@@ -93,6 +93,21 @@ export function createCrudOperations(
 			updateTracksAndSave(reorderedTracks);
 		},
 
+		renameTrack: (trackId, name) => {
+			const normalizedName = name.trim();
+			if (!normalizedName) return;
+			const track = get()._tracks.find((candidate) => candidate.id === trackId);
+			if (!track || track.name === normalizedName) return;
+			get().pushHistory();
+			updateTracksAndSave(
+				get()._tracks.map((candidate) =>
+					candidate.id === trackId
+						? { ...candidate, name: normalizedName }
+						: candidate
+				)
+			);
+		},
+
 		addElementToTrack: (
 			trackId,
 			elementData,
@@ -216,12 +231,31 @@ export function createCrudOperations(
 							mediaItem &&
 							(mediaItem.type === "image" || mediaItem.type === "video")
 						) {
-							import("../editor/editor-store").then(({ useEditorStore }) => {
-								const editorStore = useEditorStore.getState();
-								editorStore.setCanvasSizeFromAspectRatio(
-									getMediaAspectRatio(mediaItem)
-								);
-							});
+							import("../editor/editor-store")
+								.then(({ useEditorStore }) => {
+									const editorStore = useEditorStore.getState();
+									editorStore.setCanvasSizeFromAspectRatio(
+										getMediaAspectRatio(mediaItem)
+									);
+									return import("../project-store").then(
+										({ useProjectStore }) =>
+											useProjectStore
+												.getState()
+												.updateProjectCanvasSize(
+													useEditorStore.getState().canvasSize,
+													"custom"
+												)
+									);
+								})
+								.catch((error) => {
+									handleError(error, {
+										operation: "Sync canvas size to project settings",
+										category: ErrorCategory.STORAGE,
+										severity: ErrorSeverity.LOW,
+										showToast: false,
+										metadata: { operation: "canvas-size-sync" },
+									});
+								});
 						}
 
 						// Set project FPS from the first video element

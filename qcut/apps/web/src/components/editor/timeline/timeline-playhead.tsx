@@ -123,6 +123,12 @@ export function TimelinePlayhead({
 	return (
 		<div
 			ref={playheadRef}
+			data-testid="timeline-playhead"
+			role="slider"
+			aria-label="Timeline playhead"
+			aria-valuemin={0}
+			aria-valuemax={Math.max(0, duration)}
+			aria-valuenow={Math.max(0, playheadPosition)}
 			className="absolute pointer-events-auto z-150"
 			style={{
 				left: `${leftPosition}px`,

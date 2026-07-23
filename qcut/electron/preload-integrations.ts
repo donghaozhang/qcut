@@ -254,6 +254,12 @@ export function createClaudeAPI(): NonNullable<ElectronAPI["claude"]> {
 				ipcRenderer.invoke("claude:timeline:deleteRange", projectId, request),
 			arrange: (projectId, request) =>
 				ipcRenderer.invoke("claude:timeline:arrange", projectId, request),
+			trackOperation: (projectId, request) =>
+				ipcRenderer.invoke(
+					"claude:timeline:trackOperation",
+					projectId,
+					request
+				),
 			splitElement: (projectId, elementId, splitTime, mode) =>
 				ipcRenderer.invoke(
 					"claude:timeline:splitElement",
@@ -441,6 +447,18 @@ export function createClaudeAPI(): NonNullable<ElectronAPI["claude"]> {
 					result,
 				});
 			},
+			onTrackOperation: (callback) => {
+				ipcRenderer.removeAllListeners("claude:timeline:trackOperation");
+				ipcRenderer.on("claude:timeline:trackOperation", (_, data) =>
+					callback(data)
+				);
+			},
+			sendTrackOperationResponse: (requestId, result) => {
+				ipcRenderer.send("claude:timeline:trackOperation:response", {
+					requestId,
+					result,
+				});
+			},
 			onLoadSpeech: (callback) => {
 				ipcRenderer.removeAllListeners("claude:speech:load");
 				ipcRenderer.on("claude:speech:load", (_, data) => callback(data));
@@ -466,6 +484,7 @@ export function createClaudeAPI(): NonNullable<ElectronAPI["claude"]> {
 				ipcRenderer.removeAllListeners("claude:timeline:playback");
 				ipcRenderer.removeAllListeners("claude:timeline:deleteRange");
 				ipcRenderer.removeAllListeners("claude:timeline:arrange");
+				ipcRenderer.removeAllListeners("claude:timeline:trackOperation");
 				ipcRenderer.removeAllListeners("claude:speech:load");
 			},
 		},

@@ -57,6 +57,7 @@ import {
 	getAvailablePanels,
 	resolvePanelId,
 } from "../handlers/claude-ui-handler";
+import { resolveProjectCanvasSettings } from "../handlers/claude-project-handler";
 
 describe("UI Handler Functions", () => {
 	it("recognizes the standard audio library independently from AI audio", () => {
@@ -116,6 +117,58 @@ describe("Export Handler Functions", () => {
 			expect(preset.bitrate).toBeTypeOf("string");
 			expect(["mp4", "gif"]).toContain(preset.format);
 		}
+	});
+});
+
+describe("Project Canvas Settings", () => {
+	const current = {
+		name: "Test",
+		width: 1280,
+		height: 720,
+		fps: 30,
+		aspectRatio: "16:9",
+		backgroundColor: "#000000",
+		exportFormat: "mp4",
+		exportQuality: "high",
+	};
+
+	it("derives portrait dimensions from an aspect-ratio-only update", () => {
+		expect(
+			resolveProjectCanvasSettings({
+				current,
+				update: { aspectRatio: "9:16" },
+			})
+		).toEqual({
+			width: 405,
+			height: 720,
+			aspectRatio: "9:16",
+		});
+	});
+
+	it("derives a missing dimension from the requested ratio", () => {
+		expect(
+			resolveProjectCanvasSettings({
+				current,
+				update: { width: 1080, aspectRatio: "9:16" },
+			})
+		).toEqual({
+			width: 1080,
+			height: 1920,
+			aspectRatio: "9:16",
+		});
+	});
+
+	it("updates the ratio when explicit dimensions change", () => {
+		expect(
+			resolveProjectCanvasSettings({
+				current,
+				update: { width: 1080, height: 1920 },
+			})
+		).toEqual({
+			width: 1080,
+			height: 1920,
+			aspectRatio: "9:16",
+		});
 	});
 });
 

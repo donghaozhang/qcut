@@ -186,6 +186,61 @@ describe("editor screen-recording CLI handlers", () => {
 		).toBe(true);
 	});
 
+	it("returns recording permission diagnostics", async () => {
+		registerHealthyEditorRoutes();
+		setRoute({
+			method: "GET",
+			path: "/api/claude/screen-recording/diagnose",
+			entry: jsonEnvelope({
+				data: {
+					ready: false,
+					permission: "denied",
+					remediation: ["Enable QCut in System Settings"],
+				},
+			}),
+		});
+
+		const result = await handleEditorCommand(
+			makeOpts({ command: "editor:screen-recording:diagnose" }),
+			noopProgress
+		);
+
+		expect(result.success).toBe(true);
+		expect(result.data).toEqual(
+			expect.objectContaining({ permission: "denied" })
+		);
+	});
+
+	it("attaches diagnostics and a screenshot when source listing fails", async () => {
+		registerHealthyEditorRoutes();
+		setRoute({
+			method: "GET",
+			path: "/api/claude/screen-recording/sources",
+			entry: { status: 500, body: { success: false, error: "TCC denied" } },
+		});
+		setRoute({
+			method: "GET",
+			path: "/api/claude/screen-recording/diagnose",
+			entry: jsonEnvelope({ data: { ready: false, permission: "denied" } }),
+		});
+		setRoute({
+			method: "POST",
+			path: "/api/claude/screenshot/capture",
+			entry: jsonEnvelope({ data: { filePath: "/tmp/failure.png" } }),
+		});
+
+		const result = await handleEditorCommand(
+			makeOpts({ command: "editor:screen-recording:sources" }),
+			noopProgress
+		);
+
+		expect(result.success).toBe(false);
+		expect(result.data).toEqual({
+			diagnostics: expect.objectContaining({ permission: "denied" }),
+			screenshot: expect.objectContaining({ filePath: "/tmp/failure.png" }),
+		});
+	});
+
 	it("stops recording without recovery when status is idle", async () => {
 		registerHealthyEditorRoutes();
 		setRoute({

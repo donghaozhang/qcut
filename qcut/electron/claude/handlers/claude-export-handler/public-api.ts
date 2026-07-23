@@ -4,6 +4,7 @@
  */
 
 import { claudeLog } from "../../utils/logger.js";
+import * as path from "node:path";
 import { logOperation } from "../../claude-operation-log.js";
 import { emitClaudeEvent } from "../claude-events-handler.js";
 import type {
@@ -35,8 +36,10 @@ import {
 	resolveExportSettings,
 	collectExportSegments,
 	collectStickerOverlays,
+	collectTimelineAudioFiles,
 	executeExportJob,
 } from "./export-engine.js";
+import { collectTextOverlays } from "./text-overlay.js";
 
 function isTimelineEmpty({ timeline }: { timeline: ClaudeTimeline }): boolean {
 	try {
@@ -176,9 +179,27 @@ export async function startExportJob({
 				`Found ${stickerOverlays.length} sticker(s) to overlay during export`
 			);
 		}
+		const textOverlays = collectTextOverlays(timeline);
+		if (textOverlays.length > 0) {
+			claudeLog.info(
+				HANDLER_NAME,
+				`Found ${textOverlays.length} text/caption overlay(s) to render`
+			);
+		}
+		const audioFiles = await collectTimelineAudioFiles({
+			timeline,
+			mediaFiles,
+			projectId,
+		});
+		if (audioFiles.length > 0) {
+			claudeLog.info(
+				HANDLER_NAME,
+				`Found ${audioFiles.length} independent audio clip(s) to mix`
+			);
+		}
 
 		const outputPath = request.outputPath?.trim()
-			? request.outputPath.trim()
+			? path.resolve(request.outputPath.trim())
 			: getDefaultOutputPath({
 					projectId,
 					format: settings.format,
@@ -194,6 +215,7 @@ export async function startExportJob({
 			progress: 0,
 			startedAt: now,
 			presetId: settings.presetId,
+			engine: settings.engine,
 			settings,
 			outputPath,
 		};
@@ -237,6 +259,8 @@ export async function startExportJob({
 			outputPath,
 			segments,
 			stickerOverlays,
+			textOverlays,
+			audioFiles,
 		}).catch((error) => {
 			claudeLog.error(
 				HANDLER_NAME,

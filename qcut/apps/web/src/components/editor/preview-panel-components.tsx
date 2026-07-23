@@ -330,7 +330,7 @@ export function PreviewToolbar({
 	const { t } = useTranslation();
 	const { isPlaying, seek } = usePlaybackStore();
 	const { setCanvasSize, setCanvasSizeToOriginal } = useEditorStore();
-	const { activeProject } = useProjectStore();
+	const { activeProject, updateProjectCanvasSize } = useProjectStore();
 	const {
 		currentPreset,
 		isOriginal,
@@ -351,12 +351,16 @@ export function PreviewToolbar({
 	};
 
 	const handlePresetSelect = (preset: { width: number; height: number }) => {
-		setCanvasSize({ width: preset.width, height: preset.height });
+		const nextSize = { width: preset.width, height: preset.height };
+		setCanvasSize(nextSize, "preset");
+		void updateProjectCanvasSize(nextSize, "preset");
 	};
 
 	const handleOriginalSelect = () => {
 		const aspectRatio = getOriginalAspectRatio();
 		setCanvasSizeToOriginal(aspectRatio);
+		const nextSize = useEditorStore.getState().canvasSize;
+		void updateProjectCanvasSize(nextSize, "original");
 	};
 
 	const totalDuration = getTotalDuration();

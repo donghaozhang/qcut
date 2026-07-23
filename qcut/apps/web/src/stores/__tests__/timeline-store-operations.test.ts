@@ -117,6 +117,7 @@ describe("Timeline Store Operations", () => {
 		// Ripple operations
 		expect(store.removeTrack).toBeTypeOf("function");
 		expect(store.removeTrackWithRipple).toBeTypeOf("function");
+		expect(store.renameTrack).toBeTypeOf("function");
 		expect(store.removeElementFromTrackWithRipple).toBeTypeOf("function");
 		expect(store.updateElementStartTimeWithRipple).toBeTypeOf("function");
 
@@ -148,6 +149,17 @@ describe("Timeline Store Operations", () => {
 		expect(store.removeEffectFromElement).toBeTypeOf("function");
 		expect(store.getElementEffectIds).toBeTypeOf("function");
 		expect(store.clearElementEffects).toBeTypeOf("function");
+	});
+
+	it("renames a track and records the change in history", () => {
+		const { result } = renderHook(() => useTimelineStore());
+		const trackId = result.current.tracks[0].id;
+		const previousHistoryLength = result.current.history.length;
+
+		act(() => result.current.renameTrack(trackId, "Dialogue"));
+
+		expect(result.current.tracks[0].name).toBe("Dialogue");
+		expect(result.current.history).toHaveLength(previousHistoryLength + 1);
 	});
 
 	it("stacks audio onto a free or new track instead of rejecting overlaps", () => {

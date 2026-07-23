@@ -5,10 +5,18 @@ All examples assume QCut is running. Add `--json` to every command.
 ## Discover and open a project
 
 ```bash
+qcut instances list --json
+qcut instances use --port <port> --json
 qcut editor:navigator:projects --json
 node <plugin-root>/scripts/qcut-setup.mjs open-media --project-id <project-id>
 qcut editor:media:list --project-id <project-id> --json
 qcut editor:timeline:export --project-id <project-id> --json
+```
+
+Create a project and wait until the visible editor is ready:
+
+```bash
+qcut editor project create --name "Promo" --open --wait-ready --json
 ```
 
 `open-media` verifies `editor.activePanel.group` and the active project ID. Do
@@ -49,7 +57,9 @@ qcut editor:export:recommend --project-id <project-id> --target youtube --json
 qcut editor:export:start --project-id <project-id> --preset youtube --poll --json
 ```
 
-Verify the completed job's output path on disk.
+Native export includes independent audio tracks and verifies that an audio
+stream exists when those tracks are present. Verify the completed job's output
+path on disk.
 
 ## Diagnose a failed command
 
@@ -63,9 +73,18 @@ Do not clear diagnostics until the failure is understood.
 
 ## Operate a visible UI control
 
-Capture a fresh snapshot whenever navigation or a previous click may have
-changed the visible DOM. Prefer refs to coordinates because refs resolve to the
-visible center of the current element.
+Prefer stable semantic targets for common controls:
+
+```bash
+qcut editor pointer wait-for --target panel.text --json
+qcut editor pointer click --target panel.text --json
+qcut editor pointer hover --target export.button --speed 1.5 --json
+qcut editor pointer drag --from timeline.playhead --to-time 12 --speed 1.5 --json
+```
+
+Capture a fresh snapshot when no semantic target exists or a previous click may
+have changed the visible DOM. Prefer refs to coordinates because refs resolve
+to the visible center of the current element.
 
 ```bash
 qcut editor:snapshot --interactive --depth 24 --json
@@ -107,3 +126,43 @@ after confirming the focus change is acceptable.
 After click or drag, verify the resulting editor or timeline state rather than
 treating a successful input event as proof of the intended edit. Use
 `editor:undo` to restore an E2E drag fixture after verification.
+
+## Record and verify a demo
+
+```bash
+qcut editor demo run \
+  --plan promo.json \
+  --record demo.mp4 \
+  --event-track demo.pointer.json \
+  --speed 1.5 \
+  --skip-idle \
+  --json
+```
+
+The plan can create or reuse a project, apply a timeline manifest, run semantic
+pointer actions, export the timeline, extract verification frames, and require
+an audio stream. A sleep action marked as idle is omitted with `--skip-idle`.
+
+Minimal `promo.json`:
+
+```json
+{
+  "project": { "name": "Promo" },
+  "timeline": "@timeline.json",
+  "replace": true,
+  "actions": [
+    { "action": "click", "target": "panel.text" },
+    { "action": "hover", "target": "export.button" },
+    {
+      "action": "drag",
+      "from": "timeline.playhead",
+      "toTime": 12
+    }
+  ],
+  "export": {
+    "outputPath": "promo-final.mp4",
+    "verifyFrames": [1, 5],
+    "requireAudio": true
+  }
+}
+```

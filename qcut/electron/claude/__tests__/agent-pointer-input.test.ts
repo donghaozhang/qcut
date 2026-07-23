@@ -147,6 +147,52 @@ describe("AgentPointerInput", () => {
 		expect(harness.input.isWindowFocused()).toBe(false);
 	});
 
+	it("dispatches Chromium key descriptors and editing commands", async () => {
+		const harness = createInputHarness();
+		const session = await harness.input.begin({ inputMode: "background" });
+
+		await harness.input.sendKey({
+			session,
+			type: "keyDown",
+			key: "A",
+			modifiers: ["Meta"],
+		});
+		await harness.input.sendKey({
+			session,
+			type: "keyUp",
+			key: "A",
+			modifiers: ["Meta"],
+		});
+		await harness.input.sendKey({
+			session,
+			type: "keyDown",
+			key: "Backspace",
+		});
+
+		expect(harness.debuggerCommands[0]).toEqual({
+			method: "Input.dispatchKeyEvent",
+			params: expect.objectContaining({
+				type: "rawKeyDown",
+				key: "a",
+				code: "KeyA",
+				windowsVirtualKeyCode: 65,
+				modifiers: 4,
+				commands: ["selectAll"],
+			}),
+		});
+		expect(harness.debuggerCommands[2]?.params).toEqual(
+			expect.objectContaining({
+				type: "rawKeyDown",
+				key: "Backspace",
+				code: "Backspace",
+				windowsVirtualKeyCode: 8,
+				commands: ["deleteBackward"],
+			})
+		);
+
+		await harness.input.end({ session });
+	});
+
 	it("preserves explicit foreground Electron input", async () => {
 		const harness = createInputHarness({ visible: true });
 		const session = await harness.input.begin({ inputMode: "foreground" });

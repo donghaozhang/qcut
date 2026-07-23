@@ -77,6 +77,7 @@ export function TimelineTrackLabel({
 		>
 			<button
 				type="button"
+				data-testid="timeline-track-reorder"
 				className={cn(controlClassName, !track.locked && "cursor-grab")}
 				aria-label={t("timeline.reorder", { name: displayName })}
 				title={

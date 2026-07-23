@@ -1,5 +1,9 @@
 import type { BrowserWindow } from "electron";
 import {
+	type AgentKeyboardModifier,
+	type AgentKeyboardPressRequest,
+	type AgentKeyboardResult,
+	type AgentKeyboardTypeRequest,
 	type AgentPointerAction,
 	type AgentPointerButton,
 	type AgentPointerClickRequest,
@@ -35,6 +39,8 @@ export { buildPointerMovementPath } from "./agent-pointer-motion.js";
 const POINTER_PRESS_MS = 55;
 const POINTER_DOUBLE_CLICK_GAP_MS = 80;
 const POINTER_HOVER_SETTLE_MS = 180;
+const KEY_PRESS_MS = 35;
+const KEY_SEQUENCE_INTERVAL_MS = 45;
 
 type Sleep = (input: { durationMs: number }) => Promise<void>;
 
@@ -51,6 +57,7 @@ interface MovePathOptions {
 	action: AgentPointerAction;
 	button: AgentPointerButton | null;
 	dragging: boolean;
+	stepDelayMs?: number;
 }
 
 interface MoveToOptions {
@@ -59,6 +66,7 @@ interface MoveToOptions {
 	action: AgentPointerAction;
 	button?: AgentPointerButton | null;
 	dragging?: boolean;
+	durationMs?: number;
 }
 
 interface PressCycleOptions {
@@ -71,6 +79,47 @@ interface PressCycleOptions {
 
 function defaultSleep({ durationMs }: { durationMs: number }): Promise<void> {
 	return new Promise((resolve) => setTimeout(resolve, durationMs));
+}
+
+function parseKeyChord(value: string): {
+	key: string;
+	modifiers: AgentKeyboardModifier[];
+} {
+	const aliases: Record<string, AgentKeyboardModifier> = {
+		alt: "Alt",
+		option: "Alt",
+		ctrl: "Control",
+		control: "Control",
+		cmd: "Meta",
+		command: "Meta",
+		meta: "Meta",
+		shift: "Shift",
+	};
+	const parts = value
+		.split("+")
+		.map((part) => part.trim())
+		.filter(Boolean);
+	if (parts.length === 0) {
+		throw new AgentPointerError({
+			message: "Keyboard key must be non-empty.",
+			statusCode: 400,
+		});
+	}
+	const rawKey = parts.pop()!;
+	const modifiers = parts.map((part) => {
+		const modifier = aliases[part.toLowerCase()];
+		if (!modifier) {
+			throw new AgentPointerError({
+				message: `Unsupported keyboard modifier: ${part}`,
+				statusCode: 400,
+			});
+		}
+		return modifier;
+	});
+	return {
+		key: rawKey.toLowerCase() === "space" ? "Space" : rawKey,
+		modifiers: [...new Set(modifiers)],
+	};
 }
 
 export class AgentPointerController {
@@ -109,6 +158,7 @@ export class AgentPointerController {
 					session,
 					target: request,
 					action: "move",
+					durationMs: request.durationMs,
 				});
 				this.visual.scheduleIdle();
 				return this.buildResult({ session, action: "move", target });
@@ -124,6 +174,7 @@ export class AgentPointerController {
 					session,
 					target: request,
 					action: "hover",
+					durationMs: request.durationMs,
 				});
 				await this.sleep({ durationMs: POINTER_HOVER_SETTLE_MS });
 				this.visual.scheduleIdle();
@@ -140,6 +191,7 @@ export class AgentPointerController {
 					session,
 					target: request,
 					action: "click",
+					durationMs: request.durationMs,
 				});
 				this.targets.assertEnabled({ target });
 				await this.pressCycle({
@@ -163,6 +215,7 @@ export class AgentPointerController {
 					session,
 					target: request,
 					action: "double-click",
+					durationMs: request.durationMs,
 				});
 				this.targets.assertEnabled({ target });
 				await this.pressCycle({
@@ -198,6 +251,7 @@ export class AgentPointerController {
 					session,
 					target: request,
 					action: "right-click",
+					durationMs: request.durationMs,
 				});
 				this.targets.assertEnabled({ target });
 				await this.pressCycle({
@@ -244,14 +298,47 @@ export class AgentPointerController {
 						clickCount: 1,
 					});
 					buttonDown = true;
-					await this.sleep({ durationMs: POINTER_PRESS_MS });
+					await this.sleep({
+						durationMs: request.holdMs ?? POINTER_PRESS_MS,
+					});
 
-					destination = await this.moveTo({
+					const waypoints = [...(request.via ?? []), request.to];
+					const resolvedWaypoints: AgentPointerResolvedTarget[] = [];
+					for (const waypoint of waypoints) {
+						resolvedWaypoints.push(
+							await this.targets.resolve({ target: waypoint })
+						);
+					}
+					const perSegmentSteps = request.steps
+						? Math.max(1, Math.round(request.steps / resolvedWaypoints.length))
+						: undefined;
+					const points: AgentPointerPoint[] = [];
+					let cursor: AgentPointerPoint | null = from;
+					for (const waypoint of resolvedWaypoints) {
+						points.push(
+							...buildPointerMovementPath({
+								from: cursor,
+								to: waypoint,
+								steps: perSegmentSteps,
+							})
+						);
+						cursor = waypoint;
+					}
+					const stepDelayMs =
+						request.durationMs !== undefined
+							? request.durationMs / Math.max(1, points.length - 1)
+							: POINTER_MOVE_STEP_MS;
+					await this.moveAlongPath({
 						session,
-						target: request.to,
+						points,
 						action: "drag",
 						button: "left",
 						dragging: true,
+						stepDelayMs,
+					});
+					destination = resolvedWaypoints[resolvedWaypoints.length - 1];
+					await this.sleep({
+						durationMs: request.releaseDelayMs ?? POINTER_PRESS_MS,
 					});
 				} finally {
 					try {
@@ -287,6 +374,74 @@ export class AgentPointerController {
 					action: "drag",
 					target: destination,
 				});
+			},
+		});
+	}
+
+	pressKeys(request: AgentKeyboardPressRequest): Promise<AgentKeyboardResult> {
+		return this.operations.runInput({
+			inputMode: request.inputMode,
+			operation: async ({ session }) => {
+				for (const [index, value] of request.keys.entries()) {
+					const chord = parseKeyChord(value);
+					await this.input.sendKey({
+						session,
+						type: "keyDown",
+						key: chord.key,
+						modifiers: chord.modifiers,
+					});
+					await this.sleep({ durationMs: KEY_PRESS_MS });
+					await this.input.sendKey({
+						session,
+						type: "keyUp",
+						key: chord.key,
+						modifiers: chord.modifiers,
+					});
+					if (index < request.keys.length - 1) {
+						await this.sleep({
+							durationMs: request.intervalMs ?? KEY_SEQUENCE_INTERVAL_MS,
+						});
+					}
+				}
+				return {
+					action: "press",
+					input:
+						session.inputMode === "background"
+							? "cdp-dispatch-key-event"
+							: "electron-send-input-event",
+					inputMode: session.inputMode,
+					windowFocused: this.input.isWindowFocused(),
+					keyCount: request.keys.length,
+				};
+			},
+		});
+	}
+
+	typeText(request: AgentKeyboardTypeRequest): Promise<AgentKeyboardResult> {
+		return this.operations.runInput({
+			inputMode: request.inputMode,
+			operation: async ({ session }) => {
+				const characters = Array.from(request.text);
+				if (request.intervalMs && request.intervalMs > 0) {
+					for (const [index, character] of characters.entries()) {
+						await this.input.insertText({ session, text: character });
+						if (index < characters.length - 1) {
+							await this.sleep({ durationMs: request.intervalMs });
+						}
+					}
+				} else {
+					await this.input.insertText({ session, text: request.text });
+				}
+				return {
+					action: "type",
+					input:
+						session.inputMode === "background"
+							? "cdp-dispatch-key-event"
+							: "electron-send-input-event",
+					inputMode: session.inputMode,
+					windowFocused: this.input.isWindowFocused(),
+					characterCount: characters.length,
+				};
 			},
 		});
 	}
@@ -359,13 +514,24 @@ export class AgentPointerController {
 		action,
 		button = null,
 		dragging = false,
+		durationMs,
 	}: MoveToOptions): Promise<AgentPointerResolvedTarget> {
 		const resolvedTarget = await this.targets.resolve({ target });
 		const points = buildPointerMovementPath({
 			from: this.currentPosition,
 			to: resolvedTarget,
 		});
-		await this.moveAlongPath({ session, points, action, button, dragging });
+		await this.moveAlongPath({
+			session,
+			points,
+			action,
+			button,
+			dragging,
+			stepDelayMs:
+				durationMs === undefined
+					? undefined
+					: durationMs / Math.max(1, points.length - 1),
+		});
 		return resolvedTarget;
 	}
 
@@ -376,6 +542,7 @@ export class AgentPointerController {
 		action,
 		button,
 		dragging,
+		stepDelayMs = POINTER_MOVE_STEP_MS,
 	}: MovePathOptions): Promise<void> {
 		const point = points[index];
 		if (!point) return;
@@ -402,7 +569,7 @@ export class AgentPointerController {
 		});
 
 		if (index >= points.length - 1) return;
-		await this.sleep({ durationMs: POINTER_MOVE_STEP_MS });
+		await this.sleep({ durationMs: Math.max(0, stepDelayMs) });
 		await this.moveAlongPath({
 			session,
 			points,
@@ -410,6 +577,7 @@ export class AgentPointerController {
 			action,
 			button,
 			dragging,
+			stepDelayMs,
 		});
 	}
 

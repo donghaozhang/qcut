@@ -1,5 +1,10 @@
-import type { BrowserWindow, MouseInputEvent } from "electron";
 import type {
+	BrowserWindow,
+	KeyboardInputEvent,
+	MouseInputEvent,
+} from "electron";
+import type {
+	AgentKeyboardModifier,
 	AgentPointerButton,
 	AgentPointerInputBackend,
 	AgentPointerInputMode,
@@ -9,6 +14,7 @@ import type {
 import { AgentPointerError } from "./agent-pointer-error.js";
 
 type PointerMouseEventType = "mouseMove" | "mouseDown" | "mouseUp";
+type KeyboardEventType = "keyDown" | "keyUp";
 
 export interface AgentPointerInputSession {
 	inputMode: AgentPointerInputMode;
@@ -63,6 +69,137 @@ function buttonMask({ button }: { button?: AgentPointerButton }): number {
 
 function errorMessage({ error }: { error: unknown }): string {
 	return error instanceof Error ? error.message : String(error);
+}
+
+function cdpModifierMask(modifiers: AgentKeyboardModifier[]): number {
+	let mask = 0;
+	if (modifiers.includes("Alt")) mask |= 1;
+	if (modifiers.includes("Control")) mask |= 2;
+	if (modifiers.includes("Meta")) mask |= 4;
+	if (modifiers.includes("Shift")) mask |= 8;
+	return mask;
+}
+
+function electronModifiers(
+	modifiers: AgentKeyboardModifier[]
+): Array<"alt" | "control" | "meta" | "shift"> {
+	return modifiers.map((modifier) => modifier.toLowerCase()) as Array<
+		"alt" | "control" | "meta" | "shift"
+	>;
+}
+
+interface CdpKeyDescriptor {
+	key: string;
+	code: string;
+	windowsVirtualKeyCode: number;
+	text?: string;
+	commands?: string[];
+}
+
+const CDP_SPECIAL_KEYS: Record<
+	string,
+	Pick<CdpKeyDescriptor, "key" | "code" | "windowsVirtualKeyCode">
+> = {
+	Backspace: { key: "Backspace", code: "Backspace", windowsVirtualKeyCode: 8 },
+	Tab: { key: "Tab", code: "Tab", windowsVirtualKeyCode: 9 },
+	Enter: { key: "Enter", code: "Enter", windowsVirtualKeyCode: 13 },
+	Escape: { key: "Escape", code: "Escape", windowsVirtualKeyCode: 27 },
+	Space: { key: " ", code: "Space", windowsVirtualKeyCode: 32 },
+	PageUp: { key: "PageUp", code: "PageUp", windowsVirtualKeyCode: 33 },
+	PageDown: { key: "PageDown", code: "PageDown", windowsVirtualKeyCode: 34 },
+	End: { key: "End", code: "End", windowsVirtualKeyCode: 35 },
+	Home: { key: "Home", code: "Home", windowsVirtualKeyCode: 36 },
+	ArrowLeft: { key: "ArrowLeft", code: "ArrowLeft", windowsVirtualKeyCode: 37 },
+	ArrowUp: { key: "ArrowUp", code: "ArrowUp", windowsVirtualKeyCode: 38 },
+	ArrowRight: {
+		key: "ArrowRight",
+		code: "ArrowRight",
+		windowsVirtualKeyCode: 39,
+	},
+	ArrowDown: { key: "ArrowDown", code: "ArrowDown", windowsVirtualKeyCode: 40 },
+	Delete: { key: "Delete", code: "Delete", windowsVirtualKeyCode: 46 },
+};
+
+/** Lowercase alias → canonical name, so "enter"/"arrowup" resolve too. */
+const CDP_SPECIAL_KEY_NAMES = new Map(
+	Object.keys(CDP_SPECIAL_KEYS).map((name) => [name.toLowerCase(), name])
+);
+
+function cdpEditingCommands({
+	key,
+	modifiers,
+}: {
+	key: string;
+	modifiers: AgentKeyboardModifier[];
+}): string[] | undefined {
+	if (key === "Backspace") return ["deleteBackward"];
+	if (key === "Delete") return ["deleteForward"];
+	const shortcut = modifiers.includes("Meta") || modifiers.includes("Control");
+	if (!shortcut) return undefined;
+	switch (key.toLowerCase()) {
+		case "a":
+			return ["selectAll"];
+		case "c":
+			return ["copy"];
+		case "x":
+			return ["cut"];
+		case "v":
+			return ["paste"];
+		case "z":
+			return modifiers.includes("Shift") ? ["redo"] : ["undo"];
+		default:
+			return undefined;
+	}
+}
+
+function describeCdpKey({
+	key,
+	modifiers,
+}: {
+	key: string;
+	modifiers: AgentKeyboardModifier[];
+}): CdpKeyDescriptor {
+	const canonicalKey = CDP_SPECIAL_KEY_NAMES.get(key.toLowerCase()) ?? key;
+	const special = CDP_SPECIAL_KEYS[canonicalKey];
+	if (special) {
+		return {
+			...special,
+			commands: cdpEditingCommands({ key: canonicalKey, modifiers }),
+		};
+	}
+
+	if (/^[a-z]$/i.test(key)) {
+		const upper = key.toUpperCase();
+		const rendered = modifiers.includes("Shift") ? upper : upper.toLowerCase();
+		const hasCommandModifier = modifiers.some((modifier) =>
+			["Alt", "Control", "Meta"].includes(modifier)
+		);
+		return {
+			key: rendered,
+			code: `Key${upper}`,
+			windowsVirtualKeyCode: upper.charCodeAt(0),
+			...(hasCommandModifier ? {} : { text: rendered }),
+			commands: cdpEditingCommands({ key: rendered, modifiers }),
+		};
+	}
+
+	if (/^[0-9]$/.test(key)) {
+		return {
+			key,
+			code: `Digit${key}`,
+			windowsVirtualKeyCode: key.charCodeAt(0),
+			text: key,
+		};
+	}
+
+	const printable = key.length === 1;
+	return {
+		key,
+		code: key,
+		windowsVirtualKeyCode: printable ? key.toUpperCase().charCodeAt(0) : 0,
+		...(printable ? { text: key } : {}),
+		commands: cdpEditingCommands({ key, modifiers }),
+	};
 }
 
 export class AgentPointerInput {
@@ -219,6 +356,68 @@ export class AgentPointerInput {
 		});
 	}
 
+	async sendKey({
+		session,
+		type,
+		key,
+		modifiers = [],
+	}: {
+		session: AgentPointerInputSession;
+		type: KeyboardEventType;
+		key: string;
+		modifiers?: AgentKeyboardModifier[];
+	}): Promise<void> {
+		if (session.inputMode === "foreground") {
+			const event: KeyboardInputEvent = {
+				type,
+				keyCode: key,
+				modifiers: electronModifiers(modifiers),
+			};
+			this.win.webContents.sendInputEvent(event);
+			return;
+		}
+
+		const descriptor = describeCdpKey({ key, modifiers });
+		await this.dispatchBackgroundCommand({
+			method: "Input.dispatchKeyEvent",
+			params: {
+				type:
+					type === "keyUp"
+						? "keyUp"
+						: descriptor.text
+							? "keyDown"
+							: "rawKeyDown",
+				key: descriptor.key,
+				code: descriptor.code,
+				windowsVirtualKeyCode: descriptor.windowsVirtualKeyCode,
+				modifiers: cdpModifierMask(modifiers),
+				...(type === "keyDown" && descriptor.text
+					? { text: descriptor.text, unmodifiedText: descriptor.text }
+					: {}),
+				...(type === "keyDown" && descriptor.commands
+					? { commands: descriptor.commands }
+					: {}),
+			},
+		});
+	}
+
+	async insertText({
+		session,
+		text,
+	}: {
+		session: AgentPointerInputSession;
+		text: string;
+	}): Promise<void> {
+		if (session.inputMode === "foreground") {
+			await this.win.webContents.insertText(text);
+			return;
+		}
+		await this.dispatchBackgroundCommand({
+			method: "Input.insertText",
+			params: { text },
+		});
+	}
+
 	isWindowFocused(): boolean {
 		return !this.win.isDestroyed() && this.win.isFocused();
 	}
@@ -256,13 +455,30 @@ export class AgentPointerInput {
 		params: Record<string, string | number>;
 	}): Promise<void> {
 		try {
-			await this.win.webContents.debugger.sendCommand(
-				"Input.dispatchMouseEvent",
-				params
-			);
+			await this.dispatchBackgroundCommand({
+				method: "Input.dispatchMouseEvent",
+				params,
+			});
 		} catch (error) {
 			throw new AgentPointerError({
 				message: `Background pointer input failed: ${errorMessage({ error })}`,
+				statusCode: 503,
+			});
+		}
+	}
+
+	private async dispatchBackgroundCommand({
+		method,
+		params,
+	}: {
+		method: string;
+		params: Record<string, unknown>;
+	}): Promise<void> {
+		try {
+			await this.win.webContents.debugger.sendCommand(method, params);
+		} catch (error) {
+			throw new AgentPointerError({
+				message: `Background input failed: ${errorMessage({ error })}`,
 				statusCode: 503,
 			});
 		}

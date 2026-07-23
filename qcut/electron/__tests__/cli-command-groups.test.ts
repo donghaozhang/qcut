@@ -14,6 +14,7 @@ import {
 	COMMAND_ALIASES,
 	warnIfDeprecated,
 } from "../native-pipeline/cli/aliases.js";
+import { parseCliArgs } from "../native-pipeline/cli/cli.js";
 import { ModelRegistry } from "../native-pipeline/infra/registry.js";
 import { initRegistry, resetInitState } from "../native-pipeline/init.js";
 
@@ -69,6 +70,33 @@ describe("Command Groups", () => {
 				command: "generate-image",
 				remainingArgs: ["--text", "cat"],
 			});
+		});
+
+		it("resolves three-level editor commands without leaking the action", () => {
+			const result = resolveCommandGroup([
+				"editor",
+				"demo",
+				"run",
+				"--plan",
+				"promo.json",
+			]);
+			expect(result).toEqual({
+				command: "editor:demo:run",
+				remainingArgs: ["--plan", "promo.json"],
+			});
+
+			const options = parseCliArgs([
+				"editor",
+				"demo",
+				"run",
+				"--plan",
+				"promo.json",
+				"--speed",
+				"1.5",
+			]);
+			expect(options.command).toBe("editor:demo:run");
+			expect(options.plan).toBe("promo.json");
+			expect(options.speed).toBe(1.5);
 		});
 
 		it("returns null for unknown group", () => {
@@ -189,18 +217,25 @@ describe("Editor command metadata", () => {
 			"editor:pointer:double-click",
 			"editor:pointer:right-click",
 			"editor:pointer:drag",
+			"editor:pointer:wait-for",
 			"editor:pointer:scroll",
+			"editor:pointer:sequence",
 			"editor:pointer:hide",
 		];
 
 		for (const command of commands) {
 			expect(getCommand(command)?.name).toBe(command);
 		}
-		for (const command of commands.slice(0, -1)) {
+		for (const command of [
+			...commands.slice(0, 6),
+			"editor:pointer:scroll",
+			"editor:pointer:sequence",
+		]) {
 			expect(
 				getCommand(command)?.flags.some((flag) => flag.name === "--foreground")
 			).toBe(true);
 		}
+		expect(getCommand("editor:demo:run")?.name).toBe("editor:demo:run");
 		expect(
 			getCommand("editor:pointer:drag")?.flags.map((flag) => flag.name)
 		).toEqual(

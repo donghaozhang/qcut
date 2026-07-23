@@ -235,6 +235,47 @@ describe("action policy", () => {
 		expect(handleEditorCommand).not.toHaveBeenCalled();
 	});
 
+	it("allows low-risk semantic panel clicks and playhead seeks by default", async () => {
+		const runner = new CLIPipelineRunner();
+
+		const panelClick = await runner.run(
+			defaultOptions({
+				command: "editor:pointer:click",
+				target: "panel.text",
+			}),
+			vi.fn()
+		);
+		const playheadSeek = await runner.run(
+			defaultOptions({
+				command: "editor:pointer:drag",
+				from: "timeline.playhead",
+				toTime: 12,
+			}),
+			vi.fn()
+		);
+
+		expect(panelClick.success).toBe(true);
+		expect(playheadSeek.success).toBe(true);
+		expect(handleEditorCommand).toHaveBeenCalledTimes(2);
+	});
+
+	it("still confirms arbitrary coordinate pointer clicks", async () => {
+		const runner = new CLIPipelineRunner();
+
+		const result = await runner.run(
+			defaultOptions({
+				command: "editor:pointer:click",
+				x: 100,
+				y: 200,
+			}),
+			vi.fn()
+		);
+
+		expect(result.success).toBe(false);
+		expect(result.error).toContain("requires confirmation");
+		expect(handleEditorCommand).not.toHaveBeenCalled();
+	});
+
 	it("blocks flag-sensitive auth token mutations without --force", async () => {
 		const runner = new CLIPipelineRunner();
 
@@ -304,6 +345,31 @@ describe("action policy", () => {
 
 		expect(result.success).toBe(true);
 		expect(handleEditorCommand).toHaveBeenCalledTimes(1);
+	});
+
+	it("keeps semantic pointer actions subject to custom confirmation policies", async () => {
+		const policyPath = writePolicyFile({
+			content: JSON.stringify({
+				allow: [],
+				confirm: ["editor:pointer:click"],
+				deny: [],
+			}),
+		});
+		tempDirs.add(path.dirname(policyPath));
+
+		const runner = new CLIPipelineRunner();
+		const result = await runner.run(
+			defaultOptions({
+				command: "editor:pointer:click",
+				target: "panel.text",
+				policy: policyPath,
+			}),
+			vi.fn()
+		);
+
+		expect(result.success).toBe(false);
+		expect(result.error).toContain("requires confirmation");
+		expect(handleEditorCommand).not.toHaveBeenCalled();
 	});
 
 	it("blocks denied commands even with --force", async () => {

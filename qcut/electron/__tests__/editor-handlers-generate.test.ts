@@ -1,3 +1,4 @@
+import * as path from "node:path";
 import { afterAll, afterEach, beforeAll, describe, expect, it } from "vitest";
 import { EditorApiClient } from "../native-pipeline/editor/editor-api-client.js";
 import { handleGenerateExportCommand } from "../native-pipeline/editor/editor-handlers-generate.js";
@@ -357,6 +358,46 @@ describe("Export handlers", () => {
 			);
 			expect(result.success).toBe(true);
 			expect((result.data as { jobId: string }).jobId).toBe("ej1");
+		});
+
+		it("honors an exact output path and explicit engine", async () => {
+			let capturedBody: Record<string, unknown> | undefined;
+			const origFetch = globalThis.fetch;
+			globalThis.fetch = async (
+				_input: RequestInfo | URL,
+				init?: RequestInit
+			) => {
+				capturedBody = JSON.parse(String(init?.body));
+				return new Response(
+					JSON.stringify({ success: true, data: { jobId: "ej-exact" } }),
+					{ headers: { "Content-Type": "application/json" } }
+				);
+			};
+
+			try {
+				const result = await handleGenerateExportCommand(
+					client,
+					makeOpts({
+						command: "editor:export:start",
+						projectId: "p1",
+						output: "/tmp/qcut-exact-export",
+						engine: "cli",
+					}),
+					noopProgress
+				);
+
+				expect(result.success).toBe(true);
+				expect(capturedBody).toEqual(
+					expect.objectContaining({
+						engine: "cli",
+						// path.resolve keeps the expectation valid on Windows (D:\tmp\...)
+						outputPath: path.resolve("/tmp/qcut-exact-export.mp4"),
+					})
+				);
+			} finally {
+				globalThis.fetch = origFetch;
+				installFetchMock(BASE_URL);
+			}
 		});
 	});
 

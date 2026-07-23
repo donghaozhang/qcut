@@ -10,6 +10,8 @@ export interface SessionState {
 	version: number;
 	sessionName: string;
 	projectId?: string;
+	host?: string;
+	port?: string;
 	lastPanel?: string;
 	lastTab?: string;
 	commandHistory: string[];
@@ -25,6 +27,8 @@ export interface SessionCommandPayload {
 export interface SessionListEntry {
 	sessionName: string;
 	projectId?: string;
+	host?: string;
+	port?: string;
 	savedAt: string;
 	path: string;
 }
@@ -83,6 +87,8 @@ export function buildSessionStateSnapshot({
 		...baseState,
 		sessionName: sanitizeSessionName({ sessionName }),
 		projectId: options.projectId ?? baseState.projectId,
+		host: options.host ?? baseState.host,
+		port: options.port ?? baseState.port,
 		lastPanel: options.panel ?? baseState.lastPanel,
 		lastTab: options.tab ?? baseState.lastTab,
 		savedAt: new Date().toISOString(),
@@ -123,6 +129,8 @@ function parseSessionState({
 		sessionName,
 		projectId:
 			typeof candidate.projectId === "string" ? candidate.projectId : undefined,
+		host: typeof candidate.host === "string" ? candidate.host : undefined,
+		port: typeof candidate.port === "string" ? candidate.port : undefined,
 		lastPanel:
 			typeof candidate.lastPanel === "string" ? candidate.lastPanel : undefined,
 		lastTab:
@@ -244,6 +252,8 @@ export function applySessionStateToOptions({
 	return {
 		...options,
 		projectId: options.projectId ?? sessionState.projectId,
+		host: options.host ?? sessionState.host,
+		port: options.port ?? sessionState.port,
 		panel: options.panel ?? sessionState.lastPanel,
 		tab: options.tab ?? sessionState.lastTab,
 	};
@@ -253,6 +263,9 @@ function buildHistoryEntry({ options }: { options: CLIRunOptions }): string {
 	const parts = [options.command];
 	if (options.projectId) {
 		parts.push(`project=${options.projectId}`);
+	}
+	if (options.port) {
+		parts.push(`port=${options.port}`);
 	}
 	if (options.panel) {
 		parts.push(`panel=${options.panel}`);
@@ -284,6 +297,12 @@ export function updateSessionState({
 	if (result.success) {
 		if (options.projectId) {
 			nextState.projectId = options.projectId;
+		}
+		if (options.host) {
+			nextState.host = options.host;
+		}
+		if (options.port) {
+			nextState.port = options.port;
 		}
 		if (options.panel) {
 			nextState.lastPanel = options.panel;
@@ -323,6 +342,8 @@ export function listSessions({
 			entries.push({
 				sessionName: session.sessionName,
 				projectId: session.projectId,
+				host: session.host,
+				port: session.port,
 				savedAt: session.savedAt,
 				path: filePath,
 			});

@@ -15,6 +15,8 @@ import type {
 	ClaudeRangeDeleteRequest,
 	ClaudeRangeDeleteResponse,
 	BatchCutResponse,
+	ClaudeTrackOperationRequest,
+	ClaudeTrackOperationResponse,
 } from "../../types/claude-api";
 
 /** Claude search/transcription operations. */
@@ -88,6 +90,10 @@ export interface ClaudeTimelineAPI {
 			projectId: string,
 			request: ClaudeArrangeRequest
 		) => Promise<ClaudeArrangeResponse>;
+		trackOperation: (
+			projectId: string,
+			request: ClaudeTrackOperationRequest
+		) => Promise<ClaudeTrackOperationResponse>;
 		splitElement: (
 			projectId: string,
 			elementId: string,
@@ -210,6 +216,16 @@ export interface ClaudeTimelineAPI {
 		sendArrangeResponse: (
 			requestId: string,
 			result: ClaudeArrangeResponse
+		) => void;
+		onTrackOperation: (
+			callback: (data: {
+				requestId: string;
+				request: ClaudeTrackOperationRequest;
+			}) => void
+		) => void;
+		sendTrackOperationResponse: (
+			requestId: string,
+			result: ClaudeTrackOperationResponse
 		) => void;
 		onLoadSpeech: (
 			callback: (data: {

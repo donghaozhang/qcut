@@ -102,37 +102,23 @@ export function useExportProgress() {
 			);
 			const factory = ExportEngineFactory.getInstance();
 
-			// Let factory auto-recommend for Electron, otherwise use manual selection
-			let selectedEngineType: ExportEngineType | undefined;
-
 			console.log("🎬 EXPORT HOOK - Selecting engine type:");
 			console.log("  - isElectron():", isElectron());
 			console.log("  - User selected engine:", exportSettings.engineType);
 
-			if (isElectron()) {
-				debugLog(
-					"[ExportPanel] 🖥️  Electron detected - letting factory auto-recommend engine"
-				);
-				console.log(
-					"  ✅ Electron detected - letting factory auto-select FFmpeg CLI"
-				);
-				selectedEngineType = undefined; // Let factory decide
-			} else {
-				console.log("  🌐 Browser mode - using user selection");
-				if (exportSettings.engineType === "auto") {
-					console.log("    - Auto mode: letting factory decide");
-					selectedEngineType = undefined;
-				} else if (exportSettings.engineType === "cli") {
-					console.log("    - CLI mode selected");
-					selectedEngineType = ExportEngineType.CLI;
-				} else if (exportSettings.engineType === "ffmpeg") {
-					console.log("    - FFmpeg WASM mode selected");
-					selectedEngineType = ExportEngineType.FFMPEG;
-				} else {
-					console.log("    - Standard Canvas mode selected");
-					selectedEngineType = ExportEngineType.STANDARD;
-				}
-			}
+			const engineTypeMap: Partial<
+				Record<ExportEngineSelection, ExportEngineType>
+			> = {
+				cli: ExportEngineType.CLI,
+				ffmpeg: ExportEngineType.FFMPEG,
+				standard: ExportEngineType.STANDARD,
+			};
+			// Auto delegates to the factory; every explicit selection is honored on
+			// desktop and web so the control never lies about the active engine.
+			const selectedEngineType: ExportEngineType | undefined =
+				exportSettings.engineType === "auto"
+					? undefined
+					: engineTypeMap[exportSettings.engineType];
 
 			debugLog("[ExportPanel] 🎬 Creating export engine with settings:", {
 				quality: exportSettings.quality,

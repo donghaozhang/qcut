@@ -8,7 +8,18 @@ interface ClaudeProjectSettingsUpdate {
 	width?: number;
 	height?: number;
 	fps?: number;
+	aspectRatio?: string;
 	backgroundColor?: string;
+	canvasSize?: {
+		width?: number;
+		height?: number;
+	};
+}
+
+function positiveNumber(value: unknown): number | undefined {
+	return typeof value === "number" && Number.isFinite(value) && value > 0
+		? Math.round(value)
+		: undefined;
 }
 
 /**
@@ -31,46 +42,130 @@ export function useClaudeProjectUpdates({
 			return;
 		}
 
-		const handleProjectUpdated = (
-			updatedProjectId: string,
-			settings: ClaudeProjectSettingsUpdate
-		) => {
+		let pendingSettings: ClaudeProjectSettingsUpdate | undefined;
+		let saveQueue = Promise.resolve();
+
+		const applySettings = (settings?: ClaudeProjectSettingsUpdate): boolean => {
 			try {
-				if (updatedProjectId !== projectId) {
-					return;
+				const projectStore = useProjectStore.getState();
+				const activeProject = projectStore.activeProject;
+				if (!activeProject || activeProject.id !== projectId) {
+					return false;
 				}
 
-				const activeProject = useProjectStore.getState().activeProject;
-				if (!activeProject || activeProject.id !== updatedProjectId) {
-					return;
+				if (!settings) {
+					useEditorStore
+						.getState()
+						.setCanvasSize(activeProject.canvasSize, activeProject.canvasMode);
+					return true;
 				}
 
-				const width = settings.width ?? activeProject.canvasSize.width;
-				const height = settings.height ?? activeProject.canvasSize.height;
+				const width =
+					positiveNumber(settings.width) ??
+					positiveNumber(settings.canvasSize?.width) ??
+					activeProject.canvasSize.width;
+				const height =
+					positiveNumber(settings.height) ??
+					positiveNumber(settings.canvasSize?.height) ??
+					activeProject.canvasSize.height;
+				const fps = positiveNumber(settings.fps) ?? activeProject.fps;
+				const dimensionsChanged =
+					width !== activeProject.canvasSize.width ||
+					height !== activeProject.canvasSize.height;
+				const canvasMode = dimensionsChanged
+					? "custom"
+					: activeProject.canvasMode;
 				const nextProject = {
 					...activeProject,
-					name: settings.name ?? activeProject.name,
-					fps: settings.fps ?? activeProject.fps,
+					name:
+						typeof settings.name === "string" && settings.name.trim()
+							? settings.name.trim()
+							: activeProject.name,
+					fps,
 					backgroundColor:
 						settings.backgroundColor ?? activeProject.backgroundColor,
 					canvasSize: { width, height },
+					canvasMode,
 					updatedAt: new Date(),
 				};
 
 				useProjectStore.setState({ activeProject: nextProject });
-				useEditorStore.getState().setCanvasSize({ width, height });
+				useEditorStore.getState().setCanvasSize({ width, height }, canvasMode);
+				saveQueue = saveQueue
+					.catch(() => undefined)
+					.then(async () => {
+						if (useProjectStore.getState().activeProject?.id === projectId) {
+							await useProjectStore.getState().saveCurrentProject();
+						}
+					});
+				return true;
 			} catch {
 				// Ignore renderer sync failures; HTTP update already persisted to disk.
+				return false;
 			}
 		};
+
+		const handleProjectUpdated = (
+			updatedProjectId: string,
+			settings: ClaudeProjectSettingsUpdate
+		) => {
+			if (updatedProjectId !== projectId) return;
+			if (!applySettings(settings)) {
+				// Merge nested canvasSize so queued partial updates (e.g. width-only
+				// then height-only) accumulate instead of overwriting each other.
+				const canvasSize =
+					pendingSettings?.canvasSize || settings.canvasSize
+						? { ...pendingSettings?.canvasSize, ...settings.canvasSize }
+						: undefined;
+				pendingSettings = {
+					...pendingSettings,
+					...settings,
+					...(canvasSize ? { canvasSize } : {}),
+				};
+			}
+		};
+
+		const unsubscribeProjectStore = useProjectStore.subscribe(
+			(state, previousState) => {
+				if (state.activeProject?.id !== projectId) return;
+
+				const settings = pendingSettings;
+				pendingSettings = undefined;
+				if (settings) {
+					applySettings(settings);
+					return;
+				}
+
+				const previousProject = previousState.activeProject;
+				if (
+					previousProject?.id !== projectId ||
+					previousProject.canvasSize.width !==
+						state.activeProject.canvasSize.width ||
+					previousProject.canvasSize.height !==
+						state.activeProject.canvasSize.height ||
+					previousProject.canvasMode !== state.activeProject.canvasMode
+				) {
+					useEditorStore
+						.getState()
+						.setCanvasSize(
+							state.activeProject.canvasSize,
+							state.activeProject.canvasMode
+						);
+				}
+			}
+		);
+
+		applySettings();
 
 		try {
 			projectApi.onUpdated(handleProjectUpdated);
 		} catch {
+			unsubscribeProjectStore();
 			return;
 		}
 
 		return () => {
+			unsubscribeProjectStore();
 			try {
 				projectApi.removeListeners?.();
 			} catch {

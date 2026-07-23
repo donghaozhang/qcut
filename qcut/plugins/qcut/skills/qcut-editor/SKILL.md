@@ -54,8 +54,8 @@ to Media, and verifies both the active project and panel from editor state.
 - For `qcut:project_selection_required`, show the returned project names and ask
   the user which one to open. Then rerun with its ID.
 - For `qcut:project_creation_required`, ask for a project name, create it with
-  `editor:project:create --new-name <name> --json`, list projects again, and open
-  the returned project ID.
+  `editor:project:create --name <name> --open --wait-ready --json`, then use the
+  returned project ID.
 - Do not choose arbitrarily when multiple projects exist.
 
 For E2E verification, capture a screenshot only after `verified: true`:
@@ -75,6 +75,17 @@ node <plugin-root>/scripts/qcut-runner.mjs doctor --require-editor
 If the editor is unavailable but QCut is installed, launch it with
 `qcut-setup.mjs launch` and retry. Do not start a different local web
 application and treat it as QCut.
+
+When more than one QCut build is running, select the target once instead of
+retrying the default port:
+
+```bash
+qcut instances list --json
+qcut instances use --port 8878 --json
+```
+
+The selection persists for later commands and named sessions. An explicit
+`--port` still overrides it.
 
 ## State-first workflow
 
@@ -96,10 +107,30 @@ sequences.
 
 ## Visible Agent pointer
 
-Use the pointer commands when a visible UI interaction is required and no
-semantic editor command covers it. Capture a fresh interactive snapshot first;
-`@ref` values belong to the latest editor snapshot and should not be reused
-after substantial UI changes.
+Use stable semantic targets before taking a snapshot. They avoid stale refs and
+viewport-specific coordinates:
+
+```bash
+qcut editor pointer wait-for --target panel.text --json
+qcut editor pointer click --target panel.text --json
+qcut editor pointer hover --target export.button --speed 1.5 --json
+qcut editor pointer drag --from timeline.playhead --to-time 12 --speed 1.5 --json
+```
+
+Known targets include `panel.media`, `panel.audio`, `panel.text`,
+`panel.stickers`, `panel.effects`, `panel.transitions`, `panel.captions`,
+`panel.filters`, `panel.adjustments`, `panel.templates`, `export.button`,
+`export.start`, `timeline.playhead`, `timeline.toolbar`, `timeline.zoom-in`,
+`timeline.zoom-out`, `preview.canvas`, and `media.import`. Use
+`testid:<data-testid>` for an explicit app test ID.
+
+Panel navigation clicks and semantic playhead seeks are low risk under the
+default action policy. Raw clicks and real drags remain confirmation-tier
+actions.
+
+When no semantic target exists, capture a fresh interactive snapshot first;
+`@ref` values belong to the latest snapshot and should not be reused after
+substantial UI changes.
 
 ```bash
 node <plugin-root>/scripts/qcut-runner.mjs editor:snapshot --interactive --depth 24 --json
@@ -138,6 +169,25 @@ them inside the current editor viewport. Click, double-click, right-click, and
 drag are confirmation-tier actions; use `--force` only after the requested
 action and target are clear.
 
+## Record a repeatable demo
+
+Use a plan to prepare the project and timeline, run semantic pointer actions,
+record the window, export the result, and verify frames and audio:
+
+```bash
+qcut editor demo run \
+  --plan promo.json \
+  --record demo.mp4 \
+  --speed 1.5 \
+  --skip-idle \
+  --json
+```
+
+The plan may contain `project` or `projectId`, `timeline`/`manifest`, `actions`,
+and `export`. Add `export.verifyFrames` timestamps and
+`export.requireAudio: true` for explicit acceptance checks. Recording writes a
+sidecar pointer event track by default; pass `--event-track` to choose its path.
+
 ## Editing rules
 
 - Prefer setup and `editor:*` CLI commands for installation checks, launch,
@@ -145,6 +195,8 @@ action and target are clear.
   controls and the visible pointer only when no semantic command exists.
 - Prefer `editor:timeline:split`, `move`, `trim`, and dedicated sticker or
   export commands over raw JSON patches.
+- `editor:timeline:apply` opens the target project and waits for its media and
+  timeline services before applying an atomic manifest.
 - Before using `add-element` or `update-element`, export the timeline and reuse
   the exact schema already present in that project. Do not invent element
   fields.

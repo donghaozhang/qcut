@@ -51,15 +51,45 @@ export interface AgentPointerResolvedTarget extends AgentPointerPoint {
 
 export interface AgentPointerMoveRequest
 	extends AgentPointerTarget,
-		AgentPointerInputOptions {}
+		AgentPointerInputOptions {
+	durationMs?: number;
+}
 
 export interface AgentPointerClickRequest
 	extends AgentPointerTarget,
-		AgentPointerInputOptions {}
+		AgentPointerInputOptions {
+	durationMs?: number;
+}
 
 export interface AgentPointerDragRequest extends AgentPointerInputOptions {
 	from: AgentPointerTarget;
 	to: AgentPointerTarget;
+	via?: AgentPointerTarget[];
+	holdMs?: number;
+	durationMs?: number;
+	steps?: number;
+	releaseDelayMs?: number;
+}
+
+export type AgentKeyboardModifier = "Alt" | "Control" | "Meta" | "Shift";
+
+export interface AgentKeyboardPressRequest extends AgentPointerInputOptions {
+	keys: string[];
+	intervalMs?: number;
+}
+
+export interface AgentKeyboardTypeRequest extends AgentPointerInputOptions {
+	text: string;
+	intervalMs?: number;
+}
+
+export interface AgentKeyboardResult {
+	action: "press" | "type";
+	input: "cdp-dispatch-key-event" | "electron-send-input-event";
+	inputMode: AgentPointerInputMode;
+	windowFocused: boolean;
+	keyCount?: number;
+	characterCount?: number;
 }
 
 export interface AgentPointerScrollRequest

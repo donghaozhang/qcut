@@ -8,7 +8,14 @@ import { spawn } from "node:child_process";
 import * as fsPromises from "node:fs/promises";
 import * as os from "node:os";
 import * as path from "node:path";
-import { getFFmpegPath, parseProgress } from "../../../ffmpeg/utils.js";
+import {
+	getFFmpegPath,
+	parseProgress,
+	probeHasAudioStream,
+} from "../../../ffmpeg/utils.js";
+import { buildTimelineAudioFilters } from "../../../ffmpeg/audio-filter-graph.js";
+import type { AudioFile } from "../../../ffmpeg/types.js";
+import { buildVideoFitFilter } from "../../../ffmpeg/video-fit-filter.js";
 import { claudeLog } from "../../utils/logger.js";
 import { logOperation } from "../../claude-operation-log.js";
 import { emitClaudeEvent } from "../claude-events-handler.js";
@@ -28,6 +35,7 @@ import {
 	EXPORT_JOB_STATUS,
 	type ExportSegment,
 	type StickerOverlay,
+	type TextOverlay,
 	type ResolvedExportSettings,
 	type ExportJobInternal,
 } from "./types.js";
@@ -44,6 +52,7 @@ import {
 	shouldCompositeCursor,
 	compositeCursorOnSegments,
 } from "./cursor-composite.js";
+import { buildTextAss } from "./text-overlay.js";
 
 export function resolveExportSettings({
 	request,
@@ -59,6 +68,12 @@ export function resolveExportSettings({
 
 		const s = request.settings;
 		const top = request as Record<string, unknown>;
+		const requestedEngine = request.engine ?? "auto";
+		if (!["auto", "native", "cli"].includes(requestedEngine)) {
+			throw new Error(
+				`Export engine '${requestedEngine}' is not available through the CLI API. Use auto, native, or cli.`
+			);
+		}
 
 		const format =
 			s?.format ??
@@ -93,6 +108,7 @@ export function resolveExportSettings({
 		}
 
 		return {
+			engine: "native-cli",
 			presetId: preset.id,
 			width:
 				s?.width ?? (typeof top.width === "number" ? top.width : preset.width),
@@ -125,6 +141,10 @@ export function resolveExportSettings({
 	}
 }
 
+function escapeAssFilterPath(filePath: string): string {
+	return filePath.replace(/\\/g, "/").replace(/:/g, "\\:").replace(/'/g, "\\'");
+}
+
 /** Look up the media file for a timeline element by ID or filename. */
 function findMediaForElement({
 	element,
@@ -138,6 +158,10 @@ function findMediaForElement({
 	if (element.sourceId) {
 		const byId = mediaById.get(element.sourceId);
 		if (byId) return byId;
+	}
+	if (element.mediaId) {
+		const byMediaId = mediaById.get(element.mediaId);
+		if (byMediaId) return byMediaId;
 	}
 
 	if (element.sourceName) {
@@ -159,6 +183,101 @@ function findMediaForElement({
 	}
 
 	return null;
+}
+
+function optionalNumber(value: unknown, fallback?: number): number | undefined {
+	return typeof value === "number" && Number.isFinite(value) ? value : fallback;
+}
+
+function optionalBoolean(value: unknown, fallback = false): boolean {
+	return typeof value === "boolean" ? value : fallback;
+}
+
+/**
+ * Collect independent timeline audio tracks. Embedded audio from media tracks is
+ * already carried by the base video export and is intentionally excluded here.
+ */
+export async function collectTimelineAudioFiles({
+	timeline,
+	mediaFiles,
+	projectId,
+}: {
+	timeline: ClaudeTimeline;
+	mediaFiles: MediaFile[];
+	projectId?: string;
+}): Promise<AudioFile[]> {
+	const mediaById = new Map<string, MediaFile>();
+	const mediaByName = new Map<string, MediaFile>();
+	for (const mediaFile of mediaFiles) {
+		mediaById.set(mediaFile.id, mediaFile);
+		mediaByName.set(mediaFile.name, mediaFile);
+	}
+
+	const audioFiles: AudioFile[] = [];
+	const diskFallbackCache = new Map<string, MediaFile | null>();
+	for (const [trackIndex, track] of timeline.tracks.entries()) {
+		const trackRecord = track as unknown as Record<string, unknown>;
+		if (
+			track.type !== "audio" ||
+			track.hidden === true ||
+			trackRecord.muted === true
+		) {
+			continue;
+		}
+		for (const element of track.elements) {
+			if (element.hidden === true) continue;
+			let media = findMediaForElement({ element, mediaById, mediaByName });
+			if (!media && projectId && element.sourceName) {
+				if (diskFallbackCache.has(element.sourceName)) {
+					media = diskFallbackCache.get(element.sourceName) ?? null;
+				} else {
+					media = await resolveMediaFromDisk({
+						projectId,
+						sourceName: element.sourceName,
+					});
+					diskFallbackCache.set(element.sourceName, media);
+				}
+			}
+			if (!media || (media.type !== "audio" && media.type !== "video")) {
+				continue;
+			}
+
+			const elementRecord = element as unknown as Record<string, unknown>;
+			const props =
+				typeof element.props === "object" && element.props !== null
+					? element.props
+					: {};
+			const read = (key: string): unknown =>
+				elementRecord[key] !== undefined ? elementRecord[key] : props[key];
+			const duration =
+				optionalNumber(element.duration) ??
+				Math.max(0, element.endTime - element.startTime);
+			if (!duration || duration <= 0) continue;
+
+			audioFiles.push({
+				elementId: element.id,
+				trackId: track.id ?? `track-${trackIndex}`,
+				path: media.path,
+				startTime: Math.max(0, element.startTime),
+				volume: optionalNumber(read("volume"), 1),
+				sourceGain: optionalNumber(read("sourceGain"), 1),
+				trimStart: optionalNumber(element.trimStart, 0),
+				trimEnd: optionalNumber(element.trimEnd, 0),
+				duration,
+				fadeIn: optionalNumber(read("audioFadeIn"), 0),
+				fadeOut: optionalNumber(read("audioFadeOut"), 0),
+				normalize: optionalBoolean(read("audioNormalize")),
+				denoise: optionalNumber(read("audioDenoise"), 0),
+				pan: optionalNumber(read("audioPan"), 0),
+				playbackRate: optionalNumber(read("playbackRate"), 1),
+				reverse: optionalBoolean(read("reverse")),
+				freezeFrameTime: optionalNumber(read("freezeFrameTime")),
+				freezeFrameDuration: optionalNumber(read("freezeFrameDuration"), 0),
+			});
+		}
+	}
+	audioFiles.sort((left, right) => left.startTime - right.startTime);
+	return audioFiles;
 }
 
 /**
@@ -308,6 +427,7 @@ export async function collectExportSegments({
 					duration: durationFromElement,
 					sourceId: media.id,
 					isImage: media.type === "image",
+					fitMode: element.fitMode ?? "cover",
 				});
 			}
 		}
@@ -529,6 +649,21 @@ async function runFFmpegCommand({
 	}
 }
 
+/** Build the same cover/contain/fill scaling used by the editor preview. */
+export function buildExportSegmentScaleFilter({
+	segment,
+	settings,
+}: {
+	segment: ExportSegment;
+	settings: Pick<ResolvedExportSettings, "width" | "height">;
+}): string {
+	return `${buildVideoFitFilter({
+		fitMode: segment.fitMode,
+		width: settings.width,
+		height: settings.height,
+	})},setsar=1`;
+}
+
 /** Execute a full export job: encode segments, composite cursors, concatenate, and finalize. */
 export async function executeExportJob({
 	jobId,
@@ -537,6 +672,8 @@ export async function executeExportJob({
 	outputPath,
 	segments,
 	stickerOverlays = [],
+	textOverlays = [],
+	audioFiles = [],
 }: {
 	jobId: string;
 	projectId: string;
@@ -544,6 +681,8 @@ export async function executeExportJob({
 	outputPath: string;
 	segments: ExportSegment[];
 	stickerOverlays?: StickerOverlay[];
+	textOverlays?: TextOverlay[];
+	audioFiles?: AudioFile[];
 }): Promise<void> {
 	const job = exportJobs.get(jobId);
 	if (!job) {
@@ -576,7 +715,6 @@ export async function executeExportJob({
 			: outputPath;
 
 		const segmentOutputs: string[] = [];
-		const scaleFilter = `scale=${settings.width}:${settings.height}:force_original_aspect_ratio=decrease,pad=${settings.width}:${settings.height}:(ow-iw)/2:(oh-ih)/2:black`;
 		const totalSegments = segments.length;
 
 		for (const [index, segment] of segments.entries()) {
@@ -595,6 +733,10 @@ export async function executeExportJob({
 						segment.sourcePath,
 					]
 				: ["-i", segment.sourcePath, "-t", String(segment.duration)];
+			const scaleFilter = buildExportSegmentScaleFilter({
+				segment,
+				settings,
+			});
 
 			await runFFmpegCommand({
 				args: [
@@ -838,6 +980,158 @@ export async function executeExportJob({
 			}
 		}
 
+		// Text/caption overlays are a required parity pass. Failure is fatal so a
+		// successful export can never silently omit visible timeline text.
+		if (textOverlays.length > 0 && settings.format !== "mp3") {
+			claudeLog.info(
+				HANDLER_NAME,
+				`Applying ${textOverlays.length} text overlay(s) to exported video`
+			);
+			updateJobProgress({ jobId, progress: 0.94 });
+			const sourcePath = path.join(tempDir, "concat-before-text.mp4");
+			const assPath = path.join(tempDir, "timeline-text.ass");
+			await fsPromises.writeFile(
+				assPath,
+				buildTextAss({
+					overlays: textOverlays,
+					width: settings.width,
+					height: settings.height,
+				}),
+				"utf8"
+			);
+			await fsPromises.rename(videoOutputPath, sourcePath);
+			try {
+				await runFFmpegCommand({
+					args: [
+						"-y",
+						"-i",
+						sourcePath,
+						"-vf",
+						`ass='${escapeAssFilterPath(assPath)}'`,
+						"-map",
+						"0:v:0",
+						"-map",
+						"0:a?",
+						"-c:v",
+						settings.codec,
+						"-preset",
+						"medium",
+						"-b:v",
+						parseBitrateForKbps({ bitrate: settings.bitrate }),
+						"-pix_fmt",
+						"yuv420p",
+						"-c:a",
+						"copy",
+						"-movflags",
+						"+faststart",
+						videoOutputPath,
+					],
+					estimatedDuration: Math.max(
+						0,
+						segments.reduce((sum, segment) => sum + segment.duration, 0)
+					),
+				});
+			} catch (error) {
+				try {
+					await fsPromises.unlink(videoOutputPath);
+				} catch {}
+				await fsPromises.rename(sourcePath, videoOutputPath);
+				throw new Error(
+					`Text overlay export failed: ${error instanceof Error ? error.message : String(error)}`
+				);
+			}
+		}
+
+		// Independent audio tracks are mixed after all video-only compositing
+		// passes. The existing embedded video audio is included when present.
+		if (audioFiles.length > 0) {
+			claudeLog.info(
+				HANDLER_NAME,
+				`Mixing ${audioFiles.length} independent timeline audio track(s)`
+			);
+			updateJobProgress({ jobId, progress: 0.955 });
+			const sourcePath = path.join(tempDir, "video-before-audio-mix.mp4");
+			await fsPromises.rename(videoOutputPath, sourcePath);
+			try {
+				const hasEmbeddedAudio = await probeHasAudioStream({
+					mediaPath: sourcePath,
+				});
+				const inputArgs = ["-y", "-i", sourcePath];
+				for (const audioFile of audioFiles) {
+					inputArgs.push("-i", audioFile.path);
+				}
+				const graph = buildTimelineAudioFilters({
+					audioFiles,
+					audioStartIndex: 1,
+					fps: settings.fps,
+				});
+				if (!graph.mapAudio) {
+					throw new Error("Timeline audio filter graph produced no audio map");
+				}
+				const filterSteps = [...graph.filterSteps];
+				let audioMap = graph.mapAudio;
+				if (hasEmbeddedAudio) {
+					const externalLabel = graph.mapAudio.startsWith("[")
+						? graph.mapAudio
+						: `[${graph.mapAudio}]`;
+					filterSteps.push(
+						`[0:a]${externalLabel}amix=inputs=2:duration=longest:dropout_transition=0:normalize=0[a_final]`
+					);
+					audioMap = "[a_final]";
+				}
+				// The concat video length is the sum of encoded segment durations
+				// (timeline gaps collapse), so derive the mux duration from that
+				// rather than timeline offsets; audio tails may still extend past it.
+				const concatVideoDuration = segments.reduce(
+					(sum, segment) => sum + segment.duration,
+					0
+				);
+				const totalDuration = Math.max(
+					concatVideoDuration,
+					...audioFiles.map(
+						(audioFile) =>
+							audioFile.startTime + Math.max(0, audioFile.duration ?? 0)
+					)
+				);
+				await runFFmpegCommand({
+					args: [
+						...inputArgs,
+						...(filterSteps.length > 0
+							? ["-filter_complex", filterSteps.join(";")]
+							: []),
+						"-map",
+						"0:v:0",
+						"-map",
+						audioMap,
+						"-c:v",
+						"copy",
+						"-c:a",
+						"aac",
+						"-b:a",
+						`${settings.audioBitrate ?? 192}k`,
+						"-ar",
+						String(settings.audioSampleRate ?? 44_100),
+						"-ac",
+						String(settings.audioChannels ?? 2),
+						"-t",
+						String(totalDuration),
+						"-movflags",
+						"+faststart",
+						videoOutputPath,
+					],
+					estimatedDuration: totalDuration,
+				});
+			} catch (error) {
+				try {
+					await fsPromises.unlink(videoOutputPath);
+				} catch {}
+				await fsPromises.rename(sourcePath, videoOutputPath);
+				throw new Error(
+					`Timeline audio mix failed: ${error instanceof Error ? error.message : String(error)}`
+				);
+			}
+		}
+
 		// =====================================================================
 		// GIF CONVERSION (two-pass palette method)
 		// If format is "gif", convert the MP4 output to GIF via FFmpeg.
@@ -917,6 +1211,16 @@ export async function executeExportJob({
 			} catch {
 				// Ignore cleanup errors.
 			}
+		}
+
+		if (
+			audioFiles.length > 0 &&
+			settings.format !== "gif" &&
+			!(await probeHasAudioStream({ mediaPath: outputPath }))
+		) {
+			throw new Error(
+				"Export verification failed: independent audio tracks were present, but the final file has no audio stream"
+			);
 		}
 
 		const outputStats = await fsPromises.stat(outputPath);

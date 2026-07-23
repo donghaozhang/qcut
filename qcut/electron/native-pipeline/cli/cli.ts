@@ -86,7 +86,7 @@ function parseFiniteCliNumber({
 export function parseCliArgs(argv: string[]): CLIRunOptions {
 	let command = argv[0];
 	let wasGroupResolved = false;
-	let argsOffset = 1; // how many positional args to skip before flags
+	let commandArgs = argv.slice(1); // args after the resolved command tokens
 
 	if (!command || command === "--help" || command === "-h") {
 		if (argv.includes("--json")) {
@@ -106,7 +106,7 @@ export function parseCliArgs(argv: string[]): CLIRunOptions {
 	const groupResult = resolveCommandGroup(argv);
 	if (groupResult) {
 		command = groupResult.command;
-		argsOffset = 2; // skip group + action
+		commandArgs = groupResult.remainingArgs;
 		wasGroupResolved = true;
 	} else if (isCommandGroup(command)) {
 		// Check if the user specified an unknown action (e.g. "gen unknown")
@@ -139,7 +139,7 @@ export function parseCliArgs(argv: string[]): CLIRunOptions {
 	warnIfDeprecated(command, wasGroupResolved, isQuiet);
 
 	const { values } = parseArgs({
-		args: argv.slice(argsOffset),
+		args: commandArgs,
 		options: {
 			model: { type: "string", short: "m" },
 			text: { type: "string", short: "t" },
@@ -314,12 +314,16 @@ export function parseCliArgs(argv: string[]): CLIRunOptions {
 			"element-id": { type: "string" },
 			"job-id": { type: "string" },
 			"track-id": { type: "string" },
+			type: { type: "string" },
+			index: { type: "string" },
 			"to-track": { type: "string" },
 			"split-time": { type: "string" },
 			time: { type: "string" },
 			"start-time": { type: "string" },
 			"end-time": { type: "string" },
 			"new-name": { type: "string" },
+			open: { type: "boolean", default: false },
+			"wait-ready": { type: "boolean", default: false },
 			changes: { type: "string" },
 			updates: { type: "string" },
 			elements: { type: "string" },
@@ -341,12 +345,37 @@ export function parseCliArgs(argv: string[]): CLIRunOptions {
 			interactive: { type: "boolean", default: false },
 			depth: { type: "string" },
 			ref: { type: "string", multiple: true },
+			from: { type: "string" },
+			to: { type: "string" },
 			"from-ref": { type: "string" },
 			"to-ref": { type: "string" },
 			"from-x": { type: "string" },
 			"from-y": { type: "string" },
 			"to-x": { type: "string" },
 			"to-y": { type: "string" },
+			"normalized-x": { type: "string" },
+			"normalized-y": { type: "string" },
+			"from-normalized-x": { type: "string" },
+			"from-normalized-y": { type: "string" },
+			"to-normalized-x": { type: "string" },
+			"to-normalized-y": { type: "string" },
+			"to-time": { type: "string" },
+			"to-index": { type: "string" },
+			via: { type: "string" },
+			"hold-ms": { type: "string" },
+			"duration-ms": { type: "string" },
+			steps: { type: "string" },
+			"release-delay-ms": { type: "string" },
+			keys: { type: "string" },
+			"interval-ms": { type: "string" },
+			actions: { type: "string" },
+			plan: { type: "string" },
+			record: { type: "string" },
+			"event-track": { type: "string" },
+			speed: { type: "string" },
+			"skip-idle": { type: "boolean", default: false },
+			"wait-for": { type: "string" },
+			"timeout-ms": { type: "string" },
 			"delta-x": { type: "string" },
 			"delta-y": { type: "string" },
 			foreground: { type: "boolean", default: false },
@@ -428,6 +457,14 @@ export function parseCliArgs(argv: string[]): CLIRunOptions {
 			example: { type: "boolean", default: false },
 			full: { type: "boolean", default: false },
 			output: { type: "string" },
+			engine: { type: "string" },
+			"verify-frames": { type: "string" },
+			manifest: { type: "string" },
+			atomic: { type: "boolean", default: true },
+			verify: { type: "boolean", default: true },
+			// Opt-out flags for the true-by-default booleans above
+			"no-atomic": { type: "boolean", default: false },
+			"no-verify": { type: "boolean", default: false },
 			// state snapshot flags
 			include: { type: "string" },
 			// editor:state:snapshot — opt back into raw `data:` thumbnail URLs.
@@ -458,7 +495,7 @@ export function parseCliArgs(argv: string[]): CLIRunOptions {
 	if (values.help) {
 		if (values.json) {
 			// Level 3: <command> --help <param> --json
-			const helpParam = findHelpParam(argv.slice(argsOffset));
+			const helpParam = findHelpParam(commandArgs);
 			if (helpParam) {
 				printParamHelpJson(command, helpParam);
 			} else {
@@ -762,6 +799,12 @@ export function parseCliArgs(argv: string[]): CLIRunOptions {
 		elementId: values["element-id"] as string | undefined,
 		jobId: values["job-id"] as string | undefined,
 		trackId: values["track-id"] as string | undefined,
+		trackType: values.type as string | undefined,
+		index: values.index
+			? Number.isNaN(parseInt(values.index as string, 10))
+				? undefined
+				: parseInt(values.index as string, 10)
+			: undefined,
 		toTrack: values["to-track"] as string | undefined,
 		splitTime: values["split-time"]
 			? Number.isNaN(parseFloat(values["split-time"] as string))
@@ -784,6 +827,9 @@ export function parseCliArgs(argv: string[]): CLIRunOptions {
 				: parseFloat(values["end-time"] as string)
 			: undefined,
 		newName: values["new-name"] as string | undefined,
+		name: values.name as string | undefined,
+		open: (values.open as boolean) ?? false,
+		waitReady: (values["wait-ready"] as boolean) ?? false,
 		changes: values.changes as string | undefined,
 		updates: values.updates as string | undefined,
 		elements: values.elements as string | undefined,
@@ -821,12 +867,53 @@ export function parseCliArgs(argv: string[]): CLIRunOptions {
 				: parseInt(values.depth as string, 10)
 			: undefined,
 		ref: (values.ref as string[] | undefined)?.[0],
+		from: values.from as string | undefined,
+		to: values.to as string | undefined,
 		fromRef: values["from-ref"] as string | undefined,
 		toRef: values["to-ref"] as string | undefined,
 		fromX: parseFiniteCliNumber({ value: values["from-x"] }),
 		fromY: parseFiniteCliNumber({ value: values["from-y"] }),
 		toX: parseFiniteCliNumber({ value: values["to-x"] }),
 		toY: parseFiniteCliNumber({ value: values["to-y"] }),
+		normalizedX: parseFiniteCliNumber({ value: values["normalized-x"] }),
+		normalizedY: parseFiniteCliNumber({ value: values["normalized-y"] }),
+		fromNormalizedX: parseFiniteCliNumber({
+			value: values["from-normalized-x"],
+		}),
+		fromNormalizedY: parseFiniteCliNumber({
+			value: values["from-normalized-y"],
+		}),
+		toNormalizedX: parseFiniteCliNumber({
+			value: values["to-normalized-x"],
+		}),
+		toNormalizedY: parseFiniteCliNumber({
+			value: values["to-normalized-y"],
+		}),
+		toTime: parseFiniteCliNumber({ value: values["to-time"] }),
+		toIndex: values["to-index"]
+			? Number.isNaN(parseInt(values["to-index"] as string, 10))
+				? undefined
+				: parseInt(values["to-index"] as string, 10)
+			: undefined,
+		via: values.via as string | undefined,
+		holdMs: parseFiniteCliNumber({ value: values["hold-ms"] }),
+		durationMs: parseFiniteCliNumber({ value: values["duration-ms"] }),
+		steps: values.steps
+			? Number.isNaN(parseInt(values.steps as string, 10))
+				? undefined
+				: parseInt(values.steps as string, 10)
+			: undefined,
+		releaseDelayMs: parseFiniteCliNumber({ value: values["release-delay-ms"] }),
+		keys: values.keys as string | undefined,
+		intervalMs: parseFiniteCliNumber({ value: values["interval-ms"] }),
+		actions: values.actions as string | undefined,
+		plan: values.plan as string | undefined,
+		record: values.record as string | undefined,
+		eventTrack: values["event-track"] as string | undefined,
+		speed: parseFiniteCliNumber({ value: values.speed }),
+		skipIdle: (values["skip-idle"] as boolean) ?? false,
+		waitFor: values["wait-for"] as string | undefined,
+		timeoutMs: parseFiniteCliNumber({ value: values["timeout-ms"] }),
 		deltaX: parseFiniteCliNumber({ value: values["delta-x"] }),
 		deltaY: parseFiniteCliNumber({ value: values["delta-y"] }),
 		foreground: (values.foreground as boolean) ?? false,
@@ -949,6 +1036,12 @@ export function parseCliArgs(argv: string[]): CLIRunOptions {
 		// project-json flags
 		full: (values.full as boolean) ?? false,
 		output: values.output as string | undefined,
+		engine: values.engine as string | undefined,
+		verifyFrames: values["verify-frames"] as string | undefined,
+		trackName: values.name as string | undefined,
+		manifest: values.manifest as string | undefined,
+		atomic: values["no-atomic"] ? false : ((values.atomic as boolean) ?? true),
+		verify: values["no-verify"] ? false : ((values.verify as boolean) ?? true),
 		// state snapshot flags
 		include: values.include as string | undefined,
 		withThumbnails: (values["with-thumbnails"] as boolean) ?? false,
