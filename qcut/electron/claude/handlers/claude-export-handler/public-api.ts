@@ -36,6 +36,7 @@ import {
 	resolveExportSettings,
 	collectExportSegments,
 	collectStickerOverlays,
+	collectTimelineAudioFiles,
 	executeExportJob,
 } from "./export-engine.js";
 import { collectTextOverlays } from "./text-overlay.js";
@@ -185,6 +186,17 @@ export async function startExportJob({
 				`Found ${textOverlays.length} text/caption overlay(s) to render`
 			);
 		}
+		const audioFiles = await collectTimelineAudioFiles({
+			timeline,
+			mediaFiles,
+			projectId,
+		});
+		if (audioFiles.length > 0) {
+			claudeLog.info(
+				HANDLER_NAME,
+				`Found ${audioFiles.length} independent audio clip(s) to mix`
+			);
+		}
 
 		const outputPath = request.outputPath?.trim()
 			? path.resolve(request.outputPath.trim())
@@ -248,6 +260,7 @@ export async function startExportJob({
 			segments,
 			stickerOverlays,
 			textOverlays,
+			audioFiles,
 		}).catch((error) => {
 			claudeLog.error(
 				HANDLER_NAME,

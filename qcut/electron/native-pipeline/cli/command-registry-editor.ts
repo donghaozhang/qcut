@@ -186,7 +186,20 @@ export const EDITOR_COMMANDS: Record<string, CommandDef> = {
 		[PID]
 	),
 	"editor:project:create": ed("editor:project:create", "Create project", [
-		f("--new-name", "string", "Project name", { required: true }),
+		f("--name", "string", "Project name"),
+		f("--new-name", "string", "Project name (legacy alias)"),
+		f("--open", "boolean", "Open the new project in the editor", {
+			default: false,
+		}),
+		f(
+			"--wait-ready",
+			"boolean",
+			"Wait for project media and timeline services to be ready",
+			{ default: false }
+		),
+		f("--timeout-ms", "number", "Readiness timeout in milliseconds", {
+			default: 15000,
+		}),
 	]),
 	"editor:project:delete": ed("editor:project:delete", "Delete project", [PID]),
 	"editor:project:rename": ed("editor:project:rename", "Rename project", [
@@ -687,7 +700,15 @@ export const EDITOR_COMMANDS: Record<string, CommandDef> = {
 	"editor:navigator:open": ed(
 		"editor:navigator:open",
 		"Open a project in editor",
-		[PID]
+		[
+			PID,
+			f("--wait-ready", "boolean", "Wait for the editor project to be ready", {
+				default: false,
+			}),
+			f("--timeout-ms", "number", "Readiness timeout in milliseconds", {
+				default: 15000,
+			}),
+		]
 	),
 
 	// ── Screen Recording ──

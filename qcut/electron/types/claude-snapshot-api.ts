@@ -80,6 +80,10 @@ export interface EditorSnapshotResult {
 	timestamp: number;
 	interactiveOnly: boolean;
 	maxDepth: number;
+	viewport?: {
+		width: number;
+		height: number;
+	};
 	elements: EditorSnapshotElement[];
 	summary: {
 		total: number;

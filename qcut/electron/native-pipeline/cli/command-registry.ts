@@ -65,7 +65,7 @@ export const GLOBAL_FLAGS: FlagDef[] = [
 		{ default: false }
 	),
 	f("--host", "string", "Editor API host (default: 127.0.0.1)"),
-	f("--port", "string", "Editor API port (default: 8765)"),
+	f("--port", "string", "Editor API port (auto-selected when omitted)"),
 	f("--token", "string", "Editor API auth token"),
 ];
 
@@ -122,6 +122,11 @@ export const CATEGORIES: CategoryDef[] = [
 			"list-speech-models",
 			"estimate-cost",
 		],
+	},
+	{
+		name: "instances",
+		label: "QCut Instances",
+		commands: ["instances-list", "instances-use"],
 	},
 	{
 		name: "keys",
@@ -209,6 +214,24 @@ export const CATEGORIES: CategoryDef[] = [
 // ─── Non-Editor Commands ─────────────────────────────────────────────
 
 const CORE_COMMANDS: Record<string, CommandDef> = {
+	"instances-list": {
+		name: "instances-list",
+		description: "List running QCut editor instances",
+		category: "instances",
+		flags: [],
+		examples: ["qcut instances list --json"],
+	},
+	"instances-use": {
+		name: "instances-use",
+		description: "Select the QCut editor instance used by future CLI commands",
+		category: "instances",
+		flags: [
+			f("--host", "string", "QCut API host"),
+			f("--port", "string", "QCut API port", { required: true }),
+			f("--force", "boolean", "Remember an instance that is not running"),
+		],
+		examples: ["qcut instances use --port 8878 --json"],
+	},
 	// ── Generation ──
 	"generate-image": {
 		name: "generate-image",

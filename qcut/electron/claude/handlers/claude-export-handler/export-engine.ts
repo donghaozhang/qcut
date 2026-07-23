@@ -8,7 +8,13 @@ import { spawn } from "node:child_process";
 import * as fsPromises from "node:fs/promises";
 import * as os from "node:os";
 import * as path from "node:path";
-import { getFFmpegPath, parseProgress } from "../../../ffmpeg/utils.js";
+import {
+	getFFmpegPath,
+	parseProgress,
+	probeHasAudioStream,
+} from "../../../ffmpeg/utils.js";
+import { buildTimelineAudioFilters } from "../../../ffmpeg/audio-filter-graph.js";
+import type { AudioFile } from "../../../ffmpeg/types.js";
 import { buildVideoFitFilter } from "../../../ffmpeg/video-fit-filter.js";
 import { claudeLog } from "../../utils/logger.js";
 import { logOperation } from "../../claude-operation-log.js";
@@ -153,6 +159,10 @@ function findMediaForElement({
 		const byId = mediaById.get(element.sourceId);
 		if (byId) return byId;
 	}
+	if (element.mediaId) {
+		const byMediaId = mediaById.get(element.mediaId);
+		if (byMediaId) return byMediaId;
+	}
 
 	if (element.sourceName) {
 		const byName = mediaByName.get(element.sourceName);
@@ -173,6 +183,101 @@ function findMediaForElement({
 	}
 
 	return null;
+}
+
+function optionalNumber(value: unknown, fallback?: number): number | undefined {
+	return typeof value === "number" && Number.isFinite(value) ? value : fallback;
+}
+
+function optionalBoolean(value: unknown, fallback = false): boolean {
+	return typeof value === "boolean" ? value : fallback;
+}
+
+/**
+ * Collect independent timeline audio tracks. Embedded audio from media tracks is
+ * already carried by the base video export and is intentionally excluded here.
+ */
+export async function collectTimelineAudioFiles({
+	timeline,
+	mediaFiles,
+	projectId,
+}: {
+	timeline: ClaudeTimeline;
+	mediaFiles: MediaFile[];
+	projectId?: string;
+}): Promise<AudioFile[]> {
+	const mediaById = new Map<string, MediaFile>();
+	const mediaByName = new Map<string, MediaFile>();
+	for (const mediaFile of mediaFiles) {
+		mediaById.set(mediaFile.id, mediaFile);
+		mediaByName.set(mediaFile.name, mediaFile);
+	}
+
+	const audioFiles: AudioFile[] = [];
+	const diskFallbackCache = new Map<string, MediaFile | null>();
+	for (const [trackIndex, track] of timeline.tracks.entries()) {
+		const trackRecord = track as unknown as Record<string, unknown>;
+		if (
+			track.type !== "audio" ||
+			track.hidden === true ||
+			trackRecord.muted === true
+		) {
+			continue;
+		}
+		for (const element of track.elements) {
+			if (element.hidden === true) continue;
+			let media = findMediaForElement({ element, mediaById, mediaByName });
+			if (!media && projectId && element.sourceName) {
+				if (diskFallbackCache.has(element.sourceName)) {
+					media = diskFallbackCache.get(element.sourceName) ?? null;
+				} else {
+					media = await resolveMediaFromDisk({
+						projectId,
+						sourceName: element.sourceName,
+					});
+					diskFallbackCache.set(element.sourceName, media);
+				}
+			}
+			if (!media || (media.type !== "audio" && media.type !== "video")) {
+				continue;
+			}
+
+			const elementRecord = element as unknown as Record<string, unknown>;
+			const props =
+				typeof element.props === "object" && element.props !== null
+					? element.props
+					: {};
+			const read = (key: string): unknown =>
+				elementRecord[key] !== undefined ? elementRecord[key] : props[key];
+			const duration =
+				optionalNumber(element.duration) ??
+				Math.max(0, element.endTime - element.startTime);
+			if (!duration || duration <= 0) continue;
+
+			audioFiles.push({
+				elementId: element.id,
+				trackId: track.id ?? `track-${trackIndex}`,
+				path: media.path,
+				startTime: Math.max(0, element.startTime),
+				volume: optionalNumber(read("volume"), 1),
+				sourceGain: optionalNumber(read("sourceGain"), 1),
+				trimStart: optionalNumber(element.trimStart, 0),
+				trimEnd: optionalNumber(element.trimEnd, 0),
+				duration,
+				fadeIn: optionalNumber(read("audioFadeIn"), 0),
+				fadeOut: optionalNumber(read("audioFadeOut"), 0),
+				normalize: optionalBoolean(read("audioNormalize")),
+				denoise: optionalNumber(read("audioDenoise"), 0),
+				pan: optionalNumber(read("audioPan"), 0),
+				playbackRate: optionalNumber(read("playbackRate"), 1),
+				reverse: optionalBoolean(read("reverse")),
+				freezeFrameTime: optionalNumber(read("freezeFrameTime")),
+				freezeFrameDuration: optionalNumber(read("freezeFrameDuration"), 0),
+			});
+		}
+	}
+	audioFiles.sort((left, right) => left.startTime - right.startTime);
+	return audioFiles;
 }
 
 /**
@@ -559,6 +664,14 @@ export function buildExportSegmentScaleFilter({
 	})},setsar=1`;
 }
 
+function timelineDurationFromSegments(segments: ExportSegment[]): number {
+	return segments.reduce(
+		(maximum, segment) =>
+			Math.max(maximum, segment.startTime + segment.duration),
+		0
+	);
+}
+
 /** Execute a full export job: encode segments, composite cursors, concatenate, and finalize. */
 export async function executeExportJob({
 	jobId,
@@ -568,6 +681,7 @@ export async function executeExportJob({
 	segments,
 	stickerOverlays = [],
 	textOverlays = [],
+	audioFiles = [],
 }: {
 	jobId: string;
 	projectId: string;
@@ -576,6 +690,7 @@ export async function executeExportJob({
 	segments: ExportSegment[];
 	stickerOverlays?: StickerOverlay[];
 	textOverlays?: TextOverlay[];
+	audioFiles?: AudioFile[];
 }): Promise<void> {
 	const job = exportJobs.get(jobId);
 	if (!job) {
@@ -935,6 +1050,89 @@ export async function executeExportJob({
 			}
 		}
 
+		// Independent audio tracks are mixed after all video-only compositing
+		// passes. The existing embedded video audio is included when present.
+		if (audioFiles.length > 0) {
+			claudeLog.info(
+				HANDLER_NAME,
+				`Mixing ${audioFiles.length} independent timeline audio track(s)`
+			);
+			updateJobProgress({ jobId, progress: 0.955 });
+			const sourcePath = path.join(tempDir, "video-before-audio-mix.mp4");
+			await fsPromises.rename(videoOutputPath, sourcePath);
+			try {
+				const hasEmbeddedAudio = await probeHasAudioStream({
+					mediaPath: sourcePath,
+				});
+				const inputArgs = ["-y", "-i", sourcePath];
+				for (const audioFile of audioFiles) {
+					inputArgs.push("-i", audioFile.path);
+				}
+				const graph = buildTimelineAudioFilters({
+					audioFiles,
+					audioStartIndex: 1,
+					fps: settings.fps,
+				});
+				if (!graph.mapAudio) {
+					throw new Error("Timeline audio filter graph produced no audio map");
+				}
+				const filterSteps = [...graph.filterSteps];
+				let audioMap = graph.mapAudio;
+				if (hasEmbeddedAudio) {
+					const externalLabel = graph.mapAudio.startsWith("[")
+						? graph.mapAudio
+						: `[${graph.mapAudio}]`;
+					filterSteps.push(
+						`[0:a]${externalLabel}amix=inputs=2:duration=longest:dropout_transition=0:normalize=0[a_final]`
+					);
+					audioMap = "[a_final]";
+				}
+				const totalDuration = Math.max(
+					timelineDurationFromSegments(segments),
+					...audioFiles.map(
+						(audioFile) =>
+							audioFile.startTime + Math.max(0, audioFile.duration ?? 0)
+					)
+				);
+				await runFFmpegCommand({
+					args: [
+						...inputArgs,
+						...(filterSteps.length > 0
+							? ["-filter_complex", filterSteps.join(";")]
+							: []),
+						"-map",
+						"0:v:0",
+						"-map",
+						audioMap,
+						"-c:v",
+						"copy",
+						"-c:a",
+						"aac",
+						"-b:a",
+						`${settings.audioBitrate ?? 192}k`,
+						"-ar",
+						String(settings.audioSampleRate ?? 44_100),
+						"-ac",
+						String(settings.audioChannels ?? 2),
+						"-t",
+						String(totalDuration),
+						"-movflags",
+						"+faststart",
+						videoOutputPath,
+					],
+					estimatedDuration: totalDuration,
+				});
+			} catch (error) {
+				try {
+					await fsPromises.unlink(videoOutputPath);
+				} catch {}
+				await fsPromises.rename(sourcePath, videoOutputPath);
+				throw new Error(
+					`Timeline audio mix failed: ${error instanceof Error ? error.message : String(error)}`
+				);
+			}
+		}
+
 		// =====================================================================
 		// GIF CONVERSION (two-pass palette method)
 		// If format is "gif", convert the MP4 output to GIF via FFmpeg.
@@ -1014,6 +1212,16 @@ export async function executeExportJob({
 			} catch {
 				// Ignore cleanup errors.
 			}
+		}
+
+		if (
+			audioFiles.length > 0 &&
+			settings.format !== "gif" &&
+			!(await probeHasAudioStream({ mediaPath: outputPath }))
+		) {
+			throw new Error(
+				"Export verification failed: independent audio tracks were present, but the final file has no audio stream"
+			);
 		}
 
 		const outputStats = await fsPromises.stat(outputPath);

@@ -21,10 +21,13 @@ function makeOptions(manifest: object): CLIRunOptions {
 function makeClient({ finalName = "Titles" }: { finalName?: string } = {}) {
 	let timelineReads = 0;
 	const get = vi.fn(async (url: string) => {
+		if (url === "/api/claude/navigator/projects") {
+			return { activeProjectId: "project-1", projects: [] };
+		}
 		if (url === "/api/claude/media/project-1") return [];
 		if (url === "/api/claude/timeline/project-1") {
 			timelineReads += 1;
-			if (timelineReads === 1) {
+			if (timelineReads <= 2) {
 				return {
 					tracks: [
 						{
@@ -78,6 +81,9 @@ function makeClient({ finalName = "Titles" }: { finalName?: string } = {}) {
 		throw new Error(`Unexpected GET ${url}`);
 	});
 	const post = vi.fn(async (url: string) => {
+		if (url === "/api/claude/navigator/open") {
+			return { navigated: true, projectId: "project-1" };
+		}
 		if (url === "/api/claude/transaction/begin") {
 			return { transactionId: "transaction-1" };
 		}
@@ -148,10 +154,13 @@ const manifest = {
 function makeImportedMediaClient({ exportFails = false } = {}) {
 	let timelineReads = 0;
 	const get = vi.fn(async (url: string) => {
+		if (url === "/api/claude/navigator/projects") {
+			return { activeProjectId: "project-1", projects: [] };
+		}
 		if (url === "/api/claude/media/project-1") return [];
 		if (url === "/api/claude/timeline/project-1") {
 			timelineReads += 1;
-			if (timelineReads === 1) {
+			if (timelineReads <= 2) {
 				return {
 					tracks: [
 						{
@@ -182,6 +191,9 @@ function makeImportedMediaClient({ exportFails = false } = {}) {
 		throw new Error(`Unexpected GET ${url}`);
 	});
 	const post = vi.fn(async (url: string) => {
+		if (url === "/api/claude/navigator/open") {
+			return { navigated: true, projectId: "project-1" };
+		}
 		if (url === "/api/claude/media/project-1/batch-import") {
 			return [
 				{

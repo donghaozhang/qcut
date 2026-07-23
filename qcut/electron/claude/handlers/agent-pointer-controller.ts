@@ -66,6 +66,7 @@ interface MoveToOptions {
 	action: AgentPointerAction;
 	button?: AgentPointerButton | null;
 	dragging?: boolean;
+	durationMs?: number;
 }
 
 interface PressCycleOptions {
@@ -157,6 +158,7 @@ export class AgentPointerController {
 					session,
 					target: request,
 					action: "move",
+					durationMs: request.durationMs,
 				});
 				this.visual.scheduleIdle();
 				return this.buildResult({ session, action: "move", target });
@@ -172,6 +174,7 @@ export class AgentPointerController {
 					session,
 					target: request,
 					action: "hover",
+					durationMs: request.durationMs,
 				});
 				await this.sleep({ durationMs: POINTER_HOVER_SETTLE_MS });
 				this.visual.scheduleIdle();
@@ -188,6 +191,7 @@ export class AgentPointerController {
 					session,
 					target: request,
 					action: "click",
+					durationMs: request.durationMs,
 				});
 				this.targets.assertEnabled({ target });
 				await this.pressCycle({
@@ -211,6 +215,7 @@ export class AgentPointerController {
 					session,
 					target: request,
 					action: "double-click",
+					durationMs: request.durationMs,
 				});
 				this.targets.assertEnabled({ target });
 				await this.pressCycle({
@@ -246,6 +251,7 @@ export class AgentPointerController {
 					session,
 					target: request,
 					action: "right-click",
+					durationMs: request.durationMs,
 				});
 				this.targets.assertEnabled({ target });
 				await this.pressCycle({
@@ -508,13 +514,24 @@ export class AgentPointerController {
 		action,
 		button = null,
 		dragging = false,
+		durationMs,
 	}: MoveToOptions): Promise<AgentPointerResolvedTarget> {
 		const resolvedTarget = await this.targets.resolve({ target });
 		const points = buildPointerMovementPath({
 			from: this.currentPosition,
 			to: resolvedTarget,
 		});
-		await this.moveAlongPath({ session, points, action, button, dragging });
+		await this.moveAlongPath({
+			session,
+			points,
+			action,
+			button,
+			dragging,
+			stepDelayMs:
+				durationMs === undefined
+					? undefined
+					: durationMs / Math.max(1, points.length - 1),
+		});
 		return resolvedTarget;
 	}
 

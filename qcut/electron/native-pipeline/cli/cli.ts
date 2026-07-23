@@ -106,7 +106,7 @@ export function parseCliArgs(argv: string[]): CLIRunOptions {
 	const groupResult = resolveCommandGroup(argv);
 	if (groupResult) {
 		command = groupResult.command;
-		argsOffset = 2; // skip group + action
+		argsOffset = argv.length - groupResult.remainingArgs.length;
 		wasGroupResolved = true;
 	} else if (isCommandGroup(command)) {
 		// Check if the user specified an unknown action (e.g. "gen unknown")
@@ -322,6 +322,8 @@ export function parseCliArgs(argv: string[]): CLIRunOptions {
 			"start-time": { type: "string" },
 			"end-time": { type: "string" },
 			"new-name": { type: "string" },
+			open: { type: "boolean", default: false },
+			"wait-ready": { type: "boolean", default: false },
 			changes: { type: "string" },
 			updates: { type: "string" },
 			elements: { type: "string" },
@@ -343,12 +345,21 @@ export function parseCliArgs(argv: string[]): CLIRunOptions {
 			interactive: { type: "boolean", default: false },
 			depth: { type: "string" },
 			ref: { type: "string", multiple: true },
+			from: { type: "string" },
+			to: { type: "string" },
 			"from-ref": { type: "string" },
 			"to-ref": { type: "string" },
 			"from-x": { type: "string" },
 			"from-y": { type: "string" },
 			"to-x": { type: "string" },
 			"to-y": { type: "string" },
+			"normalized-x": { type: "string" },
+			"normalized-y": { type: "string" },
+			"from-normalized-x": { type: "string" },
+			"from-normalized-y": { type: "string" },
+			"to-normalized-x": { type: "string" },
+			"to-normalized-y": { type: "string" },
+			"to-time": { type: "string" },
 			"to-index": { type: "string" },
 			via: { type: "string" },
 			"hold-ms": { type: "string" },
@@ -358,7 +369,12 @@ export function parseCliArgs(argv: string[]): CLIRunOptions {
 			keys: { type: "string" },
 			"interval-ms": { type: "string" },
 			actions: { type: "string" },
+			plan: { type: "string" },
 			record: { type: "string" },
+			"event-track": { type: "string" },
+			speed: { type: "string" },
+			"skip-idle": { type: "boolean", default: false },
+			"wait-for": { type: "string" },
 			"timeout-ms": { type: "string" },
 			"delta-x": { type: "string" },
 			"delta-y": { type: "string" },
@@ -808,6 +824,9 @@ export function parseCliArgs(argv: string[]): CLIRunOptions {
 				: parseFloat(values["end-time"] as string)
 			: undefined,
 		newName: values["new-name"] as string | undefined,
+		name: values.name as string | undefined,
+		open: (values.open as boolean) ?? false,
+		waitReady: (values["wait-ready"] as boolean) ?? false,
 		changes: values.changes as string | undefined,
 		updates: values.updates as string | undefined,
 		elements: values.elements as string | undefined,
@@ -845,12 +864,29 @@ export function parseCliArgs(argv: string[]): CLIRunOptions {
 				: parseInt(values.depth as string, 10)
 			: undefined,
 		ref: (values.ref as string[] | undefined)?.[0],
+		from: values.from as string | undefined,
+		to: values.to as string | undefined,
 		fromRef: values["from-ref"] as string | undefined,
 		toRef: values["to-ref"] as string | undefined,
 		fromX: parseFiniteCliNumber({ value: values["from-x"] }),
 		fromY: parseFiniteCliNumber({ value: values["from-y"] }),
 		toX: parseFiniteCliNumber({ value: values["to-x"] }),
 		toY: parseFiniteCliNumber({ value: values["to-y"] }),
+		normalizedX: parseFiniteCliNumber({ value: values["normalized-x"] }),
+		normalizedY: parseFiniteCliNumber({ value: values["normalized-y"] }),
+		fromNormalizedX: parseFiniteCliNumber({
+			value: values["from-normalized-x"],
+		}),
+		fromNormalizedY: parseFiniteCliNumber({
+			value: values["from-normalized-y"],
+		}),
+		toNormalizedX: parseFiniteCliNumber({
+			value: values["to-normalized-x"],
+		}),
+		toNormalizedY: parseFiniteCliNumber({
+			value: values["to-normalized-y"],
+		}),
+		toTime: parseFiniteCliNumber({ value: values["to-time"] }),
 		toIndex: values["to-index"]
 			? Number.isNaN(parseInt(values["to-index"] as string, 10))
 				? undefined
@@ -868,7 +904,12 @@ export function parseCliArgs(argv: string[]): CLIRunOptions {
 		keys: values.keys as string | undefined,
 		intervalMs: parseFiniteCliNumber({ value: values["interval-ms"] }),
 		actions: values.actions as string | undefined,
+		plan: values.plan as string | undefined,
 		record: values.record as string | undefined,
+		eventTrack: values["event-track"] as string | undefined,
+		speed: parseFiniteCliNumber({ value: values.speed }),
+		skipIdle: (values["skip-idle"] as boolean) ?? false,
+		waitFor: values["wait-for"] as string | undefined,
 		timeoutMs: parseFiniteCliNumber({ value: values["timeout-ms"] }),
 		deltaX: parseFiniteCliNumber({ value: values["delta-x"] }),
 		deltaY: parseFiniteCliNumber({ value: values["delta-y"] }),

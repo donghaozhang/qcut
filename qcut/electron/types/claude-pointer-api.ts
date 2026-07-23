@@ -51,11 +51,15 @@ export interface AgentPointerResolvedTarget extends AgentPointerPoint {
 
 export interface AgentPointerMoveRequest
 	extends AgentPointerTarget,
-		AgentPointerInputOptions {}
+		AgentPointerInputOptions {
+	durationMs?: number;
+}
 
 export interface AgentPointerClickRequest
 	extends AgentPointerTarget,
-		AgentPointerInputOptions {}
+		AgentPointerInputOptions {
+	durationMs?: number;
+}
 
 export interface AgentPointerDragRequest extends AgentPointerInputOptions {
 	from: AgentPointerTarget;

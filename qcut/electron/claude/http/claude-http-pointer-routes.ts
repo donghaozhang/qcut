@@ -127,9 +127,17 @@ function parseTargetRequest({
 	body: unknown;
 }): AgentPointerMoveRequest {
 	const parsed = requireBodyObject({ body });
+	const durationMs = parseFiniteNumber({
+		value: parsed.durationMs,
+		field: "durationMs",
+	});
+	if (durationMs !== undefined && durationMs < 0) {
+		throw new HttpError(400, "Pointer 'durationMs' must be >= 0.");
+	}
 	return {
 		...parseAgentPointerTarget({ value: parsed }),
 		inputMode: parseAgentPointerInputMode({ value: parsed.inputMode }),
+		durationMs,
 	};
 }
 

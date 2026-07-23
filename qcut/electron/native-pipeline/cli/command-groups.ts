@@ -28,6 +28,15 @@ export const COMMAND_GROUPS: CommandGroup[] = [
 		actions: {},
 	},
 	{
+		name: "instances",
+		label: "QCut Instances",
+		description: "Discover running QCut apps and select the CLI target",
+		actions: {
+			list: "instances-list",
+			use: "instances-use",
+		},
+	},
+	{
 		name: "gen",
 		label: "Generation",
 		description: "Generate images, videos, avatars, speech, and grids",

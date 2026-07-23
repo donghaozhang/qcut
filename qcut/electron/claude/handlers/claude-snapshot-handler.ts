@@ -390,6 +390,10 @@ function buildSnapshotScript({
 			timestamp: Date.now(),
 			interactiveOnly,
 			maxDepth,
+			viewport: {
+				width: Math.max(0, Math.round(window.innerWidth)),
+				height: Math.max(0, Math.round(window.innerHeight)),
+			},
 			elements,
 			summary: {
 				total: elements.length,

@@ -69,6 +69,7 @@ import {
 import {
 	buildExportSegmentScaleFilter,
 	collectExportSegments,
+	collectTimelineAudioFiles,
 } from "../claude/handlers/claude-export-handler/export-engine";
 
 const testTimeline = {
@@ -182,6 +183,70 @@ describe("Claude export trigger", () => {
 		).toBe(
 			"scale=1080:1920:force_original_aspect_ratio=decrease,pad=1080:1920:(ow-iw)/2:(oh-ih)/2:color=black@0,setsar=1"
 		);
+	});
+
+	it("collects independent audio-track clips with timeline mix settings", async () => {
+		const audioFiles = await collectTimelineAudioFiles({
+			projectId: "project_audio_track",
+			timeline: {
+				...testTimeline,
+				tracks: [
+					...testTimeline.tracks,
+					{
+						id: "audio-track",
+						index: 1,
+						name: "Voiceover",
+						type: "audio",
+						elements: [
+							{
+								id: "voiceover",
+								trackIndex: 1,
+								startTime: 1.25,
+								endTime: 4.25,
+								duration: 3,
+								type: "audio" as const,
+								sourceId: "voiceover-media",
+								trimStart: 0.5,
+								trimEnd: 0.25,
+								props: {
+									volume: 0.8,
+									audioFadeIn: 0.2,
+									audioFadeOut: 0.3,
+								},
+							},
+						],
+					},
+				],
+			},
+			mediaFiles: [
+				...testMediaFiles,
+				{
+					id: "voiceover-media",
+					name: "voiceover.wav",
+					type: "audio" as const,
+					path: "/tmp/voiceover.wav",
+					size: 2048,
+					duration: 4,
+					createdAt: Date.now(),
+					modifiedAt: Date.now(),
+				},
+			],
+		});
+
+		expect(audioFiles).toEqual([
+			expect.objectContaining({
+				elementId: "voiceover",
+				trackId: "audio-track",
+				path: "/tmp/voiceover.wav",
+				startTime: 1.25,
+				duration: 3,
+				trimStart: 0.5,
+				trimEnd: 0.25,
+				volume: 0.8,
+				fadeIn: 0.2,
+				fadeOut: 0.3,
+			}),
+		]);
 	});
 
 	it("starts export with nested custom settings", async () => {

@@ -1,6 +1,7 @@
 import type { CLIRunOptions, CLIResult } from "../cli/cli-runner/types.js";
 import type { EditorApiClient } from "./editor-api-client.js";
 import { resolveJsonInput } from "./editor-api-types.js";
+import { ensureEditorProjectReady } from "./editor-project-readiness.js";
 
 type JsonRecord = Record<string, unknown>;
 
@@ -604,6 +605,12 @@ export async function timelineApplyManifest(
 	let timelineMutationStarted = false;
 
 	try {
+		const readiness = await ensureEditorProjectReady({
+			client,
+			projectId,
+			open: true,
+			timeoutMs: opts.timeoutMs,
+		});
 		await importManifestMedia({
 			client,
 			projectId,
@@ -699,6 +706,7 @@ export async function timelineApplyManifest(
 			success: true,
 			data: {
 				projectId,
+				readiness,
 				atomic,
 				replaced: replace,
 				verified: shouldVerify,

@@ -4,15 +4,19 @@ import type {
 	AgentPointerTarget,
 	EditorSnapshotElement,
 	EditorSnapshotResponse,
+	EditorSnapshotResult,
 } from "../../types/claude-api.js";
 import type { EditorApiClient } from "../editor/editor-api-client.js";
 import { resolveJsonInput } from "../editor/editor-api-types.js";
 import type { CLIRunOptions, CLIResult } from "./cli-runner/types.js";
 
 interface PointerTargetOptions {
+	target?: string;
 	ref?: string;
 	x?: number;
 	y?: number;
+	normalizedX?: number;
+	normalizedY?: number;
 }
 
 interface ListDragContext {
@@ -32,6 +36,27 @@ interface UiWaitOptions {
 
 const sleep = (durationMs: number) =>
 	new Promise<void>((resolve) => setTimeout(resolve, durationMs));
+
+const SEMANTIC_TARGET_TEST_IDS: Record<string, string[]> = {
+	"panel.media": ["media-panel-tab"],
+	"panel.audio": ["audio-panel-tab"],
+	"panel.text": ["text-panel-tab"],
+	"panel.stickers": ["stickers-panel-tab"],
+	"panel.effects": ["effects-panel-tab"],
+	"panel.transitions": ["transitions-panel-tab"],
+	"panel.captions": ["captions-panel-tab"],
+	"panel.filters": ["filters-panel-tab"],
+	"panel.adjustments": ["adjustments-panel-tab"],
+	"panel.templates": ["templates-panel-tab"],
+	"export.button": ["export-button", "export-start-button"],
+	"export.start": ["export-start-button"],
+	"timeline.playhead": ["timeline-playhead"],
+	"timeline.toolbar": ["timeline-toolbar"],
+	"timeline.zoom-in": ["zoom-in-button"],
+	"timeline.zoom-out": ["zoom-out-button"],
+	"preview.canvas": ["preview-canvas", "preview-panel"],
+	"media.import": ["import-media-button"],
+};
 
 const BACKGROUND_POINTER_CAPABILITY = {
 	name: "state.pointer",
@@ -64,7 +89,7 @@ type PointerTargetResult =
 	| { ok: true; target: AgentPointerTarget }
 	| { ok: false; error: string };
 
-function buildPointerTarget({
+function buildCoordinateTarget({
 	options,
 	label,
 }: {
@@ -72,13 +97,29 @@ function buildPointerTarget({
 	label: string;
 }): PointerTargetResult {
 	const ref = options.ref?.trim();
+	const semanticTarget = options.target?.trim();
 	const hasX = typeof options.x === "number" && Number.isFinite(options.x);
 	const hasY = typeof options.y === "number" && Number.isFinite(options.y);
 	const hasAnyCoordinate = options.x !== undefined || options.y !== undefined;
-	if (ref && hasAnyCoordinate) {
+	const hasAnyNormalizedCoordinate =
+		options.normalizedX !== undefined || options.normalizedY !== undefined;
+	if (
+		[
+			Boolean(ref),
+			Boolean(semanticTarget),
+			hasAnyCoordinate,
+			hasAnyNormalizedCoordinate,
+		].filter(Boolean).length > 1
+	) {
 		return {
 			ok: false,
-			error: `${label} accepts either --ref or coordinates, not both`,
+			error: `${label} accepts either --ref or coordinates/semantic target, not both`,
+		};
+	}
+	if (semanticTarget) {
+		return {
+			ok: false,
+			error: `${label} semantic target '${semanticTarget}' must be resolved from the editor snapshot`,
 		};
 	}
 	if (ref) return { ok: true, target: { ref } };
@@ -88,13 +129,13 @@ function buildPointerTarget({
 
 	return {
 		ok: false,
-		error: `${label} requires --ref <@eN> or both --x <number> and --y <number>`,
+		error: `${label} requires --target, --ref, both --x and --y, or both normalized coordinates`,
 	};
 }
 
 async function getEditorSnapshot(
 	client: EditorApiClient
-): Promise<{ elements: EditorSnapshotElement[] }> {
+): Promise<EditorSnapshotResult> {
 	const snapshot = await client.get<EditorSnapshotResponse>(
 		"/api/claude/snapshot",
 		{
@@ -108,6 +149,156 @@ async function getEditorSnapshot(
 		throw new Error(`Editor snapshot was truncated: ${snapshot.reason}`);
 	}
 	return snapshot;
+}
+
+function findSemanticTarget({
+	snapshot,
+	target,
+}: {
+	snapshot: EditorSnapshotResult;
+	target: string;
+}): EditorSnapshotElement | undefined {
+	const normalized = target.trim();
+	const explicitTestId = normalized.startsWith("testid:")
+		? normalized.slice("testid:".length)
+		: undefined;
+	const testIds = explicitTestId
+		? [explicitTestId]
+		: (SEMANTIC_TARGET_TEST_IDS[normalized] ?? [normalized]);
+	return snapshot.elements.find(
+		(element) =>
+			element.bounds.width > 0 &&
+			element.bounds.height > 0 &&
+			element.testId !== null &&
+			testIds.includes(element.testId)
+	);
+}
+
+async function waitForSemanticTarget({
+	client,
+	target,
+	timeoutMs = 5000,
+	intervalMs = 100,
+}: {
+	client: EditorApiClient;
+	target: string;
+	timeoutMs?: number;
+	intervalMs?: number;
+}): Promise<EditorSnapshotElement> {
+	const startedAt = Date.now();
+	while (Date.now() - startedAt <= Math.max(1, timeoutMs)) {
+		const snapshot = await getEditorSnapshot(client);
+		const matched = findSemanticTarget({ snapshot, target });
+		if (matched) return matched;
+		await sleep(Math.max(20, intervalMs));
+	}
+	const supported = Object.keys(SEMANTIC_TARGET_TEST_IDS).join(", ");
+	throw new Error(
+		`Semantic target '${target}' did not appear within ${timeoutMs}ms. Supported targets: ${supported}; custom test IDs use testid:<id>.`
+	);
+}
+
+async function resolvePointerTarget({
+	client,
+	options,
+	label,
+	timeoutMs,
+}: {
+	client: EditorApiClient;
+	options: PointerTargetOptions;
+	label: string;
+	timeoutMs?: number;
+}): Promise<PointerTargetResult> {
+	const semanticTarget = options.target?.trim();
+	const ref = options.ref?.trim();
+	const hasCoordinates = options.x !== undefined || options.y !== undefined;
+	const hasNormalized =
+		options.normalizedX !== undefined || options.normalizedY !== undefined;
+	if (
+		[
+			Boolean(semanticTarget),
+			Boolean(ref),
+			hasCoordinates,
+			hasNormalized,
+		].filter(Boolean).length > 1
+	) {
+		return {
+			ok: false,
+			error: `${label} accepts either --ref or coordinates/semantic target, not both`,
+		};
+	}
+	if (semanticTarget) {
+		try {
+			const element = await waitForSemanticTarget({
+				client,
+				target: semanticTarget,
+				timeoutMs,
+			});
+			return { ok: true, target: { ref: element.ref } };
+		} catch (error) {
+			return {
+				ok: false,
+				error: error instanceof Error ? error.message : String(error),
+			};
+		}
+	}
+	if (hasNormalized) {
+		const x = options.normalizedX;
+		const y = options.normalizedY;
+		if (
+			typeof x !== "number" ||
+			!Number.isFinite(x) ||
+			typeof y !== "number" ||
+			!Number.isFinite(y) ||
+			x < 0 ||
+			x > 1 ||
+			y < 0 ||
+			y > 1
+		) {
+			return {
+				ok: false,
+				error: `${label} normalized coordinates must include X and Y values from 0 to 1`,
+			};
+		}
+		const snapshot = await getEditorSnapshot(client);
+		if (!snapshot.viewport?.width || !snapshot.viewport.height) {
+			return {
+				ok: false,
+				error:
+					"The running QCut instance does not report viewport dimensions; update QCut or use --x/--y.",
+			};
+		}
+		return {
+			ok: true,
+			target: {
+				x: Math.min(
+					snapshot.viewport.width - 1,
+					Math.max(0, Math.round(x * snapshot.viewport.width))
+				),
+				y: Math.min(
+					snapshot.viewport.height - 1,
+					Math.max(0, Math.round(y * snapshot.viewport.height))
+				),
+			},
+		};
+	}
+	return buildCoordinateTarget({ options, label });
+}
+
+function speedMultiplier(options: Pick<CLIRunOptions, "speed">): number {
+	const speed = options.speed ?? 1;
+	if (!Number.isFinite(speed) || speed <= 0) {
+		throw new Error("--speed must be greater than 0");
+	}
+	return speed;
+}
+
+function scaledDuration(
+	durationMs: number | undefined,
+	speed: number,
+	fallback: number
+): number {
+	return Math.max(0, (durationMs ?? fallback) / speed);
 }
 
 function visibleSiblings({
@@ -391,6 +582,39 @@ export async function waitForEditorUi({
 	};
 }
 
+async function waitForRequestedState({
+	client,
+	value,
+	timeoutMs,
+	intervalMs,
+}: {
+	client: EditorApiClient;
+	value: string;
+	timeoutMs?: number;
+	intervalMs?: number;
+}): Promise<CLIResult> {
+	if (SEMANTIC_TARGET_TEST_IDS[value] || value.startsWith("testid:")) {
+		try {
+			const matched = await waitForSemanticTarget({
+				client,
+				target: value,
+				timeoutMs,
+				intervalMs,
+			});
+			return { success: true, data: { matched } };
+		} catch (error) {
+			return {
+				success: false,
+				error: error instanceof Error ? error.message : String(error),
+			};
+		}
+	}
+	return await waitForEditorUi({
+		client,
+		options: { text: value, timeoutMs, intervalMs },
+	});
+}
+
 async function postTargetAction({
 	client,
 	options,
@@ -400,18 +624,140 @@ async function postTargetAction({
 	options: CLIRunOptions;
 	action: "move" | "hover" | "click" | "double-click" | "right-click";
 }): Promise<CLIResult> {
-	const target = buildPointerTarget({
-		options: { ref: options.ref, x: options.x, y: options.y },
+	if (options.waitFor) {
+		const waited = await waitForRequestedState({
+			client,
+			value: options.waitFor,
+			timeoutMs: options.timeoutMs,
+			intervalMs: options.intervalMs,
+		});
+		if (!waited.success) return waited;
+	}
+	const target = await resolvePointerTarget({
+		client,
+		options: {
+			target: options.target,
+			ref: options.ref,
+			x: options.x,
+			y: options.y,
+			normalizedX: options.normalizedX,
+			normalizedY: options.normalizedY,
+		},
 		label: `Pointer ${action}`,
+		timeoutMs: options.timeoutMs,
 	});
 	if (!target.ok) return { success: false, error: target.error };
 
 	await requirePointerInputSupport({ client, options });
+	const speed = speedMultiplier(options);
 	const data = await client.post(`/api/claude/pointer/${action}`, {
 		...target.target,
 		inputMode: pointerInputMode({ options }),
+		...(options.speed !== undefined || options.durationMs !== undefined
+			? { durationMs: scaledDuration(options.durationMs, speed, 220) }
+			: {}),
 	});
 	return { success: true, data };
+}
+
+async function materializeTargetPoint({
+	client,
+	target,
+}: {
+	client: EditorApiClient;
+	target: AgentPointerTarget;
+}): Promise<{ x: number; y: number }> {
+	if (
+		typeof target.x === "number" &&
+		Number.isFinite(target.x) &&
+		typeof target.y === "number" &&
+		Number.isFinite(target.y)
+	) {
+		return { x: target.x, y: target.y };
+	}
+	if (target.ref) {
+		const snapshot = await getEditorSnapshot(client);
+		const element = snapshot.elements.find(
+			(candidate) => candidate.ref === target.ref
+		);
+		if (!element) throw new Error(`Snapshot ref not found: ${target.ref}`);
+		return {
+			x: element.bounds.x + element.bounds.width / 2,
+			y: element.bounds.y + element.bounds.height / 2,
+		};
+	}
+	throw new Error("Pointer target does not contain coordinates or a ref");
+}
+
+async function handleSemanticTimelineSeek({
+	client,
+	options,
+	from,
+}: {
+	client: EditorApiClient;
+	options: CLIRunOptions;
+	from: AgentPointerTarget;
+}): Promise<CLIResult> {
+	if (
+		typeof options.toTime !== "number" ||
+		!Number.isFinite(options.toTime) ||
+		options.toTime < 0
+	) {
+		return { success: false, error: "--to-time must be a number >= 0" };
+	}
+	const navigator = await client.get<{ activeProjectId?: string | null }>(
+		"/api/claude/navigator/projects"
+	);
+	const projectId = options.projectId ?? navigator.activeProjectId ?? undefined;
+	if (!projectId) {
+		return {
+			success: false,
+			error: "No active project; pass --project-id for --to-time",
+		};
+	}
+	const speed = speedMultiplier(options);
+	const fromPoint = await materializeTargetPoint({ client, target: from });
+	const operation = await client.post(
+		`/api/claude/timeline/${encodeURIComponent(projectId)}/playback`,
+		{ action: "seek", time: options.toTime }
+	);
+	await sleep(Math.max(20, 120 / speed));
+	const playhead = await waitForSemanticTarget({
+		client,
+		target: "timeline.playhead",
+		timeoutMs: options.timeoutMs,
+	});
+	const toPoint = {
+		x: playhead.bounds.x + playhead.bounds.width / 2,
+		y: playhead.bounds.y + playhead.bounds.height / 2,
+	};
+	await requirePointerInputSupport({ client, options });
+	const inputMode = pointerInputMode({ options });
+	const animationStart = await client.post("/api/claude/pointer/move", {
+		...fromPoint,
+		inputMode,
+		durationMs: scaledDuration(undefined, speed, 120),
+	});
+	const animationEnd = await client.post("/api/claude/pointer/move", {
+		...toPoint,
+		inputMode,
+		durationMs: scaledDuration(options.durationMs, speed, 450),
+	});
+	return {
+		success: true,
+		data: {
+			projectId,
+			time: options.toTime,
+			operation,
+			animation: {
+				type: "display-only",
+				from: fromPoint,
+				to: toPoint,
+				start: animationStart,
+				end: animationEnd,
+			},
+		},
+	};
 }
 
 async function handleDrag({
@@ -421,15 +767,36 @@ async function handleDrag({
 	client: EditorApiClient;
 	options: CLIRunOptions;
 }): Promise<CLIResult> {
-	let from = buildPointerTarget({
+	if (options.waitFor) {
+		const waited = await waitForRequestedState({
+			client,
+			value: options.waitFor,
+			timeoutMs: options.timeoutMs,
+			intervalMs: options.intervalMs,
+		});
+		if (!waited.success) return waited;
+	}
+	let from = await resolvePointerTarget({
+		client,
 		options: {
+			target: options.from,
 			ref: options.fromRef,
 			x: options.fromX,
 			y: options.fromY,
+			normalizedX: options.fromNormalizedX,
+			normalizedY: options.fromNormalizedY,
 		},
 		label: "Pointer drag start",
+		timeoutMs: options.timeoutMs,
 	});
 	if (!from.ok) return { success: false, error: from.error };
+	if (options.toTime !== undefined) {
+		return await handleSemanticTimelineSeek({
+			client,
+			options,
+			from: from.target,
+		});
+	}
 
 	let listContext: ListDragContext | undefined;
 	let to: PointerTargetResult;
@@ -453,13 +820,18 @@ async function handleDrag({
 			};
 		}
 	} else {
-		to = buildPointerTarget({
+		to = await resolvePointerTarget({
+			client,
 			options: {
+				target: options.to,
 				ref: options.toRef,
 				x: options.toX,
 				y: options.toY,
+				normalizedX: options.toNormalizedX,
+				normalizedY: options.toNormalizedY,
 			},
 			label: "Pointer drag destination",
+			timeoutMs: options.timeoutMs,
 		});
 		if (!to.ok) return { success: false, error: to.error };
 	}
@@ -478,15 +850,16 @@ async function handleDrag({
 		});
 	}
 
+	const speed = speedMultiplier(options);
 	const request: AgentPointerDragRequest = {
 		from: from.target,
 		to: to.target,
 		inputMode: pointerInputMode({ options }),
 		via,
-		holdMs: options.holdMs ?? 120,
-		durationMs: options.durationMs ?? 450,
+		holdMs: scaledDuration(options.holdMs, speed, 120),
+		durationMs: scaledDuration(options.durationMs, speed, 450),
 		steps: options.steps ?? 24,
-		releaseDelayMs: options.releaseDelayMs ?? 100,
+		releaseDelayMs: scaledDuration(options.releaseDelayMs, speed, 100),
 	};
 	await requirePointerInputSupport({ client, options });
 	const data = await client.post("/api/claude/pointer/drag", request);
@@ -555,13 +928,25 @@ async function handleScroll({
 		...(hasDeltaY ? { deltaY: options.deltaY } : {}),
 	};
 	const hasTargetOption =
+		options.target !== undefined ||
 		options.ref !== undefined ||
 		options.x !== undefined ||
-		options.y !== undefined;
+		options.y !== undefined ||
+		options.normalizedX !== undefined ||
+		options.normalizedY !== undefined;
 	if (hasTargetOption) {
-		const target = buildPointerTarget({
-			options: { ref: options.ref, x: options.x, y: options.y },
+		const target = await resolvePointerTarget({
+			client,
+			options: {
+				target: options.target,
+				ref: options.ref,
+				x: options.x,
+				y: options.y,
+				normalizedX: options.normalizedX,
+				normalizedY: options.normalizedY,
+			},
 			label: "Pointer scroll target",
+			timeoutMs: options.timeoutMs,
 		});
 		if (!target.ok) return { success: false, error: target.error };
 		Object.assign(request, target.target);
@@ -647,6 +1032,17 @@ async function runSequenceAction({
 		typeof action.foreground === "boolean"
 			? action.foreground
 			: baseOptions.foreground;
+	const speed = numberValue(action, "speed") ?? speedMultiplier(baseOptions);
+	if (!Number.isFinite(speed) || speed <= 0) {
+		return { success: false, error: "Sequence action speed must be > 0" };
+	}
+	const actionOptions: CLIRunOptions = {
+		...baseOptions,
+		foreground,
+		speed,
+		waitFor: stringValue(action, "waitFor"),
+		timeoutMs: numberValue(action, "timeoutMs") ?? baseOptions.timeoutMs,
+	};
 
 	if (
 		["move", "hover", "click", "double-click", "right-click"].includes(name)
@@ -654,11 +1050,13 @@ async function runSequenceAction({
 		return postTargetAction({
 			client,
 			options: {
-				...baseOptions,
-				foreground,
+				...actionOptions,
+				target: stringValue(action, "target"),
 				ref: stringValue(action, "ref"),
 				x: numberValue(action, "x"),
 				y: numberValue(action, "y"),
+				normalizedX: numberValue(action, "normalizedX"),
+				normalizedY: numberValue(action, "normalizedY"),
 			},
 			action: name as
 				| "move"
@@ -675,14 +1073,34 @@ async function runSequenceAction({
 		return handleDrag({
 			client,
 			options: {
-				...baseOptions,
-				foreground,
+				...actionOptions,
+				from:
+					stringValue(action, "fromTarget") ??
+					stringValue(action, "from") ??
+					stringValue(from, "target"),
 				fromRef: stringValue(action, "fromRef") ?? stringValue(from, "ref"),
 				fromX: numberValue(action, "fromX") ?? numberValue(from, "x"),
 				fromY: numberValue(action, "fromY") ?? numberValue(from, "y"),
+				fromNormalizedX:
+					numberValue(action, "fromNormalizedX") ??
+					numberValue(from, "normalizedX"),
+				fromNormalizedY:
+					numberValue(action, "fromNormalizedY") ??
+					numberValue(from, "normalizedY"),
+				to:
+					stringValue(action, "toTarget") ??
+					stringValue(action, "to") ??
+					stringValue(to, "target"),
 				toRef: stringValue(action, "toRef") ?? stringValue(to, "ref"),
 				toX: numberValue(action, "toX") ?? numberValue(to, "x"),
 				toY: numberValue(action, "toY") ?? numberValue(to, "y"),
+				toNormalizedX:
+					numberValue(action, "toNormalizedX") ??
+					numberValue(to, "normalizedX"),
+				toNormalizedY:
+					numberValue(action, "toNormalizedY") ??
+					numberValue(to, "normalizedY"),
+				toTime: numberValue(action, "toTime"),
 				toIndex: numberValue(action, "toIndex"),
 				via: Array.isArray(action.via) ? JSON.stringify(action.via) : undefined,
 				holdMs: numberValue(action, "holdMs"),
@@ -701,11 +1119,13 @@ async function runSequenceAction({
 		return handleScroll({
 			client,
 			options: {
-				...baseOptions,
-				foreground,
+				...actionOptions,
+				target: stringValue(action, "target"),
 				ref: stringValue(action, "ref"),
 				x: numberValue(action, "x"),
 				y: numberValue(action, "y"),
+				normalizedX: numberValue(action, "normalizedX"),
+				normalizedY: numberValue(action, "normalizedY"),
 				deltaX: numberValue(action, "deltaX"),
 				deltaY: numberValue(action, "deltaY"),
 			},
@@ -721,11 +1141,10 @@ async function runSequenceAction({
 		return handleKeyboardCommand({
 			client,
 			options: {
-				...baseOptions,
+				...actionOptions,
 				command: "editor:keyboard:press",
-				foreground,
 				keys,
-				intervalMs: numberValue(action, "intervalMs"),
+				intervalMs: (numberValue(action, "intervalMs") ?? 45) / speed,
 			},
 		});
 	}
@@ -734,16 +1153,27 @@ async function runSequenceAction({
 		return handleKeyboardCommand({
 			client,
 			options: {
-				...baseOptions,
+				...actionOptions,
 				command: "editor:keyboard:type",
-				foreground,
 				text: stringValue(action, "text"),
-				intervalMs: numberValue(action, "intervalMs"),
+				intervalMs:
+					numberValue(action, "intervalMs") === undefined
+						? undefined
+						: numberValue(action, "intervalMs")! / speed,
 			},
 		});
 	}
 
 	if (name === "wait") {
+		const semanticTarget = stringValue(action, "target");
+		if (semanticTarget) {
+			return await waitForRequestedState({
+				client,
+				value: semanticTarget,
+				timeoutMs: numberValue(action, "timeoutMs"),
+				intervalMs: numberValue(action, "intervalMs"),
+			});
+		}
 		return waitForEditorUi({
 			client,
 			options: {
@@ -758,8 +1188,46 @@ async function runSequenceAction({
 
 	if (name === "sleep") {
 		const durationMs = numberValue(action, "durationMs") ?? 0;
-		await sleep(Math.max(0, durationMs));
-		return { success: true, data: { durationMs } };
+		const scaledMs = Math.max(0, durationMs / speed);
+		await sleep(scaledMs);
+		return { success: true, data: { durationMs: scaledMs } };
+	}
+
+	if (name === "seek" || name === "timeline:seek") {
+		const time = numberValue(action, "time");
+		if (time === undefined || time < 0) {
+			return { success: false, error: "Seek action requires time >= 0" };
+		}
+		const navigator = await client.get<{ activeProjectId?: string | null }>(
+			"/api/claude/navigator/projects"
+		);
+		const projectId =
+			stringValue(action, "projectId") ??
+			baseOptions.projectId ??
+			navigator.activeProjectId ??
+			undefined;
+		if (!projectId) {
+			return { success: false, error: "Seek action has no active project" };
+		}
+		const data = await client.post(
+			`/api/claude/timeline/${encodeURIComponent(projectId)}/playback`,
+			{ action: "seek", time }
+		);
+		return { success: true, data: { projectId, time, operation: data } };
+	}
+
+	if (name === "switch-panel") {
+		const panel = stringValue(action, "panel");
+		if (!panel) {
+			return { success: false, error: "switch-panel requires panel" };
+		}
+		const data = await client.post("/api/claude/ui/switch-panel", {
+			panel,
+			...(stringValue(action, "tab")
+				? { tab: stringValue(action, "tab") }
+				: {}),
+		});
+		return { success: true, data };
 	}
 
 	if (name === "snapshot") {
@@ -824,7 +1292,44 @@ async function stopSequenceRecording({
 	return await moveRecordingToRequestedPath({ recording, outputPath });
 }
 
-async function handleSequence({
+async function writePointerEventTrack({
+	requestedPath,
+	startedAt,
+	speed,
+	skipIdle,
+	events,
+}: {
+	requestedPath: string;
+	startedAt: number;
+	speed: number;
+	skipIdle: boolean;
+	events: Array<Record<string, unknown>>;
+}): Promise<string> {
+	const path = await import("node:path");
+	const fs = await import("node:fs/promises");
+	const outputPath = path.resolve(requestedPath);
+	await fs.mkdir(path.dirname(outputPath), { recursive: true });
+	await fs.writeFile(
+		outputPath,
+		JSON.stringify(
+			{
+				version: 1,
+				kind: "qcut-pointer-event-track",
+				startedAt: new Date(startedAt).toISOString(),
+				durationMs: Math.max(0, Date.now() - startedAt),
+				speed,
+				skipIdle,
+				events,
+			},
+			null,
+			2
+		),
+		"utf8"
+	);
+	return outputPath;
+}
+
+export async function runPointerSequence({
 	client,
 	options,
 }: {
@@ -857,6 +1362,9 @@ async function handleSequence({
 
 	const results: Array<{ index: number; action: unknown; result: CLIResult }> =
 		[];
+	const events: Array<Record<string, unknown>> = [];
+	const sequenceStartedAt = Date.now();
+	const speed = speedMultiplier(options);
 	let activeRef: string | undefined;
 	try {
 		for (const [index, action] of actions.entries()) {
@@ -872,12 +1380,35 @@ async function handleSequence({
 				activeRef
 					? { ...action, ref: activeRef }
 					: action;
-			const result = await runSequenceAction({
-				client,
-				baseOptions: options,
-				action: contextualAction,
-			});
+			const actionStartedAt = Date.now();
+			const skipped =
+				options.skipIdle === true &&
+				(actionName === "sleep" || action.idle === true);
+			const result = skipped
+				? {
+						success: true,
+						data: { skipped: true, reason: "skip-idle" },
+					}
+				: await runSequenceAction({
+						client,
+						baseOptions: { ...options, speed },
+						action: contextualAction,
+					});
 			results.push({ index, action: action.action ?? action.type, result });
+			events.push({
+				index,
+				action: actionName,
+				startMs: actionStartedAt - sequenceStartedAt,
+				endMs: Date.now() - sequenceStartedAt,
+				durationMs: Date.now() - actionStartedAt,
+				skipped,
+				target: action.target,
+				from: action.from ?? action.fromTarget,
+				to: action.to ?? action.toTarget,
+				toTime: action.toTime,
+				success: result.success,
+				result: result.data,
+			});
 			if (!result.success) {
 				throw new Error(result.error || `Action ${index} failed`);
 			}
@@ -900,10 +1431,24 @@ async function handleSequence({
 				// Preserve the action failure.
 			}
 		}
+		let eventTrack: string | undefined;
+		if (options.eventTrack) {
+			try {
+				eventTrack = await writePointerEventTrack({
+					requestedPath: options.eventTrack,
+					startedAt: sequenceStartedAt,
+					speed,
+					skipIdle: options.skipIdle === true,
+					events,
+				});
+			} catch {
+				// Preserve the action failure.
+			}
+		}
 		return {
 			success: false,
 			error: error instanceof Error ? error.message : String(error),
-			data: { results, screenshot, recording },
+			data: { results, screenshot, recording, eventTrack },
 		};
 	}
 
@@ -913,9 +1458,25 @@ async function handleSequence({
 			outputPath: recordingOutputPath,
 		});
 	}
+	const eventTrack = options.eventTrack
+		? await writePointerEventTrack({
+				requestedPath: options.eventTrack,
+				startedAt: sequenceStartedAt,
+				speed,
+				skipIdle: options.skipIdle === true,
+				events,
+			})
+		: undefined;
 	return {
 		success: true,
-		data: { actionCount: actions.length, results, recording },
+		data: {
+			actionCount: actions.length,
+			executedActionCount: events.filter((event) => event.skipped !== true)
+				.length,
+			results,
+			recording,
+			eventTrack,
+		},
 	};
 }
 
@@ -937,7 +1498,22 @@ export async function handlePointerCommand({
 		case "drag":
 			return await handleDrag({ client, options });
 		case "sequence":
-			return await handleSequence({ client, options });
+			return await runPointerSequence({ client, options });
+		case "wait-for": {
+			const requested = options.target ?? options.text;
+			if (!requested) {
+				return {
+					success: false,
+					error: "Pointer wait-for requires --target or --text",
+				};
+			}
+			return await waitForRequestedState({
+				client,
+				value: requested,
+				timeoutMs: options.timeoutMs,
+				intervalMs: options.intervalMs,
+			});
+		}
 		case "scroll":
 			return await handleScroll({ client, options });
 		case "hide": {
@@ -947,7 +1523,7 @@ export async function handlePointerCommand({
 		default:
 			return {
 				success: false,
-				error: `Unknown pointer action: ${action ?? ""}. Available: move, hover, click, double-click, right-click, drag, scroll, sequence, hide`,
+				error: `Unknown pointer action: ${action ?? ""}. Available: move, hover, click, double-click, right-click, drag, scroll, wait-for, sequence, hide`,
 			};
 	}
 }

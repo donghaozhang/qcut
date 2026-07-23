@@ -403,6 +403,128 @@ describe("editor pointer CLI handlers", () => {
 		);
 	});
 
+	it("resolves semantic targets and scales pointer animation speed", async () => {
+		const get = vi.fn(async () => ({
+			elements: [
+				{
+					ref: "@text-tab",
+					testId: "text-panel-tab",
+					bounds: { x: 20, y: 30, width: 40, height: 40 },
+				},
+			],
+		}));
+		const post = vi.fn(async () => ({ action: "click" }));
+		const client = {
+			get,
+			post,
+			requireCapability: vi.fn(async () => undefined),
+		} as unknown as EditorApiClient;
+
+		const result = await handlePointerCommand({
+			client,
+			options: makeOptions({
+				command: "editor:pointer:click",
+				values: { target: "panel.text", speed: 2 },
+			}),
+		});
+
+		expect(result.success).toBe(true);
+		expect(post).toHaveBeenCalledWith("/api/claude/pointer/click", {
+			ref: "@text-tab",
+			inputMode: "background",
+			durationMs: 110,
+		});
+	});
+
+	it("converts normalized viewport coordinates", async () => {
+		const get = vi.fn(async () => ({
+			viewport: { width: 1200, height: 800 },
+			elements: [],
+		}));
+		const post = vi.fn(async () => ({ action: "move" }));
+		const client = {
+			get,
+			post,
+			requireCapability: vi.fn(async () => undefined),
+		} as unknown as EditorApiClient;
+
+		const result = await handlePointerCommand({
+			client,
+			options: makeOptions({
+				command: "editor:pointer:move",
+				values: { normalizedX: 0.5, normalizedY: 0.25 },
+			}),
+		});
+
+		expect(result.success).toBe(true);
+		expect(post).toHaveBeenCalledWith("/api/claude/pointer/move", {
+			x: 600,
+			y: 200,
+			inputMode: "background",
+		});
+	});
+
+	it("separates semantic playhead seek from its display-only animation", async () => {
+		let sought = false;
+		const get = vi.fn(async (url: string) => {
+			if (url === "/api/claude/navigator/projects") {
+				return { activeProjectId: "project-1" };
+			}
+			if (url === "/api/claude/snapshot") {
+				return {
+					elements: [
+						{
+							ref: "@playhead",
+							testId: "timeline-playhead",
+							bounds: {
+								x: sought ? 500 : 100,
+								y: 300,
+								width: 2,
+								height: 200,
+							},
+						},
+					],
+				};
+			}
+			throw new Error(`Unexpected GET ${url}`);
+		});
+		const post = vi.fn(async (url: string) => {
+			if (url.includes("/playback")) sought = true;
+			return { url };
+		});
+		const client = {
+			get,
+			post,
+			requireCapability: vi.fn(async () => undefined),
+		} as unknown as EditorApiClient;
+
+		const result = await handlePointerCommand({
+			client,
+			options: makeOptions({
+				command: "editor:pointer:drag",
+				values: {
+					from: "timeline.playhead",
+					toTime: 12,
+					projectId: "project-1",
+				},
+			}),
+		});
+
+		expect(result.success).toBe(true);
+		expect(post).toHaveBeenCalledWith(
+			"/api/claude/timeline/project-1/playback",
+			{ action: "seek", time: 12 }
+		);
+		expect(post.mock.calls.map(([url]) => url)).not.toContain(
+			"/api/claude/pointer/drag"
+		);
+		expect(result.data).toEqual(
+			expect.objectContaining({
+				animation: expect.objectContaining({ type: "display-only" }),
+			})
+		);
+	});
+
 	it("routes explicit foreground input without changing the target", async () => {
 		const { client, post, requireCapability } = createClient();
 		const result = await handlePointerCommand({

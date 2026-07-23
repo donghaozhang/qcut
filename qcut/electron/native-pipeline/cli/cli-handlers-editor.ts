@@ -41,6 +41,9 @@ import {
 	handlePointerCommand,
 	waitForEditorUi,
 } from "./cli-handlers-pointer.js";
+import { resolveEditorInstance } from "./instance-selection.js";
+import { ensureEditorProjectReady } from "../editor/editor-project-readiness.js";
+import { runEditorDemo } from "./editor-demo-run.js";
 
 type ProgressFn = (progress: {
 	stage: string;
@@ -179,6 +182,17 @@ export async function handleEditorCommand(
 	onProgress: ProgressFn,
 	signal?: AbortSignal
 ): Promise<CLIResult> {
+	try {
+		const resolvedInstance = await resolveEditorInstance(options);
+		options.host = resolvedInstance.host;
+		options.port = resolvedInstance.port;
+	} catch (error) {
+		return {
+			success: false,
+			error: error instanceof Error ? error.message : String(error),
+		};
+	}
+
 	// In session mode, reuse the shared client. Otherwise create a new one.
 	// `let` so the auto-spawn block below can swap it for a daemon-port-aware
 	// client when the headless recorder binds a non-default port.
@@ -311,6 +325,15 @@ export async function handleEditorCommand(
 			case "pointer":
 				return await handlePointerCommand({ client, options });
 
+			case "demo":
+				if (parts[2] !== "run") {
+					return {
+						success: false,
+						error: `Unknown demo action: ${parts[2] ?? ""}. Available: run`,
+					};
+				}
+				return await runEditorDemo({ client, options, onProgress });
+
 			case "keyboard":
 				return await handleKeyboardCommand({ client, options });
 
@@ -338,7 +361,7 @@ export async function handleEditorCommand(
 			default:
 				return {
 					success: false,
-					error: `Unknown editor module: ${module}. Available: auth, health, media, project, timeline, editing, track, element, analyze, transcribe, search, generate, export, diagnostics, mcp, remotion, sticker, navigator, screen-recording, ui, snapshot, pointer, keyboard, diff, session, console, errors, moyin, novel, screenshot, undo, redo, state`,
+					error: `Unknown editor module: ${module}. Available: auth, health, media, project, timeline, editing, track, element, analyze, transcribe, search, generate, export, diagnostics, mcp, remotion, sticker, navigator, screen-recording, ui, snapshot, pointer, keyboard, demo, diff, session, console, errors, moyin, novel, screenshot, undo, redo, state`,
 				};
 		}
 	} catch (err) {
@@ -422,7 +445,14 @@ async function handleNavigatorCommand(
 			const data = await client.post("/api/claude/navigator/open", {
 				projectId: options.projectId,
 			});
-			return { success: true, data };
+			if (!options.waitReady) return { success: true, data };
+			const readiness = await ensureEditorProjectReady({
+				client,
+				projectId: options.projectId,
+				open: false,
+				timeoutMs: options.timeoutMs,
+			});
+			return { success: true, data: { navigation: data, readiness } };
 		}
 		default:
 			return {

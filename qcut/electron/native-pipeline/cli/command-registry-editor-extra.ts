@@ -18,9 +18,19 @@ export function createExtraEditorCommands({
 	) => CommandDef;
 }): Record<string, CommandDef> {
 	const pointerTargetFlags = () => [
+		f("--target", "string", "Semantic target, for example panel.text"),
 		f("--ref", "string", "Snapshot ref, for example @e12"),
 		f("--x", "number", "Editor viewport X coordinate"),
 		f("--y", "number", "Editor viewport Y coordinate"),
+		f("--normalized-x", "number", "Horizontal viewport ratio from 0 to 1"),
+		f("--normalized-y", "number", "Vertical viewport ratio from 0 to 1"),
+		f("--wait-for", "string", "Wait for a semantic target or visible text"),
+		f("--timeout-ms", "number", "Target wait timeout in milliseconds", {
+			default: 5000,
+		}),
+		f("--speed", "number", "Pointer animation speed multiplier", {
+			default: 1,
+		}),
 		f(
 			"--foreground",
 			"boolean",
@@ -30,6 +40,28 @@ export function createExtraEditorCommands({
 	];
 
 	return {
+		"editor:demo:run": ed(
+			"editor:demo:run",
+			"Prepare, record, export, and verify an editor demo from one plan",
+			[
+				f("--plan", "string", "Demo plan JSON file", { required: true }),
+				f("--record", "string", "Screen recording output MP4"),
+				f("--event-track", "string", "Editable pointer event-track JSON"),
+				f("--speed", "number", "Overall animation speed multiplier", {
+					default: 1,
+				}),
+				f("--skip-idle", "boolean", "Skip sleep and idle-only actions", {
+					default: false,
+				}),
+				f("--project-id", "string", "Use an existing project"),
+				f("--timeout-ms", "number", "Project readiness timeout", {
+					default: 15000,
+				}),
+			],
+			[
+				"qcut editor demo run --plan promo.json --record demo.mp4 --speed 1.5 --skip-idle --json",
+			]
+		),
 		// ── Auth ──
 		"editor:auth:token": ed(
 			"editor:auth:token",
@@ -236,12 +268,23 @@ export function createExtraEditorCommands({
 			"editor:pointer:drag",
 			"Drag between snapshot refs or editor coordinates",
 			[
+				f("--from", "string", "Semantic starting target"),
+				f("--to", "string", "Semantic destination target"),
 				f("--from-ref", "string", "Starting snapshot ref"),
 				f("--to-ref", "string", "Destination snapshot ref"),
 				f("--from-x", "number", "Starting editor viewport X coordinate"),
 				f("--from-y", "number", "Starting editor viewport Y coordinate"),
 				f("--to-x", "number", "Destination editor viewport X coordinate"),
 				f("--to-y", "number", "Destination editor viewport Y coordinate"),
+				f("--from-normalized-x", "number", "Starting viewport X ratio"),
+				f("--from-normalized-y", "number", "Starting viewport Y ratio"),
+				f("--to-normalized-x", "number", "Destination viewport X ratio"),
+				f("--to-normalized-y", "number", "Destination viewport Y ratio"),
+				f(
+					"--to-time",
+					"number",
+					"Directly seek the timeline, then animate the pointer to the playhead"
+				),
 				f("--to-index", "number", "Destination index in the source list"),
 				f("--via", "string", "JSON array or @file of intermediate targets"),
 				f("--hold-ms", "number", "Pause after mouseDown", { default: 120 }),
@@ -255,6 +298,13 @@ export function createExtraEditorCommands({
 				f("--verify", "boolean", "Verify the resulting list index", {
 					default: true,
 				}),
+				f("--wait-for", "string", "Wait for a semantic target or visible text"),
+				f("--timeout-ms", "number", "Target wait timeout in milliseconds", {
+					default: 5000,
+				}),
+				f("--speed", "number", "Pointer animation speed multiplier", {
+					default: 1,
+				}),
 				f(
 					"--foreground",
 					"boolean",
@@ -266,6 +316,21 @@ export function createExtraEditorCommands({
 				"qcut-pipeline editor:pointer:drag --from-ref @e12 --to-ref @e27 --force --json",
 				"qcut-pipeline editor:pointer:drag --from-x 400 --from-y 700 --to-x 700 --to-y 700 --force --json",
 			]
+		),
+		"editor:pointer:wait-for": ed(
+			"editor:pointer:wait-for",
+			"Wait for a semantic pointer target or visible editor text",
+			[
+				f("--target", "string", "Semantic target"),
+				f("--text", "string", "Visible text"),
+				f("--timeout-ms", "number", "Timeout in milliseconds", {
+					default: 5000,
+				}),
+				f("--interval-ms", "number", "Polling interval in milliseconds", {
+					default: 100,
+				}),
+			],
+			["qcut editor pointer wait-for --target panel.text --json"]
 		),
 		"editor:pointer:scroll": ed(
 			"editor:pointer:scroll",
@@ -291,6 +356,17 @@ export function createExtraEditorCommands({
 					required: true,
 				}),
 				f("--record", "string", "Record the Agent pointer sequence to video"),
+				f(
+					"--event-track",
+					"string",
+					"Write an editable JSON pointer event track"
+				),
+				f("--speed", "number", "Overall animation speed multiplier", {
+					default: 1,
+				}),
+				f("--skip-idle", "boolean", "Skip sleep and idle-only actions", {
+					default: false,
+				}),
 				f("--foreground", "boolean", "Use foreground native input", {
 					default: false,
 				}),

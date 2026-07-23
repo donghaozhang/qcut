@@ -16,6 +16,7 @@ import {
 	buildProjectJSON,
 	buildProjectJSONMinimal,
 } from "../cli/project-json-builder.js";
+import { ensureEditorProjectReady } from "./editor-project-readiness.js";
 
 type ProgressFn = (progress: {
 	stage: string;
@@ -480,9 +481,34 @@ async function projectCreate(
 	client: EditorApiClient,
 	opts: CLIRunOptions
 ): Promise<CLIResult> {
-	const name = opts.newName || "New Project";
-	const data = await client.post("/api/claude/project/create", { name });
-	return { success: true, data };
+	const name = opts.name || opts.newName || "New Project";
+	const data = await client.post<{
+		projectId?: string;
+		id?: string;
+		[key: string]: unknown;
+	}>("/api/claude/project/create", { name });
+	const projectId = data.projectId ?? data.id;
+	if ((opts.open || opts.waitReady) && !projectId) {
+		return {
+			success: false,
+			error: "Project created, but QCut did not return its project ID",
+			data,
+		};
+	}
+	let readiness;
+	if (projectId && (opts.open || opts.waitReady)) {
+		readiness = await ensureEditorProjectReady({
+			client,
+			projectId,
+			open: true,
+			timeoutMs: opts.timeoutMs,
+		});
+		opts.projectId = projectId;
+	}
+	return {
+		success: true,
+		data: readiness ? { ...data, readiness } : data,
+	};
 }
 
 /** Handle project delete. */

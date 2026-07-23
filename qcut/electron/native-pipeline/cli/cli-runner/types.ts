@@ -226,6 +226,12 @@ export interface CLIRunOptions {
 	startTime?: number;
 	endTime?: number;
 	newName?: string;
+	/** Project name alias used by editor project create. */
+	name?: string;
+	/** Open a newly-created or selected project in the editor. */
+	open?: boolean;
+	/** Wait for the project, media bridge, and timeline bridge to be ready. */
+	waitReady?: boolean;
 	changes?: string;
 	updates?: string;
 	elements?: string;
@@ -252,12 +258,22 @@ export interface CLIRunOptions {
 	interactive?: boolean;
 	depth?: number;
 	ref?: string;
+	/** Stable semantic pointer target such as panel.text or export.button. */
+	from?: string;
+	to?: string;
 	fromRef?: string;
 	toRef?: string;
 	fromX?: number;
 	fromY?: number;
 	toX?: number;
 	toY?: number;
+	normalizedX?: number;
+	normalizedY?: number;
+	fromNormalizedX?: number;
+	fromNormalizedY?: number;
+	toNormalizedX?: number;
+	toNormalizedY?: number;
+	toTime?: number;
 	toIndex?: number;
 	via?: string;
 	holdMs?: number;
@@ -267,7 +283,12 @@ export interface CLIRunOptions {
 	keys?: string;
 	intervalMs?: number;
 	actions?: string;
+	plan?: string;
 	record?: string;
+	eventTrack?: string;
+	speed?: number;
+	skipIdle?: boolean;
+	waitFor?: string;
 	timeoutMs?: number;
 	deltaX?: number;
 	deltaY?: number;

@@ -100,6 +100,7 @@ import { handleRecordDaemon } from "../cli-handlers-record-daemon.js";
 import { handleSystemDoctor } from "../cli-handlers-system-doctor.js";
 import { handlePersonCutout } from "../cli-handlers-person-cutout.js";
 import { handlePortraitFilter } from "../cli-handlers-portrait-filter.js";
+import { handleInstancesCommand } from "../instance-selection.js";
 
 /**
  * Unified handler signature.
@@ -149,6 +150,8 @@ function wrapOPS(
  * the handleEditorCommand dispatcher via wildcard fallback.
  */
 export const HANDLER_MAP: Record<string, CommandHandler> = {
+	"instances-list": wrap(handleInstancesCommand),
+	"instances-use": wrap(handleInstancesCommand),
 	// ── Generation ──
 	"generate-image": async (options, onProgress, executor, signal) =>
 		options.grid

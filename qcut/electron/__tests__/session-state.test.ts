@@ -56,6 +56,8 @@ describe("session state persistence", () => {
 			sessionState: createEmptySessionState({ sessionName: "agent-a" }),
 			options: defaultOptions({
 				command: "editor:ui:switch-panel",
+				host: "127.0.0.1",
+				port: "8878",
 				projectId: "proj_1",
 				panel: "moyin",
 				tab: "characters",
@@ -70,6 +72,8 @@ describe("session state persistence", () => {
 		});
 
 		expect(loaded).not.toBeNull();
+		expect(loaded?.host).toBe("127.0.0.1");
+		expect(loaded?.port).toBe("8878");
 		expect(loaded?.projectId).toBe("proj_1");
 		expect(loaded?.lastPanel).toBe("moyin");
 		expect(loaded?.lastTab).toBe("characters");
@@ -81,6 +85,8 @@ describe("session state persistence", () => {
 			sessionState: createEmptySessionState({ sessionName: "agent-a" }),
 			options: defaultOptions({
 				command: "editor:ui:switch-panel",
+				host: "127.0.0.1",
+				port: "8878",
 				projectId: "proj_2",
 				panel: "properties",
 				tab: "overview",
@@ -94,6 +100,8 @@ describe("session state persistence", () => {
 		});
 
 		expect(hydrated.projectId).toBe("proj_2");
+		expect(hydrated.host).toBe("127.0.0.1");
+		expect(hydrated.port).toBe("8878");
 		expect(hydrated.panel).toBe("properties");
 		expect(hydrated.tab).toBe("overview");
 	});
@@ -115,6 +123,8 @@ describe("session state persistence", () => {
 		const opts = parseSessionLine("editor:timeline:export", {
 			resume: "agent-a",
 			stateDir: "/tmp/qcut-state",
+			host: "127.0.0.1",
+			port: "8878",
 			projectId: "proj_sticky",
 			panel: "moyin",
 			tab: "characters",
@@ -124,9 +134,19 @@ describe("session state persistence", () => {
 		expect(opts).not.toBeNull();
 		expect(opts?.resume).toBe("agent-a");
 		expect(opts?.stateDir).toBe("/tmp/qcut-state");
+		expect(opts?.host).toBe("127.0.0.1");
+		expect(opts?.port).toBe("8878");
 		expect(opts?.projectId).toBe("proj_sticky");
 		expect(opts?.panel).toBe("moyin");
 		expect(opts?.tab).toBe("characters");
+	});
+
+	it("parses an editor port override inside an interactive session", () => {
+		const opts = parseSessionLine("editor:health --port 8878", {
+			session: true,
+		});
+
+		expect(opts?.port).toBe("8878");
 	});
 
 	it("hydrates resumed one-shot commands before dispatch", async () => {
@@ -135,6 +155,8 @@ describe("session state persistence", () => {
 		saveSessionState({
 			sessionState: {
 				...createEmptySessionState({ sessionName: "agent-a" }),
+				host: "127.0.0.1",
+				port: "8878",
 				projectId: "proj_resume",
 				commandHistory: ["editor:navigator:open project=proj_resume"],
 				savedAt: new Date().toISOString(),
@@ -155,6 +177,8 @@ describe("session state persistence", () => {
 		expect(result.success).toBe(true);
 		expect(handleEditorCommand).toHaveBeenCalledTimes(1);
 		const [calledOptions] = vi.mocked(handleEditorCommand).mock.calls[0] ?? [];
+		expect((calledOptions as CLIRunOptions).host).toBe("127.0.0.1");
+		expect((calledOptions as CLIRunOptions).port).toBe("8878");
 		expect((calledOptions as CLIRunOptions).projectId).toBe("proj_resume");
 	});
 
@@ -166,6 +190,8 @@ describe("session state persistence", () => {
 		const result = await runner.run(
 			defaultOptions({
 				command: "editor:ui:switch-panel",
+				host: "127.0.0.1",
+				port: "8878",
 				projectId: "proj_saved",
 				panel: "moyin",
 				tab: "characters",
@@ -181,6 +207,8 @@ describe("session state persistence", () => {
 			stateDir: stateRoot,
 		});
 		expect(loaded).not.toBeNull();
+		expect(loaded?.host).toBe("127.0.0.1");
+		expect(loaded?.port).toBe("8878");
 		expect(loaded?.projectId).toBe("proj_saved");
 		expect(loaded?.lastPanel).toBe("moyin");
 		expect(loaded?.lastTab).toBe("characters");
