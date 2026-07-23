@@ -791,6 +791,7 @@ function getCommandParamsSchema({
 							"speed",
 							"skipIdle",
 							"foreground",
+							"recordingQuality",
 						],
 					}),
 				});
@@ -805,6 +806,7 @@ function getCommandParamsSchema({
 							"speed",
 							"skipIdle",
 							"timeoutMs",
+							"recordingQuality",
 						],
 					}),
 				});
@@ -1019,7 +1021,8 @@ function getCommandParamsSchema({
 
 		if (module === "screen-recording") {
 			removeKey({ values: required, key: "projectId" });
-			if (action === "start") add("sourceId", "filename");
+			if (action === "start")
+				add("sourceId", "filename", "captureMode", "recordingQuality");
 			if (action === "stop") add("discard");
 		}
 
