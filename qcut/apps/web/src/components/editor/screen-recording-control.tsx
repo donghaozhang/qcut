@@ -18,6 +18,7 @@ import {
 	useState,
 	type KeyboardEvent,
 } from "react";
+import { createPortal } from "react-dom";
 import { toast } from "sonner";
 import type { ScreenRecordingStatus } from "@/types/electron";
 import { useScreenRecordingEnhancementStore } from "@/stores/screen-recording-store";
@@ -30,6 +31,7 @@ import {
 import { Switch } from "@/components/ui/switch";
 import { Slider } from "@/components/ui/slider";
 import { useTranslation } from "@/lib/i18n";
+import { ScreenRecordingSettingsMenu } from "./screen-recording-settings-menu";
 
 const RECORDING_SHORTCUT_KEY = "r";
 
@@ -142,10 +144,21 @@ export function ScreenRecordingControl() {
 			} else {
 				const startResult = await startScreenRecording();
 				toast(t("editor.header.recordingStarted"), {
-					description: t("editor.header.savingTo", {
+					description: t("editor.header.recordingStartedDetails", {
+						width: startResult.outputWidth ?? startResult.captureWidth ?? 0,
+						height: startResult.outputHeight ?? startResult.captureHeight ?? 0,
+						fps: startResult.frameRate ?? 30,
 						path: startResult.filePath,
 					}),
 				});
+				if (startResult.isUpscaled) {
+					toast.warning(
+						t("editor.header.recordingUpscaled", {
+							sourceWidth: startResult.sourceWidth ?? 0,
+							sourceHeight: startResult.sourceHeight ?? 0,
+						})
+					);
+				}
 			}
 			await refreshStatus();
 		} catch (error) {
@@ -228,45 +241,81 @@ export function ScreenRecordingControl() {
 		? t("editor.header.recording", { time: elapsedLabel })
 		: t("editor.header.record");
 
+	const floatingPreviewStop =
+		recordingActive &&
+		status?.captureMode === "preview" &&
+		typeof document !== "undefined"
+			? createPortal(
+					<div className="fixed right-4 top-4 z-[10001]">
+						<Button
+							type="button"
+							size="sm"
+							variant="outline"
+							className="h-8 border-red-500/70 bg-background/95 text-red-500 shadow-lg hover:bg-red-500/10 hover:text-red-400"
+							onClick={() => {
+								handleToggleRecording().catch(() => {});
+							}}
+							onKeyDown={handleButtonKeyDown}
+							disabled={isBusy}
+							data-testid="preview-recording-stop-button"
+							aria-label={t("editor.header.stopRecording")}
+							title={t("editor.header.stopRecordingHint")}
+						>
+							{isBusy ? (
+								<Loader2 className="h-4 w-4 animate-spin" />
+							) : (
+								<Square className="h-4 w-4 fill-current" />
+							)}
+							<span>{buttonLabel}</span>
+						</Button>
+					</div>,
+					document.body
+				)
+			: null;
+
 	return (
-		<div className="flex items-center gap-1">
-			<Button
-				type="button"
-				size="sm"
-				variant="outline"
-				className={
-					recordingActive
-						? "h-7 text-xs border-red-500/60 text-red-500 hover:bg-red-500/10 hover:text-red-400"
-						: "h-7 text-xs"
-				}
-				onClick={() => {
-					handleToggleRecording().catch(() => {});
-				}}
-				onKeyDown={handleButtonKeyDown}
-				disabled={isBusy}
-				data-testid="screen-recording-toggle-button"
-				aria-label={
-					recordingActive
-						? t("editor.header.stopRecording")
-						: t("editor.header.startRecording")
-				}
-				title={
-					recordingActive
-						? t("editor.header.stopRecordingHint")
-						: t("editor.header.startRecordingHint")
-				}
-			>
-				{isBusy ? (
-					<Loader2 className="h-4 w-4 animate-spin" />
-				) : recordingActive ? (
-					<Square className="h-4 w-4 fill-current" />
-				) : (
-					<Circle className="h-4 w-4" />
-				)}
-				<span className="text-sm">{buttonLabel}</span>
-			</Button>
-			<MicPopover disabled={!!recordingActive || isBusy} />
-		</div>
+		<>
+			<div className="flex items-center gap-1">
+				<Button
+					type="button"
+					size="sm"
+					variant="outline"
+					className={
+						recordingActive
+							? "h-7 text-xs border-red-500/60 text-red-500 hover:bg-red-500/10 hover:text-red-400"
+							: "h-7 text-xs"
+					}
+					onClick={() => {
+						handleToggleRecording().catch(() => {});
+					}}
+					onKeyDown={handleButtonKeyDown}
+					disabled={isBusy}
+					data-testid="screen-recording-toggle-button"
+					aria-label={
+						recordingActive
+							? t("editor.header.stopRecording")
+							: t("editor.header.startRecording")
+					}
+					title={
+						recordingActive
+							? t("editor.header.stopRecordingHint")
+							: t("editor.header.startRecordingHint")
+					}
+				>
+					{isBusy ? (
+						<Loader2 className="h-4 w-4 animate-spin" />
+					) : recordingActive ? (
+						<Square className="h-4 w-4 fill-current" />
+					) : (
+						<Circle className="h-4 w-4" />
+					)}
+					<span className="text-sm">{buttonLabel}</span>
+				</Button>
+				<ScreenRecordingSettingsMenu disabled={!!recordingActive || isBusy} />
+				<MicPopover disabled={!!recordingActive || isBusy} />
+			</div>
+			{floatingPreviewStop}
+		</>
 	);
 }
 
