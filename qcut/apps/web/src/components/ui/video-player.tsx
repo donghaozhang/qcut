@@ -411,7 +411,7 @@ export function VideoPlayer({
 				video.cancelVideoFrameCallback(callbackId);
 			}
 		};
-	}, [videoSource, videoId]);
+	}, []);
 
 	// Separate cleanup effect for component unmount only
 	useEffect(() => {
@@ -465,10 +465,7 @@ export function VideoPlayer({
 			onLoadedData={(event) => {
 				const video = event.currentTarget;
 				if (typeof video.requestVideoFrameCallback === "function") return;
-				presentedFramesRef.current = Math.max(
-					1,
-					presentedFramesRef.current
-				);
+				presentedFramesRef.current = Math.max(1, presentedFramesRef.current);
 				video.setAttribute(
 					"data-qcut-presented-frames",
 					String(presentedFramesRef.current)
