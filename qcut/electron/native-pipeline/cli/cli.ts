@@ -420,6 +420,8 @@ export function parseCliArgs(argv: string[]): CLIRunOptions {
 			provider: { type: "string" },
 			// screen-recording options
 			"source-id": { type: "string" },
+			"capture-mode": { type: "string" },
+			"recording-quality": { type: "string" },
 			discard: { type: "boolean", default: false },
 			force: { type: "boolean", default: false },
 			// `qcut record` standalone options (Phase 1 of dual-mode recording)
@@ -910,6 +912,8 @@ export function parseCliArgs(argv: string[]): CLIRunOptions {
 		plan: values.plan as string | undefined,
 		record: values.record as string | undefined,
 		eventTrack: values["event-track"] as string | undefined,
+		prerollMs: parseFiniteCliNumber({ value: values["preroll-ms"] }),
+		postrollMs: parseFiniteCliNumber({ value: values["postroll-ms"] }),
 		speed: parseFiniteCliNumber({ value: values.speed }),
 		skipIdle: (values["skip-idle"] as boolean) ?? false,
 		waitFor: values["wait-for"] as string | undefined,
@@ -964,6 +968,8 @@ export function parseCliArgs(argv: string[]): CLIRunOptions {
 		loadSpeech: (values["load-speech"] as boolean) ?? false,
 		// screen-recording options
 		sourceId: values["source-id"] as string | undefined,
+		captureMode: values["capture-mode"] as string | undefined,
+		recordingQuality: values["recording-quality"] as string | undefined,
 		discard: (values.discard as boolean) ?? false,
 		force: (values.force as boolean) ?? false,
 		// `qcut record` standalone options — typed camelCase mappings
