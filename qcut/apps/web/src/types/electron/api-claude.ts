@@ -441,7 +441,12 @@ export interface ElectronClaudeOps {
 			onStartRequest: (
 				callback: (data: {
 					requestId: string;
-					options: { sourceId?: string; fileName?: string };
+					options: {
+						sourceId?: string;
+						fileName?: string;
+						captureMode?: string;
+						recordingQuality?: string;
+					};
 				}) => void
 			) => void;
 			sendStartResponse: (
