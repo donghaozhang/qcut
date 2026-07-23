@@ -1058,6 +1058,10 @@ const CORE_COMMANDS: Record<string, CommandDef> = {
 			f("--zoom-blur", "number", "Motion blur during zoom (0-1)"),
 			f("--mic", "boolean", "Capture microphone audio"),
 			f("--system-audio", "boolean", "Capture system audio", { default: true }),
+			f("--recording-quality", "string", "Recording output quality", {
+				default: "native",
+				enum: ["native", "1080p", "1440p", "2k", "2160p", "4k"],
+			}),
 			f(
 				"--no-auto-launch",
 				"boolean",
