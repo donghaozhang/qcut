@@ -98,6 +98,7 @@ const EXTERNAL_PACKAGES = [
 	"@remotion/three",
 	"@remotion/transitions",
 	"@remotion/zod-types",
+	"@remotion/zod-types-v3",
 ];
 
 // ============================================================================
