@@ -19,6 +19,7 @@ import {
 	removeCachedComponent,
 	getCacheStats,
 	setupGlobalsForDynamicImport,
+	wrapBundledCode,
 } from "../dynamic-loader";
 
 // ============================================================================
@@ -121,12 +122,24 @@ describe("cache management", () => {
 	});
 });
 
+describe("wrapBundledCode", () => {
+	it.each(["@remotion/zod-types", "@remotion/zod-types-v3"])(
+		"injects Zod 3-compatible aliases for %s imports",
+		(packageName) => {
+			const bundledCode = `import { zColor as colorSchema } from "${packageName}";`;
+			const wrappedCode = wrapBundledCode(bundledCode);
+
+			expect(wrappedCode).not.toContain(`from "${packageName}"`);
+			expect(wrappedCode).toContain("const colorSchema = zColor;");
+		}
+	);
+});
+
 // ============================================================================
 // Note: Blob URL dynamic import tests
 // ============================================================================
 // The following functionality is tested via E2E tests in Electron:
 // - loadBundledComponent() with actual blob URLs
-// - wrapBundledCode() code transformation
 // - Component caching after successful loads
 //
 // jsdom/vitest cannot properly execute dynamic imports from blob: URLs
