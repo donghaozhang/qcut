@@ -664,14 +664,6 @@ export function buildExportSegmentScaleFilter({
 	})},setsar=1`;
 }
 
-function timelineDurationFromSegments(segments: ExportSegment[]): number {
-	return segments.reduce(
-		(maximum, segment) =>
-			Math.max(maximum, segment.startTime + segment.duration),
-		0
-	);
-}
-
 /** Execute a full export job: encode segments, composite cursors, concatenate, and finalize. */
 export async function executeExportJob({
 	jobId,
@@ -1087,8 +1079,15 @@ export async function executeExportJob({
 					);
 					audioMap = "[a_final]";
 				}
+				// The concat video length is the sum of encoded segment durations
+				// (timeline gaps collapse), so derive the mux duration from that
+				// rather than timeline offsets; audio tails may still extend past it.
+				const concatVideoDuration = segments.reduce(
+					(sum, segment) => sum + segment.duration,
+					0
+				);
 				const totalDuration = Math.max(
-					timelineDurationFromSegments(segments),
+					concatVideoDuration,
 					...audioFiles.map(
 						(audioFile) =>
 							audioFile.startTime + Math.max(0, audioFile.duration ?? 0)

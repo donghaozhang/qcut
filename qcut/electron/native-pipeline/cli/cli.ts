@@ -86,7 +86,7 @@ function parseFiniteCliNumber({
 export function parseCliArgs(argv: string[]): CLIRunOptions {
 	let command = argv[0];
 	let wasGroupResolved = false;
-	let argsOffset = 1; // how many positional args to skip before flags
+	let commandArgs = argv.slice(1); // args after the resolved command tokens
 
 	if (!command || command === "--help" || command === "-h") {
 		if (argv.includes("--json")) {
@@ -106,7 +106,7 @@ export function parseCliArgs(argv: string[]): CLIRunOptions {
 	const groupResult = resolveCommandGroup(argv);
 	if (groupResult) {
 		command = groupResult.command;
-		argsOffset = argv.length - groupResult.remainingArgs.length;
+		commandArgs = groupResult.remainingArgs;
 		wasGroupResolved = true;
 	} else if (isCommandGroup(command)) {
 		// Check if the user specified an unknown action (e.g. "gen unknown")
@@ -139,7 +139,7 @@ export function parseCliArgs(argv: string[]): CLIRunOptions {
 	warnIfDeprecated(command, wasGroupResolved, isQuiet);
 
 	const { values } = parseArgs({
-		args: argv.slice(argsOffset),
+		args: commandArgs,
 		options: {
 			model: { type: "string", short: "m" },
 			text: { type: "string", short: "t" },
@@ -462,6 +462,9 @@ export function parseCliArgs(argv: string[]): CLIRunOptions {
 			manifest: { type: "string" },
 			atomic: { type: "boolean", default: true },
 			verify: { type: "boolean", default: true },
+			// Opt-out flags for the true-by-default booleans above
+			"no-atomic": { type: "boolean", default: false },
+			"no-verify": { type: "boolean", default: false },
 			// state snapshot flags
 			include: { type: "string" },
 			// editor:state:snapshot — opt back into raw `data:` thumbnail URLs.
@@ -492,7 +495,7 @@ export function parseCliArgs(argv: string[]): CLIRunOptions {
 	if (values.help) {
 		if (values.json) {
 			// Level 3: <command> --help <param> --json
-			const helpParam = findHelpParam(argv.slice(argsOffset));
+			const helpParam = findHelpParam(commandArgs);
 			if (helpParam) {
 				printParamHelpJson(command, helpParam);
 			} else {
@@ -1037,8 +1040,8 @@ export function parseCliArgs(argv: string[]): CLIRunOptions {
 		verifyFrames: values["verify-frames"] as string | undefined,
 		trackName: values.name as string | undefined,
 		manifest: values.manifest as string | undefined,
-		atomic: (values.atomic as boolean) ?? true,
-		verify: (values.verify as boolean) ?? true,
+		atomic: values["no-atomic"] ? false : ((values.atomic as boolean) ?? true),
+		verify: values["no-verify"] ? false : ((values.verify as boolean) ?? true),
 		// state snapshot flags
 		include: values.include as string | undefined,
 		withThumbnails: (values["with-thumbnails"] as boolean) ?? false,

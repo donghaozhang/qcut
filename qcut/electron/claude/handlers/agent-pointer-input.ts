@@ -120,6 +120,11 @@ const CDP_SPECIAL_KEYS: Record<
 	Delete: { key: "Delete", code: "Delete", windowsVirtualKeyCode: 46 },
 };
 
+/** Lowercase alias → canonical name, so "enter"/"arrowup" resolve too. */
+const CDP_SPECIAL_KEY_NAMES = new Map(
+	Object.keys(CDP_SPECIAL_KEYS).map((name) => [name.toLowerCase(), name])
+);
+
 function cdpEditingCommands({
 	key,
 	modifiers,
@@ -154,11 +159,12 @@ function describeCdpKey({
 	key: string;
 	modifiers: AgentKeyboardModifier[];
 }): CdpKeyDescriptor {
-	const special = CDP_SPECIAL_KEYS[key];
+	const canonicalKey = CDP_SPECIAL_KEY_NAMES.get(key.toLowerCase()) ?? key;
+	const special = CDP_SPECIAL_KEYS[canonicalKey];
 	if (special) {
 		return {
 			...special,
-			commands: cdpEditingCommands({ key, modifiers }),
+			commands: cdpEditingCommands({ key: canonicalKey, modifiers }),
 		};
 	}
 

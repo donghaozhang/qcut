@@ -37,15 +37,6 @@ export async function ensureEditorProjectReady({
 			throw new Error(`QCut could not open project '${projectId}'`);
 		}
 		opened = true;
-	} else {
-		const initial = await client.get<NavigatorProjects>(
-			"/api/claude/navigator/projects"
-		);
-		if (initial.activeProjectId !== projectId) {
-			throw new Error(
-				`Project '${projectId}' is not active. Open it first or enable automatic project opening.`
-			);
-		}
 	}
 
 	let lastError: unknown;
@@ -74,6 +65,6 @@ export async function ensureEditorProjectReady({
 	throw new Error(
 		`Project '${projectId}' did not become editor-ready within ${timeoutMs}ms${
 			lastError instanceof Error ? `: ${lastError.message}` : ""
-		}`
+		}${open ? "" : " Open it first or enable automatic project opening."}`
 	);
 }

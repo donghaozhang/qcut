@@ -135,14 +135,16 @@ async function runDemoExport({
 	outputPath: string;
 	verification: JsonRecord;
 }> {
-	const request: JsonRecord = { ...exportPlan };
-	delete request.poll;
-	delete request.timeout;
-	delete request.timeoutMs;
-	delete request.verifyFrames;
-	delete request.requireAudio;
-	delete request.enabled;
-	delete request.start;
+	const {
+		poll: _poll,
+		timeout: _timeout,
+		timeoutMs: _timeoutMs,
+		verifyFrames: _verifyFrames,
+		requireAudio: _requireAudio,
+		enabled: _enabled,
+		start: _start,
+		...request
+	} = exportPlan;
 	const configuredOutput =
 		stringValue(request, "outputPath") ?? stringValue(exportPlan, "output");
 	const outputPath = path.resolve(

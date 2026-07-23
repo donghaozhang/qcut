@@ -263,7 +263,11 @@ export interface ExportRecommendation {
 }
 
 export interface ExportJobRequest {
-	/** Main-process export engine. Explicit values are validated, never ignored. */
+	/**
+	 * Main-process export engine. Unsupported values are rejected with an
+	 * error; all accepted values currently resolve to the single native
+	 * FFmpeg CLI engine ("native-cli").
+	 */
 	engine?: "auto" | "native" | "cli";
 	preset?: string;
 	settings?: {

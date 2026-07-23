@@ -250,6 +250,38 @@ const PARAM_PROPERTIES: Record<string, ParamProperty> = {
 	port: { type: ["string", "number"], description: "QCut API port (--port)." },
 	token: { type: "string", description: "QCut API bearer token (--token)." },
 	json: { type: "boolean", description: "Return JSON output (--json)." },
+	timeoutMs: {
+		type: "number",
+		description: "Timeout in milliseconds (--timeout-ms).",
+	},
+	intervalMs: {
+		type: "number",
+		description: "Polling interval in milliseconds (--interval-ms).",
+	},
+	actions: {
+		type: ["string", "array"],
+		description: "JSON action array or @file input (--actions).",
+	},
+	record: {
+		type: "string",
+		description: "Screen recording output MP4 path (--record).",
+	},
+	eventTrack: {
+		type: "string",
+		description: "Editable pointer event-track JSON path (--event-track).",
+	},
+	speed: {
+		type: "number",
+		description: "Animation speed multiplier (--speed).",
+	},
+	skipIdle: {
+		type: "boolean",
+		description: "Skip sleep and idle-only actions (--skip-idle).",
+	},
+	plan: {
+		type: "string",
+		description: "Demo plan JSON file (--plan).",
+	},
 };
 
 const EDITOR_COMMANDS = [
@@ -455,6 +487,8 @@ const POINTER_ACTION_LABELS: Record<string, string> = {
 	drag: "Drag between elements or coordinates",
 	scroll: "Scroll the editor",
 	hide: "Hide the Agent pointer",
+	"wait-for": "Wait for a semantic target or visible editor text",
+	sequence: "Run pointer, keyboard, wait, and snapshot actions in one session",
 };
 
 function uniqKeys({ values }: { values: string[] }): string[] {
@@ -573,6 +607,7 @@ function getRequiredCapability({ command }: { command: string }): string {
 		if (command === "editor:ui:switch-panel") return "state.ui.panelSwitch";
 		if (command.startsWith("editor:snapshot")) return "state.snapshot";
 		if (command.startsWith("editor:pointer:")) return "state.pointer";
+		if (command === "editor:demo:run") return "state.pointer";
 		if (command.startsWith("editor:moyin:")) return "state.moyin.pipeline";
 		if (command === "editor:mcp:forward-html") return "events.mcpPreview";
 		if (command.startsWith("editor:navigator:")) return "project.navigator";
@@ -679,6 +714,9 @@ function getCommandDescription({ command }: { command: string }): string {
 		if (command === "editor:health") {
 			return "Check editor connectivity and fetch server health status.";
 		}
+		if (command === "editor:demo:run") {
+			return "Prepare, record, export, and verify an editor demo from one plan.";
+		}
 
 		const moduleLabel = MODULE_LABELS[module] ?? module;
 		const actionLabel =
@@ -736,6 +774,39 @@ function getCommandParamsSchema({
 				return createParamsSchema({
 					required: ["projectId", "url"],
 					optional: withCommonConnectionOptions({ optional: ["filename"] }),
+				});
+			case "editor:pointer:wait-for":
+				return createParamsSchema({
+					optional: withCommonConnectionOptions({
+						optional: ["target", "text", "timeoutMs", "intervalMs"],
+					}),
+				});
+			case "editor:pointer:sequence":
+				return createParamsSchema({
+					required: ["actions"],
+					optional: withCommonConnectionOptions({
+						optional: [
+							"record",
+							"eventTrack",
+							"speed",
+							"skipIdle",
+							"foreground",
+						],
+					}),
+				});
+			case "editor:demo:run":
+				return createParamsSchema({
+					required: ["plan"],
+					optional: withCommonConnectionOptions({
+						optional: [
+							"projectId",
+							"record",
+							"eventTrack",
+							"speed",
+							"skipIdle",
+							"timeoutMs",
+						],
+					}),
 				});
 			default:
 				break;

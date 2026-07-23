@@ -231,20 +231,31 @@ export function createCrudOperations(
 							mediaItem &&
 							(mediaItem.type === "image" || mediaItem.type === "video")
 						) {
-							import("../editor/editor-store").then(({ useEditorStore }) => {
-								const editorStore = useEditorStore.getState();
-								editorStore.setCanvasSizeFromAspectRatio(
-									getMediaAspectRatio(mediaItem)
-								);
-								import("../project-store").then(({ useProjectStore }) => {
-									void useProjectStore
-										.getState()
-										.updateProjectCanvasSize(
-											useEditorStore.getState().canvasSize,
-											"custom"
-										);
+							import("../editor/editor-store")
+								.then(({ useEditorStore }) => {
+									const editorStore = useEditorStore.getState();
+									editorStore.setCanvasSizeFromAspectRatio(
+										getMediaAspectRatio(mediaItem)
+									);
+									return import("../project-store").then(
+										({ useProjectStore }) =>
+											useProjectStore
+												.getState()
+												.updateProjectCanvasSize(
+													useEditorStore.getState().canvasSize,
+													"custom"
+												)
+									);
+								})
+								.catch((error) => {
+									handleError(error, {
+										operation: "Sync canvas size to project settings",
+										category: ErrorCategory.STORAGE,
+										severity: ErrorSeverity.LOW,
+										showToast: false,
+										metadata: { operation: "canvas-size-sync" },
+									});
 								});
-							});
 						}
 
 						// Set project FPS from the first video element

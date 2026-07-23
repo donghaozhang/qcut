@@ -664,7 +664,12 @@ export const useProjectStore = create<ProjectStore>((set, get) => ({
 
 		const width = Math.max(1, Math.round(canvasSize.width));
 		const height = Math.max(1, Math.round(canvasSize.height));
-		if (!Number.isFinite(width) || !Number.isFinite(height)) return;
+		if (!Number.isFinite(width) || !Number.isFinite(height)) {
+			debugError(
+				`[ProjectStore] Ignoring invalid canvas size: ${canvasSize.width}x${canvasSize.height}`
+			);
+			return;
+		}
 
 		const updatedProject = {
 			...activeProject,

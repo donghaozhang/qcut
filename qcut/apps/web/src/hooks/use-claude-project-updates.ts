@@ -111,7 +111,17 @@ export function useClaudeProjectUpdates({
 		) => {
 			if (updatedProjectId !== projectId) return;
 			if (!applySettings(settings)) {
-				pendingSettings = { ...pendingSettings, ...settings };
+				// Merge nested canvasSize so queued partial updates (e.g. width-only
+				// then height-only) accumulate instead of overwriting each other.
+				const canvasSize =
+					pendingSettings?.canvasSize || settings.canvasSize
+						? { ...pendingSettings?.canvasSize, ...settings.canvasSize }
+						: undefined;
+				pendingSettings = {
+					...pendingSettings,
+					...settings,
+					...(canvasSize ? { canvasSize } : {}),
+				};
 			}
 		};
 

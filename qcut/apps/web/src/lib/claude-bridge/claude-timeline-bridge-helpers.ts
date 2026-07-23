@@ -77,6 +77,78 @@ export const CLAUDE_TEXT_PROPERTY_KEYS = [
 	"trackingRotation",
 ] as const satisfies readonly (keyof ClaudeTextProperties)[];
 
+type ClaudeTextPropertyKey = (typeof CLAUDE_TEXT_PROPERTY_KEYS)[number];
+
+const isFiniteNumber = (value: unknown): boolean =>
+	typeof value === "number" && Number.isFinite(value);
+const isString = (value: unknown): boolean => typeof value === "string";
+const isBoolean = (value: unknown): boolean => typeof value === "boolean";
+const isPlainObject = (value: unknown): boolean =>
+	typeof value === "object" && value !== null && !Array.isArray(value);
+const oneOf =
+	(...allowed: string[]) =>
+	(value: unknown): boolean =>
+		typeof value === "string" && allowed.includes(value);
+
+/**
+ * Runtime validators for external text-property input. The Claude HTTP API
+ * feeds this helper, so each value must match the type/enum declared on
+ * ClaudeTextProperties before it reaches the timeline store.
+ */
+const CLAUDE_TEXT_PROPERTY_VALIDATORS: Record<
+	ClaudeTextPropertyKey,
+	(value: unknown) => boolean
+> = {
+	fontSize: isFiniteNumber,
+	fontFamily: isString,
+	color: isString,
+	backgroundColor: isString,
+	textAlign: oneOf("left", "center", "right"),
+	fontWeight: oneOf("normal", "bold"),
+	fontStyle: oneOf("normal", "italic"),
+	textDecoration: oneOf("none", "underline", "line-through"),
+	x: isFiniteNumber,
+	y: isFiniteNumber,
+	width: isFiniteNumber,
+	height: isFiniteNumber,
+	rotation: isFiniteNumber,
+	opacity: isFiniteNumber,
+	letterSpacing: isFiniteNumber,
+	lineHeight: isFiniteNumber,
+	verticalAlign: oneOf("top", "middle", "bottom"),
+	strokeColor: isString,
+	strokeWidth: isFiniteNumber,
+	strokeOpacity: isFiniteNumber,
+	backgroundOpacity: isFiniteNumber,
+	backgroundRadius: isFiniteNumber,
+	backgroundPadding: isFiniteNumber,
+	shadowColor: isString,
+	shadowOpacity: isFiniteNumber,
+	shadowOffsetX: isFiniteNumber,
+	shadowOffsetY: isFiniteNumber,
+	shadowBlur: isFiniteNumber,
+	glowColor: isString,
+	glowOpacity: isFiniteNumber,
+	glowBlur: isFiniteNumber,
+	curve: isFiniteNumber,
+	animationType: oneOf("none", "fade", "slide-up", "slide-left"),
+	animationDuration: isFiniteNumber,
+	animationDelay: isFiniteNumber,
+	keyframes: isPlainObject,
+	blendMode: oneOf(
+		"normal",
+		"multiply",
+		"screen",
+		"overlay",
+		"darken",
+		"lighten"
+	),
+	trackingTargetId: isString,
+	trackingOffsetX: isFiniteNumber,
+	trackingOffsetY: isFiniteNumber,
+	trackingRotation: isBoolean,
+};
+
 /** Read text properties from top-level fields, falling back to legacy style. */
 export function getClaudeTextProperties({
 	element,
@@ -87,7 +159,15 @@ export function getClaudeTextProperties({
 	const style = element.style ?? {};
 	for (const key of CLAUDE_TEXT_PROPERTY_KEYS) {
 		const value = element[key] !== undefined ? element[key] : style[key];
-		if (value !== undefined) properties[key] = value;
+		if (value === undefined) continue;
+		if (!CLAUDE_TEXT_PROPERTY_VALIDATORS[key](value)) {
+			debugWarn(
+				`[ClaudeTimelineBridge] Dropping invalid text property "${key}":`,
+				value
+			);
+			continue;
+		}
+		properties[key] = value;
 	}
 	return properties as ClaudeTextProperties;
 }

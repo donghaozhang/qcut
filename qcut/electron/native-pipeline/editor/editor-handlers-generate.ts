@@ -9,6 +9,7 @@
  */
 
 import * as fs from "fs";
+import * as os from "os";
 import * as path from "path";
 import type { EditorApiClient } from "../editor/editor-api-client.js";
 import type { CLIRunOptions, CLIResult } from "../cli/cli-runner/types.js";
@@ -371,7 +372,7 @@ async function exportStart(
 	const ext = opts.exportFormat || opts.format || "mp4";
 	const expandHome = (value: string) =>
 		value === "~" || value.startsWith(`~${path.sep}`)
-			? path.join(process.env.HOME ?? "", value.slice(2))
+			? path.join(os.homedir(), value.slice(2))
 			: value;
 	const ensureExtension = (value: string) =>
 		path.extname(value).length > 1 ? value : `${value}.${ext}`;
@@ -444,9 +445,20 @@ async function exportStart(
 			data: result,
 		};
 	}
-	const timestamps = opts.verifyFrames
+	const frameEntries = opts.verifyFrames
 		.split(",")
-		.map((value) => Number(value.trim()));
+		.map((value) => value.trim());
+	const invalidEntries = frameEntries.filter(
+		(value) => value === "" || !Number.isFinite(Number(value))
+	);
+	if (invalidEntries.length > 0) {
+		return {
+			success: false,
+			error: `Invalid --verify-frames values: ${invalidEntries.join(", ")}`,
+			data: result,
+		};
+	}
+	const timestamps = frameEntries.map(Number);
 	const verification = await verifyExportFrames(outputPath, timestamps);
 	return {
 		success: true,

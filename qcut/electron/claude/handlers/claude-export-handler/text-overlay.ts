@@ -138,6 +138,9 @@ function escapeAssText(text: string): string {
 		.replace(/\r?\n/g, "\\N");
 }
 
+/** ASS \an alignment codes for middle-row left/center/right text. */
+const ASS_MIDDLE_ALIGNMENTS = { left: 4, center: 5, right: 6 } as const;
+
 /** Build an ASS subtitle document that preserves core QCut text styling. */
 export function buildTextAss({
 	overlays,
@@ -152,8 +155,7 @@ export function buildTextAss({
 	const events: string[] = [];
 	for (const [index, overlay] of overlays.entries()) {
 		const styleName = `QCutText${index}`;
-		const alignment =
-			overlay.textAlign === "left" ? 4 : overlay.textAlign === "right" ? 6 : 5;
+		const alignment = ASS_MIDDLE_ALIGNMENTS[overlay.textAlign];
 		const backgroundEnabled =
 			overlay.backgroundColor !== "transparent" &&
 			overlay.backgroundOpacity > 0;
