@@ -77,10 +77,114 @@ export interface ClaudeTrack {
 	index: number;
 	name: string;
 	type: string;
+	isMain?: boolean;
 	elements: ClaudeElement[];
+	transitions?: ClaudeTransition[];
+	hidden?: boolean;
 }
 
-export interface ClaudeElement {
+export interface ClaudeTransition {
+	id?: string;
+	fromElementId: string;
+	toElementId: string;
+	presetId: string;
+	type: string;
+	duration: number;
+	direction?: "left" | "right" | "up" | "down";
+	easing?: "linear" | "easeInOut";
+	tuning?: Record<string, unknown>;
+	maskShape?: string;
+}
+
+export type ClaudeTrackType =
+	| "media"
+	| "effect"
+	| "text"
+	| "audio"
+	| "sticker"
+	| "captions"
+	| "adjustment"
+	| "remotion"
+	| "markdown";
+
+export interface ClaudeTrackOperationRequest {
+	action: "create" | "update" | "move" | "delete" | "add-transition";
+	trackId?: string;
+	type?: ClaudeTrackType;
+	name?: string;
+	index?: number;
+	ripple?: boolean;
+	force?: boolean;
+	transition?: ClaudeTransition;
+}
+
+export interface ClaudeTrackOperationResponse {
+	success: boolean;
+	trackId?: string;
+	transitionId?: string;
+	index?: number;
+	tracks: Array<{
+		id: string;
+		index: number;
+		type: string;
+		name: string;
+		elementCount: number;
+		isMain?: boolean;
+	}>;
+	error?: string;
+}
+
+export interface ClaudeTextProperties {
+	fontSize?: number;
+	fontFamily?: string;
+	color?: string;
+	backgroundColor?: string;
+	textAlign?: "left" | "center" | "right";
+	fontWeight?: "normal" | "bold";
+	fontStyle?: "normal" | "italic";
+	textDecoration?: "none" | "underline" | "line-through";
+	x?: number;
+	y?: number;
+	width?: number;
+	height?: number;
+	rotation?: number;
+	opacity?: number;
+	letterSpacing?: number;
+	lineHeight?: number;
+	verticalAlign?: "top" | "middle" | "bottom";
+	strokeColor?: string;
+	strokeWidth?: number;
+	strokeOpacity?: number;
+	backgroundOpacity?: number;
+	backgroundRadius?: number;
+	backgroundPadding?: number;
+	shadowColor?: string;
+	shadowOpacity?: number;
+	shadowOffsetX?: number;
+	shadowOffsetY?: number;
+	shadowBlur?: number;
+	glowColor?: string;
+	glowOpacity?: number;
+	glowBlur?: number;
+	curve?: number;
+	animationType?: "none" | "fade" | "slide-up" | "slide-left";
+	animationDuration?: number;
+	animationDelay?: number;
+	keyframes?: Record<string, unknown>;
+	blendMode?:
+		| "normal"
+		| "multiply"
+		| "screen"
+		| "overlay"
+		| "darken"
+		| "lighten";
+	trackingTargetId?: string;
+	trackingOffsetX?: number;
+	trackingOffsetY?: number;
+	trackingRotation?: boolean;
+}
+
+export interface ClaudeElement extends ClaudeTextProperties {
 	id: string;
 	trackIndex: number;
 	startTime: number;
@@ -113,6 +217,8 @@ export interface ClaudeElement {
 	effects?: string[];
 	trimStart?: number;
 	trimEnd?: number;
+	hidden?: boolean;
+	fitMode?: "cover" | "contain" | "fill";
 }
 // Project Types
 
@@ -157,6 +263,8 @@ export interface ExportRecommendation {
 }
 
 export interface ExportJobRequest {
+	/** Main-process export engine. Explicit values are validated, never ignored. */
+	engine?: "auto" | "native" | "cli";
 	preset?: string;
 	settings?: {
 		width?: number;
@@ -228,6 +336,7 @@ export interface ExportJobStatus {
 	duration?: number;
 	fileSize?: number;
 	presetId?: string;
+	engine?: string;
 }
 
 // Summary & Report Types (Stage 5)
@@ -284,7 +393,7 @@ export interface ClaudeSelectionItem {
 // Timeline Batch + Arrangement Types (Stage 4)
 // ============================================================================
 
-export interface ClaudeBatchAddElementRequest {
+export interface ClaudeBatchAddElementRequest extends ClaudeTextProperties {
 	type:
 		| "video"
 		| "audio"
@@ -336,7 +445,7 @@ export interface ClaudeBatchDeleteResponse {
 	results: ClaudeBatchDeleteItemResult[];
 }
 
-export interface ClaudeBatchUpdateItemRequest {
+export interface ClaudeBatchUpdateItemRequest extends ClaudeTextProperties {
 	elementId: string;
 	startTime?: number;
 	endTime?: number;

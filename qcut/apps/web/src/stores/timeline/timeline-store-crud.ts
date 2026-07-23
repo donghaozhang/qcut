@@ -93,6 +93,21 @@ export function createCrudOperations(
 			updateTracksAndSave(reorderedTracks);
 		},
 
+		renameTrack: (trackId, name) => {
+			const normalizedName = name.trim();
+			if (!normalizedName) return;
+			const track = get()._tracks.find((candidate) => candidate.id === trackId);
+			if (!track || track.name === normalizedName) return;
+			get().pushHistory();
+			updateTracksAndSave(
+				get()._tracks.map((candidate) =>
+					candidate.id === trackId
+						? { ...candidate, name: normalizedName }
+						: candidate
+				)
+			);
+		},
+
 		addElementToTrack: (
 			trackId,
 			elementData,
@@ -221,6 +236,14 @@ export function createCrudOperations(
 								editorStore.setCanvasSizeFromAspectRatio(
 									getMediaAspectRatio(mediaItem)
 								);
+								import("../project-store").then(({ useProjectStore }) => {
+									void useProjectStore
+										.getState()
+										.updateProjectCanvasSize(
+											useEditorStore.getState().canvasSize,
+											"custom"
+										);
+								});
 							});
 						}
 

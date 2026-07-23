@@ -71,6 +71,10 @@ interface ProjectStore {
 	renameProject: (projectId: string, name: string) => Promise<void>;
 	duplicateProject: (projectId: string) => Promise<string>;
 	updateProjectBackground: (backgroundColor: string) => Promise<void>;
+	updateProjectCanvasSize: (
+		canvasSize: CanvasSize,
+		canvasMode?: CanvasMode
+	) => Promise<void>;
 	updateBackgroundType: (
 		type: "color" | "blur",
 		options?: { backgroundColor?: string; blurIntensity?: BlurIntensity }
@@ -647,6 +651,40 @@ export const useProjectStore = create<ProjectStore>((set, get) => ({
 				projectName: activeProject.name,
 				backgroundColor,
 				operation: "updateProjectBackground",
+			});
+		}
+	},
+
+	updateProjectCanvasSize: async (
+		canvasSize: CanvasSize,
+		canvasMode: CanvasMode = "custom"
+	) => {
+		const { activeProject } = get();
+		if (!activeProject) return;
+
+		const width = Math.max(1, Math.round(canvasSize.width));
+		const height = Math.max(1, Math.round(canvasSize.height));
+		if (!Number.isFinite(width) || !Number.isFinite(height)) return;
+
+		const updatedProject = {
+			...activeProject,
+			canvasSize: { width, height },
+			canvasMode,
+			updatedAt: new Date(),
+		};
+
+		try {
+			await storageService.saveProject({ project: updatedProject });
+			set({ activeProject: updatedProject });
+			await get().loadAllProjects();
+		} catch (error) {
+			handleStorageError(error, "Update project canvas size", {
+				projectId: activeProject.id,
+				projectName: activeProject.name,
+				canvasWidth: width,
+				canvasHeight: height,
+				canvasMode,
+				operation: "updateProjectCanvasSize",
 			});
 		}
 	},

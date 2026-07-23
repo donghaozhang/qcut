@@ -11,6 +11,7 @@ import type { EditorApiClient } from "../editor/editor-api-client.js";
 import type { CLIRunOptions, CLIResult } from "../cli/cli-runner/types.js";
 import { resolveJsonInput } from "./editor-api-types.js";
 import { jsonPending } from "../cli/json-output.js";
+import { timelineApplyManifest } from "./editor-timeline-apply.js";
 
 type ProgressFn = (progress: {
 	stage: string;
@@ -22,6 +23,7 @@ const BATCH_LIMIT = 50;
 const TIMELINE_ACTIONS = [
 	"export",
 	"import",
+	"apply",
 	"add-element",
 	"batch-add",
 	"update-element",
@@ -51,7 +53,7 @@ export async function handleTimelineEditingCommand(
 	onProgress: ProgressFn
 ): Promise<CLIResult> {
 	const parts = options.command.split(":");
-	const module = parts[1]; // "timeline" or "editing"
+	const module = parts[1];
 	const action = parts.slice(2).join(":");
 
 	try {
@@ -61,6 +63,13 @@ export async function handleTimelineEditingCommand(
 		if (module === "editing") {
 			return await dispatchEditing(client, action, options, onProgress);
 		}
+		if (module === "track") {
+			return await dispatchTrack(client, action, options);
+		}
+		if (module === "element" && action === "patch") {
+			const projectId = await resolveProjectId(client, options);
+			return timelineUpdateElement(client, { ...options, projectId });
+		}
 		return { success: false, error: `Unknown module: ${module}` };
 	} catch (err) {
 		return {
@@ -68,6 +77,104 @@ export async function handleTimelineEditingCommand(
 			error: err instanceof Error ? err.message : String(err),
 		};
 	}
+}
+
+async function resolveProjectId(
+	client: EditorApiClient,
+	opts: CLIRunOptions
+): Promise<string | undefined> {
+	if (opts.projectId) return opts.projectId;
+	const navigator = await client.get<{ activeProjectId?: string | null }>(
+		"/api/claude/navigator/projects"
+	);
+	return navigator.activeProjectId ?? undefined;
+}
+
+async function dispatchTrack(
+	client: EditorApiClient,
+	action: string,
+	opts: CLIRunOptions
+): Promise<CLIResult> {
+	const projectId = await resolveProjectId(client, opts);
+	if (!projectId) {
+		return { success: false, error: "No active project; pass --project-id" };
+	}
+	const basePath = `/api/claude/timeline/${encodeURIComponent(projectId)}`;
+
+	if (action === "list") {
+		const timeline = await client.get<{
+			tracks: Array<{
+				id?: string;
+				index: number;
+				name: string;
+				type: string;
+				isMain?: boolean;
+				elements: unknown[];
+			}>;
+		}>(basePath);
+		return {
+			success: true,
+			data: {
+				projectId,
+				tracks: timeline.tracks.map((track, index) => ({
+					id: track.id,
+					index,
+					name: track.name,
+					type: track.type,
+					isMain: track.isMain,
+					elementCount: track.elements.length,
+				})),
+			},
+		};
+	}
+
+	if (action === "create") {
+		if (!opts.trackType) return { success: false, error: "Missing --type" };
+		const data = await client.post(`${basePath}/tracks`, {
+			type: opts.trackType,
+			name: opts.trackName,
+			index: opts.index,
+		});
+		return { success: true, data };
+	}
+
+	if (action === "update") {
+		if (!opts.trackId) return { success: false, error: "Missing --track-id" };
+		if (opts.index === undefined && !opts.trackName?.trim()) {
+			return { success: false, error: "Pass --index or --name" };
+		}
+		const data = await client.patch(
+			`${basePath}/tracks/${encodeURIComponent(opts.trackId)}`,
+			{ index: opts.index, name: opts.trackName }
+		);
+		return { success: true, data };
+	}
+
+	if (action === "move") {
+		if (!opts.trackId) return { success: false, error: "Missing --track-id" };
+		if (opts.index === undefined) {
+			return { success: false, error: "Missing --index" };
+		}
+		const data = await client.patch(
+			`${basePath}/tracks/${encodeURIComponent(opts.trackId)}`,
+			{ index: opts.index }
+		);
+		return { success: true, data };
+	}
+
+	if (action === "delete") {
+		if (!opts.trackId) return { success: false, error: "Missing --track-id" };
+		const data = await client.delete(
+			`${basePath}/tracks/${encodeURIComponent(opts.trackId)}`,
+			{ force: opts.force === true, ripple: opts.ripple === true }
+		);
+		return { success: true, data };
+	}
+
+	return {
+		success: false,
+		error: `Unknown track action: ${action}. Available: list, create, update, move, delete`,
+	};
 }
 
 // ---------------------------------------------------------------------------
@@ -85,6 +192,8 @@ async function dispatchTimeline(
 			return timelineExport(client, opts);
 		case "import":
 			return timelineImport(client, opts);
+		case "apply":
+			return timelineApplyManifest(client, opts);
 		case "add-element":
 			return timelineAddElement(client, opts);
 		case "batch-add":
@@ -276,7 +385,7 @@ async function timelineUpdateElement(
 	if (!opts.projectId) return { success: false, error: "Missing --project-id" };
 	if (!opts.elementId) return { success: false, error: "Missing --element-id" };
 
-	const raw = opts.changes ?? opts.data;
+	const raw = opts.changes ?? opts.set ?? opts.data;
 	if (!raw)
 		return {
 			success: false,

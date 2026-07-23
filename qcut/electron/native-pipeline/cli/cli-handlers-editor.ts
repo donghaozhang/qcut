@@ -36,7 +36,11 @@ import {
 import { handleDiffCommand } from "./cli-handlers-diff.js";
 import { handleSessionCommand } from "./cli-handlers-session.js";
 import { handleSnapshotCommand } from "./cli-handlers-snapshot.js";
-import { handlePointerCommand } from "./cli-handlers-pointer.js";
+import {
+	handleKeyboardCommand,
+	handlePointerCommand,
+	waitForEditorUi,
+} from "./cli-handlers-pointer.js";
 
 type ProgressFn = (progress: {
 	stage: string;
@@ -264,6 +268,8 @@ export async function handleEditorCommand(
 
 			case "timeline":
 			case "editing":
+			case "track":
+			case "element":
 				return await handleTimelineEditingCommand(client, options, onProgress);
 
 			case "analyze":
@@ -305,6 +311,9 @@ export async function handleEditorCommand(
 			case "pointer":
 				return await handlePointerCommand({ client, options });
 
+			case "keyboard":
+				return await handleKeyboardCommand({ client, options });
+
 			case "diff":
 				return await handleDiffCommand({ options });
 
@@ -329,7 +338,7 @@ export async function handleEditorCommand(
 			default:
 				return {
 					success: false,
-					error: `Unknown editor module: ${module}. Available: auth, health, media, project, timeline, editing, analyze, transcribe, search, generate, export, diagnostics, mcp, remotion, sticker, navigator, screen-recording, ui, snapshot, pointer, diff, session, console, errors, moyin, novel, screenshot, undo, redo, state`,
+					error: `Unknown editor module: ${module}. Available: auth, health, media, project, timeline, editing, track, element, analyze, transcribe, search, generate, export, diagnostics, mcp, remotion, sticker, navigator, screen-recording, ui, snapshot, pointer, keyboard, diff, session, console, errors, moyin, novel, screenshot, undo, redo, state`,
 				};
 		}
 	} catch (err) {
@@ -437,28 +446,70 @@ async function handleScreenRecordingCommand(
 ): Promise<CLIResult> {
 	const parts = options.command.split(":");
 	const action = parts[2];
+	const failureWithDiagnostics = async (
+		failedAction: string,
+		error: unknown
+	): Promise<CLIResult> => {
+		let diagnostics: unknown;
+		let screenshot: unknown;
+		try {
+			diagnostics = await client.get("/api/claude/screen-recording/diagnose");
+		} catch (diagnosticError) {
+			diagnostics = {
+				error:
+					diagnosticError instanceof Error
+						? diagnosticError.message
+						: String(diagnosticError),
+			};
+		}
+		try {
+			screenshot = await client.post("/api/claude/screenshot/capture", {
+				fileName: `screen-recording-${failedAction}-failure-${Date.now()}.png`,
+			});
+		} catch (screenshotError) {
+			screenshot = {
+				error:
+					screenshotError instanceof Error
+						? screenshotError.message
+						: String(screenshotError),
+			};
+		}
+		return {
+			success: false,
+			error: error instanceof Error ? error.message : String(error),
+			data: { diagnostics, screenshot },
+		};
+	};
 
 	switch (action) {
 		case "sources": {
-			const data = await client.get("/api/claude/screen-recording/sources");
-			return { success: true, data };
+			try {
+				const data = await client.get("/api/claude/screen-recording/sources");
+				return { success: true, data };
+			} catch (error) {
+				return failureWithDiagnostics("sources", error);
+			}
 		}
 		case "start": {
-			if (options.force) {
-				try {
-					await client.post("/api/claude/screen-recording/force-stop", {});
-				} catch {
-					// best-effort pre-cleanup for orphaned sessions
+			try {
+				if (options.force) {
+					try {
+						await client.post("/api/claude/screen-recording/force-stop", {});
+					} catch {
+						// best-effort pre-cleanup for orphaned sessions
+					}
 				}
+				const body: Record<string, unknown> = {};
+				if (options.sourceId) body.sourceId = options.sourceId;
+				if (options.filename) body.fileName = options.filename;
+				const data = await client.post(
+					"/api/claude/screen-recording/start",
+					body
+				);
+				return { success: true, data };
+			} catch (error) {
+				return failureWithDiagnostics("start", error);
 			}
-			const body: Record<string, unknown> = {};
-			if (options.sourceId) body.sourceId = options.sourceId;
-			if (options.filename) body.fileName = options.filename;
-			const data = await client.post(
-				"/api/claude/screen-recording/start",
-				body
-			);
-			return { success: true, data };
 		}
 		case "stop": {
 			const body: Record<string, unknown> = {};
@@ -505,10 +556,14 @@ async function handleScreenRecordingCommand(
 			const data = await client.get("/api/claude/screen-recording/status");
 			return { success: true, data };
 		}
+		case "diagnose": {
+			const data = await client.get("/api/claude/screen-recording/diagnose");
+			return { success: true, data };
+		}
 		default:
 			return {
 				success: false,
-				error: `Unknown screen-recording action: ${action}. Available: sources, start, stop, force-stop, status`,
+				error: `Unknown screen-recording action: ${action}. Available: sources, start, stop, force-stop, status, diagnose`,
 			};
 	}
 }
@@ -555,10 +610,21 @@ async function handleUiCommand(
 			const data = await client.post("/api/claude/ui/context-menu", body);
 			return { success: true, data };
 		}
+		case "wait":
+			return await waitForEditorUi({
+				client,
+				options: {
+					ref: options.ref,
+					text: options.text,
+					value: options.selectValue,
+					timeoutMs: options.timeoutMs,
+					intervalMs: options.intervalMs,
+				},
+			});
 		default:
 			return {
 				success: false,
-				error: `Unknown ui action: ${action}. Available: switch-panel, context-menu`,
+				error: `Unknown ui action: ${action}. Available: switch-panel, context-menu, wait`,
 			};
 	}
 }

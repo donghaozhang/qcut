@@ -28,6 +28,7 @@ import {
 	batchUpdateElements,
 	batchDeleteElements,
 	arrangeTimeline,
+	requestTrackOperationFromRenderer,
 } from "../handlers/claude-timeline-handler.js";
 import {
 	beginTransaction,
@@ -176,6 +177,9 @@ export function startClaudeHTTPServer(
 		/** Applies automatic arrangement to the timeline. */
 		arrangeTimeline: (data, correlationId) =>
 			arrangeTimeline(getWindow(), data, correlationId),
+		/** Creates, reorders, or deletes a timeline track. */
+		mutateTrack: (request, correlationId) =>
+			requestTrackOperationFromRenderer(getWindow(), request, correlationId),
 		/** Starts a transactional timeline mutation. */
 		beginTransaction: (request) =>
 			beginTransaction({ win: getWindow(), request }),
@@ -247,6 +251,8 @@ export function startClaudeHTTPServer(
 		drag: (request) => pointerController().drag(request),
 		scroll: (request) => pointerController().scroll(request),
 		hide: () => pointerController().hide(),
+		pressKeys: (request) => pointerController().pressKeys(request),
+		typeText: (request) => pointerController().typeText(request),
 	});
 	registerClaudeEventsRoutes(router, {
 		/** Lists recorded Claude/editor events. */

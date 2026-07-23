@@ -15,6 +15,7 @@ import { FONT_OPTIONS } from "@/constants/font-constants";
 import { generateUUID } from "@/lib/utils";
 import { BUILT_IN_TEXT_PRESETS } from "@/lib/text/text-presets";
 import { useEditorStore } from "@/stores/editor/editor-store";
+import { useProjectStore } from "@/stores/project-store";
 import type { MediaItem } from "@/stores/media/media-store";
 import { useTimelineStore } from "@/stores/timeline/timeline-store";
 import { createTrack } from "@/stores/timeline/utils";
@@ -503,7 +504,10 @@ async function commitTemplateTracks({
 	const timeline = useTimelineStore.getState();
 	timeline.pushHistory();
 	timeline.restoreTracks(tracks);
-	if (canvas) useEditorStore.getState().setCanvasSize(canvas);
+	if (canvas) {
+		useEditorStore.getState().setCanvasSize(canvas, "custom");
+		await useProjectStore.getState().updateProjectCanvasSize(canvas, "custom");
+	}
 	await timeline.saveImmediate();
 }
 

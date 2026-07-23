@@ -11,6 +11,7 @@ import {
 	addClaudeCaptionElement,
 	addClaudeMarkdownElement,
 	addClaudeRemotionElement,
+	getClaudeTextProperties,
 } from "./claude-timeline-bridge-helpers";
 import type { ClaudeTimelineBridgeAPI } from "./claude-timeline-bridge";
 
@@ -111,27 +112,13 @@ export const applyElementChanges = ({
 		}
 
 		if (element.type === "text") {
-			const textUpdates: Record<string, unknown> = {};
+			const textUpdates: Record<string, unknown> = {
+				...getClaudeTextProperties({
+					element: changes as Partial<ClaudeElement> & Record<string, unknown>,
+				}),
+			};
 			if (typeof changes.content === "string") {
 				textUpdates.content = changes.content;
-			}
-			if (changes.style) {
-				const style = changes.style;
-				if (typeof style.fontSize === "number")
-					textUpdates.fontSize = style.fontSize;
-				if (typeof style.fontFamily === "string")
-					textUpdates.fontFamily = style.fontFamily;
-				if (typeof style.color === "string") textUpdates.color = style.color;
-				if (typeof style.backgroundColor === "string")
-					textUpdates.backgroundColor = style.backgroundColor;
-				if (typeof style.textAlign === "string")
-					textUpdates.textAlign = style.textAlign;
-				if (typeof style.fontWeight === "string")
-					textUpdates.fontWeight = style.fontWeight;
-				if (typeof style.fontStyle === "string")
-					textUpdates.fontStyle = style.fontStyle;
-				if (typeof style.textDecoration === "string")
-					textUpdates.textDecoration = style.textDecoration;
 			}
 			if (Object.keys(textUpdates).length > 0) {
 				timelineStore.updateTextElement(

@@ -40,6 +40,7 @@ import type {
 	ClaudeBatchUpdateResponse,
 	ClaudeBatchDeleteResponse,
 	ClaudeArrangeResponse,
+	ClaudeTrackOperationResponse,
 	BatchCutResponse,
 	ClaudeRangeDeleteResponse,
 	AutoEditJob,
@@ -62,6 +63,7 @@ import type { ClaudeConsoleEntry } from "../claude/handlers/claude-console-handl
 import type {
 	AgentPointerResult,
 	AgentPointerVisualState,
+	AgentKeyboardResult,
 	EditorSnapshotActionResult,
 	EditorSnapshotResponse,
 } from "../types/claude-api.js";
@@ -261,6 +263,11 @@ export function startUtilityHttpServer(config: UtilityHttpConfig): void {
 				order: data.order,
 				startOffset: data.startOffset,
 			}) as Promise<ClaudeArrangeResponse>,
+		/** Creates, reorders, or deletes a timeline track through main. */
+		mutateTrack: (request) =>
+			requestFromMain("track-operation", {
+				request,
+			}) as Promise<ClaudeTrackOperationResponse>,
 		/** Starts a transactional timeline mutation. */
 		beginTransaction: (request) =>
 			requestFromMain("transaction:begin", { request }) as Promise<Transaction>,
@@ -440,6 +447,14 @@ export function startUtilityHttpServer(config: UtilityHttpConfig): void {
 			})) as AgentPointerResult,
 		hide: async () =>
 			(await requestFromMain("pointer:hide", {})) as AgentPointerResult,
+		pressKeys: async (request) =>
+			(await requestFromMain("keyboard:press", {
+				request,
+			})) as AgentKeyboardResult,
+		typeText: async (request) =>
+			(await requestFromMain("keyboard:type", {
+				request,
+			})) as AgentKeyboardResult,
 		timeoutMs: 15_000,
 	});
 	registerClaudeEventsRoutes(router, {
@@ -536,6 +551,14 @@ export function startUtilityHttpServer(config: UtilityHttpConfig): void {
 			requestFromMain("screen-recording:status", {}),
 			10_000,
 			"Timed out getting status"
+		);
+	});
+
+	router.get("/api/claude/screen-recording/diagnose", async () => {
+		return await withTimeout(
+			requestFromMain("screen-recording:diagnose", {}),
+			10_000,
+			"Screen recording diagnostics timed out"
 		);
 	});
 

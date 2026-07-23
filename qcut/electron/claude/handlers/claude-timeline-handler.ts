@@ -21,6 +21,8 @@ import type {
 	ClaudeRangeDeleteResponse,
 	ClaudeSplitResponse,
 	ClaudeSelectionItem,
+	ClaudeTrackOperationRequest,
+	ClaudeTrackOperationResponse,
 } from "../../types/claude-api";
 
 // Re-export markdown/validation functions
@@ -40,6 +42,7 @@ export {
 	requestBatchDeleteElementsFromRenderer,
 	requestDeleteRangeFromRenderer,
 	requestArrangeFromRenderer,
+	requestTrackOperationFromRenderer,
 	batchAddElements,
 	batchUpdateElements,
 	batchDeleteElements,
@@ -63,6 +66,7 @@ import {
 	requestBatchDeleteElementsFromRenderer,
 	requestDeleteRangeFromRenderer,
 	requestArrangeFromRenderer,
+	requestTrackOperationFromRenderer,
 	batchAddElements,
 	batchUpdateElements,
 	batchDeleteElements,
@@ -207,6 +211,19 @@ export function setupClaudeTimelineIPC(): void {
 				throw new Error("Window not found");
 			}
 			return batchUpdateElements(win, updates);
+		}
+	);
+
+	ipcMain.handle(
+		"claude:timeline:trackOperation",
+		async (
+			event: IpcMainInvokeEvent,
+			_projectId: string,
+			request: ClaudeTrackOperationRequest
+		): Promise<ClaudeTrackOperationResponse> => {
+			const win = BrowserWindow.fromWebContents(event.sender);
+			if (!win) throw new Error("Window not found");
+			return requestTrackOperationFromRenderer(win, request);
 		}
 	);
 
@@ -369,6 +386,7 @@ module.exports = {
 	requestBatchDeleteElementsFromRenderer,
 	requestDeleteRangeFromRenderer,
 	requestArrangeFromRenderer,
+	requestTrackOperationFromRenderer,
 	batchAddElements,
 	batchUpdateElements,
 	batchDeleteElements,

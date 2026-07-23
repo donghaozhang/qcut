@@ -83,6 +83,118 @@ function parseAspectRatio({
 	}
 }
 
+function greatestCommonDivisor(a: number, b: number): number {
+	let left = Math.abs(Math.round(a));
+	let right = Math.abs(Math.round(b));
+	while (right > 0) {
+		const remainder = left % right;
+		left = right;
+		right = remainder;
+	}
+	return Math.max(1, left);
+}
+
+function aspectRatioFromSize({
+	width,
+	height,
+}: {
+	width: number;
+	height: number;
+}): string {
+	const roundedWidth = Math.max(1, Math.round(width));
+	const roundedHeight = Math.max(1, Math.round(height));
+	const divisor = greatestCommonDivisor(roundedWidth, roundedHeight);
+	return `${roundedWidth / divisor}:${roundedHeight / divisor}`;
+}
+
+function ratiosMatch({
+	width,
+	height,
+	aspectWidth,
+	aspectHeight,
+}: {
+	width: number;
+	height: number;
+	aspectWidth: number;
+	aspectHeight: number;
+}): boolean {
+	const actual = width / height;
+	const requested = aspectWidth / aspectHeight;
+	return Math.abs(actual - requested) <= Math.max(0.0005, requested * 0.001);
+}
+
+/** Resolve a settings patch into one coherent canvas size and aspect ratio. */
+export function resolveProjectCanvasSettings({
+	current,
+	update,
+}: {
+	current: ProjectSettings;
+	update: Partial<ProjectSettings>;
+}): { width: number; height: number; aspectRatio: string } {
+	const providedWidth = getPositiveNumber({ value: update.width });
+	const providedHeight = getPositiveNumber({ value: update.height });
+	let width = Math.max(1, Math.round(providedWidth ?? current.width));
+	let height = Math.max(1, Math.round(providedHeight ?? current.height));
+	const requestedAspectRatio =
+		typeof update.aspectRatio === "string" ? update.aspectRatio.trim() : "";
+	const parsedRequested = requestedAspectRatio
+		? parseAspectRatio({ aspectRatio: requestedAspectRatio })
+		: null;
+
+	if (parsedRequested) {
+		const ratio = parsedRequested.width / parsedRequested.height;
+		if (providedWidth !== null && providedHeight === null) {
+			height = Math.max(1, Math.round(width / ratio));
+		} else if (providedHeight !== null && providedWidth === null) {
+			width = Math.max(1, Math.round(height * ratio));
+		} else if (providedWidth === null && providedHeight === null) {
+			if (ratio >= 1) {
+				height = Math.max(1, Math.round(width / ratio));
+			} else {
+				width = Math.max(1, Math.round(height * ratio));
+			}
+		}
+
+		return {
+			width,
+			height,
+			aspectRatio: ratiosMatch({
+				width,
+				height,
+				aspectWidth: parsedRequested.width,
+				aspectHeight: parsedRequested.height,
+			})
+				? requestedAspectRatio
+				: aspectRatioFromSize({ width, height }),
+		};
+	}
+
+	const parsedCurrent = parseAspectRatio({
+		aspectRatio: current.aspectRatio,
+	});
+	const dimensionsChanged =
+		providedWidth !== null ||
+		providedHeight !== null ||
+		Boolean(requestedAspectRatio);
+	const canKeepCurrent =
+		!dimensionsChanged &&
+		parsedCurrent &&
+		ratiosMatch({
+			width,
+			height,
+			aspectWidth: parsedCurrent.width,
+			aspectHeight: parsedCurrent.height,
+		});
+
+	return {
+		width,
+		height,
+		aspectRatio: canKeepCurrent
+			? current.aspectRatio
+			: aspectRatioFromSize({ width, height }),
+	};
+}
+
 /** Return a ProjectStats object with all counters at zero. */
 function getEmptyStats(): ProjectStats {
 	return {
@@ -268,10 +380,7 @@ export async function updateProjectSettings(
 		const parsedSettings = parseProjectSettings({ project: projectDoc });
 
 		let nextName = parsedSettings.name;
-		let nextWidth = parsedSettings.width;
-		let nextHeight = parsedSettings.height;
 		let nextFps = parsedSettings.fps;
-		let nextAspectRatio = parsedSettings.aspectRatio;
 		let nextBackgroundColor = parsedSettings.backgroundColor;
 		let nextExportFormat = parsedSettings.exportFormat;
 		let nextExportQuality = parsedSettings.exportQuality;
@@ -280,12 +389,15 @@ export async function updateProjectSettings(
 			nextName = settings.name.trim();
 		}
 
-		const providedWidth = getPositiveNumber({ value: settings.width });
-		const providedHeight = getPositiveNumber({ value: settings.height });
 		const providedFps = getPositiveNumber({ value: settings.fps });
-		if (providedWidth !== null) nextWidth = providedWidth;
-		if (providedHeight !== null) nextHeight = providedHeight;
 		if (providedFps !== null) nextFps = providedFps;
+		const resolvedCanvas = resolveProjectCanvasSettings({
+			current: parsedSettings,
+			update: settings,
+		});
+		const nextWidth = resolvedCanvas.width;
+		const nextHeight = resolvedCanvas.height;
+		const nextAspectRatio = resolvedCanvas.aspectRatio;
 
 		if (typeof settings.backgroundColor === "string") {
 			nextBackgroundColor = settings.backgroundColor;
@@ -296,43 +408,6 @@ export async function updateProjectSettings(
 		if (typeof settings.exportQuality === "string") {
 			nextExportQuality = settings.exportQuality;
 		}
-		const requestedAspectRatio =
-			typeof settings.aspectRatio === "string"
-				? settings.aspectRatio.trim()
-				: "";
-		if (requestedAspectRatio) {
-			const parsedAspectRatio = parseAspectRatio({
-				aspectRatio: requestedAspectRatio,
-			});
-			if (parsedAspectRatio) {
-				nextAspectRatio = requestedAspectRatio;
-				if (providedWidth === null && providedHeight === null) {
-					if (parsedAspectRatio.width >= parsedAspectRatio.height) {
-						nextHeight = Math.max(
-							1,
-							Math.round(
-								nextWidth * (parsedAspectRatio.height / parsedAspectRatio.width)
-							)
-						);
-					} else {
-						nextWidth = Math.max(
-							1,
-							Math.round(
-								nextHeight *
-									(parsedAspectRatio.width / parsedAspectRatio.height)
-							)
-						);
-					}
-				}
-			}
-		}
-		const parsedCurrentAspectRatio = parseAspectRatio({
-			aspectRatio: nextAspectRatio,
-		});
-		if (!parsedCurrentAspectRatio) {
-			nextAspectRatio = `${nextWidth}:${nextHeight}`;
-		}
-
 		const nowIso = new Date().toISOString();
 		const createdAt = getStringValue({
 			value: projectDoc.createdAt,

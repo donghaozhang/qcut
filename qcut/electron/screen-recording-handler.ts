@@ -8,4 +8,5 @@ export {
 	forceStopActiveScreenRecordingSession,
 	listCaptureSources,
 	buildStatus,
+	diagnoseScreenRecording,
 } from "./screen-recording-handler/index.js";

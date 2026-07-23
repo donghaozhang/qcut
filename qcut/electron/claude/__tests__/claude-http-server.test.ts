@@ -248,6 +248,7 @@ import {
 import { BrowserWindow } from "electron";
 import * as timelineHandler from "../handlers/claude-timeline-handler.js";
 import * as transactionHandler from "../handlers/claude-transaction-handler.js";
+import * as projectHandler from "../handlers/claude-project-handler.js";
 import { notificationBridge } from "../notification-bridge";
 import { createFetch, createMockWindow } from "./claude-http-test-helpers";
 import {
@@ -571,6 +572,39 @@ describe("Claude HTTP Server", () => {
 		expect(res.body.success).toBe(true);
 		expect(res.body.data.name).toBe("Test");
 		expect(res.body.data.width).toBe(1920);
+	});
+
+	it("PATCH project settings broadcasts normalized canvas dimensions", async () => {
+		const send = vi.fn();
+		const mockWindow = createMockWindow(send);
+		vi.mocked(BrowserWindow.getAllWindows).mockReturnValue([mockWindow]);
+		vi.mocked(projectHandler.getProjectSettings).mockResolvedValueOnce({
+			name: "Test",
+			width: 405,
+			height: 720,
+			fps: 30,
+			aspectRatio: "9:16",
+			backgroundColor: "#000",
+			exportFormat: "mp4",
+			exportQuality: "high",
+		});
+
+		const res = await fetch("/api/claude/project/proj_123/settings", {
+			method: "PATCH",
+			body: JSON.stringify({ aspectRatio: "9:16" }),
+		});
+
+		expect(res.status).toBe(200);
+		expect(res.body.success).toBe(true);
+		expect(send).toHaveBeenCalledWith(
+			"claude:project:updated",
+			"proj_123",
+			expect.objectContaining({
+				width: 405,
+				height: 720,
+				aspectRatio: "9:16",
+			})
+		);
 	});
 
 	it("GET /api/claude/project/:projectId/stats returns empty stats when no window", async () => {

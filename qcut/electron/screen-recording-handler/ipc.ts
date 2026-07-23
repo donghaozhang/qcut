@@ -46,6 +46,7 @@ import {
 	writeCursorTelemetry,
 	readCursorTelemetry,
 } from "./cursor-telemetry-io.js";
+import { diagnoseScreenRecording } from "./diagnostics.js";
 
 const cursorRecorder = new CursorTelemetryRecorder();
 
@@ -487,6 +488,8 @@ export function setupScreenRecordingIPC(): void {
 			}
 		}
 	);
+
+	ipcMain.handle("screen:diagnose", async () => diagnoseScreenRecording());
 
 	ipcMain.handle(
 		"screen:getCursorTelemetry",

@@ -117,6 +117,24 @@ export function createExtraEditorCommands({
 			],
 			["qcut-pipeline editor:ui:context-menu --element-id <id> --verbose"]
 		),
+		"editor:ui:wait": ed(
+			"editor:ui:wait",
+			"Wait until visible UI state matches a ref, text, or value",
+			[
+				f("--ref", "string", "Snapshot ref to wait for"),
+				f("--text", "string", "Visible name or text to wait for"),
+				f("--value", "string", "Exact input value for --ref"),
+				f("--timeout-ms", "number", "Timeout in milliseconds", {
+					default: 5000,
+				}),
+				f("--interval-ms", "number", "Polling interval in milliseconds", {
+					default: 100,
+				}),
+			],
+			[
+				'qcut-pipeline editor ui wait --text "Auto-saved" --timeout-ms 5000 --json',
+			]
+		),
 		"editor:snapshot": ed(
 			"editor:snapshot",
 			"Get a ref-based accessibility snapshot of the visible editor UI",
@@ -224,6 +242,19 @@ export function createExtraEditorCommands({
 				f("--from-y", "number", "Starting editor viewport Y coordinate"),
 				f("--to-x", "number", "Destination editor viewport X coordinate"),
 				f("--to-y", "number", "Destination editor viewport Y coordinate"),
+				f("--to-index", "number", "Destination index in the source list"),
+				f("--via", "string", "JSON array or @file of intermediate targets"),
+				f("--hold-ms", "number", "Pause after mouseDown", { default: 120 }),
+				f("--duration-ms", "number", "Total movement duration", {
+					default: 450,
+				}),
+				f("--steps", "number", "Movement steps", { default: 24 }),
+				f("--release-delay-ms", "number", "Pause before mouseUp", {
+					default: 100,
+				}),
+				f("--verify", "boolean", "Verify the resulting list index", {
+					default: true,
+				}),
 				f(
 					"--foreground",
 					"boolean",
@@ -251,6 +282,46 @@ export function createExtraEditorCommands({
 			"Hide the Agent pointer overlay",
 			[],
 			["qcut-pipeline editor:pointer:hide --json"]
+		),
+		"editor:pointer:sequence": ed(
+			"editor:pointer:sequence",
+			"Run pointer, keyboard, wait, and snapshot actions in one session",
+			[
+				f("--actions", "string", "JSON action array or @file", {
+					required: true,
+				}),
+				f("--record", "string", "Record the Agent pointer sequence to video"),
+				f("--foreground", "boolean", "Use foreground native input", {
+					default: false,
+				}),
+			],
+			[
+				"qcut-pipeline editor pointer sequence --actions @demo-actions.json --record demo.mp4 --json",
+			]
+		),
+		"editor:keyboard:press": ed(
+			"editor:keyboard:press",
+			"Press a comma-separated key or shortcut sequence",
+			[
+				f("--keys", "string", "Keys, for example Space,ArrowUp,Meta+S", {
+					required: true,
+				}),
+				f("--interval-ms", "number", "Delay between keys", { default: 45 }),
+				f("--foreground", "boolean", "Use foreground native input", {
+					default: false,
+				}),
+			]
+		),
+		"editor:keyboard:type": ed(
+			"editor:keyboard:type",
+			"Type text into the focused editor control",
+			[
+				f("--text", "string", "Text to type", { required: true }),
+				f("--interval-ms", "number", "Delay between characters"),
+				f("--foreground", "boolean", "Use foreground native input", {
+					default: false,
+				}),
+			]
 		),
 		"editor:diff:snapshot": ed(
 			"editor:diff:snapshot",

@@ -25,6 +25,8 @@ import type {
 	ClaudeRangeDeleteResponse,
 	ClaudeSplitResponse,
 	ClaudeSelectionItem,
+	ClaudeTrackOperationRequest,
+	ClaudeTrackOperationResponse,
 } from "../../types/claude-api";
 
 const MAX_TIMELINE_BATCH_ITEMS = 50;
@@ -370,6 +372,22 @@ export async function requestArrangeFromRenderer(
 		responseChannel: "claude:timeline:arrange:response",
 		payload: { request },
 		timeoutErrorMessage: "Timeout waiting for arrange result",
+		correlationId,
+	});
+}
+
+/** Request a track mutation from the renderer and return the verified order. */
+export async function requestTrackOperationFromRenderer(
+	win: BrowserWindow,
+	request: ClaudeTrackOperationRequest,
+	correlationId?: string
+): Promise<ClaudeTrackOperationResponse> {
+	return requestRendererResult<ClaudeTrackOperationResponse>({
+		win,
+		requestChannel: "claude:timeline:trackOperation",
+		responseChannel: "claude:timeline:trackOperation:response",
+		payload: { request },
+		timeoutErrorMessage: "Timeout waiting for track operation result",
 		correlationId,
 	});
 }

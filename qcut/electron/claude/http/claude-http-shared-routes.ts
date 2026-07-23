@@ -41,6 +41,8 @@ import type {
 	ClaudeRangeDeleteResponse,
 	AutoEditRequest,
 	AutoEditJob,
+	ClaudeTrackOperationRequest,
+	ClaudeTrackOperationResponse,
 } from "../../types/claude-api.js";
 import type {
 	EditorStateRequest,
@@ -169,6 +171,11 @@ export interface WindowAccessor {
 		data: ClaudeArrangeRequest,
 		correlationId?: string
 	): Promise<ClaudeArrangeResponse>;
+	/** Create, reorder, or delete a timeline track. */
+	mutateTrack(
+		request: ClaudeTrackOperationRequest,
+		correlationId?: string
+	): Promise<ClaudeTrackOperationResponse>;
 	/** Begin a grouped transaction */
 	beginTransaction(request?: TransactionRequest): Promise<Transaction>;
 	/** Commit a grouped transaction */
@@ -571,6 +578,91 @@ export function registerSharedRoutes(
 		return timeline;
 	});
 
+	router.post("/api/claude/timeline/:projectId/tracks", async (req) => {
+		if (typeof req.body?.type !== "string") {
+			throw new HttpError(400, "Missing 'type' in request body");
+		}
+		const result = await accessor.mutateTrack(
+			{
+				action: "create",
+				type: req.body.type as ClaudeTrackOperationRequest["type"],
+				name: typeof req.body.name === "string" ? req.body.name : undefined,
+				index: req.body.index,
+			},
+			getRequestCorrelationId({ req })
+		);
+		if (!result.success)
+			throw new HttpError(400, result.error || "Create failed");
+		scheduleProjectJsonAutoSync({ projectId: req.params.projectId });
+		return result;
+	});
+
+	router.patch(
+		"/api/claude/timeline/:projectId/tracks/:trackId",
+		async (req) => {
+			if (
+				typeof req.body?.index !== "number" &&
+				typeof req.body?.name !== "string"
+			) {
+				throw new HttpError(400, "Track update needs 'index' or 'name'");
+			}
+			const result = await accessor.mutateTrack(
+				{
+					action: "update",
+					trackId: req.params.trackId,
+					index: req.body.index,
+					name: typeof req.body.name === "string" ? req.body.name : undefined,
+				},
+				getRequestCorrelationId({ req })
+			);
+			if (!result.success)
+				throw new HttpError(400, result.error || "Update failed");
+			scheduleProjectJsonAutoSync({ projectId: req.params.projectId });
+			return result;
+		}
+	);
+
+	router.post(
+		"/api/claude/timeline/:projectId/tracks/:trackId/transitions",
+		async (req) => {
+			if (!req.body || typeof req.body !== "object") {
+				throw new HttpError(400, "Missing transition data");
+			}
+			const result = await accessor.mutateTrack(
+				{
+					action: "add-transition",
+					trackId: req.params.trackId,
+					transition: req.body,
+				},
+				getRequestCorrelationId({ req })
+			);
+			if (!result.success) {
+				throw new HttpError(400, result.error || "Transition failed");
+			}
+			scheduleProjectJsonAutoSync({ projectId: req.params.projectId });
+			return result;
+		}
+	);
+
+	router.delete(
+		"/api/claude/timeline/:projectId/tracks/:trackId",
+		async (req) => {
+			const result = await accessor.mutateTrack(
+				{
+					action: "delete",
+					trackId: req.params.trackId,
+					ripple: req.body?.ripple === true,
+					force: req.body?.force === true,
+				},
+				getRequestCorrelationId({ req })
+			);
+			if (!result.success)
+				throw new HttpError(400, result.error || "Delete failed");
+			scheduleProjectJsonAutoSync({ projectId: req.params.projectId });
+			return result;
+		}
+	);
+
 	router.post("/api/claude/timeline/:projectId/import", async (req) => {
 		if (!req.body?.data)
 			throw new HttpError(400, "Missing 'data' in request body");
@@ -850,12 +942,13 @@ export function registerSharedRoutes(
 		await updateProjectSettings(req.params.projectId, req.body, {
 			broadcast: false,
 		});
+		const normalizedSettings = await getProjectSettings(req.params.projectId);
 		try {
 			const win = accessor.getWindow();
 			win.webContents.send(
 				"claude:project:updated",
 				req.params.projectId,
-				req.body
+				normalizedSettings
 			);
 		} catch {
 			// Non-fatal: direct file sync below still updates project.json

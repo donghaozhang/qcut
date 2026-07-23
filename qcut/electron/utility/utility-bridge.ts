@@ -32,6 +32,7 @@ import {
 	batchUpdateElements,
 	batchDeleteElements,
 	arrangeTimeline,
+	requestTrackOperationFromRenderer,
 } from "../claude/handlers/claude-timeline-handler.js";
 import { executeBatchCuts } from "../claude/handlers/claude-cuts-handler.js";
 import { executeDeleteRange } from "../claude/handlers/claude-range-handler.js";
@@ -62,6 +63,8 @@ import {
 } from "../claude/handlers/claude-snapshot-handler.js";
 import { getAgentPointerController } from "../claude/handlers/agent-pointer-controller.js";
 import type {
+	AgentKeyboardPressRequest,
+	AgentKeyboardTypeRequest,
 	AgentPointerClickRequest,
 	AgentPointerDragRequest,
 	AgentPointerMoveRequest,
@@ -75,6 +78,7 @@ import type {
 	BatchCutRequest,
 	ClaudeRangeDeleteRequest,
 	AutoEditRequest,
+	ClaudeTrackOperationRequest,
 } from "../types/claude-api.js";
 import { getProjectStats } from "../claude/handlers/claude-project-handler.js";
 import {
@@ -116,6 +120,7 @@ import {
 	listCaptureSources,
 	buildStatus as buildScreenRecordingStatus,
 	forceStopActiveScreenRecordingSession,
+	diagnoseScreenRecording,
 } from "../screen-recording-handler.js";
 import * as fs from "node:fs";
 import { buildContextMenuScript } from "./context-menu-script.js";
@@ -529,6 +534,16 @@ async function handleMainRequest(
 			return pointerController.hide();
 		}
 
+		case "keyboard:press": {
+			const req = data as { request: AgentKeyboardPressRequest };
+			return pointerController.pressKeys(req.request);
+		}
+
+		case "keyboard:type": {
+			const req = data as { request: AgentKeyboardTypeRequest };
+			return pointerController.typeText(req.request);
+		}
+
 		case "split-element": {
 			const req = data as unknown as SplitElementRequest;
 			return requestSplitFromRenderer(
@@ -616,6 +631,11 @@ async function handleMainRequest(
 			return arrangeTimeline(win, data as any);
 		}
 
+		case "track-operation": {
+			const req = data as { request: ClaudeTrackOperationRequest };
+			return requestTrackOperationFromRenderer(win, req.request);
+		}
+
 		case "transaction:begin": {
 			const req = data as TransactionBeginRequest;
 			return beginTransaction({ win, request: req.request });
@@ -666,6 +686,10 @@ async function handleMainRequest(
 
 		case "screen-recording:status": {
 			return buildScreenRecordingStatus();
+		}
+
+		case "screen-recording:diagnose": {
+			return diagnoseScreenRecording();
 		}
 
 		case "screen-recording:start": {

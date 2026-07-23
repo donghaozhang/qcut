@@ -23,6 +23,11 @@ function f(
 // ─── Shared Flags ────────────────────────────────────────────────────
 
 const PID = f("--project-id", "string", "Project ID", { required: true });
+const PID_ACTIVE = f(
+	"--project-id",
+	"string",
+	"Project ID (defaults to the active project)"
+);
 const MID = f("--media-id", "string", "Media ID", { required: true });
 const EID = f("--element-id", "string", "Element ID", { required: true });
 const JID = f("--job-id", "string", "Job ID", { required: true });
@@ -227,6 +232,53 @@ export const EDITOR_COMMANDS: Record<string, CommandDef> = {
 	),
 
 	// ── Timeline ──
+	"editor:track:list": ed(
+		"editor:track:list",
+		"List timeline tracks in visual order",
+		[PID_ACTIVE]
+	),
+	"editor:track:create": ed("editor:track:create", "Create a timeline track", [
+		PID_ACTIVE,
+		f("--type", "string", "Track type", { required: true }),
+		f("--name", "string", "Track name"),
+		f("--index", "number", "Zero-based insertion index"),
+	]),
+	"editor:track:update": ed(
+		"editor:track:update",
+		"Rename or move a timeline track",
+		[
+			PID_ACTIVE,
+			f("--track-id", "string", "Track ID", { required: true }),
+			f("--name", "string", "New track name"),
+			f("--index", "number", "Zero-based destination index"),
+		]
+	),
+	"editor:track:move": ed(
+		"editor:track:move",
+		"Move a timeline track to an exact visual index",
+		[
+			PID_ACTIVE,
+			f("--track-id", "string", "Track ID", { required: true }),
+			f("--index", "number", "Zero-based destination index", {
+				required: true,
+			}),
+		]
+	),
+	"editor:track:delete": ed("editor:track:delete", "Delete a timeline track", [
+		PID_ACTIVE,
+		f("--track-id", "string", "Track ID", { required: true }),
+		f("--force", "boolean", "Delete a non-empty track", { default: false }),
+		f("--ripple", "boolean", "Ripple remaining tracks", { default: false }),
+	]),
+	"editor:element:patch": ed(
+		"editor:element:patch",
+		"Patch any timeline element fields",
+		[
+			PID_ACTIVE,
+			f("--element-id", "string", "Element ID", { required: true }),
+			f("--set", "string", "JSON object or @file", { required: true }),
+		]
+	),
 	"editor:timeline:export": ed("editor:timeline:export", "Export timeline", [
 		PID,
 		f("--output-format", "string", "Output format", { short: "-f" }),
@@ -242,6 +294,27 @@ export const EDITOR_COMMANDS: Record<string, CommandDef> = {
 				default: false,
 			}),
 			f("--output-format", "string", "Output format"),
+		]
+	),
+	"editor:timeline:apply": ed(
+		"editor:timeline:apply",
+		"Apply a complete timeline manifest atomically",
+		[
+			PID_ACTIVE,
+			f("--manifest", "string", "Manifest JSON, @file, or -", {
+				required: true,
+			}),
+			f("--replace", "boolean", "Replace existing tracks", { default: false }),
+			f("--atomic", "boolean", "Rollback timeline on failure", {
+				default: true,
+			}),
+			f("--verify", "boolean", "Read back and verify all requested state", {
+				default: true,
+			}),
+		],
+		[
+			"qcut-pipeline editor:timeline:apply --manifest @timeline.json --replace --atomic --verify --json",
+			"qcut-pipeline editor timeline apply --manifest @timeline.json --replace --json",
 		]
 	),
 	"editor:timeline:add-element": ed(
@@ -534,6 +607,11 @@ export const EDITOR_COMMANDS: Record<string, CommandDef> = {
 		f("--preset", "string", "Export preset name"),
 		POLL,
 		f("--filename", "string", "Output filename"),
+		f("--output", "string", "Exact output path (absolute or relative)"),
+		f("--engine", "string", "Export engine (auto|native|cli)", {
+			enum: ["auto", "native", "cli"],
+		}),
+		f("--verify-frames", "string", "Extract frames at comma-separated seconds"),
 		f("--export-format", "string", "Export format"),
 		f("--format", "string", "Export format (alias)"),
 		f("--fps", "number", "Video frame rate (24|25|30|50|60)"),
@@ -642,6 +720,11 @@ export const EDITOR_COMMANDS: Record<string, CommandDef> = {
 	"editor:screen-recording:status": ed(
 		"editor:screen-recording:status",
 		"Get recording status",
+		[]
+	),
+	"editor:screen-recording:diagnose": ed(
+		"editor:screen-recording:diagnose",
+		"Diagnose recording permission and capture sources",
 		[]
 	),
 

@@ -1,8 +1,5 @@
 import { create } from "zustand";
-import { CanvasSize, CanvasPreset } from "@/types/editor";
-
-/** Canvas sizing mode - determines how canvas dimensions are calculated */
-type CanvasMode = "preset" | "original" | "custom";
+import type { CanvasMode, CanvasPreset, CanvasSize } from "@/types/editor";
 
 /**
  * Editor store state interface
@@ -28,7 +25,7 @@ interface EditorState {
 	/** Initialize the entire application */
 	initializeApp: () => Promise<void>;
 	/** Set canvas to a specific size */
-	setCanvasSize: (size: CanvasSize) => void;
+	setCanvasSize: (size: CanvasSize, mode?: CanvasMode) => void;
 	/** Set canvas size to match original media aspect ratio */
 	setCanvasSizeToOriginal: (aspectRatio: number) => void;
 	/** Set canvas size based on aspect ratio using best matching preset */
@@ -104,8 +101,8 @@ export const useEditorStore = create<EditorState>((set, get) => ({
 		set({ isPanelsReady: true, isInitializing: false });
 	},
 
-	setCanvasSize: (size) => {
-		set({ canvasSize: size, canvasMode: "preset" });
+	setCanvasSize: (size, mode = "preset") => {
+		set({ canvasSize: size, canvasMode: mode });
 	},
 
 	setCanvasSizeToOriginal: (aspectRatio) => {

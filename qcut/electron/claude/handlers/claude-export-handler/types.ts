@@ -20,9 +20,11 @@ export interface ExportSegment {
 	duration: number;
 	sourceId: string;
 	isImage?: boolean;
+	fitMode: "cover" | "contain" | "fill";
 }
 
 export interface ResolvedExportSettings {
+	engine: "native-cli";
 	presetId: string;
 	width: number;
 	height: number;
@@ -63,6 +65,7 @@ export interface ExportJobInternal {
 	progress: number;
 	startedAt: number;
 	presetId: string;
+	engine: "native-cli";
 	settings: ResolvedExportSettings;
 	outputPath?: string;
 	duration?: number;
@@ -94,6 +97,35 @@ export interface StickerOverlay {
 	opacity: number;
 	/** Rotation in degrees */
 	rotation: number;
+}
+
+export interface TextOverlay {
+	id: string;
+	content: string;
+	startTime: number;
+	endTime: number;
+	fontSize: number;
+	fontFamily: string;
+	color: string;
+	backgroundColor: string;
+	textAlign: "left" | "center" | "right";
+	fontWeight: "normal" | "bold";
+	fontStyle: "normal" | "italic";
+	x: number;
+	y: number;
+	rotation: number;
+	opacity: number;
+	strokeColor: string;
+	strokeWidth: number;
+	strokeOpacity: number;
+	backgroundOpacity: number;
+	shadowColor: string;
+	shadowOpacity: number;
+	shadowOffsetX: number;
+	shadowOffsetY: number;
+	animationType: "none" | "fade" | "slide-up" | "slide-left";
+	animationDuration: number;
+	animationDelay: number;
 }
 
 export interface ProgressEventPayload {

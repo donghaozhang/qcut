@@ -358,6 +358,43 @@ describe("Export handlers", () => {
 			expect(result.success).toBe(true);
 			expect((result.data as { jobId: string }).jobId).toBe("ej1");
 		});
+
+		it("honors an exact output path and explicit engine", async () => {
+			let capturedBody: Record<string, unknown> | undefined;
+			const origFetch = globalThis.fetch;
+			globalThis.fetch = async (
+				_input: RequestInfo | URL,
+				init?: RequestInit
+			) => {
+				capturedBody = JSON.parse(String(init?.body));
+				return new Response(
+					JSON.stringify({ success: true, data: { jobId: "ej-exact" } }),
+					{ headers: { "Content-Type": "application/json" } }
+				);
+			};
+
+			const result = await handleGenerateExportCommand(
+				client,
+				makeOpts({
+					command: "editor:export:start",
+					projectId: "p1",
+					output: "/tmp/qcut-exact-export",
+					engine: "cli",
+				}),
+				noopProgress
+			);
+
+			expect(result.success).toBe(true);
+			expect(capturedBody).toEqual(
+				expect.objectContaining({
+					engine: "cli",
+					outputPath: "/tmp/qcut-exact-export.mp4",
+				})
+			);
+
+			globalThis.fetch = origFetch;
+			installFetchMock(BASE_URL);
+		});
 	});
 
 	describe("export:status", () => {

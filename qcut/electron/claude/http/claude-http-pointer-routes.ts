@@ -1,4 +1,7 @@
 import type {
+	AgentKeyboardPressRequest,
+	AgentKeyboardResult,
+	AgentKeyboardTypeRequest,
 	AgentPointerClickRequest,
 	AgentPointerDragRequest,
 	AgentPointerMoveRequest,
@@ -27,6 +30,10 @@ interface AgentPointerRouteHandlers {
 	drag: (request: AgentPointerDragRequest) => Promise<AgentPointerResult>;
 	scroll: (request: AgentPointerScrollRequest) => Promise<AgentPointerResult>;
 	hide: () => Promise<AgentPointerResult>;
+	pressKeys: (
+		request: AgentKeyboardPressRequest
+	) => Promise<AgentKeyboardResult>;
+	typeText: (request: AgentKeyboardTypeRequest) => Promise<AgentKeyboardResult>;
 	timeoutMs?: number;
 }
 
@@ -132,9 +139,104 @@ function parseDragRequest({
 	body: unknown;
 }): AgentPointerDragRequest {
 	const parsed = requireBodyObject({ body });
+	const holdMs = parseFiniteNumber({ value: parsed.holdMs, field: "holdMs" });
+	const durationMs = parseFiniteNumber({
+		value: parsed.durationMs,
+		field: "durationMs",
+	});
+	const releaseDelayMs = parseFiniteNumber({
+		value: parsed.releaseDelayMs,
+		field: "releaseDelayMs",
+	});
+	const steps = parseFiniteNumber({ value: parsed.steps, field: "steps" });
+	for (const [field, value] of [
+		["holdMs", holdMs],
+		["durationMs", durationMs],
+		["releaseDelayMs", releaseDelayMs],
+	] as const) {
+		if (value !== undefined && value < 0) {
+			throw new HttpError(400, `Pointer '${field}' must be >= 0.`);
+		}
+	}
+	if (
+		steps !== undefined &&
+		(!Number.isInteger(steps) || steps < 1 || steps > 500)
+	) {
+		throw new HttpError(
+			400,
+			"Pointer 'steps' must be an integer from 1 to 500."
+		);
+	}
+	let via: AgentPointerTarget[] | undefined;
+	if (parsed.via !== undefined) {
+		if (!Array.isArray(parsed.via) || parsed.via.length > 50) {
+			throw new HttpError(
+				400,
+				"Pointer 'via' must be an array of up to 50 targets."
+			);
+		}
+		via = parsed.via.map((target, index) =>
+			parseAgentPointerTarget({ value: target, field: `via[${index}]` })
+		);
+	}
 	return {
 		from: parseAgentPointerTarget({ value: parsed.from, field: "from" }),
 		to: parseAgentPointerTarget({ value: parsed.to, field: "to" }),
+		inputMode: parseAgentPointerInputMode({ value: parsed.inputMode }),
+		via,
+		holdMs,
+		durationMs,
+		releaseDelayMs,
+		steps,
+	};
+}
+
+function parseKeyboardPressRequest(body: unknown): AgentKeyboardPressRequest {
+	const parsed = requireBodyObject({ body });
+	if (!Array.isArray(parsed.keys) || parsed.keys.length === 0) {
+		throw new HttpError(
+			400,
+			"Keyboard press requires a non-empty 'keys' array."
+		);
+	}
+	const keys = parsed.keys.map((key) => {
+		if (typeof key !== "string" || !key.trim()) {
+			throw new HttpError(
+				400,
+				"Every keyboard key must be a non-empty string."
+			);
+		}
+		return key.trim();
+	});
+	const intervalMs = parseFiniteNumber({
+		value: parsed.intervalMs,
+		field: "intervalMs",
+	});
+	if (intervalMs !== undefined && intervalMs < 0) {
+		throw new HttpError(400, "Keyboard 'intervalMs' must be >= 0.");
+	}
+	return {
+		keys,
+		intervalMs,
+		inputMode: parseAgentPointerInputMode({ value: parsed.inputMode }),
+	};
+}
+
+function parseKeyboardTypeRequest(body: unknown): AgentKeyboardTypeRequest {
+	const parsed = requireBodyObject({ body });
+	if (typeof parsed.text !== "string") {
+		throw new HttpError(400, "Keyboard type requires string 'text'.");
+	}
+	const intervalMs = parseFiniteNumber({
+		value: parsed.intervalMs,
+		field: "intervalMs",
+	});
+	if (intervalMs !== undefined && intervalMs < 0) {
+		throw new HttpError(400, "Keyboard 'intervalMs' must be >= 0.");
+	}
+	return {
+		text: parsed.text,
+		intervalMs,
 		inputMode: parseAgentPointerInputMode({ value: parsed.inputMode }),
 	};
 }
@@ -259,5 +361,21 @@ export function registerAgentPointerRoutes(
 
 	router.post("/api/claude/pointer/hide", async () => {
 		return await withPointerTimeout({ timeoutMs, work: handlers.hide });
+	});
+
+	router.post("/api/claude/keyboard/press", async (req) => {
+		const request = parseKeyboardPressRequest(req.body);
+		return await withPointerTimeout({
+			timeoutMs,
+			work: async () => await handlers.pressKeys(request),
+		});
+	});
+
+	router.post("/api/claude/keyboard/type", async (req) => {
+		const request = parseKeyboardTypeRequest(req.body);
+		return await withPointerTimeout({
+			timeoutMs,
+			work: async () => await handlers.typeText(request),
+		});
 	});
 }

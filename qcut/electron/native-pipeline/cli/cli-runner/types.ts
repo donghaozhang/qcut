@@ -218,6 +218,8 @@ export interface CLIRunOptions {
 	elementId?: string;
 	jobId?: string;
 	trackId?: string;
+	trackType?: string;
+	index?: number;
 	toTrack?: string;
 	splitTime?: number;
 	seekTime?: number;
@@ -256,6 +258,17 @@ export interface CLIRunOptions {
 	fromY?: number;
 	toX?: number;
 	toY?: number;
+	toIndex?: number;
+	via?: string;
+	holdMs?: number;
+	durationMs?: number;
+	steps?: number;
+	releaseDelayMs?: number;
+	keys?: string;
+	intervalMs?: number;
+	actions?: string;
+	record?: string;
+	timeoutMs?: number;
 	deltaX?: number;
 	deltaY?: number;
 	foreground?: boolean;
@@ -331,6 +344,18 @@ export interface CLIRunOptions {
 	example?: boolean;
 	/** Output file path for export commands */
 	output?: string;
+	/** Explicit export engine. */
+	engine?: string;
+	/** Comma-separated timestamps to extract and inspect after export. */
+	verifyFrames?: string;
+	/** Track name used by editor:track:create/update. */
+	trackName?: string;
+	/** Declarative editor timeline manifest (inline JSON, @file, or stdin). */
+	manifest?: string;
+	/** Group timeline apply mutations into a rollback-capable transaction. */
+	atomic?: boolean;
+	/** Read the result back and verify requested state. */
+	verify?: boolean;
 	/**
 	 * editor:state:snapshot: include raw `data:` thumbnail URLs in the
 	 * `media` section. Default is `false` because base64 thumbnails can

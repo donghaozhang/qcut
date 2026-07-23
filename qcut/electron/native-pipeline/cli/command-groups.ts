@@ -21,6 +21,13 @@ export interface CommandGroup {
 
 export const COMMAND_GROUPS: CommandGroup[] = [
 	{
+		name: "editor",
+		label: "QCut Editor",
+		description:
+			"Control the open editor, timeline, tracks, pointer, and export",
+		actions: {},
+	},
+	{
 		name: "gen",
 		label: "Generation",
 		description: "Generate images, videos, avatars, speech, and grids",
@@ -149,6 +156,19 @@ export function resolveCommandGroup(argv: string[]): {
 
 	// "qcut gen --help" — no action, show group help (handled by caller)
 	if (!actionName || actionName.startsWith("-")) return null;
+
+	// Editor commands are naturally three-level (`editor track create`) while
+	// their internal registry keys remain colon-delimited (`editor:track:create`).
+	if (groupName === "editor") {
+		const nestedAction = rest[0];
+		if (nestedAction && !nestedAction.startsWith("-")) {
+			return {
+				command: `editor:${actionName}:${nestedAction}`,
+				remainingArgs: rest.slice(1),
+			};
+		}
+		return { command: `editor:${actionName}`, remainingArgs: rest };
+	}
 
 	const command = group.actions[actionName];
 	if (!command) return null;

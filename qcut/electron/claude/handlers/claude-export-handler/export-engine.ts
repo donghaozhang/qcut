@@ -9,6 +9,7 @@ import * as fsPromises from "node:fs/promises";
 import * as os from "node:os";
 import * as path from "node:path";
 import { getFFmpegPath, parseProgress } from "../../../ffmpeg/utils.js";
+import { buildVideoFitFilter } from "../../../ffmpeg/video-fit-filter.js";
 import { claudeLog } from "../../utils/logger.js";
 import { logOperation } from "../../claude-operation-log.js";
 import { emitClaudeEvent } from "../claude-events-handler.js";
@@ -28,6 +29,7 @@ import {
 	EXPORT_JOB_STATUS,
 	type ExportSegment,
 	type StickerOverlay,
+	type TextOverlay,
 	type ResolvedExportSettings,
 	type ExportJobInternal,
 } from "./types.js";
@@ -44,6 +46,7 @@ import {
 	shouldCompositeCursor,
 	compositeCursorOnSegments,
 } from "./cursor-composite.js";
+import { buildTextAss } from "./text-overlay.js";
 
 export function resolveExportSettings({
 	request,
@@ -59,6 +62,12 @@ export function resolveExportSettings({
 
 		const s = request.settings;
 		const top = request as Record<string, unknown>;
+		const requestedEngine = request.engine ?? "auto";
+		if (!["auto", "native", "cli"].includes(requestedEngine)) {
+			throw new Error(
+				`Export engine '${requestedEngine}' is not available through the CLI API. Use auto, native, or cli.`
+			);
+		}
 
 		const format =
 			s?.format ??
@@ -93,6 +102,7 @@ export function resolveExportSettings({
 		}
 
 		return {
+			engine: "native-cli",
 			presetId: preset.id,
 			width:
 				s?.width ?? (typeof top.width === "number" ? top.width : preset.width),
@@ -123,6 +133,10 @@ export function resolveExportSettings({
 		}
 		throw new Error("Failed to resolve export settings");
 	}
+}
+
+function escapeAssFilterPath(filePath: string): string {
+	return filePath.replace(/\\/g, "/").replace(/:/g, "\\:").replace(/'/g, "\\'");
 }
 
 /** Look up the media file for a timeline element by ID or filename. */
@@ -308,6 +322,7 @@ export async function collectExportSegments({
 					duration: durationFromElement,
 					sourceId: media.id,
 					isImage: media.type === "image",
+					fitMode: element.fitMode ?? "cover",
 				});
 			}
 		}
@@ -529,6 +544,21 @@ async function runFFmpegCommand({
 	}
 }
 
+/** Build the same cover/contain/fill scaling used by the editor preview. */
+export function buildExportSegmentScaleFilter({
+	segment,
+	settings,
+}: {
+	segment: ExportSegment;
+	settings: Pick<ResolvedExportSettings, "width" | "height">;
+}): string {
+	return `${buildVideoFitFilter({
+		fitMode: segment.fitMode,
+		width: settings.width,
+		height: settings.height,
+	})},setsar=1`;
+}
+
 /** Execute a full export job: encode segments, composite cursors, concatenate, and finalize. */
 export async function executeExportJob({
 	jobId,
@@ -537,6 +567,7 @@ export async function executeExportJob({
 	outputPath,
 	segments,
 	stickerOverlays = [],
+	textOverlays = [],
 }: {
 	jobId: string;
 	projectId: string;
@@ -544,6 +575,7 @@ export async function executeExportJob({
 	outputPath: string;
 	segments: ExportSegment[];
 	stickerOverlays?: StickerOverlay[];
+	textOverlays?: TextOverlay[];
 }): Promise<void> {
 	const job = exportJobs.get(jobId);
 	if (!job) {
@@ -576,7 +608,6 @@ export async function executeExportJob({
 			: outputPath;
 
 		const segmentOutputs: string[] = [];
-		const scaleFilter = `scale=${settings.width}:${settings.height}:force_original_aspect_ratio=decrease,pad=${settings.width}:${settings.height}:(ow-iw)/2:(oh-ih)/2:black`;
 		const totalSegments = segments.length;
 
 		for (const [index, segment] of segments.entries()) {
@@ -595,6 +626,10 @@ export async function executeExportJob({
 						segment.sourcePath,
 					]
 				: ["-i", segment.sourcePath, "-t", String(segment.duration)];
+			const scaleFilter = buildExportSegmentScaleFilter({
+				segment,
+				settings,
+			});
 
 			await runFFmpegCommand({
 				args: [
@@ -835,6 +870,68 @@ export async function executeExportJob({
 				}
 				// Restore the pre-sticker output so the export isn't lost
 				await fsPromises.rename(concatOutputPath, videoOutputPath);
+			}
+		}
+
+		// Text/caption overlays are a required parity pass. Failure is fatal so a
+		// successful export can never silently omit visible timeline text.
+		if (textOverlays.length > 0 && settings.format !== "mp3") {
+			claudeLog.info(
+				HANDLER_NAME,
+				`Applying ${textOverlays.length} text overlay(s) to exported video`
+			);
+			updateJobProgress({ jobId, progress: 0.94 });
+			const sourcePath = path.join(tempDir, "concat-before-text.mp4");
+			const assPath = path.join(tempDir, "timeline-text.ass");
+			await fsPromises.writeFile(
+				assPath,
+				buildTextAss({
+					overlays: textOverlays,
+					width: settings.width,
+					height: settings.height,
+				}),
+				"utf8"
+			);
+			await fsPromises.rename(videoOutputPath, sourcePath);
+			try {
+				await runFFmpegCommand({
+					args: [
+						"-y",
+						"-i",
+						sourcePath,
+						"-vf",
+						`ass='${escapeAssFilterPath(assPath)}'`,
+						"-map",
+						"0:v:0",
+						"-map",
+						"0:a?",
+						"-c:v",
+						settings.codec,
+						"-preset",
+						"medium",
+						"-b:v",
+						parseBitrateForKbps({ bitrate: settings.bitrate }),
+						"-pix_fmt",
+						"yuv420p",
+						"-c:a",
+						"copy",
+						"-movflags",
+						"+faststart",
+						videoOutputPath,
+					],
+					estimatedDuration: Math.max(
+						0,
+						segments.reduce((sum, segment) => sum + segment.duration, 0)
+					),
+				});
+			} catch (error) {
+				try {
+					await fsPromises.unlink(videoOutputPath);
+				} catch {}
+				await fsPromises.rename(sourcePath, videoOutputPath);
+				throw new Error(
+					`Text overlay export failed: ${error instanceof Error ? error.message : String(error)}`
+				);
 			}
 		}
 

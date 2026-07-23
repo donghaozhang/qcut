@@ -206,6 +206,8 @@ export interface TimelineStore {
 	insertTrackAt: (type: TrackType, index: number) => string;
 	/** Move an existing track to a zero-based UI position */
 	moveTrack: (trackId: string, toIndex: number) => void;
+	/** Rename an existing track. */
+	renameTrack: (trackId: string, name: string) => void;
 	/** Remove a track from the timeline */
 	removeTrack: (trackId: string) => void;
 	/** Remove a track with ripple editing (affects subsequent elements) */

@@ -13,6 +13,7 @@ import type {
 	ClaudeTimeline,
 	ClaudeTrack,
 	ClaudeElement,
+	ClaudeTextProperties,
 } from "../../../../../electron/types/claude-api";
 import { debugLog, debugWarn, debugError } from "@/lib/debug/debug-config";
 import type {
@@ -31,6 +32,65 @@ const DEFAULT_MEDIA_DURATION_SECONDS = 10;
 const DEFAULT_TEXT_DURATION_SECONDS = 5;
 const DEFAULT_TEXT_CONTENT = "Text";
 const CLAUDE_DETERMINISTIC_MEDIA_ID_PREFIX = "media_";
+
+export const CLAUDE_TEXT_PROPERTY_KEYS = [
+	"fontSize",
+	"fontFamily",
+	"color",
+	"backgroundColor",
+	"textAlign",
+	"fontWeight",
+	"fontStyle",
+	"textDecoration",
+	"x",
+	"y",
+	"width",
+	"height",
+	"rotation",
+	"opacity",
+	"letterSpacing",
+	"lineHeight",
+	"verticalAlign",
+	"strokeColor",
+	"strokeWidth",
+	"strokeOpacity",
+	"backgroundOpacity",
+	"backgroundRadius",
+	"backgroundPadding",
+	"shadowColor",
+	"shadowOpacity",
+	"shadowOffsetX",
+	"shadowOffsetY",
+	"shadowBlur",
+	"glowColor",
+	"glowOpacity",
+	"glowBlur",
+	"curve",
+	"animationType",
+	"animationDuration",
+	"animationDelay",
+	"keyframes",
+	"blendMode",
+	"trackingTargetId",
+	"trackingOffsetX",
+	"trackingOffsetY",
+	"trackingRotation",
+] as const satisfies readonly (keyof ClaudeTextProperties)[];
+
+/** Read text properties from top-level fields, falling back to legacy style. */
+export function getClaudeTextProperties({
+	element,
+}: {
+	element: { style?: Record<string, unknown> } & Record<string, unknown>;
+}): ClaudeTextProperties {
+	const properties: Record<string, unknown> = {};
+	const style = element.style ?? {};
+	for (const key of CLAUDE_TEXT_PROPERTY_KEYS) {
+		const value = element[key] !== undefined ? element[key] : style[key];
+		if (value !== undefined) properties[key] = value;
+	}
+	return properties as ClaudeTextProperties;
+}
 
 export type TimelineStoreState = ReturnType<typeof useTimelineStore.getState>;
 
@@ -335,6 +395,7 @@ export async function addClaudeMediaElement({
 		duration,
 		trimStart: 0,
 		trimEnd: 0,
+		fitMode: element.fitMode ?? "cover",
 	});
 
 	debugLog("[ClaudeTimelineBridge] Added media element:", resolvedName);
@@ -358,6 +419,9 @@ export function addClaudeTextElement({
 		typeof element.content === "string" && element.content.trim().length > 0
 			? element.content
 			: DEFAULT_TEXT_CONTENT;
+	const textProperties = getClaudeTextProperties({
+		element: element as Partial<ClaudeElement> & Record<string, unknown>,
+	});
 
 	timelineStore.addElementToTrack(trackId, {
 		type: "text",
@@ -379,6 +443,7 @@ export function addClaudeTextElement({
 		y: 0.5,
 		rotation: 0,
 		opacity: 1,
+		...textProperties,
 	});
 
 	debugLog("[ClaudeTimelineBridge] Added text element:", content);
@@ -911,9 +976,15 @@ export function formatTracksForExport(tracks: TimelineTrack[]): ClaudeTrack[] {
 		index,
 		name: track.name || `Track ${index + 1}`,
 		type: track.type,
+		isMain: track.isMain,
+		hidden: track.hidden,
 		elements: track.elements.map((element) =>
 			formatElementForExport(element, index)
 		),
+		transitions: track.transitions?.map((transition) => ({
+			...transition,
+			tuning: transition.tuning as Record<string, unknown> | undefined,
+		})),
 	}));
 }
 
@@ -933,6 +1004,7 @@ function formatElementForExport(
 		endTime: element.startTime + effectiveDuration,
 		duration: effectiveDuration,
 		type: element.type === "markdown" ? "text" : element.type,
+		hidden: element.hidden,
 	};
 
 	// Add type-specific fields
@@ -952,13 +1024,20 @@ function formatElementForExport(
 				...baseElement,
 				sourceId: element.mediaId,
 				sourceName,
+				fitMode: element.fitMode,
 			};
 		}
-		case "text":
+		case "text": {
+			const textProperties = getClaudeTextProperties({
+				element: element as unknown as Record<string, unknown>,
+			});
 			return {
 				...baseElement,
 				content: element.content,
+				...textProperties,
+				style: textProperties as Record<string, unknown>,
 			};
+		}
 		case "captions":
 			return {
 				...baseElement,

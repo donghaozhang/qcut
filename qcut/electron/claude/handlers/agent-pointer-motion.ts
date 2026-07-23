@@ -21,9 +21,11 @@ function distanceBetween({
 export function buildPointerMovementPath({
 	from,
 	to,
+	steps,
 }: {
 	from: AgentPointerPoint | null;
 	to: AgentPointerResolvedTarget;
+	steps?: number;
 }): AgentPointerPoint[] {
 	if (!from) {
 		return [{ x: to.x, y: to.y }];
@@ -34,10 +36,13 @@ export function buildPointerMovementPath({
 		return [{ x: to.x, y: to.y }];
 	}
 
-	const stepCount = Math.min(
-		MAX_MOVEMENT_STEPS,
-		Math.max(MIN_MOVEMENT_STEPS, Math.ceil(distance / 70))
-	);
+	const stepCount =
+		typeof steps === "number" && Number.isFinite(steps)
+			? Math.max(1, Math.round(steps))
+			: Math.min(
+					MAX_MOVEMENT_STEPS,
+					Math.max(MIN_MOVEMENT_STEPS, Math.ceil(distance / 70))
+				);
 	return Array.from({ length: stepCount }, (_, index) => {
 		const progress = (index + 1) / stepCount;
 		const eased = 1 - (1 - progress) ** 3;

@@ -20,6 +20,7 @@ import {
 import { setupRequestHandlers } from "./claude-timeline-bridge-request";
 import { setupElementHandlers } from "./claude-timeline-bridge-elements";
 import { setupBatchHandlers } from "./claude-timeline-bridge-batch";
+import { setupTrackHandlers } from "./claude-timeline-bridge-tracks";
 
 const CLAUDE_TRACK_ELEMENT_TYPES = {
 	media: "media",
@@ -244,6 +245,8 @@ export function setupClaudeTimelineBridge(): void {
 			resolveMediaIdForBatchElement,
 		},
 	});
+
+	setupTrackHandlers({ claudeAPI });
 
 	// Handle element removal
 	claudeAPI.onRemoveElement((elementId: any) => {

@@ -314,6 +314,8 @@ export function parseCliArgs(argv: string[]): CLIRunOptions {
 			"element-id": { type: "string" },
 			"job-id": { type: "string" },
 			"track-id": { type: "string" },
+			type: { type: "string" },
+			index: { type: "string" },
 			"to-track": { type: "string" },
 			"split-time": { type: "string" },
 			time: { type: "string" },
@@ -347,6 +349,17 @@ export function parseCliArgs(argv: string[]): CLIRunOptions {
 			"from-y": { type: "string" },
 			"to-x": { type: "string" },
 			"to-y": { type: "string" },
+			"to-index": { type: "string" },
+			via: { type: "string" },
+			"hold-ms": { type: "string" },
+			"duration-ms": { type: "string" },
+			steps: { type: "string" },
+			"release-delay-ms": { type: "string" },
+			keys: { type: "string" },
+			"interval-ms": { type: "string" },
+			actions: { type: "string" },
+			record: { type: "string" },
+			"timeout-ms": { type: "string" },
 			"delta-x": { type: "string" },
 			"delta-y": { type: "string" },
 			foreground: { type: "boolean", default: false },
@@ -428,6 +441,11 @@ export function parseCliArgs(argv: string[]): CLIRunOptions {
 			example: { type: "boolean", default: false },
 			full: { type: "boolean", default: false },
 			output: { type: "string" },
+			engine: { type: "string" },
+			"verify-frames": { type: "string" },
+			manifest: { type: "string" },
+			atomic: { type: "boolean", default: true },
+			verify: { type: "boolean", default: true },
 			// state snapshot flags
 			include: { type: "string" },
 			// editor:state:snapshot — opt back into raw `data:` thumbnail URLs.
@@ -762,6 +780,12 @@ export function parseCliArgs(argv: string[]): CLIRunOptions {
 		elementId: values["element-id"] as string | undefined,
 		jobId: values["job-id"] as string | undefined,
 		trackId: values["track-id"] as string | undefined,
+		trackType: values.type as string | undefined,
+		index: values.index
+			? Number.isNaN(parseInt(values.index as string, 10))
+				? undefined
+				: parseInt(values.index as string, 10)
+			: undefined,
 		toTrack: values["to-track"] as string | undefined,
 		splitTime: values["split-time"]
 			? Number.isNaN(parseFloat(values["split-time"] as string))
@@ -827,6 +851,25 @@ export function parseCliArgs(argv: string[]): CLIRunOptions {
 		fromY: parseFiniteCliNumber({ value: values["from-y"] }),
 		toX: parseFiniteCliNumber({ value: values["to-x"] }),
 		toY: parseFiniteCliNumber({ value: values["to-y"] }),
+		toIndex: values["to-index"]
+			? Number.isNaN(parseInt(values["to-index"] as string, 10))
+				? undefined
+				: parseInt(values["to-index"] as string, 10)
+			: undefined,
+		via: values.via as string | undefined,
+		holdMs: parseFiniteCliNumber({ value: values["hold-ms"] }),
+		durationMs: parseFiniteCliNumber({ value: values["duration-ms"] }),
+		steps: values.steps
+			? Number.isNaN(parseInt(values.steps as string, 10))
+				? undefined
+				: parseInt(values.steps as string, 10)
+			: undefined,
+		releaseDelayMs: parseFiniteCliNumber({ value: values["release-delay-ms"] }),
+		keys: values.keys as string | undefined,
+		intervalMs: parseFiniteCliNumber({ value: values["interval-ms"] }),
+		actions: values.actions as string | undefined,
+		record: values.record as string | undefined,
+		timeoutMs: parseFiniteCliNumber({ value: values["timeout-ms"] }),
 		deltaX: parseFiniteCliNumber({ value: values["delta-x"] }),
 		deltaY: parseFiniteCliNumber({ value: values["delta-y"] }),
 		foreground: (values.foreground as boolean) ?? false,
@@ -949,6 +992,12 @@ export function parseCliArgs(argv: string[]): CLIRunOptions {
 		// project-json flags
 		full: (values.full as boolean) ?? false,
 		output: values.output as string | undefined,
+		engine: values.engine as string | undefined,
+		verifyFrames: values["verify-frames"] as string | undefined,
+		trackName: values.name as string | undefined,
+		manifest: values.manifest as string | undefined,
+		atomic: (values.atomic as boolean) ?? true,
+		verify: (values.verify as boolean) ?? true,
 		// state snapshot flags
 		include: values.include as string | undefined,
 		withThumbnails: (values["with-thumbnails"] as boolean) ?? false,

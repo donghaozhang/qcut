@@ -20,7 +20,8 @@ import { useAspectRatio } from "@/hooks/media/use-aspect-ratio";
 
 /** Displays project metadata (name, resolution, FPS) with editable controls. */
 export function ProjectInfoView() {
-	const { activeProject, updateProjectFps } = useProjectStore();
+	const { activeProject, updateProjectCanvasSize, updateProjectFps } =
+		useProjectStore();
 	const { canvasSize, canvasPresets, setCanvasSize } = useEditorStore();
 	const { getDisplayName, currentPreset } = useAspectRatio();
 
@@ -28,10 +29,12 @@ export function ProjectInfoView() {
 		(value: string) => {
 			const preset = canvasPresets.find((p) => p.name === value);
 			if (preset) {
-				setCanvasSize({ width: preset.width, height: preset.height });
+				const nextSize = { width: preset.width, height: preset.height };
+				setCanvasSize(nextSize, "preset");
+				void updateProjectCanvasSize(nextSize, "preset");
 			}
 		},
-		[canvasPresets, setCanvasSize]
+		[canvasPresets, setCanvasSize, updateProjectCanvasSize]
 	);
 
 	const handleFpsChange = useCallback(

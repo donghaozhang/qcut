@@ -234,6 +234,7 @@ describe("setupClaudeTimelineBridge - add element", () => {
 			duration: 4,
 			trimStart: 0,
 			trimEnd: 0,
+			fitMode: "cover",
 		});
 	});
 
@@ -266,7 +267,36 @@ describe("setupClaudeTimelineBridge - add element", () => {
 			duration: 9,
 			trimStart: 0,
 			trimEnd: 0,
+			fitMode: "cover",
 		});
+	});
+
+	it("preserves an explicit media fit mode", async () => {
+		storeMocks.mediaStoreState.mediaItems = [
+			{
+				id: "media-contain",
+				name: "contain.mp4",
+				type: "video",
+				file: new File([""], "contain.mp4"),
+				duration: 6,
+			},
+		];
+
+		const { addElementHandler } = setupTimelineBridgeWithHandlers();
+
+		await addElementHandler({
+			type: "media",
+			sourceId: "media-contain",
+			duration: 6,
+			fitMode: "contain",
+		});
+
+		expect(
+			storeMocks.timelineStoreState.addElementToTrack
+		).toHaveBeenCalledWith(
+			"media-track",
+			expect.objectContaining({ fitMode: "contain" })
+		);
 	});
 
 	it("adds a media element using deterministic Claude sourceId", async () => {
@@ -306,6 +336,7 @@ describe("setupClaudeTimelineBridge - add element", () => {
 			duration: 4,
 			trimStart: 0,
 			trimEnd: 0,
+			fitMode: "cover",
 		});
 	});
 
@@ -390,6 +421,7 @@ describe("setupClaudeTimelineBridge - add element", () => {
 			duration: 3,
 			trimStart: 0,
 			trimEnd: 0,
+			fitMode: "cover",
 		});
 	});
 

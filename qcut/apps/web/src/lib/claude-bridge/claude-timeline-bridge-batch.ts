@@ -9,7 +9,10 @@ import type {
 	ClaudeArrangeResponse,
 } from "../../../../../electron/types/claude-api";
 import { debugError } from "@/lib/debug/debug-config";
-import { syncProjectMediaIfNeeded } from "./claude-timeline-bridge-helpers";
+import {
+	getClaudeTextProperties,
+	syncProjectMediaIfNeeded,
+} from "./claude-timeline-bridge-helpers";
 import type {
 	ClaudeTimelineBridgeAPI,
 	ClaudeTimelineBridgeSharedUtils,
@@ -148,6 +151,7 @@ export function setupBatchHandlers({
 							);
 						} else if (normalizedType === "text") {
 							const style = element.style || {};
+							const textProperties = getClaudeTextProperties({ element });
 							const content =
 								typeof element.content === "string" &&
 								element.content.length > 0
@@ -193,6 +197,7 @@ export function setupBatchHandlers({
 									y: 0.5,
 									rotation: 0,
 									opacity: 1,
+									...textProperties,
 								},
 								{
 									pushHistory: false,
