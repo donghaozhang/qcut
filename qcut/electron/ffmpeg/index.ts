@@ -43,6 +43,7 @@ export {
 	// Video probing
 	probeVideoFile,
 	probeHasAudioStream,
+	probeMediaDurationMs,
 	// Video normalization
 	normalizeVideo,
 	// Health check
