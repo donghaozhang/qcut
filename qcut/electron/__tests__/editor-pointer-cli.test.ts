@@ -436,6 +436,119 @@ describe("editor pointer CLI handlers", () => {
 		});
 	});
 
+	it("resolves semantic timeline play without a raw test id", async () => {
+		const get = vi.fn(async () => ({
+			elements: [
+				{
+					ref: "@play",
+					testId: "timeline-play-button",
+					bounds: { x: 400, y: 700, width: 32, height: 32 },
+				},
+			],
+		}));
+		const post = vi.fn(async () => ({ action: "click" }));
+		const client = {
+			get,
+			post,
+			requireCapability: vi.fn(async () => undefined),
+		} as unknown as EditorApiClient;
+
+		const result = await handlePointerCommand({
+			client,
+			options: makeOptions({
+				command: "editor:pointer:click",
+				values: { target: "timeline.play" },
+			}),
+		});
+
+		expect(result.success).toBe(true);
+		expect(post).toHaveBeenCalledWith("/api/claude/pointer/click", {
+			ref: "@play",
+			inputMode: "background",
+		});
+	});
+
+	it("waits for canonical preview frame readiness", async () => {
+		const get = vi.fn(async () => ({
+			version: 1,
+			timestamp: Date.now(),
+			state: {
+				editor: {
+					initialization: {
+						isInitializing: false,
+						isPanelsReady: true,
+					},
+					preview: {
+						panelMounted: true,
+						canvasMounted: true,
+						ready: true,
+						reason: null,
+						loading: false,
+						activeVideoMediaIds: ["video-1"],
+						nativeCompositionStatus: "idle",
+						lastPresentedAt: Date.now(),
+						videos: [],
+					},
+				},
+			},
+		}));
+		const client = { get } as unknown as EditorApiClient;
+
+		const result = await handlePointerCommand({
+			client,
+			options: makeOptions({
+				command: "editor:pointer:wait-for",
+				values: { target: "preview.frame-ready", timeoutMs: 100 },
+			}),
+		});
+
+		expect(result.success).toBe(true);
+		expect(get).toHaveBeenCalledWith("/api/claude/state", {
+			include: "timeline,playhead,media,editor,project",
+		});
+	});
+
+	it("keeps capture padding in recording metadata", async () => {
+		const captureStartedAt = Date.now();
+		const post = vi.fn(async (url: string) => {
+			if (url.endsWith("/start")) return { captureStartedAt };
+			if (url.endsWith("/stop")) return { filePath: null };
+			throw new Error(`Unexpected POST ${url}`);
+		});
+		const client = { post } as unknown as EditorApiClient;
+
+		const result = await handlePointerCommand({
+			client,
+			options: makeOptions({
+				command: "editor:pointer:sequence",
+				values: {
+					actions: JSON.stringify([{ action: "sleep", durationMs: 0 }]),
+					record: "/tmp/qcut-pointer-padding.mp4",
+					recordingQuality: "4k",
+					prerollMs: 5,
+					postrollMs: 5,
+				},
+			}),
+		});
+		const data = result.data as {
+			capture: {
+				expectedDurationMs: number;
+				prerollMs: number;
+				postrollMs: number;
+			};
+		};
+
+		expect(result.success).toBe(true);
+		expect(data.capture.prerollMs).toBe(5);
+		expect(data.capture.postrollMs).toBe(5);
+		expect(data.capture.expectedDurationMs).toBeGreaterThanOrEqual(10);
+		expect(post).toHaveBeenCalledWith("/api/claude/screen-recording/start", {
+			captureMode: "editor",
+			fileName: "qcut-pointer-padding.mp4",
+			recordingQuality: "4k",
+		});
+	});
+
 	it("converts normalized viewport coordinates", async () => {
 		const get = vi.fn(async () => ({
 			viewport: { width: 1200, height: 800 },
