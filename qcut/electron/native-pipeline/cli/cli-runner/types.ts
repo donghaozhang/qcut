@@ -437,6 +437,9 @@ export interface CLIRunOptions {
 	voice?: string;
 	stability?: number;
 	languageCode?: string;
+	volume?: number;
+	pitch?: number;
+	multilingual?: boolean;
 }
 
 /** Standard result returned by a CLI command handler. */
