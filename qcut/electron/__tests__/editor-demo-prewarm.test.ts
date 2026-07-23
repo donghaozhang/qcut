@@ -85,10 +85,7 @@ describe("editor demo prewarm", () => {
 				["/api/claude/ui/switch-panel", { panel: "media" }],
 				["/api/claude/ui/switch-panel", { panel: "effects" }],
 				["/api/claude/pointer/hide", {}],
-				[
-					"/api/claude/timeline/promo/playback",
-					{ action: "seek", time: 0 },
-				],
+				["/api/claude/timeline/promo/playback", { action: "seek", time: 0 }],
 			])
 		);
 		expect(result.preview.preview.ready).toBe(true);
