@@ -7,6 +7,7 @@ import { usePlaybackStore } from "@/stores/editor/playback-store";
 import { useMediaStore } from "@/stores/media/media-store";
 import { useProjectStore } from "@/stores/project-store";
 import { useTimelineStore } from "@/stores/timeline/timeline-store";
+import { buildPreviewStateSnapshot } from "@/lib/claude-bridge/claude-preview-state";
 import type {
 	BlockerSnapshotItem,
 	EditorStateRequest,
@@ -436,8 +437,12 @@ function buildEditorStateSnapshot({
 		const panelStore = useMediaPanelStore.getState();
 		const exportStore = useExportStore.getState();
 		const timelineStore = useTimelineStore.getState();
+		const playbackStore = usePlaybackStore.getState();
+		const mediaStore = useMediaStore.getState();
 		const modals = collectOpenDialogs();
 		const blockers = collectBlockingOverlays();
+		const editorReady =
+			!editorStore.isInitializing && editorStore.isPanelsReady;
 
 		const dirtySources: string[] = [];
 		if (timelineStore.isAutoSaving) dirtySources.push("timeline:auto-saving");
@@ -478,6 +483,12 @@ function buildEditorStateSnapshot({
 				isInitializing: editorStore.isInitializing,
 				isPanelsReady: editorStore.isPanelsReady,
 			},
+			preview: buildPreviewStateSnapshot({
+				tracks: timelineStore.tracks as unknown as TimelineSnapshotTrack[],
+				mediaItems: mediaStore.mediaItems as MediaStateSnapshotItem[],
+				currentTime: playbackStore.currentTime,
+				editorReady,
+			}),
 		};
 	}
 
