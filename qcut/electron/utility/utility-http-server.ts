@@ -565,8 +565,15 @@ export function startUtilityHttpServer(config: UtilityHttpConfig): void {
 	router.post("/api/claude/screen-recording/start", async (req) => {
 		const sourceId = req.body?.sourceId as string | undefined;
 		const fileName = req.body?.fileName as string | undefined;
+		const captureMode = req.body?.captureMode as string | undefined;
+		const recordingQuality = req.body?.recordingQuality as string | undefined;
 		return await withTimeout(
-			requestFromMain("screen-recording:start", { sourceId, fileName }),
+			requestFromMain("screen-recording:start", {
+				sourceId,
+				fileName,
+				captureMode,
+				recordingQuality,
+			}),
 			30_000,
 			"Recording start timed out"
 		);
