@@ -179,6 +179,7 @@ export async function handleRecord(
 			// the renderer owns the output-directory policy.
 			startBody.fileName = options.output.split(/[\\/]/).pop();
 		}
+		startBody.recordingQuality = options.recordingQuality ?? "native";
 
 		const startRes = await postJson<StartResponse>(
 			fetchImpl,
