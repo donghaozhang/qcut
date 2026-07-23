@@ -17,4 +17,17 @@ describe("CLI screen-recording args", () => {
 		expect(opts.command).toBe("editor:screen-recording:start");
 		expect(opts.force).toBe(true);
 	});
+
+	it("parses capture mode and recording quality", () => {
+		const opts = parseCliArgs([
+			"editor:screen-recording:start",
+			"--capture-mode",
+			"preview",
+			"--recording-quality",
+			"4k",
+		]);
+
+		expect(opts.captureMode).toBe("preview");
+		expect(opts.recordingQuality).toBe("4k");
+	});
 });
