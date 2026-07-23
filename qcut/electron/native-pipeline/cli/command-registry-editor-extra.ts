@@ -46,7 +46,13 @@ export function createExtraEditorCommands({
 			[
 				f("--plan", "string", "Demo plan JSON file", { required: true }),
 				f("--record", "string", "Screen recording output MP4"),
+				f("--recording-quality", "string", "Recording output quality", {
+					default: "native",
+					enum: ["native", "1080p", "1440p", "2k", "2160p", "4k"],
+				}),
 				f("--event-track", "string", "Editable pointer event-track JSON"),
+				f("--preroll-ms", "number", "Frames to keep before the first action"),
+				f("--postroll-ms", "number", "Frames to keep after the last action"),
 				f("--speed", "number", "Overall animation speed multiplier", {
 					default: 1,
 				}),
@@ -356,11 +362,17 @@ export function createExtraEditorCommands({
 					required: true,
 				}),
 				f("--record", "string", "Record the Agent pointer sequence to video"),
+				f("--recording-quality", "string", "Recording output quality", {
+					default: "native",
+					enum: ["native", "1080p", "1440p", "2k", "2160p", "4k"],
+				}),
 				f(
 					"--event-track",
 					"string",
 					"Write an editable JSON pointer event track"
 				),
+				f("--preroll-ms", "number", "Frames to keep before the first action"),
+				f("--postroll-ms", "number", "Frames to keep after the last action"),
 				f("--speed", "number", "Overall animation speed multiplier", {
 					default: 1,
 				}),
