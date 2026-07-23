@@ -1,0 +1,20 @@
+{
+	"name": "qcut",
+	"interface": {
+		"displayName": "QCut"
+	},
+	"plugins": [
+		{
+			"name": "qcut",
+			"source": {
+				"source": "local",
+				"path": "./qcut/plugins/qcut"
+			},
+			"policy": {
+				"installation": "AVAILABLE",
+				"authentication": "ON_INSTALL"
+			},
+			"category": "Creativity"
+		}
+	]
+}

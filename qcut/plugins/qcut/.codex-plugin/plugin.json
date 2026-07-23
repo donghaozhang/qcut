@@ -1,11 +1,11 @@
 {
 	"name": "qcut",
-	"version": "0.1.0+codex.20260722131606",
+	"version": "1.0.0",
 	"description": "Create media and control the QCut desktop video editor from Codex.",
 	"author": {
-		"name": "QCut Team",
-		"email": "support@qcut.app",
-		"url": "https://github.com/Quriosity-agent/qcut"
+		"name": "Quriosity Pty Ltd",
+		"email": "info@quriosity.com.au",
+		"url": "https://quriosity.com.au/"
 	},
 	"homepage": "https://github.com/Quriosity-agent/qcut",
 	"repository": "https://github.com/Quriosity-agent/qcut",
@@ -14,12 +14,19 @@
 	"skills": "./skills/",
 	"interface": {
 		"displayName": "QCut",
-		"shortDescription": "Generate media and edit QCut projects from Codex.",
+		"shortDescription": "Create and edit video in QCut",
 		"longDescription": "Use QCut's structured CLI to generate and analyze media, transcribe footage, edit timelines, and export projects from a running QCut desktop app.",
-		"developerName": "QCut Team",
-		"category": "Developer Tools",
-		"capabilities": ["Interactive", "Read", "Write"],
-		"websiteURL": "https://github.com/Quriosity-agent/qcut",
+		"developerName": "Quriosity Pty Ltd",
+		"category": "Creativity",
+		"capabilities": [
+			"Generate media",
+			"Transcribe footage",
+			"Edit QCut timelines",
+			"Export video"
+		],
+		"websiteURL": "https://quriosity.com.au/",
+		"privacyPolicyURL": "https://github.com/Quriosity-agent/qcut/blob/qcut-plugin-v1.0.0/qcut/plugins/qcut/PRIVACY.md",
+		"termsOfServiceURL": "https://github.com/Quriosity-agent/qcut/blob/qcut-plugin-v1.0.0/qcut/plugins/qcut/TERMS.md",
 		"brandColor": "#18B8B8",
 		"composerIcon": "./assets/icon.png",
 		"logo": "./assets/icon.png",

@@ -1,4 +1,4 @@
-# QCut Codex Plugin
+# QCut Plugin for ChatGPT and Codex
 
 This plugin lets Codex use QCut's structured CLI for AI media workflows and
 control a running QCut desktop editor.
@@ -11,6 +11,19 @@ control a running QCut desktop editor.
 
 The plugin never bundles API credentials. Configure provider keys through
 QCut's interactive setup or desktop settings.
+
+## Install from the public repository
+
+The versioned public release can be installed directly from GitHub:
+
+```bash
+codex plugin marketplace add Quriosity-agent/qcut --ref qcut-plugin-v1.0.0
+codex plugin add qcut@qcut
+```
+
+Start a new ChatGPT or Codex task after installation so the two bundled skills
+are loaded. The source, manifest, privacy notice, terms, and release tag are all
+public in the [QCut repository](https://github.com/Quriosity-agent/qcut).
 
 ## First run
 
@@ -74,3 +87,10 @@ qcut/
 ```
 
 This is an initial skills-only plugin. It does not include a remote MCP server.
+
+## Public directory submission
+
+The public GitHub package is separate from OpenAI's curated Plugins Directory.
+See [PUBLISHING.md](PUBLISHING.md) for the validation, packaging, review, and
+publication flow. Submission-ready listing copy and reviewer cases live under
+[`submission/`](submission/).
