@@ -63,9 +63,7 @@ function activeVideoMediaIds({
 	currentTime: number;
 }): string[] {
 	const videoMediaIds = new Set(
-		mediaItems
-			.filter((item) => item.type === "video")
-			.map((item) => item.id)
+		mediaItems.filter((item) => item.type === "video").map((item) => item.id)
 	);
 	const activeIds = new Set<string>();
 
