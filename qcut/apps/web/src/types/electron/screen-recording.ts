@@ -26,6 +26,22 @@ export interface StartScreenRecordingResult {
 	filePath: string;
 	startedAt: number;
 	mimeType: string | null;
+	firstChunkAt?: number;
+	captureStartedAt?: number;
+	readyAt?: number;
+	bytesWritten?: number;
+	captureWidth?: number;
+	captureHeight?: number;
+	frameRate?: number;
+	videoBitsPerSecond?: number;
+	meetsFullHd?: boolean;
+	sourceWidth?: number;
+	sourceHeight?: number;
+	outputWidth?: number;
+	outputHeight?: number;
+	qualityPreset?: "native" | "1080p" | "1440p" | "2160p";
+	captureMode?: "editor" | "preview";
+	isUpscaled?: boolean;
 }
 
 export interface StopScreenRecordingOptions {
@@ -39,6 +55,10 @@ export interface StopScreenRecordingResult {
 	bytesWritten: number;
 	durationMs: number;
 	discarded: boolean;
+	wallDurationMs?: number;
+	firstChunkAt?: number | null;
+	chunkCount?: number;
+	durationVerified?: boolean;
 }
 
 export interface ScreenRecordingStatus {
@@ -52,4 +72,19 @@ export interface ScreenRecordingStatus {
 	startedAt: number | null;
 	durationMs: number;
 	mimeType: string | null;
+	firstChunkAt?: number | null;
+	chunkCount?: number;
+	ready?: boolean;
+	captureWidth?: number;
+	captureHeight?: number;
+	frameRate?: number;
+	videoBitsPerSecond?: number;
+	meetsFullHd?: boolean;
+	sourceWidth?: number;
+	sourceHeight?: number;
+	outputWidth?: number;
+	outputHeight?: number;
+	qualityPreset?: "native" | "1080p" | "1440p" | "2160p";
+	captureMode?: "editor" | "preview";
+	isUpscaled?: boolean;
 }
