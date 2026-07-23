@@ -279,6 +279,9 @@ export function parseCliArgs(argv: string[]): CLIRunOptions {
 			voice: { type: "string" },
 			stability: { type: "string" },
 			"language-code": { type: "string" },
+			volume: { type: "string" },
+			pitch: { type: "string" },
+			multilingual: { type: "boolean" },
 			// transfer-motion options
 			orientation: { type: "string" },
 			"no-sound": { type: "boolean", default: false },
@@ -719,6 +722,9 @@ export function parseCliArgs(argv: string[]): CLIRunOptions {
 			? parseFloat(values.stability as string)
 			: undefined,
 		languageCode: values["language-code"] as string | undefined,
+		volume: parseFiniteCliNumber({ value: values.volume }),
+		pitch: parseFiniteCliNumber({ value: values.pitch }),
+		multilingual: values.multilingual as boolean | undefined,
 		// transcribe options
 		language: values.language as string | undefined,
 		noDiarize: (values["no-diarize"] as boolean) ?? false,
