@@ -80,9 +80,7 @@ describe("editor preview readiness", () => {
 
 	it("rejects a previously rendered frame after a seek boundary", async () => {
 		const client = {
-			get: vi.fn(async () =>
-				snapshot({ ready: true, lastPresentedAt: 100 })
-			),
+			get: vi.fn(async () => snapshot({ ready: true, lastPresentedAt: 100 })),
 		} as unknown as EditorApiClient;
 
 		await expect(
