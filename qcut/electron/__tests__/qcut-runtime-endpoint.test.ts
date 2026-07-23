@@ -15,12 +15,17 @@ describe("QCut runtime endpoint", () => {
 		});
 	});
 
-	it.each(["", "0", "-1", "70000", "8878.5", "8878oops", "not-a-port"])(
-		"falls back for invalid port %s",
-		(value) => {
-			expect(
-				resolveQCutRuntimeEndpoint({ env: { QCUT_API_PORT: value } }).port
-			).toBe(DEFAULT_QCUT_API_PORT);
-		}
-	);
+	it.each([
+		"",
+		"0",
+		"-1",
+		"70000",
+		"8878.5",
+		"8878oops",
+		"not-a-port",
+	])("falls back for invalid port %s", (value) => {
+		expect(
+			resolveQCutRuntimeEndpoint({ env: { QCUT_API_PORT: value } }).port
+		).toBe(DEFAULT_QCUT_API_PORT);
+	});
 });
