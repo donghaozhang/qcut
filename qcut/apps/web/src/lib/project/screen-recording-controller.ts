@@ -13,6 +13,22 @@ import {
 	mergeAudioIntoStream,
 	type AudioCaptureResult,
 } from "@/lib/screen-recording/audio-capture";
+import { waitForFirstRecordingChunk } from "@/lib/project/screen-recording-readiness";
+import {
+	normalizeScreenRecordingQualityPreset,
+	resolveContainedCaptureRect,
+	resolveScreenRecordingQuality,
+	type ScreenRecordingQualityPreset,
+} from "@/lib/project/screen-recording-quality";
+import {
+	normalizeScreenRecordingCaptureMode,
+	type ScreenRecordingCaptureMode,
+} from "@/lib/project/screen-recording-capture-mode";
+import { useScreenRecordingPreferencesStore } from "@/stores/screen-recording-preferences-store";
+import {
+	usePreviewModeStore,
+	type PreviewMode,
+} from "@/stores/preview-mode-store";
 
 const SCREEN_RECORDING_EVENT_NAME = "qcut:screen-recording-status";
 
@@ -21,10 +37,7 @@ const SCREEN_RECORDING_STATE = {
 	RECORDING: "recording",
 } as const;
 
-const DEFAULT_TIMESLICE_MS = 1000;
-
-/** Target bitrate for screen capture MediaRecorder (5 Mbps — good for screen content). */
-const SCREEN_CAPTURE_BITRATE = 5_000_000;
+const DEFAULT_TIMESLICE_MS = 250;
 
 const MIME_TYPE_CANDIDATES = [
 	"video/webm;codecs=vp9,opus",
@@ -54,8 +67,32 @@ interface ActiveRecordingRuntimeState {
 	chunkWriteQueue: Promise<void>;
 	chunkWriteError: Error | null;
 	bytesWritten: number;
+	firstChunkAt: number | null;
+	captureWidth: number;
+	captureHeight: number;
+	frameRate: number;
+	videoBitsPerSecond: number;
+	meetsFullHd: boolean;
+	sourceWidth: number;
+	sourceHeight: number;
+	outputWidth: number;
+	outputHeight: number;
+	qualityPreset: ScreenRecordingQualityPreset;
+	captureMode: ScreenRecordingCaptureMode;
+	isUpscaled: boolean;
+	previewRestoreState: PreviewCaptureRestoreState | null;
 	audioCleanup: (() => void) | null;
 	canvasCleanup: (() => void) | null;
+}
+
+interface PreviewCaptureRestoreState {
+	previewMode: PreviewMode;
+	isPreviewExpanded: boolean;
+}
+
+export interface ScreenRecordingCaptureOptions {
+	captureMode?: string;
+	qualityPreset?: string;
 }
 
 interface ScreenRecordingStatusEventPayload {
@@ -136,6 +173,18 @@ function getLocalStatus(): ScreenRecordingStatus {
 		startedAt: activeRecording.startedAt,
 		durationMs: Math.max(0, Date.now() - activeRecording.startedAt),
 		mimeType: activeRecording.mimeType,
+		captureWidth: activeRecording.captureWidth,
+		captureHeight: activeRecording.captureHeight,
+		frameRate: activeRecording.frameRate,
+		videoBitsPerSecond: activeRecording.videoBitsPerSecond,
+		meetsFullHd: activeRecording.meetsFullHd,
+		sourceWidth: activeRecording.sourceWidth,
+		sourceHeight: activeRecording.sourceHeight,
+		outputWidth: activeRecording.outputWidth,
+		outputHeight: activeRecording.outputHeight,
+		qualityPreset: activeRecording.qualityPreset,
+		captureMode: activeRecording.captureMode,
+		isUpscaled: activeRecording.isUpscaled,
 	};
 }
 
@@ -169,6 +218,66 @@ function selectMimeType(): string | null {
 	} catch {
 		return null;
 	}
+}
+
+async function waitForPreviewCaptureSurface(): Promise<void> {
+	const timeoutAt = Date.now() + 2500;
+	while (Date.now() < timeoutAt) {
+		if (document.querySelector('[data-testid="fullscreen-preview"]')) {
+			await new Promise<void>((resolve) => {
+				window.setTimeout(resolve, 150);
+			});
+			return;
+		}
+		await new Promise<void>((resolve) => {
+			window.setTimeout(resolve, 50);
+		});
+	}
+	throw new Error("Preview could not enter fullscreen before recording");
+}
+
+async function prepareCaptureSurface({
+	captureMode,
+}: {
+	captureMode: ScreenRecordingCaptureMode;
+}): Promise<PreviewCaptureRestoreState | null> {
+	if (captureMode !== "preview") {
+		return null;
+	}
+
+	const previewStore = usePreviewModeStore.getState();
+	const restoreState: PreviewCaptureRestoreState = {
+		previewMode: previewStore.previewMode,
+		isPreviewExpanded: previewStore.isPreviewExpanded,
+	};
+	previewStore.setPreviewMode("video");
+	previewStore.setPreviewExpanded({ expanded: true });
+	try {
+		await waitForPreviewCaptureSurface();
+		return restoreState;
+	} catch (error) {
+		previewStore.setPreviewMode(restoreState.previewMode);
+		previewStore.setPreviewExpanded({
+			expanded: restoreState.isPreviewExpanded,
+		});
+		throw error;
+	}
+}
+
+function restoreCaptureSurface({
+	restoreState,
+}: {
+	restoreState: PreviewCaptureRestoreState | null;
+}): void {
+	if (!restoreState) {
+		return;
+	}
+
+	const previewStore = usePreviewModeStore.getState();
+	previewStore.setPreviewMode(restoreState.previewMode);
+	previewStore.setPreviewExpanded({
+		expanded: restoreState.isPreviewExpanded,
+	});
 }
 
 async function getDisplayMediaStream(
@@ -248,9 +357,13 @@ async function getCaptureStream({
 function createCanvasStream({
 	mediaStream,
 	frameRate = 30,
+	outputWidth,
+	outputHeight,
 }: {
 	mediaStream: MediaStream;
 	frameRate?: number;
+	outputWidth?: number;
+	outputHeight?: number;
 }): {
 	stream: MediaStream;
 	cleanup: () => void;
@@ -260,8 +373,16 @@ function createCanvasStream({
 		if (!videoTrack) return null;
 
 		const settings = videoTrack.getSettings();
-		const width = settings.width ?? 1920;
-		const height = settings.height ?? 1080;
+		const sourceWidth = settings.width ?? 1920;
+		const sourceHeight = settings.height ?? 1080;
+		const width = outputWidth ?? sourceWidth;
+		const height = outputHeight ?? sourceHeight;
+		const captureRect = resolveContainedCaptureRect({
+			sourceWidth,
+			sourceHeight,
+			outputWidth: width,
+			outputHeight: height,
+		});
 
 		const canvas = document.createElement("canvas");
 		canvas.width = width;
@@ -288,7 +409,15 @@ function createCanvasStream({
 
 		const drawFrame = (): void => {
 			if (video.readyState >= video.HAVE_CURRENT_DATA) {
-				ctx.drawImage(video, 0, 0, width, height);
+				ctx.fillStyle = "#000000";
+				ctx.fillRect(0, 0, width, height);
+				ctx.drawImage(
+					video,
+					captureRect.x,
+					captureRect.y,
+					captureRect.width,
+					captureRect.height
+				);
 				canvasTrack?.requestFrame?.();
 			}
 			rafId = window.setTimeout(drawFrame, intervalMs) as unknown as number;
@@ -413,18 +542,32 @@ function appendChunk({
 
 export async function startScreenRecording({
 	options = {},
+	capture = {},
 }: {
 	options?: StartScreenRecordingOptions;
+	capture?: ScreenRecordingCaptureOptions;
 } = {}): Promise<StartScreenRecordingResult> {
 	let startResult: StartScreenRecordingResult | null = null;
 	let mediaStream: MediaStream | null = null;
 	let audioResult: AudioCaptureResult | null = null;
 	let canvasStream: ReturnType<typeof createCanvasStream> = null;
+	let mediaRecorder: MediaRecorder | null = null;
+	let runtimeState: ActiveRecordingRuntimeState | null = null;
+	let previewRestoreState: PreviewCaptureRestoreState | null = null;
 
 	try {
 		if (activeRecording) {
 			throw new Error("Screen recording is already active");
 		}
+
+		const recordingPreferences = useScreenRecordingPreferencesStore.getState();
+		const captureMode = normalizeScreenRecordingCaptureMode({
+			value: capture.captureMode ?? recordingPreferences.captureMode,
+		});
+		const qualityPreset = normalizeScreenRecordingQualityPreset({
+			value: capture.qualityPreset ?? recordingPreferences.qualityPreset,
+		});
+		previewRestoreState = await prepareCaptureSurface({ captureMode });
 
 		const recordingApi = getRequiredRecordingApi();
 		const mimeType = selectMimeType();
@@ -467,65 +610,131 @@ export async function startScreenRecording({
 			}
 		}
 
+		const captureSettings =
+			mediaStream.getVideoTracks()[0]?.getSettings() ?? {};
+		const recordingQuality = resolveScreenRecordingQuality({
+			width: captureSettings.width,
+			height: captureSettings.height,
+			frameRate: captureSettings.frameRate,
+			preset: qualityPreset,
+		});
+
 		// Electron 40+ (Chromium 134): MediaRecorder produces 0-byte blobs from
 		// getDisplayMedia streams directly. Workaround: pipe video through a canvas
-		// with captureStream(0) + manual requestFrame() calls, video-only.
+		// with captureStream(0) + manual requestFrame() calls.
 		canvasStream = createCanvasStream({
 			mediaStream: recordingStream,
-			frameRate: 30,
+			frameRate: recordingQuality.frameRate,
+			outputWidth: recordingQuality.width,
+			outputHeight: recordingQuality.height,
 		});
 
 		let streamForRecorder: MediaStream;
-		const mediaRecorderOptions: MediaRecorderOptions = {
-			videoBitsPerSecond: SCREEN_CAPTURE_BITRATE,
-		};
 		if (canvasStream) {
 			streamForRecorder = canvasStream.stream;
 		} else {
 			streamForRecorder = recordingStream;
+		}
+
+		const mediaRecorderOptions: MediaRecorderOptions = {
+			videoBitsPerSecond: recordingQuality.videoBitsPerSecond,
+		};
+		if (!canvasStream) {
 			const resolvedMimeType = options.mimeType ?? mimeType;
 			if (resolvedMimeType) {
 				mediaRecorderOptions.mimeType = resolvedMimeType;
 			}
 		}
 
-		const mediaRecorder = new MediaRecorder(
+		const recordingMediaRecorder = new MediaRecorder(
 			streamForRecorder,
 			mediaRecorderOptions
 		);
+		mediaRecorder = recordingMediaRecorder;
 
-		const runtimeState: ActiveRecordingRuntimeState = {
+		const recordingRuntimeState: ActiveRecordingRuntimeState = {
 			sessionId: startResult.sessionId,
 			sourceId: startResult.sourceId,
 			sourceName: startResult.sourceName,
 			filePath: startResult.filePath,
 			startedAt: startResult.startedAt,
 			mimeType: startResult.mimeType,
-			mediaRecorder,
+			mediaRecorder: recordingMediaRecorder,
 			mediaStream,
 			chunkWriteQueue: Promise.resolve(),
 			chunkWriteError: null,
 			bytesWritten: 0,
+			firstChunkAt: null,
+			captureWidth: recordingQuality.width,
+			captureHeight: recordingQuality.height,
+			frameRate: recordingQuality.frameRate,
+			videoBitsPerSecond: recordingQuality.videoBitsPerSecond,
+			meetsFullHd: recordingQuality.meetsFullHd,
+			sourceWidth: recordingQuality.sourceWidth,
+			sourceHeight: recordingQuality.sourceHeight,
+			outputWidth: recordingQuality.width,
+			outputHeight: recordingQuality.height,
+			qualityPreset,
+			captureMode,
+			isUpscaled: recordingQuality.isUpscaled,
+			previewRestoreState,
 			audioCleanup: audioResult?.cleanup ?? null,
 			canvasCleanup: canvasStream?.cleanup ?? null,
 		};
+		runtimeState = recordingRuntimeState;
 
-		mediaRecorder.ondataavailable = (event: BlobEvent): void => {
-			appendChunk({ recordingState: runtimeState, event });
+		recordingMediaRecorder.ondataavailable = (event: BlobEvent): void => {
+			appendChunk({ recordingState: recordingRuntimeState, event });
 		};
 
-		mediaRecorder.onerror = (event: Event): void => {
+		recordingMediaRecorder.onerror = (event: Event): void => {
 			console.error("[ScreenRecording] MediaRecorder runtime error:", event);
 		};
 
-		mediaRecorder.start(DEFAULT_TIMESLICE_MS);
-		activeRecording = runtimeState;
+		const captureStartedAt = Date.now();
+		recordingMediaRecorder.start(DEFAULT_TIMESLICE_MS);
+		activeRecording = recordingRuntimeState;
 		emitStatusChange();
 
-		return startResult;
+		const readiness = await waitForFirstRecordingChunk({
+			getSnapshot: () => ({
+				bytesWritten: recordingRuntimeState.bytesWritten,
+				error: recordingRuntimeState.chunkWriteError,
+				recorderState: recordingMediaRecorder.state,
+			}),
+		});
+		recordingRuntimeState.firstChunkAt = readiness.readyAt;
+
+		return {
+			...startResult,
+			firstChunkAt: readiness.readyAt,
+			captureStartedAt,
+			readyAt: readiness.readyAt,
+			bytesWritten: readiness.bytesWritten,
+			captureWidth: recordingQuality.width,
+			captureHeight: recordingQuality.height,
+			frameRate: recordingQuality.frameRate,
+			videoBitsPerSecond: recordingQuality.videoBitsPerSecond,
+			meetsFullHd: recordingQuality.meetsFullHd,
+			sourceWidth: recordingQuality.sourceWidth,
+			sourceHeight: recordingQuality.sourceHeight,
+			outputWidth: recordingQuality.width,
+			outputHeight: recordingQuality.height,
+			qualityPreset,
+			captureMode,
+			isUpscaled: recordingQuality.isUpscaled,
+		};
 	} catch (error) {
 		const startError = toError({ error });
 
+		if (mediaRecorder && mediaRecorder.state !== "inactive") {
+			try {
+				await waitForRecorderStop({ mediaRecorder });
+				await runtimeState?.chunkWriteQueue;
+			} catch {
+				// The main-process discard below remains the cleanup authority.
+			}
+		}
 		if (canvasStream?.cleanup) {
 			try {
 				canvasStream.cleanup();
@@ -560,6 +769,7 @@ export async function startScreenRecording({
 		}
 
 		activeRecording = null;
+		restoreCaptureSurface({ restoreState: previewRestoreState });
 		emitStatusChange();
 		throw new Error(`Failed to start screen recording: ${startError.message}`);
 	}
@@ -694,6 +904,9 @@ export async function stopScreenRecording({
 			}
 		}
 		stopMediaTracks({ mediaStream: recordingState.mediaStream });
+		restoreCaptureSurface({
+			restoreState: recordingState.previewRestoreState,
+		});
 		activeRecording = null;
 		isStopInProgress = false;
 		emitStatusChange();
@@ -706,7 +919,19 @@ export async function getScreenRecordingStatus(): Promise<ScreenRecordingStatus>
 		if (!recordingApi) {
 			return getLocalStatus();
 		}
-		return await recordingApi.getStatus();
+		const remoteStatus = await recordingApi.getStatus();
+		const localStatus = getLocalStatus();
+		if (!localStatus.recording) {
+			return remoteStatus;
+		}
+		return {
+			...remoteStatus,
+			...localStatus,
+			bytesWritten: Math.max(
+				remoteStatus.bytesWritten,
+				localStatus.bytesWritten
+			),
+		};
 	} catch (error) {
 		console.error("[ScreenRecording] Failed to fetch recording status:", error);
 		return getLocalStatus();
