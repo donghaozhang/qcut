@@ -4,7 +4,10 @@ import { probeHasAudioStream } from "../../ffmpeg/utils.js";
 import type { EditorApiClient } from "../editor/editor-api-client.js";
 import { resolveJsonInput } from "../editor/editor-api-types.js";
 import { verifyExportFrames } from "../editor/editor-export-verification.js";
+import { prewarmEditorDemo } from "../editor/editor-demo-prewarm.js";
 import { ensureEditorProjectReady } from "../editor/editor-project-readiness.js";
+import { ensureEditorPreviewReady } from "../editor/editor-preview-readiness.js";
+import { verifyRecordingArtifact } from "../editor/editor-recording-verification.js";
 import { timelineApplyManifest } from "../editor/editor-timeline-apply.js";
 import type { CLIRunOptions, CLIResult } from "./cli-runner/types.js";
 import { runPointerSequence } from "./cli-handlers-pointer.js";
@@ -61,6 +64,67 @@ function parseFrameTimestamps(value: unknown): number[] {
 			typeof entry === "number" ? entry : Number(String(entry).trim())
 		)
 		.filter((entry) => Number.isFinite(entry) && entry >= 0);
+}
+
+async function resolvePlanJsonValue({
+	value,
+	planPath,
+}: {
+	value: unknown;
+	planPath: string;
+}): Promise<unknown> {
+	if (typeof value !== "string") return value;
+	if (!value.startsWith("@")) return await resolveJsonInput(value);
+	const referencedPath = value.slice(1);
+	const absolutePath = path.isAbsolute(referencedPath)
+		? referencedPath
+		: path.resolve(path.dirname(planPath), referencedPath);
+	return await resolveJsonInput(`@${absolutePath}`);
+}
+
+async function resolveDemoActions({
+	value,
+	planPath,
+}: {
+	value: unknown;
+	planPath: string;
+}): Promise<unknown[] | undefined> {
+	if (value === undefined) return;
+	const resolved = await resolvePlanJsonValue({ value, planPath });
+	if (Array.isArray(resolved)) return resolved;
+	if (isRecord(resolved) && Array.isArray(resolved.actions)) {
+		return resolved.actions;
+	}
+	throw new Error(
+		"Demo actions must be a JSON array or an object with actions"
+	);
+}
+
+function resolveRecordingPath({
+	cliPath,
+	planPath,
+	plannedPath,
+}: {
+	cliPath?: string;
+	planPath: string;
+	plannedPath?: string;
+}): string | undefined {
+	if (cliPath) return path.resolve(cliPath);
+	if (!plannedPath) return;
+	return path.isAbsolute(plannedPath)
+		? plannedPath
+		: path.resolve(path.dirname(planPath), plannedPath);
+}
+
+function captureExpectedDurationMs({
+	actionResult,
+}: {
+	actionResult: CLIResult;
+}): number | undefined {
+	if (!isRecord(actionResult.data) || !isRecord(actionResult.data.capture)) {
+		return;
+	}
+	return numberValue(actionResult.data.capture, "expectedDurationMs");
 }
 
 async function resolveProject({
@@ -234,9 +298,12 @@ export async function runEditorDemo({
 	const project = await resolveProject({ client, options, plan });
 	stages.project = project;
 
-	const manifest = plan.timeline ?? plan.manifest;
-	const resolvedManifest =
-		typeof manifest === "string" ? await resolveJsonInput(manifest) : manifest;
+	const capturePlan = isRecord(plan.capture) ? plan.capture : {};
+	const manifest = plan.timeline ?? capturePlan.timeline ?? plan.manifest;
+	const resolvedManifest = await resolvePlanJsonValue({
+		value: manifest,
+		planPath,
+	});
 	if (manifest !== undefined) {
 		onProgress({
 			stage: "demo-timeline",
@@ -257,23 +324,60 @@ export async function runEditorDemo({
 		stages.timeline = timeline.data;
 	}
 
-	const actions = Array.isArray(plan.actions) ? plan.actions : undefined;
-	const requestedRecording = options.record ?? stringValue(plan, "record");
-	if (requestedRecording && !actions) {
+	const actions = await resolveDemoActions({
+		value: capturePlan.actions ?? plan.actions,
+		planPath,
+	});
+	const plannedRecording =
+		stringValue(capturePlan, "record") ??
+		stringValue(capturePlan, "outputPath") ??
+		stringValue(plan, "record");
+	const recordingPath = resolveRecordingPath({
+		cliPath: options.record,
+		planPath,
+		plannedPath: plannedRecording,
+	});
+	if (recordingPath && !actions) {
 		return {
 			success: false,
 			error: "Demo recording requires an actions array in the plan",
 		};
 	}
+	if (recordingPath && actions) {
+		const shouldPrewarm =
+			booleanValue(capturePlan, "prewarm") ?? recordingPath !== undefined;
+		onProgress({
+			stage: "demo-prewarm",
+			percent: 0.3,
+			message: shouldPrewarm
+				? "Prewarming editor panels and the preview frame..."
+				: "Waiting for the preview frame...",
+		});
+		if (shouldPrewarm) {
+			stages.prewarm = await prewarmEditorDemo({
+				client,
+				projectId: project.projectId,
+				actions,
+				startTime: numberValue(capturePlan, "startTime") ?? 0,
+				timeoutMs: options.timeoutMs ?? 15_000,
+				panelSettleMs: numberValue(capturePlan, "panelSettleMs") ?? 120,
+			});
+		} else {
+			stages.preview = await ensureEditorPreviewReady({
+				client,
+				projectId: project.projectId,
+				timeoutMs: options.timeoutMs ?? 15_000,
+			});
+		}
+	}
 	if (actions) {
 		onProgress({
 			stage: "demo-actions",
 			percent: 0.4,
-			message: "Recording semantic editor actions...",
+			message: recordingPath
+				? "Recording semantic editor actions..."
+				: "Running semantic editor actions...",
 		});
-		const recordingPath = requestedRecording
-			? path.resolve(requestedRecording)
-			: undefined;
 		const eventTrack =
 			options.eventTrack ??
 			(recordingPath
@@ -290,19 +394,28 @@ export async function runEditorDemo({
 				actions: JSON.stringify(actions),
 				record: recordingPath,
 				eventTrack,
+				prerollMs:
+					options.prerollMs ??
+					numberValue(capturePlan, "prerollMs") ??
+					(recordingPath ? 700 : 0),
+				postrollMs:
+					options.postrollMs ??
+					numberValue(capturePlan, "postrollMs") ??
+					(recordingPath ? 700 : 0),
 			},
 		});
 		if (!actionResult.success) return actionResult;
 		stages.actions = actionResult.data;
 		if (recordingPath) {
-			const recordingStats = await fs.stat(recordingPath);
-			if (recordingStats.size <= 0) {
-				throw new Error("Demo screen recording is empty");
-			}
-			stages.recording = {
-				outputPath: recordingPath,
-				bytes: recordingStats.size,
-			};
+			stages.recording = await verifyRecordingArtifact({
+				filePath: recordingPath,
+				expectedDurationMs: captureExpectedDurationMs({ actionResult }),
+				toleranceMs: numberValue(capturePlan, "durationToleranceMs") ?? 250,
+				verifyDuration: booleanValue(capturePlan, "verifyDuration") ?? true,
+				verifyResolution: booleanValue(capturePlan, "verifyResolution") ?? true,
+				minimumWidth: numberValue(capturePlan, "minimumWidth") ?? 1920,
+				minimumHeight: numberValue(capturePlan, "minimumHeight") ?? 1080,
+			});
 		}
 	}
 
@@ -311,9 +424,7 @@ export async function runEditorDemo({
 		exportValue === true ||
 		isRecord(exportValue) ||
 		(exportValue === undefined && manifest !== undefined);
-	let finalOutputPath = requestedRecording
-		? path.resolve(requestedRecording)
-		: undefined;
+	let finalOutputPath = recordingPath;
 	if (shouldExport) {
 		const exportPlan = isRecord(exportValue) ? exportValue : {};
 		const acceptance = isRecord(plan.acceptance) ? plan.acceptance : {};
