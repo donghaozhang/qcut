@@ -80,6 +80,8 @@ qcut editor pointer wait-for --target panel.text --json
 qcut editor pointer click --target panel.text --json
 qcut editor pointer hover --target export.button --speed 1.5 --json
 qcut editor pointer drag --from timeline.playhead --to-time 12 --speed 1.5 --json
+qcut editor pointer click --target timeline.play --json
+qcut editor pointer wait-for --target preview.frame-ready --timeout-ms 15000 --json
 ```
 
 Capture a fresh snapshot when no semantic target exists or a previous click may
@@ -143,22 +145,35 @@ The plan can create or reuse a project, apply a timeline manifest, run semantic
 pointer actions, export the timeline, extract verification frames, and require
 an audio stream. A sleep action marked as idle is omitted with `--skip-idle`.
 
-Minimal `promo.json`:
+Recommended `promo.json`:
 
 ```json
 {
+  "version": 2,
   "project": { "name": "Promo" },
   "timeline": "@timeline.json",
   "replace": true,
-  "actions": [
-    { "action": "click", "target": "panel.text" },
-    { "action": "hover", "target": "export.button" },
-    {
-      "action": "drag",
-      "from": "timeline.playhead",
-      "toTime": 12
-    }
-  ],
+  "capture": {
+    "actions": [
+      { "action": "click", "target": "panel.text" },
+      { "action": "hover", "target": "export.button" },
+      {
+        "action": "drag",
+        "from": "timeline.playhead",
+        "toTime": 12
+      }
+    ],
+    "record": "promo-capture.mp4",
+    "prewarm": true,
+    "startTime": 0,
+    "prerollMs": 700,
+    "postrollMs": 700,
+    "durationToleranceMs": 250,
+    "verifyDuration": true,
+    "verifyResolution": true,
+    "minimumWidth": 1920,
+    "minimumHeight": 1080
+  },
   "export": {
     "outputPath": "promo-final.mp4",
     "verifyFrames": [1, 5],
@@ -166,3 +181,21 @@ Minimal `promo.json`:
   }
 }
 ```
+
+The capture stage preloads semantic panels without showing the Agent pointer,
+restores the opening panel, seeks to `startTime`, and waits for
+`preview.frame-ready`. Recording does not begin its action sequence until the
+first non-empty MediaRecorder chunk has reached disk. The event-track sidecar
+uses the recording clock and includes pre-roll and post-roll. After stop, the
+runner uses ffprobe to compare the actual file duration with the capture
+lifecycle and rejects a truncated tail.
+
+Project data readiness and preview readiness are different:
+
+- Project readiness means the active project, media bridge, and timeline bridge
+  can be queried.
+- Preview readiness means the active video has dimensions, current data, and a
+  frame presented after the requested seek.
+
+Use project readiness before timeline mutations and preview readiness before
+screenshots or recording.
