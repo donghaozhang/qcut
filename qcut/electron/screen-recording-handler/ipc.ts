@@ -47,6 +47,7 @@ import {
 	readCursorTelemetry,
 } from "./cursor-telemetry-io.js";
 import { diagnoseScreenRecording } from "./diagnostics.js";
+import { probeMediaDurationMs } from "../ffmpeg/utils.js";
 
 const cursorRecorder = new CursorTelemetryRecorder();
 
@@ -94,7 +95,10 @@ export async function forceStopActiveScreenRecordingSession(): Promise<ForceStop
 	// Clear session immediately to reject incoming chunks
 	setActiveSession(null);
 
-	const durationMs = Math.max(0, Date.now() - sessionToStop.startedAt);
+	const wallDurationMs = Math.max(0, Date.now() - sessionToStop.startedAt);
+	let durationMs = sessionToStop.firstChunkAt
+		? Math.max(0, Date.now() - sessionToStop.firstChunkAt)
+		: wallDurationMs;
 
 	try {
 		// Destroy the stream immediately — don't use end() which waits for
@@ -104,6 +108,15 @@ export async function forceStopActiveScreenRecordingSession(): Promise<ForceStop
 		const finalPath = await finalizeRecordingOutput({
 			sessionData: sessionToStop,
 		});
+		let durationVerified = false;
+		if (finalPath) {
+			try {
+				durationMs = await probeMediaDurationMs({ mediaPath: finalPath });
+				durationVerified = true;
+			} catch {
+				// A finalized file is still returned when ffprobe is unavailable.
+			}
+		}
 
 		// Write cursor telemetry sidecar if available
 		if (cursorTelemetryData && finalPath) {
@@ -121,6 +134,10 @@ export async function forceStopActiveScreenRecordingSession(): Promise<ForceStop
 			bytesWritten: sessionToStop.bytesWritten,
 			durationMs,
 			discarded: false,
+			wallDurationMs,
+			firstChunkAt: sessionToStop.firstChunkAt,
+			chunkCount: sessionToStop.chunkCount,
+			durationVerified,
 		};
 	} catch {
 		// Finalization failed — clean up temp files
@@ -136,6 +153,10 @@ export async function forceStopActiveScreenRecordingSession(): Promise<ForceStop
 			bytesWritten: sessionToStop.bytesWritten,
 			durationMs,
 			discarded: true,
+			wallDurationMs,
+			firstChunkAt: sessionToStop.firstChunkAt,
+			chunkCount: sessionToStop.chunkCount,
+			durationVerified: false,
 		};
 	}
 }
@@ -250,6 +271,9 @@ export function setupScreenRecordingIPC(): void {
 					outputFormat,
 					startedAt,
 					bytesWritten: 0,
+					firstChunkAt: null,
+					lastChunkAt: null,
+					chunkCount: 0,
 					ownerWebContentsId: event.sender.id,
 					fileStream,
 					mimeType: options.mimeType ?? null,
@@ -394,7 +418,14 @@ export function setupScreenRecordingIPC(): void {
 					throw new Error("Invalid screen recording session id");
 				}
 				const shouldDiscard = options.discard ?? false;
-				const durationMs = Math.max(0, Date.now() - sessionToStop.startedAt);
+				const wallDurationMs = Math.max(
+					0,
+					Date.now() - sessionToStop.startedAt
+				);
+				let durationMs = sessionToStop.firstChunkAt
+					? Math.max(0, Date.now() - sessionToStop.firstChunkAt)
+					: wallDurationMs;
+				let durationVerified = false;
 
 				// Stop cursor telemetry before draining file I/O
 				let cursorTelemetryData = null;
@@ -415,6 +446,12 @@ export function setupScreenRecordingIPC(): void {
 						sessionData: sessionToStop,
 					});
 					finalizedBytes = await getFileSize({ filePath: finalPath });
+					try {
+						durationMs = await probeMediaDurationMs({ mediaPath: finalPath });
+						durationVerified = true;
+					} catch {
+						// Keep the first-chunk-based estimate if probing is unavailable.
+					}
 
 					// Write cursor telemetry sidecar alongside the video
 					if (cursorTelemetryData && finalPath) {
@@ -433,6 +470,10 @@ export function setupScreenRecordingIPC(): void {
 					bytesWritten: finalizedBytes || sessionToStop.bytesWritten,
 					durationMs,
 					discarded: shouldDiscard,
+					wallDurationMs,
+					firstChunkAt: sessionToStop.firstChunkAt,
+					chunkCount: sessionToStop.chunkCount,
+					durationVerified,
 				};
 			} catch (error: unknown) {
 				const sessionToCleanup = getActiveSession();
