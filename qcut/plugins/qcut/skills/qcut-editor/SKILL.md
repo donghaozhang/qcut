@@ -121,8 +121,21 @@ Known targets include `panel.media`, `panel.audio`, `panel.text`,
 `panel.stickers`, `panel.effects`, `panel.transitions`, `panel.captions`,
 `panel.filters`, `panel.adjustments`, `panel.templates`, `export.button`,
 `export.start`, `timeline.playhead`, `timeline.toolbar`, `timeline.zoom-in`,
-`timeline.zoom-out`, `preview.canvas`, and `media.import`. Use
+`timeline.zoom-out`, `timeline.play`, `timeline.pause`, `preview.canvas`, and
+`media.import`. Use
 `testid:<data-testid>` for an explicit app test ID.
+
+Before recording or capturing a visual result, wait for a frame rather than
+only waiting for the project API:
+
+```bash
+qcut editor pointer wait-for --target preview.frame-ready --timeout-ms 15000 --json
+```
+
+`preview.frame-ready` verifies editor initialization, the active project,
+native-composition loading state, active video identity, media ready state,
+dimensions, and at least one frame presented by the video element. It does not
+use a black-pixel heuristic because black footage is valid.
 
 Panel navigation clicks and semantic playhead seeks are low risk under the
 default action policy. Raw clicks and real drags remain confirmation-tier
@@ -183,10 +196,53 @@ qcut editor demo run \
   --json
 ```
 
-The plan may contain `project` or `projectId`, `timeline`/`manifest`, `actions`,
-and `export`. Add `export.verifyFrames` timestamps and
-`export.requireAudio: true` for explicit acceptance checks. Recording writes a
-sidecar pointer event track by default; pass `--event-track` to choose its path.
+Prefer a version 2 plan for repeatable recording:
+
+```json
+{
+  "version": 2,
+  "projectId": "<project-id>",
+  "timeline": "@timeline.json",
+  "capture": {
+    "actions": "@actions.json",
+    "record": "demo.mp4",
+    "prewarm": true,
+    "startTime": 0,
+    "prerollMs": 700,
+    "postrollMs": 700,
+    "durationToleranceMs": 250,
+    "verifyDuration": true,
+    "verifyResolution": true,
+    "minimumWidth": 1920,
+    "minimumHeight": 1080
+  },
+  "export": {
+    "outputPath": "promo-final.mp4",
+    "verifyFrames": [1, 5],
+    "requireAudio": true
+  }
+}
+```
+
+Relative `@timeline` and `@actions` references resolve from the plan file.
+Before capture, QCut preloads every referenced panel, restores the opening
+panel, hides the Agent pointer, seeks to `startTime`, and waits for a newly
+presented preview frame. Recording start returns only after the first non-empty
+video chunk is persisted. The runner adds pre-roll and post-roll, writes a
+version 2 pointer event track aligned to the MediaRecorder start, probes the
+final file duration with ffprobe, and fails if the tail is shorter than the
+capture lifecycle beyond `durationToleranceMs`.
+
+Demo capture uses a resolution-aware bitrate profile: 14 Mbps at 1080p,
+24 Mbps at 1440p, and 40 Mbps at 4K before constant-quality MP4 conversion.
+Resolution verification defaults to 1920x1080 for version 2 demo recordings,
+so a low-resolution window capture fails explicitly instead of producing an
+upscaled file with little real detail. Lower the minimum only when the user
+explicitly accepts a lower-resolution deliverable.
+
+Top-level `actions` and `record` remain supported for older plans. Pass
+`--event-track` to choose the sidecar path, or let the runner place it beside
+the recording.
 
 ## Editing rules
 
