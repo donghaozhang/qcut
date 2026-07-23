@@ -52,6 +52,15 @@ export interface StartScreenRecordingResult {
 	filePath: string;
 	startedAt: number;
 	mimeType: string | null;
+	firstChunkAt?: number;
+	captureStartedAt?: number;
+	readyAt?: number;
+	bytesWritten?: number;
+	captureWidth?: number;
+	captureHeight?: number;
+	frameRate?: number;
+	videoBitsPerSecond?: number;
+	meetsFullHd?: boolean;
 }
 
 export interface AppendScreenRecordingChunkOptions {
@@ -74,6 +83,10 @@ export interface StopScreenRecordingResult {
 	bytesWritten: number;
 	durationMs: number;
 	discarded: boolean;
+	wallDurationMs?: number;
+	firstChunkAt?: number | null;
+	chunkCount?: number;
+	durationVerified?: boolean;
 	error?: string;
 }
 
@@ -84,6 +97,10 @@ export interface ForceStopScreenRecordingResult {
 	bytesWritten?: number;
 	durationMs?: number;
 	discarded?: boolean;
+	wallDurationMs?: number;
+	firstChunkAt?: number | null;
+	chunkCount?: number;
+	durationVerified?: boolean;
 	error?: string;
 }
 
@@ -98,6 +115,14 @@ export interface ScreenRecordingStatus {
 	startedAt: number | null;
 	durationMs: number;
 	mimeType: string | null;
+	firstChunkAt?: number | null;
+	chunkCount?: number;
+	ready?: boolean;
+	captureWidth?: number;
+	captureHeight?: number;
+	frameRate?: number;
+	videoBitsPerSecond?: number;
+	meetsFullHd?: boolean;
 }
 
 export interface ActiveScreenRecordingSession {
@@ -109,6 +134,9 @@ export interface ActiveScreenRecordingSession {
 	outputFormat: ScreenRecordingOutputFormat;
 	startedAt: number;
 	bytesWritten: number;
+	firstChunkAt: number | null;
+	lastChunkAt: number | null;
+	chunkCount: number;
 	ownerWebContentsId: number;
 	fileStream: fs.WriteStream;
 	mimeType: string | null;
