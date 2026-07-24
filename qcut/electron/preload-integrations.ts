@@ -903,6 +903,34 @@ export function createRemotionFolderAPI(): NonNullable<
 }
 
 // ============================================================================
+// HyperFrames
+// ============================================================================
+
+/** Create the HyperFrames import, preview, and render API. */
+export function createHyperframesAPI(): ElectronAPI["hyperframes"] {
+	return {
+		select: () => ipcRenderer.invoke("hyperframes:select"),
+		registerPreview: (options) =>
+			ipcRenderer.invoke("hyperframes:preview-register", options),
+		releasePreview: (token) =>
+			ipcRenderer.invoke("hyperframes:preview-release", token),
+		render: (options) => ipcRenderer.invoke("hyperframes:render", options),
+		cancel: (renderId) => ipcRenderer.invoke("hyperframes:cancel", renderId),
+		cleanup: (sessionId) =>
+			ipcRenderer.invoke("hyperframes:cleanup", sessionId),
+		onRenderProgress: (callback) => {
+			const listener = (
+				_event: IpcRendererEvent,
+				progress: Parameters<typeof callback>[0]
+			) => callback(progress);
+			ipcRenderer.on("hyperframes:render-progress", listener);
+			return () =>
+				ipcRenderer.removeListener("hyperframes:render-progress", listener);
+		},
+	};
+}
+
+// ============================================================================
 // Moyin (Script-to-Storyboard)
 // ============================================================================
 

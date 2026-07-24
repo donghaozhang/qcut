@@ -57,6 +57,7 @@ import type {
 	RemotionFolderAPI,
 	MoyinAPI,
 } from "./api-types/remotion-moyin-api";
+import type { HyperframesAPI } from "./api-types/hyperframes-api";
 import type { UpdatesAPI, LicenseAPI } from "./api-types/system-api";
 import type { YouTubeApi } from "./api-types/youtube-api";
 
@@ -88,6 +89,7 @@ export interface ElectronAPI
 		ProjectJsonAPI,
 		ProjectFolderAPI,
 		RemotionFolderAPI,
+		HyperframesAPI,
 		MoyinAPI,
 		UpdatesAPI,
 		LicenseAPI,

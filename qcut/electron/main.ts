@@ -111,6 +111,10 @@ try {
 	/* pi-mono not installed */
 }
 const { setupRemotionFolderIPC } = require("./remotion-folder-handler.js");
+const {
+	registerDefaultHyperframesProtocol,
+	setupHyperframesIPC,
+} = require("./hyperframes/index.js");
 const { setupVideoSearchIPC } = require("./video-search-handler.js");
 const { setupScreenRecordingIPC } = require("./screen-recording-handler.js");
 const { setupMoyinIPC } = require("./moyin-handler.js");
@@ -208,6 +212,17 @@ protocol.registerSchemesAsPrivileged([
 			corsEnabled: true,
 			bypassCSP: false,
 			allowServiceWorkers: true,
+			stream: true,
+		},
+	},
+	{
+		scheme: "qcut-hyperframes",
+		privileges: {
+			secure: true,
+			standard: true,
+			supportFetchAPI: true,
+			corsEnabled: true,
+			bypassCSP: false,
 			stream: true,
 		},
 	},
@@ -383,6 +398,21 @@ function createWindow(): void {
 				}
 			});
 
+			if (details.url.startsWith("qcut-hyperframes:")) {
+				responseHeaders["Content-Security-Policy"] = [
+					"default-src 'self' data: blob: https: http:; " +
+						"script-src 'self' 'unsafe-inline' 'unsafe-eval' https: http: blob:; " +
+						"style-src 'self' 'unsafe-inline' https: http:; " +
+						"font-src 'self' data: https: http:; " +
+						"img-src 'self' data: blob: https: http:; " +
+						"media-src 'self' data: blob: https: http:; " +
+						"connect-src 'self' data: blob: https: http: ws: wss:;",
+				];
+				responseHeaders["Cross-Origin-Resource-Policy"] = ["cross-origin"];
+				callback({ responseHeaders });
+				return;
+			}
+
 			// Set complete new CSP policy, exactly matching index.html meta tag
 			responseHeaders["Content-Security-Policy"] = [
 				"default-src 'self' blob: data: app: https://cdn.tldraw.com; " +
@@ -391,8 +421,9 @@ function createWindow(): void {
 					"style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; " +
 					"font-src 'self' https://fonts.gstatic.com https://cdn.tldraw.com; " +
 					`connect-src 'self' blob: app: http://localhost:${staticServerPort} ws: wss: https://fonts.googleapis.com https://fonts.gstatic.com https://api.github.com https://fal.run https://queue.fal.run https://rest.alpha.fal.ai https://fal.media https://v3.fal.media https://v3b.fal.media https://api.iconify.design https://api.simplesvg.com https://api.unisvg.com https://freesound.org https://cdn.freesound.org https://cdn.tldraw.com https://qcut-license-server.zdhpeter.workers.dev https://storage.googleapis.com https://kbrtxitvavpuimuihppz.supabase.co; ` +
-					"media-src 'self' blob: data: app: https:; " +
-					"img-src 'self' blob: data: app: https://fal.run https://fal.media https://v3.fal.media https://v3b.fal.media https://api.iconify.design https://api.simplesvg.com https://api.unisvg.com https://avatars.githubusercontent.com https://i.ibb.co https://cdn.tldraw.com https://lh3.googleusercontent.com https://kbrtxitvavpuimuihppz.supabase.co;",
+					"media-src 'self' blob: data: app: qcut-hyperframes: https:; " +
+					"img-src 'self' blob: data: app: https://fal.run https://fal.media https://v3.fal.media https://v3b.fal.media https://api.iconify.design https://api.simplesvg.com https://api.unisvg.com https://avatars.githubusercontent.com https://i.ibb.co https://cdn.tldraw.com https://lh3.googleusercontent.com https://kbrtxitvavpuimuihppz.supabase.co; " +
+					"frame-src 'self' qcut-hyperframes:;",
 			];
 
 			// Add COOP/COEP headers to support SharedArrayBuffer (required for FFmpeg WASM)
@@ -655,6 +686,7 @@ if (!isCliKeyCommand && !isHeadlessRecorder) {
 		// Register custom app:// protocol handler. Extracted into its own
 		// module so headless-recorder mode can register it too.
 		registerAppProtocol({ logger });
+		registerDefaultHyperframesProtocol();
 
 		// Start the static server to serve FFmpeg WASM files
 		staticServer = await createStaticServer();
@@ -693,6 +725,7 @@ if (!isCliKeyCommand && !isHeadlessRecorder) {
 				},
 			],
 			["RemotionFolderIPC", setupRemotionFolderIPC],
+			["HyperframesIPC", setupHyperframesIPC],
 			["ScreenRecordingIPC", setupScreenRecordingIPC],
 			["MoyinIPC", setupMoyinIPC],
 			["MoyinMediaIPC", setupMoyinMediaIPC],

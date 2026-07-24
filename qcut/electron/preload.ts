@@ -57,6 +57,7 @@ import {
 	createProjectFolderAPI,
 	createClaudeAPI,
 	createRemotionFolderAPI,
+	createHyperframesAPI,
 	createUpdatesAPI,
 	createMoyinAPI,
 } from "./preload-integrations.js";
@@ -610,6 +611,7 @@ const electronAPI: ElectronAPI & Record<string, unknown> = {
 	},
 	claude: createClaudeAPI(),
 	remotionFolder: createRemotionFolderAPI(),
+	hyperframes: createHyperframesAPI(),
 	moyin: createMoyinAPI(),
 	updates: createUpdatesAPI(),
 
