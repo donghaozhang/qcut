@@ -20,6 +20,7 @@ import {
 	shell,
 } from "electron";
 import * as path from "node:path";
+import { resolveQCutRuntimeEndpoint } from "../claude/runtime-endpoint.js";
 import {
 	getProjectPath,
 	getProjectsRootPath,
@@ -693,10 +694,17 @@ async function handleMainRequest(
 		}
 
 		case "screen-recording:start": {
-			const req = data as { sourceId?: string; fileName?: string };
+			const req = data as {
+				sourceId?: string;
+				fileName?: string;
+				captureMode?: string;
+				recordingQuality?: string;
+			};
 			return requestStartRecordingFromRenderer(win, {
 				sourceId: req.sourceId,
 				fileName: req.fileName,
+				captureMode: req.captureMode,
+				recordingQuality: req.recordingQuality,
 			});
 		}
 
@@ -1104,11 +1112,11 @@ export function startUtilityProcess(): void {
 	});
 
 	// Send init config
-	const httpPort = Number.parseInt(process.env.QCUT_API_PORT ?? "8765", 10);
+	const runtimeEndpoint = resolveQCutRuntimeEndpoint();
 	utilityChild.postMessage({
 		type: "init",
 		config: {
-			httpPort: Number.isFinite(httpPort) && httpPort > 0 ? httpPort : 8765,
+			httpPort: runtimeEndpoint.port,
 			appVersion: app.getVersion(),
 		},
 	});
@@ -1159,6 +1167,11 @@ export function setupUtilityPtyIPC(): void {
 
 			const sessionId = `pty-${Date.now()}-${Math.random().toString(36).substring(2, 9)}`;
 			const requestId = `req-${Date.now()}-${Math.random().toString(36).substring(2, 9)}`;
+			const apiBaseUrl = resolveQCutRuntimeEndpoint().baseUrl;
+			const sessionEnv: Record<string, string> = {
+				...options.env,
+				QCUT_API_BASE_URL: apiBaseUrl,
+			};
 
 			sessionToWebContentsId.set(sessionId, event.sender.id);
 
@@ -1171,13 +1184,13 @@ export function setupUtilityPtyIPC(): void {
 				webContentsId: event.sender.id,
 				cwd: options.cwd,
 				command: options.command,
-				env: options.env,
+				env: sessionEnv,
 				cols: options.cols,
 				rows: options.rows,
 				mcpServerPath,
-				projectId: options.env?.QCUT_PROJECT_ID,
-				projectRoot: options.env?.QCUT_PROJECT_ROOT || options.cwd,
-				apiBaseUrl: options.env?.QCUT_API_BASE_URL,
+				projectId: sessionEnv.QCUT_PROJECT_ID,
+				projectRoot: sessionEnv.QCUT_PROJECT_ROOT || options.cwd,
+				apiBaseUrl,
 			};
 			sessionRegistry.set(sessionId, metadata);
 
@@ -1219,11 +1232,11 @@ export function setupUtilityPtyIPC(): void {
 					cols: options.cols,
 					rows: options.rows,
 					cwd: options.cwd,
-					env: options.env,
+					env: sessionEnv,
 					mcpServerPath,
-					projectId: options.env?.QCUT_PROJECT_ID,
-					projectRoot: options.env?.QCUT_PROJECT_ROOT || options.cwd,
-					apiBaseUrl: options.env?.QCUT_API_BASE_URL,
+					projectId: sessionEnv.QCUT_PROJECT_ID,
+					projectRoot: sessionEnv.QCUT_PROJECT_ROOT || options.cwd,
+					apiBaseUrl,
 				});
 			});
 		}

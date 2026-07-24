@@ -286,6 +286,8 @@ export interface CLIRunOptions {
 	plan?: string;
 	record?: string;
 	eventTrack?: string;
+	prerollMs?: number;
+	postrollMs?: number;
 	speed?: number;
 	skipIdle?: boolean;
 	waitFor?: string;
@@ -325,6 +327,8 @@ export interface CLIRunOptions {
 	loadSpeech?: boolean;
 	// screen-recording options
 	sourceId?: string;
+	captureMode?: string;
+	recordingQuality?: string;
 	discard?: boolean;
 	force?: boolean;
 	// key-sync options (system sync-keys)
@@ -433,6 +437,9 @@ export interface CLIRunOptions {
 	voice?: string;
 	stability?: number;
 	languageCode?: string;
+	volume?: number;
+	pitch?: number;
+	multilingual?: boolean;
 }
 
 /** Standard result returned by a CLI command handler. */

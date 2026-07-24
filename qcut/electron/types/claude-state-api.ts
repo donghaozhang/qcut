@@ -79,6 +79,7 @@ export interface TimelineSnapshotTrack {
 	name: string;
 	type: string;
 	muted?: boolean;
+	hidden?: boolean;
 	isMain?: boolean;
 	elements: TimelineSnapshotElement[];
 }
@@ -159,6 +160,31 @@ export interface EditorUiStateSnapshot {
 		isInitializing: boolean;
 		isPanelsReady: boolean;
 	};
+	preview?: PreviewStateSnapshot;
+}
+
+export interface PreviewStateSnapshot {
+	panelMounted: boolean;
+	canvasMounted: boolean;
+	ready: boolean;
+	reason: string | null;
+	loading: boolean;
+	activeVideoMediaIds: string[];
+	nativeCompositionStatus: "idle" | "rendering" | "ready" | "error";
+	lastPresentedAt: number | null;
+	videos: PreviewVideoStateSnapshot[];
+}
+
+export interface PreviewVideoStateSnapshot {
+	mediaId: string | null;
+	readyState: number;
+	networkState: number;
+	videoWidth: number;
+	videoHeight: number;
+	currentTime: number;
+	presentedFrames: number;
+	presentedAt: number | null;
+	error: string | null;
 }
 
 export interface ModalSnapshotItem {

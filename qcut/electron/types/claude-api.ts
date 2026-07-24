@@ -1007,6 +1007,20 @@ export interface Transaction {
 	expiresAt: number;
 	error?: string;
 }
+
+// Screen recording option values shared by the HTTP routes, CLI, and renderer.
+export const SCREEN_RECORDING_CAPTURE_MODES = ["editor", "preview"] as const;
+export type ScreenRecordingCaptureMode =
+	(typeof SCREEN_RECORDING_CAPTURE_MODES)[number];
+
+export const SCREEN_RECORDING_QUALITY_PRESETS = [
+	"native",
+	"1080p",
+	"1440p",
+	"2160p",
+] as const;
+export type ScreenRecordingQualityPreset =
+	(typeof SCREEN_RECORDING_QUALITY_PRESETS)[number];
 export type {
 	ApiVersionInfo,
 	Capability,

@@ -1058,6 +1058,10 @@ const CORE_COMMANDS: Record<string, CommandDef> = {
 			f("--zoom-blur", "number", "Motion blur during zoom (0-1)"),
 			f("--mic", "boolean", "Capture microphone audio"),
 			f("--system-audio", "boolean", "Capture system audio", { default: true }),
+			f("--recording-quality", "string", "Recording output quality", {
+				default: "native",
+				enum: ["native", "1080p", "1440p", "2k", "2160p", "4k"],
+			}),
 			f(
 				"--no-auto-launch",
 				"boolean",
@@ -1091,7 +1095,7 @@ const CORE_COMMANDS: Record<string, CommandDef> = {
 	// ── Speech ──
 	"generate-speech": {
 		name: "generate-speech",
-		description: "Generate speech from text (Chatterbox TTS)",
+		description: "Generate speech or cinematic audio from text",
 		category: "generation",
 		flags: [
 			f("--text", "string", "Text to speak", { short: "-t", required: true }),
@@ -1103,13 +1107,25 @@ const CORE_COMMANDS: Record<string, CommandDef> = {
 					"chatterbox_tts_turbo",
 					"elevenlabs_v3",
 					"qwen3_tts",
+					"seed_audio",
 				],
 			}),
 			f("--provider", "string", "Provider name (auto-selects model)", {
-				enum: ["chatterbox", "elevenlabs", "qwen"],
+				enum: [
+					"chatterbox",
+					"elevenlabs",
+					"qwen",
+					"seed",
+					"seedaudio",
+					"bytedance",
+				],
 			}),
-			f("--audio-url", "string", "Voice reference audio URL (for cloning)"),
-			f("--voice", "string", "Voice preset name (ElevenLabs/Qwen3)"),
+			f(
+				"--audio-url",
+				"string",
+				"Voice reference audio URL (Chatterbox/Qwen3/Seed Audio)"
+			),
+			f("--voice", "string", "Voice preset name (ElevenLabs/Qwen3/Seed Audio)"),
 			f(
 				"--stability",
 				"number",
@@ -1132,12 +1148,26 @@ const CORE_COMMANDS: Record<string, CommandDef> = {
 				"Classifier-free guidance 0.1-1.0 (Chatterbox, default: 0.5)"
 			),
 			f("--seed", "number", "Seed for reproducibility"),
+			f("--audio-format", "string", "Seed Audio output format", {
+				default: "mp3",
+				enum: ["wav", "mp3", "pcm", "ogg_opus"],
+			}),
+			f("--sample-rate", "number", "Seed Audio sample rate", {
+				default: 48_000,
+				enum: ["8000", "16000", "24000", "32000", "44100", "48000"],
+			}),
+			f("--speed", "number", "Seed Audio speech speed (0.5-2.0)"),
+			f("--volume", "number", "Seed Audio volume multiplier"),
+			f("--pitch", "number", "Seed Audio pitch shift in semitones (-12 to 12)"),
+			f("--multilingual", "boolean", "Use Seed Audio multilingual synthesis"),
 		],
 		examples: [
 			"qcut-pipeline generate-speech -t 'Hello world!'",
 			"qcut-pipeline generate-speech -t 'Check this out! <laugh>' --audio-url ./voice.mp3 -m chatterbox_tts_turbo",
 			"qcut-pipeline generate-speech -t 'Hello' -m elevenlabs_v3 --voice Rachel --stability 0.7",
 			"qcut-pipeline generate-speech -t 'Hello' -m qwen3_tts --voice Vivian --language English",
+			"qcut gen tts -m seed_audio -t '清晰自然的中文产品旁白' --multilingual --sample-rate 48000",
+			"qcut gen tts --provider seed -t 'Warm English product narration with subtle music'",
 		],
 	},
 	"convert-speech": {

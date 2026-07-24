@@ -532,6 +532,8 @@ async function handleScreenRecordingCommand(
 				const body: Record<string, unknown> = {};
 				if (options.sourceId) body.sourceId = options.sourceId;
 				if (options.filename) body.fileName = options.filename;
+				body.captureMode = options.captureMode ?? "editor";
+				body.recordingQuality = options.recordingQuality ?? "native";
 				const data = await client.post(
 					"/api/claude/screen-recording/start",
 					body

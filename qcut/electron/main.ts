@@ -35,6 +35,7 @@ import {
 	setupUtilityPtyIPC,
 	cleanupUtilityProcess,
 } from "./utility/utility-bridge.js";
+import { resolveInitialWindowSize } from "./window-sizing.js";
 
 // Type definitions
 interface ReleaseNote {
@@ -450,8 +451,10 @@ function createWindow(): void {
 	try {
 		const { width: screenW, height: screenH } =
 			screen.getPrimaryDisplay().workAreaSize;
-		const w = Math.round(screenW * 0.8);
-		const h = Math.round(screenH * 0.8);
+		const { width: w, height: h } = resolveInitialWindowSize({
+			workAreaWidth: screenW,
+			workAreaHeight: screenH,
+		});
 		mainWindow.setSize(w, h);
 		mainWindow.center();
 	} catch {

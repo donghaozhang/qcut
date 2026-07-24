@@ -47,4 +47,45 @@ export function registerTTSModels(): void {
 		costEstimate: 0.08,
 		processingTime: 20,
 	});
+
+	ModelRegistry.register({
+		key: "seed_audio",
+		name: "Seed Audio 1.0",
+		provider: "ByteDance",
+		providerBackend: "fal",
+		endpoint: "bytedance/seed-audio-1.0",
+		categories: ["text_to_speech"],
+		description:
+			"Multilingual speech, dialogue, sound effects, and music in one pass",
+		pricing: { per_minute: 0.1875 },
+		defaults: {
+			output_format: "mp3",
+			sample_rate: 24_000,
+			speed: 1,
+			volume: 1,
+		},
+		features: [
+			"multilingual",
+			"reference_voice",
+			"sound_effects",
+			"background_music",
+		],
+		maxDuration: 120,
+		inputRequirements: {
+			required: ["prompt"],
+			optional: [
+				"voice",
+				"audio_urls",
+				"image_url",
+				"output_format",
+				"sample_rate",
+				"speed",
+				"volume",
+				"pitch",
+				"multilingual",
+			],
+		},
+		costEstimate: 0.1875,
+		processingTime: 45,
+	});
 }

@@ -21,11 +21,11 @@ let optionalPackagesLoaded: Promise<void> | null = null;
 // Try to load optional packages (won't fail build if missing)
 async function loadOptionalPackages(): Promise<void> {
 	try {
-		const zodTypes = await import("@remotion/zod-types");
+		const zodTypes = await import("@remotion/zod-types-v3");
 		RemotionZodTypes = zodTypes as unknown as Record<string, unknown>;
-		debugLog("[DynamicLoader] ✅ Loaded @remotion/zod-types");
+		debugLog("[DynamicLoader] ✅ Loaded @remotion/zod-types-v3");
 	} catch (e) {
-		debugLog("[DynamicLoader] @remotion/zod-types not available:", e);
+		debugLog("[DynamicLoader] @remotion/zod-types-v3 not available:", e);
 	}
 
 	try {
@@ -383,7 +383,7 @@ export async function loadBundledComponent(
  * @param bundledCode - The original bundled code
  * @returns Wrapped code with dependency injection
  */
-function wrapBundledCode(bundledCode: string): string {
+export function wrapBundledCode(bundledCode: string): string {
 	// Ensure globals are available
 	setupGlobalsForDynamicImport();
 
@@ -431,10 +431,10 @@ function wrapBundledCode(bundledCode: string): string {
 		}
 	}
 
-	// Find @remotion/zod-types import aliases (zColor, etc.)
+	// Accept both package names so existing Remotion projects keep loading.
 	const zodTypesAliases: Map<string, string[]> = new Map();
 	const zodTypesMatches = bundledCode.matchAll(
-		/import\s*\{([^}]*)\}\s*from\s*["']@remotion\/zod-types["'];?/g
+		/import\s*\{([^}]*)\}\s*from\s*["']@remotion\/zod-types(?:-v3)?["'];?/g
 	);
 	for (const match of zodTypesMatches) {
 		const specifiers = match[1].split(",");
@@ -499,7 +499,7 @@ function wrapBundledCode(bundledCode: string): string {
 		}
 	}
 
-	// Build dynamic alias assignments for @remotion/zod-types
+	// Build dynamic alias assignments for Remotion Zod types
 	let zodTypesAliasAssignments = "";
 	for (const [original, aliases] of zodTypesAliases) {
 		for (const alias of aliases) {
@@ -537,7 +537,7 @@ const { useCurrentFrame, useVideoConfig, AbsoluteFill, Sequence, Series, Audio, 
 // Remotion aliases
 ${remotionAliasAssignments}
 
-// @remotion/zod-types exports (if available)
+// Remotion Zod type exports (if available)
 const RemotionZodTypes = globalThis.RemotionZodTypes || window.RemotionZodTypes || {};
 const { zColor } = RemotionZodTypes;
 // zod-types aliases

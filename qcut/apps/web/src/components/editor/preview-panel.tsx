@@ -22,7 +22,10 @@ import {
 	PreviewToolbar,
 	PreviewModeToggle,
 } from "./preview-panel-components";
-import { captureWithFallback } from "@/lib/effects/canvas-utils";
+import {
+	captureWithFallback,
+	hasDrawableCaptureArea,
+} from "@/lib/effects/canvas-utils";
 import { useFrameCache } from "@/hooks/timeline/use-frame-cache";
 import {
 	InteractiveElementOverlay,
@@ -169,7 +172,6 @@ export function PreviewPanel() {
 		return () =>
 			window.removeEventListener("playback-update", handlePlaybackUpdate);
 	}, [activeProject?.fps, isPlaying, currentTime, tracks]);
-	const [isExpanded, setIsExpanded] = useState(false);
 	const [previewScale, setPreviewScale] = useState<
 		"fit" | 75 | 100 | 125 | 150
 	>("fit");
@@ -182,6 +184,10 @@ export function PreviewPanel() {
 	const setLocalMcpActive = useMcpAppStore((state) => state.setLocalMcpActive);
 	const previewMode = usePreviewModeStore((state) => state.previewMode);
 	const setPreviewMode = usePreviewModeStore((state) => state.setPreviewMode);
+	const isExpanded = usePreviewModeStore((state) => state.isPreviewExpanded);
+	const setPreviewExpanded = usePreviewModeStore(
+		(state) => state.setPreviewExpanded
+	);
 
 	// Local MCP: derive HTML fresh from template every render (auto-reload on HMR)
 	// External MCP: use stored HTML from IPC
@@ -283,7 +289,7 @@ export function PreviewPanel() {
 	useEffect(() => {
 		const handleEscapeKey = (event: KeyboardEvent) => {
 			if (event.key === "Escape" && isExpanded) {
-				setIsExpanded(false);
+				setPreviewExpanded({ expanded: false });
 			}
 		};
 
@@ -298,11 +304,11 @@ export function PreviewPanel() {
 			document.removeEventListener("keydown", handleEscapeKey);
 			document.body.style.overflow = "";
 		};
-	}, [isExpanded]);
+	}, [isExpanded, setPreviewExpanded]);
 
 	const toggleExpanded = useCallback(() => {
-		setIsExpanded((prev) => !prev);
-	}, []);
+		setPreviewExpanded({ expanded: !isExpanded });
+	}, [isExpanded, setPreviewExpanded]);
 
 	const handleModeChange = useCallback(
 		(mode: string) => {
@@ -475,7 +481,11 @@ export function PreviewPanel() {
 
 	// Warm cache during idle time
 	useEffect(() => {
-		if (!isPlaying && previewRef.current) {
+		const hasDrawablePreview = hasDrawableCaptureArea({
+			width: previewDimensions.width,
+			height: previewDimensions.height,
+		});
+		if (!isPlaying && previewRef.current && hasDrawablePreview) {
 			const warmCache = () => {
 				preRenderNearbyFrames(
 					currentTime,

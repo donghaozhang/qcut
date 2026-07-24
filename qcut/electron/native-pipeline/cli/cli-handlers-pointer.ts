@@ -8,6 +8,7 @@ import type {
 } from "../../types/claude-api.js";
 import type { EditorApiClient } from "../editor/editor-api-client.js";
 import { resolveJsonInput } from "../editor/editor-api-types.js";
+import { ensureEditorPreviewReady } from "../editor/editor-preview-readiness.js";
 import type { CLIRunOptions, CLIResult } from "./cli-runner/types.js";
 
 interface PointerTargetOptions {
@@ -54,6 +55,8 @@ const SEMANTIC_TARGET_TEST_IDS: Record<string, string[]> = {
 	"timeline.toolbar": ["timeline-toolbar"],
 	"timeline.zoom-in": ["zoom-in-button"],
 	"timeline.zoom-out": ["zoom-out-button"],
+	"timeline.play": ["timeline-play-button", "preview-play-button"],
+	"timeline.pause": ["timeline-pause-button", "preview-pause-button"],
 	"preview.canvas": ["preview-canvas", "preview-panel"],
 	"media.import": ["import-media-button"],
 };
@@ -587,12 +590,30 @@ async function waitForRequestedState({
 	value,
 	timeoutMs,
 	intervalMs,
+	projectId,
 }: {
 	client: EditorApiClient;
 	value: string;
 	timeoutMs?: number;
 	intervalMs?: number;
+	projectId?: string;
 }): Promise<CLIResult> {
+	if (value === "preview.ready" || value === "preview.frame-ready") {
+		try {
+			const readiness = await ensureEditorPreviewReady({
+				client,
+				projectId,
+				timeoutMs,
+				intervalMs,
+			});
+			return { success: true, data: readiness };
+		} catch (error) {
+			return {
+				success: false,
+				error: error instanceof Error ? error.message : String(error),
+			};
+		}
+	}
 	if (SEMANTIC_TARGET_TEST_IDS[value] || value.startsWith("testid:")) {
 		try {
 			const matched = await waitForSemanticTarget({
@@ -630,6 +651,7 @@ async function postTargetAction({
 			value: options.waitFor,
 			timeoutMs: options.timeoutMs,
 			intervalMs: options.intervalMs,
+			projectId: options.projectId,
 		});
 		if (!waited.success) return waited;
 	}
@@ -773,6 +795,7 @@ async function handleDrag({
 			value: options.waitFor,
 			timeoutMs: options.timeoutMs,
 			intervalMs: options.intervalMs,
+			projectId: options.projectId,
 		});
 		if (!waited.success) return waited;
 	}
@@ -1172,6 +1195,7 @@ async function runSequenceAction({
 				value: semanticTarget,
 				timeoutMs: numberValue(action, "timeoutMs"),
 				intervalMs: numberValue(action, "intervalMs"),
+				projectId: stringValue(action, "projectId") ?? baseOptions.projectId,
 			});
 		}
 		return waitForEditorUi({
@@ -1294,13 +1318,21 @@ async function stopSequenceRecording({
 
 async function writePointerEventTrack({
 	requestedPath,
-	startedAt,
+	captureStartedAt,
+	sequenceStartedAt,
+	endedAt,
+	prerollMs,
+	postrollMs,
 	speed,
 	skipIdle,
 	events,
 }: {
 	requestedPath: string;
-	startedAt: number;
+	captureStartedAt: number;
+	sequenceStartedAt: number;
+	endedAt: number;
+	prerollMs: number;
+	postrollMs: number;
 	speed: number;
 	skipIdle: boolean;
 	events: Array<Record<string, unknown>>;
@@ -1313,10 +1345,13 @@ async function writePointerEventTrack({
 		outputPath,
 		JSON.stringify(
 			{
-				version: 1,
+				version: 2,
 				kind: "qcut-pointer-event-track",
-				startedAt: new Date(startedAt).toISOString(),
-				durationMs: Math.max(0, Date.now() - startedAt),
+				startedAt: new Date(captureStartedAt).toISOString(),
+				sequenceStartedAt: new Date(sequenceStartedAt).toISOString(),
+				durationMs: Math.max(0, endedAt - captureStartedAt),
+				prerollMs,
+				postrollMs,
 				speed,
 				skipIdle,
 				events,
@@ -1347,23 +1382,37 @@ export async function runPointerSequence({
 		return { success: false, error: "--actions must be a JSON array" };
 
 	let recordingStarted = false;
+	let recordingStart: unknown;
 	let recording: unknown;
 	let recordingOutputPath: string | undefined;
+	let captureStartedAt: number | undefined;
+	let appliedPrerollMs = 0;
+	let appliedPostrollMs = 0;
 	if (options.record) {
 		const path = await import("node:path");
 		recordingOutputPath = await resolveRecordingOutputPath({
 			requestedPath: options.record,
 		});
-		await client.post("/api/claude/screen-recording/start", {
+		recordingStart = await client.post("/api/claude/screen-recording/start", {
 			fileName: path.basename(recordingOutputPath),
+			captureMode: "editor",
+			recordingQuality: options.recordingQuality ?? "native",
 		});
 		recordingStarted = true;
+		if (isRecord(recordingStart)) {
+			captureStartedAt =
+				numberValue(recordingStart, "captureStartedAt") ??
+				numberValue(recordingStart, "startedAt");
+		}
+		appliedPrerollMs = Math.max(0, options.prerollMs ?? 0);
+		if (appliedPrerollMs > 0) await sleep(appliedPrerollMs);
 	}
 
 	const results: Array<{ index: number; action: unknown; result: CLIResult }> =
 		[];
 	const events: Array<Record<string, unknown>> = [];
 	const sequenceStartedAt = Date.now();
+	const eventTrackStartedAt = captureStartedAt ?? sequenceStartedAt;
 	const speed = speedMultiplier(options);
 	let activeRef: string | undefined;
 	try {
@@ -1398,8 +1447,8 @@ export async function runPointerSequence({
 			events.push({
 				index,
 				action: actionName,
-				startMs: actionStartedAt - sequenceStartedAt,
-				endMs: Date.now() - sequenceStartedAt,
+				startMs: actionStartedAt - eventTrackStartedAt,
+				endMs: Date.now() - eventTrackStartedAt,
 				durationMs: Date.now() - actionStartedAt,
 				skipped,
 				target: action.target,
@@ -1421,6 +1470,7 @@ export async function runPointerSequence({
 		}
 	} catch (error) {
 		const screenshot = await captureFailureScreenshot(client);
+		const captureEndedAt = Date.now();
 		if (recordingStarted && recordingOutputPath) {
 			try {
 				recording = await stopSequenceRecording({
@@ -1436,7 +1486,11 @@ export async function runPointerSequence({
 			try {
 				eventTrack = await writePointerEventTrack({
 					requestedPath: options.eventTrack,
-					startedAt: sequenceStartedAt,
+					captureStartedAt: eventTrackStartedAt,
+					sequenceStartedAt,
+					endedAt: captureEndedAt,
+					prerollMs: appliedPrerollMs,
+					postrollMs: 0,
 					speed,
 					skipIdle: options.skipIdle === true,
 					events,
@@ -1448,10 +1502,29 @@ export async function runPointerSequence({
 		return {
 			success: false,
 			error: error instanceof Error ? error.message : String(error),
-			data: { results, screenshot, recording, eventTrack },
+			data: {
+				results,
+				screenshot,
+				recording,
+				eventTrack,
+				capture: {
+					start: recordingStart,
+					captureStartedAt: eventTrackStartedAt,
+					sequenceStartedAt,
+					endedAt: captureEndedAt,
+					expectedDurationMs: Math.max(0, captureEndedAt - eventTrackStartedAt),
+					prerollMs: appliedPrerollMs,
+					postrollMs: 0,
+				},
+			},
 		};
 	}
 
+	if (recordingStarted) {
+		appliedPostrollMs = Math.max(0, options.postrollMs ?? 0);
+		if (appliedPostrollMs > 0) await sleep(appliedPostrollMs);
+	}
+	const captureEndedAt = Date.now();
 	if (recordingStarted && recordingOutputPath) {
 		recording = await stopSequenceRecording({
 			client,
@@ -1461,7 +1534,11 @@ export async function runPointerSequence({
 	const eventTrack = options.eventTrack
 		? await writePointerEventTrack({
 				requestedPath: options.eventTrack,
-				startedAt: sequenceStartedAt,
+				captureStartedAt: eventTrackStartedAt,
+				sequenceStartedAt,
+				endedAt: captureEndedAt,
+				prerollMs: appliedPrerollMs,
+				postrollMs: appliedPostrollMs,
 				speed,
 				skipIdle: options.skipIdle === true,
 				events,
@@ -1474,6 +1551,15 @@ export async function runPointerSequence({
 			executedActionCount: events.filter((event) => event.skipped !== true)
 				.length,
 			results,
+			capture: {
+				start: recordingStart,
+				captureStartedAt: eventTrackStartedAt,
+				sequenceStartedAt,
+				endedAt: captureEndedAt,
+				expectedDurationMs: Math.max(0, captureEndedAt - eventTrackStartedAt),
+				prerollMs: appliedPrerollMs,
+				postrollMs: appliedPostrollMs,
+			},
 			recording,
 			eventTrack,
 		},
@@ -1512,6 +1598,7 @@ export async function handlePointerCommand({
 				value: requested,
 				timeoutMs: options.timeoutMs,
 				intervalMs: options.intervalMs,
+				projectId: options.projectId,
 			});
 		}
 		case "scroll":

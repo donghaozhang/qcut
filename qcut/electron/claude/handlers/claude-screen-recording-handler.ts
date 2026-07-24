@@ -22,6 +22,8 @@ const RENDERER_STOP_TIMEOUT_MS = 30_000;
 export interface StartRecordingRequest {
 	sourceId?: string;
 	fileName?: string;
+	captureMode?: string;
+	recordingQuality?: string;
 }
 
 export interface StartRecordingResponse {
@@ -31,6 +33,22 @@ export interface StartRecordingResponse {
 	filePath: string;
 	startedAt: number;
 	mimeType: string | null;
+	firstChunkAt?: number;
+	captureStartedAt?: number;
+	readyAt?: number;
+	bytesWritten?: number;
+	captureWidth?: number;
+	captureHeight?: number;
+	frameRate?: number;
+	videoBitsPerSecond?: number;
+	meetsFullHd?: boolean;
+	sourceWidth?: number;
+	sourceHeight?: number;
+	outputWidth?: number;
+	outputHeight?: number;
+	qualityPreset?: "native" | "1080p" | "1440p" | "2160p";
+	captureMode?: "editor" | "preview";
+	isUpscaled?: boolean;
 }
 
 export interface StopRecordingRequest {
@@ -43,6 +61,10 @@ export interface StopRecordingResponse {
 	bytesWritten: number;
 	durationMs: number;
 	discarded: boolean;
+	wallDurationMs?: number;
+	firstChunkAt?: number | null;
+	chunkCount?: number;
+	durationVerified?: boolean;
 }
 
 function mapForceStopToStopResponse({
@@ -59,6 +81,10 @@ function mapForceStopToStopResponse({
 			bytesWritten: forceStopResult.bytesWritten ?? 0,
 			durationMs: forceStopResult.durationMs ?? 0,
 			discarded: forceStopResult.discarded ?? true,
+			wallDurationMs: forceStopResult.wallDurationMs,
+			firstChunkAt: forceStopResult.firstChunkAt,
+			chunkCount: forceStopResult.chunkCount,
+			durationVerified: forceStopResult.durationVerified,
 		};
 	} catch (error) {
 		throw new Error(

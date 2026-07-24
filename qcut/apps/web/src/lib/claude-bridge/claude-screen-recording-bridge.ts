@@ -49,7 +49,12 @@ export function setupClaudeScreenRecordingBridge(): void {
 	srAPI.onStartRequest(
 		async (data: {
 			requestId: string;
-			options: { sourceId?: string; fileName?: string };
+			options: {
+				sourceId?: string;
+				fileName?: string;
+				captureMode?: string;
+				recordingQuality?: string;
+			};
 		}) => {
 			try {
 				debugLog("Received start recording request", data.options);
@@ -57,6 +62,10 @@ export function setupClaudeScreenRecordingBridge(): void {
 					options: {
 						sourceId: data.options.sourceId,
 						fileName: data.options.fileName,
+					},
+					capture: {
+						captureMode: data.options.captureMode,
+						qualityPreset: data.options.recordingQuality,
 					},
 				});
 				srAPI.sendStartResponse(data.requestId, result);

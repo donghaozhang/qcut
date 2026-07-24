@@ -105,7 +105,12 @@ export interface ClaudeScreenRecordingBridgeAPI {
 		onStartRequest: (
 			callback: (data: {
 				requestId: string;
-				options: { sourceId?: string; fileName?: string };
+				options: {
+					sourceId?: string;
+					fileName?: string;
+					captureMode?: string;
+					recordingQuality?: string;
+				};
 			}) => void
 		) => void;
 		sendStartResponse: (
@@ -117,6 +122,22 @@ export interface ClaudeScreenRecordingBridgeAPI {
 				filePath: string;
 				startedAt: number;
 				mimeType: string | null;
+				firstChunkAt?: number;
+				captureStartedAt?: number;
+				readyAt?: number;
+				bytesWritten?: number;
+				captureWidth?: number;
+				captureHeight?: number;
+				frameRate?: number;
+				videoBitsPerSecond?: number;
+				meetsFullHd?: boolean;
+				sourceWidth?: number;
+				sourceHeight?: number;
+				outputWidth?: number;
+				outputHeight?: number;
+				qualityPreset?: "native" | "1080p" | "1440p" | "2160p";
+				captureMode?: "editor" | "preview";
+				isUpscaled?: boolean;
 			},
 			error?: string
 		) => void;
@@ -134,6 +155,10 @@ export interface ClaudeScreenRecordingBridgeAPI {
 				bytesWritten: number;
 				durationMs: number;
 				discarded: boolean;
+				wallDurationMs?: number;
+				firstChunkAt?: number | null;
+				chunkCount?: number;
+				durationVerified?: boolean;
 			},
 			error?: string
 		) => void;

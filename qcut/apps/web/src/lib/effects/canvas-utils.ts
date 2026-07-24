@@ -6,6 +6,18 @@ export interface CaptureOptions {
 	backgroundColor?: string;
 }
 
+export function hasDrawableCaptureArea({
+	width,
+	height,
+}: Pick<CaptureOptions, "width" | "height">): boolean {
+	return (
+		Number.isFinite(width) &&
+		Number.isFinite(height) &&
+		width >= 1 &&
+		height >= 1
+	);
+}
+
 /**
  * Capture a DOM element to canvas and return as ImageData
  * This is used for frame caching in the timeline
@@ -14,6 +26,10 @@ export async function captureFrameToCanvas(
 	element: HTMLElement,
 	options: CaptureOptions
 ): Promise<ImageData | null> {
+	if (!hasDrawableCaptureArea(options)) {
+		return null;
+	}
+
 	try {
 		// Skip OffscreenCanvas with html2canvas due to compatibility issues
 		// html2canvas doesn't properly support canvas option with OffscreenCanvas
@@ -122,6 +138,10 @@ export async function captureWithFallback(
 	element: HTMLElement,
 	options: CaptureOptions
 ): Promise<ImageData | null> {
+	if (!hasDrawableCaptureArea(options)) {
+		return null;
+	}
+
 	// Try offscreen first for better performance
 	const result = await captureFrameToOffscreenCanvas(element, options);
 	if (result) return result;

@@ -46,6 +46,10 @@ import type {
 	AutoEditJob,
 } from "../types/claude-api.js";
 import {
+	SCREEN_RECORDING_CAPTURE_MODES,
+	SCREEN_RECORDING_QUALITY_PRESETS,
+} from "../types/claude-api.js";
+import {
 	buildDeepHealthReport,
 	buildUtilityMainBridgeCheck,
 	DEEP_HEALTH_CHECK_STATUSES,
@@ -116,6 +120,27 @@ function withTimeout<T>(
 			setTimeout(() => reject(new HttpError(504, message)), ms)
 		),
 	]);
+}
+
+/** Read an optional enum-valued body field, rejecting invalid values with 400. */
+function readEnumBodyField({
+	body,
+	key,
+	allowed,
+}: {
+	body: Record<string, unknown> | undefined;
+	key: string;
+	allowed: readonly string[];
+}): string | undefined {
+	const value = body?.[key];
+	if (value === undefined || value === null) return undefined;
+	if (typeof value !== "string" || !allowed.includes(value)) {
+		throw new HttpError(
+			400,
+			`Invalid '${key}': expected one of ${allowed.join(", ")}`
+		);
+	}
+	return value;
 }
 
 interface UtilityHttpConfig {
@@ -565,8 +590,23 @@ export function startUtilityHttpServer(config: UtilityHttpConfig): void {
 	router.post("/api/claude/screen-recording/start", async (req) => {
 		const sourceId = req.body?.sourceId as string | undefined;
 		const fileName = req.body?.fileName as string | undefined;
+		const captureMode = readEnumBodyField({
+			body: req.body,
+			key: "captureMode",
+			allowed: SCREEN_RECORDING_CAPTURE_MODES,
+		});
+		const recordingQuality = readEnumBodyField({
+			body: req.body,
+			key: "recordingQuality",
+			allowed: SCREEN_RECORDING_QUALITY_PRESETS,
+		});
 		return await withTimeout(
-			requestFromMain("screen-recording:start", { sourceId, fileName }),
+			requestFromMain("screen-recording:start", {
+				sourceId,
+				fileName,
+				captureMode,
+				recordingQuality,
+			}),
 			30_000,
 			"Recording start timed out"
 		);

@@ -91,6 +91,7 @@ export function VideoPlayer({
 	const pendingCleanupRef = useRef<string | null>(null);
 	const videoLoadedRef = useRef(false);
 	const recoveryAttemptRef = useRef(0);
+	const presentedFramesRef = useRef(0);
 	const MAX_RECOVERY_ATTEMPTS = 2;
 	const { isPlaying, currentTime, speed } = usePlaybackStore();
 	const timelineTimeRef = useRef(currentTime);
@@ -317,6 +318,9 @@ export function VideoPlayer({
 
 		// Reset load state for new source
 		videoLoadedRef.current = false;
+		presentedFramesRef.current = 0;
+		video.setAttribute("data-qcut-presented-frames", "0");
+		video.removeAttribute("data-qcut-presented-at");
 
 		if (videoSource.type === "file") {
 			// Release reference to previous blob URL (if any)
@@ -370,6 +374,45 @@ export function VideoPlayer({
 		};
 	}, [videoSource, videoId]);
 
+	useEffect(() => {
+		const video = videoRef.current;
+		if (!video) return;
+
+		let callbackId: number | null = null;
+		const trackPresentedFrame: VideoFrameRequestCallback = (
+			_timestamp,
+			metadata
+		) => {
+			presentedFramesRef.current = Math.max(
+				presentedFramesRef.current + 1,
+				metadata.presentedFrames
+			);
+			video.setAttribute(
+				"data-qcut-presented-frames",
+				String(presentedFramesRef.current)
+			);
+			video.setAttribute("data-qcut-presented-at", String(Date.now()));
+			video.setAttribute(
+				"data-qcut-presented-media-time",
+				String(metadata.mediaTime)
+			);
+			callbackId = video.requestVideoFrameCallback(trackPresentedFrame);
+		};
+
+		if (typeof video.requestVideoFrameCallback === "function") {
+			callbackId = video.requestVideoFrameCallback(trackPresentedFrame);
+		}
+
+		return () => {
+			if (
+				callbackId !== null &&
+				typeof video.cancelVideoFrameCallback === "function"
+			) {
+				video.cancelVideoFrameCallback(callbackId);
+			}
+		};
+	}, []);
+
 	// Separate cleanup effect for component unmount only
 	useEffect(() => {
 		return () => {
@@ -394,6 +437,7 @@ export function VideoPlayer({
 		<video
 			ref={videoRef}
 			data-video-id={videoId}
+			data-qcut-presented-frames="0"
 			poster={poster}
 			className={`object-contain ${className}`}
 			playsInline
@@ -417,6 +461,16 @@ export function VideoPlayer({
 					syncPosition: true,
 				});
 				console.log(`[VideoPlayer] ✅ Video loaded: ${videoId ?? "video"}`);
+			}}
+			onLoadedData={(event) => {
+				const video = event.currentTarget;
+				if (typeof video.requestVideoFrameCallback === "function") return;
+				presentedFramesRef.current = Math.max(1, presentedFramesRef.current);
+				video.setAttribute(
+					"data-qcut-presented-frames",
+					String(presentedFramesRef.current)
+				);
+				video.setAttribute("data-qcut-presented-at", String(Date.now()));
 			}}
 			onError={(e) => {
 				const video = e.currentTarget;

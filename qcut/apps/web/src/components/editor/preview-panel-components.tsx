@@ -251,7 +251,10 @@ export function FullscreenPreview({
 	getTotalDuration: () => number;
 }) {
 	return (
-		<div className="fixed inset-0 z-9999 flex flex-col">
+		<div
+			className="fixed inset-0 z-9999 flex flex-col"
+			data-testid="fullscreen-preview"
+		>
 			<div className="flex-1 flex items-center justify-center bg-background">
 				<div
 					className="relative overflow-hidden border border-border m-3"

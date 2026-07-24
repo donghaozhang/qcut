@@ -201,6 +201,14 @@ export async function appendChunkToSession({
 		const writeTask = queueHead.then(async () => {
 			await writeChunk({ sessionData, chunk });
 			sessionData.bytesWritten += chunk.byteLength;
+			if (chunk.byteLength > 0) {
+				const writtenAt = Date.now();
+				if (sessionData.firstChunkAt === null) {
+					sessionData.firstChunkAt = writtenAt;
+				}
+				sessionData.lastChunkAt = writtenAt;
+				sessionData.chunkCount += 1;
+			}
 		});
 
 		sessionData.writeQueue = writeTask;

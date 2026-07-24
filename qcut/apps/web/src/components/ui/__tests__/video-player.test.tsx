@@ -131,4 +131,27 @@ describe("VideoPlayer", () => {
 
 		expect(video.currentTime).toBeCloseTo(0.5, 4);
 	});
+
+	it("marks a fallback frame as presented when frame callbacks are unavailable", () => {
+		const element = media();
+		const { container } = render(
+			<VideoPlayer
+				videoId="asset"
+				videoSource={{ type: "remote", src: "https://fal.media/video.mp4" }}
+				clipStartTime={element.startTime}
+				trimStart={element.trimStart}
+				trimEnd={element.trimEnd}
+				clipDuration={element.duration}
+				timingElement={element}
+			/>
+		);
+		const video = container.querySelector("video");
+		expect(video).not.toBeNull();
+		if (!video) return;
+
+		fireEvent.loadedData(video);
+
+		expect(video.dataset.qcutPresentedFrames).toBe("1");
+		expect(Number(video.dataset.qcutPresentedAt)).toBeGreaterThan(0);
+	});
 });

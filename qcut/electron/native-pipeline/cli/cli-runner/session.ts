@@ -224,6 +224,8 @@ function parseSessionArgs(args: string[]): Partial<CLIRunOptions> {
 				"job-id": { type: "string" },
 				source: { type: "string" },
 				"source-id": { type: "string" },
+				"capture-mode": { type: "string" },
+				"recording-quality": { type: "string" },
 				data: { type: "string" },
 				items: { type: "string" },
 				sources: { type: "string" },
@@ -326,6 +328,10 @@ function parseSessionArgs(args: string[]): Partial<CLIRunOptions> {
 		if (values["job-id"]) result.jobId = values["job-id"] as string;
 		if (values.source) result.source = values.source as string;
 		if (values["source-id"]) result.sourceId = values["source-id"] as string;
+		if (values["capture-mode"])
+			result.captureMode = values["capture-mode"] as string;
+		if (values["recording-quality"])
+			result.recordingQuality = values["recording-quality"] as string;
 		if (values.data) result.data = values.data as string;
 		if (values.items) result.items = values.items as string;
 		if (values.sources) result.sources = values.sources as string;
