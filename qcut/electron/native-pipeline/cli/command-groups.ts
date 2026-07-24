@@ -57,6 +57,8 @@ export const COMMAND_GROUPS: CommandGroup[] = [
 		description: "Analyze, transcribe, translate, and query media content",
 		actions: {
 			video: "analyze-video",
+			index: "analyze-index",
+			inspect: "analyze-inspect",
 			consistency: "analyze-consistency",
 			"image-consistency": "analyze-image-consistency",
 			query: "query-video",
@@ -69,6 +71,8 @@ export const COMMAND_GROUPS: CommandGroup[] = [
 		label: "Editing & Production",
 		description: "Autoclip, upscale, motion transfer, and compositing",
 		actions: {
+			plan: "edit-plan",
+			verify: "edit-verify",
 			autoclip: "autoclip",
 			upscale: "upscale-image",
 			"upscale-video": "upscale-video",

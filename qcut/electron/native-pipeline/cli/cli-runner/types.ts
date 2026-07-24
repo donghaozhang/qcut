@@ -180,6 +180,26 @@ export interface CLIRunOptions {
 	candidates?: string[];
 	/** Directory of candidate images (--dir) */
 	dir?: string;
+	/** Reusable multi-source media index path (`analyze inspect`, `edit plan`). */
+	mediaIndexPath?: string;
+	/** Narration audio used for beat timing and timeline views. */
+	narration?: string;
+	/** Word-timestamp JSON or SRT used for narration alignment. */
+	transcript?: string;
+	/** Candidate range length used while indexing source media. */
+	candidateDuration?: number;
+	/** Disable Gemini semantic enrichment while retaining local media metrics. */
+	noAi?: boolean;
+	/** Do not recurse into nested source directories while indexing. */
+	noRecursive?: boolean;
+	/** Disable per-clip timeline view rendering for `edit plan`. */
+	noTimelineViews?: boolean;
+	/** Dissolve duration written to the generated QCut timeline manifest. */
+	transitionDuration?: number;
+	/** EDL path used by `edit verify`. */
+	edl?: string;
+	/** Seconds rendered around each cut during verification. */
+	cutWindow?: number;
 	/** Inline rule text used as the verdict basis (--rule) */
 	rule?: string;
 	/** Path to a rule file whose contents become the verdict basis (--rules-file) */

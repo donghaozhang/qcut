@@ -105,11 +105,18 @@ export const CATEGORIES: CategoryDef[] = [
 		label: "Analysis Commands",
 		commands: [
 			"analyze-video",
+			"analyze-index",
+			"analyze-inspect",
 			"analyze-consistency",
 			"analyze-image-consistency",
 			"query-video",
 			"transcribe",
 		],
+	},
+	{
+		name: "editing",
+		label: "Editing Commands",
+		commands: ["edit-plan", "edit-verify"],
 	},
 	{
 		name: "models",
@@ -645,6 +652,119 @@ const CORE_COMMANDS: Record<string, CommandDef> = {
 		examples: [
 			"qcut-pipeline analyze-video -i video.mp4 --analysis-type timeline --json",
 			"qcut analyze video -i video.mp4 --analysis-type review --review-language zh --json",
+		],
+	},
+	"analyze-index": {
+		name: "analyze-index",
+		description:
+			"Build a reusable multi-source scene, motion, focus, and quality index",
+		category: "analysis",
+		flags: [
+			f("--dir", "string", "Directory containing source videos", {
+				required: true,
+			}),
+			f("--fps", "number", "Local visual metric sampling rate", {
+				default: 2,
+			}),
+			f("--scene-threshold", "number", "FFmpeg scene-change threshold", {
+				default: 0.32,
+			}),
+			f("--candidate-duration", "number", "Preferred candidate length", {
+				default: 6,
+			}),
+			f("--model", "string", "Gemini-compatible semantic analysis model", {
+				default: "openrouter_gemini_3_5_flash_video",
+			}),
+			f("--no-ai", "boolean", "Skip semantic analysis; keep local metrics", {
+				default: false,
+			}),
+			f("--no-recursive", "boolean", "Do not scan nested directories", {
+				default: false,
+			}),
+		],
+		examples: [
+			"qcut analyze index --dir ./downloads -o ./analysis",
+			"qcut analyze index --dir ./downloads -o ./analysis --no-ai --fps 2",
+		],
+	},
+	"analyze-inspect": {
+		name: "analyze-inspect",
+		description:
+			"Render a local timeline view with frames, ruler, waveform, words, and scene boundaries",
+		category: "analysis",
+		flags: [
+			f("--index", "string", "Path to analysis index JSON", {
+				required: true,
+			}),
+			f("--source", "string", "Indexed source ID, filename, or path", {
+				required: true,
+			}),
+			f("--start", "number", "Source range start in seconds", {
+				required: true,
+			}),
+			f("--end", "number", "Source range end in seconds", {
+				required: true,
+			}),
+			f("--narration", "string", "Narration audio for the waveform"),
+			f("--transcript", "string", "Word timestamp JSON or SRT"),
+		],
+		examples: [
+			"qcut analyze inspect --index ./analysis/index.json --source yarra.mp4 --start 2 --end 9",
+			"qcut analyze inspect --index ./analysis/index.json --source yarra.mp4 --start 2 --end 9 --narration narration.wav --transcript narration.json",
+		],
+	},
+	"edit-plan": {
+		name: "edit-plan",
+		description:
+			"Align narration beats to indexed ranges and write an EDL plus QCut manifest",
+		category: "editing",
+		flags: [
+			f("--index", "string", "Path to analysis index JSON", {
+				required: true,
+			}),
+			f("--script", "string", "Narration text or script file", {
+				required: true,
+			}),
+			f("--duration", "number", "Target timeline duration in seconds", {
+				short: "-d",
+				required: true,
+			}),
+			f(
+				"--narration",
+				"string",
+				"Narration audio for word timing and manifest"
+			),
+			f("--transcript", "string", "Word timestamp JSON or SRT"),
+			f("--language", "string", "Script language", { enum: ["zh", "en"] }),
+			f("--transition-duration", "number", "Dissolve duration in seconds", {
+				default: 0,
+			}),
+			f(
+				"--no-timeline-views",
+				"boolean",
+				"Skip per-clip timeline view images",
+				{ default: false }
+			),
+		],
+		examples: [
+			"qcut edit plan --index ./analysis/index.json --script narration.zh.txt --duration 43",
+			"qcut edit plan --index ./analysis/index.json --script narration.en.txt --duration 45 --narration narration.en.wav --transcript narration.en.json",
+		],
+	},
+	"edit-verify": {
+		name: "edit-verify",
+		description:
+			"Check rendered cuts for flashes, visual jumps, motion reversals, audio spikes, and title risks",
+		category: "editing",
+		flags: [
+			f("--edl", "string", "Path to EDL JSON", { required: true }),
+			f("--video", "string", "Rendered video to verify", { required: true }),
+			f("--cut-window", "number", "Seconds inspected around each cut", {
+				default: 1.5,
+			}),
+		],
+		examples: [
+			"qcut edit verify --edl edl.json --video final.mp4 --cut-window 1.5",
 		],
 	},
 	"analyze-consistency": {
