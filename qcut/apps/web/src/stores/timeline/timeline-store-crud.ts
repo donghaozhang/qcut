@@ -933,23 +933,29 @@ export function createCrudOperations(
 			updates,
 			pushHistory = true
 		) => {
+			let matched = false;
+			const nextTracks = get()._tracks.map((track) =>
+				track.id === trackId
+					? {
+							...track,
+							elements: track.elements.map((element) => {
+								if (
+									element.id === elementId &&
+									element.type === "hyperframes"
+								) {
+									matched = true;
+									return { ...element, ...updates };
+								}
+								return element;
+							}),
+						}
+					: track
+			);
+			if (!matched) return;
 			if (pushHistory) {
 				get().pushHistory();
 			}
-			updateTracksAndSave(
-				get()._tracks.map((track) =>
-					track.id === trackId
-						? {
-								...track,
-								elements: track.elements.map((element) =>
-									element.id === elementId && element.type === "hyperframes"
-										? { ...element, ...updates }
-										: element
-								),
-							}
-						: track
-				)
-			);
+			updateTracksAndSave(nextTracks);
 		},
 	} satisfies Partial<TimelineStore>;
 }

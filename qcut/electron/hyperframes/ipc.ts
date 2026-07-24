@@ -74,16 +74,27 @@ export function setupHyperframesIPC(): void {
 
 	ipcMain.handle(
 		"hyperframes:render",
-		async (event, options: HyperframesRenderOptions) =>
-			renderHyperframesComposition({
-				options,
-				registry: hyperframesSessionRegistry,
-				onProgress: (progress) => {
-					if (!event.sender.isDestroyed()) {
-						event.sender.send("hyperframes:render-progress", progress);
-					}
-				},
-			})
+		async (event, options: HyperframesRenderOptions) => {
+			try {
+				return await renderHyperframesComposition({
+					options,
+					registry: hyperframesSessionRegistry,
+					onProgress: (progress) => {
+						if (!event.sender.isDestroyed()) {
+							event.sender.send("hyperframes:render-progress", progress);
+						}
+					},
+				});
+			} catch (error) {
+				// Option validation and duplicate-renderId checks throw before the
+				// renderer's internal try block; convert to the structured shape.
+				return {
+					success: false,
+					renderId: options?.renderId ?? "",
+					error: error instanceof Error ? error.message : String(error),
+				};
+			}
+		}
 	);
 
 	ipcMain.handle("hyperframes:cancel", (_event, renderId: string) => ({

@@ -20,6 +20,33 @@ import { visualMetricsInternals } from "./visual-metrics.js";
 const ANALYSIS_WIDTH = 160;
 const ANALYSIS_HEIGHT = 90;
 const AUDIO_SAMPLE_RATE = 8000;
+const VERIFY_CONCURRENCY = 4;
+
+// Each verifyCut spawns several media subprocesses, so cap parallel cuts
+// instead of fanning out all (up to 100) at once.
+async function mapWithConcurrency<Input, Output>({
+	items,
+	limit,
+	task,
+}: {
+	items: Input[];
+	limit: number;
+	task: (item: Input, index: number) => Promise<Output>;
+}): Promise<Output[]> {
+	const results: Output[] = [];
+	let nextIndex = 0;
+	async function worker(): Promise<void> {
+		while (nextIndex < items.length) {
+			const index = nextIndex;
+			nextIndex += 1;
+			results[index] = await task(items[index], index);
+		}
+	}
+	await Promise.all(
+		Array.from({ length: Math.min(limit, items.length) }, () => worker())
+	);
+	return results;
+}
 
 function toRecord({
 	value,
@@ -358,7 +385,12 @@ async function verifyCut({
 	]);
 	const grayscaleFrames = rgbFrames.map((frame) => rgbToGray({ frame }));
 	const checks = makeVisualChecks({ grayscaleFrames });
-	const spikeRatio = audioSpikeRatio({ pcm, windowSeconds: cutWindow });
+	// windowSeconds is the cut's offset within the extracted PCM; when the
+	// extraction start clamps to 0 that offset is cutTime, not cutWindow.
+	const spikeRatio = audioSpikeRatio({
+		pcm,
+		windowSeconds: cutTime - Math.max(0, cutTime - cutWindow),
+	});
 	checks.push(
 		spikeRatio === undefined
 			? {
@@ -438,8 +470,10 @@ export async function verifyEdit({
 		throw new Error("Verification supports at most 100 cuts per run");
 	}
 	const probe = await probeMedia({ path: resolve(video) });
-	const cuts = await Promise.all(
-		edl.clips.slice(1).map((toClip, index) => {
+	const cuts = await mapWithConcurrency({
+		items: edl.clips.slice(1),
+		limit: VERIFY_CONCURRENCY,
+		task: (toClip, index) => {
 			const fromClip = edl.clips[index];
 			const cutTime = toClip.timelineStart;
 			return verifyCut({
@@ -454,8 +488,8 @@ export async function verifyEdit({
 				duration: probe.duration,
 				signal,
 			});
-		})
-	);
+		},
+	});
 	const allChecks = cuts.flatMap((cut) => cut.checks);
 	const warningCount = allChecks.filter(
 		(check) => check.status === "warning"

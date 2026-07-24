@@ -3,3 +3,4 @@ export {
 	registerDefaultHyperframesProtocol,
 	setupHyperframesIPC,
 } from "./ipc";
+export { HYPERFRAMES_CSP } from "./protocol";

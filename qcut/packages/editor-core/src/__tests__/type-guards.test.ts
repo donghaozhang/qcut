@@ -141,4 +141,25 @@ describe("HyperFrames selectors", () => {
 		expect(getActiveHyperframesElements(tracks, 4)).toEqual([hyperframesEl]);
 		expect(getActiveHyperframesElements(tracks, 9)).toEqual([]);
 	});
+
+	it("shortens the active range by non-zero trims", () => {
+		const trimmedEl: TimelineElement = {
+			...hyperframesEl,
+			id: "5",
+			trimStart: 1,
+			trimEnd: 2,
+		};
+		const trimmedTracks: TimelineTrack[] = [
+			{
+				id: "t3",
+				name: "Trimmed",
+				type: "hyperframes",
+				elements: [trimmedEl],
+			},
+		];
+		// effective end = 4 + (5 - 1 - 2) = 6, not the untrimmed 9
+		expect(getActiveHyperframesElements(trimmedTracks, 5)).toEqual([trimmedEl]);
+		expect(getActiveHyperframesElements(trimmedTracks, 6)).toEqual([]);
+		expect(getActiveHyperframesElements(trimmedTracks, 8)).toEqual([]);
+	});
 });

@@ -10,6 +10,22 @@ import type { HyperframesSessionRegistry } from "./session-registry";
 
 export const HYPERFRAMES_PROTOCOL = "qcut-hyperframes";
 
+/**
+ * Shared CSP for qcut-hyperframes: responses (also applied in main.ts).
+ * Compositions are user-authored HTML that may pull libraries from https
+ * CDNs (e.g. GSAP in the @hyperframes/core quickstart template), so https:
+ * and 'unsafe-eval' stay in script-src for eval-based libraries; plaintext
+ * http: scripts are disallowed.
+ */
+export const HYPERFRAMES_CSP =
+	"default-src 'self' data: blob: https: http:; " +
+	"script-src 'self' 'unsafe-inline' 'unsafe-eval' https: blob:; " +
+	"style-src 'self' 'unsafe-inline' https: http:; " +
+	"font-src 'self' data: https: http:; " +
+	"img-src 'self' data: blob: https: http:; " +
+	"media-src 'self' data: blob: https: http:; " +
+	"connect-src 'self' data: blob: https: http: ws: wss:;";
+
 const nodeRequire = createRequire(__filename);
 let cachedRuntimeSource: string | null = null;
 
@@ -24,14 +40,7 @@ function htmlHeaders(): Headers {
 	return new Headers({
 		"content-type": "text/html; charset=utf-8",
 		"cache-control": "no-store",
-		"content-security-policy":
-			"default-src 'self' data: blob: https: http:; " +
-			"script-src 'self' 'unsafe-inline' 'unsafe-eval' https: http: blob:; " +
-			"style-src 'self' 'unsafe-inline' https: http:; " +
-			"font-src 'self' data: https: http:; " +
-			"img-src 'self' data: blob: https: http:; " +
-			"media-src 'self' data: blob: https: http:; " +
-			"connect-src 'self' data: blob: https: http: ws: wss:;",
+		"content-security-policy": HYPERFRAMES_CSP,
 	});
 }
 

@@ -1,9 +1,4 @@
 const DEFAULT_CORS_ORIGINS = [
-	"http://localhost:3000",
-	"http://localhost:5173",
-	"http://127.0.0.1:5173",
-	"http://localhost:4177",
-	"http://127.0.0.1:4177",
 	// Electron packaged app uses the `app://` scheme with hostname `.`
 	// (see `electron/main.ts:587` → `app://./index.html`). The browser sends
 	// this as `Origin: app://.` on CORS preflights.
@@ -12,6 +7,18 @@ const DEFAULT_CORS_ORIGINS = [
 	"https://quriosity.com.au",
 	"https://www.quriosity.com.au",
 	"https://donghaozhang.github.io",
+];
+
+// Local dev-server origins are only allowed while running in development.
+// In production any local process listening on these ports could otherwise
+// gain browser API access; deployments needing extra origins must set
+// CORS_ALLOWED_ORIGINS explicitly.
+const DEV_CORS_ORIGINS = [
+	"http://localhost:3000",
+	"http://localhost:5173",
+	"http://127.0.0.1:5173",
+	"http://localhost:4177",
+	"http://127.0.0.1:4177",
 ];
 
 const PAYMENT_WEB_BASE_URL = "https://quriosity.com.au";
@@ -175,10 +182,26 @@ export function isEmailAllowedForCanary({
 	return allowlist.includes(email.trim().toLowerCase());
 }
 
+/**
+ * Reports whether the server is running in local development. NODE_ENV covers
+ * the Bun dev server; ENVIRONMENT is the wrangler.toml var (set to
+ * "production" in deployed Workers).
+ */
+function isDevelopmentEnvironment(): boolean {
+	return (
+		process.env.NODE_ENV === "development" ||
+		process.env.ENVIRONMENT === "development"
+	);
+}
+
 /** Builds the de-duplicated CORS allowlist for browser-facing API endpoints. */
 export function getAllowedCorsOrigins(): string[] {
 	const configured = parseCsv({ value: process.env.CORS_ALLOWED_ORIGINS });
-	const combined = [...DEFAULT_CORS_ORIGINS, ...configured];
+	const combined = [
+		...DEFAULT_CORS_ORIGINS,
+		...(isDevelopmentEnvironment() ? DEV_CORS_ORIGINS : []),
+		...configured,
+	];
 	const seen = new Set<string>();
 	for (const origin of combined) {
 		if (seen.has(origin)) {

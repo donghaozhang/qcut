@@ -114,6 +114,7 @@ const { setupRemotionFolderIPC } = require("./remotion-folder-handler.js");
 const {
 	registerDefaultHyperframesProtocol,
 	setupHyperframesIPC,
+	HYPERFRAMES_CSP,
 } = require("./hyperframes/index.js");
 const { setupVideoSearchIPC } = require("./video-search-handler.js");
 const { setupScreenRecordingIPC } = require("./screen-recording-handler.js");
@@ -399,15 +400,7 @@ function createWindow(): void {
 			});
 
 			if (details.url.startsWith("qcut-hyperframes:")) {
-				responseHeaders["Content-Security-Policy"] = [
-					"default-src 'self' data: blob: https: http:; " +
-						"script-src 'self' 'unsafe-inline' 'unsafe-eval' https: http: blob:; " +
-						"style-src 'self' 'unsafe-inline' https: http:; " +
-						"font-src 'self' data: https: http:; " +
-						"img-src 'self' data: blob: https: http:; " +
-						"media-src 'self' data: blob: https: http:; " +
-						"connect-src 'self' data: blob: https: http: ws: wss:;",
-				];
+				responseHeaders["Content-Security-Policy"] = [HYPERFRAMES_CSP];
 				responseHeaders["Cross-Origin-Resource-Policy"] = ["cross-origin"];
 				callback({ responseHeaders });
 				return;

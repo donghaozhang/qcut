@@ -11,6 +11,7 @@ function isComposition(value: unknown): value is HyperframesComposition {
 		typeof candidate.sourcePath === "string" &&
 		typeof candidate.projectPath === "string" &&
 		typeof candidate.duration === "number" &&
+		typeof candidate.durationIsEstimated === "boolean" &&
 		typeof candidate.width === "number" &&
 		typeof candidate.height === "number" &&
 		typeof candidate.fps === "number" &&
