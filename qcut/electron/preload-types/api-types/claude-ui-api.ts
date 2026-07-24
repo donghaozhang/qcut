@@ -126,6 +126,18 @@ export interface ClaudeScreenRecordingBridgeAPI {
 				captureStartedAt?: number;
 				readyAt?: number;
 				bytesWritten?: number;
+				captureWidth?: number;
+				captureHeight?: number;
+				frameRate?: number;
+				videoBitsPerSecond?: number;
+				meetsFullHd?: boolean;
+				sourceWidth?: number;
+				sourceHeight?: number;
+				outputWidth?: number;
+				outputHeight?: number;
+				qualityPreset?: "native" | "1080p" | "1440p" | "2160p";
+				captureMode?: "editor" | "preview";
+				isUpscaled?: boolean;
 			},
 			error?: string
 		) => void;

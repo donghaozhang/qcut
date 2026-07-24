@@ -91,6 +91,7 @@ export function buildSpeechPayload({
 		};
 		if (options.voice) payload.voice = options.voice;
 		if (options.audioUrl) payload.audio_urls = [options.audioUrl];
+		if (options.imageUrl) payload.image_url = options.imageUrl;
 		if (options.speed !== undefined) payload.speed = options.speed;
 		if (options.volume !== undefined) payload.volume = options.volume;
 		if (options.pitch !== undefined) payload.pitch = options.pitch;

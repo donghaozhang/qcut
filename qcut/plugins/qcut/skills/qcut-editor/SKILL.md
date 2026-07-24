@@ -133,7 +133,7 @@ qcut editor pointer wait-for --target preview.frame-ready --timeout-ms 15000 --j
 ```
 
 `preview.frame-ready` verifies editor initialization, the active project,
-native-composition loading state, active video identity, media ready state,
+native-composition loading state, active video identity, media-ready state,
 dimensions, and at least one frame presented by the video element. It does not
 use a black-pixel heuristic because black footage is valid.
 
