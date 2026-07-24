@@ -11,6 +11,7 @@ const TRACK_NAME_KEYS: Record<TrackType, TranslationKey> = {
 	adjustment: "timeline.track.adjustment",
 	captions: "timeline.track.captions",
 	remotion: "timeline.track.remotion",
+	hyperframes: "timeline.track.hyperframes",
 };
 
 const SYSTEM_TRACK_NAMES: Record<TrackType, ReadonlySet<string>> = {
@@ -23,6 +24,7 @@ const SYSTEM_TRACK_NAMES: Record<TrackType, ReadonlySet<string>> = {
 	adjustment: new Set(["Adjustment Track", "调整轨道"]),
 	captions: new Set(["Captions Track", "字幕轨道"]),
 	remotion: new Set(["Remotion Track", "Remotion 轨道"]),
+	hyperframes: new Set(["HyperFrames Track", "HyperFrames 轨道"]),
 };
 
 const MAIN_TRACK_NAMES = new Set(["Main Track", "Main track", "主轨道"]);

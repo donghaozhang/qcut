@@ -33,6 +33,7 @@ import type {
 	ElectronRemotionFolderOps,
 	ElectronRemotionOps,
 } from "./api-remotion";
+import type { ElectronHyperframesOps } from "./api-hyperframes";
 import type { ElectronMoyinOps } from "./api-moyin";
 import type { ElectronUpdateOps } from "./api-updates";
 import type { ElectronLicenseOps } from "./api-license";
@@ -73,6 +74,7 @@ export interface ElectronAPI
 		ElectronClaudeOps,
 		ElectronRemotionFolderOps,
 		ElectronRemotionOps,
+		ElectronHyperframesOps,
 		ElectronMoyinOps,
 		ElectronUpdateOps,
 		ElectronLicenseOps,

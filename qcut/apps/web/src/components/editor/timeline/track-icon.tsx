@@ -7,6 +7,7 @@ import {
 	Captions,
 	SlidersHorizontal,
 	Sparkles,
+	CodeXml,
 } from "lucide-react";
 import type { TrackType } from "@/types/timeline";
 
@@ -32,6 +33,8 @@ export function TrackIcon({ type }: TrackIconProps) {
 			);
 		case "markdown":
 			return <FileText className="w-4 h-4 shrink-0 text-muted-foreground" />;
+		case "hyperframes":
+			return <CodeXml className="w-4 h-4 shrink-0 text-emerald-400" />;
 		default:
 			return <Video className="w-4 h-4 shrink-0 text-muted-foreground" />;
 	}

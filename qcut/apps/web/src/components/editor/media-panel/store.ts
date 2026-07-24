@@ -26,6 +26,7 @@ import {
 	CaptionsIcon,
 	LayoutTemplateIcon,
 	SlidersHorizontalIcon,
+	CodeXmlIcon,
 } from "lucide-react";
 import { create } from "zustand";
 import type { AudioLibrarySectionId } from "@/lib/audio/audio-library-catalog";
@@ -48,6 +49,7 @@ export type Tab =
 	| "sounds"
 	| "segmentation"
 	| "remotion"
+	| "hyperframes"
 	| "pty"
 	| "word-timeline"
 	| "project-folder"
@@ -100,6 +102,10 @@ export const tabs: { [key in Tab]: { icon: LucideIcon; label: string } } = {
 	remotion: {
 		icon: Layers,
 		label: "Remotion",
+	},
+	hyperframes: {
+		icon: CodeXmlIcon,
+		label: "HyperFrames",
 	},
 	pty: {
 		icon: SquareTerminalIcon,
@@ -234,7 +240,7 @@ export const tabGroups: { [key in TabGroup]: TabGroupDef } = {
 	agents: {
 		icon: WrenchIcon,
 		label: "Agents",
-		tabs: ["nano-edit", "ai-chat", "pty", "remotion"],
+		tabs: ["nano-edit", "ai-chat", "pty", "remotion", "hyperframes"],
 	},
 };
 

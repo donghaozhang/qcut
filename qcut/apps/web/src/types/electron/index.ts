@@ -23,6 +23,7 @@ export * from "./api-gemini-pty-mcp";
 export * from "./api-skills";
 export * from "./api-claude";
 export * from "./api-remotion";
+export * from "./api-hyperframes";
 export * from "./api-moyin";
 export * from "./api-updates";
 export * from "./api-license";
