@@ -275,6 +275,36 @@ const remotionFolderAdapter = {
 	bundleFile: (p: string, id: string) => api().remotionFolder.bundleFile(p, id),
 };
 
+const hyperframesAdapter = {
+	select: () => api().hyperframes.select(),
+	registerPreview: (options: {
+		sourcePath: string;
+		variables: Record<string, string | number | boolean>;
+	}) => api().hyperframes.registerPreview(options),
+	releasePreview: (token: string) => api().hyperframes.releasePreview(token),
+	render: (options: {
+		renderId: string;
+		elementId: string;
+		sourcePath: string;
+		variables: Record<string, string | number | boolean>;
+		width: number;
+		height: number;
+		fps: number;
+		duration: number;
+	}) => api().hyperframes.render(options),
+	cancel: (renderId: string) => api().hyperframes.cancel(renderId),
+	cleanup: (sessionId: string) => api().hyperframes.cleanup(sessionId),
+	onRenderProgress: (
+		callback: (progress: {
+			renderId: string;
+			elementId: string;
+			frame: number;
+			totalFrames: number;
+			progress: number;
+		}) => void
+	) => api().hyperframes.onRenderProgress(callback),
+};
+
 const moyinAdapter = {
 	parseScript: (o: Record<string, unknown>) => api().moyin.parseScript(o),
 	generateStoryboard: (o: Record<string, unknown>) =>
@@ -393,6 +423,7 @@ export function createDesktopAdapter(): PlatformAPI {
 		projectFolder: projectFolderAdapter,
 		projectJson: projectJsonAdapter,
 		remotionFolder: remotionFolderAdapter,
+		hyperframes: hyperframesAdapter,
 		moyin: moyinAdapter,
 		updates: updatesAdapter,
 		piAgent: piAgentAdapter,

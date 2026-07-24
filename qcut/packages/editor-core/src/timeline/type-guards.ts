@@ -14,6 +14,7 @@ import type {
 	AdjustmentElement,
 	CaptionElement,
 	RemotionElement,
+	HyperframesElement,
 	MarkdownElement,
 	TimelineTrack,
 } from "../types/timeline.js";
@@ -60,10 +61,44 @@ export function isRemotionElement(
 	return element.type === "remotion";
 }
 
+export function isHyperframesElement(
+	element: TimelineElement
+): element is HyperframesElement {
+	return element.type === "hyperframes";
+}
+
 export function isMarkdownElement(
 	element: TimelineElement
 ): element is MarkdownElement {
 	return element.type === "markdown";
+}
+
+/** Get all HyperFrames elements from a list of tracks. */
+export function getHyperframesElements(
+	tracks: TimelineTrack[]
+): HyperframesElement[] {
+	const hyperframesElements: HyperframesElement[] = [];
+	for (const track of tracks) {
+		for (const element of track.elements) {
+			if (isHyperframesElement(element)) {
+				hyperframesElements.push(element);
+			}
+		}
+	}
+	return hyperframesElements;
+}
+
+/** Get HyperFrames elements active at a specific time. */
+export function getActiveHyperframesElements(
+	tracks: TimelineTrack[],
+	currentTime: number
+): HyperframesElement[] {
+	return getHyperframesElements(tracks).filter((element) => {
+		const effectiveEnd =
+			element.startTime +
+			(element.duration - element.trimStart - element.trimEnd);
+		return currentTime >= element.startTime && currentTime < effectiveEnd;
+	});
 }
 
 /** Get all Remotion elements from a list of tracks. */

@@ -14,6 +14,7 @@ const TRACK_PRIORITY: Record<TrackType, number> = {
 	captions: 2,
 	markdown: 2.5,
 	remotion: 3,
+	hyperframes: 3.25,
 	sticker: 4,
 	adjustment: 4.5,
 	effect: 4.75,
@@ -184,6 +185,8 @@ export function getTrackName(type: TrackType): string {
 			return "字幕轨道";
 		case "remotion":
 			return "Remotion 轨道";
+		case "hyperframes":
+			return "HyperFrames 轨道";
 		default:
 			return "轨道";
 	}

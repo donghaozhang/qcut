@@ -17,6 +17,7 @@ export function canElementGoOnTrack(
 		| "adjustment"
 		| "captions"
 		| "remotion"
+		| "hyperframes"
 		| "markdown",
 	trackType: TrackType
 ): boolean {
@@ -28,6 +29,7 @@ export function canElementGoOnTrack(
 	if (elementType === "adjustment") return trackType === "adjustment";
 	if (elementType === "captions") return trackType === "captions";
 	if (elementType === "remotion") return trackType === "remotion";
+	if (elementType === "hyperframes") return trackType === "hyperframes";
 	if (elementType === "markdown") return trackType === "markdown";
 	return false;
 }
@@ -43,6 +45,7 @@ export function validateElementTrackCompatibility(
 			| "adjustment"
 			| "captions"
 			| "remotion"
+			| "hyperframes"
 			| "markdown";
 	},
 	track: { type: TrackType }
@@ -57,6 +60,8 @@ export function validateElementTrackCompatibility(
 			adjustment: "Adjustment elements can only be placed on adjustment tracks",
 			captions: "Caption elements can only be placed on caption tracks",
 			remotion: "Remotion elements can only be placed on Remotion tracks",
+			hyperframes:
+				"HyperFrames elements can only be placed on HyperFrames tracks",
 			markdown: "Markdown elements can only be placed on markdown tracks",
 			media: "Media elements can only be placed on media or audio tracks",
 		};

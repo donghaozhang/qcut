@@ -83,9 +83,12 @@ export {
 	isAdjustmentElement,
 	isCaptionElement,
 	isRemotionElement,
+	isHyperframesElement,
 	isMarkdownElement,
 	getRemotionElements,
 	getActiveRemotionElements,
+	getHyperframesElements,
+	getActiveHyperframesElements,
 } from "./type-guards.js";
 
 export {

@@ -32,6 +32,11 @@ describe("canElementGoOnTrack", () => {
 		expect(canElementGoOnTrack("remotion", "media")).toBe(false);
 	});
 
+	it("hyperframes goes on hyperframes tracks only", () => {
+		expect(canElementGoOnTrack("hyperframes", "hyperframes")).toBe(true);
+		expect(canElementGoOnTrack("hyperframes", "media")).toBe(false);
+	});
+
 	it("markdown goes on markdown tracks only", () => {
 		expect(canElementGoOnTrack("markdown", "markdown")).toBe(true);
 		expect(canElementGoOnTrack("markdown", "text")).toBe(false);
