@@ -96,4 +96,10 @@ describe("payment-config", () => {
 		const origins = getAllowedCorsOrigins();
 		expect(origins).toContain("app://.");
 	});
+
+	it("allowlists the QCut Vite development origins by default", () => {
+		const origins = getAllowedCorsOrigins();
+		expect(origins).toContain("http://localhost:5173");
+		expect(origins).toContain("http://127.0.0.1:5173");
+	});
 });

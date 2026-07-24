@@ -1,5 +1,7 @@
 const DEFAULT_CORS_ORIGINS = [
 	"http://localhost:3000",
+	"http://localhost:5173",
+	"http://127.0.0.1:5173",
 	"http://localhost:4177",
 	"http://127.0.0.1:4177",
 	// Electron packaged app uses the `app://` scheme with hostname `.`
@@ -173,7 +175,7 @@ export function isEmailAllowedForCanary({
 	return allowlist.includes(email.trim().toLowerCase());
 }
 
-/** Builds the de-duplicated CORS allowlist for payment endpoints. */
+/** Builds the de-duplicated CORS allowlist for browser-facing API endpoints. */
 export function getAllowedCorsOrigins(): string[] {
 	const configured = parseCsv({ value: process.env.CORS_ALLOWED_ORIGINS });
 	const combined = [...DEFAULT_CORS_ORIGINS, ...configured];
