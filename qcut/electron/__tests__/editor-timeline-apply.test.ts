@@ -1,3 +1,6 @@
+import { promises as fs } from "node:fs";
+import { tmpdir } from "node:os";
+import { resolve } from "node:path";
 import { describe, expect, it, vi } from "vitest";
 import type { CLIRunOptions } from "../native-pipeline/cli/cli-runner/types.js";
 import type { EditorApiClient } from "../native-pipeline/editor/editor-api-client.js";
@@ -18,13 +21,21 @@ function makeOptions(manifest: object): CLIRunOptions {
 	} as CLIRunOptions;
 }
 
-function makeClient({ finalName = "Titles" }: { finalName?: string } = {}) {
+function makeClient({
+	finalName = "Titles",
+	videoElement = { startTime: 0, duration: 2 },
+	mediaFiles = [],
+}: {
+	finalName?: string;
+	videoElement?: Record<string, unknown>;
+	mediaFiles?: Array<{ id: string; name: string; size: number }>;
+} = {}) {
 	let timelineReads = 0;
 	const get = vi.fn(async (url: string) => {
 		if (url === "/api/claude/navigator/projects") {
 			return { activeProjectId: "project-1", projects: [] };
 		}
-		if (url === "/api/claude/media/project-1") return [];
+		if (url === "/api/claude/media/project-1") return mediaFiles;
 		if (url === "/api/claude/timeline/project-1") {
 			timelineReads += 1;
 			if (timelineReads <= 2) {
@@ -52,8 +63,7 @@ function makeClient({ finalName = "Titles" }: { finalName?: string } = {}) {
 						elements: [
 							{
 								id: "video-1",
-								startTime: 0,
-								duration: 2,
+								...videoElement,
 							},
 						],
 						transitions: [],
@@ -89,6 +99,14 @@ function makeClient({ finalName = "Titles" }: { finalName?: string } = {}) {
 		}
 		if (url === "/api/claude/timeline/project-1/tracks") {
 			return { trackId: "track-1" };
+		}
+		if (url === "/api/claude/media/project-1/batch-import") {
+			return [
+				{
+					success: true,
+					mediaFile: { id: "imported-media", name: "yarra.mp4" },
+				},
+			];
 		}
 		if (url === "/api/claude/timeline/project-1/elements/batch") {
 			return {
@@ -303,6 +321,82 @@ describe("editor timeline apply", () => {
 		);
 	});
 
+	it("verifies source trims against the effective media duration", async () => {
+		const trimmedManifest = {
+			...manifest,
+			tracks: manifest.tracks.map((track, index) =>
+				index === 0
+					? {
+							...track,
+							elements: [
+								{
+									...track.elements[0],
+									duration: 20,
+									trimStart: 2.4,
+									trimEnd: 11.6,
+								},
+							],
+						}
+					: track
+			),
+		};
+		const { client } = makeClient({
+			videoElement: {
+				startTime: 0,
+				duration: 6,
+				trimStart: 2.4,
+				trimEnd: 11.6,
+			},
+		});
+
+		const result = await timelineApplyManifest(
+			client,
+			makeOptions(trimmedManifest)
+		);
+
+		expect(result.success).toBe(true);
+		expect(result.data).toEqual(
+			expect.objectContaining({ atomic: true, verified: true })
+		);
+	});
+
+	it("rejects a source trim that points at the wrong frame range", async () => {
+		const trimmedManifest = {
+			...manifest,
+			tracks: manifest.tracks.map((track, index) =>
+				index === 0
+					? {
+							...track,
+							elements: [
+								{
+									...track.elements[0],
+									duration: 20,
+									trimStart: 2.4,
+									trimEnd: 11.6,
+								},
+							],
+						}
+					: track
+			),
+		};
+		const { client } = makeClient({
+			videoElement: {
+				startTime: 0,
+				duration: 6,
+				trimStart: 2.5,
+				trimEnd: 11.5,
+			},
+		});
+
+		const result = await timelineApplyManifest(
+			client,
+			makeOptions(trimmedManifest)
+		);
+
+		expect(result.success).toBe(false);
+		expect(result.error).toContain("trimStart");
+	});
+
 	it("keeps anonymous media aliases aligned with manifest indexes", async () => {
 		const { client, post } = makeImportedMediaClient();
 		const result = await timelineApplyManifest(
@@ -325,6 +419,112 @@ describe("editor timeline apply", () => {
 				elements: [expect.objectContaining({ sourceId: "imported-media" })],
 			}
 		);
+	});
+
+	it("reuses an existing local media file with the same name and size", async () => {
+		const root = await fs.mkdtemp(resolve(tmpdir(), "qcut-manifest-media-"));
+		const mediaPath = resolve(root, "yarra.mp4");
+		await fs.writeFile(mediaPath, "same-media-content");
+		const stat = await fs.stat(mediaPath);
+		const reusableManifest = {
+			...manifest,
+			media: [
+				{
+					alias: "yarra",
+					path: mediaPath,
+					filename: "yarra.mp4",
+				},
+			],
+			tracks: manifest.tracks.map((track, index) =>
+				index === 0
+					? {
+							...track,
+							elements: [
+								{
+									...track.elements[0],
+									media: "yarra",
+									mediaId: undefined,
+								},
+							],
+						}
+					: track
+			),
+		};
+		const { client, post } = makeClient({
+			mediaFiles: [
+				{ id: "existing-yarra", name: "yarra.mp4", size: stat.size },
+			],
+		});
+
+		try {
+			const result = await timelineApplyManifest(
+				client,
+				makeOptions(reusableManifest)
+			);
+
+			expect(result.success).toBe(true);
+			expect(
+				post.mock.calls.some(([url]) => String(url).endsWith("/batch-import"))
+			).toBe(false);
+			expect(post).toHaveBeenCalledWith(
+				"/api/claude/timeline/project-1/elements/batch",
+				{
+					elements: [
+						expect.objectContaining({ sourceId: "existing-yarra" }),
+						expect.any(Object),
+					],
+				}
+			);
+		} finally {
+			await fs.rm(root, { recursive: true, force: true });
+		}
+	});
+
+	it("imports local media when an existing filename has different bytes", async () => {
+		const root = await fs.mkdtemp(resolve(tmpdir(), "qcut-manifest-media-"));
+		const mediaPath = resolve(root, "yarra.mp4");
+		await fs.writeFile(mediaPath, "new-media-content");
+		const differentMediaManifest = {
+			...manifest,
+			media: [
+				{
+					alias: "yarra",
+					path: mediaPath,
+					filename: "yarra.mp4",
+				},
+			],
+			tracks: manifest.tracks.map((track, index) =>
+				index === 0
+					? {
+							...track,
+							elements: [
+								{
+									...track.elements[0],
+									media: "yarra",
+									mediaId: undefined,
+								},
+							],
+						}
+					: track
+			),
+		};
+		const { client, post } = makeClient({
+			mediaFiles: [{ id: "old-yarra", name: "yarra.mp4", size: 3 }],
+		});
+
+		try {
+			const result = await timelineApplyManifest(
+				client,
+				makeOptions(differentMediaManifest)
+			);
+
+			expect(result.success).toBe(true);
+			expect(
+				post.mock.calls.some(([url]) => String(url).endsWith("/batch-import"))
+			).toBe(true);
+		} finally {
+			await fs.rm(root, { recursive: true, force: true });
+		}
 	});
 
 	it("does not roll back committed media when export startup fails", async () => {
