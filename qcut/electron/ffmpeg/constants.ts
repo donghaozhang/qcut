@@ -28,7 +28,7 @@ export const QUALITY_SETTINGS: Record<string, QualitySettings> = {
  */
 export const debugLog = (...args: any[]): void => {
 	if (process.env.NODE_ENV !== "production") {
-		console.log("[FFmpeg]", ...args);
+		console.error("[FFmpeg]", ...args);
 	}
 };
 
