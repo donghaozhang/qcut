@@ -1,3 +1,5 @@
+export type PreviewQualityPreset = "original" | "clear" | "smooth" | "low";
+
 export interface PlaybackState {
 	isPlaying: boolean;
 	currentTime: number;
@@ -6,6 +8,7 @@ export interface PlaybackState {
 	speed: number;
 	muted: boolean;
 	previousVolume?: number;
+	previewQuality: PreviewQualityPreset;
 }
 
 export interface PlaybackControls {
@@ -18,4 +21,5 @@ export interface PlaybackControls {
 	mute: () => void;
 	unmute: () => void;
 	toggleMute: () => void;
+	setPreviewQuality: (quality: PreviewQualityPreset) => void;
 }
