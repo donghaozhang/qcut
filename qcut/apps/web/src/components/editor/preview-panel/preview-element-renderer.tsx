@@ -50,7 +50,10 @@ import {
 	selectAudioPreviewBypassed,
 	useAudioPreviewStore,
 } from "@/stores/editor/audio-preview-store";
+import { usePlaybackStore } from "@/stores/editor/playback-store";
 import { useColorPickerStore } from "@/stores/editor/color-picker-store";
+import { getPreviewQualityOption } from "@/lib/preview/preview-quality";
+import { resolvePreviewVideoSource } from "@/lib/preview/preview-video-source";
 import type { ClipTransitionPreviewState } from "@/lib/transitions/clip-transition-preview";
 import {
 	buildClipTransitionAnchoredTransform,
@@ -258,6 +261,10 @@ export function PreviewElementRenderer({
 	const selectedMaskElementId = useMaskEditorStore(
 		(state) => state.selectedElementId
 	);
+	const previewQuality = usePlaybackStore((state) => state.previewQuality);
+	const previewQualityOption = getPreviewQualityOption({
+		quality: previewQuality,
+	});
 	const selectedMaskId = useMaskEditorStore((state) => state.selectedMaskId);
 	const isEditingMask = useMaskEditorStore((state) => state.isEditing);
 	const mediaItems = useMediaStore((state) => state.mediaItems);
@@ -311,6 +318,8 @@ export function PreviewElementRenderer({
 		sourceHeight: previewMediaItem?.height ?? canvasSize.height,
 		fps: activeProject?.fps ?? 30,
 		enhancements: previewEnhancements,
+		forceProxy: previewQualityOption.forceProxy,
+		maxDimension: previewQualityOption.maxDimension ?? 960,
 	});
 	const nativeEnhancementPreview = useNativeVideoEnhancementPreview({
 		enabled:
@@ -718,11 +727,18 @@ export function PreviewElementRenderer({
 				if (!visual) return null;
 				const proxyReady =
 					enhancementProxy.status === "ready" && Boolean(enhancementProxy.url);
-				const visualSource = enhancementProxyVideoSource ?? source;
+				const previewSource = resolvePreviewVideoSource({
+					source,
+					proxySource: enhancementProxyVideoSource,
+					proxyReady,
+					isPlaying,
+					proxySourceTimeOffset: enhancementProxy.sourceTimeOffset,
+				});
 				const nativePreviewUrl = isPlaying
 					? undefined
 					: nativeEnhancementPreview.url;
-				const usesNativeEnhancement = proxyReady || Boolean(nativePreviewUrl);
+				const usesNativeEnhancement =
+					previewSource.sourceKind === "proxy" || Boolean(nativePreviewUrl);
 				const mediaAnimation = getMediaAnimationState({
 					element,
 					currentTime,
@@ -869,6 +885,7 @@ export function PreviewElementRenderer({
 							data-video-enhancement-proxy-progress={Math.round(
 								enhancementProxy.progress * 100
 							)}
+							data-video-preview-source={previewSource.sourceKind}
 							style={{
 								...buildClipTransitionContentStyle({
 									presentation: transitionPresentation,
@@ -884,7 +901,7 @@ export function PreviewElementRenderer({
 							}}
 						>
 							<VideoPlayer
-								videoSource={generatedMaskSource ?? visualSource}
+								videoSource={generatedMaskSource ?? previewSource.videoSource}
 								poster={
 									generatedMaskSource ? undefined : mediaItem.thumbnailUrl
 								}
@@ -908,9 +925,7 @@ export function PreviewElementRenderer({
 								previewGain={previewAudioGain}
 								playbackWindow={audioPlaybackWindow}
 								videoId={sourceVideoId}
-								sourceTimeOffset={
-									proxyReady ? enhancementProxy.sourceTimeOffset : 0
-								}
+								sourceTimeOffset={previewSource.sourceTimeOffset}
 								style={{
 									objectFit: visual.fitMode,
 									filter: combinedFilter || undefined,
