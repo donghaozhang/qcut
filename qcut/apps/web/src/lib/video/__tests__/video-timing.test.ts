@@ -131,14 +131,13 @@ describe("video timing", () => {
 	});
 
 	it("invalidates a cached profile when timing fields mutate", () => {
-		const element = media({
-			speedKeyframes: [
-				{ id: "a", frame: 0, value: 1, easing: "linear" },
-				{ id: "b", frame: 300, value: 2, easing: "linear" },
-			],
-		});
+		const speedKeyframes = [
+			{ id: "a", frame: 0, value: 1, easing: "linear" as const },
+			{ id: "b", frame: 300, value: 2, easing: "linear" as const },
+		];
+		const element = media({ speedKeyframes });
 		const first = buildMediaTimingProfile(element);
-		element.speedKeyframes![1].value = 4;
+		speedKeyframes[1].value = 4;
 		const second = buildMediaTimingProfile(element);
 
 		expect(second).not.toBe(first);
