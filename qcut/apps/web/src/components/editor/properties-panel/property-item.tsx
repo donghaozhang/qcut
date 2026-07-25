@@ -58,6 +58,8 @@ interface PropertyGroupProps {
 	title: React.ReactNode;
 	children: React.ReactNode;
 	defaultExpanded?: boolean;
+	expanded?: boolean;
+	onExpandedChange?: (expanded: boolean) => void;
 	className?: string;
 }
 
@@ -65,16 +67,24 @@ export function PropertyGroup({
 	title,
 	children,
 	defaultExpanded = true,
+	expanded,
+	onExpandedChange,
 	className,
 }: PropertyGroupProps) {
-	const [isExpanded, setIsExpanded] = useState(defaultExpanded);
+	const [localExpanded, setLocalExpanded] = useState(defaultExpanded);
+	const isExpanded = expanded ?? localExpanded;
+	const toggleExpanded = () => {
+		const nextExpanded = !isExpanded;
+		if (expanded === undefined) setLocalExpanded(nextExpanded);
+		onExpandedChange?.(nextExpanded);
+	};
 
 	return (
 		<PropertyItem direction="column" className={cn("gap-3", className)}>
 			<button
 				type="button"
 				className="flex items-center gap-1.5"
-				onClick={() => setIsExpanded((v) => !v)}
+				onClick={toggleExpanded}
 				aria-expanded={isExpanded}
 			>
 				<span className="text-xs">{title}</span>

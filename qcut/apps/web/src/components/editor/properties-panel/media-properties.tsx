@@ -31,6 +31,7 @@ import { useMediaPanelStore } from "@/components/editor/media-panel/store";
 import { createObjectURL } from "@/lib/media/blob-manager";
 import { requestSelectedVideoUpscale } from "@/lib/ai-video/selected-upscale-source";
 import { useTranslation } from "@/lib/i18n";
+import { useMediaKeyframeShortcuts } from "@/hooks/keyboard/use-media-keyframe-shortcuts";
 import type { TranslationKey } from "@/lib/i18n/translations";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -352,6 +353,8 @@ export function MediaProperties({
 		useState<MediaKeyframeProperty>("x");
 	const [activePropertiesTab, setActivePropertiesTab] =
 		useState<MediaPropertiesTab>("basic");
+	const [cropExpanded, setCropExpanded] = useState(false);
+	const [keyframesExpanded, setKeyframesExpanded] = useState(false);
 	const interactionActive = useRef(false);
 	const panelRef = useRef<HTMLDivElement>(null);
 	const visual = resolveMediaVisualProperties(element);
@@ -368,6 +371,16 @@ export function MediaProperties({
 				| undefined;
 			if (detail?.elementId !== element.id || !detail.tab) return;
 			setActivePropertiesTab(requestedPropertiesTab({ tab: detail.tab }));
+			if (detail.scrollTo === "crop") {
+				setCropExpanded(true);
+				requestAnimationFrame(() => {
+					requestAnimationFrame(() => {
+						panelRef.current
+							?.querySelector('[data-testid="media-crop-controls"]')
+							?.scrollIntoView({ block: "center", behavior: "smooth" });
+					});
+				});
+			}
 			if (detail.scrollTo === "lut") {
 				requestAnimationFrame(() => {
 					document
@@ -622,6 +635,16 @@ export function MediaProperties({
 		durationInFrames,
 		Math.max(0, Math.round((currentTime - element.startTime) * fps))
 	);
+	useMediaKeyframeShortcuts({
+		currentTime,
+		currentFrame,
+		element,
+		fps,
+		keyframeProperty,
+		onExpandKeyframes: () => setKeyframesExpanded(true),
+		onOpenBasic: () => setActivePropertiesTab("basic"),
+		trackId,
+	});
 	const setPropertyKeyframes = (keyframes: MediaPropertyKeyframe[]) =>
 		setPropertyKeyframesFor({ property: keyframeProperty, keyframes });
 	const addKeyframe = (frame: number, value: unknown) => {
@@ -1055,8 +1078,10 @@ export function MediaProperties({
 					<PropertyGroup
 						title={t("mediaProperties.cropAndFit")}
 						defaultExpanded={false}
+						expanded={cropExpanded}
+						onExpandedChange={setCropExpanded}
 					>
-						<div className="space-y-4">
+						<div className="space-y-4" data-testid="media-crop-controls">
 							<div className="grid grid-cols-3 gap-1">
 								{FIT_MODE_OPTIONS.map(([mode, labelKey]) => (
 									<Button
@@ -1517,6 +1542,8 @@ export function MediaProperties({
 				<PropertyGroup
 					title={t("mediaProperties.keyframes")}
 					defaultExpanded={false}
+					expanded={keyframesExpanded}
+					onExpandedChange={setKeyframesExpanded}
 				>
 					<div className="space-y-4">
 						<PropertyItem>
