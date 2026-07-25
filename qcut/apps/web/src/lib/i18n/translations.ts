@@ -105,7 +105,8 @@ const EN_TRANSLATIONS = {
 	"editor.preview.original": "Original",
 	"editor.preview.quality": "Preview quality",
 	"editor.preview.qualityAuto": "Auto",
-	"editor.preview.qualityAutoDescription": "Proxy high-res or effect-heavy clips",
+	"editor.preview.qualityAutoDescription":
+		"Proxy high-res or effect-heavy clips",
 	"editor.preview.qualityOriginal": "Original",
 	"editor.preview.qualityOriginalDescription": "Full source preview",
 	"editor.preview.qualityClear": "Clear",
@@ -114,6 +115,8 @@ const EN_TRANSLATIONS = {
 	"editor.preview.qualitySmoothDescription": "Proxy up to 854 px",
 	"editor.preview.qualityLow": "Low",
 	"editor.preview.qualityLowDescription": "Proxy up to 480 px",
+	"editor.preview.qualityRuntimeActive":
+		"Playback temporarily using {{quality}}",
 	"editor.preview.proxyCache": "Proxy cache",
 	"editor.preview.proxyCacheLoading": "Loading",
 	"editor.preview.proxyCacheUnknown": "Unknown",
@@ -1460,6 +1463,7 @@ const ZH_TRANSLATIONS: Record<TranslationKey, string> = {
 	"editor.preview.qualitySmoothDescription": "生成最高 854px 代理",
 	"editor.preview.qualityLow": "低清画质",
 	"editor.preview.qualityLowDescription": "生成最高 480px 代理",
+	"editor.preview.qualityRuntimeActive": "播放中临时使用{{quality}}",
 	"editor.preview.proxyCache": "代理缓存",
 	"editor.preview.proxyCacheLoading": "读取中",
 	"editor.preview.proxyCacheUnknown": "未知",
