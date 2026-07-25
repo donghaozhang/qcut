@@ -1,4 +1,8 @@
-import type { PreviewQualityPreset } from "@/types/playback";
+import type {
+	PreviewQualityDiagnostic,
+	PreviewQualityDowngradeReason,
+	PreviewQualityPreset,
+} from "@/types/playback";
 import type { TranslationKey } from "@/lib/i18n";
 
 export interface PreviewQualityOption {
@@ -17,6 +21,35 @@ interface ResolveEffectivePreviewQualityOptionParams {
 	sourceWidth: number;
 	sourceHeight: number;
 	hasEnhancements: boolean;
+}
+
+interface ResolveRuntimePreviewQualityParams {
+	selectedQuality: PreviewQualityPreset;
+	currentRuntimeQuality: PreviewQualityPreset | null;
+	averageFrameIntervalMs: number;
+	stutterFrameCount: number;
+	stableFrameCount: number;
+	averagePresentedFrameIntervalMs?: number;
+	presentedFrameStallCount?: number;
+}
+
+export interface RuntimePreviewQualityDecision {
+	quality: PreviewQualityPreset | null;
+	diagnostic: PreviewQualityDiagnostic | null;
+}
+
+export function buildPreviewFrameCacheIdentity({
+	quality,
+	width,
+	height,
+}: {
+	quality: PreviewQualityPreset;
+	width: number;
+	height: number;
+}): string {
+	const normalizedWidth = Math.max(1, Math.round(width));
+	const normalizedHeight = Math.max(1, Math.round(height));
+	return `preview-quality:${quality}:viewport:${normalizedWidth}x${normalizedHeight}`;
 }
 
 const HIGH_RESOLUTION_EDGE = 2160;
@@ -108,36 +141,96 @@ export function resolveEffectivePreviewQualityOption({
 	return getPreviewQualityOption({ quality: "original" });
 }
 
+function resolveDowngradeReason({
+	hasMainThreadPressure,
+	hasPresentedFramePressure,
+}: {
+	hasMainThreadPressure: boolean;
+	hasPresentedFramePressure: boolean;
+}): PreviewQualityDowngradeReason | null {
+	if (hasMainThreadPressure && hasPresentedFramePressure) return "combined";
+	if (hasPresentedFramePressure) return "video-frame";
+	if (hasMainThreadPressure) return "main-thread";
+	return null;
+}
+
+export function resolveRuntimePreviewQualityDecision({
+	selectedQuality,
+	currentRuntimeQuality,
+	averageFrameIntervalMs,
+	stutterFrameCount,
+	stableFrameCount,
+	averagePresentedFrameIntervalMs = 0,
+	presentedFrameStallCount = 0,
+}: ResolveRuntimePreviewQualityParams): RuntimePreviewQualityDecision {
+	if (selectedQuality !== "auto") {
+		return { quality: null, diagnostic: null };
+	}
+	const effectiveAverageFrameIntervalMs = Math.max(
+		averageFrameIntervalMs,
+		averagePresentedFrameIntervalMs
+	);
+	const effectiveStutterFrameCount =
+		stutterFrameCount + presentedFrameStallCount;
+	const hasMainThreadPressure =
+		averageFrameIntervalMs >= SMOOTH_FRAME_INTERVAL_MS ||
+		stutterFrameCount >= SMOOTH_STUTTER_COUNT;
+	const hasPresentedFramePressure =
+		averagePresentedFrameIntervalMs >= SMOOTH_FRAME_INTERVAL_MS ||
+		presentedFrameStallCount >= SMOOTH_STUTTER_COUNT;
+	const downgradeReason = resolveDowngradeReason({
+		hasMainThreadPressure,
+		hasPresentedFramePressure,
+	});
+	const diagnostic = downgradeReason
+		? {
+				reason: downgradeReason,
+				averageMainThreadFrameIntervalMs: averageFrameIntervalMs,
+				mainThreadStutterCount: stutterFrameCount,
+				averagePresentedFrameIntervalMs,
+				presentedFrameStallCount,
+			}
+		: null;
+
+	if (
+		effectiveAverageFrameIntervalMs >= LOW_FRAME_INTERVAL_MS ||
+		effectiveStutterFrameCount >= LOW_STUTTER_COUNT
+	) {
+		return { quality: "low", diagnostic };
+	}
+	if (
+		effectiveAverageFrameIntervalMs >= SMOOTH_FRAME_INTERVAL_MS ||
+		effectiveStutterFrameCount >= SMOOTH_STUTTER_COUNT
+	) {
+		return {
+			quality: currentRuntimeQuality === "low" ? "low" : "smooth",
+			diagnostic,
+		};
+	}
+	if (stableFrameCount >= STABLE_FRAMES_TO_RECOVER) {
+		return { quality: null, diagnostic: null };
+	}
+	return { quality: currentRuntimeQuality, diagnostic: null };
+}
+
 export function resolveRuntimePreviewQuality({
 	selectedQuality,
 	currentRuntimeQuality,
 	averageFrameIntervalMs,
 	stutterFrameCount,
 	stableFrameCount,
-}: {
-	selectedQuality: PreviewQualityPreset;
-	currentRuntimeQuality: PreviewQualityPreset | null;
-	averageFrameIntervalMs: number;
-	stutterFrameCount: number;
-	stableFrameCount: number;
-}): PreviewQualityPreset | null {
-	if (selectedQuality !== "auto") return null;
-	if (
-		averageFrameIntervalMs >= LOW_FRAME_INTERVAL_MS ||
-		stutterFrameCount >= LOW_STUTTER_COUNT
-	) {
-		return "low";
-	}
-	if (
-		averageFrameIntervalMs >= SMOOTH_FRAME_INTERVAL_MS ||
-		stutterFrameCount >= SMOOTH_STUTTER_COUNT
-	) {
-		return currentRuntimeQuality === "low" ? "low" : "smooth";
-	}
-	if (stableFrameCount >= STABLE_FRAMES_TO_RECOVER) {
-		return null;
-	}
-	return currentRuntimeQuality;
+	averagePresentedFrameIntervalMs,
+	presentedFrameStallCount,
+}: ResolveRuntimePreviewQualityParams): PreviewQualityPreset | null {
+	return resolveRuntimePreviewQualityDecision({
+		selectedQuality,
+		currentRuntimeQuality,
+		averageFrameIntervalMs,
+		stutterFrameCount,
+		stableFrameCount,
+		averagePresentedFrameIntervalMs,
+		presentedFrameStallCount,
+	}).quality;
 }
 
 export function resolvePreviewEffectRenderMode({
