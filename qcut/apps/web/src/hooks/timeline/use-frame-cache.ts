@@ -16,6 +16,7 @@ const MAX_PERSISTED_CACHE_BYTES = 32 * 1024 * 1024;
 
 interface FrameCacheOptions {
 	namespace?: string;
+	cacheIdentity?: string;
 	maxCacheSize?: number;
 	maxCacheBytes?: number;
 	cacheTtlMs?: number;
@@ -57,6 +58,7 @@ function mediaSignature({ mediaItem }: { mediaItem?: MediaItem }) {
 
 export function useFrameCache({
 	namespace = "default",
+	cacheIdentity = "default",
 	maxCacheSize = DEFAULT_MAX_CACHE_ENTRIES,
 	maxCacheBytes = DEFAULT_MAX_CACHE_BYTES,
 	cacheTtlMs = DEFAULT_CACHE_TTL_MS,
@@ -65,6 +67,7 @@ export function useFrameCache({
 	onError,
 }: FrameCacheOptions = {}) {
 	const persistTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+	const normalizedCacheIdentity = cacheIdentity.trim() || "default";
 	const cache = useMemo(
 		() =>
 			getSharedFrameCache({
@@ -130,11 +133,12 @@ export function useFrameCache({
 						fps: activeProject?.fps,
 					},
 					sceneId: sceneId ?? activeProject?.currentSceneId ?? "default",
+					cacheIdentity: normalizedCacheIdentity,
 					time: Math.floor(time * cacheResolution) / cacheResolution,
 				}),
 			});
 		},
-		[cacheResolution]
+		[cacheResolution, normalizedCacheIdentity]
 	);
 
 	const getCachedFrame = useCallback(
