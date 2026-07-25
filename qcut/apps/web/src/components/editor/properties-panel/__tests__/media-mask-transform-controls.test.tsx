@@ -97,4 +97,30 @@ describe("MediaMaskTransformControls", () => {
 			value: 1.2,
 		});
 	});
+
+	it("preserves partial position drafts and clamps valid values", () => {
+		const mask = createMediaMask({
+			id: "mask-draft",
+			type: "rectangle",
+			index: 0,
+		});
+		const onNumericChange = vi.fn();
+		renderControls({ mask, onNumericChange });
+		const positionInput = screen.getByLabelText("X 位置数值");
+
+		fireEvent.change(positionInput, { target: { value: "" } });
+
+		expect(positionInput).toHaveValue(null);
+		expect(onNumericChange).not.toHaveBeenCalled();
+
+		fireEvent.change(positionInput, { target: { value: "-25" } });
+		expect(onNumericChange).toHaveBeenLastCalledWith({
+			updates: { centerX: 0.25 },
+		});
+
+		fireEvent.change(positionInput, { target: { value: "500" } });
+		expect(onNumericChange).toHaveBeenLastCalledWith({
+			updates: { centerX: 2 },
+		});
+	});
 });
