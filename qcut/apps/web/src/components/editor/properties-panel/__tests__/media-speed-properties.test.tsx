@@ -5,14 +5,14 @@ import { MediaSpeedProperties } from "../media-speed-properties";
 
 const mocks = vi.hoisted(() => ({
 	updateMediaTiming: vi.fn(),
-	updateMediaElement: vi.fn(),
 	pushHistory: vi.fn(),
+	applyEffect: vi.fn(),
+	getElementEffects: vi.fn<() => Array<{ presetId?: string }>>(() => []),
 }));
 
 vi.mock("@/stores/timeline/timeline-store", () => {
 	const state = {
 		updateMediaTiming: mocks.updateMediaTiming,
-		updateMediaElement: mocks.updateMediaElement,
 		pushHistory: mocks.pushHistory,
 	};
 	const useTimelineStore = (selector: (value: typeof state) => unknown) =>
@@ -24,6 +24,15 @@ vi.mock("@/stores/timeline/timeline-store", () => {
 vi.mock("@/stores/editor/playback-store", () => ({
 	usePlaybackStore: (selector: (state: { currentTime: number }) => unknown) =>
 		selector({ currentTime: 0 }),
+}));
+
+vi.mock("@/stores/ai/effects-store", () => ({
+	useEffectsStore: {
+		getState: () => ({
+			applyEffect: mocks.applyEffect,
+			getElementEffects: mocks.getElementEffects,
+		}),
+	},
 }));
 
 vi.mock("@/stores/project-store", () => ({
@@ -53,6 +62,7 @@ function element(overrides: Partial<MediaElement> = {}): MediaElement {
 describe("MediaSpeedProperties", () => {
 	beforeEach(() => {
 		vi.clearAllMocks();
+		mocks.getElementEffects.mockReturnValue([]);
 	});
 
 	it("applies a speed-point curve and its existing effects atomically", () => {
@@ -81,12 +91,31 @@ describe("MediaSpeedProperties", () => {
 			}),
 			false
 		);
-		expect(mocks.updateMediaElement).toHaveBeenCalledWith(
-			"track",
+		expect(mocks.applyEffect).toHaveBeenCalledWith(
 			"clip",
-			{ effectIds: ["dynamic-flash-pulse"] },
-			false
+			expect.objectContaining({ id: "dynamic-flash-pulse" })
 		);
+	});
+
+	it("does not duplicate an effect already applied by a speed point", () => {
+		mocks.getElementEffects.mockReturnValue([
+			{ presetId: "dynamic-flash-pulse" },
+		]);
+		render(
+			<MediaSpeedProperties
+				element={element()}
+				trackId="track"
+				mediaKind="video"
+			/>
+		);
+
+		fireEvent.mouseDown(screen.getByTestId("speed-mode-beat"), {
+			button: 0,
+			ctrlKey: false,
+		});
+		fireEvent.click(screen.getByTestId("speed-point-preset-flash"));
+
+		expect(mocks.applyEffect).not.toHaveBeenCalled();
 	});
 
 	it("applies the six curve presets to the full source duration", () => {

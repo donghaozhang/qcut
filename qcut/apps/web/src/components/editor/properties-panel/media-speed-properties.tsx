@@ -17,6 +17,7 @@ import {
 } from "@/lib/video/video-timing";
 import { usePlaybackStore } from "@/stores/editor/playback-store";
 import { useProjectStore } from "@/stores/project-store";
+import { useEffectsStore } from "@/stores/ai/effects-store";
 import { useTimelineStore } from "@/stores/timeline/timeline-store";
 import type { MediaElement, MediaPropertyKeyframe } from "@/types/timeline";
 import { KeyframeEditor } from "./keyframe-editor";
@@ -35,6 +36,7 @@ import {
 	PropertyItemValue,
 } from "./property-item";
 import { useTranslation } from "@/lib/i18n";
+import { getEffectPresetById } from "@/lib/effects/effect-catalog";
 
 const SPEED_PRESETS = [0.5, 1, 1.5, 2] as const;
 
@@ -160,9 +162,6 @@ export function MediaSpeedProperties({
 	const updateMediaTiming = useTimelineStore(
 		(state) => state.updateMediaTiming
 	);
-	const updateMediaElement = useTimelineStore(
-		(state) => state.updateMediaElement
-	);
 	const pushHistory = useTimelineStore((state) => state.pushHistory);
 	const currentTime = usePlaybackStore((state) => state.currentTime);
 	const fps = useProjectStore((state) => state.activeProject?.fps ?? 30);
@@ -273,16 +272,18 @@ export function MediaSpeedProperties({
 			},
 			false
 		);
-		updateMediaElement(
-			trackId,
-			element.id,
-			{
-				effectIds: [
-					...new Set([...(element.effectIds ?? []), ...preset.effectIds]),
-				],
-			},
-			false
+		const effectsStore = useEffectsStore.getState();
+		const appliedPresetIds = new Set(
+			effectsStore
+				.getElementEffects(element.id)
+				.flatMap((effect) => (effect.presetId ? [effect.presetId] : []))
 		);
+		for (const presetId of preset.effectIds) {
+			if (appliedPresetIds.has(presetId)) continue;
+			const effectPreset = getEffectPresetById({ presetId });
+			if (!effectPreset) continue;
+			effectsStore.applyEffect(element.id, effectPreset);
+		}
 	};
 	const setTargetDuration = (targetDuration: number) => {
 		const freezeDuration = Math.max(0, element.freezeFrameDuration ?? 0);

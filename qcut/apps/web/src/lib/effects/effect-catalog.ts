@@ -160,3 +160,11 @@ export const EFFECT_CATALOG: readonly EffectCatalogEntry[] = [
 	...DISTORTION_EFFECT_CATALOG,
 	...PERSON_EFFECT_CATALOG,
 ];
+
+const EFFECT_PRESET_BY_ID = new Map(
+	EFFECT_CATALOG.map((entry) => [entry.preset.id, entry.preset])
+);
+
+export function getEffectPresetById({ presetId }: { presetId: string }) {
+	return EFFECT_PRESET_BY_ID.get(presetId);
+}

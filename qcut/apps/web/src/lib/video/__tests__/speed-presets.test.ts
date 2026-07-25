@@ -1,4 +1,5 @@
 import { describe, expect, it } from "vitest";
+import { getEffectPresetById } from "@/lib/effects/effect-catalog";
 import {
 	createSpeedPresetKeyframes,
 	getSpeedCurvePreset,
@@ -36,6 +37,9 @@ describe("speed presets", () => {
 				SPEED_CURVE_PRESETS.some((curve) => curve.id === preset.curvePresetId)
 			).toBe(true);
 			expect(preset.effectIds.length).toBeGreaterThan(0);
+			for (const presetId of preset.effectIds) {
+				expect(getEffectPresetById({ presetId })?.id).toBe(presetId);
+			}
 		}
 	});
 });
