@@ -10,13 +10,19 @@ import {
 import { updateMediaMaskAtFrame } from "@/lib/video/media-mask-stack";
 import { resolveMediaMasks } from "@/lib/video/video-properties";
 import { useTimelineStore } from "@/stores/timeline/timeline-store";
-import type { MediaElement, MediaMask } from "@/types/timeline";
+import type {
+	MediaElement,
+	MediaMask,
+	MediaMaskMirrorMode,
+} from "@/types/timeline";
 import {
 	clamp,
 	featherOutlineInsetPercent,
 	featherPathStrokeWidth,
 	isPointInteractionMode,
 	keyboardDelta,
+	linearFeatherFromHandle,
+	linearFeatherFromKeyboard,
 	localDelta,
 	MASK_RESIZE_HANDLES,
 	moveMaskPoint,
@@ -26,6 +32,7 @@ import {
 	resizeMaskFromHandle,
 	resizeMaskFromKeyboard,
 	type ResizeHandle,
+	type LinearFeatherEdge,
 	type MaskInteraction,
 	type MaskInteractionMode,
 	type PointInteractionMode,
@@ -82,11 +89,13 @@ export function MediaMaskOverlay({
 			mode,
 			pointId: selectedPointId,
 			resizeHandle,
+			linearFeatherEdge,
 		}: {
 			event: ReactPointerEvent;
 			mode: MaskInteractionMode;
 			pointId?: string;
 			resizeHandle?: ResizeHandle;
+			linearFeatherEdge?: LinearFeatherEdge;
 		}) => {
 			const containerRect = containerRef.current?.getBoundingClientRect();
 			if (!containerRect) return;
@@ -109,6 +118,7 @@ export function MediaMaskOverlay({
 				containerRect,
 				pointId: selectedPointId,
 				resizeHandle,
+				linearFeatherEdge,
 			});
 		},
 		[mask, pushHistory]
@@ -152,6 +162,17 @@ export function MediaMaskOverlay({
 						mask: interaction.startMask,
 						handle: interaction.resizeHandle ?? "se",
 						localX: local.x,
+						localY: local.y,
+					}),
+					history: false,
+				});
+				return;
+			}
+			if (interaction.mode === "linear-feather") {
+				updateMask({
+					updates: linearFeatherFromHandle({
+						mask: interaction.startMask,
+						edge: interaction.linearFeatherEdge ?? "bottom",
 						localY: local.y,
 					}),
 					history: false,
@@ -247,6 +268,19 @@ export function MediaMaskOverlay({
 		updateMask({ updates, history: true });
 	};
 
+	const linearFeatherWithKeyboard = ({
+		event,
+		edge,
+	}: {
+		event: ReactKeyboardEvent;
+		edge: LinearFeatherEdge;
+	}) => {
+		const updates = linearFeatherFromKeyboard({ mask, edge, event });
+		if (!updates) return;
+		event.preventDefault();
+		updateMask({ updates, history: true });
+	};
+
 	const rotateWithKeyboard = (event: ReactKeyboardEvent) => {
 		if (event.key !== "ArrowLeft" && event.key !== "ArrowRight") return;
 		event.preventDefault();
@@ -257,6 +291,18 @@ export function MediaMaskOverlay({
 			},
 			history: true,
 		});
+	};
+
+	const setMirrorMode = ({
+		event,
+		mirrorMode,
+	}: {
+		event: ReactPointerEvent | ReactKeyboardEvent;
+		mirrorMode: MediaMaskMirrorMode;
+	}) => {
+		event.preventDefault();
+		event.stopPropagation();
+		updateMask({ updates: { mirrorMode }, history: true });
 	};
 
 	const editPointWithKeyboard = ({
@@ -361,6 +407,13 @@ export function MediaMaskOverlay({
 				: `${(mask.roundness ?? 0) * Math.min(displayWidth, displayHeight) * 50}%`,
 	};
 	const linearFeatherLineOffset = Math.max(8, Math.round(mask.feather * 160));
+	const mirrorMode = mask.mirrorMode ?? "center";
+	const mirrorRangeClassName =
+		mirrorMode === "left"
+			? "left-0 right-1/2"
+			: mirrorMode === "right"
+				? "left-1/2 right-0"
+				: "left-[42%] right-[42%]";
 	const points = mask.points ?? [];
 
 	return (
@@ -397,6 +450,45 @@ export function MediaMaskOverlay({
 						aria-hidden="true"
 					/>
 				) : null}
+				{isLinear
+					? (
+							[
+								{
+									edge: "top" as const,
+									label: "上羽化范围",
+									offset: -linearFeatherLineOffset,
+								},
+								{
+									edge: "bottom" as const,
+									label: "下羽化范围",
+									offset: linearFeatherLineOffset,
+								},
+							] satisfies Array<{
+								edge: LinearFeatherEdge;
+								label: string;
+								offset: number;
+							}>
+						).map((handle) => (
+							<button
+								type="button"
+								key={handle.edge}
+								className="absolute left-1/2 size-4 -translate-x-1/2 -translate-y-1/2 cursor-ns-resize rounded-sm border-2 border-white bg-cyan-500 shadow"
+								style={{ top: `${handle.offset}px` }}
+								onPointerDown={(event) =>
+									beginInteraction({
+										event,
+										mode: "linear-feather",
+										linearFeatherEdge: handle.edge,
+									})
+								}
+								onKeyDown={(event) =>
+									linearFeatherWithKeyboard({ event, edge: handle.edge })
+								}
+								aria-label={`${handle.label}${mask.name ?? "蒙版"}`}
+								title={handle.label}
+							/>
+						))
+					: null}
 				{mask.invert && !isLinear && mask.type !== "pen" ? (
 					<div
 						className="pointer-events-none absolute inset-0 border border-cyan-200/60"
@@ -414,6 +506,13 @@ export function MediaMaskOverlay({
 				) : null}
 				{isMirror ? (
 					<div
+						className={`pointer-events-none absolute bottom-0 top-0 border-x border-fuchsia-200/70 bg-fuchsia-400/10 ${mirrorRangeClassName}`}
+						data-testid="media-mask-mirror-active-range"
+						aria-hidden="true"
+					/>
+				) : null}
+				{isMirror ? (
+					<div
 						className="pointer-events-none absolute left-[25%] top-1/2 h-3 w-3 -translate-x-1/2 -translate-y-1/2 rotate-45 border-b-2 border-l-2 border-fuchsia-300/90"
 						aria-hidden="true"
 					/>
@@ -423,6 +522,50 @@ export function MediaMaskOverlay({
 						className="pointer-events-none absolute right-[25%] top-1/2 h-3 w-3 -translate-y-1/2 translate-x-1/2 rotate-45 border-r-2 border-t-2 border-fuchsia-300/90"
 						aria-hidden="true"
 					/>
+				) : null}
+				{isMirror ? (
+					<div
+						className="absolute left-1/2 top-1/2 z-10 flex -translate-x-1/2 -translate-y-12 gap-1 rounded-full border border-fuchsia-200/70 bg-background/85 p-1 shadow"
+						data-testid="media-mask-mirror-mode-controls"
+					>
+						{(
+							[
+								{ mode: "left", label: "左侧镜像" },
+								{ mode: "center", label: "双向镜像" },
+								{ mode: "right", label: "右侧镜像" },
+							] satisfies Array<{
+								mode: MediaMaskMirrorMode;
+								label: string;
+							}>
+						).map((item) => (
+							<button
+								type="button"
+								key={item.mode}
+								className={`h-5 min-w-8 rounded-full px-2 text-[10px] ${
+									mirrorMode === item.mode
+										? "bg-fuchsia-500 text-white"
+										: "text-fuchsia-100 hover:bg-fuchsia-500/25"
+								}`}
+								onPointerDown={(event) =>
+									setMirrorMode({ event, mirrorMode: item.mode })
+								}
+								onKeyDown={(event) => {
+									if (event.key !== "Enter" && event.key !== " ") return;
+									setMirrorMode({ event, mirrorMode: item.mode });
+								}}
+								aria-label={`${item.label}${mask.name ?? "蒙版"}`}
+								aria-pressed={mirrorMode === item.mode}
+								title={item.label}
+								data-testid={`media-mask-mirror-mode-${item.mode}`}
+							>
+								{item.mode === "left"
+									? "左"
+									: item.mode === "right"
+										? "右"
+										: "双"}
+							</button>
+						))}
+					</div>
 				) : null}
 				{mask.type === "pen" ? (
 					<svg
@@ -500,6 +643,13 @@ export function MediaMaskOverlay({
 									}
 									aria-label={`${handle.label}${mask.name ?? "蒙版"}`}
 									title={handle.label}
+									data-testid={
+										isMirror && handle.id === "w"
+											? "media-mask-mirror-range-left"
+											: isMirror && handle.id === "e"
+												? "media-mask-mirror-range-right"
+												: undefined
+									}
 								/>
 							);
 						})}
