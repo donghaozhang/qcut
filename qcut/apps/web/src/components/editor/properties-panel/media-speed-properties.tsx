@@ -31,7 +31,7 @@ import { useTranslation } from "@/lib/i18n";
 const SPEED_PRESETS = [0.5, 1, 1.5, 2] as const;
 
 type MediaUpdates = Parameters<
-	ReturnType<typeof useTimelineStore.getState>["updateMediaElement"]
+	ReturnType<typeof useTimelineStore.getState>["updateMediaTiming"]
 >[2];
 
 interface SpeedNumberControlProps {
@@ -149,8 +149,8 @@ export function MediaSpeedProperties({
 	mediaKind?: "audio" | "video";
 }) {
 	const { t } = useTranslation();
-	const updateMediaElement = useTimelineStore(
-		(state) => state.updateMediaElement
+	const updateMediaTiming = useTimelineStore(
+		(state) => state.updateMediaTiming
 	);
 	const pushHistory = useTimelineStore((state) => state.pushHistory);
 	const currentTime = usePlaybackStore((state) => state.currentTime);
@@ -173,7 +173,7 @@ export function MediaSpeedProperties({
 	);
 
 	const update = (updates: MediaUpdates, history = true) =>
-		updateMediaElement(trackId, element.id, updates, history);
+		updateMediaTiming(trackId, element.id, updates, history);
 	const updateLive = (updates: MediaUpdates) => update(updates, false);
 	const beginInteraction = () => {
 		if (interactionActive.current) return;
