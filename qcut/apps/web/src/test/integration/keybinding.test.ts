@@ -2,6 +2,7 @@ import { describe, it, expect, beforeEach } from "vitest";
 import {
 	useKeybindingsStore,
 	defaultKeybindings,
+	generateKeybindingString,
 } from "@/stores/editor/keybindings-store";
 
 describe("Keybinding", () => {
@@ -24,7 +25,7 @@ describe("Keybinding", () => {
 
 	it("updates custom keybinding", () => {
 		const store = useKeybindingsStore.getState();
-		store.updateKeybinding("a", "split-element" as any);
+		store.updateKeybinding("a", "split-element");
 
 		// Check the keybinding was updated
 		const updatedStore = useKeybindingsStore.getState();
@@ -33,9 +34,40 @@ describe("Keybinding", () => {
 
 	it("resets to default keybindings", () => {
 		const store = useKeybindingsStore.getState();
-		store.updateKeybinding("space", "stop-playback" as any);
+		store.updateKeybinding("space", "stop-playback");
 		store.resetToDefaults();
 
-		expect(store.keybindings.space).toBe("toggle-play");
+		expect(useKeybindingsStore.getState().keybindings.space).toBe(
+			"toggle-play"
+		);
+		expect(useKeybindingsStore.getState().activeProfileId).toBe("qcut");
+	});
+
+	it("switches profiles and marks manual edits as custom", () => {
+		const store = useKeybindingsStore.getState();
+		store.applyProfile("premiere-pro");
+		expect(useKeybindingsStore.getState().keybindings["ctrl+k"]).toBe(
+			"split-element"
+		);
+		expect(useKeybindingsStore.getState().activeProfileId).toBe("premiere-pro");
+
+		useKeybindingsStore
+			.getState()
+			.updateKeybinding("b", "trim-start-to-playhead");
+		expect(useKeybindingsStore.getState().activeProfileId).toBe("custom");
+	});
+
+	it.each([
+		["BracketLeft", "[", "trim-start-to-playhead"],
+		["BracketRight", "]", "trim-end-to-playhead"],
+		["Comma", ",", "frame-step-backward"],
+		["Minus", "-", "zoom-timeline-out"],
+		["Equal", "=", "zoom-timeline-in"],
+	] as const)("parses the %s editing key", (code, key, action) => {
+		const event = new KeyboardEvent("keydown", { code, key });
+		const binding = generateKeybindingString(event);
+
+		expect(binding).toBe(key);
+		expect(defaultKeybindings[binding!]).toBe(action);
 	});
 });

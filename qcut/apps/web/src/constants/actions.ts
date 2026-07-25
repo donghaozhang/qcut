@@ -51,6 +51,19 @@ export type Action =
 	| "copy-attributes-selected" // Copy selected media attributes
 	| "paste-attributes-selected" // Paste media attributes onto selected element
 	| "toggle-snapping" // Toggle snapping
+	| "trim-start-to-playhead" // Remove the selected clip before the playhead
+	| "trim-end-to-playhead" // Remove the selected clip after the playhead
+	| "zoom-timeline-in" // Increase timeline zoom
+	| "zoom-timeline-out" // Decrease timeline zoom
+	| "add-keyframe" // Add a keyframe at the playhead
+	| "keyframe-ease-in" // Set the playhead keyframe to ease in
+	| "keyframe-ease-out" // Set the playhead keyframe to ease out
+	| "keyframe-linear" // Set the playhead keyframe to linear
+	| "edit-keyframe-value" // Focus the playhead keyframe value
+	| "reverse-selected" // Toggle reverse playback on selected media
+	| "mirror-selected" // Toggle horizontal mirroring on selected media
+	| "rotate-selected" // Rotate the selected element clockwise
+	| "crop-selected" // Open crop controls for selected media
 	| "undo" // Undo last action
 	| "redo" // Redo last undone action
 	// Effects actions

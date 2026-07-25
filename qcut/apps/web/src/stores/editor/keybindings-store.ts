@@ -2,9 +2,14 @@
 
 import { create } from "zustand";
 import { persist } from "zustand/middleware";
-import { ActionWithOptionalArgs } from "@/constants/actions";
+import type { ActionWithOptionalArgs } from "@/constants/actions";
+import {
+	cloneProfileKeybindings,
+	DEFAULT_KEYBINDING_PROFILE_ID,
+	type KeybindingProfileId,
+} from "@/constants/keybinding-profiles";
 import { isAppleDevice, isDOMElement, isTypableElement } from "@/lib/utils";
-import { KeybindingConfig, ShortcutKey } from "@/types/keybinding";
+import type { KeybindingConfig, ShortcutKey } from "@/types/keybinding";
 import {
 	handleError,
 	ErrorCategory,
@@ -35,33 +40,11 @@ if (typeof window !== "undefined") {
 	}
 }
 
-// Default keybindings configuration
-export const defaultKeybindings: KeybindingConfig = {
-	space: "toggle-play",
-	j: "seek-backward",
-	k: "toggle-play",
-	l: "seek-forward",
-	left: "frame-step-backward",
-	right: "frame-step-forward",
-	"shift+left": "jump-backward",
-	"shift+right": "jump-forward",
-	home: "goto-start",
-	end: "goto-end",
-	s: "split-element",
-	n: "toggle-snapping",
-	"ctrl+a": "select-all",
-	"ctrl+c": "copy-selected",
-	"ctrl+x": "cut-selected",
-	"ctrl+v": "paste-clipboard",
-	"ctrl+shift+c": "copy-attributes-selected",
-	"ctrl+shift+v": "paste-attributes-selected",
-	"ctrl+d": "duplicate-selected",
-	"ctrl+z": "undo",
-	"ctrl+shift+z": "redo",
-	"ctrl+y": "redo",
-	delete: "delete-selected",
-	backspace: "delete-selected",
-};
+export type ActiveKeybindingProfileId = KeybindingProfileId | "custom";
+
+export const defaultKeybindings = cloneProfileKeybindings({
+	id: DEFAULT_KEYBINDING_PROFILE_ID,
+});
 
 export interface KeybindingConflict {
 	key: ShortcutKey;
@@ -71,6 +54,7 @@ export interface KeybindingConflict {
 
 interface KeybindingsState {
 	keybindings: KeybindingConfig;
+	activeProfileId: ActiveKeybindingProfileId;
 	isCustomized: boolean;
 	keybindingsEnabled: boolean;
 	isRecording: boolean;
@@ -78,6 +62,14 @@ interface KeybindingsState {
 	// Actions
 	updateKeybinding: (key: ShortcutKey, action: ActionWithOptionalArgs) => void;
 	removeKeybinding: (key: ShortcutKey) => void;
+	replaceKeybindings: ({
+		keybindings,
+		profileId,
+	}: {
+		keybindings: KeybindingConfig;
+		profileId?: ActiveKeybindingProfileId;
+	}) => void;
+	applyProfile: (profileId: KeybindingProfileId) => void;
 	resetToDefaults: () => void;
 	importKeybindings: (config: KeybindingConfig) => void;
 	exportKeybindings: () => KeybindingConfig;
@@ -100,6 +92,7 @@ export const useKeybindingsStore = create<KeybindingsState>()(
 	persist(
 		(set, get) => ({
 			keybindings: { ...defaultKeybindings },
+			activeProfileId: DEFAULT_KEYBINDING_PROFILE_ID,
 			isCustomized: false,
 			keybindingsEnabled: true,
 			isRecording: false,
@@ -111,6 +104,7 @@ export const useKeybindingsStore = create<KeybindingsState>()(
 
 					return {
 						keybindings: newKeybindings,
+						activeProfileId: "custom",
 						isCustomized: true,
 					};
 				});
@@ -118,19 +112,41 @@ export const useKeybindingsStore = create<KeybindingsState>()(
 
 			removeKeybinding: (key: ShortcutKey) => {
 				set((state) => {
-					const newKeybindings = { ...state.keybindings };
-					delete newKeybindings[key];
+					const newKeybindings = Object.fromEntries(
+						Object.entries(state.keybindings).filter(
+							([candidate]) => candidate !== key
+						)
+					) as KeybindingConfig;
 
 					return {
 						keybindings: newKeybindings,
+						activeProfileId: "custom",
 						isCustomized: true,
 					};
+				});
+			},
+
+			replaceKeybindings: ({ keybindings, profileId = "custom" }) => {
+				validateImportedKeybindings({ keybindings });
+				set({
+					keybindings: { ...keybindings },
+					activeProfileId: profileId,
+					isCustomized: profileId === "custom",
+				});
+			},
+
+			applyProfile: (profileId) => {
+				set({
+					keybindings: cloneProfileKeybindings({ id: profileId }),
+					activeProfileId: profileId,
+					isCustomized: false,
 				});
 			},
 
 			resetToDefaults: () => {
 				set({
 					keybindings: { ...defaultKeybindings },
+					activeProfileId: DEFAULT_KEYBINDING_PROFILE_ID,
 					isCustomized: false,
 				});
 			},
@@ -144,15 +160,10 @@ export const useKeybindingsStore = create<KeybindingsState>()(
 			},
 
 			importKeybindings: (config: KeybindingConfig) => {
-				// Validate all keys and actions
-				for (const [key, action] of Object.entries(config)) {
-					// Validate the key format
-					if (typeof key !== "string" || key.length === 0) {
-						throw new Error(`Invalid key format: ${key}`);
-					}
-				}
+				validateImportedKeybindings({ keybindings: config });
 				set({
 					keybindings: { ...config },
+					activeProfileId: "custom",
 					isCustomized: true,
 				});
 			},
@@ -195,20 +206,29 @@ export const useKeybindingsStore = create<KeybindingsState>()(
 		}),
 		{
 			name: "qcut-keybindings",
-			version: 2,
+			version: 3,
 			migrate: (persistedState, version) => {
 				const state = persistedState as Partial<KeybindingsState>;
-				if (version >= 2) return state;
+				const versionTwoState =
+					version >= 2
+						? state
+						: {
+								...state,
+								keybindings: {
+									"ctrl+c": "copy-selected",
+									"ctrl+x": "cut-selected",
+									"ctrl+v": "paste-clipboard",
+									"ctrl+shift+c": "copy-attributes-selected",
+									"ctrl+shift+v": "paste-attributes-selected",
+									...state.keybindings,
+								},
+							};
+				if (version >= 3) return versionTwoState;
 				return {
-					...state,
-					keybindings: {
-						"ctrl+c": "copy-selected",
-						"ctrl+x": "cut-selected",
-						"ctrl+v": "paste-clipboard",
-						"ctrl+shift+c": "copy-attributes-selected",
-						"ctrl+shift+v": "paste-attributes-selected",
-						...state.keybindings,
-					},
+					...versionTwoState,
+					activeProfileId: versionTwoState.isCustomized
+						? "custom"
+						: DEFAULT_KEYBINDING_PROFILE_ID,
 				};
 			},
 		}
@@ -216,7 +236,9 @@ export const useKeybindingsStore = create<KeybindingsState>()(
 );
 
 // Utility functions
-function generateKeybindingString(ev: KeyboardEvent): ShortcutKey | null {
+export function generateKeybindingString(
+	ev: KeyboardEvent
+): ShortcutKey | null {
 	const target = ev.target;
 
 	// We may or may not have a modifier key
@@ -264,6 +286,7 @@ function getPressedKey(ev: KeyboardEvent): string | null {
 	if (key === "end") return "end";
 	if (key === "delete") return "delete";
 	if (key === "backspace") return "backspace";
+	if (key === "escape" || key === "esc") return "escape";
 
 	// Check letter keys
 	if (code.startsWith("Key")) {
@@ -285,8 +308,21 @@ function getPressedKey(ev: KeyboardEvent): string | null {
 	const isDigit = key.length === 1 && key >= "0" && key <= "9";
 	if (isDigit) return key;
 
-	// Check if slash, period or enter
-	if (key === "/" || key === "." || key === "enter") return key;
+	const punctuationByCode: Record<string, string> = {
+		BracketLeft: "[",
+		BracketRight: "]",
+		Comma: ",",
+		Period: ".",
+		Minus: "-",
+		Equal: "=",
+		Slash: "/",
+	};
+	const punctuation = punctuationByCode[code];
+	if (punctuation) return punctuation;
+
+	if (["/", ".", ",", "[", "]", "-", "=", "enter"].includes(key)) {
+		return key;
+	}
 
 	// If no other cases match, this is not a valid key
 	return null;
@@ -306,4 +342,19 @@ function getActiveModifier(ev: KeyboardEvent): string | null {
 		.join("+");
 
 	return activeModifier === "" ? null : activeModifier;
+}
+
+function validateImportedKeybindings({
+	keybindings,
+}: {
+	keybindings: KeybindingConfig;
+}): void {
+	for (const [key, action] of Object.entries(keybindings)) {
+		if (typeof key !== "string" || key.length === 0) {
+			throw new Error(`Invalid key format: ${key}`);
+		}
+		if (typeof action !== "string" || action.length === 0) {
+			throw new Error(`Invalid action for key: ${key}`);
+		}
+	}
 }
