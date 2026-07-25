@@ -43,20 +43,38 @@ export function createMediaTimingOps(
 			if (!track || element?.type !== "media") return;
 
 			const updatedElement: MediaElement = { ...element, ...updates };
-			const oldDuration = getMediaTimelineDuration(element);
-			const nextDuration = getMediaTimelineDuration(updatedElement);
-			const durationDelta = nextDuration - oldDuration;
-			const oldEndTime = element.startTime + oldDuration;
 
 			if (pushHistory) get().pushHistory();
 			updateTracksAndSave(
 				tracks.map((candidateTrack) => {
-					if (candidateTrack.id !== trackId) return candidateTrack;
+					const timingTarget =
+						candidateTrack.id === trackId
+							? element
+							: candidateTrack.type === "audio" && element.groupId
+								? candidateTrack.elements.find(
+										(candidate) =>
+											candidate.type === "media" &&
+											candidate.groupId === element.groupId &&
+											candidate.mediaId === element.mediaId
+									)
+								: undefined;
+					if (timingTarget?.type !== "media") return candidateTrack;
+
+					const updatedTimingTarget: MediaElement =
+						timingTarget.id === elementId
+							? updatedElement
+							: { ...timingTarget, ...updates };
+					const oldDuration = getMediaTimelineDuration(timingTarget);
+					const nextDuration = getMediaTimelineDuration(updatedTimingTarget);
+					const durationDelta = nextDuration - oldDuration;
+					const oldEndTime = timingTarget.startTime + oldDuration;
 
 					return {
 						...candidateTrack,
 						elements: candidateTrack.elements.map((candidate) => {
-							if (candidate.id === elementId) return updatedElement;
+							if (candidate.id === timingTarget.id) {
+								return updatedTimingTarget;
+							}
 							if (
 								Math.abs(durationDelta) <= DURATION_EPSILON ||
 								candidate.startTime < oldEndTime - DURATION_EPSILON
