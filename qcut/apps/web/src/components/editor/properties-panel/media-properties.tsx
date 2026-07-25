@@ -590,6 +590,8 @@ export function MediaProperties({
 			reverse: false,
 			freezeFrameTime: undefined,
 			freezeFrameDuration: 0,
+			preservePitch: true,
+			frameInterpolation: "none",
 			keyframes: {},
 		});
 	const openSegmentation = ({

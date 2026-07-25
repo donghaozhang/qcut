@@ -666,6 +666,8 @@ export interface TimelineStore {
 				| "reverse"
 				| "freezeFrameTime"
 				| "freezeFrameDuration"
+				| "preservePitch"
+				| "frameInterpolation"
 			>
 		>,
 		pushHistory?: boolean
@@ -681,6 +683,8 @@ export interface TimelineStore {
 				| "reverse"
 				| "freezeFrameTime"
 				| "freezeFrameDuration"
+				| "preservePitch"
+				| "frameInterpolation"
 			>
 		>,
 		pushHistory?: boolean

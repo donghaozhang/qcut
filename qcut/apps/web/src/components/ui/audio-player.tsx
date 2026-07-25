@@ -74,6 +74,7 @@ export function AudioPlayer({
 				playbackSpeed,
 				fps,
 			});
+			audio.preservesPitch = element.preservePitch ?? true;
 			audio.playbackRate = timing.playbackRate;
 			const tolerance =
 				element.reverse || (element.speedKeyframes?.length ?? 0) > 0

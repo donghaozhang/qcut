@@ -62,6 +62,7 @@ interface TimelineAudioCandidate {
 	reverse: boolean;
 	freezeFrameTime: number | undefined;
 	freezeFrameDuration: number;
+	preservePitch: boolean;
 }
 
 function guessExtension(mediaItem: MediaItem): string {
@@ -146,6 +147,7 @@ function collectAudioCandidates(
 					reverse: element.reverse ?? false,
 					freezeFrameTime: element.freezeFrameTime,
 					freezeFrameDuration: element.freezeFrameDuration ?? 0,
+					preservePitch: element.preservePitch ?? true,
 				});
 			}
 		}

@@ -198,6 +198,8 @@ export interface ClaudeMediaTimingProperties {
 	reverse?: boolean;
 	freezeFrameTime?: number;
 	freezeFrameDuration?: number;
+	preservePitch?: boolean;
+	frameInterpolation?: "none" | "blend" | "motion-compensated";
 }
 
 export interface ClaudeElement

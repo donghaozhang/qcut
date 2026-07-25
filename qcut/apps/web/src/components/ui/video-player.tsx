@@ -165,6 +165,7 @@ export function VideoPlayer({
 			playbackSpeed?: number;
 			syncPosition?: boolean;
 		}) => {
+			video.preservesPitch = timingElement?.preservePitch ?? true;
 			video.playbackRate = getVideoPlaybackRate({
 				timingElement,
 				clipPlaybackRate,

@@ -16,6 +16,8 @@ export type MediaTimingStoreUpdates = Partial<
 		| "reverse"
 		| "freezeFrameTime"
 		| "freezeFrameDuration"
+		| "preservePitch"
+		| "frameInterpolation"
 	>
 >;
 

@@ -139,6 +139,8 @@ const MEDIA_VERIFY_KEYS = [
 	"reverse",
 	"freezeFrameTime",
 	"freezeFrameDuration",
+	"preservePitch",
+	"frameInterpolation",
 ] as const;
 
 function isRecord(value: unknown): value is JsonRecord {

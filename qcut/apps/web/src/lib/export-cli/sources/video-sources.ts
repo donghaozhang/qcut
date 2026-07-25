@@ -248,6 +248,7 @@ export async function extractVideoSources(
 				reverse: element.reverse ?? false,
 				freezeFrameTime: element.freezeFrameTime,
 				freezeFrameDuration: element.freezeFrameDuration ?? 0,
+				frameInterpolation: element.frameInterpolation,
 				visual: {
 					...exportVisual,
 					keyframes: element.keyframes,

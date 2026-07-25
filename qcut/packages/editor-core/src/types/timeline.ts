@@ -747,6 +747,8 @@ export interface MediaElement extends BaseTimelineElement {
 	reverse?: boolean;
 	freezeFrameTime?: number;
 	freezeFrameDuration?: number;
+	preservePitch?: boolean;
+	frameInterpolation?: "none" | "blend" | "motion-compensated";
 	/** Nested media preserved behind a single editable timeline container. */
 	compound?: MediaCompound;
 }

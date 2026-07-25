@@ -254,6 +254,18 @@ export function getClaudeMediaTimingProperties({
 	) {
 		properties.freezeFrameDuration = freezeFrameDuration;
 	}
+	const preservePitch = read("preservePitch");
+	if (typeof preservePitch === "boolean") {
+		properties.preservePitch = preservePitch;
+	}
+	const frameInterpolation = read("frameInterpolation");
+	if (
+		frameInterpolation === "none" ||
+		frameInterpolation === "blend" ||
+		frameInterpolation === "motion-compensated"
+	) {
+		properties.frameInterpolation = frameInterpolation;
+	}
 	return properties;
 }
 
@@ -1205,6 +1217,8 @@ function formatElementForExport(
 				reverse: element.reverse,
 				freezeFrameTime: element.freezeFrameTime,
 				freezeFrameDuration: element.freezeFrameDuration,
+				preservePitch: element.preservePitch,
+				frameInterpolation: element.frameInterpolation,
 			};
 		}
 		case "text": {
