@@ -71,6 +71,7 @@ import {
 	canUseNativeCompositionPreview,
 	useNativeCompositionFramePreview,
 } from "@/hooks/preview/use-native-composition-frame-preview";
+import { usePlaybackHealthPreviewQuality } from "@/hooks/preview/use-playback-health-preview-quality";
 import { useMaskEditorStore } from "@/stores/editor/mask-editor-store";
 import { useColorPickerStore } from "@/stores/editor/color-picker-store";
 import { useStickersOverlayStore } from "@/stores/stickers-overlay-store";
@@ -85,6 +86,7 @@ function getPreviewElementDuration(element: TimelineElement): number {
 /** Main preview panel component for video playback, MCP apps, and element overlays. */
 export function PreviewPanel() {
 	useAudioMixMonitor();
+	usePlaybackHealthPreviewQuality();
 	const {
 		tracks,
 		getTotalDuration,
@@ -100,7 +102,14 @@ export function PreviewPanel() {
 		loading: mediaItemsLoading,
 		error: mediaItemsError,
 	} = useAsyncMediaItems();
-	const { currentTime, toggle, setCurrentTime, isPlaying } = usePlaybackStore();
+	const {
+		currentTime,
+		toggle,
+		setCurrentTime,
+		isPlaying,
+		previewQuality,
+		runtimePreviewQuality,
+	} = usePlaybackStore();
 	const { activeProject } = useProjectStore();
 	const { canvasSize } = useEditorStore();
 	const maskEditorActive = useMaskEditorStore((state) => state.isEditing);
@@ -239,6 +248,7 @@ export function PreviewPanel() {
 	// Frame caching - non-intrusive addition
 	const { preRenderNearbyFrames } = useFrameCache({
 		namespace: activeProject?.id ?? "default",
+		cacheIdentity: `preview-quality:${runtimePreviewQuality ?? previewQuality}`,
 		persist: true,
 	});
 
