@@ -101,8 +101,8 @@ export function TimelineToolbar({
 	const removeElementFromTrack = useTimelineStore(
 		(s) => s.removeElementFromTrack
 	);
-	const removeElementFromTrackWithRipple = useTimelineStore(
-		(s) => s.removeElementFromTrackWithRipple
+	const deleteSelectedElementsWithRipple = useTimelineStore(
+		(s) => s.deleteSelectedElementsWithRipple
 	);
 	const selectedElements = useTimelineStore((s) => s.selectedElements);
 	const clearSelectedElements = useTimelineStore(
@@ -309,12 +309,12 @@ export function TimelineToolbar({
 
 	const handleDeleteSelected = () => {
 		if (selectedElements.length === 0) return;
+		if (rippleEditingEnabled) {
+			deleteSelectedElementsWithRipple(selectedElements);
+			return;
+		}
 		for (const { trackId, elementId } of selectedElements) {
-			if (rippleEditingEnabled) {
-				removeElementFromTrackWithRipple(trackId, elementId);
-			} else {
-				removeElementFromTrack(trackId, elementId);
-			}
+			removeElementFromTrack(trackId, elementId);
 		}
 		clearSelectedElements();
 	};
