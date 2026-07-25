@@ -257,6 +257,8 @@ export type MediaMaskType =
 
 export type MediaMaskBlendMode = "add" | "subtract" | "intersect";
 
+export type MediaMaskMirrorMode = "center" | "left" | "right";
+
 export type MediaMaskKeyframeProperty =
 	| "centerX"
 	| "centerY"
@@ -299,8 +301,13 @@ export type MediaMaskTrackingDirection = "forward" | "backward" | "both";
 
 export interface MediaMaskTracking {
 	direction: MediaMaskTrackingDirection;
-	status?: "idle" | "processing" | "ready" | "error";
+	status?: "idle" | "processing" | "paused" | "ready" | "error";
 	source?: "manual" | "optical-flow" | "mediapipe" | "sam3";
+	progress?: number;
+	anchorFrame?: number;
+	trackedFrames?: number;
+	totalFrames?: number;
+	correctedFrames?: number[];
 	error?: string;
 }
 
@@ -322,6 +329,7 @@ export interface MediaMask {
 	opacity?: number;
 	maintainAspectRatio?: boolean;
 	invert: boolean;
+	mirrorMode?: MediaMaskMirrorMode;
 	points?: MediaMaskPoint[];
 	closed?: boolean;
 	text?: string;
