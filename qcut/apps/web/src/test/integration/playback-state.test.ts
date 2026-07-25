@@ -41,6 +41,7 @@ describe("Playback State", () => {
 			muted: false,
 			previewQuality: "auto",
 			runtimePreviewQuality: null,
+			runtimePreviewQualityDiagnostic: null,
 		});
 	});
 
@@ -79,16 +80,38 @@ describe("Playback State", () => {
 		usePlaybackStore.setState({
 			isPlaying: true,
 			runtimePreviewQuality: "low",
+			runtimePreviewQualityDiagnostic: {
+				reason: "video-frame",
+				averageMainThreadFrameIntervalMs: 20,
+				mainThreadStutterCount: 0,
+				averagePresentedFrameIntervalMs: 90,
+				presentedFrameStallCount: 5,
+			},
 		});
 
 		usePlaybackStore.getState().pause();
 
 		expect(usePlaybackStore.getState().runtimePreviewQuality).toBeNull();
+		expect(
+			usePlaybackStore.getState().runtimePreviewQualityDiagnostic
+		).toBeNull();
 
-		usePlaybackStore.getState().setRuntimePreviewQuality("smooth");
+		usePlaybackStore.getState().setRuntimePreviewQuality({
+			quality: "smooth",
+			diagnostic: {
+				reason: "main-thread",
+				averageMainThreadFrameIntervalMs: 50,
+				mainThreadStutterCount: 3,
+				averagePresentedFrameIntervalMs: 20,
+				presentedFrameStallCount: 0,
+			},
+		});
 		usePlaybackStore.getState().setPreviewQuality("original");
 
 		expect(usePlaybackStore.getState().previewQuality).toBe("original");
 		expect(usePlaybackStore.getState().runtimePreviewQuality).toBeNull();
+		expect(
+			usePlaybackStore.getState().runtimePreviewQualityDiagnostic
+		).toBeNull();
 	});
 });
