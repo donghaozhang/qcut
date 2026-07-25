@@ -120,6 +120,61 @@ describe("timeline ripple operations", () => {
 		expect(useTimelineStore.getState().history).toHaveLength(1);
 	});
 
+	it("deletes a selected batch and ripples every linked track once", () => {
+		const tracks: TimelineTrack[] = [
+			{
+				id: "main",
+				name: "Main",
+				type: "media",
+				isMain: true,
+				elements: [
+					mediaElement({ id: "a", startTime: 0 }),
+					mediaElement({ id: "b", startTime: 2 }),
+					mediaElement({ id: "c", startTime: 6 }),
+				],
+			},
+			{
+				id: "overlay",
+				name: "Overlay",
+				type: "media",
+				elements: [
+					mediaElement({ id: "overlay-a", startTime: 2 }),
+					mediaElement({ id: "overlay-b", startTime: 6 }),
+				],
+			},
+		];
+		useTimelineStore.setState({
+			_tracks: tracks,
+			tracks,
+			history: [],
+			redoStack: [],
+			selectedElements: [
+				{ trackId: "main", elementId: "b" },
+				{ trackId: "overlay", elementId: "overlay-a" },
+			],
+		});
+
+		const result = useTimelineStore
+			.getState()
+			.deleteSelectedElementsWithRipple();
+
+		expect(result).toMatchObject({
+			deletedElements: 2,
+			splitElements: 0,
+			totalRemovedDuration: 2,
+		});
+		expect(
+			useTimelineStore
+				.getState()
+				.tracks.find((track) => track.id === "main")
+				?.elements.map((element) => element.id)
+		).toEqual(["a", "c"]);
+		expect(elementStartTimes({ trackId: "main" })).toEqual([0, 4]);
+		expect(elementStartTimes({ trackId: "overlay" })).toEqual([4]);
+		expect(useTimelineStore.getState().selectedElements).toEqual([]);
+		expect(useTimelineStore.getState().history).toHaveLength(1);
+	});
+
 	it("moves following clips when a speed change alters clip duration", () => {
 		useTimelineStore
 			.getState()
