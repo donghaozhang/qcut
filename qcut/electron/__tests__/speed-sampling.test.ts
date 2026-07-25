@@ -63,4 +63,25 @@ describe("adaptive speed sampling", () => {
 		expect(filter).toContain("asplit=12");
 		expect(filter.length).toBeLessThan(10_000);
 	});
+
+	it("uses sample-rate speed changes when pitch preservation is disabled", () => {
+		const result = buildTimelineAudioFilters({
+			audioFiles: [
+				{
+					path: "/tmp/voice.wav",
+					startTime: 0,
+					duration: 4,
+					playbackRate: 1.5,
+					preservePitch: false,
+				},
+			],
+			audioStartIndex: 0,
+			fps: 30,
+		});
+		const filter = result.filterSteps.join(";");
+
+		expect(filter).toContain("asetrate=48000*1.5");
+		expect(filter).toContain("aresample=48000");
+		expect(filter).not.toContain("atempo=1.5");
+	});
 });

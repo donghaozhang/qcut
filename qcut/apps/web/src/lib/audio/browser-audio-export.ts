@@ -241,9 +241,12 @@ function createImpulse({
 
 function clipNeedsPitch({ element }: { element: MediaElement }): boolean {
 	const settings = element.audio;
+	const needsSpeedCorrection =
+		(element.preservePitch ?? true) &&
+		(clampPlaybackRate(element.playbackRate) !== 1 ||
+			(element.speedKeyframes?.length ?? 0) > 0);
 	return Boolean(
-		clampPlaybackRate(element.playbackRate) !== 1 ||
-			(element.speedKeyframes?.length ?? 0) > 0 ||
+		needsSpeedCorrection ||
 			(settings?.pitch.enabled &&
 				(Math.abs(settings.pitch.semitones) >= 0.01 ||
 					(settings.keyframes?.pitchSemitones?.length ?? 0) > 0))

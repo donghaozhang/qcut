@@ -1080,6 +1080,18 @@ function buildTimedVideoInput({
 		filterSteps.push(`[${outputLabel}]setpts='(${expression})/TB'[${sped}]`);
 		outputLabel = sped;
 	}
+	if (
+		source.frameInterpolation === "blend" ||
+		source.frameInterpolation === "motion-compensated"
+	) {
+		const interpolated = `${prefix}_interpolated`;
+		const interpolation =
+			source.frameInterpolation === "motion-compensated"
+				? `minterpolate=fps=${Math.max(1, fps)}:mi_mode=mci:mc_mode=aobmc:me_mode=bidir:vsbmc=1`
+				: `minterpolate=fps=${Math.max(1, fps)}:mi_mode=blend`;
+		filterSteps.push(`[${outputLabel}]${interpolation}[${interpolated}]`);
+		outputLabel = interpolated;
+	}
 	if (freezeDuration <= 0) return { filterSteps, outputLabel };
 
 	const freezeSourceTime = clamp(
