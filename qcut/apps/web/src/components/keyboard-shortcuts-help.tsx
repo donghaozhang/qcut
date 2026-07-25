@@ -76,7 +76,7 @@ function downloadKeybindings({
 	anchor.href = url;
 	anchor.download = "qcut-shortcuts.json";
 	anchor.click();
-	URL.revokeObjectURL(url);
+	setTimeout(() => URL.revokeObjectURL(url), 0);
 }
 
 export const KeyboardShortcutsHelp = ({
@@ -190,12 +190,18 @@ export const KeyboardShortcutsHelp = ({
 		setDraftProfileId("custom");
 	};
 
+	const closeDialog = () => {
+		setRecordingAction(null);
+		setIsRecording(false);
+		setOpen(false);
+	};
+
 	const save = () => {
 		replaceKeybindings({
 			keybindings: draftKeybindings,
 			profileId: draftProfileId,
 		});
-		setOpen(false);
+		closeDialog();
 	};
 
 	const importFile = async (file: File) => {
@@ -212,8 +218,11 @@ export const KeyboardShortcutsHelp = ({
 		<Dialog
 			open={open}
 			onOpenChange={(nextOpen) => {
-				setOpen(nextOpen);
-				if (!nextOpen) setRecordingAction(null);
+				if (nextOpen) {
+					setOpen(true);
+					return;
+				}
+				closeDialog();
 			}}
 		>
 			<DialogTrigger asChild>
@@ -368,11 +377,7 @@ export const KeyboardShortcutsHelp = ({
 						/>
 					</div>
 					<div className="flex items-center gap-2">
-						<Button
-							type="button"
-							variant="outline"
-							onClick={() => setOpen(false)}
-						>
+						<Button type="button" variant="outline" onClick={closeDialog}>
 							{t("shortcuts.cancel")}
 						</Button>
 						<Button type="button" onClick={save} data-testid="shortcut-save">
