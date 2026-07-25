@@ -303,7 +303,10 @@ export function LocalPersonCutoutPanel({
 				elapsedTime: (Date.now() - startedAt) / 1000,
 			});
 			if (canceled) {
-				pauseGeneratedMaskTracking({ message: "人物跟踪已暂停" });
+				pauseGeneratedMaskTracking({
+					message: "人物跟踪已暂停",
+					trackingRequestId: trackingRequest?.requestId,
+				});
 				useCloudTaskStore.getState().cancelTask({ id: taskId });
 			} else {
 				useCloudTaskStore.getState().failTask({
