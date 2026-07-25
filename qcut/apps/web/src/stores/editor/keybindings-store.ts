@@ -88,6 +88,55 @@ interface KeybindingsState {
 	getKeybindingString: (ev: KeyboardEvent) => ShortcutKey | null;
 }
 
+export function migrateKeybindingsState({
+	persistedState,
+	version,
+}: {
+	persistedState: unknown;
+	version: number;
+}) {
+	const state = persistedState as Partial<KeybindingsState>;
+	const versionTwoState =
+		version >= 2
+			? state
+			: {
+					...state,
+					keybindings: {
+						"ctrl+c": "copy-selected",
+						"ctrl+x": "cut-selected",
+						"ctrl+v": "paste-clipboard",
+						"ctrl+shift+c": "copy-attributes-selected",
+						"ctrl+shift+v": "paste-attributes-selected",
+						...state.keybindings,
+					},
+				};
+	const versionThreeState =
+		version >= 3
+			? versionTwoState
+			: {
+					...versionTwoState,
+					activeProfileId: versionTwoState.isCustomized
+						? "custom"
+						: DEFAULT_KEYBINDING_PROFILE_ID,
+				};
+	if (version >= 4) return versionThreeState;
+	const activeProfileId =
+		versionThreeState.activeProfileId ?? DEFAULT_KEYBINDING_PROFILE_ID;
+	if (
+		versionThreeState.isCustomized ||
+		(activeProfileId !== "qcut" && activeProfileId !== "capcut")
+	) {
+		return versionThreeState;
+	}
+	return {
+		...versionThreeState,
+		keybindings: {
+			...versionThreeState.keybindings,
+			c: "crop-selected",
+		},
+	};
+}
+
 export const useKeybindingsStore = create<KeybindingsState>()(
 	persist(
 		(set, get) => ({
@@ -206,31 +255,9 @@ export const useKeybindingsStore = create<KeybindingsState>()(
 		}),
 		{
 			name: "qcut-keybindings",
-			version: 3,
-			migrate: (persistedState, version) => {
-				const state = persistedState as Partial<KeybindingsState>;
-				const versionTwoState =
-					version >= 2
-						? state
-						: {
-								...state,
-								keybindings: {
-									"ctrl+c": "copy-selected",
-									"ctrl+x": "cut-selected",
-									"ctrl+v": "paste-clipboard",
-									"ctrl+shift+c": "copy-attributes-selected",
-									"ctrl+shift+v": "paste-attributes-selected",
-									...state.keybindings,
-								},
-							};
-				if (version >= 3) return versionTwoState;
-				return {
-					...versionTwoState,
-					activeProfileId: versionTwoState.isCustomized
-						? "custom"
-						: DEFAULT_KEYBINDING_PROFILE_ID,
-				};
-			},
+			version: 4,
+			migrate: (persistedState, version) =>
+				migrateKeybindingsState({ persistedState, version }),
 		}
 	)
 );
