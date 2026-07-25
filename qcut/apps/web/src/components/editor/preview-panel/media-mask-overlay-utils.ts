@@ -7,11 +7,13 @@ export type MaskInteractionMode =
 	| "move"
 	| "resize"
 	| "rotate"
+	| "linear-feather"
 	| "anchor"
 	| "handle-in"
 	| "handle-out";
 
 export type PointInteractionMode = "anchor" | "handle-in" | "handle-out";
+export type LinearFeatherEdge = "top" | "bottom";
 
 export interface MaskInteraction {
 	mode: MaskInteractionMode;
@@ -22,6 +24,7 @@ export interface MaskInteraction {
 	containerRect: DOMRect;
 	pointId?: string;
 	resizeHandle?: ResizeHandle;
+	linearFeatherEdge?: LinearFeatherEdge;
 }
 
 export interface MaskResizeHandleDefinition {
@@ -273,6 +276,39 @@ export function featherOutlineInsetPercent({ feather }: { feather: number }) {
 export function featherPathStrokeWidth({ feather }: { feather: number }) {
 	if (feather <= 0) return 0;
 	return clamp({ value: feather * 0.25, min: 0.012, max: 0.12 });
+}
+
+export function linearFeatherFromHandle({
+	mask,
+	edge,
+	localY,
+}: {
+	mask: MediaMask;
+	edge: LinearFeatherEdge;
+	localY: number;
+}): Pick<MediaMask, "feather"> {
+	const direction = edge === "top" ? -1 : 1;
+	return {
+		feather: clamp({
+			value: mask.feather + localY * direction,
+			min: 0,
+			max: 1,
+		}),
+	};
+}
+
+export function linearFeatherFromKeyboard({
+	mask,
+	edge,
+	event,
+}: {
+	mask: MediaMask;
+	edge: LinearFeatherEdge;
+	event: ReactKeyboardEvent;
+}): Pick<MediaMask, "feather"> | null {
+	const delta = keyboardDelta({ event });
+	if (!delta) return null;
+	return linearFeatherFromHandle({ mask, edge, localY: delta.y });
 }
 
 export function isPointInteractionMode(
