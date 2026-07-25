@@ -262,12 +262,19 @@ export function failGeneratedMaskTracking({ message }: { message: string }) {
 
 export function pauseGeneratedMaskTracking({
 	message,
+	trackingRequestId,
 }: {
 	message?: string;
-} = {}) {
+	trackingRequestId?: string;
+} = {}): boolean {
 	const segmentationState = useSegmentationStore.getState();
 	const request = segmentationState.trackingRequest;
-	if (!request) return;
+	if (
+		!request ||
+		(trackingRequestId && request.requestId !== trackingRequestId)
+	) {
+		return false;
+	}
 	const target = selectedMediaTarget({ elementId: request.elementId });
 	if (target) {
 		const masks = resolveMediaMasks(target.element).map((mask) =>
@@ -289,7 +296,7 @@ export function pauseGeneratedMaskTracking({
 			.getState()
 			.updateMediaElement(target.trackId, target.element.id, { masks });
 	}
-	segmentationState.clearTrackingRequest();
+	return true;
 }
 
 export function updateGeneratedMaskTrackingProgress({
