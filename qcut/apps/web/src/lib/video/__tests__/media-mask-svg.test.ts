@@ -70,8 +70,10 @@ describe("combined media mask SVG", () => {
 		const svg = buildCombinedMediaMaskSvg([linear, mirror]);
 
 		expect(svg).toContain(
-			'<linearGradient id="mask-gradient-0" x1="0%" y1="0%" x2="0%" y2="100%">'
+			'<linearGradient id="mask-gradient-0" gradientUnits="userSpaceOnUse" x1="25" y1="10" x2="25" y2="110">'
 		);
+		// The rect still overscans for rotation, while the gradient itself stays
+		// in the same 100-unit mask space as the other mask geometries.
 		expect(svg).toContain('x="-125" y="-90" width="300" height="300"');
 		expect(svg).toContain('transform="rotate(12 25 60)"');
 		expect(svg).toContain(
