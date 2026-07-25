@@ -152,18 +152,23 @@ export const usePlaybackStore = create<PlaybackStore>((set, get) => ({
 	muted: false,
 	previousVolume: 1,
 	speed: 1.0,
-	previewQuality: "original",
+	previewQuality: "auto",
+	runtimePreviewQuality: null,
 
 	play: () => {
 		_mutableCurrentTime = get().currentTime;
-		set({ isPlaying: true });
+		set({ isPlaying: true, runtimePreviewQuality: null });
 		// Dispatch synchronously so video elements can call play() within the user gesture context (iOS requirement)
 		window.dispatchEvent(new CustomEvent("playback-play"));
 		startTimer(get);
 	},
 
 	pause: () => {
-		set({ isPlaying: false, currentTime: _mutableCurrentTime });
+		set({
+			isPlaying: false,
+			currentTime: _mutableCurrentTime,
+			runtimePreviewQuality: null,
+		});
 		stopTimer();
 	},
 
@@ -206,7 +211,10 @@ export const usePlaybackStore = create<PlaybackStore>((set, get) => ({
 		window.dispatchEvent(event);
 	},
 
-	setPreviewQuality: (quality) => set({ previewQuality: quality }),
+	setPreviewQuality: (quality) =>
+		set({ previewQuality: quality, runtimePreviewQuality: null }),
+	setRuntimePreviewQuality: (quality) =>
+		set({ runtimePreviewQuality: quality }),
 
 	setDuration: (duration: number) => {
 		set({ duration });
