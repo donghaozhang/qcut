@@ -9,6 +9,8 @@ export interface PreviewQualityOption {
 	forceProxy: boolean;
 }
 
+export type PreviewEffectRenderMode = "full" | "reduced" | "minimal";
+
 interface ResolveEffectivePreviewQualityOptionParams {
 	quality: PreviewQualityPreset;
 	runtimeQuality?: PreviewQualityPreset | null;
@@ -136,4 +138,17 @@ export function resolveRuntimePreviewQuality({
 		return null;
 	}
 	return currentRuntimeQuality;
+}
+
+export function resolvePreviewEffectRenderMode({
+	quality,
+	isPlaying,
+}: {
+	quality: PreviewQualityPreset;
+	isPlaying: boolean;
+}): PreviewEffectRenderMode {
+	if (!isPlaying) return "full";
+	if (quality === "low") return "minimal";
+	if (quality === "smooth") return "reduced";
+	return "full";
 }
