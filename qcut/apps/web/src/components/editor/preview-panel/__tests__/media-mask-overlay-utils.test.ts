@@ -6,6 +6,8 @@ import {
 	featherPathStrokeWidth,
 	isPointInteractionMode,
 	keyboardDelta,
+	linearFeatherFromHandle,
+	linearFeatherFromKeyboard,
 	localDelta,
 	moveMaskPoint,
 	penPathData,
@@ -120,6 +122,55 @@ describe("feather guides", () => {
 		expect(featherPathStrokeWidth({ feather: 0.01 })).toBe(0.012);
 		expect(featherPathStrokeWidth({ feather: 0.2 })).toBe(0.05);
 		expect(featherPathStrokeWidth({ feather: 0.9 })).toBe(0.12);
+	});
+});
+
+describe("linear feather handles", () => {
+	const mask: MediaMask = {
+		id: "linear-mask",
+		type: "linear",
+		centerX: 0.5,
+		centerY: 0.5,
+		width: 0.4,
+		height: 0.2,
+		rotation: 0,
+		feather: 0.2,
+		invert: false,
+	};
+
+	it("expands the top feather edge when dragged upward", () => {
+		const updates = linearFeatherFromHandle({
+			mask,
+			edge: "top",
+			localY: -0.1,
+		});
+		expect(updates.feather).toBeCloseTo(0.3);
+	});
+
+	it("expands the bottom feather edge when dragged downward", () => {
+		const updates = linearFeatherFromHandle({
+			mask,
+			edge: "bottom",
+			localY: 0.1,
+		});
+		expect(updates.feather).toBeCloseTo(0.3);
+	});
+
+	it("maps keyboard nudges to the active feather edge", () => {
+		expect(
+			linearFeatherFromKeyboard({
+				mask,
+				edge: "top",
+				event: keyEvent({ key: "ArrowUp" }),
+			})?.feather
+		).toBeCloseTo(0.21);
+		expect(
+			linearFeatherFromKeyboard({
+				mask,
+				edge: "bottom",
+				event: keyEvent({ key: "ArrowDown", shiftKey: true }),
+			})?.feather
+		).toBeCloseTo(0.25);
 	});
 });
 
