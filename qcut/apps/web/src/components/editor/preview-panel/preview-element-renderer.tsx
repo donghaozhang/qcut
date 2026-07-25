@@ -18,6 +18,7 @@ import { resolveTrackedTextElement } from "@/lib/text/text-tracking";
 import { getCurvedTextTransforms } from "@/lib/text/curved-text";
 import {
 	DEFAULT_MEDIA_ENHANCEMENTS,
+	hasMediaEnhancements,
 	resolveMediaKeyframes,
 } from "@/lib/video/video-properties";
 import { useMaskEditorStore } from "@/stores/editor/mask-editor-store";
@@ -52,7 +53,7 @@ import {
 } from "@/stores/editor/audio-preview-store";
 import { usePlaybackStore } from "@/stores/editor/playback-store";
 import { useColorPickerStore } from "@/stores/editor/color-picker-store";
-import { getPreviewQualityOption } from "@/lib/preview/preview-quality";
+import { resolveEffectivePreviewQualityOption } from "@/lib/preview/preview-quality";
 import { resolvePreviewVideoSource } from "@/lib/preview/preview-video-source";
 import type { ClipTransitionPreviewState } from "@/lib/transitions/clip-transition-preview";
 import {
@@ -262,9 +263,9 @@ export function PreviewElementRenderer({
 		(state) => state.selectedElementId
 	);
 	const previewQuality = usePlaybackStore((state) => state.previewQuality);
-	const previewQualityOption = getPreviewQualityOption({
-		quality: previewQuality,
-	});
+	const runtimePreviewQuality = usePlaybackStore(
+		(state) => state.runtimePreviewQuality
+	);
 	const selectedMaskId = useMaskEditorStore((state) => state.selectedMaskId);
 	const isEditingMask = useMaskEditorStore((state) => state.isEditing);
 	const mediaItems = useMediaStore((state) => state.mediaItems);
@@ -297,6 +298,15 @@ export function PreviewElementRenderer({
 	const previewMediaItem = elementData.mediaItem;
 	const previewEnhancements =
 		previewMediaVisual?.enhancements ?? DEFAULT_MEDIA_ENHANCEMENTS;
+	const previewQualityOption = resolveEffectivePreviewQualityOption({
+		quality: previewQuality,
+		runtimeQuality: runtimePreviewQuality,
+		sourceWidth: previewMediaItem?.width ?? canvasSize.width,
+		sourceHeight: previewMediaItem?.height ?? canvasSize.height,
+		hasEnhancements: hasMediaEnhancements({
+			enhancements: previewEnhancements,
+		}),
+	});
 	const proxyWindow =
 		elementData.element.type === "media"
 			? getVideoEnhancementProxyWindow({
