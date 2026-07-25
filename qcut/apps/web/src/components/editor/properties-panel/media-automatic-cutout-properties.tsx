@@ -327,7 +327,10 @@ export function MediaAutomaticCutoutProperties({
 			const message = error instanceof Error ? error.message : String(error);
 			if (!canceled) failGeneratedMaskTracking({ message });
 			if (canceled) {
-				pauseGeneratedMaskTracking({ message: "物体跟踪已暂停" });
+				pauseGeneratedMaskTracking({
+					message: "物体跟踪已暂停",
+					trackingRequestId: trackingRequest?.requestId,
+				});
 				useCloudTaskStore.getState().cancelTask({ id: taskId });
 			} else {
 				useCloudTaskStore.getState().failTask({ id: taskId, error: message });
