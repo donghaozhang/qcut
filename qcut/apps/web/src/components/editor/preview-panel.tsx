@@ -72,6 +72,9 @@ import {
 	useNativeCompositionFramePreview,
 } from "@/hooks/preview/use-native-composition-frame-preview";
 import { usePlaybackHealthPreviewQuality } from "@/hooks/preview/use-playback-health-preview-quality";
+import { useCachedPreviewFrame } from "@/hooks/preview/use-cached-preview-frame";
+import { buildPreviewFrameCacheIdentity } from "@/lib/preview/preview-quality";
+import { hasCurrentVideoFrames } from "@/lib/preview/preview-frame-cache-readiness";
 import { useMaskEditorStore } from "@/stores/editor/mask-editor-store";
 import { useColorPickerStore } from "@/stores/editor/color-picker-store";
 import { useStickersOverlayStore } from "@/stores/stickers-overlay-store";
@@ -122,10 +125,8 @@ export function PreviewPanel() {
 			state.isRotating
 	);
 	const previewRef = useRef<HTMLDivElement>(null);
+	const previewCaptureRef = useRef<HTMLDivElement>(null);
 	const containerRef = useRef<HTMLDivElement>(null);
-	// Canvas refs for frame caching - non-interfering
-	const canvasRef = useRef<HTMLCanvasElement>(null);
-	const cacheCanvasRef = useRef<HTMLCanvasElement>(null);
 	const lastSeekEventTimeRef = useRef<number | null>(null);
 
 	// Track playback time for active element detection during playback.
@@ -245,11 +246,29 @@ export function PreviewPanel() {
 		updateElementPosition,
 	});
 
-	// Frame caching - non-intrusive addition
-	const { preRenderNearbyFrames } = useFrameCache({
+	const previewFrameCacheIdentity = buildPreviewFrameCacheIdentity({
+		quality: runtimePreviewQuality ?? previewQuality,
+		width: previewDimensions.width,
+		height: previewDimensions.height,
+	});
+	const { getCachedFrame, preRenderNearbyFrames } = useFrameCache({
 		namespace: activeProject?.id ?? "default",
-		cacheIdentity: `preview-quality:${runtimePreviewQuality ?? previewQuality}`,
+		cacheIdentity: previewFrameCacheIdentity,
 		persist: true,
+	});
+	const {
+		canvasRef: cacheCanvasRef,
+		cachedFrameTime,
+		isCachedFrameVisible,
+		lookupStatus: frameCacheLookupStatus,
+		presentedFrameRevision,
+	} = useCachedPreviewFrame({
+		activeProject,
+		cacheIdentity: previewFrameCacheIdentity,
+		getCachedFrame,
+		isPlaying,
+		mediaItems,
+		tracks,
 	});
 
 	useEffect(() => {
@@ -495,25 +514,41 @@ export function PreviewPanel() {
 			width: previewDimensions.width,
 			height: previewDimensions.height,
 		});
-		if (!isPlaying && previewRef.current && hasDrawablePreview) {
+		if (!isPlaying && previewCaptureRef.current && hasDrawablePreview) {
 			const warmCache = () => {
 				preRenderNearbyFrames(
 					currentTime,
 					async (time) => {
-						if (!previewRef.current) throw new Error("No preview element");
+						if (!previewCaptureRef.current) {
+							throw new Error("No preview capture surface");
+						}
 						// Safety: only capture current-time frame to avoid mismatched cache
 						const tolerance = 1 / 30;
 						if (Math.abs(time - currentTime) > tolerance) {
 							throw new Error("Cannot capture non-current time safely");
 						}
-						const imageData = await captureWithFallback(previewRef.current, {
-							width: previewDimensions.width,
-							height: previewDimensions.height,
-							backgroundColor:
-								activeProject?.backgroundType === "blur"
-									? "transparent"
-									: activeProject?.backgroundColor || "#000000",
-						});
+						const containsVideo =
+							previewCaptureRef.current.querySelector("video") !== null;
+						if (
+							(containsVideo && presentedFrameRevision === 0) ||
+							!hasCurrentVideoFrames({
+								captureSurface: previewCaptureRef.current,
+								timelineTime: time,
+							})
+						) {
+							throw new Error("Current video frame is not presented yet");
+						}
+						const imageData = await captureWithFallback(
+							previewCaptureRef.current,
+							{
+								width: previewDimensions.width,
+								height: previewDimensions.height,
+								backgroundColor:
+									activeProject?.backgroundType === "blur"
+										? "transparent"
+										: activeProject?.backgroundColor || "#000000",
+							}
+						);
 						if (!imageData) throw new Error("Failed to capture frame");
 						return imageData;
 					},
@@ -531,6 +566,7 @@ export function PreviewPanel() {
 		currentTime,
 		isPlaying,
 		preRenderNearbyFrames,
+		presentedFrameRevision,
 		previewDimensions.width,
 		previewDimensions.height,
 		activeProject?.backgroundColor,
@@ -808,6 +844,9 @@ export function PreviewPanel() {
 							ref={previewRef}
 							className="relative overflow-visible border"
 							data-testid="preview-canvas"
+							data-frame-cache-lookup={frameCacheLookupStatus}
+							data-frame-cache-visible={isCachedFrameVisible}
+							data-frame-cache-time={cachedFrameTime ?? ""}
 							style={{
 								width: previewDimensions.width || canvasSize.width,
 								height: previewDimensions.height || canvasSize.height,
@@ -822,7 +861,11 @@ export function PreviewPanel() {
 							onDragOver={stickerDropHandlers.onDragOver}
 							onDrop={stickerDropHandlers.onDrop}
 						>
-							<div className="absolute inset-0 overflow-hidden">
+							<div
+								ref={previewCaptureRef}
+								className="absolute inset-0 overflow-hidden"
+								data-testid="preview-capture-surface"
+							>
 								{(() => {
 									const pw = previewDimensions.width || canvasSize.width;
 									const ph = previewDimensions.height || canvasSize.height;
@@ -891,31 +934,39 @@ export function PreviewPanel() {
 											Add a video or image to use blur background
 										</div>
 									)}
-								{nativeCompositionPreview.status === "rendering" ? (
-									<div
-										className="pointer-events-none absolute right-2 top-2 z-[60] flex size-7 items-center justify-center rounded-sm bg-background/85 text-foreground shadow-sm"
-										title="Rendering exact composition preview"
-										data-testid="native-composition-preview-loading"
-									>
-										<LoaderCircle className="size-4 animate-spin">
-											<title>Rendering exact composition preview</title>
-										</LoaderCircle>
-									</div>
-								) : nativeCompositionPreview.status === "error" ? (
-									<div
-										className="pointer-events-none absolute right-2 top-2 z-[60] flex size-7 items-center justify-center rounded-sm bg-destructive/85 text-destructive-foreground shadow-sm"
-										title={
-											nativeCompositionPreview.error ??
-											"Exact composition preview failed"
-										}
-										data-testid="native-composition-preview-error"
-									>
-										<TriangleAlert className="size-4">
-											<title>Exact composition preview failed</title>
-										</TriangleAlert>
-									</div>
-								) : null}
 							</div>
+							<canvas
+								ref={cacheCanvasRef}
+								className={`pointer-events-none absolute inset-0 z-[35] size-full ${
+									isCachedFrameVisible ? "" : "hidden"
+								}`}
+								data-testid="preview-frame-cache-overlay"
+								data-visible={isCachedFrameVisible}
+							/>
+							{nativeCompositionPreview.status === "rendering" ? (
+								<div
+									className="pointer-events-none absolute right-2 top-2 z-[60] flex size-7 items-center justify-center rounded-sm bg-background/85 text-foreground shadow-sm"
+									title="Rendering exact composition preview"
+									data-testid="native-composition-preview-loading"
+								>
+									<LoaderCircle className="size-4 animate-spin">
+										<title>Rendering exact composition preview</title>
+									</LoaderCircle>
+								</div>
+							) : nativeCompositionPreview.status === "error" ? (
+								<div
+									className="pointer-events-none absolute right-2 top-2 z-[60] flex size-7 items-center justify-center rounded-sm bg-destructive/85 text-destructive-foreground shadow-sm"
+									title={
+										nativeCompositionPreview.error ??
+										"Exact composition preview failed"
+									}
+									data-testid="native-composition-preview-error"
+								>
+									<TriangleAlert className="size-4">
+										<title>Exact composition preview failed</title>
+									</TriangleAlert>
+								</div>
+							) : null}
 
 							{showSafeAreas ? (
 								<div
@@ -966,20 +1017,6 @@ export function PreviewPanel() {
 										onTransformUpdate={handleTransformUpdate}
 									/>
 								))}
-
-							{/* Hidden canvas for frame caching - non-visual */}
-							<canvas
-								ref={canvasRef}
-								className="hidden"
-								width={previewDimensions.width}
-								height={previewDimensions.height}
-							/>
-							<canvas
-								ref={cacheCanvasRef}
-								className="hidden"
-								width={previewDimensions.width}
-								height={previewDimensions.height}
-							/>
 						</div>
 					) : null}
 
