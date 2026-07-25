@@ -1,3 +1,4 @@
+import { useEffect, useState } from "react";
 import { Diamond, Link2, RotateCw, Unlink2 } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Slider } from "@/components/ui/slider";
@@ -5,6 +6,16 @@ import { cn } from "@/lib/utils";
 import type { MediaMask, MediaMaskKeyframeProperty } from "@/types/timeline";
 import { MaskIconButton } from "./media-mask-controls";
 import { PropertyItemLabel } from "./property-item";
+
+function formatNumericDraft({
+	value,
+	precision,
+}: {
+	value: number;
+	precision: number;
+}): string {
+	return String(Number(value.toFixed(precision)));
+}
 
 function KeyframeButton({
 	label,
@@ -52,6 +63,14 @@ function CompactNumericInput({
 	onInteractionEnd: () => void;
 }) {
 	const precision = step < 1 ? 2 : 0;
+	const [draft, setDraft] = useState(() =>
+		formatNumericDraft({ value, precision })
+	);
+
+	useEffect(() => {
+		setDraft(formatNumericDraft({ value, precision }));
+	}, [precision, value]);
+
 	return (
 		<div className="relative h-7 w-[76px] shrink-0">
 			{prefix ? (
@@ -62,15 +81,25 @@ function CompactNumericInput({
 			<Input
 				type="number"
 				aria-label={`${label}数值`}
-				value={Number(value.toFixed(precision))}
+				value={draft}
 				min={min}
 				max={max}
 				step={step}
 				onFocus={onInteractionStart}
-				onBlur={onInteractionEnd}
+				onBlur={() => {
+					const next = Number(draft);
+					if (!Number.isFinite(next) || draft === "") {
+						setDraft(formatNumericDraft({ value, precision }));
+					}
+					onInteractionEnd();
+				}}
 				onChange={(event) => {
-					const next = Number(event.target.value);
-					if (Number.isFinite(next)) onChange({ value: next });
+					const raw = event.target.value;
+					setDraft(raw);
+					if (raw === "" || raw === "-") return;
+					const next = Number(raw);
+					if (!Number.isFinite(next)) return;
+					onChange({ value: Math.min(max, Math.max(min, next)) });
 				}}
 				className={cn(
 					"h-7 w-full bg-muted/45 text-right text-xs tabular-nums shadow-none",
