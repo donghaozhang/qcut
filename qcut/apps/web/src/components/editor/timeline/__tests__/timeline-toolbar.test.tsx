@@ -211,4 +211,53 @@ describe("TimelineToolbar", () => {
 
 		expect(timelineState.setTrackHeightMode).toHaveBeenCalledWith("compact");
 	});
+
+	it("opens crop controls for the selected media clip", () => {
+		const events: Event[] = [];
+		window.addEventListener("qcut:open-media-properties-tab", (event) =>
+			events.push(event)
+		);
+		render(<TimelineToolbar zoomLevel={1} setZoomLevel={setZoomLevel} />);
+
+		fireEvent.click(screen.getByTestId("crop-clip-button"));
+
+		expect((events[0] as CustomEvent).detail).toEqual({
+			elementId: "element-1",
+			tab: "basic",
+			scrollTo: "crop",
+		});
+	});
+
+	it("toggles snapping and linked ripple editing from visible toolbar buttons", () => {
+		render(<TimelineToolbar zoomLevel={1} setZoomLevel={setZoomLevel} />);
+
+		const snappingButton = screen.getByTestId("timeline-snapping-button");
+		expect(snappingButton).toHaveAttribute("aria-pressed", "true");
+		fireEvent.click(snappingButton);
+		expect(timelineState.toggleSnapping).toHaveBeenCalledOnce();
+
+		const rippleButton = screen.getByTestId("timeline-ripple-button");
+		expect(rippleButton).toHaveAttribute("aria-pressed", "false");
+		fireEvent.click(rippleButton);
+		expect(timelineState.toggleRippleEditing).toHaveBeenCalledOnce();
+	});
+
+	it("disables selection tools when nothing is selected", () => {
+		const emptySelectionState = {
+			...timelineState,
+			selectedElements: [],
+		};
+		(
+			useTimelineStore as unknown as ReturnType<typeof vi.fn>
+		).mockImplementation(<T,>(selector: TimelineSelector<T>) =>
+			selector(emptySelectionState)
+		);
+
+		render(<TimelineToolbar zoomLevel={1} setZoomLevel={setZoomLevel} />);
+
+		expect(screen.getByTestId("split-clip-button")).toBeDisabled();
+		expect(screen.getByTestId("duplicate-clip-button")).toBeDisabled();
+		expect(screen.getByTestId("crop-clip-button")).toBeDisabled();
+		expect(screen.getByTestId("delete-selected-button")).toBeDisabled();
+	});
 });
