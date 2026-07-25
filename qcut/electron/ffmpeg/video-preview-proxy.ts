@@ -4,6 +4,8 @@ import { createHash } from "node:crypto";
 import fs from "node:fs";
 import path from "node:path";
 import type {
+	VideoPreviewProxyCacheClearResult,
+	VideoPreviewProxyCacheStats,
 	VideoPreviewProxyOptions,
 	VideoPreviewProxyProgress,
 	VideoPreviewProxyResult,
@@ -236,11 +238,9 @@ function readCachedArtifact({
 	}
 }
 
-async function cleanupProxyCache({
-	keepPath,
-}: {
-	keepPath: string;
-}): Promise<void> {
+async function readProxyCacheEntries(): Promise<
+	Array<{ filePath: string; size: number; lastUsedAt: number }>
+> {
 	const cacheDir = getVideoPreviewProxyCacheDir();
 	let filenames: string[];
 	try {
@@ -248,28 +248,34 @@ async function cleanupProxyCache({
 			filename.endsWith(".mp4")
 		);
 	} catch {
-		return;
+		return [];
 	}
-	const entries = (
-		await Promise.all(
-			filenames.map(async (filename) => {
-				const filePath = path.join(cacheDir, filename);
-				try {
-					const stat = await fs.promises.stat(filePath);
-					return {
-						filePath,
-						size: stat.size,
-						lastUsedAt: stat.mtimeMs,
-					};
-				} catch {
-					return null;
-				}
-			})
-		)
-	).filter(
-		(entry): entry is { filePath: string; size: number; lastUsedAt: number } =>
-			entry !== null
-	);
+
+	const entries: Array<{ filePath: string; size: number; lastUsedAt: number }> =
+		[];
+	for (const filename of filenames) {
+		const filePath = path.join(cacheDir, filename);
+		try {
+			const stat = await fs.promises.stat(filePath);
+			if (!stat.isFile()) continue;
+			entries.push({
+				filePath,
+				size: stat.size,
+				lastUsedAt: stat.mtimeMs,
+			});
+		} catch {
+			// Cache stats are best-effort; stale files can disappear mid-scan.
+		}
+	}
+	return entries;
+}
+
+async function cleanupProxyCache({
+	keepPath,
+}: {
+	keepPath: string;
+}): Promise<void> {
+	const entries = await readProxyCacheEntries();
 	entries.sort((a, b) => a.lastUsedAt - b.lastUsedAt);
 	let totalBytes = entries.reduce((sum, entry) => sum + entry.size, 0);
 	let totalEntries = entries.length;
@@ -526,4 +532,31 @@ export function cancelVideoPreviewProxy({
 	if (job.requestIds.size > 0) return true;
 	activeJobsByKey.delete(cacheKey);
 	return job.process.kill();
+}
+
+export async function getVideoPreviewProxyCacheStats(): Promise<VideoPreviewProxyCacheStats> {
+	const entries = await readProxyCacheEntries();
+	return {
+		cacheDir: getVideoPreviewProxyCacheDir(),
+		entryCount: entries.length,
+		totalBytes: entries.reduce((sum, entry) => sum + entry.size, 0),
+		maxBytes: MAX_PROXY_CACHE_BYTES,
+		maxEntries: MAX_PROXY_CACHE_ENTRIES,
+	};
+}
+
+export async function clearVideoPreviewProxyCache(): Promise<VideoPreviewProxyCacheClearResult> {
+	const before = await readProxyCacheEntries();
+	for (const entry of before) {
+		await fs.promises.rm(entry.filePath, { force: true }).catch(() => {});
+	}
+	const after = await getVideoPreviewProxyCacheStats();
+	return {
+		...after,
+		removedEntries: before.length - after.entryCount,
+		removedBytes: Math.max(
+			0,
+			before.reduce((sum, entry) => sum + entry.size, 0) - after.totalBytes
+		),
+	};
 }
