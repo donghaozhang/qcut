@@ -264,6 +264,20 @@ export interface PlatformVideoPreviewProxyProgress {
 	duration: number;
 }
 
+export interface PlatformVideoPreviewProxyCacheStats {
+	cacheDir: string;
+	entryCount: number;
+	totalBytes: number;
+	maxBytes: number;
+	maxEntries: number;
+}
+
+export interface PlatformVideoPreviewProxyCacheClearResult
+	extends PlatformVideoPreviewProxyCacheStats {
+	removedEntries: number;
+	removedBytes: number;
+}
+
 export interface PlatformAudioWaveformOptions {
 	sourcePath: string;
 	duration: number;
@@ -362,6 +376,8 @@ export interface PlatformFFmpegAPI {
 	onVideoPreviewProxyProgress(
 		callback: (progress: PlatformVideoPreviewProxyProgress) => void
 	): () => void;
+	getVideoPreviewProxyCacheStats(): Promise<PlatformVideoPreviewProxyCacheStats>;
+	clearVideoPreviewProxyCache(): Promise<PlatformVideoPreviewProxyCacheClearResult>;
 	validateFilterChain(filterChain: string): Promise<boolean>;
 	getFFmpegResourcePath(filename: string): Promise<string>;
 	checkFFmpegResource(filename: string): Promise<boolean>;
