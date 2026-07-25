@@ -117,6 +117,13 @@ const EN_TRANSLATIONS = {
 	"editor.preview.qualityLowDescription": "Proxy up to 480 px",
 	"editor.preview.qualityRuntimeActive":
 		"Playback temporarily using {{quality}}",
+	"editor.preview.qualityRuntimeReasonMainThread":
+		"Preview rendering missed frames",
+	"editor.preview.qualityRuntimeReasonVideo": "Video frames stalled",
+	"editor.preview.qualityRuntimeReasonCombined":
+		"Rendering and video frames both stalled",
+	"editor.preview.qualityRuntimeMetrics":
+		"UI {{main}} ms / {{mainCount}} slow · video {{video}} ms / {{videoCount}} stalls",
 	"editor.preview.proxyCache": "Proxy cache",
 	"editor.preview.proxyCacheLoading": "Loading",
 	"editor.preview.proxyCacheUnknown": "Unknown",
@@ -1467,6 +1474,11 @@ const ZH_TRANSLATIONS: Record<TranslationKey, string> = {
 	"editor.preview.qualityLow": "低清画质",
 	"editor.preview.qualityLowDescription": "生成最高 480px 代理",
 	"editor.preview.qualityRuntimeActive": "播放中临时使用{{quality}}",
+	"editor.preview.qualityRuntimeReasonMainThread": "预览渲染出现慢帧",
+	"editor.preview.qualityRuntimeReasonVideo": "视频解码帧出现停顿",
+	"editor.preview.qualityRuntimeReasonCombined": "预览渲染和视频帧同时卡顿",
+	"editor.preview.qualityRuntimeMetrics":
+		"界面 {{main}}ms / {{mainCount}} 慢帧 · 视频 {{video}}ms / {{videoCount}} 停顿",
 	"editor.preview.proxyCache": "代理缓存",
 	"editor.preview.proxyCacheLoading": "读取中",
 	"editor.preview.proxyCacheUnknown": "未知",
@@ -2431,9 +2443,9 @@ const ZH_TRANSLATIONS: Record<TranslationKey, string> = {
 	"mediaProperties.tab.animation": "动画",
 	"mediaProperties.tab.animationShort": "动画",
 	"mediaProperties.tab.tracking": "跟踪",
-	"mediaProperties.tab.adjustments": "调节",
-	"mediaProperties.tab.ai": "AI 效果",
-	"mediaProperties.tab.aiShort": "AI 效果",
+	"mediaProperties.tab.adjustments": "调整",
+	"mediaProperties.tab.ai": "AI效果",
+	"mediaProperties.tab.aiShort": "AI效果",
 	"mediaProperties.tab.basic": "基础",
 	"mediaProperties.tab.cutout": "抠像",
 	"mediaProperties.tab.mask": "蒙版",
