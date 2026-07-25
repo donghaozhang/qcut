@@ -15,7 +15,7 @@ describe("mask tracking runtime", () => {
 		vi.restoreAllMocks();
 	});
 
-	it("routes cancel and resume actions to the active element mask runtime", () => {
+	it("routes cancel and resume actions to the active element mask runtime", async () => {
 		const cancel = vi.fn();
 		const resume = vi.fn();
 		const unregister = registerActiveMaskTrackingRuntime({
@@ -30,25 +30,34 @@ describe("mask tracking runtime", () => {
 		});
 
 		expect(
-			cancelActiveMaskTracking({ elementId: "clip-1", maskId: "other" })
+			await cancelActiveMaskTracking({ elementId: "clip-1", maskId: "other" })
 		).toBe(false);
 		expect(
-			cancelActiveMaskTracking({ elementId: "clip-1", maskId: "mask-1" })
+			await cancelActiveMaskTracking({
+				elementId: "clip-1",
+				maskId: "mask-1",
+			})
 		).toBe(true);
 		expect(cancel).toHaveBeenCalledTimes(1);
 
 		expect(
-			resumeActiveMaskTracking({ elementId: "clip-1", maskId: "mask-1" })
+			await resumeActiveMaskTracking({
+				elementId: "clip-1",
+				maskId: "mask-1",
+			})
 		).toBe(true);
 		expect(resume).toHaveBeenCalledTimes(1);
 
 		unregister();
 		expect(
-			cancelActiveMaskTracking({ elementId: "clip-1", maskId: "mask-1" })
+			await cancelActiveMaskTracking({
+				elementId: "clip-1",
+				maskId: "mask-1",
+			})
 		).toBe(false);
 	});
 
-	it("does not unregister a newer runtime for the same mask", () => {
+	it("does not unregister a newer runtime for the same mask", async () => {
 		const firstCancel = vi.fn();
 		const secondCancel = vi.fn();
 		const unregisterFirst = registerActiveMaskTrackingRuntime({
@@ -72,7 +81,10 @@ describe("mask tracking runtime", () => {
 
 		unregisterFirst();
 		expect(
-			cancelActiveMaskTracking({ elementId: "clip-1", maskId: "mask-1" })
+			await cancelActiveMaskTracking({
+				elementId: "clip-1",
+				maskId: "mask-1",
+			})
 		).toBe(true);
 		expect(firstCancel).not.toHaveBeenCalled();
 		expect(secondCancel).toHaveBeenCalledTimes(1);
@@ -96,12 +108,17 @@ describe("mask tracking runtime", () => {
 		});
 
 		expect(
-			cancelActiveMaskTracking({ elementId: "clip-1", maskId: "mask-1" })
+			await cancelActiveMaskTracking({
+				elementId: "clip-1",
+				maskId: "mask-1",
+			})
 		).toBe(false);
 		expect(
-			resumeActiveMaskTracking({ elementId: "clip-1", maskId: "mask-1" })
-		).toBe(true);
-		await Promise.resolve();
+			await resumeActiveMaskTracking({
+				elementId: "clip-1",
+				maskId: "mask-1",
+			})
+		).toBe(false);
 
 		expect(report).toHaveBeenNthCalledWith(
 			1,
