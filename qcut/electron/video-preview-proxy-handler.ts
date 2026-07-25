@@ -5,6 +5,8 @@ import type {
 } from "./ffmpeg/types.js";
 import {
 	cancelVideoPreviewProxy,
+	clearVideoPreviewProxyCache,
+	getVideoPreviewProxyCacheStats,
 	renderVideoPreviewProxy,
 } from "./ffmpeg/video-preview-proxy.js";
 
@@ -31,5 +33,11 @@ export function setupVideoPreviewProxyHandlers(): void {
 		"ffmpeg-cancel-video-preview-proxy",
 		async (_event: IpcMainInvokeEvent, requestId: string): Promise<boolean> =>
 			cancelVideoPreviewProxy({ requestId })
+	);
+	ipcMain.handle("ffmpeg-get-video-preview-proxy-cache-stats", () =>
+		getVideoPreviewProxyCacheStats()
+	);
+	ipcMain.handle("ffmpeg-clear-video-preview-proxy-cache", () =>
+		clearVideoPreviewProxyCache()
 	);
 }
