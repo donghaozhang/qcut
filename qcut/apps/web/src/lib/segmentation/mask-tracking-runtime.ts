@@ -21,17 +21,15 @@ function runtimeKey({
 
 const activeMaskTrackingRuntimes = new Map<string, ActiveMaskTrackingRuntime>();
 
-function runRuntimeAction({
+async function runRuntimeAction({
 	action,
 	operation,
 }: {
 	action: () => void | Promise<void>;
 	operation: "cancel" | "resume";
-}): boolean {
+}): Promise<boolean> {
 	try {
-		void Promise.resolve(action()).catch((error: unknown) => {
-			console.error(`Failed to ${operation} mask tracking`, error);
-		});
+		await action();
 		return true;
 	} catch (error) {
 		console.error(`Failed to ${operation} mask tracking`, error);
@@ -59,12 +57,12 @@ export function cancelActiveMaskTracking({
 }: {
 	elementId: string;
 	maskId?: string;
-}): boolean {
-	if (!maskId) return false;
+}): Promise<boolean> {
+	if (!maskId) return Promise.resolve(false);
 	const runtime = activeMaskTrackingRuntimes.get(
 		runtimeKey({ elementId, maskId })
 	);
-	if (!runtime) return false;
+	if (!runtime) return Promise.resolve(false);
 	return runRuntimeAction({ action: runtime.cancel, operation: "cancel" });
 }
 
@@ -74,12 +72,12 @@ export function resumeActiveMaskTracking({
 }: {
 	elementId: string;
 	maskId?: string;
-}): boolean {
-	if (!maskId) return false;
+}): Promise<boolean> {
+	if (!maskId) return Promise.resolve(false);
 	const runtime = activeMaskTrackingRuntimes.get(
 		runtimeKey({ elementId, maskId })
 	);
-	if (!runtime?.resume) return false;
+	if (!runtime?.resume) return Promise.resolve(false);
 	return runRuntimeAction({ action: runtime.resume, operation: "resume" });
 }
 
