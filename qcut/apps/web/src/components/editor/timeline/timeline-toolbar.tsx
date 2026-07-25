@@ -8,6 +8,7 @@ import {
 	Trash2,
 	Snowflake,
 	Copy,
+	Crop,
 	SplitSquareHorizontal,
 	Pause,
 	Play,
@@ -134,6 +135,17 @@ export function TimelineToolbar({
 	const compactTracks =
 		tracks.length > 0 &&
 		tracks.every((track) => track.height === COMPACT_TRACK_HEIGHTS[track.type]);
+	const selectedElement =
+		selectedElements.length === 1
+			? tracks
+					.find((track) => track.id === selectedElements[0].trackId)
+					?.elements.find(
+						(element) => element.id === selectedElements[0].elementId
+					)
+			: null;
+	const hasSelection = selectedElements.length > 0;
+	const hasSingleSelection = selectedElements.length === 1;
+	const hasSingleMediaSelection = selectedElement?.type === "media";
 
 	// DOM-direct timecode update during playback (avoids React re-renders)
 	const timecodeRef = useRef<HTMLDivElement>(null);
@@ -277,6 +289,22 @@ export function TimelineToolbar({
 			return;
 		}
 		separateAudio(trackId, elementId);
+	};
+
+	const handleCropSelected = () => {
+		if (!selectedElement || selectedElement.type !== "media") {
+			toast.error("Select one media clip to crop");
+			return;
+		}
+		window.dispatchEvent(
+			new CustomEvent("qcut:open-media-properties-tab", {
+				detail: {
+					elementId: selectedElement.id,
+					tab: "basic",
+					scrollTo: "crop",
+				},
+			})
+		);
 	};
 
 	const handleDeleteSelected = () => {
@@ -441,6 +469,7 @@ export function TimelineToolbar({
 							<Button
 								variant="text"
 								size="icon"
+								type="button"
 								onClick={toggle}
 								className="mr-2"
 								data-testid={
@@ -555,9 +584,12 @@ export function TimelineToolbar({
 					<Tooltip>
 						<TooltipTrigger asChild>
 							<Button
+								type="button"
 								variant="text"
 								size="icon"
 								onClick={handleSplitSelected}
+								disabled={!hasSelection}
+								aria-label="Split selected clips at playhead"
 								data-testid="split-clip-button"
 							>
 								<Scissors className="h-4 w-4" />
@@ -569,9 +601,13 @@ export function TimelineToolbar({
 					<Tooltip>
 						<TooltipTrigger asChild>
 							<Button
+								type="button"
 								variant="text"
 								size="icon"
 								onClick={handleSplitAndKeepLeft}
+								disabled={!hasSingleSelection}
+								aria-label="Split and keep left"
+								data-testid="split-keep-left-button"
 							>
 								<ArrowLeftToLine className="h-4 w-4" />
 							</Button>
@@ -582,9 +618,13 @@ export function TimelineToolbar({
 					<Tooltip>
 						<TooltipTrigger asChild>
 							<Button
+								type="button"
 								variant="text"
 								size="icon"
 								onClick={handleSplitAndKeepRight}
+								disabled={!hasSingleSelection}
+								aria-label="Split and keep right"
+								data-testid="split-keep-right-button"
 							>
 								<ArrowRightToLine className="h-4 w-4" />
 							</Button>
@@ -594,7 +634,15 @@ export function TimelineToolbar({
 
 					<Tooltip>
 						<TooltipTrigger asChild>
-							<Button variant="text" size="icon" onClick={handleSeparateAudio}>
+							<Button
+								type="button"
+								variant="text"
+								size="icon"
+								onClick={handleSeparateAudio}
+								disabled={!hasSingleMediaSelection}
+								aria-label="Separate audio from selected clip"
+								data-testid="separate-audio-button"
+							>
 								<SplitSquareHorizontal className="h-4 w-4" />
 							</Button>
 						</TooltipTrigger>
@@ -604,14 +652,35 @@ export function TimelineToolbar({
 					<Tooltip>
 						<TooltipTrigger asChild>
 							<Button
+								type="button"
 								variant="text"
 								size="icon"
 								onClick={handleDuplicateSelected}
+								disabled={!hasSingleSelection}
+								aria-label="Copy selected clip"
+								data-testid="duplicate-clip-button"
 							>
 								<Copy className="h-4 w-4" />
 							</Button>
 						</TooltipTrigger>
-						<TooltipContent>Duplicate element (Ctrl+D)</TooltipContent>
+						<TooltipContent>Copy clip (Ctrl+D)</TooltipContent>
+					</Tooltip>
+
+					<Tooltip>
+						<TooltipTrigger asChild>
+							<Button
+								type="button"
+								variant="text"
+								size="icon"
+								onClick={handleCropSelected}
+								disabled={!hasSingleMediaSelection}
+								aria-label="Crop selected clip"
+								data-testid="crop-clip-button"
+							>
+								<Crop className="h-4 w-4" />
+							</Button>
+						</TooltipTrigger>
+						<TooltipContent>Crop clip (C)</TooltipContent>
 					</Tooltip>
 
 					<Tooltip>
@@ -638,18 +707,42 @@ export function TimelineToolbar({
 
 					<Tooltip>
 						<TooltipTrigger asChild>
-							<Button variant="text" size="icon" onClick={handleDeleteSelected}>
+							<Button
+								type="button"
+								variant="text"
+								size="icon"
+								onClick={handleDeleteSelected}
+								disabled={!hasSelection}
+								aria-label={
+									rippleEditingEnabled
+										? "Delete selected clips with ripple"
+										: "Delete selected clips"
+								}
+								data-testid="delete-selected-button"
+							>
 								<Trash2 className="h-4 w-4" />
 							</Button>
 						</TooltipTrigger>
-						<TooltipContent>Delete element (Delete)</TooltipContent>
+						<TooltipContent>
+							{rippleEditingEnabled
+								? "Delete with linked ripple (Delete)"
+								: "Delete element (Delete)"}
+						</TooltipContent>
 					</Tooltip>
 
 					<div className="w-px h-6 bg-border mx-1" />
 
 					<Tooltip>
 						<TooltipTrigger asChild>
-							<Button variant="text" size="icon" onClick={handleToggleBookmark}>
+							<Button
+								type="button"
+								variant="text"
+								size="icon"
+								onClick={handleToggleBookmark}
+								aria-label={
+									currentBookmarked ? "Remove bookmark" : "Add bookmark"
+								}
+							>
 								<Bookmark
 									className={`h-4 w-4 ${currentBookmarked ? "fill-primary text-primary" : ""}`}
 								/>
@@ -689,7 +782,17 @@ export function TimelineToolbar({
 				<TooltipProvider delayDuration={500}>
 					<Tooltip>
 						<TooltipTrigger asChild>
-							<Button variant="text" size="icon" onClick={toggleSnapping}>
+							<Button
+								type="button"
+								variant={snappingEnabled ? "default" : "text"}
+								size="icon"
+								onClick={toggleSnapping}
+								aria-label="Toggle timeline snapping"
+								aria-pressed={snappingEnabled}
+								title="Auto snapping"
+								data-testid="timeline-snapping-button"
+								data-enabled={snappingEnabled}
+							>
 								{snappingEnabled ? (
 									<Magnet className="h-4 w-4 text-primary" />
 								) : (
@@ -702,7 +805,17 @@ export function TimelineToolbar({
 
 					<Tooltip>
 						<TooltipTrigger asChild>
-							<Button variant="text" size="icon" onClick={toggleRippleEditing}>
+							<Button
+								type="button"
+								variant={rippleEditingEnabled ? "default" : "text"}
+								size="icon"
+								onClick={toggleRippleEditing}
+								aria-label="Toggle linked ripple editing"
+								aria-pressed={rippleEditingEnabled}
+								title="Linked editing"
+								data-testid="timeline-ripple-button"
+								data-enabled={rippleEditingEnabled}
+							>
 								<Link
 									className={`h-4 w-4 ${
 										rippleEditingEnabled ? "text-primary" : ""
