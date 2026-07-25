@@ -125,6 +125,22 @@ export const mockElectronAPI: ElectronAPI = {
 			fileSize: 4096,
 		}),
 		cancelVideoPreviewProxy: vi.fn().mockResolvedValue(false),
+		getVideoPreviewProxyCacheStats: vi.fn().mockResolvedValue({
+			cacheDir: "/tmp/qcut-video-preview-proxy",
+			entryCount: 0,
+			totalBytes: 0,
+			maxBytes: 2 * 1024 * 1024 * 1024,
+			maxEntries: 80,
+		}),
+		clearVideoPreviewProxyCache: vi.fn().mockResolvedValue({
+			cacheDir: "/tmp/qcut-video-preview-proxy",
+			entryCount: 0,
+			totalBytes: 0,
+			maxBytes: 2 * 1024 * 1024 * 1024,
+			maxEntries: 80,
+			removedEntries: 0,
+			removedBytes: 0,
+		}),
 		onVideoPreviewProxyProgress: vi.fn().mockReturnValue(() => {}),
 		extractAudio: vi.fn().mockResolvedValue({
 			audioPath: "/tmp/audio.mp3",
