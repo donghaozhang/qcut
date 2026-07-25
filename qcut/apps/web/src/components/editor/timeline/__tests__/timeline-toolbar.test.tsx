@@ -54,6 +54,9 @@ interface MockTimelineState {
 		trackId: string,
 		elementId: string
 	) => void;
+	deleteSelectedElementsWithRipple: (
+		selections?: Array<{ trackId: string; elementId: string }>
+	) => void;
 	selectedElements: Array<{ trackId: string; elementId: string }>;
 	clearSelectedElements: () => void;
 	splitElement: (trackId: string, elementId: string, time: number) => string;
@@ -117,6 +120,7 @@ describe("TimelineToolbar", () => {
 		addMarkdownAtTime: vi.fn(),
 		removeElementFromTrack: vi.fn(),
 		removeElementFromTrackWithRipple: vi.fn(),
+		deleteSelectedElementsWithRipple: vi.fn(),
 		selectedElements: [{ trackId: "track-1", elementId: "element-1" }],
 		clearSelectedElements: vi.fn(),
 		splitElement,
@@ -240,6 +244,31 @@ describe("TimelineToolbar", () => {
 		expect(rippleButton).toHaveAttribute("aria-pressed", "false");
 		fireEvent.click(rippleButton);
 		expect(timelineState.toggleRippleEditing).toHaveBeenCalledOnce();
+	});
+
+	it("uses one linked ripple delete operation for a selected batch", () => {
+		const rippleState = {
+			...timelineState,
+			rippleEditingEnabled: true,
+			selectedElements: [
+				{ trackId: "track-1", elementId: "element-1" },
+				{ trackId: "track-2", elementId: "element-2" },
+			],
+		};
+		(
+			useTimelineStore as unknown as ReturnType<typeof vi.fn>
+		).mockImplementation(<T,>(selector: TimelineSelector<T>) =>
+			selector(rippleState)
+		);
+
+		render(<TimelineToolbar zoomLevel={1} setZoomLevel={setZoomLevel} />);
+		fireEvent.click(screen.getByTestId("delete-selected-button"));
+
+		expect(rippleState.deleteSelectedElementsWithRipple).toHaveBeenCalledWith(
+			rippleState.selectedElements
+		);
+		expect(rippleState.removeElementFromTrack).not.toHaveBeenCalled();
+		expect(rippleState.removeElementFromTrackWithRipple).not.toHaveBeenCalled();
 	});
 
 	it("disables selection tools when nothing is selected", () => {
