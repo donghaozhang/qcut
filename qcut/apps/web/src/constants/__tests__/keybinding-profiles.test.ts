@@ -25,4 +25,16 @@ describe("keybinding profiles", () => {
 			"trim-end-to-playhead"
 		);
 	});
+
+	it("maps the visible QCut and CapCut crop shortcut to the crop action", () => {
+		const qcutProfile = KEYBINDING_PROFILES.find(
+			(profile) => profile.id === "qcut"
+		);
+		const capcutProfile = KEYBINDING_PROFILES.find(
+			(profile) => profile.id === "capcut"
+		);
+
+		expect(qcutProfile?.keybindings.c).toBe("crop-selected");
+		expect(capcutProfile?.keybindings.c).toBe("crop-selected");
+	});
 });
