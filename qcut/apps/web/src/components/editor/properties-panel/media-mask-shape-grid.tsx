@@ -1,11 +1,11 @@
 import type { MediaMaskType } from "@/types/timeline";
-import { Button } from "@/components/ui/button";
 import {
 	Tooltip,
 	TooltipContent,
 	TooltipProvider,
 	TooltipTrigger,
 } from "@/components/ui/tooltip";
+import { cn } from "@/lib/utils";
 import { MASK_SHAPES, type AddableMaskType } from "./media-mask-shapes";
 
 export function MediaMaskShapeGrid({
@@ -18,7 +18,7 @@ export function MediaMaskShapeGrid({
 	return (
 		<TooltipProvider delayDuration={300}>
 			<div
-				className="grid grid-cols-4 gap-1.5"
+				className="flex gap-2 overflow-x-auto pb-1 [scrollbar-color:hsl(var(--border))_transparent] [scrollbar-width:thin]"
 				data-testid="media-mask-shape-grid"
 			>
 				{MASK_SHAPES.map((shape) => {
@@ -28,10 +28,9 @@ export function MediaMaskShapeGrid({
 					return (
 						<Tooltip key={shape.type}>
 							<TooltipTrigger asChild>
-								<Button
+								<button
 									type="button"
-									variant={selected ? "primary" : "outline"}
-									className="h-14 min-w-0 flex-col gap-1 px-1 py-1.5"
+									className="group flex w-11 shrink-0 flex-col items-center gap-1.5 text-[11px] text-muted-foreground outline-hidden"
 									onClick={() => onSelect(shape.type)}
 									onKeyDown={(event) => {
 										if (event.key !== "Enter" && event.key !== " ") return;
@@ -42,11 +41,25 @@ export function MediaMaskShapeGrid({
 									aria-pressed={selected}
 									data-mask-shape={shape.type}
 								>
-									<Icon className="size-4 shrink-0" />
-									<span className="w-full truncate text-[10px] leading-none">
+									<span
+										className={cn(
+											"flex size-11 items-center justify-center rounded-md border bg-muted/55 text-foreground transition-colors group-hover:bg-muted group-focus-visible:ring-1 group-focus-visible:ring-ring",
+											selected
+												? "border-cyan-400 bg-cyan-400/5 text-cyan-50"
+												: "border-transparent"
+										)}
+									>
+										<Icon className="size-6 shrink-0" strokeWidth={1.35} />
+									</span>
+									<span
+										className={cn(
+											"w-full truncate text-center leading-none",
+											selected && "text-foreground"
+										)}
+									>
 										{shape.label}
 									</span>
-								</Button>
+								</button>
 							</TooltipTrigger>
 							<TooltipContent>{shape.label}蒙版</TooltipContent>
 						</Tooltip>
