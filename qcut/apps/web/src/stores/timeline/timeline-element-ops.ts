@@ -316,9 +316,11 @@ export function createElementOps(
 			// Find existing audio track or prepare to create one
 			const existingAudioTrack = _tracks.find((t) => t.type === "audio");
 			const audioElementId = generateUUID();
+			const audioLinkGroupId = element.groupId ?? `group-${generateUUID()}`;
 			const detachedAudioElement: MediaElement = {
 				...element,
 				id: audioElementId,
+				groupId: audioLinkGroupId,
 				name: getElementNameWithSuffix(element.name, "audio"),
 				audio: element.audio ? { ...element.audio, enabled: true } : undefined,
 			};
@@ -328,6 +330,7 @@ export function createElementOps(
 				candidate.id === elementId && candidate.type === "media"
 					? {
 							...candidate,
+							groupId: audioLinkGroupId,
 							volume: 0,
 							audio: candidate.audio
 								? { ...candidate.audio, enabled: false }
