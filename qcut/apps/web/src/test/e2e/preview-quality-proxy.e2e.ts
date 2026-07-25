@@ -64,6 +64,140 @@ test.describe("Preview quality proxy playback", () => {
 			animations: "disabled",
 		});
 
+		const cachedTimelineTime = await page.evaluate(
+			() =>
+				(
+					window as unknown as {
+						__playbackStore: {
+							getState: () => { currentTime: number };
+						};
+					}
+				).__playbackStore.getState().currentTime
+		);
+		const activeVideo = page.locator("video[data-video-id]").first();
+		await expect
+			.poll(
+				async () =>
+					Number(
+						await activeVideo.getAttribute("data-qcut-presented-timeline-time")
+					),
+				{ timeout: 10_000 }
+			)
+			.toBeCloseTo(cachedTimelineTime, 1);
+		await page.waitForTimeout(2_000);
+		await page.evaluate((time) => {
+			(
+				window as unknown as {
+					__playbackStore: {
+						getState: () => { seek: (nextTime: number) => void };
+					};
+				}
+			).__playbackStore
+				.getState()
+				.seek(time + 1);
+		}, cachedTimelineTime);
+		await expect
+			.poll(
+				async () =>
+					Number(
+						await activeVideo.getAttribute("data-qcut-presented-timeline-time")
+					),
+				{ timeout: 10_000 }
+			)
+			.toBeCloseTo(cachedTimelineTime + 1, 1);
+		await page.evaluate((time) => {
+			(
+				window as unknown as {
+					__playbackStore: {
+						getState: () => { seek: (nextTime: number) => void };
+					};
+				}
+			).__playbackStore
+				.getState()
+				.seek(time);
+		}, cachedTimelineTime);
+		await expect(page.getByTestId("preview-canvas")).toHaveAttribute(
+			"data-frame-cache-lookup",
+			"hit",
+			{ timeout: 5_000 }
+		);
+		await expect(
+			page.getByTestId("preview-frame-cache-overlay")
+		).toHaveAttribute("data-visible", "true");
+		const cachedFramePixels = await page
+			.getByTestId("preview-frame-cache-overlay")
+			.evaluate((node) => {
+				const canvas = node as HTMLCanvasElement;
+				const context = canvas.getContext("2d");
+				if (!context) return { coloredSamples: 0, height: 0, width: 0 };
+				const pixels = context.getImageData(
+					0,
+					0,
+					canvas.width,
+					canvas.height
+				).data;
+				let coloredSamples = 0;
+				for (let offset = 0; offset < pixels.length; offset += 4000) {
+					const colorTotal =
+						pixels[offset] + pixels[offset + 1] + pixels[offset + 2];
+					if (pixels[offset + 3] > 0 && colorTotal > 30) coloredSamples++;
+				}
+				return {
+					coloredSamples,
+					height: canvas.height,
+					width: canvas.width,
+				};
+			});
+		expect(cachedFramePixels.width).toBeGreaterThan(0);
+		expect(cachedFramePixels.height).toBeGreaterThan(0);
+		expect(cachedFramePixels.coloredSamples).toBeGreaterThan(10);
+		await page.getByTestId("preview-panel").screenshot({
+			path: path.join(outputDirectory, "00-cached-frame-scrub-hit.png"),
+			animations: "disabled",
+		});
+		await expect(
+			page.getByTestId("preview-frame-cache-overlay")
+		).toHaveAttribute("data-visible", "false", { timeout: 3_000 });
+
+		await page.getByTestId("preview-play-button").click();
+		await expect(page.getByTestId("preview-pause-button")).toBeVisible();
+		await page.evaluate(() => {
+			for (let index = 0; index < 5; index++) {
+				window.dispatchEvent(
+					new CustomEvent("qcut-video-frame", {
+						detail: {
+							videoId: "e2e-video",
+							isActivePlaybackFrame: true,
+							intervalMs: 95,
+							mediaTime: index / 10,
+							presentedFrames: index + 1,
+						},
+					})
+				);
+			}
+		});
+		await expect(page.getByTestId("preview-quality-button")).toContainText(
+			"低清画质"
+		);
+		await page.getByTestId("preview-quality-button").click();
+		await expect(page.getByTestId("preview-runtime-quality-reason")).toHaveText(
+			"视频解码帧出现停顿"
+		);
+		await expect(
+			page.getByTestId("preview-runtime-quality-metrics")
+		).toContainText("视频");
+		await expect(
+			page.getByTestId("preview-runtime-quality-metrics")
+		).toContainText("停顿");
+		await page.screenshot({
+			path: path.join(outputDirectory, "01-auto-downgrade-diagnostic.png"),
+			animations: "disabled",
+			fullPage: true,
+		});
+		await page.keyboard.press("Escape");
+		await page.getByTestId("preview-pause-button").click();
+		await expect(page.getByTestId("preview-quality-button")).toHaveText("自动");
+
 		await page.getByTestId("preview-quality-button").click();
 		await page.getByRole("menuitem").filter({ hasText: "流畅画质" }).click();
 		await expect(page.getByTestId("preview-quality-button")).toHaveText(
