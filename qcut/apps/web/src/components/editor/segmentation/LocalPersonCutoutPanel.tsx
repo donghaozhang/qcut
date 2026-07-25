@@ -26,6 +26,7 @@ interface LocalPersonCutoutPanelProps {
 	projectId: string;
 	sourceFile: File;
 	sourceUrl: string;
+	autoStartRequestId?: string;
 	addMediaItem?: MediaStore["addMediaItem"];
 	onMaskReady?: ({
 		sourceMediaId,
@@ -65,6 +66,7 @@ export function LocalPersonCutoutPanel({
 	projectId,
 	sourceFile,
 	sourceUrl,
+	autoStartRequestId,
 	addMediaItem,
 	onMaskReady,
 	onMaskError,
@@ -83,6 +85,10 @@ export function LocalPersonCutoutPanel({
 	} = useSegmentationStore();
 	const abortControllerRef = useRef<AbortController | null>(null);
 	const activeTaskIdRef = useRef<string | undefined>(undefined);
+	const autoStartedRequestIdRef = useRef<string | undefined>(undefined);
+	const renderTransparentVideoRef = useRef<
+		(options?: { existingTaskId?: string }) => Promise<void>
+	>(async () => {});
 	const sourceFileRef = useRef(sourceFile);
 	const [taskPhase, setTaskPhase] = useState<CutoutTaskPhase>("idle");
 	const [taskError, setTaskError] = useState<string>();
@@ -313,6 +319,19 @@ export function LocalPersonCutoutPanel({
 			}
 		}
 	};
+	renderTransparentVideoRef.current = renderTransparentVideo;
+
+	useEffect(() => {
+		if (
+			!autoStartRequestId ||
+			isProcessing ||
+			autoStartedRequestIdRef.current === autoStartRequestId
+		) {
+			return;
+		}
+		autoStartedRequestIdRef.current = autoStartRequestId;
+		void renderTransparentVideoRef.current();
+	}, [autoStartRequestId, isProcessing]);
 
 	return (
 		<div className="flex min-h-0 flex-1 flex-col">
