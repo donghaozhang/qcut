@@ -21,6 +21,7 @@ import {
 	ScanLine,
 	FolderOpen,
 	RefreshCw,
+	Gauge,
 } from "lucide-react";
 import { useCallback, useState } from "react";
 import { platform } from "@qcut/platform-core";
@@ -364,6 +365,7 @@ export function PreviewToolbar({
 		seek,
 		previewQuality,
 		runtimePreviewQuality,
+		runtimePreviewQualityDiagnostic,
 		setPreviewQuality,
 	} = usePlaybackStore();
 	const { setCanvasSize, setCanvasSizeToOriginal } = useEditorStore();
@@ -483,6 +485,27 @@ export function PreviewToolbar({
 					(option) => option.value === runtimePreviewQuality
 				)?.labelKey ?? PREVIEW_QUALITY_OPTIONS[0].labelKey
 			)
+		: null;
+	const runtimePreviewQualityReason = runtimePreviewQualityDiagnostic
+		? t(
+				runtimePreviewQualityDiagnostic.reason === "video-frame"
+					? "editor.preview.qualityRuntimeReasonVideo"
+					: runtimePreviewQualityDiagnostic.reason === "combined"
+						? "editor.preview.qualityRuntimeReasonCombined"
+						: "editor.preview.qualityRuntimeReasonMainThread"
+			)
+		: null;
+	const runtimePreviewQualityMetrics = runtimePreviewQualityDiagnostic
+		? t("editor.preview.qualityRuntimeMetrics", {
+				main: Math.round(
+					runtimePreviewQualityDiagnostic.averageMainThreadFrameIntervalMs
+				),
+				mainCount: runtimePreviewQualityDiagnostic.mainThreadStutterCount,
+				video: Math.round(
+					runtimePreviewQualityDiagnostic.averagePresentedFrameIntervalMs
+				),
+				videoCount: runtimePreviewQualityDiagnostic.presentedFrameStallCount,
+			})
 		: null;
 
 	const totalDuration = getTotalDuration();
@@ -626,13 +649,36 @@ export function PreviewToolbar({
 							</DropdownMenuItem>
 						))}
 						{runtimePreviewQualityLabel ? (
-							<DropdownMenuLabel
-								className="px-2 py-1 text-[10px] font-normal text-muted-foreground"
-								data-testid="preview-runtime-quality-status"
-							>
-								{t("editor.preview.qualityRuntimeActive", {
-									quality: runtimePreviewQualityLabel,
-								})}
+							<DropdownMenuLabel className="px-2 py-1.5 font-normal">
+								<span
+									className="flex items-start gap-2 text-[10px] text-muted-foreground"
+									data-testid="preview-runtime-quality-status"
+								>
+									<Gauge className="mt-0.5 size-3 shrink-0" />
+									<span className="min-w-0">
+										<span className="block text-foreground">
+											{t("editor.preview.qualityRuntimeActive", {
+												quality: runtimePreviewQualityLabel,
+											})}
+										</span>
+										{runtimePreviewQualityReason ? (
+											<span
+												className="mt-0.5 block"
+												data-testid="preview-runtime-quality-reason"
+											>
+												{runtimePreviewQualityReason}
+											</span>
+										) : null}
+										{runtimePreviewQualityMetrics ? (
+											<span
+												className="block tabular-nums"
+												data-testid="preview-runtime-quality-metrics"
+											>
+												{runtimePreviewQualityMetrics}
+											</span>
+										) : null}
+									</span>
+								</span>
 							</DropdownMenuLabel>
 						) : null}
 						<DropdownMenuSeparator />
