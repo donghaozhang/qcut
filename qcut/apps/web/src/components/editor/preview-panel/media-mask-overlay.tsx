@@ -23,6 +23,7 @@ import {
 	keyboardDelta,
 	linearFeatherFromHandle,
 	linearFeatherFromKeyboard,
+	linearFeatherOffsetPixels,
 	localDelta,
 	MASK_RESIZE_HANDLES,
 	moveMaskPoint,
@@ -127,12 +128,12 @@ export function MediaMaskOverlay({
 	useEffect(() => {
 		if (!interaction) return;
 		const handlePointerMove = (event: PointerEvent) => {
+			const pointerDeltaX = event.clientX - interaction.startClientX;
+			const pointerDeltaY = event.clientY - interaction.startClientY;
 			const deltaX =
-				(event.clientX - interaction.startClientX) /
-				Math.max(1, interaction.containerRect.width);
+				pointerDeltaX / Math.max(1, interaction.containerRect.width);
 			const deltaY =
-				(event.clientY - interaction.startClientY) /
-				Math.max(1, interaction.containerRect.height);
+				pointerDeltaY / Math.max(1, interaction.containerRect.height);
 			if (interaction.mode === "move") {
 				updateMask({
 					updates: {
@@ -169,11 +170,16 @@ export function MediaMaskOverlay({
 				return;
 			}
 			if (interaction.mode === "linear-feather") {
+				const localPixels = localDelta({
+					deltaX: pointerDeltaX,
+					deltaY: pointerDeltaY,
+					rotation: interaction.startMask.rotation,
+				});
 				updateMask({
 					updates: linearFeatherFromHandle({
 						mask: interaction.startMask,
 						edge: interaction.linearFeatherEdge ?? "bottom",
-						localY: local.y,
+						localYPixels: localPixels.y,
 					}),
 					history: false,
 				});
@@ -406,7 +412,9 @@ export function MediaMaskOverlay({
 				? "50%"
 				: `${(mask.roundness ?? 0) * Math.min(displayWidth, displayHeight) * 50}%`,
 	};
-	const linearFeatherLineOffset = Math.max(8, Math.round(mask.feather * 160));
+	const linearFeatherLineOffset = linearFeatherOffsetPixels({
+		feather: mask.feather,
+	});
 	const mirrorMode = mask.mirrorMode ?? "center";
 	const mirrorRangeClassName =
 		mirrorMode === "left"
