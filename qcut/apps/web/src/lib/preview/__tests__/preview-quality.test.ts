@@ -3,6 +3,7 @@ import {
 	PREVIEW_QUALITY_OPTIONS,
 	getPreviewQualityOption,
 	resolveEffectivePreviewQualityOption,
+	resolvePreviewEffectRenderMode,
 	resolveRuntimePreviewQuality,
 } from "../preview-quality";
 
@@ -143,5 +144,20 @@ describe("preview quality options", () => {
 				stableFrameCount: 0,
 			})
 		).toBeNull();
+	});
+
+	it("reduces preview-only effect rendering while lower quality playback is active", () => {
+		expect(
+			resolvePreviewEffectRenderMode({ quality: "smooth", isPlaying: true })
+		).toBe("reduced");
+		expect(
+			resolvePreviewEffectRenderMode({ quality: "low", isPlaying: true })
+		).toBe("minimal");
+		expect(
+			resolvePreviewEffectRenderMode({ quality: "low", isPlaying: false })
+		).toBe("full");
+		expect(
+			resolvePreviewEffectRenderMode({ quality: "clear", isPlaying: true })
+		).toBe("full");
 	});
 });
