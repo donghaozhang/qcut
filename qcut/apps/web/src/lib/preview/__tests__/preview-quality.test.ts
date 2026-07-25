@@ -1,13 +1,51 @@
 import { describe, expect, it } from "vitest";
 import {
 	PREVIEW_QUALITY_OPTIONS,
+	buildPreviewFrameCacheIdentity,
 	getPreviewQualityOption,
 	resolveEffectivePreviewQualityOption,
 	resolvePreviewEffectRenderMode,
 	resolveRuntimePreviewQuality,
+	resolveRuntimePreviewQualityDecision,
 } from "../preview-quality";
 
 describe("preview quality options", () => {
+	it("isolates frame cache identity by quality and rendered viewport size", () => {
+		expect(
+			buildPreviewFrameCacheIdentity({
+				quality: "smooth",
+				width: 854.4,
+				height: 480.4,
+			})
+		).toBe("preview-quality:smooth:viewport:854x480");
+		expect(
+			buildPreviewFrameCacheIdentity({
+				quality: "smooth",
+				width: 1280,
+				height: 720,
+			})
+		).not.toBe(
+			buildPreviewFrameCacheIdentity({
+				quality: "smooth",
+				width: 854,
+				height: 480,
+			})
+		);
+		expect(
+			buildPreviewFrameCacheIdentity({
+				quality: "original",
+				width: 854,
+				height: 480,
+			})
+		).not.toBe(
+			buildPreviewFrameCacheIdentity({
+				quality: "smooth",
+				width: 854,
+				height: 480,
+			})
+		);
+	});
+
 	it("matches Jianying-style tiers with proxy dimensions", () => {
 		expect(PREVIEW_QUALITY_OPTIONS.map((option) => option.value)).toEqual([
 			"auto",
@@ -144,6 +182,86 @@ describe("preview quality options", () => {
 				stableFrameCount: 0,
 			})
 		).toBeNull();
+	});
+
+	it("uses presented video frame stalls as a runtime preview health signal", () => {
+		expect(
+			resolveRuntimePreviewQuality({
+				selectedQuality: "auto",
+				currentRuntimeQuality: null,
+				averageFrameIntervalMs: 20,
+				stutterFrameCount: 0,
+				stableFrameCount: 0,
+				averagePresentedFrameIntervalMs: 55,
+				presentedFrameStallCount: 2,
+			})
+		).toBe("smooth");
+		expect(
+			resolveRuntimePreviewQuality({
+				selectedQuality: "auto",
+				currentRuntimeQuality: "smooth",
+				averageFrameIntervalMs: 20,
+				stutterFrameCount: 0,
+				stableFrameCount: 0,
+				averagePresentedFrameIntervalMs: 90,
+				presentedFrameStallCount: 5,
+			})
+		).toBe("low");
+	});
+
+	it("attributes automatic downgrades to rendering, video frames, or both", () => {
+		const mainThreadDecision = resolveRuntimePreviewQualityDecision({
+			selectedQuality: "auto",
+			currentRuntimeQuality: null,
+			averageFrameIntervalMs: 50,
+			stutterFrameCount: 3,
+			stableFrameCount: 0,
+			averagePresentedFrameIntervalMs: 20,
+			presentedFrameStallCount: 0,
+		});
+		expect(mainThreadDecision.quality).toBe("smooth");
+		expect(mainThreadDecision.diagnostic?.reason).toBe("main-thread");
+
+		const videoFrameDecision = resolveRuntimePreviewQualityDecision({
+			selectedQuality: "auto",
+			currentRuntimeQuality: "smooth",
+			averageFrameIntervalMs: 20,
+			stutterFrameCount: 0,
+			stableFrameCount: 0,
+			averagePresentedFrameIntervalMs: 90,
+			presentedFrameStallCount: 5,
+		});
+		expect(videoFrameDecision.quality).toBe("low");
+		expect(videoFrameDecision.diagnostic).toMatchObject({
+			reason: "video-frame",
+			averagePresentedFrameIntervalMs: 90,
+			presentedFrameStallCount: 5,
+		});
+
+		const combinedDecision = resolveRuntimePreviewQualityDecision({
+			selectedQuality: "auto",
+			currentRuntimeQuality: null,
+			averageFrameIntervalMs: 50,
+			stutterFrameCount: 3,
+			stableFrameCount: 0,
+			averagePresentedFrameIntervalMs: 55,
+			presentedFrameStallCount: 3,
+		});
+		expect(combinedDecision.diagnostic?.reason).toBe("combined");
+	});
+
+	it("clears runtime diagnostics after sustained stable playback", () => {
+		expect(
+			resolveRuntimePreviewQualityDecision({
+				selectedQuality: "auto",
+				currentRuntimeQuality: "low",
+				averageFrameIntervalMs: 20,
+				stutterFrameCount: 0,
+				stableFrameCount: 90,
+				averagePresentedFrameIntervalMs: 20,
+				presentedFrameStallCount: 0,
+			})
+		).toEqual({ quality: null, diagnostic: null });
 	});
 
 	it("reduces preview-only effect rendering while lower quality playback is active", () => {
