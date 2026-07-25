@@ -150,32 +150,37 @@ test.describe("Media mask canvas controls", () => {
 		if (!handleAfterDrag) throw new Error("Linear feather handle disappeared");
 		expect(handleAfterDrag.y - handleBeforeDrag.y).toBeGreaterThan(24);
 		expect(handleAfterDrag.y - handleBeforeDrag.y).toBeLessThan(40);
-		await bottomFeatherHandle.press("ArrowDown");
-		const featherAfterKeyboardAdjust = await page.evaluate(() => {
-			const timeline = (
-				window as unknown as {
-					__timelineStore: {
-						getState: () => {
-							tracks: Array<{
-								type: string;
-								elements: Array<{
+		const readLinearFeather = () =>
+			page.evaluate(() => {
+				const timeline = (
+					window as unknown as {
+						__timelineStore: {
+							getState: () => {
+								tracks: Array<{
 									type: string;
-									masks?: Array<{ type: string; feather: number }>;
+									elements: Array<{
+										type: string;
+										masks?: Array<{ type: string; feather: number }>;
+									}>;
 								}>;
-							}>;
+							};
 						};
-					};
-				}
-			).__timelineStore.getState();
-			const element = timeline.tracks
-				.find((track) => track.type === "media")
-				?.elements.find((candidate) => candidate.type === "media");
-			const mask = element?.masks?.find(
-				(candidate) => candidate.type === "linear"
-			);
-			return mask?.feather ?? 0;
-		});
-		expect(featherAfterKeyboardAdjust).toBeGreaterThan(0.38);
+					}
+				).__timelineStore.getState();
+				const element = timeline.tracks
+					.find((track) => track.type === "media")
+					?.elements.find((candidate) => candidate.type === "media");
+				const mask = element?.masks?.find(
+					(candidate) => candidate.type === "linear"
+				);
+				return mask?.feather ?? 0;
+			});
+		const featherBeforeKeyboardAdjust = await readLinearFeather();
+		await bottomFeatherHandle.press("ArrowDown");
+		const featherAfterKeyboardAdjust = await readLinearFeather();
+		expect(featherAfterKeyboardAdjust).toBeGreaterThan(
+			featherBeforeKeyboardAdjust
+		);
 
 		await page.getByTestId("preview-panel").screenshot({
 			path: path.join(outputDirectory, "02-linear-mask-feather-handles.png"),
