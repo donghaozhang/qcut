@@ -1,10 +1,13 @@
 import { afterEach, describe, expect, it } from "vitest";
+import { useSegmentationStore } from "@/stores/ai/segmentation-store";
 import { createMediaMask } from "@/lib/video/media-mask-stack";
 import { useTimelineStore } from "@/stores/timeline/timeline-store";
 import type { MediaElement, TimelineTrack } from "@/types/timeline";
 import {
+	attachGeneratedMask,
 	buildGeneratedMaskStack,
 	detachGeneratedMask,
+	pauseGeneratedMaskTracking,
 } from "../generated-mask-attachment";
 
 function mediaElement(overrides: Partial<MediaElement> = {}): MediaElement {
@@ -29,6 +32,7 @@ describe("generated mask attachment", () => {
 			history: [],
 			redoStack: [],
 		});
+		useSegmentationStore.setState({ trackingRequest: null });
 	});
 
 	it("prepends a generated mask without disturbing the existing stack", () => {
@@ -80,6 +84,7 @@ describe("generated mask attachment", () => {
 			source: "sam3",
 			name: "Ignored replacement name",
 			trackingRequest: {
+				requestId: "request-1",
 				elementId: "clip-1",
 				maskId: "tracked",
 				direction: "forward",
@@ -183,5 +188,113 @@ describe("generated mask attachment", () => {
 			id: "clip-1",
 			masks: [{ id: "generated" }, { id: "retained" }],
 		});
+	});
+
+	it("pauses the requested generated mask tracking job", () => {
+		const trackedMask = {
+			...createMediaMask({ id: "tracked", type: "object", index: 0 }),
+			tracking: {
+				direction: "forward" as const,
+				status: "processing" as const,
+				source: "sam3" as const,
+				progress: 44,
+				anchorFrame: 12,
+			},
+		};
+		const targetedTrack: TimelineTrack = {
+			id: "track-1",
+			name: "Main Track",
+			type: "media",
+			isMain: true,
+			elements: [
+				mediaElement({
+					id: "clip-1",
+					masks: [trackedMask],
+				}),
+			],
+		};
+		useTimelineStore.setState({
+			_tracks: [targetedTrack],
+			tracks: [targetedTrack],
+			history: [],
+			redoStack: [],
+		});
+		useSegmentationStore.setState({
+			trackingRequest: {
+				requestId: "request-1",
+				elementId: "clip-1",
+				maskId: "tracked",
+				direction: "forward",
+				anchorFrame: 12,
+			},
+		});
+
+		pauseGeneratedMaskTracking({ message: "物体跟踪已暂停" });
+
+		const state = useTimelineStore.getState();
+		const clip = state._tracks[0].elements[0] as MediaElement;
+		expect(clip.masks?.[0].tracking).toMatchObject({
+			status: "paused",
+			progress: 44,
+			anchorFrame: 12,
+			error: "物体跟踪已暂停",
+		});
+		expect(useSegmentationStore.getState().trackingRequest).toBeNull();
+	});
+
+	it("ignores stale generated tracking results after the request changes", () => {
+		const trackedMask = {
+			...createMediaMask({ id: "tracked", type: "object", index: 0 }),
+			name: "Tracked object",
+		};
+		const targetedTrack: TimelineTrack = {
+			id: "track-1",
+			name: "Main Track",
+			type: "media",
+			isMain: true,
+			elements: [
+				mediaElement({
+					id: "clip-1",
+					masks: [trackedMask],
+				}),
+			],
+		};
+		useTimelineStore.setState({
+			_tracks: [targetedTrack],
+			tracks: [targetedTrack],
+			selectedElements: [{ trackId: "track-1", elementId: "clip-1" }],
+			history: [],
+			redoStack: [],
+		});
+		useSegmentationStore.setState({
+			trackingRequest: {
+				requestId: "current-request",
+				elementId: "clip-1",
+				maskId: "tracked",
+				direction: "both",
+				anchorFrame: 6,
+			},
+		});
+
+		const attached = attachGeneratedMask({
+			sourceMediaId: "late-alpha",
+			type: "object",
+			source: "sam3",
+			name: "Late result",
+			targetElementId: "clip-1",
+			trackingRequestId: "stale-request",
+		});
+
+		const clip = useTimelineStore.getState()._tracks[0].elements[0] as MediaElement;
+		expect(attached).toBe(false);
+		expect(clip.masks).toHaveLength(1);
+		expect(clip.masks?.[0]).toMatchObject({
+			id: "tracked",
+			name: "Tracked object",
+		});
+		expect(clip.masks?.[0].sourceMediaId).toBeUndefined();
+		expect(useSegmentationStore.getState().trackingRequest?.requestId).toBe(
+			"current-request"
+		);
 	});
 });
