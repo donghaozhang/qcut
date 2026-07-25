@@ -19,6 +19,8 @@ import {
 	AppWindow,
 	Bot,
 	ScanLine,
+	FolderOpen,
+	RefreshCw,
 } from "lucide-react";
 import { useCallback, useState } from "react";
 import { platform } from "@qcut/platform-core";
@@ -38,6 +40,7 @@ import { useTranslation } from "@/lib/i18n";
 import { PREVIEW_QUALITY_OPTIONS } from "@/lib/preview/preview-quality";
 
 interface PreviewProxyCacheStats {
+	cacheDir: string;
 	entryCount: number;
 	totalBytes: number;
 	maxBytes: number;
@@ -48,7 +51,8 @@ type PreviewProxyCacheStatus =
 	| "loading"
 	| "ready"
 	| "error"
-	| "clearing";
+	| "clearing"
+	| "opening";
 
 function formatPreviewCacheBytes({ bytes }: { bytes: number }): string {
 	if (bytes <= 0) return "0 MB";
@@ -400,6 +404,13 @@ export function PreviewToolbar({
 		void updateProjectCanvasSize(nextSize, "original");
 	};
 
+	const loadPreviewProxyCacheStats =
+		useCallback(async (): Promise<PreviewProxyCacheStats | null> => {
+			if (!platform().isElectron) return null;
+			const stats = await platform().ffmpeg.getVideoPreviewProxyCacheStats();
+			return stats;
+		}, []);
+
 	const refreshPreviewProxyCacheStats = useCallback(async () => {
 		if (!platform().isElectron) {
 			setPreviewProxyCacheStats(null);
@@ -409,14 +420,14 @@ export function PreviewToolbar({
 
 		setPreviewProxyCacheStatus("loading");
 		try {
-			const stats = await platform().ffmpeg.getVideoPreviewProxyCacheStats();
+			const stats = await loadPreviewProxyCacheStats();
 			setPreviewProxyCacheStats(stats);
 			setPreviewProxyCacheStatus("ready");
 		} catch {
 			setPreviewProxyCacheStats(null);
 			setPreviewProxyCacheStatus("error");
 		}
-	}, []);
+	}, [loadPreviewProxyCacheStats]);
 
 	const handlePreviewQualityMenuOpenChange = useCallback(
 		({ open }: { open: boolean }) => {
@@ -439,6 +450,22 @@ export function PreviewToolbar({
 			setPreviewProxyCacheStatus("error");
 		}
 	}, []);
+
+	const handleOpenPreviewProxyCache = useCallback(async () => {
+		if (!platform().isElectron) return;
+
+		setPreviewProxyCacheStatus("opening");
+		try {
+			const stats =
+				previewProxyCacheStats ?? (await loadPreviewProxyCacheStats());
+			if (!stats) throw new Error("Preview proxy cache is unavailable");
+			await platform().shell.showItemInFolder(stats.cacheDir);
+			setPreviewProxyCacheStats(stats);
+			setPreviewProxyCacheStatus("ready");
+		} catch {
+			setPreviewProxyCacheStatus("error");
+		}
+	}, [loadPreviewProxyCacheStats, previewProxyCacheStats]);
 
 	const previewProxyCacheSize = previewProxyCacheStats
 		? formatPreviewCacheBytes({ bytes: previewProxyCacheStats.totalBytes })
@@ -617,7 +644,8 @@ export function PreviewToolbar({
 								<span>{t("editor.preview.proxyCache")}</span>
 								<span className="tabular-nums">
 									{previewProxyCacheStatus === "loading" ||
-									previewProxyCacheStatus === "clearing"
+									previewProxyCacheStatus === "clearing" ||
+									previewProxyCacheStatus === "opening"
 										? t("editor.preview.proxyCacheLoading")
 										: previewProxyCacheSize}
 								</span>
@@ -636,6 +664,40 @@ export function PreviewToolbar({
 								</span>
 							) : null}
 						</DropdownMenuLabel>
+						<DropdownMenuItem
+							onSelect={(event) => {
+								event.preventDefault();
+								void handleOpenPreviewProxyCache();
+							}}
+							disabled={
+								!platform().isElectron ||
+								previewProxyCacheStatus === "loading" ||
+								previewProxyCacheStatus === "clearing" ||
+								previewProxyCacheStatus === "opening"
+							}
+							className="gap-2 text-xs"
+							data-testid="preview-proxy-cache-open"
+						>
+							<FolderOpen className="size-3.5" />
+							<span>
+								{previewProxyCacheStatus === "opening"
+									? t("editor.preview.proxyCacheOpening")
+									: t("editor.preview.proxyCacheOpen")}
+							</span>
+						</DropdownMenuItem>
+						{previewProxyCacheStatus === "error" ? (
+							<DropdownMenuItem
+								onSelect={(event) => {
+									event.preventDefault();
+									void refreshPreviewProxyCacheStats();
+								}}
+								className="gap-2 text-xs"
+								data-testid="preview-proxy-cache-retry"
+							>
+								<RefreshCw className="size-3.5" />
+								<span>{t("editor.preview.proxyCacheRetry")}</span>
+							</DropdownMenuItem>
+						) : null}
 						<DropdownMenuItem
 							onSelect={(event) => {
 								event.preventDefault();
