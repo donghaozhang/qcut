@@ -698,6 +698,20 @@ export interface VideoPreviewProxyProgress {
 	duration: number;
 }
 
+export interface VideoPreviewProxyCacheStats {
+	cacheDir: string;
+	entryCount: number;
+	totalBytes: number;
+	maxBytes: number;
+	maxEntries: number;
+}
+
+export interface VideoPreviewProxyCacheClearResult
+	extends VideoPreviewProxyCacheStats {
+	removedEntries: number;
+	removedBytes: number;
+}
+
 /**
  * Individual frame data for video export
  * Contains base64 encoded frame image data
