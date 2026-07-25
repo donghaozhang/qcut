@@ -113,7 +113,7 @@ describe("timeline beats", () => {
 			trimStart: 0,
 			duration: 6,
 		});
-		const tracks: TimelineTrack[] = [
+		const elements: MediaElement[] = [
 			{ ...constant, playbackRate: 2 },
 			{
 				...variable,
@@ -122,7 +122,8 @@ describe("timeline beats", () => {
 					{ id: "b", frame: 180, value: 3, easing: "linear" },
 				],
 			},
-		].map((element) => ({
+		];
+		const tracks: TimelineTrack[] = elements.map((element) => ({
 			elements: [element],
 			id: `track-${element.id}`,
 			name: element.id,
