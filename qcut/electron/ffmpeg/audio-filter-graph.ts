@@ -288,12 +288,14 @@ function appendSpeedAndFreeze({
 	currentLabel,
 	effectiveDuration,
 	filterSteps,
+	fps,
 	index,
 }: {
 	audioFile: AudioFile;
 	currentLabel: string;
 	effectiveDuration: number | undefined;
 	filterSteps: string[];
+	fps: number;
 	index: number;
 }): string {
 	let outputLabel = currentLabel;
@@ -301,7 +303,7 @@ function appendSpeedAndFreeze({
 	let speedSamples =
 		effectiveDuration === undefined
 			? []
-			: buildSpeedSamples(audioFile, effectiveDuration, 30);
+			: buildSpeedSamples(audioFile, effectiveDuration, fps);
 	if (speedSamples.length > 0) {
 		speedDuration = speedSamples[speedSamples.length - 1].outputEnd;
 	}
@@ -348,7 +350,7 @@ function appendSpeedAndFreeze({
 	}
 
 	if (speedSamples.length === 0) {
-		speedSamples = buildSpeedSamples(audioFile, effectiveDuration, 30);
+		speedSamples = buildSpeedSamples(audioFile, effectiveDuration, fps);
 	}
 	const freezeStart = outputTimeAtSource(
 		speedSamples,
@@ -462,6 +464,7 @@ export function buildTimelineAudioFilters({
 			currentLabel: timing.currentLabel,
 			effectiveDuration: timing.effectiveDuration,
 			filterSteps,
+			fps,
 			index,
 		});
 		const transforms: string[] = [];

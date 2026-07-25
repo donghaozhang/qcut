@@ -244,6 +244,9 @@ export interface SpeedSample {
 	rate: number;
 }
 
+export const MAX_SPEED_SAMPLES = 256;
+const CURVE_SAMPLES_PER_INTERVAL = 12;
+
 function easingProgress(progress: number, easing: string): number {
 	const value = clamp(progress, 0, 1);
 	if (easing === "easeIn") return value ** 2;
@@ -292,26 +295,63 @@ export function buildSpeedSamples(
 	fps: number
 ): SpeedSample[] {
 	const sampleRate = Math.max(1, fps);
+	const safeDuration = Math.max(0, sourceDuration);
+	if (safeDuration <= 1e-9) return [];
+	if ((source.speedKeyframes?.length ?? 0) === 0) {
+		const rate = clamp(source.playbackRate ?? 1, 0.1, 8);
+		return [
+			{
+				sourceStart: 0,
+				sourceEnd: safeDuration,
+				outputStart: 0,
+				outputEnd: safeDuration / rate,
+				rate,
+			},
+		];
+	}
+
+	const keyframeTimes = (source.speedKeyframes ?? []).map((keyframe) =>
+		clamp(keyframe.frame / sampleRate, 0, safeDuration)
+	);
+	const boundaries = [...new Set([0, ...keyframeTimes, safeDuration])].sort(
+		(left, right) => left - right
+	);
+	const intervalCount = Math.max(1, boundaries.length - 1);
+	const intervalBudget = Math.max(
+		1,
+		Math.floor(MAX_SPEED_SAMPLES / intervalCount)
+	);
+	const samplesPerInterval = Math.min(
+		CURVE_SAMPLES_PER_INTERVAL,
+		intervalBudget
+	);
 	const samples: SpeedSample[] = [];
-	let sourceTime = 0;
 	let outputTime = 0;
-	while (sourceTime < sourceDuration - 1e-9) {
-		const step = Math.min(1 / sampleRate, sourceDuration - sourceTime);
-		const rate = speedAtFrame(
-			source,
-			Math.round((sourceTime + step / 2) * sampleRate),
-			sampleRate
-		);
-		const outputStep = step / rate;
-		samples.push({
-			sourceStart: sourceTime,
-			sourceEnd: sourceTime + step,
-			outputStart: outputTime,
-			outputEnd: outputTime + outputStep,
-			rate,
-		});
-		sourceTime += step;
-		outputTime += outputStep;
+	for (let interval = 0; interval < boundaries.length - 1; interval++) {
+		const intervalStart = boundaries[interval];
+		const intervalEnd = boundaries[interval + 1];
+		for (let stepIndex = 0; stepIndex < samplesPerInterval; stepIndex++) {
+			const sourceStart =
+				intervalStart +
+				((intervalEnd - intervalStart) * stepIndex) / samplesPerInterval;
+			const sourceEnd =
+				intervalStart +
+				((intervalEnd - intervalStart) * (stepIndex + 1)) / samplesPerInterval;
+			const rate = speedAtFrame(
+				source,
+				((sourceStart + sourceEnd) / 2) * sampleRate,
+				sampleRate
+			);
+			const outputEnd = outputTime + (sourceEnd - sourceStart) / rate;
+			samples.push({
+				sourceStart,
+				sourceEnd,
+				outputStart: outputTime,
+				outputEnd,
+				rate,
+			});
+			outputTime = outputEnd;
+		}
 	}
 	return samples;
 }
