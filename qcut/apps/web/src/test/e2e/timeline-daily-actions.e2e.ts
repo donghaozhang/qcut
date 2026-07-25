@@ -37,11 +37,22 @@ interface TimelineActionTrack {
 
 interface TimelineActionState {
 	tracks: TimelineActionTrack[];
+	addTrack: (type: "media") => string;
 	addElementToTrack: (
 		trackId: string,
-		element: Omit<TimelineActionElement, "id">
+		element: Omit<TimelineActionElement, "id">,
+		options?: { pushHistory?: boolean; selectElement?: boolean }
 	) => string | null;
+	updateElementDuration: (
+		trackId: string,
+		elementId: string,
+		duration: number,
+		pushHistory?: boolean
+	) => void;
 	selectElement: (trackId: string, elementId: string) => void;
+	setSelectedElements: (
+		elements: Array<{ trackId: string; elementId: string }>
+	) => void;
 }
 
 interface TimelineActionWindow extends Window {
@@ -115,6 +126,96 @@ async function createAdjacentRealVideoClips({ page }: { page: Page }) {
 			followingStartTime: first.startTime + visibleDuration,
 			splitTime,
 		};
+	});
+}
+
+async function createLinkedMultiTrackVideoClips({ page }: { page: Page }) {
+	await addImportedClipToTimeline({ page });
+	return await page.evaluate(() => {
+		const timeline = (
+			window as TimelineActionWindow
+		).__timelineStore.getState();
+		const mainTrack = timeline.tracks.find((track) => track.type === "media");
+		const first = mainTrack?.elements[0];
+		if (!mainTrack || !first || !first.mediaId) {
+			throw new Error("Expected an imported media clip");
+		}
+
+		const clipDuration = 2;
+		timeline.updateElementDuration(mainTrack.id, first.id, clipDuration, false);
+		const mainFollowingId = timeline.addElementToTrack(
+			mainTrack.id,
+			{
+				type: "media",
+				mediaId: first.mediaId,
+				name: "Main following clip",
+				startTime: clipDuration,
+				duration: clipDuration,
+				trimStart: 0,
+				trimEnd: 0,
+			},
+			{ pushHistory: false, selectElement: false }
+		);
+		const overlayTrackId = timeline.addTrack("media");
+		const overlayFirstId = timeline.addElementToTrack(
+			overlayTrackId,
+			{
+				type: "media",
+				mediaId: first.mediaId,
+				name: "Overlay selected clip",
+				startTime: 0,
+				duration: clipDuration,
+				trimStart: 0,
+				trimEnd: 0,
+			},
+			{ pushHistory: false, selectElement: false }
+		);
+		const overlayFollowingId = timeline.addElementToTrack(
+			overlayTrackId,
+			{
+				type: "media",
+				mediaId: first.mediaId,
+				name: "Overlay following clip",
+				startTime: clipDuration,
+				duration: clipDuration,
+				trimStart: 0,
+				trimEnd: 0,
+			},
+			{ pushHistory: false, selectElement: false }
+		);
+		if (!mainFollowingId || !overlayFirstId || !overlayFollowingId) {
+			throw new Error("Failed to create linked multi-track clips");
+		}
+
+		timeline.setSelectedElements([
+			{ trackId: mainTrack.id, elementId: first.id },
+			{ trackId: overlayTrackId, elementId: overlayFirstId },
+		]);
+
+		return {
+			clipDuration,
+			mainTrackId: mainTrack.id,
+			overlayTrackId,
+			mainSelectedId: first.id,
+			mainFollowingId,
+			overlaySelectedId: overlayFirstId,
+			overlayFollowingId,
+		};
+	});
+}
+
+async function linkedMultiTrackState({ page }: { page: Page }) {
+	return await page.evaluate(() => {
+		const timeline = (
+			window as TimelineActionWindow
+		).__timelineStore.getState();
+		return timeline.tracks
+			.filter((track) => track.type === "media")
+			.map((track) => ({
+				trackId: track.id,
+				elementIds: track.elements.map((element) => element.id),
+				startTimes: track.elements.map((element) => element.startTime),
+			}));
 	});
 }
 
@@ -287,6 +388,58 @@ test.describe("Timeline daily action toolbar", () => {
 
 		await page.screenshot({
 			path: path.join(outputDirectory, "07-ripple-delete-closed-gap.png"),
+			animations: "disabled",
+			fullPage: true,
+		});
+	});
+
+	test("ripple-deletes a selected batch across linked media tracks", async ({
+		page,
+	}) => {
+		await createTestProject(page, "Timeline Multi Track Ripple");
+		const setup = await createLinkedMultiTrackVideoClips({ page });
+		const clips = page.getByTestId("timeline-element");
+		await expect(clips).toHaveCount(4);
+
+		await page.screenshot({
+			path: path.join(outputDirectory, "08-multi-track-ripple-before.png"),
+			animations: "disabled",
+			fullPage: true,
+		});
+
+		await page.getByTestId("timeline-ripple-button").click();
+		await expect(page.getByTestId("timeline-ripple-button")).toHaveAttribute(
+			"aria-pressed",
+			"true"
+		);
+		await page.getByTestId("delete-selected-button").click();
+		await expect(clips).toHaveCount(2);
+
+		await expect
+			.poll(async () => {
+				const state = await linkedMultiTrackState({ page });
+				const mainTrack = state.find(
+					(track) => track.trackId === setup.mainTrackId
+				);
+				const overlayTrack = state.find(
+					(track) => track.trackId === setup.overlayTrackId
+				);
+				return {
+					mainIds: mainTrack?.elementIds ?? [],
+					mainStarts: mainTrack?.startTimes ?? [],
+					overlayIds: overlayTrack?.elementIds ?? [],
+					overlayStarts: overlayTrack?.startTimes ?? [],
+				};
+			})
+			.toEqual({
+				mainIds: [setup.mainFollowingId],
+				mainStarts: [0],
+				overlayIds: [setup.overlayFollowingId],
+				overlayStarts: [0],
+			});
+
+		await page.screenshot({
+			path: path.join(outputDirectory, "09-multi-track-ripple-after.png"),
 			animations: "disabled",
 			fullPage: true,
 		});
