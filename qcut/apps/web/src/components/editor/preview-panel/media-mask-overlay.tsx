@@ -13,13 +13,19 @@ import { useTimelineStore } from "@/stores/timeline/timeline-store";
 import type { MediaElement, MediaMask } from "@/types/timeline";
 import {
 	clamp,
+	featherOutlineInsetPercent,
+	featherPathStrokeWidth,
 	isPointInteractionMode,
 	keyboardDelta,
 	localDelta,
+	MASK_RESIZE_HANDLES,
 	moveMaskPoint,
 	penPathData,
 	pointId,
 	pointerAngle,
+	resizeMaskFromHandle,
+	resizeMaskFromKeyboard,
+	type ResizeHandle,
 	type MaskInteraction,
 	type MaskInteractionMode,
 	type PointInteractionMode,
@@ -75,10 +81,12 @@ export function MediaMaskOverlay({
 			event,
 			mode,
 			pointId: selectedPointId,
+			resizeHandle,
 		}: {
 			event: ReactPointerEvent;
 			mode: MaskInteractionMode;
 			pointId?: string;
+			resizeHandle?: ResizeHandle;
 		}) => {
 			const containerRect = containerRef.current?.getBoundingClientRect();
 			if (!containerRect) return;
@@ -100,6 +108,7 @@ export function MediaMaskOverlay({
 				startMask: mask,
 				containerRect,
 				pointId: selectedPointId,
+				resizeHandle,
 			});
 		},
 		[mask, pushHistory]
@@ -138,24 +147,15 @@ export function MediaMaskOverlay({
 				rotation: interaction.startMask.rotation,
 			});
 			if (interaction.mode === "resize") {
-				const aspect =
-					interaction.startMask.width /
-					Math.max(0.001, interaction.startMask.height);
-				let width = clamp({
-					value: interaction.startMask.width + local.x * 2,
-					min: 0.001,
-					max: 3,
+				updateMask({
+					updates: resizeMaskFromHandle({
+						mask: interaction.startMask,
+						handle: interaction.resizeHandle ?? "se",
+						localX: local.x,
+						localY: local.y,
+					}),
+					history: false,
 				});
-				let height = clamp({
-					value: interaction.startMask.height + local.y * 2,
-					min: 0.001,
-					max: 3,
-				});
-				if (interaction.startMask.maintainAspectRatio) {
-					if (Math.abs(local.x) >= Math.abs(local.y)) height = width / aspect;
-					else width = height * aspect;
-				}
-				updateMask({ updates: { width, height }, history: false });
 				return;
 			}
 			if (isPointInteractionMode(interaction.mode) && interaction.pointId) {
@@ -234,21 +234,17 @@ export function MediaMaskOverlay({
 		});
 	};
 
-	const resizeWithKeyboard = (event: ReactKeyboardEvent) => {
-		const delta = keyboardDelta({ event });
-		if (!delta) return;
+	const resizeWithKeyboard = ({
+		event,
+		handle,
+	}: {
+		event: ReactKeyboardEvent;
+		handle: ResizeHandle;
+	}) => {
+		const updates = resizeMaskFromKeyboard({ mask, handle, event });
+		if (!updates) return;
 		event.preventDefault();
-		const aspect = mask.width / Math.max(0.001, mask.height);
-		const width = clamp({ value: mask.width + delta.x, min: 0.001, max: 3 });
-		updateMask({
-			updates: {
-				width,
-				height: mask.maintainAspectRatio
-					? width / aspect
-					: clamp({ value: mask.height + delta.y, min: 0.001, max: 3 }),
-			},
-			history: true,
-		});
+		updateMask({ updates, history: true });
 	};
 
 	const rotateWithKeyboard = (event: ReactKeyboardEvent) => {
@@ -332,6 +328,11 @@ export function MediaMaskOverlay({
 		0.001,
 		mask.height + (mask.expansion ?? 0) * 2
 	);
+	const featherInsetPercent = featherOutlineInsetPercent({
+		feather: mask.feather,
+	});
+	const featherStrokeWidth = featherPathStrokeWidth({ feather: mask.feather });
+	const hasFeatherGuide = featherInsetPercent > 0;
 	const shapeStyle: CSSProperties = {
 		left: `${mask.centerX * 100}%`,
 		top: `${mask.centerY * 100}%`,
@@ -344,6 +345,22 @@ export function MediaMaskOverlay({
 				: `${(mask.roundness ?? 0) * Math.min(displayWidth, displayHeight) * 50}%`,
 		boxShadow: `0 0 ${Math.max(2, mask.feather * 80)}px rgba(34, 211, 238, 0.8)`,
 	};
+	const invertGuideStyle: CSSProperties = {
+		borderRadius:
+			mask.type === "ellipse"
+				? "50%"
+				: `${(mask.roundness ?? 0) * Math.min(displayWidth, displayHeight) * 50}%`,
+		background:
+			"repeating-linear-gradient(135deg, rgba(34,211,238,0.22) 0 6px, rgba(34,211,238,0.04) 6px 12px)",
+	};
+	const featherOutlineStyle: CSSProperties = {
+		inset: `-${featherInsetPercent}%`,
+		borderRadius:
+			mask.type === "ellipse"
+				? "50%"
+				: `${(mask.roundness ?? 0) * Math.min(displayWidth, displayHeight) * 50}%`,
+	};
+	const linearFeatherLineOffset = Math.max(8, Math.round(mask.feather * 160));
 	const points = mask.points ?? [];
 
 	return (
@@ -357,6 +374,56 @@ export function MediaMaskOverlay({
 				style={shapeStyle}
 				onPointerDown={(event) => beginInteraction({ event, mode: "move" })}
 			>
+				{hasFeatherGuide && !isLinear && mask.type !== "pen" ? (
+					<div
+						className="pointer-events-none absolute border-2 border-dashed border-cyan-200/90 shadow-[0_0_10px_rgba(103,232,249,0.35)]"
+						data-testid="media-mask-feather-outline"
+						style={featherOutlineStyle}
+						aria-hidden="true"
+					/>
+				) : null}
+				{hasFeatherGuide && isLinear ? (
+					<div
+						className="pointer-events-none absolute left-0 w-full border-t-2 border-dashed border-cyan-200/90"
+						data-testid="media-mask-feather-outline"
+						style={{ top: `${-linearFeatherLineOffset}px` }}
+						aria-hidden="true"
+					/>
+				) : null}
+				{hasFeatherGuide && isLinear ? (
+					<div
+						className="pointer-events-none absolute left-0 w-full border-t-2 border-dashed border-cyan-200/90"
+						style={{ top: `${linearFeatherLineOffset}px` }}
+						aria-hidden="true"
+					/>
+				) : null}
+				{mask.invert && !isLinear && mask.type !== "pen" ? (
+					<div
+						className="pointer-events-none absolute inset-0 border border-cyan-200/60"
+						data-testid="media-mask-invert-guide"
+						style={invertGuideStyle}
+						aria-hidden="true"
+					/>
+				) : null}
+				{isMirror ? (
+					<div
+						className="pointer-events-none absolute bottom-0 left-1/2 top-0 w-0 -translate-x-1/2 border-l-2 border-dashed border-fuchsia-300/90 shadow-[0_0_10px_rgba(217,70,239,0.45)]"
+						data-testid="media-mask-mirror-axis"
+						aria-hidden="true"
+					/>
+				) : null}
+				{isMirror ? (
+					<div
+						className="pointer-events-none absolute left-[25%] top-1/2 h-3 w-3 -translate-x-1/2 -translate-y-1/2 rotate-45 border-b-2 border-l-2 border-fuchsia-300/90"
+						aria-hidden="true"
+					/>
+				) : null}
+				{isMirror ? (
+					<div
+						className="pointer-events-none absolute right-[25%] top-1/2 h-3 w-3 -translate-y-1/2 translate-x-1/2 rotate-45 border-r-2 border-t-2 border-fuchsia-300/90"
+						aria-hidden="true"
+					/>
+				) : null}
 				{mask.type === "pen" ? (
 					<svg
 						className="pointer-events-none absolute inset-0 size-full overflow-visible"
@@ -371,6 +438,17 @@ export function MediaMaskOverlay({
 							strokeWidth="0.006"
 							vectorEffect="non-scaling-stroke"
 						/>
+						{featherStrokeWidth > 0 ? (
+							<path
+								d={penPathData({ points, closed: mask.closed ?? true })}
+								fill="none"
+								stroke="rgba(165, 243, 252, 0.75)"
+								strokeDasharray="0.03 0.025"
+								strokeWidth={featherStrokeWidth}
+								vectorEffect="non-scaling-stroke"
+								data-testid="media-mask-feather-outline"
+							/>
+						) : null}
 						{points.flatMap((point, index) => {
 							const id = pointId({ point, index, maskId });
 							return [point.handleIn, point.handleOut]
@@ -401,18 +479,30 @@ export function MediaMaskOverlay({
 					aria-label={`移动${mask.name ?? "蒙版"}`}
 					title="移动蒙版"
 				/>
-				{isLinear ? null : (
-					<button
-						type="button"
-						className="absolute -bottom-2 -right-2 size-4 cursor-nwse-resize rounded-sm border-2 border-white bg-cyan-500 shadow"
-						onPointerDown={(event) =>
-							beginInteraction({ event, mode: "resize" })
-						}
-						onKeyDown={resizeWithKeyboard}
-						aria-label={`缩放${mask.name ?? "蒙版"}`}
-						title="缩放蒙版"
-					/>
-				)}
+				{isLinear
+					? null
+					: MASK_RESIZE_HANDLES.map((handle) => {
+							if (isMirror && handle.y !== 0) return null;
+							return (
+								<button
+									type="button"
+									key={handle.id}
+									className={`absolute size-4 rounded-sm border-2 border-white bg-cyan-500 shadow ${handle.className} ${handle.cursor}`}
+									onPointerDown={(event) =>
+										beginInteraction({
+											event,
+											mode: "resize",
+											resizeHandle: handle.id,
+										})
+									}
+									onKeyDown={(event) =>
+										resizeWithKeyboard({ event, handle: handle.id })
+									}
+									aria-label={`${handle.label}${mask.name ?? "蒙版"}`}
+									title={handle.label}
+								/>
+							);
+						})}
 
 				{mask.type === "pen"
 					? points.map((point, index) => {
