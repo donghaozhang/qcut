@@ -230,17 +230,69 @@ describe("generated mask attachment", () => {
 			},
 		});
 
-		pauseGeneratedMaskTracking({ message: "物体跟踪已暂停" });
+		const paused = pauseGeneratedMaskTracking({
+			message: "物体跟踪已暂停",
+			trackingRequestId: "request-1",
+		});
 
 		const state = useTimelineStore.getState();
 		const clip = state._tracks[0].elements[0] as MediaElement;
+		expect(paused).toBe(true);
 		expect(clip.masks?.[0].tracking).toMatchObject({
 			status: "paused",
 			progress: 44,
 			anchorFrame: 12,
 			error: "物体跟踪已暂停",
 		});
-		expect(useSegmentationStore.getState().trackingRequest).toBeNull();
+		expect(useSegmentationStore.getState().trackingRequest?.requestId).toBe(
+			"request-1"
+		);
+	});
+
+	it("does not let a stale canceled job pause the current request", () => {
+		const trackedMask = {
+			...createMediaMask({ id: "tracked", type: "object", index: 0 }),
+			tracking: {
+				direction: "both" as const,
+				status: "processing" as const,
+				source: "sam3" as const,
+			},
+		};
+		const targetedTrack: TimelineTrack = {
+			id: "track-1",
+			name: "Main Track",
+			type: "media",
+			isMain: true,
+			elements: [mediaElement({ id: "clip-1", masks: [trackedMask] })],
+		};
+		useTimelineStore.setState({
+			_tracks: [targetedTrack],
+			tracks: [targetedTrack],
+			history: [],
+			redoStack: [],
+		});
+		useSegmentationStore.setState({
+			trackingRequest: {
+				requestId: "current-request",
+				elementId: "clip-1",
+				maskId: "tracked",
+				direction: "both",
+				anchorFrame: 8,
+			},
+		});
+
+		const paused = pauseGeneratedMaskTracking({
+			message: "stale cancellation",
+			trackingRequestId: "stale-request",
+		});
+
+		const clip = useTimelineStore.getState()._tracks[0]
+			.elements[0] as MediaElement;
+		expect(paused).toBe(false);
+		expect(clip.masks?.[0].tracking?.status).toBe("processing");
+		expect(useSegmentationStore.getState().trackingRequest?.requestId).toBe(
+			"current-request"
+		);
 	});
 
 	it("uses the active request direction and source for progress updates", () => {
