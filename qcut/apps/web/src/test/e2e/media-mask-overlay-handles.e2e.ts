@@ -119,9 +119,57 @@ test.describe("Media mask canvas controls", () => {
 			animations: "disabled",
 		});
 
+		await maskEditor.getByRole("button", { name: "选择线性蒙版" }).click();
+		await expect(
+			overlay.getByRole("button", { name: "上羽化范围蒙版 1" })
+		).toBeVisible();
+		await expect(
+			overlay.getByRole("button", { name: "下羽化范围蒙版 1" })
+		).toBeVisible();
+		await expect(
+			overlay.getByRole("button", { name: "右侧缩放蒙版 1" })
+		).toHaveCount(0);
+		await overlay
+			.getByRole("button", { name: "下羽化范围蒙版 1" })
+			.press("ArrowDown");
+		const featherAfterKeyboardAdjust = await page.evaluate(() => {
+			const timeline = (
+				window as unknown as {
+					__timelineStore: {
+						getState: () => {
+							tracks: Array<{
+								type: string;
+								elements: Array<{
+									type: string;
+									masks?: Array<{ type: string; feather: number }>;
+								}>;
+							}>;
+						};
+					};
+				}
+			).__timelineStore.getState();
+			const element = timeline.tracks
+				.find((track) => track.type === "media")
+				?.elements.find((candidate) => candidate.type === "media");
+			const mask = element?.masks?.find(
+				(candidate) => candidate.type === "linear"
+			);
+			return mask?.feather ?? 0;
+		});
+		expect(featherAfterKeyboardAdjust).toBeGreaterThan(0.18);
+
+		await page.getByTestId("preview-panel").screenshot({
+			path: path.join(outputDirectory, "02-linear-mask-feather-handles.png"),
+			animations: "disabled",
+		});
+
 		await maskEditor.getByRole("button", { name: "选择镜面蒙版" }).click();
+		await maskEditor.getByText("更多蒙版设置", { exact: true }).click();
 		await maskEditor.getByLabel("反选蒙版").click();
 		await expect(overlay.getByTestId("media-mask-mirror-axis")).toBeVisible();
+		await expect(
+			overlay.getByTestId("media-mask-mirror-active-range")
+		).toBeVisible();
 		await expect(overlay.getByTestId("media-mask-invert-guide")).toBeVisible();
 		await expect(
 			overlay.getByRole("button", { name: "左侧缩放蒙版 1" })
@@ -132,9 +180,44 @@ test.describe("Media mask canvas controls", () => {
 		await expect(
 			overlay.getByRole("button", { name: "左上角缩放蒙版 1" })
 		).toHaveCount(0);
+		await overlay.getByTestId("media-mask-mirror-mode-right").click();
+		await expect(
+			overlay.getByTestId("media-mask-mirror-mode-right")
+		).toHaveAttribute("aria-pressed", "true");
+		const mirrorModeAfterClick = await page.evaluate(() => {
+			const timeline = (
+				window as unknown as {
+					__timelineStore: {
+						getState: () => {
+							tracks: Array<{
+								type: string;
+								elements: Array<{
+									type: string;
+									masks?: Array<{ type: string; mirrorMode?: string }>;
+								}>;
+							}>;
+						};
+					};
+				}
+			).__timelineStore.getState();
+			const element = timeline.tracks
+				.find((track) => track.type === "media")
+				?.elements.find((candidate) => candidate.type === "media");
+			const mask = element?.masks?.find(
+				(candidate) => candidate.type === "mirror"
+			);
+			return mask?.mirrorMode ?? "center";
+		});
+		expect(mirrorModeAfterClick).toBe("right");
+		await expect(
+			overlay.getByTestId("media-mask-mirror-range-left")
+		).toBeVisible();
+		await expect(
+			overlay.getByTestId("media-mask-mirror-range-right")
+		).toBeVisible();
 
 		await page.getByTestId("preview-panel").screenshot({
-			path: path.join(outputDirectory, "02-mirror-mask-invert-guide.png"),
+			path: path.join(outputDirectory, "03-mirror-mask-invert-guide.png"),
 			animations: "disabled",
 		});
 	});
