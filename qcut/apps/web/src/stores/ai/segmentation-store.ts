@@ -112,6 +112,7 @@ export interface SegmentationState {
 	totalFrames: number;
 	segmentedVideoUrl: string | null;
 	trackingRequest: {
+		requestId: string;
 		elementId: string;
 		maskId: string;
 		direction: MediaMaskTrackingDirection;
