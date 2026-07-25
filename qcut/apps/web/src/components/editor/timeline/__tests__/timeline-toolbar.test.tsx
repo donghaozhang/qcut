@@ -56,7 +56,11 @@ interface MockTimelineState {
 	) => void;
 	deleteSelectedElementsWithRipple: (
 		selections?: Array<{ trackId: string; elementId: string }>
-	) => void;
+	) => {
+		deletedElements: number;
+		splitElements: number;
+		totalRemovedDuration: number;
+	};
 	selectedElements: Array<{ trackId: string; elementId: string }>;
 	clearSelectedElements: () => void;
 	splitElement: (trackId: string, elementId: string, time: number) => string;
@@ -120,7 +124,11 @@ describe("TimelineToolbar", () => {
 		addMarkdownAtTime: vi.fn(),
 		removeElementFromTrack: vi.fn(),
 		removeElementFromTrackWithRipple: vi.fn(),
-		deleteSelectedElementsWithRipple: vi.fn(),
+		deleteSelectedElementsWithRipple: vi.fn(() => ({
+			deletedElements: 0,
+			splitElements: 0,
+			totalRemovedDuration: 0,
+		})),
 		selectedElements: [{ trackId: "track-1", elementId: "element-1" }],
 		clearSelectedElements: vi.fn(),
 		splitElement,
