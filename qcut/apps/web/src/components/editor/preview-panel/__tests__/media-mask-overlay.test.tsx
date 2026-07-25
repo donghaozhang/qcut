@@ -70,7 +70,7 @@ describe("MediaMaskOverlay", () => {
 		expect(screen.getByTestId("media-mask-feather-outline")).toBeVisible();
 	});
 
-	it("does not show resize handles for linear masks", () => {
+	it("shows feather range handles instead of resize handles for linear masks", () => {
 		render(
 			<MediaMaskOverlay
 				element={mediaElement()}
@@ -83,6 +83,12 @@ describe("MediaMaskOverlay", () => {
 
 		expect(screen.queryByRole("button", { name: /缩放主体/ })).toBeNull();
 		expect(screen.getByTestId("media-mask-feather-outline")).toBeVisible();
+		expect(
+			screen.getByRole("button", { name: "上羽化范围主体" })
+		).toBeVisible();
+		expect(
+			screen.getByRole("button", { name: "下羽化范围主体" })
+		).toBeVisible();
 	});
 
 	it("hides the feather guide when feather is disabled", () => {
@@ -125,6 +131,12 @@ describe("MediaMaskOverlay", () => {
 		);
 
 		expect(screen.getByTestId("media-mask-mirror-axis")).toBeVisible();
+		expect(screen.getByTestId("media-mask-mirror-active-range")).toBeVisible();
+		expect(screen.getByTestId("media-mask-mirror-mode-left")).toBeVisible();
+		expect(screen.getByTestId("media-mask-mirror-mode-center")).toBeVisible();
+		expect(screen.getByTestId("media-mask-mirror-mode-right")).toBeVisible();
+		expect(screen.getByTestId("media-mask-mirror-range-left")).toBeVisible();
+		expect(screen.getByTestId("media-mask-mirror-range-right")).toBeVisible();
 		expect(screen.getByRole("button", { name: "左侧缩放主体" })).toBeVisible();
 		expect(screen.getByRole("button", { name: "右侧缩放主体" })).toBeVisible();
 		expect(screen.queryByRole("button", { name: "左上角缩放主体" })).toBeNull();
