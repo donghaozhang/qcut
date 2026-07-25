@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import type { MediaElement } from "@/types/timeline";
 import {
+	buildMediaTimingProfile,
 	getMediaSourcePlaybackTime,
 	getMediaTimelineDuration,
 	mapMediaSourceTime,
@@ -110,6 +111,39 @@ describe("video timing", () => {
 		expect(mapMediaSourceTime({ element, sourceTime })).toBeCloseTo(
 			timelineTime,
 			2
+		);
+	});
+
+	it("bounds and caches timing profiles for long variable-speed clips", () => {
+		const element = media({
+			duration: 3_600,
+			speedKeyframes: [
+				{ id: "slow", frame: 0, value: 0.5, easing: "linear" },
+				{ id: "fast", frame: 108_000, value: 3, easing: "easeInOut" },
+			],
+		});
+		const first = buildMediaTimingProfile(element, 30);
+		const second = buildMediaTimingProfile(element, 30);
+
+		expect(first.length).toBeLessThanOrEqual(513);
+		expect(first.length).toBeGreaterThan(2);
+		expect(second).toBe(first);
+	});
+
+	it("invalidates a cached profile when timing fields mutate", () => {
+		const element = media({
+			speedKeyframes: [
+				{ id: "a", frame: 0, value: 1, easing: "linear" },
+				{ id: "b", frame: 300, value: 2, easing: "linear" },
+			],
+		});
+		const first = buildMediaTimingProfile(element);
+		element.speedKeyframes![1].value = 4;
+		const second = buildMediaTimingProfile(element);
+
+		expect(second).not.toBe(first);
+		expect(second.at(-1)?.timelineTime).toBeLessThan(
+			first.at(-1)?.timelineTime ?? 0
 		);
 	});
 });

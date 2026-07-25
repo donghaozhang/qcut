@@ -6,6 +6,18 @@ import {
 
 const MIN_RATE = 0.1;
 const MAX_RATE = 8;
+const CURVE_SAMPLES_PER_INTERVAL = 12;
+const MAX_TIMING_PROFILE_SEGMENTS = 512;
+
+interface CachedTimingProfile {
+	signature: string;
+	points: MediaTimingPoint[];
+}
+
+const timingProfileCache = new WeakMap<
+	MediaElement,
+	Map<number, CachedTimingProfile>
+>();
 
 export interface MediaTimingPoint {
 	sourceTime: number;
@@ -43,9 +55,65 @@ export function resolveSpeedAtSourceTime({
 	return clampPlaybackRate(
 		interpolateNumber(
 			keyframes as Keyframe[],
-			Math.max(0, Math.round(sourceTime * Math.max(1, fps)))
+			Math.max(0, sourceTime * Math.max(1, fps))
 		)
 	);
+}
+
+function getTimingSignature({
+	element,
+	fps,
+}: {
+	element: MediaElement;
+	fps: number;
+}): string {
+	return [
+		element.duration,
+		element.trimStart,
+		element.trimEnd,
+		element.playbackRate ?? 1,
+		fps,
+		...(element.speedKeyframes ?? []).flatMap((keyframe) => [
+			keyframe.frame,
+			keyframe.value,
+			keyframe.easing,
+		]),
+	].join("|");
+}
+
+function getCurveSampleTimes({
+	element,
+	sourceDuration,
+	fps,
+}: {
+	element: MediaElement;
+	sourceDuration: number;
+	fps: number;
+}): number[] {
+	const keyframeTimes = (element.speedKeyframes ?? []).map((keyframe) =>
+		Math.min(sourceDuration, Math.max(0, keyframe.frame / fps))
+	);
+	const boundaries = [...new Set([0, ...keyframeTimes, sourceDuration])].sort(
+		(left, right) => left - right
+	);
+	const intervalCount = Math.max(1, boundaries.length - 1);
+	const intervalBudget = Math.max(
+		1,
+		Math.floor(MAX_TIMING_PROFILE_SEGMENTS / intervalCount)
+	);
+	const samplesPerInterval = Math.min(
+		CURVE_SAMPLES_PER_INTERVAL,
+		intervalBudget
+	);
+	const times: number[] = [0];
+	for (let index = 0; index < boundaries.length - 1; index++) {
+		const start = boundaries[index];
+		const end = boundaries[index + 1];
+		for (let step = 1; step <= samplesPerInterval; step++) {
+			times.push(start + ((end - start) * step) / samplesPerInterval);
+		}
+	}
+	return times;
 }
 
 export function buildMediaTimingProfile(
@@ -54,21 +122,34 @@ export function buildMediaTimingProfile(
 ): MediaTimingPoint[] {
 	const sourceDuration = getMediaSourceDuration(element);
 	const sampleRate = Math.max(1, fps);
+	const signature = getTimingSignature({ element, fps: sampleRate });
+	const cached = timingProfileCache.get(element)?.get(sampleRate);
+	if (cached?.signature === signature) return cached.points;
+
 	const points: MediaTimingPoint[] = [{ sourceTime: 0, timelineTime: 0 }];
-	let sourceTime = 0;
 	let timelineTime = 0;
-	while (sourceTime < sourceDuration - 1e-9) {
-		const step = Math.min(1 / sampleRate, sourceDuration - sourceTime);
+	const sampleTimes = getCurveSampleTimes({
+		element,
+		sourceDuration,
+		fps: sampleRate,
+	});
+	for (let index = 1; index < sampleTimes.length; index++) {
+		const sourceStart = sampleTimes[index - 1];
+		const sourceEnd = sampleTimes[index];
+		const step = sourceEnd - sourceStart;
 		const rate = resolveSpeedAtSourceTime({
 			baseRate: element.playbackRate ?? 1,
 			keyframes: element.speedKeyframes,
-			sourceTime: sourceTime + step / 2,
+			sourceTime: sourceStart + step / 2,
 			fps: sampleRate,
 		});
-		sourceTime += step;
 		timelineTime += step / rate;
-		points.push({ sourceTime, timelineTime });
+		points.push({ sourceTime: sourceEnd, timelineTime });
 	}
+	const cacheForElement =
+		timingProfileCache.get(element) ?? new Map<number, CachedTimingProfile>();
+	cacheForElement.set(sampleRate, { signature, points });
+	timingProfileCache.set(element, cacheForElement);
 	return points;
 }
 
