@@ -224,6 +224,7 @@ export function normalizeMediaMask(
 		),
 		maintainAspectRatio: mask.maintainAspectRatio ?? false,
 		invert: mask.invert ?? false,
+		mirrorMode: mask.mirrorMode ?? "center",
 		points: mask.points?.map((point, pointIndex) => ({
 			...point,
 			id: point.id?.trim() || `${maskId}-point-${pointIndex + 1}`,
