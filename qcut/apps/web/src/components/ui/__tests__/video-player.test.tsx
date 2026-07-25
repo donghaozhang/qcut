@@ -1,5 +1,6 @@
-import { fireEvent, render } from "@testing-library/react";
+import { act, fireEvent, render } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { QCUT_VIDEO_FRAME_EVENT } from "@/lib/preview/preview-health-events";
 import type { MediaElement } from "@/types/timeline";
 import { usePlaybackStore } from "@/stores/editor/playback-store";
 import { VideoPlayer } from "../video-player";
@@ -153,5 +154,164 @@ describe("VideoPlayer", () => {
 
 		expect(video.dataset.qcutPresentedFrames).toBe("1");
 		expect(Number(video.dataset.qcutPresentedAt)).toBeGreaterThan(0);
+	});
+
+	it("resets frame timing across pause and resume", () => {
+		const callbacks: VideoFrameRequestCallback[] = [];
+		const requestDescriptor = Object.getOwnPropertyDescriptor(
+			HTMLVideoElement.prototype,
+			"requestVideoFrameCallback"
+		);
+		const cancelDescriptor = Object.getOwnPropertyDescriptor(
+			HTMLVideoElement.prototype,
+			"cancelVideoFrameCallback"
+		);
+		Object.defineProperty(
+			HTMLVideoElement.prototype,
+			"requestVideoFrameCallback",
+			{
+				configurable: true,
+				value: vi.fn((callback: VideoFrameRequestCallback) => {
+					callbacks.push(callback);
+					return callbacks.length;
+				}),
+			}
+		);
+		Object.defineProperty(
+			HTMLVideoElement.prototype,
+			"cancelVideoFrameCallback",
+			{
+				configurable: true,
+				value: vi.fn(),
+			}
+		);
+		const presentedFrames: Array<{
+			intervalMs: number | null;
+			isActivePlaybackFrame: boolean;
+		}> = [];
+		const handleVideoFrame = (event: Event) => {
+			const detail = (
+				event as CustomEvent<{
+					intervalMs: number | null;
+					isActivePlaybackFrame: boolean;
+				}>
+			).detail;
+			presentedFrames.push({
+				intervalMs: detail.intervalMs,
+				isActivePlaybackFrame: detail.isActivePlaybackFrame,
+			});
+		};
+		window.addEventListener(QCUT_VIDEO_FRAME_EVENT, handleVideoFrame);
+		act(() => {
+			usePlaybackStore.setState({ currentTime: 10.5, isPlaying: true });
+		});
+
+		const element = media();
+		const { unmount } = render(
+			<VideoPlayer
+				videoId="asset"
+				videoSource={{ type: "remote", src: "https://fal.media/video.mp4" }}
+				clipStartTime={element.startTime}
+				trimStart={element.trimStart}
+				trimEnd={element.trimEnd}
+				clipDuration={element.duration}
+				timingElement={element}
+			/>
+		);
+		const presentLatestFrame = ({
+			timestamp,
+			mediaTime,
+			presentedFrames,
+		}: {
+			timestamp: number;
+			mediaTime: number;
+			presentedFrames: number;
+		}) => {
+			const callback = callbacks.at(-1);
+			if (!callback) throw new Error("Video frame callback was not registered");
+			callback(timestamp, {
+				mediaTime,
+				presentedFrames,
+			} as VideoFrameCallbackMetadata);
+		};
+
+		try {
+			act(() => {
+				presentLatestFrame({
+					timestamp: 1_000,
+					mediaTime: 0,
+					presentedFrames: 1,
+				});
+				presentLatestFrame({
+					timestamp: 1_016,
+					mediaTime: 0.016,
+					presentedFrames: 2,
+				});
+			});
+			expect(presentedFrames).toEqual([
+				{ intervalMs: null, isActivePlaybackFrame: true },
+				{ intervalMs: 16, isActivePlaybackFrame: true },
+			]);
+
+			act(() => {
+				usePlaybackStore.setState({ isPlaying: false });
+			});
+			act(() => {
+				presentLatestFrame({
+					timestamp: 4_000,
+					mediaTime: 0.016,
+					presentedFrames: 2,
+				});
+			});
+			expect(presentedFrames).toEqual([
+				{ intervalMs: null, isActivePlaybackFrame: true },
+				{ intervalMs: 16, isActivePlaybackFrame: true },
+				{ intervalMs: null, isActivePlaybackFrame: false },
+			]);
+
+			act(() => {
+				usePlaybackStore.setState({ isPlaying: true });
+			});
+			act(() => {
+				presentLatestFrame({
+					timestamp: 5_000,
+					mediaTime: 0.032,
+					presentedFrames: 3,
+				});
+			});
+			expect(presentedFrames).toEqual([
+				{ intervalMs: null, isActivePlaybackFrame: true },
+				{ intervalMs: 16, isActivePlaybackFrame: true },
+				{ intervalMs: null, isActivePlaybackFrame: false },
+				{ intervalMs: null, isActivePlaybackFrame: true },
+			]);
+		} finally {
+			unmount();
+			window.removeEventListener(QCUT_VIDEO_FRAME_EVENT, handleVideoFrame);
+			if (requestDescriptor) {
+				Object.defineProperty(
+					HTMLVideoElement.prototype,
+					"requestVideoFrameCallback",
+					requestDescriptor
+				);
+			} else {
+				Reflect.deleteProperty(
+					HTMLVideoElement.prototype,
+					"requestVideoFrameCallback"
+				);
+			}
+			if (cancelDescriptor) {
+				Object.defineProperty(
+					HTMLVideoElement.prototype,
+					"cancelVideoFrameCallback",
+					cancelDescriptor
+				);
+			} else {
+				Reflect.deleteProperty(
+					HTMLVideoElement.prototype,
+					"cancelVideoFrameCallback"
+				);
+			}
+		}
 	});
 });
