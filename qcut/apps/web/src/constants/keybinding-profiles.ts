@@ -50,6 +50,7 @@ export const KEYBINDING_PROFILES: KeybindingProfile[] = [
 		keybindings: {
 			...SHARED_EDIT_BINDINGS,
 			...PROFESSIONAL_TOOL_BINDINGS,
+			c: "crop-selected",
 			j: "seek-backward",
 			k: "toggle-play",
 			l: "seek-forward",
@@ -109,6 +110,7 @@ export const KEYBINDING_PROFILES: KeybindingProfile[] = [
 		keybindings: {
 			...SHARED_EDIT_BINDINGS,
 			...PROFESSIONAL_TOOL_BINDINGS,
+			c: "crop-selected",
 			"ctrl+b": "split-element",
 			"[": "trim-start-to-playhead",
 			"]": "trim-end-to-playhead",
