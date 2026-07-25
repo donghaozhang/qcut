@@ -8,6 +8,7 @@ import {
 	keyboardDelta,
 	linearFeatherFromHandle,
 	linearFeatherFromKeyboard,
+	linearFeatherOffsetPixels,
 	localDelta,
 	moveMaskPoint,
 	penPathData,
@@ -142,7 +143,7 @@ describe("linear feather handles", () => {
 		const updates = linearFeatherFromHandle({
 			mask,
 			edge: "top",
-			localY: -0.1,
+			localYPixels: -16,
 		});
 		expect(updates.feather).toBeCloseTo(0.3);
 	});
@@ -151,9 +152,20 @@ describe("linear feather handles", () => {
 		const updates = linearFeatherFromHandle({
 			mask,
 			edge: "bottom",
-			localY: 0.1,
+			localYPixels: 16,
 		});
 		expect(updates.feather).toBeCloseTo(0.3);
+	});
+
+	it("uses the same pixel scale for rendered offsets and pointer movement", () => {
+		expect(linearFeatherOffsetPixels({ feather: 0.2 })).toBe(32);
+		expect(
+			linearFeatherFromHandle({
+				mask,
+				edge: "bottom",
+				localYPixels: 32,
+			}).feather
+		).toBeCloseTo(0.4);
 	});
 
 	it("maps keyboard nudges to the active feather edge", () => {
