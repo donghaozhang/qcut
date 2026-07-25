@@ -260,7 +260,11 @@ export function failGeneratedMaskTracking({ message }: { message: string }) {
 	segmentationState.clearTrackingRequest();
 }
 
-export function pauseGeneratedMaskTracking({ message }: { message?: string } = {}) {
+export function pauseGeneratedMaskTracking({
+	message,
+}: {
+	message?: string;
+} = {}) {
 	const segmentationState = useSegmentationStore.getState();
 	const request = segmentationState.trackingRequest;
 	if (!request) return;
