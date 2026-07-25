@@ -129,9 +129,28 @@ test.describe("Media mask canvas controls", () => {
 		await expect(
 			overlay.getByRole("button", { name: "右侧缩放蒙版 1" })
 		).toHaveCount(0);
-		await overlay
-			.getByRole("button", { name: "下羽化范围蒙版 1" })
-			.press("ArrowDown");
+		const bottomFeatherHandle = overlay.getByRole("button", {
+			name: "下羽化范围蒙版 1",
+		});
+		const handleBeforeDrag = await bottomFeatherHandle.boundingBox();
+		if (!handleBeforeDrag)
+			throw new Error("Linear feather handle is not visible");
+		await page.mouse.move(
+			handleBeforeDrag.x + handleBeforeDrag.width / 2,
+			handleBeforeDrag.y + handleBeforeDrag.height / 2
+		);
+		await page.mouse.down();
+		await page.mouse.move(
+			handleBeforeDrag.x + handleBeforeDrag.width / 2,
+			handleBeforeDrag.y + handleBeforeDrag.height / 2 + 32,
+			{ steps: 4 }
+		);
+		await page.mouse.up();
+		const handleAfterDrag = await bottomFeatherHandle.boundingBox();
+		if (!handleAfterDrag) throw new Error("Linear feather handle disappeared");
+		expect(handleAfterDrag.y - handleBeforeDrag.y).toBeGreaterThan(24);
+		expect(handleAfterDrag.y - handleBeforeDrag.y).toBeLessThan(40);
+		await bottomFeatherHandle.press("ArrowDown");
 		const featherAfterKeyboardAdjust = await page.evaluate(() => {
 			const timeline = (
 				window as unknown as {
@@ -156,7 +175,7 @@ test.describe("Media mask canvas controls", () => {
 			);
 			return mask?.feather ?? 0;
 		});
-		expect(featherAfterKeyboardAdjust).toBeGreaterThan(0.18);
+		expect(featherAfterKeyboardAdjust).toBeGreaterThan(0.38);
 
 		await page.getByTestId("preview-panel").screenshot({
 			path: path.join(outputDirectory, "02-linear-mask-feather-handles.png"),
