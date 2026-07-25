@@ -257,7 +257,7 @@ export const KeyboardShortcutsHelp = ({
 							>
 								<SelectValue />
 							</SelectTrigger>
-							<SelectContent>
+							<SelectContent className="z-[110]">
 								{draftProfileId === "custom" ? (
 									<SelectItem value="custom">
 										{t("shortcuts.customProfile")}
