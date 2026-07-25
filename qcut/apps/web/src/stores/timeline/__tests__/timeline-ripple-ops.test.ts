@@ -1,5 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import type { MediaElement, TimelineTrack } from "@/types/timeline";
+import { getMediaTimelineDuration } from "@/lib/video/video-timing";
 import { clearAutoSaveTimer } from "../timeline-store-autosave";
 import { useTimelineStore } from "../timeline-store";
 
@@ -117,6 +118,57 @@ describe("timeline ripple operations", () => {
 		expect(elementStartTimes({ trackId: "main" })).toEqual([0, 2, 6]);
 		expect(elementStartTimes({ trackId: "overlay" })).toEqual([4]);
 		expect(useTimelineStore.getState().history).toHaveLength(1);
+	});
+
+	it("moves following clips when a speed change alters clip duration", () => {
+		useTimelineStore
+			.getState()
+			.updateMediaTiming("main", "b", { playbackRate: 2 });
+
+		expect(elementStartTimes({ trackId: "main" })).toEqual([0, 2, 3]);
+		expect(elementStartTimes({ trackId: "overlay" })).toEqual([4]);
+		expect(useTimelineStore.getState().history).toHaveLength(1);
+	});
+
+	it("preserves downstream gaps while a speed curve changes duration", () => {
+		const tracks = rippleTracks().map((track) =>
+			track.id === "main"
+				? {
+						...track,
+						elements: track.elements.map((element) =>
+							element.id === "c" ? { ...element, startTime: 5 } : element
+						),
+					}
+				: track
+		);
+		useTimelineStore.setState({ _tracks: tracks, tracks });
+
+		useTimelineStore.getState().updateMediaTiming("main", "b", {
+			speedKeyframes: [
+				{ id: "slow", frame: 0, value: 0.5, easing: "linear" },
+				{ id: "normal", frame: 60, value: 1, easing: "linear" },
+			],
+		});
+
+		const [first, changed, following] =
+			useTimelineStore.getState().tracks[0].elements;
+		expect(first.startTime).toBe(0);
+		expect(changed.startTime).toBe(2);
+		expect(following.startTime).toBeGreaterThan(5);
+		expect(changed.type).toBe("media");
+		if (changed.type !== "media") return;
+		expect(
+			following.startTime -
+				(changed.startTime + getMediaTimelineDuration(changed))
+		).toBeCloseTo(1);
+	});
+
+	it("does not shift later clips for duration-neutral timing changes", () => {
+		useTimelineStore
+			.getState()
+			.updateMediaTiming("main", "b", { reverse: true });
+
+		expect(elementStartTimes({ trackId: "main" })).toEqual([0, 2, 4]);
 	});
 
 	it("does not mutate state or history for missing clips and invalid ranges", () => {

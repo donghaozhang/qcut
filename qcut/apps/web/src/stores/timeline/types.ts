@@ -670,6 +670,21 @@ export interface TimelineStore {
 		>,
 		pushHistory?: boolean
 	) => void;
+	updateMediaTiming: (
+		trackId: string,
+		elementId: string,
+		updates: Partial<
+			Pick<
+				MediaElement,
+				| "playbackRate"
+				| "speedKeyframes"
+				| "reverse"
+				| "freezeFrameTime"
+				| "freezeFrameDuration"
+			>
+		>,
+		pushHistory?: boolean
+	) => void;
 	updateRemotionElement: (
 		trackId: string,
 		elementId: string,
