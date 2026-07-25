@@ -34,9 +34,15 @@ const enhancements = {
 function hookProps({
 	enabled = true,
 	sourceStart = 1.5,
+	nextEnhancements = enhancements,
+	forceProxy,
+	maxDimension,
 }: {
 	enabled?: boolean;
 	sourceStart?: number;
+	nextEnhancements?: typeof enhancements;
+	forceProxy?: boolean;
+	maxDimension?: number;
 } = {}) {
 	return {
 		enabled,
@@ -47,7 +53,9 @@ function hookProps({
 		sourceWidth: 1920,
 		sourceHeight: 1080,
 		fps: 30,
-		enhancements,
+		enhancements: nextEnhancements,
+		forceProxy,
+		maxDimension,
 	};
 }
 
@@ -148,6 +156,36 @@ describe("useVideoEnhancementProxy", () => {
 
 		expect(result.current.status).toBe("idle");
 		expect(renderVideoPreviewProxy).not.toHaveBeenCalled();
+	});
+
+	it("can force a preview proxy without visual enhancements", async () => {
+		const noEnhancements = {
+			stabilization: 0,
+			denoise: 0,
+			clarity: 0,
+			upscale: 1 as const,
+			relight: 0,
+			beauty: 0,
+		};
+
+		renderHook(() =>
+			useVideoEnhancementProxy(
+				hookProps({
+					nextEnhancements: noEnhancements,
+					forceProxy: true,
+					maxDimension: 480,
+				})
+			)
+		);
+
+		await waitFor(() => expect(renderVideoPreviewProxy).toHaveBeenCalled());
+		expect(renderVideoPreviewProxy).toHaveBeenCalledWith(
+			expect.objectContaining({
+				width: 480,
+				height: 270,
+				enhancements: noEnhancements,
+			})
+		);
 	});
 
 	it("keeps aspect ratio while rounding dimensions for H.264", () => {
