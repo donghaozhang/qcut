@@ -8,6 +8,7 @@ import {
 	buildGeneratedMaskStack,
 	detachGeneratedMask,
 	pauseGeneratedMaskTracking,
+	updateGeneratedMaskTrackingProgress,
 } from "../generated-mask-attachment";
 
 function mediaElement(overrides: Partial<MediaElement> = {}): MediaElement {
@@ -242,6 +243,54 @@ describe("generated mask attachment", () => {
 		expect(useSegmentationStore.getState().trackingRequest).toBeNull();
 	});
 
+	it("uses the active request direction and source for progress updates", () => {
+		const trackedMask = {
+			...createMediaMask({ id: "tracked", type: "object", index: 0 }),
+			tracking: {
+				direction: "backward" as const,
+				status: "ready" as const,
+				source: "mediapipe" as const,
+				progress: 20,
+				anchorFrame: 4,
+			},
+		};
+		const targetedTrack: TimelineTrack = {
+			id: "track-1",
+			name: "Main Track",
+			type: "media",
+			isMain: true,
+			elements: [mediaElement({ id: "clip-1", masks: [trackedMask] })],
+		};
+		useTimelineStore.setState({
+			_tracks: [targetedTrack],
+			tracks: [targetedTrack],
+			history: [],
+			redoStack: [],
+		});
+		useSegmentationStore.setState({
+			trackingRequest: {
+				requestId: "request-1",
+				elementId: "clip-1",
+				maskId: "tracked",
+				direction: "forward",
+				anchorFrame: 12,
+			},
+		});
+
+		updateGeneratedMaskTrackingProgress({ progress: 120, source: "sam3" });
+
+		const clip = useTimelineStore.getState()._tracks[0]
+			.elements[0] as MediaElement;
+		expect(clip.masks?.[0].tracking).toMatchObject({
+			direction: "forward",
+			source: "sam3",
+			status: "processing",
+			progress: 99,
+			anchorFrame: 12,
+		});
+		expect(useTimelineStore.getState().history).toHaveLength(0);
+	});
+
 	it("ignores stale generated tracking results after the request changes", () => {
 		const trackedMask = {
 			...createMediaMask({ id: "tracked", type: "object", index: 0 }),
@@ -285,7 +334,8 @@ describe("generated mask attachment", () => {
 			trackingRequestId: "stale-request",
 		});
 
-		const clip = useTimelineStore.getState()._tracks[0].elements[0] as MediaElement;
+		const clip = useTimelineStore.getState()._tracks[0]
+			.elements[0] as MediaElement;
 		expect(attached).toBe(false);
 		expect(clip.masks).toHaveLength(1);
 		expect(clip.masks?.[0]).toMatchObject({
