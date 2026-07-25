@@ -1,4 +1,4 @@
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Sparkles, Zap } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -39,6 +39,10 @@ import { useTranslation } from "@/lib/i18n";
 import { getEffectPresetById } from "@/lib/effects/effect-catalog";
 
 const SPEED_PRESETS = [0.5, 1, 1.5, 2] as const;
+
+function formatDurationDraft({ duration }: { duration: number }): string {
+	return String(Number(duration.toFixed(2)));
+}
 
 type MediaUpdates = Parameters<
 	ReturnType<typeof useTimelineStore.getState>["updateMediaTiming"]
@@ -173,6 +177,9 @@ export function MediaSpeedProperties({
 	);
 	const sourceDuration = getMediaSourceDuration(element);
 	const timelineDuration = getMediaTimelineDuration(element, fps);
+	const [durationDraft, setDurationDraft] = useState(() =>
+		formatDurationDraft({ duration: timelineDuration })
+	);
 	const sourceDurationInFrames = Math.max(1, Math.round(sourceDuration * fps));
 	const playbackTiming = mapMediaTimelineTime({
 		element,
@@ -290,6 +297,18 @@ export function MediaSpeedProperties({
 		const speedDuration = Math.max(0.05, targetDuration - freezeDuration);
 		setPlaybackRate(sourceDuration / speedDuration);
 	};
+	const commitTargetDuration = () => {
+		const duration = Number(durationDraft);
+		if (!Number.isFinite(duration) || duration <= 0) {
+			setDurationDraft(formatDurationDraft({ duration: timelineDuration }));
+			return;
+		}
+		setTargetDuration(duration);
+	};
+
+	useEffect(() => {
+		setDurationDraft(formatDurationDraft({ duration: timelineDuration }));
+	}, [timelineDuration]);
 
 	return (
 		<div className="space-y-4" data-testid="media-speed-properties">
@@ -349,13 +368,14 @@ export function MediaSpeedProperties({
 										type="number"
 										min={0.1}
 										step={0.1}
-										value={Number(timelineDuration.toFixed(2))}
+										value={durationDraft}
 										aria-label={t("audioProperties.speed.duration")}
-										onChange={(event) => {
-											const duration = Number(event.target.value);
-											if (Number.isFinite(duration) && duration > 0) {
-												setTargetDuration(duration);
-											}
+										onChange={(event) => setDurationDraft(event.target.value)}
+										onBlur={commitTargetDuration}
+										onKeyDown={(event) => {
+											if (event.key !== "Enter") return;
+											event.preventDefault();
+											event.currentTarget.blur();
 										}}
 										className="h-8 w-24 text-right text-xs tabular-nums"
 										data-testid="speed-target-duration"
