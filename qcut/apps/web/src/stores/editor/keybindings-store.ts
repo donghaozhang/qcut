@@ -6,6 +6,7 @@ import type { ActionWithOptionalArgs } from "@/constants/actions";
 import {
 	cloneProfileKeybindings,
 	DEFAULT_KEYBINDING_PROFILE_ID,
+	KEYBINDING_PROFILES,
 	type KeybindingProfileId,
 } from "@/constants/keybinding-profiles";
 import { isAppleDevice, isDOMElement, isTypableElement } from "@/lib/utils";
@@ -122,18 +123,15 @@ export function migrateKeybindingsState({
 	if (version >= 4) return versionThreeState;
 	const activeProfileId =
 		versionThreeState.activeProfileId ?? DEFAULT_KEYBINDING_PROFILE_ID;
-	if (
-		versionThreeState.isCustomized ||
-		(activeProfileId !== "qcut" && activeProfileId !== "capcut")
-	) {
+	const activeProfile = KEYBINDING_PROFILES.find(
+		(profile) => profile.id === activeProfileId
+	);
+	if (versionThreeState.isCustomized || !activeProfile) {
 		return versionThreeState;
 	}
 	return {
 		...versionThreeState,
-		keybindings: {
-			...versionThreeState.keybindings,
-			c: "crop-selected",
-		},
+		keybindings: cloneProfileKeybindings({ id: activeProfile.id }),
 	};
 }
 
