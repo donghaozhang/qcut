@@ -33,6 +33,7 @@ import type { TProject } from "@/types/project";
 import type { ActiveElement } from "./preview-panel/types";
 import { AdjustmentLayerStack } from "./preview-panel/adjustment-layer-stack";
 import { useTranslation } from "@/lib/i18n";
+import { PREVIEW_QUALITY_OPTIONS } from "@/lib/preview/preview-quality";
 
 // Component 1: FullscreenToolbar (no dependencies)
 export function FullscreenToolbar({
@@ -331,7 +332,8 @@ export function PreviewToolbar({
 	onToggleSafeAreas: () => void;
 }) {
 	const { t } = useTranslation();
-	const { isPlaying, seek } = usePlaybackStore();
+	const { isPlaying, seek, previewQuality, setPreviewQuality } =
+		usePlaybackStore();
 	const { setCanvasSize, setCanvasSizeToOriginal } = useEditorStore();
 	const { activeProject, updateProjectCanvasSize } = useProjectStore();
 	const {
@@ -470,6 +472,43 @@ export function PreviewToolbar({
 			</div>
 			<div className="flex items-center gap-3">
 				<BackgroundSettings />
+				<DropdownMenu>
+					<DropdownMenuTrigger asChild>
+						<Button
+							type="button"
+							variant="text"
+							size="sm"
+							className="h-5 min-w-14 px-1 text-[10px] text-muted-foreground"
+							disabled={!hasAnyElements}
+							aria-label={t("editor.preview.quality")}
+							title={t("editor.preview.quality")}
+							data-testid="preview-quality-button"
+						>
+							{t(
+								PREVIEW_QUALITY_OPTIONS.find(
+									(option) => option.value === previewQuality
+								)?.labelKey ?? PREVIEW_QUALITY_OPTIONS[0].labelKey
+							)}
+						</Button>
+					</DropdownMenuTrigger>
+					<DropdownMenuContent align="end" className="min-w-40">
+						{PREVIEW_QUALITY_OPTIONS.map((option) => (
+							<DropdownMenuItem
+								key={option.value}
+								onClick={() => setPreviewQuality(option.value)}
+								className={cn(
+									"flex flex-col items-start gap-0.5 text-xs",
+									previewQuality === option.value && "font-semibold"
+								)}
+							>
+								<span>{t(option.labelKey)}</span>
+								<span className="text-[10px] font-normal text-muted-foreground">
+									{t(option.descriptionKey)}
+								</span>
+							</DropdownMenuItem>
+						))}
+					</DropdownMenuContent>
+				</DropdownMenu>
 				<DropdownMenu>
 					<DropdownMenuTrigger asChild>
 						<Button
