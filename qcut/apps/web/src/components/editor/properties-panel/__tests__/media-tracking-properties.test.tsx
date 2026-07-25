@@ -1,4 +1,4 @@
-import { fireEvent, render, screen } from "@testing-library/react";
+import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import {
 	clearActiveMaskTrackingRuntimes,
@@ -10,6 +10,7 @@ import { MediaTrackingProperties } from "../media-tracking-properties";
 describe("MediaTrackingProperties", () => {
 	afterEach(() => {
 		clearActiveMaskTrackingRuntimes();
+		vi.restoreAllMocks();
 	});
 
 	it("opens mask creation when no trackable mask exists", () => {
@@ -30,19 +31,30 @@ describe("MediaTrackingProperties", () => {
 	});
 
 	it("forwards bidirectional tracking for the selected mask", () => {
-		const mask = createMediaMask({
-			id: "person-mask",
-			type: "person",
-			index: 0,
-			name: "人物",
-		});
+		const mask = {
+			...createMediaMask({
+				id: "person-mask",
+				type: "person",
+				index: 0,
+				name: "人物",
+			}),
+			tracking: {
+				direction: "forward" as const,
+				status: "ready" as const,
+				source: "mediapipe" as const,
+				correctedFrames: [4],
+				trackedFrames: 18,
+				totalFrames: 20,
+			},
+		};
 		const onTrack = vi.fn();
+		const onChange = vi.fn();
 		render(
 			<MediaTrackingProperties
 				elementId="clip-1"
 				masks={[mask]}
 				currentFrame={12}
-				onChange={vi.fn()}
+				onChange={onChange}
 				onTrack={onTrack}
 				onOpenMasks={vi.fn()}
 			/>
@@ -50,6 +62,20 @@ describe("MediaTrackingProperties", () => {
 
 		fireEvent.click(screen.getByRole("button", { name: "双向跟踪" }));
 		expect(onTrack).toHaveBeenCalledWith({ mask, direction: "both" });
+		expect(onChange).toHaveBeenCalledWith(
+			[
+				expect.objectContaining({
+					tracking: expect.objectContaining({
+						correctedFrames: [4],
+						trackedFrames: 18,
+						totalFrames: 20,
+						direction: "both",
+						status: "processing",
+					}),
+				}),
+			],
+			true
+		);
 	});
 
 	it("pauses tracking and writes a correction keyframe from the tracking tab", () => {
@@ -160,5 +186,63 @@ describe("MediaTrackingProperties", () => {
 
 		fireEvent.click(screen.getByRole("button", { name: "暂停跟踪" }));
 		expect(cancel).toHaveBeenCalledOnce();
+	});
+
+	it("falls back to relaunching when an active resume action fails", async () => {
+		const mask = {
+			...createMediaMask({
+				id: "object-mask",
+				type: "object",
+				index: 0,
+				name: "物体",
+			}),
+			tracking: {
+				direction: "forward" as const,
+				status: "paused" as const,
+				source: "sam3" as const,
+				progress: 24,
+			},
+		};
+		const onChange = vi.fn();
+		const onTrack = vi.fn();
+		vi.spyOn(console, "error").mockImplementation(() => {});
+		registerActiveMaskTrackingRuntime({
+			runtime: {
+				elementId: "clip-1",
+				maskId: "object-mask",
+				source: "sam3",
+				direction: "forward",
+				cancel: vi.fn(),
+				resume: () => Promise.reject(new Error("resume failed")),
+			},
+		});
+
+		render(
+			<MediaTrackingProperties
+				elementId="clip-1"
+				masks={[mask]}
+				currentFrame={18}
+				onChange={onChange}
+				onTrack={onTrack}
+				onOpenMasks={vi.fn()}
+			/>
+		);
+
+		fireEvent.click(screen.getByRole("button", { name: "继续跟踪" }));
+
+		expect(onChange).toHaveBeenCalledWith(
+			[
+				expect.objectContaining({
+					tracking: expect.objectContaining({ status: "processing" }),
+				}),
+			],
+			true
+		);
+		await waitFor(() =>
+			expect(onTrack).toHaveBeenCalledWith({
+				mask,
+				direction: "forward",
+			})
+		);
 	});
 });
