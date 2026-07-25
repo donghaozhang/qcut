@@ -396,6 +396,14 @@ export interface TimelineStore {
 		endTime: number,
 		excludeTrackIds?: string[]
 	) => void;
+	deleteSelectedElementsWithRipple: (
+		selections?: SelectedElement[],
+		pushHistory?: boolean
+	) => {
+		deletedElements: number;
+		splitElements: number;
+		totalRemovedDuration: number;
+	};
 	deleteTimeRange: (request: {
 		startTime: number;
 		endTime: number;
