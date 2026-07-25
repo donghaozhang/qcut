@@ -21,6 +21,24 @@ function runtimeKey({
 
 const activeMaskTrackingRuntimes = new Map<string, ActiveMaskTrackingRuntime>();
 
+function runRuntimeAction({
+	action,
+	operation,
+}: {
+	action: () => void | Promise<void>;
+	operation: "cancel" | "resume";
+}): boolean {
+	try {
+		void Promise.resolve(action()).catch((error: unknown) => {
+			console.error(`Failed to ${operation} mask tracking`, error);
+		});
+		return true;
+	} catch (error) {
+		console.error(`Failed to ${operation} mask tracking`, error);
+		return false;
+	}
+}
+
 export function registerActiveMaskTrackingRuntime({
 	runtime,
 }: {
@@ -47,8 +65,7 @@ export function cancelActiveMaskTracking({
 		runtimeKey({ elementId, maskId })
 	);
 	if (!runtime) return false;
-	void runtime.cancel();
-	return true;
+	return runRuntimeAction({ action: runtime.cancel, operation: "cancel" });
 }
 
 export function resumeActiveMaskTracking({
@@ -63,8 +80,7 @@ export function resumeActiveMaskTracking({
 		runtimeKey({ elementId, maskId })
 	);
 	if (!runtime?.resume) return false;
-	void runtime.resume();
-	return true;
+	return runRuntimeAction({ action: runtime.resume, operation: "resume" });
 }
 
 export function clearActiveMaskTrackingRuntimes(): void {
