@@ -842,12 +842,14 @@ describe("Timeline Store Operations", () => {
 		expect(audioTrack).toBeDefined();
 		expect(audioTrack?.elements).toHaveLength(1);
 		expect(audioTrack?.elements[0].name).toContain("audio");
+		expect(audioTrack?.elements[0].groupId).toBeTruthy();
 		const sourceElement = result.current.tracks
 			.find((track) => track.id === mainTrackId)
 			?.elements.find((element) => element.id === elementId);
 		expect(sourceElement?.type).toBe("media");
 		if (sourceElement?.type === "media") {
 			expect(sourceElement.volume).toBe(0);
+			expect(sourceElement.groupId).toBe(audioTrack?.elements[0].groupId);
 		}
 	});
 });
