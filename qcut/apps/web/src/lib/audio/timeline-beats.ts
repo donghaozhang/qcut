@@ -1,12 +1,34 @@
 import type { BeatDetectionResult } from "@qcut/editor-core";
-import { getTimelineElementDuration } from "@/lib/timeline";
-import type { TimelineTrack } from "@/types/timeline";
+import { mapMediaSourceTime } from "@/lib/video/video-timing";
+import type { MediaElement, TimelineTrack } from "@/types/timeline";
 
 export interface TimelineBeat {
 	elementId: string;
 	isDownbeat: boolean;
 	strength: number;
 	timestamp: number;
+}
+
+export function mapMediaBeatToTimeline({
+	element,
+	sourceTimestamp,
+	fps = 30,
+}: {
+	element: MediaElement;
+	sourceTimestamp: number;
+	fps?: number;
+}): number | null {
+	const sourceStart = element.trimStart;
+	const sourceEnd = element.duration - element.trimEnd;
+	if (sourceTimestamp < sourceStart || sourceTimestamp > sourceEnd) return null;
+	return (
+		element.startTime +
+		mapMediaSourceTime({
+			element,
+			sourceTime: sourceTimestamp,
+			fps,
+		})
+	);
 }
 
 export function collectTimelineBeats({
@@ -25,17 +47,18 @@ export function collectTimelineBeats({
 			const result = beatCache.get(element.id);
 			if (!result) continue;
 
-			const duration = getTimelineElementDuration({ element, fps });
-			const sourceStart = element.trimStart;
-			const sourceEnd = sourceStart + duration;
 			for (const beat of result.beats) {
-				if (beat.timestamp < sourceStart || beat.timestamp > sourceEnd)
-					continue;
+				const timestamp = mapMediaBeatToTimeline({
+					element,
+					sourceTimestamp: beat.timestamp,
+					fps,
+				});
+				if (timestamp === null) continue;
 				timelineBeats.push({
 					elementId: element.id,
 					isDownbeat: beat.isDownbeat,
 					strength: beat.strength,
-					timestamp: element.startTime + beat.timestamp - sourceStart,
+					timestamp,
 				});
 			}
 		}
