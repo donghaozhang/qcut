@@ -112,6 +112,8 @@ export interface ElectronFixtures {
 	electronApp: ElectronApplication;
 	/** The main window page instance */
 	page: Page;
+	/** Encode a low-frame-rate video of the test from Playwright screenshots. */
+	captureScreenshotVideo: boolean;
 }
 
 /**
@@ -267,6 +269,7 @@ export async function cleanupDatabase(page: Page) {
 }
 
 export const test = base.extend<ElectronFixtures>({
+	captureScreenshotVideo: [true, { option: true }],
 	// biome-ignore lint/correctness/noEmptyPattern: Playwright fixtures require empty destructuring
 	electronApp: async ({}, use) => {
 		const electronApp = await startElectronApp();
@@ -274,7 +277,7 @@ export const test = base.extend<ElectronFixtures>({
 		await electronApp.close();
 	},
 
-	page: async ({ electronApp }, use, testInfo) => {
+	page: async ({ captureScreenshotVideo, electronApp }, use, testInfo) => {
 		const page = await electronApp.firstWindow();
 		let frameCaptureLoopPromise: Promise<void> | null = null;
 		let frameCaptureActive = false;
@@ -335,46 +338,48 @@ export const test = base.extend<ElectronFixtures>({
 
 		await navigateToProjects(page);
 
-		try {
-			frameDirectoryPath = testInfo.outputPath("screen-recording-frames");
-			await mkdir(frameDirectoryPath, { recursive: true });
-			frameCaptureActive = true;
+		if (captureScreenshotVideo) {
+			try {
+				frameDirectoryPath = testInfo.outputPath("screen-recording-frames");
+				await mkdir(frameDirectoryPath, { recursive: true });
+				frameCaptureActive = true;
 
-			frameCaptureLoopPromise = (async () => {
-				while (frameCaptureActive) {
-					try {
-						if (page.isClosed()) {
-							break;
+				frameCaptureLoopPromise = (async () => {
+					while (frameCaptureActive) {
+						try {
+							if (page.isClosed()) {
+								break;
+							}
+
+							const frameFileName = `frame-${String(frameCount).padStart(6, "0")}.png`;
+							const framePath = pathResolve(frameDirectoryPath!, frameFileName);
+							await page.screenshot({
+								path: framePath,
+								animations: "disabled",
+							});
+							frameCount += 1;
+						} catch (error) {
+							if (!page.isClosed()) {
+								console.warn(
+									`⚠️  Screenshot frame capture failed: ${
+										error instanceof Error ? error.message : String(error)
+									}`
+								);
+							}
 						}
 
-						const frameFileName = `frame-${String(frameCount).padStart(6, "0")}.png`;
-						const framePath = pathResolve(frameDirectoryPath!, frameFileName);
-						await page.screenshot({
-							path: framePath,
-							animations: "disabled",
+						await waitForDuration({
+							durationMs: SCREENSHOT_CAPTURE_INTERVAL_MS,
 						});
-						frameCount += 1;
-					} catch (error) {
-						if (!page.isClosed()) {
-							console.warn(
-								`⚠️  Screenshot frame capture failed: ${
-									error instanceof Error ? error.message : String(error)
-								}`
-							);
-						}
 					}
-
-					await waitForDuration({
-						durationMs: SCREENSHOT_CAPTURE_INTERVAL_MS,
-					});
-				}
-			})();
-		} catch (error) {
-			console.warn(
-				`⚠️  Failed to initialize per-test screenshot capture: ${
-					error instanceof Error ? error.message : String(error)
-				}`
-			);
+				})();
+			} catch (error) {
+				console.warn(
+					`⚠️  Failed to initialize per-test screenshot capture: ${
+						error instanceof Error ? error.message : String(error)
+					}`
+				);
+			}
 		}
 
 		try {
