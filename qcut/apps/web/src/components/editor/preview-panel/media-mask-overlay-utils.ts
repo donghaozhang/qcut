@@ -14,6 +14,8 @@ export type MaskInteractionMode =
 
 export type PointInteractionMode = "anchor" | "handle-in" | "handle-out";
 export type LinearFeatherEdge = "top" | "bottom";
+const LINEAR_FEATHER_SCALE_PX = 160;
+const LINEAR_FEATHER_MIN_OFFSET_PX = 8;
 
 export interface MaskInteraction {
 	mode: MaskInteractionMode;
@@ -278,23 +280,52 @@ export function featherPathStrokeWidth({ feather }: { feather: number }) {
 	return clamp({ value: feather * 0.25, min: 0.012, max: 0.12 });
 }
 
-export function linearFeatherFromHandle({
+export function linearFeatherOffsetPixels({
+	feather,
+}: {
+	feather: number;
+}): number {
+	return Math.max(
+		LINEAR_FEATHER_MIN_OFFSET_PX,
+		Math.round(
+			clamp({ value: feather, min: 0, max: 1 }) * LINEAR_FEATHER_SCALE_PX
+		)
+	);
+}
+
+function applyLinearFeatherDelta({
 	mask,
 	edge,
-	localY,
+	delta,
 }: {
 	mask: MediaMask;
 	edge: LinearFeatherEdge;
-	localY: number;
+	delta: number;
 }): Pick<MediaMask, "feather"> {
 	const direction = edge === "top" ? -1 : 1;
 	return {
 		feather: clamp({
-			value: mask.feather + localY * direction,
+			value: mask.feather + delta * direction,
 			min: 0,
 			max: 1,
 		}),
 	};
+}
+
+export function linearFeatherFromHandle({
+	mask,
+	edge,
+	localYPixels,
+}: {
+	mask: MediaMask;
+	edge: LinearFeatherEdge;
+	localYPixels: number;
+}): Pick<MediaMask, "feather"> {
+	return applyLinearFeatherDelta({
+		mask,
+		edge,
+		delta: localYPixels / LINEAR_FEATHER_SCALE_PX,
+	});
 }
 
 export function linearFeatherFromKeyboard({
@@ -308,7 +339,7 @@ export function linearFeatherFromKeyboard({
 }): Pick<MediaMask, "feather"> | null {
 	const delta = keyboardDelta({ event });
 	if (!delta) return null;
-	return linearFeatherFromHandle({ mask, edge, localY: delta.y });
+	return applyLinearFeatherDelta({ mask, edge, delta: delta.y });
 }
 
 export function isPointInteractionMode(
