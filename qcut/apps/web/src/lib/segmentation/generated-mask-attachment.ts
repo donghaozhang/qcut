@@ -309,9 +309,9 @@ export function updateGeneratedMaskTrackingProgress({
 			? {
 					...mask,
 					tracking: {
+						...mask.tracking,
 						direction: request.direction,
 						source: source ?? mask.tracking?.source ?? "manual",
-						...mask.tracking,
 						status: "processing" as const,
 						progress: Math.min(99, Math.max(0, progress)),
 						anchorFrame: request.anchorFrame,
