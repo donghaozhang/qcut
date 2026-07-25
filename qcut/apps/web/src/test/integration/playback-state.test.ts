@@ -39,6 +39,8 @@ describe("Playback State", () => {
 			speed: 1,
 			volume: 1,
 			muted: false,
+			previewQuality: "auto",
+			runtimePreviewQuality: null,
 		});
 	});
 
@@ -71,5 +73,22 @@ describe("Playback State", () => {
 		usePlaybackStore.setState({ speed: 2 });
 		const updatedState = usePlaybackStore.getState();
 		expect(updatedState.speed).toBe(2);
+	});
+
+	it("clears runtime preview downgrade on pause and manual quality change", () => {
+		usePlaybackStore.setState({
+			isPlaying: true,
+			runtimePreviewQuality: "low",
+		});
+
+		usePlaybackStore.getState().pause();
+
+		expect(usePlaybackStore.getState().runtimePreviewQuality).toBeNull();
+
+		usePlaybackStore.getState().setRuntimePreviewQuality("smooth");
+		usePlaybackStore.getState().setPreviewQuality("original");
+
+		expect(usePlaybackStore.getState().previewQuality).toBe("original");
+		expect(usePlaybackStore.getState().runtimePreviewQuality).toBeNull();
 	});
 });
