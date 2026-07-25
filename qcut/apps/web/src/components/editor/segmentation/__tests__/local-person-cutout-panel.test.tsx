@@ -21,7 +21,9 @@ vi.mock("@/lib/segmentation/person-cutout-export", () => ({
 }));
 
 vi.mock("@/stores/ai/segmentation-store", () => ({
-	useSegmentationStore: () => segmentationState,
+	useSegmentationStore: Object.assign(() => segmentationState, {
+		getState: () => ({ ...segmentationState, trackingRequest: null }),
+	}),
 }));
 
 vi.mock("../PersonCutoutPreview", () => ({
@@ -41,7 +43,13 @@ vi.mock("sonner", () => ({
 
 const exportMock = vi.mocked(exportPersonCutoutVideo);
 
-function renderPanel({ onMaskError = vi.fn() } = {}) {
+function renderPanel({
+	onMaskError = vi.fn(),
+	autoStartRequestId,
+}: {
+	onMaskError?: (message: string) => void;
+	autoStartRequestId?: string;
+} = {}) {
 	const sourceFile = new File(["video"], "source.mp4", {
 		type: "video/mp4",
 	});
@@ -51,6 +59,7 @@ function renderPanel({ onMaskError = vi.fn() } = {}) {
 			projectId="project-1"
 			sourceFile={sourceFile}
 			sourceUrl="blob:source"
+			autoStartRequestId={autoStartRequestId}
 			addMediaItem={addMediaItem}
 			onMaskError={onMaskError}
 		/>
@@ -100,6 +109,44 @@ describe("LocalPersonCutoutPanel", () => {
 		expect(onMaskError).toHaveBeenCalledWith("WebCodecs encoder unavailable");
 
 		fireEvent.click(screen.getByRole("button", { name: "重试" }));
+		await waitFor(() => expect(exportMock).toHaveBeenCalledTimes(2));
+	});
+
+	it("automatically starts each tracking request only once", async () => {
+		exportMock.mockRejectedValue(new Error("stop after auto start"));
+		const sourceFile = new File(["video"], "source.mp4", {
+			type: "video/mp4",
+		});
+		const { rerender } = render(
+			<LocalPersonCutoutPanel
+				projectId="project-1"
+				sourceFile={sourceFile}
+				sourceUrl="blob:source"
+				autoStartRequestId="tracking-1"
+				addMediaItem={vi.fn()}
+			/>
+		);
+
+		await waitFor(() => expect(exportMock).toHaveBeenCalledOnce());
+		rerender(
+			<LocalPersonCutoutPanel
+				projectId="project-1"
+				sourceFile={sourceFile}
+				sourceUrl="blob:source"
+				autoStartRequestId="tracking-1"
+				addMediaItem={vi.fn()}
+			/>
+		);
+		expect(exportMock).toHaveBeenCalledOnce();
+		rerender(
+			<LocalPersonCutoutPanel
+				projectId="project-1"
+				sourceFile={sourceFile}
+				sourceUrl="blob:source"
+				autoStartRequestId="tracking-2"
+				addMediaItem={vi.fn()}
+			/>
+		);
 		await waitFor(() => expect(exportMock).toHaveBeenCalledTimes(2));
 	});
 });
