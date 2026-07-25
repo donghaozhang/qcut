@@ -12,9 +12,12 @@ vi.mock("electron", () => ({
 }));
 
 import type { VideoPreviewProxyOptions } from "../ffmpeg/types";
+import { getVideoPreviewProxyCacheDir } from "../ffmpeg/video-preview-proxy-cache";
 import {
 	buildVideoPreviewProxyCacheKey,
 	buildVideoPreviewProxyCommand,
+	clearVideoPreviewProxyCache,
+	getVideoPreviewProxyCacheStats,
 } from "../ffmpeg/video-preview-proxy";
 
 let testDir = "";
@@ -91,5 +94,33 @@ describe("video preview proxy", () => {
 		expect(sameRender).toBe(first);
 		expect(changedEffect).not.toBe(first);
 		expect(first).toMatch(/^[a-f0-9]{64}$/);
+	});
+
+	it("reports and clears preview proxy cache files", async () => {
+		const cacheDir = getVideoPreviewProxyCacheDir();
+		fs.mkdirSync(cacheDir, { recursive: true });
+		fs.writeFileSync(path.join(cacheDir, "first.mp4"), Buffer.alloc(100));
+		fs.writeFileSync(path.join(cacheDir, "second.mp4"), Buffer.alloc(300));
+		fs.writeFileSync(path.join(cacheDir, "keep.tmp"), Buffer.alloc(500));
+
+		await expect(getVideoPreviewProxyCacheStats()).resolves.toMatchObject({
+			cacheDir,
+			entryCount: 2,
+			totalBytes: 400,
+			maxEntries: 80,
+		});
+
+		const result = await clearVideoPreviewProxyCache();
+
+		expect(result).toMatchObject({
+			cacheDir,
+			entryCount: 0,
+			totalBytes: 0,
+			removedEntries: 2,
+			removedBytes: 400,
+		});
+		expect(fs.existsSync(path.join(cacheDir, "first.mp4"))).toBe(false);
+		expect(fs.existsSync(path.join(cacheDir, "second.mp4"))).toBe(false);
+		expect(fs.existsSync(path.join(cacheDir, "keep.tmp"))).toBe(true);
 	});
 });
