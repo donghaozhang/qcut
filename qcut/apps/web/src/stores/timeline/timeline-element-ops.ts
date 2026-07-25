@@ -23,7 +23,7 @@ import type {
 	StoreGet,
 	StoreSet,
 } from "./timeline-store-operations";
-import { getTimelineSplitTrimValues } from "./timeline-split-utils";
+import { getTimelineSplitUpdates } from "./timeline-split-utils";
 import { getTrackName } from "@qcut/editor-core";
 
 export function createElementOps(
@@ -151,12 +151,11 @@ export function createElementOps(
 			if (savePushHistory) get().pushHistory();
 
 			const secondElementId = generateUUID();
-			const splitTrims = getTimelineSplitTrimValues({ element, splitTime });
+			const splitUpdates = getTimelineSplitUpdates({ element, splitTime });
 
 			const leftPart = {
 				...element,
-				trimStart: splitTrims.leftTrimStart,
-				trimEnd: splitTrims.leftTrimEnd,
+				...splitUpdates.left,
 				name: getElementNameWithSuffix(element.name, "left"),
 			};
 
@@ -164,8 +163,7 @@ export function createElementOps(
 				...element,
 				id: secondElementId,
 				startTime: splitTime,
-				trimStart: splitTrims.rightTrimStart,
-				trimEnd: splitTrims.rightTrimEnd,
+				...splitUpdates.right,
 				name: getElementNameWithSuffix(element.name, "right"),
 			};
 
@@ -205,7 +203,7 @@ export function createElementOps(
 
 			if (savePushHistory) get().pushHistory();
 
-			const splitTrims = getTimelineSplitTrimValues({ element, splitTime });
+			const splitUpdates = getTimelineSplitUpdates({ element, splitTime });
 
 			updateTracksAndSave(
 				get()._tracks.map((track) =>
@@ -216,8 +214,7 @@ export function createElementOps(
 									c.id === elementId
 										? {
 												...c,
-												trimStart: splitTrims.leftTrimStart,
-												trimEnd: splitTrims.leftTrimEnd,
+												...splitUpdates.left,
 												name: getElementNameWithSuffix(c.name, "left"),
 											}
 										: c
@@ -248,7 +245,7 @@ export function createElementOps(
 
 			if (savePushHistory) get().pushHistory();
 
-			const splitTrims = getTimelineSplitTrimValues({ element, splitTime });
+			const splitUpdates = getTimelineSplitUpdates({ element, splitTime });
 
 			updateTracksAndSave(
 				get()._tracks.map((track) =>
@@ -260,8 +257,7 @@ export function createElementOps(
 										? {
 												...c,
 												startTime: splitTime,
-												trimStart: splitTrims.rightTrimStart,
-												trimEnd: splitTrims.rightTrimEnd,
+												...splitUpdates.right,
 												name: getElementNameWithSuffix(c.name, "right"),
 											}
 										: c

@@ -573,6 +573,39 @@ describe("Timeline Store Operations", () => {
 		expect(right?.startTime).toBe(7.5);
 	});
 
+	it("splitElement crops curve keyframes and divides a freeze window", () => {
+		const { result, mainTrackId, elementId } = setupStoreWithElement({
+			overrides: {
+				speedKeyframes: [
+					{ id: "slow", frame: 0, value: 1, easing: "linear" },
+					{ id: "fast", frame: 300, value: 2, easing: "linear" },
+				],
+				freezeFrameTime: 3,
+				freezeFrameDuration: 2,
+			},
+		});
+
+		let secondId: string | null = null;
+		act(() => {
+			secondId = result.current.splitElement(mainTrackId, elementId, 9);
+		});
+
+		const elements = result.current.tracks[0].elements;
+		const left = elements.find((element) => element.id === elementId);
+		const right = elements.find((element) => element.id === secondId);
+		expect(left?.type).toBe("media");
+		expect(right?.type).toBe("media");
+		if (left?.type !== "media" || right?.type !== "media") return;
+
+		expect(left.speedKeyframes?.at(-1)?.frame).toBeGreaterThan(0);
+		expect(right.speedKeyframes?.[0].frame).toBe(0);
+		expect(left.freezeFrameDuration).toBeGreaterThan(0);
+		expect(right.freezeFrameDuration).toBeGreaterThan(0);
+		expect(
+			(left.freezeFrameDuration ?? 0) + (right.freezeFrameDuration ?? 0)
+		).toBeCloseTo(2);
+	});
+
 	it("deleteTimeRange preserves source boundaries inside a 2x clip", () => {
 		const { result, mainTrackId } = setupStoreWithElement({
 			overrides: { playbackRate: 2 },

@@ -16,7 +16,7 @@ import type {
 	StoreGet,
 	StoreSet,
 } from "./timeline-store-operations";
-import { getTimelineSplitTrimValues } from "./timeline-split-utils";
+import { getTimelineSplitUpdates } from "./timeline-split-utils";
 
 export function createTrackOps(
 	get: StoreGet,
@@ -339,14 +339,13 @@ export function createTrackOps(
 							elementEnd <= clampedEndTime;
 						if (overlapsAtEnd) {
 							splitElements++;
-							const splitTrims = getTimelineSplitTrimValues({
+							const splitUpdates = getTimelineSplitUpdates({
 								element,
 								splitTime: clampedStartTime,
 							});
 							nextElements.push({
 								...element,
-								trimStart: splitTrims.leftTrimStart,
-								trimEnd: splitTrims.leftTrimEnd,
+								...splitUpdates.left,
 							});
 							continue;
 						}
@@ -357,15 +356,14 @@ export function createTrackOps(
 							elementEnd > clampedEndTime;
 						if (overlapsAtStart) {
 							splitElements++;
-							const splitTrims = getTimelineSplitTrimValues({
+							const splitUpdates = getTimelineSplitUpdates({
 								element,
 								splitTime: clampedEndTime,
 							});
 							nextElements.push({
 								...element,
 								startTime: clampedEndTime,
-								trimStart: splitTrims.rightTrimStart,
-								trimEnd: splitTrims.rightTrimEnd,
+								...splitUpdates.right,
 							});
 							continue;
 						}
@@ -374,27 +372,25 @@ export function createTrackOps(
 							elementStart < clampedStartTime && elementEnd > clampedEndTime;
 						if (spansEntireRange) {
 							splitElements++;
-							const leftSplitTrims = getTimelineSplitTrimValues({
+							const leftSplitUpdates = getTimelineSplitUpdates({
 								element,
 								splitTime: clampedStartTime,
 							});
-							const rightSplitTrims = getTimelineSplitTrimValues({
+							const rightSplitUpdates = getTimelineSplitUpdates({
 								element,
 								splitTime: clampedEndTime,
 							});
 
 							nextElements.push({
 								...element,
-								trimStart: leftSplitTrims.leftTrimStart,
-								trimEnd: leftSplitTrims.leftTrimEnd,
+								...leftSplitUpdates.left,
 							});
 
 							nextElements.push({
 								...element,
 								id: generateUUID(),
 								startTime: clampedEndTime,
-								trimStart: rightSplitTrims.rightTrimStart,
-								trimEnd: rightSplitTrims.rightTrimEnd,
+								...rightSplitUpdates.right,
 							});
 							continue;
 						}
