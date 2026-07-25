@@ -1,4 +1,5 @@
 "use client";
+import { useEffect, useRef } from "react";
 import { useSegmentationStore } from "@/stores/ai/segmentation-store";
 import { useAsyncMediaStoreActions } from "@/hooks/media/use-async-media-store";
 import { usePersistentAiTask } from "@/hooks/use-persistent-ai-task";
@@ -22,8 +23,10 @@ import {
 	attachGeneratedMask,
 	detachGeneratedMask,
 	failGeneratedMaskTracking,
+	pauseGeneratedMaskTracking,
 	updateGeneratedMaskTrackingProgress,
 } from "@/lib/segmentation/generated-mask-attachment";
+import { registerActiveMaskTrackingRuntime } from "@/lib/segmentation/mask-tracking-runtime";
 import { generateSam3VideoMask } from "@/lib/segmentation/sam3-video-mask";
 import { useMediaStore } from "@/stores/media/media-store";
 import { useMediaPanelStore } from "@/components/editor/media-panel/store";
@@ -84,6 +87,7 @@ export function SegmentationPanel() {
 		showObjectList,
 		videoBackend,
 		setVideoBackend,
+		trackingRequest,
 	} = useSegmentationStore();
 
 	const {
@@ -140,13 +144,15 @@ export function SegmentationPanel() {
 						: "视频蒙版已添加到素材库"
 					: `图片分割完成，找到 ${result.objectCount} 个对象`,
 			open: () => useMediaPanelStore.getState().setActiveTab("segmentation"),
-			onCancel: () =>
+			onCancel: () => {
+				pauseGeneratedMaskTracking({ message: "蒙版跟踪已暂停" });
 				setProcessingState({
 					isProcessing: false,
 					progress: 0,
 					statusMessage: "分割任务已取消",
 					elapsedTime: 0,
-				}),
+				});
+			},
 			onError: (error) => {
 				failGeneratedMaskTracking({ message: error.message });
 				setProcessingState({
@@ -156,6 +162,19 @@ export function SegmentationPanel() {
 					elapsedTime: 0,
 				});
 				toast.error("分割失败", { description: error.message });
+			},
+			onRuntimeReady: ({ cancel }) => {
+				const request = useSegmentationStore.getState().trackingRequest;
+				if (!request || mode !== "video") return;
+				return registerActiveMaskTrackingRuntime({
+					runtime: {
+						elementId: request.elementId,
+						maskId: request.maskId,
+						source: "sam3",
+						direction: request.direction,
+						cancel,
+					},
+				});
 			},
 			execute: async ({ signal, updateProgress }) => {
 				const startTime = Date.now();
@@ -328,6 +347,24 @@ export function SegmentationPanel() {
 		!segmentationTaskRunning;
 	const isLocalPersonVideo =
 		mode === "video" && videoBackend === "local-person";
+	const autoStartedTrackingRequestRef = useRef<string | undefined>(undefined);
+	const handleSegmentRef = useRef(handleSegment);
+	handleSegmentRef.current = handleSegment;
+
+	useEffect(() => {
+		const requestId = trackingRequest?.requestId;
+		if (
+			!requestId ||
+			mode !== "video" ||
+			videoBackend !== "sam3" ||
+			!canSegment ||
+			autoStartedTrackingRequestRef.current === requestId
+		) {
+			return;
+		}
+		autoStartedTrackingRequestRef.current = requestId;
+		void handleSegmentRef.current();
+	}, [canSegment, mode, trackingRequest?.requestId, videoBackend]);
 
 	// Handle media store loading/error states
 	if (mediaStoreError) {
@@ -461,6 +498,7 @@ export function SegmentationPanel() {
 					projectId={projectId}
 					sourceFile={sourceVideoFile}
 					sourceUrl={sourceVideoUrl}
+					autoStartRequestId={trackingRequest?.requestId}
 					addMediaItem={addMediaItem}
 					onProgress={({ progress }) =>
 						updateGeneratedMaskTrackingProgress({
