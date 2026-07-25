@@ -1,4 +1,26 @@
 import { useState, useCallback, useEffect, useRef, RefObject } from "react";
+import {
+	TIMELINE_ZOOM_EVENT,
+	type TimelineZoomDirection,
+} from "@/lib/editor-shortcut-events";
+
+const MIN_TIMELINE_ZOOM = 0.1;
+const MAX_TIMELINE_ZOOM = 10;
+const KEYBOARD_ZOOM_FACTOR = 1.25;
+
+export function nextTimelineZoom({
+	current,
+	direction,
+}: {
+	current: number;
+	direction: TimelineZoomDirection;
+}): number {
+	const next =
+		direction === "in"
+			? current * KEYBOARD_ZOOM_FACTOR
+			: current / KEYBOARD_ZOOM_FACTOR;
+	return Math.min(MAX_TIMELINE_ZOOM, Math.max(MIN_TIMELINE_ZOOM, next));
+}
 
 interface UseTimelineZoomProps {
 	containerRef: RefObject<HTMLDivElement | null>;
@@ -25,12 +47,25 @@ export function useTimelineZoom({
 }: UseTimelineZoomProps): UseTimelineZoomReturn {
 	const [zoomLevel, setZoomLevel] = useState(1);
 
+	useEffect(() => {
+		const handleKeyboardZoom = (event: Event) => {
+			const direction = (event as CustomEvent<TimelineZoomDirection>).detail;
+			if (direction !== "in" && direction !== "out") return;
+			setZoomLevel((current) => nextTimelineZoom({ current, direction }));
+		};
+		window.addEventListener(TIMELINE_ZOOM_EVENT, handleKeyboardZoom);
+		return () =>
+			window.removeEventListener(TIMELINE_ZOOM_EVENT, handleKeyboardZoom);
+	}, []);
+
 	const handleWheel = useCallback((e: React.WheelEvent) => {
 		// Only zoom if user is using pinch gesture (ctrlKey or metaKey is true)
 		if (e.ctrlKey || e.metaKey) {
 			e.preventDefault();
 			const delta = e.deltaY > 0 ? -0.15 : 0.15;
-			setZoomLevel((prev) => Math.max(0.1, Math.min(10, prev + delta)));
+			setZoomLevel((prev) =>
+				Math.max(MIN_TIMELINE_ZOOM, Math.min(MAX_TIMELINE_ZOOM, prev + delta))
+			);
 		}
 		// For horizontal scrolling (when shift is held or horizontal wheel movement),
 		// let the event bubble up to allow ScrollArea to handle it
@@ -112,8 +147,8 @@ export function useTimelineZoom({
 
 			const ratio = currentDistance / initialPinchDistanceRef.current;
 			const newZoom = Math.max(
-				0.1,
-				Math.min(10, pinchBaseZoomRef.current * ratio)
+				MIN_TIMELINE_ZOOM,
+				Math.min(MAX_TIMELINE_ZOOM, pinchBaseZoomRef.current * ratio)
 			);
 			setZoomLevel(newZoom);
 		},
