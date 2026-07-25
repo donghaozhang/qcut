@@ -105,6 +105,7 @@ export type ClaudeTrackType =
 	| "captions"
 	| "adjustment"
 	| "remotion"
+	| "hyperframes"
 	| "markdown";
 
 export interface ClaudeTrackOperationRequest {
@@ -199,6 +200,7 @@ export interface ClaudeElement extends ClaudeTextProperties {
 		| "adjustment"
 		| "captions"
 		| "remotion"
+		| "hyperframes"
 		| "media"
 		| "effect"
 		| "markdown";

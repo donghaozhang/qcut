@@ -19,6 +19,7 @@ export const TAB_LABEL_KEYS: Record<Tab, TranslationKey> = {
 	sounds: "tabs.sounds",
 	segmentation: "tabs.segmentation",
 	remotion: "tabs.remotion",
+	hyperframes: "tabs.hyperframes",
 	pty: "tabs.pty",
 	"word-timeline": "tabs.wordTimeline",
 	"project-folder": "tabs.projectFolder",

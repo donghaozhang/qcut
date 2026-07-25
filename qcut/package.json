@@ -143,6 +143,7 @@
 		"test:e2e:workflow": "playwright test project-workflow",
 		"test:e2e:visual": "playwright test visual-regression",
 		"test:e2e:visual:update": "playwright test visual-regression --update-snapshots",
+		"smoke:hyperframes": "bun run build:electron && bun x esbuild scripts/hyperframes-render-smoke.ts --bundle --platform=node --format=cjs --outfile=dist/scripts/hyperframes-render-smoke.cjs --external:electron && electron dist/scripts/hyperframes-render-smoke.cjs",
 		"check-boundaries": "bun scripts/check-boundaries.ts"
 	},
 	"build": {
@@ -370,6 +371,7 @@
 		"@ffmpeg/util": "^0.12.2",
 		"@google/genai": "^1.45.0",
 		"@google/generative-ai": "^0.24.1",
+		"@hyperframes/core": "0.7.68",
 		"@mariozechner/pi-agent-core": "^0.58.1",
 		"@mariozechner/pi-ai": "^0.58.1",
 		"@mariozechner/pi-web-ui": "^0.58.1",

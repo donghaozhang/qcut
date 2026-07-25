@@ -78,6 +78,7 @@ const ADD_TRACK_OPTIONS: TrackType[] = [
 	"sticker",
 	"adjustment",
 	"remotion",
+	"hyperframes",
 	"markdown",
 ];
 

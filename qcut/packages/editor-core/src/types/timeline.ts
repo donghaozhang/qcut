@@ -23,6 +23,7 @@ export type TrackType =
 	| "captions"
 	| "adjustment"
 	| "remotion"
+	| "hyperframes"
 	| "markdown";
 
 /**
@@ -898,6 +899,55 @@ export interface RemotionElement extends BaseTimelineElement {
 	scale?: number;
 }
 
+export type HyperframesVariableType =
+	| "string"
+	| "number"
+	| "color"
+	| "boolean"
+	| "enum"
+	| "font"
+	| "image";
+
+export type HyperframesVariableValue = string | number | boolean;
+
+export interface HyperframesVariableDefinition {
+	id: string;
+	type: HyperframesVariableType;
+	label: string;
+	description?: string;
+	default: HyperframesVariableValue;
+	placeholder?: string;
+	maxLength?: number;
+	min?: number;
+	max?: number;
+	step?: number;
+	unit?: string;
+	options?: Array<{ value: string; label: string }>;
+}
+
+/**
+ * A local HyperFrames HTML composition.
+ *
+ * Source dimensions and variables are persisted with the timeline element so
+ * project files remain editable even if the library index is rebuilt.
+ */
+export interface HyperframesElement extends BaseTimelineElement {
+	type: "hyperframes";
+	compositionId: string;
+	sourcePath: string;
+	projectPath: string;
+	compositionWidth: number;
+	compositionHeight: number;
+	fps: number;
+	/** True until the embedded runtime confirms a statically inferred duration. */
+	durationIsEstimated?: boolean;
+	variableValues: Record<string, HyperframesVariableValue>;
+	variableDefinitions: HyperframesVariableDefinition[];
+	renderMode: "live" | "cached";
+	opacity?: number;
+	scale?: number;
+}
+
 export interface MarkdownElement extends BaseTimelineElement {
 	type: "markdown";
 	markdownContent: string;
@@ -926,6 +976,7 @@ export type TimelineElement =
 	| AdjustmentElement
 	| CaptionElement
 	| RemotionElement
+	| HyperframesElement
 	| MarkdownElement;
 
 // ---------------------------------------------------------------------------
@@ -939,6 +990,7 @@ export type CreateStickerElement = Omit<StickerElement, "id">;
 export type CreateAdjustmentElement = Omit<AdjustmentElement, "id">;
 export type CreateCaptionElement = Omit<CaptionElement, "id">;
 export type CreateRemotionElement = Omit<RemotionElement, "id">;
+export type CreateHyperframesElement = Omit<HyperframesElement, "id">;
 export type CreateMarkdownElement = Omit<MarkdownElement, "id">;
 export type CreateTimelineElement =
 	| CreateMediaElement
@@ -948,6 +1000,7 @@ export type CreateTimelineElement =
 	| CreateAdjustmentElement
 	| CreateCaptionElement
 	| CreateRemotionElement
+	| CreateHyperframesElement
 	| CreateMarkdownElement;
 
 // ---------------------------------------------------------------------------
@@ -1020,6 +1073,16 @@ export interface RemotionItemDragData {
 	fps: number;
 }
 
+export interface HyperframesItemDragData {
+	id: string;
+	type: "hyperframes";
+	name: string;
+	compositionId: string;
+	sourcePath: string;
+	duration: number;
+	fps: number;
+}
+
 export interface MarkdownItemDragData {
 	id: string;
 	type: "markdown";
@@ -1032,4 +1095,5 @@ export type DragData =
 	| TextItemDragData
 	| StickerItemDragData
 	| RemotionItemDragData
+	| HyperframesItemDragData
 	| MarkdownItemDragData;

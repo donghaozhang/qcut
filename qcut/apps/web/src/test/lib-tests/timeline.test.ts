@@ -1,8 +1,39 @@
 import { describe, it, expect } from "vitest";
-import { checkElementOverlaps, resolveElementOverlaps } from "@/lib/timeline";
-import { TimelineElement } from "@/types/timeline";
+import {
+	checkElementOverlaps,
+	getTimelineDuration,
+	resolveElementOverlaps,
+} from "@/lib/timeline";
+import type { TimelineElement, TimelineTrack } from "@/types/timeline";
 
 describe("Timeline Calculations", () => {
+	describe("getTimelineDuration", () => {
+		it("uses playback-adjusted media duration", () => {
+			const tracks: TimelineTrack[] = [
+				{
+					id: "media-track",
+					name: "Media",
+					type: "media",
+					elements: [
+						{
+							id: "fast",
+							type: "media",
+							mediaId: "media-001",
+							name: "Fast video",
+							startTime: 3,
+							duration: 10,
+							trimStart: 0,
+							trimEnd: 0,
+							playbackRate: 2,
+						},
+					],
+				},
+			];
+
+			expect(getTimelineDuration({ tracks })).toBe(8);
+		});
+	});
+
 	describe("checkElementOverlaps", () => {
 		it("detects no overlaps when elements are sequential", () => {
 			const elements: TimelineElement[] = [

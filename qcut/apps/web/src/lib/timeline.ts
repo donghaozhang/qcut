@@ -1,4 +1,4 @@
-import type { TimelineElement } from "@/types/timeline";
+import type { TimelineElement, TimelineTrack } from "@/types/timeline";
 import { getMediaTimelineDuration } from "@/lib/video/video-timing";
 
 export function getTimelineElementDuration({
@@ -20,6 +20,26 @@ export function getTimelineElementEndTime({
 	fps?: number;
 }): number {
 	return element.startTime + getTimelineElementDuration({ element, fps });
+}
+
+/** Return the latest playback-adjusted element end across all tracks. */
+export function getTimelineDuration({
+	tracks,
+	fps = 30,
+}: {
+	tracks: TimelineTrack[];
+	fps?: number;
+}): number {
+	let duration = 0;
+	for (const track of tracks) {
+		for (const element of track.elements) {
+			duration = Math.max(
+				duration,
+				getTimelineElementEndTime({ element, fps })
+			);
+		}
+	}
+	return duration;
 }
 
 /**

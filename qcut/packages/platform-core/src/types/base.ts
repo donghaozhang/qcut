@@ -87,6 +87,8 @@ export enum PlatformCapability {
 	Claude = "claude",
 	/** Remotion folder import/bundle */
 	RemotionFolder = "remotion-folder",
+	/** HyperFrames HTML import, preview, and deterministic rendering */
+	Hyperframes = "hyperframes",
 	/** Moyin script-to-storyboard */
 	Moyin = "moyin",
 	/** Auto-updates */

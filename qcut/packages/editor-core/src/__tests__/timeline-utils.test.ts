@@ -142,6 +142,7 @@ describe("getTrackName / createTrack", () => {
 		expect(getTrackName("sticker")).toBe("贴纸轨道");
 		expect(getTrackName("captions")).toBe("字幕轨道");
 		expect(getTrackName("remotion")).toBe("Remotion 轨道");
+		expect(getTrackName("hyperframes")).toBe("HyperFrames 轨道");
 		expect(getTrackName("markdown")).toBe("Markdown 轨道");
 	});
 

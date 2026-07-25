@@ -1105,6 +1105,8 @@ function formatElementForExport(
 				sourceId: element.mediaId,
 				sourceName,
 				fitMode: element.fitMode,
+				trimStart: element.trimStart,
+				trimEnd: element.trimEnd,
 			};
 		}
 		case "text": {

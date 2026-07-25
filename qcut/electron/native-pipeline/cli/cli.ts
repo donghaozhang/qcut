@@ -133,6 +133,14 @@ export function parseCliArgs(argv: string[]): CLIRunOptions {
 		process.exit(2);
 	}
 
+	if (command === "analyze-inspect") {
+		commandArgs = commandArgs.map((argument) => {
+			if (argument === "--start") return "--start-time";
+			if (argument === "--end") return "--end-time";
+			return argument;
+		});
+	}
+
 	// Emit deprecation warning for flat commands that have group equivalents
 	const isQuiet =
 		argv.includes("--json") || argv.includes("--quiet") || argv.includes("-q");
@@ -296,6 +304,16 @@ export function parseCliArgs(argv: string[]): CLIRunOptions {
 			"output-format": { type: "string", short: "f" },
 			"review-language": { type: "string" },
 			"review-prompt-dir": { type: "string" },
+			narration: { type: "string" },
+			transcript: { type: "string" },
+			"candidate-duration": { type: "string" },
+			"scene-threshold": { type: "string" },
+			"no-ai": { type: "boolean", default: false },
+			"no-recursive": { type: "boolean", default: false },
+			"no-timeline-views": { type: "boolean", default: false },
+			"transition-duration": { type: "string" },
+			edl: { type: "string" },
+			"cut-window": { type: "string" },
 			before: { type: "string" },
 			after: { type: "string" },
 			// upscale-image options
@@ -756,6 +774,23 @@ export function parseCliArgs(argv: string[]): CLIRunOptions {
 		outputFormat: values["output-format"] as string | undefined,
 		reviewLanguage: values["review-language"] as string | undefined,
 		reviewPromptDir: values["review-prompt-dir"] as string | undefined,
+		mediaIndexPath:
+			command === "analyze-inspect" || command === "edit-plan"
+				? (values.index as string | undefined)
+				: undefined,
+		narration: values.narration as string | undefined,
+		transcript: values.transcript as string | undefined,
+		candidateDuration: parseFiniteCliNumber({
+			value: values["candidate-duration"],
+		}),
+		noAi: (values["no-ai"] as boolean) ?? false,
+		noRecursive: (values["no-recursive"] as boolean) ?? false,
+		noTimelineViews: (values["no-timeline-views"] as boolean) ?? false,
+		transitionDuration: parseFiniteCliNumber({
+			value: values["transition-duration"],
+		}),
+		edl: values.edl as string | undefined,
+		cutWindow: parseFiniteCliNumber({ value: values["cut-window"] }),
 		refs: values.ref as string[] | undefined,
 		// analyze-image-consistency options
 		candidates: values.candidate as string[] | undefined,
@@ -808,11 +843,12 @@ export function parseCliArgs(argv: string[]): CLIRunOptions {
 		jobId: values["job-id"] as string | undefined,
 		trackId: values["track-id"] as string | undefined,
 		trackType: values.type as string | undefined,
-		index: values.index
-			? Number.isNaN(parseInt(values.index as string, 10))
-				? undefined
-				: parseInt(values.index as string, 10)
-			: undefined,
+		index:
+			command !== "analyze-inspect" && command !== "edit-plan" && values.index
+				? Number.isNaN(parseInt(values.index as string, 10))
+					? undefined
+					: parseInt(values.index as string, 10)
+				: undefined,
 		toTrack: values["to-track"] as string | undefined,
 		splitTime: values["split-time"]
 			? Number.isNaN(parseFloat(values["split-time"] as string))
@@ -844,11 +880,18 @@ export function parseCliArgs(argv: string[]): CLIRunOptions {
 		cuts: values.cuts as string | undefined,
 		items: values.items as string | undefined,
 		preset: values.preset as string | undefined,
-		threshold: values.threshold
-			? Number.isNaN(parseFloat(values.threshold as string))
-				? undefined
-				: parseFloat(values.threshold as string)
-			: undefined,
+		threshold:
+			(values["scene-threshold"] ?? values.threshold)
+				? Number.isNaN(
+						parseFloat(
+							(values["scene-threshold"] ?? values.threshold) as string
+						)
+					)
+					? undefined
+					: parseFloat(
+							(values["scene-threshold"] ?? values.threshold) as string
+						)
+				: undefined,
 		timestamps: values.timestamps as string | undefined,
 		host: values.host as string | undefined,
 		port: values.port as string | undefined,

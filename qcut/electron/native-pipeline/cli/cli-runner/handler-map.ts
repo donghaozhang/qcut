@@ -16,6 +16,12 @@ import {
 	handleTranscribe as mediaHandleTranscribe,
 	handleQueryVideo as mediaHandleQueryVideo,
 } from "../cli-handlers-media.js";
+import {
+	handleAnalyzeIndex,
+	handleAnalyzeInspect,
+	handleEditPlan,
+	handleEditVerify,
+} from "../cli-handlers-editorial.js";
 import { handleAnalyzeConsistency } from "../cli-handlers-character-consistency.js";
 import { handleAnalyzeImageConsistency } from "../cli-handlers-image-consistency.js";
 import { handleGenerateRemotion } from "../cli-handlers-remotion.js";
@@ -178,6 +184,8 @@ export const HANDLER_MAP: Record<string, CommandHandler> = {
 
 	// ── Analysis ──
 	"analyze-video": mediaHandleAnalyzeVideo,
+	"analyze-index": handleAnalyzeIndex,
+	"analyze-inspect": handleAnalyzeInspect,
 	"analyze-consistency": handleAnalyzeConsistency,
 	"analyze-image-consistency": handleAnalyzeImageConsistency,
 	"query-video": mediaHandleQueryVideo,
@@ -273,6 +281,8 @@ export const HANDLER_MAP: Record<string, CommandHandler> = {
 		runAutoclip(parseAutoclipOptions(options), onProgress, signal),
 	"clean-audio": async (options, onProgress, _executor, signal) =>
 		runCleanAudio(parseCleanAudioOptions(options), onProgress, signal),
+	"edit-plan": handleEditPlan,
+	"edit-verify": handleEditVerify,
 
 	// ── Replicate ──
 	"replicate": wrapOPS(handleReplicate),

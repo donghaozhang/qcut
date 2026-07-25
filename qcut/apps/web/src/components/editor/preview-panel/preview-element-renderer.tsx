@@ -36,6 +36,7 @@ import type { TProject } from "@/types/project";
 import type { TimelineElement, TimelineTrack } from "@/types/timeline";
 import { MarkdownOverlay } from "@/components/editor/canvas/markdown-overlay";
 import { RemotionPreview } from "./remotion-preview";
+import { HyperframesPreview } from "./hyperframes-preview";
 import { MediaMaskOverlay } from "./media-mask-overlay";
 import type { ActiveElement, PreviewDimensions } from "./types";
 import { useMediaStore } from "@/stores/media/media-store";
@@ -1413,6 +1414,26 @@ export function PreviewElementRenderer({
 						maxHeight={previewDimensions.height}
 						externalFrame={currentFrame}
 						externalIsPlaying={isPlaying}
+					/>
+				</div>
+			);
+		}
+
+		if (element.type === "hyperframes") {
+			return (
+				<div
+					key={elementKey}
+					className="absolute inset-0"
+					style={{ zIndex: index + 1 }}
+				>
+					<HyperframesPreview
+						element={element}
+						trackId={elementData.track.id}
+						currentTime={currentTime}
+						isPlaying={isPlaying}
+						muted={elementData.track.muted === true}
+						width={previewDimensions.width}
+						height={previewDimensions.height}
 					/>
 				</div>
 			);

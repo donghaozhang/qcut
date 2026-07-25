@@ -89,11 +89,27 @@ describe("payment-config", () => {
 		const origins = getAllowedCorsOrigins();
 		expect(origins).toContain("https://billing.example.com");
 		expect(origins).toContain("https://quriosity.com.au");
-		expect(origins).toContain("http://localhost:3000");
+		expect(origins).toContain("https://donghaozhang.github.io");
 	});
 
 	it("allowlists the Electron `app://.` origin by default", () => {
 		const origins = getAllowedCorsOrigins();
 		expect(origins).toContain("app://.");
+	});
+
+	it("allowlists the QCut Vite origins only in development", () => {
+		process.env.NODE_ENV = "development";
+		const origins = getAllowedCorsOrigins();
+		expect(origins).toContain("http://localhost:5173");
+		expect(origins).toContain("http://127.0.0.1:5173");
+	});
+
+	it("excludes localhost origins outside development", () => {
+		delete process.env.NODE_ENV;
+		process.env.ENVIRONMENT = "production";
+		const origins = getAllowedCorsOrigins();
+		expect(origins).not.toContain("http://localhost:3000");
+		expect(origins).not.toContain("http://localhost:5173");
+		expect(origins).not.toContain("http://127.0.0.1:5173");
 	});
 });

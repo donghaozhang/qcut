@@ -43,15 +43,19 @@ function parseByteRange({
 function responseHeaders({
 	contentLength,
 	contentRange,
+	contentType,
 }: {
 	contentLength: number;
 	contentRange?: string;
+	contentType: string;
 }): Headers {
 	const headers = new Headers({
+		"Access-Control-Allow-Origin": "*",
 		"Accept-Ranges": "bytes",
 		"Cache-Control": "public, max-age=31536000, immutable",
 		"Content-Length": String(contentLength),
-		"Content-Type": "video/mp4",
+		"Content-Type": contentType,
+		"Cross-Origin-Resource-Policy": "cross-origin",
 	});
 	if (contentRange) headers.set("Content-Range", contentRange);
 	return headers;
@@ -60,9 +64,11 @@ function responseHeaders({
 export function createVideoPreviewProxyResponse({
 	request,
 	filePath,
+	contentType = "video/mp4",
 }: {
 	request: Request;
 	filePath: string;
+	contentType?: string;
 }): Response {
 	const fileSize = fs.statSync(filePath).size;
 	const rangeHeader = request.headers.get("range");
@@ -73,6 +79,7 @@ export function createVideoPreviewProxyResponse({
 		return new Response(null, {
 			status: 416,
 			headers: {
+				"Access-Control-Allow-Origin": "*",
 				"Accept-Ranges": "bytes",
 				"Content-Range": `bytes */${fileSize}`,
 			},
@@ -84,6 +91,7 @@ export function createVideoPreviewProxyResponse({
 	const headers = responseHeaders({
 		contentLength,
 		contentRange: range ? `bytes ${start}-${end}/${fileSize}` : undefined,
+		contentType,
 	});
 	if (request.method === "HEAD") {
 		return new Response(null, { status: range ? 206 : 200, headers });

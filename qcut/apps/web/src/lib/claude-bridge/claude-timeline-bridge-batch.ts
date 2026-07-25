@@ -141,8 +141,12 @@ export function setupBatchHandlers({
 									mediaId,
 									startTime: element.startTime,
 									duration: element.duration,
-									trimStart: 0,
-									trimEnd: 0,
+									trimStart:
+										typeof element.trimStart === "number"
+											? element.trimStart
+											: 0,
+									trimEnd:
+										typeof element.trimEnd === "number" ? element.trimEnd : 0,
 								},
 								{
 									pushHistory: false,

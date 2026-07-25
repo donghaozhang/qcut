@@ -40,6 +40,7 @@ import {
 	type PlatformProjectFolderAPI,
 	type PlatformProjectJsonAPI,
 	type PlatformRemotionFolderAPI,
+	type PlatformHyperframesAPI,
 	type PlatformMoyinAPI,
 	type PlatformUpdatesAPI,
 	type ThemeSource,
@@ -447,6 +448,9 @@ const remotionFolderStub =
 	createUnsupportedNamespace<PlatformRemotionFolderAPI>(
 		PlatformCapability.RemotionFolder
 	);
+const hyperframesStub = createUnsupportedNamespace<PlatformHyperframesAPI>(
+	PlatformCapability.Hyperframes
+);
 const moyinStub = createUnsupportedNamespace<PlatformMoyinAPI>(
 	PlatformCapability.Moyin
 );
@@ -497,6 +501,7 @@ export function createWebAdapter(): PlatformAPI {
 		projectFolder: projectFolderStub,
 		projectJson: projectJsonGraceful,
 		remotionFolder: remotionFolderStub,
+		hyperframes: hyperframesStub,
 		moyin: moyinStub,
 		updates: updatesStub,
 		piAgent: undefined,

@@ -51,12 +51,13 @@ describe("PlatformAPI type completeness", () => {
 		expect(caps).toContain("project-json");
 		expect(caps).toContain("claude");
 		expect(caps).toContain("remotion-folder");
+		expect(caps).toContain("hyperframes");
 		expect(caps).toContain("moyin");
 		expect(caps).toContain("updates");
 		expect(caps).toContain("youtube");
 		expect(caps).toContain("filler-analysis");
 		expect(caps).toContain("file-path-resolution");
-		expect(caps.length).toBe(30);
+		expect(caps.length).toBe(31);
 	});
 
 	it("PlatformAPI has all expected namespace properties", () => {

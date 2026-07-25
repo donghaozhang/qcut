@@ -13,6 +13,7 @@ import { SkillsView } from "./views/skills";
 import VideoEditView from "./views/video-edit";
 import { SegmentationPanel } from "@/components/editor/segmentation";
 import { RemotionView } from "./views/remotion";
+import { HyperframesView } from "./views/hyperframes";
 import { TemplatesView } from "./views/templates";
 import { PtyTerminalView } from "./views/pty-terminal";
 import { WordTimelineView } from "./views/word-timeline-view";
@@ -76,6 +77,7 @@ export function MediaPanel() {
 		sounds: <AIVoiceView />,
 		segmentation: <SegmentationPanel />,
 		remotion: <RemotionView />,
+		hyperframes: <HyperframesView />,
 		"word-timeline": <WordTimelineView />,
 		"project-folder": <ProjectFolderView />,
 		upscale: <UpscaleView />,

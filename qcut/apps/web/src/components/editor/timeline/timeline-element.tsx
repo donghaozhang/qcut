@@ -29,6 +29,7 @@ import {
 	Link2,
 	Camera,
 	Clapperboard,
+	CodeXml,
 } from "lucide-react";
 import { useAsyncMediaItems } from "@/hooks/media/use-async-media-store";
 import { getFileType, useMediaStore } from "@/stores/media/media-store";
@@ -65,6 +66,10 @@ function getElementTypeName(element: { type: string }): string {
 			return "adjustment layer";
 		case "markdown":
 			return "markdown";
+		case "remotion":
+			return "Remotion composition";
+		case "hyperframes":
+			return "HyperFrames composition";
 		default:
 			return "clip";
 	}
@@ -1324,6 +1329,20 @@ function TimelineElementComponent({
 				<div className="w-full h-full flex items-center justify-start pl-2">
 					<span className="text-xs text-foreground/80 truncate">
 						{previewText || "Markdown"}
+					</span>
+				</div>
+			);
+		}
+
+		if (element.type === "hyperframes") {
+			return (
+				<div className="flex h-full w-full items-center gap-1.5 px-2">
+					<CodeXml className="size-3.5 shrink-0 text-emerald-300" />
+					<span className="truncate text-xs text-foreground/90">
+						{displayName}
+					</span>
+					<span className="ml-auto shrink-0 text-[9px] text-emerald-200/70">
+						HF
 					</span>
 				</div>
 			);

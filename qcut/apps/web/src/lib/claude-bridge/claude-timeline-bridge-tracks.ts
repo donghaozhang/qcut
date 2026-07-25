@@ -17,6 +17,7 @@ const TRACK_TYPES = new Set<TrackType>([
 	"captions",
 	"adjustment",
 	"remotion",
+	"hyperframes",
 	"markdown",
 ]);
 

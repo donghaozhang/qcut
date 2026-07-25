@@ -46,6 +46,11 @@ export const TRACK_COLORS: Record<
 		background: "bg-violet-500/20",
 		border: "border-white/80",
 	},
+	hyperframes: {
+		solid: "bg-emerald-500",
+		background: "bg-emerald-500/20",
+		border: "border-white/80",
+	},
 	markdown: {
 		solid: "bg-sky-600",
 		background: "bg-sky-500/20",
@@ -83,6 +88,7 @@ export const TRACK_HEIGHTS: Record<TrackType, number> = {
 	adjustment: 32,
 	captions: 30,
 	remotion: 55,
+	hyperframes: 55,
 	markdown: 55,
 } as const;
 
@@ -95,6 +101,7 @@ export const COMPACT_TRACK_HEIGHTS: Record<TrackType, number> = {
 	adjustment: 24,
 	captions: 24,
 	remotion: 36,
+	hyperframes: 36,
 	markdown: 36,
 } as const;
 

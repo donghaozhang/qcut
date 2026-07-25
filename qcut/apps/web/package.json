@@ -68,6 +68,7 @@
 		"@ffmpeg/util": "^0.12.2",
 		"@hello-pangea/dnd": "^18.0.1",
 		"@hookform/resolvers": "^3.10.0",
+		"@hyperframes/parsers": "0.7.68",
 		"@mediapipe/tasks-vision": "^0.10.35",
 		"@qcut/auth": "workspace:*",
 		"@qcut/db": "workspace:*",

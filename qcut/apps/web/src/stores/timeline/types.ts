@@ -17,6 +17,7 @@ export type {
 	MediaElement,
 	ClipTransition,
 	RemotionElement,
+	HyperframesElement,
 	CaptionElement,
 	StickerElement,
 	AdjustmentElement,
@@ -43,6 +44,7 @@ import type {
 	MediaElement,
 	ClipTransition,
 	RemotionElement,
+	HyperframesElement,
 	CaptionElement,
 	StickerElement,
 	AdjustmentElement,
@@ -673,6 +675,24 @@ export interface TimelineStore {
 		elementId: string,
 		updates: Partial<
 			Pick<RemotionElement, "props" | "renderMode" | "opacity" | "scale">
+		>,
+		pushHistory?: boolean
+	) => void;
+	updateHyperframesElement: (
+		trackId: string,
+		elementId: string,
+		updates: Partial<
+			Pick<
+				HyperframesElement,
+				| "variableValues"
+				| "renderMode"
+				| "opacity"
+				| "scale"
+				| "duration"
+				| "durationIsEstimated"
+				| "trimStart"
+				| "trimEnd"
+			>
 		>,
 		pushHistory?: boolean
 	) => void;

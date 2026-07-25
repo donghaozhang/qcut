@@ -25,6 +25,7 @@ import { useEffectsStore } from "@/stores/ai/effects-store";
 import { EffectsProperties } from "./effects-properties";
 import { TransformProperties } from "./transform-properties";
 import { RemotionProperties } from "./remotion-properties";
+import { HyperframesProperties } from "./hyperframes-properties";
 import { EFFECTS_ENABLED } from "@/config/features";
 import { MarkdownProperties } from "./markdown-properties";
 import { CaptionProperties } from "./caption-properties";
@@ -205,6 +206,10 @@ export function PropertiesPanel() {
 
 		if (element.type === "remotion") {
 			return <RemotionProperties element={element} trackId={trackId} />;
+		}
+
+		if (element.type === "hyperframes") {
+			return <HyperframesProperties element={element} trackId={trackId} />;
 		}
 
 		if (element.type === "markdown") {

@@ -1,3 +1,5 @@
+import { promises as fs } from "node:fs";
+import { basename } from "node:path";
 import type { CLIRunOptions, CLIResult } from "../cli/cli-runner/types.js";
 import type { EditorApiClient } from "./editor-api-client.js";
 import { resolveJsonInput } from "./editor-api-types.js";
@@ -76,6 +78,7 @@ interface TimelineSnapshot {
 interface MediaFileSummary {
 	id: string;
 	name?: string;
+	size?: number;
 }
 
 interface ImportResult {
@@ -159,6 +162,27 @@ function valuesMatch(expected: unknown, actual: unknown): boolean {
 	return expected === actual;
 }
 
+function expectedReadBackValue({
+	expected,
+	key,
+}: {
+	expected: ManifestElement;
+	key: string;
+}): unknown {
+	const value = expected[key];
+	if (
+		key !== "duration" ||
+		expected.type !== "media" ||
+		typeof value !== "number"
+	) {
+		return value;
+	}
+	const trimStart =
+		typeof expected.trimStart === "number" ? expected.trimStart : 0;
+	const trimEnd = typeof expected.trimEnd === "number" ? expected.trimEnd : 0;
+	return Math.max(0, value - trimStart - trimEnd);
+}
+
 async function resolveActiveProjectId(
 	client: EditorApiClient
 ): Promise<string | undefined> {
@@ -213,6 +237,16 @@ async function importManifestMedia({
 		`/api/claude/media/${encodeURIComponent(projectId)}`
 	);
 	const existingIds = new Set(existing.map((item) => item.id));
+	const sourceSizes = await Promise.all(
+		media.map(async (entry) => {
+			if (!entry.path) return undefined;
+			try {
+				return (await fs.stat(entry.path)).size;
+			} catch {
+				return undefined;
+			}
+		})
+	);
 	const imports: Array<{ path?: string; url?: string; filename?: string }> = [];
 	const importEntries: Array<{ entry: ManifestMedia; manifestIndex: number }> =
 		[];
@@ -224,6 +258,22 @@ async function importManifestMedia({
 		if (directId) {
 			mediaIds.set(alias, directId);
 			mediaIds.set(directId, directId);
+			continue;
+		}
+		const expectedName =
+			entry.filename ?? (entry.path ? basename(entry.path) : undefined);
+		const sourceSize = sourceSizes[index];
+		const reusable =
+			expectedName && sourceSize !== undefined
+				? existing.filter(
+						(item) => item.name === expectedName && item.size === sourceSize
+					)
+				: [];
+		if (reusable.length === 1) {
+			const mediaId = reusable[0].id;
+			mediaIds.set(alias, mediaId);
+			mediaIds.set(mediaId, mediaId);
+			if (entry.id) mediaIds.set(entry.id, mediaId);
 			continue;
 		}
 		if (!entry.path && !entry.url) {
@@ -545,8 +595,14 @@ function verifyManifest({
 			issues.push(`element '${alias}' is missing`);
 			continue;
 		}
-		for (const key of ["startTime", "duration", ...TEXT_VERIFY_KEYS]) {
-			const expectedValue = expected[key];
+		for (const key of [
+			"startTime",
+			"duration",
+			"trimStart",
+			"trimEnd",
+			...TEXT_VERIFY_KEYS,
+		]) {
+			const expectedValue = expectedReadBackValue({ expected, key });
 			if (expectedValue === undefined) continue;
 			const actualValue =
 				actual[key] ?? (actual.style as JsonRecord | undefined)?.[key];

@@ -20,29 +20,11 @@ import type { TimelineStore } from "./index";
 import type { StoreGet, StoreSet } from "./timeline-store-operations";
 import { normalizeLoadedTracks } from "./timeline-store-normalization";
 import { clearAutoSaveTimer } from "./timeline-store-autosave";
-import { getMediaTimelineDuration } from "@/lib/video/video-timing";
+import { getTimelineDuration } from "@/lib/timeline";
 
 export interface PersistenceDeps {
 	updateTracks: (tracks: TimelineTrack[]) => void;
 	updateTracksAndSave: (tracks: TimelineTrack[]) => void;
-}
-
-/** Total duration in seconds of the given tracks (latest element end time). */
-function computeTracksDuration(tracks: TimelineTrack[]): number {
-	if (tracks.length === 0) return 0;
-
-	const trackEndTimes = tracks.map((track) =>
-		track.elements.reduce((maxEnd, element) => {
-			const elementEnd =
-				element.startTime +
-				(element.type === "media"
-					? getMediaTimelineDuration(element)
-					: element.duration - element.trimStart - element.trimEnd);
-			return Math.max(maxEnd, elementEnd);
-		}, 0)
-	);
-
-	return Math.max(...trackEndTimes, 0);
 }
 
 /** Creates persistence operations (load, save, redo, thumbnail, clear) for the timeline store. */
@@ -54,7 +36,7 @@ export function createPersistenceOperations(
 	const { updateTracks, updateTracksAndSave } = deps;
 
 	return {
-		getTotalDuration: () => computeTracksDuration(get()._tracks),
+		getTotalDuration: () => getTimelineDuration({ tracks: get()._tracks }),
 
 		getProjectDuration: async (projectId) => {
 			try {
@@ -69,7 +51,7 @@ export function createPersistenceOperations(
 				);
 				let total = sceneTracks.reduce(
 					(duration, tracks) =>
-						duration + (tracks ? computeTracksDuration(tracks) : 0),
+						duration + (tracks ? getTimelineDuration({ tracks }) : 0),
 					0
 				);
 				if (total === 0) {
@@ -77,7 +59,7 @@ export function createPersistenceOperations(
 					const tracks = await storageService.loadTimeline({
 						projectId,
 					});
-					if (tracks) total = computeTracksDuration(tracks);
+					if (tracks) total = getTimelineDuration({ tracks });
 				}
 				return total;
 			} catch (error) {

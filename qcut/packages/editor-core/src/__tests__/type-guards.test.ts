@@ -3,7 +3,10 @@ import {
 	isMediaElement,
 	isTextElement,
 	isRemotionElement,
+	isHyperframesElement,
 	getRemotionElements,
+	getHyperframesElements,
+	getActiveHyperframesElements,
 } from "../timeline/type-guards.js";
 import type { TimelineElement, TimelineTrack } from "../types/timeline.js";
 
@@ -54,6 +57,25 @@ const remotionEl: TimelineElement = {
 	trimEnd: 0,
 };
 
+const hyperframesEl: TimelineElement = {
+	id: "4",
+	name: "HTML animation",
+	type: "hyperframes",
+	compositionId: "main",
+	sourcePath: "/project/index.html",
+	projectPath: "/project",
+	compositionWidth: 1920,
+	compositionHeight: 1080,
+	fps: 30,
+	variableValues: {},
+	variableDefinitions: [],
+	renderMode: "live",
+	duration: 5,
+	startTime: 4,
+	trimStart: 0,
+	trimEnd: 0,
+};
+
 describe("type guards", () => {
 	it("isMediaElement", () => {
 		expect(isMediaElement(mediaEl)).toBe(true);
@@ -68,6 +90,11 @@ describe("type guards", () => {
 	it("isRemotionElement", () => {
 		expect(isRemotionElement(remotionEl)).toBe(true);
 		expect(isRemotionElement(mediaEl)).toBe(false);
+	});
+
+	it("isHyperframesElement", () => {
+		expect(isHyperframesElement(hyperframesEl)).toBe(true);
+		expect(isHyperframesElement(mediaEl)).toBe(false);
 	});
 });
 
@@ -92,5 +119,47 @@ describe("getRemotionElements", () => {
 			{ id: "t1", name: "Media", type: "media", elements: [mediaEl] },
 		];
 		expect(getRemotionElements(tracks)).toHaveLength(0);
+	});
+});
+
+describe("HyperFrames selectors", () => {
+	const tracks: TimelineTrack[] = [
+		{ id: "t1", name: "Media", type: "media", elements: [mediaEl] },
+		{
+			id: "t2",
+			name: "HyperFrames",
+			type: "hyperframes",
+			elements: [hyperframesEl],
+		},
+	];
+
+	it("collects HyperFrames elements from tracks", () => {
+		expect(getHyperframesElements(tracks)).toEqual([hyperframesEl]);
+	});
+
+	it("uses trim-aware active ranges", () => {
+		expect(getActiveHyperframesElements(tracks, 4)).toEqual([hyperframesEl]);
+		expect(getActiveHyperframesElements(tracks, 9)).toEqual([]);
+	});
+
+	it("shortens the active range by non-zero trims", () => {
+		const trimmedEl: TimelineElement = {
+			...hyperframesEl,
+			id: "5",
+			trimStart: 1,
+			trimEnd: 2,
+		};
+		const trimmedTracks: TimelineTrack[] = [
+			{
+				id: "t3",
+				name: "Trimmed",
+				type: "hyperframes",
+				elements: [trimmedEl],
+			},
+		];
+		// effective end = 4 + (5 - 1 - 2) = 6, not the untrimmed 9
+		expect(getActiveHyperframesElements(trimmedTracks, 5)).toEqual([trimmedEl]);
+		expect(getActiveHyperframesElements(trimmedTracks, 6)).toEqual([]);
+		expect(getActiveHyperframesElements(trimmedTracks, 8)).toEqual([]);
 	});
 });

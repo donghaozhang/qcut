@@ -35,6 +35,7 @@ export const lucideReact = {
 	CircleIcon: icon("circle"),
 	ClipboardCopyIcon: icon("clipboard-copy"),
 	ClockIcon: icon("clock"),
+	CodeXmlIcon: icon("code-xml"),
 	CopyIcon: icon("copy"),
 	CrosshairIcon: icon("crosshair"),
 	DownloadIcon: icon("download"),

@@ -21,6 +21,7 @@ vi.mock("lucide-react", () => {
 		BlendIcon: icon("blend"),
 		BotIcon: icon("bot"),
 		ClapperboardIcon: icon("clapperboard"),
+		CodeXmlIcon: icon("code-xml"),
 		FolderOpenIcon: icon("folder-open"),
 		FolderSync: icon("folder-sync"),
 		Layers: icon("layers"),
