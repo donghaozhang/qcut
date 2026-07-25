@@ -46,8 +46,8 @@ export function MediaMaskTrackingControls({
 }: {
 	mask: MediaMask;
 	onTrack?: (direction: MediaMaskTrackingDirection) => void;
-	onPause?: () => void;
-	onResume?: () => void;
+	onPause?: () => void | Promise<void>;
+	onResume?: () => void | Promise<void>;
 	onFixFrame?: () => void;
 }) {
 	const processing = mask.tracking?.status === "processing";
@@ -118,7 +118,9 @@ export function MediaMaskTrackingControls({
 				<MaskIconButton
 					label={paused ? "继续跟踪" : "暂停跟踪"}
 					disabled={paused ? !onResume : !onPause || !processing}
-					onClick={() => (paused ? onResume?.() : onPause?.())}
+					onClick={() => {
+						void (paused ? onResume?.() : onPause?.());
+					}}
 				>
 					{paused ? <Play className="size-4" /> : <Pause className="size-4" />}
 				</MaskIconButton>
