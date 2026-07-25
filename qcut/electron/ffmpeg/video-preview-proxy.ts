@@ -251,23 +251,24 @@ async function readProxyCacheEntries(): Promise<
 		return [];
 	}
 
-	const entries: Array<{ filePath: string; size: number; lastUsedAt: number }> =
-		[];
-	for (const filename of filenames) {
-		const filePath = path.join(cacheDir, filename);
-		try {
-			const stat = await fs.promises.stat(filePath);
-			if (!stat.isFile()) continue;
-			entries.push({
-				filePath,
-				size: stat.size,
-				lastUsedAt: stat.mtimeMs,
-			});
-		} catch {
-			// Cache stats are best-effort; stale files can disappear mid-scan.
-		}
-	}
-	return entries;
+	const entries = await Promise.all(
+		filenames.map(async (filename) => {
+			const filePath = path.join(cacheDir, filename);
+			try {
+				const stat = await fs.promises.stat(filePath);
+				if (!stat.isFile()) return null;
+				return {
+					filePath,
+					size: stat.size,
+					lastUsedAt: stat.mtimeMs,
+				};
+			} catch {
+				// Cache stats are best-effort; stale files can disappear mid-scan.
+				return null;
+			}
+		})
+	);
+	return entries.filter((entry) => entry !== null);
 }
 
 async function cleanupProxyCache({
