@@ -11,6 +11,8 @@ import type {
 	VideoCompositionFramePreviewResult,
 	VideoFramePreviewOptions,
 	VideoFramePreviewResult,
+	VideoPreviewProxyCacheClearResult,
+	VideoPreviewProxyCacheStats,
 	VideoPreviewProxyOptions,
 	VideoPreviewProxyProgress,
 	VideoPreviewProxyResult,
@@ -105,6 +107,8 @@ export interface ElectronFFmpegOps {
 			options: VideoPreviewProxyOptions
 		) => Promise<VideoPreviewProxyResult>;
 		cancelVideoPreviewProxy: (requestId: string) => Promise<boolean>;
+		getVideoPreviewProxyCacheStats: () => Promise<VideoPreviewProxyCacheStats>;
+		clearVideoPreviewProxyCache: () => Promise<VideoPreviewProxyCacheClearResult>;
 		onVideoPreviewProxyProgress: (
 			callback: (progress: VideoPreviewProxyProgress) => void
 		) => () => void;
