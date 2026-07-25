@@ -217,6 +217,7 @@ export function MediaMaskProperties({
 		if (!selectedMask || !onTrack) return;
 		patchSelected({
 			tracking: {
+				...selectedMask.tracking,
 				direction,
 				status: "processing",
 				source: selectedMask.type === "person" ? "mediapipe" : "sam3",
@@ -228,15 +229,13 @@ export function MediaMaskProperties({
 	};
 	const pauseTracking = () => {
 		if (!selectedMask) return;
-		cancelActiveMaskTracking({ elementId, maskId: selectedMask.id });
+		void cancelActiveMaskTracking({ elementId, maskId: selectedMask.id });
 		patchSelected(
 			updateMaskTrackingStatus({ mask: selectedMask, status: "paused" })
 		);
 	};
-	const resumeTracking = () => {
+	const resumeTracking = async () => {
 		if (!selectedMask || !onTrack) return;
-		if (resumeActiveMaskTracking({ elementId, maskId: selectedMask.id }))
-			return;
 		const direction = selectedMask.tracking?.direction ?? "both";
 		patchSelected(
 			updateMaskTrackingStatus({
@@ -245,6 +244,14 @@ export function MediaMaskProperties({
 				progress: selectedMask.tracking?.progress ?? 0,
 			})
 		);
+		if (
+			await resumeActiveMaskTracking({
+				elementId,
+				maskId: selectedMask.id,
+			})
+		) {
+			return;
+		}
 		onTrack({ mask: selectedMask, direction });
 	};
 	const fixTrackingFrame = () => {
