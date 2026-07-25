@@ -126,6 +126,7 @@ export function SegmentationPanel() {
 		}
 		const prompt = currentTextPrompt.trim();
 		const segmentationState = useSegmentationStore.getState();
+		const trackingRequestId = segmentationState.trackingRequest?.requestId;
 		const snapshot = {
 			objects: structuredClone(segmentationState.objects),
 			masks: structuredClone(segmentationState.masks),
@@ -145,7 +146,10 @@ export function SegmentationPanel() {
 					: `图片分割完成，找到 ${result.objectCount} 个对象`,
 			open: () => useMediaPanelStore.getState().setActiveTab("segmentation"),
 			onCancel: () => {
-				pauseGeneratedMaskTracking({ message: "蒙版跟踪已暂停" });
+				pauseGeneratedMaskTracking({
+					message: "蒙版跟踪已暂停",
+					trackingRequestId,
+				});
 				setProcessingState({
 					isProcessing: false,
 					progress: 0,
