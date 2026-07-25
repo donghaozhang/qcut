@@ -55,7 +55,14 @@ test.describe("Preview quality proxy playback", () => {
 				.getState()
 				.seek(mediaElement.startTime + 0.1);
 		});
-		await expect(page.locator("text=No elements at current time")).toHaveCount(0);
+		await expect(page.locator("text=No elements at current time")).toHaveCount(
+			0
+		);
+		await expect(page.getByTestId("preview-quality-button")).toHaveText("自动");
+		await page.getByTestId("preview-panel").screenshot({
+			path: path.join(outputDirectory, "00-auto-quality-default.png"),
+			animations: "disabled",
+		});
 
 		await page.getByTestId("preview-quality-button").click();
 		await page.getByRole("menuitem").filter({ hasText: "流畅画质" }).click();
@@ -67,9 +74,13 @@ test.describe("Preview quality proxy playback", () => {
 				() =>
 					page.evaluate(
 						() =>
-							(window as unknown as {
-								__playbackStore: { getState: () => { previewQuality: string } };
-							}).__playbackStore.getState().previewQuality
+							(
+								window as unknown as {
+									__playbackStore: {
+										getState: () => { previewQuality: string };
+									};
+								}
+							).__playbackStore.getState().previewQuality
 					),
 				{ timeout: 5_000 }
 			)
@@ -86,8 +97,7 @@ test.describe("Preview quality proxy playback", () => {
 		const video = proxyContainer.locator("video[data-video-id]").first();
 		await expect
 			.poll(
-				() =>
-					video.evaluate((node) => (node as HTMLVideoElement).currentSrc),
+				() => video.evaluate((node) => (node as HTMLVideoElement).currentSrc),
 				{ timeout: 30_000 }
 			)
 			.not.toMatch(/^app:\/\/video-preview-proxy\//);
@@ -106,8 +116,7 @@ test.describe("Preview quality proxy playback", () => {
 		);
 		await expect
 			.poll(
-				() =>
-					video.evaluate((node) => (node as HTMLVideoElement).currentSrc),
+				() => video.evaluate((node) => (node as HTMLVideoElement).currentSrc),
 				{ timeout: 30_000 }
 			)
 			.toMatch(/^app:\/\/video-preview-proxy\//);
@@ -127,6 +136,25 @@ test.describe("Preview quality proxy playback", () => {
 		await page.getByTestId("preview-panel").screenshot({
 			path: path.join(outputDirectory, "03-paused-restored-source-preview.png"),
 			animations: "disabled",
+		});
+
+		await page.getByTestId("preview-quality-button").click();
+		await expect(page.getByTestId("preview-proxy-cache-status")).toBeVisible();
+		await expect(page.getByTestId("preview-proxy-cache-status")).toContainText(
+			"代理缓存"
+		);
+		await expect(page.getByTestId("preview-proxy-cache-clear")).toBeEnabled({
+			timeout: 10_000,
+		});
+		await page.getByTestId("preview-proxy-cache-clear").click();
+		await expect(page.getByTestId("preview-proxy-cache-status")).toContainText(
+			"0 MB",
+			{ timeout: 10_000 }
+		);
+		await page.screenshot({
+			path: path.join(outputDirectory, "04-proxy-cache-cleared.png"),
+			animations: "disabled",
+			fullPage: true,
 		});
 	});
 });
