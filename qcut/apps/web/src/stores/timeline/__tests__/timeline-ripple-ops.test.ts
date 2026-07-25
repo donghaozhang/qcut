@@ -245,6 +245,53 @@ describe("timeline ripple operations", () => {
 		expect(useTimelineStore.getState().history).toHaveLength(1);
 	});
 
+	it("keeps separated audio linked when a speed change alters duration", () => {
+		const tracks = rippleTracks()
+			.map((track) =>
+				track.id === "main"
+					? {
+							...track,
+							elements: track.elements.map((element) =>
+								element.id === "b"
+									? { ...element, groupId: "separated-b" }
+									: element
+							),
+						}
+					: track
+			)
+			.concat({
+				id: "audio",
+				name: "Audio",
+				type: "audio",
+				elements: [
+					{
+						...mediaElement({ id: "b-audio", startTime: 2 }),
+						mediaId: "b-media",
+						groupId: "separated-b",
+					},
+					mediaElement({ id: "audio-following", startTime: 4 }),
+				],
+			});
+		useTimelineStore.setState({ _tracks: tracks, tracks });
+
+		useTimelineStore
+			.getState()
+			.updateMediaTiming("main", "b", { playbackRate: 2 });
+
+		const audioElements =
+			useTimelineStore.getState().tracks.find((track) => track.id === "audio")
+				?.elements ?? [];
+		expect(audioElements[0]).toMatchObject({
+			id: "b-audio",
+			playbackRate: 2,
+			startTime: 2,
+		});
+		expect(audioElements[1]).toMatchObject({
+			id: "audio-following",
+			startTime: 3,
+		});
+	});
+
 	it("preserves downstream gaps while a speed curve changes duration", () => {
 		const tracks = rippleTracks().map((track) =>
 			track.id === "main"
