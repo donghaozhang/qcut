@@ -16,6 +16,7 @@ import {
 	PropertyItemValue,
 } from "./property-item";
 import { useBeatDetection } from "@/hooks/use-beat-detection";
+import { useProjectStore } from "@/stores/project-store";
 import { useTimelineStore } from "@/stores/timeline/timeline-store";
 import { useBeatDetectionStore } from "@/stores/beat-detection-store";
 import { splitOnBeats } from "@/stores/timeline/split-operations";
@@ -36,6 +37,7 @@ export function BeatDetectionPanel({
 	audioUrl,
 }: BeatDetectionPanelProps) {
 	const { t } = useTranslation();
+	const fps = useProjectStore((state) => state.activeProject?.fps ?? 30);
 	const {
 		result,
 		isAnalyzing,
@@ -91,13 +93,14 @@ export function BeatDetectionPanel({
 		const timelineCuts = audioCuts.flatMap((sourceTimestamp) => {
 			const timestamp = mapMediaBeatToTimeline({
 				element,
+				fps,
 				sourceTimestamp,
 			});
 			return timestamp === null ? [] : [timestamp];
 		});
 
 		splitOnBeats(ctx, trackId, elementId, timelineCuts);
-	}, [trackId, elementId]);
+	}, [elementId, fps, trackId]);
 
 	if (!audioUrl) return null;
 
