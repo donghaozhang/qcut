@@ -167,7 +167,12 @@ function applyDeleteTimeRangeToTracks({
 			});
 			return { ...track, elements: shiftedElements };
 		})
-		.filter((track) => track.elements.length > 0 || track.isMain);
+		.filter(
+			(track) =>
+				track.elements.length > 0 ||
+				track.isMain ||
+				!targetTrackIds.has(track.id)
+		);
 
 	return {
 		tracks: tracksAfterRipple,
@@ -442,11 +447,13 @@ export function createTrackOps(
 					)
 				);
 				const selectedRanges: TimelineRange[] = [];
+				const selectedTrackIds = new Set<string>();
 				for (const track of _tracks) {
 					for (const element of track.elements) {
 						if (!selectionKeys.has(`${track.id}:${element.id}`)) {
 							continue;
 						}
+						selectedTrackIds.add(track.id);
 						selectedRanges.push({
 							startTime: element.startTime,
 							endTime: getTimelineElementEndTime({ element }),
@@ -474,7 +481,7 @@ export function createTrackOps(
 						tracks: workingTracks,
 						startTime: range.startTime,
 						endTime: range.endTime,
-						targetTrackIds: trackIds,
+						targetTrackIds: selectedTrackIds,
 						rippleTrackIds: trackIds,
 					});
 					workingTracks = result.tracks;
