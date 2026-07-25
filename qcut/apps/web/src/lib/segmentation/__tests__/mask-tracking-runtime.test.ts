@@ -1,4 +1,4 @@
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import {
 	cancelActiveMaskTracking,
 	clearActiveMaskTrackingRuntimes,
@@ -9,6 +9,10 @@ import {
 describe("mask tracking runtime", () => {
 	beforeEach(() => {
 		clearActiveMaskTrackingRuntimes();
+	});
+
+	afterEach(() => {
+		vi.restoreAllMocks();
 	});
 
 	it("routes cancel and resume actions to the active element mask runtime", () => {
@@ -72,5 +76,42 @@ describe("mask tracking runtime", () => {
 		).toBe(true);
 		expect(firstCancel).not.toHaveBeenCalled();
 		expect(secondCancel).toHaveBeenCalledTimes(1);
+	});
+
+	it("reports synchronous and asynchronous runtime action failures", async () => {
+		const cancelError = new Error("cancel failed");
+		const resumeError = new Error("resume failed");
+		const report = vi.spyOn(console, "error").mockImplementation(() => {});
+		registerActiveMaskTrackingRuntime({
+			runtime: {
+				elementId: "clip-1",
+				maskId: "mask-1",
+				source: "sam3",
+				direction: "both",
+				cancel: () => {
+					throw cancelError;
+				},
+				resume: () => Promise.reject(resumeError),
+			},
+		});
+
+		expect(
+			cancelActiveMaskTracking({ elementId: "clip-1", maskId: "mask-1" })
+		).toBe(false);
+		expect(
+			resumeActiveMaskTracking({ elementId: "clip-1", maskId: "mask-1" })
+		).toBe(true);
+		await Promise.resolve();
+
+		expect(report).toHaveBeenNthCalledWith(
+			1,
+			"Failed to cancel mask tracking",
+			cancelError
+		);
+		expect(report).toHaveBeenNthCalledWith(
+			2,
+			"Failed to resume mask tracking",
+			resumeError
+		);
 	});
 });
