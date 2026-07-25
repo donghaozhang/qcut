@@ -149,7 +149,7 @@ export function SpeedCurveEditor({
 				<path
 					d={curvePath({ keyframes: sorted, durationInFrames: safeDuration })}
 					fill="none"
-					stroke="hsl(var(--primary))"
+					stroke="var(--primary)"
 					strokeWidth="2"
 					vectorEffect="non-scaling-stroke"
 				/>
