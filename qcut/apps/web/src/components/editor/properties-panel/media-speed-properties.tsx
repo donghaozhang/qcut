@@ -375,7 +375,7 @@ export function MediaSpeedProperties({
 										onKeyDown={(event) => {
 											if (event.key !== "Enter") return;
 											event.preventDefault();
-											event.currentTarget.blur();
+											commitTargetDuration();
 										}}
 										className="h-8 w-24 text-right text-xs tabular-nums"
 										data-testid="speed-target-duration"
