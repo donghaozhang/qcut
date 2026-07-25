@@ -6,12 +6,14 @@ describe("segmentation tracking requests", () => {
 
 	it("keeps the target mask, anchor frame, and tracking direction together", () => {
 		useSegmentationStore.getState().setTrackingRequest({
+			requestId: "request-1",
 			elementId: "clip-1",
 			maskId: "mask-2",
 			direction: "backward",
 			anchorFrame: 42,
 		});
 		expect(useSegmentationStore.getState().trackingRequest).toEqual({
+			requestId: "request-1",
 			elementId: "clip-1",
 			maskId: "mask-2",
 			direction: "backward",
