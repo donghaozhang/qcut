@@ -96,8 +96,8 @@ test.describe("Main-track video properties", () => {
 			"变速",
 			"动画",
 			"跟踪",
-			"调节",
-			"AI 效果",
+			"调整",
+			"AI效果",
 		]) {
 			await expect(
 				primaryTabs.getByRole("tab", { name: tabName, exact: true })
@@ -347,7 +347,7 @@ test.describe("Main-track video properties", () => {
 		for (const [tab, filename] of [
 			["动画", "07-animation-properties.png"],
 			["跟踪", "07a-tracking-properties.png"],
-			["调节", "08-adjustments-properties.png"],
+			["调整", "08-adjustments-properties.png"],
 			["音频", "09-audio-properties.png"],
 			["变速", "10-speed-properties.png"],
 		] as const) {
@@ -385,6 +385,7 @@ test.describe("Main-track video properties", () => {
 		const maskNameInputs = maskEditor.getByLabel("蒙版名称");
 		await maskNameInputs.last().fill("Bezier Accent");
 		await maskNameInputs.last().press("Tab");
+		await maskEditor.getByText("更多蒙版设置", { exact: true }).click();
 		await maskEditor.getByLabel("扩展数值").fill("8");
 		await maskEditor.getByLabel("扩展数值").press("Tab");
 		await maskEditor.getByLabel("不透明度数值").fill("80");
@@ -662,9 +663,7 @@ test.describe("Main-track video properties", () => {
 			animations: "disabled",
 		});
 
-		await primaryTabs
-			.getByRole("tab", { name: "AI 效果", exact: true })
-			.click();
+		await primaryTabs.getByRole("tab", { name: "AI效果", exact: true }).click();
 		await expect(
 			properties.getByRole("button", { name: "AI 超分辨率" })
 		).toBeVisible();
