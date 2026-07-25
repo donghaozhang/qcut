@@ -8,10 +8,14 @@ describe("MediaMaskShapeGrid", () => {
 	it("shows every mask shape without opening a menu", () => {
 		render(<MediaMaskShapeGrid selectedType="rectangle" onSelect={vi.fn()} />);
 
-		expect(screen.getAllByRole("button")).toHaveLength(MASK_SHAPES.length);
+		const shapeButtons = screen.getAllByRole("button");
+		expect(shapeButtons).toHaveLength(MASK_SHAPES.length);
 		expect(
-			screen.getByRole("button", { name: "已选矩形蒙版" })
-		).toHaveAttribute("aria-pressed", "true");
+			shapeButtons.slice(0, 7).map((button) => button.textContent)
+		).toEqual(["线性", "镜面", "圆形", "矩形", "文字", "抠像", "钢笔"]);
+		const rectangle = screen.getByRole("button", { name: "已选矩形蒙版" });
+		expect(rectangle).toHaveAttribute("aria-pressed", "true");
+		expect(rectangle.firstElementChild).toHaveClass("border-cyan-400");
 		expect(screen.getByRole("button", { name: "选择人物蒙版" })).toBeVisible();
 	});
 
