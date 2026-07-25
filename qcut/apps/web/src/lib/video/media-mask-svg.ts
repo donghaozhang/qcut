@@ -186,7 +186,7 @@ function buildGradientShape(
 		.join("");
 	const gradientAxis =
 		mask.type === "linear"
-			? 'x1="0%" y1="0%" x2="0%" y2="100%"'
+			? `gradientUnits="userSpaceOnUse" x1="${bounds.centerX}" y1="${bounds.centerY - SVG_SIZE / 2}" x2="${bounds.centerX}" y2="${bounds.centerY + SVG_SIZE / 2}"`
 			: 'x1="0%" y1="0%" x2="100%" y2="0%"';
 	const rect =
 		mask.type === "linear"
