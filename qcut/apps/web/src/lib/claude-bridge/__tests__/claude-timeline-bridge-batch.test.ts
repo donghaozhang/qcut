@@ -107,6 +107,8 @@ describe("Claude timeline batch bridge", () => {
 					duration: 20,
 					trimStart: 2.4,
 					trimEnd: 11.9,
+					playbackRate: 1.5,
+					reverse: true,
 				},
 			],
 		});
@@ -116,6 +118,8 @@ describe("Claude timeline batch bridge", () => {
 			expect.objectContaining({
 				trimStart: 2.4,
 				trimEnd: 11.9,
+				playbackRate: 1.5,
+				reverse: true,
 			}),
 			{
 				pushHistory: false,

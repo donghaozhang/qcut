@@ -219,6 +219,10 @@ describe("setupClaudeTimelineBridge - add element", () => {
 			sourceName: "clip-a.mp4",
 			startTime: 2,
 			endTime: 6,
+			playbackRate: 2,
+			reverse: true,
+			freezeFrameTime: 1,
+			freezeFrameDuration: 0.5,
 		});
 
 		expect(
@@ -235,6 +239,10 @@ describe("setupClaudeTimelineBridge - add element", () => {
 			trimStart: 0,
 			trimEnd: 0,
 			fitMode: "cover",
+			playbackRate: 2,
+			reverse: true,
+			freezeFrameTime: 1,
+			freezeFrameDuration: 0.5,
 		});
 	});
 
