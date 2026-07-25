@@ -152,6 +152,7 @@ export const usePlaybackStore = create<PlaybackStore>((set, get) => ({
 	muted: false,
 	previousVolume: 1,
 	speed: 1.0,
+	previewQuality: "original",
 
 	play: () => {
 		_mutableCurrentTime = get().currentTime;
@@ -204,6 +205,8 @@ export const usePlaybackStore = create<PlaybackStore>((set, get) => ({
 		});
 		window.dispatchEvent(event);
 	},
+
+	setPreviewQuality: (quality) => set({ previewQuality: quality }),
 
 	setDuration: (duration: number) => {
 		set({ duration });
