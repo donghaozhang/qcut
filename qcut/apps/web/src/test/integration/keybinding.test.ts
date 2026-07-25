@@ -3,6 +3,7 @@ import {
 	useKeybindingsStore,
 	defaultKeybindings,
 	generateKeybindingString,
+	migrateKeybindingsState,
 } from "@/stores/editor/keybindings-store";
 
 describe("Keybinding", () => {
@@ -69,5 +70,37 @@ describe("Keybinding", () => {
 
 		expect(binding).toBe(key);
 		expect(defaultKeybindings[binding!]).toBe(action);
+	});
+
+	it.each([
+		"qcut",
+		"capcut",
+	] as const)("adds the crop shortcut when migrating the %s profile to version 4", (activeProfileId) => {
+		const migrated = migrateKeybindingsState({
+			persistedState: {
+				activeProfileId,
+				isCustomized: false,
+				keybindings: { space: "toggle-play" },
+			},
+			version: 3,
+		});
+
+		expect(migrated.keybindings).toMatchObject({
+			space: "toggle-play",
+			c: "crop-selected",
+		});
+	});
+
+	it("preserves customized crop bindings during version 4 migration", () => {
+		const migrated = migrateKeybindingsState({
+			persistedState: {
+				activeProfileId: "custom",
+				isCustomized: true,
+				keybindings: { c: "split-element" },
+			},
+			version: 3,
+		});
+
+		expect(migrated.keybindings?.c).toBe("split-element");
 	});
 });
