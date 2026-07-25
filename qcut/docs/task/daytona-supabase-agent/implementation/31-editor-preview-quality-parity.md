@@ -53,7 +53,7 @@ Then added a first mask tracking workflow slice:
 - SAM3 and local-person segmentation progress now writes back to the target mask when launched from a mask tracking request.
 - Fix current frame writes center/size/rotation correction keyframes at the current local frame.
 - Active SAM3 object tracking and local-person tracking now register a runtime handle while processing, so Pause cancels the actual running job instead of only changing the UI state.
-- A canceled generated tracking request now writes the target mask back to `paused`, preserves progress/anchor metadata, records the pause message, and clears the pending segmentation request.
+- A generated tracking request that is canceled now writes the target mask back to `paused`, preserves progress/anchor metadata, records the pause message, and keeps the pending segmentation request available for resume.
 - Resume first tries an active runtime resume hook; if the runtime already exited after cancellation, it falls back to relaunching the same tracking direction from the panel.
 - Tracking requests now carry a `requestId`. SAM3/MediaPipe results must match the current request before they can write back to the timeline, so stale results from a paused or superseded tracking job cannot insert a late mask into the edited clip.
 - Clicking Track in the right-side mask panel now opens the AI segmentation workspace and automatically starts the matching job under the same `requestId`; the user no longer has to click Generate and Apply a second time.
@@ -184,13 +184,13 @@ bunx vitest run apps/web/src/stores/ai/__tests__/segmentation-store.test.ts apps
 bunx vitest run apps/web/src/components/editor/timeline/__tests__/timeline-toolbar.test.tsx
 bunx vitest run apps/web/src/stores/timeline/__tests__/timeline-ripple-ops.test.ts apps/web/src/components/editor/timeline/__tests__/timeline-toolbar.test.tsx
 bunx vitest run apps/web/src/constants/__tests__/keybinding-profiles.test.ts apps/web/src/hooks/keyboard/__tests__/use-professional-editor-actions.test.tsx apps/web/src/components/editor/timeline/__tests__/timeline-toolbar.test.tsx
-cd apps/web && bunx tsc --noEmit --pretty false
+(cd apps/web && bunx tsc --noEmit --pretty false)
 bun run build:web && bun run build:electron
 bunx playwright test apps/web/src/test/e2e/timeline-daily-actions.e2e.ts --project=electron
 bunx playwright test apps/web/src/test/e2e/preview-quality-proxy.e2e.ts --project=electron
 bunx playwright test apps/web/src/test/e2e/native-video-enhancement-preview.e2e.ts --project=electron
 bunx playwright test apps/web/src/test/e2e/media-mask-overlay-handles.e2e.ts --project=electron
-QCUT_PERSON_VIDEO_PATH=/absolute/path/to/person-video.mp4 bunx playwright test apps/web/src/test/e2e/media-mask-tracking.e2e.ts --project=electron
+QCUT_PERSON_VIDEO_PATH="${QCUT_PERSON_VIDEO_PATH:?Set QCUT_PERSON_VIDEO_PATH to a real absolute video path}" bunx playwright test apps/web/src/test/e2e/media-mask-tracking.e2e.ts --project=electron
 ```
 
 Result:
