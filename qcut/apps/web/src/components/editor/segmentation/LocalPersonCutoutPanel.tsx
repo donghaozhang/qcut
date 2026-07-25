@@ -296,15 +296,15 @@ export function LocalPersonCutoutPanel({
 				statusMessage: canceled ? "人物抠像已取消" : "人物抠像失败",
 				elapsedTime: (Date.now() - startedAt) / 1000,
 			});
-			if (!canceled) {
+			if (canceled) {
+				pauseGeneratedMaskTracking({ message: "人物跟踪已暂停" });
+				useCloudTaskStore.getState().cancelTask({ id: taskId });
+			} else {
 				useCloudTaskStore.getState().failTask({
 					id: taskId,
 					error: failureMessage,
 				});
 				toast.error("人物抠像失败", { description: failureMessage });
-			} else {
-				pauseGeneratedMaskTracking({ message: "人物跟踪已暂停" });
-				useCloudTaskStore.getState().cancelTask({ id: taskId });
 			}
 		} finally {
 			unregisterMaskTrackingRuntime();
