@@ -53,7 +53,10 @@ import {
 } from "@/stores/editor/audio-preview-store";
 import { usePlaybackStore } from "@/stores/editor/playback-store";
 import { useColorPickerStore } from "@/stores/editor/color-picker-store";
-import { resolveEffectivePreviewQualityOption } from "@/lib/preview/preview-quality";
+import {
+	resolveEffectivePreviewQualityOption,
+	resolvePreviewEffectRenderMode,
+} from "@/lib/preview/preview-quality";
 import { resolvePreviewVideoSource } from "@/lib/preview/preview-video-source";
 import type { ClipTransitionPreviewState } from "@/lib/transitions/clip-transition-preview";
 import {
@@ -307,6 +310,13 @@ export function PreviewElementRenderer({
 			enhancements: previewEnhancements,
 		}),
 	});
+	const previewEffectRenderMode = resolvePreviewEffectRenderMode({
+		quality: previewQualityOption.value,
+		isPlaying,
+	});
+	const renderCompositePreviewEffects = previewEffectRenderMode !== "minimal";
+	const renderHighCostPreviewEffects = previewEffectRenderMode === "full";
+	const renderDecorativePreviewEffects = previewEffectRenderMode !== "minimal";
 	const proxyWindow =
 		elementData.element.type === "media"
 			? getVideoEnhancementProxyWindow({
@@ -896,6 +906,7 @@ export function PreviewElementRenderer({
 								enhancementProxy.progress * 100
 							)}
 							data-video-preview-source={previewSource.sourceKind}
+							data-preview-effect-render-mode={previewEffectRenderMode}
 							style={{
 								...buildClipTransitionContentStyle({
 									presentation: transitionPresentation,
@@ -968,20 +979,26 @@ export function PreviewElementRenderer({
 									filter={combinedFilter || undefined}
 								/>
 							) : null}
-							<EffectCompositeCanvas
-								program={effectRendering.renderProgram}
-								sourceSelector={colorPreviewSourceSelector}
-								fitMode={visual.fitMode}
-							/>
-							<EffectDistortionCanvas
-								program={effectRendering.renderProgram}
-								sourceSelector={colorPreviewSourceSelector}
-							/>
-							<EffectPersonTrackingCanvas
-								program={effectRendering.renderProgram}
-								sourceSelector={colorPreviewSourceSelector}
-								fitMode={visual.fitMode}
-							/>
+							{renderCompositePreviewEffects ? (
+								<EffectCompositeCanvas
+									program={effectRendering.renderProgram}
+									sourceSelector={colorPreviewSourceSelector}
+									fitMode={visual.fitMode}
+								/>
+							) : null}
+							{renderHighCostPreviewEffects ? (
+								<EffectDistortionCanvas
+									program={effectRendering.renderProgram}
+									sourceSelector={colorPreviewSourceSelector}
+								/>
+							) : null}
+							{renderHighCostPreviewEffects ? (
+								<EffectPersonTrackingCanvas
+									program={effectRendering.renderProgram}
+									sourceSelector={colorPreviewSourceSelector}
+									fitMode={visual.fitMode}
+								/>
+							) : null}
 							{enhancementProxy.status === "generating" ? (
 								<div
 									className="pointer-events-none absolute right-2 top-2 z-30 flex h-6 min-w-12 items-center justify-center gap-1 rounded-sm bg-background/85 px-1.5 text-[10px] tabular-nums text-foreground shadow-sm"
@@ -1071,8 +1088,12 @@ export function PreviewElementRenderer({
 							program={effectRendering.renderProgram}
 							parameters={effectRendering.parameters}
 						/>
-						<EffectParticleCanvas program={effectRendering.renderProgram} />
-						<EffectDecorationCanvas program={effectRendering.renderProgram} />
+						{renderDecorativePreviewEffects ? (
+							<EffectParticleCanvas program={effectRendering.renderProgram} />
+						) : null}
+						{renderDecorativePreviewEffects ? (
+							<EffectDecorationCanvas program={effectRendering.renderProgram} />
+						) : null}
 						{transitionOverlayStyle ? (
 							<div aria-hidden="true" style={transitionOverlayStyle} />
 						) : null}
@@ -1224,6 +1245,7 @@ export function PreviewElementRenderer({
 						>
 							<div
 								className="size-full"
+								data-preview-effect-render-mode={previewEffectRenderMode}
 								style={buildClipTransitionContentStyle({
 									presentation: transitionPresentation,
 								})}
@@ -1252,27 +1274,39 @@ export function PreviewElementRenderer({
 										)}
 									/>
 								) : null}
-								<EffectCompositeCanvas
-									program={effectRendering.renderProgram}
-									sourceSelector='img[data-color-source="true"]'
-									fitMode="contain"
-								/>
-								<EffectDistortionCanvas
-									program={effectRendering.renderProgram}
-									sourceSelector='img[data-color-source="true"]'
-								/>
-								<EffectPersonTrackingCanvas
-									program={effectRendering.renderProgram}
-									sourceSelector='img[data-color-source="true"]'
-									fitMode="contain"
-								/>
+								{renderCompositePreviewEffects ? (
+									<EffectCompositeCanvas
+										program={effectRendering.renderProgram}
+										sourceSelector='img[data-color-source="true"]'
+										fitMode="contain"
+									/>
+								) : null}
+								{renderHighCostPreviewEffects ? (
+									<EffectDistortionCanvas
+										program={effectRendering.renderProgram}
+										sourceSelector='img[data-color-source="true"]'
+									/>
+								) : null}
+								{renderHighCostPreviewEffects ? (
+									<EffectPersonTrackingCanvas
+										program={effectRendering.renderProgram}
+										sourceSelector='img[data-color-source="true"]'
+										fitMode="contain"
+									/>
+								) : null}
 							</div>
 							<EffectOverlayLayers
 								program={effectRendering.renderProgram}
 								parameters={effectRendering.parameters}
 							/>
-							<EffectParticleCanvas program={effectRendering.renderProgram} />
-							<EffectDecorationCanvas program={effectRendering.renderProgram} />
+							{renderDecorativePreviewEffects ? (
+								<EffectParticleCanvas program={effectRendering.renderProgram} />
+							) : null}
+							{renderDecorativePreviewEffects ? (
+								<EffectDecorationCanvas
+									program={effectRendering.renderProgram}
+								/>
+							) : null}
 							{transitionOverlayStyle ? (
 								<div aria-hidden="true" style={transitionOverlayStyle} />
 							) : null}
@@ -1317,6 +1351,7 @@ export function PreviewElementRenderer({
 					>
 						<div
 							className="size-full"
+							data-preview-effect-render-mode={previewEffectRenderMode}
 							style={buildClipTransitionContentStyle({
 								presentation: transitionPresentation,
 							})}
@@ -1345,27 +1380,37 @@ export function PreviewElementRenderer({
 									)}
 								/>
 							) : null}
-							<EffectCompositeCanvas
-								program={effectRendering.renderProgram}
-								sourceSelector='img[data-color-source="true"]'
-								fitMode="cover"
-							/>
-							<EffectDistortionCanvas
-								program={effectRendering.renderProgram}
-								sourceSelector='img[data-color-source="true"]'
-							/>
-							<EffectPersonTrackingCanvas
-								program={effectRendering.renderProgram}
-								sourceSelector='img[data-color-source="true"]'
-								fitMode="cover"
-							/>
+							{renderCompositePreviewEffects ? (
+								<EffectCompositeCanvas
+									program={effectRendering.renderProgram}
+									sourceSelector='img[data-color-source="true"]'
+									fitMode="cover"
+								/>
+							) : null}
+							{renderHighCostPreviewEffects ? (
+								<EffectDistortionCanvas
+									program={effectRendering.renderProgram}
+									sourceSelector='img[data-color-source="true"]'
+								/>
+							) : null}
+							{renderHighCostPreviewEffects ? (
+								<EffectPersonTrackingCanvas
+									program={effectRendering.renderProgram}
+									sourceSelector='img[data-color-source="true"]'
+									fitMode="cover"
+								/>
+							) : null}
 						</div>
 						<EffectOverlayLayers
 							program={effectRendering.renderProgram}
 							parameters={effectRendering.parameters}
 						/>
-						<EffectParticleCanvas program={effectRendering.renderProgram} />
-						<EffectDecorationCanvas program={effectRendering.renderProgram} />
+						{renderDecorativePreviewEffects ? (
+							<EffectParticleCanvas program={effectRendering.renderProgram} />
+						) : null}
+						{renderDecorativePreviewEffects ? (
+							<EffectDecorationCanvas program={effectRendering.renderProgram} />
+						) : null}
 						{transitionOverlayStyle ? (
 							<div aria-hidden="true" style={transitionOverlayStyle} />
 						) : null}
