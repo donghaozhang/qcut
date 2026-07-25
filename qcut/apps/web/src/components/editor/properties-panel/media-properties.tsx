@@ -31,6 +31,7 @@ import { useMediaPanelStore } from "@/components/editor/media-panel/store";
 import { createObjectURL } from "@/lib/media/blob-manager";
 import { requestSelectedVideoUpscale } from "@/lib/ai-video/selected-upscale-source";
 import { useTranslation } from "@/lib/i18n";
+import { generateUUID } from "@/lib/utils";
 import { useMediaKeyframeShortcuts } from "@/hooks/keyboard/use-media-keyframe-shortcuts";
 import type { TranslationKey } from "@/lib/i18n/translations";
 import { Button } from "@/components/ui/button";
@@ -688,6 +689,7 @@ export function MediaProperties({
 	}) => {
 		if (!mask.id) return;
 		setMaskTrackingRequest({
+			requestId: `mask-tracking-${generateUUID()}`,
 			elementId: element.id,
 			maskId: mask.id,
 			direction,
@@ -1455,7 +1457,11 @@ export function MediaProperties({
 				</TabsContent>
 
 				<TabsContent value="adjustments" className="mt-4">
-					<ColorPropertiesPanel element={element} trackId={trackId} />
+					<ColorPropertiesPanel
+						element={element}
+						trackId={trackId}
+						onTrack={startMaskTracking}
+					/>
 				</TabsContent>
 
 				<TabsContent value="audio" className="mt-4">
@@ -1468,7 +1474,10 @@ export function MediaProperties({
 
 				<TabsContent value="tracking" className="mt-4">
 					<MediaTrackingProperties
+						elementId={element.id}
 						masks={visual.masks}
+						currentFrame={currentFrame}
+						onChange={(masks, history = true) => update({ masks }, history)}
 						onTrack={startMaskTracking}
 						onOpenMasks={() => setActivePropertiesTab("mask")}
 					/>
