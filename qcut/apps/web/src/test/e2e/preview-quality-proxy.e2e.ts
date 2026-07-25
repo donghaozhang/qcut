@@ -94,6 +94,10 @@ test.describe("Preview quality proxy playback", () => {
 			"data-video-preview-source",
 			"source"
 		);
+		await expect(proxyContainer).toHaveAttribute(
+			"data-preview-effect-render-mode",
+			"full"
+		);
 		const video = proxyContainer.locator("video[data-video-id]").first();
 		await expect
 			.poll(
@@ -114,6 +118,10 @@ test.describe("Preview quality proxy playback", () => {
 			"proxy",
 			{ timeout: 30_000 }
 		);
+		await expect(proxyContainer).toHaveAttribute(
+			"data-preview-effect-render-mode",
+			"reduced"
+		);
 		await expect
 			.poll(
 				() => video.evaluate((node) => (node as HTMLVideoElement).currentSrc),
@@ -132,6 +140,10 @@ test.describe("Preview quality proxy playback", () => {
 			"source",
 			{ timeout: 30_000 }
 		);
+		await expect(proxyContainer).toHaveAttribute(
+			"data-preview-effect-render-mode",
+			"full"
+		);
 
 		await page.getByTestId("preview-panel").screenshot({
 			path: path.join(outputDirectory, "03-paused-restored-source-preview.png"),
@@ -143,6 +155,14 @@ test.describe("Preview quality proxy playback", () => {
 		await expect(page.getByTestId("preview-proxy-cache-status")).toContainText(
 			"代理缓存"
 		);
+		await expect(page.getByTestId("preview-proxy-cache-open")).toBeEnabled({
+			timeout: 10_000,
+		});
+		await page.screenshot({
+			path: path.join(outputDirectory, "04-proxy-cache-actions.png"),
+			animations: "disabled",
+			fullPage: true,
+		});
 		await expect(page.getByTestId("preview-proxy-cache-clear")).toBeEnabled({
 			timeout: 10_000,
 		});
@@ -152,7 +172,7 @@ test.describe("Preview quality proxy playback", () => {
 			{ timeout: 10_000 }
 		);
 		await page.screenshot({
-			path: path.join(outputDirectory, "04-proxy-cache-cleared.png"),
+			path: path.join(outputDirectory, "05-proxy-cache-cleared.png"),
 			animations: "disabled",
 			fullPage: true,
 		});
