@@ -145,7 +145,7 @@ describe("MediaSpeedProperties", () => {
 		).toBe(0.2);
 	});
 
-	it("calculates playback rate from an edited target duration", () => {
+	it("keeps duration edits local until Enter commits them", () => {
 		render(
 			<MediaSpeedProperties
 				element={element()}
@@ -154,16 +154,50 @@ describe("MediaSpeedProperties", () => {
 			/>
 		);
 
-		fireEvent.change(screen.getByTestId("speed-target-duration"), {
-			target: { value: "4" },
+		const durationInput = screen.getByTestId("speed-target-duration");
+		fireEvent.focus(durationInput);
+		fireEvent.change(durationInput, {
+			target: { value: "12" },
 		});
+
+		expect(durationInput).toHaveValue(12);
+		expect(mocks.updateMediaTiming).not.toHaveBeenCalled();
+
+		fireEvent.keyDown(durationInput, { key: "Enter" });
 
 		expect(mocks.updateMediaTiming).toHaveBeenLastCalledWith(
 			"track",
 			"clip",
-			{ playbackRate: 2 },
+			{ playbackRate: 8 / 12 },
 			false
 		);
+	});
+
+	it("resets invalid drafts and follows external duration changes", () => {
+		const { rerender } = render(
+			<MediaSpeedProperties
+				element={element()}
+				trackId="track"
+				mediaKind="video"
+			/>
+		);
+		const durationInput = screen.getByTestId("speed-target-duration");
+
+		fireEvent.change(durationInput, { target: { value: "" } });
+		fireEvent.blur(durationInput);
+
+		expect(durationInput).toHaveValue(8);
+		expect(mocks.updateMediaTiming).not.toHaveBeenCalled();
+
+		rerender(
+			<MediaSpeedProperties
+				element={element({ playbackRate: 2 })}
+				trackId="track"
+				mediaKind="video"
+			/>
+		);
+
+		expect(durationInput).toHaveValue(4);
 	});
 
 	it("exposes optional pitch shift and motion-compensated interpolation", () => {
