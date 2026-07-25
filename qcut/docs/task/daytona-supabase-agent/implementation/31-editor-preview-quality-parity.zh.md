@@ -53,7 +53,7 @@
 - 从蒙版跟踪请求启动 SAM3 或本地人物分割时，真实处理进度会回写到目标蒙版。
 - 「修正当前帧」会在当前局部帧写入位置、尺寸、旋转 correction keyframes。
 - SAM3 物体跟踪和本地人物跟踪在处理期间现在会注册 active runtime handle，所以点「暂停」会取消真实运行中的任务，不只是把 UI 状态改成暂停。
-- 被取消的 generated tracking request 现在会把目标蒙版写回 `paused`，保留进度和锚点帧，记录暂停原因，并清掉 pending segmentation request。
+- 被取消的 generated tracking request 现在会把目标蒙版写回 `paused`，保留进度和锚点帧，记录暂停原因，并保留 pending segmentation request 供继续跟踪使用。
 - 「继续」会先尝试 active runtime 的 resume hook；如果 runtime 已经因为取消退出，则回退为从面板重新启动同方向跟踪。
 - 每次蒙版跟踪请求现在都有 `requestId`。SAM3/MediaPipe 结果回写 timeline 前必须匹配当前 request，所以暂停或重新分析后，旧任务晚返回也不会把过期蒙版插回当前 clip。
 - 从右侧蒙版面板点跟踪后，AI 分割工作区会按同一个 `requestId` 自动启动对应任务，不再要求用户进入工作区后再点一次「生成并应用」。
@@ -184,13 +184,13 @@ bunx vitest run apps/web/src/stores/ai/__tests__/segmentation-store.test.ts apps
 bunx vitest run apps/web/src/components/editor/timeline/__tests__/timeline-toolbar.test.tsx
 bunx vitest run apps/web/src/stores/timeline/__tests__/timeline-ripple-ops.test.ts apps/web/src/components/editor/timeline/__tests__/timeline-toolbar.test.tsx
 bunx vitest run apps/web/src/constants/__tests__/keybinding-profiles.test.ts apps/web/src/hooks/keyboard/__tests__/use-professional-editor-actions.test.tsx apps/web/src/components/editor/timeline/__tests__/timeline-toolbar.test.tsx
-cd apps/web && bunx tsc --noEmit --pretty false
+(cd apps/web && bunx tsc --noEmit --pretty false)
 bun run build:web && bun run build:electron
 bunx playwright test apps/web/src/test/e2e/timeline-daily-actions.e2e.ts --project=electron
 bunx playwright test apps/web/src/test/e2e/preview-quality-proxy.e2e.ts --project=electron
 bunx playwright test apps/web/src/test/e2e/native-video-enhancement-preview.e2e.ts --project=electron
 bunx playwright test apps/web/src/test/e2e/media-mask-overlay-handles.e2e.ts --project=electron
-QCUT_PERSON_VIDEO_PATH=/absolute/path/to/person-video.mp4 bunx playwright test apps/web/src/test/e2e/media-mask-tracking.e2e.ts --project=electron
+QCUT_PERSON_VIDEO_PATH="${QCUT_PERSON_VIDEO_PATH:?请先把 QCUT_PERSON_VIDEO_PATH 设置为真实视频的绝对路径}" bunx playwright test apps/web/src/test/e2e/media-mask-tracking.e2e.ts --project=electron
 ```
 
 结果：
