@@ -175,6 +175,66 @@ describe("timeline ripple operations", () => {
 		expect(useTimelineStore.getState().history).toHaveLength(1);
 	});
 
+	it("preserves unselected overlaps and unrelated empty tracks", () => {
+		const tracks: TimelineTrack[] = [
+			{
+				id: "main",
+				name: "Main",
+				type: "media",
+				isMain: true,
+				elements: [
+					mediaElement({ id: "a", startTime: 0 }),
+					mediaElement({ id: "b", startTime: 2 }),
+					mediaElement({ id: "c", startTime: 6 }),
+				],
+			},
+			{
+				id: "overlay",
+				name: "Overlay",
+				type: "media",
+				elements: [
+					mediaElement({ id: "overlap", startTime: 2 }),
+					mediaElement({ id: "following", startTime: 6 }),
+				],
+			},
+			{
+				id: "empty",
+				name: "Empty",
+				type: "media",
+				elements: [],
+			},
+		];
+		useTimelineStore.setState({
+			_tracks: tracks,
+			tracks,
+			history: [],
+			redoStack: [],
+			selectedElements: [{ trackId: "main", elementId: "b" }],
+		});
+
+		const result = useTimelineStore
+			.getState()
+			.deleteSelectedElementsWithRipple();
+
+		expect(result).toMatchObject({
+			deletedElements: 1,
+			splitElements: 0,
+			totalRemovedDuration: 2,
+		});
+		expect(
+			useTimelineStore
+				.getState()
+				.tracks.find((track) => track.id === "overlay")
+				?.elements.map((element) => [element.id, element.startTime])
+		).toEqual([
+			["overlap", 2],
+			["following", 4],
+		]);
+		expect(
+			useTimelineStore.getState().tracks.some((track) => track.id === "empty")
+		).toBe(true);
+	});
+
 	it("moves following clips when a speed change alters clip duration", () => {
 		useTimelineStore
 			.getState()
