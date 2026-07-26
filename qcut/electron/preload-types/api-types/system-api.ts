@@ -1,5 +1,6 @@
 /** Auto-update and release notes operations. */
 import type { UpdateState } from "../../auto-update-controller.js";
+import type { CodexPluginUpdateState } from "../../codex-plugin-update-controller.js";
 import type { UpdatePreferences } from "../../update-preferences.js";
 
 export interface UpdatesAPI {
@@ -48,6 +49,14 @@ export interface UpdatesAPI {
 			callback: (data: { version: string }) => void
 		) => () => void;
 		onStateChanged: (callback: (state: UpdateState) => void) => () => void;
+		plugin?: {
+			checkForUpdates: () => Promise<CodexPluginUpdateState>;
+			installUpdate: () => Promise<CodexPluginUpdateState>;
+			getState: () => Promise<CodexPluginUpdateState>;
+			onStateChanged: (
+				callback: (state: CodexPluginUpdateState) => void
+			) => () => void;
+		};
 	};
 }
 

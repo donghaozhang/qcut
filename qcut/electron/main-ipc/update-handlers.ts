@@ -24,7 +24,7 @@ function unavailableState(): UpdateState {
 }
 
 export function registerUpdateHandlers(deps: MainIpcDeps): void {
-	const { logger, updateController } = deps;
+	const { logger, updateController, codexPluginUpdateController } = deps;
 
 	ipcMain.handle("get-update-state", async () => {
 		return updateController?.getState() ?? unavailableState();
@@ -89,5 +89,40 @@ export function registerUpdateHandlers(deps: MainIpcDeps): void {
 			logger.error("Error installing update:", message);
 			return { success: false, error: message };
 		}
+	});
+
+	ipcMain.handle("get-codex-plugin-update-state", async () => {
+		return (
+			codexPluginUpdateController?.getState() ?? {
+				phase: "unavailable",
+				codexAvailable: false,
+				installed: false,
+				message: "QCut Plugin updates are only available in production builds",
+			}
+		);
+	});
+
+	ipcMain.handle("check-for-codex-plugin-updates", async () => {
+		if (!codexPluginUpdateController) {
+			return {
+				phase: "unavailable",
+				codexAvailable: false,
+				installed: false,
+				message: "QCut Plugin updates are only available in production builds",
+			};
+		}
+		return codexPluginUpdateController.checkForUpdates();
+	});
+
+	ipcMain.handle("install-codex-plugin-update", async () => {
+		if (!codexPluginUpdateController) {
+			return {
+				phase: "unavailable",
+				codexAvailable: false,
+				installed: false,
+				message: "QCut Plugin updates are only available in production builds",
+			};
+		}
+		return codexPluginUpdateController.installUpdate();
 	});
 }

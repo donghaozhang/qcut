@@ -30,6 +30,10 @@ import {
 	type AutoUpdaterLike,
 } from "./auto-update-controller.js";
 import {
+	createCodexPluginUpdateController,
+	type CodexPluginUpdateController,
+} from "./codex-plugin-update-controller.js";
+import {
 	startUtilityProcess,
 	stopUtilityProcess,
 	setupUtilityPtyIPC,
@@ -72,6 +76,7 @@ import { installEpipeGuard } from "./safe-console.js";
 installEpipeGuard();
 
 let updateController: AutoUpdateController | null = null;
+let codexPluginUpdateController: CodexPluginUpdateController | null = null;
 
 // Import handlers (compiled TypeScript - relative to dist/electron output)
 const {
@@ -293,6 +298,18 @@ function setupAutoUpdater(): void {
 		const message = error instanceof Error ? error.message : String(error);
 		logger.warn("[AutoUpdater] electron-updater is unavailable:", message);
 	}
+}
+
+function setupCodexPluginUpdater(): void {
+	codexPluginUpdateController = createCodexPluginUpdateController({
+		logger,
+		sendToRenderer: ({ channel, data }) => {
+			if (mainWindow && !mainWindow.isDestroyed()) {
+				mainWindow.webContents.send(channel, data);
+			}
+		},
+	});
+	codexPluginUpdateController.start();
 }
 
 /** Create a local HTTP server to serve FFmpeg WASM and other static assets. */
@@ -779,6 +796,7 @@ if (!isCliKeyCommand && !isHeadlessRecorder) {
 		// Configure auto-updater for production builds
 		if (app.isPackaged) {
 			setupAutoUpdater();
+			setupCodexPluginUpdater();
 		}
 
 		// Register inline IPC handlers (audio/video, FAL, dialogs, storage, updates, etc.)
@@ -786,6 +804,7 @@ if (!isCliKeyCommand && !isHeadlessRecorder) {
 			getMainWindow: () => mainWindow,
 			logger,
 			updateController,
+			codexPluginUpdateController,
 			getReleasesDir,
 			readChangelogFallback,
 		});
@@ -812,6 +831,7 @@ app.on("window-all-closed", () => {
 
 		// Clean up AI Pipeline processes
 		cleanupAIPipeline();
+		codexPluginUpdateController?.stop();
 
 		// Close the static server when quitting
 		if (staticServer) {

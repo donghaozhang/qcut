@@ -4,6 +4,7 @@
 
 import type { ReleaseNote } from "./release-notes";
 import type {
+	PlatformCodexPluginUpdateState,
 	PlatformUpdatePreferences,
 	PlatformUpdateState,
 } from "@qcut/platform-core";
@@ -44,5 +45,13 @@ export interface ElectronUpdateOps {
 		onStateChanged: (
 			callback: (state: PlatformUpdateState) => void
 		) => () => void;
+		plugin?: {
+			checkForUpdates: () => Promise<PlatformCodexPluginUpdateState>;
+			installUpdate: () => Promise<PlatformCodexPluginUpdateState>;
+			getState: () => Promise<PlatformCodexPluginUpdateState>;
+			onStateChanged: (
+				callback: (state: PlatformCodexPluginUpdateState) => void
+			) => () => void;
+		};
 	};
 }

@@ -5,6 +5,7 @@
 
 import type { BrowserWindow } from "electron";
 import type { AutoUpdateController } from "../auto-update-controller.js";
+import type { CodexPluginUpdateController } from "../codex-plugin-update-controller.js";
 
 export interface ReleaseNote {
 	version: string;
@@ -25,6 +26,7 @@ export interface MainIpcDeps {
 	getMainWindow: () => BrowserWindow | null;
 	logger: Logger;
 	updateController: AutoUpdateController | null;
+	codexPluginUpdateController: CodexPluginUpdateController | null;
 	getReleasesDir: () => string;
 	readChangelogFallback: () => ReleaseNote[];
 }
