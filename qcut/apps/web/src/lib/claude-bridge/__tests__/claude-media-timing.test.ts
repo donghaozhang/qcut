@@ -1,6 +1,11 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
+import type { TimelineTrack } from "@/types/timeline";
 import { applyElementChanges } from "../claude-timeline-bridge-elements";
-import { getClaudeMediaTimingProperties } from "../claude-timeline-bridge-helpers";
+import {
+	calculateTimelineDuration,
+	formatTracksForExport,
+	getClaudeMediaTimingProperties,
+} from "../claude-timeline-bridge-helpers";
 
 const storeMocks = vi.hoisted(() => {
 	const mediaElement = {
@@ -82,13 +87,13 @@ describe("Claude media timing bridge", () => {
 				},
 			})
 		).toEqual({
-			playbackRate: 8,
+			playbackRate: 10,
 			reverse: true,
 			freezeFrameTime: 2,
 			freezeFrameDuration: 1.5,
 			speedKeyframes: [
 				{ id: "slow", frame: 0, value: 0.1, easing: "linear" },
-				{ id: "fast", frame: 120, value: 8, easing: "easeOut" },
+				{ id: "fast", frame: 120, value: 10, easing: "easeOut" },
 			],
 		});
 	});
@@ -108,6 +113,37 @@ describe("Claude media timing bridge", () => {
 				},
 			})
 		).toEqual({});
+	});
+
+	it("exports source and timeline durations for speed-adjusted media", () => {
+		const tracks: TimelineTrack[] = [
+			{
+				id: "track",
+				name: "Media",
+				type: "media",
+				elements: [
+					{
+						id: "clip",
+						type: "media",
+						mediaId: "media",
+						name: "Clip",
+						startTime: 0,
+						duration: 8,
+						trimStart: 0,
+						trimEnd: 0,
+						playbackRate: 2,
+					},
+				],
+			},
+		];
+
+		const exported = formatTracksForExport({ tracks, fps: 30 });
+		expect(exported[0].elements[0]).toMatchObject({
+			duration: 8,
+			timelineDuration: 4,
+			endTime: 4,
+		});
+		expect(calculateTimelineDuration({ tracks, fps: 30 })).toBe(4);
 	});
 
 	it("routes media timing updates through the ripple-aware store action", () => {

@@ -1,6 +1,6 @@
 {
 	"name": "qcut",
-	"version": "1.0.0",
+	"version": "1.1.0",
 	"description": "Create media and control the QCut desktop video editor from Codex.",
 	"author": {
 		"name": "Quriosity Pty Ltd",
@@ -15,25 +15,29 @@
 	"interface": {
 		"displayName": "QCut",
 		"shortDescription": "Create and edit video in QCut",
-		"longDescription": "Use QCut's structured CLI to generate and analyze media, transcribe footage, edit timelines, and export projects from a running QCut desktop app.",
+		"longDescription": "Use QCut's structured CLI and visible background Agent pointer to generate and analyze media, transcribe footage, edit timelines, adjust speed curves, record HD demos, and export projects from a running QCut desktop app.",
 		"developerName": "Quriosity Pty Ltd",
 		"category": "Creativity",
 		"capabilities": [
 			"Generate media",
 			"Transcribe footage",
 			"Edit QCut timelines",
+			"Adjust video speed curves",
+			"Control the background Agent pointer",
+			"Record verified HD demos",
 			"Export video"
 		],
 		"websiteURL": "https://quriosity.com.au/",
-		"privacyPolicyURL": "https://github.com/Quriosity-agent/qcut/blob/qcut-plugin-v1.0.0/qcut/plugins/qcut/PRIVACY.md",
-		"termsOfServiceURL": "https://github.com/Quriosity-agent/qcut/blob/qcut-plugin-v1.0.0/qcut/plugins/qcut/TERMS.md",
+		"privacyPolicyURL": "https://github.com/Quriosity-agent/qcut/blob/qcut-plugin-v1.1.0/qcut/plugins/qcut/PRIVACY.md",
+		"termsOfServiceURL": "https://github.com/Quriosity-agent/qcut/blob/qcut-plugin-v1.1.0/qcut/plugins/qcut/TERMS.md",
 		"brandColor": "#18B8B8",
 		"composerIcon": "./assets/icon.png",
 		"logo": "./assets/icon.png",
 		"defaultPrompt": [
 			"Check whether QCut is installed, help me install the official latest release if needed, and open my project on the Media page.",
 			"Use QCut to transcribe this video and prepare an editable timeline.",
-			"Open my QCut project, inspect the timeline, and make the requested edits or generate media."
+			"Open my QCut project, inspect the timeline, and make the requested edits or generate media.",
+			"Keep my current app focused while the Agent pointer applies and adjusts a video speed curve in QCut."
 		]
 	}
 }

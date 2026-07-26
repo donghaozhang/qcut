@@ -9,6 +9,8 @@ export type SpeedCurvePresetId =
 	| "flash-in"
 	| "flash-out";
 
+export type SpeedCurveSelectionId = SpeedCurvePresetId | "custom" | "none";
+
 interface NormalizedSpeedPoint {
 	position: number;
 	rate: number;
@@ -26,10 +28,14 @@ export const SPEED_CURVE_PRESETS: SpeedCurvePreset[] = [
 		id: "montage",
 		nameKey: "audioProperties.speed.preset.montage",
 		points: [
-			{ position: 0, rate: 1, easing: "linear" },
-			{ position: 0.2, rate: 2.8, easing: "easeInOut" },
-			{ position: 0.48, rate: 0.65, easing: "easeInOut" },
-			{ position: 0.72, rate: 2.2, easing: "easeInOut" },
+			{ position: 0, rate: 0.9, easing: "linear" },
+			{ position: 0.12, rate: 0.75, easing: "easeOut" },
+			{ position: 0.28, rate: 1.1, easing: "easeIn" },
+			{ position: 0.46, rate: 7, easing: "easeInOut" },
+			{ position: 0.54, rate: 7, easing: "easeOut" },
+			{ position: 0.66, rate: 0.2, easing: "easeInOut" },
+			{ position: 0.75, rate: 0.2, easing: "linear" },
+			{ position: 0.88, rate: 1, easing: "easeOut" },
 			{ position: 1, rate: 1, easing: "easeOut" },
 		],
 	},
@@ -37,21 +43,26 @@ export const SPEED_CURVE_PRESETS: SpeedCurvePreset[] = [
 		id: "hero",
 		nameKey: "audioProperties.speed.preset.hero",
 		points: [
-			{ position: 0, rate: 1.6, easing: "linear" },
-			{ position: 0.32, rate: 0.45, easing: "easeOut" },
-			{ position: 0.68, rate: 0.45, easing: "linear" },
-			{ position: 1, rate: 1.6, easing: "easeIn" },
+			{ position: 0, rate: 1, easing: "linear" },
+			{ position: 0.15, rate: 1.2, easing: "easeOut" },
+			{ position: 0.35, rate: 4, easing: "easeInOut" },
+			{ position: 0.45, rate: 0.2, easing: "easeInOut" },
+			{ position: 0.58, rate: 0.2, easing: "linear" },
+			{ position: 0.68, rate: 4, easing: "easeInOut" },
+			{ position: 0.85, rate: 2, easing: "easeOut" },
+			{ position: 1, rate: 1, easing: "easeOut" },
 		],
 	},
 	{
 		id: "bullet",
 		nameKey: "audioProperties.speed.preset.bullet",
 		points: [
-			{ position: 0, rate: 1, easing: "linear" },
-			{ position: 0.38, rate: 1, easing: "easeIn" },
-			{ position: 0.5, rate: 0.2, easing: "easeOut" },
-			{ position: 0.62, rate: 1, easing: "easeIn" },
-			{ position: 1, rate: 1, easing: "linear" },
+			{ position: 0, rate: 4, easing: "linear" },
+			{ position: 0.38, rate: 4, easing: "linear" },
+			{ position: 0.48, rate: 0.2, easing: "easeInOut" },
+			{ position: 0.6, rate: 0.2, easing: "linear" },
+			{ position: 0.66, rate: 4, easing: "easeInOut" },
+			{ position: 1, rate: 4, easing: "linear" },
 		],
 	},
 	{
@@ -60,7 +71,7 @@ export const SPEED_CURVE_PRESETS: SpeedCurvePreset[] = [
 		points: [
 			{ position: 0, rate: 1, easing: "linear" },
 			{ position: 0.42, rate: 1, easing: "linear" },
-			{ position: 0.5, rate: 5, easing: "easeInOut" },
+			{ position: 0.5, rate: 7, easing: "easeInOut" },
 			{ position: 0.58, rate: 1, easing: "easeOut" },
 			{ position: 1, rate: 1, easing: "linear" },
 		],
@@ -69,7 +80,7 @@ export const SPEED_CURVE_PRESETS: SpeedCurvePreset[] = [
 		id: "flash-in",
 		nameKey: "audioProperties.speed.preset.flashIn",
 		points: [
-			{ position: 0, rate: 5, easing: "linear" },
+			{ position: 0, rate: 7, easing: "linear" },
 			{ position: 0.22, rate: 1, easing: "easeOut" },
 			{ position: 1, rate: 1, easing: "linear" },
 		],
@@ -80,7 +91,7 @@ export const SPEED_CURVE_PRESETS: SpeedCurvePreset[] = [
 		points: [
 			{ position: 0, rate: 1, easing: "linear" },
 			{ position: 0.78, rate: 1, easing: "linear" },
-			{ position: 1, rate: 5, easing: "easeIn" },
+			{ position: 1, rate: 7, easing: "easeIn" },
 		],
 	},
 ];
@@ -149,4 +160,35 @@ export function getSpeedCurvePreset({
 	const preset = SPEED_CURVE_PRESETS.find((candidate) => candidate.id === id);
 	if (!preset) throw new Error(`Unknown speed curve preset: ${id}`);
 	return preset;
+}
+
+export function identifySpeedCurvePreset({
+	keyframes,
+	durationInFrames,
+}: {
+	keyframes: MediaPropertyKeyframe[];
+	durationInFrames: number;
+}): SpeedCurveSelectionId {
+	if (keyframes.length === 0) return "none";
+	const sortedKeyframes = [...keyframes].sort(
+		(left, right) => left.frame - right.frame
+	);
+	for (const preset of SPEED_CURVE_PRESETS) {
+		const expected = createSpeedPresetKeyframes({
+			preset,
+			durationInFrames,
+		}).sort((left, right) => left.frame - right.frame);
+		const matches =
+			expected.length === sortedKeyframes.length &&
+			expected.every((candidate, index) => {
+				const actual = sortedKeyframes[index];
+				return (
+					actual?.frame === candidate.frame &&
+					Math.abs(actual.value - candidate.value) < 0.001 &&
+					actual.easing === candidate.easing
+				);
+			});
+		if (matches) return preset.id;
+	}
+	return "custom";
 }

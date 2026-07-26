@@ -23,14 +23,15 @@ export function setupRequestHandlers({
 			const projectState = useProjectStore.getState();
 			const project = projectState.activeProject;
 			const tracks = timelineState.tracks;
+			const fps = project?.fps || 30;
 
 			const timeline: ClaudeTimeline = {
 				name: project?.name || "Untitled",
-				duration: calculateTimelineDuration(tracks),
+				duration: calculateTimelineDuration({ tracks, fps }),
 				width: project?.canvasSize?.width || 1920,
 				height: project?.canvasSize?.height || 1080,
-				fps: project?.fps || 30,
-				tracks: formatTracksForExport(tracks),
+				fps,
+				tracks: formatTracksForExport({ tracks, fps }),
 			};
 
 			claudeAPI.sendResponse(timeline);

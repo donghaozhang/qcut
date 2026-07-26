@@ -3,9 +3,7 @@ import {
 	interpolateNumber,
 	type Keyframe,
 } from "@/lib/remotion/keyframe-converter";
-
-const MIN_RATE = 0.1;
-const MAX_RATE = 8;
+import { MAX_PLAYBACK_RATE, MIN_PLAYBACK_RATE } from "./video-speed-constants";
 const CURVE_SAMPLES_PER_INTERVAL = 12;
 const MAX_TIMING_PROFILE_SEGMENTS = 512;
 
@@ -33,7 +31,7 @@ export interface MediaPlaybackTiming {
 
 export function clampPlaybackRate(rate: number | undefined): number {
 	if (!Number.isFinite(rate)) return 1;
-	return Math.min(MAX_RATE, Math.max(MIN_RATE, rate ?? 1));
+	return Math.min(MAX_PLAYBACK_RATE, Math.max(MIN_PLAYBACK_RATE, rate ?? 1));
 }
 
 export function getMediaSourceDuration(element: MediaElement): number {

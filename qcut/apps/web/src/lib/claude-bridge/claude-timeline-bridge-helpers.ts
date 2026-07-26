@@ -21,6 +21,11 @@ import type {
 	FolderCompositionInfo,
 	FolderBundleResult,
 } from "@/lib/remotion/component-loader/types";
+import {
+	MAX_PLAYBACK_RATE,
+	MIN_PLAYBACK_RATE,
+} from "@/lib/video/video-speed-constants";
+import { getMediaTimelineDuration } from "@/lib/video/video-timing";
 
 const CLAUDE_MEDIA_ELEMENT_TYPES = {
 	media: "media",
@@ -33,8 +38,6 @@ const DEFAULT_MEDIA_DURATION_SECONDS = 10;
 const DEFAULT_TEXT_DURATION_SECONDS = 5;
 const DEFAULT_TEXT_CONTENT = "Text";
 const CLAUDE_DETERMINISTIC_MEDIA_ID_PREFIX = "media_";
-const MIN_PLAYBACK_RATE = 0.1;
-const MAX_PLAYBACK_RATE = 8;
 
 export const CLAUDE_TEXT_PROPERTY_KEYS = [
 	"fontSize",
@@ -283,15 +286,34 @@ export function getEffectiveDuration(element: TimelineElement): number {
 	return Math.max(0, effectiveDuration);
 }
 
+export function getTimelineElementDuration({
+	element,
+	fps,
+}: {
+	element: TimelineElement;
+	fps: number;
+}): number {
+	if (element.type === "media") {
+		return getMediaTimelineDuration(element, fps);
+	}
+	return getEffectiveDuration(element);
+}
+
 /**
  * Calculate total duration from tracks
  */
-export function calculateTimelineDuration(tracks: TimelineTrack[]): number {
+export function calculateTimelineDuration({
+	tracks,
+	fps,
+}: {
+	tracks: TimelineTrack[];
+	fps: number;
+}): number {
 	let maxEndTime = 0;
 	for (const track of tracks) {
 		for (const element of track.elements) {
-			const effectiveDuration = getEffectiveDuration(element);
-			const endTime = element.startTime + effectiveDuration;
+			const timelineDuration = getTimelineElementDuration({ element, fps });
+			const endTime = element.startTime + timelineDuration;
 			if (endTime > maxEndTime) {
 				maxEndTime = endTime;
 			}
@@ -1155,7 +1177,13 @@ export async function addClaudeRemotionElement({
 /**
  * Format internal tracks for Claude export
  */
-export function formatTracksForExport(tracks: TimelineTrack[]): ClaudeTrack[] {
+export function formatTracksForExport({
+	tracks,
+	fps,
+}: {
+	tracks: TimelineTrack[];
+	fps: number;
+}): ClaudeTrack[] {
 	return tracks.map((track, index) => ({
 		id: track.id,
 		index,
@@ -1164,7 +1192,7 @@ export function formatTracksForExport(tracks: TimelineTrack[]): ClaudeTrack[] {
 		isMain: track.isMain,
 		hidden: track.hidden,
 		elements: track.elements.map((element) =>
-			formatElementForExport(element, index)
+			formatElementForExport({ element, trackIndex: index, fps })
 		),
 		transitions: track.transitions?.map((transition) => ({
 			...transition,
@@ -1176,18 +1204,24 @@ export function formatTracksForExport(tracks: TimelineTrack[]): ClaudeTrack[] {
 /**
  * Format a single element for export
  */
-function formatElementForExport(
-	element: TimelineElement,
-	trackIndex: number
-): ClaudeElement {
-	const effectiveDuration = getEffectiveDuration(element);
+function formatElementForExport({
+	element,
+	trackIndex,
+	fps,
+}: {
+	element: TimelineElement;
+	trackIndex: number;
+	fps: number;
+}): ClaudeElement {
+	const sourceDuration = getEffectiveDuration(element);
+	const timelineDuration = getTimelineElementDuration({ element, fps });
 
 	const baseElement: ClaudeElement = {
 		id: element.id,
 		trackIndex,
 		startTime: element.startTime,
-		endTime: element.startTime + effectiveDuration,
-		duration: effectiveDuration,
+		endTime: element.startTime + timelineDuration,
+		duration: sourceDuration,
 		type: element.type === "markdown" ? "text" : element.type,
 		hidden: element.hidden,
 	};
@@ -1219,6 +1253,7 @@ function formatElementForExport(
 				freezeFrameDuration: element.freezeFrameDuration,
 				preservePitch: element.preservePitch,
 				frameInterpolation: element.frameInterpolation,
+				timelineDuration,
 			};
 		}
 		case "text": {

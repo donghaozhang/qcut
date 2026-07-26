@@ -23,6 +23,7 @@ import {
 	transitionPeakExpression,
 	type PlaneSampler,
 } from "./transition-expression-utils";
+import { clampMediaPlaybackRate } from "./media-speed-constants";
 
 export interface PreparedTransitionSource {
 	source: VideoSource;
@@ -36,10 +37,6 @@ export interface PreparedTransitionSource {
 export interface XfadeTransitionFilter {
 	transition: "custom";
 	expression: string;
-}
-
-function clampPlaybackRate({ rate }: { rate: number | undefined }): number {
-	return Math.min(8, Math.max(0.1, rate ?? 1));
 }
 
 function hasKeyframes({
@@ -106,7 +103,7 @@ export function prepareTransitionSource({
 	const requestedBefore = Math.max(0, (previousTransition?.duration ?? 0) / 2);
 	const requestedAfter = Math.max(0, (nextTransition?.duration ?? 0) / 2);
 	const usesSourceHandles = canUseTransitionSourceHandles({ source });
-	const rate = clampPlaybackRate({ rate: source.playbackRate });
+	const rate = clampMediaPlaybackRate({ rate: source.playbackRate });
 	const availableBefore = Math.max(0, source.trimStart ?? 0);
 	const availableAfter = Math.max(0, source.trimEnd ?? 0);
 	const sourceHandleBefore = usesSourceHandles

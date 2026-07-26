@@ -129,6 +129,38 @@ After click or drag, verify the resulting editor or timeline state rather than
 treating a successful input event as proof of the intended edit. Use
 `editor:undo` to restore an E2E drag fixture after verification.
 
+## Apply and adjust a video speed curve
+
+Export the selected element before touching the UI:
+
+```bash
+qcut editor:timeline:export --project-id <project-id> --json
+qcut editor:snapshot --interactive --depth 24 --json
+```
+
+Use fresh snapshot refs to open Speed, select Curve speed, and choose None,
+Custom, Montage, Hero moment, Bullet time, Jump cut, Flash in, or Flash out.
+Snapshot again before dragging an interior control point:
+
+```bash
+qcut editor:pointer:click --ref <speed-tab-ref> --force --json
+qcut editor:snapshot --interactive --depth 24 --json
+qcut editor:pointer:click --ref <curve-tab-ref> --force --json
+qcut editor:snapshot --interactive --depth 24 --json
+qcut editor:pointer:click --ref <preset-ref> --force --json
+qcut editor:snapshot --interactive --depth 24 --json
+qcut editor:pointer:drag --from-ref <curve-point-ref> --to-x <x> --to-y <y> --force --json
+qcut editor:timeline:export --project-id <project-id> --json
+```
+
+The pointer defaults to background input. Verify
+`inputMode: "background"`, `input: "cdp-dispatch-mouse-event"`, and
+`windowFocused: false` when another application should keep focus. The final
+timeline state must show the expected `speedKeyframes`, a changed interior
+frame or rate after a drag, and the recomputed `timelineDuration`. The
+`duration` field remains the trimmed source duration. Supported rates are
+`0.1x` through `10x`.
+
 ## Record and verify a demo
 
 ```bash
