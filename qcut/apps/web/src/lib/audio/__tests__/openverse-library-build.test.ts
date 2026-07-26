@@ -124,18 +124,22 @@ describe("openverseRecordToTrack", () => {
 		).toBeNull();
 	});
 
-	it.each(["ogg", "oga", "opus", "wav", "flac", "mp3"])(
-		"keeps playable .%s audio",
-		(ext) => {
-			expect(
-				openverseRecordToTrack({
-					record: record({
-						url: `https://upload.wikimedia.org/wikipedia/commons/a/b/Track.${ext}`,
-					}),
-				})
-			).not.toBeNull();
-		}
-	);
+	it.each([
+		"ogg",
+		"oga",
+		"opus",
+		"wav",
+		"flac",
+		"mp3",
+	])("keeps playable .%s audio", (ext) => {
+		expect(
+			openverseRecordToTrack({
+				record: record({
+					url: `https://upload.wikimedia.org/wikipedia/commons/a/b/Track.${ext}`,
+				}),
+			})
+		).not.toBeNull();
+	});
 
 	it("keeps Jamendo's extensionless streaming url", () => {
 		expect(
@@ -227,6 +231,22 @@ describe("classifyOpenverseTrack", () => {
 		});
 
 		expect(tags).toContain("vlog");
+	});
+
+	// Public-domain score scans are titled by musical form and carry no other
+	// metadata, so the form name is the only thing that can classify them.
+	it.each([
+		"IMSLP365277-PMLP02280-Mazurka H-Dur Op 63 Nr 1",
+		"Chromatic Fuge (Bach BWV 930)",
+		"Beethoven Bagatelle No. 25",
+		"Handel - Water Music Suite Overture",
+	])("classifies %s as instrumental rather than the default bucket", (title) => {
+		const { tags } = classifyOpenverseTrack({
+			record: record({ title, genres: null, tags: [] }),
+		});
+
+		expect(tags).toContain("instrumental");
+		expect(tags).not.toContain("vlog");
 	});
 
 	it("only claims a regional category on an explicit signal", () => {
