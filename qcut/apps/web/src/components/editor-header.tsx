@@ -5,11 +5,15 @@ import { PanelView } from "@/types/panel";
 import {
 	ChevronDown,
 	ArrowLeft,
+	BookOpen,
 	CircleHelp,
 	Download,
+	MessageSquarePlus,
+	Rocket,
 	SquarePen,
 	Trash,
 } from "lucide-react";
+import { openQuickStart } from "./onboarding";
 import { useTimelineStore } from "@/stores/timeline/timeline-store";
 import { HeaderBase } from "./header-base";
 import { formatTimeCode } from "@/lib/time";
@@ -40,6 +44,7 @@ import { ReviewPanelControl } from "./editor/review/review-panel-control";
 import { UserLibrarySyncControl } from "./user-library-sync-control";
 import { AboutUpdatesDialog } from "./about-updates-dialog";
 import { Tooltip, TooltipContent, TooltipTrigger } from "./ui/tooltip";
+import { useAppVersion } from "@/hooks/use-app-version";
 
 /** Editor header bar with project name, export, screenshot, and recording controls. */
 export function EditorHeader() {
@@ -51,6 +56,7 @@ export function EditorHeader() {
 	const navigate = useNavigate();
 	const { setPanelView } = useExportStore();
 	const { t } = useTranslation();
+	const appVersion = useAppVersion();
 
 	const handleExport = () => {
 		setPanelView(PanelView.EXPORT);
@@ -130,6 +136,38 @@ export function EditorHeader() {
 					<DropdownMenuSeparator />
 					<DropdownMenuItem asChild>
 						<a
+							href="https://github.com/Quriosity-agent/qcut/tree/master/docs"
+							target="_blank"
+							rel="noopener noreferrer"
+							className="flex items-center gap-1.5"
+							data-testid="help-center-menu-item"
+						>
+							<BookOpen className="h-4 w-4" />
+							{t("editor.header.helpCenter")}
+						</a>
+					</DropdownMenuItem>
+					<DropdownMenuItem asChild>
+						<a
+							href="https://github.com/Quriosity-agent/qcut/issues/new"
+							target="_blank"
+							rel="noopener noreferrer"
+							className="flex items-center gap-1.5"
+							data-testid="feedback-menu-item"
+						>
+							<MessageSquarePlus className="h-4 w-4" />
+							{t("editor.header.feedback")}
+						</a>
+					</DropdownMenuItem>
+					<DropdownMenuItem
+						className="flex items-center gap-1.5"
+						onSelect={() => openQuickStart()}
+						data-testid="quick-start-menu-item"
+					>
+						<Rocket className="h-4 w-4" />
+						{t("editor.header.quickStart")}
+					</DropdownMenuItem>
+					<DropdownMenuItem asChild>
+						<a
 							href="https://discord.gg/zmR9N35cjK"
 							target="_blank"
 							rel="noopener noreferrer"
@@ -185,6 +223,15 @@ export function EditorHeader() {
 
 	const rightContent = (
 		<nav className="flex items-center gap-2">
+			{appVersion && (
+				<span
+					className="hidden xl:inline text-[11px] text-muted-foreground whitespace-nowrap"
+					title={t("updates.currentVersion", { version: appVersion })}
+					data-testid="app-version"
+				>
+					v{appVersion}
+				</span>
+			)}
 			<AutoSaveIndicator className="whitespace-nowrap" />
 			<CreditBalance />
 			<LanguageSelector />

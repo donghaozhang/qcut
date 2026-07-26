@@ -117,6 +117,8 @@ export interface RenderContext {
 	videoCache: Map<string, HTMLVideoElement>;
 	usedImages: Set<string>;
 	fps: number;
+	/** Canvas fill behind the composition; defaults to black. */
+	backgroundColor?: string;
 }
 
 /** Render a single frame at the specified time */
@@ -129,8 +131,8 @@ export async function renderFrame(
 	// Clear canvas
 	ctx.clearRect(0, 0, canvas.width, canvas.height);
 
-	// Fill with background color (black)
-	ctx.fillStyle = "#000000";
+	// Fill with the project background color (black unless overridden)
+	ctx.fillStyle = context.backgroundColor ?? "#000000";
 	ctx.fillRect(0, 0, canvas.width, canvas.height);
 
 	const activeElements = getActiveElements(

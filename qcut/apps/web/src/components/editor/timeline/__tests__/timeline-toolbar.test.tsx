@@ -178,6 +178,17 @@ describe("TimelineToolbar", () => {
 			scenes: [],
 			currentScene: null,
 		});
+
+		// The freeze-frame helper reads stores imperatively via getState.
+		(
+			useTimelineStore as unknown as { getState: () => MockTimelineState }
+		).getState = () => timelineState;
+		(
+			usePlaybackStore as unknown as { getState: () => MockPlaybackState }
+		).getState = () => playbackState;
+		(
+			useProjectStore as unknown as { getState: () => MockProjectState }
+		).getState = () => projectState;
 	});
 
 	it("renders with play button", () => {

@@ -48,6 +48,9 @@ import {
 import { Switch } from "./ui/switch";
 import { Tabs, TabsList, TabsTrigger } from "./ui/tabs";
 
+/** Opens this dialog; kept in sync with electron/app-menu.ts. */
+export const OPEN_KEYBOARD_SHORTCUTS_EVENT = "qcut:open-keyboard-shortcuts";
+
 function removeActionBindings({
 	keybindings,
 	action,
@@ -115,6 +118,14 @@ export const KeyboardShortcutsHelp = ({
 		setRecordingAction(null);
 		setIsRecording(false);
 	}, [open, setIsRecording, storedKeybindings, storedProfileId]);
+
+	// The native Help menu (and anything else) can open this dialog.
+	useEffect(() => {
+		const handleOpen = () => setOpen(true);
+		window.addEventListener(OPEN_KEYBOARD_SHORTCUTS_EVENT, handleOpen);
+		return () =>
+			window.removeEventListener(OPEN_KEYBOARD_SHORTCUTS_EVENT, handleOpen);
+	}, []);
 
 	useEffect(() => {
 		setIsRecording(recordingAction !== null);

@@ -158,6 +158,50 @@ export const SHORTCUT_COMMANDS: Record<Action, ShortcutCommandDefinition> = {
 		category: "basic",
 		labelKey: "shortcuts.action.pasteAttributes",
 	},
+	"freeze-selected": {
+		category: "timeline",
+		labelKey: "shortcuts.action.freeze",
+	},
+	"separate-audio-selected": {
+		category: "timeline",
+		labelKey: "shortcuts.action.separateAudio",
+	},
+	"toggle-bookmark": {
+		category: "timeline",
+		labelKey: "shortcuts.action.toggleBookmark",
+	},
+	"toggle-element-enabled": {
+		category: "timeline",
+		labelKey: "shortcuts.action.toggleEnabled",
+	},
+	"group-selected": {
+		category: "timeline",
+		labelKey: "shortcuts.action.group",
+	},
+	"ungroup-selected": {
+		category: "timeline",
+		labelKey: "shortcuts.action.ungroup",
+	},
+	"toggle-safe-areas": {
+		category: "player",
+		labelKey: "shortcuts.action.safeAreas",
+	},
+	"player-zoom-in": {
+		category: "player",
+		labelKey: "shortcuts.action.playerZoomIn",
+	},
+	"player-zoom-out": {
+		category: "player",
+		labelKey: "shortcuts.action.playerZoomOut",
+	},
+	"player-zoom-fit": {
+		category: "player",
+		labelKey: "shortcuts.action.playerZoomFit",
+	},
+	"export-still-frame": {
+		category: "player",
+		labelKey: "shortcuts.action.exportStill",
+	},
 	undo: {
 		category: "basic",
 		labelKey: "shortcuts.action.undo",

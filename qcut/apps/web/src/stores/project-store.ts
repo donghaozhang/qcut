@@ -1,5 +1,11 @@
 import { platform } from "@qcut/platform-core";
-import { TProject, Scene, BlurIntensity, ProjectFolder } from "@/types/project";
+import {
+	TProject,
+	Scene,
+	BlurIntensity,
+	ProjectFolder,
+	ProjectGuides,
+} from "@/types/project";
 import { CanvasSize, CanvasMode } from "@/types/editor";
 import { create } from "zustand";
 import { storageService } from "@/lib/storage/storage-service";
@@ -95,6 +101,9 @@ interface ProjectStore {
 	toggleBookmark: (time: number) => Promise<void>;
 	isBookmarked: (time: number) => boolean;
 	removeBookmark: (time: number) => Promise<void>;
+
+	// Preview guide methods
+	updateProjectGuides: (guides: ProjectGuides) => Promise<void>;
 
 	getFilteredAndSortedProjects: (
 		searchQuery: string,
@@ -721,6 +730,28 @@ export const useProjectStore = create<ProjectStore>((set, get) => ({
 				projectName: activeProject.name,
 				backgroundType: type,
 				operation: "updateBackgroundType",
+			});
+		}
+	},
+
+	updateProjectGuides: async (guides: ProjectGuides) => {
+		const { activeProject } = get();
+		if (!activeProject) return;
+
+		const updatedProject = {
+			...activeProject,
+			guides,
+			updatedAt: new Date(),
+		};
+
+		try {
+			await storageService.saveProject({ project: updatedProject });
+			set({ activeProject: updatedProject });
+		} catch (error) {
+			handleStorageError(error, "Update project guides", {
+				projectId: activeProject.id,
+				projectName: activeProject.name,
+				operation: "updateProjectGuides",
 			});
 		}
 	},

@@ -29,6 +29,7 @@ const SHARED_EDIT_BINDINGS: KeybindingConfig = {
 	"ctrl+v": "paste-clipboard",
 	"ctrl+z": "undo",
 	"ctrl+shift+z": "redo",
+	m: "toggle-bookmark",
 };
 
 const PROFESSIONAL_TOOL_BINDINGS: KeybindingConfig = {
@@ -68,6 +69,11 @@ export const KEYBINDING_PROFILES: KeybindingProfile[] = [
 			"ctrl+shift+v": "paste-attributes-selected",
 			"ctrl+d": "duplicate-selected",
 			"ctrl+y": "redo",
+			f: "freeze-selected",
+			v: "toggle-element-enabled",
+			"ctrl+shift+s": "separate-audio-selected",
+			"ctrl+g": "group-selected",
+			"ctrl+shift+g": "ungroup-selected",
 		},
 	},
 	{
@@ -102,6 +108,8 @@ export const KEYBINDING_PROFILES: KeybindingProfile[] = [
 			s: "toggle-snapping",
 			home: "goto-start",
 			end: "goto-end",
+			"ctrl+g": "group-selected",
+			"ctrl+shift+g": "ungroup-selected",
 		},
 	},
 	{
@@ -121,6 +129,9 @@ export const KEYBINDING_PROFILES: KeybindingProfile[] = [
 			n: "toggle-snapping",
 			home: "goto-start",
 			end: "goto-end",
+			v: "toggle-element-enabled",
+			"ctrl+g": "group-selected",
+			"ctrl+shift+g": "ungroup-selected",
 		},
 	},
 ];

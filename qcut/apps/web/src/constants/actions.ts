@@ -66,6 +66,17 @@ export type Action =
 	| "crop-selected" // Open crop controls for selected media
 	| "undo" // Undo last action
 	| "redo" // Redo last undone action
+	| "freeze-selected" // Add a freeze frame on the selected clip at the playhead
+	| "separate-audio-selected" // Detach audio from the selected media clip
+	| "toggle-bookmark" // Add or remove a bookmark at the playhead
+	| "toggle-element-enabled" // Enable or disable (hide) the selected element
+	| "group-selected" // Group the selected elements
+	| "ungroup-selected" // Ungroup the selected element's group
+	| "toggle-safe-areas" // Show or hide the preview safe areas
+	| "player-zoom-in" // Step the preview zoom up through presets
+	| "player-zoom-out" // Step the preview zoom down through presets
+	| "player-zoom-fit" // Fit the preview to the panel
+	| "export-still-frame" // Export the composited frame at the playhead as PNG
 	// Effects actions
 	| "apply-brightness-effect" // Apply brightness effect
 	| "apply-contrast-effect" // Apply contrast effect
