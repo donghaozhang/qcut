@@ -100,4 +100,93 @@ describe("CodexPluginUpdateSection", () => {
 			screen.getByRole("button", { name: "Updating QCut Plugin..." })
 		).toBeDisabled();
 	});
+
+	it("shows status text for checking, not-installed, and unavailable phases", async () => {
+		render(<CodexPluginUpdateSection />);
+		await screen.findByText("QCut Plugin v1.1.0 is up to date");
+
+		act(() => {
+			mocks.listener?.({ ...mocks.state, phase: "checking" });
+		});
+		expect(screen.getByText("Checking QCut Plugin...")).toBeInTheDocument();
+		expect(screen.getByTestId("codex-plugin-check-button")).toBeDisabled();
+
+		act(() => {
+			mocks.listener?.({
+				...mocks.state,
+				phase: "not-installed",
+				installed: false,
+				installedVersion: undefined,
+			});
+		});
+		expect(
+			screen.getByText("Install the plugin to control QCut from Codex")
+		).toBeInTheDocument();
+		expect(
+			screen.getByRole("button", { name: "Install plugin" })
+		).toBeInTheDocument();
+
+		act(() => {
+			mocks.listener?.({ ...mocks.state, phase: "unavailable" });
+		});
+		expect(
+			screen.getByText("Codex CLI is not available on this computer")
+		).toBeInTheDocument();
+	});
+
+	it("prefers the error detail, then the message, then the generic failure text", async () => {
+		render(<CodexPluginUpdateSection />);
+		await screen.findByText("QCut Plugin v1.1.0 is up to date");
+
+		act(() => {
+			mocks.listener?.({
+				...mocks.state,
+				phase: "error",
+				error: "npm exited with code 1",
+			});
+		});
+		expect(screen.getByText("npm exited with code 1")).toBeInTheDocument();
+
+		act(() => {
+			mocks.listener?.({
+				...mocks.state,
+				phase: "error",
+				message: "Marketplace unreachable",
+			});
+		});
+		expect(screen.getByText("Marketplace unreachable")).toBeInTheDocument();
+
+		act(() => {
+			mocks.listener?.({ ...mocks.state, phase: "error" });
+		});
+		expect(screen.getByText("QCut Plugin update failed")).toBeInTheDocument();
+	});
+
+	it("activates buttons from the keyboard and ignores other keys", async () => {
+		render(<CodexPluginUpdateSection />);
+		await screen.findByText("QCut Plugin v1.1.0 is up to date");
+
+		const checkButton = screen.getByTestId("codex-plugin-check-button");
+		fireEvent.keyDown(checkButton, { key: "a" });
+		expect(mocks.plugin.checkForUpdates).not.toHaveBeenCalled();
+
+		fireEvent.keyDown(checkButton, { key: "Enter" });
+		await waitFor(() =>
+			expect(mocks.plugin.checkForUpdates).toHaveBeenCalledTimes(1)
+		);
+
+		act(() => {
+			mocks.listener?.({
+				...mocks.state,
+				phase: "available",
+				latestVersion: "1.2.0",
+			});
+		});
+		fireEvent.keyDown(screen.getByTestId("codex-plugin-update-button"), {
+			key: " ",
+		});
+		await waitFor(() =>
+			expect(mocks.plugin.installUpdate).toHaveBeenCalledTimes(1)
+		);
+	});
 });
