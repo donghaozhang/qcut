@@ -5,6 +5,8 @@ import type {
 	VisualEffectCategoryId,
 } from "./effect-catalog-types";
 import { MOTION_EFFECT_CATALOG } from "./effect-motion-catalog";
+import { EXTRA_MOTION_EFFECT_CATALOG } from "./effect-motion-extra-catalog";
+import { FRESH_VARIANT_EFFECT_CATALOG } from "./effect-fresh-variant-catalog";
 import { FILTER_EFFECT_CATALOG } from "./effect-filter-catalog";
 import { OVERLAY_EFFECT_CATALOG } from "./effect-overlay-catalog";
 import { COMPOSITE_EFFECT_CATALOG } from "./effect-composite-catalog";
@@ -150,6 +152,7 @@ export const EFFECT_CATALOG: readonly EffectCatalogEntry[] = [
 	...LEGACY_EFFECT_CATALOG,
 	...FILTER_EFFECT_CATALOG,
 	...MOTION_EFFECT_CATALOG,
+	...EXTRA_MOTION_EFFECT_CATALOG,
 	...OVERLAY_EFFECT_CATALOG,
 	...COMPOSITE_EFFECT_CATALOG,
 	...SOUND_EFFECT_CATALOG,
@@ -158,6 +161,7 @@ export const EFFECT_CATALOG: readonly EffectCatalogEntry[] = [
 	...PARTICLE_EFFECT_CATALOG,
 	...DECORATION_EFFECT_CATALOG,
 	...DISTORTION_EFFECT_CATALOG,
+	...FRESH_VARIANT_EFFECT_CATALOG,
 	...PERSON_EFFECT_CATALOG,
 ];
 
