@@ -66,6 +66,16 @@ import {
 const electronAPI: ElectronAPI & Record<string, unknown> = {
 	// System info
 	platform: process.platform,
+	getAppVersion: (): Promise<string> => ipcRenderer.invoke("get-app-version"),
+	onOpenMediaFile: (callback: (filePath: string) => void) => {
+		const listener = (_event: unknown, filePath: string) => callback(filePath);
+		ipcRenderer.on("app:open-media-file", listener);
+		return () => {
+			ipcRenderer.removeListener("app:open-media-file", listener);
+		};
+	},
+	getPendingOpenMediaFiles: (): Promise<string[]> =>
+		ipcRenderer.invoke("app:get-pending-open-media-files"),
 
 	// File operations
 	openFileDialog: async (): Promise<string | null> => {

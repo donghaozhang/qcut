@@ -36,6 +36,10 @@ function unavailableCodexPluginState(): CodexPluginUpdateState {
 export function registerUpdateHandlers(deps: MainIpcDeps): void {
 	const { logger, updateController, codexPluginUpdateController } = deps;
 
+	ipcMain.handle("get-app-version", () =>
+		toReleaseVersion({ packageVersion: app.getVersion() })
+	);
+
 	ipcMain.handle("get-update-state", async () => {
 		return updateController?.getState() ?? unavailableState();
 	});
