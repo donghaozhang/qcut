@@ -17,7 +17,7 @@ function resolveThumbnailPath({ thumbnail }: { thumbnail: string }) {
 
 describe("filter registry", () => {
 	it("ships a populated local library with stable unique identifiers", () => {
-		expect(FILTER_PRESETS.length).toBeGreaterThanOrEqual(126);
+		expect(FILTER_PRESETS.length).toBeGreaterThanOrEqual(134);
 		expect(new Set(FILTER_PRESETS.map((preset) => preset.id)).size).toBe(
 			FILTER_PRESETS.length
 		);

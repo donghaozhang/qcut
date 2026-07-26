@@ -2,6 +2,7 @@ import type { FilterCategory, FilterPreset } from "./filter-types";
 import { CATEGORY_EXPANSION_FILTER_PRESETS } from "./filter-category-expansion-presets";
 import { COLLECTION_FILTER_PRESETS } from "./filter-collection-presets";
 import { EXTENDED_FILTER_PRESETS } from "./filter-extended-presets";
+import { SUMMER_CINEMA_FILTER_PRESETS } from "./filter-summer-cinema-presets";
 
 export const FILTER_NONE_ID = "none";
 
@@ -344,6 +345,7 @@ export const FILTER_PRESETS: FilterPreset[] = [
 	...EXTENDED_FILTER_PRESETS,
 	...CATEGORY_EXPANSION_FILTER_PRESETS,
 	...COLLECTION_FILTER_PRESETS,
+	...SUMMER_CINEMA_FILTER_PRESETS,
 ];
 
 const presetsById = new Map(
