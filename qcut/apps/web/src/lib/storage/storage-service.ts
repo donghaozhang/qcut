@@ -235,6 +235,7 @@ class StorageService {
 			canvasSize: project.canvasSize,
 			canvasMode: project.canvasMode,
 			folderId: project.folderId ?? null,
+			audioMix: project.audioMix,
 			guides: project.guides,
 		};
 
@@ -273,6 +274,7 @@ class StorageService {
 			canvasSize: serializedProject.canvasSize || { width: 1920, height: 1080 },
 			canvasMode: serializedProject.canvasMode || "preset",
 			folderId: serializedProject.folderId ?? null,
+			audioMix: serializedProject.audioMix,
 			guides: serializedProject.guides,
 		};
 	}
