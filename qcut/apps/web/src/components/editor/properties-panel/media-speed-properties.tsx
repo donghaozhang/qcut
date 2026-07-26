@@ -1,34 +1,34 @@
 import { useEffect, useRef, useState } from "react";
-import { Sparkles, Zap } from "lucide-react";
+import { Sparkles } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Slider } from "@/components/ui/slider";
 import { Switch } from "@/components/ui/switch";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import type { EasingType, Keyframe } from "@/lib/remotion/keyframe-converter";
 import { generateUUID } from "@/lib/utils";
-import { upsertMediaKeyframe } from "@/lib/video/video-properties";
 import {
 	clampPlaybackRate,
 	getMediaSourceDuration,
 	getMediaTimelineDuration,
 	mapMediaTimelineTime,
-	resolveSpeedAtSourceTime,
 } from "@/lib/video/video-timing";
 import { usePlaybackStore } from "@/stores/editor/playback-store";
 import { useProjectStore } from "@/stores/project-store";
 import { useEffectsStore } from "@/stores/ai/effects-store";
 import { useTimelineStore } from "@/stores/timeline/timeline-store";
 import type { MediaElement, MediaPropertyKeyframe } from "@/types/timeline";
-import { KeyframeEditor } from "./keyframe-editor";
 import { SpeedCurveEditor } from "./speed-curve-editor";
+import { SpeedCurvePresetCard } from "./speed-curve-preset-card";
 import {
 	createSpeedPresetKeyframes,
 	getSpeedCurvePreset,
+	identifySpeedCurvePreset,
 	SPEED_CURVE_PRESETS,
 	SPEED_POINT_PRESETS,
+	type SpeedCurveSelectionId,
 	type SpeedPointPreset,
 } from "@/lib/video/speed-presets";
+import { MAX_PLAYBACK_RATE } from "@/lib/video/video-speed-constants";
 import {
 	PropertyGroup,
 	PropertyItem,
@@ -172,24 +172,27 @@ export function MediaSpeedProperties({
 	const interactionActive = useRef(false);
 
 	const speedKeyframes = element.speedKeyframes ?? [];
+	const sourceDuration = getMediaSourceDuration(element);
+	const timelineDuration = getMediaTimelineDuration(element, fps);
+	const sourceDurationInFrames = Math.max(1, Math.round(sourceDuration * fps));
 	const [speedMode, setSpeedMode] = useState<"normal" | "curve" | "beat">(
 		speedKeyframes.length > 0 ? "curve" : "normal"
 	);
-	const sourceDuration = getMediaSourceDuration(element);
-	const timelineDuration = getMediaTimelineDuration(element, fps);
+	const [curveSelection, setCurveSelection] = useState<SpeedCurveSelectionId>(
+		() =>
+			identifySpeedCurvePreset({
+				keyframes: speedKeyframes,
+				durationInFrames: sourceDurationInFrames,
+			})
+	);
 	const [durationDraft, setDurationDraft] = useState(() =>
 		formatDurationDraft({ duration: timelineDuration })
 	);
-	const sourceDurationInFrames = Math.max(1, Math.round(sourceDuration * fps));
 	const playbackTiming = mapMediaTimelineTime({
 		element,
 		localTimelineTime: currentTime - element.startTime,
 		fps,
 	});
-	const currentSpeedFrame = Math.min(
-		sourceDurationInFrames,
-		Math.max(0, Math.round(playbackTiming.sourceTime * fps))
-	);
 
 	const update = (updates: MediaUpdates, history = true) =>
 		updateMediaTiming(trackId, element.id, updates, history);
@@ -210,37 +213,6 @@ export function MediaSpeedProperties({
 		keyframes: MediaPropertyKeyframe[],
 		history = true
 	) => update({ speedKeyframes: keyframes }, history);
-	const addSpeedKeyframe = (frame: number, value: unknown) => {
-		const existing = speedKeyframes.find((item) => item.frame === frame);
-		setSpeedKeyframes(
-			upsertMediaKeyframe({
-				keyframes: speedKeyframes,
-				keyframe: {
-					id: existing?.id ?? generateUUID(),
-					frame,
-					value: clampPlaybackRate(Number(value)),
-					easing: existing?.easing ?? "linear",
-				},
-			})
-		);
-	};
-	const updateSpeedKeyframe = (
-		id: string,
-		frame: number,
-		value: unknown,
-		easing: EasingType = "linear"
-	) =>
-		setSpeedKeyframes(
-			upsertMediaKeyframe({
-				keyframes: speedKeyframes,
-				keyframe: {
-					id,
-					frame,
-					value: clampPlaybackRate(Number(value)),
-					easing,
-				},
-			})
-		);
 	const changeSpeedMode = (mode: string) => {
 		if (mode === speedMode) return;
 		if (mode === "beat") {
@@ -253,18 +225,55 @@ export function MediaSpeedProperties({
 			return;
 		}
 		setSpeedMode("curve");
+		if (speedKeyframes.length > 0) {
+			setCurveSelection(
+				identifySpeedCurvePreset({
+					keyframes: speedKeyframes,
+					durationInFrames: sourceDurationInFrames,
+				})
+			);
+			return;
+		}
+		setCurveSelection("custom");
 		update({ speedKeyframes: createFlatSpeedCurve({ element, fps }) });
 	};
 	const applyCurvePreset = (
 		presetId: (typeof SPEED_CURVE_PRESETS)[number]["id"]
 	) => {
 		setSpeedMode("curve");
+		setCurveSelection(presetId);
 		setSpeedKeyframes(
 			createSpeedPresetKeyframes({
 				preset: getSpeedCurvePreset({ id: presetId }),
 				durationInFrames: sourceDurationInFrames,
 			})
 		);
+	};
+	const selectCurveKind = (selection: "custom" | "none") => {
+		setSpeedMode("curve");
+		setCurveSelection(selection);
+		if (selection === "none") {
+			setSpeedKeyframes([]);
+			return;
+		}
+		if (speedKeyframes.length === 0) {
+			setSpeedKeyframes(createFlatSpeedCurve({ element, fps }));
+		}
+	};
+	const updateCustomCurve = (keyframes: MediaPropertyKeyframe[]) => {
+		setCurveSelection("custom");
+		setSpeedKeyframes(keyframes, false);
+	};
+	const resetCurve = () => {
+		if (curveSelection === "none") {
+			setSpeedKeyframes([]);
+			return;
+		}
+		if (curveSelection === "custom") {
+			setSpeedKeyframes(createFlatSpeedCurve({ element, fps }));
+			return;
+		}
+		applyCurvePreset(curveSelection);
 	};
 	const applySpeedPointPreset = (preset: SpeedPointPreset) => {
 		pushHistory();
@@ -310,6 +319,15 @@ export function MediaSpeedProperties({
 		setDurationDraft(formatDurationDraft({ duration: timelineDuration }));
 	}, [timelineDuration]);
 
+	useEffect(() => {
+		setCurveSelection(
+			identifySpeedCurvePreset({
+				keyframes: element.speedKeyframes ?? [],
+				durationInFrames: sourceDurationInFrames,
+			})
+		);
+	}, [element.speedKeyframes, sourceDurationInFrames]);
+
 	return (
 		<div className="space-y-4" data-testid="media-speed-properties">
 			<Tabs value={speedMode} onValueChange={changeSpeedMode}>
@@ -335,7 +353,7 @@ export function MediaSpeedProperties({
 								label={t("audioProperties.speed.rate")}
 								value={clampPlaybackRate(element.playbackRate)}
 								min={0.1}
-								max={8}
+								max={MAX_PLAYBACK_RATE}
 								step={0.05}
 								suffix="x"
 								onChange={(value) => setPlaybackRate(value)}
@@ -391,56 +409,59 @@ export function MediaSpeedProperties({
 				</TabsContent>
 
 				<TabsContent value="curve" className="mt-4">
-					<PropertyGroup
-						title={t("audioProperties.speed.curve")}
-						defaultExpanded
-					>
-						<div className="mb-4 grid grid-cols-3 gap-2">
+					<div className="space-y-3">
+						<div className="flex gap-2 overflow-x-auto pb-1 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+							<SpeedCurvePresetCard
+								id="none"
+								label={t("audioProperties.speed.preset.none")}
+								kind="none"
+								durationInFrames={sourceDurationInFrames}
+								selected={curveSelection === "none"}
+								onSelect={() => selectCurveKind("none")}
+							/>
+							<SpeedCurvePresetCard
+								id="custom"
+								label={t("audioProperties.speed.preset.custom")}
+								kind="custom"
+								durationInFrames={sourceDurationInFrames}
+								selected={curveSelection === "custom"}
+								onSelect={() => selectCurveKind("custom")}
+							/>
 							{SPEED_CURVE_PRESETS.map((preset) => (
-								<Button
+								<SpeedCurvePresetCard
 									key={preset.id}
-									type="button"
-									variant="outline"
-									size="sm"
-									className="h-14 flex-col gap-1 px-1 text-[10px]"
-									data-testid={`speed-curve-preset-${preset.id}`}
-									onClick={() => applyCurvePreset(preset.id)}
-								>
-									<Zap className="size-3.5 text-primary" />
-									{t(preset.nameKey)}
-								</Button>
+									id={preset.id}
+									label={t(preset.nameKey)}
+									kind="curve"
+									keyframes={createSpeedPresetKeyframes({
+										preset,
+										durationInFrames: sourceDurationInFrames,
+									})}
+									durationInFrames={sourceDurationInFrames}
+									selected={curveSelection === preset.id}
+									onSelect={() => applyCurvePreset(preset.id)}
+								/>
 							))}
 						</div>
-						<SpeedCurveEditor
-							keyframes={speedKeyframes}
-							durationInFrames={sourceDurationInFrames}
-							onChange={(keyframes) => setSpeedKeyframes(keyframes, false)}
-							onInteractionStart={beginInteraction}
-							onInteractionEnd={endInteraction}
-						/>
-						<KeyframeEditor
-							propName="playbackRate"
-							propLabel={t("audioProperties.speed.curveLabel")}
-							propType="number"
-							keyframes={speedKeyframes as Keyframe[]}
-							durationInFrames={sourceDurationInFrames}
-							fps={fps}
-							currentFrame={currentSpeedFrame}
-							currentValueWhenEmpty={resolveSpeedAtSourceTime({
-								baseRate: element.playbackRate ?? 1,
-								keyframes: speedKeyframes,
-								sourceTime: playbackTiming.sourceTime,
-								fps,
-							})}
-							onKeyframeAdd={addSpeedKeyframe}
-							onKeyframeUpdate={updateSpeedKeyframe}
-							onKeyframeDelete={(id) =>
-								setSpeedKeyframes(
-									speedKeyframes.filter((item) => item.id !== id)
-								)
-							}
-						/>
-					</PropertyGroup>
+						{curveSelection !== "none" ? (
+							<SpeedCurveEditor
+								keyframes={speedKeyframes}
+								durationInFrames={sourceDurationInFrames}
+								sourceDurationLabel={formatDuration({
+									seconds: sourceDuration,
+								})}
+								timelineDurationLabel={formatDuration({
+									seconds: timelineDuration,
+								})}
+								durationLabel={t("audioProperties.speed.duration")}
+								resetLabel={t("audioProperties.speed.reset")}
+								onChange={updateCustomCurve}
+								onInteractionStart={beginInteraction}
+								onInteractionEnd={endInteraction}
+								onReset={resetCurve}
+							/>
+						) : null}
+					</div>
 				</TabsContent>
 
 				<TabsContent value="beat" className="mt-4">

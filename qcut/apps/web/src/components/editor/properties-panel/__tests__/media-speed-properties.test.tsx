@@ -41,10 +41,6 @@ vi.mock("@/stores/project-store", () => ({
 	) => selector({ activeProject: { fps: 30 } }),
 }));
 
-vi.mock("../keyframe-editor", () => ({
-	KeyframeEditor: () => <div data-testid="keyframe-editor" />,
-}));
-
 function element(overrides: Partial<MediaElement> = {}): MediaElement {
 	return {
 		id: "clip",
@@ -86,7 +82,7 @@ describe("MediaSpeedProperties", () => {
 			"clip",
 			expect.objectContaining({
 				speedKeyframes: expect.arrayContaining([
-					expect.objectContaining({ value: 5 }),
+					expect.objectContaining({ value: 7 }),
 				]),
 			}),
 			false
@@ -118,7 +114,7 @@ describe("MediaSpeedProperties", () => {
 		expect(mocks.applyEffect).not.toHaveBeenCalled();
 	});
 
-	it("applies the six curve presets to the full source duration", () => {
+	it("shows all curve choices and applies presets to the full source duration", () => {
 		render(
 			<MediaSpeedProperties
 				element={element()}
@@ -131,6 +127,8 @@ describe("MediaSpeedProperties", () => {
 			button: 0,
 			ctrlKey: false,
 		});
+		expect(screen.getByTestId("speed-curve-preset-none")).toBeVisible();
+		expect(screen.getByTestId("speed-curve-preset-custom")).toBeVisible();
 		fireEvent.click(screen.getByTestId("speed-curve-preset-bullet"));
 
 		const lastUpdate = mocks.updateMediaTiming.mock.calls.at(-1)?.[2];
@@ -143,6 +141,31 @@ describe("MediaSpeedProperties", () => {
 				)
 			)
 		).toBe(0.2);
+		expect(screen.getByTestId("speed-curve-preset-bullet")).toHaveAttribute(
+			"aria-pressed",
+			"true"
+		);
+	});
+
+	it("clamps normal speed to the same 10x limit used by export", () => {
+		render(
+			<MediaSpeedProperties
+				element={element()}
+				trackId="track"
+				mediaKind="video"
+			/>
+		);
+
+		fireEvent.change(screen.getByLabelText("倍速数值"), {
+			target: { value: "20" },
+		});
+
+		expect(mocks.updateMediaTiming).toHaveBeenLastCalledWith(
+			"track",
+			"clip",
+			{ playbackRate: 10 },
+			false
+		);
 	});
 
 	it("keeps duration edits local until Enter commits them", () => {
