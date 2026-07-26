@@ -28,6 +28,18 @@ export interface ProjectFolder {
 	createdAt: Date;
 }
 
+/** Draggable alignment guides shown over the editor preview. */
+export interface ProjectGuides {
+	/** Y positions of horizontal guides, in canvas pixels. */
+	horizontal: number[];
+	/** X positions of vertical guides, in canvas pixels. */
+	vertical: number[];
+	/** Locked guides cannot be dragged or removed individually. */
+	locked: boolean;
+	/** Hidden guides stay stored but are not rendered. */
+	hidden: boolean;
+}
+
 export interface TProject {
 	id: string;
 	name: string;
@@ -52,4 +64,6 @@ export interface TProject {
 	canvasMode: "preset" | "original" | "custom";
 	/** Persistent master and submix bus state for preview and export. */
 	audioMix?: ProjectAudioMixSettings;
+	/** Alignment guides drawn over the preview (editing aid only, never exported). */
+	guides?: ProjectGuides;
 }

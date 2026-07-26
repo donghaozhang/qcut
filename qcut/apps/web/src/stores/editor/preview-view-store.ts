@@ -10,9 +10,11 @@ export type PreviewScale = (typeof PREVIEW_SCALE_PRESETS)[number];
 interface PreviewViewState {
 	previewScale: PreviewScale;
 	showSafeAreas: boolean;
+	showRulers: boolean;
 
 	setPreviewScale: (scale: PreviewScale) => void;
 	toggleSafeAreas: () => void;
+	toggleRulers: () => void;
 	/** Step through the numeric presets; "fit" enters at the nearest end. */
 	stepPreviewScale: (direction: "in" | "out") => void;
 }
@@ -22,6 +24,7 @@ export const usePreviewViewStore = create<PreviewViewState>()(
 		(set) => ({
 			previewScale: "fit",
 			showSafeAreas: false,
+			showRulers: false,
 
 			setPreviewScale: (scale) => {
 				set({ previewScale: scale });
@@ -29,6 +32,10 @@ export const usePreviewViewStore = create<PreviewViewState>()(
 
 			toggleSafeAreas: () => {
 				set((state) => ({ showSafeAreas: !state.showSafeAreas }));
+			},
+
+			toggleRulers: () => {
+				set((state) => ({ showRulers: !state.showRulers }));
 			},
 
 			stepPreviewScale: (direction) => {

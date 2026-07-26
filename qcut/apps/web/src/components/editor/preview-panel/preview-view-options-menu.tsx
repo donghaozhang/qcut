@@ -1,0 +1,138 @@
+"use client";
+
+import { SlidersHorizontal } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import {
+	DropdownMenu,
+	DropdownMenuCheckboxItem,
+	DropdownMenuContent,
+	DropdownMenuItem,
+	DropdownMenuSeparator,
+	DropdownMenuSub,
+	DropdownMenuSubContent,
+	DropdownMenuSubTrigger,
+	DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+import { useTranslation } from "@/lib/i18n";
+import {
+	addGuide,
+	clearGuides,
+	hasGuides,
+	resolveGuides,
+} from "@/lib/preview/preview-guides";
+import { useEditorStore } from "@/stores/editor/editor-store";
+import { usePreviewViewStore } from "@/stores/editor/preview-view-store";
+import { useProjectStore } from "@/stores/project-store";
+
+/**
+ * Unified player view-options menu: guides & rulers management plus the
+ * safe-area toggle. Editing aids only — none of these affect exports.
+ */
+export function PreviewViewOptionsMenu() {
+	const { t } = useTranslation();
+	const canvasSize = useEditorStore((state) => state.canvasSize);
+	const storedGuides = useProjectStore((state) => state.activeProject?.guides);
+	const hasActiveProject = useProjectStore(
+		(state) => state.activeProject !== null
+	);
+	const updateProjectGuides = useProjectStore(
+		(state) => state.updateProjectGuides
+	);
+	const showSafeAreas = usePreviewViewStore((state) => state.showSafeAreas);
+	const toggleSafeAreas = usePreviewViewStore((state) => state.toggleSafeAreas);
+	const showRulers = usePreviewViewStore((state) => state.showRulers);
+	const toggleRulers = usePreviewViewStore((state) => state.toggleRulers);
+
+	const guides = resolveGuides(storedGuides);
+	const anyGuides = hasGuides(guides);
+
+	const addCenteredGuide = (axis: "horizontal" | "vertical") => {
+		const position =
+			axis === "horizontal" ? canvasSize.height / 2 : canvasSize.width / 2;
+		void updateProjectGuides(addGuide({ guides, axis, position }));
+	};
+
+	return (
+		<DropdownMenu>
+			<DropdownMenuTrigger asChild>
+				<Button
+					type="button"
+					variant="text"
+					size="icon"
+					aria-label={t("editor.preview.viewOptions")}
+					data-testid="preview-options-button"
+				>
+					<SlidersHorizontal className="h-4 w-4" />
+				</Button>
+			</DropdownMenuTrigger>
+			<DropdownMenuContent align="start" className="w-56">
+				<DropdownMenuSub>
+					<DropdownMenuSubTrigger data-testid="preview-guides-menu">
+						{t("editor.preview.guidesRulers")}
+					</DropdownMenuSubTrigger>
+					<DropdownMenuSubContent className="w-52">
+						<DropdownMenuItem
+							disabled={!hasActiveProject}
+							data-testid="preview-add-horizontal-guide"
+							onClick={() => addCenteredGuide("horizontal")}
+						>
+							{t("editor.preview.addHorizontalGuide")}
+						</DropdownMenuItem>
+						<DropdownMenuItem
+							disabled={!hasActiveProject}
+							data-testid="preview-add-vertical-guide"
+							onClick={() => addCenteredGuide("vertical")}
+						>
+							{t("editor.preview.addVerticalGuide")}
+						</DropdownMenuItem>
+						<DropdownMenuSeparator />
+						<DropdownMenuCheckboxItem
+							checked={guides.locked}
+							disabled={!anyGuides}
+							data-testid="preview-lock-guides"
+							onCheckedChange={(locked) => {
+								void updateProjectGuides({ ...guides, locked });
+							}}
+						>
+							{t("editor.preview.lockGuides")}
+						</DropdownMenuCheckboxItem>
+						<DropdownMenuCheckboxItem
+							checked={guides.hidden}
+							disabled={!anyGuides}
+							data-testid="preview-hide-guides"
+							onCheckedChange={(hidden) => {
+								void updateProjectGuides({ ...guides, hidden });
+							}}
+						>
+							{t("editor.preview.hideGuides")}
+						</DropdownMenuCheckboxItem>
+						<DropdownMenuItem
+							disabled={!anyGuides}
+							data-testid="preview-clear-guides"
+							onClick={() => {
+								void updateProjectGuides(clearGuides(guides));
+							}}
+						>
+							{t("editor.preview.clearGuides")}
+						</DropdownMenuItem>
+						<DropdownMenuSeparator />
+						<DropdownMenuCheckboxItem
+							checked={showRulers}
+							data-testid="preview-show-rulers"
+							onCheckedChange={() => toggleRulers()}
+						>
+							{t("editor.preview.showRulers")}
+						</DropdownMenuCheckboxItem>
+					</DropdownMenuSubContent>
+				</DropdownMenuSub>
+				<DropdownMenuCheckboxItem
+					checked={showSafeAreas}
+					data-testid="preview-toggle-safe-areas"
+					onCheckedChange={() => toggleSafeAreas()}
+				>
+					{t("editor.preview.safeAreas")}
+				</DropdownMenuCheckboxItem>
+			</DropdownMenuContent>
+		</DropdownMenu>
+	);
+}

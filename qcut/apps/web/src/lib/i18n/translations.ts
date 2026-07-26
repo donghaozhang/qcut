@@ -102,6 +102,14 @@ const EN_TRANSLATIONS = {
 	"editor.preview.showSafeAreas": "Show safe areas",
 	"editor.preview.hideSafeAreas": "Hide safe areas",
 	"editor.preview.safeAreas": "Safe areas",
+	"editor.preview.viewOptions": "View options",
+	"editor.preview.guidesRulers": "Guides & rulers",
+	"editor.preview.addHorizontalGuide": "Add horizontal guide",
+	"editor.preview.addVerticalGuide": "Add vertical guide",
+	"editor.preview.lockGuides": "Lock guides",
+	"editor.preview.hideGuides": "Hide guides",
+	"editor.preview.clearGuides": "Clear guides",
+	"editor.preview.showRulers": "Show rulers",
 	"editor.preview.original": "Original",
 	"editor.preview.quality": "Preview quality",
 	"editor.preview.qualityAuto": "Auto",
@@ -1421,6 +1429,8 @@ const EN_TRANSLATIONS = {
 	"updates.readyToDownload": "Ready to download",
 	"updates.installFailed": "Failed to install update",
 	"updates.downloadFailed": "Failed to download update",
+	"fileOpen.importing": "Importing {{name}}…",
+	"fileOpen.failed": "Couldn't open {{name}}",
 } as const;
 
 export type TranslationKey = keyof typeof EN_TRANSLATIONS;
@@ -1520,6 +1530,14 @@ const ZH_TRANSLATIONS: Record<TranslationKey, string> = {
 	"editor.preview.showSafeAreas": "显示安全框",
 	"editor.preview.hideSafeAreas": "隐藏安全框",
 	"editor.preview.safeAreas": "安全框",
+	"editor.preview.viewOptions": "查看选项",
+	"editor.preview.guidesRulers": "参考线与标尺",
+	"editor.preview.addHorizontalGuide": "添加水平参考线",
+	"editor.preview.addVerticalGuide": "添加垂直参考线",
+	"editor.preview.lockGuides": "锁定参考线",
+	"editor.preview.hideGuides": "隐藏参考线",
+	"editor.preview.clearGuides": "清除参考线",
+	"editor.preview.showRulers": "显示标尺",
 	"editor.preview.original": "原始比例",
 	"editor.preview.quality": "预览画质",
 	"editor.preview.qualityAuto": "自动",
@@ -2792,6 +2810,8 @@ const ZH_TRANSLATIONS: Record<TranslationKey, string> = {
 	"updates.readyToDownload": "可以下载",
 	"updates.installFailed": "安装更新失败",
 	"updates.downloadFailed": "下载更新失败",
+	"fileOpen.importing": "正在导入 {{name}}…",
+	"fileOpen.failed": "无法打开 {{name}}",
 };
 
 export const TRANSLATIONS: Record<AppLocale, Record<TranslationKey, string>> = {
