@@ -10,6 +10,15 @@ export interface PluginRelease {
 }
 
 export type FetchPluginReleases = () => Promise<GitHubRelease[]>;
+export type FetchPluginReleasePage = ({
+	page,
+	perPage,
+}: {
+	page: number;
+	perPage: number;
+}) => Promise<GitHubRelease[]>;
+
+const RELEASE_PAGE_SIZE = 100;
 
 export function normalizePluginVersion({
 	version,
@@ -59,19 +68,52 @@ export function selectLatestPluginRelease({
 	)[0];
 }
 
-export async function fetchDefaultPluginReleases(): Promise<GitHubRelease[]> {
-	const response = await fetch(
-		"https://api.github.com/repos/Quriosity-agent/qcut/releases?per_page=30",
-		{
-			headers: {
-				Accept: "application/vnd.github+json",
-				"User-Agent": "QCut-Plugin-Updater",
-			},
-			signal: AbortSignal.timeout(15_000),
-		}
-	);
-	if (!response.ok) {
-		throw new Error(`Plugin release check failed with HTTP ${response.status}`);
+export async function fetchPluginReleasesUntilFound({
+	fetchPage,
+	page = 1,
+	releases = [],
+}: {
+	fetchPage: FetchPluginReleasePage;
+	page?: number;
+	releases?: GitHubRelease[];
+}): Promise<GitHubRelease[]> {
+	const pageReleases = await fetchPage({
+		page,
+		perPage: RELEASE_PAGE_SIZE,
+	});
+	const collected = [...releases, ...pageReleases];
+	if (
+		selectLatestPluginRelease({ releases: collected }) ||
+		pageReleases.length < RELEASE_PAGE_SIZE
+	) {
+		return collected;
 	}
-	return (await response.json()) as GitHubRelease[];
+	return fetchPluginReleasesUntilFound({
+		fetchPage,
+		page: page + 1,
+		releases: collected,
+	});
+}
+
+export function fetchDefaultPluginReleases(): Promise<GitHubRelease[]> {
+	return fetchPluginReleasesUntilFound({
+		fetchPage: async ({ page, perPage }) => {
+			const response = await fetch(
+				`https://api.github.com/repos/Quriosity-agent/qcut/releases?per_page=${perPage}&page=${page}`,
+				{
+					headers: {
+						Accept: "application/vnd.github+json",
+						"User-Agent": "QCut-Plugin-Updater",
+					},
+					signal: AbortSignal.timeout(15_000),
+				}
+			);
+			if (!response.ok) {
+				throw new Error(
+					`Plugin release check failed with HTTP ${response.status}`
+				);
+			}
+			return (await response.json()) as GitHubRelease[];
+		},
+	});
 }

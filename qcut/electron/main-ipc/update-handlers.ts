@@ -5,6 +5,7 @@
 
 import { app, ipcMain } from "electron";
 import type { UpdateState } from "../auto-update-controller.js";
+import type { CodexPluginUpdateState } from "../codex-plugin-update-controller.js";
 import type { UpdatePreferences } from "../update-preferences.js";
 import { toReleaseVersion } from "../update-version.js";
 import type { MainIpcDeps } from "./types.js";
@@ -20,6 +21,15 @@ function unavailableState(): UpdateState {
 		message: app.isPackaged
 			? "Auto-updater not available"
 			: "Updates only available in production builds",
+	};
+}
+
+function unavailableCodexPluginState(): CodexPluginUpdateState {
+	return {
+		phase: "unavailable",
+		codexAvailable: false,
+		installed: false,
+		message: "QCut Plugin updates are only available in production builds",
 	};
 }
 
@@ -93,35 +103,20 @@ export function registerUpdateHandlers(deps: MainIpcDeps): void {
 
 	ipcMain.handle("get-codex-plugin-update-state", async () => {
 		return (
-			codexPluginUpdateController?.getState() ?? {
-				phase: "unavailable",
-				codexAvailable: false,
-				installed: false,
-				message: "QCut Plugin updates are only available in production builds",
-			}
+			codexPluginUpdateController?.getState() ?? unavailableCodexPluginState()
 		);
 	});
 
 	ipcMain.handle("check-for-codex-plugin-updates", async () => {
 		if (!codexPluginUpdateController) {
-			return {
-				phase: "unavailable",
-				codexAvailable: false,
-				installed: false,
-				message: "QCut Plugin updates are only available in production builds",
-			};
+			return unavailableCodexPluginState();
 		}
 		return codexPluginUpdateController.checkForUpdates();
 	});
 
 	ipcMain.handle("install-codex-plugin-update", async () => {
 		if (!codexPluginUpdateController) {
-			return {
-				phase: "unavailable",
-				codexAvailable: false,
-				installed: false,
-				message: "QCut Plugin updates are only available in production builds",
-			};
+			return unavailableCodexPluginState();
 		}
 		return codexPluginUpdateController.installUpdate();
 	});

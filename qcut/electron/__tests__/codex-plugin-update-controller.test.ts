@@ -1,7 +1,9 @@
 import { describe, expect, it, vi } from "vitest";
+import { CodexCliUnavailableError } from "../codex-plugin-cli";
 import { createCodexPluginUpdateController } from "../codex-plugin-update-controller";
 import {
 	comparePluginVersions,
+	fetchPluginReleasesUntilFound,
 	selectLatestPluginRelease,
 } from "../codex-plugin-release";
 
@@ -33,6 +35,24 @@ describe("plugin release helpers", () => {
 				],
 			})
 		).toEqual({ tag: "qcut-plugin-v1.1.1", version: "1.1.1" });
+	});
+
+	it("continues through desktop release pages until it finds a plugin", async () => {
+		const desktopReleases = Array.from({ length: 100 }, (_, index) => ({
+			tag_name: `v2026.07.${index + 1}.1`,
+		}));
+		const fetchPage = vi.fn(
+			async ({ page }: { page: number; perPage: number }) =>
+				page === 1 ? desktopReleases : [{ tag_name: "qcut-plugin-v1.2.0" }]
+		);
+
+		const releases = await fetchPluginReleasesUntilFound({ fetchPage });
+
+		expect(fetchPage).toHaveBeenCalledTimes(2);
+		expect(selectLatestPluginRelease({ releases })).toEqual({
+			tag: "qcut-plugin-v1.2.0",
+			version: "1.2.0",
+		});
 	});
 });
 
@@ -233,14 +253,76 @@ describe("CodexPluginUpdateController", () => {
 		expect(commands.some((args) => args.includes("remove"))).toBe(false);
 	});
 
+	it("reuses the active installation for concurrent update checks", async () => {
+		let version = "1.0.0";
+		let continueInstall = () => undefined;
+		let markInstallStarted = () => undefined;
+		const installGate = new Promise<void>((resolve) => {
+			continueInstall = resolve;
+		});
+		const installStarted = new Promise<void>((resolve) => {
+			markInstallStarted = resolve;
+		});
+		const runCodex = vi.fn(async ({ args }: { args: string[] }) => {
+			if (args[1] === "list") {
+				return {
+					installed: [
+						{
+							pluginId: "qcut@qcut",
+							name: "qcut",
+							marketplaceName: "qcut",
+							version,
+							marketplaceSource: {
+								sourceType: "local",
+								source: "/repo/qcut",
+							},
+						},
+					],
+				};
+			}
+			if (args[0] === "plugin" && args[1] === "add") {
+				markInstallStarted();
+				await installGate;
+				version = "1.1.0";
+			}
+			return {};
+		});
+		const controller = createCodexPluginUpdateController({
+			logger,
+			sendToRenderer: vi.fn(),
+			runCodex,
+			fetchPluginReleases: vi.fn(async () => [
+				{ tag_name: "qcut-plugin-v1.1.0" },
+			]),
+		});
+		await controller.checkForUpdates();
+
+		const installation = controller.installUpdate();
+		await installStarted;
+		const listCallsBeforeConcurrentCheck = runCodex.mock.calls.filter(
+			([{ args }]) => args[1] === "list"
+		).length;
+		const concurrentCheck = controller.checkForUpdates();
+		expect(
+			runCodex.mock.calls.filter(([{ args }]) => args[1] === "list")
+		).toHaveLength(listCallsBeforeConcurrentCheck);
+
+		continueInstall();
+		await expect(installation).resolves.toMatchObject({
+			phase: "restart-required",
+			installedVersion: "1.1.0",
+		});
+		await expect(concurrentCheck).resolves.toMatchObject({
+			phase: "restart-required",
+		});
+	});
+
 	it("reports Codex as unavailable without exposing an update error", async () => {
 		const controller = createCodexPluginUpdateController({
 			logger,
 			sendToRenderer: vi.fn(),
 			runCodex: vi.fn(async () => {
-				throw new Error(
-					"Codex CLI is not installed or is not available on PATH"
-				);
+				throw new CodexCliUnavailableError();
 			}),
 			fetchPluginReleases: vi.fn(async () => [
 				{ tag_name: "qcut-plugin-v1.1.0" },

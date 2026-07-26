@@ -1,4 +1,4 @@
-import { existsSync, readFileSync, readdirSync } from "node:fs";
+import { existsSync, readFileSync, readdirSync, statSync } from "node:fs";
 import { basename, join } from "node:path";
 import { load } from "js-yaml";
 
@@ -22,7 +22,11 @@ export function getUpdateArtifactNames({
 
 	const addCandidate = ({ candidate }: { candidate: unknown }) => {
 		if (typeof candidate !== "string" || candidate.length === 0) return;
-		if (basename(candidate) !== candidate) {
+		if (
+			candidate === "." ||
+			candidate === ".." ||
+			basename(candidate) !== candidate
+		) {
 			throw new Error(
 				`Update manifest contains a non-local path: ${candidate}`
 			);
@@ -66,7 +70,7 @@ export function verifyUpdateArtifacts({
 		});
 		for (const artifactName of artifactNames) {
 			const artifactPath = join(distDir, artifactName);
-			if (!existsSync(artifactPath)) {
+			if (!existsSync(artifactPath) || !statSync(artifactPath).isFile()) {
 				throw new Error(
 					`${manifestName} references missing artifact: ${artifactName}`
 				);
@@ -80,8 +84,8 @@ export function verifyUpdateArtifacts({
 function readManifestArguments({ args }: { args: string[] }): string[] {
 	const manifests: string[] = [];
 	for (let index = 0; index < args.length; index += 1) {
-		if (args[index] !== "--manifest") continue;
-		const manifestName = args[index + 1];
+		if (args.at(index) !== "--manifest") continue;
+		const manifestName = args.at(index + 1);
 		if (!manifestName) throw new Error("--manifest requires a filename");
 		manifests.push(manifestName);
 		index += 1;

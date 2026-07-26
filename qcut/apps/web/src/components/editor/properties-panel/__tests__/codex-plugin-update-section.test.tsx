@@ -84,4 +84,20 @@ describe("CodexPluginUpdateSection", () => {
 			expect(mocks.plugin.installUpdate).toHaveBeenCalledTimes(1)
 		);
 	});
+
+	it("keeps a disabled progress action visible while updating", async () => {
+		render(<CodexPluginUpdateSection />);
+		await screen.findByText("QCut Plugin v1.1.0 is up to date");
+
+		act(() => {
+			mocks.listener?.({
+				...mocks.state,
+				phase: "updating",
+			});
+		});
+
+		expect(
+			screen.getByRole("button", { name: "Updating QCut Plugin..." })
+		).toBeDisabled();
+	});
 });

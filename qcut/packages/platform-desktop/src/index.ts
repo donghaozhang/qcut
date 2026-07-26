@@ -355,16 +355,16 @@ const moyinAdapter = {
 
 const pluginUpdatesAdapter = {
 	checkForUpdates: () =>
-		api().updates.plugin?.checkForUpdates() ??
+		api().updates?.plugin?.checkForUpdates() ??
 		Promise.reject(new Error("QCut Plugin updates unavailable")),
 	installUpdate: () =>
-		api().updates.plugin?.installUpdate() ??
+		api().updates?.plugin?.installUpdate() ??
 		Promise.reject(new Error("QCut Plugin updates unavailable")),
 	getState: () =>
-		api().updates.plugin?.getState() ??
+		api().updates?.plugin?.getState() ??
 		Promise.reject(new Error("QCut Plugin updates unavailable")),
 	onStateChanged: (cb: (state: PlatformCodexPluginUpdateState) => void) =>
-		api().updates.plugin?.onStateChanged(cb) ?? (() => undefined),
+		api().updates?.plugin?.onStateChanged(cb) ?? (() => undefined),
 };
 
 const updatesAdapter = {

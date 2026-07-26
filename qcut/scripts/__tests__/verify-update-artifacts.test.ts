@@ -58,6 +58,14 @@ describe("getUpdateArtifactNames", () => {
 			})
 		).toThrow("non-local path");
 	});
+
+	it.each([".", ".."])("rejects the directory artifact name %s", (path) => {
+		expect(() =>
+			getUpdateArtifactNames({
+				manifestText: `path: ${path}`,
+			})
+		).toThrow("non-local path");
+	});
 });
 
 describe("verifyUpdateArtifacts", () => {
@@ -89,6 +97,20 @@ describe("verifyUpdateArtifacts", () => {
 			verifyUpdateArtifacts({
 				distDir,
 				manifestNames: ["latest.yml"],
+			})
+		).toThrow("references missing artifact");
+	});
+
+	it("rejects a directory posing as an artifact", () => {
+		const distDir = createDistDirectory();
+		const artifactName = "QCut-AI-Video-Editor-1.2.3.AppImage";
+		mkdirSync(join(distDir, artifactName));
+		writeFileSync(join(distDir, "latest-linux.yml"), `path: ${artifactName}\n`);
+
+		expect(() =>
+			verifyUpdateArtifacts({
+				distDir,
+				manifestNames: ["latest-linux.yml"],
 			})
 		).toThrow("references missing artifact");
 	});

@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { fireEvent, render, screen, waitFor } from "@/test/test-utils";
+import { fireEvent, render, screen } from "@/test/test-utils";
 import { useLocaleStore } from "@/stores/locale-store";
 
 const mocks = vi.hoisted(() => ({
@@ -32,14 +32,14 @@ beforeEach(() => {
 });
 
 describe("CodexPluginUpdateNotification", () => {
-	it("offers an available plugin update", async () => {
+	it("offers an available plugin update", () => {
 		render(<CodexPluginUpdateNotification />);
 
 		expect(
 			screen.getByText("QCut Plugin v1.1.0 is available")
 		).toBeInTheDocument();
 		fireEvent.click(screen.getByRole("button", { name: "Update plugin" }));
-		await waitFor(() => expect(mocks.installUpdate).toHaveBeenCalledTimes(1));
+		expect(mocks.installUpdate).toHaveBeenCalledTimes(1);
 	});
 
 	it("can dismiss the current plugin version", () => {

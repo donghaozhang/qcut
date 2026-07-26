@@ -65,10 +65,15 @@ export function CodexPluginUpdateSection() {
 	);
 
 	const canInstall =
-		state.phase === "available" || state.phase === "not-installed";
-	const actionLabel = state.installed
-		? t("updates.pluginUpdate")
-		: t("updates.pluginInstall");
+		state.phase === "available" ||
+		state.phase === "not-installed" ||
+		state.phase === "updating";
+	const isUpdating = state.phase === "updating";
+	const actionLabel = isUpdating
+		? t("updates.pluginUpdating")
+		: state.installed
+			? t("updates.pluginUpdate")
+			: t("updates.pluginInstall");
 
 	return (
 		<section
@@ -90,7 +95,11 @@ export function CodexPluginUpdateSection() {
 					variant="outline"
 					size="sm"
 					className="h-8 shrink-0"
-					disabled={!available || state.phase === "checking"}
+					disabled={
+						!available ||
+						state.phase === "checking" ||
+						state.phase === "updating"
+					}
 					onClick={checkNow}
 					onKeyDown={(event) =>
 						handleButtonKeyDown({ event, action: checkNow })
@@ -110,14 +119,18 @@ export function CodexPluginUpdateSection() {
 					variant="secondary"
 					size="sm"
 					className="mt-3 h-8 w-full"
-					disabled={state.phase === "updating"}
+					disabled={isUpdating}
 					onClick={updatePlugin}
 					onKeyDown={(event) =>
 						handleButtonKeyDown({ event, action: updatePlugin })
 					}
 					data-testid="codex-plugin-update-button"
 				>
-					<Package className="size-3.5" />
+					{isUpdating ? (
+						<RefreshCw className="size-3.5 animate-spin" />
+					) : (
+						<Package className="size-3.5" />
+					)}
 					{actionLabel}
 				</Button>
 			)}

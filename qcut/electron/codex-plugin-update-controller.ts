@@ -1,5 +1,6 @@
 import {
 	createDefaultCodexRunner,
+	CodexCliUnavailableError,
 	findAvailablePlugin,
 	findInstalledPlugin,
 	isOfficialGitMarketplace,
@@ -152,6 +153,7 @@ export function createCodexPluginUpdateController({
 		})) as CodexPluginList;
 
 	const checkForUpdates = async (): Promise<CodexPluginUpdateState> => {
+		if (installPromise) return installPromise;
 		if (checkPromise) return checkPromise;
 		publishState({
 			nextState: {
@@ -205,15 +207,14 @@ export function createCodexPluginUpdateController({
 				});
 			})
 			.catch((error: unknown) => {
-				const message = error instanceof Error ? error.message : String(error);
-				if (message.includes("Codex CLI is not installed")) {
+				if (error instanceof CodexCliUnavailableError) {
 					return publishState({
 						nextState: {
 							...state,
 							phase: "unavailable",
 							codexAvailable: false,
 							installed: false,
-							message: message,
+							message: error.message,
 							error: undefined,
 						},
 					});
