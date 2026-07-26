@@ -1,6 +1,7 @@
 import { mkdir, rm } from "node:fs/promises";
 import path from "node:path";
 import type { Page } from "@playwright/test";
+import { FILTER_PRESETS } from "../../lib/filters/filter-registry";
 import {
 	createTestProject,
 	expect,
@@ -12,22 +13,41 @@ const outputDirectory =
 	process.env.QCUT_FILTER_AUDIT_DIR ??
 	path.join(process.env.TMPDIR ?? "/tmp", "qcut-filter-library-audit");
 
+// Counts derive from the registry so this test tracks preset additions.
+// The "all" view also renders the extra "none" card; category views do not.
+const categoryCount = (category: string) =>
+	FILTER_PRESETS.filter((preset) => preset.category === category).length;
+const latestCount = FILTER_PRESETS.filter((preset) => preset.isNew).length;
+const allCardCount = FILTER_PRESETS.length + 1;
+// Mirrors matchesQuery in the filters view (name + localizedName + tags).
+const searchMatchCount = (query: string) =>
+	FILTER_PRESETS.filter((preset) =>
+		[preset.name, preset.localizedName, ...preset.tags]
+			.join(" ")
+			.toLocaleLowerCase()
+			.includes(query.trim().toLocaleLowerCase())
+	).length;
+
 const categoryCases = [
-	{ id: "summer", count: 4 },
-	{ id: "portrait", count: 4 },
-	{ id: "landscape", count: 4 },
-	{ id: "food", count: 4 },
-	{ id: "camera", count: 4, screenshot: "00-camera.png" },
-	{ id: "latest", count: 19 },
-	{ id: "night", count: 4, screenshot: "00-night.png" },
-	{ id: "cinematic", count: 4 },
-	{ id: "outdoor", count: 4 },
-	{ id: "stylized", count: 4, screenshot: "00-stylized.png" },
-	{ id: "monochrome", count: 4 },
-	{ id: "hd", count: 4, screenshot: "00-hd.png" },
-	{ id: "film", count: 4 },
-	{ id: "basic", count: 4 },
-	{ id: "indoor", count: 4 },
+	{ id: "summer", count: categoryCount("summer") },
+	{ id: "portrait", count: categoryCount("portrait") },
+	{ id: "landscape", count: categoryCount("landscape") },
+	{ id: "food", count: categoryCount("food") },
+	{ id: "camera", count: categoryCount("camera"), screenshot: "00-camera.png" },
+	{ id: "latest", count: latestCount },
+	{ id: "night", count: categoryCount("night"), screenshot: "00-night.png" },
+	{ id: "cinematic", count: categoryCount("cinematic") },
+	{ id: "outdoor", count: categoryCount("outdoor") },
+	{
+		id: "stylized",
+		count: categoryCount("stylized"),
+		screenshot: "00-stylized.png",
+	},
+	{ id: "monochrome", count: categoryCount("monochrome") },
+	{ id: "hd", count: categoryCount("hd"), screenshot: "00-hd.png" },
+	{ id: "film", count: categoryCount("film") },
+	{ id: "basic", count: categoryCount("basic") },
+	{ id: "indoor", count: categoryCount("indoor") },
 ] as const;
 
 async function addVideo({ page }: { page: Page }) {
@@ -71,7 +91,7 @@ test.describe("Filter library", () => {
 
 		const filters = page.getByTestId("filters-view");
 		await expect(filters.locator('[data-testid^="filter-card-"]')).toHaveCount(
-			57
+			allCardCount
 		);
 		await expect
 			.poll(() =>
@@ -219,7 +239,7 @@ test.describe("Filter library", () => {
 			filters.getByTestId("filter-card-documentary-mono")
 		).toBeVisible();
 		await expect(filters.locator('[data-testid^="filter-card-"]')).toHaveCount(
-			4
+			searchMatchCount("黑白")
 		);
 		await filters.screenshot({
 			path: path.join(outputDirectory, "03-bilingual-search.png"),
