@@ -40,15 +40,30 @@ describe("getUpdateArtifactNames", () => {
 			getUpdateArtifactNames({
 				manifestText: [
 					"files:",
+					"  - url: QCut-AI-Video-Editor-Setup-1.2.3.exe",
+					"    blockMapSize: 1200",
+					"path: QCut-AI-Video-Editor-Setup-1.2.3.exe",
+				].join("\n"),
+			})
+		).toEqual([
+			"QCut-AI-Video-Editor-Setup-1.2.3.exe",
+			"QCut-AI-Video-Editor-Setup-1.2.3.exe.blockmap",
+		]);
+	});
+
+	it("does not expect a sibling blockmap for AppImage builds", () => {
+		// electron-builder appends the blockmap into the AppImage itself, so it
+		// reports blockMapSize without writing a separate file.
+		expect(
+			getUpdateArtifactNames({
+				manifestText: [
+					"files:",
 					"  - url: QCut-AI-Video-Editor-1.2.3.AppImage",
 					"    blockMapSize: 1200",
 					"path: QCut-AI-Video-Editor-1.2.3.AppImage",
 				].join("\n"),
 			})
-		).toEqual([
-			"QCut-AI-Video-Editor-1.2.3.AppImage",
-			"QCut-AI-Video-Editor-1.2.3.AppImage.blockmap",
-		]);
+		).toEqual(["QCut-AI-Video-Editor-1.2.3.AppImage"]);
 	});
 
 	it("rejects paths that could escape the release artifact directory", () => {

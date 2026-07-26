@@ -39,7 +39,10 @@ export function getUpdateArtifactNames({
 		if (
 			typeof file.url === "string" &&
 			typeof file.blockMapSize === "number" &&
-			file.blockMapSize > 0
+			file.blockMapSize > 0 &&
+			// AppImage carries its blockmap inside the image, so electron-builder
+			// reports blockMapSize without writing a sibling .blockmap file.
+			!file.url.endsWith(".AppImage")
 		) {
 			addCandidate({ candidate: `${file.url}.blockmap` });
 		}
