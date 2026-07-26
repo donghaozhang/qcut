@@ -78,6 +78,8 @@ export async function runReplicate(
 			model: options.analysisModel,
 			signal: options.signal,
 			executor,
+			outputDir,
+			onProgress,
 		};
 		recipe = await analyzeVideo(source, analyzerOpts);
 	} catch (err) {
@@ -121,11 +123,14 @@ export async function runAnalyzeOnly(
 		outputDir?: string;
 		model?: string;
 		signal?: AbortSignal;
+		onProgress?: (stage: string, percent: number, message: string) => void;
 	} = {}
 ): Promise<VideoRecipe> {
 	const recipe = await analyzeVideo(source, {
 		model: options.model,
 		signal: options.signal,
+		outputDir: options.outputDir,
+		onProgress: options.onProgress,
 	});
 
 	if (options.outputDir) {

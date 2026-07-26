@@ -1,19 +1,21 @@
-import { existsSync, mkdirSync, statSync, writeFileSync } from "node:fs";
+import { writeFileSync } from "node:fs";
 import { basename, join } from "node:path";
-import { execFile } from "node:child_process";
-import { promisify } from "node:util";
-import { getFFmpegPath, getFFprobePath } from "../../ffmpeg/paths.js";
 import type { PipelineExecutor, PipelineStep } from "../execution/executor.js";
 import type { StepOutput } from "../execution/step-executors.js";
+import type { VideoSplitPart } from "../editorial/video-split.js";
+import {
+	partCountForPayload,
+	probeVideoDurationSeconds,
+	shouldSplitVideoInput,
+	splitVideoIntoParts,
+} from "../editorial/video-split.js";
 import type { ReviewArtifactResult } from "./review-artifacts.js";
 import { writeReviewArtifacts } from "./review-artifacts.js";
 import type { ReviewComment } from "./review-normalize.js";
 import { parseReviewModelResponse } from "./review-normalize.js";
 import type { ReviewPromptSet } from "./review-prompts.js";
 
-const execFileAsync = promisify(execFile);
 const DEFAULT_MAX_REVIEW_PAYLOAD_CHARS = 35 * 1024 * 1024;
-const DATA_URL_PREFIX_CHARS = "data:video/mp4;base64,".length;
 
 type ProgressFn = (progress: {
 	stage: string;
@@ -22,13 +24,7 @@ type ProgressFn = (progress: {
 	model?: string;
 }) => void;
 
-export interface ReviewSplitPart {
-	index: number;
-	startSeconds: number;
-	durationSeconds: number;
-	filePath: string;
-	outputDir: string;
-}
+export type ReviewSplitPart = VideoSplitPart;
 
 export interface ReviewSplitPartResult {
 	part: ReviewSplitPart;
@@ -72,26 +68,6 @@ interface RunSplitReviewIfNeededOptions {
 }
 
 /**
- * Determines whether a video input is a remote URL or an inline data URL.
- *
- * @param input - The video source string to inspect.
- * @returns `true` for `http(s)://` URLs or `data:` URLs, which cannot be split locally.
- */
-function isRemoteOrInlineVideo({ input }: { input: string }): boolean {
-	return /^https?:\/\//i.test(input) || input.startsWith("data:");
-}
-
-/**
- * Estimates the character length of a base64 data URL for a file of the given size.
- *
- * @param fileBytes - Size of the video file in bytes.
- * @returns Approximate character count once base64-encoded and prefixed as a data URL.
- */
-function estimatedBase64Chars({ fileBytes }: { fileBytes: number }): number {
-	return Math.ceil(fileBytes / 3) * 4 + DATA_URL_PREFIX_CHARS;
-}
-
-/**
  * Resolves the maximum allowed review payload size in characters.
  *
  * Precedence: explicit `value` → `QCUT_REVIEW_SPLIT_MAX_PAYLOAD_CHARS` env var → built-in default.
@@ -107,52 +83,6 @@ function resolveMaxPayloadChars({ value }: { value?: number }): number {
 	return Number.isFinite(parsed) && parsed > 0
 		? parsed
 		: DEFAULT_MAX_REVIEW_PAYLOAD_CHARS;
-}
-
-/**
- * Decides whether a local video must be split before review based on its estimated payload size.
- *
- * Remote/inline inputs and missing files are never split.
- *
- * @param input - The video source path.
- * @param maxPayloadChars - Maximum payload size that a single review request may carry.
- * @returns Whether to split, plus the estimated payload size and file size used to decide.
- */
-function shouldSplitReviewInput({
-	input,
-	maxPayloadChars,
-}: {
-	input: string;
-	maxPayloadChars: number;
-}): { shouldSplit: boolean; estimatedPayloadChars: number; fileBytes: number } {
-	if (isRemoteOrInlineVideo({ input }) || !existsSync(input)) {
-		return { shouldSplit: false, estimatedPayloadChars: 0, fileBytes: 0 };
-	}
-
-	const fileBytes = statSync(input).size;
-	const estimatedPayloadChars = estimatedBase64Chars({ fileBytes });
-	return {
-		shouldSplit: estimatedPayloadChars > maxPayloadChars,
-		estimatedPayloadChars,
-		fileBytes,
-	};
-}
-
-/**
- * Computes how many parts a video must be split into to fit within the payload limit.
- *
- * @param estimatedPayloadChars - Estimated payload size of the whole video.
- * @param maxPayloadChars - Maximum payload size per part.
- * @returns The number of parts (at least 2).
- */
-function partCountForPayload({
-	estimatedPayloadChars,
-	maxPayloadChars,
-}: {
-	estimatedPayloadChars: number;
-	maxPayloadChars: number;
-}): number {
-	return Math.max(2, Math.ceil(estimatedPayloadChars / maxPayloadChars));
 }
 
 /**
@@ -212,136 +142,14 @@ function shiftCommentTimestamp({
 	};
 }
 
-/**
- * Builds the output file path for a single split part.
- *
- * @param outputDir - Directory the part file is written to.
- * @param index - Zero-based part index (rendered one-based and zero-padded in the name).
- * @param startSeconds - Start offset of the part, encoded into the filename.
- * @returns The absolute path for the part's `.mp4` file.
- */
-function outputPartFilePath({
-	outputDir,
-	index,
-	startSeconds,
-}: {
-	outputDir: string;
-	index: number;
-	startSeconds: number;
-}): string {
-	const paddedIndex = String(index + 1).padStart(3, "0");
-	const paddedStart = String(Math.round(startSeconds)).padStart(4, "0");
-	return join(outputDir, `part-${paddedIndex}-${paddedStart}s.mp4`);
-}
-
-/**
- * Probes a video's duration in seconds via `ffprobe`.
- *
- * @param input - Path to the video file.
- * @returns The duration in seconds.
- * @throws If `ffprobe` cannot determine a valid positive duration.
- */
-async function probeDurationSeconds({
-	input,
-}: {
-	input: string;
-}): Promise<number> {
-	const ffprobePath = await getFFprobePath();
-	const { stdout } = await execFileAsync(ffprobePath, [
-		"-v",
-		"error",
-		"-show_entries",
-		"format=duration",
-		"-of",
-		"default=noprint_wrappers=1:nokey=1",
-		input,
-	]);
-	const duration = Number.parseFloat(stdout.trim());
-	if (!Number.isFinite(duration) || duration <= 0) {
-		throw new Error(`Unable to determine video duration for ${input}`);
-	}
-	return duration;
-}
-
-/**
- * Splits a video into evenly sized parts using `ffmpeg` stream copy.
- *
- * Parts are written under a `review-split-parts` subdirectory and run in parallel.
- *
- * @param input - Path to the source video.
- * @param outputDir - Base output directory; parts are written to a subfolder within it.
- * @param partCount - Number of parts to produce.
- * @param durationSeconds - Total duration of the source video.
- * @returns Metadata describing each produced part.
- */
-async function splitVideo({
-	input,
-	outputDir,
-	partCount,
-	durationSeconds,
-}: {
-	input: string;
-	outputDir: string;
-	partCount: number;
-	durationSeconds: number;
-}): Promise<ReviewSplitPart[]> {
-	const ffmpegPath = getFFmpegPath();
-	const splitDir = join(outputDir, "review-split-parts");
-	mkdirSync(splitDir, { recursive: true });
-	const partDuration = durationSeconds / partCount;
-	const parts = Array.from({ length: partCount }, (_, index) => {
-		const startSeconds = index * partDuration;
-		const isLastPart = index === partCount - 1;
-		return {
-			index,
-			startSeconds,
-			durationSeconds: isLastPart
-				? durationSeconds - startSeconds
-				: partDuration,
-			filePath: outputPartFilePath({
-				outputDir: splitDir,
-				index,
-				startSeconds,
-			}),
-			outputDir: join(
-				splitDir,
-				`part-${String(index + 1).padStart(3, "0")}-review`
-			),
-		};
-	});
-
-	await Promise.all(
-		parts.map((part) =>
-			execFileAsync(ffmpegPath, [
-				"-y",
-				"-hide_banner",
-				"-loglevel",
-				"error",
-				"-ss",
-				String(part.startSeconds),
-				"-i",
-				input,
-				"-t",
-				String(part.durationSeconds),
-				"-c",
-				"copy",
-				"-map",
-				"0:v:0",
-				"-map",
-				"0:a:0?",
-				"-movflags",
-				"+faststart",
-				part.filePath,
-			])
-		)
-	);
-
-	return parts;
-}
-
 const defaultSplitter: ReviewVideoSplitter = {
-	probeDurationSeconds,
-	splitVideo,
+	probeDurationSeconds: probeVideoDurationSeconds,
+	splitVideo: (args) =>
+		splitVideoIntoParts({
+			...args,
+			subdirName: "review-split-parts",
+			partDirSuffix: "review",
+		}),
 };
 
 /**
@@ -610,7 +418,7 @@ export async function runSplitReviewIfNeeded({
 	const resolvedMaxPayloadChars = resolveMaxPayloadChars({
 		value: maxPayloadChars,
 	});
-	const splitDecision = shouldSplitReviewInput({
+	const splitDecision = shouldSplitVideoInput({
 		input: videoInput,
 		maxPayloadChars: resolvedMaxPayloadChars,
 	});

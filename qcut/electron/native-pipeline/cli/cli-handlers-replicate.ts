@@ -104,6 +104,9 @@ export async function handleReplicateAnalyze(
 			outputDir: options.json ? undefined : outputDir,
 			model: options.llmModel,
 			signal,
+			onProgress: (stage, percent, message) => {
+				onProgress({ stage, percent, message });
+			},
 		});
 
 		const duration = (Date.now() - startTime) / 1000;
