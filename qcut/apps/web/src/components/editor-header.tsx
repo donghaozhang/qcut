@@ -5,6 +5,7 @@ import { PanelView } from "@/types/panel";
 import {
 	ChevronDown,
 	ArrowLeft,
+	CircleHelp,
 	Download,
 	SquarePen,
 	Trash,
@@ -37,6 +38,8 @@ import { LanguageSelector } from "./language-selector";
 import { useTranslation } from "@/lib/i18n";
 import { ReviewPanelControl } from "./editor/review/review-panel-control";
 import { UserLibrarySyncControl } from "./user-library-sync-control";
+import { AboutUpdatesDialog } from "./about-updates-dialog";
+import { Tooltip, TooltipContent, TooltipTrigger } from "./ui/tooltip";
 
 /** Editor header bar with project name, export, screenshot, and recording controls. */
 export function EditorHeader() {
@@ -44,6 +47,7 @@ export function EditorHeader() {
 	const { activeProject, renameProject, deleteProject } = useProjectStore();
 	const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
 	const [isRenameDialogOpen, setIsRenameDialogOpen] = useState(false);
+	const [isAboutDialogOpen, setIsAboutDialogOpen] = useState(false);
 	const navigate = useNavigate();
 	const { setPanelView } = useExportStore();
 	const { t } = useTranslation();
@@ -56,6 +60,15 @@ export function EditorHeader() {
 		if (key === "Enter" || key === " ") {
 			return;
 		}
+	};
+
+	const handleAboutKeyDown = ({
+		key,
+		preventDefault,
+	}: KeyboardEvent<HTMLButtonElement>) => {
+		if (key !== "Enter" && key !== " ") return;
+		preventDefault();
+		setIsAboutDialogOpen(true);
 	};
 
 	const handleNameSave = async (newName: string) => {
@@ -129,6 +142,14 @@ export function EditorHeader() {
 					<DropdownMenuSeparator />
 					<ScreenshotControl variant="menu-item" />
 					<KeyboardShortcutsHelp variant="menu-item" />
+					<DropdownMenuItem
+						className="flex items-center gap-1.5"
+						onSelect={() => setIsAboutDialogOpen(true)}
+						data-testid="about-updates-menu-item"
+					>
+						<CircleHelp className="size-4" />
+						{t("updates.about")}
+					</DropdownMenuItem>
 				</DropdownMenuContent>
 			</DropdownMenu>
 			<RenameProjectDialog
@@ -142,6 +163,10 @@ export function EditorHeader() {
 				onOpenChange={setIsDeleteDialogOpen}
 				onConfirm={handleDelete}
 				projectName={activeProject?.name || ""}
+			/>
+			<AboutUpdatesDialog
+				open={isAboutDialogOpen}
+				onOpenChange={setIsAboutDialogOpen}
 			/>
 		</div>
 	);
@@ -167,6 +192,25 @@ export function EditorHeader() {
 			<ScreenRecordingControl />
 			<UserLibrarySyncControl />
 			<ReviewPanelControl />
+			<Tooltip>
+				<TooltipTrigger asChild>
+					<Button
+						type="button"
+						variant="text"
+						size="icon"
+						className="rounded-sm"
+						aria-label={t("updates.about")}
+						onClick={() => setIsAboutDialogOpen(true)}
+						onKeyDown={handleAboutKeyDown}
+						data-testid="about-updates-button"
+					>
+						<CircleHelp className="size-4">
+							<title>{t("updates.about")}</title>
+						</CircleHelp>
+					</Button>
+				</TooltipTrigger>
+				<TooltipContent>{t("updates.about")}</TooltipContent>
+			</Tooltip>
 			<Button
 				type="button"
 				size="sm"

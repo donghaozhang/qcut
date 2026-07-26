@@ -1,6 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { act, fireEvent, render, screen, waitFor } from "@/test/test-utils";
 import type { PlatformUpdateState } from "@qcut/platform-core";
+import { useLocaleStore } from "@/stores/locale-store";
 
 const mocks = vi.hoisted(() => {
 	const state: PlatformUpdateState = {
@@ -55,6 +56,7 @@ import { UpdateSettingsSection } from "../update-settings-section";
 beforeEach(() => {
 	vi.clearAllMocks();
 	mocks.listener = undefined;
+	useLocaleStore.getState().setLocale({ locale: "en" });
 });
 
 describe("UpdateSettingsSection", () => {
@@ -79,7 +81,7 @@ describe("UpdateSettingsSection", () => {
 
 	it("checks manually and offers download when consent is required", async () => {
 		render(<UpdateSettingsSection />);
-		fireEvent.click(await screen.findByRole("button", { name: "Check now" }));
+		fireEvent.click(await screen.findByTestId("app-update-check-button"));
 		await waitFor(() =>
 			expect(mocks.updates.checkForUpdates).toHaveBeenCalledTimes(1)
 		);
@@ -101,6 +103,26 @@ describe("UpdateSettingsSection", () => {
 		fireEvent.click(download);
 		await waitFor(() =>
 			expect(mocks.updates.downloadUpdate).toHaveBeenCalledTimes(1)
+		);
+	});
+
+	it("restarts the app when a downloaded update is ready", async () => {
+		render(<UpdateSettingsSection />);
+		await screen.findByText("QCut v2026.07.11.1 is up to date");
+
+		act(() => {
+			mocks.listener?.({
+				...mocks.state,
+				phase: "ready",
+				version: "2026.07.12.1",
+			});
+		});
+
+		fireEvent.click(
+			await screen.findByRole("button", { name: "Restart and install" })
+		);
+		await waitFor(() =>
+			expect(mocks.updates.installUpdate).toHaveBeenCalledTimes(1)
 		);
 	});
 });

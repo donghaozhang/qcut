@@ -1,5 +1,12 @@
-import { useCallback, useEffect, useState, type KeyboardEvent } from "react";
+import {
+	useCallback,
+	useEffect,
+	useId,
+	useState,
+	type KeyboardEvent,
+} from "react";
 import { Download, RefreshCw } from "lucide-react";
+import { toast } from "sonner";
 import {
 	PlatformCapability,
 	platform,
@@ -8,6 +15,7 @@ import {
 } from "@qcut/platform-core";
 import { Button } from "@/components/ui/button";
 import { Switch } from "@/components/ui/switch";
+import { useTranslation } from "@/lib/i18n";
 
 const EMPTY_STATE: PlatformUpdateState = {
 	phase: "idle",
@@ -23,28 +31,39 @@ const EMPTY_PREFERENCES: PlatformUpdatePreferences = {
 	maxAutomaticDownloadBytes: 0,
 };
 
-function statusLabel({ state }: { state: PlatformUpdateState }): string {
+function statusLabel({
+	state,
+	t,
+}: {
+	state: PlatformUpdateState;
+	t: ReturnType<typeof useTranslation>["t"];
+}): string {
 	switch (state.phase) {
 		case "checking":
-			return "Checking for updates...";
+			return t("updates.checking");
 		case "available":
-			return `QCut v${state.version} is available`;
+			return t("updates.appAvailable", { version: state.version ?? "" });
 		case "downloading":
-			return `Downloading v${state.version} · ${state.percent}%`;
+			return t("updates.appDownloading", {
+				version: state.version ?? "",
+				percent: state.percent,
+			});
 		case "ready":
-			return `QCut v${state.version} is ready to install`;
+			return t("updates.appReady", { version: state.version ?? "" });
 		case "up-to-date":
-			return `QCut v${state.currentVersion} is up to date`;
+			return t("updates.appCurrent", { version: state.currentVersion });
 		case "error":
-			return state.error ?? state.message ?? "Updates unavailable";
+			return state.error ?? state.message ?? t("updates.unavailable");
 		default:
 			return state.currentVersion
-				? `Current version · ${state.currentVersion}`
-				: "Updates unavailable";
+				? t("updates.currentVersion", { version: state.currentVersion })
+				: t("updates.unavailable");
 	}
 }
 
 export function UpdateSettingsSection() {
+	const { t } = useTranslation();
+	const automaticUpdatesId = useId();
 	const [state, setState] = useState<PlatformUpdateState>(EMPTY_STATE);
 	const [preferences, setPreferences] =
 		useState<PlatformUpdatePreferences>(EMPTY_PREFERENCES);
@@ -97,8 +116,18 @@ export function UpdateSettingsSection() {
 
 	const downloadNow = useCallback(() => {
 		if (!hasUpdates) return;
-		void platform().updates.downloadUpdate().then(setState);
-	}, [hasUpdates]);
+		void platform()
+			.updates.downloadUpdate()
+			.then(setState)
+			.catch(() => toast.error(t("updates.downloadFailed")));
+	}, [hasUpdates, t]);
+
+	const installNow = useCallback(() => {
+		if (!hasUpdates) return;
+		void platform()
+			.updates.installUpdate()
+			.catch(() => toast.error(t("updates.installFailed")));
+	}, [hasUpdates, t]);
 
 	const handleButtonKeyDown = useCallback(
 		({ event, action }: { event: KeyboardEvent; action: () => void }) => {
@@ -113,9 +142,9 @@ export function UpdateSettingsSection() {
 		<section className="border-b pb-5" data-testid="update-settings-section">
 			<div className="mb-3 flex items-center justify-between gap-3">
 				<div className="min-w-0">
-					<h3 className="text-sm font-medium">Software updates</h3>
-					<p className="mt-0.5 truncate text-xs text-muted-foreground">
-						{statusLabel({ state })}
+					<h3 className="text-sm font-medium">{t("updates.appTitle")}</h3>
+					<p className="mt-0.5 text-xs text-muted-foreground">
+						{statusLabel({ state, t })}
 					</p>
 				</div>
 				<Button
@@ -128,28 +157,48 @@ export function UpdateSettingsSection() {
 					onKeyDown={(event) =>
 						handleButtonKeyDown({ event, action: checkNow })
 					}
+					data-testid="app-update-check-button"
 				>
 					<RefreshCw
 						className={`h-3.5 w-3.5 ${state.phase === "checking" ? "animate-spin" : ""}`}
 					/>
-					Check now
+					{t("updates.checkNow")}
 				</Button>
 			</div>
 
 			<div className="flex items-center justify-between gap-3 py-2">
-				<label htmlFor="automatic-updates" className="min-w-0">
-					<span className="block text-sm">Automatic updates</span>
+				<label htmlFor={automaticUpdatesId} className="min-w-0">
+					<span className="block text-sm">{t("updates.automatic")}</span>
 					<span className="block text-xs text-muted-foreground">
-						Download updates up to 1 GB
+						{t("updates.automaticDescription")}
 					</span>
 				</label>
 				<Switch
-					id="automatic-updates"
+					id={automaticUpdatesId}
 					checked={preferences.automaticUpdates}
 					disabled={!hasUpdates}
 					onCheckedChange={(enabled) => void setAutomaticUpdates({ enabled })}
 				/>
 			</div>
+
+			{state.phase === "downloading" && (
+				<div
+					className="mt-2 h-1.5 overflow-hidden rounded-full bg-muted"
+					role="progressbar"
+					aria-valuemin={0}
+					aria-valuemax={100}
+					aria-valuenow={state.percent}
+					aria-label={t("updates.appDownloading", {
+						version: state.version ?? "",
+						percent: state.percent,
+					})}
+				>
+					<div
+						className="h-full bg-primary transition-[width] duration-300"
+						style={{ width: `${state.percent}%` }}
+					/>
+				</div>
+			)}
 
 			{state.phase === "available" && !state.automaticDownload && (
 				<Button
@@ -163,7 +212,23 @@ export function UpdateSettingsSection() {
 					}
 				>
 					<Download className="h-3.5 w-3.5" />
-					Download v{state.version}
+					{t("updates.downloadVersion", { version: state.version ?? "" })}
+				</Button>
+			)}
+
+			{state.phase === "ready" && (
+				<Button
+					type="button"
+					variant="secondary"
+					size="sm"
+					className="mt-2 h-8 w-full"
+					onClick={installNow}
+					onKeyDown={(event) =>
+						handleButtonKeyDown({ event, action: installNow })
+					}
+				>
+					<RefreshCw className="h-3.5 w-3.5" />
+					{t("updates.restartInstall")}
 				</Button>
 			)}
 		</section>
