@@ -115,6 +115,7 @@ import {
 } from "./timeline-smart-split";
 import { VideoClipContextMenu } from "./video-clip-context-menu";
 import { TimelineElementTaskBadge } from "./timeline-element-task-badge";
+import { TimelineSpeedKeyframeMarks } from "./timeline-speed-keyframe-marks";
 import {
 	loadClipAttributePresets,
 	saveClipAttributePreset,
@@ -1593,6 +1594,13 @@ function TimelineElementComponent({
 						<div className="absolute inset-0 flex items-center h-full">
 							{renderElementContent()}
 						</div>
+						{element.type === "media" ? (
+							<TimelineSpeedKeyframeMarks
+								element={element}
+								fps={projectFps}
+								widthPx={elementWidth}
+							/>
+						) : null}
 						{element.groupId ? (
 							<div
 								className="pointer-events-none absolute left-1 top-1 z-30 grid size-4 place-items-center rounded-sm bg-black/65 text-white"

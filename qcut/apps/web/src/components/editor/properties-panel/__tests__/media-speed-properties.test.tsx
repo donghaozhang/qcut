@@ -8,12 +8,18 @@ const mocks = vi.hoisted(() => ({
 	pushHistory: vi.fn(),
 	applyEffect: vi.fn(),
 	getElementEffects: vi.fn<() => Array<{ presetId?: string }>>(() => []),
+	seek: vi.fn(),
+	beatCache: new Map<string, unknown>(),
+	timelineState: { tracks: [] as unknown[] },
 }));
 
 vi.mock("@/stores/timeline/timeline-store", () => {
 	const state = {
 		updateMediaTiming: mocks.updateMediaTiming,
 		pushHistory: mocks.pushHistory,
+		get tracks() {
+			return mocks.timelineState.tracks;
+		},
 	};
 	const useTimelineStore = (selector: (value: typeof state) => unknown) =>
 		selector(state);
@@ -22,8 +28,18 @@ vi.mock("@/stores/timeline/timeline-store", () => {
 });
 
 vi.mock("@/stores/editor/playback-store", () => ({
-	usePlaybackStore: (selector: (state: { currentTime: number }) => unknown) =>
-		selector({ currentTime: 0 }),
+	usePlaybackStore: (
+		selector: (state: {
+			currentTime: number;
+			seek: (time: number) => void;
+		}) => unknown
+	) => selector({ currentTime: 0, seek: mocks.seek }),
+}));
+
+vi.mock("@/stores/beat-detection-store", () => ({
+	useBeatDetectionStore: (
+		selector: (state: { cache: Map<string, unknown> }) => unknown
+	) => selector({ cache: mocks.beatCache }),
 }));
 
 vi.mock("@/stores/ai/effects-store", () => ({
@@ -59,6 +75,63 @@ describe("MediaSpeedProperties", () => {
 	beforeEach(() => {
 		vi.clearAllMocks();
 		mocks.getElementEffects.mockReturnValue([]);
+		mocks.beatCache.clear();
+		mocks.timelineState.tracks = [];
+	});
+
+	it("keeps beat sync disabled until beats are detected", () => {
+		render(
+			<MediaSpeedProperties
+				element={element()}
+				trackId="track"
+				mediaKind="video"
+			/>
+		);
+		fireEvent.mouseDown(screen.getByTestId("speed-mode-beat"), { button: 0 });
+
+		expect(screen.getByTestId("speed-beat-count")).toHaveTextContent(
+			"先在音乐片段上检测节拍"
+		);
+		expect(screen.getByTestId("speed-beat-shape-pulse")).toBeDisabled();
+	});
+
+	it("builds a speed curve from beats detected on a music track", () => {
+		const music = element({ id: "music", duration: 8 });
+		mocks.timelineState.tracks = [
+			{ id: "audio", type: "audio", elements: [music] },
+		];
+		mocks.beatCache.set("music", {
+			bpm: 120,
+			confidence: 0.9,
+			duration: 8,
+			downbeats: [2],
+			beats: [
+				{ timestamp: 2, strength: 0.9, index: 0, isDownbeat: true },
+				{ timestamp: 4, strength: 0.8, index: 1, isDownbeat: false },
+			],
+		});
+
+		render(
+			<MediaSpeedProperties
+				element={element()}
+				trackId="track"
+				mediaKind="video"
+			/>
+		);
+		fireEvent.mouseDown(screen.getByTestId("speed-mode-beat"), { button: 0 });
+
+		expect(screen.getByTestId("speed-beat-count")).toHaveTextContent(
+			"片段内有 2 个节拍"
+		);
+		fireEvent.click(screen.getByTestId("speed-beat-shape-dip"));
+
+		const [, , updates] = mocks.updateMediaTiming.mock.lastCall ?? [];
+		const keyframes = (updates as { speedKeyframes: { frame: number }[] })
+			.speedKeyframes;
+		// A dip lands on each beat: 2s and 4s at 30fps.
+		expect(keyframes.map((point) => point.frame)).toEqual(
+			expect.arrayContaining([60, 120])
+		);
 	});
 
 	it("applies a speed-point curve and its existing effects atomically", () => {

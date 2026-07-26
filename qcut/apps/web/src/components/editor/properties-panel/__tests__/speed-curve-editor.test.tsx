@@ -15,6 +15,7 @@ function renderEditor({
 	onChange = vi.fn<(keyframes: MediaPropertyKeyframe[]) => void>(),
 	onInteractionStart = vi.fn<() => void>(),
 	onInteractionEnd = vi.fn<() => void>(),
+	onSeekToFrame,
 }: {
 	keyframes: MediaPropertyKeyframe[];
 	playheadFrame: number | null;
@@ -23,6 +24,7 @@ function renderEditor({
 	>;
 	onInteractionStart?: ReturnType<typeof vi.fn<() => void>>;
 	onInteractionEnd?: ReturnType<typeof vi.fn<() => void>>;
+	onSeekToFrame?: ReturnType<typeof vi.fn<(frame: number) => void>>;
 }) {
 	render(
 		<SpeedCurveEditor
@@ -35,13 +37,15 @@ function renderEditor({
 			resetLabel="Reset"
 			addPointLabel="Add speed point"
 			removePointLabel="Remove speed point"
+			seekLabel="Move the playhead"
 			onChange={onChange}
 			onInteractionStart={onInteractionStart}
 			onInteractionEnd={onInteractionEnd}
 			onReset={vi.fn()}
+			onSeekToFrame={onSeekToFrame}
 		/>
 	);
-	return { onChange, onInteractionStart, onInteractionEnd };
+	return { onChange, onInteractionStart, onInteractionEnd, onSeekToFrame };
 }
 
 const flatCurve = [
@@ -98,5 +102,60 @@ describe("SpeedCurveEditor", () => {
 	it("positions the playhead line proportionally to the source frame", () => {
 		renderEditor({ keyframes: flatCurve, playheadFrame: 60 });
 		expect(screen.getByTestId("speed-curve-playhead").style.left).toBe("25%");
+	});
+
+	it("deletes a focused point with Delete but leaves boundaries alone", () => {
+		const middle = keyframe({ id: "middle", frame: 90, value: 4 });
+		const { onChange } = renderEditor({
+			keyframes: [flatCurve[0], middle, flatCurve[1]],
+			playheadFrame: null,
+		});
+
+		fireEvent.keyDown(screen.getByTestId("speed-curve-point-0"), {
+			key: "Delete",
+		});
+		expect(onChange).not.toHaveBeenCalled();
+
+		fireEvent.keyDown(screen.getByTestId("speed-curve-point-1"), {
+			key: "Backspace",
+		});
+		const next = onChange.mock.calls[0][0] as MediaPropertyKeyframe[];
+		expect(next.map((point) => point.id)).toEqual(["start", "end"]);
+	});
+
+	it("seeks to the clicked frame and steps the playhead with arrow keys", () => {
+		const onSeekToFrame = vi.fn<(frame: number) => void>();
+		renderEditor({
+			keyframes: flatCurve,
+			playheadFrame: 100,
+			onSeekToFrame,
+		});
+		const surface = screen.getByTestId("speed-curve-seek-surface");
+		vi.spyOn(surface, "getBoundingClientRect").mockReturnValue({
+			left: 0,
+			top: 0,
+			width: 200,
+			height: 100,
+		} as DOMRect);
+		const plot = screen.getByTestId("speed-curve-editor");
+		vi.spyOn(plot, "getBoundingClientRect").mockReturnValue({
+			left: 0,
+			top: 0,
+			width: 200,
+			height: 100,
+		} as DOMRect);
+
+		fireEvent.click(surface, { clientX: 50 });
+		expect(onSeekToFrame).toHaveBeenLastCalledWith(60);
+
+		fireEvent.keyDown(surface, { key: "ArrowRight" });
+		expect(onSeekToFrame).toHaveBeenLastCalledWith(101);
+		fireEvent.keyDown(surface, { key: "PageDown" });
+		expect(onSeekToFrame).toHaveBeenLastCalledWith(90);
+	});
+
+	it("omits the seek surface when seeking is not wired up", () => {
+		renderEditor({ keyframes: flatCurve, playheadFrame: 100 });
+		expect(screen.queryByTestId("speed-curve-seek-surface")).toBeNull();
 	});
 });

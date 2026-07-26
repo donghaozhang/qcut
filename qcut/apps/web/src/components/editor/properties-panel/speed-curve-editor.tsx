@@ -34,6 +34,13 @@ const SPEED_CURVE_KEY_DELTAS: Record<
 	ArrowUp: { frameDelta: 0, rateDelta: 0.1 },
 };
 
+const SPEED_CURVE_SEEK_DELTAS: Record<string, number> = {
+	ArrowLeft: -1,
+	ArrowRight: 1,
+	PageDown: -10,
+	PageUp: 10,
+};
+
 // Playhead counts as "on a point" within this fraction of the source duration.
 const POINT_HIT_RATIO = 0.02;
 
@@ -59,10 +66,12 @@ export function SpeedCurveEditor({
 	resetLabel,
 	addPointLabel,
 	removePointLabel,
+	seekLabel,
 	onChange,
 	onInteractionStart,
 	onInteractionEnd,
 	onReset,
+	onSeekToFrame,
 }: {
 	keyframes: MediaPropertyKeyframe[];
 	durationInFrames: number;
@@ -73,10 +82,12 @@ export function SpeedCurveEditor({
 	resetLabel: string;
 	addPointLabel: string;
 	removePointLabel: string;
+	seekLabel: string;
 	onChange: (keyframes: MediaPropertyKeyframe[]) => void;
 	onInteractionStart: () => void;
 	onInteractionEnd: () => void;
 	onReset: () => void;
+	onSeekToFrame?: (frame: number) => void;
 }) {
 	const plotRef = useRef<HTMLDivElement>(null);
 	const safeDuration = Math.max(1, durationInFrames);
@@ -99,12 +110,31 @@ export function SpeedCurveEditor({
 	const canAddPoint =
 		playheadFrame != null && playheadHitIndex < 0 && sorted.length >= 2;
 
+	const removePointAt = ({ index }: { index: number }) => {
+		if (index <= 0 || index >= sorted.length - 1) return;
+		onInteractionStart();
+		onChange(sorted.filter((_, candidate) => candidate !== index));
+		onInteractionEnd();
+	};
+
+	const seekToPointer = ({ clientX }: { clientX: number }) => {
+		const bounds = plotRef.current?.getBoundingClientRect();
+		if (!onSeekToFrame || !bounds || bounds.width <= 0) return;
+		onSeekToFrame(
+			clamp({
+				value: Math.round(
+					((clientX - bounds.left) / bounds.width) * safeDuration
+				),
+				min: 0,
+				max: safeDuration,
+			})
+		);
+	};
+
 	const togglePointAtPlayhead = () => {
 		if (playheadFrame == null) return;
 		if (canRemovePoint) {
-			onInteractionStart();
-			onChange(sorted.filter((_, index) => index !== playheadHitIndex));
-			onInteractionEnd();
+			removePointAt({ index: playheadHitIndex });
 			return;
 		}
 		if (!canAddPoint) return;
@@ -252,6 +282,27 @@ export function SpeedCurveEditor({
 					className="absolute inset-y-0 left-8 right-0"
 					data-testid="speed-curve-editor"
 				>
+					{onSeekToFrame ? (
+						<button
+							type="button"
+							aria-label={seekLabel}
+							data-testid="speed-curve-seek-surface"
+							className="absolute inset-0 cursor-text focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-primary"
+							onClick={(event) => seekToPointer({ clientX: event.clientX })}
+							onKeyDown={(event) => {
+								const seekDelta = SPEED_CURVE_SEEK_DELTAS[event.key];
+								if (seekDelta === undefined || playheadFrame == null) return;
+								event.preventDefault();
+								onSeekToFrame(
+									clamp({
+										value: playheadFrame + seekDelta,
+										min: 0,
+										max: safeDuration,
+									})
+								);
+							}}
+						/>
+					) : null}
 					<svg
 						aria-hidden="true"
 						className="pointer-events-none absolute inset-0 size-full"
@@ -340,6 +391,11 @@ export function SpeedCurveEditor({
 								}}
 								onPointerCancel={onInteractionEnd}
 								onKeyDown={(event) => {
+									if (event.key === "Delete" || event.key === "Backspace") {
+										event.preventDefault();
+										removePointAt({ index });
+										return;
+									}
 									const delta = SPEED_CURVE_KEY_DELTAS[event.key];
 									if (!delta) return;
 									event.preventDefault();
