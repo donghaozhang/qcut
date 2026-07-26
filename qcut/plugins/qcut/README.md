@@ -6,7 +6,7 @@ control a running QCut desktop editor.
 ## Requirements
 
 - Codex CLI or the Codex app with plugin support.
-- QCut AI Video Editor 2026.07.26.1 or newer, or a standalone QCut CLI
+- QCut AI Video Editor 2026.07.26.2 or newer, or a standalone QCut CLI
   version 1.0.0 or newer.
 - QCut must be running for `editor:*` commands.
 

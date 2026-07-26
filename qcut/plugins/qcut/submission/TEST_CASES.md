@@ -16,7 +16,7 @@ Submit exactly these five positive and three negative cases.
 - **User prompt:** Open my only QCut project and take me to its Media page.
 - **Expected behavior:** Confirm QCut and its CLI are available, list projects, select the only project, run the setup helper's `open-media` flow, and verify the active project and `media` panel from editor state.
 - **Expected result shape:** A successful result containing the project ID, panel name, and `verified: true`.
-- **Fixture:** QCut 2026.07.26.1 or newer with exactly one local project and no unsaved critical work.
+- **Fixture:** QCut 2026.07.26.2 or newer with exactly one local project and no unsaved critical work.
 
 ### 3. Transcribe a Mandarin clip
 
@@ -37,7 +37,7 @@ Submit exactly these five positive and three negative cases.
 - **User prompt:** Keep my current app focused, but show me the Agent pointer applying Montage to the selected clip and moving one speed control point in QCut.
 - **Expected behavior:** Export the selected element before editing, capture fresh interactive snapshots, use background pointer clicks to open Speed and select Montage, drag one interior curve point, and export timeline state again. Verify the preset created speed keyframes, the drag changed a frame or rate, and `timelineDuration` changed while source `duration` remained stable. Do not silently fall back to foreground input.
 - **Expected result shape:** Pointer results with `inputMode: "background"`, `input: "cdp-dispatch-mouse-event"`, and `windowFocused: false`, followed by before/after `speedKeyframes`, `duration`, and `timelineDuration` evidence.
-- **Fixture:** QCut 2026.07.26.1 or newer running visibly behind another focused desktop application with one selected video clip.
+- **Fixture:** QCut 2026.07.26.2 or newer running visibly behind another focused desktop application with one selected video clip.
 
 ## Negative Cases
 

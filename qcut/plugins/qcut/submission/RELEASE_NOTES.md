@@ -13,6 +13,6 @@ This update expands the public QCut skills-only plugin for ChatGPT and Codex.
 - Bundles no API credentials, remote MCP server, connector, or telemetry service.
 - Adds public publisher metadata, support, privacy, terms, and reproducible review cases.
 
-Reviewers need QCut 2026.07.26.1 or newer for editor and background pointer
+Reviewers need QCut 2026.07.26.2 or newer for editor and background pointer
 cases. Provider-backed generation or transcription requires credentials
 configured through QCut settings; no demo secrets are embedded in the plugin.
