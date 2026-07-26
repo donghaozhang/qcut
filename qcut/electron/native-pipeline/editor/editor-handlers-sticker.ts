@@ -7,7 +7,12 @@
  * @module electron/native-pipeline/editor/editor-handlers-sticker
  */
 
-import fs from "node:fs";
+import fs, { mkdtempSync, rmSync } from "node:fs";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
+import { searchIconifyStickers } from "../stickers/iconify-sticker-client.js";
+import { materializeSticker } from "../stickers/sticker-asset-materializer.js";
+import { parseStickerOverlayPlan } from "../stickers/sticker-overlay-plan.js";
 import type { EditorApiClient } from "./editor-api-client.js";
 import type { CLIRunOptions, CLIResult } from "../cli/cli-runner/types.js";
 
@@ -19,9 +24,11 @@ export async function handleStickerCommand(
 	options: CLIRunOptions
 ): Promise<CLIResult> {
 	const parts = options.command.split(":");
-	const action = parts[2]; // "add", "update", "remove", "list"
+	const action = parts[2];
 
 	switch (action) {
+		case "search":
+			return stickerSearch(options);
 		case "add":
 			return stickerAdd(client, options);
 		case "update":
@@ -33,8 +40,92 @@ export async function handleStickerCommand(
 		default:
 			return {
 				success: false,
-				error: `Unknown sticker action: ${action}. Available: add, update, remove, list`,
+				error: `Unknown sticker action: ${action}. Available: search, add, update, remove, list`,
 			};
+	}
+}
+
+// ---------------------------------------------------------------------------
+// Search stickers
+// ---------------------------------------------------------------------------
+
+async function stickerSearch(opts: CLIRunOptions): Promise<CLIResult> {
+	try {
+		const query = opts.query?.trim();
+		if (!query) return { success: false, error: "Missing --query" };
+		const data = await searchIconifyStickers({
+			query,
+			collection: opts.collection,
+			limit: opts.limit,
+		});
+		return { success: true, data };
+	} catch (error) {
+		return {
+			success: false,
+			error: `Sticker search failed: ${error instanceof Error ? error.message : String(error)}`,
+		};
+	}
+}
+
+async function importStickerSource({
+	client,
+	projectId,
+	source,
+}: {
+	client: EditorApiClient;
+	projectId: string;
+	source: string;
+}): Promise<string> {
+	const importResult = await client.post<{ id?: string; mediaId?: string }>(
+		`/api/claude/media/${encodeURIComponent(projectId)}/import`,
+		{ source }
+	);
+	const mediaId = importResult.id ?? importResult.mediaId;
+	if (!mediaId) {
+		throw new Error("Media import succeeded but no mediaId returned");
+	}
+	return mediaId;
+}
+
+async function materializeCatalogSticker({
+	stickerId,
+	width,
+}: {
+	stickerId: string;
+	width: number;
+}): Promise<{ path: string; cleanup: () => void }> {
+	const outputDirectory = mkdtempSync(join(tmpdir(), "qcut-editor-sticker-"));
+	try {
+		const item = parseStickerOverlayPlan({
+			value: {
+				version: 1,
+				stickers: [
+					{
+						stickerId,
+						startTime: 0,
+						duration: 1,
+						x: 0,
+						y: 0,
+						width,
+						fadeIn: 0,
+						fadeOut: 0,
+					},
+				],
+			},
+		}).stickers[0];
+		const materialized = await materializeSticker({
+			item,
+			outputDirectory,
+			index: 0,
+			planDirectory: process.cwd(),
+		});
+		return {
+			path: materialized.path,
+			cleanup: () => rmSync(outputDirectory, { recursive: true, force: true }),
+		};
+	} catch (error) {
+		rmSync(outputDirectory, { recursive: true, force: true });
+		throw error;
 	}
 }
 
@@ -60,26 +151,31 @@ async function stickerAdd(
 	let mediaId: string | undefined;
 	let stickerId = opts.stickerId;
 
-	// Custom image: import first, then use as sticker
 	if (opts.source) {
 		if (!fs.existsSync(opts.source)) {
 			return { success: false, error: `File not found: ${opts.source}` };
 		}
-
-		const importResult = await client.post<{ id?: string; mediaId?: string }>(
-			`/api/claude/media/${encodeURIComponent(opts.projectId)}/import`,
-			{ source: opts.source }
-		);
-		mediaId = importResult.id ?? importResult.mediaId;
-		if (!mediaId) {
-			return {
-				success: false,
-				error: "Media import succeeded but no mediaId returned",
-			};
-		}
-		// For custom stickers, use a generated sticker ID if none provided
+		mediaId = await importStickerSource({
+			client,
+			projectId: opts.projectId,
+			source: opts.source,
+		});
 		if (!stickerId) {
 			stickerId = `custom_${mediaId}`;
+		}
+	} else if (stickerId?.includes(":")) {
+		const materialized = await materializeCatalogSticker({
+			stickerId,
+			width: opts.width ?? 512,
+		});
+		try {
+			mediaId = await importStickerSource({
+				client,
+				projectId: opts.projectId,
+				source: materialized.path,
+			});
+		} finally {
+			materialized.cleanup();
 		}
 	}
 

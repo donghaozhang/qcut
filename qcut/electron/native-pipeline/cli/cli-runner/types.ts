@@ -230,6 +230,7 @@ export interface CLIRunOptions {
 	gridUpscale?: number;
 	// search options
 	query?: string;
+	collection?: string;
 	caseSensitive?: boolean;
 	wholeWord?: boolean;
 	maxResults?: number;

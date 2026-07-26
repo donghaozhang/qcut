@@ -116,7 +116,7 @@ export const CATEGORIES: CategoryDef[] = [
 	{
 		name: "editing",
 		label: "Editing Commands",
-		commands: ["edit-plan", "edit-verify"],
+		commands: ["edit-plan", "edit-verify", "sticker-search", "sticker-overlay"],
 	},
 	{
 		name: "models",
@@ -1722,6 +1722,45 @@ const CORE_COMMANDS: Record<string, CommandDef> = {
 			"qcut-pipeline subtitle-export -i video.mp4 --srt-file subs.srt --preset bold",
 			"qcut-pipeline subtitle-export -i video.mp4 --preset cinematic --json",
 			'qcut-pipeline subtitle-export -i video.mp4 -s subs.srt --style \'{"fontColor":"#ffff00"}\'',
+		],
+	},
+	"sticker-search": {
+		name: "sticker-search",
+		description: "Search the Iconify sticker catalog",
+		category: "editing",
+		flags: [
+			f("--query", "string", "Sticker search query", { required: true }),
+			f("--collection", "string", "Limit results to an Iconify collection"),
+			f("--limit", "number", "Maximum results", { default: 24 }),
+		],
+		examples: [
+			"qcut edit sticker-search --query detective --limit 12 --json",
+			"qcut edit sticker-search --query warning --collection fluent-emoji-flat --json",
+		],
+	},
+	"sticker-overlay": {
+		name: "sticker-overlay",
+		description:
+			"Render timed stickers and optional sound effects from a JSON plan",
+		category: "editing",
+		flags: [
+			f("--input", "string", "Input video file path", {
+				short: "-i",
+				required: true,
+			}),
+			f("--plan", "string", "Sticker overlay plan JSON path", {
+				required: true,
+			}),
+			f("--output", "string", "Output MP4 path"),
+			f(
+				"--save-intermediates",
+				"boolean",
+				"Keep downloaded and rasterized sticker assets"
+			),
+			f("--force", "boolean", "Replace an existing output"),
+		],
+		examples: [
+			"qcut edit sticker-overlay -i video.mp4 --plan stickers.json --output video-stickers.mp4",
 		],
 	},
 
