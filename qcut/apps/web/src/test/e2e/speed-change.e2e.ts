@@ -293,7 +293,6 @@ test.describe("Speed change workflow", () => {
 			).toBeVisible();
 		}
 		await speedPanel.getByTestId("speed-point-preset-rainbow").click();
-		await speedPanel.getByTestId("speed-frame-interpolation").click();
 		await expect
 			.poll(async () =>
 				(await speedState({ page })).effects.some(
@@ -302,15 +301,19 @@ test.describe("Speed change workflow", () => {
 				)
 			)
 			.toBe(true);
-		await expect
-			.poll(async () => (await speedState({ page })).frameInterpolation)
-			.toBe("motion-compensated");
 		await page.screenshot({
 			path: path.join(artifactDirectory, "03-speed-points.jpg"),
 			animations: "disabled",
 			type: "jpeg",
 			quality: 90,
 		});
+
+		// Smart interpolation now lives inside the curve tab, below the editor.
+		await speedPanel.getByTestId("speed-mode-curve").click();
+		await speedPanel.getByTestId("speed-frame-interpolation").click();
+		await expect
+			.poll(async () => (await speedState({ page })).frameInterpolation)
+			.toBe("motion-compensated");
 
 		await page.getByTestId("project-menu-button").click();
 		await page.getByRole("menuitem", { name: "快捷键" }).click();

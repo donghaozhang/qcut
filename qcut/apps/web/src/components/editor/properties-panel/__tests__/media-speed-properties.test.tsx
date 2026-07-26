@@ -246,6 +246,9 @@ describe("MediaSpeedProperties", () => {
 				mediaKind="video"
 			/>
 		);
+		fireEvent.mouseDown(screen.getByTestId("speed-mode-curve"), {
+			button: 0,
+		});
 		fireEvent.click(screen.getByTestId("speed-frame-interpolation"));
 		expect(mocks.updateMediaTiming).toHaveBeenLastCalledWith(
 			"track",

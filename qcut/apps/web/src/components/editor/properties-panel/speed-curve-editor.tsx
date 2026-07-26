@@ -1,6 +1,18 @@
 import { type KeyboardEvent, useRef } from "react";
-import { ArrowRight, GripVertical, RotateCcw } from "lucide-react";
+import {
+	ArrowRight,
+	ChevronLeft,
+	ChevronRight,
+	Minus,
+	Plus,
+	RotateCcw,
+} from "lucide-react";
 import { Button } from "@/components/ui/button";
+import {
+	interpolateNumber,
+	type Keyframe,
+} from "@/lib/remotion/keyframe-converter";
+import { generateUUID } from "@/lib/utils";
 import {
 	buildSpeedCurvePath,
 	speedRateToY,
@@ -22,6 +34,9 @@ const SPEED_CURVE_KEY_DELTAS: Record<
 	ArrowUp: { frameDelta: 0, rateDelta: 0.1 },
 };
 
+// Playhead counts as "on a point" within this fraction of the source duration.
+const POINT_HIT_RATIO = 0.02;
+
 function clamp({
 	value,
 	min,
@@ -37,10 +52,13 @@ function clamp({
 export function SpeedCurveEditor({
 	keyframes,
 	durationInFrames,
+	playheadFrame = null,
 	sourceDurationLabel,
 	timelineDurationLabel,
 	durationLabel,
 	resetLabel,
+	addPointLabel,
+	removePointLabel,
 	onChange,
 	onInteractionStart,
 	onInteractionEnd,
@@ -48,10 +66,13 @@ export function SpeedCurveEditor({
 }: {
 	keyframes: MediaPropertyKeyframe[];
 	durationInFrames: number;
+	playheadFrame?: number | null;
 	sourceDurationLabel: string;
 	timelineDurationLabel: string;
 	durationLabel: string;
 	resetLabel: string;
+	addPointLabel: string;
+	removePointLabel: string;
 	onChange: (keyframes: MediaPropertyKeyframe[]) => void;
 	onInteractionStart: () => void;
 	onInteractionEnd: () => void;
@@ -60,6 +81,50 @@ export function SpeedCurveEditor({
 	const plotRef = useRef<HTMLDivElement>(null);
 	const safeDuration = Math.max(1, durationInFrames);
 	const sorted = [...keyframes].sort((left, right) => left.frame - right.frame);
+	const hitThreshold = Math.max(1, Math.round(safeDuration * POINT_HIT_RATIO));
+	const playheadHitIndex =
+		playheadFrame == null
+			? -1
+			: sorted.reduce((best, keyframe, index) => {
+					const distance = Math.abs(keyframe.frame - playheadFrame);
+					if (distance > hitThreshold) return best;
+					const bestDistance =
+						best < 0
+							? Number.POSITIVE_INFINITY
+							: Math.abs(sorted[best].frame - playheadFrame);
+					return distance < bestDistance ? index : best;
+				}, -1);
+	const canRemovePoint =
+		playheadHitIndex > 0 && playheadHitIndex < sorted.length - 1;
+	const canAddPoint =
+		playheadFrame != null && playheadHitIndex < 0 && sorted.length >= 2;
+
+	const togglePointAtPlayhead = () => {
+		if (playheadFrame == null) return;
+		if (canRemovePoint) {
+			onInteractionStart();
+			onChange(sorted.filter((_, index) => index !== playheadHitIndex));
+			onInteractionEnd();
+			return;
+		}
+		if (!canAddPoint) return;
+		const frame = clamp({
+			value: Math.round(playheadFrame),
+			min: 1,
+			max: safeDuration - 1,
+		});
+		const value = Number(
+			interpolateNumber(sorted as Keyframe[], frame).toFixed(2)
+		);
+		onInteractionStart();
+		onChange(
+			[
+				...sorted,
+				{ id: generateUUID(), frame, value, easing: "easeInOut" as const },
+			].sort((left, right) => left.frame - right.frame)
+		);
+		onInteractionEnd();
+	};
 
 	const updatePoint = ({
 		id,
@@ -194,9 +259,17 @@ export function SpeedCurveEditor({
 						viewBox="0 0 100 100"
 					>
 						<path
-							d="M 0 0 H 100 M 0 25 H 100 M 0 50 H 100 M 0 75 H 100 M 0 100 H 100"
+							d="M 0 0 H 100 M 0 100 H 100"
 							fill="none"
 							stroke="#3f3f46"
+							strokeDasharray="3 3"
+							strokeWidth="0.75"
+							vectorEffect="non-scaling-stroke"
+						/>
+						<path
+							d="M 0 50 H 100"
+							fill="none"
+							stroke="#52525b"
 							strokeDasharray="3 3"
 							strokeWidth="0.75"
 							vectorEffect="non-scaling-stroke"
@@ -214,6 +287,24 @@ export function SpeedCurveEditor({
 							vectorEffect="non-scaling-stroke"
 						/>
 					</svg>
+					{playheadFrame != null ? (
+						<div
+							aria-hidden="true"
+							data-testid="speed-curve-playhead"
+							className="pointer-events-none absolute inset-y-0 w-px bg-zinc-100/80"
+							style={{
+								left: `${
+									(clamp({
+										value: playheadFrame,
+										min: 0,
+										max: safeDuration,
+									}) /
+										safeDuration) *
+									100
+								}%`,
+							}}
+						/>
+					) : null}
 					{sorted.map((keyframe, index) => {
 						const left = (keyframe.frame / safeDuration) * 100;
 						const top = speedRateToY({ rate: keyframe.value }) * 100;
@@ -224,7 +315,7 @@ export function SpeedCurveEditor({
 								title={`${keyframe.value.toFixed(2)}x`}
 								aria-label={`${keyframe.value.toFixed(2)}x`}
 								data-testid={`speed-curve-point-${index}`}
-								className="absolute flex h-5 w-3.5 -translate-x-1/2 -translate-y-1/2 cursor-grab items-center justify-center rounded-[3px] border border-zinc-500 bg-zinc-800 text-zinc-400 shadow-sm active:cursor-grabbing focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary"
+								className="absolute flex h-5 w-4 -translate-x-1/2 -translate-y-1/2 cursor-grab items-center justify-center rounded-full border border-zinc-500 bg-zinc-800 text-zinc-400 shadow-sm active:cursor-grabbing focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary"
 								style={{ left: `${left}%`, top: `${top}%` }}
 								onPointerDown={(event) => {
 									event.preventDefault();
@@ -257,14 +348,17 @@ export function SpeedCurveEditor({
 									onInteractionEnd();
 								}}
 							>
-								<GripVertical className="size-2.5" aria-hidden="true" />
+								<span className="flex items-center" aria-hidden="true">
+									<ChevronLeft className="size-2" />
+									<ChevronRight className="-ml-0.5 size-2" />
+								</span>
 							</button>
 						);
 					})}
 				</div>
 			</div>
 
-			<div className="mt-3 flex justify-end">
+			<div className="mt-3 flex items-center justify-end gap-1.5">
 				<Button
 					type="button"
 					variant="secondary"
@@ -276,6 +370,23 @@ export function SpeedCurveEditor({
 				>
 					<RotateCcw className="size-3" aria-hidden="true" />
 					{resetLabel}
+				</Button>
+				<Button
+					type="button"
+					variant="secondary"
+					size="sm"
+					className="size-7 p-0"
+					data-testid="speed-curve-point-toggle"
+					disabled={!canRemovePoint && !canAddPoint}
+					aria-label={canRemovePoint ? removePointLabel : addPointLabel}
+					title={canRemovePoint ? removePointLabel : addPointLabel}
+					onClick={togglePointAtPlayhead}
+				>
+					{playheadHitIndex >= 0 ? (
+						<Minus className="size-3.5" aria-hidden="true" />
+					) : (
+						<Plus className="size-3.5" aria-hidden="true" />
+					)}
 				</Button>
 			</div>
 		</div>

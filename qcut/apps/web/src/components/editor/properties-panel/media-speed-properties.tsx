@@ -145,13 +145,13 @@ function createFlatSpeedCurve({
 			id: generateUUID(),
 			frame: 0,
 			value: playbackRate,
-			easing: "linear",
+			easing: "easeInOut",
 		},
 		{
 			id: generateUUID(),
 			frame: endFrame,
 			value: playbackRate,
-			easing: "linear",
+			easing: "easeInOut",
 		},
 	];
 }
@@ -207,6 +207,14 @@ export function MediaSpeedProperties({
 		localTimelineTime: currentTime - element.startTime,
 		fps,
 	});
+	const playheadLocalTime = currentTime - element.startTime;
+	const playheadFrame =
+		playheadLocalTime >= 0 && playheadLocalTime <= timelineDuration
+			? Math.min(
+					sourceDurationInFrames,
+					Math.max(0, Math.round(playbackTiming.sourceTime * fps))
+				)
+			: null;
 
 	const update = (updates: MediaUpdates, history = true) =>
 		updateMediaTiming(trackId, element.id, updates, history);
@@ -458,6 +466,7 @@ export function MediaSpeedProperties({
 							<SpeedCurveEditor
 								keyframes={speedKeyframes}
 								durationInFrames={sourceDurationInFrames}
+								playheadFrame={playheadFrame}
 								sourceDurationLabel={formatDuration({
 									seconds: sourceDuration,
 								})}
@@ -466,11 +475,32 @@ export function MediaSpeedProperties({
 								})}
 								durationLabel={t("audioProperties.speed.duration")}
 								resetLabel={t("audioProperties.speed.reset")}
+								addPointLabel={t("audioProperties.speed.addPoint")}
+								removePointLabel={t("audioProperties.speed.removePoint")}
 								onChange={updateCustomCurve}
 								onInteractionStart={beginInteraction}
 								onInteractionEnd={endInteraction}
 								onReset={resetCurve}
 							/>
+						) : null}
+						{mediaKind === "video" ? (
+							<div className="flex items-center justify-between gap-3 px-1">
+								<PropertyItemLabel>
+									{t("audioProperties.speed.frameInterpolation")}
+								</PropertyItemLabel>
+								<Switch
+									aria-label={t("audioProperties.speed.frameInterpolation")}
+									data-testid="speed-frame-interpolation"
+									checked={element.frameInterpolation === "motion-compensated"}
+									onCheckedChange={(enabled) =>
+										update({
+											frameInterpolation: enabled
+												? "motion-compensated"
+												: "none",
+										})
+									}
+								/>
+							</div>
 						) : null}
 					</div>
 				</TabsContent>
@@ -520,23 +550,6 @@ export function MediaSpeedProperties({
 								checked={element.preservePitch === false}
 								onCheckedChange={(pitchShift) =>
 									update({ preservePitch: !pitchShift })
-								}
-							/>
-						</div>
-					) : null}
-					{mediaKind === "video" ? (
-						<div className="flex items-center justify-between gap-3">
-							<PropertyItemLabel>
-								{t("audioProperties.speed.frameInterpolation")}
-							</PropertyItemLabel>
-							<Switch
-								aria-label={t("audioProperties.speed.frameInterpolation")}
-								data-testid="speed-frame-interpolation"
-								checked={element.frameInterpolation === "motion-compensated"}
-								onCheckedChange={(enabled) =>
-									update({
-										frameInterpolation: enabled ? "motion-compensated" : "none",
-									})
 								}
 							/>
 						</div>
