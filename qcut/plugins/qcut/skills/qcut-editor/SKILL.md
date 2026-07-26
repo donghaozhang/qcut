@@ -182,6 +182,33 @@ them inside the current editor viewport. Click, double-click, right-click, and
 drag are confirmation-tier actions; use `--force` only after the requested
 action and target are clear.
 
+## Adjust a video speed curve
+
+Prefer exported timeline state for inspection and verification. QCut supports
+None, Custom, Montage, Hero moment, Bullet time, Jump cut, Flash in, and Flash
+out in the selected video clip's Speed panel. Rates are clamped from `0.1x` to
+`10x`; curve edits update `speedKeyframes` and the exported
+`timelineDuration`. The exported `duration` remains the trimmed source duration.
+
+When the user wants to watch the edit, keep their current app focused and use
+the background Agent pointer:
+
+1. Export the timeline and record the selected element's `duration`,
+   `timelineDuration`, and `speedKeyframes`.
+2. Capture an interactive snapshot and resolve the Speed tab.
+3. Click Speed, then Curve speed, then the requested preset by fresh snapshot
+   refs.
+4. Capture another snapshot and drag one interior curve handle only when the
+   user asked for a custom adjustment.
+5. Export the timeline again and compare keyframe count, changed frame or rate,
+   and resulting `timelineDuration`.
+6. Capture a screenshot with the curve and selected preset visible.
+
+For repeatable automation without a visible demonstration, export the selected
+element schema and use `editor:timeline:update-element` with only a verified
+`speedKeyframes` field. Never invent keyframe fields; preserve IDs and easing
+values from QCut's exported schema. Verify `timelineDuration` after the update.
+
 ## Record a repeatable demo
 
 Use a plan to prepare the project and timeline, run semantic pointer actions,
@@ -257,9 +284,9 @@ the recording.
   the exact schema already present in that project. Do not invent element
   fields.
 - Effects, transitions, filters, text, audio properties, and playback speed do
-  not yet all have dedicated semantic CLI commands. Use verified timeline
-  schemas or accessibility snapshot controls, and say when a requested edit is
-  not safely exposed.
+  not yet all have dedicated semantic CLI commands. Curve speed is exposed
+  through verified timeline schemas and accessibility snapshot controls. Say
+  when another requested edit is not safely exposed.
 - Use transaction or undo support for multi-step edits when available.
 - Never delete a project, media item, track, or timeline element without user
   confirmation.

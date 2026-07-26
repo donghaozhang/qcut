@@ -6,7 +6,8 @@ control a running QCut desktop editor.
 ## Requirements
 
 - Codex CLI or the Codex app with plugin support.
-- QCut AI Video Editor, or a standalone QCut CLI version 1.0.0 or newer.
+- QCut AI Video Editor 2026.07.26.1 or newer, or a standalone QCut CLI
+  version 1.0.0 or newer.
 - QCut must be running for `editor:*` commands.
 
 The plugin never bundles API credentials. Configure provider keys through
@@ -17,7 +18,7 @@ QCut's interactive setup or desktop settings.
 The versioned public release can be installed directly from GitHub:
 
 ```bash
-codex plugin marketplace add Quriosity-agent/qcut --ref qcut-plugin-v1.0.0
+codex plugin marketplace add Quriosity-agent/qcut --ref qcut-plugin-v1.1.0
 codex plugin add qcut@qcut
 ```
 
@@ -86,7 +87,7 @@ qcut/
     `-- qcut-editor/
 ```
 
-This is an initial skills-only plugin. It does not include a remote MCP server.
+This is a skills-only plugin. It does not include a remote MCP server.
 
 ## Public directory submission
 
