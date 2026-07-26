@@ -73,6 +73,8 @@ export function buildGeneratedMaskStack({
 			direction,
 			status: "ready",
 			source,
+			progress: 100,
+			anchorFrame,
 		},
 	};
 
@@ -136,6 +138,7 @@ export function attachGeneratedMask({
 	name,
 	trackingSamples = [],
 	targetElementId,
+	trackingRequestId,
 }: {
 	sourceMediaId: string;
 	type: "person" | "object";
@@ -143,11 +146,20 @@ export function attachGeneratedMask({
 	name: string;
 	trackingSamples?: MediaMaskTrackingSample[];
 	targetElementId?: string;
+	trackingRequestId?: string;
 }): boolean {
 	const segmentationState = useSegmentationStore.getState();
 	const request = segmentationState.trackingRequest;
+	if (trackingRequestId) {
+		const isCurrentTrackingRequest =
+			request?.requestId === trackingRequestId &&
+			(!targetElementId || request.elementId === targetElementId);
+		if (!isCurrentTrackingRequest) return false;
+	}
 	const matchingRequest =
-		request && (!targetElementId || request.elementId === targetElementId)
+		request &&
+		(!trackingRequestId || request.requestId === trackingRequestId) &&
+		(!targetElementId || request.elementId === targetElementId)
 			? request
 			: null;
 	const target = selectedMediaTarget({
@@ -246,4 +258,75 @@ export function failGeneratedMaskTracking({ message }: { message: string }) {
 			.updateMediaElement(target.trackId, target.element.id, { masks });
 	}
 	segmentationState.clearTrackingRequest();
+}
+
+export function pauseGeneratedMaskTracking({
+	message,
+	trackingRequestId,
+}: {
+	message?: string;
+	trackingRequestId?: string;
+} = {}): boolean {
+	const segmentationState = useSegmentationStore.getState();
+	const request = segmentationState.trackingRequest;
+	if (
+		!request ||
+		(trackingRequestId && request.requestId !== trackingRequestId)
+	) {
+		return false;
+	}
+	const target = selectedMediaTarget({ elementId: request.elementId });
+	if (target) {
+		const masks = resolveMediaMasks(target.element).map((mask) =>
+			mask.id === request.maskId
+				? {
+						...mask,
+						tracking: {
+							...mask.tracking,
+							direction: request.direction,
+							status: "paused" as const,
+							progress: mask.tracking?.progress ?? 0,
+							anchorFrame: request.anchorFrame,
+							error: message,
+						},
+					}
+				: mask
+		);
+		useTimelineStore
+			.getState()
+			.updateMediaElement(target.trackId, target.element.id, { masks });
+	}
+	return true;
+}
+
+export function updateGeneratedMaskTrackingProgress({
+	progress,
+	source,
+}: {
+	progress: number;
+	source?: "mediapipe" | "sam3";
+}) {
+	const segmentationState = useSegmentationStore.getState();
+	const request = segmentationState.trackingRequest;
+	if (!request) return;
+	const target = selectedMediaTarget({ elementId: request.elementId });
+	if (!target) return;
+	const masks = resolveMediaMasks(target.element).map((mask) =>
+		mask.id === request.maskId
+			? {
+					...mask,
+					tracking: {
+						...mask.tracking,
+						direction: request.direction,
+						source: source ?? mask.tracking?.source ?? "manual",
+						status: "processing" as const,
+						progress: Math.min(99, Math.max(0, progress)),
+						anchorFrame: request.anchorFrame,
+					},
+				}
+			: mask
+	);
+	useTimelineStore
+		.getState()
+		.updateMediaElement(target.trackId, target.element.id, { masks }, false);
 }

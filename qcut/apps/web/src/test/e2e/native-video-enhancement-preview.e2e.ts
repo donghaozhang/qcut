@@ -55,6 +55,7 @@ interface TimelineHarnessState {
 		element: Record<string, unknown>,
 		options?: { pushHistory?: boolean; selectElement?: boolean }
 	) => string | null;
+	clearSelectedElements: () => void;
 }
 
 interface StickerHarnessStores {
@@ -71,6 +72,10 @@ interface StickerHarnessStores {
 				opacity: number;
 			}
 		) => string;
+		selectSticker: (id: string | null) => void;
+		setIsDragging: (isDragging: boolean) => void;
+		setIsResizing: (isResizing: boolean) => void;
+		setIsRotating: (isRotating: boolean) => void;
 	};
 	timeline: TimelineHarnessState;
 }
@@ -123,6 +128,22 @@ async function updateEnhancements({
 		},
 		{ nextEnhancements: enhancements, nextLocalSeekTime: localSeekTime }
 	);
+}
+
+async function clearTimelineSelection({
+	page,
+}: {
+	page: import("@playwright/test").Page;
+}): Promise<void> {
+	await page.evaluate(() => {
+		const harness = window as unknown as HarnessWindow;
+		harness.__timelineStore.getState().clearSelectedElements();
+		const stickerStore = harness.stickerTest?.getStores().stickers;
+		stickerStore?.selectSticker(null);
+		stickerStore?.setIsDragging(false);
+		stickerStore?.setIsResizing(false);
+		stickerStore?.setIsRotating(false);
+	});
 }
 
 async function getContentBoxSize({
@@ -337,6 +358,7 @@ test.describe("Native video enhancement preview", () => {
 			enhancements: firstEnhancements,
 			localSeekTime: 0.5,
 		});
+		await clearTimelineSelection({ page });
 
 		const nativePreview = page
 			.locator('[data-native-composition-preview="ready"]')
@@ -368,6 +390,7 @@ test.describe("Native video enhancement preview", () => {
 			enhancements: { ...firstEnhancements, clarity: 70, relight: 30 },
 			localSeekTime: 0.75,
 		});
+		await clearTimelineSelection({ page });
 		await expect
 			.poll(() => nativePreview.getAttribute("src"), { timeout: 30_000 })
 			.not.toBe(firstSource);
@@ -382,6 +405,7 @@ test.describe("Native video enhancement preview", () => {
 			image: nativePreview,
 		});
 		await addExactPreviewText({ page });
+		await clearTimelineSelection({ page });
 		await expect
 			.poll(() => countMagentaPixels({ image: nativePreview }), {
 				timeout: 30_000,
@@ -394,6 +418,7 @@ test.describe("Native video enhancement preview", () => {
 		});
 
 		const stickerId = await addExactPreviewSticker({ page });
+		await clearTimelineSelection({ page });
 		await expect
 			.poll(() =>
 				page.evaluate(
@@ -406,7 +431,7 @@ test.describe("Native video enhancement preview", () => {
 			)
 			.toBeGreaterThan(0);
 		await expect(
-			page.locator(`[data-sticker-id="${stickerId}"]`)
+			page.locator(`[data-sticker-id="${stickerId}"]`).first()
 		).toBeVisible();
 		await expect
 			.poll(() => hashPreviewPixels({ image: nativePreview }), {
@@ -429,6 +454,26 @@ test.describe("Native video enhancement preview", () => {
 			page.locator('[data-video-enhancement-proxy-status="error"]')
 		).toHaveCount(0);
 		const proxyVideo = proxyContainer.locator("video[data-video-id]").first();
+		await expect(proxyContainer).toHaveAttribute(
+			"data-video-preview-source",
+			"source"
+		);
+		await expect
+			.poll(
+				() =>
+					proxyVideo.evaluate(
+						(video) => (video as HTMLVideoElement).currentSrc
+					),
+				{ timeout: 30_000 }
+			)
+			.not.toMatch(/^app:\/\/video-preview-proxy\//);
+		await page.getByTestId("preview-play-button").click();
+		await expect(page.getByTestId("preview-pause-button")).toBeVisible();
+		await expect(proxyContainer).toHaveAttribute(
+			"data-video-preview-source",
+			"proxy",
+			{ timeout: 30_000 }
+		);
 		await expect
 			.poll(
 				() =>
@@ -441,8 +486,6 @@ test.describe("Native video enhancement preview", () => {
 		const proxyTimeBeforePlayback = await proxyVideo.evaluate(
 			(video) => (video as HTMLVideoElement).currentTime
 		);
-		await page.getByTestId("preview-play-button").click();
-		await expect(page.getByTestId("preview-pause-button")).toBeVisible();
 		await expect
 			.poll(
 				() =>
@@ -461,5 +504,10 @@ test.describe("Native video enhancement preview", () => {
 			animations: "disabled",
 		});
 		await page.getByTestId("preview-pause-button").click();
+		await expect(proxyContainer).toHaveAttribute(
+			"data-video-preview-source",
+			"source",
+			{ timeout: 30_000 }
+		);
 	});
 });

@@ -128,6 +128,7 @@ export interface VideoSource {
 	reverse?: boolean;
 	freezeFrameTime?: number;
 	freezeFrameDuration?: number;
+	frameInterpolation?: "none" | "blend" | "motion-compensated";
 	visual?: import("../ffmpeg/types").VideoVisual;
 	effectFilter?: string;
 	effectRenderProgram?: import("../ffmpeg/effect-render-types").EffectRenderProgram;
@@ -189,6 +190,7 @@ export interface AudioFile {
 	reverse?: boolean;
 	freezeFrameTime?: number;
 	freezeFrameDuration?: number;
+	preservePitch?: boolean;
 }
 
 export interface ApiKeyConfig {

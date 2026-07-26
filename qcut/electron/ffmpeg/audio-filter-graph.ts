@@ -206,6 +206,19 @@ function buildAtempoFilters({ rate }: { rate: number }): string[] {
 	return filters;
 }
 
+function buildSpeedAudioFilters({
+	rate,
+	preservePitch,
+}: {
+	rate: number;
+	preservePitch: boolean;
+}): string[] {
+	if (preservePitch) return buildAtempoFilters({ rate });
+	const clampedRate = Math.min(8, Math.max(0.1, rate));
+	if (Math.abs(clampedRate - 1) <= 1e-6) return [];
+	return [`asetrate=48000*${clampedRate}`, "aresample=48000"];
+}
+
 function canMapAudioInputDirectly({
 	audioFile,
 	fps,
@@ -288,20 +301,23 @@ function appendSpeedAndFreeze({
 	currentLabel,
 	effectiveDuration,
 	filterSteps,
+	fps,
 	index,
 }: {
 	audioFile: AudioFile;
 	currentLabel: string;
 	effectiveDuration: number | undefined;
 	filterSteps: string[];
+	fps: number;
 	index: number;
 }): string {
 	let outputLabel = currentLabel;
+	const preservePitch = audioFile.preservePitch ?? true;
 	let speedDuration = effectiveDuration;
 	let speedSamples =
 		effectiveDuration === undefined
 			? []
-			: buildSpeedSamples(audioFile, effectiveDuration, 30);
+			: buildSpeedSamples(audioFile, effectiveDuration, fps);
 	if (speedSamples.length > 0) {
 		speedDuration = speedSamples[speedSamples.length - 1].outputEnd;
 	}
@@ -315,7 +331,10 @@ function appendSpeedAndFreeze({
 		);
 		const segmentLabels = speedSamples.map((sample, sampleIndex) => {
 			const label = `a_${index}_speed_segment_${sampleIndex}`;
-			const atempo = buildAtempoFilters({ rate: sample.rate });
+			const atempo = buildSpeedAudioFilters({
+				rate: sample.rate,
+				preservePitch,
+			});
 			filterSteps.push(
 				`[${splitLabels[sampleIndex]}]atrim=start=${sample.sourceStart}:end=${sample.sourceEnd},` +
 					`asetpts=PTS-STARTPTS${atempo.length > 0 ? `,${atempo.join(",")}` : ""}[${label}]`
@@ -328,8 +347,9 @@ function appendSpeedAndFreeze({
 		);
 		outputLabel = sped;
 	} else {
-		const atempo = buildAtempoFilters({
+		const atempo = buildSpeedAudioFilters({
 			rate: audioFile.playbackRate ?? 1,
+			preservePitch,
 		});
 		if (atempo.length > 0) {
 			const sped = `a_${index}_sped`;
@@ -348,7 +368,7 @@ function appendSpeedAndFreeze({
 	}
 
 	if (speedSamples.length === 0) {
-		speedSamples = buildSpeedSamples(audioFile, effectiveDuration, 30);
+		speedSamples = buildSpeedSamples(audioFile, effectiveDuration, fps);
 	}
 	const freezeStart = outputTimeAtSource(
 		speedSamples,
@@ -462,6 +482,7 @@ export function buildTimelineAudioFilters({
 			currentLabel: timing.currentLabel,
 			effectiveDuration: timing.effectiveDuration,
 			filterSteps,
+			fps,
 			index,
 		});
 		const transforms: string[] = [];

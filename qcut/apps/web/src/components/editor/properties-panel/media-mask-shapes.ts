@@ -1,11 +1,11 @@
 import {
+	Brush,
 	Circle,
 	Columns2,
 	Heart,
 	PanelTop,
 	PenTool,
 	RectangleHorizontal,
-	ScanSearch,
 	Square,
 	Star,
 	Type,
@@ -27,16 +27,16 @@ export const MASK_SHAPES: Array<{
 	label: string;
 	icon: LucideIcon;
 }> = [
-	{ type: "rectangle", label: "矩形", icon: RectangleHorizontal },
-	{ type: "ellipse", label: "圆形", icon: Circle },
 	{ type: "linear", label: "线性", icon: PanelTop },
 	{ type: "mirror", label: "镜面", icon: Columns2 },
-	{ type: "pen", label: "钢笔", icon: PenTool },
+	{ type: "ellipse", label: "圆形", icon: Circle },
+	{ type: "rectangle", label: "矩形", icon: RectangleHorizontal },
 	{ type: "text", label: "文字", icon: Type },
+	{ type: "object", label: "抠像", icon: Brush },
+	{ type: "pen", label: "钢笔", icon: PenTool },
 	{ type: "star", label: "星形", icon: Star },
 	{ type: "heart", label: "爱心", icon: Heart },
 	{ type: "person", label: "人物", icon: UserRound },
-	{ type: "object", label: "物体", icon: ScanSearch },
 ];
 
 export const MASK_PROPERTY_FALLBACKS: Record<

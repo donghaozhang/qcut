@@ -185,7 +185,26 @@ export interface ClaudeTextProperties {
 	trackingRotation?: boolean;
 }
 
-export interface ClaudeElement extends ClaudeTextProperties {
+export interface ClaudeSpeedKeyframe {
+	id: string;
+	frame: number;
+	value: number;
+	easing: "linear" | "easeIn" | "easeOut" | "easeInOut" | "spring";
+}
+
+export interface ClaudeMediaTimingProperties {
+	playbackRate?: number;
+	speedKeyframes?: ClaudeSpeedKeyframe[];
+	reverse?: boolean;
+	freezeFrameTime?: number;
+	freezeFrameDuration?: number;
+	preservePitch?: boolean;
+	frameInterpolation?: "none" | "blend" | "motion-compensated";
+}
+
+export interface ClaudeElement
+	extends ClaudeTextProperties,
+		ClaudeMediaTimingProperties {
 	id: string;
 	trackIndex: number;
 	startTime: number;
@@ -399,7 +418,9 @@ export interface ClaudeSelectionItem {
 // Timeline Batch + Arrangement Types (Stage 4)
 // ============================================================================
 
-export interface ClaudeBatchAddElementRequest extends ClaudeTextProperties {
+export interface ClaudeBatchAddElementRequest
+	extends ClaudeTextProperties,
+		ClaudeMediaTimingProperties {
 	type:
 		| "video"
 		| "audio"
@@ -451,7 +472,9 @@ export interface ClaudeBatchDeleteResponse {
 	results: ClaudeBatchDeleteItemResult[];
 }
 
-export interface ClaudeBatchUpdateItemRequest extends ClaudeTextProperties {
+export interface ClaudeBatchUpdateItemRequest
+	extends ClaudeTextProperties,
+		ClaudeMediaTimingProperties {
 	elementId: string;
 	startTime?: number;
 	endTime?: number;

@@ -13,6 +13,7 @@ import type {
 	ClaudeTimeline,
 	ClaudeTrack,
 	ClaudeElement,
+	ClaudeMediaTimingProperties,
 	ClaudeTextProperties,
 } from "../../../../../electron/types/claude-api";
 import { debugLog, debugWarn, debugError } from "@/lib/debug/debug-config";
@@ -32,6 +33,8 @@ const DEFAULT_MEDIA_DURATION_SECONDS = 10;
 const DEFAULT_TEXT_DURATION_SECONDS = 5;
 const DEFAULT_TEXT_CONTENT = "Text";
 const CLAUDE_DETERMINISTIC_MEDIA_ID_PREFIX = "media_";
+const MIN_PLAYBACK_RATE = 0.1;
+const MAX_PLAYBACK_RATE = 8;
 
 export const CLAUDE_TEXT_PROPERTY_KEYS = [
 	"fontSize",
@@ -170,6 +173,100 @@ export function getClaudeTextProperties({
 		properties[key] = value;
 	}
 	return properties as ClaudeTextProperties;
+}
+
+const SPEED_EASINGS = new Set([
+	"linear",
+	"easeIn",
+	"easeOut",
+	"easeInOut",
+	"spring",
+]);
+
+export function getClaudeMediaTimingProperties({
+	element,
+}: {
+	element: Partial<ClaudeMediaTimingProperties> & {
+		style?: Record<string, unknown>;
+	};
+}): ClaudeMediaTimingProperties {
+	const style = element.style ?? {};
+	const read = (key: keyof ClaudeMediaTimingProperties) =>
+		element[key] ?? style[key];
+	const properties: ClaudeMediaTimingProperties = {};
+	const playbackRate = read("playbackRate");
+	if (typeof playbackRate === "number" && Number.isFinite(playbackRate)) {
+		properties.playbackRate = Math.min(
+			MAX_PLAYBACK_RATE,
+			Math.max(MIN_PLAYBACK_RATE, playbackRate)
+		);
+	}
+
+	const speedKeyframes = read("speedKeyframes");
+	if (
+		Array.isArray(speedKeyframes) &&
+		speedKeyframes.every(
+			(keyframe) =>
+				isPlainObject(keyframe) &&
+				typeof keyframe.frame === "number" &&
+				Number.isFinite(keyframe.frame) &&
+				keyframe.frame >= 0 &&
+				typeof keyframe.value === "number" &&
+				Number.isFinite(keyframe.value) &&
+				typeof keyframe.easing === "string" &&
+				SPEED_EASINGS.has(keyframe.easing)
+		)
+	) {
+		properties.speedKeyframes = speedKeyframes.map((keyframe, index) => ({
+			id:
+				typeof keyframe.id === "string" && keyframe.id.length > 0
+					? keyframe.id
+					: `speed-${index}`,
+			frame: keyframe.frame as number,
+			value: Math.min(
+				MAX_PLAYBACK_RATE,
+				Math.max(MIN_PLAYBACK_RATE, keyframe.value as number)
+			),
+			easing: keyframe.easing as
+				| "linear"
+				| "easeIn"
+				| "easeOut"
+				| "easeInOut"
+				| "spring",
+		}));
+	}
+
+	const reverse = read("reverse");
+	if (typeof reverse === "boolean") properties.reverse = reverse;
+	const freezeFrameTime = read("freezeFrameTime");
+	if (
+		typeof freezeFrameTime === "number" &&
+		Number.isFinite(freezeFrameTime) &&
+		freezeFrameTime >= 0
+	) {
+		properties.freezeFrameTime = freezeFrameTime;
+	}
+	const freezeFrameDuration = read("freezeFrameDuration");
+	if (
+		typeof freezeFrameDuration === "number" &&
+		Number.isFinite(freezeFrameDuration) &&
+		freezeFrameDuration >= 0
+	) {
+		properties.freezeFrameDuration = freezeFrameDuration;
+	}
+	const preservePitch = read("preservePitch");
+	if (typeof preservePitch === "boolean") {
+		properties.preservePitch = preservePitch;
+	}
+	const frameInterpolation = read("frameInterpolation");
+	if (
+		frameInterpolation === "none" ||
+		frameInterpolation === "blend" ||
+		frameInterpolation === "motion-compensated"
+	) {
+		properties.frameInterpolation = frameInterpolation;
+	}
+	return properties;
 }
 
 export type TimelineStoreState = ReturnType<typeof useTimelineStore.getState>;
@@ -466,6 +563,7 @@ export async function addClaudeMediaElement({
 		element,
 		fallbackDuration,
 	});
+	const mediaTiming = getClaudeMediaTimingProperties({ element });
 
 	timelineStore.addElementToTrack(trackId, {
 		type: "media",
@@ -473,9 +571,16 @@ export async function addClaudeMediaElement({
 		mediaId: resolvedId,
 		startTime,
 		duration,
-		trimStart: 0,
-		trimEnd: 0,
+		trimStart:
+			typeof element.trimStart === "number" && element.trimStart >= 0
+				? element.trimStart
+				: 0,
+		trimEnd:
+			typeof element.trimEnd === "number" && element.trimEnd >= 0
+				? element.trimEnd
+				: 0,
 		fitMode: element.fitMode ?? "cover",
+		...mediaTiming,
 	});
 
 	debugLog("[ClaudeTimelineBridge] Added media element:", resolvedName);
@@ -1107,6 +1212,13 @@ function formatElementForExport(
 				fitMode: element.fitMode,
 				trimStart: element.trimStart,
 				trimEnd: element.trimEnd,
+				playbackRate: element.playbackRate,
+				speedKeyframes: element.speedKeyframes,
+				reverse: element.reverse,
+				freezeFrameTime: element.freezeFrameTime,
+				freezeFrameDuration: element.freezeFrameDuration,
+				preservePitch: element.preservePitch,
+				frameInterpolation: element.frameInterpolation,
 			};
 		}
 		case "text": {

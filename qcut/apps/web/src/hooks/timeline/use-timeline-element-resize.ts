@@ -4,6 +4,8 @@ import { useAsyncMediaItems } from "@/hooks/media/use-async-media-store";
 import { useTimelineStore } from "@/stores/timeline/timeline-store";
 import { TIMELINE_CONSTANTS } from "@/constants/timeline-constants";
 import { clampPlaybackRate } from "@/lib/video/video-timing";
+import { resizeMediaTiming } from "@/lib/video/video-speed-edit";
+import { useProjectStore } from "@/stores/project-store";
 
 interface UseTimelineElementResizeProps {
 	element: TimelineElement;
@@ -31,6 +33,7 @@ export function useTimelineElementResize({
 }: UseTimelineElementResizeProps) {
 	const [resizing, setResizing] = useState<ResizeState | null>(null);
 	const captureElementRef = useRef<Element | null>(null);
+	const initialElementRef = useRef<TimelineElement | null>(null);
 	const {
 		mediaItems,
 		loading: mediaItemsLoading,
@@ -40,8 +43,10 @@ export function useTimelineElementResize({
 		updateElementStartTime,
 		updateElementTrim,
 		updateElementDuration,
+		updateMediaElement,
 		pushHistory,
 	} = useTimelineStore();
+	const fps = useProjectStore((state) => state.activeProject?.fps ?? 30);
 	const trimTimeScale =
 		element.type === "media" ? clampPlaybackRate(element.playbackRate) : 1;
 
@@ -92,6 +97,7 @@ export function useTimelineElementResize({
 
 	const handleResizeEnd = useCallback(() => {
 		setResizing(null);
+		initialElementRef.current = null;
 	}, []);
 
 	const updateTrimFromMouseMove = useCallback(
@@ -101,6 +107,38 @@ export function useTimelineElementResize({
 			const deltaX = e.clientX - resizing.startX;
 			// Reasonable sensitivity for resize operations - similar to timeline scale
 			const timelineDelta = deltaX / (50 * zoomLevel);
+			const initialElement = initialElementRef.current ?? element;
+			const mediaItem =
+				initialElement.type === "media"
+					? mediaItems.find((item) => item.id === initialElement.mediaId)
+					: undefined;
+			const usesPlaybackTiming =
+				initialElement.type === "media" &&
+				mediaItem?.type !== "image" &&
+				((initialElement.speedKeyframes?.length ?? 0) > 0 ||
+					(initialElement.freezeFrameDuration ?? 0) > 0 ||
+					(initialElement.playbackRate ?? 1) !== 1 ||
+					initialElement.reverse === true);
+
+			if (usesPlaybackTiming) {
+				const resized = resizeMediaTiming({
+					element: initialElement,
+					side: resizing.side,
+					timelineDelta,
+					fps,
+				});
+				updateMediaElement(track.id, initialElement.id, resized.updates, false);
+				if (resizing.side === "left") {
+					updateElementStartTime(
+						track.id,
+						initialElement.id,
+						resizing.initialStartTime + resized.startTimeDelta,
+						false
+					);
+				}
+				return;
+			}
+
 			const sourceDelta = timelineDelta * trimTimeScale;
 
 			if (resizing.side === "left") {
@@ -239,10 +277,13 @@ export function useTimelineElementResize({
 			updateElementTrim,
 			updateElementStartTime,
 			updateElementDuration,
+			updateMediaElement,
 			canExtendElementDuration,
 			getMinEffectiveDuration,
 			getMaxEffectiveDuration,
 			trimTimeScale,
+			mediaItems,
+			fps,
 		]
 	);
 
@@ -286,6 +327,7 @@ export function useTimelineElementResize({
 
 		// Push history once at the start of the resize operation
 		pushHistory();
+		initialElementRef.current = element;
 
 		setResizing({
 			elementId,

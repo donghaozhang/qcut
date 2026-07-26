@@ -14,6 +14,8 @@ import type {
 	ColorPropertyKeyframe,
 	MediaColorSettings,
 	MediaElement,
+	MediaMask,
+	MediaMaskTrackingDirection,
 } from "@/types/timeline";
 import { generateUUID } from "@/types/timeline";
 import {
@@ -55,6 +57,7 @@ import { ColorPresetControls } from "./color-preset-controls";
 import { ColorScopesPanel } from "./color-scopes-panel";
 import { ColorSmartSettingsPanel } from "./color-smart-settings";
 import { ColorWheelSettingsPanel } from "./color-wheel-settings";
+import { MediaMaskProperties } from "./media-mask-properties";
 import type { ColorSettingsEditorBindings } from "./color-properties-types";
 
 type MediaUpdates = Parameters<
@@ -75,9 +78,14 @@ function curveShapeSamples({
 export function ColorPropertiesPanel({
 	element,
 	trackId,
+	onTrack,
 }: {
 	element: MediaElement;
 	trackId: string;
+	onTrack?: (options: {
+		mask: MediaMask;
+		direction: MediaMaskTrackingDirection;
+	}) => void;
 }) {
 	const updateMediaElement = useTimelineStore(
 		(state) => state.updateMediaElement
@@ -93,6 +101,7 @@ export function ColorPropertiesPanel({
 	const interactionActive = useRef(false);
 	const [presets, setPresets] = useState(loadColorPresets);
 	const [selectedPresetId, setSelectedPresetId] = useState<string>();
+	const [activeColorTab, setActiveColorTab] = useState("basic");
 	const previewBypassed = useColorPreviewStore((state) => state.bypassed);
 	const setPreviewBypassed = useColorPreviewStore((state) => state.setBypassed);
 	useEffect(
@@ -373,43 +382,68 @@ export function ColorPropertiesPanel({
 			true
 		);
 	};
+	const updateMasks = (nextMasks: MediaMask[], history = true) => {
+		updateMediaElement(
+			trackId,
+			element.id,
+			{ masks: nextMasks, mask: nextMasks[0] },
+			history
+		);
+	};
 
 	return (
 		<div data-testid="color-properties-panel">
-			<div className="mb-3 flex items-center justify-between gap-3 border-b border-border/70 pb-3">
-				<span className="text-xs font-medium">调色管线</span>
-				<Switch
-					aria-label="启用调色管线"
-					checked={settings.enabled}
-					onCheckedChange={(enabled) =>
-						persistSettings({ next: { ...settings, enabled } })
+			<Tabs value={activeColorTab} onValueChange={setActiveColorTab}>
+				<TabsList className="grid h-8 w-full grid-cols-5 gap-0.5 rounded-sm p-0.5">
+					<TabsTrigger value="basic" className="px-1 text-xs">
+						基础
+					</TabsTrigger>
+					<TabsTrigger value="hsl" className="px-1 text-xs">
+						HSL
+					</TabsTrigger>
+					<TabsTrigger value="curves" className="px-1 text-xs">
+						曲线
+					</TabsTrigger>
+					<TabsTrigger value="wheels" className="px-1 text-xs">
+						色轮
+					</TabsTrigger>
+					<TabsTrigger value="mask" className="px-1 text-xs">
+						蒙版
+					</TabsTrigger>
+				</TabsList>
+
+				{activeColorTab === "mask" ? null : (
+					<>
+						<div className="my-3 flex items-center justify-between gap-3 border-b border-border/70 pb-3">
+							<span className="text-xs font-medium">调色管线</span>
+							<Switch
+								aria-label="启用调色管线"
+								checked={settings.enabled}
+								onCheckedChange={(enabled) =>
+									persistSettings({ next: { ...settings, enabled } })
+								}
+							/>
+						</div>
+						<ColorPresetControls
+							presets={presets}
+							selectedPresetId={selectedPresetId}
+							bypassed={previewBypassed}
+							onSelectedPresetChange={setSelectedPresetId}
+							onApplyPreset={applySelectedPreset}
+							onDeletePreset={deleteSelectedPreset}
+							onSavePreset={saveColorPreset}
+							onBypassedChange={setPreviewBypassed}
+						/>
+					</>
+				)}
+
+				<div
+					className={
+						settings.enabled || activeColorTab === "mask"
+							? undefined
+							: "pointer-events-none opacity-45"
 					}
-				/>
-			</div>
-			<ColorPresetControls
-				presets={presets}
-				selectedPresetId={selectedPresetId}
-				bypassed={previewBypassed}
-				onSelectedPresetChange={setSelectedPresetId}
-				onApplyPreset={applySelectedPreset}
-				onDeletePreset={deleteSelectedPreset}
-				onSavePreset={saveColorPreset}
-				onBypassedChange={setPreviewBypassed}
-			/>
-			<div
-				className={
-					settings.enabled ? undefined : "pointer-events-none opacity-45"
-				}
-			>
-				<Tabs defaultValue="basic">
-					<TabsList className="grid h-auto w-full grid-cols-6 gap-1">
-						<TabsTrigger value="basic">基础</TabsTrigger>
-						<TabsTrigger value="hsl">HSL</TabsTrigger>
-						<TabsTrigger value="curves">曲线</TabsTrigger>
-						<TabsTrigger value="wheels">色轮</TabsTrigger>
-						<TabsTrigger value="mask">蒙版</TabsTrigger>
-						<TabsTrigger value="scopes">示波器</TabsTrigger>
-					</TabsList>
+				>
 					<TabsContent value="basic" className="mt-2">
 						<ColorSmartSettingsPanel
 							bindings={bindings}
@@ -419,6 +453,19 @@ export function ColorPropertiesPanel({
 						<ColorLutSettings bindings={bindings} />
 						<ColorBasicSettings bindings={bindings} />
 						<ColorManagementSettingsPanel bindings={bindings} />
+						<details className="mt-4 border-t border-border/70 pt-3">
+							<summary className="cursor-pointer select-none text-xs text-muted-foreground">
+								示波器
+							</summary>
+							<div className="mt-3">
+								<ColorScopesPanel
+									mediaItem={mediaItem}
+									sourceTime={sourceTime}
+									settings={resolvedSettings}
+									frameSeed={currentFrame}
+								/>
+							</div>
+						</details>
 					</TabsContent>
 					<TabsContent value="hsl" className="mt-2">
 						<ColorHslSettings bindings={bindings} />
@@ -430,23 +477,31 @@ export function ColorPropertiesPanel({
 					<TabsContent value="wheels" className="mt-2">
 						<ColorWheelSettingsPanel bindings={bindings} />
 					</TabsContent>
-					<TabsContent value="mask" className="mt-2">
-						<ColorMaskSettings
-							bindings={bindings}
+					<TabsContent value="mask" className="mt-3">
+						<MediaMaskProperties
+							elementId={element.id}
 							masks={masks}
-							onCreateMask={createGradeMask}
+							currentFrame={currentFrame}
+							onChange={updateMasks}
+							onInteractionStart={beginInteraction}
+							onInteractionEnd={endInteraction}
+							onTrack={onTrack}
 						/>
+						<details className="mt-4 border-t border-border/70 pt-3">
+							<summary className="cursor-pointer select-none text-xs text-muted-foreground">
+								调色作用范围
+							</summary>
+							<div className="mt-3">
+								<ColorMaskSettings
+									bindings={bindings}
+									masks={masks}
+									onCreateMask={createGradeMask}
+								/>
+							</div>
+						</details>
 					</TabsContent>
-					<TabsContent value="scopes" className="mt-3">
-						<ColorScopesPanel
-							mediaItem={mediaItem}
-							sourceTime={sourceTime}
-							settings={resolvedSettings}
-							frameSeed={currentFrame}
-						/>
-					</TabsContent>
-				</Tabs>
-			</div>
+				</div>
+			</Tabs>
 		</div>
 	);
 }

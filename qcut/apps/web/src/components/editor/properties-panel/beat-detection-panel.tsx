@@ -16,11 +16,13 @@ import {
 	PropertyItemValue,
 } from "./property-item";
 import { useBeatDetection } from "@/hooks/use-beat-detection";
+import { useProjectStore } from "@/stores/project-store";
 import { useTimelineStore } from "@/stores/timeline/timeline-store";
 import { useBeatDetectionStore } from "@/stores/beat-detection-store";
 import { splitOnBeats } from "@/stores/timeline/split-operations";
 import type { OperationContext } from "@/stores/timeline/types";
 import { useTranslation } from "@/lib/i18n";
+import { mapMediaBeatToTimeline } from "@/lib/audio/timeline-beats";
 
 interface BeatDetectionPanelProps {
 	elementId: string;
@@ -35,6 +37,7 @@ export function BeatDetectionPanel({
 	audioUrl,
 }: BeatDetectionPanelProps) {
 	const { t } = useTranslation();
+	const fps = useProjectStore((state) => state.activeProject?.fps ?? 30);
 	const {
 		result,
 		isAnalyzing,
@@ -83,21 +86,21 @@ export function BeatDetectionPanel({
 			beatStore.setActiveElement(elementId);
 		}
 
-		const trimStart = element.trimStart ?? 0;
-		const elementStart = element.startTime;
-		const elementEnd =
-			element.startTime +
-			(element.duration - (element.trimStart ?? 0) - (element.trimEnd ?? 0));
-
-		// Get audio-relative cut points and map to timeline coordinates
-		const audioCuts = beatStore.getCutPoints(
-			trimStart,
-			trimStart + (elementEnd - elementStart)
-		);
-		const timelineCuts = audioCuts.map((t) => t - trimStart + elementStart);
+		if (element.type !== "media") return;
+		const sourceStart = element.trimStart;
+		const sourceEnd = element.duration - element.trimEnd;
+		const audioCuts = beatStore.getCutPoints(sourceStart, sourceEnd);
+		const timelineCuts = audioCuts.flatMap((sourceTimestamp) => {
+			const timestamp = mapMediaBeatToTimeline({
+				element,
+				fps,
+				sourceTimestamp,
+			});
+			return timestamp === null ? [] : [timestamp];
+		});
 
 		splitOnBeats(ctx, trackId, elementId, timelineCuts);
-	}, [trackId, elementId]);
+	}, [elementId, fps, trackId]);
 
 	if (!audioUrl) return null;
 

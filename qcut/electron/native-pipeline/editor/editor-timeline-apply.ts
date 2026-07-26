@@ -133,6 +133,16 @@ const TEXT_VERIFY_KEYS = [
 	"trackingRotation",
 ] as const;
 
+const MEDIA_VERIFY_KEYS = [
+	"playbackRate",
+	"speedKeyframes",
+	"reverse",
+	"freezeFrameTime",
+	"freezeFrameDuration",
+	"preservePitch",
+	"frameInterpolation",
+] as const;
+
 function isRecord(value: unknown): value is JsonRecord {
 	return typeof value === "object" && value !== null && !Array.isArray(value);
 }
@@ -601,6 +611,7 @@ function verifyManifest({
 			"trimStart",
 			"trimEnd",
 			...TEXT_VERIFY_KEYS,
+			...MEDIA_VERIFY_KEYS,
 		]) {
 			const expectedValue = expectedReadBackValue({ expected, key });
 			if (expectedValue === undefined) continue;

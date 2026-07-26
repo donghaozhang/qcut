@@ -1,9 +1,11 @@
 import { describe, expect, it } from "vitest";
 import { createMediaMask } from "../media-mask-stack";
 import {
+	addMaskTrackingCorrectionKeyframes,
 	alphaMaskTrackingSample,
 	applyMaskTrackingSamples,
 	simplifyMaskTrackingSamples,
+	updateMaskTrackingStatus,
 } from "../media-mask-tracking";
 
 describe("media mask tracking", () => {
@@ -57,14 +59,54 @@ describe("media mask tracking", () => {
 			anchorFrame: 10,
 			source: "mediapipe",
 		});
-		expect(tracked.tracking).toEqual({
+		expect(tracked.tracking).toMatchObject({
 			direction: "forward",
 			source: "mediapipe",
 			status: "ready",
+			progress: 100,
+			anchorFrame: 10,
 		});
 		expect(tracked.keyframes?.centerX?.map(({ frame }) => frame)).toEqual([
 			10, 20,
 		]);
 		expect(tracked.keyframes?.width).toHaveLength(2);
+	});
+
+	it("records tracking status and current-frame correction keyframes", () => {
+		const mask = createMediaMask({ id: "subject", type: "person", index: 0 });
+		const paused = updateMaskTrackingStatus({
+			mask,
+			status: "paused",
+			progress: 42,
+		});
+		expect(paused.tracking).toMatchObject({
+			status: "paused",
+			progress: 42,
+		});
+
+		const corrected = addMaskTrackingCorrectionKeyframes({
+			mask: {
+				...paused,
+				centerX: 0.33,
+				centerY: 0.44,
+				width: 0.55,
+				height: 0.66,
+				rotation: 12,
+			},
+			frame: 24,
+		});
+
+		expect(corrected.tracking).toMatchObject({
+			status: "ready",
+			correctedFrames: [24],
+		});
+		expect(corrected.keyframes?.centerX?.[0]).toMatchObject({
+			frame: 24,
+			value: 0.33,
+		});
+		expect(corrected.keyframes?.rotation?.[0]).toMatchObject({
+			frame: 24,
+			value: 12,
+		});
 	});
 });

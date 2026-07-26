@@ -49,4 +49,58 @@ describe("combined media mask SVG", () => {
 		expect(mediaMaskSvgDataUrl([mirror])).toContain("data:image/svg+xml");
 		expect(mediaMaskSvgUrl([mirror])).toMatch(/^data:image\/svg\+xml,/);
 	});
+
+	it("anchors linear and mirror gradients to the mask geometry", () => {
+		const linear = {
+			...createMediaMask({ id: "linear", type: "linear", index: 0 }),
+			centerX: 0.25,
+			centerY: 0.6,
+			rotation: 12,
+			feather: 0.2,
+		};
+		const mirror = {
+			...createMediaMask({ id: "mirror", type: "mirror", index: 1 }),
+			centerX: 0.7,
+			centerY: 0.4,
+			width: 0.3,
+			rotation: -20,
+			feather: 0.1,
+		};
+
+		const svg = buildCombinedMediaMaskSvg([linear, mirror]);
+
+		expect(svg).toContain(
+			'<linearGradient id="mask-gradient-0" gradientUnits="userSpaceOnUse" x1="25" y1="10" x2="25" y2="110">'
+		);
+		// The rect still overscans for rotation, while the gradient itself stays
+		// in the same 100-unit mask space as the other mask geometries.
+		expect(svg).toContain('x="-125" y="-90" width="300" height="300"');
+		expect(svg).toContain('transform="rotate(12 25 60)"');
+		expect(svg).toContain(
+			'<linearGradient id="mask-gradient-1" x1="0%" y1="0%" x2="100%" y2="0%">'
+		);
+		expect(svg).toContain('x="55" y="-110" width="30" height="300"');
+		expect(svg).toContain('transform="rotate(-20 70 40)"');
+	});
+
+	it("renders directional mirror gradients", () => {
+		const left = {
+			...createMediaMask({ id: "mirror-left", type: "mirror", index: 0 }),
+			mirrorMode: "left" as const,
+			feather: 0.1,
+		};
+		const right = {
+			...createMediaMask({ id: "mirror-right", type: "mirror", index: 0 }),
+			mirrorMode: "right" as const,
+			feather: 0.1,
+		};
+
+		const leftSvg = buildCombinedMediaMaskSvg([left]);
+		const rightSvg = buildCombinedMediaMaskSvg([right]);
+
+		expect(leftSvg).toContain('<stop offset="0%" stop-color="white"/>');
+		expect(leftSvg).toContain('<stop offset="60%" stop-color="black"/>');
+		expect(rightSvg).toContain('<stop offset="0%" stop-color="black"/>');
+		expect(rightSvg).toContain('<stop offset="60%" stop-color="white"/>');
+	});
 });

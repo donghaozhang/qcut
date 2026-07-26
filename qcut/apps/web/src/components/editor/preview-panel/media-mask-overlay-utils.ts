@@ -1,15 +1,21 @@
 import type { KeyboardEvent as ReactKeyboardEvent } from "react";
 import type { MediaMask, MediaMaskPoint } from "@/types/timeline";
 
+export type ResizeHandle = "nw" | "n" | "ne" | "e" | "se" | "s" | "sw" | "w";
+
 export type MaskInteractionMode =
 	| "move"
 	| "resize"
 	| "rotate"
+	| "linear-feather"
 	| "anchor"
 	| "handle-in"
 	| "handle-out";
 
 export type PointInteractionMode = "anchor" | "handle-in" | "handle-out";
+export type LinearFeatherEdge = "top" | "bottom";
+const LINEAR_FEATHER_SCALE_PX = 160;
+const LINEAR_FEATHER_MIN_OFFSET_PX = 8;
 
 export interface MaskInteraction {
 	mode: MaskInteractionMode;
@@ -19,7 +25,85 @@ export interface MaskInteraction {
 	startMask: MediaMask;
 	containerRect: DOMRect;
 	pointId?: string;
+	resizeHandle?: ResizeHandle;
+	linearFeatherEdge?: LinearFeatherEdge;
 }
+
+export interface MaskResizeHandleDefinition {
+	id: ResizeHandle;
+	x: -1 | 0 | 1;
+	y: -1 | 0 | 1;
+	className: string;
+	cursor: string;
+	label: string;
+}
+
+export const MASK_RESIZE_HANDLES: MaskResizeHandleDefinition[] = [
+	{
+		id: "nw",
+		x: -1,
+		y: -1,
+		className: "-left-2 -top-2",
+		cursor: "cursor-nwse-resize",
+		label: "左上角缩放",
+	},
+	{
+		id: "n",
+		x: 0,
+		y: -1,
+		className: "left-1/2 -top-2 -translate-x-1/2",
+		cursor: "cursor-ns-resize",
+		label: "顶部缩放",
+	},
+	{
+		id: "ne",
+		x: 1,
+		y: -1,
+		className: "-right-2 -top-2",
+		cursor: "cursor-nesw-resize",
+		label: "右上角缩放",
+	},
+	{
+		id: "e",
+		x: 1,
+		y: 0,
+		className: "-right-2 top-1/2 -translate-y-1/2",
+		cursor: "cursor-ew-resize",
+		label: "右侧缩放",
+	},
+	{
+		id: "se",
+		x: 1,
+		y: 1,
+		className: "-bottom-2 -right-2",
+		cursor: "cursor-nwse-resize",
+		label: "右下角缩放",
+	},
+	{
+		id: "s",
+		x: 0,
+		y: 1,
+		className: "-bottom-2 left-1/2 -translate-x-1/2",
+		cursor: "cursor-ns-resize",
+		label: "底部缩放",
+	},
+	{
+		id: "sw",
+		x: -1,
+		y: 1,
+		className: "-bottom-2 -left-2",
+		cursor: "cursor-nesw-resize",
+		label: "左下角缩放",
+	},
+	{
+		id: "w",
+		x: -1,
+		y: 0,
+		className: "-left-2 top-1/2 -translate-y-1/2",
+		cursor: "cursor-ew-resize",
+		label: "左侧缩放",
+	},
+];
 
 export function clamp({
 	value,
@@ -82,6 +166,180 @@ export function localDelta({
 		x: deltaX * Math.cos(radians) + deltaY * Math.sin(radians),
 		y: -deltaX * Math.sin(radians) + deltaY * Math.cos(radians),
 	};
+}
+
+export function worldDelta({
+	localX,
+	localY,
+	rotation,
+}: {
+	localX: number;
+	localY: number;
+	rotation: number;
+}) {
+	const radians = (rotation * Math.PI) / 180;
+	return {
+		x: localX * Math.cos(radians) - localY * Math.sin(radians),
+		y: localX * Math.sin(radians) + localY * Math.cos(radians),
+	};
+}
+
+function resizeHandleDefinition({
+	handle,
+}: {
+	handle: ResizeHandle;
+}): MaskResizeHandleDefinition {
+	const definition = MASK_RESIZE_HANDLES.find((item) => item.id === handle);
+	if (!definition) throw new Error(`Unknown mask resize handle: ${handle}`);
+	return definition;
+}
+
+export function resizeMaskFromHandle({
+	mask,
+	handle,
+	localX,
+	localY,
+}: {
+	mask: MediaMask;
+	handle: ResizeHandle;
+	localX: number;
+	localY: number;
+}): Pick<MediaMask, "centerX" | "centerY" | "width" | "height"> {
+	const definition = resizeHandleDefinition({ handle });
+	const minSize = 0.001;
+	const widthDelta = definition.x === 0 ? 0 : localX * definition.x;
+	const heightDelta = definition.y === 0 ? 0 : localY * definition.y;
+	let nextWidth = clamp({
+		value: mask.width + widthDelta,
+		min: minSize,
+		max: 3,
+	});
+	let nextHeight = clamp({
+		value: mask.height + heightDelta,
+		min: minSize,
+		max: 3,
+	});
+
+	if (mask.maintainAspectRatio && definition.x !== 0 && definition.y !== 0) {
+		const aspect = mask.width / Math.max(minSize, mask.height);
+		const widthChange = Math.abs(nextWidth - mask.width);
+		const heightChange = Math.abs(nextHeight - mask.height);
+		if (widthChange >= heightChange) nextHeight = nextWidth / aspect;
+		else nextWidth = nextHeight * aspect;
+	}
+
+	const localCenterShiftX =
+		definition.x === 0 ? 0 : ((nextWidth - mask.width) * definition.x) / 2;
+	const localCenterShiftY =
+		definition.y === 0 ? 0 : ((nextHeight - mask.height) * definition.y) / 2;
+	const centerShift = worldDelta({
+		localX: localCenterShiftX,
+		localY: localCenterShiftY,
+		rotation: mask.rotation,
+	});
+
+	return {
+		centerX: clamp({ value: mask.centerX + centerShift.x, min: -1, max: 2 }),
+		centerY: clamp({ value: mask.centerY + centerShift.y, min: -1, max: 2 }),
+		width: nextWidth,
+		height: nextHeight,
+	};
+}
+
+export function resizeMaskFromKeyboard({
+	mask,
+	handle,
+	event,
+}: {
+	mask: MediaMask;
+	handle: ResizeHandle;
+	event: ReactKeyboardEvent;
+}): Pick<MediaMask, "centerX" | "centerY" | "width" | "height"> | null {
+	const delta = keyboardDelta({ event });
+	if (!delta) return null;
+	const local = localDelta({
+		deltaX: delta.x,
+		deltaY: delta.y,
+		rotation: mask.rotation,
+	});
+	return resizeMaskFromHandle({
+		mask,
+		handle,
+		localX: local.x,
+		localY: local.y,
+	});
+}
+
+export function featherOutlineInsetPercent({ feather }: { feather: number }) {
+	if (feather <= 0) return 0;
+	return clamp({ value: feather * 100, min: 4, max: 40 });
+}
+
+export function featherPathStrokeWidth({ feather }: { feather: number }) {
+	if (feather <= 0) return 0;
+	return clamp({ value: feather * 0.25, min: 0.012, max: 0.12 });
+}
+
+export function linearFeatherOffsetPixels({
+	feather,
+}: {
+	feather: number;
+}): number {
+	return Math.max(
+		LINEAR_FEATHER_MIN_OFFSET_PX,
+		Math.round(
+			clamp({ value: feather, min: 0, max: 1 }) * LINEAR_FEATHER_SCALE_PX
+		)
+	);
+}
+
+function applyLinearFeatherDelta({
+	mask,
+	edge,
+	delta,
+}: {
+	mask: MediaMask;
+	edge: LinearFeatherEdge;
+	delta: number;
+}): Pick<MediaMask, "feather"> {
+	const direction = edge === "top" ? -1 : 1;
+	return {
+		feather: clamp({
+			value: mask.feather + delta * direction,
+			min: 0,
+			max: 1,
+		}),
+	};
+}
+
+export function linearFeatherFromHandle({
+	mask,
+	edge,
+	localYPixels,
+}: {
+	mask: MediaMask;
+	edge: LinearFeatherEdge;
+	localYPixels: number;
+}): Pick<MediaMask, "feather"> {
+	return applyLinearFeatherDelta({
+		mask,
+		edge,
+		delta: localYPixels / LINEAR_FEATHER_SCALE_PX,
+	});
+}
+
+export function linearFeatherFromKeyboard({
+	mask,
+	edge,
+	event,
+}: {
+	mask: MediaMask;
+	edge: LinearFeatherEdge;
+	event: ReactKeyboardEvent;
+}): Pick<MediaMask, "feather"> | null {
+	const delta = keyboardDelta({ event });
+	if (!delta) return null;
+	return applyLinearFeatherDelta({ mask, edge, delta: delta.y });
 }
 
 export function isPointInteractionMode(

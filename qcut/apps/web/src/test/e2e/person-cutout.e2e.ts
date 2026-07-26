@@ -69,7 +69,7 @@ test.describe("Local person cutout", () => {
 			await ensurePanelTabActive(page, "edit", "segmentation", "AI Assist");
 
 			const panel = page.getByTestId("media-panel");
-			await panel.getByRole("tab", { name: "Video", exact: true }).click();
+			await panel.getByRole("tab", { name: /^(Video|视频)$/ }).click();
 			await expect(
 				panel.getByRole("tab", { name: "本地人物", exact: true })
 			).toHaveAttribute("data-state", "active");

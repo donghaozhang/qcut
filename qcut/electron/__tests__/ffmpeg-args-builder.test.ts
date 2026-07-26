@@ -225,6 +225,27 @@ describe("buildFFmpegArgs", () => {
 			]);
 		});
 
+		it("adds motion-compensated interpolation for slowed video", () => {
+			const args = buildFFmpegArgs(
+				createBaseOptions({
+					videoSources: [
+						{
+							path: "/source.mp4",
+							startTime: 0,
+							duration: 4,
+							playbackRate: 0.5,
+							frameInterpolation: "motion-compensated",
+						},
+					],
+				})
+			);
+			const filter = args[args.indexOf("-filter_complex") + 1];
+
+			expect(filter).toContain("minterpolate=fps=30");
+			expect(filter).toContain("mi_mode=mci");
+			expect(filter).toContain("me_mode=bidir");
+		});
+
 		it("feeds baked procedural sequences as image2 pattern inputs", () => {
 			const args = buildFFmpegArgs(
 				createBaseOptions({

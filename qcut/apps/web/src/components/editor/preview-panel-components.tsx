@@ -5,6 +5,7 @@ import {
 	DropdownMenu,
 	DropdownMenuContent,
 	DropdownMenuItem,
+	DropdownMenuLabel,
 	DropdownMenuTrigger,
 	DropdownMenuSeparator,
 } from "@/components/ui/dropdown-menu";
@@ -18,8 +19,12 @@ import {
 	AppWindow,
 	Bot,
 	ScanLine,
+	FolderOpen,
+	RefreshCw,
+	Gauge,
 } from "lucide-react";
-import { useState } from "react";
+import { useCallback, useState } from "react";
+import { platform } from "@qcut/platform-core";
 import { usePlaybackStore } from "@/stores/editor/playback-store";
 import { useEditorStore } from "@/stores/editor/editor-store";
 import { useProjectStore } from "@/stores/project-store";
@@ -33,6 +38,30 @@ import type { TProject } from "@/types/project";
 import type { ActiveElement } from "./preview-panel/types";
 import { AdjustmentLayerStack } from "./preview-panel/adjustment-layer-stack";
 import { useTranslation } from "@/lib/i18n";
+import { PREVIEW_QUALITY_OPTIONS } from "@/lib/preview/preview-quality";
+
+interface PreviewProxyCacheStats {
+	cacheDir: string;
+	entryCount: number;
+	totalBytes: number;
+	maxBytes: number;
+}
+
+type PreviewProxyCacheStatus =
+	| "idle"
+	| "loading"
+	| "ready"
+	| "error"
+	| "clearing"
+	| "opening";
+
+function formatPreviewCacheBytes({ bytes }: { bytes: number }): string {
+	if (bytes <= 0) return "0 MB";
+	const megabytes = bytes / (1024 * 1024);
+	if (megabytes < 1) return `${Math.ceil(megabytes * 1024)} KB`;
+	if (megabytes < 1024) return `${megabytes.toFixed(1)} MB`;
+	return `${(megabytes / 1024).toFixed(1)} GB`;
+}
 
 // Component 1: FullscreenToolbar (no dependencies)
 export function FullscreenToolbar({
@@ -331,9 +360,20 @@ export function PreviewToolbar({
 	onToggleSafeAreas: () => void;
 }) {
 	const { t } = useTranslation();
-	const { isPlaying, seek } = usePlaybackStore();
+	const {
+		isPlaying,
+		seek,
+		previewQuality,
+		runtimePreviewQuality,
+		runtimePreviewQualityDiagnostic,
+		setPreviewQuality,
+	} = usePlaybackStore();
 	const { setCanvasSize, setCanvasSizeToOriginal } = useEditorStore();
 	const { activeProject, updateProjectCanvasSize } = useProjectStore();
+	const [previewProxyCacheStats, setPreviewProxyCacheStats] =
+		useState<PreviewProxyCacheStats | null>(null);
+	const [previewProxyCacheStatus, setPreviewProxyCacheStatus] =
+		useState<PreviewProxyCacheStatus>("idle");
 	const {
 		currentPreset,
 		isOriginal,
@@ -365,6 +405,108 @@ export function PreviewToolbar({
 		const nextSize = useEditorStore.getState().canvasSize;
 		void updateProjectCanvasSize(nextSize, "original");
 	};
+
+	const loadPreviewProxyCacheStats =
+		useCallback(async (): Promise<PreviewProxyCacheStats | null> => {
+			if (!platform().isElectron) return null;
+			const stats = await platform().ffmpeg.getVideoPreviewProxyCacheStats();
+			return stats;
+		}, []);
+
+	const refreshPreviewProxyCacheStats = useCallback(async () => {
+		if (!platform().isElectron) {
+			setPreviewProxyCacheStats(null);
+			setPreviewProxyCacheStatus("idle");
+			return;
+		}
+
+		setPreviewProxyCacheStatus("loading");
+		try {
+			const stats = await loadPreviewProxyCacheStats();
+			setPreviewProxyCacheStats(stats);
+			setPreviewProxyCacheStatus("ready");
+		} catch {
+			setPreviewProxyCacheStats(null);
+			setPreviewProxyCacheStatus("error");
+		}
+	}, [loadPreviewProxyCacheStats]);
+
+	const handlePreviewQualityMenuOpenChange = useCallback(
+		({ open }: { open: boolean }) => {
+			if (!open) return;
+			void refreshPreviewProxyCacheStats();
+		},
+		[refreshPreviewProxyCacheStats]
+	);
+
+	const handleClearPreviewProxyCache = useCallback(async () => {
+		if (!platform().isElectron) return;
+
+		setPreviewProxyCacheStatus("clearing");
+		try {
+			const stats = await platform().ffmpeg.clearVideoPreviewProxyCache();
+			setPreviewProxyCacheStats(stats);
+			setPreviewProxyCacheStatus("ready");
+		} catch {
+			setPreviewProxyCacheStats(null);
+			setPreviewProxyCacheStatus("error");
+		}
+	}, []);
+
+	const handleOpenPreviewProxyCache = useCallback(async () => {
+		if (!platform().isElectron) return;
+
+		setPreviewProxyCacheStatus("opening");
+		try {
+			const stats =
+				previewProxyCacheStats ?? (await loadPreviewProxyCacheStats());
+			if (!stats) throw new Error("Preview proxy cache is unavailable");
+			await platform().shell.showItemInFolder(stats.cacheDir);
+			setPreviewProxyCacheStats(stats);
+			setPreviewProxyCacheStatus("ready");
+		} catch {
+			setPreviewProxyCacheStatus("error");
+		}
+	}, [loadPreviewProxyCacheStats, previewProxyCacheStats]);
+
+	const previewProxyCacheSize = previewProxyCacheStats
+		? formatPreviewCacheBytes({ bytes: previewProxyCacheStats.totalBytes })
+		: t("editor.preview.proxyCacheUnknown");
+	const previewProxyCacheLimit = previewProxyCacheStats
+		? formatPreviewCacheBytes({ bytes: previewProxyCacheStats.maxBytes })
+		: null;
+	const selectedPreviewQualityLabel = t(
+		PREVIEW_QUALITY_OPTIONS.find((option) => option.value === previewQuality)
+			?.labelKey ?? PREVIEW_QUALITY_OPTIONS[0].labelKey
+	);
+	const runtimePreviewQualityLabel = runtimePreviewQuality
+		? t(
+				PREVIEW_QUALITY_OPTIONS.find(
+					(option) => option.value === runtimePreviewQuality
+				)?.labelKey ?? PREVIEW_QUALITY_OPTIONS[0].labelKey
+			)
+		: null;
+	const runtimePreviewQualityReason = runtimePreviewQualityDiagnostic
+		? t(
+				runtimePreviewQualityDiagnostic.reason === "video-frame"
+					? "editor.preview.qualityRuntimeReasonVideo"
+					: runtimePreviewQualityDiagnostic.reason === "combined"
+						? "editor.preview.qualityRuntimeReasonCombined"
+						: "editor.preview.qualityRuntimeReasonMainThread"
+			)
+		: null;
+	const runtimePreviewQualityMetrics = runtimePreviewQualityDiagnostic
+		? t("editor.preview.qualityRuntimeMetrics", {
+				main: Math.round(
+					runtimePreviewQualityDiagnostic.averageMainThreadFrameIntervalMs
+				),
+				mainCount: runtimePreviewQualityDiagnostic.mainThreadStutterCount,
+				video: Math.round(
+					runtimePreviewQualityDiagnostic.averagePresentedFrameIntervalMs
+				),
+				videoCount: runtimePreviewQualityDiagnostic.presentedFrameStallCount,
+			})
+		: null;
 
 	const totalDuration = getTotalDuration();
 
@@ -470,6 +612,158 @@ export function PreviewToolbar({
 			</div>
 			<div className="flex items-center gap-3">
 				<BackgroundSettings />
+				<DropdownMenu
+					onOpenChange={(open) => handlePreviewQualityMenuOpenChange({ open })}
+				>
+					<DropdownMenuTrigger asChild>
+						<Button
+							type="button"
+							variant="text"
+							size="sm"
+							className="h-5 min-w-14 px-1 text-[10px] text-muted-foreground"
+							disabled={!hasAnyElements}
+							aria-label={t("editor.preview.quality")}
+							title={t("editor.preview.quality")}
+							data-testid="preview-quality-button"
+							data-runtime-preview-quality={runtimePreviewQuality ?? ""}
+						>
+							{runtimePreviewQualityLabel
+								? `${selectedPreviewQualityLabel} · ${runtimePreviewQualityLabel}`
+								: selectedPreviewQualityLabel}
+						</Button>
+					</DropdownMenuTrigger>
+					<DropdownMenuContent align="end" className="min-w-48">
+						{PREVIEW_QUALITY_OPTIONS.map((option) => (
+							<DropdownMenuItem
+								key={option.value}
+								onClick={() => setPreviewQuality(option.value)}
+								className={cn(
+									"flex flex-col items-start gap-0.5 text-xs",
+									previewQuality === option.value && "font-semibold"
+								)}
+							>
+								<span>{t(option.labelKey)}</span>
+								<span className="text-[10px] font-normal text-muted-foreground">
+									{t(option.descriptionKey)}
+								</span>
+							</DropdownMenuItem>
+						))}
+						{runtimePreviewQualityLabel ? (
+							<DropdownMenuLabel className="px-2 py-1.5 font-normal">
+								<span
+									className="flex items-start gap-2 text-[10px] text-muted-foreground"
+									data-testid="preview-runtime-quality-status"
+								>
+									<Gauge className="mt-0.5 size-3 shrink-0" />
+									<span className="min-w-0">
+										<span className="block text-foreground">
+											{t("editor.preview.qualityRuntimeActive", {
+												quality: runtimePreviewQualityLabel,
+											})}
+										</span>
+										{runtimePreviewQualityReason ? (
+											<span
+												className="mt-0.5 block"
+												data-testid="preview-runtime-quality-reason"
+											>
+												{runtimePreviewQualityReason}
+											</span>
+										) : null}
+										{runtimePreviewQualityMetrics ? (
+											<span
+												className="block tabular-nums"
+												data-testid="preview-runtime-quality-metrics"
+											>
+												{runtimePreviewQualityMetrics}
+											</span>
+										) : null}
+									</span>
+								</span>
+							</DropdownMenuLabel>
+						) : null}
+						<DropdownMenuSeparator />
+						<DropdownMenuLabel className="px-2 py-1 text-[10px] font-normal text-muted-foreground">
+							<span
+								className="flex items-center justify-between gap-3"
+								data-testid="preview-proxy-cache-status"
+							>
+								<span>{t("editor.preview.proxyCache")}</span>
+								<span className="tabular-nums">
+									{previewProxyCacheStatus === "loading" ||
+									previewProxyCacheStatus === "clearing" ||
+									previewProxyCacheStatus === "opening"
+										? t("editor.preview.proxyCacheLoading")
+										: previewProxyCacheSize}
+								</span>
+							</span>
+							{previewProxyCacheStats ? (
+								<span className="mt-0.5 block text-[9px]">
+									{t("editor.preview.proxyCacheDetail", {
+										count: previewProxyCacheStats.entryCount,
+										limit: previewProxyCacheLimit ?? "",
+									})}
+								</span>
+							) : null}
+							{previewProxyCacheStatus === "error" ? (
+								<span className="mt-0.5 block text-[9px] text-destructive">
+									{t("editor.preview.proxyCacheError")}
+								</span>
+							) : null}
+						</DropdownMenuLabel>
+						<DropdownMenuItem
+							onSelect={(event) => {
+								event.preventDefault();
+								void handleOpenPreviewProxyCache();
+							}}
+							disabled={
+								!platform().isElectron ||
+								previewProxyCacheStatus === "loading" ||
+								previewProxyCacheStatus === "clearing" ||
+								previewProxyCacheStatus === "opening"
+							}
+							className="gap-2 text-xs"
+							data-testid="preview-proxy-cache-open"
+						>
+							<FolderOpen className="size-3.5" />
+							<span>
+								{previewProxyCacheStatus === "opening"
+									? t("editor.preview.proxyCacheOpening")
+									: t("editor.preview.proxyCacheOpen")}
+							</span>
+						</DropdownMenuItem>
+						{previewProxyCacheStatus === "error" ? (
+							<DropdownMenuItem
+								onSelect={(event) => {
+									event.preventDefault();
+									void refreshPreviewProxyCacheStats();
+								}}
+								className="gap-2 text-xs"
+								data-testid="preview-proxy-cache-retry"
+							>
+								<RefreshCw className="size-3.5" />
+								<span>{t("editor.preview.proxyCacheRetry")}</span>
+							</DropdownMenuItem>
+						) : null}
+						<DropdownMenuItem
+							onSelect={(event) => {
+								event.preventDefault();
+								void handleClearPreviewProxyCache();
+							}}
+							disabled={
+								!platform().isElectron ||
+								previewProxyCacheStatus === "loading" ||
+								previewProxyCacheStatus === "clearing" ||
+								(previewProxyCacheStats?.entryCount ?? 0) === 0
+							}
+							className="text-xs"
+							data-testid="preview-proxy-cache-clear"
+						>
+							{previewProxyCacheStatus === "clearing"
+								? t("editor.preview.proxyCacheClearing")
+								: t("editor.preview.proxyCacheClear")}
+						</DropdownMenuItem>
+					</DropdownMenuContent>
+				</DropdownMenu>
 				<DropdownMenu>
 					<DropdownMenuTrigger asChild>
 						<Button

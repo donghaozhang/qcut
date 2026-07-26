@@ -45,6 +45,7 @@ export interface AudioFile {
 	reverse?: boolean;
 	freezeFrameTime?: number;
 	freezeFrameDuration?: number;
+	preservePitch?: boolean;
 }
 
 export interface AudioCrossfade {
@@ -189,6 +190,7 @@ export interface VideoSource {
 	reverse?: boolean;
 	freezeFrameTime?: number;
 	freezeFrameDuration?: number;
+	frameInterpolation?: "none" | "blend" | "motion-compensated";
 	visual?: VideoVisual;
 	effectFilter?: string;
 	effectRenderProgram?: EffectRenderProgram;
@@ -694,6 +696,20 @@ export interface VideoPreviewProxyProgress {
 	progress: number;
 	processedSeconds: number;
 	duration: number;
+}
+
+export interface VideoPreviewProxyCacheStats {
+	cacheDir: string;
+	entryCount: number;
+	totalBytes: number;
+	maxBytes: number;
+	maxEntries: number;
+}
+
+export interface VideoPreviewProxyCacheClearResult
+	extends VideoPreviewProxyCacheStats {
+	removedEntries: number;
+	removedBytes: number;
 }
 
 /**

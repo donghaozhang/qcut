@@ -396,6 +396,14 @@ export interface TimelineStore {
 		endTime: number,
 		excludeTrackIds?: string[]
 	) => void;
+	deleteSelectedElementsWithRipple: (
+		selections?: SelectedElement[],
+		pushHistory?: boolean
+	) => {
+		deletedElements: number;
+		splitElements: number;
+		totalRemovedDuration: number;
+	};
 	deleteTimeRange: (request: {
 		startTime: number;
 		endTime: number;
@@ -666,6 +674,25 @@ export interface TimelineStore {
 				| "reverse"
 				| "freezeFrameTime"
 				| "freezeFrameDuration"
+				| "preservePitch"
+				| "frameInterpolation"
+			>
+		>,
+		pushHistory?: boolean
+	) => void;
+	updateMediaTiming: (
+		trackId: string,
+		elementId: string,
+		updates: Partial<
+			Pick<
+				MediaElement,
+				| "playbackRate"
+				| "speedKeyframes"
+				| "reverse"
+				| "freezeFrameTime"
+				| "freezeFrameDuration"
+				| "preservePitch"
+				| "frameInterpolation"
 			>
 		>,
 		pushHistory?: boolean

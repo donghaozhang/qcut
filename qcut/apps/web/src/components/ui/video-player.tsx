@@ -11,6 +11,10 @@ import {
 	mapMediaTimelineTime,
 } from "@/lib/video/video-timing";
 import {
+	QCUT_VIDEO_FRAME_EVENT,
+	type QcutVideoFrameEventDetail,
+} from "@/lib/preview/preview-health-events";
+import {
 	getOrCreateObjectURL,
 	releaseObjectURL,
 	revokeObjectURL,
@@ -92,6 +96,7 @@ export function VideoPlayer({
 	const videoLoadedRef = useRef(false);
 	const recoveryAttemptRef = useRef(0);
 	const presentedFramesRef = useRef(0);
+	const lastPresentedFrameCallbackAtRef = useRef<number | null>(null);
 	const MAX_RECOVERY_ATTEMPTS = 2;
 	const { isPlaying, currentTime, speed } = usePlaybackStore();
 	const timelineTimeRef = useRef(currentTime);
@@ -108,6 +113,12 @@ export function VideoPlayer({
 		playbackWindow?.endTime ?? clipStartTime + timelineDuration;
 	const isInClipRange =
 		currentTime >= clipRangeStart && currentTime < clipEndTime;
+	const shouldReportPlaybackHealth = isPlaying && isInClipRange;
+	useEffect(() => {
+		if (!shouldReportPlaybackHealth) {
+			lastPresentedFrameCallbackAtRef.current = null;
+		}
+	}, [shouldReportPlaybackHealth]);
 	useMediaAudioPreview({
 		mediaRef: videoRef,
 		element: timingElement,
@@ -153,6 +164,44 @@ export function VideoPlayer({
 			sourceTimeOffset,
 		]
 	);
+	const reportPresentedFrame = useCallback(
+		({
+			video,
+			intervalMs,
+			mediaTime,
+			presentedFrames,
+		}: {
+			video: HTMLVideoElement;
+			intervalMs: number | null;
+			mediaTime: number;
+			presentedFrames: number;
+		}) => {
+			presentedFramesRef.current = Math.max(
+				presentedFramesRef.current + 1,
+				presentedFrames
+			);
+			video.setAttribute(
+				"data-qcut-presented-frames",
+				String(presentedFramesRef.current)
+			);
+			video.setAttribute("data-qcut-presented-at", String(Date.now()));
+			video.setAttribute("data-qcut-presented-media-time", String(mediaTime));
+			video.setAttribute(
+				"data-qcut-presented-timeline-time",
+				String(timelineTimeRef.current)
+			);
+			const detail: QcutVideoFrameEventDetail = {
+				videoId,
+				isActivePlaybackFrame: shouldReportPlaybackHealth,
+				intervalMs,
+				mediaTime,
+				presentedFrames: presentedFramesRef.current,
+				timelineTime: timelineTimeRef.current,
+			};
+			window.dispatchEvent(new CustomEvent(QCUT_VIDEO_FRAME_EVENT, { detail }));
+		},
+		[shouldReportPlaybackHealth, videoId]
+	);
 	const syncVideoTiming = useCallback(
 		({
 			video,
@@ -165,6 +214,7 @@ export function VideoPlayer({
 			playbackSpeed?: number;
 			syncPosition?: boolean;
 		}) => {
+			video.preservesPitch = timingElement?.preservePitch ?? true;
 			video.playbackRate = getVideoPlaybackRate({
 				timingElement,
 				clipPlaybackRate,
@@ -205,6 +255,8 @@ export function VideoPlayer({
 		const handleSeekEvent = (e: CustomEvent) => {
 			// Always update video time, even if outside clip range
 			const timelineTime = e.detail.time;
+			timelineTimeRef.current = timelineTime;
+			lastPresentedFrameCallbackAtRef.current = null;
 			const videoTime = getVideoTime(timelineTime);
 			video.currentTime = videoTime;
 		};
@@ -319,6 +371,7 @@ export function VideoPlayer({
 		// Reset load state for new source
 		videoLoadedRef.current = false;
 		presentedFramesRef.current = 0;
+		lastPresentedFrameCallbackAtRef.current = null;
 		video.setAttribute("data-qcut-presented-frames", "0");
 		video.removeAttribute("data-qcut-presented-at");
 
@@ -380,22 +433,23 @@ export function VideoPlayer({
 
 		let callbackId: number | null = null;
 		const trackPresentedFrame: VideoFrameRequestCallback = (
-			_timestamp,
+			timestamp,
 			metadata
 		) => {
-			presentedFramesRef.current = Math.max(
-				presentedFramesRef.current + 1,
-				metadata.presentedFrames
-			);
-			video.setAttribute(
-				"data-qcut-presented-frames",
-				String(presentedFramesRef.current)
-			);
-			video.setAttribute("data-qcut-presented-at", String(Date.now()));
-			video.setAttribute(
-				"data-qcut-presented-media-time",
-				String(metadata.mediaTime)
-			);
+			const previousTimestamp = lastPresentedFrameCallbackAtRef.current;
+			lastPresentedFrameCallbackAtRef.current = shouldReportPlaybackHealth
+				? timestamp
+				: null;
+			const intervalMs =
+				shouldReportPlaybackHealth && typeof previousTimestamp === "number"
+					? Math.max(0, timestamp - previousTimestamp)
+					: null;
+			reportPresentedFrame({
+				video,
+				intervalMs,
+				mediaTime: metadata.mediaTime,
+				presentedFrames: metadata.presentedFrames,
+			});
 			callbackId = video.requestVideoFrameCallback(trackPresentedFrame);
 		};
 
@@ -411,7 +465,7 @@ export function VideoPlayer({
 				video.cancelVideoFrameCallback(callbackId);
 			}
 		};
-	}, []);
+	}, [reportPresentedFrame, shouldReportPlaybackHealth]);
 
 	// Separate cleanup effect for component unmount only
 	useEffect(() => {
@@ -465,12 +519,12 @@ export function VideoPlayer({
 			onLoadedData={(event) => {
 				const video = event.currentTarget;
 				if (typeof video.requestVideoFrameCallback === "function") return;
-				presentedFramesRef.current = Math.max(1, presentedFramesRef.current);
-				video.setAttribute(
-					"data-qcut-presented-frames",
-					String(presentedFramesRef.current)
-				);
-				video.setAttribute("data-qcut-presented-at", String(Date.now()));
+				reportPresentedFrame({
+					video,
+					intervalMs: null,
+					mediaTime: video.currentTime,
+					presentedFrames: 1,
+				});
 			}}
 			onError={(e) => {
 				const video = e.currentTarget;

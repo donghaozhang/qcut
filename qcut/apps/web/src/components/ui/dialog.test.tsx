@@ -76,6 +76,30 @@ describe("Dialog Component", () => {
 		});
 	});
 
+	it("releases a stale modal pointer lock after closing", async () => {
+		const TestDialog = () => {
+			const [open, setOpen] = React.useState(true);
+			return (
+				<Dialog open={open} onOpenChange={setOpen}>
+					<DialogContent>
+						<DialogTitle>Pointer lock dialog</DialogTitle>
+						<button type="button" onClick={() => setOpen(false)}>
+							Close pointer lock dialog
+						</button>
+					</DialogContent>
+				</Dialog>
+			);
+		};
+
+		render(<TestDialog />);
+		document.body.style.pointerEvents = "none";
+		screen.getByRole("button", { name: "Close pointer lock dialog" }).click();
+
+		await waitFor(() => {
+			expect(document.body.style.pointerEvents).toBe("");
+		});
+	});
+
 	it("renders with correct ARIA attributes", () => {
 		const { getByRole, getByText } = render(
 			<Dialog defaultOpen>

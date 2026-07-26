@@ -7,7 +7,11 @@ import { Button } from "@/components/ui/button";
 import { createObjectURL } from "@/lib/media/blob-manager";
 import { registerCloudTaskRuntimeActions } from "@/lib/cloud-tasks/task-runtime-actions";
 import { exportPersonCutoutVideo } from "@/lib/segmentation/person-cutout-export";
-import { detachGeneratedMask } from "@/lib/segmentation/generated-mask-attachment";
+import {
+	detachGeneratedMask,
+	pauseGeneratedMaskTracking,
+} from "@/lib/segmentation/generated-mask-attachment";
+import { registerActiveMaskTrackingRuntime } from "@/lib/segmentation/mask-tracking-runtime";
 import { useSegmentationStore } from "@/stores/ai/segmentation-store";
 import { useCloudTaskStore } from "@/stores/cloud-task-store";
 import { useMediaStore } from "@/stores/media/media-store";
@@ -22,15 +26,27 @@ interface LocalPersonCutoutPanelProps {
 	projectId: string;
 	sourceFile: File;
 	sourceUrl: string;
+	autoStartRequestId?: string;
 	addMediaItem?: MediaStore["addMediaItem"];
 	onMaskReady?: ({
 		sourceMediaId,
 		trackingSamples,
+		targetElementId,
+		trackingRequestId,
 	}: {
 		sourceMediaId: string;
 		trackingSamples: MediaMaskTrackingSample[];
+		targetElementId?: string;
+		trackingRequestId?: string;
 	}) => boolean;
 	onMaskError?: (message: string) => void;
+	onProgress?: ({
+		progress,
+		status,
+	}: {
+		progress: number;
+		status: string;
+	}) => void;
 }
 
 function cutoutFilename(sourceName: string): string {
@@ -50,9 +66,11 @@ export function LocalPersonCutoutPanel({
 	projectId,
 	sourceFile,
 	sourceUrl,
+	autoStartRequestId,
 	addMediaItem,
 	onMaskReady,
 	onMaskError,
+	onProgress,
 }: LocalPersonCutoutPanelProps) {
 	const {
 		personCutoutSettings,
@@ -67,6 +85,10 @@ export function LocalPersonCutoutPanel({
 	} = useSegmentationStore();
 	const abortControllerRef = useRef<AbortController | null>(null);
 	const activeTaskIdRef = useRef<string | undefined>(undefined);
+	const autoStartedRequestIdRef = useRef<string | undefined>(undefined);
+	const renderTransparentVideoRef = useRef<
+		(options?: { existingTaskId?: string }) => Promise<void>
+	>(async () => {});
 	const sourceFileRef = useRef(sourceFile);
 	const [taskPhase, setTaskPhase] = useState<CutoutTaskPhase>("idle");
 	const [taskError, setTaskError] = useState<string>();
@@ -122,11 +144,25 @@ export function LocalPersonCutoutPanel({
 		activeTaskIdRef.current = taskId;
 		const controller = new AbortController();
 		abortControllerRef.current = controller;
+		const trackingRequest = useSegmentationStore.getState().trackingRequest;
+		let unregisterMaskTrackingRuntime = () => {};
 		const cancel = () => {
 			controller.abort();
 			useCloudTaskStore.getState().cancelTask({ id: taskId });
 		};
 		const retry = () => renderTransparentVideo({ existingTaskId: taskId });
+		if (trackingRequest) {
+			unregisterMaskTrackingRuntime = registerActiveMaskTrackingRuntime({
+				runtime: {
+					elementId: trackingRequest.elementId,
+					maskId: trackingRequest.maskId,
+					source: "mediapipe",
+					direction: trackingRequest.direction,
+					cancel,
+					resume: retry,
+				},
+			});
+		}
 		const open = () =>
 			useMediaPanelStore.getState().setActiveTab("segmentation");
 		registerCloudTaskRuntimeActions({
@@ -157,6 +193,7 @@ export function LocalPersonCutoutPanel({
 						statusMessage: status,
 						elapsedTime: (Date.now() - startedAt) / 1000,
 					});
+					onProgress?.({ progress: nextProgress, status });
 					useCloudTaskStore.getState().updateProgress({
 						id: taskId,
 						progress: nextProgress,
@@ -203,6 +240,8 @@ export function LocalPersonCutoutPanel({
 				onMaskReady?.({
 					sourceMediaId,
 					trackingSamples: result.trackingSamples,
+					targetElementId: trackingRequest?.elementId,
+					trackingRequestId: trackingRequest?.requestId,
 				}) ?? false;
 			setSegmentedVideo(url);
 			setTaskPhase("completed");
@@ -263,21 +302,39 @@ export function LocalPersonCutoutPanel({
 				statusMessage: canceled ? "人物抠像已取消" : "人物抠像失败",
 				elapsedTime: (Date.now() - startedAt) / 1000,
 			});
-			if (!canceled) {
+			if (canceled) {
+				pauseGeneratedMaskTracking({
+					message: "人物跟踪已暂停",
+					trackingRequestId: trackingRequest?.requestId,
+				});
+				useCloudTaskStore.getState().cancelTask({ id: taskId });
+			} else {
 				useCloudTaskStore.getState().failTask({
 					id: taskId,
 					error: failureMessage,
 				});
 				toast.error("人物抠像失败", { description: failureMessage });
-			} else {
-				useCloudTaskStore.getState().cancelTask({ id: taskId });
 			}
 		} finally {
+			unregisterMaskTrackingRuntime();
 			if (abortControllerRef.current === controller) {
 				abortControllerRef.current = null;
 			}
 		}
 	};
+	renderTransparentVideoRef.current = renderTransparentVideo;
+
+	useEffect(() => {
+		if (
+			!autoStartRequestId ||
+			isProcessing ||
+			autoStartedRequestIdRef.current === autoStartRequestId
+		) {
+			return;
+		}
+		autoStartedRequestIdRef.current = autoStartRequestId;
+		void renderTransparentVideoRef.current();
+	}, [autoStartRequestId, isProcessing]);
 
 	return (
 		<div className="flex min-h-0 flex-1 flex-col">

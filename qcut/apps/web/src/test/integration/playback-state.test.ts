@@ -39,6 +39,9 @@ describe("Playback State", () => {
 			speed: 1,
 			volume: 1,
 			muted: false,
+			previewQuality: "auto",
+			runtimePreviewQuality: null,
+			runtimePreviewQualityDiagnostic: null,
 		});
 	});
 
@@ -71,5 +74,44 @@ describe("Playback State", () => {
 		usePlaybackStore.setState({ speed: 2 });
 		const updatedState = usePlaybackStore.getState();
 		expect(updatedState.speed).toBe(2);
+	});
+
+	it("clears runtime preview downgrade on pause and manual quality change", () => {
+		usePlaybackStore.setState({
+			isPlaying: true,
+			runtimePreviewQuality: "low",
+			runtimePreviewQualityDiagnostic: {
+				reason: "video-frame",
+				averageMainThreadFrameIntervalMs: 20,
+				mainThreadStutterCount: 0,
+				averagePresentedFrameIntervalMs: 90,
+				presentedFrameStallCount: 5,
+			},
+		});
+
+		usePlaybackStore.getState().pause();
+
+		expect(usePlaybackStore.getState().runtimePreviewQuality).toBeNull();
+		expect(
+			usePlaybackStore.getState().runtimePreviewQualityDiagnostic
+		).toBeNull();
+
+		usePlaybackStore.getState().setRuntimePreviewQuality({
+			quality: "smooth",
+			diagnostic: {
+				reason: "main-thread",
+				averageMainThreadFrameIntervalMs: 50,
+				mainThreadStutterCount: 3,
+				averagePresentedFrameIntervalMs: 20,
+				presentedFrameStallCount: 0,
+			},
+		});
+		usePlaybackStore.getState().setPreviewQuality("original");
+
+		expect(usePlaybackStore.getState().previewQuality).toBe("original");
+		expect(usePlaybackStore.getState().runtimePreviewQuality).toBeNull();
+		expect(
+			usePlaybackStore.getState().runtimePreviewQualityDiagnostic
+		).toBeNull();
 	});
 });

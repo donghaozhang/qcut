@@ -2,8 +2,11 @@ import { describe, expect, it } from "vitest";
 import type { MediaItem } from "@/stores/media/media-store-types";
 import type { MediaElement, TimelineTrack } from "@/types/timeline";
 import { DEFAULT_MEDIA_AUDIO_SETTINGS } from "../audio-properties";
+import {
+	buildBrowserAudioAutomation,
+	MAX_BROWSER_AUDIO_AUTOMATION_POINTS,
+} from "../browser-audio-automation";
 import { collectBrowserAudioExportClips } from "../browser-audio-export-clips";
-import { buildBrowserAudioAutomation } from "../browser-audio-export";
 
 function mediaElement({
 	audio = DEFAULT_MEDIA_AUDIO_SETTINGS,
@@ -170,5 +173,33 @@ describe("browser audio export", () => {
 		});
 		expect(points[0].playbackRate).toBeCloseTo(0.5, 1);
 		expect(points.at(-1)?.playbackRate).toBeCloseTo(2, 1);
+	});
+
+	it("bounds automation for long clips without losing curve boundaries", () => {
+		const duration = 60 * 60;
+		const element = {
+			...mediaElement(),
+			duration,
+			speedKeyframes: [
+				{ id: "slow", frame: 0, value: 0.5, easing: "easeInOut" as const },
+				{
+					id: "fast",
+					frame: duration * 30,
+					value: 2,
+					easing: "easeInOut" as const,
+				},
+			],
+		};
+		const points = buildBrowserAudioAutomation({
+			element,
+			duration,
+			fps: 30,
+		});
+
+		expect(points.length).toBeLessThanOrEqual(
+			MAX_BROWSER_AUDIO_AUTOMATION_POINTS
+		);
+		expect(points[0].time).toBe(0);
+		expect(points.at(-1)?.time).toBe(duration);
 	});
 });

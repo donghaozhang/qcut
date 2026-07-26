@@ -1,4 +1,4 @@
-import { ActionWithOptionalArgs } from "@/constants/actions";
+import type { ActionWithOptionalArgs } from "@/constants/actions";
 
 /**
  * Alt is also regarded as macOS OPTION (⌥) key
@@ -59,6 +59,11 @@ export type Key =
 	| "/"
 	| "?"
 	| "."
+	| ","
+	| "["
+	| "]"
+	| "-"
+	| "="
 	| "enter"
 	| "tab"
 	| "space"

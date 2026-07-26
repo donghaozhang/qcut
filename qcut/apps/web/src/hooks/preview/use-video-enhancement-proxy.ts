@@ -89,6 +89,8 @@ export function useVideoEnhancementProxy({
 	sourceHeight,
 	fps,
 	enhancements,
+	forceProxy = false,
+	maxDimension = 960,
 }: {
 	enabled: boolean;
 	elementId: string;
@@ -99,6 +101,8 @@ export function useVideoEnhancementProxy({
 	sourceHeight: number;
 	fps: number;
 	enhancements: MediaEnhancements;
+	forceProxy?: boolean;
+	maxDimension?: number;
 }): VideoEnhancementProxyState {
 	const [retrySequence, setRetrySequence] = useState(0);
 	const [state, setState] = useState<Omit<VideoEnhancementProxyState, "retry">>(
@@ -133,7 +137,8 @@ export function useVideoEnhancementProxy({
 			!enabled ||
 			!sourcePath ||
 			!platform().isElectron ||
-			!hasMediaEnhancements({ enhancements: enhancementSnapshot }) ||
+			(!forceProxy &&
+				!hasMediaEnhancements({ enhancements: enhancementSnapshot })) ||
 			!Number.isFinite(sourceDuration) ||
 			sourceDuration <= 0
 		) {
@@ -146,6 +151,7 @@ export function useVideoEnhancementProxy({
 		const dimensions = videoEnhancementProxyDimensions({
 			width: sourceWidth,
 			height: sourceHeight,
+			maxDimension,
 		});
 		setState({
 			status: "generating",
@@ -203,6 +209,8 @@ export function useVideoEnhancementProxy({
 		enabled,
 		enhancementSnapshot,
 		fps,
+		forceProxy,
+		maxDimension,
 		retrySequence,
 		sourceDuration,
 		sourceHeight,

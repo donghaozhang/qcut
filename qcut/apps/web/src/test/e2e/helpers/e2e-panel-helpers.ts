@@ -39,9 +39,24 @@ export async function ensurePanelTabActive(
 	tabKey: string,
 	subgroupLabel?: string
 ) {
+	const tab = page.locator(`[data-testid="${tabKey}-panel-tab"]`);
+	if (await tab.isVisible().catch(() => false)) {
+		await tab.click();
+		return;
+	}
+
 	const groupButton = page.locator(`[data-testid="group-${groupKey}"]`);
 	if ((await groupButton.count()) > 0) {
 		await groupButton.click();
+	}
+	const workspaceItemTestId = {
+		edit: "workspace-ai-assist",
+		"ai-create": "workspace-ai-create",
+		agents: "workspace-agents",
+	}[groupKey];
+	if (workspaceItemTestId) {
+		await page.getByTestId("workspace-menu-trigger").click();
+		await page.getByTestId(workspaceItemTestId).click();
 	}
 	if (subgroupLabel) {
 		const subgroupButton = page.locator(`button:has-text("${subgroupLabel}")`);
@@ -49,10 +64,8 @@ export async function ensurePanelTabActive(
 			await subgroupButton.click();
 		}
 	}
-	const tab = page.locator(`[data-testid="${tabKey}-panel-tab"]`);
-	if ((await tab.count()) > 0) {
-		await tab.click();
-	}
+	await tab.waitFor({ state: "visible", timeout: 5000 });
+	await tab.click();
 }
 
 /** Navigate to the text panel. */

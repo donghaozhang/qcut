@@ -85,7 +85,7 @@ test.describe("Selected video AI outpaint", () => {
 		await expect(properties).toBeVisible();
 		await properties
 			.getByTestId("media-properties-primary-tabs")
-			.getByRole("tab", { name: "AI 效果", exact: true })
+			.getByRole("tab", { name: "AI效果", exact: true })
 			.click();
 
 		const aiPanel = properties.getByTestId("media-ai-properties");

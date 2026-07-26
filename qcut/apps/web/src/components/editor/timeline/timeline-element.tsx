@@ -30,6 +30,8 @@ import {
 	Camera,
 	Clapperboard,
 	CodeXml,
+	Gauge,
+	Pause,
 } from "lucide-react";
 import { useAsyncMediaItems } from "@/hooks/media/use-async-media-store";
 import { getFileType, useMediaStore } from "@/stores/media/media-store";
@@ -277,6 +279,21 @@ function TimelineElementComponent({
 		TIMELINE_CONSTANTS.ELEMENT_MIN_WIDTH,
 		effectiveDuration * TIMELINE_CONSTANTS.PIXELS_PER_SECOND * zoomLevel
 	);
+	const speedStatus =
+		element.type === "media"
+			? (element.speedKeyframes?.length ?? 0) > 0
+				? locale === "zh"
+					? "曲线"
+					: "Curve"
+				: (element.playbackRate ?? 1) !== 1
+					? `${(element.playbackRate ?? 1).toFixed(2).replace(/\.?0+$/, "")}x`
+					: null
+			: null;
+	const hasTimingStatus =
+		element.type === "media" &&
+		(speedStatus !== null ||
+			element.reverse === true ||
+			(element.freezeFrameDuration ?? 0) > 0);
 
 	// Viewport-aware filmstrip: only extract frames for visible clips
 	const elementRef = useRef<HTMLDivElement>(null);
@@ -1582,6 +1599,32 @@ function TimelineElementComponent({
 								title="Grouped clip"
 							>
 								<Link2 className="size-2.5" />
+							</div>
+						) : null}
+						{hasTimingStatus && element.type === "media" ? (
+							<div
+								className="pointer-events-none absolute right-1 top-1 z-30 flex h-4 max-w-[calc(100%-0.5rem)] items-center gap-1 rounded-sm bg-black/70 px-1 text-[9px] font-medium text-white"
+								title={[
+									speedStatus,
+									element.reverse ? t("audioProperties.speed.reverse") : null,
+									(element.freezeFrameDuration ?? 0) > 0
+										? t("audioProperties.speed.freeze")
+										: null,
+								]
+									.filter(Boolean)
+									.join(", ")}
+								data-testid="timeline-speed-status"
+							>
+								<Gauge className="size-2.5 shrink-0" />
+								{speedStatus ? (
+									<span className="truncate">{speedStatus}</span>
+								) : null}
+								{element.reverse ? (
+									<RefreshCw className="size-2.5 shrink-0" />
+								) : null}
+								{(element.freezeFrameDuration ?? 0) > 0 ? (
+									<Pause className="size-2.5 shrink-0" />
+								) : null}
 							</div>
 						) : null}
 

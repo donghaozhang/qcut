@@ -12,6 +12,7 @@ import {
 	addClaudeMarkdownElement,
 	addClaudeRemotionElement,
 	getClaudeTextProperties,
+	getClaudeMediaTimingProperties,
 } from "./claude-timeline-bridge-helpers";
 import type { ClaudeTimelineBridgeAPI } from "./claude-timeline-bridge";
 
@@ -145,9 +146,21 @@ export const applyElementChanges = ({
 			}
 		}
 
-		if (element.type === "media" && changes.style) {
+		if (element.type === "media") {
+			const timingUpdates = getClaudeMediaTimingProperties({
+				element: changes,
+			});
+			if (Object.keys(timingUpdates).length > 0) {
+				timelineStore.updateMediaTiming(
+					track.id,
+					elementId,
+					timingUpdates,
+					false
+				);
+			}
+
 			const mediaUpdates: Record<string, unknown> = {};
-			if (typeof changes.style.volume === "number") {
+			if (typeof changes.style?.volume === "number") {
 				mediaUpdates.volume = changes.style.volume;
 			}
 			if (Object.keys(mediaUpdates).length > 0) {

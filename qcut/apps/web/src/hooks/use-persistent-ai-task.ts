@@ -16,6 +16,11 @@ interface PersistentAiTaskExecution {
 	}) => void;
 }
 
+interface PersistentAiTaskRuntime<Result> {
+	cancel: () => void;
+	retry: () => Promise<Result | null>;
+}
+
 export interface PersistentAiTaskRequest<Result> {
 	kind?: CloudTaskKind;
 	label: string;
@@ -29,6 +34,10 @@ export interface PersistentAiTaskRequest<Result> {
 	onError?: (error: Error) => void | Promise<void>;
 	open?: () => void | Promise<void>;
 	output?: (result: Result) => Record<string, unknown>;
+	onRuntimeReady?: ({
+		cancel,
+		retry,
+	}: PersistentAiTaskRuntime<Result>) => undefined | (() => void);
 }
 
 export interface PersistentAiTaskState {
@@ -97,6 +106,7 @@ export function usePersistentAiTask(): PersistentAiTaskState {
 					void request.onCancel?.();
 				};
 				const retry = () => executeAttempt();
+				const unregisterRuntime = request.onRuntimeReady?.({ cancel, retry });
 				registerCloudTaskRuntimeActions({
 					taskId,
 					actions: { cancel, retry, open: request.open },
@@ -176,6 +186,7 @@ export function usePersistentAiTask(): PersistentAiTaskState {
 						setIsRunning(false);
 						activeControllerRef.current = undefined;
 					}
+					unregisterRuntime?.();
 				}
 			};
 

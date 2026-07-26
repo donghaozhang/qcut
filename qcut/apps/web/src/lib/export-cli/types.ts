@@ -198,6 +198,7 @@ export interface VideoSourceInput {
 	reverse: boolean;
 	freezeFrameTime?: number;
 	freezeFrameDuration: number;
+	frameInterpolation?: "none" | "blend" | "motion-compensated";
 	visual?: VideoVisualInput;
 	effectFilter?: string;
 	effectRenderProgram?: EffectRenderProgram;
@@ -268,6 +269,7 @@ export interface AudioFileInput {
 	reverse?: boolean;
 	freezeFrameTime?: number;
 	freezeFrameDuration?: number;
+	preservePitch?: boolean;
 }
 
 /**

@@ -13,6 +13,7 @@ import {
 	type ChangeEvent,
 	type MouseEvent,
 	useCallback,
+	useEffect,
 	useMemo,
 	useState,
 } from "react";
@@ -47,6 +48,10 @@ import {
 	interpolateNumber,
 	interpolateColor,
 } from "@/lib/remotion/keyframe-converter";
+import {
+	KEYFRAME_VALUE_FOCUS_EVENT,
+	type KeyframeValueFocusDetail,
+} from "@/lib/editor-shortcut-events";
 
 // ============================================================================
 // Types
@@ -164,6 +169,7 @@ function KeyframeDiamond({
 
 interface KeyframeEditPanelProps {
 	keyframe: Keyframe;
+	propName: string;
 	propType: "number" | "color";
 	durationInFrames: number;
 	onUpdate: (frame: number, value: unknown, easing: EasingType) => void;
@@ -173,6 +179,7 @@ interface KeyframeEditPanelProps {
 
 function KeyframeEditPanel({
 	keyframe,
+	propName,
 	propType,
 	durationInFrames,
 	onUpdate,
@@ -251,6 +258,7 @@ function KeyframeEditPanel({
 							/>
 							<Input
 								type="text"
+								data-keyframe-value-editor={propName}
 								value={localValue as string}
 								onChange={handleValueChange}
 								className="h-7 text-xs flex-1"
@@ -260,6 +268,7 @@ function KeyframeEditPanel({
 					) : (
 						<Input
 							type="number"
+							data-keyframe-value-editor={propName}
 							value={localValue as string}
 							onChange={handleValueChange}
 							className="h-7 text-xs"
@@ -346,6 +355,36 @@ export function KeyframeEditor({
 		() => keyframes.find((kf) => kf.id === selectedKeyframeId),
 		[keyframes, selectedKeyframeId]
 	);
+
+	useEffect(() => {
+		const focusKeyframeValue = (event: Event) => {
+			const detail = (event as CustomEvent<KeyframeValueFocusDetail>).detail;
+			if (detail.property !== propName) return;
+			if (!keyframes.some((keyframe) => keyframe.id === detail.keyframeId))
+				return;
+			setIsExpanded(true);
+			setSelectedKeyframeId(detail.keyframeId);
+			requestAnimationFrame(() => {
+				requestAnimationFrame(() => {
+					const inputs = document.querySelectorAll<HTMLInputElement>(
+						"[data-keyframe-value-editor]"
+					);
+					const input = [...inputs].find(
+						(candidate) =>
+							candidate.dataset.keyframeValueEditor === detail.property
+					);
+					input?.focus();
+					input?.select();
+				});
+			});
+		};
+		window.addEventListener(KEYFRAME_VALUE_FOCUS_EVENT, focusKeyframeValue);
+		return () =>
+			window.removeEventListener(
+				KEYFRAME_VALUE_FOCUS_EVENT,
+				focusKeyframeValue
+			);
+	}, [keyframes, propName]);
 
 	// Handle adding a keyframe at current frame
 	const handleAddKeyframe = useCallback(() => {
@@ -579,6 +618,7 @@ export function KeyframeEditor({
 								<KeyframeEditPanel
 									key={selectedKeyframe.id}
 									keyframe={selectedKeyframe}
+									propName={propName}
 									propType={propType}
 									durationInFrames={durationInFrames}
 									onUpdate={handleUpdateKeyframe}

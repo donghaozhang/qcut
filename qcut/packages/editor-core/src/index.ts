@@ -76,6 +76,7 @@ export type {
 	MediaMask,
 	MediaMaskType,
 	MediaMaskBlendMode,
+	MediaMaskMirrorMode,
 	MediaMaskKeyframeProperty,
 	MediaMaskPoint,
 	MediaMaskStroke,

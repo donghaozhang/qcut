@@ -21,9 +21,17 @@ const TRACKED_PROPERTIES = [
 	"width",
 	"height",
 ] as const satisfies MediaMaskKeyframeProperty[];
+const CORRECTION_PROPERTIES = [
+	...TRACKED_PROPERTIES,
+	"rotation",
+] as const satisfies MediaMaskKeyframeProperty[];
 
 function clamp01(value: number) {
 	return Math.min(1, Math.max(0, value));
+}
+
+function uniqueSortedFrames({ frames }: { frames: number[] }): number[] {
+	return Array.from(new Set(frames)).sort((first, second) => first - second);
 }
 
 export function alphaMaskTrackingSample({
@@ -213,6 +221,78 @@ export function applyMaskTrackingSamples({
 			direction,
 			source,
 			status: "ready",
+			anchorFrame,
+			trackedFrames: simplified.length,
+			totalFrames: localSamples.length,
+			progress: 100,
+		},
+	};
+}
+
+export function updateMaskTrackingStatus({
+	mask,
+	status,
+	progress,
+	error,
+}: {
+	mask: MediaMask;
+	status: NonNullable<MediaMaskTracking["status"]>;
+	progress?: number;
+	error?: string;
+}): MediaMask {
+	return {
+		...mask,
+		tracking: {
+			direction: mask.tracking?.direction ?? "both",
+			source: mask.tracking?.source ?? "manual",
+			...mask.tracking,
+			status,
+			progress: progress ?? mask.tracking?.progress,
+			error,
+		},
+	};
+}
+
+export function addMaskTrackingCorrectionKeyframes({
+	mask,
+	frame,
+}: {
+	mask: MediaMask;
+	frame: number;
+}): MediaMask {
+	let nextMask = mask;
+	for (const property of CORRECTION_PROPERTIES) {
+		const existing = nextMask.keyframes?.[property]?.find(
+			(keyframe) => keyframe.frame === frame
+		);
+		nextMask = {
+			...nextMask,
+			keyframes: {
+				...nextMask.keyframes,
+				[property]: (nextMask.keyframes?.[property] ?? [])
+					.filter((keyframe) => keyframe.frame !== frame)
+					.concat({
+						id:
+							existing?.id ??
+							`${mask.id ?? "mask"}-tracking-correction-${property}-${frame}`,
+						frame,
+						value: nextMask[property] ?? 0,
+						easing: existing?.easing ?? "linear",
+					})
+					.sort((first, second) => first.frame - second.frame),
+			},
+		};
+	}
+	return {
+		...nextMask,
+		tracking: {
+			direction: nextMask.tracking?.direction ?? "both",
+			source: nextMask.tracking?.source ?? "manual",
+			...nextMask.tracking,
+			status: "ready",
+			correctedFrames: uniqueSortedFrames({
+				frames: [...(nextMask.tracking?.correctedFrames ?? []), frame],
+			}),
 		},
 	};
 }

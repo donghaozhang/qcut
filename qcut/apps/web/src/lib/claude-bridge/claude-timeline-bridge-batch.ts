@@ -11,6 +11,7 @@ import type {
 import { debugError } from "@/lib/debug/debug-config";
 import {
 	getClaudeTextProperties,
+	getClaudeMediaTimingProperties,
 	syncProjectMediaIfNeeded,
 } from "./claude-timeline-bridge-helpers";
 import type {
@@ -147,6 +148,7 @@ export function setupBatchHandlers({
 											: 0,
 									trimEnd:
 										typeof element.trimEnd === "number" ? element.trimEnd : 0,
+									...getClaudeMediaTimingProperties({ element }),
 								},
 								{
 									pushHistory: false,

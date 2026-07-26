@@ -143,15 +143,31 @@ function buildGradientShape(
 } {
 	const id = `mask-gradient-${index}`;
 	const spread = clamp(mask.feather * SVG_SIZE, 0.1, 49);
+	const bounds = scaledMaskBounds(mask);
+	const mirrorMode = mask.mirrorMode ?? "center";
 	const normalStops =
 		mask.type === "mirror"
-			? ([
-					[0, "black"],
-					[50 - spread, "black"],
-					[50, "white"],
-					[50 + spread, "black"],
-					[100, "black"],
-				] as const)
+			? mirrorMode === "left"
+				? ([
+						[0, "white"],
+						[50 - spread, "white"],
+						[50 + spread, "black"],
+						[100, "black"],
+					] as const)
+				: mirrorMode === "right"
+					? ([
+							[0, "black"],
+							[50 - spread, "black"],
+							[50 + spread, "white"],
+							[100, "white"],
+						] as const)
+					: ([
+							[0, "black"],
+							[50 - spread, "black"],
+							[50, "white"],
+							[50 + spread, "black"],
+							[100, "black"],
+						] as const)
 			: ([
 					[0, "black"],
 					[50 - spread, "black"],
@@ -168,9 +184,27 @@ function buildGradientShape(
 			return `<stop offset="${offset}%" stop-color="${resolved}"/>`;
 		})
 		.join("");
+	const gradientAxis =
+		mask.type === "linear"
+			? `gradientUnits="userSpaceOnUse" x1="${bounds.centerX}" y1="${bounds.centerY - SVG_SIZE / 2}" x2="${bounds.centerX}" y2="${bounds.centerY + SVG_SIZE / 2}"`
+			: 'x1="0%" y1="0%" x2="100%" y2="0%"';
+	const rect =
+		mask.type === "linear"
+			? {
+					x: bounds.centerX - SVG_SIZE * 1.5,
+					y: bounds.centerY - SVG_SIZE * 1.5,
+					width: SVG_SIZE * 3,
+					height: SVG_SIZE * 3,
+				}
+			: {
+					x: bounds.left,
+					y: bounds.centerY - SVG_SIZE * 1.5,
+					width: bounds.width,
+					height: SVG_SIZE * 3,
+				};
 	return {
-		defs: `<linearGradient id="${id}">${stops}</linearGradient>`,
-		shape: `<rect width="100" height="100" fill="url(#${id})" transform="rotate(${mask.rotation} 50 50)"/>`,
+		defs: `<linearGradient id="${id}" ${gradientAxis}>${stops}</linearGradient>`,
+		shape: `<rect x="${rect.x}" y="${rect.y}" width="${rect.width}" height="${rect.height}" fill="url(#${id})" transform="rotate(${mask.rotation} ${bounds.centerX} ${bounds.centerY})"/>`,
 	};
 }
 

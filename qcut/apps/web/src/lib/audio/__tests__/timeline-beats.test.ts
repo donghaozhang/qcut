@@ -99,4 +99,75 @@ describe("timeline beats", () => {
 			collectTimelineBeats({ beatCache, tracks }).map((beat) => beat.timestamp)
 		).toEqual([3, 9]);
 	});
+
+	it("maps beats through constant and variable playback speeds", () => {
+		const constant = mediaElement({
+			id: "constant",
+			startTime: 10,
+			trimStart: 0,
+			duration: 6,
+		});
+		const variable = mediaElement({
+			id: "variable",
+			startTime: 20,
+			trimStart: 0,
+			duration: 6,
+		});
+		const elements: MediaElement[] = [
+			{ ...constant, playbackRate: 2 },
+			{
+				...variable,
+				speedKeyframes: [
+					{ id: "a", frame: 0, value: 1, easing: "linear" },
+					{ id: "b", frame: 180, value: 3, easing: "linear" },
+				],
+			},
+		];
+		const tracks: TimelineTrack[] = elements.map((element) => ({
+			elements: [element],
+			id: `track-${element.id}`,
+			name: element.id,
+			type: "media",
+		}));
+
+		const beats = collectTimelineBeats({
+			beatCache: new Map([
+				[constant.id, result({ timestamps: [4] })],
+				[variable.id, result({ timestamps: [4] })],
+			]),
+			tracks,
+		});
+
+		expect(beats[0].timestamp).toBeCloseTo(12);
+		expect(beats[1].timestamp).toBeGreaterThan(22);
+		expect(beats[1].timestamp).toBeLessThan(24);
+	});
+
+	it("maps reverse beats from the opposite source edge", () => {
+		const element = {
+			...mediaElement({
+				id: "reverse",
+				startTime: 5,
+				trimStart: 1,
+				duration: 7,
+			}),
+			trimEnd: 1,
+			reverse: true,
+		};
+		const track: TimelineTrack = {
+			elements: [element],
+			id: "track",
+			name: "Reverse",
+			type: "media",
+		};
+
+		expect(
+			collectTimelineBeats({
+				beatCache: new Map([
+					[element.id, result({ timestamps: [1, 2, 5, 6] })],
+				]),
+				tracks: [track],
+			}).map((beat) => beat.timestamp)
+		).toEqual([5, 6, 9, 10]);
+	});
 });

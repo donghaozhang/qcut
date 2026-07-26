@@ -1,3 +1,23 @@
+export type PreviewQualityPreset =
+	| "auto"
+	| "original"
+	| "clear"
+	| "smooth"
+	| "low";
+
+export type PreviewQualityDowngradeReason =
+	| "main-thread"
+	| "video-frame"
+	| "combined";
+
+export interface PreviewQualityDiagnostic {
+	reason: PreviewQualityDowngradeReason;
+	averageMainThreadFrameIntervalMs: number;
+	mainThreadStutterCount: number;
+	averagePresentedFrameIntervalMs: number;
+	presentedFrameStallCount: number;
+}
+
 export interface PlaybackState {
 	isPlaying: boolean;
 	currentTime: number;
@@ -6,6 +26,9 @@ export interface PlaybackState {
 	speed: number;
 	muted: boolean;
 	previousVolume?: number;
+	previewQuality: PreviewQualityPreset;
+	runtimePreviewQuality: PreviewQualityPreset | null;
+	runtimePreviewQualityDiagnostic: PreviewQualityDiagnostic | null;
 }
 
 export interface PlaybackControls {
@@ -18,4 +41,12 @@ export interface PlaybackControls {
 	mute: () => void;
 	unmute: () => void;
 	toggleMute: () => void;
+	setPreviewQuality: (quality: PreviewQualityPreset) => void;
+	setRuntimePreviewQuality: ({
+		quality,
+		diagnostic,
+	}: {
+		quality: PreviewQualityPreset | null;
+		diagnostic?: PreviewQualityDiagnostic | null;
+	}) => void;
 }

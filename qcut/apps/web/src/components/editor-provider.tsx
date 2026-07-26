@@ -9,6 +9,7 @@ import {
 	useKeybindingDisabler,
 } from "@/hooks/keyboard/use-keybindings";
 import { useEditorActions } from "@/hooks/use-editor-actions";
+import { useProfessionalEditorActions } from "@/hooks/keyboard/use-professional-editor-actions";
 import { ScenesMigrator } from "@/components/providers/migrators/scenes-migrator";
 import { useLicenseStore } from "@/stores/license-store";
 
@@ -31,6 +32,7 @@ export function EditorProvider({ children }: EditorProviderProps) {
 
 	// Set up action handlers
 	useEditorActions();
+	useProfessionalEditorActions();
 
 	// Set up keybinding listener
 	useKeybindingsListener();

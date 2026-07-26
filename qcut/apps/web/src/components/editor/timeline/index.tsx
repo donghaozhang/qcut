@@ -55,6 +55,10 @@ export function Timeline() {
 	const duration = usePlaybackStore((s) => s.duration);
 	const seek = usePlaybackStore((s) => s.seek);
 	const setDuration = usePlaybackStore((s) => s.setDuration);
+	const previewQuality = usePlaybackStore((s) => s.previewQuality);
+	const runtimePreviewQuality = usePlaybackStore(
+		(s) => s.runtimePreviewQuality
+	);
 
 	// Get word-level transcription for the ruler lane and filtered silence regions.
 	const wordTimelineData = useWordTimelineStore((s) => s.data);
@@ -103,6 +107,7 @@ export function Timeline() {
 	// Cache status tracking
 	const { getRenderStatus } = useFrameCache({
 		namespace: activeProject?.id ?? "default",
+		cacheIdentity: `preview-quality:${runtimePreviewQuality ?? previewQuality}`,
 	});
 
 	// Timeline playhead ruler handlers

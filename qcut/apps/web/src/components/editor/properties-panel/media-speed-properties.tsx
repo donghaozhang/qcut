@@ -1,5 +1,5 @@
-import { useRef } from "react";
-import { Check } from "lucide-react";
+import { useEffect, useRef, useState } from "react";
+import { Sparkles, Zap } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Slider } from "@/components/ui/slider";
@@ -17,9 +17,18 @@ import {
 } from "@/lib/video/video-timing";
 import { usePlaybackStore } from "@/stores/editor/playback-store";
 import { useProjectStore } from "@/stores/project-store";
+import { useEffectsStore } from "@/stores/ai/effects-store";
 import { useTimelineStore } from "@/stores/timeline/timeline-store";
 import type { MediaElement, MediaPropertyKeyframe } from "@/types/timeline";
 import { KeyframeEditor } from "./keyframe-editor";
+import { SpeedCurveEditor } from "./speed-curve-editor";
+import {
+	createSpeedPresetKeyframes,
+	getSpeedCurvePreset,
+	SPEED_CURVE_PRESETS,
+	SPEED_POINT_PRESETS,
+	type SpeedPointPreset,
+} from "@/lib/video/speed-presets";
 import {
 	PropertyGroup,
 	PropertyItem,
@@ -27,11 +36,16 @@ import {
 	PropertyItemValue,
 } from "./property-item";
 import { useTranslation } from "@/lib/i18n";
+import { getEffectPresetById } from "@/lib/effects/effect-catalog";
 
 const SPEED_PRESETS = [0.5, 1, 1.5, 2] as const;
 
+function formatDurationDraft({ duration }: { duration: number }): string {
+	return String(Number(duration.toFixed(2)));
+}
+
 type MediaUpdates = Parameters<
-	ReturnType<typeof useTimelineStore.getState>["updateMediaElement"]
+	ReturnType<typeof useTimelineStore.getState>["updateMediaTiming"]
 >[2];
 
 interface SpeedNumberControlProps {
@@ -149,8 +163,8 @@ export function MediaSpeedProperties({
 	mediaKind?: "audio" | "video";
 }) {
 	const { t } = useTranslation();
-	const updateMediaElement = useTimelineStore(
-		(state) => state.updateMediaElement
+	const updateMediaTiming = useTimelineStore(
+		(state) => state.updateMediaTiming
 	);
 	const pushHistory = useTimelineStore((state) => state.pushHistory);
 	const currentTime = usePlaybackStore((state) => state.currentTime);
@@ -158,9 +172,14 @@ export function MediaSpeedProperties({
 	const interactionActive = useRef(false);
 
 	const speedKeyframes = element.speedKeyframes ?? [];
-	const speedMode = speedKeyframes.length > 0 ? "curve" : "normal";
+	const [speedMode, setSpeedMode] = useState<"normal" | "curve" | "beat">(
+		speedKeyframes.length > 0 ? "curve" : "normal"
+	);
 	const sourceDuration = getMediaSourceDuration(element);
 	const timelineDuration = getMediaTimelineDuration(element, fps);
+	const [durationDraft, setDurationDraft] = useState(() =>
+		formatDurationDraft({ duration: timelineDuration })
+	);
 	const sourceDurationInFrames = Math.max(1, Math.round(sourceDuration * fps));
 	const playbackTiming = mapMediaTimelineTime({
 		element,
@@ -173,7 +192,7 @@ export function MediaSpeedProperties({
 	);
 
 	const update = (updates: MediaUpdates, history = true) =>
-		updateMediaElement(trackId, element.id, updates, history);
+		updateMediaTiming(trackId, element.id, updates, history);
 	const updateLive = (updates: MediaUpdates) => update(updates, false);
 	const beginInteraction = () => {
 		if (interactionActive.current) return;
@@ -187,8 +206,10 @@ export function MediaSpeedProperties({
 		const playbackRate = clampPlaybackRate(value);
 		update({ playbackRate }, history);
 	};
-	const setSpeedKeyframes = (keyframes: MediaPropertyKeyframe[]) =>
-		update({ speedKeyframes: keyframes });
+	const setSpeedKeyframes = (
+		keyframes: MediaPropertyKeyframe[],
+		history = true
+	) => update({ speedKeyframes: keyframes }, history);
 	const addSpeedKeyframe = (frame: number, value: unknown) => {
 		const existing = speedKeyframes.find((item) => item.frame === frame);
 		setSpeedKeyframes(
@@ -222,22 +243,85 @@ export function MediaSpeedProperties({
 		);
 	const changeSpeedMode = (mode: string) => {
 		if (mode === speedMode) return;
+		if (mode === "beat") {
+			setSpeedMode("beat");
+			return;
+		}
 		if (mode === "normal") {
+			setSpeedMode("normal");
 			update({ speedKeyframes: [] });
 			return;
 		}
+		setSpeedMode("curve");
 		update({ speedKeyframes: createFlatSpeedCurve({ element, fps }) });
 	};
+	const applyCurvePreset = (
+		presetId: (typeof SPEED_CURVE_PRESETS)[number]["id"]
+	) => {
+		setSpeedMode("curve");
+		setSpeedKeyframes(
+			createSpeedPresetKeyframes({
+				preset: getSpeedCurvePreset({ id: presetId }),
+				durationInFrames: sourceDurationInFrames,
+			})
+		);
+	};
+	const applySpeedPointPreset = (preset: SpeedPointPreset) => {
+		pushHistory();
+		updateMediaTiming(
+			trackId,
+			element.id,
+			{
+				speedKeyframes: createSpeedPresetKeyframes({
+					preset: getSpeedCurvePreset({ id: preset.curvePresetId }),
+					durationInFrames: sourceDurationInFrames,
+				}),
+			},
+			false
+		);
+		const effectsStore = useEffectsStore.getState();
+		const appliedPresetIds = new Set(
+			effectsStore
+				.getElementEffects(element.id)
+				.flatMap((effect) => (effect.presetId ? [effect.presetId] : []))
+		);
+		for (const presetId of preset.effectIds) {
+			if (appliedPresetIds.has(presetId)) continue;
+			const effectPreset = getEffectPresetById({ presetId });
+			if (!effectPreset) continue;
+			effectsStore.applyEffect(element.id, effectPreset);
+		}
+	};
+	const setTargetDuration = (targetDuration: number) => {
+		const freezeDuration = Math.max(0, element.freezeFrameDuration ?? 0);
+		const speedDuration = Math.max(0.05, targetDuration - freezeDuration);
+		setPlaybackRate(sourceDuration / speedDuration);
+	};
+	const commitTargetDuration = () => {
+		const duration = Number(durationDraft);
+		if (!Number.isFinite(duration) || duration <= 0) {
+			setDurationDraft(formatDurationDraft({ duration: timelineDuration }));
+			return;
+		}
+		setTargetDuration(duration);
+	};
+
+	useEffect(() => {
+		setDurationDraft(formatDurationDraft({ duration: timelineDuration }));
+	}, [timelineDuration]);
 
 	return (
 		<div className="space-y-4" data-testid="media-speed-properties">
 			<Tabs value={speedMode} onValueChange={changeSpeedMode}>
-				<TabsList className="grid w-full grid-cols-2">
+				<TabsList className="grid w-full grid-cols-3">
 					<TabsTrigger value="normal" data-testid="speed-mode-normal">
 						{t("audioProperties.speed.normal")}
 					</TabsTrigger>
 					<TabsTrigger value="curve" data-testid="speed-mode-curve">
 						{t("audioProperties.speed.curve")}
+					</TabsTrigger>
+					<TabsTrigger value="beat" data-testid="speed-mode-beat">
+						{t("audioProperties.speed.beat")}
 					</TabsTrigger>
 				</TabsList>
 
@@ -279,10 +363,26 @@ export function MediaSpeedProperties({
 								<PropertyItemLabel>
 									{t("audioProperties.speed.duration")}
 								</PropertyItemLabel>
-								<output
-									className="text-xs tabular-nums text-muted-foreground"
-									data-testid="speed-output-duration"
-								>
+								<div className="flex items-center gap-1">
+									<Input
+										type="number"
+										min={0.1}
+										step={0.1}
+										value={durationDraft}
+										aria-label={t("audioProperties.speed.duration")}
+										onChange={(event) => setDurationDraft(event.target.value)}
+										onBlur={commitTargetDuration}
+										onKeyDown={(event) => {
+											if (event.key !== "Enter") return;
+											event.preventDefault();
+											commitTargetDuration();
+										}}
+										className="h-8 w-24 text-right text-xs tabular-nums"
+										data-testid="speed-target-duration"
+									/>
+									<span className="text-[10px] text-muted-foreground">s</span>
+								</div>
+								<output className="sr-only" data-testid="speed-output-duration">
 									{formatDuration({ seconds: timelineDuration })}
 								</output>
 							</PropertyItem>
@@ -295,6 +395,29 @@ export function MediaSpeedProperties({
 						title={t("audioProperties.speed.curve")}
 						defaultExpanded
 					>
+						<div className="mb-4 grid grid-cols-3 gap-2">
+							{SPEED_CURVE_PRESETS.map((preset) => (
+								<Button
+									key={preset.id}
+									type="button"
+									variant="outline"
+									size="sm"
+									className="h-14 flex-col gap-1 px-1 text-[10px]"
+									data-testid={`speed-curve-preset-${preset.id}`}
+									onClick={() => applyCurvePreset(preset.id)}
+								>
+									<Zap className="size-3.5 text-primary" />
+									{t(preset.nameKey)}
+								</Button>
+							))}
+						</div>
+						<SpeedCurveEditor
+							keyframes={speedKeyframes}
+							durationInFrames={sourceDurationInFrames}
+							onChange={(keyframes) => setSpeedKeyframes(keyframes, false)}
+							onInteractionStart={beginInteraction}
+							onInteractionEnd={endInteraction}
+						/>
 						<KeyframeEditor
 							propName="playbackRate"
 							propLabel={t("audioProperties.speed.curveLabel")}
@@ -319,6 +442,31 @@ export function MediaSpeedProperties({
 						/>
 					</PropertyGroup>
 				</TabsContent>
+
+				<TabsContent value="beat" className="mt-4">
+					<PropertyGroup
+						title={t("audioProperties.speed.beat")}
+						defaultExpanded
+					>
+						<div className="grid grid-cols-2 gap-2">
+							{SPEED_POINT_PRESETS.map((preset) => (
+								<Button
+									key={preset.id}
+									type="button"
+									variant="outline"
+									className="h-16 flex-col gap-1 px-2 text-xs"
+									data-testid={`speed-point-preset-${preset.id}`}
+									onClick={() => applySpeedPointPreset(preset)}
+								>
+									<Sparkles className="size-4 text-primary" />
+									<span className="line-clamp-2 text-center">
+										{t(preset.nameKey)}
+									</span>
+								</Button>
+							))}
+						</div>
+					</PropertyGroup>
+				</TabsContent>
 			</Tabs>
 
 			<PropertyGroup
@@ -332,12 +480,33 @@ export function MediaSpeedProperties({
 							data-testid="audio-speed-preserve-pitch"
 						>
 							<PropertyItemLabel>
-								{t("audioProperties.speed.preservePitch")}
+								{t("audioProperties.speed.pitchShift")}
 							</PropertyItemLabel>
-							<span className="flex items-center gap-1 text-xs text-muted-foreground">
-								<Check className="size-3.5 text-primary" />
-								{t("audioProperties.speed.enabled")}
-							</span>
+							<Switch
+								aria-label={t("audioProperties.speed.pitchShift")}
+								data-testid="speed-pitch-shift"
+								checked={element.preservePitch === false}
+								onCheckedChange={(pitchShift) =>
+									update({ preservePitch: !pitchShift })
+								}
+							/>
+						</div>
+					) : null}
+					{mediaKind === "video" ? (
+						<div className="flex items-center justify-between gap-3">
+							<PropertyItemLabel>
+								{t("audioProperties.speed.frameInterpolation")}
+							</PropertyItemLabel>
+							<Switch
+								aria-label={t("audioProperties.speed.frameInterpolation")}
+								data-testid="speed-frame-interpolation"
+								checked={element.frameInterpolation === "motion-compensated"}
+								onCheckedChange={(enabled) =>
+									update({
+										frameInterpolation: enabled ? "motion-compensated" : "none",
+									})
+								}
+							/>
 						</div>
 					) : null}
 					<div className="flex items-center justify-between gap-3">
@@ -363,7 +532,9 @@ export function MediaSpeedProperties({
 										update(
 											checked
 												? {
-														freezeFrameTime: playbackTiming.sourceTime,
+														freezeFrameTime: element.reverse
+															? sourceDuration - playbackTiming.sourceTime
+															: playbackTiming.sourceTime,
 														freezeFrameDuration: 1,
 													}
 												: { freezeFrameDuration: 0 }

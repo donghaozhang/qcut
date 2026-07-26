@@ -7,7 +7,40 @@ import { X } from "lucide-react";
 import { cn } from "../../lib/utils";
 import { ScrollArea } from "./scroll-area";
 
-const Dialog = DialogPrimitive.Root;
+function Dialog({
+	open,
+	defaultOpen,
+	onOpenChange,
+	...props
+}: React.ComponentProps<typeof DialogPrimitive.Root>) {
+	const [uncontrolledOpen, setUncontrolledOpen] = React.useState(
+		defaultOpen ?? false
+	);
+	const resolvedOpen = open ?? uncontrolledOpen;
+
+	React.useEffect(() => {
+		if (resolvedOpen) return;
+		const timeout = window.setTimeout(() => {
+			const hasOpenModal = document.querySelector(
+				'[role="dialog"][data-state="open"], [role="alertdialog"][data-state="open"]'
+			);
+			if (!hasOpenModal) document.body.style.removeProperty("pointer-events");
+		}, 0);
+		return () => window.clearTimeout(timeout);
+	}, [resolvedOpen]);
+
+	return (
+		<DialogPrimitive.Root
+			{...props}
+			open={open}
+			defaultOpen={defaultOpen}
+			onOpenChange={(nextOpen) => {
+				if (open === undefined) setUncontrolledOpen(nextOpen);
+				onOpenChange?.(nextOpen);
+			}}
+		/>
+	);
+}
 
 const DialogTrigger = DialogPrimitive.Trigger;
 
@@ -22,7 +55,7 @@ const DialogOverlay = React.forwardRef<
 	<DialogPrimitive.Overlay
 		ref={ref}
 		className={cn(
-			"fixed inset-0 z-100 bg-black/20 backdrop-blur-md data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0",
+			"fixed inset-0 z-100 bg-black/20 backdrop-blur-md data-[state=open]:animate-in data-[state=closed]:pointer-events-none data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0",
 			className
 		)}
 		{...props}
@@ -39,7 +72,7 @@ const DialogContent = React.forwardRef<
 		<DialogPrimitive.Content
 			ref={ref}
 			className={cn(
-				"fixed left-[50%] top-[50%] z-150 grid w-[calc(100%-2rem)] max-w-lg translate-x-[-50%] translate-y-[-50%] gap-4 border bg-popover shadow-lg duration-200 data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0 data-[state=closed]:zoom-out-95 data-[state=open]:zoom-in-95 rounded-lg",
+				"fixed left-[50%] top-[50%] z-150 grid w-[calc(100%-2rem)] max-w-lg translate-x-[-50%] translate-y-[-50%] gap-4 border bg-popover shadow-lg duration-200 data-[state=open]:animate-in data-[state=closed]:pointer-events-none data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0 data-[state=closed]:zoom-out-95 data-[state=open]:zoom-in-95 rounded-lg",
 				className
 			)}
 			onCloseAutoFocus={(e) => {

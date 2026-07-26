@@ -360,6 +360,92 @@ describe("editor timeline apply", () => {
 		);
 	});
 
+	it("verifies media speed, reverse, and freeze timing", async () => {
+		const speedKeyframes = [
+			{ id: "slow", frame: 0, value: 0.5, easing: "linear" },
+			{ id: "fast", frame: 60, value: 2, easing: "easeOut" },
+		];
+		const speedManifest = {
+			...manifest,
+			tracks: manifest.tracks.map((track, index) =>
+				index === 0
+					? {
+							...track,
+							elements: [
+								{
+									...track.elements[0],
+									playbackRate: 1.5,
+									speedKeyframes,
+									reverse: true,
+									freezeFrameTime: 0.75,
+									freezeFrameDuration: 0.5,
+								},
+							],
+						}
+					: track
+			),
+		};
+		const { client } = makeClient({
+			videoElement: {
+				startTime: 0,
+				duration: 2,
+				playbackRate: 1.5,
+				speedKeyframes,
+				reverse: true,
+				freezeFrameTime: 0.75,
+				freezeFrameDuration: 0.5,
+			},
+		});
+
+		const result = await timelineApplyManifest(
+			client,
+			makeOptions(speedManifest)
+		);
+
+		expect(result.success).toBe(true);
+		expect(result.data).toEqual(
+			expect.objectContaining({ atomic: true, verified: true })
+		);
+	});
+
+	it("rolls back when a media speed field is not applied", async () => {
+		const speedManifest = {
+			...manifest,
+			tracks: manifest.tracks.map((track, index) =>
+				index === 0
+					? {
+							...track,
+							elements: [
+								{
+									...track.elements[0],
+									playbackRate: 2,
+								},
+							],
+						}
+					: track
+			),
+		};
+		const { client, post } = makeClient({
+			videoElement: {
+				startTime: 0,
+				duration: 2,
+				playbackRate: 1,
+			},
+		});
+
+		const result = await timelineApplyManifest(
+			client,
+			makeOptions(speedManifest)
+		);
+
+		expect(result.success).toBe(false);
+		expect(result.error).toContain("field 'playbackRate' did not match");
+		expect(post).toHaveBeenCalledWith(
+			"/api/claude/transaction/transaction-1/rollback",
+			expect.any(Object)
+		);
+	});
+
 	it("rejects a source trim that points at the wrong frame range", async () => {
 		const trimmedManifest = {
 			...manifest,

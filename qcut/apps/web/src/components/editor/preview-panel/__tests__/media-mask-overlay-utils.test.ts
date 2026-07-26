@@ -2,14 +2,23 @@ import type { KeyboardEvent as ReactKeyboardEvent } from "react";
 import { describe, expect, it } from "vitest";
 import {
 	clamp,
+	featherOutlineInsetPercent,
+	featherPathStrokeWidth,
 	isPointInteractionMode,
 	keyboardDelta,
+	linearFeatherFromHandle,
+	linearFeatherFromKeyboard,
+	linearFeatherOffsetPixels,
 	localDelta,
 	moveMaskPoint,
 	penPathData,
 	pointId,
 	pointerAngle,
+	resizeMaskFromHandle,
+	resizeMaskFromKeyboard,
+	worldDelta,
 } from "../media-mask-overlay-utils";
+import type { MediaMask } from "@/types/timeline";
 
 function keyEvent({
 	key,
@@ -26,6 +35,12 @@ describe("media mask overlay geometry", () => {
 		const delta = localDelta({ deltaX: 0, deltaY: 0.25, rotation: 90 });
 		expect(delta.x).toBeCloseTo(0.25);
 		expect(delta.y).toBeCloseTo(0);
+	});
+
+	it("maps local movement back to screen coordinates", () => {
+		const delta = worldDelta({ localX: 0.25, localY: 0, rotation: 90 });
+		expect(delta.x).toBeCloseTo(0);
+		expect(delta.y).toBeCloseTo(0.25);
 	});
 
 	it("moves an anchor and its Bezier tangents together", () => {
@@ -92,6 +107,166 @@ describe("media mask overlay geometry", () => {
 		expect(
 			pointerAngle({ clientX: 100, clientY: 90, centerX: 100, centerY: 100 })
 		).toBeCloseTo(-90);
+	});
+});
+
+describe("feather guides", () => {
+	it("returns no visual guide when feather is disabled", () => {
+		expect(featherOutlineInsetPercent({ feather: 0 })).toBe(0);
+		expect(featherPathStrokeWidth({ feather: 0 })).toBe(0);
+	});
+
+	it("keeps visible feather guides within a predictable range", () => {
+		expect(featherOutlineInsetPercent({ feather: 0.01 })).toBe(4);
+		expect(featherOutlineInsetPercent({ feather: 0.2 })).toBe(20);
+		expect(featherOutlineInsetPercent({ feather: 0.9 })).toBe(40);
+		expect(featherPathStrokeWidth({ feather: 0.01 })).toBe(0.012);
+		expect(featherPathStrokeWidth({ feather: 0.2 })).toBe(0.05);
+		expect(featherPathStrokeWidth({ feather: 0.9 })).toBe(0.12);
+	});
+});
+
+describe("linear feather handles", () => {
+	const mask: MediaMask = {
+		id: "linear-mask",
+		type: "linear",
+		centerX: 0.5,
+		centerY: 0.5,
+		width: 0.4,
+		height: 0.2,
+		rotation: 0,
+		feather: 0.2,
+		invert: false,
+	};
+
+	it("expands the top feather edge when dragged upward", () => {
+		const updates = linearFeatherFromHandle({
+			mask,
+			edge: "top",
+			localYPixels: -16,
+		});
+		expect(updates.feather).toBeCloseTo(0.3);
+	});
+
+	it("expands the bottom feather edge when dragged downward", () => {
+		const updates = linearFeatherFromHandle({
+			mask,
+			edge: "bottom",
+			localYPixels: 16,
+		});
+		expect(updates.feather).toBeCloseTo(0.3);
+	});
+
+	it("uses the same pixel scale for rendered offsets and pointer movement", () => {
+		expect(linearFeatherOffsetPixels({ feather: 0.2 })).toBe(32);
+		expect(
+			linearFeatherFromHandle({
+				mask,
+				edge: "bottom",
+				localYPixels: 32,
+			}).feather
+		).toBeCloseTo(0.4);
+	});
+
+	it("maps keyboard nudges to the active feather edge", () => {
+		expect(
+			linearFeatherFromKeyboard({
+				mask,
+				edge: "top",
+				event: keyEvent({ key: "ArrowUp" }),
+			})?.feather
+		).toBeCloseTo(0.21);
+		expect(
+			linearFeatherFromKeyboard({
+				mask,
+				edge: "bottom",
+				event: keyEvent({ key: "ArrowDown", shiftKey: true }),
+			})?.feather
+		).toBeCloseTo(0.25);
+	});
+});
+
+describe("resizeMaskFromHandle", () => {
+	const mask: MediaMask = {
+		id: "mask-1",
+		type: "rectangle",
+		centerX: 0.5,
+		centerY: 0.5,
+		width: 0.4,
+		height: 0.2,
+		rotation: 0,
+		feather: 0,
+		invert: false,
+	};
+
+	it("resizes from the right edge while keeping the opposite edge visually anchored", () => {
+		const resized = resizeMaskFromHandle({
+			mask,
+			handle: "e",
+			localX: 0.2,
+			localY: 0.8,
+		});
+		expect(resized.width).toBeCloseTo(0.6);
+		expect(resized.height).toBeCloseTo(0.2);
+		expect(resized.centerX).toBeCloseTo(0.6);
+		expect(resized.centerY).toBeCloseTo(0.5);
+	});
+
+	it("moves the center along the rotated local axis", () => {
+		const resized = resizeMaskFromHandle({
+			mask: { ...mask, rotation: 90 },
+			handle: "e",
+			localX: 0.2,
+			localY: 0,
+		});
+		expect(resized.width).toBeCloseTo(0.6);
+		expect(resized.centerX).toBeCloseTo(0.5);
+		expect(resized.centerY).toBeCloseTo(0.6);
+	});
+
+	it("keeps the aspect ratio for corner handles when locked", () => {
+		const resized = resizeMaskFromHandle({
+			mask: { ...mask, maintainAspectRatio: true },
+			handle: "se",
+			localX: 0.2,
+			localY: 0.01,
+		});
+		expect(resized.width).toBeCloseTo(0.6);
+		expect(resized.height).toBeCloseTo(0.3);
+	});
+
+	it("allows edge handles to resize a single axis when aspect ratio is locked", () => {
+		const resized = resizeMaskFromHandle({
+			mask: { ...mask, maintainAspectRatio: true },
+			handle: "s",
+			localX: 0.9,
+			localY: 0.2,
+		});
+		expect(resized.width).toBeCloseTo(0.4);
+		expect(resized.height).toBeCloseTo(0.4);
+		expect(resized.centerY).toBeCloseTo(0.6);
+	});
+
+	it("uses arrow direction to move the active edge handle", () => {
+		const resized = resizeMaskFromKeyboard({
+			mask,
+			handle: "w",
+			event: keyEvent({ key: "ArrowLeft" }),
+		});
+		expect(resized?.width).toBeCloseTo(0.41);
+		expect(resized?.height).toBeCloseTo(0.2);
+		expect(resized?.centerX).toBeCloseTo(0.495);
+	});
+
+	it("maps keyboard movement through mask rotation", () => {
+		const resized = resizeMaskFromKeyboard({
+			mask: { ...mask, rotation: 90 },
+			handle: "e",
+			event: keyEvent({ key: "ArrowDown" }),
+		});
+		expect(resized?.width).toBeCloseTo(0.41);
+		expect(resized?.centerX).toBeCloseTo(0.5);
+		expect(resized?.centerY).toBeCloseTo(0.505);
 	});
 });
 

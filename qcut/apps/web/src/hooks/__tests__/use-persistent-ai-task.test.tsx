@@ -68,4 +68,40 @@ describe("usePersistentAiTask", () => {
 		await getCloudTaskRuntimeActions({ taskId })?.undo?.();
 		expect(onUndo).toHaveBeenCalledWith({ id: "voice-2" });
 	});
+
+	it("exposes the active attempt cancel action to a scoped runtime", async () => {
+		const onCancel = vi.fn();
+		const unregisterRuntime = vi.fn();
+		let cancelRuntime: (() => void) | undefined;
+		const { result } = renderHook(() => usePersistentAiTask());
+		let taskPromise!: Promise<null>;
+
+		act(() => {
+			taskPromise = result.current.runTask({
+				label: "跟踪人物",
+				completeMessage: "跟踪完成",
+				execute: ({ signal }) =>
+					new Promise((_resolve, reject) => {
+						signal.addEventListener(
+							"abort",
+							() => reject(new DOMException("Canceled", "AbortError")),
+							{ once: true }
+						);
+					}),
+				onCancel,
+				onRuntimeReady: ({ cancel }) => {
+					cancelRuntime = cancel;
+					return unregisterRuntime;
+				},
+			});
+		});
+
+		expect(cancelRuntime).toBeTypeOf("function");
+		act(() => cancelRuntime?.());
+
+		await expect(taskPromise).resolves.toBeNull();
+		expect(onCancel).toHaveBeenCalledOnce();
+		expect(unregisterRuntime).toHaveBeenCalledOnce();
+		expect(useCloudTaskStore.getState().tasks[0].status).toBe("canceled");
+	});
 });

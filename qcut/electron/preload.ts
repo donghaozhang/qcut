@@ -386,6 +386,10 @@ const electronAPI: ElectronAPI & Record<string, unknown> = {
 			ipcRenderer.invoke("ffmpeg-render-video-preview-proxy", options),
 		cancelVideoPreviewProxy: (requestId: string): Promise<boolean> =>
 			ipcRenderer.invoke("ffmpeg-cancel-video-preview-proxy", requestId),
+		getVideoPreviewProxyCacheStats: () =>
+			ipcRenderer.invoke("ffmpeg-get-video-preview-proxy-cache-stats"),
+		clearVideoPreviewProxyCache: () =>
+			ipcRenderer.invoke("ffmpeg-clear-video-preview-proxy-cache"),
 		onVideoPreviewProxyProgress: (
 			callback: (progress: VideoPreviewProxyProgress) => void
 		): (() => void) => {

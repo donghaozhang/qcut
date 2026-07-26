@@ -10,13 +10,177 @@ import {
 	resolveElementOverlaps,
 } from "@/lib/timeline";
 import { generateUUID } from "@/lib/utils";
-import type { TimelineElement } from "@/types/timeline";
+import type { TimelineElement, TimelineTrack } from "@/types/timeline";
 import type {
 	OperationDeps,
 	StoreGet,
 	StoreSet,
 } from "./timeline-store-operations";
-import { getTimelineSplitTrimValues } from "./timeline-split-utils";
+import { getTimelineSplitUpdates } from "./timeline-split-utils";
+
+interface TimelineRange {
+	startTime: number;
+	endTime: number;
+}
+
+interface RangeDeletionResult {
+	tracks: TimelineTrack[];
+	deletedElements: number;
+	splitElements: number;
+	totalRemovedDuration: number;
+}
+
+function mergeTimelineRanges({ ranges }: { ranges: TimelineRange[] }) {
+	const sorted = ranges
+		.filter((range) => range.endTime > range.startTime)
+		.sort((first, second) => first.startTime - second.startTime);
+	const merged: TimelineRange[] = [];
+	for (const range of sorted) {
+		const previous = merged.at(-1);
+		if (!previous || range.startTime > previous.endTime) {
+			merged.push({ ...range });
+			continue;
+		}
+		previous.endTime = Math.max(previous.endTime, range.endTime);
+	}
+	return merged;
+}
+
+function applyDeleteTimeRangeToTracks({
+	tracks,
+	startTime,
+	endTime,
+	targetTrackIds,
+	rippleTrackIds,
+}: {
+	tracks: TimelineTrack[];
+	startTime: number;
+	endTime: number;
+	targetTrackIds: Set<string>;
+	rippleTrackIds: Set<string>;
+}): RangeDeletionResult {
+	let deletedElements = 0;
+	let splitElements = 0;
+	const rangeDuration = endTime - startTime;
+	const rangeAdjustedTracks = tracks.map((track) => {
+		if (!targetTrackIds.has(track.id)) {
+			return track;
+		}
+
+		const nextElements: TimelineElement[] = [];
+		for (const element of track.elements) {
+			const elementStart = element.startTime;
+			const elementEnd = getTimelineElementEndTime({ element });
+			const overlapsRange = elementStart < endTime && elementEnd > startTime;
+
+			if (!overlapsRange) {
+				nextElements.push(element);
+				continue;
+			}
+
+			const isFullyContained =
+				elementStart >= startTime && elementEnd <= endTime;
+			if (isFullyContained) {
+				deletedElements++;
+				continue;
+			}
+
+			const overlapsAtEnd =
+				elementStart < startTime &&
+				elementEnd > startTime &&
+				elementEnd <= endTime;
+			if (overlapsAtEnd) {
+				splitElements++;
+				const splitUpdates = getTimelineSplitUpdates({
+					element,
+					splitTime: startTime,
+				});
+				nextElements.push({
+					...element,
+					...splitUpdates.left,
+				});
+				continue;
+			}
+
+			const overlapsAtStart =
+				elementStart >= startTime &&
+				elementStart < endTime &&
+				elementEnd > endTime;
+			if (overlapsAtStart) {
+				splitElements++;
+				const splitUpdates = getTimelineSplitUpdates({
+					element,
+					splitTime: endTime,
+				});
+				nextElements.push({
+					...element,
+					startTime: endTime,
+					...splitUpdates.right,
+				});
+				continue;
+			}
+
+			const spansEntireRange = elementStart < startTime && elementEnd > endTime;
+			if (spansEntireRange) {
+				splitElements++;
+				const leftSplitUpdates = getTimelineSplitUpdates({
+					element,
+					splitTime: startTime,
+				});
+				const rightSplitUpdates = getTimelineSplitUpdates({
+					element,
+					splitTime: endTime,
+				});
+
+				nextElements.push({
+					...element,
+					...leftSplitUpdates.left,
+				});
+				nextElements.push({
+					...element,
+					id: generateUUID(),
+					startTime: endTime,
+					...rightSplitUpdates.right,
+				});
+				continue;
+			}
+
+			deletedElements++;
+		}
+
+		return { ...track, elements: nextElements };
+	});
+
+	const tracksAfterRipple = rangeAdjustedTracks
+		.map((track) => {
+			if (!rippleTrackIds.has(track.id)) {
+				return track;
+			}
+			const shiftedElements = track.elements.map((element) => {
+				if (element.startTime < endTime) {
+					return element;
+				}
+				return {
+					...element,
+					startTime: Math.max(0, element.startTime - rangeDuration),
+				};
+			});
+			return { ...track, elements: shiftedElements };
+		})
+		.filter(
+			(track) =>
+				track.elements.length > 0 ||
+				track.isMain ||
+				!targetTrackIds.has(track.id)
+		);
+
+	return {
+		tracks: tracksAfterRipple,
+		deletedElements,
+		splitElements,
+		totalRemovedDuration: rangeDuration,
+	};
+}
 
 export function createTrackOps(
 	get: StoreGet,
@@ -271,6 +435,81 @@ export function createTrackOps(
 			}
 		},
 
+		deleteSelectedElementsWithRipple: (
+			selections = get().selectedElements,
+			pushHistory = true
+		) => {
+			try {
+				const { _tracks } = get();
+				const selectionKeys = new Set(
+					selections.map(
+						(selection) => `${selection.trackId}:${selection.elementId}`
+					)
+				);
+				const selectedRanges: TimelineRange[] = [];
+				const selectedTrackIds = new Set<string>();
+				for (const track of _tracks) {
+					for (const element of track.elements) {
+						if (!selectionKeys.has(`${track.id}:${element.id}`)) {
+							continue;
+						}
+						selectedTrackIds.add(track.id);
+						selectedRanges.push({
+							startTime: element.startTime,
+							endTime: getTimelineElementEndTime({ element }),
+						});
+					}
+				}
+				const mergedRanges = mergeTimelineRanges({ ranges: selectedRanges });
+				if (mergedRanges.length === 0) {
+					return {
+						deletedElements: 0,
+						splitElements: 0,
+						totalRemovedDuration: 0,
+					};
+				}
+
+				if (pushHistory) get().pushHistory();
+
+				let workingTracks = _tracks;
+				let deletedElements = 0;
+				let splitElements = 0;
+				let totalRemovedDuration = 0;
+				for (const range of [...mergedRanges].reverse()) {
+					const trackIds = new Set(workingTracks.map((track) => track.id));
+					const result = applyDeleteTimeRangeToTracks({
+						tracks: workingTracks,
+						startTime: range.startTime,
+						endTime: range.endTime,
+						targetTrackIds: selectedTrackIds,
+						rippleTrackIds: trackIds,
+					});
+					workingTracks = result.tracks;
+					deletedElements += result.deletedElements;
+					splitElements += result.splitElements;
+					totalRemovedDuration += result.totalRemovedDuration;
+				}
+
+				updateTracksAndSave(workingTracks);
+				get().clearSelectedElements();
+				return { deletedElements, splitElements, totalRemovedDuration };
+			} catch (error) {
+				handleError(error, {
+					operation: "Delete Selected Timeline Elements With Ripple",
+					category: ErrorCategory.SYSTEM,
+					severity: ErrorSeverity.HIGH,
+					metadata: {
+						selectionCount: selections.length,
+					},
+				});
+				return {
+					deletedElements: 0,
+					splitElements: 0,
+					totalRemovedDuration: 0,
+				};
+			}
+		},
+
 		deleteTimeRange: ({
 			startTime,
 			endTime,
@@ -303,114 +542,12 @@ export function createTrackOps(
 						? new Set(trackIds)
 						: new Set(_tracks.map((track) => track.id));
 
-				let deletedElements = 0;
-				let splitElements = 0;
-
 				get().pushHistory();
-
-				const rangeAdjustedTracks = _tracks.map((track) => {
-					if (!targetTrackIds.has(track.id)) {
-						return track;
-					}
-
-					const nextElements: TimelineElement[] = [];
-
-					for (const element of track.elements) {
-						const elementStart = element.startTime;
-						const elementEnd = getTimelineElementEndTime({ element });
-						const overlapsRange =
-							elementStart < clampedEndTime && elementEnd > clampedStartTime;
-
-						if (!overlapsRange) {
-							nextElements.push(element);
-							continue;
-						}
-
-						const isFullyContained =
-							elementStart >= clampedStartTime && elementEnd <= clampedEndTime;
-						if (isFullyContained) {
-							deletedElements++;
-							continue;
-						}
-
-						const overlapsAtEnd =
-							elementStart < clampedStartTime &&
-							elementEnd > clampedStartTime &&
-							elementEnd <= clampedEndTime;
-						if (overlapsAtEnd) {
-							splitElements++;
-							const splitTrims = getTimelineSplitTrimValues({
-								element,
-								splitTime: clampedStartTime,
-							});
-							nextElements.push({
-								...element,
-								trimStart: splitTrims.leftTrimStart,
-								trimEnd: splitTrims.leftTrimEnd,
-							});
-							continue;
-						}
-
-						const overlapsAtStart =
-							elementStart >= clampedStartTime &&
-							elementStart < clampedEndTime &&
-							elementEnd > clampedEndTime;
-						if (overlapsAtStart) {
-							splitElements++;
-							const splitTrims = getTimelineSplitTrimValues({
-								element,
-								splitTime: clampedEndTime,
-							});
-							nextElements.push({
-								...element,
-								startTime: clampedEndTime,
-								trimStart: splitTrims.rightTrimStart,
-								trimEnd: splitTrims.rightTrimEnd,
-							});
-							continue;
-						}
-
-						const spansEntireRange =
-							elementStart < clampedStartTime && elementEnd > clampedEndTime;
-						if (spansEntireRange) {
-							splitElements++;
-							const leftSplitTrims = getTimelineSplitTrimValues({
-								element,
-								splitTime: clampedStartTime,
-							});
-							const rightSplitTrims = getTimelineSplitTrimValues({
-								element,
-								splitTime: clampedEndTime,
-							});
-
-							nextElements.push({
-								...element,
-								trimStart: leftSplitTrims.leftTrimStart,
-								trimEnd: leftSplitTrims.leftTrimEnd,
-							});
-
-							nextElements.push({
-								...element,
-								id: generateUUID(),
-								startTime: clampedEndTime,
-								trimStart: rightSplitTrims.rightTrimStart,
-								trimEnd: rightSplitTrims.rightTrimEnd,
-							});
-							continue;
-						}
-
-						// All overlap cases are handled above; this point is unreachable.
-						// Defensively skip the element rather than risk timeline corruption.
-						deletedElements++;
-					}
-
-					return { ...track, elements: nextElements };
-				});
 
 				const rippleTrackIds = new Set<string>();
 				if (ripple) {
 					if (crossTrackRipple) {
-						for (const track of rangeAdjustedTracks) {
+						for (const track of _tracks) {
 							rippleTrackIds.add(track.id);
 						}
 					} else {
@@ -420,32 +557,20 @@ export function createTrackOps(
 					}
 				}
 
-				const finalTracks = rangeAdjustedTracks
-					.map((track) => {
-						if (!rippleTrackIds.has(track.id)) {
-							return track;
-						}
+				const result = applyDeleteTimeRangeToTracks({
+					tracks: _tracks,
+					startTime: clampedStartTime,
+					endTime: clampedEndTime,
+					targetTrackIds,
+					rippleTrackIds,
+				});
 
-						const shiftedElements = track.elements.map((element) => {
-							if (element.startTime < clampedEndTime) {
-								return element;
-							}
-							return {
-								...element,
-								startTime: Math.max(0, element.startTime - rangeDuration),
-							};
-						});
-
-						return { ...track, elements: shiftedElements };
-					})
-					.filter((track) => track.elements.length > 0 || track.isMain);
-
-				updateTracksAndSave(finalTracks);
+				updateTracksAndSave(result.tracks);
 
 				return {
-					deletedElements,
-					splitElements,
-					totalRemovedDuration: rangeDuration,
+					deletedElements: result.deletedElements,
+					splitElements: result.splitElements,
+					totalRemovedDuration: result.totalRemovedDuration,
 				};
 			} catch (error) {
 				handleError(error, {

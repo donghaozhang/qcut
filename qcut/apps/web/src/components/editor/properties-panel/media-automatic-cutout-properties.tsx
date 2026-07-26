@@ -14,7 +14,10 @@ import {
 import {
 	attachGeneratedMask,
 	failGeneratedMaskTracking,
+	pauseGeneratedMaskTracking,
+	updateGeneratedMaskTrackingProgress,
 } from "@/lib/segmentation/generated-mask-attachment";
+import { registerActiveMaskTrackingRuntime } from "@/lib/segmentation/mask-tracking-runtime";
 import { createObjectURL } from "@/lib/media/blob-manager";
 import { estimateSam3TaskCostUsd } from "@/lib/cloud-tasks/task-costs";
 import { generateSam3VideoMask } from "@/lib/segmentation/sam3-video-mask";
@@ -145,6 +148,8 @@ export function MediaAutomaticCutoutProperties({
 		setActiveObjectTaskId(taskId);
 		const controller = new AbortController();
 		objectControllerRef.current = controller;
+		const trackingRequest = useSegmentationStore.getState().trackingRequest;
+		let unregisterMaskTrackingRuntime = () => {};
 		const retry = () => {
 			const task = useCloudTaskStore
 				.getState()
@@ -155,6 +160,18 @@ export function MediaAutomaticCutoutProperties({
 				promptOverride: prompt,
 			});
 		};
+		if (trackingRequest?.elementId === element.id) {
+			unregisterMaskTrackingRuntime = registerActiveMaskTrackingRuntime({
+				runtime: {
+					elementId: trackingRequest.elementId,
+					maskId: trackingRequest.maskId,
+					source: "sam3",
+					direction: trackingRequest.direction,
+					cancel: () => controller.abort(),
+					resume: retry,
+				},
+			});
+		}
 		const open = () => setMode("object");
 		registerCloudTaskRuntimeActions({
 			taskId,
@@ -200,6 +217,10 @@ export function MediaAutomaticCutoutProperties({
 								: progress.message,
 						elapsedTime: progress.elapsedTime,
 					});
+					updateGeneratedMaskTrackingProgress({
+						progress: Math.min(97, progress.progress),
+						source: "sam3",
+					});
 				},
 			});
 			if (objectControllerRef.current !== controller) return;
@@ -230,6 +251,7 @@ export function MediaAutomaticCutoutProperties({
 				name: `SAM3: ${prompt}`,
 				trackingSamples: result.trackingSamples,
 				targetElementId: element.id,
+				trackingRequestId: trackingRequest?.requestId,
 			});
 			setObjectResultUrl(result.url);
 			setObjectTask({
@@ -305,6 +327,10 @@ export function MediaAutomaticCutoutProperties({
 			const message = error instanceof Error ? error.message : String(error);
 			if (!canceled) failGeneratedMaskTracking({ message });
 			if (canceled) {
+				pauseGeneratedMaskTracking({
+					message: "物体跟踪已暂停",
+					trackingRequestId: trackingRequest?.requestId,
+				});
 				useCloudTaskStore.getState().cancelTask({ id: taskId });
 			} else {
 				useCloudTaskStore.getState().failTask({ id: taskId, error: message });
@@ -320,6 +346,7 @@ export function MediaAutomaticCutoutProperties({
 				toast.error("物体跟踪失败", { description: message });
 			}
 		} finally {
+			unregisterMaskTrackingRuntime();
 			if (objectControllerRef.current === controller) {
 				objectControllerRef.current = null;
 			}
@@ -370,6 +397,12 @@ export function MediaAutomaticCutoutProperties({
 							sourceFile={mediaItem.file}
 							sourceUrl={sourceUrl}
 							addMediaItem={addMediaItem}
+							onProgress={({ progress }) =>
+								updateGeneratedMaskTrackingProgress({
+									progress,
+									source: "mediapipe",
+								})
+							}
 							onMaskReady={({ sourceMediaId, trackingSamples }) =>
 								attachGeneratedMask({
 									sourceMediaId,

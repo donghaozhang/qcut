@@ -1,6 +1,15 @@
 import { Plus } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import type { MediaMask, MediaMaskTrackingDirection } from "@/types/timeline";
+import {
+	addMaskTrackingCorrectionKeyframes,
+	updateMaskTrackingStatus,
+} from "@/lib/video/media-mask-tracking";
+import {
+	cancelActiveMaskTracking,
+	resumeActiveMaskTracking,
+} from "@/lib/segmentation/mask-tracking-runtime";
+import { updateMediaMaskInStack } from "@/lib/video/media-mask-stack";
 import { PropertyGroup } from "./property-item";
 import { MediaMaskTrackingControls } from "./media-mask-tracking-controls";
 
@@ -21,11 +30,17 @@ function correctionCount({ mask }: { mask: MediaMask }): number {
 }
 
 export function MediaTrackingProperties({
+	elementId,
 	masks,
+	currentFrame,
+	onChange,
 	onTrack,
 	onOpenMasks,
 }: {
+	elementId: string;
 	masks: MediaMask[];
+	currentFrame: number;
+	onChange: (masks: MediaMask[], history?: boolean) => void;
 	onTrack: ({
 		mask,
 		direction,
@@ -35,6 +50,26 @@ export function MediaTrackingProperties({
 	}) => void;
 	onOpenMasks: () => void;
 }) {
+	const patchMask = ({
+		mask,
+		updates,
+		history = true,
+	}: {
+		mask: MediaMask;
+		updates: Partial<MediaMask>;
+		history?: boolean;
+	}) => {
+		if (!mask.id) return;
+		onChange(
+			updateMediaMaskInStack({
+				masks,
+				maskId: mask.id,
+				updates,
+			}),
+			history
+		);
+	};
+
 	return (
 		<PropertyGroup title="蒙版跟踪" defaultExpanded>
 			{masks.length === 0 ? (
@@ -70,7 +105,64 @@ export function MediaTrackingProperties({
 							</div>
 							<MediaMaskTrackingControls
 								mask={mask}
-								onTrack={(direction) => onTrack({ mask, direction })}
+								onTrack={(direction) => {
+									patchMask({
+										mask,
+										updates: {
+											tracking: {
+												...mask.tracking,
+												direction,
+												status: "processing",
+												source: mask.type === "person" ? "mediapipe" : "sam3",
+												progress: 0,
+												anchorFrame: currentFrame,
+											},
+										},
+									});
+									onTrack({ mask, direction });
+								}}
+								onPause={() => {
+									void cancelActiveMaskTracking({
+										elementId,
+										maskId: mask.id,
+									});
+									patchMask({
+										mask,
+										updates: updateMaskTrackingStatus({
+											mask,
+											status: "paused",
+										}),
+									});
+								}}
+								onResume={async () => {
+									const direction = mask.tracking?.direction ?? "both";
+									patchMask({
+										mask,
+										updates: updateMaskTrackingStatus({
+											mask,
+											status: "processing",
+											progress: mask.tracking?.progress ?? 0,
+										}),
+									});
+									if (
+										await resumeActiveMaskTracking({
+											elementId,
+											maskId: mask.id,
+										})
+									) {
+										return;
+									}
+									onTrack({ mask, direction });
+								}}
+								onFixFrame={() =>
+									patchMask({
+										mask,
+										updates: addMaskTrackingCorrectionKeyframes({
+											mask,
+											frame: currentFrame,
+										}),
+									})
+								}
 							/>
 						</div>
 					))}

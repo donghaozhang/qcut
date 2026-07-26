@@ -1,7 +1,7 @@
 import {
-	getMediaSourceDuration,
-	mapMediaTimelineTime,
-} from "@/lib/video/video-timing";
+	type MediaTimingUpdates,
+	splitMediaTiming,
+} from "@/lib/video/video-speed-edit";
 import type { TimelineElement } from "@/types/timeline";
 
 export interface TimelineSplitTrimValues {
@@ -11,6 +11,45 @@ export interface TimelineSplitTrimValues {
 	rightTrimEnd: number;
 }
 
+export interface TimelineSplitUpdates {
+	left: Pick<TimelineElement, "trimStart" | "trimEnd"> & MediaTimingUpdates;
+	right: Pick<TimelineElement, "trimStart" | "trimEnd"> & MediaTimingUpdates;
+}
+
+export function getTimelineSplitUpdates({
+	element,
+	splitTime,
+	fps = 30,
+}: {
+	element: TimelineElement;
+	splitTime: number;
+	fps?: number;
+}): TimelineSplitUpdates {
+	const timelineOffset = splitTime - element.startTime;
+	const sourceDuration = Math.max(
+		0,
+		element.duration - element.trimStart - element.trimEnd
+	);
+	if (element.type === "media") {
+		return splitMediaTiming({
+			element,
+			localTimelineTime: timelineOffset,
+			fps,
+		}) as TimelineSplitUpdates;
+	}
+
+	return {
+		left: {
+			trimStart: element.trimStart,
+			trimEnd: element.trimEnd + sourceDuration - timelineOffset,
+		},
+		right: {
+			trimStart: element.trimStart + timelineOffset,
+			trimEnd: element.trimEnd,
+		},
+	};
+}
+
 export function getTimelineSplitTrimValues({
 	element,
 	splitTime,
@@ -18,48 +57,11 @@ export function getTimelineSplitTrimValues({
 	element: TimelineElement;
 	splitTime: number;
 }): TimelineSplitTrimValues {
-	const timelineOffset = splitTime - element.startTime;
-	const sourceDuration = Math.max(
-		0,
-		element.duration - element.trimStart - element.trimEnd
-	);
-	if (element.type !== "media") {
-		return {
-			leftTrimStart: element.trimStart,
-			leftTrimEnd: element.trimEnd + sourceDuration - timelineOffset,
-			rightTrimStart: element.trimStart + timelineOffset,
-			rightTrimEnd: element.trimEnd,
-		};
-	}
-
-	const playbackTiming = mapMediaTimelineTime({
-		element,
-		localTimelineTime: timelineOffset,
-	});
-	const mediaSourceDuration = getMediaSourceDuration(element);
-	const sourceProgress = Math.min(
-		mediaSourceDuration,
-		Math.max(
-			0,
-			element.reverse
-				? mediaSourceDuration - playbackTiming.sourceTime
-				: playbackTiming.sourceTime
-		)
-	);
-
-	if (element.reverse) {
-		return {
-			leftTrimStart: element.trimStart + mediaSourceDuration - sourceProgress,
-			leftTrimEnd: element.trimEnd,
-			rightTrimStart: element.trimStart,
-			rightTrimEnd: element.trimEnd + sourceProgress,
-		};
-	}
-
+	const updates = getTimelineSplitUpdates({ element, splitTime });
 	return {
-		leftTrimStart: element.trimStart,
-		leftTrimEnd: element.trimEnd + mediaSourceDuration - sourceProgress,
-		rightTrimStart: element.trimStart + sourceProgress,
-		rightTrimEnd: element.trimEnd,
+		leftTrimStart: updates.left.trimStart,
+		leftTrimEnd: updates.left.trimEnd,
+		rightTrimStart: updates.right.trimStart,
+		rightTrimEnd: updates.right.trimEnd,
 	};
 }

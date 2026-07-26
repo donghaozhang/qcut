@@ -8,12 +8,9 @@
 import type { TimelineTrack, TimelineElement } from "@/types/timeline";
 import { generateUUID } from "@/lib/utils";
 import type { OperationContext } from "./types";
-import {
-	getElementNameWithSuffix,
-	getEffectiveDuration,
-	getElementEndTime,
-	createTrack,
-} from "./utils";
+import { getElementNameWithSuffix, createTrack } from "./utils";
+import { getTimelineElementEndTime } from "@/lib/timeline";
+import { getTimelineSplitUpdates } from "./timeline-split-utils";
 
 /**
  * Result of a split operation
@@ -58,20 +55,17 @@ function splitElementOperationNoHistory(
 	if (!element) return null;
 
 	const effectiveStart = element.startTime;
-	const effectiveEnd = getElementEndTime(element);
+	const effectiveEnd = getTimelineElementEndTime({ element });
 
 	// Cannot split outside the element bounds
 	if (splitTime <= effectiveStart || splitTime >= effectiveEnd) return null;
 
-	const relativeTime = splitTime - element.startTime;
-	const firstDuration = relativeTime;
-	const secondDuration = getEffectiveDuration(element) - relativeTime;
-
 	const secondElementId = generateUUID();
+	const splitUpdates = getTimelineSplitUpdates({ element, splitTime });
 
 	const leftPart = {
 		...element,
-		trimEnd: element.trimEnd + secondDuration,
+		...splitUpdates.left,
 		name: getElementNameWithSuffix(element.name, "left"),
 	};
 
@@ -79,7 +73,7 @@ function splitElementOperationNoHistory(
 		...element,
 		id: secondElementId,
 		startTime: splitTime,
-		trimStart: element.trimStart + firstDuration,
+		...splitUpdates.right,
 		name: getElementNameWithSuffix(element.name, "right"),
 	};
 
@@ -119,15 +113,14 @@ export function splitAndKeepLeftOperation(
 	if (!element) return;
 
 	const effectiveStart = element.startTime;
-	const effectiveEnd = getElementEndTime(element);
+	const effectiveEnd = getTimelineElementEndTime({ element });
 
 	// Cannot split outside the element bounds
 	if (splitTime <= effectiveStart || splitTime >= effectiveEnd) return;
 
 	ctx.pushHistory();
 
-	const relativeTime = splitTime - element.startTime;
-	const durationToRemove = getEffectiveDuration(element) - relativeTime;
+	const splitUpdates = getTimelineSplitUpdates({ element, splitTime });
 
 	ctx.updateTracksAndSave(
 		tracks.map((t) =>
@@ -138,7 +131,7 @@ export function splitAndKeepLeftOperation(
 							c.id === elementId
 								? {
 										...c,
-										trimEnd: c.trimEnd + durationToRemove,
+										...splitUpdates.left,
 										name: getElementNameWithSuffix(c.name, "left"),
 									}
 								: c
@@ -169,14 +162,14 @@ export function splitAndKeepRightOperation(
 	if (!element) return;
 
 	const effectiveStart = element.startTime;
-	const effectiveEnd = getElementEndTime(element);
+	const effectiveEnd = getTimelineElementEndTime({ element });
 
 	// Cannot split outside the element bounds
 	if (splitTime <= effectiveStart || splitTime >= effectiveEnd) return;
 
 	ctx.pushHistory();
 
-	const relativeTime = splitTime - element.startTime;
+	const splitUpdates = getTimelineSplitUpdates({ element, splitTime });
 
 	ctx.updateTracksAndSave(
 		tracks.map((t) =>
@@ -188,7 +181,7 @@ export function splitAndKeepRightOperation(
 								? {
 										...c,
 										startTime: splitTime,
-										trimStart: c.trimStart + relativeTime,
+										...splitUpdates.right,
 										name: getElementNameWithSuffix(c.name, "right"),
 									}
 								: c
@@ -306,7 +299,7 @@ export function getTotalDurationOperation(tracks: TimelineTrack[]): number {
 
 	const trackEndTimes = tracks.map((track) =>
 		track.elements.reduce((maxEnd, element) => {
-			const elementEnd = getElementEndTime(element);
+			const elementEnd = getTimelineElementEndTime({ element });
 			return Math.max(maxEnd, elementEnd);
 		}, 0)
 	);

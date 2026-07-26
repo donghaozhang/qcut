@@ -145,6 +145,9 @@ const ffmpegAdapter = {
 	renderVideoPreviewProxy: (o: any) => api().ffmpeg.renderVideoPreviewProxy(o),
 	cancelVideoPreviewProxy: (id: any) =>
 		api().ffmpeg.cancelVideoPreviewProxy(id),
+	getVideoPreviewProxyCacheStats: () =>
+		api().ffmpeg.getVideoPreviewProxyCacheStats(),
+	clearVideoPreviewProxyCache: () => api().ffmpeg.clearVideoPreviewProxyCache(),
 	onVideoPreviewProxyProgress: (cb: any) =>
 		api().ffmpeg.onVideoPreviewProxyProgress(cb),
 	validateFilterChain: (f: any) => api().ffmpeg.validateFilterChain(f),

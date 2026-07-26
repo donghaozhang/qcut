@@ -10,16 +10,30 @@ import {
 import { updateMediaMaskAtFrame } from "@/lib/video/media-mask-stack";
 import { resolveMediaMasks } from "@/lib/video/video-properties";
 import { useTimelineStore } from "@/stores/timeline/timeline-store";
-import type { MediaElement, MediaMask } from "@/types/timeline";
+import type {
+	MediaElement,
+	MediaMask,
+	MediaMaskMirrorMode,
+} from "@/types/timeline";
 import {
 	clamp,
+	featherOutlineInsetPercent,
+	featherPathStrokeWidth,
 	isPointInteractionMode,
 	keyboardDelta,
+	linearFeatherFromHandle,
+	linearFeatherFromKeyboard,
+	linearFeatherOffsetPixels,
 	localDelta,
+	MASK_RESIZE_HANDLES,
 	moveMaskPoint,
 	penPathData,
 	pointId,
 	pointerAngle,
+	resizeMaskFromHandle,
+	resizeMaskFromKeyboard,
+	type ResizeHandle,
+	type LinearFeatherEdge,
 	type MaskInteraction,
 	type MaskInteractionMode,
 	type PointInteractionMode,
@@ -75,10 +89,14 @@ export function MediaMaskOverlay({
 			event,
 			mode,
 			pointId: selectedPointId,
+			resizeHandle,
+			linearFeatherEdge,
 		}: {
 			event: ReactPointerEvent;
 			mode: MaskInteractionMode;
 			pointId?: string;
+			resizeHandle?: ResizeHandle;
+			linearFeatherEdge?: LinearFeatherEdge;
 		}) => {
 			const containerRect = containerRef.current?.getBoundingClientRect();
 			if (!containerRect) return;
@@ -100,6 +118,8 @@ export function MediaMaskOverlay({
 				startMask: mask,
 				containerRect,
 				pointId: selectedPointId,
+				resizeHandle,
+				linearFeatherEdge,
 			});
 		},
 		[mask, pushHistory]
@@ -108,12 +128,12 @@ export function MediaMaskOverlay({
 	useEffect(() => {
 		if (!interaction) return;
 		const handlePointerMove = (event: PointerEvent) => {
+			const pointerDeltaX = event.clientX - interaction.startClientX;
+			const pointerDeltaY = event.clientY - interaction.startClientY;
 			const deltaX =
-				(event.clientX - interaction.startClientX) /
-				Math.max(1, interaction.containerRect.width);
+				pointerDeltaX / Math.max(1, interaction.containerRect.width);
 			const deltaY =
-				(event.clientY - interaction.startClientY) /
-				Math.max(1, interaction.containerRect.height);
+				pointerDeltaY / Math.max(1, interaction.containerRect.height);
 			if (interaction.mode === "move") {
 				updateMask({
 					updates: {
@@ -138,24 +158,31 @@ export function MediaMaskOverlay({
 				rotation: interaction.startMask.rotation,
 			});
 			if (interaction.mode === "resize") {
-				const aspect =
-					interaction.startMask.width /
-					Math.max(0.001, interaction.startMask.height);
-				let width = clamp({
-					value: interaction.startMask.width + local.x * 2,
-					min: 0.001,
-					max: 3,
+				updateMask({
+					updates: resizeMaskFromHandle({
+						mask: interaction.startMask,
+						handle: interaction.resizeHandle ?? "se",
+						localX: local.x,
+						localY: local.y,
+					}),
+					history: false,
 				});
-				let height = clamp({
-					value: interaction.startMask.height + local.y * 2,
-					min: 0.001,
-					max: 3,
+				return;
+			}
+			if (interaction.mode === "linear-feather") {
+				const localPixels = localDelta({
+					deltaX: pointerDeltaX,
+					deltaY: pointerDeltaY,
+					rotation: interaction.startMask.rotation,
 				});
-				if (interaction.startMask.maintainAspectRatio) {
-					if (Math.abs(local.x) >= Math.abs(local.y)) height = width / aspect;
-					else width = height * aspect;
-				}
-				updateMask({ updates: { width, height }, history: false });
+				updateMask({
+					updates: linearFeatherFromHandle({
+						mask: interaction.startMask,
+						edge: interaction.linearFeatherEdge ?? "bottom",
+						localYPixels: localPixels.y,
+					}),
+					history: false,
+				});
 				return;
 			}
 			if (isPointInteractionMode(interaction.mode) && interaction.pointId) {
@@ -234,21 +261,30 @@ export function MediaMaskOverlay({
 		});
 	};
 
-	const resizeWithKeyboard = (event: ReactKeyboardEvent) => {
-		const delta = keyboardDelta({ event });
-		if (!delta) return;
+	const resizeWithKeyboard = ({
+		event,
+		handle,
+	}: {
+		event: ReactKeyboardEvent;
+		handle: ResizeHandle;
+	}) => {
+		const updates = resizeMaskFromKeyboard({ mask, handle, event });
+		if (!updates) return;
 		event.preventDefault();
-		const aspect = mask.width / Math.max(0.001, mask.height);
-		const width = clamp({ value: mask.width + delta.x, min: 0.001, max: 3 });
-		updateMask({
-			updates: {
-				width,
-				height: mask.maintainAspectRatio
-					? width / aspect
-					: clamp({ value: mask.height + delta.y, min: 0.001, max: 3 }),
-			},
-			history: true,
-		});
+		updateMask({ updates, history: true });
+	};
+
+	const linearFeatherWithKeyboard = ({
+		event,
+		edge,
+	}: {
+		event: ReactKeyboardEvent;
+		edge: LinearFeatherEdge;
+	}) => {
+		const updates = linearFeatherFromKeyboard({ mask, edge, event });
+		if (!updates) return;
+		event.preventDefault();
+		updateMask({ updates, history: true });
 	};
 
 	const rotateWithKeyboard = (event: ReactKeyboardEvent) => {
@@ -261,6 +297,18 @@ export function MediaMaskOverlay({
 			},
 			history: true,
 		});
+	};
+
+	const setMirrorMode = ({
+		event,
+		mirrorMode,
+	}: {
+		event: ReactPointerEvent | ReactKeyboardEvent;
+		mirrorMode: MediaMaskMirrorMode;
+	}) => {
+		event.preventDefault();
+		event.stopPropagation();
+		updateMask({ updates: { mirrorMode }, history: true });
 	};
 
 	const editPointWithKeyboard = ({
@@ -332,6 +380,11 @@ export function MediaMaskOverlay({
 		0.001,
 		mask.height + (mask.expansion ?? 0) * 2
 	);
+	const featherInsetPercent = featherOutlineInsetPercent({
+		feather: mask.feather,
+	});
+	const featherStrokeWidth = featherPathStrokeWidth({ feather: mask.feather });
+	const hasFeatherGuide = featherInsetPercent > 0;
 	const shapeStyle: CSSProperties = {
 		left: `${mask.centerX * 100}%`,
 		top: `${mask.centerY * 100}%`,
@@ -344,6 +397,31 @@ export function MediaMaskOverlay({
 				: `${(mask.roundness ?? 0) * Math.min(displayWidth, displayHeight) * 50}%`,
 		boxShadow: `0 0 ${Math.max(2, mask.feather * 80)}px rgba(34, 211, 238, 0.8)`,
 	};
+	const invertGuideStyle: CSSProperties = {
+		borderRadius:
+			mask.type === "ellipse"
+				? "50%"
+				: `${(mask.roundness ?? 0) * Math.min(displayWidth, displayHeight) * 50}%`,
+		background:
+			"repeating-linear-gradient(135deg, rgba(34,211,238,0.22) 0 6px, rgba(34,211,238,0.04) 6px 12px)",
+	};
+	const featherOutlineStyle: CSSProperties = {
+		inset: `-${featherInsetPercent}%`,
+		borderRadius:
+			mask.type === "ellipse"
+				? "50%"
+				: `${(mask.roundness ?? 0) * Math.min(displayWidth, displayHeight) * 50}%`,
+	};
+	const linearFeatherLineOffset = linearFeatherOffsetPixels({
+		feather: mask.feather,
+	});
+	const mirrorMode = mask.mirrorMode ?? "center";
+	const mirrorRangeClassName =
+		mirrorMode === "left"
+			? "left-0 right-1/2"
+			: mirrorMode === "right"
+				? "left-1/2 right-0"
+				: "left-[42%] right-[42%]";
 	const points = mask.points ?? [];
 
 	return (
@@ -357,6 +435,146 @@ export function MediaMaskOverlay({
 				style={shapeStyle}
 				onPointerDown={(event) => beginInteraction({ event, mode: "move" })}
 			>
+				{hasFeatherGuide && !isLinear && mask.type !== "pen" ? (
+					<div
+						className="pointer-events-none absolute border-2 border-dashed border-cyan-200/90 shadow-[0_0_10px_rgba(103,232,249,0.35)]"
+						data-testid="media-mask-feather-outline"
+						style={featherOutlineStyle}
+						aria-hidden="true"
+					/>
+				) : null}
+				{hasFeatherGuide && isLinear ? (
+					<div
+						className="pointer-events-none absolute left-0 w-full border-t-2 border-dashed border-cyan-200/90"
+						data-testid="media-mask-feather-outline"
+						style={{ top: `${-linearFeatherLineOffset}px` }}
+						aria-hidden="true"
+					/>
+				) : null}
+				{hasFeatherGuide && isLinear ? (
+					<div
+						className="pointer-events-none absolute left-0 w-full border-t-2 border-dashed border-cyan-200/90"
+						style={{ top: `${linearFeatherLineOffset}px` }}
+						aria-hidden="true"
+					/>
+				) : null}
+				{isLinear
+					? (
+							[
+								{
+									edge: "top" as const,
+									label: "上羽化范围",
+									offset: -linearFeatherLineOffset,
+								},
+								{
+									edge: "bottom" as const,
+									label: "下羽化范围",
+									offset: linearFeatherLineOffset,
+								},
+							] satisfies Array<{
+								edge: LinearFeatherEdge;
+								label: string;
+								offset: number;
+							}>
+						).map((handle) => (
+							<button
+								type="button"
+								key={handle.edge}
+								className="absolute left-1/2 size-4 -translate-x-1/2 -translate-y-1/2 cursor-ns-resize rounded-sm border-2 border-white bg-cyan-500 shadow"
+								style={{ top: `${handle.offset}px` }}
+								onPointerDown={(event) =>
+									beginInteraction({
+										event,
+										mode: "linear-feather",
+										linearFeatherEdge: handle.edge,
+									})
+								}
+								onKeyDown={(event) =>
+									linearFeatherWithKeyboard({ event, edge: handle.edge })
+								}
+								aria-label={`${handle.label}${mask.name ?? "蒙版"}`}
+								title={handle.label}
+							/>
+						))
+					: null}
+				{mask.invert && !isLinear && mask.type !== "pen" ? (
+					<div
+						className="pointer-events-none absolute inset-0 border border-cyan-200/60"
+						data-testid="media-mask-invert-guide"
+						style={invertGuideStyle}
+						aria-hidden="true"
+					/>
+				) : null}
+				{isMirror ? (
+					<div
+						className="pointer-events-none absolute bottom-0 left-1/2 top-0 w-0 -translate-x-1/2 border-l-2 border-dashed border-fuchsia-300/90 shadow-[0_0_10px_rgba(217,70,239,0.45)]"
+						data-testid="media-mask-mirror-axis"
+						aria-hidden="true"
+					/>
+				) : null}
+				{isMirror ? (
+					<div
+						className={`pointer-events-none absolute bottom-0 top-0 border-x border-fuchsia-200/70 bg-fuchsia-400/10 ${mirrorRangeClassName}`}
+						data-testid="media-mask-mirror-active-range"
+						aria-hidden="true"
+					/>
+				) : null}
+				{isMirror ? (
+					<div
+						className="pointer-events-none absolute left-[25%] top-1/2 h-3 w-3 -translate-x-1/2 -translate-y-1/2 rotate-45 border-b-2 border-l-2 border-fuchsia-300/90"
+						aria-hidden="true"
+					/>
+				) : null}
+				{isMirror ? (
+					<div
+						className="pointer-events-none absolute right-[25%] top-1/2 h-3 w-3 -translate-y-1/2 translate-x-1/2 rotate-45 border-r-2 border-t-2 border-fuchsia-300/90"
+						aria-hidden="true"
+					/>
+				) : null}
+				{isMirror ? (
+					<div
+						className="absolute left-1/2 top-1/2 z-10 flex -translate-x-1/2 -translate-y-12 gap-1 rounded-full border border-fuchsia-200/70 bg-background/85 p-1 shadow"
+						data-testid="media-mask-mirror-mode-controls"
+					>
+						{(
+							[
+								{ mode: "left", label: "左侧镜像" },
+								{ mode: "center", label: "双向镜像" },
+								{ mode: "right", label: "右侧镜像" },
+							] satisfies Array<{
+								mode: MediaMaskMirrorMode;
+								label: string;
+							}>
+						).map((item) => (
+							<button
+								type="button"
+								key={item.mode}
+								className={`h-5 min-w-8 rounded-full px-2 text-[10px] ${
+									mirrorMode === item.mode
+										? "bg-fuchsia-500 text-white"
+										: "text-fuchsia-100 hover:bg-fuchsia-500/25"
+								}`}
+								onPointerDown={(event) =>
+									setMirrorMode({ event, mirrorMode: item.mode })
+								}
+								onKeyDown={(event) => {
+									if (event.key !== "Enter" && event.key !== " ") return;
+									setMirrorMode({ event, mirrorMode: item.mode });
+								}}
+								aria-label={`${item.label}${mask.name ?? "蒙版"}`}
+								aria-pressed={mirrorMode === item.mode}
+								title={item.label}
+								data-testid={`media-mask-mirror-mode-${item.mode}`}
+							>
+								{item.mode === "left"
+									? "左"
+									: item.mode === "right"
+										? "右"
+										: "双"}
+							</button>
+						))}
+					</div>
+				) : null}
 				{mask.type === "pen" ? (
 					<svg
 						className="pointer-events-none absolute inset-0 size-full overflow-visible"
@@ -371,6 +589,17 @@ export function MediaMaskOverlay({
 							strokeWidth="0.006"
 							vectorEffect="non-scaling-stroke"
 						/>
+						{featherStrokeWidth > 0 ? (
+							<path
+								d={penPathData({ points, closed: mask.closed ?? true })}
+								fill="none"
+								stroke="rgba(165, 243, 252, 0.75)"
+								strokeDasharray="0.03 0.025"
+								strokeWidth={featherStrokeWidth}
+								vectorEffect="non-scaling-stroke"
+								data-testid="media-mask-feather-outline"
+							/>
+						) : null}
 						{points.flatMap((point, index) => {
 							const id = pointId({ point, index, maskId });
 							return [point.handleIn, point.handleOut]
@@ -401,18 +630,37 @@ export function MediaMaskOverlay({
 					aria-label={`移动${mask.name ?? "蒙版"}`}
 					title="移动蒙版"
 				/>
-				{isLinear ? null : (
-					<button
-						type="button"
-						className="absolute -bottom-2 -right-2 size-4 cursor-nwse-resize rounded-sm border-2 border-white bg-cyan-500 shadow"
-						onPointerDown={(event) =>
-							beginInteraction({ event, mode: "resize" })
-						}
-						onKeyDown={resizeWithKeyboard}
-						aria-label={`缩放${mask.name ?? "蒙版"}`}
-						title="缩放蒙版"
-					/>
-				)}
+				{isLinear
+					? null
+					: MASK_RESIZE_HANDLES.map((handle) => {
+							if (isMirror && handle.y !== 0) return null;
+							return (
+								<button
+									type="button"
+									key={handle.id}
+									className={`absolute size-4 rounded-sm border-2 border-white bg-cyan-500 shadow ${handle.className} ${handle.cursor}`}
+									onPointerDown={(event) =>
+										beginInteraction({
+											event,
+											mode: "resize",
+											resizeHandle: handle.id,
+										})
+									}
+									onKeyDown={(event) =>
+										resizeWithKeyboard({ event, handle: handle.id })
+									}
+									aria-label={`${handle.label}${mask.name ?? "蒙版"}`}
+									title={handle.label}
+									data-testid={
+										isMirror && handle.id === "w"
+											? "media-mask-mirror-range-left"
+											: isMirror && handle.id === "e"
+												? "media-mask-mirror-range-right"
+												: undefined
+									}
+								/>
+							);
+						})}
 
 				{mask.type === "pen"
 					? points.map((point, index) => {
