@@ -11,6 +11,13 @@ import { ArrowRightIcon } from "lucide-react";
 import { useState, useEffect } from "react";
 import ReactMarkdown from "react-markdown";
 
+/** Event that reopens the quick-start dialog from anywhere in the app. */
+export const OPEN_QUICK_START_EVENT = "qcut:open-quick-start";
+
+export function openQuickStart() {
+	window.dispatchEvent(new CustomEvent(OPEN_QUICK_START_EVENT));
+}
+
 export function Onboarding() {
 	const [step, setStep] = useState(0);
 	const [isOpen, setIsOpen] = useState(false);
@@ -22,6 +29,16 @@ export function Onboarding() {
 	//     setIsOpen(true);
 	//   }
 	// }, []);
+
+	// Reopenable quick start: the help menu dispatches this event.
+	useEffect(() => {
+		const handleOpen = () => {
+			setStep(0);
+			setIsOpen(true);
+		};
+		window.addEventListener(OPEN_QUICK_START_EVENT, handleOpen);
+		return () => window.removeEventListener(OPEN_QUICK_START_EVENT, handleOpen);
+	}, []);
 
 	const handleNext = () => {
 		setStep(step + 1);
