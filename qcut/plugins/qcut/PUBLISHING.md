@@ -13,12 +13,12 @@ repository root.
 Install the versioned release:
 
 ```bash
-codex plugin marketplace add Quriosity-agent/qcut --ref qcut-plugin-v1.0.0
+codex plugin marketplace add Quriosity-agent/qcut --ref qcut-plugin-v1.1.0
 codex plugin add qcut@qcut
 ```
 
 For branch testing before a release tag is created, replace the ref with
-`pluginv3`.
+the branch under review.
 
 ## Validate and package
 

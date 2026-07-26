@@ -210,6 +210,7 @@ export interface ClaudeElement
 	startTime: number;
 	endTime: number;
 	duration: number;
+	timelineDuration?: number;
 	type:
 		| "video"
 		| "audio"

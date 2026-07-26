@@ -215,11 +215,43 @@ test.describe("Speed change workflow", () => {
 		await speedPanel.getByTestId("speed-curve-preset-montage").click();
 		await expect
 			.poll(async () => (await speedState({ page })).speedKeyframes.length)
-			.toBe(5);
+			.toBe(9);
 		await expect(
 			page.getByTestId("timeline-speed-status").first()
 		).toContainText("曲线");
+		await page.screenshot({
+			path: path.join(artifactDirectory, "02a-montage-curve.jpg"),
+			animations: "disabled",
+			type: "jpeg",
+			quality: 90,
+		});
 
+		await speedPanel.getByTestId("speed-curve-preset-hero").click();
+		await expect
+			.poll(async () => (await speedState({ page })).speedKeyframes.length)
+			.toBe(8);
+		await page.screenshot({
+			path: path.join(artifactDirectory, "02b-hero-curve.jpg"),
+			animations: "disabled",
+			type: "jpeg",
+			quality: 90,
+		});
+
+		await speedPanel.getByTestId("speed-curve-preset-bullet").click();
+		await expect
+			.poll(async () => (await speedState({ page })).speedKeyframes.length)
+			.toBe(6);
+		await page.screenshot({
+			path: path.join(artifactDirectory, "02c-bullet-curve.jpg"),
+			animations: "disabled",
+			type: "jpeg",
+			quality: 90,
+		});
+
+		await speedPanel.getByTestId("speed-curve-preset-montage").click();
+		await expect
+			.poll(async () => (await speedState({ page })).speedKeyframes.length)
+			.toBe(9);
 		const curvePoint = speedPanel
 			.getByTestId("speed-curve-editor")
 			.getByRole("button")

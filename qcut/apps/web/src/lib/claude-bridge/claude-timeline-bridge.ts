@@ -726,7 +726,10 @@ export function setupClaudeProjectBridge(): void {
 		}
 
 		const stats = {
-			totalDuration: calculateTimelineDuration(tracks),
+			totalDuration: calculateTimelineDuration({
+				tracks,
+				fps: projectState.activeProject?.fps ?? 30,
+			}),
 			mediaCount,
 			trackCount: tracks.length,
 			elementCount,

@@ -11,6 +11,7 @@ import {
 	appendPitchEffect,
 	appendPostDynamicsGraphEffects,
 } from "./audio-graph-effects";
+import { clampMediaPlaybackRate } from "./media-speed-constants";
 
 export interface AudioFilterGraph {
 	mapAudio: string | null;
@@ -90,14 +91,18 @@ function prepareAudioCrossfades({
 			fromFiles.length > 0 &&
 			toFiles.length > 0 &&
 			fromFiles.every((item) => {
-				const rate = Math.min(8, Math.max(0.1, item.file.playbackRate ?? 1));
+				const rate = clampMediaPlaybackRate({
+					rate: item.file.playbackRate,
+				});
 				return (
 					canUseAudioCrossfadeHandles({ audioFile: item.file }) &&
 					item.baseTrimEnd >= halfDuration * rate
 				);
 			}) &&
 			toFiles.every((item) => {
-				const rate = Math.min(8, Math.max(0.1, item.file.playbackRate ?? 1));
+				const rate = clampMediaPlaybackRate({
+					rate: item.file.playbackRate,
+				});
 				return (
 					canUseAudioCrossfadeHandles({ audioFile: item.file }) &&
 					item.baseTrimStart >= halfDuration * rate
@@ -115,7 +120,9 @@ function prepareAudioCrossfades({
 			});
 		}
 		for (const item of fromFiles) {
-			const rate = Math.min(8, Math.max(0.1, item.file.playbackRate ?? 1));
+			const rate = clampMediaPlaybackRate({
+				rate: item.file.playbackRate,
+			});
 			const visibleDuration =
 				((item.file.duration ?? 0) - item.baseTrimStart - item.baseTrimEnd) /
 				rate;
@@ -130,7 +137,7 @@ function prepareAudioCrossfades({
 	}
 
 	for (const item of prepared) {
-		const rate = Math.min(8, Math.max(0.1, item.file.playbackRate ?? 1));
+		const rate = clampMediaPlaybackRate({ rate: item.file.playbackRate });
 		item.file = {
 			...item.file,
 			startTime: item.file.startTime - item.handleBefore,
@@ -191,7 +198,7 @@ function appendEffectStage({
 
 function buildAtempoFilters({ rate }: { rate: number }): string[] {
 	const filters: string[] = [];
-	let remaining = Math.min(8, Math.max(0.1, rate));
+	let remaining = clampMediaPlaybackRate({ rate });
 	while (remaining > 2) {
 		filters.push("atempo=2");
 		remaining /= 2;
@@ -214,7 +221,7 @@ function buildSpeedAudioFilters({
 	preservePitch: boolean;
 }): string[] {
 	if (preservePitch) return buildAtempoFilters({ rate });
-	const clampedRate = Math.min(8, Math.max(0.1, rate));
+	const clampedRate = clampMediaPlaybackRate({ rate });
 	if (Math.abs(clampedRate - 1) <= 1e-6) return [];
 	return [`asetrate=48000*${clampedRate}`, "aresample=48000"];
 }

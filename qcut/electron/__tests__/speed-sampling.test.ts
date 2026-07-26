@@ -1,10 +1,28 @@
 import { describe, expect, it } from "vitest";
 import {
 	buildSpeedSamples,
+	buildSpeedSetptsExpression,
 	MAX_SPEED_SAMPLES,
 	outputTimeAtSource,
 } from "../ffmpeg-video-transform";
 import { buildTimelineAudioFilters } from "../ffmpeg/audio-filter-graph";
+
+function getMaximumParenthesisDepth({
+	expression,
+}: {
+	expression: string;
+}): number {
+	let currentDepth = 0;
+	let maximumDepth = 0;
+	for (const character of expression) {
+		if (character === "(") {
+			currentDepth += 1;
+			maximumDepth = Math.max(maximumDepth, currentDepth);
+		}
+		if (character === ")") currentDepth -= 1;
+	}
+	return maximumDepth;
+}
 
 describe("adaptive speed sampling", () => {
 	it("uses one segment for constant playback speed", () => {
@@ -17,6 +35,27 @@ describe("adaptive speed sampling", () => {
 			outputEnd: 1_800,
 			rate: 2,
 		});
+	});
+
+	it("supports 10x playback consistently in video and audio filters", () => {
+		const samples = buildSpeedSamples({ playbackRate: 12 }, 10, 30);
+		const audio = buildTimelineAudioFilters({
+			audioFiles: [
+				{
+					path: "/tmp/fast.wav",
+					startTime: 0,
+					duration: 10,
+					playbackRate: 12,
+				},
+			],
+			audioStartIndex: 0,
+			fps: 30,
+		});
+
+		expect(samples[0]).toMatchObject({ rate: 10, outputEnd: 1 });
+		expect(audio.filterSteps.join(";")).toContain(
+			"atempo=2,atempo=2,atempo=2,atempo=1.25"
+		);
 	});
 
 	it("bounds long speed curves independently of frame count", () => {
@@ -40,6 +79,28 @@ describe("adaptive speed sampling", () => {
 		expect(samples.length).toBe(12);
 		expect(outputTimeAtSource(samples, 3_600)).toBeGreaterThan(1_200);
 		expect(outputTimeAtSource(samples, 3_600)).toBeLessThan(7_200);
+	});
+
+	it("builds a balanced FFmpeg expression for multi-point curves", () => {
+		const rates = [0.9, 0.75, 1.1, 7, 7, 0.2, 0.2, 1, 1];
+		const samples = buildSpeedSamples(
+			{
+				speedKeyframes: rates.map((value, index) => ({
+					id: `montage-${index}`,
+					frame: index * 38,
+					value,
+					easing: "easeInOut",
+				})),
+			},
+			10,
+			30
+		);
+		const expression = buildSpeedSetptsExpression({ samples });
+
+		expect(samples).toHaveLength(96);
+		expect(expression).toContain("if(lt(");
+		expect(expression.length).toBeLessThan(10_000);
+		expect(getMaximumParenthesisDepth({ expression })).toBeLessThan(25);
 	});
 
 	it("keeps generated audio filter graphs bounded for long clips", () => {

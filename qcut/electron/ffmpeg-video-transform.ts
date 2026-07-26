@@ -42,6 +42,7 @@ import type {
 	EffectRenderWindow,
 } from "./ffmpeg/effect-render-types";
 import { effectWindowExpression } from "./ffmpeg/effect-render-window";
+import { clampMediaPlaybackRate } from "./ffmpeg/media-speed-constants";
 
 const DEFAULT_ADJUSTMENTS: NonNullable<VideoVisual["adjustments"]> = {
 	brightness: 0,
@@ -270,12 +271,14 @@ export interface VideoSourceTimingInput extends SpeedSource {
 }
 
 function speedAtFrame(source: SpeedSource, frame: number, fps: number): number {
-	const fallback = clamp(source.playbackRate ?? 1, 0.1, 8);
+	const fallback = clampMediaPlaybackRate({ rate: source.playbackRate });
 	const keyframes = [...(source.speedKeyframes ?? [])].sort(
 		(a, b) => a.frame - b.frame
 	);
 	if (keyframes.length === 0) return fallback;
-	if (frame <= keyframes[0].frame) return clamp(keyframes[0].value, 0.1, 8);
+	if (frame <= keyframes[0].frame) {
+		return clampMediaPlaybackRate({ rate: keyframes[0].value });
+	}
 	for (let index = 1; index < keyframes.length; index++) {
 		const to = keyframes[index];
 		if (frame > to.frame) continue;
@@ -284,9 +287,13 @@ function speedAtFrame(source: SpeedSource, frame: number, fps: number): number {
 			(frame - from.frame) / Math.max(1, to.frame - from.frame),
 			to.easing
 		);
-		return clamp(from.value + (to.value - from.value) * progress, 0.1, 8);
+		return clampMediaPlaybackRate({
+			rate: from.value + (to.value - from.value) * progress,
+		});
 	}
-	return clamp(keyframes[keyframes.length - 1].value, 0.1, 8);
+	return clampMediaPlaybackRate({
+		rate: keyframes[keyframes.length - 1].value,
+	});
 }
 
 export function buildSpeedSamples(
@@ -298,7 +305,7 @@ export function buildSpeedSamples(
 	const safeDuration = Math.max(0, sourceDuration);
 	if (safeDuration <= 1e-9) return [];
 	if ((source.speedKeyframes?.length ?? 0) === 0) {
-		const rate = clamp(source.playbackRate ?? 1, 0.1, 8);
+		const rate = clampMediaPlaybackRate({ rate: source.playbackRate });
 		return [
 			{
 				sourceStart: 0,
@@ -406,15 +413,83 @@ export function getVideoSourceTimelineDuration({
 	return resolveVideoSourceTiming({ source, fps }).duration;
 }
 
-function buildSpeedSetptsExpression(samples: SpeedSample[]): string {
-	const time = "((PTS-STARTPTS)*TB)";
-	let expression = String(samples[samples.length - 1]?.outputEnd ?? 0);
-	for (let index = samples.length - 1; index >= 0; index--) {
-		const sample = samples[index];
-		const value = `${sample.outputStart}+((${time})-${sample.sourceStart})/${sample.rate}`;
-		expression = `if(lt(${time},${sample.sourceEnd}),${value},${expression})`;
+function formatSpeedExpressionNumber({ value }: { value: number }): string {
+	return String(Number(value.toFixed(9)));
+}
+
+function buildSpeedSampleValueExpression({
+	sample,
+	time,
+}: {
+	sample: SpeedSample;
+	time: string;
+}): string {
+	return (
+		`${formatSpeedExpressionNumber({ value: sample.outputStart })}+` +
+		`((${time})-${formatSpeedExpressionNumber({ value: sample.sourceStart })})/` +
+		formatSpeedExpressionNumber({ value: sample.rate })
+	);
+}
+
+function buildSpeedSampleDecisionTree({
+	endIndex,
+	samples,
+	startIndex,
+	time,
+}: {
+	endIndex: number;
+	samples: SpeedSample[];
+	startIndex: number;
+	time: string;
+}): string {
+	if (startIndex === endIndex) {
+		return buildSpeedSampleValueExpression({
+			sample: samples[startIndex],
+			time,
+		});
 	}
-	return expression;
+
+	const midpoint = Math.floor((startIndex + endIndex) / 2);
+	const threshold = formatSpeedExpressionNumber({
+		value: samples[midpoint].sourceEnd,
+	});
+	const beforeThreshold = buildSpeedSampleDecisionTree({
+		endIndex: midpoint,
+		samples,
+		startIndex,
+		time,
+	});
+	const afterThreshold = buildSpeedSampleDecisionTree({
+		endIndex,
+		samples,
+		startIndex: midpoint + 1,
+		time,
+	});
+	return `if(lt(${time},${threshold}),${beforeThreshold},${afterThreshold})`;
+}
+
+export function buildSpeedSetptsExpression({
+	samples,
+}: {
+	samples: SpeedSample[];
+}): string {
+	if (samples.length === 0) return "0";
+
+	const time = "((PTS-STARTPTS)*TB)";
+	const finalSample = samples[samples.length - 1];
+	const finalSourceTime = formatSpeedExpressionNumber({
+		value: finalSample.sourceEnd,
+	});
+	const finalOutputTime = formatSpeedExpressionNumber({
+		value: finalSample.outputEnd,
+	});
+	const sampleTree = buildSpeedSampleDecisionTree({
+		endIndex: samples.length - 1,
+		samples,
+		startIndex: 0,
+		time,
+	});
+	return `if(lt(${time},${finalSourceTime}),${sampleTree},${finalOutputTime})`;
 }
 
 export function buildAdjustmentFilter(visual: VideoVisual): string {
@@ -1071,11 +1146,11 @@ function buildTimedVideoInput({
 		outputLabel = reversed;
 	}
 	const hasSpeedCurve = (source.speedKeyframes?.length ?? 0) > 0;
-	const playbackRate = clamp(source.playbackRate ?? 1, 0.1, 8);
+	const playbackRate = clampMediaPlaybackRate({ rate: source.playbackRate });
 	if (hasSpeedCurve || playbackRate !== 1) {
 		const sped = `${prefix}_sped`;
 		const expression = hasSpeedCurve
-			? buildSpeedSetptsExpression(speedSamples)
+			? buildSpeedSetptsExpression({ samples: speedSamples })
 			: `((PTS-STARTPTS)*TB)/${playbackRate}`;
 		filterSteps.push(`[${outputLabel}]setpts='(${expression})/TB'[${sped}]`);
 		outputLabel = sped;
