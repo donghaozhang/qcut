@@ -16,7 +16,6 @@ Run QCut's built-in TypeScript pipeline CLI (`qcut-pipeline` / `qcut`).
 ## Additional resources
 
 - For standalone CLI commands (generate, analyze, transcribe, autoclip, models, help, output formats), see [REFERENCE.md](references/REFERENCE.md)
-- For multi-source editorial indexing, beat-aligned EDL planning, timeline views, and final-cut verification, see [reference-editorial.md](references/reference-editorial.md) or [中文版](references/reference-editorial.zh-CN.md)
 - For YAML pipelines, API key management, project management, see [reference-pipelines.md](references/reference-pipelines.md)
 - For ViMax commands (idea2video, script2video, novel2movie, scenes, portraits), see [reference-vimax.md](references/reference-vimax.md)
 - For editor core reference: connection, flags, batch limits, env vars, common workflows, see [editor-core.md](editor/editor-core.md)
