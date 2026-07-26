@@ -573,7 +573,11 @@ export async function addClaudeMediaElement({
 		return;
 	}
 
-	const trackId = timelineStore.findOrCreateTrack("media");
+	// Route audio files to an audio track, matching the app's own drag-drop
+	// behavior (timeline-add-ops), instead of stacking them on the media track.
+	const trackId = timelineStore.findOrCreateTrack(
+		mediaItem?.type === "audio" ? "audio" : "media"
+	);
 	const resolvedId = mediaItem?.id ?? element.mediaId ?? element.sourceId!;
 	const resolvedName = mediaItem?.name ?? element.sourceName ?? "Media";
 	const fallbackDuration =
