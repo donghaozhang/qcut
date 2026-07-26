@@ -5,6 +5,7 @@ import {
 	type ActionWithNoArgs,
 	unbindAction,
 } from "@/constants/actions";
+import { exportStillFrame } from "@/lib/export/export-still-frame";
 import { translate } from "@/lib/i18n";
 import { freezeSelectedElementAtPlayhead } from "@/lib/timeline/freeze-frame";
 import { usePlaybackStore } from "@/stores/editor/playback-store";
@@ -65,6 +66,17 @@ function groupSelected() {
 	toast.success(t("timeline.toast.groupCreated"));
 }
 
+export async function runStillFrameExport() {
+	const result = await exportStillFrame();
+	if (result.ok) {
+		toast.success(
+			t("editor.preview.exportStillSuccess", { fileName: result.fileName })
+		);
+		return;
+	}
+	toast.error(t("editor.preview.exportStillError", { error: result.error }));
+}
+
 function ungroupSelected() {
 	const selection = getSingleSelection();
 	if (!selection?.element.groupId) {
@@ -102,6 +114,9 @@ export function useClipEditorActions() {
 				usePreviewViewStore.getState().stepPreviewScale("out"),
 			"player-zoom-fit": () =>
 				usePreviewViewStore.getState().setPreviewScale("fit"),
+			"export-still-frame": () => {
+				void runStillFrameExport();
+			},
 		};
 		const entries = Object.entries(handlers) as Array<
 			[ActionWithNoArgs, () => void]

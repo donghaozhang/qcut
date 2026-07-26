@@ -76,6 +76,7 @@ export type Action =
 	| "player-zoom-in" // Step the preview zoom up through presets
 	| "player-zoom-out" // Step the preview zoom down through presets
 	| "player-zoom-fit" // Fit the preview to the panel
+	| "export-still-frame" // Export the composited frame at the playhead as PNG
 	// Effects actions
 	| "apply-brightness-effect" // Apply brightness effect
 	| "apply-contrast-effect" // Apply contrast effect

@@ -198,6 +198,10 @@ export const SHORTCUT_COMMANDS: Record<Action, ShortcutCommandDefinition> = {
 		category: "player",
 		labelKey: "shortcuts.action.playerZoomFit",
 	},
+	"export-still-frame": {
+		category: "player",
+		labelKey: "shortcuts.action.exportStill",
+	},
 	undo: {
 		category: "basic",
 		labelKey: "shortcuts.action.undo",

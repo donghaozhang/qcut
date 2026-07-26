@@ -13,6 +13,7 @@ import {
 	DropdownMenuSubTrigger,
 	DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import { runStillFrameExport } from "@/hooks/keyboard/use-clip-editor-actions";
 import { useTranslation } from "@/lib/i18n";
 import {
 	addGuide,
@@ -174,6 +175,16 @@ export function PreviewViewOptionsMenu() {
 				>
 					{t("editor.preview.safeAreas")}
 				</DropdownMenuCheckboxItem>
+				<DropdownMenuSeparator />
+				<DropdownMenuItem
+					disabled={!hasActiveProject}
+					data-testid="preview-export-still"
+					onClick={() => {
+						void runStillFrameExport();
+					}}
+				>
+					{t("editor.preview.exportStill")}
+				</DropdownMenuItem>
 			</DropdownMenuContent>
 		</DropdownMenu>
 	);
