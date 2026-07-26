@@ -27,6 +27,8 @@ import { parseAudioCdnManifest } from "../src/lib/audio/audio-cdn-catalog";
 const API_URL = "https://api.openverse.org/v1/audio/";
 const PAGE_SIZE = 20;
 const REQUEST_SPACING_MS = 3500; // 20 requests/minute anonymous burst limit.
+/** Consecutive all-duplicate pages before a query is abandoned. */
+const BARREN_PAGE_LIMIT = 3;
 const USER_AGENT = "QCut/1.0 (https://qcut.app; music library harvester)";
 
 /**
@@ -35,7 +37,48 @@ const USER_AGENT = "QCut/1.0 (https://qcut.app; music library harvester)";
  * query, so coverage comes from query variety while categories are assigned
  * locally from each track's own genres and tags.
  */
-const QUERY_PLAN: readonly string[] = [
+interface SourceProfile {
+	/** Openverse `source` value. */
+	source: string;
+	/**
+	 * Openverse `category` filter. Only Jamendo tags its records as music;
+	 * Wikimedia leaves it null, so that profile filters by query and by the
+	 * non-music title check in openverseRecordToTrack instead.
+	 */
+	category?: string;
+	queries: readonly string[];
+}
+
+/**
+ * Wikimedia Commons holds public-domain recordings of the classical
+ * repertoire, which is exactly what the Jamendo pool is thinnest on. Queries
+ * stay narrow (composers and forms) because the same collection also holds
+ * speech, wildlife and pronunciation clips.
+ */
+const WIKIMEDIA_QUERIES: readonly string[] = [
+	"piano sonata",
+	"symphony orchestra",
+	"string quartet",
+	"violin concerto",
+	"nocturne piano",
+	"prelude piano",
+	"cello suite",
+	"chopin",
+	"mozart",
+	"beethoven",
+	"bach",
+	"vivaldi",
+	"debussy",
+	"schubert",
+	"tchaikovsky",
+	"satie gymnopedie",
+	"classical guitar",
+	"harp instrumental",
+	"organ music",
+	"waltz orchestra",
+];
+
+const JAMENDO_QUERIES: readonly string[] = [
 	"piano",
 	"acoustic guitar",
 	"ambient",
@@ -76,6 +119,52 @@ const QUERY_PLAN: readonly string[] = [
 	"night",
 	"retro",
 	"groove",
+	// Second sweep: earlier terms stopped yielding new records, so these reach
+	// different slices of the same catalog rather than repeating it.
+	"guitar solo",
+	"synthwave",
+	"meditation",
+	"corporate background",
+	"drum and bass",
+	"bossa nova",
+	"gospel choir",
+	"marching band",
+	"accordion",
+	"violin",
+	"flute",
+	"saxophone",
+	"trumpet",
+	"harp",
+	"banjo",
+	"ukulele",
+	"tango",
+	"swing",
+	"soul",
+	"indie",
+	"dream pop",
+	"post rock",
+	"minimal techno",
+	"trip hop",
+	"industrial",
+	"celtic",
+	"african drums",
+	"indian sitar",
+	"japanese koto",
+	"christmas",
+	"halloween",
+	"wedding",
+	"sport",
+	"documentary background",
+	"fashion show",
+	"kids playful",
+	"suspense",
+	"western",
+	"space",
+];
+
+const SOURCE_PROFILES: readonly SourceProfile[] = [
+	{ source: "jamendo", category: "music", queries: JAMENDO_QUERIES },
+	{ source: "wikimedia_audio", queries: WIKIMEDIA_QUERIES },
 ];
 
 function flagValue({ flag }: { flag: string }): string | undefined {
@@ -123,6 +212,12 @@ function sleep({ ms }: { ms: number }): Promise<void> {
 interface RawCache {
 	fetchedAt: string;
 	records: OpenverseAudioRecord[];
+	/**
+	 * "<source>|<query>" pairs already paged to exhaustion. Openverse caps
+	 * anonymous pagination at ~240 results per query, so re-running a finished
+	 * query returns nothing new and just burns the daily budget.
+	 */
+	doneQueries?: string[];
 }
 
 async function readCache(): Promise<RawCache> {
@@ -147,17 +242,19 @@ interface PageResult {
 }
 
 async function fetchPage({
+	profile,
 	query,
 	page,
 }: {
+	profile: SourceProfile;
 	query: string;
 	page: number;
 }): Promise<PageResult> {
 	const url = new URL(API_URL);
 	url.searchParams.set("q", query);
-	url.searchParams.set("source", "jamendo");
+	url.searchParams.set("source", profile.source);
 	url.searchParams.set("license", ALLOWED_OPENVERSE_LICENSES.join(","));
-	url.searchParams.set("category", "music");
+	if (profile.category) url.searchParams.set("category", profile.category);
 	url.searchParams.set("page_size", String(PAGE_SIZE));
 	url.searchParams.set("page", String(page));
 
@@ -186,47 +283,79 @@ async function harvest(): Promise<RawCache> {
 			.map((record) => (typeof record.id === "string" ? record.id : ""))
 			.filter(Boolean)
 	);
+	const done = new Set(cache.doneQueries ?? []);
 	let requests = 0;
 	let added = 0;
 
-	for (const query of QUERY_PLAN) {
-		for (let page = 1; page <= pagesPerQuery; page += 1) {
-			if (requests >= maxRequests) {
-				console.log(`Request budget (${maxRequests}) reached — stopping.`);
-				return { fetchedAt: new Date().toISOString(), records: cache.records };
-			}
-			if (requests > 0) await sleep({ ms: REQUEST_SPACING_MS });
+	const finish = (): RawCache => ({
+		fetchedAt: new Date().toISOString(),
+		records: cache.records,
+		doneQueries: [...done],
+	});
 
-			let result: PageResult;
-			try {
-				result = await fetchPage({ query, page });
-			} catch (error) {
-				console.warn(`  ${query} p${page}: ${(error as Error).message}`);
-				break;
-			}
-			requests += 1;
+	for (const profile of SOURCE_PROFILES) {
+		console.log(`\n[${profile.source}]`);
+		for (const query of profile.queries) {
+			const queryKey = `${profile.source}|${query}`;
+			if (done.has(queryKey)) continue;
+			let exhausted = false;
+			let barrenPages = 0;
+			for (let page = 1; page <= pagesPerQuery; page += 1) {
+				if (requests >= maxRequests) {
+					console.log(`Request budget (${maxRequests}) reached — stopping.`);
+					return finish();
+				}
+				if (requests > 0) await sleep({ ms: REQUEST_SPACING_MS });
 
-			if (result.rateLimited) {
-				console.log("Rate limited by Openverse — stopping harvest.");
-				return { fetchedAt: new Date().toISOString(), records: cache.records };
-			}
+				let result: PageResult;
+				try {
+					result = await fetchPage({ profile, query, page });
+				} catch (error) {
+					console.warn(`  ${query} p${page}: ${(error as Error).message}`);
+					break;
+				}
+				requests += 1;
 
-			for (const record of result.records) {
-				const id = typeof record.id === "string" ? record.id : "";
-				if (!id || seen.has(id)) continue;
-				seen.add(id);
-				cache.records.push(record);
-				added += 1;
+				if (result.rateLimited) {
+					console.log("Rate limited by Openverse — stopping harvest.");
+					return finish();
+				}
+
+				let fresh = 0;
+				for (const record of result.records) {
+					const id = typeof record.id === "string" ? record.id : "";
+					if (!id || seen.has(id)) continue;
+					seen.add(id);
+					cache.records.push(record);
+					added += 1;
+					fresh += 1;
+				}
+				console.log(
+					`  ${query} p${page}: +${fresh} new (total ${cache.records.length})`
+				);
+				if (result.pageCount && page >= result.pageCount) {
+					exhausted = true;
+					break;
+				}
+				// Queries overlap heavily, so a query that keeps returning records
+				// we already hold is spending the daily budget for nothing. Give up
+				// on it rather than paging to the cap.
+				barrenPages = fresh === 0 ? barrenPages + 1 : 0;
+				if (barrenPages >= BARREN_PAGE_LIMIT) {
+					console.log(`  ${query}: no new records — moving on.`);
+					exhausted = true;
+					break;
+				}
+				if (page === pagesPerQuery) exhausted = true;
 			}
-			console.log(
-				`  ${query} p${page}: +${result.records.length} (unique total ${cache.records.length})`
-			);
-			if (result.pageCount && page >= result.pageCount) break;
+			// Only mark a query done when its pages ran out, so a budget stop or
+			// a transient error leaves it to be retried on the next run.
+			if (exhausted) done.add(queryKey);
 		}
 	}
 
 	console.log(`Harvest done: ${requests} requests, ${added} new records.`);
-	return { fetchedAt: new Date().toISOString(), records: cache.records };
+	return finish();
 }
 
 async function main(): Promise<void> {

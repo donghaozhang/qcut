@@ -103,6 +103,73 @@ describe("openverseRecordToTrack", () => {
 		).toBeNull();
 	});
 
+	// Wikimedia Commons indexes speech and wildlife beside its public-domain
+	// music, and sets no category, so the title is the only filter.
+	it.each([
+		"Chinese pronunciation of 你好",
+		"Interview with the composer",
+		"Blackbird birdsong at dawn",
+		"Presidential speech 1963",
+	])("rejects %s, which is not music", (title) => {
+		expect(openverseRecordToTrack({ record: record({ title }) })).toBeNull();
+	});
+
+	it("rejects a MIDI score, which Web Audio cannot decode", () => {
+		expect(
+			openverseRecordToTrack({
+				record: record({
+					url: "https://upload.wikimedia.org/wikipedia/commons/a/b/Moonlight.mid",
+				}),
+			})
+		).toBeNull();
+	});
+
+	it.each(["ogg", "oga", "opus", "wav", "flac", "mp3"])(
+		"keeps playable .%s audio",
+		(ext) => {
+			expect(
+				openverseRecordToTrack({
+					record: record({
+						url: `https://upload.wikimedia.org/wikipedia/commons/a/b/Track.${ext}`,
+					}),
+				})
+			).not.toBeNull();
+		}
+	);
+
+	it("keeps Jamendo's extensionless streaming url", () => {
+		expect(
+			openverseRecordToTrack({
+				record: record({
+					url: "https://prod-1.storage.jamendo.com/?trackid=211720&format=mp32",
+				}),
+			})
+		).not.toBeNull();
+	});
+
+	it("keeps a public-domain classical recording with no genre metadata", () => {
+		const track = openverseRecordToTrack({
+			record: record({
+				title: "Frederic Chopin Piano Sonata No.2 in B flat minor",
+				creator: "Frédéric Chopin",
+				license: "cc0",
+				license_url: "https://creativecommons.org/publicdomain/zero/1.0/",
+				provider: "wikimedia_audio",
+				category: null,
+				genres: null,
+				tags: [],
+				duration: 471_000,
+				audio_set: null,
+			}),
+		});
+
+		expect(track).not.toBeNull();
+		// Classified purely from the title, since Wikimedia supplies no tags.
+		expect(track?.tags).toContain("instrumental");
+		expect(track?.tags).toContain("emotional");
+		expect(track?.artworkUrl).toBeUndefined();
+	});
+
 	it("derives a license url when the record only carries a license code", () => {
 		const track = openverseRecordToTrack({
 			record: record({ license: "cc0", license_url: undefined }),

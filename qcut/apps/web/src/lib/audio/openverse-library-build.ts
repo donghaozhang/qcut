@@ -30,6 +30,64 @@ export const BUNDLED_LIBRARY_ID_FLOOR = -9_999_999;
 const MIN_TRACK_SECONDS = 20;
 const MAX_TRACK_SECONDS = 10 * 60;
 
+/**
+ * Container formats the renderer can actually decode. Wikimedia Commons also
+ * hosts `.mid` scores, which are instructions rather than audio — Web Audio
+ * cannot decode them, so they would sit in the library as tracks that never
+ * play.
+ */
+const PLAYABLE_EXTENSIONS = new Set([
+	"mp3",
+	"ogg",
+	"oga",
+	"opus",
+	"wav",
+	"flac",
+	"m4a",
+	"aac",
+]);
+
+function isPlayableAudioUrl({ url }: { url: string }): boolean {
+	const path = url.split("?")[0] ?? "";
+	const match = /\.([a-z0-9]+)$/i.exec(path);
+	// Jamendo streams from a query-string endpoint with no extension at all;
+	// those are always mp3, so only reject a extension we recognise as unplayable.
+	if (!match) return true;
+	return PLAYABLE_EXTENSIONS.has(match[1].toLocaleLowerCase());
+}
+
+/**
+ * Wikimedia Commons indexes speech, wildlife and pronunciation clips beside
+ * its public-domain music, and unlike Jamendo it sets no `category`. These
+ * title markers keep non-music out of a music library; the words are specific
+ * enough that they never appear in a real track title.
+ */
+const NON_MUSIC_TITLE = new RegExp(
+	[
+		"pronunciation",
+		"pronounced",
+		"interview",
+		"speech",
+		"lecture",
+		"podcast",
+		"audiobook",
+		"audio ?book",
+		"spoken",
+		"testimony",
+		"press conference",
+		"weather report",
+		"news bulletin",
+		"bird ?call",
+		"birdsong",
+		"animal call",
+		"sound ?effect",
+		"white noise",
+		"morse",
+		"radio broadcast",
+	].join("|"),
+	"i"
+);
+
 export interface OpenverseAudioRecord {
 	id?: unknown;
 	title?: unknown;
@@ -96,9 +154,56 @@ const CLASSIFICATION_RULES: readonly ClassificationRule[] = [
 		scenes: ["lifestyle", "vlog", "study"],
 	},
 	{
-		terms: ["classical", "orchestra", "orchestral", "symphonic", "chamber"],
+		terms: [
+			"classical",
+			"orchestra",
+			"orchestral",
+			"symphonic",
+			"symphony",
+			"chamber",
+			"sonata",
+			"concerto",
+			"quartet",
+			"nocturne",
+			"prelude",
+			"fugue",
+			"baroque",
+			"opus",
+		],
 		tags: ["emotional", "instrumental", "graduation"],
 		moods: ["reflective", "dramatic"],
+		scenes: ["story", "documentary"],
+	},
+	// Wikimedia Commons carries public-domain recordings with no genre or tag
+	// metadata at all — the composer's name in the title is the only signal.
+	{
+		terms: [
+			"bach",
+			"beethoven",
+			"brahms",
+			"chopin",
+			"debussy",
+			"dvorak",
+			"grieg",
+			"handel",
+			"haydn",
+			"liszt",
+			"mahler",
+			"mendelssohn",
+			"mozart",
+			"paganini",
+			"rachmaninoff",
+			"ravel",
+			"satie",
+			"schubert",
+			"schumann",
+			"sibelius",
+			"tchaikovsky",
+			"vivaldi",
+			"wagner",
+		],
+		tags: ["emotional", "instrumental", "healing"],
+		moods: ["reflective", "delicate"],
 		scenes: ["story", "documentary"],
 	},
 	{
@@ -447,7 +552,9 @@ export function openverseRecordToTrack({
 	const durationSeconds = Math.round(durationMs / 1000);
 
 	if (!openverseId || !title || !creator) return null;
+	if (NON_MUSIC_TITLE.test(title)) return null;
 	if (!/^https?:\/\//i.test(url)) return null;
+	if (!isPlayableAudioUrl({ url })) return null;
 	if (
 		!(ALLOWED_OPENVERSE_LICENSES as readonly string[]).includes(
 			license.toLocaleLowerCase()
