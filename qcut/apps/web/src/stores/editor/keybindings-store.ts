@@ -120,7 +120,9 @@ export function migrateKeybindingsState({
 						? "custom"
 						: DEFAULT_KEYBINDING_PROFILE_ID,
 				};
-	if (version >= 4) return versionThreeState;
+	if (version >= 5) return versionThreeState;
+	// v4 and v5 both re-derive non-customized profiles so users pick up new
+	// default bindings (v5 added freeze/bookmark/group/enable actions).
 	const activeProfileId =
 		versionThreeState.activeProfileId ?? DEFAULT_KEYBINDING_PROFILE_ID;
 	const activeProfile = KEYBINDING_PROFILES.find(
@@ -253,7 +255,7 @@ export const useKeybindingsStore = create<KeybindingsState>()(
 		}),
 		{
 			name: "qcut-keybindings",
-			version: 4,
+			version: 5,
 			migrate: (persistedState, version) =>
 				migrateKeybindingsState({ persistedState, version }),
 		}

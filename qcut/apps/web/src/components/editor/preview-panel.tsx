@@ -76,6 +76,7 @@ import { useCachedPreviewFrame } from "@/hooks/preview/use-cached-preview-frame"
 import { buildPreviewFrameCacheIdentity } from "@/lib/preview/preview-quality";
 import { hasCurrentVideoFrames } from "@/lib/preview/preview-frame-cache-readiness";
 import { useMaskEditorStore } from "@/stores/editor/mask-editor-store";
+import { usePreviewViewStore } from "@/stores/editor/preview-view-store";
 import { useColorPickerStore } from "@/stores/editor/color-picker-store";
 import { useStickersOverlayStore } from "@/stores/stickers-overlay-store";
 import { LoaderCircle, TriangleAlert } from "lucide-react";
@@ -182,10 +183,10 @@ export function PreviewPanel() {
 		return () =>
 			window.removeEventListener("playback-update", handlePlaybackUpdate);
 	}, [activeProject?.fps, isPlaying, currentTime, tracks]);
-	const [previewScale, setPreviewScale] = useState<
-		"fit" | 75 | 100 | 125 | 150
-	>("fit");
-	const [showSafeAreas, setShowSafeAreas] = useState(false);
+	const previewScale = usePreviewViewStore((state) => state.previewScale);
+	const setPreviewScale = usePreviewViewStore((state) => state.setPreviewScale);
+	const showSafeAreas = usePreviewViewStore((state) => state.showSafeAreas);
+	const toggleSafeAreas = usePreviewViewStore((state) => state.toggleSafeAreas);
 	const externalHtml = useMcpAppStore((state) => state.activeHtml);
 	const externalToolName = useMcpAppStore((state) => state.toolName);
 	const localMcpActive = useMcpAppStore((state) => state.localMcpActive);
@@ -1033,7 +1034,7 @@ export function PreviewPanel() {
 						previewScale={previewScale}
 						onPreviewScaleChange={setPreviewScale}
 						showSafeAreas={showSafeAreas}
-						onToggleSafeAreas={() => setShowSafeAreas((visible) => !visible)}
+						onToggleSafeAreas={toggleSafeAreas}
 					/>
 				</div>
 			</div>
