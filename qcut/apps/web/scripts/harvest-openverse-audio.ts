@@ -119,6 +119,22 @@ const WIKIMEDIA_QUERIES: readonly string[] = [
 	"lute music",
 	"harpsichord",
 	"military band march",
+	// Traditional Chinese and East Asian instruments: the Mandopop and K-pop
+	// categories cannot be filled from a Creative Commons pool, but the
+	// instruments those audiences expect do have public-domain recordings.
+	"guzheng",
+	"erhu",
+	"pipa music",
+	"dizi flute",
+	"chinese traditional music",
+	"koto japanese",
+	"shakuhachi",
+	"gamelan",
+	// Winter is the thinnest seasonal bucket.
+	"christmas carol",
+	"winter song",
+	"jingle bells",
+	"silent night",
 ];
 
 const JAMENDO_QUERIES: readonly string[] = [
@@ -203,6 +219,15 @@ const JAMENDO_QUERIES: readonly string[] = [
 	"suspense",
 	"western",
 	"space",
+	// Targeted at the categories the pool serves worst.
+	"chinese",
+	"asian traditional",
+	"oriental",
+	"christmas",
+	"winter snow",
+	"korean",
+	"japanese",
+	"k-pop style",
 ];
 
 const SOURCE_PROFILES: readonly SourceProfile[] = [
