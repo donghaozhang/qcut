@@ -43,7 +43,12 @@ function separateAudioSelected() {
 
 function toggleBookmarkAtPlayhead() {
 	const currentTime = usePlaybackStore.getState().currentTime;
-	void useProjectStore.getState().toggleBookmark(currentTime);
+	useProjectStore
+		.getState()
+		.toggleBookmark(currentTime)
+		.catch(() => {
+			toast.error("Failed to update bookmark");
+		});
 }
 
 function toggleSelectedElementEnabled() {
@@ -80,7 +85,7 @@ export async function runStillFrameExport() {
 function ungroupSelected() {
 	const selection = getSingleSelection();
 	if (!selection?.element.groupId) {
-		toast.error(t("timeline.toast.selectTwoForGroup"));
+		toast.error(t("timeline.toast.selectGroupToUngroup"));
 		return;
 	}
 	const count = useTimelineStore

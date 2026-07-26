@@ -42,6 +42,14 @@ vi.mock("@/stores/editor/playback-store", () => ({
 describe("exportStillFrame", () => {
 	beforeEach(() => {
 		vi.clearAllMocks();
+		mocks.project = {
+			id: "p1",
+			name: "My: Project?",
+			fps: 30,
+			canvasSize: { width: 1920, height: 1080 },
+			backgroundColor: "#123456",
+			backgroundType: "color",
+		};
 		HTMLCanvasElement.prototype.toBlob = function toBlob(callback) {
 			callback(new Blob(["png"], { type: "image/png" }));
 		};
@@ -80,14 +88,6 @@ describe("exportStillFrame", () => {
 		const result = await exportStillFrame();
 		expect(result).toEqual({ ok: false, error: "No active project" });
 		expect(mocks.renderFrame).not.toHaveBeenCalled();
-		mocks.project = {
-			id: "p1",
-			name: "My: Project?",
-			fps: 30,
-			canvasSize: { width: 1920, height: 1080 },
-			backgroundColor: "#123456",
-			backgroundType: "color",
-		};
 	});
 
 	it("propagates renderer failures as errors", async () => {

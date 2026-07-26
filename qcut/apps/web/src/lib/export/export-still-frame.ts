@@ -59,8 +59,10 @@ export async function exportStillFrame(): Promise<StillFrameExportResult> {
 		videoCache: new Map(),
 		usedImages: new Set(),
 		fps,
-		backgroundColor:
-			project.backgroundType === "blur" ? undefined : project.backgroundColor,
+		// Blur backdrops are preview-only; fall back to the stored project
+		// color so blur-mode stills keep the project background instead of
+		// silently going black.
+		backgroundColor: project.backgroundColor,
 	};
 
 	try {

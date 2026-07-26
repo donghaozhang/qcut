@@ -79,7 +79,9 @@ export function PreviewViewOptionsMenu() {
 					aria-label={t("editor.preview.viewOptions")}
 					data-testid="preview-options-button"
 				>
-					<SlidersHorizontal className="h-4 w-4" />
+					<SlidersHorizontal className="h-4 w-4">
+						<title>{t("editor.preview.viewOptions")}</title>
+					</SlidersHorizontal>
 				</Button>
 			</DropdownMenuTrigger>
 			<DropdownMenuContent align="start" className="w-56">

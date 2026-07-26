@@ -1,6 +1,12 @@
 "use client";
 
-import { useEffect, useRef, useState, type RefObject } from "react";
+import {
+	useEffect,
+	useRef,
+	useState,
+	type PointerEvent as ReactPointerEvent,
+	type RefObject,
+} from "react";
 import {
 	addGuide,
 	clampGuidePosition,
@@ -164,7 +170,7 @@ export function PreviewGuidesLayer({
 	};
 
 	const beginDrag = (
-		event: React.PointerEvent,
+		event: ReactPointerEvent,
 		axis: GuideAxis,
 		index: number | null
 	) => {
@@ -175,7 +181,7 @@ export function PreviewGuidesLayer({
 		setDragState({ axis, index, position });
 	};
 
-	const handleDragMove = (event: React.PointerEvent) => {
+	const handleDragMove = (event: ReactPointerEvent) => {
 		if (!dragState) return;
 		const position = pointerToCanvas(event);
 		if (!position) return;
