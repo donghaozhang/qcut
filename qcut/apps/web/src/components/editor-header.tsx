@@ -18,6 +18,7 @@ import { useTimelineStore } from "@/stores/timeline/timeline-store";
 import { HeaderBase } from "./header-base";
 import { formatTimeCode } from "@/lib/time";
 import { useProjectStore } from "@/stores/project-store";
+import { useAppSettingsStore } from "@/stores/app-settings-store";
 import { useState } from "react";
 import {
 	DropdownMenu,
@@ -50,6 +51,7 @@ import { useAppVersion } from "@/hooks/use-app-version";
 export function EditorHeader() {
 	const { getTotalDuration } = useTimelineStore();
 	const { activeProject, renameProject, deleteProject } = useProjectStore();
+	const timecodeFormat = useAppSettingsStore((state) => state.timecodeFormat);
 	const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
 	const [isRenameDialogOpen, setIsRenameDialogOpen] = useState(false);
 	const [isAboutDialogOpen, setIsAboutDialogOpen] = useState(false);
@@ -214,7 +216,7 @@ export function EditorHeader() {
 			<span>
 				{formatTimeCode(
 					getTotalDuration(),
-					"HH:MM:SS:FF",
+					timecodeFormat,
 					activeProject?.fps || 30
 				)}
 			</span>

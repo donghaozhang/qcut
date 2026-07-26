@@ -7,6 +7,10 @@ import {
 	ProjectGuides,
 } from "@/types/project";
 import { CanvasSize, CanvasMode } from "@/types/editor";
+import {
+	getDefaultCanvasOption,
+	useAppSettingsStore,
+} from "@/stores/app-settings-store";
 import { create } from "zustand";
 import { storageService } from "@/lib/storage/storage-service";
 import { toast } from "sonner";
@@ -224,6 +228,8 @@ export const useProjectStore = create<ProjectStore>((set, get) => ({
 		options?: { canvasSize?: CanvasSize; folderId?: string | null }
 	) => {
 		const mainScene = createMainScene();
+		const appSettings = useAppSettingsStore.getState();
+		const defaultCanvas = getDefaultCanvasOption(appSettings.defaultCanvasId);
 
 		const newProject: TProject = {
 			id: generateUUID(),
@@ -238,8 +244,11 @@ export const useProjectStore = create<ProjectStore>((set, get) => ({
 			backgroundType: "color",
 			blurIntensity: 8,
 			bookmarks: [],
-			fps: DEFAULT_FPS,
-			canvasSize: options?.canvasSize ?? DEFAULT_CANVAS_SIZE,
+			fps: appSettings.defaultFps || DEFAULT_FPS,
+			canvasSize: options?.canvasSize ?? {
+				width: defaultCanvas.width,
+				height: defaultCanvas.height,
+			},
 			canvasMode: "preset",
 			audioMix: createDefaultProjectAudioMixSettings(),
 		};

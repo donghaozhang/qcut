@@ -32,6 +32,7 @@ import { useAspectRatio } from "@/hooks/media/use-aspect-ratio";
 import { cn } from "@/lib/utils";
 import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
 import { formatTimeCode } from "@/lib/time";
+import { useAppSettingsStore } from "@/stores/app-settings-store";
 import { EditableTimecode } from "@/components/ui/editable-timecode";
 import { BackgroundSettings } from "../background-settings";
 import type { TProject } from "@/types/project";
@@ -83,6 +84,7 @@ export function FullscreenToolbar({
 	const { isPlaying, seek } = usePlaybackStore();
 	const { activeProject } = useProjectStore();
 	const [isDragging, setIsDragging] = useState(false);
+	const timecodeFormat = useAppSettingsStore((state) => state.timecodeFormat);
 
 	const totalDuration = getTotalDuration();
 	const progress = totalDuration > 0 ? (currentTime / totalDuration) * 100 : 0;
@@ -152,7 +154,7 @@ export function FullscreenToolbar({
 				<EditableTimecode
 					time={currentTime}
 					duration={totalDuration}
-					format="HH:MM:SS:FF"
+					format={timecodeFormat}
 					fps={activeProject?.fps || 30}
 					onTimeChange={seek}
 					disabled={!hasAnyElements}
@@ -162,7 +164,7 @@ export function FullscreenToolbar({
 				<span>
 					{formatTimeCode(
 						totalDuration,
-						"HH:MM:SS:FF",
+						timecodeFormat,
 						activeProject?.fps || 30
 					)}
 				</span>
@@ -370,6 +372,7 @@ export function PreviewToolbar({
 	} = usePlaybackStore();
 	const { setCanvasSize, setCanvasSizeToOriginal } = useEditorStore();
 	const { activeProject, updateProjectCanvasSize } = useProjectStore();
+	const timecodeFormat = useAppSettingsStore((state) => state.timecodeFormat);
 	const [previewProxyCacheStats, setPreviewProxyCacheStats] =
 		useState<PreviewProxyCacheStats | null>(null);
 	const [previewProxyCacheStatus, setPreviewProxyCacheStatus] =
@@ -550,7 +553,7 @@ export function PreviewToolbar({
 					<EditableTimecode
 						time={currentTime}
 						duration={getTotalDuration()}
-						format="HH:MM:SS:FF"
+						format={timecodeFormat}
 						fps={activeProject?.fps || 30}
 						onTimeChange={seek}
 						disabled={!hasAnyElements}
@@ -559,7 +562,7 @@ export function PreviewToolbar({
 					<span className="tabular-nums">
 						{formatTimeCode(
 							getTotalDuration(),
-							"HH:MM:SS:FF",
+							timecodeFormat,
 							activeProject?.fps || 30
 						)}
 					</span>
