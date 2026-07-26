@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useId, useMemo, useRef, useState } from "react";
 import { Sparkles } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -194,6 +194,7 @@ export function MediaSpeedProperties({
 	const beatCache = useBeatDetectionStore((state) => state.cache);
 	const fps = useProjectStore((state) => state.activeProject?.fps ?? 30);
 	const interactionActive = useRef(false);
+	const frameInterpolationId = useId();
 
 	const speedKeyframes = element.speedKeyframes ?? [];
 	const sourceDuration = getMediaSourceDuration(element);
@@ -537,10 +538,11 @@ export function MediaSpeedProperties({
 						) : null}
 						{mediaKind === "video" ? (
 							<div className="flex items-center justify-between gap-3 px-1">
-								<PropertyItemLabel>
+								<PropertyItemLabel htmlFor={frameInterpolationId}>
 									{t("audioProperties.speed.frameInterpolation")}
 								</PropertyItemLabel>
 								<Switch
+									id={frameInterpolationId}
 									aria-label={t("audioProperties.speed.frameInterpolation")}
 									data-testid="speed-frame-interpolation"
 									checked={element.frameInterpolation === "motion-compensated"}

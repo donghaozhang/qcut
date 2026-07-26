@@ -41,8 +41,10 @@ const SPEED_CURVE_SEEK_DELTAS: Record<string, number> = {
 	PageUp: 10,
 };
 
-// Playhead counts as "on a point" within this fraction of the source duration.
+// Playhead counts as "on a point" within this fraction of the source duration,
+// capped so a long source keeps a tight radius instead of a multi-second one.
 const POINT_HIT_RATIO = 0.02;
+const POINT_HIT_MAX_FRAMES = 6;
 
 function clamp({
 	value,
@@ -92,7 +94,10 @@ export function SpeedCurveEditor({
 	const plotRef = useRef<HTMLDivElement>(null);
 	const safeDuration = Math.max(1, durationInFrames);
 	const sorted = [...keyframes].sort((left, right) => left.frame - right.frame);
-	const hitThreshold = Math.max(1, Math.round(safeDuration * POINT_HIT_RATIO));
+	const hitThreshold = Math.min(
+		POINT_HIT_MAX_FRAMES,
+		Math.max(1, Math.round(safeDuration * POINT_HIT_RATIO))
+	);
 	const playheadHitIndex =
 		playheadFrame == null
 			? -1

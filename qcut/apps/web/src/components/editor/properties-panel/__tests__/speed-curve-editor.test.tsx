@@ -88,6 +88,41 @@ describe("SpeedCurveEditor", () => {
 		expect(next.map((point) => point.id)).toEqual(["start", "end"]);
 	});
 
+	it("keeps the hit radius tight on long sources", () => {
+		// One hour at 30fps: a proportional radius would swallow ~72 seconds.
+		const durationInFrames = 108_000;
+		const onChange = vi.fn<(keyframes: MediaPropertyKeyframe[]) => void>();
+		render(
+			<SpeedCurveEditor
+				keyframes={[
+					keyframe({ id: "start", frame: 0, value: 1 }),
+					keyframe({ id: "middle", frame: 54_000, value: 4 }),
+					keyframe({ id: "end", frame: durationInFrames, value: 1 }),
+				]}
+				durationInFrames={durationInFrames}
+				playheadFrame={53_000}
+				sourceDurationLabel="60:00.0"
+				timelineDurationLabel="60:00.0"
+				durationLabel="Duration"
+				resetLabel="Reset"
+				addPointLabel="Add speed point"
+				removePointLabel="Remove speed point"
+				seekLabel="Move the playhead"
+				onChange={onChange}
+				onInteractionStart={vi.fn()}
+				onInteractionEnd={vi.fn()}
+				onReset={vi.fn()}
+			/>
+		);
+
+		const toggle = screen.getByTestId("speed-curve-point-toggle");
+		expect(toggle).toHaveAccessibleName("Add speed point");
+		fireEvent.click(toggle);
+		const next = onChange.mock.calls[0][0] as MediaPropertyKeyframe[];
+		expect(next).toHaveLength(4);
+		expect(next.map((point) => point.frame)).toContain(53_000);
+	});
+
 	it("disables the toggle on boundary points and without a playhead", () => {
 		renderEditor({ keyframes: flatCurve, playheadFrame: 0 });
 		expect(screen.getByTestId("speed-curve-point-toggle")).toBeDisabled();
