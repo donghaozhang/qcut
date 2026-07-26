@@ -66,6 +66,41 @@ bun run pipeline edit portrait-filter --list-presets --json
 bun run pipeline edit portrait-filter -i input.mp4 --preset soft-skin --beauty 25 --output portrait.mp4
 ```
 
+## Optional Sticker And SFX Pass
+
+When the user asks for stickers, keep the normal hard-captioned MP4 as the
+no-sticker version and render a second publishing candidate. Search the catalog
+before writing the plan so every `stickerId` is known to exist:
+
+```bash
+bun run pipeline edit sticker-search \
+  --query detective \
+  --collection fluent-emoji-flat \
+  --limit 12 \
+  --json
+
+bun run pipeline edit sticker-overlay \
+  -i video_vlog.mp4 \
+  --plan sticker-plan.json \
+  --output video_vlog-stickers-sfx.mp4 \
+  --save-intermediates \
+  --json
+```
+
+The versioned JSON plan contains timed `stickerId` or local `source` entries,
+canvas positions, sizes, fades, and optional local sound effects. Keep
+talking-head treatments restrained:
+
+- Use about 6 to 8 semantic accents in a four-minute video.
+- Match each sticker to the spoken idea instead of adding generic decoration.
+- Keep stickers out of the face and hard-caption safe area.
+- Alternate upper-left and upper-right placement when the framing allows it.
+- Start SFX volume around `0.08` to `0.18`; preserve intelligible speech and
+  keep the final peak below `0 dB`.
+- Save the plan and materialized assets beside the enhanced output.
+- Decode the full output, compare duration and frame count, inspect every cue,
+  and measure audio peaks before reporting success.
+
 ## Modes
 
 ### Analyze Before Rendering
@@ -155,6 +190,11 @@ re-burns the video when either the editable video or SRT is newer.
 ├── <video-name>_clean_audio.mp3
 ├── transcription.srt                        # edit this if captions need correction
 ├── <video-name>_vlog.mp4                     # hard-captioned publishing version
+├── sticker-version/                          # when stickers were requested
+│   ├── <video-name>_vlog-no-stickers.mp4
+│   ├── <video-name>_vlog-stickers-sfx.mp4
+│   ├── sticker-plan.json
+│   └── verification/
 ├── vlog-manifest.json
 ├── clean-metadata/
 │   ├── words.json
