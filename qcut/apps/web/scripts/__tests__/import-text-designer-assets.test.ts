@@ -395,12 +395,12 @@ describe("text designer asset import script", () => {
 			dryRun: true,
 			generatedManifestPath: "/tmp/generated.json",
 			marketplaceConfigPath: expect.stringContaining(
-				"text-assets/marketplace.json"
+				join("text-assets", "marketplace.json")
 			),
 			minDesignerAssets: 10,
 			minDesignerAssetsPerCategory: 5,
 			packDir: "/tmp/designer-pack",
-			packManifestPath: "/tmp/designer-pack/manifest.json",
+			packManifestPath: join("/tmp/designer-pack", "manifest.json"),
 			publicDir: "/tmp/public",
 			requiredDesignerCategories: ["red", "texture"],
 			syncMarketplace: true,
