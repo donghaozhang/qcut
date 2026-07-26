@@ -105,6 +105,9 @@ jobs:
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
+      - name: Verify update artifacts
+        run: bun run verify:update-artifacts -- --manifest latest.yml
+
       - name: Upload artifacts
         uses: actions/upload-artifact@v7
         with:
@@ -208,6 +211,9 @@ jobs:
         env:
           APPLE_TEAM_ID: ${{ vars.APPLE_TEAM_ID }}
 
+      - name: Verify update artifacts
+        run: bun run verify:update-artifacts -- --manifest latest-mac.yml
+
       - name: Upload artifacts
         uses: actions/upload-artifact@v7
         with:
@@ -296,12 +302,16 @@ jobs:
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
+      - name: Verify update artifacts
+        run: bun run verify:update-artifacts -- --manifest latest-linux.yml
+
       - name: Upload artifacts
         uses: actions/upload-artifact@v7
         with:
           name: linux-build
           path: |
             qcut/dist-electron/*.AppImage
+            qcut/dist-electron/*.AppImage.blockmap
             qcut/dist-electron/*.deb
             qcut/dist-electron/latest-linux.yml
             !qcut/dist-electron/builder-debug.yml
@@ -346,6 +356,7 @@ jobs:
             artifacts/macos-build/*.blockmap
             artifacts/macos-build/latest-mac.yml
             artifacts/linux-build/*.AppImage
+            artifacts/linux-build/*.AppImage.blockmap
             artifacts/linux-build/*.deb
             artifacts/linux-build/latest-linux.yml
             artifacts/SHA256SUMS.txt

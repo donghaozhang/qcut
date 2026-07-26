@@ -5,6 +5,7 @@ import { Toaster } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { StorageProvider } from "@/components/storage-provider";
 import { UpdateNotification } from "@/components/update-notification";
+import { CodexPluginUpdateNotification } from "@/components/codex-plugin-update-notification";
 import { FFmpegHealthNotification } from "@/components/ffmpeg-health-notification";
 import { ErrorBoundary } from "@/components/error-boundary";
 import { BlobUrlCleanup } from "@/components/providers/migrators/blob-url-cleanup";
@@ -72,6 +73,7 @@ function RootComponent() {
 							</ErrorBoundary>
 							<Toaster />
 							{isDesktop && <UpdateNotification />}
+							{isDesktop && <CodexPluginUpdateNotification />}
 							<FFmpegHealthNotification />
 						</BlobUrlCleanup>
 					</StorageProvider>

@@ -11,6 +11,7 @@ import {
 	isVersionDismissed,
 	dismissVersion,
 } from "@/lib/project/release-notes";
+import { useTranslation } from "@/lib/i18n";
 
 const EMPTY_STATE: PlatformUpdateState = {
 	phase: "idle",
@@ -61,6 +62,7 @@ async function resolveHighlights({
 }
 
 export function UpdateNotification() {
+	const { t } = useTranslation();
 	const hasUpdates = (() => {
 		try {
 			return platform().hasCapability(PlatformCapability.Updates);
@@ -95,15 +97,15 @@ export function UpdateNotification() {
 		if (!hasUpdates) return;
 		platform()
 			.updates.installUpdate()
-			.catch(() => toast.error("Failed to install update"));
-	}, [hasUpdates]);
+			.catch(() => toast.error(t("updates.installFailed")));
+	}, [hasUpdates, t]);
 
 	const handleDownload = useCallback(() => {
 		if (!hasUpdates) return;
 		platform()
 			.updates.downloadUpdate()
-			.catch(() => toast.error("Failed to download update"));
-	}, [hasUpdates]);
+			.catch(() => toast.error(t("updates.downloadFailed")));
+	}, [hasUpdates, t]);
 
 	const handleDismiss = useCallback((version: string) => {
 		dismissVersion(version);
@@ -147,11 +149,13 @@ export function UpdateNotification() {
 				role="alert"
 				aria-live="polite"
 			>
-				<p className="text-sm font-medium">QCut v{state.version} available</p>
+				<p className="text-sm font-medium">
+					{t("updates.appAvailable", { version: state.version })}
+				</p>
 				<p className="mt-1 text-xs text-muted-foreground">
 					{state.decision === "too-large"
-						? "Large update"
-						: "Ready to download"}
+						? t("updates.largeUpdate")
+						: t("updates.readyToDownload")}
 					{size ? ` · ${size}` : ""}
 				</p>
 				<div className="mt-3 flex justify-end gap-2">
@@ -166,7 +170,7 @@ export function UpdateNotification() {
 							})
 						}
 					>
-						Later
+						{t("updates.later")}
 					</button>
 					<button
 						type="button"
@@ -176,7 +180,7 @@ export function UpdateNotification() {
 							handleButtonKeyDown({ event, action: handleDownload })
 						}
 					>
-						Download
+						{t("updates.download")}
 					</button>
 				</div>
 			</div>
@@ -191,7 +195,10 @@ export function UpdateNotification() {
 				aria-live="polite"
 			>
 				<p className="mb-1 text-xs text-muted-foreground">
-					Downloading v{state.version}... {state.percent}%
+					{t("updates.appDownloading", {
+						version: state.version ?? "",
+						percent: state.percent,
+					})}
 				</p>
 				<div className="h-1.5 overflow-hidden rounded-full bg-muted">
 					<div
@@ -210,7 +217,9 @@ export function UpdateNotification() {
 				role="alert"
 				aria-live="polite"
 			>
-				<p className="text-sm font-medium">QCut v{state.version} is ready</p>
+				<p className="text-sm font-medium">
+					{t("updates.appReady", { version: state.version })}
+				</p>
 				{highlights.length > 0 && (
 					<ul className="mt-1 space-y-0.5 text-xs text-muted-foreground">
 						{highlights.map((highlight) => (
@@ -230,7 +239,7 @@ export function UpdateNotification() {
 							})
 						}
 					>
-						Later
+						{t("updates.later")}
 					</button>
 					<button
 						type="button"
@@ -240,7 +249,7 @@ export function UpdateNotification() {
 							handleButtonKeyDown({ event, action: handleInstall })
 						}
 					>
-						Restart
+						{t("updates.restart")}
 					</button>
 				</div>
 			</div>

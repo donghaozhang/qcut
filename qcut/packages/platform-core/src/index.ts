@@ -76,6 +76,9 @@ export type {
 	PlatformAutomaticUpdateDecision,
 	PlatformUpdatePreferences,
 	PlatformUpdateState,
+	PlatformCodexPluginUpdatePhase,
+	PlatformCodexPluginUpdateState,
+	PlatformCodexPluginUpdatesAPI,
 	PlatformFillerAnalysisAPI,
 	PlatformPiAgentAPI,
 } from "./types/integration-api.js";

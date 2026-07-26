@@ -629,6 +629,39 @@ export interface PlatformUpdateState {
 	error?: string;
 }
 
+export type PlatformCodexPluginUpdatePhase =
+	| "idle"
+	| "checking"
+	| "not-installed"
+	| "up-to-date"
+	| "available"
+	| "updating"
+	| "restart-required"
+	| "unavailable"
+	| "error";
+
+export interface PlatformCodexPluginUpdateState {
+	phase: PlatformCodexPluginUpdatePhase;
+	codexAvailable: boolean;
+	installed: boolean;
+	installedVersion?: string;
+	latestVersion?: string;
+	latestTag?: string;
+	marketplaceName?: string;
+	marketplaceSourceType?: string;
+	message?: string;
+	error?: string;
+}
+
+export interface PlatformCodexPluginUpdatesAPI {
+	checkForUpdates(): Promise<PlatformCodexPluginUpdateState>;
+	installUpdate(): Promise<PlatformCodexPluginUpdateState>;
+	getState(): Promise<PlatformCodexPluginUpdateState>;
+	onStateChanged(
+		callback: (state: PlatformCodexPluginUpdateState) => void
+	): () => void;
+}
+
 export interface PlatformUpdatesAPI {
 	checkForUpdates(): Promise<PlatformUpdateState>;
 	downloadUpdate(): Promise<PlatformUpdateState>;
@@ -656,6 +689,7 @@ export interface PlatformUpdatesAPI {
 	): () => void;
 	onUpdateDownloaded(callback: (data: { version: string }) => void): () => void;
 	onStateChanged(callback: (state: PlatformUpdateState) => void): () => void;
+	plugin?: PlatformCodexPluginUpdatesAPI;
 }
 
 // ---------------------------------------------------------------------------

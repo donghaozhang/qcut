@@ -1,7 +1,7 @@
 {
 	"name": "qcut",
-	"version": "2026.7.2602",
-	"qcutReleaseVersion": "2026.07.26.2",
+	"version": "2026.7.2603",
+	"qcutReleaseVersion": "2026.07.26.3",
 	"description": "QCut - Open-source video editor",
 	"author": {
 		"name": "QCut Team",
@@ -102,6 +102,7 @@
 		"verify:packaged-ffmpeg": "bun scripts/verify-packaged-ffmpeg.ts",
 		"verify:packaged-aicp": "bun scripts/verify-packaged-aicp.ts",
 		"verify:macos-signature": "bun scripts/verify-macos-signature.ts",
+		"verify:update-artifacts": "bun scripts/verify-update-artifacts.ts",
 		"setup-ffmpeg": "bun scripts/setup-ffmpeg.ts",
 		"stage-ffmpeg-binaries": "bun scripts/stage-ffmpeg-binaries.ts",
 		"stage-aicp-binaries": "bun scripts/stage-aicp-binaries.ts",
@@ -247,7 +248,7 @@
 			"verifyUpdateCodeSignature": false,
 			"signAndEditExecutable": false,
 			"requestedExecutionLevel": "asInvoker",
-			"artifactName": "${productName}-Setup-${version}.${ext}",
+			"artifactName": "QCut-AI-Video-Editor-Setup-${version}.${ext}",
 			"compression": "store"
 		},
 		"nsis": {
@@ -271,7 +272,7 @@
 			"warningsAsErrors": false,
 			"packElevateHelper": true,
 			"differentialPackage": true,
-			"artifactName": "${productName}-Setup-${version}.${ext}",
+			"artifactName": "QCut-AI-Video-Editor-Setup-${version}.${ext}",
 			"guid": "0fa53e31-8a77-5f52-ad1c-f9c8705b5d38"
 		},
 		"mac": {
@@ -290,12 +291,14 @@
 			"entitlements": "build/entitlements.mac.plist",
 			"entitlementsInherit": "build/entitlements.mac.plist",
 			"identity": "Quriosity Pty Ltd (JQ3Q27U24X)",
-			"notarize": true
+			"notarize": true,
+			"artifactName": "QCut-AI-Video-Editor-${version}-${arch}-mac.${ext}"
 		},
 		"linux": {
 			"icon": "build/icons",
 			"category": "Video",
 			"maintainer": "QCut Team <support@qcut.app>",
+			"artifactName": "QCut-AI-Video-Editor-${version}-${arch}.${ext}",
 			"target": [
 				{
 					"target": "AppImage",

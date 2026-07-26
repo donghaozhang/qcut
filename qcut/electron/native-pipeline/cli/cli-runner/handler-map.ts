@@ -106,6 +106,10 @@ import { handleRecordDaemon } from "../cli-handlers-record-daemon.js";
 import { handleSystemDoctor } from "../cli-handlers-system-doctor.js";
 import { handlePersonCutout } from "../cli-handlers-person-cutout.js";
 import { handlePortraitFilter } from "../cli-handlers-portrait-filter.js";
+import {
+	handleStickerOverlay,
+	handleStickerSearch,
+} from "../cli-handlers-stickers.js";
 import { handleInstancesCommand } from "../instance-selection.js";
 
 /**
@@ -275,6 +279,8 @@ export const HANDLER_MAP: Record<string, CommandHandler> = {
 	"subtitle-export": wrapOPS(handleSubtitleExport),
 	"person-cutout": wrapOPS(handlePersonCutout),
 	"portrait-filter": wrapOPS(handlePortraitFilter),
+	"sticker-search": wrapOPS(handleStickerSearch),
+	"sticker-overlay": wrapOPS(handleStickerOverlay),
 
 	// ── Autoclip ──
 	"autoclip": async (options, onProgress, _executor, signal) =>

@@ -49,5 +49,6 @@ describe("platform-init", () => {
 		const p = platform();
 		expect(p.platform).toBe("desktop");
 		expect(p.isElectron).toBe(true);
+		expect(p.updates.plugin).toBeUndefined();
 	});
 });

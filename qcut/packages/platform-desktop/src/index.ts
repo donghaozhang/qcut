@@ -13,6 +13,7 @@ import {
 	type PlatformAPI,
 	type PlatformAudioWaveformOptions,
 	type PlatformClaudeAPI,
+	type PlatformCodexPluginUpdateState,
 	type PlatformVideoCompositionFramePreviewOptions,
 	type PlatformUpdatePreferences,
 	type PlatformUpdateState,
@@ -352,6 +353,20 @@ const moyinAdapter = {
 	removeMoyinBridgeListeners: () => api().moyin.removeMoyinBridgeListeners(),
 };
 
+const pluginUpdatesAdapter = {
+	checkForUpdates: () =>
+		api().updates?.plugin?.checkForUpdates() ??
+		Promise.reject(new Error("QCut Plugin updates unavailable")),
+	installUpdate: () =>
+		api().updates?.plugin?.installUpdate() ??
+		Promise.reject(new Error("QCut Plugin updates unavailable")),
+	getState: () =>
+		api().updates?.plugin?.getState() ??
+		Promise.reject(new Error("QCut Plugin updates unavailable")),
+	onStateChanged: (cb: (state: PlatformCodexPluginUpdateState) => void) =>
+		api().updates?.plugin?.onStateChanged(cb) ?? (() => undefined),
+};
+
 const updatesAdapter = {
 	checkForUpdates: () => api().updates.checkForUpdates(),
 	downloadUpdate: () => api().updates.downloadUpdate(),
@@ -376,6 +391,9 @@ const updatesAdapter = {
 		api().updates.onUpdateDownloaded(cb),
 	onStateChanged: (cb: (state: PlatformUpdateState) => void) =>
 		api().updates.onStateChanged(cb),
+	get plugin() {
+		return api().updates?.plugin ? pluginUpdatesAdapter : undefined;
+	},
 };
 
 function createClaudeAdapter(): PlatformClaudeAPI | undefined {

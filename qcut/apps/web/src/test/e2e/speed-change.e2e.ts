@@ -252,10 +252,7 @@ test.describe("Speed change workflow", () => {
 		await expect
 			.poll(async () => (await speedState({ page })).speedKeyframes.length)
 			.toBe(9);
-		const curvePoint = speedPanel
-			.getByTestId("speed-curve-editor")
-			.getByRole("button")
-			.nth(1);
+		const curvePoint = speedPanel.getByTestId("speed-curve-point-1");
 		const curvePointBefore = (await speedState({ page })).speedKeyframes[1];
 		const curvePointBox = await curvePoint.boundingBox();
 		if (!curvePointBox) throw new Error("Speed curve point is not visible");
@@ -273,6 +270,23 @@ test.describe("Speed change workflow", () => {
 		await expect
 			.poll(async () => (await speedState({ page })).speedKeyframes[1].frame)
 			.not.toBe(curvePointBefore.frame);
+
+		// Clicking the plot moves the playhead, which arms the add/remove button.
+		const plotBox = await speedPanel
+			.getByTestId("speed-curve-seek-surface")
+			.boundingBox();
+		if (!plotBox) throw new Error("Speed curve seek surface is not visible");
+		await page.mouse.click(plotBox.x + plotBox.width * 0.8, plotBox.y + 10);
+		const pointCountBefore = (await speedState({ page })).speedKeyframes.length;
+		await speedPanel.getByTestId("speed-curve-point-toggle").click();
+		await expect
+			.poll(async () => (await speedState({ page })).speedKeyframes.length)
+			.toBe(pointCountBefore + 1);
+
+		// The clip now advertises its speed points on the timeline.
+		await expect(
+			page.getByTestId("timeline-speed-keyframe-marks").first()
+		).toBeVisible();
 		await page.screenshot({
 			path: path.join(artifactDirectory, "02-speed-curve.jpg"),
 			animations: "disabled",
@@ -292,8 +306,11 @@ test.describe("Speed change workflow", () => {
 				speedPanel.getByTestId(`speed-point-preset-${preset}`)
 			).toBeVisible();
 		}
+		// Beat sync stays disabled until a music clip has been analyzed.
+		await expect(
+			speedPanel.getByTestId("speed-beat-shape-pulse")
+		).toBeDisabled();
 		await speedPanel.getByTestId("speed-point-preset-rainbow").click();
-		await speedPanel.getByTestId("speed-frame-interpolation").click();
 		await expect
 			.poll(async () =>
 				(await speedState({ page })).effects.some(
@@ -302,15 +319,19 @@ test.describe("Speed change workflow", () => {
 				)
 			)
 			.toBe(true);
-		await expect
-			.poll(async () => (await speedState({ page })).frameInterpolation)
-			.toBe("motion-compensated");
 		await page.screenshot({
 			path: path.join(artifactDirectory, "03-speed-points.jpg"),
 			animations: "disabled",
 			type: "jpeg",
 			quality: 90,
 		});
+
+		// Smart interpolation now lives inside the curve tab, below the editor.
+		await speedPanel.getByTestId("speed-mode-curve").click();
+		await speedPanel.getByTestId("speed-frame-interpolation").click();
+		await expect
+			.poll(async () => (await speedState({ page })).frameInterpolation)
+			.toBe("motion-compensated");
 
 		await page.getByTestId("project-menu-button").click();
 		await page.getByRole("menuitem", { name: "快捷键" }).click();

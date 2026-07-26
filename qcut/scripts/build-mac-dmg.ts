@@ -23,11 +23,14 @@ if (apps.length !== 1) {
 }
 const appPath = join(macDir, apps[0]);
 const appName = apps[0].replace(/\.app$/, "");
+const artifactName = appName.replaceAll(" ", "-");
 
 // Derive version from electron-builder's .zip artifact so DMG and .zip filenames
 // stay in sync (electron-builder normalizes package.json's `version` via semver
 // and the literal version string from package.json may differ).
-const zipPattern = new RegExp(`^${escapeRegex(appName)}-(.+)-arm64-mac\\.zip$`);
+const zipPattern = new RegExp(
+	`^${escapeRegex(artifactName)}-(.+)-arm64-mac\\.zip$`
+);
 const zipMatch = getNewestMatchingFile({
 	directory: distDir,
 	pattern: zipPattern,
@@ -40,7 +43,7 @@ if (!zipMatch) {
 const version = zipMatch.replace(zipPattern, "$1");
 const productName = appName;
 
-const dmgFile = join(distDir, `${productName}-${version}-arm64.dmg`);
+const dmgFile = join(distDir, `${artifactName}-${version}-arm64.dmg`);
 
 function escapeRegex(s: string): string {
 	return s.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");

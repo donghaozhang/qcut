@@ -1084,5 +1084,23 @@ export function createUpdatesAPI(): NonNullable<ElectronAPI["updates"]> {
 			ipcRenderer.on("update-state-changed", handler);
 			return () => ipcRenderer.removeListener("update-state-changed", handler);
 		},
+		plugin: {
+			checkForUpdates: () =>
+				ipcRenderer.invoke("check-for-codex-plugin-updates"),
+			installUpdate: () => ipcRenderer.invoke("install-codex-plugin-update"),
+			getState: () => ipcRenderer.invoke("get-codex-plugin-update-state"),
+			onStateChanged: (callback) => {
+				const handler = (
+					_: IpcRendererEvent,
+					state: Parameters<typeof callback>[0]
+				) => callback(state);
+				ipcRenderer.on("codex-plugin-update-state-changed", handler);
+				return () =>
+					ipcRenderer.removeListener(
+						"codex-plugin-update-state-changed",
+						handler
+					);
+			},
+		},
 	};
 }

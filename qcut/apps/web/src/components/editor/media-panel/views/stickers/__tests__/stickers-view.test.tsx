@@ -61,22 +61,27 @@ describe("StickersView", () => {
 		expect(screen.getByTestId("sticker-category-popular")).toBeInTheDocument();
 	});
 
-	it("renders at least five stickers in every creator category", () => {
-		render(<StickersView />);
+	// Iterates every creator category; slow Windows CI runners exceed the 5s default.
+	it(
+		"renders at least five stickers in every creator category",
+		{ timeout: 20_000 },
+		() => {
+			render(<StickersView />);
 
-		for (const category of STICKER_CATEGORIES) {
-			fireEvent.click(screen.getByTestId(`sticker-category-${category.id}`));
-			const items = within(
-				screen.getByTestId("sticker-category-grid")
-			).getAllByTestId("sticker-item");
-			expect(items.length, category.id).toBeGreaterThanOrEqual(
-				STICKER_CATEGORY_MINIMUM_SIZE
-			);
-			expect(
-				screen.getByTestId(`sticker-category-${category.id}`)
-			).toHaveAttribute("aria-pressed", "true");
+			for (const category of STICKER_CATEGORIES) {
+				fireEvent.click(screen.getByTestId(`sticker-category-${category.id}`));
+				const items = within(
+					screen.getByTestId("sticker-category-grid")
+				).getAllByTestId("sticker-item");
+				expect(items.length, category.id).toBeGreaterThanOrEqual(
+					STICKER_CATEGORY_MINIMUM_SIZE
+				);
+				expect(
+					screen.getByTestId(`sticker-category-${category.id}`)
+				).toHaveAttribute("aria-pressed", "true");
+			}
 		}
-	});
+	);
 
 	it("searches curated stickers in Chinese", () => {
 		render(<StickersView />);

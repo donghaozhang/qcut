@@ -5,6 +5,7 @@
 
 import { app, ipcMain } from "electron";
 import type { UpdateState } from "../auto-update-controller.js";
+import type { CodexPluginUpdateState } from "../codex-plugin-update-controller.js";
 import type { UpdatePreferences } from "../update-preferences.js";
 import { toReleaseVersion } from "../update-version.js";
 import type { MainIpcDeps } from "./types.js";
@@ -23,8 +24,17 @@ function unavailableState(): UpdateState {
 	};
 }
 
+function unavailableCodexPluginState(): CodexPluginUpdateState {
+	return {
+		phase: "unavailable",
+		codexAvailable: false,
+		installed: false,
+		message: "QCut Plugin updates are only available in production builds",
+	};
+}
+
 export function registerUpdateHandlers(deps: MainIpcDeps): void {
-	const { logger, updateController } = deps;
+	const { logger, updateController, codexPluginUpdateController } = deps;
 
 	ipcMain.handle("get-update-state", async () => {
 		return updateController?.getState() ?? unavailableState();
@@ -89,5 +99,25 @@ export function registerUpdateHandlers(deps: MainIpcDeps): void {
 			logger.error("Error installing update:", message);
 			return { success: false, error: message };
 		}
+	});
+
+	ipcMain.handle("get-codex-plugin-update-state", async () => {
+		return (
+			codexPluginUpdateController?.getState() ?? unavailableCodexPluginState()
+		);
+	});
+
+	ipcMain.handle("check-for-codex-plugin-updates", async () => {
+		if (!codexPluginUpdateController) {
+			return unavailableCodexPluginState();
+		}
+		return codexPluginUpdateController.checkForUpdates();
+	});
+
+	ipcMain.handle("install-codex-plugin-update", async () => {
+		if (!codexPluginUpdateController) {
+			return unavailableCodexPluginState();
+		}
+		return codexPluginUpdateController.installUpdate();
 	});
 }

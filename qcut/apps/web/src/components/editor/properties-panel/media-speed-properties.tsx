@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useId, useMemo, useRef, useState } from "react";
 import { Sparkles } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -10,6 +10,7 @@ import {
 	clampPlaybackRate,
 	getMediaSourceDuration,
 	getMediaTimelineDuration,
+	mapMediaSourceTime,
 	mapMediaTimelineTime,
 } from "@/lib/video/video-timing";
 import { usePlaybackStore } from "@/stores/editor/playback-store";
@@ -38,10 +39,27 @@ import {
 	PropertyItemLabel,
 	PropertyItemValue,
 } from "./property-item";
-import { useTranslation } from "@/lib/i18n";
+import { type TranslationKey, useTranslation } from "@/lib/i18n";
 import { getEffectPresetById } from "@/lib/effects/effect-catalog";
+import { collectTimelineBeats } from "@/lib/audio/timeline-beats";
+import { useBeatDetectionStore } from "@/stores/beat-detection-store";
+import {
+	BEAT_SYNC_SHAPES,
+	type BeatSyncShapeId,
+	createBeatSyncKeyframes,
+	resolveElementBeatFrames,
+} from "@/lib/video/speed-beat-sync";
 
 const SPEED_PRESETS = [0.5, 1, 1.5, 2] as const;
+
+const BEAT_SYNC_SHAPE_OPTIONS: {
+	id: BeatSyncShapeId;
+	nameKey: TranslationKey;
+}[] = [
+	{ id: "pulse", nameKey: "audioProperties.speed.beatShape.pulse" },
+	{ id: "dip", nameKey: "audioProperties.speed.beatShape.dip" },
+	{ id: "hold", nameKey: "audioProperties.speed.beatShape.hold" },
+];
 
 function formatDurationDraft({ duration }: { duration: number }): string {
 	return String(Number(duration.toFixed(2)));
@@ -145,13 +163,13 @@ function createFlatSpeedCurve({
 			id: generateUUID(),
 			frame: 0,
 			value: playbackRate,
-			easing: "linear",
+			easing: "easeInOut",
 		},
 		{
 			id: generateUUID(),
 			frame: endFrame,
 			value: playbackRate,
-			easing: "linear",
+			easing: "easeInOut",
 		},
 	];
 }
@@ -171,8 +189,12 @@ export function MediaSpeedProperties({
 	);
 	const pushHistory = useTimelineStore((state) => state.pushHistory);
 	const currentTime = usePlaybackStore((state) => state.currentTime);
+	const seek = usePlaybackStore((state) => state.seek);
+	const tracks = useTimelineStore((state) => state.tracks);
+	const beatCache = useBeatDetectionStore((state) => state.cache);
 	const fps = useProjectStore((state) => state.activeProject?.fps ?? 30);
 	const interactionActive = useRef(false);
+	const frameInterpolationId = useId();
 
 	const speedKeyframes = element.speedKeyframes ?? [];
 	const sourceDuration = getMediaSourceDuration(element);
@@ -207,6 +229,43 @@ export function MediaSpeedProperties({
 		localTimelineTime: currentTime - element.startTime,
 		fps,
 	});
+	const playheadLocalTime = currentTime - element.startTime;
+	const playheadFrame =
+		playheadLocalTime >= 0 && playheadLocalTime <= timelineDuration
+			? Math.min(
+					sourceDurationInFrames,
+					Math.max(0, Math.round(playbackTiming.sourceTime * fps))
+				)
+			: null;
+
+	const beatFrames = useMemo(
+		() =>
+			resolveElementBeatFrames({
+				element,
+				fps,
+				timelineBeats: collectTimelineBeats({ beatCache, fps, tracks }),
+			}),
+		[beatCache, element, fps, tracks]
+	);
+
+	const applyBeatSync = ({ shapeId }: { shapeId: BeatSyncShapeId }) => {
+		if (beatFrames.length === 0) return;
+		setSpeedMode("curve");
+		setCurveSelection("custom");
+		setSpeedKeyframes(
+			createBeatSyncKeyframes({
+				beatFrames,
+				durationInFrames: sourceDurationInFrames,
+				fps,
+				shape: BEAT_SYNC_SHAPES[shapeId],
+			})
+		);
+	};
+
+	const seekToSourceFrame = (frame: number) => {
+		const sourceTime = Math.min(sourceDuration, Math.max(0, frame / fps));
+		seek(element.startTime + mapMediaSourceTime({ element, sourceTime, fps }));
+	};
 
 	const update = (updates: MediaUpdates, history = true) =>
 		updateMediaTiming(trackId, element.id, updates, history);
@@ -458,6 +517,7 @@ export function MediaSpeedProperties({
 							<SpeedCurveEditor
 								keyframes={speedKeyframes}
 								durationInFrames={sourceDurationInFrames}
+								playheadFrame={playheadFrame}
 								sourceDurationLabel={formatDuration({
 									seconds: sourceDuration,
 								})}
@@ -466,16 +526,73 @@ export function MediaSpeedProperties({
 								})}
 								durationLabel={t("audioProperties.speed.duration")}
 								resetLabel={t("audioProperties.speed.reset")}
+								addPointLabel={t("audioProperties.speed.addPoint")}
+								removePointLabel={t("audioProperties.speed.removePoint")}
+								seekLabel={t("audioProperties.speed.seekCurve")}
 								onChange={updateCustomCurve}
 								onInteractionStart={beginInteraction}
 								onInteractionEnd={endInteraction}
 								onReset={resetCurve}
+								onSeekToFrame={seekToSourceFrame}
 							/>
+						) : null}
+						{mediaKind === "video" ? (
+							<div className="flex items-center justify-between gap-3 px-1">
+								<PropertyItemLabel htmlFor={frameInterpolationId}>
+									{t("audioProperties.speed.frameInterpolation")}
+								</PropertyItemLabel>
+								<Switch
+									id={frameInterpolationId}
+									aria-label={t("audioProperties.speed.frameInterpolation")}
+									data-testid="speed-frame-interpolation"
+									checked={element.frameInterpolation === "motion-compensated"}
+									onCheckedChange={(enabled) =>
+										update({
+											frameInterpolation: enabled
+												? "motion-compensated"
+												: "none",
+										})
+									}
+								/>
+							</div>
 						) : null}
 					</div>
 				</TabsContent>
 
-				<TabsContent value="beat" className="mt-4">
+				<TabsContent value="beat" className="mt-4 space-y-4">
+					<PropertyGroup
+						title={t("audioProperties.speed.beatSync")}
+						defaultExpanded
+					>
+						<div className="space-y-2" data-testid="speed-beat-sync">
+							<p
+								className="text-[11px] text-muted-foreground"
+								data-testid="speed-beat-count"
+							>
+								{beatFrames.length > 0
+									? t("audioProperties.speed.beatFound", {
+											count: String(beatFrames.length),
+										})
+									: t("audioProperties.speed.beatMissing")}
+							</p>
+							<div className="grid grid-cols-3 gap-1">
+								{BEAT_SYNC_SHAPE_OPTIONS.map((option) => (
+									<Button
+										key={option.id}
+										type="button"
+										variant="outline"
+										size="sm"
+										disabled={beatFrames.length === 0}
+										className="text-[11px]"
+										data-testid={`speed-beat-shape-${option.id}`}
+										onClick={() => applyBeatSync({ shapeId: option.id })}
+									>
+										{t(option.nameKey)}
+									</Button>
+								))}
+							</div>
+						</div>
+					</PropertyGroup>
 					<PropertyGroup
 						title={t("audioProperties.speed.beat")}
 						defaultExpanded
@@ -520,23 +637,6 @@ export function MediaSpeedProperties({
 								checked={element.preservePitch === false}
 								onCheckedChange={(pitchShift) =>
 									update({ preservePitch: !pitchShift })
-								}
-							/>
-						</div>
-					) : null}
-					{mediaKind === "video" ? (
-						<div className="flex items-center justify-between gap-3">
-							<PropertyItemLabel>
-								{t("audioProperties.speed.frameInterpolation")}
-							</PropertyItemLabel>
-							<Switch
-								aria-label={t("audioProperties.speed.frameInterpolation")}
-								data-testid="speed-frame-interpolation"
-								checked={element.frameInterpolation === "motion-compensated"}
-								onCheckedChange={(enabled) =>
-									update({
-										frameInterpolation: enabled ? "motion-compensated" : "none",
-									})
 								}
 							/>
 						</div>

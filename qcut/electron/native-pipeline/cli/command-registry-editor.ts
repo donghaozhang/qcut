@@ -850,12 +850,26 @@ export const EDITOR_COMMANDS: Record<string, CommandDef> = {
 	),
 
 	// ── Sticker ──
+	"editor:sticker:search": ed(
+		"editor:sticker:search",
+		"Search the Iconify sticker catalog",
+		[
+			f("--query", "string", "Sticker search query", { required: true }),
+			f("--collection", "string", "Limit results to an Iconify collection"),
+			f("--limit", "number", "Maximum results", { default: 24 }),
+		],
+		["qcut-pipeline editor:sticker:search --query detective --limit 12 --json"]
+	),
 	"editor:sticker:add": ed(
 		"editor:sticker:add",
 		"Add a sticker to the timeline at a specific position and time",
 		[
 			PID,
-			f("--sticker-id", "string", "Sticker ID from catalog"),
+			f(
+				"--sticker-id",
+				"string",
+				"Iconify sticker ID (collection:icon) or legacy catalog ID"
+			),
 			f("--source", "string", "Path to custom image file (PNG/JPG/WebP)"),
 			f("--x", "number", "X position in pixels", { default: 0 }),
 			f("--y", "number", "Y position in pixels", { default: 0 }),
@@ -867,7 +881,7 @@ export const EDITOR_COMMANDS: Record<string, CommandDef> = {
 			f("--opacity", "number", "Opacity (0-1)", { default: 1 }),
 		],
 		[
-			"qcut-pipeline editor:sticker:add --project-id <id> --sticker-id stk_emoji_fire --x 860 --y 440 --start-time 2 --end-time 5 --width 200 --json",
+			"qcut-pipeline editor:sticker:add --project-id <id> --sticker-id fluent-emoji:fire --x 860 --y 440 --start-time 2 --end-time 5 --width 200 --json",
 			"qcut-pipeline editor:sticker:add --project-id <id> --source /tmp/logo.png --x 50 --y 50 --start-time 0 --end-time 10 --width 100 --json",
 		]
 	),
