@@ -12,6 +12,16 @@ import {
 } from "@/lib/video/video-speed-constants";
 import type { MediaPropertyKeyframe } from "@/types/timeline";
 
+const SPEED_CURVE_KEY_DELTAS: Record<
+	string,
+	{ frameDelta: number; rateDelta: number }
+> = {
+	ArrowLeft: { frameDelta: -1, rateDelta: 0 },
+	ArrowRight: { frameDelta: 1, rateDelta: 0 },
+	ArrowDown: { frameDelta: 0, rateDelta: -0.1 },
+	ArrowUp: { frameDelta: 0, rateDelta: 0.1 },
+};
+
 function clamp({
 	value,
 	min,
@@ -206,7 +216,7 @@ export function SpeedCurveEditor({
 					</svg>
 					{sorted.map((keyframe, index) => {
 						const left = (keyframe.frame / safeDuration) * 100;
-						const top = speedRateToY({ rate: keyframe.value });
+						const top = speedRateToY({ rate: keyframe.value }) * 100;
 						return (
 							<button
 								key={keyframe.id}
@@ -239,22 +249,11 @@ export function SpeedCurveEditor({
 								}}
 								onPointerCancel={onInteractionEnd}
 								onKeyDown={(event) => {
-									const frameDelta =
-										event.key === "ArrowLeft"
-											? -1
-											: event.key === "ArrowRight"
-												? 1
-												: 0;
-									const rateDelta =
-										event.key === "ArrowDown"
-											? -0.1
-											: event.key === "ArrowUp"
-												? 0.1
-												: 0;
-									if (frameDelta === 0 && rateDelta === 0) return;
+									const delta = SPEED_CURVE_KEY_DELTAS[event.key];
+									if (!delta) return;
 									event.preventDefault();
 									onInteractionStart();
-									nudgePoint({ id: keyframe.id, frameDelta, rateDelta });
+									nudgePoint({ id: keyframe.id, ...delta });
 									onInteractionEnd();
 								}}
 							>

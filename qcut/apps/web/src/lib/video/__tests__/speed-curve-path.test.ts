@@ -8,11 +8,12 @@ import {
 describe("speed curve path", () => {
 	it("maps the logarithmic speed scale around 1x", () => {
 		expect(speedRateToY({ rate: 10 })).toBeCloseTo(0);
-		expect(speedRateToY({ rate: 1 })).toBeCloseTo(50);
-		expect(speedRateToY({ rate: 0.1 })).toBeCloseTo(100);
+		expect(speedRateToY({ rate: 1 })).toBeCloseTo(0.5);
+		expect(speedRateToY({ rate: 0.1 })).toBeCloseTo(1);
 		expect(speedYToRate({ y: 0 })).toBeCloseTo(10);
 		expect(speedYToRate({ y: 0.5 })).toBeCloseTo(1);
 		expect(speedYToRate({ y: 1 })).toBeCloseTo(0.1);
+		expect(speedYToRate({ y: speedRateToY({ rate: 3.4 }) })).toBeCloseTo(3.4);
 	});
 
 	it("builds a bounded path across the selected clip", () => {

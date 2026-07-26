@@ -29,7 +29,7 @@ export function speedRateToY({ rate }: { rate: number }): number {
 		max: MAX_PLAYBACK_RATE,
 	});
 	const normalizedRate = (Math.log10(safeRate) - LOG_RATE_MIN) / LOG_RATE_SPAN;
-	return 100 - normalizedRate * 100;
+	return 1 - normalizedRate;
 }
 
 export function speedYToRate({ y }: { y: number }): number {
@@ -50,7 +50,7 @@ export function buildSpeedCurvePath({
 		const frame = (index / PATH_SAMPLE_COUNT) * safeDuration;
 		const rate = interpolateNumber(keyframes as Keyframe[], frame);
 		const x = (frame / safeDuration) * 100;
-		const y = speedRateToY({ rate });
+		const y = speedRateToY({ rate }) * 100;
 		return `${index === 0 ? "M" : "L"} ${x.toFixed(2)} ${y.toFixed(2)}`;
 	}).join(" ");
 }

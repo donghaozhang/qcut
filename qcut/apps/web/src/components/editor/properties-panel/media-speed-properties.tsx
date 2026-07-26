@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { Sparkles } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -28,7 +28,10 @@ import {
 	type SpeedCurveSelectionId,
 	type SpeedPointPreset,
 } from "@/lib/video/speed-presets";
-import { MAX_PLAYBACK_RATE } from "@/lib/video/video-speed-constants";
+import {
+	MAX_PLAYBACK_RATE,
+	MIN_PLAYBACK_RATE,
+} from "@/lib/video/video-speed-constants";
 import {
 	PropertyGroup,
 	PropertyItem,
@@ -175,6 +178,17 @@ export function MediaSpeedProperties({
 	const sourceDuration = getMediaSourceDuration(element);
 	const timelineDuration = getMediaTimelineDuration(element, fps);
 	const sourceDurationInFrames = Math.max(1, Math.round(sourceDuration * fps));
+	const curvePresetOptions = useMemo(
+		() =>
+			SPEED_CURVE_PRESETS.map((preset) => ({
+				preset,
+				keyframes: createSpeedPresetKeyframes({
+					preset,
+					durationInFrames: sourceDurationInFrames,
+				}),
+			})),
+		[sourceDurationInFrames]
+	);
 	const [speedMode, setSpeedMode] = useState<"normal" | "curve" | "beat">(
 		speedKeyframes.length > 0 ? "curve" : "normal"
 	);
@@ -352,7 +366,7 @@ export function MediaSpeedProperties({
 							<SpeedNumberControl
 								label={t("audioProperties.speed.rate")}
 								value={clampPlaybackRate(element.playbackRate)}
-								min={0.1}
+								min={MIN_PLAYBACK_RATE}
 								max={MAX_PLAYBACK_RATE}
 								step={0.05}
 								suffix="x"
@@ -427,16 +441,13 @@ export function MediaSpeedProperties({
 								selected={curveSelection === "custom"}
 								onSelect={() => selectCurveKind("custom")}
 							/>
-							{SPEED_CURVE_PRESETS.map((preset) => (
+							{curvePresetOptions.map(({ preset, keyframes }) => (
 								<SpeedCurvePresetCard
 									key={preset.id}
 									id={preset.id}
 									label={t(preset.nameKey)}
 									kind="curve"
-									keyframes={createSpeedPresetKeyframes({
-										preset,
-										durationInFrames: sourceDurationInFrames,
-									})}
+									keyframes={keyframes}
 									durationInFrames={sourceDurationInFrames}
 									selected={curveSelection === preset.id}
 									onSelect={() => applyCurvePreset(preset.id)}

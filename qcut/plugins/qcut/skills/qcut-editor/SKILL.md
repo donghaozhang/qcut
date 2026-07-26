@@ -200,8 +200,9 @@ the background Agent pointer:
    refs.
 4. Capture another snapshot and drag one interior curve handle only when the
    user asked for a custom adjustment.
-5. Export the timeline again and compare keyframe count, changed frame or rate,
-   and resulting `timelineDuration`.
+5. Export the timeline again and verify source `duration` is unchanged, then
+   compare keyframe count, changed frame or rate, and resulting
+   `timelineDuration`.
 6. Capture a screenshot with the curve and selected preset visible.
 
 For repeatable automation without a visible demonstration, export the selected
