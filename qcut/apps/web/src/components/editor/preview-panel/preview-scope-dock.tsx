@@ -1,6 +1,11 @@
 "use client";
 
-import { useEffect, useRef } from "react";
+import {
+	useEffect,
+	useRef,
+	useState,
+	type PointerEvent as ReactPointerEvent,
+} from "react";
 import { drawColorScope, type ColorScopeMode } from "@/lib/color/color-scopes";
 import { useTranslation, type TranslationKey } from "@/lib/i18n";
 import { useScopeDockFrame } from "@/hooks/preview/use-scope-dock-frame";
@@ -28,12 +33,38 @@ function ScopeTile({
 	label: string;
 }) {
 	const canvasRef = useRef<HTMLCanvasElement>(null);
+	const [tileSize, setTileSize] = useState<{
+		width: number;
+		height: number;
+	} | null>(null);
+
+	// Track the rendered tile size so the canvas backing store matches it —
+	// a CSS-stretched fixed 360x210 buffer distorts the vectorscope circle.
+	useEffect(() => {
+		const canvas = canvasRef.current;
+		if (!canvas) return;
+		const observer = new ResizeObserver(() => {
+			setTileSize({
+				width: canvas.clientWidth,
+				height: canvas.clientHeight,
+			});
+		});
+		observer.observe(canvas);
+		return () => observer.disconnect();
+	}, []);
 
 	useEffect(() => {
 		const canvas = canvasRef.current;
 		if (!canvas || !imageData) return;
-		drawColorScope({ canvas, imageData, mode });
-	}, [imageData, mode]);
+		const ratio = window.devicePixelRatio || 1;
+		drawColorScope({
+			canvas,
+			imageData,
+			mode,
+			width: Math.max(1, Math.round((tileSize?.width ?? 360) * ratio)),
+			height: Math.max(1, Math.round((tileSize?.height ?? 210) * ratio)),
+		});
+	}, [imageData, mode, tileSize]);
 
 	return (
 		<div
@@ -60,6 +91,7 @@ export function PreviewScopeDock() {
 	const setScopeDockHeight = usePreviewViewStore(
 		(state) => state.setScopeDockHeight
 	);
+	const resizeStartRef = useRef<{ y: number; height: number } | null>(null);
 	const visibleModes = SCOPE_DOCK_ORDER.filter((mode) => visibleScopes[mode]);
 	const { imageData } = useScopeDockFrame({
 		enabled: scopesEnabled && visibleModes.length > 0,
@@ -67,21 +99,21 @@ export function PreviewScopeDock() {
 
 	if (!scopesEnabled || visibleModes.length === 0) return null;
 
-	const handleResizeStart = (event: React.PointerEvent<HTMLDivElement>) => {
+	const handleResizeStart = (event: ReactPointerEvent<HTMLDivElement>) => {
 		event.preventDefault();
 		event.currentTarget.setPointerCapture(event.pointerId);
-		const startY = event.clientY;
-		const startHeight = dockHeight;
-		const handleMove = (moveEvent: PointerEvent) => {
-			// Dragging up grows the dock (it sits below the handle).
-			setScopeDockHeight(startHeight + (startY - moveEvent.clientY));
-		};
-		const handleUp = () => {
-			window.removeEventListener("pointermove", handleMove);
-			window.removeEventListener("pointerup", handleUp);
-		};
-		window.addEventListener("pointermove", handleMove);
-		window.addEventListener("pointerup", handleUp);
+		resizeStartRef.current = { y: event.clientY, height: dockHeight };
+	};
+
+	const handleResizeMove = (event: ReactPointerEvent<HTMLDivElement>) => {
+		const start = resizeStartRef.current;
+		if (!start) return;
+		// Dragging up grows the dock (it sits below the handle).
+		setScopeDockHeight(start.height + (start.y - event.clientY));
+	};
+
+	const handleResizeEnd = () => {
+		resizeStartRef.current = null;
 	};
 
 	return (
@@ -97,6 +129,9 @@ export function PreviewScopeDock() {
 				className="h-1.5 w-full cursor-row-resize bg-border/40 hover:bg-border"
 				data-testid="scope-dock-resize-handle"
 				onPointerDown={handleResizeStart}
+				onPointerMove={handleResizeMove}
+				onPointerUp={handleResizeEnd}
+				onPointerCancel={handleResizeEnd}
 				onKeyDown={(event) => {
 					if (event.key === "ArrowUp") {
 						event.preventDefault();

@@ -22,6 +22,8 @@ const mocks = vi.hoisted(() => {
 		timeline: {
 			selectedElements: [{ trackId: "track", elementId: "clip" }],
 			tracks: [{ id: "track", type: "media", elements: [element] }],
+			// effects-store hydrates from _tracks at module scope on import
+			_tracks: [],
 			separateAudio: vi.fn(),
 			toggleElementHidden: vi.fn(),
 			groupSelectedElements: vi.fn(() => "group-1"),
@@ -35,6 +37,8 @@ const mocks = vi.hoisted(() => {
 vi.mock("@/stores/timeline/timeline-store", () => ({
 	useTimelineStore: {
 		getState: () => mocks.timeline,
+		// effects-store subscribes at module scope via the import chain
+		subscribe: () => () => {},
 	},
 }));
 

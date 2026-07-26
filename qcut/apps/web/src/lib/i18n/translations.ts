@@ -1127,6 +1127,7 @@ const EN_TRANSLATIONS = {
 	"timeline.toast.ungrouped": "Ungrouped {{count}} clips",
 	"timeline.toast.selectTwoForGroup":
 		"Select at least two timeline elements to create a group",
+	"timeline.toast.selectGroupToUngroup": "Select a grouped clip to ungroup",
 	"timeline.toast.groupCreated": "Timeline group created",
 	"timeline.toast.selectTwoToLink": "Select at least two media clips to link",
 	"timeline.toast.mediaLinked": "Selected media linked",
@@ -2563,6 +2564,7 @@ const ZH_TRANSLATIONS: Record<TranslationKey, string> = {
 	"timeline.toast.aiAudioRequiresVideo": "AI 音效需要视频片段",
 	"timeline.toast.ungrouped": "已解散包含 {{count}} 个片段的组合",
 	"timeline.toast.selectTwoForGroup": "请至少选择两个时间线元素以创建组合",
+	"timeline.toast.selectGroupToUngroup": "请选择一个已组合的片段以解除组合",
 	"timeline.toast.groupCreated": "时间线组合已创建",
 	"timeline.toast.selectTwoToLink": "请至少选择两个媒体片段进行链接",
 	"timeline.toast.mediaLinked": "已链接所选媒体",
