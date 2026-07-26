@@ -45,6 +45,27 @@ export const STICKER_CATEGORIES = [
 		group: "library",
 	},
 	{
+		id: "line-puppy",
+		label: "Line Puppy",
+		localizedLabel: "线条小狗",
+		emoji: "🐕",
+		group: "library",
+	},
+	{
+		id: "capybara",
+		label: "Capybara",
+		localizedLabel: "水豚噜噜",
+		emoji: "🦫",
+		group: "library",
+	},
+	{
+		id: "siamese-cat",
+		label: "Siamese Cat",
+		localizedLabel: "暹罗猫",
+		emoji: "🐱",
+		group: "library",
+	},
+	{
 		id: "pink-rabbit",
 		label: "Pink Rabbit",
 		localizedLabel: "粉红兔子",
@@ -178,6 +199,9 @@ export const CHARACTER_STICKER_CATEGORY_IDS = [
 	"pink-rabbit",
 	"milk-tea-mouse",
 	"butter-bear",
+	"line-puppy",
+	"capybara",
+	"siamese-cat",
 ] as const satisfies readonly StickerCategoryId[];
 
 export type CharacterStickerCategoryId =

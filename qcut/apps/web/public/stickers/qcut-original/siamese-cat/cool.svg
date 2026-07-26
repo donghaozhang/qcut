@@ -1,0 +1,38 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" role="img" aria-label="Siamese Cat So cool">
+	<defs>
+		<filter id="shadow" x="-30%" y="-30%" width="160%" height="170%">
+			<feDropShadow dx="0" dy="13" stdDeviation="10" flood-color="#312331" flood-opacity="0.22"/>
+		</filter>
+	</defs>
+	<g filter="url(#shadow)">
+
+
+			<g stroke-linejoin="round">
+				<path d="M 166 214 L 180 92 L 268 158 Z" fill="#efe3d2" stroke="white" stroke-width="32"/>
+				<path d="M 346 214 L 332 92 L 244 158 Z" fill="#efe3d2" stroke="white" stroke-width="32"/>
+				<path d="M 166 214 L 180 92 L 268 158 Z" fill="#efe3d2" stroke="#54402f" stroke-width="12"/>
+				<path d="M 346 214 L 332 92 L 244 158 Z" fill="#efe3d2" stroke="#54402f" stroke-width="12"/>
+				<path d="M 186 196 L 195 130 L 240 165 Z" fill="#fff6ea"/>
+				<path d="M 326 196 L 317 130 L 272 165 Z" fill="#fff6ea"/>
+			</g>
+		<ellipse cx="256" cy="367" rx="128" ry="105" fill="#efe3d2" stroke="white" stroke-width="32"/>
+		<path d="M 128 230 C 128 142 188 112 256 112 C 324 112 384 142 384 230 C 384 329 330 371 256 371 C 182 371 128 329 128 230 Z" fill="#efe3d2" stroke="white" stroke-width="32" stroke-linejoin="round"/>
+		<ellipse cx="256" cy="367" rx="128" ry="105" fill="#efe3d2" stroke="#54402f" stroke-width="12"/>
+		<path d="M 128 230 C 128 142 188 112 256 112 C 324 112 384 142 384 230 C 384 329 330 371 256 371 C 182 371 128 329 128 230 Z" fill="#efe3d2" stroke="#54402f" stroke-width="12" stroke-linejoin="round"/>
+		<ellipse cx="171" cy="373" rx="47" ry="36" fill="#efe3d2" stroke="#54402f" stroke-width="10" transform="rotate(20 171 373)"/>
+		<ellipse cx="341" cy="373" rx="47" ry="36" fill="#efe3d2" stroke="#54402f" stroke-width="10" transform="rotate(-20 341 373)"/>
+		<ellipse cx="214" cy="452" rx="52" ry="28" fill="#fff6ea" stroke="#54402f" stroke-width="10"/>
+		<ellipse cx="298" cy="452" rx="52" ry="28" fill="#fff6ea" stroke="#54402f" stroke-width="10"/>
+		<path d="M 243 279 H 269 L 256 293 Z" fill="#54402f"/>
+			<path d="M 256 293 L 256 302 M 256 302 Q 240 314 230 300 M 256 302 Q 272 314 282 300" fill="none" stroke="#54402f" stroke-width="6" stroke-linecap="round"/>
+			<path d="M 176 284 L 106 272 M 176 302 L 104 308 M 336 284 L 406 272 M 336 302 L 408 308" stroke="#54402f" stroke-width="6" stroke-linecap="round"/>
+		<path d="M 174 234 H 246 L 237 277 Q 210 294 183 270 Z M 266 234 H 338 L 329 270 Q 302 294 275 277 Z" fill="#293241" stroke="#54402f" stroke-width="8" stroke-linejoin="round"/>
+			<path d="M 246 244 H 266" stroke="#54402f" stroke-width="9"/>
+			<path d="M 232 309 Q 256 331 280 309" fill="none" stroke="#54402f" stroke-width="10" stroke-linecap="round"/>
+
+		<g transform="rotate(-4 256 82)">
+		<rect x="170" y="28" width="172" height="78" rx="34" fill="white" stroke="#54402f" stroke-width="9"/>
+		<text x="256" y="80" text-anchor="middle" fill="#4fb3d9" font-family="PingFang SC, Noto Sans CJK SC, Arial, sans-serif" font-size="40" font-weight="800">太酷了</text>
+	</g>
+	</g>
+</svg>

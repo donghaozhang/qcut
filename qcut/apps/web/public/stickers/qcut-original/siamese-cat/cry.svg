@@ -1,0 +1,35 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" role="img" aria-label="Siamese Cat Crying">
+	<defs>
+		<filter id="shadow" x="-30%" y="-30%" width="160%" height="170%">
+			<feDropShadow dx="0" dy="13" stdDeviation="10" flood-color="#312331" flood-opacity="0.22"/>
+		</filter>
+	</defs>
+	<g filter="url(#shadow)">
+
+
+			<g stroke-linejoin="round">
+				<path d="M 166 214 L 180 92 L 268 158 Z" fill="#efe3d2" stroke="white" stroke-width="32"/>
+				<path d="M 346 214 L 332 92 L 244 158 Z" fill="#efe3d2" stroke="white" stroke-width="32"/>
+				<path d="M 166 214 L 180 92 L 268 158 Z" fill="#efe3d2" stroke="#54402f" stroke-width="12"/>
+				<path d="M 346 214 L 332 92 L 244 158 Z" fill="#efe3d2" stroke="#54402f" stroke-width="12"/>
+				<path d="M 186 196 L 195 130 L 240 165 Z" fill="#fff6ea"/>
+				<path d="M 326 196 L 317 130 L 272 165 Z" fill="#fff6ea"/>
+			</g>
+		<ellipse cx="256" cy="367" rx="128" ry="105" fill="#efe3d2" stroke="white" stroke-width="32"/>
+		<path d="M 128 230 C 128 142 188 112 256 112 C 324 112 384 142 384 230 C 384 329 330 371 256 371 C 182 371 128 329 128 230 Z" fill="#efe3d2" stroke="white" stroke-width="32" stroke-linejoin="round"/>
+		<ellipse cx="256" cy="367" rx="128" ry="105" fill="#efe3d2" stroke="#54402f" stroke-width="12"/>
+		<path d="M 128 230 C 128 142 188 112 256 112 C 324 112 384 142 384 230 C 384 329 330 371 256 371 C 182 371 128 329 128 230 Z" fill="#efe3d2" stroke="#54402f" stroke-width="12" stroke-linejoin="round"/>
+		<ellipse cx="171" cy="373" rx="47" ry="36" fill="#efe3d2" stroke="#54402f" stroke-width="10" transform="rotate(20 171 373)"/>
+		<ellipse cx="341" cy="373" rx="47" ry="36" fill="#efe3d2" stroke="#54402f" stroke-width="10" transform="rotate(-20 341 373)"/>
+		<ellipse cx="214" cy="452" rx="52" ry="28" fill="#fff6ea" stroke="#54402f" stroke-width="10"/>
+		<ellipse cx="298" cy="452" rx="52" ry="28" fill="#fff6ea" stroke="#54402f" stroke-width="10"/>
+		<path d="M 243 279 H 269 L 256 293 Z" fill="#54402f"/>
+			<path d="M 256 293 L 256 302 M 256 302 Q 240 314 230 300 M 256 302 Q 272 314 282 300" fill="none" stroke="#54402f" stroke-width="6" stroke-linecap="round"/>
+			<path d="M 176 284 L 106 272 M 176 302 L 104 308 M 336 284 L 406 272 M 336 302 L 408 308" stroke="#54402f" stroke-width="6" stroke-linecap="round"/>
+		<path d="M 193 249 Q 214 232 235 249 M 277 249 Q 298 232 319 249" fill="none" stroke="#54402f" stroke-width="11" stroke-linecap="round"/>
+			<path d="M 207 263 C 192 286 194 307 213 309 C 231 306 231 286 207 263 Z M 305 263 C 281 286 281 306 299 309 C 318 307 320 286 305 263 Z" fill="#58b9f4"/>
+			<path d="M 232 326 Q 256 302 280 326" fill="none" stroke="#54402f" stroke-width="10" stroke-linecap="round"/>
+		<ellipse cx="256" cy="431" rx="96" ry="18" fill="#7bcaf5" opacity="0.72"/>
+
+	</g>
+</svg>
