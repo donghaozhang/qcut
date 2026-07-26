@@ -46,6 +46,7 @@ export type {
 	MediaColorSettings,
 	BlurIntensity,
 	ProjectFolder,
+	ProjectGuides,
 	Scene,
 	TProject,
 	MediaType,

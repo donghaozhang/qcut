@@ -52,7 +52,8 @@ import { toast } from "sonner";
 import { debugLog, debugError } from "@/lib/debug/debug-config";
 import { getTimelineElementEndTime } from "@/lib/timeline";
 import { addAdjustmentLayer } from "@/lib/timeline/adjustment-layer";
-import { mapMediaTimelineTime } from "@/lib/video/video-timing";
+import { freezeSelectedElementAtPlayhead } from "@/lib/timeline/freeze-frame";
+import { useActionShortcutLabels } from "@/hooks/keyboard/use-action-shortcut-label";
 import {
 	DropdownMenu,
 	DropdownMenuContent,
@@ -112,7 +113,6 @@ export function TimelineToolbar({
 	const splitAndKeepLeft = useTimelineStore((s) => s.splitAndKeepLeft);
 	const splitAndKeepRight = useTimelineStore((s) => s.splitAndKeepRight);
 	const separateAudio = useTimelineStore((s) => s.separateAudio);
-	const updateMediaElement = useTimelineStore((s) => s.updateMediaElement);
 	const setTrackHeightMode = useTimelineStore((s) => s.setTrackHeightMode);
 	const snappingEnabled = useTimelineStore((s) => s.snappingEnabled);
 	const toggleSnapping = useTimelineStore((s) => s.toggleSnapping);
@@ -126,8 +126,8 @@ export function TimelineToolbar({
 	const toggle = usePlaybackStore((s) => s.toggle);
 	const toggleBookmark = useProjectStore((s) => s.toggleBookmark);
 	const isBookmarked = useProjectStore((s) => s.isBookmarked);
-	const projectFps = useProjectStore((s) => s.activeProject?.fps ?? 30);
 	const { scenes, currentScene } = useSceneStore();
+	const { withShortcut } = useActionShortcutLabels();
 	const currentSceneName = localizeSceneName({
 		name: currentScene?.name,
 		locale,
@@ -212,33 +212,7 @@ export function TimelineToolbar({
 	};
 
 	const handleFreezeSelected = () => {
-		if (selectedElements.length !== 1) {
-			toast.error("Select exactly one video clip to add a freeze frame");
-			return;
-		}
-		const { trackId, elementId } = selectedElements[0];
-		const track = tracks.find((candidate) => candidate.id === trackId);
-		const element = track?.elements.find(
-			(candidate) => candidate.id === elementId
-		);
-		if (!track || track.type !== "media" || element?.type !== "media") {
-			toast.error("Select a video clip to add a freeze frame");
-			return;
-		}
-		const elementEnd = getTimelineElementEndTime({ element });
-		if (currentTime < element.startTime || currentTime > elementEnd) {
-			toast.error("Move the playhead inside the selected clip");
-			return;
-		}
-		const playbackTiming = mapMediaTimelineTime({
-			element,
-			localTimelineTime: currentTime - element.startTime,
-			fps: projectFps,
-		});
-		updateMediaElement(trackId, elementId, {
-			freezeFrameTime: playbackTiming.sourceTime,
-			freezeFrameDuration: 1,
-		});
+		freezeSelectedElementAtPlayhead();
 	};
 
 	const handleSplitAndKeepLeft = () => {
@@ -485,7 +459,7 @@ export function TimelineToolbar({
 							</Button>
 						</TooltipTrigger>
 						<TooltipContent>
-							{isPlaying ? "Pause (Space)" : "Play (Space)"}
+							{withShortcut(isPlaying ? "Pause" : "Play", "toggle-play")}
 						</TooltipContent>
 					</Tooltip>
 
@@ -595,7 +569,9 @@ export function TimelineToolbar({
 								<Scissors className="h-4 w-4" />
 							</Button>
 						</TooltipTrigger>
-						<TooltipContent>Split element (Ctrl+S)</TooltipContent>
+						<TooltipContent>
+							{withShortcut("Split element", "split-element")}
+						</TooltipContent>
 					</Tooltip>
 
 					<Tooltip>
@@ -612,7 +588,9 @@ export function TimelineToolbar({
 								<ArrowLeftToLine className="h-4 w-4" />
 							</Button>
 						</TooltipTrigger>
-						<TooltipContent>Split and keep left (Ctrl+Q)</TooltipContent>
+						<TooltipContent>
+							{withShortcut("Split and keep left", "trim-end-to-playhead")}
+						</TooltipContent>
 					</Tooltip>
 
 					<Tooltip>
@@ -629,7 +607,9 @@ export function TimelineToolbar({
 								<ArrowRightToLine className="h-4 w-4" />
 							</Button>
 						</TooltipTrigger>
-						<TooltipContent>Split and keep right (Ctrl+W)</TooltipContent>
+						<TooltipContent>
+							{withShortcut("Split and keep right", "trim-start-to-playhead")}
+						</TooltipContent>
 					</Tooltip>
 
 					<Tooltip>
@@ -646,7 +626,9 @@ export function TimelineToolbar({
 								<SplitSquareHorizontal className="h-4 w-4" />
 							</Button>
 						</TooltipTrigger>
-						<TooltipContent>Separate audio (Ctrl+D)</TooltipContent>
+						<TooltipContent>
+							{withShortcut("Separate audio", "separate-audio-selected")}
+						</TooltipContent>
 					</Tooltip>
 
 					<Tooltip>
@@ -657,13 +639,15 @@ export function TimelineToolbar({
 								size="icon"
 								onClick={handleDuplicateSelected}
 								disabled={!hasSingleSelection}
-								aria-label="Copy selected clip"
+								aria-label="Duplicate selected clip"
 								data-testid="duplicate-clip-button"
 							>
 								<Copy className="h-4 w-4" />
 							</Button>
 						</TooltipTrigger>
-						<TooltipContent>Copy clip (Ctrl+D)</TooltipContent>
+						<TooltipContent>
+							{withShortcut("Duplicate clip", "duplicate-selected")}
+						</TooltipContent>
 					</Tooltip>
 
 					<Tooltip>
@@ -680,7 +664,9 @@ export function TimelineToolbar({
 								<Crop className="h-4 w-4" />
 							</Button>
 						</TooltipTrigger>
-						<TooltipContent>Crop clip (C)</TooltipContent>
+						<TooltipContent>
+							{withShortcut("Crop clip", "crop-selected")}
+						</TooltipContent>
 					</Tooltip>
 
 					<Tooltip>
@@ -702,7 +688,9 @@ export function TimelineToolbar({
 								<Snowflake className="h-4 w-4" />
 							</Button>
 						</TooltipTrigger>
-						<TooltipContent>Freeze frame (F)</TooltipContent>
+						<TooltipContent>
+							{withShortcut("Freeze frame", "freeze-selected")}
+						</TooltipContent>
 					</Tooltip>
 
 					<Tooltip>
@@ -724,9 +712,12 @@ export function TimelineToolbar({
 							</Button>
 						</TooltipTrigger>
 						<TooltipContent>
-							{rippleEditingEnabled
-								? "Delete with linked ripple (Delete)"
-								: "Delete element (Delete)"}
+							{withShortcut(
+								rippleEditingEnabled
+									? "Delete with linked ripple"
+									: "Delete element",
+								"delete-selected"
+							)}
 						</TooltipContent>
 					</Tooltip>
 
@@ -749,7 +740,10 @@ export function TimelineToolbar({
 							</Button>
 						</TooltipTrigger>
 						<TooltipContent>
-							{currentBookmarked ? "Remove bookmark" : "Add bookmark"}
+							{withShortcut(
+								currentBookmarked ? "Remove bookmark" : "Add bookmark",
+								"toggle-bookmark"
+							)}
 						</TooltipContent>
 					</Tooltip>
 				</TooltipProvider>

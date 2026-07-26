@@ -1,6 +1,16 @@
 import { platform } from "@qcut/platform-core";
-import { TProject, Scene, BlurIntensity, ProjectFolder } from "@/types/project";
+import {
+	TProject,
+	Scene,
+	BlurIntensity,
+	ProjectFolder,
+	ProjectGuides,
+} from "@/types/project";
 import { CanvasSize, CanvasMode } from "@/types/editor";
+import {
+	getDefaultCanvasOption,
+	useAppSettingsStore,
+} from "@/stores/app-settings-store";
 import { create } from "zustand";
 import { storageService } from "@/lib/storage/storage-service";
 import { toast } from "sonner";
@@ -95,6 +105,9 @@ interface ProjectStore {
 	toggleBookmark: (time: number) => Promise<void>;
 	isBookmarked: (time: number) => boolean;
 	removeBookmark: (time: number) => Promise<void>;
+
+	// Preview guide methods
+	updateProjectGuides: (guides: ProjectGuides) => Promise<void>;
 
 	getFilteredAndSortedProjects: (
 		searchQuery: string,
@@ -215,6 +228,8 @@ export const useProjectStore = create<ProjectStore>((set, get) => ({
 		options?: { canvasSize?: CanvasSize; folderId?: string | null }
 	) => {
 		const mainScene = createMainScene();
+		const appSettings = useAppSettingsStore.getState();
+		const defaultCanvas = getDefaultCanvasOption(appSettings.defaultCanvasId);
 
 		const newProject: TProject = {
 			id: generateUUID(),
@@ -229,8 +244,11 @@ export const useProjectStore = create<ProjectStore>((set, get) => ({
 			backgroundType: "color",
 			blurIntensity: 8,
 			bookmarks: [],
-			fps: DEFAULT_FPS,
-			canvasSize: options?.canvasSize ?? DEFAULT_CANVAS_SIZE,
+			fps: appSettings.defaultFps || DEFAULT_FPS,
+			canvasSize: options?.canvasSize ?? {
+				width: defaultCanvas.width,
+				height: defaultCanvas.height,
+			},
 			canvasMode: "preset",
 			audioMix: createDefaultProjectAudioMixSettings(),
 		};
@@ -721,6 +739,28 @@ export const useProjectStore = create<ProjectStore>((set, get) => ({
 				projectName: activeProject.name,
 				backgroundType: type,
 				operation: "updateBackgroundType",
+			});
+		}
+	},
+
+	updateProjectGuides: async (guides: ProjectGuides) => {
+		const { activeProject } = get();
+		if (!activeProject) return;
+
+		const updatedProject = {
+			...activeProject,
+			guides,
+			updatedAt: new Date(),
+		};
+
+		try {
+			await storageService.saveProject({ project: updatedProject });
+			set({ activeProject: updatedProject });
+		} catch (error) {
+			handleStorageError(error, "Update project guides", {
+				projectId: activeProject.id,
+				projectName: activeProject.name,
+				operation: "updateProjectGuides",
 			});
 		}
 	},

@@ -43,6 +43,9 @@ import {
 } from "./preview-panel/media-transform-overlay";
 import { usePreviewMedia } from "./preview-panel/use-preview-media";
 import { usePreviewSizing } from "./preview-panel/use-preview-sizing";
+import { PreviewGuidesLayer } from "./preview-panel/preview-guides-layer";
+import { PreviewViewOptionsMenu } from "./preview-panel/preview-view-options-menu";
+import { PreviewScopeDock } from "./preview-panel/preview-scope-dock";
 import type { ActiveElement } from "./preview-panel/types";
 import {
 	MCP_MEDIA_TOOL_NAME,
@@ -76,6 +79,7 @@ import { useCachedPreviewFrame } from "@/hooks/preview/use-cached-preview-frame"
 import { buildPreviewFrameCacheIdentity } from "@/lib/preview/preview-quality";
 import { hasCurrentVideoFrames } from "@/lib/preview/preview-frame-cache-readiness";
 import { useMaskEditorStore } from "@/stores/editor/mask-editor-store";
+import { usePreviewViewStore } from "@/stores/editor/preview-view-store";
 import { useColorPickerStore } from "@/stores/editor/color-picker-store";
 import { useStickersOverlayStore } from "@/stores/stickers-overlay-store";
 import { LoaderCircle, TriangleAlert } from "lucide-react";
@@ -182,10 +186,11 @@ export function PreviewPanel() {
 		return () =>
 			window.removeEventListener("playback-update", handlePlaybackUpdate);
 	}, [activeProject?.fps, isPlaying, currentTime, tracks]);
-	const [previewScale, setPreviewScale] = useState<
-		"fit" | 75 | 100 | 125 | 150
-	>("fit");
-	const [showSafeAreas, setShowSafeAreas] = useState(false);
+	const previewScale = usePreviewViewStore((state) => state.previewScale);
+	const setPreviewScale = usePreviewViewStore((state) => state.setPreviewScale);
+	const showSafeAreas = usePreviewViewStore((state) => state.showSafeAreas);
+	const toggleSafeAreas = usePreviewViewStore((state) => state.toggleSafeAreas);
+	const showRulers = usePreviewViewStore((state) => state.showRulers);
 	const externalHtml = useMcpAppStore((state) => state.activeHtml);
 	const externalToolName = useMcpAppStore((state) => state.toolName);
 	const localMcpActive = useMcpAppStore((state) => state.localMcpActive);
@@ -831,12 +836,15 @@ export function PreviewPanel() {
 				className="h-full w-full flex flex-col min-h-0 min-w-0 bg-panel rounded-sm"
 				data-testid="preview-panel"
 			>
-				<div className="flex items-center justify-end px-3 py-2 border-b">
+				<div className="flex items-center justify-between px-3 py-2 border-b">
+					<PreviewViewOptionsMenu />
 					{modeToggle}
 				</div>
 				<div
 					ref={containerRef}
-					className="flex-1 flex flex-col items-center justify-center overflow-hidden p-3 min-h-0 min-w-0"
+					className={`flex-1 flex flex-col items-center justify-center overflow-hidden min-h-0 min-w-0 ${
+						showRulers ? "p-3 pt-8 pl-8" : "p-3"
+					}`}
 				>
 					<div className="flex-1" />
 					{hasAnyElements ? (
@@ -978,6 +986,13 @@ export function PreviewPanel() {
 								</div>
 							) : null}
 
+							<PreviewGuidesLayer
+								canvasSize={canvasSize}
+								previewDimensions={previewDimensions}
+								previewRef={previewRef}
+								cssScale={previewScale === "fit" ? 1 : previewScale / 100}
+							/>
+
 							{isPlaying ? null : (
 								<MediaTransformOverlay
 									targets={selectedMediaTargets}
@@ -1033,9 +1048,10 @@ export function PreviewPanel() {
 						previewScale={previewScale}
 						onPreviewScaleChange={setPreviewScale}
 						showSafeAreas={showSafeAreas}
-						onToggleSafeAreas={() => setShowSafeAreas((visible) => !visible)}
+						onToggleSafeAreas={toggleSafeAreas}
 					/>
 				</div>
+				<PreviewScopeDock />
 			</div>
 
 			{isExpanded && (

@@ -42,6 +42,7 @@ import {
 } from "@/components/ui/select";
 import { Skeleton } from "@/components/ui/skeleton";
 import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
+import { useAppVersion } from "@/hooks/use-app-version";
 import { useProjectStore } from "@/stores/project-store";
 import { useTimelineStore } from "@/stores/timeline/timeline-store";
 import type { CanvasSize } from "@/types/editor";
@@ -77,6 +78,7 @@ function ProjectsPage() {
 	const [viewMode, setViewMode] = useState<"grid" | "list">("grid");
 	const [currentFolderId, setCurrentFolderId] = useState<string | null>(null);
 	const getProjectDuration = useProjectDurationLoader();
+	const appVersion = useAppVersion();
 	const navigate = useNavigate();
 	const { t } = useTranslation();
 
@@ -199,6 +201,15 @@ function ProjectsPage() {
 					<ProjectsUserChip />
 				</div>
 				<div className="flex items-center gap-3">
+					{appVersion && (
+						<span
+							className="text-xs text-muted-foreground"
+							title={t("updates.currentVersion", { version: appVersion })}
+							data-testid="app-version"
+						>
+							v{appVersion}
+						</span>
+					)}
 					<LanguageSelector />
 					<div className="block md:hidden">
 						{isSelectionMode ? (

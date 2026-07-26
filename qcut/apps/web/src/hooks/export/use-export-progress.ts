@@ -1,6 +1,8 @@
 import { useRef, useState } from "react";
 import { useExportStore } from "@/stores/export-store";
 import { useTimelineStore } from "@/stores/timeline/timeline-store";
+import { useAppSettingsStore } from "@/stores/app-settings-store";
+import { playCompletionChime } from "@/lib/audio/completion-chime";
 import { useAsyncMediaItems } from "@/hooks/media/use-async-media-store";
 // Export engine factory and engine types will be imported dynamically when needed
 import type {
@@ -325,6 +327,9 @@ export function useExportProgress() {
 			toast.success("Export completed successfully!", {
 				description: saveResult.filePath || exportSettings.filename,
 			});
+			if (useAppSettingsStore.getState().exportCompletionSound) {
+				playCompletionChime({ kind: "success" });
+			}
 
 			// Reset export state
 			updateProgress({
@@ -395,6 +400,9 @@ export function useExportProgress() {
 			toast.error("Export failed", {
 				description: message,
 			});
+			if (useAppSettingsStore.getState().exportCompletionSound) {
+				playCompletionChime({ kind: "error" });
+			}
 		} finally {
 			await hyperframesController?.cleanup();
 			if (hyperframesControllerRef.current === hyperframesController) {

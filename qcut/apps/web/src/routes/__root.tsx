@@ -4,6 +4,7 @@ import { ThemeProvider } from "next-themes";
 import { Toaster } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { StorageProvider } from "@/components/storage-provider";
+import { FileOpenHandler } from "@/components/file-open-handler";
 import { UpdateNotification } from "@/components/update-notification";
 import { CodexPluginUpdateNotification } from "@/components/codex-plugin-update-notification";
 import { FFmpegHealthNotification } from "@/components/ffmpeg-health-notification";
@@ -72,6 +73,7 @@ function RootComponent() {
 								<Outlet />
 							</ErrorBoundary>
 							<Toaster />
+							{isDesktop && <FileOpenHandler />}
 							{isDesktop && <UpdateNotification />}
 							{isDesktop && <CodexPluginUpdateNotification />}
 							<FFmpegHealthNotification />

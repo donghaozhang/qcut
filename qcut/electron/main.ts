@@ -23,6 +23,7 @@ import * as fs from "fs";
 import * as http from "http";
 import { parseChangelog } from "./release-notes-utils.js";
 import { registerMainIpcHandlers } from "./main-ipc.js";
+import { setupApplicationMenu } from "./app-menu.js";
 import { registerAppProtocol } from "./app-protocol-handler.js";
 import {
 	createAutoUpdateController,
@@ -40,6 +41,7 @@ import {
 	cleanupUtilityProcess,
 } from "./utility/utility-bridge.js";
 import { resolveInitialWindowSize } from "./window-sizing.js";
+import { toReleaseVersion } from "./update-version.js";
 
 // Type definitions
 interface ReleaseNote {
@@ -139,6 +141,7 @@ let mainWindow: BrowserWindow | null = null;
 let staticServer: http.Server | null = null;
 let staticServerPort = 8080;
 let pendingLicenseActivationToken: string | null = null;
+let pendingOpenMediaFilePaths: string[] = [];
 
 function extractActivationTokenFromUrl(url: string): string | null {
 	try {
@@ -204,8 +207,82 @@ function consumeActivationTokenFromArgs(args: string[]): void {
 	}
 }
 
+// Video containers QCut registers as an "Open With" target (see
+// build.fileAssociations in package.json). Project files (.qcut) are
+// excluded — they need a dedicated open flow, not a media import.
+const OPENABLE_MEDIA_EXTENSIONS = new Set([
+	".mp4",
+	".mov",
+	".avi",
+	".mkv",
+	".webm",
+]);
+
+function extractOpenableMediaPath(arg: string): string | null {
+	if (!arg || arg.startsWith("-") || arg.includes("://")) {
+		return null;
+	}
+	if (!OPENABLE_MEDIA_EXTENSIONS.has(path.extname(arg).toLowerCase())) {
+		return null;
+	}
+	try {
+		return fs.existsSync(arg) ? arg : null;
+	} catch {
+		return null;
+	}
+}
+
+// Push events are lost until the renderer's FileOpenHandler has mounted
+// and pulled the buffer — did-finish-load fires before React subscribes.
+let rendererFileOpenReady = false;
+
+function deliverOpenMediaFileToRenderer(filePath: string): void {
+	try {
+		if (rendererFileOpenReady && mainWindow && !mainWindow.isDestroyed()) {
+			mainWindow.webContents.send("app:open-media-file", filePath);
+			logger.info(
+				`[OpenFile] Sent app:open-media-file to renderer: ${filePath}`
+			);
+			return;
+		}
+	} catch (error) {
+		logger.warn("[OpenFile] Failed to deliver media file immediately:", error);
+	}
+
+	logger.info(
+		`[OpenFile] Renderer not ready — buffering media path: ${filePath}`
+	);
+	pendingOpenMediaFilePaths.push(filePath);
+}
+
+// Renderer pulls the buffer once its handler is mounted; from then on new
+// opens are pushed directly.
+ipcMain.handle("app:get-pending-open-media-files", () => {
+	rendererFileOpenReady = true;
+	const paths = pendingOpenMediaFilePaths;
+	pendingOpenMediaFilePaths = [];
+	return paths;
+});
+
+function consumeOpenMediaPathsFromArgs(args: string[]): void {
+	for (const arg of args) {
+		const mediaPath = extractOpenableMediaPath(arg);
+		if (mediaPath) {
+			deliverOpenMediaFileToRenderer(mediaPath);
+		}
+	}
+}
+
 // Suppress Electron DevTools Autofill errors
 app.commandLine.appendSwitch("disable-features", "Autofill");
+
+// macOS About panel (menu → About QCut) shows the date-based release
+// version (e.g. 2026.07.26.5) instead of the raw package version.
+app.setAboutPanelOptions({
+	applicationName: "QCut",
+	applicationVersion: toReleaseVersion({ packageVersion: app.getVersion() }),
+	version: toReleaseVersion({ packageVersion: app.getVersion() }),
+});
 
 // ① Register app:// protocol with required privileges
 protocol.registerSchemesAsPrivileged([
@@ -523,21 +600,22 @@ function createWindow(): void {
 	}
 
 	mainWindow.webContents.on("did-finish-load", () => {
-		if (!pendingLicenseActivationToken) {
-			return;
-		}
+		// Fresh page: buffer opened files until its FileOpenHandler pulls them.
+		rendererFileOpenReady = false;
 
-		try {
-			mainWindow?.webContents.send(
-				"license:activation-token",
-				pendingLicenseActivationToken
-			);
-			pendingLicenseActivationToken = null;
-		} catch (error) {
-			logger.warn(
-				"[DeepLink] Failed to send pending activation token after load:",
-				error
-			);
+		if (pendingLicenseActivationToken) {
+			try {
+				mainWindow?.webContents.send(
+					"license:activation-token",
+					pendingLicenseActivationToken
+				);
+				pendingLicenseActivationToken = null;
+			} catch (error) {
+				logger.warn(
+					"[DeepLink] Failed to send pending activation token after load:",
+					error
+				);
+			}
 		}
 	});
 
@@ -577,6 +655,8 @@ if (!isHeadlessRecorder && !app.isDefaultProtocolClient("qcut")) {
 // management nor the headless recorder need license-activation side-effects.
 if (!isCliKeyCommand && !isHeadlessRecorder) {
 	consumeActivationTokenFromArgs(process.argv);
+	// Windows/Linux "Open With": the video path arrives as a launch argument.
+	consumeOpenMediaPathsFromArgs(process.argv);
 }
 
 // Windows/Linux: handle deep links via second-instance (single instance lock).
@@ -602,6 +682,10 @@ if (!isHeadlessRecorder) {
 				logger.warn("[DeepLink] Failed to handle second-instance args:", error);
 			}
 
+			// "Open With" while QCut is already running routes the video
+			// into the existing instance instead of launching a second one.
+			consumeOpenMediaPathsFromArgs(commandLine);
+
 			if (mainWindow) {
 				if (mainWindow.isMinimized()) {
 					mainWindow.restore();
@@ -613,6 +697,26 @@ if (!isHeadlessRecorder) {
 		app.quit();
 	}
 }
+
+// macOS: "Open With" delivers the file via open-file (fires before ready
+// on cold launch — the path is buffered until the window finishes loading).
+app.on("open-file", (event, filePath) => {
+	if (isHeadlessRecorder || isCliKeyCommand) {
+		return;
+	}
+	const mediaPath = extractOpenableMediaPath(filePath);
+	if (!mediaPath) {
+		return;
+	}
+	event.preventDefault();
+	deliverOpenMediaFileToRenderer(mediaPath);
+	if (mainWindow) {
+		if (mainWindow.isMinimized()) {
+			mainWindow.restore();
+		}
+		mainWindow.focus();
+	}
+});
 
 // macOS: handle deep links via open-url event
 app.on("open-url", (event, url) => {
@@ -692,6 +796,8 @@ if (!isCliKeyCommand && !isHeadlessRecorder) {
 				app.dock.setIcon(iconPath);
 			}
 		}
+
+		setupApplicationMenu();
 
 		// Register custom app:// protocol handler. Extracted into its own
 		// module so headless-recorder mode can register it too.
@@ -810,6 +916,21 @@ if (!isCliKeyCommand && !isHeadlessRecorder) {
 		});
 	});
 } // end if (!isCliKeyCommand && !isHeadlessRecorder)
+
+// window-all-closed never quits the app on macOS, so the temp cleanup in
+// that handler historically never ran there and $TMPDIR/qcut-* grew without
+// bound. before-quit fires on every platform.
+app.on("before-quit", () => {
+	if (isHeadlessRecorder) return;
+	try {
+		const { cleanupAllAudioFiles } = require("./audio-temp-handler.js");
+		cleanupAllAudioFiles();
+		const { cleanupAllVideoFiles } = require("./video-temp-handler.js");
+		cleanupAllVideoFiles();
+	} catch {
+		// Cleanup must never block quitting.
+	}
+});
 
 app.on("window-all-closed", () => {
 	// The headless-recorder process owns no visible window, so a stray

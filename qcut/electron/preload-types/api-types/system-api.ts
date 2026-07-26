@@ -60,6 +60,16 @@ export interface UpdatesAPI {
 	};
 }
 
+/** App-level shell integration: version info and OS "Open With" events. */
+export interface AppShellAPI {
+	/** Date-based release version, e.g. "2026.07.26.5". */
+	getAppVersion: () => Promise<string>;
+	/** Fired when the OS opens a video file with QCut ("Open With"). */
+	onOpenMediaFile: (callback: (filePath: string) => void) => () => void;
+	/** Drains files opened before the renderer handler mounted. */
+	getPendingOpenMediaFiles: () => Promise<string[]>;
+}
+
 /** License management operations. */
 export interface LicenseAPI {
 	license?: {

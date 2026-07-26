@@ -19,6 +19,7 @@ import type { ElectronFFmpegOps } from "./api-ffmpeg";
 import type {
 	ElectronApiKeyOps,
 	ElectronShellOps,
+	ElectronAppMaintenanceOps,
 	ElectronGitHubOps,
 	ElectronFalOps,
 } from "./api-external";
@@ -65,6 +66,7 @@ export interface ElectronAPI
 		ElectronFFmpegOps,
 		ElectronApiKeyOps,
 		ElectronShellOps,
+		ElectronAppMaintenanceOps,
 		ElectronGitHubOps,
 		ElectronFalOps,
 		ElectronGeminiChatOps,
@@ -84,6 +86,15 @@ export interface ElectronAPI
 	// System info
 	platform: string;
 	isElectron: boolean;
+
+	/** Date-based release version, e.g. "2026.07.26.5". */
+	getAppVersion?: () => Promise<string>;
+
+	/** Fired when the OS opens a video file with QCut ("Open With"). */
+	onOpenMediaFile?: (callback: (filePath: string) => void) => () => void;
+
+	/** Drains files opened before the renderer handler mounted. */
+	getPendingOpenMediaFiles?: () => Promise<string[]>;
 
 	// Generic IPC invoke method
 	invoke: (channel: string, ...args: unknown[]) => Promise<unknown>;

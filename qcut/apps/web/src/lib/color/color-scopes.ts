@@ -34,11 +34,15 @@ function setupCanvas({
 function drawHistogram({
 	canvas,
 	imageData,
+	width = 360,
+	height = 210,
 }: {
 	canvas: HTMLCanvasElement;
 	imageData: ImageData;
+	width?: number;
+	height?: number;
 }) {
-	const context = setupCanvas({ canvas, width: 360, height: 210 });
+	const context = setupCanvas({ canvas, width, height });
 	const channels = [
 		new Uint32Array(256),
 		new Uint32Array(256),
@@ -75,11 +79,15 @@ function drawHistogram({
 function drawWaveform({
 	canvas,
 	imageData,
+	width = 360,
+	height = 210,
 }: {
 	canvas: HTMLCanvasElement;
 	imageData: ImageData;
+	width?: number;
+	height?: number;
 }) {
-	const context = setupCanvas({ canvas, width: 360, height: 210 });
+	const context = setupCanvas({ canvas, width, height });
 	context.fillStyle = "rgba(135,255,190,0.10)";
 	const xStep = Math.max(1, Math.floor(imageData.width / canvas.width));
 	const yStep = Math.max(1, Math.floor(imageData.height / 96));
@@ -100,11 +108,15 @@ function drawWaveform({
 function drawVectorscope({
 	canvas,
 	imageData,
+	width = 360,
+	height = 210,
 }: {
 	canvas: HTMLCanvasElement;
 	imageData: ImageData;
+	width?: number;
+	height?: number;
 }) {
-	const context = setupCanvas({ canvas, width: 360, height: 210 });
+	const context = setupCanvas({ canvas, width, height });
 	const centerX = canvas.width / 2;
 	const centerY = canvas.height / 2;
 	const radius = Math.min(canvas.width, canvas.height) * 0.43;
@@ -131,11 +143,15 @@ function drawVectorscope({
 function drawParade({
 	canvas,
 	imageData,
+	width = 360,
+	height = 210,
 }: {
 	canvas: HTMLCanvasElement;
 	imageData: ImageData;
+	width?: number;
+	height?: number;
 }) {
-	const context = setupCanvas({ canvas, width: 360, height: 210 });
+	const context = setupCanvas({ canvas, width, height });
 	const sectionWidth = canvas.width / 3;
 	const colors = [
 		"rgba(255,70,70,0.12)",
@@ -162,13 +178,19 @@ export function drawColorScope({
 	canvas,
 	imageData,
 	mode,
+	width,
+	height,
 }: {
 	canvas: HTMLCanvasElement;
 	imageData: ImageData;
 	mode: ColorScopeMode;
+	/** Backing-store size in device pixels (defaults keep legacy 360x210). */
+	width?: number;
+	height?: number;
 }) {
-	if (mode === "histogram") drawHistogram({ canvas, imageData });
-	if (mode === "waveform") drawWaveform({ canvas, imageData });
-	if (mode === "vectorscope") drawVectorscope({ canvas, imageData });
-	if (mode === "parade") drawParade({ canvas, imageData });
+	if (mode === "histogram") drawHistogram({ canvas, imageData, width, height });
+	if (mode === "waveform") drawWaveform({ canvas, imageData, width, height });
+	if (mode === "vectorscope")
+		drawVectorscope({ canvas, imageData, width, height });
+	if (mode === "parade") drawParade({ canvas, imageData, width, height });
 }

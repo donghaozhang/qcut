@@ -236,6 +236,7 @@ class StorageService {
 			canvasMode: project.canvasMode,
 			folderId: project.folderId ?? null,
 			audioMix: project.audioMix,
+			guides: project.guides,
 		};
 
 		await this.projectsAdapter.set(project.id, serializedProject);
@@ -274,6 +275,7 @@ class StorageService {
 			canvasMode: serializedProject.canvasMode || "preset",
 			folderId: serializedProject.folderId ?? null,
 			audioMix: serializedProject.audioMix,
+			guides: serializedProject.guides,
 		};
 	}
 

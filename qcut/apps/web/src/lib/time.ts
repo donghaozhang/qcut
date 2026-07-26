@@ -1,5 +1,8 @@
 // Time-related utility functions
 
+/** Supported timecode display styles. */
+export type TimeCode = "MM:SS" | "HH:MM:SS" | "HH:MM:SS:CS" | "HH:MM:SS:FF";
+
 /**
  * Formats time in seconds to a human-readable timecode string
  * Supports multiple timecode formats including minutes:seconds, hours:minutes:seconds,
@@ -11,7 +14,7 @@
  */
 export const formatTimeCode = (
 	timeInSeconds: number,
-	format: "MM:SS" | "HH:MM:SS" | "HH:MM:SS:CS" | "HH:MM:SS:FF" = "HH:MM:SS:CS",
+	format: TimeCode = "HH:MM:SS:CS",
 	fps = 30
 ): string => {
 	const hours = Math.floor(timeInSeconds / 3600);

@@ -250,6 +250,17 @@ export const mockElectronAPI: ElectronAPI = {
 		openExternal: vi.fn().mockResolvedValue(undefined),
 	},
 
+	appMaintenance: {
+		getStorageInfo: vi.fn().mockResolvedValue({
+			drafts: "/mock/userData/projects",
+			projects: "/mock/Documents/QCut/Projects",
+			recordings: "/mock/Movies/QCut Recordings",
+			exports: "/mock/Documents/QCut/Exports",
+		}),
+		getCacheStats: vi.fn().mockResolvedValue({ totalBytes: 0, entries: [] }),
+		clearCaches: vi.fn().mockResolvedValue({ freedBytes: 0 }),
+	},
+
 	// GitHub operations
 	github: {
 		fetchStars: vi.fn().mockResolvedValue({
