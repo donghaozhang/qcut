@@ -44,6 +44,10 @@ import { useTranslation } from "@/lib/i18n";
 import { ReviewPanelControl } from "./editor/review/review-panel-control";
 import { UserLibrarySyncControl } from "./user-library-sync-control";
 import { AboutUpdatesDialog } from "./about-updates-dialog";
+import {
+	GlobalSettingsDialog,
+	GlobalSettingsMenuItem,
+} from "./global-settings-dialog";
 import { Tooltip, TooltipContent, TooltipTrigger } from "./ui/tooltip";
 import { useAppVersion } from "@/hooks/use-app-version";
 
@@ -182,6 +186,7 @@ export function EditorHeader() {
 					<DropdownMenuSeparator />
 					<ScreenshotControl variant="menu-item" />
 					<KeyboardShortcutsHelp variant="menu-item" />
+					<GlobalSettingsMenuItem />
 					<DropdownMenuItem
 						className="flex items-center gap-1.5"
 						onSelect={() => setIsAboutDialogOpen(true)}
@@ -204,6 +209,7 @@ export function EditorHeader() {
 				onConfirm={handleDelete}
 				projectName={activeProject?.name || ""}
 			/>
+			<GlobalSettingsDialog />
 			<AboutUpdatesDialog
 				open={isAboutDialogOpen}
 				onOpenChange={setIsAboutDialogOpen}

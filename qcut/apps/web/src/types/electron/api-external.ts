@@ -50,6 +50,22 @@ export interface ElectronShellOps {
 	};
 }
 
+export interface ElectronAppMaintenanceOps {
+	appMaintenance: {
+		getStorageInfo: () => Promise<{
+			drafts: string;
+			projects: string;
+			recordings: string;
+			exports: string;
+		}>;
+		getCacheStats: () => Promise<{
+			totalBytes: number;
+			entries: Array<{ id: string; path: string; bytes: number }>;
+		}>;
+		clearCaches: () => Promise<{ freedBytes: number }>;
+	};
+}
+
 export interface ElectronGitHubOps {
 	github: {
 		fetchStars: () => Promise<{

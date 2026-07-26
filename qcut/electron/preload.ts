@@ -449,6 +449,14 @@ const electronAPI: ElectronAPI & Record<string, unknown> = {
 			ipcRenderer.invoke("shell:openExternal", url),
 	},
 
+	// Global-settings storage / cache maintenance
+	appMaintenance: {
+		getStorageInfo: () =>
+			ipcRenderer.invoke("app-maintenance:get-storage-info"),
+		getCacheStats: () => ipcRenderer.invoke("app-maintenance:get-cache-stats"),
+		clearCaches: () => ipcRenderer.invoke("app-maintenance:clear-caches"),
+	},
+
 	// GitHub operations
 	github: {
 		fetchStars: (): Promise<GitHubStarsResponse> =>

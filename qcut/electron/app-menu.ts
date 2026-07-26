@@ -4,7 +4,7 @@
  * accelerator (copy/paste/undo/fullscreen) intact.
  */
 
-import { BrowserWindow, Menu, shell } from "electron";
+import { app, BrowserWindow, Menu, shell } from "electron";
 
 const HELP_CENTER_URL =
 	"https://github.com/Quriosity-agent/qcut/tree/master/docs";
@@ -14,6 +14,7 @@ const DISCORD_URL = "https://discord.gg/zmR9N35cjK";
 /** Events the renderer listens for on `window` (see apps/web components). */
 const OPEN_QUICK_START_EVENT = "qcut:open-quick-start";
 const OPEN_KEYBOARD_SHORTCUTS_EVENT = "qcut:open-keyboard-shortcuts";
+const OPEN_GLOBAL_SETTINGS_EVENT = "qcut:open-global-settings";
 
 function dispatchRendererEvent(eventName: string): () => void {
 	return () => {
@@ -31,9 +32,44 @@ function dispatchRendererEvent(eventName: string): () => void {
 
 export function setupApplicationMenu(): void {
 	const isMac = process.platform === "darwin";
+	const settingsItem: Electron.MenuItemConstructorOptions = {
+		label: "Global Settings…",
+		accelerator: "CmdOrCtrl+,",
+		click: dispatchRendererEvent(OPEN_GLOBAL_SETTINGS_EVENT),
+	};
 	const template: Electron.MenuItemConstructorOptions[] = [
-		...(isMac ? [{ role: "appMenu" as const }] : []),
-		{ role: "fileMenu" },
+		...(isMac
+			? [
+					{
+						label: app.name,
+						submenu: [
+							{ role: "about" as const },
+							{ type: "separator" as const },
+							settingsItem,
+							{ type: "separator" as const },
+							{ role: "services" as const },
+							{ type: "separator" as const },
+							{ role: "hide" as const },
+							{ role: "hideOthers" as const },
+							{ role: "unhide" as const },
+							{ type: "separator" as const },
+							{ role: "quit" as const },
+						],
+					},
+				]
+			: []),
+		{
+			role: "fileMenu" as const,
+			...(isMac
+				? {}
+				: {
+						submenu: [
+							settingsItem,
+							{ type: "separator" as const },
+							{ role: "close" as const },
+						],
+					}),
+		},
 		{ role: "editMenu" },
 		{ role: "viewMenu" },
 		{ role: "windowMenu" },
