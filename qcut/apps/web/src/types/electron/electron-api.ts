@@ -19,6 +19,7 @@ import type { ElectronFFmpegOps } from "./api-ffmpeg";
 import type {
 	ElectronApiKeyOps,
 	ElectronShellOps,
+	ElectronAppMaintenanceOps,
 	ElectronGitHubOps,
 	ElectronFalOps,
 } from "./api-external";
@@ -65,6 +66,7 @@ export interface ElectronAPI
 		ElectronFFmpegOps,
 		ElectronApiKeyOps,
 		ElectronShellOps,
+		ElectronAppMaintenanceOps,
 		ElectronGitHubOps,
 		ElectronFalOps,
 		ElectronGeminiChatOps,

@@ -18,6 +18,7 @@ import { useTimelineStore } from "@/stores/timeline/timeline-store";
 import { HeaderBase } from "./header-base";
 import { formatTimeCode } from "@/lib/time";
 import { useProjectStore } from "@/stores/project-store";
+import { useAppSettingsStore } from "@/stores/app-settings-store";
 import { useState } from "react";
 import {
 	DropdownMenu,
@@ -43,6 +44,10 @@ import { useTranslation } from "@/lib/i18n";
 import { ReviewPanelControl } from "./editor/review/review-panel-control";
 import { UserLibrarySyncControl } from "./user-library-sync-control";
 import { AboutUpdatesDialog } from "./about-updates-dialog";
+import {
+	GlobalSettingsDialog,
+	GlobalSettingsMenuItem,
+} from "./global-settings-dialog";
 import { Tooltip, TooltipContent, TooltipTrigger } from "./ui/tooltip";
 import { useAppVersion } from "@/hooks/use-app-version";
 
@@ -50,6 +55,7 @@ import { useAppVersion } from "@/hooks/use-app-version";
 export function EditorHeader() {
 	const { getTotalDuration } = useTimelineStore();
 	const { activeProject, renameProject, deleteProject } = useProjectStore();
+	const timecodeFormat = useAppSettingsStore((state) => state.timecodeFormat);
 	const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
 	const [isRenameDialogOpen, setIsRenameDialogOpen] = useState(false);
 	const [isAboutDialogOpen, setIsAboutDialogOpen] = useState(false);
@@ -180,6 +186,7 @@ export function EditorHeader() {
 					<DropdownMenuSeparator />
 					<ScreenshotControl variant="menu-item" />
 					<KeyboardShortcutsHelp variant="menu-item" />
+					<GlobalSettingsMenuItem />
 					<DropdownMenuItem
 						className="flex items-center gap-1.5"
 						onSelect={() => setIsAboutDialogOpen(true)}
@@ -202,6 +209,7 @@ export function EditorHeader() {
 				onConfirm={handleDelete}
 				projectName={activeProject?.name || ""}
 			/>
+			<GlobalSettingsDialog />
 			<AboutUpdatesDialog
 				open={isAboutDialogOpen}
 				onOpenChange={setIsAboutDialogOpen}
@@ -214,7 +222,7 @@ export function EditorHeader() {
 			<span>
 				{formatTimeCode(
 					getTotalDuration(),
-					"HH:MM:SS:FF",
+					timecodeFormat,
 					activeProject?.fps || 30
 				)}
 			</span>

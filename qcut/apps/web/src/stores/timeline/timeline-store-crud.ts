@@ -8,6 +8,7 @@
  */
 
 import type { TimelineElement, TimelineTrack } from "@/types/timeline";
+import { useAppSettingsStore } from "@/stores/app-settings-store";
 import {
 	moveTrack as reorderTracks,
 	validateElementTrackCompatibility,
@@ -218,8 +219,13 @@ export function createCrudOperations(
 			} as TimelineElement; // Type assertion since we trust the caller passes valid data
 
 			// If this is the first element and it's a media element, automatically set the project canvas size
-			// to match the media's aspect ratio and FPS (for videos)
-			if (isFirstElement && newElement.type === "media") {
+			// to match the media's aspect ratio and FPS (for videos). Users can turn
+			// this off in Global Settings (autoCanvasFromFirstMedia).
+			if (
+				isFirstElement &&
+				newElement.type === "media" &&
+				useAppSettingsStore.getState().autoCanvasFromFirstMedia
+			) {
 				import("../media/media-store")
 					.then(({ useMediaStore, getMediaAspectRatio }) => {
 						const mediaStore = useMediaStore.getState();

@@ -917,6 +917,21 @@ if (!isCliKeyCommand && !isHeadlessRecorder) {
 	});
 } // end if (!isCliKeyCommand && !isHeadlessRecorder)
 
+// window-all-closed never quits the app on macOS, so the temp cleanup in
+// that handler historically never ran there and $TMPDIR/qcut-* grew without
+// bound. before-quit fires on every platform.
+app.on("before-quit", () => {
+	if (isHeadlessRecorder) return;
+	try {
+		const { cleanupAllAudioFiles } = require("./audio-temp-handler.js");
+		cleanupAllAudioFiles();
+		const { cleanupAllVideoFiles } = require("./video-temp-handler.js");
+		cleanupAllVideoFiles();
+	} catch {
+		// Cleanup must never block quitting.
+	}
+});
+
 app.on("window-all-closed", () => {
 	// The headless-recorder process owns no visible window, so a stray
 	// window-close event must NOT tear down its daemon — otherwise a
