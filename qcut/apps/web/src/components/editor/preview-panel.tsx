@@ -45,6 +45,7 @@ import { usePreviewMedia } from "./preview-panel/use-preview-media";
 import { usePreviewSizing } from "./preview-panel/use-preview-sizing";
 import { PreviewGuidesLayer } from "./preview-panel/preview-guides-layer";
 import { PreviewViewOptionsMenu } from "./preview-panel/preview-view-options-menu";
+import { PreviewScopeDock } from "./preview-panel/preview-scope-dock";
 import type { ActiveElement } from "./preview-panel/types";
 import {
 	MCP_MEDIA_TOOL_NAME,
@@ -1050,6 +1051,7 @@ export function PreviewPanel() {
 						onToggleSafeAreas={toggleSafeAreas}
 					/>
 				</div>
+				<PreviewScopeDock />
 			</div>
 
 			{isExpanded && (

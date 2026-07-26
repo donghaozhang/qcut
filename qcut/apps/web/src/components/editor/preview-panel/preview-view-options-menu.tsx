@@ -21,8 +21,20 @@ import {
 	resolveGuides,
 } from "@/lib/preview/preview-guides";
 import { useEditorStore } from "@/stores/editor/editor-store";
-import { usePreviewViewStore } from "@/stores/editor/preview-view-store";
+import {
+	SCOPE_DOCK_ORDER,
+	usePreviewViewStore,
+} from "@/stores/editor/preview-view-store";
 import { useProjectStore } from "@/stores/project-store";
+import type { ColorScopeMode } from "@/lib/color/color-scopes";
+import type { TranslationKey } from "@/lib/i18n";
+
+const SCOPE_MENU_LABEL_KEYS: Record<ColorScopeMode, TranslationKey> = {
+	parade: "editor.preview.scopeParade",
+	waveform: "editor.preview.scopeWaveform",
+	vectorscope: "editor.preview.scopeVectorscope",
+	histogram: "editor.preview.scopeHistogram",
+};
 
 /**
  * Unified player view-options menu: guides & rulers management plus the
@@ -42,6 +54,10 @@ export function PreviewViewOptionsMenu() {
 	const toggleSafeAreas = usePreviewViewStore((state) => state.toggleSafeAreas);
 	const showRulers = usePreviewViewStore((state) => state.showRulers);
 	const toggleRulers = usePreviewViewStore((state) => state.toggleRulers);
+	const scopesEnabled = usePreviewViewStore((state) => state.scopesEnabled);
+	const toggleScopes = usePreviewViewStore((state) => state.toggleScopes);
+	const visibleScopes = usePreviewViewStore((state) => state.visibleScopes);
+	const toggleScope = usePreviewViewStore((state) => state.toggleScope);
 
 	const guides = resolveGuides(storedGuides);
 	const anyGuides = hasGuides(guides);
@@ -66,6 +82,32 @@ export function PreviewViewOptionsMenu() {
 				</Button>
 			</DropdownMenuTrigger>
 			<DropdownMenuContent align="start" className="w-56">
+				<DropdownMenuSub>
+					<DropdownMenuSubTrigger data-testid="preview-scopes-menu">
+						{t("editor.preview.scopes")}
+					</DropdownMenuSubTrigger>
+					<DropdownMenuSubContent className="w-52">
+						<DropdownMenuCheckboxItem
+							checked={scopesEnabled}
+							data-testid="scope-dock-toggle"
+							onCheckedChange={() => toggleScopes()}
+						>
+							{t("editor.preview.scopes")}
+						</DropdownMenuCheckboxItem>
+						<DropdownMenuSeparator />
+						{SCOPE_DOCK_ORDER.map((mode) => (
+							<DropdownMenuCheckboxItem
+								key={mode}
+								checked={visibleScopes[mode]}
+								disabled={!scopesEnabled}
+								data-testid={`scope-toggle-${mode}`}
+								onCheckedChange={() => toggleScope(mode)}
+							>
+								{t(SCOPE_MENU_LABEL_KEYS[mode])}
+							</DropdownMenuCheckboxItem>
+						))}
+					</DropdownMenuSubContent>
+				</DropdownMenuSub>
 				<DropdownMenuSub>
 					<DropdownMenuSubTrigger data-testid="preview-guides-menu">
 						{t("editor.preview.guidesRulers")}

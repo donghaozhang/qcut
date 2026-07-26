@@ -2,19 +2,36 @@
 
 import { create } from "zustand";
 import { persist } from "zustand/middleware";
+import type { ColorScopeMode } from "@/lib/color/color-scopes";
 
 export const PREVIEW_SCALE_PRESETS = ["fit", 75, 100, 125, 150] as const;
 
 export type PreviewScale = (typeof PREVIEW_SCALE_PRESETS)[number];
 
+export const SCOPE_DOCK_MIN_HEIGHT = 120;
+export const SCOPE_DOCK_MAX_HEIGHT = 320;
+
+export const SCOPE_DOCK_ORDER: ColorScopeMode[] = [
+	"parade",
+	"waveform",
+	"vectorscope",
+	"histogram",
+];
+
 interface PreviewViewState {
 	previewScale: PreviewScale;
 	showSafeAreas: boolean;
 	showRulers: boolean;
+	scopesEnabled: boolean;
+	scopeDockHeight: number;
+	visibleScopes: Record<ColorScopeMode, boolean>;
 
 	setPreviewScale: (scale: PreviewScale) => void;
 	toggleSafeAreas: () => void;
 	toggleRulers: () => void;
+	toggleScopes: () => void;
+	toggleScope: (mode: ColorScopeMode) => void;
+	setScopeDockHeight: (height: number) => void;
 	/** Step through the numeric presets; "fit" enters at the nearest end. */
 	stepPreviewScale: (direction: "in" | "out") => void;
 }
@@ -25,6 +42,14 @@ export const usePreviewViewStore = create<PreviewViewState>()(
 			previewScale: "fit",
 			showSafeAreas: false,
 			showRulers: false,
+			scopesEnabled: false,
+			scopeDockHeight: 180,
+			visibleScopes: {
+				parade: true,
+				waveform: true,
+				vectorscope: true,
+				histogram: false,
+			},
 
 			setPreviewScale: (scale) => {
 				set({ previewScale: scale });
@@ -36,6 +61,28 @@ export const usePreviewViewStore = create<PreviewViewState>()(
 
 			toggleRulers: () => {
 				set((state) => ({ showRulers: !state.showRulers }));
+			},
+
+			toggleScopes: () => {
+				set((state) => ({ scopesEnabled: !state.scopesEnabled }));
+			},
+
+			toggleScope: (mode) => {
+				set((state) => ({
+					visibleScopes: {
+						...state.visibleScopes,
+						[mode]: !state.visibleScopes[mode],
+					},
+				}));
+			},
+
+			setScopeDockHeight: (height) => {
+				set({
+					scopeDockHeight: Math.min(
+						Math.max(height, SCOPE_DOCK_MIN_HEIGHT),
+						SCOPE_DOCK_MAX_HEIGHT
+					),
+				});
 			},
 
 			stepPreviewScale: (direction) => {
