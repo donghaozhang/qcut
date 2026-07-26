@@ -194,3 +194,6 @@ docs/task/Low-priority/
 
 # Supabase CLI local link state
 packages/db/supabase/.temp/
+
+# Openverse harvest cache (8MB+); rebuild with `bun run assets:audio:harvest`
+apps/web/audio-cdn/openverse-raw.json

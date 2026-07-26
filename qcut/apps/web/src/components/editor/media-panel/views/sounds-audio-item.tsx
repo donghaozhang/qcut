@@ -6,6 +6,7 @@ import {
 import {
 	Check,
 	AudioLines,
+	Copyright,
 	Download,
 	Flame,
 	FolderPlus,
@@ -20,6 +21,7 @@ import {
 	Waves,
 } from "lucide-react";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import {
 	DropdownMenu,
@@ -39,6 +41,10 @@ import {
 	serializeAudioLibraryDrag,
 } from "@/lib/audio/audio-library-drag";
 import { localizeAudioLibraryTag } from "@/lib/audio/audio-library-catalog";
+import {
+	buildAudioAttribution,
+	requiresAttribution,
+} from "@/lib/audio/audio-attribution";
 import { useTranslation } from "@/lib/i18n";
 import { cn } from "@/lib/utils";
 import { useAssetLibraryStore } from "@/stores/asset-library-store";
@@ -128,7 +134,26 @@ export function AudioLibraryItem({
 			? (sound.localizedDescription ?? sound.description)
 			: sound.description;
 	const colors = sound.artworkColors ?? ["#28465c", "#9ed7c7"];
+	// Drawing a real waveform means downloading and decoding the entire track.
+	// That is fine for a short bundled loop or something already cached, but a
+	// grid of full-length remote songs would pull hundreds of megabytes just to
+	// decorate a 28px strip — those keep the static bars until the audio is
+	// local, at which point the waveform costs nothing extra.
+	const isRemoteTrack = /^https?:/i.test(sound.previewUrl ?? sound.url ?? "");
+	const showRealWaveform =
+		Boolean(sound.previewUrl) &&
+		(!isRemoteTrack || runtime.cacheStatus === "cached");
 	const licenseLabel = asset.license.spdxId ?? asset.license.name;
+	const needsAttribution = requiresAttribution({ license: asset.license });
+	const copyAttribution = useCallback(async () => {
+		const credit = buildAudioAttribution({ sound, license: asset.license });
+		try {
+			await navigator.clipboard.writeText(credit);
+			toast.success(t("audioLibrary.action.attributionCopied"));
+		} catch {
+			toast.error(t("audioLibrary.action.attributionCopyFailed"));
+		}
+	}, [asset.license, sound, t]);
 	const localizedMoods = (sound.moods ?? []).map((mood) =>
 		localizeAudioLibraryTag({ tag: mood, locale })
 	);
@@ -241,16 +266,18 @@ export function AudioLibraryItem({
 						/>
 					))}
 				</div>
-				<div className="pointer-events-none absolute inset-x-2 bottom-2 h-7 overflow-hidden">
-					<AudioWaveform
-						audioUrl={sound.previewUrl ?? ""}
-						cacheKey={`audio-library:${assetKind}:${sound.id}`}
-						height={28}
-						className="w-full opacity-90"
-						ariaLabel={t("audioLibrary.card.waveform", { name })}
-						showStatus={false}
-					/>
-				</div>
+				{showRealWaveform ? (
+					<div className="pointer-events-none absolute inset-x-2 bottom-2 h-7 overflow-hidden">
+						<AudioWaveform
+							audioUrl={sound.previewUrl ?? ""}
+							cacheKey={`audio-library:${assetKind}:${sound.id}`}
+							height={28}
+							className="w-full opacity-90"
+							ariaLabel={t("audioLibrary.card.waveform", { name })}
+							showStatus={false}
+						/>
+					</div>
+				) : null}
 				{assetKind === "music" ? (
 					<Music2 className="absolute left-2 top-2 size-3.5 opacity-80" />
 				) : (
@@ -405,6 +432,7 @@ export function AudioLibraryItem({
 							)}
 						</Button>
 						{folders.length > 0 ||
+						needsAttribution ||
 						(assetKind === "music" && (sound.bpm || sound.loopable)) ? (
 							<DropdownMenu>
 								<DropdownMenuTrigger asChild>
@@ -446,6 +474,18 @@ export function AudioLibraryItem({
 										</DropdownMenuSub>
 									) : null}
 									{folders.length > 0 &&
+									(needsAttribution ||
+										(assetKind === "music" &&
+											(sound.bpm || sound.loopable))) ? (
+										<DropdownMenuSeparator />
+									) : null}
+									{needsAttribution ? (
+										<DropdownMenuItem onSelect={() => void copyAttribution()}>
+											<Copyright />
+											{t("audioLibrary.action.copyAttribution")}
+										</DropdownMenuItem>
+									) : null}
+									{needsAttribution &&
 									assetKind === "music" &&
 									(sound.bpm || sound.loopable) ? (
 										<DropdownMenuSeparator />

@@ -12,6 +12,8 @@
 		"assets:audio:artwork": "bun scripts/generate-builtin-audio-artwork.ts",
 		"assets:audio:verify-cdn": "bun scripts/verify-audio-cdn-manifest.ts",
 		"assets:audio:release-cdn": "bun scripts/release-audio-cdn.ts",
+		"assets:audio:harvest": "bun scripts/harvest-openverse-audio.ts",
+		"assets:audio:rebuild-library": "bun scripts/harvest-openverse-audio.ts --build-only",
 		"assets:text": "bun scripts/generate-text-assets.ts",
 		"assets:text:verify-cdn": "bun scripts/verify-text-asset-cdn-manifest.ts",
 		"assets:text:verify-designer-ready": "bun scripts/verify-text-asset-cdn-manifest.ts --designer-ready",

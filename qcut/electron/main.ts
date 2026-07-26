@@ -507,9 +507,9 @@ function createWindow(): void {
 					"worker-src 'self' blob: app:; " +
 					"style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; " +
 					"font-src 'self' https://fonts.gstatic.com https://cdn.tldraw.com; " +
-					`connect-src 'self' blob: app: http://localhost:${staticServerPort} ws: wss: https://fonts.googleapis.com https://fonts.gstatic.com https://api.github.com https://fal.run https://queue.fal.run https://rest.alpha.fal.ai https://fal.media https://v3.fal.media https://v3b.fal.media https://api.iconify.design https://api.simplesvg.com https://api.unisvg.com https://freesound.org https://cdn.freesound.org https://cdn.tldraw.com https://qcut-license-server.zdhpeter.workers.dev https://storage.googleapis.com https://kbrtxitvavpuimuihppz.supabase.co; ` +
+					`connect-src 'self' blob: app: http://localhost:${staticServerPort} ws: wss: https://fonts.googleapis.com https://fonts.gstatic.com https://api.github.com https://fal.run https://queue.fal.run https://rest.alpha.fal.ai https://fal.media https://v3.fal.media https://v3b.fal.media https://api.iconify.design https://api.simplesvg.com https://api.unisvg.com https://freesound.org https://cdn.freesound.org https://*.storage.jamendo.com https://usercontent.jamendo.com https://cdn.tldraw.com https://qcut-license-server.zdhpeter.workers.dev https://storage.googleapis.com https://kbrtxitvavpuimuihppz.supabase.co; ` +
 					"media-src 'self' blob: data: app: qcut-hyperframes: https:; " +
-					"img-src 'self' blob: data: app: https://fal.run https://fal.media https://v3.fal.media https://v3b.fal.media https://api.iconify.design https://api.simplesvg.com https://api.unisvg.com https://avatars.githubusercontent.com https://i.ibb.co https://cdn.tldraw.com https://lh3.googleusercontent.com https://kbrtxitvavpuimuihppz.supabase.co; " +
+					"img-src 'self' blob: data: app: https://fal.run https://fal.media https://v3.fal.media https://v3b.fal.media https://api.iconify.design https://api.simplesvg.com https://api.unisvg.com https://avatars.githubusercontent.com https://i.ibb.co https://usercontent.jamendo.com https://cdn.tldraw.com https://lh3.googleusercontent.com https://kbrtxitvavpuimuihppz.supabase.co; " +
 					"frame-src 'self' qcut-hyperframes:;",
 			];
 

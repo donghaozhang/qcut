@@ -13,7 +13,14 @@ import {
 	Sparkles,
 	Upload,
 } from "lucide-react";
-import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
+import {
+	useCallback,
+	useEffect,
+	useMemo,
+	useRef,
+	useState,
+	type ReactNode,
+} from "react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import {
@@ -25,7 +32,7 @@ import {
 import { Input } from "@/components/ui/input";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { useAudioLibrarySearch } from "@/hooks/media/use-audio-library-search";
-import { useAudioCdnCatalog } from "@/hooks/media/use-audio-cdn-catalog";
+import { useExtendedAudioCatalog } from "@/hooks/media/use-extended-audio-catalog";
 import { useAudioPreview } from "@/hooks/media/use-audio-preview";
 import {
 	AUDIO_LIBRARY_CATEGORIES,
@@ -111,6 +118,9 @@ const MY_LIBRARY_ITEMS: readonly SidebarItem[] = [
 		icon: <Mic2 className="size-3" />,
 	},
 ] as const;
+
+/** Cards revealed per page; matches the remote search page size. */
+const AUDIO_PAGE_SIZE = 24;
 
 function mergeUniqueAudio({
 	primary,
@@ -322,7 +332,7 @@ export function SoundsView() {
 			);
 	}, [reloadPersonalLibrary]);
 
-	const cdnTracks = useAudioCdnCatalog();
+	const extendedTracks = useExtendedAudioCatalog();
 	const builtInResults = useMemo(
 		() =>
 			getCatalogAudio({
@@ -330,10 +340,10 @@ export function SoundsView() {
 				query,
 				catalog: mergeUniqueAudio({
 					primary: BUILT_IN_AUDIO,
-					secondary: cdnTracks,
+					secondary: extendedTracks,
 				}),
 			}),
-		[category, cdnTracks, query]
+		[category, extendedTracks, query]
 	);
 	const catalogResults = useMemo(
 		() =>
@@ -442,6 +452,28 @@ export function SoundsView() {
 		savedItems,
 	]);
 	const displayedItems = catalogActive ? catalogResults : personalItems;
+	// Every rendered card mounts a waveform that downloads and decodes the whole
+	// track, so the grid grows on demand instead of mounting the entire music
+	// library (thousands of tracks) the moment a category opens.
+	const [visibleCount, setVisibleCount] = useState(AUDIO_PAGE_SIZE);
+	// Switching category or search starts a fresh window.
+	useEffect(() => {
+		setVisibleCount(AUDIO_PAGE_SIZE);
+	}, [activeSection, query]);
+	const visibleItems = useMemo(
+		() => displayedItems.slice(0, visibleCount),
+		[displayedItems, visibleCount]
+	);
+	const hasMoreLocalItems = displayedItems.length > visibleCount;
+	const canLoadMore = hasMoreLocalItems || (catalogActive && hasNextPage);
+	const showMore = useCallback(() => {
+		// Reveal what is already in hand before asking the network for more.
+		if (hasMoreLocalItems) {
+			setVisibleCount((count) => count + AUDIO_PAGE_SIZE);
+			return;
+		}
+		void loadMore();
+	}, [hasMoreLocalItems, loadMore]);
 	const title = catalogActive
 		? t(category.labelKey)
 		: activeSection === "favorites"
@@ -707,7 +739,7 @@ export function SoundsView() {
 								</div>
 							) : displayedItems.length > 0 ? (
 								<div className="grid grid-cols-[repeat(auto-fill,minmax(220px,1fr))] gap-2">
-									{displayedItems.map((sound) => {
+									{visibleItems.map((sound) => {
 										const kind = sound.kind ?? fallbackKind;
 										return (
 											<AudioLibraryItem
@@ -730,22 +762,22 @@ export function SoundsView() {
 									{t("audioLibrary.empty")}
 								</div>
 							)}
-							{catalogActive && hasNextPage ? (
+							{canLoadMore ? (
 								<Button
 									type="button"
 									variant="outline"
 									size="sm"
 									className="mt-3 w-full"
-									disabled={isLoadingMore}
-									onClick={() => void loadMore()}
+									disabled={isLoadingMore && !hasMoreLocalItems}
+									onClick={showMore}
 									onKeyDown={(event) => {
 										if (event.key === "Enter" || event.key === " ") {
 											event.preventDefault();
-											void loadMore();
+											showMore();
 										}
 									}}
 								>
-									{isLoadingMore
+									{isLoadingMore && !hasMoreLocalItems
 										? t("audioLibrary.loadingMore")
 										: t("audioLibrary.loadMore")}
 								</Button>
