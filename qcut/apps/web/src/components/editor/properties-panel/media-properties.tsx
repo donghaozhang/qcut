@@ -741,7 +741,11 @@ export function MediaProperties({
 						<TabsTrigger value="audio" className="min-w-0 px-1 text-[10px]">
 							{t("mediaProperties.tab.audio")}
 						</TabsTrigger>
-						<TabsTrigger value="speed" className="min-w-0 px-1 text-[10px]">
+						<TabsTrigger
+							value="speed"
+							className="min-w-0 px-1 text-[10px]"
+							data-testid="media-properties-tab-speed"
+						>
 							{t("mediaProperties.tab.speed")}
 						</TabsTrigger>
 						<TabsTrigger
