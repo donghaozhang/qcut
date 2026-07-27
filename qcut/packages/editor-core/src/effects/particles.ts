@@ -96,6 +96,15 @@ const VARIANT_CONFIG: Record<EffectParticleVariant, ParticleVariantConfig> = {
 		swayAmplitude: 0.14,
 		twinkle: false,
 	},
+	rain: {
+		// Thin elongated streaks: size is the streak length, drawn as a line.
+		baseCount: 110,
+		sizeMin: 0.03,
+		sizeMax: 0.06,
+		fallPerSecond: 1.1,
+		swayAmplitude: 0.008,
+		twinkle: false,
+	},
 };
 
 /** Deterministic hash → [0, 1). Keeps particle layout stable across renders. */

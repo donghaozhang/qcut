@@ -70,6 +70,127 @@ function createDecorationCatalogEntry({
 	};
 }
 
+/**
+ * 节奏光束 pairs the rainbow-rays decoration with an audio-reactive
+ * brightness stage so the beams pulse to the music. Hand-written because
+ * the factory above emits a single decoration stage.
+ */
+function createRhythmBeamsCatalogEntry(): VisualEffectCatalogEntry {
+	const preset: EffectPreset = {
+		id: "light-rhythm-beams",
+		name: "Rhythm Beams",
+		description: "Rotating light beams with brightness pulsing to the beat.",
+		category: "basic",
+		icon: "RH",
+		parameters: {},
+		renderProgram: {
+			version: 1,
+			stages: [
+				{
+					kind: "decoration",
+					variant: "rainbow-rays",
+					color: "#ffe9c4",
+					opacity: 0.65,
+				},
+				{
+					kind: "audio-reactive",
+					driver: "timeline",
+					band: "bass",
+					property: "brightness",
+					minimum: 1,
+					maximum: 1.4,
+					attackMs: 25,
+					releaseMs: 150,
+				},
+			],
+		},
+	};
+
+	return {
+		preset,
+		assetVersion: 1,
+		localizedName: "节奏光束",
+		localizedDescription: "旋转光束配合节奏驱动画面亮度脉冲。",
+		family: "visual",
+		category: "light",
+		tags: ["beams", "rhythm", "audio", "light"],
+		releasedAt: "2026-07-27T00:00:00.000Z",
+		popularityScore: 85,
+		publication: "published",
+		render: {
+			kind: "overlay",
+			previewBackend: "canvas",
+			exportBackend: "frame-renderer",
+			parity: "verified",
+		},
+	};
+}
+
+/**
+ * 丁达尔摇摆: warm volumetric light rays combined with a slow motion sway,
+ * so the beams drift like sunlight through haze. Hand-written because the
+ * factory above emits a single decoration stage.
+ */
+function createTyndallSwayCatalogEntry(): VisualEffectCatalogEntry {
+	const preset: EffectPreset = {
+		id: "light-tyndall-sway",
+		name: "Tyndall Sway",
+		description: "Warm volumetric rays drifting with a gentle sway.",
+		category: "basic",
+		icon: "TS",
+		parameters: {},
+		renderProgram: {
+			version: 1,
+			stages: [
+				{
+					kind: "decoration",
+					variant: "rainbow-rays",
+					color: "#ffedc9",
+					opacity: 0.5,
+				},
+				{
+					kind: "motion",
+					intensity: 1,
+					channels: [
+						{
+							property: "x",
+							waveform: "sine",
+							amplitude: 0.008,
+							frequencyHz: 0.25,
+						},
+						{
+							property: "rotation",
+							waveform: "sine",
+							amplitude: 1.5,
+							frequencyHz: 0.2,
+							phase: 0.9,
+						},
+					],
+				},
+			],
+		},
+	};
+
+	return {
+		preset,
+		assetVersion: 1,
+		localizedName: "丁达尔摇摆",
+		localizedDescription: "暖色丁达尔光束随画面缓缓摇摆,如透过薄雾的阳光。",
+		family: "visual",
+		category: "light",
+		tags: ["tyndall", "rays", "sway", "light"],
+		releasedAt: "2026-07-27T00:00:00.000Z",
+		popularityScore: 82,
+		publication: "published",
+		render: {
+			kind: "overlay",
+			previewBackend: "canvas",
+			exportBackend: "frame-renderer",
+			parity: "verified",
+		},
+	};
+}
+
 export const DECORATION_EFFECT_CATALOG = [
 	createDecorationCatalogEntry({
 		id: "basic-grid",
@@ -191,4 +312,112 @@ export const DECORATION_EFFECT_CATALOG = [
 		releasedAt: "2026-07-20T05:07:00.000Z",
 		popularityScore: 83,
 	}),
+	// 2026-07-27 剪映补齐包 — recolor variants of existing decoration models.
+	createDecorationCatalogEntry({
+		id: "dynamic-explosion",
+		name: "Explosion",
+		localizedName: "爆炸",
+		description: "Orange-red rays bursting violently from the center.",
+		localizedDescription: "橙红色射线从中心猛烈爆发。",
+		category: "dynamic",
+		icon: "EX",
+		variant: "burst",
+		color: "#ff6a2b",
+		opacity: 0.85,
+		tags: ["explosion", "burst", "impact", "dynamic"],
+		releasedAt: "2026-07-27T00:00:00.000Z",
+		popularityScore: 92,
+	}),
+	createDecorationCatalogEntry({
+		id: "heart-pink-hearts",
+		name: "Pink Hearts",
+		localizedName: "粉红心心",
+		description: "Pink hearts orbiting playfully around the frame.",
+		localizedDescription: "粉色爱心环绕画面俏皮飞舞。",
+		category: "heart",
+		icon: "PH",
+		variant: "hearts-orbit",
+		color: "#ff8fc0",
+		opacity: 0.9,
+		tags: ["hearts", "pink", "love", "heart"],
+		releasedAt: "2026-07-27T00:00:00.000Z",
+		popularityScore: 86,
+	}),
+	createDecorationCatalogEntry({
+		id: "atmosphere-blessing-orbit",
+		name: "Blessing Orbit",
+		localizedName: "祝福环绕",
+		description: "Golden blessing glyphs drifting around the frame.",
+		localizedDescription: "金色祝福符号环绕画面飘浮。",
+		category: "atmosphere",
+		icon: "BO",
+		variant: "floating-text",
+		color: "#ffd45e",
+		opacity: 0.9,
+		tags: ["blessing", "glyphs", "gold", "atmosphere"],
+		releasedAt: "2026-07-27T00:00:00.000Z",
+		popularityScore: 82,
+	}),
+	createDecorationCatalogEntry({
+		id: "light-dynamic-beams",
+		name: "Dynamic Beams",
+		localizedName: "动感光束",
+		description: "Warm white light beams sweeping dynamically across.",
+		localizedDescription: "暖白色光束动感旋转扫过画面。",
+		category: "light",
+		icon: "DB",
+		variant: "rainbow-rays",
+		color: "#fff3e0",
+		opacity: 0.75,
+		tags: ["beams", "sweep", "dynamic", "light"],
+		releasedAt: "2026-07-27T00:00:00.000Z",
+		popularityScore: 91,
+	}),
+	createDecorationCatalogEntry({
+		id: "light-ray-beams",
+		name: "Ray Beams",
+		localizedName: "射线光束",
+		description: "Subtle golden ray beams rotating gently.",
+		localizedDescription: "金色射线光束轻柔旋转,若隐若现。",
+		category: "light",
+		icon: "RY",
+		variant: "rainbow-rays",
+		color: "#ffd36b",
+		opacity: 0.4,
+		tags: ["rays", "beams", "gold", "light"],
+		releasedAt: "2026-07-27T00:00:00.000Z",
+		popularityScore: 80,
+	}),
+	createDecorationCatalogEntry({
+		id: "basic-opening-2",
+		name: "Iris Open II",
+		localizedName: "开幕Ⅱ",
+		description: "A warm-toned circular iris opening onto the frame.",
+		localizedDescription: "暖色调圆形开幕遮罩,展开露出画面。",
+		category: "basic",
+		icon: "O2",
+		variant: "iris",
+		color: "#2b1608",
+		opacity: 1,
+		tags: ["iris", "open", "warm", "basic"],
+		releasedAt: "2026-07-27T00:00:00.000Z",
+		popularityScore: 91,
+	}),
+	createDecorationCatalogEntry({
+		id: "heart-peach-hearts",
+		name: "Peach Hearts",
+		localizedName: "桃粉爱心",
+		description: "Soft peach-pink hearts floating around the frame.",
+		localizedDescription: "桃粉色爱心温柔环绕画面飘动。",
+		category: "heart",
+		icon: "TH",
+		variant: "hearts-orbit",
+		color: "#ffb3a1",
+		opacity: 0.85,
+		tags: ["hearts", "peach", "romance", "heart"],
+		releasedAt: "2026-07-27T00:00:00.000Z",
+		popularityScore: 91,
+	}),
+	createRhythmBeamsCatalogEntry(),
+	createTyndallSwayCatalogEntry(),
 ] as const satisfies readonly VisualEffectCatalogEntry[];

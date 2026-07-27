@@ -23,6 +23,13 @@ const storeMocks = vi.hoisted(() => {
 		tracks: [track],
 		pushHistory: vi.fn(),
 		addElementToTrack: vi.fn(),
+		updateElementStartTime: vi.fn(),
+		updateElementTrim: vi.fn(),
+		updateElementDuration: vi.fn(),
+		updateMarkdownElement: vi.fn(),
+		updateTextElement: vi.fn(),
+		updateMediaElement: vi.fn(),
+		updateMediaTiming: vi.fn(),
 	};
 	return { state, track };
 });
@@ -129,6 +136,78 @@ describe("Claude timeline batch bridge", () => {
 		expect(sendResponse).toHaveBeenCalledWith("request-1", {
 			added: [{ index: 0, success: true, elementId: "element-1" }],
 			failedCount: 0,
+		});
+	});
+
+	it("applies batch updates in both nested-changes and flat shapes", () => {
+		storeMocks.track.elements = [
+			{
+				id: "clip",
+				type: "media",
+				startTime: 0,
+				duration: 8,
+				trimStart: 0,
+				trimEnd: 0,
+			},
+		];
+
+		let updateHandler:
+			| ((data: {
+					requestId: string;
+					updates: Array<Record<string, unknown>>;
+			  }) => void)
+			| undefined;
+		const sendResponse = vi.fn();
+		const claudeAPI = {
+			onBatchUpdateElements: vi.fn(
+				(
+					handler: (data: {
+						requestId: string;
+						updates: Array<Record<string, unknown>>;
+					}) => void
+				) => {
+					updateHandler = handler;
+				}
+			),
+			sendBatchUpdateElementsResponse: sendResponse,
+		} as unknown as ClaudeTimelineBridgeAPI;
+
+		setupBatchHandlers({
+			claudeAPI,
+			sharedUtils: {} as ClaudeTimelineBridgeSharedUtils,
+		});
+		expect(updateHandler).toBeDefined();
+		updateHandler?.({
+			requestId: "request-2",
+			updates: [
+				// Documented nested shape — previously silently ignored
+				{ elementId: "clip", changes: { startTime: 7 } },
+				// Legacy flat shape — must keep working
+				{ elementId: "clip", startTime: 9 },
+			],
+		});
+
+		expect(storeMocks.state.updateElementStartTime).toHaveBeenNthCalledWith(
+			1,
+			"track-1",
+			"clip",
+			7,
+			false
+		);
+		expect(storeMocks.state.updateElementStartTime).toHaveBeenNthCalledWith(
+			2,
+			"track-1",
+			"clip",
+			9,
+			false
+		);
+		expect(sendResponse).toHaveBeenCalledWith("request-2", {
+			updatedCount: 2,
+			failedCount: 0,
+			results: [
+				{ index: 0, success: true },
+				{ index: 1, success: true },
+			],
 		});
 	});
 });
