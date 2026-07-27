@@ -55,46 +55,6 @@ function createCompositeCatalogEntry({
 	};
 }
 
-/**
- * 多屏球形 pairs the quad grid with a fisheye bulge. The factory above emits
- * single-stage programs, so this two-stage entry is written by hand while
- * keeping the exact contract of the factory output.
- */
-const SPHERE_GRID_ENTRY: VisualEffectCatalogEntry = {
-	preset: {
-		id: "multiscreen-sphere-grid",
-		name: "Sphere Grid",
-		description:
-			"A two-by-two grid warped by a fisheye bulge into sphere-like tiles.",
-		category: "composite",
-		icon: "SG",
-		parameters: {},
-		effectType: "composite-layout",
-		renderProgram: {
-			version: 1,
-			stages: [
-				{ kind: "composite", layout: "grid", copies: 4, gap: 0.012 },
-				{ kind: "distortion", variant: "fisheye", strength: 0.55 },
-			],
-		},
-	},
-	assetVersion: 1,
-	localizedName: "多屏球形",
-	localizedDescription: "二乘二网格叠加鱼眼畸变,呈现球面般的多屏画面。",
-	family: "visual",
-	category: "multiscreen",
-	tags: ["grid", "sphere", "fisheye", "multiscreen", "多屏"],
-	releasedAt: "2026-07-27T00:00:00.000Z",
-	popularityScore: 81,
-	publication: "published",
-	render: {
-		kind: "composite",
-		previewBackend: "canvas",
-		exportBackend: "ffmpeg-filter-complex",
-		parity: "verified",
-	},
-};
-
 export const COMPOSITE_EFFECT_CATALOG = [
 	createCompositeCatalogEntry({
 		id: "multiscreen-side-by-side",
@@ -154,5 +114,4 @@ export const COMPOSITE_EFFECT_CATALOG = [
 		releasedAt: "2026-07-20T04:03:00.000Z",
 		popularityScore: 80,
 	}),
-	SPHERE_GRID_ENTRY,
 ] as const satisfies readonly VisualEffectCatalogEntry[];

@@ -1975,7 +1975,13 @@ describe.skipIf(!fs.existsSync(ffmpegPath))(
 						`${entry.preset.id}: ${result.stderr?.toString()}`
 					).toBe(0);
 					expect(fs.statSync(outputPath).size).toBeGreaterThan(5_000);
-					const sampleX = entry.preset.id === "audio-bass-pulse" ? 75 : 40;
+					// Scale-driven effects leave the stripe pattern unchanged at x=40
+					// (that column stays inside the same stripe as the frame zooms),
+					// so sample a column that actually shifts under scaling.
+					const drivenProperty = program.stages.find(
+						(stage) => stage.kind === "audio-reactive"
+					)?.property;
+					const sampleX = drivenProperty === "scale" ? 75 : 40;
 					const lowPixel = readFramePixelAt({
 						inputPath: outputPath,
 						time: Math.min(1.9, Math.max(0.05, minimum.timeSeconds)),

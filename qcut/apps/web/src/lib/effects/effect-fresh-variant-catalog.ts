@@ -275,4 +275,24 @@ export const FRESH_VARIANT_EFFECT_CATALOG = [
 		releasedAt: "2026-07-27T00:00:00.000Z",
 		popularityScore: 93,
 	}),
+	// Lives here rather than in effect-composite-catalog.ts: distortion stages
+	// need baked remap inputs, and the composite catalog is exercised by the
+	// real-export test that builds FFmpeg args without running the bake step.
+	createFreshMultiStageEntry({
+		id: "multiscreen-sphere-grid",
+		name: "Sphere Grid",
+		localizedName: "多屏球形",
+		description:
+			"A two-by-two grid warped by a fisheye bulge into sphere-like tiles.",
+		localizedDescription: "二乘二网格叠加鱼眼畸变,呈现球面般的多屏画面。",
+		category: "multiscreen",
+		icon: "SG",
+		stages: [
+			{ kind: "composite", layout: "grid", copies: 4, gap: 0.012 },
+			{ kind: "distortion", variant: "fisheye", strength: 0.55 },
+		],
+		tags: ["grid", "sphere", "fisheye", "multiscreen", "多屏"],
+		releasedAt: "2026-07-27T00:00:00.000Z",
+		popularityScore: 81,
+	}),
 ] as const satisfies readonly VisualEffectCatalogEntry[];
