@@ -6,7 +6,7 @@ argument-hint: [task description]
 
 # QCut Toolkit
 
-Unified entry point for QCut's eight sub-skills. Route tasks to the appropriate sub-skill based on what the user needs.
+Unified entry point for QCut's sub-skills. Route tasks to the appropriate sub-skill based on what the user needs.
 
 ## Sub-Skills
 
@@ -37,7 +37,21 @@ Handles:
 - Separate background and subtitle verification frames
 - Safe resume based on artifact dependency timestamps
 
-### 3. ffmpeg-skill — Media Processing
+### 3. qcut-cityfilm — Reference-Driven City / Promo Films
+**When:** Reproducing the structure and feel of a reference city, travel, or promo film with your own or licensed footage, including multi-language narration
+**Invoke:** `/qcut-cityfilm`
+**Skill path:** `.claude/skills/qcut-toolkit/qcut-cityfilm/SKILL.md`
+
+Handles:
+- Reference breakdown: contact sheets, transcript, and scene-cut pacing profile
+- Shot-language inventory turned into licensed-footage search queries with attribution manifest
+- Segment picking against per-act target shot lengths
+- Per-act emotional narration through Seed Audio, one pass per language
+- QCut project assembly (import, timeline, subtitles, export) via the editor CLI
+- Final audio bed mixed outside the editor: ambience, segmented music, ducked narration
+- Level and frame verification of the exported file, not just the timeline
+
+### 4. ffmpeg-skill — Media Processing
 **When:** Converting, compressing, trimming, resizing, extracting audio, adding subtitles, creating GIFs, applying effects
 **Invoke:** `/ffmpeg-skill`
 **Skill path:** `.claude/skills/qcut-toolkit/ffmpeg-skill/SKILL.md`
@@ -49,7 +63,7 @@ Handles:
 - GIF creation, speed changes, merging/concatenation
 - Streaming (HLS, DASH, RTMP) and complex filtergraphs
 
-### 4. ai-content-pipeline — AI Content Generation & Analysis
+### 5. ai-content-pipeline — AI Content Generation & Analysis
 **When:** Generating images/videos/avatars, transcribing audio, analyzing video, running AI pipelines
 **Invoke:** `/ai-content-pipeline`
 **Skill path:** `.claude/skills/qcut-toolkit/ai-content-pipeline/SKILL.md`
@@ -63,7 +77,7 @@ Handles:
 - YAML pipeline orchestration with parallel execution
 - Motion transfer between images and videos
 
-### 5. seedance — Video Prompt Engineering
+### 6. seedance — Video Prompt Engineering
 **When:** Writing video prompts, Seedance/即梦 workflows, AI video prompt generation, video descriptions (Chinese or English)
 **Invoke:** `/seedance`
 **Skill path:** `.claude/skills/qcut-toolkit/seedance/SKILL.md`
@@ -74,7 +88,7 @@ Handles:
 - Short drama (短剧), advertising video, and cinematic prompt templates
 - Prompt engineering best practices for ByteDance video models
 
-### 6. qcut-mcp-preview-test — MCP Preview Testing
+### 7. qcut-mcp-preview-test — MCP Preview Testing
 **When:** Testing MCP app preview, toggling "MCP Media App" mode, debugging iframe rendering, troubleshooting `mcp:app-html` events or `/api/claude/mcp/app`
 **Invoke:** `/qcut-mcp-preview-test`
 **Skill path:** `.claude/skills/qcut-toolkit/qcut-mcp-preview-test/SKILL.md`
@@ -85,7 +99,7 @@ Handles:
 - Debugging IPC (`mcp:app-html`) and HTTP (`/api/claude/mcp/app`) delivery
 - Crafting prompts that modify MCP media app UI safely
 
-### 7. ipad-cli — Real iPad & Simulator Automation
+### 8. ipad-cli — Real iPad & Simulator Automation
 **When:** Installing on iPad, testing on iPad, taking iPad screenshots, running E2E device tests, sending CLI commands to the iPad app
 **Invoke:** `/ipad-cli`
 **Skill path:** `.claude/skills/qcut-toolkit/ipad-cli/SKILL.md`
@@ -97,7 +111,7 @@ Handles:
 - E2E testing: navigate to editor, trigger exports, check state, FPS benchmarks
 - Managing pymobiledevice3 tunnels for advanced device access
 
-### 8. pr-comments — PR Review Processing
+### 9. pr-comments — PR Review Processing
 **When:** Exporting PR comments, evaluating code reviews, fixing review feedback from CodeRabbit/Gemini bots
 **Invoke:** `/pr-comments`
 **Skill path:** `.claude/skills/pr-comments/SKILL.md`
@@ -128,6 +142,7 @@ When the user's request involves multiple sub-skills, chain them in this order:
 |-----------|----------|
 | "organize", "set up project", "clean up files" | native-cli |
 | "vlog", "talking head", "剪口播", "去口头词", "去停顿", "人像滤镜", "美颜", "口播字幕", "抠像换背景" | qcut-vlog |
+| "复刻宣传片", "城市宣传片", "参考片拆解", "city film", "travel promo", "reference-driven edit", "多语言配音成片" | qcut-cityfilm |
 | "convert", "compress", "trim", "resize", "extract audio", "gif", "subtitle" | ffmpeg-skill |
 | "generate image", "generate video", "avatar", "lipsync", "transcribe", "analyze video", "AI pipeline" | ai-content-pipeline |
 | "add to timeline", "update project settings", "list media", "export preset", "configure for TikTok" | native-cli |
