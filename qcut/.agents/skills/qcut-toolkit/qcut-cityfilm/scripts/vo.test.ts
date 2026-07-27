@@ -1,4 +1,4 @@
-import { describe, expect, test } from "vitest";
+import { describe, expect, it, test } from "vitest";
 import type { ActPlan, CityFilmPlan, Cue } from "./types";
 import {
 	buildTtsArgs,
@@ -6,8 +6,10 @@ import {
 	checkCueFit,
 	parseDurationSeconds,
 	pickGeneratedAudioName,
+	parseTtsAudioUrl,
 	planVoJobs,
 	runWithConcurrency,
+	VOICE_REFERENCE_TAG,
 	voFileName,
 } from "./vo";
 import { resolveExecutable, tailMessage } from "./vo-exec";
@@ -249,5 +251,70 @@ describe("qcut-cityfilm vo runner helpers", () => {
 				fallback: "fallback-bin",
 			})
 		).toBe("fallback-bin");
+	});
+});
+
+describe("voice locking", () => {
+	const anchoredPlan = makePlan({
+		overrides: { voiceAnchorUrl: "https://fal.media/anchor.mp3" },
+	});
+
+	it("tags the prompt only when a reference is supplied", () => {
+		const plan = makePlan();
+		const [firstCue] = plan.cues;
+		const [firstAct] = plan.acts;
+		expect(
+			buildTtsPrompt({ cue: firstCue, act: firstAct })
+		).not.toContain(VOICE_REFERENCE_TAG);
+		expect(
+			buildTtsPrompt({
+				cue: firstCue,
+				act: firstAct,
+				referenceAudioUrl: "https://x/a.mp3",
+			})
+		).toMatch(new RegExp(`^${VOICE_REFERENCE_TAG} `));
+	});
+
+	it("passes the anchor through planVoJobs", () => {
+		const jobs = planVoJobs({ plan: anchoredPlan });
+		expect(jobs.every((job) => job.referenceAudioUrl === anchoredPlan.voiceAnchorUrl)).toBe(true);
+		expect(jobs.every((job) => job.prompt.startsWith(VOICE_REFERENCE_TAG))).toBe(
+			true
+		);
+	});
+
+	it("adds --audio-url to the CLI args when anchored", () => {
+		const args = buildTtsArgs({
+			model: "seed_audio",
+			prompt: "@Audio1 hi",
+			outputDir: "/tmp/out",
+			referenceAudioUrl: "https://fal.media/anchor.mp3",
+		});
+		expect(args).toContain("--audio-url");
+		expect(args[args.indexOf("--audio-url") + 1]).toBe(
+			"https://fal.media/anchor.mp3"
+		);
+		expect(args.at(-1)).toBe("--json");
+	});
+
+	it("omits --audio-url when no anchor is set", () => {
+		const args = buildTtsArgs({
+			model: "seed_audio",
+			prompt: "hi",
+			outputDir: "/tmp/out",
+		});
+		expect(args).not.toContain("--audio-url");
+	});
+
+	it("reads the hosted url out of a gen tts envelope", () => {
+		const stdout = `$ bun run pipeline\n${JSON.stringify({
+			status: "ok",
+			data: { data: { audioUrl: "https://fal.media/x.mp3" } },
+		})}`;
+		expect(parseTtsAudioUrl({ stdout })).toBe("https://fal.media/x.mp3");
+		expect(() => parseTtsAudioUrl({ stdout: "no json here" })).toThrow();
+		expect(() =>
+			parseTtsAudioUrl({ stdout: JSON.stringify({ status: "ok", data: {} }) })
+		).toThrow();
 	});
 });

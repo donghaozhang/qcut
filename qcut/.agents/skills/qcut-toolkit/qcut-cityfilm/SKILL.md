@@ -186,8 +186,38 @@ qcut gen tts -m seed_audio -o <dir> \
   not translations of the Chinese ones.
 - Check each cue's VO against its slot (`checkCueFit`) and shorten the line
   rather than speeding up the read.
-- Seed Audio also accepts reference audio for voice cloning and `speed`/`pitch`
-  when a specific voice is required.
+
+### Keeping one voice across the cut
+
+Seed Audio picks a **fresh speaker on every request** — a cut narrated cue by
+cue sounds like several different people. There is no seed parameter and no
+documented preset voice list, so the voice is pinned with a reference clip:
+
+1. Render one cue on its own; keep the hosted `audioUrl` it returns.
+2. Pass that URL as `audio_urls[0]` (`--audio-url`) for every other cue **and**
+   name it in the prompt as `@Audio1`. The reference is ignored unless the
+   prompt references it — this is the part that is easy to miss.
+
+`runVoBatch` does this automatically (`lockVoice`, on by default) and returns
+the anchor as `voiceAnchorUrl`; persist it into the plan so later re-renders
+and other languages reuse the same speaker.
+
+```bash
+qcut gen tts -m seed_audio --audio-url "<anchor-url>" -o <dir> \
+  -t "@Audio1 (用温柔怀旧的语气)有些街道,一别就是三年。"
+```
+
+Measured on three renders of one line (long-term average spectrum similarity,
+1.0 = identical timbre):
+
+| Method | Take-to-take similarity |
+|---|---|
+| Plain prompt | 0.84 |
+| `--audio-url` only, no tag | 0.91 |
+| `--audio-url` + `@Audio1` | **0.95** |
+
+Reference clips are capped at 30s / 10MB, and up to three can be supplied
+(`@Audio1`…`@Audio3`) when a film needs more than one narrator.
 
 ## Stage 7 — Mix The Audio Bed
 

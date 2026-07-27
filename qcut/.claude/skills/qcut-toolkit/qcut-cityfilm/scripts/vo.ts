@@ -41,6 +41,8 @@ export interface VoJob {
 	prompt: string;
 	/** Absolute destination, `<assetsDir>/vo/vo-<language>-<cueId>.mp3`. */
 	outputFile: string;
+	/** Voice anchor passed as `audio_urls[0]`, when the voice is locked. */
+	referenceAudioUrl?: string;
 }
 
 export type VoJobStatus = "generated" | "skipped" | "failed";
@@ -50,6 +52,8 @@ export interface VoJobOutcome {
 	status: VoJobStatus;
 	/** Present only when status is "failed". */
 	error?: string;
+	/** Hosted URL of the rendered take, reusable as a voice anchor. */
+	audioUrl?: string;
 }
 
 export interface VoJobFailure {
@@ -59,6 +63,8 @@ export interface VoJobFailure {
 }
 
 export interface VoBatchResult {
+	/** Anchor used (or discovered) for this batch; persist it into the plan. */
+	voiceAnchorUrl?: string;
 	generated: VoJob[];
 	skipped: VoJob[];
 	failed: VoJobFailure[];
@@ -80,6 +86,12 @@ export interface VoBatchOptions {
 	tempRoot?: string;
 	env?: NodeJS.ProcessEnv;
 	onProgress?: (outcome: VoJobOutcome) => void;
+	/**
+	 * Render the first cue alone, then anchor every remaining cue to it so the
+	 * whole cut keeps one voice. Defaults on; turn off only when the plan
+	 * already carries a `voiceAnchorUrl` or a single voice does not matter.
+	 */
+	lockVoice?: boolean;
 }
 
 export interface CueFit {
@@ -93,19 +105,25 @@ function roundMilliseconds({ value }: { value: number }): number {
 }
 
 /**
- * Prefix the copy with the act's emotion directive. The directive already ends
- * in its own closing paren, so nothing is inserted between the two halves.
+ * Token that binds a rendering to the first reference clip. Seed Audio only
+ * applies `audio_urls` when the prompt names the clip, so passing a reference
+ * without this tag leaves the speaker free to drift between cues.
  */
+export const VOICE_REFERENCE_TAG = "@Audio1";
+
 export function buildTtsPrompt({
 	cue,
 	act,
+	referenceAudioUrl,
 }: {
 	cue: Cue;
 	act?: ActPlan;
+	/** Anchor clip that fixes the speaker across every cue. */
+	referenceAudioUrl?: string;
 }): string {
 	const directive = act?.emotion?.trim();
-	if (!directive) return cue.text;
-	return `${directive}${cue.text}`;
+	const body = directive ? `${directive}${cue.text}` : cue.text;
+	return referenceAudioUrl ? `${VOICE_REFERENCE_TAG} ${body}` : body;
 }
 
 export function voFileName({
@@ -122,12 +140,15 @@ export function buildTtsArgs({
 	model,
 	prompt,
 	outputDir,
+	referenceAudioUrl,
 }: {
 	model: string;
 	prompt: string;
 	outputDir: string;
+	/** Sent as `audio_urls[0]`; the prompt must also carry the tag. */
+	referenceAudioUrl?: string;
 }): string[] {
-	return [
+	const args = [
 		"run",
 		"pipeline",
 		"gen",
@@ -138,24 +159,63 @@ export function buildTtsArgs({
 		prompt,
 		"-o",
 		outputDir,
-		"--json",
 	];
+	if (referenceAudioUrl) args.push("--audio-url", referenceAudioUrl);
+	args.push("--json");
+	return args;
+}
+
+/**
+ * Reads the hosted audio URL out of a `gen tts --json` envelope. The URL is
+ * what later cues reuse as their voice anchor, so it is kept rather than the
+ * downloaded file (the model needs a URL, not a local path).
+ */
+export function parseTtsAudioUrl({ stdout }: { stdout: string }): string {
+	const start = stdout.indexOf("{");
+	if (start < 0) throw new Error("gen tts did not return JSON");
+	let parsed: unknown;
+	try {
+		parsed = JSON.parse(stdout.slice(start)) as unknown;
+	} catch {
+		throw new Error("gen tts returned malformed JSON");
+	}
+	const envelope = parsed as {
+		data?: { data?: { audioUrl?: string }; audioUrl?: string };
+	};
+	const url = envelope.data?.data?.audioUrl ?? envelope.data?.audioUrl;
+	if (typeof url !== "string" || url.length === 0) {
+		throw new Error("gen tts response carried no audioUrl");
+	}
+	return url;
 }
 
 /**
  * One job per cue, in plan order. Nothing is filtered here — the runner decides
  * what already exists so callers can inspect the full intended set.
  */
-export function planVoJobs({ plan }: { plan: CityFilmPlan }): VoJob[] {
+export function planVoJobs({
+	plan,
+	referenceAudioUrl,
+}: {
+	plan: CityFilmPlan;
+	/** Anchor clip URL; when set every prompt is tagged and reference-bound. */
+	referenceAudioUrl?: string;
+}): VoJob[] {
 	const actsById = new Map(plan.acts.map((act) => [act.id, act]));
 	const voDir = join(plan.assetsDir, "vo");
+	const anchor = referenceAudioUrl ?? plan.voiceAnchorUrl;
 	return plan.cues.map((cue) => ({
 		cueId: cue.id,
-		prompt: buildTtsPrompt({ cue, act: actsById.get(cue.actId) }),
+		prompt: buildTtsPrompt({
+			cue,
+			act: actsById.get(cue.actId),
+			referenceAudioUrl: anchor,
+		}),
 		outputFile: join(
 			voDir,
 			voFileName({ language: plan.language, cueId: cue.id })
 		),
+		referenceAudioUrl: anchor,
 	}));
 }
 
@@ -293,6 +353,7 @@ async function runVoJob({
 				model: runtime.model,
 				prompt: job.prompt,
 				outputDir: workDir,
+				referenceAudioUrl: job.referenceAudioUrl,
 			}),
 			cwd: runtime.cwd,
 			env: runtime.env,
@@ -304,7 +365,13 @@ async function runVoJob({
 		const produced = pickGeneratedAudioName({ entries: readdirSync(workDir) });
 		if (!produced) throw new Error("tts produced no mp3");
 		moveFile({ from: join(workDir, produced), to: job.outputFile });
-		return { job, status: "generated" };
+		let audioUrl: string | undefined;
+		try {
+			audioUrl = parseTtsAudioUrl({ stdout: outcome.stdout });
+		} catch {
+			// The mp3 is on disk either way; only voice anchoring needs the URL.
+		}
+		return { job, status: "generated", audioUrl };
 	} catch (error) {
 		return {
 			job,
@@ -331,6 +398,7 @@ export async function runVoBatch({
 	tempRoot = tmpdir(),
 	env = process.env,
 	onProgress,
+	lockVoice = true,
 }: VoBatchOptions): Promise<VoBatchResult> {
 	const runtime: VoJobRuntime = {
 		model,
@@ -344,17 +412,47 @@ export async function runVoBatch({
 		force,
 		env,
 	};
-	const outcomes = await runWithConcurrency<VoJob, VoJobOutcome>({
-		items: jobs ?? planVoJobs({ plan }),
-		limit: concurrency,
-		worker: async (job) => {
-			const outcome = await runVoJob({ job, runtime });
-			onProgress?.(outcome);
-			return outcome;
-		},
-	});
+	const runOne = async (job: VoJob): Promise<VoJobOutcome> => {
+		const outcome = await runVoJob({ job, runtime });
+		onProgress?.(outcome);
+		return outcome;
+	};
 
-	const result: VoBatchResult = { generated: [], skipped: [], failed: [] };
+	// Seed Audio picks a new speaker per request, so the cues are rendered
+	// against a single anchor clip: either one supplied by the plan, or the
+	// first cue rendered on its own and then reused for the rest.
+	let anchorUrl = plan.voiceAnchorUrl;
+	const outcomes: VoJobOutcome[] = [];
+	let pending = jobs ?? planVoJobs({ plan, referenceAudioUrl: anchorUrl });
+
+	if (lockVoice && !anchorUrl && pending.length > 1) {
+		const [first, ...rest] = pending;
+		const firstOutcome = await runOne(first);
+		outcomes.push(firstOutcome);
+		anchorUrl = firstOutcome.audioUrl;
+		pending = anchorUrl
+			? rest.map((job) => ({
+					...job,
+					prompt: `${VOICE_REFERENCE_TAG} ${job.prompt}`,
+					referenceAudioUrl: anchorUrl,
+				}))
+			: rest;
+	}
+
+	outcomes.push(
+		...(await runWithConcurrency<VoJob, VoJobOutcome>({
+			items: pending,
+			limit: concurrency,
+			worker: runOne,
+		}))
+	);
+
+	const result: VoBatchResult = {
+		generated: [],
+		skipped: [],
+		failed: [],
+		voiceAnchorUrl: anchorUrl,
+	};
 	for (const outcome of outcomes) {
 		if (outcome.status === "generated") result.generated.push(outcome.job);
 		else if (outcome.status === "skipped") result.skipped.push(outcome.job);

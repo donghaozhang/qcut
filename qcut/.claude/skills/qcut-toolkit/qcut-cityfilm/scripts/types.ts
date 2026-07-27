@@ -74,6 +74,13 @@ export interface CityFilmPlan {
 	music: MusicCue[];
 	/** Seconds of black held after the last shot for the closing card. */
 	blackTailSeconds: number;
+	/**
+	 * Hosted clip (≤30s) that anchors the narrator's timbre. Seed Audio picks a
+	 * fresh speaker per request otherwise, so cuts end up sounding like several
+	 * different people. The runner fills this from the first rendered cue when
+	 * voice locking is on.
+	 */
+	voiceAnchorUrl?: string;
 	/** Subtitle styling, in canvas pixels. */
 	subtitle: SubtitleStyle;
 }
