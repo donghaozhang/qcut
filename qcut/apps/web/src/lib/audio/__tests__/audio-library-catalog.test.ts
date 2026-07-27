@@ -11,6 +11,7 @@ import {
 	getCatalogAudio,
 	localizeAudioLibraryTag,
 	MUSIC_CATEGORIES,
+	SOUND_EFFECT_CATEGORIES,
 	translateAudioSearchQuery,
 } from "../audio-library-catalog";
 
@@ -33,7 +34,7 @@ describe("audio library catalog", () => {
 			AUDIO_LIBRARY_CATEGORIES.filter(
 				(category) => category.kind === "sound-effect"
 			)
-		).toHaveLength(10);
+		).toHaveLength(14);
 	});
 
 	it("ships real bundled audio files with localized metadata", () => {
@@ -42,7 +43,7 @@ describe("audio library catalog", () => {
 		).toHaveLength(9);
 		expect(
 			BUILT_IN_AUDIO.filter((sound) => sound.kind === "sound-effect")
-		).toHaveLength(14);
+		).toHaveLength(16);
 
 		for (const sound of BUILT_IN_AUDIO) {
 			expect(sound.source).toBe("qcut");
@@ -108,7 +109,7 @@ describe("audio library catalog", () => {
 			})
 		);
 		const releasedCatalog = [...BUILT_IN_AUDIO, ...cdnSounds];
-		for (const category of MUSIC_CATEGORIES) {
+		for (const category of [...MUSIC_CATEGORIES, ...SOUND_EFFECT_CATEGORIES]) {
 			expect(
 				getCatalogAudio({
 					category,
