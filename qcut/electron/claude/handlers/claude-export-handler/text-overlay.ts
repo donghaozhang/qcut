@@ -142,8 +142,7 @@ function escapeAssText(text: string): string {
 const ASS_MIDDLE_ALIGNMENTS = { left: 4, center: 5, right: 6 } as const;
 
 /** CJK ideographs/kana/hangul plus full-width forms. */
-const CJK_PATTERN =
-	/[\u2E80-\u9FFF\uAC00-\uD7AF\uF900-\uFAFF\uFF00-\uFFEF]/;
+const CJK_PATTERN = /[\u2E80-\u9FFF\uAC00-\uD7AF\uF900-\uFAFF\uFF00-\uFFEF]/;
 
 /**
  * Pick an ASS font family that can actually render the overlay content.
