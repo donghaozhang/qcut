@@ -37,6 +37,20 @@ Handles:
 - Separate background and subtitle verification frames
 - Safe resume based on artifact dependency timestamps
 
+### 2b. qcut-cityfilm — Reference-Driven City / Promo Films
+**When:** Reproducing the structure and feel of a reference city, travel, or promo film with your own or licensed footage, including multi-language narration
+**Invoke:** `/qcut-cityfilm`
+**Skill path:** `.claude/skills/qcut-toolkit/qcut-cityfilm/SKILL.md`
+
+Handles:
+- Reference breakdown: contact sheets, transcript, and scene-cut pacing profile
+- Shot-language inventory turned into licensed-footage search queries with attribution manifest
+- Segment picking against per-act target shot lengths
+- Per-act emotional narration through Seed Audio, one pass per language
+- QCut project assembly (import, timeline, subtitles, export) via the editor CLI
+- Final audio bed mixed outside the editor: ambience, segmented music, ducked narration
+- Level and frame verification of the exported file, not just the timeline
+
 ### 3. ffmpeg-skill — Media Processing
 **When:** Converting, compressing, trimming, resizing, extracting audio, adding subtitles, creating GIFs, applying effects
 **Invoke:** `/ffmpeg-skill`
@@ -128,6 +142,7 @@ When the user's request involves multiple sub-skills, chain them in this order:
 |-----------|----------|
 | "organize", "set up project", "clean up files" | native-cli |
 | "vlog", "talking head", "剪口播", "去口头词", "去停顿", "人像滤镜", "美颜", "口播字幕", "抠像换背景" | qcut-vlog |
+| "复刻宣传片", "城市宣传片", "参考片拆解", "city film", "travel promo", "reference-driven edit", "多语言配音成片" | qcut-cityfilm |
 | "convert", "compress", "trim", "resize", "extract audio", "gif", "subtitle" | ffmpeg-skill |
 | "generate image", "generate video", "avatar", "lipsync", "transcribe", "analyze video", "AI pipeline" | ai-content-pipeline |
 | "add to timeline", "update project settings", "list media", "export preset", "configure for TikTok" | native-cli |
