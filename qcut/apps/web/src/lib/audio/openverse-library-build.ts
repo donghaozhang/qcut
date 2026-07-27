@@ -51,7 +51,7 @@ function isPlayableAudioUrl({ url }: { url: string }): boolean {
 	const path = url.split("?")[0] ?? "";
 	const match = /\.([a-z0-9]+)$/i.exec(path);
 	// Jamendo streams from a query-string endpoint with no extension at all;
-	// those are always mp3, so only reject a extension we recognise as unplayable.
+	// those are always mp3, so only reject an extension we recognise as unplayable.
 	if (!match) return true;
 	return PLAYABLE_EXTENSIONS.has(match[1].toLocaleLowerCase());
 }
@@ -543,13 +543,16 @@ function licenseUrlFor({
 	const license =
 		typeof record.license === "string" ? record.license : undefined;
 	const version =
-		typeof record.license_version === "string" ? record.license_version : "4.0";
+		typeof record.license_version === "string" && record.license_version.trim()
+			? record.license_version.trim()
+			: undefined;
 	if (!license) return undefined;
 	if (license === "cc0") {
 		return "https://creativecommons.org/publicdomain/zero/1.0/";
 	}
 	if (license === "pdm")
 		return "https://creativecommons.org/publicdomain/mark/1.0/";
+	if (!version) return undefined;
 	return `https://creativecommons.org/licenses/${license}/${version}/`;
 }
 
@@ -597,6 +600,7 @@ export function openverseRecordToTrack({
 	const id = bundledTrackId({ openverseId });
 	const { tags, moods, scenes } = classifyOpenverseTrack({ record });
 	const licenseUrl = licenseUrlFor({ record });
+	if (!licenseUrl) return null;
 
 	return {
 		id,
@@ -657,8 +661,10 @@ export function buildBundledAudioManifest({
 		byKey.set(key, { ...track, id });
 	}
 
-	const tracks = [...byKey.values()].sort((left, right) =>
-		left.name.localeCompare(right.name)
-	);
+	const tracks = [...byKey.values()].sort((left, right) => {
+		if (left.name < right.name) return -1;
+		if (left.name > right.name) return 1;
+		return left.id - right.id;
+	});
 	return { version: 1, generatedAt, tracks };
 }

@@ -235,10 +235,16 @@ const SOURCE_PROFILES: readonly SourceProfile[] = [
 	{ source: "wikimedia_audio", queries: WIKIMEDIA_QUERIES },
 ];
 
-function flagValue({ flag }: { flag: string }): string | undefined {
-	const index = process.argv.indexOf(flag);
+function flagValue({
+	args,
+	flag,
+}: {
+	args: readonly string[];
+	flag: string;
+}): string | undefined {
+	const index = args.indexOf(flag);
 	if (index < 0) return undefined;
-	const value = process.argv[index + 1];
+	const value = args[index + 1];
 	if (!value || value.startsWith("--")) {
 		throw new Error(`${flag} requires a value`);
 	}
@@ -246,13 +252,15 @@ function flagValue({ flag }: { flag: string }): string | undefined {
 }
 
 function flagNumber({
+	args,
 	flag,
 	fallback,
 }: {
+	args: readonly string[];
 	flag: string;
 	fallback: number;
 }): number {
-	const raw = flagValue({ flag });
+	const raw = flagValue({ args, flag });
 	if (raw === undefined) return fallback;
 	const parsed = Number.parseInt(raw, 10);
 	if (!Number.isFinite(parsed) || parsed <= 0) {
@@ -261,17 +269,33 @@ function flagNumber({
 	return parsed;
 }
 
-const buildOnly = process.argv.includes("--build-only");
-const cachePath = path.resolve(
-	flagValue({ flag: "--cache" }) ??
-		path.join(import.meta.dir, "../audio-cdn/openverse-raw.json")
-);
-const outPath = path.resolve(
-	flagValue({ flag: "--out" }) ??
-		path.join(import.meta.dir, "../public/audio/library/manifest.json")
-);
-const maxRequests = flagNumber({ flag: "--max-requests", fallback: 170 });
-const pagesPerQuery = flagNumber({ flag: "--pages", fallback: 12 });
+interface HarvestOptions {
+	buildOnly: boolean;
+	cachePath: string;
+	outPath: string;
+	maxRequests: number;
+	pagesPerQuery: number;
+}
+
+function parseOptions({ args }: { args: readonly string[] }): HarvestOptions {
+	return {
+		buildOnly: args.includes("--build-only"),
+		cachePath: path.resolve(
+			flagValue({ args, flag: "--cache" }) ??
+				path.join(import.meta.dir, "../audio-cdn/openverse-raw.json")
+		),
+		outPath: path.resolve(
+			flagValue({ args, flag: "--out" }) ??
+				path.join(import.meta.dir, "../public/audio/library/manifest.json")
+		),
+		maxRequests: flagNumber({
+			args,
+			flag: "--max-requests",
+			fallback: 170,
+		}),
+		pagesPerQuery: flagNumber({ args, flag: "--pages", fallback: 12 }),
+	};
+}
 
 function sleep({ ms }: { ms: number }): Promise<void> {
 	return new Promise((resolve) => setTimeout(resolve, ms));
@@ -288,7 +312,11 @@ interface RawCache {
 	doneQueries?: string[];
 }
 
-async function readCache(): Promise<RawCache> {
+async function readCache({
+	cachePath,
+}: {
+	cachePath: string;
+}): Promise<RawCache> {
 	if (!existsSync(cachePath)) {
 		return { fetchedAt: new Date(0).toISOString(), records: [] };
 	}
@@ -344,8 +372,16 @@ async function fetchPage({
 	};
 }
 
-async function harvest(): Promise<RawCache> {
-	const cache = await readCache();
+async function harvest({
+	cachePath,
+	maxRequests,
+	pagesPerQuery,
+}: {
+	cachePath: string;
+	maxRequests: number;
+	pagesPerQuery: number;
+}): Promise<RawCache> {
+	const cache = await readCache({ cachePath });
 	const seen = new Set(
 		cache.records
 			.map((record) => (typeof record.id === "string" ? record.id : ""))
@@ -376,13 +412,13 @@ async function harvest(): Promise<RawCache> {
 				if (requests > 0) await sleep({ ms: REQUEST_SPACING_MS });
 
 				let result: PageResult;
+				requests += 1;
 				try {
 					result = await fetchPage({ profile, query, page });
 				} catch (error) {
 					console.warn(`  ${query} p${page}: ${(error as Error).message}`);
 					break;
 				}
-				requests += 1;
 
 				if (result.rateLimited) {
 					console.log("Rate limited by Openverse — stopping harvest.");
@@ -427,6 +463,8 @@ async function harvest(): Promise<RawCache> {
 }
 
 async function main(): Promise<void> {
+	const { buildOnly, cachePath, maxRequests, outPath, pagesPerQuery } =
+		parseOptions({ args: process.argv });
 	if (buildOnly && !existsSync(cachePath)) {
 		// The cache is not committed (it is ~8MB), so a fresh clone lands here.
 		// Failing loudly beats overwriting a good manifest with an empty one.
@@ -434,7 +472,9 @@ async function main(): Promise<void> {
 			`No harvest cache at ${cachePath}. Run \`bun run assets:audio:harvest\` first (it spends Openverse API budget), or pass --cache <path>.`
 		);
 	}
-	const cache = buildOnly ? await readCache() : await harvest();
+	const cache = buildOnly
+		? await readCache({ cachePath })
+		: await harvest({ cachePath, maxRequests, pagesPerQuery });
 
 	if (!buildOnly) {
 		await mkdir(path.dirname(cachePath), { recursive: true });

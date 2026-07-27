@@ -79,6 +79,44 @@ describe("openverseRecordToTrack", () => {
 		).not.toBeNull();
 	});
 
+	it("drops CC BY records whose deed version is unknown", () => {
+		const track = openverseRecordToTrack({
+			record: record({
+				license: "by",
+				license_url: undefined,
+				license_version: undefined,
+			}),
+		});
+
+		expect(track).toBeNull();
+	});
+
+	it("preserves a direct deed URL when the separate version is absent", () => {
+		const track = openverseRecordToTrack({
+			record: record({
+				license_url: "https://creativecommons.org/licenses/by/3.0/",
+				license_version: undefined,
+			}),
+		});
+
+		expect(track?.license).toBe("https://creativecommons.org/licenses/by/3.0/");
+	});
+
+	it.each([
+		["cc0", "https://creativecommons.org/publicdomain/zero/1.0/"],
+		["pdm", "https://creativecommons.org/publicdomain/mark/1.0/"],
+	])("keeps the fixed %s deed when no version is needed", (license, deed) => {
+		const track = openverseRecordToTrack({
+			record: record({
+				license,
+				license_url: undefined,
+				license_version: undefined,
+			}),
+		});
+
+		expect(track?.license).toBe(deed);
+	});
+
 	it("rejects clips too short or too long to score a video", () => {
 		expect(
 			openverseRecordToTrack({ record: record({ duration: 5_000 }) })
@@ -291,16 +329,39 @@ describe("buildBundledAudioManifest", () => {
 	});
 
 	it("gives every track a distinct id even when hashes collide", () => {
+		const firstCollisionId = "collision-1857";
+		const secondCollisionId = "collision-22418";
+		expect(bundledTrackId({ openverseId: firstCollisionId })).toBe(
+			bundledTrackId({ openverseId: secondCollisionId })
+		);
+
 		const manifest = buildBundledAudioManifest({
 			records: [
-				record({ id: "one", title: "One" }),
-				record({ id: "two", title: "Two" }),
-				record({ id: "three", title: "Three" }),
+				record({ id: firstCollisionId, title: "One" }),
+				record({ id: secondCollisionId, title: "Two" }),
 			],
 			generatedAt: "2026-07-27T00:00:00.000Z",
 		});
 		const ids = manifest.tracks.map((track) => track.id);
 
+		expect(ids).toEqual([-2_601_925, -2_601_926]);
 		expect(new Set(ids).size).toBe(ids.length);
+	});
+
+	it("sorts tracks reproducibly without the host locale", () => {
+		const manifest = buildBundledAudioManifest({
+			records: [
+				record({ id: "alpha", title: "alpha" }),
+				record({ id: "zulu", title: "Zulu" }),
+				record({ id: "angstrom", title: "Ångström" }),
+			],
+			generatedAt: "2026-07-27T00:00:00.000Z",
+		});
+
+		expect(manifest.tracks.map((track) => track.name)).toEqual([
+			"Zulu",
+			"alpha",
+			"Ångström",
+		]);
 	});
 });
