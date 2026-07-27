@@ -1,0 +1,217 @@
+[
+ {
+  "action": "move",
+  "x": 700,
+  "y": 700,
+  "foreground": true
+ },
+ {
+  "action": "move",
+  "x": 476,
+  "y": 882
+ },
+ {
+  "action": "click",
+  "x": 476,
+  "y": 882
+ },
+ {
+  "action": "wait",
+  "target": "testid:media-properties-primary-tabs"
+ },
+ {
+  "action": "sleep",
+  "durationMs": 500,
+  "idle": true
+ },
+ {
+  "action": "click",
+  "target": "testid:media-properties-tab-speed"
+ },
+ {
+  "action": "wait",
+  "target": "testid:speed-mode-curve"
+ },
+ {
+  "action": "sleep",
+  "durationMs": 600,
+  "idle": true
+ },
+ {
+  "action": "click",
+  "target": "testid:speed-mode-curve"
+ },
+ {
+  "action": "wait",
+  "target": "testid:speed-curve-preset-bullet"
+ },
+ {
+  "action": "sleep",
+  "durationMs": 700,
+  "idle": true
+ },
+ {
+  "action": "hover",
+  "target": "testid:speed-curve-preset-montage"
+ },
+ {
+  "action": "sleep",
+  "durationMs": 400,
+  "idle": true
+ },
+ {
+  "action": "hover",
+  "target": "testid:speed-curve-preset-hero"
+ },
+ {
+  "action": "sleep",
+  "durationMs": 400,
+  "idle": true
+ },
+ {
+  "action": "click",
+  "target": "testid:speed-curve-preset-bullet"
+ },
+ {
+  "action": "sleep",
+  "durationMs": 1000,
+  "idle": true
+ },
+ {
+  "action": "click",
+  "target": "timeline.play"
+ },
+ {
+  "action": "sleep",
+  "durationMs": 6000
+ },
+ {
+  "action": "click",
+  "target": "timeline.pause"
+ },
+ {
+  "action": "sleep",
+  "durationMs": 500,
+  "idle": true
+ },
+ {
+  "action": "drag",
+  "from": "testid:speed-curve-point-2",
+  "toX": 1726,
+  "toY": 540,
+  "durationMs": 900,
+  "holdMs": 250
+ },
+ {
+  "action": "sleep",
+  "durationMs": 800,
+  "idle": true
+ },
+ {
+  "action": "click",
+  "x": 1601,
+  "y": 476
+ },
+ {
+  "action": "sleep",
+  "durationMs": 500,
+  "idle": true
+ },
+ {
+  "action": "click",
+  "target": "testid:speed-curve-point-toggle"
+ },
+ {
+  "action": "sleep",
+  "durationMs": 800,
+  "idle": true
+ },
+ {
+  "action": "click",
+  "target": "testid:speed-frame-interpolation"
+ },
+ {
+  "action": "sleep",
+  "durationMs": 900,
+  "idle": true
+ },
+ {
+  "action": "seek",
+  "time": 0
+ },
+ {
+  "action": "sleep",
+  "durationMs": 400,
+  "idle": true
+ },
+ {
+  "action": "click",
+  "target": "timeline.play"
+ },
+ {
+  "action": "sleep",
+  "durationMs": 4000
+ },
+ {
+  "action": "click",
+  "target": "timeline.pause"
+ },
+ {
+  "action": "sleep",
+  "durationMs": 500,
+  "idle": true
+ },
+ {
+  "action": "click",
+  "target": "testid:speed-mode-beat"
+ },
+ {
+  "action": "wait",
+  "target": "testid:speed-point-preset-rainbow"
+ },
+ {
+  "action": "sleep",
+  "durationMs": 700,
+  "idle": true
+ },
+ {
+  "action": "click",
+  "target": "testid:speed-point-preset-rainbow"
+ },
+ {
+  "action": "sleep",
+  "durationMs": 1200,
+  "idle": true
+ },
+ {
+  "action": "seek",
+  "time": 0
+ },
+ {
+  "action": "sleep",
+  "durationMs": 300,
+  "idle": true
+ },
+ {
+  "action": "click",
+  "target": "timeline.play"
+ },
+ {
+  "action": "sleep",
+  "durationMs": 4500
+ },
+ {
+  "action": "click",
+  "target": "timeline.pause"
+ },
+ {
+  "action": "move",
+  "x": 1024,
+  "y": 650
+ },
+ {
+  "action": "sleep",
+  "durationMs": 700,
+  "idle": true
+ }
+]
