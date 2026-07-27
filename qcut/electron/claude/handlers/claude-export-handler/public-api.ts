@@ -261,6 +261,10 @@ export async function startExportJob({
 			stickerOverlays,
 			textOverlays,
 			audioFiles,
+			projectCanvas:
+				timeline.width > 0 && timeline.height > 0
+					? { width: timeline.width, height: timeline.height }
+					: undefined,
 		}).catch((error) => {
 			claudeLog.error(
 				HANDLER_NAME,
