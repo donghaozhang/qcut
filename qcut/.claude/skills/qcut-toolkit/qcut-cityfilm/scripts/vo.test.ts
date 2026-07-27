@@ -12,6 +12,7 @@ import {
 	VOICE_REFERENCE_TAG,
 	voFileName,
 } from "./vo";
+import { spawnCollect } from "./vo-exec";
 import { resolveExecutable, tailMessage } from "./vo-exec";
 
 const act: ActPlan = {
@@ -316,5 +317,27 @@ describe("voice locking", () => {
 		expect(() =>
 			parseTtsAudioUrl({ stdout: JSON.stringify({ status: "ok", data: {} }) })
 		).toThrow();
+	});
+});
+
+describe("spawnCollect timeout", () => {
+	it("kills a stalled child and reports a non-zero exit", async () => {
+		const outcome = await spawnCollect({
+			executable: "sleep",
+			args: ["30"],
+			timeoutMs: 150,
+		});
+		expect(outcome.exitCode).toBe(124);
+		expect(outcome.stderr).toContain("timed out");
+	});
+
+	it("leaves a fast child untouched", async () => {
+		const outcome = await spawnCollect({
+			executable: "echo",
+			args: ["ok"],
+			timeoutMs: 5000,
+		});
+		expect(outcome.exitCode).toBe(0);
+		expect(outcome.stdout.trim()).toBe("ok");
 	});
 });

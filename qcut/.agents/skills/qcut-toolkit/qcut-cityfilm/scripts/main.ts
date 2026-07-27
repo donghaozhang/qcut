@@ -137,12 +137,25 @@ export function parseWindows({ value }: { value?: string }): LevelWindow[] {
 	});
 }
 
+/** `key: value` lines, one per top-level field, for terminal reading. */
+export function renderHuman({ payload }: { payload: unknown }): string {
+	if (payload === null || typeof payload !== "object") return String(payload);
+	return Object.entries(payload as Record<string, unknown>)
+		.map(([key, value]) => {
+			if (Array.isArray(value)) return `${key}: ${value.length} item(s)`;
+			if (value !== null && typeof value === "object") {
+				return `${key}: ${JSON.stringify(value)}`;
+			}
+			return `${key}: ${String(value)}`;
+		})
+		.join("\n");
+}
+
 function emit({ json, payload }: { json: boolean; payload: unknown }): void {
-	if (json) {
-		process.stdout.write(`${JSON.stringify(payload, null, 2)}\n`);
-		return;
-	}
-	process.stdout.write(`${JSON.stringify(payload, null, 2)}\n`);
+	const text = json
+		? JSON.stringify(payload, null, 2)
+		: renderHuman({ payload });
+	process.stdout.write(`${text}\n`);
 }
 
 async function main(): Promise<void> {

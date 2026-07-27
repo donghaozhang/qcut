@@ -9,7 +9,13 @@
  * re-exported here; this file only orchestrates the child processes.
  */
 
-import { mkdirSync, readFileSync, readdirSync, writeFileSync } from "node:fs";
+import {
+	mkdirSync,
+	readFileSync,
+	readdirSync,
+	rmSync,
+	writeFileSync,
+} from "node:fs";
 import { basename, dirname, extname, join, resolve } from "node:path";
 import {
 	buildContactSheetArgs,
@@ -151,10 +157,30 @@ function listSheets({ outputDir }: { outputDir: string }): string[] {
 function readSceneMetadata({ filePath }: { filePath: string }): string {
 	try {
 		return readFileSync(filePath, "utf8");
-	} catch {
-		// No cut crossed the threshold, so FFmpeg never created the file.
-		return "";
+	} catch (error) {
+		// A missing file means no cut crossed the threshold — FFmpeg only
+		// creates it on a match. Anything else (permissions, I/O) is a real
+		// failure and must not masquerade as "this film has no cuts".
+		if ((error as NodeJS.ErrnoException)?.code === "ENOENT") return "";
+		throw error;
 	}
+}
+
+/**
+ * Drop artifacts a previous run left behind so they cannot leak into this
+ * one's results.
+ */
+function clearStaleArtifacts({
+	outputDir,
+	sceneMetadataPath,
+}: {
+	outputDir: string;
+	sceneMetadataPath: string;
+}): void {
+	for (const sheet of listSheets({ outputDir })) {
+		rmSync(sheet, { force: true });
+	}
+	rmSync(sceneMetadataPath, { force: true });
 }
 
 /**
@@ -185,6 +211,13 @@ export async function runAnalyze(
 	const sceneMetadataPath = join(outputDir, "scenes.txt");
 	const analysisPath = join(outputDir, "analysis.json");
 	const audioPath = join(outputDir, `${stem}-audio.mp3`);
+
+	// Re-analysing the same film with different frames/threshold is the normal
+	// tuning loop, and both artifacts survive a rerun that should have replaced
+	// them: extra sheet_NN.jpg from a longer previous pass stay on disk, and a
+	// pass that finds no cuts never rewrites scenes.txt (metadata=print only
+	// fires on a match). Clearing them keeps analysis.json describing this run.
+	clearStaleArtifacts({ outputDir, sceneMetadataPath });
 
 	const probe = await probeVideo({
 		input,

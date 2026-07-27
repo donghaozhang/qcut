@@ -1,7 +1,14 @@
-import { mkdtempSync, readFileSync, writeFileSync } from "node:fs";
+import {
+	existsSync,
+	mkdirSync,
+	mkdtempSync,
+	readFileSync,
+	rmSync,
+	writeFileSync,
+} from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { describe, expect, test } from "vitest";
+import { describe, expect, it, test } from "vitest";
 import * as analyze from "./analyze";
 import * as graph from "./analyze-graph";
 import { type CommandRunner, runAnalyze } from "./analyze";
@@ -147,5 +154,54 @@ describe("qcut-cityfilm analyze run", () => {
 				runner: failing,
 			})
 		).rejects.toThrow("Invalid data found");
+	});
+});
+
+describe("stale artifact handling", () => {
+	it("removes sheets and scene metadata from a previous run", async () => {
+		const dir = mkdtempSync(join(tmpdir(), "cityfilm-stale-"));
+		const input = join(dir, "ref.mp4");
+		writeFileSync(input, "");
+		const outputDir = join(dir, "analysis");
+		mkdirSync(outputDir, { recursive: true });
+		// Leftovers from a longer previous pass.
+		writeFileSync(join(outputDir, "sheet_01.jpg"), "old");
+		writeFileSync(join(outputDir, "sheet_09.jpg"), "old");
+		writeFileSync(join(outputDir, "scenes.txt"), "pts_time:1.0\n");
+
+		const runner = async ({ args }: { executable: string; args: string[] }) => {
+			if (args.some((arg) => arg.startsWith("format=duration:stream="))) {
+				return {
+					exitCode: 0,
+					stdout: JSON.stringify({
+						format: { duration: "20" },
+						streams: [
+							{
+								codec_type: "video",
+								width: 1920,
+								height: 1080,
+								avg_frame_rate: "25/1",
+							},
+						],
+					}),
+					stderr: "",
+				};
+			}
+			// This pass finds no cuts, so ffmpeg never writes scenes.txt.
+			return { exitCode: 0, stdout: "", stderr: "" };
+		};
+
+		const result = await runAnalyze({
+			input,
+			outputDir,
+			frames: 20,
+			columns: 5,
+			rows: 4,
+			runner,
+		});
+
+		expect(existsSync(join(outputDir, "sheet_09.jpg"))).toBe(false);
+		expect(result.pacing.cutCount).toBe(0);
+		rmSync(dir, { recursive: true, force: true });
 	});
 });

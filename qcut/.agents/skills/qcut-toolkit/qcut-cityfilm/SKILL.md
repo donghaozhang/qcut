@@ -40,7 +40,7 @@ bun "$CITYFILM_ROOT/scripts/main.ts" analyze /path/to/reference.mp4 \
 # Stage 6 — narrate a plan (one language at a time)
 bun "$CITYFILM_ROOT/scripts/main.ts" vo --plan /path/to/work/plan-zh.json
 
-# Stage 8 — mix the exported picture with music and narration
+# Stage 7 — mix the exported picture with music and narration
 bun "$CITYFILM_ROOT/scripts/main.ts" mix --plan /path/to/work/plan-zh.json \
   --video /path/to/work/export.mp4 \
   --output /path/to/work/final-zh.mp4

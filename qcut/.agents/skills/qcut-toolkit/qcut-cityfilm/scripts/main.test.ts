@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { parseArgs, parseWindows } from "./main";
+import { parseArgs, parseWindows, renderHuman } from "./main";
 
 describe("parseArgs", () => {
 	it("splits a command, positionals, and flags", () => {
@@ -56,5 +56,20 @@ describe("parseWindows", () => {
 	it("rejects malformed windows", () => {
 		expect(() => parseWindows({ value: "0:abc" })).toThrow();
 		expect(() => parseWindows({ value: "5:0" })).toThrow();
+	});
+});
+
+describe("renderHuman", () => {
+	it("renders one key per line instead of JSON", () => {
+		const text = renderHuman({
+			payload: { outputPath: "/out/final.mp4", durationSeconds: 101.8 },
+		});
+		expect(text).toBe("outputPath: /out/final.mp4\ndurationSeconds: 101.8");
+	});
+
+	it("summarises arrays by length", () => {
+		expect(renderHuman({ payload: { failed: [1, 2, 3] } })).toBe(
+			"failed: 3 item(s)"
+		);
 	});
 });

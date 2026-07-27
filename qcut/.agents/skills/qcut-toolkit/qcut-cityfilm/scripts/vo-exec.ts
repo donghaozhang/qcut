@@ -14,17 +14,26 @@ export interface SpawnOutcome {
 	stderr: string;
 }
 
-/** Never rejects: a spawn error is reported as a non-zero exit instead. */
+/**
+ * A hosted TTS call that never answers would otherwise pin one concurrency
+ * lane for the whole batch, so children are given a deadline.
+ */
+export const DEFAULT_SPAWN_TIMEOUT_MS = 300_000;
+
+/** Never rejects: a spawn error or timeout is reported as a non-zero exit. */
 export function spawnCollect({
 	executable,
 	args,
 	cwd,
 	env,
+	timeoutMs = DEFAULT_SPAWN_TIMEOUT_MS,
 }: {
 	executable: string;
 	args: string[];
 	cwd?: string;
 	env?: NodeJS.ProcessEnv;
+	/** Kill the child after this long; 0 or negative disables the deadline. */
+	timeoutMs?: number;
 }): Promise<SpawnOutcome> {
 	return new Promise<SpawnOutcome>((resolveOutcome) => {
 		const out: Buffer[] = [];
@@ -34,14 +43,27 @@ export function spawnCollect({
 			env,
 			stdio: ["ignore", "pipe", "pipe"],
 		});
+		let settled = false;
+		let timer: ReturnType<typeof setTimeout> | undefined;
 		child.stdout.on("data", (chunk: Buffer) => out.push(chunk));
 		child.stderr.on("data", (chunk: Buffer) => err.push(chunk));
-		const finish = (exitCode: number, extra = "") =>
+		const finish = (exitCode: number, extra = "") => {
+			if (settled) return;
+			settled = true;
+			if (timer) clearTimeout(timer);
 			resolveOutcome({
 				exitCode,
 				stdout: Buffer.concat(out).toString("utf8"),
 				stderr: `${Buffer.concat(err).toString("utf8")}${extra}`,
 			});
+		};
+		if (timeoutMs > 0) {
+			timer = setTimeout(() => {
+				child.kill("SIGKILL");
+				finish(124, `\ntimed out after ${timeoutMs}ms`);
+			}, timeoutMs);
+			timer.unref?.();
+		}
 		child.once("error", (error: Error) => finish(1, error.message));
 		child.once("close", (code) => finish(code ?? 1));
 	});
