@@ -2651,7 +2651,7 @@
 		"kind": "sound-effect",
 		"name": "Clock Tick Tock",
 		"localizedName": "时钟滴答",
-		"description": "A ticking clock loop for deadlines and time pressure.",
+		"description": "A ticking clock sound for deadlines and time pressure.",
 		"localizedDescription": "适合倒计时、赶截止与时间流逝的时钟滴答。",
 		"tags": ["tech", "mechanical", "clock", "suspense"],
 		"moods": ["subtle"],
