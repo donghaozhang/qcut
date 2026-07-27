@@ -239,7 +239,9 @@ describe("Claude export trigger", () => {
 				trackId: "audio-track",
 				path: "/tmp/voiceover.wav",
 				startTime: 1.25,
-				duration: 3,
+				// Source length: the filter graph subtracts the trims itself, so a
+				// 3s-on-screen clip trimmed by 0.5s + 0.25s spans 3.75s of source.
+				duration: 3.75,
 				trimStart: 0.5,
 				trimEnd: 0.25,
 				volume: 0.8,
@@ -247,6 +249,59 @@ describe("Claude export trigger", () => {
 				fadeOut: 0.3,
 			}),
 		]);
+	});
+
+	it("keeps heavily trimmed audio clips audible", async () => {
+		// A 164s music bed trimmed down to its first 48.4s used to arrive as
+		// duration 48.4 with trimEnd 115.6; the graph then subtracted the trim a
+		// second time and collapsed the clip to a 0.01s blip of silence.
+		const audioFiles = await collectTimelineAudioFiles({
+			projectId: "project_music_bed",
+			timeline: {
+				...testTimeline,
+				tracks: [
+					...testTimeline.tracks,
+					{
+						id: "music-track",
+						index: 1,
+						name: "Music",
+						type: "audio",
+						elements: [
+							{
+								id: "music-bed",
+								trackIndex: 1,
+								startTime: 0,
+								endTime: 48.4,
+								duration: 48.4,
+								type: "audio" as const,
+								sourceId: "music-media",
+								trimStart: 0,
+								trimEnd: 115.6,
+							},
+						],
+					},
+				],
+			},
+			mediaFiles: [
+				...testMediaFiles,
+				{
+					id: "music-media",
+					name: "music.mp3",
+					type: "audio" as const,
+					path: "/tmp/music.mp3",
+					size: 4096,
+					duration: 164,
+					createdAt: Date.now(),
+					modifiedAt: Date.now(),
+				},
+			],
+		});
+
+		expect(audioFiles).toHaveLength(1);
+		const [music] = audioFiles;
+		expect(music.duration).toBe(164);
+		// What the filter graph will actually play.
+		expect(music.duration - music.trimStart - music.trimEnd).toBeCloseTo(48.4);
 	});
 
 	it("starts export with nested custom settings", async () => {
