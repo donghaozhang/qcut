@@ -19,7 +19,7 @@ import {
 export { STICKER_CATEGORIES } from "./sticker-categories";
 export type { StickerCategoryId } from "./sticker-categories";
 
-export const STICKER_CATEGORY_MINIMUM_SIZE = 35;
+export const STICKER_CATEGORY_MINIMUM_SIZE = 48;
 
 export type StickerAssetSource =
 	| {

@@ -1,0 +1,34 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" role="img" aria-label="Line Puppy Surprised">
+	<defs>
+		<filter id="shadow" x="-30%" y="-30%" width="160%" height="170%">
+			<feDropShadow dx="0" dy="13" stdDeviation="10" flood-color="#312331" flood-opacity="0.22"/>
+		</filter>
+	</defs>
+	<g filter="url(#shadow)">
+
+
+			<g stroke-linejoin="round">
+				<ellipse cx="152" cy="232" rx="45" ry="88" fill="#ffffff" stroke="white" stroke-width="32" transform="rotate(-14 152 232)"/>
+				<ellipse cx="360" cy="232" rx="45" ry="88" fill="#ffffff" stroke="white" stroke-width="32" transform="rotate(14 360 232)"/>
+				<ellipse cx="152" cy="232" rx="45" ry="88" fill="#ffffff" stroke="#3d4468" stroke-width="12" transform="rotate(-14 152 232)"/>
+				<ellipse cx="360" cy="232" rx="45" ry="88" fill="#ffffff" stroke="#3d4468" stroke-width="12" transform="rotate(14 360 232)"/>
+				<ellipse cx="152" cy="245" rx="20" ry="52" fill="#ffe3ec" transform="rotate(-14 152 245)"/>
+				<ellipse cx="360" cy="245" rx="20" ry="52" fill="#ffe3ec" transform="rotate(14 360 245)"/>
+			</g>
+		<ellipse cx="256" cy="367" rx="128" ry="105" fill="#ffffff" stroke="white" stroke-width="32"/>
+		<path d="M 128 230 C 128 142 188 112 256 112 C 324 112 384 142 384 230 C 384 329 330 371 256 371 C 182 371 128 329 128 230 Z" fill="#ffffff" stroke="white" stroke-width="32" stroke-linejoin="round"/>
+		<ellipse cx="256" cy="367" rx="128" ry="105" fill="#ffffff" stroke="#3d4468" stroke-width="12"/>
+		<path d="M 128 230 C 128 142 188 112 256 112 C 324 112 384 142 384 230 C 384 329 330 371 256 371 C 182 371 128 329 128 230 Z" fill="#ffffff" stroke="#3d4468" stroke-width="12" stroke-linejoin="round"/>
+		<ellipse cx="171" cy="373" rx="47" ry="36" fill="#ffffff" stroke="#3d4468" stroke-width="10" transform="rotate(20 171 373)"/>
+		<ellipse cx="341" cy="373" rx="47" ry="36" fill="#ffffff" stroke="#3d4468" stroke-width="10" transform="rotate(-20 341 373)"/>
+		<ellipse cx="214" cy="452" rx="52" ry="28" fill="#ffe3ec" stroke="#3d4468" stroke-width="10"/>
+		<ellipse cx="298" cy="452" rx="52" ry="28" fill="#ffe3ec" stroke="#3d4468" stroke-width="10"/>
+		<ellipse cx="256" cy="292" rx="52" ry="40" fill="#ffe3ec"/>
+			<ellipse cx="256" cy="277" rx="19" ry="14" fill="#3d4468"/>
+			<path d="M 256 291 L 256 304 M 256 304 Q 238 318 226 302 M 256 304 Q 274 318 286 302" fill="none" stroke="#3d4468" stroke-width="7" stroke-linecap="round"/>
+		<circle cx="214" cy="253" r="13" fill="#3d4468"/><circle cx="298" cy="253" r="13" fill="#3d4468"/>
+			<ellipse cx="256" cy="310" rx="20" ry="26" fill="#3d4468"/>
+
+
+	</g>
+</svg>

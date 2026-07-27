@@ -19,7 +19,7 @@ export interface CharacterStickerPack {
 	id: CharacterStickerCategoryId;
 	name: string;
 	localizedName: string;
-	species: "bear" | "mouse" | "rabbit";
+	species: "bear" | "capybara" | "cat" | "dog" | "mouse" | "rabbit";
 	palette: CharacterStickerPalette;
 	poses: readonly CharacterStickerPose[];
 }
@@ -207,6 +207,97 @@ const CHARACTER_POSES = [
 		tags: ["on my way", "coming", "speed"],
 		message: "马上到",
 	},
+	{
+		id: "study",
+		name: "Studying",
+		localizedName: "学习中",
+		tags: ["study", "focus", "book"],
+		message: "认真学",
+	},
+	{
+		id: "shopping",
+		name: "Shopping",
+		localizedName: "买买买",
+		tags: ["shopping", "cart", "bag"],
+		message: "买它",
+	},
+	{
+		id: "money",
+		name: "Getting rich",
+		localizedName: "发财",
+		tags: ["money", "rich", "coin"],
+		message: "暴富",
+	},
+	{
+		id: "game",
+		name: "Gaming",
+		localizedName: "打游戏",
+		tags: ["game", "play", "controller"],
+		message: "开黑",
+	},
+	{
+		id: "workout",
+		name: "Working out",
+		localizedName: "运动中",
+		tags: ["workout", "fitness", "energy"],
+		message: "动起来",
+	},
+	{
+		id: "goodnight",
+		name: "Good night",
+		localizedName: "晚安",
+		tags: ["night", "moon", "sleep"],
+		message: "晚安",
+	},
+	{
+		id: "morning",
+		name: "Good morning",
+		localizedName: "早安",
+		tags: ["morning", "sun", "fresh"],
+		message: "早安",
+	},
+	{
+		id: "secret",
+		name: "Secret",
+		localizedName: "悄悄话",
+		tags: ["secret", "whisper", "quiet"],
+		message: "悄悄说",
+	},
+	{
+		id: "proud",
+		name: "Proud",
+		localizedName: "骄傲",
+		tags: ["proud", "confident"],
+		message: "我最棒",
+	},
+	{
+		id: "panic",
+		name: "Panic",
+		localizedName: "慌了",
+		tags: ["panic", "nervous"],
+		message: "慌了",
+	},
+	{
+		id: "relax",
+		name: "Chilling",
+		localizedName: "躺平",
+		tags: ["relax", "chill", "lazy"],
+		message: "躺平",
+	},
+	{
+		id: "promise",
+		name: "Promise",
+		localizedName: "说好了",
+		tags: ["promise", "pinky"],
+		message: "说好了",
+	},
+	{
+		id: "cheers",
+		name: "Cheers",
+		localizedName: "干杯",
+		tags: ["cheers", "drink", "toast"],
+		message: "干杯",
+	},
 ] as const satisfies readonly CharacterStickerPose[];
 
 export const CHARACTER_STICKER_PACKS = [
@@ -246,6 +337,45 @@ export const CHARACTER_STICKER_PACKS = [
 			body: "#f4cf68",
 			inner: "#ffe8a3",
 			outline: "#674a23",
+		},
+		poses: CHARACTER_POSES,
+	},
+	{
+		id: "line-puppy",
+		name: "Line Puppy",
+		localizedName: "线条小狗",
+		species: "dog",
+		palette: {
+			accent: "#7a8cff",
+			body: "#ffffff",
+			inner: "#ffe3ec",
+			outline: "#3d4468",
+		},
+		poses: CHARACTER_POSES,
+	},
+	{
+		id: "capybara",
+		name: "Capybara",
+		localizedName: "水豚噜噜",
+		species: "capybara",
+		palette: {
+			accent: "#a97b4f",
+			body: "#c69a6d",
+			inner: "#e8cfae",
+			outline: "#4d3524",
+		},
+		poses: CHARACTER_POSES,
+	},
+	{
+		id: "siamese-cat",
+		name: "Siamese Cat",
+		localizedName: "暹罗猫",
+		species: "cat",
+		palette: {
+			accent: "#4fb3d9",
+			body: "#efe3d2",
+			inner: "#fff6ea",
+			outline: "#54402f",
 		},
 		poses: CHARACTER_POSES,
 	},

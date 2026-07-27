@@ -37,7 +37,30 @@ function ears({ pack }: { pack: CharacterStickerPack }): string {
 				<rect x="304" y="68" width="27" height="126" rx="14" fill="${inner}" transform="rotate(10 318 134)"/>
 			</g>`;
 	}
-	const earRadius = pack.species === "mouse" ? 69 : 54;
+	if (pack.species === "dog") {
+		return `
+			<g stroke-linejoin="round">
+				<ellipse cx="152" cy="232" rx="45" ry="88" fill="${body}" stroke="white" stroke-width="32" transform="rotate(-14 152 232)"/>
+				<ellipse cx="360" cy="232" rx="45" ry="88" fill="${body}" stroke="white" stroke-width="32" transform="rotate(14 360 232)"/>
+				<ellipse cx="152" cy="232" rx="45" ry="88" fill="${body}" stroke="${outline}" stroke-width="12" transform="rotate(-14 152 232)"/>
+				<ellipse cx="360" cy="232" rx="45" ry="88" fill="${body}" stroke="${outline}" stroke-width="12" transform="rotate(14 360 232)"/>
+				<ellipse cx="152" cy="245" rx="20" ry="52" fill="${inner}" transform="rotate(-14 152 245)"/>
+				<ellipse cx="360" cy="245" rx="20" ry="52" fill="${inner}" transform="rotate(14 360 245)"/>
+			</g>`;
+	}
+	if (pack.species === "cat") {
+		return `
+			<g stroke-linejoin="round">
+				<path d="M 166 214 L 180 92 L 268 158 Z" fill="${body}" stroke="white" stroke-width="32"/>
+				<path d="M 346 214 L 332 92 L 244 158 Z" fill="${body}" stroke="white" stroke-width="32"/>
+				<path d="M 166 214 L 180 92 L 268 158 Z" fill="${body}" stroke="${outline}" stroke-width="12"/>
+				<path d="M 346 214 L 332 92 L 244 158 Z" fill="${body}" stroke="${outline}" stroke-width="12"/>
+				<path d="M 186 196 L 195 130 L 240 165 Z" fill="${inner}"/>
+				<path d="M 326 196 L 317 130 L 272 165 Z" fill="${inner}"/>
+			</g>`;
+	}
+	const earRadius =
+		pack.species === "mouse" ? 69 : pack.species === "capybara" ? 43 : 54;
 	const leftX = pack.species === "mouse" ? 158 : 174;
 	const rightX = pack.species === "mouse" ? 354 : 338;
 	return `
@@ -123,6 +146,21 @@ function speciesDetails({ pack }: { pack: CharacterStickerPack }): string {
 			<path d="M 246 280 Q 256 270 266 280 Q 256 294 246 280 Z" fill="${outline}"/>
 			<path d="M 174 281 L 108 266 M 174 300 L 104 303 M 338 281 L 404 266 M 338 300 L 408 303" stroke="${outline}" stroke-width="6" stroke-linecap="round"/>`;
 	}
+	if (pack.species === "dog") {
+		return `<ellipse cx="256" cy="292" rx="52" ry="40" fill="${inner}"/>
+			<ellipse cx="256" cy="277" rx="19" ry="14" fill="${outline}"/>
+			<path d="M 256 291 L 256 304 M 256 304 Q 238 318 226 302 M 256 304 Q 274 318 286 302" fill="none" stroke="${outline}" stroke-width="7" stroke-linecap="round"/>`;
+	}
+	if (pack.species === "cat") {
+		return `<path d="M 243 279 H 269 L 256 293 Z" fill="${outline}"/>
+			<path d="M 256 293 L 256 302 M 256 302 Q 240 314 230 300 M 256 302 Q 272 314 282 300" fill="none" stroke="${outline}" stroke-width="6" stroke-linecap="round"/>
+			<path d="M 176 284 L 106 272 M 176 302 L 104 308 M 336 284 L 406 272 M 336 302 L 408 308" stroke="${outline}" stroke-width="6" stroke-linecap="round"/>`;
+	}
+	if (pack.species === "capybara") {
+		return `<rect x="196" y="266" width="120" height="62" rx="30" fill="${inner}"/>
+			<ellipse cx="256" cy="285" rx="24" ry="13" fill="${outline}"/>
+			<path d="M 256 298 L 256 312" stroke="${outline}" stroke-width="7" stroke-linecap="round"/>`;
+	}
 	if (pack.species === "bear") {
 		return `<ellipse cx="256" cy="289" rx="49" ry="38" fill="${inner}"/>
 			<ellipse cx="256" cy="280" rx="14" ry="11" fill="${outline}"/>`;
@@ -180,6 +218,64 @@ function backProps({
 			<path d="M 393 72 C 340 72 317 135 351 170 C 366 186 369 198 369 218 H 417 C 417 198 420 186 435 170 C 469 135 446 72 393 72 Z M 371 239 H 415 M 377 260 H 409" fill="none" stroke="${outline}" stroke-width="10" stroke-linecap="round"/>
 			<path d="M 393 39 V 13 M 325 62 L 307 43 M 461 62 L 479 43 M 300 129 H 273 M 486 129 H 513" stroke="${accent}" stroke-width="11" stroke-linecap="round"/>`;
 	}
+	if (pose.id === "study") {
+		return `<g stroke="${outline}" stroke-width="9" stroke-linejoin="round">
+			<path d="M 386 76 H 438 Q 448 76 448 86 V 168 H 386 Z" fill="#ffffff"/>
+			<path d="M 448 76 H 500 V 168 H 448 Q 448 158 438 158 H 448 Z" fill="#f4f1e8"/>
+			<path d="M 448 86 V 168" stroke-width="8"/>
+			<path d="M 398 104 H 436 M 398 126 H 430 M 462 104 H 490 M 462 126 H 484" stroke="${accent}" stroke-width="7" stroke-linecap="round"/>
+		</g>`;
+	}
+	if (pose.id === "shopping") {
+		return `<g stroke="${outline}" stroke-width="9" stroke-linejoin="round">
+			<path d="M 390 96 H 486 L 476 208 H 400 Z" fill="${accent}"/>
+			<path d="M 412 96 Q 438 52 464 96" fill="none" stroke-width="10"/>
+			<path d="M 418 136 H 452" stroke="white" stroke-width="9" stroke-linecap="round"/>
+		</g>`;
+	}
+	if (pose.id === "money") {
+		return `<g stroke="${outline}" stroke-width="9">
+			<ellipse cx="428" cy="112" rx="48" ry="46" fill="#ffd166"/>
+			<ellipse cx="428" cy="112" rx="30" ry="28" fill="none" stroke-width="7"/>
+			<path d="M 428 88 V 136 M 414 100 H 442 M 414 124 H 442" stroke-width="7" stroke-linecap="round"/>
+			<ellipse cx="462" cy="196" rx="34" ry="32" fill="#ffe08a"/>
+		</g>`;
+	}
+	if (pose.id === "game") {
+		return `<g stroke="${outline}" stroke-width="9" stroke-linejoin="round">
+			<path d="M 400 86 H 476 Q 500 86 500 118 V 150 Q 500 178 476 178 Q 458 178 452 164 H 412 Q 406 178 388 178 Q 364 178 364 150 V 118 Q 364 86 400 86 Z" fill="${accent}"/>
+			<path d="M 400 116 V 142 M 387 129 H 413" stroke="white" stroke-width="9" stroke-linecap="round"/>
+			<circle cx="464" cy="118" r="9" fill="white"/><circle cx="478" cy="142" r="9" fill="white"/>
+		</g>`;
+	}
+	if (pose.id === "workout") {
+		return `<g stroke="${outline}" stroke-width="9" stroke-linecap="round">
+			<path d="M 396 128 H 486" stroke-width="14"/>
+			<rect x="378" y="100" width="26" height="56" rx="11" fill="${accent}"/>
+			<rect x="478" y="100" width="26" height="56" rx="11" fill="${accent}"/>
+			<rect x="358" y="112" width="20" height="32" rx="9" fill="#ffffff"/>
+		</g>`;
+	}
+	if (pose.id === "goodnight") {
+		return `<g stroke="${outline}" stroke-width="9" stroke-linejoin="round">
+			<path d="M 448 66 A 52 52 0 1 0 448 166 A 41 41 0 1 1 448 66 Z" fill="#ffe08a"/>
+			<path d="M 386 150 L 395 172 L 417 181 L 395 190 L 386 212 L 377 190 L 355 181 L 377 172 Z" fill="#fff3c4" stroke-width="7"/>
+		</g>`;
+	}
+	if (pose.id === "cheers") {
+		return `<g stroke="${outline}" stroke-width="9" stroke-linejoin="round">
+			<path d="M 392 104 H 476 L 464 226 Q 434 240 404 226 Z" fill="#ffe3ec"/>
+			<path d="M 397 146 H 471" stroke-width="7"/>
+			<path d="M 434 104 V 72 Q 434 56 454 56" fill="none" stroke="${accent}" stroke-width="10" stroke-linecap="round"/>
+			<circle cx="422" cy="180" r="9" fill="${accent}" stroke="none"/>
+			<circle cx="450" cy="198" r="7" fill="${accent}" stroke="none"/>
+		</g>`;
+	}
+	if (pose.id === "relax") {
+		return `<g stroke="${outline}" stroke-width="9" stroke-linejoin="round">
+			<path d="M 376 150 Q 376 110 416 110 Q 430 84 460 91 Q 494 84 501 120 Q 512 132 505 156 Q 499 176 472 176 H 400 Q 376 174 376 150 Z" fill="#ffffff"/>
+		</g>`;
+	}
 	if (pose.id === "on-my-way") {
 		return `<path d="M 48 192 H 137 M 23 238 H 117 M 55 284 H 139" stroke="${accent}" stroke-width="13" stroke-linecap="round"/>
 			<path d="M 383 125 L 468 210 L 383 295 V 247 H 319 V 173 H 383 Z" fill="${accent}" stroke="white" stroke-width="15" stroke-linejoin="round"/>`;
@@ -192,6 +288,26 @@ function snackProp({ pack }: { pack: CharacterStickerPack }): string {
 	if (pack.species === "rabbit") {
 		return `<path d="M 244 359 L 286 273 Q 313 289 304 317 L 273 383 Z" fill="#f58b37" stroke="${outline}" stroke-width="9"/>
 			<path d="M 284 284 Q 275 247 298 227 Q 302 258 318 275 Q 305 279 284 284 Z" fill="#55b86b" stroke="${outline}" stroke-width="8"/>`;
+	}
+	if (pack.species === "dog") {
+		return `<g stroke="${outline}" stroke-width="9" stroke-linejoin="round">
+			<path d="M 214 330 H 298" stroke-width="34" stroke-linecap="round" fill="none"/>
+			<circle cx="211" cy="316" r="18" fill="#fff3dc"/><circle cx="211" cy="344" r="18" fill="#fff3dc"/>
+			<circle cx="301" cy="316" r="18" fill="#fff3dc"/><circle cx="301" cy="344" r="18" fill="#fff3dc"/>
+			<path d="M 214 330 H 298" stroke="#fff3dc" stroke-width="22" stroke-linecap="round" fill="none"/>
+		</g>`;
+	}
+	if (pack.species === "cat") {
+		return `<g stroke="${outline}" stroke-width="9" stroke-linejoin="round">
+			<path d="M 206 340 Q 250 296 296 340 Q 250 384 206 340 Z" fill="#9fd8ef"/>
+			<path d="M 296 340 L 330 314 V 366 Z" fill="#9fd8ef"/>
+			<circle cx="238" cy="330" r="7" fill="${outline}" stroke="none"/>
+		</g>`;
+	}
+	if (pack.species === "capybara") {
+		return `<g stroke="${outline}" stroke-width="9">
+			<circle cx="256" cy="344" r="47" fill="#f8a33c"/>
+		</g>`;
 	}
 	if (pack.species === "mouse") {
 		return `<path d="M 218 304 H 302 L 292 396 Q 256 419 220 396 Z" fill="#f3d8b6" stroke="${outline}" stroke-width="10"/>

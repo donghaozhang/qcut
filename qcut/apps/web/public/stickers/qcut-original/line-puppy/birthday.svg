@@ -1,0 +1,40 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" role="img" aria-label="Line Puppy Birthday">
+	<defs>
+		<filter id="shadow" x="-30%" y="-30%" width="160%" height="170%">
+			<feDropShadow dx="0" dy="13" stdDeviation="10" flood-color="#312331" flood-opacity="0.22"/>
+		</filter>
+	</defs>
+	<g filter="url(#shadow)">
+
+
+			<g stroke-linejoin="round">
+				<ellipse cx="152" cy="232" rx="45" ry="88" fill="#ffffff" stroke="white" stroke-width="32" transform="rotate(-14 152 232)"/>
+				<ellipse cx="360" cy="232" rx="45" ry="88" fill="#ffffff" stroke="white" stroke-width="32" transform="rotate(14 360 232)"/>
+				<ellipse cx="152" cy="232" rx="45" ry="88" fill="#ffffff" stroke="#3d4468" stroke-width="12" transform="rotate(-14 152 232)"/>
+				<ellipse cx="360" cy="232" rx="45" ry="88" fill="#ffffff" stroke="#3d4468" stroke-width="12" transform="rotate(14 360 232)"/>
+				<ellipse cx="152" cy="245" rx="20" ry="52" fill="#ffe3ec" transform="rotate(-14 152 245)"/>
+				<ellipse cx="360" cy="245" rx="20" ry="52" fill="#ffe3ec" transform="rotate(14 360 245)"/>
+			</g>
+		<ellipse cx="256" cy="367" rx="128" ry="105" fill="#ffffff" stroke="white" stroke-width="32"/>
+		<path d="M 128 230 C 128 142 188 112 256 112 C 324 112 384 142 384 230 C 384 329 330 371 256 371 C 182 371 128 329 128 230 Z" fill="#ffffff" stroke="white" stroke-width="32" stroke-linejoin="round"/>
+		<ellipse cx="256" cy="367" rx="128" ry="105" fill="#ffffff" stroke="#3d4468" stroke-width="12"/>
+		<path d="M 128 230 C 128 142 188 112 256 112 C 324 112 384 142 384 230 C 384 329 330 371 256 371 C 182 371 128 329 128 230 Z" fill="#ffffff" stroke="#3d4468" stroke-width="12" stroke-linejoin="round"/>
+		<ellipse cx="171" cy="373" rx="47" ry="36" fill="#ffffff" stroke="#3d4468" stroke-width="10" transform="rotate(20 171 373)"/>
+		<ellipse cx="341" cy="373" rx="47" ry="36" fill="#ffffff" stroke="#3d4468" stroke-width="10" transform="rotate(-20 341 373)"/>
+		<ellipse cx="214" cy="452" rx="52" ry="28" fill="#ffe3ec" stroke="#3d4468" stroke-width="10"/>
+		<ellipse cx="298" cy="452" rx="52" ry="28" fill="#ffe3ec" stroke="#3d4468" stroke-width="10"/>
+		<ellipse cx="256" cy="292" rx="52" ry="40" fill="#ffe3ec"/>
+			<ellipse cx="256" cy="277" rx="19" ry="14" fill="#3d4468"/>
+			<path d="M 256 291 L 256 304 M 256 304 Q 238 318 226 302 M 256 304 Q 274 318 286 302" fill="none" stroke="#3d4468" stroke-width="7" stroke-linecap="round"/>
+		<path d="M 193 250 Q 214 271 235 250 M 277 250 Q 298 271 319 250" fill="none" stroke="#3d4468" stroke-width="11" stroke-linecap="round"/>
+		<path d="M 226 300 Q 256 333 286 300" fill="none" stroke="#3d4468" stroke-width="11" stroke-linecap="round"/>
+		<rect x="181" y="341" width="151" height="105" rx="12" fill="#7a8cff" stroke="white" stroke-width="22"/>
+			<rect x="181" y="341" width="151" height="105" rx="12" fill="#7a8cff" stroke="#3d4468" stroke-width="9"/>
+			<path d="M 256 341 V 446 M 175 371 H 338" stroke="#fff4ca" stroke-width="18"/>
+			<path d="M 256 341 Q 207 310 206 278 Q 249 271 256 321 Q 263 271 306 278 Q 305 310 256 341 Z" fill="#fff4ca" stroke="#3d4468" stroke-width="8"/>
+		<g transform="rotate(-4 256 82)">
+		<rect x="162" y="28" width="188" height="78" rx="34" fill="white" stroke="#3d4468" stroke-width="9"/>
+		<text x="256" y="80" text-anchor="middle" fill="#7a8cff" font-family="PingFang SC, Noto Sans CJK SC, Arial, sans-serif" font-size="34" font-weight="800">生日快乐</text>
+	</g>
+	</g>
+</svg>

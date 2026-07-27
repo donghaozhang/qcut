@@ -1,0 +1,17 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" role="img" aria-label="Little Blue Refresh Speech Bubble">
+	<defs>
+		<filter id="shadow" x="-30%" y="-30%" width="160%" height="170%">
+			<feDropShadow dx="0" dy="12" stdDeviation="10" flood-color="#1f2330" flood-opacity="0.2"/>
+		</filter>
+	</defs>
+	<g filter="url(#shadow)">
+		<path d="M 61 141 Q 61 83 119 83 H 394 Q 451 83 451 141 V 320 Q 451 378 394 378 H 228 L 145 442 L 161 378 H 119 Q 61 378 61 320 Z" fill="#e4f8ff" stroke="white" stroke-width="30" stroke-linejoin="round"/><path d="M 61 141 Q 61 83 119 83 H 394 Q 451 83 451 141 V 320 Q 451 378 394 378 H 228 L 145 442 L 161 378 H 119 Q 61 378 61 320 Z" fill="#e4f8ff" stroke="#1d3557" stroke-width="11" stroke-linejoin="round"/><text x="256" y="236" text-anchor="middle" dominant-baseline="middle" fill="#1d3557" stroke="white" stroke-width="16" paint-order="stroke" stroke-linejoin="round" font-family="PingFang SC, Noto Sans CJK SC, Arial, sans-serif" font-size="74" font-weight="900">清醒一下</text>
+		<path d="M 405 44 C 369 95 347 124 405 162 C 463 124 441 95 405 44 Z" fill="#4cc9f0" stroke="white" stroke-width="12"/>
+		<g fill="#4361ee" stroke="white" stroke-width="7" stroke-linejoin="round">
+		<path d="M 78 96 L 88 126 L 119 136 L 88 146 L 78 177 L 68 146 L 37 136 L 68 126 Z"/>
+		<path d="M 423 333 L 432 357 L 457 366 L 432 375 L 423 400 L 414 375 L 389 366 L 414 357 Z"/>
+		<circle cx="416" cy="104" r="13"/>
+		<circle cx="101" cy="386" r="10"/>
+	</g>
+	</g>
+</svg>

@@ -1,0 +1,22 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" role="img" aria-label="QCut Line Friends Craving it Label">
+	<defs>
+		<filter id="shadow" x="-30%" y="-30%" width="160%" height="170%">
+			<feDropShadow dx="0" dy="12" stdDeviation="10" flood-color="#1f2330" flood-opacity="0.2"/>
+		</filter>
+	</defs>
+	<g filter="url(#shadow)">
+		<path d="M 49 174 L 92 112 H 419 L 463 174 L 429 256 L 463 338 L 419 400 H 92 L 49 338 L 83 256 Z" fill="#ffffff" stroke="white" stroke-width="29" stroke-linejoin="round"/><path d="M 49 174 L 92 112 H 419 L 463 174 L 429 256 L 463 338 L 419 400 H 92 L 49 338 L 83 256 Z" fill="#ffffff" stroke="#30343f" stroke-width="10" stroke-linejoin="round"/><text x="256" y="258" text-anchor="middle" dominant-baseline="middle" fill="#30343f" stroke="white" stroke-width="16" paint-order="stroke" stroke-linejoin="round" font-family="PingFang SC, Noto Sans CJK SC, Arial, sans-serif" font-size="74" font-weight="900">好想吃</text>
+		<g transform="translate(339 54)" fill="white" stroke="#30343f" stroke-width="9" stroke-linecap="round" stroke-linejoin="round">
+			<path d="M 24 45 Q 3 21 14 4 Q 36 4 45 27 Q 70 14 95 27 Q 104 4 126 4 Q 137 21 116 45 Q 131 72 116 102 Q 93 128 70 117 Q 47 128 24 102 Q 9 72 24 45 Z"/>
+			<circle cx="50" cy="66" r="4" fill="#30343f"/><circle cx="90" cy="66" r="4" fill="#30343f"/>
+			<path d="M 63 80 Q 70 86 77 80" fill="none"/>
+			<path d="M 111 22 L 128 7" stroke="#ff6b6b"/>
+		</g>
+		<g fill="#ff6b6b" stroke="white" stroke-width="7" stroke-linejoin="round">
+		<path d="M 78 96 L 88 126 L 119 136 L 88 146 L 78 177 L 68 146 L 37 136 L 68 126 Z"/>
+		<path d="M 423 333 L 432 357 L 457 366 L 432 375 L 423 400 L 414 375 L 389 366 L 414 357 Z"/>
+		<circle cx="416" cy="104" r="13"/>
+		<circle cx="101" cy="386" r="10"/>
+	</g>
+	</g>
+</svg>
