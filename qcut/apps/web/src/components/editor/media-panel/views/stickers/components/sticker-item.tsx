@@ -260,7 +260,7 @@ export function StickerItem({
 								alt={displayName}
 								className={cn(
 									"object-contain",
-									layout === "catalog" ? "size-14" : "size-8",
+									layout === "catalog" ? "size-[94%]" : "size-8",
 									(isLoading || hasError) && "hidden"
 								)}
 								onLoad={() => setIsLoading(false)}

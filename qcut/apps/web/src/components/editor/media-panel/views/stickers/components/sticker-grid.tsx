@@ -3,7 +3,7 @@
 import type { PropsWithChildren } from "react";
 import { cn } from "@/lib/utils";
 
-export const STICKER_GRID_MIN_ITEM_WIDTH = 60;
+export const STICKER_GRID_MIN_ITEM_WIDTH = 80;
 export const STICKER_GRID_GAP = 6;
 
 export function StickerGrid({
