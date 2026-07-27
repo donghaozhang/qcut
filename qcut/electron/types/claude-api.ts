@@ -70,6 +70,12 @@ export interface ClaudeTimeline {
 	height: number;
 	fps: number;
 	tracks: ClaudeTrack[];
+	/**
+	 * Id of the project this snapshot was taken from. The renderer can only
+	 * snapshot the currently open project, so consumers that receive an
+	 * explicit target projectId must compare it against this value.
+	 */
+	projectId?: string;
 }
 
 export interface ClaudeTrack {
