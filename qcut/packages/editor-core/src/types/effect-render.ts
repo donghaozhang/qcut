@@ -127,7 +127,8 @@ export type EffectParticleVariant =
 	| "confetti"
 	| "fog"
 	| "coins"
-	| "butterfly";
+	| "butterfly"
+	| "rain";
 
 /**
  * Procedural particle field (氛围-style overlays: snow, sakura, embers, …).
@@ -161,7 +162,9 @@ export type EffectDecorationVariant =
 	| "hearts-orbit"
 	| "idea-bulb"
 	| "anger-burst"
-	| "hp-bar";
+	| "hp-bar"
+	| "glass-shatter"
+	| "dashed-ring";
 
 /**
  * Procedural non-particle overlays (上下网格 / 彩虹射线 / 全剧终) drawn on a

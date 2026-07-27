@@ -74,6 +74,55 @@ function createParticleCatalogEntry({
 	};
 }
 
+/**
+ * 秋叶遮罩 pairs the sakura particle field with a vignette filter stage so
+ * the falling leaves read as a veil framing the scene. Hand-written because
+ * the factory above emits a single particles stage.
+ */
+function createAutumnVeilCatalogEntry(): VisualEffectCatalogEntry {
+	const preset: EffectPreset = {
+		id: "nature-autumn-veil",
+		name: "Autumn Veil",
+		description: "Orange-brown autumn leaves falling behind a soft vignette.",
+		category: "basic",
+		icon: "AV",
+		parameters: { vignette: 40 },
+		renderProgram: {
+			version: 1,
+			stages: [
+				{ kind: "filter" },
+				{
+					kind: "particles",
+					variant: "sakura",
+					density: 0.6,
+					speed: 0.85,
+					color: "#c9803e",
+					opacity: 0.9,
+				},
+			],
+		},
+	};
+
+	return {
+		preset,
+		assetVersion: 1,
+		localizedName: "秋叶遮罩",
+		localizedDescription: "橙棕色秋叶飘落,配合柔和暗角遮罩。",
+		family: "visual",
+		category: "nature",
+		tags: ["leaves", "autumn", "veil", "vignette", "nature", "particles"],
+		releasedAt: "2026-07-27T00:00:00.000Z",
+		popularityScore: 78,
+		publication: "published",
+		render: {
+			kind: "particles",
+			previewBackend: "canvas",
+			exportBackend: "frame-renderer",
+			parity: "verified",
+		},
+	};
+}
+
 export const PARTICLE_EFFECT_CATALOG = [
 	createParticleCatalogEntry({
 		id: "atmosphere-snow",
@@ -319,5 +368,74 @@ export const PARTICLE_EFFECT_CATALOG = [
 		tags: ["snow", "winter", "nature", "particles"],
 		releasedAt: "2026-07-20T03:08:00.000Z",
 		popularityScore: 83,
+	}),
+	// 2026-07-27 剪映氛围包 — recolor/density variants of existing particle
+	// models (bubbles=embers, bokeh=snow, petals/leaves=sakura).
+	createParticleCatalogEntry({
+		id: "atmosphere-bubbles",
+		name: "Bubbles",
+		localizedName: "泡泡",
+		description: "Translucent bubbles drifting upward and shimmering.",
+		localizedDescription: "半透明的泡泡向上飘浮并闪烁。",
+		icon: "BB",
+		variant: "embers",
+		density: 0.4,
+		speed: 0.7,
+		color: "#dceeff",
+		opacity: 0.55,
+		tags: ["bubbles", "float", "water", "atmosphere", "particles"],
+		releasedAt: "2026-07-27T00:00:00.000Z",
+		popularityScore: 83,
+	}),
+	createParticleCatalogEntry({
+		id: "light-bokeh-fall",
+		name: "Bokeh Fall",
+		localizedName: "光斑飘落",
+		description: "Warm golden bokeh orbs drifting slowly down the frame.",
+		localizedDescription: "温暖的金色光斑缓缓飘落。",
+		category: "light",
+		icon: "BK",
+		variant: "snow",
+		density: 0.5,
+		speed: 0.5,
+		color: "#ffd98a",
+		opacity: 0.75,
+		tags: ["bokeh", "glow", "gold", "light", "particles"],
+		releasedAt: "2026-07-27T00:00:00.000Z",
+		popularityScore: 85,
+	}),
+	createParticleCatalogEntry({
+		id: "atmosphere-petal-rush",
+		name: "Petal Rush",
+		localizedName: "花瓣冲屏",
+		description: "A dense rush of pink petals sweeping across the frame.",
+		localizedDescription: "密集的粉色花瓣高速冲过画面。",
+		icon: "PR",
+		variant: "sakura",
+		density: 0.95,
+		speed: 1.8,
+		color: "#ff9ec8",
+		opacity: 0.95,
+		tags: ["petals", "sakura", "rush", "atmosphere", "particles"],
+		releasedAt: "2026-07-27T00:00:00.000Z",
+		popularityScore: 86,
+	}),
+	createAutumnVeilCatalogEntry(),
+	createParticleCatalogEntry({
+		id: "light-starlight-bloom",
+		name: "Starlight Bloom",
+		localizedName: "星光绽放",
+		description: "A dense field of golden-white starlight blooming on screen.",
+		localizedDescription: "金白色星光在画面中密集绽放。",
+		category: "light",
+		icon: "SL",
+		variant: "stars",
+		density: 1,
+		speed: 1,
+		color: "#fff1b8",
+		opacity: 0.9,
+		tags: ["starlight", "bloom", "twinkle", "light", "particles"],
+		releasedAt: "2026-07-27T00:00:00.000Z",
+		popularityScore: 87,
 	}),
 ] as const satisfies readonly VisualEffectCatalogEntry[];

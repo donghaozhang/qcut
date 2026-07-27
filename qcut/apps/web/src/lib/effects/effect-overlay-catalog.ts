@@ -76,6 +76,51 @@ function createOverlayCatalogEntry({
 	};
 }
 
+/**
+ * 边缘荧光 blends the highlight frame with screen mode. The factory above
+ * hardcodes blendMode "normal", so this entry is written by hand while
+ * keeping the exact contract of the factory output.
+ */
+const EDGE_GLOW_ENTRY: VisualEffectCatalogEntry = {
+	preset: {
+		id: "light-edge-glow",
+		name: "Edge Glow",
+		description:
+			"A luminous frame edge blended over the footage in screen mode.",
+		category: "composite",
+		icon: "EG",
+		parameters: {},
+		effectType: "resource-overlay",
+		renderProgram: {
+			version: 1,
+			stages: [
+				{
+					kind: "overlay",
+					resourceId: EFFECT_OVERLAY_RESOURCE_IDS.borderHighlight,
+					blendMode: "screen",
+					opacity: 0.8,
+					fit: "cover",
+				},
+			],
+		},
+	},
+	assetVersion: 1,
+	localizedName: "边缘荧光",
+	localizedDescription: "以滤色混合叠加的荧光高亮画面边缘。",
+	family: "visual",
+	category: "light",
+	tags: ["glow", "edge", "frame", "light", "screen"],
+	releasedAt: "2026-07-27T00:00:00.000Z",
+	popularityScore: 83,
+	publication: "published",
+	render: {
+		kind: "overlay",
+		previewBackend: "canvas",
+		exportBackend: "ffmpeg-filter-complex",
+		parity: "verified",
+	},
+};
+
 export const OVERLAY_EFFECT_CATALOG = [
 	createOverlayCatalogEntry({
 		id: "border-today-frame",
@@ -212,4 +257,5 @@ export const OVERLAY_EFFECT_CATALOG = [
 		releasedAt: "2026-07-18T03:08:00.000Z",
 		popularityScore: 82,
 	}),
+	EDGE_GLOW_ENTRY,
 ] as const satisfies readonly VisualEffectCatalogEntry[];

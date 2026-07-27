@@ -1,6 +1,7 @@
 import {
 	sampleEffectParticles,
 	type EffectDecorationRenderStage,
+	type EffectDecorationVariant,
 	type EffectParticleRenderStage,
 	type EffectRenderProgram,
 	type SampledEffectParticle,
@@ -43,13 +44,23 @@ export function decorationStages({
 	);
 }
 
+/** Decorations that render identically for every frame (export bakes 1 frame). */
+const STATIC_DECORATION_VARIANTS: ReadonlySet<EffectDecorationVariant> =
+	new Set(["grid", "glass-shatter", "dashed-ring"]);
+
 /** Static decorations render identically for every frame (bake 1 frame). */
 export function isDecorationStageAnimated({
 	stage,
 }: {
 	stage: EffectDecorationRenderStage;
 }): boolean {
-	return stage.variant !== "grid";
+	return !STATIC_DECORATION_VARIANTS.has(stage.variant);
+}
+
+/** Deterministic hash → [0, 1). Keeps static layouts identical across frames. */
+function hash01({ seed }: { seed: number }): number {
+	const value = Math.sin(seed * 127.1 + 311.7) * 43_758.545_312;
+	return value - Math.floor(value);
 }
 
 function drawParticle({
@@ -90,6 +101,19 @@ function drawParticle({
 		context.beginPath();
 		context.arc(px, py, size * 2, 0, Math.PI * 2);
 		context.fill();
+		return;
+	}
+
+	if (stage.variant === "rain") {
+		// Raindrop: a thin, slightly slanted streak (size is the streak length).
+		const slant = size * 0.16;
+		context.strokeStyle = stage.color;
+		context.lineWidth = Math.max(1, size * 0.07);
+		context.lineCap = "round";
+		context.beginPath();
+		context.moveTo(px + slant, py - size);
+		context.lineTo(px, py);
+		context.stroke();
 		return;
 	}
 
@@ -487,6 +511,92 @@ function drawHeartsOrbit({
 	context.globalAlpha = 1;
 }
 
+function drawGlassShatter({
+	context,
+	stage,
+	width,
+	height,
+}: Omit<DecorationDrawArgs, "timeSeconds">) {
+	// 玻璃破碎: a static spider web of cracks radiating from an impact point.
+	// Seeded hashes keep the layout identical across preview frames and export.
+	const impactX = width * 0.54;
+	const impactY = height * 0.42;
+	const minSide = Math.min(width, height);
+	const maxRadius = Math.hypot(width, height) * 0.6;
+	const crackCount = 14;
+	const segments = 6;
+	const angles: number[] = [];
+	context.globalAlpha = stage.opacity;
+	context.strokeStyle = stage.color;
+	context.lineCap = "round";
+	context.lineWidth = Math.max(1, minSide / 260);
+	for (let index = 0; index < crackCount; index += 1) {
+		const angle =
+			(index / crackCount) * Math.PI * 2 +
+			(hash01({ seed: index + 17 }) - 0.5) * 0.45;
+		angles.push(angle);
+		const length = maxRadius * (0.5 + hash01({ seed: index + 61 }) * 0.5);
+		context.beginPath();
+		context.moveTo(impactX, impactY);
+		for (let segment = 1; segment <= segments; segment += 1) {
+			const radius = (segment / segments) * length;
+			const jitter = (hash01({ seed: index * 31 + segment * 7 }) - 0.5) * 0.2;
+			context.lineTo(
+				impactX + Math.cos(angle + jitter) * radius,
+				impactY + Math.sin(angle + jitter) * radius
+			);
+		}
+		context.stroke();
+	}
+	// Connecting web rings between neighbouring cracks.
+	context.lineWidth = Math.max(1, minSide / 380);
+	for (const [ringIndex, ringRatio] of [0.14, 0.3, 0.52].entries()) {
+		context.beginPath();
+		for (let index = 0; index <= crackCount; index += 1) {
+			const angle = angles[index % crackCount];
+			const wobble =
+				1 + (hash01({ seed: index * 13 + ringIndex * 97 + 5 }) - 0.5) * 0.3;
+			const radius = maxRadius * ringRatio * wobble;
+			const x = impactX + Math.cos(angle) * radius;
+			const y = impactY + Math.sin(angle) * radius;
+			if (index === 0) context.moveTo(x, y);
+			else context.lineTo(x, y);
+		}
+		context.stroke();
+	}
+	// Small solid impact chip where the cracks converge.
+	context.fillStyle = stage.color;
+	context.beginPath();
+	context.arc(impactX, impactY, Math.max(2, minSide * 0.008), 0, Math.PI * 2);
+	context.fill();
+	context.lineCap = "butt";
+	context.globalAlpha = 1;
+}
+
+function drawDashedRing({
+	context,
+	stage,
+	width,
+	height,
+}: Omit<DecorationDrawArgs, "timeSeconds">) {
+	// 圆形虚线: a static centered dashed circle sized to the magnifier lens edge
+	// (loupe radius ≈ 0.5 of the min canvas side; see sampleDistortionSource).
+	const minSide = Math.min(width, height);
+	const lineWidth = Math.max(2, minSide / 160);
+	const radius = Math.max(1, minSide * 0.5 - lineWidth * 1.5);
+	const dash = Math.max(6, minSide / 34);
+	context.globalAlpha = stage.opacity;
+	context.strokeStyle = stage.color;
+	context.lineWidth = lineWidth;
+	context.lineCap = "butt";
+	context.setLineDash([dash, dash * 0.62]);
+	context.beginPath();
+	context.arc(width / 2, height / 2, radius, 0, Math.PI * 2);
+	context.stroke();
+	context.setLineDash([]);
+	context.globalAlpha = 1;
+}
+
 function drawHpBar({
 	context,
 	stage,
@@ -549,6 +659,10 @@ export function drawDecorationStageFrame({
 		drawHeartsOrbit(args);
 	} else if (stage.variant === "hp-bar") {
 		drawHpBar(args);
+	} else if (stage.variant === "glass-shatter") {
+		drawGlassShatter({ context, stage, width, height });
+	} else if (stage.variant === "dashed-ring") {
+		drawDashedRing({ context, stage, width, height });
 	} else {
 		drawFloatingText(args);
 	}
