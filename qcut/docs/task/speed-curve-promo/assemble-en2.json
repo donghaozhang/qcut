@@ -1,0 +1,192 @@
+[
+ {
+  "trackId": "a6822bbc-1bce-482e-b433-9dcc5226ec94",
+  "type": "media",
+  "mediaId": "media_cHJvbW8tdGFrZTYtZW4ubXA0",
+  "sourceName": "take",
+  "startTime": 0,
+  "duration": 39.6
+ },
+ {
+  "trackId": "dff5a8df-bfab-4942-8a09-d65c321f90dd",
+  "type": "media",
+  "mediaId": "media_MDEubXAz",
+  "sourceName": "vo",
+  "startTime": 0.3,
+  "duration": 3.312
+ },
+ {
+  "trackId": "dff5a8df-bfab-4942-8a09-d65c321f90dd",
+  "type": "media",
+  "mediaId": "media_MDIubXAz",
+  "sourceName": "vo",
+  "startTime": 3.6,
+  "duration": 5.208
+ },
+ {
+  "trackId": "dff5a8df-bfab-4942-8a09-d65c321f90dd",
+  "type": "media",
+  "mediaId": "media_MDMubXAz",
+  "sourceName": "vo",
+  "startTime": 9.0,
+  "duration": 5.544
+ },
+ {
+  "trackId": "dff5a8df-bfab-4942-8a09-d65c321f90dd",
+  "type": "media",
+  "mediaId": "media_MDQubXAz",
+  "sourceName": "vo",
+  "startTime": 14.8,
+  "duration": 4.032
+ },
+ {
+  "trackId": "dff5a8df-bfab-4942-8a09-d65c321f90dd",
+  "type": "media",
+  "mediaId": "media_MDUubXAz",
+  "sourceName": "vo",
+  "startTime": 21.8,
+  "duration": 3.744
+ },
+ {
+  "trackId": "dff5a8df-bfab-4942-8a09-d65c321f90dd",
+  "type": "media",
+  "mediaId": "media_MDcubXAz",
+  "sourceName": "vo",
+  "startTime": 30.2,
+  "duration": 3.24
+ },
+ {
+  "trackId": "dff5a8df-bfab-4942-8a09-d65c321f90dd",
+  "type": "media",
+  "mediaId": "media_MDYubXAz",
+  "sourceName": "vo",
+  "startTime": 35.2,
+  "duration": 4.104
+ },
+ {
+  "trackId": "5b1ed88e-1ad5-4bd4-b055-4f680dca51dd",
+  "type": "text",
+  "content": "Introducing Speed Curves in QCut",
+  "startTime": 0.3,
+  "duration": 3.3,
+  "style": {
+   "fontSize": 46,
+   "fontFamily": "Arial",
+   "color": "#ffffff",
+   "textAlign": "center",
+   "fontWeight": "bold",
+   "x": 0,
+   "y": 400,
+   "width": 1700,
+   "height": 120
+  }
+ },
+ {
+  "trackId": "5b1ed88e-1ad5-4bd4-b055-4f680dca51dd",
+  "type": "text",
+  "content": "Six presets, one click — Bullet Time",
+  "startTime": 3.6,
+  "duration": 3.8,
+  "style": {
+   "fontSize": 46,
+   "fontFamily": "Arial",
+   "color": "#ffffff",
+   "textAlign": "center",
+   "fontWeight": "bold",
+   "x": 0,
+   "y": 400,
+   "width": 1700,
+   "height": 120
+  }
+ },
+ {
+  "trackId": "5b1ed88e-1ad5-4bd4-b055-4f680dca51dd",
+  "type": "text",
+  "content": "Fast · slow · fast — previewed live",
+  "startTime": 9.0,
+  "duration": 5.0,
+  "style": {
+   "fontSize": 46,
+   "fontFamily": "Arial",
+   "color": "#ffffff",
+   "textAlign": "center",
+   "fontWeight": "bold",
+   "x": 0,
+   "y": 400,
+   "width": 1700,
+   "height": 120
+  }
+ },
+ {
+  "trackId": "5b1ed88e-1ad5-4bd4-b055-4f680dca51dd",
+  "type": "text",
+  "content": "Drag any speed point — frame-accurate",
+  "startTime": 14.8,
+  "duration": 5.0,
+  "style": {
+   "fontSize": 46,
+   "fontFamily": "Arial",
+   "color": "#ffffff",
+   "textAlign": "center",
+   "fontWeight": "bold",
+   "x": 0,
+   "y": 400,
+   "width": 1700,
+   "height": 120
+  }
+ },
+ {
+  "trackId": "5b1ed88e-1ad5-4bd4-b055-4f680dca51dd",
+  "type": "text",
+  "content": "Smart frame interpolation, silky slow-mo",
+  "startTime": 21.8,
+  "duration": 3.7,
+  "style": {
+   "fontSize": 46,
+   "fontFamily": "Arial",
+   "color": "#ffffff",
+   "textAlign": "center",
+   "fontWeight": "bold",
+   "x": 0,
+   "y": 400,
+   "width": 1700,
+   "height": 120
+  }
+ },
+ {
+  "trackId": "5b1ed88e-1ad5-4bd4-b055-4f680dca51dd",
+  "type": "text",
+  "content": "Speed combos: curve + effects, one click",
+  "startTime": 30.2,
+  "duration": 4.3,
+  "style": {
+   "fontSize": 46,
+   "fontFamily": "Arial",
+   "color": "#ffffff",
+   "textAlign": "center",
+   "fontWeight": "bold",
+   "x": 0,
+   "y": 400,
+   "width": 1700,
+   "height": 120
+  }
+ },
+ {
+  "trackId": "5b1ed88e-1ad5-4bd4-b055-4f680dca51dd",
+  "type": "text",
+  "content": "QCut Speed Curves — every frame counts",
+  "startTime": 35.2,
+  "duration": 4.4,
+  "style": {
+   "fontSize": 46,
+   "fontFamily": "Arial",
+   "color": "#ffffff",
+   "textAlign": "center",
+   "fontWeight": "bold",
+   "x": 0,
+   "y": 400,
+   "width": 1700,
+   "height": 120
+  }
+ }
+]
