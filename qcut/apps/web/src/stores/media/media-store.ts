@@ -139,6 +139,26 @@ const updateMediaMetadataAndPersist = async (
 	}
 };
 
+// Background audio duration extraction without blocking UI. Audio items have
+// no thumbnail, so unlike the video path this only resolves the duration —
+// without it, timeline consumers fall back to a 10s default element length.
+const extractAudioMetadataBackground = async (
+	file: File,
+	itemId: string,
+	projectId: string
+) => {
+	try {
+		const fileClone = cloneFileForTemporaryUse(file);
+		const duration = await getMediaDurationImpl(fileClone);
+		await updateMediaMetadataAndPersist(itemId, projectId, { duration });
+	} catch (error) {
+		debugError(
+			`[MediaStore] Audio duration extraction failed for ${itemId}`,
+			error
+		);
+	}
+};
+
 // Background metadata extraction without blocking UI
 const extractVideoMetadataBackground = async (
 	file: File,
@@ -292,6 +312,16 @@ export const useMediaStore = create<MediaStore>((set, get) => ({
 			// Trigger thumbnail generation for videos AFTER storage save succeeds
 			if (newItem.type === "video" && newItem.file && !newItem.thumbnailUrl) {
 				extractVideoMetadataBackground(newItem.file, newItem.id, projectId);
+			} else if (
+				newItem.type === "audio" &&
+				newItem.file &&
+				typeof newItem.duration !== "number"
+			) {
+				void extractAudioMetadataBackground(
+					newItem.file,
+					newItem.id,
+					projectId
+				);
 			}
 
 			return newItem.id;
@@ -351,6 +381,13 @@ export const useMediaStore = create<MediaStore>((set, get) => ({
 				!updated.thumbnailUrl
 			) {
 				void extractVideoMetadataBackground(updated.file, id, projectId);
+			} else if (
+				updated.type === "audio" &&
+				updated.file &&
+				updated.file !== previous.file &&
+				typeof updated.duration !== "number"
+			) {
+				void extractAudioMetadataBackground(updated.file, id, projectId);
 			}
 			return true;
 		} catch (error) {

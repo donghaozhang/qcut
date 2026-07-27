@@ -383,9 +383,17 @@ export function setupBatchHandlers({
 				let failedCount = 0;
 
 				for (const [index, update] of updates.entries()) {
+					// Accept both the documented nested shape
+					// {elementId, changes: {...}} and the legacy flat shape
+					// {elementId, startTime, ...} — nested `changes` used to be
+					// silently ignored while still reporting success.
+					const changes =
+						update.changes && typeof update.changes === "object"
+							? update.changes
+							: update;
 					const success = applyElementChanges({
 						elementId: update.elementId,
-						changes: update,
+						changes,
 						pushHistory: false,
 					});
 					if (success) {

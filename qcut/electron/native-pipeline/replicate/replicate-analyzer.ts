@@ -15,6 +15,16 @@ import {
 } from "./replicate-prompts.js";
 import { PipelineExecutor } from "../execution/executor.js";
 import type { PipelineStep } from "../execution/executor.js";
+import {
+	probeVideoDurationSeconds,
+	shouldSplitVideoInput,
+	splitVideoIntoParts,
+} from "../editorial/video-split.js";
+import {
+	computeReplicatePartCount,
+	mergeVideoRecipes,
+	resolveReplicateSplitConfig,
+} from "./replicate-split.js";
 
 const DEFAULT_MODEL = "openrouter_gemini_3_5_flash_video";
 
@@ -23,13 +33,18 @@ export interface AnalyzerOptions {
 	signal?: AbortSignal;
 	/** Optional pre-created executor (avoids creating a new one each call). */
 	executor?: PipelineExecutor;
+	/** Directory split parts are written to (defaults next to the source). */
+	outputDir?: string;
+	/** Progress callback for the split-analysis path. */
+	onProgress?: (stage: string, percent: number, message: string) => void;
 }
 
 /**
  * Analyze a source video and return a VideoRecipe.
  *
- * Uses PipelineExecutor with the image_understanding step type,
- * reusing the same infrastructure as the `analyze-video` CLI command.
+ * Local videos whose estimated base64 payload exceeds the replicate split
+ * limit are split into duration-bounded parts, analyzed per part, and merged
+ * back onto the original timeline; everything else runs as a single request.
  */
 export async function analyzeVideo(
 	videoPath: string,
@@ -37,6 +52,81 @@ export async function analyzeVideo(
 ): Promise<VideoRecipe> {
 	const absPath = path.resolve(videoPath);
 	const filename = path.basename(absPath);
+	const splitConfig = resolveReplicateSplitConfig();
+	const splitDecision = shouldSplitVideoInput({
+		input: absPath,
+		maxPayloadChars: splitConfig.maxPayloadChars,
+	});
+	if (!splitDecision.shouldSplit) {
+		return analyzeSingleVideo({ absPath, filename, options });
+	}
+
+	const durationSeconds = await probeVideoDurationSeconds({ input: absPath });
+	const partCount = computeReplicatePartCount({
+		estimatedPayloadChars: splitDecision.estimatedPayloadChars,
+		maxPayloadChars: splitConfig.maxPayloadChars,
+		durationSeconds,
+		maxPartSeconds: splitConfig.maxPartSeconds,
+	});
+	options.onProgress?.(
+		"analyze_split",
+		5,
+		`Splitting ${Math.round(durationSeconds)}s video into ${partCount} parts for analysis`
+	);
+	const parts = await splitVideoIntoParts({
+		input: absPath,
+		outputDir: options.outputDir ?? path.dirname(absPath),
+		partCount,
+		durationSeconds,
+		subdirName: "replicate-split-parts",
+		partDirSuffix: "replicate",
+	});
+
+	const partRecipes: Array<{ recipe: VideoRecipe; offsetSeconds: number }> = [];
+	for (const part of parts) {
+		options.onProgress?.(
+			"analyze_split_part",
+			10 + Math.round((80 * part.index) / parts.length),
+			`Analyzing part ${part.index + 1}/${parts.length}`
+		);
+		try {
+			const recipe = await analyzeSingleVideo({
+				absPath: part.filePath,
+				filename,
+				options,
+			});
+			partRecipes.push({ recipe, offsetSeconds: part.startSeconds });
+		} catch (error) {
+			throw new Error(
+				`Split analysis part ${part.index + 1}/${parts.length} failed: ${
+					error instanceof Error ? error.message : String(error)
+				}`
+			);
+		}
+	}
+
+	return mergeVideoRecipes({
+		parts: partRecipes,
+		filename,
+		totalDuration: durationSeconds,
+	});
+}
+
+/**
+ * Runs the replicate analysis prompt against one video file.
+ *
+ * Uses PipelineExecutor with the image_understanding step type,
+ * reusing the same infrastructure as the `analyze-video` CLI command.
+ */
+async function analyzeSingleVideo({
+	absPath,
+	filename,
+	options,
+}: {
+	absPath: string;
+	filename: string;
+	options: AnalyzerOptions;
+}): Promise<VideoRecipe> {
 	const model = options.model || DEFAULT_MODEL;
 	const executor = options.executor || new PipelineExecutor();
 
