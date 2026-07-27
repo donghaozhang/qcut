@@ -21,9 +21,11 @@ function uniqueSoundTags({ tags }: { tags: readonly string[] }): string[] {
 	return result;
 }
 
+const HTTP_URL_PATTERN = /^https?:\/\//i;
+
 /** True for anything that carries its own license URL (Freesound, Jamendo). */
 function hasLicenseUrl({ license }: { license: string }): boolean {
-	return /^https?:\/\//i.test(license);
+	return HTTP_URL_PATTERN.test(license);
 }
 
 const CC_BY_URL = /\/licenses\/by\/(\d+\.\d+)\/(?:([a-z]{2})\/)?$/i;

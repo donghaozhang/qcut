@@ -59,6 +59,8 @@ import {
 
 export type AudioAssetKind = "sound-effect" | "music";
 
+const REMOTE_TRACK_URL_PATTERN = /^https?:/i;
+
 interface AudioLibraryItemProps {
 	sound: SoundEffect;
 	assetKind: AudioAssetKind;
@@ -139,7 +141,9 @@ export function AudioLibraryItem({
 	// grid of full-length remote songs would pull hundreds of megabytes just to
 	// decorate a 28px strip — those keep the static bars until the audio is
 	// local, at which point the waveform costs nothing extra.
-	const isRemoteTrack = /^https?:/i.test(sound.previewUrl ?? sound.url ?? "");
+	const isRemoteTrack = REMOTE_TRACK_URL_PATTERN.test(
+		sound.previewUrl ?? sound.url ?? ""
+	);
 	const showRealWaveform =
 		Boolean(sound.previewUrl) &&
 		(!isRemoteTrack || runtime.cacheStatus === "cached");
