@@ -170,6 +170,7 @@ describe("StickerItem", () => {
 			)
 		);
 		expect(preview.getAttribute("src")).not.toContain("api.iconify.design");
+		expect(preview).toHaveClass("size-14");
 		expect(createCachedStickerPreviewUrl).not.toHaveBeenCalled();
 		fireEvent.load(preview);
 		expect(screen.queryByTitle("Loading sticker")).not.toBeInTheDocument();
@@ -188,6 +189,8 @@ describe("StickerItem", () => {
 		);
 
 		expect(screen.queryByTitle("Loading sticker")).not.toBeInTheDocument();
-		expect(screen.getByRole("img", { name: "Attention pulse" })).toBeVisible();
+		expect(screen.getByRole("img", { name: "Attention pulse" })).toHaveClass(
+			"size-8"
+		);
 	});
 });
