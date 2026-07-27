@@ -431,6 +431,10 @@ export async function collectExportSegments({
 					sourcePath: media.path,
 					startTime: element.startTime,
 					duration: durationFromElement,
+					trimStart:
+						typeof element.trimStart === "number" && element.trimStart > 0
+							? element.trimStart
+							: 0,
 					sourceId: media.id,
 					isImage: media.type === "image",
 					fitMode: element.fitMode ?? "cover",
@@ -655,6 +659,37 @@ async function runFFmpegCommand({
 	}
 }
 
+/**
+ * Build ffmpeg input args for one export segment. Seeks to the segment's
+ * source in-point (trimStart) before decoding so trimmed clips start at the
+ * right place instead of source time 0.
+ */
+export function buildExportSegmentInputArgs({
+	segment,
+}: {
+	segment: ExportSegment;
+}): string[] {
+	if (segment.isImage) {
+		return [
+			"-loop",
+			"1",
+			"-t",
+			String(segment.duration),
+			"-i",
+			segment.sourcePath,
+		];
+	}
+	const seekArgs =
+		segment.trimStart > 0 ? ["-ss", String(segment.trimStart)] : [];
+	return [
+		...seekArgs,
+		"-i",
+		segment.sourcePath,
+		"-t",
+		String(segment.duration),
+	];
+}
+
 /** Build the same cover/contain/fill scaling used by the editor preview. */
 export function buildExportSegmentScaleFilter({
 	segment,
@@ -680,6 +715,7 @@ export async function executeExportJob({
 	stickerOverlays = [],
 	textOverlays = [],
 	audioFiles = [],
+	projectCanvas,
 }: {
 	jobId: string;
 	projectId: string;
@@ -689,6 +725,13 @@ export async function executeExportJob({
 	stickerOverlays?: StickerOverlay[];
 	textOverlays?: TextOverlay[];
 	audioFiles?: AudioFile[];
+	/**
+	 * Project canvas size that text overlay x/y/fontSize values are expressed
+	 * in. When the export preset resolution differs from the project canvas,
+	 * the ASS PlayRes must stay in canvas units so libass scales text to the
+	 * output instead of rendering it undersized and mispositioned.
+	 */
+	projectCanvas?: { width: number; height: number };
 }): Promise<void> {
 	const job = exportJobs.get(jobId);
 	if (!job) {
@@ -729,16 +772,7 @@ export async function executeExportJob({
 				`segment-${String(index).padStart(4, "0")}.mp4`
 			);
 
-			const inputArgs: string[] = segment.isImage
-				? [
-						"-loop",
-						"1",
-						"-t",
-						String(segment.duration),
-						"-i",
-						segment.sourcePath,
-					]
-				: ["-i", segment.sourcePath, "-t", String(segment.duration)];
+			const inputArgs = buildExportSegmentInputArgs({ segment });
 			const scaleFilter = buildExportSegmentScaleFilter({
 				segment,
 				settings,
@@ -996,12 +1030,14 @@ export async function executeExportJob({
 			updateJobProgress({ jobId, progress: 0.94 });
 			const sourcePath = path.join(tempDir, "concat-before-text.mp4");
 			const assPath = path.join(tempDir, "timeline-text.ass");
+			// Overlay x/y/fontSize are project-canvas coordinates, so PlayRes must
+			// be the canvas size — libass then scales text to the export frame.
 			await fsPromises.writeFile(
 				assPath,
 				buildTextAss({
 					overlays: textOverlays,
-					width: settings.width,
-					height: settings.height,
+					width: projectCanvas?.width ?? settings.width,
+					height: projectCanvas?.height ?? settings.height,
 				}),
 				"utf8"
 			);
