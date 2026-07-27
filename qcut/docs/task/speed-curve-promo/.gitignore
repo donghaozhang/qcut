@@ -1,6 +1,7 @@
 *.mp4
 *.jpg
 *.png
+*.wav
 *.events.json
 caps/
 diag/
