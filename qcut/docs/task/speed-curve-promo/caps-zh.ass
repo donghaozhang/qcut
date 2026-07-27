@@ -1,0 +1,18 @@
+[Script Info]
+ScriptType: v4.00+
+PlayResX: 3840
+PlayResY: 2160
+
+[V4+ Styles]
+Format: Name, Fontname, Fontsize, PrimaryColour, SecondaryColour, OutlineColour, BackColour, Bold, Italic, Underline, StrikeOut, ScaleX, ScaleY, Spacing, Angle, BorderStyle, Outline, Shadow, Alignment, MarginL, MarginR, MarginV, Encoding
+Style: Cap,PingFang SC,96,&H00FFFFFF,&H00FFFFFF,&H00000000,&H80000000,-1,0,0,0,100,100,0,0,1,5,2,2,60,60,110,1
+
+[Events]
+Format: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text
+Dialogue: 0,0:00:00.40,0:00:03.40,Cap,,0,0,0,,QCut 全新功能:曲线变速
+Dialogue: 0,0:00:03.40,0:00:07.40,Cap,,0,0,0,,六种预设,一键应用 —— 子弹时间
+Dialogue: 0,0:00:07.60,0:00:13.80,Cap,,0,0,0,,快慢快节奏,实时预览,无需导出
+Dialogue: 0,0:00:14.70,0:00:19.80,Cap,,0,0,0,,速度点自由拖拽,精确到帧
+Dialogue: 0,0:00:22.00,0:00:25.50,Cap,,0,0,0,,智能补帧,丝滑慢动作
+Dialogue: 0,0:00:30.20,0:00:34.50,Cap,,0,0,0,,变速卡点:曲线 + 特效,一键成片
+Dialogue: 0,0:00:35.30,0:00:39.70,Cap,,0,0,0,,QCut 曲线变速,每一帧都踩在节奏上
