@@ -17,7 +17,7 @@ import {
 import { Switch } from "@/components/ui/switch";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { UpdateSettingsSection } from "@/components/editor/properties-panel/update-settings-section";
-import { OPEN_KEYBOARD_SHORTCUTS_EVENT } from "@/components/keyboard-shortcuts-help";
+import { openKeyboardShortcuts } from "@/components/keyboard-shortcuts-help";
 import { useTranslation } from "@/lib/i18n";
 import type { TimeCode } from "@/lib/time";
 import { SCREEN_RECORDING_CAPTURE_MODES } from "@/lib/project/screen-recording-capture-mode";
@@ -279,9 +279,7 @@ export const GlobalSettingsDialog = () => {
 								data-testid="open-shortcuts-from-settings"
 								onClick={() => {
 									setOpen(false);
-									window.dispatchEvent(
-										new CustomEvent(OPEN_KEYBOARD_SHORTCUTS_EVENT)
-									);
+									openKeyboardShortcuts();
 								}}
 							>
 								{t("settings.openShortcuts")}
