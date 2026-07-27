@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { loadBundledAudioLibrary } from "@/lib/audio/audio-bundled-library";
+import { mergeUniqueAudio } from "@/lib/audio/audio-catalog-merge";
 import { loadAudioCdnCatalog } from "@/lib/audio/audio-cdn-catalog";
 import type { SoundEffect } from "@/types/sounds";
 
@@ -17,11 +18,10 @@ export function useExtendedAudioCatalog(): SoundEffect[] {
 		void Promise.all([loadBundledAudioLibrary(), loadAudioCdnCatalog()]).then(
 			([bundled, cdn]) => {
 				if (cancelled) return;
-				const seen = new Set(bundled.map((track) => track.id));
-				const merged = [
-					...bundled,
-					...cdn.filter((track) => !seen.has(track.id)),
-				];
+				const merged = mergeUniqueAudio({
+					primary: bundled,
+					secondary: cdn,
+				});
 				if (merged.length > 0) setTracks(merged);
 			}
 		);

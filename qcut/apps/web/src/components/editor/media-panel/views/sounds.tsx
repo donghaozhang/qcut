@@ -47,6 +47,7 @@ import {
 	type AudioLibrarySectionId,
 } from "@/lib/audio/audio-library-catalog";
 import { createAudioLibraryAssetEntry } from "@/lib/assets/freesound-asset";
+import { mergeUniqueAudio } from "@/lib/audio/audio-catalog-merge";
 import { useTranslation, type TranslationKey } from "@/lib/i18n";
 import { cn } from "@/lib/utils";
 import { useAssetLibraryStore } from "@/stores/asset-library-store";
@@ -121,17 +122,6 @@ const MY_LIBRARY_ITEMS: readonly SidebarItem[] = [
 
 /** Cards revealed per page; matches the remote search page size. */
 const AUDIO_PAGE_SIZE = 24;
-
-function mergeUniqueAudio({
-	primary,
-	secondary,
-}: {
-	primary: readonly SoundEffect[];
-	secondary: readonly SoundEffect[];
-}): SoundEffect[] {
-	const seen = new Set(primary.map((sound) => sound.id));
-	return [...primary, ...secondary.filter((sound) => !seen.has(sound.id))];
-}
 
 function matchesAudioQuery({
 	sound,
@@ -333,17 +323,22 @@ export function SoundsView() {
 	}, [reloadPersonalLibrary]);
 
 	const extendedTracks = useExtendedAudioCatalog();
+	const extendedCatalog = useMemo(
+		() =>
+			mergeUniqueAudio({
+				primary: BUILT_IN_AUDIO,
+				secondary: extendedTracks,
+			}),
+		[extendedTracks]
+	);
 	const builtInResults = useMemo(
 		() =>
 			getCatalogAudio({
 				category,
 				query,
-				catalog: mergeUniqueAudio({
-					primary: BUILT_IN_AUDIO,
-					secondary: extendedTracks,
-				}),
+				catalog: extendedCatalog,
 			}),
-		[category, extendedTracks, query]
+		[category, extendedCatalog, query]
 	);
 	const catalogResults = useMemo(
 		() =>
