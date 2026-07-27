@@ -249,10 +249,16 @@ export async function collectTimelineAudioFiles({
 					: {};
 			const read = (key: string): unknown =>
 				elementRecord[key] !== undefined ? elementRecord[key] : props[key];
-			const duration =
+			const trimStart = optionalNumber(element.trimStart, 0) ?? 0;
+			const trimEnd = optionalNumber(element.trimEnd, 0) ?? 0;
+			const visibleDuration =
 				optionalNumber(element.duration) ??
 				Math.max(0, element.endTime - element.startTime);
-			if (!duration || duration <= 0) continue;
+			if (!visibleDuration || visibleDuration <= 0) continue;
+			// The serialized timeline reports how long the clip plays, while the
+			// audio filter graph expects the source length and subtracts the trims
+			// itself. Without converting back, a trimmed clip collapses to silence.
+			const duration = visibleDuration + trimStart + trimEnd;
 
 			audioFiles.push({
 				elementId: element.id,
@@ -261,8 +267,8 @@ export async function collectTimelineAudioFiles({
 				startTime: Math.max(0, element.startTime),
 				volume: optionalNumber(read("volume"), 1),
 				sourceGain: optionalNumber(read("sourceGain"), 1),
-				trimStart: optionalNumber(element.trimStart, 0),
-				trimEnd: optionalNumber(element.trimEnd, 0),
+				trimStart,
+				trimEnd,
 				duration,
 				fadeIn: optionalNumber(read("audioFadeIn"), 0),
 				fadeOut: optionalNumber(read("audioFadeOut"), 0),
