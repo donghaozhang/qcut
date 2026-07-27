@@ -7,6 +7,7 @@ import { useMediaStore } from "@/stores/media/media-store";
 import { useTimelineStore } from "@/stores/timeline/timeline-store";
 import EffectsView from "../effects";
 import { EFFECT_CATALOG } from "@/lib/effects/effect-catalog";
+import type { VisualEffectCategoryId } from "@/lib/effects/effect-catalog-types";
 import { selectEffectCatalogEntries } from "@/lib/effects/effect-catalog-selectors";
 
 /**
@@ -16,7 +17,11 @@ import { selectEffectCatalogEntries } from "@/lib/effects/effect-catalog-selecto
  */
 const POPULAR_LIMIT = 12;
 
-function visualEntriesFor({ categoryId }: { categoryId: string }) {
+function visualEntriesFor({
+	categoryId,
+}: {
+	categoryId: VisualEffectCategoryId;
+}) {
 	return selectEffectCatalogEntries({
 		entries: EFFECT_CATALOG,
 		section: "visual",

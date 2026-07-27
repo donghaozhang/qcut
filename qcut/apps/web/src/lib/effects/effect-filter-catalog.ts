@@ -318,11 +318,9 @@ export const FILTER_EFFECT_CATALOG = [
 			category: "basic",
 			icon: "CC",
 			parameters: { vignette: 100 },
-			// A vignette that fades out: the motion stage only drives the fade, so
-			// this stays a filter effect. Typing it as "motion" would also make it
-			// the reset fallback for every legacy motion effect, since the filter
-			// catalog is aggregated before the motion catalog.
-			effectType: "filter",
+			// The motion stage only drives opacity; vignette remains the editable
+			// effect and avoids becoming the reset fallback for motion presets.
+			effectType: "vignette",
 			renderProgram: {
 				version: 1,
 				stages: [
