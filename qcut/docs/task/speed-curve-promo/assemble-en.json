@@ -1,0 +1,166 @@
+[
+ {
+  "trackId": "750090d6-c22a-470e-818a-f570e84f40a0",
+  "type": "media",
+  "mediaId": "media_cHJvbW8tdGFrZTQtZW4ubXA0",
+  "sourceName": "take",
+  "startTime": 0,
+  "duration": 29.76
+ },
+ {
+  "trackId": "12658931-f235-43d9-b5d2-2b31fc6e8289",
+  "type": "media",
+  "mediaId": "media_MDEubXAz",
+  "sourceName": "vo",
+  "startTime": 0.3,
+  "duration": 3.312
+ },
+ {
+  "trackId": "12658931-f235-43d9-b5d2-2b31fc6e8289",
+  "type": "media",
+  "mediaId": "media_MDIubXAz",
+  "sourceName": "vo",
+  "startTime": 3.7,
+  "duration": 5.208
+ },
+ {
+  "trackId": "12658931-f235-43d9-b5d2-2b31fc6e8289",
+  "type": "media",
+  "mediaId": "media_MDMubXAz",
+  "sourceName": "vo",
+  "startTime": 9.0,
+  "duration": 5.544
+ },
+ {
+  "trackId": "12658931-f235-43d9-b5d2-2b31fc6e8289",
+  "type": "media",
+  "mediaId": "media_MDQubXAz",
+  "sourceName": "vo",
+  "startTime": 14.8,
+  "duration": 4.032
+ },
+ {
+  "trackId": "12658931-f235-43d9-b5d2-2b31fc6e8289",
+  "type": "media",
+  "mediaId": "media_MDUubXAz",
+  "sourceName": "vo",
+  "startTime": 21.2,
+  "duration": 3.744
+ },
+ {
+  "trackId": "12658931-f235-43d9-b5d2-2b31fc6e8289",
+  "type": "media",
+  "mediaId": "media_MDYubXAz",
+  "sourceName": "vo",
+  "startTime": 25.4,
+  "duration": 4.104
+ },
+ {
+  "trackId": "499a5016-8aba-4354-aef7-3c83bd739c09",
+  "type": "text",
+  "content": "Introducing Speed Curves in QCut",
+  "startTime": 0.3,
+  "duration": 3.3,
+  "style": {
+   "fontSize": 46,
+   "fontFamily": "Arial",
+   "color": "#ffffff",
+   "textAlign": "center",
+   "fontWeight": "bold",
+   "x": 0,
+   "y": 400,
+   "width": 1700,
+   "height": 120
+  }
+ },
+ {
+  "trackId": "499a5016-8aba-4354-aef7-3c83bd739c09",
+  "type": "text",
+  "content": "Six presets, one click — Bullet Time",
+  "startTime": 3.7,
+  "duration": 3.8,
+  "style": {
+   "fontSize": 46,
+   "fontFamily": "Arial",
+   "color": "#ffffff",
+   "textAlign": "center",
+   "fontWeight": "bold",
+   "x": 0,
+   "y": 400,
+   "width": 1700,
+   "height": 120
+  }
+ },
+ {
+  "trackId": "499a5016-8aba-4354-aef7-3c83bd739c09",
+  "type": "text",
+  "content": "Fast · slow · fast — previewed live",
+  "startTime": 9.0,
+  "duration": 5.0,
+  "style": {
+   "fontSize": 46,
+   "fontFamily": "Arial",
+   "color": "#ffffff",
+   "textAlign": "center",
+   "fontWeight": "bold",
+   "x": 0,
+   "y": 400,
+   "width": 1700,
+   "height": 120
+  }
+ },
+ {
+  "trackId": "499a5016-8aba-4354-aef7-3c83bd739c09",
+  "type": "text",
+  "content": "Drag any speed point — frame-accurate",
+  "startTime": 14.8,
+  "duration": 5.1,
+  "style": {
+   "fontSize": 46,
+   "fontFamily": "Arial",
+   "color": "#ffffff",
+   "textAlign": "center",
+   "fontWeight": "bold",
+   "x": 0,
+   "y": 400,
+   "width": 1700,
+   "height": 120
+  }
+ },
+ {
+  "trackId": "499a5016-8aba-4354-aef7-3c83bd739c09",
+  "type": "text",
+  "content": "Smart frame interpolation, silky slow-mo",
+  "startTime": 21.2,
+  "duration": 3.7,
+  "style": {
+   "fontSize": 46,
+   "fontFamily": "Arial",
+   "color": "#ffffff",
+   "textAlign": "center",
+   "fontWeight": "bold",
+   "x": 0,
+   "y": 400,
+   "width": 1700,
+   "height": 120
+  }
+ },
+ {
+  "trackId": "499a5016-8aba-4354-aef7-3c83bd739c09",
+  "type": "text",
+  "content": "QCut Speed Curves — every frame counts",
+  "startTime": 25.4,
+  "duration": 4.2,
+  "style": {
+   "fontSize": 46,
+   "fontFamily": "Arial",
+   "color": "#ffffff",
+   "textAlign": "center",
+   "fontWeight": "bold",
+   "x": 0,
+   "y": 400,
+   "width": 1700,
+   "height": 120
+  }
+ }
+]
