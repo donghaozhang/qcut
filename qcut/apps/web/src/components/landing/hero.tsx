@@ -3,6 +3,7 @@
 import { motion, useAnimationFrame, useMotionValue } from "motion/react";
 import { Link } from "@tanstack/react-router";
 import { useCallback, useRef } from "react";
+import { AppVersionBadge } from "./app-version-badge";
 import { Handlebars } from "./handlebars";
 import { Mascot } from "./mascot";
 import { CYCLE_DURATION, TimelineDecoration } from "./timeline-decoration";
@@ -32,6 +33,7 @@ export function Hero() {
 				transition={{ duration: 1 }}
 				className="max-w-3xl mx-auto w-full flex-1 flex flex-col justify-center px-4"
 			>
+				<AppVersionBadge />
 				<motion.div
 					className="inline-block font-bold tracking-tighter text-4xl md:text-[4rem]"
 					initial={{ opacity: 0, y: 20 }}
