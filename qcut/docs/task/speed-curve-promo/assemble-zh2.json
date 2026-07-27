@@ -1,0 +1,192 @@
+[
+ {
+  "trackId": "16b4e05a-1e2a-47b2-b64a-83557e363637",
+  "type": "media",
+  "mediaId": "media_cHJvbW8tdGFrZTUtemgubXA0",
+  "sourceName": "take",
+  "startTime": 0,
+  "duration": 39.83
+ },
+ {
+  "trackId": "72341cf3-1c50-4dd0-95cb-49e8ecaa3bda",
+  "type": "media",
+  "mediaId": "media_MDEubXAz",
+  "sourceName": "vo",
+  "startTime": 0.4,
+  "duration": 2.616
+ },
+ {
+  "trackId": "72341cf3-1c50-4dd0-95cb-49e8ecaa3bda",
+  "type": "media",
+  "mediaId": "media_MDIubXAz",
+  "sourceName": "vo",
+  "startTime": 3.4,
+  "duration": 3.528
+ },
+ {
+  "trackId": "72341cf3-1c50-4dd0-95cb-49e8ecaa3bda",
+  "type": "media",
+  "mediaId": "media_MDMubXAz",
+  "sourceName": "vo",
+  "startTime": 7.6,
+  "duration": 4.344
+ },
+ {
+  "trackId": "72341cf3-1c50-4dd0-95cb-49e8ecaa3bda",
+  "type": "media",
+  "mediaId": "media_MDQubXAz",
+  "sourceName": "vo",
+  "startTime": 14.7,
+  "duration": 3.528
+ },
+ {
+  "trackId": "72341cf3-1c50-4dd0-95cb-49e8ecaa3bda",
+  "type": "media",
+  "mediaId": "media_MDUubXAz",
+  "sourceName": "vo",
+  "startTime": 22.0,
+  "duration": 3.24
+ },
+ {
+  "trackId": "72341cf3-1c50-4dd0-95cb-49e8ecaa3bda",
+  "type": "media",
+  "mediaId": "media_MDcubXAz",
+  "sourceName": "vo",
+  "startTime": 30.2,
+  "duration": 3.12
+ },
+ {
+  "trackId": "72341cf3-1c50-4dd0-95cb-49e8ecaa3bda",
+  "type": "media",
+  "mediaId": "media_MDYubXAz",
+  "sourceName": "vo",
+  "startTime": 35.3,
+  "duration": 3.816
+ },
+ {
+  "trackId": "535e0568-cc18-4cae-842b-f0ca2a688191",
+  "type": "text",
+  "content": "QCut 全新功能:曲线变速",
+  "startTime": 0.4,
+  "duration": 3.0,
+  "style": {
+   "fontSize": 46,
+   "fontFamily": "Arial",
+   "color": "#ffffff",
+   "textAlign": "center",
+   "fontWeight": "bold",
+   "x": 0,
+   "y": 400,
+   "width": 1700,
+   "height": 120
+  }
+ },
+ {
+  "trackId": "535e0568-cc18-4cae-842b-f0ca2a688191",
+  "type": "text",
+  "content": "六种预设,一键应用 —— 子弹时间",
+  "startTime": 3.4,
+  "duration": 4.0,
+  "style": {
+   "fontSize": 46,
+   "fontFamily": "Arial",
+   "color": "#ffffff",
+   "textAlign": "center",
+   "fontWeight": "bold",
+   "x": 0,
+   "y": 400,
+   "width": 1700,
+   "height": 120
+  }
+ },
+ {
+  "trackId": "535e0568-cc18-4cae-842b-f0ca2a688191",
+  "type": "text",
+  "content": "快慢快节奏,实时预览,无需导出",
+  "startTime": 7.6,
+  "duration": 6.2,
+  "style": {
+   "fontSize": 46,
+   "fontFamily": "Arial",
+   "color": "#ffffff",
+   "textAlign": "center",
+   "fontWeight": "bold",
+   "x": 0,
+   "y": 400,
+   "width": 1700,
+   "height": 120
+  }
+ },
+ {
+  "trackId": "535e0568-cc18-4cae-842b-f0ca2a688191",
+  "type": "text",
+  "content": "速度点自由拖拽,精确到帧",
+  "startTime": 14.7,
+  "duration": 5.1,
+  "style": {
+   "fontSize": 46,
+   "fontFamily": "Arial",
+   "color": "#ffffff",
+   "textAlign": "center",
+   "fontWeight": "bold",
+   "x": 0,
+   "y": 400,
+   "width": 1700,
+   "height": 120
+  }
+ },
+ {
+  "trackId": "535e0568-cc18-4cae-842b-f0ca2a688191",
+  "type": "text",
+  "content": "智能补帧,丝滑慢动作",
+  "startTime": 22.0,
+  "duration": 3.5,
+  "style": {
+   "fontSize": 46,
+   "fontFamily": "Arial",
+   "color": "#ffffff",
+   "textAlign": "center",
+   "fontWeight": "bold",
+   "x": 0,
+   "y": 400,
+   "width": 1700,
+   "height": 120
+  }
+ },
+ {
+  "trackId": "535e0568-cc18-4cae-842b-f0ca2a688191",
+  "type": "text",
+  "content": "变速卡点:曲线 + 特效,一键成片",
+  "startTime": 30.2,
+  "duration": 4.3,
+  "style": {
+   "fontSize": 46,
+   "fontFamily": "Arial",
+   "color": "#ffffff",
+   "textAlign": "center",
+   "fontWeight": "bold",
+   "x": 0,
+   "y": 400,
+   "width": 1700,
+   "height": 120
+  }
+ },
+ {
+  "trackId": "535e0568-cc18-4cae-842b-f0ca2a688191",
+  "type": "text",
+  "content": "QCut 曲线变速,每一帧都踩在节奏上",
+  "startTime": 35.3,
+  "duration": 4.4,
+  "style": {
+   "fontSize": 46,
+   "fontFamily": "Arial",
+   "color": "#ffffff",
+   "textAlign": "center",
+   "fontWeight": "bold",
+   "x": 0,
+   "y": 400,
+   "width": 1700,
+   "height": 120
+  }
+ }
+]

@@ -32,6 +32,7 @@ export function setupRequestHandlers({
 				height: project?.canvasSize?.height || 1080,
 				fps,
 				tracks: formatTracksForExport({ tracks, fps }),
+				projectId: project?.id,
 			};
 
 			claudeAPI.sendResponse(timeline);

@@ -9,8 +9,10 @@ const AUDIO_LIBRARY_TAGS_ZH: Record<string, string> = {
 	bright: "明亮",
 	calm: "平静",
 	cinematic: "电影感",
+	cartoon: "卡通",
 	city: "城市",
 	clean: "干净",
+	comedy: "综艺搞笑",
 	confident: "自信",
 	dance: "舞蹈",
 	delicate: "细腻",
@@ -23,11 +25,16 @@ const AUDIO_LIBRARY_TAGS_ZH: Record<string, string> = {
 	focus: "专注",
 	forest: "森林",
 	fresh: "清新",
+	game: "游戏",
 	graduation: "毕业",
 	healing: "治愈",
 	interior: "室内",
+	laugh: "笑声",
 	lifestyle: "生活记录",
+	magic: "魔法",
+	mechanical: "机械",
 	memory: "回忆",
+	meme: "热梗",
 	mandopop: "华语流行",
 	modern: "现代",
 	morning: "清晨",
@@ -56,6 +63,7 @@ const AUDIO_LIBRARY_TAGS_ZH: Record<string, string> = {
 	subtle: "克制",
 	sunny: "阳光",
 	tactile: "触感",
+	tech: "科技",
 	title: "标题",
 	trailer: "预告",
 	transition: "转场",
@@ -109,6 +117,10 @@ export type AudioLibraryCategoryId =
 			| "whoosh"
 			| "impact"
 			| "ui"
+			| "comedy"
+			| "laugh"
+			| "magic"
+			| "tech"
 			| "foley"
 			| "nature"
 			| "ambient"
@@ -302,6 +314,38 @@ export const SOUND_EFFECT_CATEGORIES = [
 		query: "interface click notification",
 		sort: "score",
 		matchTags: ["ui", "click", "notification", "提示"],
+	},
+	{
+		id: "sfx-comedy",
+		kind: "sound-effect",
+		labelKey: "audioLibrary.category.comedy",
+		query: "cartoon comedy funny boing",
+		sort: "score",
+		matchTags: ["comedy", "cartoon", "综艺", "搞笑"],
+	},
+	{
+		id: "sfx-laugh",
+		kind: "sound-effect",
+		labelKey: "audioLibrary.category.laugh",
+		query: "laugh laughter audience",
+		sort: "score",
+		matchTags: ["laugh", "笑声"],
+	},
+	{
+		id: "sfx-magic",
+		kind: "sound-effect",
+		labelKey: "audioLibrary.category.magic",
+		query: "magic sparkle chime game",
+		sort: "score",
+		matchTags: ["magic", "game", "sparkle", "魔法", "游戏"],
+	},
+	{
+		id: "sfx-tech",
+		kind: "sound-effect",
+		labelKey: "audioLibrary.category.tech",
+		query: "mechanical keyboard typing machine",
+		sort: "score",
+		matchTags: ["tech", "mechanical", "机械"],
 	},
 	{
 		id: "sfx-foley",
@@ -695,7 +739,7 @@ export const BUILT_IN_AUDIO: readonly SoundEffect[] = [
 		localizedDescription: "适合定格与照片切换的快门声。",
 		duration: 0.5,
 		kind: "sound-effect",
-		tags: ["foley", "camera", "shutter", "拟音", "快门"],
+		tags: ["foley", "camera", "shutter", "mechanical", "拟音", "快门", "机械"],
 		artworkColors: ["#374151", "#d1d5db"],
 		moods: ["tactile"],
 		scenes: ["photo", "travel"],
@@ -847,6 +891,41 @@ export const BUILT_IN_AUDIO: readonly SoundEffect[] = [
 		downloads: 7_460,
 		created: "2026-07-09T02:00:00.000Z",
 	}),
+	// The two entries below are CC0 imports (Freesound #540790 by magnuswaker
+	// and #119450 by lmbubec) bundled so the comedy and laughter categories
+	// stay stocked offline.
+	builtInAudio({
+		id: -2015,
+		name: "Boing Spring",
+		localizedName: "弹簧噔",
+		description: "A cartoon spring boing for jumps and double takes.",
+		localizedDescription: "适合弹跳、瞪眼与夸张反应的卡通弹簧音。",
+		duration: 1.14,
+		kind: "sound-effect",
+		tags: ["comedy", "cartoon", "spring", "综艺", "搞笑"],
+		artworkColors: ["#7c2d12", "#fdba74"],
+		moods: ["playful"],
+		scenes: ["comedy", "social"],
+		loopable: false,
+		downloads: 10_050,
+		created: "2026-07-27T00:00:00.000Z",
+	}),
+	builtInAudio({
+		id: -2016,
+		name: "Sneaky Giggle",
+		localizedName: "偷笑嘿嘿",
+		description: "A sneaky giggle for mischief and inside jokes.",
+		localizedDescription: "适合窃喜、密谋与暗中使坏的嘿嘿偷笑。",
+		duration: 1.29,
+		kind: "sound-effect",
+		tags: ["laugh", "giggle", "sneaky", "笑声"],
+		artworkColors: ["#831843", "#f9a8d4"],
+		moods: ["playful"],
+		scenes: ["comedy", "social"],
+		loopable: false,
+		downloads: 8_140,
+		created: "2026-07-27T00:00:00.000Z",
+	}),
 ] as const;
 
 const CHINESE_SEARCH_ALIASES: Readonly<Record<string, string>> = {
@@ -875,6 +954,15 @@ const CHINESE_SEARCH_ALIASES: Readonly<Record<string, string>> = {
 	脚步: "footstep foley",
 	翻页: "page paper foley",
 	快门: "camera shutter",
+	综艺: "comedy",
+	搞笑: "comedy",
+	笑声: "laugh",
+	爆笑: "laugh",
+	魔法: "magic",
+	游戏: "game",
+	机械: "mechanical",
+	响指: "snap",
+	热梗: "meme",
 };
 
 export function translateAudioSearchQuery({

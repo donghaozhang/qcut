@@ -141,6 +141,26 @@ function escapeAssText(text: string): string {
 /** ASS \an alignment codes for middle-row left/center/right text. */
 const ASS_MIDDLE_ALIGNMENTS = { left: 4, center: 5, right: 6 } as const;
 
+/** CJK ideographs/kana/hangul plus full-width forms. */
+const CJK_PATTERN = /[\u2E80-\u9FFF\uAC00-\uD7AF\uF900-\uFAFF\uFF00-\uFFEF]/;
+
+/**
+ * Pick an ASS font family that can actually render the overlay content.
+ *
+ * On macOS libass asks CoreText for a CJK fallback and gets pointed at the
+ * reserved PingFangUI.ttc, which third-party processes cannot open — every
+ * CJK glyph then renders as an empty box. Naming an openable CJK family in
+ * the style is the only reliable path, so CJK content overrides the
+ * requested (Latin) family. Latin-only content keeps the element's font.
+ */
+function assFontFamily(overlay: TextOverlay): string {
+	const requested = overlay.fontFamily.replace(/,/g, " ");
+	if (!CJK_PATTERN.test(overlay.content)) return requested;
+	if (process.platform === "darwin") return "Hiragino Sans GB";
+	if (process.platform === "win32") return "Microsoft YaHei";
+	return "Noto Sans CJK SC";
+}
+
 /** Build an ASS subtitle document that preserves core QCut text styling. */
 export function buildTextAss({
 	overlays,
@@ -162,7 +182,7 @@ export function buildTextAss({
 		styles.push(
 			[
 				styleName,
-				overlay.fontFamily.replace(/,/g, " "),
+				assFontFamily(overlay),
 				overlay.fontSize,
 				assColor(overlay.color, overlay.opacity),
 				assColor(overlay.color, overlay.opacity),

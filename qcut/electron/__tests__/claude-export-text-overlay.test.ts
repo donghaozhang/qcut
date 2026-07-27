@@ -78,4 +78,99 @@ describe("native export text overlays", () => {
 		expect(ass).toContain("QCut\\NCLI");
 		expect(ass).not.toContain("Do not export");
 	});
+
+	it("keeps PlayRes in project-canvas units so text scales to any export size", () => {
+		// Overlay x/y/fontSize are project-canvas coordinates. PlayRes must stay
+		// in those units — libass scales to the export frame — otherwise a 4K
+		// preset renders text undersized and mispositioned (regression test).
+		const overlays = collectTextOverlays({
+			name: "Canvas units",
+			duration: 4,
+			width: 1920,
+			height: 1080,
+			fps: 30,
+			tracks: [
+				{
+					id: "titles",
+					index: 0,
+					name: "Titles",
+					type: "text",
+					elements: [
+						{
+							id: "caption",
+							trackIndex: 0,
+							startTime: 0,
+							endTime: 3,
+							duration: 3,
+							type: "text",
+							content: "Bottom caption",
+							fontSize: 46,
+							y: 400,
+						},
+					],
+				},
+			],
+		});
+		const ass = buildTextAss({ overlays, width: 1920, height: 1080 });
+		expect(ass).toContain("PlayResX: 1920");
+		expect(ass).toContain("PlayResY: 1080");
+		expect(ass).toContain("\\pos(960.00,940.00)");
+	});
+
+	it("substitutes an openable CJK family for CJK content", () => {
+		const timeline: ClaudeTimeline = {
+			name: "CJK",
+			duration: 4,
+			width: 1920,
+			height: 1080,
+			fps: 30,
+			tracks: [
+				{
+					id: "titles",
+					index: 0,
+					name: "Titles",
+					type: "text",
+					elements: [
+						{
+							id: "zh",
+							trackIndex: 0,
+							startTime: 0,
+							endTime: 3,
+							duration: 3,
+							type: "text",
+							content: "六种预设,一键应用",
+							fontFamily: "Arial",
+						},
+						{
+							id: "latin",
+							trackIndex: 0,
+							startTime: 0,
+							endTime: 3,
+							duration: 3,
+							type: "text",
+							content: "Latin only",
+							fontFamily: "Arial",
+						},
+					],
+				},
+			],
+		};
+
+		const ass = buildTextAss({
+			overlays: collectTextOverlays(timeline),
+			width: 1920,
+			height: 1080,
+		});
+		// CoreText points libass at the reserved PingFangUI.ttc for CJK
+		// fallback, which cannot be opened — CJK lines must name an openable
+		// family directly while Latin lines keep the requested font.
+		if (process.platform === "darwin") {
+			expect(ass).toContain("Hiragino Sans GB");
+		} else if (process.platform === "win32") {
+			expect(ass).toContain("Microsoft YaHei");
+		} else {
+			expect(ass).toContain("Noto Sans CJK SC");
+		}
+		expect(ass).toContain("Arial");
+	});
 });

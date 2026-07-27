@@ -45,6 +45,52 @@ vi.mock("../sounds-ai-music", () => ({
 	AiMusicView: () => <div>AI music view</div>,
 }));
 
+const AUDIO_PAGE_SIZE = 24;
+
+/** A catalog large enough that mounting all of it would be the bug. */
+const EXTENDED_CATALOG = Array.from({ length: 90 }, (_, index) => ({
+	id: -1_000_001 - index,
+	name: `Extended Track ${index}`,
+	description: "",
+	url: `https://cdn.example.test/track-${index}.mp3`,
+	previewUrl: `https://cdn.example.test/track-${index}.mp3`,
+	duration: 120,
+	filesize: 0,
+	type: "audio/mpeg",
+	channels: 2,
+	bitrate: 0,
+	bitdepth: 16,
+	samplerate: 44_100,
+	username: "Test Artist",
+	tags: ["music"],
+	license: "https://creativecommons.org/licenses/by/4.0/",
+	created: "2026-01-01T00:00:00.000Z",
+	downloads: 0,
+	rating: 5,
+	ratingCount: 1,
+	source: "qcut" as const,
+	kind: "music" as const,
+}));
+
+// Held in a mutable box so only the paging tests opt into a large catalog.
+const extendedCatalog = vi.hoisted(() => ({ tracks: [] as unknown[] }));
+
+vi.mock("@/hooks/media/use-extended-audio-catalog", () => ({
+	useExtendedAudioCatalog: () => extendedCatalog.tracks,
+}));
+
+function mountedMusicCards(): number {
+	return document.querySelectorAll('[data-testid^="audio-library-item-music-"]')
+		.length;
+}
+
+function totalMusicTracks(): number {
+	return (
+		BUILT_IN_AUDIO.filter((sound) => sound.kind === "music").length +
+		EXTENDED_CATALOG.length
+	);
+}
+
 describe("SoundsView", () => {
 	// Captured once so afterEach can restore actions even when a failing
 	// assertion skips a test's own cleanup.
@@ -58,6 +104,7 @@ describe("SoundsView", () => {
 	});
 
 	beforeEach(() => {
+		extendedCatalog.tracks = [];
 		localStorage.clear();
 		useLocaleStore.getState().setLocale({ locale: "zh" });
 		useMediaPanelStore.setState({ activeSoundsTab: "music-latest" });
@@ -333,5 +380,71 @@ describe("SoundsView", () => {
 				expect.objectContaining({ startTime: 6, kind: "sound-effect" }),
 			]),
 		});
+	});
+
+	// Each card mounts a waveform that downloads and decodes the whole track, so
+	// a category holding the full music library must not mount every match.
+	it("reveals the catalog a page at a time instead of all at once", () => {
+		extendedCatalog.tracks = EXTENDED_CATALOG;
+		render(<SoundsView />);
+
+		expect(mountedMusicCards()).toBe(AUDIO_PAGE_SIZE);
+		// The count still reports the whole catalog, not just what is mounted.
+		expect(screen.getByText(`${totalMusicTracks()} 项`)).toBeVisible();
+
+		fireEvent.click(screen.getByRole("button", { name: "加载更多" }));
+
+		expect(mountedMusicCards()).toBe(AUDIO_PAGE_SIZE * 2);
+	});
+
+	// Drawing a real waveform downloads and decodes the whole track, so a grid
+	// of full-length remote songs would pull hundreds of megabytes to decorate
+	// a 28px strip.
+	it("does not decode remote catalog tracks just to draw their waveform", () => {
+		extendedCatalog.tracks = EXTENDED_CATALOG;
+		render(<SoundsView />);
+
+		const remoteCards = EXTENDED_CATALOG.map((track) =>
+			document.querySelector(
+				`[data-testid="audio-library-item-music-${track.id}"]`
+			)
+		).filter(Boolean);
+
+		expect(remoteCards.length).toBeGreaterThan(0);
+		for (const card of remoteCards) {
+			expect(card?.querySelector('[data-testid="audio-waveform"]')).toBeNull();
+		}
+	});
+
+	it("still draws waveforms for bundled tracks, whose audio is local", () => {
+		render(<SoundsView />);
+
+		const bundled = BUILT_IN_AUDIO.find((sound) => sound.kind === "music");
+		const bundledCard = document.querySelector(
+			`[data-testid="audio-library-item-music-${bundled?.id}"]`
+		);
+
+		expect(bundledCard).not.toBeNull();
+		expect(
+			bundledCard?.querySelector('[data-testid="audio-waveform"]')
+		).not.toBeNull();
+	});
+
+	it("stops offering more once the whole catalog is mounted", () => {
+		extendedCatalog.tracks = EXTENDED_CATALOG;
+		render(<SoundsView />);
+
+		// Bounded so a regression that never exhausts the list fails instead of
+		// looping forever.
+		for (let click = 0; click < 20; click += 1) {
+			const button = screen.queryByRole("button", { name: "加载更多" });
+			if (!button) break;
+			fireEvent.click(button);
+		}
+
+		expect(mountedMusicCards()).toBe(totalMusicTracks());
+		expect(
+			screen.queryByRole("button", { name: "加载更多" })
+		).not.toBeInTheDocument();
 	});
 });

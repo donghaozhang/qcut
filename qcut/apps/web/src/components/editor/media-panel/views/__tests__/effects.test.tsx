@@ -6,6 +6,37 @@ import { useLocaleStore } from "@/stores/locale-store";
 import { useMediaStore } from "@/stores/media/media-store";
 import { useTimelineStore } from "@/stores/timeline/timeline-store";
 import EffectsView from "../effects";
+import { EFFECT_CATALOG } from "@/lib/effects/effect-catalog";
+import type { VisualEffectCategoryId } from "@/lib/effects/effect-catalog-types";
+import { selectEffectCatalogEntries } from "@/lib/effects/effect-catalog-selectors";
+
+/**
+ * The panel's job is to render exactly what the catalog selector returns, so
+ * expectations are derived rather than pinned — otherwise every new effect
+ * breaks these tests for reasons that have nothing to do with the panel.
+ */
+const POPULAR_LIMIT = 12;
+
+function visualEntriesFor({
+	categoryId,
+}: {
+	categoryId: VisualEffectCategoryId;
+}) {
+	return selectEffectCatalogEntries({
+		entries: EFFECT_CATALOG,
+		section: "visual",
+		navigation: { kind: "category", id: categoryId },
+	});
+}
+
+function popularEntries() {
+	return selectEffectCatalogEntries({
+		entries: EFFECT_CATALOG,
+		section: "visual",
+		navigation: { kind: "collection", id: "popular" },
+		collectionLimit: POPULAR_LIMIT,
+	});
+}
 
 vi.mock("@/config/features", () => ({
 	EFFECTS_ENABLED: true,
@@ -59,15 +90,18 @@ describe("EffectsView", () => {
 	it("renders the derived Popular collection with real image previews", () => {
 		const { container } = render(<EffectsView />);
 
-		expect(screen.getAllByTestId(/^effect-card-/)).toHaveLength(12);
-		expect(
-			screen.getByTestId("effect-card-dynamic-camera-shake")
-		).toBeVisible();
-		expect(screen.getByTestId("effect-card-camera-push-in")).toBeVisible();
+		const popular = popularEntries();
+		expect(popular).toHaveLength(POPULAR_LIMIT);
+		expect(screen.getAllByTestId(/^effect-card-/)).toHaveLength(POPULAR_LIMIT);
+		for (const entry of popular) {
+			expect(
+				screen.getByTestId(`effect-card-${entry.preset.id}`)
+			).toBeVisible();
+		}
 		const previews = container.querySelectorAll<HTMLImageElement>(
 			'[data-testid^="effect-card-"] img[data-effect-preview-base="true"]'
 		);
-		expect(previews).toHaveLength(12);
+		expect(previews).toHaveLength(POPULAR_LIMIT);
 		for (const preview of previews) {
 			expect(preview.getAttribute("src")).toBe(
 				"/images/filter-previews/coastal.webp"
@@ -80,10 +114,9 @@ describe("EffectsView", () => {
 		render(<EffectsView />);
 
 		fireEvent.click(screen.getByTestId("effect-navigation-dynamic"));
-		// 3 original + heartbeat/flash-black/hard-shake/impact +
-		// subtle-shake/rhythm-swing/quad-shake/step-push/flash-pulse + mermaid +
-		// ripple/shockwave distortion + burst decoration.
-		expect(screen.getAllByTestId(/^effect-card-/)).toHaveLength(16);
+		expect(screen.getAllByTestId(/^effect-card-/)).toHaveLength(
+			visualEntriesFor({ categoryId: "dynamic" }).length
+		);
 		expect(
 			screen.getByTestId("effect-card-dynamic-rhythm-pulse")
 		).toBeVisible();
@@ -99,14 +132,22 @@ describe("EffectsView", () => {
 		const { container } = render(<EffectsView />);
 
 		fireEvent.click(screen.getByTestId("effect-navigation-multiscreen"));
-		// side-by-side / mirror / quad-grid / stacked.
-		expect(screen.getAllByTestId(/^effect-card-/)).toHaveLength(4);
+		const multiscreen = visualEntriesFor({ categoryId: "multiscreen" });
+		expect(screen.getAllByTestId(/^effect-card-/)).toHaveLength(
+			multiscreen.length
+		);
 		expect(
 			screen.getByTestId("effect-card-multiscreen-side-by-side")
 		).toBeVisible();
 		expect(
 			container.querySelectorAll("canvas[data-effect-composite-layout]")
-		).toHaveLength(4);
+		).toHaveLength(
+			multiscreen.filter((entry) =>
+				entry.preset.renderProgram?.stages.some(
+					(stage) => stage.kind === "composite"
+				)
+			).length
+		);
 	});
 
 	it("applies three paired sound effects with their persisted audio resource", () => {
@@ -140,15 +181,16 @@ describe("EffectsView", () => {
 		);
 	});
 
-	it("renders three dynamic audio-reactive previews", () => {
+	it("renders every audio-reactive preview with a live preview node", () => {
 		const { container } = render(<EffectsView />);
 
 		fireEvent.click(screen.getByTestId("effect-navigation-audio"));
-		expect(screen.getAllByTestId(/^effect-card-/)).toHaveLength(3);
+		const audio = visualEntriesFor({ categoryId: "audio" });
+		expect(screen.getAllByTestId(/^effect-card-/)).toHaveLength(audio.length);
 		expect(screen.getByTestId("effect-card-audio-bass-pulse")).toBeVisible();
 		expect(
 			container.querySelectorAll('[data-effect-audio-reactive="true"]')
-		).toHaveLength(3);
+		).toHaveLength(audio.length);
 	});
 
 	it("renders three multi-stage creative AI recipes", () => {
@@ -183,7 +225,13 @@ describe("EffectsView", () => {
 		fireEvent.change(screen.getByLabelText("搜索特效"), {
 			target: { value: "提亮" },
 		});
-		expect(screen.getAllByTestId(/^effect-card-/)).toHaveLength(3);
+		// The panel searches localized text, so a legacy preset whose Chinese
+		// name comes from i18n matches alongside catalog-localized entries.
+		// Assert on identity and on the fact that filtering happened, not on a
+		// catalog-size-dependent count.
+		const matches = screen.getAllByTestId(/^effect-card-/);
+		expect(matches.length).toBeGreaterThanOrEqual(3);
+		expect(matches.length).toBeLessThan(POPULAR_LIMIT);
 		expect(screen.getByTestId("effect-card-brightness-increase")).toBeVisible();
 		expect(screen.getByTestId("effect-card-basic-clean-bright")).toBeVisible();
 		expect(

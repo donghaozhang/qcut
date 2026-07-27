@@ -1,0 +1,166 @@
+[
+ {
+  "trackId": "d10a7205-e3eb-4827-a5a2-0640828fd672",
+  "type": "media",
+  "mediaId": "media_cHJvbW8tdGFrZTMtemgubXA0",
+  "sourceName": "take",
+  "startTime": 0,
+  "duration": 29.9
+ },
+ {
+  "trackId": "93f7b2b0-e865-46ef-a7d5-13a988ec36aa",
+  "type": "media",
+  "mediaId": "media_MDEubXAz",
+  "sourceName": "vo",
+  "startTime": 0.4,
+  "duration": 2.616
+ },
+ {
+  "trackId": "93f7b2b0-e865-46ef-a7d5-13a988ec36aa",
+  "type": "media",
+  "mediaId": "media_MDIubXAz",
+  "sourceName": "vo",
+  "startTime": 3.6,
+  "duration": 3.528
+ },
+ {
+  "trackId": "93f7b2b0-e865-46ef-a7d5-13a988ec36aa",
+  "type": "media",
+  "mediaId": "media_MDMubXAz",
+  "sourceName": "vo",
+  "startTime": 7.6,
+  "duration": 4.344
+ },
+ {
+  "trackId": "93f7b2b0-e865-46ef-a7d5-13a988ec36aa",
+  "type": "media",
+  "mediaId": "media_MDQubXAz",
+  "sourceName": "vo",
+  "startTime": 14.4,
+  "duration": 3.528
+ },
+ {
+  "trackId": "93f7b2b0-e865-46ef-a7d5-13a988ec36aa",
+  "type": "media",
+  "mediaId": "media_MDUubXAz",
+  "sourceName": "vo",
+  "startTime": 21.2,
+  "duration": 3.24
+ },
+ {
+  "trackId": "93f7b2b0-e865-46ef-a7d5-13a988ec36aa",
+  "type": "media",
+  "mediaId": "media_MDYubXAz",
+  "sourceName": "vo",
+  "startTime": 25.6,
+  "duration": 3.816
+ },
+ {
+  "trackId": "4731b91a-bb14-4c2b-90dd-ad2ab36c860c",
+  "type": "text",
+  "content": "QCut 全新功能:曲线变速",
+  "startTime": 0.4,
+  "duration": 3.2,
+  "style": {
+   "fontSize": 46,
+   "fontFamily": "Arial",
+   "color": "#ffffff",
+   "textAlign": "center",
+   "fontWeight": "bold",
+   "x": 0,
+   "y": 400,
+   "width": 1700,
+   "height": 120
+  }
+ },
+ {
+  "trackId": "4731b91a-bb14-4c2b-90dd-ad2ab36c860c",
+  "type": "text",
+  "content": "六种预设,一键应用 —— 子弹时间",
+  "startTime": 3.6,
+  "duration": 3.8,
+  "style": {
+   "fontSize": 46,
+   "fontFamily": "Arial",
+   "color": "#ffffff",
+   "textAlign": "center",
+   "fontWeight": "bold",
+   "x": 0,
+   "y": 400,
+   "width": 1700,
+   "height": 120
+  }
+ },
+ {
+  "trackId": "4731b91a-bb14-4c2b-90dd-ad2ab36c860c",
+  "type": "text",
+  "content": "快慢快节奏,实时预览,无需导出",
+  "startTime": 7.6,
+  "duration": 6.0,
+  "style": {
+   "fontSize": 46,
+   "fontFamily": "Arial",
+   "color": "#ffffff",
+   "textAlign": "center",
+   "fontWeight": "bold",
+   "x": 0,
+   "y": 400,
+   "width": 1700,
+   "height": 120
+  }
+ },
+ {
+  "trackId": "4731b91a-bb14-4c2b-90dd-ad2ab36c860c",
+  "type": "text",
+  "content": "速度点自由拖拽,精确到帧",
+  "startTime": 14.4,
+  "duration": 5.5,
+  "style": {
+   "fontSize": 46,
+   "fontFamily": "Arial",
+   "color": "#ffffff",
+   "textAlign": "center",
+   "fontWeight": "bold",
+   "x": 0,
+   "y": 400,
+   "width": 1700,
+   "height": 120
+  }
+ },
+ {
+  "trackId": "4731b91a-bb14-4c2b-90dd-ad2ab36c860c",
+  "type": "text",
+  "content": "智能补帧,丝滑慢动作",
+  "startTime": 21.2,
+  "duration": 3.7,
+  "style": {
+   "fontSize": 46,
+   "fontFamily": "Arial",
+   "color": "#ffffff",
+   "textAlign": "center",
+   "fontWeight": "bold",
+   "x": 0,
+   "y": 400,
+   "width": 1700,
+   "height": 120
+  }
+ },
+ {
+  "trackId": "4731b91a-bb14-4c2b-90dd-ad2ab36c860c",
+  "type": "text",
+  "content": "QCut 曲线变速,每一帧都踩在节奏上",
+  "startTime": 25.6,
+  "duration": 4.2,
+  "style": {
+   "fontSize": 46,
+   "fontFamily": "Arial",
+   "color": "#ffffff",
+   "textAlign": "center",
+   "fontWeight": "bold",
+   "x": 0,
+   "y": 400,
+   "width": 1700,
+   "height": 120
+  }
+ }
+]

@@ -318,7 +318,9 @@ export const FILTER_EFFECT_CATALOG = [
 			category: "basic",
 			icon: "CC",
 			parameters: { vignette: 100 },
-			effectType: "motion",
+			// The motion stage only drives opacity; vignette remains the editable
+			// effect and avoids becoming the reset fallback for motion presets.
+			effectType: "vignette",
 			renderProgram: {
 				version: 1,
 				stages: [

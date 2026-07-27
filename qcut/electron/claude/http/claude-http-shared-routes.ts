@@ -1071,6 +1071,16 @@ export function registerSharedRoutes(
 					)
 				),
 			]);
+			// The renderer can only snapshot the currently open project. Refuse a
+			// mismatched target instead of silently exporting the wrong timeline.
+			if (timeline.projectId && timeline.projectId !== req.params.projectId) {
+				throw new HttpError(
+					409,
+					`Project ${req.params.projectId} is not open in the editor ` +
+						`(active project: ${timeline.projectId}). Open it first with ` +
+						"editor:navigator:open, then retry the export."
+				);
+			}
 			const mediaFiles = await listMediaFilesWithRendererFallback({
 				projectId: req.params.projectId,
 				accessor,
