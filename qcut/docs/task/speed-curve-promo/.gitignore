@@ -1,0 +1,8 @@
+*.mp4
+*.jpg
+*.png
+*.events.json
+caps/
+diag/
+vo/
+burn-*.sh
