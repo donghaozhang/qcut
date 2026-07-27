@@ -18,6 +18,8 @@ export interface ExportSegment {
 	sourcePath: string;
 	startTime: number;
 	duration: number;
+	/** Source in-point in seconds — where playback starts within the source file. */
+	trimStart: number;
 	sourceId: string;
 	isImage?: boolean;
 	fitMode: "cover" | "contain" | "fill";
