@@ -22,6 +22,23 @@ describe("interface translations", () => {
 		expect(translate({ locale: "en", key, values: { confidence: 96 } })).toBe(
 			"Audio aligned (96% confidence)"
 		);
+
+		const trackingKey =
+			"stickerProperties.tracking.create" satisfies TranslationKey;
+		expect(
+			translate({
+				locale: "zh",
+				key: trackingKey,
+				values: { name: "采访视频" },
+			})
+		).toBe("在采访视频上创建跟踪");
+		expect(
+			translate({
+				locale: "en",
+				key: trackingKey,
+				values: { name: "Interview" },
+			})
+		).toBe("Track on Interview");
 	});
 
 	it("keeps localized English feature copy free of Chinese characters", () => {
