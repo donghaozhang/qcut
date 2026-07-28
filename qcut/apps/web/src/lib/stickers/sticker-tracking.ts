@@ -3,6 +3,7 @@ import {
 	resolveMediaKeyframes,
 	resolveMediaMasks,
 } from "@/lib/video/video-properties";
+import { getMediaAnimationState } from "@/lib/video/video-animation";
 import {
 	buildPerspectiveMatrix3d,
 	projectMediaPerspectivePoint,
@@ -212,6 +213,12 @@ export function resolveStickerTrackingTargetAnchor({
 		return null;
 	}
 	const visual = resolveMediaKeyframes({ element, currentTime, fps });
+	const animation = getMediaAnimationState({
+		element,
+		currentTime,
+		canvasWidth,
+		canvasHeight,
+	});
 	const mask = visual.masks.find((candidate) => candidate.id === sourceMask.id);
 	if (!mask) return null;
 
@@ -223,11 +230,13 @@ export function resolveStickerTrackingTargetAnchor({
 		1,
 		finiteOr({ value: element.height, fallback: canvasHeight })
 	);
-	const scaleX = visual.scaleX * (visual.flipHorizontal ? -1 : 1);
-	const scaleY = visual.scaleY * (visual.flipVertical ? -1 : 1);
+	const scaleX =
+		visual.scaleX * animation.scale * (visual.flipHorizontal ? -1 : 1);
+	const scaleY =
+		visual.scaleY * animation.scale * (visual.flipVertical ? -1 : 1);
 	const center = {
-		x: canvasWidth / 2 + visual.x,
-		y: canvasHeight / 2 + visual.y,
+		x: canvasWidth / 2 + visual.x + animation.offsetX,
+		y: canvasHeight / 2 + visual.y + animation.offsetY,
 	};
 	const matrix = buildPerspectiveMatrix3d({
 		width,
