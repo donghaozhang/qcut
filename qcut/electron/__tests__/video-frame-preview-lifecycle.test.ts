@@ -10,14 +10,10 @@ const mocks = vi.hoisted(() => ({
 	cleanup: vi.fn(),
 }));
 
-vi.mock("child_process", async (importOriginal) => {
-	const original = await importOriginal<typeof import("child_process")>();
-	return {
-		...original,
-		default: { ...original, spawn: mocks.spawn },
-		spawn: mocks.spawn,
-	};
-});
+vi.mock("child_process", () => ({
+	default: { spawn: mocks.spawn },
+	spawn: mocks.spawn,
+}));
 
 vi.mock("../ffmpeg/utils", () => ({
 	getFFmpegPath: () => "/mock/ffmpeg",
