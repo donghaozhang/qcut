@@ -6,6 +6,12 @@
  * timeline elements to maintain simplicity and avoid timeline complexity.
  */
 
+import type {
+	MediaAnimationType,
+	MediaPerspective,
+	StickerAnimationLoopType,
+} from "./timeline";
+
 /**
  * Represents a single sticker in the overlay system
  * Position and size are stored as percentages for responsive scaling
@@ -40,6 +46,16 @@ export type OverlaySticker = {
 
 	/** Whether the sticker maintains aspect ratio when resizing */
 	maintainAspectRatio: boolean;
+
+	/** Four-corner destination coordinates normalized to the sticker bounds. */
+	perspective?: MediaPerspective;
+
+	animationInType?: MediaAnimationType;
+	animationInDuration?: number;
+	animationOutType?: MediaAnimationType;
+	animationOutDuration?: number;
+	animationLoopType?: StickerAnimationLoopType;
+	animationLoopIntensity?: number;
 
 	/** @deprecated Timing is now controlled by timeline StickerElement. This field is ignored. */
 	timing?: {
@@ -108,7 +124,7 @@ export type StickerOverlayActions = {
 	// History
 	undo: () => void;
 	redo: () => void;
-	saveHistorySnapshot: () => void;
+	saveHistorySnapshot: (options?: { syncTimelineHistory?: boolean }) => void;
 
 	// Persistence
 	saveToProject: (projectId: string) => Promise<void>;
@@ -153,6 +169,22 @@ export const STICKER_DEFAULTS = {
 	rotation: 0,
 	opacity: 1,
 	maintainAspectRatio: true,
+	perspective: {
+		topLeftX: 0,
+		topLeftY: 0,
+		topRightX: 1,
+		topRightY: 0,
+		bottomRightX: 1,
+		bottomRightY: 1,
+		bottomLeftX: 0,
+		bottomLeftY: 1,
+	},
+	animationInType: "none",
+	animationInDuration: 0.5,
+	animationOutType: "none",
+	animationOutDuration: 0.5,
+	animationLoopType: "none",
+	animationLoopIntensity: 0.5,
 	zIndex: Z_INDEX.MIN,
 } as const;
 
