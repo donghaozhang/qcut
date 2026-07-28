@@ -116,26 +116,25 @@ export function buildCompositionPlan({
 		const trackOrder = orderedTracks.findIndex(
 			(candidate) => candidate.id === track.id
 		);
-
-		for (
-			let elementOrder = 0;
-			elementOrder < track.elements.length;
-			elementOrder++
-		) {
-			const element = track.elements[elementOrder];
-			if (!includeHidden && element.hidden) continue;
-			if (
-				!isElementActive({
+		const activeTrackElements = track.elements
+			.map((element, elementOrder) => ({ element, elementOrder }))
+			.filter(({ element }) => {
+				if (!includeHidden && element.hidden) return false;
+				return isElementActive({
 					element,
 					track,
 					currentTime,
 					getElementDuration,
 					forceActiveElementIds,
-				})
-			) {
-				continue;
-			}
+				});
+			})
+			.sort(
+				(a, b) =>
+					a.element.startTime - b.element.startTime ||
+					a.elementOrder - b.elementOrder
+			);
 
+		for (const { element, elementOrder } of activeTrackElements) {
 			visualLayers.push({
 				track,
 				element,

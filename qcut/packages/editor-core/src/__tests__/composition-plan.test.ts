@@ -110,6 +110,42 @@ describe("buildCompositionPlan", () => {
 			"incoming",
 		]);
 	});
+
+	it("draws the incoming transition clip above the outgoing clip regardless of storage order", () => {
+		const outgoing = createMediaElement({
+			id: "outgoing",
+			startTime: 0,
+			duration: 2,
+		});
+		const incoming = createMediaElement({
+			id: "incoming",
+			startTime: 2,
+			duration: 2,
+		});
+		const track = createTrack({
+			id: "media-track",
+			order: 0,
+			type: "media",
+			elements: [incoming, outgoing],
+		});
+
+		const plan = buildCompositionPlan({
+			tracks: [track],
+			currentTime: 1.8,
+			forceActiveElementIds: new Set(["incoming"]),
+		});
+
+		expect(
+			plan.visualLayers.map(({ element: item, elementOrder }) => ({
+				id: item.id,
+				elementOrder,
+			}))
+		).toEqual([
+			{ id: "outgoing", elementOrder: 1 },
+			{ id: "incoming", elementOrder: 0 },
+		]);
+	});
+
 	it("draws lower UI tracks first and top tracks last", () => {
 		const top = createTrack({
 			id: "top",
