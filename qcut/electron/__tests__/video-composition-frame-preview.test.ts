@@ -205,7 +205,7 @@ describe("video composition frame preview command", () => {
 			previewGraph.startsWith(`${filterGraph({ args: exportArgs })};`)
 		).toBe(true);
 		expect(previewGraph).toContain("xfade=transition=custom");
-		expect(previewGraph).toContain("visual_sticker_scaled_0");
+		expect(previewGraph).toContain("visual_sticker_0_scaled");
 		expect(previewGraph).toContain("ass=filename=");
 		expect(previewGraph).toContain("trim=start=1:duration=");
 		expect(command.args).toContain("[composition_preview_frame]");

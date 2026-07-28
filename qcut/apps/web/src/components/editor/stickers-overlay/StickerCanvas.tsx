@@ -29,7 +29,6 @@ export const StickerCanvas: React.FC<{
 	// Store subscriptions
 	const {
 		overlayStickers,
-		selectedStickerId,
 		selectSticker,
 		loadFromProject,
 		saveToProject,
@@ -245,12 +244,14 @@ export const StickerCanvas: React.FC<{
 	// Handle keyboard shortcuts
 	useEffect(() => {
 		const handleKeyDown = (e: KeyboardEvent) => {
-			if (!selectedStickerId || disabled) return;
+			const currentSelectedStickerId =
+				useStickersOverlayStore.getState().selectedStickerId;
+			if (!currentSelectedStickerId || disabled) return;
 
 			// Delete key removes selected sticker
 			if (e.key === "Delete" || e.key === "Backspace") {
 				const { removeOverlaySticker } = useStickersOverlayStore.getState();
-				removeOverlaySticker(selectedStickerId);
+				removeOverlaySticker(currentSelectedStickerId);
 			}
 
 			// Escape deselects
@@ -275,7 +276,7 @@ export const StickerCanvas: React.FC<{
 
 		window.addEventListener("keydown", handleKeyDown);
 		return () => window.removeEventListener("keydown", handleKeyDown);
-	}, [selectedStickerId, disabled, selectSticker]);
+	}, [disabled, selectSticker]);
 
 	// Debug logging for sticker visibility
 	useEffect(() => {

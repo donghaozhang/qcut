@@ -1,6 +1,7 @@
 import { beforeEach, describe, expect, it } from "vitest";
-import type { MediaElement } from "@/types/timeline";
+import type { MediaElement, StickerElement } from "@/types/timeline";
 import {
+	createDuplicatedTimelineElement,
 	createMediaAttributeSnapshot,
 	createPastedTimelineElement,
 	useTimelineClipboardStore,
@@ -75,5 +76,56 @@ describe("timeline clipboard", () => {
 		expect(pasted.trimStart).toBe(2);
 		expect(pasted.trimEnd).toBe(3);
 		expect(pasted.name).toBe("Source (copy)");
+	});
+
+	it("gives a pasted sticker an independent instance identity", () => {
+		const source: StickerElement = {
+			id: "sticker-element",
+			type: "sticker",
+			stickerId: "sticker-source",
+			mediaId: "media-sticker",
+			name: "Sticker",
+			startTime: 4,
+			duration: 5,
+			trimStart: 0,
+			trimEnd: 0,
+		};
+
+		const pasted = createPastedTimelineElement({
+			entry: {
+				trackId: "sticker-track",
+				trackType: "sticker",
+				element: source,
+			},
+			startTime: 12,
+		});
+
+		expect(pasted.type).toBe("sticker");
+		expect(pasted).not.toHaveProperty("id");
+		if (pasted.type !== "sticker") return;
+		expect(pasted.stickerId).not.toBe(source.stickerId);
+		expect(pasted.mediaId).toBe(source.mediaId);
+	});
+
+	it("positions a duplicate using the project frame rate", () => {
+		const element = mediaElement({
+			duration: 2,
+			trimStart: 0,
+			trimEnd: 0,
+			speedKeyframes: [
+				{ id: "speed-start", frame: 0, value: 1, easing: "linear" },
+				{ id: "speed-end", frame: 60, value: 2, easing: "linear" },
+			],
+		});
+		const duplicate = createDuplicatedTimelineElement({
+			entry: {
+				trackId: "track-1",
+				trackType: "media",
+				element,
+			},
+			fps: 60,
+		});
+
+		expect(duplicate.startTime).toBeCloseTo(5.292_930_495);
 	});
 });

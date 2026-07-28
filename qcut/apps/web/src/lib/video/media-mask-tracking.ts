@@ -181,6 +181,15 @@ export function applyMaskTrackingSamples({
 	tolerance?: number;
 }): MediaMask {
 	const localSamples = samples
+		.filter((sample) =>
+			[
+				sample.frame,
+				sample.centerX,
+				sample.centerY,
+				sample.width,
+				sample.height,
+			].every(Number.isFinite)
+		)
 		.map((sample) => ({
 			...sample,
 			frame: Math.round(sample.frame - sourceFrameOffset),

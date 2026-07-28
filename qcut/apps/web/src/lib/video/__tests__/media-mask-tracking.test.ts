@@ -72,6 +72,59 @@ describe("media mask tracking", () => {
 		expect(tracked.keyframes?.width).toHaveLength(2);
 	});
 
+	it("filters invalid engine samples before marking a track ready", () => {
+		const mask = createMediaMask({ id: "subject", type: "person", index: 0 });
+		const tracked = applyMaskTrackingSamples({
+			mask,
+			samples: [
+				{ frame: 0, centerX: 0.4, centerY: 0.5, width: 0.3, height: 0.7 },
+				{
+					frame: 1,
+					centerX: Number.NaN,
+					centerY: 0.5,
+					width: 0.3,
+					height: 0.7,
+				},
+				{ frame: 2, centerX: 0.6, centerY: 0.5, width: 0.3, height: 0.7 },
+			],
+			direction: "both",
+			anchorFrame: 0,
+			source: "optical-flow",
+		});
+
+		expect(tracked.tracking).toMatchObject({
+			status: "ready",
+			totalFrames: 2,
+		});
+		expect(
+			tracked.keyframes?.centerX?.every(({ value }) => Number.isFinite(value))
+		).toBe(true);
+	});
+
+	it("marks tracking as failed when every engine sample is invalid", () => {
+		const mask = createMediaMask({ id: "subject", type: "person", index: 0 });
+		const tracked = applyMaskTrackingSamples({
+			mask,
+			samples: [
+				{
+					frame: 0,
+					centerX: Number.NaN,
+					centerY: Number.POSITIVE_INFINITY,
+					width: 0.3,
+					height: 0.7,
+				},
+			],
+			direction: "both",
+			anchorFrame: 0,
+			source: "sam3",
+		});
+
+		expect(tracked.tracking).toMatchObject({
+			status: "error",
+			error: "No trackable mask samples were found",
+		});
+	});
+
 	it("records tracking status and current-frame correction keyframes", () => {
 		const mask = createMediaMask({ id: "subject", type: "person", index: 0 });
 		const paused = updateMaskTrackingStatus({

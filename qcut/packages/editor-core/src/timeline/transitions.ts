@@ -3,6 +3,7 @@ import type {
 	ClipTransition,
 	ClipTransitionDirection,
 	ClipTransitionEasing,
+	ClipTransitionMaskShape,
 	ClipTransitionType,
 	MediaElement,
 	TimelineTrack,
@@ -92,7 +93,27 @@ export const CLIP_TRANSITION_TYPES = [
 	"color-swipe",
 ] as const satisfies readonly ClipTransitionType[];
 
+export const CLIP_TRANSITION_MASK_SHAPES = [
+	"circle",
+	"clock",
+	"blinds",
+	"cross",
+	"triptych",
+	"arrow",
+	"heart",
+	"star",
+	"ink",
+	"cloud",
+	"fog",
+	"drip",
+	"curtain",
+	"diagonal",
+] as const satisfies readonly ClipTransitionMaskShape[];
+
 const TRANSITION_TYPES = new Set<ClipTransitionType>(CLIP_TRANSITION_TYPES);
+const TRANSITION_MASK_SHAPES = new Set<ClipTransitionMaskShape>(
+	CLIP_TRANSITION_MASK_SHAPES
+);
 
 export function isClipTransitionType(input: {
 	value: unknown;
@@ -102,6 +123,16 @@ export function isClipTransitionType(input: {
 		TRANSITION_TYPES.has(input.value as ClipTransitionType)
 	);
 }
+
+export function isClipTransitionMaskShape(input: {
+	value: unknown;
+}): input is { value: ClipTransitionMaskShape } {
+	return (
+		typeof input.value === "string" &&
+		TRANSITION_MASK_SHAPES.has(input.value as ClipTransitionMaskShape)
+	);
+}
+
 const TRANSITION_DIRECTIONS = new Set<ClipTransitionDirection>([
 	"left",
 	"right",

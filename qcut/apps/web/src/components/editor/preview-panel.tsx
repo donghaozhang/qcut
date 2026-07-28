@@ -1006,6 +1006,8 @@ export function PreviewPanel() {
 							<TimelineStickerInteractionLayer
 								activeElements={activeElements}
 								mediaItems={mediaItems}
+								tracks={tracks}
+								canvasSize={canvasSize}
 							/>
 
 							{/* Canvas hit targets and transform controls */}

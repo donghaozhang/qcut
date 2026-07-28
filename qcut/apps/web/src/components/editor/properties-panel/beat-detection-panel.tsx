@@ -62,6 +62,7 @@ export function BeatDetectionPanel({
 			getTracks: () => getStore().tracks,
 			getSelectedElements: () => getStore().selectedElements,
 			isRippleEnabled: () => getStore().rippleEditingEnabled,
+			getProjectFps: () => fps,
 			updateTracks: (t) => getStore().restoreTracks(t),
 			updateTracksAndSave: (t) => {
 				const s = getStore();

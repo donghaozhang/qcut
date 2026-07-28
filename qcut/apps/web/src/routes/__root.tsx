@@ -16,6 +16,7 @@ import { setupClaudeBridgeLifecycle } from "@/lib/claude-bridge/claude-bridge-li
 import { debugLog } from "@/lib/debug/debug-config";
 import { useIsDesktop } from "@/hooks/use-platform-capability";
 import { UserLibrarySyncInitializer } from "@/components/user-library-sync-initializer";
+import { KeyboardShortcutsDialog } from "@/components/keyboard-shortcuts-help";
 import "@/lib/media/blob-url-debug"; // Enable blob URL debugging in development
 
 /**
@@ -72,6 +73,7 @@ function RootComponent() {
 							<ErrorBoundary isolate>
 								<Outlet />
 							</ErrorBoundary>
+							<KeyboardShortcutsDialog />
 							<Toaster />
 							{isDesktop && <FileOpenHandler />}
 							{isDesktop && <UpdateNotification />}

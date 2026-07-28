@@ -616,6 +616,9 @@ export function PreviewElementRenderer({
 					element={element}
 					elementOrder={index}
 					mediaItems={mediaItems}
+					currentTime={currentTime}
+					tracks={tracks}
+					canvasSize={canvasSize}
 				/>
 			);
 		}

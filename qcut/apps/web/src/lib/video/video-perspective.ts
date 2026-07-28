@@ -72,6 +72,23 @@ export function buildPerspectiveMatrix3d({
 	return [h11, h21, 0, h31, h12, h22, 0, h32, 0, 0, 1, 0, h13, h23, 0, 1];
 }
 
+export function projectMediaPerspectivePoint({
+	x,
+	y,
+	matrix,
+}: {
+	x: number;
+	y: number;
+	matrix: number[];
+}): { x: number; y: number } {
+	const denominator = matrix[3] * x + matrix[7] * y + matrix[15];
+	if (Math.abs(denominator) < 1e-9) return { x, y };
+	return {
+		x: (matrix[0] * x + matrix[4] * y + matrix[12]) / denominator,
+		y: (matrix[1] * x + matrix[5] * y + matrix[13]) / denominator,
+	};
+}
+
 export function buildCssPerspectiveTransform({
 	width,
 	height,

@@ -5,6 +5,11 @@ import type {
 	TimelineElement,
 	TrackType,
 } from "@/types/timeline";
+import {
+	assignNewStickerInstanceId,
+	createStickerInstanceId,
+} from "@/lib/stickers/sticker-instance";
+import { getTimelineElementEndTime } from "@/lib/timeline";
 
 export type MediaAttributeSnapshot = Partial<
 	Pick<
@@ -149,11 +154,27 @@ export function createPastedTimelineElement({
 	const elementWithoutId = { ...element } as TimelineElement &
 		Record<string, unknown>;
 	Reflect.deleteProperty(elementWithoutId, "id");
-	return {
-		...elementWithoutId,
-		name: `${element.name} (copy)`,
-		startTime: Math.max(0, startTime),
-	} as CreateTimelineElement;
+	return assignNewStickerInstanceId({
+		element: {
+			...elementWithoutId,
+			name: `${element.name} (copy)`,
+			startTime: Math.max(0, startTime),
+		} as CreateTimelineElement,
+		newStickerId: createStickerInstanceId(),
+	});
+}
+
+export function createDuplicatedTimelineElement({
+	entry,
+	fps,
+}: {
+	entry: TimelineClipboardEntry;
+	fps: number;
+}): CreateTimelineElement {
+	return createPastedTimelineElement({
+		entry,
+		startTime: getTimelineElementEndTime({ element: entry.element, fps }) + 0.1,
+	});
 }
 
 export const useTimelineClipboardStore = create<TimelineClipboardStore>(

@@ -25,13 +25,17 @@ import type {
 } from "./timeline-store-operations";
 import { getTimelineSplitUpdates } from "./timeline-split-utils";
 import { getTrackName } from "@qcut/editor-core";
+import {
+	assignNewStickerInstanceId,
+	createStickerInstanceId,
+} from "@/lib/stickers/sticker-instance";
 
 export function createElementOps(
 	get: StoreGet,
 	_set: StoreSet,
 	deps: OperationDeps
 ) {
-	const { updateTracksAndSave } = deps;
+	const { getProjectFps, updateTracksAndSave } = deps;
 
 	return {
 		updateElementStartTimeWithRipple: (
@@ -151,7 +155,11 @@ export function createElementOps(
 			if (savePushHistory) get().pushHistory();
 
 			const secondElementId = generateUUID();
-			const splitUpdates = getTimelineSplitUpdates({ element, splitTime });
+			const splitUpdates = getTimelineSplitUpdates({
+				element,
+				splitTime,
+				fps: getProjectFps(),
+			});
 
 			const leftPart = {
 				...element,
@@ -159,13 +167,16 @@ export function createElementOps(
 				name: getElementNameWithSuffix(element.name, "left"),
 			};
 
-			const rightPart = {
-				...element,
-				id: secondElementId,
-				startTime: splitTime,
-				...splitUpdates.right,
-				name: getElementNameWithSuffix(element.name, "right"),
-			};
+			const rightPart = assignNewStickerInstanceId({
+				element: {
+					...element,
+					id: secondElementId,
+					startTime: splitTime,
+					...splitUpdates.right,
+					name: getElementNameWithSuffix(element.name, "right"),
+				},
+				newStickerId: createStickerInstanceId(),
+			});
 
 			updateTracksAndSave(
 				get()._tracks.map((track) =>
@@ -203,7 +214,11 @@ export function createElementOps(
 
 			if (savePushHistory) get().pushHistory();
 
-			const splitUpdates = getTimelineSplitUpdates({ element, splitTime });
+			const splitUpdates = getTimelineSplitUpdates({
+				element,
+				splitTime,
+				fps: getProjectFps(),
+			});
 
 			updateTracksAndSave(
 				get()._tracks.map((track) =>
@@ -245,7 +260,11 @@ export function createElementOps(
 
 			if (savePushHistory) get().pushHistory();
 
-			const splitUpdates = getTimelineSplitUpdates({ element, splitTime });
+			const splitUpdates = getTimelineSplitUpdates({
+				element,
+				splitTime,
+				fps: getProjectFps(),
+			});
 
 			updateTracksAndSave(
 				get()._tracks.map((track) =>

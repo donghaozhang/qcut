@@ -47,7 +47,7 @@ import {
 	hasMediaColorEdits,
 	resolveMediaColorAtTime,
 } from "@/lib/color/color-properties";
-import { resolveTimelineStickerVisual } from "@/lib/stickers/timeline-sticker-visual";
+import { resolveTimelineStickerVisualAtTime } from "@/lib/stickers/timeline-sticker-visual";
 import { resolveTimelineElementEffects } from "@/lib/effects/adjustment-layer";
 import { canvasFontFamily } from "@/lib/text/canvas-font";
 
@@ -297,7 +297,15 @@ async function renderTimelineStickerElement({
 	const fallback = useStickersOverlayStore
 		.getState()
 		.overlayStickers.get(element.stickerId);
-	const sticker = resolveTimelineStickerVisual({ element, fallback });
+	const sticker = resolveTimelineStickerVisualAtTime({
+		element,
+		fallback,
+		currentTime,
+		fps: context.fps,
+		tracks: context.tracks,
+		canvasWidth: context.canvas.width,
+		canvasHeight: context.canvas.height,
+	});
 	const mediaItems = new Map(
 		context.mediaItems.map((item) => [item.id, item] as const)
 	);
@@ -305,6 +313,9 @@ async function renderTimelineStickerElement({
 		canvasWidth: context.canvas.width,
 		canvasHeight: context.canvas.height,
 		currentTime,
+		fps: context.fps,
+		timelineElement: element,
+		tracks: context.tracks,
 	});
 }
 

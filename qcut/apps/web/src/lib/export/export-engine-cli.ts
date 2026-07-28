@@ -15,6 +15,7 @@ import { debugLog, debugError, debugWarn } from "@/lib/debug/debug-config";
 import { useEffectsStore } from "@/stores/ai/effects-store";
 import { useStickersOverlayStore } from "@/stores/stickers-overlay-store";
 import { useProjectStore } from "@/stores/project-store";
+import { StickerTrackingExportError } from "@/lib/stickers/sticker-tracking-export";
 import {
 	analyzeTimelineForExport,
 	type ExportAnalysis,
@@ -610,7 +611,8 @@ export class CLIExportEngine extends ExportEngine {
 				this.totalDuration,
 				undefined,
 				undefined,
-				debugLog
+				debugLog,
+				this.getFrameRate()
 			);
 			if (stickerSources.length > 0) {
 				console.log(
@@ -635,6 +637,7 @@ export class CLIExportEngine extends ExportEngine {
 				console.log("🎨 [STICKER EXPORT] No stickers found, skipping overlay");
 			}
 		} catch (error) {
+			if (error instanceof StickerTrackingExportError) throw error;
 			console.warn(
 				"⚠️ [STICKER EXPORT] Failed to process stickers, continuing without:",
 				error

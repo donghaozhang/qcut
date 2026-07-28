@@ -39,6 +39,7 @@ interface StickerSourceCache {
 	mediaItems: MediaItem[];
 	width: number;
 	height: number;
+	fps: number;
 	totalDuration: number;
 	promise: Promise<StickerSourceForFilter[]>;
 }
@@ -77,6 +78,7 @@ function stickerSourceCacheMatches({
 	mediaItems,
 	width,
 	height,
+	fps,
 	totalDuration,
 }: {
 	cache: StickerSourceCache;
@@ -84,6 +86,7 @@ function stickerSourceCacheMatches({
 	mediaItems: MediaItem[];
 	width: number;
 	height: number;
+	fps: number;
 	totalDuration: number;
 }): boolean {
 	return (
@@ -91,6 +94,7 @@ function stickerSourceCacheMatches({
 		cache.mediaItems === mediaItems &&
 		cache.width === width &&
 		cache.height === height &&
+		cache.fps === fps &&
 		cache.totalDuration === totalDuration
 	);
 }
@@ -103,6 +107,7 @@ function getStickerPreviewSources({
 	mediaItems,
 	width,
 	height,
+	fps,
 	totalDuration,
 }: {
 	cacheRef: MutableRefObject<StickerSourceCache | undefined>;
@@ -114,6 +119,7 @@ function getStickerPreviewSources({
 	mediaItems: MediaItem[];
 	width: number;
 	height: number;
+	fps: number;
 	totalDuration: number;
 }): Promise<StickerSourceForFilter[]> {
 	const cached = cacheRef.current;
@@ -125,6 +131,7 @@ function getStickerPreviewSources({
 			mediaItems,
 			width,
 			height,
+			fps,
 			totalDuration,
 		})
 	) {
@@ -135,13 +142,24 @@ function getStickerPreviewSources({
 		sessionRef.current ?? platform().ffmpeg.createExportSession();
 	sessionRef.current = sessionPromise;
 	const promise = sessionPromise.then(({ sessionId }) =>
-		extractStickerSources(mediaItems, sessionId, width, height, totalDuration)
+		extractStickerSources(
+			mediaItems,
+			sessionId,
+			width,
+			height,
+			totalDuration,
+			undefined,
+			undefined,
+			undefined,
+			fps
+		)
 	);
 	cacheRef.current = {
 		tracks,
 		mediaItems,
 		width,
 		height,
+		fps,
 		totalDuration,
 		promise,
 	};
@@ -284,6 +302,7 @@ export function useNativeCompositionFramePreview({
 							mediaItems,
 							width: Math.round(width),
 							height: Math.round(height),
+							fps,
 							totalDuration: duration,
 						})
 					: Promise.resolve([] as StickerSourceForFilter[]);

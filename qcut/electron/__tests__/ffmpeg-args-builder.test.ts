@@ -533,9 +533,9 @@ describe("buildFFmpegArgs", () => {
 				filter.indexOf("[video_1_layer]overlay")
 			);
 			expect(filter.indexOf("[video_1_layer]overlay")).toBeLessThan(
-				filter.indexOf("[visual_sticker_scaled_0]overlay")
+				filter.indexOf("[visual_sticker_0_scaled]overlay")
 			);
-			expect(filter.indexOf("[visual_sticker_scaled_0]overlay")).toBeLessThan(
+			expect(filter.indexOf("[visual_sticker_0_scaled]overlay")).toBeLessThan(
 				filter.indexOf("[visual_text_ass_0]overlay")
 			);
 		});

@@ -120,8 +120,8 @@ const MY_LIBRARY_ITEMS: readonly SidebarItem[] = [
 	},
 ] as const;
 
-/** Cards revealed per page; matches the remote search page size. */
-const AUDIO_PAGE_SIZE = 24;
+const AUDIO_SEARCH_PAGE_SIZE = 24;
+const AUDIO_VISIBLE_BATCH_SIZE = 60;
 
 function matchesAudioQuery({
 	sound,
@@ -303,7 +303,7 @@ export function SoundsView() {
 		commercialOnly,
 		sort: query.trim() ? "score" : category.sort,
 		enabled: catalogActive,
-		pageSize: 24,
+		pageSize: AUDIO_SEARCH_PAGE_SIZE,
 	});
 
 	useEffect(() => {
@@ -447,13 +447,13 @@ export function SoundsView() {
 		savedItems,
 	]);
 	const displayedItems = catalogActive ? catalogResults : personalItems;
-	// Every rendered card mounts a waveform that downloads and decodes the whole
-	// track, so the grid grows on demand instead of mounting the entire music
-	// library (thousands of tracks) the moment a category opens.
-	const [visibleCount, setVisibleCount] = useState(AUDIO_PAGE_SIZE);
+	// Keep the multi-thousand-track catalog bounded. Remote cards use static
+	// waveforms and lazy artwork, so a larger browsing batch stays lightweight.
+	const [visibleCount, setVisibleCount] = useState(AUDIO_VISIBLE_BATCH_SIZE);
 	// Switching category or search starts a fresh window.
+	// biome-ignore lint/correctness/useExhaustiveDependencies: reset the batch when either selection changes
 	useEffect(() => {
-		setVisibleCount(AUDIO_PAGE_SIZE);
+		setVisibleCount(AUDIO_VISIBLE_BATCH_SIZE);
 	}, [activeSection, query]);
 	const visibleItems = useMemo(
 		() => displayedItems.slice(0, visibleCount),
@@ -461,13 +461,16 @@ export function SoundsView() {
 	);
 	const hasMoreLocalItems = displayedItems.length > visibleCount;
 	const canLoadMore = hasMoreLocalItems || (catalogActive && hasNextPage);
-	const showMore = useCallback(() => {
+	const showMore = useCallback(async () => {
 		// Reveal what is already in hand before asking the network for more.
 		if (hasMoreLocalItems) {
-			setVisibleCount((count) => count + AUDIO_PAGE_SIZE);
+			setVisibleCount((count) => count + AUDIO_VISIBLE_BATCH_SIZE);
 			return;
 		}
-		void loadMore();
+		const loaded = await loadMore();
+		if (loaded) {
+			setVisibleCount((count) => count + AUDIO_VISIBLE_BATCH_SIZE);
+		}
 	}, [hasMoreLocalItems, loadMore]);
 	const title = catalogActive
 		? t(category.labelKey)
@@ -764,11 +767,11 @@ export function SoundsView() {
 									size="sm"
 									className="mt-3 w-full"
 									disabled={isLoadingMore && !hasMoreLocalItems}
-									onClick={showMore}
+									onClick={() => void showMore()}
 									onKeyDown={(event) => {
 										if (event.key === "Enter" || event.key === " ") {
 											event.preventDefault();
-											showMore();
+											void showMore();
 										}
 									}}
 								>

@@ -33,6 +33,7 @@ function previewTransition({
 		type: config?.type ?? "dissolve",
 		direction: config?.direction,
 		tuning: config?.tuning,
+		maskShape: config?.maskShape,
 		duration: preset.defaultDuration,
 		easing: "easeInOut",
 	};

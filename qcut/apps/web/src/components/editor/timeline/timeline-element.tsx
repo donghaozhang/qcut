@@ -107,7 +107,10 @@ import {
 	DEFAULT_MEDIA_COLOR_SETTINGS,
 	normalizeMediaColorSettings,
 } from "@/lib/color/color-properties";
-import { useTimelineClipboardStore } from "@/stores/timeline/timeline-clipboard-store";
+import {
+	createDuplicatedTimelineElement,
+	useTimelineClipboardStore,
+} from "@/stores/timeline/timeline-clipboard-store";
 import {
 	applyTimelineSceneSplits,
 	rollbackTimelineSceneSplits,
@@ -422,12 +425,17 @@ function TimelineElementComponent({
 
 	const handleElementDuplicateContext = (e: React.MouseEvent) => {
 		e.stopPropagation();
-		const { id, ...elementWithoutId } = element;
-		addElementToTrack(track.id, {
-			...elementWithoutId,
-			name: element.name + " (copy)",
-			startTime: getTimelineElementEndTime({ element }) + 0.1,
-		});
+		addElementToTrack(
+			track.id,
+			createDuplicatedTimelineElement({
+				entry: {
+					trackId: track.id,
+					trackType: track.type,
+					element,
+				},
+				fps: projectFps,
+			})
+		);
 	};
 
 	const handleElementDeleteContext = (e: React.MouseEvent) => {

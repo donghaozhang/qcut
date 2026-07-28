@@ -1,9 +1,13 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import type { MediaItem } from "@/stores/media/media-store-types";
+import type { StickerElement } from "@/types/timeline";
 
 // Mock sticker-timeline-query before importing sticker-sources
 // This controls what timing values the export pipeline sees
-const mockTimingMap = new Map<string, { startTime: number; endTime: number }>();
+const mockTimingMap = new Map<
+	string,
+	{ startTime: number; endTime: number; element?: StickerElement }
+>();
 
 vi.mock("@/lib/stickers/sticker-timeline-query", () => ({
 	getStickerTimingMap: () => mockTimingMap,
@@ -216,6 +220,65 @@ describe("Sticker Timing Consistency", () => {
 
 			expect(result[0].startTime).toBe(10);
 			expect(result[0].endTime).toBe(TOTAL_DURATION);
+		});
+
+		it("passes canonical timeline keyframes with the project frame rate", async () => {
+			const keyframes: NonNullable<StickerElement["keyframes"]> = {
+				x: [
+					{
+						id: "x-0",
+						frame: 0,
+						value: 25,
+						easing: "linear",
+					},
+					{
+						id: "x-60",
+						frame: 60,
+						value: 75,
+						easing: "linear",
+					},
+				],
+				topLeftX: [
+					{
+						id: "perspective-0",
+						frame: 0,
+						value: 0.1,
+						easing: "linear",
+					},
+				],
+			};
+			mockTimingMap.set("sticker-1", {
+				startTime: 5,
+				endTime: 7,
+				element: {
+					id: "element-1",
+					name: "Sticker",
+					type: "sticker",
+					stickerId: "sticker-1",
+					mediaId: "media-1",
+					startTime: 5,
+					duration: 2,
+					trimStart: 0,
+					trimEnd: 0,
+					keyframes,
+				},
+			});
+
+			const result = await extractStickerSources(
+				[createMediaItem()],
+				"session-1",
+				1920,
+				1080,
+				TOTAL_DURATION,
+				createStoreGetter([createStickerData()]),
+				createMockAPI(),
+				silentLogger,
+				60
+			);
+
+			expect(result[0].keyframes).toEqual(keyframes);
+			expect(result[0].keyframes?.x?.[0].value).toBe(25);
+			expect(result[0].keyframeFps).toBe(60);
 		});
 	});
 

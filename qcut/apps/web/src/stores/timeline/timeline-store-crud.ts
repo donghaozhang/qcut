@@ -309,32 +309,9 @@ export function createCrudOperations(
 		},
 
 		removeElementFromTrack: (trackId, elementId, pushHistory = true) => {
-			// If removing a sticker element, also clean up the overlay store
 			const track = get()._tracks.find((t) => t.id === trackId);
 			const element = track?.elements.find((el) => el.id === elementId);
 			if (!track || !element) return;
-			if (element?.type === "sticker" && "stickerId" in element) {
-				const stickerId = (element as { stickerId: string }).stickerId;
-				import("@/stores/stickers-overlay-store")
-					.then(({ useStickersOverlayStore }) => {
-						// Guard: only remove if sticker still exists (prevents infinite loop)
-						if (
-							useStickersOverlayStore.getState().overlayStickers.has(stickerId)
-						) {
-							useStickersOverlayStore
-								.getState()
-								.removeOverlaySticker(stickerId);
-						}
-					})
-					.catch((error) => {
-						handleError(error, {
-							operation: "Clean up sticker overlay",
-							category: ErrorCategory.STORAGE,
-							severity: ErrorSeverity.LOW,
-							showToast: false,
-						});
-					});
-			}
 
 			const { rippleEditingEnabled } = get();
 

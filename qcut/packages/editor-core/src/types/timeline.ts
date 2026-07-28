@@ -137,6 +137,43 @@ export type MediaAnimationType =
 	| "zoom-in"
 	| "zoom-out";
 
+export type StickerAnimationLoopType =
+	| "none"
+	| "pulse"
+	| "drift"
+	| "spin"
+	| "wobble"
+	| "bounce"
+	| "blink";
+
+export type StickerKeyframeProperty =
+	| "x"
+	| "y"
+	| "width"
+	| "height"
+	| "rotation"
+	| "opacity"
+	| keyof MediaPerspective;
+
+export type StickerPropertyKeyframe = MediaPropertyKeyframe;
+
+export interface StickerTrackingAnchor {
+	/** Target center as a percentage of the project canvas. */
+	centerX: number;
+	centerY: number;
+	/** Target bounds as percentages of the project-canvas shorter edge. */
+	width: number;
+	height: number;
+}
+
+export interface StickerMotionTracking {
+	mode: "motion";
+	targetElementId: string;
+	targetMaskId: string;
+	anchor: StickerTrackingAnchor;
+	followScale: boolean;
+}
+
 export type ClipTransitionType =
 	| "dissolve"
 	| "fade-black"
@@ -827,6 +864,18 @@ export interface StickerElement extends BaseTimelineElement {
 	rotation?: number;
 	opacity?: number;
 	maintainAspectRatio?: boolean;
+	perspective?: MediaPerspective;
+	animationInType?: MediaAnimationType;
+	animationInDuration?: number;
+	animationOutType?: MediaAnimationType;
+	animationOutDuration?: number;
+	animationLoopType?: StickerAnimationLoopType;
+	animationLoopIntensity?: number;
+	keyframes?: Partial<
+		Record<StickerKeyframeProperty, StickerPropertyKeyframe[]>
+	>;
+	/** Binds the sticker to an existing real media-mask tracking result. */
+	tracking?: StickerMotionTracking;
 	/** Legacy intra-track order. New projects use element order on the track. */
 	zIndex?: number;
 }

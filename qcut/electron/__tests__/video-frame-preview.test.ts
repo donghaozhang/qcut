@@ -1,7 +1,23 @@
-import { afterAll, beforeAll, describe, expect, it } from "vitest";
+import { EventEmitter } from "node:events";
 import fs from "fs";
 import path from "path";
-import { buildVideoFramePreviewCommand } from "../ffmpeg/video-frame-preview";
+import type { ChildProcess } from "node:child_process";
+import { afterAll, beforeAll, describe, expect, it, vi } from "vitest";
+
+const mocks = vi.hoisted(() => ({
+	spawn: vi.fn(),
+}));
+
+vi.mock("child_process", () => ({
+	default: { spawn: mocks.spawn },
+	spawn: mocks.spawn,
+}));
+
+import {
+	buildVideoFramePreviewCommand,
+	clearVideoFramePreviewCache,
+	renderVideoFramePreview,
+} from "../ffmpeg/video-frame-preview";
 import type { VideoFramePreviewOptions } from "../ffmpeg/types";
 
 const tempDir = path.resolve(__dirname, "../../.tmp/video-frame-preview-unit");
@@ -30,6 +46,18 @@ function previewOptions({
 		},
 		...overrides,
 	};
+}
+
+function previewProcess(): ChildProcess {
+	const process = new EventEmitter() as EventEmitter & {
+		kill: ReturnType<typeof vi.fn>;
+		stderr: EventEmitter;
+		stdout: EventEmitter;
+	};
+	process.kill = vi.fn(() => true);
+	process.stderr = new EventEmitter();
+	process.stdout = new EventEmitter();
+	return process as unknown as ChildProcess;
 }
 
 describe("video frame preview command", () => {
@@ -88,5 +116,38 @@ describe("video frame preview command", () => {
 				}),
 			})
 		).toThrow(/not found/);
+	});
+
+	it("waits for child close before settling a timed-out preview", async () => {
+		vi.useFakeTimers();
+		clearVideoFramePreviewCache();
+		const process = previewProcess();
+		mocks.spawn.mockReturnValue(process);
+		let settled = false;
+		const outcome = renderVideoFramePreview({
+			options: previewOptions({
+				overrides: { requestId: "timeout-request" },
+			}),
+		}).then(
+			() => new Error("Expected preview to reject"),
+			(error: Error) => {
+				settled = true;
+				return error;
+			}
+		);
+
+		try {
+			await vi.advanceTimersByTimeAsync(20_000);
+			expect(process.kill).toHaveBeenCalledOnce();
+			expect(settled).toBe(false);
+
+			process.emit("close", null, "SIGTERM");
+			const error = await outcome;
+
+			expect(settled).toBe(true);
+			expect(error.message).toBe("Video frame preview timed out");
+		} finally {
+			vi.useRealTimers();
+		}
 	});
 });

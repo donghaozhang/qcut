@@ -34,7 +34,6 @@ import {
 	DialogFooter,
 	DialogHeader,
 	DialogTitle,
-	DialogTrigger,
 } from "./ui/dialog";
 import { DropdownMenuItem } from "./ui/dropdown-menu";
 import { Input } from "./ui/input";
@@ -50,6 +49,25 @@ import { Tabs, TabsList, TabsTrigger } from "./ui/tabs";
 
 /** Opens this dialog; kept in sync with electron/app-menu.ts. */
 export const OPEN_KEYBOARD_SHORTCUTS_EVENT = "qcut:open-keyboard-shortcuts";
+
+export function openKeyboardShortcuts() {
+	window.dispatchEvent(new CustomEvent(OPEN_KEYBOARD_SHORTCUTS_EVENT));
+}
+
+export function KeyboardShortcutsMenuItem() {
+	const { t } = useTranslation();
+
+	return (
+		<DropdownMenuItem
+			className="flex items-center gap-1.5"
+			onSelect={openKeyboardShortcuts}
+			data-testid="keyboard-shortcuts-menu-item"
+		>
+			<Keyboard className="size-4" />
+			{t("shortcuts.menu")}
+		</DropdownMenuItem>
+	);
+}
 
 function removeActionBindings({
 	keybindings,
@@ -82,11 +100,7 @@ function downloadKeybindings({
 	setTimeout(() => URL.revokeObjectURL(url), 0);
 }
 
-export const KeyboardShortcutsHelp = ({
-	variant,
-}: {
-	variant?: "menu-item";
-} = {}) => {
+export const KeyboardShortcutsDialog = () => {
 	const { t } = useTranslation();
 	const storedKeybindings = useKeybindingsStore((state) => state.keybindings);
 	const storedProfileId = useKeybindingsStore((state) => state.activeProfileId);
@@ -236,22 +250,6 @@ export const KeyboardShortcutsHelp = ({
 				closeDialog();
 			}}
 		>
-			<DialogTrigger asChild>
-				{variant === "menu-item" ? (
-					<DropdownMenuItem
-						className="flex items-center gap-1.5"
-						onSelect={(event) => event.preventDefault()}
-					>
-						<Keyboard className="size-4" />
-						{t("shortcuts.menu")}
-					</DropdownMenuItem>
-				) : (
-					<Button type="button" variant="text" size="sm" className="gap-2">
-						<Keyboard className="size-4" />
-						{t("shortcuts.menu")}
-					</Button>
-				)}
-			</DialogTrigger>
 			<DialogContent
 				className="flex h-[min(760px,88vh)] max-w-3xl flex-col overflow-hidden p-0"
 				data-testid="keyboard-shortcuts-dialog"

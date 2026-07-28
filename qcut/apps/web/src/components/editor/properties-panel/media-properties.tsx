@@ -18,7 +18,6 @@ import type {
 	MediaKeyframeProperty,
 	MediaMask,
 	MediaMaskTrackingDirection,
-	MediaPerspective,
 	MediaPropertyKeyframe,
 } from "@/types/timeline";
 import { useTimelineStore } from "@/stores/timeline/timeline-store";
@@ -31,12 +30,11 @@ import { useMediaPanelStore } from "@/components/editor/media-panel/store";
 import { createObjectURL } from "@/lib/media/blob-manager";
 import { requestSelectedVideoUpscale } from "@/lib/ai-video/selected-upscale-source";
 import { useTranslation } from "@/lib/i18n";
+import type { TranslationKey } from "@/lib/i18n/translations";
 import { generateUUID } from "@/lib/utils";
 import { useMediaKeyframeShortcuts } from "@/hooks/keyboard/use-media-keyframe-shortcuts";
-import type { TranslationKey } from "@/lib/i18n/translations";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Slider } from "@/components/ui/slider";
 import { Switch } from "@/components/ui/switch";
 import {
 	Select,
@@ -46,12 +44,6 @@ import {
 	SelectValue,
 } from "@/components/ui/select";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import {
-	Tooltip,
-	TooltipContent,
-	TooltipProvider,
-	TooltipTrigger,
-} from "@/components/ui/tooltip";
 import type { EasingType, Keyframe } from "@/lib/remotion/keyframe-converter";
 import {
 	DEFAULT_MEDIA_CHROMA_KEY,
@@ -90,162 +82,16 @@ import {
 } from "./color-properties-panel";
 import { MediaTrackingProperties } from "./media-tracking-properties";
 import { MediaAIProperties } from "./media-ai-properties";
+import {
+	CLIP_ANIMATION_OPTIONS,
+	IconButton,
+	NumberControl,
+	PERSPECTIVE_FIELDS,
+} from "./visual-property-controls";
 
 type MediaUpdates = Parameters<
 	ReturnType<typeof useTimelineStore.getState>["updateMediaElement"]
 >[2];
-
-interface NumberControlProps {
-	label: string;
-	value: number;
-	min: number;
-	max: number;
-	step?: number;
-	suffix?: string;
-	onChange: (value: number) => void;
-	keyframed?: boolean;
-	onToggleKeyframe?: () => void;
-	onInteractionStart: () => void;
-	onInteractionEnd: () => void;
-}
-
-function NumberControl({
-	label,
-	value,
-	min,
-	max,
-	step = 1,
-	suffix,
-	onChange,
-	keyframed = false,
-	onToggleKeyframe,
-	onInteractionStart,
-	onInteractionEnd,
-}: NumberControlProps) {
-	const { t } = useTranslation();
-	return (
-		<PropertyItem direction="column">
-			<div className="flex items-center justify-between gap-3">
-				<PropertyItemLabel>{label}</PropertyItemLabel>
-				<div className="flex items-center gap-1">
-					{onToggleKeyframe ? (
-						<MaskIconButton
-							label={t(
-								keyframed
-									? "mediaProperties.removeKeyframe"
-									: "mediaProperties.addKeyframe",
-								{ label }
-							)}
-							onClick={onToggleKeyframe}
-							active={keyframed}
-						>
-							<Diamond
-								className={`size-3 ${
-									keyframed ? "fill-primary text-primary" : ""
-								}`}
-							/>
-						</MaskIconButton>
-					) : null}
-					<Input
-						type="number"
-						aria-label={t("mediaProperties.value", { label })}
-						value={Number(value.toFixed(step < 1 ? 2 : 0))}
-						min={min}
-						max={max}
-						step={step}
-						onFocus={onInteractionStart}
-						onBlur={onInteractionEnd}
-						onChange={(event) => {
-							const next = Number(event.target.value);
-							if (Number.isFinite(next)) onChange(next);
-						}}
-						className="h-8 w-24 text-right text-xs"
-					/>
-					{suffix ? (
-						<span className="w-4 text-[10px] text-muted-foreground">
-							{suffix}
-						</span>
-					) : null}
-				</div>
-			</div>
-			<PropertyItemValue>
-				<div
-					onPointerDown={onInteractionStart}
-					onPointerUp={onInteractionEnd}
-					onPointerCancel={onInteractionEnd}
-				>
-					<Slider
-						aria-label={label}
-						value={[Math.min(max, Math.max(min, value))]}
-						min={min}
-						max={max}
-						step={step}
-						onValueChange={([next]) => onChange(next)}
-					/>
-				</div>
-			</PropertyItemValue>
-		</PropertyItem>
-	);
-}
-
-function IconButton({
-	label,
-	children,
-	onClick,
-	active = false,
-}: {
-	label: string;
-	children: React.ReactNode;
-	onClick: () => void;
-	active?: boolean;
-}) {
-	return (
-		<TooltipProvider>
-			<Tooltip>
-				<TooltipTrigger asChild>
-					<Button
-						type="button"
-						variant={active ? "default" : "outline"}
-						size="icon"
-						className="size-8"
-						onClick={onClick}
-						aria-label={label}
-					>
-						{children}
-					</Button>
-				</TooltipTrigger>
-				<TooltipContent>{label}</TooltipContent>
-			</Tooltip>
-		</TooltipProvider>
-	);
-}
-
-const PERSPECTIVE_FIELDS: Array<{
-	x: keyof MediaPerspective;
-	y: keyof MediaPerspective;
-	labelKey: TranslationKey;
-}> = [
-	{
-		x: "topLeftX",
-		y: "topLeftY",
-		labelKey: "mediaProperties.corner.topLeft",
-	},
-	{
-		x: "topRightX",
-		y: "topRightY",
-		labelKey: "mediaProperties.corner.topRight",
-	},
-	{
-		x: "bottomLeftX",
-		y: "bottomLeftY",
-		labelKey: "mediaProperties.corner.bottomLeft",
-	},
-	{
-		x: "bottomRightX",
-		y: "bottomRightY",
-		labelKey: "mediaProperties.corner.bottomRight",
-	},
-];
 
 const BLEND_MODE_OPTIONS = [
 	["normal", "mediaProperties.blend.normal"],
@@ -268,17 +114,6 @@ const CROP_SIDE_LABELS = {
 	bottom: "mediaProperties.crop.bottom",
 	left: "mediaProperties.crop.left",
 } as const satisfies Record<string, TranslationKey>;
-
-const CLIP_ANIMATION_OPTIONS = [
-	["none", "mediaProperties.animation.none"],
-	["fade", "mediaProperties.animation.fade"],
-	["slide-left", "mediaProperties.animation.slideLeft"],
-	["slide-right", "mediaProperties.animation.slideRight"],
-	["slide-up", "mediaProperties.animation.slideUp"],
-	["slide-down", "mediaProperties.animation.slideDown"],
-	["zoom-in", "mediaProperties.animation.zoomIn"],
-	["zoom-out", "mediaProperties.animation.zoomOut"],
-] as const satisfies ReadonlyArray<readonly [string, TranslationKey]>;
 
 const CROP_KEYFRAME_PROPERTY = {
 	top: "cropTop",

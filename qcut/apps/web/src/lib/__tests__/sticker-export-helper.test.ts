@@ -3,6 +3,7 @@ import { StickerExportHelper } from "../stickers/sticker-export-helper";
 import type { OverlaySticker } from "@/types/sticker-overlay";
 import type { MediaItem } from "@/stores/media/media-store-types";
 import type { StickerRenderOptions } from "../stickers/sticker-export-helper";
+import type { StickerElement } from "@/types/timeline";
 
 // ---------------------------------------------------------------------------
 // Factories
@@ -46,6 +47,7 @@ function createMockContext() {
 		restore: vi.fn(),
 		translate: vi.fn(),
 		rotate: vi.fn(),
+		scale: vi.fn(),
 		globalAlpha: 1,
 	} as unknown as CanvasRenderingContext2D;
 }
@@ -414,6 +416,90 @@ describe("StickerExportHelper", () => {
 			// We can't easily spy on property assignment, but save+restore are called
 			expect(ctx.save).toHaveBeenCalled();
 			expect(ctx.restore).toHaveBeenCalled();
+		});
+
+		it("uses the exact timeline clip for animation instead of stickerId lookup", async () => {
+			const timelineElement: StickerElement = {
+				id: "timeline-sticker-copy",
+				type: "sticker",
+				name: "Sticker copy",
+				stickerId: "sticker-1",
+				mediaId: "media-1",
+				startTime: 5,
+				duration: 3,
+				trimStart: 0,
+				trimEnd: 0,
+				animationLoopType: "spin",
+				animationLoopIntensity: 1,
+			};
+			const mediaItems = new Map<string, MediaItem>([
+				["media-1", createMockMediaItem()],
+			]);
+
+			await helper.renderStickersToCanvas(
+				ctx,
+				[createMockSticker()],
+				mediaItems,
+				{
+					...defaultOptions,
+					currentTime: 6,
+					timelineElement,
+				}
+			);
+
+			expect(ctx.rotate).toHaveBeenCalledWith(Math.PI / 2);
+		});
+
+		it("resolves clip-local sticker keyframes for the exported canvas frame", async () => {
+			const timelineElement: StickerElement = {
+				id: "timeline-sticker-keyframed",
+				type: "sticker",
+				name: "Keyframed sticker",
+				stickerId: "sticker-1",
+				mediaId: "media-1",
+				startTime: 5,
+				duration: 3,
+				trimStart: 0,
+				trimEnd: 0,
+				keyframes: {
+					x: [
+						{ id: "x-start", frame: 0, value: 10, easing: "linear" },
+						{ id: "x-end", frame: 60, value: 90, easing: "linear" },
+					],
+					rotation: [
+						{
+							id: "rotation-start",
+							frame: 0,
+							value: 0,
+							easing: "linear",
+						},
+						{
+							id: "rotation-end",
+							frame: 60,
+							value: 180,
+							easing: "linear",
+						},
+					],
+				},
+			};
+			const mediaItems = new Map<string, MediaItem>([
+				["media-1", createMockMediaItem()],
+			]);
+
+			await helper.renderStickersToCanvas(
+				ctx,
+				[createMockSticker()],
+				mediaItems,
+				{
+					...defaultOptions,
+					currentTime: 6,
+					fps: 30,
+					timelineElement,
+				}
+			);
+
+			expect(ctx.translate).toHaveBeenCalledWith(960, 540);
+			expect(ctx.rotate).toHaveBeenCalledWith(Math.PI / 2);
 		});
 	});
 

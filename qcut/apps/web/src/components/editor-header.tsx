@@ -37,7 +37,7 @@ import { AutoSaveIndicator } from "./editor/auto-save-indicator";
 import { ScreenRecordingControl } from "./editor/screen-recording-control";
 import type { KeyboardEvent } from "react";
 import { CreditBalance } from "./license/credit-balance";
-import { KeyboardShortcutsHelp } from "./keyboard-shortcuts-help";
+import { KeyboardShortcutsMenuItem } from "./keyboard-shortcuts-help";
 import { ScreenshotControl } from "./editor/screenshot-control";
 import { LanguageSelector } from "./language-selector";
 import { useTranslation } from "@/lib/i18n";
@@ -185,7 +185,7 @@ export function EditorHeader() {
 					</DropdownMenuItem>
 					<DropdownMenuSeparator />
 					<ScreenshotControl variant="menu-item" />
-					<KeyboardShortcutsHelp variant="menu-item" />
+					<KeyboardShortcutsMenuItem />
 					<GlobalSettingsMenuItem />
 					<DropdownMenuItem
 						className="flex items-center gap-1.5"

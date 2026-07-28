@@ -8,6 +8,7 @@
 
 import { useTimelineStore } from "@/stores/timeline/timeline-store";
 import { sortTracksByOrder, type StickerElement } from "@/types/timeline";
+import { getTimelineElementDuration } from "@/lib/timeline";
 
 export interface StickerTiming {
 	startTime: number;
@@ -40,9 +41,9 @@ export function getStickerTimingMap(): Map<string, StickerTiming> {
 			if (element.hidden || element.type !== "sticker") continue;
 
 			const stickerEl = element as StickerElement;
-			const startTime = stickerEl.startTime + stickerEl.trimStart;
+			const startTime = stickerEl.startTime;
 			const endTime =
-				stickerEl.startTime + stickerEl.duration - stickerEl.trimEnd;
+				startTime + getTimelineElementDuration({ element: stickerEl });
 
 			timingMap.set(stickerEl.stickerId, {
 				startTime,
@@ -80,9 +81,11 @@ export function getStickerTiming(stickerId: string): StickerTiming | null {
 
 			const stickerEl = element as StickerElement;
 			if (stickerEl.stickerId === stickerId) {
+				const startTime = stickerEl.startTime;
 				return {
-					startTime: stickerEl.startTime + stickerEl.trimStart,
-					endTime: stickerEl.startTime + stickerEl.duration - stickerEl.trimEnd,
+					startTime,
+					endTime:
+						startTime + getTimelineElementDuration({ element: stickerEl }),
 					trackId: track.id,
 					trackOrder,
 					elementOrder,

@@ -451,4 +451,27 @@ describe("TransitionsView", () => {
 			defaultDuration: 0.45,
 		});
 	});
+
+	it("includes the procedural mask shape in drag data", () => {
+		render(<TransitionsView />);
+		const dataTransfer = {
+			effectAllowed: "",
+			setData: vi.fn(),
+		};
+
+		fireEvent.dragStart(screen.getByTestId("transition-card-ink-bleed"), {
+			dataTransfer,
+		});
+
+		const payloadCall = dataTransfer.setData.mock.calls.find(
+			([format]) => format === "application/qcut-transition"
+		);
+		expect(JSON.parse(payloadCall?.at(1) as string)).toEqual({
+			kind: "qcut-transition-preset",
+			id: "ink-bleed",
+			type: "texture-mask",
+			maskShape: "ink",
+			defaultDuration: 0.8,
+		});
+	});
 });

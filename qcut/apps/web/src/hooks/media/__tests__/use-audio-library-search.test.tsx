@@ -86,7 +86,122 @@ describe("useAudioLibrarySearch", () => {
 		);
 
 		await waitFor(() => expect(result.current.hasNextPage).toBe(true));
-		await act(async () => result.current.loadMore());
+		let loaded = false;
+		await act(async () => {
+			loaded = await result.current.loadMore();
+		});
+		expect(loaded).toBe(true);
 		expect(result.current.results.map((item) => item.id)).toEqual([1, 2]);
+	});
+
+	it("reports a failed page load without advancing consumers", async () => {
+		vi.mocked(searchSounds)
+			.mockResolvedValueOnce({
+				success: true,
+				results: [sound({ id: 1, name: "One" })],
+				count: 2,
+				next: "page-2",
+			})
+			.mockResolvedValueOnce({
+				success: false,
+				error: "Remote page failed",
+			});
+		const { result } = renderHook(() =>
+			useAudioLibrarySearch({
+				query: "ambient",
+				type: "songs",
+				commercialOnly: false,
+				debounceMs: 0,
+			})
+		);
+
+		await waitFor(() => expect(result.current.hasNextPage).toBe(true));
+		let loaded = true;
+		await act(async () => {
+			loaded = await result.current.loadMore();
+		});
+
+		expect(loaded).toBe(false);
+		expect(result.current.results.map((item) => item.id)).toEqual([1]);
+		expect(result.current.error).toBe("Remote page failed");
+	});
+
+	it("unblocks pagination when the query changes during a page load", async () => {
+		let resolveStalePage: (value: {
+			success: boolean;
+			results: SoundEffect[];
+			count: number;
+			next: string | null;
+		}) => void;
+		const stalePage = new Promise<{
+			success: boolean;
+			results: SoundEffect[];
+			count: number;
+			next: string | null;
+		}>((resolve) => {
+			resolveStalePage = resolve;
+		});
+		vi.mocked(searchSounds)
+			.mockResolvedValueOnce({
+				success: true,
+				results: [sound({ id: 1, name: "Ambient One" })],
+				count: 2,
+				next: "ambient-page-2",
+			})
+			.mockReturnValueOnce(stalePage)
+			.mockResolvedValueOnce({
+				success: true,
+				results: [sound({ id: 10, name: "Cinematic One" })],
+				count: 2,
+				next: "cinematic-page-2",
+			})
+			.mockResolvedValueOnce({
+				success: true,
+				results: [sound({ id: 11, name: "Cinematic Two" })],
+				count: 2,
+				next: null,
+			});
+		const { result, rerender } = renderHook(
+			({ query }: { query: string }) =>
+				useAudioLibrarySearch({
+					query,
+					type: "songs",
+					commercialOnly: false,
+					debounceMs: 0,
+				}),
+			{ initialProps: { query: "ambient" } }
+		);
+
+		await waitFor(() => expect(result.current.hasNextPage).toBe(true));
+		let staleLoadPromise: Promise<boolean>;
+		act(() => {
+			staleLoadPromise = result.current.loadMore();
+		});
+		await waitFor(() => expect(result.current.isLoadingMore).toBe(true));
+
+		rerender({ query: "cinematic" });
+		await waitFor(() => expect(result.current.isLoadingMore).toBe(false));
+		await waitFor(() =>
+			expect(result.current.results.map((item) => item.id)).toEqual([10])
+		);
+		expect(result.current.hasNextPage).toBe(true);
+
+		let loaded = false;
+		await act(async () => {
+			loaded = await result.current.loadMore();
+		});
+		expect(loaded).toBe(true);
+		expect(result.current.results.map((item) => item.id)).toEqual([10, 11]);
+
+		await act(async () => {
+			resolveStalePage({
+				success: true,
+				results: [sound({ id: 2, name: "Ambient Two" })],
+				count: 2,
+				next: null,
+			});
+			expect(await staleLoadPromise).toBe(false);
+		});
+		expect(result.current.results.map((item) => item.id)).toEqual([10, 11]);
 	});
 });

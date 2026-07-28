@@ -271,6 +271,7 @@ function createTransition({
 		easing: "easeInOut",
 		duration: preset.defaultDuration,
 		tuning: config.tuning,
+		maskShape: config.maskShape,
 	};
 }
 

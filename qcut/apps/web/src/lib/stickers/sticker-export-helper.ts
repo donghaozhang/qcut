@@ -7,6 +7,16 @@
 
 import type { OverlaySticker } from "@/types/sticker-overlay";
 import type { MediaItem } from "@/stores/media/media-store-types";
+import type { StickerElement } from "@/types/timeline";
+import type { TimelineTrack } from "@/types/timeline";
+import { getStickerTiming } from "./sticker-timeline-query";
+import { resolveStickerGeometry } from "./sticker-geometry";
+import {
+	DEFAULT_STICKER_PERSPECTIVE,
+	getStickerClipAnimationState,
+} from "./sticker-clip-animation";
+import { drawStickerWithPerspective } from "./sticker-canvas-perspective";
+import { resolveTimelineStickerVisualAtTime } from "./timeline-sticker-visual";
 
 /**
  * Interface for sticker render options
@@ -15,7 +25,10 @@ export interface StickerRenderOptions {
 	canvasWidth: number;
 	canvasHeight: number;
 	currentTime?: number;
+	fps?: number;
 	opacity?: number;
+	timelineElement?: StickerElement;
+	tracks?: TimelineTrack[];
 }
 
 /**
@@ -46,6 +59,8 @@ export class StickerExportHelper {
 		options: StickerRenderOptions
 	): Promise<StickerRenderResult> {
 		const { canvasWidth, canvasHeight } = options;
+		const timelineElement =
+			stickers.length === 1 ? options.timelineElement : undefined;
 
 		const result: StickerRenderResult = {
 			attempted: 0,
@@ -76,7 +91,11 @@ export class StickerExportHelper {
 					sticker,
 					mediaItem,
 					canvasWidth,
-					canvasHeight
+					canvasHeight,
+					options.currentTime ?? 0,
+					options.fps ?? 30,
+					timelineElement,
+					options.tracks
 				);
 				result.successful++;
 			} catch (error) {
@@ -120,7 +139,11 @@ export class StickerExportHelper {
 		sticker: OverlaySticker,
 		mediaItem: MediaItem,
 		canvasWidth: number,
-		canvasHeight: number
+		canvasHeight: number,
+		currentTime: number,
+		fps: number,
+		timelineElement?: StickerElement,
+		tracks?: TimelineTrack[]
 	): Promise<void> {
 		// Skip if no URL
 		if (!mediaItem.url) {
@@ -130,40 +153,70 @@ export class StickerExportHelper {
 		// Load image from cache or create new
 		const img = await this.loadImage(mediaItem.url);
 
-		// FIX: Calculate dimensions preserving aspect ratio
-		// Use the smaller dimension (height) as reference to maintain square aspect ratio for stickers
-		const baseSize = Math.min(canvasWidth, canvasHeight);
-		const width = (sticker.size.width / 100) * baseSize;
-		const height = (sticker.size.height / 100) * baseSize;
-
-		// Calculate pixel position from percentage
-		// IMPORTANT: position.x and position.y represent the CENTER of the sticker (not top-left)
-		// This matches the preview which uses transform: translate(-50%, -50%)
-		const centerX = (sticker.position.x / 100) * canvasWidth;
-		const centerY = (sticker.position.y / 100) * canvasHeight;
-
-		// Calculate top-left corner for positioning
-		const x = centerX - width / 2;
-		const y = centerY - height / 2;
+		const animationElement =
+			timelineElement ?? getStickerTiming(sticker.id)?.element;
+		const resolvedSticker = animationElement
+			? resolveTimelineStickerVisualAtTime({
+					element: animationElement,
+					fallback: sticker,
+					currentTime,
+					fps,
+					tracks,
+					canvasWidth,
+					canvasHeight,
+				})
+			: sticker;
+		const geometry = resolveStickerGeometry({
+			position: resolvedSticker.position,
+			size: resolvedSticker.size,
+			canvasWidth,
+			canvasHeight,
+		});
+		const animation = animationElement
+			? getStickerClipAnimationState({
+					element: animationElement,
+					currentTime,
+					canvasWidth,
+					canvasHeight,
+				})
+			: {
+					opacity: 1,
+					scale: 1,
+					offsetX: 0,
+					offsetY: 0,
+					rotation: 0,
+				};
 
 		// Save context state
 		ctx.save();
 
 		// Apply transformations
-		ctx.globalAlpha = sticker.opacity;
+		ctx.globalAlpha = resolvedSticker.opacity * animation.opacity;
 
-		// Translate to center of sticker for rotation
-		// (centerX and centerY already calculated above from position percentages)
-		ctx.translate(centerX, centerY);
+		ctx.translate(
+			geometry.centerX + animation.offsetX,
+			geometry.centerY + animation.offsetY
+		);
 
-		// Apply rotation
-		if (sticker.rotation !== 0) {
-			ctx.rotate((sticker.rotation * Math.PI) / 180);
+		const rotation = resolvedSticker.rotation + animation.rotation;
+		if (rotation !== 0) {
+			ctx.rotate((rotation * Math.PI) / 180);
+		}
+		if (animation.scale !== 1) {
+			ctx.scale(animation.scale, animation.scale);
 		}
 
-		// Draw image centered at origin
 		try {
-			ctx.drawImage(img, -width / 2, -height / 2, width, height);
+			drawStickerWithPerspective({
+				ctx,
+				image: img,
+				sourceWidth: img.naturalWidth || geometry.pixelWidth,
+				sourceHeight: img.naturalHeight || geometry.pixelHeight,
+				width: geometry.pixelWidth,
+				height: geometry.pixelHeight,
+				perspective: resolvedSticker.perspective ?? DEFAULT_STICKER_PERSPECTIVE,
+				maintainAspectRatio: resolvedSticker.maintainAspectRatio,
+			});
 		} catch (error) {
 			// Restore context before re-throwing
 			ctx.restore();

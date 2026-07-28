@@ -37,6 +37,10 @@ import {
 import { createAudioLibraryAssetEntry } from "@/lib/assets/freesound-asset";
 import AudioWaveform from "@/components/editor/audio-waveform";
 import {
+	audioArtworkSeed,
+	renderAudioArtworkDataUrl,
+} from "@/lib/audio/audio-artwork";
+import {
 	AUDIO_LIBRARY_DRAG_MIME,
 	serializeAudioLibraryDrag,
 } from "@/lib/audio/audio-library-drag";
@@ -97,7 +101,21 @@ export function AudioLibraryItem({
 	const [isAdding, setIsAdding] = useState(false);
 	const [isDragging, setIsDragging] = useState(false);
 	const [artworkFailed, setArtworkFailed] = useState(false);
-	const artworkUrl = artworkFailed ? undefined : sound.artworkUrl;
+	const generatedArtworkUrl = useMemo(() => {
+		if (sound.artworkUrl && !artworkFailed) return undefined;
+		return renderAudioArtworkDataUrl({
+			seed: audioArtworkSeed({ value: `${sound.id}:${sound.name}` }),
+			colors: sound.artworkColors,
+		});
+	}, [
+		artworkFailed,
+		sound.artworkColors,
+		sound.artworkUrl,
+		sound.id,
+		sound.name,
+	]);
+	const artworkUrl =
+		sound.artworkUrl && !artworkFailed ? sound.artworkUrl : generatedArtworkUrl;
 	// Hover-to-play: start the preview after a short dwell on the artwork so
 	// browsing feels like JianYing without firing on incidental pointer moves.
 	const hoverPlayTimerRef = useRef<ReturnType<typeof setTimeout> | undefined>(

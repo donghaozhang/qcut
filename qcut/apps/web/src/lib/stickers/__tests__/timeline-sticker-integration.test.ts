@@ -63,6 +63,7 @@ describe("TimelineStickerIntegration", () => {
 				stickerId: "sticker-1",
 				startTime: 2,
 				duration: 5,
+				keyframes: {},
 			}),
 		]);
 	});

@@ -1,3 +1,5 @@
+import { buildBalancedSegmentExpression } from "./balanced-segment-expression";
+
 export interface NumericKeyframe {
 	frame: number;
 	value: number;
@@ -40,8 +42,10 @@ export function buildNumericKeyframeExpression({
 	if (sorted.length === 1) return String(sorted[0].value);
 	const normalizedFps = Math.max(1, fps || 30);
 	const timeAt = ({ frame }: { frame: number }) => frame / normalizedFps;
-	let expression = String(sorted[sorted.length - 1]?.value ?? fallback);
-	for (let index = sorted.length - 2; index >= 0; index -= 1) {
+	const buildSegment = ({ index }: { index: number }): string => {
+		if (index === sorted.length - 1) {
+			return String(sorted[index]?.value ?? fallback);
+		}
 		const from = sorted[index];
 		const to = sorted[index + 1];
 		const start = timeAt(from);
@@ -49,8 +53,15 @@ export function buildNumericKeyframeExpression({
 		const duration = Math.max(0.001, end - start);
 		const progress = `(${timeVariable}-${start})/${duration}`;
 		const eased = easingExpression({ progress, easing: to.easing });
-		const value = `(${from.value})+((${to.value})-(${from.value}))*(${eased})`;
-		expression = `if(lt(${timeVariable},${end}),${value},${expression})`;
-	}
+		return `(${from.value})+((${to.value})-(${from.value}))*(${eased})`;
+	};
+	const expression = buildBalancedSegmentExpression({
+		segmentCount: sorted.length,
+		timeVariable,
+		getBoundary: ({ rightSegmentIndex }) =>
+			String(timeAt(sorted[rightSegmentIndex])),
+		getSegmentExpression: ({ segmentIndex }) =>
+			buildSegment({ index: segmentIndex }),
+	});
 	return `if(lt(${timeVariable},${timeAt(sorted[0])}),${sorted[0].value},${expression})`;
 }

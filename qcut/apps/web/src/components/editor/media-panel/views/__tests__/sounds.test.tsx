@@ -8,18 +8,33 @@ import { useMediaStore } from "@/stores/media/media-store";
 import { useSoundsStore } from "@/stores/media/sounds-store";
 import { useTimelineStore } from "@/stores/timeline/timeline-store";
 import type { MediaElement, TimelineTrack } from "@/types/timeline";
+import type { SoundEffect } from "@/types/sounds";
 import { SoundsView } from "../sounds";
 
-vi.mock("@/hooks/media/use-audio-library-search", () => ({
-	useAudioLibrarySearch: () => ({
+interface AudioSearchMockResult {
+	results: SoundEffect[];
+	isLoading: boolean;
+	isLoadingMore: boolean;
+	error?: string;
+	hasNextPage: boolean;
+	totalCount: number;
+	loadMore: () => Promise<boolean>;
+}
+
+const audioSearchMock = vi.hoisted(() => ({
+	current: {
 		results: [],
 		isLoading: false,
 		isLoadingMore: false,
 		error: undefined,
 		hasNextPage: false,
 		totalCount: 0,
-		loadMore: vi.fn(),
-	}),
+		loadMore: vi.fn(async () => false),
+	} as AudioSearchMockResult,
+}));
+
+vi.mock("@/hooks/media/use-audio-library-search", () => ({
+	useAudioLibrarySearch: () => audioSearchMock.current,
 }));
 
 vi.mock("@/hooks/media/use-audio-preview", () => ({
@@ -37,6 +52,12 @@ vi.mock("@/hooks/media/use-audio-preview", () => ({
 	}),
 }));
 
+vi.mock("@/lib/audio/audio-artwork", () => ({
+	audioArtworkSeed: ({ value }: { value: string }) => value.length,
+	renderAudioArtworkDataUrl: ({ seed }: { seed: number }) =>
+		`data:image/webp;base64,generated-${seed}`,
+}));
+
 vi.mock("../sounds-ai-voice", () => ({
 	AIVoiceView: () => <div>AI voice view</div>,
 }));
@@ -45,7 +66,7 @@ vi.mock("../sounds-ai-music", () => ({
 	AiMusicView: () => <div>AI music view</div>,
 }));
 
-const AUDIO_PAGE_SIZE = 24;
+const AUDIO_VISIBLE_BATCH_SIZE = 60;
 
 /** A catalog large enough that mounting all of it would be the bug. */
 const EXTENDED_CATALOG = Array.from({ length: 90 }, (_, index) => ({
@@ -105,6 +126,15 @@ describe("SoundsView", () => {
 
 	beforeEach(() => {
 		extendedCatalog.tracks = [];
+		audioSearchMock.current = {
+			results: [],
+			isLoading: false,
+			isLoadingMore: false,
+			error: undefined,
+			hasNextPage: false,
+			totalCount: 0,
+			loadMore: vi.fn(async () => false),
+		};
 		localStorage.clear();
 		useLocaleStore.getState().setLocale({ locale: "zh" });
 		useMediaPanelStore.setState({ activeSoundsTab: "music-latest" });
@@ -176,7 +206,7 @@ describe("SoundsView", () => {
 		).toBeVisible();
 	});
 
-	it("renders cover artwork and falls back to the gradient on error", () => {
+	it("renders cover artwork and generates a replacement on error", () => {
 		render(<SoundsView />);
 
 		const artwork = screen.getByTestId("audio-artwork-music--1002");
@@ -186,9 +216,20 @@ describe("SoundsView", () => {
 		);
 
 		fireEvent.error(artwork);
-		expect(
-			screen.queryByTestId("audio-artwork-music--1002")
-		).not.toBeInTheDocument();
+		expect(screen.getByTestId("audio-artwork-music--1002")).toHaveAttribute(
+			"src",
+			expect.stringMatching(/^data:image\/webp;base64,generated-/)
+		);
+	});
+
+	it("generates cover artwork when catalog metadata has no image", () => {
+		extendedCatalog.tracks = EXTENDED_CATALOG;
+		render(<SoundsView />);
+
+		expect(screen.getByTestId("audio-artwork-music--1000001")).toHaveAttribute(
+			"src",
+			expect.stringMatching(/^data:image\/webp;base64,generated-/)
+		);
 	});
 
 	it("shows the artist source on every card", () => {
@@ -382,19 +423,62 @@ describe("SoundsView", () => {
 		});
 	});
 
-	// Each card mounts a waveform that downloads and decodes the whole track, so
-	// a category holding the full music library must not mount every match.
-	it("reveals the catalog a page at a time instead of all at once", () => {
+	it("reveals the catalog in larger bounded batches", () => {
 		extendedCatalog.tracks = EXTENDED_CATALOG;
 		render(<SoundsView />);
 
-		expect(mountedMusicCards()).toBe(AUDIO_PAGE_SIZE);
+		expect(mountedMusicCards()).toBe(AUDIO_VISIBLE_BATCH_SIZE);
 		// The count still reports the whole catalog, not just what is mounted.
 		expect(screen.getByText(`${totalMusicTracks()} 项`)).toBeVisible();
 
 		fireEvent.click(screen.getByRole("button", { name: "加载更多" }));
 
-		expect(mountedMusicCards()).toBe(AUDIO_PAGE_SIZE * 2);
+		expect(mountedMusicCards()).toBe(
+			Math.min(totalMusicTracks(), AUDIO_VISIBLE_BATCH_SIZE * 2)
+		);
+	});
+
+	it("reveals a newly fetched remote page with one load-more action", async () => {
+		const bundledMusicCount = BUILT_IN_AUDIO.filter(
+			(sound) => sound.kind === "music"
+		).length;
+		const firstRemotePage = EXTENDED_CATALOG.slice(
+			0,
+			AUDIO_VISIBLE_BATCH_SIZE - bundledMusicCount
+		);
+		const secondRemotePage = EXTENDED_CATALOG.slice(
+			firstRemotePage.length,
+			firstRemotePage.length + 24
+		);
+		const loadMore = vi.fn(async () => true);
+		audioSearchMock.current = {
+			results: firstRemotePage,
+			isLoading: false,
+			isLoadingMore: false,
+			error: undefined,
+			hasNextPage: true,
+			totalCount: firstRemotePage.length + secondRemotePage.length,
+			loadMore,
+		};
+		const { rerender } = render(<SoundsView />);
+
+		expect(mountedMusicCards()).toBe(AUDIO_VISIBLE_BATCH_SIZE);
+		await act(async () => {
+			fireEvent.click(screen.getByRole("button", { name: "加载更多" }));
+			await Promise.resolve();
+		});
+		expect(loadMore).toHaveBeenCalledOnce();
+
+		audioSearchMock.current = {
+			...audioSearchMock.current,
+			results: [...firstRemotePage, ...secondRemotePage],
+			hasNextPage: false,
+		};
+		rerender(<SoundsView />);
+
+		expect(mountedMusicCards()).toBe(
+			bundledMusicCount + firstRemotePage.length + secondRemotePage.length
+		);
 	});
 
 	// Drawing a real waveform downloads and decodes the whole track, so a grid
@@ -404,15 +488,18 @@ describe("SoundsView", () => {
 		extendedCatalog.tracks = EXTENDED_CATALOG;
 		render(<SoundsView />);
 
-		const remoteCards = EXTENDED_CATALOG.map((track) =>
-			document.querySelector(
-				`[data-testid="audio-library-item-music-${track.id}"]`
-			)
-		).filter(Boolean);
+		const remoteTrackTestIds = new Set(
+			EXTENDED_CATALOG.map((track) => `audio-library-item-music-${track.id}`)
+		);
+		const remoteCards = screen
+			.getAllByTestId(/^audio-library-item-music-/)
+			.filter((card) =>
+				remoteTrackTestIds.has(card.getAttribute("data-testid") ?? "")
+			);
 
 		expect(remoteCards.length).toBeGreaterThan(0);
 		for (const card of remoteCards) {
-			expect(card?.querySelector('[data-testid="audio-waveform"]')).toBeNull();
+			expect(card.querySelector('[data-testid="audio-waveform"]')).toBeNull();
 		}
 	});
 
