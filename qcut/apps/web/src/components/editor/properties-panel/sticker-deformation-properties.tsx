@@ -57,7 +57,7 @@ export function StickerDeformationProperties({
 										<Input
 											type="number"
 											aria-label={t("mediaProperties.value", { label })}
-											value={Math.round(perspective[key] * 100)}
+											value={Math.round(perspective[key] * 1000) / 10}
 											min={0}
 											max={100}
 											step={0.1}
