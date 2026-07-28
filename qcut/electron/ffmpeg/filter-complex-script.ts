@@ -1,0 +1,93 @@
+import { randomUUID } from "node:crypto";
+import fs from "node:fs";
+import os from "node:os";
+import path from "node:path";
+
+export interface PreparedFFmpegFilterScripts {
+	args: string[];
+	scriptPaths: string[];
+	cleanup: () => void;
+}
+
+const MAX_INLINE_FFMPEG_ARGUMENT_CODE_UNITS = 16_000;
+
+export function prepareFFmpegFilterComplexScripts({
+	args,
+	temporaryDirectory = os.tmpdir(),
+}: {
+	args: readonly string[];
+	temporaryDirectory?: string;
+}): PreparedFFmpegFilterScripts {
+	let filterCount = 0;
+	for (let index = 0; index < args.length; index += 1) {
+		if (args[index] !== "-filter_complex") continue;
+		filterCount += 1;
+		if (typeof args[index + 1] !== "string") {
+			throw new Error("FFmpeg filter_complex is missing its graph");
+		}
+		index += 1;
+	}
+	const estimatedCommandCodeUnits = args.reduce(
+		(total, argument) => total + argument.length + 3,
+		0
+	);
+	if (filterCount === 0) {
+		return {
+			args: [...args],
+			scriptPaths: [],
+			cleanup: () => undefined,
+		};
+	}
+	if (estimatedCommandCodeUnits <= MAX_INLINE_FFMPEG_ARGUMENT_CODE_UNITS) {
+		return {
+			args: [...args],
+			scriptPaths: [],
+			cleanup: () => undefined,
+		};
+	}
+
+	const directory = fs.mkdtempSync(
+		path.join(temporaryDirectory, "qcut-ffmpeg-filter-")
+	);
+	const scriptPaths: string[] = [];
+	let cleaned = false;
+	const cleanup = () => {
+		if (cleaned) return;
+		try {
+			fs.rmSync(directory, { recursive: true, force: true });
+			cleaned = true;
+		} catch {
+			return;
+		}
+	};
+
+	try {
+		const preparedArgs: string[] = [];
+		for (let index = 0; index < args.length; index += 1) {
+			const argument = args[index];
+			if (argument !== "-filter_complex") {
+				preparedArgs.push(argument);
+				continue;
+			}
+			const filterGraph = args[index + 1];
+			if (typeof filterGraph !== "string") {
+				throw new Error("FFmpeg filter_complex is missing its graph");
+			}
+			const scriptPath = path.join(
+				directory,
+				`graph-${scriptPaths.length}-${randomUUID()}.ffscript`
+			);
+			fs.writeFileSync(scriptPath, filterGraph, {
+				encoding: "utf8",
+				mode: 0o600,
+			});
+			scriptPaths.push(scriptPath);
+			preparedArgs.push("-filter_complex_script", scriptPath);
+			index += 1;
+		}
+		return { args: preparedArgs, scriptPaths, cleanup };
+	} catch (error) {
+		cleanup();
+		throw error;
+	}
+}
