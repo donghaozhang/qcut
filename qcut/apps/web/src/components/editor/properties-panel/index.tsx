@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useRef } from "react";
 import { useAsyncMediaItems } from "@/hooks/media/use-async-media-store";
 import { useTimelineStore } from "@/stores/timeline/timeline-store";
+import { useStickersOverlayStore } from "@/stores/stickers-overlay-store";
 import type { TimelineElement, CaptionElement } from "@/types/timeline";
 import { ScrollArea } from "../../ui/scroll-area";
 import { AudioProperties } from "./audio-properties";
@@ -39,11 +40,15 @@ import {
 } from "@/stores/screen-recording-store";
 import { TransitionProperties } from "./transition-properties";
 import { AdjustmentProperties } from "./adjustment-properties";
+import { StickerProperties } from "./sticker-properties";
 import { useTranslation } from "@/lib/i18n";
 
 export function PropertiesPanel() {
 	const { t } = useTranslation();
 	const { selectedElements, selectedTransition, tracks } = useTimelineStore();
+	const selectedStickerId = useStickersOverlayStore(
+		(state) => state.selectedStickerId
+	);
 	const {
 		mediaItems,
 		loading: mediaItemsLoading,
@@ -62,9 +67,13 @@ export function PropertiesPanel() {
 	const setPanelView = useExportStore((s) => s.setPanelView);
 	const selectionSignature = selectedTransition
 		? `${selectedTransition.trackId}:transition:${selectedTransition.transitionId}`
-		: selectedElements
-				.map(({ trackId, elementId }) => `${trackId}:${elementId}`)
-				.join("|");
+		: selectedElements.length > 0
+			? selectedElements
+					.map(({ trackId, elementId }) => `${trackId}:${elementId}`)
+					.join("|")
+			: selectedStickerId
+				? `sticker:${selectedStickerId}`
+				: "";
 	const previousSelectionSignature = useRef("");
 	useEffect(() => {
 		if (
@@ -96,6 +105,18 @@ export function PropertiesPanel() {
 		);
 		return track && transition ? { track, transition } : null;
 	}, [selectedTransition, tracks]);
+	const resolvedOverlaySticker = useMemo(() => {
+		if (!selectedStickerId || resolvedSelections.length > 0) return null;
+		for (const track of tracks) {
+			const element = track.elements.find(
+				(candidate) =>
+					candidate.type === "sticker" &&
+					candidate.stickerId === selectedStickerId
+			);
+			if (element?.type === "sticker") return { trackId: track.id, element };
+		}
+		return null;
+	}, [resolvedSelections.length, selectedStickerId, tracks]);
 	const audioBatchSelections = useMemo(
 		() =>
 			resolvedSelections.flatMap(({ trackId, element }) => {
@@ -220,6 +241,10 @@ export function PropertiesPanel() {
 			return <AdjustmentProperties element={element} trackId={trackId} />;
 		}
 
+		if (element.type === "sticker") {
+			return <StickerProperties element={element} trackId={trackId} />;
+		}
+
 		if (element.type === "captions" || (element as any).type === "caption") {
 			console.log(
 				"[CaptionDebug] Properties panel rendering CaptionProperties for element:",
@@ -296,6 +321,14 @@ export function PropertiesPanel() {
 										已选择 {resolvedSelections.length} 个不同类型的片段
 									</div>
 								)}
+								{showScreenRecordingPanel ? <ScreenRecordingPanel /> : null}
+							</div>
+						) : resolvedOverlaySticker ? (
+							<div className="min-w-0 space-y-4 overflow-x-hidden p-5">
+								<StickerProperties
+									element={resolvedOverlaySticker.element}
+									trackId={resolvedOverlaySticker.trackId}
+								/>
 								{showScreenRecordingPanel ? <ScreenRecordingPanel /> : null}
 							</div>
 						) : showScreenRecordingPanel ? (
