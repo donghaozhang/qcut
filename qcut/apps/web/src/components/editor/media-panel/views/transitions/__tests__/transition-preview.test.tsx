@@ -16,6 +16,7 @@ const slideLeft = requirePreset({ presetId: "slide-left" });
 const zoomBlur = requirePreset({ presetId: "zoom-blur" });
 const pixelCollapse = requirePreset({ presetId: "pixel-collapse" });
 const pageFlipLeft = requirePreset({ presetId: "page-flip-left" });
+const inkBleed = requirePreset({ presetId: "ink-bleed" });
 
 let nextRafId: number;
 let rafCallbacks: Map<number, FrameRequestCallback>;
@@ -190,5 +191,18 @@ describe("TransitionPreview", () => {
 		const { to } = getLayers({ container: pageRender.container });
 		expect(to.style.transform).toContain("perspective(900px)");
 		expect(to.style.transform).toContain("rotateY(");
+	});
+
+	it("preserves shaped masks in the animated card preview", () => {
+		const { container } = render(
+			<TransitionPreview preset={inkBleed} isPlaying={true} />
+		);
+
+		runFrame({ timestamp: 1000 });
+		runFrame({ timestamp: 1400 });
+
+		const { to } = getLayers({ container });
+		expect(to.style.maskImage).toContain("radial-gradient");
+		expect(to.style.maskImage).not.toContain("repeating-conic-gradient");
 	});
 });

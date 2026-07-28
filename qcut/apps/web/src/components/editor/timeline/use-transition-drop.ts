@@ -4,10 +4,12 @@ import { TIMELINE_CONSTANTS } from "@/constants/timeline-constants";
 import { getTimelineElementDuration } from "@/lib/timeline";
 import { useTimelineStore } from "@/stores/timeline/timeline-store";
 import { isVideoTransitionPair } from "@/lib/transitions/video-transition-eligibility";
+import { isClipTransitionMaskShape } from "@qcut/editor-core/timeline";
 import {
 	findClosestMediaSeam,
 	isClipTransitionType,
 	type ClipTransitionDirection,
+	type ClipTransitionMaskShape,
 	type ClipTransitionTuning,
 	type ClipTransitionType,
 	type TimelineTrack,
@@ -21,6 +23,7 @@ interface TransitionDragPayload {
 	type: ClipTransitionType;
 	direction?: ClipTransitionDirection;
 	tuning?: ClipTransitionTuning;
+	maskShape?: ClipTransitionMaskShape;
 	defaultDuration: number;
 }
 
@@ -59,6 +62,16 @@ function isDirection(value: unknown): value is ClipTransitionDirection {
 	);
 }
 
+function parseMaskShape({
+	value,
+}: {
+	value: unknown;
+}): ClipTransitionMaskShape | null | undefined {
+	if (value === undefined) return;
+	const candidate = { value };
+	return isClipTransitionMaskShape(candidate) ? candidate.value : null;
+}
+
 function parseTransitionPayload({
 	data,
 }: {
@@ -69,13 +82,16 @@ function parseTransitionPayload({
 		if (!parsed || typeof parsed !== "object") return null;
 		const candidate = parsed as Record<string, unknown>;
 		const typeCandidate = { value: candidate.type };
+		const maskShape = parseMaskShape({ value: candidate.maskShape });
 		if (
 			candidate.kind !== "qcut-transition-preset" ||
 			typeof candidate.id !== "string" ||
 			!isClipTransitionType(typeCandidate) ||
 			typeof candidate.defaultDuration !== "number" ||
 			!Number.isFinite(candidate.defaultDuration) ||
-			(candidate.direction !== undefined && !isDirection(candidate.direction))
+			(candidate.direction !== undefined &&
+				!isDirection(candidate.direction)) ||
+			maskShape === null
 		) {
 			return null;
 		}
@@ -86,6 +102,7 @@ function parseTransitionPayload({
 			type: typeCandidate.value,
 			direction: candidate.direction,
 			tuning: parseTuning({ value: candidate.tuning }),
+			maskShape,
 			defaultDuration: candidate.defaultDuration,
 		};
 	} catch {
@@ -163,6 +180,7 @@ export function useTransitionDrop({
 			type: payload.type,
 			direction: payload.direction,
 			tuning: payload.tuning,
+			maskShape: payload.maskShape,
 			duration: payload.defaultDuration,
 			easing: "easeInOut",
 		});

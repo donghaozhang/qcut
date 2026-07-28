@@ -125,11 +125,15 @@ const maskParityNatural = categoryExpansion({
 		[
 			"ink-bleed",
 			"Ink Bleed",
-			"水墨晕染",
+			"墨水晕染",
 			"texture",
 			"texture-mask",
 			0.8,
-			{ maskShape: "ink", tags: ["ink", "水墨"], popular: true },
+			{
+				maskShape: "ink",
+				tags: ["ink", "水墨", "水墨晕染"],
+				popular: true,
+			},
 		],
 		[
 			"cloud-drift-wipe",

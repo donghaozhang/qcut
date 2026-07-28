@@ -76,6 +76,7 @@ function encodeDragPayload({
 		type: config.type,
 		direction: config.direction,
 		tuning: config.tuning,
+		maskShape: config.maskShape,
 		defaultDuration: preset.defaultDuration,
 	});
 }

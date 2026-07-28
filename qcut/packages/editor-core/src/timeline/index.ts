@@ -37,6 +37,7 @@ export {
 
 export {
 	CLIP_TRANSITION_MAX_DURATION_SECONDS,
+	CLIP_TRANSITION_MASK_SHAPES,
 	CLIP_TRANSITION_MIN_DURATION_SECONDS,
 	CLIP_TRANSITION_TYPES,
 	TRANSITION_SEAM_TOLERANCE_SECONDS,
@@ -44,6 +45,7 @@ export {
 	findClosestMediaSeam,
 	getAudioCrossfadeMaxDuration,
 	getTransitionMaxDuration,
+	isClipTransitionMaskShape,
 	isClipTransitionType,
 	reconcileTrackAudioCrossfades,
 	reconcileTimelineTransitions,

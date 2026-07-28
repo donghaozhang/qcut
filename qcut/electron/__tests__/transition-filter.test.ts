@@ -61,19 +61,27 @@ describe("FFmpeg transition filters", () => {
 			).not.toBeNull();
 			if (!config) continue;
 
+			const configuredTransition: VideoTransition = {
+				...transition({
+					type: config.type,
+					direction: config.direction,
+					duration: preset.defaultDuration,
+					tuning: config.tuning,
+				}),
+				presetId: preset.id,
+				maskShape: config.maskShape,
+			};
 			const filter = buildXfadeTransitionFilter({
-				transition: {
-					...transition({
-						type: config.type,
-						direction: config.direction,
-						duration: preset.defaultDuration,
-						tuning: config.tuning,
-					}),
-					presetId: preset.id,
-				},
+				transition: configuredTransition,
 			});
 			expect(filter.transition).toBe("custom");
 			expect(filter.expression.length).toBeGreaterThan(0);
+			if (config.maskShape) {
+				const genericTextureFilter = buildXfadeTransitionFilter({
+					transition: { ...configuredTransition, maskShape: undefined },
+				});
+				expect(filter.expression).not.toBe(genericTextureFilter.expression);
+			}
 		}
 	});
 

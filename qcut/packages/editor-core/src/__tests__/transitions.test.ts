@@ -6,8 +6,10 @@ import {
 	reconcileTrackTransitions,
 	resolveClipTransition,
 	CLIP_TRANSITION_MAX_DURATION_SECONDS,
+	CLIP_TRANSITION_MASK_SHAPES,
 	CLIP_TRANSITION_MIN_DURATION_SECONDS,
 	CLIP_TRANSITION_TYPES,
+	isClipTransitionMaskShape,
 	isClipTransitionType,
 } from "../timeline/transitions.js";
 import type {
@@ -104,6 +106,19 @@ describe("clip transitions", () => {
 		}
 		expect(isClipTransitionType({ value: "not-a-transition" })).toBe(false);
 		expect(isClipTransitionType({ value: null })).toBe(false);
+	});
+
+	it("recognizes every persisted transition mask shape", () => {
+		expect(CLIP_TRANSITION_MASK_SHAPES).toHaveLength(14);
+		expect(new Set(CLIP_TRANSITION_MASK_SHAPES).size).toBe(
+			CLIP_TRANSITION_MASK_SHAPES.length
+		);
+		for (const shape of CLIP_TRANSITION_MASK_SHAPES) {
+			expect(isClipTransitionMaskShape({ value: shape })).toBe(true);
+		}
+		expect(isClipTransitionMaskShape({ value: "not-a-mask" })).toBe(false);
+		expect(isClipTransitionMaskShape({ value: null })).toBe(false);
+		expect(isClipTransitionMaskShape({ value: 42 })).toBe(false);
 	});
 
 	it("resolves a transition window centered on a touching cut", () => {

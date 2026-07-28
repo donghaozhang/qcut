@@ -262,6 +262,13 @@ describe("getClipTransitionPresetConfig", () => {
 				tuning: { intensity: 0.7, tint: "#ffd38a" },
 			},
 		],
+		[
+			"circle-expand",
+			{
+				type: "texture-mask",
+				maskShape: "circle",
+			},
+		],
 	] as const)("maps %s to a real timeline configuration", (presetId, expected) => {
 		expect(
 			getClipTransitionPresetConfig({ preset: requirePreset({ presetId }) })
@@ -291,6 +298,7 @@ describe("getClipTransitionPresetConfig", () => {
 						type: config.type,
 						direction: config.direction,
 						tuning: config.tuning,
+						maskShape: config.maskShape,
 						duration: preset.defaultDuration,
 						easing: "easeInOut",
 					},
@@ -302,6 +310,12 @@ describe("getClipTransitionPresetConfig", () => {
 				expect(Number.isFinite(presentation.opacity)).toBe(true);
 				expect(Number.isFinite(presentation.offsetX)).toBe(true);
 				expect(Number.isFinite(presentation.offsetY)).toBe(true);
+				if (config.maskShape && role === "to") {
+					expect(
+						presentation.clipPath ?? presentation.maskImage,
+						`${preset.id} did not use its ${config.maskShape} mask`
+					).toBeDefined();
+				}
 			}
 		}
 	});
