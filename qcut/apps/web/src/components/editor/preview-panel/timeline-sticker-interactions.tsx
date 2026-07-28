@@ -277,13 +277,7 @@ function clamp({
 }
 
 export function TimelineStickerKeyboardController() {
-	const selectedStickerId = useStickersOverlayStore(
-		(state) => state.selectedStickerId
-	);
 	const selectSticker = useStickersOverlayStore((state) => state.selectSticker);
-	const removeOverlaySticker = useStickersOverlayStore(
-		(state) => state.removeOverlaySticker
-	);
 
 	useEffect(() => {
 		const onKeyDown = (event: KeyboardEvent) => {
@@ -299,6 +293,8 @@ export function TimelineStickerKeyboardController() {
 				selectSticker(null);
 				return;
 			}
+			const { selectedStickerId, removeOverlaySticker } =
+				useStickersOverlayStore.getState();
 			if (
 				selectedStickerId &&
 				(event.key === "Delete" || event.key === "Backspace")
@@ -309,7 +305,7 @@ export function TimelineStickerKeyboardController() {
 		};
 		window.addEventListener("keydown", onKeyDown);
 		return () => window.removeEventListener("keydown", onKeyDown);
-	}, [removeOverlaySticker, selectSticker, selectedStickerId]);
+	}, [selectSticker]);
 
 	return null;
 }
