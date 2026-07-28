@@ -7,10 +7,26 @@ import { removeTemporaryDirectory } from "./temporary-files.js";
 export interface PreparedFFmpegFilterScripts {
 	args: string[];
 	scriptPaths: string[];
-	cleanup: () => void;
+	cleanup: () => Promise<boolean>;
 }
 
 const MAX_INLINE_FFMPEG_ARGUMENT_CODE_UNITS = 16_000;
+
+function retryableDirectoryCleanup({
+	directory,
+}: {
+	directory: string;
+}): () => Promise<boolean> {
+	let cleanupPromise: Promise<boolean> | undefined;
+	return () => {
+		if (cleanupPromise) return cleanupPromise;
+		cleanupPromise = removeTemporaryDirectory({ directory });
+		cleanupPromise.then((removed) => {
+			if (!removed) cleanupPromise = undefined;
+		});
+		return cleanupPromise;
+	};
+}
 
 export function prepareFFmpegFilterComplexScripts({
 	args,
@@ -36,14 +52,14 @@ export function prepareFFmpegFilterComplexScripts({
 		return {
 			args: [...args],
 			scriptPaths: [],
-			cleanup: () => undefined,
+			cleanup: async () => true,
 		};
 	}
 	if (estimatedCommandCodeUnits <= MAX_INLINE_FFMPEG_ARGUMENT_CODE_UNITS) {
 		return {
 			args: [...args],
 			scriptPaths: [],
-			cleanup: () => undefined,
+			cleanup: async () => true,
 		};
 	}
 
@@ -51,16 +67,7 @@ export function prepareFFmpegFilterComplexScripts({
 		path.join(temporaryDirectory, "qcut-ffmpeg-filter-")
 	);
 	const scriptPaths: string[] = [];
-	let cleaned = false;
-	const cleanup = () => {
-		if (cleaned) return;
-		try {
-			fs.rmSync(directory, { recursive: true, force: true });
-			cleaned = true;
-		} catch {
-			return;
-		}
-	};
+	const cleanup = retryableDirectoryCleanup({ directory });
 
 	try {
 		const preparedArgs: string[] = [];
@@ -88,7 +95,7 @@ export function prepareFFmpegFilterComplexScripts({
 		}
 		return { args: preparedArgs, scriptPaths, cleanup };
 	} catch (error) {
-		cleanup();
+		void cleanup();
 		throw error;
 	}
 }
@@ -97,7 +104,7 @@ const DEFAULT_COMMAND_LENGTH_THRESHOLD = 28_000;
 
 export interface PreparedFFmpegFilterScript {
 	args: string[];
-	cleanup: () => void;
+	cleanup: () => Promise<boolean>;
 	filterScriptPath?: string;
 }
 
@@ -127,7 +134,7 @@ export function prepareFFmpegFilterScript({
 }): PreparedFFmpegFilterScript {
 	const filterIndex = args.indexOf("-filter_complex");
 	if (filterIndex < 0) {
-		return { args, cleanup: () => undefined };
+		return { args, cleanup: async () => true };
 	}
 
 	const filterGraph = args[filterIndex + 1];
@@ -137,7 +144,7 @@ export function prepareFFmpegFilterScript({
 
 	const commandLength = estimateCommandLength({ executablePath, args });
 	if (commandLength <= commandLengthThreshold) {
-		return { args, cleanup: () => undefined };
+		return { args, cleanup: async () => true };
 	}
 
 	const scriptDirectory = fs.mkdtempSync(
@@ -154,12 +161,7 @@ export function prepareFFmpegFilterScript({
 		throw error;
 	}
 
-	let cleaned = false;
-	const cleanup = () => {
-		if (cleaned) return;
-		cleaned = true;
-		removeTemporaryDirectory({ directory: scriptDirectory });
-	};
+	const cleanup = retryableDirectoryCleanup({ directory: scriptDirectory });
 	const preparedArgs = [...args];
 	preparedArgs.splice(
 		filterIndex,

@@ -1,17 +1,38 @@
 import fs from "fs";
 
-export function removeTemporaryDirectory({
+const IMMEDIATE_REMOVAL_OPTIONS = {
+	recursive: true,
+	force: true,
+} as const;
+
+const ASYNC_REMOVAL_OPTIONS = {
+	...IMMEDIATE_REMOVAL_OPTIONS,
+	maxRetries: 5,
+	retryDelay: 100,
+} as const;
+
+export async function removeTemporaryDirectory({
 	directory,
 }: {
 	directory: string;
-}): void {
+}): Promise<boolean> {
 	try {
-		fs.rmSync(directory, { recursive: true, force: true });
-	} catch {
-		fs.rm(
-			directory,
-			{ recursive: true, force: true, maxRetries: 5, retryDelay: 100 },
-			() => undefined
-		);
+		fs.rmSync(directory, IMMEDIATE_REMOVAL_OPTIONS);
+		return true;
+	} catch (syncError) {
+		return new Promise((resolve) => {
+			fs.rm(directory, ASYNC_REMOVAL_OPTIONS, (error) => {
+				if (!error) {
+					resolve(true);
+					return;
+				}
+				console.warn("[FFmpeg] Temporary directory cleanup failed", {
+					directory,
+					syncError,
+					error,
+				});
+				resolve(false);
+			});
+		});
 	}
 }

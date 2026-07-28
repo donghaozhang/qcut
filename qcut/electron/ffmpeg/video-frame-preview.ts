@@ -26,6 +26,7 @@ const MAX_CACHE_BYTES = 64 * 1024 * 1024;
 const MAX_PREVIEW_DIMENSION = 4096;
 const PROCESS_TIMEOUT_MS = 20_000;
 const COMPOSITION_PROCESS_TIMEOUT_MS = 60_000;
+const PROCESS_CLOSE_GRACE_MS = 1_000;
 const TEMPORAL_PREROLL_SECONDS = 0.5;
 const MAX_TEXT_ASS_LAYERS = 1_000;
 const MAX_TEXT_ASS_BYTES = 16 * 1024 * 1024;
@@ -431,27 +432,90 @@ function runPreviewProcess({
 	timeoutMs?: number;
 }): Promise<Buffer> {
 	const preparedFilterScripts = prepareFFmpegFilterComplexScripts({ args });
+	const ffmpegPath = getFFmpegPath();
 	return new Promise<Buffer>((resolve, reject) => {
-		const process = spawn(getFFmpegPath(), preparedFilterScripts.args, {
-			windowsHide: true,
-			stdio: ["ignore", "pipe", "pipe"],
-		});
-		activeRequests.set(requestId, process);
-		const stdout: Buffer[] = [];
-		let stderr = "";
-		let processError: Error | undefined;
-		let timeoutError: Error | undefined;
-		let settled = false;
-		const finish = ({ error, data }: { error?: Error; data?: Buffer }) => {
-			if (settled) return;
-			settled = true;
-			clearTimeout(timer);
-			activeRequests.delete(requestId);
+		let process: ChildProcess;
+		try {
+			process = spawn(ffmpegPath, preparedFilterScripts.args, {
+				windowsHide: true,
+				stdio: ["ignore", "pipe", "pipe"],
+			});
+		} catch (error) {
+			void preparedFilterScripts.cleanup().then(() => reject(error));
+			return;
+		}
+		let requestSettled = false;
+		let processClosed = false;
+		let processTimer: ReturnType<typeof setTimeout> | undefined;
+		let closeGraceTimer: ReturnType<typeof setTimeout> | undefined;
+		let cleanupStarted = false;
+		const cleanupAfterClose = async () => {
+			if (cleanupStarted) return;
+			cleanupStarted = true;
+			const removed = await preparedFilterScripts.cleanup();
+			if (removed) return;
+			await new Promise((resolveDelay) => setTimeout(resolveDelay, 100));
+			await preparedFilterScripts.cleanup();
+		};
+		const settleRequest = ({
+			error,
+			data,
+		}: {
+			error?: Error;
+			data?: Buffer;
+		}) => {
+			if (requestSettled) return;
+			requestSettled = true;
+			if (processTimer) clearTimeout(processTimer);
+			if (closeGraceTimer) clearTimeout(closeGraceTimer);
+			if (activeRequests.get(requestId) === process) {
+				activeRequests.delete(requestId);
+			}
 			if (error) reject(error);
 			else resolve(data ?? Buffer.alloc(0));
 		};
-		const timer = setTimeout(() => {
-			timeoutError = new Error("Video frame preview timed out");
+		const finishAfterClose = ({
+			error,
+			data,
+		}: {
+			error?: Error;
+			data?: Buffer;
+		}) => {
+			processClosed = true;
+			settleRequest({ error, data });
+			void cleanupAfterClose();
+		};
+		const scheduleCloseGrace = ({ error }: { error: Error }) => {
+			if (requestSettled || processClosed || closeGraceTimer) return;
+			closeGraceTimer = setTimeout(() => {
+				try {
+					process.kill("SIGKILL");
+				} catch (error) {
+					console.warn("[FFmpeg] Failed to force-stop video frame preview", {
+						requestId,
+						error,
+					});
+				}
+				settleRequest({ error });
+			}, PROCESS_CLOSE_GRACE_MS);
+		};
+		if (!(process.stdout && process.stderr)) {
+			const pipeError = new Error("Video frame preview pipes are unavailable");
+			process.once("error", () => undefined);
+			process.once("close", () => {
+				finishAfterClose({ error: pipeError });
+			});
+			scheduleCloseGrace({ error: pipeError });
+			process.kill();
+			return;
+		}
+		activeRequests.set(requestId, process);
+		const stdout: Buffer[] = [];
+		let stderr = "";
+		let terminalError: Error | undefined;
+		processTimer = setTimeout(() => {
+			terminalError = new Error("Video frame preview timed out");
+			scheduleCloseGrace({ error: terminalError });
 			process.kill();
 		}, timeoutMs);
 		process.stdout.on("data", (chunk: Buffer) => stdout.push(chunk));
@@ -459,19 +523,16 @@ function runPreviewProcess({
 			stderr += chunk.toString();
 		});
 		process.on("error", (error) => {
-			processError = error;
+			terminalError = error;
+			scheduleCloseGrace({ error });
 		});
 		process.on("close", (code, signal) => {
-			if (timeoutError) {
-				finish({ error: timeoutError });
-				return;
-			}
-			if (processError) {
-				finish({ error: processError });
+			if (terminalError) {
+				finishAfterClose({ error: terminalError });
 				return;
 			}
 			if (code !== 0) {
-				finish({
+				finishAfterClose({
 					error: new Error(
 						signal
 							? `Video frame preview cancelled (${signal})`
@@ -482,12 +543,14 @@ function runPreviewProcess({
 			}
 			const pngData = Buffer.concat(stdout);
 			if (pngData.byteLength < 100) {
-				finish({ error: new Error("Video frame preview returned no image") });
+				finishAfterClose({
+					error: new Error("Video frame preview returned no image"),
+				});
 				return;
 			}
-			finish({ data: pngData });
+			finishAfterClose({ data: pngData });
 		});
-	}).finally(preparedFilterScripts.cleanup);
+	});
 }
 
 export async function renderVideoFramePreview({
@@ -562,7 +625,7 @@ export async function renderVideoCompositionFramePreview({
 		};
 	} finally {
 		if (preparedText.directory) {
-			removeTemporaryDirectory({ directory: preparedText.directory });
+			await removeTemporaryDirectory({ directory: preparedText.directory });
 		}
 	}
 }
