@@ -481,7 +481,10 @@ export function KeyframeEditor({
 					/>
 					<Diamond className="w-3 h-3 text-violet-400" />
 					<span className="text-xs font-medium">{propLabel}</span>
-					<span className="text-[10px] text-muted-foreground">
+					<span
+						className="text-[10px] text-muted-foreground"
+						data-testid="keyframe-count"
+					>
 						（{keyframes.length} 个关键帧）
 					</span>
 				</div>
@@ -505,6 +508,7 @@ export function KeyframeEditor({
 									size="icon"
 									className="h-5 w-5"
 									aria-label="在当前帧添加关键帧"
+									data-testid="keyframe-add-current"
 									onClick={(e) => {
 										e.stopPropagation();
 										handleAddKeyframe();

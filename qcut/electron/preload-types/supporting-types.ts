@@ -148,6 +148,7 @@ export interface ExportOptions {
 	useDirectCopy?: boolean;
 	videoSources?: VideoSource[];
 	videoTransitions?: import("../ffmpeg/types").VideoTransition[];
+	textRasterLayers?: import("../ffmpeg/types").TextRasterLayer[];
 	useVideoInput?: boolean;
 	videoInputPath?: string;
 	trimStart?: number;

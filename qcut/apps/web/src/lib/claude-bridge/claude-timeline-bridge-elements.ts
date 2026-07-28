@@ -47,6 +47,19 @@ export const applyElementChanges = ({
 			return false;
 		}
 
+		const textUpdates =
+			element.type === "text"
+				? {
+						...getClaudeTextProperties({
+							element: changes as Partial<ClaudeElement> &
+								Record<string, unknown>,
+						}),
+						...(typeof changes.content === "string"
+							? { content: changes.content }
+							: {}),
+					}
+				: null;
+
 		if (pushHistory) {
 			timelineStore.pushHistory();
 		}
@@ -112,15 +125,7 @@ export const applyElementChanges = ({
 			}
 		}
 
-		if (element.type === "text") {
-			const textUpdates: Record<string, unknown> = {
-				...getClaudeTextProperties({
-					element: changes as Partial<ClaudeElement> & Record<string, unknown>,
-				}),
-			};
-			if (typeof changes.content === "string") {
-				textUpdates.content = changes.content;
-			}
+		if (textUpdates) {
 			if (Object.keys(textUpdates).length > 0) {
 				timelineStore.updateTextElement(
 					track.id,

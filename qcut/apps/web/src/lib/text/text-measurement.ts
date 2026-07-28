@@ -1,3 +1,5 @@
+import { segmentText } from "@qcut/editor-core/text-animation";
+
 export type TextWidthMeasurer = ({
 	font,
 	text,
@@ -38,9 +40,10 @@ function estimateTextWidth({
 	fontSize: number;
 	text: string;
 }): number {
-	return Array.from(text).reduce(
+	return segmentText({ content: text, unit: "grapheme" }).reduce(
 		(width, character) =>
-			width + getFallbackCharacterAdvance({ character, fontSize }),
+			width +
+			getFallbackCharacterAdvance({ character: character.text, fontSize }),
 		0
 	);
 }
@@ -99,7 +102,9 @@ export function measureTextLineWidth({
 	const glyphWidth = Number.isFinite(measuredWidth) ? measuredWidth : 0;
 	return Math.max(
 		0,
-		glyphWidth + Math.max(0, Array.from(text).length - 1) * letterSpacing
+		glyphWidth +
+			Math.max(0, segmentText({ content: text, unit: "grapheme" }).length - 1) *
+				letterSpacing
 	);
 }
 
@@ -114,11 +119,14 @@ function splitOversizedToken({
 }): string[] {
 	const chunks: string[] = [];
 	let chunk = "";
-	for (const character of Array.from(token)) {
-		const candidate = `${chunk}${character}`;
+	for (const grapheme of segmentText({
+		content: token,
+		unit: "grapheme",
+	})) {
+		const candidate = `${chunk}${grapheme.text}`;
 		if (chunk && measureLineWidth({ text: candidate }) > maxWidth) {
 			chunks.push(chunk);
-			chunk = character;
+			chunk = grapheme.text;
 			continue;
 		}
 		chunk = candidate;

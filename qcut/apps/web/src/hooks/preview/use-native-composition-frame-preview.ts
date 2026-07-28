@@ -53,6 +53,18 @@ function isSupportedOverlayType({ type }: { type: string }): boolean {
 	);
 }
 
+function hasRasterTextAnimation({
+	active,
+}: {
+	active: ActiveElement;
+}): boolean {
+	if (active.element.type !== "text") return false;
+	const animations = active.element.textAnimations;
+	return Boolean(
+		animations && (animations.entrance || animations.exit || animations.loop)
+	);
+}
+
 function hasActiveTimelineSticker({
 	tracks,
 	timelineTime,
@@ -207,6 +219,7 @@ export function canUseNativeCompositionPreview({
 	for (const active of activeElements) {
 		if (active.element.type !== "media") {
 			if (!isSupportedOverlayType({ type: active.element.type })) return false;
+			if (hasRasterTextAnimation({ active })) return false;
 			hasCompositedOverlay = true;
 			continue;
 		}

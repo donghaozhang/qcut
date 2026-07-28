@@ -177,6 +177,8 @@ export interface ClaudeTextProperties {
 	animationType?: "none" | "fade" | "slide-up" | "slide-left";
 	animationDuration?: number;
 	animationDelay?: number;
+	/** Untrusted JSON; the renderer validates and normalizes it before use. */
+	textAnimations?: unknown;
 	keyframes?: Record<string, unknown>;
 	blendMode?:
 		| "normal"

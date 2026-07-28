@@ -23,6 +23,7 @@ import { clearAutoSaveTimer } from "./timeline-store-autosave";
 import { getTimelineDuration } from "@/lib/timeline";
 
 export interface PersistenceDeps {
+	getProjectFps?: () => number;
 	updateTracks: (tracks: TimelineTrack[]) => void;
 	updateTracksAndSave: (tracks: TimelineTrack[]) => void;
 }
@@ -33,7 +34,7 @@ export function createPersistenceOperations(
 	set: StoreSet,
 	deps: PersistenceDeps
 ) {
-	const { updateTracks, updateTracksAndSave } = deps;
+	const { getProjectFps, updateTracks, updateTracksAndSave } = deps;
 
 	return {
 		getTotalDuration: () => getTimelineDuration({ tracks: get()._tracks }),
@@ -157,7 +158,12 @@ export function createPersistenceOperations(
 					sceneId,
 				});
 				if (tracks) {
-					updateTracks(normalizeLoadedTracks({ tracks }));
+					updateTracks(
+						normalizeLoadedTracks({
+							tracks,
+							fps: getProjectFps?.() ?? 30,
+						})
+					);
 				} else {
 					// No timeline saved yet, initialize with default
 					const defaultTracks = ensureMainTrack([]);

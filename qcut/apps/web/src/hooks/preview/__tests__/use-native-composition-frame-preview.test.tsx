@@ -276,6 +276,58 @@ describe("native composition frame preview", () => {
 		).toBe(false);
 	});
 
+	it("keeps canonical text animations on the live preview renderer", () => {
+		expect(
+			canUseNativeCompositionPreview({
+				activeElements: [
+					activeVideo(),
+					{
+						element: {
+							id: "text-animated",
+							type: "text",
+							name: "Animated title",
+							startTime: 0,
+							duration: 5,
+							trimStart: 0,
+							trimEnd: 0,
+							textAnimations: {
+								schemaVersion: 1,
+								entrance: {
+									timing: {
+										duration: 0.6,
+										delay: 0,
+										easing: "easeOut",
+									},
+									sequence: {
+										unit: "all",
+										order: "forward",
+										staggerRatio: 0,
+										seed: 1,
+									},
+									target: "textAndBackground",
+									effect: {
+										kind: "scale",
+										hiddenScale: 0.2,
+										overshoot: 0.1,
+										fade: true,
+									},
+								},
+							},
+						} as ActiveElement["element"],
+						track: {
+							id: "text-track",
+							name: "Text",
+							type: "text",
+							elements: [],
+						},
+						mediaItem: null,
+					},
+				],
+				hasActiveTransition: true,
+			})
+		).toBe(false);
+	});
+
 	it("renders the exact timeline frame and exposes its object URL", async () => {
 		const { result } = renderHook(() =>
 			useNativeCompositionFramePreview(hookProps())

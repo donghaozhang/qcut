@@ -489,6 +489,7 @@ export interface TimelineStore {
 				| "animationType"
 				| "animationDuration"
 				| "animationDelay"
+				| "textAnimations"
 				| "keyframes"
 				| "blendMode"
 				| "trackingTargetId"

@@ -222,6 +222,7 @@ export const useTimelineStore = create<TimelineStore>((set, get) => {
 
 		// Persistence operations (load/save/query/thumbnail)
 		...createPersistenceOperations(get, set, {
+			getProjectFps: () => useProjectStore.getState().activeProject?.fps ?? 30,
 			updateTracks,
 			updateTracksAndSave,
 		}),

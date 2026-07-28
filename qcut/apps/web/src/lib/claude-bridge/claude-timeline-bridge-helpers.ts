@@ -8,7 +8,13 @@ import { useTimelineStore } from "@/stores/timeline/timeline-store";
 import { useProjectStore } from "@/stores/project-store";
 import { useMediaStore, type MediaItem } from "@/stores/media/media-store";
 import { platform } from "@qcut/platform-core";
-import type { TimelineElement, TimelineTrack } from "@/types/timeline";
+import { normalizeTextAnimations } from "@qcut/editor-core";
+import type {
+	TextAnimationsV1,
+	TextElement,
+	TimelineElement,
+	TimelineTrack,
+} from "@/types/timeline";
 import type {
 	ClaudeTimeline,
 	ClaudeTrack,
@@ -75,6 +81,7 @@ export const CLAUDE_TEXT_PROPERTY_KEYS = [
 	"animationType",
 	"animationDuration",
 	"animationDelay",
+	"textAnimations",
 	"keyframes",
 	"blendMode",
 	"trackingTargetId",
@@ -84,6 +91,13 @@ export const CLAUDE_TEXT_PROPERTY_KEYS = [
 ] as const satisfies readonly (keyof ClaudeTextProperties)[];
 
 type ClaudeTextPropertyKey = (typeof CLAUDE_TEXT_PROPERTY_KEYS)[number];
+
+export type ValidatedClaudeTextProperties = Omit<
+	ClaudeTextProperties,
+	"textAnimations"
+> & {
+	textAnimations?: TextAnimationsV1;
+};
 
 const isFiniteNumber = (value: unknown): boolean =>
 	typeof value === "number" && Number.isFinite(value);
@@ -140,6 +154,7 @@ const CLAUDE_TEXT_PROPERTY_VALIDATORS: Record<
 	animationType: oneOf("none", "fade", "slide-up", "slide-left"),
 	animationDuration: isFiniteNumber,
 	animationDelay: isFiniteNumber,
+	textAnimations: isPlainObject,
 	keyframes: isPlainObject,
 	blendMode: oneOf(
 		"normal",
@@ -155,17 +170,62 @@ const CLAUDE_TEXT_PROPERTY_VALIDATORS: Record<
 	trackingRotation: isBoolean,
 };
 
+export function normalizeClaudeTextAnimations({
+	elementId,
+	fps,
+	value,
+}: {
+	elementId: string;
+	fps: number;
+	value: unknown;
+}): TextAnimationsV1 {
+	const normalization = normalizeTextAnimations({
+		element: {
+			id: elementId,
+			type: "text",
+			textAnimations: value as TextAnimationsV1,
+		} as TextElement,
+		fps,
+	});
+	if (normalization.source === "unsupported") {
+		const schemaVersion = isPlainObject(value)
+			? (value as Record<string, unknown>).schemaVersion
+			: undefined;
+		throw new Error(
+			`Unsupported QCut text animation schema version: ${String(schemaVersion)}`
+		);
+	}
+	if (
+		normalization.source !== "canonical" ||
+		!normalization.animation ||
+		normalization.issues.length > 0
+	) {
+		throw new Error("Invalid QCut text animation configuration");
+	}
+	return normalization.animation;
+}
+
 /** Read text properties from top-level fields, falling back to legacy style. */
 export function getClaudeTextProperties({
 	element,
+	fps = useProjectStore.getState().activeProject?.fps ?? 30,
 }: {
 	element: { style?: Record<string, unknown> } & Record<string, unknown>;
-}): ClaudeTextProperties {
+	fps?: number;
+}): ValidatedClaudeTextProperties {
 	const properties: Record<string, unknown> = {};
 	const style = element.style ?? {};
 	for (const key of CLAUDE_TEXT_PROPERTY_KEYS) {
 		const value = element[key] !== undefined ? element[key] : style[key];
 		if (value === undefined) continue;
+		if (key === "textAnimations") {
+			properties[key] = normalizeClaudeTextAnimations({
+				elementId: typeof element.id === "string" ? element.id : "claude-text",
+				fps,
+				value,
+			});
+			continue;
+		}
 		if (!CLAUDE_TEXT_PROPERTY_VALIDATORS[key](value)) {
 			debugWarn(
 				`[ClaudeTimelineBridge] Dropping invalid text property "${key}":`,
@@ -175,7 +235,7 @@ export function getClaudeTextProperties({
 		}
 		properties[key] = value;
 	}
-	return properties as ClaudeTextProperties;
+	return properties as ValidatedClaudeTextProperties;
 }
 
 const SPEED_EASINGS = new Set([
@@ -1263,6 +1323,7 @@ function formatElementForExport({
 		case "text": {
 			const textProperties = getClaudeTextProperties({
 				element: element as unknown as Record<string, unknown>,
+				fps,
 			});
 			return {
 				...baseElement,

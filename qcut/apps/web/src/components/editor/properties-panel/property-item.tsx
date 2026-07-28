@@ -61,6 +61,7 @@ interface PropertyGroupProps {
 	expanded?: boolean;
 	onExpandedChange?: (expanded: boolean) => void;
 	className?: string;
+	testId?: string;
 }
 
 export function PropertyGroup({
@@ -70,6 +71,7 @@ export function PropertyGroup({
 	expanded,
 	onExpandedChange,
 	className,
+	testId,
 }: PropertyGroupProps) {
 	const [localExpanded, setLocalExpanded] = useState(defaultExpanded);
 	const isExpanded = expanded ?? localExpanded;
@@ -84,6 +86,7 @@ export function PropertyGroup({
 			<button
 				type="button"
 				className="flex items-center gap-1.5"
+				data-testid={testId}
 				onClick={toggleExpanded}
 				aria-expanded={isExpanded}
 			>

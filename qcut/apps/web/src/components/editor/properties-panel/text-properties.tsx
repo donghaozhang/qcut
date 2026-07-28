@@ -56,10 +56,6 @@ import {
 	type TextStylePreset,
 } from "@/lib/text/text-presets";
 import {
-	resolveTextAnimation,
-	TEXT_ANIMATION_TYPES,
-} from "@/lib/text/text-animation";
-import {
 	TEXT_KEYFRAME_PROPERTIES,
 	upsertTextKeyframe,
 } from "@/lib/text/text-keyframes";
@@ -76,13 +72,13 @@ import { useSpeechAvatarGeneration } from "@/hooks/use-speech-avatar-generation"
 import { useTranslation } from "@/lib/i18n";
 import {
 	TEXT_ALIGN_LABEL_KEYS,
-	TEXT_ANIMATION_TYPE_KEYS,
 	TEXT_BLEND_MODE_KEYS,
 	TEXT_KEYFRAME_PROPERTY_KEYS,
 	TEXT_PRESET_NAME_KEYS,
 	TEXT_REWRITE_MODE_KEYS,
 	TEXT_VERTICAL_ALIGN_LABEL_KEYS,
 } from "./text-properties-i18n";
+import { TextAnimationProperties } from "./text-animation-properties";
 
 type TextUpdates = Parameters<
 	ReturnType<typeof useTimelineStore.getState>["updateTextElement"]
@@ -562,7 +558,6 @@ export function TextProperties({
 		(state) => state.cursorTelemetry
 	);
 	const style = resolveTextStyle(element);
-	const animation = resolveTextAnimation(element);
 	const [customPresets, setCustomPresets] = useState(loadCustomTextPresets);
 	const [keyframeProperty, setKeyframeProperty] =
 		useState<TextKeyframeProperty>("x");
@@ -988,48 +983,13 @@ export function TextProperties({
 			<PropertyGroup
 				title={t("textProperties.section.animation")}
 				defaultExpanded={false}
+				testId="text-animation-group-toggle"
 			>
-				<div className="space-y-4">
-					<div className="grid grid-cols-2 gap-2">
-						{TEXT_ANIMATION_TYPES.map((animationType) => (
-							<Button
-								key={animationType}
-								type="button"
-								aria-pressed={animation.type === animationType}
-								variant={
-									animation.type === animationType ? "default" : "outline"
-								}
-								size="sm"
-								className="h-8"
-								onClick={() => update({ animationType })}
-							>
-								{t(TEXT_ANIMATION_TYPE_KEYS[animationType])}
-							</Button>
-						))}
-					</div>
-					{animation.type !== "none" ? (
-						<>
-							<NumberControl
-								label={t("textProperties.label.duration")}
-								value={animation.duration}
-								min={0.1}
-								max={3}
-								step={0.1}
-								onChange={(animationDuration) => update({ animationDuration })}
-								suffix="s"
-							/>
-							<NumberControl
-								label={t("textProperties.label.delay")}
-								value={animation.delay}
-								min={0}
-								max={5}
-								step={0.1}
-								onChange={(animationDelay) => update({ animationDelay })}
-								suffix="s"
-							/>
-						</>
-					) : null}
-				</div>
+				<TextAnimationProperties
+					element={element}
+					fps={fps}
+					trackId={trackId}
+				/>
 			</PropertyGroup>
 
 			<PropertyGroup
@@ -1259,6 +1219,7 @@ export function TextProperties({
 			<PropertyGroup
 				title={t("textProperties.section.keyframes")}
 				defaultExpanded={false}
+				testId="text-keyframes-group-toggle"
 			>
 				<div className="space-y-4">
 					<PropertyItem direction="row">
