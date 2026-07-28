@@ -20,7 +20,9 @@ export type StickerTrackingExportKeyframes = Partial<
 
 const MAX_TRACKING_EXPORT_SAMPLES = 18_001;
 
-export class StickerTrackingExportLimitError extends Error {
+export class StickerTrackingExportError extends Error {}
+
+export class StickerTrackingExportLimitError extends StickerTrackingExportError {
 	constructor({
 		elementId,
 		sampleCount,
@@ -32,6 +34,29 @@ export class StickerTrackingExportLimitError extends Error {
 			`Sticker ${elementId} needs ${sampleCount.toLocaleString("en-US")} tracking samples, exceeding the ${MAX_TRACKING_EXPORT_SAMPLES.toLocaleString("en-US")} sample export limit. Shorten the clip or reduce the project frame rate.`
 		);
 		this.name = "StickerTrackingExportLimitError";
+	}
+}
+
+export class StickerTrackingExportDataError extends StickerTrackingExportError {
+	constructor({
+		elementId,
+		targetElementId,
+		targetMaskId,
+		frame,
+		property,
+		value,
+	}: {
+		elementId: string;
+		targetElementId: string;
+		targetMaskId: string;
+		frame: number;
+		property: TrackingExportProperty;
+		value: unknown;
+	}) {
+		super(
+			`Sticker ${elementId} tracking target ${targetElementId}/${targetMaskId} produced invalid ${property}=${String(value)} at export frame ${frame}. Re-run tracking before exporting.`
+		);
+		this.name = "StickerTrackingExportDataError";
 	}
 }
 
@@ -72,7 +97,8 @@ export function buildStickerTrackingExportKeyframes({
 	canvasWidth: number;
 	canvasHeight: number;
 }): StickerTrackingExportKeyframes | undefined {
-	if (!element.tracking) return;
+	const tracking = element.tracking;
+	if (!tracking) return;
 	if (
 		!Number.isFinite(canvasWidth) ||
 		!Number.isFinite(canvasHeight) ||
@@ -88,8 +114,8 @@ export function buildStickerTrackingExportKeyframes({
 		fps: sampleFps,
 	}).find(
 		(candidate) =>
-			candidate.element.id === element.tracking?.targetElementId &&
-			candidate.mask.id === element.tracking?.targetMaskId
+			candidate.element.id === tracking.targetElementId &&
+			candidate.mask.id === tracking.targetMaskId
 	);
 	if (!target) return;
 
@@ -107,7 +133,7 @@ export function buildStickerTrackingExportKeyframes({
 		});
 	}
 
-	const properties: TrackingExportProperty[] = element.tracking.followScale
+	const properties: TrackingExportProperty[] = tracking.followScale
 		? ["x", "y", "width", "height"]
 		: ["x", "y"];
 	const result: StickerTrackingExportKeyframes = {};
@@ -131,7 +157,16 @@ export function buildStickerTrackingExportKeyframes({
 		});
 		for (const property of properties) {
 			const value = resolved[property];
-			if (typeof value !== "number" || !Number.isFinite(value)) return;
+			if (typeof value !== "number" || !Number.isFinite(value)) {
+				throw new StickerTrackingExportDataError({
+					elementId: element.id,
+					targetElementId: target.element.id,
+					targetMaskId: tracking.targetMaskId,
+					frame,
+					property,
+					value,
+				});
+			}
 			result[property]?.push(
 				valueKeyframe({ element, property, frame, value })
 			);
