@@ -64,6 +64,25 @@ function phaseUnitProgress({
 	});
 }
 
+/**
+ * Jianying's typewriter gives every unit an equal slot of the phase and
+ * completes unit `rank` at (rank + 1) / (unitCount + 1): nothing is revealed
+ * at progress 0 and the final unit lands one slot before the phase ends.
+ */
+function typewriterUnitProgress({
+	phaseProgress,
+	unit,
+	unitCount,
+}: {
+	phaseProgress: number;
+	unit: CompiledTextAnimationUnit;
+	unitCount: number;
+}): number {
+	return clampUnitInterval({
+		value: phaseProgress * (unitCount + 1) - unit.rank,
+	});
+}
+
 function appendDecorations({
 	target,
 	source,
@@ -113,13 +132,20 @@ function applyPhase({
 		return composeVisual({ base: container, overlay: result.visual });
 	}
 
+	const isTypewriter = phase.config.effect.kind === "typewriter";
 	for (const unit of phase.units) {
-		const rawProgress = phaseUnitProgress({
-			phaseProgress,
-			unit,
-			unitCount: phase.units.length,
-			staggerRatio: phase.config.sequence.staggerRatio,
-		});
+		const rawProgress = isTypewriter
+			? typewriterUnitProgress({
+					phaseProgress,
+					unit,
+					unitCount: phase.units.length,
+				})
+			: phaseUnitProgress({
+					phaseProgress,
+					unit,
+					unitCount: phase.units.length,
+					staggerRatio: phase.config.sequence.staggerRatio,
+				});
 		const progress = easeTextAnimationProgress({
 			progress: rawProgress,
 			easing: phase.config.timing.easing,
@@ -211,12 +237,15 @@ function cursorDecoration({
 	frame,
 	fps,
 	role,
+	blinking,
 }: {
 	phase: CompiledTextAnimationPhase<TextAnimationPhaseBase>;
 	phaseProgress: number;
 	frame: number;
 	fps: number;
 	role: TextAnimationActivePhase;
+	/** Jianying keeps the cursor solid while typing; it only blinks afterwards. */
+	blinking: boolean;
 }): TextAnimationDecorationState | null {
 	const effect = phase.config.effect;
 	if (
@@ -227,22 +256,25 @@ function cursorDecoration({
 		return null;
 	}
 	const progressedUnits = phase.units.filter((unit) => {
-		const rawProgress = phaseUnitProgress({
+		const rawProgress = typewriterUnitProgress({
 			phaseProgress,
 			unit,
 			unitCount: phase.units.length,
-			staggerRatio: phase.config.sequence.staggerRatio,
 		});
 		const progress = easeTextAnimationProgress({
 			progress: rawProgress,
 			easing: phase.config.timing.easing,
 		});
-		return effect.reveal === "step" ? progress >= 0.5 : progress > 0;
+		return effect.reveal === "step" ? progress >= 1 - 1e-6 : progress > 0;
 	});
 	const afterGrapheme = cursorBoundary({ phase, progressedUnits, role });
 	const blinkFrames = Math.max(1, Math.round(effect.cursor.blinkPeriod * fps));
 	const phaseElapsedFrame = Math.max(0, frame - phase.startFrame);
-	const opacity = Math.floor(phaseElapsedFrame / blinkFrames) % 2 === 0 ? 1 : 0;
+	const opacity = blinking
+		? Math.floor(phaseElapsedFrame / blinkFrames) % 2 === 0
+			? 1
+			: 0
+		: 1;
 	return {
 		kind: "cursor",
 		afterGrapheme,
@@ -316,6 +348,7 @@ export function evaluateTextAnimationFrame({
 			frame: safeFrame,
 			fps: compiled.fps,
 			role: "entrance",
+			blinking: false,
 		});
 		if (cursor) decorations.push(cursor);
 	} else if (
@@ -329,6 +362,7 @@ export function evaluateTextAnimationFrame({
 			frame: safeFrame,
 			fps: compiled.fps,
 			role: "entrance",
+			blinking: true,
 		});
 		if (cursor) decorations.push(cursor);
 	}
@@ -360,6 +394,7 @@ export function evaluateTextAnimationFrame({
 				frame: safeFrame,
 				fps: compiled.fps,
 				role: "loop",
+				blinking: false,
 			});
 			if (cursor) decorations.push(cursor);
 		}
@@ -386,6 +421,7 @@ export function evaluateTextAnimationFrame({
 			frame: safeFrame,
 			fps: compiled.fps,
 			role: "exit",
+			blinking: false,
 		});
 		if (cursor) decorations.push(cursor);
 	}

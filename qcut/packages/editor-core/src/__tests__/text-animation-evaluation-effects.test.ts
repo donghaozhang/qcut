@@ -29,7 +29,9 @@ describe("text animation frame evaluation", () => {
 				cursor: { text: "|", blinkPeriod: 0.5, persist: false },
 			},
 			assertState: ({ state }) => {
-				expect(state.units[0].visual.opacity).toBeCloseTo(0.5);
+				// A single unit owns the slot [0, 1/2] of the phase, so its fade
+				// completes by the midpoint sampled here.
+				expect(state.units[0].visual.opacity).toBeCloseTo(1);
 				expect(state.decorations.some((item) => item.kind === "cursor")).toBe(
 					true
 				);

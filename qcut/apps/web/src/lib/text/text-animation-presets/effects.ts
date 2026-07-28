@@ -22,6 +22,15 @@ const SOFT_SPRING: TextAnimationEasing = {
 	velocity: 0,
 };
 
+/** Jianying's Transform.lua slides use Amaz.Ease.quadOut. */
+const EASE_OUT_QUAD: TextAnimationEasing = {
+	type: "cubicBezier",
+	x1: 0.25,
+	y1: 0.46,
+	x2: 0.45,
+	y2: 0.94,
+};
+
 const BOUNCE_SPRING = {
 	mass: 1,
 	stiffness: 210,
@@ -47,10 +56,12 @@ export function effectForPreset({
 }): TextAnimationEffect {
 	switch (`${phase}:${presetId}`) {
 		case "entrance:typewriter-cursor":
+			// Jianying renders a solid block cursor that stays lit while typing
+			// and vanishes as soon as the animation completes.
 			return {
 				kind: "typewriter",
 				reveal: "step",
-				cursor: { text: "|", blinkPeriod: 0.5, persist: true },
+				cursor: { text: "█", blinkPeriod: 0.5, persist: false },
 			};
 		case "entrance:typewriter-leading":
 			return {
@@ -83,6 +94,9 @@ export function effectForPreset({
 				cursor: { text: "|", blinkPeriod: 0.45, persist: false },
 			};
 		case "entrance:fade-characters":
+			// Jianying's 文字渐显 fades the whole block in while it grows
+			// slightly into place (plus a glow pulse we approximate away).
+			return { kind: "scale", hiddenScale: 0.9, overshoot: 0, fade: true };
 		case "entrance:fade-text":
 		case "exit:fade-out":
 		case "loop:flicker":
@@ -91,10 +105,12 @@ export function effectForPreset({
 				minimumOpacity: presetId === "flicker" ? 0.35 : 0,
 			};
 		case "entrance:slide-up":
+			// Jianying's Transform.lua offsets the whole block by
+			// 1.33 × its own height (2.66 × textureH in half-screen units).
 			return {
 				kind: "slide",
 				direction: "up",
-				distance: { value: 0.16, unit: "boxHeight" },
+				distance: { value: 1.33, unit: "boxHeight" },
 				fade: true,
 			};
 		case "exit:slide-down-out":
@@ -224,6 +240,8 @@ export function sequenceForPreset({
 	phase: TextAnimationPhase;
 	presetId: string;
 }): TextAnimationSequence {
+	// fade-characters is intentionally absent: Jianying's 文字渐显 fades the
+	// whole block at once rather than staggering per grapheme.
 	const graphemePresets = new Set([
 		"typewriter-cursor",
 		"typewriter-leading",
@@ -233,7 +251,6 @@ export function sequenceForPreset({
 		"typewriter-iv",
 		"cursor-typewriter",
 		"typewriter-out",
-		"fade-characters",
 		"laser-etch",
 		"wave",
 	]);
@@ -271,6 +288,9 @@ export function easingForPreset({
 		presetId === "heartbeat"
 	) {
 		return SOFT_SPRING;
+	}
+	if (presetId === "slide-up") {
+		return EASE_OUT_QUAD;
 	}
 	return NATURAL_EASE;
 }

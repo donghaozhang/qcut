@@ -75,7 +75,36 @@ describe("text animation frame evaluation", () => {
 		expect(cursorBoundary({ state: afterRandom })).toBe(expectedRandomBoundary);
 	});
 
-	it("blinks the cursor relative to its phase instead of the timeline origin", () => {
+	it("reveals typewriter units on Jianying's (rank+1)/(count+1) slots", () => {
+		const element = createElement({
+			overrides: {
+				content: "ABC",
+				textAnimations: createAnimation({
+					entrance: createPhase({
+						effect: { kind: "typewriter", reveal: "step" },
+						unit: "grapheme",
+						staggerRatio: 0.58,
+						target: "text",
+					}),
+				}),
+			},
+		});
+		const compiled = compileTextAnimation({ element, fps: 10 });
+		const layout = createLayout({ content: element.content });
+		const visibleUnits = ({ frame }: { frame: number }) =>
+			evaluateTextAnimationFrame({ compiled, frame, layout }).units.filter(
+				(unit) => unit.visual.opacity > 0.5
+			).length;
+
+		// Nothing is revealed at progress 0, units land at 1/4, 2/4, and 3/4 of
+		// the phase, and the full text is visible one slot before the end.
+		expect(visibleUnits({ frame: 0 })).toBe(0);
+		expect(visibleUnits({ frame: 3 })).toBe(1);
+		expect(visibleUnits({ frame: 5 })).toBe(2);
+		expect(visibleUnits({ frame: 8 })).toBe(3);
+	});
+
+	it("keeps the cursor solid while typing and blinks it relative to its phase afterwards", () => {
 		const createTypewriter = ({ startTime }: { startTime: number }) => {
 			const element = createElement({
 				overrides: {
@@ -119,16 +148,25 @@ describe("text animation frame evaluation", () => {
 				frame: atOrigin.compiled.entrance?.startFrame ?? 0,
 			})
 		).toBe(1);
-		expect(
-			cursorOpacity({
-				...shifted,
-				frame: shifted.compiled.entrance?.startFrame ?? 0,
-			})
-		).toBe(1);
+		// Solid mid-phase: Jianying never blinks the cursor while typing.
 		expect(
 			cursorOpacity({
 				...shifted,
 				frame: (shifted.compiled.entrance?.startFrame ?? 0) + 5,
+			})
+		).toBe(1);
+		// After the phase the persisting cursor blinks, anchored to the phase
+		// start rather than the timeline origin.
+		expect(
+			cursorOpacity({
+				...atOrigin,
+				frame: (atOrigin.compiled.entrance?.startFrame ?? 0) + 15,
+			})
+		).toBe(0);
+		expect(
+			cursorOpacity({
+				...shifted,
+				frame: (shifted.compiled.entrance?.startFrame ?? 0) + 15,
 			})
 		).toBe(0);
 	});

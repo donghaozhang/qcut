@@ -254,8 +254,11 @@ describe("text animation preset registry", () => {
 			}
 		}
 
-		expect(granularPresetIds).toContain("fade-characters");
+		expect(granularPresetIds).toContain("typewriter-i");
 		expect(granularPresetIds).toContain("wave");
+		// Jianying's 文字渐显 fades the whole block at once, so it must NOT
+		// stagger per grapheme.
+		expect(granularPresetIds).not.toContain("fade-characters");
 	});
 
 	it("applies the bounce-up spring once across quarter-cycle samples", () => {

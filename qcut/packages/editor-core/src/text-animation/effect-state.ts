@@ -333,7 +333,15 @@ function edgeVisual({
 	const visual = identityVisual();
 	if (effect.kind === "typewriter") {
 		if (effect.reveal === "step") {
-			visual.opacity = presence >= 0.5 ? 1 : 0;
+			// Jianying pops a unit in only when its reveal slot completes (and,
+			// on exit, keeps it until its removal slot completes).
+			visual.opacity = (
+				role === "exit"
+					? presence > 1e-6
+					: presence >= 1 - 1e-6
+			)
+				? 1
+				: 0;
 		} else if (effect.reveal === "fade") {
 			visual.opacity = presence;
 		} else {
