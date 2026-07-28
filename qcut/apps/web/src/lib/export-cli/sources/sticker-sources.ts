@@ -15,7 +15,10 @@ import { rasterizeSvgToPng, isSvgContent } from "./svg-rasterizer";
 import { platform } from "@qcut/platform-core";
 import { dataUrlToBlob } from "@/lib/media/data-url";
 import { resolveStickerGeometry } from "@/lib/stickers/sticker-geometry";
-import { buildStickerTrackingExportKeyframes } from "@/lib/stickers/sticker-tracking-export";
+import {
+	buildStickerTrackingExportKeyframes,
+	StickerTrackingExportLimitError,
+} from "@/lib/stickers/sticker-tracking-export";
 import { useTimelineStore } from "@/stores/timeline/timeline-store";
 import type {
 	MediaAnimationType,
@@ -350,6 +353,7 @@ export async function extractStickerSources(
 					`[StickerSources] Processed sticker ${sticker.id}: ${Math.round(pixelWidth)}x${Math.round(pixelHeight)} at (${Math.round(topLeftX)}, ${Math.round(topLeftY)})`
 				);
 			} catch (error) {
+				if (error instanceof StickerTrackingExportLimitError) throw error;
 				console.warn(
 					`⚠️ [STICKER EXPORT] Sticker ${stickerIndex}/${allStickers.length} failed:`,
 					error
@@ -370,6 +374,7 @@ export async function extractStickerSources(
 		);
 		return stickerSources;
 	} catch (error) {
+		if (error instanceof StickerTrackingExportLimitError) throw error;
 		logger("[StickerSources] Failed to extract sticker sources:", error);
 		return [];
 	}
