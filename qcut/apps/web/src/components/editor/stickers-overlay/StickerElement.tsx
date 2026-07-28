@@ -8,7 +8,9 @@ import {
 	memo,
 	useCallback,
 	useEffect,
+	useLayoutEffect,
 	useRef,
+	useState,
 	type KeyboardEvent,
 	type MouseEvent,
 	type RefObject,
@@ -24,20 +26,62 @@ import { ResizeHandles } from "./ResizeHandles";
 import { StickerControls, SimpleStickerControls } from "./StickerControls";
 import type { OverlaySticker } from "@/types/sticker-overlay";
 import type { MediaItem } from "@/stores/media/media-store-types";
+import type { StickerElement as TimelineStickerElement } from "@/types/timeline";
+import {
+	getStickerCssGeometry,
+	resolveStickerGeometry,
+} from "@/lib/stickers/sticker-geometry";
+import { getStickerClipAnimationState } from "@/lib/stickers/sticker-clip-animation";
+import { buildCssPerspectiveTransform } from "@/lib/video/video-perspective";
+import { DEFAULT_MEDIA_PERSPECTIVE } from "@/lib/video/video-properties";
 
 interface StickerElementProps {
 	sticker: OverlaySticker;
 	mediaItem: MediaItem;
 	canvasRef: RefObject<HTMLDivElement | null>;
 	renderMode?: "full" | "interaction" | "visual";
+	animationElement?: TimelineStickerElement;
+	currentTime?: number;
 }
 
 /**
  * Draggable sticker element with full interaction support
  */
 export const StickerElement = memo<StickerElementProps>(
-	({ sticker, mediaItem, canvasRef, renderMode = "full" }) => {
+	({
+		sticker,
+		mediaItem,
+		canvasRef,
+		renderMode = "full",
+		animationElement,
+		currentTime = 0,
+	}) => {
 		const elementRef = useRef<HTMLDivElement>(null);
+		const [canvasSize, setCanvasSize] = useState({ width: 0, height: 0 });
+
+		useLayoutEffect(() => {
+			const canvas = canvasRef.current;
+			if (!canvas) return;
+			const updateCanvasSize = () => {
+				const bounds = canvas.getBoundingClientRect();
+				setCanvasSize((previous) =>
+					previous.width === bounds.width && previous.height === bounds.height
+						? previous
+						: { width: bounds.width, height: bounds.height }
+				);
+			};
+			updateCanvasSize();
+			const observer =
+				typeof ResizeObserver === "undefined"
+					? null
+					: new ResizeObserver(updateCanvasSize);
+			observer?.observe(canvas);
+			window.addEventListener("resize", updateCanvasSize);
+			return () => {
+				observer?.disconnect();
+				window.removeEventListener("resize", updateCanvasSize);
+			};
+		}, [canvasRef]);
 
 		// Store hooks
 		const {
@@ -127,18 +171,17 @@ export const StickerElement = memo<StickerElementProps>(
 				}, 300);
 
 				const scaleDelta = e.deltaY < 0 ? 1.05 : 0.95;
-
-				// Clamp to canvas bounds (center-based: max size = 2x distance to nearest edge)
-				const maxWidth = Math.min(
-					100,
-					sticker.position.x * 2,
-					(100 - sticker.position.x) * 2
-				);
-				const maxHeight = Math.min(
-					100,
-					sticker.position.y * 2,
-					(100 - sticker.position.y) * 2
-				);
+				const shortSide = Math.min(canvasSize.width, canvasSize.height);
+				const centerX = (sticker.position.x / 100) * canvasSize.width;
+				const centerY = (sticker.position.y / 100) * canvasSize.height;
+				const maxWidth =
+					shortSide > 0
+						? (Math.min(centerX, canvasSize.width - centerX) * 200) / shortSide
+						: 100;
+				const maxHeight =
+					shortSide > 0
+						? (Math.min(centerY, canvasSize.height - centerY) * 200) / shortSide
+						: 100;
 
 				const newWidth = Math.max(
 					5,
@@ -153,12 +196,21 @@ export const StickerElement = memo<StickerElementProps>(
 					size: { width: newWidth, height: newHeight },
 				});
 			},
-			[isSelected, sticker, updateOverlaySticker, saveHistorySnapshot]
+			[
+				canvasSize,
+				isSelected,
+				saveHistorySnapshot,
+				sticker,
+				updateOverlaySticker,
+			]
 		);
 
 		/**
 		 * Render media content based on type
 		 */
+		const mediaFitClass = sticker.maintainAspectRatio
+			? "object-contain"
+			: "object-fill";
 		const renderMediaContent = () => {
 			switch (mediaItem.type) {
 				case "image":
@@ -166,7 +218,7 @@ export const StickerElement = memo<StickerElementProps>(
 						<img
 							src={mediaItem.url}
 							alt={mediaItem.name}
-							className="w-full h-full object-contain select-none"
+							className={cn("h-full w-full select-none", mediaFitClass)}
 							draggable={false}
 							style={{
 								pointerEvents: "none",
@@ -179,7 +231,7 @@ export const StickerElement = memo<StickerElementProps>(
 					return (
 						<video
 							src={mediaItem.url}
-							className="w-full h-full object-contain"
+							className={cn("h-full w-full", mediaFitClass)}
 							autoPlay
 							loop
 							muted
@@ -201,16 +253,44 @@ export const StickerElement = memo<StickerElementProps>(
 			}
 		};
 
+		const geometry = resolveStickerGeometry({
+			position: sticker.position,
+			size: sticker.size,
+			canvasWidth: canvasSize.width,
+			canvasHeight: canvasSize.height,
+		});
+		const animation = animationElement
+			? getStickerClipAnimationState({
+					element: animationElement,
+					currentTime,
+					canvasWidth: canvasSize.width,
+					canvasHeight: canvasSize.height,
+				})
+			: {
+					opacity: 1,
+					scale: 1,
+					offsetX: 0,
+					offsetY: 0,
+					rotation: 0,
+				};
+		const cssGeometry = getStickerCssGeometry({
+			geometry: {
+				...geometry,
+				left: geometry.left + animation.offsetX,
+				top: geometry.top + animation.offsetY,
+			},
+		});
+		const perspectiveTransform = buildCssPerspectiveTransform({
+			width: geometry.pixelWidth,
+			height: geometry.pixelHeight,
+			perspective: sticker.perspective ?? DEFAULT_MEDIA_PERSPECTIVE,
+		});
 		const elementStyle = {
-			left: `${sticker.position.x}%`,
-			top: `${sticker.position.y}%`,
-			width: `${sticker.size.width}%`,
-			height: `${sticker.size.height}%`,
-			transform: `translate(-50%, -50%) rotate(${sticker.rotation}deg)`,
-			opacity: sticker.opacity,
+			...cssGeometry,
+			transform: `rotate(${sticker.rotation + animation.rotation}deg) scale(${animation.scale})`,
+			opacity: sticker.opacity * animation.opacity,
 			zIndex: renderMode !== "visual" && isSelected ? 9999 : sticker.zIndex,
 			transformOrigin: "center",
-			// Smooth transitions except during drag
 			transition: isDragging ? "none" : "box-shadow 0.2s",
 		};
 
@@ -241,14 +321,23 @@ export const StickerElement = memo<StickerElementProps>(
 				aria-label={canInteract ? `Sticker: ${mediaItem.name}` : undefined}
 				aria-selected={canInteract ? isSelected : undefined}
 			>
-				{showsMedia ? renderMediaContent() : null}
+				{showsMedia ? (
+					<div
+						className="size-full"
+						style={{
+							transform: perspectiveTransform,
+							transformOrigin: "0 0",
+						}}
+					>
+						{renderMediaContent()}
+					</div>
+				) : null}
 
 				{canInteract ? (
 					<ResizeHandles
 						stickerId={sticker.id}
 						isVisible={isSelected}
 						sticker={sticker}
-						elementRef={elementRef}
 						canvasRef={canvasRef}
 					/>
 				) : null}
