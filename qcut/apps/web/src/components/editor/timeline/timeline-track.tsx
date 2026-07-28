@@ -44,6 +44,7 @@ import {
 } from "./timeline-viewport";
 import { getVideoMediaIds } from "@/lib/transitions/video-transition-eligibility";
 import { isTimelineEntityTarget } from "./timeline-click-target";
+import { createPastedTimelineElement } from "@/stores/timeline/timeline-clipboard-store";
 
 function TimelineTrackContentComponent({
 	track,
@@ -715,12 +716,17 @@ function TimelineTrackContentComponent({
 
 							const handleElementDuplicate = () => {
 								const { addElementToTrack } = useTimelineStore.getState();
-								const { id, ...elementWithoutId } = element;
-								addElementToTrack(track.id, {
-									...elementWithoutId,
-									name: element.name + " (copy)",
-									startTime: getTimelineElementEndTime({ element }) + 0.1,
-								});
+								addElementToTrack(
+									track.id,
+									createPastedTimelineElement({
+										entry: {
+											trackId: track.id,
+											trackType: track.type,
+											element,
+										},
+										startTime: getTimelineElementEndTime({ element }) + 0.1,
+									})
+								);
 							};
 
 							const handleElementDelete = () => {
