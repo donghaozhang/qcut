@@ -138,7 +138,7 @@ export function useEditorActions() {
 			const track = tracks.find((t: any) => t.id === trackId);
 			const element = track?.elements.find((el: any) => el.id === elementId);
 
-			if (element) {
+			if (track && element) {
 				const effectiveStart = element.startTime;
 				const effectiveEnd = getTimelineElementEndTime({ element });
 
@@ -194,14 +194,19 @@ export function useEditorActions() {
 			const track = tracks.find((t: any) => t.id === trackId);
 			const element = track?.elements.find((el: any) => el.id === elementId);
 
-			if (element) {
+			if (track && element) {
 				const newStartTime = getTimelineElementEndTime({ element }) + 0.1;
-				const { id, ...elementWithoutId } = element;
-
-				addElementToTrack(trackId, {
-					...elementWithoutId,
-					startTime: newStartTime,
-				});
+				addElementToTrack(
+					trackId,
+					createPastedTimelineElement({
+						entry: {
+							trackId,
+							trackType: track.type,
+							element,
+						},
+						startTime: newStartTime,
+					})
+				);
 			}
 		},
 		undefined
