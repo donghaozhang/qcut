@@ -2,21 +2,47 @@ import { randomUUID } from "node:crypto";
 import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
+import { removeTemporaryDirectory } from "./temporary-files.js";
 
 export interface PreparedFFmpegFilterScripts {
 	args: string[];
 	scriptPaths: string[];
-	cleanup: () => void;
+	cleanup: () => Promise<boolean>;
 }
 
 const MAX_INLINE_FFMPEG_ARGUMENT_CODE_UNITS = 16_000;
 
+function retryableDirectoryCleanup({
+	directory,
+}: {
+	directory: string;
+}): () => Promise<boolean> {
+	let cleanupPromise: Promise<boolean> | undefined;
+	return () => {
+		if (cleanupPromise) return cleanupPromise;
+		const pendingCleanup = removeTemporaryDirectory({ directory }).then(
+			(removed) => {
+				if (!removed) cleanupPromise = undefined;
+				return removed;
+			},
+			(error) => {
+				cleanupPromise = undefined;
+				throw error;
+			}
+		);
+		cleanupPromise = pendingCleanup;
+		return pendingCleanup;
+	};
+}
+
 export function prepareFFmpegFilterComplexScripts({
 	args,
 	temporaryDirectory = os.tmpdir(),
+	commandLengthThreshold = MAX_INLINE_FFMPEG_ARGUMENT_CODE_UNITS,
 }: {
 	args: readonly string[];
 	temporaryDirectory?: string;
+	commandLengthThreshold?: number;
 }): PreparedFFmpegFilterScripts {
 	let filterCount = 0;
 	for (let index = 0; index < args.length; index += 1) {
@@ -35,14 +61,14 @@ export function prepareFFmpegFilterComplexScripts({
 		return {
 			args: [...args],
 			scriptPaths: [],
-			cleanup: () => undefined,
+			cleanup: async () => true,
 		};
 	}
-	if (estimatedCommandCodeUnits <= MAX_INLINE_FFMPEG_ARGUMENT_CODE_UNITS) {
+	if (estimatedCommandCodeUnits <= commandLengthThreshold) {
 		return {
 			args: [...args],
 			scriptPaths: [],
-			cleanup: () => undefined,
+			cleanup: async () => true,
 		};
 	}
 
@@ -50,16 +76,7 @@ export function prepareFFmpegFilterComplexScripts({
 		path.join(temporaryDirectory, "qcut-ffmpeg-filter-")
 	);
 	const scriptPaths: string[] = [];
-	let cleaned = false;
-	const cleanup = () => {
-		if (cleaned) return;
-		try {
-			fs.rmSync(directory, { recursive: true, force: true });
-			cleaned = true;
-		} catch {
-			return;
-		}
-	};
+	const cleanup = retryableDirectoryCleanup({ directory });
 
 	try {
 		const preparedArgs: string[] = [];
@@ -87,7 +104,7 @@ export function prepareFFmpegFilterComplexScripts({
 		}
 		return { args: preparedArgs, scriptPaths, cleanup };
 	} catch (error) {
-		cleanup();
+		void cleanup().catch(() => undefined);
 		throw error;
 	}
 }

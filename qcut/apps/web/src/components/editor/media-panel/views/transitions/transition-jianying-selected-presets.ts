@@ -1,0 +1,58 @@
+import {
+	defineTransitionPreset,
+	type TransitionPreset,
+} from "./transition-preset-types";
+
+export const SELECTED_JIANYING_TRANSITION_PRESETS: TransitionPreset[] = [
+	defineTransitionPreset({
+		id: "page-flip",
+		name: "Page Flip",
+		localizedName: "翻页",
+		category: "slideshow",
+		type: "page",
+		clipType: "page-flip",
+		direction: "left",
+		defaultDuration: 0.5,
+		tuning: { intensity: 0.7 },
+		tags: ["向左翻页", "page turn"],
+		popular: true,
+	}),
+	defineTransitionPreset({
+		id: "move-left",
+		name: "Move Left",
+		localizedName: "左移",
+		category: "split",
+		type: "push",
+		clipType: "push",
+		// direction is the incoming origin; right produces leftward travel
+		direction: "right",
+		defaultDuration: 0.45,
+		tags: ["向左移动", "push"],
+		popular: true,
+	}),
+	defineTransitionPreset({
+		id: "move-right",
+		name: "Move Right",
+		localizedName: "右移",
+		category: "split",
+		type: "push",
+		clipType: "push",
+		direction: "left",
+		defaultDuration: 0.45,
+		tags: ["向右移动", "push"],
+		popular: true,
+	}),
+	defineTransitionPreset({
+		id: "horizontal-motion-blur",
+		name: "Horizontal Motion Blur",
+		localizedName: "横移模糊",
+		category: "blur",
+		type: "motion-blur",
+		clipType: "motion-blur",
+		direction: "left",
+		defaultDuration: 0.48,
+		tuning: { intensity: 0.65 },
+		tags: ["横向拖影", "向左拖影", "horizontal smear"],
+		popular: true,
+	}),
+];

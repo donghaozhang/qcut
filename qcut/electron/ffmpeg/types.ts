@@ -242,6 +242,7 @@ export interface VideoTransition {
 		| "wipe"
 		| "push"
 		| "zoom-blur"
+		| "zoom-in-blur"
 		| "whip-pan"
 		| "flash"
 		| "light-leak"

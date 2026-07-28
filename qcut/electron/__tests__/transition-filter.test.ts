@@ -163,6 +163,11 @@ describe("FFmpeg transition filters", () => {
 		{ type: "push", direction: "up", expected: "a0(" },
 		{ type: "wipe", direction: "right", expected: "gte(X" },
 		{ type: "zoom-blur", direction: undefined, expected: "W/2+(X-W/2)" },
+		{
+			type: "zoom-in-blur",
+			direction: undefined,
+			expected: "1+0.12*(",
+		},
 		{ type: "whip-pan", direction: "left", expected: "0.045*W" },
 		{ type: "flash", direction: undefined, expected: "eq(PLANE,0),255" },
 		{ type: "light-leak", direction: undefined, expected: "eq(PLANE,0),90" },
@@ -199,6 +204,67 @@ describe("FFmpeg transition filters", () => {
 		expect(filter.transition).toBe("custom");
 		expect(filter.expression).toContain(expected);
 		expect(filter.expression).toContain("pow((1-P),3)");
+	});
+
+	it("keeps page-flip endpoint frames unmodified", () => {
+		const filter = buildXfadeTransitionFilter({
+			transition: transition({ type: "page-flip", direction: "left" }),
+		});
+
+		expect(filter.expression).toMatch(
+			/^if\(lte\(.+,0\.001\),A,if\(gte\(.+,0\.999\),B,/
+		);
+	});
+
+	it("keeps custom expressions stateless for FFmpeg slice threading", () => {
+		for (const preset of transitionPresets) {
+			const config = getClipTransitionPresetConfig({ preset });
+			expect(config).not.toBeNull();
+			if (!config) continue;
+
+			const filter = buildXfadeTransitionFilter({
+				transition: {
+					...transition({
+						type: config.type,
+						direction: config.direction,
+						duration: preset.defaultDuration,
+						tuning: config.tuning,
+					}),
+					presetId: preset.id,
+					maskShape: config.maskShape,
+				},
+			});
+
+			expect(filter.expression, preset.id).not.toMatch(/\b(?:st|ld)\(/);
+		}
+	});
+
+	it("preserves motion-blur travel direction in the export expression", () => {
+		const left = buildXfadeTransitionFilter({
+			transition: transition({ type: "motion-blur", direction: "left" }),
+		});
+		const right = buildXfadeTransitionFilter({
+			transition: transition({ type: "motion-blur", direction: "right" }),
+		});
+
+		expect(left.expression).not.toBe(right.expression);
+		expect(left.expression).toContain("0.055*W");
+		expect(left.expression).toContain("1+0.035*");
+	});
+
+	it("keeps zoom-in blur monotonic and distinct from symmetric zoom blur", () => {
+		const zoomIn = buildXfadeTransitionFilter({
+			transition: transition({ type: "zoom-in-blur" }),
+		});
+		const symmetric = buildXfadeTransitionFilter({
+			transition: transition({ type: "zoom-blur" }),
+		});
+
+		expect(zoomIn.expression).toContain("1+0.12*(");
+		expect(zoomIn.expression).toContain("1-0.12*(1-(");
+		expect(zoomIn.expression).toContain("-0.035*(");
+		expect(zoomIn.expression).toContain("4*(");
+		expect(zoomIn.expression).not.toBe(symmetric.expression);
 	});
 
 	it("serializes tuning into visibly distinct export expressions", () => {
@@ -238,6 +304,7 @@ describe("FFmpeg transition filters", () => {
 			"wipe",
 			"push",
 			"zoom-blur",
+			"zoom-in-blur",
 			"whip-pan",
 			"flash",
 			"light-leak",
@@ -286,6 +353,13 @@ describe("FFmpeg transition filters", () => {
 				transition: { ...transition({ type: "texture-mask" }), maskShape },
 			});
 			expect(filter.expression.length).toBeGreaterThan(4);
+			if (maskShape === "circle") {
+				expect(filter.expression).toContain("sqrt(W*W+H*H)/2");
+			}
+			if (maskShape === "heart") {
+				expect(filter.expression).toContain("0.1185");
+				expect(filter.expression).toContain("0.78");
+			}
 			expressions.add(filter.expression);
 		}
 		// Every shape must produce distinct export geometry.

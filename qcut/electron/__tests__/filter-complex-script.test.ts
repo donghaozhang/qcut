@@ -1,15 +1,18 @@
 import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
-import { describe, expect, it } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { TRANSITION_PARITY_CASES } from "../../apps/web/src/components/editor/media-panel/views/transitions/transition-parity-ten";
+import { buildFFmpegArgs } from "../ffmpeg-args-builder";
 import { prepareFFmpegFilterComplexScripts } from "../ffmpeg/filter-complex-script";
+import type { VideoSource, VideoTransition } from "../ffmpeg/types";
 
 function createTemporaryRoot(): string {
 	return fs.mkdtempSync(path.join(os.tmpdir(), "qcut-filter-test-"));
 }
 
 describe("FFmpeg filter complex scripts", () => {
-	it("leaves commands without complex filters unchanged", () => {
+	it("leaves commands without complex filters unchanged", async () => {
 		const prepared = prepareFFmpegFilterComplexScripts({
 			args: ["-i", "input.mp4", "-vf", "scale=320:240", "output.mp4"],
 		});
@@ -22,10 +25,10 @@ describe("FFmpeg filter complex scripts", () => {
 			"output.mp4",
 		]);
 		expect(prepared.scriptPaths).toEqual([]);
-		prepared.cleanup();
+		await prepared.cleanup();
 	});
 
-	it("keeps short complex filters inline", () => {
+	it("keeps short complex filters inline", async () => {
 		const temporaryRoot = createTemporaryRoot();
 		try {
 			const args = [
@@ -45,13 +48,13 @@ describe("FFmpeg filter complex scripts", () => {
 			expect(prepared.args).toEqual(args);
 			expect(prepared.scriptPaths).toEqual([]);
 			expect(fs.readdirSync(temporaryRoot)).toEqual([]);
-			prepared.cleanup();
+			await prepared.cleanup();
 		} finally {
 			fs.rmSync(temporaryRoot, { recursive: true, force: true });
 		}
 	});
 
-	it("moves every complex graph out of the process arguments", () => {
+	it("moves every complex graph out of the process arguments", async () => {
 		const temporaryRoot = createTemporaryRoot();
 		try {
 			const longGraph = `[0:v]${"null,".repeat(20_000)}null[first]`;
@@ -93,8 +96,8 @@ describe("FFmpeg filter complex scripts", () => {
 			const [directory] = prepared.scriptPaths.map((scriptPath) =>
 				path.dirname(scriptPath)
 			);
-			prepared.cleanup();
-			prepared.cleanup();
+			await prepared.cleanup();
+			await prepared.cleanup();
 			expect(fs.existsSync(directory)).toBe(false);
 		} finally {
 			fs.rmSync(temporaryRoot, { recursive: true, force: true });
@@ -114,5 +117,273 @@ describe("FFmpeg filter complex scripts", () => {
 		} finally {
 			fs.rmSync(temporaryRoot, { recursive: true, force: true });
 		}
+	});
+});
+
+const clipDuration = 2;
+
+function buildExactTenProductionArgs({
+	inputDirectory,
+}: {
+	inputDirectory: string;
+}): string[] {
+	const videoSources: VideoSource[] = Array.from(
+		{ length: TRANSITION_PARITY_CASES.length + 1 },
+		(_, index) => {
+			const clipPath = path.join(inputDirectory, `clip-${index}.mp4`);
+			fs.writeFileSync(clipPath, "");
+			return {
+				elementId: `clip-${index}`,
+				trackId: "main",
+				trackOrder: 0,
+				elementOrder: index,
+				path: clipPath,
+				startTime: index * clipDuration,
+				duration: clipDuration,
+			};
+		}
+	);
+	const videoTransitions: VideoTransition[] = TRANSITION_PARITY_CASES.map(
+		({ qcutPresetId, expectedConfig }, index) => ({
+			id: `transition-${index}`,
+			trackId: "main",
+			fromElementId: `clip-${index}`,
+			toElementId: `clip-${index + 1}`,
+			presetId: qcutPresetId,
+			duration: 0.4,
+			easing: "easeInOut",
+			...expectedConfig,
+		})
+	);
+
+	return buildFFmpegArgs({
+		inputDir: inputDirectory,
+		outputFile: path.join(inputDirectory, "output.mp4"),
+		width: 1920,
+		height: 1080,
+		fps: 30,
+		quality: "medium",
+		duration: videoSources.length * clipDuration,
+		videoSources,
+		videoTransitions,
+	});
+}
+
+describe("forced FFmpeg filter complex scripts", () => {
+	let tempRoot: string;
+
+	beforeEach(() => {
+		tempRoot = createTemporaryRoot();
+	});
+
+	afterEach(() => {
+		fs.rmSync(tempRoot, { recursive: true, force: true });
+	});
+
+	it("keeps a short filter command in argv without writing a script", async () => {
+		const originalArgs = [
+			"-i",
+			"input.mp4",
+			"-filter_complex",
+			"[0:v]scale=1280:720[out]",
+			"-map",
+			"[out]",
+		];
+
+		const prepared = prepareFFmpegFilterComplexScripts({
+			args: originalArgs,
+			commandLengthThreshold: Number.MAX_SAFE_INTEGER,
+			temporaryDirectory: tempRoot,
+		});
+
+		expect(prepared.args).toEqual(originalArgs);
+		expect(prepared.scriptPaths).toEqual([]);
+		expect(fs.readdirSync(tempRoot)).toEqual([]);
+		await prepared.cleanup();
+		expect(fs.readdirSync(tempRoot)).toEqual([]);
+	});
+
+	it("replaces an oversized filter graph with a byte-identical script", async () => {
+		const filterGraph =
+			"[0:v]scale=1920:1080[scaled];\n" +
+			"[scaled]drawtext=text='逐字一致; []':x=10:y=20[out]";
+		const originalArgs = [
+			"-i",
+			"input.mp4",
+			"-filter_complex",
+			filterGraph,
+			"-map",
+			"[out]",
+		];
+
+		const prepared = prepareFFmpegFilterComplexScripts({
+			args: originalArgs,
+			commandLengthThreshold: 1,
+			temporaryDirectory: tempRoot,
+		});
+
+		const [filterScriptPath] = prepared.scriptPaths;
+		if (!filterScriptPath) {
+			throw new Error("Expected an FFmpeg filter script path");
+		}
+		expect(prepared.args).toEqual([
+			"-i",
+			"input.mp4",
+			"-filter_complex_script",
+			filterScriptPath,
+			"-map",
+			"[out]",
+		]);
+		expect(fs.readFileSync(filterScriptPath, "utf8")).toBe(filterGraph);
+		await prepared.cleanup();
+	});
+
+	it("scripts the production exact-ten transition graph at the default threshold", async () => {
+		const originalArgs = buildExactTenProductionArgs({
+			inputDirectory: tempRoot,
+		});
+		const prepared = prepareFFmpegFilterComplexScripts({
+			args: originalArgs,
+			temporaryDirectory: tempRoot,
+		});
+
+		const [filterScriptPath] = prepared.scriptPaths;
+		if (!filterScriptPath) {
+			throw new Error("Expected an FFmpeg filter script path");
+		}
+		const scriptDirectory = path.dirname(filterScriptPath);
+		const filterGraph = fs.readFileSync(filterScriptPath, "utf8");
+
+		expect(prepared.args).toContain("-filter_complex_script");
+		expect(prepared.args).not.toContain("-filter_complex");
+		expect(filterGraph.match(/xfade=transition=custom/g)).toHaveLength(10);
+		expect(fs.existsSync(scriptDirectory)).toBe(true);
+
+		await prepared.cleanup();
+		expect(fs.existsSync(scriptDirectory)).toBe(false);
+	});
+
+	it("removes the generated directory once when cleanup is repeated", async () => {
+		const prepared = prepareFFmpegFilterComplexScripts({
+			args: ["-filter_complex", "[0:v]null[out]"],
+			commandLengthThreshold: 1,
+			temporaryDirectory: tempRoot,
+		});
+		const [filterScriptPath] = prepared.scriptPaths;
+		if (!filterScriptPath) {
+			throw new Error("Expected an FFmpeg filter script path");
+		}
+		const scriptDirectory = path.dirname(filterScriptPath);
+		expect(fs.existsSync(scriptDirectory)).toBe(true);
+
+		await prepared.cleanup();
+		expect(fs.existsSync(scriptDirectory)).toBe(false);
+		await expect(prepared.cleanup()).resolves.toBe(true);
+		expect(fs.existsSync(scriptDirectory)).toBe(false);
+	});
+
+	it("falls back to asynchronous removal when Windows keeps the directory busy", async () => {
+		const prepared = prepareFFmpegFilterComplexScripts({
+			args: ["-filter_complex", "[0:v]null[out]"],
+			commandLengthThreshold: 1,
+			temporaryDirectory: tempRoot,
+		});
+		const [filterScriptPath] = prepared.scriptPaths;
+		if (!filterScriptPath) {
+			throw new Error("Expected an FFmpeg filter script path");
+		}
+		const scriptDirectory = path.dirname(filterScriptPath);
+		const permissionError = Object.assign(
+			new Error("operation not permitted"),
+			{
+				code: "EPERM",
+			}
+		);
+		const rmSyncSpy = vi.spyOn(fs, "rmSync").mockImplementationOnce(() => {
+			throw permissionError;
+		});
+		const rmSpy = vi.spyOn(fs, "rm");
+
+		try {
+			await expect(prepared.cleanup()).resolves.toBe(true);
+			expect(rmSyncSpy).toHaveBeenCalledWith(scriptDirectory, {
+				recursive: true,
+				force: true,
+			});
+			expect(rmSyncSpy).toHaveBeenCalledTimes(1);
+			expect(rmSpy).toHaveBeenCalledWith(
+				scriptDirectory,
+				{
+					recursive: true,
+					force: true,
+					maxRetries: 5,
+					retryDelay: 100,
+				},
+				expect.any(Function)
+			);
+			expect(fs.existsSync(scriptDirectory)).toBe(false);
+		} finally {
+			rmSyncSpy.mockRestore();
+			rmSpy.mockRestore();
+		}
+
+		expect(fs.existsSync(scriptDirectory)).toBe(false);
+	});
+
+	it("reports a final cleanup failure and allows a later retry", async () => {
+		const prepared = prepareFFmpegFilterComplexScripts({
+			args: ["-filter_complex", "[0:v]null[out]"],
+			commandLengthThreshold: 1,
+			temporaryDirectory: tempRoot,
+		});
+		const [filterScriptPath] = prepared.scriptPaths;
+		if (!filterScriptPath) {
+			throw new Error("Expected an FFmpeg filter script path");
+		}
+		const scriptDirectory = path.dirname(filterScriptPath);
+		const permissionError = Object.assign(
+			new Error("operation not permitted"),
+			{ code: "EPERM" }
+		);
+		const rmSyncSpy = vi.spyOn(fs, "rmSync").mockImplementation(() => {
+			throw permissionError;
+		});
+		const rmSpy = vi
+			.spyOn(fs, "rm")
+			.mockImplementation(
+				(
+					_path,
+					_options,
+					callback: (error: NodeJS.ErrnoException | null) => void
+				) => callback(permissionError)
+			);
+		const warnSpy = vi
+			.spyOn(console, "warn")
+			.mockImplementation(() => undefined);
+
+		try {
+			await expect(prepared.cleanup()).resolves.toBe(false);
+			await expect(prepared.cleanup()).resolves.toBe(false);
+			expect(rmSyncSpy).toHaveBeenCalledTimes(2);
+			expect(rmSpy).toHaveBeenCalledTimes(2);
+			expect(warnSpy).toHaveBeenCalledTimes(2);
+			expect(fs.existsSync(scriptDirectory)).toBe(true);
+		} finally {
+			rmSyncSpy.mockRestore();
+			rmSpy.mockRestore();
+			warnSpy.mockRestore();
+			fs.rmSync(scriptDirectory, { recursive: true, force: true });
+		}
+	});
+
+	it("rejects a filter_complex flag without its graph argument", () => {
+		expect(() =>
+			prepareFFmpegFilterComplexScripts({
+				args: ["-hide_banner", "-filter_complex"],
+				commandLengthThreshold: 1,
+				temporaryDirectory: tempRoot,
+			})
+		).toThrow("FFmpeg filter_complex is missing its graph");
+		expect(fs.readdirSync(tempRoot)).toEqual([]);
 	});
 });

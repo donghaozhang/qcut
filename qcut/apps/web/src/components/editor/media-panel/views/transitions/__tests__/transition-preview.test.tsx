@@ -117,7 +117,7 @@ describe("TransitionPreview", () => {
 		expect(fill.style.width).toBe("50%");
 
 		const { from, to } = getLayers({ container });
-		expect(from.style.opacity).toBe("0.5");
+		expect(from.style.opacity).toBe("1");
 		expect(to.style.opacity).toBe("0.5");
 	});
 

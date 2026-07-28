@@ -74,6 +74,7 @@ export const CLIP_TRANSITION_TYPES = [
 	"wipe",
 	"push",
 	"zoom-blur",
+	"zoom-in-blur",
 	"whip-pan",
 	"flash",
 	"light-leak",

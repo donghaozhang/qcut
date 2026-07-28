@@ -18,6 +18,7 @@ export interface ClipTransitionPreviewState {
 }
 
 export interface ActiveClipTransitionPreview {
+	activeTransitionIds: ReadonlySet<string>;
 	forceActiveElementIds: ReadonlySet<string>;
 	statesByElementId: ReadonlyMap<string, ClipTransitionPreviewState>;
 }
@@ -41,6 +42,7 @@ export function resolveActiveClipTransitionPreview({
 	currentTime: number;
 	fps: number;
 }): ActiveClipTransitionPreview {
+	const activeTransitionIds = new Set<string>();
 	const forceActiveElementIds = new Set<string>();
 	const statesByElementId = new Map<string, ClipTransitionPreviewState>();
 	const frameRate = Math.max(1, fps);
@@ -100,10 +102,11 @@ export function resolveActiveClipTransitionPreview({
 
 			forceActiveElementIds.add(resolved.fromElement.id);
 			forceActiveElementIds.add(resolved.toElement.id);
+			activeTransitionIds.add(resolved.transition.id);
 			statesByElementId.set(resolved.fromElement.id, fromState);
 			statesByElementId.set(resolved.toElement.id, toState);
 		}
 	}
 
-	return { forceActiveElementIds, statesByElementId };
+	return { activeTransitionIds, forceActiveElementIds, statesByElementId };
 }

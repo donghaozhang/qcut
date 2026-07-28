@@ -182,6 +182,7 @@ export type ClipTransitionType =
 	| "wipe"
 	| "push"
 	| "zoom-blur"
+	| "zoom-in-blur"
 	| "whip-pan"
 	| "flash"
 	| "light-leak"

@@ -401,7 +401,14 @@ export function setupExportHandler(tempManager: TempManager): void {
 					}
 
 					// Try to run FFmpeg directly
-					let cleanupFilterScripts: () => void = () => undefined;
+					let cleanupFilterScripts: () => Promise<boolean> = async () => true;
+					const cleanupFilterScriptsSafely = async (): Promise<void> => {
+						try {
+							await cleanupFilterScripts();
+						} catch (error) {
+							console.warn("[FFmpeg] Filter script cleanup failed", error);
+						}
+					};
 					try {
 						const preparedFilterScripts = prepareFFmpegFilterComplexScripts({
 							args,
@@ -434,15 +441,15 @@ export function setupExportHandler(tempManager: TempManager): void {
 							}
 						});
 
-						ffmpegProc.on("error", (err: Error) => {
-							cleanupFilterScripts();
+						ffmpegProc.on("error", async (err: Error) => {
+							await cleanupFilterScriptsSafely();
 							reject(err);
 						});
 
 						ffmpegProc.on(
 							"close",
-							(code: number | null, signal: string | null) => {
-								cleanupFilterScripts();
+							async (code: number | null, signal: string | null) => {
+								await cleanupFilterScriptsSafely();
 								if (code === 0) {
 									resolve({
 										success: true,
@@ -464,7 +471,7 @@ export function setupExportHandler(tempManager: TempManager): void {
 
 						return;
 					} catch {
-						cleanupFilterScripts();
+						await cleanupFilterScriptsSafely();
 						// Direct spawn failed
 					}
 

@@ -118,14 +118,26 @@ function enteringOffset({
 	}
 }
 
-function crossfadeOpacity({
+function stackedLayerOpacity({
 	role,
 	progress,
 }: {
 	role: ClipTransitionRole;
 	progress: number;
 }): number {
-	return role === "from" ? 1 - progress : progress;
+	return role === "from" ? 1 : progress;
+}
+
+function pageFlipOpacity({
+	role,
+	progress,
+}: {
+	role: ClipTransitionRole;
+	progress: number;
+}): number {
+	if (role === "from" && progress >= 0.999) return 0;
+	if (role === "to" && progress <= 0.001) return 0;
+	return 1;
 }
 
 function maskVisibility({
@@ -168,7 +180,7 @@ function hash01(seed: number): number {
 }
 
 const HEART_MASK_SVG = encodeURIComponent(
-	'<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32"><path fill="#000" d="M16 29C7 21.5 2 16.5 2 10.6 2 6.4 5.4 3 9.6 3c2.6 0 5 1.3 6.4 3.4C17.4 4.3 19.8 3 22.4 3 26.6 3 30 6.4 30 10.6 30 16.5 25 21.5 16 29z"/></svg>'
+	'<svg xmlns="http://www.w3.org/2000/svg" viewBox="-2 -2 36 36"><defs><filter id="soft" x="-20%" y="-20%" width="140%" height="140%"><feGaussianBlur stdDeviation=".65"/></filter></defs><path fill="#000" filter="url(#soft)" d="M16 29C7 21.5 2 16.5 2 10.6 2 6.4 5.4 3 9.6 3c2.6 0 5 1.3 6.4 3.4C17.4 4.3 19.8 3 22.4 3 26.6 3 30 6.4 30 10.6 30 16.5 25 21.5 16 29z"/></svg>'
 );
 
 const STAR_MASK_SVG = encodeURIComponent(
@@ -206,8 +218,25 @@ function noiseBlobMask({
 
 type ShapeMaskPresentation = Partial<ClipTransitionLayerPresentation>;
 
-function circleMask({ progress }: { progress: number }): ShapeMaskPresentation {
-	return { clipPath: `circle(${(progress * 75).toFixed(2)}% at 50% 50%)` };
+function circleMask({
+	progress,
+	canvasWidth,
+	canvasHeight,
+}: {
+	progress: number;
+	canvasWidth: number;
+	canvasHeight: number;
+}): ShapeMaskPresentation {
+	const maximumRadius = Math.hypot(canvasWidth, canvasHeight) / 2;
+	const featherRadius = maximumRadius * 0.03;
+	const radius = progress * 1.06 * maximumRadius;
+	const solidRadius = Math.max(0, radius - featherRadius);
+	const outerRadius = radius + featherRadius;
+	return {
+		maskImage: `radial-gradient(circle at 50% 50%, #000 0 ${solidRadius.toFixed(2)}px, rgba(0,0,0,0.5) ${radius.toFixed(2)}px, transparent ${outerRadius.toFixed(2)}px)`,
+		maskSize: "100% 100%",
+		maskRepeat: "no-repeat",
+	};
 }
 
 function clockMask({ progress }: { progress: number }): ShapeMaskPresentation {
@@ -266,13 +295,18 @@ function arrowMask({ progress }: { progress: number }): ShapeMaskPresentation {
 function svgMask({
 	svg,
 	progress,
+	scaleByHeight = false,
 }: {
 	svg: string;
 	progress: number;
+	scaleByHeight?: boolean;
 }): ShapeMaskPresentation {
+	const heightScale = progress * 200 + progress ** 8 * 300;
 	return {
 		maskImage: `url("data:image/svg+xml,${svg}")`,
-		maskSize: `${(progress * 260).toFixed(1)}%`,
+		maskSize: scaleByHeight
+			? `auto ${heightScale.toFixed(1)}%`
+			: `${(progress * 260).toFixed(1)}%`,
 		maskPosition: "center",
 		maskRepeat: "no-repeat",
 	};
@@ -345,15 +379,19 @@ function shapeMask({
 	shape,
 	role,
 	progress,
+	canvasWidth,
+	canvasHeight,
 }: {
 	shape: NonNullable<ClipTransition["maskShape"]>;
 	role: ClipTransitionRole;
 	progress: number;
+	canvasWidth: number;
+	canvasHeight: number;
 }): ShapeMaskPresentation {
 	if (role === "from") return {};
 	switch (shape) {
 		case "circle":
-			return circleMask({ progress });
+			return circleMask({ progress, canvasWidth, canvasHeight });
 		case "clock":
 			return clockMask({ progress });
 		case "blinds":
@@ -365,7 +403,7 @@ function shapeMask({
 		case "arrow":
 			return arrowMask({ progress });
 		case "heart":
-			return svgMask({ svg: HEART_MASK_SVG, progress });
+			return svgMask({ svg: HEART_MASK_SVG, progress, scaleByHeight: true });
 		case "star":
 			return svgMask({ svg: STAR_MASK_SVG, progress });
 		case "ink":
@@ -479,7 +517,10 @@ export function getClipTransitionLayerPresentation({
 
 	switch (transition.type) {
 		case "dissolve":
-			return { ...base, opacity: role === "from" ? 1 - eased : eased };
+			return {
+				...base,
+				opacity: stackedLayerOpacity({ role, progress: eased }),
+			};
 		case "fade-black":
 			return role === "from"
 				? {
@@ -545,9 +586,22 @@ export function getClipTransitionLayerPresentation({
 			const peak = transitionPeak({ progress: eased });
 			return {
 				...base,
-				opacity: crossfadeOpacity({ role, progress: eased }),
+				opacity: stackedLayerOpacity({ role, progress: eased }),
 				scale: 1 + peak * 0.18 * tuning.intensity,
 				blur: peak * 12 * tuning.intensity,
+			};
+		}
+		case "zoom-in-blur": {
+			const peak = transitionPeak({ progress: eased });
+			const zoomAmount = 0.12 * tuning.intensity;
+			return {
+				...base,
+				opacity: stackedLayerOpacity({ role, progress: eased }),
+				scale:
+					role === "from"
+						? 1 + zoomAmount * eased
+						: 1 - zoomAmount * (1 - eased),
+				blur: peak * 8 * tuning.intensity,
 			};
 		}
 		case "whip-pan": {
@@ -582,7 +636,7 @@ export function getClipTransitionLayerPresentation({
 			const peak = transitionPeak({ progress: eased });
 			return {
 				...base,
-				opacity: crossfadeOpacity({ role, progress: eased }),
+				opacity: stackedLayerOpacity({ role, progress: eased }),
 				contentOpacity: Math.max(0, 1 - peak * 0.55 * tuning.intensity),
 				backgroundColor: tuning.tint ?? "#ffffff",
 				brightness: 1 + peak * 2.2 * tuning.intensity,
@@ -593,7 +647,7 @@ export function getClipTransitionLayerPresentation({
 			const peak = transitionPeak({ progress: eased });
 			return {
 				...base,
-				opacity: crossfadeOpacity({ role, progress: eased }),
+				opacity: stackedLayerOpacity({ role, progress: eased }),
 				contentOpacity: Math.max(0, 1 - peak * 0.3 * tuning.intensity),
 				backgroundColor: tuning.tint ?? "#ff5a1f",
 				brightness: 1 + peak * 0.65 * tuning.intensity,
@@ -607,7 +661,7 @@ export function getClipTransitionLayerPresentation({
 			const roleSign = role === "from" ? -1 : 1;
 			return {
 				...base,
-				opacity: crossfadeOpacity({ role, progress: eased }),
+				opacity: stackedLayerOpacity({ role, progress: eased }),
 				offsetX: normalizedOffset({
 					value:
 						roleSign *
@@ -635,7 +689,7 @@ export function getClipTransitionLayerPresentation({
 			const peak = transitionPeak({ progress: eased });
 			return {
 				...base,
-				opacity: crossfadeOpacity({ role, progress: eased }),
+				opacity: stackedLayerOpacity({ role, progress: eased }),
 				offsetX: normalizedOffset({
 					value:
 						Math.sin(eased * Math.PI * 16 * tuning.frequency) *
@@ -671,7 +725,7 @@ export function getClipTransitionLayerPresentation({
 			const roleSign = role === "from" ? -1 : 1;
 			return {
 				...base,
-				opacity: crossfadeOpacity({ role, progress: eased }),
+				opacity: stackedLayerOpacity({ role, progress: eased }),
 				offsetX: normalizedOffset({ value: offset.offsetX * roleSign }),
 				offsetY: normalizedOffset({ value: offset.offsetY * roleSign }),
 				blur: peak * 18 * tuning.intensity,
@@ -682,7 +736,7 @@ export function getClipTransitionLayerPresentation({
 			const peak = transitionPeak({ progress: eased });
 			return {
 				...base,
-				opacity: crossfadeOpacity({ role, progress: eased }),
+				opacity: stackedLayerOpacity({ role, progress: eased }),
 				pixelScale: 1 + Math.round(peak * 22 * tuning.intensity),
 				saturation: 1 + peak * 0.15 * tuning.intensity,
 			};
@@ -695,7 +749,7 @@ export function getClipTransitionLayerPresentation({
 				tuning.intensity;
 			return {
 				...base,
-				opacity: crossfadeOpacity({ role, progress: eased }),
+				opacity: stackedLayerOpacity({ role, progress: eased }),
 				scale: 1 + wave * 0.018,
 				rotation: wave * (role === "from" ? -0.45 : 0.45),
 				blur: peak * 1.5 * tuning.intensity,
@@ -726,7 +780,7 @@ export function getClipTransitionLayerPresentation({
 				transition.direction === "up" || transition.direction === "down";
 			return {
 				...base,
-				opacity: crossfadeOpacity({ role, progress: eased }),
+				opacity: stackedLayerOpacity({ role, progress: eased }),
 				offsetX: vertical
 					? 0
 					: roleSign * peak * canvasWidth * 0.018 * tuning.intensity,
@@ -754,7 +808,7 @@ export function getClipTransitionLayerPresentation({
 					role,
 					progress: eased,
 				}),
-				opacity: crossfadeOpacity({ role, progress: eased }),
+				opacity: pageFlipOpacity({ role, progress: eased }),
 				brightness: 1 - peak * 0.28 * tuning.intensity,
 				overlayBackground:
 					"linear-gradient(90deg, rgba(0,0,0,0.5), transparent 18%, transparent 82%, rgba(255,255,255,0.28))",
@@ -786,6 +840,8 @@ export function getClipTransitionLayerPresentation({
 						shape: transition.maskShape,
 						role,
 						progress: eased,
+						canvasWidth,
+						canvasHeight,
 					}),
 					opacity: 1,
 					contentOpacity: 1,
@@ -850,7 +906,7 @@ export function getClipTransitionLayerPresentation({
 			const spin = 160 * tuning.intensity;
 			return {
 				...base,
-				opacity: crossfadeOpacity({ role, progress: eased }),
+				opacity: stackedLayerOpacity({ role, progress: eased }),
 				rotation: role === "from" ? eased * spin : -(1 - eased) * spin,
 				scale: 1 + peak * 0.24 * tuning.intensity,
 				blur: peak * 7 * tuning.intensity,
@@ -862,7 +918,7 @@ export function getClipTransitionLayerPresentation({
 			const ring = Math.min(100, eased * 130);
 			return {
 				...base,
-				opacity: crossfadeOpacity({ role, progress: eased }),
+				opacity: stackedLayerOpacity({ role, progress: eased }),
 				scale: 1 + peak * 0.1 * tuning.intensity,
 				blur: peak * 3 * tuning.intensity,
 				brightness: 1 + peak * 0.2 * tuning.intensity,
@@ -878,7 +934,7 @@ export function getClipTransitionLayerPresentation({
 			const tint = tuning.tint ?? "#ffd6a1";
 			return {
 				...base,
-				opacity: crossfadeOpacity({ role, progress: eased }),
+				opacity: stackedLayerOpacity({ role, progress: eased }),
 				brightness: 1 + peak * 0.85 * tuning.intensity,
 				saturation: 1 + peak * 0.35,
 				overlayBackground: `radial-gradient(circle at ${flareX.toFixed(2)}% ${flareY.toFixed(2)}%, ${tint} 0, rgba(255,255,255,0.72) 8%, transparent 34%), linear-gradient(${(eased * 18 - 9).toFixed(2)}deg, transparent 42%, ${tint} 49%, transparent 56%)`,
