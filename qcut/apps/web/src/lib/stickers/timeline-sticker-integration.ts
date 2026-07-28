@@ -271,6 +271,14 @@ export class TimelineStickerIntegration {
 				rotation: sticker.rotation,
 				opacity: sticker.opacity,
 				maintainAspectRatio: sticker.maintainAspectRatio,
+				perspective: sticker.perspective,
+				animationInType: sticker.animationInType,
+				animationInDuration: sticker.animationInDuration,
+				animationOutType: sticker.animationOutType,
+				animationOutDuration: sticker.animationOutDuration,
+				animationLoopType: sticker.animationLoopType,
+				animationLoopIntensity: sticker.animationLoopIntensity,
+				keyframes: {},
 				zIndex: sticker.zIndex,
 			};
 
