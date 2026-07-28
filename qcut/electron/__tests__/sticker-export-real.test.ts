@@ -45,15 +45,6 @@ const STAGED_FFPROBE = path.resolve(
 	__dirname,
 	`../resources/ffmpeg/${process.platform}-${process.arch}/${FFPROBE_BINARY_NAME}`
 );
-const FFMPEG_MANIFEST = JSON.parse(
-	fs.readFileSync(
-		path.resolve(__dirname, "../../scripts/ffmpeg-binaries.json"),
-		"utf8"
-	)
-) as {
-	nativeVersion: string;
-	targets: Record<string, { versionMarker: string }>;
-};
 const FFMPEG_TARGET_KEY = `${process.platform}-${process.arch}`;
 const FFMPEG_SETUP_TIMEOUT_MS = 60_000;
 const FFMPEG_PROBE_TIMEOUT_MS = 60_000;
@@ -476,9 +467,18 @@ describe.skipIf(!detectedToolchain)(
 				parseToolVersion({ output: ffprobeVersion, tool: "ffprobe" })
 			);
 			if (detectedToolchain?.source === "staged") {
+				const ffmpegManifest = JSON.parse(
+					fs.readFileSync(
+						path.resolve(__dirname, "../../scripts/ffmpeg-binaries.json"),
+						"utf8"
+					)
+				) as {
+					nativeVersion: string;
+					targets: Record<string, { versionMarker: string }>;
+				};
 				const versionMarker =
-					FFMPEG_MANIFEST.targets[FFMPEG_TARGET_KEY]?.versionMarker ??
-					FFMPEG_MANIFEST.nativeVersion;
+					ffmpegManifest.targets[FFMPEG_TARGET_KEY]?.versionMarker ??
+					ffmpegManifest.nativeVersion;
 				expect(ffmpegVersion).toContain(versionMarker);
 				expect(ffprobeVersion).toContain(versionMarker);
 			}
