@@ -45,6 +45,7 @@ const TUNING_CONTROLS: Partial<
 	Record<ClipTransitionType, ClipTransitionTuningControl[]>
 > = {
 	"zoom-blur": [{ ...INTENSITY_CONTROL, label: "模糊强度" }],
+	"zoom-in-blur": [{ ...INTENSITY_CONTROL, label: "拉近强度" }],
 	"whip-pan": [{ ...INTENSITY_CONTROL, label: "甩镜强度" }],
 	flash: [
 		{ ...INTENSITY_CONTROL, label: "闪光强度" },

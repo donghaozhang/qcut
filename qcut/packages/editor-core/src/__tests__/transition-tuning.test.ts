@@ -114,6 +114,17 @@ describe("transition tuning", () => {
 			intensity: 1,
 			tint: "#ff5a1f",
 		});
+		expect(getClipTransitionTuningControls({ type: "zoom-in-blur" })).toEqual([
+			{
+				defaultValue: 1,
+				kind: "number",
+				label: "拉近强度",
+				max: 2,
+				min: 0.1,
+				property: "intensity",
+				step: 0.05,
+			},
+		]);
 		expect(clipTransitionSupportsDirection({ type: "slide" })).toBe(true);
 		expect(clipTransitionSupportsDirection({ type: "dissolve" })).toBe(false);
 	});
