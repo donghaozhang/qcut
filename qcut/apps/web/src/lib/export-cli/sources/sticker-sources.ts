@@ -17,7 +17,7 @@ import { dataUrlToBlob } from "@/lib/media/data-url";
 import { resolveStickerGeometry } from "@/lib/stickers/sticker-geometry";
 import {
 	buildStickerTrackingExportKeyframes,
-	StickerTrackingExportLimitError,
+	StickerTrackingExportError,
 } from "@/lib/stickers/sticker-tracking-export";
 import { useTimelineStore } from "@/stores/timeline/timeline-store";
 import type {
@@ -353,7 +353,7 @@ export async function extractStickerSources(
 					`[StickerSources] Processed sticker ${sticker.id}: ${Math.round(pixelWidth)}x${Math.round(pixelHeight)} at (${Math.round(topLeftX)}, ${Math.round(topLeftY)})`
 				);
 			} catch (error) {
-				if (error instanceof StickerTrackingExportLimitError) throw error;
+				if (error instanceof StickerTrackingExportError) throw error;
 				console.warn(
 					`⚠️ [STICKER EXPORT] Sticker ${stickerIndex}/${allStickers.length} failed:`,
 					error
@@ -374,7 +374,7 @@ export async function extractStickerSources(
 		);
 		return stickerSources;
 	} catch (error) {
-		if (error instanceof StickerTrackingExportLimitError) throw error;
+		if (error instanceof StickerTrackingExportError) throw error;
 		logger("[StickerSources] Failed to extract sticker sources:", error);
 		return [];
 	}
