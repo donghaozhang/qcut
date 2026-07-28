@@ -45,11 +45,11 @@ interface FakeChildProcess extends EventEmitter {
 }
 
 function createFakeChildProcess(): FakeChildProcess {
-	const process = new EventEmitter() as FakeChildProcess;
-	process.stdout = new EventEmitter();
-	process.stderr = new EventEmitter();
-	process.kill = vi.fn(() => true);
-	return process;
+	const child = new EventEmitter() as FakeChildProcess;
+	child.stdout = new EventEmitter();
+	child.stderr = new EventEmitter();
+	child.kill = vi.fn(() => true);
+	return child;
 }
 
 function previewOptions({
@@ -93,8 +93,8 @@ describe("video frame preview process lifecycle", () => {
 		);
 		const sourcePath = path.join(tempDirectory, "source.mp4");
 		fs.writeFileSync(sourcePath, "fixture");
-		const process = createFakeChildProcess();
-		mocks.spawn.mockReturnValue(process as unknown as ChildProcess);
+		const child = createFakeChildProcess();
+		mocks.spawn.mockReturnValue(child as unknown as ChildProcess);
 		mocks.cleanup.mockResolvedValueOnce(false).mockResolvedValueOnce(true);
 
 		try {
@@ -109,10 +109,10 @@ describe("video frame preview process lifecycle", () => {
 			);
 
 			await vi.advanceTimersByTimeAsync(20_000);
-			expect(process.kill).toHaveBeenCalledTimes(1);
+			expect(child.kill).toHaveBeenCalledTimes(1);
 			expect(mocks.cleanup).not.toHaveBeenCalled();
 
-			process.emit("close", null, "SIGTERM");
+			child.emit("close", null, "SIGTERM");
 			await Promise.resolve();
 			expect(mocks.cleanup).toHaveBeenCalledTimes(1);
 
@@ -131,8 +131,8 @@ describe("video frame preview process lifecycle", () => {
 		);
 		const sourcePath = path.join(tempDirectory, "source.mp4");
 		fs.writeFileSync(sourcePath, "fixture");
-		const process = createFakeChildProcess();
-		mocks.spawn.mockReturnValue(process as unknown as ChildProcess);
+		const child = createFakeChildProcess();
+		mocks.spawn.mockReturnValue(child as unknown as ChildProcess);
 		mocks.cleanup.mockResolvedValue(true);
 
 		try {
@@ -147,33 +147,37 @@ describe("video frame preview process lifecycle", () => {
 			);
 
 			await vi.advanceTimersByTimeAsync(20_000);
-			expect(process.kill).toHaveBeenCalledTimes(1);
+			expect(child.kill).toHaveBeenCalledTimes(1);
 			expect(mocks.cleanup).not.toHaveBeenCalled();
 
 			await vi.advanceTimersByTimeAsync(1_000);
 			await rejection;
-			expect(process.kill).toHaveBeenCalledTimes(2);
-			expect(process.kill).toHaveBeenNthCalledWith(1);
-			expect(process.kill).toHaveBeenNthCalledWith(2, "SIGKILL");
+			expect(child.kill).toHaveBeenCalledTimes(2);
+			expect(child.kill).toHaveBeenNthCalledWith(1);
+			expect(child.kill).toHaveBeenNthCalledWith(2, "SIGKILL");
 			expect(
 				cancelVideoFramePreview({ requestId: "never-close-request" })
 			).toBe(false);
 			expect(mocks.cleanup).not.toHaveBeenCalled();
+
+			child.emit("exit", null, "SIGKILL");
+			await Promise.resolve();
+			expect(mocks.cleanup).toHaveBeenCalledTimes(1);
 		} finally {
 			fs.rmSync(tempDirectory, { recursive: true, force: true });
 		}
 	});
 
-	it("defers cleanup until a child that rejected kill eventually closes", async () => {
+	it("defers cleanup until a child that rejected kill eventually exits", async () => {
 		vi.useFakeTimers();
 		const tempDirectory = fs.mkdtempSync(
 			path.join(os.tmpdir(), "qcut-preview-lifecycle-")
 		);
 		const sourcePath = path.join(tempDirectory, "source.mp4");
 		fs.writeFileSync(sourcePath, "fixture");
-		const process = createFakeChildProcess();
-		process.kill.mockReturnValue(false);
-		mocks.spawn.mockReturnValue(process as unknown as ChildProcess);
+		const child = createFakeChildProcess();
+		child.kill.mockReturnValue(false);
+		mocks.spawn.mockReturnValue(child as unknown as ChildProcess);
 		mocks.cleanup.mockResolvedValue(true);
 
 		try {
@@ -189,17 +193,88 @@ describe("video frame preview process lifecycle", () => {
 
 			await vi.advanceTimersByTimeAsync(21_000);
 			await rejection;
-			expect(process.kill).toHaveBeenCalledTimes(2);
-			expect(process.kill).toHaveBeenNthCalledWith(1);
-			expect(process.kill).toHaveBeenNthCalledWith(2, "SIGKILL");
+			expect(child.kill).toHaveBeenCalledTimes(2);
+			expect(child.kill).toHaveBeenNthCalledWith(1);
+			expect(child.kill).toHaveBeenNthCalledWith(2, "SIGKILL");
 			expect(cancelVideoFramePreview({ requestId: "kill-false-request" })).toBe(
 				false
 			);
 			expect(mocks.cleanup).not.toHaveBeenCalled();
 
-			process.emit("close", 0, null);
+			child.emit("exit", null, null);
 			await Promise.resolve();
 			expect(mocks.cleanup).toHaveBeenCalledTimes(1);
+		} finally {
+			fs.rmSync(tempDirectory, { recursive: true, force: true });
+		}
+	});
+
+	it("cleans on exit but waits for close before resolving output", async () => {
+		const tempDirectory = fs.mkdtempSync(
+			path.join(os.tmpdir(), "qcut-preview-lifecycle-")
+		);
+		const sourcePath = path.join(tempDirectory, "source.mp4");
+		fs.writeFileSync(sourcePath, "fixture");
+		const child = createFakeChildProcess();
+		mocks.spawn.mockReturnValue(child as unknown as ChildProcess);
+		mocks.cleanup.mockResolvedValue(true);
+
+		try {
+			const renderPromise = renderVideoFramePreview({
+				options: previewOptions({
+					requestId: "exit-before-close-request",
+					sourcePath,
+				}),
+			});
+			const settled = vi.fn();
+			void renderPromise.then(settled);
+			child.stdout.emit("data", Buffer.alloc(128, 1));
+
+			child.emit("exit", 0, null);
+			await Promise.resolve();
+			expect(mocks.cleanup).toHaveBeenCalledTimes(1);
+			expect(settled).not.toHaveBeenCalled();
+
+			child.emit("close", 0, null);
+			await expect(renderPromise).resolves.toMatchObject({
+				requestId: "exit-before-close-request",
+				cacheHit: false,
+			});
+			expect(mocks.cleanup).toHaveBeenCalledTimes(1);
+		} finally {
+			fs.rmSync(tempDirectory, { recursive: true, force: true });
+		}
+	});
+
+	it("times out without signaling a child that exited but never closed", async () => {
+		vi.useFakeTimers();
+		const tempDirectory = fs.mkdtempSync(
+			path.join(os.tmpdir(), "qcut-preview-lifecycle-")
+		);
+		const sourcePath = path.join(tempDirectory, "source.mp4");
+		fs.writeFileSync(sourcePath, "fixture");
+		const child = createFakeChildProcess();
+		mocks.spawn.mockReturnValue(child as unknown as ChildProcess);
+		mocks.cleanup.mockResolvedValue(true);
+
+		try {
+			const renderPromise = renderVideoFramePreview({
+				options: previewOptions({
+					requestId: "exit-without-close-request",
+					sourcePath,
+				}),
+			});
+			const rejection = expect(renderPromise).rejects.toThrow(
+				"Video frame preview timed out"
+			);
+
+			child.emit("exit", 0, null);
+			await Promise.resolve();
+			expect(mocks.cleanup).toHaveBeenCalledTimes(1);
+
+			await vi.advanceTimersByTimeAsync(21_000);
+			await rejection;
+			expect(child.kill).not.toHaveBeenCalled();
 		} finally {
 			fs.rmSync(tempDirectory, { recursive: true, force: true });
 		}
