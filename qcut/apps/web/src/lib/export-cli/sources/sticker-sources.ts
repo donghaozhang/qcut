@@ -14,6 +14,14 @@ import { resolveTimelineStickerVisual } from "@/lib/stickers/timeline-sticker-vi
 import { rasterizeSvgToPng, isSvgContent } from "./svg-rasterizer";
 import { platform } from "@qcut/platform-core";
 import { dataUrlToBlob } from "@/lib/media/data-url";
+import { resolveStickerGeometry } from "@/lib/stickers/sticker-geometry";
+import { buildStickerTrackingExportKeyframes } from "@/lib/stickers/sticker-tracking-export";
+import { useTimelineStore } from "@/stores/timeline/timeline-store";
+import type {
+	MediaAnimationType,
+	MediaPerspective,
+	StickerAnimationLoopType,
+} from "@/types/timeline";
 
 /**
  * Logger function type for dependency injection.
@@ -32,6 +40,13 @@ interface StickerOverlayData {
 	opacity?: number;
 	rotation?: number;
 	maintainAspectRatio?: boolean;
+	perspective?: MediaPerspective;
+	animationInType?: MediaAnimationType;
+	animationInDuration?: number;
+	animationOutType?: MediaAnimationType;
+	animationOutDuration?: number;
+	animationLoopType?: StickerAnimationLoopType;
+	animationLoopIntensity?: number;
 	timing?: { startTime?: number; endTime?: number };
 }
 
@@ -164,6 +179,7 @@ async function downloadStickerToTemp(
  * @param stickersStoreGetter - Optional function that returns the stickers store state; when omitted the default overlay store is imported dynamically
  * @param stickerAPI - Optional sticker export API used to save downloaded sticker files; when omitted the platform FFmpeg export client is used
  * @param logger - Optional logger function used for diagnostic messages
+ * @param keyframeFps - Project frame rate used to interpret clip-local sticker keyframe frames
  * @returns Array of prepared sticker source entries sorted by ascending zIndex, ready for FFmpeg overlay filters
  */
 export async function extractStickerSources(
@@ -174,7 +190,8 @@ export async function extractStickerSources(
 	totalDuration: number,
 	stickersStoreGetter?: () => Promise<StickersStoreGetter>,
 	stickerAPI?: StickerExportAPI,
-	logger: LogFn = console.log
+	logger: LogFn = console.log,
+	keyframeFps = 30
 ): Promise<StickerSourceForFilter[]> {
 	logger("[StickerSources] Extracting sticker sources for FFmpeg overlay");
 
@@ -196,6 +213,9 @@ export async function extractStickerSources(
 		}
 
 		const timingMap = getStickerTimingMap();
+		const timelineTracks = useTimelineStore.getState()._tracks;
+		const normalizedKeyframeFps =
+			Number.isFinite(keyframeFps) && keyframeFps > 0 ? keyframeFps : 30;
 		const stickerById = new Map(
 			stickersStore
 				.getStickersForExport()
@@ -254,11 +274,14 @@ export async function extractStickerSources(
 				}
 
 				// Convert percentage positions to pixel coordinates
-				const baseSize = Math.min(canvasWidth, canvasHeight);
-				const pixelX = (sticker.position.x / 100) * canvasWidth;
-				const pixelY = (sticker.position.y / 100) * canvasHeight;
-				const pixelWidth = (sticker.size.width / 100) * baseSize;
-				const pixelHeight = (sticker.size.height / 100) * baseSize;
+				const geometry = resolveStickerGeometry({
+					position: sticker.position,
+					size: sticker.size,
+					canvasWidth,
+					canvasHeight,
+				});
+				const pixelWidth = geometry.pixelWidth;
+				const pixelHeight = geometry.pixelHeight;
 
 				// Download sticker to temp directory (SVGs are rasterized to PNG)
 				const localPath = await downloadStickerToTemp(
@@ -272,9 +295,18 @@ export async function extractStickerSources(
 				);
 
 				// Adjust for center-based positioning (sticker position is center, not top-left)
-				const topLeftX = pixelX - pixelWidth / 2;
-				const topLeftY = pixelY - pixelHeight / 2;
+				const topLeftX = geometry.left;
+				const topLeftY = geometry.top;
 				const timing = timingMap.get(sticker.id);
+				const trackingKeyframes = timing?.element
+					? buildStickerTrackingExportKeyframes({
+							element: timing.element,
+							tracks: timelineTracks,
+							fps: normalizedKeyframeFps,
+							canvasWidth,
+							canvasHeight,
+						})
+					: undefined;
 
 				stickerSources.push({
 					id: sticker.id,
@@ -287,12 +319,28 @@ export async function extractStickerSources(
 					y: Math.round(topLeftY),
 					width: Math.round(pixelWidth),
 					height: Math.round(pixelHeight),
+					canvasWidth,
+					canvasHeight,
 					startTime: timing?.startTime ?? 0,
 					endTime: timing?.endTime ?? totalDuration,
 					zIndex: sticker.zIndex,
 					opacity: sticker.opacity,
 					rotation: sticker.rotation,
 					maintainAspectRatio: sticker.maintainAspectRatio,
+					perspective: sticker.perspective,
+					animationInType: sticker.animationInType,
+					animationInDuration: sticker.animationInDuration,
+					animationOutType: sticker.animationOutType,
+					animationOutDuration: sticker.animationOutDuration,
+					animationLoopType: sticker.animationLoopType,
+					animationLoopIntensity: sticker.animationLoopIntensity,
+					keyframes: trackingKeyframes
+						? {
+								...timing?.element?.keyframes,
+								...trackingKeyframes,
+							}
+						: timing?.element?.keyframes,
+					keyframeFps: normalizedKeyframeFps,
 				});
 
 				console.log(
