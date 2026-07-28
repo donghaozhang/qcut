@@ -4,7 +4,10 @@ import type {
 	StickerElement,
 	TimelineTrack,
 } from "@/types/timeline";
-import { buildStickerTrackingExportKeyframes } from "../sticker-tracking-export";
+import {
+	buildStickerTrackingExportKeyframes,
+	StickerTrackingExportLimitError,
+} from "../sticker-tracking-export";
 
 function media({
 	overrides = {},
@@ -226,13 +229,13 @@ describe("sticker tracking export keyframes", () => {
 		expect(keyframes?.y?.[45].frame).toBe(45);
 	});
 
-	it("rejects impractically large sampling ranges", () => {
+	it("fails explicitly instead of silently dropping oversized tracking", () => {
 		const element = {
 			...sticker({ followScale: true }),
 			duration: 10_000,
 		};
 
-		expect(
+		expect(() =>
 			buildStickerTrackingExportKeyframes({
 				element,
 				tracks: tracks({ element }),
@@ -240,6 +243,17 @@ describe("sticker tracking export keyframes", () => {
 				canvasWidth: 1920,
 				canvasHeight: 1080,
 			})
-		).toBeUndefined();
+		).toThrowError(StickerTrackingExportLimitError);
+		expect(() =>
+			buildStickerTrackingExportKeyframes({
+				element,
+				tracks: tracks({ element }),
+				fps: 240,
+				canvasWidth: 1920,
+				canvasHeight: 1080,
+			})
+		).toThrowError(
+			/sticker-element needs 2,400,001 tracking samples.*18,001 sample export limit/
+		);
 	});
 });
