@@ -20,6 +20,8 @@ import type {
 	MediaAudioSettings,
 	MediaColorSettings,
 	MediaMask,
+	StickerKeyframeProperty,
+	StickerPropertyKeyframe,
 	TimelineTrackAudioSettings,
 } from "@/types/timeline";
 
@@ -312,12 +314,32 @@ export interface StickerSourceForFilter {
 	y: number;
 	width: number;
 	height: number;
+	canvasWidth?: number;
+	canvasHeight?: number;
 	startTime: number;
 	endTime: number;
 	zIndex: number;
 	opacity?: number;
 	rotation?: number;
 	maintainAspectRatio?: boolean;
+	perspective?: VideoVisualInput["perspective"];
+	animationInType?: VideoVisualInput["animationInType"];
+	animationInDuration?: number;
+	animationOutType?: VideoVisualInput["animationOutType"];
+	animationOutDuration?: number;
+	animationLoopType?:
+		| "none"
+		| "pulse"
+		| "drift"
+		| "spin"
+		| "wobble"
+		| "bounce"
+		| "blink";
+	animationLoopIntensity?: number;
+	keyframes?: Partial<
+		Record<StickerKeyframeProperty, StickerPropertyKeyframe[]>
+	>;
+	keyframeFps?: number;
 }
 
 /**
