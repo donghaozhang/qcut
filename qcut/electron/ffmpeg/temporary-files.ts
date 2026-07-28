@@ -1,4 +1,4 @@
-import fs from "fs";
+import fs from "node:fs";
 
 const IMMEDIATE_REMOVAL_OPTIONS = {
 	recursive: true,
