@@ -30,12 +30,14 @@ function keyframe({
 	frame,
 	value,
 	id = `${frame}-${value}`,
+	easing = "linear",
 }: {
 	frame: number;
 	value: number;
 	id?: string;
+	easing?: StickerPropertyKeyframe["easing"];
 }): StickerPropertyKeyframe {
-	return { id, frame, value, easing: "linear" };
+	return { id, frame, value, easing };
 }
 
 describe("sticker filter graph", () => {
@@ -455,5 +457,37 @@ describe("sticker filter graph", () => {
 		expect(graph.x).toContain("10+((40)-(10))");
 		expect(graph.x).toContain("/0.5");
 		expect(graph.x).not.toContain("pow(");
+	});
+
+	it("applies nonlinear easing with bounded FFmpeg expressions", () => {
+		const expressionMarkers = {
+			easeIn: "pow(",
+			easeOut: "1-pow(",
+			easeInOut: "pow(-2*",
+			spring: "sin(",
+		} as const;
+		for (const [easing, marker] of Object.entries(expressionMarkers) as Array<
+			[StickerPropertyKeyframe["easing"], string]
+		>) {
+			const graph = buildStickerFilterGraph({
+				inputLabel: "1:v",
+				sticker: stickerSource({
+					overrides: {
+						keyframeFps: 30,
+						endTime: 602,
+						keyframes: {
+							x: [
+								keyframe({ frame: 0, value: 10 }),
+								keyframe({ frame: 18_000, value: 40, easing }),
+							],
+						},
+					},
+				}),
+				labelPrefix: `sticker_${easing}`,
+			});
+
+			expect(graph.x).toContain(marker);
+			expect(graph.x.length).toBeLessThan(1_000);
+		}
 	});
 });
