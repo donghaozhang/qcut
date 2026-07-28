@@ -75,9 +75,27 @@ describe("StickerElement interaction modes", () => {
 		);
 
 		expect(screen.getByRole("img", { name: "Badge" })).toBeInTheDocument();
+		expect(screen.getByRole("img", { name: "Badge" })).toHaveClass(
+			"object-contain"
+		);
 		expect(screen.queryByRole("button")).not.toBeInTheDocument();
 		expect(container.firstElementChild).toHaveClass("pointer-events-none");
 		expect(screen.queryByTestId("resize-handles")).not.toBeInTheDocument();
+	});
+
+	it("stretches sticker media when aspect ratio locking is disabled", () => {
+		render(
+			<StickerElement
+				sticker={{ ...sticker, maintainAspectRatio: false }}
+				mediaItem={mediaItem}
+				canvasRef={{ current: null }}
+				renderMode="visual"
+			/>
+		);
+
+		expect(screen.getByRole("img", { name: "Badge" })).toHaveClass(
+			"object-fill"
+		);
 	});
 
 	it("uses the full interaction box to select the sticker before dragging", () => {
