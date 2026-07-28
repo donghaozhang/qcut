@@ -214,6 +214,44 @@ describe("sticker motion tracking", () => {
 		expect(anchor?.height).toBeCloseTo(20);
 	});
 
+	it("follows media entrance offsets", () => {
+		const media = mediaElement({
+			overrides: {
+				animationInType: "slide-right",
+				animationInDuration: 1,
+			},
+		});
+		const anchor = resolveStickerTrackingTargetAnchor({
+			target: target({ media }),
+			currentTime: 2.5,
+			fps: 30,
+			canvasWidth: 1920,
+			canvasHeight: 1080,
+		});
+
+		expect(anchor?.centerX).toBeCloseTo(53.125);
+		expect(anchor?.centerY).toBeCloseTo(50);
+	});
+
+	it("follows media entrance scale", () => {
+		const media = mediaElement({
+			overrides: {
+				animationInType: "zoom-in",
+				animationInDuration: 1,
+			},
+		});
+		const anchor = resolveStickerTrackingTargetAnchor({
+			target: target({ media }),
+			currentTime: 2.5,
+			fps: 30,
+			canvasWidth: 1920,
+			canvasHeight: 1080,
+		});
+
+		expect(anchor?.width).toBeCloseTo(((1920 * 0.3) / 1080) * 100 * 0.9625);
+		expect(anchor?.height).toBeCloseTo(57.75);
+	});
+
 	it("captures the binding anchor at the current frame", () => {
 		const binding = createStickerMotionTracking({
 			target: target(),
