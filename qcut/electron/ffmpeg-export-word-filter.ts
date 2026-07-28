@@ -20,6 +20,7 @@ import type {
 
 import { debugLog, parseProgress, probeVideoFile } from "./ffmpeg/utils";
 import { appendStickerInputArgs } from "./ffmpeg-sticker-input";
+import { prepareFFmpegFilterComplexScripts } from "./ffmpeg/filter-complex-script";
 import { buildStickerFilterGraph } from "./ffmpeg/sticker-filter-graph";
 
 import { buildFilterCutComplex } from "./ffmpeg-filter-cut.js";
@@ -35,8 +36,9 @@ export async function runFFmpegCommand({
 	event?: IpcMainInvokeEvent;
 	ffmpegPath: string;
 }): Promise<void> {
+	const preparedFilterScripts = prepareFFmpegFilterComplexScripts({ args });
 	await new Promise<void>((resolve, reject) => {
-		const process = spawn(ffmpegPath, args, {
+		const process = spawn(ffmpegPath, preparedFilterScripts.args, {
 			windowsHide: true,
 			stdio: ["ignore", "pipe", "pipe"],
 		});
@@ -68,7 +70,7 @@ export async function runFFmpegCommand({
 				)
 			);
 		});
-	});
+	}).finally(preparedFilterScripts.cleanup);
 }
 
 /**
