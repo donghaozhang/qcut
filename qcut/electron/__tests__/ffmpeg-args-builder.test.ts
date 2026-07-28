@@ -1,4 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
+import { TRANSITION_PARITY_CASES } from "../../apps/web/src/components/editor/media-panel/views/transitions/transition-parity-ten";
 import {
 	buildFFmpegArgs,
 	type BuildFFmpegArgsOptions,
@@ -623,6 +624,45 @@ describe("buildFFmpegArgs", () => {
 				filter.indexOf("[0:v]trim=")
 			);
 			expect(filter).toContain("xfade=transition=custom:duration=1:offset=1.5");
+		});
+
+		it("builds all exact-ten production transitions into one graph", () => {
+			const videoSources = Array.from(
+				{ length: TRANSITION_PARITY_CASES.length + 1 },
+				(_, index) => ({
+					elementId: `clip-${index}`,
+					trackId: "main",
+					trackOrder: 0,
+					elementOrder: index,
+					path: `/clip-${index}.mp4`,
+					startTime: index * 2,
+					duration: 2,
+				})
+			);
+			const videoTransitions = TRANSITION_PARITY_CASES.map(
+				({ qcutPresetId, expectedConfig }, index) => ({
+					id: `transition-${index}`,
+					trackId: "main",
+					fromElementId: `clip-${index}`,
+					toElementId: `clip-${index + 1}`,
+					presetId: qcutPresetId,
+					duration: 0.4,
+					easing: "easeInOut" as const,
+					...expectedConfig,
+				})
+			);
+			const args = buildFFmpegArgs(
+				createBaseOptions({
+					duration: videoSources.length * 2,
+					videoSources,
+					videoTransitions,
+				})
+			);
+			const filter = args[args.indexOf("-filter_complex") + 1];
+
+			expect(filter.match(/xfade=transition=custom/g)).toHaveLength(10);
+			expect(filter).not.toContain("st(1");
+			expect(filter).not.toContain("st(2");
 		});
 	});
 

@@ -40,20 +40,39 @@ function directionalCoordinates({
 	throw new Error("Unsupported transition direction");
 }
 
+function scaledCoordinates({
+	x,
+	y,
+	scale,
+}: {
+	x: string;
+	y: string;
+	scale: string;
+}): { x: string; y: string } {
+	return {
+		x: `W/2+((${x})-W/2)/${scale}`,
+		y: `H/2+((${y})-H/2)/${scale}`,
+	};
+}
+
 function averagedDirectionalSamples({
 	input,
 	direction,
 	radius,
+	x = "X",
+	y = "Y",
 }: {
 	input: "a" | "b";
 	direction: VideoTransition["direction"];
 	radius: string;
+	x?: string;
+	y?: string;
 }): string {
 	const samples = [-2, -1, 0, 1, 2].map((tap) => {
 		const coordinates = directionalCoordinates({
 			direction,
-			x: "X",
-			y: "Y",
+			x,
+			y,
 			offset: `${tap}*(${radius})`,
 		});
 		return clampedPlaneSample({ input, ...coordinates });
@@ -73,17 +92,33 @@ export function motionBlurExpression({
 	const peak = transitionPeakExpression({ progress });
 	const axisSize = direction === "up" || direction === "down" ? "H" : "W";
 	const radius = `${0.012 * intensity}*${axisSize}*(${peak})`;
+	const travel = `${0.055 * intensity}*${axisSize}*(${peak})`;
+	const scale = `(1+${0.035 * intensity}*(${peak}))`;
+	const outgoingCoordinates = directionalCoordinates({
+		direction,
+		x: "X",
+		y: "Y",
+		offset: `-1*(${travel})`,
+	});
+	const incomingCoordinates = directionalCoordinates({
+		direction,
+		x: "X",
+		y: "Y",
+		offset: travel,
+	});
 	return blendSamples({
 		progress,
 		outgoing: averagedDirectionalSamples({
 			input: "a",
 			direction,
 			radius,
+			...scaledCoordinates({ ...outgoingCoordinates, scale }),
 		}),
 		incoming: averagedDirectionalSamples({
 			input: "b",
 			direction,
 			radius,
+			...scaledCoordinates({ ...incomingCoordinates, scale }),
 		}),
 	});
 }
@@ -242,7 +277,8 @@ export function pageFlipExpression({
 	const foldWidth = Math.min(0.16, 0.07 * intensity);
 	const shade = `(0.58+0.42*min(1,(${foldDistance})/(${foldWidth}*${axisSize})))`;
 	const highlight = `max(0,1-(${foldDistance})/(${foldWidth * 0.32}*${axisSize}))*34`;
-	return `if(eq(PLANE,3),${base},min(255,(${base})*(${shade})+(${highlight})))`;
+	const folded = `if(eq(PLANE,3),${base},min(255,(${base})*(${shade})+(${highlight})))`;
+	return `if(lte(${progress},0.001),A,if(gte(${progress},0.999),B,${folded}))`;
 }
 
 function swirledSample({
@@ -363,6 +399,22 @@ export function cubeExpression({
 	return `if(eq(PLANE,3),${base},(${base})*(${shading}))`;
 }
 
+function heartMaskExpression({ progress }: { progress: string }): string {
+	const scale = `((0.78*max(0.001,(${progress}))+pow((${progress}),8))*H)`;
+	const x = `((X-W/2)/${scale})`;
+	const y = `(-((Y-H/2)/${scale})+0.1185)`;
+	const xSquared = `pow(${x},2)`;
+	const ySquared = `pow(${y},2)`;
+	const equation = `(pow((${xSquared})+(${ySquared})-1,3)-(${xSquared})*pow(${y},3))`;
+	const localMix = `min(1,max(0,0.5-(${equation})/0.08))`;
+	const shapedBlend = blendSamples({
+		progress: localMix,
+		outgoing: "A",
+		incoming: "B",
+	});
+	return `if(lte(${progress},0.001),A,if(gte(${progress},0.999),B,${shapedBlend}))`;
+}
+
 /**
  * Shaped wipe fields for texture-mask transitions with a maskShape. Each
  * shape maps every pixel to a scalar in [0,1] describing when the incoming
@@ -376,9 +428,13 @@ export function maskShapeExpression({
 	shape: string;
 	progress: string;
 }): string {
+	if (shape === "heart") {
+		return heartMaskExpression({ progress });
+	}
 	const dx = "(X/W-0.5)";
 	const dy = "(Y/H-0.5)";
-	const radius = `(sqrt(pow(${dx},2)+pow(${dy},2))/0.7071)`;
+	const normalizedRadius = `(sqrt(pow(${dx},2)+pow(${dy},2))/0.7071)`;
+	const circularRadius = "(sqrt(pow(X-W/2,2)+pow(Y-H/2,2))/(sqrt(W*W+H*H)/2))";
 	const angle = `((atan2(${dy},${dx})+PI)/(2*PI))`;
 	const organicNoise =
 		"((sin(X/W*13+sin(Y/H*17)*2)+cos(Y/H*11+sin(X/W*7)*2)+2)/4)";
@@ -386,7 +442,7 @@ export function maskShapeExpression({
 	let feather = 0.03;
 	switch (shape) {
 		case "circle":
-			field = radius;
+			field = circularRadius;
 			break;
 		case "clock":
 			field = angle;
@@ -407,16 +463,12 @@ export function maskShapeExpression({
 			field = "((X+abs(Y-H/2))/(W+H/2))";
 			feather = 0.02;
 			break;
-		case "heart":
-			field = `(sqrt(pow(${dx},2)+pow(${dy},2))/(0.34*(1.35-sin(atan2(-(${dy}),${dx})))+0.08))`;
-			feather = 0.05;
-			break;
 		case "star":
 			field = `(sqrt(pow(${dx},2)+pow(${dy},2))/(0.42+0.24*cos(5*atan2(${dy},${dx})+PI/2)))`;
 			feather = 0.05;
 			break;
 		case "ink":
-			field = `(0.6*${organicNoise}+0.4*${radius})`;
+			field = `(0.6*${organicNoise}+0.4*${normalizedRadius})`;
 			feather = 0.09;
 			break;
 		case "cloud":
@@ -424,7 +476,7 @@ export function maskShapeExpression({
 			feather = 0.09;
 			break;
 		case "fog":
-			field = `(0.7*${organicNoise}+0.3*${radius})`;
+			field = `(0.7*${organicNoise}+0.3*${normalizedRadius})`;
 			feather = 0.11;
 			break;
 		case "diagonal":
@@ -440,7 +492,7 @@ export function maskShapeExpression({
 			feather = 0.07;
 			break;
 		default:
-			field = radius;
+			field = circularRadius;
 			break;
 	}
 	const scaledProgress = `((${progress})*${(1 + 2 * feather).toFixed(3)})`;

@@ -375,6 +375,65 @@ function zoomBlurExpression({
 	});
 }
 
+function zoomInBlurPlaneSample({
+	input,
+	progress,
+	peak,
+	intensity,
+}: {
+	input: "a" | "b";
+	progress: string;
+	peak: string;
+	intensity: number;
+}): string {
+	const zoomDistance = 0.12 * intensity;
+	const baseZoom =
+		input === "a"
+			? "(1+" + zoomDistance + "*(" + progress + "))"
+			: "(1-" + zoomDistance + "*(1-(" + progress + ")))";
+	const samples: string[] = [];
+	for (const strength of [0, 0.5, 1]) {
+		const trailDistance = 0.035 * strength * intensity;
+		const zoom =
+			strength === 0
+				? baseZoom
+				: "(" + baseZoom + "-" + trailDistance + "*(" + peak + "))";
+		samples.push(
+			clampedPlaneSample({
+				input,
+				x: "W/2+(X-W/2)/" + zoom,
+				y: "H/2+(Y-H/2)/" + zoom,
+			})
+		);
+	}
+	return "(" + samples.join("+") + ")/" + samples.length;
+}
+
+function zoomInBlurExpression({
+	progress,
+	intensity,
+}: {
+	progress: string;
+	intensity: number;
+}): string {
+	const peak = transitionPeakExpression({ progress });
+	return blendSamples({
+		progress,
+		outgoing: zoomInBlurPlaneSample({
+			input: "a",
+			progress,
+			peak,
+			intensity,
+		}),
+		incoming: zoomInBlurPlaneSample({
+			input: "b",
+			progress,
+			peak,
+			intensity,
+		}),
+	});
+}
+
 function whipPanExpression({
 	direction,
 	progress,
@@ -519,7 +578,8 @@ export function buildXfadeTransitionFilter({
 }: {
 	transition: VideoTransition;
 }): XfadeTransitionFilter {
-	const progress = semanticProgressExpression({ transition });
+	const semanticProgress = semanticProgressExpression({ transition });
+	const progress = "ld(0)";
 	const type = transition.type;
 	const tuning = transitionTuning({ transition });
 	let expression: string;
@@ -554,6 +614,12 @@ export function buildXfadeTransitionFilter({
 			break;
 		case "zoom-blur":
 			expression = zoomBlurExpression({
+				progress,
+				intensity: tuning.intensity,
+			});
+			break;
+		case "zoom-in-blur":
+			expression = zoomInBlurExpression({
 				progress,
 				intensity: tuning.intensity,
 			});
@@ -684,5 +750,13 @@ export function buildXfadeTransitionFilter({
 			throw new Error(`Unsupported transition type: ${unsupportedType}`);
 		}
 	}
-	return { transition: "custom", expression };
+	const peak = transitionPeakExpression({ progress });
+	const usesPeak = expression.includes(peak);
+	if (usesPeak) {
+		expression = expression.split(peak).join("ld(3)");
+	}
+	return {
+		transition: "custom",
+		expression: `st(0,${semanticProgress});${usesPeak ? `st(3,${peak});` : ""}${expression}`,
+	};
 }

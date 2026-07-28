@@ -2,6 +2,7 @@ import { randomUUID } from "node:crypto";
 import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
+import { removeTemporaryDirectory } from "./temporary-files.js";
 
 export interface PreparedFFmpegFilterScripts {
 	args: string[];
@@ -90,4 +91,81 @@ export function prepareFFmpegFilterComplexScripts({
 		cleanup();
 		throw error;
 	}
+}
+
+const DEFAULT_COMMAND_LENGTH_THRESHOLD = 28_000;
+
+export interface PreparedFFmpegFilterScript {
+	args: string[];
+	cleanup: () => void;
+	filterScriptPath?: string;
+}
+
+function estimateCommandLength({
+	executablePath,
+	args,
+}: {
+	executablePath: string;
+	args: string[];
+}): number {
+	return args.reduce(
+		(total, argument) => total + argument.length + 3,
+		executablePath.length
+	);
+}
+
+export function prepareFFmpegFilterScript({
+	executablePath,
+	args,
+	commandLengthThreshold = DEFAULT_COMMAND_LENGTH_THRESHOLD,
+	tempDirectory = os.tmpdir(),
+}: {
+	executablePath: string;
+	args: string[];
+	commandLengthThreshold?: number;
+	tempDirectory?: string;
+}): PreparedFFmpegFilterScript {
+	const filterIndex = args.indexOf("-filter_complex");
+	if (filterIndex < 0) {
+		return { args, cleanup: () => undefined };
+	}
+
+	const filterGraph = args[filterIndex + 1];
+	if (typeof filterGraph !== "string") {
+		throw new Error("FFmpeg filter graph argument is missing");
+	}
+
+	const commandLength = estimateCommandLength({ executablePath, args });
+	if (commandLength <= commandLengthThreshold) {
+		return { args, cleanup: () => undefined };
+	}
+
+	const scriptDirectory = fs.mkdtempSync(
+		path.join(tempDirectory, "qcut-ffmpeg-filter-")
+	);
+	const filterScriptPath = path.join(scriptDirectory, "filter-complex.ffgraph");
+	try {
+		fs.writeFileSync(filterScriptPath, filterGraph, {
+			encoding: "utf8",
+			mode: 0o600,
+		});
+	} catch (error) {
+		fs.rmSync(scriptDirectory, { recursive: true, force: true });
+		throw error;
+	}
+
+	let cleaned = false;
+	const cleanup = () => {
+		if (cleaned) return;
+		cleaned = true;
+		removeTemporaryDirectory({ directory: scriptDirectory });
+	};
+	const preparedArgs = [...args];
+	preparedArgs.splice(
+		filterIndex,
+		2,
+		"-filter_complex_script",
+		filterScriptPath
+	);
+	return { args: preparedArgs, filterScriptPath, cleanup };
 }
