@@ -53,7 +53,7 @@ describe("text template registry", () => {
 				entrance: {
 					effect: {
 						fade: true,
-						hiddenScale: 0.35,
+						hiddenScale: 0.5,
 						kind: "scale",
 					},
 					sourcePreset: {

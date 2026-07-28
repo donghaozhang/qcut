@@ -98,6 +98,9 @@ export function effectForPreset({
 			// slightly into place (plus a glow pulse we approximate away).
 			return { kind: "scale", hiddenScale: 0.9, overshoot: 0, fade: true };
 		case "entrance:fade-text":
+			// Jianying's 淡入文字 dissolves the whole block from a soft blur
+			// while fading in.
+			return { kind: "blur", radiusPx: 12, fade: true };
 		case "exit:fade-out":
 		case "loop:flicker":
 			return {
@@ -159,9 +162,13 @@ export function effectForPreset({
 		case "loop:rotate":
 			return { kind: "rotate", degrees: 360, fade: false };
 		case "entrance:scale-up":
-			return { kind: "scale", hiddenScale: 0.35, overshoot: 0.04, fade: true };
+			// Jianying's EnlargeIn.lua: scale 0.5 -> 1 and alpha 0 -> 1, both
+			// quadOut, with no overshoot.
+			return { kind: "scale", hiddenScale: 0.5, overshoot: 0, fade: true };
 		case "entrance:pop-in":
-			return { kind: "scale", hiddenScale: 0.15, overshoot: 0.16, fade: true };
+			// Jianying's BounceIn.lua settles through an elastic-out curve from
+			// roughly a third of the final size.
+			return { kind: "scale", hiddenScale: 0.3, overshoot: 0.16, fade: true };
 		case "exit:scale-down-out":
 			return { kind: "scale", hiddenScale: 0.2, overshoot: 0, fade: true };
 		case "loop:pulse":
@@ -289,7 +296,7 @@ export function easingForPreset({
 	) {
 		return SOFT_SPRING;
 	}
-	if (presetId === "slide-up") {
+	if (presetId === "slide-up" || presetId === "scale-up") {
 		return EASE_OUT_QUAD;
 	}
 	return NATURAL_EASE;
