@@ -15,6 +15,7 @@ import { debugLog } from "@/lib/debug/debug-config";
 
 interface DragState {
 	isDragging: boolean;
+	historySaved: boolean;
 	startX: number;
 	startY: number;
 	initialX: number;
@@ -32,10 +33,12 @@ export const useStickerDrag = (
 	elementRef: React.RefObject<HTMLDivElement | null>,
 	canvasRef: React.RefObject<HTMLDivElement | null>
 ) => {
-	const { updateOverlaySticker, setIsDragging } = useStickersOverlayStore();
+	const { updateOverlaySticker, setIsDragging, saveHistorySnapshot } =
+		useStickersOverlayStore();
 	const [isDragging, setIsDraggingLocal] = useState(false);
 	const dragState = useRef<DragState>({
 		isDragging: false,
+		historySaved: false,
 		startX: 0,
 		startY: 0,
 		initialX: 0,
@@ -112,6 +115,7 @@ export const useStickerDrag = (
 
 			dragState.current = {
 				isDragging: true,
+				historySaved: false,
 				startX: e.clientX,
 				startY: e.clientY,
 				initialX: sticker.position.x,
@@ -135,6 +139,11 @@ export const useStickerDrag = (
 		(e: MouseEvent) => {
 			if (!dragState.current.isDragging || !canvasRef.current) return;
 
+			if (!dragState.current.historySaved) {
+				saveHistorySnapshot();
+				dragState.current.historySaved = true;
+			}
+
 			const position = calculatePercentagePosition(e.clientX, e.clientY);
 
 			// Update sticker position with smooth movement
@@ -147,7 +156,13 @@ export const useStickerDrag = (
 				});
 			});
 		},
-		[stickerId, updateOverlaySticker, calculatePercentagePosition, canvasRef]
+		[
+			stickerId,
+			updateOverlaySticker,
+			calculatePercentagePosition,
+			canvasRef,
+			saveHistorySnapshot,
+		]
 	);
 
 	/**
