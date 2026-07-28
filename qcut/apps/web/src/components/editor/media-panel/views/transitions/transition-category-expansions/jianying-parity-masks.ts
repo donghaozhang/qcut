@@ -11,11 +11,15 @@ const maskParityDissolve = categoryExpansion({
 		[
 			"circle-expand",
 			"Circle Expand",
-			"圆圈扩散",
+			"圆形遮罩 II",
 			"texture",
 			"texture-mask",
 			0.6,
-			{ maskShape: "circle", tags: ["circle", "mask"], popular: true },
+			{
+				maskShape: "circle",
+				tags: ["circle", "mask", "圆圈扩散"],
+				popular: true,
+			},
 		],
 	],
 });
@@ -83,11 +87,15 @@ const maskParityEmoji = categoryExpansion({
 		[
 			"heart-expand",
 			"Heart Expand",
-			"爱心扩散",
+			"心形叠化",
 			"texture",
 			"texture-mask",
 			0.65,
-			{ maskShape: "heart", tags: ["heart", "love"], popular: true },
+			{
+				maskShape: "heart",
+				tags: ["heart", "love", "爱心扩散"],
+				popular: true,
+			},
 		],
 	],
 });

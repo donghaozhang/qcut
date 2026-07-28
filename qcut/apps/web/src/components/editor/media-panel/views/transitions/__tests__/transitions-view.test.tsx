@@ -171,9 +171,9 @@ describe("TransitionsView", () => {
 		for (const [category, presetId, expectedCount] of [
 			["叠化", "filmic-dissolve", 20],
 			["自然", "sunrise-fade", 20],
-			["幻灯片", "album-slide-left", 28],
-			["分割", "split-signal", 26],
-			["模糊", "horizontal-smear", 21],
+			["幻灯片", "album-slide-left", 29],
+			["分割", "split-signal", 28],
+			["模糊", "horizontal-smear", 22],
 			["运镜", "crash-zoom", 29],
 			["拍摄", "exposure-pop", 20],
 			["扭曲", "digital-twist", 20],

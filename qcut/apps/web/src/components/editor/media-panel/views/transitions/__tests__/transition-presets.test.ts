@@ -9,6 +9,7 @@ import {
 	transitionPresets,
 } from "../transition-presets";
 import { TRANSITION_CATEGORY_EXPANSIONS } from "../transition-category-expansions";
+import { TRANSITION_PARITY_CASES } from "../transition-parity-ten";
 
 function requirePreset({ presetId }: { presetId: string }): TransitionPreset {
 	const preset = getTransitionPresetById({ presetId });
@@ -114,6 +115,36 @@ describe("transition presets", () => {
 				(preset) => preset.id
 			)
 		).toContain("film-burn");
+	});
+
+	it.each(
+		TRANSITION_PARITY_CASES
+	)("finds the selected JianYing name $jianyingName", ({
+		jianyingName,
+		qcutPresetId,
+	}) => {
+		expect(
+			filterTransitionPresets({
+				category: "all",
+				query: jianyingName,
+			}).map((preset) => preset.id)
+		).toContain(qcutPresetId);
+		expect(requirePreset({ presetId: qcutPresetId }).localizedName).toBe(
+			jianyingName
+		);
+	});
+
+	it.each([
+		["圆圈扩散", "circle-expand"],
+		["爱心扩散", "heart-expand"],
+		["向左翻页", "page-flip"],
+		["横向拖影", "horizontal-motion-blur"],
+	] as const)("keeps the former localized term %s searchable", (query, presetId) => {
+		expect(
+			filterTransitionPresets({ category: "all", query }).map(
+				(preset) => preset.id
+			)
+		).toContain(presetId);
 	});
 });
 

@@ -18,7 +18,7 @@ const dissolveParity = categoryExpansion({
 			"Dissolve Zoom",
 			"叠化拉近",
 			"zoom",
-			"zoom-blur",
+			"zoom-in-blur",
 			0.6,
 			{ tuning: { intensity: 0.22 }, tags: ["zoom", "soft"], popular: true },
 		],
