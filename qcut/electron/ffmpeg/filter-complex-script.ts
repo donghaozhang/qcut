@@ -20,11 +20,18 @@ function retryableDirectoryCleanup({
 	let cleanupPromise: Promise<boolean> | undefined;
 	return () => {
 		if (cleanupPromise) return cleanupPromise;
-		cleanupPromise = removeTemporaryDirectory({ directory });
-		cleanupPromise.then((removed) => {
-			if (!removed) cleanupPromise = undefined;
-		});
-		return cleanupPromise;
+		const pendingCleanup = removeTemporaryDirectory({ directory }).then(
+			(removed) => {
+				if (!removed) cleanupPromise = undefined;
+				return removed;
+			},
+			(error) => {
+				cleanupPromise = undefined;
+				throw error;
+			}
+		);
+		cleanupPromise = pendingCleanup;
+		return pendingCleanup;
 	};
 }
 
@@ -97,7 +104,7 @@ export function prepareFFmpegFilterComplexScripts({
 		}
 		return { args: preparedArgs, scriptPaths, cleanup };
 	} catch (error) {
-		void cleanup();
+		void cleanup().catch(() => undefined);
 		throw error;
 	}
 }
