@@ -35,7 +35,7 @@ describe("Jianying exact-ten transition parity manifest", () => {
 		);
 
 		expect(matchingPresets, qcutPresetId).toHaveLength(1);
-		const preset = matchingPresets[0];
+		const preset = matchingPresets.at(0);
 		expect(preset, qcutPresetId).toBeDefined();
 		if (!preset) return;
 
