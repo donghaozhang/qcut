@@ -17,6 +17,7 @@ import {
 	normalizeVideoEnhancements,
 } from "./video-enhancement-filter.js";
 import { prepareFFmpegFilterComplexScripts } from "./filter-complex-script.js";
+import { removeTemporaryDirectory } from "./temporary-files.js";
 import { buildVideoFitFilter } from "./video-fit-filter.js";
 import { getFFmpegPath } from "./utils.js";
 
@@ -561,7 +562,7 @@ export async function renderVideoCompositionFramePreview({
 		};
 	} finally {
 		if (preparedText.directory) {
-			fs.rmSync(preparedText.directory, { recursive: true, force: true });
+			removeTemporaryDirectory({ directory: preparedText.directory });
 		}
 	}
 }
