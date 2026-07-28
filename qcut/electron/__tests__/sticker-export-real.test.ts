@@ -4,23 +4,19 @@
  * Actually runs FFmpeg with a test video and sticker image to verify
  * that sticker overlays are composited correctly in the output.
  *
- * Requires: FFmpeg installed on the system.
+ * Requires: staged QCut FFmpeg in CI or a matching system toolchain locally.
  */
 
 import { describe, it, expect, beforeAll, afterAll } from "vitest";
 import { execSync, spawnSync } from "child_process";
-import ffmpegStaticPath from "ffmpeg-static";
 import fs from "fs";
 import path from "path";
 import {
 	buildFFmpegArgs,
 	type BuildFFmpegArgsOptions,
 } from "../ffmpeg-args-builder";
-import {
-	getFFmpegPath as getRuntimeFFmpegPath,
-	getFFprobePath,
-} from "../ffmpeg/paths";
-import type { StickerSource } from "../ffmpeg/types";
+import { prepareFFmpegFilterComplexScripts } from "../ffmpeg/filter-complex-script";
+import type { StickerPropertyKeyframe, StickerSource } from "../ffmpeg/types";
 
 // ---------------------------------------------------------------------------
 // Paths
@@ -37,6 +33,28 @@ const TEST_ANIMATED_STICKER = path.resolve(
 	"../../apps/web/public/stickers/qcut-motion/qcut-motion-emphasis/attention-pulse.png"
 );
 const TMP_DIR = path.join(__dirname, "../../.tmp/sticker-export-test");
+const FFMPEG_BINARY_NAME =
+	process.platform === "win32" ? "ffmpeg.exe" : "ffmpeg";
+const FFPROBE_BINARY_NAME =
+	process.platform === "win32" ? "ffprobe.exe" : "ffprobe";
+const STAGED_FFMPEG = path.resolve(
+	__dirname,
+	`../resources/ffmpeg/${process.platform}-${process.arch}/${FFMPEG_BINARY_NAME}`
+);
+const STAGED_FFPROBE = path.resolve(
+	__dirname,
+	`../resources/ffmpeg/${process.platform}-${process.arch}/${FFPROBE_BINARY_NAME}`
+);
+const FFMPEG_MANIFEST = JSON.parse(
+	fs.readFileSync(
+		path.resolve(__dirname, "../../scripts/ffmpeg-binaries.json"),
+		"utf8"
+	)
+) as {
+	nativeVersion: string;
+	targets: Record<string, { versionMarker: string }>;
+};
+const FFMPEG_TARGET_KEY = `${process.platform}-${process.arch}`;
 const FFMPEG_SETUP_TIMEOUT_MS = 60_000;
 const FFMPEG_PROBE_TIMEOUT_MS = 60_000;
 const FFMPEG_RENDER_TIMEOUT_MS = 180_000;
@@ -45,42 +63,81 @@ const FFMPEG_RENDER_TIMEOUT_MS = 180_000;
 // Helpers
 // ---------------------------------------------------------------------------
 
-function resolveRuntimeFFmpegPath(): string | null {
-	try {
-		const runtimePath = getRuntimeFFmpegPath();
-		return fs.existsSync(runtimePath) ? runtimePath : null;
-	} catch {
-		return null;
-	}
-}
-
-function readFFmpegVersion({
-	ffmpegPath,
-}: {
+interface FFmpegToolchain {
 	ffmpegPath: string;
-}): string | null {
-	const result = spawnSync(ffmpegPath, ["-version"], {
-		encoding: "utf-8",
-		timeout: FFMPEG_SETUP_TIMEOUT_MS,
-	});
-	if (result.status !== 0) return null;
-	return result.stdout.split(/\r?\n/, 1)[0]?.trim() || null;
+	ffprobePath: string;
+	source: "staged" | "system";
 }
 
-function resolveCompatibilityFFmpegPath({
-	runtimePath,
+function findSystemBinary({
+	binaryName,
 }: {
-	runtimePath: string | null;
+	binaryName: string;
 }): string | null {
-	if (!(runtimePath && ffmpegStaticPath && fs.existsSync(ffmpegStaticPath))) {
-		return null;
+	try {
+		const locator = process.platform === "win32" ? "where" : "which";
+		const result = spawnSync(locator, [binaryName], {
+			encoding: "utf-8",
+		});
+		const firstMatch = result.stdout?.trim().split(/\r?\n/)[0];
+		if (firstMatch) return firstMatch;
+	} catch {
+		// fall through
 	}
-	const runtimeVersion = readFFmpegVersion({ ffmpegPath: runtimePath });
-	const staticVersion = readFFmpegVersion({ ffmpegPath: ffmpegStaticPath });
-	if (!(runtimeVersion && staticVersion) || runtimeVersion === staticVersion) {
-		return null;
+	for (const directory of ["/opt/homebrew/bin", "/usr/local/bin", "/usr/bin"]) {
+		const candidate = path.join(directory, binaryName);
+		if (fs.existsSync(candidate)) return candidate;
 	}
-	return ffmpegStaticPath;
+	return null;
+}
+
+function getFFmpegToolchain(): FFmpegToolchain | null {
+	if (fs.existsSync(STAGED_FFMPEG) && fs.existsSync(STAGED_FFPROBE)) {
+		return {
+			ffmpegPath: STAGED_FFMPEG,
+			ffprobePath: STAGED_FFPROBE,
+			source: "staged",
+		};
+	}
+	if (process.env.CI && process.env.CI !== "false") {
+		throw new Error(
+			`CI requires staged FFmpeg and FFprobe for ${FFMPEG_TARGET_KEY}`
+		);
+	}
+	const systemFFmpeg = findSystemBinary({ binaryName: FFMPEG_BINARY_NAME });
+	const systemFFprobe = findSystemBinary({ binaryName: FFPROBE_BINARY_NAME });
+	if (systemFFmpeg && systemFFprobe) {
+		return {
+			ffmpegPath: systemFFmpeg,
+			ffprobePath: systemFFprobe,
+			source: "system",
+		};
+	}
+	return null;
+}
+
+function readToolVersion({ binaryPath }: { binaryPath: string }): string {
+	const result = spawnSync(binaryPath, ["-version"], {
+		encoding: "utf-8",
+		timeout: FFMPEG_PROBE_TIMEOUT_MS,
+	});
+	if (result.error) throw result.error;
+	if (result.status !== 0) {
+		throw new Error(`${binaryPath} -version exited with ${result.status}`);
+	}
+	return `${result.stdout ?? ""}${result.stderr ?? ""}`;
+}
+
+function parseToolVersion({
+	output,
+	tool,
+}: {
+	output: string;
+	tool: "ffmpeg" | "ffprobe";
+}): string {
+	const version = output.match(new RegExp(`${tool} version ([^\\s]+)`))?.[1];
+	if (!version) throw new Error(`Could not parse ${tool} version`);
+	return version;
 }
 
 function probeVideo({
@@ -256,14 +313,22 @@ function runFFmpeg(
 	ffmpegPath: string,
 	args: string[]
 ): { success: boolean; stderr: string } {
-	const result = spawnSync(
-		ffmpegPath,
-		["-hide_banner", "-loglevel", "error", ...args],
-		{
-			encoding: "utf-8",
-			timeout: FFMPEG_RENDER_TIMEOUT_MS,
+	const filterScriptRoot = path.join(TMP_DIR, "filter scripts ü");
+	fs.mkdirSync(filterScriptRoot, { recursive: true });
+	const preparedFilterScripts = prepareFFmpegFilterComplexScripts({
+		args: ["-hide_banner", "-loglevel", "error", ...args],
+		temporaryDirectory: filterScriptRoot,
+	});
+	const result = (() => {
+		try {
+			return spawnSync(ffmpegPath, preparedFilterScripts.args, {
+				encoding: "utf-8",
+				timeout: FFMPEG_RENDER_TIMEOUT_MS,
+			});
+		} finally {
+			preparedFilterScripts.cleanup();
 		}
-	);
+	})();
 	const stderr = [
 		result.stderr,
 		result.status !== null && result.status !== 0
@@ -361,13 +426,10 @@ function expectSquareRedSticker({
 // Tests
 // ---------------------------------------------------------------------------
 
-const detectedFFmpeg = resolveRuntimeFFmpegPath();
-const compatibilityFFmpeg = resolveCompatibilityFFmpegPath({
-	runtimePath: detectedFFmpeg,
-});
+const detectedToolchain = getFFmpegToolchain();
 
 // Real ffmpeg renders regularly exceed the 5s default testTimeout on CI runners.
-describe.skipIf(!detectedFFmpeg)(
+describe.skipIf(!detectedToolchain)(
 	"Sticker Export — Real FFmpeg E2E",
 	{ timeout: FFMPEG_RENDER_TIMEOUT_MS },
 	() => {
@@ -378,9 +440,9 @@ describe.skipIf(!detectedFFmpeg)(
 		let stickerPath3: string;
 		let solidVideoPath: string;
 
-		beforeAll(async () => {
-			ffmpegPath = detectedFFmpeg!;
-			ffprobePath = await getFFprobePath();
+		beforeAll(() => {
+			ffmpegPath = detectedToolchain!.ffmpegPath;
+			ffprobePath = detectedToolchain!.ffprobePath;
 
 			// Ensure test fixtures exist
 			if (!fs.existsSync(TEST_VIDEO)) {
@@ -402,6 +464,24 @@ describe.skipIf(!detectedFFmpeg)(
 			createTestSticker(stickerPath2, ffmpegPath, 48, "blue");
 			createTestSticker(stickerPath3, ffmpegPath, 32, "green");
 			createSolidVideo({ ffmpegPath, outputPath: solidVideoPath });
+		});
+
+		it("uses a matched FFmpeg and FFprobe toolchain", () => {
+			const ffmpegVersion = readToolVersion({ binaryPath: ffmpegPath });
+			const ffprobeVersion = readToolVersion({ binaryPath: ffprobePath });
+
+			expect(ffmpegVersion).toContain("ffmpeg version");
+			expect(ffprobeVersion).toContain("ffprobe version");
+			expect(parseToolVersion({ output: ffmpegVersion, tool: "ffmpeg" })).toBe(
+				parseToolVersion({ output: ffprobeVersion, tool: "ffprobe" })
+			);
+			if (detectedToolchain?.source === "staged") {
+				const versionMarker =
+					FFMPEG_MANIFEST.targets[FFMPEG_TARGET_KEY]?.versionMarker ??
+					FFMPEG_MANIFEST.nativeVersion;
+				expect(ffmpegVersion).toContain(versionMarker);
+				expect(ffprobeVersion).toContain(versionMarker);
+			}
 		});
 
 		afterAll(() => {
@@ -735,31 +815,6 @@ describe.skipIf(!detectedFFmpeg)(
 			});
 		});
 
-		it.skipIf(!compatibilityFFmpeg)(
-			"should preserve aspect-locked size keyframes with ffmpeg-static",
-			() => {
-				if (!compatibilityFFmpeg) {
-					throw new Error("FFmpeg compatibility binary is unavailable");
-				}
-				const outputFile = path.join(
-					TMP_DIR,
-					"output-keyframed-aspect-sticker-compatibility.mp4"
-				);
-				const args = buildAspectKeyframeExportArgs({
-					outputFile,
-					stickerPath: stickerPath1,
-					videoInputPath: solidVideoPath,
-				});
-				const result = runFFmpeg(compatibilityFFmpeg, args);
-
-				expect(result.success, result.stderr).toBe(true);
-				expectSquareRedSticker({
-					ffmpegPath: compatibilityFFmpeg,
-					outputFile,
-				});
-			}
-		);
-
 		// =========================================================================
 		// Sticker with all properties combined
 		// =========================================================================
@@ -1063,6 +1118,95 @@ describe.skipIf(!detectedFFmpeg)(
 				ffmpegPath,
 				inputPath: outputFile,
 				time: 1.4,
+			});
+			expect(countChangedBytes({ first: early, second: late })).toBeGreaterThan(
+				100
+			);
+		});
+
+		it("should render dense tracking-style keyframes from a filter script", () => {
+			const outputFile = path.join(
+				TMP_DIR,
+				"output-dense-tracking-keyframes.mp4"
+			);
+			const denseKeyframes = ({
+				valueAt,
+				easing = "linear",
+			}: {
+				valueAt: (frame: number) => number;
+				easing?: StickerPropertyKeyframe["easing"];
+			}): StickerPropertyKeyframe[] =>
+				Array.from({ length: 121 }, (_, frame) => ({
+					id: `dense-${frame}`,
+					frame,
+					value: valueAt(frame),
+					easing,
+				}));
+			const stickerSources: StickerSource[] = [
+				{
+					id: "s-dense-tracking",
+					path: stickerPath1,
+					x: 50,
+					y: 50,
+					width: 20,
+					height: 20,
+					canvasWidth: 320,
+					canvasHeight: 240,
+					startTime: 0.5,
+					endTime: 1.6,
+					zIndex: 1,
+					keyframeFps: 120,
+					keyframes: {
+						x: denseKeyframes({
+							valueAt: (frame) => 50 + Math.sin(frame / 9) * 8,
+						}),
+						y: denseKeyframes({
+							valueAt: (frame) => 50 + Math.cos(frame / 11) * 7,
+						}),
+						width: denseKeyframes({
+							valueAt: (frame) => 20 + Math.sin(frame / 13) * 2,
+						}),
+						height: denseKeyframes({
+							valueAt: (frame) => 20 + Math.cos(frame / 15) * 2,
+						}),
+						rotation: denseKeyframes({
+							valueAt: (frame) => Math.sin(frame / 17) * 15,
+							easing: "easeIn",
+						}),
+					},
+				},
+			];
+			const args = buildFFmpegArgs({
+				inputDir: TMP_DIR,
+				outputFile,
+				width: 320,
+				height: 240,
+				fps: 30,
+				quality: "medium",
+				duration: 2,
+				audioFiles: [],
+				useVideoInput: true,
+				videoInputPath: solidVideoPath,
+				stickerSources,
+				stickerFilterChain: "placeholder",
+			});
+
+			expect(args.join("\0").length).toBeGreaterThan(16_000);
+			const result = runFFmpeg(ffmpegPath, args);
+			expect(result.success, result.stderr).toBe(true);
+			expect(fs.existsSync(outputFile)).toBe(true);
+			expect(fs.readdirSync(path.join(TMP_DIR, "filter scripts ü"))).toEqual(
+				[]
+			);
+			const early = extractFrameBytes({
+				ffmpegPath,
+				inputPath: outputFile,
+				time: 0.55,
+			});
+			const late = extractFrameBytes({
+				ffmpegPath,
+				inputPath: outputFile,
+				time: 1.45,
 			});
 			expect(countChangedBytes({ first: early, second: late })).toBeGreaterThan(
 				100
