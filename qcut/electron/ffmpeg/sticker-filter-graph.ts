@@ -3,6 +3,7 @@ import type {
 	StickerPropertyKeyframe,
 	StickerSource,
 } from "./types";
+import { buildBalancedSegmentExpression } from "./balanced-segment-expression";
 import { buildNumericKeyframeExpression } from "./keyframe-expression";
 
 export interface StickerFilterGraph {
@@ -234,10 +235,10 @@ function buildStickerKeyframeExpression({
 	}
 
 	const timeAt = ({ frame }: { frame: number }) => frame / fps;
-	let expression = formatNumber({
-		value: keyframes[keyframes.length - 1].value,
-	});
-	for (let index = keyframes.length - 2; index >= 0; index -= 1) {
+	const buildSegment = ({ index }: { index: number }): string => {
+		if (index === keyframes.length - 1) {
+			return formatNumber({ value: keyframes[index].value });
+		}
 		const from = keyframes[index];
 		const to = keyframes[index + 1];
 		const start = timeAt({ frame: from.frame });
@@ -249,10 +250,18 @@ function buildStickerKeyframeExpression({
 		const value =
 			`${formatNumber({ value: from.value })}+` +
 			`((${formatNumber({ value: to.value })})-(${formatNumber({ value: from.value })}))*(${progress})`;
-		expression =
-			`if(lt(${timeVariable},${formatNumber({ value: end })}),` +
-			`${value},${expression})`;
-	}
+		return value;
+	};
+	const expression = buildBalancedSegmentExpression({
+		segmentCount: keyframes.length,
+		timeVariable,
+		getBoundary: ({ rightSegmentIndex }) =>
+			formatNumber({
+				value: timeAt({ frame: keyframes[rightSegmentIndex].frame }),
+			}),
+		getSegmentExpression: ({ segmentIndex }) =>
+			buildSegment({ index: segmentIndex }),
+	});
 
 	return `if(lt(${timeVariable},${formatNumber({
 		value: timeAt({ frame: keyframes[0].frame }),
