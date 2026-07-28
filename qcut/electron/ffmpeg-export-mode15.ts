@@ -23,6 +23,7 @@ import type {
 import { parseProgress, getFFprobePath, normalizeVideo } from "./ffmpeg/utils";
 import { buildTimelineAudioFilters } from "./ffmpeg/audio-filter-graph";
 import { appendStickerInputArgs } from "./ffmpeg-sticker-input";
+import { buildStickerFilterGraph } from "./ffmpeg/sticker-filter-graph";
 
 import type { IpcMainInvokeEvent } from "electron";
 
@@ -513,49 +514,17 @@ function buildMode15StickerArgs(
 
 	for (const [index, sticker] of stickers.entries()) {
 		const inputIdx = 1 + index;
-		const scaledLabel = `sticker_scaled_${index}`;
-		let preparedLabel = scaledLabel;
-
-		if (sticker.maintainAspectRatio) {
-			const padLabel = `sticker_pad_${index}`;
-			filterSteps.push(
-				`[${inputIdx}:v]scale=${sticker.width}:${sticker.height}:force_original_aspect_ratio=decrease[${scaledLabel}]`
-			);
-			filterSteps.push(
-				`[${scaledLabel}]pad=${sticker.width}:${sticker.height}:(ow-iw)/2:(oh-ih)/2:color=0x00000000[${padLabel}]`
-			);
-			preparedLabel = padLabel;
-		} else {
-			filterSteps.push(
-				`[${inputIdx}:v]scale=${sticker.width}:${sticker.height}[${scaledLabel}]`
-			);
-		}
-
-		const rotation = Number(sticker.rotation) || 0;
-		if (rotation !== 0) {
-			const rotatedLabel = `sticker_rotated_${index}`;
-			filterSteps.push(
-				`[${preparedLabel}]rotate=${rotation}*PI/180:c=none[${rotatedLabel}]`
-			);
-			preparedLabel = rotatedLabel;
-		}
-
-		const opacity = Math.max(0, Math.min(1, Number(sticker.opacity ?? 1)));
-		if (opacity < 1) {
-			const alphaLabel = `sticker_alpha_${index}`;
-			filterSteps.push(
-				`[${preparedLabel}]format=rgba,geq=r='r(X,Y)':g='g(X,Y)':b='b(X,Y)':a='${opacity}*alpha(X,Y)'[${alphaLabel}]`
-			);
-			preparedLabel = alphaLabel;
-		}
-
+		const graph = buildStickerFilterGraph({
+			inputLabel: `${inputIdx}:v`,
+			sticker,
+			labelPrefix: `mode15_sticker_${index}`,
+		});
+		filterSteps.push(...graph.filterSteps);
 		const outputLabel = `v_sticker_${filterIdx++}`;
-		const sx = Number(sticker.x) || 0;
-		const sy = Number(sticker.y) || 0;
 		const sStart = Number(sticker.startTime) || 0;
 		const sEnd = Number(sticker.endTime) || 0;
 		filterSteps.push(
-			`[${currentVideoLabel}][${preparedLabel}]overlay=x=${sx}:y=${sy}:enable='between(t,${sStart},${sEnd})'[${outputLabel}]`
+			`[${currentVideoLabel}][${graph.inputLabel}]overlay=x=${graph.x}:y=${graph.y}:enable='between(t,${sStart},${sEnd})'[${outputLabel}]`
 		);
 		currentVideoLabel = outputLabel;
 	}
