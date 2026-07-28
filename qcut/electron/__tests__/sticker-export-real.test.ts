@@ -15,6 +15,7 @@ import {
 	buildFFmpegArgs,
 	type BuildFFmpegArgsOptions,
 } from "../ffmpeg-args-builder";
+import { getFFprobePath } from "../ffmpeg/paths";
 import type { StickerSource } from "../ffmpeg/types";
 
 // ---------------------------------------------------------------------------
@@ -63,18 +64,13 @@ function getFFmpegPath(): string | null {
 	return null;
 }
 
-function getFFprobePath({ ffmpegPath }: { ffmpegPath: string }): string {
-	const detectedProbe = spawnSync("which", ["ffprobe"], {
-		encoding: "utf-8",
-	}).stdout?.trim();
-	return detectedProbe || ffmpegPath.replace(/ffmpeg$/, "ffprobe");
-}
-
-function probeVideo(
-	filePath: string,
-	ffmpegPath: string
-): { width: number; height: number; duration: number; hasVideo: boolean } {
-	const ffprobePath = getFFprobePath({ ffmpegPath });
+function probeVideo({
+	filePath,
+	ffprobePath,
+}: {
+	filePath: string;
+	ffprobePath: string;
+}): { width: number; height: number; duration: number; hasVideo: boolean } {
 	try {
 		const result = execSync(
 			`"${ffprobePath}" -v error -select_streams v:0 -show_entries stream=width,height,duration -show_entries format=duration -of json "${filePath}"`,
@@ -99,12 +95,11 @@ function probeVideo(
 
 function countVideoFrames({
 	filePath,
-	ffmpegPath,
+	ffprobePath,
 }: {
 	filePath: string;
-	ffmpegPath: string;
+	ffprobePath: string;
 }): number {
-	const ffprobePath = getFFprobePath({ ffmpegPath });
 	const result = spawnSync(
 		ffprobePath,
 		[
@@ -242,11 +237,22 @@ function runFFmpeg(
 	ffmpegPath: string,
 	args: string[]
 ): { success: boolean; stderr: string } {
-	const result = spawnSync(ffmpegPath, args, {
-		encoding: "utf-8",
-		timeout: FFMPEG_RENDER_TIMEOUT_MS,
-	});
-	const stderr = [result.stderr, result.error?.message]
+	const result = spawnSync(
+		ffmpegPath,
+		["-hide_banner", "-loglevel", "error", ...args],
+		{
+			encoding: "utf-8",
+			timeout: FFMPEG_RENDER_TIMEOUT_MS,
+		}
+	);
+	const stderr = [
+		result.stderr,
+		result.status !== null && result.status !== 0
+			? `exit status ${result.status}`
+			: undefined,
+		result.error?.message,
+		result.signal ? `terminated by ${result.signal}` : undefined,
+	]
 		.filter(Boolean)
 		.join("\n");
 	if (result.status !== 0) {
@@ -270,13 +276,15 @@ describe.skipIf(!detectedFFmpeg)(
 	{ timeout: FFMPEG_RENDER_TIMEOUT_MS },
 	() => {
 		let ffmpegPath: string;
+		let ffprobePath: string;
 		let stickerPath1: string;
 		let stickerPath2: string;
 		let stickerPath3: string;
 		let solidVideoPath: string;
 
-		beforeAll(() => {
+		beforeAll(async () => {
 			ffmpegPath = detectedFFmpeg!;
+			ffprobePath = await getFFprobePath();
 
 			// Ensure test fixtures exist
 			if (!fs.existsSync(TEST_VIDEO)) {
@@ -348,7 +356,7 @@ describe.skipIf(!detectedFFmpeg)(
 			expect(fs.existsSync(outputFile)).toBe(true);
 
 			// Verify output is a valid video with expected duration
-			const probe = probeVideo(outputFile, ffmpegPath);
+			const probe = probeVideo({ filePath: outputFile, ffprobePath });
 			expect(probe.hasVideo).toBe(true);
 			expect(probe.width).toBe(1280);
 			expect(probe.height).toBe(720);
@@ -468,7 +476,7 @@ describe.skipIf(!detectedFFmpeg)(
 			expect(result.success).toBe(true);
 			expect(fs.existsSync(outputFile)).toBe(true);
 
-			const probe = probeVideo(outputFile, ffmpegPath);
+			const probe = probeVideo({ filePath: outputFile, ffprobePath });
 			expect(probe.hasVideo).toBe(true);
 			expect(probe.width).toBe(1280);
 			expect(probe.height).toBe(720);
@@ -739,7 +747,7 @@ describe.skipIf(!detectedFFmpeg)(
 			expect(fs.existsSync(outputFile)).toBe(true);
 
 			// Verify the output is playable
-			const probe = probeVideo(outputFile, ffmpegPath);
+			const probe = probeVideo({ filePath: outputFile, ffprobePath });
 			expect(probe.hasVideo).toBe(true);
 			expect(probe.duration).toBeGreaterThanOrEqual(3);
 		});
@@ -800,7 +808,7 @@ describe.skipIf(!detectedFFmpeg)(
 			expect(filterChain).toContain("max(0\\,T-0.5)");
 			const result = runFFmpeg(ffmpegPath, args);
 			expect(result.success, result.stderr).toBe(true);
-			expect(countVideoFrames({ filePath: outputFile, ffmpegPath })).toBe(60);
+			expect(countVideoFrames({ filePath: outputFile, ffprobePath })).toBe(60);
 			const entrance = extractFrameBytes({
 				ffmpegPath,
 				inputPath: outputFile,
@@ -944,7 +952,7 @@ describe.skipIf(!detectedFFmpeg)(
 			expect(result.success).toBe(true);
 			expect(fs.existsSync(outputFile)).toBe(true);
 
-			const probe = probeVideo(outputFile, ffmpegPath);
+			const probe = probeVideo({ filePath: outputFile, ffprobePath });
 			expect(probe.hasVideo).toBe(true);
 		});
 
