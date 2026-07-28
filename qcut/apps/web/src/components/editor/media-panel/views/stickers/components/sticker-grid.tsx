@@ -3,7 +3,7 @@
 import type { PropsWithChildren } from "react";
 import { cn } from "@/lib/utils";
 
-export const STICKER_GRID_MIN_ITEM_WIDTH = 80;
+export const STICKER_GRID_COLUMN_COUNT = 3;
 export const STICKER_GRID_GAP = 6;
 
 export function StickerGrid({
@@ -16,7 +16,7 @@ export function StickerGrid({
 			className={cn("grid", className)}
 			style={{
 				gap: STICKER_GRID_GAP,
-				gridTemplateColumns: `repeat(auto-fill, minmax(${STICKER_GRID_MIN_ITEM_WIDTH}px, 1fr))`,
+				gridTemplateColumns: `repeat(${STICKER_GRID_COLUMN_COUNT}, minmax(0, 1fr))`,
 			}}
 			data-testid={testId}
 		>

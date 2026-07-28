@@ -1,13 +1,13 @@
 import { render, screen } from "@testing-library/react";
 import { describe, expect, it } from "vitest";
 import {
+	STICKER_GRID_COLUMN_COUNT,
 	STICKER_GRID_GAP,
-	STICKER_GRID_MIN_ITEM_WIDTH,
 	StickerGrid,
 } from "../components/sticker-grid";
 
 describe("StickerGrid", () => {
-	it("uses dense responsive columns without stretching sparse rows", () => {
+	it("uses three equal-width catalog columns", () => {
 		render(
 			<StickerGrid testId="responsive-sticker-grid">
 				<span>Sticker</span>
@@ -15,9 +15,8 @@ describe("StickerGrid", () => {
 		);
 		const grid = screen.getByTestId("responsive-sticker-grid");
 
+		expect(STICKER_GRID_COLUMN_COUNT).toBe(3);
 		expect(grid.style.gap).toBe(`${STICKER_GRID_GAP}px`);
-		expect(grid.style.gridTemplateColumns).toBe(
-			`repeat(auto-fill, minmax(${STICKER_GRID_MIN_ITEM_WIDTH}px, 1fr))`
-		);
+		expect(grid.style.gridTemplateColumns).toBe("repeat(3, minmax(0, 1fr))");
 	});
 });

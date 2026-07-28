@@ -170,7 +170,7 @@ describe("StickerItem", () => {
 			)
 		);
 		expect(preview.getAttribute("src")).not.toContain("api.iconify.design");
-		expect(preview).toHaveClass("size-[94%]", "object-contain");
+		expect(preview).toHaveClass("size-[98%]", "object-contain");
 		expect(createCachedStickerPreviewUrl).not.toHaveBeenCalled();
 		fireEvent.load(preview);
 		expect(screen.queryByTitle("Loading sticker")).not.toBeInTheDocument();
