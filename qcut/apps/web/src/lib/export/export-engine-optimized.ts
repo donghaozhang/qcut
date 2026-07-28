@@ -10,6 +10,7 @@ import { handleExportError } from "@/lib/debug/error-handler";
 import { TEST_MEDIA_ID } from "@/constants/timeline-constants";
 import { stripMarkdownSyntax } from "@/lib/markdown";
 import { renderTextToCanvas } from "@/lib/text/text-canvas-renderer";
+import { resolveAnimatedTextElement } from "@/lib/text/text-element-animation";
 import { getTimelineElementEndTime } from "@/lib/timeline";
 import { getMediaSourcePlaybackTime } from "@/lib/video/video-timing";
 import { canvasFontFamily } from "@/lib/text/canvas-font";
@@ -396,7 +397,12 @@ export class OptimizedExportEngine extends ExportEngine {
 				renderTextToCanvas({
 					ctx,
 					canvas,
-					element,
+					element: resolveAnimatedTextElement({
+						element,
+						tracks: this.tracks,
+						currentTime,
+						fps: this.getFrameRate(),
+					}),
 					currentTime,
 					fps: this.getFrameRate(),
 				});

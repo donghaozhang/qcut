@@ -68,12 +68,14 @@ export function buildTimelineAssLayers({
 	canvasHeight,
 	fps,
 	platform,
+	excludedTextElementIds = new Set(),
 }: {
 	tracks: TimelineTrack[];
 	canvasWidth: number;
 	canvasHeight: number;
 	fps: number;
 	platform?: CaptionExportPlatform;
+	excludedTextElementIds?: ReadonlySet<string>;
 }): {
 	layers: TimelineAssLayer[];
 	renderedTextElementIds: Set<string>;
@@ -95,7 +97,7 @@ export function buildTimelineAssLayers({
 			const element = track.elements[elementOrder];
 			if (element.hidden) continue;
 
-			if (element.type === "text") {
+			if (element.type === "text" && !excludedTextElementIds.has(element.id)) {
 				const layer = buildTextASSOverlay({
 					tracks: [{ ...track, elements: [element] }],
 					allTracks: orderedTracks,

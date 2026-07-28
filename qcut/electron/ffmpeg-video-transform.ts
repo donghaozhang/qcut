@@ -2086,6 +2086,8 @@ function composeVideoTimelineLayers({
 		baseLabel: backgroundLabel,
 		layers: preparedLayers,
 		labelPrefix,
+		canvasWidth: width,
+		canvasHeight: height,
 	});
 	const filterSteps = [
 		`color=c=${ffmpegColor(backgroundColor)}:s=${width}x${height}:d=${totalDuration}:r=${fps},` +

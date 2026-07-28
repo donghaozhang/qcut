@@ -31,6 +31,7 @@ import type {
 	VideoTransitionInput,
 	AudioFileInput,
 	AudioMixConfigInput,
+	TextRasterLayerInput,
 } from "../export-cli/types";
 import {
 	buildTextOverlayFilters,
@@ -51,6 +52,7 @@ import {
 	extractEffectPersonSources,
 	extractEffectCompanionAudioSources,
 	extractEffectAudioReactiveEnvelopes,
+	extractTextRasterSources,
 } from "../export-cli/sources";
 import {
 	prepareAudioFilesForExport,
@@ -85,6 +87,7 @@ export type {
 	VideoTransitionInput,
 	AudioFileInput,
 	AudioMixConfigInput,
+	TextRasterLayerInput,
 } from "../export-cli/types";
 
 type EffectsStore = ReturnType<typeof useEffectsStore.getState>;
@@ -141,6 +144,12 @@ export class CLIExportEngine extends ExportEngine {
 		}
 	}
 
+	override cancel(): void {
+		const exportWasRunning = this.isExporting;
+		super.cancel();
+		if (exportWasRunning) this.isExporting = true;
+	}
+
 	private countVisibleVideoElements(): number {
 		let count = 0;
 		for (const track of this.tracks) {
@@ -166,6 +175,24 @@ export class CLIExportEngine extends ExportEngine {
 	 * - Mode 2 - Direct Video + Filters (3-5x faster): Single video with text/stickers
 	 */
 	async export(progressCallback?: ProgressCallback): Promise<Blob> {
+		if (this.isExporting) {
+			throw new Error("Export already in progress");
+		}
+		this.isExporting = true;
+		this.abortController = new AbortController();
+		try {
+			return await this.runExport({ progressCallback });
+		} finally {
+			this.isExporting = false;
+			this.abortController = null;
+		}
+	}
+
+	private async runExport({
+		progressCallback,
+	}: {
+		progressCallback?: ProgressCallback;
+	}): Promise<Blob> {
 		debugLog("[CLIExportEngine] Starting CLI export...");
 		debugLog(
 			`[CLIExportEngine] 📏 Original timeline duration: ${this.totalDuration.toFixed(3)}s`
@@ -543,6 +570,29 @@ export class CLIExportEngine extends ExportEngine {
 				fps: this.getFrameRate(),
 			});
 
+		if (!this.sessionId) {
+			throw new Error("Text raster export requires an active session");
+		}
+		const textRasterLayers = await extractTextRasterSources({
+			tracks: this.tracks,
+			sessionId: this.sessionId,
+			canvasWidth: this.canvas.width,
+			canvasHeight: this.canvas.height,
+			fps: this.getFrameRate(),
+			logger: debugLog,
+			onProgress: ({ bakedFrames, totalFrames }) => {
+				const ratio = totalFrames > 0 ? bakedFrames / totalFrames : 1;
+				progressCallback?.(
+					20 + Math.round(ratio * 8),
+					`Baking animated text (${bakedFrames}/${totalFrames})...`
+				);
+			},
+			shouldCancel: () => this.isExportCancelled(),
+		});
+		const rasterTextElementIds = new Set(
+			textRasterLayers.map(({ elementId }) => elementId)
+		);
+
 		// Build text overlay filter chain
 		console.log(
 			"🔍 [TEXT EXPORT DEBUG] Starting text filter chain generation..."
@@ -555,12 +605,17 @@ export class CLIExportEngine extends ExportEngine {
 			canvasWidth: this.canvas.width,
 			canvasHeight: this.canvas.height,
 			fps: this.getFrameRate(),
+			excludedTextElementIds: rasterTextElementIds,
 			platform: window.electronAPI?.platform as
 				| "darwin"
 				| "win32"
 				| "linux"
 				| undefined,
 		});
+		const nativelyRenderedTextElementIds = new Set([
+			...assRenderedElementIds,
+			...rasterTextElementIds,
+		]);
 		const textFilterChain = buildTextOverlayFilters(
 			this.tracks,
 			(window.electronAPI?.platform ?? "darwin") as
@@ -568,9 +623,13 @@ export class CLIExportEngine extends ExportEngine {
 				| "darwin"
 				| "linux",
 			this.getFrameRate(),
-			assRenderedElementIds
+			nativelyRenderedTextElementIds
 		);
-		if (textFilterChain || textAssLayers.length > 0) {
+		if (
+			textFilterChain ||
+			textAssLayers.length > 0 ||
+			textRasterLayers.length > 0
+		) {
 			console.log(
 				"✅ [TEXT EXPORT DEBUG] Text filter chain generated successfully"
 			);
@@ -580,9 +639,7 @@ export class CLIExportEngine extends ExportEngine {
 			console.log(
 				`📈 [TEXT EXPORT DEBUG] Text element count: ${(textFilterChain.match(/drawtext=/g) || []).length}`
 			);
-			console.log(
-				"🎯 [TEXT EXPORT DEBUG] Text will be rendered by FFmpeg CLI (not canvas)"
-			);
+			console.log("🎯 [TEXT EXPORT DEBUG] Text will be rendered by FFmpeg CLI");
 			debugLog(`[CLI Export] Text filter chain generated: ${textFilterChain}`);
 			debugLog(
 				`[CLI Export] Text filter count: ${(textFilterChain.match(/drawtext=/g) || []).length}`
@@ -704,7 +761,9 @@ export class CLIExportEngine extends ExportEngine {
 
 		// Mode decision
 		const hasTextFilters =
-			textFilterChain.length > 0 || textAssLayers.length > 0;
+			textFilterChain.length > 0 ||
+			textAssLayers.length > 0 ||
+			textRasterLayers.length > 0;
 		const hasStickerFilters = (stickerFilterChain?.length ?? 0) > 0;
 
 		const visibleVideoCount = this.countVisibleVideoElements();
@@ -722,6 +781,7 @@ export class CLIExportEngine extends ExportEngine {
 			imageSources.length > 0 ||
 			stickerSources.length > 0 ||
 			textAssLayers.length > 0 ||
+			textRasterLayers.length > 0 ||
 			textFilterChain.length > 0;
 		const needsVideoInput =
 			(!hasLayeredVisualOverlays &&
@@ -838,6 +898,7 @@ export class CLIExportEngine extends ExportEngine {
 			combinedFilterChain,
 			textFilterChain,
 			textAssLayers,
+			textRasterLayers,
 			stickerFilterChain,
 			stickerSources,
 			imageFilterChain,

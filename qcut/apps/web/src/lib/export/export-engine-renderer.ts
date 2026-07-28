@@ -40,6 +40,7 @@ import {
 import { useWebcamOverlayStore } from "@/stores/webcam-overlay-store";
 import { useFigureAnnotationsStore } from "@/stores/figure-annotations-store";
 import { renderTextToCanvas } from "@/lib/text/text-canvas-renderer";
+import { resolveAnimatedTextElement } from "@/lib/text/text-element-animation";
 import { resolveMediaKeyframes } from "@/lib/video/video-properties";
 import { getMediaSourcePlaybackTime } from "@/lib/video/video-timing";
 import { drawColorGradedSourceWithMasks } from "@/lib/color/browser-color-rendering";
@@ -197,13 +198,14 @@ async function renderElement(
 	if (element.type === "media" && mediaItem) {
 		await renderMediaElement(context, element, mediaItem, elementTimeOffset);
 	} else if (element.type === "text") {
-		renderTextElement(
-			context.ctx,
-			context.canvas,
+		renderTextElement({
+			ctx: context.ctx,
+			canvas: context.canvas,
 			element,
 			currentTime,
-			context.fps
-		);
+			fps: context.fps,
+			tracks: context.tracks,
+		});
 	} else if (element.type === "captions") {
 		renderCaptionElement(
 			context.ctx,
@@ -727,15 +729,34 @@ export async function renderOverlayStickers(
 }
 
 /** Render text element */
-export function renderTextElement(
-	ctx: CanvasRenderingContext2D,
-	canvas: HTMLCanvasElement,
-	element: TimelineElement,
-	currentTime: number,
-	fps: number
-): void {
+export function renderTextElement({
+	ctx,
+	canvas,
+	element,
+	currentTime,
+	fps,
+	tracks,
+}: {
+	ctx: CanvasRenderingContext2D;
+	canvas: HTMLCanvasElement;
+	element: TimelineElement;
+	currentTime: number;
+	fps: number;
+	tracks: RenderContext["tracks"];
+}): void {
 	if (element.type !== "text") return;
-	renderTextToCanvas({ ctx, canvas, element, currentTime, fps });
+	renderTextToCanvas({
+		ctx,
+		canvas,
+		element: resolveAnimatedTextElement({
+			element,
+			tracks,
+			currentTime,
+			fps,
+		}),
+		currentTime,
+		fps,
+	});
 }
 
 /** Render caption element with subtitle styling */

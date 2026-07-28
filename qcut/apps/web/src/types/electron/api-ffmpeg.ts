@@ -23,6 +23,7 @@ import type {
 	VideoTransitionInput,
 	AudioFileInput,
 	AudioMixConfigInput,
+	TextRasterLayerInput,
 } from "../../lib/export/export-engine-cli";
 
 export interface ElectronFFmpegOps {
@@ -63,6 +64,7 @@ export interface ElectronFFmpegOps {
 			quality: string;
 			filterChain?: string;
 			textFilterChain?: string;
+			textRasterLayers?: TextRasterLayerInput[];
 			stickerFilterChain?: string;
 			stickerSources?: StickerSource[];
 			duration?: number;
