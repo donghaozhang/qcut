@@ -16,6 +16,7 @@ import {
 	buildVideoEnhancementFilter,
 	normalizeVideoEnhancements,
 } from "./video-enhancement-filter.js";
+import { prepareFFmpegFilterComplexScripts } from "./filter-complex-script.js";
 import { buildVideoFitFilter } from "./video-fit-filter.js";
 import { getFFmpegPath } from "./utils.js";
 
@@ -428,14 +429,17 @@ function runPreviewProcess({
 	args: string[];
 	timeoutMs?: number;
 }): Promise<Buffer> {
+	const preparedFilterScripts = prepareFFmpegFilterComplexScripts({ args });
 	return new Promise<Buffer>((resolve, reject) => {
-		const process = spawn(getFFmpegPath(), args, {
+		const process = spawn(getFFmpegPath(), preparedFilterScripts.args, {
 			windowsHide: true,
 			stdio: ["ignore", "pipe", "pipe"],
 		});
 		activeRequests.set(requestId, process);
 		const stdout: Buffer[] = [];
 		let stderr = "";
+		let processError: Error | undefined;
+		let timeoutError: Error | undefined;
 		let settled = false;
 		const finish = ({ error, data }: { error?: Error; data?: Buffer }) => {
 			if (settled) return;
@@ -446,15 +450,25 @@ function runPreviewProcess({
 			else resolve(data ?? Buffer.alloc(0));
 		};
 		const timer = setTimeout(() => {
+			timeoutError = new Error("Video frame preview timed out");
 			process.kill();
-			finish({ error: new Error("Video frame preview timed out") });
 		}, timeoutMs);
 		process.stdout.on("data", (chunk: Buffer) => stdout.push(chunk));
 		process.stderr.on("data", (chunk: Buffer) => {
 			stderr += chunk.toString();
 		});
-		process.on("error", (error) => finish({ error }));
+		process.on("error", (error) => {
+			processError = error;
+		});
 		process.on("close", (code, signal) => {
+			if (timeoutError) {
+				finish({ error: timeoutError });
+				return;
+			}
+			if (processError) {
+				finish({ error: processError });
+				return;
+			}
 			if (code !== 0) {
 				finish({
 					error: new Error(
@@ -472,7 +486,7 @@ function runPreviewProcess({
 			}
 			finish({ data: pngData });
 		});
-	});
+	}).finally(preparedFilterScripts.cleanup);
 }
 
 export async function renderVideoFramePreview({
