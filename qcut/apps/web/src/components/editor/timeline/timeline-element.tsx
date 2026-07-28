@@ -108,7 +108,7 @@ import {
 	normalizeMediaColorSettings,
 } from "@/lib/color/color-properties";
 import {
-	createPastedTimelineElement,
+	createDuplicatedTimelineElement,
 	useTimelineClipboardStore,
 } from "@/stores/timeline/timeline-clipboard-store";
 import {
@@ -427,13 +427,13 @@ function TimelineElementComponent({
 		e.stopPropagation();
 		addElementToTrack(
 			track.id,
-			createPastedTimelineElement({
+			createDuplicatedTimelineElement({
 				entry: {
 					trackId: track.id,
 					trackType: track.type,
 					element,
 				},
-				startTime: getTimelineElementEndTime({ element }) + 0.1,
+				fps: projectFps,
 			})
 		);
 	};
