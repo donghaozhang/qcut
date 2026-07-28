@@ -52,7 +52,12 @@ describe("clip transition presentation", () => {
 			presentations({ type: "dissolve", role: "from" }).map(
 				(item) => item.opacity
 			)
-		).toEqual([1, 0.75, 0.5, 0.25, 0]);
+		).toEqual([1, 1, 1, 1, 1]);
+		expect(
+			presentations({ type: "dissolve", role: "to" }).map(
+				(item) => item.opacity
+			)
+		).toEqual([0, 0.25, 0.5, 0.75, 1]);
 		expect(
 			presentations({ type: "fade-black", role: "from" }).map(
 				(item) => item.contentOpacity
@@ -104,27 +109,28 @@ describe("clip transition presentation", () => {
 		]);
 	});
 
-	it("crossfades dissolve layers", () => {
+	it("crossfades stacked dissolve layers without dimming", () => {
 		const dissolve = transition({ type: "dissolve" });
+		const outgoing = getClipTransitionLayerPresentation({
+			transition: dissolve,
+			role: "from",
+			progress: 0.25,
+			canvasWidth: 1920,
+			canvasHeight: 1080,
+		});
+		const incoming = getClipTransitionLayerPresentation({
+			transition: dissolve,
+			role: "to",
+			progress: 0.25,
+			canvasWidth: 1920,
+			canvasHeight: 1080,
+		});
 
-		expect(
-			getClipTransitionLayerPresentation({
-				transition: dissolve,
-				role: "from",
-				progress: 0.25,
-				canvasWidth: 1920,
-				canvasHeight: 1080,
-			}).opacity
-		).toBe(0.75);
-		expect(
-			getClipTransitionLayerPresentation({
-				transition: dissolve,
-				role: "to",
-				progress: 0.25,
-				canvasWidth: 1920,
-				canvasHeight: 1080,
-			}).opacity
-		).toBe(0.25);
+		expect(outgoing.opacity).toBe(1);
+		expect(incoming.opacity).toBe(0.25);
+		expect(incoming.opacity + outgoing.opacity * (1 - incoming.opacity)).toBe(
+			1
+		);
 	});
 
 	it("uses black between fade layers", () => {
@@ -225,9 +231,19 @@ describe("clip transition presentation", () => {
 			});
 
 		expect(midpoint({ type: "zoom-blur" })).toMatchObject({
-			opacity: 0.5,
+			opacity: 1,
 			scale: 1.18,
 			blur: 12,
+		});
+		expect(midpoint({ type: "zoom-in-blur" })).toMatchObject({
+			opacity: 1,
+			scale: 1.06,
+			blur: 8,
+		});
+		expect(midpoint({ type: "zoom-in-blur", role: "to" })).toMatchObject({
+			opacity: 0.5,
+			scale: 0.94,
+			blur: 8,
 		});
 		expect(midpoint({ type: "whip-pan", direction: "left" })).toMatchObject({
 			offsetX: 50,
@@ -349,6 +365,61 @@ describe("clip transition presentation", () => {
 			position: "absolute",
 			mixBlendMode: "screen",
 		});
+	});
+
+	it("feathers the selected circle and heart reveals", () => {
+		const circle = getClipTransitionLayerPresentation({
+			transition: {
+				...transition({ type: "texture-mask" }),
+				maskShape: "circle",
+			},
+			role: "to",
+			progress: 0.5,
+			canvasWidth: 320,
+			canvasHeight: 180,
+		});
+		const heart = getClipTransitionLayerPresentation({
+			transition: {
+				...transition({ type: "texture-mask" }),
+				maskShape: "heart",
+			},
+			role: "to",
+			progress: 0.5,
+			canvasWidth: 320,
+			canvasHeight: 180,
+		});
+		const nearlyCompleteCircle = getClipTransitionLayerPresentation({
+			transition: {
+				...transition({ type: "texture-mask" }),
+				maskShape: "circle",
+			},
+			role: "to",
+			progress: 0.998,
+			canvasWidth: 320,
+			canvasHeight: 180,
+		});
+
+		expect(circle.maskImage).toContain(
+			"#000 0 91.79px, rgba(0,0,0,0.5) 97.30px, transparent 102.80px"
+		);
+		expect(circle.maskImage).not.toContain("clip-path");
+		expect(nearlyCompleteCircle.maskImage).toContain("#000 0 188.69px");
+		expect(decodeURIComponent(heart.maskImage ?? "")).toContain(
+			'feGaussianBlur stdDeviation=".65"'
+		);
+		expect(heart.maskSize).toBe("auto 101.2%");
+
+		const nearlyCompleteHeart = getClipTransitionLayerPresentation({
+			transition: {
+				...transition({ type: "texture-mask" }),
+				maskShape: "heart",
+			},
+			role: "to",
+			progress: 0.998,
+			canvasWidth: 320,
+			canvasHeight: 180,
+		});
+		expect(nearlyCompleteHeart.maskSize).toBe("auto 494.8%");
 	});
 
 	it("builds a CSS filter only when presentation effects are active", () => {
