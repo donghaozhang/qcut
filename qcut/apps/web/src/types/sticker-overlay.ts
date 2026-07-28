@@ -104,7 +104,11 @@ export type StickerOverlayActions = {
 		options?: Partial<OverlaySticker>
 	) => string;
 	removeOverlaySticker: (id: string) => void;
-	updateOverlaySticker: (id: string, updates: Partial<OverlaySticker>) => void;
+	updateOverlaySticker: (
+		id: string,
+		updates: Partial<OverlaySticker>,
+		options?: { syncTimeline?: boolean }
+	) => void;
 	clearAllStickers: () => void;
 
 	// Selection
