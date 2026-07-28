@@ -133,14 +133,18 @@ export function TextAnimationProperties({
 		if (previewScopeRef.current !== previewScope && previewTimeout.current) {
 			clearTimeout(previewTimeout.current);
 			previewTimeout.current = null;
+			// The cleared timeout owned the scheduled pause, so stop playback
+			// here or the preview keeps playing past its window.
+			pause();
 		}
 		previewScopeRef.current = previewScope;
 		return () => {
 			if (!previewTimeout.current) return;
 			clearTimeout(previewTimeout.current);
 			previewTimeout.current = null;
+			pause();
 		};
-	}, [previewScope]);
+	}, [previewScope, pause]);
 
 	if (resolvedAnimations.unsupportedSchemaVersion !== undefined) {
 		return (

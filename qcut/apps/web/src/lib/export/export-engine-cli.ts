@@ -53,6 +53,7 @@ import {
 	extractEffectCompanionAudioSources,
 	extractEffectAudioReactiveEnvelopes,
 	extractTextRasterSources,
+	usesTextRasterExport,
 } from "../export-cli/sources";
 import {
 	prepareAudioFilesForExport,
@@ -148,6 +149,32 @@ export class CLIExportEngine extends ExportEngine {
 		const exportWasRunning = this.isExporting;
 		super.cancel();
 		if (exportWasRunning) this.isExporting = true;
+	}
+
+	private async extractTextRasterLayers({
+		progressCallback,
+	}: {
+		progressCallback?: ProgressCallback;
+	}): Promise<TextRasterLayerInput[]> {
+		if (!this.sessionId) {
+			throw new Error("Text raster export requires an active session");
+		}
+		return extractTextRasterSources({
+			tracks: this.tracks,
+			sessionId: this.sessionId,
+			canvasWidth: this.canvas.width,
+			canvasHeight: this.canvas.height,
+			fps: this.getFrameRate(),
+			logger: debugLog,
+			onProgress: ({ bakedFrames, totalFrames }) => {
+				const ratio = totalFrames > 0 ? bakedFrames / totalFrames : 1;
+				progressCallback?.(
+					20 + Math.round(ratio * 8),
+					`Baking animated text (${bakedFrames}/${totalFrames})...`
+				);
+			},
+			shouldCancel: () => this.isExportCancelled(),
+		});
 	}
 
 	private countVisibleVideoElements(): number {
@@ -570,25 +597,23 @@ export class CLIExportEngine extends ExportEngine {
 				fps: this.getFrameRate(),
 			});
 
-		if (!this.sessionId) {
+		const needsTextRaster = this.tracks.some(
+			(track) =>
+				!track.hidden &&
+				track.elements.some(
+					(element) =>
+						element.type === "text" &&
+						!element.hidden &&
+						Boolean(element.content?.trim()) &&
+						usesTextRasterExport({ element, fps: this.getFrameRate() })
+				)
+		);
+		if (needsTextRaster && !this.sessionId) {
 			throw new Error("Text raster export requires an active session");
 		}
-		const textRasterLayers = await extractTextRasterSources({
-			tracks: this.tracks,
-			sessionId: this.sessionId,
-			canvasWidth: this.canvas.width,
-			canvasHeight: this.canvas.height,
-			fps: this.getFrameRate(),
-			logger: debugLog,
-			onProgress: ({ bakedFrames, totalFrames }) => {
-				const ratio = totalFrames > 0 ? bakedFrames / totalFrames : 1;
-				progressCallback?.(
-					20 + Math.round(ratio * 8),
-					`Baking animated text (${bakedFrames}/${totalFrames})...`
-				);
-			},
-			shouldCancel: () => this.isExportCancelled(),
-		});
+		const textRasterLayers = needsTextRaster
+			? await this.extractTextRasterLayers({ progressCallback })
+			: [];
 		const rasterTextElementIds = new Set(
 			textRasterLayers.map(({ elementId }) => elementId)
 		);

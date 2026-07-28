@@ -125,6 +125,14 @@ export function resolveTextAnimationPreviewCrop({
 		style.strokeWidth +
 		Math.max(shadowPaddingY, glowPadding) +
 		animation.decorationPadding;
+	// NOTE: this crop intentionally differs from the export-side math in
+	// text-raster-bounds.ts. Here paint padding scales with the animation
+	// because the preview overlay paints stroke/shadow in text space before
+	// the unit transform, and filterPadding stays at the CSS blur extent
+	// (TEXT_ANIMATION_FILTER_BLUR_EXTENT) that the DOM filter actually uses.
+	// The raster bounds keep padding unscaled but widen blur to
+	// CANVAS_BLUR_SAFETY, because a clipped raster edge is permanent in the
+	// export while the preview can afford tighter, screen-space bounds.
 	let localHalfWidth = (boxWidth / 2 + paintPaddingX) * animation.scale;
 	let localHalfHeight =
 		(curvedTextHalfHeight({

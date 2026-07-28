@@ -158,10 +158,15 @@ export function createPersistenceOperations(
 					sceneId,
 				});
 				if (tracks) {
+					// Resolve FPS from the project being loaded: activeProject may
+					// still point at the previous project during a switch.
+					const project = await storageService
+						.loadProject({ id: projectId })
+						.catch(() => null);
 					updateTracks(
 						normalizeLoadedTracks({
 							tracks,
-							fps: getProjectFps?.() ?? 30,
+							fps: project?.fps ?? getProjectFps?.() ?? 30,
 						})
 					);
 				} else {

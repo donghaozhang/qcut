@@ -401,6 +401,7 @@ describe("timeline transition operations", () => {
 		vi.spyOn(storageService, "loadProjectTimeline").mockResolvedValue(
 			persistedTracks
 		);
+		vi.spyOn(storageService, "loadProject").mockResolvedValue(null);
 		await useTimelineStore
 			.getState()
 			.loadProjectTimeline({ projectId: "project-1" });

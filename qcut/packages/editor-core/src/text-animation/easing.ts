@@ -94,6 +94,20 @@ export function springProgress({
 					coefficient * Math.sin(dampedFrequency * progress))
 		);
 	}
+	if (dampingRatio > 1 + 1e-6) {
+		// Overdamped: two distinct real roots, solved for x(0) = -1 and
+		// x'(0) = velocity.
+		const spread = angularFrequency * Math.sqrt(dampingRatio ** 2 - 1);
+		const rootFast = -dampingRatio * angularFrequency + spread;
+		const rootSlow = -dampingRatio * angularFrequency - spread;
+		const fastCoefficient = (velocity + rootSlow) / (rootFast - rootSlow);
+		const slowCoefficient = -1 - fastCoefficient;
+		return (
+			1 +
+			fastCoefficient * Math.exp(rootFast * progress) +
+			slowCoefficient * Math.exp(rootSlow * progress)
+		);
+	}
 	const decay = Math.exp(-angularFrequency * progress);
 	return 1 - decay * (1 + (angularFrequency - velocity) * progress);
 }

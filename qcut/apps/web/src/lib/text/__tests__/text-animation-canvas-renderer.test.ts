@@ -211,11 +211,13 @@ describe("text animation canvas layout", () => {
 			x: first.bounds.x,
 			y: first.anchorY,
 			rotationDeg: first.rotationDeg,
+			textBaseline: first.textBaseline,
 		});
 		expect(resolveCursorPosition({ layout, afterGrapheme: 2 })).toEqual({
 			x: nextLine.bounds.x,
 			y: nextLine.anchorY,
 			rotationDeg: nextLine.rotationDeg,
+			textBaseline: nextLine.textBaseline,
 		});
 	});
 });

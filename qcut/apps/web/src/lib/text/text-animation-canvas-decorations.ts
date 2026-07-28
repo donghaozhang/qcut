@@ -173,11 +173,16 @@ export function resolveCursorPosition({
 }: {
 	layout: CanvasTextAnimationLayout;
 	afterGrapheme: number;
-}): { x: number; y: number; rotationDeg: number } {
+}): {
+	x: number;
+	y: number;
+	rotationDeg: number;
+	textBaseline: CanvasTextBaseline;
+} {
 	const first = layout.graphemes[0];
 	if (!first) {
 		const { bounds } = layout.animationLayout;
-		return { x: bounds.x, y: bounds.y, rotationDeg: 0 };
+		return { x: bounds.x, y: bounds.y, rotationDeg: 0, textBaseline: "top" };
 	}
 	const boundary = Math.min(
 		layout.graphemes.length,
@@ -191,12 +196,17 @@ export function resolveCursorPosition({
 			x: grapheme.bounds.x,
 			y: grapheme.anchorY,
 			rotationDeg: grapheme.rotationDeg,
+			// anchorY's meaning depends on the layout mode (top for straight
+			// text, middle for curved), so the cursor must draw with the same
+			// baseline as its source grapheme.
+			textBaseline: grapheme.textBaseline,
 		};
 	}
 	return {
 		x: previous.bounds.x + previous.bounds.width,
 		y: previous.anchorY,
 		rotationDeg: previous.rotationDeg,
+		textBaseline: previous.textBaseline,
 	};
 }
 
@@ -221,7 +231,7 @@ function drawCursor({
 	ctx.rotate((position.rotationDeg * Math.PI) / 180);
 	ctx.globalAlpha *= clampTextAnimationOpacity({ value: decoration.opacity });
 	ctx.textAlign = "left";
-	ctx.textBaseline = "top";
+	ctx.textBaseline = position.textBaseline;
 	ctx.fillStyle = decoration.color ?? element.color;
 	ctx.fillText(decoration.text, 0, 0);
 	ctx.restore();
