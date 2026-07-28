@@ -194,6 +194,24 @@ export type {
 } from "./timeline.js";
 
 export type {
+	TextAnimationDirection,
+	TextAnimationDistance,
+	TextAnimationEasing,
+	TextAnimationEdgePhase,
+	TextAnimationEffect,
+	TextAnimationLoopPhase,
+	TextAnimationOrder,
+	TextAnimationPhaseBase,
+	TextAnimationPresetRef,
+	TextAnimations,
+	TextAnimationsV1,
+	TextAnimationSequence,
+	TextAnimationTarget,
+	TextAnimationTiming,
+	TextAnimationUnit,
+} from "../text-animation/model.js";
+
+export type {
 	TranscriptionSegment,
 	TranscriptionResult,
 	TranscriptionRequest,
