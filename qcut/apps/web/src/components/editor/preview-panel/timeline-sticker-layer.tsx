@@ -1,32 +1,55 @@
 import { useMemo, useRef, type RefObject } from "react";
 import { StickerElement as InteractiveStickerElement } from "@/components/editor/stickers-overlay/StickerElement";
-import { resolveTimelineStickerVisual } from "@/lib/stickers/timeline-sticker-visual";
+import { resolveTimelineStickerVisualAtTime } from "@/lib/stickers/timeline-sticker-visual";
 import type { MediaItem } from "@/stores/media/media-store-types";
 import { useStickersOverlayStore } from "@/stores/stickers-overlay-store";
-import type { StickerElement } from "@/types/timeline";
+import { usePlaybackStore } from "@/stores/editor/playback-store";
+import { useProjectStore } from "@/stores/project-store";
+import type { StickerElement, TimelineTrack } from "@/types/timeline";
 import type { ActiveElement } from "./types";
 
 export function TimelineStickerLayer({
 	element,
 	elementOrder,
 	mediaItems,
+	currentTime = 0,
+	tracks = [],
+	canvasSize = { width: 1920, height: 1080 },
 }: {
 	element: StickerElement;
 	elementOrder: number;
 	mediaItems: MediaItem[];
+	currentTime?: number;
+	tracks?: TimelineTrack[];
+	canvasSize?: { width: number; height: number };
 }) {
 	const canvasRef = useRef<HTMLDivElement>(null);
 	const fallback = useStickersOverlayStore((state) =>
 		state.overlayStickers.get(element.stickerId)
 	);
+	const fps = useProjectStore((state) => state.activeProject?.fps ?? 30);
 	const sticker = useMemo(
 		() =>
-			resolveTimelineStickerVisual({
+			resolveTimelineStickerVisualAtTime({
 				element,
+				currentTime,
+				fps,
 				fallback,
 				elementOrder,
+				tracks,
+				canvasWidth: canvasSize.width,
+				canvasHeight: canvasSize.height,
 			}),
-		[element, elementOrder, fallback]
+		[
+			canvasSize.height,
+			canvasSize.width,
+			currentTime,
+			element,
+			elementOrder,
+			fallback,
+			fps,
+			tracks,
+		]
 	);
 	const mediaItem = mediaItems.find((item) => item.id === element.mediaId);
 	if (!mediaItem) return null;
@@ -42,6 +65,8 @@ export function TimelineStickerLayer({
 				mediaItem={mediaItem}
 				canvasRef={canvasRef}
 				renderMode="visual"
+				animationElement={element}
+				currentTime={currentTime}
 			/>
 		</div>
 	);
@@ -52,23 +77,44 @@ function TimelineStickerInteractionItem({
 	element,
 	elementOrder,
 	mediaItems,
+	currentTime,
+	tracks,
+	canvasSize,
 }: {
 	canvasRef: RefObject<HTMLDivElement | null>;
 	element: StickerElement;
 	elementOrder: number;
 	mediaItems: MediaItem[];
+	currentTime: number;
+	tracks: TimelineTrack[];
+	canvasSize: { width: number; height: number };
 }) {
 	const fallback = useStickersOverlayStore((state) =>
 		state.overlayStickers.get(element.stickerId)
 	);
+	const fps = useProjectStore((state) => state.activeProject?.fps ?? 30);
 	const sticker = useMemo(
 		() =>
-			resolveTimelineStickerVisual({
+			resolveTimelineStickerVisualAtTime({
 				element,
+				currentTime,
+				fps,
 				fallback,
 				elementOrder,
+				tracks,
+				canvasWidth: canvasSize.width,
+				canvasHeight: canvasSize.height,
 			}),
-		[element, elementOrder, fallback]
+		[
+			canvasSize.height,
+			canvasSize.width,
+			currentTime,
+			element,
+			elementOrder,
+			fallback,
+			fps,
+			tracks,
+		]
 	);
 	const mediaItem = mediaItems.find((item) => item.id === element.mediaId);
 	if (!mediaItem) return null;
@@ -79,6 +125,8 @@ function TimelineStickerInteractionItem({
 			mediaItem={mediaItem}
 			canvasRef={canvasRef}
 			renderMode="interaction"
+			animationElement={element}
+			currentTime={currentTime}
 		/>
 	);
 }
@@ -86,10 +134,15 @@ function TimelineStickerInteractionItem({
 export function TimelineStickerInteractionLayer({
 	activeElements,
 	mediaItems,
+	tracks = [],
+	canvasSize = { width: 1920, height: 1080 },
 }: {
 	activeElements: ActiveElement[];
 	mediaItems: MediaItem[];
+	tracks?: TimelineTrack[];
+	canvasSize?: { width: number; height: number };
 }) {
+	const currentTime = usePlaybackStore((state) => state.currentTime);
 	const canvasRef = useRef<HTMLDivElement>(null);
 	const activeStickers = activeElements.flatMap((elementData, elementOrder) =>
 		elementData.element.type === "sticker"
@@ -111,6 +164,9 @@ export function TimelineStickerInteractionLayer({
 					element={element}
 					elementOrder={elementOrder}
 					mediaItems={mediaItems}
+					currentTime={currentTime}
+					tracks={tracks}
+					canvasSize={canvasSize}
 				/>
 			))}
 		</div>
