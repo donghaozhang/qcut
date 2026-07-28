@@ -95,6 +95,8 @@ export function useAudioLibrarySearch({
 		setHasNextPage(false);
 		setTotalCount(0);
 		setError(undefined);
+		setIsLoading(false);
+		setIsLoadingMore(false);
 		if (!enabled) return;
 
 		const timeoutId = window.setTimeout(() => {
