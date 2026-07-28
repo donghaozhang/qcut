@@ -5,7 +5,7 @@
  * layer management, and other actions.
  */
 
-import React, { memo } from "react";
+import { memo, useRef, type MouseEvent, type SyntheticEvent } from "react";
 import { X, ArrowUp, ArrowDown, Copy, RotateCw, Layers } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Slider } from "@/components/ui/slider";
@@ -16,13 +16,24 @@ import {
 	TooltipTrigger,
 } from "@/components/ui/tooltip";
 import { useStickersOverlayStore } from "@/stores/stickers-overlay-store";
+import { useTimelineStore } from "@/stores/timeline/timeline-store";
 import type { OverlaySticker } from "@/types/sticker-overlay";
+import type { CreateStickerElement } from "@/types/timeline";
 import { cn } from "@/lib/utils";
+import {
+	assignNewStickerInstanceId,
+	createStickerInstanceId,
+} from "@/lib/stickers/sticker-instance";
+import { stickerVisualUpdatesFromOverlay } from "@/lib/stickers/timeline-sticker-visual";
 
 interface StickerControlsProps {
 	stickerId: string;
 	isVisible: boolean;
 	sticker: OverlaySticker;
+}
+
+function stopControlInteraction(event: SyntheticEvent): void {
+	event.stopPropagation();
 }
 
 /**
@@ -35,17 +46,16 @@ export const StickerControls = memo<StickerControlsProps>(
 			updateOverlaySticker,
 			bringToFront,
 			sendToBack,
-			bringForward,
-			sendBackward,
-			addOverlaySticker,
+			saveHistorySnapshot,
 		} = useStickersOverlayStore();
+		const opacityGestureActive = useRef(false);
 
 		if (!isVisible) return null;
 
 		/**
 		 * Handle delete sticker
 		 */
-		const handleDelete = (e: React.MouseEvent) => {
+		const handleDelete = (e: MouseEvent) => {
 			e.stopPropagation();
 			removeOverlaySticker(stickerId);
 		};
@@ -53,64 +63,107 @@ export const StickerControls = memo<StickerControlsProps>(
 		/**
 		 * Handle duplicate sticker
 		 */
-		const handleDuplicate = (e: React.MouseEvent) => {
+		const handleDuplicate = (e: MouseEvent) => {
 			e.stopPropagation();
-			// Add a duplicate with slight offset, excluding id and metadata
-			const { id, metadata, ...stickerWithoutId } = sticker;
-			addOverlaySticker(sticker.mediaItemId, {
-				...stickerWithoutId,
-				position: {
-					x: Math.min(90, sticker.position.x + 5),
-					y: Math.min(90, sticker.position.y + 5),
-				},
-			});
+			const timeline = useTimelineStore.getState();
+			for (const track of timeline._tracks) {
+				const sourceElement = track.elements.find(
+					(element) =>
+						element.type === "sticker" && element.stickerId === stickerId
+				);
+				if (sourceElement?.type !== "sticker") continue;
+
+				const sourceWithoutElementId = {
+					...sourceElement,
+				} as typeof sourceElement & Record<string, unknown>;
+				Reflect.deleteProperty(sourceWithoutElementId, "id");
+				const visual = stickerVisualUpdatesFromOverlay({ sticker });
+				timeline.addElementToTrack(
+					track.id,
+					assignNewStickerInstanceId({
+						element: {
+							...sourceWithoutElementId,
+							...visual,
+							name: `${sourceElement.name} (copy)`,
+							x: Math.min(90, sticker.position.x + 5),
+							y: Math.min(90, sticker.position.y + 5),
+						} as CreateStickerElement,
+						newStickerId: createStickerInstanceId(),
+					})
+				);
+				break;
+			}
 		};
 
 		/**
 		 * Handle rotation
 		 */
-		const handleRotate = (e: React.MouseEvent) => {
+		const handleRotate = (e: MouseEvent) => {
 			e.stopPropagation();
+			saveHistorySnapshot();
 			updateOverlaySticker(stickerId, {
 				rotation: (sticker.rotation + 45) % 360,
 			});
+		};
+
+		const startOpacityGesture = () => {
+			if (opacityGestureActive.current) return;
+			saveHistorySnapshot();
+			opacityGestureActive.current = true;
 		};
 
 		/**
 		 * Handle opacity change
 		 */
 		const handleOpacityChange = (value: number[]) => {
+			startOpacityGesture();
 			updateOverlaySticker(stickerId, {
 				opacity: value[0] / 100,
 			});
 		};
 
+		const handleOpacityCommit = () => {
+			opacityGestureActive.current = false;
+		};
+
 		/**
 		 * Handle layer order changes
 		 */
-		const handleBringToFront = (e: React.MouseEvent) => {
+		const handleBringToFront = (e: MouseEvent) => {
 			e.stopPropagation();
+			saveHistorySnapshot();
 			bringToFront(stickerId);
 		};
 
-		const handleSendToBack = (e: React.MouseEvent) => {
+		const handleSendToBack = (e: MouseEvent) => {
 			e.stopPropagation();
+			saveHistorySnapshot();
 			sendToBack(stickerId);
 		};
 
 		return (
 			<TooltipProvider>
-				<div className="absolute -top-12 left-1/2 transform -translate-x-1/2 flex items-center gap-1 bg-background/95 backdrop-blur-sm border rounded-lg p-1 shadow-lg z-50">
+				<div
+					className="absolute -top-12 left-1/2 transform -translate-x-1/2 flex items-center gap-1 bg-background/95 backdrop-blur-sm border rounded-lg p-1 shadow-lg z-50"
+					onMouseDown={stopControlInteraction}
+					onPointerDown={stopControlInteraction}
+					onTouchStart={stopControlInteraction}
+				>
 					{/* Delete button */}
 					<Tooltip>
 						<TooltipTrigger asChild>
 							<Button
+								type="button"
+								aria-label="Delete sticker"
 								size="icon"
 								variant="outline"
 								className="h-7 w-7"
 								onClick={handleDelete}
+								onKeyDown={stopControlInteraction}
 							>
-								<X className="h-4 w-4" />
+								<X className="h-4 w-4">
+									<title>Delete sticker</title>
+								</X>
 							</Button>
 						</TooltipTrigger>
 						<TooltipContent>Delete sticker (Del)</TooltipContent>
@@ -120,12 +173,17 @@ export const StickerControls = memo<StickerControlsProps>(
 					<Tooltip>
 						<TooltipTrigger asChild>
 							<Button
+								type="button"
+								aria-label="Duplicate sticker"
 								size="icon"
 								variant="outline"
 								className="h-7 w-7"
 								onClick={handleDuplicate}
+								onKeyDown={stopControlInteraction}
 							>
-								<Copy className="h-4 w-4" />
+								<Copy className="h-4 w-4">
+									<title>Duplicate sticker</title>
+								</Copy>
 							</Button>
 						</TooltipTrigger>
 						<TooltipContent>Duplicate sticker</TooltipContent>
@@ -135,12 +193,17 @@ export const StickerControls = memo<StickerControlsProps>(
 					<Tooltip>
 						<TooltipTrigger asChild>
 							<Button
+								type="button"
+								aria-label="Rotate sticker 45 degrees"
 								size="icon"
 								variant="outline"
 								className="h-7 w-7"
 								onClick={handleRotate}
+								onKeyDown={stopControlInteraction}
 							>
-								<RotateCw className="h-4 w-4" />
+								<RotateCw className="h-4 w-4">
+									<title>Rotate sticker 45 degrees</title>
+								</RotateCw>
 							</Button>
 						</TooltipTrigger>
 						<TooltipContent>Rotate 45°</TooltipContent>
@@ -152,12 +215,17 @@ export const StickerControls = memo<StickerControlsProps>(
 					<Tooltip>
 						<TooltipTrigger asChild>
 							<Button
+								type="button"
+								aria-label="Bring sticker to front"
 								size="icon"
 								variant="outline"
 								className="h-7 w-7"
 								onClick={handleBringToFront}
+								onKeyDown={stopControlInteraction}
 							>
-								<ArrowUp className="h-4 w-4" />
+								<ArrowUp className="h-4 w-4">
+									<title>Bring sticker to front</title>
+								</ArrowUp>
 							</Button>
 						</TooltipTrigger>
 						<TooltipContent>Bring to front</TooltipContent>
@@ -166,12 +234,17 @@ export const StickerControls = memo<StickerControlsProps>(
 					<Tooltip>
 						<TooltipTrigger asChild>
 							<Button
+								type="button"
+								aria-label="Send sticker to back"
 								size="icon"
 								variant="outline"
 								className="h-7 w-7"
 								onClick={handleSendToBack}
+								onKeyDown={stopControlInteraction}
 							>
-								<ArrowDown className="h-4 w-4" />
+								<ArrowDown className="h-4 w-4">
+									<title>Send sticker to back</title>
+								</ArrowDown>
 							</Button>
 						</TooltipTrigger>
 						<TooltipContent>Send to back</TooltipContent>
@@ -186,6 +259,8 @@ export const StickerControls = memo<StickerControlsProps>(
 							className="w-20"
 							value={[sticker.opacity * 100]}
 							onValueChange={handleOpacityChange}
+							onValueCommit={handleOpacityCommit}
+							onBlur={handleOpacityCommit}
 							max={100}
 							min={0}
 							step={5}
@@ -213,20 +288,30 @@ export const SimpleStickerControls = memo<{
 
 	if (!isVisible) return null;
 
-	const handleDelete = (e: React.MouseEvent) => {
+	const handleDelete = (e: MouseEvent) => {
 		e.stopPropagation();
 		removeOverlaySticker(stickerId);
 	};
 
 	return (
-		<div className="absolute -top-8 -right-2">
+		<div
+			className="absolute -top-8 -right-2"
+			onMouseDown={stopControlInteraction}
+			onPointerDown={stopControlInteraction}
+			onTouchStart={stopControlInteraction}
+		>
 			<Button
+				type="button"
+				aria-label="Delete sticker"
 				size="icon"
 				variant="destructive"
 				className="h-6 w-6 rounded-full shadow-lg"
 				onClick={handleDelete}
+				onKeyDown={stopControlInteraction}
 			>
-				<X className="h-3 w-3" />
+				<X className="h-3 w-3">
+					<title>Delete sticker</title>
+				</X>
 			</Button>
 		</div>
 	);
