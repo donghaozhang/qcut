@@ -35,6 +35,7 @@ import { buildFFmpegArgs } from "./ffmpeg-args-builder.js";
 import { handleWordFilterCut } from "./ffmpeg-export-word-filter.js";
 import { handleMode1_5 } from "./ffmpeg-export-mode15.js";
 import { validateAudioInputStreams } from "./ffmpeg/audio-input-validation.js";
+import { prepareFFmpegFilterComplexScripts } from "./ffmpeg/filter-complex-script.js";
 import { formatFFmpegFailure } from "./ffmpeg/process-error.js";
 
 /**
@@ -400,11 +401,21 @@ export function setupExportHandler(tempManager: TempManager): void {
 					}
 
 					// Try to run FFmpeg directly
+					let cleanupFilterScripts: () => void = () => undefined;
 					try {
-						const ffmpegProc: ChildProcess = spawn(ffmpegPath, args, {
-							windowsHide: true,
-							stdio: ["ignore", "pipe", "pipe"],
+						const preparedFilterScripts = prepareFFmpegFilterComplexScripts({
+							args,
+							temporaryDirectory: outputDirPath,
 						});
+						cleanupFilterScripts = preparedFilterScripts.cleanup;
+						const ffmpegProc: ChildProcess = spawn(
+							ffmpegPath,
+							preparedFilterScripts.args,
+							{
+								windowsHide: true,
+								stdio: ["ignore", "pipe", "pipe"],
+							}
+						);
 
 						let stderrOutput = "";
 						let stdoutOutput = "";
@@ -424,12 +435,14 @@ export function setupExportHandler(tempManager: TempManager): void {
 						});
 
 						ffmpegProc.on("error", (err: Error) => {
+							cleanupFilterScripts();
 							reject(err);
 						});
 
 						ffmpegProc.on(
 							"close",
 							(code: number | null, signal: string | null) => {
+								cleanupFilterScripts();
 								if (code === 0) {
 									resolve({
 										success: true,
@@ -451,6 +464,7 @@ export function setupExportHandler(tempManager: TempManager): void {
 
 						return;
 					} catch {
+						cleanupFilterScripts();
 						// Direct spawn failed
 					}
 
