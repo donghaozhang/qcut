@@ -211,9 +211,32 @@ describe("FFmpeg transition filters", () => {
 			transition: transition({ type: "page-flip", direction: "left" }),
 		});
 
-		expect(filter.expression).toContain(
-			"if(lte(ld(0),0.001),A,if(gte(ld(0),0.999),B,"
+		expect(filter.expression).toMatch(
+			/^if\(lte\(.+,0\.001\),A,if\(gte\(.+,0\.999\),B,/
 		);
+	});
+
+	it("keeps custom expressions stateless for FFmpeg slice threading", () => {
+		for (const preset of transitionPresets) {
+			const config = getClipTransitionPresetConfig({ preset });
+			expect(config).not.toBeNull();
+			if (!config) continue;
+
+			const filter = buildXfadeTransitionFilter({
+				transition: {
+					...transition({
+						type: config.type,
+						direction: config.direction,
+						duration: preset.defaultDuration,
+						tuning: config.tuning,
+					}),
+					presetId: preset.id,
+					maskShape: config.maskShape,
+				},
+			});
+
+			expect(filter.expression, preset.id).not.toMatch(/\b(?:st|ld)\(/);
+		}
 	});
 
 	it("preserves motion-blur travel direction in the export expression", () => {

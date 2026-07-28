@@ -578,8 +578,7 @@ export function buildXfadeTransitionFilter({
 }: {
 	transition: VideoTransition;
 }): XfadeTransitionFilter {
-	const semanticProgress = semanticProgressExpression({ transition });
-	const progress = "ld(0)";
+	const progress = semanticProgressExpression({ transition });
 	const type = transition.type;
 	const tuning = transitionTuning({ transition });
 	let expression: string;
@@ -750,13 +749,5 @@ export function buildXfadeTransitionFilter({
 			throw new Error(`Unsupported transition type: ${unsupportedType}`);
 		}
 	}
-	const peak = transitionPeakExpression({ progress });
-	const usesPeak = expression.includes(peak);
-	if (usesPeak) {
-		expression = expression.split(peak).join("ld(3)");
-	}
-	return {
-		transition: "custom",
-		expression: `st(0,${semanticProgress});${usesPeak ? `st(3,${peak});` : ""}${expression}`,
-	};
+	return { transition: "custom", expression };
 }

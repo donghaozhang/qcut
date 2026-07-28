@@ -1,4 +1,5 @@
 import { spawnSync } from "node:child_process";
+import { createHash } from "node:crypto";
 import { existsSync } from "node:fs";
 import { describe, expect, it } from "vitest";
 import { TRANSITION_PARITY_CASES } from "../../apps/web/src/components/editor/media-panel/views/transitions/transition-parity-ten";
@@ -89,7 +90,7 @@ function renderTransition({ value }: { value: VideoTransition }) {
 	});
 }
 
-function renderTransitionWithFilterScript({
+async function renderTransitionWithFilterScript({
 	value,
 }: {
 	value: VideoTransition;
@@ -106,8 +107,64 @@ function renderTransitionWithFilterScript({
 			timeout: 15_000,
 		});
 	} finally {
-		prepared.cleanup();
+		await prepared.cleanup();
 	}
+}
+
+async function renderTransitionFrames({
+	value,
+	filterComplexThreads,
+}: {
+	value: VideoTransition;
+	filterComplexThreads?: number;
+}) {
+	if (!ffmpegPath) throw new Error("FFmpeg unavailable");
+	const { expression } = buildXfadeTransitionFilter({ transition: value });
+	const filterGraph =
+		"[0:v][1:v]xfade=transition=custom:duration=0.4:offset=0.2:" +
+		`expr='${expression}',format=rgb24[out]`;
+	const threadArgs =
+		filterComplexThreads === undefined
+			? []
+			: ["-filter_complex_threads", String(filterComplexThreads)];
+	const prepared = prepareFFmpegFilterScript({
+		executablePath: ffmpegPath,
+		args: [
+			"-v",
+			"error",
+			...threadArgs,
+			"-f",
+			"lavfi",
+			"-i",
+			"testsrc2=s=160x90:r=20:d=0.8",
+			"-f",
+			"lavfi",
+			"-i",
+			"smptebars=s=160x90:r=20:d=0.8",
+			"-filter_complex",
+			filterGraph,
+			"-map",
+			"[out]",
+			"-f",
+			"rawvideo",
+			"-pix_fmt",
+			"rgb24",
+			"-",
+		],
+		commandLengthThreshold: 1,
+	});
+	try {
+		return spawnSync(ffmpegPath, prepared.args, {
+			encoding: null,
+			timeout: 15_000,
+		});
+	} finally {
+		await prepared.cleanup();
+	}
+}
+
+function frameDigest({ frames }: { frames: Buffer }): string {
+	return createHash("sha256").update(frames).digest("hex");
 }
 
 function renderSolidTransitionFrame({
@@ -161,12 +218,39 @@ describe.skipIf(!ffmpegPath)(
 			expect(result.status, result.stderr).toBe(0);
 		});
 
-		it("renders a transition through filter_complex_script", () => {
-			const result = renderTransitionWithFilterScript({
-				value: transition({ type: "page-flip" }),
+		it("renders a transition through filter_complex_script", async () => {
+			const result = await renderTransitionWithFilterScript({
+				value: transition({ type: "motion-blur" }),
 			});
 
 			expect(result.status, result.stderr).toBe(0);
+		});
+
+		it("renders identical bytes with default, single, and multi-thread filters", async () => {
+			const value = transition({
+				type: "motion-blur",
+				direction: "left",
+				tuning: { intensity: 1.4 },
+			});
+			const defaultThreads = await renderTransitionFrames({ value });
+			const singleThread = await renderTransitionFrames({
+				value,
+				filterComplexThreads: 1,
+			});
+			const multiThread = await renderTransitionFrames({
+				value,
+				filterComplexThreads: 8,
+			});
+
+			expect(defaultThreads.status, defaultThreads.stderr.toString()).toBe(0);
+			expect(singleThread.status, singleThread.stderr.toString()).toBe(0);
+			expect(multiThread.status, multiThread.stderr.toString()).toBe(0);
+			expect(defaultThreads.stdout.length).toBeGreaterThan(0);
+			const expectedDigest = frameDigest({ frames: singleThread.stdout });
+			expect(frameDigest({ frames: defaultThreads.stdout })).toBe(
+				expectedDigest
+			);
+			expect(frameDigest({ frames: multiThread.stdout })).toBe(expectedDigest);
 		});
 
 		it("keeps page-flip endpoint pixels unmodified", () => {
