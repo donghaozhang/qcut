@@ -79,6 +79,8 @@ const STICKER_KEYFRAME_EASINGS = [
 	"spring",
 ] as const;
 
+const MAX_NORMALIZED_STICKER_CANVAS_SIZE = 4096;
+
 function finiteOr({
 	value,
 	fallback,
@@ -280,6 +282,106 @@ function keyframedPropertyExpression({
 
 function escapeExpression({ expression }: { expression: string }): string {
 	return expression.replace(/,/g, "\\,");
+}
+
+function maximumDimensionPixels({
+	keyframes,
+	fallback,
+	canvasShortSide,
+}: {
+	keyframes: NormalizedStickerKeyframe[] | undefined;
+	fallback: number;
+	canvasShortSide: number;
+}): number {
+	if (!keyframes || keyframes.length === 0) return fallback;
+	return keyframes.reduce(
+		(maximum, keyframe) =>
+			Math.max(maximum, (keyframe.value * canvasShortSide) / 100),
+		fallback
+	);
+}
+
+function normalizedStickerCanvasSize({
+	keyframes,
+	width,
+	height,
+	canvasShortSide,
+}: {
+	keyframes: NormalizedStickerKeyframes;
+	width: number;
+	height: number;
+	canvasShortSide: number;
+}): number {
+	const maximumWidth = maximumDimensionPixels({
+		keyframes: keyframes.width,
+		fallback: width,
+		canvasShortSide,
+	});
+	const maximumHeight = maximumDimensionPixels({
+		keyframes: keyframes.height,
+		fallback: height,
+		canvasShortSide,
+	});
+	return Math.ceil(
+		clamp({
+			value: Math.max(width, height, maximumWidth, maximumHeight),
+			minimum: 1,
+			maximum: MAX_NORMALIZED_STICKER_CANVAS_SIZE,
+		})
+	);
+}
+
+function buildNormalizedStickerCanvasInput({
+	inputLabel,
+	labelPrefix,
+	size,
+	maintainAspectRatio,
+	dynamicWidth,
+	dynamicHeight,
+}: {
+	inputLabel: string;
+	labelPrefix: string;
+	size: number;
+	maintainAspectRatio: boolean;
+	dynamicWidth: string;
+	dynamicHeight: string;
+}): { filterSteps: string[]; inputLabel: string } {
+	const normalizedLabel = `${labelPrefix}_normalized`;
+	if (!maintainAspectRatio) {
+		return {
+			filterSteps: [`[${inputLabel}]scale=${size}:${size}[${normalizedLabel}]`],
+			inputLabel: normalizedLabel,
+		};
+	}
+
+	const contentSourceLabel = `${labelPrefix}_normalized_content_source`;
+	const canvasSourceLabel = `${labelPrefix}_normalized_canvas_source`;
+	const contentLabel = `${labelPrefix}_normalized_content`;
+	const canvasLabel = `${labelPrefix}_normalized_canvas`;
+	const contentWidth = escapeExpression({
+		expression:
+			`${size}*min(1,(iw*max(1,${dynamicHeight}))/` +
+			`(ih*max(1,${dynamicWidth})))`,
+	});
+	const contentHeight = escapeExpression({
+		expression:
+			`${size}*min(1,(max(1,${dynamicWidth})*ih)/` +
+			`(max(1,${dynamicHeight})*iw))`,
+	});
+	return {
+		filterSteps: [
+			`[${inputLabel}]split=2[${contentSourceLabel}][${canvasSourceLabel}]`,
+			`[${contentSourceLabel}]scale=` +
+				`w='max(1\\,${contentWidth})':h='max(1\\,${contentHeight})':` +
+				`eval=frame[${contentLabel}]`,
+			`[${canvasSourceLabel}]scale=${size}:${size},format=rgba,` +
+				`colorchannelmixer=aa=0[${canvasLabel}]`,
+			`[${canvasLabel}][${contentLabel}]overlay=` +
+				`x='(W-w)/2':y='(H-h)/2':shortest=1:format=auto` +
+				`[${normalizedLabel}]`,
+		],
+		inputLabel: normalizedLabel,
+	};
 }
 
 function clipLocalTimeExpression({
@@ -617,6 +719,15 @@ export function buildStickerFilterGraph({
 		preparedLabel = fpsLabel;
 	}
 
+	const hasPerspectiveKeyframes = PERSPECTIVE_KEYFRAME_PROPERTIES.some(
+		(property) => (keyframes[property]?.length ?? 0) > 0
+	);
+	const hasPerspective =
+		perspectiveChanged({ perspective }) || hasPerspectiveKeyframes;
+	let deferredDimensionScale:
+		| { filter: string; outputLabel: string }
+		| undefined;
+
 	if (hasDimensionKeyframes) {
 		const keyframeScaleLabel = `${labelPrefix}_keyframe_scale`;
 		const dynamicWidth = keyframes.width
@@ -640,40 +751,36 @@ export function buildStickerFilterGraph({
 		const dynamicScale =
 			`w='max(1\\,${escapeExpression({ expression: dynamicWidth })})':` +
 			`h='max(1\\,${escapeExpression({ expression: dynamicHeight })})'`;
-		if (sticker.maintainAspectRatio) {
-			const contentSourceLabel = `${labelPrefix}_keyframe_content_source`;
-			const canvasSourceLabel = `${labelPrefix}_keyframe_canvas_source`;
-			const contentLabel = `${labelPrefix}_keyframe_content`;
-			const canvasLabel = `${labelPrefix}_keyframe_canvas`;
-			filterSteps.push(
-				`[${preparedLabel}]split=2[${contentSourceLabel}][${canvasSourceLabel}]`
-			);
-			filterSteps.push(
-				`[${contentSourceLabel}]scale=${dynamicScale}:` +
-					`force_original_aspect_ratio=decrease:eval=frame[${contentLabel}]`
-			);
-			filterSteps.push(
-				`[${canvasSourceLabel}]format=rgba,colorchannelmixer=aa=0,` +
-					`scale=${dynamicScale}:eval=frame[${canvasLabel}]`
-			);
-			filterSteps.push(
-				`[${canvasLabel}][${contentLabel}]overlay=` +
-					`x='(W-w)/2':y='(H-h)/2':shortest=1:format=auto` +
-					`[${keyframeScaleLabel}]`
-			);
+		if (hasPerspective || sticker.maintainAspectRatio) {
+			const normalizedInput = buildNormalizedStickerCanvasInput({
+				inputLabel: preparedLabel,
+				labelPrefix,
+				size: normalizedStickerCanvasSize({
+					keyframes,
+					width,
+					height,
+					canvasShortSide,
+				}),
+				maintainAspectRatio: sticker.maintainAspectRatio ?? false,
+				dynamicWidth,
+				dynamicHeight,
+			});
+			filterSteps.push(...normalizedInput.filterSteps);
+			preparedLabel = normalizedInput.inputLabel;
+			deferredDimensionScale = {
+				filter: dynamicScale,
+				outputLabel: keyframeScaleLabel,
+			};
 		} else {
 			filterSteps.push(
 				`[${preparedLabel}]scale=${dynamicScale}:` +
 					`eval=frame[${keyframeScaleLabel}]`
 			);
 		}
-		preparedLabel = keyframeScaleLabel;
+		if (!deferredDimensionScale) preparedLabel = keyframeScaleLabel;
 	}
 
-	const hasPerspectiveKeyframes = PERSPECTIVE_KEYFRAME_PROPERTIES.some(
-		(property) => (keyframes[property]?.length ?? 0) > 0
-	);
-	if (perspectiveChanged({ perspective }) || hasPerspectiveKeyframes) {
+	if (hasPerspective) {
 		const perspectiveLabel = `${labelPrefix}_perspective`;
 		const perspectiveExpression = ({
 			property,
@@ -703,6 +810,14 @@ export function buildStickerFilterGraph({
 				`[${perspectiveLabel}]`
 		);
 		preparedLabel = perspectiveLabel;
+	}
+
+	if (deferredDimensionScale) {
+		filterSteps.push(
+			`[${preparedLabel}]scale=${deferredDimensionScale.filter}:` +
+				`eval=frame[${deferredDimensionScale.outputLabel}]`
+		);
+		preparedLabel = deferredDimensionScale.outputLabel;
 	}
 
 	const inputAnimation = buildStickerAnimationExpressions({

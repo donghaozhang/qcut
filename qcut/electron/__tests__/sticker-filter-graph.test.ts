@@ -109,10 +109,16 @@ describe("sticker filter graph", () => {
 		});
 		const filters = graph.filterSteps.join(";");
 		const contentScale = graph.filterSteps.find((step) =>
-			step.includes("[sticker_aspect_keyframes_keyframe_content]")
+			step.includes("[sticker_aspect_keyframes_normalized_content]")
 		);
 		const canvasScale = graph.filterSteps.find((step) =>
-			step.includes("[sticker_aspect_keyframes_keyframe_canvas]")
+			step.includes("[sticker_aspect_keyframes_normalized_canvas]")
+		);
+		const normalizedIndex = graph.filterSteps.findIndex((step) =>
+			step.includes("[sticker_aspect_keyframes_normalized]")
+		);
+		const keyframeScaleIndex = graph.filterSteps.findIndex((step) =>
+			step.includes("[sticker_aspect_keyframes_keyframe_scale]")
 		);
 
 		expect(graph.filterSteps[0]).toBe(
@@ -121,18 +127,90 @@ describe("sticker filter graph", () => {
 		expect(filters).not.toContain("sticker_aspect_keyframes_padded");
 		expect(filters).toContain(
 			"[sticker_aspect_keyframes_fps]split=2" +
-				"[sticker_aspect_keyframes_keyframe_content_source]" +
-				"[sticker_aspect_keyframes_keyframe_canvas_source]"
+				"[sticker_aspect_keyframes_normalized_content_source]" +
+				"[sticker_aspect_keyframes_normalized_canvas_source]"
 		);
-		expect(contentScale).toContain("force_original_aspect_ratio=decrease");
+		expect(contentScale).toContain("432*min(1\\,(iw*max(1\\,");
+		expect(contentScale).toContain("432*min(1\\,(max(1\\,");
 		expect(contentScale).toContain("eval=frame");
 		expect(canvasScale).toContain("format=rgba,colorchannelmixer=aa=0");
-		expect(canvasScale).toContain("eval=frame");
+		expect(canvasScale).toContain("scale=432:432");
 		expect(filters).toContain(
-			"[sticker_aspect_keyframes_keyframe_canvas]" +
-				"[sticker_aspect_keyframes_keyframe_content]overlay=" +
+			"[sticker_aspect_keyframes_normalized_canvas]" +
+				"[sticker_aspect_keyframes_normalized_content]overlay=" +
 				"x='(W-w)/2':y='(H-h)/2'"
 		);
+		expect(keyframeScaleIndex).toBeGreaterThan(normalizedIndex);
+		expect(graph.filterSteps[keyframeScaleIndex]).toContain("eval=frame");
+	});
+
+	it("warps a fixed normalized canvas before asynchronous aspect-locked scaling", () => {
+		const pair = ({ from, to }: { from: number; to: number }) => [
+			keyframe({ frame: 0, value: from }),
+			keyframe({ frame: 30, value: to }),
+		];
+		const graph = buildStickerFilterGraph({
+			inputLabel: "1:v",
+			sticker: stickerSource({
+				overrides: {
+					maintainAspectRatio: true,
+					keyframeFps: 30,
+					keyframes: {
+						width: pair({ from: 20, to: 40 }),
+						height: [
+							keyframe({ frame: 0, value: 35 }),
+							keyframe({ frame: 15, value: 18 }),
+							keyframe({ frame: 30, value: 30 }),
+						],
+						topLeftX: pair({ from: 0, to: 0.08 }),
+						topLeftY: pair({ from: 0, to: 0.06 }),
+						topRightX: pair({ from: 1, to: 0.94 }),
+						topRightY: pair({ from: 0, to: 0.04 }),
+						bottomRightX: pair({ from: 1, to: 0.96 }),
+						bottomRightY: pair({ from: 1, to: 0.92 }),
+						bottomLeftX: pair({ from: 0, to: 0.05 }),
+						bottomLeftY: pair({ from: 1, to: 0.95 }),
+					},
+				},
+			}),
+			labelPrefix: "sticker_dynamic_perspective",
+		});
+		const filters = graph.filterSteps.join(";");
+		const contentScale = graph.filterSteps.find((step) =>
+			step.includes("[sticker_dynamic_perspective_normalized_content]")
+		);
+		const normalizedCanvas = graph.filterSteps.find((step) =>
+			step.includes("[sticker_dynamic_perspective_normalized_canvas]")
+		);
+		const normalizedIndex = graph.filterSteps.findIndex((step) =>
+			step.includes("[sticker_dynamic_perspective_normalized]")
+		);
+		const perspectiveIndex = graph.filterSteps.findIndex((step) =>
+			step.includes("perspective=")
+		);
+		const keyframeScaleIndex = graph.filterSteps.findIndex((step) =>
+			step.includes("_keyframe_scale]")
+		);
+
+		expect(contentScale).toContain("432*min(1\\,(iw*max(1\\,");
+		expect(contentScale).toContain("432*min(1\\,(max(1\\,");
+		expect(normalizedCanvas).toContain(
+			"scale=432:432,format=rgba,colorchannelmixer=aa=0"
+		);
+		expect(filters).toContain(
+			"[sticker_dynamic_perspective_normalized_canvas]" +
+				"[sticker_dynamic_perspective_normalized_content]overlay=" +
+				"x='(W-w)/2':y='(H-h)/2'"
+		);
+		expect(perspectiveIndex).toBeGreaterThan(normalizedIndex);
+		expect(keyframeScaleIndex).toBeGreaterThan(perspectiveIndex);
+		expect(graph.filterSteps[perspectiveIndex]).toContain(
+			"[sticker_dynamic_perspective_normalized]perspective="
+		);
+		expect(graph.filterSteps[keyframeScaleIndex]).toContain(
+			"[sticker_dynamic_perspective_perspective]scale="
+		);
+		expect(graph.filterSteps[perspectiveIndex]).toContain("eval=frame");
 	});
 
 	it("builds matching entrance, exit, and loop expressions", () => {
@@ -310,8 +388,8 @@ describe("sticker filter graph", () => {
 		);
 
 		expect(fpsIndex).toBeGreaterThan(0);
-		expect(keyframeScaleIndex).toBeGreaterThan(fpsIndex);
-		expect(perspectiveIndex).toBeGreaterThan(keyframeScaleIndex);
+		expect(perspectiveIndex).toBeGreaterThan(fpsIndex);
+		expect(keyframeScaleIndex).toBeGreaterThan(perspectiveIndex);
 		expect(animationScaleIndex).toBe(-1);
 		expect(filters).toContain("on/30");
 		expect(filters).toContain("eval=frame");

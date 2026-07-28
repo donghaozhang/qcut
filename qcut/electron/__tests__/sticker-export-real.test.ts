@@ -9,13 +9,17 @@
 
 import { describe, it, expect, beforeAll, afterAll } from "vitest";
 import { execSync, spawnSync } from "child_process";
+import ffmpegStaticPath from "ffmpeg-static";
 import fs from "fs";
 import path from "path";
 import {
 	buildFFmpegArgs,
 	type BuildFFmpegArgsOptions,
 } from "../ffmpeg-args-builder";
-import { getFFprobePath } from "../ffmpeg/paths";
+import {
+	getFFmpegPath as getRuntimeFFmpegPath,
+	getFFprobePath,
+} from "../ffmpeg/paths";
 import type { StickerSource } from "../ffmpeg/types";
 
 // ---------------------------------------------------------------------------
@@ -33,10 +37,6 @@ const TEST_ANIMATED_STICKER = path.resolve(
 	"../../apps/web/public/stickers/qcut-motion/qcut-motion-emphasis/attention-pulse.png"
 );
 const TMP_DIR = path.join(__dirname, "../../.tmp/sticker-export-test");
-const BUNDLED_FFMPEG = path.resolve(
-	__dirname,
-	"../../node_modules/ffmpeg-static/ffmpeg"
-);
 const FFMPEG_SETUP_TIMEOUT_MS = 60_000;
 const FFMPEG_PROBE_TIMEOUT_MS = 60_000;
 const FFMPEG_RENDER_TIMEOUT_MS = 180_000;
@@ -45,23 +45,42 @@ const FFMPEG_RENDER_TIMEOUT_MS = 180_000;
 // Helpers
 // ---------------------------------------------------------------------------
 
-function getFFmpegPath(): string | null {
-	if (fs.existsSync(BUNDLED_FFMPEG)) return BUNDLED_FFMPEG;
+function resolveRuntimeFFmpegPath(): string | null {
 	try {
-		const result = spawnSync("which", ["ffmpeg"], { encoding: "utf-8" });
-		if (result.stdout?.trim()) return result.stdout.trim();
+		const runtimePath = getRuntimeFFmpegPath();
+		return fs.existsSync(runtimePath) ? runtimePath : null;
 	} catch {
-		// fall through
+		return null;
 	}
-	// Common paths
-	for (const p of [
-		"/opt/homebrew/bin/ffmpeg",
-		"/usr/local/bin/ffmpeg",
-		"/usr/bin/ffmpeg",
-	]) {
-		if (fs.existsSync(p)) return p;
+}
+
+function readFFmpegVersion({
+	ffmpegPath,
+}: {
+	ffmpegPath: string;
+}): string | null {
+	const result = spawnSync(ffmpegPath, ["-version"], {
+		encoding: "utf-8",
+		timeout: FFMPEG_SETUP_TIMEOUT_MS,
+	});
+	if (result.status !== 0) return null;
+	return result.stdout.split(/\r?\n/, 1)[0]?.trim() || null;
+}
+
+function resolveCompatibilityFFmpegPath({
+	runtimePath,
+}: {
+	runtimePath: string | null;
+}): string | null {
+	if (!(runtimePath && ffmpegStaticPath && fs.existsSync(ffmpegStaticPath))) {
+		return null;
 	}
-	return null;
+	const runtimeVersion = readFFmpegVersion({ ffmpegPath: runtimePath });
+	const staticVersion = readFFmpegVersion({ ffmpegPath: ffmpegStaticPath });
+	if (!(runtimeVersion && staticVersion) || runtimeVersion === staticVersion) {
+		return null;
+	}
+	return ffmpegStaticPath;
 }
 
 function probeVideo({
@@ -264,11 +283,88 @@ function runFFmpeg(
 	};
 }
 
+function buildAspectKeyframeExportArgs({
+	outputFile,
+	stickerPath,
+	videoInputPath,
+}: {
+	outputFile: string;
+	stickerPath: string;
+	videoInputPath: string;
+}): string[] {
+	const stickerSources: StickerSource[] = [
+		{
+			id: "s-keyframed-aspect",
+			path: stickerPath,
+			x: 40,
+			y: 60,
+			width: 120,
+			height: 60,
+			canvasWidth: 320,
+			canvasHeight: 240,
+			startTime: 0,
+			endTime: 2,
+			zIndex: 1,
+			maintainAspectRatio: true,
+			keyframeFps: 30,
+			keyframes: {
+				width: [
+					{ id: "width-start", frame: 0, value: 50, easing: "linear" },
+					{ id: "width-end", frame: 30, value: 25, easing: "linear" },
+				],
+				height: [
+					{ id: "height-start", frame: 0, value: 25, easing: "linear" },
+					{ id: "height-end", frame: 30, value: 50, easing: "linear" },
+				],
+			},
+		},
+	];
+	return buildFFmpegArgs({
+		inputDir: TMP_DIR,
+		outputFile,
+		width: 320,
+		height: 240,
+		fps: 30,
+		quality: "medium",
+		duration: 2,
+		audioFiles: [],
+		useVideoInput: true,
+		videoInputPath,
+		stickerSources,
+		stickerFilterChain: "placeholder",
+	});
+}
+
+function expectSquareRedSticker({
+	ffmpegPath,
+	outputFile,
+}: {
+	ffmpegPath: string;
+	outputFile: string;
+}): void {
+	const renderedFrame = extractFrameBytes({
+		ffmpegPath,
+		inputPath: outputFile,
+		time: 1.2,
+	});
+	const bounds = redPixelBounds({
+		frame: renderedFrame,
+		width: 256,
+		height: 240,
+	});
+	expect(bounds.width).toBeGreaterThan(50);
+	expect(bounds.height).toBeGreaterThan(50);
+	expect(Math.abs(bounds.width - bounds.height)).toBeLessThanOrEqual(4);
+}
+
 // ---------------------------------------------------------------------------
 // Tests
 // ---------------------------------------------------------------------------
 
-const detectedFFmpeg = getFFmpegPath();
+const detectedFFmpeg = resolveRuntimeFFmpegPath();
+const compatibilityFFmpeg = resolveCompatibilityFFmpegPath({
+	runtimePath: detectedFFmpeg,
+});
 
 // Real ffmpeg renders regularly exceed the 5s default testTimeout on CI runners.
 describe.skipIf(!detectedFFmpeg)(
@@ -620,70 +716,49 @@ describe.skipIf(!detectedFFmpeg)(
 				TMP_DIR,
 				"output-keyframed-aspect-sticker.mp4"
 			);
-			const stickerSources: StickerSource[] = [
-				{
-					id: "s-keyframed-aspect",
-					path: stickerPath1,
-					x: 40,
-					y: 60,
-					width: 120,
-					height: 60,
-					canvasWidth: 320,
-					canvasHeight: 240,
-					startTime: 0,
-					endTime: 2,
-					zIndex: 1,
-					maintainAspectRatio: true,
-					keyframeFps: 30,
-					keyframes: {
-						width: [
-							{ id: "width-start", frame: 0, value: 50, easing: "linear" },
-							{ id: "width-end", frame: 30, value: 25, easing: "linear" },
-						],
-						height: [
-							{ id: "height-start", frame: 0, value: 25, easing: "linear" },
-							{ id: "height-end", frame: 30, value: 50, easing: "linear" },
-						],
-					},
-				},
-			];
-			const args = buildFFmpegArgs({
-				inputDir: TMP_DIR,
+			const args = buildAspectKeyframeExportArgs({
 				outputFile,
-				width: 320,
-				height: 240,
-				fps: 30,
-				quality: "medium",
-				duration: 2,
-				audioFiles: [],
-				useVideoInput: true,
+				stickerPath: stickerPath1,
 				videoInputPath: solidVideoPath,
-				stickerSources,
-				stickerFilterChain: "placeholder",
 			});
 			const filterIndex = args.indexOf("-filter_complex");
 			const filterChain = args[filterIndex + 1];
 
 			expect(filterChain).toContain("split=2");
 			expect(filterChain).toContain("colorchannelmixer=aa=0");
-			expect(filterChain).toContain("force_original_aspect_ratio=decrease");
+			expect(filterChain).toContain("_normalized]scale=");
 			const result = runFFmpeg(ffmpegPath, args);
 			expect(result.success, result.stderr).toBe(true);
-			const renderedFrame = extractFrameBytes({
+			expectSquareRedSticker({
 				ffmpegPath,
-				inputPath: outputFile,
-				time: 1.2,
+				outputFile,
 			});
-			const bounds = redPixelBounds({
-				frame: renderedFrame,
-				width: 256,
-				height: 240,
-			});
-
-			expect(bounds.width).toBeGreaterThan(50);
-			expect(bounds.height).toBeGreaterThan(50);
-			expect(Math.abs(bounds.width - bounds.height)).toBeLessThanOrEqual(4);
 		});
+
+		it.skipIf(!compatibilityFFmpeg)(
+			"should preserve aspect-locked size keyframes with ffmpeg-static",
+			() => {
+				if (!compatibilityFFmpeg) {
+					throw new Error("FFmpeg compatibility binary is unavailable");
+				}
+				const outputFile = path.join(
+					TMP_DIR,
+					"output-keyframed-aspect-sticker-compatibility.mp4"
+				);
+				const args = buildAspectKeyframeExportArgs({
+					outputFile,
+					stickerPath: stickerPath1,
+					videoInputPath: solidVideoPath,
+				});
+				const result = runFFmpeg(compatibilityFFmpeg, args);
+
+				expect(result.success, result.stderr).toBe(true);
+				expectSquareRedSticker({
+					ffmpegPath: compatibilityFFmpeg,
+					outputFile,
+				});
+			}
+		);
 
 		// =========================================================================
 		// Sticker with all properties combined
@@ -913,12 +988,32 @@ describe.skipIf(!detectedFFmpeg)(
 					startTime: 0.5,
 					endTime: 1.8,
 					zIndex: 1,
+					maintainAspectRatio: true,
 					keyframeFps: 30,
 					keyframes: {
 						x: pair({ from: 20, to: 65 }),
 						y: pair({ from: 30, to: 60 }),
 						width: pair({ from: 20, to: 32 }),
-						height: pair({ from: 20, to: 28 }),
+						height: [
+							{
+								id: "height-start",
+								frame: 0,
+								value: 20,
+								easing: "linear",
+							},
+							{
+								id: "height-middle",
+								frame: 15,
+								value: 32,
+								easing: "linear",
+							},
+							{
+								id: "height-end",
+								frame: 30,
+								value: 28,
+								easing: "linear",
+							},
+						],
 						rotation: pair({ from: 0, to: 45 }),
 						opacity: pair({ from: 1, to: 0.4 }),
 						topLeftX: pair({ from: 0, to: 0.08 }),
@@ -955,6 +1050,8 @@ describe.skipIf(!detectedFFmpeg)(
 			expect(filterChain).toContain("max(0\\,T-0.5)");
 			expect(filterChain).toContain("perspective=");
 			expect(filterChain).toContain("eval=frame");
+			expect(filterChain).toContain("_normalized]perspective=");
+			expect(filterChain).toContain("_perspective]scale=");
 			const result = runFFmpeg(ffmpegPath, args);
 			expect(result.success, result.stderr).toBe(true);
 			const early = extractFrameBytes({
