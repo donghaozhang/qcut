@@ -1,3 +1,4 @@
+import { segmentText } from "@qcut/editor-core/text-animation";
 import type { TextElement } from "@/types/timeline";
 import {
 	blendModeToCanvas,
@@ -6,31 +7,18 @@ import {
 	type ResolvedTextStyle,
 } from "./text-style";
 import { getTextAnimationState } from "./text-animation";
-import { resolveTextKeyframes } from "./text-keyframes";
 import { getCurvedTextTransforms } from "./curved-text";
-import { wrapTextToWidth } from "./text-measurement";
 import { canvasFontFamily } from "@/lib/text/canvas-font";
-
-type CanvasTextContext =
-	| CanvasRenderingContext2D
-	| OffscreenCanvasRenderingContext2D;
-
-interface CanvasDimensions {
-	width: number;
-	height: number;
-}
-
-function measureWithSpacing(
-	ctx: CanvasTextContext,
-	text: string,
-	letterSpacing: number
-): number {
-	const characters = Array.from(text);
-	return (
-		ctx.measureText(text).width +
-		Math.max(0, characters.length - 1) * letterSpacing
-	);
-}
+import {
+	measureTextWithSpacing,
+	wrapTextForAnimationBox,
+} from "./text-animation-canvas-layout";
+import { renderCanonicalTextAnimationToCanvas } from "./text-animation-canvas-renderer";
+import {
+	type CanvasDimensions,
+	type CanvasTextContext,
+	roundedRectPath,
+} from "./text-canvas-primitives";
 
 export function wrapTextForBox({
 	ctx,
@@ -43,41 +31,12 @@ export function wrapTextForBox({
 	maxWidth: number;
 	letterSpacing: number;
 }): string[] {
-	return wrapTextToWidth({
-		maxWidth,
-		measureLineWidth: ({ text: candidate }) =>
-			measureWithSpacing(ctx, candidate, letterSpacing),
+	return wrapTextForAnimationBox({
+		ctx,
 		text,
+		maxWidth,
+		letterSpacing,
 	});
-}
-
-function roundedRectPath({
-	ctx,
-	x,
-	y,
-	width,
-	height,
-	radius,
-}: {
-	ctx: CanvasTextContext;
-	x: number;
-	y: number;
-	width: number;
-	height: number;
-	radius: number;
-}): void {
-	const r = Math.min(radius, width / 2, height / 2);
-	ctx.beginPath();
-	ctx.moveTo(x + r, y);
-	ctx.lineTo(x + width - r, y);
-	ctx.quadraticCurveTo(x + width, y, x + width, y + r);
-	ctx.lineTo(x + width, y + height - r);
-	ctx.quadraticCurveTo(x + width, y + height, x + width - r, y + height);
-	ctx.lineTo(x + r, y + height);
-	ctx.quadraticCurveTo(x, y + height, x, y + height - r);
-	ctx.lineTo(x, y + r);
-	ctx.quadraticCurveTo(x, y, x + r, y);
-	ctx.closePath();
 }
 
 function drawSpacedText({
@@ -96,10 +55,10 @@ function drawSpacedText({
 	stroke: boolean;
 }): void {
 	let cursor = x;
-	for (const character of Array.from(text)) {
-		if (stroke) ctx.strokeText(character, cursor, y);
-		else ctx.fillText(character, cursor, y);
-		cursor += ctx.measureText(character).width + letterSpacing;
+	for (const grapheme of segmentText({ content: text, unit: "grapheme" })) {
+		if (stroke) ctx.strokeText(grapheme.text, cursor, y);
+		else ctx.fillText(grapheme.text, cursor, y);
+		cursor += ctx.measureText(grapheme.text).width + letterSpacing;
 	}
 }
 
@@ -184,8 +143,21 @@ export function renderTextToCanvas({
 }): void {
 	if (!element.content?.trim()) return;
 
-	const renderedElement = resolveTextKeyframes(element, currentTime, fps);
+	const renderedElement = element;
 	const style = resolveTextStyle(renderedElement);
+	if (
+		renderCanonicalTextAnimationToCanvas({
+			ctx,
+			canvas,
+			sourceElement: element,
+			renderedElement,
+			style,
+			currentTime,
+			fps,
+		})
+	) {
+		return;
+	}
 	const boxWidth = Math.min(style.width, canvas.width * 2);
 	const boxHeight = Math.min(style.height, canvas.height * 2);
 	const boxLeft = -boxWidth / 2;
@@ -274,7 +246,11 @@ export function renderTextToCanvas({
 	}
 
 	lines.forEach((line, index) => {
-		const lineWidth = measureWithSpacing(ctx, line, style.letterSpacing);
+		const lineWidth = measureTextWithSpacing({
+			ctx,
+			text: line,
+			letterSpacing: style.letterSpacing,
+		});
 		const x = getLineX({
 			align: renderedElement.textAlign,
 			contentLeft,

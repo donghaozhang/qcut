@@ -14,7 +14,8 @@
 		"./captions": "./src/captions/index.ts",
 		"./assets": "./src/assets/index.ts",
 		"./collaboration": "./src/collaboration/index.ts",
-		"./templates": "./src/templates/index.ts"
+		"./templates": "./src/templates/index.ts",
+		"./text-animation": "./src/text-animation/index.ts"
 	},
 	"devDependencies": {
 		"@types/node": "^24.10.13"

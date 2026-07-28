@@ -20,6 +20,7 @@ import type {
 	VideoTransition,
 	ImageSource,
 	StickerSource,
+	TextRasterLayer,
 	QualitySettings,
 } from "./ffmpeg/types";
 
@@ -30,6 +31,11 @@ import {
 	getVideoSourceTimelineDuration,
 } from "./ffmpeg-video-transform";
 import { buildTimelineAudioFilters } from "./ffmpeg/audio-filter-graph";
+import {
+	appendTextRasterInputs,
+	buildTextRasterVisualFilters,
+	type ResolvedTextRasterLayer,
+} from "./ffmpeg/text-raster-input";
 import {
 	composePreparedVisualLayers,
 	type PreparedVisualLayer,
@@ -65,6 +71,7 @@ export interface BuildFFmpegArgsOptions {
 		trackOrder?: number;
 		elementOrder?: number;
 	}>;
+	textRasterLayers?: TextRasterLayer[];
 	useDirectCopy?: boolean;
 	videoSources?: VideoSource[];
 	videoTransitions?: VideoTransition[];
@@ -357,6 +364,7 @@ function buildCanonicalVisualFilters({
 	images,
 	stickers,
 	textAssLayers,
+	textRasterLayers,
 	baseInputCount,
 	width,
 	height,
@@ -371,6 +379,7 @@ function buildCanonicalVisualFilters({
 	images: ImageSource[];
 	stickers: StickerSource[];
 	textAssLayers: ResolvedTextAssLayer[];
+	textRasterLayers: ResolvedTextRasterLayer[];
 	baseInputCount: number;
 	width: number;
 	height: number;
@@ -487,7 +496,19 @@ function buildCanonicalVisualFilters({
 		});
 	}
 
-	const composed = composePreparedVisualLayers({ baseLabel, layers });
+	const textRasterVisuals = buildTextRasterVisualFilters({
+		layers: textRasterLayers,
+		fps,
+	});
+	filterSteps.push(...textRasterVisuals.filterSteps);
+	layers.push(...textRasterVisuals.preparedLayers);
+
+	const composed = composePreparedVisualLayers({
+		baseLabel,
+		layers,
+		canvasWidth: width,
+		canvasHeight: height,
+	});
 	filterSteps.push(...composed.filterSteps);
 	let outputLabel = composed.outputLabel;
 	let postFilterIndex = 0;
@@ -518,6 +539,7 @@ function buildCompositeEncodeArgs(
 		textFilterChain,
 		textAssPath,
 		textAssLayers = [],
+		textRasterLayers = [],
 		stickerSources = [],
 		imageSources = [],
 		useVideoInput = false,
@@ -554,7 +576,7 @@ function buildCompositeEncodeArgs(
 			args.push("-i", videoSource.path);
 		}
 		hasBaseVideoInput = true;
-	} else if (imageSources.length > 0) {
+	} else if (imageSources.length > 0 || textRasterLayers.length > 0) {
 		debugLog("[FFmpeg] IMAGE-ONLY: Using generated black background");
 		args.push(
 			"-f",
@@ -670,6 +692,13 @@ function buildCompositeEncodeArgs(
 	const effectDistortionInputCount =
 		resolvedVideoDistortionInputs.inputCount +
 		resolvedImageDistortionInputs.inputCount;
+	const textRasterInputStartIndex =
+		effectDistortionInputStartIndex + effectDistortionInputCount;
+	const resolvedTextRasterLayers = appendTextRasterInputs({
+		args,
+		layers: textRasterLayers,
+		startInputIndex: textRasterInputStartIndex,
+	});
 
 	for (const audioFile of audioFiles) {
 		if (!fs.existsSync(audioFile.path)) {
@@ -693,19 +722,22 @@ function buildCompositeEncodeArgs(
 				...resolvedImages,
 				...validStickers,
 				...resolvedTextAssLayers,
+				...resolvedTextRasterLayers,
 			].some((layer) => Number.isFinite(layer.trackOrder))) ||
 		(!useVideoInput &&
 			[...resolvedVideoSources, ...resolvedImages].some(
 				(source) => source.effectFilter || source.effectRenderProgram
 			));
+	const mustUseCanonicalTextRasterOrder = resolvedTextRasterLayers.length > 0;
 
-	if (usesCanonicalVisualOrder) {
+	if (usesCanonicalVisualOrder || mustUseCanonicalTextRasterOrder) {
 		const canonical = buildCanonicalVisualFilters({
 			videoSources: resolvedVideoSources,
 			videoTransitions,
 			images: resolvedImages,
 			stickers: validStickers,
 			textAssLayers: resolvedTextAssLayers,
+			textRasterLayers: resolvedTextRasterLayers,
 			baseInputCount,
 			width,
 			height,
@@ -853,7 +885,8 @@ function buildCompositeEncodeArgs(
 		validStickers.length +
 		effectOverlayInputCount +
 		effectPersonInputCount +
-		effectDistortionInputCount;
+		effectDistortionInputCount +
+		resolvedTextRasterLayers.length;
 	const audioResult = buildTimelineAudioFilters({
 		audioFiles,
 		audioCrossfades,
@@ -915,6 +948,7 @@ export function buildFFmpegArgs(options: BuildFFmpegArgsOptions): string[] {
 	if (
 		options.useVideoInput ||
 		(options.imageSources && options.imageSources.length > 0) ||
+		(options.textRasterLayers && options.textRasterLayers.length > 0) ||
 		(videoSources && videoSources.length > 0 && !useDirectCopy)
 	) {
 		return buildCompositeEncodeArgs(options, qualitySettings);

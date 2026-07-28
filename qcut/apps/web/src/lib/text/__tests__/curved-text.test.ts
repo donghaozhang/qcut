@@ -40,4 +40,18 @@ describe("getCurvedTextTransforms", () => {
 
 		expect(transforms.map((item) => item.character).join("")).toBe("A B");
 	});
+
+	it("keeps joined emoji as one curved glyph", () => {
+		const transforms = getCurvedTextTransforms({
+			text: "A👨‍👩‍👧‍👦B",
+			width: 240,
+			curve: 45,
+		});
+
+		expect(transforms.map((item) => item.character)).toEqual([
+			"A",
+			"👨‍👩‍👧‍👦",
+			"B",
+		]);
+	});
 });

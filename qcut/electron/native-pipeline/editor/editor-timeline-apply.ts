@@ -125,6 +125,7 @@ const TEXT_VERIFY_KEYS = [
 	"animationType",
 	"animationDuration",
 	"animationDelay",
+	"textAnimations",
 	"keyframes",
 	"blendMode",
 	"trackingTargetId",

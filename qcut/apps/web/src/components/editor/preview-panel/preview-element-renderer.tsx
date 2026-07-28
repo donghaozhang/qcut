@@ -13,8 +13,7 @@ import {
 	verticalAlignToFlex,
 } from "@/lib/text/text-style";
 import { getTextAnimationState } from "@/lib/text/text-animation";
-import { resolveTextKeyframes } from "@/lib/text/text-keyframes";
-import { resolveTrackedTextElement } from "@/lib/text/text-tracking";
+import { resolveAnimatedTextElement } from "@/lib/text/text-element-animation";
 import { getCurvedTextTransforms } from "@/lib/text/curved-text";
 import {
 	DEFAULT_MEDIA_ENHANCEMENTS,
@@ -83,6 +82,10 @@ import {
 	EMPTY_ELEMENT_EFFECTS_RENDERING,
 	type ElementEffectsRendering,
 } from "./use-effects-rendering";
+import {
+	resolveTextPreviewRenderMode,
+	TextAnimationCanvas,
+} from "./text-animation-canvas";
 import { EffectOverlayLayers } from "@/components/editor/effects/effect-overlay-layers";
 import { EffectCompositeCanvas } from "@/components/editor/effects/effect-composite-canvas";
 import { EffectDistortionCanvas } from "@/components/editor/effects/effect-distortion-canvas";
@@ -377,12 +380,8 @@ export function PreviewElementRenderer({
 			colorPickerActive && element.id === currentMediaElement?.element.id;
 
 		if (element.type === "text") {
-			const displayElement = resolveTrackedTextElement({
-				element: resolveTextKeyframes(
-					element,
-					currentTime,
-					activeProject?.fps ?? 30
-				),
+			const displayElement = resolveAnimatedTextElement({
+				element,
 				tracks,
 				currentTime,
 				fps: activeProject?.fps ?? 30,
@@ -413,6 +412,33 @@ export function PreviewElementRenderer({
 			const displayY = isDraggingThisElement
 				? dragState.currentY
 				: displayElement.y;
+
+			if (
+				resolveTextPreviewRenderMode({
+					element,
+					fps: activeProject?.fps ?? 30,
+				}) === "canvas"
+			) {
+				return (
+					<TextAnimationCanvas
+						key={elementKey}
+						element={{ ...displayElement, x: displayX, y: displayY }}
+						canvasSize={canvasSize}
+						previewDimensions={previewDimensions}
+						currentTime={currentTime}
+						fps={activeProject?.fps ?? 30}
+						boxWidth={boxWidth}
+						boxHeight={boxHeight}
+						zIndex={index + 1}
+						onPointerDown={(event) =>
+							onTextPointerDown(event, element, elementData.track.id)
+						}
+						onSelect={({ multi }) =>
+							onElementSelect({ elementId: element.id, multi })
+						}
+					/>
+				);
+			}
 
 			return (
 				<div

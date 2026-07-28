@@ -4,6 +4,10 @@ import {
 	getRecommendedTextTemplateDefinitions,
 	getTrendingTextTemplateDefinitions,
 } from "./text-marketplace-metadata";
+import {
+	createTextAnimationPhaseSnapshot,
+	getTextAnimationPreset,
+} from "./text-animation-presets";
 import { BUILT_IN_TEXT_PRESETS, type TextStylePreset } from "./text-presets";
 
 type TextTemplatePalette = {
@@ -680,6 +684,19 @@ type TextTemplateVariant = {
 
 export const MIN_TEXT_TEMPLATES_PER_CATEGORY = 20;
 
+function buildScaleUpTextAnimations(): NonNullable<
+	TextElement["textAnimations"]
+> {
+	const preset = getTextAnimationPreset({
+		phase: "entrance",
+		presetId: "scale-up",
+	});
+	return {
+		schemaVersion: 1,
+		entrance: createTextAnimationPhaseSnapshot({ preset }),
+	};
+}
+
 const TEMPLATE_VARIANTS: readonly TextTemplateVariant[] = [
 	{
 		id: "plain",
@@ -814,7 +831,7 @@ const TEMPLATE_VARIANTS: readonly TextTemplateVariant[] = [
 			glowBlur: 22,
 			width: 780,
 			height: 230,
-			animationType: "scale",
+			textAnimations: buildScaleUpTextAnimations(),
 		}),
 	},
 	{
@@ -1217,7 +1234,7 @@ const TEMPLATE_VARIANTS: readonly TextTemplateVariant[] = [
 			glowBlur: 16,
 			width: 740,
 			height: 220,
-			animationType: "scale",
+			textAnimations: buildScaleUpTextAnimations(),
 		}),
 	},
 	{
@@ -1242,7 +1259,7 @@ const TEMPLATE_VARIANTS: readonly TextTemplateVariant[] = [
 			glowBlur: 20,
 			width: 780,
 			height: 230,
-			animationType: "scale",
+			textAnimations: buildScaleUpTextAnimations(),
 		}),
 	},
 	{

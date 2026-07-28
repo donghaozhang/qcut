@@ -1,4 +1,9 @@
-import type { TextElement } from "@/types/timeline";
+import {
+	applyTextAnimationPreset,
+	getTextAnimationPreset,
+	type TextAnimationPhase,
+} from "@/lib/text/text-animation-presets";
+import type { TextAnimationsV1, TextElement } from "@/types/timeline";
 
 export interface TextVisualAuditCase {
 	id: string;
@@ -215,6 +220,136 @@ const horizontalAlignments = ["left", "center", "right"] as const;
 const verticalAlignments = ["top", "middle", "bottom"] as const;
 const animationTypes = ["none", "fade", "slide-up", "slide-left"] as const;
 
+function applyCanonicalPreset({
+	animations,
+	phase,
+	presetId,
+}: {
+	animations: TextAnimationsV1;
+	phase: TextAnimationPhase;
+	presetId: string | undefined;
+}): TextAnimationsV1 {
+	if (!presetId) return animations;
+	return applyTextAnimationPreset({
+		animations,
+		preset: getTextAnimationPreset({ phase, presetId }),
+	});
+}
+
+function createCanonicalAnimations({
+	entrance,
+	exit,
+	loop,
+}: {
+	entrance?: string;
+	exit?: string;
+	loop?: string;
+}): TextAnimationsV1 {
+	const baseAnimations: TextAnimationsV1 = { schemaVersion: 1 };
+	const withEntrance = applyCanonicalPreset({
+		animations: baseAnimations,
+		phase: "entrance",
+		presetId: entrance,
+	});
+	const withExit = applyCanonicalPreset({
+		animations: withEntrance,
+		phase: "exit",
+		presetId: exit,
+	});
+	return applyCanonicalPreset({
+		animations: withExit,
+		phase: "loop",
+		presetId: loop,
+	});
+}
+
+const canonicalAnimations: Array<{
+	id: string;
+	label: string;
+	content: string;
+	captureTime: number;
+	textAnimations: TextAnimationsV1;
+}> = [
+	{
+		id: "canonical-typewriter-mid",
+		label: "Canonical entrance - typewriter cursor / mid reveal",
+		content: "TYPEWRITER",
+		captureTime: 0.45,
+		textAnimations: createCanonicalAnimations({
+			entrance: "typewriter-cursor",
+		}),
+	},
+	{
+		id: "canonical-blur-slide-mid",
+		label: "Canonical entrance - blur slide / mid travel",
+		content: "BLUR SLIDE",
+		captureTime: 0.14,
+		textAnimations: createCanonicalAnimations({
+			entrance: "blur-slide-right-ii",
+		}),
+	},
+	{
+		id: "canonical-scale-mid",
+		label: "Canonical entrance - scale / mid expansion",
+		content: "SCALE UP",
+		captureTime: 0.18,
+		textAnimations: createCanonicalAnimations({ entrance: "scale-up" }),
+	},
+	{
+		id: "canonical-bounce-mid",
+		label: "Canonical entrance - bounce / spring travel",
+		content: "BOUNCE UP",
+		captureTime: 0.2,
+		textAnimations: createCanonicalAnimations({ entrance: "bounce-up" }),
+	},
+	{
+		id: "canonical-rotate-mid",
+		label: "Canonical entrance - rotate fly / mid rotation",
+		content: "ROTATE FLY",
+		captureTime: 0.16,
+		textAnimations: createCanonicalAnimations({
+			entrance: "rotate-fly-in",
+		}),
+	},
+	{
+		id: "canonical-orbit-mid",
+		label: "Canonical entrance - orbit / mid arc",
+		content: "ORBIT",
+		captureTime: 0.22,
+		textAnimations: createCanonicalAnimations({
+			entrance: "orbit-disappear",
+		}),
+	},
+	{
+		id: "canonical-laser-mid",
+		label: "Canonical entrance - laser / active etch",
+		content: "LASER ETCH",
+		captureTime: 0.58,
+		textAnimations: createCanonicalAnimations({ entrance: "laser-etch" }),
+	},
+	{
+		id: "canonical-heart-mid",
+		label: "Canonical entrance - heart / active particles",
+		content: "HEART BEAT",
+		captureTime: 0.42,
+		textAnimations: createCanonicalAnimations({ entrance: "heart-bounce" }),
+	},
+	{
+		id: "canonical-exit-mid",
+		label: "Canonical exit - reverse typewriter / mid removal",
+		content: "EXIT STAGE",
+		captureTime: 1.3,
+		textAnimations: createCanonicalAnimations({ exit: "typewriter-out" }),
+	},
+	{
+		id: "canonical-loop-mid",
+		label: "Canonical loop - heartbeat / maximum pulse",
+		content: "LOOP PULSE",
+		captureTime: 0.1,
+		textAnimations: createCanonicalAnimations({ loop: "heartbeat" }),
+	},
+];
+
 export const TEXT_VISUAL_AUDIT_CASES: TextVisualAuditCase[] = [
 	...templates.map(({ id, label, element }) => ({
 		id,
@@ -308,6 +443,22 @@ export const TEXT_VISUAL_AUDIT_CASES: TextVisualAuditCase[] = [
 				animationDuration: 0.6,
 			},
 		}))
+	),
+	...canonicalAnimations.map(
+		({ id, label, content, captureTime, textAnimations }) => ({
+			id,
+			group: "animations" as const,
+			label,
+			captureTime,
+			element: {
+				...baseText,
+				content,
+				color: "#ffd166",
+				strokeColor: "#111111",
+				strokeWidth: 3,
+				textAnimations,
+			},
+		})
 	),
 	...([0.03, 1] as const).map((captureTime) => ({
 		id: `yellow-pop-keyframe-${captureTime < 0.1 ? "start" : "end"}`,

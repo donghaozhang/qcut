@@ -17,6 +17,7 @@ import type {
 	VideoTransitionInput,
 	StickerSourceForFilter,
 	ImageSourceInput,
+	TextRasterLayerInput,
 } from "../export-cli/types";
 
 export interface WordFilterResult {
@@ -111,6 +112,7 @@ export interface BuildExportOptionsParams {
 		trackOrder: number;
 		elementOrder: number;
 	}>;
+	textRasterLayers: TextRasterLayerInput[];
 	stickerFilterChain: string | undefined;
 	stickerSources: StickerSourceForFilter[];
 	imageFilterChain: string | undefined;
@@ -140,6 +142,7 @@ export function buildExportOptions(params: BuildExportOptionsParams) {
 		combinedFilterChain,
 		textFilterChain,
 		textAssLayers,
+		textRasterLayers,
 		stickerFilterChain,
 		stickerSources,
 		imageFilterChain,
@@ -172,6 +175,8 @@ export function buildExportOptions(params: BuildExportOptionsParams) {
 		filterChain: combinedFilterChain || undefined,
 		textFilterChain: hasTextFilters ? textFilterChain : undefined,
 		textAssLayers: textAssLayers.length > 0 ? textAssLayers : undefined,
+		textRasterLayers:
+			textRasterLayers.length > 0 ? textRasterLayers : undefined,
 		stickerFilterChain,
 		stickerSources,
 		imageFilterChain,

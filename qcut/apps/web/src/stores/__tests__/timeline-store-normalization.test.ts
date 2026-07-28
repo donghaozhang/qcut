@@ -1,6 +1,14 @@
 import { describe, expect, it } from "vitest";
-import type { MediaElement } from "@/types/timeline";
-import { normalizeMediaElement } from "../timeline/timeline-store-normalization";
+import type {
+	MediaElement,
+	TextElement,
+	TextAnimationsV1,
+} from "@/types/timeline";
+import {
+	normalizeLoadedTracks,
+	normalizeMediaElement,
+	normalizeTextElement,
+} from "../timeline/timeline-store-normalization";
 
 function mediaElement(overrides: Partial<MediaElement> = {}): MediaElement {
 	return {
@@ -10,6 +18,32 @@ function mediaElement(overrides: Partial<MediaElement> = {}): MediaElement {
 		name: "Video",
 		duration: 5,
 		startTime: 0,
+		trimStart: 0,
+		trimEnd: 0,
+		...overrides,
+	};
+}
+
+function textElement(overrides: Partial<TextElement> = {}): TextElement {
+	return {
+		id: "text-1",
+		type: "text",
+		name: "Title",
+		content: "QCut",
+		fontSize: 48,
+		fontFamily: "Inter",
+		color: "#ffffff",
+		backgroundColor: "transparent",
+		textAlign: "center",
+		fontWeight: "normal",
+		fontStyle: "normal",
+		textDecoration: "none",
+		x: 0,
+		y: 0,
+		rotation: 0,
+		opacity: 1,
+		startTime: 0,
+		duration: 5,
 		trimStart: 0,
 		trimEnd: 0,
 		...overrides,
@@ -89,5 +123,87 @@ describe("timeline media mask normalization", () => {
 
 		expect(normalized.masks?.map((mask) => mask.id)).toEqual(["main", "hole"]);
 		expect(normalized.mask?.id).toBe("main");
+	});
+});
+
+describe("timeline text animation normalization", () => {
+	it("normalizes canonical animation data while loading a project", () => {
+		const element = textElement({
+			textAnimations: {
+				schemaVersion: 1,
+				entrance: {
+					timing: {
+						duration: Number.NaN,
+						delay: -2,
+						easing: "linear",
+					},
+					sequence: {
+						unit: "word",
+						order: "forward",
+						staggerRatio: 2,
+						seed: 4,
+					},
+					target: "text",
+					effect: {
+						kind: "fade",
+						minimumOpacity: -1,
+					},
+				},
+			},
+		});
+
+		const normalized = normalizeTextElement({ element, fps: 25 });
+
+		expect(normalized).toMatchObject({
+			textAnimations: {
+				schemaVersion: 1,
+				entrance: {
+					timing: { duration: 0.6, delay: 0 },
+					sequence: { staggerRatio: 0.95 },
+					effect: { kind: "fade", minimumOpacity: 0 },
+				},
+			},
+		});
+	});
+
+	it("keeps legacy animation data intact until the first explicit edit", () => {
+		const normalized = normalizeTextElement({
+			element: textElement({
+				animationType: "slide-left",
+				animationDuration: 1.25,
+				animationDelay: 0.2,
+			}),
+		});
+
+		expect(normalized).toMatchObject({
+			animationType: "slide-left",
+			animationDuration: 1.25,
+			animationDelay: 0.2,
+		});
+		expect((normalized as TextElement).textAnimations).toBeUndefined();
+	});
+
+	it("preserves unsupported future schemas through project load", () => {
+		const futureAnimations = {
+			schemaVersion: 2,
+			entrance: { futureEffect: "fold" },
+		};
+		const element = textElement({
+			textAnimations: futureAnimations as unknown as TextAnimationsV1,
+		});
+		const tracks = normalizeLoadedTracks({
+			tracks: [
+				{
+					id: "text-track",
+					name: "Text",
+					type: "text",
+					elements: [element],
+				},
+			],
+		});
+
+		expect((tracks[0].elements[0] as TextElement).textAnimations).toBe(
+			futureAnimations
+		);
 	});
 });

@@ -60,6 +60,7 @@ export function setupExportHandler(tempManager: TempManager): void {
 				audioFiles: requestedAudioFiles = [],
 				textFilterChain,
 				textAssLayers = [],
+				textRasterLayers = [],
 				stickerFilterChain,
 				stickerSources,
 				useDirectCopy = false,
@@ -164,6 +165,7 @@ export function setupExportHandler(tempManager: TempManager): void {
 				useDirectCopy &&
 				!textFilterChain &&
 				textAssLayers.length === 0 &&
+				textRasterLayers.length === 0 &&
 				!stickerFilterChain &&
 				!options.filterChain &&
 				!options.imageFilterChain &&
@@ -241,6 +243,7 @@ export function setupExportHandler(tempManager: TempManager): void {
 						filterChain: options.filterChain,
 						textFilterChain,
 						textAssLayers: textAssLayerPaths,
+						textRasterLayers,
 						useDirectCopy: effectiveUseDirectCopy,
 						videoSources: options.videoSources,
 						videoTransitions: options.videoTransitions,

@@ -66,10 +66,14 @@ export function composePreparedVisualLayers({
 	baseLabel,
 	layers,
 	labelPrefix = "visual",
+	canvasWidth,
+	canvasHeight,
 }: {
 	baseLabel: string;
 	layers: PreparedVisualLayer[];
 	labelPrefix?: string;
+	canvasWidth?: number;
+	canvasHeight?: number;
 }): ComposedVisualLayers {
 	const filterSteps: string[] = [];
 	let outputLabel = baseLabel;
@@ -100,11 +104,25 @@ export function composePreparedVisualLayers({
 		const blended = `${prefix}_blended`;
 		const alphaMask = `${prefix}_alpha_mask`;
 		const blendedAlpha = `${prefix}_blended_alpha`;
+		const hasProjectPosition = layer.x !== undefined || layer.y !== undefined;
+		if (
+			hasProjectPosition &&
+			(!(canvasWidth && canvasWidth > 0) || !(canvasHeight && canvasHeight > 0))
+		) {
+			throw new Error(
+				`Canvas dimensions are required for positioned ${layer.blendMode} layers`
+			);
+		}
 		filterSteps.push(
 			`[${outputLabel}]split=2[${baseOriginal}][${baseBlendInput}]`
 		);
 		filterSteps.push(`[${baseBlendInput}]format=rgba[${baseBlend}]`);
-		filterSteps.push(`[${layer.inputLabel}]format=rgba[${foregroundInput}]`);
+		const foregroundPlacement = hasProjectPosition
+			? `,pad=${canvasWidth}:${canvasHeight}:${layer.x ?? 0}:${layer.y ?? 0}:color=black@0.0`
+			: "";
+		filterSteps.push(
+			`[${layer.inputLabel}]format=rgba${foregroundPlacement}[${foregroundInput}]`
+		);
 		filterSteps.push(
 			`[${foregroundInput}]split=2[${foregroundBlend}][${foregroundAlpha}]`
 		);
@@ -113,9 +131,10 @@ export function composePreparedVisualLayers({
 		);
 		filterSteps.push(`[${foregroundAlpha}]alphaextract[${alphaMask}]`);
 		filterSteps.push(`[${blended}][${alphaMask}]alphamerge[${blendedAlpha}]`);
+		const compositePosition = hasProjectPosition ? "x=0:y=0:" : position;
 		filterSteps.push(
 			`[${baseOriginal}][${blendedAlpha}]overlay=` +
-				`${position}eof_action=pass:repeatlast=0:shortest=0:format=auto${enable}[${nextOutput}]`
+				`${compositePosition}eof_action=pass:repeatlast=0:shortest=0:format=auto${enable}[${nextOutput}]`
 		);
 		outputLabel = nextOutput;
 	}

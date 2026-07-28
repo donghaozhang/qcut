@@ -36,6 +36,45 @@ describe("text template registry", () => {
 		}
 	});
 
+	it("materializes scale variants with the canonical scale-up animation", () => {
+		const scaleVariantIds = new Set(["fire", "lava", "red-burst"]);
+		const scaleTemplates = TEXT_TEMPLATES.filter((template) => {
+			const definition = TEXT_TEMPLATE_DEFINITIONS.find(
+				(candidate) => candidate.id === template.id
+			);
+			return definition ? scaleVariantIds.has(definition.variantId) : false;
+		});
+
+		expect(scaleTemplates.length).toBeGreaterThan(0);
+		for (const template of scaleTemplates) {
+			expect(template.animationType).toBe("none");
+			expect(template.textAnimations).toMatchObject({
+				schemaVersion: 1,
+				entrance: {
+					effect: {
+						fade: true,
+						hiddenScale: 0.5,
+						kind: "scale",
+					},
+					sourcePreset: {
+						id: "scale-up",
+						version: 1,
+					},
+				},
+			});
+		}
+	});
+
+	it("keeps supported legacy entrance animations unchanged", () => {
+		const legacyAnimationTypes = new Set(
+			TEXT_TEMPLATES.map((template) => template.animationType)
+		);
+
+		expect(legacyAnimationTypes).toEqual(
+			new Set(["none", "fade", "slide-left", "slide-up"])
+		);
+	});
+
 	it("materializes every category from the shared style definitions", () => {
 		expect(TEXT_TEMPLATES).toHaveLength(TEXT_TEMPLATE_DEFINITIONS.length);
 		for (const category of TEXT_TEMPLATE_CATEGORIES.filter(

@@ -164,6 +164,7 @@ export function createAddOps(
 				animationType: item.animationType ?? "none",
 				animationDuration: item.animationDuration ?? 0.6,
 				animationDelay: item.animationDelay ?? 0,
+				textAnimations: item.textAnimations,
 				keyframes: item.keyframes,
 				blendMode: item.blendMode ?? "normal",
 			};
@@ -421,6 +422,8 @@ export function createAddOps(
 					"animationDelay" in item && item.animationDelay !== undefined
 						? item.animationDelay
 						: 0,
+				textAnimations:
+					"textAnimations" in item ? item.textAnimations : undefined,
 				keyframes: "keyframes" in item ? item.keyframes : undefined,
 				blendMode:
 					"blendMode" in item && item.blendMode ? item.blendMode : "normal",

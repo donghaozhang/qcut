@@ -8,6 +8,7 @@
  */
 
 import type { TimelineElement, TimelineTrack } from "@/types/timeline";
+import { normalizeTextAnimations } from "@qcut/editor-core";
 import { clampMarkdownDuration } from "@/lib/markdown";
 import {
 	DEFAULT_MEDIA_MASK,
@@ -124,10 +125,46 @@ export function normalizeMediaElement({
 	};
 }
 
+export function normalizeTextElement({
+	element,
+	fps = 30,
+}: {
+	element: TimelineElement;
+	fps?: number;
+}): TimelineElement {
+	if (element.type !== "text") return element;
+
+	const normalization = normalizeTextAnimations({ element, fps });
+	if (normalization.source === "unsupported") {
+		return element;
+	}
+	if (
+		normalization.source === "legacy" &&
+		element.textAnimations === undefined
+	) {
+		return element;
+	}
+	if (normalization.animation) {
+		return {
+			...element,
+			textAnimations: normalization.animation,
+		};
+	}
+	if (element.textAnimations === undefined) {
+		return element;
+	}
+	return {
+		...element,
+		textAnimations: undefined,
+	};
+}
+
 export function normalizeLoadedTracks({
 	tracks,
+	fps = 30,
 }: {
 	tracks: TimelineTrack[];
+	fps?: number;
 }): TimelineTrack[] {
 	return tracks.map((track) => ({
 		...track,
@@ -141,7 +178,10 @@ export function normalizeLoadedTracks({
 				: track.audioCrossfades,
 		elements: track.elements.map((element) =>
 			normalizeMediaElement({
-				element: normalizeMarkdownElement({ element }),
+				element: normalizeTextElement({
+					element: normalizeMarkdownElement({ element }),
+					fps,
+				}),
 			})
 		),
 	}));

@@ -9,6 +9,7 @@
 
 import type { MediaColorSettings } from "./color.js";
 import type { EffectChain, EffectInstance } from "./effects.js";
+import type { TextAnimationsV1 } from "../text-animation/model.js";
 
 /** Media asset types */
 export type MediaType = "image" | "video" | "audio";
@@ -835,9 +836,13 @@ export interface TextElement extends BaseTimelineElement {
 	glowBlur?: number;
 	/** Total text arc in degrees. Negative bends upward, positive bends downward. */
 	curve?: number;
+	/** @deprecated Use textAnimations.entrance. Kept for pre-phase projects. */
 	animationType?: "none" | "fade" | "slide-up" | "slide-left";
+	/** @deprecated Use textAnimations.entrance. */
 	animationDuration?: number;
+	/** @deprecated Use textAnimations.entrance. */
 	animationDelay?: number;
+	textAnimations?: TextAnimationsV1;
 	keyframes?: Partial<Record<TextKeyframeProperty, TextPropertyKeyframe[]>>;
 	blendMode?:
 		| "normal"

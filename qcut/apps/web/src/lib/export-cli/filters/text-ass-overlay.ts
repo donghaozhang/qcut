@@ -5,8 +5,7 @@ import {
 	getTextAnimationState,
 	resolveTextAnimation,
 } from "@/lib/text/text-animation";
-import { resolveTextKeyframes } from "@/lib/text/text-keyframes";
-import { resolveTrackedTextElement } from "@/lib/text/text-tracking";
+import { resolveAnimatedTextElement } from "@/lib/text/text-element-animation";
 import { resolveTextStyle } from "@/lib/text/text-style";
 import {
 	buildTextFont,
@@ -504,8 +503,8 @@ export function buildTextASSOverlay({
 					const frameStart = Math.max(visibleStart, frame / fps);
 					const frameEnd = Math.min(visibleEnd, (frame + 1) / fps);
 					if (frameEnd <= frameStart) continue;
-					const resolved = resolveTrackedTextElement({
-						element: resolveTextKeyframes(element, frameStart, fps),
+					const resolved = resolveAnimatedTextElement({
+						element,
 						tracks: allTracks,
 						currentTime: frameStart,
 						fps,
@@ -532,7 +531,7 @@ export function buildTextASSOverlay({
 				}
 			} else {
 				const result = buildElementEvents({
-					element: resolveTrackedTextElement({
+					element: resolveAnimatedTextElement({
 						element,
 						tracks: allTracks,
 						currentTime: element.startTime,

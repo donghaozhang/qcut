@@ -5,7 +5,7 @@ import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import type { CachedAssetResource } from "@/lib/assets/asset-resource-cache";
 import type { AssetResourceCacheStorage } from "@/lib/assets/asset-resource-cache";
-import type { TextElement } from "@/types/timeline";
+import type { TextAnimationsV1, TextElement } from "@/types/timeline";
 import { describe, expect, it, vi } from "vitest";
 import {
 	downloadTextTemplateResource,
@@ -48,6 +48,31 @@ class MemoryAssetCache implements AssetResourceCacheStorage {
 		return [...this.resources.values()];
 	}
 }
+
+const CANONICAL_SCALE_TEXT_ANIMATIONS = {
+	schemaVersion: 1,
+	entrance: {
+		sourcePreset: { id: "scale-up", version: 1 },
+		timing: {
+			delay: 0.1,
+			duration: 0.55,
+			easing: "easeOut",
+		},
+		sequence: {
+			order: "forward",
+			seed: 42,
+			staggerRatio: 0,
+			unit: "all",
+		},
+		target: "textAndBackground",
+		effect: {
+			fade: true,
+			hiddenScale: 0.35,
+			kind: "scale",
+			overshoot: 0.04,
+		},
+	},
+} as const satisfies TextAnimationsV1;
 
 function textDefinition({
 	sizeKb = 1,
@@ -113,14 +138,18 @@ function packageText({
 	definition,
 	includeResources = true,
 	includeTemplatePack = false,
+	packElementTextAnimations,
 	resourcesOverride,
+	templateTextAnimations,
 	templateOverrides,
 }: {
 	content?: string;
 	definition: TextTemplateDefinition;
 	includeResources?: boolean;
 	includeTemplatePack?: boolean;
+	packElementTextAnimations?: readonly unknown[];
 	resourcesOverride?: unknown[];
+	templateTextAnimations?: unknown;
 	templateOverrides?: Partial<TextElement>;
 }): string {
 	const resource = definition.resource;
@@ -182,6 +211,11 @@ function packageText({
 						x: 80,
 						y: 120,
 						textAlign: "left",
+						...(packElementTextAnimations?.[0] === undefined
+							? {}
+							: {
+									textAnimations: packElementTextAnimations[0],
+								}),
 					},
 					{
 						id: "pack-subtitle",
@@ -196,6 +230,11 @@ function packageText({
 						x: 80,
 						y: 240,
 						textAlign: "left",
+						...(packElementTextAnimations?.[1] === undefined
+							? {}
+							: {
+									textAnimations: packElementTextAnimations[1],
+								}),
 					},
 				],
 			}
@@ -230,6 +269,9 @@ function packageText({
 				x: 80,
 				y: 120,
 				...templateOverrides,
+				...(templateTextAnimations === undefined
+					? {}
+					: { textAnimations: templateTextAnimations }),
 			},
 			templatePack,
 		},
@@ -623,6 +665,35 @@ describe("downloadTextTemplateResource", () => {
 		});
 	});
 
+	it("normalizes and preserves canonical text animations from qctext templates", () => {
+		const definition = textDefinition();
+
+		expect(
+			parseTextTemplatePackage({
+				text: packageText({
+					definition,
+					templateTextAnimations: CANONICAL_SCALE_TEXT_ANIMATIONS,
+				}),
+			}).template.textAnimations
+		).toEqual(CANONICAL_SCALE_TEXT_ANIMATIONS);
+	});
+
+	it("rejects unsupported future text animation schemas", () => {
+		const definition = textDefinition();
+
+		expect(() =>
+			parseTextTemplatePackage({
+				text: packageText({
+					definition,
+					templateTextAnimations: {
+						schemaVersion: 2,
+						entrance: CANONICAL_SCALE_TEXT_ANIMATIONS.entrance,
+					},
+				}),
+			})
+		).toThrow("Unsupported QCut text animation schema version: 2");
+	});
+
 	it("parses qctext package companion resource manifests", () => {
 		const definition = textDefinition();
 
@@ -758,6 +829,23 @@ describe("downloadTextTemplateResource", () => {
 				id: `pack-${definition.id}`,
 			},
 		});
+	});
+
+	it("preserves canonical text animations on qctext template pack elements", () => {
+		const definition = getTextTemplateDefinitionsByCategory({
+			category: "headline-template",
+		})[0];
+		if (!definition) throw new Error("Expected a headline template definition");
+
+		expect(
+			parseTextTemplatePackage({
+				text: packageText({
+					definition,
+					includeTemplatePack: true,
+					packElementTextAnimations: [CANONICAL_SCALE_TEXT_ANIMATIONS],
+				}),
+			}).templatePack?.elements[0]?.textAnimations
+		).toEqual(CANONICAL_SCALE_TEXT_ANIMATIONS);
 	});
 
 	it("loads bundled package files through fetch", async () => {
@@ -983,6 +1071,75 @@ describe("downloadTextTemplateResource", () => {
 		});
 	});
 
+	it("carries canonical text animations into resolved timeline templates", async () => {
+		const definition = textDefinition({ sizeKb: 3 });
+		const fallbackTemplate = buildTextTemplate({ definition });
+		const packageBody = padJsonTextToByteLength({
+			targetBytes: 3072,
+			text: packageText({
+				content: "Animated package content",
+				definition,
+				templateTextAnimations: CANONICAL_SCALE_TEXT_ANIMATIONS,
+			}),
+		});
+		const fetchImpl = vi.fn<typeof fetch>(
+			async () =>
+				new Response(packageBody, {
+					headers: {
+						"content-length": String(packageBody.length),
+						"content-type": "application/vnd.qcut.text-template+json",
+					},
+					status: 200,
+				})
+		);
+
+		await expect(
+			resolveTextTemplateForTimeline({
+				definition,
+				fallbackTemplate,
+				fetchImpl,
+				storage: new MemoryAssetCache(),
+			})
+		).resolves.toMatchObject({
+			content: "Animated package content",
+			textAnimations: CANONICAL_SCALE_TEXT_ANIMATIONS,
+		});
+	});
+
+	it("does not silently downgrade future animation schemas during timeline resolution", async () => {
+		const definition = textDefinition({ sizeKb: 3 });
+		const fallbackTemplate = buildTextTemplate({ definition });
+		const packageBody = padJsonTextToByteLength({
+			targetBytes: 3072,
+			text: packageText({
+				definition,
+				templateTextAnimations: {
+					schemaVersion: 2,
+					entrance: CANONICAL_SCALE_TEXT_ANIMATIONS.entrance,
+				},
+			}),
+		});
+		const fetchImpl = vi.fn<typeof fetch>(
+			async () =>
+				new Response(packageBody, {
+					headers: {
+						"content-length": String(packageBody.length),
+						"content-type": "application/vnd.qcut.text-template+json",
+					},
+					status: 200,
+				})
+		);
+
+		await expect(
+			resolveTextTemplateForTimeline({
+				definition,
+				fallbackTemplate,
+				fetchImpl,
+				storage: new MemoryAssetCache(),
+			})
+		).rejects.toThrow("Unsupported QCut text animation schema version: 2");
+	});
+
 	it("keeps decorative templates transparent after package payload merging", async () => {
 		const definition = {
 			...textDefinition({ sizeKb: 2 }),
@@ -1037,7 +1194,7 @@ describe("downloadTextTemplateResource", () => {
 				assetId: "asset-remote-headline-resource-test",
 				cacheKey: "text-assets/package-remote-headline-resource-test/plain@1",
 				packageId: "package-remote-headline-resource-test",
-				sizeKb: 2,
+				sizeKb: 3,
 			},
 		} satisfies TextTemplateDefinition;
 		const fallbackTemplate = buildTextTemplate({ definition });
@@ -1047,11 +1204,12 @@ describe("downloadTextTemplateResource", () => {
 			definition,
 		});
 		const packageBody = padJsonTextToByteLength({
-			targetBytes: 2048,
+			targetBytes: 3072,
 			text: packageText({
 				content: "Package headline",
 				definition,
 				includeTemplatePack: true,
+				packElementTextAnimations: [CANONICAL_SCALE_TEXT_ANIMATIONS],
 			}),
 		});
 		const fetchImpl = vi.fn<typeof fetch>(async () => {
@@ -1093,6 +1251,7 @@ describe("downloadTextTemplateResource", () => {
 					content: "Package headline",
 					duration: fallbackTemplate.duration,
 					startTime: 2,
+					textAnimations: CANONICAL_SCALE_TEXT_ANIMATIONS,
 					trimEnd: 0,
 					trimStart: 0,
 					type: "text",

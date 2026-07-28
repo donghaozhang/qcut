@@ -342,6 +342,30 @@ export interface StickerSourceForFilter {
 	keyframeFps?: number;
 }
 
+export type TextRasterSourceInput =
+	| {
+			kind: "image-sequence";
+			path: string;
+			frameRate: number;
+	  }
+	| {
+			kind: "video";
+			path: string;
+	  };
+
+export interface TextRasterLayerInput {
+	elementId: string;
+	source: TextRasterSourceInput;
+	startTime: number;
+	endTime: number;
+	blendMode: VideoVisualInput["blendMode"];
+	x: number;
+	y: number;
+	trackOrder: number;
+	elementOrder: number;
+	cacheKey?: string;
+}
+
 /**
  * Progress callback type for export progress reporting.
  */

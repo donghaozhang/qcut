@@ -595,6 +595,33 @@ export interface TextAssLayer {
 	elementOrder?: number;
 }
 
+export type TextRasterSource =
+	| {
+			kind: "image-sequence";
+			path: string;
+			frameRate: number;
+	  }
+	| {
+			kind: "video";
+			path: string;
+	  };
+
+/** Lossless RGBA text frames baked by the renderer for animations libass cannot represent. */
+export interface TextRasterLayer {
+	elementId: string;
+	source: TextRasterSource;
+	startTime: number;
+	endTime: number;
+	blendMode: NonNullable<VideoVisual["blendMode"]>;
+	/** Project-space origin of the cropped RGBA frame sequence. */
+	x: number;
+	y: number;
+	trackOrder?: number;
+	elementOrder?: number;
+	/** Reserved for persistent source reuse once export-session caching is enabled. */
+	cacheKey?: string;
+}
+
 /**
  * Configuration options for video export operations
  * Contains all parameters needed for FFmpeg video generation
@@ -622,6 +649,8 @@ export interface ExportOptions {
 	textFilterChain?: string;
 	/** Ordered ASS documents for advanced text overlays and blend modes */
 	textAssLayers?: TextAssLayer[];
+	/** Ordered transparent raster sources for frame-exact text animations. */
+	textRasterLayers?: TextRasterLayer[];
 	/** Optional FFmpeg overlay filter chain for stickers */
 	stickerFilterChain?: string;
 	/** Sticker image sources for overlay (when stickerFilterChain is provided) */

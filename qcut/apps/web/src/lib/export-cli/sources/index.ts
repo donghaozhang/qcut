@@ -21,6 +21,12 @@ export { extractEffectDistortionSources } from "./effect-distortion-sources";
 export { extractEffectPersonSources } from "./effect-person-sources";
 export { extractEffectCompanionAudioSources } from "./effect-companion-audio-sources";
 export { extractEffectAudioReactiveEnvelopes } from "./effect-audio-reactive-sources";
+export {
+	extractTextRasterSources,
+	usesTextRasterExport,
+	type CreateTextRasterFrameCanvas,
+	type RenderTextRasterFrame,
+} from "./text-raster-sources";
 
 // Audio source detection (shared between dialog UI and export pipeline)
 export { detectAudioSources, type AudioSourceInfo } from "./audio-detection";

@@ -1,17 +1,6 @@
 import type { TranslationKey } from "@/lib/i18n";
 import type { TextKeyframeProperty } from "@/types/timeline";
-import type { TEXT_ANIMATION_TYPES } from "@/lib/text/text-animation";
 import type { TEXT_BLEND_MODES } from "@/lib/text/text-style";
-
-export const TEXT_ANIMATION_TYPE_KEYS: Record<
-	(typeof TEXT_ANIMATION_TYPES)[number],
-	TranslationKey
-> = {
-	none: "textProperties.animation.none",
-	fade: "textProperties.animation.fade",
-	"slide-up": "textProperties.animation.slideUp",
-	"slide-left": "textProperties.animation.slideLeft",
-};
 
 export const TEXT_BLEND_MODE_KEYS: Record<
 	(typeof TEXT_BLEND_MODES)[number],

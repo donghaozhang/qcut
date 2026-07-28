@@ -1,3 +1,5 @@
+import { segmentText } from "@qcut/editor-core/text-animation";
+
 export interface CurvedCharacterTransform {
 	character: string;
 	x: number;
@@ -14,7 +16,10 @@ export function getCurvedTextTransforms({
 	width: number;
 	curve: number;
 }): CurvedCharacterTransform[] {
-	const characters = Array.from(text.replace(/\s*\n\s*/g, " "));
+	const characters = segmentText({
+		content: text.replace(/\s*\n\s*/g, " "),
+		unit: "grapheme",
+	}).map(({ text: grapheme }) => grapheme);
 	if (characters.length === 0) return [];
 	if (Math.abs(curve) < 0.01 || characters.length === 1) {
 		return characters.map((character, index) => ({

@@ -479,6 +479,175 @@ describe("buildFFmpegArgs", () => {
 			);
 		});
 
+		it("feeds transparent text raster frames as an ordered image2 layer", () => {
+			const args = buildFFmpegArgs(
+				createBaseOptions({
+					useVideoInput: true,
+					videoInputPath: "/input.mp4",
+					audioFiles: [
+						{ path: "/voice.wav", startTime: 0, volume: 1, duration: 3 },
+					],
+					textRasterLayers: [
+						{
+							elementId: "animated-title",
+							source: {
+								kind: "image-sequence",
+								path: "/tmp/text-animated-title/f_%05d.png",
+								frameRate: 30,
+							},
+							startTime: 2,
+							endTime: 5,
+							blendMode: "normal",
+							x: 48,
+							y: 72,
+							trackOrder: 0,
+							elementOrder: 0,
+						},
+					],
+				})
+			);
+
+			const sequenceInputIndex = args.indexOf(
+				"/tmp/text-animated-title/f_%05d.png"
+			);
+			expect(
+				args.slice(sequenceInputIndex - 5, sequenceInputIndex + 1)
+			).toEqual([
+				"-framerate",
+				"30",
+				"-start_number",
+				"0",
+				"-i",
+				"/tmp/text-animated-title/f_%05d.png",
+			]);
+			expect(existsSyncMock).toHaveBeenCalledWith(
+				"/tmp/text-animated-title/f_00000.png"
+			);
+			expect(sequenceInputIndex).toBeLessThan(args.indexOf("/voice.wav"));
+
+			const filter = args[args.indexOf("-filter_complex") + 1];
+			expect(filter).toContain(
+				"[1:v]fps=30,setsar=1,format=rgba,trim=duration=3,settb=AVTB,setpts=PTS-STARTPTS+2/TB[visual_text_raster_0]"
+			);
+			expect(filter).toContain(
+				"[0:v][visual_text_raster_0]overlay=x=48:y=72:eof_action=pass:repeatlast=0:shortest=0:format=auto:enable='between(t,2,5)'"
+			);
+			expect(filter).toContain("[2:a]");
+		});
+
+		it("positions cropped multiply and screen text before full-frame blending", () => {
+			const args = buildFFmpegArgs(
+				createBaseOptions({
+					useVideoInput: true,
+					videoInputPath: "/input.mp4",
+					textRasterLayers: [
+						{
+							elementId: "multiply-title",
+							source: {
+								kind: "image-sequence",
+								path: "/tmp/multiply-title/f_%05d.png",
+								frameRate: 30,
+							},
+							startTime: 1,
+							endTime: 3,
+							blendMode: "multiply",
+							x: 48,
+							y: 72,
+							trackOrder: 0,
+							elementOrder: 0,
+						},
+						{
+							elementId: "screen-title",
+							source: {
+								kind: "image-sequence",
+								path: "/tmp/screen-title/f_%05d.png",
+								frameRate: 30,
+							},
+							startTime: 1,
+							endTime: 3,
+							blendMode: "screen",
+							x: 180,
+							y: 240,
+							trackOrder: 0,
+							elementOrder: 1,
+						},
+					],
+				})
+			);
+			const filter = args[args.indexOf("-filter_complex") + 1];
+
+			expect(filter).toContain(
+				"[visual_text_raster_0]format=rgba,pad=1920:1080:48:72:color=black@0.0[visual_text_0_foreground_input]"
+			);
+			expect(filter).toContain("blend=all_mode=multiply");
+			expect(filter).toContain(
+				"[visual_text_0_base_original][visual_text_0_blended_alpha]overlay=x=0:y=0:"
+			);
+			expect(filter).toContain(
+				"[visual_text_raster_1]format=rgba,pad=1920:1080:180:240:color=black@0.0[visual_text_1_foreground_input]"
+			);
+			expect(filter).toContain("blend=all_mode=screen");
+			expect(filter).toContain(
+				"[visual_text_1_base_original][visual_text_1_blended_alpha]overlay=x=0:y=0:"
+			);
+		});
+
+		it("orders raster text with the same track ordering as other visuals", () => {
+			const args = buildFFmpegArgs(
+				createBaseOptions({
+					videoSources: [
+						{
+							path: "/bottom.mp4",
+							startTime: 0,
+							duration: 10,
+							trackOrder: 3,
+							elementOrder: 0,
+						},
+					],
+					stickerSources: [
+						{
+							id: "middle-sticker",
+							path: "/sticker.png",
+							x: 0,
+							y: 0,
+							width: 64,
+							height: 64,
+							startTime: 0,
+							endTime: 10,
+							zIndex: 1,
+							trackOrder: 1,
+							elementOrder: 0,
+						},
+					],
+					textRasterLayers: [
+						{
+							elementId: "top-title",
+							source: {
+								kind: "image-sequence",
+								path: "/tmp/top-title/f_%05d.png",
+								frameRate: 30,
+							},
+							startTime: 0,
+							endTime: 10,
+							blendMode: "normal",
+							x: 0,
+							y: 0,
+							trackOrder: 0,
+							elementOrder: 0,
+						},
+					],
+				})
+			);
+			const filter = args[args.indexOf("-filter_complex") + 1];
+
+			expect(filter.indexOf("[video_0_layer]overlay")).toBeLessThan(
+				filter.indexOf("[visual_sticker_0_scaled]overlay")
+			);
+			expect(filter.indexOf("[visual_sticker_0_scaled]overlay")).toBeLessThan(
+				filter.indexOf("[visual_text_raster_0]overlay")
+			);
+		});
+
 		it("composites video, image, sticker, and text by one track order", () => {
 			const args = buildFFmpegArgs(
 				createBaseOptions({

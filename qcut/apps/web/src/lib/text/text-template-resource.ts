@@ -1,7 +1,9 @@
 import {
 	assetManifestVersionKey,
+	normalizeTextAnimations,
 	type AssetFileRole,
 	type AssetManifestFile,
+	type TextAnimationsV1,
 } from "@qcut/editor-core";
 import { TIMELINE_CONSTANTS } from "@/constants/timeline-constants";
 import type {
@@ -144,6 +146,39 @@ function parseTextDecoration({
 		: undefined;
 }
 
+class UnsupportedTextAnimationSchemaError extends Error {}
+
+function parseTextAnimations({
+	elementId,
+	value,
+}: {
+	elementId: string;
+	value: unknown;
+}): TextAnimationsV1 | undefined {
+	if (value === undefined) return undefined;
+	const normalization = normalizeTextAnimations({
+		element: {
+			id: elementId,
+			textAnimations: value as TextAnimationsV1,
+			type: "text",
+		} as TextElement,
+	});
+	if (normalization.source === "unsupported") {
+		const schemaVersion = asRecord({ value })?.schemaVersion;
+		throw new UnsupportedTextAnimationSchemaError(
+			`Unsupported QCut text animation schema version: ${String(schemaVersion)}`
+		);
+	}
+	if (
+		normalization.source !== "canonical" ||
+		!normalization.animation ||
+		normalization.issues.length > 0
+	) {
+		throw new Error("Invalid QCut text animation");
+	}
+	return normalization.animation;
+}
+
 function parseTextTemplate({
 	value,
 }: {
@@ -155,6 +190,10 @@ function parseTextTemplate({
 	const name = stringValue({ record, key: "name" });
 	const content = stringValue({ record, key: "content" });
 	if (!id || !name || !content) return null;
+	const textAnimations = parseTextAnimations({
+		elementId: id,
+		value: record.textAnimations,
+	});
 	return {
 		id,
 		type: "text",
@@ -193,6 +232,7 @@ function parseTextTemplate({
 		curve: numberValue({ record, key: "curve" }),
 		animationDuration: numberValue({ record, key: "animationDuration" }),
 		animationDelay: numberValue({ record, key: "animationDelay" }),
+		...(textAnimations ? { textAnimations } : {}),
 	};
 }
 
@@ -734,7 +774,8 @@ export async function resolveTextTemplateForTimeline({
 				type: fallbackTemplate.type,
 			},
 		});
-	} catch {
+	} catch (error) {
+		if (error instanceof UnsupportedTextAnimationSchemaError) throw error;
 		return fallbackTemplate;
 	}
 }
@@ -867,7 +908,8 @@ export async function resolveTextTemplatePackForTimeline({
 			fallbackTemplate,
 			packageSource,
 		});
-	} catch {
+	} catch (error) {
+		if (error instanceof UnsupportedTextAnimationSchemaError) throw error;
 		return fallbackPack;
 	}
 }

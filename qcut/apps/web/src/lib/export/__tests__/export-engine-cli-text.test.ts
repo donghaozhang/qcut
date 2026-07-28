@@ -123,4 +123,34 @@ describe("buildTimelineAssLayers", () => {
 			"Style: Default,Hiragino Sans GB,"
 		);
 	});
+
+	it("excludes rasterized text from ASS without affecting captions", () => {
+		const result = buildTimelineAssLayers({
+			tracks: [
+				{
+					id: "text-track",
+					name: "Text",
+					type: "text",
+					order: 0,
+					elements: [createTextElement()],
+				},
+				{
+					id: "caption-track",
+					name: "Captions",
+					type: "captions",
+					order: 1,
+					elements: [createCaptionElement()],
+				},
+			],
+			canvasWidth: 1920,
+			canvasHeight: 1080,
+			fps: 30,
+			excludedTextElementIds: new Set(["text-element"]),
+		});
+
+		expect(result.layers).toHaveLength(1);
+		expect(result.layers[0].content).toContain("Exported caption");
+		expect(result.layers[0].content).not.toContain("Top title");
+		expect(result.renderedTextElementIds).toEqual(new Set());
+	});
 });

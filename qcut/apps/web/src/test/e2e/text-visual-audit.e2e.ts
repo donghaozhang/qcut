@@ -20,6 +20,7 @@ async function loadAuditCase(page: Page, auditCase: TextVisualAuditCase) {
 			}
 			timelineStore.getState().clearTimeline();
 			timelineStore.getState().addTextAtTime(element, 0);
+			timelineStore.getState().setSelectedElements([]);
 			playbackStore.getState().seek(captureTime);
 		},
 		{ element: auditCase.element, captureTime: auditCase.captureTime }
@@ -32,6 +33,7 @@ async function loadAuditCase(page: Page, auditCase: TextVisualAuditCase) {
 
 test.describe("Text visual audit", () => {
 	test("captures every text effect in the editor preview", async ({ page }) => {
+		test.setTimeout(180_000);
 		await rm(editorOutputDir, { recursive: true, force: true });
 		await mkdir(editorOutputDir, { recursive: true });
 
@@ -65,6 +67,7 @@ test.describe("Text visual audit", () => {
 	test("captures Yellow Pop animation and keyframe editor state", async ({
 		page,
 	}) => {
+		test.setTimeout(120_000);
 		await page.getByTestId("new-project-button").click();
 		await page.waitForSelector('[data-testid="timeline-track"]');
 		await ensureTextTabActive(page);
@@ -97,20 +100,34 @@ test.describe("Text visual audit", () => {
 		await page.getByTestId("panel-tab-properties").click();
 		const properties = page.getByTestId("text-properties");
 		await expect(properties).toBeVisible();
-		await properties.getByLabel("Apply Yellow pop text preset").click();
-		await properties.getByRole("button", { name: "Animation" }).click();
-		await properties.getByRole("button", { name: "slide up" }).click();
-		await properties.getByRole("button", { name: "Keyframes" }).click();
-		await properties
-			.getByRole("button", {
-				name: "Add keyframe at current frame",
-				exact: true,
-			})
-			.click();
-		await expect(properties.getByText("(1 keyframe)")).toBeVisible();
+		await properties.getByTestId("text-animation-group-toggle").click();
 		const stateDir = path.join(editorOutputDir, "state");
 		await rm(stateDir, { recursive: true, force: true });
 		await mkdir(stateDir, { recursive: true });
+		const animationPanel = properties.getByTestId("text-animation-properties");
+		await animationPanel.screenshot({
+			path: path.join(stateDir, "text-animation-entrance-presets.png"),
+			animations: "disabled",
+		});
+		const slideUpPreset = properties.getByTestId(
+			"text-animation-card-entrance-slide-up"
+		);
+		await expect(slideUpPreset).toBeVisible();
+		await slideUpPreset.click();
+		await expect(slideUpPreset).toHaveAttribute("data-state", "on");
+		await animationPanel.getByTestId("text-animation-phase-exit").click();
+		await animationPanel.screenshot({
+			path: path.join(stateDir, "text-animation-exit-presets.png"),
+			animations: "disabled",
+		});
+		await animationPanel.getByTestId("text-animation-phase-loop").click();
+		await animationPanel.screenshot({
+			path: path.join(stateDir, "text-animation-loop-presets.png"),
+			animations: "disabled",
+		});
+		await properties.getByTestId("text-keyframes-group-toggle").click();
+		await properties.getByTestId("keyframe-add-current").click();
+		await expect(properties.getByTestId("keyframe-count")).toContainText("1");
 		await properties.screenshot({
 			path: path.join(
 				stateDir,

@@ -38,4 +38,15 @@ describe("wrapTextForBox", () => {
 			})
 		).toEqual(["AB", "CD"]);
 	});
+
+	it("never splits a joined emoji grapheme while wrapping", () => {
+		expect(
+			wrapTextForBox({
+				ctx,
+				text: "👨‍👩‍👧‍👦A",
+				maxWidth: 15,
+				letterSpacing: 0,
+			})
+		).toEqual(["👨‍👩‍👧‍👦", "A"]);
+	});
 });
