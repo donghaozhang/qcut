@@ -35,6 +35,7 @@ import {
 	type PreparedVisualLayer,
 } from "./ffmpeg/visual-layer-compositor";
 import { appendStickerInputArgs } from "./ffmpeg-sticker-input";
+import { buildStickerFilterGraph } from "./ffmpeg/sticker-filter-graph";
 
 /**
  * Object options for FFmpeg arg generation.
@@ -445,38 +446,14 @@ function buildCanonicalVisualFilters({
 	const stickerInputStartIndex = baseInputCount + images.length;
 	for (const [index, sticker] of stickers.entries()) {
 		const stickerInputIndex = stickerInputStartIndex + index;
-		const scaledLabel = `visual_sticker_scaled_${index}`;
-		let preparedLabel = scaledLabel;
-		if (sticker.maintainAspectRatio) {
-			const paddedLabel = `visual_sticker_padded_${index}`;
-			filterSteps.push(
-				`[${stickerInputIndex}:v]scale=${sticker.width}:${sticker.height}:force_original_aspect_ratio=decrease[${scaledLabel}]`
-			);
-			filterSteps.push(
-				`[${scaledLabel}]pad=${sticker.width}:${sticker.height}:(ow-iw)/2:(oh-ih)/2:color=0x00000000[${paddedLabel}]`
-			);
-			preparedLabel = paddedLabel;
-		} else {
-			filterSteps.push(
-				`[${stickerInputIndex}:v]scale=${sticker.width}:${sticker.height}[${scaledLabel}]`
-			);
-		}
-		if ((sticker.rotation ?? 0) !== 0) {
-			const rotatedLabel = `visual_sticker_rotated_${index}`;
-			filterSteps.push(
-				`[${preparedLabel}]rotate=${sticker.rotation}*PI/180:c=none[${rotatedLabel}]`
-			);
-			preparedLabel = rotatedLabel;
-		}
-		if ((sticker.opacity ?? 1) < 1) {
-			const alphaLabel = `visual_sticker_alpha_${index}`;
-			filterSteps.push(
-				`[${preparedLabel}]format=rgba,geq=r='r(X,Y)':g='g(X,Y)':b='b(X,Y)':a='${sticker.opacity}*alpha(X,Y)'[${alphaLabel}]`
-			);
-			preparedLabel = alphaLabel;
-		}
+		const graph = buildStickerFilterGraph({
+			inputLabel: `${stickerInputIndex}:v`,
+			sticker,
+			labelPrefix: `visual_sticker_${index}`,
+		});
+		filterSteps.push(...graph.filterSteps);
 		layers.push({
-			inputLabel: preparedLabel,
+			inputLabel: graph.inputLabel,
 			kind: "sticker",
 			trackOrder: sticker.trackOrder,
 			elementOrder: sticker.elementOrder,
@@ -485,8 +462,8 @@ function buildCanonicalVisualFilters({
 			blendMode: "normal",
 			startTime: sticker.startTime,
 			endTime: sticker.endTime,
-			x: sticker.x,
-			y: sticker.y,
+			x: graph.x,
+			y: graph.y,
 		});
 	}
 
@@ -788,50 +765,21 @@ function buildCompositeEncodeArgs(
 		const stickerInputStartIndex = baseInputCount + validImages.length;
 		for (const [index, sticker] of validStickers.entries()) {
 			const stickerInputIndex = stickerInputStartIndex + index;
-			const scaledLabel = `sticker_scaled_${index}`;
-			let preparedLabel = scaledLabel;
-
-			if (sticker.maintainAspectRatio) {
-				// Preserve aspect ratio: scale to fit within target box, then pad with transparent pixels
-				const padLabel = `sticker_pad_${index}`;
-				filterSteps.push(
-					`[${stickerInputIndex}:v]scale=${sticker.width}:${sticker.height}:force_original_aspect_ratio=decrease[${scaledLabel}]`
-				);
-				filterSteps.push(
-					`[${scaledLabel}]pad=${sticker.width}:${sticker.height}:(ow-iw)/2:(oh-ih)/2:color=0x00000000[${padLabel}]`
-				);
-				preparedLabel = padLabel;
-			} else {
-				filterSteps.push(
-					`[${stickerInputIndex}:v]scale=${sticker.width}:${sticker.height}[${scaledLabel}]`
-				);
-			}
-
-			if ((sticker.rotation ?? 0) !== 0) {
-				const rotatedLabel = `sticker_rotated_${index}`;
-				filterSteps.push(
-					`[${preparedLabel}]rotate=${sticker.rotation}*PI/180:c=none[${rotatedLabel}]`
-				);
-				preparedLabel = rotatedLabel;
-			}
-
-			let stickerOverlayInputLabel = preparedLabel;
-			if ((sticker.opacity ?? 1) < 1) {
-				const alphaLabel = `sticker_alpha_${index}`;
-				filterSteps.push(
-					`[${preparedLabel}]format=rgba,geq=r='r(X,Y)':g='g(X,Y)':b='b(X,Y)':a='${sticker.opacity}*alpha(X,Y)'[${alphaLabel}]`
-				);
-				stickerOverlayInputLabel = alphaLabel;
-			}
+			const graph = buildStickerFilterGraph({
+				inputLabel: `${stickerInputIndex}:v`,
+				sticker,
+				labelPrefix: `legacy_sticker_${index}`,
+			});
+			filterSteps.push(...graph.filterSteps);
 
 			const outputLabel = `v_sticker_${filterLabelIndex++}`;
 			const overlayParams = [
-				`x=${sticker.x}`,
-				`y=${sticker.y}`,
+				`x=${graph.x}`,
+				`y=${graph.y}`,
 				`enable='between(t,${sticker.startTime},${sticker.endTime})'`,
 			];
 			filterSteps.push(
-				`[${currentVideoLabel}][${stickerOverlayInputLabel}]overlay=${overlayParams.join(":")}[${outputLabel}]`
+				`[${currentVideoLabel}][${graph.inputLabel}]overlay=${overlayParams.join(":")}[${outputLabel}]`
 			);
 			currentVideoLabel = outputLabel;
 		}
