@@ -66,7 +66,7 @@ import type { TrackType } from "@/types/timeline";
 import { CloudTaskCenter } from "@/components/editor/cloud-task-center";
 import { TrackIcon } from "./track-icon";
 import { useTranslation } from "@/lib/i18n";
-import { createPastedTimelineElement } from "@/stores/timeline/timeline-clipboard-store";
+import { createDuplicatedTimelineElement } from "@/stores/timeline/timeline-clipboard-store";
 import {
 	localizeSceneName,
 	localizeTrackTypeName,
@@ -127,6 +127,7 @@ export function TimelineToolbar({
 	const toggle = usePlaybackStore((s) => s.toggle);
 	const toggleBookmark = useProjectStore((s) => s.toggleBookmark);
 	const isBookmarked = useProjectStore((s) => s.isBookmarked);
+	const projectFps = useProjectStore((s) => s.activeProject?.fps ?? 30);
 	const { scenes, currentScene } = useSceneStore();
 	const { withShortcut } = useActionShortcutLabels();
 	const currentSceneName = localizeSceneName({
@@ -201,16 +202,15 @@ export function TimelineToolbar({
 			const track = tracks.find((t) => t.id === trackId);
 			const element = track?.elements.find((el) => el.id === elementId);
 			if (element && track) {
-				const newStartTime = getTimelineElementEndTime({ element }) + 0.1;
 				addElementToTrack(
 					trackId,
-					createPastedTimelineElement({
+					createDuplicatedTimelineElement({
 						entry: {
 							trackId,
 							trackType: track.type,
 							element,
 						},
-						startTime: newStartTime,
+						fps: projectFps,
 					})
 				);
 			}
