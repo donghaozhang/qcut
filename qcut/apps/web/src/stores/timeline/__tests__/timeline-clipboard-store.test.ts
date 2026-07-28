@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it } from "vitest";
-import type { MediaElement } from "@/types/timeline";
+import type { MediaElement, StickerElement } from "@/types/timeline";
 import {
 	createMediaAttributeSnapshot,
 	createPastedTimelineElement,
@@ -75,5 +75,34 @@ describe("timeline clipboard", () => {
 		expect(pasted.trimStart).toBe(2);
 		expect(pasted.trimEnd).toBe(3);
 		expect(pasted.name).toBe("Source (copy)");
+	});
+
+	it("gives a pasted sticker an independent instance identity", () => {
+		const source: StickerElement = {
+			id: "sticker-element",
+			type: "sticker",
+			stickerId: "sticker-source",
+			mediaId: "media-sticker",
+			name: "Sticker",
+			startTime: 4,
+			duration: 5,
+			trimStart: 0,
+			trimEnd: 0,
+		};
+
+		const pasted = createPastedTimelineElement({
+			entry: {
+				trackId: "sticker-track",
+				trackType: "sticker",
+				element: source,
+			},
+			startTime: 12,
+		});
+
+		expect(pasted.type).toBe("sticker");
+		expect(pasted).not.toHaveProperty("id");
+		if (pasted.type !== "sticker") return;
+		expect(pasted.stickerId).not.toBe(source.stickerId);
+		expect(pasted.mediaId).toBe(source.mediaId);
 	});
 });
