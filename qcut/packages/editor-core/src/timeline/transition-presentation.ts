@@ -128,6 +128,18 @@ function stackedLayerOpacity({
 	return role === "from" ? 1 : progress;
 }
 
+function pageFlipOpacity({
+	role,
+	progress,
+}: {
+	role: ClipTransitionRole;
+	progress: number;
+}): number {
+	if (role === "from" && progress >= 0.999) return 0;
+	if (role === "to" && progress <= 0.001) return 0;
+	return 1;
+}
+
 function maskVisibility({
 	role,
 	progress,
@@ -796,8 +808,7 @@ export function getClipTransitionLayerPresentation({
 					role,
 					progress: eased,
 				}),
-				opacity:
-					role === "from" ? (eased >= 0.999 ? 0 : 1) : eased <= 0.001 ? 0 : 1,
+				opacity: pageFlipOpacity({ role, progress: eased }),
 				brightness: 1 - peak * 0.28 * tuning.intensity,
 				overlayBackground:
 					"linear-gradient(90deg, rgba(0,0,0,0.5), transparent 18%, transparent 82%, rgba(255,255,255,0.28))",
