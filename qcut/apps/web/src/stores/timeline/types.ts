@@ -112,6 +112,7 @@ export interface OperationContext {
 	getTracks: () => TimelineTrack[];
 	getSelectedElements: () => SelectedElement[];
 	isRippleEnabled: () => boolean;
+	getProjectFps: () => number;
 
 	// State mutation
 	updateTracks: (tracks: TimelineTrack[]) => void;
@@ -539,6 +540,15 @@ export interface TimelineStore {
 				| "rotation"
 				| "opacity"
 				| "maintainAspectRatio"
+				| "perspective"
+				| "animationInType"
+				| "animationInDuration"
+				| "animationOutType"
+				| "animationOutDuration"
+				| "animationLoopType"
+				| "animationLoopIntensity"
+				| "keyframes"
+				| "tracking"
 				| "zIndex"
 			>
 		>,
