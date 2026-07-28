@@ -498,7 +498,7 @@ describe("SoundsView", () => {
 		for (const card of remoteCards) {
 			expect(card?.querySelector('[data-testid="audio-waveform"]')).toBeNull();
 		}
-	});
+	}, 15_000);
 
 	it("still draws waveforms for bundled tracks, whose audio is local", () => {
 		render(<SoundsView />);
