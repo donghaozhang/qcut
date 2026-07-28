@@ -40,6 +40,28 @@ function keyframe({
 	return { id, frame, value, easing };
 }
 
+function maximumIfDepth({ expression }: { expression: string }): number {
+	const parentheses: boolean[] = [];
+	let currentDepth = 0;
+	let maximumDepth = 0;
+	for (let index = 0; index < expression.length; index += 1) {
+		if (expression.slice(index, index + 3) === "if(") {
+			parentheses.push(true);
+			currentDepth += 1;
+			maximumDepth = Math.max(maximumDepth, currentDepth);
+			index += 2;
+			continue;
+		}
+		if (expression[index] === "(") {
+			parentheses.push(false);
+			continue;
+		}
+		if (expression[index] !== ")") continue;
+		if (parentheses.pop()) currentDepth -= 1;
+	}
+	return maximumDepth;
+}
+
 describe("sticker filter graph", () => {
 	it("keeps static stickers centered after preparation", () => {
 		const graph = buildStickerFilterGraph({
@@ -567,5 +589,29 @@ describe("sticker filter graph", () => {
 			expect(graph.x).toContain(marker);
 			expect(graph.x.length).toBeLessThan(1_000);
 		}
+	});
+
+	it("balances dense tracking-style linear expressions", () => {
+		const graph = buildStickerFilterGraph({
+			inputLabel: "1:v",
+			sticker: stickerSource({
+				overrides: {
+					keyframeFps: 30,
+					endTime: 62,
+					keyframes: {
+						x: Array.from({ length: 1_801 }, (_, frame) =>
+							keyframe({
+								frame,
+								value: 40 + Math.sin(frame / 10) * 5,
+							})
+						),
+					},
+				},
+			}),
+			labelPrefix: "sticker_dense_tracking",
+		});
+
+		expect(graph.x).toContain("30.033333");
+		expect(maximumIfDepth({ expression: graph.x })).toBeLessThan(16);
 	});
 });
