@@ -36,7 +36,13 @@ export interface BuildCompositionPlanOptions {
 	currentTime?: number;
 	includeHidden?: boolean;
 	forceActiveElementIds?: ReadonlySet<string>;
+	activeTransitionIds?: ReadonlySet<string>;
 	getElementDuration?: (context: CompositionDurationContext) => number;
+}
+
+interface IndexedTimelineElement {
+	element: TimelineElement;
+	elementOrder: number;
 }
 
 function isElementActive({
@@ -61,6 +67,52 @@ function isElementActive({
 	);
 }
 
+function groupActiveTransitionElements({
+	track,
+	activeTrackElements,
+	activeTransitionIds,
+}: {
+	track: TimelineTrack;
+	activeTrackElements: IndexedTimelineElement[];
+	activeTransitionIds: ReadonlySet<string> | undefined;
+}): IndexedTimelineElement[] {
+	if (
+		track.type !== "media" ||
+		!track.transitions?.length ||
+		!activeTransitionIds?.size
+	) {
+		return activeTrackElements;
+	}
+
+	const orderedElements = [...activeTrackElements];
+	for (const transition of track.transitions) {
+		if (!activeTransitionIds.has(transition.id)) continue;
+
+		const outgoingIndex = orderedElements.findIndex(
+			({ element }) => element.id === transition.fromElementId
+		);
+		const incomingIndex = orderedElements.findIndex(
+			({ element }) => element.id === transition.toElementId
+		);
+		if (
+			outgoingIndex < 0 ||
+			incomingIndex < 0 ||
+			incomingIndex === outgoingIndex + 1
+		) {
+			continue;
+		}
+
+		// Native export anchors the combined transition run at the outgoing layer.
+		const [incoming] = orderedElements.splice(incomingIndex, 1);
+		const updatedOutgoingIndex = orderedElements.findIndex(
+			({ element }) => element.id === transition.fromElementId
+		);
+		orderedElements.splice(updatedOutgoingIndex + 1, 0, incoming);
+	}
+
+	return orderedElements;
+}
+
 /**
  * Build the canonical layer plan shared by preview and export renderers.
  * UI order is top-to-bottom; visual draw order is deliberately reversed.
@@ -70,6 +122,7 @@ export function buildCompositionPlan({
 	currentTime,
 	includeHidden = false,
 	forceActiveElementIds,
+	activeTransitionIds,
 	getElementDuration = ({ element }) => getEffectiveDuration(element),
 }: BuildCompositionPlanOptions): CompositionPlan {
 	const orderedTracks = normalizeTrackOrder({ tracks });
@@ -116,23 +169,22 @@ export function buildCompositionPlan({
 		const trackOrder = orderedTracks.findIndex(
 			(candidate) => candidate.id === track.id
 		);
-		const activeTrackElements = track.elements
-			.map((element, elementOrder) => ({ element, elementOrder }))
-			.filter(({ element }) => {
-				if (!includeHidden && element.hidden) return false;
-				return isElementActive({
-					element,
-					track,
-					currentTime,
-					getElementDuration,
-					forceActiveElementIds,
-				});
-			})
-			.sort(
-				(a, b) =>
-					a.element.startTime - b.element.startTime ||
-					a.elementOrder - b.elementOrder
-			);
+		const activeTrackElements = groupActiveTransitionElements({
+			track,
+			activeTransitionIds,
+			activeTrackElements: track.elements
+				.map((element, elementOrder) => ({ element, elementOrder }))
+				.filter(({ element }) => {
+					if (!includeHidden && element.hidden) return false;
+					return isElementActive({
+						element,
+						track,
+						currentTime,
+						getElementDuration,
+						forceActiveElementIds,
+					});
+				}),
+		});
 
 		for (const { element, elementOrder } of activeTrackElements) {
 			visualLayers.push({

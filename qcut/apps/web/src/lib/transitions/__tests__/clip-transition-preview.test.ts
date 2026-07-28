@@ -55,6 +55,7 @@ describe("active clip transition preview", () => {
 			fps: 30,
 		});
 
+		expect([...result.activeTransitionIds]).toEqual(["ab"]);
 		expect([...result.forceActiveElementIds]).toEqual(["a", "b"]);
 		const outgoing = result.statesByElementId.get("a");
 		expect(outgoing).toMatchObject({
@@ -87,6 +88,7 @@ describe("active clip transition preview", () => {
 			fps: 30,
 		});
 
+		expect(result.activeTransitionIds.size).toBe(0);
 		expect(result.forceActiveElementIds.size).toBe(0);
 		expect(result.statesByElementId.size).toBe(0);
 	});

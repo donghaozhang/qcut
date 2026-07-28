@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { buildCompositionPlan } from "../timeline/composition-plan.js";
 import type {
+	ClipTransition,
 	MediaElement,
 	TextElement,
 	TimelineElement,
@@ -64,20 +65,40 @@ function createMediaElement({
 	};
 }
 
+function createTransition({
+	fromElementId,
+	toElementId,
+}: {
+	fromElementId: string;
+	toElementId: string;
+}): ClipTransition {
+	return {
+		id: `${fromElementId}-${toElementId}`,
+		fromElementId,
+		toElementId,
+		presetId: "dissolve",
+		type: "dissolve",
+		duration: 0.6,
+		easing: "linear",
+	};
+}
+
 function createTrack({
 	id,
 	order,
 	type = "text",
 	elements,
+	transitions,
 	hidden = false,
 }: {
 	id: string;
 	order: number;
 	type?: TimelineTrack["type"];
 	elements: TimelineElement[];
+	transitions?: ClipTransition[];
 	hidden?: boolean;
 }): TimelineTrack {
-	return { id, name: id, type, order, elements, hidden };
+	return { id, name: id, type, order, elements, transitions, hidden };
 }
 
 describe("buildCompositionPlan", () => {
@@ -111,7 +132,41 @@ describe("buildCompositionPlan", () => {
 		]);
 	});
 
-	it("draws the incoming transition clip above the outgoing clip regardless of storage order", () => {
+	it("preserves storage order for ordinary overlapping elements", () => {
+		const later = createMediaElement({
+			id: "later",
+			startTime: 1,
+			duration: 3,
+		});
+		const earlier = createMediaElement({
+			id: "earlier",
+			startTime: 0,
+			duration: 3,
+		});
+		const track = createTrack({
+			id: "media-track",
+			order: 0,
+			type: "media",
+			elements: [later, earlier],
+		});
+
+		const plan = buildCompositionPlan({
+			tracks: [track],
+			currentTime: 1.5,
+		});
+
+		expect(
+			plan.visualLayers.map(({ element: item, elementOrder }) => ({
+				id: item.id,
+				elementOrder,
+			}))
+		).toEqual([
+			{ id: "later", elementOrder: 0 },
+			{ id: "earlier", elementOrder: 1 },
+		]);
+	});
+
+	it("preserves storage order outside an attached transition window", () => {
 		const outgoing = createMediaElement({
 			id: "outgoing",
 			startTime: 0,
@@ -127,12 +182,60 @@ describe("buildCompositionPlan", () => {
 			order: 0,
 			type: "media",
 			elements: [incoming, outgoing],
+			transitions: [
+				createTransition({
+					fromElementId: outgoing.id,
+					toElementId: incoming.id,
+				}),
+			],
+		});
+
+		const plan = buildCompositionPlan({
+			tracks: [track],
+			currentTime: 0.2,
+			forceActiveElementIds: new Set(["incoming"]),
+		});
+
+		expect(plan.visualLayers.map(({ element: item }) => item.id)).toEqual([
+			"incoming",
+			"outgoing",
+		]);
+	});
+
+	it("groups an active transition at the outgoing clip layer position", () => {
+		const outgoing = createMediaElement({
+			id: "outgoing",
+			startTime: 0,
+			duration: 2,
+		});
+		const incoming = createMediaElement({
+			id: "incoming",
+			startTime: 2,
+			duration: 2,
+		});
+		const ordinaryOverlap = createMediaElement({
+			id: "a-ordinary-overlap",
+			startTime: 0,
+			duration: 5,
+		});
+		const track = createTrack({
+			id: "media-track",
+			order: 0,
+			type: "media",
+			elements: [incoming, outgoing, ordinaryOverlap],
+			transitions: [
+				createTransition({
+					fromElementId: outgoing.id,
+					toElementId: incoming.id,
+				}),
+			],
 		});
 
 		const plan = buildCompositionPlan({
 			tracks: [track],
 			currentTime: 1.8,
 			forceActiveElementIds: new Set(["incoming"]),
+			activeTransitionIds: new Set(["outgoing-incoming"]),
 		});
 
 		expect(
@@ -143,6 +246,7 @@ describe("buildCompositionPlan", () => {
 		).toEqual([
 			{ id: "outgoing", elementOrder: 1 },
 			{ id: "incoming", elementOrder: 0 },
+			{ id: "a-ordinary-overlap", elementOrder: 2 },
 		]);
 	});
 

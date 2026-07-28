@@ -422,6 +422,7 @@ export function PreviewPanel() {
 				tracks: renderTracks,
 				currentTime: effectiveTime,
 				forceActiveElementIds: forcedActiveElementIds,
+				activeTransitionIds: activeTransitionPreview.activeTransitionIds,
 				getElementDuration: ({ element }) => getPreviewElementDuration(element),
 			});
 			const layers = [...plan.visualLayers, ...plan.audioElements];
@@ -438,6 +439,7 @@ export function PreviewPanel() {
 		}
 	}, [
 		forcedActiveElementIds,
+		activeTransitionPreview.activeTransitionIds,
 		renderTracks,
 		currentTime,
 		playbackTime,
