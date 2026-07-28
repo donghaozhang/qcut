@@ -84,10 +84,12 @@ function activeVideo({
 function hookProps({
 	enabled = true,
 	currentTime = 0.4,
+	fps = 30,
 	tracks,
 }: {
 	enabled?: boolean;
 	currentTime?: number;
+	fps?: number;
 	tracks?: TimelineTrack[];
 } = {}) {
 	return {
@@ -106,9 +108,38 @@ function hookProps({
 		totalDuration: 5,
 		width: 1920,
 		height: 1080,
-		fps: 30,
+		fps,
 		backgroundColor: "#101010",
 	};
+}
+
+function tracksWithSticker(): TimelineTrack[] {
+	return [
+		{
+			id: "track-1",
+			name: "Main",
+			type: "media",
+			elements: [mediaElement()],
+		},
+		{
+			id: "sticker-track",
+			name: "Stickers",
+			type: "sticker",
+			elements: [
+				{
+					id: "sticker-element",
+					type: "sticker",
+					name: "Sticker",
+					stickerId: "sticker-1",
+					mediaId: "sticker-media",
+					startTime: 0,
+					duration: 5,
+					trimStart: 0,
+					trimEnd: 0,
+				},
+			],
+		},
+	];
 }
 
 describe("native composition frame preview", () => {
@@ -263,32 +294,7 @@ describe("native composition frame preview", () => {
 	});
 
 	it("reuses export text and sticker sources and cleans its temp session", async () => {
-		const tracks = [
-			{
-				id: "track-1",
-				name: "Main",
-				type: "media" as const,
-				elements: [mediaElement()],
-			},
-			{
-				id: "sticker-track",
-				name: "Stickers",
-				type: "sticker" as const,
-				elements: [
-					{
-						id: "sticker-element",
-						type: "sticker" as const,
-						name: "Sticker",
-						stickerId: "sticker-1",
-						mediaId: "sticker-media",
-						startTime: 0,
-						duration: 5,
-						trimStart: 0,
-						trimEnd: 0,
-					},
-				],
-			},
-		] as TimelineTrack[];
+		const tracks = tracksWithSticker();
 		vi.mocked(extractStickerSources).mockResolvedValue([
 			{
 				id: "sticker-1",
@@ -319,6 +325,7 @@ describe("native composition frame preview", () => {
 		);
 		await waitFor(() => expect(result.current.status).toBe("ready"));
 		expect(createExportSession).toHaveBeenCalledTimes(1);
+		expect(vi.mocked(extractStickerSources).mock.calls[0]?.[8]).toBe(30);
 		expect(renderVideoCompositionFramePreview).toHaveBeenCalledWith(
 			expect.objectContaining({
 				stickerSources: [expect.objectContaining({ id: "sticker-1" })],
@@ -329,6 +336,43 @@ describe("native composition frame preview", () => {
 		await waitFor(() =>
 			expect(cleanupExportSession).toHaveBeenCalledWith("preview-session")
 		);
+	});
+
+	it("extracts sticker sources using a non-30 project frame rate", async () => {
+		const props = hookProps({ tracks: tracksWithSticker(), fps: 24 });
+		const { result } = renderHook(() =>
+			useNativeCompositionFramePreview(props)
+		);
+
+		await waitFor(() => expect(result.current.status).toBe("ready"));
+		expect(vi.mocked(extractStickerSources).mock.calls[0]?.[8]).toBe(24);
+		expect(renderVideoCompositionFramePreview).toHaveBeenCalledWith(
+			expect.objectContaining({ fps: 24 })
+		);
+	});
+
+	it("invalidates cached sticker sources when the project frame rate changes", async () => {
+		const props = hookProps({ tracks: tracksWithSticker(), fps: 24 });
+		const { rerender } = renderHook(
+			({ fps }) =>
+				useNativeCompositionFramePreview({
+					...props,
+					fps,
+				}),
+			{ initialProps: { fps: 24 } }
+		);
+		await waitFor(() =>
+			expect(vi.mocked(extractStickerSources)).toHaveBeenCalledTimes(1)
+		);
+
+		rerender({ fps: 60 });
+		await waitFor(() =>
+			expect(vi.mocked(extractStickerSources)).toHaveBeenCalledTimes(2)
+		);
+		expect(
+			vi.mocked(extractStickerSources).mock.calls.map((call) => call[8])
+		).toEqual([24, 60]);
+		expect(createExportSession).toHaveBeenCalledTimes(1);
 	});
 
 	it("cancels stale work when the playhead changes", async () => {
