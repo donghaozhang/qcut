@@ -6,6 +6,7 @@ import type {
 } from "@/types/timeline";
 import {
 	buildStickerTrackingExportKeyframes,
+	StickerTrackingExportDataError,
 	StickerTrackingExportLimitError,
 } from "../sticker-tracking-export";
 
@@ -255,5 +256,34 @@ describe("sticker tracking export keyframes", () => {
 		).toThrowError(
 			/sticker-element needs 2,400,001 tracking samples.*18,001 sample export limit/
 		);
+	});
+
+	it("fails explicitly when ready tracking data is non-finite", () => {
+		const element = sticker({ followScale: false });
+		const target = media();
+		const mask = target.masks?.[0];
+		if (!mask?.keyframes) throw new Error("Expected tracked mask fixture");
+		mask.keyframes.centerX = [
+			{ id: "invalid-x", frame: 0, value: Number.NaN, easing: "linear" },
+		];
+
+		expect(() =>
+			buildStickerTrackingExportKeyframes({
+				element,
+				tracks: tracks({ element, target }),
+				fps: 30,
+				canvasWidth: 1920,
+				canvasHeight: 1080,
+			})
+		).toThrowError(StickerTrackingExportDataError);
+		expect(() =>
+			buildStickerTrackingExportKeyframes({
+				element,
+				tracks: tracks({ element, target }),
+				fps: 30,
+				canvasWidth: 1920,
+				canvasHeight: 1080,
+			})
+		).toThrowError(/invalid x=NaN at export frame 30/);
 	});
 });
