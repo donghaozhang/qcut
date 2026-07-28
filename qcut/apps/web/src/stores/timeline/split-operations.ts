@@ -11,6 +11,10 @@ import type { OperationContext } from "./types";
 import { getElementNameWithSuffix, createTrack } from "./utils";
 import { getTimelineElementEndTime } from "@/lib/timeline";
 import { getTimelineSplitUpdates } from "./timeline-split-utils";
+import {
+	assignNewStickerInstanceId,
+	createStickerInstanceId,
+} from "@/lib/stickers/sticker-instance";
 
 /**
  * Result of a split operation
@@ -18,6 +22,10 @@ import { getTimelineSplitUpdates } from "./timeline-split-utils";
 export interface SplitResult {
 	/** ID of the newly created second element, or null if split failed */
 	secondElementId: string | null;
+}
+
+function getSplitOperationFps({ ctx }: { ctx: OperationContext }): number {
+	return ctx.getProjectFps();
 }
 
 /**
@@ -61,7 +69,11 @@ function splitElementOperationNoHistory(
 	if (splitTime <= effectiveStart || splitTime >= effectiveEnd) return null;
 
 	const secondElementId = generateUUID();
-	const splitUpdates = getTimelineSplitUpdates({ element, splitTime });
+	const splitUpdates = getTimelineSplitUpdates({
+		element,
+		splitTime,
+		fps: getSplitOperationFps({ ctx }),
+	});
 
 	const leftPart = {
 		...element,
@@ -69,13 +81,16 @@ function splitElementOperationNoHistory(
 		name: getElementNameWithSuffix(element.name, "left"),
 	};
 
-	const rightPart = {
-		...element,
-		id: secondElementId,
-		startTime: splitTime,
-		...splitUpdates.right,
-		name: getElementNameWithSuffix(element.name, "right"),
-	};
+	const rightPart = assignNewStickerInstanceId({
+		element: {
+			...element,
+			id: secondElementId,
+			startTime: splitTime,
+			...splitUpdates.right,
+			name: getElementNameWithSuffix(element.name, "right"),
+		},
+		newStickerId: createStickerInstanceId(),
+	});
 
 	ctx.updateTracksAndSave(
 		tracks.map((t) =>
@@ -120,7 +135,11 @@ export function splitAndKeepLeftOperation(
 
 	ctx.pushHistory();
 
-	const splitUpdates = getTimelineSplitUpdates({ element, splitTime });
+	const splitUpdates = getTimelineSplitUpdates({
+		element,
+		splitTime,
+		fps: getSplitOperationFps({ ctx }),
+	});
 
 	ctx.updateTracksAndSave(
 		tracks.map((t) =>
@@ -169,7 +188,11 @@ export function splitAndKeepRightOperation(
 
 	ctx.pushHistory();
 
-	const splitUpdates = getTimelineSplitUpdates({ element, splitTime });
+	const splitUpdates = getTimelineSplitUpdates({
+		element,
+		splitTime,
+		fps: getSplitOperationFps({ ctx }),
+	});
 
 	ctx.updateTracksAndSave(
 		tracks.map((t) =>

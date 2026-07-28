@@ -17,6 +17,10 @@ import type {
 	StoreSet,
 } from "./timeline-store-operations";
 import { getTimelineSplitUpdates } from "./timeline-split-utils";
+import {
+	assignNewStickerInstanceId,
+	createStickerInstanceId,
+} from "@/lib/stickers/sticker-instance";
 
 interface TimelineRange {
 	startTime: number;
@@ -52,12 +56,14 @@ function applyDeleteTimeRangeToTracks({
 	endTime,
 	targetTrackIds,
 	rippleTrackIds,
+	fps,
 }: {
 	tracks: TimelineTrack[];
 	startTime: number;
 	endTime: number;
 	targetTrackIds: Set<string>;
 	rippleTrackIds: Set<string>;
+	fps: number;
 }): RangeDeletionResult {
 	let deletedElements = 0;
 	let splitElements = 0;
@@ -94,6 +100,7 @@ function applyDeleteTimeRangeToTracks({
 				const splitUpdates = getTimelineSplitUpdates({
 					element,
 					splitTime: startTime,
+					fps,
 				});
 				nextElements.push({
 					...element,
@@ -111,6 +118,7 @@ function applyDeleteTimeRangeToTracks({
 				const splitUpdates = getTimelineSplitUpdates({
 					element,
 					splitTime: endTime,
+					fps,
 				});
 				nextElements.push({
 					...element,
@@ -126,22 +134,29 @@ function applyDeleteTimeRangeToTracks({
 				const leftSplitUpdates = getTimelineSplitUpdates({
 					element,
 					splitTime: startTime,
+					fps,
 				});
 				const rightSplitUpdates = getTimelineSplitUpdates({
 					element,
 					splitTime: endTime,
+					fps,
 				});
 
 				nextElements.push({
 					...element,
 					...leftSplitUpdates.left,
 				});
-				nextElements.push({
-					...element,
-					id: generateUUID(),
-					startTime: endTime,
-					...rightSplitUpdates.right,
-				});
+				nextElements.push(
+					assignNewStickerInstanceId({
+						element: {
+							...element,
+							id: generateUUID(),
+							startTime: endTime,
+							...rightSplitUpdates.right,
+						},
+						newStickerId: createStickerInstanceId(),
+					})
+				);
 				continue;
 			}
 
@@ -187,7 +202,7 @@ export function createTrackOps(
 	_set: StoreSet,
 	deps: OperationDeps
 ) {
-	const { updateTracksAndSave } = deps;
+	const { getProjectFps, updateTracksAndSave } = deps;
 
 	return {
 		removeTrack: (trackId: string) => {
@@ -483,6 +498,7 @@ export function createTrackOps(
 						endTime: range.endTime,
 						targetTrackIds: selectedTrackIds,
 						rippleTrackIds: trackIds,
+						fps: getProjectFps(),
 					});
 					workingTracks = result.tracks;
 					deletedElements += result.deletedElements;
@@ -563,6 +579,7 @@ export function createTrackOps(
 					endTime: clampedEndTime,
 					targetTrackIds,
 					rippleTrackIds,
+					fps: getProjectFps(),
 				});
 
 				updateTracksAndSave(result.tracks);
