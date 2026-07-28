@@ -1,6 +1,7 @@
 import { beforeEach, describe, expect, it } from "vitest";
 import type { MediaElement, StickerElement } from "@/types/timeline";
 import {
+	createDuplicatedTimelineElement,
 	createMediaAttributeSnapshot,
 	createPastedTimelineElement,
 	useTimelineClipboardStore,
@@ -104,5 +105,27 @@ describe("timeline clipboard", () => {
 		if (pasted.type !== "sticker") return;
 		expect(pasted.stickerId).not.toBe(source.stickerId);
 		expect(pasted.mediaId).toBe(source.mediaId);
+	});
+
+	it("positions a duplicate using the project frame rate", () => {
+		const element = mediaElement({
+			duration: 2,
+			trimStart: 0,
+			trimEnd: 0,
+			speedKeyframes: [
+				{ id: "speed-start", frame: 0, value: 1, easing: "linear" },
+				{ id: "speed-end", frame: 60, value: 2, easing: "linear" },
+			],
+		});
+		const duplicate = createDuplicatedTimelineElement({
+			entry: {
+				trackId: "track-1",
+				trackType: "media",
+				element,
+			},
+			fps: 60,
+		});
+
+		expect(duplicate.startTime).toBeCloseTo(5.292_930_495);
 	});
 });
