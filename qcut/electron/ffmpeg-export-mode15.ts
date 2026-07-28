@@ -23,6 +23,11 @@ import type {
 import { parseProgress, getFFprobePath, normalizeVideo } from "./ffmpeg/utils";
 import { buildTimelineAudioFilters } from "./ffmpeg/audio-filter-graph";
 import { appendStickerInputArgs } from "./ffmpeg-sticker-input";
+import { prepareFFmpegFilterComplexScripts } from "./ffmpeg/filter-complex-script";
+import {
+	completeFFmpegPassOutput,
+	restoreFFmpegPassInput,
+} from "./ffmpeg/pass-input-restore";
 import { buildStickerFilterGraph } from "./ffmpeg/sticker-filter-graph";
 
 import type { IpcMainInvokeEvent } from "electron";
@@ -264,6 +269,30 @@ export async function handleMode1_5(
  * Mixes overlay audio files into the concatenated video output.
  * Uses adelay for per-file timing and amix for multiple audio streams.
  */
+function errorMessage({ error }: { error: unknown }): string {
+	return error instanceof Error ? error.message : String(error);
+}
+
+function restoreMode15PassOrThrow({
+	temporaryInput,
+	outputFile,
+	passName,
+	failure,
+}: {
+	temporaryInput: string;
+	outputFile: string;
+	passName: string;
+	failure: unknown;
+}): void {
+	try {
+		restoreFFmpegPassInput({ temporaryInput, outputFile });
+	} catch (restoreError) {
+		throw new Error(
+			`${passName} failed: ${errorMessage({ error: failure })}; original output restore failed: ${errorMessage({ error: restoreError })}`
+		);
+	}
+}
+
 async function mixOverlayAudio(
 	ffmpegPath: string,
 	frameDir: string,
@@ -279,136 +308,161 @@ async function mixOverlayAudio(
 	// Rename current output to temp so we can mix into final output
 	fs.renameSync(outputFile, concatOutputTemp);
 
-	// Build FFmpeg inputs: video + each audio file
-	const mixArgs: string[] = ["-y", "-i", concatOutputTemp];
-	for (const af of audioFiles) {
-		mixArgs.push("-i", af.path);
-	}
+	try {
+		// Build FFmpeg inputs: video + each audio file
+		const mixArgs: string[] = [
+			"-y",
+			"-abort_on",
+			"empty_output_stream",
+			"-i",
+			concatOutputTemp,
+		];
+		for (const af of audioFiles) {
+			mixArgs.push("-i", af.path);
+		}
 
-	// Check if the concat output has an audio stream
-	const probePath = await getFFprobePath();
-	const hasBaseAudio = await new Promise<boolean>((resolve) => {
-		const probe = spawn(
-			probePath,
-			[
-				"-v",
-				"quiet",
-				"-select_streams",
-				"a",
-				"-show_entries",
-				"stream=codec_type",
-				"-of",
-				"csv=p=0",
-				concatOutputTemp,
-			],
-			{ windowsHide: true, stdio: ["ignore", "pipe", "pipe"] }
-		);
-		let stdout = "";
-		probe.stdout?.on("data", (d: Buffer) => {
-			stdout += d.toString();
-		});
-		probe.on("close", () => resolve(stdout.trim().length > 0));
-		probe.on("error", () => resolve(false));
-	});
-
-	const audioGraph = buildTimelineAudioFilters({
-		audioFiles,
-		audioStartIndex: 1,
-		fps,
-	});
-	const filterParts = [...audioGraph.filterSteps];
-	let audioMap = audioGraph.mapAudio ?? "1:a";
-
-	if (hasBaseAudio) {
-		const overlayInput = audioMap.startsWith("[") ? audioMap : `[${audioMap}]`;
-		filterParts.push(
-			`[0:a]${overlayInput}amix=inputs=2:duration=first:dropout_transition=0:normalize=0[aout]`
-		);
-		audioMap = "[aout]";
-	} else {
-		console.log(
-			"[MODE 1.5 EXPORT] No base audio stream - mixing overlays only"
-		);
-	}
-
-	mixArgs.push(
-		...(filterParts.length > 0
-			? ["-filter_complex", filterParts.join(";")]
-			: []),
-		"-map",
-		"0:v",
-		"-map",
-		audioMap,
-		"-c:v",
-		"copy",
-		"-c:a",
-		"aac",
-		"-b:a",
-		"192k",
-		"-shortest",
-		"-movflags",
-		"+faststart",
-		outputFile
-	);
-
-	console.log(
-		`🎧 [MODE 1.5 EXPORT] Audio mix command: ffmpeg ${mixArgs.join(" ")}`
-	);
-
-	await new Promise<void>((mixResolve, mixReject) => {
-		const mixProcess: ChildProcess = spawn(ffmpegPath, mixArgs, {
-			windowsHide: true,
-			stdio: ["ignore", "pipe", "pipe"],
-		});
-
-		let mixStderr = "";
-
-		mixProcess.stderr?.on("data", (chunk: Buffer) => {
-			mixStderr += chunk.toString();
-		});
-
-		mixProcess.on("close", (code: number | null) => {
-			if (code === 0) {
-				console.log("🎧 [MODE 1.5 EXPORT] ✅ Audio mixing complete!");
-				// Clean up temp file
-				try {
-					fs.unlinkSync(concatOutputTemp);
-				} catch {
-					// ignore cleanup errors
-				}
-				mixResolve();
-			} else {
-				console.error(
-					`❌ [MODE 1.5 EXPORT] Audio mixing failed with code ${code}`
-				);
-				console.error(`❌ [MODE 1.5 EXPORT] FFmpeg stderr:\n${mixStderr}`);
-				// Restore original concat output (without overlay audio)
-				try {
-					fs.renameSync(concatOutputTemp, outputFile);
-				} catch {
-					// ignore restore errors
-				}
-				console.warn(
-					"⚠️ [MODE 1.5 EXPORT] Falling back to output without overlay audio"
-				);
-				mixResolve(); // Don't reject — export with embedded audio only
-			}
-		});
-
-		mixProcess.on("error", (err: Error) => {
-			console.error("❌ [MODE 1.5 EXPORT] Audio mix process error:", err);
-			// Restore original concat output
-			try {
-				fs.renameSync(concatOutputTemp, outputFile);
-			} catch {
-				// ignore restore errors
-			}
-			console.warn(
-				"⚠️ [MODE 1.5 EXPORT] Falling back to output without overlay audio"
+		// Check if the concat output has an audio stream
+		const probePath = await getFFprobePath();
+		const hasBaseAudio = await new Promise<boolean>((resolve) => {
+			const probe = spawn(
+				probePath,
+				[
+					"-v",
+					"quiet",
+					"-select_streams",
+					"a",
+					"-show_entries",
+					"stream=codec_type",
+					"-of",
+					"csv=p=0",
+					concatOutputTemp,
+				],
+				{ windowsHide: true, stdio: ["ignore", "pipe", "pipe"] }
 			);
-			mixResolve(); // Don't reject — graceful fallback
+			let stdout = "";
+			probe.stdout?.on("data", (d: Buffer) => {
+				stdout += d.toString();
+			});
+			probe.on("close", () => resolve(stdout.trim().length > 0));
+			probe.on("error", () => resolve(false));
 		});
-	});
+
+		const audioGraph = buildTimelineAudioFilters({
+			audioFiles,
+			audioStartIndex: 1,
+			fps,
+		});
+		const filterParts = [...audioGraph.filterSteps];
+		let audioMap = audioGraph.mapAudio ?? "1:a";
+
+		if (hasBaseAudio) {
+			const overlayInput = audioMap.startsWith("[")
+				? audioMap
+				: `[${audioMap}]`;
+			filterParts.push(
+				`[0:a]${overlayInput}amix=inputs=2:duration=first:dropout_transition=0:normalize=0[aout]`
+			);
+			audioMap = "[aout]";
+		} else {
+			console.log(
+				"[MODE 1.5 EXPORT] No base audio stream - mixing overlays only"
+			);
+		}
+
+		mixArgs.push(
+			...(filterParts.length > 0
+				? ["-filter_complex", filterParts.join(";")]
+				: []),
+			"-map",
+			"0:v",
+			"-map",
+			audioMap,
+			"-c:v",
+			"copy",
+			"-c:a",
+			"aac",
+			"-b:a",
+			"192k",
+			"-shortest",
+			"-movflags",
+			"+faststart",
+			outputFile
+		);
+
+		console.log(
+			`🎧 [MODE 1.5 EXPORT] Audio mix command: ffmpeg ${mixArgs.join(" ")}`
+		);
+
+		const preparedFilterScripts = prepareFFmpegFilterComplexScripts({
+			args: mixArgs,
+			temporaryDirectory: frameDir,
+		});
+		await new Promise<void>((mixResolve, mixReject) => {
+			const mixProcess: ChildProcess = spawn(
+				ffmpegPath,
+				preparedFilterScripts.args,
+				{
+					windowsHide: true,
+					stdio: ["ignore", "pipe", "pipe"],
+				}
+			);
+
+			let mixStderr = "";
+			let finished = false;
+			const finishWithFailure = ({ failure }: { failure: unknown }) => {
+				if (finished) return;
+				finished = true;
+				mixReject(
+					failure instanceof Error ? failure : new Error(String(failure))
+				);
+			};
+
+			mixProcess.stderr?.on("data", (chunk: Buffer) => {
+				mixStderr += chunk.toString();
+			});
+
+			mixProcess.on("close", (code: number | null) => {
+				if (finished) return;
+				if (code === 0) {
+					try {
+						completeFFmpegPassOutput({
+							temporaryInput: concatOutputTemp,
+							outputFile,
+						});
+						finished = true;
+						console.log("🎧 [MODE 1.5 EXPORT] ✅ Audio mixing complete!");
+						mixResolve();
+					} catch (error) {
+						finishWithFailure({ failure: error });
+					}
+				} else {
+					console.error(
+						`❌ [MODE 1.5 EXPORT] Audio mixing failed with code ${code}`
+					);
+					console.error(`❌ [MODE 1.5 EXPORT] FFmpeg stderr:\n${mixStderr}`);
+					finishWithFailure({
+						failure: new Error(`FFmpeg exited with code ${code}`),
+					});
+				}
+			});
+
+			mixProcess.on("error", (err: Error) => {
+				console.error("❌ [MODE 1.5 EXPORT] Audio mix process error:", err);
+				finishWithFailure({ failure: err });
+			});
+		}).finally(preparedFilterScripts.cleanup);
+	} catch (error) {
+		if (!fs.existsSync(concatOutputTemp)) throw error;
+		restoreMode15PassOrThrow({
+			temporaryInput: concatOutputTemp,
+			outputFile,
+			passName: "Mode 1.5 audio mix",
+			failure: error,
+		});
+		console.warn(
+			"⚠️ [MODE 1.5 EXPORT] Falling back to output without overlay audio"
+		);
+	}
 }
 
 /**
@@ -437,59 +491,76 @@ async function overlayStickerPass(
 	const tempInput = path.join(frameDir, "before_stickers.mp4");
 	fs.renameSync(outputFile, tempInput);
 
-	const args = buildMode15StickerArgs(tempInput, outputFile, validStickers);
-
-	await new Promise<void>((stickerResolve, stickerReject) => {
-		const proc: ChildProcess = spawn(ffmpegPath, args, {
-			windowsHide: true,
-			stdio: ["ignore", "pipe", "pipe"],
+	try {
+		const args = buildMode15StickerArgs(tempInput, outputFile, validStickers);
+		const preparedFilterScripts = prepareFFmpegFilterComplexScripts({
+			args,
+			temporaryDirectory: frameDir,
 		});
 
-		let stderr = "";
-		proc.stderr?.on("data", (chunk: Buffer) => {
-			stderr += chunk.toString();
-		});
+		await new Promise<void>((stickerResolve, stickerReject) => {
+			const proc: ChildProcess = spawn(ffmpegPath, preparedFilterScripts.args, {
+				windowsHide: true,
+				stdio: ["ignore", "pipe", "pipe"],
+			});
 
-		proc.on("close", (code: number | null) => {
-			if (code === 0) {
-				console.log("🎨 [MODE 1.5 EXPORT] ✅ Sticker overlay complete!");
-				try {
-					fs.unlinkSync(tempInput);
-				} catch {
-					// ignore cleanup errors
+			let stderr = "";
+			let finished = false;
+			const finishWithFailure = ({ failure }: { failure: unknown }) => {
+				if (finished) return;
+				finished = true;
+				stickerReject(
+					failure instanceof Error ? failure : new Error(String(failure))
+				);
+			};
+			proc.stderr?.on("data", (chunk: Buffer) => {
+				stderr += chunk.toString();
+			});
+
+			proc.on("close", (code: number | null) => {
+				if (finished) return;
+				if (code === 0) {
+					try {
+						completeFFmpegPassOutput({
+							temporaryInput: tempInput,
+							outputFile,
+						});
+						finished = true;
+						console.log("🎨 [MODE 1.5 EXPORT] ✅ Sticker overlay complete!");
+						stickerResolve();
+					} catch (error) {
+						finishWithFailure({ failure: error });
+					}
+					return;
 				}
-				stickerResolve();
-			} else {
 				console.error(
 					`❌ [MODE 1.5 EXPORT] Sticker overlay failed with code ${code}`
 				);
 				console.error(`❌ [MODE 1.5 EXPORT] FFmpeg stderr:\n${stderr}`);
-				// Restore original output without stickers
-				try {
-					fs.renameSync(tempInput, outputFile);
-				} catch {
-					// ignore restore errors
-				}
-				console.warn(
-					"⚠️ [MODE 1.5 EXPORT] Falling back to output without stickers"
-				);
-				stickerResolve(); // Don't reject — graceful fallback
-			}
-		});
+				finishWithFailure({
+					failure: new Error(`FFmpeg exited with code ${code}`),
+				});
+			});
 
-		proc.on("error", (err: Error) => {
-			console.error("❌ [MODE 1.5 EXPORT] Sticker overlay process error:", err);
-			try {
-				fs.renameSync(tempInput, outputFile);
-			} catch {
-				// ignore restore errors
-			}
-			console.warn(
-				"⚠️ [MODE 1.5 EXPORT] Falling back to output without stickers"
-			);
-			stickerResolve(); // Don't reject — graceful fallback
+			proc.on("error", (err: Error) => {
+				console.error(
+					"❌ [MODE 1.5 EXPORT] Sticker overlay process error:",
+					err
+				);
+				finishWithFailure({ failure: err });
+			});
+		}).finally(preparedFilterScripts.cleanup);
+	} catch (error) {
+		console.error("❌ [MODE 1.5 EXPORT] Sticker overlay setup failed:", error);
+		if (!fs.existsSync(tempInput)) throw error;
+		restoreMode15PassOrThrow({
+			temporaryInput: tempInput,
+			outputFile,
+			passName: "Mode 1.5 sticker overlay",
+			failure: error,
 		});
-	});
+		console.warn("⚠️ [MODE 1.5 EXPORT] Falling back to output without stickers");
+	}
 }
 
 /**
@@ -501,7 +572,13 @@ function buildMode15StickerArgs(
 	outputPath: string,
 	stickers: StickerSource[]
 ): string[] {
-	const args: string[] = ["-y", "-i", inputVideoPath];
+	const args: string[] = [
+		"-y",
+		"-abort_on",
+		"empty_output_stream",
+		"-i",
+		inputVideoPath,
+	];
 
 	for (const sticker of stickers) {
 		appendStickerInputArgs({ args, sticker });
