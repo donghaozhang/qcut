@@ -16,7 +16,7 @@ import {
 	type BuildFFmpegArgsOptions,
 } from "../ffmpeg-args-builder";
 import { getFFprobePath } from "../ffmpeg/paths";
-import type { StickerSource } from "../ffmpeg/types";
+import type { StickerPropertyKeyframe, StickerSource } from "../ffmpeg/types";
 
 // ---------------------------------------------------------------------------
 // Paths
@@ -826,7 +826,15 @@ describe.skipIf(!detectedFFmpeg)(
 
 		it("should render all fourteen sticker keyframe properties from a non-zero start", () => {
 			const outputFile = path.join(TMP_DIR, "output-all-sticker-keyframes.mp4");
-			const pair = ({ from, to }: { from: number; to: number }) => [
+			const pair = ({
+				from,
+				to,
+				easing = "linear",
+			}: {
+				from: number;
+				to: number;
+				easing?: StickerPropertyKeyframe["easing"];
+			}) => [
 				{
 					id: `from-${from}`,
 					frame: 0,
@@ -837,7 +845,7 @@ describe.skipIf(!detectedFFmpeg)(
 					id: `to-${to}`,
 					frame: 30,
 					value: to,
-					easing: "linear" as const,
+					easing,
 				},
 			];
 			const stickerSources: StickerSource[] = [
@@ -855,7 +863,7 @@ describe.skipIf(!detectedFFmpeg)(
 					zIndex: 1,
 					keyframeFps: 30,
 					keyframes: {
-						x: pair({ from: 20, to: 65 }),
+						x: pair({ from: 20, to: 65, easing: "easeIn" }),
 						y: pair({ from: 30, to: 60 }),
 						width: pair({ from: 20, to: 32 }),
 						height: pair({ from: 20, to: 28 }),
@@ -895,6 +903,7 @@ describe.skipIf(!detectedFFmpeg)(
 			expect(filterChain).toContain("max(0\\,T-0.5)");
 			expect(filterChain).toContain("perspective=");
 			expect(filterChain).toContain("eval=frame");
+			expect(filterChain).toContain("pow(");
 			const result = runFFmpeg(ffmpegPath, args);
 			expect(result.success, result.stderr).toBe(true);
 			const early = extractFrameBytes({
