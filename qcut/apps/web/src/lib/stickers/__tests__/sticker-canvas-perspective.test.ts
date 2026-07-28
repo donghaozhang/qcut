@@ -51,6 +51,33 @@ describe("sticker canvas perspective", () => {
 		expect(ctx.drawImage).toHaveBeenCalledWith(image, -100, -50, 200, 100);
 	});
 
+	it("keeps aspect-locked content bounds when perspective is degenerate", () => {
+		const ctx = canvasContext();
+		const image = {} as CanvasImageSource;
+		drawStickerWithPerspective({
+			ctx,
+			image,
+			sourceWidth: 400,
+			sourceHeight: 200,
+			width: 200,
+			height: 200,
+			maintainAspectRatio: true,
+			perspective: {
+				topLeftX: 0,
+				topLeftY: 0,
+				topRightX: 0,
+				topRightY: 0,
+				bottomRightX: 0,
+				bottomRightY: 0,
+				bottomLeftX: 0,
+				bottomLeftY: 0,
+			},
+		});
+
+		expect(ctx.drawImage).toHaveBeenCalledWith(image, -100, -50, 200, 100);
+		expect(ctx.transform).not.toHaveBeenCalled();
+	});
+
 	it("warps a non-default quadrilateral through clipped triangles", () => {
 		const ctx = canvasContext();
 		drawStickerWithPerspective({
