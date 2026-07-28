@@ -488,17 +488,20 @@ describe("SoundsView", () => {
 		extendedCatalog.tracks = EXTENDED_CATALOG;
 		render(<SoundsView />);
 
-		const remoteCards = EXTENDED_CATALOG.map((track) =>
-			document.querySelector(
-				`[data-testid="audio-library-item-music-${track.id}"]`
-			)
-		).filter(Boolean);
+		const remoteTrackTestIds = new Set(
+			EXTENDED_CATALOG.map((track) => `audio-library-item-music-${track.id}`)
+		);
+		const remoteCards = screen
+			.getAllByTestId(/^audio-library-item-music-/)
+			.filter((card) =>
+				remoteTrackTestIds.has(card.getAttribute("data-testid") ?? "")
+			);
 
 		expect(remoteCards.length).toBeGreaterThan(0);
 		for (const card of remoteCards) {
-			expect(card?.querySelector('[data-testid="audio-waveform"]')).toBeNull();
+			expect(card.querySelector('[data-testid="audio-waveform"]')).toBeNull();
 		}
-	}, 15_000);
+	});
 
 	it("still draws waveforms for bundled tracks, whose audio is local", () => {
 		render(<SoundsView />);
