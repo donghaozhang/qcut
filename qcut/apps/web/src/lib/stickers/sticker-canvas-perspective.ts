@@ -116,7 +116,13 @@ export function drawStickerWithPerspective({
 	}
 	const matrix = buildPerspectiveMatrix3d({ width, height, perspective });
 	if (!matrix) {
-		ctx.drawImage(image, -width / 2, -height / 2, width, height);
+		ctx.drawImage(
+			image,
+			contentLeft - width / 2,
+			contentTop - height / 2,
+			contentWidth,
+			contentHeight
+		);
 		return;
 	}
 	const steps = Math.max(1, Math.round(gridSize));
