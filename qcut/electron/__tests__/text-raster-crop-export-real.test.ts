@@ -227,8 +227,17 @@ describe.skipIf(!(existsSync(ffmpegPath) && existsSync(ffprobePath)))(
 				x: 100,
 				y: 120,
 			});
-			expect(multiplyOutside).toEqual(outside);
-			expect(multiplyInside).not.toEqual(multiplyOutside);
+			// The blend graph re-encodes the background through an extra format
+			// conversion, so YUV rounding may drift by one level per channel
+			// depending on the platform's FFmpeg build.
+			for (const [index, value] of multiplyOutside.entries()) {
+				expect(Math.abs(value - outside[index])).toBeLessThanOrEqual(2);
+			}
+			const multiplyDistance = multiplyInside.reduce(
+				(sum, value, index) => sum + Math.abs(value - multiplyOutside[index]),
+				0
+			);
+			expect(multiplyDistance).toBeGreaterThan(6);
 		});
 	}
 );
