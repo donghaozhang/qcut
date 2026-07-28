@@ -9,6 +9,7 @@ import {
 	assignNewStickerInstanceId,
 	createStickerInstanceId,
 } from "@/lib/stickers/sticker-instance";
+import { getTimelineElementEndTime } from "@/lib/timeline";
 
 export type MediaAttributeSnapshot = Partial<
 	Pick<
@@ -160,6 +161,19 @@ export function createPastedTimelineElement({
 			startTime: Math.max(0, startTime),
 		} as CreateTimelineElement,
 		newStickerId: createStickerInstanceId(),
+	});
+}
+
+export function createDuplicatedTimelineElement({
+	entry,
+	fps,
+}: {
+	entry: TimelineClipboardEntry;
+	fps: number;
+}): CreateTimelineElement {
+	return createPastedTimelineElement({
+		entry,
+		startTime: getTimelineElementEndTime({ element: entry.element, fps }) + 0.1,
 	});
 }
 
