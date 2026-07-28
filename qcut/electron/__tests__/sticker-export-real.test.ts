@@ -16,7 +16,7 @@ import {
 	type BuildFFmpegArgsOptions,
 } from "../ffmpeg-args-builder";
 import { getFFprobePath } from "../ffmpeg/paths";
-import type { StickerPropertyKeyframe, StickerSource } from "../ffmpeg/types";
+import type { StickerSource } from "../ffmpeg/types";
 
 // ---------------------------------------------------------------------------
 // Paths
@@ -824,17 +824,69 @@ describe.skipIf(!detectedFFmpeg)(
 			).toBeGreaterThan(100);
 		});
 
+		it("should render eased position keyframes from a non-zero start", () => {
+			const outputFile = path.join(TMP_DIR, "output-eased-position.mp4");
+			const stickerSources: StickerSource[] = [
+				{
+					id: "s-eased-position",
+					path: stickerPath1,
+					x: 32,
+					y: 60,
+					width: 48,
+					height: 48,
+					canvasWidth: 320,
+					canvasHeight: 240,
+					startTime: 0.5,
+					endTime: 1.8,
+					zIndex: 1,
+					keyframeFps: 30,
+					keyframes: {
+						x: [
+							{ id: "x-start", frame: 0, value: 20, easing: "linear" },
+							{ id: "x-end", frame: 30, value: 65, easing: "easeIn" },
+						],
+					},
+				},
+			];
+			const args = buildFFmpegArgs({
+				inputDir: TMP_DIR,
+				outputFile,
+				width: 320,
+				height: 240,
+				fps: 30,
+				quality: "medium",
+				duration: 2,
+				audioFiles: [],
+				useVideoInput: true,
+				videoInputPath: solidVideoPath,
+				stickerSources,
+				stickerFilterChain: "placeholder",
+			});
+			const filterIndex = args.indexOf("-filter_complex");
+			const filterChain = args[filterIndex + 1];
+
+			expect(filterChain).toContain("max(0\\,t-0.5)");
+			expect(filterChain).toContain("pow(");
+			const result = runFFmpeg(ffmpegPath, args);
+			expect(result.success, result.stderr).toBe(true);
+			const early = extractFrameBytes({
+				ffmpegPath,
+				inputPath: outputFile,
+				time: 0.6,
+			});
+			const late = extractFrameBytes({
+				ffmpegPath,
+				inputPath: outputFile,
+				time: 1.4,
+			});
+			expect(countChangedBytes({ first: early, second: late })).toBeGreaterThan(
+				100
+			);
+		});
+
 		it("should render all fourteen sticker keyframe properties from a non-zero start", () => {
 			const outputFile = path.join(TMP_DIR, "output-all-sticker-keyframes.mp4");
-			const pair = ({
-				from,
-				to,
-				easing = "linear",
-			}: {
-				from: number;
-				to: number;
-				easing?: StickerPropertyKeyframe["easing"];
-			}) => [
+			const pair = ({ from, to }: { from: number; to: number }) => [
 				{
 					id: `from-${from}`,
 					frame: 0,
@@ -845,7 +897,7 @@ describe.skipIf(!detectedFFmpeg)(
 					id: `to-${to}`,
 					frame: 30,
 					value: to,
-					easing,
+					easing: "linear" as const,
 				},
 			];
 			const stickerSources: StickerSource[] = [
@@ -863,7 +915,7 @@ describe.skipIf(!detectedFFmpeg)(
 					zIndex: 1,
 					keyframeFps: 30,
 					keyframes: {
-						x: pair({ from: 20, to: 65, easing: "easeIn" }),
+						x: pair({ from: 20, to: 65 }),
 						y: pair({ from: 30, to: 60 }),
 						width: pair({ from: 20, to: 32 }),
 						height: pair({ from: 20, to: 28 }),
@@ -903,7 +955,6 @@ describe.skipIf(!detectedFFmpeg)(
 			expect(filterChain).toContain("max(0\\,T-0.5)");
 			expect(filterChain).toContain("perspective=");
 			expect(filterChain).toContain("eval=frame");
-			expect(filterChain).toContain("pow(");
 			const result = runFFmpeg(ffmpegPath, args);
 			expect(result.success, result.stderr).toBe(true);
 			const early = extractFrameBytes({
