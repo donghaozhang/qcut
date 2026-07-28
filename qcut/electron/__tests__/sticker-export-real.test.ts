@@ -36,6 +36,9 @@ const BUNDLED_FFMPEG = path.resolve(
 	__dirname,
 	"../../node_modules/ffmpeg-static/ffmpeg"
 );
+const FFMPEG_SETUP_TIMEOUT_MS = 60_000;
+const FFMPEG_PROBE_TIMEOUT_MS = 60_000;
+const FFMPEG_RENDER_TIMEOUT_MS = 180_000;
 
 // ---------------------------------------------------------------------------
 // Helpers
@@ -75,7 +78,7 @@ function probeVideo(
 	try {
 		const result = execSync(
 			`"${ffprobePath}" -v error -select_streams v:0 -show_entries stream=width,height,duration -show_entries format=duration -of json "${filePath}"`,
-			{ encoding: "utf-8", timeout: 10_000 }
+			{ encoding: "utf-8", timeout: FFMPEG_PROBE_TIMEOUT_MS }
 		);
 		const data = JSON.parse(result);
 		const stream = data.streams?.[0];
@@ -116,7 +119,7 @@ function countVideoFrames({
 			"default=nokey=1:noprint_wrappers=1",
 			filePath,
 		],
-		{ encoding: "utf-8", timeout: 10_000 }
+		{ encoding: "utf-8", timeout: FFMPEG_PROBE_TIMEOUT_MS }
 	);
 	if (result.status !== 0) return 0;
 	return Number.parseInt(result.stdout.trim(), 10) || 0;
@@ -131,7 +134,7 @@ function createTestSticker(
 ): void {
 	execSync(
 		`"${ffmpegPath}" -y -f lavfi -i "color=c=${color}:s=${size}x${size}:d=1" -frames:v 1 "${outputPath}"`,
-		{ timeout: 10_000 }
+		{ timeout: FFMPEG_SETUP_TIMEOUT_MS }
 	);
 }
 
@@ -144,7 +147,7 @@ function createSolidVideo({
 }): void {
 	execSync(
 		`"${ffmpegPath}" -y -f lavfi -i "color=c=black:s=320x240:d=2:r=30" -c:v libx264 -pix_fmt yuv420p "${outputPath}"`,
-		{ timeout: 10_000 }
+		{ timeout: FFMPEG_SETUP_TIMEOUT_MS }
 	);
 }
 
@@ -175,7 +178,7 @@ function extractFrameBytes({
 			"rawvideo",
 			"pipe:1",
 		],
-		{ timeout: 10_000 }
+		{ timeout: FFMPEG_PROBE_TIMEOUT_MS }
 	);
 	if (result.status !== 0 || !result.stdout) {
 		throw new Error(`Failed to extract frame: ${String(result.stderr)}`);
@@ -241,14 +244,17 @@ function runFFmpeg(
 ): { success: boolean; stderr: string } {
 	const result = spawnSync(ffmpegPath, args, {
 		encoding: "utf-8",
-		timeout: 60_000,
+		timeout: FFMPEG_RENDER_TIMEOUT_MS,
 	});
+	const stderr = [result.stderr, result.error?.message]
+		.filter(Boolean)
+		.join("\n");
 	if (result.status !== 0) {
-		console.error("[FFmpeg STDERR]", result.stderr?.slice(-500));
+		console.error("[FFmpeg STDERR]", stderr.slice(-500));
 	}
 	return {
 		success: result.status === 0,
-		stderr: result.stderr || "",
+		stderr,
 	};
 }
 
@@ -261,7 +267,7 @@ const detectedFFmpeg = getFFmpegPath();
 // Real ffmpeg renders regularly exceed the 5s default testTimeout on CI runners.
 describe.skipIf(!detectedFFmpeg)(
 	"Sticker Export — Real FFmpeg E2E",
-	{ timeout: 60_000 },
+	{ timeout: FFMPEG_RENDER_TIMEOUT_MS },
 	() => {
 		let ffmpegPath: string;
 		let stickerPath1: string;
