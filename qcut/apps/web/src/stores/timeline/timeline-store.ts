@@ -24,6 +24,7 @@ import { createAutoSaveHelpers } from "./timeline-store-autosave";
 import { createCrudOperations } from "./timeline-store-crud";
 import { createPersistenceOperations } from "./timeline-store-persistence";
 import { getMediaTimelineDuration } from "@/lib/video/video-timing";
+import { useProjectStore } from "../project-store";
 
 export const useTimelineStore = create<TimelineStore>((set, get) => {
 	// Create auto-save helpers (closure-level functions)
@@ -229,7 +230,13 @@ export const useTimelineStore = create<TimelineStore>((set, get) => {
 		...createTimelineOperations({
 			get,
 			set,
-			deps: { updateTracks, updateTracksAndSave, autoSaveTimeline },
+			deps: {
+				updateTracks,
+				updateTracksAndSave,
+				autoSaveTimeline,
+				getProjectFps: () =>
+					useProjectStore.getState().activeProject?.fps ?? 30,
+			},
 		}),
 	};
 });

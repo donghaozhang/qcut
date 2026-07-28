@@ -24,6 +24,7 @@ export interface OperationDeps {
 	updateTracks: (tracks: TimelineTrack[]) => void;
 	updateTracksAndSave: (tracks: TimelineTrack[]) => void;
 	autoSaveTimeline: () => void;
+	getProjectFps: () => number;
 }
 
 export type StoreGet = () => TimelineStore;
