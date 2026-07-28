@@ -1311,7 +1311,7 @@ const EN_TRANSLATIONS = {
 	"stickerProperties.tracking.unlink": "Unlink tracking",
 	"stickerProperties.tracking.empty":
 		"No ready MediaPipe, SAM3, or optical-flow mask track overlaps this sticker.",
-	"stickerProperties.tracking.create": "Track on {name}",
+	"stickerProperties.tracking.create": "Track on {{name}}",
 	"stickerProperties.tracking.realData":
 		"Position follows real mask-tracking keyframes. Direction is configured on the source mask.",
 	"stickerProperties.tracking.planar": "Planar tracking",
@@ -2782,7 +2782,7 @@ const ZH_TRANSLATIONS: Record<TranslationKey, string> = {
 	"stickerProperties.tracking.unlink": "解除跟踪",
 	"stickerProperties.tracking.empty":
 		"当前贴纸范围内没有已完成的 MediaPipe、SAM3 或光流蒙版轨迹。",
-	"stickerProperties.tracking.create": "在{name}上创建跟踪",
+	"stickerProperties.tracking.create": "在{{name}}上创建跟踪",
 	"stickerProperties.tracking.realData":
 		"位置读取真实蒙版跟踪关键帧；跟踪方向在源蒙版中设置。",
 	"stickerProperties.tracking.planar": "平面跟踪",
