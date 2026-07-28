@@ -1,4 +1,9 @@
-import type { StickerKeyframeProperty, StickerSource } from "./types";
+import type {
+	StickerKeyframeProperty,
+	StickerPropertyKeyframe,
+	StickerSource,
+} from "./types";
+import { buildNumericKeyframeExpression } from "./keyframe-expression";
 
 export interface StickerFilterGraph {
 	filterSteps: string[];
@@ -31,6 +36,7 @@ type StickerPerspective = NonNullable<StickerSource["perspective"]>;
 interface NormalizedStickerKeyframe {
 	frame: number;
 	value: number;
+	easing: StickerPropertyKeyframe["easing"];
 }
 
 type NormalizedStickerKeyframes = Partial<
@@ -64,6 +70,14 @@ const PERSPECTIVE_KEYFRAME_PROPERTIES = [
 	"bottomLeftX",
 	"bottomLeftY",
 ] as const satisfies readonly StickerKeyframeProperty[];
+
+const STICKER_KEYFRAME_EASINGS = [
+	"linear",
+	"easeIn",
+	"easeOut",
+	"easeInOut",
+	"spring",
+] as const;
 
 function finiteOr({
 	value,
@@ -126,6 +140,16 @@ function clampKeyframeValue({
 	return value;
 }
 
+function normalizeKeyframeEasing({
+	easing,
+}: {
+	easing: string;
+}): NormalizedStickerKeyframe["easing"] {
+	return STICKER_KEYFRAME_EASINGS.some((candidate) => candidate === easing)
+		? (easing as NormalizedStickerKeyframe["easing"])
+		: "linear";
+}
+
 function normalizeStickerKeyframes({
 	sticker,
 	fps,
@@ -160,6 +184,7 @@ function normalizeStickerKeyframes({
 					property,
 					value: keyframe.value,
 				}),
+				easing: normalizeKeyframeEasing({ easing: keyframe.easing }),
 			});
 		}
 		const keyframes = [...byFrame.values()].sort(
@@ -180,7 +205,7 @@ function hasStickerKeyframes({
 	);
 }
 
-function buildLinearKeyframeExpression({
+function buildStickerKeyframeExpression({
 	keyframes,
 	fps,
 	fallback,
@@ -191,12 +216,19 @@ function buildLinearKeyframeExpression({
 	fallback: number;
 	timeVariable: string;
 }): string {
-	// Sticker authoring currently emits linear easing; other curves need separate FFmpeg parity validation.
 	if (!keyframes || keyframes.length === 0) {
 		return formatNumber({ value: fallback });
 	}
 	if (keyframes.length === 1) {
 		return formatNumber({ value: keyframes[0].value });
+	}
+	if (keyframes.some(({ easing }) => easing !== "linear")) {
+		return buildNumericKeyframeExpression({
+			keyframes,
+			fps,
+			fallback,
+			timeVariable,
+		});
 	}
 
 	const timeAt = ({ frame }: { frame: number }) => frame / fps;
@@ -238,7 +270,7 @@ function keyframedPropertyExpression({
 	fallback: number;
 	timeVariable: string;
 }): string {
-	return buildLinearKeyframeExpression({
+	return buildStickerKeyframeExpression({
 		keyframes: keyframes[property],
 		fps,
 		fallback,
