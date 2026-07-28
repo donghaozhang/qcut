@@ -511,6 +511,29 @@ export interface ImageSource {
  * Sticker source configuration for FFmpeg overlay
  * Contains file path and positioning information for stickers
  */
+export type StickerKeyframeProperty =
+	| "x"
+	| "y"
+	| "width"
+	| "height"
+	| "rotation"
+	| "opacity"
+	| "topLeftX"
+	| "topLeftY"
+	| "topRightX"
+	| "topRightY"
+	| "bottomRightX"
+	| "bottomRightY"
+	| "bottomLeftX"
+	| "bottomLeftY";
+
+export interface StickerPropertyKeyframe {
+	id: string;
+	frame: number;
+	value: number;
+	easing: "linear" | "easeIn" | "easeOut" | "easeInOut" | "spring";
+}
+
 export interface StickerSource {
 	/** Unique identifier for the sticker */
 	id: string;
@@ -529,6 +552,8 @@ export interface StickerSource {
 	width: number;
 	/** Height in pixels */
 	height: number;
+	canvasWidth?: number;
+	canvasHeight?: number;
 	/** Start time in seconds for sticker appearance */
 	startTime: number;
 	/** End time in seconds for sticker disappearance */
@@ -541,6 +566,25 @@ export interface StickerSource {
 	rotation?: number;
 	/** Preserve original aspect ratio during scaling */
 	maintainAspectRatio?: boolean;
+	perspective?: VideoVisual["perspective"];
+	animationInType?: VideoVisual["animationInType"];
+	animationInDuration?: number;
+	animationOutType?: VideoVisual["animationOutType"];
+	animationOutDuration?: number;
+	animationLoopType?:
+		| "none"
+		| "pulse"
+		| "drift"
+		| "spin"
+		| "wobble"
+		| "bounce"
+		| "blink";
+	animationLoopIntensity?: number;
+	/** Clip-local frames with values in the editor's canonical percentage/unit space. */
+	keyframes?: Partial<
+		Record<StickerKeyframeProperty, StickerPropertyKeyframe[]>
+	>;
+	keyframeFps?: number;
 }
 
 export interface TextAssLayer {
