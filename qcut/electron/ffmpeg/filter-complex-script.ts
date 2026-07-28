@@ -31,9 +31,11 @@ function retryableDirectoryCleanup({
 export function prepareFFmpegFilterComplexScripts({
 	args,
 	temporaryDirectory = os.tmpdir(),
+	commandLengthThreshold = MAX_INLINE_FFMPEG_ARGUMENT_CODE_UNITS,
 }: {
 	args: readonly string[];
 	temporaryDirectory?: string;
+	commandLengthThreshold?: number;
 }): PreparedFFmpegFilterScripts {
 	let filterCount = 0;
 	for (let index = 0; index < args.length; index += 1) {
@@ -55,7 +57,7 @@ export function prepareFFmpegFilterComplexScripts({
 			cleanup: async () => true,
 		};
 	}
-	if (estimatedCommandCodeUnits <= MAX_INLINE_FFMPEG_ARGUMENT_CODE_UNITS) {
+	if (estimatedCommandCodeUnits <= commandLengthThreshold) {
 		return {
 			args: [...args],
 			scriptPaths: [],
@@ -98,76 +100,4 @@ export function prepareFFmpegFilterComplexScripts({
 		void cleanup();
 		throw error;
 	}
-}
-
-const DEFAULT_COMMAND_LENGTH_THRESHOLD = 28_000;
-
-export interface PreparedFFmpegFilterScript {
-	args: string[];
-	cleanup: () => Promise<boolean>;
-	filterScriptPath?: string;
-}
-
-function estimateCommandLength({
-	executablePath,
-	args,
-}: {
-	executablePath: string;
-	args: string[];
-}): number {
-	return args.reduce(
-		(total, argument) => total + argument.length + 3,
-		executablePath.length
-	);
-}
-
-export function prepareFFmpegFilterScript({
-	executablePath,
-	args,
-	commandLengthThreshold = DEFAULT_COMMAND_LENGTH_THRESHOLD,
-	tempDirectory = os.tmpdir(),
-}: {
-	executablePath: string;
-	args: string[];
-	commandLengthThreshold?: number;
-	tempDirectory?: string;
-}): PreparedFFmpegFilterScript {
-	const filterIndex = args.indexOf("-filter_complex");
-	if (filterIndex < 0) {
-		return { args, cleanup: async () => true };
-	}
-
-	const filterGraph = args[filterIndex + 1];
-	if (typeof filterGraph !== "string") {
-		throw new Error("FFmpeg filter graph argument is missing");
-	}
-
-	const commandLength = estimateCommandLength({ executablePath, args });
-	if (commandLength <= commandLengthThreshold) {
-		return { args, cleanup: async () => true };
-	}
-
-	const scriptDirectory = fs.mkdtempSync(
-		path.join(tempDirectory, "qcut-ffmpeg-filter-")
-	);
-	const filterScriptPath = path.join(scriptDirectory, "filter-complex.ffgraph");
-	try {
-		fs.writeFileSync(filterScriptPath, filterGraph, {
-			encoding: "utf8",
-			mode: 0o600,
-		});
-	} catch (error) {
-		fs.rmSync(scriptDirectory, { recursive: true, force: true });
-		throw error;
-	}
-
-	const cleanup = retryableDirectoryCleanup({ directory: scriptDirectory });
-	const preparedArgs = [...args];
-	preparedArgs.splice(
-		filterIndex,
-		2,
-		"-filter_complex_script",
-		filterScriptPath
-	);
-	return { args: preparedArgs, filterScriptPath, cleanup };
 }

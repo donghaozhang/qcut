@@ -3,7 +3,7 @@ import { createHash } from "node:crypto";
 import { existsSync } from "node:fs";
 import { describe, expect, it } from "vitest";
 import { TRANSITION_PARITY_CASES } from "../../apps/web/src/components/editor/media-panel/views/transitions/transition-parity-ten";
-import { prepareFFmpegFilterScript } from "../ffmpeg/filter-complex-script";
+import { prepareFFmpegFilterComplexScripts } from "../ffmpeg/filter-complex-script";
 import { buildXfadeTransitionFilter } from "../ffmpeg/transition-filter";
 import { getFFmpegPath } from "../ffmpeg/paths";
 import type { VideoTransition } from "../ffmpeg/types";
@@ -96,8 +96,7 @@ async function renderTransitionWithFilterScript({
 	value: VideoTransition;
 }) {
 	if (!ffmpegPath) throw new Error("FFmpeg unavailable");
-	const prepared = prepareFFmpegFilterScript({
-		executablePath: ffmpegPath,
+	const prepared = prepareFFmpegFilterComplexScripts({
 		args: buildTransitionArgs({ value }),
 		commandLengthThreshold: 1,
 	});
@@ -127,8 +126,7 @@ async function renderTransitionFrames({
 		filterComplexThreads === undefined
 			? []
 			: ["-filter_complex_threads", String(filterComplexThreads)];
-	const prepared = prepareFFmpegFilterScript({
-		executablePath: ffmpegPath,
+	const prepared = prepareFFmpegFilterComplexScripts({
 		args: [
 			"-v",
 			"error",

@@ -4,10 +4,7 @@ import path from "node:path";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { TRANSITION_PARITY_CASES } from "../../apps/web/src/components/editor/media-panel/views/transitions/transition-parity-ten";
 import { buildFFmpegArgs } from "../ffmpeg-args-builder";
-import {
-	prepareFFmpegFilterComplexScripts,
-	prepareFFmpegFilterScript,
-} from "../ffmpeg/filter-complex-script";
+import { prepareFFmpegFilterComplexScripts } from "../ffmpeg/filter-complex-script";
 import type { VideoSource, VideoTransition } from "../ffmpeg/types";
 
 function createTemporaryRoot(): string {
@@ -172,7 +169,7 @@ function buildExactTenProductionArgs({
 	});
 }
 
-describe("prepareFFmpegFilterScript", () => {
+describe("forced FFmpeg filter complex scripts", () => {
 	let tempRoot: string;
 
 	beforeEach(() => {
@@ -193,15 +190,14 @@ describe("prepareFFmpegFilterScript", () => {
 			"[out]",
 		];
 
-		const prepared = prepareFFmpegFilterScript({
-			executablePath: "/usr/bin/ffmpeg",
+		const prepared = prepareFFmpegFilterComplexScripts({
 			args: originalArgs,
 			commandLengthThreshold: Number.MAX_SAFE_INTEGER,
-			tempDirectory: tempRoot,
+			temporaryDirectory: tempRoot,
 		});
 
 		expect(prepared.args).toEqual(originalArgs);
-		expect(prepared.filterScriptPath).toBeUndefined();
+		expect(prepared.scriptPaths).toEqual([]);
 		expect(fs.readdirSync(tempRoot)).toEqual([]);
 		await prepared.cleanup();
 		expect(fs.readdirSync(tempRoot)).toEqual([]);
@@ -220,28 +216,25 @@ describe("prepareFFmpegFilterScript", () => {
 			"[out]",
 		];
 
-		const prepared = prepareFFmpegFilterScript({
-			executablePath: "/usr/bin/ffmpeg",
+		const prepared = prepareFFmpegFilterComplexScripts({
 			args: originalArgs,
 			commandLengthThreshold: 1,
-			tempDirectory: tempRoot,
+			temporaryDirectory: tempRoot,
 		});
 
-		expect(prepared.filterScriptPath).toBeDefined();
-		if (!prepared.filterScriptPath) {
+		const [filterScriptPath] = prepared.scriptPaths;
+		if (!filterScriptPath) {
 			throw new Error("Expected an FFmpeg filter script path");
 		}
 		expect(prepared.args).toEqual([
 			"-i",
 			"input.mp4",
 			"-filter_complex_script",
-			prepared.filterScriptPath,
+			filterScriptPath,
 			"-map",
 			"[out]",
 		]);
-		expect(fs.readFileSync(prepared.filterScriptPath, "utf8")).toBe(
-			filterGraph
-		);
+		expect(fs.readFileSync(filterScriptPath, "utf8")).toBe(filterGraph);
 		await prepared.cleanup();
 	});
 
@@ -249,18 +242,17 @@ describe("prepareFFmpegFilterScript", () => {
 		const originalArgs = buildExactTenProductionArgs({
 			inputDirectory: tempRoot,
 		});
-		const prepared = prepareFFmpegFilterScript({
-			executablePath: "/usr/bin/ffmpeg",
+		const prepared = prepareFFmpegFilterComplexScripts({
 			args: originalArgs,
-			tempDirectory: tempRoot,
+			temporaryDirectory: tempRoot,
 		});
 
-		expect(prepared.filterScriptPath).toBeDefined();
-		if (!prepared.filterScriptPath) {
+		const [filterScriptPath] = prepared.scriptPaths;
+		if (!filterScriptPath) {
 			throw new Error("Expected an FFmpeg filter script path");
 		}
-		const scriptDirectory = path.dirname(prepared.filterScriptPath);
-		const filterGraph = fs.readFileSync(prepared.filterScriptPath, "utf8");
+		const scriptDirectory = path.dirname(filterScriptPath);
+		const filterGraph = fs.readFileSync(filterScriptPath, "utf8");
 
 		expect(prepared.args).toContain("-filter_complex_script");
 		expect(prepared.args).not.toContain("-filter_complex");
@@ -272,17 +264,16 @@ describe("prepareFFmpegFilterScript", () => {
 	});
 
 	it("removes the generated directory once when cleanup is repeated", async () => {
-		const prepared = prepareFFmpegFilterScript({
-			executablePath: "/usr/bin/ffmpeg",
+		const prepared = prepareFFmpegFilterComplexScripts({
 			args: ["-filter_complex", "[0:v]null[out]"],
 			commandLengthThreshold: 1,
-			tempDirectory: tempRoot,
+			temporaryDirectory: tempRoot,
 		});
-		expect(prepared.filterScriptPath).toBeDefined();
-		if (!prepared.filterScriptPath) {
+		const [filterScriptPath] = prepared.scriptPaths;
+		if (!filterScriptPath) {
 			throw new Error("Expected an FFmpeg filter script path");
 		}
-		const scriptDirectory = path.dirname(prepared.filterScriptPath);
+		const scriptDirectory = path.dirname(filterScriptPath);
 		expect(fs.existsSync(scriptDirectory)).toBe(true);
 
 		await prepared.cleanup();
@@ -292,17 +283,16 @@ describe("prepareFFmpegFilterScript", () => {
 	});
 
 	it("falls back to asynchronous removal when Windows keeps the directory busy", async () => {
-		const prepared = prepareFFmpegFilterScript({
-			executablePath: "C:\\ffmpeg\\bin\\ffmpeg.exe",
+		const prepared = prepareFFmpegFilterComplexScripts({
 			args: ["-filter_complex", "[0:v]null[out]"],
 			commandLengthThreshold: 1,
-			tempDirectory: tempRoot,
+			temporaryDirectory: tempRoot,
 		});
-		expect(prepared.filterScriptPath).toBeDefined();
-		if (!prepared.filterScriptPath) {
+		const [filterScriptPath] = prepared.scriptPaths;
+		if (!filterScriptPath) {
 			throw new Error("Expected an FFmpeg filter script path");
 		}
-		const scriptDirectory = path.dirname(prepared.filterScriptPath);
+		const scriptDirectory = path.dirname(filterScriptPath);
 		const permissionError = Object.assign(
 			new Error("operation not permitted"),
 			{
@@ -341,16 +331,16 @@ describe("prepareFFmpegFilterScript", () => {
 	});
 
 	it("reports a final cleanup failure and allows a later retry", async () => {
-		const prepared = prepareFFmpegFilterScript({
-			executablePath: "C:\\ffmpeg\\bin\\ffmpeg.exe",
+		const prepared = prepareFFmpegFilterComplexScripts({
 			args: ["-filter_complex", "[0:v]null[out]"],
 			commandLengthThreshold: 1,
-			tempDirectory: tempRoot,
+			temporaryDirectory: tempRoot,
 		});
-		if (!prepared.filterScriptPath) {
+		const [filterScriptPath] = prepared.scriptPaths;
+		if (!filterScriptPath) {
 			throw new Error("Expected an FFmpeg filter script path");
 		}
-		const scriptDirectory = path.dirname(prepared.filterScriptPath);
+		const scriptDirectory = path.dirname(filterScriptPath);
 		const permissionError = Object.assign(
 			new Error("operation not permitted"),
 			{ code: "EPERM" }
@@ -388,13 +378,12 @@ describe("prepareFFmpegFilterScript", () => {
 
 	it("rejects a filter_complex flag without its graph argument", () => {
 		expect(() =>
-			prepareFFmpegFilterScript({
-				executablePath: "/usr/bin/ffmpeg",
+			prepareFFmpegFilterComplexScripts({
 				args: ["-hide_banner", "-filter_complex"],
 				commandLengthThreshold: 1,
-				tempDirectory: tempRoot,
+				temporaryDirectory: tempRoot,
 			})
-		).toThrow("FFmpeg filter graph argument is missing");
+		).toThrow("FFmpeg filter_complex is missing its graph");
 		expect(fs.readdirSync(tempRoot)).toEqual([]);
 	});
 });
