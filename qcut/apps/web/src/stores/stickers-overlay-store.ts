@@ -14,21 +14,21 @@ import type {
 	OverlaySticker,
 	ValidatedStickerUpdate,
 } from "@/types/sticker-overlay";
-import { Z_INDEX } from "@/types/sticker-overlay";
+import { STICKER_DEFAULTS, Z_INDEX } from "@/types/sticker-overlay";
 import { getStickerTimingMap } from "@/lib/stickers/sticker-timeline-query";
 import {
 	resolveTimelineStickerVisual,
 	stickerVisualUpdatesFromOverlay,
 } from "@/lib/stickers/timeline-sticker-visual";
+import { projectStickerOverlaysFromTimelineChange } from "@/lib/stickers/sticker-overlay-projection";
+import { stickerTimelineUpdatesFromOverlayPatch } from "@/lib/stickers/sticker-overlay-timeline-sync";
+import { useTimelineStore } from "@/stores/timeline/timeline-store";
+import { usePlaybackStore } from "@/stores/editor/playback-store";
+import { useProjectStore } from "@/stores/project-store";
+import { useEditorStore } from "@/stores/editor/editor-store";
+import type { StickerElement } from "@/types/timeline";
 
-// Import constants
-const DEFAULTS = {
-	position: { x: 50, y: 50 },
-	size: { width: 15, height: 15 },
-	rotation: 0,
-	opacity: 1,
-	maintainAspectRatio: true,
-};
+const DEFAULTS = STICKER_DEFAULTS;
 
 /**
  * Generate unique ID for stickers
@@ -48,30 +48,67 @@ const getNextZIndex = (stickers: Map<string, OverlaySticker>): number => {
 
 function syncStickerVisualToTimeline({
 	sticker,
+	updates,
 	pushHistory = false,
 }: {
 	sticker: OverlaySticker;
+	updates?: ValidatedStickerUpdate;
 	pushHistory?: boolean;
 }): void {
-	void import("@/stores/timeline/timeline-store").then(
-		({ useTimelineStore }) => {
-			const timeline = useTimelineStore.getState();
-			for (const track of timeline._tracks) {
-				const element = track.elements.find(
-					(candidate) =>
-						candidate.type === "sticker" && candidate.stickerId === sticker.id
-				);
-				if (!element) continue;
-				timeline.updateStickerElement(
-					track.id,
-					element.id,
-					stickerVisualUpdatesFromOverlay({ sticker }),
-					pushHistory
-				);
-				return;
-			}
-		}
-	);
+	const timeline = useTimelineStore.getState();
+
+	for (const track of timeline._tracks) {
+		const element = track.elements.find(
+			(candidate): candidate is StickerElement =>
+				candidate.type === "sticker" && candidate.stickerId === sticker.id
+		);
+		if (!element) continue;
+		const visualUpdates = updates
+			? stickerTimelineUpdatesFromOverlayPatch({
+					element,
+					sticker,
+					updates,
+					tracks: timeline._tracks,
+					currentTime: usePlaybackStore.getState().currentTime,
+					fps: useProjectStore.getState().activeProject?.fps ?? 30,
+					canvasWidth: useEditorStore.getState().canvasSize.width,
+					canvasHeight: useEditorStore.getState().canvasSize.height,
+				})
+			: stickerVisualUpdatesFromOverlay({ sticker });
+		if (Object.keys(visualUpdates).length === 0) return;
+		timeline.updateStickerElement(
+			track.id,
+			element.id,
+			visualUpdates,
+			pushHistory
+		);
+		return;
+	}
+}
+
+function timelineSelectionForSticker({
+	stickerId,
+}: {
+	stickerId: string;
+}): { trackId: string; elementId: string }[] {
+	for (const track of useTimelineStore.getState()._tracks) {
+		const element = track.elements.find(
+			(candidate) =>
+				candidate.type === "sticker" && candidate.stickerId === stickerId
+		);
+		if (element) return [{ trackId: track.id, elementId: element.id }];
+	}
+	return [];
+}
+
+function selectedStickerIdFromTimeline(): string | null {
+	const timeline = useTimelineStore.getState();
+	if (timeline.selectedElements.length !== 1) return null;
+	const [selection] = timeline.selectedElements;
+	const element = timeline._tracks
+		.find((track) => track.id === selection.trackId)
+		?.elements.find((candidate) => candidate.id === selection.elementId);
+	return element?.type === "sticker" ? element.stickerId : null;
 }
 
 function resolveStickerProjection({
@@ -193,6 +230,20 @@ export const useStickersOverlayStore = create<StickerOverlayStore>()(
 					zIndex: options.zIndex || getNextZIndex(state.overlayStickers),
 					maintainAspectRatio:
 						options.maintainAspectRatio ?? DEFAULTS.maintainAspectRatio,
+					perspective: options.perspective
+						? { ...options.perspective }
+						: { ...DEFAULTS.perspective },
+					animationInType: options.animationInType ?? DEFAULTS.animationInType,
+					animationInDuration:
+						options.animationInDuration ?? DEFAULTS.animationInDuration,
+					animationOutType:
+						options.animationOutType ?? DEFAULTS.animationOutType,
+					animationOutDuration:
+						options.animationOutDuration ?? DEFAULTS.animationOutDuration,
+					animationLoopType:
+						options.animationLoopType ?? DEFAULTS.animationLoopType,
+					animationLoopIntensity:
+						options.animationLoopIntensity ?? DEFAULTS.animationLoopIntensity,
 					// timing is deprecated — timeline is the source of truth for when stickers appear
 					metadata: {
 						addedAt: Date.now(),
@@ -269,18 +320,24 @@ export const useStickersOverlayStore = create<StickerOverlayStore>()(
 					};
 				});
 
-				// Also remove from timeline (async, fire-and-forget)
-				import("@/lib/stickers/timeline-sticker-integration")
-					.then(({ timelineStickerIntegration }) => {
-						timelineStickerIntegration.removeStickerFromTimeline(id);
-					})
-					.catch(() => {
-						// Timeline cleanup is best-effort
-					});
+				const timeline = useTimelineStore.getState();
+				for (const track of timeline._tracks) {
+					const element = track.elements.find(
+						(candidate) =>
+							candidate.type === "sticker" && candidate.stickerId === id
+					);
+					if (!element) continue;
+					timeline.removeElementFromTrack(track.id, element.id);
+					break;
+				}
 			},
 
 			// Update sticker with validation
-			updateOverlaySticker: (id: string, updates: ValidatedStickerUpdate) => {
+			updateOverlaySticker: (
+				id: string,
+				updates: ValidatedStickerUpdate,
+				{ syncTimeline = true } = {}
+			) => {
 				set((state) => {
 					const sticker = state.overlayStickers.get(id);
 					if (!sticker) return state;
@@ -336,8 +393,11 @@ export const useStickersOverlayStore = create<StickerOverlayStore>()(
 					};
 				});
 				const updatedSticker = get().overlayStickers.get(id);
-				if (updatedSticker)
-					syncStickerVisualToTimeline({ sticker: updatedSticker });
+				if (updatedSticker && syncTimeline)
+					syncStickerVisualToTimeline({
+						sticker: updatedSticker,
+						updates,
+					});
 			},
 
 			// Clear all stickers
@@ -357,6 +417,12 @@ export const useStickersOverlayStore = create<StickerOverlayStore>()(
 
 			// Selection management
 			selectSticker: (id: string | null) => {
+				useTimelineStore.setState({
+					selectedElements: id
+						? timelineSelectionForSticker({ stickerId: id })
+						: [],
+					selectedTransition: null,
+				});
 				set({ selectedStickerId: id });
 			},
 
@@ -379,7 +445,12 @@ export const useStickersOverlayStore = create<StickerOverlayStore>()(
 					return { overlayStickers: newStickers };
 				});
 				const sticker = get().overlayStickers.get(id);
-				if (sticker) syncStickerVisualToTimeline({ sticker });
+				if (sticker) {
+					syncStickerVisualToTimeline({
+						sticker,
+						updates: { zIndex: sticker.zIndex },
+					});
+				}
 			},
 
 			sendToBack: (id: string) => {
@@ -400,7 +471,12 @@ export const useStickersOverlayStore = create<StickerOverlayStore>()(
 					return { overlayStickers: newStickers };
 				});
 				const sticker = get().overlayStickers.get(id);
-				if (sticker) syncStickerVisualToTimeline({ sticker });
+				if (sticker) {
+					syncStickerVisualToTimeline({
+						sticker,
+						updates: { zIndex: sticker.zIndex },
+					});
+				}
 			},
 
 			bringForward: (id: string) => {
@@ -425,7 +501,12 @@ export const useStickersOverlayStore = create<StickerOverlayStore>()(
 					return state;
 				});
 				const sticker = get().overlayStickers.get(id);
-				if (sticker) syncStickerVisualToTimeline({ sticker });
+				if (sticker) {
+					syncStickerVisualToTimeline({
+						sticker,
+						updates: { zIndex: sticker.zIndex },
+					});
+				}
 			},
 
 			sendBackward: (id: string) => {
@@ -453,7 +534,12 @@ export const useStickersOverlayStore = create<StickerOverlayStore>()(
 					return state;
 				});
 				const sticker = get().overlayStickers.get(id);
-				if (sticker) syncStickerVisualToTimeline({ sticker });
+				if (sticker) {
+					syncStickerVisualToTimeline({
+						sticker,
+						updates: { zIndex: sticker.zIndex },
+					});
+				}
 			},
 
 			// UI State management
@@ -504,7 +590,7 @@ export const useStickersOverlayStore = create<StickerOverlayStore>()(
 				}
 			},
 
-			saveHistorySnapshot: () => {
+			saveHistorySnapshot: ({ syncTimelineHistory = true } = {}) => {
 				set((state) => {
 					const currentState = Array.from(state.overlayStickers.values());
 					const newPast = [...state.history.past, currentState];
@@ -513,9 +599,9 @@ export const useStickersOverlayStore = create<StickerOverlayStore>()(
 						history: { past: newPast, future: [] },
 					};
 				});
-				void import("@/stores/timeline/timeline-store").then(
-					({ useTimelineStore }) => useTimelineStore.getState().pushHistory()
-				);
+				if (syncTimelineHistory) {
+					useTimelineStore.getState().pushHistory();
+				}
 			},
 
 			// Clean up stickers with missing media items
@@ -698,3 +784,32 @@ export const useStickersOverlayStore = create<StickerOverlayStore>()(
 		}
 	)
 );
+
+useTimelineStore.subscribe((state, previousState) => {
+	if (
+		state.selectedElements === previousState.selectedElements &&
+		state._tracks === previousState._tracks
+	) {
+		return;
+	}
+	const selectedStickerId = selectedStickerIdFromTimeline();
+	const overlayState = useStickersOverlayStore.getState();
+	const overlayStickers =
+		state._tracks === previousState._tracks
+			? overlayState.overlayStickers
+			: projectStickerOverlaysFromTimelineChange({
+					overlays: overlayState.overlayStickers,
+					tracks: state._tracks,
+					previousTracks: previousState._tracks,
+				});
+	if (
+		overlayStickers === overlayState.overlayStickers &&
+		overlayState.selectedStickerId === selectedStickerId
+	) {
+		return;
+	}
+	useStickersOverlayStore.setState({
+		overlayStickers,
+		selectedStickerId,
+	});
+});
