@@ -86,7 +86,43 @@ describe("useAudioLibrarySearch", () => {
 		);
 
 		await waitFor(() => expect(result.current.hasNextPage).toBe(true));
-		await act(async () => result.current.loadMore());
+		let loaded = false;
+		await act(async () => {
+			loaded = await result.current.loadMore();
+		});
+		expect(loaded).toBe(true);
 		expect(result.current.results.map((item) => item.id)).toEqual([1, 2]);
+	});
+
+	it("reports a failed page load without advancing consumers", async () => {
+		vi.mocked(searchSounds)
+			.mockResolvedValueOnce({
+				success: true,
+				results: [sound({ id: 1, name: "One" })],
+				count: 2,
+				next: "page-2",
+			})
+			.mockResolvedValueOnce({
+				success: false,
+				error: "Remote page failed",
+			});
+		const { result } = renderHook(() =>
+			useAudioLibrarySearch({
+				query: "ambient",
+				type: "songs",
+				commercialOnly: false,
+				debounceMs: 0,
+			})
+		);
+
+		await waitFor(() => expect(result.current.hasNextPage).toBe(true));
+		let loaded = true;
+		await act(async () => {
+			loaded = await result.current.loadMore();
+		});
+
+		expect(loaded).toBe(false);
+		expect(result.current.results.map((item) => item.id)).toEqual([1]);
+		expect(result.current.error).toBe("Remote page failed");
 	});
 });

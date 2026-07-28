@@ -8,18 +8,33 @@ import { useMediaStore } from "@/stores/media/media-store";
 import { useSoundsStore } from "@/stores/media/sounds-store";
 import { useTimelineStore } from "@/stores/timeline/timeline-store";
 import type { MediaElement, TimelineTrack } from "@/types/timeline";
+import type { SoundEffect } from "@/types/sounds";
 import { SoundsView } from "../sounds";
 
-vi.mock("@/hooks/media/use-audio-library-search", () => ({
-	useAudioLibrarySearch: () => ({
+interface AudioSearchMockResult {
+	results: SoundEffect[];
+	isLoading: boolean;
+	isLoadingMore: boolean;
+	error?: string;
+	hasNextPage: boolean;
+	totalCount: number;
+	loadMore: () => Promise<boolean>;
+}
+
+const audioSearchMock = vi.hoisted(() => ({
+	current: {
 		results: [],
 		isLoading: false,
 		isLoadingMore: false,
 		error: undefined,
 		hasNextPage: false,
 		totalCount: 0,
-		loadMore: vi.fn(),
-	}),
+		loadMore: vi.fn(async () => false),
+	} as AudioSearchMockResult,
+}));
+
+vi.mock("@/hooks/media/use-audio-library-search", () => ({
+	useAudioLibrarySearch: () => audioSearchMock.current,
 }));
 
 vi.mock("@/hooks/media/use-audio-preview", () => ({
@@ -111,6 +126,15 @@ describe("SoundsView", () => {
 
 	beforeEach(() => {
 		extendedCatalog.tracks = [];
+		audioSearchMock.current = {
+			results: [],
+			isLoading: false,
+			isLoadingMore: false,
+			error: undefined,
+			hasNextPage: false,
+			totalCount: 0,
+			loadMore: vi.fn(async () => false),
+		};
 		localStorage.clear();
 		useLocaleStore.getState().setLocale({ locale: "zh" });
 		useMediaPanelStore.setState({ activeSoundsTab: "music-latest" });
@@ -411,6 +435,49 @@ describe("SoundsView", () => {
 
 		expect(mountedMusicCards()).toBe(
 			Math.min(totalMusicTracks(), AUDIO_VISIBLE_BATCH_SIZE * 2)
+		);
+	});
+
+	it("reveals a newly fetched remote page with one load-more action", async () => {
+		const bundledMusicCount = BUILT_IN_AUDIO.filter(
+			(sound) => sound.kind === "music"
+		).length;
+		const firstRemotePage = EXTENDED_CATALOG.slice(
+			0,
+			AUDIO_VISIBLE_BATCH_SIZE - bundledMusicCount
+		);
+		const secondRemotePage = EXTENDED_CATALOG.slice(
+			firstRemotePage.length,
+			firstRemotePage.length + 24
+		);
+		const loadMore = vi.fn(async () => true);
+		audioSearchMock.current = {
+			results: firstRemotePage,
+			isLoading: false,
+			isLoadingMore: false,
+			error: undefined,
+			hasNextPage: true,
+			totalCount: firstRemotePage.length + secondRemotePage.length,
+			loadMore,
+		};
+		const { rerender } = render(<SoundsView />);
+
+		expect(mountedMusicCards()).toBe(AUDIO_VISIBLE_BATCH_SIZE);
+		await act(async () => {
+			fireEvent.click(screen.getByRole("button", { name: "加载更多" }));
+			await Promise.resolve();
+		});
+		expect(loadMore).toHaveBeenCalledOnce();
+
+		audioSearchMock.current = {
+			...audioSearchMock.current,
+			results: [...firstRemotePage, ...secondRemotePage],
+			hasNextPage: false,
+		};
+		rerender(<SoundsView />);
+
+		expect(mountedMusicCards()).toBe(
+			bundledMusicCount + firstRemotePage.length + secondRemotePage.length
 		);
 	});
 

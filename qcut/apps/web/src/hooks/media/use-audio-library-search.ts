@@ -71,7 +71,7 @@ export function useAudioLibrarySearch({
 				min_rating: 3,
 				commercial_only: commercialOnly,
 			})) as SoundSearchResponse;
-			if (generation !== requestGeneration.current) return;
+			if (generation !== requestGeneration.current) return false;
 			if (response.success === false) {
 				throw new Error(response.error || "Audio search failed");
 			}
@@ -82,6 +82,7 @@ export function useAudioLibrarySearch({
 			setPage(pageNumber);
 			setHasNextPage(Boolean(response.next));
 			setTotalCount(response.count ?? incoming.length);
+			return true;
 		},
 		[commercialOnly, pageSize, query, sort, type]
 	);
@@ -116,12 +117,12 @@ export function useAudioLibrarySearch({
 	}, [debounceMs, enabled, runSearch]);
 
 	const loadMore = useCallback(async () => {
-		if (!enabled || isLoading || isLoadingMore || !hasNextPage) return;
+		if (!enabled || isLoading || isLoadingMore || !hasNextPage) return false;
 		const generation = requestGeneration.current;
 		setIsLoadingMore(true);
 		setError(undefined);
 		try {
-			await runSearch({
+			return await runSearch({
 				pageNumber: page + 1,
 				append: true,
 				generation,
@@ -132,6 +133,7 @@ export function useAudioLibrarySearch({
 					loadError instanceof Error ? loadError.message : "Audio search failed"
 				);
 			}
+			return false;
 		} finally {
 			if (generation === requestGeneration.current) setIsLoadingMore(false);
 		}

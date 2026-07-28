@@ -461,13 +461,16 @@ export function SoundsView() {
 	);
 	const hasMoreLocalItems = displayedItems.length > visibleCount;
 	const canLoadMore = hasMoreLocalItems || (catalogActive && hasNextPage);
-	const showMore = useCallback(() => {
+	const showMore = useCallback(async () => {
 		// Reveal what is already in hand before asking the network for more.
 		if (hasMoreLocalItems) {
 			setVisibleCount((count) => count + AUDIO_VISIBLE_BATCH_SIZE);
 			return;
 		}
-		void loadMore();
+		const loaded = await loadMore();
+		if (loaded) {
+			setVisibleCount((count) => count + AUDIO_VISIBLE_BATCH_SIZE);
+		}
 	}, [hasMoreLocalItems, loadMore]);
 	const title = catalogActive
 		? t(category.labelKey)
@@ -764,11 +767,11 @@ export function SoundsView() {
 									size="sm"
 									className="mt-3 w-full"
 									disabled={isLoadingMore && !hasMoreLocalItems}
-									onClick={showMore}
+									onClick={() => void showMore()}
 									onKeyDown={(event) => {
 										if (event.key === "Enter" || event.key === " ") {
 											event.preventDefault();
-											showMore();
+											void showMore();
 										}
 									}}
 								>
