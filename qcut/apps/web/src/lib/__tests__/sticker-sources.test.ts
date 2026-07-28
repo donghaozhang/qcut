@@ -1,6 +1,12 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import { extractStickerSources } from "../export-cli/sources/sticker-sources";
 import type { MediaItem } from "@/stores/media/media-store-types";
+import { useTimelineStore } from "@/stores/timeline/timeline-store";
+import type {
+	MediaElement,
+	StickerElement,
+	TimelineTrack,
+} from "@/types/timeline";
 
 // ---------------------------------------------------------------------------
 // Factories
@@ -73,6 +79,7 @@ describe("extractStickerSources", () => {
 	beforeEach(() => {
 		vi.restoreAllMocks();
 		silentLogger.mockClear();
+		useTimelineStore.setState({ _tracks: [], tracks: [] });
 	});
 
 	// -----------------------------------------------------------------------
@@ -481,6 +488,114 @@ describe("extractStickerSources", () => {
 			);
 
 			expect(result).toEqual([]);
+		});
+
+		it("propagates oversized tracking instead of exporting an untracked sticker", async () => {
+			const trackedMedia: MediaElement = {
+				id: "tracked-media",
+				type: "media",
+				name: "Tracked video",
+				mediaId: "video-media",
+				startTime: 0,
+				duration: 10_000,
+				trimStart: 0,
+				trimEnd: 0,
+				masks: [
+					{
+						id: "tracked-person",
+						name: "Person",
+						type: "person",
+						centerX: 0.5,
+						centerY: 0.5,
+						width: 0.2,
+						height: 0.4,
+						rotation: 0,
+						feather: 0,
+						invert: false,
+						keyframes: {
+							centerX: [
+								{
+									id: "tracked-x",
+									frame: 0,
+									value: 0.5,
+									easing: "linear",
+								},
+							],
+							centerY: [
+								{
+									id: "tracked-y",
+									frame: 0,
+									value: 0.5,
+									easing: "linear",
+								},
+							],
+						},
+						tracking: {
+							direction: "both",
+							status: "ready",
+							source: "mediapipe",
+						},
+					},
+				],
+			};
+			const trackedSticker: StickerElement = {
+				id: "tracked-sticker-element",
+				type: "sticker",
+				name: "Tracked sticker",
+				stickerId: "sticker-1",
+				mediaId: "media-1",
+				startTime: 0,
+				duration: 10_000,
+				trimStart: 0,
+				trimEnd: 0,
+				x: 50,
+				y: 50,
+				width: 20,
+				height: 20,
+				tracking: {
+					mode: "motion",
+					targetElementId: trackedMedia.id,
+					targetMaskId: "tracked-person",
+					followScale: false,
+					anchor: {
+						centerX: 50,
+						centerY: 50,
+						width: (1920 * 0.2 * 100) / 1080,
+						height: 40,
+					},
+				},
+			};
+			const tracks: TimelineTrack[] = [
+				{
+					id: "media-track",
+					name: "Media",
+					type: "media",
+					elements: [trackedMedia],
+				},
+				{
+					id: "sticker-track",
+					name: "Stickers",
+					type: "sticker",
+					elements: [trackedSticker],
+				},
+			];
+			useTimelineStore.setState({ _tracks: tracks, tracks });
+
+			await expect(
+				extractStickerSources(
+					[createMediaItem()],
+					"session-1",
+					1920,
+					1080,
+					10_000,
+					createStoreGetter([createStickerData()]),
+					createMockAPI(),
+					silentLogger,
+					240
+				)
+			).rejects.toThrowError(
+				/tracked-sticker-element needs 2,400,001 tracking samples/
+			);
 		});
 	});
 });
