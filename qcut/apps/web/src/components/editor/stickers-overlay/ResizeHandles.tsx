@@ -5,39 +5,45 @@
  * corner and edge dragging support.
  */
 
-import React, { memo, useCallback, useRef } from "react";
+import {
+	memo,
+	useCallback,
+	useRef,
+	type PointerEvent as ReactPointerEvent,
+	type RefObject,
+} from "react";
 import { cn } from "@/lib/utils";
 import { debugLog } from "@/lib/debug/debug-config";
 import { useStickersOverlayStore } from "@/stores/stickers-overlay-store";
 import type { OverlaySticker } from "@/types/sticker-overlay";
+import {
+	calculateStickerResize,
+	type StickerResizeHandle,
+} from "@/lib/stickers/sticker-resize-geometry";
 
 interface ResizeHandlesProps {
 	stickerId: string;
 	isVisible: boolean;
 	sticker: OverlaySticker;
-	elementRef: React.RefObject<HTMLDivElement | null>;
-	canvasRef: React.RefObject<HTMLDivElement | null>;
+	canvasRef: RefObject<HTMLDivElement | null>;
 }
-
-type ResizeHandle = "tl" | "tr" | "bl" | "br" | "t" | "r" | "b" | "l";
 
 /**
  * Resize handles for sticker elements
  */
 export const ResizeHandles = memo<ResizeHandlesProps>(
-	({ stickerId, isVisible, sticker, elementRef, canvasRef }) => {
+	({ stickerId, isVisible, sticker, canvasRef }) => {
 		const { updateOverlaySticker, setIsResizing, saveHistorySnapshot } =
 			useStickersOverlayStore();
 		const resizeState = useRef({
 			isResizing: false,
-			handle: null as ResizeHandle | null,
+			handle: null as StickerResizeHandle | null,
 			startX: 0,
 			startY: 0,
 			startWidth: 0,
 			startHeight: 0,
 			startLeft: 0,
 			startTop: 0,
-			aspectRatio: 1,
 		});
 
 		/**
@@ -45,127 +51,56 @@ export const ResizeHandles = memo<ResizeHandlesProps>(
 		 */
 		const calculateNewSize = useCallback(
 			(
-				handle: ResizeHandle,
+				handle: StickerResizeHandle,
 				deltaX: number,
 				deltaY: number,
 				maintainAspectRatio: boolean
 			) => {
 				const state = resizeState.current;
-				let newWidth = state.startWidth;
-				let newHeight = state.startHeight;
-				let newX = sticker.position.x;
-				let newY = sticker.position.y;
-
-				// Calculate percentage changes relative to canvas (not window)
 				const canvasRect = canvasRef.current?.getBoundingClientRect();
 				const canvasWidth = canvasRect?.width ?? window.innerWidth;
 				const canvasHeight = canvasRect?.height ?? window.innerHeight;
-				const deltaXPercent = (deltaX / canvasWidth) * 100;
-				const deltaYPercent = (deltaY / canvasHeight) * 100;
-
-				switch (handle) {
-					case "tl": // Top-left
-						newWidth = state.startWidth - deltaXPercent * 2;
-						newHeight = state.startHeight - deltaYPercent * 2;
-						newX = state.startLeft + deltaXPercent;
-						newY = state.startTop + deltaYPercent;
-						break;
-					case "tr": // Top-right
-						newWidth = state.startWidth + deltaXPercent * 2;
-						newHeight = state.startHeight - deltaYPercent * 2;
-						newY = state.startTop + deltaYPercent;
-						break;
-					case "bl": // Bottom-left
-						newWidth = state.startWidth - deltaXPercent * 2;
-						newHeight = state.startHeight + deltaYPercent * 2;
-						newX = state.startLeft + deltaXPercent;
-						break;
-					case "br": // Bottom-right
-						newWidth = state.startWidth + deltaXPercent * 2;
-						newHeight = state.startHeight + deltaYPercent * 2;
-						break;
-					case "t": // Top
-						newHeight = state.startHeight - deltaYPercent * 2;
-						newY = state.startTop + deltaYPercent;
-						break;
-					case "b": // Bottom
-						newHeight = state.startHeight + deltaYPercent * 2;
-						break;
-					case "l": // Left
-						newWidth = state.startWidth - deltaXPercent * 2;
-						newX = state.startLeft + deltaXPercent;
-						break;
-					case "r": // Right
-						newWidth = state.startWidth + deltaXPercent * 2;
-						break;
-				}
-
-				// Maintain aspect ratio if needed
-				if (
-					maintainAspectRatio &&
-					(handle === "tl" ||
-						handle === "tr" ||
-						handle === "bl" ||
-						handle === "br")
-				) {
-					const ratio = state.aspectRatio;
-					if (Math.abs(deltaXPercent) > Math.abs(deltaYPercent)) {
-						const heightDiff = newWidth / ratio - newHeight;
-						newHeight = newWidth / ratio;
-						// Adjust position for top handles
-						if (handle === "tl" || handle === "tr") {
-							newY = state.startTop + (handle === "tl" ? heightDiff : 0);
-						}
-					} else {
-						const widthDiff = newHeight * ratio - newWidth;
-						newWidth = newHeight * ratio;
-						// Adjust position for left handles
-						if (handle === "tl" || handle === "bl") {
-							newX = state.startLeft + (handle === "tl" ? widthDiff : 0);
-						}
-					}
-				}
-
-				// Apply minimum and maximum constraints
-				newWidth = Math.max(5, Math.min(100, newWidth));
-				newHeight = Math.max(5, Math.min(100, newHeight));
-				newX = Math.max(0, Math.min(100, newX));
-				newY = Math.max(0, Math.min(100, newY));
-
-				// Clamp size so sticker doesn't extend past canvas edges
-				// Position is center-based, so max size = 2× distance to nearest edge
-				const maxWidth = Math.min(100, newX * 2, (100 - newX) * 2);
-				const maxHeight = Math.min(100, newY * 2, (100 - newY) * 2);
-				newWidth = Math.max(5, Math.min(maxWidth, newWidth));
-				newHeight = Math.max(5, Math.min(maxHeight, newHeight));
-
-				return { width: newWidth, height: newHeight, x: newX, y: newY };
+				return calculateStickerResize({
+					canvasHeight,
+					canvasWidth,
+					deltaX,
+					deltaY,
+					handle,
+					maintainAspectRatio,
+					startHeight: state.startHeight,
+					startWidth: state.startWidth,
+					startX: state.startLeft,
+					startY: state.startTop,
+				});
 			},
-			[sticker.position.x, sticker.position.y, canvasRef]
+			[canvasRef]
 		);
 
 		/**
 		 * Get cursor style for handle
 		 */
-		const getCursorForHandle = useCallback((handle: ResizeHandle): string => {
-			const cursors: Record<ResizeHandle, string> = {
-				tl: "nw-resize",
-				tr: "ne-resize",
-				bl: "sw-resize",
-				br: "se-resize",
-				t: "n-resize",
-				b: "s-resize",
-				l: "w-resize",
-				r: "e-resize",
-			};
-			return cursors[handle];
-		}, []);
+		const getCursorForHandle = useCallback(
+			(handle: StickerResizeHandle): string => {
+				const cursors: Record<StickerResizeHandle, string> = {
+					tl: "nw-resize",
+					tr: "ne-resize",
+					bl: "sw-resize",
+					br: "se-resize",
+					t: "n-resize",
+					b: "s-resize",
+					l: "w-resize",
+					r: "e-resize",
+				};
+				return cursors[handle];
+			},
+			[]
+		);
 
 		/**
 		 * Handle resize start
 		 */
 		const handleResizeStart = useCallback(
-			(e: React.PointerEvent, handle: ResizeHandle) => {
+			(e: ReactPointerEvent, handle: StickerResizeHandle) => {
 				debugLog(`[ResizeHandles] Starting resize with handle: ${handle}`);
 				e.stopPropagation();
 				e.preventDefault();
@@ -184,7 +119,6 @@ export const ResizeHandles = memo<ResizeHandlesProps>(
 					startHeight: sticker.size.height,
 					startLeft: sticker.position.x,
 					startTop: sticker.position.y,
-					aspectRatio: sticker.size.width / sticker.size.height,
 				};
 
 				setIsResizing(true);
