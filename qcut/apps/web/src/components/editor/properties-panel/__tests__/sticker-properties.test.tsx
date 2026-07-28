@@ -549,4 +549,19 @@ describe("StickerProperties", () => {
 			false
 		);
 	});
+
+	it("preserves tenth-percent deformation precision", () => {
+		setup({
+			element: createElement({
+				overrides: {
+					perspective: {
+						...perspective,
+						topLeftX: 0.125,
+					},
+				},
+			}),
+		});
+
+		expect(screen.getByLabelText("左上角 X数值")).toHaveValue(12.5);
+	});
 });
