@@ -20,6 +20,21 @@ export type StickerTrackingExportKeyframes = Partial<
 
 const MAX_TRACKING_EXPORT_SAMPLES = 18_001;
 
+export class StickerTrackingExportLimitError extends Error {
+	constructor({
+		elementId,
+		sampleCount,
+	}: {
+		elementId: string;
+		sampleCount: number;
+	}) {
+		super(
+			`Sticker ${elementId} needs ${sampleCount.toLocaleString("en-US")} tracking samples, exceeding the ${MAX_TRACKING_EXPORT_SAMPLES.toLocaleString("en-US")} sample export limit. Shorten the clip or reduce the project frame rate.`
+		);
+		this.name = "StickerTrackingExportLimitError";
+	}
+}
+
 function normalizedExportFps({ fps }: { fps: number }): number {
 	if (!Number.isFinite(fps) || fps <= 0) return 30;
 	return Math.min(240, fps);
@@ -84,7 +99,13 @@ export function buildStickerTrackingExportKeyframes({
 		fps: sampleFps,
 	});
 	if (!Number.isSafeInteger(maxFrame) || maxFrame < 0) return;
-	if (maxFrame + 1 > MAX_TRACKING_EXPORT_SAMPLES) return;
+	const sampleCount = maxFrame + 1;
+	if (sampleCount > MAX_TRACKING_EXPORT_SAMPLES) {
+		throw new StickerTrackingExportLimitError({
+			elementId: element.id,
+			sampleCount,
+		});
+	}
 
 	const properties: TrackingExportProperty[] = element.tracking.followScale
 		? ["x", "y", "width", "height"]
