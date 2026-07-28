@@ -8,6 +8,7 @@ import { useProjectStore } from "@/stores/project-store";
 import { toast } from "sonner";
 import { getTimelineElementEndTime } from "@/lib/timeline";
 import {
+	createDuplicatedTimelineElement,
 	createPastedTimelineElement,
 	useTimelineClipboardStore,
 } from "@/stores/timeline/timeline-clipboard-store";
@@ -195,16 +196,15 @@ export function useEditorActions() {
 			const element = track?.elements.find((el: any) => el.id === elementId);
 
 			if (track && element) {
-				const newStartTime = getTimelineElementEndTime({ element }) + 0.1;
 				addElementToTrack(
 					trackId,
-					createPastedTimelineElement({
+					createDuplicatedTimelineElement({
 						entry: {
 							trackId,
 							trackType: track.type,
 							element,
 						},
-						startTime: newStartTime,
+						fps: activeProject?.fps ?? 30,
 					})
 				);
 			}
