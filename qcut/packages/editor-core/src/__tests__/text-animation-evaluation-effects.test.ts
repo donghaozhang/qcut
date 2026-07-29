@@ -221,6 +221,13 @@ describe("text animation frame evaluation", () => {
 		});
 		const compiled = compileTextAnimation({ element, fps: 100 });
 
+		expect(compiled.entrance?.typewriterRhythm).toEqual({
+			weights: [1, 3],
+			prefixTotals: [0, 1, 4],
+			cycleTotal: 4,
+			total: 8,
+			span: 0.8,
+		});
 		// Weights cycle 1,3,1,3 over four units: total 8, span 4/5. Unit slots
 		// end at (cumulative/total)*span: 0.1, 0.4, 0.5, 0.8 of the phase.
 		const revealFrames = [0, 1, 2, 3].map((rank) => {

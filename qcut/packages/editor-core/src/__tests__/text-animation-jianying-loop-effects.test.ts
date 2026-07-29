@@ -135,12 +135,14 @@ describe("Jianying-derived loop effects", () => {
 			sampleLoop({ effect, frame, unit: "grapheme" })
 		);
 
-		expect(samples.map(({ units }) => units[0]?.visual.rotationDeg)).toEqual([
-			expect.closeTo(20),
-			expect.closeTo(0),
-			expect.closeTo(-20),
-			expect.closeTo(0),
-		]);
+		expect(samples.map(({ units }) => units.at(0)?.visual.rotationDeg)).toEqual(
+			[
+				expect.closeTo(20),
+				expect.closeTo(0),
+				expect.closeTo(-20),
+				expect.closeTo(0),
+			]
+		);
 		for (const state of samples) {
 			expect(
 				state.units.every(
@@ -177,8 +179,8 @@ describe("Jianying-derived loop effects", () => {
 		const expectedStart = -4 * Math.sin(Math.PI * 2 * (0.75 * 0.125));
 		const expectedQuarter = -4 * Math.sin(Math.PI * 2 * (0.75 * 0.125 - 0.25));
 
-		expect(start.units[0]?.visual.translateY).toBeCloseTo(expectedStart);
-		expect(quarter.units[0]?.visual.translateY).toBeCloseTo(expectedQuarter);
+		expect(start.units.at(0)?.visual.translateY).toBeCloseTo(expectedStart);
+		expect(quarter.units.at(0)?.visual.translateY).toBeCloseTo(expectedQuarter);
 		expect(
 			new Set(start.units.map(({ visual }) => visual.translateY.toFixed(6)))
 				.size

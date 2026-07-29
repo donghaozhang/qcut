@@ -306,6 +306,14 @@ export interface CompiledTextAnimationUnit {
 	rank: number;
 }
 
+export interface CompiledTextAnimationRhythm {
+	weights: readonly number[];
+	prefixTotals: readonly number[];
+	cycleTotal: number;
+	total: number;
+	span: number;
+}
+
 export interface CompiledTextAnimationPhase<
 	TPhase extends TextAnimationPhaseBase,
 > {
@@ -315,6 +323,7 @@ export interface CompiledTextAnimationPhase<
 	startFrame: number;
 	endFrame: number;
 	units: CompiledTextAnimationUnit[];
+	typewriterRhythm?: CompiledTextAnimationRhythm;
 }
 
 export interface CompiledTextAnimation {

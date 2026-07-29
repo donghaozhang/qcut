@@ -2,6 +2,7 @@ import {
 	IDENTITY_TEXT_ANIMATION_VISUAL_STATE,
 	type CompiledTextAnimation,
 	type CompiledTextAnimationPhase,
+	type CompiledTextAnimationRhythm,
 	type CompiledTextAnimationUnit,
 	type TextAnimationActivePhase,
 	type TextAnimationDecorationState,
@@ -79,29 +80,26 @@ function typewriterUnitProgress({
 	phaseProgress,
 	unit,
 	unitCount,
-	rhythm,
+	rhythmTiming,
 }: {
 	phaseProgress: number;
 	unit: CompiledTextAnimationUnit;
 	unitCount: number;
-	rhythm?: readonly number[];
+	rhythmTiming?: CompiledTextAnimationRhythm;
 }): number {
-	if (rhythm && rhythm.length > 0 && unitCount > 0) {
-		let total = 0;
-		let before = 0;
-		for (let rank = 0; rank < unitCount; rank += 1) {
-			const weight = rhythm[rank % rhythm.length];
-			total += weight;
-			if (rank < unit.rank) before += weight;
-		}
-		if (total > 0) {
-			const span = unitCount / (unitCount + 1);
-			const slotStart = (before / total) * span;
-			const slotWidth = (rhythm[unit.rank % rhythm.length] / total) * span;
-			return clampUnitInterval({
-				value: (phaseProgress - slotStart) / Math.max(1e-6, slotWidth),
-			});
-		}
+	if (rhythmTiming) {
+		const rhythmIndex = unit.rank % rhythmTiming.weights.length;
+		const completedCycles = Math.floor(unit.rank / rhythmTiming.weights.length);
+		const before =
+			completedCycles * rhythmTiming.cycleTotal +
+			(rhythmTiming.prefixTotals.at(rhythmIndex) ?? 0);
+		const slotStart = (before / rhythmTiming.total) * rhythmTiming.span;
+		const slotWidth =
+			((rhythmTiming.weights.at(rhythmIndex) ?? 0) / rhythmTiming.total) *
+			rhythmTiming.span;
+		return clampUnitInterval({
+			value: (phaseProgress - slotStart) / Math.max(1e-6, slotWidth),
+		});
 	}
 	return clampUnitInterval({
 		value: phaseProgress * (unitCount + 1) - unit.rank,
@@ -164,10 +162,7 @@ function applyPhase({
 					phaseProgress,
 					unit,
 					unitCount: phase.units.length,
-					rhythm:
-						phase.config.effect.kind === "typewriter"
-							? phase.config.effect.rhythm
-							: undefined,
+					rhythmTiming: phase.typewriterRhythm,
 				})
 			: phaseUnitProgress({
 					phaseProgress,
@@ -289,7 +284,7 @@ function cursorDecoration({
 			phaseProgress,
 			unit,
 			unitCount: phase.units.length,
-			rhythm: effect.rhythm,
+			rhythmTiming: phase.typewriterRhythm,
 		});
 		const progress = easeTextAnimationProgress({
 			progress: rawProgress,

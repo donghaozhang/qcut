@@ -284,6 +284,18 @@ export function effectForPreset({
 	}
 }
 
+function staggerRatioForPreset({
+	isGraphemePreset,
+	presetId,
+}: {
+	isGraphemePreset: boolean;
+	presetId: string;
+}): number {
+	if (!isGraphemePreset || presetId === "wave" || presetId === "sway") return 0;
+	if (presetId === "flip-open") return 0.83;
+	return 0.58;
+}
+
 export function sequenceForPreset({
 	phase,
 	presetId,
@@ -309,13 +321,10 @@ export function sequenceForPreset({
 		"wave",
 	]);
 	const order = presetId === "typewriter-out" ? "reverse" : "forward";
-	const staggerRatio = graphemePresets.has(presetId)
-		? presetId === "wave" || presetId === "sway"
-			? 0
-			: presetId === "flip-open"
-				? 0.83
-				: 0.58
-		: 0;
+	const staggerRatio = staggerRatioForPreset({
+		isGraphemePreset: graphemePresets.has(presetId),
+		presetId,
+	});
 
 	return {
 		unit: graphemePresets.has(presetId) ? "grapheme" : "all",

@@ -330,7 +330,7 @@ describe("text animation preset registry", () => {
 		).toEqual([1, 0.925, 0.85, 0.925]);
 		expect(
 			roundedSamples({
-				values: sway.map(({ units }) => units[0]?.visual.rotationDeg ?? 0),
+				values: sway.map(({ units }) => units.at(0)?.visual.rotationDeg ?? 0),
 			})
 		).toEqual([20, 0, -20, 0]);
 		expect(
@@ -339,8 +339,9 @@ describe("text animation preset registry", () => {
 			)
 		).toBe(true);
 		expect(
-			new Set(wave[0].units.map(({ visual }) => visual.translateY.toFixed(4)))
-				.size
+			new Set(
+				wave.at(0)?.units.map(({ visual }) => visual.translateY.toFixed(4))
+			).size
 		).toBeGreaterThan(1);
 		expect(pulseSnapshot).toMatchObject({
 			timing: { duration: 1.5 },
