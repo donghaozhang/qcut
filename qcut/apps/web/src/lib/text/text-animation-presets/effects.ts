@@ -195,17 +195,23 @@ export function effectForPreset({
 				},
 			};
 		case "loop:flip":
-			// Jianying turns glyphs by squashing scale.x through zero rather
-			// than rotating a mesh; the negative half mirrors the glyph.
-			return { kind: "flip", axis: "y", turns: 1, edgeOpacity: 0.55 };
+			// Jianying's 空间翻转 III reads as the whole block swinging through a
+			// large planar tilt; the closest 2D shape is a rotate oscillation.
+			return {
+				kind: "rotate",
+				degrees: 32,
+				fade: false,
+				oscillation: { cycles: 1, phaseEasing: "smoothstep", pivot: "center" },
+			};
 		case "loop:ring-orbit":
-			// Jianying's 环绕: per-character circular translate,
-			// translate.x = sin(2*pi*t), translate.y = cos(2*pi*t).
+			// Jianying's 环绕 lays the characters out around a ring: each one
+			// runs the same circle, phase-spread across the whole cycle, and
+			// orbit's own rotationDeg keeps every glyph on its tangent.
 			return {
 				kind: "orbit",
 				rotation: "clockwise",
 				turns: 1,
-				radius: { value: 0.12, unit: "boxHeight" },
+				radius: { value: 0.6, unit: "boxHeight" },
 				fade: false,
 			};
 		case "loop:jitter":
@@ -318,6 +324,9 @@ function staggerRatioForPreset({
 		return 0;
 	}
 	if (presetId === "flip-open") return 0.83;
+	// Spreading phases across nearly the whole cycle is what turns orbit's
+	// shared circle into Jianying's ring layout.
+	if (presetId === "ring-orbit") return 0.95;
 	return 0.58;
 }
 
@@ -345,6 +354,7 @@ export function sequenceForPreset({
 		"sway",
 		"wave",
 		"jitter",
+		"ring-orbit",
 	]);
 	const order = presetId === "typewriter-out" ? "reverse" : "forward";
 	const staggerRatio = staggerRatioForPreset({
