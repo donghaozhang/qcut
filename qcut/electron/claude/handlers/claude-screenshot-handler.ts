@@ -82,17 +82,54 @@ export interface FullScreenClipboardResult {
 	timestamp: number;
 }
 
-/**
- * Capture the display containing the given window at native pixel resolution
- * and copy the image to the system clipboard. Falls back to the primary
- * display when no window is available.
- */
-export async function captureFullScreenToClipboard(
-	win: BrowserWindow | null
-): Promise<FullScreenClipboardResult> {
-	const display = win
+export interface ScreenshotDisplayInfo {
+	id: number;
+	label: string;
+	width: number;
+	height: number;
+	isPrimary: boolean;
+	/** True for the display containing the QCut window. */
+	isCurrent: boolean;
+}
+
+function currentDisplay(win: BrowserWindow | null) {
+	return win
 		? screen.getDisplayMatching(win.getBounds())
 		: screen.getPrimaryDisplay();
+}
+
+/** List attached displays for the screenshot target menu. */
+export function listScreenshotDisplays(
+	win: BrowserWindow | null
+): ScreenshotDisplayInfo[] {
+	const current = currentDisplay(win);
+	const primaryId = screen.getPrimaryDisplay().id;
+	return screen.getAllDisplays().map((display, index) => ({
+		id: display.id,
+		label: display.label || `Display ${index + 1}`,
+		width: display.size.width,
+		height: display.size.height,
+		isPrimary: display.id === primaryId,
+		isCurrent: display.id === current.id,
+	}));
+}
+
+/**
+ * Capture one display at native pixel resolution and copy the image to the
+ * system clipboard. Defaults to the display containing the given window,
+ * falling back to the primary display when no window is available.
+ */
+export async function captureFullScreenToClipboard(
+	win: BrowserWindow | null,
+	options?: { displayId?: number }
+): Promise<FullScreenClipboardResult> {
+	const display =
+		options?.displayId === undefined
+			? currentDisplay(win)
+			: (screen
+					.getAllDisplays()
+					.find((entry) => entry.id === options.displayId) ??
+				currentDisplay(win));
 	const sources = await desktopCapturer.getSources({
 		types: ["screen"],
 		thumbnailSize: {

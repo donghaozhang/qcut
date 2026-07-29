@@ -80,10 +80,22 @@ export interface ElectronScreenshotOps {
 			height: number;
 			timestamp: number;
 		}>;
-		captureFullScreenToClipboard?: () => Promise<{
+		captureFullScreenToClipboard?: (options?: {
+			displayId?: number;
+		}) => Promise<{
 			width: number;
 			height: number;
 			timestamp: number;
 		}>;
+		listDisplays?: () => Promise<
+			Array<{
+				id: number;
+				label: string;
+				width: number;
+				height: number;
+				isPrimary: boolean;
+				isCurrent: boolean;
+			}>
+		>;
 	};
 }

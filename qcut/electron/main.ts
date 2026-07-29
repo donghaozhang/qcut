@@ -132,6 +132,7 @@ const { setupYouTubeIPC } = require("./youtube-handler.js");
 const {
 	captureScreenshot,
 	captureFullScreenToClipboard,
+	listScreenshotDisplays,
 } = require("./claude/handlers/claude-screenshot-handler.js");
 const {
 	attachConsoleCapture,
@@ -870,8 +871,14 @@ if (!isCliKeyCommand && !isHeadlessRecorder) {
 			}
 		);
 
-		ipcMain.handle("screenshot:captureFullScreenToClipboard", async () =>
-			captureFullScreenToClipboard(mainWindow)
+		ipcMain.handle(
+			"screenshot:captureFullScreenToClipboard",
+			async (_event: unknown, options?: { displayId?: number }) =>
+				captureFullScreenToClipboard(mainWindow, options)
+		);
+
+		ipcMain.handle("screenshot:listDisplays", () =>
+			listScreenshotDisplays(mainWindow)
 		);
 
 		initFFmpegHealthCheck();
