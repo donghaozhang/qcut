@@ -305,6 +305,16 @@ function resolveEffectEnvelope({
 			effect.thicknessPx / 2;
 		return envelope;
 	}
+	if (effect.kind === "flip") {
+		envelope.rotationDeg = effect.maxAngleDeg;
+		envelope.scale = 1 + effect.perspective;
+		return envelope;
+	}
+	if (effect.kind === "jitter") {
+		envelope.translateX = context.fontSize * effect.amplitudeX;
+		envelope.translateY = context.fontSize * effect.amplitudeY;
+		return envelope;
+	}
 	const distance = resolveDistance({
 		distance: effect.distance,
 		...context,

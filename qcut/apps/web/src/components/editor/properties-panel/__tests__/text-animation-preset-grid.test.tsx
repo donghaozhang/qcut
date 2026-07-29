@@ -128,4 +128,25 @@ describe("TextAnimationPresetGrid", () => {
 			screen.queryByTestId("text-animation-preset-grid")
 		).not.toBeInTheDocument();
 	});
+
+	it("renders the Jianying-derived loop presets through the shared preview", () => {
+		const loopPresets = TEXT_ANIMATION_PRESETS.loop.filter((preset) =>
+			["flip", "ring-orbit", "jitter"].includes(preset.id)
+		);
+		render(
+			<TextAnimationPresetGrid
+				ariaLabel="循环动画预设"
+				emptyLabel="没有动画"
+				onSelect={vi.fn()}
+				presets={loopPresets}
+				selectedPresetId="flip"
+				translate={translate}
+			/>
+		);
+
+		expect(loopPresets).toHaveLength(3);
+		expect(screen.getByText("空间翻转")).toBeInTheDocument();
+		expect(screen.getByText("环绕")).toBeInTheDocument();
+		expect(screen.getByText("颤抖")).toBeInTheDocument();
+	});
 });

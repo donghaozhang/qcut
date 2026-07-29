@@ -144,6 +144,12 @@ export interface TextOrbitEffect {
 	rotation: "clockwise" | "counterclockwise";
 	turns: number;
 	radius: TextAnimationDistance;
+	/**
+	 * Ring mode collapses each unit to the layout center before orbiting, so
+	 * staggered units form Jianying's 环绕 ring instead of tracing circles
+	 * around their own line positions.
+	 */
+	ring?: boolean;
 	fade: boolean;
 }
 
@@ -168,6 +174,36 @@ export interface TextHeartEffect {
 	seed: number;
 }
 
+/**
+ * Jianying's 空间翻转: the block swings through a planar tilt while a
+ * position-keyed scale gradient fakes the perspective of a yawing plane —
+ * the end swinging toward the viewer grows, the receding end shrinks. The
+ * tilt and the gradient run 90° out of phase, matching the projection of a
+ * 3D yaw viewed slightly off-axis.
+ */
+export interface TextFlipEffect {
+	kind: "flip";
+	/** Peak planar tilt of the block, in degrees. */
+	maxAngleDeg: number;
+	/** Scale spread across the line at full swing, 0..1 of the base size. */
+	perspective: number;
+}
+
+/**
+ * Stepped per-unit shake. Jianying quantizes local time into a handful of
+ * poses per cycle and derives each unit's offset from a chaotic but
+ * deterministic product of sines, phase-shifted by unit rank.
+ */
+export interface TextJitterEffect {
+	kind: "jitter";
+	/** Discrete poses per cycle. Jianying uses 4 (local time floored to 1/4). */
+	steps: number;
+	/** Horizontal travel at full swing, in em. */
+	amplitudeX: number;
+	/** Vertical travel at full swing, in em. */
+	amplitudeY: number;
+}
+
 export type TextAnimationEffect =
 	| TextTypewriterEffect
 	| TextFadeEffect
@@ -178,7 +214,9 @@ export type TextAnimationEffect =
 	| TextBounceEffect
 	| TextOrbitEffect
 	| TextLaserEffect
-	| TextHeartEffect;
+	| TextHeartEffect
+	| TextFlipEffect
+	| TextJitterEffect;
 
 export interface TextAnimationPhaseBase {
 	sourcePreset?: TextAnimationPresetRef;

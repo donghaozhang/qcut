@@ -17,6 +17,9 @@ const RESTART_LOOP_PRESET_IDS = new Set([
 	"shimmer",
 	"sway",
 	"wave",
+	"flip",
+	"ring-orbit",
+	"jitter",
 ]);
 
 function isLoopPreset({

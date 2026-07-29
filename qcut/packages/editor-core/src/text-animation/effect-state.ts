@@ -9,7 +9,11 @@ import {
 	type TextAnimationLayout,
 	type TextAnimationVisualState,
 } from "./model.js";
-import { clampUnitInterval, springProgress } from "./easing.js";
+import {
+	clampUnitInterval,
+	easeTextAnimationProgress,
+	springProgress,
+} from "./easing.js";
 
 export interface TextAnimationEffectResult {
 	visual: TextAnimationVisualState;
@@ -169,6 +173,21 @@ function unitBounds({
 		...glyphs.map((glyph) => glyph.bounds.y + glyph.bounds.height)
 	);
 	return { x: left, y: top, width: right - left, height: bottom - top };
+}
+
+function unitHorizontalProgress({
+	unit,
+	layout,
+}: {
+	unit: CompiledTextAnimationUnit;
+	layout: TextAnimationLayout;
+}): number {
+	const bounds = unitBounds({ unit, layout });
+	return clampUnitInterval({
+		value:
+			(bounds.x + bounds.width / 2 - layout.bounds.x) /
+			Math.max(Number.EPSILON, layout.bounds.width),
+	});
 }
 
 function spatialWaveMovement({
@@ -352,13 +371,78 @@ function loopVisual({
 		visual.scaleX = scale;
 		visual.scaleY = scale;
 	}
+	if (effect.kind === "flip") {
+		// Jianying's 空间翻转: rotate every unit rigidly about the layout
+		// center (tilt = cos phase) while a position-keyed scale gradient
+		// (sin phase) fakes the perspective of the plane yawing toward and
+		// away from the viewer.
+		const swing = Math.sin(progress * Math.PI * 2);
+		const tilt = Math.cos(progress * Math.PI * 2);
+		const angle = (effect.maxAngleDeg * Math.PI) / 180;
+		const theta = angle * tilt;
+		const bounds = unitBounds({ unit, layout });
+		const offsetX =
+			bounds.x + bounds.width / 2 - (layout.bounds.x + layout.bounds.width / 2);
+		const offsetY =
+			bounds.y +
+			bounds.height / 2 -
+			(layout.bounds.y + layout.bounds.height / 2);
+		visual.translateX =
+			offsetX * Math.cos(theta) - offsetY * Math.sin(theta) - offsetX;
+		visual.translateY =
+			offsetX * Math.sin(theta) + offsetY * Math.cos(theta) - offsetY;
+		visual.rotationDeg = effect.maxAngleDeg * tilt;
+		const lineRatio =
+			layout.bounds.width > 0 ? offsetX / layout.bounds.width : 0;
+		const scale = 1 + effect.perspective * lineRatio * swing * 2;
+		visual.scaleX = scale;
+		visual.scaleY = scale;
+	}
+	if (effect.kind === "jitter") {
+		// Ported from Jianying's stepped shake: local time is floored into
+		// `steps` poses per cycle, then each unit's offset comes from a product
+		// of sines phase-shifted by its 1-based rank. The constants are theirs.
+		const step = 1 / Math.max(1, effect.steps);
+		const quantized = Math.floor(progress / step) * step;
+		const rank = unit.index + 1;
+		const swingX = Math.sin(quantized * Math.PI * 2);
+		const swingY = Math.cos(quantized * Math.PI * 2);
+		visual.translateX =
+			Math.cos(24.8 * swingX + 7.9 * rank) *
+			Math.sin(swingX * Math.PI * 2 + rank) *
+			effect.amplitudeX *
+			layout.fontSize;
+		visual.translateY =
+			Math.sin(19.1 * swingY + 33.6 * rank) *
+			Math.cos(swingY * Math.PI * 2 - rank) *
+			effect.amplitudeY *
+			layout.fontSize;
+	}
 	if (effect.kind === "orbit") {
 		const sign = effect.rotation === "clockwise" ? 1 : -1;
 		const angle = sign * progress * Math.PI * 2 * effect.turns;
 		const radius = resolveDistance({ distance: effect.radius, layout });
-		visual.translateX = radius * (Math.cos(angle) - 1);
-		visual.translateY = radius * Math.sin(angle);
-		visual.rotationDeg = (angle * 180) / Math.PI;
+		if (effect.ring) {
+			// Jianying's 环绕: every unit rides the same centered circle
+			// (x = sin, y = cos), so first cancel the unit's own layout
+			// offset, then place it by its wrapped phase angle.
+			const bounds = unitBounds({ unit, layout });
+			const centerOffsetX =
+				layout.bounds.x +
+				layout.bounds.width / 2 -
+				(bounds.x + bounds.width / 2);
+			const centerOffsetY =
+				layout.bounds.y +
+				layout.bounds.height / 2 -
+				(bounds.y + bounds.height / 2);
+			visual.translateX = centerOffsetX + radius * Math.sin(angle);
+			visual.translateY = centerOffsetY + radius * Math.cos(angle);
+			visual.rotationDeg = (-angle * 180) / Math.PI;
+		} else {
+			visual.translateX = radius * (Math.cos(angle) - 1);
+			visual.translateY = radius * Math.sin(angle);
+			visual.rotationDeg = (angle * 180) / Math.PI;
+		}
 		if (effect.fade) visual.opacity = 1 - pulse * 0.2;
 	}
 	if (effect.kind === "laser") {

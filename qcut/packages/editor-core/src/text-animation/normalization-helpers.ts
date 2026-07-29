@@ -156,7 +156,11 @@ export function normalizeSpring({ value }: { value: unknown }): {
 	};
 }
 
-function normalizeEasing({ value }: { value: unknown }): TextAnimationEasing {
+export function normalizeEasing({
+	value,
+}: {
+	value: unknown;
+}): TextAnimationEasing {
 	const named = EASING_NAMES.find((candidate) => candidate === value);
 	if (named) return named;
 	const record = asRecord({ value });

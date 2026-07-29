@@ -88,6 +88,18 @@ function scaleEffectIntensity({
 				hiddenScale: 1 - (1 - effect.hiddenScale) * factor,
 				spread: effect.spread * factor,
 			};
+		case "flip":
+			return {
+				...effect,
+				maxAngleDeg: effect.maxAngleDeg * factor,
+				perspective: effect.perspective * factor,
+			};
+		case "jitter":
+			return {
+				...effect,
+				amplitudeX: effect.amplitudeX * factor,
+				amplitudeY: effect.amplitudeY * factor,
+			};
 		default:
 			return effect;
 	}
@@ -114,6 +126,10 @@ function primaryEffectAmplitude({
 			return Math.abs(effect.glowPx);
 		case "heart":
 			return Math.abs(effect.spread);
+		case "flip":
+			return Math.abs(effect.maxAngleDeg);
+		case "jitter":
+			return Math.abs(effect.amplitudeX);
 		default:
 			return 1;
 	}

@@ -54,14 +54,23 @@ function phaseUnitProgress({
 	unit,
 	unitCount,
 	staggerRatio,
+	wrap = false,
 }: {
 	phaseProgress: number;
 	unit: CompiledTextAnimationUnit;
 	unitCount: number;
 	staggerRatio: number;
+	wrap?: boolean;
 }): number {
 	const startRatio =
 		unitCount <= 1 ? 0 : (unit.rank / (unitCount - 1)) * staggerRatio;
+	if (wrap) {
+		// Loop phases treat stagger as a cyclic offset: every unit runs the
+		// full cycle, shifted by its rank. This is what lays orbiting units
+		// out around the ring like Jianying's 环绕 instead of freezing early
+		// ranks at 0 and late ranks at 1.
+		return (((phaseProgress - startRatio) % 1) + 1) % 1;
+	}
 	return clampUnitInterval({
 		value: (phaseProgress - startRatio) / Math.max(0.05, 1 - staggerRatio),
 	});
@@ -169,6 +178,7 @@ function applyPhase({
 					unit,
 					unitCount: phase.units.length,
 					staggerRatio: phase.config.sequence.staggerRatio,
+					wrap: role === "loop",
 				});
 		const progress = easeTextAnimationProgress({
 			progress: rawProgress,

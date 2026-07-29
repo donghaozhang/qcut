@@ -169,6 +169,33 @@ describe("TextAnimationCanvas", () => {
 		);
 	});
 
+	it("uses the width scale when preview height is temporarily unavailable", () => {
+		const element = canonicalTextElement();
+		render(
+			<TextAnimationCanvas
+				element={element}
+				canvasSize={{ width: 1920, height: 1080 }}
+				previewDimensions={{ width: 960, height: 0 }}
+				currentTime={1.25}
+				fps={24}
+				boxWidth={640}
+				boxHeight={180}
+				zIndex={4}
+				onPointerDown={vi.fn()}
+				onSelect={vi.fn()}
+			/>
+		);
+
+		const canvas = document.querySelector<HTMLCanvasElement>(
+			'[data-text-animation-canvas="text-1"]'
+		);
+		const cropWidth = Number(canvas?.getAttribute("width"));
+		const cropHeight = Number(canvas?.getAttribute("height"));
+
+		expect(canvas?.style.width).toBe(`${cropWidth / 2}px`);
+		expect(canvas?.style.height).toBe(`${cropHeight / 2}px`);
+	});
+
 	it("keeps a keyboard and pointer accessible interaction box", () => {
 		const onPointerDown = vi.fn();
 		const onSelect = vi.fn();

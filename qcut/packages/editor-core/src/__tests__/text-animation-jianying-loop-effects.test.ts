@@ -187,4 +187,179 @@ describe("Jianying-derived loop effects", () => {
 		).toBeGreaterThan(1);
 		expect(start.units.every(({ visual }) => visual.scaleX === 1)).toBe(true);
 	});
+
+	it("swings the block with a perspective gradient like 空间翻转", () => {
+		const effect: TextAnimationEffect = {
+			kind: "flip",
+			maxAngleDeg: 32,
+			perspective: 0.35,
+		};
+		const sample = ({ frame }: { frame: number }) =>
+			sampleLoop({ effect, frame, content: "ABCD", unit: "grapheme" });
+
+		// Tilt runs on the cos phase: full tilt at 0, level at the quarters.
+		const start = sample({ frame: 0 });
+		expect(start.units.at(0)?.visual.rotationDeg).toBeCloseTo(32);
+		expect(sample({ frame: 25 }).units.at(0)?.visual.rotationDeg).toBeCloseTo(
+			0,
+			5
+		);
+		expect(sample({ frame: 50 }).units.at(0)?.visual.rotationDeg).toBeCloseTo(
+			-32
+		);
+
+		// Perspective runs on the sin phase: level frames carry the strongest
+		// scale spread, and it grows across the line like a yawing plane.
+		const level = sample({ frame: 25 });
+		const scales = level.units.map(({ visual }) => visual.scaleX);
+		expect(scales.at(0)).toBeLessThan(1);
+		expect(scales.at(-1)).toBeGreaterThan(1);
+		for (let index = 1; index < scales.length; index += 1) {
+			expect(scales[index]).toBeGreaterThan(scales[index - 1]);
+		}
+		// At full tilt the gradient rests.
+		for (const unit of start.units) {
+			expect(unit.visual.scaleX).toBeCloseTo(1);
+		}
+
+		// The tilt is rigid: unit offsets follow one rotation about the
+		// layout center rather than spinning in place.
+		const first = start.units.at(0);
+		expect(first?.visual.translateX).not.toBeCloseTo(0);
+	});
+
+	it("orbits every unit on the circle Jianying's 环绕 traces", () => {
+		// translate.x = sin(2*pi*t), translate.y = cos(2*pi*t) in their Lua.
+		const effect: TextAnimationEffect = {
+			kind: "orbit",
+			rotation: "clockwise",
+			turns: 1,
+			radius: { value: 0.12, unit: "boxHeight" },
+			fade: false,
+		};
+		const radius = 20 * 0.12;
+		const samples = [0, 25, 50, 75].map((frame) =>
+			sampleLoop({ effect, frame })
+		);
+
+		expect(samples.map(({ container }) => container.translateX)).toEqual([
+			expect.closeTo(0),
+			expect.closeTo(-radius),
+			expect.closeTo(-radius * 2),
+			expect.closeTo(-radius),
+		]);
+		expect(samples.map(({ container }) => container.translateY)).toEqual([
+			expect.closeTo(0),
+			expect.closeTo(radius),
+			expect.closeTo(0),
+			expect.closeTo(-radius),
+		]);
+	});
+
+	it("spreads staggered loop units around the whole orbit like 环绕", () => {
+		// Loop stagger is a cyclic phase offset, so at any instant the units
+		// occupy distinct points of the shared circle instead of bunching at
+		// the endpoints of a one-shot window.
+		const effect: TextAnimationEffect = {
+			kind: "orbit",
+			rotation: "clockwise",
+			turns: 1,
+			radius: { value: 1.05, unit: "boxHeight" },
+			ring: true,
+			fade: false,
+		};
+		const element = createLoopElement({
+			effect,
+			content: "ABCD",
+			unit: "grapheme",
+		});
+		element.textAnimations = {
+			schemaVersion: 1,
+			loop: {
+				...element.textAnimations?.loop,
+				sequence: {
+					unit: "grapheme",
+					order: "forward",
+					staggerRatio: 0.95,
+					seed: 12,
+				},
+			},
+		} as typeof element.textAnimations;
+		const state = evaluateTextAnimationFrame({
+			compiled: compileTextAnimation({ element, fps: 100 }),
+			frame: 30,
+			layout: createHorizontalLayout({ content: element.content }),
+		});
+
+		const angles = state.units.map(({ visual }) => visual.rotationDeg);
+		expect(new Set(angles.map((angle) => angle.toFixed(3))).size).toBe(4);
+		const spread = Math.max(...angles) - Math.min(...angles);
+		expect(spread).toBeGreaterThan(180);
+
+		// Ring mode: every transformed unit center sits on one circle around
+		// the layout center, not on a circle around its own line position.
+		const layout = createHorizontalLayout({ content: "ABCD" });
+		const radius = 1.05 * layout.bounds.height;
+		const centerX = layout.bounds.x + layout.bounds.width / 2;
+		const centerY = layout.bounds.y + layout.bounds.height / 2;
+		for (const [index, unit] of state.units.entries()) {
+			const grapheme = layout.graphemes[index];
+			const baseX = grapheme.bounds.x + grapheme.bounds.width / 2;
+			const baseY = grapheme.bounds.y + grapheme.bounds.height / 2;
+			const x = baseX + unit.visual.translateX;
+			const y = baseY + unit.visual.translateY;
+			expect(Math.hypot(x - centerX, y - centerY)).toBeCloseTo(radius);
+		}
+	});
+
+	it("steps the jitter into four poses per cycle, keyed on unit rank", () => {
+		const effect: TextAnimationEffect = {
+			kind: "jitter",
+			steps: 4,
+			amplitudeX: 0.04,
+			amplitudeY: 0.027,
+		};
+		const sample = ({ frame }: { frame: number }) =>
+			sampleLoop({ effect, frame, content: "ABCD", unit: "grapheme" });
+		const offsets = ({ frame }: { frame: number }) =>
+			sample({ frame }).units.map(
+				({ visual }) => `${visual.translateX},${visual.translateY}`
+			);
+
+		// Local time is floored into quarters, so frames inside a step match.
+		expect(offsets({ frame: 5 })).toEqual(offsets({ frame: 20 }));
+		expect(offsets({ frame: 30 })).not.toEqual(offsets({ frame: 20 }));
+
+		// Jianying's exact formula, with i as the 1-based unit rank.
+		const expectedAt = ({ frame, rank }: { frame: number; rank: number }) => {
+			const quantized = Math.floor(frame / 100 / 0.25) * 0.25;
+			const swingX = Math.sin(quantized * Math.PI * 2);
+			const swingY = Math.cos(quantized * Math.PI * 2);
+			return {
+				x:
+					Math.cos(24.8 * swingX + 7.9 * rank) *
+					Math.sin(swingX * Math.PI * 2 + rank) *
+					0.04 *
+					20,
+				y:
+					Math.sin(19.1 * swingY + 33.6 * rank) *
+					Math.cos(swingY * Math.PI * 2 - rank) *
+					0.027 *
+					20,
+			};
+		};
+		const frame = 30;
+		const state = sample({ frame });
+		for (const [index, unit] of state.units.entries()) {
+			const expected = expectedAt({ frame, rank: index + 1 });
+			expect(unit.visual.translateX).toBeCloseTo(expected.x);
+			expect(unit.visual.translateY).toBeCloseTo(expected.y);
+		}
+
+		// Rank-keyed phase means neighbours never share an offset.
+		expect(
+			new Set(state.units.map(({ visual }) => visual.translateX.toFixed(6)))
+				.size
+		).toBe(state.units.length);
+	});
 });
