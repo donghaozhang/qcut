@@ -200,8 +200,8 @@ export function effectForPreset({
 			return {
 				kind: "rotate",
 				degrees: 32,
-				fade: false,
 				oscillation: { cycles: 1, phaseEasing: "smoothstep", pivot: "center" },
+				fade: false,
 			};
 		case "loop:ring-orbit":
 			// Jianying's 环绕 lays the characters out around a ring: each one
