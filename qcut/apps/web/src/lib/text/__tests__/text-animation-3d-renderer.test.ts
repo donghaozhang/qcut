@@ -64,10 +64,9 @@ describe("resolveTextAnimation3DCameraDistance", () => {
 		expect(distance - flipDepth).toBeCloseTo(baseDistance, 6);
 	});
 
-	it("accounts for the cylinder radius, tilt, and per-glyph depth", () => {
+	it("matches Jianying's radius-based cylinder camera offset", () => {
 		const baseDistance = 256 / (2 * Math.tan((60 * Math.PI) / 360));
 		const radius = 976 * CYLINDER_PROJECTION.radiusRatio;
-		const tiltDepth = Math.sin((20 * Math.PI) / 180) * (256 / 2);
 		const additionalDepth = 24;
 
 		expect(
@@ -77,7 +76,7 @@ describe("resolveTextAnimation3DCameraDistance", () => {
 				projection: CYLINDER_PROJECTION,
 				additionalDepth,
 			})
-		).toBeCloseTo(baseDistance + radius + tiltDepth + additionalDepth, 6);
+		).toBeCloseTo(baseDistance + radius + additionalDepth, 6);
 	});
 });
 
@@ -93,19 +92,28 @@ describe("createTextAnimation3DCylinder", () => {
 		});
 		const firstFront = cylinder.children[0] as Mesh;
 		const secondFront = cylinder.children[2] as Mesh;
+		const firstPositions = firstFront.geometry.getAttribute("position");
+		const secondPositions = secondFront.geometry.getAttribute("position");
 		const radius = 200 * CYLINDER_PROJECTION.radiusRatio;
 
 		expect(cylinder.children).toHaveLength(4);
-		expect(firstFront.position.length()).toBeCloseTo(radius, 6);
-		expect(secondFront.position.length()).toBeCloseTo(radius, 6);
-		expect(firstFront.position.x).toBeGreaterThan(0);
-		expect(secondFront.position.x).toBeLessThan(0);
-		expect(cylinder.rotation.order).toBe("YXZ");
-		expect(cylinder.rotation.x).toBeCloseTo((-20 * Math.PI) / 180, 6);
+		expect(firstPositions.count).toBeGreaterThan(4);
+		expect(secondPositions.count).toBeGreaterThan(4);
+		for (const positions of [firstPositions, secondPositions]) {
+			for (let index = 0; index < positions.count; index += 1) {
+				expect(
+					Math.hypot(positions.getX(index), positions.getZ(index))
+				).toBeCloseTo(radius, 5);
+			}
+		}
+		expect(firstPositions.getX(0)).toBeGreaterThan(0);
+		expect(secondPositions.getX(secondPositions.count - 1)).toBeLessThan(0);
+		expect(cylinder.rotation.order).toBe("XYZ");
+		expect(cylinder.rotation.x).toBeCloseTo((20 * Math.PI) / 180, 6);
 		expect(cylinder.rotation.y).toBeCloseTo(Math.PI, 6);
 	});
 
-	it("renders readable front and mirrored back textures separately", () => {
+	it("uses Jianying's shared UV mapping for both cylinder passes", () => {
 		const texture = new CanvasTexture({} as HTMLCanvasElement);
 		const cylinder = createTextAnimation3DCylinder({
 			width: 200,
@@ -123,9 +131,12 @@ describe("createTextAnimation3DCylinder", () => {
 
 		expect(frontMaterial.side).toBe(FrontSide);
 		expect(frontMaterial.map).toBe(texture);
+		expect(frontMaterial.depthTest).toBe(false);
+		expect(frontMaterial.depthWrite).toBe(false);
 		expect(backMaterial.side).toBe(BackSide);
 		expect(backMaterial.map).toBe(texture);
-		expect(frontUv.getX(0)).toBe(backUv.getX(1));
-		expect(frontUv.getX(1)).toBe(backUv.getX(0));
+		expect(backMaterial.depthTest).toBe(false);
+		expect(backMaterial.depthWrite).toBe(false);
+		expect(frontUv.array).toEqual(backUv.array);
 	});
 });
