@@ -162,18 +162,67 @@ function cameraDistance({
 	return height / (2 * Math.tan(halfFovRadians));
 }
 
-function createCamera({
+function projectedDepth({
 	width,
 	height,
-	fovDeg,
+	projection,
 }: {
 	width: number;
 	height: number;
-	fovDeg: number;
+	projection: TextAnimationProjectionState;
+}): number {
+	if (projection.kind === "cylinder") {
+		const radius = width * projection.radiusRatio;
+		const tiltDepth =
+			Math.abs(Math.sin((projection.tiltXDeg * Math.PI) / 180)) * (height / 2);
+		return radius + tiltDepth;
+	}
+	const yawDepth =
+		Math.abs(Math.sin((projection.groupRotationYDeg * Math.PI) / 180)) *
+		(width / 2);
+	const pitchDepth =
+		Math.abs(Math.sin((projection.groupRotationXDeg * Math.PI) / 180)) *
+		(height / 2);
+	return yawDepth + pitchDepth;
+}
+
+export function resolveTextAnimation3DCameraDistance({
+	width,
+	height,
+	projection,
+	additionalDepth = 0,
+}: {
+	width: number;
+	height: number;
+	projection: TextAnimationProjectionState;
+	additionalDepth?: number;
+}): number {
+	return (
+		cameraDistance({ height, fovDeg: projection.cameraFovDeg }) +
+		projectedDepth({ width, height, projection }) +
+		Math.max(0, additionalDepth)
+	);
+}
+
+function createCamera({
+	width,
+	height,
+	projection,
+	additionalDepth,
+}: {
+	width: number;
+	height: number;
+	projection: TextAnimationProjectionState;
+	additionalDepth: number;
 }): PerspectiveCamera {
-	const distance = cameraDistance({ height, fovDeg });
+	const distance = resolveTextAnimation3DCameraDistance({
+		width,
+		height,
+		projection,
+		additionalDepth,
+	});
 	const camera = new PerspectiveCamera(
-		fovDeg,
+		projection.cameraFovDeg,
 		width / Math.max(1, height),
 		Math.max(0.1, distance / 100),
 		distance * 100
@@ -182,6 +231,46 @@ function createCamera({
 	camera.lookAt(0, 0, 0);
 	camera.updateProjectionMatrix();
 	return camera;
+}
+
+function maximumUnitDepth({
+	state,
+	graphemes,
+}: {
+	state: TextAnimationFrameState;
+	graphemes: readonly TextAnimationGraphemeLayout[];
+}): number {
+	let maximumDepth = 0;
+	for (const grapheme of graphemes) {
+		const visual = state.units[grapheme.index]?.visual;
+		if (!visual) continue;
+		const rotationX = (visual.rotationXDeg * Math.PI) / 180;
+		const rotationY = (visual.rotationYDeg * Math.PI) / 180;
+		const depth =
+			Math.abs(visual.translateZ) +
+			Math.abs(Math.sin(rotationY)) * (grapheme.bounds.width / 2) +
+			Math.abs(Math.sin(rotationX)) * (grapheme.bounds.height / 2);
+		maximumDepth = Math.max(maximumDepth, depth);
+	}
+	return maximumDepth;
+}
+
+function visualDepth({
+	visual,
+	width,
+	height,
+}: {
+	visual: TextAnimationVisualState;
+	width: number;
+	height: number;
+}): number {
+	const rotationX = (visual.rotationXDeg * Math.PI) / 180;
+	const rotationY = (visual.rotationYDeg * Math.PI) / 180;
+	return (
+		Math.abs(visual.translateZ) +
+		Math.abs(Math.sin(rotationY)) * (width / 2) +
+		Math.abs(Math.sin(rotationX)) * (height / 2)
+	);
 }
 
 function applyVisualState({
@@ -415,7 +504,13 @@ export function renderTextAnimation3D({
 	const camera = createCamera({
 		width: outputWidth,
 		height: outputHeight,
-		fovDeg: projection.cameraFovDeg,
+		projection,
+		additionalDepth:
+			visualDepth({
+				visual: state.container,
+				width: outputWidth,
+				height: outputHeight,
+			}) + maximumUnitDepth({ state, graphemes }),
 	});
 
 	if (projection.kind === "cylinder") {
