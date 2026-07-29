@@ -181,6 +181,12 @@ describe("text animation preset registry", () => {
 		}
 	});
 
+	it("uses Jianying's 1.2 second default for the ring orbit loop", () => {
+		expect(
+			findPreset({ phase: "loop", presetId: "ring-orbit" }).defaultDuration
+		).toBe(1.2);
+	});
+
 	it("creates complete canonical phase snapshots", () => {
 		for (const phase of TEXT_ANIMATION_PHASES) {
 			for (const preset of TEXT_ANIMATION_PRESETS[phase]) {
@@ -425,6 +431,30 @@ describe("text animation preset registry", () => {
 			})
 		).toBeCloseTo(0.35);
 		expect(updated.entrance?.timing).toEqual(animations.entrance?.timing);
+	});
+
+	it.each([
+		["flip", 0.5],
+		["ring-orbit", 0.5],
+		["jitter", 0.4],
+	] as const)("round-trips %s intensity", (presetId, intensity) => {
+		const preset = findPreset({ phase: "loop", presetId });
+		const animations = applyTextAnimationPreset({
+			animations: undefined,
+			preset,
+		});
+		const updated = updateTextAnimationPhaseIntensity({
+			animations,
+			phase: "loop",
+			intensity,
+		});
+
+		expect(
+			getTextAnimationPhaseIntensity({
+				animations: updated,
+				phase: "loop",
+			})
+		).toBeCloseTo(intensity);
 	});
 
 	it("searches localized names and aliases", () => {

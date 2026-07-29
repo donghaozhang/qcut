@@ -29,7 +29,9 @@ export type TextAnimationPreviewKind =
 	| "shimmer"
 	| "wave"
 	| "flicker"
-	| "breathe";
+	| "breathe"
+	| "ring-orbit"
+	| "jitter";
 
 export interface TextAnimationPresetDefinition {
 	id: string;

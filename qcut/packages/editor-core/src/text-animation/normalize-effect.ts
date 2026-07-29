@@ -2,6 +2,7 @@ import type { TextAnimationEffect } from "./model.js";
 import {
 	asRecord,
 	normalizeDistance,
+	normalizeEasing,
 	normalizeSpring,
 	numberInRange,
 	oneOf,
@@ -254,6 +255,7 @@ export function normalizeTextAnimationEffect({
 				value: record.radius,
 				fallback: { value: 2, unit: "em" },
 			}),
+			...(record.ring === true ? { ring: true } : {}),
 			fade,
 		};
 	}
@@ -320,6 +322,76 @@ export function normalizeTextAnimationEffect({
 					maximum: 0xffff_ffff,
 				})
 			),
+		};
+	}
+	// Dev builds of the removed WebGL path persisted flip3d / cylinder3d /
+	// jitter3d. Alias them onto the Jianying-derived 2D effects so those
+	// projects keep animating instead of silently losing their loops.
+	if (record.kind === "flip3d") {
+		return normalizeTextAnimationEffect({
+			value: {
+				kind: "flip",
+				maxAngleDeg: record.maxAngleDeg,
+			},
+		});
+	}
+	if (record.kind === "cylinder3d") {
+		return normalizeTextAnimationEffect({
+			value: {
+				kind: "orbit",
+				rotation: "clockwise",
+				turns: record.turns,
+				radius: { value: 1.05, unit: "boxHeight" },
+				ring: true,
+				fade: false,
+			},
+		});
+	}
+	if (record.kind === "jitter3d") {
+		return normalizeTextAnimationEffect({
+			value: { kind: "jitter" },
+		});
+	}
+	if (record.kind === "flip") {
+		return {
+			kind: "flip",
+			maxAngleDeg: numberInRange({
+				value: record.maxAngleDeg,
+				fallback: 32,
+				minimum: 0,
+				maximum: 180,
+			}),
+			perspective: numberInRange({
+				value: record.perspective,
+				fallback: 0.35,
+				minimum: 0,
+				maximum: 1,
+			}),
+		};
+	}
+	if (record.kind === "jitter") {
+		return {
+			kind: "jitter",
+			steps: Math.trunc(
+				numberInRange({
+					value: record.steps,
+					fallback: 4,
+					minimum: 1,
+					maximum: 60,
+				})
+			),
+			amplitudeX: numberInRange({
+				value: record.amplitudeX,
+				fallback: 0.04,
+				minimum: 0,
+				maximum: 2,
+			}),
+			amplitudeY: numberInRange({
+				value: record.amplitudeY,
+				fallback: 0.027,
+				minimum: 0,
+				maximum: 2,
+			}),
 		};
 	}
 	return null;

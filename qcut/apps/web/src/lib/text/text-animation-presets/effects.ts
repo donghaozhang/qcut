@@ -194,6 +194,26 @@ export function effectForPreset({
 					pivot: "bottomCenter",
 				},
 			};
+		case "loop:flip":
+			// Jianying's 空间翻转 III: planar swing plus a perspective scale
+			// gradient across the line, 90° out of phase with the tilt.
+			return { kind: "flip", maxAngleDeg: 32, perspective: 0.35 };
+		case "loop:ring-orbit":
+			// Jianying's 环绕 lays the characters out around a ring: each one
+			// runs the same circle, phase-spread across the whole cycle, and
+			// orbit's own rotationDeg keeps every glyph on its tangent.
+			return {
+				kind: "orbit",
+				rotation: "clockwise",
+				turns: 1,
+				radius: { value: 1.05, unit: "boxHeight" },
+				ring: true,
+				fade: false,
+			};
+		case "loop:jitter":
+			// Jianying's stepped shake: local time floored to quarters, offsets
+			// from sine products keyed on the unit's rank.
+			return { kind: "jitter", steps: 4, amplitudeX: 0.04, amplitudeY: 0.027 };
 		case "entrance:scale-up":
 			// Jianying's EnlargeIn.lua: scale 0.5 -> 1 and alpha 0 -> 1, both
 			// quadOut, with no overshoot.
@@ -291,8 +311,19 @@ function staggerRatioForPreset({
 	isGraphemePreset: boolean;
 	presetId: string;
 }): number {
-	if (!isGraphemePreset || presetId === "wave" || presetId === "sway") return 0;
+	if (
+		!isGraphemePreset ||
+		presetId === "wave" ||
+		presetId === "sway" ||
+		presetId === "jitter" ||
+		presetId === "flip"
+	) {
+		return 0;
+	}
 	if (presetId === "flip-open") return 0.83;
+	// Spreading phases across nearly the whole cycle is what turns orbit's
+	// shared circle into Jianying's ring layout.
+	if (presetId === "ring-orbit") return 0.95;
 	return 0.58;
 }
 
@@ -319,6 +350,9 @@ export function sequenceForPreset({
 		"laser-etch",
 		"sway",
 		"wave",
+		"jitter",
+		"ring-orbit",
+		"flip",
 	]);
 	const order = presetId === "typewriter-out" ? "reverse" : "forward";
 	const staggerRatio = staggerRatioForPreset({

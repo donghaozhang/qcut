@@ -46,6 +46,8 @@ export type {
 	TextBlurEffect,
 	TextBounceEffect,
 	TextFadeEffect,
+	TextFlipEffect,
+	TextJitterEffect,
 	TextHeartEffect,
 	TextLaserEffect,
 	TextOrbitEffect,
