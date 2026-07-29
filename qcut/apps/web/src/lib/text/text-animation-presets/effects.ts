@@ -183,6 +183,17 @@ export function effectForPreset({
 			return { kind: "rotate", degrees: 150, fade: true };
 		case "loop:rotate":
 			return { kind: "rotate", degrees: 360, fade: false };
+		case "loop:sway":
+			return {
+				kind: "rotate",
+				degrees: 20,
+				fade: false,
+				oscillation: {
+					cycles: 1,
+					phaseEasing: "smoothstep",
+					pivot: "bottomCenter",
+				},
+			};
 		case "entrance:scale-up":
 			// Jianying's EnlargeIn.lua: scale 0.5 -> 1 and alpha 0 -> 1, both
 			// quadOut, with no overshoot.
@@ -194,7 +205,13 @@ export function effectForPreset({
 		case "exit:scale-down-out":
 			return { kind: "scale", hiddenScale: 0.2, overshoot: 0, fade: true };
 		case "loop:pulse":
-			return { kind: "scale", hiddenScale: 0.94, overshoot: 0.04, fade: false };
+			return {
+				kind: "scale",
+				hiddenScale: 0.85,
+				overshoot: 0,
+				fade: false,
+				pulse: { cycles: 5, easing: "smoothstep" },
+			};
 		case "loop:heartbeat":
 			return { kind: "scale", hiddenScale: 0.86, overshoot: 0.12, fade: false };
 		case "loop:breathe":
@@ -208,16 +225,21 @@ export function effectForPreset({
 				spring: BOUNCE_SPRING,
 			};
 		case "loop:bounce":
+			return {
+				kind: "bounce",
+				direction: "up",
+				distance: { value: 0.14, unit: "boxHeight" },
+				hiddenScale: 1,
+				spring: BOUNCE_SPRING,
+			};
 		case "loop:wave":
 			return {
 				kind: "bounce",
 				direction: "up",
-				distance: {
-					value: presetId === "wave" ? 0.1 : 0.14,
-					unit: "boxHeight",
-				},
+				distance: { value: 0.2, unit: "em" },
 				hiddenScale: 1,
 				spring: BOUNCE_SPRING,
+				spatialWave: { spatialCycles: 0.75, phaseOffset: 0 },
 			};
 		case "entrance:orbit-disappear":
 			return {
@@ -283,12 +305,13 @@ export function sequenceForPreset({
 		"cursor-typewriter",
 		"typewriter-out",
 		"laser-etch",
+		"sway",
 		"wave",
 	]);
 	const order = presetId === "typewriter-out" ? "reverse" : "forward";
 	const staggerRatio = graphemePresets.has(presetId)
-		? presetId === "wave"
-			? 0.7
+		? presetId === "wave" || presetId === "sway"
+			? 0
 			: presetId === "flip-open"
 				? 0.83
 				: 0.58

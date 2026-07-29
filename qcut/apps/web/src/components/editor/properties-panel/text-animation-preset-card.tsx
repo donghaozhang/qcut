@@ -46,6 +46,8 @@ export function textAnimationVisualStyle({
 		filter: visual.blurPx > 0 ? `blur(${visual.blurPx}px)` : undefined,
 		opacity: visual.opacity,
 		transform: `translate3d(${visual.translateX}px, ${visual.translateY}px, 0) rotate(${visual.rotationDeg}deg) scale(${visual.scaleX}, ${visual.scaleY})`,
+		transformOrigin:
+			visual.transformOrigin === "bottomCenter" ? "50% 100%" : undefined,
 	};
 }
 
