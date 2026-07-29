@@ -51,14 +51,15 @@ function createRenderCanvas({
 	width: number;
 	height: number;
 }): TextAnimation3DCanvas | null {
-	if (typeof OffscreenCanvas !== "undefined") {
-		return new OffscreenCanvas(width, height);
+	if (typeof document !== "undefined") {
+		const canvas = document.createElement("canvas");
+		canvas.width = width;
+		canvas.height = height;
+		return canvas;
 	}
-	if (typeof document === "undefined") return null;
-	const canvas = document.createElement("canvas");
-	canvas.width = width;
-	canvas.height = height;
-	return canvas;
+	return typeof OffscreenCanvas === "undefined"
+		? null
+		: new OffscreenCanvas(width, height);
 }
 
 function createRuntime(): TextAnimation3DRuntime | null {
