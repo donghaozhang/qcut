@@ -69,6 +69,7 @@ export function renderTextAnimation3DPostProcess({
 	width,
 	height,
 	postProcess,
+	renderSource,
 }: {
 	renderer: WebGLRenderer;
 	scene: Scene;
@@ -76,6 +77,15 @@ export function renderTextAnimation3DPostProcess({
 	width: number;
 	height: number;
 	postProcess: TextAnimationPostProcessState;
+	renderSource?: ({
+		renderer,
+		scene,
+		camera,
+	}: {
+		renderer: WebGLRenderer;
+		scene: Scene;
+		camera: PerspectiveCamera;
+	}) => void;
 }): void {
 	const target = new WebGLRenderTarget(width, height, {
 		format: RGBAFormat,
@@ -83,8 +93,12 @@ export function renderTextAnimation3DPostProcess({
 		stencilBuffer: false,
 	});
 	renderer.setRenderTarget(target);
-	renderer.clear();
-	renderer.render(scene, camera);
+	if (renderSource) {
+		renderSource({ renderer, scene, camera });
+	} else {
+		renderer.clear();
+		renderer.render(scene, camera);
+	}
 
 	const material = new ShaderMaterial({
 		transparent: true,
