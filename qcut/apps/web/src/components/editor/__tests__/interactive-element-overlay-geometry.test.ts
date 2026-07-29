@@ -1,9 +1,11 @@
 import { describe, expect, it } from "vitest";
 import {
 	getInteractiveElementOverlayStyle,
+	getTimelineElementTransform,
 	resizeInteractiveElementFromCenter,
 	type ElementTransform,
 } from "../interactive-element-overlay-geometry";
+import type { TextElement } from "@/types/timeline";
 
 const transform: ElementTransform = {
 	x: -86,
@@ -14,6 +16,23 @@ const transform: ElementTransform = {
 };
 
 describe("interactive element overlay geometry", () => {
+	it("mirrors the renderer's fallbacks for text without explicit size", () => {
+		const element = {
+			id: "text-1",
+			type: "text",
+			content: "Hello",
+			fontSize: 72,
+		} as unknown as TextElement;
+
+		const transform = getTimelineElementTransform({ element });
+
+		// The renderer wraps at resolveTextStyle's 640x180 fallback; writing a
+		// different default (200x100) back on interaction rewraps the text.
+		expect(transform.width).toBe(640);
+		expect(transform.height).toBe(180);
+	});
+
+
 	it("positions the overlay from the canvas center like the text renderer", () => {
 		const style = getInteractiveElementOverlayStyle({
 			canvasSize: { width: 1920, height: 1080 },

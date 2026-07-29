@@ -1,3 +1,4 @@
+import { resolveTextStyle } from "@/lib/text/text-style";
 import type { TimelineElement } from "@/types/timeline";
 
 export interface ElementTransform {
@@ -32,6 +33,19 @@ export function getTimelineElementTransform({
 }: {
 	element: TimelineElement;
 }): ElementTransform {
+	if (element.type === "text") {
+		// Mirror the renderer's fallbacks: writing a different default back to
+		// the store (200x100 vs the rendered 640x180) rewraps the text on the
+		// first interaction.
+		const style = resolveTextStyle(element);
+		return {
+			x: element.x ?? 0,
+			y: element.y ?? 0,
+			width: style.width,
+			height: style.height,
+			rotation: element.rotation ?? 0,
+		};
+	}
 	return {
 		x: element.x ?? 0,
 		y: element.y ?? 0,
