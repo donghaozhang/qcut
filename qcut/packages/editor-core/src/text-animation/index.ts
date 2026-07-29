@@ -16,6 +16,7 @@ export {
 export type {
 	CompiledTextAnimation,
 	CompiledTextAnimationPhase,
+	CompiledTextAnimationRhythm,
 	CompiledTextAnimationUnit,
 	TextAnimationActivePhase,
 	TextAnimationDecorationState,

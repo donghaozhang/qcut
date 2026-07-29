@@ -2,6 +2,7 @@ import type { TextElement } from "../types/timeline.js";
 import {
 	type CompiledTextAnimation,
 	type CompiledTextAnimationPhase,
+	type CompiledTextAnimationRhythm,
 	type CompiledTextAnimationUnit,
 	type TextAnimationEdgePhase,
 	type TextAnimationLoopPhase,
@@ -203,6 +204,60 @@ function compileUnits({
 	});
 }
 
+function compileTypewriterRhythm({
+	phase,
+	unitCount,
+}: {
+	phase: TextAnimationPhaseBase;
+	unitCount: number;
+}): CompiledTextAnimationRhythm | undefined {
+	if (phase.effect.kind !== "typewriter") return;
+	const weights = phase.effect.rhythm;
+	if (!weights || weights.length === 0 || unitCount === 0) return;
+
+	const prefixTotals = [0];
+	let cycleTotal = 0;
+	for (const weight of weights) {
+		cycleTotal += weight;
+		prefixTotals.push(cycleTotal);
+	}
+	if (cycleTotal <= 0) return;
+
+	const fullCycles = Math.floor(unitCount / weights.length);
+	const remainder = unitCount % weights.length;
+	const total = fullCycles * cycleTotal + (prefixTotals.at(remainder) ?? 0);
+	if (total <= 0) return;
+
+	return {
+		weights,
+		prefixTotals,
+		cycleTotal,
+		total,
+		span: unitCount / (unitCount + 1),
+	};
+}
+
+function compilePhaseContent({
+	content,
+	phase,
+}: {
+	content: string;
+	phase: TextAnimationPhaseBase;
+}): {
+	units: CompiledTextAnimationUnit[];
+	typewriterRhythm?: CompiledTextAnimationRhythm;
+} {
+	const units = compileUnits({ content, phase });
+	const typewriterRhythm = compileTypewriterRhythm({
+		phase,
+		unitCount: units.length,
+	});
+	return {
+		units,
+		...(typewriterRhythm ? { typewriterRhythm } : {}),
+	};
+}
+
 function compileEdgePhase({
 	config,
 	frames,
@@ -228,7 +283,7 @@ function compileEdgePhase({
 		durationFrames: frames.duration,
 		startFrame,
 		endFrame: startFrame + frames.duration,
-		units: compileUnits({ content, phase: config }),
+		...compilePhaseContent({ content, phase: config }),
 	};
 }
 
@@ -262,7 +317,7 @@ function compileLoopPhase({
 		}),
 		startFrame,
 		endFrame: endBoundary,
-		units: compileUnits({ content, phase: config }),
+		...compilePhaseContent({ content, phase: config }),
 	};
 }
 

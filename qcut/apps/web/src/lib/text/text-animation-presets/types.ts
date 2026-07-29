@@ -11,6 +11,7 @@ export type TextAnimationPreviewKind =
 	| "slide-up"
 	| "slide-right-blur"
 	| "rotate-fly"
+	| "flip"
 	| "scale"
 	| "orbit"
 	| "bounce-up"

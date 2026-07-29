@@ -62,6 +62,12 @@ export interface TextAnimationPresetRef {
 export interface TextTypewriterEffect {
 	kind: "typewriter";
 	reveal: "step" | "fade" | "wipe";
+	/**
+	 * Optional per-unit slot weights, cycled over the unit ranks. Jianying's
+	 * human-rhythm typewriter uses an irregular fixed table so typing speeds
+	 * up and pauses instead of ticking uniformly.
+	 */
+	rhythm?: readonly number[];
 	cursor?: {
 		text: string;
 		color?: string;
@@ -96,6 +102,11 @@ export interface TextRotateEffect {
 	travelDirection?: TextAnimationDirection;
 	distance?: TextAnimationDistance;
 	fade: boolean;
+	oscillation?: {
+		cycles: number;
+		phaseEasing: "linear" | "smoothstep";
+		pivot: "center" | "bottomCenter";
+	};
 }
 
 export interface TextScaleEffect {
@@ -103,6 +114,12 @@ export interface TextScaleEffect {
 	hiddenScale: number;
 	overshoot: number;
 	fade: boolean;
+	/** Scale axis; Jianying's 翻动 flip-open scales X only. Defaults to uniform. */
+	axis?: "uniform" | "x" | "y";
+	pulse?: {
+		cycles: number;
+		easing: "linear" | "smoothstep";
+	};
 }
 
 export interface TextBounceEffect {
@@ -115,6 +132,10 @@ export interface TextBounceEffect {
 		stiffness: number;
 		damping: number;
 		velocity: number;
+	};
+	spatialWave?: {
+		spatialCycles: number;
+		phaseOffset: number;
 	};
 }
 
@@ -223,6 +244,7 @@ export interface TextAnimationVisualState {
 	rotationDeg: number;
 	blurPx: number;
 	mask?: TextAnimationMaskState;
+	transformOrigin?: "center" | "bottomCenter";
 }
 
 export interface TextAnimationUnitState {
@@ -284,6 +306,14 @@ export interface CompiledTextAnimationUnit {
 	rank: number;
 }
 
+export interface CompiledTextAnimationRhythm {
+	weights: readonly number[];
+	prefixTotals: readonly number[];
+	cycleTotal: number;
+	total: number;
+	span: number;
+}
+
 export interface CompiledTextAnimationPhase<
 	TPhase extends TextAnimationPhaseBase,
 > {
@@ -293,6 +323,7 @@ export interface CompiledTextAnimationPhase<
 	startFrame: number;
 	endFrame: number;
 	units: CompiledTextAnimationUnit[];
+	typewriterRhythm?: CompiledTextAnimationRhythm;
 }
 
 export interface CompiledTextAnimation {

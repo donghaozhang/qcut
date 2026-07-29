@@ -71,7 +71,10 @@ export function applyTextAnimationVisualState({
 	bounds: TextAnimationRect;
 }): void {
 	const centerX = bounds.x + bounds.width / 2;
-	const centerY = bounds.y + bounds.height / 2;
+	const centerY =
+		visual.transformOrigin === "bottomCenter"
+			? bounds.y + bounds.height
+			: bounds.y + bounds.height / 2;
 	ctx.globalAlpha *= clampTextAnimationOpacity({ value: visual.opacity });
 	ctx.translate(visual.translateX, visual.translateY);
 	ctx.translate(centerX, centerY);
