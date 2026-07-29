@@ -28,7 +28,7 @@ test.describe("Text properties", () => {
 			"Apply Highlight text preset"
 		);
 		const highlightPreview = highlightPreset.getByTestId("text-preset-preview");
-		await expect(highlightPreview).toHaveText("Aa");
+		await expect(highlightPreview).toHaveText("T");
 		expect(
 			await highlightPreset.evaluate((element) => element.style.backgroundColor)
 		).toBe("");

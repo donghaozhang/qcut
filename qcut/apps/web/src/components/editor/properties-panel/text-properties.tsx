@@ -277,7 +277,7 @@ function PresetButton({
 				aria-label={t("textProperties.aria.applyPreset", { name: presetName })}
 				title={presetName}
 				onClick={onApply}
-				className="flex h-14 w-full items-center justify-center overflow-hidden rounded-sm border border-white/10 bg-zinc-900 transition-colors hover:border-primary"
+				className="flex h-10 w-full items-center justify-center overflow-hidden rounded-sm border border-transparent transition-colors hover:border-primary/70"
 			>
 				<span
 					data-testid="text-preset-preview"
@@ -306,7 +306,7 @@ function PresetButton({
 						textShadow: shadows.length > 0 ? shadows.join(", ") : undefined,
 					}}
 				>
-					Aa
+					T
 				</span>
 			</button>
 			{onDelete ? (
@@ -992,7 +992,7 @@ export function TextProperties({
 						defaultExpanded
 					>
 						<div className="space-y-3">
-							<div className="grid grid-cols-5 gap-2">
+							<div className="grid grid-cols-6 gap-1.5">
 								{[...BUILT_IN_TEXT_PRESETS, ...customPresets].map((preset) => (
 									<PresetButton
 										key={preset.id}
