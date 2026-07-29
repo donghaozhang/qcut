@@ -7,12 +7,13 @@ import type {
 	TextAnimationVisualState,
 } from "@qcut/editor-core/text-animation";
 import {
+	BackSide,
 	BufferAttribute,
 	BufferGeometry,
 	CanvasTexture,
 	ClampToEdgeWrapping,
-	CylinderGeometry,
 	DoubleSide,
+	FrontSide,
 	Group,
 	LinearFilter,
 	Mesh,
@@ -141,13 +142,18 @@ function createTexture({
 
 function createMaterial({
 	texture,
+	side = DoubleSide,
+	depthTest = true,
 }: {
 	texture: CanvasTexture<TextAnimation3DCanvas>;
+	side?: MeshBasicMaterial["side"];
+	depthTest?: boolean;
 }): MeshBasicMaterial {
 	return new MeshBasicMaterial({
 		map: texture,
 		transparent: true,
-		side: DoubleSide,
+		side,
+		depthTest,
 		depthWrite: false,
 	});
 }
@@ -340,13 +346,17 @@ function normalizedTextureCoordinates({
 function createGlyphGeometry({
 	bounds,
 	textureBounds,
+	mirrorX = false,
 }: {
 	bounds: TextAnimationRect;
 	textureBounds: TextAnimationRect;
+	mirrorX?: boolean;
 }): BufferGeometry {
 	const halfWidth = bounds.width / 2;
 	const halfHeight = bounds.height / 2;
 	const uv = normalizedTextureCoordinates({ bounds, textureBounds });
+	const left = mirrorX ? uv.right : uv.left;
+	const right = mirrorX ? uv.left : uv.right;
 	const geometry = new BufferGeometry();
 	geometry.setAttribute(
 		"position",
@@ -372,13 +382,13 @@ function createGlyphGeometry({
 		"uv",
 		new BufferAttribute(
 			new Float32Array([
-				uv.left,
+				left,
 				uv.bottom,
-				uv.right,
+				right,
 				uv.bottom,
-				uv.left,
+				left,
 				uv.top,
-				uv.right,
+				right,
 				uv.top,
 			]),
 			2
@@ -436,49 +446,98 @@ function applyPlaneProjection({
 	group.rotation.y = (projection.groupRotationYDeg * Math.PI) / 180;
 }
 
-function createCylinder({
+export function createTextAnimation3DCylinder({
 	width,
-	height,
-	material,
+	texture,
 	projection,
+	graphemes,
+	textureBounds,
 }: {
 	width: number;
-	height: number;
-	material: MeshBasicMaterial;
+	texture: CanvasTexture<TextAnimation3DCanvas>;
 	projection: Extract<TextAnimationProjectionState, { kind: "cylinder" }>;
-}): Mesh {
+	graphemes: readonly TextAnimationGraphemeLayout[];
+	textureBounds: TextAnimationRect;
+}): Group {
 	const radius = width * projection.radiusRatio;
 	const thetaLength = Math.PI * 2 * projection.coverage;
-	const geometry = new CylinderGeometry(
-		radius,
-		radius,
-		height,
-		64,
-		1,
-		true,
-		-thetaLength / 2,
-		thetaLength
+	const frontMaterial = createMaterial({
+		texture,
+		side: FrontSide,
+		depthTest: false,
+	});
+	const backMaterial = createMaterial({
+		texture,
+		side: BackSide,
+		depthTest: false,
+	});
+	const textureCenterY = textureBounds.y + textureBounds.height / 2;
+	const group = new Group();
+	for (const grapheme of graphemes) {
+		if (grapheme.bounds.width <= 0 || grapheme.bounds.height <= 0) continue;
+		const normalizedCenterX =
+			(grapheme.bounds.x + grapheme.bounds.width / 2 - textureBounds.x) /
+			textureBounds.width;
+		const angle = thetaLength / 2 - normalizedCenterX * thetaLength;
+		const x = Math.sin(angle) * radius;
+		const y = -(
+			grapheme.bounds.y +
+			grapheme.bounds.height / 2 -
+			textureCenterY
+		);
+		const z = Math.cos(angle) * radius;
+		const front = new Mesh(
+			createGlyphGeometry({
+				bounds: grapheme.bounds,
+				textureBounds,
+			}),
+			frontMaterial
+		);
+		const back = new Mesh(
+			createGlyphGeometry({
+				bounds: grapheme.bounds,
+				textureBounds,
+				mirrorX: true,
+			}),
+			backMaterial
+		);
+		for (const [renderOrder, mesh] of [front, back].entries()) {
+			mesh.position.set(x, y, z);
+			mesh.rotation.y = angle;
+			mesh.renderOrder = renderOrder;
+			group.add(mesh);
+		}
+	}
+	group.rotation.order = "YXZ";
+	group.rotation.set(
+		(-projection.tiltXDeg * Math.PI) / 180,
+		(projection.yawDeg * Math.PI) / 180,
+		0
 	);
-	const mesh = new Mesh(geometry, material);
-	mesh.rotation.x = (projection.tiltXDeg * Math.PI) / 180;
-	mesh.rotation.y = (projection.yawDeg * Math.PI) / 180;
-	return mesh;
+	return group;
 }
 
-function disposeScene({
-	scene,
-	material,
-	texture,
-}: {
-	scene: Scene;
-	material: MeshBasicMaterial;
-	texture: CanvasTexture<TextAnimation3DCanvas>;
-}): void {
+function disposeScene({ scene }: { scene: Scene }): void {
+	const geometries = new Set<BufferGeometry>();
+	const materials = new Set<MeshBasicMaterial>();
+	const textures = new Set<CanvasTexture<TextAnimation3DCanvas>>();
 	scene.traverse((object) => {
-		if (object instanceof Mesh) object.geometry.dispose();
+		if (!(object instanceof Mesh)) return;
+		geometries.add(object.geometry);
+		const meshMaterials = Array.isArray(object.material)
+			? object.material
+			: [object.material];
+		for (const material of meshMaterials) {
+			if (!(material instanceof MeshBasicMaterial)) continue;
+			materials.add(material);
+			if (material.map instanceof CanvasTexture) {
+				textures.add(material.map as CanvasTexture<TextAnimation3DCanvas>);
+			}
+		}
 	});
-	material.dispose();
-	texture.dispose();
+	for (const geometry of geometries) geometry.dispose();
+	for (const material of materials) material.dispose();
+	for (const texture of textures) texture.dispose();
 }
 
 export function renderTextAnimation3D({
@@ -500,7 +559,6 @@ export function renderTextAnimation3D({
 	renderer.setClearColor(0x000000, 0);
 
 	const texture = createTexture({ source });
-	const material = createMaterial({ texture });
 	const scene = new Scene();
 	const camera = createCamera({
 		width: outputWidth,
@@ -516,14 +574,16 @@ export function renderTextAnimation3D({
 
 	if (projection.kind === "cylinder") {
 		scene.add(
-			createCylinder({
+			createTextAnimation3DCylinder({
 				width,
-				height,
-				material,
+				texture,
 				projection,
+				graphemes,
+				textureBounds,
 			})
 		);
 	} else {
+		const material = createMaterial({ texture });
 		const usesPerGrapheme3D = state.units.some(
 			({ visual }) =>
 				Math.abs(visual.rotationXDeg) > 0.0001 ||
@@ -569,6 +629,6 @@ export function renderTextAnimation3D({
 		renderer.render(scene, camera);
 	}
 
-	disposeScene({ scene, material, texture });
+	disposeScene({ scene });
 	return canvas;
 }
