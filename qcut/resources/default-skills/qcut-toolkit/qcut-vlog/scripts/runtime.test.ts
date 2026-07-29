@@ -2,7 +2,7 @@ import { mkdtempSync, utimesSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { describe, expect, test } from "bun:test";
-import { isArtifactFresh } from "./runtime";
+import { isArtifactFresh, resolveToolchain } from "./runtime";
 
 describe("qcut-vlog artifact freshness", () => {
 	test("requires an existing artifact newer than every dependency", () => {
@@ -49,5 +49,32 @@ describe("qcut-vlog artifact freshness", () => {
 				dependencies: [dependency, secondDependency],
 			})
 		).toBe(false);
+	});
+
+	test("uses an explicit QCut repository when the skill lives elsewhere", () => {
+		const directory = mkdtempSync(join(tmpdir(), "qcut-vlog-repository-"));
+		writeFileSync(
+			join(directory, "package.json"),
+			JSON.stringify({ scripts: { pipeline: "bun pipeline/index.ts" } })
+		);
+		const harmlessExecutable = Bun.which("true");
+		if (!harmlessExecutable) {
+			throw new Error("Test requires the true executable");
+		}
+
+		const toolchain = resolveToolchain({
+			scriptDirectory: join(directory, "standalone-skill"),
+			env: {
+				...process.env,
+				QCUT_VLOG_REPO: directory,
+				QCUT_VLOG_FFMPEG_BIN: harmlessExecutable,
+				QCUT_VLOG_FFPROBE_BIN: harmlessExecutable,
+			},
+		});
+
+		expect(toolchain.qcut.cwd).toBe(directory);
+		expect(toolchain.qcut.prefixArgs).toEqual(["run", "pipeline"]);
+		expect(toolchain.ffmpeg.executable).toBe(harmlessExecutable);
+		expect(toolchain.ffprobe.executable).toBe(harmlessExecutable);
 	});
 });

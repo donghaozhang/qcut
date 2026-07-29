@@ -1,4 +1,4 @@
 interface:
-  display_name: "QCut Vlog"
-  short_description: "Clean, beautify, replace backgrounds, and caption talking-head videos"
-  default_prompt: "Use $qcut-vlog to clean and naturally enhance this talking-head video, optionally replace its background, regenerate aligned subtitles, and export both editable and hard-captioned deliverables."
+  display_name: "QCut Vlog Publish"
+  short_description: "把口播剪成带 B-roll、文案、标题和 9:16 封面的完整发布包"
+  default_prompt: "Use $qcut-vlog to turn my talking-head footage into a verified edit with restrained stickers and SFX, rights-aware B-roll, Xiaohongshu copy, and an exact 9:16 cover."

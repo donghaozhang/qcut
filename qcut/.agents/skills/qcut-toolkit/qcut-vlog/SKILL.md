@@ -1,230 +1,211 @@
 ---
 name: qcut-vlog
-description: End-to-end QCut CLI workflow for cleaning talking-head and vlog footage, applying restrained portrait filters and skin smoothing, optionally cutting out the speaker and replacing the background, regenerating time-aligned SRT captions after the cuts, and exporting both an editable MP4 plus SRT and a hard-captioned MP4. Use for vlog editing, talking-head cleanup, portrait enhancement, background replacement, 口播剪辑, 剪口播, 去口头词, 去停顿, 人像滤镜, 美颜, 抠像换背景, 自动字幕, 中文字幕, or exporting a captioned social video.
+description: End-to-end workflow for turning talking-head or vlog footage into a verified social-ready edit and publishing package. Builds a clean QCut baseline, makes restrained sticker and SFX variants, researches and archives rights-aware B-roll, composes a richer version without breaking audio, cadence, color, or captions, writes playful Xiaohongshu titles and copy, and creates an exact 9:16 cover. Use for vlog editing, 口播剪辑, 去口头词, 去停顿, 人像滤镜, 背景判断, 自动字幕, QCut stickers, 音效, B-roll 搜集或替换, 素材授权归档, 小红书文案, 标题, 封面, or a complete short-video release package.
 ---
 
 # QCut Vlog
 
-Produce a clean talking-head video without modifying the source. Use the bundled
-runner so cut metadata, logs, subtitle timing, and verification artifacts remain
-reproducible.
+Turn a source video into a clean, reversible baseline first. Build the richer edit
+and publishing package as separate layers so an unsuccessful enhancement never
+damages the good version.
 
-## Required Order
+## Isolate the Media Project
 
-Always preserve this sequence:
+Keep the skill and every generated media artifact outside active source-code
+repositories unless the user explicitly chooses otherwise. Use one self-contained
+vlog project root:
 
 ```text
-source video
-  -> word-level transcription for edit decisions
-  -> clean-audio trim/concat
-  -> apply a restrained portrait filter and skin smoothing
-  -> optional person cutout and background composite
-  -> preserve the composite as the editable MP4
-  -> extract audio from that editable video
-  -> transcribe that clean audio into a new SRT
-  -> preserve the SRT beside the editable MP4
-  -> burn the SRT into a separate publishing MP4
-  -> verify durations and inspect background/subtitle frames
+<project-root>/
+├── source/                         # optional; immutable originals
+├── baseline/
+├── sticker-version/
+├── broll-version/
+└── publish/
 ```
 
-Never remap or reuse the pre-cut transcription as the final SRT. Re-transcribing
-after cutting avoids cumulative timestamp drift.
+Never overwrite source footage or downloaded originals. Resolve and report
+absolute paths. Do not place renders, downloads, or generated covers in the QCut
+repository merely because QCut supplies the tools.
 
-## Run
+## Establish the Brief
+
+Inspect the source, transcript, existing versions, and project notes. Identify the
+central claim, strongest hook, factual anchors, audience, platform, aspect ratio,
+tone, and requested deliverables.
+
+Keep the original background unless it is distracting, technically broken, or
+explicitly rejected. A real setting usually preserves more personality and avoids
+cutout artifacts. Read [editorial-pass.md](references/editorial-pass.md) before
+adding visual or audio embellishment.
+
+## Build the Clean Baseline
+
+Run the copied baseline workflow from this skill:
 
 ```bash
 export QCUT_VLOG_ROOT=".claude/skills/qcut-toolkit/qcut-vlog"
 
 bun "$QCUT_VLOG_ROOT/scripts/main.ts" /path/to/talking-head.mov
 bun "$QCUT_VLOG_ROOT/scripts/main.ts" /path/to/talking-head.mov \
-  --output-dir /path/to/output
-
-bun "$QCUT_VLOG_ROOT/scripts/main.ts" /path/to/talking-head.mov \
-  --background /path/to/office.png \
-  --background-fit cover \
-  --output-dir /path/to/output
+  --output-dir /path/to/project/baseline
 ```
 
-Use `npx -y bun@1.3.10` instead when Bun is not installed globally.
-
-The runner resolves the current repository's `bun run pipeline` first. Outside a
-QCut checkout, it uses `qcut` or `qcut-pipeline` from `PATH`. It prefers QCut's
-staged FFmpeg/FFprobe binaries when available.
-
-Background replacement uses `qcut edit person-cutout`, which requires a working
-QCut/FAL API configuration. It writes a transparent VP9 WebM before compositing
-the supplied image with the cleaned speaker video and original audio. Portrait
-processing splits and restores the alpha channel, so it affects the speaker
-without restoring the removed source background or recoloring the replacement.
-
-The default portrait treatment is `soft-skin` with `--beauty 25`. It is
-intentionally restrained: reduce uneven redness while retaining skin texture.
-List all presets or use the standalone filter command with:
+The runner resolves the current repository's `bun run pipeline` and bundled
+FFmpeg automatically. When the skill runs from a copy outside the QCut
+checkout, point it at one without writing into that checkout:
 
 ```bash
-bun run pipeline edit portrait-filter --list-presets --json
-bun run pipeline edit portrait-filter -i input.mp4 --preset soft-skin --beauty 25 --output portrait.mp4
+export QCUT_VLOG_REPO="/absolute/path/to/qcut"
 ```
 
-## Optional Sticker And SFX Pass
+Direct tool overrides remain available through `QCUT_VLOG_QCUT_BIN`,
+`QCUT_VLOG_FFMPEG_BIN`, and `QCUT_VLOG_FFPROBE_BIN`.
 
-When the user asks for stickers, keep the normal hard-captioned MP4 as the
-no-sticker version and render a second publishing candidate. Search the catalog
-before writing the plan so every `stickerId` is known to exist:
+Always preserve this order:
 
-```bash
-bun run pipeline edit sticker-search \
-  --query detective \
-  --collection fluent-emoji-flat \
-  --limit 12 \
-  --json
-
-bun run pipeline edit sticker-overlay \
-  -i video_vlog.mp4 \
-  --plan sticker-plan.json \
-  --output video_vlog-stickers-sfx.mp4 \
-  --save-intermediates \
-  --json
+```text
+source
+  -> word-level transcript for edit decisions
+  -> clean trim/concat
+  -> restrained portrait treatment
+  -> optional person cutout and background composite
+  -> caption-free editable master
+  -> transcribe the edited audio into a new SRT
+  -> hard-captioned baseline
+  -> verification
 ```
 
-The versioned JSON plan contains timed `stickerId` or local `source` entries,
-canvas positions, sizes, fades, and optional local sound effects. Keep
-talking-head treatments restrained:
+Never remap the pre-cut transcript into the final SRT. Re-transcribe after cutting
+to avoid cumulative timestamp drift.
 
-- Use about 6 to 8 semantic accents in a four-minute video.
-- Match each sticker to the spoken idea instead of adding generic decoration.
-- Keep stickers out of the face and hard-caption safe area.
-- Alternate upper-left and upper-right placement when the framing allows it.
-- Start SFX volume around `0.08` to `0.18`; preserve intelligible speech and
-  keep the final peak below `0 dB`.
-- Save the plan and materialized assets beside the enhanced output.
-- Decode the full output, compare duration and frame count, inspect every cue,
-  and measure audio peaks before reporting success.
-
-## Modes
-
-### Analyze Before Rendering
-
-Use when the user asks to inspect proposed cuts first:
+Use `--analyze-only` when the user wants to approve cuts before rendering:
 
 ```bash
 bun "$QCUT_VLOG_ROOT/scripts/main.ts" input.mov --analyze-only
 ```
 
-Read `clean-metadata/cuts.json`, `decisions.json`, and `keeps.json`. Report the
-number and categories of cuts. Do not describe raw cut duration as the final
-duration reduction because `keep-padding` removes additional time around each
-cut.
+Inspect `clean-metadata/decisions.json`, `cuts.json`, and `keeps.json`. Do not
+describe raw cut duration as final duration reduction because keep-padding changes
+the rendered result.
 
-### Complete Workflow
+Default to the restrained `soft-skin` portrait preset with `--beauty 25`. Reduce
+it when texture looks waxy. Use the transparent `default` subtitle preset unless
+the user requests a box.
 
-Use the default mode when the user asks to process or finish the video. The
-`default` subtitle preset is yellow text with a black outline and no background
-box. It is the preferred pure-subtitle style.
+Use `--resume` only when inputs and settings are unchanged. Use `--force` to
+replace known workflow artifacts while retaining unrelated user files.
+
+## Create the Sticker and SFX Version
+
+Use the caption-free editable master as the visual source. Choose a small number
+of transcript-driven cues and give each one an explicit semantic reason. Keep the
+speaker's face, hands, and subtitle safe area clear.
+
+Mix SFX beneath speech, then listen at every cue. Preserve:
+
+- the caption-free visual master;
+- a no-sticker baseline;
+- the verified full-length Sticker/SFX audio as the downstream audio master;
+- a cue sheet containing time, transcript phrase, visual, sound, and reason.
+
+## Research and Compose B-roll
+
+Read [broll-pipeline.md](references/broll-pipeline.md) before searching,
+downloading, or editing external media.
+
+Run the FFmpeg 8 preflight before any color-managed B-roll work:
 
 ```bash
-bun "$QCUT_VLOG_ROOT/scripts/main.ts" input.mov \
-  --background /path/to/office.png \
-  --portrait-filter soft-skin \
-  --beauty 25 \
-  --preset default \
-  --silence-threshold 1.0 \
-  --keep-padding 0.15 \
-  --srt-max-words 8 \
-  --srt-max-duration 4
+bun "$QCUT_VLOG_ROOT/scripts/preflight.ts"
 ```
 
-Only use `minimal` or `news` when the user explicitly wants a background box.
-Use `--style '{"bgOpacity":0}'` to keep custom styles transparent.
+Start with the transcript and cue sheet, not a generic asset search. Prefer
+official, public-domain, clearly licensed, or user-owned material. Treat social
+posts as reference-only until reuse permission is clear. Archive exact URLs,
+ownership, retrieval date, license status, local checksums, and the used segment.
 
-### Resume Or Replace
+Compose from the caption-free visual master and the verified Sticker/SFX audio
+master. Mute B-roll source audio. Suppress a covered sticker visually, but retain
+its SFX only when the sound still makes sense. Convert color deliberately rather
+than relabeling it, preserve the base cadence, and burn corrected subtitles last.
 
-```bash
-# Reuse only artifacts newer than all of their inputs
-bun "$QCUT_VLOG_ROOT/scripts/main.ts" input.mov --output-dir output --resume
+Use short, semantically anchored inserts. Three or four inserts covering roughly
+10–15% of a short talking-head video is a useful starting range, not a quota.
+Compare the result with the baseline and remove any insert that makes the story
+less clear, less credible, or less personal.
 
-# Replace known workflow artifacts while leaving unrelated files alone
-bun "$QCUT_VLOG_ROOT/scripts/main.ts" input.mov --output-dir output --force
-```
+## Build the Xiaohongshu Package
 
-`--resume` rejects changed settings and stale dependencies. In particular, it
-reruns portrait processing when the cleaned video is newer, reruns
-cutout/composition when the cleaned video or background is newer, regenerates
-audio when the editable video is newer, regenerates SRT when audio is newer, and
-re-burns the video when either the editable video or SRT is newer.
+Read [xiaohongshu-package.md](references/xiaohongshu-package.md). Base all claims
+on the transcript and verified source material.
 
-## Options
+Deliver:
 
-| Option | Purpose |
-|---|---|
-| `-o, --output-dir <path>` | Choose the artifact directory |
-| `--final-name <name.mp4>` | Choose the final MP4 filename |
-| `-b, --background <image>` | Cut out the person and composite a still background |
-| `--background-fit <mode>` | `cover`, `contain`, or `stretch`; default `cover` |
-| `--portrait-filter <name>` | QCut portrait preset; default `soft-skin`, or `none` to disable the LUT |
-| `--filter-intensity <0-100>` | Override the preset's default intensity |
-| `--beauty <0-100>` | Skin smoothing amount; default `25`, or `0` to disable |
-| `--preset <name>` | `default`, `cinematic`, `bold`, `minimal`, `karaoke`, or `news` |
-| `--style <json>` | Apply subtitle style overrides |
-| `--model <name>` | Select transcription model; default `scribe_v2` |
-| `--language <code>` | Hint transcription language |
-| `--silence-threshold <sec>` | Set long-pause threshold; default `1.0` |
-| `--keep-padding <sec>` | Remove extra time around each cut; default `0.15` per side |
-| `--srt-max-words <count>` | Limit tokens per subtitle card; default `8` |
-| `--srt-max-duration <sec>` | Limit card duration; default `4` |
-| `--keep-fillers` | Disable filler removal |
-| `--keep-silences` | Disable long-pause removal |
-| `--analyze-only` | Stop after writing cut metadata |
-| `--resume` | Reuse fresh artifacts from a matching manifest |
-| `--force` | Rebuild known artifacts |
-| `--json` | Emit the final manifest as JSON |
+- three title options and one recommended title;
+- a playful but credible body using concrete metaphors, familiar sayings, and a
+  conversational rhythm;
+- 6–10 relevant hashtags;
+- an exact 1080×1920 cover with one main headline and at most one short kicker;
+- a source and rights manifest for downloaded media.
+
+Prefer a real frame of the speaker for the cover when recognizability matters.
+Generated elements may support the concept but must not misrepresent the person,
+product, or claims.
 
 ## Output Contract
 
 ```text
-<video-name>-vlog/
-├── <video-name>_clean.<source-extension>
-├── <video-name>_vlog_portrait.mp4           # without --background; no burned captions
-├── <video-name>_cutout.webm                 # when --background is used
-├── <video-name>_vlog_editable.mp4           # when --background is used; no burned captions
-├── <video-name>_clean_audio.mp3
-├── transcription.srt                        # edit this if captions need correction
-├── <video-name>_vlog.mp4                     # hard-captioned publishing version
-├── sticker-version/                          # when stickers were requested
-│   ├── <video-name>_vlog-no-stickers.mp4
-│   ├── <video-name>_vlog-stickers-sfx.mp4
-│   ├── sticker-plan.json
+<project-root>/
+├── baseline/
+│   ├── <video-name>_clean.<source-extension>
+│   ├── <video-name>_vlog_portrait.mp4      # caption-free editable master
+│   ├── transcription.srt
+│   ├── <video-name>_vlog.mp4               # hard-captioned baseline
+│   ├── vlog-manifest.json
+│   ├── clean-metadata/
+│   ├── logs/
 │   └── verification/
-├── vlog-manifest.json
-├── clean-metadata/
-│   ├── words.json
-│   ├── decisions.json
-│   ├── cuts.json
-│   └── keeps.json
-├── logs/
-└── verification/
-    ├── background-preview.png                # when --background is used
-    └── subtitle-preview.png
+├── sticker-version/
+│   ├── final.mp4
+│   └── edit/
+│       ├── cue-sheet.md
+│       └── audio-master.*
+├── broll-version/
+│   ├── final.mp4
+│   ├── sources.md
+│   └── edit/
+│       ├── downloads/
+│       │   ├── originals/
+│       │   └── archive/
+│       ├── segments/
+│       ├── frames/
+│       └── logs/
+└── publish/
+    ├── xiaohongshu.md
+    ├── cover-1080x1920.png
+    └── verification-report.md
 ```
 
-If no cuts are needed, the workflow uses the source as the clean working video
-without copying it. Without `--background`, `artifacts.editableVideo` points to
-the portrait-filtered MP4. If both `--portrait-filter none` and `--beauty 0`
-are supplied, it points to the clean/source video instead. The sidecar SRT
-remains editable, while `<video-name>_vlog.mp4` always contains hard-burned
-captions.
+When background replacement is used, the baseline also contains the transparent
+cutout and `<video-name>_vlog_editable.mp4`.
 
-## Completion Checks
+## Verify Before Delivery
 
-Before reporting success:
+Read [verification.md](references/verification.md) and run every applicable check.
+At minimum:
 
-1. Read `vlog-manifest.json` and confirm all seven stages completed or were safely skipped.
-2. Confirm final-video duration differs from editable-video duration by no more than `0.25s`.
-3. Confirm `transcription.srt` contains at least one entry.
-4. When a background was requested, open `verification/background-preview.png` and confirm the person, background, orientation, edge quality, and framing.
-5. Open `verification/subtitle-preview.png` and verify readable text, no unwanted box, correct orientation, and no clipping.
-6. Report source/editable/final durations, actual removed duration, cut categories, subtitle count, editable MP4 path, SRT path, hard-captioned MP4 path, and both preview paths.
+1. Confirm the manifest stages completed or were safely skipped.
+2. Confirm editable and final durations differ by no more than `0.25s`.
+3. Confirm the SRT is non-empty and visually inspect caption frames.
+4. Inspect the opening, every overlay boundary, every B-roll boundary, and the end.
+5. Confirm speech remains continuous and intelligible and music or SFX never masks it.
+6. Confirm dimensions, frame cadence, color tags, audio peak, source records, title,
+   copy, and cover.
+7. Decode the final video end to end and verify it opens from the reported path.
 
-Do not treat the obsolete `<name>_clean.mp3` pattern from earlier ad hoc runs as
-authoritative. The runner's `<name>_clean_audio.mp3` is tied to the clean video's
-modification time and recorded in the manifest.
+Report what changed, the durations, cut categories, caption count, audio result,
+source-rights status, and absolute paths to the editable master, publishing video,
+SRT, copy, cover, and verification artifacts.
+
+Do not claim completion from command success alone. Inspect the result.
