@@ -181,6 +181,12 @@ describe("text animation preset registry", () => {
 		}
 	});
 
+	it("uses Jianying's 1.2 second default for the cylinder loop", () => {
+		expect(
+			findPreset({ phase: "loop", presetId: "cylinder-3d" }).defaultDuration
+		).toBe(1.2);
+	});
+
 	it("creates complete canonical phase snapshots", () => {
 		for (const phase of TEXT_ANIMATION_PHASES) {
 			for (const preset of TEXT_ANIMATION_PRESETS[phase]) {
