@@ -277,7 +277,7 @@ function PresetButton({
 				aria-label={t("textProperties.aria.applyPreset", { name: presetName })}
 				title={presetName}
 				onClick={onApply}
-				className="flex h-14 w-full items-center justify-center overflow-hidden rounded-sm border border-border bg-muted/60 transition-colors hover:border-primary hover:bg-muted"
+				className="flex h-14 w-full items-center justify-center overflow-hidden rounded-sm border border-white/10 bg-zinc-900 transition-colors hover:border-primary"
 			>
 				<span
 					data-testid="text-preset-preview"
