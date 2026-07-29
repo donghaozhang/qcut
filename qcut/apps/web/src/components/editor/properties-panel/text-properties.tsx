@@ -246,6 +246,15 @@ function PresetButton({
 	const presetNameKey = TEXT_PRESET_NAME_KEYS[preset.id];
 	const presetName = presetNameKey ? t(presetNameKey) : preset.name;
 	const backgroundOpacity = preset.updates.backgroundOpacity ?? 0;
+	const hasBackground = backgroundOpacity > 0;
+	const previewBackgroundPadding = Math.min(
+		6,
+		Math.max(2, (preset.updates.backgroundPadding ?? 8) / 3)
+	);
+	const previewBackgroundRadius = Math.min(
+		8,
+		(preset.updates.backgroundRadius ?? 0) / 2
+	);
 	const strokeWidth = preset.updates.strokeWidth ?? 0;
 	const glowOpacity = preset.updates.glowOpacity ?? 0;
 	const shadowOpacity = preset.updates.shadowOpacity ?? 0;
@@ -268,24 +277,28 @@ function PresetButton({
 				aria-label={t("textProperties.aria.applyPreset", { name: presetName })}
 				title={presetName}
 				onClick={onApply}
-				className="flex aspect-square w-full items-center justify-center overflow-hidden rounded-sm border border-border bg-muted transition-colors hover:border-primary"
-				style={{
-					backgroundColor:
-						backgroundOpacity > 0
+				className="flex h-14 w-full items-center justify-center overflow-hidden rounded-sm border border-border bg-muted/60 transition-colors hover:border-primary hover:bg-muted"
+			>
+				<span
+					data-testid="text-preset-preview"
+					className="inline-flex items-center justify-center text-lg leading-none"
+					style={{
+						backgroundColor: hasBackground
 							? colorWithOpacity(
 									preset.updates.backgroundColor ?? "#000000",
 									backgroundOpacity
 								)
 							: undefined,
-				}}
-			>
-				<span
-					className="text-3xl leading-none"
-					style={{
+						borderRadius: hasBackground
+							? `${previewBackgroundRadius}px`
+							: undefined,
 						color: preset.updates.color ?? "#ffffff",
 						fontFamily: preset.updates.fontFamily,
 						fontWeight: preset.updates.fontWeight,
 						fontStyle: preset.updates.fontStyle,
+						padding: hasBackground
+							? `${previewBackgroundPadding}px ${previewBackgroundPadding * 1.5}px`
+							: undefined,
 						WebkitTextStroke:
 							strokeWidth > 0
 								? `${Math.min(2, strokeWidth)}px ${colorWithOpacity(preset.updates.strokeColor ?? "#000000", preset.updates.strokeOpacity ?? 1)}`
@@ -293,7 +306,7 @@ function PresetButton({
 						textShadow: shadows.length > 0 ? shadows.join(", ") : undefined,
 					}}
 				>
-					T
+					Aa
 				</span>
 			</button>
 			{onDelete ? (
