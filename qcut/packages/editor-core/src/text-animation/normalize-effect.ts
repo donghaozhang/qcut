@@ -255,6 +255,7 @@ export function normalizeTextAnimationEffect({
 				value: record.radius,
 				fallback: { value: 2, unit: "em" },
 			}),
+			...(record.ring === true ? { ring: true } : {}),
 			fade,
 		};
 	}

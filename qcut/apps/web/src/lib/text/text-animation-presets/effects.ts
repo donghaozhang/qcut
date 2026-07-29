@@ -211,7 +211,8 @@ export function effectForPreset({
 				kind: "orbit",
 				rotation: "clockwise",
 				turns: 1,
-				radius: { value: 0.6, unit: "boxHeight" },
+				radius: { value: 1.05, unit: "boxHeight" },
+				ring: true,
 				fade: false,
 			};
 		case "loop:jitter":

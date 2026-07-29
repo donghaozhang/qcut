@@ -144,6 +144,12 @@ export interface TextOrbitEffect {
 	rotation: "clockwise" | "counterclockwise";
 	turns: number;
 	radius: TextAnimationDistance;
+	/**
+	 * Ring mode collapses each unit to the layout center before orbiting, so
+	 * staggered units form Jianying's 环绕 ring instead of tracing circles
+	 * around their own line positions.
+	 */
+	ring?: boolean;
 	fade: boolean;
 }
 

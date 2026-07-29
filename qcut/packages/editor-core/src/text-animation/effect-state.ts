@@ -407,9 +407,27 @@ function loopVisual({
 		const sign = effect.rotation === "clockwise" ? 1 : -1;
 		const angle = sign * progress * Math.PI * 2 * effect.turns;
 		const radius = resolveDistance({ distance: effect.radius, layout });
-		visual.translateX = radius * (Math.cos(angle) - 1);
-		visual.translateY = radius * Math.sin(angle);
-		visual.rotationDeg = (angle * 180) / Math.PI;
+		if (effect.ring) {
+			// Jianying's 环绕: every unit rides the same centered circle
+			// (x = sin, y = cos), so first cancel the unit's own layout
+			// offset, then place it by its wrapped phase angle.
+			const bounds = unitBounds({ unit, layout });
+			const centerOffsetX =
+				layout.bounds.x +
+				layout.bounds.width / 2 -
+				(bounds.x + bounds.width / 2);
+			const centerOffsetY =
+				layout.bounds.y +
+				layout.bounds.height / 2 -
+				(bounds.y + bounds.height / 2);
+			visual.translateX = centerOffsetX + radius * Math.sin(angle);
+			visual.translateY = centerOffsetY + radius * Math.cos(angle);
+			visual.rotationDeg = (-angle * 180) / Math.PI;
+		} else {
+			visual.translateX = radius * (Math.cos(angle) - 1);
+			visual.translateY = radius * Math.sin(angle);
+			visual.rotationDeg = (angle * 180) / Math.PI;
+		}
 		if (effect.fade) visual.opacity = 1 - pulse * 0.2;
 	}
 	if (effect.kind === "laser") {

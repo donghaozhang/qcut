@@ -239,6 +239,46 @@ describe("Jianying-derived loop effects", () => {
 		]);
 	});
 
+	it("spreads staggered loop units around the whole orbit like 环绕", () => {
+		// Loop stagger is a cyclic phase offset, so at any instant the units
+		// occupy distinct points of the shared circle instead of bunching at
+		// the endpoints of a one-shot window.
+		const effect: TextAnimationEffect = {
+			kind: "orbit",
+			rotation: "clockwise",
+			turns: 1,
+			radius: { value: 0.6, unit: "boxHeight" },
+			fade: false,
+		};
+		const element = createLoopElement({
+			effect,
+			content: "ABCD",
+			unit: "grapheme",
+		});
+		element.textAnimations = {
+			schemaVersion: 1,
+			loop: {
+				...element.textAnimations?.loop,
+				sequence: {
+					unit: "grapheme",
+					order: "forward",
+					staggerRatio: 0.95,
+					seed: 12,
+				},
+			},
+		} as typeof element.textAnimations;
+		const state = evaluateTextAnimationFrame({
+			compiled: compileTextAnimation({ element, fps: 100 }),
+			frame: 30,
+			layout: createHorizontalLayout({ content: element.content }),
+		});
+
+		const angles = state.units.map(({ visual }) => visual.rotationDeg);
+		expect(new Set(angles.map((angle) => angle.toFixed(3))).size).toBe(4);
+		const spread = Math.max(...angles) - Math.min(...angles);
+		expect(spread).toBeGreaterThan(180);
+	});
+
 	it("steps the jitter into four poses per cycle, keyed on unit rank", () => {
 		const effect: TextAnimationEffect = {
 			kind: "jitter",
