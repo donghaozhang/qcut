@@ -1,5 +1,5 @@
 import { Move, RotateCw } from "lucide-react";
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { cn } from "@/lib/utils";
 import { useEffectsStore } from "@/stores/ai/effects-store";
 import type { TimelineElement } from "@/types/timeline";
@@ -11,6 +11,7 @@ import {
 	type ElementResizeHandle,
 	type ElementTransform,
 } from "./interactive-element-overlay-geometry";
+import { resolveTextOverlayBounds } from "@/lib/text/text-overlay-bounds";
 
 export type { ElementTransform } from "./interactive-element-overlay-geometry";
 
@@ -25,12 +26,15 @@ interface InteractiveElementOverlayProps {
 
 interface DragState {
 	isDragging: boolean;
+	hasMoved: boolean;
 	dragType: "move" | "resize" | "rotate" | null;
 	startX: number;
 	startY: number;
 	startTransform: ElementTransform;
 	resizeHandle?: ElementResizeHandle;
 }
+
+const DRAG_ACTIVATION_PX = 2;
 
 export function InteractiveElementOverlay({
 	element,
@@ -49,6 +53,7 @@ export function InteractiveElementOverlay({
 
 	const [dragState, setDragState] = useState<DragState>({
 		isDragging: false,
+		hasMoved: false,
 		dragType: null,
 		startX: 0,
 		startY: 0,
@@ -77,6 +82,7 @@ export function InteractiveElementOverlay({
 
 			setDragState({
 				isDragging: true,
+				hasMoved: false,
 				dragType: type,
 				startX: e.clientX,
 				startY: e.clientY,
@@ -91,6 +97,18 @@ export function InteractiveElementOverlay({
 	const handleMouseMove = useCallback(
 		(e: MouseEvent) => {
 			if (!dragState.isDragging) return;
+			// Ignore the pixel jitter of a plain click so selection alone never
+			// mutates the element.
+			if (
+				!dragState.hasMoved &&
+				Math.hypot(e.clientX - dragState.startX, e.clientY - dragState.startY) <
+					DRAG_ACTIVATION_PX
+			) {
+				return;
+			}
+			if (!dragState.hasMoved) {
+				setDragState((previous) => ({ ...previous, hasMoved: true }));
+			}
 
 			const deltaX = (e.clientX - dragState.startX) / previewScale;
 			const deltaY = (e.clientY - dragState.startY) / previewScale;
@@ -134,19 +152,26 @@ export function InteractiveElementOverlay({
 
 	// Handle mouse up for drag end
 	const handleMouseUp = useCallback(() => {
-		if (dragState.isDragging) {
+		if (dragState.isDragging && dragState.hasMoved) {
 			// Save the transform via the callback
 			onTransformUpdate(element.id, transform);
 		}
 
 		setDragState({
 			isDragging: false,
+			hasMoved: false,
 			dragType: null,
 			startX: 0,
 			startY: 0,
 			startTransform: transform,
 		});
-	}, [dragState.isDragging, transform, element.id, onTransformUpdate]);
+	}, [
+		dragState.isDragging,
+		dragState.hasMoved,
+		transform,
+		element.id,
+		onTransformUpdate,
+	]);
 
 	const handleResizeKeyDown = useCallback(
 		({
@@ -245,6 +270,18 @@ export function InteractiveElementOverlay({
 		}
 	}, [dragState.isDragging, handleMouseMove, handleMouseUp]);
 
+	const contentBounds = useMemo(
+		() =>
+			element.type === "text"
+				? resolveTextOverlayBounds({
+						element,
+						canvasWidth: canvasSize.width,
+						canvasHeight: canvasSize.height,
+					})
+				: undefined,
+		[element, canvasSize.width, canvasSize.height]
+	);
+
 	const hasEffects = getElementEffects(element.id).length > 0;
 	const hasDirectCanvasInteraction =
 		element.type === "text" || element.type === "markdown";
@@ -261,6 +298,7 @@ export function InteractiveElementOverlay({
 		canvasSize,
 		previewDimensions,
 		transform,
+		contentBounds,
 	});
 
 	return (
