@@ -85,6 +85,11 @@ Precision rules learned the hard way:
 3. Apply the effect card, then **wait ≥3 s** — applying auto-plays a preview.
    Before stepping, confirm the transport shows **▶ (stopped)**, not ⏸.
    A ⏸ means your frames are contaminated by live playback — redo.
+   **Loop animations are the exception**: Jianying does not evaluate 循环
+   animations while paused-and-stepping — stepped frames come back as static
+   text. Capture loops by playing and pausing (space → wait a fraction of the
+   cycle → space); the paused frame keeps the loop pose frozen and can be
+   screencaptured cleanly.
 4. Step with `→` (1 frame each), capture a tight zoom of the player region at
    every 2–3 frames across the whole duration (default 0.5 s = 15 frames
    @30fps). Capture one frame past the end for the steady state.
@@ -105,9 +110,15 @@ QCut's text-animation engine lives in
 with presets in `apps/web/src/lib/text/text-animation-presets/`.
 
 1. Translate the Lua math into effect params / easing / stagger. Notable
-   precedent: Jianying's typewriter slotting `(rank+1)/(unitCount+1)` is
+   precedents: Jianying's typewriter slotting `(rank+1)/(unitCount+1)` is
    implemented in `evaluate.ts` (`typewriterUnitProgress`), and
-   `EASE_OUT_QUAD` in `effects.ts` mirrors `Amaz.Ease.quadOut`.
+   `EASE_OUT_QUAD` in `effects.ts` mirrors `Amaz.Ease.quadOut`. For loop
+   animations, QCut treats sequence stagger as a **cyclic phase offset**
+   (`phaseUnitProgress` with `wrap`), which is how per-char sin/cos channels
+   with rank-spread phases become Jianying's ring layouts; orbit's `ring`
+   mode additionally cancels each unit's layout offset so every glyph rides
+   one centered circle (环绕). Do not trust preset names — 空间翻转 III is a
+   planar rotate oscillation, not a flip.
 2. Verify numerically before trusting pixels — evaluate the compiled animation
    at every frame and compare against the Lua formula:
 
@@ -125,7 +136,11 @@ const jy = (f: number) => Math.min(N, Math.floor(Math.min(1, f / F) * (N + 1)));
    editor:project:create / editor:timeline:apply / editor:timeline:seek` with a
    manifest generated from the real preset helpers
    (`applyTextAnimationPreset`), and screenshot the preview at the same
-   normalized times as the Jianying captures.
+   normalized times as the Jianying captures. Gotchas: the editor API listens
+   on port 8765 (`QCUT_API_PORT=8765` if discovery picks the wrong port);
+   `editor:timeline:apply --verify` compares JSON strings, so preset effect
+   objects must emit keys in the normalizer's order or verification fails on
+   a semantically identical animation.
 
 ## Scope Notes
 
