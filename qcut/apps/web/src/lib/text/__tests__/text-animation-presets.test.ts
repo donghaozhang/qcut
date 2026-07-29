@@ -427,6 +427,30 @@ describe("text animation preset registry", () => {
 		expect(updated.entrance?.timing).toEqual(animations.entrance?.timing);
 	});
 
+	it.each([
+		["flip-3d", 0.5],
+		["cylinder-3d", 0.5],
+		["jitter-3d", 0.4],
+	] as const)("round-trips %s intensity", (presetId, intensity) => {
+		const preset = findPreset({ phase: "loop", presetId });
+		const animations = applyTextAnimationPreset({
+			animations: undefined,
+			preset,
+		});
+		const updated = updateTextAnimationPhaseIntensity({
+			animations,
+			phase: "loop",
+			intensity,
+		});
+
+		expect(
+			getTextAnimationPhaseIntensity({
+				animations: updated,
+				phase: "loop",
+			})
+		).toBeCloseTo(intensity);
+	});
+
 	it("searches localized names and aliases", () => {
 		expect(
 			filterTextAnimationPresets({

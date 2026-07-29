@@ -88,6 +88,28 @@ function scaleEffectIntensity({
 				hiddenScale: 1 - (1 - effect.hiddenScale) * factor,
 				spread: effect.spread * factor,
 			};
+		case "flip3d":
+			return {
+				...effect,
+				maxAngleDeg: effect.maxAngleDeg * factor,
+			};
+		case "cylinder3d":
+			return {
+				...effect,
+				turns: effect.turns * factor,
+				tiltXDeg: effect.tiltXDeg * factor,
+			};
+		case "jitter3d":
+			return {
+				...effect,
+				groupYawDeg: effect.groupYawDeg * factor,
+				rotationXDeg: effect.rotationXDeg * factor,
+				rotationYDeg: effect.rotationYDeg * factor,
+				rotationZDeg: effect.rotationZDeg * factor,
+				positionJitter: effect.positionJitter * factor,
+				trailStrength: effect.trailStrength * factor,
+				trapezoidAmount: effect.trapezoidAmount * factor,
+			};
 		default:
 			return effect;
 	}
@@ -114,6 +136,12 @@ function primaryEffectAmplitude({
 			return Math.abs(effect.glowPx);
 		case "heart":
 			return Math.abs(effect.spread);
+		case "flip3d":
+			return Math.abs(effect.maxAngleDeg);
+		case "cylinder3d":
+			return Math.abs(effect.turns);
+		case "jitter3d":
+			return Math.abs(effect.rotationXDeg);
 		default:
 			return 1;
 	}

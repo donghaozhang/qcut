@@ -194,6 +194,48 @@ export function effectForPreset({
 					pivot: "bottomCenter",
 				},
 			};
+		case "loop:flip-3d":
+			return {
+				kind: "flip3d",
+				axis: "y",
+				maxAngleDeg: 60,
+				cameraFovDeg: 30,
+				motionRatio: 0.8,
+				motionEasing: {
+					type: "cubicBezier",
+					x1: 0.55,
+					y1: 0.06,
+					x2: 0.4,
+					y2: 0.96,
+				},
+			};
+		case "loop:cylinder-3d":
+			return {
+				kind: "cylinder3d",
+				turns: 1,
+				tiltXDeg: 20,
+				cameraFovDeg: 60,
+				coverage: 5 / 6,
+				radiusRatio: 1.2 / (Math.PI * 2),
+				startYawDeg: 540,
+			};
+		case "loop:jitter-3d":
+			return {
+				kind: "jitter3d",
+				cameraFovDeg: 60,
+				groupYawDeg: 20,
+				rotationXDeg: 15,
+				rotationYDeg: 15,
+				rotationZDeg: 10,
+				positionJitter: 0.03,
+				scaleFrom: 2 / 3,
+				scaleTo: 1,
+				frequency: 12,
+				seed: presetSeed({ presetId }),
+				trailSamples: 25,
+				trailStrength: 0.65,
+				trapezoidAmount: 0.12,
+			};
 		case "entrance:scale-up":
 			// Jianying's EnlargeIn.lua: scale 0.5 -> 1 and alpha 0 -> 1, both
 			// quadOut, with no overshoot.
@@ -291,7 +333,14 @@ function staggerRatioForPreset({
 	isGraphemePreset: boolean;
 	presetId: string;
 }): number {
-	if (!isGraphemePreset || presetId === "wave" || presetId === "sway") return 0;
+	if (
+		!isGraphemePreset ||
+		presetId === "wave" ||
+		presetId === "sway" ||
+		presetId === "jitter-3d"
+	) {
+		return 0;
+	}
 	if (presetId === "flip-open") return 0.83;
 	return 0.58;
 }
@@ -319,6 +368,7 @@ export function sequenceForPreset({
 		"laser-etch",
 		"sway",
 		"wave",
+		"jitter-3d",
 	]);
 	const order = presetId === "typewriter-out" ? "reverse" : "forward";
 	const staggerRatio = staggerRatioForPreset({

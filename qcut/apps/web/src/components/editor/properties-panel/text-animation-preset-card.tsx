@@ -16,6 +16,7 @@ import {
 } from "@/lib/text/text-animation-preset-preview";
 import { cn } from "@/lib/utils";
 import { useTextAnimationPreview } from "./use-text-animation-preview";
+import { TextAnimation3DPresetPreview } from "./text-animation-3d-preset-preview";
 
 function maskClipPath({
 	mask,
@@ -41,11 +42,24 @@ export function textAnimationVisualStyle({
 }: {
 	visual: TextAnimationVisualState;
 }): CSSProperties {
+	const projection = visual.projection;
+	const projectionRotationX =
+		projection?.kind === "plane"
+			? projection.groupRotationXDeg
+			: (projection?.tiltXDeg ?? 0);
+	const projectionRotationY =
+		projection?.kind === "plane"
+			? projection.groupRotationYDeg
+			: (projection?.yawDeg ?? 0);
+	const perspective = projection
+		? `${Math.max(60, 180 / Math.tan((projection.cameraFovDeg * Math.PI) / 360))}px`
+		: undefined;
 	return {
 		clipPath: maskClipPath({ mask: visual.mask }),
 		filter: visual.blurPx > 0 ? `blur(${visual.blurPx}px)` : undefined,
 		opacity: visual.opacity,
-		transform: `translate3d(${visual.translateX}px, ${visual.translateY}px, 0) rotate(${visual.rotationDeg}deg) scale(${visual.scaleX}, ${visual.scaleY})`,
+		transform: `${perspective ? `perspective(${perspective}) ` : ""}translate3d(${visual.translateX}px, ${visual.translateY}px, ${visual.translateZ}px) rotateX(${visual.rotationXDeg + projectionRotationX}deg) rotateY(${visual.rotationYDeg + projectionRotationY}deg) rotate(${visual.rotationDeg}deg) scale(${visual.scaleX}, ${visual.scaleY})`,
+		transformStyle: projection ? "preserve-3d" : undefined,
 		transformOrigin:
 			visual.transformOrigin === "bottomCenter" ? "50% 100%" : undefined,
 	};
@@ -226,6 +240,18 @@ function TextAnimationPresetPreviewContent({
 	);
 }
 
+function is3DPreview({
+	preset,
+}: {
+	preset: TextAnimationPresetDefinition;
+}): boolean {
+	return (
+		preset.previewKind === "flip-3d" ||
+		preset.previewKind === "cylinder-3d" ||
+		preset.previewKind === "jitter-3d"
+	);
+}
+
 export function TextAnimationPresetCard({
 	isPreviewing,
 	name,
@@ -256,6 +282,8 @@ export function TextAnimationPresetCard({
 					<CircleOff className="size-7 text-muted-foreground">
 						<title>{name}</title>
 					</CircleOff>
+				) : is3DPreview({ preset }) ? (
+					<TextAnimation3DPresetPreview preview={preview} progress={progress} />
 				) : (
 					<TextAnimationPresetPreviewContent
 						preview={preview}
