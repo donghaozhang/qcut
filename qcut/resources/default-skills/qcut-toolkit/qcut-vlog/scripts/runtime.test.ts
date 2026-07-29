@@ -57,15 +57,13 @@ describe("qcut-vlog artifact freshness", () => {
 			join(directory, "package.json"),
 			JSON.stringify({ scripts: { pipeline: "bun pipeline/index.ts" } })
 		);
-		const harmlessExecutable = Bun.which("true");
-		if (!harmlessExecutable) {
-			throw new Error("Test requires the true executable");
-		}
+		// Path resolution only; the executable is never run, and ambient
+		// QCUT_VLOG_* overrides must not leak into the assertions.
+		const harmlessExecutable = process.execPath;
 
 		const toolchain = resolveToolchain({
 			scriptDirectory: join(directory, "standalone-skill"),
 			env: {
-				...process.env,
 				QCUT_VLOG_REPO: directory,
 				QCUT_VLOG_FFMPEG_BIN: harmlessExecutable,
 				QCUT_VLOG_FFPROBE_BIN: harmlessExecutable,

@@ -26,6 +26,8 @@ function readVersion({ tool }: { tool: ToolCommand }): string {
 		{
 			cwd: tool.cwd,
 			encoding: "utf8",
+			// A hung or overridden binary must fail the preflight, not block it.
+			timeout: 15_000,
 		}
 	);
 	if (result.error) throw result.error;

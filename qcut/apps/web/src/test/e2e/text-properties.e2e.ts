@@ -37,6 +37,8 @@ test.describe("Text properties", () => {
 				(element) => element.style.backgroundColor
 			)
 		).not.toBe("");
+		await highlightPreset.click();
+		await expect(properties.getByLabel("Text color")).toHaveValue("#111111");
 
 		await properties.getByLabel("Apply Yellow pop text preset").click();
 		await properties.getByRole("tab", { name: "Animation" }).click();

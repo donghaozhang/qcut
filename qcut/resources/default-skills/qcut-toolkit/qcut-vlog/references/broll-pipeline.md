@@ -68,7 +68,7 @@ that lacks the same `zscale` behavior.
 Run the skill's mandatory preflight before preparing B-roll:
 
 ```bash
-bun "$QCUT_VLOG_PUBLISH_SKILL/scripts/preflight.ts"
+bun "$QCUT_VLOG_ROOT/scripts/preflight.ts"
 ```
 
 The check fails when the resolved FFmpeg major version is below 8. Fix the

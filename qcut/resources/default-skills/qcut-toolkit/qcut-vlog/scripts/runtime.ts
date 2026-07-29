@@ -17,7 +17,8 @@ function hasPipelineScript({ directory }: { directory: string }): boolean {
 		const packageData = JSON.parse(readFileSync(packagePath, "utf8")) as {
 			scripts?: Record<string, unknown>;
 		};
-		return typeof packageData.scripts?.pipeline === "string";
+		const pipeline = packageData.scripts?.pipeline;
+		return typeof pipeline === "string" && pipeline.trim().length > 0;
 	} catch {
 		return false;
 	}
