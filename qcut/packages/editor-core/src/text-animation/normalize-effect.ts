@@ -327,16 +327,15 @@ export function normalizeTextAnimationEffect({
 	if (record.kind === "flip") {
 		return {
 			kind: "flip",
-			axis: record.axis === "x" ? "x" : "y",
-			turns: numberInRange({
-				value: record.turns,
-				fallback: 1,
-				minimum: 0.1,
-				maximum: 8,
+			maxAngleDeg: numberInRange({
+				value: record.maxAngleDeg,
+				fallback: 32,
+				minimum: 0,
+				maximum: 180,
 			}),
-			edgeOpacity: numberInRange({
-				value: record.edgeOpacity,
-				fallback: 0.55,
+			perspective: numberInRange({
+				value: record.perspective,
+				fallback: 0.35,
 				minimum: 0,
 				maximum: 1,
 			}),

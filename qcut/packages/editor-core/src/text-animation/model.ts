@@ -175,18 +175,18 @@ export interface TextHeartEffect {
 }
 
 /**
- * Edge-on flip, reproduced the way Jianying does it: a per-unit scale squash
- * through zero on one axis. The scale crosses into negative values so the
- * glyph mirrors, which is what sells the turn without a 3D camera.
+ * Jianying's 空间翻转: the block swings through a planar tilt while a
+ * position-keyed scale gradient fakes the perspective of a yawing plane —
+ * the end swinging toward the viewer grows, the receding end shrinks. The
+ * tilt and the gradient run 90° out of phase, matching the projection of a
+ * 3D yaw viewed slightly off-axis.
  */
 export interface TextFlipEffect {
 	kind: "flip";
-	/** Axis the glyph appears to turn around. */
-	axis: "x" | "y";
-	/** Full turns per loop cycle. */
-	turns: number;
-	/** Opacity held at the edge-on moment, where the glyph is thinnest. */
-	edgeOpacity: number;
+	/** Peak planar tilt of the block, in degrees. */
+	maxAngleDeg: number;
+	/** Scale spread across the line at full swing, 0..1 of the base size. */
+	perspective: number;
 }
 
 /**

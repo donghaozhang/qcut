@@ -306,8 +306,8 @@ function resolveEffectEnvelope({
 		return envelope;
 	}
 	if (effect.kind === "flip") {
-		// scaleX crosses zero and mirrors; the box never exceeds its own size.
-		envelope.scale = 1;
+		envelope.rotationDeg = effect.maxAngleDeg;
+		envelope.scale = 1 + effect.perspective;
 		return envelope;
 	}
 	if (effect.kind === "jitter") {

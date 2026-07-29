@@ -250,9 +250,8 @@ describe("text animation normalization", () => {
 			entrance: createPhase({
 				effect: {
 					kind: "flip",
-					axis: "y",
-					turns: 40,
-					edgeOpacity: 5,
+					maxAngleDeg: 500,
+					perspective: 5,
 				},
 			}),
 			loop: {
@@ -273,8 +272,8 @@ describe("text animation normalization", () => {
 
 		expect(result.animation?.entrance?.effect).toMatchObject({
 			kind: "flip",
-			turns: 8,
-			edgeOpacity: 1,
+			maxAngleDeg: 180,
+			perspective: 1,
 		});
 		expect(result.animation?.loop?.effect).toMatchObject({
 			kind: "jitter",

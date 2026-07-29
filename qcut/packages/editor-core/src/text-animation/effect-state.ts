@@ -372,16 +372,31 @@ function loopVisual({
 		visual.scaleY = scale;
 	}
 	if (effect.kind === "flip") {
-		// Jianying turns a glyph by squashing one scale axis through zero; the
-		// negative half mirrors the glyph, which reads as the back face.
-		const squash = Math.cos(progress * Math.PI * 2 * effect.turns);
-		if (effect.axis === "y") visual.scaleX = squash;
-		else visual.scaleY = squash;
-		visual.opacity = lerp({
-			from: effect.edgeOpacity,
-			to: 1,
-			progress: Math.abs(squash),
-		});
+		// Jianying's 空间翻转: rotate every unit rigidly about the layout
+		// center (tilt = cos phase) while a position-keyed scale gradient
+		// (sin phase) fakes the perspective of the plane yawing toward and
+		// away from the viewer.
+		const swing = Math.sin(progress * Math.PI * 2);
+		const tilt = Math.cos(progress * Math.PI * 2);
+		const angle = (effect.maxAngleDeg * Math.PI) / 180;
+		const theta = angle * tilt;
+		const bounds = unitBounds({ unit, layout });
+		const offsetX =
+			bounds.x + bounds.width / 2 - (layout.bounds.x + layout.bounds.width / 2);
+		const offsetY =
+			bounds.y +
+			bounds.height / 2 -
+			(layout.bounds.y + layout.bounds.height / 2);
+		visual.translateX =
+			offsetX * Math.cos(theta) - offsetY * Math.sin(theta) - offsetX;
+		visual.translateY =
+			offsetX * Math.sin(theta) + offsetY * Math.cos(theta) - offsetY;
+		visual.rotationDeg = effect.maxAngleDeg * tilt;
+		const lineRatio =
+			layout.bounds.width > 0 ? offsetX / layout.bounds.width : 0;
+		const scale = 1 + effect.perspective * lineRatio * swing * 2;
+		visual.scaleX = scale;
+		visual.scaleY = scale;
 	}
 	if (effect.kind === "jitter") {
 		// Ported from Jianying's stepped shake: local time is floored into

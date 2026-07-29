@@ -195,14 +195,9 @@ export function effectForPreset({
 				},
 			};
 		case "loop:flip":
-			// Jianying's 空间翻转 III reads as the whole block swinging through a
-			// large planar tilt; the closest 2D shape is a rotate oscillation.
-			return {
-				kind: "rotate",
-				degrees: 32,
-				oscillation: { cycles: 1, phaseEasing: "smoothstep", pivot: "center" },
-				fade: false,
-			};
+			// Jianying's 空间翻转 III: planar swing plus a perspective scale
+			// gradient across the line, 90° out of phase with the tilt.
+			return { kind: "flip", maxAngleDeg: 32, perspective: 0.35 };
 		case "loop:ring-orbit":
 			// Jianying's 环绕 lays the characters out around a ring: each one
 			// runs the same circle, phase-spread across the whole cycle, and
@@ -320,7 +315,8 @@ function staggerRatioForPreset({
 		!isGraphemePreset ||
 		presetId === "wave" ||
 		presetId === "sway" ||
-		presetId === "jitter"
+		presetId === "jitter" ||
+		presetId === "flip"
 	) {
 		return 0;
 	}
@@ -356,6 +352,7 @@ export function sequenceForPreset({
 		"wave",
 		"jitter",
 		"ring-orbit",
+		"flip",
 	]);
 	const order = presetId === "typewriter-out" ? "reverse" : "forward";
 	const staggerRatio = staggerRatioForPreset({

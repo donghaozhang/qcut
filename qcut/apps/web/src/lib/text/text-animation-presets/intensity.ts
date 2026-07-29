@@ -91,9 +91,8 @@ function scaleEffectIntensity({
 		case "flip":
 			return {
 				...effect,
-				// Intensity trims how far the glyph opens up, not how fast it
-				// turns, so the loop period stays where the preset put it.
-				edgeOpacity: 1 - (1 - effect.edgeOpacity) * factor,
+				maxAngleDeg: effect.maxAngleDeg * factor,
+				perspective: effect.perspective * factor,
 			};
 		case "jitter":
 			return {
@@ -128,7 +127,7 @@ function primaryEffectAmplitude({
 		case "heart":
 			return Math.abs(effect.spread);
 		case "flip":
-			return Math.abs(1 - effect.edgeOpacity);
+			return Math.abs(effect.maxAngleDeg);
 		case "jitter":
 			return Math.abs(effect.amplitudeX);
 		default:

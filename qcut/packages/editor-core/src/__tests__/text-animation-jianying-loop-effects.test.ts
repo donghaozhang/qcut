@@ -188,27 +188,44 @@ describe("Jianying-derived loop effects", () => {
 		expect(start.units.every(({ visual }) => visual.scaleX === 1)).toBe(true);
 	});
 
-	it("flips by squashing scale through zero, mirroring on the back half", () => {
-		// Jianying has no 3D camera: a turn is scale.x = cos(2*pi*t), which goes
-		// negative to mirror the glyph rather than rotating a mesh.
+	it("swings the block with a perspective gradient like 空间翻转", () => {
 		const effect: TextAnimationEffect = {
 			kind: "flip",
-			axis: "y",
-			turns: 1,
-			edgeOpacity: 0.55,
+			maxAngleDeg: 32,
+			perspective: 0.35,
 		};
+		const sample = ({ frame }: { frame: number }) =>
+			sampleLoop({ effect, frame, content: "ABCD", unit: "grapheme" });
 
-		expect(sampleLoop({ effect, frame: 0 }).container.scaleX).toBeCloseTo(1);
-		expect(sampleLoop({ effect, frame: 25 }).container.scaleX).toBeCloseTo(0);
-		expect(sampleLoop({ effect, frame: 50 }).container.scaleX).toBeCloseTo(-1);
-		expect(sampleLoop({ effect, frame: 75 }).container.scaleX).toBeCloseTo(0);
-		// scaleY is untouched, so the glyph keeps its height through the turn.
-		expect(sampleLoop({ effect, frame: 25 }).container.scaleY).toBeCloseTo(1);
-		// Edge-on is the thinnest moment and dips to the configured floor.
-		expect(sampleLoop({ effect, frame: 25 }).container.opacity).toBeCloseTo(
-			0.55
+		// Tilt runs on the cos phase: full tilt at 0, level at the quarters.
+		const start = sample({ frame: 0 });
+		expect(start.units.at(0)?.visual.rotationDeg).toBeCloseTo(32);
+		expect(sample({ frame: 25 }).units.at(0)?.visual.rotationDeg).toBeCloseTo(
+			0,
+			5
 		);
-		expect(sampleLoop({ effect, frame: 0 }).container.opacity).toBeCloseTo(1);
+		expect(sample({ frame: 50 }).units.at(0)?.visual.rotationDeg).toBeCloseTo(
+			-32
+		);
+
+		// Perspective runs on the sin phase: level frames carry the strongest
+		// scale spread, and it grows across the line like a yawing plane.
+		const level = sample({ frame: 25 });
+		const scales = level.units.map(({ visual }) => visual.scaleX);
+		expect(scales.at(0)).toBeLessThan(1);
+		expect(scales.at(-1)).toBeGreaterThan(1);
+		for (let index = 1; index < scales.length; index += 1) {
+			expect(scales[index]).toBeGreaterThan(scales[index - 1]);
+		}
+		// At full tilt the gradient rests.
+		for (const unit of start.units) {
+			expect(unit.visual.scaleX).toBeCloseTo(1);
+		}
+
+		// The tilt is rigid: unit offsets follow one rotation about the
+		// layout center rather than spinning in place.
+		const first = start.units.at(0);
+		expect(first?.visual.translateX).not.toBeCloseTo(0);
 	});
 
 	it("orbits every unit on the circle Jianying's 环绕 traces", () => {
