@@ -228,6 +228,14 @@ describe("text animation frame evaluation", () => {
 			total: 8,
 			span: 0.8,
 		});
+		const partialCycle = compileTextAnimation({
+			element: { ...element, content: "ABCDE" },
+			fps: 100,
+		});
+		expect(partialCycle.entrance?.typewriterRhythm).toMatchObject({
+			total: 9,
+			span: 5 / 6,
+		});
 		// Weights cycle 1,3,1,3 over four units: total 8, span 4/5. Unit slots
 		// end at (cumulative/total)*span: 0.1, 0.4, 0.5, 0.8 of the phase.
 		const revealFrames = [0, 1, 2, 3].map((rank) => {
