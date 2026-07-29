@@ -180,9 +180,7 @@ function projectedDepth({
 }): number {
 	if (projection.kind === "cylinder") {
 		const radius = width * projection.radiusRatio;
-		const tiltDepth =
-			Math.abs(Math.sin((projection.tiltXDeg * Math.PI) / 180)) * (height / 2);
-		return radius + tiltDepth;
+		return radius;
 	}
 	const yawDepth =
 		Math.abs(Math.sin((projection.groupRotationYDeg * Math.PI) / 180)) *
@@ -398,6 +396,64 @@ function createGlyphGeometry({
 	return geometry;
 }
 
+function createCylinderGlyphGeometry({
+	bounds,
+	textureBounds,
+	radius,
+	thetaLength,
+}: {
+	bounds: TextAnimationRect;
+	textureBounds: TextAnimationRect;
+	radius: number;
+	thetaLength: number;
+}): BufferGeometry {
+	const segmentCount = Math.max(2, Math.ceil(bounds.width / 8));
+	const positions = new Float32Array((segmentCount + 1) * 2 * 3);
+	const textureCoordinates = new Float32Array((segmentCount + 1) * 2 * 2);
+	const indices: number[] = [];
+	const uv = normalizedTextureCoordinates({ bounds, textureBounds });
+	const textureCenterY = textureBounds.y + textureBounds.height / 2;
+	const bottomY = -(bounds.y + bounds.height - textureCenterY);
+	const topY = -(bounds.y - textureCenterY);
+
+	for (let segment = 0; segment <= segmentCount; segment += 1) {
+		const glyphProgress = segment / segmentCount;
+		const textureX = bounds.x + bounds.width * glyphProgress - textureBounds.x;
+		const normalizedTextureX = textureX / textureBounds.width;
+		const angle = thetaLength / 2 - normalizedTextureX * thetaLength;
+		const x = Math.sin(angle) * radius;
+		const z = Math.cos(angle) * radius;
+		const textureU = uv.left + (uv.right - uv.left) * glyphProgress;
+		const bottomVertex = segment * 2;
+		const topVertex = bottomVertex + 1;
+
+		positions.set([x, bottomY, z], bottomVertex * 3);
+		positions.set([x, topY, z], topVertex * 3);
+		textureCoordinates.set([textureU, uv.bottom], bottomVertex * 2);
+		textureCoordinates.set([textureU, uv.top], topVertex * 2);
+
+		if (segment === segmentCount) continue;
+		const nextBottomVertex = bottomVertex + 2;
+		const nextTopVertex = topVertex + 2;
+		indices.push(
+			bottomVertex,
+			topVertex,
+			nextBottomVertex,
+			topVertex,
+			nextTopVertex,
+			nextBottomVertex
+		);
+	}
+
+	const geometry = new BufferGeometry();
+	geometry.setAttribute("position", new BufferAttribute(positions, 3));
+	geometry.setAttribute("uv", new BufferAttribute(textureCoordinates, 2));
+	geometry.setIndex(indices);
+	geometry.computeVertexNormals();
+	geometry.computeBoundingSphere();
+	return geometry;
+}
+
 function createGlyphGroup({
 	graphemes,
 	material,
@@ -471,46 +527,35 @@ export function createTextAnimation3DCylinder({
 		side: BackSide,
 		depthTest: false,
 	});
-	const textureCenterY = textureBounds.y + textureBounds.height / 2;
 	const group = new Group();
 	for (const grapheme of graphemes) {
 		if (grapheme.bounds.width <= 0 || grapheme.bounds.height <= 0) continue;
-		const normalizedCenterX =
-			(grapheme.bounds.x + grapheme.bounds.width / 2 - textureBounds.x) /
-			textureBounds.width;
-		const angle = thetaLength / 2 - normalizedCenterX * thetaLength;
-		const x = Math.sin(angle) * radius;
-		const y = -(
-			grapheme.bounds.y +
-			grapheme.bounds.height / 2 -
-			textureCenterY
-		);
-		const z = Math.cos(angle) * radius;
 		const front = new Mesh(
-			createGlyphGeometry({
+			createCylinderGlyphGeometry({
 				bounds: grapheme.bounds,
 				textureBounds,
+				radius,
+				thetaLength,
 			}),
 			frontMaterial
 		);
 		const back = new Mesh(
-			createGlyphGeometry({
+			createCylinderGlyphGeometry({
 				bounds: grapheme.bounds,
 				textureBounds,
-				mirrorX: true,
+				radius,
+				thetaLength,
 			}),
 			backMaterial
 		);
 		for (const [renderOrder, mesh] of [front, back].entries()) {
-			mesh.position.set(x, y, z);
-			mesh.rotation.y = angle;
 			mesh.renderOrder = renderOrder;
 			group.add(mesh);
 		}
 	}
-	group.rotation.order = "YXZ";
+	group.rotation.order = "XYZ";
 	group.rotation.set(
-		(-projection.tiltXDeg * Math.PI) / 180,
+		(projection.tiltXDeg * Math.PI) / 180,
 		(projection.yawDeg * Math.PI) / 180,
 		0
 	);
