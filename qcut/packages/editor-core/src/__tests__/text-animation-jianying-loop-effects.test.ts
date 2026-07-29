@@ -264,7 +264,8 @@ describe("Jianying-derived loop effects", () => {
 			kind: "orbit",
 			rotation: "clockwise",
 			turns: 1,
-			radius: { value: 0.6, unit: "boxHeight" },
+			radius: { value: 1.05, unit: "boxHeight" },
+			ring: true,
 			fade: false,
 		};
 		const element = createLoopElement({
@@ -294,6 +295,21 @@ describe("Jianying-derived loop effects", () => {
 		expect(new Set(angles.map((angle) => angle.toFixed(3))).size).toBe(4);
 		const spread = Math.max(...angles) - Math.min(...angles);
 		expect(spread).toBeGreaterThan(180);
+
+		// Ring mode: every transformed unit center sits on one circle around
+		// the layout center, not on a circle around its own line position.
+		const layout = createHorizontalLayout({ content: "ABCD" });
+		const radius = 1.05 * layout.bounds.height;
+		const centerX = layout.bounds.x + layout.bounds.width / 2;
+		const centerY = layout.bounds.y + layout.bounds.height / 2;
+		for (const [index, unit] of state.units.entries()) {
+			const grapheme = layout.graphemes[index];
+			const baseX = grapheme.bounds.x + grapheme.bounds.width / 2;
+			const baseY = grapheme.bounds.y + grapheme.bounds.height / 2;
+			const x = baseX + unit.visual.translateX;
+			const y = baseY + unit.visual.translateY;
+			expect(Math.hypot(x - centerX, y - centerY)).toBeCloseTo(radius);
+		}
 	});
 
 	it("steps the jitter into four poses per cycle, keyed on unit rank", () => {

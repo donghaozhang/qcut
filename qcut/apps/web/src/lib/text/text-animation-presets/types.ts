@@ -30,7 +30,6 @@ export type TextAnimationPreviewKind =
 	| "wave"
 	| "flicker"
 	| "breathe"
-	| "flip"
 	| "ring-orbit"
 	| "jitter";
 

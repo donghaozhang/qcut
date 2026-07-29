@@ -324,6 +324,34 @@ export function normalizeTextAnimationEffect({
 			),
 		};
 	}
+	// Dev builds of the removed WebGL path persisted flip3d / cylinder3d /
+	// jitter3d. Alias them onto the Jianying-derived 2D effects so those
+	// projects keep animating instead of silently losing their loops.
+	if (record.kind === "flip3d") {
+		return normalizeTextAnimationEffect({
+			value: {
+				kind: "flip",
+				maxAngleDeg: record.maxAngleDeg,
+			},
+		});
+	}
+	if (record.kind === "cylinder3d") {
+		return normalizeTextAnimationEffect({
+			value: {
+				kind: "orbit",
+				rotation: "clockwise",
+				turns: record.turns,
+				radius: { value: 1.05, unit: "boxHeight" },
+				ring: true,
+				fade: false,
+			},
+		});
+	}
+	if (record.kind === "jitter3d") {
+		return normalizeTextAnimationEffect({
+			value: { kind: "jitter" },
+		});
+	}
 	if (record.kind === "flip") {
 		return {
 			kind: "flip",

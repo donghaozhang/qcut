@@ -244,6 +244,38 @@ describe("text animation normalization", () => {
 		});
 	});
 
+	it("migrates persisted 3D effect kinds onto the 2D replacements", () => {
+		const animation = {
+			schemaVersion: 1,
+			entrance: createPhase({
+				effect: { kind: "flip3d", axis: "y", maxAngleDeg: 60 } as never,
+			}),
+			exit: createPhase({
+				effect: { kind: "cylinder3d", turns: 1 } as never,
+			}),
+			loop: {
+				...createPhase({
+					effect: { kind: "jitter3d", positionJitter: 0.03 } as never,
+				}),
+				repeat: { mode: "restart", gap: 0, phaseOffset: 0 },
+			},
+		} as TextAnimationsV1;
+		const result = normalizeTextAnimations({
+			element: createElement({ overrides: { textAnimations: animation } }),
+		});
+
+		expect(result.animation?.entrance?.effect).toMatchObject({
+			kind: "flip",
+			maxAngleDeg: 60,
+		});
+		expect(result.animation?.exit?.effect).toMatchObject({
+			kind: "orbit",
+			ring: true,
+			radius: { value: 1.05, unit: "boxHeight" },
+		});
+		expect(result.animation?.loop?.effect).toMatchObject({ kind: "jitter" });
+	});
+
 	it("clamps the flip and jitter parameters into renderable ranges", () => {
 		const animation: TextAnimationsV1 = {
 			schemaVersion: 1,
