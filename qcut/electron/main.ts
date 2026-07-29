@@ -131,6 +131,7 @@ const { setupLicenseIPC } = require("./license-handler.js");
 const { setupYouTubeIPC } = require("./youtube-handler.js");
 const {
 	captureScreenshot,
+	captureFullScreenToClipboard,
 } = require("./claude/handlers/claude-screenshot-handler.js");
 const {
 	attachConsoleCapture,
@@ -867,6 +868,10 @@ if (!isCliKeyCommand && !isHeadlessRecorder) {
 				if (!mainWindow) throw new Error("No active window");
 				return captureScreenshot(mainWindow, options);
 			}
+		);
+
+		ipcMain.handle("screenshot:captureFullScreenToClipboard", async () =>
+			captureFullScreenToClipboard(mainWindow)
 		);
 
 		initFFmpegHealthCheck();

@@ -121,6 +121,11 @@ export interface PlatformScreenshotAPI {
 		height: number;
 		timestamp: number;
 	}>;
+	captureFullScreenToClipboard?(): Promise<{
+		width: number;
+		height: number;
+		timestamp: number;
+	}>;
 }
 
 // ---------------------------------------------------------------------------

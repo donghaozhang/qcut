@@ -244,6 +244,7 @@ export function EditorHeader() {
 			<CreditBalance />
 			<LanguageSelector />
 			<PanelPresetSelector />
+			<ScreenshotControl />
 			<ScreenRecordingControl />
 			<UserLibrarySyncControl />
 			<ReviewPanelControl />

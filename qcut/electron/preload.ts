@@ -197,6 +197,11 @@ const electronAPI: ElectronAPI & Record<string, unknown> = {
 			height: number;
 			timestamp: number;
 		}> => ipcRenderer.invoke("screenshot:capture", options),
+		captureFullScreenToClipboard: (): Promise<{
+			width: number;
+			height: number;
+			timestamp: number;
+		}> => ipcRenderer.invoke("screenshot:captureFullScreenToClipboard"),
 	},
 
 	// Screen recording operations

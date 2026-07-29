@@ -52,6 +52,11 @@ export interface ScreenshotAPI {
 			height: number;
 			timestamp: number;
 		}>;
+		captureFullScreenToClipboard?: () => Promise<{
+			width: number;
+			height: number;
+			timestamp: number;
+		}>;
 	};
 }
 

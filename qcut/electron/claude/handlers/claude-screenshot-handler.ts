@@ -7,7 +7,7 @@
  * @module electron/claude/handlers/claude-screenshot-handler
  */
 
-import { BrowserWindow } from "electron";
+import { BrowserWindow, clipboard, desktopCapturer, screen } from "electron";
 import * as fs from "node:fs/promises";
 import * as path from "node:path";
 import { getRecordingsDir } from "../../screen-recording-handler/path-utils.js";
@@ -74,4 +74,46 @@ export async function captureScreenshot(
 		height: size.height,
 		timestamp: Date.now(),
 	};
+}
+
+export interface FullScreenClipboardResult {
+	width: number;
+	height: number;
+	timestamp: number;
+}
+
+/**
+ * Capture the display containing the given window at native pixel resolution
+ * and copy the image to the system clipboard. Falls back to the primary
+ * display when no window is available.
+ */
+export async function captureFullScreenToClipboard(
+	win: BrowserWindow | null
+): Promise<FullScreenClipboardResult> {
+	const display = win
+		? screen.getDisplayMatching(win.getBounds())
+		: screen.getPrimaryDisplay();
+	const sources = await desktopCapturer.getSources({
+		types: ["screen"],
+		thumbnailSize: {
+			width: Math.round(display.size.width * display.scaleFactor),
+			height: Math.round(display.size.height * display.scaleFactor),
+		},
+		fetchWindowIcons: false,
+	});
+	const source =
+		sources.find((entry) => entry.display_id === String(display.id)) ??
+		sources[0];
+	if (!source || source.thumbnail.isEmpty()) {
+		throw new Error(
+			"Screen capture returned no image; check screen recording permission"
+		);
+	}
+	clipboard.writeImage(source.thumbnail);
+	const size = source.thumbnail.getSize();
+	claudeLog.info(
+		"Screenshot",
+		`Copied ${size.width}x${size.height} full-screen capture to clipboard`
+	);
+	return { width: size.width, height: size.height, timestamp: Date.now() };
 }

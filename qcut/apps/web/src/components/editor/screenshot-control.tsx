@@ -3,22 +3,28 @@
 import { platform } from "@qcut/platform-core";
 import { Button } from "@/components/ui/button";
 import { DropdownMenuItem } from "@/components/ui/dropdown-menu";
+import { useTranslation } from "@/lib/i18n";
 import { Camera, Loader2 } from "lucide-react";
 import { useCallback, useState } from "react";
 import { toast } from "sonner";
 
 /**
- * UI control that captures a screenshot of the QCut window and saves it as a PNG file.
+ * Screenshot controls.
  *
- * While a capture is in progress the control is disabled and shows a busy indicator.
- * On success a toast is shown with the saved file path; on failure an error toast is shown.
+ * The toolbar button (default variant, mounted next to the record button)
+ * captures the full screen and copies it to the clipboard. The menu-item
+ * variant keeps the original behavior of saving a window capture as PNG.
+ *
+ * While a capture is in progress the control is disabled and shows a busy
+ * indicator.
  *
  * @param variant - When set to `"menu-item"`, renders as a dropdown menu item; otherwise renders as a toolbar button.
  */
 export function ScreenshotControl({ variant }: { variant?: "menu-item" } = {}) {
+	const { t } = useTranslation();
 	const [isBusy, setIsBusy] = useState(false);
 
-	const handleCapture = useCallback(async (): Promise<void> => {
+	const handleWindowCapture = useCallback(async (): Promise<void> => {
 		if (isBusy) return;
 
 		const api = platform().screenshot;
@@ -42,13 +48,35 @@ export function ScreenshotControl({ variant }: { variant?: "menu-item" } = {}) {
 		}
 	}, [isBusy]);
 
+	const handleFullScreenCapture = useCallback(async (): Promise<void> => {
+		if (isBusy) return;
+
+		const capture = platform().screenshot?.captureFullScreenToClipboard;
+		if (!capture) {
+			toast.error(t("editor.header.screenshotFailed"));
+			return;
+		}
+
+		setIsBusy(true);
+		try {
+			await capture();
+			toast(t("editor.header.screenshotCopied"));
+		} catch (error) {
+			toast.error(t("editor.header.screenshotFailed"), {
+				description: error instanceof Error ? error.message : undefined,
+			});
+		} finally {
+			setIsBusy(false);
+		}
+	}, [isBusy, t]);
+
 	if (variant === "menu-item") {
 		return (
 			<DropdownMenuItem
 				className="flex items-center gap-1.5"
 				disabled={isBusy}
 				onClick={() => {
-					handleCapture().catch(() => {});
+					handleWindowCapture().catch(() => {});
 				}}
 			>
 				{isBusy ? (
@@ -68,11 +96,11 @@ export function ScreenshotControl({ variant }: { variant?: "menu-item" } = {}) {
 			variant="outline"
 			className="h-7 text-xs"
 			onClick={() => {
-				handleCapture().catch(() => {});
+				handleFullScreenCapture().catch(() => {});
 			}}
 			disabled={isBusy}
-			title="Take screenshot (Ctrl/Cmd + Shift + S)"
-			aria-label="Take screenshot"
+			title={t("editor.header.screenshotHint")}
+			aria-label={t("editor.header.screenshot")}
 			data-testid="screenshot-button"
 		>
 			{isBusy ? (
@@ -80,6 +108,7 @@ export function ScreenshotControl({ variant }: { variant?: "menu-item" } = {}) {
 			) : (
 				<Camera className="h-4 w-4" />
 			)}
+			<span className="text-sm">{t("editor.header.screenshot")}</span>
 		</Button>
 	);
 }
