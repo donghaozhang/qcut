@@ -4,6 +4,7 @@ import { getCachedCompiledTextAnimation } from "../text-animation-compiled-cache
 import { resolveCursorPosition } from "../text-animation-canvas-decorations";
 import { buildTextAnimationCanvasLayout } from "../text-animation-canvas-layout";
 import { renderCanonicalTextAnimationToCanvas } from "../text-animation-canvas-renderer";
+import { applyTextAnimationVisualState } from "../text-animation-canvas-state";
 import { resolveTextStyle } from "../text-style";
 
 function createTextElement({
@@ -219,6 +220,33 @@ describe("text animation canvas layout", () => {
 			rotationDeg: nextLine.rotationDeg,
 			textBaseline: nextLine.textBaseline,
 		});
+	});
+});
+
+describe("text animation canvas transforms", () => {
+	it("rotates bottom-pivot effects around the glyph baseline", () => {
+		const context = createContext();
+
+		applyTextAnimationVisualState({
+			ctx: context,
+			bounds: { x: 10, y: 20, width: 80, height: 30 },
+			visual: {
+				opacity: 1,
+				translateX: 0,
+				translateY: 0,
+				scaleX: 1,
+				scaleY: 1,
+				rotationDeg: 20,
+				blurPx: 0,
+				transformOrigin: "bottomCenter",
+			},
+		});
+
+		expect(vi.mocked(context.translate).mock.calls).toEqual([
+			[0, 0],
+			[50, 50],
+			[-50, -50],
+		]);
 	});
 });
 

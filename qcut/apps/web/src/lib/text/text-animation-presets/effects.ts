@@ -81,6 +81,28 @@ export function effectForPreset({
 			return { kind: "typewriter", reveal: "wipe" };
 		case "entrance:typewriter-i":
 			return { kind: "typewriter", reveal: "step" };
+		case "entrance:typewriter-rhythm":
+			// Jianying's human-rhythm typewriter: fixed 14-entry weight table,
+			// thick block caret. Weights from the package's TextAnim.lua.
+			return {
+				kind: "typewriter",
+				reveal: "step",
+				rhythm: [
+					0.86, 1.35, 0.62, 5.2, 0.25, 0.96, 0.35, 4.55, 0.03, 0.82, 0.2, 1.26,
+					0.36, 0.1,
+				],
+				cursor: { text: "▌", blinkPeriod: 0.5, persist: false },
+			};
+		case "entrance:flip-open":
+			// Jianying 翻动: per-character X-only unfold from zero width with a
+			// small settle wobble (piecewise easy-ease approximated by overshoot).
+			return {
+				kind: "scale",
+				hiddenScale: 0,
+				overshoot: 0.08,
+				fade: false,
+				axis: "x",
+			};
 		case "entrance:cursor-typewriter":
 			return {
 				kind: "typewriter",
@@ -161,6 +183,17 @@ export function effectForPreset({
 			return { kind: "rotate", degrees: 150, fade: true };
 		case "loop:rotate":
 			return { kind: "rotate", degrees: 360, fade: false };
+		case "loop:sway":
+			return {
+				kind: "rotate",
+				degrees: 20,
+				fade: false,
+				oscillation: {
+					cycles: 1,
+					phaseEasing: "smoothstep",
+					pivot: "bottomCenter",
+				},
+			};
 		case "entrance:scale-up":
 			// Jianying's EnlargeIn.lua: scale 0.5 -> 1 and alpha 0 -> 1, both
 			// quadOut, with no overshoot.
@@ -172,7 +205,13 @@ export function effectForPreset({
 		case "exit:scale-down-out":
 			return { kind: "scale", hiddenScale: 0.2, overshoot: 0, fade: true };
 		case "loop:pulse":
-			return { kind: "scale", hiddenScale: 0.94, overshoot: 0.04, fade: false };
+			return {
+				kind: "scale",
+				hiddenScale: 0.85,
+				overshoot: 0,
+				fade: false,
+				pulse: { cycles: 5, easing: "smoothstep" },
+			};
 		case "loop:heartbeat":
 			return { kind: "scale", hiddenScale: 0.86, overshoot: 0.12, fade: false };
 		case "loop:breathe":
@@ -186,16 +225,21 @@ export function effectForPreset({
 				spring: BOUNCE_SPRING,
 			};
 		case "loop:bounce":
+			return {
+				kind: "bounce",
+				direction: "up",
+				distance: { value: 0.14, unit: "boxHeight" },
+				hiddenScale: 1,
+				spring: BOUNCE_SPRING,
+			};
 		case "loop:wave":
 			return {
 				kind: "bounce",
 				direction: "up",
-				distance: {
-					value: presetId === "wave" ? 0.1 : 0.14,
-					unit: "boxHeight",
-				},
+				distance: { value: 0.2, unit: "em" },
 				hiddenScale: 1,
 				spring: BOUNCE_SPRING,
+				spatialWave: { spatialCycles: 0.75, phaseOffset: 0 },
 			};
 		case "entrance:orbit-disappear":
 			return {
@@ -240,6 +284,18 @@ export function effectForPreset({
 	}
 }
 
+function staggerRatioForPreset({
+	isGraphemePreset,
+	presetId,
+}: {
+	isGraphemePreset: boolean;
+	presetId: string;
+}): number {
+	if (!isGraphemePreset || presetId === "wave" || presetId === "sway") return 0;
+	if (presetId === "flip-open") return 0.83;
+	return 0.58;
+}
+
 export function sequenceForPreset({
 	phase,
 	presetId,
@@ -250,6 +306,8 @@ export function sequenceForPreset({
 	// fade-characters is intentionally absent: Jianying's 文字渐显 fades the
 	// whole block at once rather than staggering per grapheme.
 	const graphemePresets = new Set([
+		"flip-open",
+		"typewriter-rhythm",
 		"typewriter-cursor",
 		"typewriter-leading",
 		"typewriter-i",
@@ -259,14 +317,14 @@ export function sequenceForPreset({
 		"cursor-typewriter",
 		"typewriter-out",
 		"laser-etch",
+		"sway",
 		"wave",
 	]);
 	const order = presetId === "typewriter-out" ? "reverse" : "forward";
-	const staggerRatio = graphemePresets.has(presetId)
-		? presetId === "wave"
-			? 0.7
-			: 0.58
-		: 0;
+	const staggerRatio = staggerRatioForPreset({
+		isGraphemePreset: graphemePresets.has(presetId),
+		presetId,
+	});
 
 	return {
 		unit: graphemePresets.has(presetId) ? "grapheme" : "all",
@@ -288,6 +346,10 @@ export function easingForPreset({
 	}
 	if (presetId.includes("typewriter") || presetId === "cursor-typewriter") {
 		return "linear";
+	}
+	if (presetId === "flip-open") {
+		// Amaz.Ease easy-ease from the 翻动 package's AE curve table.
+		return { type: "cubicBezier", x1: 0.33333, y1: 0, x2: 0.66667, y2: 1 };
 	}
 	if (
 		presetId.includes("bounce") ||

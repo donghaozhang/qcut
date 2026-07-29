@@ -174,6 +174,92 @@ describe("text animation frame evaluation", () => {
 		});
 	}
 
+	it("scales only the X axis for axis-locked scale effects", () => {
+		const element = createElement({
+			overrides: {
+				content: "A",
+				textAnimations: createAnimation({
+					entrance: createPhase({
+						effect: {
+							kind: "scale",
+							hiddenScale: 0,
+							overshoot: 0,
+							fade: false,
+							axis: "x",
+						},
+						target: "textAndBackground",
+						unit: "all",
+					}),
+				}),
+			},
+		});
+		const compiled = compileTextAnimation({ element, fps: 10 });
+		const state = evaluateTextAnimationFrame({
+			compiled,
+			frame: 5,
+			layout: createLayout({ content: element.content }),
+		});
+
+		// Jianying's 翻动 unfolds glyphs horizontally: X animates, Y stays 1.
+		expect(state.container.scaleX).toBeCloseTo(0.5);
+		expect(state.container.scaleY).toBeCloseTo(1);
+	});
+
+	it("reveals rhythm typewriter units on the cycled weight slots", () => {
+		const rhythm = [1, 3];
+		const element = createElement({
+			overrides: {
+				content: "ABCD",
+				textAnimations: createAnimation({
+					entrance: createPhase({
+						effect: { kind: "typewriter", reveal: "step", rhythm },
+						target: "text",
+						unit: "grapheme",
+					}),
+				}),
+			},
+		});
+		const compiled = compileTextAnimation({ element, fps: 100 });
+
+		expect(compiled.entrance?.typewriterRhythm).toEqual({
+			weights: [1, 3],
+			prefixTotals: [0, 1, 4],
+			cycleTotal: 4,
+			total: 8,
+			span: 0.8,
+		});
+		const partialCycle = compileTextAnimation({
+			element: { ...element, content: "ABCDE" },
+			fps: 100,
+		});
+		expect(partialCycle.entrance?.typewriterRhythm).toMatchObject({
+			total: 9,
+			span: 5 / 6,
+		});
+		// Weights cycle 1,3,1,3 over four units: total 8, span 4/5. Unit slots
+		// end at (cumulative/total)*span: 0.1, 0.4, 0.5, 0.8 of the phase.
+		const revealFrames = [0, 1, 2, 3].map((rank) => {
+			for (let frame = 0; frame <= 100; frame += 1) {
+				const state = evaluateTextAnimationFrame({
+					compiled,
+					frame,
+					layout: createLayout({ content: element.content }),
+				});
+				if (state.units[rank]?.visual.opacity >= 1 - 1e-6) return frame / 100;
+			}
+			return Number.POSITIVE_INFINITY;
+		});
+
+		expect(revealFrames[0]).toBeCloseTo(0.1, 1);
+		expect(revealFrames[1]).toBeCloseTo(0.4, 1);
+		expect(revealFrames[2]).toBeCloseTo(0.5, 1);
+		expect(revealFrames[3]).toBeCloseTo(0.8, 1);
+		// Irregular rhythm: the second slot is three times the first.
+		expect(revealFrames[1] - revealFrames[0]).toBeGreaterThan(
+			2 * (revealFrames[2] - revealFrames[1])
+		);
+	});
+
 	it("keeps heart particles visible when spring easing overshoots early", () => {
 		const heartEffect: TextAnimationEffect = {
 			kind: "heart",
