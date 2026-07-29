@@ -8,6 +8,17 @@ import {
 	TEXT_ANIMATION_DIRECTIONS,
 } from "./normalization-helpers.js";
 
+function normalizeLoopCycles({ value }: { value: unknown }): number {
+	return Math.trunc(
+		numberInRange({
+			value,
+			fallback: 1,
+			minimum: 1,
+			maximum: 100,
+		})
+	);
+}
+
 export function normalizeTextAnimationEffect({
 	value,
 }: {
@@ -113,6 +124,7 @@ export function normalizeTextAnimationEffect({
 		const travelDirection = TEXT_ANIMATION_DIRECTIONS.find(
 			(candidate) => candidate === record.travelDirection
 		);
+		const oscillationRecord = asRecord({ value: record.oscillation });
 		return {
 			kind: "rotate",
 			degrees: numberInRange({
@@ -130,6 +142,25 @@ export function normalizeTextAnimationEffect({
 						}),
 					}
 				: {}),
+			...(oscillationRecord
+				? {
+						oscillation: {
+							cycles: normalizeLoopCycles({
+								value: oscillationRecord.cycles,
+							}),
+							phaseEasing: oneOf({
+								value: oscillationRecord.phaseEasing,
+								values: ["linear", "smoothstep"],
+								fallback: "smoothstep",
+							}),
+							pivot: oneOf({
+								value: oscillationRecord.pivot,
+								values: ["center", "bottomCenter"],
+								fallback: "center",
+							}),
+						},
+					}
+				: {}),
 			fade,
 		};
 	}
@@ -139,6 +170,7 @@ export function normalizeTextAnimationEffect({
 			values: ["uniform", "x", "y"],
 			fallback: "uniform",
 		});
+		const pulseRecord = asRecord({ value: record.pulse });
 		return {
 			kind: "scale",
 			hiddenScale: numberInRange({
@@ -154,10 +186,23 @@ export function normalizeTextAnimationEffect({
 				maximum: 2,
 			}),
 			...(axis !== "uniform" ? { axis } : {}),
+			...(pulseRecord
+				? {
+						pulse: {
+							cycles: normalizeLoopCycles({ value: pulseRecord.cycles }),
+							easing: oneOf({
+								value: pulseRecord.easing,
+								values: ["linear", "smoothstep"],
+								fallback: "smoothstep",
+							}),
+						},
+					}
+				: {}),
 			fade,
 		};
 	}
 	if (record.kind === "bounce") {
+		const spatialWaveRecord = asRecord({ value: record.spatialWave });
 		return {
 			kind: "bounce",
 			direction: direction(),
@@ -172,6 +217,24 @@ export function normalizeTextAnimationEffect({
 				maximum: 10,
 			}),
 			spring: normalizeSpring({ value: record.spring }),
+			...(spatialWaveRecord
+				? {
+						spatialWave: {
+							spatialCycles: numberInRange({
+								value: spatialWaveRecord.spatialCycles,
+								fallback: 1,
+								minimum: 0,
+								maximum: 100,
+							}),
+							phaseOffset: numberInRange({
+								value: spatialWaveRecord.phaseOffset,
+								fallback: 0,
+								minimum: -100,
+								maximum: 100,
+							}),
+						},
+					}
+				: {}),
 		};
 	}
 	if (record.kind === "orbit") {

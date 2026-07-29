@@ -102,6 +102,11 @@ export interface TextRotateEffect {
 	travelDirection?: TextAnimationDirection;
 	distance?: TextAnimationDistance;
 	fade: boolean;
+	oscillation?: {
+		cycles: number;
+		phaseEasing: "linear" | "smoothstep";
+		pivot: "center" | "bottomCenter";
+	};
 }
 
 export interface TextScaleEffect {
@@ -111,6 +116,10 @@ export interface TextScaleEffect {
 	fade: boolean;
 	/** Scale axis; Jianying's 翻动 flip-open scales X only. Defaults to uniform. */
 	axis?: "uniform" | "x" | "y";
+	pulse?: {
+		cycles: number;
+		easing: "linear" | "smoothstep";
+	};
 }
 
 export interface TextBounceEffect {
@@ -123,6 +132,10 @@ export interface TextBounceEffect {
 		stiffness: number;
 		damping: number;
 		velocity: number;
+	};
+	spatialWave?: {
+		spatialCycles: number;
+		phaseOffset: number;
 	};
 }
 
@@ -231,6 +244,7 @@ export interface TextAnimationVisualState {
 	rotationDeg: number;
 	blurPx: number;
 	mask?: TextAnimationMaskState;
+	transformOrigin?: "center" | "bottomCenter";
 }
 
 export interface TextAnimationUnitState {

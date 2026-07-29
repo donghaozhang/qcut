@@ -34,6 +34,7 @@ function composeVisual({
 		mask =
 			base.mask.progress <= overlay.mask.progress ? base.mask : overlay.mask;
 	}
+	const transformOrigin = overlay.transformOrigin ?? base.transformOrigin;
 	return {
 		opacity: base.opacity * overlay.opacity,
 		translateX: base.translateX + overlay.translateX,
@@ -43,6 +44,7 @@ function composeVisual({
 		rotationDeg: base.rotationDeg + overlay.rotationDeg,
 		blurPx: Math.max(base.blurPx, overlay.blurPx),
 		...(mask ? { mask } : {}),
+		...(transformOrigin ? { transformOrigin } : {}),
 	};
 }
 

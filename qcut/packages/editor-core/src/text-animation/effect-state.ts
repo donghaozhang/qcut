@@ -41,6 +41,35 @@ function identityVisual(): TextAnimationVisualState {
 	return { ...IDENTITY_TEXT_ANIMATION_VISUAL_STATE };
 }
 
+function loopFraction({ value }: { value: number }): number {
+	return value - Math.floor(value);
+}
+
+function smoothstep({ progress }: { progress: number }): number {
+	return progress * progress * (3 - 2 * progress);
+}
+
+function trianglePulse({ progress }: { progress: number }): number {
+	const cycleProgress = loopFraction({ value: progress });
+	return cycleProgress <= 0.5 ? cycleProgress * 2 : (1 - cycleProgress) * 2;
+}
+
+function oscillationPhase({
+	progress,
+	cycles,
+	phaseEasing,
+}: {
+	progress: number;
+	cycles: number;
+	phaseEasing: "linear" | "smoothstep";
+}): number {
+	const cycleProgress = loopFraction({ value: progress * cycles });
+	if (phaseEasing === "linear") return cycleProgress;
+	const half = Math.floor(cycleProgress * 2);
+	const halfProgress = loopFraction({ value: cycleProgress * 2 });
+	return (half + smoothstep({ progress: halfProgress })) / 2;
+}
+
 function directionVector({
 	direction,
 }: {
@@ -140,6 +169,29 @@ function unitBounds({
 		...glyphs.map((glyph) => glyph.bounds.y + glyph.bounds.height)
 	);
 	return { x: left, y: top, width: right - left, height: bottom - top };
+}
+
+function spatialWaveMovement({
+	effect,
+	progress,
+	unit,
+	layout,
+}: {
+	effect: Extract<TextAnimationEffect, { kind: "bounce" }>;
+	progress: number;
+	unit: CompiledTextAnimationUnit;
+	layout: TextAnimationLayout;
+}): number | null {
+	if (!effect.spatialWave) return null;
+	const bounds = unitBounds({ unit, layout });
+	const centerX = bounds.x + bounds.width / 2;
+	const horizontalProgress =
+		(centerX - layout.bounds.x) / Math.max(Number.EPSILON, layout.bounds.width);
+	const phase =
+		effect.spatialWave.spatialCycles * horizontalProgress -
+		progress +
+		effect.spatialWave.phaseOffset;
+	return Math.sin(phase * Math.PI * 2);
 }
 
 function heartDecorations({
@@ -255,28 +307,47 @@ function loopVisual({
 		if (effect.fade) visual.opacity = 1 - pulse * 0.25;
 	}
 	if (effect.kind === "rotate") {
-		visual.rotationDeg = effect.degrees * progress;
+		if (effect.oscillation) {
+			const phase = oscillationPhase({
+				progress,
+				cycles: effect.oscillation.cycles,
+				phaseEasing: effect.oscillation.phaseEasing,
+			});
+			visual.rotationDeg = effect.degrees * Math.cos(phase * Math.PI * 2);
+			visual.transformOrigin = effect.oscillation.pivot;
+		} else {
+			visual.rotationDeg = effect.degrees * progress;
+		}
 	}
 	if (effect.kind === "scale") {
+		const pulseProgress = effect.pulse
+			? trianglePulse({ progress: progress * effect.pulse.cycles })
+			: pulse;
+		const shapedPulse =
+			effect.pulse?.easing === "smoothstep"
+				? smoothstep({ progress: pulseProgress })
+				: pulseProgress;
 		const scale = lerp({
 			from: 1,
 			to: effect.hiddenScale,
-			progress: pulse,
+			progress: shapedPulse,
 		});
 		const axis = effect.axis ?? "uniform";
 		if (axis !== "y") visual.scaleX = scale;
 		if (axis !== "x") visual.scaleY = scale;
-		if (effect.fade) visual.opacity = 1 - pulse * 0.2;
+		if (effect.fade) visual.opacity = 1 - shapedPulse * 0.2;
 	}
 	if (effect.kind === "bounce") {
 		const vector = directionVector({ direction: effect.direction });
 		const pixels = resolveDistance({ distance: effect.distance, layout });
-		visual.translateX = vector.x * pixels * pulse;
-		visual.translateY = vector.y * pixels * pulse;
+		const movement =
+			spatialWaveMovement({ effect, progress, unit, layout }) ?? pulse;
+		visual.translateX = vector.x * pixels * movement;
+		visual.translateY = vector.y * pixels * movement;
 		const scale = lerp({
 			from: 1,
 			to: effect.hiddenScale,
-			progress: pulse * 0.35,
+			progress: (effect.spatialWave ? 0 : pulse) * 0.35,
 		});
 		visual.scaleX = scale;
 		visual.scaleY = scale;
