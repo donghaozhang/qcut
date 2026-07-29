@@ -104,6 +104,20 @@ const videoAdapter = {
 
 const screenshotAdapter = {
 	capture: (o?: any) => api().screenshot.capture(o),
+	captureFullScreenToClipboard: (options?: { displayId?: number }) => {
+		const capture = api().screenshot.captureFullScreenToClipboard;
+		if (!capture) {
+			throw new Error("Full-screen screenshot requires an app restart");
+		}
+		return capture(options);
+	},
+	listDisplays: () => {
+		const list = api().screenshot.listDisplays;
+		if (!list) {
+			throw new Error("Display listing requires an app restart");
+		}
+		return list();
+	},
 };
 
 const screenRecordingAdapter = {

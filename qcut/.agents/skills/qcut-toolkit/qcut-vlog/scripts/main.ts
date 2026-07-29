@@ -3,6 +3,7 @@ import {
 	mkdirSync,
 	readFileSync,
 	rmSync,
+	statSync,
 	writeFileSync,
 } from "node:fs";
 import { dirname, join } from "node:path";
@@ -283,15 +284,18 @@ function isBackgroundReusable({
 }): boolean {
 	if (!options.background) return false;
 	const dependencies = [cleanVideo, options.background];
+	const cutoutIsFresh = isArtifactFresh({
+		artifact: paths.cutoutVideo,
+		dependencies,
+	});
+	const editableIsFresh = isArtifactFresh({
+		artifact: paths.editableVideo,
+		dependencies,
+	});
 	return (
-		isArtifactFresh({
-			artifact: paths.cutoutVideo,
-			dependencies,
-		}) &&
-		isArtifactFresh({
-			artifact: paths.editableVideo,
-			dependencies: [paths.cutoutVideo, options.background, cleanVideo],
-		})
+		cutoutIsFresh &&
+		editableIsFresh &&
+		statSync(paths.editableVideo).mtimeMs >= statSync(paths.cutoutVideo).mtimeMs
 	);
 }
 
