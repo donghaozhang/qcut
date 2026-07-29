@@ -323,156 +323,46 @@ export function normalizeTextAnimationEffect({
 			),
 		};
 	}
-	if (record.kind === "flip3d") {
+	if (record.kind === "flip") {
 		return {
-			kind: "flip3d",
+			kind: "flip",
 			axis: record.axis === "x" ? "x" : "y",
-			maxAngleDeg: numberInRange({
-				value: record.maxAngleDeg,
-				fallback: 60,
-				minimum: 0,
-				maximum: 180,
-			}),
-			cameraFovDeg: numberInRange({
-				value: record.cameraFovDeg,
-				fallback: 30,
-				minimum: 1,
-				maximum: 179,
-			}),
-			motionRatio: numberInRange({
-				value: record.motionRatio,
-				fallback: 0.8,
-				minimum: 0.05,
-				maximum: 1,
-			}),
-			motionEasing: normalizeEasing({ value: record.motionEasing }),
-		};
-	}
-	if (record.kind === "cylinder3d") {
-		return {
-			kind: "cylinder3d",
 			turns: numberInRange({
 				value: record.turns,
 				fallback: 1,
-				minimum: -100,
-				maximum: 100,
+				minimum: 0.1,
+				maximum: 8,
 			}),
-			tiltXDeg: numberInRange({
-				value: record.tiltXDeg,
-				fallback: 20,
-				minimum: -180,
-				maximum: 180,
-			}),
-			cameraFovDeg: numberInRange({
-				value: record.cameraFovDeg,
-				fallback: 60,
-				minimum: 1,
-				maximum: 179,
-			}),
-			coverage: numberInRange({
-				value: record.coverage,
-				fallback: 5 / 6,
-				minimum: 0.05,
+			edgeOpacity: numberInRange({
+				value: record.edgeOpacity,
+				fallback: 0.55,
+				minimum: 0,
 				maximum: 1,
-			}),
-			radiusRatio: numberInRange({
-				value: record.radiusRatio,
-				fallback: 1.2 / (Math.PI * 2),
-				minimum: 0.01,
-				maximum: 10,
-			}),
-			startYawDeg: numberInRange({
-				value: record.startYawDeg,
-				fallback: 540,
-				minimum: -10_000,
-				maximum: 10_000,
 			}),
 		};
 	}
-	if (record.kind === "jitter3d") {
+	if (record.kind === "jitter") {
 		return {
-			kind: "jitter3d",
-			cameraFovDeg: numberInRange({
-				value: record.cameraFovDeg,
-				fallback: 60,
-				minimum: 1,
-				maximum: 179,
-			}),
-			groupYawDeg: numberInRange({
-				value: record.groupYawDeg,
-				fallback: 20,
-				minimum: -180,
-				maximum: 180,
-			}),
-			rotationXDeg: numberInRange({
-				value: record.rotationXDeg,
-				fallback: 15,
-				minimum: 0,
-				maximum: 180,
-			}),
-			rotationYDeg: numberInRange({
-				value: record.rotationYDeg,
-				fallback: 15,
-				minimum: 0,
-				maximum: 180,
-			}),
-			rotationZDeg: numberInRange({
-				value: record.rotationZDeg,
-				fallback: 10,
-				minimum: 0,
-				maximum: 180,
-			}),
-			positionJitter: numberInRange({
-				value: record.positionJitter,
-				fallback: 0.03,
-				minimum: 0,
-				maximum: 2,
-			}),
-			scaleFrom: numberInRange({
-				value: record.scaleFrom,
-				fallback: 2 / 3,
-				minimum: 0.01,
-				maximum: 10,
-			}),
-			scaleTo: numberInRange({
-				value: record.scaleTo,
-				fallback: 1,
-				minimum: 0.01,
-				maximum: 10,
-			}),
-			frequency: numberInRange({
-				value: record.frequency,
-				fallback: 12,
-				minimum: 1,
-				maximum: 120,
-			}),
-			seed: Math.trunc(
+			kind: "jitter",
+			steps: Math.trunc(
 				numberInRange({
-					value: record.seed,
-					fallback: 1,
-					minimum: 0,
-					maximum: 0xffff_ffff,
-				})
-			),
-			trailSamples: Math.trunc(
-				numberInRange({
-					value: record.trailSamples,
-					fallback: 25,
+					value: record.steps,
+					fallback: 4,
 					minimum: 1,
-					maximum: 64,
+					maximum: 60,
 				})
 			),
-			trailStrength: numberInRange({
-				value: record.trailStrength,
-				fallback: 0.65,
+			amplitudeX: numberInRange({
+				value: record.amplitudeX,
+				fallback: 0.04,
 				minimum: 0,
 				maximum: 2,
 			}),
-			trapezoidAmount: numberInRange({
-				value: record.trapezoidAmount,
-				fallback: 0.12,
-				minimum: -1,
-				maximum: 1,
+			amplitudeY: numberInRange({
+				value: record.amplitudeY,
+				fallback: 0.027,
+				minimum: 0,
+				maximum: 2,
 			}),
 		};
 	}

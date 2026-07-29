@@ -244,53 +244,24 @@ describe("text animation normalization", () => {
 		});
 	});
 
-	it("normalizes 3D projection and post-processing parameters", () => {
+	it("clamps the flip and jitter parameters into renderable ranges", () => {
 		const animation: TextAnimationsV1 = {
 			schemaVersion: 1,
 			entrance: createPhase({
 				effect: {
-					kind: "flip3d",
+					kind: "flip",
 					axis: "y",
-					maxAngleDeg: 500,
-					cameraFovDeg: 0,
-					motionRatio: 2,
-					motionEasing: {
-						type: "cubicBezier",
-						x1: 0.55,
-						y1: 0.06,
-						x2: 0.4,
-						y2: 0.96,
-					},
-				},
-			}),
-			exit: createPhase({
-				effect: {
-					kind: "cylinder3d",
-					turns: 1,
-					tiltXDeg: 20,
-					cameraFovDeg: 200,
-					coverage: 0,
-					radiusRatio: 0,
-					startYawDeg: 540,
+					turns: 40,
+					edgeOpacity: 5,
 				},
 			}),
 			loop: {
 				...createPhase({
 					effect: {
-						kind: "jitter3d",
-						cameraFovDeg: 60,
-						groupYawDeg: 20,
-						rotationXDeg: 15,
-						rotationYDeg: 15,
-						rotationZDeg: 10,
-						positionJitter: 0.03,
-						scaleFrom: 2 / 3,
-						scaleTo: 1,
-						frequency: 500,
-						seed: 0xffff_ffff + 10,
-						trailSamples: 500,
-						trailStrength: 10,
-						trapezoidAmount: 2,
+						kind: "jitter",
+						steps: 500,
+						amplitudeX: 10,
+						amplitudeY: -3,
 					},
 				}),
 				repeat: { mode: "restart", gap: 0, phaseOffset: 0 },
@@ -301,24 +272,15 @@ describe("text animation normalization", () => {
 		});
 
 		expect(result.animation?.entrance?.effect).toMatchObject({
-			kind: "flip3d",
-			maxAngleDeg: 180,
-			cameraFovDeg: 1,
-			motionRatio: 1,
-		});
-		expect(result.animation?.exit?.effect).toMatchObject({
-			kind: "cylinder3d",
-			cameraFovDeg: 179,
-			coverage: 0.05,
-			radiusRatio: 0.01,
+			kind: "flip",
+			turns: 8,
+			edgeOpacity: 1,
 		});
 		expect(result.animation?.loop?.effect).toMatchObject({
-			kind: "jitter3d",
-			frequency: 120,
-			seed: 0xffff_ffff,
-			trailSamples: 64,
-			trailStrength: 2,
-			trapezoidAmount: 1,
+			kind: "jitter",
+			steps: 60,
+			amplitudeX: 2,
+			amplitudeY: 0,
 		});
 	});
 });

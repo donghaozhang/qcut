@@ -194,48 +194,24 @@ export function effectForPreset({
 					pivot: "bottomCenter",
 				},
 			};
-		case "loop:flip-3d":
+		case "loop:flip":
+			// Jianying turns glyphs by squashing scale.x through zero rather
+			// than rotating a mesh; the negative half mirrors the glyph.
+			return { kind: "flip", axis: "y", turns: 1, edgeOpacity: 0.55 };
+		case "loop:ring-orbit":
+			// Jianying's 环绕: per-character circular translate,
+			// translate.x = sin(2*pi*t), translate.y = cos(2*pi*t).
 			return {
-				kind: "flip3d",
-				axis: "y",
-				maxAngleDeg: 60,
-				cameraFovDeg: 30,
-				motionRatio: 0.8,
-				motionEasing: {
-					type: "cubicBezier",
-					x1: 0.55,
-					y1: 0.06,
-					x2: 0.4,
-					y2: 0.96,
-				},
-			};
-		case "loop:cylinder-3d":
-			return {
-				kind: "cylinder3d",
+				kind: "orbit",
+				rotation: "clockwise",
 				turns: 1,
-				tiltXDeg: 20,
-				cameraFovDeg: 60,
-				coverage: 5 / 6,
-				radiusRatio: 1.2 / (Math.PI * 2),
-				startYawDeg: 540,
+				radius: { value: 0.12, unit: "boxHeight" },
+				fade: false,
 			};
-		case "loop:jitter-3d":
-			return {
-				kind: "jitter3d",
-				cameraFovDeg: 60,
-				groupYawDeg: 20,
-				rotationXDeg: 15,
-				rotationYDeg: 15,
-				rotationZDeg: 10,
-				positionJitter: 0.03,
-				scaleFrom: 2 / 3,
-				scaleTo: 1,
-				frequency: 12,
-				seed: presetSeed({ presetId }),
-				trailSamples: 25,
-				trailStrength: 0.65,
-				trapezoidAmount: 0.12,
-			};
+		case "loop:jitter":
+			// Jianying's stepped shake: local time floored to quarters, offsets
+			// from sine products keyed on the unit's rank.
+			return { kind: "jitter", steps: 4, amplitudeX: 0.04, amplitudeY: 0.027 };
 		case "entrance:scale-up":
 			// Jianying's EnlargeIn.lua: scale 0.5 -> 1 and alpha 0 -> 1, both
 			// quadOut, with no overshoot.
@@ -337,7 +313,7 @@ function staggerRatioForPreset({
 		!isGraphemePreset ||
 		presetId === "wave" ||
 		presetId === "sway" ||
-		presetId === "jitter-3d"
+		presetId === "jitter"
 	) {
 		return 0;
 	}
@@ -368,7 +344,7 @@ export function sequenceForPreset({
 		"laser-etch",
 		"sway",
 		"wave",
-		"jitter-3d",
+		"jitter",
 	]);
 	const order = presetId === "typewriter-out" ? "reverse" : "forward";
 	const staggerRatio = staggerRatioForPreset({

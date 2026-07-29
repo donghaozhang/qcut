@@ -25,31 +25,8 @@ import {
 	type ResolvedTextStyle,
 } from "./text-style";
 import { getCachedCompiledTextAnimation } from "./text-animation-compiled-cache";
-import {
-	renderTextAnimation3D,
-	requiresTextAnimation3D,
-} from "./text-animation-3d-renderer";
 
 const FRAME_EPSILON = 1e-7;
-
-type TextAnimationTextureCanvas = HTMLCanvasElement | OffscreenCanvas;
-
-function createTextureCanvas({
-	width,
-	height,
-}: {
-	width: number;
-	height: number;
-}): TextAnimationTextureCanvas | null {
-	if (typeof OffscreenCanvas !== "undefined") {
-		return new OffscreenCanvas(width, height);
-	}
-	if (typeof document === "undefined") return null;
-	const canvas = document.createElement("canvas");
-	canvas.width = width;
-	canvas.height = height;
-	return canvas;
-}
 
 function hasCanonicalAnimation({
 	element,
@@ -174,131 +151,6 @@ function drawGlyph({
 	drawGlyphDecoration({ ctx, element, grapheme });
 }
 
-function textAnimation3DPadding({
-	state,
-	fontSize,
-}: {
-	state: ReturnType<typeof evaluateTextAnimationFrame>;
-	fontSize: number;
-}): number {
-	const postProcess =
-		state.container.postProcess ??
-		state.units.find(({ visual }) => visual.postProcess)?.visual.postProcess;
-	const maximumUnitTravel = state.units.reduce(
-		(maximum, { visual }) =>
-			Math.max(
-				maximum,
-				Math.abs(visual.translateX),
-				Math.abs(visual.translateY)
-			),
-		0
-	);
-	const trailPadding = postProcess
-		? fontSize * postProcess.trailStrength * 2
-		: 0;
-	return Math.ceil(Math.max(8, maximumUnitTravel + trailPadding));
-}
-
-function renderCanonicalTextAnimation3D({
-	ctx,
-	canvas,
-	renderedElement,
-	style,
-	state,
-	layout,
-	boxLeft,
-	boxTop,
-	boxWidth,
-	boxHeight,
-}: {
-	ctx: CanvasTextContext;
-	canvas: CanvasDimensions;
-	renderedElement: TextElement;
-	style: ResolvedTextStyle;
-	state: ReturnType<typeof evaluateTextAnimationFrame>;
-	layout: ReturnType<typeof buildTextAnimationCanvasLayout>;
-	boxLeft: number;
-	boxTop: number;
-	boxWidth: number;
-	boxHeight: number;
-}): boolean {
-	if (!requiresTextAnimation3D({ state })) return false;
-	const padding = textAnimation3DPadding({
-		state,
-		fontSize: renderedElement.fontSize,
-	});
-	const textureBounds = {
-		x: boxLeft - padding,
-		y: boxTop - padding,
-		width: Math.max(1, Math.ceil(boxWidth + padding * 2)),
-		height: Math.max(1, Math.ceil(boxHeight + padding * 2)),
-	};
-	const source = createTextureCanvas({
-		width: textureBounds.width,
-		height: textureBounds.height,
-	});
-	const sourceContext = source?.getContext("2d");
-	if (!source || !sourceContext) return false;
-
-	sourceContext.clearRect(0, 0, textureBounds.width, textureBounds.height);
-	sourceContext.save();
-	sourceContext.translate(-textureBounds.x, -textureBounds.y);
-	sourceContext.font = `${renderedElement.fontStyle} ${renderedElement.fontWeight} ${renderedElement.fontSize}px ${canvasFontFamily(renderedElement.fontFamily)}`;
-	const projectsContainer = state.container.projection !== undefined;
-	if (projectsContainer) {
-		drawBackground({
-			ctx: sourceContext,
-			element: renderedElement,
-			style,
-			bounds: layout.animationLayout.bounds,
-		});
-	}
-	for (const grapheme of layout.graphemes) {
-		drawGlyph({
-			ctx: sourceContext,
-			element: renderedElement,
-			style,
-			grapheme,
-		});
-	}
-	sourceContext.restore();
-
-	const rendered = renderTextAnimation3D({
-		source,
-		width: textureBounds.width,
-		height: textureBounds.height,
-		textureBounds,
-		state,
-		graphemes: layout.animationLayout.graphemes,
-	});
-	if (!rendered) return false;
-
-	ctx.translate(
-		canvas.width / 2 + renderedElement.x,
-		canvas.height / 2 + renderedElement.y
-	);
-	ctx.rotate((renderedElement.rotation * Math.PI) / 180);
-	ctx.globalAlpha = clampTextAnimationOpacity({
-		value: renderedElement.opacity,
-	});
-	ctx.globalCompositeOperation = blendModeToCanvas(style.blendMode);
-	applyTextAnimationVisualState({
-		ctx,
-		visual: state.container,
-		bounds: layout.animationLayout.bounds,
-	});
-	if (!projectsContainer) {
-		drawBackground({
-			ctx,
-			element: renderedElement,
-			style,
-			bounds: layout.animationLayout.bounds,
-		});
-	}
-	ctx.drawImage(rendered, textureBounds.x, textureBounds.y);
-	return true;
-}
-
 export function renderCanonicalTextAnimationToCanvas({
 	ctx,
 	canvas,
@@ -344,23 +196,6 @@ export function renderCanonicalTextAnimationToCanvas({
 		layout: layout.animationLayout,
 	});
 	if (!state.render) {
-		ctx.restore();
-		return true;
-	}
-	if (
-		renderCanonicalTextAnimation3D({
-			ctx,
-			canvas,
-			renderedElement,
-			style,
-			state,
-			layout,
-			boxLeft,
-			boxTop,
-			boxWidth,
-			boxHeight,
-		})
-	) {
 		ctx.restore();
 		return true;
 	}

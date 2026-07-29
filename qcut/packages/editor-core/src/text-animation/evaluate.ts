@@ -40,21 +40,12 @@ function composeVisual({
 		opacity: base.opacity * overlay.opacity,
 		translateX: base.translateX + overlay.translateX,
 		translateY: base.translateY + overlay.translateY,
-		translateZ: base.translateZ + overlay.translateZ,
 		scaleX: base.scaleX * overlay.scaleX,
 		scaleY: base.scaleY * overlay.scaleY,
 		rotationDeg: base.rotationDeg + overlay.rotationDeg,
-		rotationXDeg: base.rotationXDeg + overlay.rotationXDeg,
-		rotationYDeg: base.rotationYDeg + overlay.rotationYDeg,
 		blurPx: Math.max(base.blurPx, overlay.blurPx),
 		...(mask ? { mask } : {}),
 		...(transformOrigin ? { transformOrigin } : {}),
-		...((overlay.projection ?? base.projection)
-			? { projection: overlay.projection ?? base.projection }
-			: {}),
-		...((overlay.postProcess ?? base.postProcess)
-			? { postProcess: overlay.postProcess ?? base.postProcess }
-			: {}),
 	};
 }
 

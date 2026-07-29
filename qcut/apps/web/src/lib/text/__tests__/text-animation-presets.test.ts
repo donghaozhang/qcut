@@ -181,9 +181,9 @@ describe("text animation preset registry", () => {
 		}
 	});
 
-	it("uses Jianying's 1.2 second default for the cylinder loop", () => {
+	it("uses Jianying's 1.2 second default for the ring orbit loop", () => {
 		expect(
-			findPreset({ phase: "loop", presetId: "cylinder-3d" }).defaultDuration
+			findPreset({ phase: "loop", presetId: "ring-orbit" }).defaultDuration
 		).toBe(1.2);
 	});
 
@@ -434,9 +434,9 @@ describe("text animation preset registry", () => {
 	});
 
 	it.each([
-		["flip-3d", 0.5],
-		["cylinder-3d", 0.5],
-		["jitter-3d", 0.4],
+		["flip", 0.5],
+		["ring-orbit", 0.5],
+		["jitter", 0.4],
 	] as const)("round-trips %s intensity", (presetId, intensity) => {
 		const preset = findPreset({ phase: "loop", presetId });
 		const animations = applyTextAnimationPreset({

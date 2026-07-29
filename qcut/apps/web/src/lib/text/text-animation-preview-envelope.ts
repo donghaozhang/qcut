@@ -305,22 +305,14 @@ function resolveEffectEnvelope({
 			effect.thicknessPx / 2;
 		return envelope;
 	}
-	if (effect.kind === "flip3d") {
-		envelope.scale = 1.15;
+	if (effect.kind === "flip") {
+		// scaleX crosses zero and mirrors; the box never exceeds its own size.
+		envelope.scale = 1;
 		return envelope;
 	}
-	if (effect.kind === "cylinder3d") {
-		envelope.scale = 1.3;
-		return envelope;
-	}
-	if (effect.kind === "jitter3d") {
-		envelope.translateX = context.boxWidth * effect.positionJitter;
-		envelope.translateY = context.boxHeight * effect.positionJitter;
-		envelope.scale =
-			Math.max(1, Math.abs(effect.scaleFrom), Math.abs(effect.scaleTo)) + 0.1;
-		envelope.rotationDeg = effect.rotationZDeg;
-		envelope.filterPadding =
-			context.fontSize * effect.trailStrength * TEXT_ANIMATION_FILTER_BLUR_EXTENT;
+	if (effect.kind === "jitter") {
+		envelope.translateX = context.fontSize * effect.amplitudeX;
+		envelope.translateY = context.fontSize * effect.amplitudeY;
 		return envelope;
 	}
 	const distance = resolveDistance({

@@ -9,10 +9,6 @@ vi.mock("../use-text-animation-preview", () => ({
 		active ? 0.75 : 0.55,
 }));
 
-vi.mock("../text-animation-3d-preset-preview", () => ({
-	TextAnimation3DPresetPreview: () => <canvas data-testid="3d-preview" />,
-}));
-
 const presets = TEXT_ANIMATION_PRESETS.entrance.slice(0, 3);
 const translate = (key: keyof typeof TRANSLATIONS.zh) => TRANSLATIONS.zh[key];
 
@@ -133,25 +129,24 @@ describe("TextAnimationPresetGrid", () => {
 		).not.toBeInTheDocument();
 	});
 
-	it("uses canvas previews for the three 3D presets", () => {
-		const threeDPresets = TEXT_ANIMATION_PRESETS.loop.filter((preset) =>
-			["flip-3d", "cylinder-3d", "jitter-3d"].includes(preset.id)
+	it("renders the Jianying-derived loop presets through the shared preview", () => {
+		const loopPresets = TEXT_ANIMATION_PRESETS.loop.filter((preset) =>
+			["flip", "ring-orbit", "jitter"].includes(preset.id)
 		);
-		const { container } = render(
+		render(
 			<TextAnimationPresetGrid
 				ariaLabel="循环动画预设"
 				emptyLabel="没有动画"
 				onSelect={vi.fn()}
-				presets={threeDPresets}
-				selectedPresetId="flip-3d"
+				presets={loopPresets}
+				selectedPresetId="flip"
 				translate={translate}
 			/>
 		);
 
-		expect(threeDPresets).toHaveLength(3);
-		expect(container.querySelectorAll("canvas")).toHaveLength(3);
-		expect(screen.getByText("3D 翻转")).toBeInTheDocument();
-		expect(screen.getByText("圆柱环绕")).toBeInTheDocument();
-		expect(screen.getByText("3D 颤抖")).toBeInTheDocument();
+		expect(loopPresets).toHaveLength(3);
+		expect(screen.getByText("空间翻转")).toBeInTheDocument();
+		expect(screen.getByText("环绕")).toBeInTheDocument();
+		expect(screen.getByText("颤抖")).toBeInTheDocument();
 	});
 });

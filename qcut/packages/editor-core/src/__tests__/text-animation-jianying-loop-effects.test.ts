@@ -188,108 +188,105 @@ describe("Jianying-derived loop effects", () => {
 		expect(start.units.every(({ visual }) => visual.scaleX === 1)).toBe(true);
 	});
 
-	it("matches the horizontal 3D flip timing and midpoint mirror snap", () => {
+	it("flips by squashing scale through zero, mirroring on the back half", () => {
+		// Jianying has no 3D camera: a turn is scale.x = cos(2*pi*t), which goes
+		// negative to mirror the glyph rather than rotating a mesh.
 		const effect: TextAnimationEffect = {
-			kind: "flip3d",
+			kind: "flip",
 			axis: "y",
-			maxAngleDeg: 60,
-			cameraFovDeg: 30,
-			motionRatio: 0.8,
-			motionEasing: {
-				type: "cubicBezier",
-				x1: 0.55,
-				y1: 0.06,
-				x2: 0.4,
-				y2: 0.96,
-			},
-		};
-		const start = sampleLoop({ effect, frame: 0 });
-		const beforeSnap = sampleLoop({ effect, frame: 39 });
-		const afterSnap = sampleLoop({ effect, frame: 40 });
-		const hold = sampleLoop({ effect, frame: 90 });
-
-		expect(start.container.rotationYDeg).toBe(0);
-		expect(beforeSnap.container.rotationYDeg).toBeLessThan(-59);
-		expect(afterSnap.container.rotationYDeg).toBe(60);
-		expect(hold.container.rotationYDeg).toBe(0);
-		expect(afterSnap.container.projection).toEqual({
-			kind: "plane",
-			cameraFovDeg: 30,
-			groupRotationXDeg: 0,
-			groupRotationYDeg: 0,
-		});
-	});
-
-	it("maps the text block to the calibrated rotating cylinder", () => {
-		const effect: TextAnimationEffect = {
-			kind: "cylinder3d",
 			turns: 1,
-			tiltXDeg: 20,
-			cameraFovDeg: 60,
-			coverage: 5 / 6,
-			radiusRatio: 1.2 / (Math.PI * 2),
-			startYawDeg: 540,
+			edgeOpacity: 0.55,
 		};
-		const quarter = sampleLoop({ effect, frame: 25 });
 
-		expect(quarter.container.projection).toEqual({
-			kind: "cylinder",
-			cameraFovDeg: 60,
-			tiltXDeg: 20,
-			yawDeg: 450,
-			coverage: 5 / 6,
-			radiusRatio: 1.2 / (Math.PI * 2),
-		});
+		expect(sampleLoop({ effect, frame: 0 }).container.scaleX).toBeCloseTo(1);
+		expect(sampleLoop({ effect, frame: 25 }).container.scaleX).toBeCloseTo(0);
+		expect(sampleLoop({ effect, frame: 50 }).container.scaleX).toBeCloseTo(-1);
+		expect(sampleLoop({ effect, frame: 75 }).container.scaleX).toBeCloseTo(0);
+		// scaleY is untouched, so the glyph keeps its height through the turn.
+		expect(sampleLoop({ effect, frame: 25 }).container.scaleY).toBeCloseTo(1);
+		// Edge-on is the thinnest moment and dips to the configured floor.
+		expect(sampleLoop({ effect, frame: 25 }).container.opacity).toBeCloseTo(
+			0.55
+		);
+		expect(sampleLoop({ effect, frame: 0 }).container.opacity).toBeCloseTo(1);
 	});
 
-	it("produces deterministic per-grapheme 3D jitter and post-processing", () => {
+	it("orbits every unit on the circle Jianying's 环绕 traces", () => {
+		// translate.x = sin(2*pi*t), translate.y = cos(2*pi*t) in their Lua.
 		const effect: TextAnimationEffect = {
-			kind: "jitter3d",
-			cameraFovDeg: 60,
-			groupYawDeg: 20,
-			rotationXDeg: 15,
-			rotationYDeg: 15,
-			rotationZDeg: 10,
-			positionJitter: 0.03,
-			scaleFrom: 2 / 3,
-			scaleTo: 1,
-			frequency: 12,
-			seed: 90210,
-			trailSamples: 25,
-			trailStrength: 0.65,
-			trapezoidAmount: 0.12,
+			kind: "orbit",
+			rotation: "clockwise",
+			turns: 1,
+			radius: { value: 0.12, unit: "boxHeight" },
+			fade: false,
 		};
-		const first = sampleLoop({
-			effect,
-			frame: 25,
-			content: "ABCD",
-			unit: "grapheme",
-		});
-		const repeated = sampleLoop({
-			effect,
-			frame: 25,
-			content: "ABCD",
-			unit: "grapheme",
-		});
-
-		expect(first).toEqual(repeated);
-		expect(first.units.at(0)?.visual.projection).toEqual({
-			kind: "plane",
-			cameraFovDeg: 60,
-			groupRotationXDeg: 0,
-			groupRotationYDeg: 20,
-		});
-		expect(first.units.at(0)?.visual.postProcess).toEqual({
-			trailSamples: 25,
-			trailStrength: 0.65,
-			trapezoidAmount: 0.12,
-		});
-		expect(
-			new Set(first.units.map(({ visual }) => visual.rotationXDeg.toFixed(6)))
-				.size
-		).toBeGreaterThan(1);
-		expect(first.units.at(0)?.visual.scaleX).toBeLessThan(
-			first.units.at(-1)?.visual.scaleX ?? 0
+		const radius = 20 * 0.12;
+		const samples = [0, 25, 50, 75].map((frame) =>
+			sampleLoop({ effect, frame })
 		);
+
+		expect(samples.map(({ container }) => container.translateX)).toEqual([
+			expect.closeTo(0),
+			expect.closeTo(-radius),
+			expect.closeTo(-radius * 2),
+			expect.closeTo(-radius),
+		]);
+		expect(samples.map(({ container }) => container.translateY)).toEqual([
+			expect.closeTo(0),
+			expect.closeTo(radius),
+			expect.closeTo(0),
+			expect.closeTo(-radius),
+		]);
+	});
+
+	it("steps the jitter into four poses per cycle, keyed on unit rank", () => {
+		const effect: TextAnimationEffect = {
+			kind: "jitter",
+			steps: 4,
+			amplitudeX: 0.04,
+			amplitudeY: 0.027,
+		};
+		const sample = ({ frame }: { frame: number }) =>
+			sampleLoop({ effect, frame, content: "ABCD", unit: "grapheme" });
+		const offsets = ({ frame }: { frame: number }) =>
+			sample({ frame }).units.map(
+				({ visual }) => `${visual.translateX},${visual.translateY}`
+			);
+
+		// Local time is floored into quarters, so frames inside a step match.
+		expect(offsets({ frame: 5 })).toEqual(offsets({ frame: 20 }));
+		expect(offsets({ frame: 30 })).not.toEqual(offsets({ frame: 20 }));
+
+		// Jianying's exact formula, with i as the 1-based unit rank.
+		const expectedAt = ({ frame, rank }: { frame: number; rank: number }) => {
+			const quantized = Math.floor(frame / 100 / 0.25) * 0.25;
+			const swingX = Math.sin(quantized * Math.PI * 2);
+			const swingY = Math.cos(quantized * Math.PI * 2);
+			return {
+				x:
+					Math.cos(24.8 * swingX + 7.9 * rank) *
+					Math.sin(swingX * Math.PI * 2 + rank) *
+					0.04 *
+					20,
+				y:
+					Math.sin(19.1 * swingY + 33.6 * rank) *
+					Math.cos(swingY * Math.PI * 2 - rank) *
+					0.027 *
+					20,
+			};
+		};
+		const frame = 30;
+		const state = sample({ frame });
+		for (const [index, unit] of state.units.entries()) {
+			const expected = expectedAt({ frame, rank: index + 1 });
+			expect(unit.visual.translateX).toBeCloseTo(expected.x);
+			expect(unit.visual.translateY).toBeCloseTo(expected.y);
+		}
+
+		// Rank-keyed phase means neighbours never share an offset.
+		expect(
+			new Set(state.units.map(({ visual }) => visual.translateX.toFixed(6)))
+				.size
+		).toBe(state.units.length);
 	});
 });

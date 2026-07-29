@@ -168,40 +168,34 @@ export interface TextHeartEffect {
 	seed: number;
 }
 
-export interface TextFlip3DEffect {
-	kind: "flip3d";
+/**
+ * Edge-on flip, reproduced the way Jianying does it: a per-unit scale squash
+ * through zero on one axis. The scale crosses into negative values so the
+ * glyph mirrors, which is what sells the turn without a 3D camera.
+ */
+export interface TextFlipEffect {
+	kind: "flip";
+	/** Axis the glyph appears to turn around. */
 	axis: "x" | "y";
-	maxAngleDeg: number;
-	cameraFovDeg: number;
-	motionRatio: number;
-	motionEasing: TextAnimationEasing;
-}
-
-export interface TextCylinder3DEffect {
-	kind: "cylinder3d";
+	/** Full turns per loop cycle. */
 	turns: number;
-	tiltXDeg: number;
-	cameraFovDeg: number;
-	coverage: number;
-	radiusRatio: number;
-	startYawDeg: number;
+	/** Opacity held at the edge-on moment, where the glyph is thinnest. */
+	edgeOpacity: number;
 }
 
-export interface TextJitter3DEffect {
-	kind: "jitter3d";
-	cameraFovDeg: number;
-	groupYawDeg: number;
-	rotationXDeg: number;
-	rotationYDeg: number;
-	rotationZDeg: number;
-	positionJitter: number;
-	scaleFrom: number;
-	scaleTo: number;
-	frequency: number;
-	seed: number;
-	trailSamples: number;
-	trailStrength: number;
-	trapezoidAmount: number;
+/**
+ * Stepped per-unit shake. Jianying quantizes local time into a handful of
+ * poses per cycle and derives each unit's offset from a chaotic but
+ * deterministic product of sines, phase-shifted by unit rank.
+ */
+export interface TextJitterEffect {
+	kind: "jitter";
+	/** Discrete poses per cycle. Jianying uses 4 (local time floored to 1/4). */
+	steps: number;
+	/** Horizontal travel at full swing, in em. */
+	amplitudeX: number;
+	/** Vertical travel at full swing, in em. */
+	amplitudeY: number;
 }
 
 export type TextAnimationEffect =
@@ -215,9 +209,8 @@ export type TextAnimationEffect =
 	| TextOrbitEffect
 	| TextLaserEffect
 	| TextHeartEffect
-	| TextFlip3DEffect
-	| TextCylinder3DEffect
-	| TextJitter3DEffect;
+	| TextFlipEffect
+	| TextJitterEffect;
 
 export interface TextAnimationPhaseBase {
 	sourcePreset?: TextAnimationPresetRef;
@@ -274,43 +267,16 @@ export interface TextAnimationMaskState {
 	featherPx: number;
 }
 
-export type TextAnimationProjectionState =
-	| {
-			kind: "plane";
-			cameraFovDeg: number;
-			groupRotationXDeg: number;
-			groupRotationYDeg: number;
-	  }
-	| {
-			kind: "cylinder";
-			cameraFovDeg: number;
-			tiltXDeg: number;
-			yawDeg: number;
-			coverage: number;
-			radiusRatio: number;
-	  };
-
-export interface TextAnimationPostProcessState {
-	trailSamples: number;
-	trailStrength: number;
-	trapezoidAmount: number;
-}
-
 export interface TextAnimationVisualState {
 	opacity: number;
 	translateX: number;
 	translateY: number;
-	translateZ: number;
 	scaleX: number;
 	scaleY: number;
 	rotationDeg: number;
-	rotationXDeg: number;
-	rotationYDeg: number;
 	blurPx: number;
 	mask?: TextAnimationMaskState;
 	transformOrigin?: "center" | "bottomCenter";
-	projection?: TextAnimationProjectionState;
-	postProcess?: TextAnimationPostProcessState;
 }
 
 export interface TextAnimationUnitState {
@@ -406,11 +372,8 @@ export const IDENTITY_TEXT_ANIMATION_VISUAL_STATE: TextAnimationVisualState = {
 	opacity: 1,
 	translateX: 0,
 	translateY: 0,
-	translateZ: 0,
 	scaleX: 1,
 	scaleY: 1,
 	rotationDeg: 0,
-	rotationXDeg: 0,
-	rotationYDeg: 0,
 	blurPx: 0,
 };
