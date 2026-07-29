@@ -236,6 +236,8 @@ export interface ClaudeElement
 	sourceId?: string;
 	sourceName?: string;
 	mediaId?: string;
+	stickerId?: string;
+	zIndex?: number;
 	content?: string;
 	markdownContent?: string;
 	style?: Record<string, unknown>;

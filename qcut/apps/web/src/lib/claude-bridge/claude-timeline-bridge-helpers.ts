@@ -1341,6 +1341,15 @@ function formatElementForExport({
 			return {
 				...baseElement,
 				sourceId: element.stickerId,
+				stickerId: element.stickerId,
+				mediaId: element.mediaId,
+				x: element.x,
+				y: element.y,
+				width: element.width,
+				height: element.height,
+				rotation: element.rotation,
+				opacity: element.opacity,
+				zIndex: element.zIndex,
 			};
 		case "effect":
 			return {
