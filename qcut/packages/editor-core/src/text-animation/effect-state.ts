@@ -9,7 +9,11 @@ import {
 	type TextAnimationLayout,
 	type TextAnimationVisualState,
 } from "./model.js";
-import { clampUnitInterval, springProgress } from "./easing.js";
+import {
+	clampUnitInterval,
+	easeTextAnimationProgress,
+	springProgress,
+} from "./easing.js";
 
 export interface TextAnimationEffectResult {
 	visual: TextAnimationVisualState;
@@ -171,6 +175,183 @@ function unitBounds({
 	return { x: left, y: top, width: right - left, height: bottom - top };
 }
 
+function unitHorizontalProgress({
+	unit,
+	layout,
+}: {
+	unit: CompiledTextAnimationUnit;
+	layout: TextAnimationLayout;
+}): number {
+	const bounds = unitBounds({ unit, layout });
+	return clampUnitInterval({
+		value:
+			(bounds.x + bounds.width / 2 - layout.bounds.x) /
+			Math.max(Number.EPSILON, layout.bounds.width),
+	});
+}
+
+function flip3DVisual({
+	effect,
+	linearProgress,
+}: {
+	effect: Extract<TextAnimationEffect, { kind: "flip3d" }>;
+	linearProgress: number;
+}): TextAnimationVisualState {
+	const visual = identityVisual();
+	const motionProgress = clampUnitInterval({
+		value: linearProgress / effect.motionRatio,
+	});
+	const firstHalf = motionProgress < 0.5;
+	const halfProgress = firstHalf
+		? motionProgress * 2
+		: (motionProgress - 0.5) * 2;
+	const eased = easeTextAnimationProgress({
+		progress: halfProgress,
+		easing: effect.motionEasing,
+	});
+	const angle = firstHalf
+		? -effect.maxAngleDeg * eased
+		: effect.maxAngleDeg * (1 - eased);
+	if (effect.axis === "x") visual.rotationXDeg = angle;
+	else visual.rotationYDeg = angle;
+	visual.projection = {
+		kind: "plane",
+		cameraFovDeg: effect.cameraFovDeg,
+		groupRotationXDeg: 0,
+		groupRotationYDeg: 0,
+	};
+	return visual;
+}
+
+function cylinder3DVisual({
+	effect,
+	linearProgress,
+}: {
+	effect: Extract<TextAnimationEffect, { kind: "cylinder3d" }>;
+	linearProgress: number;
+}): TextAnimationVisualState {
+	const visual = identityVisual();
+	visual.projection = {
+		kind: "cylinder",
+		cameraFovDeg: effect.cameraFovDeg,
+		tiltXDeg: effect.tiltXDeg,
+		yawDeg: effect.startYawDeg - linearProgress * effect.turns * 360,
+		coverage: effect.coverage,
+		radiusRatio: effect.radiusRatio,
+	};
+	return visual;
+}
+
+function interpolatedJitterValue({
+	effect,
+	unitIndex,
+	linearProgress,
+	channel,
+}: {
+	effect: Extract<TextAnimationEffect, { kind: "jitter3d" }>;
+	unitIndex: number;
+	linearProgress: number;
+	channel: number;
+}): number {
+	const segmentCount = Math.max(1, Math.round(effect.frequency));
+	const sample = loopFraction({ value: linearProgress }) * segmentCount;
+	const current = Math.floor(sample) % segmentCount;
+	const next = (current + 1) % segmentCount;
+	const blend = smoothstep({ progress: sample - Math.floor(sample) });
+	const currentValue = seededValue({
+		seed: effect.seed,
+		unitIndex,
+		particleIndex: current,
+		channel,
+	});
+	const nextValue = seededValue({
+		seed: effect.seed,
+		unitIndex,
+		particleIndex: next,
+		channel,
+	});
+	return lerp({ from: currentValue, to: nextValue, progress: blend }) * 2 - 1;
+}
+
+function jitter3DVisual({
+	effect,
+	linearProgress,
+	unit,
+	layout,
+}: {
+	effect: Extract<TextAnimationEffect, { kind: "jitter3d" }>;
+	linearProgress: number;
+	unit: CompiledTextAnimationUnit;
+	layout: TextAnimationLayout;
+}): TextAnimationVisualState {
+	const visual = identityVisual();
+	const bounds = unitBounds({ unit, layout });
+	const horizontalProgress = unitHorizontalProgress({ unit, layout });
+	const baseScale = lerp({
+		from: effect.scaleFrom,
+		to: effect.scaleTo,
+		progress: horizontalProgress,
+	});
+	const jitter = (channel: number) =>
+		interpolatedJitterValue({
+			effect,
+			unitIndex: unit.index,
+			linearProgress,
+			channel,
+		});
+	visual.translateX = jitter(0) * bounds.width * effect.positionJitter;
+	visual.translateY = jitter(1) * bounds.height * effect.positionJitter;
+	visual.rotationXDeg = jitter(2) * effect.rotationXDeg;
+	visual.rotationYDeg = jitter(3) * effect.rotationYDeg;
+	visual.rotationDeg = jitter(4) * effect.rotationZDeg;
+	visual.scaleX = baseScale * (1 + jitter(5) * 0.04);
+	visual.scaleY = baseScale * (1 + jitter(6) * 0.04);
+	visual.projection = {
+		kind: "plane",
+		cameraFovDeg: effect.cameraFovDeg,
+		groupRotationXDeg: 0,
+		groupRotationYDeg: effect.groupYawDeg,
+	};
+	visual.postProcess = {
+		trailSamples: effect.trailSamples,
+		trailStrength: effect.trailStrength,
+		trapezoidAmount: effect.trapezoidAmount,
+	};
+	return visual;
+}
+
+function threeDVisual({
+	context,
+}: {
+	context: TextAnimationEffectContext;
+}): TextAnimationEffectResult | null {
+	const { effect, linearProgress, unit, layout } = context;
+	if (effect.kind === "flip3d") {
+		return {
+			visual: flip3DVisual({ effect, linearProgress }),
+			decorations: [],
+		};
+	}
+	if (effect.kind === "cylinder3d") {
+		return {
+			visual: cylinder3DVisual({ effect, linearProgress }),
+			decorations: [],
+		};
+	}
+	if (effect.kind === "jitter3d") {
+		return {
+			visual: jitter3DVisual({
+				effect,
+				linearProgress,
+				unit,
+				layout,
+			}),
+			decorations: [],
+		};
+	}
+	return null;
+}
+
 function spatialWaveMovement({
 	effect,
 	progress,
@@ -272,6 +453,8 @@ function loopVisual({
 }): TextAnimationEffectResult {
 	const { effect, progress, linearProgress, layout, unit } = context;
 	const visual = identityVisual();
+	const threeD = threeDVisual({ context });
+	if (threeD) return threeD;
 	const pulse = (1 - Math.cos(progress * Math.PI * 2)) / 2;
 	const wave = Math.sin(progress * Math.PI * 2);
 	if (effect.kind === "typewriter") {
@@ -403,6 +586,8 @@ function edgeVisual({
 	const { effect, role, progress, linearProgress, layout, unit } = context;
 	const presence = edgePresence({ role, progress });
 	const visual = identityVisual();
+	const threeD = threeDVisual({ context });
+	if (threeD) return threeD;
 	if (effect.kind === "typewriter") {
 		if (effect.reveal === "step") {
 			// Jianying pops a unit in only when its reveal slot completes (and,

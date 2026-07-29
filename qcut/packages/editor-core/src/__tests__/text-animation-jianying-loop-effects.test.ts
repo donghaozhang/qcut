@@ -187,4 +187,109 @@ describe("Jianying-derived loop effects", () => {
 		).toBeGreaterThan(1);
 		expect(start.units.every(({ visual }) => visual.scaleX === 1)).toBe(true);
 	});
+
+	it("matches the horizontal 3D flip timing and midpoint mirror snap", () => {
+		const effect: TextAnimationEffect = {
+			kind: "flip3d",
+			axis: "y",
+			maxAngleDeg: 60,
+			cameraFovDeg: 30,
+			motionRatio: 0.8,
+			motionEasing: {
+				type: "cubicBezier",
+				x1: 0.55,
+				y1: 0.06,
+				x2: 0.4,
+				y2: 0.96,
+			},
+		};
+		const start = sampleLoop({ effect, frame: 0 });
+		const beforeSnap = sampleLoop({ effect, frame: 39 });
+		const afterSnap = sampleLoop({ effect, frame: 40 });
+		const hold = sampleLoop({ effect, frame: 90 });
+
+		expect(start.container.rotationYDeg).toBe(0);
+		expect(beforeSnap.container.rotationYDeg).toBeLessThan(-59);
+		expect(afterSnap.container.rotationYDeg).toBe(60);
+		expect(hold.container.rotationYDeg).toBe(0);
+		expect(afterSnap.container.projection).toEqual({
+			kind: "plane",
+			cameraFovDeg: 30,
+			groupRotationXDeg: 0,
+			groupRotationYDeg: 0,
+		});
+	});
+
+	it("maps the text block to the calibrated rotating cylinder", () => {
+		const effect: TextAnimationEffect = {
+			kind: "cylinder3d",
+			turns: 1,
+			tiltXDeg: 20,
+			cameraFovDeg: 60,
+			coverage: 5 / 6,
+			radiusRatio: 1.2 / (Math.PI * 2),
+			startYawDeg: 540,
+		};
+		const quarter = sampleLoop({ effect, frame: 25 });
+
+		expect(quarter.container.projection).toEqual({
+			kind: "cylinder",
+			cameraFovDeg: 60,
+			tiltXDeg: 20,
+			yawDeg: 450,
+			coverage: 5 / 6,
+			radiusRatio: 1.2 / (Math.PI * 2),
+		});
+	});
+
+	it("produces deterministic per-grapheme 3D jitter and post-processing", () => {
+		const effect: TextAnimationEffect = {
+			kind: "jitter3d",
+			cameraFovDeg: 60,
+			groupYawDeg: 20,
+			rotationXDeg: 15,
+			rotationYDeg: 15,
+			rotationZDeg: 10,
+			positionJitter: 0.03,
+			scaleFrom: 2 / 3,
+			scaleTo: 1,
+			frequency: 12,
+			seed: 90210,
+			trailSamples: 25,
+			trailStrength: 0.65,
+			trapezoidAmount: 0.12,
+		};
+		const first = sampleLoop({
+			effect,
+			frame: 25,
+			content: "ABCD",
+			unit: "grapheme",
+		});
+		const repeated = sampleLoop({
+			effect,
+			frame: 25,
+			content: "ABCD",
+			unit: "grapheme",
+		});
+
+		expect(first).toEqual(repeated);
+		expect(first.units.at(0)?.visual.projection).toEqual({
+			kind: "plane",
+			cameraFovDeg: 60,
+			groupRotationXDeg: 0,
+			groupRotationYDeg: 20,
+		});
+		expect(first.units.at(0)?.visual.postProcess).toEqual({
+			trailSamples: 25,
+			trailStrength: 0.65,
+			trapezoidAmount: 0.12,
+		});
+		expect(
+			new Set(first.units.map(({ visual }) => visual.rotationXDeg.toFixed(6)))
+				.size
+		).toBeGreaterThan(1);
+		expect(first.units.at(0)?.visual.scaleX).toBeLessThan(
+			first.units.at(-1)?.visual.scaleX ?? 0
+		);
+	});
 });
