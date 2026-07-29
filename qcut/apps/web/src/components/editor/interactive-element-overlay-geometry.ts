@@ -107,7 +107,8 @@ export function getInteractiveElementOverlayStyle({
 	const centerY = transform.y + rotatedOffsetY;
 	const width = contentBounds?.width ?? transform.width;
 	const height = contentBounds?.height ?? transform.height;
-	const left = canvasSize.width > 0 ? 50 + (centerX / canvasSize.width) * 100 : 50;
+	const left =
+		canvasSize.width > 0 ? 50 + (centerX / canvasSize.width) * 100 : 50;
 	const top =
 		canvasSize.height > 0 ? 50 + (centerY / canvasSize.height) * 100 : 50;
 

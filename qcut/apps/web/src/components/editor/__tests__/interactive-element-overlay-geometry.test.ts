@@ -32,7 +32,6 @@ describe("interactive element overlay geometry", () => {
 		expect(transform.height).toBe(180);
 	});
 
-
 	it("positions the overlay from the canvas center like the text renderer", () => {
 		const style = getInteractiveElementOverlayStyle({
 			canvasSize: { width: 1920, height: 1080 },

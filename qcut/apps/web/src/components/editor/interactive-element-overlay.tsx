@@ -101,10 +101,8 @@ export function InteractiveElementOverlay({
 			// mutates the element.
 			if (
 				!dragState.hasMoved &&
-				Math.hypot(
-					e.clientX - dragState.startX,
-					e.clientY - dragState.startY
-				) < DRAG_ACTIVATION_PX
+				Math.hypot(e.clientX - dragState.startX, e.clientY - dragState.startY) <
+					DRAG_ACTIVATION_PX
 			) {
 				return;
 			}
