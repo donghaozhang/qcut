@@ -7,13 +7,11 @@ import type {
 	TextAnimationVisualState,
 } from "@qcut/editor-core/text-animation";
 import {
-	BackSide,
 	BufferAttribute,
 	BufferGeometry,
 	CanvasTexture,
 	ClampToEdgeWrapping,
 	DoubleSide,
-	FrontSide,
 	Group,
 	LinearFilter,
 	Mesh,
@@ -25,6 +23,11 @@ import {
 	SRGBColorSpace,
 	WebGLRenderer,
 } from "three";
+import {
+	createTextAnimation3DCylinder,
+	renderTextAnimation3DCylinderPasses,
+	type TextAnimation3DCylinderPasses,
+} from "./text-animation-3d-cylinder";
 import { renderTextAnimation3DPostProcess } from "./text-animation-3d-post-process";
 
 type TextAnimation3DCanvas = HTMLCanvasElement | OffscreenCanvas;
@@ -396,64 +399,6 @@ function createGlyphGeometry({
 	return geometry;
 }
 
-function createCylinderGlyphGeometry({
-	bounds,
-	textureBounds,
-	radius,
-	thetaLength,
-}: {
-	bounds: TextAnimationRect;
-	textureBounds: TextAnimationRect;
-	radius: number;
-	thetaLength: number;
-}): BufferGeometry {
-	const segmentCount = Math.max(2, Math.ceil(bounds.width / 8));
-	const positions = new Float32Array((segmentCount + 1) * 2 * 3);
-	const textureCoordinates = new Float32Array((segmentCount + 1) * 2 * 2);
-	const indices: number[] = [];
-	const uv = normalizedTextureCoordinates({ bounds, textureBounds });
-	const textureCenterY = textureBounds.y + textureBounds.height / 2;
-	const bottomY = -(bounds.y + bounds.height - textureCenterY);
-	const topY = -(bounds.y - textureCenterY);
-
-	for (let segment = 0; segment <= segmentCount; segment += 1) {
-		const glyphProgress = segment / segmentCount;
-		const textureX = bounds.x + bounds.width * glyphProgress - textureBounds.x;
-		const normalizedTextureX = textureX / textureBounds.width;
-		const angle = thetaLength / 2 - normalizedTextureX * thetaLength;
-		const x = Math.sin(angle) * radius;
-		const z = Math.cos(angle) * radius;
-		const textureU = uv.left + (uv.right - uv.left) * glyphProgress;
-		const bottomVertex = segment * 2;
-		const topVertex = bottomVertex + 1;
-
-		positions.set([x, bottomY, z], bottomVertex * 3);
-		positions.set([x, topY, z], topVertex * 3);
-		textureCoordinates.set([textureU, uv.bottom], bottomVertex * 2);
-		textureCoordinates.set([textureU, uv.top], topVertex * 2);
-
-		if (segment === segmentCount) continue;
-		const nextBottomVertex = bottomVertex + 2;
-		const nextTopVertex = topVertex + 2;
-		indices.push(
-			bottomVertex,
-			topVertex,
-			nextBottomVertex,
-			topVertex,
-			nextTopVertex,
-			nextBottomVertex
-		);
-	}
-
-	const geometry = new BufferGeometry();
-	geometry.setAttribute("position", new BufferAttribute(positions, 3));
-	geometry.setAttribute("uv", new BufferAttribute(textureCoordinates, 2));
-	geometry.setIndex(indices);
-	geometry.computeVertexNormals();
-	geometry.computeBoundingSphere();
-	return geometry;
-}
-
 function createGlyphGroup({
 	graphemes,
 	material,
@@ -502,66 +447,6 @@ function applyPlaneProjection({
 	group.rotation.y = (projection.groupRotationYDeg * Math.PI) / 180;
 }
 
-export function createTextAnimation3DCylinder({
-	width,
-	texture,
-	projection,
-	graphemes,
-	textureBounds,
-}: {
-	width: number;
-	texture: CanvasTexture<TextAnimation3DCanvas>;
-	projection: Extract<TextAnimationProjectionState, { kind: "cylinder" }>;
-	graphemes: readonly TextAnimationGraphemeLayout[];
-	textureBounds: TextAnimationRect;
-}): Group {
-	const radius = width * projection.radiusRatio;
-	const thetaLength = Math.PI * 2 * projection.coverage;
-	const frontMaterial = createMaterial({
-		texture,
-		side: FrontSide,
-		depthTest: false,
-	});
-	const backMaterial = createMaterial({
-		texture,
-		side: BackSide,
-		depthTest: false,
-	});
-	const group = new Group();
-	for (const grapheme of graphemes) {
-		if (grapheme.bounds.width <= 0 || grapheme.bounds.height <= 0) continue;
-		const front = new Mesh(
-			createCylinderGlyphGeometry({
-				bounds: grapheme.bounds,
-				textureBounds,
-				radius,
-				thetaLength,
-			}),
-			frontMaterial
-		);
-		const back = new Mesh(
-			createCylinderGlyphGeometry({
-				bounds: grapheme.bounds,
-				textureBounds,
-				radius,
-				thetaLength,
-			}),
-			backMaterial
-		);
-		for (const [renderOrder, mesh] of [front, back].entries()) {
-			mesh.renderOrder = renderOrder;
-			group.add(mesh);
-		}
-	}
-	group.rotation.order = "XYZ";
-	group.rotation.set(
-		(projection.tiltXDeg * Math.PI) / 180,
-		(projection.yawDeg * Math.PI) / 180,
-		0
-	);
-	return group;
-}
-
 function disposeScene({ scene }: { scene: Scene }): void {
 	const geometries = new Set<BufferGeometry>();
 	const materials = new Set<MeshBasicMaterial>();
@@ -605,6 +490,7 @@ export function renderTextAnimation3D({
 
 	const texture = createTexture({ source });
 	const scene = new Scene();
+	let cylinderPasses: TextAnimation3DCylinderPasses | undefined;
 	const camera = createCamera({
 		width: outputWidth,
 		height: outputHeight,
@@ -618,15 +504,13 @@ export function renderTextAnimation3D({
 	});
 
 	if (projection.kind === "cylinder") {
-		scene.add(
-			createTextAnimation3DCylinder({
-				width,
-				texture,
-				projection,
-				graphemes,
-				textureBounds,
-			})
-		);
+		cylinderPasses = createTextAnimation3DCylinder({
+			width,
+			height,
+			texture,
+			projection,
+		});
+		scene.add(cylinderPasses.group);
 	} else {
 		const material = createMaterial({ texture });
 		const usesPerGrapheme3D = state.units.some(
@@ -667,6 +551,27 @@ export function renderTextAnimation3D({
 			width: outputWidth,
 			height: outputHeight,
 			postProcess,
+			renderSource: cylinderPasses
+				? ({
+						renderer: sourceRenderer,
+						scene: sourceScene,
+						camera: sourceCamera,
+					}) =>
+						renderTextAnimation3DCylinderPasses({
+							renderer: sourceRenderer,
+							scene: sourceScene,
+							camera: sourceCamera,
+							passes: cylinderPasses,
+						})
+				: undefined,
+		});
+	} else if (cylinderPasses) {
+		renderer.setRenderTarget(null);
+		renderTextAnimation3DCylinderPasses({
+			renderer,
+			scene,
+			camera,
+			passes: cylinderPasses,
 		});
 	} else {
 		renderer.setRenderTarget(null);
