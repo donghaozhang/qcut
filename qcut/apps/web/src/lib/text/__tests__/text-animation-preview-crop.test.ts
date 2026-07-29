@@ -205,6 +205,50 @@ describe("resolveTextAnimationPreviewCrop", () => {
 		expect(decorated.height).toBeGreaterThan(plain.height + 250);
 	});
 
+	it("reserves perspective and trail overscan for 3D text", () => {
+		const plain = cropFor({
+			element: createTextElement({
+				textAnimations: {
+					schemaVersion: 1,
+					entrance: phase({
+						effect: { kind: "fade", minimumOpacity: 0 },
+					}),
+				},
+			}),
+		});
+		const animated = cropFor({
+			element: createTextElement({
+				textAnimations: {
+					schemaVersion: 1,
+					loop: {
+						...phase({
+							effect: {
+								kind: "jitter3d",
+								cameraFovDeg: 60,
+								groupYawDeg: 20,
+								rotationXDeg: 15,
+								rotationYDeg: 15,
+								rotationZDeg: 10,
+								positionJitter: 0.03,
+								scaleFrom: 2 / 3,
+								scaleTo: 1,
+								frequency: 12,
+								seed: 42,
+								trailSamples: 25,
+								trailStrength: 0.65,
+								trapezoidAmount: 0.12,
+							},
+						}),
+						repeat: { mode: "restart", gap: 0, phaseOffset: 0 },
+					},
+				},
+			}),
+		});
+
+		expect(animated.width).toBeGreaterThan(plain.width + 150);
+		expect(animated.height).toBeGreaterThan(plain.height + 150);
+	});
+
 	it("keeps ten representative 4K layers far below ten full canvases", () => {
 		const crop = cropFor({
 			element: createTextElement({
