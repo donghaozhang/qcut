@@ -42,6 +42,16 @@ export function normalizeTextAnimationEffect({
 						persist: cursorRecord.persist === true,
 					}
 				: undefined;
+		const rhythmSource = Array.isArray(record.rhythm) ? record.rhythm : [];
+		const rhythm = rhythmSource
+			.slice(0, 32)
+			.filter(
+				(weight): weight is number =>
+					typeof weight === "number" &&
+					Number.isFinite(weight) &&
+					weight > 0 &&
+					weight <= 100
+			);
 		return {
 			kind: "typewriter",
 			reveal: oneOf({
@@ -49,6 +59,7 @@ export function normalizeTextAnimationEffect({
 				values: ["step", "fade", "wipe"],
 				fallback: "step",
 			}),
+			...(rhythm.length > 0 ? { rhythm } : {}),
 			...(cursor ? { cursor } : {}),
 		};
 	}
@@ -123,6 +134,11 @@ export function normalizeTextAnimationEffect({
 		};
 	}
 	if (record.kind === "scale") {
+		const axis = oneOf({
+			value: record.axis,
+			values: ["uniform", "x", "y"],
+			fallback: "uniform",
+		});
 		return {
 			kind: "scale",
 			hiddenScale: numberInRange({
@@ -137,6 +153,7 @@ export function normalizeTextAnimationEffect({
 				minimum: 0,
 				maximum: 2,
 			}),
+			...(axis !== "uniform" ? { axis } : {}),
 			fade,
 		};
 	}

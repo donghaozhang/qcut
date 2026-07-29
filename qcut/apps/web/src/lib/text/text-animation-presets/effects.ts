@@ -81,6 +81,28 @@ export function effectForPreset({
 			return { kind: "typewriter", reveal: "wipe" };
 		case "entrance:typewriter-i":
 			return { kind: "typewriter", reveal: "step" };
+		case "entrance:typewriter-rhythm":
+			// Jianying's human-rhythm typewriter: fixed 14-entry weight table,
+			// thick block caret. Weights from the package's TextAnim.lua.
+			return {
+				kind: "typewriter",
+				reveal: "step",
+				rhythm: [
+					0.86, 1.35, 0.62, 5.2, 0.25, 0.96, 0.35, 4.55, 0.03, 0.82, 0.2, 1.26,
+					0.36, 0.1,
+				],
+				cursor: { text: "▌", blinkPeriod: 0.5, persist: false },
+			};
+		case "entrance:flip-open":
+			// Jianying 翻动: per-character X-only unfold from zero width with a
+			// small settle wobble (piecewise easy-ease approximated by overshoot).
+			return {
+				kind: "scale",
+				hiddenScale: 0,
+				overshoot: 0.08,
+				fade: false,
+				axis: "x",
+			};
 		case "entrance:cursor-typewriter":
 			return {
 				kind: "typewriter",
@@ -250,6 +272,8 @@ export function sequenceForPreset({
 	// fade-characters is intentionally absent: Jianying's 文字渐显 fades the
 	// whole block at once rather than staggering per grapheme.
 	const graphemePresets = new Set([
+		"flip-open",
+		"typewriter-rhythm",
 		"typewriter-cursor",
 		"typewriter-leading",
 		"typewriter-i",
@@ -265,7 +289,9 @@ export function sequenceForPreset({
 	const staggerRatio = graphemePresets.has(presetId)
 		? presetId === "wave"
 			? 0.7
-			: 0.58
+			: presetId === "flip-open"
+				? 0.83
+				: 0.58
 		: 0;
 
 	return {
@@ -288,6 +314,10 @@ export function easingForPreset({
 	}
 	if (presetId.includes("typewriter") || presetId === "cursor-typewriter") {
 		return "linear";
+	}
+	if (presetId === "flip-open") {
+		// Amaz.Ease easy-ease from the 翻动 package's AE curve table.
+		return { type: "cubicBezier", x1: 0.33333, y1: 0, x2: 0.66667, y2: 1 };
 	}
 	if (
 		presetId.includes("bounce") ||

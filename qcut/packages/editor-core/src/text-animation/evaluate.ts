@@ -68,16 +68,39 @@ function phaseUnitProgress({
  * Jianying's typewriter gives every unit an equal slot of the phase and
  * completes unit `rank` at (rank + 1) / (unitCount + 1): nothing is revealed
  * at progress 0 and the final unit lands one slot before the phase ends.
+ *
+ * With a rhythm table the slots keep the same overall span but take their
+ * widths from the cycled weights, reproducing Jianying's human-rhythm typing
+ * (fast bursts and long pauses) deterministically.
  */
 function typewriterUnitProgress({
 	phaseProgress,
 	unit,
 	unitCount,
+	rhythm,
 }: {
 	phaseProgress: number;
 	unit: CompiledTextAnimationUnit;
 	unitCount: number;
+	rhythm?: readonly number[];
 }): number {
+	if (rhythm && rhythm.length > 0 && unitCount > 0) {
+		let total = 0;
+		let before = 0;
+		for (let rank = 0; rank < unitCount; rank += 1) {
+			const weight = rhythm[rank % rhythm.length];
+			total += weight;
+			if (rank < unit.rank) before += weight;
+		}
+		if (total > 0) {
+			const span = unitCount / (unitCount + 1);
+			const slotStart = (before / total) * span;
+			const slotWidth = (rhythm[unit.rank % rhythm.length] / total) * span;
+			return clampUnitInterval({
+				value: (phaseProgress - slotStart) / Math.max(1e-6, slotWidth),
+			});
+		}
+	}
 	return clampUnitInterval({
 		value: phaseProgress * (unitCount + 1) - unit.rank,
 	});
@@ -139,6 +162,10 @@ function applyPhase({
 					phaseProgress,
 					unit,
 					unitCount: phase.units.length,
+					rhythm:
+						phase.config.effect.kind === "typewriter"
+							? phase.config.effect.rhythm
+							: undefined,
 				})
 			: phaseUnitProgress({
 					phaseProgress,
@@ -260,6 +287,7 @@ function cursorDecoration({
 			phaseProgress,
 			unit,
 			unitCount: phase.units.length,
+			rhythm: effect.rhythm,
 		});
 		const progress = easeTextAnimationProgress({
 			progress: rawProgress,

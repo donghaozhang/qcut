@@ -62,6 +62,12 @@ export interface TextAnimationPresetRef {
 export interface TextTypewriterEffect {
 	kind: "typewriter";
 	reveal: "step" | "fade" | "wipe";
+	/**
+	 * Optional per-unit slot weights, cycled over the unit ranks. Jianying's
+	 * human-rhythm typewriter uses an irregular fixed table so typing speeds
+	 * up and pauses instead of ticking uniformly.
+	 */
+	rhythm?: readonly number[];
 	cursor?: {
 		text: string;
 		color?: string;
@@ -103,6 +109,8 @@ export interface TextScaleEffect {
 	hiddenScale: number;
 	overshoot: number;
 	fade: boolean;
+	/** Scale axis; Jianying's 翻动 flip-open scales X only. Defaults to uniform. */
+	axis?: "uniform" | "x" | "y";
 }
 
 export interface TextBounceEffect {

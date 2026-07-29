@@ -263,8 +263,9 @@ function loopVisual({
 			to: effect.hiddenScale,
 			progress: pulse,
 		});
-		visual.scaleX = scale;
-		visual.scaleY = scale;
+		const axis = effect.axis ?? "uniform";
+		if (axis !== "y") visual.scaleX = scale;
+		if (axis !== "x") visual.scaleY = scale;
 		if (effect.fade) visual.opacity = 1 - pulse * 0.2;
 	}
 	if (effect.kind === "bounce") {
@@ -393,8 +394,9 @@ function edgeVisual({
 				progress: presence,
 			}) +
 			Math.sin(presence * Math.PI) * effect.overshoot;
-		visual.scaleX = scale;
-		visual.scaleY = scale;
+		const axis = effect.axis ?? "uniform";
+		if (axis !== "y") visual.scaleX = scale;
+		if (axis !== "x") visual.scaleY = scale;
 		if (effect.fade) visual.opacity = presence;
 	}
 	if (effect.kind === "bounce") {
