@@ -1,5 +1,5 @@
 import { Move, RotateCw } from "lucide-react";
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { cn } from "@/lib/utils";
 import { useEffectsStore } from "@/stores/ai/effects-store";
 import type { TimelineElement } from "@/types/timeline";
@@ -11,6 +11,7 @@ import {
 	type ElementResizeHandle,
 	type ElementTransform,
 } from "./interactive-element-overlay-geometry";
+import { resolveTextOverlayBounds } from "@/lib/text/text-overlay-bounds";
 
 export type { ElementTransform } from "./interactive-element-overlay-geometry";
 
@@ -245,6 +246,18 @@ export function InteractiveElementOverlay({
 		}
 	}, [dragState.isDragging, handleMouseMove, handleMouseUp]);
 
+	const contentBounds = useMemo(
+		() =>
+			element.type === "text"
+				? resolveTextOverlayBounds({
+						element,
+						canvasWidth: canvasSize.width,
+						canvasHeight: canvasSize.height,
+					})
+				: undefined,
+		[element, canvasSize.width, canvasSize.height]
+	);
+
 	const hasEffects = getElementEffects(element.id).length > 0;
 	const hasDirectCanvasInteraction =
 		element.type === "text" || element.type === "markdown";
@@ -261,6 +274,7 @@ export function InteractiveElementOverlay({
 		canvasSize,
 		previewDimensions,
 		transform,
+		contentBounds,
 	});
 
 	return (
