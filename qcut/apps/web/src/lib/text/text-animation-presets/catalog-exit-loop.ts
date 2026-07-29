@@ -179,7 +179,7 @@ export const LOOP_TEXT_ANIMATION_PRESETS = [
 		phase: "loop",
 		nameKey: "textProperties.animationPreset.cylinder3D",
 		previewKind: "cylinder-3d",
-		defaultDuration: 2,
+		defaultDuration: 1.2,
 		defaultDelay: 0,
 		defaultIntensity: 1,
 		searchTerms: ["3d", "cylinder", "carousel", "圆柱", "环绕", "旋转"],
