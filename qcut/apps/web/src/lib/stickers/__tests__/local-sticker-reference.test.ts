@@ -118,6 +118,7 @@ describe("local sticker reference files", () => {
 
 	it("turns a cached remote resource into the exact File for the timeline", async () => {
 		const reference = createRemoteStickerReference({ id: "curved-arrow" });
+		const abortController = new AbortController();
 		const cachedBlob = new Blob([new Uint8Array([1, 2, 3, 4])], {
 			type: "image/gif",
 		});
@@ -140,6 +141,7 @@ describe("local sticker reference files", () => {
 			ensureResources,
 			getToken: async () => "unused-on-cache-hit",
 			licenseServerUrl: "https://license.example",
+			signal: abortController.signal,
 		});
 
 		expect(file.name).toBe("curved-arrow.gif");
@@ -158,6 +160,7 @@ describe("local sticker reference files", () => {
 				}),
 				fetchImpl: expect.any(Function),
 				roles: ["source"],
+				signal: abortController.signal,
 			})
 		);
 	});
@@ -171,21 +174,27 @@ describe("local sticker reference files", () => {
 		expect(localFile.name).toBe("local-arrow.png");
 
 		const remote = createRemoteStickerReference({ id: "remote-arrow" });
+		const abortController = new AbortController();
+		const ensureResources = vi.fn(async () => [
+			{
+				blob: new Blob([new Uint8Array([1, 2, 3, 4])]),
+				byteSize: 4,
+				cacheKey: "remote",
+				checksumSha256: remote.asset.checksumSha256,
+				fromCache: true,
+				role: "source" as const,
+				sourceUrl: "https://license.example/asset",
+				url: "https://license.example/asset",
+			},
+		]);
 		const remoteFile = await loadStickerLabReferenceFile({
 			reference: remote,
-			ensureResources: async () => [
-				{
-					blob: new Blob([new Uint8Array([1, 2, 3, 4])]),
-					byteSize: 4,
-					cacheKey: "remote",
-					checksumSha256: remote.asset.checksumSha256,
-					fromCache: true,
-					role: "source",
-					sourceUrl: "https://license.example/asset",
-					url: "https://license.example/asset",
-				},
-			],
+			ensureResources,
+			signal: abortController.signal,
 		});
 		expect(remoteFile.name).toBe("remote-arrow.gif");
+		expect(ensureResources).toHaveBeenCalledWith(
+			expect.objectContaining({ signal: abortController.signal })
+		);
 	});
 });
