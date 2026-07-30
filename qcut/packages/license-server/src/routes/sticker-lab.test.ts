@@ -33,11 +33,16 @@ function buildAssetUrl({ objectKey }: { objectKey?: string } = {}) {
 
 beforeEach(() => {
 	process.env.MOCK_MODE = "true";
+	delete process.env.STICKER_LAB_ALLOWED_USER_IDS;
 	vi.clearAllMocks();
 	storageMocks.from.mockReturnValue({
 		createSignedUrl: storageMocks.createSignedUrl,
 	});
 });
+
+function allowMockUser() {
+	process.env.STICKER_LAB_ALLOWED_USER_IDS = "mock-user-001";
+}
 
 describe("sticker lab routes", () => {
 	it("requires authentication", async () => {
@@ -49,7 +54,35 @@ describe("sticker lab routes", () => {
 		expect(storageMocks.from).not.toHaveBeenCalled();
 	});
 
+	it("forbids access when the allowlist is not configured", async () => {
+		const response = await buildApp().request(
+			buildAssetUrl({
+				objectKey: "jianying/2026-07-31/assets/sticker-123.gif",
+			})
+		);
+
+		expect(response.status).toBe(403);
+		await expect(response.json()).resolves.toEqual({ error: "Forbidden" });
+		expect(storageMocks.from).not.toHaveBeenCalled();
+	});
+
+	it("forbids authenticated users outside the allowlist", async () => {
+		process.env.STICKER_LAB_ALLOWED_USER_IDS =
+			" , another-user, a-third-user, ";
+
+		const response = await buildApp().request(
+			buildAssetUrl({
+				objectKey: "jianying/2026-07-31/assets/sticker-123.gif",
+			})
+		);
+
+		expect(response.status).toBe(403);
+		await expect(response.json()).resolves.toEqual({ error: "Forbidden" });
+		expect(storageMocks.from).not.toHaveBeenCalled();
+	});
+
 	it("rejects missing and malformed object keys", async () => {
+		allowMockUser();
 		const invalidKeys = [
 			undefined,
 			"",
@@ -76,6 +109,7 @@ describe("sticker lab routes", () => {
 	});
 
 	it("rejects traversal attempts", async () => {
+		allowMockUser();
 		const traversalKeys = [
 			"jianying/2026-07-31/assets/../secret.gif",
 			"jianying/../assets/secret.gif",
@@ -95,6 +129,8 @@ describe("sticker lab routes", () => {
 	});
 
 	it("redirects authenticated requests to a short-lived signed URL", async () => {
+		process.env.STICKER_LAB_ALLOWED_USER_IDS =
+			" another-user, , mock-user-001, ";
 		const objectKey = "jianying/2026-07-31/assets/sticker-123.gif";
 		const signedUrl =
 			"https://example.supabase.co/storage/v1/object/sign/sticker-lab/sticker.gif?token=signed";
@@ -113,6 +149,7 @@ describe("sticker lab routes", () => {
 	});
 
 	it("returns a sanitized upstream error when Supabase cannot sign", async () => {
+		allowMockUser();
 		storageMocks.createSignedUrl.mockResolvedValue({
 			data: null,
 			error: {
@@ -133,6 +170,7 @@ describe("sticker lab routes", () => {
 	});
 
 	it("sanitizes exceptions raised while signing", async () => {
+		allowMockUser();
 		storageMocks.createSignedUrl.mockRejectedValue(
 			new Error("service-role secret leaked by upstream")
 		);
