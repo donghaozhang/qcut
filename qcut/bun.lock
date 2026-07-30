@@ -238,6 +238,16 @@
         "@types/node": "^24.10.13",
       },
     },
+    "packages/jianying-draft-export": {
+      "name": "@qcut/jianying-draft-export",
+      "version": "0.0.1",
+      "dependencies": {
+        "@qcut/editor-core": "workspace:*",
+      },
+      "devDependencies": {
+        "@types/node": "^24.10.13",
+      },
+    },
     "packages/license-server": {
       "name": "@qcut/license-server",
       "version": "0.0.1",
@@ -1059,6 +1069,8 @@
     "@qcut/db": ["@qcut/db@workspace:packages/db"],
 
     "@qcut/editor-core": ["@qcut/editor-core@workspace:packages/editor-core"],
+
+    "@qcut/jianying-draft-export": ["@qcut/jianying-draft-export@workspace:packages/jianying-draft-export"],
 
     "@qcut/license-server": ["@qcut/license-server@workspace:packages/license-server"],
 

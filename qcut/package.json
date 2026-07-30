@@ -62,6 +62,7 @@
 		"packages/auth",
 		"packages/db",
 		"packages/agent-worker",
+		"packages/jianying-draft-export",
 		"packages/qcut-relay",
 		"packages/license-server",
 		"packages/editor-core",

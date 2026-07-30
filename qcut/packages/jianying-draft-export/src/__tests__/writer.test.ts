@@ -1,0 +1,388 @@
+import { spawnSync } from "node:child_process";
+import { createHash } from "node:crypto";
+import {
+	lstat,
+	mkdtemp,
+	mkdir,
+	readFile,
+	readdir,
+	realpath,
+	rm,
+	symlink,
+	writeFile,
+} from "node:fs/promises";
+import { tmpdir } from "node:os";
+import { basename, join } from "node:path";
+import type {
+	QCutDraftExportSnapshotV1,
+	QCutDraftExportVideoMedia,
+} from "@qcut/editor-core/jianying-draft";
+import { afterEach, describe, expect, it } from "vitest";
+import {
+	createJianyingDraftIssueFingerprint,
+	validateStandaloneAssetRelativePath,
+	writeStandaloneJianyingDraft,
+} from "../writer.js";
+import { buildJianyingDraft } from "@qcut/editor-core/jianying-draft";
+
+const temporaryDirectories: string[] = [];
+const hasFfmpeg =
+	spawnSync("ffmpeg", ["-version"], {
+		stdio: "ignore",
+	}).status === 0;
+
+async function createTemporaryDirectory({
+	prefix,
+}: {
+	prefix: string;
+}): Promise<string> {
+	const directory = await mkdtemp(join(tmpdir(), prefix));
+	temporaryDirectories.push(directory);
+	return directory;
+}
+
+function createSnapshot({
+	duration = 4,
+	height = 720,
+	sourcePath,
+	width = 1280,
+}: {
+	duration?: number;
+	height?: number;
+	sourcePath: string;
+	width?: number;
+}): QCutDraftExportSnapshotV1 {
+	const media: QCutDraftExportVideoMedia = {
+		duration,
+		height,
+		id: "video-proof",
+		name: basename(sourcePath),
+		sourcePath,
+		type: "video",
+		width,
+	};
+	return {
+		media: [media],
+		project: {
+			backgroundColor: "transparent",
+			backgroundType: "color",
+			fps: 30,
+			height,
+			id: "project-proof",
+			name: "QCut JianYing Proof",
+			sceneId: "scene-proof",
+			width,
+		},
+		schemaVersion: 1,
+		timelineDurationByElementId: { "clip-proof": duration },
+		tracks: [
+			{
+				elements: [
+					{
+						duration,
+						id: "clip-proof",
+						mediaId: media.id,
+						name: "Proof clip",
+						startTime: 0,
+						trimEnd: 0,
+						trimStart: 0,
+						type: "media",
+					},
+				],
+				hidden: false,
+				id: "track-proof",
+				muted: false,
+				name: "Proof track",
+				order: 0,
+				type: "media",
+			},
+		],
+	};
+}
+
+afterEach(async () => {
+	const removals = temporaryDirectories
+		.splice(0)
+		.map((directory) => rm(directory, { force: true, recursive: true }));
+	await Promise.all(removals);
+});
+
+describe("standalone JianYing draft writer", () => {
+	it("writes a unique complete draft with copied assets", async () => {
+		const parentDirectory = await createTemporaryDirectory({
+			prefix: "qcut-jianying-writer-",
+		});
+		const sourcePath = join(parentDirectory, "source.mp4");
+		const sourceBytes = Buffer.from("real asset bytes");
+		await writeFile(sourcePath, sourceBytes);
+
+		const result = await writeStandaloneJianyingDraft({
+			createdAtUnixSeconds: 100,
+			draftName: "Interop / Proof",
+			outputParentDirectory: parentDirectory,
+			snapshot: createSnapshot({ sourcePath }),
+			targetPlatform: "macos",
+		});
+
+		expect(await realpath(result.outputDirectory)).toBe(result.outputDirectory);
+		expect(basename(result.contentPath)).toBe("draft_content.json");
+		expect(result.buildResult.compatibility).toMatchObject({
+			contentFileName: "draft_content.json",
+			contentFileNameEvidence: "plaintext-5.9-reference",
+			registeredWithApp: false,
+			verifiedWithInstalledApp: false,
+		});
+		expect(result.copiedAssets).toHaveLength(1);
+		const copiedPath = join(
+			result.outputDirectory,
+			...result.copiedAssets[0].relativePath.split("/")
+		);
+		expect(await readFile(copiedPath)).toEqual(sourceBytes);
+		expect(
+			JSON.parse(await readFile(result.completeMarkerPath, "utf8"))
+		).toEqual({
+			contentFile: "draft_content.json",
+			status: "complete",
+		});
+		const content = JSON.parse(await readFile(result.contentPath, "utf8"));
+		expect(content.materials.videos[0].path).toBe(copiedPath);
+	});
+
+	it("does not create output for a blocked snapshot", async () => {
+		const parentDirectory = await createTemporaryDirectory({
+			prefix: "qcut-jianying-blocked-",
+		});
+		const sourcePath = join(parentDirectory, "source.mp4");
+		await writeFile(sourcePath, "asset");
+		const snapshot = createSnapshot({ sourcePath });
+		snapshot.timelineDurationByElementId = {};
+		const before = await readdir(parentDirectory);
+
+		await expect(
+			writeStandaloneJianyingDraft({
+				draftName: "Blocked",
+				outputParentDirectory: parentDirectory,
+				snapshot,
+				targetPlatform: "macos",
+			})
+		).rejects.toThrow("MISSING_TIMELINE_DURATION");
+		expect(await readdir(parentDirectory)).toEqual(before);
+	});
+
+	it("requires exact acceptance for lossy warnings", async () => {
+		const parentDirectory = await createTemporaryDirectory({
+			prefix: "qcut-jianying-warning-",
+		});
+		const sourcePath = join(parentDirectory, "source.mp4");
+		await writeFile(sourcePath, "asset");
+		const snapshot = createSnapshot({ sourcePath });
+		snapshot.project.backgroundColor = "#000000";
+
+		await expect(
+			writeStandaloneJianyingDraft({
+				draftName: "Warning",
+				outputParentDirectory: parentDirectory,
+				snapshot,
+				targetPlatform: "macos",
+			})
+		).rejects.toThrow("requires exact warning acceptance");
+		const preflight = buildJianyingDraft({
+			draftOutputDirectory: join(parentDirectory, "pending"),
+			snapshot,
+			targetPlatform: "macos",
+		});
+		const acceptedWarningFingerprints = preflight.issues
+			.filter(({ severity }) => severity === "warning")
+			.map((issue) => createJianyingDraftIssueFingerprint({ issue }));
+		const result = await writeStandaloneJianyingDraft({
+			acceptedWarningFingerprints,
+			draftName: "Warning",
+			outputParentDirectory: parentDirectory,
+			snapshot,
+			targetPlatform: "macos",
+		});
+
+		expect(result.buildResult.issues).toContainEqual(
+			expect.objectContaining({ code: "UNSUPPORTED_PROJECT_BACKGROUND" })
+		);
+	});
+
+	it("cleans up a partial export when the source is missing", async () => {
+		const parentDirectory = await createTemporaryDirectory({
+			prefix: "qcut-jianying-missing-",
+		});
+		const snapshot = createSnapshot({
+			sourcePath: join(parentDirectory, "missing.mp4"),
+		});
+
+		await expect(
+			writeStandaloneJianyingDraft({
+				draftName: "Missing",
+				outputParentDirectory: parentDirectory,
+				snapshot,
+				targetPlatform: "macos",
+			})
+		).rejects.toThrow();
+		expect(await readdir(parentDirectory)).toEqual([]);
+	});
+
+	it("rejects symlink assets", async () => {
+		const parentDirectory = await createTemporaryDirectory({
+			prefix: "qcut-jianying-symlink-",
+		});
+		const realSource = join(parentDirectory, "real.mp4");
+		const sourcePath = join(parentDirectory, "linked.mp4");
+		await writeFile(realSource, "asset");
+		await symlink(realSource, sourcePath);
+
+		await expect(
+			writeStandaloneJianyingDraft({
+				draftName: "Symlink",
+				outputParentDirectory: parentDirectory,
+				snapshot: createSnapshot({ sourcePath }),
+				targetPlatform: "macos",
+			})
+		).rejects.toThrow("regular file");
+		expect((await readdir(parentDirectory)).sort()).toEqual([
+			"linked.mp4",
+			"real.mp4",
+		]);
+	});
+
+	it("refuses to write inside a JianYing application draft store", async () => {
+		const root = await createTemporaryDirectory({
+			prefix: "qcut-jianying-store-",
+		});
+		const draftStore = join(root, "com.lveditor.draft");
+		await mkdir(draftStore);
+		const sourcePath = join(root, "source.mp4");
+		await writeFile(sourcePath, "asset");
+
+		await expect(
+			writeStandaloneJianyingDraft({
+				draftName: "Unsafe",
+				outputParentDirectory: draftStore,
+				snapshot: createSnapshot({ sourcePath }),
+				targetPlatform: "macos",
+			})
+		).rejects.toThrow("refuses to write");
+		expect(await readdir(draftStore)).toEqual([]);
+	});
+
+	it("rejects traversal and host-specific asset paths", () => {
+		expect(() =>
+			validateStandaloneAssetRelativePath({
+				relativePath: "assets/video/clip.mp4",
+			})
+		).not.toThrow();
+		for (const relativePath of [
+			"../clip.mp4",
+			"assets/../clip.mp4",
+			"/assets/video/clip.mp4",
+			"assets\\video\\clip.mp4",
+		]) {
+			expect(() =>
+				validateStandaloneAssetRelativePath({ relativePath })
+			).toThrow("Unsafe JianYing asset path");
+		}
+	});
+
+	it("creates a new directory for repeated exports", async () => {
+		const parentDirectory = await createTemporaryDirectory({
+			prefix: "qcut-jianying-unique-",
+		});
+		const sourcePath = join(parentDirectory, "source.mp4");
+		await writeFile(sourcePath, "asset");
+		const options = {
+			draftName: "Same Name",
+			outputParentDirectory: parentDirectory,
+			snapshot: createSnapshot({ sourcePath }),
+			targetPlatform: "macos" as const,
+		};
+
+		const [first, second] = await Promise.all([
+			writeStandaloneJianyingDraft(options),
+			writeStandaloneJianyingDraft(options),
+		]);
+
+		expect(first.outputDirectory).not.toBe(second.outputDirectory);
+		expect(await lstat(first.contentPath)).toMatchObject({
+			size: expect.any(Number),
+		});
+		expect(await lstat(second.contentPath)).toMatchObject({
+			size: expect.any(Number),
+		});
+	});
+
+	it.skipIf(!hasFfmpeg)(
+		"copies a real MP4 that remains probeable",
+		async () => {
+			const parentDirectory = await createTemporaryDirectory({
+				prefix: "qcut-jianying-real-media-",
+			});
+			const sourcePath = join(parentDirectory, "source.mp4");
+			const generation = spawnSync(
+				"ffmpeg",
+				[
+					"-hide_banner",
+					"-loglevel",
+					"error",
+					"-f",
+					"lavfi",
+					"-i",
+					"testsrc2=size=320x180:rate=30:duration=1",
+					"-c:v",
+					"mpeg4",
+					"-pix_fmt",
+					"yuv420p",
+					sourcePath,
+				],
+				{ encoding: "utf8" }
+			);
+			expect(generation.status, generation.stderr).toBe(0);
+
+			const result = await writeStandaloneJianyingDraft({
+				draftName: "Real Media",
+				outputParentDirectory: parentDirectory,
+				snapshot: createSnapshot({
+					duration: 1,
+					height: 180,
+					sourcePath,
+					width: 320,
+				}),
+				targetPlatform: "macos",
+			});
+			const copiedPath = join(
+				result.outputDirectory,
+				...result.copiedAssets[0].relativePath.split("/")
+			);
+			const probe = spawnSync(
+				"ffprobe",
+				[
+					"-v",
+					"error",
+					"-select_streams",
+					"v:0",
+					"-show_entries",
+					"stream=codec_type,width,height",
+					"-of",
+					"json",
+					copiedPath,
+				],
+				{ encoding: "utf8" }
+			);
+			expect(probe.status, probe.stderr).toBe(0);
+			expect(JSON.parse(probe.stdout).streams[0]).toMatchObject({
+				codec_type: "video",
+				height: 180,
+				width: 320,
+			});
+			const hash = ({ bytes }: { bytes: Buffer }) =>
+				createHash("sha256").update(bytes).digest("hex");
+			expect(hash({ bytes: await readFile(copiedPath) })).toBe(
+				hash({ bytes: await readFile(sourcePath) })
+			);
+		},
+		30_000
+	);
+});
