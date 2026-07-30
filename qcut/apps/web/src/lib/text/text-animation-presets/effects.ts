@@ -311,6 +311,7 @@ export function effectForPreset({
 				gravity: { value: 0.22, unit: "em" },
 				gravityRotDeg: 180,
 				front: "noise",
+				frontRotDeg: 0,
 				// A wide feather is what makes the mid-exit frame read as a dense
 				// sparkle mass instead of a hard erosion edge.
 				feather: 0.5,
