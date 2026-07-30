@@ -1,6 +1,7 @@
 import {
 	ChevronDown,
 	Clock,
+	FlaskConical,
 	Heart,
 	Library,
 	Sparkles,
@@ -17,12 +18,14 @@ export type StickerPanelMode =
 	| "ai"
 	| "favorites"
 	| "library"
+	| "reference-lab"
 	| "recent"
 	| "store";
 
 interface StickerSidebarProps {
 	mode: StickerPanelMode;
 	selectedCategory: StickerCategoryId;
+	showReferenceLab: boolean;
 	onSelectCategory: ({ category }: { category: StickerCategoryId }) => void;
 	onSelectMode: ({ mode }: { mode: StickerPanelMode }) => void;
 }
@@ -33,6 +36,11 @@ const AUXILIARY_MODE_ITEMS = [
 ] as const;
 
 const AI_MODE_ITEM = { id: "ai", label: "AI生成", icon: Sparkles } as const;
+const REFERENCE_LAB_MODE_ITEM = {
+	id: "reference-lab",
+	label: "贴纸实验室",
+	icon: FlaskConical,
+} as const;
 
 function navigationButtonClass({ active }: { active: boolean }): string {
 	return cn(
@@ -112,6 +120,7 @@ function CategoryButton({
 export function StickerSidebar({
 	mode,
 	selectedCategory,
+	showReferenceLab,
 	onSelectCategory,
 	onSelectMode,
 }: StickerSidebarProps) {
@@ -209,6 +218,20 @@ export function StickerSidebar({
 					</div>
 				)}
 			</div>
+			{showReferenceLab && (
+				<div
+					className="border-t border-border/50 pt-2"
+					data-testid="sticker-reference-lab-entry"
+				>
+					<ModeButton
+						icon={REFERENCE_LAB_MODE_ITEM.icon}
+						id={REFERENCE_LAB_MODE_ITEM.id}
+						label={REFERENCE_LAB_MODE_ITEM.label}
+						mode={mode}
+						onSelectMode={onSelectMode}
+					/>
+				</div>
+			)}
 		</aside>
 	);
 }

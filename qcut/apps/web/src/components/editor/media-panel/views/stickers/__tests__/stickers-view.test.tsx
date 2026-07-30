@@ -1,5 +1,5 @@
 import { fireEvent, render, screen, within } from "@testing-library/react";
-import { beforeEach, describe, expect, it } from "vitest";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 import {
 	STICKER_CATEGORIES,
 	STICKER_CATEGORY_MINIMUM_SIZE,
@@ -8,6 +8,32 @@ import { useAssetLibraryStore } from "@/stores/asset-library-store";
 import { useStickerPackStore } from "@/stores/sticker-pack-store";
 import { useStickersStore } from "@/stores/stickers-store";
 import { StickersView } from "../stickers-view";
+
+vi.mock("@/lib/stickers/local-sticker-reference", async (importOriginal) => {
+	const actual =
+		await importOriginal<
+			typeof import("@/lib/stickers/local-sticker-reference")
+		>();
+	return {
+		...actual,
+		getLocalStickerReferences: () => [
+			{
+				id: "hand-drawn-curved-arrow",
+				displayName: "手绘弯箭头",
+				fileName: "hand-drawn-curved-arrow.png",
+				filePath: "/tmp/hand-drawn-curved-arrow.png",
+				mimeType: "image/png",
+				frameCount: 4,
+				frameRate: 5,
+				cycleDuration: 0.8,
+			},
+		],
+		loadLocalStickerReferenceFile: async () =>
+			new File([new Uint8Array([137, 80, 78, 71])], "arrow.png", {
+				type: "image/png",
+			}),
+	};
+});
 
 describe("StickersView", () => {
 	beforeEach(() => {
@@ -103,7 +129,7 @@ describe("StickersView", () => {
 		).toBeInTheDocument();
 	});
 
-	it("switches between the library, store, AI, recent, and favorites", () => {
+	it("switches between the library, store, AI, recent, favorites, and sticker lab", () => {
 		render(<StickersView />);
 
 		fireEvent.click(screen.getByRole("button", { name: "商店" }));
@@ -117,6 +143,17 @@ describe("StickersView", () => {
 
 		fireEvent.click(screen.getByRole("button", { name: "AI生成" }));
 		expect(screen.getByTestId("ai-sticker-generator")).toBeInTheDocument();
+
+		const sidebar = screen.getByTestId("sticker-sidebar");
+		const sidebarButtons = within(sidebar).getAllByRole("button");
+		expect(sidebarButtons.at(-1)).toHaveAccessibleName("贴纸实验室");
+		fireEvent.click(
+			within(sidebar).getByRole("button", { name: "贴纸实验室" })
+		);
+		expect(
+			screen.getByTestId("local-sticker-reference-panel")
+		).toBeInTheDocument();
+		expect(screen.getByText("手绘弯箭头")).toBeInTheDocument();
 
 		fireEvent.click(screen.getByTestId("sticker-category-interaction"));
 		expect(screen.getByTestId("sticker-category-grid")).toBeInTheDocument();

@@ -5,6 +5,7 @@ import { AlertCircle } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { useDebounce } from "@/hooks/use-debounce";
+import { getLocalStickerReferences } from "@/lib/stickers/local-sticker-reference";
 import {
 	STICKER_CATEGORIES,
 	getStickerCategoryItems,
@@ -13,6 +14,7 @@ import {
 } from "@/lib/stickers/sticker-catalog";
 import { useStickersStore } from "@/stores/stickers-store";
 import { AIStickerGenerator } from "./components/ai-sticker-generator";
+import { LocalStickerReferencePanel } from "./components/local-sticker-reference-panel";
 import { StickerCatalogGrid } from "./components/sticker-catalog-grid";
 import {
 	StickerSidebar,
@@ -32,6 +34,7 @@ export function StickersView() {
 	const [mode, setMode] = useState<StickerPanelMode>("library");
 	const [isSearching, setIsSearching] = useState(false);
 	const fileInputRef = useRef<HTMLInputElement>(null);
+	const localStickerReferences = useMemo(() => getLocalStickerReferences(), []);
 
 	const {
 		searchResults,
@@ -104,6 +107,9 @@ export function StickersView() {
 		currentTarget.value = "";
 		await Promise.all(files.map((file) => handleStickerUpload({ file })));
 	};
+	const handleLocalReferenceSelect = async ({ file }: { file: File }) => {
+		await handleStickerUpload({ file });
+	};
 
 	const selectMode = ({ mode: nextMode }: { mode: StickerPanelMode }) => {
 		setMode(nextMode);
@@ -164,6 +170,7 @@ export function StickersView() {
 				<StickerSidebar
 					mode={mode}
 					selectedCategory={selectedCategory}
+					showReferenceLab={localStickerReferences.length > 0}
 					onSelectCategory={selectCategory}
 					onSelectMode={selectMode}
 				/>
@@ -201,6 +208,11 @@ export function StickersView() {
 						</div>
 					) : mode === "ai" ? (
 						<AIStickerGenerator onAddGeneratedSticker={handleStickerUpload} />
+					) : mode === "reference-lab" ? (
+						<LocalStickerReferencePanel
+							references={localStickerReferences}
+							onSelect={handleLocalReferenceSelect}
+						/>
 					) : (
 						<div className="flex h-full min-h-0 flex-col">
 							<div className="flex h-10 shrink-0 items-center justify-between border-b border-border/40 px-3 text-[11px]">
