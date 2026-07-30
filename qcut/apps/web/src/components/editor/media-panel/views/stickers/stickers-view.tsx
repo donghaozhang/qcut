@@ -1,11 +1,10 @@
 "use client";
 
-import { useEffect, useMemo, useRef, useState, type ChangeEvent } from "react";
 import { AlertCircle } from "lucide-react";
+import { useEffect, useMemo, useRef, useState, type ChangeEvent } from "react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { useDebounce } from "@/hooks/use-debounce";
-import { getLocalStickerReferences } from "@/lib/stickers/local-sticker-reference";
 import {
 	STICKER_CATEGORIES,
 	getStickerCategoryItems,
@@ -25,6 +24,7 @@ import { StickersRecent } from "./components/stickers-recent";
 import { StickersSearch } from "./components/stickers-search";
 import { StickersSearchResults } from "./components/stickers-search-results";
 import { StickerStorefront } from "./components/sticker-storefront";
+import { useLocalStickerCatalog } from "./hooks/use-local-sticker-catalog";
 import { useStickerSelect } from "./hooks/use-sticker-select";
 
 export function StickersView() {
@@ -34,7 +34,7 @@ export function StickersView() {
 	const [mode, setMode] = useState<StickerPanelMode>("library");
 	const [isSearching, setIsSearching] = useState(false);
 	const fileInputRef = useRef<HTMLInputElement>(null);
-	const localStickerReferences = useMemo(() => getLocalStickerReferences(), []);
+	const localStickerCatalog = useLocalStickerCatalog();
 
 	const {
 		searchResults,
@@ -108,7 +108,10 @@ export function StickersView() {
 		await Promise.all(files.map((file) => handleStickerUpload({ file })));
 	};
 	const handleLocalReferenceSelect = async ({ file }: { file: File }) => {
-		await handleStickerUpload({ file });
+		const mediaItemId = await handleStickerUpload({ file });
+		if (!mediaItemId) {
+			throw new Error("Unable to add local sticker reference");
+		}
 	};
 
 	const selectMode = ({ mode: nextMode }: { mode: StickerPanelMode }) => {
@@ -170,7 +173,7 @@ export function StickersView() {
 				<StickerSidebar
 					mode={mode}
 					selectedCategory={selectedCategory}
-					showReferenceLab={localStickerReferences.length > 0}
+					showReferenceLab={localStickerCatalog.isAvailable}
 					onSelectCategory={selectCategory}
 					onSelectMode={selectMode}
 				/>
@@ -210,7 +213,9 @@ export function StickersView() {
 						<AIStickerGenerator onAddGeneratedSticker={handleStickerUpload} />
 					) : mode === "reference-lab" ? (
 						<LocalStickerReferencePanel
-							references={localStickerReferences}
+							catalog={localStickerCatalog.catalog}
+							error={localStickerCatalog.error}
+							isLoading={localStickerCatalog.isLoading}
 							onSelect={handleLocalReferenceSelect}
 						/>
 					) : (
