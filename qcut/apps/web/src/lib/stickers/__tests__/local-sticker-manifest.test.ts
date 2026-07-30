@@ -26,7 +26,7 @@ describe("local sticker manifest", () => {
 		).toEqual(catalog);
 	});
 
-	it("accepts an animated Jianying preview GIF as an explicit source kind", () => {
+	it("accepts an animated preview GIF as an explicit source kind", () => {
 		const catalog = createLocalStickerCatalog();
 		const firstItem = catalog.categories[0]?.items[0];
 		if (!firstItem) throw new Error("Expected a sticker fixture");
@@ -128,7 +128,7 @@ describe("local sticker manifest", () => {
 
 	it.each([
 		{
-			name: "an object key outside the fixed Jianying asset prefix",
+			name: "an object key outside the catalog namespace",
 			mutate: (candidate: ReturnType<typeof createRemoteStickerCatalog>) => {
 				const firstItem = candidate.categories[0]?.items[0];
 				if (firstItem) firstItem.asset.objectKey = "../private/asset.gif";
@@ -155,6 +155,33 @@ describe("local sticker manifest", () => {
 			message: "greater than 0",
 		},
 		{
+			name: "an asset larger than the private bucket limit",
+			mutate: (candidate: ReturnType<typeof createRemoteStickerCatalog>) => {
+				const firstItem = candidate.categories[0]?.items[0];
+				if (firstItem) firstItem.asset.byteSize = 25 * 1024 * 1024 + 1;
+			},
+			message: "less than or equal to 26214400",
+		},
+		{
+			name: "a category larger than the eager-load budget",
+			mutate: (candidate: ReturnType<typeof createRemoteStickerCatalog>) => {
+				const firstItem = candidate.categories[0]?.items[0];
+				if (firstItem) firstItem.asset.byteSize = 1024 * 1024 + 1;
+			},
+			message: "Category assets exceed 1048576 bytes",
+		},
+		{
+			name: "an unsafe source asset path",
+			mutate: (candidate: ReturnType<typeof createRemoteStickerCatalog>) => {
+				const firstItem = candidate.categories[0]?.items[0];
+				if (firstItem) {
+					firstItem.sourceAsset.path =
+						"apps/web/public/stickers/../private/asset.svg";
+				}
+			},
+			message: "must not contain dot path segments",
+		},
+		{
 			name: "a MIME and object extension mismatch",
 			mutate: (candidate: ReturnType<typeof createRemoteStickerCatalog>) => {
 				const firstItem = candidate.categories[0]?.items[0];
@@ -176,7 +203,7 @@ describe("local sticker manifest", () => {
 				const firstItem = candidate.categories[0]?.items[0];
 				if (firstItem) {
 					firstItem.asset.objectKey =
-						"jianying/another-catalog/assets/popular-1.gif";
+						"catalogs/another-catalog/assets/popular-1.gif";
 				}
 			},
 			message: "must belong to catalog",
@@ -188,6 +215,111 @@ describe("local sticker manifest", () => {
 		expect(() =>
 			parseLocalStickerManifest({ jsonText: JSON.stringify(candidate) })
 		).toThrow(message);
+	});
+
+	it("rejects catalogs larger than the total download budget", () => {
+		const candidate = structuredClone(createRemoteStickerCatalog());
+		const template = candidate.categories[0]?.items[0];
+		if (!template) throw new Error("Expected a remote sticker fixture");
+		candidate.categories = Array.from({ length: 26 }, (_, index) => {
+			const suffix = String(index + 1);
+			const sourceChecksum = (index + 1).toString(16).padStart(64, "0");
+			const renderedChecksum = (index + 101).toString(16).padStart(64, "0");
+			return {
+				id: `category-${suffix}`,
+				label: `Category ${suffix}`,
+				sourcePanel: "QCut original catalog",
+				items: [
+					{
+						...structuredClone(template),
+						id: `item-${suffix}`,
+						displayName: `Sticker ${suffix}`,
+						fileName: `item-${suffix}.gif`,
+						sourceAsset: {
+							collection: "qcut-original",
+							id: `qcut-original:source-${suffix}`,
+							path: `apps/web/public/stickers/qcut-original/source-${suffix}.svg`,
+							checksumSha256: sourceChecksum,
+						},
+						asset: {
+							kind: "supabase-storage" as const,
+							objectKey: `catalogs/qcut-original-test/assets/item-${suffix}.gif`,
+							byteSize: 1024 * 1024,
+							checksumSha256: renderedChecksum,
+						},
+					},
+				],
+			};
+		});
+
+		expect(() =>
+			parseLocalStickerManifest({ jsonText: JSON.stringify(candidate) })
+		).toThrow("Catalog assets exceed 26214400 bytes");
+	});
+
+	it("rejects invalid remote provenance", () => {
+		const absoluteLicensePath = structuredClone(createRemoteStickerCatalog());
+		absoluteLicensePath.provenance.license.licenseFile = "/tmp/LICENSE";
+		expect(() =>
+			parseLocalStickerManifest({
+				jsonText: JSON.stringify(absoluteLicensePath),
+			})
+		).toThrow("repository path must be relative");
+
+		const invalidSourceTree = structuredClone(createRemoteStickerCatalog());
+		invalidSourceTree.provenance.sourceTreeGitOid = "not-a-git-oid";
+		expect(() =>
+			parseLocalStickerManifest({
+				jsonText: JSON.stringify(invalidSourceTree),
+			})
+		).toThrow("Invalid");
+
+		const attributionRequired = structuredClone(createRemoteStickerCatalog());
+		(
+			attributionRequired.provenance.license as {
+				attributionRequired: boolean;
+			}
+		).attributionRequired = true;
+		expect(() =>
+			parseLocalStickerManifest({
+				jsonText: JSON.stringify(attributionRequired),
+			})
+		).toThrow("Invalid literal value");
+
+		const duplicateSourceCollection = structuredClone(
+			createRemoteStickerCatalog()
+		);
+		duplicateSourceCollection.provenance.sourceCollections.push(
+			"qcut-original"
+		);
+		expect(() =>
+			parseLocalStickerManifest({
+				jsonText: JSON.stringify(duplicateSourceCollection),
+			})
+		).toThrow("Source collections must be unique");
+	});
+
+	it("rejects undeclared or inconsistent source asset collections", () => {
+		const undeclaredCollection = structuredClone(createRemoteStickerCatalog());
+		const undeclaredItem = undeclaredCollection.categories[0]?.items[0];
+		if (!undeclaredItem) throw new Error("Expected a remote sticker fixture");
+		undeclaredItem.sourceAsset.collection = "qcut-themed";
+		undeclaredItem.sourceAsset.id = "qcut-themed:popular-1";
+		expect(() =>
+			parseLocalStickerManifest({
+				jsonText: JSON.stringify(undeclaredCollection),
+			})
+		).toThrow("Source collection is not declared");
+
+		const inconsistentId = structuredClone(createRemoteStickerCatalog());
+		const inconsistentItem = inconsistentId.categories[0]?.items[0];
+		if (!inconsistentItem) throw new Error("Expected a remote sticker fixture");
+		inconsistentItem.sourceAsset.id = "qcut-themed:popular-1";
+		expect(() =>
+			parseLocalStickerManifest({
+				jsonText: JSON.stringify(inconsistentId),
+			})
+		).toThrow("Source asset id must use the qcut-original: prefix");
 	});
 
 	it("rejects duplicate v2 sticker and object identities", () => {
@@ -206,6 +338,30 @@ describe("local sticker manifest", () => {
 		expect(() =>
 			parseLocalStickerManifest({ jsonText: JSON.stringify(candidate) })
 		).toThrow("Duplicate sticker object key");
+	});
+
+	it("rejects duplicate v2 source assets and rendered artwork", () => {
+		const candidate = structuredClone(createRemoteStickerCatalog());
+		const firstItem = candidate.categories[0]?.items[0];
+		const secondItem = candidate.categories[0]?.items[1];
+		if (!firstItem || !secondItem) {
+			throw new Error("Expected two remote sticker fixtures");
+		}
+		secondItem.sourceAsset = structuredClone(firstItem.sourceAsset);
+		secondItem.asset.checksumSha256 = firstItem.asset.checksumSha256;
+
+		expect(() =>
+			parseLocalStickerManifest({ jsonText: JSON.stringify(candidate) })
+		).toThrow("Duplicate source asset id");
+		expect(() =>
+			parseLocalStickerManifest({ jsonText: JSON.stringify(candidate) })
+		).toThrow("Duplicate source asset path");
+		expect(() =>
+			parseLocalStickerManifest({ jsonText: JSON.stringify(candidate) })
+		).toThrow("Duplicate source asset checksum");
+		expect(() =>
+			parseLocalStickerManifest({ jsonText: JSON.stringify(candidate) })
+		).toThrow("Duplicate sticker checksum");
 	});
 
 	it("rejects duplicate category, sticker, and file identities", () => {
