@@ -2,7 +2,9 @@ import type { Plugin } from "vite";
 import {
 	LICENSE_SERVER_BUILD_CONFIG_FILENAME,
 	type LicenseServerBuildConfig,
+	resolveLicenseServerDevelopmentConfigPath,
 	serializeLicenseServerBuildConfig,
+	writeLicenseServerBuildConfig,
 } from "../../electron/license-server-build-config";
 import {
 	DEFAULT_LICENSE_SERVER_ORIGIN,
@@ -10,6 +12,25 @@ import {
 } from "../../electron/license-server-csp";
 
 export const LICENSE_SERVER_CSP_ANCHOR = DEFAULT_LICENSE_SERVER_ORIGIN;
+
+export function persistLicenseServerDevelopmentConfig({
+	buildConfig,
+	cacheDirectory,
+	command,
+}: {
+	buildConfig: LicenseServerBuildConfig;
+	cacheDirectory: string;
+	command: "build" | "serve";
+}): void {
+	if (command !== "serve") return;
+
+	writeLicenseServerBuildConfig({
+		buildConfig,
+		configPath: resolveLicenseServerDevelopmentConfigPath({
+			cacheDirectory,
+		}),
+	});
+}
 
 export function injectLicenseServerCspOrigins({
 	html,
@@ -39,6 +60,13 @@ export function createLicenseServerBuildPlugin({
 }): Plugin {
 	return {
 		name: "qcut-license-server-build-config",
+		configResolved(config) {
+			persistLicenseServerDevelopmentConfig({
+				buildConfig,
+				cacheDirectory: config.cacheDir,
+				command: config.command,
+			});
+		},
 		transformIndexHtml(html) {
 			return injectLicenseServerCspOrigins({ html, buildConfig });
 		},
