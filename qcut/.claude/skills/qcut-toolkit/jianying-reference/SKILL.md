@@ -164,6 +164,39 @@ const jy = (f: number) => Math.min(N, Math.floor(Math.min(1, f / F) * (N + 1)));
   not the folder name.
 - The panel window can get resized between sessions — re-anchor card
   coordinates from a fresh screenshot instead of reusing yesterday's grid.
+- `screencapture -l <windowID>` pads the image with the window shadow, and
+  the margin CHANGES with focus state (focused windows cast bigger shadows)
+  — a mapping calibrated on one capture silently drifts on the next. Prefer
+  a display-rect capture (`screencapture -R -1920,0,1920,1080`) of only the
+  display Jianying is on: pixel == global coordinate, stable, and it cannot
+  photograph the user's other displays.
+- `cliclick` treats a negative coordinate as a RELATIVE move unless prefixed
+  with `=` (`c:=-654,160`). On a display left of main, un-prefixed clicks
+  land at arbitrary offsets and look like the app "ignored" them.
+- macOS keeps re-fronting the Claude app between tool calls. Start every
+  interaction batch with `set frontmost of process "VideoFusion-macOS"`,
+  verify frontmost, and do all clicks/keys inside that same shell call.
+- Frame stepping: `cliclick kp:arrow-left` mostly gets swallowed by
+  Jianying; System Events `key code 123/124` with ~0.3s delays is reliable
+  and frame-exact (verify by cropping the player timecode).
+- Jianying ignores every synthetic scroll injection (line, pixel, phased
+  trackpad CGEvents, drag-scroll) — deep list items are unreachable by
+  scrolling. Use the animation panel's magnifier search instead: click it,
+  `osascript -e 'set the clipboard to "彩带喷射"'`, Cmd+V, Return.
+  (`printf | pbcopy` yields mojibake — always set the clipboard via
+  AppleScript for CJK.)
+- NEVER send Cmd+A unless a text field is visibly focused: if the search
+  box closed itself, Cmd+A selects every timeline clip and a follow-up
+  Delete wipes the project (Cmd+Z recovers — check the timeline crop
+  immediately after any destructive-capable keystroke).
+- Re-applying an already-cached effect leaves ZERO disk trace (no new files
+  anywhere under `Cache/`), so an mtime marker proves nothing either way —
+  only the card's download arrow disappearing confirms the apply.
+- Not everything is procedural: 彩带喷射 ships a side-by-side alpha MP4
+  (left=matte right=color) plus a RadialBlur node, and 福袋炸开 composites
+  prerendered 3D assets. Check `find <pkg> -name "*alpha*.mp4"` before
+  hunting for emitter math; if the reference is baked footage, port a
+  procedural approximation and record it as a known difference.
 
 ## Scope Notes
 
