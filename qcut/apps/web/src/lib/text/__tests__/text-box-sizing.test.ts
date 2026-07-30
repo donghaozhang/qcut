@@ -97,6 +97,20 @@ describe("fitTextElementBoxToContent", () => {
 		expect(fitted).toBe(element);
 	});
 
+	it("grows an existing box when edited content needs more room", () => {
+		const element = createTextElement({
+			overrides: { width: 240, height: 100 },
+		});
+		const fitted = fitTextElementBoxToContent({
+			element,
+			measureTextWidth: () => 414,
+			mode: "grow",
+		});
+
+		expect(fitted.width).toBe(442);
+		expect(fitted.height).toBe(120);
+	});
+
 	it("keeps an empty text box selectable", () => {
 		const element = createTextElement({ overrides: { content: "   " } });
 		expect(fitTextElementBoxToContent({ element })).toBe(element);
