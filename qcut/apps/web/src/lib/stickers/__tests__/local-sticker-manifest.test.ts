@@ -1,13 +1,25 @@
 import { describe, expect, it, vi } from "vitest";
-import { createLocalStickerCatalog } from "./fixtures/local-sticker-catalog";
+import {
+	createLocalStickerCatalog,
+	createRemoteStickerCatalog,
+} from "./fixtures/local-sticker-catalog";
 import {
 	loadLocalStickerManifest,
+	loadRemoteStickerManifest,
 	parseLocalStickerManifest,
 } from "../local-sticker-manifest";
 
 describe("local sticker manifest", () => {
 	it("parses a strict v1 catalog with one or more items per category", () => {
 		const catalog = createLocalStickerCatalog();
+
+		expect(
+			parseLocalStickerManifest({ jsonText: JSON.stringify(catalog) })
+		).toEqual(catalog);
+	});
+
+	it("parses a strict v2 Supabase catalog", () => {
+		const catalog = createRemoteStickerCatalog();
 
 		expect(
 			parseLocalStickerManifest({ jsonText: JSON.stringify(catalog) })
@@ -48,7 +60,7 @@ describe("local sticker manifest", () => {
 		{
 			name: "wrong version",
 			mutate: (candidate: Record<string, unknown>) => {
-				candidate.version = 2;
+				candidate.version = 3;
 			},
 			message: "version",
 		},
@@ -112,6 +124,88 @@ describe("local sticker manifest", () => {
 		expect(() =>
 			parseLocalStickerManifest({ jsonText: JSON.stringify(candidate) })
 		).toThrow(message);
+	});
+
+	it.each([
+		{
+			name: "an object key outside the fixed Jianying asset prefix",
+			mutate: (candidate: ReturnType<typeof createRemoteStickerCatalog>) => {
+				const firstItem = candidate.categories[0]?.items[0];
+				if (firstItem) firstItem.asset.objectKey = "../private/asset.gif";
+			},
+			message: "Invalid",
+		},
+		{
+			name: "an uppercase checksum",
+			mutate: (candidate: ReturnType<typeof createRemoteStickerCatalog>) => {
+				const firstItem = candidate.categories[0]?.items[0];
+				if (firstItem) {
+					firstItem.asset.checksumSha256 =
+						firstItem.asset.checksumSha256.toLocaleUpperCase();
+				}
+			},
+			message: "Invalid",
+		},
+		{
+			name: "a zero byte asset",
+			mutate: (candidate: ReturnType<typeof createRemoteStickerCatalog>) => {
+				const firstItem = candidate.categories[0]?.items[0];
+				if (firstItem) firstItem.asset.byteSize = 0;
+			},
+			message: "greater than 0",
+		},
+		{
+			name: "a MIME and object extension mismatch",
+			mutate: (candidate: ReturnType<typeof createRemoteStickerCatalog>) => {
+				const firstItem = candidate.categories[0]?.items[0];
+				if (firstItem) firstItem.mimeType = "image/png";
+			},
+			message: "require .png object keys",
+		},
+		{
+			name: "a MIME and file name extension mismatch",
+			mutate: (candidate: ReturnType<typeof createRemoteStickerCatalog>) => {
+				const firstItem = candidate.categories[0]?.items[0];
+				if (firstItem) firstItem.fileName = "popular-1.png";
+			},
+			message: "require .gif file names",
+		},
+		{
+			name: "an object key from another catalog",
+			mutate: (candidate: ReturnType<typeof createRemoteStickerCatalog>) => {
+				const firstItem = candidate.categories[0]?.items[0];
+				if (firstItem) {
+					firstItem.asset.objectKey =
+						"jianying/another-catalog/assets/popular-1.gif";
+				}
+			},
+			message: "must belong to catalog",
+		},
+	])("rejects v2 $name", ({ mutate, message }) => {
+		const candidate = structuredClone(createRemoteStickerCatalog());
+		mutate(candidate);
+
+		expect(() =>
+			parseLocalStickerManifest({ jsonText: JSON.stringify(candidate) })
+		).toThrow(message);
+	});
+
+	it("rejects duplicate v2 sticker and object identities", () => {
+		const candidate = structuredClone(createRemoteStickerCatalog());
+		const firstItem = candidate.categories[0]?.items[0];
+		const secondItem = candidate.categories[0]?.items[1];
+		if (!firstItem || !secondItem) {
+			throw new Error("Expected two remote sticker fixtures");
+		}
+		secondItem.id = firstItem.id;
+		secondItem.asset.objectKey = firstItem.asset.objectKey;
+
+		expect(() =>
+			parseLocalStickerManifest({ jsonText: JSON.stringify(candidate) })
+		).toThrow("Duplicate sticker id");
+		expect(() =>
+			parseLocalStickerManifest({ jsonText: JSON.stringify(candidate) })
+		).toThrow("Duplicate sticker object key");
 	});
 
 	it("rejects duplicate category, sticker, and file identities", () => {
@@ -188,6 +282,65 @@ describe("local sticker manifest", () => {
 		expect(readFile).toHaveBeenCalledWith({
 			filePath: "/tmp/sticker-manifest.json",
 		});
+	});
+
+	it("fetches and validates a remote v2 manifest", async () => {
+		const catalog = createRemoteStickerCatalog();
+		const fetchImpl = vi.fn(async () =>
+			Promise.resolve(
+				new Response(JSON.stringify(catalog), {
+					status: 200,
+					headers: { "Content-Type": "application/json" },
+				})
+			)
+		);
+
+		await expect(
+			loadRemoteStickerManifest({
+				manifestUrl: "/sticker-lab/catalog.json",
+				fetchImpl,
+			})
+		).resolves.toEqual(catalog);
+		expect(fetchImpl).toHaveBeenCalledWith("/sticker-lab/catalog.json", {
+			signal: undefined,
+		});
+	});
+
+	it("rejects failed, empty, and oversized remote manifest responses", async () => {
+		await expect(
+			loadRemoteStickerManifest({
+				manifestUrl: "/missing.json",
+				fetchImpl: async () => new Response("", { status: 404 }),
+			})
+		).rejects.toThrow("Unable to fetch sticker lab manifest (404)");
+
+		await expect(
+			loadRemoteStickerManifest({
+				manifestUrl: "/empty.json",
+				fetchImpl: async () => new Response(null, { status: 200 }),
+			})
+		).rejects.toThrow("Unable to fetch sticker lab manifest");
+
+		await expect(
+			loadRemoteStickerManifest({
+				manifestUrl: "/oversized.json",
+				fetchImpl: async () =>
+					new Response("{}", {
+						status: 200,
+						headers: { "Content-Length": `${1024 * 1024 + 1}` },
+					}),
+			})
+		).rejects.toThrow("exceeds 1048576 bytes");
+	});
+
+	it("does not let a fetched v1 manifest select arbitrary local files", async () => {
+		await expect(
+			loadRemoteStickerManifest({
+				manifestUrl: "/unsafe-v1.json",
+				fetchImpl: async () =>
+					new Response(JSON.stringify(createLocalStickerCatalog())),
+			})
+		).rejects.toThrow("must use version 2");
 	});
 
 	it("reports malformed, missing, and non-UTF-8 manifest files", async () => {
