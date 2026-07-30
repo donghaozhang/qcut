@@ -72,7 +72,7 @@ vi.mock("@/lib/stickers/local-sticker-reference", async (importOriginal) => {
 		>();
 	return {
 		...actual,
-		loadLocalStickerReferenceFile: async ({
+		loadStickerLabReferenceFile: async ({
 			reference,
 		}: {
 			reference: { fileName: string };
