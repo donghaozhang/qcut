@@ -8,6 +8,23 @@ argument-hint: [task description]
 
 Unified entry point for QCut's sub-skills. Route tasks to the appropriate sub-skill based on what the user needs.
 
+## Voiceover Policy
+
+Finished narration must use ByteDance Seed Audio through QCut:
+
+```bash
+bun run pipeline gen tts -m seed_audio -t "<directed narration>" \
+  --audio-format mp3 --sample-rate 48000
+```
+
+- Route voiceover generation to `ai-content-pipeline`; promo-specific timing
+  and mixing rules live in `qcut-shot` and `qcut-cityfilm`.
+- Never ship macOS `say`, Windows SAPI, `espeak`, or another operating-system
+  voice. System TTS may only create a temporary timing placeholder.
+- If Seed Audio or its provider credentials are unavailable, fail explicitly
+  and keep the previous deliverable unchanged. Do not silently fall back to
+  system TTS.
+
 ## Sub-Skills
 
 ### 1. native-cli — Project Setup & Native Pipeline Commands

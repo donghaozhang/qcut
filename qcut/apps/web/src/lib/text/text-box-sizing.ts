@@ -106,6 +106,8 @@ export function fitTextElementBoxToContent({
 	);
 
 	if (mode === "grow") {
+		if (fittedWidth <= currentWidth && fittedHeight <= currentHeight)
+			return element;
 		return {
 			...element,
 			width: Math.max(currentWidth, fittedWidth),

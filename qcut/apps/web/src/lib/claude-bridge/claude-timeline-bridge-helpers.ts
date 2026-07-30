@@ -32,6 +32,12 @@ import {
 	MIN_PLAYBACK_RATE,
 } from "@/lib/video/video-speed-constants";
 import { getMediaTimelineDuration } from "@/lib/video/video-timing";
+import {
+	applyTextAnimationPreset,
+	getTextAnimationPreset,
+	updateTextAnimationPhaseTiming,
+} from "@/lib/text/text-animation-presets";
+import type { TextAnimationPhase } from "@/lib/text/text-animation-presets";
 
 const CLAUDE_MEDIA_ELEMENT_TYPES = {
 	media: "media",
@@ -94,7 +100,7 @@ type ClaudeTextPropertyKey = (typeof CLAUDE_TEXT_PROPERTY_KEYS)[number];
 
 export type ValidatedClaudeTextProperties = Omit<
 	ClaudeTextProperties,
-	"textAnimations"
+	"textAnimations" | "textAnimationPreset"
 > & {
 	textAnimations?: TextAnimationsV1;
 };
@@ -103,7 +109,7 @@ const isFiniteNumber = (value: unknown): boolean =>
 	typeof value === "number" && Number.isFinite(value);
 const isString = (value: unknown): boolean => typeof value === "string";
 const isBoolean = (value: unknown): boolean => typeof value === "boolean";
-const isPlainObject = (value: unknown): boolean =>
+const isPlainObject = (value: unknown): value is Record<string, unknown> =>
 	typeof value === "object" && value !== null && !Array.isArray(value);
 const oneOf =
 	(...allowed: string[]) =>
@@ -234,6 +240,55 @@ export function getClaudeTextProperties({
 			continue;
 		}
 		properties[key] = value;
+	}
+
+	const presetValue = element.textAnimationPreset ?? style.textAnimationPreset;
+	if (presetValue !== undefined) {
+		if (!isPlainObject(presetValue)) {
+			throw new Error("Text animation preset must be an object");
+		}
+		const phase = presetValue.phase;
+		const presetId = presetValue.presetId;
+		if (phase !== "entrance" && phase !== "exit" && phase !== "loop") {
+			throw new Error(`Invalid text animation phase: ${String(phase)}`);
+		}
+		if (typeof presetId !== "string" || !presetId.trim()) {
+			throw new Error("Text animation preset requires presetId");
+		}
+		const preset = getTextAnimationPreset({
+			phase: phase as TextAnimationPhase,
+			presetId,
+		});
+		if (preset.id !== presetId) {
+			throw new Error(`Unknown ${phase} text animation preset: ${presetId}`);
+		}
+		const currentAnimations = properties.textAnimations as
+			| TextAnimationsV1
+			| undefined;
+		let animations = applyTextAnimationPreset({
+			animations: currentAnimations,
+			preset,
+		});
+		const duration = presetValue.duration;
+		const delay = presetValue.delay;
+		if (
+			(duration !== undefined &&
+				(!isFiniteNumber(duration) || (duration as number) <= 0)) ||
+			(delay !== undefined && (!isFiniteNumber(delay) || (delay as number) < 0))
+		) {
+			throw new Error(
+				"Text animation preset duration must be > 0 and delay must be >= 0"
+			);
+		}
+		if (duration !== undefined || delay !== undefined) {
+			animations = updateTextAnimationPhaseTiming({
+				animations,
+				phase,
+				duration: duration as number | undefined,
+				delay: delay as number | undefined,
+			});
+		}
+		properties.textAnimations = animations;
 	}
 	return properties as ValidatedClaudeTextProperties;
 }

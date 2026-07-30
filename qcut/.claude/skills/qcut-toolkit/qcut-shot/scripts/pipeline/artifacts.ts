@@ -2,8 +2,15 @@ import { copyFileSync, existsSync, writeFileSync } from "node:fs";
 import { homedir } from "node:os";
 import { join, resolve } from "node:path";
 import { loadBasePrompt } from "./references";
-import type { AnalysisResult, Scene, SceneBreakdown, ShotRenderManifest } from "../core/types";
+import type {
+	AnalysisResult,
+	PromoTextAnimationPreset,
+	Scene,
+	SceneBreakdown,
+	ShotRenderManifest,
+} from "../core/types";
 import { ensureDir } from "../core/utils";
+import { writePromoArtifacts } from "./promo";
 
 function qcutBasePath(): string {
 	return join(homedir(), "Documents", "QCut");
@@ -345,6 +352,10 @@ export function renderShotArtifacts({
 		analysis: AnalysisResult;
 		breakdown: SceneBreakdown;
 		styleInstructions: string;
+		promo?: {
+			shotDuration: number;
+			presets?: PromoTextAnimationPreset[];
+		};
 	};
 }): void {
 	ensureDir({ path: project.shotDir });
@@ -366,4 +377,13 @@ export function renderShotArtifacts({
 		breakdown: project.breakdown,
 		styleInstructions: project.styleInstructions,
 	});
+	if (project.promo) {
+		writePromoArtifacts({
+			shotDir: project.shotDir,
+			analysis: project.analysis,
+			breakdown: project.breakdown,
+			shotDuration: project.promo.shotDuration,
+			presets: project.promo.presets,
+		});
+	}
 }

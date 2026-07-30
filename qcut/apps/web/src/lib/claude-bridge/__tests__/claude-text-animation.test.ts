@@ -32,6 +32,7 @@ const storeMocks = vi.hoisted(() => {
 		duration: 5,
 		trimStart: 0,
 		trimEnd: 0,
+		textAnimations: textAnimations(),
 	};
 	const state = {
 		tracks: [
@@ -132,6 +133,65 @@ describe("Claude text animation bridge", () => {
 			sequence: { staggerRatio: 0.95 },
 			effect: { kind: "fade", minimumOpacity: 0 },
 		});
+	});
+
+	it("resolves declarative preset requests while preserving existing phases", () => {
+		const properties = getClaudeTextProperties({
+			element: {
+				textAnimations: textAnimations(),
+				textAnimationPreset: {
+					phase: "loop",
+					presetId: "heartbeat",
+					duration: 1.8,
+				},
+			},
+		});
+
+		expect(properties.textAnimations?.entrance).toBeDefined();
+		expect(properties.textAnimations?.loop).toMatchObject({
+			sourcePreset: { id: "heartbeat", version: 1 },
+			timing: { duration: 1.8 },
+		});
+		expect(() =>
+			getClaudeTextProperties({
+				element: {
+					textAnimationPreset: {
+						phase: "entrance",
+						presetId: "does-not-exist",
+					},
+				},
+			})
+		).toThrow("Unknown entrance text animation preset");
+	});
+
+	it("applies a preset request through timeline element updates", () => {
+		const applied = applyElementChanges({
+			elementId: "title",
+			changes: {
+				style: {
+					textAnimationPreset: {
+						phase: "loop",
+						presetId: "wave",
+					},
+				},
+			},
+			pushHistory: true,
+		});
+
+		expect(applied).toBe(true);
+		expect(storeMocks.state.updateTextElement).toHaveBeenCalledWith(
+			"text-track",
+			"title",
+			expect.objectContaining({
+				textAnimations: expect.objectContaining({
+					entrance: expect.any(Object),
+					loop: expect.objectContaining({
+						sourcePreset: { id: "wave", version: 1 },
+					}),
+				}),
+			}),
+			false
+		);
 	});
 
 	it("rejects malformed and future schemas instead of downgrading them", () => {

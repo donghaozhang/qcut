@@ -4,6 +4,12 @@ export type Lighting = "natural" | "bright" | "dramatic" | "low-key" | "neon" | 
 export type ShotMood = "grounded" | "warm" | "tense" | "moody" | "polished" | "heightened";
 export type Medium = "live-action" | "animation" | "hybrid" | "cgi";
 export type ContentFormat = "film" | "tv-series" | "documentary" | "variety" | "short-film" | "short-video";
+export type PromoTextAnimationPhase = "entrance" | "exit" | "loop";
+
+export interface PromoTextAnimationPreset {
+	phase: PromoTextAnimationPhase;
+	presetId: string;
+}
 
 export interface CLIOptions {
 	input: string;
@@ -24,6 +30,9 @@ export interface CLIOptions {
 	provider?: string;
 	model?: string;
 	dryRun: boolean;
+	promo?: boolean;
+	shotDuration?: number;
+	promoPresets?: PromoTextAnimationPreset[];
 }
 
 export interface Character {
@@ -91,6 +100,10 @@ export interface ShotProject {
 	analysis: AnalysisResult;
 	breakdown: SceneBreakdown;
 	styleInstructions: string;
+	promo?: {
+		shotDuration: number;
+		presets?: PromoTextAnimationPreset[];
+	};
 }
 
 export interface ShotRenderManifest {

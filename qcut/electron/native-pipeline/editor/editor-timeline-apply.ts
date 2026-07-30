@@ -126,6 +126,7 @@ const TEXT_VERIFY_KEYS = [
 	"animationDuration",
 	"animationDelay",
 	"textAnimations",
+	"textAnimationPreset",
 	"keyframes",
 	"blendMode",
 	"trackingTargetId",
@@ -146,6 +147,10 @@ const MEDIA_VERIFY_KEYS = [
 
 function isRecord(value: unknown): value is JsonRecord {
 	return typeof value === "object" && value !== null && !Array.isArray(value);
+}
+
+function stringValue(record: JsonRecord, key: string): string | undefined {
+	return typeof record[key] === "string" ? (record[key] as string) : undefined;
 }
 
 function aliasFor(
@@ -181,6 +186,9 @@ function expectedReadBackValue({
 	key: string;
 }): unknown {
 	const value = expected[key];
+	if (key === "textAnimationPreset" && isRecord(value)) {
+		return stringValue(value, "presetId");
+	}
 	if (
 		key !== "duration" ||
 		expected.type !== "media" ||
@@ -192,6 +200,32 @@ function expectedReadBackValue({
 		typeof expected.trimStart === "number" ? expected.trimStart : 0;
 	const trimEnd = typeof expected.trimEnd === "number" ? expected.trimEnd : 0;
 	return Math.max(0, value - trimStart - trimEnd);
+}
+
+function actualReadBackValue({
+	actual,
+	expected,
+	key,
+}: {
+	actual: JsonRecord;
+	expected: ManifestElement;
+	key: string;
+}): unknown {
+	if (key === "textAnimationPreset") {
+		const request = expected.textAnimationPreset;
+		if (!isRecord(request)) return;
+		const phase = stringValue(request, "phase");
+		if (!phase) return;
+		const animations = actual.textAnimations;
+		if (!isRecord(animations)) return;
+		const phaseState = animations[phase];
+		if (!isRecord(phaseState)) {
+			return stringValue(request, "presetId") === "none" ? "none" : undefined;
+		}
+		const sourcePreset = phaseState.sourcePreset;
+		return isRecord(sourcePreset) ? stringValue(sourcePreset, "id") : undefined;
+	}
+	return actual[key] ?? (actual.style as JsonRecord | undefined)?.[key];
 }
 
 async function resolveActiveProjectId(
@@ -335,10 +369,13 @@ async function createManifestTracks({
 	const basePath = `/api/claude/timeline/${encodeURIComponent(projectId)}`;
 	const before = await client.get<TimelineSnapshot>(basePath);
 	let preservedMainId: string | undefined;
+	let mainManifestIndex = -1;
 	if (replace) {
-		if (manifest.tracks?.[0]?.type !== "media") {
+		mainManifestIndex =
+			manifest.tracks?.findIndex((track) => track.type === "media") ?? -1;
+		if (mainManifestIndex < 0) {
 			throw new Error(
-				"A replace manifest must start with a media track for QCut's required main track"
+				"A replace manifest must contain a media track for QCut's required main track"
 			);
 		}
 		const mainTrack = before.tracks.find((track) => track.isMain);
@@ -378,7 +415,7 @@ async function createManifestTracks({
 		if (!track.type) throw new Error(`Track ${index} is missing type`);
 		const alias = aliasFor(track, `track-${index}`);
 		const existingId = replace
-			? index === 0
+			? index === mainManifestIndex
 				? preservedMainId
 				: undefined
 			: (track.trackId ??
@@ -616,8 +653,11 @@ function verifyManifest({
 		]) {
 			const expectedValue = expectedReadBackValue({ expected, key });
 			if (expectedValue === undefined) continue;
-			const actualValue =
-				actual[key] ?? (actual.style as JsonRecord | undefined)?.[key];
+			const actualValue = actualReadBackValue({
+				actual,
+				expected,
+				key,
+			});
 			if (!valuesMatch(expectedValue, actualValue)) {
 				issues.push(`element '${alias}' field '${key}' did not match`);
 			}

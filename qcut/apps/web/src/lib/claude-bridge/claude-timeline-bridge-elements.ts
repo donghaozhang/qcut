@@ -47,12 +47,26 @@ export const applyElementChanges = ({
 			return false;
 		}
 
+		const styleChanges =
+			typeof changes.style === "object" &&
+			changes.style !== null &&
+			!Array.isArray(changes.style)
+				? changes.style
+				: undefined;
+		const updatesTextAnimationPreset =
+			changes.textAnimationPreset !== undefined ||
+			styleChanges?.textAnimationPreset !== undefined;
 		const textUpdates =
 			element.type === "text"
 				? {
 						...getClaudeTextProperties({
-							element: changes as Partial<ClaudeElement> &
-								Record<string, unknown>,
+							element: {
+								...(updatesTextAnimationPreset &&
+								element.textAnimations !== undefined
+									? { textAnimations: element.textAnimations }
+									: {}),
+								...changes,
+							} as Partial<ClaudeElement> & Record<string, unknown>,
 						}),
 						...(typeof changes.content === "string"
 							? { content: changes.content }
