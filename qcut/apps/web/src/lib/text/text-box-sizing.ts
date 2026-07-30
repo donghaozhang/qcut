@@ -37,9 +37,11 @@ function getCurveDepth({
 export function fitTextElementBoxToContent({
 	element,
 	measureTextWidth,
+	mode = "shrink",
 }: {
 	element: CreateTextElement;
 	measureTextWidth?: TextWidthMeasurer;
+	mode?: "grow" | "shrink";
 }): CreateTextElement {
 	if (!element.content.trim()) return element;
 
@@ -103,9 +105,16 @@ export function fitTextElementBoxToContent({
 		lines.length * fontSize * lineHeight + curveDepth + boxOutset
 	);
 
+	if (mode === "grow") {
+		return {
+			...element,
+			width: Math.max(currentWidth, fittedWidth),
+			height: Math.max(currentHeight, fittedHeight),
+		};
+	}
+
 	// Preserve intentionally constrained boxes whose content already wraps.
-	if (fittedWidth > currentWidth || fittedHeight > currentHeight)
-		return element;
+	if (fittedWidth > currentWidth || fittedHeight > currentHeight) return element;
 
 	return {
 		...element,

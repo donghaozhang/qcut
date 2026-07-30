@@ -59,6 +59,7 @@ import {
 	TEXT_KEYFRAME_PROPERTIES,
 	upsertTextKeyframe,
 } from "@/lib/text/text-keyframes";
+import { fitTextElementBoxToContent } from "@/lib/text/text-box-sizing";
 import type { EasingType, Keyframe } from "@/lib/remotion/keyframe-converter";
 import {
 	PropertyItem,
@@ -99,6 +100,7 @@ interface NumberControlProps {
 	suffix?: string;
 	/** Hide the slider so two controls fit side by side (JianYing-style spacing row). */
 	compact?: boolean;
+	testId?: string;
 }
 
 function NumberControl({
@@ -110,6 +112,7 @@ function NumberControl({
 	onChange,
 	suffix,
 	compact = false,
+	testId,
 }: NumberControlProps) {
 	const [inputValue, setInputValue] = useState(String(value));
 
@@ -150,6 +153,7 @@ function NumberControl({
 						<Input
 							type="number"
 							aria-label={`${label} value`}
+							data-testid={testId}
 							value={inputValue}
 							min={min}
 							max={max}
@@ -786,10 +790,21 @@ export function TextProperties({
 		<div className="space-y-5 p-5" data-testid="text-properties">
 			<Textarea
 				aria-label={t("textProperties.aria.textContent")}
+				data-testid="text-content-input"
 				placeholder={t("textProperties.placeholder.enterText")}
 				value={element.content}
 				className="min-h-24 resize-y bg-background/50"
-				onChange={(event) => update({ content: event.target.value })}
+				onChange={(event) => {
+					const fitted = fitTextElementBoxToContent({
+						element: { ...element, content: event.target.value },
+						mode: "grow",
+					});
+					update({
+						content: fitted.content,
+						width: fitted.width,
+						height: fitted.height,
+					});
+				}}
 			/>
 
 			<PropertyGroup
@@ -811,6 +826,7 @@ export function TextProperties({
 
 					<NumberControl
 						label={t("textProperties.label.fontSize")}
+						testId="text-font-size-input"
 						value={element.fontSize}
 						min={8}
 						max={300}
