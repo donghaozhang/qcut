@@ -1,7 +1,7 @@
 export const DEFAULT_LICENSE_SERVER_ORIGIN =
 	"https://qcut-license-server.zdhpeter.workers.dev";
 
-function parseAllowedLicenseServerOrigin({
+export function resolveAllowedLicenseServerOrigin({
 	configuredUrl,
 }: {
 	configuredUrl: string;
@@ -27,7 +27,7 @@ export function resolveLicenseServerCspOrigins({
 }): string[] {
 	const origins = new Set([DEFAULT_LICENSE_SERVER_ORIGIN]);
 	const configuredOrigin = configuredUrl
-		? parseAllowedLicenseServerOrigin({ configuredUrl })
+		? resolveAllowedLicenseServerOrigin({ configuredUrl })
 		: null;
 
 	if (configuredOrigin) {
