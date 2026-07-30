@@ -249,6 +249,7 @@ export type {
 	TextFoldEffect,
 	TextSpiralEffect,
 	TextScatterEffect,
+	TextTumbleEffect,
 	TextHeartEffect,
 	TextLaserEffect,
 	TextOrbitEffect,

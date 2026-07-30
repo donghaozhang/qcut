@@ -338,6 +338,14 @@ function resolveEffectEnvelope({
 		envelope.rotationDeg = 360 * effect.turns;
 		return envelope;
 	}
+	if (effect.kind === "tumble") {
+		envelope.translateY = resolveDistance({
+			distance: effect.drop,
+			...context,
+		});
+		envelope.rotationDeg = Math.abs(effect.spinDeg);
+		return envelope;
+	}
 	if (effect.kind === "scatter") {
 		const travel = resolveDistance({ distance: effect.distance, ...context });
 		envelope.translateX = travel;

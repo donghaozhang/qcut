@@ -128,6 +128,12 @@ function scaleEffectIntensity({
 				},
 				rotateDeg: effect.rotateDeg * factor,
 			};
+		case "tumble":
+			return {
+				...effect,
+				spinDeg: effect.spinDeg * factor,
+				drop: { ...effect.drop, value: effect.drop.value * factor },
+			};
 		default:
 			return effect;
 	}
@@ -168,6 +174,8 @@ function primaryEffectAmplitude({
 			return Math.abs(effect.drop.value);
 		case "scatter":
 			return Math.abs(effect.distance.value);
+		case "tumble":
+			return Math.abs(effect.drop.value);
 		default:
 			return 1;
 	}

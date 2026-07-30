@@ -596,6 +596,11 @@ function edgeVisual({
 				effect.shakeEm *
 				layout.fontSize *
 				0.7;
+			// The captured reference renders the shake as motion-blur smear.
+			visual.blurPx = Math.max(
+				visual.blurPx,
+				effect.shakeEm * layout.fontSize * 0.6
+			);
 		}
 		if (effect.fade) visual.opacity = presence;
 	}
@@ -636,6 +641,19 @@ function edgeVisual({
 			Math.sin(angle) * radius +
 			resolveDistance({ distance: effect.drop, layout }) * radialProgress ** 2;
 		visual.rotationDeg = (angle * 180) / Math.PI;
+		if (effect.fade) visual.opacity = presence;
+	}
+	if (effect.kind === "tumble") {
+		// Jianying's RotateFlyOut: cubic-in shrink to zero with spin and
+		// drop; the glyph vanishes by scale, not by fading.
+		const out = role === "entrance" ? 1 - progress : progress;
+		const drive = out ** 3;
+		const scale = Math.max(0, 1 - drive);
+		visual.scaleX = scale;
+		visual.scaleY = scale;
+		visual.rotationDeg = effect.spinDeg * drive;
+		visual.translateY =
+			resolveDistance({ distance: effect.drop, layout }) * drive;
 		if (effect.fade) visual.opacity = presence;
 	}
 	if (effect.kind === "scatter") {

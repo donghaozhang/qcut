@@ -434,6 +434,22 @@ export function normalizeTextAnimationEffect({
 			fade,
 		};
 	}
+	if (record.kind === "tumble") {
+		return {
+			kind: "tumble",
+			spinDeg: numberInRange({
+				value: record.spinDeg,
+				fallback: -720,
+				minimum: -3600,
+				maximum: 3600,
+			}),
+			drop: normalizeDistance({
+				value: record.drop,
+				fallback: { value: 2, unit: "em" },
+			}),
+			fade,
+		};
+	}
 	if (record.kind === "scatter") {
 		return {
 			kind: "scatter",

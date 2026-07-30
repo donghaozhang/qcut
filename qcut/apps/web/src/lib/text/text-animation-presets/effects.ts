@@ -262,37 +262,43 @@ export function effectForPreset({
 				fade: true,
 			};
 		case "exit:elastic-out":
-			// The stretch-then-collapse lives in the scale overshoot: raw
-			// spring easing overshoots past 1 early in the exit and clamps the
-			// presence to zero, vanishing the text at a quarter progress.
+			// Captured reference: characters tumble upside down while they
+			// shrink away, staggered — a half-turn tumble with a slight drop.
 			return {
-				kind: "scale",
-				hiddenScale: 0,
-				overshoot: 0.45,
-				fade: true,
+				kind: "tumble",
+				spinDeg: 180,
+				drop: { value: 0.3, unit: "em" },
+				fade: false,
 			};
 		case "exit:fly-up-out":
+			// Their Lua: translate {0,2000,0}→0 reversed, per-char window of
+			// only 10% of the phase, motion blur from a shader. The blur
+			// effect gives us slide + blur in one.
 			return {
-				kind: "slide",
+				kind: "blur",
 				direction: "up",
-				distance: { value: 1.3, unit: "boxHeight" },
-				fade: true,
+				distance: { value: 2, unit: "boxHeight" },
+				radiusPx: 12,
+				fade: false,
 			};
 		case "exit:flicker-scatter":
+			// Captured reference: units strobe near home and drift apart only
+			// late in the exit.
 			return {
 				kind: "scatter",
-				distance: { value: 1.6, unit: "em" },
+				distance: { value: 1.2, unit: "em" },
 				flicker: true,
-				rotateDeg: 40,
+				rotateDeg: 20,
 				seed: presetSeed({ presetId }),
 			};
 		case "exit:random-fly-out":
+			// RotateFlyOut.lua: scale 1→0, rotate 0→-720°, drop 1.5–2.5 char
+			// heights, cubic-in, in shuffled per-char order.
 			return {
-				kind: "scatter",
-				distance: { value: 2.4, unit: "em" },
-				flicker: false,
-				rotateDeg: 70,
-				seed: presetSeed({ presetId }),
+				kind: "tumble",
+				spinDeg: -720,
+				drop: { value: 2, unit: "em" },
+				fade: false,
 			};
 		case "exit:shrink-shake":
 			return {
@@ -410,7 +416,6 @@ function staggerRatioForPreset({
 		presetId === "fold" ||
 		presetId === "arc-up" ||
 		presetId === "flicker-scatter" ||
-		presetId === "random-fly-out" ||
 		presetId === "shrink-shake"
 	) {
 		return 0;
@@ -422,7 +427,10 @@ function staggerRatioForPreset({
 	// Jianying's 漩涡 spreads its per-char windows across most of the cycle.
 	if (presetId === "vortex") return 0.8;
 	if (presetId === "spiral-down") return 0.3;
-	if (presetId === "fly-up-out") return 0.4;
+	// Their Lua gives each character a window of only 10% of the phase.
+	if (presetId === "fly-up-out") return 0.9;
+	// RotateFlyOut spreads shuffled start times across 60% of the phase.
+	if (presetId === "random-fly-out" || presetId === "elastic-out") return 0.6;
 	return 0.58;
 }
 
@@ -462,8 +470,14 @@ export function sequenceForPreset({
 		"flicker-scatter",
 		"random-fly-out",
 		"shrink-shake",
+		"elastic-out",
 	]);
-	const order = presetId === "typewriter-out" ? "reverse" : "forward";
+	const order =
+		presetId === "typewriter-out"
+			? "reverse"
+			: presetId === "random-fly-out" || presetId === "elastic-out"
+				? "random"
+				: "forward";
 	const staggerRatio = staggerRatioForPreset({
 		isGraphemePreset: graphemePresets.has(presetId),
 		presetId,

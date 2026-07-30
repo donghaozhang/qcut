@@ -212,6 +212,45 @@ describe("text animation frame evaluation", () => {
 		expect(visual.opacity).toBeLessThan(1);
 	});
 
+	it("tumbles exit units on RotateFlyOut's cubic-in shrink-spin-drop", () => {
+		const element = createElement({
+			overrides: {
+				content: "AB",
+				duration: 2,
+				textAnimations: createAnimation({
+					exit: createPhase({
+						effect: {
+							kind: "tumble",
+							spinDeg: -720,
+							drop: { value: 2, unit: "em" },
+							fade: false,
+						},
+						target: "text",
+						unit: "grapheme",
+						timing: { duration: 1, delay: 0, easing: "linear" },
+						sequence: {
+							unit: "grapheme",
+							order: "forward",
+							staggerRatio: 0,
+							seed: 5,
+						},
+					}),
+				}),
+			},
+		});
+		const compiled = compileTextAnimation({ element, fps: 10 });
+		const layout = createLayout({ content: element.content });
+		const midway = evaluateTextAnimationFrame({ compiled, frame: 15, layout });
+		const visual = midway.units.at(0)?.visual;
+		if (!visual) throw new Error("expected exit unit state");
+		// Halfway in, the cubic-in drive is 0.5^3 = 0.125.
+		expect(visual.scaleX).toBeCloseTo(1 - 0.125);
+		expect(visual.rotationDeg).toBeCloseTo(-720 * 0.125);
+		expect(visual.translateY).toBeCloseTo(2 * 20 * 0.125);
+		// It vanishes by scale, not by fading.
+		expect(visual.opacity).toBe(1);
+	});
+
 	it("scatters exit units on seeded headings with distinct spins", () => {
 		const element = createElement({
 			overrides: {
