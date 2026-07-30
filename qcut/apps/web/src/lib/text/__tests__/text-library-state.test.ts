@@ -150,16 +150,18 @@ describe("text library state", () => {
 		expect(recent.recentIds).toEqual(["second", "first"]);
 	});
 
-	it("tracks retryable download failures and SVIP access", () => {
+	it("keeps premium templates usable without any SVIP grant", () => {
 		const svipDefinition = templateDefinitions[3];
+		// The svip entitlement is marketplace metadata only: nothing ever
+		// granted hasSvipAccess, so gating on it dead-locked these styles.
 		expect(
 			getTextTemplateResourceAccess({
 				definition: svipDefinition,
 				state: EMPTY_TEXT_LIBRARY_STATE,
 			})
-		).toBe("svip-required");
+		).toBe("allowed");
 
-		const failed = retryTextTemplateDownload({
+		const downloaded = retryTextTemplateDownload({
 			definition: svipDefinition,
 			now: 100,
 			state: EMPTY_TEXT_LIBRARY_STATE,
@@ -167,33 +169,13 @@ describe("text library state", () => {
 		expect(
 			getTextTemplateDownloadStatus({
 				definition: svipDefinition,
-				state: failed,
-			})
-		).toBe("failed");
-		expect(failed.downloadRecords[0]).toMatchObject({
-			templateId: "svip",
-			status: "failed",
-			errorCode: "SVIP_REQUIRED",
-		});
-
-		const retried = retryTextTemplateDownload({
-			definition: svipDefinition,
-			now: 200,
-			state: { ...failed, hasSvipAccess: true },
-		});
-		expect(
-			getTextTemplateResourceAccess({
-				definition: svipDefinition,
-				state: retried,
-			})
-		).toBe("allowed");
-		expect(
-			getTextTemplateDownloadStatus({
-				definition: svipDefinition,
-				state: retried,
+				state: downloaded,
 			})
 		).toBe("cached");
-		expect(retried.downloadRecords[0]?.attemptCount).toBe(2);
+		expect(downloaded.downloadRecords[0]).toMatchObject({
+			templateId: "svip",
+			status: "cached",
+		});
 
 		const networkFailed = markTextTemplateDownloadFailed({
 			definition: templateDefinitions[1],
@@ -209,17 +191,16 @@ describe("text library state", () => {
 				definition: legacySvipDefinition,
 				state: EMPTY_TEXT_LIBRARY_STATE,
 			})
-		).toBe("svip-required");
-		const legacyFailed = retryTextTemplateDownload({
+		).toBe("allowed");
+		const legacyDownloaded = retryTextTemplateDownload({
 			definition: legacySvipDefinition,
 			now: 400,
 			state: EMPTY_TEXT_LIBRARY_STATE,
 		});
-		expect(legacyFailed.downloadRecords[0]).toMatchObject({
+		expect(legacyDownloaded.downloadRecords[0]).toMatchObject({
 			templateId: "legacy-svip",
 			assetId: "text-legacy-legacy-svip",
-			status: "failed",
-			errorCode: "SVIP_REQUIRED",
+			status: "cached",
 		});
 	});
 
