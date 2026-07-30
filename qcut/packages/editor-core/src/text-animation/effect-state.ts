@@ -324,7 +324,8 @@ function burstDecorations({
 		const angleRad =
 			((effect.directionDeg + (noise(2) - 0.5) * effect.spreadDeg) * Math.PI) /
 			180;
-		const travel = speedPx * (0.6 + 0.8 * noise(3)) * age;
+		// Fast initial burst that decelerates, like the reference footage.
+		const travel = speedPx * (0.6 + 0.8 * noise(3)) * age ** 0.62;
 		const flutterSway =
 			Math.sin(Math.PI * 2 * (age * 2 + noise(4))) *
 			effect.flutter *
@@ -350,10 +351,64 @@ function burstDecorations({
 			),
 		});
 	}
-	if (items.length === 0) return [];
-	return [
-		{ kind: "particles", shape: effect.shape, palette: effect.palette, items },
-	];
+	const decorations: TextAnimationDecorationState[] = [];
+	if (effect.rays && effect.rays.count > 0) {
+		// Firework core: dotted spark trails radiating from the layout center,
+		// matching the reference starburst footage.
+		const rayLengthPx = resolveDistance({
+			distance: effect.rays.length,
+			layout,
+		});
+		const rayItems: Extract<
+			TextAnimationDecorationState,
+			{ kind: "particles" }
+		>["items"] = [];
+		const grow = clampUnitInterval({ value: progress / 0.7 }) ** 0.55;
+		const rayOpacity =
+			1 - clampUnitInterval({ value: (progress - 0.55) / 0.45 });
+		if (grow > 0 && rayOpacity > 0) {
+			for (let rayIndex = 0; rayIndex < effect.rays.count; rayIndex++) {
+				const noise = (channel: number) =>
+					seededValue({
+						seed: effect.seed,
+						unitIndex: unit.index,
+						particleIndex: 1000 + rayIndex,
+						channel,
+					});
+				const angleRad =
+					((((rayIndex + 0.5) / effect.rays.count) * 360 +
+						(noise(0) - 0.5) * 14) *
+						Math.PI) /
+					180;
+				const length = rayLengthPx * (0.7 + 0.6 * noise(1)) * grow;
+				rayItems.push({
+					x: originX + Math.sin(angleRad) * length,
+					y: originY - Math.cos(angleRad) * length,
+					rotationDeg: (angleRad * 180) / Math.PI,
+					sizePx: length,
+					opacity: rayOpacity,
+					colorIndex: -1,
+				});
+			}
+		}
+		if (rayItems.length > 0) {
+			decorations.push({
+				kind: "particles",
+				shape: "spark",
+				palette: effect.palette,
+				items: rayItems,
+			});
+		}
+	}
+	if (items.length > 0) {
+		decorations.push({
+			kind: "particles",
+			shape: effect.shape,
+			palette: effect.palette,
+			items,
+		});
+	}
+	return decorations;
 }
 
 function loopVisual({

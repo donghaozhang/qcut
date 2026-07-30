@@ -176,6 +176,31 @@ function TextAnimationPreviewDecoration({
 		);
 	}
 	if (decoration.kind === "particles") {
+		if (decoration.shape === "spark") {
+			return (
+				<>
+					{decoration.items.map((item, index) => (
+						<span
+							className="pointer-events-none absolute origin-left"
+							key={`spark:${index}`}
+							style={{
+								backgroundColor: "#fff7e6",
+								height: 1.5,
+								left:
+									item.x -
+									Math.sin((item.rotationDeg * Math.PI) / 180) * item.sizePx,
+								opacity: item.opacity * 0.8,
+								top:
+									item.y +
+									Math.cos((item.rotationDeg * Math.PI) / 180) * item.sizePx,
+								transform: `rotate(${item.rotationDeg - 90}deg)`,
+								width: item.sizePx,
+							}}
+						/>
+					))}
+				</>
+			);
+		}
 		return (
 			<>
 				{decoration.items.map((item, index) => (

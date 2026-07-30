@@ -56,6 +56,47 @@ function smoothstep({
 }
 
 /**
+ * Spatially smooth value noise (bilinear over a hashed lattice). Jianying's
+ * dissolve front samples a smooth noise texture, so neighbouring tiles share
+ * similar sites and the front advances as coherent blobs — white noise would
+ * read as salt-and-pepper instead (verified against the captured 25% frame).
+ */
+function shatterValueNoise({
+	x,
+	y,
+	seed,
+	channel,
+}: {
+	x: number;
+	y: number;
+	seed: number;
+	channel: number;
+}): number {
+	const x0 = Math.floor(x);
+	const y0 = Math.floor(y);
+	const fx = x - x0;
+	const fy = y - y0;
+	const sx = fx * fx * (3 - 2 * fx);
+	const sy = fy * fy * (3 - 2 * fy);
+	const n00 = shatterNoise({ x: x0, y: y0, seed, channel });
+	const n10 = shatterNoise({ x: x0 + 1, y: y0, seed, channel });
+	const n01 = shatterNoise({ x: x0, y: y0 + 1, seed, channel });
+	const n11 = shatterNoise({ x: x0 + 1, y: y0 + 1, seed, channel });
+	const top = n00 + (n10 - n00) * sx;
+	const bottom = n01 + (n11 - n01) * sx;
+	return top + (bottom - top) * sy;
+}
+
+/** Lattice cell size for the dissolve front, in tiles. */
+const SHATTER_NOISE_CELL_TILES = 3.5;
+
+/**
+ * The reference frames erode glyph tops first and leave baseline mounds for
+ * last; this vertical bias is mixed into the noise site.
+ */
+const SHATTER_VERTICAL_BIAS = 0.35;
+
+/**
  * Ports LumiDust's vertex math (evidence:
  * docs/task/text-particle-pipeline/evidence/lumidust-particle.vert.metal):
  * a tile is released once the dissolve front passes it, then drifts by a
@@ -91,7 +132,14 @@ export function computeShatterTiles({
 					? (u - 0.5) * Math.cos(frontAngle) +
 						(v - 0.5) * Math.sin(frontAngle) +
 						0.5
-					: shatterNoise({ x: column, y: row, seed: state.seed, channel: 0 });
+					: shatterValueNoise({
+							x: column / SHATTER_NOISE_CELL_TILES,
+							y: row / SHATTER_NOISE_CELL_TILES,
+							seed: state.seed,
+							channel: 0,
+						}) *
+							(1 - SHATTER_VERTICAL_BIAS) +
+						v * SHATTER_VERTICAL_BIAS;
 			const sweep = state.progress * (1 + feather);
 			const retained = smoothstep({
 				edge0: sweep - feather,

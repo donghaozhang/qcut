@@ -182,6 +182,34 @@ function drawParticles({
 		ctx.globalAlpha *= clampTextAnimationOpacity({ value: item.opacity });
 		const color = decoration.palette[item.colorIndex] ?? "#f43f5e";
 		ctx.fillStyle = color;
+		if (decoration.shape === "spark") {
+			// Dotted spark trail: item.x/y is the ray tip, sizePx its length;
+			// dots taper and brighten toward the tip like the reference
+			// starburst footage.
+			const angleRad = (item.rotationDeg * Math.PI) / 180;
+			const dirX = Math.sin(angleRad);
+			const dirY = -Math.cos(angleRad);
+			const dots = 9;
+			ctx.fillStyle = "#fff7e6";
+			for (let dot = 0; dot < dots; dot++) {
+				const along = 0.25 + (dot / (dots - 1)) * 0.75;
+				const radius = 0.8 + (dot / (dots - 1)) * 1.4;
+				ctx.globalAlpha =
+					clampTextAnimationOpacity({ value: item.opacity }) *
+					(0.35 + 0.65 * (dot / (dots - 1)));
+				ctx.beginPath();
+				ctx.arc(
+					item.x - dirX * item.sizePx * (1 - along),
+					item.y - dirY * item.sizePx * (1 - along),
+					radius,
+					0,
+					Math.PI * 2
+				);
+				ctx.fill();
+			}
+			ctx.restore();
+			continue;
+		}
 		if (decoration.shape === "coin") {
 			ctx.beginPath();
 			ctx.arc(0, 0, item.sizePx / 2, 0, Math.PI * 2);

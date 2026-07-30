@@ -543,6 +543,24 @@ export function normalizeTextAnimationEffect({
 				minimum: 0,
 				maximum: 1,
 			}),
+			...(record.rays && typeof record.rays === "object"
+				? {
+						rays: {
+							count: Math.trunc(
+								numberInRange({
+									value: (record.rays as Record<string, unknown>).count,
+									fallback: 22,
+									minimum: 0,
+									maximum: 64,
+								})
+							),
+							length: normalizeDistance({
+								value: (record.rays as Record<string, unknown>).length,
+								fallback: { value: 3, unit: "em" },
+							}),
+						},
+					}
+				: {}),
 			seed: Math.trunc(
 				numberInRange({
 					value: record.seed,

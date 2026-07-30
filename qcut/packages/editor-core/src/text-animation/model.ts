@@ -240,6 +240,11 @@ export interface TextBurstEffect {
 	palette: string[];
 	/** Ribbon flutter strength, 0..1. */
 	flutter: number;
+	/**
+	 * Optional firework core: dotted spark trails radiating from the layout
+	 * center (the reference 彩带喷射 overlay is a starburst plus confetti).
+	 */
+	rays?: { count: number; length: TextAnimationDistance };
 	seed: number;
 }
 
@@ -445,7 +450,7 @@ export interface TextAnimationUnitState {
 export type TextAnimationDecorationState =
 	| {
 			kind: "particles";
-			shape: "ribbon" | "coin" | "rect";
+			shape: "ribbon" | "coin" | "rect" | "spark";
 			palette: string[];
 			items: TextBurstParticleState[];
 	  }

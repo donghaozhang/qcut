@@ -369,7 +369,7 @@ export const LOOP_TEXT_ANIMATION_PRESETS = [
 		phase: "loop",
 		nameKey: "textProperties.animationPreset.luckyBag",
 		previewKind: "lucky-bag",
-		defaultDuration: 1.2,
+		defaultDuration: 2,
 		defaultDelay: 0,
 		defaultIntensity: 1,
 		searchTerms: ["lucky", "coin", "burst", "福袋", "炸开", "金币"],
