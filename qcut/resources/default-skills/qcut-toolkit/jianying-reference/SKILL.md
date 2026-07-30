@@ -58,9 +58,20 @@ SCRATCH=<scratch-dir>/jy-anim; mkdir -p "$SCRATCH"
 touch "$SCRATCH/.marker"
 # ... apply exactly ONE effect in the Jianying UI ...
 cd "$HOME/Movies/JianyingPro/User Data/Cache/effect"
-NEW=$(find . -maxdepth 1 -type d -newer "$SCRATCH/.marker" | grep -v '^\.$' | head -1)
-INNER=$(find "$NEW" -maxdepth 1 -type d | tail -1)
-mkdir -p "$SCRATCH/<effect-name>" && cp -r "$INNER"/* "$SCRATCH/<effect-name>/"
+NEW=$(find . -maxdepth 1 -type d -newer "$SCRATCH/.marker" ! -name . | head -1)
+# An already-cached effect downloads nothing, so an empty result is normal —
+# bail instead of letting "$NEW"/* expand to /* and copy the filesystem root.
+if [ -z "$NEW" ]; then
+  echo "no new package: this effect was already cached (harvest impossible)"
+else
+  INNER=$(find "$NEW" -mindepth 1 -maxdepth 1 -type d | head -1)
+  if [ -z "$INNER" ]; then
+    echo "unexpected layout under $NEW"
+  else
+    mkdir -p "$SCRATCH/<effect-name>"
+    cp -R "$INNER/." "$SCRATCH/<effect-name>/"
+  fi
+fi
 touch "$SCRATCH/.marker"   # reset for the next effect
 ```
 
