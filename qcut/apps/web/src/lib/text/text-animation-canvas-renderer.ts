@@ -170,9 +170,11 @@ function shatterRasterPadding({ style }: { style: ResolvedTextStyle }): number {
 				Math.max(Math.abs(style.shadowOffsetX), Math.abs(style.shadowOffsetY))
 			: 0;
 	const strokeReach = style.strokeWidth > 0 ? style.strokeWidth * 2 : 0;
+	const glowReach = style.glowOpacity > 0 ? style.glowBlur : 0;
+	const paintedReach = Math.max(glowReach, shadowReach + strokeReach);
 	return Math.min(
 		SHATTER_PADDING_MAX,
-		Math.max(SHATTER_PADDING_MIN, Math.ceil(shadowReach + strokeReach + 4))
+		Math.max(SHATTER_PADDING_MIN, Math.ceil(paintedReach + 4))
 	);
 }
 
@@ -241,12 +243,14 @@ function drawShatteredText({
 	style,
 	layout,
 	shatter,
+	beforeDrawTiles,
 }: {
 	ctx: CanvasTextContext;
 	element: TextElement;
 	style: ResolvedTextStyle;
 	layout: ReturnType<typeof buildTextAnimationCanvasLayout>;
 	shatter: NonNullable<TextAnimationVisualState["shatter"]>;
+	beforeDrawTiles: () => void;
 }): boolean {
 	const bounds = layout.animationLayout.bounds;
 	const padding = shatterRasterPadding({ style });
@@ -266,6 +270,7 @@ function drawShatteredText({
 	}
 	sourceCtx.restore();
 
+	beforeDrawTiles();
 	const tiles = computeShatterTiles({ width, height, state: shatter });
 	const baseAlpha = ctx.globalAlpha;
 	for (const tile of tiles) {
@@ -351,36 +356,37 @@ export function renderCanonicalTextAnimationToCanvas({
 		bounds: layout.animationLayout.bounds,
 	});
 	if (state.container.shatter && canRasterizeShatter()) {
-		// Background and glyphs live inside the raster, but decorations from
-		// other active phases (a loop's hearts, a burst's particles) still have
-		// to render around it.
-		drawTextAnimationDecorations({
-			ctx,
-			decorations: state.decorations,
-			layer: "behind",
-			compiled,
-			activePhases: state.activePhases,
-			layout,
-			element: renderedElement,
-		});
-		drawShatteredText({
+		const didDrawShatteredText = drawShatteredText({
 			ctx,
 			element: renderedElement,
 			style,
 			layout,
 			shatter: state.container.shatter,
+			beforeDrawTiles: () => {
+				drawTextAnimationDecorations({
+					ctx,
+					decorations: state.decorations,
+					layer: "behind",
+					compiled,
+					activePhases: state.activePhases,
+					layout,
+					element: renderedElement,
+				});
+			},
 		});
-		drawTextAnimationDecorations({
-			ctx,
-			decorations: state.decorations,
-			layer: "front",
-			compiled,
-			activePhases: state.activePhases,
-			layout,
-			element: renderedElement,
-		});
-		ctx.restore();
-		return true;
+		if (didDrawShatteredText) {
+			drawTextAnimationDecorations({
+				ctx,
+				decorations: state.decorations,
+				layer: "front",
+				compiled,
+				activePhases: state.activePhases,
+				layout,
+				element: renderedElement,
+			});
+			ctx.restore();
+			return true;
+		}
 	}
 	drawBackground({
 		ctx,

@@ -94,6 +94,57 @@ function shatterValueNoise({
  */
 const MAX_SHATTER_TILES = 8000;
 
+function shatterGridDimensions({
+	width,
+	height,
+	size,
+}: {
+	width: number;
+	height: number;
+	size: number;
+}): { columns: number; rows: number } {
+	return {
+		columns: Math.max(1, Math.ceil(width / size)),
+		rows: Math.max(1, Math.ceil(height / size)),
+	};
+}
+
+function boundedShatterTileSize({
+	width,
+	height,
+	requestedSize,
+}: {
+	width: number;
+	height: number;
+	requestedSize: number;
+}): number {
+	const requestedGrid = shatterGridDimensions({
+		width,
+		height,
+		size: requestedSize,
+	});
+	if (requestedGrid.columns * requestedGrid.rows <= MAX_SHATTER_TILES) {
+		return requestedSize;
+	}
+
+	let lower = requestedSize + 1;
+	let upper = Math.max(requestedSize, Math.ceil(width), Math.ceil(height));
+	while (lower < upper) {
+		const candidate = Math.floor((lower + upper) / 2);
+		const { columns, rows } = shatterGridDimensions({
+			width,
+			height,
+			size: candidate,
+		});
+		if (columns * rows <= MAX_SHATTER_TILES) {
+			upper = candidate;
+		} else {
+			lower = candidate + 1;
+		}
+	}
+	return lower;
+}
+
 /** Lattice cell size for the dissolve front, in tiles. */
 const SHATTER_NOISE_CELL_TILES = 3.5;
 
@@ -122,14 +173,8 @@ export function computeShatterTiles({
 	state: TextAnimationShatterState;
 }): ShatterTile[] {
 	const requestedSize = Math.max(2, Math.round(state.tilePx));
-	const requestedTiles =
-		Math.ceil(width / requestedSize) * Math.ceil(height / requestedSize);
-	const size =
-		requestedTiles > MAX_SHATTER_TILES
-			? Math.ceil(requestedSize * Math.sqrt(requestedTiles / MAX_SHATTER_TILES))
-			: requestedSize;
-	const columns = Math.max(1, Math.ceil(width / size));
-	const rows = Math.max(1, Math.ceil(height / size));
+	const size = boundedShatterTileSize({ width, height, requestedSize });
+	const { columns, rows } = shatterGridDimensions({ width, height, size });
 	const tiles: ShatterTile[] = [];
 	const gravityAngle = (state.gravityRotDeg * Math.PI) / 180;
 	// gravityRotDeg 0 pushes released dust down the screen, 180 lifts it.

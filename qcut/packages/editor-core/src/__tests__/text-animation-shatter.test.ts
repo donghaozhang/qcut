@@ -146,6 +146,19 @@ describe("shatter tile math (LumiDust port)", () => {
 		expect(maxBottom).toBeGreaterThanOrEqual(600);
 	});
 
+	it("enforces the tile budget for extremely wide, short rasters", () => {
+		const tiles = computeShatterTiles({
+			width: 64_000,
+			height: 2,
+			state: state({ tilePx: 2 }),
+		});
+		expect(tiles.length).toBeLessThanOrEqual(8000);
+		const maxRight = Math.max(...tiles.map((tile) => tile.sx + tile.size));
+		const maxBottom = Math.max(...tiles.map((tile) => tile.sy + tile.size));
+		expect(maxRight).toBeGreaterThanOrEqual(64_000);
+		expect(maxBottom).toBeGreaterThanOrEqual(2);
+	});
+
 	it("hashes stable platform-independent noise", () => {
 		expect(shatterNoise({ x: 3, y: 5, seed: 7, channel: 1 })).toBe(
 			shatterNoise({ x: 3, y: 5, seed: 7, channel: 1 })

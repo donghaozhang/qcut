@@ -1,4 +1,4 @@
-import { describe, expect, it, vi } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 import type { TextElement } from "@/types/timeline";
 import { getCachedCompiledTextAnimation } from "../text-animation-compiled-cache";
 import { resolveCursorPosition } from "../text-animation-canvas-decorations";
@@ -56,6 +56,8 @@ function createContext(): CanvasRenderingContext2D {
 		translate: vi.fn(),
 		rotate: vi.fn(),
 		scale: vi.fn(),
+		clearRect: vi.fn(),
+		drawImage: vi.fn(),
 		fillText: vi.fn(),
 		strokeText: vi.fn(),
 		measureText: vi.fn((text: string) => ({
@@ -129,6 +131,36 @@ function laserEntranceAnimation({
 		},
 	};
 }
+
+function shatterExitAnimation(): NonNullable<TextElement["textAnimations"]> {
+	return {
+		schemaVersion: 1,
+		exit: {
+			timing: { duration: 1, delay: 0, easing: "linear" },
+			sequence: {
+				unit: "all",
+				order: "forward",
+				staggerRatio: 0,
+				seed: 1,
+			},
+			target: "textAndBackground",
+			effect: {
+				kind: "shatter",
+				tilePx: 4,
+				distortion: 0.2,
+				gravity: { value: 0.2, unit: "em" },
+				gravityRotDeg: 180,
+				front: "noise",
+				frontRotDeg: 0,
+				feather: 0.5,
+			},
+		},
+	};
+}
+
+afterEach(() => {
+	vi.unstubAllGlobals();
+});
 
 describe("text animation canvas layout", () => {
 	it("keeps Unicode grapheme clusters aligned with evaluator indices", () => {
@@ -317,6 +349,88 @@ describe("canonical text animation canvas renderer", () => {
 		).toBe(true);
 		expect(context.scale).toHaveBeenCalled();
 		expect(context.fillText).toHaveBeenCalledWith("H", 0, 0);
+	});
+
+	it("falls back to glyph rendering when shatter rasterization fails", () => {
+		vi.stubGlobal(
+			"OffscreenCanvas",
+			class {
+				getContext(): null {
+					return null;
+				}
+			}
+		);
+		const context = createContext();
+		const element = createTextElement({
+			overrides: {
+				content: "H",
+				textAnimations: shatterExitAnimation(),
+			},
+		});
+
+		expect(
+			renderCanonicalTextAnimationToCanvas({
+				ctx: context,
+				canvas: { width: 1280, height: 720 },
+				sourceElement: element,
+				renderedElement: element,
+				style: resolveTextStyle(element),
+				currentTime: 1.5,
+				fps: 30,
+			})
+		).toBe(true);
+		expect(context.drawImage).not.toHaveBeenCalled();
+		expect(context.fillText).toHaveBeenCalledWith("H", 0, 0);
+	});
+
+	it("expands the shatter raster to capture glow ink", () => {
+		const rasterSizes: Array<{ width: number; height: number }> = [];
+		vi.stubGlobal(
+			"OffscreenCanvas",
+			class {
+				readonly width: number;
+				readonly height: number;
+				private readonly context = createContext();
+
+				constructor(width: number, height: number) {
+					this.width = width;
+					this.height = height;
+					rasterSizes.push({ width, height });
+				}
+
+				getContext(): CanvasRenderingContext2D {
+					return this.context;
+				}
+			}
+		);
+		const plain = createTextElement({
+			overrides: {
+				content: "H",
+				textAnimations: shatterExitAnimation(),
+			},
+		});
+		const glowing = {
+			...plain,
+			id: "text-glow",
+			glowOpacity: 1,
+			glowBlur: 80,
+		};
+
+		for (const element of [plain, glowing]) {
+			renderCanonicalTextAnimationToCanvas({
+				ctx: createContext(),
+				canvas: { width: 1280, height: 720 },
+				sourceElement: element,
+				renderedElement: element,
+				style: resolveTextStyle(element),
+				currentTime: 1.5,
+				fps: 30,
+			});
+		}
+
+		expect(rasterSizes).toHaveLength(2);
+		expect(rasterSizes[1].width - rasterSizes[0].width).toBe(152);
+		expect(rasterSizes[1].height - rasterSizes[0].height).toBe(152);
 	});
 
 	it.each([
