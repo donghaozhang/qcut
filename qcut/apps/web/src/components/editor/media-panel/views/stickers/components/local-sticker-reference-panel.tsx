@@ -60,6 +60,13 @@ function playbackDescription({
 	return segments.join(" · ");
 }
 
+function isAbortError({ error }: { error: unknown }): boolean {
+	return (
+		(error instanceof DOMException && error.name === "AbortError") ||
+		(error instanceof Error && error.name === "AbortError")
+	);
+}
+
 function LocalStickerReferenceItem({
 	onSelect,
 	reference,
@@ -78,6 +85,7 @@ function LocalStickerReferenceItem({
 	const loadErrorId = `local-sticker-load-error-${reference.id}`;
 
 	useEffect(() => {
+		const abortController = new AbortController();
 		let disposed = false;
 		let previewUrl: string | undefined;
 		setLoaded(null);
@@ -86,7 +94,10 @@ function LocalStickerReferenceItem({
 
 		const loadPreview = async () => {
 			try {
-				const file = await loadStickerLabReferenceFile({ reference });
+				const file = await loadStickerLabReferenceFile({
+					reference,
+					signal: abortController.signal,
+				});
 				previewUrl = URL.createObjectURL(file);
 				if (disposed) {
 					URL.revokeObjectURL(previewUrl);
@@ -94,14 +105,16 @@ function LocalStickerReferenceItem({
 				}
 				setLoaded({ file, loadKey, previewUrl });
 			} catch (error) {
+				if (disposed || isAbortError({ error })) return;
 				debugError("[StickerLab] Failed to load reference", error);
-				if (!disposed) setHasError(true);
+				setHasError(true);
 			}
 		};
 
 		loadPreview();
 		return () => {
 			disposed = true;
+			abortController.abort();
 			if (previewUrl) URL.revokeObjectURL(previewUrl);
 		};
 	}, [loadKey, reference]);
