@@ -18,22 +18,24 @@ afterEach(() => {
 
 describe("editor demo run", () => {
 	it("resolves relative export paths next to the plan", () => {
-		const planPath = join("/tmp", "portable-demo", "promo.json");
+		const planDirectory = join(tmpdir(), "portable-demo");
+		const planPath = join(planDirectory, "promo.json");
+		const absoluteExportPath = join(tmpdir(), "final.mp4");
 
 		expect(
 			resolveDemoExportPath({
 				planPath,
 				plannedPath: "promo-final.mp4",
 			})
-		).toBe(join("/tmp", "portable-demo", "promo-final.mp4"));
+		).toBe(join(planDirectory, "promo-final.mp4"));
 		expect(
 			resolveDemoExportPath({
 				planPath,
-				plannedPath: "/tmp/final.mp4",
+				plannedPath: absoluteExportPath,
 			})
-		).toBe("/tmp/final.mp4");
+		).toBe(absoluteExportPath);
 		expect(resolveDemoExportPath({ planPath })).toBe(
-			join("/tmp", "portable-demo", "promo-export.mp4")
+			join(planDirectory, "promo-export.mp4")
 		);
 	});
 
