@@ -42,6 +42,7 @@ import {
 } from "./utility/utility-bridge.js";
 import { resolveInitialWindowSize } from "./window-sizing.js";
 import { toReleaseVersion } from "./update-version.js";
+import { resolveLicenseServerCspOrigins } from "./license-server-csp.js";
 
 // Type definitions
 interface ReleaseNote {
@@ -480,6 +481,10 @@ function createStaticServer(): Promise<http.Server> {
 
 /** Create the main BrowserWindow with CSP headers and protocol handling. */
 function createWindow(): void {
+	const licenseServerConnectSources = resolveLicenseServerCspOrigins({
+		configuredUrl: process.env.VITE_LICENSE_SERVER_URL,
+	}).join(" ");
+
 	// ③ "Replace" rather than "append" CSP - completely override all existing CSP policies
 	session.defaultSession.webRequest.onHeadersReceived(
 		(
@@ -502,14 +507,13 @@ function createWindow(): void {
 				return;
 			}
 
-			// Set complete new CSP policy, exactly matching index.html meta tag
 			responseHeaders["Content-Security-Policy"] = [
 				"default-src 'self' blob: data: app: https://cdn.tldraw.com; " +
 					"script-src 'self' 'unsafe-inline' 'unsafe-eval' 'wasm-unsafe-eval' blob: app:; " +
 					"worker-src 'self' blob: app:; " +
 					"style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; " +
 					"font-src 'self' https://fonts.gstatic.com https://cdn.tldraw.com; " +
-					`connect-src 'self' blob: app: http://localhost:${staticServerPort} ws: wss: https://fonts.googleapis.com https://fonts.gstatic.com https://api.github.com https://fal.run https://queue.fal.run https://rest.alpha.fal.ai https://fal.media https://v3.fal.media https://v3b.fal.media https://api.iconify.design https://api.simplesvg.com https://api.unisvg.com https://freesound.org https://cdn.freesound.org https://*.storage.jamendo.com https://usercontent.jamendo.com https://upload.wikimedia.org https://cdn.tldraw.com https://qcut-license-server.zdhpeter.workers.dev https://storage.googleapis.com https://kbrtxitvavpuimuihppz.supabase.co; ` +
+					`connect-src 'self' blob: app: http://localhost:${staticServerPort} ws: wss: https://fonts.googleapis.com https://fonts.gstatic.com https://api.github.com https://fal.run https://queue.fal.run https://rest.alpha.fal.ai https://fal.media https://v3.fal.media https://v3b.fal.media https://api.iconify.design https://api.simplesvg.com https://api.unisvg.com https://freesound.org https://cdn.freesound.org https://*.storage.jamendo.com https://usercontent.jamendo.com https://upload.wikimedia.org https://cdn.tldraw.com ${licenseServerConnectSources} https://storage.googleapis.com https://kbrtxitvavpuimuihppz.supabase.co; ` +
 					"media-src 'self' blob: data: app: qcut-hyperframes: https:; " +
 					"img-src 'self' blob: data: app: https://fal.run https://fal.media https://v3.fal.media https://v3b.fal.media https://api.iconify.design https://api.simplesvg.com https://api.unisvg.com https://avatars.githubusercontent.com https://i.ibb.co https://usercontent.jamendo.com https://cdn.tldraw.com https://lh3.googleusercontent.com https://kbrtxitvavpuimuihppz.supabase.co; " +
 					"frame-src 'self' qcut-hyperframes:;",
