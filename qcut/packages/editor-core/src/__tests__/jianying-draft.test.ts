@@ -179,8 +179,8 @@ describe("JianYing draft baseline", () => {
 			appSource: "lv",
 			appVersion: "5.9.0",
 			baseline: "synthetic-plaintext-5.9",
-			contentFileName: "draft_info.json",
-			contentFileNameEvidence: "platform-heuristic",
+			contentFileName: "draft_content.json",
+			contentFileNameEvidence: "plaintext-5.9-reference",
 			registeredWithApp: false,
 			verifiedWithInstalledApp: false,
 		});
@@ -386,6 +386,40 @@ describe("JianYing draft baseline", () => {
 			})
 		);
 		expect(result.content.tracks).toHaveLength(0);
+	});
+
+	it("blocks a stale playback-aware timeline duration", () => {
+		const element = createMediaElement({
+			duration: 10,
+			id: "stale-duration",
+			mediaId: videoMedia.id,
+			playbackRate: 2,
+			trimEnd: 2,
+			trimStart: 2,
+		});
+		const result = buildJianyingDraft({
+			draftOutputDirectory: "/exports/stale-duration",
+			snapshot: createSnapshot({
+				media: [videoMedia],
+				timelineDurationByElementId: { [element.id]: 4 },
+				tracks: [
+					createTrack({
+						element,
+						id: "stale-track",
+						order: 0,
+					}),
+				],
+			}),
+			targetPlatform: "macos",
+		});
+
+		expect(result.canWrite).toBe(false);
+		expect(result.issues).toContainEqual(
+			expect.objectContaining({
+				code: "TIMELINE_DURATION_MISMATCH",
+				elementId: element.id,
+			})
+		);
 	});
 
 	it("reports malformed element time without throwing", () => {

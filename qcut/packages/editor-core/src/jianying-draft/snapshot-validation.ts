@@ -297,6 +297,35 @@ export function validateJianyingMediaElement({
 			elementId: element.id,
 		});
 	}
+	const blockingTimingIssue = findBlockingMediaTimingIssue({ element });
+	if (blockingTimingIssue) {
+		issues.push(blockingTimingIssue);
+	}
+	if (
+		!blockingTimingIssue &&
+		Number.isFinite(speed) &&
+		speed > 0 &&
+		Number.isFinite(timelineDuration) &&
+		timelineDuration > 0
+	) {
+		const expectedTimelineDuration =
+			(element.duration - element.trimStart - element.trimEnd) / speed;
+		if (
+			canRepresentSecondsAsMicroseconds({
+				seconds: expectedTimelineDuration,
+			}) &&
+			secondsToMicroseconds({ seconds: expectedTimelineDuration }) !==
+				secondsToMicroseconds({ seconds: timelineDuration })
+		) {
+			issues.push({
+				code: "TIMELINE_DURATION_MISMATCH",
+				severity: "error",
+				message: `Element ${element.id} playback-aware duration does not match its trim and speed.`,
+				elementId: element.id,
+				mediaId: media.id,
+			});
+		}
+	}
 	const sourceDuration = getSourceDuration({ element, timelineDuration });
 	if (
 		!canRepresentSecondsAsMicroseconds({ seconds: sourceDuration }) ||
@@ -313,8 +342,6 @@ export function validateJianyingMediaElement({
 			mediaId: media.id,
 		});
 	}
-	const blockingTimingIssue = findBlockingMediaTimingIssue({ element });
-	if (blockingTimingIssue) issues.push(blockingTimingIssue);
 	issues.push(...collectLossyMediaFeatureIssues({ element }));
 	return issues;
 }

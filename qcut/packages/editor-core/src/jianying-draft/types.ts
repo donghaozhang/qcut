@@ -256,7 +256,7 @@ export interface JianyingDraftCompatibility {
 	appVersion: "5.9.0";
 	baseline: "synthetic-plaintext-5.9";
 	contentFileName: "draft_info.json" | "draft_content.json";
-	contentFileNameEvidence: "platform-heuristic";
+	contentFileNameEvidence: "plaintext-5.9-reference";
 	registeredWithApp: false;
 	verifiedWithInstalledApp: false;
 }

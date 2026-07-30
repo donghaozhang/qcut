@@ -333,9 +333,8 @@ export function buildJianyingDraft({
 			appSource: "lv",
 			appVersion: "5.9.0",
 			baseline: "synthetic-plaintext-5.9",
-			contentFileName:
-				targetPlatform === "macos" ? "draft_info.json" : "draft_content.json",
-			contentFileNameEvidence: "platform-heuristic",
+			contentFileName: "draft_content.json",
+			contentFileNameEvidence: "plaintext-5.9-reference",
 			registeredWithApp: false,
 			verifiedWithInstalledApp: false,
 		},
