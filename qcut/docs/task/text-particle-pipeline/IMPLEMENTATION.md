@@ -16,14 +16,15 @@
 ### 1.1 粒子碎落包(shader 级白盒)
 
 - 包:`~/Movies/JianyingPro/User Data/Cache/effect/7532474130986241331/`
-- 存档:`scratchpad/jy-particles/particle-shatter/`(会话临时目录,关键内容已转写至本文档)
+- 存档策略:**只把结论转写进本文档,不把任何提取物提交进仓库**(与
+  jianying-reference 技能的"不再分发剪映资产"原则一致)。原始文件仅留在会话临时
+  目录,随会话销毁。
 - 结构:`textAnim.lsproj`(加密驱动)+ `res/` 三节点 —— **节点图 = LinearWipe → Dust → DeepGlowSimple**
 - 关键发现:`.ausl` 源加密,但 **`shaderLib/shaderMetal/*.vert` 编译产物是明文**。
 
-`res/Dust/AmazingFeature/effects/LumiDust/xshader/shaderLib/shaderMetal/f878b2e9…vert`
-(131 行)转写的核心数学:
+编译产物里可读到的行为,用我们自己的记号转写为下列方程(不摘录原文):
 
-```
+```text
 uniforms: u_ScreenParams, mask_line_rot, distorIns, gravity, gravityRot,
           maskType, noiseFeather, progress, mask_line_feather
 
@@ -52,10 +53,10 @@ maskType == 1(线性扫线):
 
 ### 1.2 精灵粒子参数名(prefab strings 可读)
 
-`LumiDust.prefab` 二进制 strings 暴露完整发射器参数 schema(数值在二进制段,
-用帧标定获取):
+prefab 的可读字符串暴露了发射器参数的**命名口径**(数值在二进制段,靠帧标定获取)。
+下面是我们据此建立的参数对照表,便于日后讨论时对齐术语:
 
-```
+```text
 particleTotalNum, pSize, pSizeRandom, pSizeRatio, pSizeOverLife,
 pOpacityOverLife, pLifeRandom, gravity, gravityRot,
 emitterScaleX/Y/Z, emitterTranslationX/Y/Z, sliderSpeed, sliderNumber
@@ -96,7 +97,7 @@ QCut 侧参数命名照抄此表,便于后续对照。
 
 ### 2.A 碎落:raster tile 位移(renderer 级)
 
-```
+```text
 引擎侧:新 effect kind "shatter"
   { kind: "shatter";
     tilePx: number;          // tile 边长,默认 6
@@ -132,7 +133,7 @@ QCut 侧参数命名照抄此表,便于后续对照。
 
 ### 2.B 彩带/福袋:精灵粒子(decoration 级)
 
-```
+```text
 引擎侧:新 decoration kind "particles"
   { kind: "particles"; shape: "ribbon" | "coin" | "rect";
     items: Array<{ x, y, rotationDeg, scale, opacity, colorIndex }> }
@@ -211,7 +212,7 @@ scratchpad `headless/render-shatter.ts`。
 
 ## 4. 文件触点清单(预估)
 
-```
+```text
 packages/editor-core/src/text-animation/model.ts            # shatter/burst 类型
 packages/editor-core/src/text-animation/normalize-effect.ts
 packages/editor-core/src/text-animation/effect-state.ts     # burst 粒子生成

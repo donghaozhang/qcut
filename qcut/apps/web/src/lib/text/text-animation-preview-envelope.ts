@@ -358,9 +358,12 @@ function resolveEffectEnvelope({
 		return envelope;
 	}
 	if (effect.kind === "shatter") {
+		// Magnitudes, not a signed sum: noise scatters symmetrically while
+		// gravity pulls one way, so the reach is the sum of their absolute
+		// contributions no matter which direction gravity points.
 		const drift =
-			context.fontSize * effect.distortion +
-			resolveDistance({ distance: effect.gravity, ...context });
+			Math.abs(context.fontSize * effect.distortion) +
+			Math.abs(resolveDistance({ distance: effect.gravity, ...context }));
 		envelope.translateX = drift;
 		envelope.translateY = drift;
 		return envelope;

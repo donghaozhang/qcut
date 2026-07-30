@@ -105,8 +105,9 @@ const SHATTER_NOISE_CELL_TILES = 3.5;
 const SHATTER_VERTICAL_BIAS = 0.3;
 
 /**
- * Ports LumiDust's vertex math (evidence:
- * docs/task/text-particle-pipeline/evidence/lumidust-particle.vert.metal):
+ * Ports the release model described in
+ * docs/task/text-particle-pipeline/IMPLEMENTATION.md §1.1 (derived from the
+ * reference implementation's published behaviour, transcribed as equations):
  * a tile is released once the dissolve front passes it, then drifts by a
  * seeded noise offset plus rotated gravity, with the reference's
  * anisotropic release powers and alpha falloff.

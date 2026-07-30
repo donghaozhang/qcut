@@ -218,3 +218,8 @@ const jy = (f: number) => Math.min(N, Math.floor(Math.min(1, f / F) * (N + 1)));
   this machine; apply the card once to force the download.
 - Read-only analysis of locally cached files for interop/parity purposes; do
   not redistribute Jianying's assets or ship any harvested content in QCut.
+- That rule covers the **repo**, not just the product: never commit decompiled
+  shaders, `strings` dumps, prefab blobs, or frames extracted from their bundled
+  media. Transcribe the behaviour into your own equations/prose in the task doc
+  and leave the raw files in the session scratch dir. Screenshots of on-screen
+  output for side-by-side comparison are fine.
