@@ -5,10 +5,16 @@ import { afterEach, describe, expect, it } from "vitest";
 import {
 	createLicenseServerBuildConfig,
 	LICENSE_SERVER_BUILD_CONFIG_FILENAME,
+	loadInitialLicenseServerRuntimeConfig,
 	parseLicenseServerBuildConfig,
 	readLicenseServerBuildConfig,
+	refreshLicenseServerRuntimeConfig,
 	resolveLicenseServerBuildConfigPath,
+	resolveLicenseServerDevelopmentCacheDirectory,
+	resolveLicenseServerDevelopmentConfigPath,
+	resolveLicenseServerRuntimeConfigLocation,
 	serializeLicenseServerBuildConfig,
+	writeLicenseServerBuildConfig,
 } from "../license-server-build-config.js";
 import { DEFAULT_LICENSE_SERVER_ORIGIN } from "../license-server-csp.js";
 
@@ -98,6 +104,58 @@ describe("license server build config", () => {
 		});
 	});
 
+	it("writes a validated config into a generated directory", () => {
+		const directory = mkdtempSync(path.join(tmpdir(), "qcut-license-write-"));
+		temporaryDirectories.push(directory);
+		const configPath = path.join(
+			directory,
+			"nested",
+			LICENSE_SERVER_BUILD_CONFIG_FILENAME
+		);
+		const buildConfig = createLicenseServerBuildConfig({
+			configuredUrl: "https://user:secret@staging.example.com/api?token=secret",
+		});
+
+		writeLicenseServerBuildConfig({ buildConfig, configPath });
+
+		expect(readLicenseServerBuildConfig({ configPath })).toEqual({
+			licenseServerUrl: "https://staging.example.com",
+		});
+	});
+
+	it("loads a fresh development sidecar only for the main frame", () => {
+		const directory = mkdtempSync(path.join(tmpdir(), "qcut-license-dev-"));
+		temporaryDirectories.push(directory);
+		const configPath = path.join(
+			directory,
+			LICENSE_SERVER_BUILD_CONFIG_FILENAME
+		);
+		writeLicenseServerBuildConfig({
+			buildConfig: createLicenseServerBuildConfig({
+				configuredUrl: "http://127.0.0.1:8787",
+			}),
+			configPath,
+		});
+		const location = { configPath, refreshOnMainFrame: true };
+		const initialConfig = loadInitialLicenseServerRuntimeConfig({ location });
+
+		expect(initialConfig).toBeNull();
+		expect(
+			refreshLicenseServerRuntimeConfig({
+				currentConfig: initialConfig,
+				isMainFrame: false,
+				location,
+			})
+		).toBeNull();
+		expect(
+			refreshLicenseServerRuntimeConfig({
+				currentConfig: initialConfig,
+				isMainFrame: true,
+				location,
+			})
+		).toEqual({ licenseServerUrl: "http://127.0.0.1:8787" });
+	});
+
 	it.each([
 		["missing", path.join(tmpdir(), "qcut-missing-license-config.json")],
 		["invalid", null],
@@ -111,7 +169,7 @@ describe("license server build config", () => {
 		});
 	});
 
-	it("resolves packaged and development artifact paths", () => {
+	it("resolves packaged and unpackaged build artifact paths", () => {
 		expect(
 			resolveLicenseServerBuildConfigPath({
 				isPackaged: true,
@@ -139,5 +197,64 @@ describe("license server build config", () => {
 				LICENSE_SERVER_BUILD_CONFIG_FILENAME
 			)
 		);
+	});
+
+	it("resolves the shared Vite development cache path", () => {
+		const cacheDirectory = resolveLicenseServerDevelopmentCacheDirectory({
+			webRoot: "/repo/apps/web",
+		});
+
+		expect(cacheDirectory).toBe(
+			path.join("/repo/apps/web", "node_modules", ".vite")
+		);
+		expect(resolveLicenseServerDevelopmentConfigPath({ cacheDirectory })).toBe(
+			path.join(
+				"/repo/apps/web",
+				"node_modules",
+				".vite",
+				LICENSE_SERVER_BUILD_CONFIG_FILENAME
+			)
+		);
+	});
+
+	it("uses the Vite sidecar only for an unpackaged development renderer", () => {
+		expect(
+			resolveLicenseServerRuntimeConfigLocation({
+				appPath: "/ignored",
+				isDevelopment: true,
+				isPackaged: false,
+				moduleDir: "/repo/dist/electron",
+			})
+		).toEqual({
+			configPath: path.join(
+				"/repo/dist/electron",
+				"../../apps/web",
+				"node_modules",
+				".vite",
+				LICENSE_SERVER_BUILD_CONFIG_FILENAME
+			),
+			refreshOnMainFrame: true,
+		});
+	});
+
+	it("keeps packaged apps on the immutable build artifact", () => {
+		const location = resolveLicenseServerRuntimeConfigLocation({
+			appPath: "/Applications/QCut.app/Contents/Resources/app.asar",
+			isDevelopment: true,
+			isPackaged: true,
+			moduleDir: "/ignored",
+		});
+
+		expect(location).toEqual({
+			configPath: path.join(
+				"/Applications/QCut.app/Contents/Resources/app.asar",
+				"apps/web/dist",
+				LICENSE_SERVER_BUILD_CONFIG_FILENAME
+			),
+			refreshOnMainFrame: false,
+		});
+		expect(loadInitialLicenseServerRuntimeConfig({ location })).toEqual({
+			licenseServerUrl: DEFAULT_LICENSE_SERVER_ORIGIN,
+		});
 	});
 });
