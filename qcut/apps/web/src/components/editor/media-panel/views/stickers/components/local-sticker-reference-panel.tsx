@@ -9,12 +9,12 @@ import {
 } from "react";
 import { debugError } from "@/lib/debug/debug-config";
 import {
-	loadLocalStickerReferenceFile,
-	type LocalStickerReference,
+	loadStickerLabReferenceFile,
+	type StickerLabReference,
 } from "@/lib/stickers/local-sticker-reference";
 import type {
-	LocalStickerCatalog,
 	LocalStickerPlayback,
+	StickerLabCatalog,
 } from "@/lib/stickers/local-sticker-manifest";
 import { cn } from "@/lib/utils";
 
@@ -27,11 +27,19 @@ interface LoadedReference {
 function getReferenceKey({
 	reference,
 }: {
-	reference: LocalStickerReference;
+	reference: StickerLabReference;
 }): string {
+	const resourceKey =
+		"filePath" in reference
+			? reference.filePath
+			: [
+					reference.asset.objectKey,
+					reference.asset.byteSize,
+					reference.asset.checksumSha256,
+				].join("\0");
 	return [
 		reference.id,
-		reference.filePath,
+		resourceKey,
 		reference.fileName,
 		reference.mimeType,
 	].join("\0");
@@ -57,7 +65,7 @@ function LocalStickerReferenceItem({
 	reference,
 }: {
 	onSelect: ({ file }: { file: File }) => Promise<void>;
-	reference: LocalStickerReference;
+	reference: StickerLabReference;
 }) {
 	const [loaded, setLoaded] = useState<LoadedReference | null>(null);
 	const [hasError, setHasError] = useState(false);
@@ -78,7 +86,7 @@ function LocalStickerReferenceItem({
 
 		const loadPreview = async () => {
 			try {
-				const file = await loadLocalStickerReferenceFile({ reference });
+				const file = await loadStickerLabReferenceFile({ reference });
 				previewUrl = URL.createObjectURL(file);
 				if (disposed) {
 					URL.revokeObjectURL(previewUrl);
@@ -86,7 +94,7 @@ function LocalStickerReferenceItem({
 				}
 				setLoaded({ file, loadKey, previewUrl });
 			} catch (error) {
-				debugError("[StickerLab] Failed to load local reference", error);
+				debugError("[StickerLab] Failed to load reference", error);
 				if (!disposed) setHasError(true);
 			}
 		};
@@ -141,12 +149,12 @@ function LocalStickerReferenceItem({
 			>
 				{!activeLoaded && !hasError && (
 					<Loader2 className="mx-auto size-6 animate-spin text-muted-foreground">
-						<title>正在载入本机贴纸</title>
+						<title>正在载入实验贴纸</title>
 					</Loader2>
 				)}
 				{hasError && (
 					<AlertCircle className="mx-auto size-6 text-destructive">
-						<title>本机贴纸无法载入</title>
+						<title>实验贴纸无法载入</title>
 					</AlertCircle>
 				)}
 				{activeLoaded && (
@@ -197,7 +205,7 @@ function LocalStickerReferenceItem({
 			{hasError && (
 				<div className="mt-1 flex items-center justify-between gap-1 text-[9px] text-destructive">
 					<span id={loadErrorId} role="alert">
-						本机文件无法载入
+						实验素材无法载入
 					</span>
 					<button
 						type="button"
@@ -225,7 +233,7 @@ export function LocalStickerReferencePanel({
 	isLoading,
 	onSelect,
 }: {
-	catalog: LocalStickerCatalog | null;
+	catalog: StickerLabCatalog | null;
 	error: string | null;
 	isLoading: boolean;
 	onSelect: ({ file }: { file: File }) => Promise<void>;
@@ -284,7 +292,7 @@ export function LocalStickerReferencePanel({
 			<div className="shrink-0 border-b border-border/40 px-3 py-2">
 				<p className="text-xs font-medium">贴纸实验室</p>
 				<p className="mt-0.5 text-[10px] leading-4 text-muted-foreground">
-					本机验证素材，不随 QCut 分发
+					实验素材按需载入，不随 QCut 安装包分发
 				</p>
 			</div>
 
@@ -294,7 +302,7 @@ export function LocalStickerReferencePanel({
 					data-testid="local-sticker-catalog-loading"
 				>
 					<Loader2 className="size-4 animate-spin" aria-hidden="true" />
-					<span>正在读取本机贴纸目录</span>
+					<span>正在读取贴纸实验目录</span>
 				</div>
 			) : error ? (
 				<div
@@ -377,7 +385,7 @@ export function LocalStickerReferencePanel({
 				</>
 			) : (
 				<div className="flex min-h-0 flex-1 items-center justify-center text-xs text-muted-foreground">
-					暂无本机参考贴纸
+					暂无实验贴纸
 				</div>
 			)}
 		</div>
