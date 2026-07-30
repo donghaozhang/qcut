@@ -2,6 +2,8 @@ import type {
 	LocalStickerCatalog,
 	LocalStickerCategory,
 	LocalStickerReference,
+	RemoteStickerCatalog,
+	RemoteStickerReference,
 } from "../../local-sticker-manifest";
 
 export function createLocalStickerReference({
@@ -58,6 +60,61 @@ export function createLocalStickerCatalog(): LocalStickerCatalog {
 		categories: [
 			createLocalStickerCategory({ id: "popular", label: "热门" }),
 			createLocalStickerCategory({ id: "mood", label: "情绪", itemCount: 5 }),
+		],
+	};
+}
+
+export function createRemoteStickerReference({
+	id,
+	mimeType = "image/gif",
+}: {
+	id: string;
+	mimeType?: "image/gif" | "image/png";
+}): RemoteStickerReference {
+	const extension = mimeType === "image/gif" ? "gif" : "png";
+	const isAnimated = mimeType === "image/gif";
+	return {
+		id,
+		displayName: `贴纸 ${id}`,
+		fileName: `${id}.${extension}`,
+		mimeType,
+		sourceKind: isAnimated ? "preview-gif" : "static-image",
+		playback: isAnimated
+			? {
+					kind: "animated",
+					frameCount: 12,
+					frameRate: 12,
+					cycleDuration: 1,
+					loop: true,
+				}
+			: { kind: "static" },
+		asset: {
+			kind: "supabase-storage",
+			objectKey: `jianying/2026-07-31/assets/${id}.${extension}`,
+			byteSize: 4,
+			checksumSha256:
+				"9f64a747e1b97f131fabb6b447296c9b6f0201e79fb3c5356e6c77e89b6a806a",
+		},
+	};
+}
+
+export function createRemoteStickerCatalog(): RemoteStickerCatalog {
+	return {
+		version: 2,
+		catalogId: "jianying-2026-07-31",
+		categories: [
+			{
+				id: "popular",
+				label: "热门",
+				sourcePanel: "贴纸库 / 热门",
+				items: [
+					createRemoteStickerReference({ id: "popular-1" }),
+					createRemoteStickerReference({
+						id: "popular-2",
+						mimeType: "image/png",
+					}),
+				],
+			},
 		],
 	};
 }
