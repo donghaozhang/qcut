@@ -1,5 +1,5 @@
 export const DEFAULT_STICKER_LAB_MANIFEST_URL =
-	"/sticker-lab/jianying-2026-07-31.json";
+	"/sticker-lab/qcut-original-2026-07-31.json";
 
 export type LocalStickerLabSource =
 	| {
