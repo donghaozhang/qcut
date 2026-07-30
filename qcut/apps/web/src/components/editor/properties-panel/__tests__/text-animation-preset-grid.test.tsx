@@ -17,7 +17,7 @@ describe("TextAnimationPresetGrid", () => {
 		vi.clearAllMocks();
 	});
 
-	it("renders a three-column single-select grid with None first", () => {
+	it("renders a four-column single-select grid with None first", () => {
 		render(
 			<TextAnimationPresetGrid
 				ariaLabel="入场动画预设"
@@ -30,7 +30,7 @@ describe("TextAnimationPresetGrid", () => {
 		);
 
 		const grid = screen.getByTestId("text-animation-preset-grid");
-		expect(grid).toHaveClass("grid-cols-3");
+		expect(grid).toHaveClass("grid-cols-4");
 		expect(screen.getAllByRole("radio")).toHaveLength(3);
 		expect(screen.getAllByRole("radio")[0]).toHaveAccessibleName(/^无, 0\.6s$/);
 		expect(screen.getAllByText("无")).not.toHaveLength(0);

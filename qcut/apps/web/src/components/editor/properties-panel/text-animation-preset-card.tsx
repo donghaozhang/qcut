@@ -6,7 +6,13 @@ import type {
 	TextAnimationVisualState,
 } from "@qcut/editor-core/text-animation";
 import { CircleOff, Heart } from "lucide-react";
-import { useMemo, type CSSProperties } from "react";
+import {
+	useLayoutEffect,
+	useMemo,
+	useRef,
+	useState,
+	type CSSProperties,
+} from "react";
 import type { TextAnimationPresetDefinition } from "@/lib/text/text-animation-presets";
 import {
 	createTextAnimationPresetPreview,
@@ -183,28 +189,30 @@ function TextAnimationPreviewDecoration({
 }
 
 function TextAnimationPresetPreviewContent({
+	fillScale,
 	preview,
 	progress,
 }: {
+	fillScale: number;
 	preview: TextAnimationPresetPreview;
 	progress: number;
 }) {
 	const frameState = evaluateTextAnimationPresetPreview({ preview, progress });
+	const visualStyle = textAnimationVisualStyle({
+		visual: frameState.container,
+	});
 	return (
 		<div
 			className="relative h-5 font-mono text-[15px] font-semibold leading-5 tracking-normal text-foreground"
 			data-active-phases={frameState.activePhases.join(",")}
 			style={{
-				...textAnimationVisualStyle({ visual: frameState.container }),
+				...visualStyle,
 				opacity: frameState.render ? frameState.container.opacity : 0,
-				// The evaluated layout is 54px wide; scaling it up fills the
-				// card the way Jianying's thumbnails do instead of floating a
-				// small line in empty space. Scale composes with the frame
-				// transform, so the animation math is untouched.
-				transform: `scale(1.5) ${
-					textAnimationVisualStyle({ visual: frameState.container })
-						.transform ?? ""
-				}`,
+				// The evaluated layout is 54px wide; scaling it to the measured
+				// card fills the thumbnail the way Jianying's do instead of
+				// floating a small line in empty space. Scale composes with the
+				// frame transform, so the animation math is untouched.
+				transform: `scale(${fillScale}) ${visualStyle.transform ?? ""}`,
 				width: preview.layout.bounds.width,
 			}}
 		>
@@ -248,6 +256,34 @@ const STATIC_PREVIEW_PROGRESS: Record<
 	loop: 0.35,
 };
 
+/** Portion of the card width the preview line should span, like Jianying. */
+const PREVIEW_FILL_RATIO = 0.84;
+
+function usePreviewFillScale({ layoutWidth }: { layoutWidth: number }): {
+	boxRef: React.RefObject<HTMLDivElement | null>;
+	fillScale: number;
+} {
+	const boxRef = useRef<HTMLDivElement | null>(null);
+	const [fillScale, setFillScale] = useState(1.5);
+
+	useLayoutEffect(() => {
+		const box = boxRef.current;
+		if (!box || layoutWidth <= 0) return;
+		const measure = () => {
+			const width = box.clientWidth;
+			if (width > 0) {
+				setFillScale(Math.max(1, (width * PREVIEW_FILL_RATIO) / layoutWidth));
+			}
+		};
+		measure();
+		const observer = new ResizeObserver(measure);
+		observer.observe(box);
+		return () => observer.disconnect();
+	}, [layoutWidth]);
+
+	return { boxRef, fillScale };
+}
+
 export function TextAnimationPresetCard({
 	isPreviewing,
 	name,
@@ -266,14 +302,18 @@ export function TextAnimationPresetCard({
 		() => createTextAnimationPresetPreview({ preset }),
 		[preset]
 	);
+	const { boxRef, fillScale } = usePreviewFillScale({
+		layoutWidth: preview.layout.bounds.width,
+	});
 
 	return (
 		<div className="flex min-w-0 flex-col">
 			<div
 				aria-hidden="true"
-				className="relative flex aspect-[4/3] w-full items-center justify-center overflow-hidden rounded-t-[5px] bg-muted/70"
+				className="relative flex aspect-[16/10] w-full items-center justify-center overflow-hidden rounded-t-[5px] bg-muted/70"
 				data-testid={`text-animation-preview-${preset.phase}-${preset.id}`}
 				data-preview-progress={progress.toFixed(3)}
+				ref={boxRef}
 			>
 				{preset.id === "none" ? (
 					<CircleOff className="size-7 text-muted-foreground">
@@ -281,6 +321,7 @@ export function TextAnimationPresetCard({
 					</CircleOff>
 				) : (
 					<TextAnimationPresetPreviewContent
+						fillScale={fillScale}
 						preview={preview}
 						progress={progress}
 					/>
