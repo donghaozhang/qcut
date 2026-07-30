@@ -29,10 +29,21 @@ Each package: `effect/<numeric-id>/<md5-hash>/` containing one of:
   `PrinterOne.lua`, `EnlargeIn.lua`, `BounceIn.lua`, … plus `config.json`,
   `anim.prefab`. The Lua declares tweens explicitly:
   `tween:fromTo(obj, {alpha=0}, {alpha=1}, dur, Amaz.Ease.quadOut, ...)`.
-- **Node-graph format** (partial): `textAnim.lsproj` + `studioAnim.lsanim` +
-  `res/`. Node params and `paramsKeyFrames` are readable JSON (glow curves,
-  selector ranges); the per-char driver script `res/*.jsdat` is encrypted —
-  fall back to frame captures for the motion itself.
+- **Node-graph format** (partial → often better than it looks): `textAnim.lsproj`
+  + `studioAnim.lsanim` + `res/`. The driver (`.lsproj`, `res/*.jsdat`) is
+  encrypted, but three readable layers usually remain:
+  1. **`res/` node names** expose the effect graph — e.g. 粒子碎落 =
+     `LinearWipe` + `Dust` + `DeepGlowSimple`, which is the architecture.
+  2. **Compiled shader products are PLAINTEXT** even when `.ausl` sources are
+     encrypted: read `…/xshader/shaderLib/shaderMetal/*.vert|*.frag` (or
+     `shaderGLES/`). For GPU-particle effects the entire closed-form motion
+     lives in the vertex shader (instanceID → noise sample → offset ×
+     release-front weight + rotated gravity) — a line-by-line whitebox.
+  3. **`strings` on `.prefab` files** yields the full emitter parameter
+     schema (`particleTotalNum`, `pSize*`, `pOpacityOverLife`, `gravity`,
+     `gravityRot`, `emitterScale/Translation`, `pLifeRandom`, …); calibrate
+     the numeric values from stepped frames.
+  Only fall back to pure frame captures when all three layers come up empty.
 - AE-keyframe hybrids: `TextAnim.lua` that samples baked curves via
   `self.Position:getCurPartVal(progress)` — curve data lives in sibling JSON;
   treat as node-graph tier.
@@ -47,9 +58,20 @@ SCRATCH=<scratch-dir>/jy-anim; mkdir -p "$SCRATCH"
 touch "$SCRATCH/.marker"
 # ... apply exactly ONE effect in the Jianying UI ...
 cd "$HOME/Movies/JianyingPro/User Data/Cache/effect"
-NEW=$(find . -maxdepth 1 -type d -newer "$SCRATCH/.marker" | grep -v '^\.$' | head -1)
-INNER=$(find "$NEW" -maxdepth 1 -type d | tail -1)
-mkdir -p "$SCRATCH/<effect-name>" && cp -r "$INNER"/* "$SCRATCH/<effect-name>/"
+NEW=$(find . -maxdepth 1 -type d -newer "$SCRATCH/.marker" ! -name . | head -1)
+# An already-cached effect downloads nothing, so an empty result is normal —
+# bail instead of letting "$NEW"/* expand to /* and copy the filesystem root.
+if [ -z "$NEW" ]; then
+  echo "no new package: this effect was already cached (harvest impossible)"
+else
+  INNER=$(find "$NEW" -mindepth 1 -maxdepth 1 -type d | head -1)
+  if [ -z "$INNER" ]; then
+    echo "unexpected layout under $NEW"
+  else
+    mkdir -p "$SCRATCH/<effect-name>"
+    cp -R "$INNER/." "$SCRATCH/<effect-name>/"
+  fi
+fi
 touch "$SCRATCH/.marker"   # reset for the next effect
 ```
 
@@ -142,6 +164,51 @@ const jy = (f: number) => Math.min(N, Math.floor(Math.min(1, f / F) * (N + 1)));
    objects must emit keys in the normalizer's order or verification fails on
    a semantically identical animation.
 
+## Capture Traps
+
+- A fully occluded Electron window stops rendering; window-id screencapture
+  (`screencapture -l <id>`) then returns a stale backing store. Keep the
+  window on a visible display (move it with System Events if the user is
+  working on the main one) before seek-and-capture.
+- Directory names lie: `AmazingFeature_particle` in several packages is a
+  noise-grain shader, not a particle emitter. Verify by reading the shader,
+  not the folder name.
+- The panel window can get resized between sessions — re-anchor card
+  coordinates from a fresh screenshot instead of reusing yesterday's grid.
+- `screencapture -l <windowID>` pads the image with the window shadow, and
+  the margin CHANGES with focus state (focused windows cast bigger shadows)
+  — a mapping calibrated on one capture silently drifts on the next. Prefer
+  a display-rect capture (`screencapture -R -1920,0,1920,1080`) of only the
+  display Jianying is on: pixel == global coordinate, stable, and it cannot
+  photograph the user's other displays.
+- `cliclick` treats a negative coordinate as a RELATIVE move unless prefixed
+  with `=` (`c:=-654,160`). On a display left of main, un-prefixed clicks
+  land at arbitrary offsets and look like the app "ignored" them.
+- macOS keeps re-fronting the Claude app between tool calls. Start every
+  interaction batch with `set frontmost of process "VideoFusion-macOS"`,
+  verify frontmost, and do all clicks/keys inside that same shell call.
+- Frame stepping: `cliclick kp:arrow-left` mostly gets swallowed by
+  Jianying; System Events `key code 123/124` with ~0.3s delays is reliable
+  and frame-exact (verify by cropping the player timecode).
+- Jianying ignores every synthetic scroll injection (line, pixel, phased
+  trackpad CGEvents, drag-scroll) — deep list items are unreachable by
+  scrolling. Use the animation panel's magnifier search instead: click it,
+  `osascript -e 'set the clipboard to "彩带喷射"'`, Cmd+V, Return.
+  (`printf | pbcopy` yields mojibake — always set the clipboard via
+  AppleScript for CJK.)
+- NEVER send Cmd+A unless a text field is visibly focused: if the search
+  box closed itself, Cmd+A selects every timeline clip and a follow-up
+  Delete wipes the project (Cmd+Z recovers — check the timeline crop
+  immediately after any destructive-capable keystroke).
+- Re-applying an already-cached effect leaves ZERO disk trace (no new files
+  anywhere under `Cache/`), so an mtime marker proves nothing either way —
+  only the card's download arrow disappearing confirms the apply.
+- Not everything is procedural: 彩带喷射 ships a side-by-side alpha MP4
+  (left=matte right=color) plus a RadialBlur node, and 福袋炸开 composites
+  prerendered 3D assets. Check `find <pkg> -name "*alpha*.mp4"` before
+  hunting for emitter math; if the reference is baked footage, port a
+  procedural approximation and record it as a known difference.
+
 ## Scope Notes
 
 - Works identically for filters (see the LUT-fitting playbook in project
@@ -151,3 +218,8 @@ const jy = (f: number) => Math.min(N, Math.floor(Math.min(1, f / F) * (N + 1)));
   this machine; apply the card once to force the download.
 - Read-only analysis of locally cached files for interop/parity purposes; do
   not redistribute Jianying's assets or ship any harvested content in QCut.
+- That rule covers the **repo**, not just the product: never commit decompiled
+  shaders, `strings` dumps, prefab blobs, or frames extracted from their bundled
+  media. Transcribe the behaviour into your own equations/prose in the task doc
+  and leave the raw files in the session scratch dir. Screenshots of on-screen
+  output for side-by-side comparison are fine.

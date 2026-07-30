@@ -197,6 +197,80 @@ export interface TextSpiralEffect {
 }
 
 /**
+ * Jianying's 粒子碎落, ported from the LumiDust vertex shader: a dissolve
+ * front sweeps the text and every raster tile behind it drifts away on a
+ * seeded noise offset plus rotated gravity.
+ */
+export interface TextShatterEffect {
+	kind: "shatter";
+	/** Raster tile edge, px. */
+	tilePx: number;
+	/** Noise drift at full release, in em. */
+	distortion: number;
+	gravity: TextAnimationDistance;
+	/** Gravity rotation, deg; 0 pulls straight down. */
+	gravityRotDeg: number;
+	/** Dissolve front: seeded noise or a rotated linear wipe. */
+	front: "noise" | "wipe";
+	frontRotDeg: number;
+	/** Front feather width, 0..1 of the sweep. */
+	feather: number;
+}
+
+/**
+ * Sprite burst, parameter names mirroring Jianying's LumiDust prefab schema
+ * (particleTotalNum / pSize / pLifeRandom / gravity …). Drives 彩带喷射 and
+ * 福袋炸开 style presets; every particle is a closed-form function of the
+ * phase progress.
+ */
+export interface TextBurstEffect {
+	kind: "burst";
+	shape: "ribbon" | "coin" | "rect";
+	count: number;
+	speed: TextAnimationDistance;
+	/** Fan center in degrees; 0 points up, 90 points right. */
+	directionDeg: number;
+	/** Fan width in degrees; 360 bursts in every direction. */
+	spreadDeg: number;
+	gravity: TextAnimationDistance;
+	/** Random life-span variance, 0..1 (pLifeRandom). */
+	lifeRandom: number;
+	sizeEm: number;
+	sizeRandom: number;
+	palette: string[];
+	/** Ribbon flutter strength, 0..1. */
+	flutter: number;
+	/**
+	 * Optional firework core: dotted spark trails radiating from the layout
+	 * center (the reference 彩带喷射 overlay is a starburst plus confetti).
+	 */
+	rays?: { count: number; length: TextAnimationDistance };
+	seed: number;
+}
+
+export interface TextBurstParticleState {
+	x: number;
+	y: number;
+	rotationDeg: number;
+	sizePx: number;
+	opacity: number;
+	colorIndex: number;
+}
+
+/** Resolved shatter parameters the renderer consumes, all in px. */
+export interface TextAnimationShatterState {
+	progress: number;
+	tilePx: number;
+	distortionPx: number;
+	gravityPx: number;
+	gravityRotDeg: number;
+	front: "noise" | "wipe";
+	frontRotDeg: number;
+	feather: number;
+	seed: number;
+}
+
+/**
  * Jianying's RotateFlyOut.lua: the unit shrinks to nothing in place while
  * spinning and dropping, all on a cubic-in drive. 随机飞出 uses two full
  * negative turns; 弹性伸缩 reads as a half-turn tumble with a slight drop.
@@ -293,7 +367,9 @@ export type TextAnimationEffect =
 	| TextFoldEffect
 	| TextSpiralEffect
 	| TextScatterEffect
-	| TextTumbleEffect;
+	| TextTumbleEffect
+	| TextShatterEffect
+	| TextBurstEffect;
 
 export interface TextAnimationPhaseBase {
 	sourcePreset?: TextAnimationPresetRef;
@@ -360,6 +436,8 @@ export interface TextAnimationVisualState {
 	blurPx: number;
 	mask?: TextAnimationMaskState;
 	transformOrigin?: "center" | "bottomCenter";
+	/** Present while a shatter effect drives the frame; renderer-level. */
+	shatter?: TextAnimationShatterState;
 }
 
 export interface TextAnimationUnitState {
@@ -370,6 +448,12 @@ export interface TextAnimationUnitState {
 }
 
 export type TextAnimationDecorationState =
+	| {
+			kind: "particles";
+			shape: "ribbon" | "coin" | "rect" | "spark";
+			palette: string[];
+			items: TextBurstParticleState[];
+	  }
 	| {
 			kind: "cursor";
 			afterGrapheme: number;

@@ -253,6 +253,69 @@ export function effectForPreset({
 			return { kind: "fold", minimumScale: 0.05, phaseStepDeg: 90 };
 		case "loop:arc-up":
 			return { kind: "arc", riseEm: 0.45, tiltDeg: 14 };
+		case "entrance:confetti-burst":
+			// 彩带喷射: ribbons fountain upward from the text and rain back
+			// down while the text holds. Palette and fan pending calibration
+			// against the Jianying capture.
+			return {
+				kind: "burst",
+				shape: "ribbon",
+				count: 46,
+				speed: { value: 5, unit: "em" },
+				directionDeg: 0,
+				spreadDeg: 360,
+				gravity: { value: 1.6, unit: "em" },
+				lifeRandom: 0.45,
+				sizeEm: 0.2,
+				sizeRandom: 0.45,
+				rays: { count: 24, length: { value: 3.4, unit: "em" } },
+				palette: [
+					"#f43f5e",
+					"#fb923c",
+					"#facc15",
+					"#22c55e",
+					"#3b82f6",
+					"#a855f7",
+				],
+				flutter: 0.8,
+				seed: presetSeed({ presetId }),
+			};
+		case "loop:lucky-bag":
+			// 福袋炸开: coins pop out in every direction each cycle.
+			return {
+				kind: "burst",
+				shape: "coin",
+				count: 20,
+				speed: { value: 3.2, unit: "em" },
+				directionDeg: 0,
+				spreadDeg: 360,
+				gravity: { value: 1.1, unit: "em" },
+				lifeRandom: 0.4,
+				sizeEm: 0.5,
+				sizeRandom: 0.7,
+				palette: ["#fbbf24", "#f59e0b", "#fde68a", "#ef4444"],
+				flutter: 0.25,
+				seed: presetSeed({ presetId }),
+			};
+		case "exit:particle-shatter":
+			// LumiDust port: noise dissolve front, seeded tile drift, gravity.
+			return {
+				kind: "shatter",
+				tilePx: 4,
+				// Fitted against the reference 25/50/75% frames: released dust
+				// sparkles roughly in place rather than migrating off the glyph,
+				// so the drift stays a fraction of the em box. Distances are
+				// magnitudes (normalization clamps negatives to zero), so the
+				// upward direction rides on gravityRotDeg.
+				distortion: 0.18,
+				gravity: { value: 0.22, unit: "em" },
+				gravityRotDeg: 180,
+				front: "noise",
+				frontRotDeg: 0,
+				// A wide feather is what makes the mid-exit frame read as a dense
+				// sparkle mass instead of a hard erosion edge.
+				feather: 0.5,
+			};
 		case "exit:spiral-down":
 			// Reference tumbles at full brightness and vanishes by falling
 			// away, not by fading.
@@ -506,6 +569,8 @@ export function easingForPreset({
 		return "linear";
 	}
 	if (
+		presetId === "particle-shatter" ||
+		presetId === "confetti-burst" ||
 		presetId === "fly-up-out" ||
 		presetId === "elastic-out" ||
 		presetId === "random-fly-out" ||

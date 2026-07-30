@@ -137,6 +137,18 @@ function scaleEffectIntensity({
 				spinDeg: effect.spinDeg * factor,
 				drop: { ...effect.drop, value: effect.drop.value * factor },
 			};
+		case "shatter":
+			return {
+				...effect,
+				distortion: effect.distortion * factor,
+				gravity: { ...effect.gravity, value: effect.gravity.value * factor },
+			};
+		case "burst":
+			return {
+				...effect,
+				speed: { ...effect.speed, value: effect.speed.value * factor },
+				count: Math.max(1, Math.round(effect.count * factor)),
+			};
 		default:
 			return effect;
 	}
@@ -179,6 +191,10 @@ function primaryEffectAmplitude({
 			return Math.abs(effect.distance.value);
 		case "tumble":
 			return Math.abs(effect.drop.value);
+		case "shatter":
+			return Math.abs(effect.distortion);
+		case "burst":
+			return Math.abs(effect.speed.value);
 		default:
 			return 1;
 	}

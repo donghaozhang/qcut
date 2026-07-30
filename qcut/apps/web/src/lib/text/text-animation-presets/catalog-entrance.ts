@@ -192,6 +192,16 @@ export const ENTRANCE_TEXT_ANIMATION_PRESETS = [
 		searchTerms: ["heart", "bounce", "爱心", "弹跳"],
 	},
 	{
+		id: "confetti-burst",
+		phase: "entrance",
+		nameKey: "textProperties.animationPreset.confettiBurst",
+		previewKind: "confetti-burst",
+		defaultDuration: 1,
+		defaultDelay: 0,
+		defaultIntensity: 1,
+		searchTerms: ["confetti", "ribbon", "burst", "彩带", "喷射", "庆祝"],
+	},
+	{
 		id: "flip-open",
 		phase: "entrance",
 		nameKey: "textProperties.animationPreset.flipOpen",

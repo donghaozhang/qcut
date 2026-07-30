@@ -284,6 +284,139 @@ function heartDecorations({
 	return decorations;
 }
 
+const BURST_BASE_LIFE = 0.62;
+/** Latest fraction of the phase at which a particle may be born. */
+const BURST_MAX_BIRTH = 0.35;
+
+function burstDecorations({
+	effect,
+	progress,
+	unit,
+	layout,
+}: {
+	effect: Extract<TextAnimationEffect, { kind: "burst" }>;
+	progress: number;
+	unit: CompiledTextAnimationUnit;
+	layout: TextAnimationLayout;
+}): TextAnimationDecorationState[] {
+	const originX = layout.bounds.x + layout.bounds.width / 2;
+	const originY = layout.bounds.y + layout.bounds.height / 2;
+	const speedPx = resolveDistance({ distance: effect.speed, layout });
+	const gravityPx = resolveDistance({ distance: effect.gravity, layout });
+	const items: Extract<
+		TextAnimationDecorationState,
+		{ kind: "particles" }
+	>["items"] = [];
+	for (let particleIndex = 0; particleIndex < effect.count; particleIndex++) {
+		const noise = (channel: number) =>
+			seededValue({
+				seed: effect.seed,
+				unitIndex: unit.index,
+				particleIndex,
+				channel,
+			});
+		// Closed-form ballistics: every value below is a pure function of the
+		// phase progress, mirroring the LumiDust prefab schema (pLifeRandom,
+		// pSizeRandom, pSizeOverLife/pOpacityOverLife, gravity).
+		const birth = noise(0) * BURST_MAX_BIRTH;
+		// Clamped to the phase remainder: a particle still mid-flight when the
+		// phase ends would be cut off mid-opacity instead of fading out.
+		const life = Math.min(
+			BURST_BASE_LIFE * (1 + (noise(1) - 0.5) * 2 * effect.lifeRandom),
+			1 - birth
+		);
+		const age = (progress - birth) / Math.max(Number.EPSILON, life);
+		if (age <= 0 || age >= 1) continue;
+		const angleRad =
+			((effect.directionDeg + (noise(2) - 0.5) * effect.spreadDeg) * Math.PI) /
+			180;
+		// Fast initial burst that decelerates, like the reference footage.
+		const travel = speedPx * (0.6 + 0.8 * noise(3)) * age ** 0.62;
+		const flutterSway =
+			Math.sin(Math.PI * 2 * (age * 2 + noise(4))) *
+			effect.flutter *
+			layout.fontSize *
+			0.4;
+		const fadeIn = clampUnitInterval({ value: age / 0.12 });
+		const fadeOut = clampUnitInterval({ value: (1 - age) / 0.3 });
+		items.push({
+			x: originX + Math.sin(angleRad) * travel + flutterSway,
+			y: originY - Math.cos(angleRad) * travel + gravityPx * age * age,
+			rotationDeg:
+				(noise(5) - 0.5) * 720 * age +
+				Math.sin(Math.PI * 2 * (age * 2.5 + noise(6))) * effect.flutter * 65,
+			sizePx:
+				layout.fontSize *
+				effect.sizeEm *
+				(1 + (noise(7) - 0.5) * 2 * effect.sizeRandom) *
+				clampUnitInterval({ value: age / 0.08 }),
+			opacity: Math.min(fadeIn, fadeOut),
+			colorIndex: Math.min(
+				effect.palette.length - 1,
+				Math.floor(noise(8) * effect.palette.length)
+			),
+		});
+	}
+	const decorations: TextAnimationDecorationState[] = [];
+	if (effect.rays && effect.rays.count > 0) {
+		// Firework core: dotted spark trails radiating from the layout center,
+		// matching the reference starburst footage.
+		const rayLengthPx = resolveDistance({
+			distance: effect.rays.length,
+			layout,
+		});
+		const rayItems: Extract<
+			TextAnimationDecorationState,
+			{ kind: "particles" }
+		>["items"] = [];
+		const grow = clampUnitInterval({ value: progress / 0.7 }) ** 0.55;
+		const rayOpacity =
+			1 - clampUnitInterval({ value: (progress - 0.55) / 0.45 });
+		if (grow > 0 && rayOpacity > 0) {
+			for (let rayIndex = 0; rayIndex < effect.rays.count; rayIndex++) {
+				const noise = (channel: number) =>
+					seededValue({
+						seed: effect.seed,
+						unitIndex: unit.index,
+						particleIndex: 1000 + rayIndex,
+						channel,
+					});
+				const angleRad =
+					((((rayIndex + 0.5) / effect.rays.count) * 360 +
+						(noise(0) - 0.5) * 14) *
+						Math.PI) /
+					180;
+				const length = rayLengthPx * (0.7 + 0.6 * noise(1)) * grow;
+				rayItems.push({
+					x: originX + Math.sin(angleRad) * length,
+					y: originY - Math.cos(angleRad) * length,
+					rotationDeg: (angleRad * 180) / Math.PI,
+					sizePx: length,
+					opacity: rayOpacity,
+					colorIndex: -1,
+				});
+			}
+		}
+		if (rayItems.length > 0) {
+			decorations.push({
+				kind: "particles",
+				shape: "spark",
+				palette: effect.palette,
+				items: rayItems,
+			});
+		}
+	}
+	if (items.length > 0) {
+		decorations.push({
+			kind: "particles",
+			shape: effect.shape,
+			palette: effect.palette,
+			items,
+		});
+	}
+	return decorations;
+}
+
 function loopVisual({
 	context,
 }: {
@@ -493,6 +626,17 @@ function loopVisual({
 			],
 		};
 	}
+	if (effect.kind === "burst") {
+		return {
+			visual,
+			decorations: burstDecorations({
+				effect,
+				progress: linearProgress,
+				unit,
+				layout,
+			}),
+		};
+	}
 	if (effect.kind === "heart") {
 		visual.scaleX = 1 + pulse * 0.12;
 		visual.scaleY = 1 + pulse * 0.12;
@@ -643,6 +787,22 @@ function edgeVisual({
 		visual.rotationDeg = (angle * 180) / Math.PI;
 		if (effect.fade) visual.opacity = presence;
 	}
+	if (effect.kind === "shatter") {
+		// Ported from LumiDust: the renderer runs the tile pass; the engine
+		// resolves parameters and the sweep progress (exits dissolve forward,
+		// entrances assemble in reverse).
+		visual.shatter = {
+			progress: role === "entrance" ? 1 - progress : progress,
+			tilePx: effect.tilePx,
+			distortionPx: effect.distortion * layout.fontSize,
+			gravityPx: resolveDistance({ distance: effect.gravity, layout }),
+			gravityRotDeg: effect.gravityRotDeg,
+			front: effect.front,
+			frontRotDeg: effect.frontRotDeg,
+			feather: effect.feather,
+			seed: 1,
+		};
+	}
 	if (effect.kind === "tumble") {
 		// Jianying's RotateFlyOut: cubic-in shrink to zero with spin and
 		// drop; the glyph vanishes by scale, not by fading.
@@ -742,6 +902,17 @@ function edgeVisual({
 					glowPx: effect.glowPx,
 				},
 			],
+		};
+	}
+	if (effect.kind === "burst") {
+		return {
+			visual,
+			decorations: burstDecorations({
+				effect,
+				progress: role === "exit" ? 1 - linearProgress : linearProgress,
+				unit,
+				layout,
+			}),
 		};
 	}
 	if (effect.kind === "heart") {
