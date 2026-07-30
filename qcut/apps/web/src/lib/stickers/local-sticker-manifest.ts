@@ -4,18 +4,31 @@ import {
 	type LocalStickerFileReader,
 } from "./local-sticker-file-reader";
 import { readRemoteStickerManifestResponse } from "./remote-sticker-manifest-reader";
+import {
+	ABSOLUTE_LOCAL_PATH_PATTERN,
+	GIT_OID_PATTERN,
+	hasDotPathSegment,
+	MAX_REMOTE_ASSET_BYTES,
+	MAX_REMOTE_CATALOG_BYTES,
+	MAX_REMOTE_CATEGORY_BYTES,
+	SHA256_PATTERN,
+	SOURCE_ASSET_ID_PATTERN,
+	STICKER_ID_PATTERN,
+	SUPABASE_OBJECT_KEY_PATTERN,
+	validateUniqueManifestEntries,
+} from "./sticker-manifest-validation";
 
-const STICKER_ID_PATTERN = /^[a-z0-9]+(?:-[a-z0-9]+)*$/;
-const ABSOLUTE_LOCAL_PATH_PATTERN = /^(?:\/|[a-zA-Z]:[\\/]|\\\\)/;
-const SUPABASE_OBJECT_KEY_PATTERN =
-	/^jianying\/[a-z0-9-]+\/assets\/[a-z0-9-]+\.(gif|png)$/;
-const SHA256_PATTERN = /^[a-f0-9]{64}$/;
-
-function hasDotPathSegment({ filePath }: { filePath: string }): boolean {
-	return filePath
-		.split(/[\\/]/)
-		.some((segment) => segment === "." || segment === "..");
-}
+const repositoryPathSchema = z
+	.string()
+	.trim()
+	.min(1)
+	.max(300)
+	.refine((filePath) => !ABSOLUTE_LOCAL_PATH_PATTERN.test(filePath), {
+		message: "repository path must be relative",
+	})
+	.refine((filePath) => !hasDotPathSegment({ filePath }), {
+		message: "repository path must not contain dot path segments",
+	});
 
 const localStickerSourceKindSchema = z.enum([
 	"static-image",
@@ -149,7 +162,16 @@ const supabaseStickerAssetSchema = z
 	.object({
 		kind: z.literal("supabase-storage"),
 		objectKey: z.string().regex(SUPABASE_OBJECT_KEY_PATTERN),
-		byteSize: z.number().int().positive(),
+		byteSize: z.number().int().positive().max(MAX_REMOTE_ASSET_BYTES),
+		checksumSha256: z.string().regex(SHA256_PATTERN),
+	})
+	.strict();
+
+const remoteStickerSourceAssetSchema = z
+	.object({
+		collection: z.string().trim().regex(STICKER_ID_PATTERN),
+		id: z.string().trim().regex(SOURCE_ASSET_ID_PATTERN),
+		path: repositoryPathSchema,
 		checksumSha256: z.string().regex(SHA256_PATTERN),
 	})
 	.strict();
@@ -158,6 +180,7 @@ const remoteStickerReferenceSchema = z
 	.object({
 		...commonStickerReferenceShape,
 		mimeType: z.enum(["image/png", "image/gif"]),
+		sourceAsset: remoteStickerSourceAssetSchema,
 		asset: supabaseStickerAssetSchema,
 	})
 	.strict()
@@ -198,70 +221,33 @@ const localStickerCategorySchema = z
 const remoteStickerCategorySchema = z
 	.object({
 		...commonCategoryShape,
-		items: z.array(remoteStickerReferenceSchema).min(1),
+		items: z.array(remoteStickerReferenceSchema).min(1).max(100),
 	})
 	.strict();
 
-function validateUniqueManifestEntries({
-	categories,
-	context,
-}: {
-	categories: readonly {
-		id: string;
-		items: readonly {
-			id: string;
-			filePath?: string;
-			asset?: { objectKey: string };
-		}[];
-	}[];
-	context: z.RefinementCtx;
-}): void {
-	const categoryIds = new Set<string>();
-	const itemIds = new Set<string>();
-	const resourceIdentities = new Set<string>();
-
-	for (const [categoryIndex, category] of categories.entries()) {
-		if (categoryIds.has(category.id)) {
-			context.addIssue({
-				code: z.ZodIssueCode.custom,
-				path: ["categories", categoryIndex, "id"],
-				message: `Duplicate category id: ${category.id}`,
-			});
-		}
-		categoryIds.add(category.id);
-
-		for (const [itemIndex, item] of category.items.entries()) {
-			if (itemIds.has(item.id)) {
-				context.addIssue({
-					code: z.ZodIssueCode.custom,
-					path: ["categories", categoryIndex, "items", itemIndex, "id"],
-					message: `Duplicate sticker id: ${item.id}`,
-				});
-			}
-			itemIds.add(item.id);
-
-			const resourceIdentity = item.filePath ?? item.asset?.objectKey;
-			if (!resourceIdentity) continue;
-			if (resourceIdentities.has(resourceIdentity)) {
-				const resourceField = item.filePath ? "filePath" : "asset.objectKey";
-				context.addIssue({
-					code: z.ZodIssueCode.custom,
-					path: [
-						"categories",
-						categoryIndex,
-						"items",
-						itemIndex,
-						...resourceField.split("."),
-					],
-					message: item.filePath
-						? `Duplicate sticker path: ${resourceIdentity}`
-						: `Duplicate sticker object key: ${resourceIdentity}`,
-				});
-			}
-			resourceIdentities.add(resourceIdentity);
-		}
-	}
-}
+const remoteStickerProvenanceSchema = z
+	.object({
+		creator: z.string().trim().min(1).max(120),
+		license: z
+			.object({
+				name: z.string().trim().min(1).max(120),
+				commercialUse: z.enum(["allowed", "restricted", "unknown"]),
+				attributionRequired: z.literal(false),
+				licenseFile: repositoryPathSchema,
+			})
+			.strict(),
+		sourceCollections: z
+			.array(z.string().trim().regex(STICKER_ID_PATTERN))
+			.min(1)
+			.max(20)
+			.refine(
+				(collections) => new Set(collections).size === collections.length,
+				"Source collections must be unique"
+			),
+		sourceTreeGitOid: z.string().regex(GIT_OID_PATTERN),
+		transformation: z.string().trim().min(1).max(240),
+	})
+	.strict();
 
 const localStickerManifestV1Schema = z
 	.object({
@@ -280,7 +266,8 @@ const stickerLabManifestV2Schema = z
 	.object({
 		version: z.literal(2),
 		catalogId: z.string().trim().regex(STICKER_ID_PATTERN),
-		categories: z.array(remoteStickerCategorySchema).min(1),
+		provenance: remoteStickerProvenanceSchema,
+		categories: z.array(remoteStickerCategorySchema).min(1).max(100),
 	})
 	.strict()
 	.superRefine((manifest, context) => {
@@ -288,24 +275,58 @@ const stickerLabManifestV2Schema = z
 			categories: manifest.categories,
 			context,
 		});
-		const storageCatalogId = manifest.catalogId.replace(/^jianying-/, "");
-		const catalogObjectPrefix = `jianying/${storageCatalogId}/assets/`;
+		const catalogObjectPrefix = `catalogs/${manifest.catalogId}/assets/`;
+		let catalogBytes = 0;
 		for (const [categoryIndex, category] of manifest.categories.entries()) {
-			for (const [itemIndex, item] of category.items.entries()) {
-				if (item.asset.objectKey.startsWith(catalogObjectPrefix)) continue;
+			const categoryBytes = category.items.reduce(
+				(totalBytes, item) => totalBytes + item.asset.byteSize,
+				0
+			);
+			catalogBytes += categoryBytes;
+			if (categoryBytes > MAX_REMOTE_CATEGORY_BYTES) {
 				context.addIssue({
 					code: z.ZodIssueCode.custom,
-					path: [
-						"categories",
-						categoryIndex,
-						"items",
-						itemIndex,
-						"asset",
-						"objectKey",
-					],
-					message: `Object key must belong to catalog ${manifest.catalogId}`,
+					path: ["categories", categoryIndex, "items"],
+					message: `Category assets exceed ${MAX_REMOTE_CATEGORY_BYTES} bytes`,
 				});
 			}
+			for (const [itemIndex, item] of category.items.entries()) {
+				const itemPath = ["categories", categoryIndex, "items", itemIndex];
+				if (!item.asset.objectKey.startsWith(catalogObjectPrefix)) {
+					context.addIssue({
+						code: z.ZodIssueCode.custom,
+						path: [...itemPath, "asset", "objectKey"],
+						message: `Object key must belong to catalog ${manifest.catalogId}`,
+					});
+				}
+				if (
+					!manifest.provenance.sourceCollections.includes(
+						item.sourceAsset.collection
+					)
+				) {
+					context.addIssue({
+						code: z.ZodIssueCode.custom,
+						path: [...itemPath, "sourceAsset", "collection"],
+						message: `Source collection is not declared in catalog provenance: ${item.sourceAsset.collection}`,
+					});
+				}
+				if (
+					!item.sourceAsset.id.startsWith(`${item.sourceAsset.collection}:`)
+				) {
+					context.addIssue({
+						code: z.ZodIssueCode.custom,
+						path: [...itemPath, "sourceAsset", "id"],
+						message: `Source asset id must use the ${item.sourceAsset.collection}: prefix`,
+					});
+				}
+			}
+		}
+		if (catalogBytes > MAX_REMOTE_CATALOG_BYTES) {
+			context.addIssue({
+				code: z.ZodIssueCode.custom,
+				path: ["categories"],
+				message: `Catalog assets exceed ${MAX_REMOTE_CATALOG_BYTES} bytes`,
+			});
 		}
 	});
 
@@ -318,6 +339,9 @@ export type LocalStickerPlayback =
 export type LocalStickerReference = z.infer<typeof localStickerReferenceSchema>;
 export type RemoteStickerReference = z.infer<
 	typeof remoteStickerReferenceSchema
+>;
+export type RemoteStickerProvenance = z.infer<
+	typeof remoteStickerProvenanceSchema
 >;
 export type StickerLabReference =
 	| LocalStickerReference
