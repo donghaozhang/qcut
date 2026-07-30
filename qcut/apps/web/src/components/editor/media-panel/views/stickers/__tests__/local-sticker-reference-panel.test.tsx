@@ -94,6 +94,51 @@ describe("LocalStickerReferencePanel", () => {
 		expect(URL.revokeObjectURL).toHaveBeenCalledTimes(9);
 	});
 
+	it("aborts in-flight item loads on category switch and unmount", async () => {
+		const pendingSignals: AbortSignal[] = [];
+		referenceMocks.loadFile.mockImplementation(
+			({ signal }: { signal: AbortSignal }) =>
+				new Promise<File>((_resolve, reject) => {
+					pendingSignals.push(signal);
+					signal.addEventListener(
+						"abort",
+						() =>
+							reject(
+								new DOMException("The operation was aborted", "AbortError")
+							),
+						{ once: true }
+					);
+				})
+		);
+		const { unmount } = render(
+			<LocalStickerReferencePanel
+				catalog={createLocalStickerCatalog()}
+				error={null}
+				isLoading={false}
+				onSelect={async () => {}}
+			/>
+		);
+
+		await waitFor(() => expect(pendingSignals).toHaveLength(4));
+		expect(pendingSignals.every((signal) => !signal.aborted)).toBe(true);
+
+		fireEvent.click(screen.getByRole("tab", { name: "情绪，5 个贴纸" }));
+
+		await waitFor(() => expect(pendingSignals).toHaveLength(9));
+		expect(pendingSignals.slice(0, 4).every((signal) => signal.aborted)).toBe(
+			true
+		);
+		expect(pendingSignals.slice(4).every((signal) => !signal.aborted)).toBe(
+			true
+		);
+		expect(screen.queryByText("实验素材无法载入")).toBeNull();
+
+		unmount();
+		expect(pendingSignals.slice(4).every((signal) => signal.aborted)).toBe(
+			true
+		);
+	});
+
 	it("adds the exact loaded File and prevents duplicate clicks while pending", async () => {
 		const onSelect = vi.fn(
 			async ({ file: _file }: { file: File }) =>
@@ -413,6 +458,7 @@ describe("LocalStickerReferencePanel", () => {
 					objectKey: "jianying/2026-07-31/assets/popular-1-updated.gif",
 				}),
 			}),
+			signal: expect.any(AbortSignal),
 		});
 	});
 });
