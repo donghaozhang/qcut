@@ -61,7 +61,7 @@ describe("sticker lab routes", () => {
 	it("forbids access when the allowlist is not configured", async () => {
 		const response = await buildApp().request(
 			buildAssetUrl({
-				objectKey: "jianying/2026-07-31/assets/sticker-123.gif",
+				objectKey: "catalogs/qcut-original-test/assets/sticker-123.gif",
 			})
 		);
 
@@ -78,7 +78,7 @@ describe("sticker lab routes", () => {
 
 		const response = await buildApp().request(
 			buildAssetUrl({
-				objectKey: "jianying/2026-07-31/assets/sticker-123.gif",
+				objectKey: "catalogs/qcut-original-test/assets/sticker-123.gif",
 			})
 		);
 
@@ -93,10 +93,11 @@ describe("sticker lab routes", () => {
 			undefined,
 			"",
 			"stickers/2026-07-31/assets/sticker.gif",
-			"jianying/2026-07-31/assets/sticker.jpg",
-			"jianying/2026-07-31/assets/Sticker.gif",
-			"jianying/2026_07_31/assets/sticker.gif",
-			"jianying/2026-07-31/assets/sticker.gif/extra",
+			"catalogs/qcut-original-test/assets/sticker.jpg",
+			"catalogs/qcut-original-test/assets/Sticker.gif",
+			"catalogs/qcut_original_test/assets/sticker.gif",
+			"catalogs/qcut-original-test/assets/sticker.gif/extra",
+			"catalogs/another-catalog/assets/sticker.gif",
 		];
 
 		const responses = await Promise.all(
@@ -117,12 +118,12 @@ describe("sticker lab routes", () => {
 	it("rejects traversal attempts", async () => {
 		allowMockUser();
 		const encodedTraversalUrl =
-			"/api/sticker-lab/assets?objectKey=jianying%2F2026-07-31%2Fassets%2F%2e%2e%2Fsecret.gif";
+			"/api/sticker-lab/assets?objectKey=catalogs%2Fqcut-original-test%2Fassets%2F%2e%2e%2Fsecret.gif";
 		const traversalUrls = [
 			buildAssetUrl({
-				objectKey: "jianying/2026-07-31/assets/../secret.gif",
+				objectKey: "catalogs/qcut-original-test/assets/../secret.gif",
 			}),
-			buildAssetUrl({ objectKey: "jianying/../assets/secret.gif" }),
+			buildAssetUrl({ objectKey: "catalogs/../assets/secret.gif" }),
 			encodedTraversalUrl,
 		];
 		expect(
@@ -146,7 +147,7 @@ describe("sticker lab routes", () => {
 			"STICKER_LAB_ALLOWED_USER_IDS",
 			" another-user, , mock-user-001, "
 		);
-		const objectKey = "jianying/2026-07-31/assets/sticker-123.gif";
+		const objectKey = "catalogs/qcut-original-test/assets/sticker-123.gif";
 		const signedUrl =
 			"https://example.supabase.co/storage/v1/object/sign/sticker-lab/sticker.gif?token=signed";
 		storageMocks.createSignedUrl.mockResolvedValue({
@@ -174,7 +175,7 @@ describe("sticker lab routes", () => {
 
 		const response = await buildApp().request(
 			buildAssetUrl({
-				objectKey: "jianying/2026-07-31/assets/sticker-123.png",
+				objectKey: "catalogs/qcut-original-test/assets/sticker-123.png",
 			})
 		);
 		const responseText = await response.text();
@@ -192,7 +193,7 @@ describe("sticker lab routes", () => {
 
 		const response = await buildApp().request(
 			buildAssetUrl({
-				objectKey: "jianying/2026-07-31/assets/sticker-123.gif",
+				objectKey: "catalogs/qcut-original-test/assets/sticker-123.gif",
 			})
 		);
 		const responseText = await response.text();
