@@ -214,6 +214,104 @@ export function effectForPreset({
 			// Jianying's stepped shake: local time floored to quarters, offsets
 			// from sine products keyed on the unit's rank.
 			return { kind: "jitter", steps: 4, amplitudeX: 0.04, amplitudeY: 0.027 };
+		case "loop:vortex":
+			// Jianying's 漩涡 (their Lua: translate.x = sin(2πt)·charW,
+			// translate.y = cos(2πt), per-char phase window) — a small circle
+			// per character with no glyph spin.
+			return {
+				kind: "orbit",
+				rotation: "clockwise",
+				turns: 1,
+				radius: { value: 0.35, unit: "em" },
+				spin: false,
+				fade: false,
+			};
+		case "loop:pendulum":
+			return {
+				kind: "rotate",
+				degrees: 16,
+				oscillation: {
+					cycles: 1,
+					phaseEasing: "smoothstep",
+					pivot: "bottomCenter",
+				},
+				fade: false,
+			};
+		case "loop:zoom-each":
+			// 逐字放大: each character swells in sequence via the loop's
+			// cyclic stagger.
+			return {
+				kind: "scale",
+				hiddenScale: 1.5,
+				overshoot: 0,
+				fade: false,
+				pulse: { cycles: 1, easing: "smoothstep" },
+			};
+		case "loop:wave-squeeze":
+			return { kind: "squeeze", amount: 0.45, spatialCycles: 1.2 };
+		case "loop:fold":
+			return { kind: "fold", minimumScale: 0.05, phaseStepDeg: 90 };
+		case "loop:arc-up":
+			return { kind: "arc", riseEm: 0.45, tiltDeg: 14 };
+		case "exit:spiral-down":
+			// Reference tumbles at full brightness and vanishes by falling
+			// away, not by fading.
+			return {
+				kind: "spiral",
+				turns: 1.25,
+				radius: { value: 1.4, unit: "em" },
+				drop: { value: 1.2, unit: "boxHeight" },
+				fade: false,
+			};
+		case "exit:elastic-out":
+			// Captured reference: characters tumble upside down while they
+			// shrink away, staggered — a half-turn tumble with a slight drop.
+			return {
+				kind: "tumble",
+				spinDeg: 180,
+				drop: { value: 0.3, unit: "em" },
+				fade: false,
+			};
+		case "exit:fly-up-out":
+			// Their Lua: translate {0,2000,0}→0 reversed, per-char window of
+			// only 10% of the phase, motion blur from a shader. The blur
+			// effect gives us slide + blur in one.
+			return {
+				kind: "blur",
+				direction: "up",
+				distance: { value: 2, unit: "boxHeight" },
+				radiusPx: 12,
+				fade: false,
+			};
+		case "exit:flicker-scatter":
+			// Captured reference: units strobe near home and drift apart only
+			// late in the exit.
+			return {
+				kind: "scatter",
+				distance: { value: 1.2, unit: "em" },
+				flicker: true,
+				rotateDeg: 20,
+				seed: presetSeed({ presetId }),
+			};
+		case "exit:random-fly-out":
+			// RotateFlyOut.lua: scale 1→0, rotate 0→-720°, drop 1.5–2.5 char
+			// heights, cubic-in, in shuffled per-char order.
+			return {
+				kind: "tumble",
+				spinDeg: -720,
+				drop: { value: 2, unit: "em" },
+				fade: false,
+			};
+		case "exit:shrink-shake":
+			// Reference stays big and bright as a motion-blur smear; only the
+			// scale collapse ends it.
+			return {
+				kind: "scale",
+				shakeEm: 0.09,
+				hiddenScale: 0.3,
+				overshoot: 0,
+				fade: false,
+			};
 		case "entrance:scale-up":
 			// Jianying's EnlargeIn.lua: scale 0.5 -> 1 and alpha 0 -> 1, both
 			// quadOut, with no overshoot.
@@ -316,7 +414,13 @@ function staggerRatioForPreset({
 		presetId === "wave" ||
 		presetId === "sway" ||
 		presetId === "jitter" ||
-		presetId === "flip"
+		presetId === "flip" ||
+		// Spatially phased or seeded per unit inside the effect itself.
+		presetId === "wave-squeeze" ||
+		presetId === "fold" ||
+		presetId === "arc-up" ||
+		presetId === "flicker-scatter" ||
+		presetId === "shrink-shake"
 	) {
 		return 0;
 	}
@@ -324,6 +428,13 @@ function staggerRatioForPreset({
 	// Spreading phases across nearly the whole cycle is what turns orbit's
 	// shared circle into Jianying's ring layout.
 	if (presetId === "ring-orbit") return 0.95;
+	// Jianying's 漩涡 spreads its per-char windows across most of the cycle.
+	if (presetId === "vortex") return 0.8;
+	if (presetId === "spiral-down") return 0.3;
+	// Their Lua gives each character a window of only 10% of the phase.
+	if (presetId === "fly-up-out") return 0.9;
+	// RotateFlyOut spreads shuffled start times across 60% of the phase.
+	if (presetId === "random-fly-out" || presetId === "elastic-out") return 0.6;
 	return 0.58;
 }
 
@@ -353,8 +464,24 @@ export function sequenceForPreset({
 		"jitter",
 		"ring-orbit",
 		"flip",
+		"vortex",
+		"zoom-each",
+		"wave-squeeze",
+		"fold",
+		"arc-up",
+		"spiral-down",
+		"fly-up-out",
+		"flicker-scatter",
+		"random-fly-out",
+		"shrink-shake",
+		"elastic-out",
 	]);
-	const order = presetId === "typewriter-out" ? "reverse" : "forward";
+	const order =
+		presetId === "typewriter-out"
+			? "reverse"
+			: presetId === "random-fly-out" || presetId === "elastic-out"
+				? "random"
+				: "forward";
 	const staggerRatio = staggerRatioForPreset({
 		isGraphemePreset: graphemePresets.has(presetId),
 		presetId,
@@ -376,6 +503,19 @@ export function easingForPreset({
 	presetId: string;
 }): TextAnimationEasing {
 	if (phase === "loop" || presetId === "bounce-up") {
+		return "linear";
+	}
+	if (
+		presetId === "fly-up-out" ||
+		presetId === "elastic-out" ||
+		presetId === "random-fly-out" ||
+		presetId === "flicker-scatter" ||
+		presetId === "spiral-down" ||
+		presetId === "shrink-shake"
+	) {
+		// These effects carry their own drive curves (cubic-in tumble, squared
+		// spiral drop, hold-then-drift scatter); their Lua references run on
+		// linear time, and an eased phase would double-bend the motion.
 		return "linear";
 	}
 	if (presetId.includes("typewriter") || presetId === "cursor-typewriter") {

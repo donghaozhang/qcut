@@ -59,6 +59,9 @@ function scaleEffectIntensity({
 		case "scale":
 			return {
 				...effect,
+				...(effect.shakeEm !== undefined
+					? { shakeEm: effect.shakeEm * factor }
+					: {}),
 				hiddenScale: 1 - (1 - effect.hiddenScale) * factor,
 				overshoot: effect.overshoot * factor,
 			};
@@ -100,6 +103,40 @@ function scaleEffectIntensity({
 				amplitudeX: effect.amplitudeX * factor,
 				amplitudeY: effect.amplitudeY * factor,
 			};
+		case "arc":
+			return {
+				...effect,
+				riseEm: effect.riseEm * factor,
+				tiltDeg: effect.tiltDeg * factor,
+			};
+		case "squeeze":
+			return { ...effect, amount: effect.amount * factor };
+		case "fold":
+			return {
+				...effect,
+				minimumScale: 1 - (1 - effect.minimumScale) * factor,
+			};
+		case "spiral":
+			return {
+				...effect,
+				radius: { ...effect.radius, value: effect.radius.value * factor },
+				drop: { ...effect.drop, value: effect.drop.value * factor },
+			};
+		case "scatter":
+			return {
+				...effect,
+				distance: {
+					...effect.distance,
+					value: effect.distance.value * factor,
+				},
+				rotateDeg: effect.rotateDeg * factor,
+			};
+		case "tumble":
+			return {
+				...effect,
+				spinDeg: effect.spinDeg * factor,
+				drop: { ...effect.drop, value: effect.drop.value * factor },
+			};
 		default:
 			return effect;
 	}
@@ -130,6 +167,18 @@ function primaryEffectAmplitude({
 			return Math.abs(effect.maxAngleDeg);
 		case "jitter":
 			return Math.abs(effect.amplitudeX);
+		case "arc":
+			return Math.abs(effect.riseEm);
+		case "squeeze":
+			return Math.abs(effect.amount);
+		case "fold":
+			return Math.abs(1 - effect.minimumScale);
+		case "spiral":
+			return Math.abs(effect.drop.value);
+		case "scatter":
+			return Math.abs(effect.distance.value);
+		case "tumble":
+			return Math.abs(effect.drop.value);
 		default:
 			return 1;
 	}

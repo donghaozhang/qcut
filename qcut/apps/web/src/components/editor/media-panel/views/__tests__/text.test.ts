@@ -724,7 +724,7 @@ describe("text view layout", () => {
 		).toBe("cached");
 	});
 
-	it("keeps bundled SVIP text resources locked until access is available", () => {
+	it("serves bundled premium text resources without an SVIP grant", () => {
 		const definition = getTextTemplateDefinitionsByCategory({
 			category: "red",
 		}).find((candidate) => candidate.premium);
@@ -735,16 +735,6 @@ describe("text view layout", () => {
 				definition,
 				runtimeByAssetKey: {},
 				state: EMPTY_TEXT_LIBRARY_STATE,
-			})
-		).toBe("failed");
-		expect(
-			getTextTemplateRuntimeDownloadStatus({
-				definition,
-				runtimeByAssetKey: {},
-				state: {
-					...EMPTY_TEXT_LIBRARY_STATE,
-					hasSvipAccess: true,
-				},
 			})
 		).toBe("cached");
 	});

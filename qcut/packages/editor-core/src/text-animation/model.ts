@@ -111,6 +111,8 @@ export interface TextRotateEffect {
 
 export interface TextScaleEffect {
 	kind: "scale";
+	/** Quantized positional shake while scaling, in em (Jianying's 收缩震动). */
+	shakeEm?: number;
 	hiddenScale: number;
 	overshoot: number;
 	fade: boolean;
@@ -150,7 +152,76 @@ export interface TextOrbitEffect {
 	 * around their own line positions.
 	 */
 	ring?: boolean;
+	/** Set false to translate without rotating the glyph (Jianying's 漩涡). */
+	spin?: boolean;
 	fade: boolean;
+}
+
+/**
+ * Jianying's 上弧 loop: the line bows into an upward arc and relaxes, ends
+ * tilting outward with the arc's slope.
+ */
+export interface TextArcEffect {
+	kind: "arc";
+	/** Peak rise of the line center, in em. */
+	riseEm: number;
+	/** Outward tilt of the line ends at full rise, in degrees. */
+	tiltDeg: number;
+}
+
+/** Jianying's 波浪挤压: a squash wave travels through the characters. */
+export interface TextSqueezeEffect {
+	kind: "squeeze";
+	/** Vertical squash at the wave crest, 0..1. */
+	amount: number;
+	/** Spatial wave cycles across the line. */
+	spatialCycles: number;
+}
+
+/** Jianying's 折叠: characters fold flat and reopen, phase-stepped by rank. */
+export interface TextFoldEffect {
+	kind: "fold";
+	/** Narrowest horizontal scale at the fold, kept > 0 to stay visible. */
+	minimumScale: number;
+	/** Phase step between neighbouring units, in degrees. */
+	phaseStepDeg: number;
+}
+
+/** Jianying's 螺旋下降: units corkscrew outward and drop away. */
+export interface TextSpiralEffect {
+	kind: "spiral";
+	turns: number;
+	radius: TextAnimationDistance;
+	drop: TextAnimationDistance;
+	fade: boolean;
+}
+
+/**
+ * Jianying's RotateFlyOut.lua: the unit shrinks to nothing in place while
+ * spinning and dropping, all on a cubic-in drive. 随机飞出 uses two full
+ * negative turns; 弹性伸缩 reads as a half-turn tumble with a slight drop.
+ */
+export interface TextTumbleEffect {
+	kind: "tumble";
+	/** Total spin at the vanish point, in degrees (theirs: -720). */
+	spinDeg: number;
+	/** Fall distance at the vanish point (theirs: 1.5–2.5 char heights). */
+	drop: TextAnimationDistance;
+	fade: boolean;
+}
+
+/**
+ * Seeded per-unit dispersal, covering Jianying's 随机飞出 and, with flicker,
+ * 闪烁散开.
+ */
+export interface TextScatterEffect {
+	kind: "scatter";
+	distance: TextAnimationDistance;
+	/** Strobe the unit's opacity while it disperses. */
+	flicker: boolean;
+	/** Maximum random spin picked per unit, in degrees. */
+	rotateDeg: number;
+	seed: number;
 }
 
 export interface TextLaserEffect {
@@ -216,7 +287,13 @@ export type TextAnimationEffect =
 	| TextLaserEffect
 	| TextHeartEffect
 	| TextFlipEffect
-	| TextJitterEffect;
+	| TextJitterEffect
+	| TextArcEffect
+	| TextSqueezeEffect
+	| TextFoldEffect
+	| TextSpiralEffect
+	| TextScatterEffect
+	| TextTumbleEffect;
 
 export interface TextAnimationPhaseBase {
 	sourcePreset?: TextAnimationPresetRef;

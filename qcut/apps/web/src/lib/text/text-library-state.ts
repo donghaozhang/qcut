@@ -256,9 +256,13 @@ export function getTextTemplateResourceAccess({
 	definition: TextTemplateDefinition;
 	state: TextLibraryState;
 }): TextTemplateResourceAccess {
-	const resource = getTextTemplateResource({ definition });
-	if (resource.entitlement !== "svip") return "allowed";
-	return state.hasSvipAccess === true ? "allowed" : "svip-required";
+	// Every template is usable. The svip entitlement stays on the resource as
+	// marketplace metadata, but nothing ever granted hasSvipAccess — it was
+	// scaffolding copied from Jianying's market model with no billing behind
+	// it, which permanently dead-locked 20 premium styles for everyone.
+	void definition;
+	void state;
+	return "allowed";
 }
 
 export function getTextDefinitionsForLibraryCategory({

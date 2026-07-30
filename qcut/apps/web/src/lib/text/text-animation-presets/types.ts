@@ -31,7 +31,19 @@ export type TextAnimationPreviewKind =
 	| "flicker"
 	| "breathe"
 	| "ring-orbit"
-	| "jitter";
+	| "jitter"
+	| "vortex"
+	| "pendulum"
+	| "zoom-each"
+	| "wave-squeeze"
+	| "fold"
+	| "arc-up"
+	| "spiral-down"
+	| "elastic-out"
+	| "fly-up-out"
+	| "flicker-scatter"
+	| "random-fly-out"
+	| "shrink-shake";
 
 export interface TextAnimationPresetDefinition {
 	id: string;

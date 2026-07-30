@@ -312,6 +312,90 @@ describe("Jianying-derived loop effects", () => {
 		}
 	});
 
+	it("keeps vortex glyphs upright while they trace their circles", () => {
+		// Jianying's 漩涡 Lua only writes translate channels — no rotation.
+		const effect: TextAnimationEffect = {
+			kind: "orbit",
+			rotation: "clockwise",
+			turns: 1,
+			radius: { value: 0.35, unit: "em" },
+			spin: false,
+			fade: false,
+		};
+		const state = sampleLoop({
+			effect,
+			frame: 30,
+			content: "ABCD",
+			unit: "grapheme",
+		});
+		for (const unit of state.units) {
+			expect(unit.visual.rotationDeg).toBe(0);
+		}
+		expect(state.units.at(0)?.visual.translateX).not.toBeCloseTo(0);
+	});
+
+	it("bows the line into an arc with outward-tilting ends", () => {
+		const effect: TextAnimationEffect = {
+			kind: "arc",
+			riseEm: 0.5,
+			tiltDeg: 20,
+		};
+		const state = sampleLoop({
+			effect,
+			frame: 50,
+			content: "ABCD",
+			unit: "grapheme",
+		});
+		const lifts = state.units.map(({ visual }) => -visual.translateY);
+		// Center units rise the most; every unit rises at the half cycle.
+		expect(Math.max(...lifts.slice(1, 3))).toBeGreaterThan(lifts[0]);
+		for (const lift of lifts) expect(lift).toBeGreaterThan(0);
+		// Ends tilt in opposite directions.
+		const first = state.units.at(0)?.visual.rotationDeg ?? 0;
+		const last = state.units.at(-1)?.visual.rotationDeg ?? 0;
+		expect(Math.sign(first)).toBe(-Math.sign(last));
+	});
+
+	it("travels a squash wave across the line", () => {
+		const effect: TextAnimationEffect = {
+			kind: "squeeze",
+			amount: 0.5,
+			spatialCycles: 1.2,
+		};
+		const state = sampleLoop({
+			effect,
+			frame: 10,
+			content: "ABCD",
+			unit: "grapheme",
+		});
+		const scales = state.units.map(({ visual }) => visual.scaleY);
+		expect(new Set(scales.map((value) => value.toFixed(4))).size).toBe(4);
+		for (const scale of scales) {
+			expect(scale).toBeLessThanOrEqual(1);
+			expect(scale).toBeGreaterThanOrEqual(0.5);
+		}
+	});
+
+	it("ripples the fold along unit ranks and never vanishes", () => {
+		const effect: TextAnimationEffect = {
+			kind: "fold",
+			minimumScale: 0.05,
+			phaseStepDeg: 90,
+		};
+		const state = sampleLoop({
+			effect,
+			frame: 0,
+			content: "ABCD",
+			unit: "grapheme",
+		});
+		const scales = state.units.map(({ visual }) => visual.scaleX);
+		// rank phase steps of 90° make neighbours alternate open/flat.
+		expect(scales[0]).toBeCloseTo(1);
+		expect(scales[1]).toBeCloseTo(0.05);
+		expect(scales[2]).toBeCloseTo(1);
+		for (const scale of scales) expect(scale).toBeGreaterThan(0);
+	});
+
 	it("steps the jitter into four poses per cycle, keyed on unit rank", () => {
 		const effect: TextAnimationEffect = {
 			kind: "jitter",

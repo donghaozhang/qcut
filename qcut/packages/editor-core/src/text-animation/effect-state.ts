@@ -418,6 +418,33 @@ function loopVisual({
 			effect.amplitudeY *
 			layout.fontSize;
 	}
+	if (effect.kind === "arc") {
+		// Jianying's 上弧: the line bows into an arc (peak at the center) and
+		// relaxes each cycle; the ends tilt outward with the arc's slope.
+		const wave = (1 - Math.cos(progress * Math.PI * 2)) / 2;
+		const across = unitHorizontalProgress({ unit, layout });
+		visual.translateY =
+			-effect.riseEm * layout.fontSize * Math.sin(Math.PI * across) * wave;
+		visual.rotationDeg = effect.tiltDeg * Math.cos(Math.PI * across) * wave;
+	}
+	if (effect.kind === "squeeze") {
+		// Jianying's 波浪挤压: a squash wave travels through the line, with a
+		// touch of horizontal spread to keep the glyph's area believable.
+		const across = unitHorizontalProgress({ unit, layout });
+		const crest =
+			(1 + Math.sin(Math.PI * 2 * (effect.spatialCycles * across - progress))) /
+			2;
+		visual.scaleY = 1 - effect.amount * crest;
+		visual.scaleX = 1 + effect.amount * 0.3 * crest;
+	}
+	if (effect.kind === "fold") {
+		// Jianying's 折叠: units fold flat and reopen, phase-stepped by rank
+		// so the fold ripples along the line.
+		const phase =
+			progress * Math.PI * 2 +
+			unit.rank * ((effect.phaseStepDeg * Math.PI) / 180);
+		visual.scaleX = Math.max(effect.minimumScale, Math.abs(Math.cos(phase)));
+	}
 	if (effect.kind === "orbit") {
 		const sign = effect.rotation === "clockwise" ? 1 : -1;
 		const angle = sign * progress * Math.PI * 2 * effect.turns;
@@ -437,11 +464,15 @@ function loopVisual({
 				(bounds.y + bounds.height / 2);
 			visual.translateX = centerOffsetX + radius * Math.sin(angle);
 			visual.translateY = centerOffsetY + radius * Math.cos(angle);
-			visual.rotationDeg = (-angle * 180) / Math.PI;
+			if (effect.spin !== false) {
+				visual.rotationDeg = (-angle * 180) / Math.PI;
+			}
 		} else {
 			visual.translateX = radius * (Math.cos(angle) - 1);
 			visual.translateY = radius * Math.sin(angle);
-			visual.rotationDeg = (angle * 180) / Math.PI;
+			if (effect.spin !== false) {
+				visual.rotationDeg = (angle * 180) / Math.PI;
+			}
 		}
 		if (effect.fade) visual.opacity = 1 - pulse * 0.2;
 	}
@@ -552,6 +583,25 @@ function edgeVisual({
 		const axis = effect.axis ?? "uniform";
 		if (axis !== "y") visual.scaleX = scale;
 		if (axis !== "x") visual.scaleY = scale;
+		if (effect.shakeEm) {
+			// Jianying's 收缩震动: the shrink rides a quantized shake, reusing
+			// the stepped-pose constants from their 颤抖.
+			const step =
+				Math.floor((role === "exit" ? 1 - presence : presence) * 8) / 8;
+			const rank = unit.index + 1;
+			visual.translateX +=
+				Math.cos(24.8 * step + 7.9 * rank) * effect.shakeEm * layout.fontSize;
+			visual.translateY +=
+				Math.sin(19.1 * step + 33.6 * rank) *
+				effect.shakeEm *
+				layout.fontSize *
+				0.7;
+			// The captured reference renders the shake as motion-blur smear.
+			visual.blurPx = Math.max(
+				visual.blurPx,
+				effect.shakeEm * layout.fontSize * 0.6
+			);
+		}
 		if (effect.fade) visual.opacity = presence;
 	}
 	if (effect.kind === "bounce") {
@@ -579,6 +629,86 @@ function edgeVisual({
 		visual.scaleY = scale;
 		visual.opacity = clampUnitInterval({ value: resolvedPresence });
 	}
+	if (effect.kind === "spiral") {
+		// Jianying's 螺旋下降: units corkscrew outward while dropping away,
+		// accelerating into the fall.
+		const radialProgress = role === "entrance" ? 1 - progress : progress;
+		const angle = Math.PI * 2 * effect.turns * radialProgress;
+		const radius =
+			resolveDistance({ distance: effect.radius, layout }) * radialProgress;
+		visual.translateX = Math.cos(angle) * radius;
+		visual.translateY =
+			Math.sin(angle) * radius +
+			resolveDistance({ distance: effect.drop, layout }) * radialProgress ** 2;
+		visual.rotationDeg = (angle * 180) / Math.PI;
+		if (effect.fade) visual.opacity = presence;
+	}
+	if (effect.kind === "tumble") {
+		// Jianying's RotateFlyOut: cubic-in shrink to zero with spin and
+		// drop; the glyph vanishes by scale, not by fading.
+		const out = role === "entrance" ? 1 - progress : progress;
+		const drive = out ** 3;
+		const scale = Math.max(0, 1 - drive);
+		visual.scaleX = scale;
+		visual.scaleY = scale;
+		visual.rotationDeg = effect.spinDeg * drive;
+		visual.translateY =
+			resolveDistance({ distance: effect.drop, layout }) * drive;
+		if (effect.fade) visual.opacity = presence;
+	}
+	if (effect.kind === "scatter") {
+		// Seeded dispersal: each unit picks its own direction and spin, and
+		// with flicker enabled it strobes while it flies (Jianying's 闪烁散开
+		// vs 随机飞出).
+		const dispersal = role === "entrance" ? 1 - progress : progress;
+		const heading =
+			seededValue({
+				seed: effect.seed,
+				unitIndex: unit.index,
+				particleIndex: 0,
+				channel: 0,
+			}) *
+			Math.PI *
+			2;
+		// Jianying holds the character near home through the first half and
+		// only drifts late; the strobe carries the early phase.
+		const drift = Math.max(0, dispersal - 0.5) * 2;
+		const travel =
+			resolveDistance({ distance: effect.distance, layout }) * drift ** 2;
+		visual.translateX = Math.cos(heading) * travel;
+		visual.translateY = Math.sin(heading) * travel;
+		visual.rotationDeg =
+			(seededValue({
+				seed: effect.seed,
+				unitIndex: unit.index,
+				particleIndex: 0,
+				channel: 1,
+			}) -
+				0.5) *
+			2 *
+			effect.rotateDeg *
+			dispersal;
+		const strobe = effect.flicker
+			? Math.sin(
+					dispersal * Math.PI * 26 +
+						seededValue({
+							seed: effect.seed,
+							unitIndex: unit.index,
+							particleIndex: 0,
+							channel: 2,
+						}) *
+							Math.PI *
+							2
+				) > -0.35
+				? 1
+				: 0.3
+			: 1;
+		// Brightness stays full until the late drift; the strobe reads as
+		// flicker rather than a fade-out.
+		visual.opacity = clampUnitInterval({
+			value: (1 - drift ** 2) * strobe,
+		});
+	}
 	if (effect.kind === "orbit") {
 		const sign = effect.rotation === "clockwise" ? 1 : -1;
 		const radialProgress = role === "entrance" ? 1 - progress : progress;
@@ -587,7 +717,9 @@ function edgeVisual({
 			resolveDistance({ distance: effect.radius, layout }) * radialProgress;
 		visual.translateX = Math.cos(angle) * radius;
 		visual.translateY = Math.sin(angle) * radius;
-		visual.rotationDeg = (angle * 180) / Math.PI;
+		if (effect.spin !== false) {
+			visual.rotationDeg = (angle * 180) / Math.PI;
+		}
 		if (effect.fade) visual.opacity = presence;
 	}
 	if (effect.kind === "laser") {

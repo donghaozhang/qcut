@@ -41,7 +41,7 @@ export function TextAnimationPresetGrid({
 			value={selectedPresetId}
 			orientation="horizontal"
 			loop
-			className="grid w-full grid-cols-3 items-stretch gap-2"
+			className="grid w-full grid-cols-4 items-stretch gap-1.5"
 			onValueChange={(presetId) => {
 				if (!presetId) return;
 				const preset = presetById.get(presetId);

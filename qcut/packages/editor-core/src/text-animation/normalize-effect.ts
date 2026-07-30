@@ -174,6 +174,16 @@ export function normalizeTextAnimationEffect({
 		const pulseRecord = asRecord({ value: record.pulse });
 		return {
 			kind: "scale",
+			...(typeof record.shakeEm === "number" && record.shakeEm > 0
+				? {
+						shakeEm: numberInRange({
+							value: record.shakeEm,
+							fallback: 0.05,
+							minimum: 0,
+							maximum: 1,
+						}),
+					}
+				: {}),
 			hiddenScale: numberInRange({
 				value: record.hiddenScale,
 				fallback: 0.6,
@@ -256,6 +266,7 @@ export function normalizeTextAnimationEffect({
 				fallback: { value: 2, unit: "em" },
 			}),
 			...(record.ring === true ? { ring: true } : {}),
+			...(record.spin === false ? { spin: false } : {}),
 			fade,
 		};
 	}
@@ -351,6 +362,117 @@ export function normalizeTextAnimationEffect({
 		return normalizeTextAnimationEffect({
 			value: { kind: "jitter" },
 		});
+	}
+	if (record.kind === "arc") {
+		return {
+			kind: "arc",
+			riseEm: numberInRange({
+				value: record.riseEm,
+				fallback: 0.45,
+				minimum: 0,
+				maximum: 4,
+			}),
+			tiltDeg: numberInRange({
+				value: record.tiltDeg,
+				fallback: 14,
+				minimum: -90,
+				maximum: 90,
+			}),
+		};
+	}
+	if (record.kind === "squeeze") {
+		return {
+			kind: "squeeze",
+			amount: numberInRange({
+				value: record.amount,
+				fallback: 0.45,
+				minimum: 0,
+				maximum: 0.95,
+			}),
+			spatialCycles: numberInRange({
+				value: record.spatialCycles,
+				fallback: 1.2,
+				minimum: 0.1,
+				maximum: 8,
+			}),
+		};
+	}
+	if (record.kind === "fold") {
+		return {
+			kind: "fold",
+			minimumScale: numberInRange({
+				value: record.minimumScale,
+				fallback: 0.05,
+				minimum: 0.01,
+				maximum: 1,
+			}),
+			phaseStepDeg: numberInRange({
+				value: record.phaseStepDeg,
+				fallback: 90,
+				minimum: 0,
+				maximum: 360,
+			}),
+		};
+	}
+	if (record.kind === "spiral") {
+		return {
+			kind: "spiral",
+			turns: numberInRange({
+				value: record.turns,
+				fallback: 1.25,
+				minimum: 0.1,
+				maximum: 10,
+			}),
+			radius: normalizeDistance({
+				value: record.radius,
+				fallback: { value: 0.8, unit: "em" },
+			}),
+			drop: normalizeDistance({
+				value: record.drop,
+				fallback: { value: 1.1, unit: "boxHeight" },
+			}),
+			fade,
+		};
+	}
+	if (record.kind === "tumble") {
+		return {
+			kind: "tumble",
+			spinDeg: numberInRange({
+				value: record.spinDeg,
+				fallback: -720,
+				minimum: -3600,
+				maximum: 3600,
+			}),
+			drop: normalizeDistance({
+				value: record.drop,
+				fallback: { value: 2, unit: "em" },
+			}),
+			fade,
+		};
+	}
+	if (record.kind === "scatter") {
+		return {
+			kind: "scatter",
+			distance: normalizeDistance({
+				value: record.distance,
+				fallback: { value: 2, unit: "em" },
+			}),
+			flicker: record.flicker === true,
+			rotateDeg: numberInRange({
+				value: record.rotateDeg,
+				fallback: 45,
+				minimum: 0,
+				maximum: 360,
+			}),
+			seed: Math.trunc(
+				numberInRange({
+					value: record.seed,
+					fallback: 1,
+					minimum: 0,
+					maximum: 0xffff_ffff,
+				})
+			),
+		};
 	}
 	if (record.kind === "flip") {
 		return {
