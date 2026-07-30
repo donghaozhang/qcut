@@ -254,12 +254,14 @@ export function effectForPreset({
 		case "loop:arc-up":
 			return { kind: "arc", riseEm: 0.45, tiltDeg: 14 };
 		case "exit:spiral-down":
+			// Reference tumbles at full brightness and vanishes by falling
+			// away, not by fading.
 			return {
 				kind: "spiral",
 				turns: 1.25,
-				radius: { value: 0.8, unit: "em" },
-				drop: { value: 1.1, unit: "boxHeight" },
-				fade: true,
+				radius: { value: 1.4, unit: "em" },
+				drop: { value: 1.2, unit: "boxHeight" },
+				fade: false,
 			};
 		case "exit:elastic-out":
 			// Captured reference: characters tumble upside down while they
@@ -301,12 +303,14 @@ export function effectForPreset({
 				fade: false,
 			};
 		case "exit:shrink-shake":
+			// Reference stays big and bright as a motion-blur smear; only the
+			// scale collapse ends it.
 			return {
 				kind: "scale",
-				shakeEm: 0.06,
-				hiddenScale: 0.15,
+				shakeEm: 0.09,
+				hiddenScale: 0.3,
 				overshoot: 0,
-				fade: true,
+				fade: false,
 			};
 		case "entrance:scale-up":
 			// Jianying's EnlargeIn.lua: scale 0.5 -> 1 and alpha 0 -> 1, both
@@ -499,6 +503,19 @@ export function easingForPreset({
 	presetId: string;
 }): TextAnimationEasing {
 	if (phase === "loop" || presetId === "bounce-up") {
+		return "linear";
+	}
+	if (
+		presetId === "fly-up-out" ||
+		presetId === "elastic-out" ||
+		presetId === "random-fly-out" ||
+		presetId === "flicker-scatter" ||
+		presetId === "spiral-down" ||
+		presetId === "shrink-shake"
+	) {
+		// These effects carry their own drive curves (cubic-in tumble, squared
+		// spiral drop, hold-then-drift scatter); their Lua references run on
+		// linear time, and an eased phase would double-bend the motion.
 		return "linear";
 	}
 	if (presetId.includes("typewriter") || presetId === "cursor-typewriter") {

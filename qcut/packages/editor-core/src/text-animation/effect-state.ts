@@ -670,8 +670,11 @@ function edgeVisual({
 			}) *
 			Math.PI *
 			2;
+		// Jianying holds the character near home through the first half and
+		// only drifts late; the strobe carries the early phase.
+		const drift = Math.max(0, dispersal - 0.5) * 2;
 		const travel =
-			resolveDistance({ distance: effect.distance, layout }) * dispersal ** 2;
+			resolveDistance({ distance: effect.distance, layout }) * drift ** 2;
 		visual.translateX = Math.cos(heading) * travel;
 		visual.translateY = Math.sin(heading) * travel;
 		visual.rotationDeg =
@@ -696,11 +699,15 @@ function edgeVisual({
 						}) *
 							Math.PI *
 							2
-				) > 0
+				) > -0.35
 				? 1
 				: 0.3
 			: 1;
-		visual.opacity = clampUnitInterval({ value: presence * strobe });
+		// Brightness stays full until the late drift; the strobe reads as
+		// flicker rather than a fade-out.
+		visual.opacity = clampUnitInterval({
+			value: (1 - drift ** 2) * strobe,
+		});
 	}
 	if (effect.kind === "orbit") {
 		const sign = effect.rotation === "clockwise" ? 1 : -1;
