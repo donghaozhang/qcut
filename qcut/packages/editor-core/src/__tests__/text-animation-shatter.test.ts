@@ -155,3 +155,64 @@ describe("shatter tile math (LumiDust port)", () => {
 		);
 	});
 });
+
+describe("shatter persistence guards", () => {
+	it("forces a container target for shatter and burst phases", async () => {
+		const { normalizeTextAnimations } = await import(
+			"../text-animation/index.js"
+		);
+		const { createElement } = await import("./text-animation-test-helpers.js");
+		for (const effect of [
+			{
+				kind: "shatter" as const,
+				tilePx: 4,
+				distortion: 0.2,
+				gravity: { value: 0.2, unit: "em" as const },
+				gravityRotDeg: 180,
+				front: "noise" as const,
+				frontRotDeg: 0,
+				feather: 0.5,
+			},
+			{
+				kind: "burst" as const,
+				shape: "coin" as const,
+				count: 10,
+				speed: { value: 3, unit: "em" as const },
+				directionDeg: 0,
+				spreadDeg: 360,
+				gravity: { value: 1, unit: "em" as const },
+				lifeRandom: 0.4,
+				sizeEm: 0.4,
+				sizeRandom: 0.3,
+				palette: ["#fff"],
+				flutter: 0.2,
+				seed: 1,
+			},
+		]) {
+			// A hand-edited or legacy project could persist a per-unit target,
+			// which would drop the shatter or duplicate every particle.
+			const element = createElement({
+				overrides: {
+					content: "AB",
+					textAnimations: {
+						schemaVersion: 1,
+						exit: {
+							timing: { duration: 1, delay: 0, easing: "linear" },
+							sequence: {
+								unit: "grapheme",
+								order: "forward",
+								staggerRatio: 0.5,
+								seed: 1,
+							},
+							target: "text",
+							effect,
+						},
+					},
+				},
+			});
+			const exit = normalizeTextAnimations({ element }).animation?.exit;
+			expect(exit?.target).toBe("textAndBackground");
+			expect(exit?.sequence.unit).toBe("all");
+		}
+	});
+});

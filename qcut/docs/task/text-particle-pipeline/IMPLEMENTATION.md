@@ -229,9 +229,9 @@ apps/web/src/lib/i18n/translations.ts
 
 | 风险 | 对策 |
 |---|---|
-| tile 循环预览性能(长文本大字号)| tilePx 随字号自适应;上限 tile 数护栏(类比 MAX_DECORATIONS)|
+| tile 循环预览性能(长文本大字号)| **已实现**:`MAX_SHATTER_TILES = 8000` 超预算时自动放大有效 tile(成本恒定、覆盖不变);raster 尺寸由描边/阴影实际外延推导而非固定 96px;raster 跨帧复用 |
 | DOM 预设卡无法表达 tile 位移 | 卡片走 canvas 帧或静态近似;真预览面板本来就是 canvas |
-| 彩带/福袋包可能全加密 | prefab strings + 帧标定兜底(碎落已证明此路可行)|
+| 彩带/福袋包可能全加密 | **已发生且已绕过**:两者根本不是程序化效果(烘焙 alpha 视频 / 预渲染 3D),改为程序化近似并记录为已知差异 |
 | DeepGlow 发光缺失 | blurPx + 亮色描边近似;明确标注为已知差异 |
 | 出场 easing 双重弯曲 | 新预设一律显式 linear(P3 验收项)|
 
