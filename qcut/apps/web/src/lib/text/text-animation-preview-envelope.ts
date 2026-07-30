@@ -304,9 +304,7 @@ function resolveEffectEnvelope({
 		}
 		if (effect.spin !== false) {
 			envelope.rotationDeg =
-				360 *
-				effect.turns *
-				Math.max(1, maximumAbsolute({ range: progress }));
+				360 * effect.turns * Math.max(1, maximumAbsolute({ range: progress }));
 		}
 		return envelope;
 	}
