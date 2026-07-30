@@ -14,6 +14,7 @@ import {
 } from "@/lib/stickers/local-sticker-reference";
 import type {
 	LocalStickerPlayback,
+	RemoteStickerProvenance,
 	StickerLabCatalog,
 } from "@/lib/stickers/local-sticker-manifest";
 import { cn } from "@/lib/utils";
@@ -69,9 +70,11 @@ function isAbortError({ error }: { error: unknown }): boolean {
 
 function LocalStickerReferenceItem({
 	onSelect,
+	provenance,
 	reference,
 }: {
 	onSelect: ({ file }: { file: File }) => Promise<void>;
+	provenance?: RemoteStickerProvenance;
 	reference: StickerLabReference;
 }) {
 	const [loaded, setLoaded] = useState<LoadedReference | null>(null);
@@ -95,6 +98,7 @@ function LocalStickerReferenceItem({
 		const loadPreview = async () => {
 			try {
 				const file = await loadStickerLabReferenceFile({
+					provenance,
 					reference,
 					signal: abortController.signal,
 				});
@@ -117,7 +121,7 @@ function LocalStickerReferenceItem({
 			abortController.abort();
 			if (previewUrl) URL.revokeObjectURL(previewUrl);
 		};
-	}, [loadKey, reference]);
+	}, [loadKey, provenance, reference]);
 
 	const handleSelect = async () => {
 		if (!activeLoaded || isAdding) return;
@@ -256,6 +260,7 @@ export function LocalStickerReferencePanel({
 	);
 	const categoryTabRefs = useRef(new Map<string, HTMLButtonElement>());
 	const categories = catalog?.categories ?? [];
+	const provenance = catalog?.version === 2 ? catalog.provenance : undefined;
 	const selectedCategory =
 		categories.find((category) => category.id === selectedCategoryId) ??
 		categories[0];
@@ -388,6 +393,7 @@ export function LocalStickerReferencePanel({
 								{selectedCategory.items.map((reference) => (
 									<LocalStickerReferenceItem
 										key={reference.id}
+										provenance={provenance}
 										reference={reference}
 										onSelect={onSelect}
 									/>
