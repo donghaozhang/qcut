@@ -333,6 +333,84 @@ describe("local sticker manifest", () => {
 		).rejects.toThrow("exceeds 1048576 bytes");
 	});
 
+	it("bounds streamed manifest responses without a content length", async () => {
+		const read = vi
+			.fn()
+			.mockResolvedValueOnce({
+				done: false,
+				value: new Uint8Array(1024 * 1024),
+			})
+			.mockResolvedValueOnce({
+				done: false,
+				value: new Uint8Array([0]),
+			});
+		const cancel = vi.fn().mockResolvedValue(undefined);
+		const releaseLock = vi.fn();
+		const response = {
+			body: {
+				getReader: () => ({ cancel, read, releaseLock }),
+			},
+			headers: new Headers(),
+			ok: true,
+			status: 200,
+		} as unknown as Response;
+
+		await expect(
+			loadRemoteStickerManifest({
+				manifestUrl: "/streamed-oversized.json",
+				fetchImpl: async () => response,
+			})
+		).rejects.toThrow("exceeds 1048576 bytes");
+		expect(read).toHaveBeenCalledTimes(2);
+		expect(cancel).toHaveBeenCalledTimes(1);
+		expect(releaseLock).toHaveBeenCalledTimes(1);
+	});
+
+	it("rejects remote manifest responses without a readable body", async () => {
+		const responseWithoutReader = {
+			body: { getReader: () => null },
+			headers: new Headers(),
+			ok: true,
+			status: 200,
+		} as unknown as Response;
+
+		await expect(
+			loadRemoteStickerManifest({
+				manifestUrl: "/missing-body.json",
+				fetchImpl: async () => new Response(null, { status: 200 }),
+			})
+		).rejects.toThrow("Unable to fetch sticker lab manifest");
+		await expect(
+			loadRemoteStickerManifest({
+				manifestUrl: "/missing-reader.json",
+				fetchImpl: async () => responseWithoutReader,
+			})
+		).rejects.toThrow("Unable to fetch sticker lab manifest");
+	});
+
+	it("cancels the manifest reader when streaming fails", async () => {
+		const read = vi.fn().mockRejectedValue(new Error("stream failed"));
+		const cancel = vi.fn().mockResolvedValue(undefined);
+		const releaseLock = vi.fn();
+		const response = {
+			body: {
+				getReader: () => ({ cancel, read, releaseLock }),
+			},
+			headers: new Headers(),
+			ok: true,
+			status: 200,
+		} as unknown as Response;
+
+		await expect(
+			loadRemoteStickerManifest({
+				manifestUrl: "/failed-stream.json",
+				fetchImpl: async () => response,
+			})
+		).rejects.toThrow("stream failed");
+		expect(cancel).toHaveBeenCalledTimes(1);
+		expect(releaseLock).toHaveBeenCalledTimes(1);
+	});
+
 	it("does not let a fetched v1 manifest select arbitrary local files", async () => {
 		await expect(
 			loadRemoteStickerManifest({
